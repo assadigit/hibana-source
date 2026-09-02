@@ -100,14 +100,19 @@ export function coreRoutes(cfg: Config) {
     const now = new Date().toISOString()
     const ids: string[] = []
     let sortOrder = sort[0].n
-    for (const line of lines) {
-      const id = uuid()
-      ids.push(id)
-      await cfg.db.execute('INSERT INTO hurdles (id, project_id, text, status, sort_order, created_at) VALUES (?, ?, ?, ?, ?, ?)', [
-        id, p.id, line.slice(0, 500), 'open', sortOrder++, now,
-      ])
-    }
-    await cfg.db.execute('UPDATE projects SET updated_at = ? WHERE id = ?', [now, p.id])
+    // P3.2 (F-M3): wrap the multi-line INSERTs + the projects.updated_at touch in ONE
+    // transaction. Was up to 50 sequential round trips, not atomic — a failure mid-loop
+    // left partial rows AND the UPDATE still ran. Now batched: all-or-nothing.
+    await cfg.db.transaction(async (tx) => {
+      for (const line of lines) {
+        const id = uuid()
+        ids.push(id)
+        tx.sql('INSERT INTO hurdles (id, project_id, text, status, sort_order, created_at) VALUES (?, ?, ?, ?, ?, ?)', [
+          id, p.id, line.slice(0, 500), 'open', sortOrder++, now,
+        ])
+      }
+      tx.sql('UPDATE projects SET updated_at = ? WHERE id = ?', [now, p.id])
+    })
     if (c.req.header('HX-Request')) {
       // Re-render the list fragment so the htmx swap is deterministic (no HX-Retarget dance).
       const hurdles = await cfg.db.query<HurdleRow>('SELECT * FROM hurdles WHERE project_id = ? ORDER BY sort_order, created_at', [p.id])

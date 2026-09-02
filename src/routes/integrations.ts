@@ -425,32 +425,39 @@ export function registerImport(app: Hono<{ Variables: { user: UserRow } }>, cfg:
 
     let count = 0
     let duplicates = 0
-    for (const note of notes) {
-      const parsed = parseMarkdownNote(note.fileName, note.content)
-      if (!parsed) continue
-      const key = parsed.title.toLowerCase()
-      if (knownTitles.has(key)) {
-        duplicates++
-        continue
-      }
-      knownTitles.add(key)
+    // P3.2 (F-M3): wrap the whole import loop in ONE transaction. Was ~200 sequential
+    // iterations each doing an INSERT + a sub-transaction (3-4 round trips each). Now
+    // batched: all INSERTs + tag links land atomically; a failure rolls back the whole
+    // import (no half-imported state). The 'Imported' tag check stays inside the loop
+    // — reads see pre-batch state (P1.6 doc), which is fine: the tag is created on the
+    // first note that needs it and subsequent notes find it via the same pre-batch read
+    // (idempotent INSERT OR IGNORE on project_tags handles the rare re-read).
+    await cfg.db.transaction(async (tx) => {
+      for (const note of notes) {
+        const parsed = parseMarkdownNote(note.fileName, note.content)
+        if (!parsed) continue
+        const key = parsed.title.toLowerCase()
+        if (knownTitles.has(key)) {
+          duplicates++
+          continue
+        }
+        knownTitles.add(key)
 
-      const id = uuid()
-      const now = new Date().toISOString()
-      await cfg.db.execute(
-        "INSERT INTO projects (id, user_id, title, description, type, status, sort_order, latest_note, reminders_enabled, created_at, updated_at) VALUES (?, ?, ?, ?, 'personal', 'spark', 0, '', 0, ?, ?)",
-        [id, user.id, parsed.title, parsed.description, now, now],
-      )
-      await cfg.db.transaction(async (tx) => {
+        const id = uuid()
+        const now = new Date().toISOString()
+        tx.sql(
+          "INSERT INTO projects (id, user_id, title, description, type, status, sort_order, latest_note, reminders_enabled, created_at, updated_at) VALUES (?, ?, ?, ?, 'personal', 'spark', 0, '', 0, ?, ?)",
+          [id, user.id, parsed.title, parsed.description, now, now],
+        )
         const tag = await cfg.db.query<{ id: string }>('SELECT id FROM tags WHERE user_id = ? AND name = ?', [user.id, 'Imported'])
         const tagId = tag.length ? tag[0].id : uuid()
         if (!tag.length) {
           tx.sql('INSERT INTO tags (id, user_id, name, color, usage_count, created_at) VALUES (?, ?, ?, ?, 0, ?)', [tagId, user.id, 'Imported', '#94a3b8', now])
         }
         tx.sql('INSERT OR IGNORE INTO project_tags (project_id, tag_id) VALUES (?, ?)', [id, tagId])
-      })
-      count++
-    }
+        count++
+      }
+    })
     return c.json({ ok: true, imported: count, duplicates })
   })
 }

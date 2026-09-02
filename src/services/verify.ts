@@ -1,5 +1,6 @@
 import type { Db } from '../db/types'
 import { uuid } from '../lib/ids'
+import { timingSafeEqualStr } from '../lib/crypto'
 import { sha256Hex } from './reset'
 
 // Email-code confirmation for NEW accounts (spec §4.14): register creates an UNVERIFIED
@@ -60,7 +61,11 @@ export async function verifyEmailCode(db: Db, userId: string, code: string): Pro
     return 'expired'
   }
   const hash = await sha256Hex(code)
-  if (hash !== row.code_hash) {
+  // P2.3 (F-L12): constant-time compare. Both are SHA-256 hex (64 chars, fixed length) so
+  // the length-leak in timingSafeEqualStr is not exploitable here. The 5-attempt cap makes
+  // practical exploitation negligible, but this closes the discipline gap with password.ts
+  // and captcha.ts (both already constant-time).
+  if (!timingSafeEqualStr(hash, row.code_hash)) {
     const attempts = row.attempts + 1
     await db.execute('UPDATE email_verifications SET attempts = ? WHERE id = ?', [attempts, row.id])
     if (attempts >= EMAIL_CODE_MAX_ATTEMPTS) await markUsed(db, row.id)

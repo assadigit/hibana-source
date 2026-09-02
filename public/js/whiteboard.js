@@ -274,6 +274,45 @@ window.hibanaNotebook = (() => {
     return tryLoad(true).catch(() => tryLoad(false))
   }
 
+  // P4.1 (F-H2): dark-mode ink filter inverts placed photos. The CSS on #nb-board is
+  // `filter: var(--nb-ink)` where --nb-ink = `invert(1) hue-rotate(180deg) brightness(0.9)`
+  // in dark mode. This makes pen strokes / text / sticky paper render as ink-in-dark (the
+  // intended look), but it ALSO inverts placed photos — a screenshot becomes a negative.
+  // The fix: apply a COUNTER-filter at the Fabric-object level so the composition is
+  // identity on images only. CSS `invert(1) hue-rotate(180deg)` = hue_rotate(invert(p)).
+  // To undo it, the Fabric filter must produce p' = invert(hue_rotate(180)(p)) so that
+  // hue_rotate(180)(invert(p')) = p. So: HueRotation(π) FIRST, then Invert. (brightness(0.9)
+  // tail is NOT countered — it slightly dims the image in dark mode, which is acceptable;
+  // countering it would require a Brightness filter and adds complexity for a 10% dim.)
+  function boardIsDark() {
+    const el = document.getElementById('nb-board')
+    if (!el) return false
+    const v = getComputedStyle(el).getPropertyValue('--nb-ink')?.trim()
+    return !!v && v !== 'none' && v !== ''
+  }
+
+  function applyDarkInvertCounterFilter(obj) {
+    if (!boardIsDark()) return
+    obj.filters = obj.filters ?? []
+    // Order matters: HueRotation FIRST, then Invert (see the math comment above).
+    obj.filters.push(new fabric.Image.filters.HueRotation({ rotation: Math.PI }))
+    obj.filters.push(new fabric.Image.filters.Invert())
+    obj.applyFilters()
+  }
+
+  // Re-apply (or clear) the counter-filter on every image when the theme changes.
+  function reapplyDarkInvertFilters() {
+    if (!canvas) return
+    const dark = boardIsDark()
+    canvas.getObjects().forEach((obj) => {
+      if (obj.type !== 'image') return
+      obj.filters = []
+      if (dark) applyDarkInvertCounterFilter(obj)
+      else obj.applyFilters()
+    })
+    canvas.renderAll()
+  }
+
   // Rounded frame box holds the picture contain-fit (object-fit: contain) — the whole
   // image is visible and centered inside the frame whatever its aspect; the contain math
   // runs at draw time off width/height × scale, so frame resizes re-fit the picture
@@ -295,6 +334,7 @@ window.hibanaNotebook = (() => {
       ctx.drawImage(e, 0, 0, sw, sh, -w / 2, -h / 2, w, h)
     }
     obj.clipPath = new fabric.Rect({ left: -width / 2, top: -height / 2, width, height, rx: IMG_RADIUS, ry: IMG_RADIUS })
+    applyDarkInvertCounterFilter(obj)
     return obj
   }
 
@@ -817,6 +857,13 @@ window.hibanaNotebook = (() => {
       document.fonts.ready.then(reflowTextMetrics)
       document.fonts.addEventListener?.('loadingdone', reflowTextMetrics)
     }
+
+    // P4.1 (F-H2): re-apply the dark-invert counter-filter on theme change. Watches both
+    // the manual toggle (html[data-theme] attribute) and the system preference. On toggle,
+    // every image object's filters are cleared + re-applied (or removed if switching to light).
+    new MutationObserver(reapplyDarkInvertFilters).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] })
+    const mq = matchMedia('(prefers-color-scheme: dark)')
+    mq.addEventListener?.('change', reapplyDarkInvertFilters)
 
     page = ui.page
     sizeToPage()

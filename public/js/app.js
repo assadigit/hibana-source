@@ -737,13 +737,11 @@ window.hibana = (() => {
             return
           }
           card.remove()
-          toast(_t('notes.deleted', 'Note deleted'), 'info', 6000)
-          const toastEl = document.getElementById('toast')
-          if (toastEl) {
-            const undo = document.createElement('button')
-            undo.className = 'ghost'
-            undo.textContent = _t('notes.undo', 'Undo')
-            undo.addEventListener('click', () => {
+          // P4.11 (F-L24): use the toast() actions API (the canonical pattern) instead of
+          // post-hoc appending a button to the toast element.
+          toast(_t('notes.deleted', 'Note deleted'), 'info', 6000, [{
+            label: _t('common.undo', 'Undo'),
+            onClick: () => {
               const mode = document.querySelector('form[data-note-compose] input[name="kind"]')?.value
               const qs = mode === 'list' || mode === 'note' ? `?mode=${mode}` : ''
               fetch(`/api/notes/${id}/restore`, { method: 'POST' })
@@ -753,9 +751,8 @@ window.hibana = (() => {
                   }
                 })
                 .catch(() => {})
-            })
-            toastEl.appendChild(undo)
-          }
+            },
+          }])
         })
         .catch(() => toast(_t('notes.deleteFailed', "Couldn't delete the note"), 'err'))
     }

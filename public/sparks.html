@@ -264,19 +264,16 @@
                 return
               }
               card.remove()
-              window.hibana?.toast(_t('sparks.deleted', 'Spark deleted'), 'info', 6000)
-              const toastEl = document.getElementById('toast')
-              if (toastEl) {
-                const undo = document.createElement('button')
-                undo.className = 'ghost'
-                undo.textContent = _t('common.undo', 'Undo')
-                undo.addEventListener('click', () => {
+              // P4.11 (F-L24): use the toast() actions API (canonical pattern) instead of
+              // post-hoc appending a button to the toast element.
+              window.hibana?.toast(_t('sparks.deleted', 'Spark deleted'), 'info', 6000, [{
+                label: _t('common.undo', 'Undo'),
+                onClick: () => {
                   fetch('/api/projects/' + id + '/restore', { method: 'POST' })
                     .then((r2) => { if (r2.ok) reloadShelf() })
                     .catch(() => {})
-                })
-                toastEl.appendChild(undo)
-              }
+                },
+              }])
               reloadShelf() // fresh server order (also renders the empty state after the last card)
             })
             .catch(() => window.hibana?.toast(_t('sparks.deleteFailed', "Couldn't delete the spark"), 'err'))

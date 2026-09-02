@@ -10,6 +10,8 @@
 // the whole point), but they're no longer pre-split for a bot; parsing the question string
 // is the same work a human does to read it.
 
+import { timingSafeEqualStr } from '../lib/crypto'
+
 const CAPTCHA_TTL_MS = 10 * 60 * 1000
 
 const enc = new TextEncoder()
@@ -21,12 +23,7 @@ async function hmacHex(secret: string, payload: string): Promise<string> {
   return [...new Uint8Array(sig)].map((x) => x.toString(16).padStart(2, '0')).join('')
 }
 
-function timingSafeEqual(a: string, b: string): boolean {
-  if (a.length !== b.length) return false
-  let diff = 0
-  for (let i = 0; i < a.length; i++) diff |= a.charCodeAt(i) ^ b.charCodeAt(i)
-  return diff === 0
-}
+// timingSafeEqualStr moved to src/lib/crypto.ts (P2.2 / F-L28).
 
 /** The human-readable question (e.g. "14 + 4 ="). */
 const questionOf = (ch: Challenge) => `${ch.a} ${ch.op} ${ch.b} =`
@@ -89,7 +86,7 @@ export async function verifyMathCaptcha(
   if (!m) return 'invalid'
   const ch: Challenge = { a: Number(m[1]), op: m[2], b: Number(m[3]), expS }
   const expect = await hmacHex(secret, payloadOf(ch))
-  if (!timingSafeEqual(sig, expect)) return 'invalid'
+  if (!timingSafeEqualStr(sig, expect)) return 'invalid'
   if (Date.now() / 1000 > ch.expS) return 'expired'
   const expected = ch.op === '+' ? ch.a + ch.b : ch.a - ch.b
   return normalizeDigits(String(answer ?? '')) === String(expected) ? 'ok' : 'invalid'

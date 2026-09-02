@@ -2,6 +2,8 @@
 // so this is the documented, dependency-free alternative. Iterations are stored in the hash
 // string so they can be raised later without invalidating existing hashes.
 
+import { timingSafeEqual } from '../lib/crypto'
+
 const ITERATIONS = 100_000 // >= 100,000 per rule 6
 const KEY_LEN_BITS = 256
 const SALT_BYTES = 16
@@ -48,10 +50,4 @@ export async function verifyPassword(password: string, stored: PasswordHash): Pr
   return timingSafeEqual(bits, expected)
 }
 
-// Web Crypto has no constant-time compare; this XOR-fold is the standard replacement.
-function timingSafeEqual(a: Uint8Array, b: Uint8Array): boolean {
-  if (a.length !== b.length) return false
-  let diff = 0
-  for (let i = 0; i < a.length; i++) diff |= a[i] ^ b[i]
-  return diff === 0
-}
+// timingSafeEqual moved to src/lib/crypto.ts (P2.2 / F-L28).

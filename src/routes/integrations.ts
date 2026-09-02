@@ -7,19 +7,13 @@ import { esc, requestOrigin } from '../lib/http'
 import { clientIp, hitRateLimit, RATE_RULES } from '../services/ratelimit'
 import { createResetToken } from '../services/reset'
 import { sendTelegramMessage } from '../services/telegram'
+import { timingSafeEqualStr } from '../lib/crypto'
 import type { Config, UserRow } from '../types'
 import type { Db } from '../db/types'
 
 // Telegram bot (spec §9 + §4.10) + Obsidian import (spec §9).
 
-/** Constant-time string compare for webhook secrets (length mismatch also returns fast,
- * which only reveals the length — the secret length is not sensitive). */
-function timingSafeEqual(a: string, b: string): boolean {
-  if (a.length !== b.length) return false
-  let diff = 0
-  for (let i = 0; i < a.length; i++) diff |= a.charCodeAt(i) ^ b.charCodeAt(i)
-  return diff === 0
-}
+// timingSafeEqualStr moved to src/lib/crypto.ts (P2.2 / F-L28).
 // register*() functions add routes directly to the ROOT Hono app, before any sub-app at
 // '/' — this is deliberate: coreRoutes has a global requireAuth middleware that would
 // otherwise intercept the (public) Telegram webhook. Root-level routes are matched first
@@ -120,7 +114,7 @@ export function registerTelegram(app: Hono<{ Variables: { user: UserRow } }>, cf
   // oracle on how many leading bytes match.
   app.post('/api/telegram/webhook', webhookLimiter, async (c) => {
     const secret = c.req.header('X-Telegram-Bot-Api-Secret-Token')
-    if (!secret || !cfg.telegramSecret || !timingSafeEqual(secret, cfg.telegramSecret)) return c.json({ error: 'forbidden' }, 403) // rule 11
+    if (!secret || !cfg.telegramSecret || !timingSafeEqualStr(secret, cfg.telegramSecret)) return c.json({ error: 'forbidden' }, 403) // rule 11
     const token = cfg.telegramToken
     if (!token) return c.json({ error: 'telegram_not_configured' }, 503)
 

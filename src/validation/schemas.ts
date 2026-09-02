@@ -106,7 +106,7 @@ export const uploadScreenshotSchema = z.object({
   id: z.string().uuid().optional(),
   fileName: z.string().min(1).max(200),
   mimeType: z.string().regex(/^image\/(png|jpeg|webp|gif)$/),
-  dataBase64: z.string().min(1).max(140_000_000), // well under GitHub's 100MB cap (spec §8)
+  dataBase64: z.string().min(1).max(5_000_000), // P1.1 (F-H1): 5 MB base64 (~3.7 MB binary) — ample for a screenshot. Was 140 MB which EXCEEDED GitHub's 100 MB cap and would OOM the Worker.
   caption: z.string().max(1000).optional().default(''),
 })
 

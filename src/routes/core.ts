@@ -262,6 +262,11 @@ export function coreRoutes(cfg: Config) {
   })
 
   app.post('/api/projects/:projectId/screenshots', async (c) => {
+    // P1.1 (F-H1): reject oversized uploads BEFORE jsonBody() buffers the whole body — a
+    // 140 MB base64 payload would OOM the Worker. 7 MB Content-Length ceiling sits above
+    // the 5 MB base64 Zod cap (which rejects the rest), so legit screenshots never trip it.
+    const cl = Number(c.req.header('Content-Length') ?? 0)
+    if (cl > 7_000_000) return c.json({ error: 'file_too_large' }, 413)
     const body = await jsonBody<z.infer<typeof uploadScreenshotSchema>>(c, uploadScreenshotSchema)
     if (!body) return c.json({ error: 'invalid_input' }, 400)
     const user = c.get('user')

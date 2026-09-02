@@ -1,0 +1,241 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Progress board — Hibana</title>
+  <link rel="stylesheet" href="/css/app.css?v=185">
+  <link rel="stylesheet" href="/vendor/manrope/font-face.css">
+  <script src="/vendor/htmx.min.js" defer></script>
+  <script src="/js/boot.js"></script>
+  <script src="/vendor/alpine.min.js" defer></script>
+  <script src="/js/app.js?v=158" defer></script>
+  <script src="/js/touch-drag.js" defer></script>
+  <script src="/js/nav.js" defer></script>
+  <script src="/js/command-palette.js" defer></script>
+  <script src="/js/mobile-nav.js?v=4" defer></script>
+  <script src="/js/zen-mode.js" defer></script>
+  <script src="/js/micro-interactions.js" defer></script>
+  <script src="/js/go-to.js" defer></script>
+  <script src="/js/i18n.js?v=26" defer></script>
+  <script src="/vendor/jalaali.min.js"></script>
+  <script src="/js/devboard.js?v=9" defer></script>
+</head>
+<body>
+  <div data-nav></div>
+  <!-- shell-flush (batch p): the board page goes FULL-WIDTH (user request 2026-09-06) —
+       the five columns take the whole viewport instead of the 64rem reading measure. -->
+  <main class="shell shell-flush">
+    <div class="db-toolbar card" id="db-toolbar">
+      <a class="btn ghost small" href="/" data-back-link>← <span data-i18n="db.backToProject">Back to project</span></a>
+      <h2 id="db-title" class="db-title">…</h2>
+      <span class="muted small" id="db-counts"></span>
+      <span class="db-flex-gap"></span>
+      <a class="btn ghost small" id="db-sprint-link" href="#"><span data-i18n="db.sprints">Sprints</span></a>
+    </div>
+    <div class="db-loading" id="db-loading" role="status"><span data-i18n="db.loading">Loading board…</span></div>
+    <div class="db-board" id="db-board" hidden></div>
+  </main>
+  <script>
+    window.__hibanaPage = window.__hibanaPage || ((d) => (window.__hibanaPageQueue = window.__hibanaPageQueue || []).push(d))
+    window.__hibanaPage({
+      name: 'board',
+      mount(ctx) {
+        const B = () => window.HibanaBoard
+        const qs = new URLSearchParams(location.search)
+        const projectId = qs.get('project')
+        const openTask = qs.get('task')
+        const addStatus = qs.get('add')
+        const root = document.getElementById('db-board')
+        const loading = document.getElementById('db-loading')
+        // Translate through hibanaI18n when it's up (FA users must see the FA strings even
+        // while HibanaBoard is still missing — the raw English fallback leaked for weeks).
+        const _t = (k, f) => {
+          const s = window.hibanaI18n ? window.hibanaI18n.t(k) : null
+          return s && s !== k ? s : (window.HibanaBoard ? B().t(k, f) : f)
+        }
+
+        if (!projectId) { location.replace('/projects.html'); return }
+
+        const render = () => {
+          const S = B().state
+          document.getElementById('db-title').textContent = S.project ? S.project.title : ''
+          document.getElementById('db-sprint-link').href = '/sprint.html?project=' + projectId
+          const done = S.tasks.filter((x) => x.status === 'done').length
+          document.getElementById('db-counts').textContent = _t('db.counts', '{n} of {m} done')
+            .replace('{n}', B().faDig(done)).replace('{m}', B().faDig(S.tasks.length))
+
+          const lang = window.hibanaI18n && window.hibanaI18n.lang ? window.hibanaI18n.lang() : 'en'
+          root.innerHTML = '<div class="db-cols">' + B().STATUSES.map((st) => {
+            const items = S.tasks.filter((x) => x.status === st)
+            return '<section class="db-col" data-col="' + st + '">' +
+              '<header class="db-col-head"><span class="db-col-name">' + B().esc(B().statusLabel(st)) + '</span>' +
+              '<span class="detail-tab-count">' + B().faDig(items.length) + '</span></header>' +
+              '<div class="db-col-body" data-colbody="' + st + '">' +
+                items.map((task) => {
+                  const cat = task.category_id ? B().findCategory(task.category_id) : null
+                  const sprint = task.sprint_id ? B().findSprint(task.sprint_id) : null
+                  const tags = (task.tags || []).map((id) => B().tagById(id)).filter(Boolean)
+                  return '<article class="db-card st-' + task.status + '" draggable="true" data-task-card="' + task.id + '" data-status="' + task.status + '">' +
+                    '<div class="db-card-main">' +
+                      '<span class="prio-dot prio-' + task.priority + '" title="' + task.priority + '"></span>' +
+                      '<span class="db-card-title">' + B().esc(task.title) + '</span>' +
+                    '</div>' +
+                    (cat || tags.length || sprint
+                      ? '<div class="db-card-meta">' +
+                        (cat ? '<span class="db-cat-chip" style="background:' + cat.color + '2E;color:' + cat.color + '">' + B().esc(cat.name) + '</span>' : '') +
+                        tags.map((tg) => '<span class="db-mini-chip" style="background:' + tg.color + '26"><span style="color:' + tg.color + '">●</span>' + B().esc(tg.name) + '</span>').join('') +
+                        (sprint ? '<span class="db-sprint-badge">◆ ' + B().esc(sprint.name) + '</span>' : '') +
+                      '</div>'
+                      : '') +
+                    '<span class="db-card-date muted small">' + (task.status === 'done' && task.done_at
+                      ? '✓ ' + B().fullLabel(B().dayIdx(task.done_at), lang)
+                      : B().fullLabel(B().dayIdx(task.created_at), lang)) + '</span>' +
+                  '</article>'
+                }).join('') +
+                '<button type="button" class="db-add" data-add="' + st + '">＋ <span>' + B().esc(_t('db.addTask', 'Add task')) + '</span></button>' +
+              '</div>' +
+            '</section>'
+          }).join('') + '</div>'
+          root.hidden = false
+          if (loading) loading.hidden = true
+        }
+
+        const reload = async () => { await B().load(projectId); render() }
+
+        // ---- interactions (delegated once — render() only rebuilds innerHTML) ----
+        ctx.on('click', (e) => {
+          if (e.target.closest('#db-retry')) {
+            loading.innerHTML = '<span>' + String(_t('db.loading', 'Loading board…')).replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' })[c]) + '</span>'
+            boot()
+            return
+          }
+          const add = e.target.closest('[data-add]')
+          if (add) {
+            B().openEditor(null, { defaults: { status: add.dataset.add }, onSaved: reload })
+            return
+          }
+          const card = e.target.closest('[data-task-card]')
+          if (card) B().openEditor(card.dataset.taskCard, { onSaved: reload })
+        })
+
+        // ---- drag & drop: within a column reorders, across columns changes status ----
+        let drag = null
+        let over = null
+        const clearOver = () => { if (over) { over.classList.remove('drag-over'); over = null } }
+        ctx.on('dragstart', (e) => {
+          const card = e.target.closest('[data-task-card]')
+          if (!card) return
+          drag = card
+          e.dataTransfer.effectAllowed = 'move'
+          e.dataTransfer.setData('text/plain', card.dataset.taskCard)
+          card.classList.add('dragging')
+        })
+        ctx.on('dragover', (e) => {
+          if (!drag) return
+          e.preventDefault()
+          const colBody = e.target.closest('[data-colbody]')
+          if (!colBody) return
+          clearOver()
+          over = colBody
+          colBody.classList.add('drag-over')
+          // live-reorder inside the column for visual feedback
+          const target = e.target.closest('[data-task-card]')
+          const addBtn = colBody.querySelector('.db-add')
+          if (target && target !== drag) {
+            const r = target.getBoundingClientRect()
+            const after = e.clientY > r.top + r.height / 2
+            colBody.insertBefore(drag, after ? target.nextSibling : target)
+          } else if (!target && addBtn) {
+            colBody.insertBefore(drag, addBtn)
+          }
+        })
+        ctx.on('drop', async (e) => {
+          if (!drag) return
+          e.preventDefault()
+          const id = drag.dataset.taskCard
+          const colBody = drag.closest('[data-colbody]')
+          const newStatus = colBody ? colBody.dataset.colbody : null
+          const task = B().findTask(id)
+          clearOver()
+          drag.classList.remove('dragging')
+          drag = null
+          if (!task || !newStatus) return
+          try {
+            if (newStatus !== task.status) await B().patchTask(id, { status: newStatus })
+            const ids = [...(colBody ? colBody.querySelectorAll('[data-task-card]') : [])].map((x) => x.dataset.taskCard)
+            if (ids.length > 1) await B().reorderTasks(ids)
+            await reload()
+          } catch {
+            window.hibana && window.hibana.toast(_t('sparks.saveFailed', "Couldn't save"), 'err')
+            await reload()
+          }
+        })
+        ctx.on('dragend', () => { clearOver(); if (drag) { drag.classList.remove('dragging'); drag = null } })
+
+        // ---- boot ----
+        // Self-healing library wait: HibanaBoard can be missing when this page arrives
+        // through a soft navigation from a STALE nav.js (deployed before script transport
+        // existed — the tag is simply never appended), when devboard.js failed to fetch,
+        // or when a slow deferred script hasn't evaluated yet. Give it a moment, then
+        // inject the scripts OURSELVES and keep waiting — only give up (with a retry
+        // button) after a real timeout. Re-appending the tag re-executes the module,
+        // which is idempotent (it only defines window.HibanaBoard).
+        const ensureLib = () => new Promise((resolve) => {
+          if (window.HibanaBoard) return resolve(true)
+          let waited = 0
+          let injected = false
+          const inject = (src) => {
+            const el = document.createElement('script')
+            el.src = src
+            document.head.appendChild(el)
+          }
+          const tick = () => {
+            if (window.HibanaBoard) return resolve(true)
+            if (!injected && waited >= 1200) {
+              injected = true
+              inject('/js/devboard.js?v=9') // keep in sync with the <head> tag + sw SHELL
+              if (!window.jalaali) inject('/vendor/jalaali.min.js') // Jalali dates for FA
+            }
+            if (waited >= 9000) return resolve(false)
+            waited += 150
+            setTimeout(tick, 150)
+          }
+          tick()
+        })
+        const fail = () => {
+          root.hidden = true
+          loading.hidden = false
+          const msg = String(_t('db.loadFailed', "Couldn't load the board")).replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' })[c])
+          const retry = String(_t('db.retry', 'Try again')).replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' })[c])
+          loading.innerHTML = '<span>' + msg + '</span> <button type="button" class="btn small" id="db-retry">' + retry + '</button>'
+        }
+        // 404 = the project doesn't exist (anymore). Retrying can never succeed — say
+        // what happened and offer the way back instead of a dead-end error.
+        const gone = () => {
+          root.hidden = true
+          loading.hidden = false
+          const msg = String(_t('db.projectGone', "This project doesn't exist or was deleted")).replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' })[c])
+          const back = String(_t('db.backToProjects', 'Back to projects')).replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' })[c])
+          loading.innerHTML = '<span>' + msg + '</span> <a class="btn small" href="/projects.html">' + back + '</a>'
+        }
+        const boot = async () => {
+          document.querySelector('[data-back-link]').href = '/project.html?id=' + projectId
+          const ok = await ensureLib()
+          if (!ok) return fail()
+          try {
+            await reload()
+          } catch (err) {
+            if (err && err.status === 404) return gone()
+            return fail()
+          }
+          if (openTask && B().findTask(openTask)) B().openEditor(openTask, { onSaved: reload })
+          else if (addStatus) B().openEditor(null, { defaults: { status: addStatus }, onSaved: reload })
+        }
+        if (window.hibanaI18n && window.hibanaI18n.ready) boot()
+        else document.addEventListener('hibana:i18n', boot, { once: true })
+      },
+    })
+  </script>
+</body>
+</html>

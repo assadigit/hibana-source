@@ -1,0 +1,7 @@
+# Copy to .dev.vars for local `wrangler dev` (never commit .dev.vars).
+# Remote secrets are set with `wrangler secret put <NAME>` (rule 5).
+GITHUB_TOKEN=ghp_your_token_here
+RESEND_KEY=re_your_resend_key            # optional until reminders / password reset used
+OWNER_EMAIL=you@example.com             # recipient for client-work reminders
+TELEGRAM_BOT_TOKEN=123456:ABC-YourToken # optional until Phase-5 bot
+TELEGRAM_SECRET=random-webhook-secret   # set the same value as the bot's secret_token

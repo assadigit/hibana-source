@@ -1,0 +1,46 @@
+{
+  "name": "hibana",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Personal project & idea manager — Cloudflare Workers (D1) or plain Node (SQLite)",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "deploy:prod": "wrangler deploy --env prod",
+    "start:node": "node --import tsx src/server.ts",
+    "migrate:node": "node --import tsx scripts/migrate-node.ts",
+    "restore": "node scripts/restore.mjs",
+    "drill": "node --import tsx scripts/restore-drill.mjs",
+    "seed:admin": "node scripts/seed-admin.mjs",
+    "seed:admin:prod": "node scripts/seed-admin.mjs --prod",
+    "seed:admin:node": "node scripts/seed-admin.mjs --node",
+    "secrets:set": "node scripts/set-secrets.mjs",
+    "secrets:set:prod": "node scripts/set-secrets.mjs --prod",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "smoke": "node --import tsx scripts/smoke.mjs",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@hono/node-server": "^1.13.7",
+    "fflate": "^0.8.3",
+    "hono": "^4.6.14",
+    "playwright": "^1.62.1",
+    "zod": "^3.24.1"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^5.0.0",
+    "@types/node": "^22.10.5",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.3",
+    "vitest": "^3.0.0",
+    "wrangler": "^4.7.0"
+  },
+  "allowScripts": {
+    "esbuild@0.28.2": true,
+    "esbuild@0.21.5": true,
+    "esbuild@0.28.1": true,
+    "workerd@1.20260815.1": true
+  }
+}

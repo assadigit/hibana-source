@@ -1,0 +1,352 @@
+import { describe, it, expect } from 'vitest'
+import { makeTestDb, makeUser } from './helpers'
+import { createSession } from '../auth/sessions'
+import { createApp } from '../app'
+import type { Db } from '../db/types'
+
+// Dashboard (Phase 5, 2026-09-08): the stat boxes ride a horizontal stage carousel
+// (stat-carousel + chevrons + dots) over the 6 ACTIVE stages — PROJECT_STAGES minus
+// spark; sparks live on the projects page's Ideas shelf, not here. Each stage box shows
+// stage icon + live count + statusLabel, a “View all” link to the stage's cards view, and
+// ALL of its projects as compact skc-row cards (open arrow + title + timeAgo — the tag
+// chip and latest-note preview are gone). Counts for all 7 statuses stay in the JSON.
+// Creation entrypoints live in the single FAB (2026-08-25). The Operational/Halted boxes
+// live on Reports. The to-do quadrants carry prog-dots, note chips, the ⋯ task menu, and
+// the quick-add FAB (2026-09-06 (k)).
+
+// The carousel's stage order (Phase 5): work stages first, then the backlog-ish trio.
+const CAROUSEL = ['investigating', 'awaiting', 'doing', 'unreviewed', 'halted', 'operational'] as const
+
+async function makeClient(db: Db, userId: string) {
+  const app = createApp({ db, isProd: false, github: { owner: 'x', repo: 'y', token: '' }, emailKey: undefined, assets: undefined })
+  const token = await createSession(db, userId)
+  return { app, auth: { Cookie: `hibana_session=${token}`, 'Content-Type': 'application/json' } }
+}
+
+async function createProject(app: ReturnType<typeof createApp>, auth: Record<string, string>, title: string, status: string) {
+  const res = await app.fetch(new Request('http://local/api/projects', { method: 'POST', headers: auth, body: JSON.stringify({ title, status }) }))
+  const body = (await res.json()) as { id: string }
+  return body.id
+}
+
+async function createSadhanaTask(db: Db, userId: string, over: { quadrant: number; title: string; pinned?: number; done?: number; note?: string; progress?: string; deleted_at?: string | null; cleared_at?: string | null; updated_at?: string }) {
+  const id = crypto.randomUUID()
+  const created = '2026-08-01T00:00:00.000Z'
+  await db.execute(
+    `INSERT INTO sadhana_tasks (id, user_id, quadrant, title, emoji, note, progress, pinned, done, deleted_at, cleared_at, created_at, updated_at)
+     VALUES (?, ?, ?, ?, '📌', ?, ?, ?, ?, ?, ?, ?, ?)`,
+    [id, userId, over.quadrant, over.title, over.note ?? '', over.progress ?? 'untouched', over.pinned ?? 0, over.done ?? 0, over.deleted_at ?? null, over.cleared_at ?? null, created, over.updated_at ?? created],
+  )
+  return id
+}
+
+describe('dashboard stat boxes', () => {
+  it('shows the stage carousel over the 6 active stages with skc-row cards; spark has no box, no solved box, no create controls', async () => {
+    const { db, close } = makeTestDb()
+    try {
+      const user = await makeUser(db)
+      const { app, auth } = await makeClient(db, user)
+      const ideaA = await createProject(app, auth, 'Idea A', 'spark')
+      await createProject(app, auth, 'Idea B', 'spark')
+      const unreviewed = await createProject(app, auth, 'Unreviewed U', 'unreviewed')
+      const doing = await createProject(app, auth, 'Doing D', 'doing')
+      await createProject(app, auth, 'Halted H', 'halted')
+      const operational = await createProject(app, auth, 'Operational O', 'operational')
+
+      const res = await app.fetch(new Request('http://local/api/dashboard', { headers: { ...auth, 'HX-Request': 'true' } }))
+      expect(res.status).toBe(200)
+      const html = await res.text()
+      // Scoped to the strip itself — the activity feed below still legitimately shows
+      // status badges for every stage.
+      const strip = html.slice(html.indexOf('stat-strip stat-boxes'), html.indexOf('class="card notebook"'))
+
+      // The carousel shell (Phase 5): track + chevron arrows + dots.
+      expect(strip).toContain('stat-carousel')
+      expect(strip).toContain('data-stat-track')
+      expect(strip).toContain('data-stat-prev')
+      expect(strip).toContain('data-stat-next')
+      expect(strip).toContain('data-stat-dots')
+
+      // One box per ACTIVE stage, in carousel order; the boxes carry no status badges
+      // (icon-chip + stat-count + stat-label replaced them).
+      const boxes = strip.split('<div class="stat stat-box"').slice(1)
+      expect(boxes.map((b) => (b.match(/data-status="(\w+)"/) ?? [])[1])).toEqual([...CAROUSEL])
+      expect(strip).not.toContain('data-status="spark"')
+      expect(strip).toContain('class="icon-chip"')
+      expect(strip).toContain('<b class="stat-count">1</b>')
+      for (const label of ['Investigating', 'Awaiting Execution', 'In Progress', 'Unreviewed', 'Development Stopped', 'Operational']) {
+        expect(strip).toContain(`>${label}<`)
+      }
+      expect(strip).not.toContain('badge-')
+
+      // Cards are compact skc-rows: open arrow + title, timeAgo only (no tag chips, no
+      // latest-note preview) — and they link to the project page.
+      expect(strip).toContain('class="row skc-row"')
+      expect(strip).toContain('class="skc-open"')
+      expect(strip).toContain('class="skc-title"')
+      expect(strip).toContain('skc-updated')
+      expect(strip).toContain(`/project.html?id=${unreviewed}`)
+      expect(strip).toContain(`/project.html?id=${doing}`)
+      expect(strip).toContain(`/project.html?id=${operational}`)
+
+      // Sparks never render here — they live on the projects page's shelf.
+      expect(strip).not.toContain('Idea A')
+      expect(strip).not.toContain(`/project.html?id=${ideaA}`)
+      expect((strip.match(/class="card kanban-card stat-kanban-card"/g) ?? []).length).toBe(4)
+
+      // Each merged box keeps only its “view all” link — the per-status quick-add buttons
+      // were removed in favour of the single creation FAB (user request 2026-08-25), so no
+      // box carries a create control anymore.
+      expect(strip).not.toContain('data-quickadd-open')
+      expect(strip).not.toContain('data-projectquickadd')
+      expect((strip.match(/View all </g) ?? []).length).toBe(6)
+      for (const s of CAROUSEL) expect(strip).toContain(`/projects.html?status=${s}&view=cards`)
+
+      // Order: to-do → stat boxes → notebook → recent activity. The Ideas shelf is gone.
+      expect(html.indexOf('dash-todo-section')).toBeLessThan(html.indexOf('stat-strip stat-boxes'))
+      expect(html.indexOf('stat-strip stat-boxes')).toBeLessThan(html.indexOf('class="card notebook"'))
+      expect(html.indexOf('class="card notebook"')).toBeLessThan(html.indexOf('Recent activity'))
+      expect(html).not.toContain('Ideas shelf')
+      expect(html).not.toContain('spark-chip')
+
+      // The obsolete solved-this-week stat box is gone (nothing solved here, so not even
+      // the to-do strip chip renders) — the metric survives only in the JSON for API
+      // compatibility.
+      expect(html).not.toContain('dash-solved')
+      expect(html).not.toContain('this week')
+
+      // The section heading carries the same go-to pattern as the to-do list (Phase 5).
+      expect(html).toContain('<h2>Projects</h2>')
+      expect(html).toContain('href="/projects.html"')
+      expect(html).toContain('Go to projects')
+
+      // JSON branch: counts cover ALL 7 statuses (spark included), `recents` is the
+      // active-stages query (sparks excluded), solvedThisWeek rides along for API compat.
+      const json = await app.fetch(new Request('http://local/api/dashboard', { headers: auth }))
+      const data = (await json.json()) as { counts: Record<string, number>; recents: { status: string }[]; solvedThisWeek: number }
+      expect(data.counts).toEqual({ spark: 2, unreviewed: 1, investigating: 0, awaiting: 0, doing: 1, halted: 1, operational: 1 })
+      expect(data.recents.every((p) => p.status !== 'spark')).toBe(true)
+      expect(data.recents).toHaveLength(4)
+      expect(data.solvedThisWeek).toBe(0)
+    } finally {
+      close()
+    }
+  })
+
+  it('columns list ALL their projects — no "3 recent" cap (2026-08-25), one column per carousel stage', async () => {
+    const { db, close } = makeTestDb()
+    try {
+      const user = await makeUser(db)
+      const { app, auth } = await makeClient(db, user)
+      for (let i = 0; i < 6; i++) await createProject(app, auth, `Research ${i}`, 'investigating')
+      for (let i = 0; i < 5; i++) await createProject(app, auth, `Build ${i}`, 'doing')
+
+      const res = await app.fetch(new Request('http://local/api/dashboard', { headers: { ...auth, 'HX-Request': 'true' } }))
+      const html = await res.text()
+      const strip = html.slice(html.indexOf('stat-strip stat-boxes'), html.indexOf('class="card notebook"'))
+      // One stage column per carousel stage, in order; each lists ALL its projects.
+      const cols = strip.split('<div class="stat-kanban">').slice(1)
+      expect(cols.length).toBe(6)
+      const cards = (s: string) => (s.match(/class="card kanban-card stat-kanban-card"/g) ?? []).length
+      expect(cards(cols[0])).toBe(6) // Investigating lists all six
+      expect(cards(cols[1])).toBe(0) // Awaiting is empty
+      expect(cards(cols[2])).toBe(5) // In Progress lists them all
+      expect(cards(cols[3])).toBe(0)
+      expect(cards(cols[4])).toBe(0)
+      expect(cards(cols[5])).toBe(0)
+      expect(strip).toContain('Research 5') // the 6th item — no cap
+      expect(strip).toContain('Build 4')
+      // empty stages show the muted empty state, not a drop target
+      expect(cols[1]).toContain('kanban-empty')
+    } finally {
+      close()
+    }
+  })
+
+  it('merge: one box per stage with view-all; no per-box create buttons; every project listed exactly once, no kanban markup', async () => {
+    const { db, close } = makeTestDb()
+    try {
+      const user = await makeUser(db)
+      const { app, auth } = await makeClient(db, user)
+      await createProject(app, auth, 'Solo Unreviewed', 'unreviewed')
+      await createProject(app, auth, 'Solo Doing', 'doing')
+      await createProject(app, auth, 'Solo Operational', 'operational')
+
+      const res = await app.fetch(new Request('http://local/api/dashboard', { headers: { ...auth, 'HX-Request': 'true' } }))
+      const html = await res.text()
+      const strip = html.slice(html.indexOf('stat-strip stat-boxes'), html.indexOf('class="card notebook"'))
+
+      // Exactly one box per active stage, each with a view-all link and NO create button
+      // (creation lives in the single FAB — user request 2026-08-25).
+      expect((strip.match(/class="stat stat-box" data-status="/g) ?? []).length).toBe(6)
+      expect(strip).not.toContain('data-quickadd-open')
+      expect(strip).not.toContain('data-projectquickadd')
+      expect(strip).toContain('View all ')
+      expect(strip).toContain('/projects.html?status=unreviewed&view=cards')
+      expect(strip).toContain('/projects.html?status=doing&view=cards')
+      expect(strip).toContain('/projects.html?status=operational&view=cards')
+
+      // Every project appears exactly once — no more stat-box + kanban duplication.
+      expect((strip.match(/class="card kanban-card stat-kanban-card"/g) ?? []).length).toBe(3)
+      expect(html).not.toContain('mini-kanban')
+      expect(html).not.toContain('kanban-col')
+
+      // The row keeps its place-marker — the compact Phase 5 card shows time ago only.
+      expect(strip).toContain('class="muted small skc-updated"')
+    } finally {
+      close()
+    }
+  })
+})
+
+describe('dashboard to-do preview', () => {
+  it('renders shared active tasks with custom names, pinned/recent ordering, prog-dots, note chips, and the per-card preview limit', async () => {
+    const { db, close } = makeTestDb()
+    try {
+      const user = await makeUser(db)
+      const other = await makeUser(db)
+      const { app, auth } = await makeClient(db, user)
+      await createSadhanaTask(db, user, { quadrant: 1, title: 'Pinned old', pinned: 1, updated_at: '2026-08-01T01:00:00.000Z' })
+      await createSadhanaTask(db, user, { quadrant: 1, title: 'Newest open', updated_at: '2026-08-02T01:00:00.000Z' })
+      await createSadhanaTask(db, user, { quadrant: 1, title: 'Older open', updated_at: '2026-08-01T02:00:00.000Z' })
+      await createSadhanaTask(db, user, { quadrant: 1, title: 'Fourth open', updated_at: '2026-08-01T01:30:00.000Z' })
+      await createSadhanaTask(db, user, { quadrant: 1, title: 'Fifth preview', updated_at: '2026-08-01T01:15:00.000Z' })
+      await createSadhanaTask(db, user, { quadrant: 1, title: 'Sixth hidden', updated_at: '2026-08-01T01:10:00.000Z' })
+      await createSadhanaTask(db, user, { quadrant: 1, title: 'Task with note', note: 'Remember the supporting detail', progress: 'in_progress' })
+      await createSadhanaTask(db, user, { quadrant: 1, title: 'Completed', done: 1 })
+      await createSadhanaTask(db, user, { quadrant: 1, title: 'Deleted', deleted_at: '2026-08-03T00:00:00.000Z' })
+      await createSadhanaTask(db, other, { quadrant: 1, title: 'Foreign task' })
+      await app.fetch(new Request('http://local/api/sadhana/quadrants/1', { method: 'PATCH', headers: auth, body: JSON.stringify({ name: 'My focus' }) }))
+      const styleRes = await app.fetch(new Request('http://local/api/sadhana/quadrants/1', { method: 'PATCH', headers: auth, body: JSON.stringify({ name: 'My focus', icon_id: '🎯', accent_color: 'accent-purple' }) }))
+      expect(styleRes.status).toBe(200)
+      await app.fetch(new Request('http://local/api/sadhana/quadrants/reorder', { method: 'POST', headers: auth, body: JSON.stringify({ ids: [4, 2, 1, 3] }) }))
+
+      const res = await app.fetch(new Request('http://local/api/dashboard', { headers: { ...auth, 'HX-Request': 'true' } }))
+      const html = await res.text()
+      expect(html.indexOf('dash-todo-section')).toBeLessThan(html.indexOf('stat-strip stat-boxes'))
+      expect(html).toContain('To-Do List')
+      expect(html).toContain('Go to to-do list')
+      expect(html).toContain('My focus')
+      // 2026-09 neutral quadrants: a user-PICKED accent still renders (the accentAttr)…
+      expect(html).toContain('style="--dash-q-accent: var(--accent-purple)"')
+      // …but the data-dash-accent marker attribute is gone, and the emoji symbol now
+      // rides the Phase 7 item 1 picker button's data-current.
+      expect(html).not.toContain('data-dash-accent=')
+      expect(html).toContain('data-current="🎯"')
+      expect(html).toContain('Active 7')
+      const dashboardQuadrants = [...html.matchAll(/data-dash-quadrant="(\d)"/g)].map((match) => Number(match[1]))
+      expect(dashboardQuadrants).toEqual([4, 2, 1, 3])
+      expect(html).toContain('data-dash-see-more="1"')
+      // 2026-09-06 (k): the quick-add moved out of the customize popover into a circular
+      // + FAB on the quadrant's corner + its hidden inline form.
+      expect(html).toContain('data-dash-quickadd-fab="1"')
+      expect(html).toContain('data-dash-quickadd-form="1"')
+      expect((html.match(/<li class="dash-todo-task[^>]*draggable="true"/g) ?? []).length).toBe(7)
+      expect((html.match(/<li class="dash-todo-task[^>]*hidden>/g) ?? []).length).toBe(2)
+      expect(html).toContain('Fifth preview')
+      expect(html).toContain('Sixth hidden')
+
+      // Phase 5: the progress control is the same 3-dot prog-track as the board page —
+      // one dot per state (current one p-active) + the state label; 'Task with note'
+      // is in_progress.
+      expect((html.match(/class="prog-track /g) ?? []).length).toBe(7)
+      expect((html.match(/class="prog-dot /g) ?? []).length).toBe(21)
+      expect(html).toContain('prog-dot p-inprog p-active')
+      expect(html).toContain('<span class="prog-lbl">In progress</span>')
+
+      // Phase 5: the latest task note rides the row as a chip (data-note/count) — the
+      // client's note panel opens from it without another fetch. 'Task with note'
+      // carries exactly one (its legacy note column).
+      expect((html.match(/class="dash-note-chip"/g) ?? []).length).toBe(1)
+      expect(html).toContain('data-note="Remember the supporting detail"')
+      expect(html).toContain('data-note-count="1"')
+
+      // Phase 5: the per-task ⋯ menu (edit / notes / delete) + the inline edit form.
+      expect((html.match(/class="dash-todo-menu"/g) ?? []).length).toBe(7)
+      expect((html.match(/data-dash-edit-open="/g) ?? []).length).toBe(7)
+      expect((html.match(/data-dash-note-panel="/g) ?? []).length).toBe(7)
+      expect((html.match(/data-dash-delete="/g) ?? []).length).toBe(7)
+      expect((html.match(/data-dash-edit-form="/g) ?? []).length).toBe(7)
+
+      // One customize popover per quadrant; the icon button AND the hover pen
+      // (2026-09-02 rename affordance) are both triggers for it → 2 per quadrant.
+      expect((html.match(/data-dash-style-pop="\d"/g) ?? []).length).toBe(4)
+      expect((html.match(/data-dash-style="\d"/g) ?? []).length).toBe(8)
+      expect((html.match(/class="dash-todo-pen"/g) ?? []).length).toBe(4)
+      expect(html.indexOf('Pinned old')).toBeLessThan(html.indexOf('Newest open'))
+      expect(html.indexOf('Newest open')).toBeLessThan(html.indexOf('Older open'))
+      expect(html).not.toContain('Foreign task')
+      expect(html).not.toContain('Completed')
+      expect(html).not.toContain('Deleted')
+    } finally {
+      close()
+    }
+  })
+})
+
+describe('dashboard view options (2026-08-26)', () => {
+  it('reorders sections per dash_order (notebook can be first)', async () => {
+    const { db, close } = makeTestDb()
+    try {
+      const user = await makeUser(db)
+      const { app, auth } = await makeClient(db, user)
+      await createProject(app, auth, 'P', 'spark')
+      await app.fetch(
+        new Request('http://local/api/settings', { method: 'PATCH', headers: auth, body: JSON.stringify({ dash_order: 'notebook,header,projects,activity' }) }),
+      )
+
+      // PATCH persists; GET round-trips the new column.
+      const got = await app.fetch(new Request('http://local/api/settings', { headers: auth }))
+      const { prefs } = (await got.json()) as { prefs: { dash_order: string } }
+      expect(prefs.dash_order).toBe('notebook,header,projects,activity')
+
+      const res = await app.fetch(new Request('http://local/api/dashboard', { headers: { ...auth, 'HX-Request': 'true' } }))
+      const html = await res.text()
+      expect(html.indexOf('class="card notebook"')).toBeLessThan(html.indexOf('stat-strip stat-boxes'))
+      expect(html.indexOf('stat-strip stat-boxes')).toBeLessThan(html.indexOf('Recent activity'))
+    } finally {
+      close()
+    }
+  })
+
+  it('hides sections whose dash_show_* is 0', async () => {
+    const { db, close } = makeTestDb()
+    try {
+      const user = await makeUser(db)
+      const { app, auth } = await makeClient(db, user)
+      await createProject(app, auth, 'P', 'spark')
+      await app.fetch(
+        new Request('http://local/api/settings', { method: 'PATCH', headers: auth, body: JSON.stringify({ dash_show_activity: 0, dash_show_notebook: 0 }) }),
+      )
+
+      const res = await app.fetch(new Request('http://local/api/dashboard', { headers: { ...auth, 'HX-Request': 'true' } }))
+      const html = await res.text()
+      expect(html).not.toContain('Recent activity')
+      expect(html).not.toContain('class="card notebook"')
+      expect(html).toContain('stat-strip stat-boxes')
+    } finally {
+      close()
+    }
+  })
+
+  it('shows an empty state when every section is hidden', async () => {
+    const { db, close } = makeTestDb()
+    try {
+      const user = await makeUser(db)
+      const { app, auth } = await makeClient(db, user)
+      await app.fetch(
+        new Request('http://local/api/settings', {
+          method: 'PATCH',
+          headers: auth,
+          body: JSON.stringify({ dash_show_header: 0, dash_show_projects: 0, dash_show_todo: 0, dash_show_notebook: 0, dash_show_activity: 0 }),
+        }),
+      )
+
+      const res = await app.fetch(new Request('http://local/api/dashboard', { headers: { ...auth, 'HX-Request': 'true' } }))
+      const html = await res.text()
+      expect(html).toContain('dash-empty')
+    } finally {
+      close()
+    }
+  })
+})

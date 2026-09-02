@@ -1,0 +1,609 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Settings — Hibana</title>
+  <link rel="stylesheet" href="/css/app.css?v=185">
+  <link rel="stylesheet" href="/vendor/manrope/font-face.css">
+  <script src="/vendor/htmx.min.js" defer></script>
+  <script src="/js/boot.js"></script>
+  <script src="/vendor/alpine.min.js" defer></script>
+  <script src="/vendor/jalaali.min.js" defer></script>
+  <script src="/js/app.js?v=158" defer></script>
+  <script src="/js/touch-drag.js" defer></script>
+  <script src="/js/nav.js" defer></script>
+  <script src="/js/command-palette.js" defer></script>
+  <script src="/js/mobile-nav.js?v=4" defer></script>
+  <script src="/js/zen-mode.js" defer></script>
+  <script src="/js/micro-interactions.js" defer></script>
+  <script src="/js/go-to.js" defer></script>
+  <script src="/js/install-prompt.js" defer></script>
+  <script src="/js/i18n.js?v=26" defer></script>
+</head>
+<body>
+  <div data-nav></div>
+  <main class="shell narrow">
+    <h1 data-i18n="nav.settings">Settings</h1>
+
+    <div class="settings-tabs" role="tablist" aria-label="Settings sections">
+      <button type="button" class="settings-tab is-active" data-settings-tab="prefs" data-i18n="settings.tabPreferences">Preferences</button>
+      <button type="button" class="settings-tab" data-settings-tab="appearance" data-i18n="settings.tabAppearance">Appearance</button>
+      <button type="button" class="settings-tab" data-settings-tab="account" data-i18n="settings.tabAccount">Account</button>
+      <button type="button" class="settings-tab" data-settings-tab="telegram" data-i18n="settings.tabTelegram">Telegram</button>
+      <button type="button" class="settings-tab" data-settings-tab="data" data-i18n="settings.tabData">Data</button>
+    </div>
+
+    <section class="card settings-section" id="settings-prefs" x-data="prefs">
+      <h3 data-i18n="settings.preferences">Preferences</h3>
+      <label><span data-i18n="settings.language">Language</span>
+        <select x-model="language_pref" @change="save()">
+          <option value="en">English</option>
+          <option value="fa">فارسی (Farsi)</option>
+        </select>
+      </label>
+      <label><span data-i18n="settings.calendar">Calendar</span>
+        <select x-model="calendar_pref" disabled aria-describedby="cal-hint">
+          <option value="gregorian" data-i18n="settings.calGregorian">Gregorian (Miladi)</option>
+          <option value="shamsi" data-i18n="settings.calShamsi">Shamsi (Jalali)</option>
+        </select>
+        <span class="muted small" id="cal-hint" data-i18n="settings.calendarHint">Follows your language — Farsi uses the Jalali calendar.</span>
+      </label>
+      <label><span data-i18n="settings.timezone">Timezone</span>
+        <select x-model="timezone" @change="save()">
+          <option value="UTC">UTC</option>
+          <option value="Asia/Tehran">Asia/Tehran (GMT+3:30)</option>
+          <option value="Europe/London">Europe/London</option>
+          <option value="America/New_York">America/New_York</option>
+          <option value="America/Los_Angeles">America/Los_Angeles</option>
+        </select>
+      </label>
+      <!-- Phase 6 item 12: ONE page width everywhere. Local preference (boot.js paints
+           it pre-render on every page); Standard = 1366px, Full = no cap. -->
+      <label><span data-i18n="settings.pageWidth">Page width</span>
+        <select id="page-width-sel">
+          <option value="standard" data-i18n="settings.widthStandard">Standard (1366 px)</option>
+          <option value="full" data-i18n="settings.widthFull">Full-width</option>
+        </select>
+        <span class="muted small" data-i18n="settings.pageWidthHint">Applies the same content width to every page.</span>
+      </label>
+      <button class="ghost" @click="load()" data-i18n="settings.reload">Reload from server</button>
+    </section>
+
+    <section class="card settings-section" id="settings-views" x-data="views">
+      <h3 data-i18n="settings.views">View options</h3>
+      <p class="muted small" data-i18n="settings.viewsHint">Pick which sections appear on your dashboard and their order. Drag the handle or use the arrows — every change saves automatically.</p>
+      <div class="view-sort" x-show="loaded">
+        <template x-for="(id, i) in order" :key="id">
+          <div class="row view-sort-row" draggable="true" :data-view-id="id" @dragstart="dragStart($event, i)" @dragover.prevent="dragOver()" @drop.prevent="drop($event, i)">
+            <span class="view-sort-handle" aria-hidden="true"><svg class="icon" viewBox="0 0 24 24"><path d="M9 6h.01M9 12h.01M9 18h.01M15 6h.01M15 12h.01M15 18h.01"/></svg></span>
+            <span class="view-sort-name" x-text="label(id)"></span>
+            <span class="row view-sort-actions">
+              <button type="button" class="ghost icon-btn" @click="move(i, -1)" :title="t('settings.moveUp', 'Move up')" :aria-label="t('settings.moveUp', 'Move up')"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M18 15l-6-6-6 6"/></svg></button>
+              <button type="button" class="ghost icon-btn" @click="move(i, 1)" :title="t('settings.moveDown', 'Move down')" :aria-label="t('settings.moveDown', 'Move down')"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></button>
+            </span>
+            <span class="view-sort-toggle">
+              <button type="button" class="ghost" @click="toggle(id)" :aria-pressed="shown(id) ? 'true' : 'false'">
+                <span x-text="toggleLabel(id)"></span>
+              </button>
+            </span>
+          </div>
+        </template>
+      </div>
+    </section>
+
+    <section class="card settings-section" id="settings-account" x-data="account">
+      <h3 data-i18n="settings.account">Account</h3>
+      <div class="row avatar-row" x-data="avatar">
+        <span class="avatar avatar-lg" x-show="!pic" aria-hidden="true"><span x-text="initial"></span></span>
+        <img class="avatar avatar-lg" x-show="pic" :src="url" :alt="initial" @error="onErr()">
+        <div class="stack">
+          <label class="btn ghost" for="avatar-file">
+            <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16v14H4zM3 3h18M8 17l3-3 2 2 3-3 3 3M15 8h.5a1 1 0 0 1 0 2h-.5a1 1 0 0 1 0-2Z"/></svg>
+            <span data-i18n="settings.uploadAvatar">Upload profile picture</span>
+          </label>
+          <input id="avatar-file" type="file" accept="image/png,image/jpeg,image/webp,image/gif" hidden @change="upload($event)">
+          <div class="row">
+            <button type="button" class="ghost danger" x-show="pic" @click="remove()"><span data-i18n="settings.removeAvatar">Remove</span></button>
+          </div>
+          <span class="muted small" data-i18n="settings.avatarHint">Shown next to your name. Automatically cropped to a square.</span>
+        </div>
+      </div>
+      <label><span data-i18n="settings.account.email">Email</span>
+        <input type="email" value="" disabled x-model="email">
+      </label>
+      <form class="stack" @submit.prevent="changePassword()">
+        <label><span data-i18n="settings.currentPassword">Current password</span>
+          <input type="password" x-model="currentPassword" autocomplete="current-password" required minlength="1">
+        </label>
+        <label><span data-i18n="settings.newPassword">New password</span>
+          <input type="password" x-model="newPassword" autocomplete="new-password" required minlength="8">
+        </label>
+        <label><span data-i18n="settings.confirmPassword">Confirm new password</span>
+          <input type="password" x-model="confirmPassword" autocomplete="new-password" required minlength="8">
+        </label>
+        <button :disabled="busy"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 11V7a5 5 0 0 1 10 0v4M6 11h12a1 1 0 0 1 1 1v7a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1v-7a1 1 0 0 1 1-1Z"/></svg> <span data-i18n="settings.changePassword">Change password</span></button>
+        <span class="muted small" data-i18n="settings.passwordHint">Min 8 characters (numbers alone are fine). Other devices are signed out.</span>
+      </form>
+      <h4 style="margin-block-start:1.5rem" data-i18n="settings.help">Help</h4>
+      <div class="row">
+        <button type="button" class="ghost" id="show-tour-btn">
+          <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 8v4M12 16h.01"/></svg>
+          <span data-i18n="settings.showTour">Show onboarding tour</span>
+        </button>
+        <button type="button" class="ghost" id="install-app-btn" hidden>
+          <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m0 0l-4-4m4 4l4-4M5 21h14"/></svg>
+          <span data-i18n="settings.installApp">Install app</span>
+        </button>
+      </div>
+      <p class="muted small" data-i18n="settings.tourHint">Replays the 4-step intro on the dashboard.</p>
+    </section>
+
+    <section class="card settings-section" id="settings-appearance">
+      <h3 data-i18n="settings.theme">Theme</h3>
+      <div class="row wrap" x-data="theme">
+        <button class="ghost" :class="{active: t === 'light'}" @click="set('light')" data-i18n="settings.light">Light</button>
+        <button class="ghost" :class="{active: t === 'dark'}" @click="set('dark')" data-i18n="settings.dark">Dark</button>
+        <button class="ghost" :class="{active: t === 'system'}" @click="set('system')" data-i18n="settings.system">Follow system</button>
+      </div>
+    </section>
+
+    <section class="card">
+      <h3 data-i18n="settings.tags">Tags</h3>
+      <div class="row">
+        <form class="row" hx-post="/api/tags" hx-target="#taglist" hx-swap="innerHTML" x-data="{ name: '' }" @submit="name = ''">
+          <input name="name" x-model="name" placeholder="New tag name" data-i18n-placeholder="settings.newTag" required maxlength="50">
+          <button><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg> <span data-i18n="settings.create">Create</span></button>
+        </form>
+      </div>
+      <div id="taglist" class="row wrap" hx-get="/api/tags" hx-trigger="load" hx-swap="innerHTML">
+        <span class="muted">Loading…</span>
+      </div>
+    </section>
+
+    <section class="card" x-data="invites">
+      <h3 data-i18n="settings.invites">Invites</h3>
+      <button class="ghost" @click="generate()"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg> <span data-i18n="settings.generateInvite">Generate invite code</span></button>
+      <ul id="invite-list" hx-get="/api/auth/invites" hx-trigger="load" hx-swap="innerHTML">
+        <li class="muted">Loading…</li>
+      </ul>
+    </section>
+
+    <section class="card settings-section" id="settings-telegram">
+      <h3 data-i18n="settings.telegram">Telegram</h3>
+      <div x-data="telegram">
+        <div class="row" x-show="ready">
+          <span class="badge" :class="linked ? 'badge-ok' : ''"><span x-text="linkLabel()"></span></span>
+        </div>
+        <div class="muted small" x-show="ready && !linked" style="line-height:1.8">
+          <div><span data-i18n="settings.telegramStep1">1. Open the bot in Telegram:</span> <a :href="botUrl" target="_blank" rel="noopener" x-text="bot"></a></div>
+          <div><span data-i18n="settings.telegramStep2">2. Send it your code like this:</span> <code>/start <span x-text="code || '————'"></span></code></div>
+        </div>
+        <div class="row wrap">
+          <button type="button" class="ghost" @click="generate()"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg> <span data-i18n="settings.generateCode">Generate link code</span></button>
+          <span class="muted small" x-show="code"><span data-i18n="settings.sendToBot">Send this to your bot:</span> <code x-text="code"></code></span>
+          <button type="button" class="ghost danger" x-show="linked" @click="unlink()"><span data-i18n="settings.unlink">Unlink</span></button>
+        </div>
+        <p class="muted small" data-i18n="settings.telegramHint">After linking, text any idea to the bot — it creates the Idea and replies with a link back.</p>
+      </div>
+    </section>
+
+    <section class="card settings-section" id="settings-data">
+      <h3 data-i18n="settings.obsidian">Obsidian import (one-time)</h3>
+      <form class="row wrap" id="obsidian-form" hx-post="/api/import/obsidian" hx-target="body" hx-swap="beforeend">
+        <input type="file" id="obsidian-files" name="files" accept=".md,.zip" multiple hidden>
+        <label class="btn ghost" for="obsidian-files">
+          <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 16V4m0 0l-5 5m5-5l5 5"/><path d="M4 20h16"/></svg>
+          <span data-i18n="settings.chooseFiles">Choose files</span>
+        </label>
+        <span class="muted small" id="obsidian-files-info" data-i18n="settings.noFiles">No file chosen</span>
+        <button data-i18n="settings.importAsSparks">Import</button>
+      </form>
+      <p class="muted small" data-i18n="settings.obsidianHint">Upload the .md files — or a .zip of your whole vault — they become Ideas tagged “Imported”. Re-importing skips notes you already have.</p>
+    </section>
+
+    <section class="card">
+      <h3 data-i18n="settings.export">Export &amp; backup</h3>
+      <div class="row wrap">
+        <a class="btn" href="/api/export?format=json" download><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m0 0l-4-4m4 4l4-4M5 21h14"/></svg> <span data-i18n="settings.jsonExport">JSON export (full data)</span></a>
+        <a class="btn" href="/api/export?format=md" download><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m0 0l-4-4m4 4l4-4M5 21h14"/></svg> <span data-i18n="settings.mdExport">Markdown export (readable)</span></a>
+        <a class="btn" href="/api/export/tasks.csv" download><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m0 0l-4-4m4 4l4-4M5 21h14"/></svg> <span data-i18n="settings.csvExport">CSV export (tasks, for spreadsheets)</span></a>
+      </div>
+    </section>
+
+    <!-- Owner tools (batch r) — hidden until app.js resolves role=owner; the API is the
+         real gate. Moves the GitHub backup button out of the member-visible card. -->
+    <section class="card" id="owner-tools" data-owner-tools hidden>
+      <h3 data-i18n="settings.ownerTools">Owner tools</h3>
+      <div class="row wrap">
+        <a class="btn" href="/admin.html"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l8 3v5c0 4.4-3.4 8.4-8 10-4.6-1.6-8-5.6-8-10V6l8-3Z"/><path d="M12 8v4M12 15h.01"/></svg> <span data-i18n="settings.adminPanel">Super-admin panel</span></a>
+        <button class="ghost" hx-post="/api/admin/backup" hx-target="body" hx-swap="beforeend"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M17.5 18.5a4 4 0 0 0-.3-7.99A5.5 5.5 0 0 0 6.9 9.6 3.5 3.5 0 0 0 7 18.5Z"/></svg> <span data-i18n="settings.backup">Commit backup to GitHub (owner)</span></button>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    window.__hibanaPage = window.__hibanaPage || ((d) => (window.__hibanaPageQueue = window.__hibanaPageQueue || []).push(d))
+    window.__hibanaPage({
+      name: 'settings',
+      mount() {
+        // Obsidian import picker: the raw <input type=file> is replaced by a styled label
+        // button; the summary line shows what's selected, and an empty submit is blocked
+        // with a hint (hidden inputs can't carry a working `required`). Capture-phase so the
+        // guard runs before htmx's own submit listener.
+        const oform = document.getElementById('obsidian-form')
+        const oinput = document.getElementById('obsidian-files')
+        const oinfo = document.getElementById('obsidian-files-info')
+        const oi18n = (k, f) => window.hibanaI18n?.t(k) || f
+        const oShort = (name) => (name.length > 40 ? name.slice(0, 37) + '…' : name)
+        if (oinput && oinfo) {
+          oinput.addEventListener('change', () => {
+            const files = [...oinput.files]
+            oinfo.textContent = files.length
+              ? files.length === 1
+                ? oShort(files[0].name)
+                : `${files.length} ${oi18n('settings.filesChosen', 'files chosen')}`
+              : oi18n('settings.noFiles', 'No file chosen')
+          })
+        }
+        oform?.addEventListener(
+          'submit',
+          (e) => {
+            if (!oinput || oinput.files.length === 0) {
+              e.preventDefault()
+              e.stopImmediatePropagation()
+              window.hibana?.toast(oi18n('settings.chooseFirst', 'Choose the files first'), 'err')
+            }
+          },
+          true,
+        )
+
+        // Phase 6 item 12: the page-width select is a PURE client preference (no server
+        // round-trip): write localStorage, paint <html data-page-width> immediately.
+        // Delegated so it survives htmx/soft-nav re-mounts of this section.
+        document.addEventListener('change', (e) => {
+          const sel = e.target?.closest?.('#page-width-sel')
+          if (!sel) return
+          const v = sel.value === 'full' ? 'full' : 'standard'
+          try { localStorage.setItem('hibana-page-width', v) } catch { /* private mode */ }
+          document.documentElement.dataset.pageWidth = v
+          window.hibana?.toast(window.hibanaI18n?.t('settings.prefsSaved') || 'Preferences saved')
+        })
+        const pwInit = () => {
+          const sel = document.getElementById('page-width-sel')
+          if (!sel) return
+          try { sel.value = localStorage.getItem('hibana-page-width') === 'full' ? 'full' : 'standard' } catch { sel.value = 'standard' }
+        }
+        pwInit()
+        setTimeout(pwInit, 800) // soft-nav into settings re-mounts the section after this script ran
+
+        // Alpine.data() registers globally; re-registering on each visit is safe (last wins) and
+        // required on soft navigation — nav.js calls these before Alpine.initTree().
+        window.Alpine?.data('prefs', () => ({
+          language_pref: 'en', timezone: 'UTC', calendar_pref: 'gregorian',
+          async load() {
+            const r = await fetch('/api/settings')
+            const { prefs } = await r.json()
+            Object.assign(this, prefs)
+          },
+          async save() {
+            // calendar_pref is derived from language on the server (fa→shamsi, en→gregorian)
+            await fetch('/api/settings', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ language_pref: this.language_pref, timezone: this.timezone }) })
+            window.hibana?.toast(window.hibanaI18n?.t('settings.prefsSaved') || 'Preferences saved')
+            window.hibanaI18n?.apply()
+          },
+          init() { this.load() },
+        }))
+        // Dashboard view options (user request 2026-08-26): which sections show + their order.
+        // Order changes via ↑/↓ buttons or HTML5 drag (the global touch long-press fallback in
+        // app.js makes the handle work on touch too). Every change PATCHes /api/settings.
+        window.Alpine?.data('views', () => ({
+          loaded: false,
+          order: [],
+          // NOTE: state lives in shownMap — a `shown` data property would clobber the
+          // shown(id) method below when load() assigns it (pre-existing bug 2026-08-29:
+          // "shown is not a function" — the Show/Hide buttons rendered blank).
+          shownMap: {},
+          ALL: ['header', 'todo', 'projects', 'notebook', 'activity'],
+          dragFrom: null,
+          i18nTick: 0, // bumped once the user's language resolves — see toggleLabel
+          t: (k, f) => window.hibanaI18n?.t(k) || f,
+          // Reactive on i18nTick (same pattern as toggleLabel below) — Alpine only
+          // re-renders this binding when load() bumps i18nTick after the async
+          // language fetch resolves; without the dependency the section names
+          // stayed on the English fallback for FA users (2026-08-29 re-verify).
+          label(id) {
+            void this.i18nTick
+            const labels = {
+              header: this.t('settings.sectionHeader', 'Dashboard header'),
+              todo: this.t('settings.sectionTodo', 'To-Do list preview'),
+              projects: this.t('settings.sectionProjects', 'Projects kanban'),
+              notebook: this.t('settings.sectionNotebook', 'Quick Notebook'),
+              activity: this.t('settings.sectionActivity', 'Recent activity'),
+            }
+            return labels[id] || id
+          },
+          shown(id) { return !!this.shownMap[id] },
+          // Label via a method (not an inline ternary) so it can also depend on
+          // i18nTick — Alpine re-renders when load() bumps it after hibanaI18n.ready,
+          // which lands the Show/Hide labels in Farsi for FA users on first paint.
+          toggleLabel(id) {
+            void this.i18nTick
+            const isShown = !!this.shownMap[id]
+            return this.t(isShown ? 'settings.hide' : 'settings.show', isShown ? 'Hide' : 'Show')
+          },
+          async load() {
+            const r = await fetch('/api/settings')
+            const { prefs } = await r.json()
+            this.shownMap = {
+              header: !!prefs.dash_show_header,
+              todo: prefs.dash_show_todo !== 0,
+              projects: !!prefs.dash_show_projects,
+              notebook: !!prefs.dash_show_notebook,
+              activity: !!prefs.dash_show_activity,
+            }
+            this.order = String(prefs.dash_order || this.ALL.join(','))
+              .split(',')
+              .map((s) => s.trim())
+              .filter((s, i, a) => this.ALL.includes(s) && a.indexOf(s) === i)
+            for (const id of this.ALL) if (!this.order.includes(id)) this.order.push(id)
+            this.loaded = true
+            // Re-render the labels once the language has actually resolved.
+            try { await window.hibanaI18n?.ready } catch { /* keep EN fallback */ }
+            this.i18nTick++
+          },
+          move(i, dir) {
+            const j = i + dir
+            if (j < 0 || j >= this.order.length) return
+            const next = this.order.slice()
+            const [x] = next.splice(i, 1)
+            next.splice(j, 0, x)
+            this.order = next
+            this.save()
+          },
+          toggle(id) {
+            this.shownMap[id] = !this.shownMap[id]
+            this.save()
+          },
+          dragStart(e, i) { this.dragFrom = i; e.dataTransfer.effectAllowed = 'move' },
+          dragOver() {},
+          drop(e, j) {
+            const from = this.dragFrom
+            if (from === null || from === undefined || from === j) return
+            const next = this.order.slice()
+            const [x] = next.splice(from, 1)
+            next.splice(j, 0, x)
+            this.order = next
+            this.dragFrom = null
+            this.save()
+          },
+          async save() {
+            await fetch('/api/settings', {
+              method: 'PATCH',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                dash_show_header: this.shownMap.header ? 1 : 0,
+                dash_show_projects: this.shownMap.projects ? 1 : 0,
+                dash_show_todo: this.shownMap.todo ? 1 : 0,
+                dash_show_notebook: this.shownMap.notebook ? 1 : 0,
+                dash_show_activity: this.shownMap.activity ? 1 : 0,
+                dash_order: this.order.join(','),
+              }),
+            })
+            window.hibana?.toast(this.t('settings.viewsSaved', 'Dashboard view saved'))
+          },
+          init() { this.load() },
+        }))
+        window.Alpine?.data('theme', () => ({
+          t: localStorage.getItem('hibana-theme') || 'system',
+          set(t) { this.t = t; localStorage.setItem('hibana-theme', t); document.documentElement.dataset.theme = t },
+          init() { document.documentElement.dataset.theme = this.t },
+        }))
+        window.Alpine?.data('telegram', () => ({
+          ready: false,
+          linked: false,
+          code: '',
+          bot: '@Hibana_PM_bot',
+          botUrl: 'https://t.me/Hibana_PM_bot',
+          i18nTick: 0, // bumped once the user's language resolves — see linkLabel
+          t: (k, f) => window.hibanaI18n?.t(k) || f,
+          // Label via a method so it also depends on i18nTick (reactive) — the badge
+          // re-renders in the right language after hibanaI18n.ready resolves.
+          linkLabel() {
+            void this.i18nTick
+            return this.linked
+              ? this.t('settings.telegramLinked', 'Linked to Telegram')
+              : this.t('settings.telegramNotLinked', 'Not linked yet')
+          },
+          async load() {
+            const r = await fetch('/api/telegram/status')
+            if (!r.ok) return // unknown state — don't show a misleading badge
+            const body = await r.json()
+            this.bot = body.bot || this.bot
+            this.botUrl = body.botUrl || this.botUrl
+            this.linked = !!body.linked
+            this.ready = true
+            try { await window.hibanaI18n?.ready } catch { /* keep EN fallback */ }
+            this.i18nTick++
+          },
+          async generate() {
+            const r = await fetch('/api/telegram/link-code', { method: 'GET' })
+            if (!r.ok) return window.hibana?.toast(this.t('settings.codeFailed', 'Link code generation failed'), 'err')
+            const body = await r.json()
+            this.code = body.code
+            await navigator.clipboard?.writeText(body.code).catch(() => {})
+            window.hibana?.toast(this.t('settings.codeCopied', 'Code copied — send it to the bot'))
+          },
+          async unlink() {
+            const r = await fetch('/api/telegram/link', { method: 'DELETE' })
+            if (!r.ok) return window.hibana?.toast(this.t('settings.unlinkFailed', 'Unlink failed — try again'), 'err')
+            this.linked = false
+            this.code = ''
+            window.hibana?.toast(this.t('settings.unlinked', 'Telegram unlinked'))
+          },
+          init() { this.load() },
+        }))
+        window.Alpine?.data('invites', () => ({
+          async generate() {
+            const r = await fetch('/api/auth/invites', { method: 'POST' })
+            if (!r.ok) return window.hibana?.toast(window.hibanaI18n?.t('settings.inviteFailed') || 'Invite creation failed', 'err')
+            const { code } = await r.json()
+            await navigator.clipboard?.writeText(code)
+            window.hibana?.toast(`${window.hibanaI18n?.t('settings.inviteCopied') || 'Copied invite code'}: ${code}`)
+            // Task 24 fix: htmx 2.0.4 fires 'load' once at init — trigger(el,'load') is a
+            // no-op afterwards, so the invite list never refreshed. Refetch explicitly.
+            if (window.htmx) window.htmx.ajax('GET', '/api/auth/invites', { target: '#invite-list', swap: 'innerHTML' })
+          },
+        }))
+        window.Alpine?.data('account', () => ({
+          email: '',
+          currentPassword: '', newPassword: '', confirmPassword: '',
+          busy: false,
+          async load() {
+            const r = await fetch('/api/auth/me')
+            if (r.ok) {
+              const { user } = await r.json()
+              this.email = user.email || (window.hibanaI18n?.t('settings.emailMissing') || '(no email — username login)')
+            }
+          },
+          async changePassword() {
+            if (this.newPassword !== this.confirmPassword) return window.hibana?.toast(window.hibanaI18n?.t('settings.passwordsNoMatch') || 'New passwords do not match', 'err')
+            if (this.newPassword.length < 8) return window.hibana?.toast(window.hibanaI18n?.t('settings.passwordShort') || 'New password must be at least 8 characters', 'err')
+            this.busy = true
+            try {
+              const r = await fetch('/api/auth/password', {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ current_password: this.currentPassword, new_password: this.newPassword }),
+              })
+              const body = await r.json().catch(() => ({}))
+              if (!r.ok) {
+                window.hibana?.toast(body.error === 'invalid_current_password' ? (window.hibanaI18n?.t('settings.passwordWrong') || 'Current password is incorrect') : (window.hibanaI18n?.t('settings.passwordFailed') || 'Password change failed'), 'err')
+                return
+              }
+              window.hibana?.toast(window.hibanaI18n?.t('settings.passwordChanged') || 'Password changed — other devices signed out')
+              this.currentPassword = this.newPassword = this.confirmPassword = ''
+            } finally {
+              this.busy = false
+            }
+          },
+          init() { this.load() },
+        }))
+        // Profile picture (user request): crop the chosen image to a centered 256×256 PNG on
+        // the client (cover-fit), then PUT it — tiny payload, no server-side image tooling.
+        const fileToSquarePng = (file) =>
+          new Promise((resolve, reject) => {
+            const img = new Image()
+            img.onload = () => {
+              const size = 256
+              const c = document.createElement('canvas')
+              c.width = c.height = size
+              const ctx = c.getContext('2d')
+              const s = Math.min(img.width, img.height)
+              // cover-fit: crop to the largest centered square, then downscale to 256
+              ctx.drawImage(img, (img.width - s) / 2, (img.height - s) / 2, s, s, 0, 0, size, size)
+              URL.revokeObjectURL(img.src)
+              resolve(c.toDataURL('image/png').split(',')[1])
+            }
+            img.onerror = () => { URL.revokeObjectURL(img.src); reject(new Error('decode')) }
+            img.src = URL.createObjectURL(file)
+          })
+        window.Alpine?.data('avatar', () => ({
+          pic: false,
+          url: '',
+          initial: '?',
+          async load() {
+            const r = await fetch('/api/auth/me')
+            if (!r.ok) return
+            const { user } = await r.json()
+            const name = user.username || user.email || '?'
+            this.initial = (name[0] || '?').toUpperCase()
+            this.pic = !!user.avatar_path
+            this.url = user.avatar_path ? '/api/settings/avatar/file?v=' + Date.now() : ''
+          },
+          onErr() { this.pic = false },
+          async upload(ev) {
+            const file = ev.target.files && ev.target.files[0]
+            if (!file) return
+            if (!/^image\/(png|jpeg|webp|gif)$/.test(file.type || '')) {
+              return window.hibana?.toast(window.hibanaI18n?.t('settings.avatarBadType') || 'Please choose an image file', 'err')
+            }
+            try {
+              const dataBase64 = await fileToSquarePng(file)
+              const r = await fetch('/api/settings/avatar', {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ mimeType: 'image/png', dataBase64 }),
+              })
+              if (!r.ok) throw new Error('upload failed')
+              await this.load()
+              window.hibana?.toast(window.hibanaI18n?.t('settings.avatarSaved') || 'Profile picture saved')
+            } catch {
+              window.hibana?.toast(window.hibanaI18n?.t('settings.avatarFailed') || 'Upload failed', 'err')
+            } finally {
+              ev.target.value = ''
+            }
+          },
+          async remove() {
+            await fetch('/api/settings/avatar', { method: 'DELETE' })
+            await this.load()
+            window.hibana?.toast(window.hibanaI18n?.t('settings.avatarRemoved') || 'Profile picture removed')
+          },
+          init() { this.load() },
+        }))
+
+        // B3.5: Settings tabs — scroll to the section + mark active. Progressive enhancement;
+        // without JS the page is still a single scroll with every section visible.
+        const tabTargets = {
+          prefs: 'settings-prefs',
+          appearance: 'settings-appearance',
+          account: 'settings-account',
+          telegram: 'settings-telegram',
+          data: 'settings-data',
+        }
+        document.querySelectorAll('[data-settings-tab]').forEach((btn) => {
+          btn.addEventListener('click', () => {
+            const id = tabTargets[btn.dataset.settingsTab]
+            if (!id) return
+            document.querySelectorAll('[data-settings-tab]').forEach((b) => b.classList.toggle('is-active', b === btn))
+            const el = document.getElementById(id)
+            if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' })
+          })
+        })
+        // Mark the active tab on scroll (IntersectionObserver on each section)
+        const sections = Object.values(tabTargets).map((id) => document.getElementById(id)).filter(Boolean)
+        if (sections.length && 'IntersectionObserver' in window) {
+          const obs = new IntersectionObserver((entries) => {
+            for (const e of entries) {
+              if (e.isIntersecting) {
+                const tab = Object.keys(tabTargets).find((k) => tabTargets[k] === e.target.id)
+                if (tab) {
+                  document.querySelectorAll('[data-settings-tab]').forEach((b) => b.classList.toggle('is-active', b.dataset.settingsTab === tab))
+                }
+              }
+            }
+          }, { rootMargin: '-30% 0px -60% 0px' })
+          sections.forEach((s) => obs.observe(s))
+        }
+
+        // R6.2: "Show onboarding tour" button → reset the localStorage flag + navigate to
+        // the dashboard, which triggers the tour on load (the tour.js auto-starts when the
+        // flag is absent + we're on /app).
+        document.getElementById('show-tour-btn')?.addEventListener('click', () => {
+          window.hibanaTour?.reset?.()
+          if (window.hibanaNav) window.hibanaNav.go('/app')
+          else window.location.href = '/app'
+        })
+
+        // R7.2: "Install app" button — only visible if the browser fired beforeinstallprompt.
+        // install-prompt.js captures the event; here we just show the button + wire the click.
+        const installBtn = document.getElementById('install-app-btn')
+        if (installBtn && window.hibanaInstall?.canInstall?.()) {
+          installBtn.hidden = false
+          installBtn.addEventListener('click', () => window.hibanaInstall.trigger())
+        }
+      },
+    })
+  </script>
+</body>
+</html>

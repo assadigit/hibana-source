@@ -1,0 +1,58 @@
+# Hibana — Cloudflare Workers config.
+# Default config = DEV database. Production lives under [env.prod] (rule: dev first, prod only by deliberate deploy).
+
+name = "hibana"
+main = "src/index.ts"
+compatibility_date = "2026-01-01"
+
+# Scheduled backup: exports the D1 database to the GitHub assets repo.
+# Only fires on a deployed Worker; locally it's triggered via POST /api/admin/backup.
+# RECOVERED (hotfix window, 2026-08-31): the 03:17 daily backup was widened to
+# 4× daily (03:17 / 09:17 / 15:17 / 21:17 UTC) — matches the live deployment's
+# schedule exactly. Keep both crons.
+[triggers]
+crons = ["17 3,9,15,21 * * *", "*/30 * * * *"]
+
+# Static frontend served by the same Worker (single origin, decision Q1-A).
+# html_handling/not_found_handling mirror the live deployment's asset settings:
+# /404.html is served for missing assets (the app also renders its own branded
+# 404 for page routes via notFoundPage in src/app.ts).
+[assets]
+directory = "./public"
+binding = "ASSETS"
+html_handling = "auto-trailing-slash"
+not_found_handling = "404-page"
+
+[vars]
+ENVIRONMENT = "dev"
+GITHUB_OWNER = "assadigit"
+GITHUB_REPO = "hibana-safe"
+# Temporary open signup (2026-08-24). Flip back to invite-only by removing this line.
+OPEN_REGISTRATION = "true"
+
+# Dev database — created via: npx wrangler d1 create pm-app-dev
+[[d1_databases]]
+binding = "DB"
+database_name = "pm-app-dev"
+database_id = "80e02ce2-ca0a-4ccc-beda-8b6cb9c3a984"
+
+# -----------------------------------------------------------------------------------
+# Production environment — only touched by `wrangler deploy --env prod`.
+# -----------------------------------------------------------------------------------
+[env.prod.vars]
+ENVIRONMENT = "prod"
+GITHUB_OWNER = "assadigit"
+GITHUB_REPO = "hibana-safe"
+# Temporary open signup (2026-08-24). Flip back to invite-only by removing this line.
+OPEN_REGISTRATION = "true"
+
+# Custom domain (hibana.ir): wrangler 4 no longer supports the `custom_domains`
+# toml key (it warns "Unexpected fields found ... custom_domains"). Attach it via the
+# Cloudflare dashboard (Worker -> hibana-prod -> Settings -> Domains & Routes) or with a
+# write-scoped API token + `node scripts/custom-domain.mjs add hibana.ir`. Zone is active.
+
+# Created via: npx wrangler d1 create pm-app-prod
+[[env.prod.d1_databases]]
+binding = "DB"
+database_name = "pm-app-prod"
+database_id = "d842fcb5-44f6-4bbd-a772-3699ccadb496"

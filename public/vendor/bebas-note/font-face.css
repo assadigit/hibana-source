@@ -1,0 +1,29 @@
+/* Bebas Notes — handwritten marker font (user-provided, moved into assets). Used as the
+   default board text font on the Canvas + Notebook; users can opt back to the classic font
+   via the toolbar font picker. Self-hosted — zero runtime CDN dependency. */
+@font-face {
+  font-family: 'Bebas Notes';
+  src: url('BebasNotes-Regular.woff2') format('woff2'),
+       url('BebasNotes-Regular.ttf') format('truetype'),
+       url('BebasNotes-Regular.otf') format('opentype');
+  font-weight: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Bebas Notes';
+  src: url('BebasNotes-Bold.woff2') format('woff2'),
+       url('BebasNotes-Bold.ttf') format('truetype'),
+       url('BebasNotes-Bold.otf') format('opentype');
+  font-weight: 700;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Bebas Notes';
+  src: url('BebasNotes-Light.woff2') format('woff2'),
+       url('BebasNotes-Light.ttf') format('truetype'),
+       url('BebasNotes-Light.otf') format('opentype');
+  font-weight: 300;
+  font-display: swap;
+}

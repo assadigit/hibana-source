@@ -1,0 +1,175 @@
+import { githubClient, type GitHubClient, type GitHubConfig } from './github'
+import type { Db } from '../db/types'
+
+// Database protection (user priority). Full snapshot of every user-owned table, committed
+// to the GitHub assets repo by a scheduled cron. Rule 8: users.password_hash is excluded
+// and sessions is excluded entirely — credentials never touch git history.
+// §15: the file carries schema_version so old snapshots stay interpretable after changes.
+
+// Every user-owned table + support tables. FTS virtual tables are excluded on purpose
+// (they rebuild from triggers). Projects_fts/changelogs_fts carry no source data of their own.
+// 2026-08-28: quick_notes + the sadhana board tables were silently missing here — the daily
+// backup did not cover the notebook or the to-do board ("never lose an idea" tables). Added.
+// Phase 5 (§15, 2026-09-09): spark_folders (idea folders) + the dev-board tables
+// (dev_tasks, task_categories, sprints, backlog_docs, backlog_doc_revisions) joined the
+// snapshot — the whole-DB shape change is what the version bump below marks.
+export const SNAPSHOT_TABLES = [
+  'users', 'invites', 'spark_folders', 'projects', 'project_history_log', 'hurdles', 'tags', 'project_tags',
+  'links', 'screenshots', 'changelogs', 'tasks', 'payments', 'canvas_elements',
+  'telegram_captures', 'telegram_links', 'password_resets',
+  'quick_notes', 'sadhana_tasks', 'sadhana_tags', 'sadhana_updates',
+  'sadhana_recur_history', 'sadhana_quadrant_names',
+  'dev_tasks', 'task_categories', 'sprints', 'backlog_docs', 'backlog_doc_revisions',
+] as const
+
+export interface Snapshot {
+  schema_version: number
+  exported_at: string
+  data: Record<string, unknown[]>
+}
+
+export async function buildSnapshot(db: Db): Promise<Snapshot> {
+  const data: Record<string, unknown[]> = {}
+  for (const table of SNAPSHOT_TABLES) {
+    const rows = await db.query(`SELECT * FROM ${table}`)
+    if (table === 'users') {
+      // Rule 8: never backup password hashes.
+      data[table] = rows.map((r) => {
+        const { password_hash: _drop, ...safe } = r
+        return safe
+      })
+    } else {
+      data[table] = rows
+    }
+  }
+  return {
+    schema_version: 20260909,
+    // bump when the snapshot shape changes (§15) — Phase 5: quick_notes.done
+    exported_at: new Date().toISOString(),
+    data,
+  }
+}
+
+// ---------------------------------------------------------------------------------
+// Personal export scope (security fix 2026-08-28). GET /api/export?format=json used to
+// call buildSnapshot() — the WHOLE-DB shape the owner's backup cron uses — which meant any
+// authenticated member could download every other user's data under open registration.
+// buildUserSnapshot() returns only the requesting user's rows:
+//   - users: the user's own row (password_hash stripped, rule 8)
+//   - user_id-scoped tables: WHERE user_id = ?
+//   - project-scoped tables: WHERE project_id IN (the user's projects, soft-deleted included)
+//   - sadhana-children: WHERE task_id IN (the user's sadhana tasks)
+// Deliberately EXCLUDED from a personal export: invites + password_resets (platform/auth
+// state, not user content), sessions (rule 8), email_verifications/rate_limits/
+// telegram_note_sessions/sadhana_reminder_logs (transient server state).
+// ---------------------------------------------------------------------------------
+
+/** Tables scoped directly by user_id. */
+const USER_SCOPED_EXPORT_TABLES = [
+  'projects', 'spark_folders', 'tags', 'quick_notes', 'canvas_elements',
+  'telegram_captures', 'telegram_links', 'sadhana_tasks', 'sadhana_quadrant_names',
+] as const
+/** Tables that scope through projects.project_id (the user's projects, incl. soft-deleted). */
+const PROJECT_SCOPED_EXPORT_TABLES = [
+  'project_history_log', 'hurdles', 'links', 'screenshots', 'changelogs',
+  'tasks', 'payments', 'project_tags',
+] as const
+/** Tables that scope through sadhana_tasks.task_id. */
+const SADHANA_CHILD_EXPORT_TABLES = [
+  'sadhana_tags', 'sadhana_updates', 'sadhana_recur_history',
+] as const
+
+export async function buildUserSnapshot(db: Db, userId: string): Promise<Snapshot> {
+  const data: Record<string, unknown[]> = {}
+
+  // Own profile row, rule 8 applied.
+  const users = await db.query('SELECT * FROM users WHERE id = ?', [userId])
+  data.users = users.map((r) => {
+    const { password_hash: _drop, ...safe } = r
+    return safe
+  })
+
+  for (const table of USER_SCOPED_EXPORT_TABLES) {
+    data[table] = await db.query(`SELECT * FROM ${table} WHERE user_id = ?`, [userId])
+  }
+  for (const table of PROJECT_SCOPED_EXPORT_TABLES) {
+    data[table] = await db.query(
+      `SELECT * FROM ${table} WHERE project_id IN (SELECT id FROM projects WHERE user_id = ?)`,
+      [userId],
+    )
+  }
+  for (const table of SADHANA_CHILD_EXPORT_TABLES) {
+    data[table] = await db.query(
+      `SELECT * FROM ${table} WHERE task_id IN (SELECT id FROM sadhana_tasks WHERE user_id = ?)`,
+      [userId],
+    )
+  }
+
+  return {
+    // §15: the personal export shape was not touched by the Phase 5 bump — stays 20260828
+    // (exactly as deployed; only the whole-DB snapshot got the new version).
+    schema_version: 20260828,
+    exported_at: new Date().toISOString(),
+    data,
+  }
+}
+
+export async function backupToGitHub(db: Db, gh: GitHubConfig, ownerUserId?: string, keepN = BACKUP_RETENTION_DEFAULT): Promise<{ path: string; url: string; retained: string[] }> {
+  const snapshot = await buildSnapshot(db)
+  const ts = new Date().toISOString().replace(/[:.]/g, '-')
+  const path = `backups/snapshot-${ts}.json`
+  const client = githubClient(gh)
+  // btoa() throws on any codepoint above 0xFF — Persian content in the snapshot JSON
+  // would kill the nightly backup. Encode to UTF-8 bytes and build the binary string in
+  // 8k chunks (a spread String.fromCharCode on the whole array would blow the stack).
+  const json = JSON.stringify(snapshot, null, 2)
+  const bytes = new TextEncoder().encode(json)
+  let bin = ''
+  for (let i = 0; i < bytes.length; i += 8192) bin += String.fromCharCode(...bytes.subarray(i, i + 8192))
+  const pushed = await client.pushFile(path, btoa(bin), 'Hibana automated backup')
+  const retained = await enforceRetention(client, keepN)
+  return { path, url: pushed.html_url, retained }
+}
+
+// Backup retention (ROADMAP P2): snapshots accumulate daily forever; without cleanup the
+// assets repo grows without bound. Keep only the newest N. Filenames carry ISO-8601 UTC
+// timestamps, so lexicographic order == chronological order — "newest" is the highest name.
+export const BACKUP_RETENTION_DEFAULT = 120 // dev + prod both write here: 120 ≈ two months of daily snapshots × 2 workers
+
+/** Pure convenience for tests/blob expectations: which snapshot files are older than the newest `keepN`? */
+export function selectOldBackups(paths: string[], keepN: number): string[] {
+  const n = Math.max(1, Math.floor(keepN))
+  const snapshots = paths
+    .filter((p) => p.split('/').pop()?.startsWith('snapshot-') && p.endsWith('.json'))
+    .sort()
+  return snapshots.slice(0, Math.max(0, snapshots.length - n))
+}
+
+/**
+ * Best-effort prune of backups/snapshot-*.json beyond the newest `keepN`.
+ * Never throws: a failed prune must never fail the backup itself — snapshots merely
+ * accumulate until the next successful run (safe direction).
+ */
+export async function enforceRetention(gh: GitHubClient, keepN = BACKUP_RETENTION_DEFAULT): Promise<string[]> {
+  const n = Math.max(1, Math.floor(keepN))
+  let entries
+  try {
+    entries = await gh.listDir('backups')
+  } catch {
+    return [] // cannot list — skip pruning this run
+  }
+  const byName = entries
+    .filter((e) => e.name.startsWith('snapshot-') && e.name.endsWith('.json'))
+    .sort((a, b) => a.name.localeCompare(b.name))
+  const doomed = byName.slice(0, Math.max(0, byName.length - n))
+  const deleted: string[] = []
+  for (const entry of doomed) {
+    try {
+      await gh.deleteFile(entry.path, entry.sha)
+      deleted.push(entry.path)
+    } catch {
+      // leave it; the next run tries again
+    }
+  }
+  return deleted
+}

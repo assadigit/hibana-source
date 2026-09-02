@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Notifications — Hibana</title>
+  <link rel="stylesheet" href="/css/app.css?v=185">
+  <link rel="stylesheet" href="/vendor/manrope/font-face.css">
+  <script src="/vendor/htmx.min.js" defer></script>
+  <script src="/js/boot.js"></script>
+  <script src="/vendor/alpine.min.js" defer></script>
+  <script src="/js/queue.js" defer></script>
+  <script src="/js/app.js?v=158" defer></script>
+  <script src="/js/touch-drag.js" defer></script>
+  <script src="/js/i18n.js?v=26" defer></script>
+  <script src="/js/nav.js" defer></script>
+  <script src="/js/command-palette.js" defer></script>
+  <script src="/js/mobile-nav.js?v=4" defer></script>
+  <script src="/js/zen-mode.js" defer></script>
+  <script src="/js/micro-interactions.js" defer></script>
+  <script src="/js/go-to.js" defer></script>
+  <script src="/js/install-prompt.js" defer></script>
+</head>
+<body>
+  <div data-nav></div>
+  <main class="shell">
+    <div class="row spread notif-head">
+      <h1 data-i18n="notif.title">Notifications</h1>
+      <div id="notif-summary" class="notif-summary" hidden></div>
+    </div>
+    <p class="muted small" data-i18n="notif.subtitle">Things that need your attention — overdue, upcoming, and stale.</p>
+    <div id="notif-body" hx-get="/api/notifications" hx-trigger="load" hx-swap="innerHTML" hx-indicator="#notif-loading">
+      <div id="notif-loading" class="skeleton-loading htmx-indicator" aria-label="Loading notifications" role="status">
+        <div class="skeleton skeleton-line w-60"></div>
+        <div class="skeleton skeleton-box"></div>
+        <div class="skeleton skeleton-line"></div>
+        <div class="skeleton skeleton-line w-40"></div>
+        <div class="skeleton skeleton-box"></div>
+      </div>
+    </div>
+  </main>
+  <script>
+    window.__hibanaPage = window.__hibanaPage || ((d) => (window.__hibanaPageQueue = window.__hibanaPageQueue || []).push(d))
+    window.__hibanaPage({
+      name: 'notifications',
+      mount(ctx) {
+        const _t = (k, f) => window.hibanaI18n?.t(k) || f
+        // Fetch the JSON in parallel to build the summary chips (urgent/warning/info counts).
+        // The htmx fragment loads the list; this just augments the header.
+        fetch('/api/notifications').then((r) => r.ok ? r.json() : null).then((data) => {
+          const summary = document.getElementById('notif-summary')
+          if (!summary || !data || !data.notifications) return
+          const urgent = data.notifications.filter((n) => n.severity === 'urgent').length
+          const warning = data.notifications.filter((n) => n.severity === 'warning').length
+          const info = data.notifications.filter((n) => n.severity === 'info').length
+          if (!data.notifications.length) return
+          summary.hidden = false
+          summary.innerHTML = [
+            urgent ? `<span class="notif-chip notif-urgent">${_t('notif.urgent','Urgent')}: ${urgent}</span>` : '',
+            warning ? `<span class="notif-chip notif-warning">${_t('notif.warning','Soon')}: ${warning}</span>` : '',
+            info ? `<span class="notif-chip notif-info">${_t('notif.info','Heads up')}: ${info}</span>` : '',
+          ].join('')
+        }).catch(() => {})
+      },
+    })
+  </script>
+</body>
+</html>

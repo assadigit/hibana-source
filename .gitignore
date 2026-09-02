@@ -1,0 +1,16 @@
+node_modules/
+.wrangler/
+.dev.vars
+.secrets.env
+.admin.secrets
+.env
+dist/
+coverage/
+data/
+*.sql.tmp
+dashboard-check.png
+# never commit session cookies / curl jars
+cookies.txt
+*.cookies
+# local Node run logs (dev server stdout)
+*.log

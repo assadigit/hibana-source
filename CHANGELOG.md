@@ -4,6 +4,37 @@ Full spec: `pm-app-spec.md` · Rules (non-negotiable): `CLAUDE.md` · Reasoning:
 Deploy: `DEPLOY.md` · What's next: `ROADMAP.md` · Session handoff: `NEW_SESSION.md`
 Verification: `npm test` (191) · `npm run typecheck` · `npm run smoke` · `npm run drill`
 
+## 2026-09-02 — Phase 1: critical safety + reliability (audit execution) — v0.1.1, commits `199cc6e`→`736e187`
+Execution of the Phase 1 backlog (`TECHNICAL-BACKLOG.md`): 8 server/docs-only findings,
+each one commit through the full verification ladder (typecheck 0 errors · 191/191 tests ·
+E2E :8787 FA/RTL + EN/LTR). No cache bump, no SW rotation (Phase 1 is server-only).
+- **P1.1 (F-H1)** `[HIGH]` — screenshot upload cap 140 MB → 5 MB + Content-Length guard (413
+  before buffering). Defused the single highest-severity finding (Worker OOM). The 140 MB
+  Zod cap falsely claimed "well under GitHub's 100MB cap" — it exceeded it.
+- **P1.2 (F-M8, pre-seeded #2)** — newest quick note at the top. `ORDER BY sort_order ASC`
+  → `DESC` (new notes, pos = COUNT(*) = highest, now render first) + drag-reorder iterates
+  `[...ids].reverse()` so DESC stays consistent after a manual drag. 2-line server-only fix.
+- **P1.3 (F-L9)** — presence-stamp `UPDATE users SET last_seen_at` wrapped in `ctx.waitUntil`
+  (try/catch-guarded: Hono's `c.executionCtx` throws outside Workers). Stops the admin "online"
+  dot from reading stale on Workers.
+- **P1.4 (F-L3)** — scheduled handler: `Promise.all([backup, purge, sweep, reminders])` →
+  sequential `await`. Backup + reminders no longer contend for the Worker's subrequest budget.
+- **P1.5 (F-L4)** — `GET /api/canvas?maxX=abc` NaN guard. `Number('abc')` → NaN → silent
+  empty canvas; now finite-guarded to fall back to the open default (1e9).
+- **P1.6 (F-M13)** — documented the D1 transaction footgun: reads inside `transaction(fn)`
+  see PRE-batch state; convention codified (write-only batches; atomic RMW → single
+  `INSERT...ON CONFLICT...DO UPDATE...RETURNING`). Doc-only.
+- **P1.7 (F-L6)** — `tech-stack.md` refresh: 27→38 migrations / schema 0027→0039; cron
+  daily→4×/day; +12 frontend JS modules; Turnstile→CAPTCHA_SECRET_KEY (math captcha);
+  tests 181→191.
+- **P1.8 (F-L7)** — `CHANGELOG.md` header test count 189→191.
+- **P1.9 (F-L17)** — `d1_migrations` bookkeeping backfill on live D1 (dev+prod). ⚠️
+  APPROVAL-GATED live-DB write — **deferred**, not run this phase. The live DBs are already
+  at schema 0039; the backfill only makes `wrangler d1 migrations apply` a no-op. Will run
+  only on Ali's explicit written approval.
+Source pushed to `github.com/assadigit/hibana-source` (tag `v0.1.1`); zip
+`Hibana-Alpha-V0.1.1.zip`. Deploy: dev (`hibana.aliassadi.workers.dev`) → prod (`hibana.ir`).
+
 ## 2026-09-05 — Calendar v2 + project stage editing (Task 24) — commit `ddb3aa4`, DEPLOY PENDING (no migration)
 - Calendar `/calendar.html`: «هفته بعد»/«ماه بعد» now land on the EXACT focused day (same
   weekday +7d; same day-number next Jalali/Gregorian month, clamped; chains from the selected

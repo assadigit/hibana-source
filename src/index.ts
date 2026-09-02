@@ -43,17 +43,23 @@ export default {
     const utcMin = now.getUTCHours() * 60 + now.getUTCMinutes()
     const backupTick = utcMin % 30 !== 0
     const dailyTick = backupTick && now.getUTCHours() === 3
+    // P1.4 (F-L3): run the jobs SEQUENTIALLY, not via Promise.all. They share the Worker's
+    // CPU + subrequest budget, so concurrent backup (28 SELECTs + GitHub PUT + retention
+    // deletes) and reminders (task scan + Resend emails) could starve each other. The
+    // sequence is cheap-to-expensive: backup (DB + GitHub) → purge (DB) → sweep (DB) →
+    // Sadhana reminders (DB + Resend) → client reminders (Resend). A failure in an early
+    // step now blocks later steps — acceptable: a failed backup should not fire emails.
     ctx.waitUntil(
-      Promise.all([
-        backupTick ? scheduledBackup(cfg) : Promise.resolve(0),
-        dailyTick ? scheduledPurge(cfg) : Promise.resolve(0),
+      (async () => {
+        if (backupTick) await scheduledBackup(cfg)
+        if (dailyTick) await scheduledPurge(cfg)
         // Sadhana weekly sweep (Mondays Asia/Tehran) — idempotent, daily is enough.
-        dailyTick ? sweepCompletedTasks(cfg.db) : Promise.resolve(0),
+        if (dailyTick) await sweepCompletedTasks(cfg.db)
         // Sadhana deadline reminders (7d/3d/1d/0d/2h) — every tick (30-min cadence, §7.3).
-        runSadhanaReminders(cfg),
+        await runSadhanaReminders(cfg)
         // Client reminders go to the owner's email (the account is single-owner by design).
-        dailyTick && cfg.emailKey && cfg.ownerEmail ? runReminders(cfg, cfg.ownerEmail) : Promise.resolve(0),
-      ]),
+        if (dailyTick && cfg.emailKey && cfg.ownerEmail) await runReminders(cfg, cfg.ownerEmail)
+      })(),
     )
   },
 }

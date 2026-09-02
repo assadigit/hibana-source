@@ -240,8 +240,7 @@ export function notebookHtml(notes: QuickNote[], lang: Locale, composerMode: 'no
     <input type="radio" class="note-size-radio" name="note-size" id="ns-s" value="s">
     <input type="radio" class="note-size-radio" name="note-size" id="ns-m" value="m" checked>
     <input type="radio" class="note-size-radio" name="note-size" id="ns-l" value="l">
-    <div class="row spread note-head">
-      <h3 class="note-heading">${t('Quick Notebook', 'یادداشت سریع')}</h3>
+    <div class="row note-head">
       <span class="row note-head-controls">
         <span class="note-size-seg" role="radiogroup" aria-label="${t('Note size', 'اندازه')}">
           <label for="ns-s">${t('Small', 'کوچک')}</label>
@@ -254,6 +253,7 @@ export function notebookHtml(notes: QuickNote[], lang: Locale, composerMode: 'no
           <label for="nv-grid">${t('Grid', 'شبکه')}</label>
         </span>
       </span>
+      <h3 class="note-heading">${t('Quick Notebook', 'یادداشت سریع')}</h3>
     </div>
     <form class="row note-compose" hx-post="/api/notes" hx-target="#notebook" hx-swap="outerHTML" data-note-compose>
       <label class="note-compose-label" for="note-compose-box">${t('Quick note', 'یادداشت جدید')}</label>

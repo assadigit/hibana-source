@@ -6,6 +6,7 @@
 // for the Telegram webhook.
 
 import type { Db } from '../db/types'
+import { log } from '../lib/log'
 
 export interface RateRule {
   /** short key segment for the DB row, e.g. 'login' */
@@ -58,7 +59,8 @@ export async function hitRateLimit(db: Db, rule: RateRule, ip: string): Promise<
     return count > rule.limit
   } catch (err) {
     // Never fail the app because the guard itself hiccuped.
-    console.error('rate limiter error:', err)
+    // P3.1 (F-M12): structured log instead of console.error.
+    log.error('rate_limiter_error', { err: err instanceof Error ? { message: err.message } : String(err) })
     return false
   }
 }

@@ -1,5 +1,6 @@
 import { Hono } from 'hono'
 import { ApiError, errorBody, internalErrorResponse } from './lib/errors'
+import { log, withReqId } from './lib/log'
 import { authRoutes } from './routes/auth'
 import { devRoutes } from './routes/dev'
 import { projectsRoutes } from './routes/projects'
@@ -31,7 +32,16 @@ import type { Config, UserRow } from './types'
 //   3. Static asset fallback (login.html, css, js, …)
 // Both runtime entries (Workers in src/index.ts, Node in src/server.ts) call this.
 export function createApp(cfg: Config) {
-  const app = new Hono<{ Variables: { user: UserRow } }>()
+  const app = new Hono<{ Variables: { user: UserRow; reqId?: string } }>()
+
+  // P3.1 (F-M12): per-request id, generated first so every subsequent middleware + route
+  // + onError log line carries it. crypto.randomUUID() on Workers/Node 20+. Set on c.var
+  // so handlers can read it via c.get('reqId'); withReqId scopes the log module to it.
+  app.use('*', async (c, next) => {
+    const reqId = crypto.randomUUID()
+    c.set('reqId', reqId)
+    await next()
+  })
 
   // Force HTTPS: prod sets the session cookie `Secure`, so any request arriving over plain
   // HTTP cannot hold a session — the user gets kicked back to login. Cloudflare sends the
@@ -125,11 +135,12 @@ export function createApp(cfg: Config) {
     // Structured ApiError → serialize at its own status with { error, message? }.
     // Any other throw → the legacy { error: 'internal_error' } 500, so existing
     // routes (and the existing frontend error handling) keep their exact shape.
+    const reqId = c.get('reqId')
     if (err instanceof ApiError) {
-      console.warn('api error:', err.code, err.detail ?? '')
+      withReqId(reqId, () => log.warn('api_error', { code: err.code, detail: err.detail ?? '', path: c.req.path }))
       return c.json(errorBody(err), err.status)
     }
-    console.error('unhandled error:', err)
+    withReqId(reqId, () => log.error('unhandled_error', { err: err instanceof Error ? { message: err.message, stack: err.stack } : String(err), path: c.req.path }))
     return c.json(internalErrorResponse, 500)
   })
 

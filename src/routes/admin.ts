@@ -6,6 +6,7 @@ import { isBanned } from '../auth/ban'
 import { toastHtml } from '../lib/html'
 import { localeOf, trFor } from '../lib/i18n'
 import { jsonBody, requestOrigin } from '../lib/http'
+import { log } from '../lib/log'
 import { banUserSchema, roleUserSchema, removeUserSchema, customEmailSchema, broadcastEmailSchema, BAN_PRESET_MS } from '../validation/schemas'
 import { buildSnapshot, backupToGitHub, BACKUP_RETENTION_DEFAULT } from '../services/backup'
 import { sendAndLog, emailsSentToday, RESEND_DAILY_LIMIT, resetEmailHtml, textToEmailHtml } from '../services/email'
@@ -361,7 +362,7 @@ export function adminRoutes(cfg: Config) {
 // snapshot, not per-user, so no auth applies (and none is possible on a scheduled job).
 export async function scheduledBackup(cfg: Config): Promise<void> {
   if (!cfg.github.token) {
-    console.error('backup skipped: GITHUB_TOKEN not set')
+    log.warn('backup_skipped', { reason: 'GITHUB_TOKEN not set' })
     return
   }
   try {
@@ -370,9 +371,29 @@ export async function scheduledBackup(cfg: Config): Promise<void> {
       repo: cfg.github.repo,
       token: cfg.github.token,
     })
-    console.log('backup committed', result.path)
+    log.info('backup_committed', { path: result.path })
   } catch (err) {
-    console.error('backup failed:', err)
+    // P3.1 (F-M12) + P3.5(c) (F-M4): structured error log + owner-email alert. A failed
+    // backup previously only logged (plain text); now it also emails the owner so a silent
+    // backup gap can't go unnoticed. The email send is best-effort (never rethrows).
+    log.error('backup_failed', { err: err instanceof Error ? { message: err.message, stack: err.stack } : String(err) })
+    if (cfg.emailKey && cfg.ownerEmail) {
+      try {
+        await sendAndLog(
+          { db: cfg.db, emailKey: cfg.emailKey, assets: cfg.assets },
+          {
+            to: cfg.ownerEmail,
+            kind: 'backup_failed',
+            subject: 'Hibana backup failed',
+            title: 'Backup failed',
+            bodyHtml: `<p>The scheduled Hibana backup failed at ${new Date().toISOString()}.</p><p>Error: ${err instanceof Error ? err.message : String(err)}</p><p>The next scheduled run will retry. Check <code>wrangler tail</code> for the structured error.</p>`,
+            origin: 'https://hibana.ir',
+          },
+        )
+      } catch (emailErr) {
+        log.error('backup_alert_email_failed', { err: emailErr instanceof Error ? { message: emailErr.message } : String(emailErr) })
+      }
+    }
   }
 }
 
@@ -401,4 +422,6 @@ export async function scheduledPurge(cfg: Config): Promise<void> {
     tx.sql('DELETE FROM rate_limits WHERE window_start < ?', [Math.floor(Date.now() / 1000) - 24 * 3600])
   })
   console.log(`purged ${gone.length} rows, ${goneNotes.length} notes, ${goneSadhana.length} todos`)
+  // P3.1 (F-M12): structured log alongside the legacy line (kept for grep continuity).
+  log.info('purge_complete', { projects: gone.length, notes: goneNotes.length, todos: goneSadhana.length })
 }

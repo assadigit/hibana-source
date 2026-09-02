@@ -12,5 +12,6 @@
     // Entry point: already logged in? → app. Otherwise → login.
     fetch('/api/auth/me').then((r) => window.location.replace(r.ok ? '/app' : '/login.html'))
   </script>
+  <noscript><p style="font-family:sans-serif;text-align:center;padding:3rem">Hibana needs JavaScript. / هیبانا برای کار نیاز به جاوااسکریپت دارد.</p></noscript>
 </body>
 </html>

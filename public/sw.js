@@ -33,6 +33,7 @@ const SHELL = [
   '/404.html',
   '/js/admin.js?v=1',
   '/css/app.css?v=186',
+  '/css/task-controls.css?v=4', // P4.15 (F-L27): precache task-controls.css (3-dot prog-track) — was missing from SHELL
   '/js/devboard.js?v=9',
   '/js/app.js?v=158',
   '/js/touch-drag.js',

@@ -33,9 +33,13 @@ is static HTML + htmx + Alpine.js + Fabric.js (no React, no build step, no bundl
 - **Abstraction**: all DB access goes through `src/db/types.ts` → `Db` interface
   (`query`, `execute`, `transaction`). D1 adapter: `src/db/d1.ts`. Node adapter:
   `src/db/sqlite.ts`. Search uses SQLite FTS5 (isolated to `src/routes/search.ts`).
-- **Migrations**: 27 numbered SQL files in `migrations/`. Applied via
-  `wrangler d1 migrations apply` (CF) or `scripts/migrate-node.ts` (Node).
-  **Schema is at migration 26 (0027 applied). No new migrations this session.**
+- **Migrations**: 38 numbered SQL files in `migrations/` (0001–0039; the `0007` gap is
+  intentional and pre-existing). Applied via `wrangler d1 migrations apply` (CF) or
+  `scripts/migrate-node.ts` (Node). **Schema is at 0039.** 9 of the 38 files
+  (`0031`–`0039`) were reconstructed during the source-recovery session (see
+  `RECOVERED.md`) so fresh environments reproduce the live D1 schema exactly.
+  The live DBs are already at 0039 — never re-apply migrations to live without the
+  `d1_migrations` bookkeeping backfill (P1.9 / F-L17, approval-gated).
 
 ### File storage
 - **Private GitHub repo** (`hibana-safe`) via the Contents API. D1 stores paths only.
@@ -56,9 +60,13 @@ is static HTML + htmx + Alpine.js + Fabric.js (no React, no build step, no bundl
   Stale buckets purged by daily cron.
 
 ### Scheduled jobs (cron)
-- `17 3 * * *` — daily: backup to GitHub, purge old sessions, Sadhana weekly sweep,
-  client reminders.
+- `17 3,9,15,21 * * *` — 4× daily backup to GitHub (03:17/09:17/15:17/21:17 UTC;
+  RECOVERED hotfix widened it from the original 03:17 daily).
 - `*/30 * * * *` — every 30 min: Sadhana deadline reminders (7d/3d/1d/0d/2h).
+- Tick logic: `utcMin % 30 !== 0` = a backup slot; `backupTick && hour === 3`
+  uniquely identifies the 03:17 daily slot where purge + weekly sweep + client
+  reminders also run. The jobs run **sequentially** (not `Promise.all`) so backup
+  and reminders don't contend for the Worker's subrequest budget (P1.4 / F-L3).
 
 ### Backend structure
 ```
@@ -143,15 +151,18 @@ public/js/
   i18n.js              — client dictionary (EN+FA), Vazir injection, date conversion
   canvas.js            — Fabric canvas: pen, text, sticky notes, frames, sync
   whiteboard.js        — Fabric notebook: pen, text, autosave
-  touch-drag.js        — touch/pen drag fallback for HTML5 DnD
-  command-palette.js   — Ctrl+K palette: search, actions, recent, tags, fuzzy
-  mobile-nav.js        — bottom-tab nav for mobile
+  admin.js             — admin console: users/presence, bans, email console, backups
+  devboard.js          — sprint/dev board: timeline, lanes, drag-reorder, clip edges
+  emoji-picker.js      — emoji picker (quadrant); emoji-data.js is its data
+  jalali-holidays.js   — Iranian holidays (fixed Jalali + dynamic Hijri via Intl)
+  install-prompt.js    — PWA beforeinstallprompt capture
+  go-to.js             — vim-style "g then letter" navigation
   zen-mode.js          — Ctrl+. focus/zen mode
   micro-interactions.js— task-complete pop, avatar skeleton
   tour.js              — onboarding tour + animated stat counters
-  go-to.js             — vim-style "g then letter" navigation
-  install-prompt.js    — PWA beforeinstallprompt capture
-  jalali-holidays.js   — Iranian holidays (fixed Jalali + dynamic Hijri via Intl)
+  mobile-nav.js        — bottom-tab nav for mobile
+  touch-drag.js        — touch/pen drag fallback for HTML5 DnD
+  command-palette.js   — Ctrl+K palette: search, actions, recent, tags, fuzzy
 ```
 
 ### Frontend CSS
@@ -208,7 +219,9 @@ npx wrangler secret put GITHUB_TOKEN --env prod
 npx wrangler secret put RESEND_KEY --env prod
 npx wrangler secret put TELEGRAM_BOT_TOKEN --env prod
 npx wrangler secret put TELEGRAM_SECRET --env prod
-npx wrangler secret put TURNSTILE_SECRET_KEY --env prod
+npx wrangler secret put CAPTCHA_SECRET_KEY --env prod   # math-captcha HMAC key
+# TURNSTILE_SECRET_KEY is still honored as a legacy fallback for the captcha secret
+# (see src/index.ts) — the Turnstile verification itself is gone.
 ```
 
 ### Custom domain
@@ -219,7 +232,7 @@ The zone is active. HTTPS is enforced in-app (301 redirect on `x-forwarded-proto
 
 ## Testing
 
-- **vitest** — 181 tests across 25 files. Run: `npm test`
+- **vitest** — 191 tests across 26 files. Run: `npm test`
 - **TypeScript** — `npm run typecheck` (tsc --noEmit, authoritative)
 - **Smoke** — `npm run smoke` (19-request in-process end-to-end)
 - **Restore drill** — `npm run drill` (P0 backup restore)

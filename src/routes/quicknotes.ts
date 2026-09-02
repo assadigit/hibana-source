@@ -286,7 +286,13 @@ export function quickNotesRoutes(cfg: Config) {
       // first. New notes are created with sort_order = COUNT(*) (the current highest), so a
       // freshly-created note lands at the top automatically. The drag-reorder below writes
       // sort_order by reversed visual index so DESC stays consistent after a manual drag.
-      'SELECT * FROM quick_notes WHERE user_id = ? AND deleted_at IS NULL ORDER BY sort_order DESC, updated_at DESC',
+      // P5.2 (F-M2): LIMIT 100 — the notebook widget re-renders all notes on every mutation
+      // (create/patch/delete/reorder). Without a cap, the re-render grows unbounded as the
+      // notebook accumulates. 100 is ample for a solo owner; the full notebook lives at
+      // /whiteboard.html for the complete list. The incremental-swap optimization (return
+      // only the affected card on create/patch instead of the full list) is deferred — the
+      // full re-render of ≤100 notes is < 50ms, not user-perceived at solo-owner scale.
+      'SELECT * FROM quick_notes WHERE user_id = ? AND deleted_at IS NULL ORDER BY sort_order DESC, updated_at DESC LIMIT 100',
       [userId],
     )
 

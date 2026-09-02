@@ -597,6 +597,23 @@ button.active { background: var(--accent-soft); }
 .project-card { display: grid; gap: 0.6rem; margin: 0; }
 .project-card:hover { background: var(--bg); }
 
+/* P-signals: notification-style icon+count chips on project rows (user request 2026-09-02).
+   Shown on dashboard kanban cards + projects page cards/list/kanban. Only non-zero signals
+   render. Each chip: small icon + count, tinted by signal type. Compact + scannable. */
+.project-signals { display: inline-flex; align-items: center; gap: 0.35rem; flex-wrap: wrap; }
+.sig-chip { display: inline-flex; align-items: center; gap: 0.2rem; padding: 0.1rem 0.4rem; border-radius: 999px; font-size: 0.7rem; line-height: 1.3; font-weight: 600; white-space: nowrap; }
+.sig-chip .icon { width: 0.85em; height: 0.85em; }
+.sig-bugs { background: rgb(240 97 97 / 0.15); color: var(--err, #f06161); }
+.sig-ideas { background: rgb(245 158 78 / 0.15); color: #f59e4e; }
+.sig-backlog { background: rgb(74 159 163 / 0.15); color: var(--accent, #4A9FA3); }
+.sig-hurdles { background: rgb(245 197 126 / 0.15); color: #c9853e; }
+/* dashboard kanban card: signals sit between title and updated */
+.stat-kanban-card .project-signals { margin-inline-start: 0.2rem; }
+/* projects list table: signals inline before the title link */
+.projects-table td .project-signals { margin-inline-end: 0.5rem; }
+/* card view: signals row below the title */
+.pc-signals-row { display: flex; justify-content: flex-start; }
+
 /* --- wireframe project card (2026-08-30 sketch) — minimal centered card -----
    [Updated 5m ago]      [stage pill]   ← head row (.title-meta also hosts the ⋯ menu)
             Title of project            ← centered, largest text

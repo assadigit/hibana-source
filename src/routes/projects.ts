@@ -62,6 +62,69 @@ async function loadTags(cfg: Config, userId: string): Promise<Map<string, TagRow
   return map
 }
 
+/** Per-project signal counts for the project-row signals strip (user request 2026-09-02).
+ *  Batched: one query per signal type across all visible project ids (not N queries).
+ *  Signals shown: bugs (open dev_tasks status='bug'), ideas (dev_tasks status='idea'),
+ *  backlog (backlog_docs count), hurdles (open hurdles). Zero-count signals are omitted
+ *  from the strip (only show what's actionable). */
+interface ProjectSignals {
+  bugs: number
+  ideas: number
+  backlog: number
+  hurdles: number
+}
+async function loadProjectSignals(cfg: Config, userId: string, projectIds: string[]): Promise<Map<string, ProjectSignals>> {
+  const map = new Map<string, ProjectSignals>()
+  if (projectIds.length === 0) return map
+  for (const id of projectIds) map.set(id, { bugs: 0, ideas: 0, backlog: 0, hurdles: 0 })
+  const placeholders = projectIds.map(() => '?').join(',')
+  // dev_tasks: bugs + ideas in one query (group by status)
+  const devRows = await cfg.db.query<{ project_id: string; status: string; n: number }>(
+    `SELECT project_id, status, COUNT(*) AS n FROM dev_tasks
+     WHERE project_id IN (${placeholders}) AND status IN ('bug', 'idea')
+     GROUP BY project_id, status`,
+    projectIds,
+  )
+  for (const r of devRows) {
+    const s = map.get(r.project_id)
+    if (!s) continue
+    if (r.status === 'bug') s.bugs = r.n
+    else if (r.status === 'idea') s.ideas = r.n
+  }
+  // backlog_docs: count per project (has an upcoming plan?)
+  const blRows = await cfg.db.query<{ project_id: string; n: number }>(
+    `SELECT project_id, COUNT(*) AS n FROM backlog_docs WHERE project_id IN (${placeholders}) GROUP BY project_id`,
+    projectIds,
+  )
+  for (const r of blRows) {
+    const s = map.get(r.project_id)
+    if (s) s.backlog = r.n
+  }
+  // hurdles: open (unsolved) count per project
+  const hRows = await cfg.db.query<{ project_id: string; n: number }>(
+    `SELECT project_id, COUNT(*) AS n FROM hurdles WHERE project_id IN (${placeholders}) AND status = 'open' GROUP BY project_id`,
+    projectIds,
+  )
+  for (const r of hRows) {
+    const s = map.get(r.project_id)
+    if (s) s.hurdles = r.n
+  }
+  return map
+}
+
+/** Render the signals strip (notification-style icons with counts). Only non-zero signals
+ *  render (empty strip = nothing to action). Tooltip is bilingual. */
+function signalsHtml(signals: ProjectSignals | undefined, lang: Locale): string {
+  if (!signals) return ''
+  const dig = (n: number) => (lang === 'fa' ? faDigits(String(n)) : String(n))
+  const chips: string[] = []
+  if (signals.bugs > 0) chips.push(`<span class="sig-chip sig-bugs" title="${trL(lang, `${signals.bugs} open ${signals.bugs === 1 ? 'bug' : 'bugs'}`, `${signals.bugs} باگ باز`)}">${icon('bug', 'icon')}${dig(signals.bugs)}</span>`)
+  if (signals.ideas > 0) chips.push(`<span class="sig-chip sig-ideas" title="${trL(lang, `${signals.ideas} ${signals.ideas === 1 ? 'idea' : 'ideas'}`, `${signals.ideas} ایده`)}">${icon('idea', 'icon')}${dig(signals.ideas)}</span>`)
+  if (signals.backlog > 0) chips.push(`<span class="sig-chip sig-backlog" title="${trL(lang, 'Has upcoming plan', 'برنامه آتی دارد')}">${icon('list-check', 'icon')}${dig(signals.backlog)}</span>`)
+  if (signals.hurdles > 0) chips.push(`<span class="sig-chip sig-hurdles" title="${trL(lang, `${signals.hurdles} open ${signals.hurdles === 1 ? 'hurdle' : 'hurdles'}`, `${signals.hurdles} مانده باز`)}">${icon('alert', 'icon')}${dig(signals.hurdles)}</span>`)
+  return chips.length ? `<span class="project-signals">${chips.join('')}</span>` : ''
+}
+
 async function loadDetail(cfg: Config, p: ProjectRow) {
   const [hurdles, links, screenshots, history, tags, notes, canvasPromos, devTasks, categories, sprints, backlog] = await Promise.all([
     cfg.db.query<HurdleRow>('SELECT * FROM hurdles WHERE project_id = ? ORDER BY sort_order, created_at', [p.id]),
@@ -121,20 +184,22 @@ const tagsChips = (tags: TagRow[], lang: Locale): string =>
 //   ▞ hatched neutral corner at the top inline-end corner (Phase 5: no more tag colors).
 // The old top accent border / tag chips / progress bar / hurdles line are gone —
 // progress still lives in list view, the dashboard kanban, and the project page.
-function cardHtml(p: ProjectRow, tags: TagRow[], lang: Locale): string {
+function cardHtml(p: ProjectRow, tags: TagRow[], lang: Locale, signals?: ProjectSignals): string {
   const updated = trL(lang, 'Updated {t}', 'به‌روزرسانی {t}', { t: timeAgo(p.updated_at, lang) })
+  const sigs = signalsHtml(signals, lang)
   return `<article class="card project-card pc-wire pc-plain" id="project-${p.id}" draggable="true" data-project-id="${p.id}" data-status="${p.status}">
     <div class="row title-meta spread pc-head">
       <span class="muted small pc-updated">${updated}</span>
       ${STATUS_BADGE(p.status, lang)}
     </div>
     <a href="/project.html?id=${p.id}" class="project-title pc-title">${esc(p.title)}</a>
+    ${sigs ? `<div class="pc-signals-row">${sigs}</div>` : ''}
     ${p.description ? `<p class="muted small clip-2 pc-desc">${esc(p.description)}</p>` : ''}
     <i class="pc-corner" aria-hidden="true"></i>
   </article>`
 }
 
-function listFragment(projects: ProjectRow[], tagsMap: Map<string, TagRow[]>, view: string, lang: Locale): string {
+function listFragment(projects: ProjectRow[], tagsMap: Map<string, TagRow[]>, view: string, lang: Locale, signalsMap?: Map<string, ProjectSignals>): string {
   if (projects.length === 0) {
     // B2.5: illustrated empty state — icon + headline + helper + CTA.
     return `<div class="empty-state empty">
@@ -151,8 +216,9 @@ function listFragment(projects: ProjectRow[], tagsMap: Map<string, TagRow[]>, vi
         .map((p) => {
           const pct = projectProgress(p, [])
           const tags = tagsMap.get(p.id) ?? []
+          const sigs = signalsHtml(signalsMap?.get(p.id), lang)
           return `<tr id="project-${p.id}" draggable="true" data-project-id="${p.id}" data-status="${p.status}">
-            <td><a href="/project.html?id=${p.id}">${esc(p.title)}</a></td>
+            <td>${sigs}<a href="/project.html?id=${p.id}">${esc(p.title)}</a></td>
             <td>${STATUS_BADGE(p.status, lang)}</td>
             <td>${tagsChips(tags, lang)}</td>
             <td class="muted small">${timeAgo(p.updated_at, lang)}</td>
@@ -179,16 +245,20 @@ function listFragment(projects: ProjectRow[], tagsMap: Map<string, TagRow[]>, vi
       const inCol = projects.filter((p) => p.status === s)
       return `<div class="kanban-col" data-status="${s}">
         <h4><span class="badge badge-${s}">${statusLabel(s, lang)}</span> <span class="muted small">${dig(inCol.length)}</span></h4>
-        ${inCol.map((p) => `<div class="card kanban-card" draggable="true" data-project-id="${p.id}" data-status="${s}" data-nav-url="/project.html?id=${p.id}">
+        ${inCol.map((p) => {
+          const sigs = signalsHtml(signalsMap?.get(p.id), lang)
+          return `<div class="card kanban-card" draggable="true" data-project-id="${p.id}" data-status="${s}" data-nav-url="/project.html?id=${p.id}">
           <strong>${esc(p.title)}</strong>
+          ${sigs}
           <div class="muted small">${timeAgo(p.updated_at, lang)}</div>
-        </div>`).join('') || `<div class="kanban-empty">${trL(lang, 'Drop here', 'اینجا رها کن')}</div>`}
+        </div>`
+        }).join('') || `<div class="kanban-empty">${trL(lang, 'Drop here', 'اینجا رها کن')}</div>`}
       </div>`
     }).join('')}</div>`
   }
 
   return `<div class="card-grid">${projects
-    .map((p) => cardHtml(p, tagsMap.get(p.id) ?? [], lang))
+    .map((p) => cardHtml(p, tagsMap.get(p.id) ?? [], lang, signalsMap?.get(p.id)))
     .join('')}</div>`
 }
 
@@ -585,7 +655,9 @@ export function projectsRoutes(cfg: Config) {
         const counts = new Map<string, number>(countRows.map((r) => [r.status, r.n]))
         return await etag(c, c.html(glanceStrip(counts, activeStatus, lang, true)))
       }
-      let fragment = listFragment(projects, tagsMap, view, lang)
+      // P-signals: batch-load per-project signal counts (bugs, ideas, backlog, hurdles)
+      const signalsMap = await loadProjectSignals(cfg, user.id, projects.map((p) => p.id))
+      let fragment = listFragment(projects, tagsMap, view, lang, signalsMap)
       if (c.req.query('view') !== undefined && activeStatus !== 'spark') {
         const countRows = await cfg.db.query<{ status: string; n: number }>(
           'SELECT status, COUNT(*) AS n FROM projects WHERE user_id = ? AND deleted_at IS NULL AND status != ? GROUP BY status',

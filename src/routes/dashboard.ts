@@ -91,6 +91,29 @@ export function dashboardRoutes(cfg: Config) {
     const counts = { spark: 0, unreviewed: 0, investigating: 0, awaiting: 0, doing: 0, halted: 0, operational: 0 }
     for (const row of byStatus) if (row.status in counts) counts[row.status as keyof typeof counts] = row.n
 
+    // P-signals: batch-load per-project signal counts for the dashboard kanban cards.
+    const signalIds = activeProjects.map((p) => p.id)
+    const sigDevRows = await cfg.db.query<{ project_id: string; status: string; n: number }>(
+      `SELECT project_id, status, COUNT(*) AS n FROM dev_tasks
+       WHERE project_id IN (${signalIds.map(() => '?').join(',')}) AND status IN ('bug', 'idea')
+       GROUP BY project_id, status`,
+      signalIds,
+    ).catch(() => [] as { project_id: string; status: string; n: number }[])
+    const sigBlRows = await cfg.db.query<{ project_id: string; n: number }>(
+      `SELECT project_id, COUNT(*) AS n FROM backlog_docs WHERE project_id IN (${signalIds.map(() => '?').join(',')}) GROUP BY project_id`,
+      signalIds,
+    ).catch(() => [] as { project_id: string; n: number }[])
+    const sigHRows = await cfg.db.query<{ project_id: string; n: number }>(
+      `SELECT project_id, COUNT(*) AS n FROM hurdles WHERE project_id IN (${signalIds.map(() => '?').join(',')}) AND status = 'open' GROUP BY project_id`,
+      signalIds,
+    ).catch(() => [] as { project_id: string; n: number }[])
+    interface DSig { bugs: number; ideas: number; backlog: number; hurdles: number }
+    const sigMap = new Map<string, DSig>()
+    for (const id of signalIds) sigMap.set(id, { bugs: 0, ideas: 0, backlog: 0, hurdles: 0 })
+    for (const r of sigDevRows) { const s = sigMap.get(r.project_id); if (s) (r.status === 'bug' ? s.bugs++ : r.status === 'idea' ? s.ideas++ : null) }
+    for (const r of sigBlRows) { const s = sigMap.get(r.project_id); if (s) s.backlog = r.n }
+    for (const r of sigHRows) { const s = sigMap.get(r.project_id); if (s) s.hurdles = r.n }
+
     // Columns list ALL their projects (user request 2026-08-25 — the dashboard is the
     // kanban of projects, not a "3 recent" teaser); drag between columns moves status.
     const byStatusList = new Map<ProjectStatus, ProjectRow[]>()
@@ -108,6 +131,18 @@ export function dashboardRoutes(cfg: Config) {
       const t = trFor(c)
       const lang = localeOf(c)
       const num = (v: number | string): string => (lang === 'fa' ? faDigits(String(v)) : String(v))
+
+      // P-signals renderer: notification-style icon+count chips. Only non-zero signals render.
+      const sigHtml = (id: string): SafeHtml => {
+        const s = sigMap.get(id)
+        if (!s || (s.bugs === 0 && s.ideas === 0 && s.backlog === 0 && s.hurdles === 0)) return html``
+        const chips: SafeHtml[] = []
+        if (s.bugs > 0) chips.push(html`<span class="sig-chip sig-bugs" title="${t(`${s.bugs} open ${s.bugs === 1 ? 'bug' : 'bugs'}`, `${s.bugs} باگ باز`)}">${raw(icon('bug', 'icon'))}${num(s.bugs)}</span>`)
+        if (s.ideas > 0) chips.push(html`<span class="sig-chip sig-ideas" title="${t(`${s.ideas} ${s.ideas === 1 ? 'idea' : 'ideas'}`, `${s.ideas} ایده`)}">${raw(icon('idea', 'icon'))}${num(s.ideas)}</span>`)
+        if (s.backlog > 0) chips.push(html`<span class="sig-chip sig-backlog" title="${t('Has upcoming plan', 'برنامه آتی دارد')}">${raw(icon('list-check', 'icon'))}${num(s.backlog)}</span>`)
+        if (s.hurdles > 0) chips.push(html`<span class="sig-chip sig-hurdles" title="${t(`${s.hurdles} open ${s.hurdles === 1 ? 'hurdle' : 'hurdles'}`, `${s.hurdles} مانده باز`)}">${raw(icon('alert', 'icon'))}${num(s.hurdles)}</span>`)
+        return html`<span class="project-signals">${chips}</span>`
+      }
 
       const activityItemHtml = (p: ProjectRow): SafeHtml => html`<li class="activity-item">
         <span class="activity-main">
@@ -131,6 +166,7 @@ export function dashboardRoutes(cfg: Config) {
                 <a class="skc-open" href="/project.html?id=${p.id}" aria-label="${t('Open project', 'باز کردن پروژه')} — ${p.title}" title="${t('Open project', 'باز کردن پروژه')}">${raw(icon('arrow-right', 'icon arrow'))}</a>
                 <strong class="skc-title">${p.title}</strong>
               </div>
+              ${sigHtml(p.id)}
               <div class="muted small skc-updated">${timeAgo(p.updated_at, lang)}</div>
             </div>`
         })

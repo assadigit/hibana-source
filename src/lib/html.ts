@@ -71,6 +71,8 @@ export function icon(name: string, cls = 'icon'): string {
       case 'pencil': return '<path d="M4 20l4.5-1L19.5 8a2 2 0 0 0-2.8-2.8L6.5 15.5 4 20Z"/><path d="M13.5 6.5l3.5 3.5"/>'
       case 'trash': return '<path d="M4 7h16M9 7V5.5A1.5 1.5 0 0 1 10.5 4h3A1.5 1.5 0 0 1 15 5.5V7M6.5 7l1 12.5A1.5 1.5 0 0 0 9 21h6a1.5 1.5 0 0 0 1.5-1.5L17.5 7"/><path d="M10 11v6M14 11v6"/>'
       case 'clipboard': return '<rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4V3.5A.5.5 0 0 1 9.5 3h5a.5.5 0 0 1 .5.5V4M9 9.5h6M9 13.5h6M9 17.5h4"/>'
+      case 'bug': return '<path d="M8 7a4 4 0 1 1 8 0v6a4 4 0 0 1-8 0V7Z"/><path d="M8 10H4.5M8 14H4.5M8 18H4.5M16 10h3.5M16 14h3.5M16 18h3.5M12 7v12"/>'
+      case 'list-check': return '<path d="M3.5 6h2M3.5 12h2M3.5 18h2"/><path d="M9 6h11M9 12h11M9 18h7"/>'
       case 'pin': return '<path d="M12 17v4M8.5 3.5h7l-.8 7.2 2.8 2.8v1.5H6.5v-1.5l2.8-2.8-.8-7.2Z"/>'
       case 'target': return '<circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3.5"/><circle cx="12" cy="12" r="1"/>'
       case 'folder-plus': return '<path d="M3.5 7a2 2 0 0 1 2-2h4l2 2h7a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-13a2 2 0 0 1-2-2V7Z"/><path d="M12 11v4M10 13h4"/>'

@@ -13,10 +13,14 @@ import type { Db } from '../db/types'
 // Phase 5 (§15, 2026-09-09): spark_folders (idea folders) + the dev-board tables
 // (dev_tasks, task_categories, sprints, backlog_docs, backlog_doc_revisions) joined the
 // snapshot — the whole-DB shape change is what the version bump below marks.
+// P2.5 (F-L14+F-L15, 2026-09-02): dropped 'password_resets' (transient — like sessions,
+// which is already excluded) and 'changelogs' (dead table — feature removed per
+// RECOVERED.md, table intentionally left in DB but carries no live data). Shrinks the
+// snapshot and stops backing up throwaway/transient rows.
 export const SNAPSHOT_TABLES = [
   'users', 'invites', 'spark_folders', 'projects', 'project_history_log', 'hurdles', 'tags', 'project_tags',
-  'links', 'screenshots', 'changelogs', 'tasks', 'payments', 'canvas_elements',
-  'telegram_captures', 'telegram_links', 'password_resets',
+  'links', 'screenshots', 'tasks', 'payments', 'canvas_elements',
+  'telegram_captures', 'telegram_links',
   'quick_notes', 'sadhana_tasks', 'sadhana_tags', 'sadhana_updates',
   'sadhana_recur_history', 'sadhana_quadrant_names',
   'dev_tasks', 'task_categories', 'sprints', 'backlog_docs', 'backlog_doc_revisions',
@@ -43,8 +47,10 @@ export async function buildSnapshot(db: Db): Promise<Snapshot> {
     }
   }
   return {
-    schema_version: 20260909,
-    // bump when the snapshot shape changes (§15) — Phase 5: quick_notes.done
+    schema_version: 20260910,
+    // P2.5: bumped 20260909 -> 20260910 (snapshot shape changed: password_resets +
+    // changelogs dropped from SNAPSHOT_TABLES). Old snapshots stay interpretable — the
+    // restore script keys on table names present in the data, not on the table list.
     exported_at: new Date().toISOString(),
     data,
   }

@@ -44,6 +44,23 @@ Requires Node 24+ (uses the built-in `node:sqlite` module — zero native depend
 6. Point any reverse proxy (caddy, nginx, apache) at `127.0.0.1:3000` with HTTPS.
    No build step; no Cloudflare account required anywhere in this path.
 
+### ⚠️ Trusted-proxy requirement (P2.6 / F-L10)
+
+The rate limiter identifies clients by IP via `clientIp()` (`src/services/ratelimit.ts`).
+On Cloudflare Workers it reads `CF-Connecting-IP` (authoritative — the edge sets it,
+clients cannot forge it). On the Node path it falls back to `X-Forwarded-For[0]`.
+
+**If you run the Node target behind no trusted proxy**, a client can rotate
+`X-Forwarded-For` on every request to dodge rate limits (each fake IP gets its
+own 30-req/60s login budget). To close this:
+- Run behind a reverse proxy that **overwrites** `X-Forwarded-For` with the real
+  peer IP (caddy/nginx do this by default when configured as a proxy).
+- Or set `TRUST_PROXY=0` and patch `clientIp` to read the socket peer instead
+  (a behavior change — not the default; the Workers path is unaffected).
+
+The Cloudflare Workers path is NOT affected — `CF-Connecting-IP` is always
+authoritative there.
+
 ## Backups (database protection)
 - Structured data is exported as versioned JSON snapshots (`schema_version` field,
   excludes `users.password_hash` and `sessions`) and committed to the GitHub assets repo

@@ -494,6 +494,55 @@ window.hibanaI18n = (() => {
       'nf.title': 'Page not found', 'nf.heading': 'This page could not be found',
       'nf.sub': 'The link may be old, or the page may have moved — your ideas are safe.',
       'nf.cta': 'Go to dashboard', 'nf.back': 'Go back',
+      // P4.2 (F-H3): auth pages — login / signup / confirm / reset. Static chrome only;
+      // htmx fragments + JS-built status strings are still EN (server-side i18n is for /app).
+      // The chrome strings are tagged in the 4 auth .html files with data-i18n* attributes;
+      // i18n.js's apply() swaps them at runtime (navigator.language fallback when logged out).
+      'auth.welcomeBack': 'Welcome back',
+      'auth.signIn': 'Sign in',
+      'auth.emailOrUsername': 'Email or username',
+      'auth.password': 'Password',
+      'auth.forgotPassword': 'Forgot your password?',
+      'auth.createAccount': 'Create an account',
+      'auth.createYourAccount': 'Create your account',
+      'auth.createAccountTitle': 'Create account',
+      'auth.createAccountBtn': 'Create account',
+      'auth.alreadyHaveAccount': 'Already have an account? Sign in',
+      'auth.confirmEmail': 'Confirm your email',
+      'auth.confirmDesc': 'We sent a 4-digit code to',
+      'auth.confirmDesc2': 'It expires in 15 minutes.',
+      'auth.yourInbox': 'your inbox',
+      'auth.checkInbox': 'Check your inbox',
+      'auth.email': 'Email',
+      'auth.username': 'Username',
+      'auth.usernamePlaceholder': 'lowercase letters, numbers, _ or -',
+      'auth.passwordPlaceholder': 'At least 8 characters',
+      'auth.code': '4-digit code',
+      'auth.codePlaceholder': '0000',
+      'auth.codeDigit1': 'First digit', 'auth.codeDigit2': 'Second digit',
+      'auth.codeDigit3': 'Third digit', 'auth.codeDigit4': 'Fourth digit',
+      'auth.verify': 'Verify',
+      'auth.confirm': 'Confirm',
+      'auth.resend': 'Resend code',
+      'auth.resetPassword': 'Reset password',
+      'auth.resetYourPassword': 'Reset your password',
+      'auth.chooseNewPassword': 'Choose a new password',
+      'auth.resetDesc': 'Enter your email and we will send a reset link.',
+      'auth.resetLinkHint': 'If the address exists, a link arrives within a minute.',
+      'auth.sendResetLink': 'Send reset link',
+      'auth.emailResetLink': 'Email me a reset link',
+      'auth.setPassword': 'Set password',
+      'auth.newPassword': 'New password',
+      'auth.confirmPassword': 'Confirm password',
+      'auth.reset': 'Reset',
+      'auth.captcha': 'Human check',
+      'auth.captchaPlaceholder': 'Answer',
+      'auth.captchaRefresh': 'New question',
+      'auth.signinGoogle': 'or continue with email',
+      'auth.wrongEmailStartOver': '← Wrong email? Start over',
+      'auth.backToSignin': '← Back to sign in',
+      'auth.toggleTheme': 'Toggle theme',
+      'auth.themeHint': 'Theme: light / dark / system',
     },
     fa: {
       // nav
@@ -979,6 +1028,53 @@ window.hibanaI18n = (() => {
       'nf.title': 'صفحه پیدا نشد', 'nf.heading': 'این صفحه پیدا نشد',
       'nf.sub': 'شاید پیوند قدیمی باشد یا صفحه جابه‌جا شده — ایده‌هایت سالم‌اند.',
       'nf.cta': 'داشبورد', 'nf.back': 'بازگشت',
+      // P4.2 (F-H3): صفحات ورود/ثبت‌نام/تأیید/بازیابی — متن‌های ایستا.
+      // بقیهٔ پیام‌ها (htmx fragments + رشته‌های پویا) انگلیسی می‌مانند.
+      'auth.welcomeBack': 'خوش آمدید',
+      'auth.signIn': 'ورود',
+      'auth.emailOrUsername': 'ایمیل یا نام کاربری',
+      'auth.password': 'رمز عبور',
+      'auth.forgotPassword': 'رمز عبور را فراموش کرده‌اید؟',
+      'auth.createAccount': 'ساخت حساب',
+      'auth.createYourAccount': 'ساخت حساب کاربری',
+      'auth.createAccountTitle': 'ساخت حساب',
+      'auth.createAccountBtn': 'ساخت حساب',
+      'auth.alreadyHaveAccount': 'قبلاً حساب دارید؟ وارد شوید',
+      'auth.confirmEmail': 'تأیید ایمیل',
+      'auth.confirmDesc': 'یک کد ۴ رقمی به',
+      'auth.confirmDesc2': 'ارسال کردیم. تا ۱۵ دقیقه دیگر منقضی می‌شود.',
+      'auth.yourInbox': 'صندوق ورودی شما',
+      'auth.checkInbox': 'صندوق ورودی خود را بررسی کنید',
+      'auth.email': 'ایمیل',
+      'auth.username': 'نام کاربری',
+      'auth.usernamePlaceholder': 'حروف کوچک، اعداد، _ یا -',
+      'auth.passwordPlaceholder': 'حداقل ۸ کاراکتر',
+      'auth.code': 'کد ۴ رقمی',
+      'auth.codePlaceholder': '۰۰۰۰',
+      'auth.codeDigit1': 'رقم اول', 'auth.codeDigit2': 'رقم دوم',
+      'auth.codeDigit3': 'رقم سوم', 'auth.codeDigit4': 'رقم چهارم',
+      'auth.verify': 'تأیید',
+      'auth.confirm': 'تأیید',
+      'auth.resend': 'ارسال مجدد کد',
+      'auth.resetPassword': 'بازیابی رمز عبور',
+      'auth.resetYourPassword': 'بازیابی رمز عبور',
+      'auth.chooseNewPassword': 'رمز عبور جدید را وارد کنید',
+      'auth.resetDesc': 'ایمیل خود را وارد کنید تا لینک بازیابی ارسال شود.',
+      'auth.resetLinkHint': 'اگر آدرس وجود داشته باشد، لینک ظرف یک دقیقه ارسال می‌شود.',
+      'auth.sendResetLink': 'ارسال لینک بازیابی',
+      'auth.emailResetLink': 'لینک بازیابی را ایمیل کنید',
+      'auth.setPassword': 'تنظیم رمز عبور',
+      'auth.newPassword': 'رمز عبور جدید',
+      'auth.confirmPassword': 'تکرار رمز عبور',
+      'auth.reset': 'بازیابی',
+      'auth.captcha': 'تأیید انسان بودن',
+      'auth.captchaPlaceholder': 'پاسخ',
+      'auth.captchaRefresh': 'سؤال جدید',
+      'auth.signinGoogle': 'یا با ایمیل ادامه دهید',
+      'auth.wrongEmailStartOver': '← ایمیل اشتباه است؟ از نو شروع کنید',
+      'auth.backToSignin': '← بازگشت به ورود',
+      'auth.toggleTheme': 'تغییر پوسته',
+      'auth.themeHint': 'پوسته: روشن / تاریک / سیستم',
     },
   }
 
@@ -1010,7 +1106,16 @@ window.hibanaI18n = (() => {
     try {
       me = await fetch('/api/auth/me').then((r) => (r.ok ? r.json() : null))
     } catch { /* offline / 500 → fall back to English until the next apply */ }
-    lang = me?.user?.language_pref ?? 'en'
+    // P4.2 (F-H3): when the user is NOT logged in (401 → me is null), fall back to
+    // navigator.language so the auth pages (login/signup/confirm/reset) render in the
+    // browser's language. Was hardcoded 'en' — FA browsers saw English-only auth pages.
+    if (me?.user?.language_pref) {
+      lang = me.user.language_pref
+    } else if (!me) {
+      lang = /^fa/i.test(navigator.language) ? 'fa' : 'en'
+    } else {
+      lang = 'en'
+    }
     cal = lang === 'fa' ? 'shamsi' : 'gregorian' // calendar follows the language (2026-08-25)
     tz = me?.user?.timezone ?? 'UTC'
 

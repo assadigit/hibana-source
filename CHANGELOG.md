@@ -2,7 +2,7 @@
 
 Full spec: `pm-app-spec.md` · Rules (non-negotiable): `CLAUDE.md` · Reasoning: `vision.md` ·
 Deploy: `DEPLOY.md` · What's next: `ROADMAP.md` · Session handoff: `NEW_SESSION.md`
-Verification: `npm test` (189) · `npm run typecheck` · `npm run smoke` · `npm run drill`
+Verification: `npm test` (191) · `npm run typecheck` · `npm run smoke` · `npm run drill`
 
 ## 2026-09-05 — Calendar v2 + project stage editing (Task 24) — commit `ddb3aa4`, DEPLOY PENDING (no migration)
 - Calendar `/calendar.html`: «هفته بعد»/«ماه بعد» now land on the EXACT focused day (same

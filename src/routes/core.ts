@@ -333,11 +333,19 @@ export function coreRoutes(cfg: Config) {
     const q = c.req.query()
     const board = q.board === 'notebook' ? 'notebook' : 'canvas'
     const user = c.get('user')
+    // P1.5 (F-L4): Number('abc') returns NaN -> x < NaN is always false -> silent empty
+    // canvas. Guard with a finite check: garbage/minX/maxY params fall back to the open
+    // defaults (1e9 / -1e9) so a malformed viewport query returns all elements, not none.
+    const num = (v: string | undefined, dflt: number): number => {
+      if (v === undefined) return dflt
+      const n = Number(v)
+      return Number.isFinite(n) ? n : dflt
+    }
     const rows = await cfg.db.query(
       `SELECT * FROM canvas_elements
        WHERE user_id = ? AND board = ? AND deleted = 0 AND x < ? AND x + COALESCE(width, 0) > ? AND y < ? AND y + COALESCE(height, 0) > ?
        ORDER BY z_index, created_at`,
-      [user.id, board, Number(q.maxX ?? 1e9), Number(q.minX ?? -1e9), Number(q.maxY ?? 1e9), Number(q.minY ?? -1e9)],
+      [user.id, board, num(q.maxX, 1e9), num(q.minX, -1e9), num(q.maxY, 1e9), num(q.minY, -1e9)],
     )
     return c.json({ elements: rows })
   })

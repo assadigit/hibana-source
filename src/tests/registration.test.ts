@@ -105,7 +105,9 @@ describe('registration (spec §4.14)', () => {
       expect(cap.headers.get('Cache-Control')).toBe('no-store')
       const { q, token } = (await cap.json()) as { q: string; token: string }
       expect(q).toMatch(/^\d+ [+-] \d+ =$/)
-      expect((token.match(/\./g) ?? []).length).toBe(4) // a.b.op.expS.sig
+      // P2.1 (F-M6): token format is `question.expS.sig` (2 dots). Was `a.b.op.expS.sig`
+      // (4 dots) but that pre-split the operands for bots. The question carries them as text.
+      expect((token.match(/\./g) ?? []).length).toBe(2)
 
       // solve the issued question → the register human-check passes
       const invite = await app.fetch(

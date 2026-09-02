@@ -2,6 +2,13 @@
 // third-party dependency. A small arithmetic challenge is signed with HMAC-SHA-256 plus
 // an expiry; the answer is compared timing-safely after digit normalization, so a
 // Persian/Arabic-numeral keyboard works. No state is stored: the token IS the challenge.
+//
+// P2.1 (F-M6, 2026-09-02): the token no longer carries the operands as separate dot-
+// separated fields (`a.b.op.expS.sig`) — splitting by `.` recovered a/b/op directly, so
+// a 4-line bot script defeated the captcha. The token now carries the QUESTION STRING
+// (`"14 + 4 ="`) + expiry + sig. The operands are visible in the question anyway (that's
+// the whole point), but they're no longer pre-split for a bot; parsing the question string
+// is the same work a human does to read it.
 
 const CAPTCHA_TTL_MS = 10 * 60 * 1000
 
@@ -21,8 +28,15 @@ function timingSafeEqual(a: string, b: string): boolean {
   return diff === 0
 }
 
-/** The signed payload — everything the verifier must re-derive to trust the token. */
-const payloadOf = (ch: Challenge) => `${ch.a}.${ch.b}.${ch.op}.${ch.expS}`
+/** The human-readable question (e.g. "14 + 4 ="). */
+const questionOf = (ch: Challenge) => `${ch.a} ${ch.op} ${ch.b} =`
+
+/**
+ * The signed payload — the question string + expiry, dot-separated. The question contains
+ * no dots (integers + space + +/- + space + integer + " ="), so the token's structure is
+ * unambiguous: `question.expS.sig`.
+ */
+const payloadOf = (ch: Challenge) => `${questionOf(ch)}.${ch.expS}`
 
 interface Challenge {
   a: number
@@ -47,7 +61,7 @@ export async function issueMathCaptcha(secret: string, ttlMs = CAPTCHA_TTL_MS): 
   const b = op === '+' ? 2 + (rand[2] % 11) : 2 + (rand[2] % (a - 2))
   const ch = { a, b, op, expS: Math.floor((Date.now() + ttlMs) / 1000) }
   const sig = await hmacHex(secret, payloadOf(ch))
-  return { question: `${a} ${op} ${b} =`, token: `${payloadOf(ch)}.${sig}` }
+  return { question: questionOf(ch), token: `${payloadOf(ch)}.${sig}` }
 }
 
 export type CaptchaResult = 'missing_secret' | 'missing_token' | 'invalid' | 'expired' | 'ok'
@@ -59,13 +73,21 @@ export async function verifyMathCaptcha(
 ): Promise<CaptchaResult> {
   if (!secret) return 'missing_secret'
   if (!token) return 'missing_token'
-  const parts = token.split('.')
-  if (parts.length !== 5) return 'invalid'
-  const sig = parts[4] ?? ''
-  const ch: Challenge = { a: Number(parts[0]), b: Number(parts[1]), op: parts[2], expS: Number(parts[3]) }
-  if (!Number.isInteger(ch.a) || !Number.isInteger(ch.b) || (ch.op !== '+' && ch.op !== '-') || !Number.isInteger(ch.expS)) {
-    return 'invalid'
-  }
+  // P2.1 (F-M6): split from the RIGHT so the question (which may contain any characters
+  // except dots) is never mis-parsed. Token format: `question.expS.sig`.
+  const lastDot = token.lastIndexOf('.')
+  if (lastDot < 1) return 'invalid'
+  const sig = token.slice(lastDot + 1)
+  const rest = token.slice(0, lastDot)
+  const secondDot = rest.lastIndexOf('.')
+  if (secondDot < 1) return 'invalid'
+  const expS = Number(rest.slice(secondDot + 1))
+  const question = rest.slice(0, secondDot)
+  if (!Number.isInteger(expS)) return 'invalid'
+  // Parse the question "a op b =" back into {a, op, b} to re-derive the expected sig.
+  const m = question.match(/^(\d+)\s*([+\-])\s*(\d+)\s*=$/)
+  if (!m) return 'invalid'
+  const ch: Challenge = { a: Number(m[1]), op: m[2], b: Number(m[3]), expS }
   const expect = await hmacHex(secret, payloadOf(ch))
   if (!timingSafeEqual(sig, expect)) return 'invalid'
   if (Date.now() / 1000 > ch.expS) return 'expired'

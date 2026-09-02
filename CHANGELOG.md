@@ -4,6 +4,27 @@ Full spec: `pm-app-spec.md` · Rules (non-negotiable): `CLAUDE.md` · Reasoning:
 Deploy: `DEPLOY.md` · What's next: `ROADMAP.md` · Session handoff: `NEW_SESSION.md`
 Verification: `npm test` (191) · `npm run typecheck` · `npm run smoke` · `npm run drill`
 
+## 2026-09-02 — Phase 5: performance/scale + final closeout — v0.1.5, commits `f298570`→`84e297f`
+The final backlog phase (deferred until now per "defer until observed need" — executed on user request).
+- **P5.1 (F-M1)** — dashboard over-fetch. activeProjects query LIMIT 48 (8 per stage × 6 stages);
+  notes query LIMIT 20 + ORDER BY sort_order DESC (was ASC — inconsistent with P1.2's notebook
+  page). recentBox() slices to 8 per stage box (the "View all" link already exists). Moved
+  resetDueRecurring off the dashboard GET (was a write on every read) to the daily cron —
+  iterates all users at the 03:17 UTC tick. Idempotent; daily is frequent enough.
+- **P5.2 (F-M2)** — notebook activeNotes LIMIT 100. Every mutation (create/patch/delete/reorder)
+  re-renders the full notebook widget; without a cap the re-render grew unbounded. 100 is ample
+  for a solo owner; the full notebook lives at /whiteboard.html. The incremental-swap optimization
+  (return only the affected card on create/patch) is deferred — requires frontend htmx restructuring;
+  the backlog itself says "deferred until observed need." The LIMIT 100 is the safety net.
+- **P4.13 (F-L18)** — Vazir variable font: SKIPPED. The variable font file exists (41K vs 129K
+  for 3 fixed weights — a ~88K saving), but the backlog warns "verify rendering parity first —
+  Vazir's variable build sometimes has hinting differences." Can't reliably verify FA font hinting
+  parity in this environment; P4.14 already precaches the 3 used fixed-weight woff2s. Keeping the
+  fixed-weight approach — lower risk, already working.
+The full audit backlog is now COMPLETE: **39 findings → 37 shipped + 1 skipped (P4.13) + 1
+partial (P5.2 incremental swap deferred).** Phases 0-5 all executed.
+Source pushed to `github.com/assadigit/hibana-source` (tag `v0.1.5`); zip `Hibana-Alpha-V0.1.5.zip`.
+
 ## 2026-09-02 — Phase 4: frontend bundle: #0 photo fix + bilingual/RTL/dark/offline — v0.1.4, commits `d2111ae`→`00142ce`
 The big UI phase. All CSS/JS/HTML changes staged, then one atomic SW cache rotation
 (`hibana-v207 → v208`). 14 items (P4.13 optional variable font deferred).

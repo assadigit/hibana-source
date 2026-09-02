@@ -4,6 +4,35 @@ Full spec: `pm-app-spec.md` · Rules (non-negotiable): `CLAUDE.md` · Reasoning:
 Deploy: `DEPLOY.md` · What's next: `ROADMAP.md` · Session handoff: `NEW_SESSION.md`
 Verification: `npm test` (191) · `npm run typecheck` · `npm run smoke` · `npm run drill`
 
+## 2026-09-02 — Phase 3: reliability & observability + /app 404 hotfix — v0.1.3, commits `465ccd1`→`ac21265`
+- **HOTFIX** (commit `465ccd1`): `/app` (and `/register`, `/signup`, `/to-do-list`, `/timeline`)
+  returned 404 on Cloudflare. Root cause: `wrangler.toml` had `not_found_handling = "404-page"`
+  which made the assets binding serve `/404.html` for ANY unresolved path — including Worker-
+  served routes with no corresponding `.html` file. Those routes never reached the Worker. Fix:
+  `not_found_handling` → `"none"` (assets binding passes unresolved paths to the Worker, whose
+  `app.get('*')` serves the branded 404 itself). Live-verified on dev + prod.
+- **P3.1 (F-M12)** `[the multiplier]` — structured logging + request id. New `src/lib/log.ts`
+  emits JSON lines `{ ts, level, event, reqId, ...fields }`. Per-request middleware generates
+  `reqId = crypto.randomUUID()` first; `onError` logs `api_error`/`unhandled_error` with the
+  reqId, path, code/detail or message/stack. `ratelimit.ts` + `admin.ts` console calls →
+  structured logs. Added owner-email alert on backup failure (pairs with P3.5).
+- **P3.2 (F-M3)** — multi-line hurdle create + Obsidian import wrapped in transactions. The
+  hurdle composer loop (up to 50 INSERTs) + the Obsidian import loop (~200 iterations) were
+  sequential non-atomic round trips; now batched in one `cfg.db.transaction` each.
+- **P3.3 (F-L1)** — session + user lookup joined in one query. Was 2-3 D1 round trips per
+  authed request (validateSession SELECT + maybe DELETE/UPDATE, then SELECT * FROM users);
+  now a single JOIN. Extend-on-activity + expired-session-cleanup are fire-and-forget via
+  waitUntil (same pattern as P1.3's presence stamp).
+- **P3.4 (F-L2)** — rate limiter single UPSERT. Was SELECT + INSERT/UPDATE (2 round trips);
+  now `INSERT ... ON CONFLICT(key) DO UPDATE ... RETURNING (count > limit) AS over` (1 round
+  trip, atomic).
+- **P3.5 (F-M4)** — backup OOM, tiered. (c) alert-on-throw (structured log + owner email —
+  shipped in P3.1). (b) release transient json/bytes/bin references as the base64 builds so
+  the peak doesn't hold all four. (a) Git Data API (the real OOM fix) deferred until (b)+(c)
+  prove insufficient at the solo-owner DB size. P2.5's table drops already shrank the snapshot.
+Source pushed to `github.com/assadigit/hibana-source` (tag `v0.1.3`); zip `Hibana-Alpha-V0.1.3.zip`.
+Deploy: dev → prod. `wrangler tail --format json` now shows structured logs with reqId.
+
 ## 2026-09-02 — Phase 2: security hardening (audit execution) — v0.1.2, commits `f347d6e`→`3b64d85`
 Execution of the Phase 2 backlog: 7 server/docs-only findings on the auth/captcha/crypto
 surface. Each one commit through the full ladder (typecheck 0 errors · 191/191 tests ·

@@ -32,11 +32,26 @@ export function requireAuth(cfg: Config): MiddlewareHandler {
       return c.json({ error: 'banned', until: user.banned_until, reason: user.ban_reason }, 403)
     }
     // Presence stamp — fire-and-forget: a failed write must never fail the request.
+    // P1.3 (F-L9): on Cloudflare Workers an un-awaited promise may be terminated once the
+    // response returns, so the last_seen_at UPDATE could be dropped mid-flight. Wrap it in
+    // ctx.waitUntil so the runtime keeps it alive past the response. c.executionCtx is a
+    // getter that throws outside Workers (Node/tests), so the access is try/catch-guarded —
+    // on Node there's no reaper, so the fire-and-forget .catch stays as the fallback.
     const last = user.last_seen_at ? new Date(user.last_seen_at).getTime() : 0
     if (Date.now() - last > PRESENCE_STALE_MS) {
-      cfg.db
+      const stamp = cfg.db
         .execute('UPDATE users SET last_seen_at = ? WHERE id = ?', [new Date().toISOString(), user.id])
         .catch(() => {})
+      // P1.3 (F-L9): c.executionCtx is a getter that THROWS "This context has no
+      // ExecutionContext" on Node/tests (not undefined), so guard with try/catch. On
+      // Workers it returns the real ExecutionContext → waitUntil keeps the stamp alive
+      // past the response. On Node there's no reaper → the fire-and-forget .catch stays.
+      try {
+        const ec = (c as unknown as { executionCtx?: { waitUntil?: (p: Promise<unknown>) => void } }).executionCtx
+        if (ec?.waitUntil) ec.waitUntil(stamp)
+      } catch {
+        // Node/test path: no ExecutionContext — leave the promise fire-and-forget.
+      }
     }
     c.set('user', user)
     await next()

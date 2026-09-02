@@ -2465,11 +2465,15 @@ cite { font-style: normal; }
 /* --- dashboard quick notebook ---------------------------------------------- */
 /* Card-within-card: the notebook widget sits on the dashboard as its own .card; each
    note is a quieter surface (bg-soft + line + radius-sm). Flat, zero shadows (token
-   --shadow: none), logical properties for RTL. */
-.notebook .note-heading { margin-block-end: 0; }
+   --shadow: none), logical properties for RTL.
+   User request 2026-09-02 (compact): the notebook container had the default .card
+   padding (clamp 1.25-2rem) — too much wasted space. Tightened to 0.75-1rem. */
+.notebook.card { padding: clamp(0.75rem, 1.5vw, 1rem); }
+.notebook .note-heading { margin-block-end: 0; font-size: 1rem; }
 .note-head .note-title { flex: 1; min-inline-size: 0; }
+.note-head { gap: 0.4rem; margin-block-end: 0.4rem; }
 
-.note-compose { gap: 0.4rem; margin-block-start: 0.75rem; flex-wrap: wrap; }
+.note-compose { gap: 0.3rem; margin-block-start: 0.4rem; flex-wrap: wrap; }
 /* Persistent label above the composer (audit 6): the input keeps its placeholder too. */
 .note-compose-label {
   flex: 1 1 100%;
@@ -2477,7 +2481,7 @@ cite { font-style: normal; }
   font-weight: 600;
   color: var(--muted);
 }
-.note-compose-text { flex: 1 1 14rem; resize: vertical; min-height: 4.25rem; max-height: 40vh; } /* bounded resize: two rows minimum (placeholder always visible), 40% of the viewport maximum */
+.note-compose-text { flex: 1 1 14rem; resize: vertical; min-height: 2.5rem; max-height: 40vh; } /* compact (was 4.25rem) — one-row minimum, bounded resize */
 
 /* Segmented Note/List toggle (edge-to-edge on the focus ring, not a pill — quiet
    underline state for the active mode). */
@@ -2509,7 +2513,7 @@ cite { font-style: normal; }
 .view-switch .seg-btn:hover { border-color: var(--line-strong); color: var(--text); }
 .view-switch .seg-btn.active { border-color: var(--accent); background: var(--accent-soft); color: var(--text); }
 
-.note-list { display: grid; gap: 0.4rem; margin-block-start: 0.75rem; }
+.note-list { display: grid; gap: 0.3rem; margin-block-start: 0.4rem; }
 /* Sticky-note view (2026-08-25): pure-CSS toggle — the #nv-sticky radio (a sibling of
    .note-list) switches the same cards into a horizontal carousel of paper notes, up to 4
    across with scroll-snap + arrows when there are more. No JS required, so a stale cached
@@ -2535,7 +2539,7 @@ cite { font-style: normal; }
 #notebook .note-size-seg label:hover { background: var(--bg-soft); color: var(--text); }
 #notebook #nv-list:checked ~ .note-head .note-size-seg { display: none; } /* size is sticky-only (2026-08-26) */
 .note-head-controls { gap: 0.5rem; }
-#notebook #nv-list:checked ~ .note-list { display: grid; gap: 0.4rem; }
+#notebook #nv-list:checked ~ .note-list { display: grid; gap: 0.3rem; }
 #notebook #nv-sticky:checked ~ .note-list {
   display: flex;
   gap: 0.75rem;
@@ -2693,17 +2697,12 @@ cite { font-style: normal; }
   background: color-mix(in srgb, var(--bg-soft) 45%, var(--card)); /* quieter fill (2026-08-25) */
   border: 1px solid var(--line);
   border-radius: var(--radius-sm);
-  /* Phase 5 item 3 (2026-09-08): COMPACT — the old 0.55/0.6 padding + 0.35 gap left a
-     lot of dead white space around every note. Halved paddings/gap keep the card
-     readable but tight. Phase 7 item 11: gap 0.2 → 0.12rem — the bottom action row hugs
-     the text (scales with content) instead of floating a constant distance away. */
-  padding: 0.32rem 0.45rem;
+  /* User request 2026-09-02 (compact): tightened padding 0.32/0.45 -> 0.22/0.4 + gap 0.12 -> 0.08.
+     Professional dashboard density — content dictates height, not padding. */
+  padding: 0.22rem 0.4rem;
   display: grid;
-  gap: 0.12rem;
-  /* Phase 7 item 11: the note BODY is the card's primary content — +2px and a matching
-     line-height restore the hierarchy over the metadata/controls (list + grid views;
-     the sticky size radios stay user-tuned). */
-  --note-body-fs: calc(var(--fs-sm) + 2px);
+  gap: 0.08rem;
+  --note-body-fs: var(--fs-sm);
 }
 .note-card[data-kind='note'] .note-render,
 .note-card[data-kind='note'] .note-text { font-size: var(--note-body-fs, var(--fs-sm)); line-height: 1.62; }
@@ -2766,14 +2765,14 @@ cite { font-style: normal; }
    the old footer size (0.8rem → 0.48rem) — it whispers, the content talks. */
 .note-footer { font-size: 0.48rem; }
 .note-footer .small, .note-footer .note-meta { font-size: 0.48rem; } /* .small's own rule would beat the inherited size */
-.note-footer .ghost.danger { padding: 0.25rem 0.4rem; } /* keep the whole card as tall as the note */
+.note-footer .ghost.danger { padding: 0.12rem 0.3rem; } /* compact delete button (was 0.25/0.4) */
 .note-footer .note-meta { overflow-wrap: anywhere; }
 /* Phase 7 item 11: the bottom action row in LOGICAL layout — margin-inline-start on the
    controls group mirrors the row with the reading direction (RTL: meta at start/right,
    controls at end/left; LTR: the mirror) with zero physical left/right rules. The page's
    documentElement.dir (rtl for fa — i18n.js) governs; the card's dir=auto children never
    bleed into this row. */
-.note-card .note-footer { display: flex; align-items: center; gap: 0.3rem; padding-inline-start: 0.15rem; padding-inline-end: 0.15rem; }
+.note-card .note-footer { display: flex; align-items: center; gap: 0.25rem; padding-inline-start: 0.1rem; padding-inline-end: 0.1rem; }
 .note-card .note-footer .note-footer-right { margin-inline-start: auto; display: flex; align-items: center; gap: 0.3rem; }
 
 /* --- quick-note ↔ project attach (user request 2026-08-25) ------------------ */

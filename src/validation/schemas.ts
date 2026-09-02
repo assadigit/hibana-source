@@ -130,7 +130,12 @@ export const registerSchema = z.object({
 
 export const verifyEmailSchema = z.object({
   email: z.string().email().max(200),
-  code: z.string().regex(/^\d{4}$/),
+  // P4.8 (F-M20): normalize Persian ۰-۹ → ASCII before the regex (FA keyboard shows
+  // inputmode='numeric' → Persian digits). Mirrors captcha.ts:34-40.
+  code: z.preprocess(
+    (v: unknown) => (typeof v === 'string' ? v.replace(/[۰-۹]/g, (d) => String('۰۱۲۳۴۵۶۷۸۹'.indexOf(d))) : v),
+    z.string().regex(/^\d{4}$/),
+  ),
 })
 
 export const resendVerifySchema = z.object({ email: z.string().email().max(200) })

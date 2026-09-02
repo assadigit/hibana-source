@@ -21,7 +21,7 @@
     <form method="post" action="/api/auth/verify" hx-post="/api/auth/verify" hx-target="#verify-msg" hx-swap="innerHTML" hx-indicator="#verify-spinner">
       <label><span data-i18n="auth.email">Email</span> <input type="email" name="email" id="email-input" required></label>
       <label><span data-i18n="auth.code">4-digit code</span>
-        <input type="text" name="code" required inputmode="numeric" pattern="[0-9]{4}" maxlength="4" autocomplete="one-time-code" placeholder="0000" data-i18n-placeholder="auth.codePlaceholder">
+        <input type="text" name="code" required inputmode="numeric" pattern="[0-9۰-۹]{4}" maxlength="4" autocomplete="one-time-code" placeholder="0000" data-i18n-placeholder="auth.codePlaceholder">
       </label>
       <div class="row">
         <button type="submit" data-i18n="auth.confirm">Confirm</button>

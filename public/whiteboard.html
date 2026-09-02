@@ -49,6 +49,18 @@
     <span class="grow"></span>
   </div>
 
+  <!-- P4.3 (F-M17): styled image-from-link popover (replaces the native prompt()). Markup
+       mirrors canvas.html's data-image-pop so it inherits the board-popover + image-form CSS. -->
+  <div class="board-popover image-pop nb-image-pop" data-image-pop hidden>
+    <div class="pop-title" data-i18n="canvas.addImage">Add an image from a link</div>
+    <div class="pop-hint" data-i18n="canvas.imageHint">Paste a direct picture link (https://…)</div>
+    <form class="image-form" data-image-form novalidate>
+      <input type="url" data-image-url dir="ltr" inputmode="url" autocomplete="off" spellcheck="false" required placeholder="https://…" aria-label="Image URL" data-i18n-label="canvas.imagePrompt">
+      <button type="submit" data-image-add data-i18n="canvas.imageAdd">Add</button>
+    </form>
+    <p class="image-error" data-image-error hidden></p>
+  </div>
+
   <div id="nb-page" class="notebook-page">
     <canvas id="nb-board"></canvas>
     <div class="board-loading" data-board-loading><span data-i18n="wb.loading">Loading sheet…</span></div>

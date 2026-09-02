@@ -6955,6 +6955,9 @@ dialog.adm-modal::backdrop { background: rgb(0 0 0 / 0.55); }
 @media (prefers-reduced-motion: reduce) { .dash-todo-task .prog-dot { animation: none; } }
 
 /* --- items 7+8: sprint lifecycle UI (define → start → finish) + time paging -- */
+/* P4.3 (F-M17): notebook image popover — positioned near the toolbar (fixed top-center). */
+.nb-image-pop { position: fixed; inset-block-start: 4rem; inset-inline-start: 50%; transform: translateX(-50%); z-index: 50; }
+
 .sp-timenav { display: inline-flex; align-items: center; gap: 0.3rem; }
 .sp-timenav .sp-timerange { white-space: nowrap; max-inline-size: 16rem; overflow: hidden; text-overflow: ellipsis; }
 /* P4.7 (F-M19): mirror the sprint time-paging arrows in RTL so 'Older' points backward. */

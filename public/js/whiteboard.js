@@ -354,10 +354,43 @@ window.hibanaNotebook = (() => {
     } catch { /* a broken image link just doesn't render */ }
   }
 
-  // Tool button: paste a URL → the picture appears at the sheet's center, rounded.
-  async function addImageByUrl() {
-    const url = (prompt(_t('canvas.imagePrompt', 'Image URL — paste a link (flowchart, diagram, photo…)')) || '').trim()
-    if (!url) return
+  // P4.3 (F-M17): image-from-link popover (replaces the native prompt()). The popover
+  // markup lives in whiteboard.html as [data-image-pop]; this shows it, focuses the input,
+  // and handles the form submit. Escape + click-outside close it.
+  let imagePopEl = null
+  function showImagePopover() {
+    if (!imagePopEl) imagePopEl = document.querySelector('[data-image-pop]')
+    if (!imagePopEl) return
+    imagePopEl.hidden = false
+    const input = imagePopEl.querySelector('[data-image-url]')
+    const err = imagePopEl.querySelector('[data-image-error]')
+    if (err) err.hidden = true
+    if (input) {
+      input.value = ''
+      setTimeout(() => input.focus(), 0) // focus after the hidden attribute clears
+    }
+  }
+  function hideImagePopover() {
+    if (!imagePopEl) imagePopEl = document.querySelector('[data-image-pop]')
+    if (imagePopEl) imagePopEl.hidden = true
+  }
+
+  // Tool button: open the image popover (was a native prompt()).
+  function addImageByUrl() {
+    showImagePopover()
+  }
+  // Called from the form submit handler — places the image from the popover's URL input.
+  async function placeImageFromPop() {
+    if (!imagePopEl) imagePopEl = document.querySelector('[data-image-pop]')
+    const input = imagePopEl?.querySelector('[data-image-url]')
+    const errEl = imagePopEl?.querySelector('[data-image-error]')
+    if (!input) return
+    const url = input.value.trim()
+    if (!url || !/^https?:\/\//i.test(url)) {
+      if (errEl) { errEl.textContent = _t('canvas.imageBadUrl', 'Paste a direct picture link starting with https://'); errEl.hidden = false }
+      return
+    }
+    hideImagePopover()
     try {
       const raw = await loadRemoteImage(url)
       const maxDim = 400 // sheet-sized; never upscale a small image
@@ -1184,6 +1217,23 @@ window.hibanaNotebook = (() => {
     ui.toolbar.querySelector('[data-action="redo"]').addEventListener('click', redo)
     ui.toolbar.querySelector('[data-action="delete"]').addEventListener('click', deleteActive)
     ui.toolbar.querySelector('[data-action="addimage"]')?.addEventListener('click', addImageByUrl)
+    // P4.3 (F-M17): wire the image popover form submit + Escape/click-outside to close.
+    imagePopEl = document.querySelector('[data-image-pop]')
+    if (imagePopEl) {
+      imagePopEl.querySelector('[data-image-form]')?.addEventListener('submit', (e) => {
+        e.preventDefault()
+        placeImageFromPop()
+      })
+      imagePopEl.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') { e.preventDefault(); hideImagePopover() }
+      })
+      // Click outside the popover closes it (but not clicks on the addimage button itself).
+      document.addEventListener('click', (e) => {
+        if (imagePopEl.hidden) return
+        if (imagePopEl.contains(e.target) || e.target.closest('[data-action="addimage"]')) return
+        hideImagePopover()
+      })
+    }
     ui.toolbar.querySelectorAll('[data-tool]').forEach((b) => {
       b.addEventListener('click', () => {
         if (b.dataset.tool === 'black') color = BLACK

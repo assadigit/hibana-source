@@ -28,6 +28,16 @@ export const RATE_RULES = {
 /**
  * Counts one request from `ip` against `rule`. Returns true when the limit is
  * exceeded (caller replies 429). Best-effort: a DB failure never blocks the request.
+ *
+ * P2.7 (F-L11): the catch block at the bottom FAILS OPEN (returns false = allow) when
+ * the D1 read/write throws. This is a deliberate availability tradeoff: if the rate-limits
+ * table is briefly unavailable, blocking every request would take the whole app down
+ * (login, API, htmx — all go through requireAuth which calls this). Fail-open keeps the
+ * app usable during a D1 hiccup; the Cloudflare WAF rate-limiting rule (scripts/rate-
+ * limit.mjs) is the primary defense at the edge, and this in-app limiter is the secondary.
+ * The tradeoff: during a DB outage, a burst of requests could exceed the limit until D1
+ * recovers — acceptable for a single-owner app where the primary risk is credential
+ * brute-force (guarded by the WAF rule + PBKDF2 + email verification, not this limiter).
  */
 export async function hitRateLimit(db: Db, rule: RateRule, ip: string): Promise<boolean> {
   const nowS = Math.floor(Date.now() / 1000)

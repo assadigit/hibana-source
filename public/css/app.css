@@ -2955,8 +2955,9 @@ cite { font-style: normal; }
   text-shadow: 0 1px 14px rgb(0 0 0 / 0.35);
 }
 /* The brand text on the dark photo also softens in dark mode — pure white glares. */
+/* P4.5 (F-M16): guard with :not([data-theme='light']) so OS-dark + app-light doesn't dim the brand. */
 @media (prefers-color-scheme: dark) {
-  .auth-brand { color: #e9e9e7; }
+  :root:not([data-theme='light']) .auth-brand { color: #e9e9e7; }
 }
 html[data-theme='dark'] .auth-brand { color: #e9e9e7; }
 .auth-visual .auth-brand {
@@ -3282,9 +3283,10 @@ main.shell#dash {
 html[data-theme='dark'] .sadhana-card.p-in_progress { --sadhana-status-tint: rgb(245 154 78 / 0.14); }
 html[data-theme='dark'] .sadhana-card.p-on_hold { --sadhana-status-tint: rgb(167 139 250 / 0.14); }
 html[data-theme='dark'] .sadhana-card.is-expanded { background: var(--card); }
+/* P4.5 (F-M16): guard with :not([data-theme='light']) so OS-dark + app-light doesn't tint the rows. */
 @media (prefers-color-scheme: dark) {
-  .sadhana-card.p-in_progress { --sadhana-status-tint: rgb(245 154 78 / 0.14); }
-  .sadhana-card.p-on_hold { --sadhana-status-tint: rgb(167 139 250 / 0.14); }
+  :root:not([data-theme='light']) .sadhana-card.p-in_progress { --sadhana-status-tint: rgb(245 154 78 / 0.14); }
+  :root:not([data-theme='light']) .sadhana-card.p-on_hold { --sadhana-status-tint: rgb(167 139 250 / 0.14); }
 }
 
 /* Pinned tasks get the quadrant accent on the start edge (kept from the old design). */

@@ -17,11 +17,21 @@ crons = ["17 3,9,15,21 * * *", "*/30 * * * *"]
 # html_handling/not_found_handling mirror the live deployment's asset settings:
 # /404.html is served for missing assets (the app also renders its own branded
 # 404 for page routes via notFoundPage in src/app.ts).
+#
+# P2.5b (live 404 on /app fix, 2026-09-02): not_found_handling was "404-page",
+# which made the Cloudflare assets binding serve /404.html (HTTP 404) for ANY
+# path it couldn't resolve to a file — INCLUDING Worker-served routes like /app,
+# /register, /signup, /to-do-list, /timeline. Those routes never reached the
+# Worker, so /app (the authenticated dashboard shell) returned 404 instead of
+# redirecting to /login.html. Switched to "none": the assets binding passes
+# unresolved paths to the Worker, whose app.get('*') fallback (app.ts:254)
+# serves the branded /404.html itself. Static files (.html/.css/.js/.png/etc.)
+# are still served directly by the assets binding (they exist on disk).
 [assets]
 directory = "./public"
 binding = "ASSETS"
 html_handling = "auto-trailing-slash"
-not_found_handling = "404-page"
+not_found_handling = "none"
 
 [vars]
 ENVIRONMENT = "dev"

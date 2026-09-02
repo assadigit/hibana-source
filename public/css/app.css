@@ -600,22 +600,47 @@ button.active { background: var(--accent-soft); }
 /* P-signals: notification-style icon+count chips on project rows (user request 2026-09-02).
    Shown on dashboard kanban cards + projects page cards/list/kanban. Only non-zero signals
    render. Each chip: icon + count, tinted by signal type. Compact + scannable.
-   User request 2026-09-02 (revision): make them BIGGER + place on the SAME ROW as the title. */
+   User request 2026-09-02 (revision): make them BIGGER + place on the SAME ROW as the title.
+   User request 2026-09-02 (revision 2): BUG count gets its own solid red bubble (strong visual
+   weight, like a notification badge) right next to the project name. Other signals stay as
+   lighter chips. Also added: latest backlog update time metadata. */
+
+/* The standalone BUG notification bubble — solid red circle, strong visual weight.
+   Placed right next to the project name. Only renders when bugs > 0. */
+.bug-bubble {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-inline-size: 1.4rem; height: 1.4rem; padding: 0 0.35rem;
+  border-radius: 999px;
+  background: #dc2626; color: #fff;
+  font-size: 0.72rem; font-weight: 700; line-height: 1;
+  box-shadow: 0 1px 4px rgb(220 38 38 / 0.35);
+  vertical-align: middle; margin-inline-start: 0.35rem;
+  flex-shrink: 0;
+}
+html[data-theme='dark'] .bug-bubble { background: #ef4444; box-shadow: 0 1px 6px rgb(239 68 68 / 0.4); }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) .bug-bubble { background: #ef4444; box-shadow: 0 1px 6px rgb(239 68 68 / 0.4); }
+}
+
 .project-signals { display: inline-flex; align-items: center; gap: 0.3rem; flex-wrap: wrap; flex-shrink: 0; }
 .sig-chip { display: inline-flex; align-items: center; gap: 0.25rem; padding: 0.15rem 0.5rem; border-radius: 999px; font-size: 0.8rem; line-height: 1.4; font-weight: 600; white-space: nowrap; }
 .sig-chip .icon { width: 1em; height: 1em; }
-.sig-bugs { background: rgb(240 97 97 / 0.15); color: var(--err, #f06161); }
 .sig-ideas { background: rgb(245 158 78 / 0.15); color: #f59e4e; }
 .sig-backlog { background: rgb(74 159 163 / 0.15); color: var(--accent, #4A9FA3); }
 .sig-hurdles { background: rgb(245 197 126 / 0.15); color: #c9853e; }
 /* dashboard kanban card: signals sit inline with the title in the skc-row */
-.stat-kanban-card .skc-row { flex-wrap: wrap; }
+.stat-kanban-card .skc-row { flex-wrap: wrap; align-items: center; }
 .stat-kanban-card .project-signals { margin-inline-start: auto; }
 /* projects list table: signals in their own column (replaces the old % progress) */
 .projects-table .signals-cell { white-space: nowrap; }
 .projects-table .signals-cell .sig-chip { font-size: 0.75rem; }
-/* card view: signals inline with the title (right side of the row) */
+/* projects list table: bug bubble next to the title */
+.projects-table td .bug-bubble { margin-inline-start: 0.3rem; }
+/* card view: title + bug bubble wrap together; signals on the right */
 .pc-title-row { align-items: center; gap: 0.5rem; }
+.pc-title-wrap { display: inline-flex; align-items: center; gap: 0; }
+.pc-meta-row { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+.backlog-meta { font-size: 0.7rem; }
 
 /* --- wireframe project card (2026-08-30 sketch) — minimal centered card -----
    [Updated 5m ago]      [stage pill]   ← head row (.title-meta also hosts the ⋯ menu)

@@ -72,11 +72,12 @@ interface ProjectSignals {
   ideas: number
   backlog: number
   hurdles: number
+  backlogUpdated: string | null
 }
 async function loadProjectSignals(cfg: Config, userId: string, projectIds: string[]): Promise<Map<string, ProjectSignals>> {
   const map = new Map<string, ProjectSignals>()
   if (projectIds.length === 0) return map
-  for (const id of projectIds) map.set(id, { bugs: 0, ideas: 0, backlog: 0, hurdles: 0 })
+  for (const id of projectIds) map.set(id, { bugs: 0, ideas: 0, backlog: 0, hurdles: 0, backlogUpdated: null })
   const placeholders = projectIds.map(() => '?').join(',')
   // dev_tasks: bugs + ideas in one query (group by status)
   const devRows = await cfg.db.query<{ project_id: string; status: string; n: number }>(
@@ -91,14 +92,14 @@ async function loadProjectSignals(cfg: Config, userId: string, projectIds: strin
     if (r.status === 'bug') s.bugs = r.n
     else if (r.status === 'idea') s.ideas = r.n
   }
-  // backlog_docs: count per project (has an upcoming plan?)
-  const blRows = await cfg.db.query<{ project_id: string; n: number }>(
-    `SELECT project_id, COUNT(*) AS n FROM backlog_docs WHERE project_id IN (${placeholders}) GROUP BY project_id`,
+  // backlog_docs: count + MAX(updated_at) per project (has upcoming plan + when last touched)
+  const blRows = await cfg.db.query<{ project_id: string; n: number; latest: string | null }>(
+    `SELECT project_id, COUNT(*) AS n, MAX(updated_at) AS latest FROM backlog_docs WHERE project_id IN (${placeholders}) GROUP BY project_id`,
     projectIds,
   )
   for (const r of blRows) {
     const s = map.get(r.project_id)
-    if (s) s.backlog = r.n
+    if (s) { s.backlog = r.n; s.backlogUpdated = r.latest }
   }
   // hurdles: open (unsolved) count per project
   const hRows = await cfg.db.query<{ project_id: string; n: number }>(
@@ -112,17 +113,33 @@ async function loadProjectSignals(cfg: Config, userId: string, projectIds: strin
   return map
 }
 
-/** Render the signals strip (notification-style icons with counts). Only non-zero signals
- *  render (empty strip = nothing to action). Tooltip is bilingual. */
+/** The standalone BUG notification bubble — solid red circle with strong visual weight.
+ *  Placed right next to the project name so the user gets an instant visual signal that
+ *  [x] things are problematic. Only renders when bugs > 0. (User request 2026-09-02.) */
+function bugBubbleHtml(signals: ProjectSignals | undefined, lang: Locale): string {
+  if (!signals || signals.bugs === 0) return ''
+  const dig = (n: number) => (lang === 'fa' ? faDigits(String(n)) : String(n))
+  const title = trL(lang, `${signals.bugs} open ${signals.bugs === 1 ? 'bug' : 'bugs'}`, `${signals.bugs} باگ باز`)
+  return `<span class="bug-bubble" title="${title}" aria-label="${title}">${dig(signals.bugs)}</span>`
+}
+
+/** Render the signals strip (lighter chips — ideas, backlog, hurdles). Bugs are NOT here;
+ *  they get their own solid bubble via bugBubbleHtml. Only non-zero signals render. */
 function signalsHtml(signals: ProjectSignals | undefined, lang: Locale): string {
   if (!signals) return ''
   const dig = (n: number) => (lang === 'fa' ? faDigits(String(n)) : String(n))
   const chips: string[] = []
-  if (signals.bugs > 0) chips.push(`<span class="sig-chip sig-bugs" title="${trL(lang, `${signals.bugs} open ${signals.bugs === 1 ? 'bug' : 'bugs'}`, `${signals.bugs} باگ باز`)}">${icon('bug', 'icon')}${dig(signals.bugs)}</span>`)
   if (signals.ideas > 0) chips.push(`<span class="sig-chip sig-ideas" title="${trL(lang, `${signals.ideas} ${signals.ideas === 1 ? 'idea' : 'ideas'}`, `${signals.ideas} ایده`)}">${icon('idea', 'icon')}${dig(signals.ideas)}</span>`)
   if (signals.backlog > 0) chips.push(`<span class="sig-chip sig-backlog" title="${trL(lang, 'Has upcoming plan', 'برنامه آتی دارد')}">${icon('list-check', 'icon')}${dig(signals.backlog)}</span>`)
   if (signals.hurdles > 0) chips.push(`<span class="sig-chip sig-hurdles" title="${trL(lang, `${signals.hurdles} open ${signals.hurdles === 1 ? 'hurdle' : 'hurdles'}`, `${signals.hurdles} مانده باز`)}">${icon('alert', 'icon')}${dig(signals.hurdles)}</span>`)
   return chips.length ? `<span class="project-signals">${chips.join('')}</span>` : ''
+}
+
+/** Latest backlog update time — small muted metadata. Shows 'Backlog: 2h ago' or similar. */
+function backlogMetaHtml(signals: ProjectSignals | undefined, lang: Locale): string {
+  if (!signals || !signals.backlogUpdated) return ''
+  const label = trL(lang, 'Backlog', 'برنامه')
+  return `<span class="backlog-meta muted small" title="${signals.backlogUpdated}">${label}: ${timeAgo(signals.backlogUpdated, lang)}</span>`
 }
 
 async function loadDetail(cfg: Config, p: ProjectRow) {
@@ -187,16 +204,19 @@ const tagsChips = (tags: TagRow[], lang: Locale): string =>
 function cardHtml(p: ProjectRow, tags: TagRow[], lang: Locale, signals?: ProjectSignals): string {
   const updated = trL(lang, 'Updated {t}', 'به‌روزرسانی {t}', { t: timeAgo(p.updated_at, lang) })
   const sigs = signalsHtml(signals, lang)
+  const bugBubble = bugBubbleHtml(signals, lang)
+  const blMeta = backlogMetaHtml(signals, lang)
   return `<article class="card project-card pc-wire pc-plain" id="project-${p.id}" draggable="true" data-project-id="${p.id}" data-status="${p.status}">
     <div class="row title-meta spread pc-head">
       <span class="muted small pc-updated">${updated}</span>
       ${STATUS_BADGE(p.status, lang)}
     </div>
     <div class="row spread pc-title-row">
-      <a href="/project.html?id=${p.id}" class="project-title pc-title">${esc(p.title)}</a>
+      <span class="pc-title-wrap"><a href="/project.html?id=${p.id}" class="project-title pc-title">${esc(p.title)}</a>${bugBubble}</span>
       ${sigs}
     </div>
     ${p.description ? `<p class="muted small clip-2 pc-desc">${esc(p.description)}</p>` : ''}
+    ${blMeta ? `<div class="pc-meta-row">${blMeta}</div>` : ''}
     <i class="pc-corner" aria-hidden="true"></i>
   </article>`
 }
@@ -217,13 +237,16 @@ function listFragment(projects: ProjectRow[], tagsMap: Map<string, TagRow[]>, vi
       <tbody>${projects
         .map((p) => {
           const tags = tagsMap.get(p.id) ?? []
-          const sigs = signalsHtml(signalsMap?.get(p.id), lang)
+          const sigs = signalsMap?.get(p.id)
+          const sigChips = signalsHtml(sigs, lang)
+          const bugBubble = bugBubbleHtml(sigs, lang)
+          const blMeta = backlogMetaHtml(sigs, lang)
           return `<tr id="project-${p.id}" draggable="true" data-project-id="${p.id}" data-status="${p.status}">
-            <td><a href="/project.html?id=${p.id}">${esc(p.title)}</a></td>
+            <td><a href="/project.html?id=${p.id}">${esc(p.title)}</a>${bugBubble}</td>
             <td>${STATUS_BADGE(p.status, lang)}</td>
             <td>${tagsChips(tags, lang)}</td>
-            <td class="muted small">${timeAgo(p.updated_at, lang)}</td>
-            <td class="signals-cell">${sigs || '<span class="muted small">—</span>'}</td>
+            <td class="muted small">${timeAgo(p.updated_at, lang)}${blMeta ? `<br>${blMeta}` : ''}</td>
+            <td class="signals-cell">${sigChips || '<span class="muted small">—</span>'}</td>
           </tr>`
         })
         .join('')}</tbody></table>`
@@ -247,10 +270,14 @@ function listFragment(projects: ProjectRow[], tagsMap: Map<string, TagRow[]>, vi
       return `<div class="kanban-col" data-status="${s}">
         <h4><span class="badge badge-${s}">${statusLabel(s, lang)}</span> <span class="muted small">${dig(inCol.length)}</span></h4>
         ${inCol.map((p) => {
-          const sigs = signalsHtml(signalsMap?.get(p.id), lang)
+          const sigObj = signalsMap?.get(p.id)
+          const sigs = signalsHtml(sigObj, lang)
+          const bugBubble = bugBubbleHtml(sigObj, lang)
+          const blMeta = backlogMetaHtml(sigObj, lang)
           return `<div class="card kanban-card" draggable="true" data-project-id="${p.id}" data-status="${s}" data-nav-url="/project.html?id=${p.id}">
-          <div class="row spread"><strong>${esc(p.title)}</strong> ${sigs}</div>
-          <div class="muted small">${timeAgo(p.updated_at, lang)}</div>
+          <div class="row spread"><strong>${esc(p.title)}</strong>${bugBubble}</div>
+          ${sigs}
+          <div class="muted small">${timeAgo(p.updated_at, lang)}${blMeta ? ` · ${blMeta}` : ''}</div>
         </div>`
         }).join('') || `<div class="kanban-empty">${trL(lang, 'Drop here', 'اینجا رها کن')}</div>`}
       </div>`

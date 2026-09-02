@@ -99,19 +99,19 @@ export function dashboardRoutes(cfg: Config) {
        GROUP BY project_id, status`,
       signalIds,
     ).catch(() => [] as { project_id: string; status: string; n: number }[])
-    const sigBlRows = await cfg.db.query<{ project_id: string; n: number }>(
-      `SELECT project_id, COUNT(*) AS n FROM backlog_docs WHERE project_id IN (${signalIds.map(() => '?').join(',')}) GROUP BY project_id`,
+    const sigBlRows = await cfg.db.query<{ project_id: string; n: number; latest: string | null }>(
+      `SELECT project_id, COUNT(*) AS n, MAX(updated_at) AS latest FROM backlog_docs WHERE project_id IN (${signalIds.map(() => '?').join(',')}) GROUP BY project_id`,
       signalIds,
-    ).catch(() => [] as { project_id: string; n: number }[])
+    ).catch(() => [] as { project_id: string; n: number; latest: string | null }[])
     const sigHRows = await cfg.db.query<{ project_id: string; n: number }>(
       `SELECT project_id, COUNT(*) AS n FROM hurdles WHERE project_id IN (${signalIds.map(() => '?').join(',')}) AND status = 'open' GROUP BY project_id`,
       signalIds,
     ).catch(() => [] as { project_id: string; n: number }[])
-    interface DSig { bugs: number; ideas: number; backlog: number; hurdles: number }
+    interface DSig { bugs: number; ideas: number; backlog: number; hurdles: number; backlogUpdated: string | null }
     const sigMap = new Map<string, DSig>()
-    for (const id of signalIds) sigMap.set(id, { bugs: 0, ideas: 0, backlog: 0, hurdles: 0 })
+    for (const id of signalIds) sigMap.set(id, { bugs: 0, ideas: 0, backlog: 0, hurdles: 0, backlogUpdated: null })
     for (const r of sigDevRows) { const s = sigMap.get(r.project_id); if (s) (r.status === 'bug' ? s.bugs++ : r.status === 'idea' ? s.ideas++ : null) }
-    for (const r of sigBlRows) { const s = sigMap.get(r.project_id); if (s) s.backlog = r.n }
+    for (const r of sigBlRows) { const s = sigMap.get(r.project_id); if (s) { s.backlog = r.n; s.backlogUpdated = r.latest } }
     for (const r of sigHRows) { const s = sigMap.get(r.project_id); if (s) s.hurdles = r.n }
 
     // Columns list ALL their projects (user request 2026-08-25 — the dashboard is the
@@ -132,16 +132,25 @@ export function dashboardRoutes(cfg: Config) {
       const lang = localeOf(c)
       const num = (v: number | string): string => (lang === 'fa' ? faDigits(String(v)) : String(v))
 
-      // P-signals renderer: notification-style icon+count chips. Only non-zero signals render.
+      // P-signals: bug bubble (solid red, next to title) + lighter chips (ideas/backlog/hurdles).
+      const bugBubbleD = (id: string): SafeHtml => {
+        const s = sigMap.get(id)
+        if (!s || s.bugs === 0) return html``
+        return html`<span class="bug-bubble" title="${t(`${s.bugs} open ${s.bugs === 1 ? 'bug' : 'bugs'}`, `${s.bugs} باگ باز`)}">${num(s.bugs)}</span>`
+      }
       const sigHtml = (id: string): SafeHtml => {
         const s = sigMap.get(id)
-        if (!s || (s.bugs === 0 && s.ideas === 0 && s.backlog === 0 && s.hurdles === 0)) return html``
+        if (!s || (s.ideas === 0 && s.backlog === 0 && s.hurdles === 0)) return html``
         const chips: SafeHtml[] = []
-        if (s.bugs > 0) chips.push(html`<span class="sig-chip sig-bugs" title="${t(`${s.bugs} open ${s.bugs === 1 ? 'bug' : 'bugs'}`, `${s.bugs} باگ باز`)}">${raw(icon('bug', 'icon'))}${num(s.bugs)}</span>`)
         if (s.ideas > 0) chips.push(html`<span class="sig-chip sig-ideas" title="${t(`${s.ideas} ${s.ideas === 1 ? 'idea' : 'ideas'}`, `${s.ideas} ایده`)}">${raw(icon('idea', 'icon'))}${num(s.ideas)}</span>`)
         if (s.backlog > 0) chips.push(html`<span class="sig-chip sig-backlog" title="${t('Has upcoming plan', 'برنامه آتی دارد')}">${raw(icon('list-check', 'icon'))}${num(s.backlog)}</span>`)
         if (s.hurdles > 0) chips.push(html`<span class="sig-chip sig-hurdles" title="${t(`${s.hurdles} open ${s.hurdles === 1 ? 'hurdle' : 'hurdles'}`, `${s.hurdles} مانده باز`)}">${raw(icon('alert', 'icon'))}${num(s.hurdles)}</span>`)
         return html`<span class="project-signals">${chips}</span>`
+      }
+      const backlogMetaD = (id: string): SafeHtml => {
+        const s = sigMap.get(id)
+        if (!s || !s.backlogUpdated) return html``
+        return html`<span class="backlog-meta muted small" title="${s.backlogUpdated}">${t('Backlog', 'برنامه')}: ${timeAgo(s.backlogUpdated, lang)}</span>`
       }
 
       const activityItemHtml = (p: ProjectRow): SafeHtml => html`<li class="activity-item">
@@ -165,9 +174,10 @@ export function dashboardRoutes(cfg: Config) {
               <div class="row skc-row">
                 <a class="skc-open" href="/project.html?id=${p.id}" aria-label="${t('Open project', 'باز کردن پروژه')} — ${p.title}" title="${t('Open project', 'باز کردن پروژه')}">${raw(icon('arrow-right', 'icon arrow'))}</a>
                 <strong class="skc-title">${p.title}</strong>
+                ${bugBubbleD(p.id)}
                 ${sigHtml(p.id)}
               </div>
-              <div class="muted small skc-updated">${timeAgo(p.updated_at, lang)}</div>
+              <div class="muted small skc-updated">${timeAgo(p.updated_at, lang)}${backlogMetaD(p.id) ? html` · ${backlogMetaD(p.id)}` : ''}</div>
             </div>`
         })
         return html`<div class="stat stat-box" data-status="${s}">

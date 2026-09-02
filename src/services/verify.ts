@@ -28,9 +28,24 @@ function markUsed(db: Db, id: string): Promise<unknown> {
 
 /** Generates a fresh 4-digit code, invalidating any earlier pending one. Returns the RAW code.
  *  4 digits per Ali's request (four verification boxes in the signup modal, 2026-08-24) —
- *  rate-limited + attempt-capped, so brute force is not practical. */
+ *  rate-limited + attempt-capped, so brute force is not practical.
+ *
+ *  P2.4 (F-L13): rejection sampling for uniform digits. The old `b % 10` had modulo bias
+ *  (256 % 10 = 6 → digits 0-5 ~2.3% more likely than 6-9). Over-fetch 8 bytes and reject
+ *  values >= 250 (floor(256/10)*10) so each accepted byte maps uniformly to 0-9. */
 export async function createEmailCode(db: Db, userId: string): Promise<string> {
-  const code = Array.from(crypto.getRandomValues(new Uint8Array(4)), (b) => String(b % 10)).join('')
+  const randBytes = crypto.getRandomValues(new Uint8Array(8))
+  let code = ''
+  for (let i = 0; i < randBytes.length && code.length < 4; i++) {
+    if (randBytes[i] < 250) code += randBytes[i] % 10 // 250 = floor(256/10)*10 → uniform
+  }
+  // Astronomically unlikely (all 8 bytes >= 250 ≈ 1 in 10^15); re-fetch if it ever happens.
+  if (code.length < 4) {
+    const extra = crypto.getRandomValues(new Uint8Array(8))
+    for (let i = 0; i < extra.length && code.length < 4; i++) {
+      if (extra[i] < 250) code += extra[i] % 10
+    }
+  }
   const hash = await sha256Hex(code)
   const now = new Date().toISOString()
   await db.transaction(async (tx) => {

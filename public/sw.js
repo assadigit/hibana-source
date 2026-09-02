@@ -73,6 +73,11 @@ const SHELL = [
   '/vendor/alpine.min.js',
   '/vendor/jalaali.min.js',
   '/vendor/vazir/font-face.css',
+  // P4.14 (F-M5): Vazir woff2 precache — offline FA users lose the font without these.
+  // Only the 3 used weights (Regular/Medium/Bold); Thin/Light/Black are unused.
+  '/vendor/vazir/Vazir-Regular.woff2',
+  '/vendor/vazir/Vazir-Medium.woff2',
+  '/vendor/vazir/Vazir-Bold.woff2',
   '/Login.jpg',
 ]
 

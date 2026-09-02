@@ -33,6 +33,9 @@ window.hibana = (() => {
     try {
       localStorage.setItem('hibana-theme', t)
     } catch {}
+    // P4.4 (F-M15): update the mobile address-bar color to match the theme. Dark mode bg
+    // is #1E1A15 (the lifted warm dark); light mode bg is #FAF9F6.
+    document.querySelector('meta[name=theme-color]')?.setAttribute('content', t === 'dark' ? '#1E1A15' : '#FAF9F6')
   }
   function paintThemeButton() {
     const dark = currentTheme() === 'dark'

@@ -192,8 +192,10 @@ function cardHtml(p: ProjectRow, tags: TagRow[], lang: Locale, signals?: Project
       <span class="muted small pc-updated">${updated}</span>
       ${STATUS_BADGE(p.status, lang)}
     </div>
-    <a href="/project.html?id=${p.id}" class="project-title pc-title">${esc(p.title)}</a>
-    ${sigs ? `<div class="pc-signals-row">${sigs}</div>` : ''}
+    <div class="row spread pc-title-row">
+      <a href="/project.html?id=${p.id}" class="project-title pc-title">${esc(p.title)}</a>
+      ${sigs}
+    </div>
     ${p.description ? `<p class="muted small clip-2 pc-desc">${esc(p.description)}</p>` : ''}
     <i class="pc-corner" aria-hidden="true"></i>
   </article>`
@@ -211,18 +213,17 @@ function listFragment(projects: ProjectRow[], tagsMap: Map<string, TagRow[]>, vi
   }
   const dig = (n: number) => (lang === 'fa' ? faDigits(String(n)) : String(n))
   if (view === 'list') {
-    return `<table class="projects-table"><thead><tr><th>${trL(lang, 'Title', 'عنوان')}</th><th>${trL(lang, 'Status', 'وضعیت')}</th><th>${trL(lang, 'Tags', 'برچسب‌ها')}</th><th>${trL(lang, 'Updated', 'به‌روزرسانی')}</th><th>${trL(lang, 'Progress', 'پیشرفت')}</th></tr></thead>
+    return `<table class="projects-table"><thead><tr><th>${trL(lang, 'Title', 'عنوان')}</th><th>${trL(lang, 'Status', 'وضعیت')}</th><th>${trL(lang, 'Tags', 'برچسب‌ها')}</th><th>${trL(lang, 'Updated', 'به‌روزرسانی')}</th><th>${trL(lang, 'Signals', 'سیگنال‌ها')}</th></tr></thead>
       <tbody>${projects
         .map((p) => {
-          const pct = projectProgress(p, [])
           const tags = tagsMap.get(p.id) ?? []
           const sigs = signalsHtml(signalsMap?.get(p.id), lang)
           return `<tr id="project-${p.id}" draggable="true" data-project-id="${p.id}" data-status="${p.status}">
-            <td>${sigs}<a href="/project.html?id=${p.id}">${esc(p.title)}</a></td>
+            <td><a href="/project.html?id=${p.id}">${esc(p.title)}</a></td>
             <td>${STATUS_BADGE(p.status, lang)}</td>
             <td>${tagsChips(tags, lang)}</td>
             <td class="muted small">${timeAgo(p.updated_at, lang)}</td>
-            <td class="small">${dig(pct)}%</td>
+            <td class="signals-cell">${sigs || '<span class="muted small">—</span>'}</td>
           </tr>`
         })
         .join('')}</tbody></table>`
@@ -248,8 +249,7 @@ function listFragment(projects: ProjectRow[], tagsMap: Map<string, TagRow[]>, vi
         ${inCol.map((p) => {
           const sigs = signalsHtml(signalsMap?.get(p.id), lang)
           return `<div class="card kanban-card" draggable="true" data-project-id="${p.id}" data-status="${s}" data-nav-url="/project.html?id=${p.id}">
-          <strong>${esc(p.title)}</strong>
-          ${sigs}
+          <div class="row spread"><strong>${esc(p.title)}</strong> ${sigs}</div>
           <div class="muted small">${timeAgo(p.updated_at, lang)}</div>
         </div>`
         }).join('') || `<div class="kanban-empty">${trL(lang, 'Drop here', 'اینجا رها کن')}</div>`}

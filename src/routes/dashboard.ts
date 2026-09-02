@@ -165,8 +165,8 @@ export function dashboardRoutes(cfg: Config) {
               <div class="row skc-row">
                 <a class="skc-open" href="/project.html?id=${p.id}" aria-label="${t('Open project', 'باز کردن پروژه')} — ${p.title}" title="${t('Open project', 'باز کردن پروژه')}">${raw(icon('arrow-right', 'icon arrow'))}</a>
                 <strong class="skc-title">${p.title}</strong>
+                ${sigHtml(p.id)}
               </div>
-              ${sigHtml(p.id)}
               <div class="muted small skc-updated">${timeAgo(p.updated_at, lang)}</div>
             </div>`
         })

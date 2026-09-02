@@ -4,6 +4,31 @@ Full spec: `pm-app-spec.md` · Rules (non-negotiable): `CLAUDE.md` · Reasoning:
 Deploy: `DEPLOY.md` · What's next: `ROADMAP.md` · Session handoff: `NEW_SESSION.md`
 Verification: `npm test` (191) · `npm run typecheck` · `npm run smoke` · `npm run drill`
 
+## 2026-09-02 — Post-audit hotfixes: project signals + UI refinements — v0.1.6, commits `07338a4`→`37a96bd`
+After the audit backlog (Phases 0-5) was complete, the user requested new features + UI
+refinements in an iterative session. All deployed as hotfixes (dev + prod) + pushed to GitHub.
+- **Project-state signals** (new feature, commit `07338a4`) — notification-style icon+count chips
+  on project rows showing what's actionable per project: bugs (🐛 red), ideas (💡 orange),
+  backlog (📋 teal), hurdles (⚠️ amber). Batched query (3 queries for all visible projects).
+  Shown on dashboard kanban + projects page (cards/list/kanban).
+- **Signals layout fix** (commit `9921cb8`) — bigger chips, on the same row as the project name
+  (was below it). List view: replaced the `%` progress column with a Signals column.
+- **Bug notification bubble** (commit `c41bcef`) — bug count now appears as a standalone solid
+  red circle (#dc2626 light / #ef4444 dark) right next to the project name — strong visual
+  weight, instant scannability. Other signals stay as lighter chips. Also added: latest backlog
+  update time metadata ('Backlog: 2h ago' / 'برنامه: ۲ ساعت پیش').
+- **Quick notes compact** (commit `980e96e`) — container padding halved, compose input height
+  4.25rem → 2.5rem, note-card padding/gap tightened, delete button smaller. ~40% less vertical
+  space per card; fits ~2× as many notes in the same viewport.
+- **Quick notes header + attach + gap** (commit `37a96bd`) — controls (view/size toggles) now
+  appear FIRST, heading SECOND (near each other, not spread). Attach (اتصال) button smaller
+  (padding/font/icon reduced). Content→meta gap tightened (grid gap 0.06rem + p:last-child
+  margin zero).
+Cache rotations: app.css v186→v192 · app.js v158→v159 · i18n.js v26→v27 · whiteboard.js v7→v8 ·
+SW hibana-v207→v213 (6 rotations across the hotfix series).
+Source pushed to `github.com/assadigit/hibana-source` (tags `v0.1.5.1` + `v0.1.6`); zip
+`Hibana-Alpha-V0.1.6.zip`. Deploy: dev → prod (live on hibana.ir).
+
 ## 2026-09-02 — Phase 5: performance/scale + final closeout — v0.1.5, commits `f298570`→`84e297f`
 The final backlog phase (deferred until now per "defer until observed need" — executed on user request).
 - **P5.1 (F-M1)** — dashboard over-fetch. activeProjects query LIMIT 48 (8 per stage × 6 stages);

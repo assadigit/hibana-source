@@ -13,6 +13,10 @@ export function createD1Db(d1: D1Database): Db {
       const res = await d1.prepare(sql).bind(...params).run()
       return { changes: res.meta.changes, lastRowId: res.meta.last_row_id }
     },
+    // P1.6 (F-M13): D1 has no begin/commit — batch() runs statements in one all-or-nothing
+    // transaction. Reads inside `fn` see PRE-batch state (NOT isolated); use this for
+    // write-only batches only. For atomic read-modify-write, use a single
+    // INSERT...ON CONFLICT...DO UPDATE...RETURNING. See Db.transaction doc in types.ts.
     async transaction<T>(fn: (tx: Tx) => Promise<T>): Promise<T> {
       const stmts: { sql: string; params: unknown[] }[] = []
       const tx: Tx = {

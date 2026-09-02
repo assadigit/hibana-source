@@ -128,11 +128,23 @@ export async function backupToGitHub(db: Db, gh: GitHubConfig, ownerUserId?: str
   // btoa() throws on any codepoint above 0xFF — Persian content in the snapshot JSON
   // would kill the nightly backup. Encode to UTF-8 bytes and build the binary string in
   // 8k chunks (a spread String.fromCharCode on the whole array would blow the stack).
-  const json = JSON.stringify(snapshot, null, 2)
+  //
+  // P3.5 (F-M4) tier (b): release the json + bytes references as soon as the binary
+  // string is built, so the peak holds only (bin + the base64 output), not (json +
+  // bytes + bin + base64) all at once. The full snapshot still exists in memory (the
+  // Contents API PUT requires the complete base64 string), but the transient copies
+  // don't pile up. The real OOM fix is tier (a) — the Git Data API (create blob →
+  // tree → commit), so the snapshot never exists as one base64 blob; deferred until
+  // (b)+(c) (c = the structured-log + owner-email alert from P3.1) prove insufficient
+  // at the solo-owner DB size. Dropping tables (P2.5) already shrank the snapshot.
+  let json = JSON.stringify(snapshot, null, 2)
   const bytes = new TextEncoder().encode(json)
   let bin = ''
   for (let i = 0; i < bytes.length; i += 8192) bin += String.fromCharCode(...bytes.subarray(i, i + 8192))
-  const pushed = await client.pushFile(path, btoa(bin), 'Hibana automated backup')
+  json = '' // release the json string reference (the bytes held the same data)
+  const b64 = btoa(bin)
+  bin = '' // release the binary string once base64 is built
+  const pushed = await client.pushFile(path, b64, 'Hibana automated backup')
   const retained = await enforceRetention(client, keepN)
   return { path, url: pushed.html_url, retained }
 }

@@ -4,6 +4,30 @@ Full spec: `pm-app-spec.md` · Rules (non-negotiable): `CLAUDE.md` · Reasoning:
 Deploy: `DEPLOY.md` · What's next: `ROADMAP.md` · Session handoff: `NEW_SESSION.md`
 Verification: `npm test` (191) · `npm run typecheck` · `npm run smoke` · `npm run drill`
 
+## 2026-09-02 — Phase 2: security hardening (audit execution) — v0.1.2, commits `f347d6e`→`3b64d85`
+Execution of the Phase 2 backlog: 7 server/docs-only findings on the auth/captcha/crypto
+surface. Each one commit through the full ladder (typecheck 0 errors · 191/191 tests ·
+E2E :8787). No cache bump, no SW rotation.
+- **P2.1 (F-M6)** `[MEDIUM — anchor]` — captcha token leaked operands. Was `a.b.op.expS.sig`
+  (split by `.` → a/b/op recovered). Now `question.expS.sig` — HMAC-signs the question
+  string; operands visible in the question but no longer pre-split for bots. Live-confirmed
+  during the audit; now closed.
+- **P2.2 (F-L28)** — extracted `timingSafeEqual` (byte) + `timingSafeEqualStr` (string) to
+  `src/lib/crypto.ts`. Replaced 3 duplicates (password.ts, captcha.ts, integrations.ts).
+- **P2.3 (F-L12)** — `verifyEmailCode` hash compare `!==` → `timingSafeEqualStr`. All three
+  crypto-compares (PBKDF2, HMAC sig, email-code hash) now constant-time.
+- **P2.4 (F-L13)** — email-code `b % 10` modulo bias → rejection sampling (accept < 250 for
+  uniform 0-9). Digits now uniformly distributed.
+- **P2.5 (F-L14+F-L15)** — dropped `password_resets` (transient) + `changelogs` (dead table)
+  from `SNAPSHOT_TABLES`; `schema_version` 20260909 → 20260910. Removed the dead
+  `changelogs_fts` query from `/api/search` (was a wasted DB round trip returning nothing).
+- **P2.6 (F-L10)** — documented `x-forwarded-for` spoofability on the Node path in DEPLOY.md
+  (run behind a trusted proxy; Cloudflare Workers path unaffected).
+- **P2.7 (F-L11)** — documented the rate-limiter fail-open tradeoff (deliberate: keeps the
+  app usable during D1 hiccups; CF WAF rule is the primary defense).
+Source pushed to `github.com/assadigit/hibana-source` (tag `v0.1.2`); zip
+`Hibana-Alpha-V0.1.2.zip`. Deploy: dev → prod.
+
 ## 2026-09-02 — Phase 1: critical safety + reliability (audit execution) — v0.1.1, commits `199cc6e`→`736e187`
 Execution of the Phase 1 backlog (`TECHNICAL-BACKLOG.md`): 8 server/docs-only findings,
 each one commit through the full verification ladder (typecheck 0 errors · 191/191 tests ·

@@ -58,3 +58,51 @@ export async function validateSession(db: Db, token: string | undefined): Promis
   }
   return user_id
 }
+
+/**
+ * P3.3 (F-L1): validate the session AND fetch the user row in ONE JOIN query (was 2-3
+ * round trips: validateSession's SELECT + maybe DELETE/UPDATE, then a separate
+ * SELECT * FROM users). Returns { user, sessionId, expired } or null.
+ *
+ * The extend-on-activity + expired-session-cleanup are NOT done here — they stay as
+ * separate best-effort writes (fire-and-forget via ctx.waitUntil per P1.3) so the read
+ * path stays a single round trip. The caller (middleware.ts) handles those writes.
+ */
+export async function validateSessionWithUser<U>(
+  db: Db,
+  token: string | undefined,
+): Promise<{ user: U; sessionId: string; expiresAt: string; needsExtend: boolean } | null> {
+  if (!token) return null
+  const id = await sha256Hex(token)
+  const rows = await db.query<U & { s_id: string; s_expires_at: string }>(
+    'SELECT u.*, s.id AS s_id, s.expires_at AS s_expires_at FROM sessions s JOIN users u ON u.id = s.user_id WHERE s.id = ?',
+    [id],
+  )
+  if (rows.length === 0) return null
+  const row = rows[0] as U & { s_id: string; s_expires_at: string }
+  const expiresAt = row.s_expires_at
+  // strip the session-prefixed join columns before returning the user
+  const user: U = (() => {
+    const { s_id: _sid, s_expires_at: _sexp, ...rest } = row
+    return rest as U
+  })()
+  return {
+    user,
+    sessionId: row.s_id,
+    expiresAt,
+    needsExtend: new Date(expiresAt).getTime() - Date.now() < EXTEND_BELOW_MS,
+  }
+}
+
+/** Best-effort: extend a session's expiry (fire-and-forget via waitUntil). */
+export async function extendSession(db: Db, sessionId: string): Promise<void> {
+  await db.execute('UPDATE sessions SET expires_at = ? WHERE id = ?', [
+    new Date(Date.now() + LIFETIME_MS).toISOString(),
+    sessionId,
+  ])
+}
+
+/** Best-effort: delete an expired session (fire-and-forget via waitUntil). */
+export async function deleteSessionById(db: Db, sessionId: string): Promise<void> {
+  await db.execute('DELETE FROM sessions WHERE id = ?', [sessionId])
+}

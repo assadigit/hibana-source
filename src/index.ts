@@ -2,7 +2,7 @@ import { createApp } from './app'
 import { createD1Db } from './db/d1'
 import { scheduledBackup, scheduledPurge } from './routes/admin'
 import { runReminders } from './services/reminders'
-import { runSadhanaReminders, sweepCompletedTasks } from './services/sadhana'
+import { runSadhanaReminders, sweepCompletedTasks, resetDueRecurring } from './services/sadhana'
 import type { Config, Env } from './types'
 
 // Cloudflare Workers entry — a thin shell over createApp() plus the daily cron.
@@ -55,6 +55,13 @@ export default {
         if (dailyTick) await scheduledPurge(cfg)
         // Sadhana weekly sweep (Mondays Asia/Tehran) — idempotent, daily is enough.
         if (dailyTick) await sweepCompletedTasks(cfg.db)
+        // P5.1 (F-M1): resetDueRecurring moved off the dashboard read path to the daily
+        // cron. Was a write on every dashboard GET; now runs once daily at the 03:17 tick.
+        // Idempotent (only resets tasks past their due date), so daily is frequent enough.
+        if (dailyTick) {
+          const users = await cfg.db.query<{ id: string; timezone: string }>('SELECT id, timezone FROM users')
+          for (const u of users) await resetDueRecurring(cfg.db, u.id, u.timezone)
+        }
         // Sadhana deadline reminders (7d/3d/1d/0d/2h) — every tick (30-min cadence, §7.3).
         await runSadhanaReminders(cfg)
         // Client reminders go to the owner's email (the account is single-owner by design).

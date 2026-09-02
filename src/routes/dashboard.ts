@@ -6,7 +6,7 @@ import { localeOf, trFor } from '../lib/i18n'
 import { calendarFor, faDigits, formatDateLong } from '../lib/jalali'
 import { QUADRANT_GLYPHS, STATUS_BADGE, STATUS_ICON, icon, quadrantGlyph, statusLabel, timeAgo } from '../lib/html'
 import { legacyTaskNote, type SadhanaTaskNote } from '../lib/sadhana-task-controls'
-import { QUADRANTS, orderedQuadrants, resetDueRecurring, todayIn, type SadhanaTask } from '../services/sadhana'
+import { QUADRANTS, orderedQuadrants, todayIn, type SadhanaTask } from '../services/sadhana'
 import { PROJECT_STAGES } from '../types'
 import type { Config, ProjectRow, ProjectStatus, UserRow } from '../types'
 import { attachedTitles, notebookHtml, type QuickNote } from './quicknotes'
@@ -34,7 +34,10 @@ export function dashboardRoutes(cfg: Config) {
 
   app.get('/', async (c) => {
     const user = c.get('user')
-    await resetDueRecurring(cfg.db, user.id, user.timezone)
+    // P5.1 (F-M1): resetDueRecurring moved to the daily cron (index.ts) — was a write on
+    // every dashboard GET, making the read path non-idempotent. The cron already runs daily
+    // at the 03:17 tick; resetDueRecurring is idempotent (only resets tasks past their
+    // due date), so daily is frequent enough.
 
     const [byStatus, recent, activeProjects, solvedThisWeek, notes, todoTasks, todoNameRows, todoNoteRows] = await Promise.all([
       cfg.db.query<{ status: string; n: number }>(
@@ -45,8 +48,11 @@ export function dashboardRoutes(cfg: Config) {
         'SELECT * FROM projects WHERE user_id = ? AND deleted_at IS NULL ORDER BY updated_at DESC LIMIT 10',
         [user.id],
       ),
+      // P5.1 (F-M1): cap the stage-box over-fetch. Was unbounded SELECT * of every project
+      // across every stage; now capped to 8 per stage (latest by updated_at). The "View all"
+      // link in each stat box already links to projects.html?status=X for the full list.
       cfg.db.query<ProjectRow>(
-        `SELECT * FROM projects WHERE user_id = ? AND deleted_at IS NULL AND status IN (${PROJECT_STAGES.map(() => '?').join(',')}) ORDER BY updated_at DESC`,
+        `SELECT * FROM projects WHERE user_id = ? AND deleted_at IS NULL AND status IN (${PROJECT_STAGES.map(() => '?').join(',')}) ORDER BY updated_at DESC LIMIT 48`,
         [user.id, ...PROJECT_STAGES],
       ),
 
@@ -54,8 +60,11 @@ export function dashboardRoutes(cfg: Config) {
         'SELECT COUNT(*) AS n FROM hurdles WHERE solved_at IS NOT NULL AND solved_at >= ? AND project_id IN (SELECT id FROM projects WHERE user_id = ?)',
         [new Date(Date.now() - 7 * 24 * 3600 * 1000).toISOString(), user.id],
       ),
+      // P5.1 (F-M1): cap the notebook widget to 20 notes (was unbounded SELECT *). The full
+      // notebook lives at /whiteboard.html. ORDER BY sort_order DESC matches P1.2 (newest
+      // at top); was ASC (inconsistent with the notebook page after P1.2).
       cfg.db.query<QuickNote>(
-        'SELECT * FROM quick_notes WHERE user_id = ? AND deleted_at IS NULL ORDER BY sort_order ASC, updated_at DESC',
+        'SELECT * FROM quick_notes WHERE user_id = ? AND deleted_at IS NULL ORDER BY sort_order DESC, updated_at DESC LIMIT 20',
         [user.id],
       ),
       cfg.db.query<SadhanaTask>(
@@ -90,7 +99,7 @@ export function dashboardRoutes(cfg: Config) {
       list.push(p)
       byStatusList.set(p.status, list)
     }
-    const recentBox = (s: ProjectStatus): ProjectRow[] => byStatusList.get(s) ?? []
+    const recentBox = (s: ProjectStatus): ProjectRow[] => (byStatusList.get(s) ?? []).slice(0, 8) // P5.1 (F-M1): cap to 8 per stage box
 
     // Keep the JSON field for API compatibility; the dashboard no longer renders the metric.
     const data = { counts, recent, recents: activeProjects, solvedThisWeek: solvedThisWeek[0]?.n ?? 0, notes }

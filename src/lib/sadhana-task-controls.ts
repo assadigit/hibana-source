@@ -18,7 +18,7 @@ type StateCopy = { id: State; en: string; fa: string; tone: string; dotIcon: str
 const STATES: StateCopy[] = [
   { id: 'untouched', en: 'Not started', fa: 'شروع نشده', tone: 'info', dotIcon: 'circle' },
   { id: 'in_progress', en: 'In progress', fa: 'در حال انجام', tone: 'success', dotIcon: 'circle' },
-  { id: 'on_hold', en: 'On hold', fa: 'متوقف', tone: 'warning', dotIcon: 'circle' },
+  { id: 'on_hold', en: 'On hold', fa: 'معلق', tone: 'warning', dotIcon: 'circle' }, // P4.6 (F-M18): معلق (paused) not متوقف (halted) — halted is the project stage
 ]
 
 const noteDate = (iso: string, lang: Locale, tz: string): string => {

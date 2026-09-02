@@ -604,7 +604,7 @@ window.hibanaI18n = (() => {
       'sadhana.newNote': 'یادداشت جدید', 'sadhana.deleteNote': 'حذف یادداشت',
       'sadhana.noteEdit': 'ویرایش یادداشت', 'sadhana.noteUpdateFailed': 'ذخیره یادداشت ممکن نشد',
       'sadhana.dragHandle': 'برای جابه‌جایی بکشید', 'sadhana.notStarted': 'شروع نشده',
-      'sadhana.inProgress': 'در حال انجام', 'sadhana.onHold': 'متوقف',
+      'sadhana.inProgress': 'در حال انجام', 'sadhana.onHold': 'معلق', // P4.6 (F-M18): معلق (paused) not متوقف (halted)
       'sadhana.empty': 'هنوز چیزی نیست — اولین کار را اضافه کن.',
       'common.confirm': 'تأیید', 'common.undo': 'برگردان',
       // quick-add modal (app.js)

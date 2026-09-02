@@ -6953,6 +6953,8 @@ dialog.adm-modal::backdrop { background: rgb(0 0 0 / 0.55); }
 /* --- items 7+8: sprint lifecycle UI (define → start → finish) + time paging -- */
 .sp-timenav { display: inline-flex; align-items: center; gap: 0.3rem; }
 .sp-timenav .sp-timerange { white-space: nowrap; max-inline-size: 16rem; overflow: hidden; text-overflow: ellipsis; }
+/* P4.7 (F-M19): mirror the sprint time-paging arrows in RTL so 'Older' points backward. */
+[dir='rtl'] .sp-arrow { transform: scaleX(-1); }
 .sp-finish-btn { white-space: nowrap; }
 
 /* The DRAFT panel — a defined-but-not-started sprint. Card-like, above the timeline:

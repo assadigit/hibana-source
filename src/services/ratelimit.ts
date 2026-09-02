@@ -28,35 +28,30 @@ export const RATE_RULES = {
 
 /**
  * Counts one request from `ip` against `rule`. Returns true when the limit is
- * exceeded (caller replies 429). Best-effort: a DB failure never blocks the request.
+ * exceeded (caller replies 429). Best-effort: a DB failure never blocks the request
+ * (P2.7/F-L11: fail-open is a deliberate availability tradeoff — the CF WAF rate-limiting
+ * rule is the primary defense; this in-app limiter is secondary).
  *
- * P2.7 (F-L11): the catch block at the bottom FAILS OPEN (returns false = allow) when
- * the D1 read/write throws. This is a deliberate availability tradeoff: if the rate-limits
- * table is briefly unavailable, blocking every request would take the whole app down
- * (login, API, htmx — all go through requireAuth which calls this). Fail-open keeps the
- * app usable during a D1 hiccup; the Cloudflare WAF rate-limiting rule (scripts/rate-
- * limit.mjs) is the primary defense at the edge, and this in-app limiter is the secondary.
- * The tradeoff: during a DB outage, a burst of requests could exceed the limit until D1
- * recovers — acceptable for a single-owner app where the primary risk is credential
- * brute-force (guarded by the WAF rule + PBKDF2 + email verification, not this limiter).
+ * P3.4 (F-L2): single UPSERT (was SELECT + INSERT/UPDATE = 2 round trips per
+ * limited request). Uses INSERT ... ON CONFLICT(key) DO UPDATE with a CASE on
+ * window_start to reset the count when the window rolled over. RETURNING (count > limit)
+ * gives the over/under in the same statement.
  */
 export async function hitRateLimit(db: Db, rule: RateRule, ip: string): Promise<boolean> {
   const nowS = Math.floor(Date.now() / 1000)
   const bucket = Math.floor(nowS / rule.windowSec) * rule.windowSec
   const key = `${rule.name}:${ip}`
   try {
-    const rows = await db.query<{ window_start: number; count: number }>('SELECT window_start, count FROM rate_limits WHERE key = ?', [key])
-    if (rows.length === 0) {
-      await db.execute('INSERT INTO rate_limits (key, window_start, count, updated_at) VALUES (?, ?, 1, ?)', [key, bucket, new Date().toISOString()])
-      return false
-    }
-    if (rows[0].window_start !== bucket) {
-      await db.execute('UPDATE rate_limits SET window_start = ?, count = 1, updated_at = ? WHERE key = ?', [bucket, new Date().toISOString(), key])
-      return false
-    }
-    const count = rows[0].count + 1
-    await db.execute('UPDATE rate_limits SET count = ?, updated_at = ? WHERE key = ?', [count, new Date().toISOString(), key])
-    return count > rule.limit
+    const rows = await db.query<{ over: number }>(
+      `INSERT INTO rate_limits (key, window_start, count, updated_at) VALUES (?, ?, 1, ?)
+       ON CONFLICT(key) DO UPDATE SET
+         count = CASE WHEN window_start = excluded.window_start THEN count + 1 ELSE 1 END,
+         window_start = excluded.window_start,
+         updated_at = excluded.updated_at
+       RETURNING (count > ?) AS over`,
+      [key, bucket, new Date().toISOString(), rule.limit],
+    )
+    return rows[0]?.over === 1
   } catch (err) {
     // Never fail the app because the guard itself hiccuped.
     // P3.1 (F-M12): structured log instead of console.error.

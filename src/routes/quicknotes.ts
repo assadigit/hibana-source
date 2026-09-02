@@ -282,7 +282,11 @@ export function quickNotesRoutes(cfg: Config) {
 
   const activeNotes = async (userId: string): Promise<QuickNote[]> =>
     cfg.db.query<QuickNote>(
-      'SELECT * FROM quick_notes WHERE user_id = ? AND deleted_at IS NULL ORDER BY sort_order ASC, updated_at DESC',
+      // P1.2 (F-M8): newest note at the TOP. sort_order DESC so the highest value renders
+      // first. New notes are created with sort_order = COUNT(*) (the current highest), so a
+      // freshly-created note lands at the top automatically. The drag-reorder below writes
+      // sort_order by reversed visual index so DESC stays consistent after a manual drag.
+      'SELECT * FROM quick_notes WHERE user_id = ? AND deleted_at IS NULL ORDER BY sort_order DESC, updated_at DESC',
       [userId],
     )
 
@@ -528,8 +532,11 @@ export function quickNotesRoutes(cfg: Config) {
     )
     const ownedIds = new Set(rows.map((r) => r.id))
     const now = new Date().toISOString()
+    // P1.2 (F-M8): the client ships ids in visual order (top -> bottom). Under DESC the
+    // visual-TOP must get the HIGHEST sort_order, so we reverse: the bottom item gets i=0
+    // (lowest), the top item gets i=N-1 (highest) -> renders first under ORDER BY ... DESC.
     let i = 0
-    for (const id of body.ids) {
+    for (const id of [...body.ids].reverse()) {
       if (!ownedIds.has(id)) continue
       await cfg.db.execute('UPDATE quick_notes SET sort_order = ?, updated_at = ? WHERE id = ? AND user_id = ?', [
         i++, now, id, user.id,

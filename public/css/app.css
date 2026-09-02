@@ -118,11 +118,11 @@
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --bg: #100E0B;             /* Sadhana dark: warm near-black */
-    --bg-soft: #221F19;
-    --card: #1A1814;
+    --bg: #1E1A15;             /* lighter warm dark (was #100E0B — too dark; lifted to ~1% luminance per user request 2026-09-02) */
+    --bg-soft: #28241E;
+    --card: #242019;
     --text: #EDE8DE;            /* warm off-white — never pure #fff (glare) */
-    --muted: #8A8278;
+    --muted: #9A9088;
     --line: rgba(255, 240, 200, 0.07);
     --line-strong: rgba(255, 240, 200, 0.13);
     --accent: #4A9FA3;        /* the teal carries over — 7:1 on the dark base */
@@ -160,7 +160,7 @@
     /* deeper status dots — the bright pastel foregrounds glare on dark surfaces (user request) */
   --dot-spark: #7fa3c4; --dot-pending: #e4c17e; --dot-building: #7fc4bc;
   --color-primary-strong: #7fc4bc;  /* dark-theme text shade of primary: 8.08:1 on #212120 */
-    --nb-paper: #2a2a28;
+    --nb-paper: #322E2A;       /* lifted with the bg (was #2a2a28) */
     --nb-grid: rgb(242 242 241 / 0.06);
     --nb-ink: invert(1) hue-rotate(180deg) brightness(0.9);  /* brightness tail: inverted black→white lands at ~#e6e6e6, not pure #fff */
     --btn-text: #ffffff;     /* white on the teal dark CTA (3.9:1 at --cta, large/bold button labels) */
@@ -205,7 +205,7 @@ html[data-theme='light'] {
 
 html[data-theme='dark'] {
   color-scheme: dark;
-  --bg: #100E0B; --bg-soft: #221F19; --card: #1A1814; --text: #EDE8DE; --muted: #8A8278;
+  --bg: #1E1A15; --bg-soft: #28241E; --card: #242019; --text: #EDE8DE; --muted: #9A9088;  /* lighter warm dark (was #100E0B — lifted per user request 2026-09-02) */
   --line: rgba(255,240,200,.07); --line-strong: rgba(255,240,200,.13); --accent: #4A9FA3; --accent-hover: #5FB3B7;
   --accent-soft: rgba(74,159,163,.22); --cta: #3D8D91; --cta-hover: #2E7B7F; --link: #6FC3C7; --ok: #4fbc64; --err: #f06161; --btn-text: #ffffff;
   --pastel-tool: #40391f; --pastel-tool-strong: #5c5127;
@@ -224,7 +224,7 @@ html[data-theme='dark'] {
   --kanban-halted-bg: #2A2823;        --kanban-halted-line: rgba(182, 174, 159, 0.20);
   --kanban-operational-bg: #223226;  --kanban-operational-line: rgba(151, 204, 157, 0.20);
   --dot-spark: #7fa3c4; --dot-pending: #e4c17e; --dot-building: #7fc4bc;
-  --nb-paper: #2a2a28;
+  --nb-paper: #322E2A;  /* lifted with the bg (was #2a2a28) */
   --nb-grid: rgb(242 242 241 / 0.06);
   --nb-ink: invert(1) hue-rotate(180deg) brightness(0.9);
   --brand: #5FB3B7;

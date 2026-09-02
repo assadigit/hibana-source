@@ -4,6 +4,32 @@ Full spec: `pm-app-spec.md` · Rules (non-negotiable): `CLAUDE.md` · Reasoning:
 Deploy: `DEPLOY.md` · What's next: `ROADMAP.md` · Session handoff: `NEW_SESSION.md`
 Verification: `npm test` (191) · `npm run typecheck` · `npm run smoke` · `npm run drill`
 
+## 2026-09-02 — Phase 4: frontend bundle: #0 photo fix + bilingual/RTL/dark/offline — v0.1.4, commits `d2111ae`→`00142ce`
+The big UI phase. All CSS/JS/HTML changes staged, then one atomic SW cache rotation
+(`hibana-v207 → v208`). 14 items (P4.13 optional variable font deferred).
+- **P4.1 (F-H2, anchor #0)** — dark-mode ink filter no longer inverts placed photos. Counter-filter
+  (HueRotation(π) + Invert) at the Fabric-object level in whiteboard.js; MutationObserver +
+  matchMedia re-apply on theme toggle. VLM-verified true-to-color in dark + light.
+- **P4.2 (F-H3)** `[HIGH]` — auth pages (login/signup/confirm/reset) English-only → i18n.js +
+  navigator.language fallback. 46 auth.* keys (EN+FA); i18n.js apply() falls back to
+  `/^fa/i.test(navigator.language)` when /api/auth/me returns 401.
+- **P4.3 (F-M17)** — notebook image-from-link `prompt()` → styled popover (ported from canvas page).
+- **P4.4 (F-M15)** — mobile `theme-color` meta tracks the theme (#1E1A15 dark / #FAF9F6 light).
+- **P4.5 (F-M16)** — `:not([data-theme='light'])` guards on 2 unguarded dark blocks.
+- **P4.6 (F-M18)** — Persian "On hold" متوقف → معلق (paused, not halted).
+- **P4.7 (F-M19)** — sprint time-paging ‹/› → inline SVG chevrons + RTL mirror.
+- **P4.8 (F-M20)** — verify-code input accepts Persian digits (pattern + server-side normalize).
+- **P4.9 (F-L22)** — jalaali.min.js defer on sprint.html + board.html.
+- **P4.10 (F-L23)** — index.html bilingual `<noscript>`.
+- **P4.11 (F-L24)** — unified 3 undo-toast builders to the canonical `actions` API.
+- **P4.12 (F-L25)** — 404.html lang + mobile-nav label wrap (390px) + manifest lang.
+- **P4.14 (F-M5)** — Vazir Regular/Medium/Bold woff2 in SW precache (offline FA font).
+- **P4.15 (F-L27)** — task-controls.css in SW SHELL.
+- **P4.13 (F-L18)** — Vazir variable font: DEFERRED (optional; rendering parity risk).
+Cache rotation (one commit): `app.css v186→v187 · app.js v158→v159 · i18n.js v26→v27 ·
+whiteboard.js v7→v8 · SW hibana-v207→v208`.
+Source pushed to `github.com/assadigit/hibana-source` (tag `v0.1.4`); zip `Hibana-Alpha-V0.1.4.zip`.
+
 ## 2026-09-02 — Phase 3: reliability & observability + /app 404 hotfix — v0.1.3, commits `465ccd1`→`ac21265`
 - **HOTFIX** (commit `465ccd1`): `/app` (and `/register`, `/signup`, `/to-do-list`, `/timeline`)
   returned 404 on Cloudflare. Root cause: `wrangler.toml` had `not_found_handling = "404-page"`

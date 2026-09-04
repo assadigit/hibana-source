@@ -32,12 +32,12 @@ const SHELL = [
   '/admin.html',
   '/404.html',
   '/js/admin.js?v=1',
-  '/css/app.css?v=192',
+  '/css/app.css?v=193',
   '/css/task-controls.css?v=4', // P4.15 (F-L27): precache task-controls.css (3-dot prog-track) — was missing from SHELL
   '/js/devboard.js?v=9',
   '/js/app.js?v=159',
   '/js/touch-drag.js',
-  '/js/command-palette.js',
+  '/js/command-palette.js?v=1',
   '/js/mobile-nav.js?v=4',
   '/js/zen-mode.js',
   '/js/micro-interactions.js',
@@ -50,7 +50,7 @@ const SHELL = [
   '/js/nav.js',
   '/js/emoji-data.js?v=1',
   '/js/emoji-picker.js?v=1',
-  '/js/i18n.js?v=27',
+  '/js/i18n.js?v=28',
   '/js/whiteboard.js?v=8',
   '/js/canvas.js?v=13',
   '/partials/nav.html',
@@ -83,13 +83,13 @@ const SHELL = [
 ]
 
 self.addEventListener('install', (e) => {
-  e.waitUntil(caches.open('hibana-v213').then((c) => c.addAll(SHELL)))
+  e.waitUntil(caches.open('hibana-v214').then((c) => c.addAll(SHELL)))
   self.skipWaiting()
 })
 
 self.addEventListener('activate', (e) => {
   e.waitUntil(
-    caches.keys().then((keys) => keys.filter((k) => k !== 'hibana-v213').map((k) => caches.delete(k))),
+    caches.keys().then((keys) => keys.filter((k) => k !== 'hibana-v214').map((k) => caches.delete(k))),
   )
   self.clients.claim()
 })
@@ -124,7 +124,7 @@ self.addEventListener('fetch', (e) => {
       fetch(req)
         .then((res) => {
           const copy = res.clone()
-          caches.open('hibana-v213').then((c) => c.put(req, copy)).catch(() => {})
+          caches.open('hibana-v214').then((c) => c.put(req, copy)).catch(() => {})
           return res
         })
         .catch(() => caches.match(req).then((r) => r || caches.match('/dashboard.html'))),
@@ -140,7 +140,7 @@ self.addEventListener('fetch', (e) => {
       .then((res) => {
         if (res.ok) {
           const copy = res.clone()
-          caches.open('hibana-v213').then((c) => c.put(req, copy)).catch(() => {})
+          caches.open('hibana-v214').then((c) => c.put(req, copy)).catch(() => {})
         }
         return res
       })

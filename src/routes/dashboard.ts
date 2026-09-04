@@ -171,14 +171,14 @@ export function dashboardRoutes(cfg: Config) {
         const label = statusLabel(s, lang)
         const cards = list.map((p) => {
           return html`<div class="card kanban-card stat-kanban-card" draggable="true" data-project-id="${p.id}" data-status="${p.status}" data-nav-url="/project.html?id=${p.id}" title="${t('Drag to another box to change its status', 'برای تغییر وضعیت به جعبهٔ دیگر بکش')}">
-              <div class="row skc-row">
-                <a class="skc-open" href="/project.html?id=${p.id}" aria-label="${t('Open project', 'باز کردن پروژه')} — ${p.title}" title="${t('Open project', 'باز کردن پروژه')}">${raw(icon('arrow-right', 'icon arrow'))}</a>
-                <strong class="skc-title">${p.title}</strong>
-                ${bugBubbleD(p.id)}
-                ${sigHtml(p.id)}
-              </div>
-              <div class="muted small skc-updated">${timeAgo(p.updated_at, lang)}${backlogMetaD(p.id) ? html` · ${backlogMetaD(p.id)}` : ''}</div>
-            </div>`
+            <div class="row skc-row">
+              <a class="skc-open" href="/project.html?id=${p.id}" aria-label="${t('Open project', 'باز کردن پروژه')} — ${p.title}" title="${t('Open project', 'باز کردن پروژه')}">${raw(icon('arrow-right', 'icon arrow'))}</a>
+              <strong class="skc-title">${p.title}</strong>
+              ${bugBubbleD(p.id)}
+            </div>
+            ${sigHtml(p.id) ? html`<div class="skc-signals">${sigHtml(p.id)}</div>` : html``}
+            <div class="muted small skc-updated">${timeAgo(p.updated_at, lang)}${backlogMetaD(p.id) ? html` · ${backlogMetaD(p.id)}` : ''}</div>
+          </div>`
         })
         return html`<div class="stat stat-box" data-status="${s}">
           <div class="row spread">
@@ -377,7 +377,7 @@ export function dashboardRoutes(cfg: Config) {
             </div>
           </div>
         </section>`,
-        notebook: (): SafeHtml => raw(notebookHtml(notes, lang, 'note', noteTitles)),
+        notebook: (): SafeHtml => raw(notebookHtml(notes, lang, 'note', noteTitles, true)),
         activity: (): SafeHtml => html`<section class="activity-section">
           <h3>${t('Recent activity', 'فعالیت‌های اخیر')}</h3>
           <ul class="activity">${activity}</ul>

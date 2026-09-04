@@ -2,6 +2,9 @@
 
 Consolidated from `instruction.md` + `spark.md` + decisions locked during the build session.
 Full feature detail: `pm-app-spec.md`. Reasoning: `vision.md`. Deployment: `DEPLOY.md`.
+**Workflow + behavioral rules for AI coding agents: `rules.md` (read it before any task).**
+**Live credentials (gitignored, never commit): `credentials.md`** — read it when you need to
+deploy, back up, verify, or push to git.
 
 ## What this is
 Personal project/idea tracker for Ali (solo UI/UX designer; doesn't read or patch code himself).

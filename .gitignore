@@ -14,3 +14,5 @@ cookies.txt
 *.cookies
 # local Node run logs (dev server stdout)
 *.log
+# live credentials — gitignored forever; the agent reads it but it never ships to git or a zip
+credentials.md

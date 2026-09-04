@@ -165,18 +165,26 @@
     scoredActions.sort((x, y) => y.s - x.s)
     const actions = scoredActions.map((x) => x.a)
     let projects = []
+    // 0040 search depth: the API now returns notes, backlog, sadhana, and canvas hits
+    // alongside projects. Each group is capped at 20 server-side; the palette shows a
+    // smaller slice per group so one keyword surfaces all five surfaces without scroll.
+    let notes = [], backlog = [], sadhana = [], canvas = []
     if (q.length >= 1) {
       try {
         const res = await fetch('/api/search?q=' + encodeURIComponent(q))
         if (res.ok) {
           const body = await res.json()
-          projects = (body.projects || []).slice(0, 8)
+          projects = (body.projects || []).slice(0, 6)
+          notes = (body.notes || []).slice(0, 5)
+          backlog = (body.backlog || []).slice(0, 5)
+          sadhana = (body.sadhana || []).slice(0, 5)
+          canvas = (body.canvas || []).slice(0, 5)
         }
       } catch { /* search is best-effort */ }
     }
     // If the response is stale (user typed more), ignore it
     if (q !== lastQuery) return
-    render(actions, projects)
+    render(actions, projects, notes, backlog, sadhana, canvas)
   }
 
   function iconSvg(name) {
@@ -193,6 +201,11 @@
       'sun': '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>',
       'rocket': '<path d="M12 2.5s4.5 3 4.5 8c0 2.6-1.6 4.6-1.6 6.5h-5.8c0-1.9-1.6-3.9-1.6-6.5 0-5 4.5-8 4.5-8Z"/><circle cx="12" cy="9.5" r="1.8"/><path d="M9.5 20.5h5"/>',
       'clock': '<circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/>',
+      // 0040 search-depth groups: notebook (notes), list-check (backlog/برنامه آتی),
+      // target (sadhana quadrant), book (canvas/notebook text elements).
+      'list-check': '<path d="M3.5 6h2M3.5 12h2M3.5 18h2"/><path d="M9 6h11M9 12h11M9 18h7"/>',
+      'note': '<path d="M5 5h9l5 5v9a1.5 1.5 0 0 1-1.5 1.5h-12A1.5 1.5 0 0 1 4 19V6.5A1.5 1.5 0 0 1 5.5 5Z"/><path d="M8 12h8M8 15.5h5"/>',
+      'kanban': '<rect x="3.5" y="4.5" width="17" height="15" rx="2"/><path d="M9.2 8v8M14.8 8v5"/>',
     }
     const body = ICONS[name] || ICONS.gear
     return `<svg class="icon" viewBox="0 0 24 24" aria-hidden="true">${body}</svg>`
@@ -214,7 +227,18 @@
     return entry ? _t(entry[0], entry[1]) : s
   }
 
-  function render(actions, projects) {
+  // 0040 search depth: render() now takes 5 result groups. Each group renders only when it
+  // has hits, with its own localized header + a distinct icon so the source surface is
+  // scannable at a glance. Groups are ordered by Ali's mental model: the project first
+  // (where am I working), then notes (capture), backlog (plan), sadhana (today), canvas
+  // (visual). All keyboard navigation (↑↓ Enter) flows through the same `items` array.
+  const SADHANA_QUADRANT = (q) => {
+    const labels = ['cmdk.q1', 'cmdk.q2', 'cmdk.q3', 'cmdk.q4']
+    const fallbacks = ['Q1 Today', 'Q2 Strategic', 'Q3 Urgent', 'Q4 Personal']
+    return _t(labels[q - 1] || 'cmdk.q1', fallbacks[q - 1] || 'Q1')
+  }
+
+  function render(actions, projects, notes, backlog, sadhana, canvas) {
     items = []
     const html = []
 
@@ -265,7 +289,7 @@
       }
     }
 
-    // Search results section
+    // Search results — Projects
     if (projects.length) {
       html.push('<li class="cmdk-group" role="presentation"><span class="cmdk-group-label">' + _t('cmdk.projects', 'Projects') + '</span></li>')
       for (const p of projects) {
@@ -276,6 +300,68 @@
         html.push(`<li class="cmdk-item" role="option" data-idx="${idx}" tabindex="-1">
           <span class="cmdk-icon"><span class="badge badge-${p.status}">${badge}</span></span>
           <span class="cmdk-label">${esc(p.title)}</span>
+        </li>`)
+      }
+    }
+
+    // 0040: Quick notes — deep link → notebook page (the dashboard widget is a preview).
+    if (notes.length) {
+      html.push('<li class="cmdk-group" role="presentation"><span class="cmdk-group-label">' + _t('cmdk.notes', 'Notes') + '</span></li>')
+      for (const n of notes) {
+        const idx = items.length
+        const url = '/whiteboard.html#note-' + n.id
+        const label = n.title || _t('cmdk.untitledNote', 'Untitled note')
+        items.push({ kind: 'note', label, action: () => (window.hibanaNav ? window.hibanaNav.go(url) : (window.location.href = url)) })
+        html.push(`<li class="cmdk-item" role="option" data-idx="${idx}" tabindex="-1">
+          <span class="cmdk-icon">${iconSvg('note')}</span>
+          <span class="cmdk-label">${esc(label)}</span>
+        </li>`)
+      }
+    }
+
+    // 0040: Backlog docs (برنامه آتی) — deep link → the project page (backlog tab).
+    if (backlog.length) {
+      html.push('<li class="cmdk-group" role="presentation"><span class="cmdk-group-label">' + _t('cmdk.backlog', 'Upcoming Plan') + '</span></li>')
+      for (const b of backlog) {
+        const idx = items.length
+        const url = '/project.html?id=' + b.project_id + '&tab=backlog'
+        const label = b.title + ' · ' + b.project_title
+        items.push({ kind: 'backlog', label, action: () => (window.hibanaNav ? window.hibanaNav.go(url) : (window.location.href = url)) })
+        html.push(`<li class="cmdk-item" role="option" data-idx="${idx}" tabindex="-1">
+          <span class="cmdk-icon">${iconSvg('list-check')}</span>
+          <span class="cmdk-label">${esc(b.title)}<span class="cmdk-sublabel muted"> · ${esc(b.project_title)}</span></span>
+        </li>`)
+      }
+    }
+
+    // 0040: Sadhana tasks — deep link → to-do list (the quadrant board).
+    if (sadhana.length) {
+      html.push('<li class="cmdk-group" role="presentation"><span class="cmdk-group-label">' + _t('cmdk.sadhana', 'To-Do') + '</span></li>')
+      for (const s of sadhana) {
+        const idx = items.length
+        const url = '/to-do-list?q=' + s.id
+        items.push({ kind: 'sadhana', label: s.title, action: () => (window.hibanaNav ? window.hibanaNav.go(url) : (window.location.href = url)) })
+        const qLabel = SADHANA_QUADRANT(s.quadrant)
+        html.push(`<li class="cmdk-item" role="option" data-idx="${idx}" tabindex="-1">
+          <span class="cmdk-icon">${iconSvg('target')}</span>
+          <span class="cmdk-label">${esc(s.title)}<span class="cmdk-sublabel muted"> · ${esc(qLabel)}</span></span>
+        </li>`)
+      }
+    }
+
+    // 0040: Canvas text elements (note/comment/block) — deep link → the board. The board
+    // type lives in the `board` column ('canvas' for the main canvas, 'whiteboard' for the
+    // notebook); we route accordingly so the hit opens in the right surface.
+    if (canvas.length) {
+      html.push('<li class="cmdk-group" role="presentation"><span class="cmdk-group-label">' + _t('cmdk.canvas', 'Canvas') + '</span></li>')
+      for (const el of canvas) {
+        const idx = items.length
+        const url = el.board === 'whiteboard' ? '/whiteboard.html#' + el.id : '/canvas.html#' + el.id
+        const typeLabel = _t('cmdk.canvas_' + el.type, el.type.charAt(0).toUpperCase() + el.type.slice(1))
+        items.push({ kind: 'canvas', label: typeLabel, action: () => (window.hibanaNav ? window.hibanaNav.go(url) : (window.location.href = url)) })
+        html.push(`<li class="cmdk-item" role="option" data-idx="${idx}" tabindex="-1">
+          <span class="cmdk-icon">${iconSvg('book')}</span>
+          <span class="cmdk-label">${esc(typeLabel)}</span>
         </li>`)
       }
     }

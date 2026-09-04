@@ -57,8 +57,10 @@ describe('dashboard stat boxes', () => {
       expect(res.status).toBe(200)
       const html = await res.text()
       // Scoped to the strip itself — the activity feed below still legitimately shows
-      // status badges for every stage.
-      const strip = html.slice(html.indexOf('stat-strip stat-boxes'), html.indexOf('class="card notebook"'))
+      // status badges for every stage. The notebook section's class is `card notebook`
+      // (notebook page) or `card notebook notebook-dashboard` (dashboard variant, 2026-09-09),
+      // so the slice anchor is the shared prefix `class="card notebook` (no closing quote).
+      const strip = html.slice(html.indexOf('stat-strip stat-boxes'), html.indexOf('class="card notebook'))
 
       // The carousel shell (Phase 5): track + chevron arrows + dots.
       expect(strip).toContain('stat-carousel')
@@ -104,8 +106,8 @@ describe('dashboard stat boxes', () => {
 
       // Order: to-do → stat boxes → notebook → recent activity. The Ideas shelf is gone.
       expect(html.indexOf('dash-todo-section')).toBeLessThan(html.indexOf('stat-strip stat-boxes'))
-      expect(html.indexOf('stat-strip stat-boxes')).toBeLessThan(html.indexOf('class="card notebook"'))
-      expect(html.indexOf('class="card notebook"')).toBeLessThan(html.indexOf('Recent activity'))
+      expect(html.indexOf('stat-strip stat-boxes')).toBeLessThan(html.indexOf('class="card notebook'))
+      expect(html.indexOf('class="card notebook')).toBeLessThan(html.indexOf('Recent activity'))
       expect(html).not.toContain('Ideas shelf')
       expect(html).not.toContain('spark-chip')
 
@@ -143,7 +145,7 @@ describe('dashboard stat boxes', () => {
 
       const res = await app.fetch(new Request('http://local/api/dashboard', { headers: { ...auth, 'HX-Request': 'true' } }))
       const html = await res.text()
-      const strip = html.slice(html.indexOf('stat-strip stat-boxes'), html.indexOf('class="card notebook"'))
+      const strip = html.slice(html.indexOf('stat-strip stat-boxes'), html.indexOf('class="card notebook'))
       // One stage column per carousel stage, in order; each lists ALL its projects.
       const cols = strip.split('<div class="stat-kanban">').slice(1)
       expect(cols.length).toBe(6)
@@ -174,7 +176,7 @@ describe('dashboard stat boxes', () => {
 
       const res = await app.fetch(new Request('http://local/api/dashboard', { headers: { ...auth, 'HX-Request': 'true' } }))
       const html = await res.text()
-      const strip = html.slice(html.indexOf('stat-strip stat-boxes'), html.indexOf('class="card notebook"'))
+      const strip = html.slice(html.indexOf('stat-strip stat-boxes'), html.indexOf('class="card notebook'))
 
       // Exactly one box per active stage, each with a view-all link and NO create button
       // (creation lives in the single FAB — user request 2026-08-25).
@@ -302,7 +304,7 @@ describe('dashboard view options (2026-08-26)', () => {
 
       const res = await app.fetch(new Request('http://local/api/dashboard', { headers: { ...auth, 'HX-Request': 'true' } }))
       const html = await res.text()
-      expect(html.indexOf('class="card notebook"')).toBeLessThan(html.indexOf('stat-strip stat-boxes'))
+      expect(html.indexOf('class="card notebook')).toBeLessThan(html.indexOf('stat-strip stat-boxes'))
       expect(html.indexOf('stat-strip stat-boxes')).toBeLessThan(html.indexOf('Recent activity'))
     } finally {
       close()
@@ -322,7 +324,7 @@ describe('dashboard view options (2026-08-26)', () => {
       const res = await app.fetch(new Request('http://local/api/dashboard', { headers: { ...auth, 'HX-Request': 'true' } }))
       const html = await res.text()
       expect(html).not.toContain('Recent activity')
-      expect(html).not.toContain('class="card notebook"')
+      expect(html).not.toContain('class="card notebook')
       expect(html).toContain('stat-strip stat-boxes')
     } finally {
       close()

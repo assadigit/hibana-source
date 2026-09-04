@@ -160,7 +160,7 @@
     /* deeper status dots — the bright pastel foregrounds glare on dark surfaces (user request) */
   --dot-spark: #7fa3c4; --dot-pending: #e4c17e; --dot-building: #7fc4bc;
   --color-primary-strong: #7fc4bc;  /* dark-theme text shade of primary: 8.08:1 on #212120 */
-    --nb-paper: #322E2A;       /* lifted with the bg (was #2a2a28) */
+    --nb-paper: #38332E;       /* lifted further (was #322E2A) for clearer canvas distinction (user request 2026-09-09) */
     --nb-grid: rgb(242 242 241 / 0.06);
     --nb-ink: invert(1) hue-rotate(180deg) brightness(0.9);  /* brightness tail: inverted black→white lands at ~#e6e6e6, not pure #fff */
     --btn-text: #ffffff;     /* white on the teal dark CTA (3.9:1 at --cta, large/bold button labels) */
@@ -224,7 +224,7 @@ html[data-theme='dark'] {
   --kanban-halted-bg: #2A2823;        --kanban-halted-line: rgba(182, 174, 159, 0.20);
   --kanban-operational-bg: #223226;  --kanban-operational-line: rgba(151, 204, 157, 0.20);
   --dot-spark: #7fa3c4; --dot-pending: #e4c17e; --dot-building: #7fc4bc;
-  --nb-paper: #322E2A;  /* lifted with the bg (was #2a2a28) */
+  --nb-paper: #38332E;  /* lifted further (was #322E2A) for clearer canvas distinction (user request 2026-09-09) */
   --nb-grid: rgb(242 242 241 / 0.06);
   --nb-ink: invert(1) hue-rotate(180deg) brightness(0.9);
   --brand: #5FB3B7;
@@ -628,9 +628,18 @@ html[data-theme='dark'] .bug-bubble { background: #ef4444; box-shadow: 0 1px 6px
 .sig-ideas { background: rgb(245 158 78 / 0.15); color: #f59e4e; }
 .sig-backlog { background: rgb(74 159 163 / 0.15); color: var(--accent, #4A9FA3); }
 .sig-hurdles { background: rgb(245 197 126 / 0.15); color: #c9853e; }
-/* dashboard kanban card: signals sit inline with the title in the skc-row */
-.stat-kanban-card .skc-row { flex-wrap: wrap; align-items: center; }
-.stat-kanban-card .project-signals { margin-inline-start: auto; }
+/* dashboard kanban card: the title row (open-arrow + title + bug bubble) stays on line 1.
+   The lighter signal chips (ideas/backlog/hurdles) dropped to their own line 2 (user
+   request 2026-09-09) so a 14rem-min card never crowds. Bug stays on the title row —
+   it's the only signal that warrants the red-bubble weight next to the name. */
+.stat-kanban-card .skc-row { align-items: center; }
+.stat-kanban-card .skc-signals {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  margin-block-start: 0.2rem;
+  margin-block-end: 0.1rem;
+}
 /* projects list table: signals in their own column (replaces the old % progress) */
 .projects-table .signals-cell { white-space: nowrap; }
 .projects-table .signals-cell .sig-chip { font-size: 0.75rem; }
@@ -2475,6 +2484,42 @@ cite { font-style: normal; }
 .note-head { gap: 0.4rem; margin-block-end: 0.4rem; align-items: center; }
 .note-head .note-heading { margin: 0; }
 
+/* Dashboard widget (user request 2026-09-09): the view/size segmented controls collapse
+   behind a single ⚙ <details>. Collapsed → just the gear icon sits next to the heading;
+   open → the segmented controls drop down as a small panel. The full Notebook page keeps
+   the always-visible controls (it's the dedicated notes surface), so this only styles
+   the dashboard variant (.notebook-dashboard). */
+.notebook-dashboard .note-controls-toggle { position: relative; }
+.notebook-dashboard .note-controls-toggle > summary {
+  display: inline-flex; align-items: center; justify-content: center;
+  inline-size: 1.6rem; block-size: 1.6rem;
+  border-radius: var(--radius-sm);
+  color: var(--muted);
+  cursor: pointer;
+  list-style: none; /* hide the default disclosure triangle */
+}
+.notebook-dashboard .note-controls-toggle > summary::-webkit-details-marker { display: none; }
+.notebook-dashboard .note-controls-toggle > summary:hover { color: var(--text); background: var(--bg-soft); }
+.notebook-dashboard .note-controls-toggle[open] > summary { color: var(--brand); background: var(--accent-soft); }
+/* Open panel: the controls float as a small card under the gear so they don't push the
+   composer + notes down when revealed. */
+.notebook-dashboard .note-controls-toggle[open] .note-head-controls {
+  position: absolute;
+  inset-block-start: calc(100% + 0.25rem);
+  inset-inline-start: 0;
+  z-index: 5;
+  display: flex;
+  gap: 0.5rem;
+  padding: 0.5rem;
+  background: var(--card);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-dropdown);
+}
+/* When collapsed, the controls are hidden (the <details> hides non-summary content by
+   default, but the absolute panel above also needs the open state — belt and suspenders). */
+.notebook-dashboard .note-controls-toggle:not([open]) .note-head-controls { display: none; }
+
 .note-compose { gap: 0.3rem; margin-block-start: 0.4rem; flex-wrap: wrap; }
 /* Persistent label above the composer (audit 6): the input keeps its placeholder too. */
 .note-compose-label {
@@ -2484,6 +2529,10 @@ cite { font-style: normal; }
   color: var(--muted);
 }
 .note-compose-text { flex: 1 1 14rem; resize: vertical; min-height: 2.5rem; max-height: 40vh; } /* compact (was 4.25rem) — one-row minimum, bounded resize */
+/* Dashboard widget: composer is one row by default and grows on focus (user request
+   2026-09-09). rows="1" + a slightly smaller min-height keeps the widget dense; the
+   existing resize:vertical + max-height:40vh still let it grow when Ali types more. */
+.notebook-dashboard .note-compose-text { min-height: 2.1rem; }
 
 /* Segmented Note/List toggle (edge-to-edge on the focus ring, not a pill — quiet
    underline state for the active mode). */
@@ -4122,6 +4171,15 @@ dialog.cmdk::backdrop {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+/* 0040 search depth: backlog + sadhana results show a secondary line (project name /
+   quadrant) so the source surface is identifiable. The label stays one line; the
+   sublabel is an inline muted suffix that wraps to a second line when space is tight. */
+.cmdk-label .cmdk-sublabel {
+  font-size: var(--fs-xs);
+  font-weight: 400;
+  color: var(--muted);
+  white-space: normal;
 }
 .cmdk-hint {
   font-family: var(--font-sans);

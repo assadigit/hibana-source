@@ -4,6 +4,33 @@ Full spec: `pm-app-spec.md` · Rules (non-negotiable): `CLAUDE.md` · Reasoning:
 Deploy: `DEPLOY.md` · What's next: `ROADMAP.md` · Session handoff: `NEW_SESSION.md`
 Verification: `npm test` (191) · `npm run typecheck` · `npm run smoke` · `npm run drill`
 
+## 2026-09-09 — v0.1.7: search depth + dashboard refinements
+Four changes shipped to dev + prod. The gap matrix (`GAP-MATRIX.md`) drove this iteration.
+- **FTS5 search depth (migration 0040)** — the single highest-leverage gap. Search now
+  covers `quick_notes`, `backlog_docs` (برنامه آتی), `sadhana_tasks` (title + note field),
+  and `canvas_elements` (text-bearing types: note/comment/block) — not just `projects`.
+  4 new external-content FTS5 tables + ai/ad/au triggers + idempotent backfill. Each query
+  respects CLAUDE.md rule 1 (user_id filter) and the base table's soft-delete/tombstone.
+  Prod backfill indexed 45 notes · 1 backlog doc · 94 sadhana tasks · 377 canvas elements.
+  The command palette (Ctrl+K) renders 5 result groups (Projects / Notes / Upcoming Plan /
+  To-Do / Canvas) with distinct icons + localized headers + sublabels; deep links route
+  to the right surface (canvas vs whiteboard).
+- **Dashboard quick-note widget collapse** — the view/size segmented controls now hide
+  behind a single ⚙ `<details>` toggle on the dashboard widget (collapsed by default,
+  opens as an absolute dropdown panel); the composer drops from 2 rows to 1 (auto-expands
+  on focus). The full Notebook page keeps always-visible controls. The `dashboard` flag
+  is threaded via `?dashboard=1` so htmx re-renders preserve the layout.
+- **Dashboard kanban signals → 2nd line** — the lighter chips (ideas/backlog/hurdles)
+  moved out of the title row into a dedicated 2nd line (`.skc-signals`); the bug bubble
+  stays on the title row. A 14rem-min card no longer crowds.
+- **Dark-mode notebook paper lift** — `--nb-paper` `#322E2A → #38332E` in both the
+  `prefers-color-scheme: dark` block and the `html[data-theme='dark']` block, for clearer
+  canvas-vs-bg distinction.
+Cache rotations: app.css v192→v193 · i18n.js v27→v28 · command-palette.js (unversioned)→v1 ·
+SW hibana-v213→v214. typecheck 0 errors · 191/191 tests green. Deployed dev + prod (live on
+hibana.ir). Security: rotate GitHub + Cloudflare + Telegram tokens (pasted in chat during
+the session).
+
 ## 2026-09-02 — Post-audit hotfixes: project signals + UI refinements — v0.1.6, commits `07338a4`→`37a96bd`
 After the audit backlog (Phases 0-5) was complete, the user requested new features + UI
 refinements in an iterative session. All deployed as hotfixes (dev + prod) + pushed to GitHub.

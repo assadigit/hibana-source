@@ -222,7 +222,7 @@ export async function attachedTitles(db: Db, userId: string, notes: QuickNote[])
 /** The whole notebook widget (card + composer + note list). htmx swaps this on every action.
  *  The view (list / sticky) is a client preference applied via CSS — the server renders both
  *  note layouts from the same cards; sticky adds a carousel nav when there are more than 4. */
-export function notebookHtml(notes: QuickNote[], lang: Locale, composerMode: 'note' | 'list' = 'note', titles: Map<string, string> = new Map()): string {
+export function notebookHtml(notes: QuickNote[], lang: Locale, composerMode: 'note' | 'list' = 'note', titles: Map<string, string> = new Map(), dashboard = false): string {
   const t = (en: string, fa?: string) => trL(lang, en, fa)
   const stickyNav =
     notes.length > 4
@@ -231,17 +231,30 @@ export function notebookHtml(notes: QuickNote[], lang: Locale, composerMode: 'no
         <button type="button" class="ghost icon-btn" data-note-sticky-next aria-label="${t('Next', 'بعدی')}" title="${t('Next', 'بعدی')}">${icon('arrow-right', 'icon arrow')}</button>
       </div>`
       : ''
-  return `<section class="card notebook" id="notebook">
-    <!-- View toggle is PURE CSS (radios + sibling selectors, 2026-08-25): works even if the
-         cached app.js predates the feature — no JS needed to switch list ⇄ carousel ⇄ grid. -->
-    <input type="radio" class="note-view-radio" name="note-view" id="nv-list" value="list" checked>
-    <input type="radio" class="note-view-radio" name="note-view" id="nv-sticky" value="sticky">
-    <input type="radio" class="note-view-radio" name="note-view" id="nv-grid" value="grid">
-    <input type="radio" class="note-size-radio" name="note-size" id="ns-s" value="s">
-    <input type="radio" class="note-size-radio" name="note-size" id="ns-m" value="m" checked>
-    <input type="radio" class="note-size-radio" name="note-size" id="ns-l" value="l">
-    <div class="row note-head">
-      <span class="row note-head-controls">
+  // Dashboard widget (user request 2026-09-09): the view/size segmented controls collapse
+  // behind a single ⚙ <details> toggle so the widget's first note is one row below the
+  // heading instead of three. The full Notebook page (/whiteboard.html) keeps the always-
+  // visible controls — only the dashboard variant hides them by default. The composer
+  // also drops from 2 rows to 1 (auto-expands on focus; rows="1" + the existing
+  // resize:vertical + min-height keeps it growable). The `dashboard` flag is echoed back
+  // through the form's hx-vals so htmx re-renders preserve the collapsed layout.
+  const controlsHtml = dashboard
+    ? `<details class="note-controls-toggle">
+        <summary aria-label="${t('View options', 'گزینه‌های نمایش')}" title="${t('View options', 'گزینه‌های نمایش')}">${icon('gear', 'icon')}</summary>
+        <span class="row note-head-controls">
+          <span class="note-size-seg" role="radiogroup" aria-label="${t('Note size', 'اندازه')}">
+            <label for="ns-s">${t('Small', 'کوچک')}</label>
+            <label for="ns-m">${t('Medium', 'متوسط')}</label>
+            <label for="ns-l">${t('Large', 'بزرگ')}</label>
+          </span>
+          <span class="note-view-seg" role="radiogroup" aria-label="${t('View', 'نما')}">
+            <label for="nv-list">${t('List', 'فهرست')}</label>
+            <label for="nv-sticky">${t('Sticky', 'چسبان')}</label>
+            <label for="nv-grid">${t('Grid', 'شبکه')}</label>
+          </span>
+        </span>
+      </details>`
+    : `<span class="row note-head-controls">
         <span class="note-size-seg" role="radiogroup" aria-label="${t('Note size', 'اندازه')}">
           <label for="ns-s">${t('Small', 'کوچک')}</label>
           <label for="ns-m">${t('Medium', 'متوسط')}</label>
@@ -252,20 +265,34 @@ export function notebookHtml(notes: QuickNote[], lang: Locale, composerMode: 'no
           <label for="nv-sticky">${t('Sticky', 'چسبان')}</label>
           <label for="nv-grid">${t('Grid', 'شبکه')}</label>
         </span>
-      </span>
+      </span>`
+  const composeRows = dashboard ? 1 : 2
+  const dashboardVal = dashboard ? '<input type="hidden" name="dashboard" value="1">' : ''
+  return `<section class="card notebook${dashboard ? ' notebook-dashboard' : ''}" id="notebook">
+    <!-- View toggle is PURE CSS (radios + sibling selectors, 2026-08-25): works even if the
+         cached app.js predates the feature — no JS needed to switch list ⇄ carousel ⇄ grid. -->
+    <input type="radio" class="note-view-radio" name="note-view" id="nv-list" value="list" checked>
+    <input type="radio" class="note-view-radio" name="note-view" id="nv-sticky" value="sticky">
+    <input type="radio" class="note-view-radio" name="note-view" id="nv-grid" value="grid">
+    <input type="radio" class="note-size-radio" name="note-size" id="ns-s" value="s">
+    <input type="radio" class="note-size-radio" name="note-size" id="ns-m" value="m" checked>
+    <input type="radio" class="note-size-radio" name="note-size" id="ns-l" value="l">
+    <div class="row note-head">
+      ${controlsHtml}
       <h3 class="note-heading">${t('Quick Notebook', 'یادداشت سریع')}</h3>
     </div>
-    <form class="row note-compose" hx-post="/api/notes" hx-target="#notebook" hx-swap="outerHTML" data-note-compose>
+    <form class="row note-compose" hx-post="/api/notes${dashboard ? '?dashboard=1' : ''}" hx-target="#notebook" hx-swap="outerHTML" data-note-compose>
       <label class="note-compose-label" for="note-compose-box">${t('Quick note', 'یادداشت جدید')}</label>
       <div class="seg" role="tablist" aria-label="${t('Note mode', 'حالت یادداشت')}">
         <button type="button" class="seg-btn ${composerMode === 'note' ? 'active' : ''}" data-note-mode="note" aria-pressed="${composerMode === 'note'}">${t('Note', 'یادداشت')}</button>
         <button type="button" class="seg-btn ${composerMode === 'list' ? 'active' : ''}" data-note-mode="list" aria-pressed="${composerMode === 'list'}">${t('List', 'فهرست')}</button>
       </div>
       <input type="hidden" name="kind" value="${composerMode}">
+      ${dashboardVal}
       <!-- dir: FA UI pins RTL so the Farsi placeholder (and FA typing) lays out right-to-left
            (dir=auto falls back to LTR on the empty value in several engines — user report
            2026-09-02); EN keeps auto so mixed-language typing still works. -->
-      <textarea class="note-compose-text" id="note-compose-box" name="content" rows="2" dir="${lang === 'fa' ? 'rtl' : 'auto'}" placeholder="${t(composerMode === 'note' ? 'Type a note and press Enter…' : 'Type a task and press Enter…', composerMode === 'note' ? 'یادداشت را تایپ کن و اینتر را بزن' : 'وظیفه را تایپ کن و اینتر را بزن')}" maxlength="20000" autocomplete="off"></textarea>
+      <textarea class="note-compose-text" id="note-compose-box" name="content" rows="${composeRows}" dir="${lang === 'fa' ? 'rtl' : 'auto'}" placeholder="${t(composerMode === 'note' ? 'Type a note and press Enter…' : 'Type a task and press Enter…', composerMode === 'note' ? 'یادداشت را تایپ کن و اینتر را بزن' : 'وظیفه را تایپ کن و اینتر را بزن')}" maxlength="20000" autocomplete="off"></textarea>
       <button type="submit" class="qa-btn" aria-label="${t('Add', 'افزودن')}" title="${t('Add', 'افزودن')}">${icon('plus')}</button>
       <ul class="note-draft" hidden></ul>
     </form>
@@ -302,8 +329,11 @@ export function quickNotesRoutes(cfg: Config) {
   }
 
   type Ctx = Context<{ Variables: { user: UserRow } }>
+  // 0040/dashboard: the `dashboard` flag is echoed back via ?dashboard=1 so every htmx
+  // re-render (create/patch/toggle/delete/reorder) preserves the collapsed-controls
+  // dashboard widget layout. Same pattern as the existing ?mode= for composer mode.
   const widget = async (c: Ctx, notes: QuickNote[], composerMode?: 'note' | 'list', status?: ContentfulStatusCode) =>
-    c.html(notebookHtml(notes, localeOf(c), composerMode, await attachedTitles(cfg.db, c.get('user').id, notes)), status)
+    c.html(notebookHtml(notes, localeOf(c), composerMode, await attachedTitles(cfg.db, c.get('user').id, notes), c.req.query('dashboard') === '1'), status)
   // The composer keeps its Note/List mode across htmx swaps — the client echoes the current
   // mode back as ?mode= so a refresh after an action doesn't silently flip it to Note.
   const composerMode = (c: Ctx): 'note' | 'list' | undefined => {

@@ -50,7 +50,7 @@ const SHELL = [
   '/js/nav.js',
   '/js/emoji-data.js?v=1',
   '/js/emoji-picker.js?v=1',
-  '/js/i18n.js?v=30',
+  '/js/i18n.js?v=31',
   '/js/whiteboard.js?v=8',
   '/js/canvas.js?v=13',
   '/partials/nav.html',
@@ -83,13 +83,13 @@ const SHELL = [
 ]
 
 self.addEventListener('install', (e) => {
-  e.waitUntil(caches.open('hibana-v218').then((c) => c.addAll(SHELL)))
+  e.waitUntil(caches.open('hibana-v219').then((c) => c.addAll(SHELL)))
   self.skipWaiting()
 })
 
 self.addEventListener('activate', (e) => {
   e.waitUntil(
-    caches.keys().then((keys) => keys.filter((k) => k !== 'hibana-v218').map((k) => caches.delete(k))),
+    caches.keys().then((keys) => keys.filter((k) => k !== 'hibana-v219').map((k) => caches.delete(k))),
   )
   self.clients.claim()
 })
@@ -124,7 +124,7 @@ self.addEventListener('fetch', (e) => {
       fetch(req)
         .then((res) => {
           const copy = res.clone()
-          caches.open('hibana-v218').then((c) => c.put(req, copy)).catch(() => {})
+          caches.open('hibana-v219').then((c) => c.put(req, copy)).catch(() => {})
           return res
         })
         .catch(() => caches.match(req).then((r) => r || caches.match('/dashboard.html'))),
@@ -140,7 +140,7 @@ self.addEventListener('fetch', (e) => {
       .then((res) => {
         if (res.ok) {
           const copy = res.clone()
-          caches.open('hibana-v218').then((c) => c.put(req, copy)).catch(() => {})
+          caches.open('hibana-v219').then((c) => c.put(req, copy)).catch(() => {})
         }
         return res
       })

@@ -1225,57 +1225,72 @@
         //   - note:  POST /api/projects/:id/note  { note: text }
         //   - bl-doc: POST/PATCH /api/backlog/docs/:id or /api/projects/:id/backlog/docs
         //     { title, content }
-        // The modal is server-rendered (#pd-editor-modal); this JS wires it once.
-        const editorModal = document.getElementById('pd-editor-modal')
-        const editorTa = document.getElementById('pd-editor-textarea')
-        const editorTitle = document.getElementById('pd-editor-title')
-        const editorSubtitle = document.getElementById('pd-editor-subtitle')
-        const editorHint = document.getElementById('pd-editor-hint')
-        const editorSave = document.getElementById('pd-editor-save')
-        const editorForm = document.getElementById('pd-editor-form')
+        // The modal is server-rendered inside #project-body (loaded via htmx AFTER mount),
+        // so all element lookups happen at click time, not at mount time (the elements don't
+        // exist when mount runs). Looked up via getter functions each time.
+        const editorEl = () => document.getElementById('pd-editor-modal')
         let editorMode = null // 'note' | 'bldoc'
         let editorDocId = ''
         const openEditor = (mode, opts) => {
+          const m = editorEl()
+          if (!m) return
           editorMode = mode
           editorDocId = opts.docId || ''
-          editorTitle.textContent = opts.title || _t('pd.editor', 'Editor')
-          editorTa.value = opts.content || ''
-          editorTa.maxLength = opts.maxlen || 50000
-          editorTa.dir = opts.rtl ? 'rtl' : 'auto'
-          editorTa.placeholder = opts.placeholder || ''
-          editorHint.textContent = opts.hint || ''
-          if (opts.subtitle !== undefined) {
-            editorSubtitle.hidden = false
-            editorSubtitle.value = opts.subtitle
-          } else {
-            editorSubtitle.hidden = true
-            editorSubtitle.value = ''
+          const ta = document.getElementById('pd-editor-textarea')
+          const title = document.getElementById('pd-editor-title')
+          const subtitle = document.getElementById('pd-editor-subtitle')
+          const hint = document.getElementById('pd-editor-hint')
+          if (title) title.textContent = opts.title || _t('pd.editor', 'Editor')
+          if (ta) {
+            ta.value = opts.content || ''
+            ta.maxLength = opts.maxlen || 50000
+            ta.dir = opts.rtl ? 'rtl' : 'auto'
+            ta.placeholder = opts.placeholder || ''
           }
-          editorModal.showModal()
-          setTimeout(() => editorTa.focus(), 10)
+          if (hint) hint.textContent = opts.hint || ''
+          if (subtitle) {
+            if (opts.subtitle !== undefined) {
+              subtitle.hidden = false
+              subtitle.value = opts.subtitle
+            } else {
+              subtitle.hidden = true
+              subtitle.value = ''
+            }
+          }
+          m.showModal()
+          setTimeout(() => ta?.focus(), 10)
         }
-        const closeEditor = () => { if (editorModal.open) editorModal.close() }
-        document.getElementById('pd-editor-close')?.addEventListener('click', closeEditor)
-        document.getElementById('pd-editor-cancel')?.addEventListener('click', closeEditor)
-        editorForm?.addEventListener('submit', async (e) => {
+        const closeEditor = () => { const m = editorEl(); if (m && m.open) m.close() }
+        // Wire the modal's close/cancel/submit buttons once — they're inside #project-body
+        // so they reload with each htmx swap; use a MutationObserver-free approach: check on
+        // every relevant click whether the target is one of these buttons.
+        ctx.on('click', (e) => {
+          if (e.target.closest('#pd-editor-close') || e.target.closest('#pd-editor-cancel')) { closeEditor(); return }
+        })
+        ctx.on('submit', async (e) => {
+          const form = e.target.closest ? e.target.closest('#pd-editor-form') : null
+          if (!form) return
           e.preventDefault()
+          const ta = document.getElementById('pd-editor-textarea')
+          if (!ta) return
           if (editorMode === 'note') {
-            const text = editorTa.value
+            const text = ta.value
             try {
               const res = await fetch(`/api/projects/${id}/note`, {
                 method: 'POST', headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ note: text }),
               })
               if (!res.ok) throw new Error('save failed')
-              const ta = document.getElementById('pd-note-textarea')
-              if (ta) ta.value = text
+              const noteTa = document.getElementById('pd-note-textarea')
+              if (noteTa) noteTa.value = text
               window.hibana?.toast(_t('pd.noteSaved', 'Note saved'))
               closeEditor()
             } catch { window.hibana?.toast(_t('sparks.saveFailed', "Couldn't save"), 'err') }
           } else if (editorMode === 'bldoc') {
-            const title = editorSubtitle.value.trim()
-            const content = editorTa.value
-            if (!title) { editorSubtitle.focus(); return }
+            const subtitle = document.getElementById('pd-editor-subtitle')
+            const title = subtitle ? subtitle.value.trim() : ''
+            const content = ta.value
+            if (!title) { subtitle?.focus(); return }
             try {
               const res = await fetch(editorDocId ? '/api/backlog/docs/' + editorDocId : `/api/projects/${id}/backlog/docs`, {
                 method: editorDocId ? 'PATCH' : 'POST',

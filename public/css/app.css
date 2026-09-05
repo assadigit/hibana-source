@@ -2685,7 +2685,7 @@ cite { font-style: normal; }
 @media (hover: none) {
   #notebook :is(#nv-sticky:checked, #nv-grid:checked) ~ .note-list > .note-card .note-color-picker { display: inline-flex; }
 }
-.note-color-picker .color-dot { inline-size: 0.9rem; block-size: 0.9rem; border-radius: 50%; padding: 0; cursor: pointer; flex: none; }
+.note-color-picker .color-dot { inline-size: 1rem; block-size: 1rem; border-radius: 50%; padding: 0; cursor: pointer; flex: none; }
 .note-color-picker .color-dot.active { outline: 2px solid rgb(0 0 0 / 0.55); outline-offset: 1px; }
 .note-footer-right, .note-head-right { gap: 0.5rem; }
 .note-color-picker .dot-yellow { background: #fff59d; }
@@ -2748,12 +2748,11 @@ cite { font-style: normal; }
   background: color-mix(in srgb, var(--bg-soft) 45%, var(--card)); /* quieter fill (2026-08-25) */
   border: 1px solid var(--line);
   border-radius: var(--radius-sm);
-  /* User request 2026-09-02 (compact): tightened padding 0.32/0.45 -> 0.22/0.4 + gap 0.12 -> 0.06.
-     Professional dashboard density — content dictates height, not padding.
-     Gap 0.08 -> 0.06rem: tighter content→meta gap (user: "too much distance"). */
-  padding: 0.22rem 0.4rem;
+  /* Fix 2026-09-09 (user report, further compaction): tightened padding 0.22/0.4 -> 0.18/0.38
+     + gap 0.06 -> 0.04. Content dictates height; the card is now as dense as a sticky note. */
+  padding: 0.18rem 0.38rem;
   display: grid;
-  gap: 0.06rem;
+  gap: 0.04rem;
   --note-body-fs: var(--fs-sm);
 }
 .note-card[data-kind='note'] .note-render,
@@ -2818,7 +2817,7 @@ cite { font-style: normal; }
    the old footer size (0.8rem → 0.48rem) — it whispers, the content talks. */
 .note-footer { font-size: 0.48rem; }
 .note-footer .small, .note-footer .note-meta { font-size: 0.48rem; } /* .small's own rule would beat the inherited size */
-.note-footer .ghost.danger { padding: 0.12rem 0.3rem; } /* compact delete button (was 0.25/0.4) */
+.note-footer .ghost.danger { padding: 0.18rem 0.35rem; } /* Fix 2026-09-09: unified with the 1rem color-dot tap target (was 0.12/0.3) */
 .note-footer .note-meta { overflow-wrap: anywhere; }
 /* Phase 7 item 11: the bottom action row in LOGICAL layout — margin-inline-start on the
    controls group mirrors the row with the reading direction (RTL: meta at start/right,
@@ -7263,7 +7262,15 @@ dialog.adm-modal::backdrop { background: rgb(0 0 0 / 0.55); }
   font: inherit;
   font-size: var(--fs-xs);
   cursor: pointer;
-  text-decoration: underline dotted;
+  /* Fix 2026-09-09 (user report): the "بیشتر…" text looked ghosted/doubled on the tinted
+     pill. Two causes were ruled out: no Alpine x-show/x-transition (toggled via classList
+     in app.js, display:none → inline-block, no opacity fade), and no text-shadow. The
+     real cause was subpixel font rendering fringing on the colored pill background +
+     the `text-decoration: underline dotted` adding a second visual mark that read as a
+     doubled glyph. Fix: antialiased font smoothing + drop the dotted underline (the
+     pill's accent background already signals interactivity). */
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 .note-more:hover { background: color-mix(in srgb, var(--accent-soft) 70%, var(--card)); color: var(--accent); }
 .note-card.has-more .note-more { display: inline-block; }

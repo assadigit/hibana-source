@@ -108,9 +108,11 @@ function colorPickerHtml(n: QuickNote, lang: Locale): string {
   return `<span class="note-color-picker" role="group" aria-label="${t('Note color', 'رنگ یادداشت')}">
     ${NOTE_COLORS.map((c) => {
       const label = c.charAt(0).toUpperCase() + c.slice(1)
-      // Inline color/size/radius so a stale cached stylesheet can never render the dots
-      // as black default buttons (2026-08-25). Compact 0.9rem dots in the footer row.
-      return `<button type="button" class="color-dot dot-${c} ${n.color === c ? 'active' : ''}" hx-patch="/api/notes/${n.id}" hx-vals='{"color":"${c}"}' hx-target="#notebook" hx-swap="outerHTML" aria-label="${t(label, c)}" title="${t(label, c)}" style="background:${NOTE_COLOR_HEX[c]};width:0.9rem;height:0.9rem;border-radius:50%;padding:0;border:1px solid rgb(0 0 0 / 0.18)"></button>`
+      // Fix 2026-09-09 (unify tap targets): the inline width/height/padding is gone — the
+      // CSS class .color-dot now controls size (1rem) so all footer buttons (dots + delete
+      // + done) share a consistent ~16px visual target. The inline background + border
+      // stay (a stale cached stylesheet can't render the dots as black defaults).
+      return `<button type="button" class="color-dot dot-${c} ${n.color === c ? 'active' : ''}" hx-patch="/api/notes/${n.id}" hx-vals='{"color":"${c}"}' hx-target="#notebook" hx-swap="outerHTML" aria-label="${t(label, c)}" title="${t(label, c)}" style="background:${NOTE_COLOR_HEX[c]};border:1px solid rgb(0 0 0 / 0.18)"></button>`
     }).join('')}
   </span>`
 }
@@ -131,11 +133,26 @@ function decodeEntities(s: string | null | undefined): string {
 
 // Phase 5 item 13: wrap each Latin run (≥2 chars) in a .lat-run span — app.css renders them
 // 2px smaller so Latin words (API, UX…) don't visually dominate the Persian note text.
+//
+// Fix 2026-09-09 (user report): the old regex `>([^<]+)<` + `wrap(txt)` ran the Latin-run
+// matcher on text BETWEEN tags — but that text includes HTML entities like `&quot;`,
+// `&amp;`, `&#39;`. The matcher wrapped the letters inside the entity (`quot`, `amp`),
+// turning `&quot;` into `&<span class="lat-run">quot</span>;` — a bare `&` + a broken
+// entity that the browser then re-escaped to `&amp;quot;` on screen (literal text instead
+// of a real quote mark). The fix: split each captured text node on entity boundaries
+// (`&...;`), wrap Latin runs only in the non-entity chunks, and pass entities through
+// untouched. Markdown HTML escaping stays in place (this is the markup path — safe).
 function latinRuns(html: string): string {
-  const wrap = (text: string) => text.replace(
-    /([A-Za-z][A-Za-z0-9'’._\-/]*[A-Za-z0-9]|[A-Za-z]{2,})/g,
-    (m) => (m.length >= 2 ? `<span class="lat-run">${m}</span>` : m),
-  )
+  const wrapChunk = (chunk: string): string =>
+    chunk.replace(
+      /([A-Za-z][A-Za-z0-9'’._\-/]*[A-Za-z0-9]|[A-Za-z]{2,})/g,
+      (m) => (m.length >= 2 ? `<span class="lat-run">${m}</span>` : m),
+    )
+  const wrap = (text: string): string =>
+    text
+      .split(/(&[#a-zA-Z0-9]+;)/g) // split on entities — keep them as separate chunks
+      .map((chunk) => (/^&[#a-zA-Z0-9]+;$/.test(chunk) ? chunk : wrapChunk(chunk)))
+      .join('')
   return html.replace(/>([^<]+)</g, (_m, txt) => `>${wrap(String(txt))}<`)
 }
 
@@ -167,7 +184,7 @@ function noteCard(n: QuickNote, lang: Locale, titles: Map<string, string>): stri
       <div class="note-render markdown-body" dir="auto" data-note-open="${n.id}" title="${t('Read the full note', 'خواندن کامل یادداشت')}" role="button" tabindex="0">${latinRuns(renderMarkdown(content))}</div>
       <button type="button" class="note-more" data-note-more="${n.id}" hidden>${t('More…', 'بیشتر…')}</button>
       <div class="row spread note-footer">
-        <span class="small muted note-meta">${dateChipHtml(n, lang)}${t('Note', 'یادداشت')} · ${new Date(n.updated_at).toLocaleTimeString(lang === 'fa' ? 'fa-IR' : 'en-US', { hour: '2-digit', minute: '2-digit' })}</span>
+        <span class="small muted note-meta">${dateChipHtml(n, lang)}${new Date(n.updated_at).toLocaleTimeString(lang === 'fa' ? 'fa-IR' : 'en-US', { hour: '2-digit', minute: '2-digit' })}</span>
         <span class="row note-footer-right">${colorPickerHtml(n, lang)}${doneBtn(n.project_id)}
         <button class="ghost danger icon-btn" data-note-delete="${n.id}" aria-label="${t('Delete', 'حذف')}">${icon('x')}</button></span>
       </div>

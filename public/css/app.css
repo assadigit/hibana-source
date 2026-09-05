@@ -6117,17 +6117,28 @@ html[data-theme='dark'] .pd-col[data-status='bug']         { --pd-c: 214 158 170
   padding: 0.3rem 0.5rem;
   border-radius: var(--radius-sm);
   border: 1px dashed var(--line);
+  /* User request 2026-09-09: softer, more visible shadow on the افزودن button so it
+     reads as a real, tappable affordance rather than a faint dashed outline. The shadow
+     is warm + low-opacity so it lifts the button off the card without glaring. */
+  box-shadow: 0 1px 3px rgb(40 30 15 / 0.06), 0 2px 8px rgb(40 30 15 / 0.05);
+  transition: box-shadow 0.15s ease, border-color 0.15s ease, color 0.15s ease;
 }
 /* the add affordance is a <button> now (inline composer, no navigation) — neutral resets */
 button.pd-task-add {
-  background: transparent;
+  background: var(--card);
   font: inherit;
   font-size: var(--fs-xs);
   inline-size: 100%;
   cursor: pointer;
 }
 .pd-task-add .icon { inline-size: 0.85rem; block-size: 0.85rem; }
-.pd-task-add:hover { color: var(--brand); border-color: var(--brand); }
+.pd-task-add:hover {
+  color: var(--brand);
+  border-color: var(--brand);
+  border-style: solid;
+  box-shadow: 0 2px 6px rgb(74 159 163 / 0.18), 0 4px 14px rgb(40 30 15 / 0.08);
+}
+.pd-task-add:active { box-shadow: 0 1px 2px rgb(40 30 15 / 0.08); }
 /* per-column inline quick-add composer (user request: add tasks directly into the boxes) */
 .pd-tasks { display: grid; gap: 0.35rem; }
 .pd-quick-add { display: flex; gap: 0.3rem; }
@@ -6146,7 +6157,8 @@ button.pd-task-add {
 }
 .pd-quick-add input:focus { border-style: solid; outline: none; }
 .pd-quick-add input:disabled { opacity: 0.6; }
-.pd-quick-add button { flex: none; color: var(--brand); cursor: pointer; padding: 0.15rem 0.5rem; line-height: 1; }
+/* the inline composer's [+] submit button was removed (user request 2026-09-09) — Enter
+   submits the form; the visible affordance is the .pd-task-add (افزودن) button below. */
 /* retry button inside the board/sprint loading line */
 .db-loading .btn { margin-inline-start: 0.6rem; }
 

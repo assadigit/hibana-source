@@ -491,8 +491,7 @@ function detailHtml(p: ProjectRow, d: Awaited<ReturnType<typeof loadDetail>>, la
               ${items.length > 3 ? `<a class="pd-more muted small" data-pd-more="${col.key}" href="/board.html?project=${p.id}">+${dig(items.length - 3)} ${trL(lang, 'more', 'بیشتر')}</a>` : ''}
             </div>
             <form class="pd-quick-add" data-pd-addform="${col.key}" hidden>
-              <input name="title" maxlength="300" dir="auto" autocomplete="off" placeholder="" aria-label="${trL(lang, 'Task title', 'عنوان کار')}">
-              <button type="submit" class="ghost" aria-label="${trL(lang, 'Add task', 'افزودن کار')}">${icon('plus')}</button>
+              <input name="title" maxlength="300" dir="auto" autocomplete="off" placeholder="" aria-label="${trL(lang, 'Task title — press Enter to add', 'عنوان کار — Enter را بزن تا افزوده شود')}">
             </form>
             <button type="button" class="pd-task-add" data-pd-add="${col.key}">${icon('plus')} ${trL(lang, 'Add', 'افزودن')}</button>
           </div>`

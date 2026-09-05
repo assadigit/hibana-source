@@ -206,6 +206,18 @@ function cardHtml(p: ProjectRow, tags: TagRow[], lang: Locale, signals?: Project
   const sigs = signalsHtml(signals, lang)
   const bugBubble = bugBubbleHtml(signals, lang)
   const blMeta = backlogMetaHtml(signals, lang)
+  // Fix 2026-09-09 (user report, normalize card height): every card now renders the SAME
+  // set of fields in the SAME order, regardless of whether a field has data. The
+  // description line + the backlog-meta line are always present; an empty value renders
+  // an invisible placeholder row (min-block-size: 1lh) so the card's height is consistent
+  // across the grid. This fixes the layout symptom (inconsistent heights) by fixing the
+  // content model (same fields, always) instead of patching heights individually.
+  const descHtml = p.description
+    ? `<p class="muted small clip-2 pc-desc">${esc(p.description)}</p>`
+    : `<p class="muted small pc-desc pc-desc-empty" aria-hidden="true">&nbsp;</p>`
+  const metaHtml = blMeta
+    ? `<div class="pc-meta-row">${blMeta}</div>`
+    : `<div class="pc-meta-row pc-meta-empty" aria-hidden="true">&nbsp;</div>`
   return `<article class="card project-card pc-wire pc-plain" id="project-${p.id}" draggable="true" data-project-id="${p.id}" data-status="${p.status}">
     <div class="row title-meta spread pc-head">
       <span class="muted small pc-updated">${updated}</span>
@@ -215,8 +227,8 @@ function cardHtml(p: ProjectRow, tags: TagRow[], lang: Locale, signals?: Project
       <span class="pc-title-wrap"><a href="/project.html?id=${p.id}" class="project-title pc-title">${esc(p.title)}</a>${bugBubble}</span>
       ${sigs}
     </div>
-    ${p.description ? `<p class="muted small clip-2 pc-desc">${esc(p.description)}</p>` : ''}
-    ${blMeta ? `<div class="pc-meta-row">${blMeta}</div>` : ''}
+    ${descHtml}
+    ${metaHtml}
     <i class="pc-corner" aria-hidden="true"></i>
   </article>`
 }
@@ -298,7 +310,7 @@ function glanceStrip(counts: Map<string, number>, activeStatus: ProjectStatus | 
     const isActive = activeStatus === s
     return `<a class="pglance-box${isActive ? ' is-active' : ''}" href="/projects.html?status=${s}&view=cards" data-pglance="${s}" title="${esc(statusLabel(s, lang))}">
       <span class="pglance-icon" aria-hidden="true">${icon(STATUS_ICON[s])}</span>
-      <span class="pglance-count">${dig(counts.get(s) ?? 0)}</span>
+      <span class="pglance-count" title="${esc(trL(lang, '{n} projects', '{n} پروژه', { n: String(counts.get(s) ?? 0) }))}">${dig(counts.get(s) ?? 0)}</span>
       <span class="pglance-label">${statusLabel(s, lang)}</span>
     </a>`
   }).join('')

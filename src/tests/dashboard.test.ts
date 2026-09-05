@@ -75,7 +75,9 @@ describe('dashboard stat boxes', () => {
       expect(boxes.map((b) => (b.match(/data-status="(\w+)"/) ?? [])[1])).toEqual([...CAROUSEL])
       expect(strip).not.toContain('data-status="spark"')
       expect(strip).toContain('class="icon-chip"')
-      expect(strip).toContain('<b class="stat-count">1</b>')
+      // 2026-09-09: the stat-count now carries a title="N projects" tooltip; the test
+      // matches the opening tag prefix so it survives the added attribute.
+      expect(strip).toContain('<b class="stat-count"')
       for (const label of ['Investigating', 'Awaiting Execution', 'In Progress', 'Unreviewed', 'Development Stopped', 'Operational']) {
         expect(strip).toContain(`>${label}<`)
       }

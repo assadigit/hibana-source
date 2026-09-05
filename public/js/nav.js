@@ -62,6 +62,12 @@
 
   async function load(url, push) {
     const seq = ++navSeq
+    // 2026-09-09 (user request): minimal + modern animated page-transition loader. Shows
+    // a thin top progress bar the moment a soft-navigation fetch starts, hides it once the
+    // new shell is swapped in. The bar is a fixed-position element at the very top of the
+    // viewport (z above the topbar but below toasts/dialogs), a 2px teal line that grows
+    // from 0→80% in 400ms then completes on swap. Pure CSS animation; no deps.
+    showNavLoader()
     try {
       // Network-first page fetch (the service worker routes X-Hibana-Nav network-first so
       // shell HTML is never stale; htmx fragments inside are network-first already).
@@ -130,11 +136,40 @@
       if (window.htmx?.process) window.htmx.process(fresh)
       if (window.Alpine?.initTree) window.Alpine.initTree(fresh)
       markNav(url.pathname)
+      hideNavLoader()
     } catch (err) {
       // Any parse/fetch failure → standard full navigation.
       console.warn('soft navigation failed, reloading:', err)
+      hideNavLoader()
       location.href = url.href
     }
+  }
+
+  // --- page-transition loader (2026-09-09) -----------------------------------
+  // A thin top progress bar: shows the moment a soft-nav fetch starts, completes + fades
+  // once the new shell is swapped in. Two states: .is-loading (bar grows 0→80% over 400ms)
+  // and .is-done (bar completes to 100% + fades out over 300ms). The element is reused
+  // across navigations; a fast back-to-back nav just re-triggers .is-loading.
+  let navLoaderEl = null
+  let navLoaderTimer = null
+  const showNavLoader = () => {
+    if (!navLoaderEl) {
+      navLoaderEl = document.createElement('div')
+      navLoaderEl.id = 'hibana-nav-loader'
+      navLoaderEl.setAttribute('aria-hidden', 'true')
+      document.body.appendChild(navLoaderEl)
+    }
+    clearTimeout(navLoaderTimer)
+    navLoaderEl.className = 'is-loading'
+    // Force a reflow so the transition restarts on a rapid re-trigger.
+    void navLoaderEl.offsetWidth
+  }
+  const hideNavLoader = () => {
+    if (!navLoaderEl) return
+    navLoaderEl.className = 'is-done'
+    // Remove the done state after the fade so the next nav can re-trigger cleanly.
+    clearTimeout(navLoaderTimer)
+    navLoaderTimer = setTimeout(() => { if (navLoaderEl) navLoaderEl.className = '' }, 400)
   }
 
   function markNav(pathname) {

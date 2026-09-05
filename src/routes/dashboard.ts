@@ -182,7 +182,7 @@ export function dashboardRoutes(cfg: Config) {
         })
         return html`<div class="stat stat-box" data-status="${s}">
           <div class="row spread">
-            <span class="row"><span class="icon-chip">${raw(icon(STATUS_ICON[s]))}</span> <b class="stat-count">${num(counts[s])}</b> <span class="stat-label">${label}</span></span>
+            <span class="row"><span class="icon-chip" title="${label}">${raw(icon(STATUS_ICON[s]))}</span> <b class="stat-count" title="${t('{n} projects', '{n} پروژه', { n: num(counts[s]) })}">${num(counts[s])}</b> <span class="stat-label">${label}</span></span>
             <span class="row">
               <a class="small" href="/projects.html?status=${s}&view=cards">${t('View all', 'مشاهده همه')} ${raw(icon('arrow-right', 'icon arrow'))}</a>
             </span>

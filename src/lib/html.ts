@@ -36,12 +36,16 @@ export const STATUS_BADGE = (s: ProjectStatus, lang: Locale = 'en'): string =>
   `<span class="badge badge-${s}">${icon(STATUS_ICON[s], 'icon')}${statusLabel(s, lang)}</span>`
 
 // One recognizable glyph per stage, same stroke system as the rest of the UI (design rule 4/6).
+// Fix 2026-09-09 (user report): the `doing` stage used 'gear' which can read as a sun-burst
+// at small sizes (the gear's spokes mimic the sun's rays), colliding with the theme-toggle's
+// explicit 'sun' icon. Changed to 'play' — a triangle-in-circle, the universal "in progress"
+// / "now playing" metaphor. The sun stays reserved for the theme toggle only.
 export const STATUS_ICON: Record<ProjectStatus, string> = {
   spark: 'idea',
   unreviewed: 'clock',
   investigating: 'search',
   awaiting: 'calendar',
-  doing: 'gear',
+  doing: 'play',
   halted: 'pause',
   operational: 'rocket',
 }
@@ -61,6 +65,7 @@ export function icon(name: string, cls = 'icon'): string {
       case 'link': return '<path d="M10 14a5 5 0 0 0 7 0l3-3a5 5 0 0 0-7-7l-1.2 1.2"/><path d="M14 10a5 5 0 0 0-7 0l-3 3a5 5 0 0 0 7 7l1.2-1.2"/>'
       case 'search': return '<circle cx="11" cy="11" r="6.5"/><path d="M16 16l4.5 4.5"/>'
       case 'pause': return '<path d="M9 5.5v13M15 5.5v13"/>'
+      case 'play': return '<circle cx="12" cy="12" r="9"/><path d="M10 8.5l5 3.5-5 3.5z" fill="currentColor" stroke="none"/>'
       case 'idea': return '<path d="M9 18h6M10 22h4"/><path d="M12 2a7 7 0 0 0-4.2 12.6c.9.7 1.2 1.6 1.2 2.4h6c0-.8.3-1.7 1.2-2.4A7 7 0 0 0 12 2Z"/>'
       case 'clock': return '<circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/>'
       case 'gear': return '<circle cx="12" cy="12" r="3"/><path d="M12 2.5v2.8M12 18.7v2.8M2.5 12h2.8M18.7 12h2.8M5.3 5.3l2 2M16.7 16.7l2 2M18.7 5.3l-2 2M7.3 16.7l-2 2"/>'

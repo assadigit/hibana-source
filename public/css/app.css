@@ -241,8 +241,53 @@ body {
   color: var(--text);
   font-family: var(--font-sans);
   line-height: 1.55;
+  /* Fix 2026-09-09 (user report): app-wide color fringing on small teal numerals + badge
+     text. The body already had -webkit-font-smoothing:antialiased but was missing the
+     -moz-osx companion. Adding grayscale fixes Firefox/macOS subpixel fringing on every
+     small colored text (the "۲ روز پیش" numerals, badge labels, count pills) at the root
+     instead of patching each component. */
   -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;
+}
+
+/* 2026-09-09 (user request): minimal + modern animated page-transition loader.
+   A thin 2px teal bar at the very top of the viewport, z above the topbar but below
+   toasts/dialogs (60–90). Two states:
+   - .is-loading: bar grows from 0 → 80% width over 400ms (ease-out), opacity 1.
+   - .is-done: bar completes to 100% width over 150ms, then fades to opacity 0 over 300ms.
+   The element is fixed + pointer-events:none so it never blocks a click. Pure CSS
+   animation; no JS layout work per frame. Respects prefers-reduced-motion (no animation,
+   the bar just appears + disappears). */
+#hibana-nav-loader {
+  position: fixed;
+  inset-block-start: 0;
+  inset-inline-start: 0;
+  inline-size: 0;
+  block-size: 2px;
+  background: var(--brand, #4A9FA3);
+  z-index: 50; /* above topbar (30), below toasts/dialogs (60+) */
+  opacity: 0;
+  pointer-events: none;
+  box-shadow: 0 0 8px rgb(74 159 163 / 0.4);
+}
+#hibana-nav-loader.is-loading {
+  opacity: 1;
+  animation: hibana-nav-loader-grow 8s cubic-bezier(0.1, 0.6, 0.3, 1) forwards;
+}
+#hibana-nav-loader.is-done {
+  opacity: 1;
+  inline-size: 100%;
+  transition: opacity 0.3s ease 0.15s;
+  opacity: 0;
+}
+@keyframes hibana-nav-loader-grow {
+  0% { inline-size: 0; }
+  100% { inline-size: 80%; }
+}
+@media (prefers-reduced-motion: reduce) {
+  #hibana-nav-loader.is-loading { animation: none; inline-size: 80%; }
+  #hibana-nav-loader.is-done { transition: none; }
 }
 
 /* Subtle film grain over the whole app (trendy texture, 2026-08-26): an feTurbulence SVG
@@ -661,17 +706,27 @@ html[data-theme='dark'] .bug-bubble { background: #ef4444; box-shadow: 0 1px 6px
 .pc-wire .pc-head > .badge,
 .pc-wire .pc-head > .small { margin-block-start: 0; } /* undo .title-meta optical nudges */
 /* Batch (q) 2026-09-07 — the reported wrap glitch: «به‌روزرسانی ۲ ساعت پیش» + the stage
-   badge + the ⋯ menu overflowed the head row, so the badge's TEXT wrapped INSIDE the pill
-   onto two lines. Now the row never wraps; the UPDATED meta is the flexible item and
-   ellipsizes (it is the least important text), while the badge keeps its single line. */
+   badge overflowed the head row, so the badge's TEXT wrapped INSIDE the pill onto two
+   lines. The row now never wraps; the UPDATED meta is the flexible item, the badge keeps
+   its single line.
+   Fix 2026-09-09 (user report): removed `overflow: hidden; text-overflow: ellipsis` —
+   it was cutting the Persian word mid-way («به‌روزر…»). The label now sizes to its
+   content. The badge stays `flex: none; white-space: nowrap`. If horizontal space is
+   genuinely tight, the source string itself should be shortened (drop the leading
+   «به‌روزرسانی» label word), not truncated by CSS. The card's grid handles the rest. */
 .pc-wire .pc-head .pc-updated {
   flex: 1 1 auto;
   min-inline-size: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .pc-wire .pc-head .badge { flex: none; white-space: nowrap; }
 .pc-updated { white-space: nowrap; font-size: 0.68rem; } /* ~50% smaller than body, per user 2026-08-30 */
+/* Fix 2026-09-09 (normalize card height): the empty placeholder rows reserve the same
+   vertical space as a real line so cards with no description / no backlog-meta don't
+   collapse shorter than cards that have them. The placeholder is invisible (aria-hidden
+   + &nbsp;) but takes a line of height. */
+.pc-desc-empty { min-block-size: 1.4rem; opacity: 0; }
+.pc-meta-empty { min-block-size: 1rem; opacity: 0; }
 input::placeholder, textarea::placeholder { font-size: 0.88em; } /* placeholders one step smaller than their field (user 2026-08-30) */
 .note-compose-text::placeholder { font-size: 0.8em; }
 .pc-wire .pc-title {

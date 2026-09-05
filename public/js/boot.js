@@ -30,6 +30,13 @@ try {
 // activate immediately, and this listener catches that controllerchange and reloads so
 // the fresh shell is what the user sees. Reload fires at most once per SW version (the
 // flag is keyed by the SW's script URL, which changes with each hibana-vNNN bump).
+//
+// 2026-09-09 (aggressive update): also actively poll for SW updates on every page load.
+// navigator.serviceWorker.getRegistration().update() forces the browser to re-fetch
+// sw.js and compare — if a new SW is found, it installs + activates (skipWaiting +
+// clients.claim), which fires controllerchange → the listener above reloads the page.
+// This catches the case where the user stays on a long-lived tab and never navigates
+// (the old SW would otherwise stay active until the next hard navigation).
 if ('serviceWorker' in navigator) {
   let reloading = false
   navigator.serviceWorker.addEventListener('controllerchange', () => {
@@ -37,13 +44,21 @@ if ('serviceWorker' in navigator) {
     reloading = true
     try {
       const last = sessionStorage.getItem('hibana-sw-reload')
-      const now = String(Date.now())
       // Throttle: don't reload more than once per 5s (the event can fire twice on some
       // browsers during a single SW swap). The sessionStorage flag survives the reload.
       if (last && Date.now() - Number(last) < 5000) return
-      sessionStorage.setItem('hibana-sw-reload', now)
+      sessionStorage.setItem('hibana-sw-reload', String(Date.now()))
       location.reload()
     } catch { /* sessionStorage unavailable — reload anyway */ location.reload() }
+  })
+  // On every page load, force the SW to check for an update. If a new hibana-vNNN is
+  // deployed, this triggers install → skipWaiting → activate → clients.claim → the
+  // controllerchange listener reloads the page with the fresh shell. The update()
+  // call is async + best-effort; a failure must never break the page.
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.getRegistration?.().then((reg) => {
+      if (reg) reg.update().catch(() => {})
+    }).catch(() => {})
   })
 }
 

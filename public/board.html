@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Progress board — Hibana</title>
-  <link rel="stylesheet" href="/css/app.css?v=198">
+  <link rel="stylesheet" href="/css/app.css?v=199">
   <link rel="stylesheet" href="/vendor/manrope/font-face.css">
   <script src="/vendor/htmx.min.js" defer></script>
   <script src="/js/boot.js?v=3"></script>
@@ -33,7 +33,7 @@
       <span class="db-flex-gap"></span>
       <a class="btn ghost small" id="db-sprint-link" href="#"><span data-i18n="db.sprints">Sprints</span></a>
     </div>
-    <div class="db-loading" id="db-loading" role="status"><span data-i18n="db.loading">Loading board…</span></div>
+    <div class="db-loading" id="db-loading" role="status"><span class="hibana-spinner" aria-hidden="true"></span><span data-i18n="db.loading">Loading board…</span></div>
     <div class="db-board" id="db-board" hidden></div>
   </main>
   <script>

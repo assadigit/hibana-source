@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Sprints — Hibana</title>
-  <link rel="stylesheet" href="/css/app.css?v=198">
+  <link rel="stylesheet" href="/css/app.css?v=199">
   <link rel="stylesheet" href="/vendor/manrope/font-face.css">
   <script src="/vendor/htmx.min.js" defer></script>
   <script src="/js/boot.js?v=3"></script>
@@ -60,7 +60,7 @@
          here (name + item count + Start/Delete + a drop target that assigns tasks to it)
          until the user starts it, at which point it moves onto the timeline. -->
     <div class="sp-draft" id="sp-draft" hidden></div>
-    <div class="db-loading" id="sp-loading" role="status"><span data-i18n="db.loading">Loading…</span></div>
+    <div class="db-loading" id="sp-loading" role="status"><span class="hibana-spinner" aria-hidden="true"></span><span data-i18n="db.loading">Loading…</span></div>
     <div class="sp-wrap" id="sp-wrap" hidden>
       <aside class="sp-side" id="sp-side"></aside>
       <div class="sp-scroll" id="sp-scroll">

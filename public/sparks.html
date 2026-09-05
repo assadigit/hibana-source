@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Ideas — Hibana</title>
-  <link rel="stylesheet" href="/css/app.css?v=198">
+  <link rel="stylesheet" href="/css/app.css?v=199">
   <link rel="stylesheet" href="/vendor/manrope/font-face.css">
   <script src="/vendor/htmx.min.js" defer></script>
   <script src="/js/boot.js?v=3"></script>
@@ -47,7 +47,7 @@
     <!-- Task 24: the indicator lives OUTSIDE the shelf — an innerHTML swap of #spark-shelf
          used to delete #shelf-loading, leaving every later poll/reload logging
          "hx-indicator returned no matches". -->
-    <div id="shelf-loading" class="loading htmx-indicator" data-i18n="common.loading">Loading…</div>
+    <div id="shelf-loading" class="loading htmx-indicator hibana-loading-row" data-i18n="common.loading"><span class="hibana-spinner" role="status" aria-hidden="true"></span><span>Loading…</span></div>
     <!-- batch (s): the ACTIVE folder selection lives in this hidden input OUTSIDE the swap
          target — hx-include serializes it into the 30s poll and the load trigger, so the
          poll never resets the filter. The folder BAR itself rides inside the fragment. -->

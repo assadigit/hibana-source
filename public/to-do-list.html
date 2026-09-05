@@ -12,7 +12,7 @@
   <link rel="icon" href="/favicon.ico">
   <link rel="manifest" href="/manifest.webmanifest">
   <meta name="theme-color" content="#EDE8DF">
-  <link rel="stylesheet" href="/css/app.css?v=198">
+  <link rel="stylesheet" href="/css/app.css?v=199">
   <link rel="stylesheet" href="/vendor/manrope/font-face.css">
   <link rel="stylesheet" href="/vendor/vazir/font-face.css">
   <script>
@@ -815,7 +815,7 @@ body.rtl .fuz-opt{text-align:right}
 .sadhana-wrap .arch-task .arch-delete,.sadhana-wrap .arch-ritem .arch-delete{flex:none;margin-inline-start:auto;cursor:pointer;border:1px solid transparent;background:transparent;color:var(--accent-3,#B85A54);border-radius:8px;padding:4px 9px;font-size:11px;font-weight:600;font-family:inherit;line-height:1;transition:color .15s,opacity .15s}
 .sadhana-wrap .arch-task .arch-delete:hover,.sadhana-wrap .arch-ritem .arch-delete:hover{background:transparent;color:#91423D}
 .sadhana-wrap .arch-task .arch-delete:disabled,.sadhana-wrap .arch-ritem .arch-delete:disabled{opacity:.5;cursor:default}
-.sadhana-wrap .arch-empty{padding:22px;text-align:center;color:var(--text-dim);font-size:12px;font-style:italic}
+.sadhana-wrap .arch-empty{padding:22px;text-align:center;color:var(--text-dim);font-size:12px;font-style:italic;display:flex;align-items:center;justify-content:center;gap:8px}
 .sadhana-wrap .arch-recur h4{font-size:12.5px;font-weight:700;margin:8px 0 7px;display:flex;align-items:center;gap:6px}
 .sadhana-wrap .arch-ritem{display:flex;align-items:center;gap:8px;padding:7px 10px;border-radius:9px;background:var(--surface2);border:1px solid var(--border);font-size:12px;margin-bottom:5px}
 .sadhana-wrap .arch-rdates{display:flex;gap:4px;flex-wrap:wrap;margin-top:4px}
@@ -862,7 +862,7 @@ body.rtl .fuz-opt{text-align:right}
 </div>
 
 <div class="mat-outer">
-  <div class="mat-grid" id="matGrid"><div class="sadhana-loading" id="boardLoading">Loading…</div></div>
+  <div class="mat-grid" id="matGrid"><div class="sadhana-loading" id="boardLoading"><span class="hibana-spinner" aria-hidden="true"></span><span>Loading…</span></div></div>
 </div>
 
 </div><!-- page-shell -->
@@ -931,7 +931,7 @@ body.rtl .fuz-opt{text-align:right}
       <div class="arch-title" id="archTitle">🗄️ Archive</div>
       <button class="btn" onclick="closeArchive()" id="archClose">✕ Close</button>
     </div>
-    <div class="arch-body" id="archBody"><div class="arch-empty">Loading…</div></div>
+    <div class="arch-body" id="archBody"><div class="arch-empty"><span class="hibana-spinner" aria-hidden="true"></span><span>Loading…</span></div></div>
   </div>
 </div>
 

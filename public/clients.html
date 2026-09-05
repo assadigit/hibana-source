@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Clients — Hibana</title>
-  <link rel="stylesheet" href="/css/app.css?v=199">
+  <link rel="stylesheet" href="/css/app.css?v=200">
   <link rel="stylesheet" href="/vendor/manrope/font-face.css">
   <script src="/vendor/htmx.min.js" defer></script>
   <script src="/js/boot.js?v=3"></script>
@@ -30,7 +30,7 @@
     </div>
     <p class="muted" data-i18n="clients.hint">The other world — deadlines, task-time progress, and milestone payments (spec §5.9). Fully separate from your personal work.</p>
     <div id="client-body" hx-get="/api/clients" hx-trigger="load" hx-swap="innerHTML" hx-indicator="#loading">
-      <div id="loading" class="loading htmx-indicator hibana-loading-row" data-i18n="common.loading"><span class="hibana-spinner" role="status" aria-hidden="true"></span><span>Loading…</span></div>
+      <div id="loading" class="loading htmx-indicator hibana-loading-row"><span class="hibana-spinner" role="status" aria-hidden="true"></span><span data-i18n="common.loading">Loading…</span></div>
     </div>
   </main>
 

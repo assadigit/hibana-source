@@ -624,33 +624,40 @@ button.active { background: var(--accent-soft); }
 .loading { padding: 2rem 0; color: var(--muted); }
 
 /* 2026-09-09 (user request): animated moving loader. Two reusable variants:
-   - .hibana-spinner: a 1.5rem rotating ring (border + transparent gap + accent arc).
+   - .hibana-spinner: a rotating ring (border + transparent gap + accent arc).
      Use inline: <span class="hibana-spinner" role="status" aria-label="Loading"></span>
    - .hibana-dots: three bouncing dots. Use inline:
      <span class="hibana-dots" role="status" aria-label="Loading"><i></i><i></i><i></i></span>
    Both inherit currentColor for the visible arc/dots; the base color is var(--muted)
    but a parent can set color: var(--brand) for the teal accent. Respects
-   prefers-reduced-motion (the animation stops, the element stays visible). */
+   prefers-reduced-motion (the animation stops, the element stays visible).
+   2026-09-09 (user follow-up): made it BIGGER + more eye-catching. The spinner is now
+   2.4rem (was 1.5rem), 3px border (was 2px), with a soft pulsing glow ring so the eye
+   is drawn to it. The loading-row label is also larger (fs-md, not fs-sm). */
 .hibana-spinner {
   display: inline-block;
-  inline-size: 1.5rem;
-  block-size: 1.5rem;
-  border: 2px solid color-mix(in srgb, currentColor 28%, transparent);
+  inline-size: 2.4rem;
+  block-size: 2.4rem;
+  border: 3px solid color-mix(in srgb, currentColor 22%, transparent);
   border-block-start-color: currentColor;
   border-radius: 50%;
-  animation: hibana-spin 0.7s linear infinite;
+  animation: hibana-spin 0.8s linear infinite;
   vertical-align: middle;
+  /* Soft pulsing glow so the spinner is eye-catching, not just a thin ring. The
+     box-shadow breathes (1.6s) in a second animation layered on the spin. */
+  box-shadow: 0 0 0 0 currentColor;
+  animation: hibana-spin 0.8s linear infinite, hibana-spin-glow 1.6s ease-in-out infinite;
 }
 .hibana-dots {
   display: inline-flex;
-  gap: 0.3rem;
+  gap: 0.4rem;
   align-items: center;
   vertical-align: middle;
 }
 .hibana-dots i {
   display: inline-block;
-  inline-size: 0.45rem;
-  block-size: 0.45rem;
+  inline-size: 0.7rem;
+  block-size: 0.7rem;
   border-radius: 50%;
   background: currentColor;
   animation: hibana-dot-bounce 1.2s ease-in-out infinite;
@@ -658,27 +665,32 @@ button.active { background: var(--accent-soft); }
 .hibana-dots i:nth-child(2) { animation-delay: 0.15s; }
 .hibana-dots i:nth-child(3) { animation-delay: 0.3s; }
 @keyframes hibana-spin { to { transform: rotate(360deg); } }
+@keyframes hibana-spin-glow {
+  0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, currentColor 0%, transparent); }
+  50% { box-shadow: 0 0 0.6rem 0.15rem color-mix(in srgb, currentColor 35%, transparent); }
+}
 @keyframes hibana-dot-bounce {
   0%, 80%, 100% { transform: scale(0.6); opacity: 0.4; }
   40% { transform: scale(1); opacity: 1; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .hibana-spinner { animation: none; border-block-start-color: currentColor; }
+  .hibana-spinner { animation: none; border-block-start-color: currentColor; box-shadow: none; }
   .hibana-dots i { animation: none; transform: none; opacity: 1; }
 }
 /* A loading row: spinner + label, centered. Drop-in replacement for the old plain
-   "Loading…" text. The spinner rides the muted color by default; the label sits
-   next to it with a small gap. */
+   "Loading…" text. The spinner rides the brand teal; the label sits next to it with
+   a larger gap + a larger font so the whole row reads as a deliberate loading state. */
 .hibana-loading-row {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 0.6rem;
-  padding: 2rem 0;
+  gap: 0.9rem;
+  padding: 2.5rem 0;
   color: var(--muted);
-  font-size: var(--fs-sm);
+  font-size: var(--fs-md);
 }
-.hibana-loading-row .hibana-spinner { color: var(--brand); }
+.hibana-loading-row .hibana-spinner { color: var(--brand); flex: none; }
+.hibana-loading-row > span:last-child { font-weight: 500; }
 .empty {
   padding: 3rem 1.5rem;
   text-align: center;
@@ -2469,10 +2481,11 @@ html[data-theme='dark'] .pen-blue { color: #7fb5f0; }
   gap: 0.5rem;
 }
 /* 2026-09-09: the spinner inside .board-loading rides the bg-contrast color so the
-   rotating arc is visible against the dark pill background. */
+   rotating arc is visible against the dark pill background. Bumped to 1.4rem (was 1rem)
+   so it's more eye-catching, matching the user's "bigger" request. */
 .board-loading .hibana-spinner {
-  inline-size: 1rem;
-  block-size: 1rem;
+  inline-size: 1.4rem;
+  block-size: 1.4rem;
   border-width: 2px;
   color: var(--bg);
 }

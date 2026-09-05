@@ -474,7 +474,12 @@ function detailHtml(p: ProjectRow, d: Awaited<ReturnType<typeof loadDetail>>, la
           const items = d.devTasks.filter((t) => t.status === col.key)
           const top = items.slice(0, 3)
           return `<div class="pd-col" data-status="${col.key}">
-            <div class="pd-col-head"><span class="pd-col-title">${trL(lang, col.en, col.fa)}</span><span class="detail-tab-count" data-pd-count="${col.key}" data-n="${items.length}">${dig(items.length)}</span></div>
+            <div class="pd-col-head"><span class="pd-col-title">${trL(lang, col.en, col.fa)}</span><span class="detail-tab-count" data-pd-count="${col.key}" data-n="${items.length}">${dig(items.length)}</span>
+              <span class="pd-col-actions">
+                <button type="button" class="ghost small" data-pd-copy="${col.key}" title="${trL(lang, 'Copy items as bullet points', 'کپی موارد به صورت بولت')}" aria-label="${trL(lang, 'Quick copy', 'کپی سریع')}">${icon('clipboard')}</button>
+                <button type="button" class="ghost small" data-pd-export="${col.key}" title="${trL(lang, 'Export as Markdown', 'خروجی مارک‌داون')}" aria-label="${trL(lang, 'Export Markdown', 'خروجی مارک‌داون')}">${icon('download')}</button>
+              </span>
+            </div>
             <div class="pd-tasks" data-pd-tasks="${col.key}">
               ${top.map((t) => `<a class="pd-task st-${t.status}" href="/board.html?project=${p.id}&task=${t.id}" draggable="true" data-pd-task="${t.id}" data-pd-status="${t.status}" data-pd-created="${t.created_at}"${t.done_at ? ` data-pd-done="${t.done_at}"` : ''}>
                 <span class="prio-dot prio-${t.priority}" title="${t.priority}"></span>
@@ -557,9 +562,9 @@ function detailHtml(p: ProjectRow, d: Awaited<ReturnType<typeof loadDetail>>, la
     <!-- batch (s) 2026-09-08 (user request): the previous «where I left off» heading +
          its subtitle are GONE — the tab title (یادداشت‌ها) above already says what this
          is; the composer starts immediately. The placeholder is the user's own wording. -->
-    <form hx-post="/api/projects/${p.id}/note" hx-target="body" hx-swap="beforeend">
-      <textarea name="note" rows="3" maxlength="5000" dir="${lang === 'fa' ? 'rtl' : 'auto'}" placeholder="${trL(lang, 'Write a quick note to follow up later.', 'یک یادداشت سریع بنویس تا بعدا پیگیری کنی.')}">${esc(p.latest_note)}</textarea>
-      <div class="row"><button type="submit">${trL(lang, 'Save note', 'ذخیره یادداشت')}</button><span class="muted small" id="note-status" hidden></span></div>
+    <form hx-post="/api/projects/${p.id}/note" hx-target="body" hx-swap="beforeend" id="pd-note-form">
+      <textarea name="note" id="pd-note-textarea" rows="3" maxlength="5000" dir="${lang === 'fa' ? 'rtl' : 'auto'}" placeholder="${trL(lang, 'Write a quick note to follow up later.', 'یک یادداشت سریع بنویس تا بعدا پیگیری کنی.')}">${esc(p.latest_note)}</textarea>
+      <div class="row"><button type="submit">${trL(lang, 'Save note', 'ذخیره یادداشت')}</button><button type="button" class="ghost small" data-note-expand title="${trL(lang, 'Open a larger editor', 'باز کردن ویرایشگر بزرگ‌تر')}">${icon('expand')} ${trL(lang, 'Expand', 'بزرگ‌نمایی')}</button><span class="muted small" id="note-status" hidden></span></div>
     </form>
     <h3 style="margin-block-start:1.5rem">${trL(lang, 'Related notes ({n})', 'یادداشت‌های مرتبط ({n})', { n: dig(d.notes.length) })}</h3>
     <ul class="links related-notes">${relatedNotes}</ul>
@@ -596,6 +601,7 @@ function detailHtml(p: ProjectRow, d: Awaited<ReturnType<typeof loadDetail>>, la
       <textarea name="content" rows="8" maxlength="50000" dir="auto" placeholder="${trL(lang, 'The full plan — everything that has to be done…', 'برنامهٔ کامل — همهٔ کارهایی که باید انجام شود…')}"></textarea>
       <div class="row">
         <button type="submit" class="btn small">${trL(lang, 'Save document', 'ذخیرهٔ سند')}</button>
+        <button type="button" class="ghost small" data-bl-fullscreen title="${trL(lang, 'Open in full-screen editor', 'باز کردن در ویرایشگر تمام‌صفحه')}">${icon('expand')} ${trL(lang, 'Full screen', 'تمام‌صفحه')}</button>
         <button type="button" class="ghost small" data-bl-cancel>${trL(lang, 'Cancel', 'لغو')}</button>
       </div>
     </form>
@@ -626,7 +632,27 @@ function detailHtml(p: ProjectRow, d: Awaited<ReturnType<typeof loadDetail>>, la
     <ul class="history">${history}</ul>
     ${d.canvasPromos.length ? html`<h3 style="margin-block-start:1.5rem">${trL(lang, 'Promoted from canvas', 'ترفیع‌شده از بوم')}</h3>
     <ul class="links backlinks">${d.canvasPromos.map((cp) => html`<li class="row spread"><a href="${cp.board === 'notebook' ? '/whiteboard.html' : '/canvas.html'}">${icon('pencil')} ${trL(lang, 'Canvas note', 'یادداشت بوم')}</a> <span class="muted small">${esc((cp.content || '').slice(0, 60))}</span></li>`)}</ul>` : ''}
-  </section>`
+  </section>
+
+  <!-- Item 5 + 7 (user request 2026-09-09): a shared full-screen modal for the note editor
+       (Expand) and the backlog-doc editor (Full screen). Opens with a large textarea that
+       saves back to the same endpoints. Pure client-side — the JS in project.html wires it. -->
+  <dialog id="pd-editor-modal" class="dialog pd-editor-modal">
+    <form class="modal pd-editor-modal-inner" id="pd-editor-form" novalidate>
+      <div class="row spread pd-editor-head">
+        <h3 id="pd-editor-title">${trL(lang, 'Editor', 'ویرایشگر')}</h3>
+        <button type="button" class="ghost" id="pd-editor-close" aria-label="${trL(lang, 'Close', 'بستن')}">${icon('x')}</button>
+      </div>
+      <input type="text" id="pd-editor-subtitle" class="pd-editor-subtitle" maxlength="200" hidden placeholder="${trL(lang, 'Title…', 'عنوان…')}">
+      <textarea id="pd-editor-textarea" rows="20" maxlength="50000" dir="auto" autocomplete="off"></textarea>
+      <div class="row pd-editor-footer">
+        <span class="muted small" id="pd-editor-hint"></span>
+        <span class="grow"></span>
+        <button type="submit" id="pd-editor-save">${trL(lang, 'Save', 'ذخیره')}</button>
+        <button type="button" class="ghost" id="pd-editor-cancel">${trL(lang, 'Cancel', 'لغو')}</button>
+      </div>
+    </form>
+  </dialog>`
 }
 
 export function projectsRoutes(cfg: Config) {

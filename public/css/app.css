@@ -6061,6 +6061,11 @@ html[data-theme='dark'] .pd-col[data-status='bug']         { --pd-c: 214 158 170
 }
 /* the dot rides the title's first line now that a meta line lives under it */
 .pd-task .prio-dot { margin-block-start: 0.24rem; }
+/* Item 3 (user request 2026-09-09): the progress indicator dot uses the COLUMN color
+   (--pd-c, set per .pd-col[data-status]) instead of the priority color, so a task
+   visually belongs to its column. The prio-low/medium/high classes still apply outside
+   the pd-task context (sprint.html's sp-bar, etc.). */
+.pd-task .prio-dot { background: rgb(var(--pd-c, 197 200 204)); }
 .pd-task:hover { border-color: var(--brand); box-shadow: 0 1px 6px rgb(30 20 10 / 0.06); }
 .pd-task-body { flex: 1; min-inline-size: 0; display: grid; gap: 0.05rem; }
 .pd-task-title {
@@ -6079,6 +6084,28 @@ html[data-theme='dark'] .pd-col[data-status='bug']         { --pd-c: 214 158 170
 }
 .pd-task.st-done .pd-task-title { text-decoration: line-through; color: var(--muted); }
 .pd-more { padding-inline: 0.5rem; }
+/* Item 8: per-column export/copy action buttons in the pd-col header */
+.pd-col-actions { display: inline-flex; gap: 0.15rem; margin-inline-start: auto; }
+.pd-col-actions button { padding: 0.15rem 0.35rem; }
+.pd-col-actions .icon { inline-size: 0.85rem; block-size: 0.85rem; }
+/* Item 5 + 7: the shared full-screen modal editor (note Expand + backlog Full screen) */
+.pd-editor-modal { max-inline-size: min(90vw, 60rem); max-block-size: 85vh; padding: 0; inline-size: min(90vw, 60rem); }
+.pd-editor-modal-inner { padding: 1.25rem; max-block-size: 85vh; display: flex; flex-direction: column; gap: 0.6rem; }
+.pd-editor-head { margin-block-end: 0.2rem; }
+.pd-editor-head h3 { margin: 0; font-size: 1.1rem; }
+.pd-editor-subtitle { font-size: var(--fs-md); padding: 0.4rem 0.6rem; border: 1px solid var(--line); border-radius: var(--radius-sm); }
+.pd-editor-modal textarea {
+  flex: 1 1 auto;
+  min-block-size: 40vh;
+  font-size: var(--fs-md);
+  line-height: 1.6;
+  padding: 0.8rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  resize: vertical;
+  font-family: inherit;
+}
+.pd-editor-footer { gap: 0.4rem; align-items: center; }
 .pd-task-add {
   display: flex;
   align-items: center;
@@ -6270,6 +6297,8 @@ html[data-theme='dark'] .db-col[data-col='bug']         { --db-c: 214 158 170; -
 .db-card:hover { border-color: var(--brand); box-shadow: 0 1px 6px rgb(30 20 10 / 0.07); }
 .db-card.dragging { opacity: 0.45; }
 .db-card-main { display: flex; align-items: flex-start; gap: 0.5rem; }
+/* Item 3: the full-screen board's prio-dot also uses the column color (--db-c) */
+.db-card-main .prio-dot { background: rgb(var(--db-c, 197 200 204)); }
 .db-card-title { font-size: var(--fs-md); line-height: 1.35; overflow-wrap: anywhere; }
 .st-done .db-card-title, .st-done .sp-bar-title { text-decoration: line-through; color: var(--muted); }
 .db-card-meta { display: flex; flex-wrap: wrap; gap: 0.3rem; align-items: center; }

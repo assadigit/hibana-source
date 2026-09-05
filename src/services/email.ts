@@ -77,6 +77,21 @@ export function verifyEmailHtml(code: string): string {
   return `<h2 style="margin:0 0 10px;color:#3A3226">تأیید ایمیل — Confirm your email</h2><p>کد تأیید شما / your confirmation code:</p><p style="font-size:26px;letter-spacing:8px;font-weight:bold;color:#3A3226">${escapeHtml(code)}</p><p style="font-size:12px;color:#8A8278">تا ۱۵ دقیقه اعتبار دارد — it expires in 15 minutes. If you didn't sign up for Hibana, you can ignore this email.</p>`
 }
 
+/** Item 6 (user request 2026-09-09): invite-by-email. The owner enters an email; Hibana
+ *  generates an invite code + emails it to that address via Resend. The recipient uses
+ *  the code at signup (OPEN_REGISTRATION off) or as a courtesy (OPEN_REGISTRATION on).
+ *  The email is bilingual, branded, and carries the code prominently. */
+export function inviteEmailHtml(code: string, inviterName?: string): string {
+  const from = inviterName ? `${escapeHtml(inviterName)} ` : ''
+  return `<h2 style="margin:0 0 10px;color:#3A3226">دعوت به Hibana — You're invited to Hibana</h2>
+<p>${from}شما را به Hibana دعوت کرده است. ${from}has invited you to Hibana — a personal project &amp; idea manager.</p>
+<p>برای ثبت‌نام، از این کد دعوت استفاده کنید:</p>
+<p style="font-size:24px;letter-spacing:6px;font-weight:bold;color:#3A3226;background:#F4F0E8;padding:12px 20px;border-radius:8px;display:inline-block">${escapeHtml(code)}</p>
+<p>Use this invite code when you sign up at:</p>
+<p><a href="https://hibana.ir/signup" style="color:#3D8D91;font-weight:bold">hibana.ir/signup</a></p>
+<p style="font-size:12px;color:#8A8278">اگر این دعوت را انتظار نداشتید، می‌توانید این ایمیل را نادیده بگیرید. — If you weren't expecting this invitation, you can safely ignore this email.</p>`
+}
+
 /** Free-tier daily cap — the admin console refuses custom/broadcast mail past this (429). */
 export const RESEND_DAILY_LIMIT = 100
 

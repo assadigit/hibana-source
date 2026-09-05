@@ -9,7 +9,7 @@ import { registerSchema, resendVerifySchema, verifyEmailSchema } from '../valida
 import { clientIp, hitRateLimit, RATE_RULES } from '../services/ratelimit'
 import { issueMathCaptcha, verifyMathCaptcha } from '../services/captcha'
 import { createEmailCode, verifyEmailCode, RESEND_COOLDOWN_MS } from '../services/verify'
-import { sendAndLog, verifyEmailHtml } from '../services/email'
+import { sendAndLog, verifyEmailHtml, inviteEmailHtml } from '../services/email'
 import type { Config, InviteRow, UserRow } from '../types'
 
 // Registration (spec §4.14) + email-code confirmation, added 2026-08-24.
@@ -268,6 +268,36 @@ export function registrationRoutes(cfg: Config) {
       )
     }
     return c.json({ ok: true, code }, 201)
+  })
+
+  // Item 6 (user request 2026-09-09): invite-by-email. The owner enters an email address;
+  // Hibana generates an invite code, persists it, and emails it to that address via Resend.
+  // The recipient uses the code at signup. Owner-only (same gate as the code-based invite).
+  // The email send uses the existing sendAndLog pipeline (branded HTML + delivery log + quota).
+  app.post('/invites/email', requireAuth(cfg), async (c) => {
+    const user = c.get('user')
+    if (user.role !== 'owner') return c.json({ error: 'forbidden' }, 403)
+    const body = await jsonBody<{ email: string }>(c, z.object({ email: z.string().email() }).strict())
+    if (!body) return c.json({ error: 'invalid_input' }, 400)
+    // Don't leak whether the address is already a user — just send the invite regardless.
+    const code = uuid().replace(/-/g, '').slice(0, 12)
+    await cfg.db.execute('INSERT INTO invites (id, code, created_by, created_at) VALUES (?, ?, ?, ?)', [
+      uuid(), code, user.id, new Date().toISOString(),
+    ])
+    if (!cfg.emailKey || !cfg.assets) {
+      return c.json({ error: 'email_not_configured', detail: 'Resend key or assets binding missing — set RESEND_KEY as a Worker secret' }, 503)
+    }
+    const origin = requestOrigin(c)
+    const inviterName = user.username || user.email
+    try {
+      await sendAndLog(
+        { db: cfg.db, emailKey: cfg.emailKey, assets: cfg.assets },
+        { to: body.email, kind: 'invite', subject: "You're invited to Hibana", title: 'You\'re invited to Hibana', bodyHtml: inviteEmailHtml(code, inviterName), origin },
+      )
+    } catch (e) {
+      return c.json({ error: 'email_failed', detail: e instanceof Error ? e.message : String(e) }, 502)
+    }
+    return c.json({ ok: true, sent_to: body.email, code }, 201)
   })
 
   return app

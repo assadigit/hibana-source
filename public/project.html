@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Project — Hibana</title>
-  <link rel="stylesheet" href="/css/app.css?v=193">
+  <link rel="stylesheet" href="/css/app.css?v=194">
   <link rel="stylesheet" href="/vendor/manrope/font-face.css">
   <script src="/vendor/htmx.min.js" defer></script>
   <script src="/js/boot.js"></script>
@@ -18,7 +18,7 @@
   <script src="/js/micro-interactions.js" defer></script>
   <script src="/js/go-to.js" defer></script>
   <script src="/js/install-prompt.js" defer></script>
-  <script src="/js/i18n.js?v=28" defer></script>
+  <script src="/js/i18n.js?v=29" defer></script>
 </head>
 <body>
   <div data-nav></div>
@@ -1217,6 +1217,174 @@
         ctx.on('dragend', () => {
           pdClearOver()
           if (pdDrag) { pdDrag.classList.remove('dragging'); pdDrag = null }
+        })
+
+        // --- Item 5 + 7 (user request 2026-09-09): shared full-screen modal editor -------
+        // The note textarea (Expand) and the backlog-doc editor (Full screen) both open
+        // this modal with a large textarea. The save target depends on the context:
+        //   - note:  POST /api/projects/:id/note  { note: text }
+        //   - bl-doc: POST/PATCH /api/backlog/docs/:id or /api/projects/:id/backlog/docs
+        //     { title, content }
+        // The modal is server-rendered (#pd-editor-modal); this JS wires it once.
+        const editorModal = document.getElementById('pd-editor-modal')
+        const editorTa = document.getElementById('pd-editor-textarea')
+        const editorTitle = document.getElementById('pd-editor-title')
+        const editorSubtitle = document.getElementById('pd-editor-subtitle')
+        const editorHint = document.getElementById('pd-editor-hint')
+        const editorSave = document.getElementById('pd-editor-save')
+        const editorForm = document.getElementById('pd-editor-form')
+        let editorMode = null // 'note' | 'bldoc'
+        let editorDocId = ''
+        const openEditor = (mode, opts) => {
+          editorMode = mode
+          editorDocId = opts.docId || ''
+          editorTitle.textContent = opts.title || _t('pd.editor', 'Editor')
+          editorTa.value = opts.content || ''
+          editorTa.maxLength = opts.maxlen || 50000
+          editorTa.dir = opts.rtl ? 'rtl' : 'auto'
+          editorTa.placeholder = opts.placeholder || ''
+          editorHint.textContent = opts.hint || ''
+          if (opts.subtitle !== undefined) {
+            editorSubtitle.hidden = false
+            editorSubtitle.value = opts.subtitle
+          } else {
+            editorSubtitle.hidden = true
+            editorSubtitle.value = ''
+          }
+          editorModal.showModal()
+          setTimeout(() => editorTa.focus(), 10)
+        }
+        const closeEditor = () => { if (editorModal.open) editorModal.close() }
+        document.getElementById('pd-editor-close')?.addEventListener('click', closeEditor)
+        document.getElementById('pd-editor-cancel')?.addEventListener('click', closeEditor)
+        editorForm?.addEventListener('submit', async (e) => {
+          e.preventDefault()
+          if (editorMode === 'note') {
+            const text = editorTa.value
+            try {
+              const res = await fetch(`/api/projects/${id}/note`, {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ note: text }),
+              })
+              if (!res.ok) throw new Error('save failed')
+              const ta = document.getElementById('pd-note-textarea')
+              if (ta) ta.value = text
+              window.hibana?.toast(_t('pd.noteSaved', 'Note saved'))
+              closeEditor()
+            } catch { window.hibana?.toast(_t('sparks.saveFailed', "Couldn't save"), 'err') }
+          } else if (editorMode === 'bldoc') {
+            const title = editorSubtitle.value.trim()
+            const content = editorTa.value
+            if (!title) { editorSubtitle.focus(); return }
+            try {
+              const res = await fetch(editorDocId ? '/api/backlog/docs/' + editorDocId : `/api/projects/${id}/backlog/docs`, {
+                method: editorDocId ? 'PATCH' : 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ title, content }),
+              })
+              if (!res.ok) throw new Error('save failed')
+              window.hibana?.toast(_t('bl.docSaved', 'Document saved'))
+              closeEditor()
+              blRefresh()
+            } catch { window.hibana?.toast(_t('sparks.saveFailed', "Couldn't save"), 'err') }
+          }
+        })
+
+        // Wire the note "Expand" button (Item 5)
+        ctx.on('click', (e) => {
+          const expand = e.target.closest('[data-note-expand]')
+          if (expand) {
+            const ta = document.getElementById('pd-note-textarea')
+            openEditor('note', {
+              title: _t('pd.noteEditor', 'Note editor'),
+              content: ta?.value || '',
+              maxlen: 5000,
+              rtl: pdLang() === 'fa',
+              placeholder: ta?.placeholder || '',
+              hint: _t('pd.noteHint', 'Write your progress update — it saves to the Notes tab.'),
+            })
+          }
+        })
+
+        // Wire the backlog-doc "Full screen" button (Item 7)
+        ctx.on('click', (e) => {
+          const fs = e.target.closest('[data-bl-fullscreen]')
+          if (fs) {
+            const form = fs.closest('[data-bl-docform]')
+            if (!form) return
+            const titleIn = form.querySelector('input[name=title]')
+            const contentIn = form.querySelector('textarea[name=content]')
+            openEditor('bldoc', {
+              title: _t('pd.docEditor', 'Plan document editor'),
+              content: contentIn?.value || '',
+              subtitle: titleIn?.value || '',
+              maxlen: 50000,
+              placeholder: contentIn?.placeholder || '',
+              hint: _t('pd.docHint', 'Write the full plan — it saves as a document in the برنامه آتی tab.'),
+              docId: form.dataset.blDocid || '',
+            })
+          }
+        })
+
+        // --- Item 8 (user request 2026-09-09): Markdown export + Quick Copy per column ---
+        // Each pd-col header has a clipboard (Quick Copy) + download (Export Markdown)
+        // button. Quick Copy copies the column's task titles as bullet points.
+        // Export Markdown generates a clean .md file with the column name as the heading
+        // and the task titles as a bullet list — no HTML, dates, styling, or internal data.
+        const pdColLabel = (status) => {
+          const el = document.querySelector(`.pd-col[data-status="${status}"] .pd-col-title`)
+          return el ? el.textContent.trim() : status
+        }
+        const pdColItems = (status) => {
+          const list = document.querySelector(`[data-pd-tasks="${status}"]`)
+          if (!list) return []
+          return Array.from(list.querySelectorAll('.pd-task')).map((el) => {
+            const title = el.querySelector('.pd-task-title')
+            return title ? title.textContent.trim() : ''
+          }).filter(Boolean)
+        }
+        const pdColToMarkdown = (status) => {
+          const label = pdColLabel(status)
+          const items = pdColItems(status)
+          const heading = '# ' + label + '\n'
+          if (!items.length) return heading + '\n_(No items)_\n'
+          return heading + '\n' + items.map((t) => '- ' + t).join('\n') + '\n'
+        }
+        const pdColToBullets = (status) => {
+          const items = pdColItems(status)
+          return items.length ? items.map((t) => '- ' + t).join('\n') : ''
+        }
+        ctx.on('click', async (e) => {
+          const copy = e.target.closest('[data-pd-copy]')
+          if (copy) {
+            const status = copy.dataset.pdCopy
+            const text = pdColToBullets(status)
+            try {
+              await navigator.clipboard.writeText(text)
+              window.hibana?.toast(_t('pd.copied', 'Copied to clipboard'))
+            } catch {
+              // fallback for non-secure contexts
+              const ta = document.createElement('textarea')
+              ta.value = text; document.body.appendChild(ta); ta.select()
+              try { document.execCommand('copy'); window.hibana?.toast(_t('pd.copied', 'Copied to clipboard')) } catch {}
+              ta.remove()
+            }
+            return
+          }
+          const exp = e.target.closest('[data-pd-export]')
+          if (exp) {
+            const status = exp.dataset.pdExport
+            const md = pdColToMarkdown(status)
+            const label = pdColLabel(status)
+            const blob = new Blob([md], { type: 'text/markdown;charset=utf-8' })
+            const url = URL.createObjectURL(blob)
+            const a = document.createElement('a')
+            a.href = url
+            a.download = label.replace(/[^a-zA-Z0-9\u0600-\u06FF_-]+/g, '_') + '.md'
+            document.body.appendChild(a); a.click(); a.remove()
+            URL.revokeObjectURL(url)
+            window.hibana?.toast(_t('pd.exported', 'Exported as Markdown'))
+          }
         })
       },
     })

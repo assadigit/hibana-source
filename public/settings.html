@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Settings — Hibana</title>
-  <link rel="stylesheet" href="/css/app.css?v=193">
+  <link rel="stylesheet" href="/css/app.css?v=194">
   <link rel="stylesheet" href="/vendor/manrope/font-face.css">
   <script src="/vendor/htmx.min.js" defer></script>
   <script src="/js/boot.js"></script>
@@ -19,7 +19,7 @@
   <script src="/js/micro-interactions.js" defer></script>
   <script src="/js/go-to.js" defer></script>
   <script src="/js/install-prompt.js" defer></script>
-  <script src="/js/i18n.js?v=28" defer></script>
+  <script src="/js/i18n.js?v=29" defer></script>
 </head>
 <body>
   <div data-nav></div>
@@ -163,6 +163,15 @@
 
     <section class="card" x-data="invites">
       <h3 data-i18n="settings.invites">Invites</h3>
+      <!-- Item 6 (user request 2026-09-09): invite-by-email. Enter an email → Hibana
+           generates a code + emails it to that address via Resend. -->
+      <div class="row wrap" style="margin-block-end:0.6rem">
+        <input type="email" x-model="inviteEmail" placeholder="friend@example.com" aria-label="Invite email" style="min-inline-size:14rem">
+        <button type="button" @click="sendInvite()" :disabled="sending">
+          <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7l9 6 9-6M3 7v10a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V7M3 7l2-2h14l2 2"/></svg>
+          <span data-i18n="settings.sendInvite">Send invite</span>
+        </button>
+      </div>
       <button class="ghost" @click="generate()"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg> <span data-i18n="settings.generateInvite">Generate invite code</span></button>
       <ul id="invite-list" hx-get="/api/auth/invites" hx-trigger="load" hx-swap="innerHTML">
         <li class="muted">Loading…</li>
@@ -444,14 +453,34 @@
           init() { this.load() },
         }))
         window.Alpine?.data('invites', () => ({
+          inviteEmail: '',
+          sending: false,
+          async sendInvite() {
+            const email = (this.inviteEmail || '').trim()
+            if (!email) return window.hibana?.toast(window.hibanaI18n?.t('settings.inviteEmailRequired') || 'Enter an email first', 'err')
+            this.sending = true
+            try {
+              const r = await fetch('/api/auth/invites/email', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email }),
+              })
+              if (!r.ok) {
+                const body = await r.json().catch(() => ({}))
+                return window.hibana?.toast(body.detail || body.error || (window.hibanaI18n?.t('settings.inviteFailed') || 'Invite failed'), 'err')
+              }
+              window.hibana?.toast(`${window.hibanaI18n?.t('settings.inviteSent') || 'Invitation sent to'} ${email}`)
+              this.inviteEmail = ''
+              if (window.htmx) window.htmx.ajax('GET', '/api/auth/invites', { target: '#invite-list', swap: 'innerHTML' })
+            } catch { window.hibana?.toast(window.hibanaI18n?.t('settings.inviteFailed') || 'Invite failed', 'err') }
+            finally { this.sending = false }
+          },
           async generate() {
             const r = await fetch('/api/auth/invites', { method: 'POST' })
             if (!r.ok) return window.hibana?.toast(window.hibanaI18n?.t('settings.inviteFailed') || 'Invite creation failed', 'err')
             const { code } = await r.json()
             await navigator.clipboard?.writeText(code)
             window.hibana?.toast(`${window.hibanaI18n?.t('settings.inviteCopied') || 'Copied invite code'}: ${code}`)
-            // Task 24 fix: htmx 2.0.4 fires 'load' once at init — trigger(el,'load') is a
-            // no-op afterwards, so the invite list never refreshed. Refetch explicitly.
             if (window.htmx) window.htmx.ajax('GET', '/api/auth/invites', { target: '#invite-list', swap: 'innerHTML' })
           },
         }))

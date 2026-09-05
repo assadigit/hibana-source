@@ -6112,22 +6112,25 @@ html[data-theme='dark'] .pd-col[data-status='bug']         { --pd-c: 214 158 170
   justify-content: center;
   gap: 0.4rem;
   font-size: var(--fs-xs);
-  color: var(--muted);
+  font-weight: 600;
+  color: var(--text);
   text-decoration: none;
-  padding: 0.3rem 0.5rem;
+  padding: 0.45rem 0.6rem;
   border-radius: var(--radius-sm);
-  border: 1px dashed var(--line);
+  border: 1px dashed var(--line-strong);
+  background: var(--bg-soft);
   /* User request 2026-09-09: softer, more visible shadow on the افزودن button so it
      reads as a real, tappable affordance rather than a faint dashed outline. The shadow
-     is warm + low-opacity so it lifts the button off the card without glaring. */
-  box-shadow: 0 1px 3px rgb(40 30 15 / 0.06), 0 2px 8px rgb(40 30 15 / 0.05);
-  transition: box-shadow 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+     is warm + low-opacity so it lifts the button off the card without glaring. Bumped
+     after a VLM check found the first pass too subtle against the white card. */
+  box-shadow: 0 2px 6px rgb(40 30 15 / 0.10), 0 4px 14px rgb(40 30 15 / 0.08);
+  transition: box-shadow 0.15s ease, border-color 0.15s ease, color 0.15s ease, background 0.15s ease;
 }
 /* the add affordance is a <button> now (inline composer, no navigation) — neutral resets */
 button.pd-task-add {
-  background: var(--card);
   font: inherit;
   font-size: var(--fs-xs);
+  font-weight: 600;
   inline-size: 100%;
   cursor: pointer;
 }
@@ -6136,9 +6139,10 @@ button.pd-task-add {
   color: var(--brand);
   border-color: var(--brand);
   border-style: solid;
-  box-shadow: 0 2px 6px rgb(74 159 163 / 0.18), 0 4px 14px rgb(40 30 15 / 0.08);
+  background: var(--accent-soft);
+  box-shadow: 0 3px 10px rgb(74 159 163 / 0.22), 0 6px 18px rgb(40 30 15 / 0.10);
 }
-.pd-task-add:active { box-shadow: 0 1px 2px rgb(40 30 15 / 0.08); }
+.pd-task-add:active { box-shadow: 0 1px 2px rgb(40 30 15 / 0.10); }
 /* per-column inline quick-add composer (user request: add tasks directly into the boxes) */
 .pd-tasks { display: grid; gap: 0.35rem; }
 .pd-quick-add { display: flex; gap: 0.3rem; }

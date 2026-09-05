@@ -457,6 +457,7 @@ window.hibanaI18n = (() => {
       'install.prompt': 'Install Hibana for offline access?',
       'install.install': 'Install', 'install.notNow': 'Not now',
       'install.installed': 'Hibana installed — find it on your home screen.',
+      'install.neverAgain': "Don't show again",
       'settings.installApp': 'Install app',
       // Super-admin panel (batch r)
       'nav.admin': 'Admin',
@@ -1011,6 +1012,7 @@ window.hibanaI18n = (() => {
       'install.prompt': 'هیبانا را برای دسترسی آفلاین نصب کنی؟',
       'install.install': 'نصب', 'install.notNow': 'الان نه',
       'install.installed': 'هیبانا نصب شد — روی صفحهٔ خانه پیدا کن.',
+      'install.neverAgain': 'دیگر نشان نده',
       'settings.installApp': 'نصب اپ',
       // پنل مدیر ارشد (دستهٔ r)
       'nav.admin': 'مدیریت',

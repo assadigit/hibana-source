@@ -22,6 +22,31 @@ try {
   document.documentElement.dataset.pageWidth = w === 'full' ? 'full' : 'standard'
 } catch { /* storage unavailable — the CSS default (standard) applies */ }
 
+// Service Worker update → reload once so the new HTML/JS replaces the stale cached
+// version. Without this, a user with an active old SW keeps seeing the old settings.html
+// (etc.) even after a deploy — the old SW serves the cached shell, the new SW installs
+// in the background but only takes control on the NEXT navigation, and if the tab stays
+// open the user is stuck on stale UI. skipWaiting() + clients.claim() make the new SW
+// activate immediately, and this listener catches that controllerchange and reloads so
+// the fresh shell is what the user sees. Reload fires at most once per SW version (the
+// flag is keyed by the SW's script URL, which changes with each hibana-vNNN bump).
+if ('serviceWorker' in navigator) {
+  let reloading = false
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    if (reloading) return
+    reloading = true
+    try {
+      const last = sessionStorage.getItem('hibana-sw-reload')
+      const now = String(Date.now())
+      // Throttle: don't reload more than once per 5s (the event can fire twice on some
+      // browsers during a single SW swap). The sessionStorage flag survives the reload.
+      if (last && Date.now() - Number(last) < 5000) return
+      sessionStorage.setItem('hibana-sw-reload', now)
+      location.reload()
+    } catch { /* sessionStorage unavailable — reload anyway */ location.reload() }
+  })
+}
+
 document.addEventListener('alpine:init', () => {
   const q = window.__hibanaPageQueue || []
   if (!q.length) return

@@ -1,10 +1,19 @@
 // Rule 6: PBKDF2 via Web Crypto. bcrypt/argon2 need native bindings Workers doesn't provide,
 // so this is the documented, dependency-free alternative. Iterations are stored in the hash
 // string so they can be raised later without invalidating existing hashes.
+//
+// M2 fix (2026-09-10): raised from 100,000 to 600,000 per OWASP 2023 guidance for PBKDF2-
+// SHA256. The iteration count is stored per-hash, so existing 100k hashes still verify
+// correctly — and verifyPassword() exposes needsRehash() so the login route can silently
+// rehash at the new target on the next successful login (lazy upgrade, zero UX impact).
+// NOTE: 600k iterations takes ~150-300ms of CPU. Cloudflare Workers paid plan (30s CPU
+// default) handles this fine. The free plan (10ms CPU) will fail — upgrade to paid if
+// signup/reset are returning 500s after this change.
 
 import { timingSafeEqual } from '../lib/crypto'
 
-const ITERATIONS = 100_000 // >= 100,000 per rule 6
+const ITERATIONS = 600_000 // OWASP 2023 minimum for PBKDF2-SHA256 (was 100,000)
+const MIN_ACCEPTED_ITERATIONS = 100_000 // legacy hashes below this are rejected (tampering guard)
 const KEY_LEN_BITS = 256
 const SALT_BYTES = 16
 
@@ -39,7 +48,7 @@ export async function verifyPassword(password: string, stored: PasswordHash): Pr
   const parts = stored.split('$')
   if (parts.length !== 4 || parts[0] !== 'pbkdf2') return false
   const iterations = Number(parts[1])
-  if (!Number.isInteger(iterations) || iterations < 100_000) return false
+  if (!Number.isInteger(iterations) || iterations < MIN_ACCEPTED_ITERATIONS) return false
   const salt = fromB64(parts[2])
   const expected = fromB64(parts[3])
 
@@ -48,6 +57,20 @@ export async function verifyPassword(password: string, stored: PasswordHash): Pr
     await crypto.subtle.deriveBits({ name: 'PBKDF2', salt, iterations, hash: 'SHA-256' }, key, expected.length * 8),
   )
   return timingSafeEqual(bits, expected)
+}
+
+/**
+ * M2 fix (2026-09-10): returns true if the stored hash was hashed at a lower iteration
+ * count than the current target (ITERATIONS). The login route calls this after a
+ * successful verify and silently rehashes the password at the new target — zero UX
+ * impact, and the upgrade happens organically as users log in.
+ */
+export function needsRehash(stored: PasswordHash): boolean {
+  const parts = stored.split('$')
+  if (parts.length !== 4 || parts[0] !== 'pbkdf2') return false
+  const iterations = Number(parts[1])
+  if (!Number.isInteger(iterations) || iterations < MIN_ACCEPTED_ITERATIONS) return false
+  return iterations < ITERATIONS
 }
 
 // timingSafeEqual moved to src/lib/crypto.ts (P2.2 / F-L28).

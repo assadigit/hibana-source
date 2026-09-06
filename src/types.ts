@@ -18,6 +18,7 @@ export interface Env {
   CAPTCHA_SECRET_KEY?: string // math human-check HMAC secret (replaced Turnstile, 2026-08-30 (e))
   TURNSTILE_SECRET_KEY?: string // legacy — kept as the captcha secret's fallback
   OPEN_REGISTRATION?: string // 'true' = open signup (temporarily); unset/false = invite-only
+  BACKUP_ENCRYPTION_KEY?: string // base64 (32 bytes) AES-GCM key for at-rest backup encryption (C3 fix)
 }
 
 // Everything createApp() needs, in runtime-agnostic form — this is what makes the
@@ -33,6 +34,8 @@ export interface Config {
   captchaSecretKey?: string // math human-check HMAC secret (entries fall back to the legacy Turnstile secret)
   /** Default false — invite-only stays the safe mode; open signup is a deliberate toggle. */
   openRegistration?: boolean
+  /** Base64-encoded 32-byte AES-GCM key. When set, backups are encrypted at rest (C3). */
+  backupEncryptionKey?: string
   assets?: (url: URL, req?: Request) => Promise<Response>
 }
 

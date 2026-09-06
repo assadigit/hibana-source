@@ -15,6 +15,25 @@
   const RECENT_KEY = 'hibana-emoji-recent'
   const _t = (k, fa, en) => (window.hibanaI18n && window.hibanaI18n.t(k)) || (document.documentElement.dir === 'rtl' ? fa : en)
 
+  // M7 fix (2026-09-10): lazy-load emoji-data.js (49KB) only when the picker first opens.
+  // Was loaded eagerly on every dashboard/sadhana/to-do-list page load even though most
+  // users never open the picker. The script sets window.hibanaEmojiData; we cache the
+  // load promise so subsequent opens are instant.
+  let dataPromise = null
+  function ensureEmojiData() {
+    if (window.hibanaEmojiData) return Promise.resolve()
+    if (!dataPromise) {
+      dataPromise = new Promise((resolve, reject) => {
+        const s = document.createElement('script')
+        s.src = '/js/emoji-data.js?v=1'
+        s.onload = resolve
+        s.onerror = () => { dataPromise = null; reject(new Error('emoji-data load failed')) }
+        document.head.appendChild(s)
+      })
+    }
+    return dataPromise
+  }
+
   let root = null // .emoji-pop-wrap
   let backdrop = null
   let state = null // { onPick, activeGroup, term }
@@ -116,7 +135,10 @@
     close()
   }
 
-  function open(opts = {}) {
+  async function open(opts = {}) {
+    // M7 fix: ensure emoji-data.js is loaded before rendering. First open takes ~50ms
+    // (one script fetch); subsequent opens are instant (promise cached).
+    try { await ensureEmojiData() } catch { return }
     const data = window.hibanaEmojiData
     if (!data) return
     ensureDom()

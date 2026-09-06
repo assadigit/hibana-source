@@ -82,7 +82,7 @@ try {
   const { id } = await j(okRes)
   check('project created with tags', okRes.status === 201 && typeof id === 'string')
 
-  let res = await app.fetch(new Request('http://local/api/projects', { headers: auth }))
+  let res = await app.fetch(new Request('http://local/api/projects?status=spark', { headers: auth }))
   let body = await j(res)
   check('list returns the project with tags attached', body.projects.length === 1 && body.projects[0].tags.length === 2)
 
@@ -132,13 +132,20 @@ try {
     return realFetch(input, init)
   }
   try {
+    // Math captcha (2026-08-30): fetch a real challenge from the API and solve it.
+    // The old Turnstile stub (`challenges.cloudflare.com`) was retired — the captcha
+    // is now a self-hosted HMAC-signed arithmetic question with no network dependency.
+    const capRes = await app.fetch(new Request('http://local/api/auth/captcha'))
+    const capBody = await j(capRes)
+    const m = String(capBody.q).match(/^(\d+)\s*([+\-])\s*(\d+)\s*=$/)
+    const answer = m ? (m[2] === '+' ? Number(m[1]) + Number(m[3]) : Number(m[1]) - Number(m[3])) : 0
     const invite = await app.fetch(new Request('http://local/api/auth/invites', { method: 'POST', headers: auth }))
     const { code } = await j(invite)
     const reg = await app.fetch(
       new Request('http://local/api/auth/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ inviteCode: code, email: 'friend@test.dev', username: 'friend', password: 'friendpass12345', captcha: 'tok' }),
+        body: JSON.stringify({ inviteCode: code, email: 'friend@test.dev', username: 'friend', password: 'friendpass12345', captcha: String(answer), captcha_token: capBody.token }),
       }),
     )
     // register no longer auto-logs-in: the account is locked until the email code lands

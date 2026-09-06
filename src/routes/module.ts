@@ -105,11 +105,13 @@ export function moduleRoutes(cfg: Config) {
     )
     if (rows.length === 0) return c.json({ error: 'not_found' }, 404)
     const now = new Date().toISOString()
+    // L2 fix: add AND project_id = ? (the row was pre-validated via the SELECT above, but
+    // rule #1 defense-in-depth wants the filter on every UPDATE against user-owned tables).
     if (body.done !== undefined) {
-      await cfg.db.execute('UPDATE tasks SET done = ?, completed_at = ? WHERE id = ?', [body.done, body.done === 1 ? now : null, c.req.param('id')])
-      await cfg.db.execute('UPDATE projects SET updated_at = ? WHERE id = ?', [now, rows[0].project_id])
+      await cfg.db.execute('UPDATE tasks SET done = ?, completed_at = ? WHERE id = ? AND project_id = ?', [body.done, body.done === 1 ? now : null, c.req.param('id'), rows[0].project_id])
+      await cfg.db.execute('UPDATE projects SET updated_at = ? WHERE id = ? AND user_id = ?', [now, rows[0].project_id, user.id])
     }
-    if (body.title) await cfg.db.execute('UPDATE tasks SET title = ? WHERE id = ?', [body.title, c.req.param('id')])
+    if (body.title) await cfg.db.execute('UPDATE tasks SET title = ? WHERE id = ? AND project_id = ?', [body.title, c.req.param('id'), rows[0].project_id])
     if (c.req.header('HX-Request')) {
       c.header('HX-Redirect', '/api/clients')
       return c.html('')
@@ -153,9 +155,10 @@ export function moduleRoutes(cfg: Config) {
     )
     if (rows.length === 0) return c.json({ error: 'not_found' }, 404)
     const now = new Date().toISOString()
+    // L2 fix: add AND project_id = ? (defense-in-depth, rule #1).
     if (body.status) {
-      await cfg.db.execute('UPDATE payments SET status = ?, paid_at = ? WHERE id = ?', [body.status, body.status === 'paid' ? now : null, c.req.param('id')])
-      await cfg.db.execute('UPDATE projects SET updated_at = ? WHERE id = ?', [now, rows[0].project_id])
+      await cfg.db.execute('UPDATE payments SET status = ?, paid_at = ? WHERE id = ? AND project_id = ?', [body.status, body.status === 'paid' ? now : null, c.req.param('id'), rows[0].project_id])
+      await cfg.db.execute('UPDATE projects SET updated_at = ? WHERE id = ? AND user_id = ?', [now, rows[0].project_id, user.id])
     }
     if (c.req.header('HX-Request')) {
       c.header('HX-Redirect', '/api/clients')
@@ -182,7 +185,9 @@ export function moduleRoutes(cfg: Config) {
       [c.req.param('projectId'), user.id],
     )
     if (rows.length === 0) return c.json({ error: 'not_found' }, 404)
-    await cfg.db.execute('UPDATE projects SET reminders_enabled = ?, updated_at = ? WHERE id = ?', [body.enabled, new Date().toISOString(), rows[0].id])
+    // L2 fix: add AND user_id = ? (was `WHERE id = ?` only — the pre-check validates
+    // ownership, but rule #1 defense-in-depth wants the filter on every UPDATE).
+    await cfg.db.execute('UPDATE projects SET reminders_enabled = ?, updated_at = ? WHERE id = ? AND user_id = ?', [body.enabled, new Date().toISOString(), rows[0].id, user.id])
     if (c.req.header('HX-Request')) {
       // Re-render the client body so the toggle reflects the new state (same pattern
       // as tasks/payments: the button lives inside #client-body).

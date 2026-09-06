@@ -5,3 +5,4 @@ RESEND_KEY=re_your_resend_key            # optional until reminders / password r
 OWNER_EMAIL=you@example.com             # recipient for client-work reminders
 TELEGRAM_BOT_TOKEN=123456:ABC-YourToken # optional until Phase-5 bot
 TELEGRAM_SECRET=random-webhook-secret   # set the same value as the bot's secret_token
+BACKUP_ENCRYPTION_KEY=                  # base64-encoded 32-byte AES-GCM key. Generate: openssl rand -base64 32

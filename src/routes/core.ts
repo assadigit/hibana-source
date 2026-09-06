@@ -6,6 +6,7 @@ import { getOwnedProject, icon, toastHtml } from '../lib/html'
 import { localeOf, trFor, trL, type Locale } from '../lib/i18n'
 import { uuid } from '../lib/ids'
 import { githubClient, type GitHubConfig } from '../services/github'
+import { clientIp, hitRateLimit, RATE_RULES } from '../services/ratelimit'
 import {
   createHurdleSchema,
   hurdleReorderSchema,
@@ -267,6 +268,12 @@ export function coreRoutes(cfg: Config) {
   })
 
   app.post('/api/projects/:projectId/screenshots', async (c) => {
+    // M8 fix (2026-09-10): wire the upload rate limiter — screenshots push bytes into the
+    // GitHub assets repo, and under open registration (now invite-only) an authed abuser
+    // could spam uploads unbounded. 30 req/60s per IP matches the RATE_RULES.upload intent.
+    if (await hitRateLimit(cfg.db, RATE_RULES.upload, clientIp(c))) {
+      return c.json({ error: 'rate_limited', message: 'Too many uploads — wait a minute and try again.' }, 429)
+    }
     // P1.1 (F-H1): reject oversized uploads BEFORE jsonBody() buffers the whole body — a
     // 140 MB base64 payload would OOM the Worker. 7 MB Content-Length ceiling sits above
     // the 5 MB base64 Zod cap (which rejects the rest), so legit screenshots never trip it.

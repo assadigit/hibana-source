@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Notifications — Hibana</title>
-  <link rel="stylesheet" href="/css/app.css?v=200">
+  <link rel="stylesheet" href="/css/app.css?v=201">
   <link rel="stylesheet" href="/vendor/manrope/font-face.css">
   <script src="/vendor/htmx.min.js" defer></script>
   <script src="/js/boot.js?v=3"></script>
@@ -22,8 +22,9 @@
   <script src="/js/install-prompt.js?v=1" defer></script>
 </head>
 <body>
+  <a href="#main" class="skip-link" data-i18n="a11y.skipToMain">Skip to main content</a>
   <div data-nav></div>
-  <main class="shell">
+  <main class="shell" id="main" tabindex="-1">
     <div class="row spread notif-head">
       <h1 data-i18n="notif.title">Notifications</h1>
       <div id="notif-summary" class="notif-summary" hidden></div>

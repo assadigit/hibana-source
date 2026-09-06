@@ -7,6 +7,7 @@ import { localeOf, trFor } from '../lib/i18n'
 import { calendarFor } from '../lib/jalali'
 import { uuid } from '../lib/ids'
 import { githubClient, type GitHubConfig } from '../services/github'
+import { clientIp, hitRateLimit, RATE_RULES } from '../services/ratelimit'
 import type { Config, UserRow } from '../types'
 
 // Settings (spec §5.8): language/calendar/timezone live on the user record (multi-device).
@@ -104,6 +105,11 @@ export function settingsRoutes(cfg: Config) {
 
   // Upload/replace the profile picture. Replaces the previous remote file (best-effort).
   app.put('/avatar', async (c) => {
+    // M8 fix (2026-09-10): wire the upload rate limiter — avatar uploads push bytes into
+    // the GitHub assets repo. 30 req/60s per IP.
+    if (await hitRateLimit(cfg.db, RATE_RULES.upload, clientIp(c))) {
+      return c.json({ error: 'rate_limited', message: 'Too many uploads — wait a minute and try again.' }, 429)
+    }
     const body = await jsonBody<z.infer<typeof avatarUploadSchema>>(c, avatarUploadSchema)
     if (!body) return c.json({ error: 'invalid_input' }, 400)
     const user = c.get('user')

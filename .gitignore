@@ -5,6 +5,7 @@ node_modules/
 .admin.secrets
 .env
 dist/
+public/dist/
 coverage/
 data/
 *.sql.tmp

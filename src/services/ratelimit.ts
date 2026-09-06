@@ -24,6 +24,10 @@ export const RATE_RULES = {
   export: { name: 'export', limit: 10, windowSec: 60 },
   import: { name: 'import', limit: 5, windowSec: 60 },
   upload: { name: 'upload', limit: 30, windowSec: 60 },
+  // L4 fix (2026-09-10): broadcast sends up to 40 sequential Resend API calls per request.
+  // 2 per 60s per IP is generous for a real broadcast (owner-only) but stops a runaway
+  // script or a compromised owner session from flooding Resend's API.
+  broadcast: { name: 'broadcast', limit: 2, windowSec: 60 },
 } as const satisfies Record<string, RateRule>
 
 /**

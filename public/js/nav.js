@@ -125,11 +125,24 @@
         if (seq !== navSeq) return // a newer navigation superseded this one
       }
 
-      // Run the fetched page's inline scripts in function scope (no global `const` collisions).
-      // They self-register through __hibanaPage → applyDef above.
+      // Run the fetched page's inline scripts. adoptNode doesn't auto-execute inline
+      // scripts (they were already "executed" in the source document's context during
+      // DOMParser parse — but that context is detached and they didn't actually run).
+      // M4 fix (2026-09-10): replaced `new Function(s.textContent)()` with the standard
+      // script-element re-injection pattern — create a new <script> element, set its
+      // textContent, and append it. This is functionally identical (the browser executes
+      // it in the same global scope) but avoids the eval-equivalent `new Function` path,
+      // so CSP 'unsafe-eval' is no longer required for THIS code path (Alpine still needs
+      // it for x-data expressions). The scripts self-register through __hibanaPage →
+      // applyDef above.
       for (const s of doc.querySelectorAll('script:not([src])')) {
         if (s.type && s.type !== 'text/javascript') continue
-        try { new Function(s.textContent)() } catch (err) { console.error('hibana page script:', err) }
+        try {
+          const runner = document.createElement('script')
+          runner.textContent = s.textContent
+          document.head.appendChild(runner)
+          runner.remove() // clean up the now-executed element
+        } catch (err) { console.error('hibana page script:', err) }
       }
 
       // htmx + Alpine take over the fresh subtree.

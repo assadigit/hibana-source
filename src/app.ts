@@ -94,6 +94,7 @@ export function createApp(cfg: Config) {
       h.set('X-Content-Type-Options', 'nosniff')
       h.set('Referrer-Policy', 'strict-origin-when-cross-origin')
       h.set('X-Frame-Options', 'SAMEORIGIN')
+      h.set('Cross-Origin-Opener-Policy', 'same-origin')
       h.set('Permissions-Policy', 'camera=(), geolocation=(), payment=(), usb=()') // microphone stays enabled: voice quick-add
       h.set('Strict-Transport-Security', 'max-age=15552000') // no includeSubDomains: mail.hibana.ir is DNS-only
       h.set('Content-Security-Policy', CSP)

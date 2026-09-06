@@ -295,8 +295,11 @@ window.hibanaNotebook = (() => {
     if (!boardIsDark()) return
     obj.filters = obj.filters ?? []
     // Order matters: HueRotation FIRST, then Invert (see the math comment above).
-    obj.filters.push(new fabric.Image.filters.HueRotation({ rotation: Math.PI }))
-    obj.filters.push(new fabric.Image.filters.Invert())
+    // L14 fix (2026-09-10): fabric v6 moved filters from fabric.Image.filters.* to fabric.filters.*
+    // The shim provides both paths, but the canonical v6 path is fabric.filters.*
+    const filters = window.fabric?.filters ?? fabric.Image?.filters ?? {}
+    obj.filters.push(new filters.HueRotation({ rotation: Math.PI }))
+    obj.filters.push(new filters.Invert())
     obj.applyFilters()
   }
 

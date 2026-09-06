@@ -466,7 +466,7 @@ describe('telegram account linking — any authenticated user', () => {
     try {
       const memberId = await makeUser(db, { role: 'member' })
       const { app, auth } = await makeApp(db, memberId)
-      const res = await app.fetch(new Request('http://local/api/telegram/link-code', { headers: auth }))
+      const res = await app.fetch(new Request('http://local/api/telegram/link-code', { method: 'POST', headers: auth }))
       expect(res.status).toBe(200)
       const body = (await res.json()) as { ok: boolean; code: string }
       expect(body.ok).toBe(true)
@@ -484,8 +484,8 @@ describe('telegram account linking — any authenticated user', () => {
     try {
       const memberId = await makeUser(db, { role: 'member' })
       const { app, auth } = await makeApp(db, memberId)
-      const first = (await (await app.fetch(new Request('http://local/api/telegram/link-code', { headers: auth }))).json()) as { code: string }
-      const second = (await (await app.fetch(new Request('http://local/api/telegram/link-code', { headers: auth }))).json()) as { code: string }
+      const first = (await (await app.fetch(new Request('http://local/api/telegram/link-code', { method: 'POST', headers: auth }))).json()) as { code: string }
+      const second = (await (await app.fetch(new Request('http://local/api/telegram/link-code', { method: 'POST', headers: auth }))).json()) as { code: string }
       expect(second.code).not.toBe(first.code)
       const links = await db.query<{ code: string }>('SELECT code FROM telegram_links WHERE user_id = ?', [memberId])
       expect(links.length).toBe(1)
@@ -507,7 +507,7 @@ describe('telegram account linking — any authenticated user', () => {
         'bbbb2222', memberB, new Date().toISOString(),
       ])
       const { app, auth } = await makeApp(db, memberA)
-      const res = await app.fetch(new Request('http://local/api/telegram/link-code', { headers: auth }))
+      const res = await app.fetch(new Request('http://local/api/telegram/link-code', { method: 'POST', headers: auth }))
       expect(res.status).toBe(200)
       expect((await db.query('SELECT code FROM telegram_links WHERE code = ?', ['aaaa1111'])).length).toBe(0)
       expect((await db.query('SELECT code FROM telegram_links WHERE code = ?', ['bbbb2222'])).length).toBe(1)
@@ -566,7 +566,7 @@ describe('telegram account linking — any authenticated user', () => {
       expect(before.linked).toBe(false) // fresh member, never linked
       expect(before.chat_id).toBeNull()
 
-      const code = ((await (await app.fetch(new Request('http://local/api/telegram/link-code', { headers: auth }))).json()) as { code: string }).code
+      const code = ((await (await app.fetch(new Request('http://local/api/telegram/link-code', { method: 'POST', headers: auth }))).json()) as { code: string }).code
       const bot = stubTelegram()
       try {
         const res = await app.fetch(
@@ -596,7 +596,7 @@ describe('telegram account linking — any authenticated user', () => {
     try {
       const memberId = await makeUser(db, { role: 'member' })
       const { app, auth } = await makeApp(db, memberId)
-      const code = ((await (await app.fetch(new Request('http://local/api/telegram/link-code', { headers: auth }))).json()) as { code: string }).code
+      const code = ((await (await app.fetch(new Request('http://local/api/telegram/link-code', { method: 'POST', headers: auth }))).json()) as { code: string }).code
       const bot = stubTelegram()
       try {
         const res = await app.fetch(
@@ -686,7 +686,7 @@ describe('telegram bot commands — /note, /idea, /list (quick notes on the dash
   const linkMember = async (db: Db, chatId = 700, fromId = 701) => {
     const memberId = await makeUser(db, { role: 'member' })
     const { app, auth } = await makeApp(db, memberId)
-    const code = ((await (await app.fetch(new Request('http://local/api/telegram/link-code', { headers: auth }))).json()) as { code: string }).code
+    const code = ((await (await app.fetch(new Request('http://local/api/telegram/link-code', { method: 'POST', headers: auth }))).json()) as { code: string }).code
     const bot = stubTelegram()
     try {
       const res = await webhook(app, `/start ${code}`, chatId, fromId)
@@ -941,7 +941,7 @@ describe('telegram /status + /pause + /resume (spec §5.17/§6.22)', () => {
   const linkMember = async (db: Db, chatId = 750, fromId = 751) => {
     const memberId = await makeUser(db, { role: 'member' })
     const { app, auth } = await makeApp(db, memberId)
-    const code = ((await (await app.fetch(new Request('http://local/api/telegram/link-code', { headers: auth }))).json()) as { code: string }).code
+    const code = ((await (await app.fetch(new Request('http://local/api/telegram/link-code', { method: 'POST', headers: auth }))).json()) as { code: string }).code
     const bot = stubTelegram()
     try {
       const res = await webhook(app, `/start ${code}`, chatId, fromId)

@@ -17,10 +17,33 @@
 // Phase 6 item 12 (2026-09-09): paint the user's page-width choice (localStorage
 // 'hibana-page-width' — 'standard' | 'full') on <html> BEFORE first render. Synchronous,
 // runs in every page's <head>, so the width never flashes from the old per-page default.
+//
+// M5 fix (2026-09-10): also paint the user's language + direction synchronously from
+// localStorage 'hibana-lang' BEFORE first render. i18n.js's apply() is async (awaits
+// /api/auth/me), so without this every page started as lang=en dir=ltr and flashed to
+// fa/rtl when apply() resolved — a visible LTR/English FOUC for Farsi users on every
+// navigation. The cached value is updated by i18n.js on every successful apply(); if it's
+// stale (e.g. the user changed language on another device), apply() corrects it in <300ms.
 try {
   const w = localStorage.getItem('hibana-page-width')
   document.documentElement.dataset.pageWidth = w === 'full' ? 'full' : 'standard'
 } catch { /* storage unavailable — the CSS default (standard) applies */ }
+
+try {
+  const cachedLang = localStorage.getItem('hibana-lang')
+  if (cachedLang === 'fa' || cachedLang === 'en') {
+    document.documentElement.lang = cachedLang
+    document.documentElement.dir = cachedLang === 'fa' ? 'rtl' : 'ltr'
+    // Pre-load the Vazir font for Farsi so the first paint already has the right typeface
+    if (cachedLang === 'fa') {
+      const link = document.createElement('link')
+      link.rel = 'stylesheet'
+      link.dataset.vazir = '1'
+      link.href = '/vendor/vazir/font-face.css'
+      document.head.appendChild(link)
+    }
+  }
+} catch { /* storage unavailable — i18n.js apply() handles it async */ }
 
 // Service Worker update → reload once so the new HTML/JS replaces the stale cached
 // version. Without this, a user with an active old SW keeps seeing the old settings.html

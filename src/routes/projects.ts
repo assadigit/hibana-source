@@ -775,19 +775,26 @@ export function projectsRoutes(cfg: Config) {
       [id, user.id, body.title, body.description, body.type, body.status, body.reminders_enabled ?? 0, body.client_name ?? null, body.due_date ?? null, now, now],
     )
     // Optional tags on create (quick-add modal, spec §5.5): find-or-create per user, then link.
+    // H1 fix (2026-09-10): resolve tag IDs atomically via INSERT ... ON CONFLICT ... RETURNING
+    // BEFORE the transaction. The old read-then-write pattern (SELECT inside the transaction)
+    // raced on concurrent same-name tag creation — both requests saw no existing tag, both
+    // tried INSERT, and the UNIQUE(user_id, name) violation rolled back the whole batch.
     if (body.tags && body.tags.length > 0) {
+      const tagIds: string[] = []
+      for (const t of body.tags ?? []) {
+        const name = t.name.trim()
+        if (!name) continue
+        const rows = await cfg.db.query<{ id: string }>(
+          `INSERT INTO tags (id, user_id, name, color, usage_count, created_at)
+           VALUES (?, ?, ?, ?, 0, ?)
+           ON CONFLICT(user_id, name) DO UPDATE SET usage_count = tags.usage_count
+           RETURNING id`,
+          [uuid(), user.id, name, t.color ?? '#f6d365', now],
+        )
+        if (rows[0]) tagIds.push(rows[0].id)
+      }
       await cfg.db.transaction(async (tx) => {
-        for (const t of body.tags ?? []) {
-          const name = t.name.trim()
-          const found = await cfg.db.query<{ id: string }>('SELECT id FROM tags WHERE user_id = ? AND name = ?', [
-            user.id, name,
-          ])
-          let tagId = found.length ? found[0].id : uuid()
-          if (!found.length) {
-            tx.sql('INSERT INTO tags (id, user_id, name, color, usage_count, created_at) VALUES (?, ?, ?, ?, 0, ?)', [
-              tagId, user.id, name, t.color ?? '#f6d365', now,
-            ])
-          }
+        for (const tagId of tagIds) {
           tx.sql('INSERT OR IGNORE INTO project_tags (project_id, tag_id) VALUES (?, ?)', [id, tagId])
         }
       })
@@ -997,7 +1004,10 @@ export function projectsRoutes(cfg: Config) {
     const p = await getOwnedProject(cfg, user.id, c.req.param('id'))
     if (!p) return c.json({ error: 'not_found' }, 404)
     const now = new Date().toISOString()
-    await cfg.db.execute('UPDATE projects SET latest_note = ?, updated_at = ? WHERE id = ?', [body.note, now, p.id])
+    // L2 fix (2026-09-10): add AND user_id = ? as belt-and-suspenders defense-in-depth.
+    // The project p was pre-validated via getOwnedProject, but rule #1 says every user-owned
+    // query should filter on user_id — consistency closes the "what if the pre-check regresses" gap.
+    await cfg.db.execute('UPDATE projects SET latest_note = ?, updated_at = ? WHERE id = ? AND user_id = ?', [body.note, now, p.id, p.user_id])
     // Autosave can fire many times with the same text — only log a history entry when the
     // note actually changed, so the trail stays meaningful (user request: save as you type).
     if (body.note !== p.latest_note) {

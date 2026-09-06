@@ -12,7 +12,7 @@
   <link rel="icon" href="/favicon.ico">
   <link rel="manifest" href="/manifest.webmanifest">
   <meta name="theme-color" content="#EDE8DF">
-  <link rel="stylesheet" href="/css/app.css?v=200">
+  <link rel="stylesheet" href="/css/app.css?v=201">
   <link rel="stylesheet" href="/vendor/manrope/font-face.css">
   <link rel="stylesheet" href="/vendor/vazir/font-face.css">
   <script>
@@ -23,9 +23,8 @@
        auth guard), i18n (topbar + title translation), soft-nav, command palette,
        mobile bottom bar, PWA install prompt. No Alpine/htmx — the board is plain JS. -->
   <script src="/js/queue.js" defer></script>
-  <!-- Phase 6 item 2: the full emoji library + the shared picker dialog -->
-  <script src="/js/emoji-data.js?v=1" defer></script>
-  <script src="/js/emoji-picker.js?v=1" defer></script>
+  <!-- M7: emoji-data.js lazy-loaded by emoji-picker.js on first open (saves 49KB on every page load) -->
+  <script src="/js/emoji-picker.js?v=2" defer></script>
   <script src="/js/app.js?v=159" defer></script>
   <script src="/js/touch-drag.js" defer></script>
   <script src="/js/i18n.js?v=31" defer></script>

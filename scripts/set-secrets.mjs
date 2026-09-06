@@ -45,10 +45,37 @@ for (const [key, value] of entries) {
 }
 
 // Mirrors into .dev.vars so `wrangler dev` works locally too.
-const devVars = entries.filter((e) => e[1].trim())
-if (devVars.length) {
-  writeFileSync(join(process.cwd(), '.dev.vars'), devVars.map((e) => e.join('=')).join('\n') + '\n')
-  console.log('  ✓ .dev.vars written for local development (gitignored)')
+// L9 fix (2026-09-10): MERGE with any existing .dev.vars instead of overwriting. The old
+// behavior wiped manual dev vars (custom ENVIRONMENT overrides, test keys) on every re-run.
+// Existing keys are updated with the new value from .secrets.env; keys only in .dev.vars
+// are preserved. Lines starting with # (comments) are kept as-is.
+const devVarsPath = join(process.cwd(), '.dev.vars')
+const existingLines = existsSync(devVarsPath) ? readFileSync(devVarsPath, 'utf8').split(/\r?\n/) : []
+const existingMap = new Map()
+const preservedLines = [] // comment lines + blank lines + keys NOT in .secrets.env
+for (const line of existingLines) {
+  const trimmed = line.trim()
+  if (!trimmed || trimmed.startsWith('#')) { preservedLines.push(line); continue }
+  const eqIdx = trimmed.indexOf('=')
+  if (eqIdx < 0) { preservedLines.push(line); continue }
+  const key = trimmed.slice(0, eqIdx).trim()
+  existingMap.set(key, line)
+}
+// Write: .secrets.env entries (with values) first, then any preserved lines whose keys
+// weren't in .secrets.env (keeps manual additions without duplicating managed keys).
+const managedKeys = new Set(entries.filter((e) => e[1]?.trim()).map((e) => e[0]))
+const outLines = entries.filter((e) => e[1]?.trim()).map((e) => e.join('='))
+for (const line of preservedLines) {
+  const trimmed = line.trim()
+  if (!trimmed || trimmed.startsWith('#')) { outLines.push(line); continue }
+  const eqIdx = trimmed.indexOf('=')
+  if (eqIdx < 0) { outLines.push(line); continue }
+  const key = trimmed.slice(0, eqIdx).trim()
+  if (!managedKeys.has(key)) outLines.push(line) // preserve manual additions
+}
+if (outLines.length) {
+  writeFileSync(devVarsPath, outLines.join('\n') + '\n')
+  console.log('  ✓ .dev.vars merged for local development (gitignored)')
 }
 
 if (missing) console.warn(`\n${missing} value(s) were empty and skipped.`)

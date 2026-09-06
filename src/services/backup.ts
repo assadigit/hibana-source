@@ -5,6 +5,69 @@ import type { Db } from '../db/types'
 // to the GitHub assets repo by a scheduled cron. Rule 8: users.password_hash is excluded
 // and sessions is excluded entirely — credentials never touch git history.
 // §15: the file carries schema_version so old snapshots stay interpretable after changes.
+//
+// C3 fix (2026-09-10): when BACKUP_ENCRYPTION_KEY is set, the snapshot is encrypted with
+// AES-GCM (256-bit, 12-byte IV, GCM tag) BEFORE base64. The encrypted blob carries a
+// magic prefix so restore auto-detects encrypted vs legacy plaintext. Without the key
+// the app falls back to plaintext (dev/test convenience) — production MUST set the secret.
+
+// Magic prefix for encrypted backups: lets restore.mjs auto-detect the format.
+// Layout: b64( "HIBENC1" + 0x00 + IV(12 bytes) + ciphertext+tag )
+const ENCRYPTED_MAGIC = 'HIBENC1'
+const MAGIC_SEPARATOR = 0x00
+const IV_BYTES = 12
+
+/** Import a base64-encoded 32-byte key into a Web Crypto AES-GCM CryptoKey. */
+async function importAesKey(b64Key: string): Promise<CryptoKey> {
+  const raw = base64ToBytes(b64Key)
+  if (raw.byteLength !== 32) throw new Error(`BACKUP_ENCRYPTION_KEY must be 32 bytes (base64), got ${raw.byteLength}`)
+  return crypto.subtle.importKey('raw', raw as BufferSource, { name: 'AES-GCM' }, false, ['encrypt', 'decrypt'])
+}
+
+/** Encrypt UTF-8 plaintext bytes → returns the full encrypted blob (magic + separator + IV + ciphertext). */
+async function encryptBackup(key: CryptoKey, plaintext: Uint8Array): Promise<Uint8Array> {
+  const iv = crypto.getRandomValues(new Uint8Array(IV_BYTES))
+  const cipher = new Uint8Array(await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, plaintext as BufferSource))
+  // Assemble: magic string + 0x00 + IV + ciphertext (which includes the 16-byte GCM tag)
+  const magicBytes = new TextEncoder().encode(ENCRYPTED_MAGIC)
+  const out = new Uint8Array(magicBytes.length + 1 + iv.length + cipher.length)
+  out.set(magicBytes, 0)
+  out[magicBytes.length] = MAGIC_SEPARATOR
+  out.set(iv, magicBytes.length + 1)
+  out.set(cipher, magicBytes.length + 1 + iv.length)
+  return out
+}
+
+/** Decrypt an encrypted blob back to UTF-8 plaintext bytes. */
+export async function decryptBackup(key: CryptoKey, blob: Uint8Array): Promise<Uint8Array> {
+  const magicBytes = new TextEncoder().encode(ENCRYPTED_MAGIC)
+  if (blob.length < magicBytes.length + 1 + IV_BYTES + 16) throw new Error('encrypted blob too short')
+  const sepIdx = magicBytes.length
+  const ivStart = sepIdx + 1
+  const cipherStart = ivStart + IV_BYTES
+  const iv = blob.subarray(ivStart, cipherStart)
+  const cipher = blob.subarray(cipherStart)
+  return new Uint8Array(await crypto.subtle.decrypt({ name: 'AES-GCM', iv: iv as BufferSource }, key, cipher as BufferSource))
+}
+
+/** Does this decoded blob start with the encrypted magic prefix? */
+export function isEncryptedBlob(bytes: Uint8Array): boolean {
+  const magicBytes = new TextEncoder().encode(ENCRYPTED_MAGIC)
+  if (bytes.length < magicBytes.length + 1) return false
+  for (let i = 0; i < magicBytes.length; i++) {
+    if (bytes[i] !== magicBytes[i]) return false
+  }
+  return bytes[magicBytes.length] === MAGIC_SEPARATOR
+}
+
+/** Decode a base64 string into bytes (handles standard + URL-safe, strips padding). */
+function base64ToBytes(b64: string): Uint8Array {
+  const cleaned = b64.replace(/-/g, '+').replace(/_/g, '/').replace(/=+$/, '')
+  const bin = atob(cleaned)
+  const out = new Uint8Array(bin.length)
+  for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i)
+  return out
+}
 
 // Every user-owned table + support tables. FTS virtual tables are excluded on purpose
 // (they rebuild from triggers). Projects_fts/changelogs_fts carry no source data of their own.
@@ -120,7 +183,7 @@ export async function buildUserSnapshot(db: Db, userId: string): Promise<Snapsho
   }
 }
 
-export async function backupToGitHub(db: Db, gh: GitHubConfig, ownerUserId?: string, keepN = BACKUP_RETENTION_DEFAULT): Promise<{ path: string; url: string; retained: string[] }> {
+export async function backupToGitHub(db: Db, gh: GitHubConfig, ownerUserId?: string, keepN = BACKUP_RETENTION_DEFAULT, encryptionKey?: string): Promise<{ path: string; url: string; retained: string[] }> {
   const snapshot = await buildSnapshot(db)
   const ts = new Date().toISOString().replace(/[:.]/g, '-')
   const path = `backups/snapshot-${ts}.json`
@@ -129,22 +192,22 @@ export async function backupToGitHub(db: Db, gh: GitHubConfig, ownerUserId?: str
   // would kill the nightly backup. Encode to UTF-8 bytes and build the binary string in
   // 8k chunks (a spread String.fromCharCode on the whole array would blow the stack).
   //
-  // P3.5 (F-M4) tier (b): release the json + bytes references as soon as the binary
-  // string is built, so the peak holds only (bin + the base64 output), not (json +
-  // bytes + bin + base64) all at once. The full snapshot still exists in memory (the
-  // Contents API PUT requires the complete base64 string), but the transient copies
-  // don't pile up. The real OOM fix is tier (a) — the Git Data API (create blob →
-  // tree → commit), so the snapshot never exists as one base64 blob; deferred until
-  // (b)+(c) (c = the structured-log + owner-email alert from P3.1) prove insufficient
-  // at the solo-owner DB size. Dropping tables (P2.5) already shrank the snapshot.
-  let json = JSON.stringify(snapshot, null, 2)
-  const bytes = new TextEncoder().encode(json)
+  // C3 fix (2026-09-10): if an encryption key is configured, the UTF-8 bytes are
+  // encrypted with AES-GCM before base64 — the GitHub repo never holds plaintext.
+  // Without a key (dev/test) the behavior is unchanged (plaintext base64, auto-detected
+  // by restore on read via the HIBENC1 magic prefix).
+  const jsonBytes = new TextEncoder().encode(JSON.stringify(snapshot, null, 2))
+  let bytesForBase64: Uint8Array = jsonBytes
+  let encrypted = false
+  if (encryptionKey) {
+    const key = await importAesKey(encryptionKey)
+    bytesForBase64 = await encryptBackup(key, jsonBytes)
+    encrypted = true
+  }
   let bin = ''
-  for (let i = 0; i < bytes.length; i += 8192) bin += String.fromCharCode(...bytes.subarray(i, i + 8192))
-  json = '' // release the json string reference (the bytes held the same data)
+  for (let i = 0; i < bytesForBase64.length; i += 8192) bin += String.fromCharCode(...bytesForBase64.subarray(i, i + 8192))
   const b64 = btoa(bin)
-  bin = '' // release the binary string once base64 is built
-  const pushed = await client.pushFile(path, b64, 'Hibana automated backup')
+  const pushed = await client.pushFile(path, b64, encrypted ? 'Hibana automated backup (encrypted)' : 'Hibana automated backup')
   const retained = await enforceRetention(client, keepN)
   return { path, url: pushed.html_url, retained }
 }
@@ -152,7 +215,7 @@ export async function backupToGitHub(db: Db, gh: GitHubConfig, ownerUserId?: str
 // Backup retention (ROADMAP P2): snapshots accumulate daily forever; without cleanup the
 // assets repo grows without bound. Keep only the newest N. Filenames carry ISO-8601 UTC
 // timestamps, so lexicographic order == chronological order — "newest" is the highest name.
-export const BACKUP_RETENTION_DEFAULT = 120 // dev + prod both write here: 120 ≈ two months of daily snapshots × 2 workers
+export const BACKUP_RETENTION_DEFAULT = 120 // 4×/day × 2 workers (dev+prod) = 8/day → 120 ≈ 15 days of snapshots
 
 /** Pure convenience for tests/blob expectations: which snapshot files are older than the newest `keepN`? */
 export function selectOldBackups(paths: string[], keepN: number): string[] {

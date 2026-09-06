@@ -146,11 +146,6 @@ export async function getOwnedProject(cfg: Config, userId: string, id: string): 
   return rows.length ? rows[0] : null
 }
 
-/** Scoped child lookup: row must belong to a project that belongs to the user. */
-export async function ownedProject(cfg: Config, userId: string, table: string, recordId: string): Promise<string | null> {
-  const rows = await cfg.db.query<{ project_id: string }>(
-    `SELECT project_id FROM ${table} WHERE id = ? AND project_id IN (SELECT id FROM projects WHERE user_id = ? AND deleted_at IS NULL)`,
-    [recordId, userId],
-  )
-  return rows.length ? rows[0].project_id : null
-}
+// L3 fix (2026-09-10): deleted the unused ownedProject() export — it interpolated
+// `${table}` with no allowlist (the live ownedProjectId in core.ts:46 gates through
+// assertChildTable). Dead code since getOwnedProject + ownedProjectId cover every call site.

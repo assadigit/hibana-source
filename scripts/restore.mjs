@@ -4,6 +4,9 @@
 //   node scripts/restore.mjs --file snapshot-XXX.json            # into local SQLite (DB_PATH env or ./data/hibana.db)
 //   node scripts/restore.mjs --file snapshot-XXX.json --d1 pm-app-dev   # into Cloudflare D1 (requires wrangler auth)
 // The snapshot format is exactly what src/services/backup.ts writes (schema_version + data tables).
+// C3 fix (2026-09-10): if the file starts with the HIBENC1 magic prefix, it's an AES-GCM
+// encrypted backup — set BACKUP_ENCRYPTION_KEY (base64 32-byte key) to decrypt. Legacy
+// plaintext JSON files are still handled for backwards compatibility.
 //
 // Auth is intentionally NOT restored: snapshots carry no password_hash (rule 8) and users has
 // NOT NULL password_hash, so `users`/`sessions` are skipped — seed the admin on a fresh target
@@ -16,6 +19,7 @@ import { execFileSync } from 'node:child_process'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { DatabaseSync } from 'node:sqlite'
+import { webcrypto } from 'node:crypto'
 
 const args = process.argv.slice(2)
 const fileIdx = args.indexOf('--file')
@@ -27,7 +31,57 @@ if (fileIdx === -1) {
 const file = args[fileIdx + 1]
 const d1Name = d1Idx !== -1 ? args[d1Idx + 1] : null
 
-const snapshot = JSON.parse(readFileSync(file, 'utf8'))
+const ENCRYPTED_MAGIC = 'HIBENC1'
+const IV_BYTES = 12
+
+function base64ToBytes(b64) {
+  const cleaned = b64.replace(/-/g, '+').replace(/_/g, '/').replace(/=+$/, '')
+  const bin = Buffer.from(cleaned, 'base64')
+  return new Uint8Array(bin)
+}
+
+function isBase64Content(raw) {
+  // Heuristic: if the file content is valid base64 AND starts with the encrypted magic
+  // prefix after decoding, it's an encrypted backup. Otherwise it's plaintext JSON.
+  try {
+    const text = raw.toString('utf8').trim()
+    if (text.startsWith('{')) return false // plaintext JSON
+    const decoded = Buffer.from(text, 'base64')
+    if (decoded.length < ENCRYPTED_MAGIC.length + 1) return false
+    const magic = decoded.subarray(0, ENCRYPTED_MAGIC.length).toString('utf8')
+    return magic === ENCRYPTED_MAGIC
+  } catch {
+    return false
+  }
+}
+
+async function decryptSnapshot(b64Content, keyB64) {
+  const raw = base64ToBytes(b64Content)
+  const magicLen = ENCRYPTED_MAGIC.length
+  const iv = raw.subarray(magicLen + 1, magicLen + 1 + IV_BYTES)
+  const cipher = raw.subarray(magicLen + 1 + IV_BYTES)
+  const keyBytes = base64ToBytes(keyB64)
+  if (keyBytes.byteLength !== 32) throw new Error(`BACKUP_ENCRYPTION_KEY must be 32 bytes, got ${keyBytes.byteLength}`)
+  const key = await webcrypto.subtle.importKey('raw', keyBytes, { name: 'AES-GCM' }, false, ['decrypt'])
+  const plain = await webcrypto.subtle.decrypt({ name: 'AES-GCM', iv }, key, cipher)
+  return Buffer.from(plain).toString('utf8')
+}
+
+const rawFile = readFileSync(file)
+let jsonText
+if (isBase64Content(rawFile)) {
+  const encKey = process.env.BACKUP_ENCRYPTION_KEY
+  if (!encKey) {
+    console.error('This backup is encrypted (HIBENC1). Set BACKUP_ENCRYPTION_KEY env var (base64 32-byte key) to decrypt.')
+    process.exit(1)
+  }
+  console.log('Decrypting encrypted backup (HIBENC1 / AES-GCM)...')
+  jsonText = await decryptSnapshot(rawFile.toString('utf8').trim(), encKey)
+} else {
+  jsonText = rawFile.toString('utf8')
+}
+
+const snapshot = JSON.parse(jsonText)
 // FK-safe order (parents before children; FTS virtual tables rebuild via triggers).
 // `users` is intentionally NOT here: rule 8 excludes users.password_hash from backups, the
 // column is NOT NULL, and auth principals are created on the target via seed:admin, never

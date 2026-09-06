@@ -1166,6 +1166,11 @@ window.hibanaI18n = (() => {
     document.documentElement.lang = lang
     document.documentElement.dir = lang === 'fa' ? 'rtl' : 'ltr'
     ensureVazir()
+    // M5 fix (2026-09-10): cache the resolved lang/dir so boot.js can apply them
+    // SYNCHRONOUSLY before first paint on the next page load. Without this, every page
+    // starts as lang=en dir=ltr and flashes to fa/rtl when this async apply() resolves —
+    // a visible LTR/English FOUC for Farsi users on every navigation.
+    try { localStorage.setItem('hibana-lang', lang) } catch { /* storage unavailable */ }
 
     // Localized document title (visible in browser chrome / PWA / history — user request
     // 2026-08-29 "every item translated"). Only mapped app pages; login/signup stay EN.

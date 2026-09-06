@@ -1,4 +1,4 @@
-import { Hono } from 'hono'
+import { Hono, type MiddlewareHandler } from 'hono'
 import { githubClient } from '../services/github'
 import { requireAuth } from '../auth/middleware'
 import { isHtmx, esc } from '../lib/http'
@@ -8,13 +8,21 @@ import type { Config, UserRow } from '../types'
 export function devRoutes(cfg: Config) {
   const app = new Hono<{ Variables: { user: UserRow } }>()
 
-  app.get('/github-ping', requireAuth(cfg), async (c) => {
+  // L1 fix (2026-09-10): one owner-gate middleware mounted ONCE — no dev route added
+  // later can forget the check (the pattern admin.ts adopted after the 2026-08-28
+  // /purge incident). The four routes below all used to repeat `if (user.role !==
+  // 'owner') return c.json({ error: 'forbidden' }, 403)` inline.
+  const requireOwner: MiddlewareHandler<{ Variables: { user: UserRow } }> = async (c, next) => {
+    if (c.get('user').role !== 'owner') return c.json({ error: 'forbidden' }, 403)
+    return next()
+  }
+  app.use('*', requireAuth(cfg), requireOwner)
+
+  app.get('/github-ping', async (c) => {
     const t = trFor(c)
     // Owner-only (SECURITY FIX 2026-08-28, matching the other three dev routes): this route
     // WRITES into the private GitHub assets repo and used to hand its URL to any member —
     // an unbounded repo-pollution vector under open registration.
-    const user = c.get('user')
-    if (user.role !== 'owner') return c.json({ error: 'forbidden' }, 403)
     const g = cfg.github
     if (!g.token || !g.owner) {
       const msg = 'GitHub not configured — set the GITHUB_TOKEN secret and GITHUB_OWNER var.'
@@ -50,13 +58,11 @@ export function devRoutes(cfg: Config) {
     }
   })
 
-  app.post('/telegram-webhook', requireAuth(cfg), async (c) => {
+  app.post('/telegram-webhook', async (c) => {
     // Registers the bot webhook FROM the worker (Cloudflare reaches Telegram even when a
-    // local sandbox cannot). Owner-only; uses the worker's own token + secret (rule 11).
+    // local sandbox cannot). Uses the worker's own token + secret (rule 11).
     // Optional ?host= override points the bot at any base (e.g. prod's workers.dev URL
     // before the custom domain is live); defaults to the environment's canonical base.
-    const user = c.get('user')
-    if (user.role !== 'owner') return c.json({ error: 'forbidden' }, 403)
     if (!cfg.telegramToken || !cfg.telegramSecret) return c.json({ error: 'telegram_not_configured' }, 503)
     const defaultBase = cfg.isProd ? 'https://hibana.ir' : 'https://hibana.aliassadi.workers.dev'
     const base = c.req.query('host') ?? defaultBase
@@ -69,13 +75,11 @@ export function devRoutes(cfg: Config) {
     return c.json(json.ok ? { ok: true, url: `${base}/api/telegram/webhook` } : { error: json.description ?? 'webhook failed' }, json.ok ? 200 : 502)
   })
 
-  app.get('/telegram-status', requireAuth(cfg), async (c) => {
-    // Owner-only, browser-openable: reports what the bot is actually configured to do by
-    // asking Telegram itself (getMe + getWebhookInfo). The Worker can reach api.telegram.org
+  app.get('/telegram-status', async (c) => {
+    // Browser-openable: reports what the bot is actually configured to do by asking
+    // Telegram itself (getMe + getWebhookInfo). The Worker can reach api.telegram.org
     // when a local sandbox cannot, so this is the one place the live registration is visible
     // (same pattern as the webhook setter above). Never returns the token or secret.
-    const user = c.get('user')
-    if (user.role !== 'owner') return c.json({ error: 'forbidden' }, 403)
     if (!cfg.telegramToken) return c.json({ error: 'telegram_not_configured' }, 503)
     const tg = (method: string) =>
       fetch(`https://api.telegram.org/bot${cfg.telegramToken}/${method}`, {
@@ -104,24 +108,34 @@ export function devRoutes(cfg: Config) {
     })
   })
 
-  app.post('/test-email', requireAuth(cfg), async (c) => {
+  app.post('/test-email', async (c) => {
     // Sends a verification email via the worker (Resend). Confirms the SMTP-style API path works.
-    const user = c.get('user')
-    if (user.role !== 'owner') return c.json({ error: 'forbidden' }, 403)
     if (!cfg.emailKey || !cfg.ownerEmail) return c.json({ error: 'email_not_configured' }, 503)
-    const { resendEmail, verifyEmailHtml } = await import('../services/email')
+    const { sendAndLog, emailsSentToday, RESEND_DAILY_LIMIT, verifyEmailHtml } = await import('../services/email')
+    // L5 fix (2026-09-10): route through sendAndLog + quota check, matching /email and
+    // /email/broadcast. Was calling resendEmail().send() directly — test sends were
+    // invisible to the admin console's "sent_today" counter and could blow past the
+    // daily Resend quota without the 429 guard.
+    const remaining = RESEND_DAILY_LIMIT - (await emailsSentToday(cfg.db))
+    if (remaining <= 0) return c.json({ error: 'quota_exhausted', limit: RESEND_DAILY_LIMIT }, 429)
     // ?template=verify reuses the signup confirmation template + subject — reproduces the
     // exact send the register flow makes (2026-08-24: signup emails failed while the simple
     // template succeeded, so the template path needs its own probe).
     // ?to=<email> overrides the recipient: proves sends to NON-owner addresses work now
-    // that the sending domain (hibana.ir) is verified. Owner-only route.
+    // that the sending domain (hibana.ir) is verified.
     const verify = c.req.query('template') === 'verify'
     const to = c.req.query('to') ?? cfg.ownerEmail
     try {
-      await resendEmail(cfg.emailKey).send(
-        to,
-        verify ? 'Hibana — confirm your email' : 'Hibana — email setup verified',
-        verify ? verifyEmailHtml('1234') : '<p>Your Hibana email pipeline works. Password resets and client reminders will now reach you.</p>',
+      await sendAndLog(
+        { db: cfg.db, emailKey: cfg.emailKey, assets: cfg.assets },
+        {
+          to,
+          kind: 'test',
+          subject: verify ? 'Hibana — confirm your email' : 'Hibana — email setup verified',
+          title: verify ? 'Test: email verification' : 'Test: email setup verified',
+          bodyHtml: verify ? verifyEmailHtml('1234') : '<p>Your Hibana email pipeline works. Password resets and client reminders will now reach you.</p>',
+          origin: new URL(c.req.url).origin,
+        },
       )
       return c.json({ ok: true, to, template: verify ? 'verify' : 'default' })
     } catch (err) {

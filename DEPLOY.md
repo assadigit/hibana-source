@@ -22,7 +22,7 @@ the Node target exists so the app can move anywhere without a rewrite (hard requ
 7. Run locally: `npm run dev` → http://localhost:8787 — log in with the admin credentials,
    then hit the "GitHub pipeline ping" button on the shell page.
 8. Deploy: `npm run deploy` (uses dev DB) or `npm run deploy:prod`. Attach the custom
-   domain (pm.sedanama.com) in the Cloudflare dashboard → Workers → Routes.
+   domain (hibana.ir) in the Cloudflare dashboard → Workers → Routes.
 
 ## Option B — Any server (Node + SQLite)
 

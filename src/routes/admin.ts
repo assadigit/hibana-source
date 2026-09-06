@@ -8,10 +8,13 @@ import { localeOf, trFor } from '../lib/i18n'
 import { jsonBody, requestOrigin } from '../lib/http'
 import { log } from '../lib/log'
 import { banUserSchema, roleUserSchema, removeUserSchema, customEmailSchema, broadcastEmailSchema, BAN_PRESET_MS } from '../validation/schemas'
+import { BANNED_FOREVER_DATE } from '../auth/ban'
 import { buildSnapshot, backupToGitHub, BACKUP_RETENTION_DEFAULT } from '../services/backup'
 import { sendAndLog, emailsSentToday, RESEND_DAILY_LIMIT, resetEmailHtml, textToEmailHtml } from '../services/email'
 import { createResetToken } from '../services/reset'
 import { githubClient } from '../services/github'
+import { sendTelegramMessage } from '../services/telegram'
+import { clientIp, hitRateLimit, RATE_RULES } from '../services/ratelimit'
 import type { Config, UserRow } from '../types'
 
 // Owner-scoped admin console (batch e: users, bans, roles, the email console, backup
@@ -103,7 +106,9 @@ export function adminRoutes(cfg: Config) {
     let until: string
     if (body.preset) {
       const ms = BAN_PRESET_MS[body.preset]
-      until = ms === null ? 'forever' : new Date(Date.now() + ms).toISOString()
+      // L8 fix: permanent bans use a far-future ISO date instead of the 'forever' string
+      // sentinel — the column holds ISO timestamps, so this removes the special case.
+      until = ms === null ? BANNED_FOREVER_DATE : new Date(Date.now() + ms).toISOString()
     } else {
       // Custom date: finite, strictly future, at most 10 years out. (The schema refine
       // already rejects past dates as invalid_input; this is the ceiling + NaN guard.)
@@ -225,6 +230,12 @@ export function adminRoutes(cfg: Config) {
   })
 
   app.post('/email/broadcast', async (c) => {
+    // L4 fix (2026-09-10): rate-limit broadcast — each invocation sends up to 40 sequential
+    // Resend API calls, so a runaway script or compromised owner session could flood Resend.
+    // 2 per 60s per IP is generous for real broadcast use (owner-only via requireOwner).
+    if (await hitRateLimit(cfg.db, RATE_RULES.broadcast, clientIp(c))) {
+      return c.json({ error: 'rate_limited', message: 'Too many broadcasts — wait a minute and try again.' }, 429)
+    }
     // The { offset } paging field lives here, not in the shared broadcastEmailSchema —
     // only this route pages.
     const raw = await c.req.json().catch(() => null)
@@ -308,7 +319,7 @@ export function adminRoutes(cfg: Config) {
         owner: cfg.github.owner,
         repo: cfg.github.repo,
         token: cfg.github.token,
-      })
+      }, undefined, BACKUP_RETENTION_DEFAULT, cfg.backupEncryptionKey)
       if (c.req.header('HX-Request')) return c.html(toastHtml(t('Backup committed: {path}', 'پشتیبان ثبت شد: {path}', { path: result.path }), localeOf(c)))
       return c.json({ ok: true, ...result }, 201)
     } catch (err) {
@@ -370,8 +381,8 @@ export async function scheduledBackup(cfg: Config): Promise<void> {
       owner: cfg.github.owner,
       repo: cfg.github.repo,
       token: cfg.github.token,
-    })
-    log.info('backup_committed', { path: result.path })
+    }, undefined, BACKUP_RETENTION_DEFAULT, cfg.backupEncryptionKey)
+    log.info('backup_committed', { path: result.path, encrypted: !!cfg.backupEncryptionKey })
   } catch (err) {
     // P3.1 (F-M12) + P3.5(c) (F-M4): structured error log + owner-email alert. A failed
     // backup previously only logged (plain text); now it also emails the owner so a silent
@@ -392,6 +403,28 @@ export async function scheduledBackup(cfg: Config): Promise<void> {
         )
       } catch (emailErr) {
         log.error('backup_alert_email_failed', { err: emailErr instanceof Error ? { message: emailErr.message } : String(emailErr) })
+      }
+    }
+    // H6 fix (2026-09-10): Telegram-direct backup-failure alert — a SECONDARY channel that
+    // works even if Resend itself is down (the email alert above uses the same Resend key).
+    // Looks up the owner's linked Telegram chat and sends a direct bot message. Best-effort:
+    // if the owner isn't linked to Telegram, or the bot isn't configured, this is a no-op.
+    if (cfg.telegramToken) {
+      try {
+        const owners = await cfg.db.query<UserRow>(
+          "SELECT telegram_chat_id FROM users WHERE role = 'owner' AND telegram_chat_id IS NOT NULL AND telegram_paused = 0",
+        )
+        const errMsg = err instanceof Error ? err.message : String(err)
+        for (const o of owners) {
+          await sendTelegramMessage(
+            cfg.telegramToken,
+            o.telegram_chat_id!,
+            `🔴 <b>Hibana backup failed</b>\n\nTime: ${new Date().toISOString()}\nError: ${errMsg.slice(0, 500)}\n\nThe next scheduled run will retry automatically.`,
+            'HTML',
+          )
+        }
+      } catch (tgErr) {
+        log.error('backup_alert_telegram_failed', { err: tgErr instanceof Error ? { message: tgErr.message } : String(tgErr) })
       }
     }
   }

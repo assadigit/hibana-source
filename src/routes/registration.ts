@@ -239,25 +239,28 @@ export function registrationRoutes(cfg: Config) {
     return c.json({ ok: true })
   })
 
-  // Owner-only invite management (Settings screen; API ready now). Unchanged — the codes
-  // become required again when openRegistration flips off.
+  // Invite management (Settings screen). Any authenticated user can generate invite
+  // codes — "invite-only by existing users" (2026-09-10): the trust model is that every
+  // member can bring people they vouch for in. Users see only their own invites; the
+  // owner still sees all (for oversight). Codes are required at signup now that
+  // OPEN_REGISTRATION is gone.
   app.get('/invites', requireAuth(cfg), async (c) => {
     const user = c.get('user')
-    if (user.role !== 'owner') return c.json({ error: 'forbidden' }, 403)
-    const invites = await cfg.db.query<InviteRow>('SELECT * FROM invites ORDER BY created_at DESC')
+    const rows = user.role === 'owner'
+      ? await cfg.db.query<InviteRow>('SELECT * FROM invites ORDER BY created_at DESC')
+      : await cfg.db.query<InviteRow>('SELECT * FROM invites WHERE created_by = ? ORDER BY created_at DESC', [user.id])
     if (c.req.header('HX-Request')) {
       return c.html(
-        invites
+        rows
           .map((inv) => `<li class="row spread"><code>${inv.code}</code><span class="muted small">${inv.used_at ? 'used' : 'available'} · ${inv.created_at}</span></li>`)
           .join('') || '<li class="muted">No invites yet — generate one below.</li>',
       )
     }
-    return c.json({ invites })
+    return c.json({ invites: rows })
   })
 
   app.post('/invites', requireAuth(cfg), async (c) => {
     const user = c.get('user')
-    if (user.role !== 'owner') return c.json({ error: 'forbidden' }, 403)
     const code = uuid().replace(/-/g, '').slice(0, 12)
     await cfg.db.execute('INSERT INTO invites (id, code, created_by, created_at) VALUES (?, ?, ?, ?)', [
       uuid(), code, user.id, new Date().toISOString(),
@@ -270,13 +273,13 @@ export function registrationRoutes(cfg: Config) {
     return c.json({ ok: true, code }, 201)
   })
 
-  // Item 6 (user request 2026-09-09): invite-by-email. The owner enters an email address;
-  // Hibana generates an invite code, persists it, and emails it to that address via Resend.
-  // The recipient uses the code at signup. Owner-only (same gate as the code-based invite).
-  // The email send uses the existing sendAndLog pipeline (branded HTML + delivery log + quota).
+  // Invite-by-email (user request 2026-09-09, opened to all users 2026-09-10): any
+  // authenticated user enters an email address; Hibana generates an invite code,
+  // persists it, and emails it to that address via Resend. The recipient uses the code
+  // at signup. The email send uses the existing sendAndLog pipeline (branded HTML +
+  // delivery log + quota).
   app.post('/invites/email', requireAuth(cfg), async (c) => {
     const user = c.get('user')
-    if (user.role !== 'owner') return c.json({ error: 'forbidden' }, 403)
     const body = await jsonBody<{ email: string }>(c, z.object({ email: z.string().email() }).strict())
     if (!body) return c.json({ error: 'invalid_input' }, 400)
     // Don't leak whether the address is already a user — just send the invite regardless.

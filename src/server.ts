@@ -95,6 +95,7 @@ const cfg: Config = {
   captchaSecretKey: process.env.CAPTCHA_SECRET_KEY ?? process.env.TURNSTILE_SECRET_KEY,
   // math captcha — Turnstile secret kept as legacy fallback
   openRegistration: process.env.OPEN_REGISTRATION === 'true',
+  backupEncryptionKey: process.env.BACKUP_ENCRYPTION_KEY,
   assets: serveFile,
 }
 

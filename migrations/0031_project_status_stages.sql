@@ -13,11 +13,13 @@
 -- before created_at. Dropping projects also drops its indexes and the projects_fts
 -- triggers (0004): all are recreated exactly as 0002/0004 declared them and the
 -- external-content FTS index is rebuilt from the content table afterwards.
--- NOTE for re-runs on populated databases: with foreign_keys=ON the DROP performs an
--- implicit DELETE that fires the children's ON DELETE CASCADE. Fresh databases are
--- unaffected, and the live D1 databases already record this migration in d1_migrations,
--- so it never re-runs there. This file runs inside the migration runner's own
--- transaction: no BEGIN/COMMIT (rule 4).
+-- M10 fix (2026-09-10): PRAGMA foreign_keys=OFF guards the DROP — without it, the
+-- implicit cascade would DELETE child rows the stash doesn't preserve. The Node migration
+-- runner (migrate-node.ts) also sets this OFF before the batch (PRAGMA is a no-op inside
+-- a transaction); D1 runs statements separately so the PRAGMA here takes effect directly.
+-- Re-enabled at the end of this file.
+
+PRAGMA foreign_keys = OFF;
 
 CREATE TABLE projects_mig AS SELECT id, user_id, title, description, type, status, sort_order, latest_note, progress_percent, archived_state, client_name, due_date, reminders_enabled, created_at, updated_at, deleted_at FROM projects;
 
@@ -72,3 +74,5 @@ END;
 
 -- Repopulate the external-content FTS5 index from the rebuilt content table (0004).
 INSERT INTO projects_fts(projects_fts) VALUES('rebuild');
+
+PRAGMA foreign_keys = ON;

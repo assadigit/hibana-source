@@ -23,6 +23,7 @@ function buildConfig(env: Env): Config {
     captchaSecretKey: env.CAPTCHA_SECRET_KEY ?? env.TURNSTILE_SECRET_KEY,
     // math captcha — Turnstile secret kept as legacy fallback
     openRegistration: env.OPEN_REGISTRATION === 'true',
+    backupEncryptionKey: env.BACKUP_ENCRYPTION_KEY,
   }
 }
 

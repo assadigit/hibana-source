@@ -6,11 +6,11 @@
 -- dev_task_tags, so the 0011/0023 rename dance would rewrite that child's REFERENCES
 -- clause to the quoted temp name in this SQLite — rows are stashed aside instead and
 -- the table recreated under its own name (same approach as 0031). start_at/end_at
--- (0030, ALTER-appended) are written back inline. Same populated-database caveat as
--- 0031: the DROP's implicit DELETE cascades dev_task_tags rows when foreign_keys=ON —
--- irrelevant on fresh databases and on the live DBs (already applied, recorded in
--- d1_migrations). This file runs inside the migration runner's own transaction:
--- no BEGIN/COMMIT (rule 4).
+-- (0030, ALTER-appended) are written back inline.
+-- M10 fix (2026-09-10): PRAGMA foreign_keys=OFF guards the DROP — same rationale as
+-- 0031. Re-enabled at the end of this file.
+
+PRAGMA foreign_keys = OFF;
 
 CREATE TABLE dev_tasks_mig AS SELECT id, project_id, title, status, priority, category_id, sprint_id, sort_order, created_at, done_at, start_at, end_at FROM dev_tasks;
 
@@ -38,3 +38,5 @@ DROP TABLE dev_tasks_mig;
 
 CREATE INDEX idx_dev_tasks_project ON dev_tasks(project_id);
 CREATE INDEX idx_dev_tasks_sprint ON dev_tasks(sprint_id);
+
+PRAGMA foreign_keys = ON;

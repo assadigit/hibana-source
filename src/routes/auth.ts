@@ -1,10 +1,11 @@
 import { Hono, type MiddlewareHandler } from 'hono'
 import { getCookie } from 'hono/cookie'
 import { z } from 'zod'
-import { hashPassword, verifyPassword } from '../auth/password'
+import { hashPassword, verifyPassword, needsRehash } from '../auth/password'
 import { SESSION_COOKIE, sessionHash, createSession, destroySession } from '../auth/sessions'
 import { requireAuth } from '../auth/middleware'
 import { isBanned } from '../auth/ban'
+import { BANNED_FOREVER_DATE } from '../auth/ban'
 import { isHtmx, esc, jsonBody } from '../lib/http'
 import { calendarFor } from '../lib/jalali'
 import { toastHtml } from '../lib/html'
@@ -34,7 +35,9 @@ const USER_FIELDS = ['id', 'username', 'email', 'role', 'avatar_path'] as const
 // "suspended — until <date> UTC" (ISO sliced to 16 chars, T→space), the owner-entered
 // reason rides on a new line. Both halves are escaped — they come from the DB, not us.
 function banNoticeHtml(u: Pick<UserRow, 'banned_until' | 'ban_reason'>) {
-  const until = u.banned_until && u.banned_until !== 'forever' ? ` — until ${esc(u.banned_until.slice(0, 16).replace('T', ' '))} UTC` : ''
+  // L8 fix: treat both the legacy 'forever' sentinel and the new BANNED_FOREVER_DATE as permanent
+  const isPermanent = !u.banned_until || u.banned_until === 'forever' || u.banned_until === BANNED_FOREVER_DATE
+  const until = isPermanent ? '' : ` — until ${esc(u.banned_until!.slice(0, 16).replace('T', ' '))} UTC`
   const reason = u.ban_reason ? `<br>${esc(u.ban_reason)}` : ''
   return `This account is suspended${until}.${reason}`
 }
@@ -99,7 +102,9 @@ export function authRoutes(cfg: Config) {
       const until = user.banned_until ?? ''
       const reason = user.ban_reason ?? undefined
       if (isHtmx(c)) return c.html(`<p class="error">${banNoticeHtml(user)}</p>`)
-      return c.json({ error: 'banned', until: until === 'forever' ? null : until, reason: reason ?? null }, 403)
+      // L8 fix: permanent bans (both legacy 'forever' and new BANNED_FOREVER_DATE) → null
+      const isPermanent = until === 'forever' || until === BANNED_FOREVER_DATE
+      return c.json({ error: 'banned', until: isPermanent ? null : until, reason: reason ?? null }, 403)
     }
 
     // Email confirmation gate (spec §4.14, added 2026-08-24): accounts created by the
@@ -120,6 +125,26 @@ export function authRoutes(cfg: Config) {
       'Set-Cookie',
       `${SESSION_COOKIE}=${token}; HttpOnly; SameSite=Lax; Path=/; ${secure}Max-Age=${30 * 24 * 60 * 60}`,
     )
+
+    // M2 fix (2026-09-10): lazy PBKDF2 rehash. If the stored hash was created at a lower
+    // iteration count than the current target (600k), silently upgrade it now — the
+    // plaintext password is in hand, so we can rehash at the new target. Fire-and-forget
+    // via waitUntil so the login response isn't delayed by the ~200ms derive. If the
+    // Worker hits its CPU limit, the rehash silently fails and the next login retries.
+    if (needsRehash(user.password_hash)) {
+      const rehash = (async () => {
+        try {
+          const newHash = await hashPassword(password)
+          await cfg.db.execute('UPDATE users SET password_hash = ? WHERE id = ? AND password_hash = ?', [
+            newHash, user.id, user.password_hash,
+          ])
+        } catch { /* best-effort: the old hash still works, next login retries */ }
+      })()
+      try {
+        const ec = (c as unknown as { executionCtx?: { waitUntil?: (p: Promise<unknown>) => void } }).executionCtx
+        ec?.waitUntil?.(rehash)
+      } catch { /* Node/test path: no ExecutionContext, leave fire-and-forget */ }
+    }
 
     if (isHtmx(c)) {
       c.header('HX-Redirect', '/app')

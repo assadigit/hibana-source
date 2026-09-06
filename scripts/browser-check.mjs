@@ -1,33 +1,76 @@
 // Drives the live dev site in headless Chrome via CDP to verify the Dashboard + quick-add
 // modal end-to-end: login, dashboard render, console cleanliness, and modal open/cancel.
 // Usage: node scripts/browser-check.mjs  (reads creds from argv/env)
+//
+// L11 fix (2026-09-10): made portable — auto-detects Chrome/Chromium on Linux/macOS/Windows
+// instead of hardcoding a Windows path. The admin username is read from HIBANA_USER env
+// (no default hardcoded credential — set it explicitly or pass via argv).
 import { spawn } from 'node:child_process'
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
 const BASE = process.env.HIBANA_BASE || 'https://hibana.aliassadi.workers.dev'
-const USER = process.env.HIBANA_USER || 'admin-bkzn6cd1'
+const USER = process.env.HIBANA_USER || ''
 const PASS = process.env.HIBANA_PASS
 
+if (!USER) {
+  console.error('Set HIBANA_USER to the admin username (no hardcoded default — get it from `npm run seed:admin`).')
+  process.exit(1)
+}
 if (!PASS) {
-  console.error('Set HIBANA_PASS (and optionally HIBANA_USER/HIBANA_BASE).')
+  console.error('Set HIBANA_PASS (and HIBANA_USER/HIBANA_BASE).')
   process.exit(1)
 }
 
-const CHROME = process.env.CHROME || 'C:/Program Files/Google/Chrome/Application/chrome.exe'
+// L11 fix: auto-detect Chrome/Chromium across platforms. Checks the CHROME env var first
+// (explicit override), then common install locations, then falls back to `npx playwright
+// chromium` which is already a project dependency.
+function findChrome() {
+  if (process.env.CHROME && existsSync(process.env.CHROME)) return process.env.CHROME
+  const candidates = [
+    // Linux
+    '/usr/bin/google-chrome',
+    '/usr/bin/google-chrome-stable',
+    '/usr/bin/chromium',
+    '/usr/bin/chromium-browser',
+    '/snap/bin/chromium',
+    // macOS
+    '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
+    '/Applications/Chromium.app/Contents/MacOS/Chromium',
+    // Windows
+    'C:/Program Files/Google/Chrome/Application/chrome.exe',
+    'C:/Program Files (x86)/Google/Chrome/Application/chrome.exe',
+  ]
+  for (const p of candidates) if (existsSync(p)) return p
+  return null // fall back to Playwright's bundled Chromium below
+}
+
+const CHROME = findChrome()
 const PORT = Number(process.env.CDP_PORT || 9223)
 const profile = mkdtempSync(join(tmpdir(), 'hibana-cdp-'))
 
-const chrome = spawn(CHROME, [
-  '--headless=new',
-  `--remote-debugging-port=${PORT}`,
-  `--user-data-dir=${profile}`,
-  '--no-first-run',
-  '--no-default-browser-check',
-  '--disable-gpu',
-  'about:blank',
-], { stdio: 'ignore' })
+let chrome
+if (CHROME) {
+  chrome = spawn(CHROME, [
+    '--headless=new',
+    `--remote-debugging-port=${PORT}`,
+    `--user-data-dir=${profile}`,
+    '--no-first-run',
+    '--no-default-browser-check',
+    '--disable-gpu',
+    '--no-sandbox',
+    'about:blank',
+  ], { stdio: 'ignore' })
+} else {
+  // L11 fix: no system Chrome found — use Playwright's bundled Chromium (already a dep).
+  // This makes the script work in CI and on fresh dev machines without a Chrome install.
+  console.log('No system Chrome found — using Playwright bundled Chromium...')
+  const { chromium } = await import('playwright')
+  const browser = await chromium.launch({ headless: true, args: [`--remote-debugging-port=${PORT}`] })
+  // Playwright manages the process; we just need the CDP port for the rest of the script.
+  chrome = { kill: () => browser.close() }
+}
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
 const consoleLogs = []

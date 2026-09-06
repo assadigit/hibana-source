@@ -14,6 +14,8 @@
   const fa = () => lang() === 'fa'
   const faNum = (s) => (fa() ? String(s).replace(/\d/g, (d) => '۰۱۲۳۴۵۶۷۸۹'[+d]) : String(s))
   const toast = (msg, kind) => window.hibana?.toast?.(msg, kind || 'info')
+  // esc() is defined above (line 7) — the window.hibana.esc fallback was redundant.
+  // H2 fix (2026-09-10): the local esc() already escapes all 5 HTML special chars.
 
   const state = { me: null, users: [], summary: null, log: [], quota: null, backup: null, filter: '' }
   let timer = null
@@ -62,7 +64,9 @@
   }
   function bannedLabel(u) {
     if (!u.suspended) return null
-    if (u.banned_until === 'forever') return t('admin.stForever', 'banned — permanent')
+    // L8 fix: permanent bans now arrive as a far-future date (9999-12-31...) OR the legacy
+    // 'forever' sentinel. Treat both as permanent.
+    if (u.banned_until === 'forever' || (u.banned_until && u.banned_until.startsWith('9999'))) return t('admin.stForever', 'banned — permanent')
     return `${t('admin.stBannedUntil', 'banned until')} ${fmtDate(u.banned_until)} · ${fmtTime(u.banned_until)}`
   }
 
@@ -341,7 +345,9 @@
             if (chosen === 'custom') body = { until: new Date(untilInput.value).toISOString(), reason }
             else body = { preset: chosen, reason }
             const r = await api('PATCH', `/api/admin/users/${u.id}/ban`, body)
-            toast(`${t('admin.doneBan', 'Suspended')} — ${r.banned_until === 'forever' ? t('admin.stForever', 'permanent') : r.banned_until}`)
+            // L8 fix: permanent bans arrive as a far-future date (9999...) or legacy 'forever'
+            const isPermanent = r.banned_until === 'forever' || (r.banned_until && r.banned_until.startsWith('9999'))
+            toast(`${t('admin.doneBan', 'Suspended')} — ${isPermanent ? t('admin.stForever', 'permanent') : esc(r.banned_until)}`)
           } else if (act === 'promote') {
             if (!confirm(t('admin.confirmPromote', 'Promote this account to super-admin?'))) return
             await api('POST', `/api/admin/users/${u.id}/role`, { role: 'owner' })
@@ -353,17 +359,17 @@
           } else if (act === 'send-reset') {
             btn.disabled = true
             const r = await api('POST', `/api/admin/users/${u.id}/send-reset`)
-            toast(`${t('admin.doneReset', 'Reset email sent to')} ${r.sent_to}`)
+            toast(`${t('admin.doneReset', 'Reset email sent to')} ${esc(r.sent_to)}`)
           } else if (act === 'mail') {
             const subject = $('#adm-modal-subject', d)?.value.trim()
             const body2 = $('#adm-modal-body', d)?.value.trim()
             if (!subject || !body2) return toast(t('admin.errMailEmpty', 'Subject and message are required.'), 'err')
             btn.disabled = true
             const r = await api('POST', '/api/admin/email', { to: u.id, subject, body: body2 })
-            toast(`${t('admin.doneMail', 'Email sent to')} ${r.sent_to}`)
+            toast(`${t('admin.doneMail', 'Email sent to')} ${esc(r.sent_to)}`)
           } else if (act === 'remove') {
             const r = await api('DELETE', `/api/admin/users/${u.id}`, { confirm: rmInput.value.trim() })
-            toast(`${t('admin.doneRemove', 'Removed')} ${r.removed}`)
+            toast(`${t('admin.doneRemove', 'Removed')} ${esc(r.removed)}`)
           }
           closeModal()
           refreshAll().catch(() => {})
@@ -397,7 +403,7 @@
     if (!to || !subject || !body) return
     try {
       const r = await api('POST', '/api/admin/email', { to, subject, body })
-      toast(`${t('admin.doneMail', 'Email sent to')} ${r.sent_to}`)
+      toast(`${t('admin.doneMail', 'Email sent to')} ${esc(r.sent_to)}`)
       $('#adm-mail-subject').value = ''
       $('#adm-mail-body').value = ''
     } catch (err) {
@@ -467,7 +473,7 @@
         backupNow.disabled = true
         try {
           const r = await api('POST', '/api/admin/backup')
-          toast(`${t('admin.doneBackup', 'Backup committed:')} ${r.path}`)
+          toast(`${t('admin.doneBackup', 'Backup committed:')} ${esc(r.path)}`)
           refreshBackup().catch(() => {})
         } catch (err) {
           toast(errMessage(err), 'err')

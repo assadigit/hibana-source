@@ -1,12 +1,12 @@
 import { describe, it, expect } from 'vitest'
-import { hashPassword, verifyPassword } from '../auth/password'
+import { hashPassword, verifyPassword, needsRehash } from '../auth/password'
 import { createSession, destroySession, validateSession } from '../auth/sessions'
 import { makeTestDb, makeUser } from './helpers'
 
 describe('password hashing (rule 6 — PBKDF2/Web Crypto)', () => {
   it('round-trips a correct password', async () => {
     const hash = await hashPassword('correct horse battery staple')
-    expect(hash.startsWith('pbkdf2$100000$')).toBe(true)
+    expect(hash.startsWith('pbkdf2$600000$')).toBe(true) // M2: raised from 100k to 600k per OWASP 2023
     await expect(verifyPassword('correct horse battery staple', hash)).resolves.toBe(true)
   })
 
@@ -17,7 +17,18 @@ describe('password hashing (rule 6 — PBKDF2/Web Crypto)', () => {
 
   it('rejects malformed stored hashes instead of throwing', async () => {
     await expect(verifyPassword('x', 'not-a-hash')).resolves.toBe(false)
-    await expect(verifyPassword('x', 'pbkdf2$1000$c2FsdA==$aGVsbG8=')).resolves.toBe(false) // iterations < 100k
+    await expect(verifyPassword('x', 'pbkdf2$1000$c2FsdA==$aGVsbG8=')).resolves.toBe(false) // iterations < 100k (MIN_ACCEPTED_ITERATIONS)
+  })
+
+  it('needsRehash flags legacy hashes below the current target (M2)', async () => {
+    // A 100k hash (the old default) should flag for rehash at the new 600k target
+    const legacy = 'pbkdf2$100000$c2FsdA==$aGVsbG8='
+    expect(needsRehash(legacy)).toBe(true)
+    // A freshly-hashed password at 600k should NOT need rehash
+    const fresh = await hashPassword('test')
+    expect(needsRehash(fresh)).toBe(false)
+    // A malformed hash should not flag (returns false, not throw)
+    expect(needsRehash('not-a-hash')).toBe(false)
   })
 
   it('produces a unique salt per hash', async () => {

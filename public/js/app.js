@@ -55,6 +55,11 @@ window.hibana = (() => {
   //   toast('Saved', 'info')              → 4s, auto-dismiss
   //   toast('Failed', 'err')              → persistent (stays until dismissed)
   //   toast('Deleted', 'info', 6000, [{label:'Undo', onClick:undoFn}]) → 6s + Undo button
+  // H2 fix (2026-09-10): the message string is set via innerHTML (to support <a> links),
+  // so ALL server-rendered fields interpolated into it MUST be escaped via esc() first.
+  function esc(s) {
+    return String(s ?? '').replace(/[&<>"']/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[ch])
+  }
   function toast(message, kind = 'info', ms, actions = null) {
     if (ms === undefined) ms = kind === 'err' ? 0 : 4000 // errors persist by default
     const old = document.getElementById('toast')
@@ -2628,5 +2633,5 @@ window.hibana = (() => {
     }
   })
 
-  return { toast, handle401, openQuickAdd, openProjectAdd, openTaskAdd, setTheme, toggleTheme, paintThemeButton, currentTheme }
+  return { toast, handle401, openQuickAdd, openProjectAdd, openTaskAdd, setTheme, toggleTheme, paintThemeButton, currentTheme, esc }
 })()

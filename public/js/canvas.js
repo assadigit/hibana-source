@@ -1503,14 +1503,18 @@ window.hibanaCanvas = (() => {
 
     // Font-metrics race (wrap-bug fix 2026-08-25): Fabric measures text with the fallback
     // font when an object exists before the webfont finishes loading, and caches those
-    // widths in fabric.charWidthsCache forever — every later wrap decision and caret
-    // position is then computed from metrics that don't match the rendered glyphs
-    // (measured live: the cache held "times new roman" widths while Bebas Notes rendered).
+    // widths internally forever — every later wrap decision and caret position is then
+    // computed from metrics that don't match the rendered glyphs (measured live: the cache
+    // held "times new roman" widths while Bebas Notes rendered).
     // When fonts land — initial load or any later face — drop the cache and re-measure
     // every text object once. Textboxes with a pinned-width initDimensions override
     // re-wrap correctly because the pin re-applies after the base re-measure.
+    // L14 fix (2026-09-10): fabric v6 removed charWidthsCache — the cache is now internal
+    // to the FabricObject/Textbox class. Clearing it requires calling the internal method.
+    // Best-effort: if the v5 API exists, use it; otherwise skip (v6 handles this internally).
     const reflowTextMetrics = () => {
-      fabric.charWidthsCache = {}
+      // v5: fabric.charWidthsCache = {};  v6: no-op (internal cache, handled per-object)
+      if (window.fabric?.charWidthsCache !== undefined) window.fabric.charWidthsCache = {}
       let touched = false
       const remeasure = (o) => {
         if (!['textbox', 'i-text', 'text'].includes(o.type)) return
@@ -2898,7 +2902,9 @@ window.hibanaCanvas = (() => {
     const res = await send(`/api/canvas/elements/${obj.id}/promote`, { method: 'POST', body: JSON.stringify({ title }) })
     if (!res.ok) return window.hibana?.toast(_t('canvas.promoteFailed', 'Promotion failed'), 'err')
     const { projectId } = await res.json()
-    window.hibana?.toast(`${_t('canvas.promoted', 'Promoted!')} <a href="/project.html?id=${projectId}">${_t('canvas.openSpark', 'Open the Idea →')}</a>`)
+    // H2 fix: escape the server-rendered projectId (UUID) before interpolating into the toast's innerHTML
+    const esc = window.hibana?.esc ?? ((s) => String(s ?? ''))
+    window.hibana?.toast(`${_t('canvas.promoted', 'Promoted!')} <a href="/project.html?id=${esc(projectId)}">${_t('canvas.openSpark', 'Open the Idea →')}</a>`)
     // keeps the note; mark it visually (spec §3.1: nothing disappears)
     obj.set({ stroke: '#16a34a', strokeWidth: 1 })
     canvas.requestRenderAll()

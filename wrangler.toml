@@ -37,8 +37,6 @@ not_found_handling = "none"
 ENVIRONMENT = "dev"
 GITHUB_OWNER = "assadigit"
 GITHUB_REPO = "hibana-safe"
-# Temporary open signup (2026-08-24). Flip back to invite-only by removing this line.
-OPEN_REGISTRATION = "true"
 
 # Dev database — created via: npx wrangler d1 create pm-app-dev
 [[d1_databases]]
@@ -53,8 +51,6 @@ database_id = "80e02ce2-ca0a-4ccc-beda-8b6cb9c3a984"
 ENVIRONMENT = "prod"
 GITHUB_OWNER = "assadigit"
 GITHUB_REPO = "hibana-safe"
-# Temporary open signup (2026-08-24). Flip back to invite-only by removing this line.
-OPEN_REGISTRATION = "true"
 
 # Custom domain (hibana.ir): wrangler 4 no longer supports the `custom_domains`
 # toml key (it warns "Unexpected fields found ... custom_domains"). Attach it via the

@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Calendar — Hibana</title>
-  <link rel="stylesheet" href="/css/app.css?v=200">
+  <link rel="stylesheet" href="/css/app.css?v=201">
   <link rel="stylesheet" href="/vendor/manrope/font-face.css">
   <script src="/vendor/htmx.min.js" defer></script>
   <script src="/js/boot.js?v=3"></script>
@@ -24,8 +24,9 @@
   <script src="/js/install-prompt.js?v=1" defer></script>
 </head>
 <body>
+  <a href="#main" class="skip-link" data-i18n="a11y.skipToMain">Skip to main content</a>
   <div data-nav></div>
-  <main class="shell">
+  <main class="shell" id="main" tabindex="-1">
     <!-- Task 24 #3: the heading IS the displayed month (e.g. «مهر ۱۴۰۵» / “October 2026”) —
          the redundant month label between the arrows is gone. -->
     <div class="row spread cal-head">

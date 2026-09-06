@@ -144,6 +144,11 @@ export function registerTelegram(app: Hono<{ Variables: { user: UserRow } }>, cf
         return c.json({ ok: true })
       }
       await cfg.db.transaction(async (tx) => {
+        // H5 fix (2026-09-10): clear any PRIOR user who held this chat_id. Without this,
+        // linking chat X to user B leaves user A's telegram_chat_id pointing at the same
+        // chat — the `owned` query (WHERE telegram_chat_id = ?) then returns both A and B,
+        // and owned[0] is used non-deterministically for captures, /reset, and /status.
+        tx.sql('UPDATE users SET telegram_chat_id = NULL WHERE telegram_chat_id = ? AND id != ?', [String(chatId), links[0].user_id])
         tx.sql('UPDATE users SET telegram_chat_id = ?, telegram_paused = 0 WHERE id = ?', [String(chatId), links[0].user_id]) // re-linking also resumes reminders (spec §6.22)
         tx.sql('DELETE FROM telegram_links WHERE code = ?', [start[1]]) // single-use
         tx.sql('UPDATE telegram_captures SET user_id = ? WHERE telegram_user_id = ? AND user_id IS NULL', [links[0].user_id, String(msg.from.id)])
@@ -393,7 +398,10 @@ export function registerTelegram(app: Hono<{ Variables: { user: UserRow } }>, cf
   // Any authenticated user can link their own Telegram chat (§4.10): Settings shows a
   // one-time code; the user sends /start <code> to the bot. Codes expire after 1h and
   // generating a new one invalidates any previous unused code for the same account.
-  app.get('/api/telegram/link-code', requireAuth(cfg), async (c) => {
+  // M9 fix (2026-09-10): changed from GET to POST — this endpoint deletes + inserts in a
+  // transaction (state-changing), so the CSRF middleware (which only checks POST/PUT/PATCH/
+  // DELETE) must apply. A GET was exempt and could be triggered by <img src> or CSRF.
+  app.post('/api/telegram/link-code', requireAuth(cfg), async (c) => {
     const user = c.get('user')
     // 12 hex chars (48 bits, hardening 2026-08-28): the code links a chat to an account —
     // 8 hex chars was only ~4.3B guesses. Telegram's own flood limits make brute force
@@ -476,13 +484,23 @@ export function registerImport(app: Hono<{ Variables: { user: UserRow } }>, cfg:
 
     let count = 0
     let duplicates = 0
+    // H1 fix (2026-09-10): resolve the 'Imported' tag id atomically BEFORE the transaction
+    // loop. The old pattern queried inside the loop on every iteration — pre-batch reads see
+    // stale state, so every iteration after the first tried to INSERT a duplicate 'Imported'
+    // tag, hitting UNIQUE(user_id, name) and rolling back the ENTIRE import. A fresh-user
+    // multi-note import was guaranteed to fail.
+    const importedTagRows = await cfg.db.query<{ id: string }>(
+      `INSERT INTO tags (id, user_id, name, color, usage_count, created_at)
+       VALUES (?, ?, 'Imported', '#94a3b8', 0, ?)
+       ON CONFLICT(user_id, name) DO UPDATE SET usage_count = tags.usage_count
+       RETURNING id`,
+      [uuid(), user.id, new Date().toISOString()],
+    )
+    const importedTagId = importedTagRows[0]?.id
     // P3.2 (F-M3): wrap the whole import loop in ONE transaction. Was ~200 sequential
     // iterations each doing an INSERT + a sub-transaction (3-4 round trips each). Now
     // batched: all INSERTs + tag links land atomically; a failure rolls back the whole
-    // import (no half-imported state). The 'Imported' tag check stays inside the loop
-    // — reads see pre-batch state (P1.6 doc), which is fine: the tag is created on the
-    // first note that needs it and subsequent notes find it via the same pre-batch read
-    // (idempotent INSERT OR IGNORE on project_tags handles the rare re-read).
+    // import (no half-imported state).
     await cfg.db.transaction(async (tx) => {
       for (const note of notes) {
         const parsed = parseMarkdownNote(note.fileName, note.content)
@@ -500,12 +518,7 @@ export function registerImport(app: Hono<{ Variables: { user: UserRow } }>, cfg:
           "INSERT INTO projects (id, user_id, title, description, type, status, sort_order, latest_note, reminders_enabled, created_at, updated_at) VALUES (?, ?, ?, ?, 'personal', 'spark', 0, '', 0, ?, ?)",
           [id, user.id, parsed.title, parsed.description, now, now],
         )
-        const tag = await cfg.db.query<{ id: string }>('SELECT id FROM tags WHERE user_id = ? AND name = ?', [user.id, 'Imported'])
-        const tagId = tag.length ? tag[0].id : uuid()
-        if (!tag.length) {
-          tx.sql('INSERT INTO tags (id, user_id, name, color, usage_count, created_at) VALUES (?, ?, ?, ?, 0, ?)', [tagId, user.id, 'Imported', '#94a3b8', now])
-        }
-        tx.sql('INSERT OR IGNORE INTO project_tags (project_id, tag_id) VALUES (?, ?)', [id, tagId])
+        if (importedTagId) tx.sql('INSERT OR IGNORE INTO project_tags (project_id, tag_id) VALUES (?, ?)', [id, importedTagId])
         count++
       }
     })

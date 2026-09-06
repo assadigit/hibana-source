@@ -240,7 +240,7 @@ function listFragment(projects: ProjectRow[], tagsMap: Map<string, TagRow[]>, vi
       <span class="empty-state-icon" aria-hidden="true"><svg class="icon" viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7Z"/><path d="M12 11v4M10 13h4"/></svg></span>
       <p class="empty-state-title">${trL(lang, 'No projects yet', 'هنوز پروژه‌ای نیست')}</p>
       <p class="empty-state-text">${trL(lang, 'Capture your first idea with the ＋ button above — it stays safe here until you’re ready to build.', 'اولین ایده‌ات را با دکمه ＋ بالا ثبت کن — اینجا امن می‌ماند تا وقتی برای ساختن آماده باشی.')}</p>
-      <button type="button" class="empty-state-cta btn" data-quickadd-open>${trL(lang, 'New idea', 'ایدهٔ جدید')}</button>
+      <button type="button" class="empty-state-cta btn" data-quickadd-open>${icon('idea', 'icon')} ${trL(lang, 'New idea', 'ایدهٔ جدید')}</button>
     </div>`
   }
   const dig = (n: number) => (lang === 'fa' ? faDigits(String(n)) : String(n))
@@ -318,11 +318,13 @@ function glanceStrip(counts: Map<string, number>, activeStatus: ProjectStatus | 
 }
 
 function sparkEmptyHtml(lang: Locale): string {
+  // Fix 2026-09-09 (Phase 6 deviation #6): the CTA now carries the bulb icon (the audit
+  // flagged it as text-only). The icon rides inline-start of the label.
   return `<div class="empty-state empty">
     <span class="empty-state-icon" aria-hidden="true">${icon('idea')}</span>
     <p class="empty-state-title">${trL(lang, 'No ideas yet!', 'هنوز ایده ای رو ثبت نکردی!')}</p>
     <p class="empty-state-text">${trL(lang, 'Capture your first idea — it stays safe here until the moment is right to pursue it.', 'اولین ایده‌ات را ثبت کن، اینجا امن می‌ماند تا وقتی برای فرصت کنی به آن بپردازی.')}</p>
-    <button type="button" class="empty-state-cta btn" data-quickadd-open>${trL(lang, 'Capture a new idea', 'ثبت ایده جدید')}</button>
+    <button type="button" class="empty-state-cta btn" data-quickadd-open>${icon('idea', 'icon')} ${trL(lang, 'Capture a new idea', 'ثبت ایده جدید')}</button>
   </div>`
 }
 

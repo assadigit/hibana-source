@@ -8,7 +8,7 @@ import { clientIp, hitRateLimit, RATE_RULES } from '../services/ratelimit'
 import { createResetToken } from '../services/reset'
 import { sendTelegramMessage } from '../services/telegram'
 import { timingSafeEqualStr } from '../lib/crypto'
-import type { Config, UserRow } from '../types'
+import type { Config, ProjectRow, UserRow } from '../types'
 import type { Db } from '../db/types'
 
 // Telegram bot (spec §9 + §4.10) + Obsidian import (spec §9).
@@ -156,7 +156,7 @@ export function registerTelegram(app: Hono<{ Variables: { user: UserRow } }>, cf
     if (/^\/start$/i.test(text) || /^\/help\b/i.test(text)) {
       const help = owned.length === 0
         ? '🤖 Hibana bot — link your account first so your notes and ideas land safely:\n\nOpen Hibana Settings → Telegram → Generate link code, then send:\n/start <code>\n\nThen you can use: /idea, /note, /list, /help'
-        : '🤖 Hibana bot — send me:\n\n/idea <text> — save a new Idea and get a link back\n/note <text> — add a Quick Note to your dashboard\n/list — collect a list (send items one per message, /done saves it, /cancel stops)\n/status — linked account + open task deadlines\n/pause — suspend reminders (send /resume to turn them back on)\n/reset — get a password-reset link here\n/help — this message'
+        : '🤖 Hibana bot — send me:\n\n/idea <text> — save a new Idea and get a link back\n/append <project> <text> — add a note to an existing project (title prefix or id)\n/note <text> — add a Quick Note to your dashboard\n/list — collect a list (send items one per message, /done saves it, /cancel stops)\n/status — linked account + open task deadlines\n/pause — suspend reminders (send /resume to turn them back on)\n/reset — get a password-reset link here\n/help — this message'
       await sendTelegramMessage(token, chatId, help)
       return c.json({ ok: true })
     }
@@ -277,6 +277,57 @@ export function registerTelegram(app: Hono<{ Variables: { user: UserRow } }>, cf
         return c.json({ ok: true })
       }
       await captureIdea(content)
+      return c.json({ ok: true })
+    }
+
+    // /append <project> <text> — append a note to an EXISTING project's latest_note (the
+    // Phase 7-second item 2 ask the audit flagged as never built). The first arg is a
+    // project id OR a fuzzy title prefix match (case-insensitive, first match wins,
+    // user-scoped). The rest is the text to append. A project_history_log row records
+    // the change so the project page's activity feed shows it. Replies with a deep link.
+    const appendMatch = text.match(/^\/append\b\s+(?:(\S+)\s+)?([\s\S]+)/i)
+    if (appendMatch) {
+      const projectArg = (appendMatch[1] ?? '').trim()
+      const appendText = appendMatch[2].trim()
+      if (!projectArg) {
+        await sendTelegramMessage(token, chatId, 'Usage: /append <project-title-or-id> <text> — e.g. /append star map research the competition')
+        return c.json({ ok: true })
+      }
+      // Resolve the project: id first, then a LIKE prefix match on title (user-scoped,
+      // not deleted). Spark + unreviewed + all active stages are eligible — appending to
+      // an archived/halted project is allowed (the user knows what they're doing).
+      let project = null
+      if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(projectArg)) {
+        const rows = await cfg.db.query<ProjectRow>('SELECT * FROM projects WHERE id = ? AND user_id = ? AND deleted_at IS NULL', [projectArg, userId])
+        project = rows[0] ?? null
+      }
+      if (!project) {
+        const rows = await cfg.db.query<ProjectRow>(
+          'SELECT * FROM projects WHERE user_id = ? AND deleted_at IS NULL AND LOWER(title) LIKE ? ORDER BY updated_at DESC LIMIT 1',
+          [userId, projectArg.toLowerCase() + '%'],
+        )
+        project = rows[0] ?? null
+      }
+      if (!project) {
+        await sendTelegramMessage(token, chatId, `No project found matching "${esc(projectArg)}". Use /idea to capture a new one, or check the title in Hibana.`)
+        return c.json({ ok: true })
+      }
+      const now = new Date().toISOString()
+      // Append to latest_note with a timestamp separator (or set it if empty).
+      const sep = project.latest_note ? '\n\n— ' + now + ' (from Telegram):\n' : now + ' (from Telegram):\n'
+      const newNote = (project.latest_note ?? '') + sep + appendText.slice(0, 5000)
+      await cfg.db.execute('UPDATE projects SET latest_note = ?, updated_at = ? WHERE id = ? AND user_id = ?', [newNote, now, project.id, userId])
+      // Mirror the web UI's project_history_log write so the activity feed shows the
+      // append. The table schema (0002) is (id, project_id, note, created_at) — no kind.
+      try {
+        await cfg.db.execute(
+          'INSERT INTO project_history_log (id, project_id, note, created_at) VALUES (?, ?, ?, ?)',
+          [uuid(), project.id, appendText.slice(0, 5000), now],
+        )
+      } catch { /* history is best-effort — the latest_note write is the source of truth */ }
+      const base = requestOrigin(c)
+      const preview = appendText.length > 120 ? appendText.slice(0, 117) + '…' : appendText
+      await sendTelegramMessage(token, chatId, `📎 Appended to <b>${esc(project.title)}</b>:\n\n${esc(preview)}\n\n<a href="${base}/project.html?id=${project.id}">Open it in Hibana →</a>`, 'HTML')
       return c.json({ ok: true })
     }
 

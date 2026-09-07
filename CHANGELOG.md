@@ -2,7 +2,32 @@
 
 Full spec: `pm-app-spec.md` · Rules (non-negotiable): `CLAUDE.md` · Reasoning: `vision.md` ·
 Deploy: `DEPLOY.md` · What's next: `ROADMAP.md` · Session handoff: `NEW_SESSION.md`
-Verification: `npm test` (224) · `npm run typecheck` · `npm run smoke` · `npm run drill` · `npm run drill:planb`
+Verification: `npm test` (233) · `npm run typecheck` · `npm run smoke` · `npm run drill` · `npm run drill:planb`
+
+## 2026-09-07 — v0.3.2: jitter-proof cron classification + ArvanCloud mirror support
+Small, deliberate hardening — no schema, no frontend changes.
+- **Scheduled ticks are classified by the trigger that fired, not the wall clock.** The
+  healthchecks.io ping log from the first live day exposed a real integrity flaw: a
+  third ping at 15:31:18 UTC (UA `hibana-cron/1.0`) that no backup tick could explain —
+  a jittered */30 event (15:30 slot) whose fire landed at :31, misread by the old
+  `minute % 30 !== 0` rule as a backup tick. It ran a second backup AND reset the
+  dead-man's switch with a non-backup heartbeat — exactly the kind of masking the
+  watchdog exists to prevent. Now `classifyTick` (src/lib/cron.ts) keys on
+  `controller.cron` (whitespace-normalized), with the daily slot read from the
+  trigger's `scheduledTime` hour; the wall-clock path survives only as a fallback for
+  cron-less harness invocations. +5 tests.
+- **`MIRROR_ORIGIN` — CSRF origin allow-list for a CDN front (docs/edge-mirror.md).**
+  Iran↔Cloudflare transit is shaped at the consumer-ISP level, so direct access to
+  hibana.ir from inside Iran is painfully slow without a VPN (the app itself is healthy
+  — 109 ms TTFB on a clean route, verified). The supported fix is an ArvanCloud CDN
+  zone fronting the Worker on a delegated SUBDOMAIN (`fast.hibana.ir`) — the apex NS
+  stay on Cloudflare (the Aug-31 incident must not repeat). Such a proxy rewrites the
+  Host at origin-pull, so the browser's Origin can never equal the request's own
+  origin and every state-changing request would 403; `MIRROR_ORIGIN` (prod var, set to
+  `https://fast.hibana.ir` — inert while NXDOMAIN) extends the gate to exactly that
+  origin, same-origin first, everything else still rejected. Node entry parses the
+  same var. +4 tests.
+- Gates: typecheck clean; 233/233 tests (+9).
 
 ## 2026-09-07 — v0.3.1: dead-man's switch LIVE + hibana.ir DNS incident
 Ops session — no application code changes (Worker unchanged except one secret).

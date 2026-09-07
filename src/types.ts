@@ -21,6 +21,10 @@ export interface Env {
   BACKUP_ENCRYPTION_KEY?: string // base64 (32 bytes) AES-GCM key for at-rest backup encryption (C3 fix)
   /** Dead-man's switch (dr-integrity session): healthchecks.io ping URL. Prod secret; unset = off. */
   HEALTHCHECK_PING_URL?: string
+  /** Mirror origins for the CSRF origin gate (docs/edge-mirror.md) — comma/space separated
+   *  full origins, e.g. "https://fast.hibana.ir". Set only when a CDN front (ArvanCloud) is
+   *  actually delegated; empty/unset = the gate trusts only the request's own origin. */
+  MIRROR_ORIGIN?: string
 }
 
 // Everything createApp() needs, in runtime-agnostic form — this is what makes the
@@ -42,6 +46,10 @@ export interface Config {
    * success and /fail on failure — an external watchdog that alerts when the pings STOP
    * (catches a silently dead cron, which /api/health can never show). Unset = feature off. */
   healthcheckUrl?: string
+  /** Extra origins the CSRF gate treats as "self" — for CDN-fronted mirrors whose host the
+   *  proxy rewrites at origin-pull time (docs/edge-mirror.md). Exact string match
+   *  ("https://host[:port]"), no trailing slashes. Unset = mirrors not trusted. */
+  mirrorOrigins?: string[]
   assets?: (url: URL, req?: Request) => Promise<Response>
 }
 

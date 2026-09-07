@@ -504,6 +504,12 @@ Wired to the owner's healthchecks.io account and verified in production:
   succeeded; a failed/skipped backup pings `<url>/fail` instead (immediate alert).
 - The dev worker never pings (prod-only). Manual backups never ping (a heartbeat must
   only beat for the automated path). With the secret unset, the feature is off.
+- v0.3.2 (same day): tick classification hardened. The first live day produced a third
+  ping at 15:31:18 UTC — a jittered */30 event (15:30 slot, fire landing at :31) that
+  the old wall-clock rule misread as a backup tick: it ran a second backup and reset
+  the watchdog with a non-backup heartbeat. Ticks are now classified by the trigger
+  that fired (`controller.cron` → `src/lib/cron.ts`), which jitter cannot change; the
+  daily slot keys on the trigger's scheduled hour.
 
 **Rotate the ping key** (leak suspicion or hygiene): healthchecks.io → Account settings →
 Ping keys → generate → the URL becomes `https://hc-ping.com/<new-key>/hibana` → then:
@@ -544,6 +550,13 @@ click "Check nameservers now" (no public API exists to force the re-check). Rest
 and cron never depend on DNS; `hibana-prod.aliassadi.workers.dev` stayed up as fallback).
 If the change was NOT owner-authorized: rotate the registrar password + audit its login
 history — the records were copied over deliberately, this was not a registrar glitch.
+
+**Related (v0.3.2): the supported ArvanCloud pattern.** The apex-NS experiment could
+never speed anything up — DNS delegation changes who *answers queries*, not where the
+*bytes flow*; the throttled Iran↔CF leg remained untouched. The real fast path is an
+ArvanCloud CDN **proxy** on a delegated SUBDOMAIN (`fast.hibana.ir`, origin = the
+Worker) while the apex NS stay on Cloudflare. Setup, cache rules and security
+verification: `docs/edge-mirror.md`.
 
 ### What's NOT monitored (gaps)
 - **D1-down errors are invisible to `error_log`** (the recorder writes to D1): if the

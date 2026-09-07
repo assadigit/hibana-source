@@ -10,7 +10,7 @@ import type { Db } from '../db/types'
 // closes the form-encoded htmx surface too. Server callers with neither header are allowed
 // (internal automation + the rule-11 Telegram webhook).
 
-async function makeClient(db: Db, userId: string) {
+async function makeClient(db: Db, userId: string, mirrorOrigins?: string[]) {
   const app = createApp({
     db,
     isProd: false,
@@ -18,6 +18,7 @@ async function makeClient(db: Db, userId: string) {
     emailKey: undefined,
     telegramToken: 'test-bot-token',
     telegramSecret: 'wxyz-secret',
+    mirrorOrigins,
     assets: undefined,
   })
   const token = await createSession(db, userId)
@@ -149,6 +150,98 @@ describe('CSRF hardening — cross-site state-changing requests are rejected', (
       } finally {
         globalThis.fetch = originalFetch
       }
+    } finally {
+      close()
+    }
+  })
+})
+
+describe('CSRF mirror origins (v0.3.2 — MIRROR_ORIGIN allow-list, docs/edge-mirror.md)', () => {
+  // A CDN front (ArvanCloud) proxies the Worker with the Host rewritten to the origin
+  // (hibana.ir), so a browser on https://fast.hibana.ir sends an Origin that can never
+  // equal the request's own origin — the gate needs the explicit allow-list for exactly
+  // that origin, and nothing else.
+  const MIRROR = 'https://fast.hibana.ir'
+
+  it('allows a state-changing POST whose Origin is a configured mirror', async () => {
+    const { db, close } = makeTestDb()
+    try {
+      const userId = await makeUser(db)
+      const { app, auth } = await makeClient(db, userId, [MIRROR])
+      const res = await app.fetch(
+        new Request('http://local/api/projects', {
+          method: 'POST',
+          headers: { ...auth, Origin: MIRROR },
+          body: JSON.stringify({ title: 'mirror idea' }),
+        }),
+      )
+      expect(res.status).toBe(201)
+      const rows = await db.query<{ n: number }>('SELECT COUNT(*) AS n FROM projects')
+      expect(rows[0].n).toBe(1)
+    } finally {
+      close()
+    }
+  })
+
+  it('rejects the mirror Origin when no mirror is configured (opt-in, default off)', async () => {
+    const { db, close } = makeTestDb()
+    try {
+      const userId = await makeUser(db)
+      const { app, auth } = await makeClient(db, userId)
+      const res = await app.fetch(
+        new Request('http://local/api/projects', {
+          method: 'POST',
+          headers: { ...auth, Origin: MIRROR },
+          body: JSON.stringify({ title: 'unconfigured mirror' }),
+        }),
+      )
+      expect(res.status).toBe(403)
+      const rows = await db.query<{ n: number }>('SELECT COUNT(*) AS n FROM projects')
+      expect(rows[0].n).toBe(0)
+    } finally {
+      close()
+    }
+  })
+
+  it('allows a form-encoded htmx POST whose Referer origin is a configured mirror', async () => {
+    const { db, close } = makeTestDb()
+    try {
+      const userId = await makeUser(db)
+      const { app, auth } = await makeClient(db, userId, [MIRROR])
+      const res = await app.fetch(
+        new Request('http://local/api/projects', {
+          method: 'POST',
+          headers: {
+            Cookie: auth.Cookie,
+            'Content-Type': 'application/x-www-form-urlencoded',
+            Referer: `${MIRROR}/index.html`,
+          },
+          body: 'title=htmx+via+mirror',
+        }),
+      )
+      expect(res.status).toBe(201)
+      const rows = await db.query<{ n: number }>('SELECT COUNT(*) AS n FROM projects')
+      expect(rows[0].n).toBe(1)
+    } finally {
+      close()
+    }
+  })
+
+  it('a configured mirror does not widen the gate: every other cross-site Origin is still rejected', async () => {
+    const { db, close } = makeTestDb()
+    try {
+      const userId = await makeUser(db)
+      const { app, auth } = await makeClient(db, userId, [MIRROR])
+      const res = await app.fetch(
+        new Request('http://local/api/projects', {
+          method: 'POST',
+          headers: { ...auth, Origin: 'https://evil.example' },
+          body: JSON.stringify({ title: 'still blocked' }),
+        }),
+      )
+      expect(res.status).toBe(403)
+      const rows = await db.query<{ n: number }>('SELECT COUNT(*) AS n FROM projects')
+      expect(rows[0].n).toBe(0)
     } finally {
       close()
     }

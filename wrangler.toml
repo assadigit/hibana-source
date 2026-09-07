@@ -51,6 +51,10 @@ database_id = "80e02ce2-ca0a-4ccc-beda-8b6cb9c3a984"
 ENVIRONMENT = "prod"
 GITHUB_OWNER = "assadigit"
 GITHUB_REPO = "hibana-safe"
+# Mirror origin allowed through the CSRF gate for the ArvanCloud front (docs/edge-mirror.md).
+# Inert while the hostname is NXDOMAIN — no page can legitimately originate there until the
+# Arvan zone is delegated. The apex NS stay on Cloudflare; only the SUBDOMAIN is delegated.
+MIRROR_ORIGIN = "https://fast.hibana.ir"
 
 # Custom domain (hibana.ir): wrangler 4 no longer supports the `custom_domains`
 # toml key (it warns "Unexpected fields found ... custom_domains"). Attach it via the

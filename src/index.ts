@@ -1,5 +1,6 @@
 import { createApp } from './app'
 import { createD1Db } from './db/d1'
+import { classifyTick } from './lib/cron'
 import { scheduledBackup, scheduledPlanBBackup, scheduledPurge, type BackupOutcome } from './routes/admin'
 import { runReminders } from './services/reminders'
 import { runSadhanaReminders, sweepCompletedTasks, resetDueRecurring } from './services/sadhana'
@@ -27,6 +28,12 @@ function buildConfig(env: Env): Config {
     backupEncryptionKey: env.BACKUP_ENCRYPTION_KEY,
     // Dead-man's switch (dr-integrity session): prod-only secret; unset = feature off.
     healthcheckUrl: env.HEALTHCHECK_PING_URL,
+    // Mirror origins for the CSRF gate (docs/edge-mirror.md) — full origins, trailing
+    // slashes stripped; empty when unset (the gate then trusts only the request's own origin).
+    mirrorOrigins: (env.MIRROR_ORIGIN ?? '')
+      .split(/[\s,]+/)
+      .filter(Boolean)
+      .map((o) => o.replace(/\/+$/, '')),
   }
 }
 
@@ -38,15 +45,17 @@ export default {
   // UTC — "a very very recent backup to restore from"), plus the 30-minute cadence (spec
   // §7.3) that runs ONLY the Sadhana reminder pass (so the 2h-before-deadline window
   // actually works). The remaining daily jobs (purge, weekly sweep, client reminders)
-  // must NOT multiply ×4 — they stay pinned to the 03:17 run only, so `hour === 3 &&
-  // utcMin % 30 !== 0` uniquely identifies the daily slot, `utcMin % 30 !== 0` the backup
-  // slots.
-  async scheduled(_controller: ScheduledController, env: Env, ctx: ExecutionContext): Promise<void> {
+  // must NOT multiply ×4 — they stay pinned to the 03:17 run only (classifyTick keys the
+  // daily slot on the trigger's scheduled hour, so a late-firing 03:17 still counts).
+  // v0.3.2: the tick TYPE comes from the trigger that fired (controller.cron), not the
+  // wall clock — CF fires scheduled events with jitter, and the old clock rule
+  // (`minute % 30 !== 0` ⇒ backup) misread a */30 event landing at :31 as a backup tick
+  // (observed live 2026-09-07 15:31:18 UTC: a second backup + an extra watchdog ping,
+  // which could mask a dead cron). The daily slot keys on the trigger's SCHEDULED hour
+  // (classifyTick → scheduledTime), so a late-firing 03:17 still counts as the daily run.
+  async scheduled(controller: ScheduledController, env: Env, ctx: ExecutionContext): Promise<void> {
     const cfg = buildConfig(env)
-    const now = new Date()
-    const utcMin = now.getUTCHours() * 60 + now.getUTCMinutes()
-    const backupTick = utcMin % 30 !== 0
-    const dailyTick = backupTick && now.getUTCHours() === 3
+    const { backupTick, dailyTick } = classifyTick(controller)
     // P1.4 (F-L3): run the jobs SEQUENTIALLY, not via Promise.all. They share the Worker's
     // CPU + subrequest budget, so concurrent backup (28 SELECTs + GitHub PUT + retention
     // deletes) and reminders (task scan + Resend emails) could starve each other. The

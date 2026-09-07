@@ -109,23 +109,30 @@ export function createApp(cfg: Config) {
     }
   })
 
-  // CSRF hardening: every state-changing request must originate from the app's own origin.
-  // Browsers always attach an `Origin` (or `Referer`) to cross-site POST/PUT/PATCH/DELETE, so a
-  // mismatched header is rejected before any route runs — this covers the form-encoded htmx
-  // surface that the JSON-content-type argument can't, on top of SameSite=Lax already dropping
-  // the session cookie cross-site (defense in depth). Server-to-server callers that send
-  // neither header are allowed (internal automation, and the Telegram webhook — itself
-  // authenticated by its secret-token header, rule 11).
+  // CSRF hardening: every state-changing request must originate from the app's own origin
+  // — or, since v0.3.2, from an explicitly configured mirror origin (MIRROR_ORIGIN, see
+  // docs/edge-mirror.md: a CDN front like ArvanCloud rewrites the Host to the origin at
+  // pull time, so the browser's Origin (https://fast.hibana.ir) can never equal the
+  // request's own origin; the allow-list is exact-string, empty by default, and
+  // SameSite=Lax still drops the cookie for every other cross-site caller). Browsers
+  // always attach an `Origin` (or `Referer`) to cross-site POST/PUT/PATCH/DELETE, so a
+  // mismatched header is rejected before any route runs — this covers the form-encoded
+  // htmx surface that the JSON-content-type argument can't, on top of SameSite=Lax already
+  // dropping the session cookie cross-site (defense in depth). Server-to-server callers
+  // that send neither header are allowed (internal automation, and the Telegram webhook —
+  // itself authenticated by its secret-token header, rule 11).
   app.use('*', async (c, next) => {
     if (!['POST', 'PUT', 'PATCH', 'DELETE'].includes(c.req.method)) return next()
     if (c.req.path === '/api/telegram/webhook') return next() // rule 11 governs it
     const self = new URL(c.req.url).origin
+    const mirrors = cfg.mirrorOrigins ?? []
+    const trusted = (o: string) => o === self || mirrors.includes(o)
     const origin = c.req.header('Origin')
     const referer = c.req.header('Referer')
-    if (origin && origin !== self) return c.json({ error: 'forbidden' }, 403)
+    if (origin && !trusted(origin)) return c.json({ error: 'forbidden' }, 403)
     if (referer) {
       try {
-        if (new URL(referer, self).origin !== self) return c.json({ error: 'forbidden' }, 403)
+        if (!trusted(new URL(referer, self).origin)) return c.json({ error: 'forbidden' }, 403)
       } catch {
         return c.json({ error: 'forbidden' }, 403)
       }

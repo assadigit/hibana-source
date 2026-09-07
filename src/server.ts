@@ -96,6 +96,11 @@ const cfg: Config = {
   // math captcha — Turnstile secret kept as legacy fallback
   openRegistration: process.env.OPEN_REGISTRATION === 'true',
   backupEncryptionKey: process.env.BACKUP_ENCRYPTION_KEY,
+  // Mirror origins for the CSRF gate (docs/edge-mirror.md) — same parsing as the Worker entry.
+  mirrorOrigins: (process.env.MIRROR_ORIGIN ?? '')
+    .split(/[\s,]+/)
+    .filter(Boolean)
+    .map((o) => o.replace(/\/+$/, '')),
   assets: serveFile,
 }
 

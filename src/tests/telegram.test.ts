@@ -851,7 +851,7 @@ describe('telegram bot commands — /note, /idea, /list (quick notes on the dash
     }
   })
 
-  it('a stale list session does not swallow ideas — plain text becomes an Idea', async () => {
+  it('a list session persists until /done or /cancel (not finite — no TTL, design §7.4)', async () => {
     const { db, close } = makeTestDb()
     try {
       const { app, memberId } = await linkMember(db)
@@ -859,13 +859,15 @@ describe('telegram bot commands — /note, /idea, /list (quick notes on the dash
       try {
         await webhook(app, '/list')
         await webhook(app, 'old item')
-        // Age the session past the 2h TTL (rule 3: UTC ISO strings).
-        const stale = new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString()
-        await db.execute('UPDATE telegram_note_sessions SET updated_at = ? WHERE user_id = ?', [stale, memberId])
+        // No TTL — the session persists (design §7.4, round-2 Q5). A later plain text
+        // appends to the same list rather than being captured as a new idea.
         await webhook(app, 'urgent idea')
-        expect(bot.sent[bot.sent.length - 1]).toContain('Captured')
-        expect((await db.query("SELECT COUNT(*) AS n FROM projects WHERE status = 'spark'"))[0].n).toBe(1)
-        expect((await db.query('SELECT COUNT(*) AS n FROM telegram_note_sessions'))[0].n).toBe(0) // swept
+        expect(bot.sent[bot.sent.length - 1]).toContain('2 item')
+        expect((await db.query("SELECT COUNT(*) AS n FROM projects WHERE status = 'spark'"))[0].n).toBe(0)
+        expect((await db.query('SELECT COUNT(*) AS n FROM telegram_note_sessions'))[0].n).toBe(0) // legacy table unused
+        const sess = await db.query<{ state: string }>('SELECT state FROM telegram_bot_sessions WHERE user_id = ?', [memberId])
+        const items = JSON.parse(sess[0]?.state ?? '{}').items
+        expect(items).toEqual(['old item', 'urgent idea'])
         expect((await db.query('SELECT COUNT(*) AS n FROM quick_notes'))[0].n).toBe(0)
       } finally {
         bot.restore()

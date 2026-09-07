@@ -4,7 +4,28 @@ Full spec: `pm-app-spec.md` · Rules (non-negotiable): `CLAUDE.md` · Reasoning:
 Deploy: `DEPLOY.md` · What's next: `ROADMAP.md` · Session handoff: `NEW_SESSION.md`
 Verification: `npm test` (224) · `npm run typecheck` · `npm run smoke` · `npm run drill` · `npm run drill:planb`
 
-## 2026-09-12 — v0.3.0: DR-integrity closeout — migration 0045
+## 2026-09-07 — v0.3.1: dead-man's switch LIVE + hibana.ir DNS incident
+Ops session — no application code changes (Worker unchanged except one secret).
+- **healthchecks.io wired to the owner's real account** (the v0.3.0 placeholder capture
+  URL is retired): prod secret `HEALTHCHECK_PING_URL` → the owner's check (`Hibana`,
+  slug `hibana`). Check config fixed via the management API — the fresh check had 12 h/1 h
+  timing and **no channels** (a blind watchdog); now ping-every-6 h + grace 6 h (alert =
+  12 h of silence = 2 missed ticks) with the email channel attached. **Live-verified
+  end-to-end**: secret set 15:08 UTC → the 15:17 backup tick pinged at 15:18:08 UTC →
+  check `up`, `n_pings` 2. Rotation + re-setup-from-scratch documented (runbook §1/§5).
+- **hibana.ir nameserver incident** (detected + responded same day): IRNIC delegation
+  had been moved to ArvanCloud (`i/y.ns.arvancdn.ir`, ~Aug 31) — Cloudflare flagged the
+  zone `moved` (`ns_delegated_from_provider`). The site kept limping (Arvan's zone kept
+  apex+www → the CF edge IP), but all other DNS records were gone → the Resend DKIM TXT
+  wasn't resolving (email failing receivers' checks), and NS control = redirect risk.
+  Owner restored `isabel`/`patryk.ns.cloudflare.com` at IRNIC; DKIM resolving again
+  within minutes. Detection + response + registrar-security guidance: runbook §5
+  incident note. Zero data impact (D1/backups/cron are DNS-independent; the
+  workers.dev fallback stayed up).
+- Housekeeping: reset the accidental blanket 0755 file modes the v0.3.0 build cycle
+  left in the working tree (content was already committed unchanged).
+
+## 2026-09-07 — v0.3.0: DR-integrity closeout — migration 0045
 Dead-man's switch, D1 Time Travel as a restore channel, key custody, error log, and the
 HTML → `/dist/` wiring (design record: `docs/dr-integrity-closeout.md`). Deployed dev + prod.
 Every weakness from the v0.2.0 SWOT review is closed or consciously deferred:

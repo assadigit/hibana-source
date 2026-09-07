@@ -33,7 +33,8 @@
 | `TELEGRAM_SECRET` | Wrangler secret + `.secrets.env` | Generate a new random string |
 | `CAPTCHA_SECRET_KEY` | Wrangler secret + `.secrets.env` | Generate a new random string |
 | `BACKUP_ENCRYPTION_KEY` | Wrangler secret + offline backup | **CANNOT be rotated without re-encrypting all backups** — see below |
-| `HEALTHCHECK_PING_URL` | Wrangler secret (prod only) | healthchecks.io → check settings → regenerate URL (v0.3.0, §5) |
+| `HEALTHCHECK_PING_URL` | Wrangler secret (prod only) + `.secrets.env` | healthchecks.io → Account settings → Ping keys → regenerate → update the secret (§5) |
+| `HEALTHCHECKS_API_RW` / `HEALTHCHECKS_API_RO` | `.secrets.env` (ops tooling only — NOT Worker secrets) | healthchecks.io → Account settings → API keys → revoke + create |
 | `OWNER_EMAIL` | Wrangler var (not secret) | Wrangler dashboard or `wrangler.toml` |
 
 ### Rotation procedure (per secret)
@@ -484,27 +485,36 @@ when D1 itself is unavailable.
 | Signal | How | Alert via |
 |---|---|---|
 | App uptime | External monitor (UptimeRobot/Better Stack) hitting `/api/health` every 5 min | Email + Telegram webhook |
-| **Backup cron liveness (dead-man's switch)** — v0.3.0 | Prod cron pings a healthchecks.io URL on every successful 4×/day backup tick; `/fail` on a failed/skipped backup | **healthchecks.io email (independent of CF + Resend)** — alerts after 2 missed ticks (12 h) |
+| **Backup cron liveness (dead-man's switch)** — v0.3.0 (LIVE 2026-09-07) | Prod cron pings a healthchecks.io URL on every successful 4×/day backup tick; `/fail` on a failed/skipped backup | **healthchecks.io email (independent of CF + Resend)** — alerts after 2 missed ticks (12 h) |
 | Backup failure | `scheduledBackup` catches errors + sends Telegram message to linked owners | Telegram bot |
 | DB unreachable | `/api/health` returns 503 | External monitor |
 | Resend quota | `GET /api/admin/email` shows `sent_today` / `limit` | Manual check (admin console) |
 | **Runtime errors** — v0.3.0 | `error_log` table (migration 0045): unhandled throws + ApiErrors, 7-day retention | **Admin console → Errors tab** (owner-only); `GET /api/admin/errors` |
 
-### Dead-man's switch setup (healthchecks.io) — one-time, ~5 minutes
+### Dead-man's switch (healthchecks.io) — LIVE since 2026-09-07
 
-1. Create a free account at https://healthchecks.io (or self-host — but then it must run
-   OUTSIDE Cloudflare, or it shares the failure domain it watches).
-2. **Add check**: Name `hibana-backup-cron`; **Period = 6 hours** (backup runs 4×/day);
-   **Grace = 6 hours** (alert after 2 missed ticks = 12 h); Schedule = simple.
-3. (Optional) Integrations → add Telegram or more emails — the default email is enough.
-4. Copy the **Ping URL** (`https://hc-ping.com/<uuid>`) and set the prod secret:
-   ```bash
-   cd hibana-audit
-   npx wrangler secret put HEALTHCHECK_PING_URL --env prod
-   # paste the URL, Enter
-   ```
-5. Done. The dev worker never pings (prod-only). Manual backups never ping (a heartbeat
-   must only beat for the automated path). Until the secret is set, the feature is off.
+Wired to the owner's healthchecks.io account and verified in production:
+- Check: name `Hibana`, slug `hibana` — expected ping every 6 h (v3 `timeout` 21600 s),
+  grace 6 h → **alert = 12 h of silence = 2 missed ticks**; email channel attached
+  (the alert path shares no provider with Cloudflare/Resend/Telegram/GitHub).
+- Prod secret `HEALTHCHECK_PING_URL` = `https://hc-ping.com/<ping-key>/hibana` (the ping
+  key lives only in the healthchecks.io account + `.secrets.env` — never in the repo).
+- Live verification 2026-09-07: secret set 15:08 UTC → the 15:17 backup tick pinged at
+  15:18:08 UTC → check `up`, `n_pings` incremented. A plain ping means the backup chain
+  succeeded; a failed/skipped backup pings `<url>/fail` instead (immediate alert).
+- The dev worker never pings (prod-only). Manual backups never ping (a heartbeat must
+  only beat for the automated path). With the secret unset, the feature is off.
+
+**Rotate the ping key** (leak suspicion or hygiene): healthchecks.io → Account settings →
+Ping keys → generate → the URL becomes `https://hc-ping.com/<new-key>/hibana` → then:
+```bash
+npx wrangler secret put HEALTHCHECK_PING_URL --env prod
+```
+
+**Re-setup from scratch** (account lost): create a free account at https://healthchecks.io
+(or self-host — but then it must run OUTSIDE Cloudflare, or it shares the failure domain
+it watches). Add a check (any name; simple schedule; **Period = 6 h, Grace = 6 h** — backup
+runs 4×/day), attach the signup email channel, set the secret as above.
 
 ### Setting up external monitoring
 See `docs/uptime-monitoring.md` for step-by-step UptimeRobot/Better Stack setup.
@@ -518,6 +528,22 @@ manual backup + a `wrangler dev --remote --test-scheduled` repro both succeeded 
 success ping arrived. If SQLITE_CORRUPT recurs or persists: §2c (Time Travel) is the
 documented remedy — bookmarks exist in `dr-bookmarks.md`. This is also why the dead-man's
 switch must be OUTSIDE Cloudflare: every in-band alert shares D1's fate.
+
+### Incident note (2026-09-07 #2): hibana.ir nameservers moved off Cloudflare
+Cloudflare flagged the zone "moved" (`ns_delegated_from_provider`): IRNIC was delegating
+`hibana.ir` to **ArvanCloud** (`i/y.ns.arvancdn.ir`, their zone created ~Aug 31) instead of
+the assigned pair `isabel`/`patryk.ns.cloudflare.com`. The site kept working (the Arvan zone
+kept apex + www pointing at the CF edge IP `188.114.99.0`), but every other DNS record
+vanished — the Resend DKIM TXT stopped resolving (outbound email failing receivers' checks)
+— and whoever held NS control could redirect the domain at any time (e.g. serve a fake
+login page on the real domain). **Detection: the CF "Restore nameservers" banner** (API:
+`status: moved` + `observed_name_servers`; dig/DoH cross-check confirms). **Fix:** at the
+IRNIC panel set NS back to `isabel.ns.cloudflare.com` + `patryk.ns.cloudflare.com`, then
+click "Check nameservers now" (no public API exists to force the re-check). Restored
+2026-09-07 ~15:05 UTC — DKIM resolving again within minutes (no data impact: D1, backups
+and cron never depend on DNS; `hibana-prod.aliassadi.workers.dev` stayed up as fallback).
+If the change was NOT owner-authorized: rotate the registrar password + audit its login
+history — the records were copied over deliberately, this was not a registrar glitch.
 
 ### What's NOT monitored (gaps)
 - **D1-down errors are invisible to `error_log`** (the recorder writes to D1): if the

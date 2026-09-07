@@ -1,5 +1,18 @@
 # Edge Mirror — the Iran fast path (ArvanCloud in front of Cloudflare)
 
+> **STATUS 2026-09-08 — DEFERRED by owner decision (frozen at setup step 2 of 4).**
+> Live state: IRNIC delegation ✅ (registry NS = `a.ns.arvancdn.ir` / `v.ns.arvancdn.ir`,
+> resolving publicly) · Arvan zone for `sadhana.ir` exists (SOA 2026-09-08) but has **no
+> apex A record → the domain opens nothing** — origin/SSL/cache (steps 3–4 below) were never
+> applied. Exactly the v0.3.3 prediction: nothing breaks, nothing serves; `hibana.ir`
+> untouched throughout. **Root cause of the API dead-end:** the API keys live in a
+> *different ArvanCloud account* than the zone — the 09-08 key authenticates perfectly
+> (`GET /domains` → HTTP 200) but lists **0 domains**; the zone sits in the panel account.
+> (The 09-07 key was additionally domain-restricted: 403 on every domain endpoint.)
+> **Resume path:** issue an API key *from the account that holds the zone* (or re-add the
+> zone in the API-key account), then apply steps 3–4 via the API reference at the bottom of
+> this doc — the whole remaining setup is ~4 API calls.
+
 ## Why this exists
 
 - Hibana is served by a Cloudflare Worker on the custom domain `hibana.ir`. Cloudflare
@@ -128,3 +141,32 @@ Remove the NS at IRNIC (or delete the zone in the Arvan panel) — `sadhana.ir` 
 resolving within the record TTL. Optionally unset `MIRROR_ORIGIN` (both entries are
 inert whenever their hostnames do not resolve). `hibana.ir` itself is never affected by
 any step here.
+
+## ArvanCloud API reference (reconnaissance, verified 2026-09-08)
+
+For the deferred resume, or any future mirror maintenance:
+
+- **Base URL:** `https://napi.arvancloud.ir/cdn/4.0` — `api.arvancloud.ir` does not exist
+  (NXDOMAIN at Arvan's own authority); `/cdn/v1/` paths 404.
+- **Auth headers (both required):** `Authorization: Apikey <KEY>` **and**
+  `Accept: application/json`. Raw key or `Bearer` → 401 `Unauthenticated.`; missing
+  `Accept` → HTML error pages instead of JSON.
+- `{domain}` path segments take the **domain name** (`sadhana.ir`), not an ID.
+- Endpoints (from the official Go SDK `github.com/arvancloud/cdn-go`; spot-verified):
+  | Purpose | Endpoint |
+  |---|---|
+  | List zones of the key's account | `GET /domains` |
+  | Zone state / activation re-check | `GET /domains/{domain}` · `GET /domains/{domain}/ns-keys/check` |
+  | **Origin** (address / port / protocol / `host_header`) | `GET|PATCH /domains/{domain}/load-balancers/settings` |
+  | **Caching** (respect-origin-headers etc.) | `GET|PATCH /domains/{domain}/caching` |
+  | Page rules (e.g. BYPASS `/api/*`) | `GET|POST /domains/{domain}/page-rules` |
+  | **SSL** state / free-cert order | `GET /domains/{domain}/ssl` · `POST /ssl/orders` |
+- Origin config for this mirror: `address=hibana.ir`, `port=443`, `protocol=https`,
+  `host_header=hibana.ir` (the "دامنه اصلی" field).
+- `docs.arvancloud.ir` is unreachable from this sandbox (HTTP/3 + 307 loop) — the Go SDK
+  on GitHub is the practical documentation source. A clone used to live at `/tmp/cdn-go`
+  (ephemeral); re-clone if resuming in a fresh sandbox.
+- Diagnostic trick that cracked the account mystery: `GET /domains/<random-nonexistent>`
+  → 404 "Domain not found" vs the real domain → 403/absent ⇒ the zone exists but the key
+  can't see it. With the 09-08 key, `GET /domains` (200, `data: []`) says the same thing
+  directly: the key's account holds zero zones.

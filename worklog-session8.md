@@ -838,3 +838,21 @@ Stage Summary:
 - Owner steps (docs/edge-mirror.md, in order): (0) reactivate/register sadhana.ir at IRNIC — currently registry-NXDOMAIN; (1) Arvan panel: delete the dead Aug-31 hibana.ir zone, add sadhana.ir as a MAIN domain on the free Basic plan, note the assigned NS pair; (2) IRNIC: set sadhana.ir NS to the Arvan pair; (3) Arvan zone: origin hibana.ir HTTPS:443 with Host header = hibana.ir ("دامنه اصلی"), free SSL, respect-origin-headers + BYPASS /api/* if rules are exposed on Basic; (4) dig NS sadhana.ir flips → run the from-Iran verification curls (speed, static cache HIT, API-never-cached security check).
 - Mirror serves at the APEX only — no subdomain entries under sadhana.ir (each would be the paid feature).
 - Owner follow-ups unchanged: key-custody drill (§1, still never run); "Check nameservers now" for the zone `moved` badge.
+
+---
+Task ID: 32
+Agent: main (Principal Full-Stack Engineer)
+Task: Mirror deferred (owner decision) + release packaging v0.3.4 — Arvan API root-cause captured, session-9 handoff prompt written (docs-only, no deploy)
+
+Work Log:
+- Owner deferred the sadhana.ir mirror mid-configuration. One record-only probe of the fresh Arvan key before freezing: `GET napi.arvancloud.ir/cdn/4.0/domains` → HTTP 200, `data: []` — the key authenticates with full read scope but its account holds ZERO zones. Root cause of the entire 403 saga: **the API keys live in a different ArvanCloud account than the sadhana.ir zone** (the 09-07 key was additionally domain-restricted). New key stored in .secrets.env (gitignored) for the eventual resume.
+- Mirror freeze state documented in docs/edge-mirror.md (STATUS block at top): IRNIC delegation done (a/v.ns.arvancdn.ir), Arvan zone exists (SOA 09-08) but apex has no A record → "opens nothing", hibana.ir untouched. Resume = key from the zone's account + ~4 API calls (origin/SSL/cache + optional /api/* bypass).
+- Full ArvanCloud API reference appended to edge-mirror.md: base napi.arvancloud.ir/cdn/4.0, dual auth headers (Apikey + Accept: application/json), {domain}=name-not-ID, endpoint table (domains, ns-keys/check, load-balancers/settings, caching, page-rules, ssl + /ssl/orders), the 404-vs-403 diagnostic trick, docs.arvancloud.ir unreachable-from-sandbox note, Go SDK as practical doc source.
+- NEW_SESSION_PROMPT.md rewritten as the session-9 starter: agenda ① UI/UX audit (23 pages, 7 audit dimensions: bilingual/RTL, responsive 390px, light/dark WCAG, async states, design-system consistency, flows incl. never-lose-your-place loop, perceived perf) → ② severity-grouped fix plan for approval → ③ batched implement/fix/debug with the full verification ladder. Current asset versions + deploy pipeline + deferred-items list embedded.
+- Release packaging: CHANGELOG v0.3.4 (docs-only entry; prod stays 607a7cd9); package.json → 0.3.4; zip naming switched to per-version (hibana.0.3.4.zip), old hibana-full-project.zip retired.
+- Gates: typecheck clean; 233/233 tests (no code touched).
+
+Stage Summary:
+- v0.3.4 committed + pushed (docs-only). Prod untouched (607a7cd9). The mirror is frozen in a safe, fully-documented state; the resume path is written down to the exact API calls.
+- Next session: UI/UX audit per NEW_SESSION_PROMPT.md (agenda: audit → plan → implement/fix/debug).
+- hibana.0.3.4.zip = this release's artifact (fresh public/dist, 0 secrets, public/ copy for download).

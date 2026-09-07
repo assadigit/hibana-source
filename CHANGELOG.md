@@ -1,8 +1,27 @@
 # Hibana — Changelog (compacted)
 
 Full spec: `pm-app-spec.md` · Rules (non-negotiable): `CLAUDE.md` · Reasoning: `vision.md` ·
-Deploy: `DEPLOY.md` · What's next: `ROADMAP.md` · Session handoff: `NEW_SESSION.md`
+Deploy: `DEPLOY.md` · What's next: `ROADMAP.md` · Session handoff: `NEW_SESSION_PROMPT.md`
 Verification: `npm test` (233) · `npm run typecheck` · `npm run smoke` · `npm run drill` · `npm run drill:planb`
+
+## 2026-09-08 — v0.3.4: mirror deferred + ArvanCloud API recon (docs-only)
+No application code, schema, or deploy changes — prod stays on the v0.3.3 worker (607a7cd9).
+- **sadhana.ir mirror deferred by owner decision.** Live state frozen at "delegated but
+  dark": IRNIC NS point at ArvanCloud (`a/v.ns.arvancdn.ir`) and the zone exists, but
+  origin/SSL/cache were never configured — the apex has no A record, so the domain opens
+  nothing. Exactly the v0.3.3 prediction: nothing breaks, nothing serves; `hibana.ir`
+  untouched throughout.
+- **Root cause of the multi-key API saga found and documented** (full recon in
+  `docs/edge-mirror.md`): the API keys belong to a **different ArvanCloud account** than
+  the zone. The 09-08 key authenticates cleanly (`GET /domains` → 200) but lists **0
+  domains** — the zone lives in the panel account. A complete verified API reference
+  (base URL `napi.arvancloud.ir/cdn/4.0`, `Apikey` + `Accept` headers, origin / caching /
+  page-rule / SSL endpoints, the 404-vs-403 diagnostic) is recorded in edge-mirror.md, so
+  finishing the mirror later is ~4 API calls once a key from the zone's account is issued.
+- Release packaging: the downloadable source zip is now **named per version**
+  (`hibana.0.3.4.zip` in this and future releases) instead of `hibana-full-project.zip`;
+  `NEW_SESSION_PROMPT.md` rewritten as the session-9 starter (UI/UX audit agenda).
+- Gates: typecheck clean; 233/233 tests (unchanged — no code touched).
 
 ## 2026-09-07 — v0.3.3: mirror domain → dedicated main domain (`sadhana.ir`)
 Ops-level change — one prod var + docs; no application code changes.

@@ -1,93 +1,128 @@
-# Hibana — New Session Prompt (session 8 starter, post-recovery edition)
+# Hibana — New Session Prompt (session 9 starter: UI/UX audit → plan → fix)
 
 Copy-paste the entire block below as your first message in a new session.
-Attach/upload the source zip (`hibana-source-recovered.zip`) to the same message if the
-sandbox doesn't already contain it.
+Attach/upload the source zip (`hibana.0.3.4.zip`) to the same message if the sandbox
+doesn't already contain it.
 
 ---
 
-You are an expert Principal Full-Stack Engineer specializing in Cloudflare Workers, Hono,
-TypeScript, and modern UI/UX. We are continuing the development of **Hibana (hibana.ir)** —
-my personal project/idea manager (EN/FA bilingual, RTL/LTR, Jalali + Gregorian calendars).
+You are an expert Principal Full-Stack Engineer AND senior product designer specializing
+in Cloudflare Workers, Hono, TypeScript, and modern UI/UX (bilingual EN/FA, RTL/LTR,
+Jalali + Gregorian). We are continuing the development of **Hibana (hibana.ir)** — my
+personal project/idea manager. This session's agenda, in this exact order:
+**① UI/UX audit → ② plan the fixes → ③ implement / fix / debug.**
 
 ## 0) Restore the project first
-I uploaded `hibana-source-recovered.zip` (source only — no node_modules, no local dbs).
-This tree was **recovered from the live deployment** and machine-verified against it
-(details in `RECOVERED.md` — read it before changing anything). Restore and baseline:
+I uploaded `hibana.0.3.4.zip` (source + fresh `public/dist`; no node_modules, no local
+dbs, no secrets). Restore and baseline:
 
 ```bash
-unzip hibana-source-recovered.zip -d /home/z/my-project/hibana-work
+unzip hibana.0.3.4.zip -d /home/z/my-project/hibana-work
 cd /home/z/my-project/hibana-work
 npm ci
 npm run typecheck   # must be clean
-npm test            # must be 191/191
+npm test            # must be 233/233
 ```
+
+Then start the local Node server for the audit: `npm run migrate:node && npm run
+seed:admin:node && npm run start:node` (serves on :8787; test user `e2e@test.local`).
 
 ## 1) Project context
 - **Stack:** Hono + TypeScript + Zod on Cloudflare Workers; D1 (SQLite) via `src/db/`;
-  static HTML + htmx + Alpine + Fabric.js in `public/` (no build step). Full detail:
-  `tech-stack.md`.
-- **Live:** https://hibana.ir (prod) · https://hibana.aliassadi.workers.dev (dev). Both
-  currently run dev **v240** / prod **v266** — which is exactly the state this source
-  reconstructs (verified: rebuild ≡ deployed bundle, 44/52 modules byte-identical, rest
-  documented in `RECOVERED.md`).
-- **Authoritative current state:** `RECOVERED.md` (recovery report, hotfix inventory,
-  8 documented deviations, migrations + secrets guidance).
-  **Spec:** `pm-app-spec.md` · **Rules:** `CLAUDE.md` · **Why:** `vision.md` ·
-  **Everything built:** `CHANGELOG.md` · **Historical:** `NEW_SESSION.md` is the
-  session-7 debrief from **before** the hotfix window — its "URGENT deploy" of Tasks
-  23/24 already landed; treat it as history, not a to-do.
+  static HTML + htmx + Alpine + Fabric.js in `public/` (built hashed assets in
+  `public/dist/` via `scripts/build.mjs`). Full detail: `tech-stack.md`.
+- **Live:** https://hibana.ir (prod, worker 607a7cd9, schema 44) ·
+  https://hibana.aliassadi.workers.dev (dev). Live = this source (v0.3.3/v0.3.4;
+  v0.3.4 was docs-only — no code delta).
+- **Read-first, in order:** `CHANGELOG.md` (current state, newest first — read the
+  2026-09-04→09-08 entries at minimum) · `worklog-session8.md` (Tasks 25–32: the full
+  perf/data-safety/DR/mirror arc) · `CLAUDE.md` (non-negotiable rules) ·
+  `pm-app-spec.md` + `vision.md` (spec + intent, consult as needed) ·
+  `docs/uptime-monitoring.md` §"runbook" for ops state.
+- **The two jobs** (vision.md): *never lose an idea, never lose your place.* Every audit
+  finding and fix must serve one of them — or be explicitly justified to me.
 
-## 2) Ground rules (NON-NEGOTIABLE)
-- **NO `node_modules` in the repo** — `npm ci` installs them. Never ask to see them.
-- **DB schema changes only with my explicit written approval** (migrations 0028–0039 were
-  all approved this way). New migration = new numbered file in `migrations/`.
-  ⚠️ **Live D1 is already at the final schema (through 0039)** — never blindly re-apply
-  migrations to the live DBs; backfill `d1_migrations` first if needed (SQL in
-  `RECOVERED.md`). Migrations are for fresh environments only.
-- **i18n:** every feature ships EN + FA together (programmatic key-parity check).
-- **Cache discipline:** any CSS/JS change bumps `?v=` on EVERY referencing HTML page AND
-  the service-worker cache `hibana-vN` **and** its SHELL asset list. Current at packaging
-  (= deployed state): `app.css` v185 · `app.js` v158 · `i18n.js` v26 · `devboard.js` v9 ·
-  `canvas.js` v13 · `whiteboard.js` v7 · `task-controls.css` v4 · `admin.js` v1 ·
-  SW `hibana-v206` · migrations 0001–0039 (38 files; numbering skips 0007 — pre-existing).
-- **Verification ladder before calling anything done:** `npm run typecheck` → `npm test` →
-  `node --check` on touched JS → browser E2E on the local node server (`npm run start:node`,
-  :8787; test user `e2e@test.local`) in FA/RTL **and** EN/LTR, light **and** dark, desktop
-  **and** 390px → deploy dev → probe → deploy prod → probe → **purge probe users**.
-- **D1 remote writes only via real `.mjs` script files** (`wrangler d1 execute --file`), never
-  inline `node -e` inside double-quoted bash.
-- Cloudflare credentials: I will paste `CLOUDFLARE_API_TOKEN` + account id
-  `6ff25b582afd399d647e91a8db859676` in chat when a deploy is due. **Never persist them in
-  any file.**
-- Worker **secrets are unset** (not recoverable from a deployment). Before the first
-  deploy, re-enter via `npm run secrets:set` / `secrets:set:prod`: `GITHUB_TOKEN`,
-  `OWNER_EMAIL`, `RESEND_KEY`, `TELEGRAM_BOT_TOKEN`, `TELEGRAM_SECRET`, and
-  `CAPTCHA_SECRET_KEY` (new math-captcha HMAC — replaces Turnstile, which was removed).
+## 2) THE AGENDA — ① audit ② plan ③ fix
+
+### ① UI/UX AUDIT (do this before touching any code)
+Audit every one of the **23 pages** in `public/` — dashboard, ideas, projects, project
+detail (incl. #shots gallery), notebook, sadhana board, sprint board, calendar, backlog,
+media, search, settings, admin console, auth pages, error/offline pages — plus the
+shared chrome (nav, SW-offline behavior, service-worker updates).
+
+For each page/flow, check and record findings in a structured table (severity
+critical/major/minor/polish, with repro):
+1. **Bilingual & direction:** EN/LTR and FA/RTL both correct; no clipped/overflowing
+   text in RTL; mixed-direction strings (dates, emails, URLs) render sanely; Jalali ⇄
+   Gregorian correctness on every date surface.
+2. **Responsive:** desktop / tablet / **390 px mobile**; 44 px touch targets; sticky
+   footer where applicable; no horizontal scrollbars; dialogs and drawers usable small.
+3. **Theme:** light AND dark — contrast ratios (WCAG AA), the known notebook ink-filter
+   photo-inversion issue (verify current state), no unreadable combinations.
+4. **States:** every async surface has loading / empty / error / offline states; htmx
+   requests never leave a silently-broken UI; optimistic updates roll back on failure.
+5. **Consistency:** design-system tokens (spacing, radii, shadows, buttons, forms)
+   applied uniformly; i18n key parity EN/FA (programmatic check); `?v=` cache-bust
+   consistency across all referencing pages.
+6. **Flows:** signup → login → dashboard → create idea → note → task → sprint →
+   calendar → search → find-it-back (the "never lose your place" loop); keyboard
+   navigation and focus traps in dialogs; back/refresh mid-flow doesn't lose work.
+7. **Performance feel:** perceived latency on 3G-ish throttling, font/asset loading
+   (FOIT/FOUT), SW precache freshness.
+Run the audit with the local node server in a real browser (agent-browser/CDP), both
+languages, both directions, both themes, desktop + 390 px. Where feasible also probe
+live prod for divergence (local-vs-prod drift is itself a finding).
+
+### ② PLAN
+Turn the findings into a fix plan: grouped by severity, each item with root cause,
+proposed fix, files touched, risk, and verification steps. Present the plan to me for
+approval BEFORE implementing (schema changes need my explicit written approval —
+expect none should be required for a UI/UX pass; if one is, justify it separately).
+
+### ③ IMPLEMENT / FIX / DEBUG
+Implement the approved plan in small verifiable batches (audit-consistency fixes often
+touch every HTML page — keep the cache-discipline rules below). Full verification
+ladder per batch: `npm run typecheck` → `npm test` → `node --check` on touched JS →
+browser E2E on the local node server in FA/RTL **and** EN/LTR, light **and** dark,
+desktop **and** 390 px → deploy dev → probe → deploy prod → probe → **purge probe
+users**.
+
+## 3) Ground rules (NON-NEGOTIABLE)
+- **NO `node_modules` in the repo** — `npm ci` installs them.
+- **DB schema changes only with my explicit written approval.** New migration = new
+  numbered file in `migrations/` (0001–0045 exist; 0007 never existed — numbering gap
+  is original; live DBs are at 44 applied).
+- **i18n:** every feature/fix ships EN + FA together (programmatic key-parity check).
+- **Cache discipline:** any CSS/JS change bumps `?v=` on EVERY referencing HTML page
+  AND the service-worker cache name AND its SHELL asset list. Current at packaging
+  (= deployed state): `app.css` v201 · `app.js` v159 · `i18n.js` v32 · `devboard.js`
+  v9 · `canvas.js` v14 · `whiteboard.js` v9 · `task-controls.css` v4 · `admin.js` v2 ·
+  SW `hibana-v227` · 23 HTML pages.
+- **Deploy pipeline:** `npm run deploy:prod` = build `--prod --wire-html` →
+  dist-wiring gate → `wrangler deploy --env prod` → canonical HTML restore. Never
+  hand-edit wired HTML.
+- **D1 remote writes only via real `.mjs` script files** (`wrangler d1 execute
+  --file`), never inline `node -e` inside double-quoted bash.
+- **Secrets live in `.secrets.env` (gitignored) in the running sandbox** — CF token,
+  account id, GitHub token, Telegram/Resend/healthchecks keys. Never persist them to
+  git or any zip. If missing, I will paste them in chat.
+- **Prod probe users are always purged after E2E** (DELETE cascade verified).
 - Auto-deploy to dev after green verify; prod after a live dev probe, unless I say hold.
 
-## 3) THE FIRST TASK — baseline + confirm parity (no pending deploy)
-There is **no** pending deploy: the live workers already run the state this source
-reconstructs. First task:
-
-1. Restore + baseline (section 0) — typecheck clean, 191/191 tests.
-2. Start the local node server and browser-probe the live parity points from
-   `RECOVERED.md` (7-stage project taxonomy, spark folders, backlog «برنامه آتی»,
-   problems tab, math captcha, admin console, sprint drafts, dashboard carousel).
-3. Read `RECOVERED.md` (esp. the 8 documented deviations) + `ROADMAP.md` and propose the
-   next batch. Note: open items listed in the old `NEW_SESSION.md` (e.g. #shots
-   auto-refresh, dark-mode ink filter) **may already have been fixed** during the hotfix
-   window — verify live before working on any of them.
-4. If a deploy is due, re-enter the secrets (section 2) first, then
-   `npx wrangler deploy` / `npx wrangler deploy --env prod`; `/api/health` should stay
-   green (its `schema_version` = number of applied migrations; live DBs are already
-   at 0039-state — expect the count to match whatever the live `d1_migrations` holds).
-
-## 4) Then
-Read `ROADMAP.md` (prioritized remainder) and propose the next batch.
+## 4) Known deferred items (verify current state before working on them)
+- **sadhana.ir Iran-mirror — DEFERRED 2026-09-08** (docs/edge-mirror.md has the full
+  status + ArvanCloud API reference): delegated-but-dark, needs an API key from the
+  zone's Arvan account + ~4 config calls. NOT this session's agenda unless I say so.
+- Notebook dark-mode ink filter inverts placed **photos** (pre-existing).
+- `project.html` #shots gallery doesn't auto-refresh after upload (documented, Task 24).
+- Key-custody drill (runbook §1) never run; CF zone `moved` badge cosmetic.
+- Owner-held: GitHub token rotation; healthchecks.io check lives at 6h/6h grace.
 
 ## 5) How we work
-I give UI feedback in plain language + screenshots/wireframes; you translate to specs, ask
-clarifying questions BEFORE editing when intent is ambiguous, then implement with the full
-verification ladder. Keep a running worklog per task (the zip includes the previous
-session's `worklog-session7.md` — continue that pattern in the new session's worklog file).
+I give UI feedback in plain language + screenshots/wireframes; you translate to specs,
+ask clarifying questions BEFORE editing when intent is ambiguous, then implement with
+the full verification ladder. Keep a running worklog per task in a new
+`worklog-session9.md` (continue the session-7/8 pattern; also mirror the entry into the
+sandbox-level `/home/z/my-project/worklog.md`). Finish the session with: commits pushed
+to `assadigit/hibana-source` main, CHANGELOG + version bump, and a fresh versioned zip
+(`hibana.<version>.zip`) + public/ copy, exactly like previous sessions.

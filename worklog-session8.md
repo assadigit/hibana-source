@@ -818,3 +818,23 @@ Stage Summary:
 - Dead-man's switch hardened: trigger-based tick classification kills the jitter-masking class of bugs (live evidence: the 15:31 ping).
 - v0.3.2 live on prod (b361a8d6); 233/233 tests; f5e70d2 pushed; zip rebuilt + scanned.
 - Owner follow-ups: (1) the ~15-min Arvan panel + CF dashboard setup per docs/edge-mirror.md (the only step that needs the owner's Arvan account); (2) key-custody drill (§1, still never run); (3) click "Check nameservers now" to clear the zone's `moved` badge; (4) after the mirror is live, run the security verification curls from Iran (API never cached, no Set-Cookie leak).
+
+---
+Task ID: 31
+Agent: main (Principal Full-Stack Engineer)
+Task: Mirror domain → sadhana.ir (owner-supplied main domain; ArvanCloud free Basic tier) — MIRROR_ORIGIN list + docs (v0.3.3, ops-level deploy)
+
+Work Log:
+- Task 30's Option A picked; the owner supplied the domain: `sadhana.ir` (a spare .ir they already control). Pre-flight: sadhana.ir is **NXDOMAIN at the .ir registry itself** (a.nic.ir authoritative NXDOMAIN; no NS/A/MX/TXT/www; no whois binary in sandbox) — the domain must be reactivated/registered in the IRNIC panel before Arvan can validate the zone → documented as owner step 0 in edge-mirror.md.
+- Repo hygiene: committed Task 29's worklog record that f5e70d2 had left uncommitted (96d2a00) + reset 34 blanket-mode-only files (recurring v0.3.0-era noise). This deploy cycle itself stayed mode-clean — the mode-preserving fixpoint held.
+- Changes (no application code): wrangler.toml `[env.prod.vars]` MIRROR_ORIGIN = "https://sadhana.ir https://fast.hibana.ir" (list parsing existed since v0.3.2 — zero code change) + comment rewrite; package.json → 0.3.3; CHANGELOG v0.3.3 entry; docs/edge-mirror.md rewritten for the main-domain architecture (fee rationale with plan facts, IRNIC step 0, apex-only invariant, cache-rule caveat on Basic, rollback via IRNIC/Arvan); runbook §5 related-note updated (v0.3.2/v0.3.3).
+- Gates: typecheck clean; 233/233 tests (unchanged — mirror-origin list behavior already covered by the v0.3.2 CSRF suite).
+- deploy:prod: wire-html → check-dist-wiring → wrangler deploy --env prod → version **607a7cd9-6af6-4776-a6dc-7d9c49b48a9a**; MIRROR_ORIGIN binding live ("https://sadhana.ir https://fast.hiban…"); both crons intact (17 3,9,15,21 + */30); canonical HTML restored (23 pages, tree clean).
+- Live verification (19:22 UTC): /api/health 200 (db up, schema 44); CSRF probes on /api/auth/login — Origin https://sadhana.ir → **400** (new mirror origin accepted, auth rejects the probe), Origin https://fast.hibana.ir → 400 (v0.3.2 entry still allowed), Origin https://evil.example → **403** (allow-list widened nothing), no Origin → 400. healthchecks.io via RW key (X-Api-Key header; Bearer hit the documented RO/RW quirk): check `up`, n_pings 3, last_ping 15:31:18 (the pre-fix phantom heartbeat — next real backup ping due 21:17 UTC; */30 ticks never ping by design), grace/timeout 21600/21600.
+- Delivery: v0.3.3 committed (b45a73d) + pushed to assadigit/hibana-source main (one-shot token URL, nothing persisted); zip rebuilt at /home/z/my-project/hibana-full-project.zip + public/ copy (3.5 MB compressed / 7.76 MB uncompressed, 355 files, fresh public/dist with 23 hashed assets included; .git/node_modules/.secrets.env/data/.build-backup/.wrangler excluded; unzip -t OK; secret scan **0 hits for all 6 token/URL values** — CLOUDFLARE_ACCOUNT_ID (16) and OWNER_EMAIL (4) hits are intentional public identifiers in worklogs/ops scripts, same as every prior zip).
+
+Stage Summary:
+- v0.3.3 live on prod (607a7cd9): the mirror front is a free-tier main domain — sadhana.ir at ArvanCloud, origin hibana.ir at Cloudflare. Every invariant preserved (hibana.ir apex NS untouched on isabel/patryk; only a separate SLD will be delegated).
+- Owner steps (docs/edge-mirror.md, in order): (0) reactivate/register sadhana.ir at IRNIC — currently registry-NXDOMAIN; (1) Arvan panel: delete the dead Aug-31 hibana.ir zone, add sadhana.ir as a MAIN domain on the free Basic plan, note the assigned NS pair; (2) IRNIC: set sadhana.ir NS to the Arvan pair; (3) Arvan zone: origin hibana.ir HTTPS:443 with Host header = hibana.ir ("دامنه اصلی"), free SSL, respect-origin-headers + BYPASS /api/* if rules are exposed on Basic; (4) dig NS sadhana.ir flips → run the from-Iran verification curls (speed, static cache HIT, API-never-cached security check).
+- Mirror serves at the APEX only — no subdomain entries under sadhana.ir (each would be the paid feature).
+- Owner follow-ups unchanged: key-custody drill (§1, still never run); "Check nameservers now" for the zone `moved` badge.

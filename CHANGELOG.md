@@ -4,6 +4,27 @@ Full spec: `pm-app-spec.md` · Rules (non-negotiable): `CLAUDE.md` · Reasoning:
 Deploy: `DEPLOY.md` · What's next: `ROADMAP.md` · Session handoff: `NEW_SESSION.md`
 Verification: `npm test` (233) · `npm run typecheck` · `npm run smoke` · `npm run drill` · `npm run drill:planb`
 
+## 2026-09-07 — v0.3.3: mirror domain → dedicated main domain (`sadhana.ir`)
+Ops-level change — one prod var + docs; no application code changes.
+- **The ArvanCloud subdomain turned out to be a paid feature** (Growth+ plans), while MAIN
+  domains are unlimited on the free Basic plan (free SSL, 50 GB + 1M requests/month — an
+  order of magnitude above this app's traffic). The mirror front therefore moves to a
+  dedicated main domain the owner already controls: **`sadhana.ir`**, delegated to ArvanCloud
+  in full (NS at IRNIC) and served at its **apex** — no subdomain entries under it. The
+  v0.3.2 `fast.hibana.ir` hostname stays in the allow-list as an inert future option.
+  Architecture and every invariant unchanged: `hibana.ir` apex NS stay on Cloudflare; only a
+  separate SLD is delegated, so the Aug-31 incident class cannot recur.
+- `MIRROR_ORIGIN` (prod var) is now a list: `https://sadhana.ir https://fast.hibana.ir`
+  (the gate parsed lists since v0.3.2 — no code change needed; the browser's Origin will be
+  `https://sadhana.ir` behind the Arvan proxy, inert until the domain actually resolves).
+- `docs/edge-mirror.md` rewritten for the main-domain pattern (setup incl. the IRNIC
+  reactivation step — the domain is currently NXDOMAIN at the .ir registry — cache rules,
+  security verification, rollback); runbook §5 note updated. sadhana.ir is a .ir domain
+  (~60k toman/yr) — the whole fast path now costs ~zero beyond the domain the owner
+  already has.
+- Gates: typecheck clean; 233/233 tests (unchanged — mirror-origin list parsing was
+  already covered by the v0.3.2 CSRF suite).
+
 ## 2026-09-07 — v0.3.2: jitter-proof cron classification + ArvanCloud mirror support
 Small, deliberate hardening — no schema, no frontend changes.
 - **Scheduled ticks are classified by the trigger that fired, not the wall clock.** The

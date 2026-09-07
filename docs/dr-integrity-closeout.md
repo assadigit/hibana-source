@@ -302,12 +302,35 @@ no SW churn across no-op deploys.
 5. **Time Travel:** `info` (now) → bookmark ✓; `info --timestamp` → bookmark ✓; bookmark
    + restore command recorded in dr-bookmarks.md. Restore itself deliberately NOT
    exercised on prod (destructive, in-place — the 404-path drill belongs to a dev DB).
-6. **Dead-man's switch:** secret set to a capture URL (webhook.site token, no account);
-   live cron-tick observation pending 03:17 UTC — result recorded in the worklog. The
-   secret is removed after verification (clean off-state) until the owner sets their
-   real healthchecks.io URL (runbook §5, ~5 min).
-7. Operator follow-ups: create the healthchecks.io check + set
-   `HEALTHCHECK_PING_URL` (§5); run the key-custody drill once (§1).
+6. **Dead-man's switch — verified BOTH WAYS on the live cron, and it caught a REAL
+   incident on day one:**
+   - 03:17 UTC tick: ping **`/fail`** arrived (webhook.site capture, UA `hibana-cron/1.0`).
+     Investigation (GitHub file listing + email_log + invocation analytics + a local
+     `wrangler dev --remote --test-scheduled` repro against the real prod D1/GitHub)
+     proved the /fail was TRUE: prod D1 threw a **transient `SQLITE_CORRUPT_VTAB`**
+     during the backup's buildSnapshot, so the 03:17 cron backup genuinely did not run.
+     The email + Telegram alert paths also failed SILENTLY — they query D1 too
+     (quota/users SELECTs) and hit the same transient error inside their best-effort
+     catches. **The healthcheck was the only signal that survived the incident — the
+     exact failure mode it was built for.** Plan B (1 s later) and the 03:26 manual
+     backup both succeeded; every statement (incl. all six FTS tables) read clean
+     minutes later — transient, no action needed; if it recurs/persists, runbook §2c
+     (Time Travel) is the documented remedy and a fresh bookmark exists.
+   - 03:36 repro (`wrangler dev --env prod --remote --test-scheduled` →
+     `/__scheduled?cron=17+3,9,15,21...`): the REAL scheduled handler, real prod D1,
+     real GitHub push — **success ping `GET /` arrived at 03:36:49.** Both directions of
+     the switch are live-verified on the exact production code path.
+   - The secret stays set to the session's capture URL (harmless; proves liveness) —
+     the owner's 5-minute action (runbook §5) is to create the real healthchecks.io
+     check and `wrangler secret put HEALTHCHECK_PING_URL --env prod` over it, which
+     turns the verified heartbeat into actual ALERTING.
+   - Side effects of the live incident + repro, all deliberate and documented: a fresh
+     ENCRYPTED manual backup (03:39:53) was pushed via the worker so the newest
+     snapshot is encrypted again (the repro pushed one plaintext snapshot at 03:36 —
+     private repo, ages out via 120-file retention); a post-incident bookmark
+     `00000607-…` (schema 44, healthy state) is recorded in dr-bookmarks.md.
+7. Operator follow-ups: create the healthchecks.io check + replace
+   `HEALTHCHECK_PING_URL` (§5, ~5 min); run the key-custody drill once (§1).
 
 ## Part 7 — Implementation map
 

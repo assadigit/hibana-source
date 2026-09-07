@@ -509,6 +509,16 @@ when D1 itself is unavailable.
 ### Setting up external monitoring
 See `docs/uptime-monitoring.md` for step-by-step UptimeRobot/Better Stack setup.
 
+### Incident note (2026-09-07, v0.3.0 day one)
+A transient D1 `SQLITE_CORRUPT_VTAB` broke the 03:17 UTC cron backup. The email + Telegram
+alert paths ALSO failed silently — they query D1 (quota/users) and hit the same transient
+error inside their best-effort catches. **The healthchecks.io ping was the only surviving
+signal** (it failed the check with `/fail`). Every statement read clean minutes later; a
+manual backup + a `wrangler dev --remote --test-scheduled` repro both succeeded and the
+success ping arrived. If SQLITE_CORRUPT recurs or persists: §2c (Time Travel) is the
+documented remedy — bookmarks exist in `dr-bookmarks.md`. This is also why the dead-man's
+switch must be OUTSIDE Cloudflare: every in-band alert shares D1's fate.
+
 ### What's NOT monitored (gaps)
 - **D1-down errors are invisible to `error_log`** (the recorder writes to D1): if the
   database is the failure, `wrangler tail` + `/api/health` are the surface.

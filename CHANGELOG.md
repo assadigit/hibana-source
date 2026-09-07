@@ -95,8 +95,18 @@ Every weakness from the v0.2.0 SWOT review is closed or consciously deferred:
   dead-man's switch ping observed live from a real cron tick (capture-URL verification,
   then handed to the owner's healthchecks.io check); Time Travel `info` verified on prod.
   Full detail: `docs/dr-integrity-closeout.md` §6 + worklog Task 27.
-- **Operator follow-ups (documented)**: create the healthchecks.io check + set
-  `HEALTHCHECK_PING_URL` (§5, ~5 min); run the key-custody drill once (§1).
+- **The dead-man's switch caught a REAL incident on day one (live-verified both ways):**
+  the 03:17 UTC prod tick pinged `/fail` — investigation + a `wrangler dev --remote
+  --test-scheduled` repro proved it TRUE: a **transient D1 `SQLITE_CORRUPT_VTAB`** broke
+  the cron backup, and the email/Telegram alert paths failed silently (they query D1 too
+  and hit the same transient error inside their best-effort catches) — **the healthcheck
+  was the only surviving signal, the exact failure mode it was built for.** A repro run
+  minutes later pushed a real backup and delivered the success ping (`GET /`). Post-
+  incident hygiene: fresh encrypted backup (newest snapshot encrypted again), post-
+  incident Time Travel bookmark recorded. Full story: design doc §6.
+- **Operator follow-ups (documented)**: create the healthchecks.io check + replace the
+  (currently capture-URL) `HEALTHCHECK_PING_URL` (§5, ~5 min); run the key-custody drill
+  once (§1).
 
 ## 2026-09-11 — v0.2.0: Plan B Telegram backup channel + performance pass — migration 0044
 Data-safety + performance session (design record: `docs/perf-and-data-safety.md`). Deployed dev + prod.

@@ -41,8 +41,9 @@ const s = secrets()
 const CF_TOKEN = process.env.CLOUDFLARE_API_TOKEN ?? s.CLOUDFLARE_API_TOKEN
 const CF_ACCOUNT = process.env.CLOUDFLARE_ACCOUNT_ID ?? s.CLOUDFLARE_ACCOUNT_ID ?? '6ff25b582afd399d647e91a8db859676'
 
-// Optional --reason "apply 0046" (default: the next pending migration or 'manual')
-const reasonIdx = process.argv.indexOf('--reason')
+// Optional --reason "apply 0046" (default: 'manual bookmark'). Last occurrence wins so
+// `npm run bookmark:prod -- --reason "..."` overrides the npm script's own default.
+const reasonIdx = process.argv.lastIndexOf('--reason')
 const reason = reasonIdx !== -1 ? process.argv[reasonIdx + 1] : 'manual bookmark'
 
 function fail(msg) {

@@ -1,6 +1,6 @@
 import { createApp } from './app'
 import { createD1Db } from './db/d1'
-import { scheduledBackup, scheduledPurge } from './routes/admin'
+import { scheduledBackup, scheduledPlanBBackup, scheduledPurge } from './routes/admin'
 import { runReminders } from './services/reminders'
 import { runSadhanaReminders, sweepCompletedTasks, resetDueRecurring } from './services/sadhana'
 import type { Config, Env } from './types'
@@ -53,6 +53,12 @@ export default {
     ctx.waitUntil(
       (async () => {
         if (backupTick) await scheduledBackup(cfg)
+        // Plan B (0044): Telegram backup channel on the SAME ticks, but a separate
+        // failure domain — scheduledPlanBBackup never throws into this chain (its own
+        // try/catch + email alert), so a GitHub failure can't skip the Telegram copy
+        // and vice versa. Independently gated: prod-only, encryption-mandatory,
+        // opt-in owners only (docs/perf-and-data-safety.md §1).
+        if (backupTick) await scheduledPlanBBackup(cfg)
         if (dailyTick) await scheduledPurge(cfg)
         // Sadhana weekly sweep (Mondays Asia/Tehran) — idempotent, daily is enough.
         if (dailyTick) await sweepCompletedTasks(cfg.db)

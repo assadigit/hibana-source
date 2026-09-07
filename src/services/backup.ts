@@ -17,15 +17,18 @@ const ENCRYPTED_MAGIC = 'HIBENC1'
 const MAGIC_SEPARATOR = 0x00
 const IV_BYTES = 12
 
-/** Import a base64-encoded 32-byte key into a Web Crypto AES-GCM CryptoKey. */
-async function importAesKey(b64Key: string): Promise<CryptoKey> {
+/** Import a base64-encoded 32-byte key into a Web Crypto AES-GCM CryptoKey.
+ * Exported since 0044: the Plan B Telegram channel (backup-planb.ts) reuses the exact
+ * same key import + blob format — one encryption format across every channel. */
+export async function importAesKey(b64Key: string): Promise<CryptoKey> {
   const raw = base64ToBytes(b64Key)
   if (raw.byteLength !== 32) throw new Error(`BACKUP_ENCRYPTION_KEY must be 32 bytes (base64), got ${raw.byteLength}`)
   return crypto.subtle.importKey('raw', raw as BufferSource, { name: 'AES-GCM' }, false, ['encrypt', 'decrypt'])
 }
 
-/** Encrypt UTF-8 plaintext bytes → returns the full encrypted blob (magic + separator + IV + ciphertext). */
-async function encryptBackup(key: CryptoKey, plaintext: Uint8Array): Promise<Uint8Array> {
+/** Encrypt UTF-8 plaintext bytes → returns the full encrypted blob (magic + separator + IV + ciphertext).
+ * Exported since 0044 for the Plan B channel (same HIBENC1 format, fresh IV per channel send). */
+export async function encryptBackup(key: CryptoKey, plaintext: Uint8Array): Promise<Uint8Array> {
   const iv = crypto.getRandomValues(new Uint8Array(IV_BYTES))
   const cipher = new Uint8Array(await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, plaintext as BufferSource))
   // Assemble: magic string + 0x00 + IV + ciphertext (which includes the 16-byte GCM tag)
@@ -67,6 +70,17 @@ function base64ToBytes(b64: string): Uint8Array {
   const out = new Uint8Array(bin.length)
   for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i)
   return out
+}
+
+/** Encode bytes → standard base64. btoa() throws on any codepoint above 0xFF — Persian
+ * content in snapshots hits that constantly — so build the binary string in 8k chunks
+ * (a spread String.fromCharCode on the whole array would blow the stack). Exported
+ * since 0044: the Plan B Telegram channel writes the SAME base64 blob text into its
+ * documents that this function writes into GitHub snapshot files (one format). */
+export function bytesToBase64(bytes: Uint8Array): string {
+  let bin = ''
+  for (let i = 0; i < bytes.length; i += 8192) bin += String.fromCharCode(...bytes.subarray(i, i + 8192))
+  return btoa(bin)
 }
 
 // Every user-owned table + support tables. FTS virtual tables are excluded on purpose
@@ -204,9 +218,7 @@ export async function backupToGitHub(db: Db, gh: GitHubConfig, ownerUserId?: str
     bytesForBase64 = await encryptBackup(key, jsonBytes)
     encrypted = true
   }
-  let bin = ''
-  for (let i = 0; i < bytesForBase64.length; i += 8192) bin += String.fromCharCode(...bytesForBase64.subarray(i, i + 8192))
-  const b64 = btoa(bin)
+  const b64 = bytesToBase64(bytesForBase64)
   const pushed = await client.pushFile(path, b64, encrypted ? 'Hibana automated backup (encrypted)' : 'Hibana automated backup')
   const retained = await enforceRetention(client, keepN)
   return { path, url: pushed.html_url, retained }

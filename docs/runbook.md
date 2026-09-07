@@ -7,6 +7,7 @@
 ## Table of Contents
 1. [Secret Rotation](#1-secret-rotation)
 2. [Restore from Backup](#2-restore-from-backup)
+2b. [Restore from Plan B (Telegram)](#2b-restore-from-plan-b-telegram)
 3. [Incident Response](#3-incident-response)
 4. [Deploy Procedure](#4-deploy-procedure)
 5. [Monitoring & Alerting](#5-monitoring--alerting)
@@ -27,7 +28,7 @@
 |---|---|---|
 | `GITHUB_TOKEN` | Wrangler secret + `.secrets.env` | GitHub Settings → Developer settings → Tokens |
 | `RESEND_KEY` | Wrangler secret + `.secrets.env` | Resend dashboard → API Keys |
-| `TELEGRAM_BOT_TOKEN` | Wrangler secret + `.secrets.env` | @BotFather → `/revoke` |
+| `TELEGRAM_BOT_TOKEN` | Wrangler secret + `.secrets.env` | @BotFather → `/revoke` (safe for Plan B history — §2b) |
 | `TELEGRAM_SECRET` | Wrangler secret + `.secrets.env` | Generate a new random string |
 | `CAPTCHA_SECRET_KEY` | Wrangler secret + `.secrets.env` | Generate a new random string |
 | `BACKUP_ENCRYPTION_KEY` | Wrangler secret + offline backup | **CANNOT be rotated without re-encrypting all backups** — see below |
@@ -102,7 +103,17 @@ into PROD. **Zero risk to production data during the restore process.**
 # 1. Find + download the right backup
 gh api repos/assadigit/hibana-safe/contents/backups --jq '.[].name' | sort -r | head -10
 gh api repos/assadigit/hibana-safe/contents/backups/<filename> --jq '.download_url' | xargs curl -sL -o snapshot.json
+```
 
+> **Format note (2026-09-11):** the file you download this way is the **raw-binary
+> HIBENC1 blob** (the GitHub Contents API decodes the base64 we PUT before storing).
+> `restore.mjs` handles this shape natively since the 2026-09-11 fix — before that, the
+> binary file crashed `JSON.parse` (every encrypted GitHub backup since C3 was affected).
+> All three shapes — raw-binary, base64-text (Telegram Plan B documents), legacy
+> plaintext JSON — are auto-detected by `scripts/lib-backup.mjs`, shared by every
+> restore path.
+
+```bash
 # 2. Set the encryption key (must match the key active when the backup was created)
 export BACKUP_ENCRYPTION_KEY="<base64-key>"
 
@@ -156,6 +167,98 @@ node scripts/restore.mjs --file snapshot.json --d1 pm-app-prod
 # and round-trips synthetic data through the real buildSnapshot
 npm run drill
 ```
+
+---
+
+## 2b. Restore from Plan B (Telegram)
+
+> **v0.2.0 (migration 0044, 2026-09-11):** Hibana now has a SECOND backup channel. On the
+> same 4×/day tick, the worker also pushes the encrypted snapshot as a Telegram document
+> to every opted-in owner's chat. Full design: `docs/perf-and-data-safety.md` §1.
+> **The document is byte-identical in format to a GitHub snapshot file** (base64 of the
+> HIBENC1 AES-GCM blob), so the SAME `restore.mjs` / `restore:safe` machinery handles it.
+
+### What's in the chat
+
+- Files named `hibana-backup-<UTC-timestamp>.bin` (the encrypted snapshot, ~100 KB).
+- One line under each file: `🗄 Hibana backup (Plan B) · schema … · sha256 <hash> · …`.
+- The NEWEST backup is **pinned** at the top of the chat.
+- Retention: newest ~60 documents are kept (≈ 15 days, matching the GitHub channel).
+
+### Which channel should I restore from? (decision tree)
+
+```
+Is D1 damaged/lost?
+├─ NO, but I need an older copy (bad migration, accidental delete beyond 7 days)
+│    → PRIMARY (GitHub): newest snapshot, well-understood path, 120 files / 15 days.
+│      Use §2 (restore:safe). The GitHub channel is the day-to-day restore source.
+│
+├─ YES, and GitHub still works
+│    → Still PRIMARY: newest snapshot + canary verification. Use §2.
+│      (Plan B is the same data, same encryption — GitHub is simply faster to list.)
+│
+└─ YES, and GitHub is ALSO unavailable / compromised / token lost
+     → PLAN B (this section): the Telegram documents are independent of both
+       Cloudflare AND GitHub. Zero data loss up to the last 4×/day tick.
+```
+
+**Zero-loss window:** both channels snapshot at 03:17 / 09:17 / 15:17 / 21:17 UTC.
+Worst-case data loss from a D1 destruction = time since the last tick (≤ 6 hours),
+independent of which channel you restore from.
+
+### Automated drill (verify the channel end-to-end — run periodically)
+
+```bash
+# Requires in .secrets.env (or env): TELEGRAM_BOT_TOKEN, BACKUP_ENCRYPTION_KEY,
+# CLOUDFLARE_API_TOKEN (+ CLOUDFLARE_ACCOUNT_ID, optional prod DB override).
+# Reads the newest planb_backups row from prod D1 → downloads the document via the
+# Bot API → verifies sha256 + HIBENC1 → decrypts → checks rule 8 → round-trips the
+# snapshot through the REAL restore.mjs into a scratch SQLite DB.
+npm run drill:planb
+```
+
+The drill is **read-only** against prod (nothing is sent or deleted); it never prints
+secrets or snapshot contents.
+
+### Manual restore (works with ZERO Cloudflare/GitHub/D1 access)
+
+This is the true disaster path: D1 gone, GitHub gone, only Telegram + your offline key left.
+
+1. **Get the file** — open the bot chat (@Hibana_PM_bot), find the pinned
+   `hibana-backup-…bin` (newest), tap it, **Download** / save it.
+2. **Verify integrity (optional but recommended)** — the caption under the file carries
+   its sha256:
+   ```bash
+   sha256sum hibana-backup-….bin    # compare with the sha256 in the caption
+   ```
+3. **Restore** — the file is the same format `restore.mjs` expects:
+   ```bash
+   BACKUP_ENCRYPTION_KEY=<base64-key> node scripts/restore.mjs --file hibana-backup-….bin --d1 pm-app-prod
+   # or the canary path (recommended when anything at all is still alive):
+   BACKUP_ENCRYPTION_KEY=<base64-key> npm run restore:safe -- --file hibana-backup-….bin
+   ```
+4. **Post-restore** — same as §2: no passwords/sessions are restored (rule 8); re-seed the
+   admin on a fresh database (`npm run seed:admin:prod`) and re-link your Telegram chat.
+
+### Plan B facts an operator must know
+
+- **The key is the SAME one** (`BACKUP_ENCRYPTION_KEY`) — rotating it would orphan every
+  backup on BOTH channels. Do not rotate it casually (see §1).
+- **Opt-in lives in the bot**: ⚙️ Settings → 🗄 Backup to this chat (owner-only). If the
+  row of buttons is gone, send `/menu` → ⚙️ Settings.
+- **telegram_paused does NOT pause Plan B** — pausing reminder noise must never silently
+  disable the disaster-recovery channel.
+- **Rotating the bot token is safe for history**: `@BotFather /revoke` re-issues a token
+  for the SAME bot; old documents remain in the chat and `getFile` keeps working with the
+  new token. Deleting/recreating the bot (a NEW bot) is the only thing that orphans old
+  file_ids for API access — and even then the chat files remain manually downloadable.
+- **Manual trigger** (e.g. right before risky maintenance):
+  ```bash
+  # as the owner (session cookie), or from the app:
+  curl -X POST https://hibana.ir/api/admin/backup/planb   # owner-only
+  ```
+- **Failure alerting**: a failed Plan B push logs `planb_failed` and emails the owner
+  (via Resend — deliberately NOT via Telegram, which may itself be down).
 
 ---
 
@@ -345,6 +448,9 @@ npm run seed:admin:prod
 | Restore backup (safe) | `BACKUP_ENCRYPTION_KEY=<key> npm run restore:safe -- --file <snap.json>` |
 | Restore backup (direct) | `BACKUP_ENCRYPTION_KEY=<key> node scripts/restore.mjs --file <snap.json> --d1 pm-app-prod` |
 | Run restore drill | `npm run drill` |
+| Run Plan B drill (Telegram) | `npm run drill:planb` |
+| Trigger Plan B backup now | `curl -X POST https://hibana.ir/api/admin/backup/planb` (owner session) |
+| D1 hot-path perf report | `npm run perf:explain` |
 | Set secrets | `npm run secrets:set:prod` |
 | Check health | `curl https://hibana.ir/api/health` |
 | Tail prod logs | `npx wrangler tail --env prod` |

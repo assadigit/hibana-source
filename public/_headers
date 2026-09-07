@@ -1,6 +1,9 @@
 /*.html
   Cache-Control: no-store
 
+/
+  Cache-Control: no-store
+
 /sadhana*
   Cache-Control: no-store
 
@@ -54,3 +57,20 @@
 
 /*.webmanifest
   Cache-Control: public, max-age=86400
+
+# Content-hashed bundles (perf session 2026-09-10, docs/perf-and-data-safety.md §2.2):
+# every file under /dist/*.js|css is content-hashed by scripts/build.mjs (name.<hash>.ext)
+# — a different content ALWAYS means a different URL, so these are safely immutable
+# (cache forever, zero revalidation). build.mjs no longer copies UNHASHED vendor files
+# into dist/ precisely so this rule can exist. manifest.json is the one mutable dist
+# file (it rewrites on every build) — it revalidates every use.
+# NOTE: /dist/ is not yet referenced by the HTML (the ?v= URLs are still live); these
+# rules future-proof the hashed pipeline for when the wiring lands.
+/dist/manifest.json
+  Cache-Control: no-cache
+
+/dist/*.js
+  Cache-Control: public, max-age=31536000, immutable
+
+/dist/*.css
+  Cache-Control: public, max-age=31536000, immutable

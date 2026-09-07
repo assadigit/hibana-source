@@ -21,8 +21,8 @@ import { readFileSync, writeFileSync, mkdtempSync, rmSync } from 'node:fs'
 import { execFileSync } from 'node:child_process'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { webcrypto } from 'node:crypto'
 import { createInterface } from 'node:readline'
+import { parseBackupFile, decryptBackupBytes } from './lib-backup.mjs'
 
 const args = process.argv.slice(2)
 const fileIdx = args.indexOf('--file')
@@ -45,39 +45,9 @@ const DRY_RUN = args.includes('--dry-run')
 const DEV_DB = 'pm-app-dev'
 const PROD_DB = 'pm-app-prod'
 
-// ─── Decrypt + parse (reused from restore.mjs) ──────────────────────────────
-
-const ENCRYPTED_MAGIC = 'HIBENC1'
-const IV_BYTES = 12
-
-function base64ToBytes(b64) {
-  const cleaned = b64.replace(/-/g, '+').replace(/_/g, '/').replace(/=+$/, '')
-  return new Uint8Array(Buffer.from(cleaned, 'base64'))
-}
-
-function isEncrypted(raw) {
-  try {
-    const text = raw.toString('utf8').trim()
-    if (text.startsWith('{')) return false
-    const decoded = Buffer.from(text, 'base64')
-    if (decoded.length < ENCRYPTED_MAGIC.length + 1) return false
-    return decoded.subarray(0, ENCRYPTED_MAGIC.length).toString('utf8') === ENCRYPTED_MAGIC
-  } catch {
-    return false
-  }
-}
-
-async function decryptSnapshot(b64Content, keyB64) {
-  const raw = base64ToBytes(b64Content)
-  const magicLen = ENCRYPTED_MAGIC.length
-  const iv = raw.subarray(magicLen + 1, magicLen + 1 + IV_BYTES)
-  const cipher = raw.subarray(magicLen + 1 + IV_BYTES)
-  const keyBytes = base64ToBytes(keyB64)
-  if (keyBytes.byteLength !== 32) throw new Error(`BACKUP_ENCRYPTION_KEY must be 32 bytes, got ${keyBytes.byteLength}`)
-  const key = await webcrypto.subtle.importKey('raw', keyBytes, { name: 'AES-GCM' }, false, ['decrypt'])
-  const plain = await webcrypto.subtle.decrypt({ name: 'AES-GCM', iv }, key, cipher)
-  return Buffer.from(plain).toString('utf8')
-}
+// ─── Decrypt + parse (shared with restore.mjs via lib-backup.mjs) ─────────────
+// Handles all three file shapes: raw-binary HIBENC1 (GitHub download_url), base64-text
+// HIBENC1 (Telegram Plan B documents / GitHub JSON content field), legacy plaintext JSON.
 
 // ─── D1 query helper ─────────────────────────────────────────────────────────
 
@@ -237,17 +207,21 @@ async function main() {
   console.log('Step 1: Load + decrypt backup')
   const rawFile = readFileSync(file)
   let jsonText
-  if (isEncrypted(rawFile)) {
+  const parsedFile = parseBackupFile(rawFile)
+  if (parsedFile.kind === 'encrypted') {
     const encKey = process.env.BACKUP_ENCRYPTION_KEY
     if (!encKey) {
       console.error('  ✗ This backup is encrypted (HIBENC1). Set BACKUP_ENCRYPTION_KEY env var.')
       process.exit(1)
     }
     console.log('  Decrypting (AES-GCM)...')
-    jsonText = await decryptSnapshot(rawFile.toString('utf8').trim(), encKey)
-  } else {
+    jsonText = await decryptBackupBytes(parsedFile.bytes, encKey)
+  } else if (parsedFile.kind === 'plaintext-json') {
     console.log('  Plaintext JSON backup (no encryption).')
-    jsonText = rawFile.toString('utf8')
+    jsonText = parsedFile.text
+  } else {
+    console.error(`  ✗ Not a recognizable Hibana backup (starts with: ${JSON.stringify(parsedFile.head)}).`)
+    process.exit(1)
   }
   const snapshot = JSON.parse(jsonText)
   const tables = Object.keys(snapshot.data).sort()

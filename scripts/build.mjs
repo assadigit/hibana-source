@@ -118,14 +118,17 @@ async function buildAssets() {
     console.log(`  ✓ fabric v6 shim → vendor/fabric.min.js (${(shimCode.length / 1024).toFixed(1)}KB)`)
   }
 
-  // 4. Copy remaining vendor libs as-is (htmx, alpine, vazir — already minified)
+  // 4. Copy remaining vendor libs as-is (htmx, alpine, vazir — already minified).
+  //    Perf session (2026-09-10): these are copied to PUBLIC/VENDOR ONLY — the copy
+  //    into dist/ was removed. Two reasons: (1) nothing references /dist/<vendor> (HTML
+  //    loads /vendor/*), so those copies were dead weight; (2) they are UNHASHED
+  //    filenames, and _headers now serves /dist/*.js|css as immutable — an unhashed
+  //    file there would be pinned stale forever by the browser. dist/ now contains
+  //    ONLY content-hashed files, which is what the immutable rule requires.
   if (existsSync(VENDOR_DIR)) {
     for (const file of readdirSync(VENDOR_DIR)) {
-      if (file === 'fabric.min.js') continue // already handled above
-      if (file.endsWith('.js') || file.endsWith('.css')) {
-        copyFileSync(join(VENDOR_DIR, file), join(DIST_DIR, file))
-        manifest[`vendor/${file}`] = `dist/${file}`
-      }
+      if (file === 'fabric.min.js') continue // already handled above (writes into vendor/)
+      manifest[`vendor/${file}`] = `vendor/${file}`
     }
   }
 

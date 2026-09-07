@@ -203,23 +203,40 @@ function langText(lang: Lang): string {
   return t(lang, 'Pick a language for the bot (this also changes your web app language):', 'زبان ربات را انتخاب کن (این زبان برنامهٔ تحت وب هم تغییر می‌کند):')
 }
 
-function settingsKeyboard(lang: Lang, paused: boolean): ReplyMarkup {
-  return kb([
+function settingsKeyboard(lang: Lang, paused: boolean, backup: boolean, isOwner: boolean): ReplyMarkup {
+  const rows: NonNullable<ReplyMarkup['inline_keyboard']> = [
     [{ text: t(lang, '🌐 Language', '🌐 زبان'), callback_data: 'lang' }],
     [
       paused
         ? { text: t(lang, '▶️ Resume reminders', '▶️ ازسرگیری یادآوری'), callback_data: 'resume' }
         : { text: t(lang, '⏸ Pause reminders', '⏸ توقف یادآوری'), callback_data: 'pause' },
     ],
-    [{ text: t(lang, '🔐 Reset password', '🔐 بازنشانی رمز'), callback_data: 'reset' }],
-    [{ text: t(lang, '🏠 Home', '🏠 خانه'), callback_data: 'home' }],
-  ])
+  ]
+  // Plan B toggle (0044): owner-only — the whole-DB encrypted snapshot may only be
+  // delivered to an owner's chat (docs/perf-and-data-safety.md §1.3b). Members never see it.
+  if (isOwner) {
+    rows.push([
+      backup
+        ? { text: t(lang, '🗄 Backup to this chat: ON', '🗄 پشتیبان در این چت: روشن'), callback_data: 'bak' }
+        : { text: t(lang, '🗄 Backup to this chat: OFF', '🗄 پشتیبان در این چت: خاموش'), callback_data: 'bak' },
+    ])
+  }
+  rows.push([{ text: t(lang, '🔐 Reset password', '🔐 بازنشانی رمز'), callback_data: 'reset' }])
+  rows.push([{ text: t(lang, '🏠 Home', '🏠 خانه'), callback_data: 'home' }])
+  return kb(rows)
 }
-function settingsText(lang: Lang, paused: boolean): string {
+function settingsText(lang: Lang, paused: boolean, backup: boolean, isOwner: boolean): string {
+  const backupLine = isOwner
+    ? t(
+        lang,
+        `Backup to this chat (Plan B): ${backup ? '✅ on — 4×/day encrypted snapshot' : '⬜ off'}`,
+        `پشتیبان در این چت (Plan B): ${backup ? '✅ روشن — Snapshot رمزگذاری‌شده روزی ۴ بار' : '⬜ خاموش'}`,
+      )
+    : ''
   return t(
     lang,
-    `⚙️ <b>Settings</b>\n\nReminders: ${paused ? '⏸ paused' : '✅ on'}`,
-    `⚙️ <b>تنظیمات</b>\n\nیادآوری‌ها: ${paused ? '⏸ متوقف' : '✅ روشن'}`,
+    `⚙️ <b>Settings</b>\n\nReminders: ${paused ? '⏸ paused' : '✅ on'}${backupLine ? `\n${backupLine}` : ''}`,
+    `⚙️ <b>تنظیمات</b>\n\nیادآوری‌ها: ${paused ? '⏸ متوقف' : '✅ روشن'}${backupLine ? `\n${backupLine}` : ''}`,
   )
 }
 
@@ -342,8 +359,8 @@ export function registerTelegram(app: Hono<{ Variables: { user: UserRow } }>, cf
     if (data.callback_query) {
       const cq = data.callback_query
       const chatId = cq.message.chat.id
-      const owned = await cfg.db.query<Pick<UserRow, 'id' | 'username' | 'telegram_paused' | 'language_pref' | 'timezone' | 'sadhana_quadrant_order'>>(
-        'SELECT id, username, telegram_paused, language_pref, timezone, sadhana_quadrant_order FROM users WHERE telegram_chat_id = ?',
+      const owned = await cfg.db.query<Pick<UserRow, 'id' | 'username' | 'telegram_paused' | 'language_pref' | 'timezone' | 'sadhana_quadrant_order' | 'role' | 'telegram_backup'>>(
+        'SELECT id, username, telegram_paused, language_pref, timezone, sadhana_quadrant_order, role, telegram_backup FROM users WHERE telegram_chat_id = ?',
         [String(chatId)],
       )
       await answerCallbackQuery(token, cq.id)
@@ -362,8 +379,8 @@ export function registerTelegram(app: Hono<{ Variables: { user: UserRow } }>, cf
 
     // The chat's account (if linked) drives every command below — rule 1: all bot data is
     // scoped to this user. Unlinked chats get a capture-now/link-later flow (§4.10).
-    const owned = await cfg.db.query<Pick<UserRow, 'id' | 'username' | 'telegram_paused' | 'language_pref' | 'timezone' | 'sadhana_quadrant_order'>>(
-      'SELECT id, username, telegram_paused, language_pref, timezone, sadhana_quadrant_order FROM users WHERE telegram_chat_id = ?',
+    const owned = await cfg.db.query<Pick<UserRow, 'id' | 'username' | 'telegram_paused' | 'language_pref' | 'timezone' | 'sadhana_quadrant_order' | 'role' | 'telegram_backup'>>(
+      'SELECT id, username, telegram_paused, language_pref, timezone, sadhana_quadrant_order, role, telegram_backup FROM users WHERE telegram_chat_id = ?',
       [String(chatId)],
     )
 
@@ -811,7 +828,7 @@ async function handleCallback(
   token: string,
   chatId: number,
   messageId: number,
-  user: Pick<UserRow, 'id' | 'username' | 'telegram_paused' | 'language_pref' | 'timezone' | 'sadhana_quadrant_order'>,
+  user: Pick<UserRow, 'id' | 'username' | 'telegram_paused' | 'language_pref' | 'timezone' | 'sadhana_quadrant_order' | 'role' | 'telegram_backup'>,
   data: string,
   cfg: Config,
   origin: string,
@@ -937,7 +954,28 @@ async function handleCallback(
 
   // ⚙️ Settings.
   if (data === 'set') {
-    await render(token, chatId, messageId, settingsText(lang, user.telegram_paused === 1), settingsKeyboard(lang, user.telegram_paused === 1))
+    await render(
+      token, chatId, messageId,
+      settingsText(lang, user.telegram_paused === 1, user.telegram_backup === 1, user.role === 'owner'),
+      settingsKeyboard(lang, user.telegram_paused === 1, user.telegram_backup === 1, user.role === 'owner'),
+    )
+    return
+  }
+  // 🗄 Backup to this chat (Plan B, 0044) — owner-only opt-in for the Telegram backup
+  // channel. The whole-DB encrypted snapshot must never be deliverable to a member chat.
+  if (data === 'bak') {
+    if (user.role !== 'owner') {
+      // The button is hidden for members, but a crafted callback must still be a no-op.
+      await render(token, chatId, messageId, settingsText(lang, user.telegram_paused === 1, false, false), settingsKeyboard(lang, user.telegram_paused === 1, false, false))
+      return
+    }
+    const next = user.telegram_backup === 1 ? 0 : 1
+    await db.execute('UPDATE users SET telegram_backup = ? WHERE id = ?', [next, userId])
+    await render(
+      token, chatId, messageId,
+      settingsText(lang, user.telegram_paused === 1, next === 1, true),
+      settingsKeyboard(lang, user.telegram_paused === 1, next === 1, true),
+    )
     return
   }
   // ⏸ Pause / ▶️ Resume reminders (toggles users.telegram_paused).
@@ -945,7 +983,11 @@ async function handleCallback(
     const pause = data === 'pause'
     await db.execute('UPDATE users SET telegram_paused = ? WHERE id = ?', [pause ? 1 : 0, userId])
     const newPaused = pause
-    await render(token, chatId, messageId, settingsText(lang, newPaused), settingsKeyboard(lang, newPaused))
+    await render(
+      token, chatId, messageId,
+      settingsText(lang, newPaused, user.telegram_backup === 1, user.role === 'owner'),
+      settingsKeyboard(lang, newPaused, user.telegram_backup === 1, user.role === 'owner'),
+    )
     return
   }
   // 🔐 Reset password (issues a one-time reset token, delivered in-chat).

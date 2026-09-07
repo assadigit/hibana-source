@@ -21,6 +21,7 @@ import { execFileSync } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
 import { DatabaseSync } from 'node:sqlite'
 import { secrets } from './lib.mjs'
+import { parseBackupFile, decryptBackupBytes } from './lib-backup.mjs'
 import { buildSnapshot } from '../src/services/backup.ts'
 import { createSqliteDb } from '../src/db/sqlite.ts'
 import { applyMigrations } from '../src/db/migrate-node.ts'
@@ -47,9 +48,16 @@ const gh = (extra = {}) => ({
 })
 
 async function restoreInto(snapPath, dbPath) {
+  const s = secrets()
   execFileSync(process.execPath, [restoreScript, '--file', snapPath], {
     cwd: root,
-    env: { ...process.env, DB_PATH: dbPath },
+    env: {
+      ...process.env,
+      DB_PATH: dbPath,
+      // Flow the key (env OR .secrets.env) into the child restore process — the drill
+      // downloads encrypted snapshots since C3, and the child decrypts them itself.
+      BACKUP_ENCRYPTION_KEY: process.env.BACKUP_ENCRYPTION_KEY ?? s.BACKUP_ENCRYPTION_KEY ?? '',
+    },
     stdio: ['ignore', 'inherit', 'inherit'],
   })
 }
@@ -88,8 +96,25 @@ try {
   const snapA = join(work, latest.name)
   const dl = await fetch(`${API}/repos/${OWNER}/${REPO}/contents/${latest.path}`, { headers: gh() })
   if (!dl.ok) throw new Error(`snapshot download failed (${dl.status})`)
-  writeFileSync(snapA, await dl.text())
-  const real = JSON.parse(readFileSync(snapA, 'utf8'))
+  writeFileSync(snapA, Buffer.from(await dl.arrayBuffer()))
+  // 2026-09-11: the raw download is the RAW-BINARY HIBENC1 blob (GitHub decodes the
+  // base64 PUT before storing). Part A decrypts it here when the key is available —
+  // rule-8 checks + the restore round-trip then run on the real decrypted snapshot.
+  // (Before this fix the drill JSON.parsed the binary directly and crashed.)
+  const drillKey = process.env.BACKUP_ENCRYPTION_KEY ?? s.BACKUP_ENCRYPTION_KEY
+  const parsedA = parseBackupFile(readFileSync(snapA))
+  let real
+  if (parsedA.kind === 'encrypted') {
+    if (!drillKey) throw new Error('the newest backup is ENCRYPTED (HIBENC1) — set BACKUP_ENCRYPTION_KEY (env or .secrets.env) to run Part A against it')
+    console.log('  newest backup is AES-GCM encrypted — decrypting with BACKUP_ENCRYPTION_KEY...')
+    real = JSON.parse(await decryptBackupBytes(parsedA.bytes, drillKey))
+    // The file on disk stays RAW BINARY on purpose: the restore round-trip below then
+    // exercises restore.mjs's raw-binary path — the exact runbook download shape.
+  } else if (parsedA.kind === 'plaintext-json') {
+    real = JSON.parse(parsedA.text)
+  } else {
+    throw new Error('downloaded file is not a recognizable Hibana backup')
+  }
   if (!real.schema_version || !real.data) throw new Error('snapshot missing schema_version/data — not a Hibana backup')
   const usersHavePasswordHash = (real.data.users ?? []).some((r) => 'password_hash' in r)
   const hasSessions = 'sessions' in real.data

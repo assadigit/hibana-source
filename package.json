@@ -1,6 +1,6 @@
 {
   "name": "hibana",
-  "version": "0.1.10",
+  "version": "0.2.0",
   "private": true,
   "type": "module",
   "description": "Personal project & idea manager — Cloudflare Workers (D1) or plain Node (SQLite)",
@@ -16,6 +16,8 @@
     "restore": "node scripts/restore.mjs",
     "restore:safe": "node scripts/restore-safe.mjs",
     "drill": "node --import tsx scripts/restore-drill.mjs",
+    "drill:planb": "node scripts/restore-drill-planb.mjs",
+    "perf:explain": "node --import tsx scripts/explain-hotpaths.mjs",
     "seed:admin": "node scripts/seed-admin.mjs",
     "seed:admin:prod": "node scripts/seed-admin.mjs --prod",
     "seed:admin:node": "node scripts/seed-admin.mjs --node",

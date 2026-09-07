@@ -2,7 +2,111 @@
 
 Full spec: `pm-app-spec.md` · Rules (non-negotiable): `CLAUDE.md` · Reasoning: `vision.md` ·
 Deploy: `DEPLOY.md` · What's next: `ROADMAP.md` · Session handoff: `NEW_SESSION.md`
-Verification: `npm test` (191) · `npm run typecheck` · `npm run smoke` · `npm run drill`
+Verification: `npm test` (203) · `npm run typecheck` · `npm run smoke` · `npm run drill` · `npm run drill:planb`
+
+## 2026-09-11 — v0.2.0: Plan B Telegram backup channel + performance pass — migration 0044
+Data-safety + performance session (design record: `docs/perf-and-data-safety.md`). Deployed dev + prod.
+- **Plan B backup channel (the headline)** — a SECOND, independent disaster-recovery path so
+  D1 destruction = zero data loss even if GitHub is also unavailable. On the same 4×/day
+  backup tick, the worker pushes the **same `buildSnapshot()` output, encrypted with the same
+  `BACKUP_ENCRYPTION_KEY` (same HIBENC1 AES-256-GCM format)**, as a silent Telegram document
+  (`hibana-backup-<ISO>.bin`, base64 blob — byte-identical to a GitHub snapshot file) to every
+  opted-in OWNER's linked chat. Telegram = a 4th independent provider; 50 MB Bot API cap vs
+  ~100 KB snapshots; indefinite retention. Gates: prod-only, encryption-mandatory (never
+  plaintext to Telegram), owner-scoped opt-in (`users.telegram_backup`, migration `0044`),
+  separate failure domain from the GitHub channel. New table `planb_backups` (message_id,
+  file_id, sha256, sent_at) powers the drill + retention (keep 60/owner ≈ 15 days, matches
+  the GitHub window). The caption carries the sha256 so the **manual** restore path works
+  with zero D1/Cloudflare access: download the .bin in any Telegram client → `sha256sum` →
+  `restore.mjs`. Newest document is pinned; sends are silent (`disable_notification`).
+  Rejected alternatives (reasoning in the design doc): B2/R2/S3 (new account+secret surface,
+  deferred), second GitHub org (correlated provider), email-to-self (deliverability), R2
+  (same provider as D1), WebDAV (new infra to babysit).
+- **Plan B opt-in + control surface** — bot ⚙️ Settings gains a bilingual 🗄 Backup-to-this-chat
+  toggle (owner-only: the whole-DB snapshot must never be deliverable to a member chat; the
+  `bak` callback is a no-op for members). Manual trigger: `POST /api/admin/backup/planb`
+  (owner-only, Zod-validated, rule 10) + `GET /api/admin/backup/planb/status`. Cron wiring in
+  `src/index.ts` (backupTick → `scheduledPlanBBackup`, own try/catch + email alert).
+- **FIXED (found during E2E verification): the primary GitHub restore path was broken for
+  encrypted backups.** The GitHub Contents API decodes the base64 PUT payload before
+  storing, so the repo file is the **raw-binary HIBENC1 blob** — but `restore.mjs`'s
+  auto-detection only knew the base64-TEXT shape, so the runbook's documented download
+  path (`curl download_url -o snapshot.json`) fed binary into `JSON.parse` and crashed.
+  Every encrypted GitHub backup since C3 (2026-09-10) was unrestorable via that path.
+  Fixed by extracting `scripts/lib-backup.mjs` (shared format detection + decryption)
+  and rewiring `restore.mjs`, `restore-safe.mjs`, `restore-drill.mjs`, and
+  `restore-drill-planb.mjs` through it: all three file shapes (raw-binary, base64-text,
+  legacy plaintext JSON) are now auto-detected. Verified live against the actual prod
+  GitHub backup (binary → "encrypted, set key" — was: JSON.parse crash). The primary
+  drill (`npm run drill`) was also broken against encrypted backups (it JSON.parsed the
+  raw download) — now decrypts Part A with `BACKUP_ENCRYPTION_KEY` (env or .secrets.env)
+  and exercises the raw-binary restore path deliberately. 5 new tests pin both shapes
+  (`src/tests/backup-formats.test.ts`).
+- **Plan B restore drill** — `npm run drill:planb` (scripts/restore-drill-planb.mjs): reads the
+  newest `planb_backups` row from prod D1 (Cloudflare REST API), downloads the document via
+  Bot API `getFile`, verifies sha256 + HIBENC1 magic, decrypts, checks rule 8 (no
+  password_hash/sessions), then round-trips through the REAL `restore.mjs` into a scratch
+  SQLite DB with per-table count comparison. Runbook §2b documents the manual + automated
+  restore paths and the "Plan B vs primary" decision tree.
+- **Performance: service-worker strategy split** (sw `hibana-v226`→`v227`) — versioned app
+  assets (`/js/*.js?v=N`, `/css/*.css?v=N`) are now **cache-first** (the URL is the cache
+  key; check-cache-bust + SW SHELL discipline make a hit byte-identical to origin — removes
+  ~15-25 network round-trips from every repeat visit; hard-refresh still bypasses). Vendor/
+  fonts/images/manifest → stale-while-revalidate (instant from cache, background refresh).
+  Navigations/API/unversioned URLs keep their existing network-first policies (the
+  2026-08-26 stale-pin lesson stays respected). No `public/js` or `public/css` changes, so no
+  `?v=` rotations were needed.
+- **Performance: HTTP cache headers** — `/` now explicitly `no-store` (matches `*.html`);
+  `/dist/*.js|css` → `public, max-age=31536000, immutable` (safe now that `build.mjs` no
+  longer copies UNHASHED vendor files into `dist/` — every remaining dist file is
+  content-hashed); `/dist/manifest.json` → `no-cache` (rewrites every build). Verified with
+  `curl -I` post-deploy.
+- **Performance: D1 hot-path measurement (no index additions)** — new
+  `npm run perf:explain` (scripts/explain-hotpaths.mjs) runs EXPLAIN QUERY PLAN + timing on
+  the dashboard/project/sadhana/canvas/backup queries at busy-solo synthetic scale (500
+  projects / 5k notes / 2k tasks / 10k journal / 40k canvas — 25-100× real usage). Every hot
+  query is a covered SEARCH via rule 9's existing composite indexes: worst interactive query
+  4.91 ms (todo board), journal feed 15.1 ms @10k rows, canvas bbox 29 ms @40k elements
+  (~0.3 ms at the real 377). **Verdict: no missing predicates at any realistic scale; D1's
+  ~10-40 ms RTT dwarfs query time.** Thresholds documented for future action (journal index
+  at >100k rows, canvas partial index at >50k elements). KV/Durable-Objects for hot reads and
+  htmx fragment edge-caching evaluated and REJECTED (reasoning in the design doc §2.3).
+- **Deferred (documented in the design doc)** — wiring HTML to the content-hashed `/dist/`
+  bundles (the biggest future perf lever; needs an HTML rewrite pass + SW SHELL rework);
+  admin-console UI button for the Plan B trigger; snapshot chunking (only relevant past
+  ~45 MB).
+- Cache rotations: sw `hibana-v226`→`v227` (SHELL list unchanged). typecheck clean · 203/203
+  tests (11 new: 6 Plan B + 5 backup-format) · smoke ALL PASS · cache-bust PASS. Security:
+  GitHub/Cloudflare/Telegram tokens for this session were pasted in chat — rotate per
+  runbook §1 (BACKUP_ENCRYPTION_KEY must NOT be rotated: it would orphan every existing
+  encrypted backup).
+
+## 2026-09-10 — Telegram bot inline-keyboard redesign + security-audit arc (commits `d46b159`, `165b7b0`, `0c40a09`, `c57c881`, `421f313`)
+Changelog catch-up for the previously-unlogged arc (deployed to prod at the time; details from
+the commits + `docs/telegram-bot-flow.md` + `docs/runbook.md`).
+- **Security audit (`d46b159`)** — CRITICAL: backups encrypted with AES-GCM (`HIBENC1` magic,
+  `BACKUP_ENCRYPTION_KEY` secret; hibana-safe history rewritten, 61 plaintext backups purged);
+  invite-only registration restored. HIGH: tag transaction race fixes, toast HTML-injection
+  fixes, Telegram chat_id uniqueness, CI workflow (typecheck + cache-bust + tests + smoke),
+  Telegram-direct backup-failure alerts, canary restore (`restore-safe.mjs`: DEV → verify →
+  confirm → PROD). MEDIUM: PBKDF2 600k + lazy rehash, upload/broadcast rate limits, link-code
+  GET→POST (CSRF), fabric v5→v6 (ESM shim), runbook + uptime docs.
+- **Quick wins (`165b7b0`, `0c40a09`)** — animated loading spinner (rotating + pulsing glow +
+  Farsi label); Telegram `/append <project> <text>` (id or fuzzy title match, appends to
+  latest_note + history log + deep link); sparks CTA bulb icon.
+- **Telegram bot inline-keyboard redesign (`c57c881` design, `421f313` implementation)** —
+  home screen with 💡 Idea / 📋 To-do / 📝 Note / ⚙️ Settings / ❓ Help inline keyboards;
+  to-do flow renders the user's 4 quadrants (custom names + order) with 8/page numbered
+  lists, ✅ mark-done + ↩️ Undo; quick notes with optional 🔗 connect-to-project
+  (`quick_notes.project_id`, migration 0017 — zero new schema); bot locale =
+  `users.language_pref` (single source of truth, `/language` updates the web locale too);
+  state machine in `telegram_bot_sessions` (migration 0043, JSON state, NO TTL — "not
+  finite" per design §7); dispatch order callback_query → slash → await_text →
+  await_list_item → default idea capture; new commands `/menu` `/language` `/todo`;
+  webhook re-registered with `allowed_updates=['message','callback_query']`. Verified
+  end-to-end against prod via simulated webhook calls (linking, idea capture, note+connect,
+  quadrant grid, task add, mark-done+undo, language switch, pause/resume); test data cleaned
+  + account unlinked after. 192/192 tests at the time.
 
 ## 2026-09-09 — v0.1.7: search depth + dashboard refinements
 Four changes shipped to dev + prod. The gap matrix (`GAP-MATRIX.md`) drove this iteration.

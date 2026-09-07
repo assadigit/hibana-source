@@ -47,6 +47,8 @@ export interface UserRow {
   role: 'owner' | 'member'
   telegram_chat_id: string | null
   telegram_paused: 0 | 1
+  /** Plan B (0044): owner-only opt-in for the Telegram backup channel (docs/perf-and-data-safety.md §1). */
+  telegram_backup: 0 | 1
   language_pref: 'en' | 'fa'
   calendar_pref: 'gregorian' | 'shamsi'
   timezone: string
@@ -222,4 +224,17 @@ export interface PaymentRow {
   currency: string
   status: 'pending' | 'paid'
   paid_at: string | null
+}
+// --- Plan B backup channel (0044, docs/perf-and-data-safety.md §1) ----------------
+/** One row per Plan B document sent to an owner's Telegram chat (drill + retention log). */
+export interface PlanBBackupRow {
+  id: string
+  user_id: string
+  chat_id: string
+  message_id: number
+  file_id: string
+  file_size: number
+  sha256: string
+  schema_version: number
+  sent_at: string
 }

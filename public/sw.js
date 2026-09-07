@@ -8,6 +8,26 @@
 // 'self' is set on every response incl. /sw.js) — the catch-fallback then answered the
 // <img> with the cached shell HTML, so every external picture "failed to load". Pass
 // them through: the PAGE CSP (img-src https:) governs external loads directly.
+//
+// Perf session (2026-09-10, docs/perf-and-data-safety.md §2.2): the fetch handler now
+// splits strategies by URL class instead of network-first-for-everything:
+//   1. versioned app assets (/js/*.js?v=N, /css/*.css?v=N) → CACHE-FIRST. The full URL
+//      (including the ?v= query) is the cache key, and this repo's discipline —
+//      scripts/check-cache-bust.mjs in CI + a SW SHELL version bump on every public/
+//      change — guarantees a cache hit is byte-identical to origin. This removes ~15-25
+//      network round-trips from every repeat visit. A hard refresh (req.cache === 'reload')
+//      still bypasses the cache for power users.
+//   2. vendor libs / fonts / images / webmanifest → STALE-WHILE-REVALIDATE: served
+//      instantly from cache, refreshed in the background (their names are unhashed, so
+//      they must stay revalidatable).
+//   3. navigations → network-first (unchanged: fresh HTML always), offline falls back
+//      to the cached shell.
+//   4. /api/* → network-only (unchanged), unversioned same-origin assets → network-first
+//      (unchanged — the 2026-08-26 stale-pin lesson: never cache-first an unversioned
+//      URL whose content can change under the same name).
+// Residual risk (documented in the design doc): a JS/CSS change shipped WITHOUT a ?v=
+// bump AND without an SW version bump would pin stale for class-1 URLs. That failure
+// class is exactly what check-cache-bust + the SHELL-alignment convention guard.
 
 const SHELL = [
   '/',
@@ -83,13 +103,13 @@ const SHELL = [
 ]
 
 self.addEventListener('install', (e) => {
-  e.waitUntil(caches.open('hibana-v226').then((c) => c.addAll(SHELL)))
+  e.waitUntil(caches.open('hibana-v227').then((c) => c.addAll(SHELL)))
   self.skipWaiting()
 })
 
 self.addEventListener('activate', (e) => {
   e.waitUntil(
-    caches.keys().then((keys) => keys.filter((k) => k !== 'hibana-v226').map((k) => caches.delete(k))),
+    caches.keys().then((keys) => keys.filter((k) => k !== 'hibana-v227').map((k) => caches.delete(k))),
   )
   self.clients.claim()
 })
@@ -124,7 +144,7 @@ self.addEventListener('fetch', (e) => {
       fetch(req)
         .then((res) => {
           const copy = res.clone()
-          caches.open('hibana-v226').then((c) => c.put(req, copy)).catch(() => {})
+          caches.open('hibana-v227').then((c) => c.put(req, copy)).catch(() => {})
           return res
         })
         .catch(() => caches.match(req).then((r) => r || caches.match('/dashboard.html'))),
@@ -132,15 +152,70 @@ self.addEventListener('fetch', (e) => {
     return
   }
 
-  // Assets: network-first with cache fallback (2026-08-26). Cache-first kept pinning old
-  // CSS/JS after deploys — a hard refresh doesn't bypass the SW, so users stayed on stale
-  // styles. Network-first lands every deploy on the next load; offline still gets the shell.
+  // Assets: strategy split by URL class (perf session 2026-09-10 — see header).
+  const url = new URL(req.url)
+
+  // Class 1 — versioned app assets (/js/x.js?v=N, /css/x.css?v=N): cache-first. The
+  // ?v= query is part of the cache key and changes whenever content changes, so a hit
+  // is always current. Hard refresh (req.cache === 'reload') still goes to network.
+  const versioned = /^\/(js|css)\//.test(url.pathname) && /^\?v=\d+$/.test(url.search)
+  if (versioned) {
+    e.respondWith(
+      (async () => {
+        const hit = await caches.match(req)
+        if (hit && req.cache !== 'reload') return hit
+        const res = await fetch(req)
+        if (res.ok) {
+          const copy = res.clone()
+          caches.open('hibana-v227').then((c) => c.put(req, copy)).catch(() => {})
+        }
+        return res
+      })(),
+    )
+    return
+  }
+
+  // Class 2 — vendor libs, fonts, images, webmanifest: stale-while-revalidate. Serve
+  // the cached copy instantly, refresh it in the background (names are unhashed, so
+  // a deploy can change content under the same name — hence revalidation).
+  const staticish =
+    url.pathname.startsWith('/vendor/') || /\.(?:png|jpe?g|svg|webp|ico|woff2?|webmanifest)$/.test(url.pathname)
+  if (staticish) {
+    e.respondWith(
+      (async () => {
+        const hit = await caches.match(req)
+        const refresh = fetch(req)
+          .then((res) => {
+            if (res.ok) {
+              const copy = res.clone()
+              caches.open('hibana-v227').then((c) => c.put(req, copy)).catch(() => {})
+            }
+            return res
+          })
+          .catch(() => null)
+        if (hit && req.cache !== 'reload') {
+          refresh.catch(() => {}) // background refresh; the cached copy answers now
+          return hit
+        }
+        const fresh = await refresh
+        if (fresh) return fresh
+        const fallback = await caches.match(req)
+        return fallback || Response.error()
+      })(),
+    )
+    return
+  }
+
+  // Class 3 — everything else same-origin (unversioned JS, partials, misc): network-
+  // first with cache fallback (2026-08-26). Cache-first kept pinning old CSS/JS after
+  // deploys — a hard refresh doesn't bypass the SW, so users stayed on stale styles.
+  // Network-first lands every deploy on the next load; offline still gets the shell.
   e.respondWith(
     fetch(req)
       .then((res) => {
         if (res.ok) {
           const copy = res.clone()
-          caches.open('hibana-v226').then((c) => c.put(req, copy)).catch(() => {})
+          caches.open('hibana-v227').then((c) => c.put(req, copy)).catch(() => {})
         }
         return res
       })

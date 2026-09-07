@@ -10,6 +10,7 @@ import { log } from '../lib/log'
 import { banUserSchema, roleUserSchema, removeUserSchema, customEmailSchema, broadcastEmailSchema, BAN_PRESET_MS } from '../validation/schemas'
 import { BANNED_FOREVER_DATE } from '../auth/ban'
 import { buildSnapshot, backupToGitHub, BACKUP_RETENTION_DEFAULT } from '../services/backup'
+import { pushBackupToTelegram } from '../services/backup-planb'
 import { sendAndLog, emailsSentToday, RESEND_DAILY_LIMIT, resetEmailHtml, textToEmailHtml } from '../services/email'
 import { createResetToken } from '../services/reset'
 import { githubClient } from '../services/github'
@@ -328,6 +329,39 @@ export function adminRoutes(cfg: Config) {
     }
   })
 
+  // Plan B manual trigger (docs/perf-and-data-safety.md §1): push the encrypted snapshot
+  // to opted-in owners' Telegram chats — the same code the 4×/day cron runs. Owner-only
+  // (requireOwner above), and the body is validated (rule 10) even though it carries no
+  // fields: an empty body passes, any stray payload is rejected.
+  const planBBackupSchema = z.object({}).strict()
+  app.post('/backup/planb', async (c) => {
+    const t = trFor(c)
+    const raw = await c.req.json().catch(() => ({}))
+    const parsed = planBBackupSchema.safeParse(raw)
+    if (!parsed.success) return c.json({ error: 'invalid_input' }, 400)
+    try {
+      const result = await pushBackupToTelegram(cfg)
+      if (result.skipped) {
+        return c.json({ ok: false, skipped: result.skipped }, 503)
+      }
+      if (c.req.header('HX-Request')) {
+        return c.html(toastHtml(t('Plan B backup sent to {n} chat(s)', 'پشتیبان Plan B به {n} چت ارسال شد', { n: result.sent.length }), localeOf(c)))
+      }
+      return c.json({ ok: true, sent: result.sent, pruned: result.pruned }, 201)
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err)
+      return c.json({ error: msg }, 502)
+    }
+  })
+
+  // Plan B delivery log (admin console / drill surface): newest first, owner-scoped view.
+  app.get('/backup/planb/status', async (c) => {
+    const rows = await cfg.db.query(
+      'SELECT user_id, chat_id, message_id, file_size, sha256, schema_version, sent_at FROM planb_backups ORDER BY sent_at DESC LIMIT 20',
+    )
+    return c.json({ configured: !!cfg.telegramToken && !!cfg.backupEncryptionKey, deliveries: rows })
+  })
+
   // Manual trigger of the 7-day purge — owner-only via requireOwner (like every console
   // route): it hard-deletes every user's soft-deleted rows, so a member must never be
   // able to force that early. (History: 2026-08-28, this route shipped without the
@@ -425,6 +459,44 @@ export async function scheduledBackup(cfg: Config): Promise<void> {
         }
       } catch (tgErr) {
         log.error('backup_alert_telegram_failed', { err: tgErr instanceof Error ? { message: tgErr.message } : String(tgErr) })
+      }
+    }
+  }
+}
+
+/**
+ * Plan B cron entry (0044, docs/perf-and-data-safety.md §1): the Telegram backup channel.
+ * Runs on the same backup ticks as scheduledBackup but as a SEPARATE failure domain —
+ * a GitHub-channel failure must never skip this, and vice versa. Never throws: a Plan B
+ * failure is logged + emailed (best-effort) so a silent gap can't go unnoticed.
+ */
+export async function scheduledPlanBBackup(cfg: Config): Promise<void> {
+  try {
+    const result = await pushBackupToTelegram(cfg)
+    if (result.skipped) {
+      // Normal, non-error skips (no token in dev, no opted-in owner, prod gate) — debug-level.
+      log.info('planb_skipped', { reason: result.skipped })
+      return
+    }
+  } catch (err) {
+    log.error('planb_failed', { err: err instanceof Error ? { message: err.message, stack: err.stack } : String(err) })
+    // Best-effort owner alert via the PRIMARY channel (email) — Telegram itself may be
+    // the thing that's down, so don't try to alert through it.
+    if (cfg.emailKey && cfg.ownerEmail) {
+      try {
+        await sendAndLog(
+          { db: cfg.db, emailKey: cfg.emailKey, assets: cfg.assets },
+          {
+            to: cfg.ownerEmail,
+            kind: 'backup_failed',
+            subject: 'Hibana Plan B backup failed',
+            title: 'Plan B backup failed',
+            bodyHtml: `<p>The Telegram (Plan B) backup failed at ${new Date().toISOString()}.</p><p>Error: ${err instanceof Error ? err.message : String(err)}</p><p>The GitHub backup channel is unaffected. The next scheduled run will retry.</p>`,
+            origin: 'https://hibana.ir',
+          },
+        )
+      } catch (emailErr) {
+        log.error('planb_alert_email_failed', { err: emailErr instanceof Error ? { message: emailErr.message } : String(emailErr) })
       }
     }
   }

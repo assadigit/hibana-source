@@ -943,3 +943,46 @@ status, plan title/content split, link format — all moot.
 
 **All open questions resolved (rounds 1 + 2). Ready for approval →
 implementation in the next session.**
+
+---
+
+## Appendix — Plan B backup toggle (v0.2.0, migration 0044)
+
+**Shipped 2026-09-11** (design: `docs/perf-and-data-safety.md` §1; runbook: §2b). The bot's
+infrastructure now doubles as the second disaster-recovery channel.
+
+### Settings screen (updated)
+
+The ⚙️ Settings keyboard gains one row — **owners only**:
+
+```
+⚙️ Settings
+
+Reminders: ✅ on
+Backup to this chat (Plan B): ⬜ off      ← new line (owners only)
+[🌐 Language]                              [⏸ Pause reminders]
+[🗄 Backup to this chat: OFF]              ← new button (owners only)
+[🔐 Reset password]
+[🏠 Home]
+```
+
+- **Tap 🗄** → toggles `users.telegram_backup` (0/1) and re-renders Settings.
+- **Owner-scoped by design:** the whole-DB snapshot (every user's rows, encrypted) may
+  only be delivered to an owner's chat. Members never see the button; a crafted `bak`
+  callback from a member chat is a no-op (re-renders Settings without the row).
+- `telegram_paused` does NOT gate the backup channel (pausing reminder noise must never
+  silently disable disaster recovery).
+
+### What the channel does (out of the bot's UI)
+
+On the same 4×/day backup tick, the worker sends the encrypted snapshot as a silent
+document (`hibana-backup-<UTC>.bin`) to every opted-in owner chat: pinned newest,
+caption carries `schema · time · rows · sha256`, retention keeps ~60 per owner.
+Restore: runbook §2b (manual = download from the chat + `restore.mjs`; automated =
+`npm run drill:planb`).
+
+### New callback op-codes
+
+| `callback_data` | Screen | Who |
+|---|---|---|
+| `bak` | toggle Plan B opt-in → Settings (updated) | owner (member: no-op) |

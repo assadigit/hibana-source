@@ -1,8 +1,9 @@
 import { createApp } from './app'
 import { createD1Db } from './db/d1'
-import { scheduledBackup, scheduledPlanBBackup, scheduledPurge } from './routes/admin'
+import { scheduledBackup, scheduledPlanBBackup, scheduledPurge, type BackupOutcome } from './routes/admin'
 import { runReminders } from './services/reminders'
 import { runSadhanaReminders, sweepCompletedTasks, resetDueRecurring } from './services/sadhana'
+import { pingHealthcheck } from './services/healthcheck'
 import type { Config, Env } from './types'
 
 // Cloudflare Workers entry — a thin shell over createApp() plus the daily cron.
@@ -24,6 +25,8 @@ function buildConfig(env: Env): Config {
     // math captcha — Turnstile secret kept as legacy fallback
     openRegistration: env.OPEN_REGISTRATION === 'true',
     backupEncryptionKey: env.BACKUP_ENCRYPTION_KEY,
+    // Dead-man's switch (dr-integrity session): prod-only secret; unset = feature off.
+    healthcheckUrl: env.HEALTHCHECK_PING_URL,
   }
 }
 
@@ -52,13 +55,26 @@ export default {
     // step now blocks later steps — acceptable: a failed backup should not fire emails.
     ctx.waitUntil(
       (async () => {
-        if (backupTick) await scheduledBackup(cfg)
+        const backupResult: BackupOutcome | null = backupTick ? await scheduledBackup(cfg) : null
         // Plan B (0044): Telegram backup channel on the SAME ticks, but a separate
         // failure domain — scheduledPlanBBackup never throws into this chain (its own
         // try/catch + email alert), so a GitHub failure can't skip the Telegram copy
         // and vice versa. Independently gated: prod-only, encryption-mandatory,
         // opt-in owners only (docs/perf-and-data-safety.md §1).
         if (backupTick) await scheduledPlanBBackup(cfg)
+        // Dead-man's switch (dr-integrity session, docs/dr-integrity-closeout.md §1):
+        // after the backup pair completes, ping the external watchdog. Runs ONLY on the
+        // prod worker with the secret set — a dev tick must never reset the prod timer
+        // (same masking reasoning Plan B used for its prod gate). Success ping only when
+        // the PRIMARY channel actually pushed; a failed OR skipped backup (e.g. missing
+        // GITHUB_TOKEN in prod — as dangerous as a failure) pings /fail, which alerts
+        // immediately instead of waiting out the grace period. pingHealthcheck never
+        // throws, so the watchdog can never break the remaining cron jobs below.
+        // Manual POST /api/admin/backup deliberately does NOT ping: a heartbeat must
+        // only beat for the automated path it guards.
+        if (backupResult && cfg.isProd && cfg.healthcheckUrl) {
+          await pingHealthcheck(cfg.healthcheckUrl, backupResult.kind === 'pushed')
+        }
         if (dailyTick) await scheduledPurge(cfg)
         // Sadhana weekly sweep (Mondays Asia/Tehran) — idempotent, daily is enough.
         if (dailyTick) await sweepCompletedTasks(cfg.db)

@@ -19,6 +19,8 @@ export interface Env {
   TURNSTILE_SECRET_KEY?: string // legacy — kept as the captcha secret's fallback
   OPEN_REGISTRATION?: string // 'true' = open signup (temporarily); unset/false = invite-only
   BACKUP_ENCRYPTION_KEY?: string // base64 (32 bytes) AES-GCM key for at-rest backup encryption (C3 fix)
+  /** Dead-man's switch (dr-integrity session): healthchecks.io ping URL. Prod secret; unset = off. */
+  HEALTHCHECK_PING_URL?: string
 }
 
 // Everything createApp() needs, in runtime-agnostic form — this is what makes the
@@ -36,6 +38,10 @@ export interface Config {
   openRegistration?: boolean
   /** Base64-encoded 32-byte AES-GCM key. When set, backups are encrypted at rest (C3). */
   backupEncryptionKey?: string
+  /** Dead-man's switch: healthchecks.io ping URL (prod-only, opt-in). Cron pings on backup-tick
+   * success and /fail on failure — an external watchdog that alerts when the pings STOP
+   * (catches a silently dead cron, which /api/health can never show). Unset = feature off. */
+  healthcheckUrl?: string
   assets?: (url: URL, req?: Request) => Promise<Response>
 }
 

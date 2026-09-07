@@ -362,6 +362,28 @@ export function adminRoutes(cfg: Config) {
     return c.json({ configured: !!cfg.telegramToken && !!cfg.backupEncryptionKey, deliveries: rows })
   })
 
+  // Error observability viewer (0045, docs/dr-integrity-closeout.md §4): recent rows from
+  // error_log + 7-day counts by status. Owner-only (gate above) and Zod-validated (rule 10)
+  // even though it is read-only — query params are still input. The stack is trimmed to a
+  // preview (first 300 chars) so the console stays readable; full rows live in D1/tail.
+  const errorsQuerySchema = z.object({
+    limit: z.coerce.number().int().min(1).max(100).default(50),
+    status: z.coerce.number().int().min(100).max(599).optional(),
+  })
+  app.get('/errors', async (c) => {
+    const parsed = errorsQuerySchema.safeParse(c.req.query())
+    if (!parsed.success) return c.json({ error: 'invalid_input' }, 400)
+    const { limit, status } = parsed.data
+    const rows = status
+      ? await cfg.db.query('SELECT id, created_at, req_id, user_id, path, status, code, message, substr(stack, 1, 300) AS stack FROM error_log WHERE status = ? ORDER BY created_at DESC LIMIT ?', [String(status), String(limit)])
+      : await cfg.db.query('SELECT id, created_at, req_id, user_id, path, status, code, message, substr(stack, 1, 300) AS stack FROM error_log ORDER BY created_at DESC LIMIT ?', [String(limit)])
+    const byStatus = await cfg.db.query<{ status: number; n: number }>(
+      'SELECT status, COUNT(*) AS n FROM error_log WHERE created_at > ? GROUP BY status ORDER BY n DESC',
+      [new Date(Date.now() - 7 * 24 * 3600 * 1000).toISOString()],
+    )
+    return c.json({ rows, counts_7d: byStatus })
+  })
+
   // Manual trigger of the 7-day purge — owner-only via requireOwner (like every console
   // route): it hard-deletes every user's soft-deleted rows, so a member must never be
   // able to force that early. (History: 2026-08-28, this route shipped without the
@@ -405,10 +427,20 @@ export function adminRoutes(cfg: Config) {
 
 // Cron entry (wrangler.toml triggers). Runs without a user session — backups are a whole-DB
 // snapshot, not per-user, so no auth applies (and none is possible on a scheduled job).
-export async function scheduledBackup(cfg: Config): Promise<void> {
+//
+// dr-integrity session: returns its OUTCOME instead of pure void — the dead-man's-switch
+// wiring in src/index.ts needs to know whether the cron actually pushed a backup (the
+// alerting below still fires internally; the return value is new information, not a new
+// failure path — the function still never throws).
+export type BackupOutcome =
+  | { kind: 'pushed'; path: string }
+  | { kind: 'skipped'; reason: string }
+  | { kind: 'failed'; error: string }
+
+export async function scheduledBackup(cfg: Config): Promise<BackupOutcome> {
   if (!cfg.github.token) {
     log.warn('backup_skipped', { reason: 'GITHUB_TOKEN not set' })
-    return
+    return { kind: 'skipped', reason: 'GITHUB_TOKEN not set' }
   }
   try {
     const result = await backupToGitHub(cfg.db, {
@@ -417,6 +449,7 @@ export async function scheduledBackup(cfg: Config): Promise<void> {
       token: cfg.github.token,
     }, undefined, BACKUP_RETENTION_DEFAULT, cfg.backupEncryptionKey)
     log.info('backup_committed', { path: result.path, encrypted: !!cfg.backupEncryptionKey })
+    return { kind: 'pushed', path: result.path }
   } catch (err) {
     // P3.1 (F-M12) + P3.5(c) (F-M4): structured error log + owner-email alert. A failed
     // backup previously only logged (plain text); now it also emails the owner so a silent
@@ -461,6 +494,7 @@ export async function scheduledBackup(cfg: Config): Promise<void> {
         log.error('backup_alert_telegram_failed', { err: tgErr instanceof Error ? { message: tgErr.message } : String(tgErr) })
       }
     }
+    return { kind: 'failed', error: err instanceof Error ? err.message : String(err) }
   }
 }
 
@@ -525,6 +559,10 @@ export async function scheduledPurge(cfg: Config): Promise<void> {
     tx.sql('DELETE FROM email_verifications WHERE expires_at < ?', [new Date().toISOString()])
     tx.sql('DELETE FROM sessions WHERE expires_at < ?', [cutoff])
     tx.sql('DELETE FROM rate_limits WHERE window_start < ?', [Math.floor(Date.now() / 1000) - 24 * 3600])
+    // 0045: error_log rides the same 7-day retention window — it is observability, not
+    // history (longer-lived evidence of an incident belongs in the runbook/incident notes,
+    // not in an unbounded table).
+    tx.sql('DELETE FROM error_log WHERE created_at < ?', [cutoff])
   })
   console.log(`purged ${gone.length} rows, ${goneNotes.length} notes, ${goneSadhana.length} todos`)
   // P3.1 (F-M12): structured log alongside the legacy line (kept for grep continuity).

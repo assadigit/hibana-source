@@ -6,6 +6,7 @@ node_modules/
 .env
 dist/
 public/dist/
+.build-backup/
 coverage/
 data/
 *.sql.tmp

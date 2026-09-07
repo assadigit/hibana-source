@@ -5,12 +5,13 @@
 > these docs make the system survivable if the primary operator is unavailable.
 
 ## Table of Contents
-1. [Secret Rotation](#1-secret-rotation)
+1. [Secret Rotation](#1-secret-rotation) — incl. encryption-key custody checklist (v0.3.0)
 2. [Restore from Backup](#2-restore-from-backup)
 2b. [Restore from Plan B (Telegram)](#2b-restore-from-plan-b-telegram)
+2c. [Restore via D1 Time Travel](#2c-restore-via-d1-time-travel-point-in-time--v030)
 3. [Incident Response](#3-incident-response)
-4. [Deploy Procedure](#4-deploy-procedure)
-5. [Monitoring & Alerting](#5-monitoring--alerting)
+4. [Deploy Procedure](#4-deploy-procedure) — incl. the pre-migration bookmark ritual
+5. [Monitoring & Alerting](#5-monitoring--alerting) — incl. dead-man's switch setup
 6. [Emergency: Lost Admin Access](#6-emergency-lost-admin-access)
 
 ---
@@ -32,6 +33,7 @@
 | `TELEGRAM_SECRET` | Wrangler secret + `.secrets.env` | Generate a new random string |
 | `CAPTCHA_SECRET_KEY` | Wrangler secret + `.secrets.env` | Generate a new random string |
 | `BACKUP_ENCRYPTION_KEY` | Wrangler secret + offline backup | **CANNOT be rotated without re-encrypting all backups** — see below |
+| `HEALTHCHECK_PING_URL` | Wrangler secret (prod only) | healthchecks.io → check settings → regenerate URL (v0.3.0, §5) |
 | `OWNER_EMAIL` | Wrangler var (not secret) | Wrangler dashboard or `wrangler.toml` |
 
 ### Rotation procedure (per secret)
@@ -78,6 +80,31 @@
   5. To read an old backup: `BACKUP_ENCRYPTION_KEY=<OLD_KEY> node scripts/restore.mjs --file <old-snapshot.json>`
 - **Keep both keys** until all old backups have aged out of retention (15 days)
 
+### Encryption-key custody (liveness) checklist — v0.3.0
+
+**The blunt fact:** every encrypted backup on BOTH channels is only as alive as the
+offline copy of `BACKUP_ENCRYPTION_KEY`. Cloudflare-account death + key loss = every
+backup is random bytes forever. Rotation is impossible without re-encrypting everything,
+so *custody*, not rotation, is the mitigation — and custody is a PEOPLE risk (bus factor).
+
+1. **Two independent offline locations** — e.g. printed in the safe AND in a password
+   manager on a device that is not the laptop the repo lives on. NOT on any cloud that
+   shares a fate with Cloudflare/GitHub. NOT `.secrets.env` alone (machine-local).
+2. **Quarterly drill (the liveness test):**
+   ```bash
+   BACKUP_ENCRYPTION_KEY=<offline copy> npm run drill        # GitHub channel
+   BACKUP_ENCRYPTION_KEY=<offline copy> npm run drill:planb  # Telegram channel
+   ```
+   A key that has never decrypted anything is a hope, not a key. This also regression-
+   tests the exact writer/reader drift bug class fixed on 2026-09-11 (three file shapes).
+3. **If the drill fails with `decrypt` errors**: treat it as **P1** — all backups are
+   effectively lost. While the Worker still runs, see the lost-key recovery path below.
+4. **Lost-key recovery path** (the asymmetry worth memorizing):
+   - Worker still running: immediately (a) export data via the app's own export API
+     (Settings → export), (b) set a NEW `BACKUP_ENCRYPTION_KEY` secret — fresh backups
+     become readable again; old ones are forfeit.
+   - Worker gone too: the data is gone. That asymmetry is why this checklist exists.
+
 ---
 
 ## 2. Restore from Backup
@@ -86,6 +113,11 @@
 - D1 database corruption
 - Accidental data deletion beyond the 7-day soft-delete window
 - Migration disaster (a bad migration destroyed data)
+
+> **v0.3.0:** for corruption / bad-migration / mass-delete scenarios where **D1 itself is
+> still alive**, check §2c (D1 Time Travel) FIRST — minute-granularity point-in-time
+> recovery, no file handling, works even if no snapshot was taken. The snapshot paths
+> below remain the answer when D1 is destroyed/unavailable.
 
 ### Prerequisites
 - `BACKUP_ENCRYPTION_KEY` (the key that was active when the backup was created)
@@ -190,8 +222,10 @@ npm run drill
 ```
 Is D1 damaged/lost?
 ├─ NO, but I need an older copy (bad migration, accidental delete beyond 7 days)
-│    → PRIMARY (GitHub): newest snapshot, well-understood path, 120 files / 15 days.
-│      Use §2 (restore:safe). The GitHub channel is the day-to-day restore source.
+│    → TIME TRAVEL FIRST (§2c, v0.3.0): minute-granularity, in-place, no files —
+│      this is exactly the failure class it exists for. Use the pre-migration
+│      bookmark from dr-bookmarks.md if you made one; otherwise --timestamp.
+│    → If the damage is older than 30 days: PRIMARY (GitHub) snapshot, §2.
 │
 ├─ YES, and GitHub still works
 │    → Still PRIMARY: newest snapshot + canary verification. Use §2.
@@ -262,6 +296,70 @@ This is the true disaster path: D1 gone, GitHub gone, only Telegram + your offli
 
 ---
 
+## 2c. Restore via D1 Time Travel (point-in-time) — v0.3.0
+
+> **First choice for corruption / bad migration / mass delete when D1 is ALIVE.**
+> Time Travel is D1's built-in continuous undo log: restore to any point in the last
+> **30 days** at minute granularity — no backup files, no decryption, no re-seeding. It
+> works even if no snapshot was ever taken, and it covers damage noticed up to 30 days
+> back (the snapshot channels keep 15 days live).
+
+### Facts an operator must know (verified on wrangler 4.7)
+
+- Commands live under `wrangler d1 time-travel`:
+  - `info <db> [--timestamp <unix|RFC3339>] --json` → returns a **bookmark** for that
+    moment (read-only, instant — used by the pre-migration ritual).
+  - `restore <db> --bookmark <id> | --timestamp <t>` → restores **IN PLACE**.
+- **Restore is destructive to CURRENT state** — the database as it is right now is
+  overwritten by the point-in-time copy. Bookmark FIRST if anything in the current
+  state matters (it usually does — that's the evidence).
+- It lives inside Cloudflare's D1 → **unavailable in exactly the scenarios where the
+  GitHub/Telegram snapshot channels are the only option** (account compromise/billing,
+  regional catastrophe). That's why it's channel #3, not channel #1: different failure
+  class, fastest recovery.
+- Time Travel retention: **30 days** rolling.
+
+### The pre-migration ritual (mandatory before applying migrations)
+
+```bash
+cd hibana-audit
+npm run bookmark:prod        # creates + records a bookmark (dr-bookmarks.md)
+npx wrangler d1 migrations apply pm-app-prod --remote
+```
+
+`bookmark:prod` (scripts/pre-migrate-bookmark.mjs) appends one line — UTC time,
+bookmark id, schema version, reason — to `dr-bookmarks.md` at the repo root. Bookmark
+IDs are not secrets. If the migration goes wrong:
+
+```bash
+npx wrangler d1 time-travel restore pm-app-prod --bookmark <id-from-dr-bookmarks.md>
+```
+
+### Restoring to an arbitrary timestamp (no bookmark made)
+
+```bash
+# 1. Find the exact moment (must be ≤ 30 days ago)
+npx wrangler d1 time-travel info pm-app-prod --timestamp 2026-09-11T11:30:00Z --json
+#    → {"bookmark":"00000…"}
+
+# 2. Restore to it (destructive — current state is overwritten)
+npx wrangler d1 time-travel restore pm-app-prod --bookmark 00000…
+#    (or --timestamp directly on restore)
+```
+
+### After a Time Travel restore
+
+- Sessions/passwords are restored *as they were* at that moment (this is a raw database
+  copy, not a rule-8 snapshot) — users may need to re-login if their session was created
+  after the restore point. The seed-admin procedure is NOT needed (unlike snapshot
+  restores) unless the restore point predates the admin's creation.
+- Verify: `curl https://hibana.ir/api/health` → `schema_version` should match the
+  pre-migration schema (from `dr-bookmarks.md`).
+- **Then make a fresh bookmark + trigger a backup** so the snapshot channels catch up:
+  `curl -X POST https://hibana.ir/api/admin/backup` (owner session).
+
+---
+
 ## 3. Incident Response
 
 ### Severity levels
@@ -326,7 +424,7 @@ This is the true disaster path: D1 gone, GitHub gone, only Telegram + your offli
 
 ### Pre-deploy checklist
 - [ ] `npm run typecheck` passes
-- [ ] `npm run test` passes (192+ tests)
+- [ ] `npm run test` passes (220+ tests)
 - [ ] `npm run smoke` passes
 - [ ] `npm run check-cache-bust` passes (if JS/CSS changed)
 - [ ] No secrets in the diff: `git diff --staged | grep -iE 'ghp_|re_|bot[0-9]+:|cfut_'`
@@ -340,9 +438,12 @@ npm run build
 
 # 2. Deploy to Cloudflare Workers (prod)
 npm run deploy:prod
-# This runs: node scripts/build.mjs --prod && wrangler deploy --env prod
+# This runs: build --prod --wire-html (rewrites HTML to hashed /dist/ URLs, canonical
+#             HTML backed up) + check-dist-wiring (deploy gate) + wrangler deploy
+#             + restore-html (working tree back to the ?v= source form)
 
-# 3. If migrations changed, apply them:
+# 3. If migrations changed — BOOKMARK FIRST (§2c), then apply:
+npm run bookmark:prod
 npx wrangler d1 migrations apply pm-app-prod --remote
 # ⚠️  NEVER run untested migrations against prod. Test on dev first.
 
@@ -363,7 +464,10 @@ Cloudflare Workers doesn't have built-in rollback. To roll back:
 git checkout <last-known-good-commit>
 npm run deploy:prod
 ```
-If a bad migration was applied, you must restore from backup (see section 2) — you cannot roll back a D1 migration.
+If a bad migration was applied: **restore via D1 Time Travel (§2c)** — bookmark first if
+the current state holds anything worth keeping, then `time-travel restore --bookmark` to
+the pre-migration bookmark in `dr-bookmarks.md`. Snapshot restore (§2) is the fallback
+when D1 itself is unavailable.
 
 ### Post-deploy verification
 1. `curl https://hibana.ir/api/health` → `{"ok":true,...}`
@@ -380,17 +484,42 @@ If a bad migration was applied, you must restore from backup (see section 2) —
 | Signal | How | Alert via |
 |---|---|---|
 | App uptime | External monitor (UptimeRobot/Better Stack) hitting `/api/health` every 5 min | Email + Telegram webhook |
+| **Backup cron liveness (dead-man's switch)** — v0.3.0 | Prod cron pings a healthchecks.io URL on every successful 4×/day backup tick; `/fail` on a failed/skipped backup | **healthchecks.io email (independent of CF + Resend)** — alerts after 2 missed ticks (12 h) |
 | Backup failure | `scheduledBackup` catches errors + sends Telegram message to linked owners | Telegram bot |
 | DB unreachable | `/api/health` returns 503 | External monitor |
 | Resend quota | `GET /api/admin/email` shows `sent_today` / `limit` | Manual check (admin console) |
+| **Runtime errors** — v0.3.0 | `error_log` table (migration 0045): unhandled throws + ApiErrors, 7-day retention | **Admin console → Errors tab** (owner-only); `GET /api/admin/errors` |
+
+### Dead-man's switch setup (healthchecks.io) — one-time, ~5 minutes
+
+1. Create a free account at https://healthchecks.io (or self-host — but then it must run
+   OUTSIDE Cloudflare, or it shares the failure domain it watches).
+2. **Add check**: Name `hibana-backup-cron`; **Period = 6 hours** (backup runs 4×/day);
+   **Grace = 6 hours** (alert after 2 missed ticks = 12 h); Schedule = simple.
+3. (Optional) Integrations → add Telegram or more emails — the default email is enough.
+4. Copy the **Ping URL** (`https://hc-ping.com/<uuid>`) and set the prod secret:
+   ```bash
+   cd hibana-audit
+   npx wrangler secret put HEALTHCHECK_PING_URL --env prod
+   # paste the URL, Enter
+   ```
+5. Done. The dev worker never pings (prod-only). Manual backups never ping (a heartbeat
+   must only beat for the automated path). Until the secret is set, the feature is off.
 
 ### Setting up external monitoring
 See `docs/uptime-monitoring.md` for step-by-step UptimeRobot/Better Stack setup.
 
 ### What's NOT monitored (gaps)
-- **No error tracking** (no Sentry/Logflare) — errors are only visible in `wrangler tail`
-- **No D1 query performance monitoring** — slow queries are invisible
-- **No GitHub API rate limit monitoring** — the backup cron could hit rate limits silently
+- **D1-down errors are invisible to `error_log`** (the recorder writes to D1): if the
+  database is the failure, `wrangler tail` + `/api/health` are the surface.
+- **Raw 403/429 JSON responses that bypass `app.onError`** (CSRF middleware, owner gates,
+  rate limits answer directly) are not persisted — visible in `wrangler tail`.
+- **No D1 query performance monitoring** — slow queries are invisible (`npm run perf:explain`
+  is the manual harness).
+- **No GitHub API rate-limit monitoring** — the backup cron could hit rate limits silently
+  (the dead-man's switch catches it within 12 h, though: a failing backup pings `/fail`).
+- Sentry-class error aggregation — deliberately rejected for a solo-user app
+  (reasoning in `docs/dr-integrity-closeout.md` §4.1).
 
 ---
 
@@ -449,6 +578,9 @@ npm run seed:admin:prod
 | Restore backup (direct) | `BACKUP_ENCRYPTION_KEY=<key> node scripts/restore.mjs --file <snap.json> --d1 pm-app-prod` |
 | Run restore drill | `npm run drill` |
 | Run Plan B drill (Telegram) | `npm run drill:planb` |
+| Pre-migration bookmark (prod) | `npm run bookmark:prod` |
+| Restore via Time Travel | `npx wrangler d1 time-travel restore pm-app-prod --bookmark <id>` (§2c) |
+| View recent errors | Admin console → Errors tab, or `GET /api/admin/errors` (owner) |
 | Trigger Plan B backup now | `curl -X POST https://hibana.ir/api/admin/backup/planb` (owner session) |
 | D1 hot-path perf report | `npm run perf:explain` |
 | Set secrets | `npm run secrets:set:prod` |

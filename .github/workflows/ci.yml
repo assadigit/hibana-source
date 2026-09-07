@@ -39,3 +39,13 @@ jobs:
 
       - name: Smoke test
         run: bun run smoke
+
+      # dr-integrity session: validate the DEPLOY artifact shape (wired HTML ↔ manifest
+      # consistency) on every push, not just on deploy day. Restore the canonical HTML
+      # afterwards and assert the working tree came back byte-identical.
+      - name: Dist wiring check (deploy artifact shape)
+        run: |
+          node scripts/build.mjs --prod --wire-html
+          node scripts/check-dist-wiring.mjs
+          node scripts/build.mjs --restore-html
+          git diff --exit-code -- public/ || (echo "FAIL: wired build left the canonical HTML modified"; git diff --stat -- public/; exit 1)

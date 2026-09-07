@@ -13,12 +13,12 @@
   <!-- admin.js MUST load before nav.js: nav.js drains the __hibanaPage queue on hard
        load (defer order = document order) and the page-def's mount lambda calls
        window.hibanaAdmin — which doesn't exist yet if admin.js comes after. -->
-  <script src="/js/admin.js?v=1" defer></script>
+  <script src="/js/admin.js?v=2" defer></script>
   <script src="/js/touch-drag.js" defer></script>
   <script src="/js/nav.js?v=1" defer></script>
   <script src="/js/mobile-nav.js?v=4" defer></script>
   <script src="/js/go-to.js" defer></script>
-  <script src="/js/i18n.js?v=31" defer></script>
+  <script src="/js/i18n.js?v=32" defer></script>
 </head>
 <body>
   <a href="#main" class="skip-link" data-i18n="a11y.skipToMain">Skip to main content</a>
@@ -39,6 +39,7 @@
         <button type="button" class="settings-tab" data-adm-tab="users" data-i18n="admin.tabUsers">Users</button>
         <button type="button" class="settings-tab" data-adm-tab="email" data-i18n="admin.tabEmail">Email</button>
         <button type="button" class="settings-tab" data-adm-tab="backup" data-i18n="admin.tabBackup">Backup</button>
+        <button type="button" class="settings-tab" data-adm-tab="errors" data-i18n="admin.tabErrors">Errors</button>
       </div>
 
       <!-- Overview: reports A (counts) + B (activity) + email quota + backup freshness -->
@@ -121,6 +122,16 @@
               <span data-i18n="admin.backupDownload">Download backup (JSON)</span>
             </a>
           </div>
+        </div>
+      </section>
+
+      <!-- Errors: runtime error log (0045) — what used to be wrangler-tail-only -->
+      <section class="adm-panel" id="adm-panel-errors" hidden>
+        <div class="card">
+          <h3 data-i18n="admin.errorsTitle">Recent errors (7-day retention)</h3>
+          <p id="adm-errors-counts" class="muted small">…</p>
+          <ul class="adm-list adm-log" id="adm-errors-log"></ul>
+          <p class="muted small" data-i18n="admin.errorsHint">Unhandled errors and API errors, logged since 0045. Older than 7 days is purged. If D1 itself is down, use `wrangler tail`.</p>
         </div>
       </section>
     </div>

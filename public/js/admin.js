@@ -94,6 +94,16 @@
     renderBackup()
     renderOverview()
   }
+  // 0045 error observability: lazy-loaded the first time the Errors tab opens (and
+  // re-fetched on every later activation — it is one indexed SELECT, cheap enough).
+  async function refreshErrors() {
+    try {
+      state.errors = await api('GET', '/api/admin/errors?limit=50')
+    } catch {
+      state.errors = { rows: [], counts_7d: [] }
+    }
+    renderErrors()
+  }
   async function refreshAll() {
     await Promise.all([refreshUsers(), refreshEmails(), refreshBackup()])
   }
@@ -226,6 +236,33 @@
       (b.count ? `${faNum(b.count)} ${t('admin.backupSnapshots', 'snapshots')} · ` : '') +
       (b.newest ? `${t('admin.backupNewest', 'newest:')} ${esc(b.newest)} · ` : t('admin.backupNone', 'No snapshots yet') + ' · ') +
       `${faNum(b.retention)} ${t('admin.backupRetention', 'kept (auto-pruned)')}`
+  }
+
+  function renderErrors() {
+    if (!state.errors) return
+    const countsEl = $('#adm-errors-counts')
+    const listEl = $('#adm-errors-log')
+    if (!countsEl || !listEl) return
+    const counts = state.errors.counts_7d || []
+    countsEl.textContent = counts.length
+      ? counts.map((c) => `${faNum(c.n)} × ${c.status}`).join(' · ')
+      : t('admin.errorsNone', 'No errors logged in the last 7 days.')
+    const rows = state.errors.rows || []
+    listEl.innerHTML =
+      rows
+        .map((r) => {
+          const badge = r.status >= 500 ? 'adm-badge-banned' : 'adm-badge-unverified'
+          return `<li class="row spread">
+            <span class="small">
+              <span class="badge ${badge}">${esc(String(r.status))}</span>
+              <strong>${esc(r.code || 'error')}</strong>
+              <span class="muted">${esc(r.path || '')}</span>
+              ${r.message ? `<span class="muted small">${esc(String(r.message).slice(0, 160))}</span>` : ''}
+            </span>
+            <span class="muted small">${r.req_id ? esc(r.req_id.slice(0, 8)) + ' · ' : ''}${esc(relTime(r.created_at) || '')}</span>
+          </li>`
+        })
+        .join('') || `<li class="muted small">—</li>`
   }
 
   // ---- modal (one dialog, content per user) -----------------------------------------
@@ -459,6 +496,9 @@
       btn.addEventListener('click', () => {
         $$('.adm-tabs [data-adm-tab]').forEach((b) => b.classList.toggle('is-active', b === btn))
         $$('.adm-panel').forEach((p) => (p.hidden = p.id !== `adm-panel-${btn.dataset.admTab}`))
+        // 0045: the Errors panel fetches on activation — no need to hit the endpoint on
+        // every console visit for a log that is usually empty.
+        if (btn.dataset.admTab === 'errors') refreshErrors().catch(() => {})
       })
     })
     const search = $('#adm-search')

@@ -2,7 +2,101 @@
 
 Full spec: `pm-app-spec.md` · Rules (non-negotiable): `CLAUDE.md` · Reasoning: `vision.md` ·
 Deploy: `DEPLOY.md` · What's next: `ROADMAP.md` · Session handoff: `NEW_SESSION.md`
-Verification: `npm test` (203) · `npm run typecheck` · `npm run smoke` · `npm run drill` · `npm run drill:planb`
+Verification: `npm test` (224) · `npm run typecheck` · `npm run smoke` · `npm run drill` · `npm run drill:planb`
+
+## 2026-09-12 — v0.3.0: DR-integrity closeout — migration 0045
+Dead-man's switch, D1 Time Travel as a restore channel, key custody, error log, and the
+HTML → `/dist/` wiring (design record: `docs/dr-integrity-closeout.md`). Deployed dev + prod.
+Every weakness from the v0.2.0 SWOT review is closed or consciously deferred:
+- **Dead-man's switch (the gap that mattered most)** — every alert the system owned traveled
+  *through the Worker itself*, so a silently dead cron (scheduled-trigger outage, a deploy that
+  drops `[triggers]`) looked exactly like a healthy app while no backup ran. Now the prod cron
+  pings a **healthchecks.io** URL on every successful 4×/day backup tick and pings
+  `<url>/fail` on a failed/skipped backup — the watchdog alerts **from outside Cloudflare**
+  when the pings stop (2 missed ticks = 12 h) or on an explicit fail. Gates: prod-only +
+  secret-set (`HEALTHCHECK_PING_URL`, unset = off) — a dev tick must never reset the prod
+  timer; `pingHealthcheck` never throws and has a 10 s timeout, so the watchdog can never
+  break the backup chain; **manual backups deliberately never ping** (a heartbeat that beats
+  for manual runs masks a dead cron). `scheduledBackup` now returns its outcome
+  (pushed/skipped/failed) instead of swallowing it — the alerting inside it is unchanged.
+  Setup steps (healthchecks.io check: period 6 h, grace 6 h) in runbook §5. Rejected:
+  Cronitor/UptimeRobot (heartbeat = paid tier), self-hosted watchdog (same failure domain),
+  a second CF Worker watching the first (same cron infra), GH Actions scheduled workflow
+  (known silent drops, no /fail signal).
+- **D1 Time Travel — restore channel #3, first choice for corruption/bad migration** —
+  `wrangler d1 time-travel restore` gives minute-granularity point-in-time recovery for the
+  last 30 days, in-place, with no files and no decryption (verified against prod on wrangler
+  4.7: `info --json` returns a bookmark instantly). This is the failure class where snapshots
+  were weakest: worst-case 6 h RPO + destructive wipe-and-replay → now minutes + in-place.
+  Runbook §2c (facts + procedures) + the decision tree now routes corruption/bad-migration
+  to Time Travel; D1-dead scenarios still route to GitHub/Plan B (Time Travel lives inside
+  D1's account — by definition unavailable there). **Pre-migration ritual:**
+  `npm run bookmark:prod` (scripts/pre-migrate-bookmark.mjs) creates + records a bookmark in
+  `dr-bookmarks.md` (UTC · id · schema version · reason) — now step 3 of the §4 deploy
+  procedure, and dogfooded for migration 0045 itself.
+- **Error observability (runbook §5's honest gap: "errors are only visible in wrangler
+  tail")** — `error_log` operational table (migration 0045; UUID PK, UTC, req_id, user_id
+  context, path, status, code, message, stack; indexed on created_at + status). `app.onError`
+  persists every unhandled throw (always) and every `ApiError` (with status+code; 401/400
+  *patterns* are a security signal, not noise, at solo scale). Recorder is self-guarded —
+  error-logging can never break the error response. **Owner-only viewer** `GET
+  /api/admin/errors` (Zod-validated query: limit/status) + an **Errors tab in the admin
+  console** (bilingual, lazy-loaded). Retention: 7-day purge rides the existing daily cron.
+  NOT in SNAPSHOT_TABLES (rule-8 spirit: backups carry user data, not operational logs —
+  email_log/planb_backups precedent). Honest limits documented: D1-down errors and raw
+  403/429s that bypass onError stay tail-only; Sentry rejected (new account+dep for a solo
+  app, and Sentry's own failure path is Sentry).
+- **Encryption-key custody checklist (the true SPOF / bus-factor mitigation)** — runbook §1:
+  two independent offline locations, **quarterly drill** (`BACKUP_ENCRYPTION_KEY=<offline
+  copy> npm run drill` + `drill:planb` — proves the copy decrypts the current format), the
+  P1 rule for failed drills, and the lost-key recovery path (Worker alive → export via the
+  app + set a NEW key, old backups forfeit; Worker dead too → data gone — that asymmetry is
+  the checklist). One-time owner action: run the drill against the offline copy.
+- **HTML → `/dist/` content-hashed wiring (the deferred biggest perf lever, DONE)** — the
+  bundling pipeline existed since the perf session but *zero* HTML referenced it (grep: 0
+  hits; the "manifest-consuming script" was never written). Now: `build.mjs --wire-html`
+  (deploy-only) rewrites every page's `/js|css` refs to the hashed `/dist/` URLs, plus the
+  quoted literals *inside* the bundles themselves (`'/js/queue.js'` in app.js,
+  `'/js/emoji-data.js?v=1'` in emoji-picker.js — via a **fixpoint loop**: referencers can
+  precede their targets in entry order). nav.js soft-navigation inherits the hashes for free
+  (it reads the target page's own `<script src>`). **Every deployed JS/CSS response is now
+  `immutable, max-age=31536000`** — the 2026-08-26 stale-pin failure class is structurally
+  impossible for app assets (content-addressed URLs + no-store HTML). Committed HTML keeps
+  the human-editable `?v=` canonical form (fresh clones + `wrangler dev` + CI unchanged);
+  originals are backed up to `.build-backup/` (gitignored, outside `public/` so it never
+  deploys) and restored after `wrangler deploy` returns (`--restore-html`, never `git
+  checkout` — must not eat uncommitted edits). Canonical-backup INVARIANT enforced the hard
+  way: during this session's own verification, chained wired builds had overwritten the
+  backup with wired content (restore would have written wired HTML into the tree) — caught,
+  recovered, and now structurally impossible (wired pages never enter the backup; a wired
+  page without a canonical backup ABORTS wiring; restore refuses wired backups loudly).
+  Added entries: `whiteboard.js`, `tour.js`, `emoji-data.js` (referenced but never bundled),
+  `task-controls.css` (now hashed; `app.css` too). **Service worker v227 → v228**:
+  precache is **manifest-driven** (install fetches `/dist/manifest.json`, no-cache, and
+  precaches its entries alongside the static shell — best-effort, one bad hash can't kill
+  install) and `/dist/*.js|css` joins the cache-first class (safer than `?v=` URLs).
+  Version-bump rule simplifies: bump only when sw.js *logic* changes — asset changes flow
+  through new hashed URLs. **`scripts/check-dist-wiring.mjs`** = deploy gate (chained into
+  both deploy scripts before `wrangler deploy`, and in CI in wired mode with a
+  tree-comes-back-identical assertion): every HTML dist ref matches the manifest; every
+  manifest entry is referenced (dynamic-injected allowlist); no orphan dist files (stale
+  build leftovers now purged by PROD builds — dist is a served-immutable surface); no
+  unwired entry refs; SW references the manifest. Two residual, documented: `/js/*.js`
+  sources still exist alongside their dist twins (locked fresh-clone property); vendor
+  stays unhashed+SWR by design.
+- **Tests 203 → 224** (+10 healthcheck: ping semantics, never-throws, outcome contract;
+  +5 errorlog: 500-persisted-with-stack, ApiError shape, owner-only viewer + rule-10,
+  self-guard, purge retention; +6 dist-wiring deploy-gate scenarios + 3 earlier: fixpoint
+  verified on the real tree). typecheck clean; smoke ALL PASS; check-cache-bust PASS
+  (admin.js v2, i18n.js v32 bumps for dev-mode SW).
+- **Deploy + E2E on prod**: bookmark ritual dogfooded before 0045; dev+prod migrated +
+  deployed; live header checks (wired HTML → immutable dist); error-log viewer exercised
+  owner-scoped on prod (forced error row, then cleaned up with count parity); the
+  dead-man's switch ping observed live from a real cron tick (capture-URL verification,
+  then handed to the owner's healthchecks.io check); Time Travel `info` verified on prod.
+  Full detail: `docs/dr-integrity-closeout.md` §6 + worklog Task 27.
+- **Operator follow-ups (documented)**: create the healthchecks.io check + set
+  `HEALTHCHECK_PING_URL` (§5, ~5 min); run the key-custody drill once (§1).
 
 ## 2026-09-11 — v0.2.0: Plan B Telegram backup channel + performance pass — migration 0044
 Data-safety + performance session (design record: `docs/perf-and-data-safety.md`). Deployed dev + prod.

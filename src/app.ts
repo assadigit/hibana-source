@@ -1,6 +1,7 @@
 import { Hono } from 'hono'
 import { ApiError, errorBody, internalErrorResponse } from './lib/errors'
 import { log, withReqId } from './lib/log'
+import { recordError } from './services/errorlog'
 import { authRoutes } from './routes/auth'
 import { devRoutes } from './routes/dev'
 import { projectsRoutes } from './routes/projects'
@@ -132,16 +133,41 @@ export function createApp(cfg: Config) {
     return next()
   })
 
-  app.onError((err, c) => {
+  app.onError(async (err, c) => {
     // Structured ApiError → serialize at its own status with { error, message? }.
     // Any other throw → the legacy { error: 'internal_error' } 500, so existing
     // routes (and the existing frontend error handling) keep their exact shape.
+    //
+    // dr-integrity session (0045): every error is also PERSISTED to error_log (7-day
+    // retention, owner-only viewer in the admin console) — errors were previously only
+    // visible during a live `wrangler tail` session. recordError is self-guarded (never
+    // throws, own try/catch) so observability can never break the response itself.
     const reqId = c.get('reqId')
+    const path = c.req.path
+    const userId = c.get('user')?.id
     if (err instanceof ApiError) {
-      withReqId(reqId, () => log.warn('api_error', { code: err.code, detail: err.detail ?? '', path: c.req.path }))
+      withReqId(reqId, () => log.warn('api_error', { code: err.code, detail: err.detail ?? '', path }))
+      await recordError(cfg.db, {
+        reqId,
+        userId,
+        path,
+        status: err.status,
+        code: err.code,
+        message: err.detail,
+      })
       return c.json(errorBody(err), err.status)
     }
-    withReqId(reqId, () => log.error('unhandled_error', { err: err instanceof Error ? { message: err.message, stack: err.stack } : String(err), path: c.req.path }))
+    withReqId(reqId, () => log.error('unhandled_error', { err: err instanceof Error ? { message: err.message, stack: err.stack } : String(err), path }))
+    const stack = err instanceof Error ? err.stack : undefined
+    await recordError(cfg.db, {
+      reqId,
+      userId,
+      path,
+      status: 500,
+      code: 'internal_error',
+      message: err instanceof Error ? err.message : String(err),
+      stack,
+    })
     return c.json(internalErrorResponse, 500)
   })
 

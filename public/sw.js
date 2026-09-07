@@ -9,26 +9,29 @@
 // <img> with the cached shell HTML, so every external picture "failed to load". Pass
 // them through: the PAGE CSP (img-src https:) governs external loads directly.
 //
-// Perf session (2026-09-10, docs/perf-and-data-safety.md §2.2): the fetch handler now
-// splits strategies by URL class instead of network-first-for-everything:
-//   1. versioned app assets (/js/*.js?v=N, /css/*.css?v=N) → CACHE-FIRST. The full URL
-//      (including the ?v= query) is the cache key, and this repo's discipline —
-//      scripts/check-cache-bust.mjs in CI + a SW SHELL version bump on every public/
-//      change — guarantees a cache hit is byte-identical to origin. This removes ~15-25
-//      network round-trips from every repeat visit. A hard refresh (req.cache === 'reload')
-//      still bypasses the cache for power users.
-//   2. vendor libs / fonts / images / webmanifest → STALE-WHILE-REVALIDATE: served
-//      instantly from cache, refreshed in the background (their names are unhashed, so
-//      they must stay revalidatable).
-//   3. navigations → network-first (unchanged: fresh HTML always), offline falls back
-//      to the cached shell.
-//   4. /api/* → network-only (unchanged), unversioned same-origin assets → network-first
-//      (unchanged — the 2026-08-26 stale-pin lesson: never cache-first an unversioned
-//      URL whose content can change under the same name).
-// Residual risk (documented in the design doc): a JS/CSS change shipped WITHOUT a ?v=
-// bump AND without an SW version bump would pin stale for class-1 URLs. That failure
-// class is exactly what check-cache-bust + the SHELL-alignment convention guard.
+// Perf session (2026-09-10, docs/perf-and-data-safety.md §2.2): the fetch handler
+// splits strategies by URL class instead of network-first-for-everything.
+//
+// dr-integrity session (2026-09-11, docs/dr-integrity-closeout.md §5): HTML → dist
+// wiring. hibana-v227 → v228:
+//   - PRECACHE IS MANIFEST-DRIVEN: install() fetches /dist/manifest.json (served
+//     no-cache) and precaches its entries alongside the static shell. Deployed HTML
+//     references content-hashed /dist/<name>.<hash>.js|css URLs, so asset changes need
+//     no SW changes — new hashes are simply new URLs (fetched from network on first
+//     request, precached on the next install/activate cycle).
+//   - /dist/*.js|css joins the CACHE-FIRST class (they are content-addressed AND served
+//     immutable by _headers — strictly safer than the ?v= URLs, which stay supported
+//     for dev-mode pages and in-code injections).
+//   - VERSION-BUMP RULE SIMPLIFIES: bump the hibana-vNNN version only when sw.js LOGIC
+//     changes (this file). The old "bump on every public/ change" rule existed because
+//     SHELL precache was hardcoded to ?v= URLs; that coupling is gone. Vendor/page
+//     files still refresh via SWR / network-first exactly as before.
 
+const VERSION = 'hibana-v228'
+
+// Static shell: unhashed pages/partials/icons/vendor/fonts (SWR or network-first at
+// runtime; precached here for offline). The hashed app bundles come from the manifest
+// at install time (below), NOT from this list.
 const SHELL = [
   '/',
   '/login.html',
@@ -51,28 +54,6 @@ const SHELL = [
   '/sprint.html',
   '/admin.html',
   '/404.html',
-  '/js/admin.js?v=1',
-  '/css/app.css?v=200',
-  '/css/task-controls.css?v=4', // P4.15 (F-L27): precache task-controls.css (3-dot prog-track) — was missing from SHELL
-  '/js/devboard.js?v=9',
-  '/js/app.js?v=159',
-  '/js/touch-drag.js',
-  '/js/command-palette.js?v=1',
-  '/js/mobile-nav.js?v=4',
-  '/js/zen-mode.js',
-  '/js/micro-interactions.js',
-  '/js/jalali-holidays.js',
-  '/js/go-to.js',
-  '/js/install-prompt.js?v=1',
-  '/js/tour.js?v=2',
-  '/js/boot.js?v=3',
-  '/js/queue.js',
-  '/js/nav.js',
-  '/js/emoji-data.js?v=1',
-  '/js/emoji-picker.js?v=1',
-  '/js/i18n.js?v=31',
-  '/js/whiteboard.js?v=8',
-  '/js/canvas.js?v=13',
   '/partials/nav.html',
   '/manifest.webmanifest',
   '/icon.svg',
@@ -103,13 +84,39 @@ const SHELL = [
 ]
 
 self.addEventListener('install', (e) => {
-  e.waitUntil(caches.open('hibana-v227').then((c) => c.addAll(SHELL)))
+  e.waitUntil(
+    (async () => {
+      const cache = await caches.open(VERSION)
+      // Static shell first — install must survive even if the manifest is unavailable.
+      await cache.addAll(SHELL)
+      // Manifest-driven precache: the hashed app bundles (app.<hash>.js etc.). Best-effort
+      // per file: one missing hash must not kill installation for the whole shell.
+      try {
+        const res = await fetch('/dist/manifest.json', { cache: 'no-store' })
+        if (res.ok) {
+          const manifest = await res.json()
+          const hashed = Object.values(manifest || {}).filter(
+            (v) => typeof v === 'string' && v.startsWith('dist/'),
+          )
+          await Promise.allSettled(
+            hashed.map((rel) =>
+              cache.add(`/${rel}`).catch(() => {
+                /* keep going — the file will be fetched from network on first use */
+              }),
+            ),
+          )
+        }
+      } catch {
+        /* no manifest (dev tree, or offline at install) — static shell is enough */
+      }
+    })(),
+  )
   self.skipWaiting()
 })
 
 self.addEventListener('activate', (e) => {
   e.waitUntil(
-    caches.keys().then((keys) => keys.filter((k) => k !== 'hibana-v227').map((k) => caches.delete(k))),
+    caches.keys().then((keys) => keys.filter((k) => k !== VERSION).map((k) => caches.delete(k))),
   )
   self.clients.claim()
 })
@@ -118,7 +125,7 @@ self.addEventListener('fetch', (e) => {
   const req = e.request
   if (req.method !== 'GET' || !req.url.startsWith('http')) return
   // Cross-origin requests pass through untouched (see header note): only same-origin
-  // assets/navigations/API get the network-first + offline-cache treatment below.
+  // assets/navigations/API get the strategy treatment below.
   try {
     if (new URL(req.url).origin !== self.location.origin) return
   } catch {
@@ -144,7 +151,7 @@ self.addEventListener('fetch', (e) => {
       fetch(req)
         .then((res) => {
           const copy = res.clone()
-          caches.open('hibana-v227').then((c) => c.put(req, copy)).catch(() => {})
+          caches.open(VERSION).then((c) => c.put(req, copy)).catch(() => {})
           return res
         })
         .catch(() => caches.match(req).then((r) => r || caches.match('/dashboard.html'))),
@@ -155,11 +162,15 @@ self.addEventListener('fetch', (e) => {
   // Assets: strategy split by URL class (perf session 2026-09-10 — see header).
   const url = new URL(req.url)
 
-  // Class 1 — versioned app assets (/js/x.js?v=N, /css/x.css?v=N): cache-first. The
-  // ?v= query is part of the cache key and changes whenever content changes, so a hit
-  // is always current. Hard refresh (req.cache === 'reload') still goes to network.
+  // Class 1a — content-hashed dist bundles (/dist/<name>.<hash>.js|css): cache-first.
+  // These URLs are content-addressed AND served immutable by _headers — a cache hit is
+  // byte-identical to origin by construction, forever. (dr-integrity session wiring.)
+  // Class 1b — versioned app assets (/js/x.js?v=N, /css/x.css?v=N): cache-first. The ?v=
+  // query is part of the cache key; dev-mode pages + in-code injections still use it.
+  // Hard refresh (req.cache === 'reload') still goes to network in both.
+  const hashedDist = url.pathname.startsWith('/dist/') && /\.(?:js|css)$/.test(url.pathname)
   const versioned = /^\/(js|css)\//.test(url.pathname) && /^\?v=\d+$/.test(url.search)
-  if (versioned) {
+  if (hashedDist || versioned) {
     e.respondWith(
       (async () => {
         const hit = await caches.match(req)
@@ -167,7 +178,7 @@ self.addEventListener('fetch', (e) => {
         const res = await fetch(req)
         if (res.ok) {
           const copy = res.clone()
-          caches.open('hibana-v227').then((c) => c.put(req, copy)).catch(() => {})
+          caches.open(VERSION).then((c) => c.put(req, copy)).catch(() => {})
         }
         return res
       })(),
@@ -188,7 +199,7 @@ self.addEventListener('fetch', (e) => {
           .then((res) => {
             if (res.ok) {
               const copy = res.clone()
-              caches.open('hibana-v227').then((c) => c.put(req, copy)).catch(() => {})
+              caches.open(VERSION).then((c) => c.put(req, copy)).catch(() => {})
             }
             return res
           })
@@ -215,7 +226,7 @@ self.addEventListener('fetch', (e) => {
       .then((res) => {
         if (res.ok) {
           const copy = res.clone()
-          caches.open('hibana-v227').then((c) => c.put(req, copy)).catch(() => {})
+          caches.open(VERSION).then((c) => c.put(req, copy)).catch(() => {})
         }
         return res
       })

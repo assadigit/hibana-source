@@ -1,7 +1,7 @@
 import { createApp } from './app'
 import { createD1Db } from './db/d1'
 import { classifyTick } from './lib/cron'
-import { scheduledBackup, scheduledPlanBBackup, scheduledPurge, type BackupOutcome } from './routes/admin'
+import { scheduledBackup, scheduledPurge, type BackupOutcome } from './routes/admin'
 import { runReminders } from './services/reminders'
 import { runSadhanaReminders, sweepCompletedTasks, resetDueRecurring } from './services/sadhana'
 import { pingHealthcheck } from './services/healthcheck'
@@ -65,16 +65,15 @@ export default {
     ctx.waitUntil(
       (async () => {
         const backupResult: BackupOutcome | null = backupTick ? await scheduledBackup(cfg) : null
-        // Plan B (0044): Telegram backup channel on the SAME ticks, but a separate
-        // failure domain — scheduledPlanBBackup never throws into this chain (its own
-        // try/catch + email alert), so a GitHub failure can't skip the Telegram copy
-        // and vice versa. Independently gated: prod-only, encryption-mandatory,
-        // opt-in owners only (docs/perf-and-data-safety.md §1).
-        if (backupTick) await scheduledPlanBBackup(cfg)
+        // Plan B (0044 → session 14): the Telegram backup channel is ON-DEMAND ONLY now —
+        // the owner asks for a document from the bot's ⚙ Settings (🗄 item) or the admin
+        // route. The automatic 4×/day push was removed per user request (it filled the
+        // chat with backup documents); the GitHub channel above remains the automatic
+        // path and still pings the watchdog below.
         // Dead-man's switch (dr-integrity session, docs/dr-integrity-closeout.md §1):
-        // after the backup pair completes, ping the external watchdog. Runs ONLY on the
-        // prod worker with the secret set — a dev tick must never reset the prod timer
-        // (same masking reasoning Plan B used for its prod gate). Success ping only when
+        // after the automatic backup completes, ping the external watchdog. Runs ONLY on
+        // the prod worker with the secret set — a dev tick must never reset the prod timer
+        // (same masking reasoning the old Plan B prod gate used). Success ping only when
         // the PRIMARY channel actually pushed; a failed OR skipped backup (e.g. missing
         // GITHUB_TOKEN in prod — as dangerous as a failure) pings /fail, which alerts
         // immediately instead of waiting out the grace period. pingHealthcheck never

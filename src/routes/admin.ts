@@ -10,7 +10,7 @@ import { log } from '../lib/log'
 import { banUserSchema, roleUserSchema, removeUserSchema, customEmailSchema, broadcastEmailSchema, BAN_PRESET_MS } from '../validation/schemas'
 import { BANNED_FOREVER_DATE } from '../auth/ban'
 import { buildSnapshot, backupToGitHub, BACKUP_RETENTION_DEFAULT } from '../services/backup'
-import { pushBackupToTelegram } from '../services/backup-planb'
+import { sendPlanBBackupToChat } from '../services/backup-planb'
 import { sendAndLog, emailsSentToday, RESEND_DAILY_LIMIT, resetEmailHtml, textToEmailHtml } from '../services/email'
 import { createResetToken } from '../services/reset'
 import { githubClient } from '../services/github'
@@ -330,9 +330,11 @@ export function adminRoutes(cfg: Config) {
   })
 
   // Plan B manual trigger (docs/perf-and-data-safety.md §1): push the encrypted snapshot
-  // to opted-in owners' Telegram chats — the same code the 4×/day cron runs. Owner-only
-  // (requireOwner above), and the body is validated (rule 10) even though it carries no
-  // fields: an empty body passes, any stray payload is rejected.
+  // as a Telegram document to every LINKED OWNER's chat — the same on-demand send the
+  // bot's ⚙ Settings 🗄 item performs for the tapping owner. Session 14: the automatic
+  // 4×/day cron push is gone (user request — it spammed the chat); this route and the
+  // settings button are the only senders now. Owner-only (requireOwner above) and the
+  // body is validated (rule 10) even though it carries no fields.
   const planBBackupSchema = z.object({}).strict()
   app.post('/backup/planb', async (c) => {
     const t = trFor(c)
@@ -340,14 +342,30 @@ export function adminRoutes(cfg: Config) {
     const parsed = planBBackupSchema.safeParse(raw)
     if (!parsed.success) return c.json({ error: 'invalid_input' }, 400)
     try {
-      const result = await pushBackupToTelegram(cfg)
-      if (result.skipped) {
-        return c.json({ ok: false, skipped: result.skipped }, 503)
+      if (!cfg.telegramToken || !cfg.backupEncryptionKey) {
+        return c.json({ ok: false, skipped: 'telegram bot or BACKUP_ENCRYPTION_KEY not configured' }, 503)
+      }
+      const owners = await cfg.db.query<Pick<UserRow, 'id' | 'telegram_chat_id'>>(
+        "SELECT id, telegram_chat_id FROM users WHERE role = 'owner' AND telegram_chat_id IS NOT NULL",
+      )
+      if (owners.length === 0) {
+        return c.json({ ok: false, skipped: 'no owner with a linked Telegram chat' }, 503)
+      }
+      const sent: { userId: string; chatId: string; messageId: number; fileId: string; size: number; sha256: string }[] = []
+      const pruned: number[] = []
+      for (const owner of owners) {
+        const r = await sendPlanBBackupToChat(cfg, owner.id, owner.telegram_chat_id!)
+        if (r.ok) sent.push({ userId: owner.id, chatId: owner.telegram_chat_id!, messageId: r.messageId!, fileId: r.fileId!, size: r.size ?? 0, sha256: r.sha256 })
+        else log.error('planb_send_failed', { userId: owner.id, reason: r.reason })
+        pruned.push(...r.pruned)
+      }
+      if (sent.length === 0) {
+        return c.json({ ok: false, skipped: 'every send failed — see error log' }, 502)
       }
       if (c.req.header('HX-Request')) {
-        return c.html(toastHtml(t('Plan B backup sent to {n} chat(s)', 'پشتیبان Plan B به {n} چت ارسال شد', { n: result.sent.length }), localeOf(c)))
+        return c.html(toastHtml(t('Plan B backup sent to {n} chat(s)', 'پشتیبان Plan B به {n} چت ارسال شد', { n: sent.length }), localeOf(c)))
       }
-      return c.json({ ok: true, sent: result.sent, pruned: result.pruned }, 201)
+      return c.json({ ok: true, sent, pruned }, 201)
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err)
       return c.json({ error: msg }, 502)
@@ -495,44 +513,6 @@ export async function scheduledBackup(cfg: Config): Promise<BackupOutcome> {
       }
     }
     return { kind: 'failed', error: err instanceof Error ? err.message : String(err) }
-  }
-}
-
-/**
- * Plan B cron entry (0044, docs/perf-and-data-safety.md §1): the Telegram backup channel.
- * Runs on the same backup ticks as scheduledBackup but as a SEPARATE failure domain —
- * a GitHub-channel failure must never skip this, and vice versa. Never throws: a Plan B
- * failure is logged + emailed (best-effort) so a silent gap can't go unnoticed.
- */
-export async function scheduledPlanBBackup(cfg: Config): Promise<void> {
-  try {
-    const result = await pushBackupToTelegram(cfg)
-    if (result.skipped) {
-      // Normal, non-error skips (no token in dev, no opted-in owner, prod gate) — debug-level.
-      log.info('planb_skipped', { reason: result.skipped })
-      return
-    }
-  } catch (err) {
-    log.error('planb_failed', { err: err instanceof Error ? { message: err.message, stack: err.stack } : String(err) })
-    // Best-effort owner alert via the PRIMARY channel (email) — Telegram itself may be
-    // the thing that's down, so don't try to alert through it.
-    if (cfg.emailKey && cfg.ownerEmail) {
-      try {
-        await sendAndLog(
-          { db: cfg.db, emailKey: cfg.emailKey, assets: cfg.assets },
-          {
-            to: cfg.ownerEmail,
-            kind: 'backup_failed',
-            subject: 'Hibana Plan B backup failed',
-            title: 'Plan B backup failed',
-            bodyHtml: `<p>The Telegram (Plan B) backup failed at ${new Date().toISOString()}.</p><p>Error: ${err instanceof Error ? err.message : String(err)}</p><p>The GitHub backup channel is unaffected. The next scheduled run will retry.</p>`,
-            origin: 'https://hibana.ir',
-          },
-        )
-      } catch (emailErr) {
-        log.error('planb_alert_email_failed', { err: emailErr instanceof Error ? { message: emailErr.message } : String(emailErr) })
-      }
-    }
   }
 }
 

@@ -304,11 +304,16 @@ function listFragment(projects: ProjectRow[], tagsMap: Map<string, TagRow[]>, vi
 // Projects-at-a-glance (Phase 5): one tappable box per stage with its live count. It is
 // the grid view's whole content (asMain) and gets prepended above a filtered list so the
 // counts stay visible while browsing a stage.
+// Session 14 (user request): empty boxes (count 0) carry .is-empty — app.css hides them
+// on phones (≤560px) where they are dead weight. The class is only applied when at least
+// one stage has projects, so a fresh account never renders a hollow glance group.
 function glanceStrip(counts: Map<string, number>, activeStatus: ProjectStatus | undefined, lang: Locale, asMain = false): string {
   const dig = (n: number) => (lang === 'fa' ? faDigits(String(n)) : String(n))
+  const anyNonEmpty = PROJECT_STAGES.some((s) => (counts.get(s) ?? 0) > 0)
   const boxes = PROJECT_STAGES.map((s) => {
     const isActive = activeStatus === s
-    return `<a class="pglance-box${isActive ? ' is-active' : ''}" href="/projects.html?status=${s}&view=cards" data-pglance="${s}" title="${esc(statusLabel(s, lang))}">
+    const isEmpty = anyNonEmpty && (counts.get(s) ?? 0) === 0
+    return `<a class="pglance-box${isActive ? ' is-active' : ''}${isEmpty ? ' is-empty' : ''}" href="/projects.html?status=${s}&view=cards" data-pglance="${s}" title="${esc(statusLabel(s, lang))}">
       <span class="pglance-icon" aria-hidden="true">${icon(STATUS_ICON[s])}</span>
       <span class="pglance-count" title="${esc(trL(lang, '{n} projects', '{n} پروژه', { n: String(counts.get(s) ?? 0) }))}">${dig(counts.get(s) ?? 0)}</span>
       <span class="pglance-label">${statusLabel(s, lang)}</span>

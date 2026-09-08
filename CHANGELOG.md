@@ -2,7 +2,79 @@
 
 Full spec: `pm-app-spec.md` · Rules (non-negotiable): `CLAUDE.md` · Reasoning: `vision.md` ·
 Deploy: `DEPLOY.md` · What's next: `ROADMAP.md` · Session handoff: `NEW_SESSION_PROMPT.md`
-Verification: `npm test` (235) · `npm run typecheck` · `npm run smoke` · `npm run drill` · `npm run drill:planb`
+Verification: `npm test` (244) · `npm run typecheck` · `npm run smoke` · `npm run drill` · `npm run drill:planb`
+
+## 2026-09-18 — v0.3.9: sessions 14+15 — Obsidian vault export, neutral stage cards, phone UX follow-ups + on-demand Plan B
+Two undeployed batches shipped together as v0.3.9. CSS/JS/server-HTML only — no
+schema changes (migrations stay at 44; the retired `users.telegram_backup` column
+stays in the schema for rollback safety but no code reads it). Released with SW
+`hibana-v237`, `app.css ?v=213`, `i18n.js ?v=36` (app.js stays v163). Tests 236→244.
+Packaged as `hibana.0.3.9.zip` + git release commit; Cloudflare deploy rides the
+owner's token (`npm run deploy` → `npm run deploy:prod`, no migration step needed).
+
+### session 15 — Obsidian vault export + neutral stage cards
+- **Obsidian vault export (owner request — "a full .md backup for Obsidian, downloaded
+  from settings"):** `GET /api/export/obsidian.zip` (auth + the 10/min export rate rule)
+  builds a zip of .md files — one folder per app part — that drops into a fresh Obsidian
+  vault as-is: `Projects/<title>.md` (per project: YAML frontmatter with status/client/
+  due/progress/tags/hibana-id, description, «Where I left off» callout, hurdles, links,
+  payments, screenshots (listed — media stays in the assets repo), history log, client
+  tasks, dev board grouped by category, sprints, backlog docs), `Ideas/<title>.md`,
+  `Quick Notes.md` (notes + list notes as `- [ ]`/`- [x]` checkboxes), `To-Do Board.md`
+  (sadhana tasks by quadrant incl. custom names + the updates log), `Canvas.md`
+  (text-bearing elements only — the search.ts discipline), `Telegram Captures.md`, and a
+  `Home.md` MOC with per-part counts + `[[wikilinks]]`. The vault round-trips: every
+  file's first H1 is the record's exact title, so re-importing through the §9
+  `/api/import/obsidian` dedups instead of duplicating (pinned by a live round-trip
+  test). Settings gains a fourth export button + a hint line (EN/FA, key-parity 871/871).
+  Filenames are sanitized (Windows/zip-forbidden chars stripped, 80-char cap,
+  collision-deduped) so Persian titles are safe. `src/services/obsidian-export.ts` is
+  pure-read (user-scoped queries only; soft-deleted rows are excluded — trash is not
+  content).
+- **Stage-card status colors centralized in the indicator bar (owner request, with
+  reference mockup):** the dashboard's `.stat-kanban-card`s now sit on ONE neutral
+  surface regardless of status — `#F5F6F7` light / the dark neutral `#28241E` dark —
+  and the inline-start pill indicator bar is the only status-colored element:
+  awaiting `#FFD658` · investigating `#9DC7FF` · doing `#6FE983` (the owner's hexes;
+  the secondary stages get bright pastels from the same register — unreviewed
+  `#A9BFD8`, halted `#F2A08C`, operational `#8FD694` — so carousel page 2+ stays
+  consistent). Bar position keeps logical properties only (`inset-block` /
+  `inset-inline-start`) — browser-verified: the bar flips to the true inline-start
+  edge in both RTL and LTR. The 0.42rem width is intentional (session-12 "pronounced"
+  width; now the sole color signal). Accessibility (WCAG 1.4.1 "not by color alone"):
+  each card carries an sr-only status label, and the stage-box header (icon + count +
+  label) remains the visible non-color carrier. The projects board keeps its per-lane
+  pastel fills (session-11 design — the board's lanes are separately labeled).
+  Verified: computed styles match every hex exactly; light + dark, desktop + 390px,
+  FA/RTL + EN/LTR; console/server log clean.
+
+### session 14 — phone grid 2-up, empty boxes hidden, Plan B on-demand
+Three owner requests (app.css `?v=212`, SW `hibana-v236` at authoring time; both
+superseded by the session-15 bump above inside the same release).
+- **Quick-notes grid on phones: 2 sticky notes per row + smaller notes (owner request):**
+  the ≤40rem fallback was a 3-up grid of ~101px papers — text was cramped/truncated.
+  Now 2 per row with tracks capped at `minmax(0, 9.5rem)` and the pair centered (a
+  little smaller than the full half-width, shrinking gracefully to 320px phones);
+  the mobile height cap drops 15rem → 10.5rem so rows stay compact. Desktop 6-col
+  grid and the sticky carousel untouched.
+- **Empty project boxes hidden on mobile (owner request):** dashboard stage boxes
+  (`.stat-box`, ≤640px full-width carousel slides) and projects-page glance boxes
+  (`.pglance-box`, ≤560px 2-up grid) now carry server-side `.is-empty` when their
+  count is 0 and hide on phones. Applied only when at least one stage has projects,
+  so a fresh account never renders a hollow section; desktop keeps every box. The
+  carousel dots/pages recompute automatically (they key on scrollWidth).
+- **Telegram backups: on-demand only, no per-backup notifications (owner request):**
+  the Plan B channel no longer pushes 4×/day documents automatically — the cron entry
+  (`scheduledPlanBBackup`) and the `users.telegram_backup` opt-in toggle are removed.
+  Backups stay an item in the bot's ⚙ Settings: a «🗄 Send backup now» button that
+  sends ONE encrypted snapshot to the chat right away (owner-only; members' crafted
+  `bak` callbacks stay no-ops) with a sha256 confirmation; `POST /api/admin/backup/planb`
+  remains the admin manual trigger (now to every linked owner chat). Gates kept:
+  token + BACKUP_ENCRYPTION_KEY (never plaintext); the isProd gate is gone — an
+  explicit tap on a self-hosted deployment is correct. The GitHub channel still runs
+  silently 4×/day with the watchdog ping; only failures alert (email + bot message).
+  Live wiring verified against the real Telegram API (honest 401 refusal path); the
+  happy path is pinned by the rewritten planb tests (send/log/pin/retention/round-trip).
 
 ## 2026-09-16 — v0.3.8: sessions 12+13 — flat cards, phase colors, phone carousel + the modal task composer
 Two undeployed batches shipped together, plus the owner's shadow removal. CSS/JS/

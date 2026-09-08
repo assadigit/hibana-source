@@ -1,6 +1,8 @@
 import { Hono } from 'hono'
+import { zipSync, strToU8 } from 'fflate'
 import { requireAuth } from '../auth/middleware'
 import { buildUserSnapshot } from '../services/backup'
+import { buildObsidianVault } from '../services/obsidian-export'
 import { clientIp, hitRateLimit, RATE_RULES } from '../services/ratelimit'
 import { timeAgo, STATUS_LABEL } from '../lib/html'
 import type { Config, ProjectRow, TagRow, UserRow } from '../types'
@@ -12,6 +14,8 @@ import type { TaskRow } from '../types'
 // backup-cron shape), leaking every other user's data to any authenticated member.
 // Rule 8 still applies: password_hash and sessions never appear in any export.
 // R4.1: added /tasks.csv — a spreadsheet-friendly CSV of all client tasks.
+// Session 15: added /obsidian.zip — the Obsidian vault export (a pack of .md files, one
+// folder per app part, zipped). Mirrors the §9 import so the vault round-trips.
 
 // CSV escaping per RFC 4180: wrap in quotes if it contains comma/quote/newline; double inner
 // quotes. Formula-injection guard: a leading =, +, - or @ would execute as a formula in
@@ -58,6 +62,30 @@ export function exportRoutes(cfg: Config) {
       headers: {
         'Content-Type': 'text/csv; charset=utf-8',
         'Content-Disposition': 'attachment; filename="hibana-tasks.csv"',
+      },
+    })
+  })
+
+  // Obsidian vault export (session 15, user request): a zip of .md files — one folder
+  // per app part (Quick Notes / Projects / Ideas / To-Do Board / Canvas / Telegram
+  // Captures) with a Home.md MOC — that the user can drop into a fresh Obsidian vault.
+  // Same user-scoping discipline as the branches above; rides the same export rate rule.
+  app.get('/obsidian.zip', async (c) => {
+    const user = c.get('user')
+    if (await hitRateLimit(cfg.db, RATE_RULES.export, clientIp(c))) {
+      return c.json({ error: 'rate_limited' }, 429)
+    }
+    const { files, stats } = await buildObsidianVault(cfg.db, user.id)
+    const zipped: Record<string, Uint8Array> = {}
+    for (const [path, md] of files) zipped[path] = strToU8(md)
+    const zip = zipSync(zipped) // fflate: pure-JS, Worker + Node safe
+    const day = new Date().toISOString().slice(0, 10)
+    return new Response(zip, {
+      headers: {
+        'Content-Type': 'application/zip',
+        'Content-Disposition': `attachment; filename="hibana-vault-${day}.zip"`,
+        'X-Hibana-Vault-Files': String(files.size),
+        'X-Hibana-Vault-Stats': JSON.stringify(stats),
       },
     })
   })

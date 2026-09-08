@@ -1,105 +1,61 @@
-# Hibana — New Session Prompt (session 14 starter)
+# Hibana — New Session Prompt (session 16 starter)
 
 Copy-paste the entire block below as your first message in a new session.
-Attach/upload the source zip (`hibana.0.3.8.zip`) to the same message if the sandbox
+Attach/upload the source zip (`hibana.0.3.9.zip`) to the same message if the sandbox
 doesn't already contain it.
 
-> Sessions 9–11 (audit → batches 1–4, four owner fixes, three follow-ups — v0.3.5→
-> v0.3.7), 12 (flat kanban cards, pronounced phase colors, phone quadrant swipe
-> carousel), 13 (the `#pd-taskadd-modal` task composer replacing the project page's
-> narrow inline quick-add input) and 13b (shadow removed from the «افزودن» button) are
-> COMPLETE — 12+13+13b are DEPLOYED to prod together as v0.3.8 (SW `hibana-v235`) —
-> see `worklog-session9.md` … `worklog-session11.md` + the sandbox-level
-> `/home/z/my-project/worklog.md` (Tasks 6–8) + the CHANGELOG v0.3.8 entry. Known
-> correction: the v0.3.7 artifact actually shipped SW `hibana-v231` (session-11's
-> worklog "v232" line was wrong). Queued for the next session: the out-of-batch
-> contrast marginals (4.1–4.4 badges, white-on-`--accent` board fills, "E" avatar
-> initial, skip-link, calendar «شمسی» seg), the notebook dark-mode photo inversion,
-> and triage of anything new you find.
+> Sessions 12–13b (flat kanban cards + modal task composer — v0.3.8), 14 (quick-notes
+> 2-up phone grid, empty boxes hidden on mobile, Telegram Plan B backups on-demand
+> only) and 15 (Obsidian vault export from settings + neutral stage cards with the
+> pill indicator bar) are COMPLETE — 14+15 packaged together as **v0.3.9** (SW
+> `hibana-v237`, app.css `?v=213`, i18n.js `?v=36`, tests 244/244). See
+> `worklog-session9.md` … `worklog-session11.md`, `worklog-session15.md` + the
+> sandbox-level `/home/z/my-project/worklog.md` (Tasks 6–10) + the CHANGELOG v0.3.9
+> entry. **Deploy status:** v0.3.9 is committed + zipped but NOT yet deployed to
+> Cloudflare — no migration step is needed (schema stays at 44); run
+> `npm run deploy` then `npm run deploy:prod` when a CF token is available.
+> Queued for the next session: the out-of-batch contrast marginals (4.1–4.4 badges,
+> white-on-`--accent` board fills, "E" avatar initial, skip-link, calendar «شمسی»
+> seg), the notebook dark-mode photo inversion, and triage of anything new you find.
 
 ---
 
 You are an expert Principal Full-Stack Engineer AND senior product designer specializing
 in Cloudflare Workers, Hono, TypeScript, and modern UI/UX (bilingual EN/FA, RTL/LTR,
 Jalali + Gregorian). We are continuing the development of **Hibana (hibana.ir)** — my
-personal project/idea manager. This session's agenda, in this exact order:
-**① UI/UX audit → ② plan the fixes → ③ implement / fix / debug.**
+personal project/idea manager. This session's agenda arrives in my first message
+(usually: owner feedback → spec → implement, or audit → plan → fix).
 
 ## 0) Restore the project first
-I uploaded `hibana.0.3.8.zip` (source + fresh `public/dist`; no node_modules, no local
+I uploaded `hibana.0.3.9.zip` (source + fresh `public/dist`; no node_modules, no local
 dbs, no secrets). Restore and baseline:
 
 ```bash
-unzip hibana.0.3.8.zip -d /home/z/my-project/hibana-work
+unzip hibana.0.3.9.zip -d /home/z/my-project/hibana-work
 cd /home/z/my-project/hibana-work
 npm ci
 npm run typecheck   # must be clean
-npm test            # must be 235/235
+npm test            # must be 244/244
 ```
 
-Then start the local Node server for the audit: `npm run migrate:node && npm run
-seed:admin:node && npm run start:node` (serves on :8787; test user `e2e@test.local`).
+Then start the local Node server: `npm run migrate:node && npm run seed:admin:node &&
+npm run start:node` (serves on :8787; test user `e2e@test.local`).
 
 ## 1) Project context
 - **Stack:** Hono + TypeScript + Zod on Cloudflare Workers; D1 (SQLite) via `src/db/`;
   static HTML + htmx + Alpine + Fabric.js in `public/` (built hashed assets in
   `public/dist/` via `scripts/build.mjs`). Full detail: `tech-stack.md`.
 - **Live:** https://hibana.ir (prod, schema 44) · https://hibana.aliassadi.workers.dev
-  (dev). Live = this source (v0.3.8, deployed with sessions 12+13).
-- **Read-first, in order:** `CHANGELOG.md` (newest first — the v0.3.8 entry + the
-  2026-09-14 v0.3.5/v0.3.6/v0.3.7 entries) · `worklog-session9.md` (the full audit + 4-batch arc) ·
-  `worklog-session10.md` (the four UI fixes) · `CLAUDE.md` (non-negotiable rules) ·
-  `pm-app-spec.md` + `vision.md` (spec + intent, consult as needed) ·
+  (dev). Live = v0.3.8 until the v0.3.9 deploy above runs.
+- **Read-first, in order:** `CHANGELOG.md` (newest first — the v0.3.9 entry + the
+  v0.3.5→v0.3.8 entries) · `worklog-session15.md` (Obsidian export + stage cards) ·
+  `worklog-session9.md` (the full audit + 4-batch arc) · `CLAUDE.md` (non-negotiable
+  rules) · `pm-app-spec.md` + `vision.md` (spec + intent, consult as needed) ·
   `docs/uptime-monitoring.md` §"runbook" for ops state.
-- **The two jobs** (vision.md): *never lose an idea, never lose your place.* Every audit
-  finding and fix must serve one of them — or be explicitly justified to me.
+- **The two jobs** (vision.md): *never lose an idea, never lose your place.* Every fix
+  must serve one of them — or be explicitly justified to me.
 
-## 2) THE AGENDA — ① audit ② plan ③ fix
-
-### ① UI/UX AUDIT (do this before touching any code)
-Audit every one of the **23 pages** in `public/` — dashboard, ideas, projects, project
-detail (incl. #shots gallery), notebook, sadhana board, sprint board, calendar, backlog,
-media, search, settings, admin console, auth pages, error/offline pages — plus the
-shared chrome (nav, SW-offline behavior, service-worker updates).
-
-For each page/flow, check and record findings in a structured table (severity
-critical/major/minor/polish, with repro):
-1. **Bilingual & direction:** EN/LTR and FA/RTL both correct; no clipped/overflowing
-   text in RTL; mixed-direction strings (dates, emails, URLs) render sanely; Jalali ⇄
-   Gregorian correctness on every date surface.
-2. **Responsive:** desktop / tablet / **390 px mobile**; 44 px touch targets; sticky
-   footer where applicable; no horizontal scrollbars; dialogs and drawers usable small.
-3. **Theme:** light AND dark — contrast ratios (WCAG AA), the known notebook ink-filter
-   photo-inversion issue (verify current state), no unreadable combinations.
-4. **States:** every async surface has loading / empty / error / offline states; htmx
-   requests never leave a silently-broken UI; optimistic updates roll back on failure.
-5. **Consistency:** design-system tokens (spacing, radii, shadows, buttons, forms)
-   applied uniformly; i18n key parity EN/FA (programmatic check); `?v=` cache-bust
-   consistency across all referencing pages.
-6. **Flows:** signup → login → dashboard → create idea → note → task → sprint →
-   calendar → search → find-it-back (the "never lose your place" loop); keyboard
-   navigation and focus traps in dialogs; back/refresh mid-flow doesn't lose work.
-7. **Performance feel:** perceived latency on 3G-ish throttling, font/asset loading
-   (FOIT/FOUT), SW precache freshness.
-Run the audit with the local node server in a real browser (agent-browser/CDP), both
-languages, both directions, both themes, desktop + 390 px. Where feasible also probe
-live prod for divergence (local-vs-prod drift is itself a finding).
-
-### ② PLAN
-Turn the findings into a fix plan: grouped by severity, each item with root cause,
-proposed fix, files touched, risk, and verification steps. Present the plan to me for
-approval BEFORE implementing (schema changes need my explicit written approval —
-expect none should be required for a UI/UX pass; if one is, justify it separately).
-
-### ③ IMPLEMENT / FIX / DEBUG
-Implement the approved plan in small verifiable batches (audit-consistency fixes often
-touch every HTML page — keep the cache-discipline rules below). Full verification
-ladder per batch: `npm run typecheck` → `npm test` → `node --check` on touched JS →
-browser E2E on the local node server in FA/RTL **and** EN/LTR, light **and** dark,
-desktop **and** 390 px → deploy dev → probe → deploy prod → probe → **purge probe
-users**.
-
-## 3) Ground rules (NON-NEGOTIABLE)
+## 2) Ground rules (NON-NEGOTIABLE)
 - **NO `node_modules` in the repo** — `npm ci` installs them.
 - **DB schema changes only with my explicit written approval.** New migration = new
   numbered file in `migrations/` (0001–0045 exist; 0007 never existed — numbering gap
@@ -107,9 +63,9 @@ users**.
 - **i18n:** every feature/fix ships EN + FA together (programmatic key-parity check).
 - **Cache discipline:** any CSS/JS change bumps `?v=` on EVERY referencing HTML page
   AND the service-worker cache name AND its SHELL asset list. Current at packaging
-  (= deployed state): `app.css` v211 · `app.js` v163 · `i18n.js` v35 · `devboard.js`
+  (= v0.3.9 state): `app.css` v213 · `app.js` v163 · `i18n.js` v36 · `devboard.js`
   v9 · `canvas.js` v14 · `whiteboard.js` v9 · `task-controls.css` v4 · `admin.js` v2 ·
-  SW `hibana-v235` · 22 HTML pages.
+  SW `hibana-v237` · 22 HTML pages.
 - **Deploy pipeline:** `npm run deploy:prod` = build `--prod --wire-html` →
   dist-wiring gate → `wrangler deploy --env prod` → canonical HTML restore. Never
   hand-edit wired HTML.
@@ -121,7 +77,13 @@ users**.
 - **Prod probe users are always purged after E2E** (DELETE cascade verified).
 - Auto-deploy to dev after green verify; prod after a live dev probe, unless I say hold.
 
+## 3) Verification ladder (per batch)
+`npm run typecheck` → `npm test` → `node --check` on touched JS → browser E2E on the
+local node server in FA/RTL **and** EN/LTR, light **and** dark, desktop **and**
+390 px → deploy dev → probe → deploy prod → probe → **purge probe users**.
+
 ## 4) Known deferred items (verify current state before working on them)
+- **v0.3.9 Cloudflare deploy** — packaged, not yet deployed (top of this file).
 - **sadhana.ir Iran-mirror — DEFERRED 2026-09-08** (docs/edge-mirror.md has the full
   status + ArvanCloud API reference): delegated-but-dark, needs an API key from the
   zone's Arvan account + ~4 config calls. NOT this session's agenda unless I say so.
@@ -134,7 +96,8 @@ users**.
 I give UI feedback in plain language + screenshots/wireframes; you translate to specs,
 ask clarifying questions BEFORE editing when intent is ambiguous, then implement with
 the full verification ladder. Keep a running worklog per task in a new
-`worklog-session14.md` (continue the session-7/8/9 pattern; also mirror the entry into
-the sandbox-level `/home/z/my-project/worklog.md`). Finish the session with: commits pushed
-to `assadigit/hibana-source` main, CHANGELOG + version bump, and a fresh versioned zip
-(`hibana.<version>.zip`) + public/ copy, exactly like previous sessions.
+`worklog-session16.md` (continue the session-7/8/9/15 pattern; also mirror the entry
+into the sandbox-level `/home/z/my-project/worklog.md`). Finish the session with:
+commits pushed to `assadigit/hibana-source` main, CHANGELOG + version bump, and a
+fresh versioned zip (`hibana.<version>.zip`) + copy in `/home/z/my-project/download/`
+and `/home/z/my-project/upload/`, exactly like previous sessions.

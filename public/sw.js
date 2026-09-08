@@ -1,4 +1,25 @@
 // Hibana service worker — PWA packaging (Phase 5).
+// Session-15 (2026-09-18, v0.3.9 release: Obsidian vault export + neutral stage
+// cards — rides the v0.3.9 deploy which carries BOTH undeployed batches,
+// session-14 + session-15): hibana-v236 →
+// v237 — app.css v213 (dashboard stage-box cards: ONE neutral surface #F5F6F7 light /
+// #28241E dark regardless of status; the inline-start pill indicator bar is now the
+// ONLY status color — awaiting #FFD658, investigating #9DC7FF, doing #6FE983, secondary
+// stages in the same bright-pastel register; hover steps toward the text tone) and
+// i18n.js v36 (settings.* keys for the new Obsidian export button + hint). Server-side:
+// GET /api/export/obsidian.zip — the .md vault export (one folder per app part + Home
+// MOC; mirrors the §9 import so titles round-trip and re-import dedups).
+// Full-tree bump per the cache rules (drops every v236 copy so no stale page keeps
+// referencing v212 CSS / v35 i18n).
+//
+// Session-14 (2026-09-17, Hibana UX follow-ups): hibana-v235 → v236 — app.css v212:
+// quick-notes GRID view on phones now shows 2 sticky notes per row with slightly smaller
+// papers (capped 9.5rem tracks, centered pair, 10.5rem height cap), and empty project
+// boxes are hidden on mobile (dashboard .stat-box.is-empty ≤640px, projects-page
+// .pglance-box.is-empty ≤560px — both marked server-side only when some stage has
+// projects). Server-side: the Telegram Plan B backup channel is on-demand only now
+// (bot ⚙ Settings 🗄 button / admin route; the automatic 4×/day chat push is gone).
+
 // Network-first for navigations (fresh data always), cache-first for the app shell so the
 // interface loads instantly and works offline. The offline *queue* is IndexedDB-based and
 // independent of this file (spec §3.4).
@@ -71,7 +92,7 @@
 // DELETED (F11). F7 also adds SHELL entries: /reset.html (public auth page was
 // missing — offline boot impossible) and /to-do-list (the board's canonical URL —
 // offline navigation used to fall through to the dashboard shell).
-const VERSION = 'hibana-v235'
+const VERSION = 'hibana-v237'
 
 // Static shell: unhashed pages/partials/icons/vendor/fonts (SWR or network-first at
 // runtime; precached here for offline). The hashed app bundles come from the manifest

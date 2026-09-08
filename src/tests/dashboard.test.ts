@@ -70,9 +70,14 @@ describe('dashboard stat boxes', () => {
       expect(strip).toContain('data-stat-dots')
 
       // One box per ACTIVE stage, in carousel order; the boxes carry no status badges
-      // (icon-chip + stat-count + stat-label replaced them).
-      const boxes = strip.split('<div class="stat stat-box"').slice(1)
+      // (icon-chip + stat-count + stat-label replaced them). Session 14: empty stages
+      // (investigating + awaiting here) carry .is-empty — app.css hides them on phones.
+      // Splitting on the tag PREFIX so both plain and is-empty boxes are captured.
+      const boxes = strip.split('<div class="stat stat-box').slice(1)
       expect(boxes.map((b) => (b.match(/data-status="(\w+)"/) ?? [])[1])).toEqual([...CAROUSEL])
+      expect((strip.match(/class="stat stat-box is-empty"/g) ?? []).length).toBe(2)
+      expect(strip).toContain('class="stat stat-box is-empty" data-status="investigating"')
+      expect(strip).toContain('class="stat stat-box is-empty" data-status="awaiting"')
       expect(strip).not.toContain('data-status="spark"')
       expect(strip).toContain('class="icon-chip"')
       // 2026-09-09: the stat-count now carries a title="N projects" tooltip; the test
@@ -181,8 +186,10 @@ describe('dashboard stat boxes', () => {
       const strip = html.slice(html.indexOf('stat-strip stat-boxes'), html.indexOf('class="card notebook'))
 
       // Exactly one box per active stage, each with a view-all link and NO create button
-      // (creation lives in the single FAB — user request 2026-08-25).
-      expect((strip.match(/class="stat stat-box" data-status="/g) ?? []).length).toBe(6)
+      // (creation lives in the single FAB — user request 2026-08-25). Session 14: the three
+      // stages without projects (investigating/awaiting/halted) are marked .is-empty.
+      expect((strip.match(/class="stat stat-box[^"]*" data-status="/g) ?? []).length).toBe(6)
+      expect((strip.match(/class="stat stat-box is-empty" data-status="/g) ?? []).length).toBe(3)
       expect(strip).not.toContain('data-quickadd-open')
       expect(strip).not.toContain('data-projectquickadd')
       expect(strip).toContain('View all ')

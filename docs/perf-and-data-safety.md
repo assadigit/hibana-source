@@ -37,36 +37,42 @@ infrastructure Hibana already runs.
 | 5 | WebDAV/Nextcloud endpoint | Rejected | New infrastructure to run and keep alive — the opposite of "reuse the bot." Bus-factor 1 project; adding a self-hosted box to keep patched is a liability, not a safety net. |
 | 6 | R2 (Cloudflare) | Rejected as a *Plan B* specifically | Same account/billing provider as D1 itself — account compromise or billing failure correlates. Fine as a *performance* store, wrong as a *disaster* channel. |
 
-### 1.3 Chosen design (implemented)
+### 1.3 Chosen design (implemented; session 14 revision — ON-DEMAND)
 
-**"Telegram-as-Plan-B": on the same 4×-daily backup tick, the worker also pushes the
-same AES-GCM-encrypted snapshot as a Telegram document to the chat of every owner who
-opted in.**
+**"Telegram-as-Plan-B": the owner asks for a backup and the worker pushes the
+AES-GCM-encrypted snapshot as a Telegram document to the asking owner's chat.**
 
-Hard requirements from the session brief, and how each is met:
+> Session 14 (user request): the channel originally pushed automatically on the same
+> 4×-daily tick as the GitHub backup. That filled the owner's chat with backup documents
+> ("a lot of backup notifications"). The automatic push is REMOVED — `src/index.ts` no
+> longer calls any Plan B send. A document is delivered only on an explicit request:
+> the 🗄 item in the bot's ⚙ Settings keyboard (tap = one snapshot, right away) or the
+> owner-only admin route. Nothing messages the chat "after each backup" — the GitHub
+> channel keeps running silently and only FAILURES alert (email + direct bot message).
 
-- **(a) Reuse `buildSnapshot` + AES-GCM — no new format.** `pushBackupToTelegram()`
+Hard requirements from the session brief, and how each is met (as revised):
+
+- **(a) Reuse `buildSnapshot` + AES-GCM — no new format.** `sendPlanBBackupToChat()`
   (src/services/backup-planb.ts) calls the *exact* `buildSnapshot()` used by the GitHub
   channel, encrypts with the *same* `BACKUP_ENCRYPTION_KEY` worker secret, and produces
   the *same* `HIBENC1` blob (magic + 0x00 + IV + ciphertext+tag, base64). The Telegram
   file is byte-compatible with what `scripts/restore.mjs` already decrypts. No parallel
   format, no second key.
-- **(b) Opt-in per user.** New column `users.telegram_backup` (migration `0044`), toggled
-  from the bot's own ⚙️ Settings keyboard (🗄 Backup button — bilingual). The whole-DB
-  snapshot is **owner-scoped by design**: a non-owner member can never receive the
-  blob (the toggle is hidden for members and the callback refuses to act for them),
-  because the snapshot contains every user's rows — encrypted, but there is no reason
-  to hand members a copy they can never decrypt. The owner is the disaster-recovery
+- **(b) Owner-scoped delivery.** The old per-user opt-in column `users.telegram_backup`
+  (migration `0044`) is RETIRED — kept in the schema for rollback safety but no code
+  reads it. Scope is now enforced by the senders: the Settings 🗄 button renders for
+  owners only and its callback refuses to act for members (a crafted `bak` callback is
+  a no-op); the admin route queries `role = 'owner'` directly. The whole-DB snapshot
+  must never reach a member chat (encrypted or not). The owner is the disaster-recovery
   principal; that is whose chat matters.
-- **(c) Same 4×-daily cron.** `src/index.ts` runs `scheduledPlanBBackup(cfg)` immediately
-  after `scheduledBackup(cfg)` on every backup tick (`utcMin % 30 !== 0`, i.e. the
-  03:17/09:17/15:17/21:17 slots). It is a **separate failure domain**: its own
-  try/catch, its own alerting. If the GitHub push fails (rate limit, token expiry), the
-  Telegram push still runs — that day the Plan B copy is the only copy, which is exactly
-  when you want it. Plan B is **prod-only** (`cfg.isProd`): a dev-worker snapshot in the
-  owner's chat would be a restore hazard (stale data), and the dev worker's job is
-  GitHub-only. Plan B is **encryption-mandatory**: with no `BACKUP_ENCRYPTION_KEY` set
-  the push refuses to run (never plaintext to Telegram).
+- **(c) Explicit triggers only (no cron).** Senders: the bot ⚙ Settings 🗄 button
+  (webhook callback `bak`) and `POST /api/admin/backup/planb` (owner-only,
+  Zod-validated, sends to every linked owner chat — the manual drill trigger). The
+  old `scheduledPlanBBackup()` cron entry is deleted. The isProd gate is also gone:
+  a send only ever answers an explicit tap, so a self-hosted deployment serving its
+  own owner is correct — the "indistinguishable automatic dev artifact" hazard the
+  gate guarded against no longer exists. Plan B remains **encryption-mandatory**: with
+  no `BACKUP_ENCRYPTION_KEY` set the send refuses to run (never plaintext to Telegram).
 - **(d) Restore drill.** `npm run drill:planb` (scripts/restore-drill-planb.mjs): reads
   the newest `planb_backups` row from prod D1 (Cloudflare REST API), downloads the
   document via Bot API `getFile`, verifies sha256 + HIBENC1 magic, decrypts, checks
@@ -85,7 +91,7 @@ caption: 🗄 Hibana backup (Plan B)
          schema 20260910 · 15:17 UTC · 12,345 rows · sha256 <64-hex>
          AES-256-GCM — restore: docs/runbook.md §2b
 pinned:  yes (newest backup is pinned; older pin removed)
-sound:   silent (disable_notification — 4×/day must not buzz the owner)
+sound:   silent (disable_notification — a requested document is not an alert)
 ```
 
 The sha256 in the caption is deliberate: it makes the **manual** restore path
@@ -99,19 +105,19 @@ hash locally (`sha256sum`), and feed it to `restore.mjs` without needing the
 When D1 itself is destroyed this log dies with it — by design the *documents* are the
 recovery artifact, and the caption carries the hash so the log is not needed.
 
-**Retention:** keep newest **60** documents per opted-in owner (~15 days at 4/day —
-matches the GitHub channel's 15-day window), deleted via Bot API `deleteMessage`
+**Retention:** keep newest **60** documents per owner (a bound on chat clutter — sends
+are on-demand now, far rarer than the old 4/day), deleted via Bot API `deleteMessage`
 (bots can delete their own messages in private chats without time limit) + log-row
-cleanup. Best-effort: a failed delete just leaves an older document in place (safe
-direction). If D1 is destroyed, retention stops and the chat simply accumulates —
-harmless (100 KB × 4/day ≈ 146 MB/year) and arguably desirable in a disaster.
+cleanup after every send. Best-effort: a failed delete just leaves an older document in
+place (safe direction). If D1 is destroyed, retention stops and the chat simply
+accumulates — harmless (100 KB per document) and arguably desirable in a disaster.
 
-**Rate limits:** 1 send per opted-in owner per tick (currently = 1 document 4×/day).
-Telegram's documented bot limits (~30 msgs/sec, 20 msgs/min to the same chat in
-groups) are nowhere near relevant. The 50 MB Bot API cap: our snapshot is ~100 KB;
-chunking is **deferred** — if a future multi-user snapshot ever crosses ~45 MB, either
-stand up a local Bot API server (2 GB) or chunk with a manifest; noted here so the
-limit is a known constraint, not a surprise.
+**Rate limits:** one document per explicit request. Telegram's documented bot limits
+(~30 msgs/sec, 20 msgs/min to the same chat in groups) are nowhere near relevant. The
+50 MB Bot API cap: our snapshot is ~100 KB; chunking is **deferred** — if a future
+multi-user snapshot ever crosses ~45 MB, either stand up a local Bot API server (2 GB)
+or chunk with a manifest; noted here so the limit is a known constraint, not a
+surprise.
 
 **Bot token rotation:** `@BotFather /revoke` issues a new token for the *same bot
 identity* — previously sent documents remain downloadable via `getFile` with the new
@@ -122,22 +128,23 @@ still be manually downloadable. Documented in runbook §1.
 
 ### 1.4 Why a separate snapshot build (not sharing the GitHub one)
 
-The Plan B push builds its own snapshot (28 SELECTs, ~ms) instead of reusing the bytes
+The Plan B send builds its own snapshot (28 SELECTs, ~ms) instead of reusing the bytes
 the GitHub path pushed: (1) the two channels must be independently triggerable and
 independently retryable; (2) each gets a fresh IV — each channel stores its own
 self-contained encrypted copy; (3) no coupling means a refactor of
-`backupToGitHub()` can never break Plan B. Cost is negligible on a 4×/day cron.
+`backupToGitHub()` can never break Plan B. Cost is negligible per on-demand send.
 
 ### 1.5 What Plan B deliberately is NOT
 
 - Not a per-user export (`buildUserSnapshot` exists for that, rule 8-scoped). Plan B is
   the whole-DB disaster artifact, same as the GitHub channel.
-- Not visible in the admin console UI in v1 — the manual trigger is
-  `POST /api/admin/backup/planb` (owner-only, Zod-validated per rule 10) and the cron.
-  A console button is a nice-to-have for a later session (noted in CHANGELOG).
-- Not a substitute for the GitHub channel. The GitHub channel keeps 120 snapshots +
-  retention management + is the primary restore source. Plan B is the *independent*
-  copy that survives a GitHub-side catastrophe.
+- Not visible in the admin console UI in v1 — the manual triggers are the bot's ⚙
+  Settings 🗄 button and `POST /api/admin/backup/planb` (owner-only, Zod-validated per
+  rule 10). A console button is a nice-to-have for a later session (noted in CHANGELOG).
+- Not automatic. Since session 14 NOTHING sends a Plan B document on its own — no cron,
+  no per-backup notification. The GitHub channel remains the automatic, watchdog-guarded
+  path; Plan B is the *independent* copy that survives a GitHub-side catastrophe, fetched
+  when the owner asks for it.
 
 ### 1.6 Bug found + fixed during end-to-end verification (2026-09-11)
 

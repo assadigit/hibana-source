@@ -170,11 +170,16 @@ export function dashboardRoutes(cfg: Config) {
       // One box per stage: icon + count + stage label, "view all" (cards view), then every
       // project as a draggable kanban card. Phase 5: the card is a compact skc-row (open
       // arrow + title) with timeAgo only — the tag chip and latest-note preview are gone.
+      // Session 14 (user request): empty boxes carry .is-empty — app.css hides them on
+      // phones (≤640px, where each box is a full-width carousel slide = a wasted swipe).
+      // Only marked when some stage has projects, so a fresh account keeps its boxes.
+      const anyStageHasProjects = (Object.keys(counts) as (keyof typeof counts)[]).some((k) => counts[k] > 0)
       const statBox = (s: ProjectStatus): SafeHtml => {
         const list = recentBox(s)
         const label = statusLabel(s, lang)
         const cards = list.map((p) => {
           return html`<div class="card kanban-card stat-kanban-card" draggable="true" data-project-id="${p.id}" data-status="${p.status}" data-nav-url="/project.html?id=${p.id}" title="${t('Drag to another box to change its status', 'برای تغییر وضعیت به جعبهٔ دیگر بکش')}">
+            <span class="sr-only">${statusLabel(p.status, lang)}</span>
             <div class="row skc-row">
               <a class="skc-open" href="/project.html?id=${p.id}" aria-label="${t('Open project', 'باز کردن پروژه')} — ${p.title}" title="${t('Open project', 'باز کردن پروژه')}">${raw(icon('arrow-right', 'icon arrow'))}</a>
               <strong class="skc-title">${p.title}</strong>
@@ -184,7 +189,7 @@ export function dashboardRoutes(cfg: Config) {
             <div class="muted small skc-updated">${timeAgo(p.updated_at, lang)}${backlogMetaD(p.id) ? html` · ${backlogMetaD(p.id)}` : ''}</div>
           </div>`
         })
-        return html`<div class="stat stat-box" data-status="${s}">
+        return html`<div class="stat stat-box${anyStageHasProjects && counts[s] === 0 ? ' is-empty' : ''}" data-status="${s}">
           <div class="row spread">
             <span class="row"><span class="icon-chip" title="${label}">${raw(icon(STATUS_ICON[s]))}</span> <b class="stat-count" title="${t('{n} projects', '{n} پروژه', { n: num(counts[s]) })}">${num(counts[s])}</b> <span class="stat-label">${label}</span></span>
             <span class="row">

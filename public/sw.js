@@ -12,6 +12,11 @@
 // Perf session (2026-09-10, docs/perf-and-data-safety.md §2.2): the fetch handler
 // splits strategies by URL class instead of network-first-for-everything.
 //
+// Session-10 (2026-09-14, four UI fixes): hibana-v230 → v231 — app.css v205
+// (notebook view-mode controls always visible, dashboard prog-track hover-reveal,
+// pglance subtle color + section spacing) and sadhana.html's unversioned full-tree
+// content change (board section white space). Full-tree bump per the cache rules.
+//
 // dr-integrity session (2026-09-11, docs/dr-integrity-closeout.md §5): HTML → dist
 // wiring. hibana-v227 → v228:
 //   - PRECACHE IS MANIFEST-DRIVEN: install() fetches /dist/manifest.json (served
@@ -38,7 +43,7 @@
 // DELETED (F11). F7 also adds SHELL entries: /reset.html (public auth page was
 // missing — offline boot impossible) and /to-do-list (the board's canonical URL —
 // offline navigation used to fall through to the dashboard shell).
-const VERSION = 'hibana-v230'
+const VERSION = 'hibana-v231'
 
 // Static shell: unhashed pages/partials/icons/vendor/fonts (SWR or network-first at
 // runtime; precached here for offline). The hashed app bundles come from the manifest

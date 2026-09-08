@@ -4,6 +4,39 @@ Full spec: `pm-app-spec.md` · Rules (non-negotiable): `CLAUDE.md` · Reasoning:
 Deploy: `DEPLOY.md` · What's next: `ROADMAP.md` · Session handoff: `NEW_SESSION_PROMPT.md`
 Verification: `npm test` (235) · `npm run typecheck` · `npm run smoke` · `npm run drill` · `npm run drill:planb`
 
+## 2026-09-14 — v0.3.6: session 10 — four UI fixes from owner reports
+Owner-reported right after v0.3.5 shipped. All CSS/server-only — no app.js/i18n
+changes, no schema changes. Deployed with this release (SW `hibana-v231`,
+`app.css ?v=205`). Tests stay 235/235.
+- **Quick-notebook view modes restored (revert):** the 2026-09-09 dashboard variant
+  collapsed the List/Sticky/Grid + size controls behind a ⚙ `<details>` —
+  undiscoverable, so the widget read as list-only ("currently it only shows as
+  list"). The ⚙ is gone; the segmented controls are ALWAYS visible again on every
+  notebook surface (dashboard widget + /whiteboard.html). Sticky carousel and grid
+  views re-verified working in the browser (flex-scroll / grid layouts applied on
+  radio toggle). The 1-row dashboard composer stays (separate 2026-09-09 request).
+- **Section white space, to-do list (sadhana board):** quadrant gap 12→20px;
+  matrix outer block padding 16/14→22/18px (subbar → first quadrant now 22px of
+  air, measured). Mobile carousel: slide gap 10→12px, outer padding 14/10.
+- **Section white space, projects:** glance-grid box gap 0.75→1.25rem (0.9rem on
+  phones), roomier box padding, strip→list margin 1→1.25rem.
+- **Progress track (dashboard to-do rows) is hover-only now:** the 3-dot
+  prog-track + its label appear only while the row is hovered/focused (the same
+  reveal pattern as the note-preview and the ⋯ menu — touch taps and keyboard
+  focus count via :focus-within; a focused dot keeps it open). At rest the task's
+  state stays readable from the row tint + 3px start crescent. Dots verified
+  still functional while revealed (state PATCH + label + row class all update).
+- **Projects status boxes — subtle color coding (owner proposal "color only ~10%
+  of each container"):** the big per-status count is now NEUTRAL text; the
+  per-status color lives ONLY on the state icon (the single small accent). The
+  dead `--pg-ink` variable is removed; hover/active tints (functional selection
+  states) unchanged.
+- Cache discipline: app.css `?v=204→205` (22 pages) · SW `hibana-v230→v231`;
+  check-cache-bust PASS; 390px + 1280px sweeps clean (no H-scroll, zero console
+  errors on fresh loads). Live-probed post-deploy: SW v231 + the new
+  `/dist/app.1d89a62a.css` carries every change (neutral count, hover-reveal
+  rules, zero `note-controls-toggle`).
+
 ## 2026-09-14 — v0.3.5: session 9 — full UI/UX audit + fixes (batches 1–4), released & deployed
 Release wrapping the session-9 audit→plan→fix cycle (23 pages audited EN/FA × light/dark ×
 desktop/768/390 + programmatic consistency/contrast sweeps). **Deployed to prod with this

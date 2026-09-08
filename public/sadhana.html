@@ -12,7 +12,7 @@
   <link rel="icon" href="/favicon.ico">
   <link rel="manifest" href="/manifest.webmanifest">
   <meta name="theme-color" content="#EDE8DF">
-  <link rel="stylesheet" href="/css/app.css?v=204">
+  <link rel="stylesheet" href="/css/app.css?v=205">
   <link rel="stylesheet" href="/vendor/manrope/font-face.css">
   <link rel="stylesheet" href="/vendor/vazir/font-face.css">
   <script>
@@ -151,9 +151,12 @@ body.rtl .hdr-date{margin-left:0;margin-right:8px}
 /* ─── Matrix ───────────────────────────────────── */
 /* Session-9 extra: section breathing room — the subbar and the quadrant matrix
    sat 10px apart with 10px quadrant gaps; +6px/+2px reads as clear white space
-   between the board's sections without wasting phone height (see ≤740 block). */
-.sadhana-wrap .mat-outer{flex:1;overflow:hidden;padding:16px 22px 14px;max-width:1440px;margin:0 auto;width:100%;display:flex;flex-direction:column}
-.sadhana-wrap .mat-grid{display:grid;grid-template-columns:1fr 1fr;grid-template-rows:1fr 1fr;gap:12px;flex:1;overflow:hidden}
+   between the board's sections without wasting phone height (see ≤740 block).
+   Session-10 (user report: "sections of to-do-list still cramped"): doubled down —
+   quadrant gap 12→20px, mat-outer block padding 16/14 → 22/18 so the subbar and the
+   matrix read as distinct sections with real white space between them. */
+.sadhana-wrap .mat-outer{flex:1;overflow:hidden;padding:22px 22px 18px;max-width:1440px;margin:0 auto;width:100%;display:flex;flex-direction:column}
+.sadhana-wrap .mat-grid{display:grid;grid-template-columns:1fr 1fr;grid-template-rows:1fr 1fr;gap:20px;flex:1;overflow:hidden}
 
 /* ─── Quadrant ─────────────────────────────────── */
 /* 2026-08-29 (user request): quadrants are MINIMAL — no per-quadrant color coding
@@ -656,13 +659,13 @@ body.rtl .fuz-opt{text-align:right}
      Task lists keep the desktop behavior (scroll INSIDE the quadrant + the “↓ more”
      indicator) because each slide is the full viewport area. Desktop (>740px) keeps
      the 2×2 grid; the zen overlay is outside .mat-grid and is never affected. */
-  .sadhana-wrap .mat-outer{position:relative;padding:10px 10px 6px!important;max-width:100%!important}
+  .sadhana-wrap .mat-outer{position:relative;padding:14px 10px 10px!important;max-width:100%!important}
   .sadhana-wrap .mat-grid{
     display:flex!important;
     grid-template-columns:none!important;grid-template-rows:none!important;
     overflow-x:auto!important;overflow-y:hidden!important;
     scroll-snap-type:x mandatory!important;
-    gap:10px!important;
+    gap:12px!important;
     flex:1!important;min-height:0!important;
     scrollbar-width:none;
     -webkit-overflow-scrolling:touch;

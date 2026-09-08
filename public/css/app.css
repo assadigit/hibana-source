@@ -1148,13 +1148,14 @@ input::placeholder, textarea::placeholder { font-size: 0.88em; } /* placeholders
   display: grid;
   grid-template-columns: repeat(6, minmax(0, 1fr));
   gap: 0.55rem;
-  margin-block-end: 1rem;
+  /* Session-10 (user report: "sections cramped"): more air below the strip before the
+     filtered list / next section begins. */
+  margin-block-end: 1.25rem;
 }
 @media (max-width: 980px) { .pglance { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
 @media (max-width: 560px) { .pglance { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 .pglance-box {
   --pg-c: 74 159 163; /* fallback: the teal accent */
-  --pg-ink: var(--muted);
   display: grid;
   justify-items: center;
   gap: 0.1rem;
@@ -1173,7 +1174,11 @@ input::placeholder, textarea::placeholder { font-size: 0.88em; } /* placeholders
   font-weight: 700;
   line-height: 1.15;
   font-variant-numeric: tabular-nums;
-  color: var(--pg-ink);
+  /* Session-10 (user proposal: "color only ~10% of each container"): the count is NEUTRAL
+     text now — the status color lives ONLY on the icon (the single small accent ≈ 10% of
+     the box). The old --pg-ink (badge-*-fg per status) painted the big number in the
+     status color too, which read as fully color-coded boxes = visual clutter. */
+  color: var(--text);
 }
 .pglance-label {
   font-size: var(--fs-xs);
@@ -1182,20 +1187,23 @@ input::placeholder, textarea::placeholder { font-size: 0.88em; } /* placeholders
   line-height: 1.25;
   overflow-wrap: anywhere;
 }
-.pglance-box[data-pglance='unreviewed']    { --pg-c: 95 109 122;  --pg-ink: var(--badge-unreviewed-fg); }
-.pglance-box[data-pglance='investigating'] { --pg-c: 111 101 147; --pg-ink: var(--badge-investigating-fg); }
-.pglance-box[data-pglance='awaiting']      { --pg-c: 126 115 87;  --pg-ink: var(--badge-awaiting-fg); }
-.pglance-box[data-pglance='doing']         { --pg-c: 63 126 120;  --pg-ink: var(--badge-doing-fg); }
-.pglance-box[data-pglance='halted']        { --pg-c: 111 103 90;  --pg-ink: var(--badge-halted-fg); }
-.pglance-box[data-pglance='operational']   { --pg-c: 76 123 82;   --pg-ink: var(--badge-operational-fg); }
+/* Session-10: --pg-ink dropped (count went neutral, see .pglance-count) — only --pg-c
+   (the icon accent + hover/active tints) remains per status. */
+.pglance-box[data-pglance='unreviewed']    { --pg-c: 95 109 122; }
+.pglance-box[data-pglance='investigating'] { --pg-c: 111 101 147; }
+.pglance-box[data-pglance='awaiting']      { --pg-c: 126 115 87; }
+.pglance-box[data-pglance='doing']         { --pg-c: 63 126 120; }
+.pglance-box[data-pglance='halted']        { --pg-c: 111 103 90; }
+.pglance-box[data-pglance='operational']   { --pg-c: 76 123 82; }
 
 /* batch (s) 2026-09-08 — the grid view IS the projects page's home (user sketch: a
    2×3 grid of status boxes; click one → that status's list; no raw project list on the
    home page). Same boxes, bigger presence: 3 columns × 2 rows, roomier padding and a
-   larger count. Riding above another view (batch q strip) the compact 6-across stays. */
-.pglance-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0.75rem; }
-@media (max-width: 560px) { .pglance-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
-.pglance-grid .pglance-box { padding: 1.1rem 0.5rem 0.9rem; }
+   larger count. Riding above another view (batch q strip) the compact 6-across stays.
+   Session-10: gap 0.75 → 1.25rem + roomier box padding (user report: "cramped"). */
+.pglance-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1.25rem; }
+@media (max-width: 560px) { .pglance-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.9rem; } }
+.pglance-grid .pglance-box { padding: 1.1rem 0.6rem 0.95rem; }
 .pglance-grid .pglance-count { font-size: 1.7rem; }
 .pglance-grid .pglance-label { font-size: var(--fs-sm); }
 
@@ -2699,41 +2707,10 @@ cite { font-style: normal; }
 .note-head { gap: 0.4rem; margin-block-end: 0.4rem; align-items: center; }
 .note-head .note-heading { margin: 0; }
 
-/* Dashboard widget (user request 2026-09-09): the view/size segmented controls collapse
-   behind a single ⚙ <details>. Collapsed → just the gear icon sits next to the heading;
-   open → the segmented controls drop down as a small panel. The full Notebook page keeps
-   the always-visible controls (it's the dedicated notes surface), so this only styles
-   the dashboard variant (.notebook-dashboard). */
-.notebook-dashboard .note-controls-toggle { position: relative; }
-.notebook-dashboard .note-controls-toggle > summary {
-  display: inline-flex; align-items: center; justify-content: center;
-  inline-size: 1.6rem; block-size: 1.6rem;
-  border-radius: var(--radius-sm);
-  color: var(--muted);
-  cursor: pointer;
-  list-style: none; /* hide the default disclosure triangle */
-}
-.notebook-dashboard .note-controls-toggle > summary::-webkit-details-marker { display: none; }
-.notebook-dashboard .note-controls-toggle > summary:hover { color: var(--text); background: var(--bg-soft); }
-.notebook-dashboard .note-controls-toggle[open] > summary { color: var(--brand); background: var(--accent-soft); }
-/* Open panel: the controls float as a small card under the gear so they don't push the
-   composer + notes down when revealed. */
-.notebook-dashboard .note-controls-toggle[open] .note-head-controls {
-  position: absolute;
-  inset-block-start: calc(100% + 0.25rem);
-  inset-inline-start: 0;
-  z-index: 5;
-  display: flex;
-  gap: 0.5rem;
-  padding: 0.5rem;
-  background: var(--card);
-  border: 1px solid var(--line-strong);
-  border-radius: var(--radius);
-  box-shadow: var(--shadow-dropdown);
-}
-/* When collapsed, the controls are hidden (the <details> hides non-summary content by
-   default, but the absolute panel above also needs the open state — belt and suspenders). */
-.notebook-dashboard .note-controls-toggle:not([open]) .note-head-controls { display: none; }
+/* Session-10 revert (user report 2026-09-14): the 2026-09-09 ⚙ collapse hid the view/size
+   controls on the dashboard widget — read as "list-only", so it's gone; the segmented
+   controls are always visible again on every notebook surface (see quicknotes.ts). The
+   .note-controls-toggle rules were removed with it. */
 
 .note-compose { gap: 0.3rem; margin-block-start: 0.4rem; flex-wrap: wrap; }
 /* Persistent label above the composer (audit 6): the input keeps its placeholder too. */
@@ -7227,7 +7204,7 @@ dialog.adm-modal::backdrop { background: rgb(0 0 0 / 0.55); }
 /* Phase 7 item 8: 100% bigger state glyphs (1.1 → 2.2rem; grid view 1.9 → 3.8rem). */
 .pglance-icon .icon { inline-size: 2.2rem; block-size: 2.2rem; }
 .pglance-box { gap: 0.18rem; }
-.pglance-grid .pglance-box { padding: 1.5rem 0.6rem 1.2rem; gap: 0.28rem; }
+.pglance-grid .pglance-box { padding: 1.5rem 0.75rem 1.3rem; gap: 0.28rem; }
 .pglance-grid .pglance-icon .icon { inline-size: 3.8rem; block-size: 3.8rem; }
 .pglance-grid .pglance-icon { color: rgb(var(--pg-c)); }
 .pglance-grid .pglance-count { font-size: 2rem; }
@@ -7298,6 +7275,29 @@ dialog.adm-modal::backdrop { background: rgb(0 0 0 / 0.55); }
   border-radius: 999px;
   background: var(--card);
   cursor: default;
+  /* Session-10 (user request 2026-09-14): the track + its label show ONLY while the row
+     is hovered or focused — at rest the task's state is already carried by the row tint
+     + the 3px start crescent (st-* rules above), so the always-on track read as visual
+     clutter. Same reveal pattern as .dash-todo-note-preview / the ⋯ menu: hover,
+     focus-within (keyboard + touch tap), and while a dot itself holds focus. */
+  max-block-size: 0;
+  overflow: hidden;
+  visibility: hidden;
+  opacity: 0;
+  padding-block: 0;
+  margin-block: 0;
+  border-block-width: 0;
+  transition: max-block-size 0.22s ease, opacity 0.22s ease, padding-block 0.22s ease, margin-block 0.22s ease;
+}
+.dash-todo-task:hover .prog-track,
+.dash-todo-task:focus-within .prog-track,
+.dash-todo-task .prog-track:focus-within {
+  max-block-size: 2.4rem;
+  visibility: visible;
+  opacity: 1;
+  padding-block: 0.14rem;
+  margin-block: 0.02rem 0.06rem;
+  border-block-width: 1px;
 }
 .dash-todo-task .prog-dot {
   inline-size: 0.65rem;

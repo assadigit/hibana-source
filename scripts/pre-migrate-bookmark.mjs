@@ -1,15 +1,16 @@
 #!/usr/bin/env node
-// Pre-migration Time Travel bookmark (dr-integrity session, docs/dr-integrity-closeout.md §2).
+// Pre-migration Time Travel bookmark (dr-integrity session — ritual documented in Changelogs.md §4+§9).
 // Run via `npm run bookmark:prod` (or bookmark:dev) BEFORE applying migrations or any
 // other risky change to the database.
 //
-// What it does (all read-only except appending one line to dr-bookmarks.md):
+// What it does (all read-only except appending one line to Changelogs.md §9 — the
+// bookmark log, which must stay the LAST section of that file):
 //   1. `wrangler d1 time-travel info <db> --json` → a bookmark = a named, restorable
 //      point-in-time for RIGHT NOW (instant, no data copied — it's an entry in D1's
 //      continuous undo log).
 //   2. Reads the current schema version (number of applied migrations) via the D1 REST
 //      API so the record says what state the bookmark captures.
-//   3. Appends one line to dr-bookmarks.md (repo root): UTC time · bookmark id ·
+//   3. Appends one line to Changelogs.md (repo root, §9 bookmark log): UTC time · bookmark id ·
 //      schema version · reason. Bookmark IDs are NOT secrets.
 //
 // Why: `wrangler d1 time-travel restore` is the fastest, non-snapshot recovery path for
@@ -29,7 +30,7 @@ import { secrets } from './lib.mjs'
 
 const here = dirname(fileURLToPath(import.meta.url))
 const root = join(here, '..')
-const LOG_PATH = join(root, 'dr-bookmarks.md')
+const LOG_PATH = join(root, 'Changelogs.md')
 
 const DEV = process.argv.includes('--dev')
 const DB_NAME = DEV ? 'pm-app-dev' : 'pm-app-prod'
@@ -99,8 +100,8 @@ if (!existsSync(LOG_PATH)) {
       '# Hibana — D1 Time Travel bookmark log (operational)',
       '',
       'One line per bookmark, newest last. Created by `npm run bookmark:prod` / `bookmark:dev`',
-      '(scripts/pre-migrate-bookmark.mjs) — the pre-migration ritual from runbook §4.',
-      'Restore with: `npx wrangler d1 time-travel restore <db> --bookmark <id>` (see runbook §2c',
+      '(scripts/pre-migrate-bookmark.mjs) — the pre-migration ritual from Changelogs.md §4.',
+      'Restore with: `npx wrangler d1 time-travel restore <db> --bookmark <id>` (Changelogs.md §9',
       '— restore is in-place and destructive to current state).',
       '',
       '| UTC timestamp | database | schema | bookmark id | reason |',
@@ -116,8 +117,8 @@ console.log(`✓ Bookmark created:  ${bookmark}`)
 console.log(`  Database:          ${DB_NAME} (schema ${schemaVersion})`)
 console.log(`  Time (UTC):        ${ts}`)
 console.log(`  Reason:            ${reason}`)
-console.log(`  Recorded in:       dr-bookmarks.md`)
+console.log(`  Recorded in:       Changelogs.md §9 (bookmark log — keep it the last section)`)  // v0.3.9.2: was dr-bookmarks.md
 console.log('')
 console.log('If this change goes wrong, restore with:')
 console.log(`  npx wrangler d1 time-travel restore ${DB_NAME} --bookmark ${bookmark}`)
-console.log('  (in-place restore — runbook docs/runbook.md §2c)')
+console.log('  (in-place restore — see Changelogs.md §9)')

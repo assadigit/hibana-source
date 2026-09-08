@@ -21,3 +21,5 @@ cookies.txt
 audit-results/shots/
 # live credentials — gitignored forever; the agent reads it but it never ships to git or a zip
 credentials.md
+# safety net: capitalized variant (gitignore matching is case-sensitive)
+Credentials.md

@@ -123,14 +123,14 @@ deps/lockfiles untouched.
 
 | Step | State |
 |---|---|
-| Gates (typecheck / 244 tests / smoke / wiring / cache-bust) | ⏳ pending |
-| Git push (assadigit/hibana-source main + tag `v0.3.9.1`) | ⏳ pending — fast-forward on `53cea32`, no grafting needed (local == remote) |
-| CI on the pushed commit | ⏳ pending |
-| Cloudflare dev deploy (`npm run deploy`) | ⏳ pending |
-| Cloudflare prod deploy (`npm run deploy:prod`) | ⏳ pending |
-| Live probes (health / sw.js v238 / hashed dist) | ⏳ pending |
-| Prod browser verify (real account, read-only) | ⏳ pending |
-| Zip `hibana.0.3.9.1.zip` + bundle + download/ + upload/ copies | ⏳ pending |
+| Gates (typecheck / 244 tests / smoke / wiring / cache-bust) | ✅ tsc clean · vitest 244/244 · smoke ALL PASS · build 29 manifest entries · wiring 22/22 pages (219 refs) · canonical HTML restored (md5-identical) · check-cache-bust PASS |
+| Git push (assadigit/hibana-source main + tag `v0.3.9.1`) | ✅ fast-forward `53cea32..d98adea` + new tag `v0.3.9.1` (no grafting needed — local repo was already in sync with the remote) |
+| CI on the pushed commit | ✅ `completed / success` on `d98adea` (typecheck + cache-bust + 244 tests + smoke + build in Actions) |
+| Cloudflare dev deploy (`npm run deploy`) | ✅ `hibana.aliassadi.workers.dev`, version `6f319ce1`, 30 files uploaded, both crons, canonical HTML restored |
+| Cloudflare prod deploy (`npm run deploy:prod`) | ✅ hibana-prod, version `8d93ec4e`, pm-app-prod D1 + MIRROR_ORIGIN, both crons |
+| Live probes (health / sw.js v238 / hashed dist) | ✅ dev + prod `/api/health` ok (schema 44); `sw.js` `const VERSION = 'hibana-v238'` + the v0.3.9.1 note; login wired `dist/app.401519cb.css` (200, `public, max-age=31536000, immutable`); `/dist/whiteboard.2d3d2c94.js` + `/dist/canvas.40ab9741.js` live. One transient stale edge read right after the prod deploy (zone cache served the v0.3.9-era `sw.js` v237 + old CSS hash once) — refreshed on retry (repeated probes all fresh); no cache purge needed |
+| Prod browser verify (real account, read-only) | ✅ login → dashboard quick-note STICKY view: 208×208 square, `border-radius: 2px`, computed shadow EXACTLY `rgba(0,0,0,.1) 1px 3px 4px, rgba(0,0,0,.12) 4px 12px 20px`, pastel paper; projects «Sticky Notes» corkboard: 7 papers 183×183 with the same style; whiteboard page loads (fabric canvas) clean; console 0, page errors 0. Screenshots: `audit-results/shots/s17-prod-dash.png`, `s17-prod-projects.png`. No data writes, no purge |
+| Zip `hibana.0.3.9.1.zip` + bundle + download/ + upload/ copies | ✅ built from the release tree + fresh `public/dist` (29 manifest entries) — see `download/README.md` for the exact byte size / file count |
 
 (Table completed in the docs follow-up commit, session-16 pattern.)
 

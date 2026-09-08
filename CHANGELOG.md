@@ -12,7 +12,11 @@ day chips. CSS/JS only — no schema changes, no server-HTML changes, no migrati
 (schema stays 44). Shipped with SW `hibana-v238`, `app.css ?v=214`, `canvas.js ?v=15`,
 `whiteboard.js ?v=10`. Tests stay 244/244 (nothing pinned the old style). Packaged as
 `hibana.0.3.9.1.zip` + git release commit + tag `v0.3.9.1` — the owner's pick of a
-dot-release over v0.3.10 for this style-only patch on v0.3.9.
+dot-release over v0.3.10 for this style-only patch on v0.3.9. **Deployed to Cloudflare
+dev + prod on 2026-09-18** (commit `d98adea` — hibana.ir + hibana.aliassadi.workers.dev,
+both crons live, no migration step needed; CI green on the push; read-only prod
+verification: dashboard quick-note + projects corkboard render the exact square +
+layered-shadow style, whiteboard loads clean, console 0 / page errors 0).
 - **Shadow (every sticky):** the flat symmetric halo (`0 6px 14px rgba(0,0,0,.12)` on
   DOM, `blur 14 offsetY 6` on fabric) is replaced by a LAYERED DIRECTIONAL shadow —
   light from the top-left, shadow down-and-right, two stacked layers:

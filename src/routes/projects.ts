@@ -504,9 +504,6 @@ function detailHtml(p: ProjectRow, d: Awaited<ReturnType<typeof loadDetail>>, la
               </a>`).join('')}
               ${items.length > 3 ? `<a class="pd-more muted small" data-pd-more="${col.key}" href="/board.html?project=${p.id}">+${dig(items.length - 3)} ${trL(lang, 'more', 'بیشتر')}</a>` : ''}
             </div>
-            <form class="pd-quick-add" data-pd-addform="${col.key}" hidden>
-              <input name="title" maxlength="300" dir="auto" autocomplete="off" placeholder="" aria-label="${trL(lang, 'Task title — press Enter to add', 'عنوان کار — Enter را بزن تا افزوده شود')}">
-            </form>
             <button type="button" class="pd-task-add" data-pd-add="${col.key}">${icon('plus')} ${trL(lang, 'Add', 'افزودن')}</button>
           </div>`
         }).join('')}</div>
@@ -663,6 +660,33 @@ function detailHtml(p: ProjectRow, d: Awaited<ReturnType<typeof loadDetail>>, la
         <span class="grow"></span>
         <button type="submit" id="pd-editor-save">${trL(lang, 'Save', 'ذخیره')}</button>
         <button type="button" class="ghost" id="pd-editor-cancel">${trL(lang, 'Cancel', 'لغو')}</button>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- Modal task composer (user request 2026-09-15): the «افزودن» button in each progress
+       column used to reveal a one-line inline input — long sentences only showed a few
+       words while typing. It now opens THIS dialog: a wide multi-line textarea where the
+       whole sentence stays visible. Same POST /api/projects/:id/devtasks + in-place
+       insertTaskChip path as the old composer; project.html's delegated JS wires it
+       (lookups at click time — the dialog re-renders with every htmx swap of
+       #project-body). -->
+  <dialog id="pd-taskadd-modal" class="dialog pd-taskadd-modal" aria-labelledby="pd-taskadd-title">
+    <form class="modal pd-taskadd-inner" id="pd-taskadd-form" novalidate>
+      <div class="row spread pd-editor-head">
+        <h3 id="pd-taskadd-title">${trL(lang, 'Add task', 'افزودن کار')}</h3>
+        <button type="button" class="ghost" id="pd-taskadd-close" aria-label="${trL(lang, 'Close', 'بستن')}">${icon('x')}</button>
+      </div>
+      <div class="pd-taskadd-col muted small">${trL(lang, 'Lands in', 'ثبت در')} <span class="chip" id="pd-taskadd-col-chip"></span></div>
+      <textarea id="pd-taskadd-textarea" rows="4" maxlength="300" dir="auto" autocomplete="off" aria-label="${trL(lang, 'Task title', 'عنوان کار')}" placeholder="${trL(lang, 'Write the task — long sentences are welcome…', 'کار را بنویس — جمله‌های بلند جای دارند…')}"></textarea>
+      <div class="row spread">
+        <span class="muted small" id="pd-taskadd-count" aria-live="polite"></span>
+        <span class="muted small">${trL(lang, 'Enter adds · Shift+Enter new line · Esc closes', 'Enter برای افزودن · Shift+Enter خط جدید · Esc برای بستن')}</span>
+      </div>
+      <p class="error" id="pd-taskadd-error" role="alert" hidden></p>
+      <div class="row pd-taskadd-actions">
+        <button type="submit" id="pd-taskadd-save">${icon('plus')} ${trL(lang, 'Add', 'افزودن')}</button>
+        <button type="button" class="ghost" id="pd-taskadd-cancel">${trL(lang, 'Cancel', 'لغو')}</button>
       </div>
     </form>
   </dialog>`

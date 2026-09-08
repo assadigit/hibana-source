@@ -4,12 +4,12 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Project — Hibana</title>
-  <link rel="stylesheet" href="/css/app.css?v=207">
+  <link rel="stylesheet" href="/css/app.css?v=211">
   <link rel="stylesheet" href="/vendor/manrope/font-face.css">
   <script src="/vendor/htmx.min.js" defer></script>
   <script src="/js/boot.js?v=3"></script>
   <script src="/vendor/alpine.min.js" defer></script>
-  <script src="/js/app.js?v=162" defer></script>
+  <script src="/js/app.js?v=163" defer></script>
   <script src="/js/touch-drag.js?v=1" defer></script>
   <script src="/js/nav.js?v=1" defer></script>
   <script src="/js/command-palette.js?v=1" defer></script>
@@ -560,12 +560,12 @@
           }
         })
 
-        // --- Dev-task quick add (user request 2026-08-29): adding a task happens DIRECTLY
-        // in the project page's progress boxes — no trip to board.html. Each column's
-        // «＋ Add task» opens an inline composer; Enter creates the task in that status,
-        // the chip/count/progress update in place, and the composer stays open for rapid
-        // entry. Esc closes; empty blur closes. All delegated so htmx re-renders of
-        // #project-body (status select etc.) keep working.
+        // --- Dev-task quick add (user request 2026-08-29, modal since 2026-09-15): adding
+        // a task happens DIRECTLY in the project page's progress boxes — no trip to
+        // board.html. Each column's «＋ Add task» opens the #pd-taskadd-modal dialog (see
+        // the wiring below — wide textarea, long sentences fully visible); Enter creates
+        // the task in that status and the chip/count/progress update in place. All
+        // delegated so htmx re-renders of #project-body (status select etc.) keep working.
         const pdEsc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c])
         const pdLang = () => (window.hibanaI18n && window.hibanaI18n.lang ? window.hibanaI18n.lang() : 'en')
         const pdDig = (s) => (pdLang() === 'fa' ? String(s).replace(/\d/g, (d) => '۰۱۲۳۴۵۶۷۸۹'[+d]) : String(s))
@@ -652,71 +652,98 @@
           if (empty) empty.remove()
         }
 
+        // --- Dev-task composer modal (user request 2026-09-15): the «افزودن» button in
+        // each progress box used to reveal a one-line inline input — a long sentence
+        // only showed a few words while typing. It now opens the #pd-taskadd-modal
+        // dialog (server-rendered with #project-body): a wide multi-row textarea with
+        // the whole sentence visible, a char counter (۳۰۰ max, matches the server's
+        // zod rule), and the target column shown as a chip. Enter adds (the title is
+        // single-line — Shift+Enter newlines are collapsed to spaces on submit), Esc
+        // / Cancel / ✕ close. Same POST + insertTaskChip path as the old composer, so
+        // chip/count/progress still update in place. All delegated through ctx with
+        // click-time lookups — the dialog markup re-renders on every htmx swap of
+        // #project-body, so nothing can be cached at mount time.
+        const taskAddEl = () => document.getElementById('pd-taskadd-modal')
+        let taskAddStatus = null
+        const taskAddCounter = () => {
+          const ta = document.getElementById('pd-taskadd-textarea')
+          const el = document.getElementById('pd-taskadd-count')
+          if (ta && el) el.textContent = pdDig(ta.value.length) + ' / ' + pdDig(300)
+        }
         ctx.on('click', (e) => {
           const btn = e.target.closest('[data-pd-add]')
           if (!btn) return
           e.preventDefault()
-          const form = document.querySelector(`[data-pd-addform="${btn.dataset.pdAdd}"]`)
-          if (!form) return
-          // Phase 5 item 16 (2026-09-08): ONE merged button — the first click reveals
-          // the composer; while it is open the SAME button ADDS the item (it submits the
-          // form, exactly like the form's own +). No more "two buttons where only one
-          // works": every affordance on the row adds the task.
-          if (!form.hidden && form.querySelector('input[name=title]').value.trim()) {
-            form.requestSubmit()
-            return
+          const m = taskAddEl()
+          const ta = document.getElementById('pd-taskadd-textarea')
+          if (!m || !ta) return
+          taskAddStatus = btn.dataset.pdAdd || null
+          ta.value = ''
+          const err = document.getElementById('pd-taskadd-error')
+          if (err) { err.hidden = true; err.textContent = '' }
+          const chip = document.getElementById('pd-taskadd-col-chip')
+          if (chip) {
+            const label = document.querySelector(`.pd-col[data-status="${taskAddStatus}"] .pd-col-title`)
+            chip.textContent = label ? label.textContent.trim() : (taskAddStatus || '')
           }
-          // collapse other empty composers so one column composes at a time
-          document.querySelectorAll('[data-pd-addform]').forEach((f) => {
-            if (f !== form && !f.querySelector('input[name=title]').value) f.hidden = true
-          })
-          form.hidden = false
-          form.querySelector('input[name=title]').focus()
+          taskAddCounter()
+          m.showModal()
+          setTimeout(() => ta.focus(), 10)
         })
-
+        // ✕ / لغو — Esc is native dialog cancel, no handler needed
+        ctx.on('click', (e) => {
+          if (e.target.closest('#pd-taskadd-close') || e.target.closest('#pd-taskadd-cancel')) {
+            const m = taskAddEl()
+            if (m && m.open) m.close()
+          }
+        })
+        ctx.on('input', (e) => {
+          if (e.target?.id === 'pd-taskadd-textarea') taskAddCounter()
+        })
         ctx.on('submit', async (e) => {
-          const form = e.target.closest ? e.target.closest('[data-pd-addform]') : null
+          const form = e.target.closest ? e.target.closest('#pd-taskadd-form') : null
           if (!form) return
           e.preventDefault()
-          const inp = form.querySelector('input[name=title]')
-          const title = inp.value.trim()
-          const status = form.dataset.pdAddform
-          if (!title) { form.hidden = true; return }
-          inp.disabled = true
+          const m = taskAddEl()
+          const ta = document.getElementById('pd-taskadd-textarea')
+          const save = document.getElementById('pd-taskadd-save')
+          const err = document.getElementById('pd-taskadd-error')
+          if (!m || !ta || !taskAddStatus) return
+          // Task titles are single-line (chip + board cards render them as one row):
+          // Shift+Enter newlines are collapsed to spaces. The 300 maxlength on the
+          // textarea already enforces the server's zod .max(300).
+          const title = ta.value.replace(/\s*\n\s*/g, ' ').trim()
+          if (!title) { m.close(); return }
+          if (save) save.disabled = true
+          if (err) { err.hidden = true; err.textContent = '' }
           try {
             const res = await fetch(`/api/projects/${id}/devtasks`, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ title, status }),
+              body: JSON.stringify({ title, status: taskAddStatus }),
             })
             if (!res.ok) throw new Error('add failed')
             const data = await res.json()
-            insertTaskChip(status, { id: data.id, title, priority: 'medium' })
+            insertTaskChip(taskAddStatus, { id: data.id, title, priority: 'medium' })
+            ta.value = ''
+            m.close()
             window.hibana?.toast(_t('db.taskAdded', 'Task added'))
-            inp.value = ''
-            inp.focus() // stay open — rapid fire entry like the hurdles composer
           } catch {
-            window.hibana?.toast(_t('sparks.saveFailed', "Couldn't save"), 'err')
+            // Inline error (NOT a toast): the dialog sits in the top layer, so a toast
+            // fired while it is open would render behind the veil and never be seen.
+            if (err) { err.hidden = false; err.textContent = _t('sparks.saveFailed', "Couldn't save") }
           } finally {
-            inp.disabled = false
+            if (save) save.disabled = false
           }
         })
-
+        // Enter adds the task — the field is a textarea only so long sentences stay
+        // visible; plain Enter must behave like the old composer's input.
         ctx.on('keydown', (e) => {
-          if (e.key !== 'Escape') return
-          const form = e.target.closest ? e.target.closest('[data-pd-addform]') : null
-          if (!form) return
-          form.hidden = true
-          form.querySelector('input[name=title]').value = ''
-          const btn = form.parentElement?.querySelector('[data-pd-add]')
-          if (btn) btn.focus()
-        })
-
-        ctx.on('focusout', (e) => {
-          const form = e.target.closest ? e.target.closest('[data-pd-addform]') : null
-          if (!form) return
-          if (form.contains(e.relatedTarget)) return
-          if (!form.querySelector('input[name=title]').value) form.hidden = true
+          if (e.target?.id !== 'pd-taskadd-textarea') return
+          if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault()
+            document.getElementById('pd-taskadd-form')?.requestSubmit()
+          }
         })
 
         // --- مشکل‌ها tab (batch p): the tab and the board's Problems box are ONE list ----

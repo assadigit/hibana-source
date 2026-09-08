@@ -350,9 +350,17 @@ export function dashboardRoutes(cfg: Config) {
           ${chips.length ? html`<div class="dash-today-strip" role="status">${chips}</div>` : ''}
           <a class="small" href="/to-do-list">${t('Go to to-do list', 'رفتن به لیست کارها')} ${raw(icon('arrow-right', 'icon arrow'))}</a>
         </header>
-        <div class="dash-todo-grid" data-dash-quadrants>
-          ${orderedQuadrants(QUADRANTS, user.sadhana_quadrant_order).map(todoCard)}
+        <!-- Session-12 (2026-09-15, user request): ≤720px the grid is a SWIPE CAROUSEL —
+             one full-width quadrant per slide. .dash-quad-wrap anchors the one-time swipe
+             hint; the dot row below is built by app.js from the rendered quadrants
+             (data-dash-name) and re-built after every htmx refresh of main.shell-dash. -->
+        <div class="dash-quad-wrap">
+          <div class="dash-todo-grid" data-dash-quadrants>
+            ${orderedQuadrants(QUADRANTS, user.sadhana_quadrant_order).map(todoCard)}
+          </div>
+          <div class="dash-swipe-hint" data-dash-swipe-hint aria-hidden="true"><span>${t('Swipe for more sections', 'برای بخش‌های دیگر بکشید')}</span><span aria-hidden="true">${lang === 'fa' ? '‹' : '›'}</span></div>
         </div>
+        <div class="dash-quad-dots" data-dash-quad-dots role="tablist" aria-label="${t('To-do sections', 'بخش‌های کارها')}"></div>
       </section>`
       }
 

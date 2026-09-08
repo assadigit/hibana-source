@@ -988,6 +988,101 @@ window.hibana = (() => {
   }
   if (document.readyState !== 'loading') initStatCarousel()
 
+  // ---- Dashboard To-Do quadrants: phone swipe carousel (session 12, user request) -----
+  // "Make the to-do-list quadrant only show 1 in mobile, the rest by swipe." ≤720px the
+  // grid is a scroll-snap rail — ONE full-width quadrant per slide. The dot row is built
+  // from the rendered quadrants (data-dash-name → aria-labels) and re-built after every
+  // htmx swap of main.shell-dash; the user's slide SURVIVES the refresh (the fresh grid
+  // scrolls back to where they were, no smooth — no flash). RTL: modern browsers report
+  // NEGATIVE scrollLeft on an RTL container, so |scrollLeft| / clientWidth is the slide
+  // index in both directions; the sign flips only when WE scroll. Same pattern as the
+  // Sadhana board's carousel (session 9).
+  const dashQuadPhone = () => window.matchMedia('(max-width: 720px)').matches
+  let dashQuadSlide = 0
+  let dashQuadRaf = 0
+  let dashSwipeHintHidden = false
+  const dashQuadGrid = () => document.querySelector('[data-dash-quadrants]')
+  const dashQuadIndex = () => {
+    const g = dashQuadGrid()
+    if (!g) return 0
+    const n = g.querySelectorAll('.dash-todo-quadrant').length || 1
+    return Math.max(0, Math.min(n - 1, Math.round(Math.abs(g.scrollLeft) / Math.max(1, g.clientWidth))))
+  }
+  const syncDashQuadDots = () => {
+    const i = dashQuadIndex()
+    document.querySelectorAll('[data-dash-quad-dots] .dash-quad-dot').forEach((d, k) => {
+      d.classList.toggle('active', k === i)
+      d.setAttribute('aria-selected', k === i ? 'true' : 'false')
+    })
+  }
+  const goToDashQuad = (i) => {
+    const g = dashQuadGrid()
+    if (!g) return
+    const n = g.querySelectorAll('.dash-todo-quadrant').length
+    const target = Math.max(0, Math.min(n - 1, i))
+    const sign = getComputedStyle(g).direction === 'rtl' ? -1 : 1
+    g.scrollTo({ left: sign * target * g.clientWidth, behavior: 'smooth' })
+    hideDashSwipeHint()
+  }
+  const hideDashSwipeHint = () => {
+    dashSwipeHintHidden = true
+    const h = document.querySelector('[data-dash-swipe-hint]')
+    if (h) h.classList.add('hide')
+  }
+  const wireDashSwipeHint = () => {
+    const h = document.querySelector('[data-dash-swipe-hint]')
+    if (!h) return
+    if (dashSwipeHintHidden || !dashQuadPhone()) { h.classList.add('hide'); return }
+    h.classList.remove('hide')
+    setTimeout(hideDashSwipeHint, 4000)
+  }
+  const buildDashQuadDots = () => {
+    const wrap = document.querySelector('[data-dash-quad-dots]')
+    const g = dashQuadGrid()
+    if (!wrap || !g) return
+    const quads = Array.prototype.slice.call(g.querySelectorAll('.dash-todo-quadrant'))
+    wrap.textContent = ''
+    if (quads.length < 2) return
+    quads.forEach((q, k) => {
+      const b = document.createElement('button')
+      b.type = 'button'
+      b.className = 'dash-quad-dot'
+      b.setAttribute('role', 'tab')
+      b.setAttribute('aria-selected', 'false')
+      const label = q.getAttribute('data-dash-name') || `Section ${k + 1}`
+      b.setAttribute('aria-label', label)
+      b.title = label
+      b.addEventListener('click', () => goToDashQuad(k))
+      wrap.appendChild(b)
+    })
+    // The grid element is RECREATED by every htmx swap (scroll resets to slide 0) —
+    // put the user back on the slide they were reading.
+    if (dashQuadPhone() && dashQuadSlide > 0) {
+      const sign = getComputedStyle(g).direction === 'rtl' ? -1 : 1
+      g.scrollTo({ left: sign * Math.min(dashQuadSlide, quads.length - 1) * g.clientWidth })
+    }
+    syncDashQuadDots()
+    wireDashSwipeHint()
+  }
+  // Capture-phase document scroll: works across the recreated grid elements without
+  // re-binding (same trick as the stage carousel above).
+  document.addEventListener('scroll', (e) => {
+    const t = e.target
+    if (!t || !t.matches || !t.matches('[data-dash-quadrants]')) return
+    hideDashSwipeHint()
+    if (dashQuadRaf) return
+    dashQuadRaf = requestAnimationFrame(() => {
+      dashQuadRaf = 0
+      dashQuadSlide = dashQuadIndex()
+      syncDashQuadDots()
+    })
+  }, true)
+  for (const name of ['htmx:afterSwap', 'afterSwap', 'htmx:load', 'load']) {
+    document.addEventListener(name, buildDashQuadDots)
+  }
+  window.addEventListener('resize', buildDashQuadDots)
+  if (document.readyState !== 'loading') buildDashQuadDots()
+
   // ---- Dashboard To-Do preview: shared Sadhana data, local card UI state -------------
   // The preview never owns task data. It posts to the Sadhana endpoints and refreshes the
   // dashboard fragment, so completion, notes, progress, and renames stay in sync with the

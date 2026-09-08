@@ -64,26 +64,27 @@ main.shell:focus {
   --danger: #b42318;             /* delete actions: pastel-red chip (icon) */
   --danger-soft: #fdeaea;        /*   …pastel red fill */
   --danger-soft-hover: #fbdddd;
-  /* Status badge tints — batch (q) 2026-09-07: spark + the six project lifecycle stages.
-     PASTEL PASS (user: "still too saturated"): every fill moved to ~95% lightness with a
-     whisper of hue; foregrounds are medium (never near-black). Every fg stays AA on its bg.
-       spark amber · unreviewed slate · investigating lavender · awaiting sand ·
-       doing teal · halted taupe · operational green. */
-  --badge-spark-bg: #FBF4E4;         --badge-spark-fg: #86702F;
-  --badge-unreviewed-bg: #F0F2F5;    --badge-unreviewed-fg: #5F6D7A;
-  --badge-investigating-bg: #F2F0F8; --badge-investigating-fg: #6F6593;
-  --badge-awaiting-bg: #F8F4EA;      --badge-awaiting-fg: #7E7357;
-  --badge-doing-bg: #EAF4F3;         --badge-doing-fg: #3F7E78;
-  --badge-halted-bg: #F4F2EF;        --badge-halted-fg: #6F675A;
-  --badge-operational-bg: #EEF5EF;  --badge-operational-fg: #4C7B52;
-  /* Status-coded kanban cards — batch (q): one very-soft tint per lifecycle stage
-     (the pre-q yellow/orange pair read too saturated). */
-  --kanban-unreviewed-bg: #F2F5F8;    --kanban-unreviewed-line: rgba(95, 109, 122, 0.20);
-  --kanban-investigating-bg: #F3F1F9; --kanban-investigating-line: rgba(111, 101, 147, 0.20);
-  --kanban-awaiting-bg: #F8F5EB;      --kanban-awaiting-line: rgba(126, 115, 87, 0.22);
-  --kanban-doing-bg: #EBF4F3;         --kanban-doing-line: rgba(63, 126, 120, 0.22);
-  --kanban-halted-bg: #F4F3F0;        --kanban-halted-line: rgba(111, 103, 90, 0.20);
-  --kanban-operational-bg: #EFF5F0;  --kanban-operational-line: rgba(76, 123, 82, 0.22);
+  /* Status badge tints — session 12 (2026-09-15, user: "the phase colors all look
+     greyish — more pronounced, more distinguishing"): every hue pushed to real chroma
+     (the old ~95%-lightness pastels read as grey). Each fg stays AA (≥4.5:1) on its bg:
+       spark amber · unreviewed blue-slate · investigating violet · awaiting gold ·
+       doing teal · halted brick · operational green. */
+  --badge-spark-bg: #F9F1D7;         --badge-spark-fg: #8A6714;
+  --badge-unreviewed-bg: #E8EEF6;    --badge-unreviewed-fg: #46618C;
+  --badge-investigating-bg: #ECE9F9; --badge-investigating-fg: #5F51B5;
+  --badge-awaiting-bg: #F6EFCB;      --badge-awaiting-fg: #85620D;
+  --badge-doing-bg: #DCF0EA;         --badge-doing-fg: #186F63;
+  --badge-halted-bg: #F6E4DE;        --badge-halted-fg: #A34A31;
+  --badge-operational-bg: #E0F0E5;  --badge-operational-fg: #277334;
+  /* Status-coded kanban cards — session 12: the lane fills gain the same real chroma
+     (~90% lightness, visible hue) + stronger matching borders so each phase reads at
+     a glance (user: "currently they all look greyish"). */
+  --kanban-unreviewed-bg: #E4EBF4;    --kanban-unreviewed-line: rgba(70, 97, 140, 0.45);
+  --kanban-investigating-bg: #E9E5F8; --kanban-investigating-line: rgba(95, 81, 181, 0.45);
+  --kanban-awaiting-bg: #F5EECB;      --kanban-awaiting-line: rgba(133, 98, 13, 0.50);
+  --kanban-doing-bg: #DBEFE9;         --kanban-doing-line: rgba(24, 111, 99, 0.50);
+  --kanban-halted-bg: #F6E5DE;        --kanban-halted-line: rgba(163, 74, 49, 0.45);
+  --kanban-operational-bg: #E1F0E6;  --kanban-operational-line: rgba(39, 115, 52, 0.50);
   /* notebook sheet: paper + grid stay theme-aware; ink inverts in dark so black/blue pens stay visible */
   --nb-paper: #fdfdfb;
   --nb-grid: rgb(28 28 26 / 0.05);
@@ -173,21 +174,23 @@ main.shell:focus {
     --danger: #ffb4a8;
     --danger-soft: rgb(255 142 128 / 0.16);
     --danger-soft-hover: rgb(255 142 128 / 0.26);
-    /* status badges in dark mode: muted, low-luminance fills — the light pastels glare */
-    --badge-spark-bg: #2B2618;         --badge-spark-fg: #D8BF8C;
-    --badge-unreviewed-bg: #232830;    --badge-unreviewed-fg: #AAB6C3;
-    --badge-investigating-bg: #272434; --badge-investigating-fg: #B6ABD9;
-    --badge-awaiting-bg: #2C2A20;      --badge-awaiting-fg: #CFC2A2;
-    --badge-doing-bg: #1F2F2D;         --badge-doing-fg: #90C8C2;
-    --badge-halted-bg: #2A2823;        --badge-halted-fg: #B6AE9F;
-    --badge-operational-bg: #223226;  --badge-operational-fg: #97CC9D;
-    /* kanban card tints — dark siblings: low-luminance fills + a soft matching border */
-    --kanban-unreviewed-bg: #232830;    --kanban-unreviewed-line: rgba(170, 182, 195, 0.20);
-    --kanban-investigating-bg: #272434; --kanban-investigating-line: rgba(182, 171, 217, 0.20);
-    --kanban-awaiting-bg: #2C2A20;      --kanban-awaiting-line: rgba(207, 194, 162, 0.20);
-    --kanban-doing-bg: #1F2F2D;         --kanban-doing-line: rgba(144, 200, 194, 0.20);
-    --kanban-halted-bg: #2A2823;        --kanban-halted-line: rgba(182, 174, 159, 0.20);
-    --kanban-operational-bg: #223226;  --kanban-operational-line: rgba(151, 204, 157, 0.20);
+    /* status badges in dark mode — session 12: hues lifted to real chroma so the
+       phases stay distinguishable on the dark base (muted greys read as one). */
+    --badge-spark-bg: #3B3018;         --badge-spark-fg: #E8CB70;
+    --badge-unreviewed-bg: #24303E;    --badge-unreviewed-fg: #A8C4E8;
+    --badge-investigating-bg: #2C2744; --badge-investigating-fg: #C3B4F5;
+    --badge-awaiting-bg: #3A3110;      --badge-awaiting-fg: #E5C368;
+    --badge-doing-bg: #1B332E;         --badge-doing-fg: #7AD2C4;
+    --badge-halted-bg: #3C231B;        --badge-halted-fg: #E89B85;
+    --badge-operational-bg: #1F3727;  --badge-operational-fg: #90D598;
+    /* kanban card tints — session 12: dark siblings with visible hue + a stronger
+       matching border (the old grey-on-grey fills read as one neutral). */
+    --kanban-unreviewed-bg: #24303E;    --kanban-unreviewed-line: rgba(168, 196, 232, 0.32);
+    --kanban-investigating-bg: #2C2744; --kanban-investigating-line: rgba(195, 180, 245, 0.32);
+    --kanban-awaiting-bg: #3A3110;      --kanban-awaiting-line: rgba(229, 195, 104, 0.34);
+    --kanban-doing-bg: #1B332E;         --kanban-doing-line: rgba(122, 210, 196, 0.34);
+    --kanban-halted-bg: #3C231B;        --kanban-halted-line: rgba(232, 155, 133, 0.32);
+    --kanban-operational-bg: #1F3727;  --kanban-operational-line: rgba(144, 213, 152, 0.34);
     /* deeper status dots — the bright pastel foregrounds glare on dark surfaces (user request) */
   --dot-spark: #7fa3c4; --dot-pending: #e4c17e; --dot-building: #7fc4bc;
   --color-primary-strong: #7fc4bc;  /* dark-theme text shade of primary: 8.08:1 on #212120 */
@@ -212,19 +215,19 @@ html[data-theme='light'] {
   --accent-soft: rgba(74,159,163,.13); --cta: #2E7B7F; --cta-hover: #276A6D; --link: #297073; --ok: #1f7a34; --err: #c02626; --btn-text: #ffffff;
   --pastel-tool: #fef3c7; --pastel-tool-strong: #fde68a;
   --danger: #b42318; --danger-soft: #fdeaea; --danger-soft-hover: #fbdddd;
-  --badge-spark-bg: #FBF4E4;         --badge-spark-fg: #86702F;
-  --badge-unreviewed-bg: #F0F2F5;    --badge-unreviewed-fg: #5F6D7A;
-  --badge-investigating-bg: #F2F0F8; --badge-investigating-fg: #6F6593;
-  --badge-awaiting-bg: #F8F4EA;      --badge-awaiting-fg: #7E7357;
-  --badge-doing-bg: #EAF4F3;         --badge-doing-fg: #3F7E78;
-  --badge-halted-bg: #F4F2EF;        --badge-halted-fg: #6F675A;
-  --badge-operational-bg: #EEF5EF;  --badge-operational-fg: #4C7B52;
-  --kanban-unreviewed-bg: #F2F5F8;    --kanban-unreviewed-line: rgba(95, 109, 122, 0.20);
-  --kanban-investigating-bg: #F3F1F9; --kanban-investigating-line: rgba(111, 101, 147, 0.20);
-  --kanban-awaiting-bg: #F8F5EB;      --kanban-awaiting-line: rgba(126, 115, 87, 0.22);
-  --kanban-doing-bg: #EBF4F3;         --kanban-doing-line: rgba(63, 126, 120, 0.22);
-  --kanban-halted-bg: #F4F3F0;        --kanban-halted-line: rgba(111, 103, 90, 0.20);
-  --kanban-operational-bg: #EFF5F0;  --kanban-operational-line: rgba(76, 123, 82, 0.22);
+  --badge-spark-bg: #F9F1D7;         --badge-spark-fg: #8A6714;
+  --badge-unreviewed-bg: #E8EEF6;    --badge-unreviewed-fg: #46618C;
+  --badge-investigating-bg: #ECE9F9; --badge-investigating-fg: #5F51B5;
+  --badge-awaiting-bg: #F6EFCB;      --badge-awaiting-fg: #85620D;
+  --badge-doing-bg: #DCF0EA;         --badge-doing-fg: #186F63;
+  --badge-halted-bg: #F6E4DE;        --badge-halted-fg: #A34A31;
+  --badge-operational-bg: #E0F0E5;  --badge-operational-fg: #277334;
+  --kanban-unreviewed-bg: #E4EBF4;    --kanban-unreviewed-line: rgba(70, 97, 140, 0.45);
+  --kanban-investigating-bg: #E9E5F8; --kanban-investigating-line: rgba(95, 81, 181, 0.45);
+  --kanban-awaiting-bg: #F5EECB;      --kanban-awaiting-line: rgba(133, 98, 13, 0.50);
+  --kanban-doing-bg: #DBEFE9;         --kanban-doing-line: rgba(24, 111, 99, 0.50);
+  --kanban-halted-bg: #F6E5DE;        --kanban-halted-line: rgba(163, 74, 49, 0.45);
+  --kanban-operational-bg: #E1F0E6;  --kanban-operational-line: rgba(39, 115, 52, 0.50);
   --nb-paper: #fdfdfb;
   --nb-grid: rgb(28 28 26 / 0.05);
   --nb-ink: none;
@@ -241,19 +244,19 @@ html[data-theme='dark'] {
   --accent-soft: rgba(74,159,163,.22); --cta: #2E7B7F; --cta-hover: #276A6D; --link: #6FC3C7; --ok: #4fbc64; --err: #f06161; --btn-text: #ffffff;
   --pastel-tool: #40391f; --pastel-tool-strong: #5c5127;
   --danger: #ffb4a8; --danger-soft: rgb(255 142 128 / 0.16); --danger-soft-hover: rgb(255 142 128 / 0.26);
-  --badge-spark-bg: #2B2618;         --badge-spark-fg: #D8BF8C;
-  --badge-unreviewed-bg: #232830;    --badge-unreviewed-fg: #AAB6C3;
-  --badge-investigating-bg: #272434; --badge-investigating-fg: #B6ABD9;
-  --badge-awaiting-bg: #2C2A20;      --badge-awaiting-fg: #CFC2A2;
-  --badge-doing-bg: #1F2F2D;         --badge-doing-fg: #90C8C2;
-  --badge-halted-bg: #2A2823;        --badge-halted-fg: #B6AE9F;
-  --badge-operational-bg: #223226;  --badge-operational-fg: #97CC9D;
-  --kanban-unreviewed-bg: #232830;    --kanban-unreviewed-line: rgba(170, 182, 195, 0.20);
-  --kanban-investigating-bg: #272434; --kanban-investigating-line: rgba(182, 171, 217, 0.20);
-  --kanban-awaiting-bg: #2C2A20;      --kanban-awaiting-line: rgba(207, 194, 162, 0.20);
-  --kanban-doing-bg: #1F2F2D;         --kanban-doing-line: rgba(144, 200, 194, 0.20);
-  --kanban-halted-bg: #2A2823;        --kanban-halted-line: rgba(182, 174, 159, 0.20);
-  --kanban-operational-bg: #223226;  --kanban-operational-line: rgba(151, 204, 157, 0.20);
+  --badge-spark-bg: #3B3018;         --badge-spark-fg: #E8CB70;
+  --badge-unreviewed-bg: #24303E;    --badge-unreviewed-fg: #A8C4E8;
+  --badge-investigating-bg: #2C2744; --badge-investigating-fg: #C3B4F5;
+  --badge-awaiting-bg: #3A3110;      --badge-awaiting-fg: #E5C368;
+  --badge-doing-bg: #1B332E;         --badge-doing-fg: #7AD2C4;
+  --badge-halted-bg: #3C231B;        --badge-halted-fg: #E89B85;
+  --badge-operational-bg: #1F3727;  --badge-operational-fg: #90D598;
+  --kanban-unreviewed-bg: #24303E;    --kanban-unreviewed-line: rgba(168, 196, 232, 0.32);
+  --kanban-investigating-bg: #2C2744; --kanban-investigating-line: rgba(195, 180, 245, 0.32);
+  --kanban-awaiting-bg: #3A3110;      --kanban-awaiting-line: rgba(229, 195, 104, 0.34);
+  --kanban-doing-bg: #1B332E;         --kanban-doing-line: rgba(122, 210, 196, 0.34);
+  --kanban-halted-bg: #3C231B;        --kanban-halted-line: rgba(232, 155, 133, 0.32);
+  --kanban-operational-bg: #1F3727;  --kanban-operational-line: rgba(144, 213, 152, 0.34);
   --dot-spark: #7fa3c4; --dot-pending: #e4c17e; --dot-building: #7fc4bc;
   --nb-paper: #38332E;  /* lifted further (was #322E2A) for clearer canvas distinction (user request 2026-09-09) */
   --nb-grid: rgb(242 242 241 / 0.06);
@@ -1301,7 +1304,11 @@ input::placeholder, textarea::placeholder { font-size: 0.88em; } /* placeholders
    matched anything (user report: "sections cramped together with no distance"). The hook
    is now the .shell-dash class on that <main> (see dashboard.html). */
 main.shell-dash > section { margin-block-end: 2.9rem; }
-.dash-todo-section { display: grid; gap: 0.75rem; }
+/* Session-12: grid-template-columns: minmax(0,1fr) pins the single implicit track to the
+   section's width — with a bare `auto` track, the phone carousel's flex-row min-content
+   (the SUM of all four slides' min-content) stretched the track to ~532px on a 390px
+   phone, dragging the header/dots/wrap out of the viewport (measured). */
+.dash-todo-section { display: grid; gap: 0.75rem; grid-template-columns: minmax(0, 1fr); }
 .dash-todo-head { display: flex; align-items: baseline; justify-content: space-between; gap: 1rem; flex-wrap: wrap; }
 .dash-todo-head h2 { margin: 0; }
 .dash-todo-head a { position: relative; padding-block: 4px; }
@@ -1741,13 +1748,79 @@ html[data-theme="dark"] .dash-todo-style-pop,
   .dash-todo-note-preview { max-block-size: 5rem; visibility: visible; opacity: 1; pointer-events: auto; }
 }
 @media (max-width: 900px) { .dash-todo-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
-/* Mobile to-do quadrants sit SIDE BY SIDE (user request 2026-08-29: "today and urgent
-   next to each other, not one per row"): the ≤720px trim below hides Q2/Q4, and the
-   2-column grid above carries Q1 | Q3 into two half-width columns on every phone.
-   (The old ≤560px 1-column override would have stacked them again — removed.) */
+/* ══ Session-12 (2026-09-15, user request): the phone TO-DO QUADRANTS are a SWIPE
+   CAROUSEL ══ — "make the to-do-list quadrant only show 1 in mobile, the rest by
+   swipe". The old ≤720px layout showed Q1|Q3 half-width side by side and HID Q2/Q4
+   entirely (2026-08-29 request, superseded). Now ≤720px turns .dash-todo-grid into a
+   scroll-snap rail — ONE full-width quadrant per slide, thumb-swipe or dot-tap to
+   move, scroll-snap-stop:always so a flick lands exactly one quadrant over (the same
+   pattern as the Sadhana board's carousel, session 9). Guidance chrome (dots + the
+   one-time swipe hint) is phone-only: this BASE rule hides it on every wider screen —
+   it MUST precede the media block below (same specificity, later source wins; the
+   session-9 lesson). Desktop/tablet keeps the 2×2 (and ≤900px 2-col) grids. */
+.dash-quad-dots, .dash-swipe-hint { display: none; }
+.dash-quad-wrap { display: block; }
 @media (max-width: 720px) {
-  .dash-todo-grid [data-dash-quadrant]:not([data-dash-quadrant="1"]):not([data-dash-quadrant="3"]) { display: none; }
+  .dash-quad-wrap { position: relative; min-inline-size: 0; }
+  .dash-todo-grid {
+    display: flex;
+    grid-template-columns: none;
+    min-inline-size: 0;
+    overflow-x: auto;
+    overflow-y: hidden;
+    scroll-snap-type: x mandatory;
+    gap: 12px;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+  }
+  .dash-todo-grid::-webkit-scrollbar { display: none; }
+  .dash-todo-quadrant {
+    flex: 0 0 100%;
+    inline-size: 100%;
+    max-inline-size: 100%;
+    min-inline-size: 0; /* same lesson as the Sadhana carousel — content min-content must never inflate the slide */
+    scroll-snap-align: start;
+    scroll-snap-stop: always;
+    aspect-ratio: auto;      /* a full-width slide is not a square — a comfortable, */
+    block-size: min(26rem, 96vw); /* list-scrolling window instead (list scrolls inside) */
+  }
+  /* Dot indicators: one tappable dot per quadrant, the active dot tracks the visible
+     slide. The 26px button + -7px inset pseudo-element keeps the hit target ≥40px
+     (WCAG 2.5.8) while the dot itself stays 7px. */
+  .dash-quad-dots {
+    display: flex; justify-content: center; align-items: center;
+    gap: 14px; padding-block: 0.4rem 0.1rem;
+  }
+  .dash-quad-dot {
+    position: relative; inline-size: 26px; block-size: 26px; padding: 0;
+    background: transparent; border: 0; border-radius: 50%;
+    cursor: pointer; min-inline-size: 0; min-block-size: 0; font-size: 0; line-height: 0;
+  }
+  .dash-quad-dot::after { content: ''; position: absolute; inset: -7px; border-radius: 50%; }
+  .dash-quad-dot::before {
+    content: ''; position: absolute; left: 50%; top: 50%;
+    inline-size: 7px; block-size: 7px; margin: -3.5px 0 0 -3.5px; border-radius: 50%;
+    background: var(--muted); opacity: 0.55;
+    transition: transform 0.18s ease, background 0.18s ease, opacity 0.18s ease;
+  }
+  .dash-quad-dot.active::before { background: var(--accent); opacity: 1; transform: scale(1.7); }
+  .dash-quad-dot:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  /* One-time swipe hint: a pill at the inline-end edge pulsing toward the next
+     quadrant; dies on the first swipe or after 4s (app.js drives the lifecycle). */
+  .dash-swipe-hint {
+    display: flex; align-items: center; gap: 5px;
+    position: absolute; inset-block-start: 36%; inset-inline-end: 6px; z-index: 5;
+    background: var(--card); border: 1px solid var(--line-strong); border-radius: 999px;
+    box-shadow: var(--shadow-dropdown); color: var(--muted);
+    font-size: 10.5px; font-weight: 600; padding: 5px 10px;
+    pointer-events: none;
+    animation: dashHintNudge 1.6s ease-in-out infinite;
+  }
+  [dir='rtl'] .dash-swipe-hint { animation-name: dashHintNudgeRtl; }
+  .dash-swipe-hint.hide { display: none; }
 }
+@keyframes dashHintNudge { 0%, 100% { transform: translateX(0); } 50% { transform: translateX(-7px); } }
+@keyframes dashHintNudgeRtl { 0%, 100% { transform: translateX(0); } 50% { transform: translateX(7px); } }
 @media (prefers-reduced-motion: reduce) {
   .dash-todo-task { transition: none; }
   .dash-todo-fab.is-ready { animation: none; } /* (o) the ready pulse is decoration, not information */
@@ -5352,6 +5425,21 @@ html[data-theme="dark"] .card,
   }
 }
 
+/* Session-12 (2026-09-15, user request): FLAT kanban cards — "make the design flat,
+   like how tasks of the to-do list are presented; remove the gradient". Every
+   kanban card (dashboard stage cards + projects-board cards) drops the .card vertical
+   gradient for one solid tone: .kanban-card sits on var(--card) inside the soft lanes,
+   the dashboard's compact stat-kanban-card keeps its --bg-soft surface. The theme
+   triplets mirror the .card depth rules directly above (same shapes, later position)
+   so the flat fill wins the cascade in explicit-light, explicit-dark and system modes.
+   The status fills/label-bars below use higher-specificity selectors and still win. */
+.kanban-card,
+html[data-theme='dark'] .kanban-card,
+:root:not([data-theme='light']) .kanban-card { background: var(--card); }
+.stat-kanban-card,
+html[data-theme='dark'] .stat-kanban-card,
+:root:not([data-theme='light']) .stat-kanban-card { background: var(--bg-soft); }
+
 /* Status-coded kanban cards (2026-08-30 (g), Ali's request) — SPLIT in session-11
    (user report 2026-09-14): the dashboard's stage boxes read as "all box colored pale
    orange" because EVERY .kanban-card[data-status] took the full pastel fill. Now the two
@@ -5409,16 +5497,18 @@ html[data-theme='dark'] .kanban-col .kanban-card[data-status='operational'],
    badge-*-fg tones (same family as the box header's icon-chip) so light/dark themes
    both stay legible; the card otherwise keeps its neutral .stat-kanban-card look
    (--bg-soft, neutral border, neutral hover). padding-inline-start grows so the bar
-   never touches the row content (the open-button / title). */
-.stat-kanban-card[data-status] { position: relative; padding-inline-start: 0.75rem; }
+   never touches the row content (the open-button / title).
+   Session-12 (2026-09-15, user request): the label is now PRONOUNCED — the bar is
+   wider (0.28rem → 0.42rem), full-opacity, and rides the strengthened stage hues
+   (the badge family above gained real chroma). */
+.stat-kanban-card[data-status] { position: relative; padding-inline-start: 1rem; }
 .stat-kanban-card[data-status]::before {
   content: '';
   position: absolute;
-  inset-block: 0.32rem;
-  inset-inline-start: 0.2rem;
-  inline-size: 0.28rem;
+  inset-block: 0.26rem;
+  inset-inline-start: 0.16rem;
+  inline-size: 0.42rem;
   border-radius: 999px;
-  opacity: 0.8;
   pointer-events: none;
 }
 .stat-kanban-card[data-status='spark']::before { background: var(--badge-spark-fg); }
@@ -6371,6 +6461,19 @@ html[data-theme='dark'] .pd-col[data-status='bug']         { --pd-c: 214 158 170
   font-family: inherit;
 }
 .pd-editor-footer { gap: 0.4rem; align-items: center; }
+/* Modal task composer (user request 2026-09-15): the column «افزودن» button opens this
+   dialog instead of the old one-line inline input, so long task sentences stay fully
+   visible while typing. Mirrors the pd-editor-modal recipe at task-title scale — the
+   global input/textarea rule (app.css :441) already carries font, padding, border and
+   bg; only the sizing and rhythm live here. */
+.pd-taskadd-modal { max-inline-size: min(34rem, 92vw); }
+.pd-taskadd-inner { padding: 1.25rem; display: grid; gap: 0.6rem; }
+#pd-taskadd-textarea { font-size: var(--fs-md); line-height: 1.6; min-block-size: 7.5rem; border-radius: var(--radius); }
+#pd-taskadd-textarea:focus-visible { border-color: var(--brand); }
+.pd-taskadd-col { display: flex; align-items: center; gap: 0.35rem; flex-wrap: wrap; }
+.pd-taskadd-col .chip { padding: 0.12rem 0.55rem; font-size: var(--fs-xs); }
+#pd-taskadd-error { margin: 0; }
+.pd-taskadd-actions { justify-content: flex-start; gap: 0.4rem; }
 .pd-task-add {
   display: flex;
   align-items: center;
@@ -6384,12 +6487,10 @@ html[data-theme='dark'] .pd-col[data-status='bug']         { --pd-c: 214 158 170
   border-radius: var(--radius-sm);
   border: 1px dashed var(--line-strong);
   background: var(--bg-soft);
-  /* User request 2026-09-09: softer, more visible shadow on the افزودن button so it
-     reads as a real, tappable affordance rather than a faint dashed outline. The shadow
-     is warm + low-opacity so it lifts the button off the card without glaring. Bumped
-     after a VLM check found the first pass too subtle against the white card. */
-  box-shadow: 0 2px 6px rgb(40 30 15 / 0.10), 0 4px 14px rgb(40 30 15 / 0.08);
-  transition: box-shadow 0.15s ease, border-color 0.15s ease, color 0.15s ease, background 0.15s ease;
+  /* User request 2026-09-16: ALL shadows removed from the افزودن button (the 2026-09-09
+     elevation pass reverted) — flat like the rest of the card furniture; hover/active
+     feedback stays color-only (border + tint). */
+  transition: border-color 0.15s ease, color 0.15s ease, background 0.15s ease;
 }
 /* the add affordance is a <button> now (inline composer, no navigation) — neutral resets */
 button.pd-task-add {
@@ -6405,10 +6506,10 @@ button.pd-task-add {
   border-color: var(--brand);
   border-style: solid;
   background: var(--accent-soft);
-  box-shadow: 0 3px 10px rgb(74 159 163 / 0.22), 0 6px 18px rgb(40 30 15 / 0.10);
 }
-.pd-task-add:active { box-shadow: 0 1px 2px rgb(40 30 15 / 0.10); }
-/* per-column inline quick-add composer (user request: add tasks directly into the boxes) */
+/* the per-column task list; .pd-quick-add survives for the برنامه آتی Mode A quick-item
+   composer ONLY (form.pd-quick-add.bl-item-form) — the dev-task columns' inline composer
+   was replaced by the #pd-taskadd-modal dialog (2026-09-15) */
 .pd-tasks { display: grid; gap: 0.35rem; }
 .pd-quick-add { display: flex; gap: 0.3rem; }
 .pd-quick-add[hidden] { display: none; }

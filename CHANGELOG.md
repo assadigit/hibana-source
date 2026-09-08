@@ -4,6 +4,42 @@ Full spec: `pm-app-spec.md` · Rules (non-negotiable): `CLAUDE.md` · Reasoning:
 Deploy: `DEPLOY.md` · What's next: `ROADMAP.md` · Session handoff: `NEW_SESSION_PROMPT.md`
 Verification: `npm test` (235) · `npm run typecheck` · `npm run smoke` · `npm run drill` · `npm run drill:planb`
 
+## 2026-09-16 — v0.3.8: sessions 12+13 — flat cards, phase colors, phone carousel + the modal task composer
+Two undeployed batches shipped together, plus the owner's shadow removal. CSS/JS/
+server-HTML only — no schema changes. Deployed with this release (SW `hibana-v235`,
+`app.css ?v=211`, `app.js ?v=163`, `i18n.js ?v=35`). Tests stay 235/235.
+Housekeeping note: the v0.3.7 zip/deploy actually shipped SW `hibana-v231` (the
+session-11 worklog's "v232" was never in the artifact — NEW_SESSION_PROMPT's ground
+rules had it right); v235 clears the numbering and drops every old cache on activate.
+- **Flat kanban cards (session 12, owner request):** the `.card` vertical gradient
+  was beating `.stat-kanban-card`'s flat intent via cascade — explicit flat triplets
+  (light/dark/system) added for `.kanban-card` / `.stat-kanban-card`; verified
+  `backgroundImage:none` on dashboard + projects, light and dark.
+- **Pronounced, distinguishing phase colors (session 12, owner request):** the
+  badge-*/kanban-* var families re-hued in all 4 theme blocks — greyish ~95%-L pastels
+  → real chroma at ~90% L (unreviewed blue-slate, investigating violet, awaiting gold,
+  doing teal, halted brick, operational green; every fg AA ≥ 4.5:1 on its bg). Status
+  label bar widened 0.28→0.42rem, full opacity.
+- **Phone to-do quadrant carousel (session 12, owner request):** ≤720px the 2×2
+  dashboard grid becomes a scroll-snap rail — one full-width quadrant per slide, dot
+  indicators (≥40px hit zones, RTL-aware), one-time swipe hint, slide restored after
+  every htmx refresh; the min-content overflow that pushed docW to 566px on a 390px
+  phone fixed with minmax(0,1fr)/min-inline-size:0. Desktop untouched.
+- **Modal task composer (session 13, owner request — replaces the narrow inline
+  quick-add):** the project page's per-column «افزودن» button no longer reveals a
+  one-line input where long sentences showed only a few words — it opens
+  `#pd-taskadd-modal` (native `<dialog>`, house recipe): a wide 4-row textarea
+  (maxlength 300 = the zod rule) where the whole sentence stays visible, target
+  column chip, live Persian char counter, Enter adds / Shift+Enter new line (collapsed
+  to a space — titles are single-line) / Esc closes, «افزودن» + «لغو» buttons, inline
+  error on failure (a toast would render behind the dialog's top layer). Same
+  `POST /api/projects/:id/devtasks` + in-place chip/count/progress path; the old
+  `data-pd-addform` markup + wiring fully removed (the برنامه آتی Mode A quick-item
+  composer keeps the `.pd-quick-add` look). Browser-verified desktop + 390px.
+- **Shadow removed from the «افزودن» button (session 13b, owner request):** the
+  2026-09-09 elevation pass reverted — resting/hover/active shadows all gone; hover
+  feedback stays color-only (teal border + tint).
+
 ## 2026-09-14 — v0.3.7: session 11 — three owner follow-ups + a dead-#dash bug fix
 Follow-ups on v0.3.6. CSS/JS/server-HTML only — no schema changes. Deployed with
 this release (SW `hibana-v232`, `app.css ?v=207`, `app.js ?v=162`). Tests stay

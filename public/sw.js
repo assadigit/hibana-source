@@ -12,6 +12,28 @@
 // Perf session (2026-09-10, docs/perf-and-data-safety.md §2.2): the fetch handler
 // splits strategies by URL class instead of network-first-for-everything.
 //
+// Session-13b (2026-09-16, v0.3.8 release): hibana-v234 → v235 — app.css v211 (shadow
+// removed from the .pd-task-add button per owner request) riding the v0.3.8 deploy
+// which carries BOTH undeployed batches: session-12 (flat kanban cards, pronounced
+// phase colors, phone quadrant carousel — app.css v209) and session-13 (the
+// #pd-taskadd-modal task composer replacing the narrow inline input — app.css v210,
+// project.html + routes/projects.ts). NOTE: the v0.3.7 zip/deploy actually shipped
+// hibana-v231 (the worklog's "v232" was wrong — the version was never bumped in the
+// artifact); v235 clears that numbering confusion and drops every old cache on
+// activate so no stale project.html/app.css pair survives the deploy.
+//
+// Session-13 (2026-09-15, modal task composer): hibana-v233 → v234 — app.css v210
+// (#pd-taskadd-modal composer dialog styling; the dev-task columns' narrow inline
+// quick-add input removed) plus project.html (modal open/submit/Enter wiring) and
+// routes/projects.ts (dialog markup, server-rendered). Full-tree bump per the cache
+// rules (drops every v233 copy so no stale project.html keeps referencing v209 CSS).
+//
+// Session-12 (2026-09-15, mobile flat-phase fixes): hibana-v232 → v233 — app.css
+// v208 (flat kanban cards, pronounced phase colors, phone quadrant swipe carousel)
+// and app.js v163 (dash-quad dot builder + slide restore + swipe-hint lifecycle) plus
+// dashboard.ts/dashboard.html (quad-wrap + dots/hint markup). Full-tree bump per the
+// cache rules (drops every v232 copy).
+//
 // Session-11 (2026-09-14, three owner follow-ups on v0.3.6): hibana-v231 → v232 —
 // app.css v206 (dashboard section spacing finally applies via .shell-dash, restored ⚙
 // note-controls-toggle, stat-kanban-card status LABEL instead of full tint) and app.js
@@ -49,7 +71,7 @@
 // DELETED (F11). F7 also adds SHELL entries: /reset.html (public auth page was
 // missing — offline boot impossible) and /to-do-list (the board's canonical URL —
 // offline navigation used to fall through to the dashboard shell).
-const VERSION = 'hibana-v232'
+const VERSION = 'hibana-v235'
 
 // Static shell: unhashed pages/partials/icons/vendor/fonts (SWR or network-first at
 // runtime; precached here for offline). The hashed app bundles come from the manifest

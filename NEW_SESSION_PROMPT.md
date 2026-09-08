@@ -1,19 +1,21 @@
-# Hibana — New Session Prompt (session 12 starter)
+# Hibana — New Session Prompt (session 14 starter)
 
 Copy-paste the entire block below as your first message in a new session.
-Attach/upload the source zip (`hibana.0.3.7.zip`) to the same message if the sandbox
+Attach/upload the source zip (`hibana.0.3.8.zip`) to the same message if the sandbox
 doesn't already contain it.
 
-> Sessions 9 (audit → plan → fix, batches 1–4, v0.3.5), 10 (four owner-reported UI
-> fixes, v0.3.6) and 11 (three owner follow-ups + the dead-`#dash` root-cause fix,
-> v0.3.7 — notebook ⚙ toggle with persisted view/size/open-state, dashboard section
-> spacing + mutation refresh restored via `main.shell-dash`, status-label bars on the
-> dashboard stage cards) are COMPLETE and DEPLOYED to prod — see `worklog-session9.md`,
-> `worklog-session10.md`, `worklog-session11.md` + the CHANGELOG v0.3.5/v0.3.6/v0.3.7
-> entries. Queued for the next session: the out-of-batch contrast marginals (4.1–4.4
-> badges, white-on-`--accent` board fills, "E" avatar initial, skip-link, calendar
-> «شمسی» seg), the notebook dark-mode photo inversion, and triage of anything new you
-> find.
+> Sessions 9–11 (audit → batches 1–4, four owner fixes, three follow-ups — v0.3.5→
+> v0.3.7), 12 (flat kanban cards, pronounced phase colors, phone quadrant swipe
+> carousel), 13 (the `#pd-taskadd-modal` task composer replacing the project page's
+> narrow inline quick-add input) and 13b (shadow removed from the «افزودن» button) are
+> COMPLETE — 12+13+13b are DEPLOYED to prod together as v0.3.8 (SW `hibana-v235`) —
+> see `worklog-session9.md` … `worklog-session11.md` + the sandbox-level
+> `/home/z/my-project/worklog.md` (Tasks 6–8) + the CHANGELOG v0.3.8 entry. Known
+> correction: the v0.3.7 artifact actually shipped SW `hibana-v231` (session-11's
+> worklog "v232" line was wrong). Queued for the next session: the out-of-batch
+> contrast marginals (4.1–4.4 badges, white-on-`--accent` board fills, "E" avatar
+> initial, skip-link, calendar «شمسی» seg), the notebook dark-mode photo inversion,
+> and triage of anything new you find.
 
 ---
 
@@ -24,11 +26,11 @@ personal project/idea manager. This session's agenda, in this exact order:
 **① UI/UX audit → ② plan the fixes → ③ implement / fix / debug.**
 
 ## 0) Restore the project first
-I uploaded `hibana.0.3.7.zip` (source + fresh `public/dist`; no node_modules, no local
+I uploaded `hibana.0.3.8.zip` (source + fresh `public/dist`; no node_modules, no local
 dbs, no secrets). Restore and baseline:
 
 ```bash
-unzip hibana.0.3.7.zip -d /home/z/my-project/hibana-work
+unzip hibana.0.3.8.zip -d /home/z/my-project/hibana-work
 cd /home/z/my-project/hibana-work
 npm ci
 npm run typecheck   # must be clean
@@ -43,9 +45,9 @@ seed:admin:node && npm run start:node` (serves on :8787; test user `e2e@test.loc
   static HTML + htmx + Alpine + Fabric.js in `public/` (built hashed assets in
   `public/dist/` via `scripts/build.mjs`). Full detail: `tech-stack.md`.
 - **Live:** https://hibana.ir (prod, schema 44) · https://hibana.aliassadi.workers.dev
-  (dev). Live = this source (v0.3.7, deployed with session 11).
-- **Read-first, in order:** `CHANGELOG.md` (newest first — the 2026-09-14 v0.3.5/v0.3.6/v0.3.7
-  entries) · `worklog-session9.md` (the full audit + 4-batch arc) ·
+  (dev). Live = this source (v0.3.8, deployed with sessions 12+13).
+- **Read-first, in order:** `CHANGELOG.md` (newest first — the v0.3.8 entry + the
+  2026-09-14 v0.3.5/v0.3.6/v0.3.7 entries) · `worklog-session9.md` (the full audit + 4-batch arc) ·
   `worklog-session10.md` (the four UI fixes) · `CLAUDE.md` (non-negotiable rules) ·
   `pm-app-spec.md` + `vision.md` (spec + intent, consult as needed) ·
   `docs/uptime-monitoring.md` §"runbook" for ops state.
@@ -105,9 +107,9 @@ users**.
 - **i18n:** every feature/fix ships EN + FA together (programmatic key-parity check).
 - **Cache discipline:** any CSS/JS change bumps `?v=` on EVERY referencing HTML page
   AND the service-worker cache name AND its SHELL asset list. Current at packaging
-  (= deployed state): `app.css` v205 · `app.js` v161 · `i18n.js` v35 · `devboard.js`
+  (= deployed state): `app.css` v211 · `app.js` v163 · `i18n.js` v35 · `devboard.js`
   v9 · `canvas.js` v14 · `whiteboard.js` v9 · `task-controls.css` v4 · `admin.js` v2 ·
-  SW `hibana-v231` · 22 HTML pages.
+  SW `hibana-v235` · 22 HTML pages.
 - **Deploy pipeline:** `npm run deploy:prod` = build `--prod --wire-html` →
   dist-wiring gate → `wrangler deploy --env prod` → canonical HTML restore. Never
   hand-edit wired HTML.
@@ -132,7 +134,7 @@ users**.
 I give UI feedback in plain language + screenshots/wireframes; you translate to specs,
 ask clarifying questions BEFORE editing when intent is ambiguous, then implement with
 the full verification ladder. Keep a running worklog per task in a new
-`worklog-session9.md` (continue the session-7/8 pattern; also mirror the entry into the
-sandbox-level `/home/z/my-project/worklog.md`). Finish the session with: commits pushed
+`worklog-session14.md` (continue the session-7/8/9 pattern; also mirror the entry into
+the sandbox-level `/home/z/my-project/worklog.md`). Finish the session with: commits pushed
 to `assadigit/hibana-source` main, CHANGELOG + version bump, and a fresh versioned zip
 (`hibana.<version>.zip`) + public/ copy, exactly like previous sessions.

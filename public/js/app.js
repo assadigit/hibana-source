@@ -439,8 +439,10 @@ window.hibana = (() => {
         // Realtime pickup everywhere (2026-09-02 user request): the dashboard to-do
         // section + calendar dots refresh via htmx; when the FAB was used ON the
         // to-do board page itself, the board re-fetches its payload — no manual
-        // page refresh needed anymore.
-        if (document.querySelector('#dash')) refreshDashboard()
+        // page refresh needed anymore. (Session-11: '#dash' never matched — the
+        // dashboard main's duplicate id attribute was dropped at parse time; the
+        // live hook is main.shell-dash.)
+        if (document.querySelector('main.shell-dash')) refreshDashboard()
         else if (typeof window.hibanaSadhanaRefresh === 'function') window.hibanaSadhanaRefresh()
       } catch {
         err.textContent = _t('taskAdd.failed', "Couldn't add the task — try again")
@@ -915,7 +917,7 @@ window.hibana = (() => {
         body: JSON.stringify({ status }),
       })
       if (!res.ok) { handle401(res); throw new Error('status change failed') }
-      if (window.htmx) window.htmx.ajax('GET', '/api/dashboard', { target: '#dash', swap: 'innerHTML' })
+      if (window.htmx) window.htmx.ajax('GET', '/api/dashboard', { target: 'main.shell-dash', swap: 'innerHTML' })
     } catch {
       toast(_t('dashboard.moveFailed', "Couldn't move it — try again"), 'err')
     }
@@ -930,7 +932,7 @@ window.hibana = (() => {
   // User request: "only three boxes by default, the rest behind carousel clicks". The
   // server orders the track (investigating · awaiting · doing first) and renders the
   // arrows + dots; this driver pages the scroll-snap rail. Delegated on document so it
-  // survives every htmx re-render of #dash; the scroll listener uses CAPTURE (scroll
+  // survives every htmx re-render of the dashboard main; the scroll listener uses CAPTURE (scroll
   // events don't bubble, but they do capture) to keep dots/arrows honest through native
   // touch/wheel scrolls. Works in RTL too: scrollBy is direction-relative, and the dot
   // math uses abs(scrollLeft) (RTL tracks scroll negative in Chromium/FF).
@@ -977,7 +979,7 @@ window.hibana = (() => {
   document.addEventListener('scroll', (e) => {
     if (e.target && e.target.matches && e.target.matches('[data-stat-track]')) syncStatCarousel(e.target)
   }, true)
-  // Initial paint + every #dash swap (the track element is recreated by htmx).
+  // Initial paint + every dashboard swap (the track element is recreated by htmx).
   const initStatCarousel = () => {
     document.querySelectorAll('[data-stat-track]').forEach((t) => syncStatCarousel(t))
   }
@@ -991,7 +993,7 @@ window.hibana = (() => {
   // dashboard fragment, so completion, notes, progress, and renames stay in sync with the
   // dedicated /to-do-list page.
   const refreshDashboard = () => {
-    if (window.htmx) window.htmx.ajax('GET', '/api/dashboard', { target: '#dash', swap: 'innerHTML' })
+    if (window.htmx) window.htmx.ajax('GET', '/api/dashboard', { target: 'main.shell-dash', swap: 'innerHTML' })
   }
   const closeDashMenu = (el) => {
     const menu = el?.closest?.('.dash-todo-menu')
@@ -1006,7 +1008,7 @@ window.hibana = (() => {
     if (!res.ok) { handle401(res); throw new Error('task update failed') }
   }
   const refreshTaskSurface = (row) => {
-    if (document.querySelector('#dash')) return refreshDashboard()
+    if (document.querySelector('main.shell-dash')) return refreshDashboard()
     const focus = row?.closest?.('#sadhana-focus[data-focus-q]')
     if (focus?.dataset.focusQ && window.htmx) {
       window.htmx.ajax('GET', `/api/sadhana/focus/${encodeURIComponent(focus.dataset.focusQ)}`, { target: '#sadhana-focus', swap: 'innerHTML' })
@@ -2352,6 +2354,25 @@ window.hibana = (() => {
     const r = nb.querySelector(`#ns-${size}`)
     if (r) r.checked = true
   }
+  // Session-11: the view/size controls live behind the ⚙ .note-controls-toggle <details>
+  // (user decision 2026-09-14). The server renders it CLOSED; the owner's last open/closed
+  // choice persists here so htmx re-renders (create/patch/reorder) don't snap the panel
+  // shut mid-session — same re-apply pattern as the view/size radios above.
+  const NOTE_CONTROLS_OPEN_KEY = 'hibana-note-controls-open'
+  const applyNoteControlsOpen = () => {
+    const nb = document.getElementById('notebook')
+    const d = nb?.querySelector('.note-controls-toggle')
+    if (!d) return
+    let open = false
+    try { open = localStorage.getItem(NOTE_CONTROLS_OPEN_KEY) === '1' } catch { /* storage unavailable — collapsed */ }
+    d.open = open
+  }
+  // 'toggle' does NOT bubble — the capture phase on document still sees every one.
+  document.addEventListener('toggle', (e) => {
+    const d = e.target
+    if (!(d instanceof Element) || !d.matches?.('#notebook .note-controls-toggle')) return
+    try { localStorage.setItem(NOTE_CONTROLS_OPEN_KEY, d.open ? '1' : '0') } catch { /* storage unavailable */ }
+  }, true)
   document.addEventListener('change', (e) => {
     if (e.target.matches?.('#notebook .note-view-radio')) {
       try { localStorage.setItem(NOTE_VIEW_KEY, e.target.checked ? e.target.value : 'list') } catch { /* storage unavailable */ }
@@ -2420,7 +2441,9 @@ window.hibana = (() => {
   // main's aria-busy) must go together — a stale busy flag traps screen readers in
   // "loading" forever even though the real board is on screen.
   document.addEventListener('htmx:afterSwap', (e) => {
-    const dash = document.getElementById('dash')
+    // Session-11: was getElementById('dash') — null since the duplicate id attribute
+    // never survived parsing, leaving aria-busy stuck at "true" forever.
+    const dash = document.querySelector('main.shell-dash')
     if (dash && !dash.querySelector('.dash-skeleton')) dash.removeAttribute('aria-busy')
   })
   const markClampedNotes = () => {
@@ -2444,6 +2467,7 @@ window.hibana = (() => {
     document.addEventListener(name, () => {
       applyNoteView()
       applyNoteSize()
+      applyNoteControlsOpen()
       requestAnimationFrame(() => document.querySelectorAll('.note-text').forEach(autosizeNote))
       requestAnimationFrame(markClampedNotes)
     })
@@ -2451,6 +2475,7 @@ window.hibana = (() => {
   document.addEventListener('DOMContentLoaded', () => {
     applyNoteView()
     applyNoteSize()
+    applyNoteControlsOpen()
     requestAnimationFrame(() => document.querySelectorAll('.note-text').forEach(autosizeNote))
     requestAnimationFrame(markClampedNotes)
   })

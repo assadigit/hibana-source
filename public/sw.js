@@ -12,6 +12,12 @@
 // Perf session (2026-09-10, docs/perf-and-data-safety.md §2.2): the fetch handler
 // splits strategies by URL class instead of network-first-for-everything.
 //
+// Session-11 (2026-09-14, three owner follow-ups on v0.3.6): hibana-v231 → v232 —
+// app.css v206 (dashboard section spacing finally applies via .shell-dash, restored ⚙
+// note-controls-toggle, stat-kanban-card status LABEL instead of full tint) and app.js
+// v162 (#dash → main.shell-dash selectors; note-controls-toggle open-state persistence)
+// plus dashboard.html. Full-tree bump per the cache rules (drops every v231 copy).
+//
 // Session-10 (2026-09-14, four UI fixes): hibana-v230 → v231 — app.css v205
 // (notebook view-mode controls always visible, dashboard prog-track hover-reveal,
 // pglance subtle color + section spacing) and sadhana.html's unversioned full-tree
@@ -43,7 +49,7 @@
 // DELETED (F11). F7 also adds SHELL entries: /reset.html (public auth page was
 // missing — offline boot impossible) and /to-do-list (the board's canonical URL —
 // offline navigation used to fall through to the dashboard shell).
-const VERSION = 'hibana-v231'
+const VERSION = 'hibana-v232'
 
 // Static shell: unhashed pages/partials/icons/vendor/fonts (SWR or network-first at
 // runtime; precached here for offline). The hashed app bundles come from the manifest

@@ -320,7 +320,7 @@ export function dashboardRoutes(cfg: Config) {
                UI) into a circular + button pinned to the quadrant's bottom corner —
                inline-end: LEFT in RTL, RIGHT in LTR (logical property, flips with the
                language automatically). The revealed row is the input alone; Enter adds
-               (submit handler posts to the sadhana quadrant API + refreshes #dash). -->
+               (submit handler posts to the sadhana quadrant API + refreshes the dashboard main). -->
           <button type="button" class="dash-todo-fab" data-dash-quickadd-fab="${q.id}" aria-label="${t('Add task', 'افزودن کار')}" title="${t('Add task', 'افزودن کار')}">${raw(icon('plus'))}</button>
           <form class="dash-quickadd" data-dash-quickadd-form="${q.id}" hidden>
             <label class="sr-only" for="dash-qa-${q.id}">${t('Add task…', 'افزودن کار…')}</label>

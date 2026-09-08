@@ -1295,8 +1295,12 @@ input::placeholder, textarea::placeholder { font-size: 0.88em; } /* placeholders
 /* Dashboard To-Do preview: compact mirror of the Sadhana board. */
 /* 2026-09-02 user request: generous whitespace BETWEEN dashboard sections — e.g. لیست کارها
    and پیشخوان پروژه‌ها used to sit 1.25rem apart; every dashboard section now gets a wide
-   bottom margin for an airy, minimal rhythm. */
-main#dash > section { margin-block-end: 2.9rem; }
+   bottom margin for an airy, minimal rhythm.
+   Session-11 (2026-09-14): the rule was DEAD — the dashboard <main> carried a duplicate
+   id (id="main" … id="dash") and the parser drops the second attribute, so #dash never
+   matched anything (user report: "sections cramped together with no distance"). The hook
+   is now the .shell-dash class on that <main> (see dashboard.html). */
+main.shell-dash > section { margin-block-end: 2.9rem; }
 .dash-todo-section { display: grid; gap: 0.75rem; }
 .dash-todo-head { display: flex; align-items: baseline; justify-content: space-between; gap: 1rem; flex-wrap: wrap; }
 .dash-todo-head h2 { margin: 0; }
@@ -2707,10 +2711,44 @@ cite { font-style: normal; }
 .note-head { gap: 0.4rem; margin-block-end: 0.4rem; align-items: center; }
 .note-head .note-heading { margin: 0; }
 
-/* Session-10 revert (user report 2026-09-14): the 2026-09-09 ⚙ collapse hid the view/size
-   controls on the dashboard widget — read as "list-only", so it's gone; the segmented
-   controls are always visible again on every notebook surface (see quicknotes.ts). The
-   .note-controls-toggle rules were removed with it. */
+/* Session-11 (user decision 2026-09-14): the view/size controls collapse behind a single
+   ⚙ <details> again — the session-10 revert made them always visible, but the owner
+   settled on the toggle now that the picked view/size (and the toggle's own open state)
+   persist in localStorage (app.js): the widget boots in the remembered view, so the
+   controls row only surfaces when that choice actually changes. Collapsed → just the
+   gear sits next to the heading; open → the segmented controls float as a small panel
+   under the gear so they don't push the composer + notes down. Scoped to
+   .note-controls-toggle (any notebook surface), not just the dashboard variant. */
+.note-controls-toggle { position: relative; }
+.note-controls-toggle > summary {
+  display: inline-flex; align-items: center; justify-content: center;
+  inline-size: 1.6rem; block-size: 1.6rem;
+  border-radius: var(--radius-sm);
+  color: var(--muted);
+  cursor: pointer;
+  list-style: none; /* hide the default disclosure triangle */
+}
+.note-controls-toggle > summary::-webkit-details-marker { display: none; }
+.note-controls-toggle > summary:hover { color: var(--text); background: var(--bg-soft); }
+.note-controls-toggle[open] > summary { color: var(--brand); background: var(--accent-soft); }
+/* Open panel: the controls float as a small card under the gear so they don't push the
+   composer + notes down when revealed. */
+.note-controls-toggle[open] .note-head-controls {
+  position: absolute;
+  inset-block-start: calc(100% + 0.25rem);
+  inset-inline-start: 0;
+  z-index: 5;
+  display: flex;
+  gap: 0.5rem;
+  padding: 0.5rem;
+  background: var(--card);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-dropdown);
+}
+/* When collapsed, the controls are hidden (the <details> hides non-summary content by
+   default, but the absolute panel above also needs the open state — belt and suspenders). */
+.note-controls-toggle:not([open]) .note-head-controls { display: none; }
 
 .note-compose { gap: 0.3rem; margin-block-start: 0.4rem; flex-wrap: wrap; }
 /* Persistent label above the composer (audit 6): the input keeps its placeholder too. */
@@ -3406,8 +3444,10 @@ html[data-theme='dark'] .auth-brand { color: #e9e9e7; }
   padding-inline: clamp(1.5rem, 4vw, 4rem);
 }
 /* The dashboard shares the same wide column (roast 2026-08-25): one content width across
-   the pages that were audited, instead of reverting to ~1024px between them. */
-main.shell#dash {
+   the pages that were audited, instead of reverting to ~1024px between them.
+   Session-11: was main.shell#dash — dead for the same duplicate-id reason as the section
+   spacing above; now keyed on .shell-dash (which also carries .shell). */
+main.shell-dash {
   max-inline-size: 96rem;
   padding-inline: clamp(1.5rem, 4vw, 4rem);
 }
@@ -5312,51 +5352,82 @@ html[data-theme="dark"] .card,
   }
 }
 
-/* Status-coded kanban cards (2026-08-30 (g), Ali's request): the cards on the dashboard
-   and projects kanban used to all share the same gray gradient — now the fill encodes the
-   stage at a glance: در انتظار انجام (pending) = pastel yellow, در حال انجام (building) =
-   pastel orange, بررسی نشده (spark) + working + archived stay neutral gray. Both pages
-   render .kanban-card[data-status=…], so attribute selectors cover dashboard
-   (.stat-kanban-card) and projects (.kanban-col) with zero HTML changes. The selector
-   triplet mirrors the .card depth rules directly above (same shapes, later position) so
-   the tint wins the cascade in explicit-light, explicit-dark, and system modes. */
-.kanban-card[data-status='unreviewed'],
-html[data-theme='dark'] .kanban-card[data-status='unreviewed'],
-:root:not([data-theme='light']) .kanban-card[data-status='unreviewed'] {
+/* Status-coded kanban cards (2026-08-30 (g), Ali's request) — SPLIT in session-11
+   (user report 2026-09-14): the dashboard's stage boxes read as "all box colored pale
+   orange" because EVERY .kanban-card[data-status] took the full pastel fill. Now the two
+   surfaces diverge:
+   - PROJECTS board (.kanban-col): keeps the full tint — the fill encodes the stage at a
+     glance inside a lane that is itself status-labeled (the original 2026-08-30 design).
+     Selectors are scoped to .kanban-col .kanban-card[...] so they can no longer reach the
+     dashboard cards.
+   - DASHBOARD (.stat-kanban-card): neutral card + a small colored LABEL on each item
+     (user: "only 10% of each item must be filled, like a label on them") — a slim
+     status-colored bar pinned to each card's inline-start edge, matching the tint the
+     box's icon-chip already carries. The selector triplets mirror the .card depth rules
+     directly above (same shapes, later position) so the fills win the cascade in
+     explicit-light, explicit-dark, and system modes. */
+.kanban-col .kanban-card[data-status='unreviewed'],
+html[data-theme='dark'] .kanban-col .kanban-card[data-status='unreviewed'],
+:root:not([data-theme='light']) .kanban-col .kanban-card[data-status='unreviewed'] {
   background: var(--kanban-unreviewed-bg); border-color: var(--kanban-unreviewed-line);
 }
-.kanban-card[data-status='investigating'],
-html[data-theme='dark'] .kanban-card[data-status='investigating'],
-:root:not([data-theme='light']) .kanban-card[data-status='investigating'] {
+.kanban-col .kanban-card[data-status='investigating'],
+html[data-theme='dark'] .kanban-col .kanban-card[data-status='investigating'],
+:root:not([data-theme='light']) .kanban-col .kanban-card[data-status='investigating'] {
   background: var(--kanban-investigating-bg); border-color: var(--kanban-investigating-line);
 }
-.kanban-card[data-status='awaiting'],
-html[data-theme='dark'] .kanban-card[data-status='awaiting'],
-:root:not([data-theme='light']) .kanban-card[data-status='awaiting'] {
+.kanban-col .kanban-card[data-status='awaiting'],
+html[data-theme='dark'] .kanban-col .kanban-card[data-status='awaiting'],
+:root:not([data-theme='light']) .kanban-col .kanban-card[data-status='awaiting'] {
   background: var(--kanban-awaiting-bg); border-color: var(--kanban-awaiting-line);
 }
-.kanban-card[data-status='doing'],
-html[data-theme='dark'] .kanban-card[data-status='doing'],
-:root:not([data-theme='light']) .kanban-card[data-status='doing'] {
+.kanban-col .kanban-card[data-status='doing'],
+html[data-theme='dark'] .kanban-col .kanban-card[data-status='doing'],
+:root:not([data-theme='light']) .kanban-col .kanban-card[data-status='doing'] {
   background: var(--kanban-doing-bg); border-color: var(--kanban-doing-line);
 }
-.kanban-card[data-status='halted'],
-html[data-theme='dark'] .kanban-card[data-status='halted'],
-:root:not([data-theme='light']) .kanban-card[data-status='halted'] {
+.kanban-col .kanban-card[data-status='halted'],
+html[data-theme='dark'] .kanban-col .kanban-card[data-status='halted'],
+:root:not([data-theme='light']) .kanban-col .kanban-card[data-status='halted'] {
   background: var(--kanban-halted-bg); border-color: var(--kanban-halted-line);
 }
-.kanban-card[data-status='operational'],
-html[data-theme='dark'] .kanban-card[data-status='operational'],
-:root:not([data-theme='light']) .kanban-card[data-status='operational'] {
+.kanban-col .kanban-card[data-status='operational'],
+html[data-theme='dark'] .kanban-col .kanban-card[data-status='operational'],
+:root:not([data-theme='light']) .kanban-col .kanban-card[data-status='operational'] {
   background: var(--kanban-operational-bg); border-color: var(--kanban-operational-line);
 }
 /* Hover deepens the tint slightly instead of snapping back to the neutral gray */
-.kanban-card[data-status='unreviewed']:hover { background: color-mix(in srgb, var(--kanban-unreviewed-bg) 94%, var(--kanban-unreviewed-line) 6%); }
-.kanban-card[data-status='investigating']:hover { background: color-mix(in srgb, var(--kanban-investigating-bg) 94%, var(--kanban-investigating-line) 6%); }
-.kanban-card[data-status='awaiting']:hover { background: color-mix(in srgb, var(--kanban-awaiting-bg) 94%, var(--kanban-awaiting-line) 6%); }
-.kanban-card[data-status='doing']:hover { background: color-mix(in srgb, var(--kanban-doing-bg) 94%, var(--kanban-doing-line) 6%); }
-.kanban-card[data-status='halted']:hover { background: color-mix(in srgb, var(--kanban-halted-bg) 94%, var(--kanban-halted-line) 6%); }
-.kanban-card[data-status='operational']:hover { background: color-mix(in srgb, var(--kanban-operational-bg) 94%, var(--kanban-operational-line) 6%); }
+.kanban-col .kanban-card[data-status='unreviewed']:hover { background: color-mix(in srgb, var(--kanban-unreviewed-bg) 94%, var(--kanban-unreviewed-line) 6%); }
+.kanban-col .kanban-card[data-status='investigating']:hover { background: color-mix(in srgb, var(--kanban-investigating-bg) 94%, var(--kanban-investigating-line) 6%); }
+.kanban-col .kanban-card[data-status='awaiting']:hover { background: color-mix(in srgb, var(--kanban-awaiting-bg) 94%, var(--kanban-awaiting-line) 6%); }
+.kanban-col .kanban-card[data-status='doing']:hover { background: color-mix(in srgb, var(--kanban-doing-bg) 94%, var(--kanban-doing-line) 6%); }
+.kanban-col .kanban-card[data-status='halted']:hover { background: color-mix(in srgb, var(--kanban-halted-bg) 94%, var(--kanban-halted-line) 6%); }
+.kanban-col .kanban-card[data-status='operational']:hover { background: color-mix(in srgb, var(--kanban-operational-bg) 94%, var(--kanban-operational-line) 6%); }
+
+/* Session-11 — the dashboard's status LABEL per card: neutral fill + a slim status-
+   colored bar on each item's inline-start edge (the "10% label"). The bar reuses the
+   badge-*-fg tones (same family as the box header's icon-chip) so light/dark themes
+   both stay legible; the card otherwise keeps its neutral .stat-kanban-card look
+   (--bg-soft, neutral border, neutral hover). padding-inline-start grows so the bar
+   never touches the row content (the open-button / title). */
+.stat-kanban-card[data-status] { position: relative; padding-inline-start: 0.75rem; }
+.stat-kanban-card[data-status]::before {
+  content: '';
+  position: absolute;
+  inset-block: 0.32rem;
+  inset-inline-start: 0.2rem;
+  inline-size: 0.28rem;
+  border-radius: 999px;
+  opacity: 0.8;
+  pointer-events: none;
+}
+.stat-kanban-card[data-status='spark']::before { background: var(--badge-spark-fg); }
+.stat-kanban-card[data-status='unreviewed']::before { background: var(--badge-unreviewed-fg); }
+.stat-kanban-card[data-status='investigating']::before { background: var(--badge-investigating-fg); }
+.stat-kanban-card[data-status='awaiting']::before { background: var(--badge-awaiting-fg); }
+.stat-kanban-card[data-status='doing']::before { background: var(--badge-doing-fg); }
+.stat-kanban-card[data-status='halted']::before { background: var(--badge-halted-fg); }
+.stat-kanban-card[data-status='operational']::before { background: var(--badge-operational-fg); }
 
 /* Custom scrollbar styling — the existing ::-webkit-scrollbar rule is plain; this adds
    a thinner, rounder, theme-aware rail + thumb that matches the token system. Applies
@@ -7523,16 +7594,15 @@ dialog.adm-modal::backdrop { background: rgb(0 0 0 / 0.55); }
    html[data-page-width] from localStorage before first render; the settings page
    (Preferences) owns the choice. These rules deliberately sit at the END of the sheet
    and carry higher specificity than every page-specific width (sp-shell flush,
-   adm-shell 56rem, #dash/sadhana 96rem) so all pages share the SAME width. Zen mode
-   keeps its focused 56rem deliberately. */
+   adm-shell 56rem, shell-dash/sadhana 96rem) so all pages share the SAME width. Zen mode
+   keeps its focused 56rem deliberately. (Session-11: the dead main.shell#dash entries
+   were dropped from these lists — main.shell already covers the dashboard main.) */
 html[data-page-width="standard"] main.shell,
-html[data-page-width="standard"] main.shell#dash,
 html[data-page-width="standard"] main.shell.sp-shell,
 html[data-page-width="standard"] main.shell.adm-shell,
 html[data-page-width="standard"] main.shell.narrow,
 html[data-page-width="standard"] main.shell.shell-flush { max-inline-size: 85.375rem; }
 html[data-page-width="full"] main.shell,
-html[data-page-width="full"] main.shell#dash,
 html[data-page-width="full"] main.shell.sp-shell,
 html[data-page-width="full"] main.shell.adm-shell,
 html[data-page-width="full"] main.shell.narrow,

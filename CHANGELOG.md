@@ -4,6 +4,46 @@ Full spec: `pm-app-spec.md` · Rules (non-negotiable): `CLAUDE.md` · Reasoning:
 Deploy: `DEPLOY.md` · What's next: `ROADMAP.md` · Session handoff: `NEW_SESSION_PROMPT.md`
 Verification: `npm test` (235) · `npm run typecheck` · `npm run smoke` · `npm run drill` · `npm run drill:planb`
 
+## 2026-09-14 — v0.3.7: session 11 — three owner follow-ups + a dead-#dash bug fix
+Follow-ups on v0.3.6. CSS/JS/server-HTML only — no schema changes. Deployed with
+this release (SW `hibana-v232`, `app.css ?v=207`, `app.js ?v=162`). Tests stay
+235/235.
+- **THE root find — `#dash` never existed (fixes the "cramped sections" report AND
+  a silent refresh bug):** the dashboard `<main>` carried BOTH `id="main"` and
+  `id="dash"` — duplicate attributes are dropped at parse time (first wins), so
+  every `#dash` selector in the app was dead: the 2.9rem section spacing (the
+  2026-09-02 "airy rhythm" rule — never applied, hence "sections cramped together
+  with no distance"), the 96rem dashboard shell width, the aria-busy cleanup
+  (screen readers stuck in "loading" forever), and — worst — every
+  `refreshDashboard()` call (task complete / move / rename / FAB add) targeted
+  `#dash`, so htmx fetched fresh HTML and swapped it NOWHERE: completing a task
+  on the dashboard left the stale row on screen. Fix: the main keeps
+  `id="main"` (skip-link anchor) and gains the `shell-dash` class; CSS selectors,
+  app.js queries and htmx targets all point at `main.shell-dash`. Live-verified:
+  46px section gaps (desktop + 390px), aria-busy clears, completing a task
+  removes the row in-place.
+- **Quick-notebook view controls behind the ⚙ toggle again — with the preference
+  story closed (owner decision, reversing the session-10 revert):** the
+  List/Sticky/Grid + size segmented controls collapse back behind the ⚙
+  `<details>`, but now the picked view + size PERSIST (the localStorage
+  machinery existed since 2026-08-26 — re-applied after every htmx swap) and the
+  toggle's own open state persists too (`hibana-note-controls-open`, capture-
+  phase `toggle` listener + re-apply pass). The widget boots in the remembered
+  view, so the controls only surface when that choice changes; htmx re-renders
+  no longer snap the panel shut mid-session. Verified across reload AND swap.
+- **Dashboard project-stage cards: neutral fill + a small status LABEL (owner:
+  "only ~10% of each item must be filled, like a label"):** the
+  `.kanban-card[data-status]` pastel full-fill no longer reaches the dashboard —
+  it is scoped to the projects PAGE kanban lanes (`.kanban-col …`, which keep
+  the original 2026-08-30 design). The dashboard's `.stat-kanban-card`s stay
+  neutral and each carries a slim status-colored bar on its inline-start edge
+  (badge-*-fg family, theme-aware; ≈3–5% of the card area + the box header's
+  icon-chip). Light + dark verified; no fully-colored boxes remain.
+- Cache discipline: app.css `?v=205→207` (22 pages, re-bumped once final) ·
+  app.js `?v=161→162` (20 pages) · SW `hibana-v231→v232`; tour.js rides its
+  content-hashed dist URL. check-cache-bust PASS; 390px + 1280px sweeps clean,
+  fresh-load console clean.
+
 ## 2026-09-14 — v0.3.6: session 10 — four UI fixes from owner reports
 Owner-reported right after v0.3.5 shipped. All CSS/server-only — no app.js/i18n
 changes, no schema changes. Deployed with this release (SW `hibana-v231`,

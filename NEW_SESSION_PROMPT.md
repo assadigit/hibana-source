@@ -1,16 +1,19 @@
-# Hibana — New Session Prompt (session 11 starter)
+# Hibana — New Session Prompt (session 12 starter)
 
 Copy-paste the entire block below as your first message in a new session.
-Attach/upload the source zip (`hibana.0.3.6.zip`) to the same message if the sandbox
+Attach/upload the source zip (`hibana.0.3.7.zip`) to the same message if the sandbox
 doesn't already contain it.
 
-> Sessions 9 (audit → plan → fix, batches 1–4, v0.3.5) and 10 (four owner-reported UI
-> fixes, v0.3.6 — notebook view-modes revert, hover-only prog-track, subtle status
-> boxes, section white space) are COMPLETE and DEPLOYED to prod — see
-> `worklog-session9.md`, `worklog-session10.md` + the CHANGELOG v0.3.5/v0.3.6 entries.
-> Queued for the next session: the out-of-batch contrast marginals (4.1–4.4 badges,
-> white-on-`--accent` board fills, "E" avatar initial, skip-link, calendar «شمسی» seg),
-> the notebook dark-mode photo inversion, and triage of anything new you find.
+> Sessions 9 (audit → plan → fix, batches 1–4, v0.3.5), 10 (four owner-reported UI
+> fixes, v0.3.6) and 11 (three owner follow-ups + the dead-`#dash` root-cause fix,
+> v0.3.7 — notebook ⚙ toggle with persisted view/size/open-state, dashboard section
+> spacing + mutation refresh restored via `main.shell-dash`, status-label bars on the
+> dashboard stage cards) are COMPLETE and DEPLOYED to prod — see `worklog-session9.md`,
+> `worklog-session10.md`, `worklog-session11.md` + the CHANGELOG v0.3.5/v0.3.6/v0.3.7
+> entries. Queued for the next session: the out-of-batch contrast marginals (4.1–4.4
+> badges, white-on-`--accent` board fills, "E" avatar initial, skip-link, calendar
+> «شمسی» seg), the notebook dark-mode photo inversion, and triage of anything new you
+> find.
 
 ---
 
@@ -21,11 +24,11 @@ personal project/idea manager. This session's agenda, in this exact order:
 **① UI/UX audit → ② plan the fixes → ③ implement / fix / debug.**
 
 ## 0) Restore the project first
-I uploaded `hibana.0.3.6.zip` (source + fresh `public/dist`; no node_modules, no local
+I uploaded `hibana.0.3.7.zip` (source + fresh `public/dist`; no node_modules, no local
 dbs, no secrets). Restore and baseline:
 
 ```bash
-unzip hibana.0.3.6.zip -d /home/z/my-project/hibana-work
+unzip hibana.0.3.7.zip -d /home/z/my-project/hibana-work
 cd /home/z/my-project/hibana-work
 npm ci
 npm run typecheck   # must be clean
@@ -40,8 +43,8 @@ seed:admin:node && npm run start:node` (serves on :8787; test user `e2e@test.loc
   static HTML + htmx + Alpine + Fabric.js in `public/` (built hashed assets in
   `public/dist/` via `scripts/build.mjs`). Full detail: `tech-stack.md`.
 - **Live:** https://hibana.ir (prod, schema 44) · https://hibana.aliassadi.workers.dev
-  (dev). Live = this source (v0.3.6, deployed with session 10).
-- **Read-first, in order:** `CHANGELOG.md` (newest first — the 2026-09-14 v0.3.5/v0.3.6
+  (dev). Live = this source (v0.3.7, deployed with session 11).
+- **Read-first, in order:** `CHANGELOG.md` (newest first — the 2026-09-14 v0.3.5/v0.3.6/v0.3.7
   entries) · `worklog-session9.md` (the full audit + 4-batch arc) ·
   `worklog-session10.md` (the four UI fixes) · `CLAUDE.md` (non-negotiable rules) ·
   `pm-app-spec.md` + `vision.md` (spec + intent, consult as needed) ·

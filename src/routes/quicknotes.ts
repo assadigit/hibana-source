@@ -248,24 +248,29 @@ export function notebookHtml(notes: QuickNote[], lang: Locale, composerMode: 'no
         <button type="button" class="ghost icon-btn" data-note-sticky-next aria-label="${t('Next', 'بعدی')}" title="${t('Next', 'بعدی')}">${icon('arrow-right', 'icon arrow')}</button>
       </div>`
       : ''
-  // Session-10 revert (user report 2026-09-14: "view modes… currently it only shows as
-  // list"): the 2026-09-09 dashboard variant collapsed the view/size controls behind a
-  // ⚙ <details> — undiscoverable, so the widget read as list-only. The controls are
-  // ALWAYS visible again, dashboard included. The composer stays 1-row on the dashboard
-  // (auto-expands on focus) and the `dashboard` flag still echoes through hx-vals so
-  // htmx re-renders preserve the compact composer.
-  const controlsHtml = `<span class="row note-head-controls">
-      <span class="note-size-seg" role="radiogroup" aria-label="${t('Note size', 'اندازه')}">
-        <label for="ns-s">${t('Small', 'کوچک')}</label>
-        <label for="ns-m">${t('Medium', 'متوسط')}</label>
-        <label for="ns-l">${t('Large', 'بزرگ')}</label>
+  // Session-11 (user decision 2026-09-14, follow-up to the session-10 revert): the
+  // view/size controls go back behind the ⚙ <details> toggle — but this time the
+  // PREFERENCE story is closed end-to-end: the picked view + size persist in
+  // localStorage (app.js, re-applied after every htmx swap since 2026-08-26), and
+  // the toggle's own open state persists too (app.js session-11). So the widget
+  // renders in the owner's chosen view on every load — the controls only need
+  // visiting when that choice changes. The `dashboard` flag still echoes through
+  // hx-vals so htmx re-renders preserve the compact composer.
+  const controlsHtml = `<details class="note-controls-toggle">
+      <summary aria-label="${t('View options', 'گزینه‌های نمایش')}" title="${t('View options', 'گزینه‌های نمایش')}">${icon('gear', 'icon')}</summary>
+      <span class="row note-head-controls">
+        <span class="note-size-seg" role="radiogroup" aria-label="${t('Note size', 'اندازه')}">
+          <label for="ns-s">${t('Small', 'کوچک')}</label>
+          <label for="ns-m">${t('Medium', 'متوسط')}</label>
+          <label for="ns-l">${t('Large', 'بزرگ')}</label>
+        </span>
+        <span class="note-view-seg" role="radiogroup" aria-label="${t('View', 'نما')}">
+          <label for="nv-list">${t('List', 'فهرست')}</label>
+          <label for="nv-sticky">${t('Sticky', 'چسبان')}</label>
+          <label for="nv-grid">${t('Grid', 'شبکه')}</label>
+        </span>
       </span>
-      <span class="note-view-seg" role="radiogroup" aria-label="${t('View', 'نما')}">
-        <label for="nv-list">${t('List', 'فهرست')}</label>
-        <label for="nv-sticky">${t('Sticky', 'چسبان')}</label>
-        <label for="nv-grid">${t('Grid', 'شبکه')}</label>
-      </span>
-    </span>`
+    </details>`
   const composeRows = dashboard ? 1 : 2
   const dashboardVal = dashboard ? '<input type="hidden" name="dashboard" value="1">' : ''
   return `<section class="card notebook${dashboard ? ' notebook-dashboard' : ''}" id="notebook">

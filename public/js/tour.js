@@ -43,7 +43,7 @@
     }
   })
   document.addEventListener('DOMContentLoaded', () => {
-    // The dashboard loads via htmx on #dash; the swap handler above fires. But also run
+    // The dashboard loads via htmx on main.shell-dash; the swap handler above fires. But also run
     // once after a delay in case the htmx event already fired before this script loaded.
     setTimeout(() => { if (document.querySelector('.stat-count')) animateCounters() }, 800)
   })

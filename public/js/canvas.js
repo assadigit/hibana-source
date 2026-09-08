@@ -453,59 +453,123 @@ window.hibanaCanvas = (() => {
   }
 
   // StickyNote — the reusable canvas sticky-note component (2026-08-25 spec). Styled to
-  // match the dashboard sticky notes: flat warm pastel paper, soft corners (--radius-sm),
-  // ONE soft diffused shadow, a close × in the top-right header, and a comfortable body
-  // font. The paper grows with its text; selection uses Fabric's default blue bounding box
-  // + handles, separate from the paper itself. The header label was removed as redundant
-  // (2026-08-26, same as the dashboard).
+  // match the dashboard sticky notes: flat warm pastel paper, ONE soft diffused shadow,
+  // a close × in the top-right header, and a comfortable body font. The paper grows with
+  // its text; selection uses Fabric's default blue bounding box + handles, separate from
+  // the paper itself. The header label was removed as redundant (2026-08-26, same as the
+  // dashboard).
+  //
+  // Session 17 (2026-09-18, owner reference mockup — the ONE sticky style app-wide):
+  // the paper is a TRUE SQUARE with near-sharp 2px corners and a layered, directional
+  // shadow — light from the top-left, shadow down-and-right, two stacked layers (a tight
+  // contact shadow + a large soft diffuse one), exactly the CSS recipe the DOM sticky
+  // papers now carry (app.css session-17 rule). Fabric objects hold ONE Shadow each, so
+  // the two CSS layers are two stacked rects: a back rect (shadowBox) carrying the large
+  // soft layer + the paper rect (box) carrying the tight contact layer. shadowBox shares
+  // the paper's fill and footprint — it hides completely behind the paper, only its
+  // shadow shows; both shadows stay neutral black regardless of the paper's pastel.
   const STICKY_PAPER = '#FFF59D'
-  const STICKY_RADIUS = 10 // dashboard sticky radius (--radius-sm)
+  const STICKY_RADIUS = 2 // session 17: near-sharp paper corners (was 10 = --radius-sm)
   const STICKY_HEADER = 26 // header strip for the close ×
-  function makeStickyNote({ content = '', color = STICKY_PAPER, x = 0, y = 0, width = 180, height = 120 }) {
+  function makeStickyNote({ content = '', color = STICKY_PAPER, x = 0, y = 0, width = 180, height = 180 }) {
+    // Session 17: the paper is a square — normalize whatever geometry arrives (old saved
+    // notes were 180×120 or grown rectangles) to ONE side = the larger of the two. The
+    // wrap width, × position and hit region all key off the square side below.
+    const side = Math.max(Math.round(width || 180), Math.round(height || 0), 120)
     // The × carries the same faint circular background as the quick-notes delete chip
     // (2026-08-26 style unification) — one close affordance across both surfaces.
     const closeBg = new fabric.Circle({
-      left: width - 27, top: 3, radius: 9,
+      left: side - 27, top: 3, radius: 9,
       fill: 'rgba(0, 0, 0, 0.06)', selectable: false, evented: false,
     })
     const close = new fabric.Text('×', {
-      left: width - 24, top: 5, fontSize: 13, fontWeight: 700,
+      left: side - 24, top: 5, fontSize: 13, fontWeight: 700,
       fill: 'rgba(63, 63, 70, 0.85)', selectable: false, evented: false, fontFamily: 'system-ui, sans-serif',
     })
     const text = new fabric.Textbox(content, {
       left: 10, top: STICKY_HEADER + 4, fontSize: 18, lineHeight: 1.3,
-      fill: '#3f3f46', width: width - 20, splitByGrapheme: true, selectable: false,
+      fill: '#3f3f46', width: side - 20, splitByGrapheme: true, selectable: false,
     })
     // Pin the wrap width (2026-08-26 user report): a Textbox re-measures itself on every
     // keystroke and drifts wider than the paper, which stops the wrapping and lets the text
     // escape the note's edge on a single line. Re-pinning after each measure keeps the text
     // inside the padding box — text always wraps at the boundary (splitByGrapheme).
-    const wrapWidth = width - 20
+    // Session 17: wrapWidth is now a `let` — the paper grows as a SQUARE (fitPaper), so
+    // the wrap re-pins to the widened paper on growth.
+    let wrapWidth = side - 20
     const baseInit = text.initDimensions.bind(text)
     text.initDimensions = () => {
-      baseInit()
+      // Session 17: pin FIRST, measure second — fitPaper re-pins wrapWidth and one
+      // initDimensions call re-wraps AND re-measures at the new width.
       text.width = wrapWidth
+      baseInit()
     }
-    const box = new fabric.Rect({
-      width, height: Math.max(height, STICKY_HEADER + (text.height || 0) + 14),
+    // Session 17: right-size the square. The text height h(w) SHRINKS as the wrap w
+    // widens, so "grow to the height the current wrap demands" overshoots badly (the
+    // re-wrapped text is far shorter). Instead the MINIMAL square s with
+    // STICKY_HEADER + h(s-20) + 14 ≤ s is binary-searched between the incoming side
+    // (may not fit) and the side the current wrap demands (always fits — h is
+    // monotone non-increasing in w). Construction AND growth both use it, so a long
+    // note lands on a snug square instead of a huge empty one.
+    const measureAt = (w) => {
+      text.width = w
+      baseInit() // raw measure at w (bypasses the pin)
+      return text.height || 0
+    }
+    const sideFor = (minSide) => {
+      let lo = minSide
+      let hi = Math.max(minSide, STICKY_HEADER + measureAt(minSide - 20) + 14)
+      let guard = 0
+      while (STICKY_HEADER + measureAt(hi - 20) + 14 > hi && guard++ < 4) hi = hi * 1.5 + 40
+      const fits = (s) => STICKY_HEADER + measureAt(s - 20) + 14 <= s + 0.5
+      for (let i = 0; i < 22 && hi - lo > 2; i++) {
+        const mid = (lo + hi) / 2
+        if (fits(mid)) hi = mid
+        else lo = mid
+      }
+      text.initDimensions() // restore the live measure at the CURRENT wrap
+      return Math.max(minSide, Math.ceil(hi))
+    }
+    const paperSize = sideFor(side)
+    wrapWidth = paperSize - 20
+    text.initDimensions() // re-wrap at the final square's padding box
+    // shadowBox: the back rect carrying the LARGE SOFT layer of the session-17 shadow.
+    const shadowBox = new fabric.Rect({
+      width: paperSize, height: paperSize,
       fill: color, rx: STICKY_RADIUS, ry: STICKY_RADIUS,
     })
-    // Phase 5 item 18 (2026-09-08): the soft drop shadow belongs to the PAPER ONLY.
-    // It used to sit on the group, and fabric applies the ctx shadow while drawing every
-    // child — so each TEXT GLYPH carried its own shadow too (blurry, "bold-ish" text).
-    // Moving it onto the Rect keeps the paper's lift while the text renders crisp.
-    box.shadow = new fabric.Shadow({ color: 'rgba(0, 0, 0, 0.12)', blur: 14, offsetX: 0, offsetY: 6, affectStroke: false })
+    shadowBox.shadow = new fabric.Shadow({ color: 'rgba(0, 0, 0, 0.12)', blur: 20, offsetX: 4, offsetY: 12, affectStroke: false })
+    const box = new fabric.Rect({
+      width: paperSize, height: paperSize,
+      fill: color, rx: STICKY_RADIUS, ry: STICKY_RADIUS,
+    })
+    // Phase 5 item 18 (2026-09-08): the drop shadow belongs to the PAPER ONLY. It used to
+    // sit on the group, and fabric applies the ctx shadow while drawing every child — so
+    // each TEXT GLYPH carried its own shadow too (blurry, "bold-ish" text). Moving it onto
+    // the Rect keeps the paper's lift while the text renders crisp.
+    // Session 17: this is now the TIGHT CONTACT layer (small offset, small blur); the big
+    // soft layer lives on shadowBox behind it. Compositing: shadowBox paints first (its
+    // shadow + its fill), then box paints (its contact shadow lands outside the paper edge
+    // on the soft shadow / board, its fill covers everything beneath) — the result matches
+    // CSS `box-shadow: 1px 3px 4px rgba(0,0,0,.10), 4px 12px 20px rgba(0,0,0,.12)`.
+    box.shadow = new fabric.Shadow({ color: 'rgba(0, 0, 0, 0.10)', blur: 4, offsetX: 1, offsetY: 3, affectStroke: false })
     // objectCaching:false (2026-09-02 user report "text doesn't register"): a cached group
     // never re-renders its bitmap while the inner textbox is being edited, so every
     // keystroke vanished into the stale cache. Notes are small — drawing live is cheap.
-    const group = new fabric.Group([box, closeBg, close, text], { left: x, top: y, editable: true, objectCaching: false })
-    group.__close = { left: width - 30, top: 0, width: 30, height: 30 } // × hit region, paper coords (top-left origin)
+    const group = new fabric.Group([shadowBox, box, closeBg, close, text], { left: x, top: y, editable: true, objectCaching: false })
+    group.__close = { left: paperSize - 30, top: 0, width: 30, height: 30 } // × hit region, paper coords (top-left origin)
     // The paper keeps a minimum size but grows with the text, so content never escapes the
     // note; `changed` fires on every keystroke while editing, so the grown size is what gets
     // saved and reloads restore the note exactly as the user left it.
+    // Session 17: growth stays SQUARE — height NEVER grows alone (that was the old
+    // rectangle behavior). If the text would overflow the current square, BOTH edges grow
+    // by the same amount, the wrap width re-pins to the wider paper, and the × rides the
+    // inline-end edge. Every sticky the user ever sees on the board is a perfect square.
     const fitPaper = () => {
-      const need = STICKY_HEADER + (text.height || 0) + 14
-      if (box.height < need) {
+      // Session 17: square + right-sized. sideFor(box.width) measures at the CURRENT
+      // wrap; if the text fits, it returns box.width (no growth — grow-only invariant).
+      const target = sideFor(box.width)
+      if (target > box.height + 0.5) {
         // Grow DOWNWARD from the paper's current top edge, IN PLACE (2026-08-26 user
         // request; 2026-08-29 rework). The old implementation called group._calcBounds(),
         // which in this Fabric build re-derives left/top from the children's LOCAL
@@ -513,11 +577,15 @@ window.hibanaCanvas = (() => {
         // and the × hit region desynced from the paper (× stopped deleting). Instead:
         // resize the paper, grow the group frame by the same amount, and lift every
         // child by half the growth so the top edge lands exactly where it was.
-        // Grow-only — a note never shrinks back.
-        const grow = need - box.height
-        box.set({ height: need, top: box.top - grow / 2 })
-        for (const child of [closeBg, close, text]) child.set({ top: child.top - grow / 2 })
-        group.set({ height: group.height + grow })
+        const grow = target - box.height
+        box.set({ height: target, width: target, top: box.top - grow / 2 })
+        shadowBox.set({ height: target, width: target, top: shadowBox.top - grow / 2 })
+        for (const child of [closeBg, close]) child.set({ left: child.left + grow, top: child.top - grow / 2 })
+        text.set({ top: text.top - grow / 2 })
+        group.set({ height: group.height + grow, width: group.width + grow })
+        group.__close = { left: target - 30, top: 0, width: 30, height: 30 }
+        wrapWidth = target - 20
+        text.initDimensions() // re-wrap AND re-measure at the wider paper
         group.setCoords()
       }
       // Always invalidate + repaint (realtime typing, 2026-09-02): even when the paper
@@ -528,8 +596,10 @@ window.hibanaCanvas = (() => {
     fitPaper()
     text.on('changed', fitPaper)
     wireTextDir(text)
-    // exposed for the editing twin + recolor palette (2026-09-02 batch)
+    // exposed for the editing twin + recolor palette (2026-09-02 batch). __shadowPaper
+    // rides along so recolors repaint BOTH rects of the layered shadow (session 17).
     group.__paper = box
+    group.__shadowPaper = shadowBox
     group.__innerText = text
     group.__fitPaper = fitPaper
     return group
@@ -741,13 +811,14 @@ window.hibanaCanvas = (() => {
     } else if (data.type === 'block') {
       obj = makeBlockObject(data)
     } else {
-      // Sticky note: the reusable StickyNote component — flat pale-yellow paper, soft
-      // diffused shadow, default blue selection chrome. The paper color comes from what was
-      // saved (or the current pick); the shared pen ink never colors paper.
+      // Sticky note: the reusable StickyNote component — the session-17 square paper
+      // with the layered directional shadow, default blue selection chrome. The paper
+      // color comes from what was saved (or the current pick); the shared pen ink never
+      // colors paper. makeStickyNote square-normalizes whatever geometry arrives.
       const noteColor = data.color || (colorPicked ? color : STICKY_PAPER)
       const group = makeStickyNote({
         content: data.content || '', color: noteColor,
-        x: data.x, y: data.y, width: data.width || 180, height: data.height || 120,
+        x: data.x, y: data.y, width: data.width || 180, height: data.height || 180,
       })
       group.__noteColor = noteColor
       group.content = data.content
@@ -830,7 +901,14 @@ window.hibanaCanvas = (() => {
     // realtime mirror: every keystroke lands on the paper this frame
     editor.on('changed', () => {
       inner.set('text', editor.text) // re-measures (wrap width stays pinned)
-      group.__fitPaper?.() // paper grows in place, downward only
+      group.__fitPaper?.() // paper grows in place, as a square (session 17)
+      // Session 17: a grown square re-pins the paper's wrap width — keep the live twin
+      // wrapping at the SAME width so the caret/line breaks match what the paper shows
+      // (on exit the inner text re-wraps there too, so no jarring reflow).
+      if (Math.abs((editor.width || 0) - (inner.width || 0)) > 1) {
+        editor.set({ width: inner.width })
+        if (typeof editor.initDimensions === 'function') editor.initDimensions()
+      }
       canvas.requestRenderAll()
     })
     editor.on('editing:exited', () => {
@@ -945,7 +1023,10 @@ window.hibanaCanvas = (() => {
   }
   function recolorSticky(g, c) {
     if (!g || !c || g.__locked) return
+    // Session 17: BOTH rects of the layered shadow repaint (the back rect hides behind
+    // the paper but must match its fill, or the recolor leaves a stale rim at the edges).
     g.__paper?.set({ fill: c })
+    g.__shadowPaper?.set({ fill: c })
     g.__noteColor = c // travels with the record (objectToData reads __noteColor)
     g.dirty = true
     persistActive() // save + undo history — the color survives save/reload
@@ -1857,12 +1938,16 @@ window.hibanaCanvas = (() => {
       // Machine-gun fix (2026-08-26 user request): a plain click must NOT spawn a note —
       // only a real drag commits one, and the drag rectangle sets its size.
       if (w < 40 || h < 40) return
+      // Session 17: the drag rectangle becomes a SQUARE — the note takes the larger of
+      // the drawn width/height on BOTH axes (the DOM sticky papers' aspect-ratio 1/1,
+      // mirrored on canvas). Minimum side 80px as before.
+      const side = Math.max(80, Math.round(w), Math.round(h))
       const id = crypto.randomUUID()
       const data = {
         id, type: 'note',
         x: Math.min(draft.x0, p.x), y: Math.min(draft.y0, p.y),
-        width: Math.max(80, Math.round(w)),
-        height: Math.max(60, Math.round(h)),
+        width: side,
+        height: side,
         color: colorPicked ? color : STICKY_PAPER, content: '', z_index: 0, deleted: 0,
         created_at: new Date().toISOString(), updated_at: new Date().toISOString(),
       }

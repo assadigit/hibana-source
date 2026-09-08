@@ -2719,12 +2719,24 @@ html[data-theme='dark'] .pen-blue { color: #7fb5f0; }
   border: 1px solid var(--line);
 }
 .sticky-note {
+  /* Session 17 (2026-09-18): the projects/sparks "Sticky Notes" corkboard joins the
+     ONE sticky-paper style — the owner's reference mockup, same tokens as the quicknote /
+     canvas / notebook papers above: true square (aspect-ratio 1/1), near-sharp 2px
+     corners, layered directional shadow (light from the top-left). Fill is the theme's
+     paper surface (var(--card)) — these are project cards, not user-colored notes; the
+     shadow stays neutral black regardless. Overflow clips long titles/descriptions at
+     the square's edge, matching the DOM note papers' hard boundary. */
+  aspect-ratio: 1 / 1;
   padding: 0.9rem;
-  border-radius: var(--radius-sm);
-  border: 1px solid var(--line);
+  border-radius: 2px;
+  border: 0;
+  background: var(--card);
+  box-shadow: 1px 3px 4px rgb(0 0 0 / 0.10), 4px 12px 20px rgb(0 0 0 / 0.12);
+  overflow: hidden;
   cursor: pointer;
   display: grid;
   gap: 0.5rem;
+  align-content: start;
   color: var(--text);
   transition: background-color 0.12s ease;
 }
@@ -2941,19 +2953,27 @@ cite { font-style: normal; }
 #notebook #nv-sticky:checked ~ .note-list::-webkit-scrollbar { display: none; }
 #notebook #nv-sticky:checked ~ .note-list > .note-card { flex: 0 0 calc(25% - 0.6rem); min-width: 10rem; }
 #notebook :is(#nv-sticky:checked, #nv-grid:checked) ~ .note-list > .note-card {
-  /* Phase 7 item 11: AUTO height — the fixed square (aspect-ratio 1/1) left short
-     notes swimming in dead space with the action row pinned to the bottom (user:
-     "The Box is too big"). Content now sizes the paper; a floor keeps one-liners
-     from collapsing and a cap keeps long notes scrolling INSIDE the paper. */
-  min-block-size: 7.5rem;
-  max-block-size: 15rem;
+  /* Session 17 (2026-09-18, owner reference mockup): the sticky paper is a TRUE SQUARE
+     with near-sharp corners and a Miro-style layered, directional shadow — light from
+     the top-left, so the shadow sits down-and-right and the top/left edges stay clean.
+     Two stacked layers: a tight low-opacity contact shadow hugging the paper + a larger
+     softer diffuse one beneath for depth. The shadow is neutral black on every paper
+     fill (yellow/green/pink/blue) — color-matched shadows read muddy, not realistic.
+     NOTE: this intentionally REVERSES Phase 7 item 11's auto-height (the "Box is too
+     big" complaint) per the owner's latest direction — the fixed square returns; long
+     content clips sooner, which the «بیشتر…» note-more chip + the internal scroll
+     (app.js markClampedNotes) keep handling. The height caps are GONE: min/max block
+     size would clip the 16rem square (old cap 15rem) and re-introduce non-square
+     papers on narrow grid tracks — aspect-ratio alone governs the paper now. */
+  aspect-ratio: 1 / 1;
   grid-template-rows: auto minmax(0, 1fr) auto; /* header + content + footer — definite tracks (2026-08-26) */
   scroll-snap-align: start;
   position: relative; /* the hover palette overlays the paper */
   align-self: flex-start; /* a long sibling never stretches this card (2026-08-25) */
   background: var(--note-color, #fff59d);
   border: 0;
-  box-shadow: 0 6px 14px rgb(0 0 0 / 0.12);
+  border-radius: 2px; /* near-sharp paper corners (was --radius-sm 14px) */
+  box-shadow: 1px 3px 4px rgb(0 0 0 / 0.10), 4px 12px 20px rgb(0 0 0 / 0.12);
   color: #3f3f46;
   overflow: hidden; /* hard boundary — content can never bleed off the paper (2026-08-25) */
 }
@@ -2974,8 +2994,9 @@ cite { font-style: normal; }
 #notebook :is(#nv-sticky:checked, #nv-grid:checked) ~ .note-list .note-text,
 #notebook :is(#nv-sticky:checked, #nv-grid:checked) ~ .note-list .note-render {
   color: #3f3f46;
-  /* Phase 7 item 11: with auto-height papers the content row caps at the card's
-     max-block-size (15rem) instead of "100%" of a square — long notes scroll inside. */
+  /* Session 17: the paper is a fixed square (aspect-ratio 1/1), so the content row is
+     the square minus the headbar/footer tracks — long notes scroll INSIDE the paper and
+     app.js's markClampedNotes still fires the «بیشتر…» chip at the truncation point. */
   max-block-size: 100%;
   overflow: hidden auto; /* horizontal clipped, long notes scroll vertically (2026-08-25) */
   overflow-wrap: anywhere;
@@ -3052,14 +3073,14 @@ cite { font-style: normal; }
    columns with truncated text). Now 2 sticky notes per row, and each note is a little
    SMALLER than the full half-width: tracks cap at 9.5rem and the pair centers in the
    notebook, shrinking gracefully on narrower phones (minmax(0, …) floors the track at
-   0). The mobile height cap also drops 15rem → 10.5rem so rows stay compact. */
+   0). Session 17: the 10.5rem card height cap is GONE — aspect-ratio 1/1 governs the
+   square paper (9.5rem track = 9.5rem square). */
 @media (max-width: 40rem) {
   #notebook #nv-grid:checked ~ .note-list {
     grid-template-columns: repeat(2, minmax(0, 9.5rem));
     justify-content: center;
     max-height: 100cqw;
   }
-  #notebook #nv-grid:checked ~ .note-list > .note-card { max-block-size: 10.5rem; }
 }
 #notebook #nv-grid:checked ~ .note-list > .note-card {
   min-width: 0;
@@ -5111,9 +5132,13 @@ body.has-mobile-nav { padding-block-end: calc(3.5rem + env(safe-area-inset-botto
   align-items: flex-start;
   gap: 0.5rem;
   background: var(--sticky-bg, #fff59d);
-  border-radius: 8px;
+  /* Session 17: same sticky-paper DNA as the note papers — near-sharp 2px corners and
+     the layered directional shadow (light from the top-left), scaled DOWN for a chip
+     that lives inside a dense calendar day cell: the full 4px 12px 20px layer would
+     flood neighboring cells, so this carries the same recipe at chip scale. */
+  border-radius: 2px;
   padding: 0.45rem 0.6rem;
-  box-shadow: 0 1px 4px rgb(0 0 0 / 0.12);
+  box-shadow: 1px 2px 3px rgb(0 0 0 / 0.10), 2px 6px 10px rgb(0 0 0 / 0.12);
 }
 .cal-day-sticky-text { flex: 1; font-size: var(--fs-sm); overflow-wrap: anywhere; }
 .cal-day-note-text { font-size: var(--fs-sm); overflow-wrap: anywhere; }

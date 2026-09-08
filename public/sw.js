@@ -1,4 +1,15 @@
 // Hibana service worker — PWA packaging (Phase 5).
+// Session-17 (2026-09-18, v0.3.9.1 release): hibana-v237 → v238 — app.css v214 + canvas.js
+// v15 + whiteboard.js v10: the ONE sticky-note style app-wide (owner's reference
+// mockup): every sticky paper is a TRUE SQUARE (aspect-ratio 1/1 on the quick-note /
+// notebook sticky+grid views and the projects/sparks corkboard; square-normalized
+// geometry + square auto-growth on the fabric boards), corners drop to near-sharp 2px
+// (was 10-14px), and the flat symmetric halo is replaced by a layered DIRECTIONAL
+// shadow — light from the top-left: box-shadow 1px 3px 4px rgba(0,0,0,.10) (contact) +
+// 4px 12px 20px rgba(0,0,0,.12) (soft), neutral black on every pastel; the fabric
+// boards replicate the two layers with a back shadow rect. The calendar's mini sticky
+// chips carry the same recipe at chip scale. Full-tree bump per the cache rules.
+//
 // Session-15 (2026-09-18, v0.3.9 release: Obsidian vault export + neutral stage
 // cards — rides the v0.3.9 deploy which carries BOTH undeployed batches,
 // session-14 + session-15): hibana-v236 →
@@ -92,7 +103,7 @@
 // DELETED (F11). F7 also adds SHELL entries: /reset.html (public auth page was
 // missing — offline boot impossible) and /to-do-list (the board's canonical URL —
 // offline navigation used to fall through to the dashboard shell).
-const VERSION = 'hibana-v237'
+const VERSION = 'hibana-v238'
 
 // Static shell: unhashed pages/partials/icons/vendor/fonts (SWR or network-first at
 // runtime; precached here for offline). The hashed app bundles come from the manifest

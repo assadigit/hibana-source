@@ -4,6 +4,47 @@ Full spec: `pm-app-spec.md` · Rules (non-negotiable): `CLAUDE.md` · Reasoning:
 Deploy: `DEPLOY.md` · What's next: `ROADMAP.md` · Session handoff: `NEW_SESSION_PROMPT.md`
 Verification: `npm test` (244) · `npm run typecheck` · `npm run smoke` · `npm run drill` · `npm run drill:planb`
 
+## 2026-09-18 — v0.3.9.1: session 17 — the ONE sticky-note style (square + layered directional shadow)
+Owner reference mockup (a square pale-yellow paper on a light surface) replicated as the
+single sticky style across every surface: quick-note sticky/grid papers, canvas +
+notebook fabric stickies, the projects/sparks «Sticky Notes» corkboard, and the calendar
+day chips. CSS/JS only — no schema changes, no server-HTML changes, no migrations
+(schema stays 44). Shipped with SW `hibana-v238`, `app.css ?v=214`, `canvas.js ?v=15`,
+`whiteboard.js ?v=10`. Tests stay 244/244 (nothing pinned the old style). Packaged as
+`hibana.0.3.9.1.zip` + git release commit + tag `v0.3.9.1` — the owner's pick of a
+dot-release over v0.3.10 for this style-only patch on v0.3.9.
+- **Shadow (every sticky):** the flat symmetric halo (`0 6px 14px rgba(0,0,0,.12)` on
+  DOM, `blur 14 offsetY 6` on fabric) is replaced by a LAYERED DIRECTIONAL shadow —
+  light from the top-left, shadow down-and-right, two stacked layers:
+  `box-shadow: 1px 3px 4px rgb(0 0 0 / 0.10), 4px 12px 20px rgb(0 0 0 / 0.12)`. The
+  shadow color stays neutral black on every paper fill (color-matched shadows read
+  muddy). The fabric boards replicate the two layers with TWO stacked rects — a back
+  rect carrying the large soft layer (blur 20, offset 4×12) that hides exactly behind
+  the paper, and the paper itself carrying the tight contact layer (blur 4, offset
+  1×3); recolors repaint both rects (canvas `recolorSticky`), so a pastel swap never
+  leaves a stale rim.
+- **Shape (every sticky):** true square, near-sharp 2px corners (was 10-14px). DOM
+  sticky/grid papers: `aspect-ratio: 1/1` — the Phase-7 auto-height + 7.5/15rem caps
+  are gone (the owner's new direction supersedes the old "box is too big" decision);
+  long content clips sooner and the «بیشتر…» chip + internal scroll keep handling it
+  (browser-verified: has-more fires, the reader modal opens). Fabric stickies:
+  square-normalized on load (one side = max of the saved w/h), drag-creation takes the
+  larger of the drawn sides (min 80), and growth stays SQUARE with the wrap re-pinned —
+  the minimal square is found by binary search (text height shrinks as the wrap widens,
+  so a naive "grow to the current wrap's height" overshot ~8×; measured 1250px → fixed
+  to 467px on the same text). The projects corkboard `.sticky-note` joins the style
+  (square, 2px, layered shadow, `var(--card)` paper, overflow clip); the calendar's
+  mini chips carry the same recipe at chip scale (`1px 2px 3px / 2px 6px 10px`) so the
+  dense day grid doesn't flood.
+- **Verified:** dashboard sticky+grid (208px/185px/152px/9.5rem squares — desktop,
+  1280, 390px; light+dark; exact computed shadows), more-toggle → reader modal on a
+  fresh long note, whiteboard sticky create→type (twin wrap-sync on growth)→commit→
+  reload round-trip (468px square, both shadow layers, 662-char content), canvas sticky
+  drag-create (130×60 drag → 130 square)→palette recolor (both rects + persist)→×
+  delete, projects sticky board (8 squares), calendar chip create/delete. Console 0,
+  page errors 0, server log boot-only. Gates: tsc clean, 244/244, smoke ALL PASS,
+  check-cache-bust PASS. Screenshots: `audit-results/shots/s17-*.png`.
+
 ## 2026-09-18 — v0.3.9: sessions 14+15 — Obsidian vault export, neutral stage cards, phone UX follow-ups + on-demand Plan B
 Two undeployed batches shipped together as v0.3.9. CSS/JS/server-HTML only — no
 schema changes (migrations stay at 44; the retired `users.telegram_backup` column

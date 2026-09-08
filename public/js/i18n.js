@@ -386,6 +386,11 @@ window.hibanaI18n = (() => {
       'queue.saving': 'Saving…',
       'queue.saved': 'Saved',
       'queue.auth': 'Sign in to sync',
+      // F2 (session 9): offline banner — the auth guard's stay-on-page state
+      'offline.banner': 'Offline — your work is saved locally and will sync when you reconnect',
+      // F8 (session 9): global htmx error surfaces — toast + existing content stays
+      'hx.offline': "You're offline — showing saved content",
+      'hx.failed': "Couldn't load the latest — content unchanged",
       // floating action button
       'fab.idea': 'New idea', 'fab.project': 'New project', 'fab.new': 'New',
       'fab.task': 'New Task',
@@ -946,6 +951,11 @@ window.hibanaI18n = (() => {
       'queue.saving': 'در حال ذخیره…',
       'queue.saved': 'ذخیره شد',
       'queue.auth': 'برای همگام‌سازی وارد شوید',
+      // F2 (session 9): offline banner — the auth guard's stay-on-page state
+      'offline.banner': 'آفلاین — کارهای شما به‌صورت محلی ذخیره می‌شود و با اتصال دوباره همگام خواهد شد',
+      // F8 (session 9): global htmx error surfaces — toast + existing content stays
+      'hx.offline': 'آفلاین هستید — محتوای ذخیره‌شده نمایش داده می‌شود',
+      'hx.failed': 'بارگذاری نشد — محتوا بدون تغییر ماند',
       // floating action button
       'fab.idea': 'ایده جدید', 'fab.project': 'پروژه جدید', 'fab.new': 'جدید',
       'fab.task': 'کار جدید',
@@ -1261,7 +1271,7 @@ window.hibanaI18n = (() => {
     document.dispatchEvent(new CustomEvent('hibana:i18n', { detail: { lang } }))
   }
 
-  return { apply, t, lang: () => lang, ready }
+  return { apply, t, lang: () => lang, tz: () => tz, ready }
 })()
 
 document.addEventListener('DOMContentLoaded', () => window.hibanaI18n.apply())

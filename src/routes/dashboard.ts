@@ -110,7 +110,11 @@ export function dashboardRoutes(cfg: Config) {
     interface DSig { bugs: number; ideas: number; backlog: number; hurdles: number; backlogUpdated: string | null }
     const sigMap = new Map<string, DSig>()
     for (const id of signalIds) sigMap.set(id, { bugs: 0, ideas: 0, backlog: 0, hurdles: 0, backlogUpdated: null })
-    for (const r of sigDevRows) { const s = sigMap.get(r.project_id); if (s) (r.status === 'bug' ? s.bugs++ : r.status === 'idea' ? s.ideas++ : null) }
+    // Session-9 extra fix: sigDevRows is GROUP BY (project, status) — ONE row carrying
+    // the count in r.n. The old `s.bugs++`/`s.ideas++` incremented by 1 per GROUP, so
+    // the dashboard's bug bubble read "1 باگ باز" no matter how many bugs existed
+    // (user report: "always stays 1"). Assign r.n like projects.ts loadProjectSignals.
+    for (const r of sigDevRows) { const s = sigMap.get(r.project_id); if (s) (r.status === 'bug' ? (s.bugs = r.n) : r.status === 'idea' ? (s.ideas = r.n) : null) }
     for (const r of sigBlRows) { const s = sigMap.get(r.project_id); if (s) { s.backlog = r.n; s.backlogUpdated = r.latest } }
     for (const r of sigHRows) { const s = sigMap.get(r.project_id); if (s) s.hurdles = r.n }
 

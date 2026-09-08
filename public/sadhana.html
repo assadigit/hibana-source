@@ -12,7 +12,7 @@
   <link rel="icon" href="/favicon.ico">
   <link rel="manifest" href="/manifest.webmanifest">
   <meta name="theme-color" content="#EDE8DF">
-  <link rel="stylesheet" href="/css/app.css?v=201">
+  <link rel="stylesheet" href="/css/app.css?v=204">
   <link rel="stylesheet" href="/vendor/manrope/font-face.css">
   <link rel="stylesheet" href="/vendor/vazir/font-face.css">
   <script>
@@ -22,17 +22,17 @@
   <!-- Hibana shell chrome: offline queue, global app (nav partial fetch, theme, SW,
        auth guard), i18n (topbar + title translation), soft-nav, command palette,
        mobile bottom bar, PWA install prompt. No Alpine/htmx — the board is plain JS. -->
-  <script src="/js/queue.js" defer></script>
+  <script src="/js/queue.js?v=1" defer></script>
   <!-- Phase 6 item 2: the full emoji library + the shared picker dialog -->
   <!-- M7: emoji-data.js lazy-loaded by emoji-picker.js on first open (saves 49KB on every page load) -->
   <script src="/js/emoji-picker.js?v=2" defer></script>
-  <script src="/js/app.js?v=159" defer></script>
-  <script src="/js/touch-drag.js" defer></script>
-  <script src="/js/i18n.js?v=32" defer></script>
+  <script src="/js/app.js?v=161" defer></script>
+  <script src="/js/touch-drag.js?v=1" defer></script>
+  <script src="/js/i18n.js?v=35" defer></script>
   <script src="/js/nav.js?v=1" defer></script>
   <script src="/js/command-palette.js?v=1" defer></script>
   <script src="/js/mobile-nav.js?v=4" defer></script>
-  <script src="/js/go-to.js" defer></script>
+  <script src="/js/go-to.js?v=1" defer></script>
   <script src="/js/install-prompt.js?v=1" defer></script>
   <style>
 /* ══ Design-system unification (2026-08-29) ════════════════════════════════════
@@ -49,7 +49,11 @@
   --border: var(--line);
   --border2: var(--line-strong);
   --text-muted: var(--muted);
-  --text-dim: #A09890;                       /* warm dim — dark variant below */
+  /* F3 (session 9): the light/dark values were SWAPPED — the dark blocks redeclared
+     the LIGHT value (#524A40, 1.9:1 on the dark surface) and the light default was the
+     mid #A09890 (2.8:1 on white — fails AA for the 9.5–13px meta text it styles).
+     Now: light gets #524A40 (8.3–8.7:1), dark gets #A09890 (5.7–6.1:1). */
+  --text-dim: #524A40;                       /* warm dim — light value; dark variant below */
   --shadow-lg: 0 8px 36px rgb(30 20 10 / 0.12);
   --accent-l: rgb(74 159 163 / 0.13);        /* teal tint (theme-agnostic rgba) */
   /* quadrant edge (2026-09 user request: "edges not visible / cropped") — a stronger
@@ -69,10 +73,10 @@
   --th:#5A9E80;--th-l:rgba(90,158,128,.11);   /* health: mint-sage */
 }
 @media (prefers-color-scheme: dark) {
-  .sadhana-wrap { --text-dim:#524A40; --shadow-lg:0 8px 40px rgb(0 0 0 / 0.65); --q-edge:rgba(255,240,200,.25); }
+  .sadhana-wrap { --text-dim:#A09890; --shadow-lg:0 8px 40px rgb(0 0 0 / 0.65); --q-edge:rgba(255,240,200,.25); }
 }
-html[data-theme='light'] .sadhana-wrap { --text-dim:#A09890; --shadow-lg:0 8px 36px rgb(30 20 10 / 0.12); --q-edge:rgba(50,35,15,.26); }
-html[data-theme='dark'] .sadhana-wrap { --text-dim:#524A40; --shadow-lg:0 8px 40px rgb(0 0 0 / 0.65); --q-edge:rgba(255,240,200,.25); }
+html[data-theme='light'] .sadhana-wrap { --text-dim:#524A40; --shadow-lg:0 8px 36px rgb(30 20 10 / 0.12); --q-edge:rgba(50,35,15,.26); }
+html[data-theme='dark'] .sadhana-wrap { --text-dim:#A09890; --shadow-lg:0 8px 40px rgb(0 0 0 / 0.65); --q-edge:rgba(255,240,200,.25); }
 
 /* Board-scoped reset + base type. The global * reset used to live on the document —
    now it must not touch the injected Hibana chrome (topbar / bottom bar / cmdk). */
@@ -128,10 +132,8 @@ body.rtl .hdr-date{margin-left:0;margin-right:8px}
 .sadhana-wrap .ftag.all{background:transparent;border-color:transparent;color:var(--text-muted)}
 .sadhana-wrap .ftag.all:hover{background:transparent;border-color:transparent;color:var(--text)}
 .sadhana-wrap .ftag.all.active{background:transparent;border-color:transparent;color:var(--text);font-weight:600}
-/* Mobile quadrant-focus chip (2026-08-29) — hidden on desktop; the ≤740px block below
-   shows it and body.mobile-focus trims the board to Q1 Today + Q3 Urgent. */
-.sadhana-wrap #quadFocusBtn{display:none;white-space:nowrap;flex-shrink:0}
-.sadhana-wrap #quadFocusBtn.active{background:var(--accent-soft);color:var(--accent);border-color:var(--accent)}
+/* (2026-08-29 quadrant-focus chip removed in session 9 — the swipeable carousel
+   replaced the mobile focus view; see the SWIPEABLE QUADRANT CAROUSEL blocks.) */
 /* filter tags — monochrome, emoji kept, no color coding.
    2026-09-02 user request: no background fills — quiet text pills; only the active
    filter carries a tint so the current filter stays recognizable. */
@@ -147,8 +149,11 @@ body.rtl .hdr-date{margin-left:0;margin-right:8px}
 }
 
 /* ─── Matrix ───────────────────────────────────── */
-.sadhana-wrap .mat-outer{flex:1;overflow:hidden;padding:10px 22px;max-width:1440px;margin:0 auto;width:100%;display:flex;flex-direction:column}
-.sadhana-wrap .mat-grid{display:grid;grid-template-columns:1fr 1fr;grid-template-rows:1fr 1fr;gap:10px;flex:1;overflow:hidden}
+/* Session-9 extra: section breathing room — the subbar and the quadrant matrix
+   sat 10px apart with 10px quadrant gaps; +6px/+2px reads as clear white space
+   between the board's sections without wasting phone height (see ≤740 block). */
+.sadhana-wrap .mat-outer{flex:1;overflow:hidden;padding:16px 22px 14px;max-width:1440px;margin:0 auto;width:100%;display:flex;flex-direction:column}
+.sadhana-wrap .mat-grid{display:grid;grid-template-columns:1fr 1fr;grid-template-rows:1fr 1fr;gap:12px;flex:1;overflow:hidden}
 
 /* ─── Quadrant ─────────────────────────────────── */
 /* 2026-08-29 (user request): quadrants are MINIMAL — no per-quadrant color coding
@@ -181,7 +186,10 @@ body.rtl .mat-grid{direction:rtl}
 .sadhana-wrap .qe-pop{position:fixed;z-index:551;display:none;flex-direction:column;gap:9px;background:var(--surface);border:1px solid var(--border2);border-radius:var(--radius);box-shadow:var(--shadow-lg);padding:12px;width:280px;max-width:calc(100vw - 20px)}
 .sadhana-wrap .qe-pop.open{display:flex}
 .sadhana-wrap .qe-row{display:flex;gap:8px;align-items:center}
-.sadhana-wrap .qe-emo{width:40px;height:40px;font-size:20px;border-radius:10px;border:1px solid var(--border2);background:var(--surface2);cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-family:inherit}
+/* F5 (session 9, sibling): same bug class as .dash-style-emoji — the global button{}
+   paints emoji glyphs --btn-text (white); on the surface2 tile that's 1.1:1. --text
+   makes the glyph visible; color-emoji fonts ignore it. */
+.sadhana-wrap .qe-emo{width:40px;height:40px;font-size:20px;border-radius:10px;border:1px solid var(--border2);background:var(--surface2);color:var(--text);cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-family:inherit}
 .sadhana-wrap .qe-emo:hover{border-color:var(--accent)}
 .sadhana-wrap .qe-name{flex:1;min-width:0;font-family:inherit;font-size:13px;padding:9px 11px;border-radius:10px;border:1.5px solid var(--border2);background:var(--surface);color:var(--text);outline:none}
 .sadhana-wrap .qe-name:focus{border-color:var(--accent)}
@@ -414,8 +422,10 @@ body.rtl .task-tags{margin-left:0;margin-right:1px}
   background:var(--surface);cursor:pointer;font-size:11.5px;
   color:var(--text-muted);font-family:inherit;transition:all .15s;width:100%;
 }
-.sadhana-wrap .dl-trigger:hover{border-color:var(--accent);color:var(--accent)}
-.sadhana-wrap .dl-trigger.has-val{color:var(--accent);border-color:var(--accent);background:var(--accent-l)}
+.sadhana-wrap .dl-trigger:hover{border-color:var(--accent);color:var(--link)}
+/* F14 (session 9): has-val text was --accent (2.7:1 on the tint chip) — --link is the
+   text-safe teal (≈4.8:1 on the same chip); the ✕ clear glyph inherits it too. */
+.sadhana-wrap .dl-trigger.has-val{color:var(--link);border-color:var(--accent);background:var(--accent-l)}
 .sadhana-wrap .dl-trigger-ico{font-size:14px}
 .sadhana-wrap .dl-trigger-clr{margin-left:auto;font-size:13px;cursor:pointer;opacity:.6;transition:opacity .15s}
 .sadhana-wrap .dl-trigger-clr:hover{opacity:1}
@@ -598,15 +608,21 @@ body.rtl .fuz-opt{text-align:right}
 /* slideUp animation for mobile modal sheets — must be outside @media to parse correctly */
 @keyframes slideUp{from{transform:translateY(100%)}to{transform:translateY(0)}}
 
+/* Desktop (>740px): carousel guidance chrome is mobile-only — hidden by this BASE
+   rule, re-enabled by the ≤740px blocks BELOW. (Must precede them in source —
+   same specificity, later wins; declaring it after the media blocks kept the
+   dots/hint hidden at every width. Caught by computed-style measurement.) */
+@media(min-width:741px){
+  .sadhana-wrap .quad-dots,.sadhana-wrap .swipe-hint{display:none}
+}
 /* ═══════════════════════════════════════════════════
    MOBILE RESPONSIVE — 740px and below
    ═══════════════════════════════════════════════════ */
 @media(max-width:740px){
-  /* ── Unlock full-page natural scroll ─────────── */
-  html,body{height:auto!important;overflow-x:hidden!important;overflow-y:auto!important}
-  body.sadhana-body{overflow-y:auto!important;display:block!important}
-  .sadhana-wrap{display:block!important;min-height:0}
-  .sadhana-wrap .page-shell{height:auto!important;overflow:visible!important;display:block!important}
+  /* Session-9 (swipeable board): the full-page natural-scroll unlock is GONE — the
+     carousel needs the fixed desktop shell (body flex column, page-shell overflow
+     hidden, mat-outer flex:1) so each slide is exactly the viewport area and task
+     lists scroll INSIDE their quadrant, exactly like the desktop 2×2 board. */
 
   /* ── Toolbar (old header gone; unified chrome rules) ── */
   .sadhana-wrap .hdr-date{display:none}   /* hide date pill on mobile */
@@ -622,87 +638,82 @@ body.rtl .fuz-opt{text-align:right}
   .sadhana-wrap .subbar-inner::-webkit-scrollbar{display:none}
   .sadhana-wrap .filter-tags{flex-wrap:nowrap;gap:4px}
   .sadhana-wrap .ftag{white-space:nowrap;padding:4px 9px}
+  /* F13 (session 9): ≥40px chip targets on touch — chips sit ADJACENT (4px gaps),
+     so a padded pseudo-element would overlap the neighbors; a real min-height
+     keeps every zone honest. The subbar row grows ~10px — the carousel layout
+     absorbs it. */
+  .sadhana-wrap .ftag{min-block-size:40px;padding-block:9px}
 }
 
 /* The rest of the ≤740px block — kept as its own query so the subbar pinning rules
    above stay readable. Everything here is board layout on phones. */
 @media(max-width:740px){
-  /* ── Quadrant focus: today + urgent only (user request 2026-08-29) ──
-     Phones default to the action quadrants (Q1 Today + Q3 Urgent); the
-     #quadFocusBtn chip in the subbar flips to the full 2×2 board. */
-  .sadhana-wrap #quadFocusBtn{display:inline-flex}
-  body.mobile-focus .quadrant:not(.q1):not(.q3){display:none}
-
-  /* ── Matrix: single column, full natural height (full-board view) ── */
-  .sadhana-wrap .mat-outer{
-    padding:10px 10px 32px!important;
-    overflow:visible!important;flex:none!important;
-    max-width:100%!important;
-  }
+  /* ══ SWIPEABLE QUADRANT CAROUSEL (session 9, user request) ══
+     The old phone layout showed two half-width quadrants per row (2026-08-29 focus
+     view) — cramped cards, cramped headers, UI problems. Now the matrix is a
+     horizontal scroll-snap carousel: ONE full-width quadrant per slide, thumb-swipe
+     to move, scroll-snap-stop:always so a flick lands exactly one quadrant over.
+     Task lists keep the desktop behavior (scroll INSIDE the quadrant + the “↓ more”
+     indicator) because each slide is the full viewport area. Desktop (>740px) keeps
+     the 2×2 grid; the zen overlay is outside .mat-grid and is never affected. */
+  .sadhana-wrap .mat-outer{position:relative;padding:10px 10px 6px!important;max-width:100%!important}
   .sadhana-wrap .mat-grid{
-    grid-template-columns:1fr!important;
-    grid-template-rows:auto!important;
+    display:flex!important;
+    grid-template-columns:none!important;grid-template-rows:none!important;
+    overflow-x:auto!important;overflow-y:hidden!important;
+    scroll-snap-type:x mandatory!important;
     gap:10px!important;
-    overflow:visible!important;flex:none!important;
+    flex:1!important;min-height:0!important;
+    scrollbar-width:none;
+    -webkit-overflow-scrolling:touch;
   }
+  .sadhana-wrap .mat-grid::-webkit-scrollbar{display:none}
+  .sadhana-wrap .mat-grid .quadrant{
+    flex:0 0 100%;
+    scroll-snap-align:start;
+    scroll-snap-stop:always;
+    min-width:0;
+  }
+  .sadhana-wrap .mat-grid .sadhana-loading{flex:none}
 
-  /* ── Focus view: two columns side by side (user request 2026-08-29) ──
-     In the default mobile focus view the two action quadrants sit NEXT TO
-     each other — Q1 Today | Q3 Urgent — never stacked one per row (RTL flips
-     the columns, so FA reads امروز on the right, فوری on the left). The
-     full-board view (chip toggled off) keeps the single-column stack above. */
-  body.mobile-focus .sadhana-wrap .mat-grid{
-    grid-template-columns:1fr 1fr!important;
-    gap:8px!important;
+  /* ── Dot indicators (visual guidance #1): 4 tappable dots under the carousel —
+     active dot = visible quadrant; tap a dot to jump. The 26px button + -7px inset
+     pseudo-element gives a ≥40px hit target (WCAG 2.5.8) while the dot stays 7px. */
+  .sadhana-wrap .quad-dots{
+    flex:none;display:flex;justify-content:center;align-items:center;
+    gap:14px;padding:6px 0 2px;
   }
-  /* Grid items default to min-width:auto — the nowrap .q-title (full quadrant
-     name) set a ~197px floor that made the columns unequal. Zero it so both
-     columns split the row exactly in half; the title ellipsizes on its own. */
-  body.mobile-focus .sadhana-wrap .quadrant{min-width:0}
-  body.mobile-focus .sadhana-wrap .mat-outer{padding:8px 8px 32px!important}
+  .sadhana-wrap .quad-dot{
+    position:relative;width:26px;height:26px;padding:0;
+    background:transparent!important;border:0;border-radius:50%;
+    cursor:pointer;min-width:0;min-height:0;font-size:0;line-height:0;
+  }
+  .sadhana-wrap .quad-dot::after{
+    content:"";position:absolute;inset:-7px;border-radius:50%;
+  }
+  .sadhana-wrap .quad-dot::before{
+    content:"";position:absolute;inset-inline-start:50%;inset-block-start:50%;
+    width:7px;height:7px;margin:-3.5px 0 0 -3.5px;border-radius:50%;
+    background:var(--border2);transition:transform .18s ease,background .18s ease;
+  }
+  .sadhana-wrap .quad-dot.active::before{background:var(--accent);transform:scale(1.7)}
+  .sadhana-wrap .quad-dot:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 
-  /* Compact quadrant headers for half-width columns (board grid only — the zen
-     overlay renders its own full-width card list and must stay untouched). */
-  body.mobile-focus .sadhana-wrap .mat-grid .q-hero{padding:7px 9px;gap:6px}
-  body.mobile-focus .sadhana-wrap .mat-grid .q-big{width:26px;height:26px;font-size:14px;border-radius:7px}
-  body.mobile-focus .sadhana-wrap .mat-grid .q-hero-txt{min-width:0}
-  body.mobile-focus .sadhana-wrap .mat-grid .q-title{font-size:11px}
-  body.mobile-focus .sadhana-wrap .mat-grid .q-sub{display:none}
-  body.mobile-focus .sadhana-wrap .mat-grid .q-cnt{font-size:9px}
-  body.mobile-focus .sadhana-wrap .mat-grid .zen-btn{width:20px;height:20px;font-size:10px}
-
-  /* Compact task cards for half-width columns: the vertical action column
-     (pin/edit/delete) is hidden — tapping a card opens the edit form instead
-     (cardTap), and the edit form carries the delete button. Scoped to .mat-grid:
-     the zen overlay (#zenBody) reuses the same card markup at full width and
-     keeps its inline action buttons. */
-  body.mobile-focus .sadhana-wrap .mat-grid .task-card{padding:8px 8px;gap:6px}
-  body.mobile-focus .sadhana-wrap .mat-grid .t-actions{display:none!important}
-  body.mobile-focus .sadhana-wrap .mat-grid .t-emoji{font-size:15px;margin-top:3px}
-  body.mobile-focus .sadhana-wrap .mat-grid .t-check{width:18px;height:18px;margin-top:3px}
-  body.mobile-focus .sadhana-wrap .mat-grid .task-txt{font-size:11.5px;line-height:1.45}
-  body.mobile-focus .sadhana-wrap .mat-grid .t-meta .tdl{font-size:9.5px;padding:2px 6px}
-  body.mobile-focus .sadhana-wrap .mat-grid .prog-lbl{display:none}
-  body.mobile-focus .sadhana-wrap .mat-grid .prog-dot{width:11px;height:11px}
-  body.mobile-focus .sadhana-wrap .mat-grid .q-body{padding:6px 7px}
-  body.mobile-focus .sadhana-wrap .mat-grid .q-foot{padding:5px 7px 8px;min-height:50px}
-  body.mobile-focus .sadhana-wrap .mat-grid .add-btn{padding:8px 10px;font-size:11px;min-height:36px}
-  body.mobile-focus .sadhana-wrap .mat-grid .add-btn-lbl{max-width:110px!important}
-
-  /* ── Quadrants: full height, no internal scroll ── */
-  .sadhana-wrap .quadrant{
-    overflow:visible!important;height:auto!important;
-    min-height:0!important;border-radius:14px;
+  /* ── Swipe hint (visual guidance #2): a one-time pill at the inline-end edge that
+     pulses toward the next quadrant; removed on the first swipe or after 4s. */
+  .sadhana-wrap .swipe-hint{
+    position:absolute;inset-block-start:38%;inset-inline-end:10px;z-index:5;
+    display:flex;align-items:center;gap:5px;
+    background:var(--surface);border:1px solid var(--border2);border-radius:999px;
+    box-shadow:var(--shadow-lg);color:var(--text-muted);
+    font-size:10.5px;font-weight:600;padding:5px 10px;
+    pointer-events:none;
+    animation:hintNudge 1.6s ease-in-out infinite;
   }
-  .sadhana-wrap .q-body-wrap{
-    position:static!important;overflow:visible!important;
-    max-height:none!important;flex:none!important;
-  }
-  .sadhana-wrap .q-body{
-    overflow:visible!important;max-height:none!important;
-    padding:8px 10px;min-height:24px;
-  }
-  .sadhana-wrap .more-indicator{display:none!important} /* no internal scroll on mobile */
+  body.rtl .sadhana-wrap .swipe-hint{animation-name:hintNudgeRtl}
+  @keyframes hintNudge{0%,100%{transform:translateX(0)}50%{transform:translateX(-7px)}}
+  @keyframes hintNudgeRtl{0%,100%{transform:translateX(0)}50%{transform:translateX(7px)}}
+  .sadhana-wrap .swipe-hint.hide{display:none}
 
   /* ── Quadrant header ──────────────────────────── */
   .sadhana-wrap .q-big{font-size:19px}
@@ -783,6 +794,7 @@ body.rtl .fuz-opt{text-align:right}
   .sadhana-wrap .task-txt{font-size:12px}
 }
 
+
 /* ─── Hibana additions ─────────────────────────────────────── */
 /* Focus visibility for keyboard users (Hibana a11y audit standard) */
 .sadhana-wrap .task-card:focus-visible, .sadhana-wrap .quadrant:focus-visible, .sadhana-wrap button:focus-visible, .sadhana-wrap input:focus-visible, .sadhana-wrap textarea:focus-visible, .sadhana-wrap select:focus-visible{
@@ -849,10 +861,6 @@ body.rtl .fuz-opt{text-align:right}
     <button class="btn" id="archiveBtn" onclick="openArchive()">
       <span class="umenu-ico">🗄️</span><span id="archiveLbl">Archive</span>
     </button>
-    <!-- Mobile quadrant focus (user request 2026-08-29): on phones the board defaults
-         to the action quadrants only (Q1 Today + Q3 Urgent); this chip toggles all 4.
-         Hidden on desktop via CSS (#quadFocusBtn) where the 2×2 grid shows everything. -->
-    <button class="ftag q-focus" id="quadFocusBtn" onclick="toggleQuadFocus()" aria-pressed="true"></button>
     <!-- Filter tags -->
     <div class="filter-tags" id="filterTags"></div>
     <span style="font-size:10.5px;color:var(--text-dim);white-space:nowrap;align-self:center;margin-left:8px" id="filterCount"></span>
@@ -863,6 +871,11 @@ body.rtl .fuz-opt{text-align:right}
 
 <div class="mat-outer">
   <div class="mat-grid" id="matGrid"><div class="sadhana-loading" id="boardLoading">Loading…</div></div>
+  <!-- Carousel guidance (≤740px only, hidden on desktop): dots + one-time swipe hint.
+       Built by buildQuadDots() after the grid renders; siblings of #matGrid so they
+       survive every re-render. -->
+  <div class="quad-dots" id="quadDots" role="tablist" aria-label="Quadrants"></div>
+  <div class="swipe-hint" id="swipeHint" aria-hidden="true"><span id="swipeHintTxt">Swipe</span><span aria-hidden="true">›</span></div>
 </div>
 
 </div><!-- page-shell -->
@@ -1464,33 +1477,83 @@ function buildFilterBar(){
 }
 function setFilter(tagId){activeFilter=tagId;buildFilterBar();renderAll();}
 
-/* ══ MOBILE QUADRANT FOCUS (user request 2026-08-29) ══════════
-   On phones (≤740px) the board defaults to the action quadrants only —
-   Q1 Today + Q3 Urgent & High Value — rendered SIDE BY SIDE as two
-   half-width columns (see the focus-view CSS in the ≤740px block).
-   The #quadFocusBtn chip in the subbar flips between that focus view
-   and the full 2×2 board (single-column stack on phones). Desktop
-   never sees the chip or the trim (CSS gates both to the phone width). */
-let mobileFocus=window.matchMedia('(max-width:740px)').matches;
-function applyQuadFocus(){
-  document.body.classList.toggle('mobile-focus',mobileFocus);
-  const b=document.getElementById('quadFocusBtn');
-  if(b){
-    b.textContent=mobileFocus
-      ?(lang==='fa'?'🎯 امروز + فوری':'🎯 Today + Urgent')
-      :(lang==='fa'?'🗂 همه بخش‌ها':'🗂 All quadrants');
-    b.classList.toggle('active',mobileFocus);
-    b.setAttribute('aria-pressed',mobileFocus?'true':'false');
-  }
-  /* quadrant heights changed → the "↓ more" fade indicators need a re-check */
-  setTimeout(checkAllMore,60);
+/* ══ SWIPEABLE QUADRANT CAROUSEL (session 9, user request) ══════
+   Replaces the 2026-08-29 mobile quadrant-focus view (two half-width columns
+   side by side — cramped, caused UI problems). ≤740px: #matGrid is a scroll-snap
+   carousel, ONE quadrant per slide; thumb-swipe or dot-tap moves between them.
+   Guidance: the dot row (#quadDots, active dot synced to the visible slide) + a
+   one-time pulsing swipe hint (#swipeHint) that dies on first swipe or after 4s.
+   Desktop is untouched — the CSS gates everything to the phone width. */
+const isPhone=()=>window.matchMedia('(max-width:740px)').matches
+function buildQuadDots(){
+  const wrap=document.getElementById('quadDots');if(!wrap)return;
+  wrap.innerHTML=QUADS.map(q=>
+    `<button type="button" class="quad-dot" id="qd-${q.id}" role="tab" onclick="goToQuad(${q.id})" aria-label="${esc(q[lang].title)}" title="${esc(q[lang].title)}"></button>`
+  ).join('');
+  syncQuadDots();
+  wireSwipeHint();
 }
-function toggleQuadFocus(){mobileFocus=!mobileFocus;applyQuadFocus();}
-/* A task added to a quadrant that the focus view hides would silently vanish —
-   flip to the full board instead so the new card is always visible. */
+/* RTL note: modern browsers report NEGATIVE scrollLeft while scrolling an RTL
+   container (slide 2+ lives to the LEFT of slide 1 for fa). |scrollLeft| / width
+   gives the slide index in both directions; the sign flips only when WE scroll. */
+function quadIndex(){
+  const g=document.getElementById('matGrid');if(!g)return 0;
+  return Math.max(0,Math.min(QUADS.length-1,Math.round(Math.abs(g.scrollLeft)/Math.max(1,g.clientWidth))))
+}
+function syncQuadDots(){
+  const i=quadIndex();
+  document.querySelectorAll('.quad-dot').forEach((d,k)=>{
+    d.classList.toggle('active',k===i);
+    d.setAttribute('aria-selected',k===i?'true':'false');
+  });
+}
+function goToQuad(q){
+  const g=document.getElementById('matGrid');if(!g)return;
+  /* NOTE: QUADS is ordered [1,3,2,4] (Today, Urgent, Strategic, Personal — the two
+     action quadrants first); slide i = QUADS[i], NOT quadrant id i. RTL verified:
+     modern Chrome reports NEGATIVE scrollLeft (slide 2+ sits left of slide 1). */
+  const i=QUADS.findIndex(x=>x.id===q);if(i<0)return;
+  const sign=getComputedStyle(g).direction==='rtl'?-1:1;
+  g.scrollTo({left:sign*i*g.clientWidth,behavior:'smooth'});
+  hideSwipeHint();
+}
+/* A task added to a quadrant on another slide would land off-screen — advance the
+   carousel so the new card is always visible (replaces the old revealIfHidden). */
 function revealIfHidden(q){
-  if(mobileFocus&&q!==1&&q!==3){mobileFocus=false;applyQuadFocus();}
+  if(!isPhone())return;
+  if(quadIndex()!==QUADS.findIndex(x=>x.id===q))goToQuad(q);
 }
+/* Swipe hint: pulse until the user first swipes (or 4s); one session per load. */
+let swipeHintHidden=false
+function wireSwipeHint(){
+  const h=document.getElementById('swipeHint'),g=document.getElementById('matGrid');
+  if(!h||!g)return;
+  const txt=document.getElementById('swipeHintTxt');
+  if(txt)txt.textContent=lang==='fa'?'برای بخش‌های دیگر بکشید':'Swipe for more';
+  h.querySelector('span:last-child').textContent=lang==='fa'?'‹':'›';
+  if(swipeHintHidden||!isPhone()){h.classList.add('hide');return}
+  h.classList.remove('hide');
+  setTimeout(hideSwipeHint,4000);
+}
+function hideSwipeHint(){
+  swipeHintHidden=true;
+  document.getElementById('swipeHint')?.classList.add('hide');
+}
+(function(){
+  const g=document.getElementById('matGrid');if(!g)return;
+  let raf=0;
+  g.addEventListener('scroll',()=>{
+    if(!isPhone())return;
+    hideSwipeHint();
+    if(raf)return;
+    raf=requestAnimationFrame(()=>{raf=0;syncQuadDots()})
+  },{passive:true});
+  g.addEventListener('scrollend',syncQuadDots);
+  /* Grid rebuilt (buildGrid replaces children) → re-wire dots + re-measure. */
+  const mo=new MutationObserver(()=>{if(isPhone())syncQuadDots()});
+  mo.observe(g,{childList:true});
+  window.addEventListener('resize',()=>{buildQuadDots()});
+})();
 function updateFilterCount(){
   const fc=document.getElementById('filterCount');if(!fc)return;
   if(activeFilter==='all'){fc.textContent='';return;}
@@ -1634,7 +1697,7 @@ function tcHTML(task,q){
    toggle, note preview, buttons/inputs) are excluded so their actions win.
    Board cards only — the zen overlay keeps its own inline action buttons. */
 function cardTap(ev,id,q){
-  if(!document.body.classList.contains('mobile-focus'))return;
+  if(!isPhone())return;
   if(!ev.target.closest('#matGrid'))return;
   if(ev.target.closest('.t-check,.t-emoji,.upd-toggle,.upd-panel,.t-act,.task-tag,.prog-dot,.task-note-preview,button,input,textarea,select,a'))return;
   startEdit(id,q);
@@ -2424,7 +2487,7 @@ function setLang(l){
   const signOutLbl=document.getElementById('signOutLbl');
   if(signOutLbl)signOutLbl.textContent=tr('signOut');
   updateThemeLabel();
-  buildGrid();buildFilterBar();buildHeaderDate();buildModalQuads();applyQuadFocus();
+  buildGrid();buildFilterBar();buildHeaderDate();buildModalQuads();buildQuadDots();
   document.title=lang==='fa'?'لیست کارها — هیبانا':'To-do list — Hibana';
 }
 
@@ -2696,7 +2759,7 @@ async function saveQEdit(){
     closeQEdit();
     window.hibana?.toast(lang==='fa'?'✅ بخش به‌روز شد':'✅ Quadrant updated','info');
     await reloadTasks();
-    buildGrid();buildFilterBar();buildHeaderDate();buildModalQuads();applyQuadFocus();
+    buildGrid();buildFilterBar();buildHeaderDate();buildModalQuads();buildQuadDots();
   }catch{
     window.hibana?.toast(lang==='fa'?'ذخیره نشد — دوباره تلاش کنید':"Couldn't save — try again.",'err');
   }
@@ -2768,7 +2831,7 @@ async function init(){
   buildFilterBar();
   buildHeaderDate();
   buildModalQuads();
-  applyQuadFocus();
+  buildQuadDots();
   document.title=lang==='fa'?'لیست کارها — هیبانا':'To-do list — Hibana';
 
 }

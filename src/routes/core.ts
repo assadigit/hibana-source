@@ -58,8 +58,13 @@ export function coreRoutes(cfg: Config) {
   app.use('*', requireAuth(cfg))
 
   const gh = () => githubClient(cfg.github as GitHubConfig)
+  // Session-9 F1 (2026-09-14): NO leading slash. The GitHub Contents API 422s on
+  // `path cannot start with a slash` — the historic `/${user}/…` shape broke EVERY
+  // screenshot upload (500 internal_error) and the feature never worked in prod
+  // (0 rows ever, 0 error_log entries — it was unreachable in the UI's eyes). Backups
+  // and avatars were unaffected: their paths never carried the leading slash.
   const assetPath = (p: { user_id: string; project_id: string }, kind: 'screenshots', filename: string) =>
-    `/${p.user_id}/${p.project_id}/${kind}/${filename}` // namespaced per user (spec §15)
+    `${p.user_id}/${p.project_id}/${kind}/${filename}` // namespaced per user (spec §15)
 
   // ---- hurdles ---------------------------------------------------------------
   const hurdlesHtml = (hurdles: HurdleRow[], lang: Locale): string =>

@@ -27,7 +27,18 @@
 //     SHELL precache was hardcoded to ?v= URLs; that coupling is gone. Vendor/page
 //     files still refresh via SWR / network-first exactly as before.
 
-const VERSION = 'hibana-v228'
+// Session 9 (2026-09-14): v228 → v229 — batch 1+2 (F1–F6, F14). Not a sw.js logic
+// change, but a full-tree content change: app.js (F2 offline auth guard), i18n.js
+// (offline.banner), app.css (F3–F6, F14 tokens), sadhana.html (F3/F14 — unversioned
+// HTML rides exactly this bump, as do partials). The version bump drops the whole
+// v228 cache on activate so no stale copy of any class survives the deploy.
+// Session 9 batches 3+4 (F7–F13): v229 → v230 — app.js (F8 htmx error handler),
+// i18n.js (new keys), app.css (F13 touch targets), sadhana.html (swipeable carousel
+// + spacing), calendar/admin/canvas page changes (F9/F10/F12), to-do-list.html
+// DELETED (F11). F7 also adds SHELL entries: /reset.html (public auth page was
+// missing — offline boot impossible) and /to-do-list (the board's canonical URL —
+// offline navigation used to fall through to the dashboard shell).
+const VERSION = 'hibana-v230'
 
 // Static shell: unhashed pages/partials/icons/vendor/fonts (SWR or network-first at
 // runtime; precached here for offline). The hashed app bundles come from the manifest
@@ -44,6 +55,8 @@ const SHELL = [
   '/canvas.html',
   '/whiteboard.html',
   '/sadhana.html',
+  '/to-do-list',
+  '/reset.html',
   '/clients.html',
   '/archive.html',
   '/reports.html',

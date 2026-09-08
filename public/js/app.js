@@ -10,7 +10,7 @@ try {
 // js/queue.js and powers the quick-add + canvas sync. Guard against pages that forgot the tag.
 if (!window.hibanaQueue) {
   const qs = document.createElement('script')
-  qs.src = '/js/queue.js'
+  qs.src = '/js/queue.js?v=1' // F7 (session 9): versioned like the HTML refs — cache-bust discipline
   document.head.appendChild(qs)
 }
 
@@ -2526,6 +2526,53 @@ window.hibana = (() => {
 
   // ---- boot: nav, auth guard, PWA, trigger wiring ----
   let userChecked = false
+
+  // F2 (session 9): the offline banner — the queue-badge pattern (queue.js paints
+  // [data-syncbadge] the same way): a small fixed pill, i18n'd via data-i18n so a
+  // language toggle re-translates it, removed when the browser fires 'online' (the
+  // same cue the queue uses to re-flush). The auth guard shows it instead of
+  // redirecting to login when /api/auth/me can't be reached.
+  function showOfflineBanner() {
+    if (document.querySelector('[data-offline-banner]')) return
+    const banner = document.createElement('div')
+    banner.className = 'offline-banner'
+    banner.setAttribute('data-offline-banner', '')
+    banner.setAttribute('data-i18n', 'offline.banner')
+    banner.setAttribute('role', 'status')
+    banner.textContent = window.hibanaI18n?.t('offline.banner') || 'Offline — your work is saved locally and will sync when you reconnect'
+    document.body.appendChild(banner)
+    window.addEventListener('online', () => banner.remove(), { once: true })
+  }
+
+  // F8 (session 9): GLOBAL htmx error surface. Only project.html registered an
+  // htmx:responseError handler — every other page left failed swaps SILENT (audit
+  // finding: offline/500 fragments leave the zone stale with no cue). Policy:
+  //   - htmx already leaves the existing content in place on error — we keep that
+  //     (never blank a zone on failure), we only ADD a toast explaining what happened.
+  //   - 401 = the session died: redirect to login (the app-wide auth contract, same
+  //     as handle401) — a "couldn't load" toast would mislead.
+  //   - 404 = semantic "gone": page-specific handlers own it (project.html renders
+  //     its own friendly box; delete flows treat 404 as already-gone) — no toast.
+  //   - anything else (SW offline 503, network 0, 5xx, 429…): status-aware toast.
+  document.addEventListener('htmx:responseError', (e) => {
+    const status = e.detail?.xhr?.status
+    if (status === 401) {
+      if (location.pathname !== '/login.html') window.location.replace('/login.html')
+      return
+    }
+    if (status === 404) return
+    const _t = (k, fb) => { const s = window.hibanaI18n?.t(k); return s && s !== k ? s : fb }
+    let msg
+    if (status === 0 || status === 503) {
+      // 0 = request never completed (offline, no SW catch); 503 = the SW's offline
+      // answer or an origin overload — both read as "you may be offline".
+      msg = _t('hx.offline', "You're offline — showing saved content")
+    } else {
+      msg = _t('hx.failed', "Couldn't load the latest — content unchanged")
+    }
+    toast(msg, 'err', 5000)
+  })
+
   const favicon = document.createElement('link')
   favicon.rel = 'icon'
   favicon.type = 'image/svg+xml'
@@ -2553,7 +2600,16 @@ window.hibana = (() => {
         // Re-run i18n now that nav chrome is in the DOM (data-i18n elements).
         window.hibanaI18n?.apply()
         const userEl = document.querySelector('[data-user]')
-        const info = await fetch('/api/auth/me').then((r) => (r.ok ? r.json() : null))
+        // F2 (session 9): offline boot with the SW not yet controlling this page makes
+        // fetch() itself throw — an unhandled rejection here would abort the rest of the
+        // nav wiring (logout/theme/lang listeners below). Treat it as "no info": the auth
+        // guard's offline banner explains the state.
+        let info = null
+        try {
+          info = await fetch('/api/auth/me').then((r) => (r.ok ? r.json() : null))
+        } catch {
+          info = null
+        }
         // Super-admin panel link (batch r): the nav item ships hidden in the partial;
         // only owners ever see it. The API is the real gate — this is pure UX. The flag +
         // event let late-built chrome (the mobile sheet) catch up.
@@ -2626,8 +2682,27 @@ window.hibana = (() => {
       // bounced guests to login. Public paths are exempted by URL too — a public page
       // must never redirect to login just because a cached variant lost its classes.
       const publicPaths = ['/login', '/login.html', '/signup', '/signup.html', '/confirm', '/confirm.html', '/reset', '/reset.html']
-      const me = await fetch('/api/auth/me')
-      if (!me.ok && !publicPaths.includes(location.pathname) && !(document.body?.classList.contains('public-page') ?? false)) {
+      const isPublic = publicPaths.includes(location.pathname) || (document.body?.classList.contains('public-page') ?? false)
+      // F2 (session 9): offline boots used to redirect to login — the guard read ANY
+      // failed /api/auth/me as "logged out", but the SW answers API calls with
+      // 503 {error:'offline'} when the network is gone, so the PWA offline story
+      // (cached shell + queue capture) was dead on arrival. Now: a thrown fetch or
+      // the SW's offline 503 keeps you ON the page with the offline banner; ONLY a
+      // deterministic 401 redirects. A bare 503/5xx (origin blip) also stays put —
+      // bouncing an authed user during a restart was never right either.
+      let me = null
+      let offline = false
+      try {
+        me = await fetch('/api/auth/me')
+      } catch {
+        offline = true // request never completed: no network, DNS/VPN, or no SW catch
+      }
+      if (!offline && me && me.status === 503) {
+        try { offline = (await me.clone().json())?.error === 'offline' } catch { offline = false }
+      }
+      if (offline) {
+        if (!isPublic) showOfflineBanner()
+      } else if (me && me.status === 401 && !isPublic) {
         window.location.replace('/login.html')
       }
     }

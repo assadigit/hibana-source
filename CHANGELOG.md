@@ -2,7 +2,144 @@
 
 Full spec: `pm-app-spec.md` · Rules (non-negotiable): `CLAUDE.md` · Reasoning: `vision.md` ·
 Deploy: `DEPLOY.md` · What's next: `ROADMAP.md` · Session handoff: `NEW_SESSION_PROMPT.md`
-Verification: `npm test` (233) · `npm run typecheck` · `npm run smoke` · `npm run drill` · `npm run drill:planb`
+Verification: `npm test` (235) · `npm run typecheck` · `npm run smoke` · `npm run drill` · `npm run drill:planb`
+
+## 2026-09-14 — v0.3.5: session 9 — full UI/UX audit + fixes (batches 1–4), released & deployed
+Release wrapping the session-9 audit→plan→fix cycle (23 pages audited EN/FA × light/dark ×
+desktop/768/390 + programmatic consistency/contrast sweeps). **Deployed to prod with this
+release** (SW `hibana-v230`, asset versions app.css `?v=204` / app.js `?v=161` /
+i18n.js `?v=35`). No schema changes — no D1 migration needed. Tests 233 → 235.
+Detail entries below (batches 3+4, batches 1+2). Highlights:
+- **CRITICAL — screenshot uploads fixed for the first time ever** (GitHub Contents API
+  422 on the leading-slash asset path; 0 successful uploads in prod history) — F1 + the
+  downstream gallery refresh re-verified end-to-end (F16).
+- **Offline PWA boots stay on-page** with an i18n offline banner (auth guard no longer
+  treats SW's 503-offline as logged-out; only a real 401 redirects) — F2.
+- **AA contrast pass** on the audit offenders: sadhana `--text-dim` theme swap,
+  dash-todo-more, style-picker/qe-emoji glyphs, `--cta` family 3.9 → 4.93:1,
+  teal-as-text → `--link` (F3–F6, F14).
+- **Consistency + states + mobile UX** (batches 3+4): bug-bubble count GROUP-BY fix,
+  swipeable quadrant board carousel (≤740px), global htmx error handler, all 77 script
+  refs versioned, canvas toolbar wrap, calendar profile-TZ "today", dead
+  to-do-list.html removed, touch targets ≥40px.
+- Release artifact: `hibana.0.3.5.zip` (source + fresh `public/dist`; no secrets).
+
+## 2026-09-14 — session 9, batches 3+4: bug-bubble count, swipeable board, consistency + states, mobile UX
+Owner-approved batch 3 (F7–F13) + three user requests (bug-bubble count, section
+spacing, swipeable quadrant board). No schema changes. Tests stay 235/235.
+- **Bug bubble count (user report "always stays 1"):** `dashboard.ts` read its
+  GROUP-BY signal rows with `s.bugs++` — one increment per (project, status) GROUP,
+  ignoring `r.n`, so the dashboard bubble read «۱ باگ باز» no matter how many bugs
+  existed (ideas had the same bug). Now assigns `r.n` like `projects.ts` — live
+  verified: 3 planted bugs → «۳ / 3 باگ باز» on the dashboard fragment + projects list.
+- **Swipeable quadrant board (user request, replaces the 2026-08-29 mobile focus
+  view):** ≤740px the matrix is now a scroll-snap carousel — ONE full-width quadrant
+  per slide, thumb-swipe between them, `scroll-snap-stop:always` (one quadrant per
+  flick), task lists scroll INSIDE the slide (desktop behavior, incl. the "↓ more"
+  indicators — verified live). Guidance: a 4-dot indicator row (active dot synced
+  to the visible slide, tap-to-jump, ≥40px hit zones, RTL-correct negative
+  scrollLeft math) + a one-time pulsing swipe hint (dies on first swipe or 4s).
+  Desktop 2×2 untouched. The #quadFocusBtn chip and `body.mobile-focus` machinery
+  (the cramped two-half-width-columns view) are gone; `revealIfHidden` now advances
+  the carousel when a task lands on another slide.
+- **Section white space (user report):** projects page header → filter bar had a 0px
+  gap (now 1.25rem); board subbar → matrix padding 10px → 16px and quadrant gap
+  10 → 12px.
+- **F7:** all 77 unversioned script refs versioned `?v=1` (touch-drag/go-to/zen-mode/
+  micro-interactions/queue/jalali-holidays across pages + app.js's own queue.js
+  injection) — check-cache-bust CI protection re-armed; audit-consistency UNVERSIONED
+  findings: 0. SW SHELL additions: `/reset.html` (public auth page was missing —
+  offline boot impossible) + `/to-do-list` (canonical board URL — offline nav fell
+  through to the dashboard shell).
+- **F8:** global `htmx:responseError` handler in app.js — the audit's "failed
+  fragments leave zones silently stale" gap. Policy: 401 → login redirect (the
+  app-wide auth contract), 404 → silent (page handlers own "gone" semantics), 503/0
+  → offline-flavored toast, other errors → generic toast; existing content always
+  stays (htmx default). i18n keys `hx.offline`/`hx.failed` EN+FA. Live-verified:
+  synthetic 503 → «آفلاین هستید — محتوای ذخیره‌شده نمایش داده می‌شود» toast, content
+  unchanged.
+- **F9:** canvas toolbar at ≤420px — the first tool cluster alone was ~472px wide and
+  the toolbar only wrapped BETWEEN groups, never inside them (audit: page scrollW
+  484 @390). Clusters now wrap their own buttons; dividers fold away; verified
+  scrollW = 390, zero horizontal scroll.
+- **F10:** calendar "today" now computes in the PROFILE timezone — `hibanaI18n.tz()`
+  newly exposed; `nowInTz()` drives `todayISO()` (focus + Today button) AND
+  `isToday()` (the grid ring); `repaintAfterI18n` re-targets the boot-day guess
+  once the TZ resolves (browser-local fallback until then). Live-verified the exact
+  audit mismatch is gone: dashboard «سه‌شنبه ۱۷ شهریور» == calendar today cell ۱۷
+  (browser UTC 23:41, profile Asia/Tehran).
+- **F11:** `public/to-do-list.html` deleted (the dead drifting duplicate — the route
+  `/to-do-list` serves sadhana.html and `/to-do-list.html` 301s; the file served to
+  nobody). Build/wiring verified clean: no script hardcodes it, dist never built it,
+  all runtime links use `/to-do-list`. Pages scanned: 23 → 22.
+- **F12:** verified ALREADY CORRECT in the restored tree — admin.js's boot checks
+  `/api/auth/me` and members get the «این بخش فقط برای مدیر ارشد است» owner-only
+  notice (console shell hidden). Live-verified member + deny state + no console
+  errors; no code change needed (audit finding recorded as inaccurate on this point).
+- **F13:** worst touch targets raised — `.sp-cat-chevron` 15×18 → real 40×40;
+  `.ftag` chips ≥40px on phones (real min-height — adjacent chips can't share a
+  padded pseudo); `.dash-todo-style`/`.skc-open`/`.pd-title-pen` get the padded
+  ::after hit-zone pattern (~43/41/42px zones); `.settings-tab` real 40px. Canvas
+  swatches already carried the ≥40px pseudo zone (26px visual) — audit measured the
+  visual box only; noted, unchanged.
+- **Cache discipline:** app.css `?v=204` (23→22 pages), app.js `?v=161` (21→20),
+  i18n.js `?v=35` (22→21) — check-cache-bust PASS; SW `hibana-v229 → v230` with
+  SHELL additions above (all 48 entries resolve 200).
+- **Gates:** 235/235 tests · typecheck clean · i18n parity 869/869 · zero console
+  errors on a 13-page re-sweep · F2 offline banner re-verified post-changes
+  (true-offline: stays + banner; server restored). Fixed one carousel CSS ordering
+  bug found by computed-style measurement (base hide rule after the media blocks
+  kept the dots/hint invisible at every width — moved before them).
+
+## 2026-09-14 — session 9, batches 1+2: screenshot uploads fixed, offline boot fixed, AA contrast pass
+Owner-approved fix batch from the session-9 UI/UX audit (worklog-session9.md Task 0).
+No schema changes. Tests 233 → 235 (new screenshot-path regression pins).
+- **CRITICAL — screenshot uploads (F1):** `assetPath()` in `src/routes/core.ts` built
+  `/${user}/${project}/screenshots/…` with a LEADING SLASH; the GitHub Contents API 422s
+  on "path cannot start with a slash", so every upload 500'd — the feature never worked
+  in prod (0 rows ever, 0 error_log entries). One-line fix + regression tests pinning
+  the path shape end-to-end (`src/tests/screenshots.test.ts`: captured PUT URL, DB
+  `github_path`, 201-not-500, replay id). Live E2E through the real UI + real token:
+  upload 201 → bytes readback → file present in hibana-safe (verified via the Contents
+  API; test artifacts cleaned up after).
+- **#shots auto-refresh (F16, downstream):** the existing repair
+  (`htmx.ajax → #shots`) only fires on `res.ok`; with uploads now 201 it runs —
+  verified live: gallery 2 → 3 figures with no reload (window marker survived).
+- **MAJOR — offline boot (F2):** the auth guard read ANY failed `/api/auth/me` as
+  logged-out and redirected to login — offline the SW answers 503 `{error:'offline'}`,
+  killing the PWA offline story on arrival. Now: fetch-throw or the SW's offline 503
+  keeps you ON the page with an i18n'd offline banner (queue-badge pattern:
+  `[data-offline-banner]`, amber pill, `role=status`, auto-removed on the browser's
+  `online` event, `data-i18n`-reactive; keys `offline.banner` EN+FA, parity 867/867);
+  a deterministic 401 still redirects to login — both paths browser-verified (true
+  offline = server stopped: stay + banner; cleared session on a static page:
+  redirect). A bare 503/5xx (origin blip) also stays put. The nav-mount `me` fetch is
+  now throw-safe so a no-SW offline boot can't abort the nav wiring.
+- **Contrast (F3–F6, F14) — app.css + sadhana.html:**
+  - F3: sadhana `--text-dim` light/dark values were swapped (dark 1.9:1, light 2.8:1) →
+    now light `#524A40` (8.3+), dark `#A09890` (5.7+) — all four declaration sites.
+  - F4: `.dash-todo-more` is a text link, not a CTA — `background: transparent` in
+    base/hover/active (the global `button{}` rule painted it solid teal: 2.0/1.2).
+  - F5: `.dash-style-emoji` gets `color: var(--text)` (white emoji glyphs on light
+    surfaces were 1.1:1 — invisible); sibling fix `.qe-emo` on the board (same class).
+  - F6: `--cta` `#3D8D91` → `#2E7B7F` (white-on-CTA 3.9 → 4.93:1, AA for 12–14px
+    labels; hover `#276A6D`) in all four theme blocks — teal stays teal.
+  - F14: teal-as-text switched to `--link` (text-safe teal, 5.4:1 light / 8.5:1 dark):
+    `button.ghost` (the app-wide text-link button — the audit's "امروز/روز/لغو/"
+    بارگذاری/آپلود/پروژه مشتری جدید" family), `.mobile-nav` current-tab label
+    (was `--brand` 2.9), `.note-more` pill text, `.cal-cell.today .cal-day-num`
+    (was `--brand`), and the board's `.dl-trigger` family (the 2.7:1 measured set).
+  - Contrast matrix re-run (fa/en × light/dark): every batch-scope offender cleared.
+    Remaining known items are out-of-batch (marginal 4.1–4.4 badges, white-on-`--accent`
+    board buttons — a different token than `--cta`, the "E" avatar initial, skip-link).
+- **Cache discipline:** app.css `?v=201→202` (23 pages), app.js `?v=159→160` (21),
+  i18n.js `?v=32→33` (22) — check-cache-bust PASS; SW `hibana-v228 → v229` (full-tree
+  content bump: app.js/i18n.js/app.css/sadhana.html+partials ride it; v228 cache
+  dropped on activate — browser-verified, only v229 key remains). SHELL re-check: all
+  46 entries resolve 200; pre-existing gap noted (reset.html not precached; dead
+  to-do-list.html precache waste) — left for the owner, no behavior change.
+- Gates: 235/235 tests · typecheck clean · i18n parity 867/867 · zero console/page
+  errors on re-swept pages · true-offline + 401 + recovery browser-verified.
 
 ## 2026-09-08 — v0.3.4: mirror deferred + ArvanCloud API recon (docs-only)
 No application code, schema, or deploy changes — prod stays on the v0.3.3 worker (607a7cd9).

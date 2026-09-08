@@ -1,8 +1,14 @@
-# Hibana — New Session Prompt (session 9 starter: UI/UX audit → plan → fix)
+# Hibana — New Session Prompt (session 10 starter)
 
 Copy-paste the entire block below as your first message in a new session.
-Attach/upload the source zip (`hibana.0.3.4.zip`) to the same message if the sandbox
+Attach/upload the source zip (`hibana.0.3.5.zip`) to the same message if the sandbox
 doesn't already contain it.
+
+> Session 9 (audit → plan → fix, batches 1–4) is COMPLETE and DEPLOYED to prod as
+> v0.3.5 — see `worklog-session9.md` + the v0.3.5 CHANGELOG entry. Queued for the next
+> session: the out-of-batch contrast marginals (4.1–4.4 badges, white-on-`--accent`
+> board fills, "E" avatar initial, skip-link, calendar «شمسی» seg), the notebook
+> dark-mode photo inversion, and batch-5 triage of anything new you find.
 
 ---
 
@@ -13,15 +19,15 @@ personal project/idea manager. This session's agenda, in this exact order:
 **① UI/UX audit → ② plan the fixes → ③ implement / fix / debug.**
 
 ## 0) Restore the project first
-I uploaded `hibana.0.3.4.zip` (source + fresh `public/dist`; no node_modules, no local
+I uploaded `hibana.0.3.5.zip` (source + fresh `public/dist`; no node_modules, no local
 dbs, no secrets). Restore and baseline:
 
 ```bash
-unzip hibana.0.3.4.zip -d /home/z/my-project/hibana-work
+unzip hibana.0.3.5.zip -d /home/z/my-project/hibana-work
 cd /home/z/my-project/hibana-work
 npm ci
 npm run typecheck   # must be clean
-npm test            # must be 233/233
+npm test            # must be 235/235
 ```
 
 Then start the local Node server for the audit: `npm run migrate:node && npm run
@@ -31,12 +37,11 @@ seed:admin:node && npm run start:node` (serves on :8787; test user `e2e@test.loc
 - **Stack:** Hono + TypeScript + Zod on Cloudflare Workers; D1 (SQLite) via `src/db/`;
   static HTML + htmx + Alpine + Fabric.js in `public/` (built hashed assets in
   `public/dist/` via `scripts/build.mjs`). Full detail: `tech-stack.md`.
-- **Live:** https://hibana.ir (prod, worker 607a7cd9, schema 44) ·
-  https://hibana.aliassadi.workers.dev (dev). Live = this source (v0.3.3/v0.3.4;
-  v0.3.4 was docs-only — no code delta).
-- **Read-first, in order:** `CHANGELOG.md` (current state, newest first — read the
-  2026-09-04→09-08 entries at minimum) · `worklog-session8.md` (Tasks 25–32: the full
-  perf/data-safety/DR/mirror arc) · `CLAUDE.md` (non-negotiable rules) ·
+- **Live:** https://hibana.ir (prod, schema 44) · https://hibana.aliassadi.workers.dev
+  (dev). Live = this source (v0.3.5, deployed with session 9 batches 1–4).
+- **Read-first, in order:** `CHANGELOG.md` (newest first — the 2026-09-14 v0.3.5 +
+  session-9 batch entries) · `worklog-session9.md` (the full audit + 4-batch arc,
+  incl. the out-of-batch remainders queue) · `CLAUDE.md` (non-negotiable rules) ·
   `pm-app-spec.md` + `vision.md` (spec + intent, consult as needed) ·
   `docs/uptime-monitoring.md` §"runbook" for ops state.
 - **The two jobs** (vision.md): *never lose an idea, never lose your place.* Every audit
@@ -95,9 +100,9 @@ users**.
 - **i18n:** every feature/fix ships EN + FA together (programmatic key-parity check).
 - **Cache discipline:** any CSS/JS change bumps `?v=` on EVERY referencing HTML page
   AND the service-worker cache name AND its SHELL asset list. Current at packaging
-  (= deployed state): `app.css` v201 · `app.js` v159 · `i18n.js` v32 · `devboard.js`
+  (= deployed state): `app.css` v204 · `app.js` v161 · `i18n.js` v35 · `devboard.js`
   v9 · `canvas.js` v14 · `whiteboard.js` v9 · `task-controls.css` v4 · `admin.js` v2 ·
-  SW `hibana-v227` · 23 HTML pages.
+  SW `hibana-v230` · 22 HTML pages.
 - **Deploy pipeline:** `npm run deploy:prod` = build `--prod --wire-html` →
   dist-wiring gate → `wrangler deploy --env prod` → canonical HTML restore. Never
   hand-edit wired HTML.

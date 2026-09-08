@@ -17,5 +17,7 @@ cookies.txt
 *.cookies
 # local Node run logs (dev server stdout)
 *.log
+# session audit evidence screenshots (heavy PNGs; results/tooling are tracked, shots stay local)
+audit-results/shots/
 # live credentials — gitignored forever; the agent reads it but it never ships to git or a zip
 credentials.md

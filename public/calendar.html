@@ -4,23 +4,23 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Calendar — Hibana</title>
-  <link rel="stylesheet" href="/css/app.css?v=201">
+  <link rel="stylesheet" href="/css/app.css?v=204">
   <link rel="stylesheet" href="/vendor/manrope/font-face.css">
   <script src="/vendor/htmx.min.js" defer></script>
   <script src="/js/boot.js?v=3"></script>
   <script src="/vendor/alpine.min.js" defer></script>
-  <script src="/js/queue.js" defer></script>
-  <script src="/js/app.js?v=159" defer></script>
-  <script src="/js/touch-drag.js" defer></script>
+  <script src="/js/queue.js?v=1" defer></script>
+  <script src="/js/app.js?v=161" defer></script>
+  <script src="/js/touch-drag.js?v=1" defer></script>
   <script src="/vendor/jalaali.min.js" defer></script>
-  <script src="/js/jalali-holidays.js" defer></script>
-  <script src="/js/i18n.js?v=32" defer></script>
+  <script src="/js/jalali-holidays.js?v=1" defer></script>
+  <script src="/js/i18n.js?v=35" defer></script>
   <script src="/js/nav.js?v=1" defer></script>
   <script src="/js/command-palette.js?v=1" defer></script>
   <script src="/js/mobile-nav.js?v=4" defer></script>
-  <script src="/js/zen-mode.js" defer></script>
-  <script src="/js/micro-interactions.js" defer></script>
-  <script src="/js/go-to.js" defer></script>
+  <script src="/js/zen-mode.js?v=1" defer></script>
+  <script src="/js/micro-interactions.js?v=1" defer></script>
+  <script src="/js/go-to.js?v=1" defer></script>
   <script src="/js/install-prompt.js?v=1" defer></script>
 </head>
 <body>
@@ -203,8 +203,27 @@
         // chain from it, day clicks set it, and its cell wears the .selected ring.
         const isoOf = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
         const fromISO = (s) => new Date(Number(s.slice(0, 4)), Number(s.slice(5, 7)) - 1, Number(s.slice(8, 10)))
-        const todayISO = () => { const n = new Date(); return `${n.getFullYear()}-${pad(n.getMonth() + 1)}-${pad(n.getDate())}` }
+        // F10 (session 9): "now" in the PROFILE timezone, not the browser's — the
+        // dashboard computes today server-side via todayIn(user.timezone), so a
+        // browser-TZ ≠ profile-TZ user saw the dashboard a day ahead of/behind the
+        // calendar (audit: ۱۷ شهریور vs ۱۶). hibanaI18n.tz() resolves after /me;
+        // before that (and on any bad tz id) we fall back to browser-local, and
+        // repaintAfterI18n re-targets once the profile TZ lands.
+        const nowInTz = () => {
+          const tz = window.hibanaI18n?.tz?.()
+          if (tz) {
+            try {
+              // 'en-CA' + these options formats as YYYY-MM-DD
+              const s = new Intl.DateTimeFormat('en-CA', { timeZone: tz, year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date())
+              const [y, m, d] = s.split('-').map(Number)
+              if (y > 0 && m > 0 && d > 0) return { y, m, d }
+            } catch { /* invalid tz id → browser-local fallback below */ }
+          }
+          const n = new Date(); return { y: n.getFullYear(), m: n.getMonth() + 1, d: n.getDate() }
+        }
+        const todayISO = () => { const { y, m, d } = nowInTz(); return `${y}-${pad(m)}-${pad(d)}` }
         let selISO = todayISO()
+        const bootTodayISO = selISO // F10: still-on-today detector for the post-i18n re-target
 
         // ---- Day creators (user request 2026-08-30) ---------------------------------
         // The sticky palette mirrors quicknotes.ts NOTE_COLOR_HEX so calendar chips and
@@ -332,12 +351,12 @@
 
         // Is the given (year, month, day) today, in the active calendar?
         function isToday(year, month, day) {
-          const now = new Date()
+          const n = nowInTz() // F10: profile TZ — same "now" as todayISO/selISO
           if (isJalali) {
-            const j = toJ(now.getFullYear(), now.getMonth() + 1, now.getDate())
+            const j = toJ(n.y, n.m, n.d)
             return j.jy === year && j.jm === month && j.jd === day
           }
-          return now.getFullYear() === year && now.getMonth() + 1 === month && now.getDate() === day
+          return n.y === year && n.m === month && n.d === day
         }
 
         // Empty cells before day 1, based on the week start convention.
@@ -958,6 +977,15 @@
           const langChanged = newLang !== lang
           lang = newLang
           syncSysButtons()
+          // F10 (session 9): the profile timezone just resolved (hibanaI18n.tz()).
+          // If the focused day is still the boot-day guess and the profile TZ moved
+          // "today" (browser UTC 23:30 → Tehran is already tomorrow), re-target the
+          // focus + the month cursor; the .today ring follows nowInTz() on its own.
+          const tzToday = todayISO()
+          if (selISO === bootTodayISO && tzToday !== bootTodayISO) {
+            selISO = tzToday
+            cursorFromDate(selISO)
+          }
           if (!calSys) {
             const nj = lang === 'fa'
             if (nj !== isJalali) {

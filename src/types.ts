@@ -1,4 +1,4 @@
-import type { D1Database, Fetcher } from '@cloudflare/workers-types'
+import type { Ai, D1Database, Fetcher } from '@cloudflare/workers-types'
 import type { Db } from './db/types'
 
 // Worker bindings (wrangler.toml). Secrets arrive as plain env properties at runtime —
@@ -6,6 +6,9 @@ import type { Db } from './db/types'
 export interface Env {
   DB: D1Database
   ASSETS: Fetcher
+  // Workers AI binding (idea §1 — Magic Button). Added via `[ai]` in wrangler.toml; absent
+  // on the Node self-host path, where the feature degrades to a friendly 503 notice.
+  AI: Ai
   ENVIRONMENT: string // 'dev' | 'prod' — set per wrangler environment
   GITHUB_TOKEN?: string
   GITHUB_OWNER?: string
@@ -50,6 +53,10 @@ export interface Config {
    *  proxy rewrites at origin-pull time (docs/edge-mirror.md). Exact string match
    *  ("https://host[:port]"), no trailing slashes. Unset = mirrors not trusted. */
   mirrorOrigins?: string[]
+  /** Workers AI runner (idea §1 — Magic Button). A structural slice of the Cloudflare `Ai`
+   *  binding (`env.AI.run(model, inputs)`). Wired by the Worker entry; left undefined on
+   *  the Node self-host path, where /api/ai/text degrades to a 503 “Workers-only” notice. */
+  ai?: import('./services/ai').AiRunner
   assets?: (url: URL, req?: Request) => Promise<Response>
 }
 

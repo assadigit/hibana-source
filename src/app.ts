@@ -24,6 +24,7 @@ import { timelineRoutes } from './routes/timeline'
 import { notificationsRoutes } from './routes/notifications'
 import { registerTelegram, registerImport } from './routes/integrations'
 import { registerHealth } from './routes/health'
+import { aiRoutes } from './routes/ai'
 import { requireAuth } from './auth/middleware'
 import type { Config, UserRow } from './types'
 
@@ -286,6 +287,9 @@ export function createApp(cfg: Config) {
   app.route('/api/calendar', calendarRoutes(cfg))
   app.route('/api/timeline', timelineRoutes(cfg))
   app.route('/api/notifications', notificationsRoutes(cfg))
+  // Magic Button (idea §1, green-lit): POST /api/ai/text — polish/rewrite/translate via the
+  // Workers AI binding. Auth + CSRF same as every other write route; no schema, no cron.
+  app.route('/api/ai', aiRoutes(cfg))
 
   const assets = cfg.assets
   if (assets) {

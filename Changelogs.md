@@ -9,17 +9,33 @@
 > rewritten as a minimal pointer. Deleted files remain recoverable verbatim:
 > `git show <sha>:<file>`.
 
-## 1. Current state (v0.3.9.2 — docs-only consolidation)
-- v0.3.9.2 = this consolidation (no code/schema/asset changes; bookmark log moved here §9;
+## 1. Current state (v0.3.10.2 — Mistral default)
+- v0.3.10.2 = **Mistral Small 3.1 24B Instruct as default** (was qwen3-30b). Pure instruct
+  (no reasoning pass) → fast (~1-2s) + cheap (~3-5 neurons/call vs qwen3's ~10-32). Good FA
+  polish quality verified live. qwen3-30b kept as an option for complex rewrites. Also fixes
+  3 bugs found by testing the real CF API: response_format:{type:'text'} rejected by qwen3
+  (removed), "Polish" in prompt made Llama translate to Polish the language (reworded),
+  reasoning models need 2048 max_tokens + both response shapes parsed.
+- v0.3.10.1 = model picker (Settings): `GET /api/ai/models`, `POST /api/ai/text` accepts
+  `model`, `resolveModel` whitelist (paid-only → default).
+- v0.3.10.0 = **Magic Button (idea §1, green-lit)** — on-demand AI wand (polish / rewrite /
+  translate) next to editable text. Cloudflare Workers AI binding (`[ai]` → `env.AI`), model
+  `@cf/qwen/qwen3-30b-a3b-fp8`, temperature 0.2, non-streaming. Free-tier only; no paid
+  overage. Route `POST /api/ai/text` (auth + CSRF + 4000-char guard). Original never
+  modified until Apply; Discard/Esc/error = zero writes (Mission #1). Node self-host path
+  degrades to a 503 “Workers-only” notice. No schema change, no cron, no KV, no secrets.
+- Prior: v0.3.9.2 = docs-only consolidation (bookmark log moved here §9;
   `scripts/pre-migrate-bookmark.mjs` repointed to this file; version bump only).
 - Version v0.3.9.1, tag `v0.3.9.1`, commit `d98adea`; deployed dev
   (`hibana.aliassadi.workers.dev`, worker `6f319ce1`) + prod (`hibana.ir`, worker `8d93ec4e`);
   both crons live; read-only prod verify clean. Style-only release (the ONE sticky-note style).
-- Tests **244/244**; i18n parity **871/871** (EN/FA); 22 HTML pages.
+- Tests **265/265** (244 + 15 ai.test + 6 model-picker); typecheck green; i18n parity
+  +16 EN/+16 FA `magic.*`+`settings.ai*` keys (`i18n.js` now ?v=38); 22 HTML pages.
 - Schema **44** — migrations `0001–0045` (44 files; `0007` never existed — gap is original).
-- Assets: SW `hibana-v238`; `app.css ?v=214` · `app.js ?v=163` · `i18n.js ?v=36` · `canvas.js
-  ?v=15` · `whiteboard.js ?v=10` · `devboard.js ?v=9` · `admin.js ?v=2` ·
-  `task-controls.css ?v=4`; content-hashed immutable bundles in `public/dist/`.
+- Assets: SW `hibana-v238` (unchanged — SW logic untouched); `app.css ?v=214` · `app.js ?v=163`
+  · `i18n.js ?v=38` · `magic-wand.js ?v=2` · `magic-wand.css ?v=2` · `canvas.js ?v=15` ·
+  `whiteboard.js ?v=10` · `devboard.js ?v=9` · `admin.js ?v=2` · `task-controls.css ?v=4`;
+  content-hashed immutable bundles in `public/dist/`.
 - Repos: source `assadigit/hibana-source`; encrypted backups `assadigit/hibana-safe`.
 - D1: `pm-app-dev` `80e02ce2-ca0a-4ccc-beda-8b6cb9c3a984` · `pm-app-prod`
   `d842fcb5-44f6-4bbd-a772-3699ccadb496`; CF account `6ff25b582afd399d647e91a8db859676`.
@@ -37,6 +53,8 @@
 | 15 | 09-18 | v0.3.9 candidate — Obsidian export + neutral stage cards |
 | 16 | 09-18 | v0.3.9 release — push `2a8a83c`, deploy dev+prod |
 | 17 | 09-18 | v0.3.9.1 — the ONE sticky style, deploy `d98adea` |
+| 18 | 2026-09 | v0.3.10.0 — Magic Button (idea §1): Workers AI `[ai]` binding, `POST /api/ai/text`, `magic-wand.js` focus-triggered wand (polish/rewrite/translate, preview+Apply/Discard). 259/259 tests, typecheck green |
+| 19 | 2026-09 | v0.3.10.1 — free-tier model picker (Settings): `GET /api/ai/models`, `POST /api/ai/text` accepts `model`, `resolveModel` whitelist (paid-only → default). 265/265 tests |
 
 ## 3. Timeline by era
 ### Foundation — 2026-08-21→25 (migrations 0014–0018; tests 75→163)
@@ -137,6 +155,39 @@
   square growth via binary search (linear growth overshot ~8×); deliberately reverses
   Phase-7 auto-height caps.
 
+### v0.3.10.0 — 2026-09 (Magic Button / Workers AI; tests 244→259)
+- **Green-lit scope (idea §1) only.** One on-demand AI wand (inline SVG) next to editable
+  text — notes (`.note-text`), the quick-note composer (`#quicknote-text`), the project
+  description (`#pd-desc`), plus a `data-magic` opt-in for any future textarea/
+  contenteditable. Never background, never auto-run, never blocks capture (whiteboard rule).
+- Actions: **Polish** (grammar/spelling/clarity, same language, similar length) · **Rewrite**
+  (clean technical/developer register, same language) · **Translate** (auto-detect, EN↔FA).
+  System prompt enforces output-discipline: ONLY the transformed text, no preamble/quotes/
+  fences, names/numbers/dates/URLs/code identifiers verbatim, never add or drop meaning.
+- Backend: `wrangler.toml` `[ai]` binding → `AI: Ai` in `Env` → `cfg.ai` (a structural slice
+  of the binding). Route `POST /api/ai/text` (`src/routes/ai.ts`) under `requireAuth` + the
+  global CSRF gate; Zod `{text:1..4000, action:polish|rewrite|translate}`; model
+  `@cf/qwen/qwen3-30b-a3b-fp8`, temperature 0.2, non-streaming, `response_format:text`.
+  Pure service `src/services/ai.ts` (buildMessages / runAiTransform / withinCharBudget /
+  stripAccidentalWrappers) — testable with a mock binding, no network. Char guard counts
+  code points (FA combining marks not double-counted). Node self-host path: `cfg.ai`
+  undefined → 503 `unavailable` with a localized “Workers-only” notice (portability contract).
+- UX (`public/js/magic-wand.js` + `magic-wand.css?v=1`): focus-triggered floating wand (zero
+  DOM restructuring → no risk to htmx swap targets); popover with the 3 actions; on success a
+  side-by-side Original vs Suggestion preview with **Apply / Discard**. Apply sets the field
+  value and dispatches `input`+`change` so the surface’s OWN autosave persists (the wand never
+  writes). Discard / Esc / outside-click / error / timeout / daily-cap = toast, original
+  byte-for-byte intact (Mission #1). Spinner on the wand while running; repeated clicks
+  disabled during a run. RTL-aware (wand anchors to the end corner; popover flips on-screen);
+  EN/FA localized; `prefers-reduced-motion` honored. Re-arms on `htmx:afterSwap`.
+- Cost: ~5–8 neurons/call → thousands/day inside the 10k/day free budget; no paid overage
+  possible on Workers Free. **No schema change, no migration, no cron, no KV, no secret.**
+- Acceptance: `npm run typecheck` green · `npm test` 259/259 (15 new in `src/tests/ai.test.ts`)
+  · `node --check` on `magic-wand.js`/`i18n.js` green · i18n parity +15 EN/+15 FA. FA-quality
+  review (Ali, 5 real FA notes) + idea §6 model spike deferred to deploy-time per the idea doc.
+- Wired onto `dashboard.html`, `project.html`, `sparks.html`; `i18n.js` cache-bust 36→37 on
+  all 21 pages (SW `hibana-v238` unchanged — SW logic untouched, new files runtime-SWR cached).
+
 ## 4. Ops & DR state (condensed runbook)
 - **Backups**: 4×/day cron `17 3,9,15,21 * * *` → AES-256-GCM `HIBENC1` (~100 KB) →
   `assadigit/hibana-safe` `backups/`; retention 120 (~15 days). `*/30` cron = Sadhana
@@ -218,6 +269,12 @@ canvas auto-routing connectors · multi-canvas. Deferred by design: incremental 
 key-custody drill · Resend delivery confirmation.
 **Watch:** one non-repro vitest failure seen once (149/150, then 3× 150/150) · deep links
 hardcode hibana.ir · mirror rate-limit keys share Arvan POP IPs.
+
+**Shipped this session (v0.3.10.0):** Magic Button (idea §1, green-lit) — `POST /api/ai/text`
++ `magic-wand.js`. The idea doc’s Tier-1 deferred items (Telegram voice→spark, back-to-work
+recap, semantic find stages 1–2) remain **not built**; resume per the idea §6 protocol
+(re-verify §2 pricing, run the 12-prompt×4-model blind spike + 5 FA whisper samples first).
+FA-output quality review (Ali, 5 real FA notes) is a deploy-time gate, not a code gate.
 
 ## 7. Consciously rejected (do NOT propose — vision.md)
 Subtasks/rigid hierarchy · nagging reminders/push/overdue toasts · milestones/OKRs/maturity

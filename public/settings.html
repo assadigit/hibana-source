@@ -19,7 +19,7 @@
   <script src="/js/micro-interactions.js?v=1" defer></script>
   <script src="/js/go-to.js?v=1" defer></script>
   <script src="/js/install-prompt.js?v=1" defer></script>
-  <script src="/js/i18n.js?v=36" defer></script>
+  <script src="/js/i18n.js?v=38" defer></script>
 </head>
 <body>
   <a href="#main" class="skip-link" data-i18n="a11y.skipToMain">Skip to main content</a>
@@ -67,6 +67,13 @@
           <option value="full" data-i18n="settings.widthFull">Full-width</option>
         </select>
         <span class="muted small" data-i18n="settings.pageWidthHint">Applies the same content width to every page.</span>
+      </label>
+      <!-- Magic Button (idea §1) — free-tier model choice. Pure client pref (localStorage),
+           sent per-request by magic-wand.js. Registry fetched from GET /api/ai/models. -->
+      <label><span data-i18n="settings.aiSection">AI model (Cloudflare Workers AI)</span>
+        <select id="ai-model-sel"></select>
+        <span class="muted small" id="ai-model-note"></span>
+        <span class="muted small" data-i18n="settings.aiHint">Free-tier models only — no paid overage possible. Default is Qwen3 30B (best Persian).</span>
       </label>
       <button class="ghost" @click="load()" data-i18n="settings.reload">Reload from server</button>
     </section>
@@ -344,6 +351,53 @@
         }
         pwInit()
         setTimeout(pwInit, 800) // soft-nav into settings re-mounts the section after this script ran
+
+        // Magic Button (idea §1) — free-tier model selector. Pure client pref like page-width:
+        // localStorage 'hibana-ai-model', read fresh by magic-wand.js on every request. The
+        // option list is fetched from GET /api/ai/models (auth-gated) so it stays in sync
+        // with the server’s FREE_TIER_MODELS registry — never hard-coded in the client.
+        const AI_MODEL_KEY = 'hibana-ai-model'
+        function paintAiModelNote(model) {
+          const note = document.getElementById('ai-model-note')
+          if (!note || !model) return
+          const fa = model.fa === 'weak'
+            ? (window.hibanaI18n?.t('settings.aiFaWeak') || 'Persian: weak (EN recommended)')
+            : (window.hibanaI18n?.t('settings.aiFaStrong') || 'Persian: strong')
+          note.textContent = `${model.label} — ${fa} · ${model.inPerM}/${model.outPerM} neurons/M tok`
+        }
+        async function loadAiModels() {
+          const sel = document.getElementById('ai-model-sel')
+          if (!sel) return
+          let registry = null, def = null
+          try {
+            const r = await fetch('/api/ai/models')
+            if (r.ok) { const b = await r.json(); registry = b.models; def = b.default }
+          } catch { /* offline / Node path — leave the select empty, the wand still works (server default) */ }
+          if (!registry || registry.length === 0) {
+            // Workers-only path: show a single disabled option so the field isn’t blank.
+            sel.innerHTML = '<option value="" disabled selected>Cloudflare Workers only</option>'
+            return
+          }
+          let saved = null
+          try { saved = localStorage.getItem(AI_MODEL_KEY) } catch { /* private mode */ }
+          const current = (saved && registry.some((m) => m.model === saved)) ? saved : def
+          sel.innerHTML = registry.map((m) =>
+            `<option value="${m.model}"${m.model === current ? ' selected' : ''}>${m.label}</option>`
+          ).join('')
+          paintAiModelNote(registry.find((m) => m.model === current) || registry[0])
+        }
+        document.addEventListener('change', (e) => {
+          const sel = e.target?.closest?.('#ai-model-sel')
+          if (!sel) return
+          try { localStorage.setItem(AI_MODEL_KEY, sel.value) } catch { /* private mode */ }
+          window.hibana?.toast(window.hibanaI18n?.t('settings.aiSaved') || 'AI model saved')
+          // Re-fetch to repaint the note (fa flag + cost) for the new selection.
+          fetch('/api/ai/models').then((r) => r.ok ? r.json() : null).then((b) => {
+            if (b?.models) paintAiModelNote(b.models.find((m) => m.model === sel.value))
+          }).catch(() => {})
+        })
+        loadAiModels()
+        setTimeout(loadAiModels, 800) // soft-nav re-mount safety, same as page-width
 
         // Alpine.data() registers globally; re-registering on each visit is safe (last wins) and
         // required on soft navigation — nav.js calls these before Alpine.initTree().

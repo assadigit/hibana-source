@@ -38,6 +38,13 @@ ENVIRONMENT = "dev"
 GITHUB_OWNER = "assadigit"
 GITHUB_REPO = "hibana-safe"
 
+# Workers AI binding (idea §1 — Magic Button, green-lit). Surfaces `env.AI` on the Worker;
+# POST /api/ai/text uses it for polish/rewrite/translate via @cf/qwen/qwen3-30b-a3b-fp8.
+# Free-tier only (10k neurons/day); no paid overage possible on the Workers Free plan.
+# The Node self-host path has no Ai binding → the route degrades to a 503 "Workers-only" notice.
+[ai]
+binding = "AI"
+
 # Dev database — created via: npx wrangler d1 create pm-app-dev
 [[d1_databases]]
 binding = "DB"

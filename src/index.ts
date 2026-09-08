@@ -34,6 +34,9 @@ function buildConfig(env: Env): Config {
       .split(/[\s,]+/)
       .filter(Boolean)
       .map((o) => o.replace(/\/+$/, '')),
+    // Workers AI binding (idea §1 — Magic Button): the route reads `cfg.ai`; on the Node
+    // self-host path this is undefined and /api/ai/text degrades to a 503 notice.
+    ai: env.AI,
   }
 }
 

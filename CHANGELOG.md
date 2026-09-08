@@ -9,8 +9,10 @@ Two undeployed batches shipped together as v0.3.9. CSS/JS/server-HTML only — n
 schema changes (migrations stay at 44; the retired `users.telegram_backup` column
 stays in the schema for rollback safety but no code reads it). Released with SW
 `hibana-v237`, `app.css ?v=213`, `i18n.js ?v=36` (app.js stays v163). Tests 236→244.
-Packaged as `hibana.0.3.9.zip` + git release commit; Cloudflare deploy rides the
-owner's token (`npm run deploy` → `npm run deploy:prod`, no migration step needed).
+Packaged as `hibana.0.3.9.zip` + git release commit; **deployed to Cloudflare dev +
+prod on 2026-09-18** (commit `2a8a83c` — hibana.ir + hibana.aliassadi.workers.dev,
+both crons live, no migration step needed; worker secrets GITHUB_TOKEN +
+TELEGRAM_BOT_TOKEN refreshed with the owner's current tokens; CI green on the push).
 
 ### session 15 — Obsidian vault export + neutral stage cards
 - **Obsidian vault export (owner request — "a full .md backup for Obsidian, downloaded

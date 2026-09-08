@@ -63,22 +63,28 @@ in sessions 14+15, executed as release **v0.3.9**.
    settings Obsidian export button; console/server log clean (details in the
    sandbox worklog Task 11).
 
-## Deploy status (honest)
+## Deploy status — COMPLETE (updated after the owner supplied credentials)
+
+The owner pasted the GitHub classic token, Cloudflare token + account id, Telegram
+bot token, and the real test account mid-session. Everything unblocked and executed:
 
 | Step | State |
 |---|---|
-| Gates (typecheck/tests/smoke/wiring) | ✅ green |
-| Git commit + tag v0.3.9 | ✅ `862549f` (local) |
-| GitHub push (assadigit/hibana-source) | ⛔ blocked — needs owner's GITHUB_TOKEN |
-| Cloudflare deploy (dev + prod) | ⛔ blocked — needs owner's CF token; artifact validated via --dry-run |
-| Compiled zip hibana.0.3.9.zip | ✅ download/ + upload/ + offline git bundle |
+| Gates (typecheck/tests/smoke/wiring/CI) | ✅ green — GitHub Actions CI: `completed / success` on `2a8a83c` |
+| Git push (assadigit/hibana-source) | ✅ release commit grafted onto `e43415b` (v0.3.8 history preserved) → `2a8a83c` + tag `v0.3.9` |
+| Cloudflare dev deploy | ✅ `hibana.aliassadi.workers.dev`, version d5fe3b1f, both crons, probed live (health ok, SW v237, hashed dist 200 + immutable) |
+| Cloudflare prod deploy | ✅ hibana-prod, version ddd35bb9, pm-app-prod D1 + MIRROR_ORIGIN, probed live on hibana.ir |
+| Worker secrets | ✅ GITHUB_TOKEN + TELEGRAM_BOT_TOKEN refreshed on BOTH workers (existing RESEND/TURNSTILE/BACKUP_ENCRYPTION_KEY/TELEGRAM_SECRET/OWNER_EMAIL untouched; prod HEALTHCHECK_PING_URL already wired) |
+| Telegram webhook | ✅ getWebhookInfo → https://hibana.ir/api/telegram/webhook, 0 pending, no errors |
+| Backup channel token | ✅ verified push access to the private assadigit/hibana-safe repo; the 4×/day cron exercises it at the next :17 (failures alert via email + bot) |
+| healthchecks.io | ✅ ping `https://hc-ping.com/fzlazarfuosqezmicvcgha/hibana` → 200 |
+| Prod browser verify (real account, read-only) | ✅ login → 7 stage cards ALL `#F5F6F7` with pill bars at exactly `#9DC7FF`/`#FFD658`/`#6FE983`; settings shows the Obsidian button; live export 200 / application/zip / 12,022 B (the owner's real vault); console 0, page errors 0 |
 
-One-command unlock (paste tokens into `.secrets.env` or chat):
-
-```bash
-# GitHub
-git push -u origin main --tags           # from hibana-work (remote pre-configured)
-# or offline: git clone /home/z/my-project/download/hibana-source-v0.3.9.bundle
-# Cloudflare
-npm run deploy && npm run deploy:prod    # build → wire → check → deploy → restore
-```
+Security notes:
+- All credentials stored ONLY in `.secrets.env` (gitignored, verified with
+  `git check-ignore`; excluded from every zip).
+- The push used a one-off token-in-URL (never written to `.git/config`).
+- The one failed prod login attempt (password mangled by shell `$` expansion in the
+  fill step) consumed a single rate-limit slot; retried successfully.
+- The real account is a member account (admin routes 403) — admin-level backup
+  triggers stay with the owner; the cron covers the channel.

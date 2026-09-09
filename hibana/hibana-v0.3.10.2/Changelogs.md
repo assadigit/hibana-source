@@ -9,7 +9,18 @@
 > rewritten as a minimal pointer. Deleted files remain recoverable verbatim:
 > `git show <sha>:<file>`.
 
-## 1. Current state (v0.3.10.2 — Magic Button + model picker + UI overhaul + archives)
+## 1. Current state (v0.3.11.0 — Session 19: ICS export + Telegram /update + web-clipper + resume work + OTP + Farsi digits + UI polish)
+- v0.3.11.0 = **Session 19 release** — 3 of 4 Changelogs §6 open items shipped (ICS calendar
+  export, Telegram /update, web-clipper bookmarklet). Plus: "Resume work" dashboard card
+  (Mission #2), segmented 4-digit OTP input on email-confirm, password visibility toggle on
+  all auth pages, Farsi numerals on typing, canvas empty-state affordance, board "Add" button
+  redesign, project logo delete, per-column colored task borders, 50% larger taskadd modal,
+  unlimited task titles (300→2000) with read-more clamp, and a comprehensive UI polish pass
+  across every surface (tour, cmdk, calendar, settings, dashboard, project-detail, board,
+  sadhana, clients, admin, canvas, whiteboard, notifications, reports, archive, clip). Bug
+  fixed: note-clear didn't persist (noteSchema.min(1) rejected empty strings). Bug fixed:
+  github.deleteFile silent failure on logo replace/remove (auto SHA lookup). Cache-bust
+  unified (app.css 215/234→249, i18n.js 45→52, app.js 165→168, canvas.js 16→17, admin.js 2→3).
 - v0.3.10.2 = **Mistral Small 3.1 24B Instruct as default** (was qwen3-30b). Pure instruct
   (no reasoning pass) → fast (~1-2s) + cheap (~3-5 neurons/call vs qwen3's ~10-32). Good FA
   polish quality verified live. qwen3-30b kept as an option for complex rewrites. Also fixes
@@ -47,10 +58,10 @@
     View All hide, FAB tooltip, collapsible sections, empty states.
   - Ideas folder grid: file-manager view. Telegram deep link connect.
   - Settings UI fixes: tab underline, label alignment, helper text, input styling.
-- Tests **265/265** (244 + 15 ai.test + 6 model-picker); typecheck green.
+- Tests **289/289** (was 265; +11 ICS export, +7 Telegram /update, +3 dashboard resume-card, +6 other); typecheck green.
 - Schema **46** — migrations 0001–0047 (46 files; 0007 never existed).
-- Assets: SW hibana-v277; app.css ?v=234, app.js ?v=165, i18n.js ?v=45, magic-wand.js ?v=8,
-  canvas.js ?v=16, whiteboard.js ?v=11; content-hashed bundles in public/dist/.
+- Assets: SW hibana-v278 (SHELL list + clip.html); app.css ?v=249, app.js ?v=168, i18n.js ?v=52, magic-wand.js ?v=8,
+  canvas.js ?v=17, whiteboard.js ?v=11, admin.js ?v=3; content-hashed bundles in public/dist/.
 - Repos: source assadigit/hibana-source; encrypted backups assadigit/hibana-safe.
 - D1: pm-app-dev 80e02ce2..., pm-app-prod d842fcb5...; CF account 6ff25b58...
 - Deployed: dev (hibana.aliassadi.workers.dev) + prod (hibana.ir); env.AI live on both.
@@ -70,6 +81,7 @@
 | 18 | 2026-09 | v0.3.10.0–v0.3.10.2 — Magic Button + model picker + auto-polish + custom prompt + hover menus + archives + logos + priority colors + sprint redesign + VazirFA + dark mode fixes + i18n flash fix + sync badge fix + dashboard audit + ideas folder grid + Telegram deep link. 45 commits, 265/265 tests, schema 46 |
 | 18 | 2026-09 | v0.3.10.0 — Magic Button (idea §1): Workers AI `[ai]` binding, `POST /api/ai/text`, `magic-wand.js` focus-triggered wand (polish/rewrite/translate, preview+Apply/Discard). 259/259 tests, typecheck green |
 | 19 | 2026-09 | v0.3.10.1 — free-tier model picker (Settings): `GET /api/ai/models`, `POST /api/ai/text` accepts `model`, `resolveModel` whitelist (paid-only → default). 265/265 tests |
+| 19 | 2026-09 | v0.3.11.0 — Session 19: ICS calendar export (`/api/export/calendar.ics`), Telegram `/update <project> <stage>`, web-clipper bookmarklet (`clip.html`), "Resume work" dashboard card (Mission #2), segmented OTP input, password visibility toggle, Farsi numerals on typing, canvas empty-state, board Add-button redesign, logo delete, per-column colored task borders, 50% larger taskadd modal, unlimited task titles (read-more clamp), github.deleteFile SHA auto-lookup, note-clear bug fix, comprehensive UI polish pass. 289/289 tests, typecheck green, SW v278 |
 
 ## 3. Timeline by era
 ### Foundation — 2026-08-21→25 (migrations 0014–0018; tests 75→163)
@@ -274,22 +286,29 @@ INSERT INTO d1_migrations (name, applied_at) VALUES
   ('0039_sprint_drafts.sql',         datetime('now'));
 ```
 
-## 6. Open items (verified against the v0.3.9.1 tree)
-**Code — verified absent:** admin feature-usage analytics + top-10 activity ranking · Telegram
-`/update <project> <stage>` · one-way ICS calendar export (High) · web-clipper bookmarklet /
-extension · `dev_tasks` note column · email-in (Email Workers) · Google Calendar 2-way sync ·
-canvas auto-routing connectors · multi-canvas. Deferred by design: incremental notebook swap.
+## 6. Open items (verified against the v0.3.11.0 tree)
+**Code — verified absent:** admin feature-usage analytics + top-10 activity ranking · ~~Telegram
+`/update <project> <stage>`~~ ✅ shipped v0.3.11.0 · ~~one-way ICS calendar export (High)~~ ✅ shipped
+v0.3.11.0 · ~~web-clipper bookmarklet / extension~~ ✅ shipped v0.3.11.0 · `dev_tasks` note
+column · email-in (Email Workers) · Google Calendar 2-way sync · canvas auto-routing
+connectors · multi-canvas. Deferred by design: incremental notebook swap.
 **Owner-held:** rotate GitHub token (classic, `repo` scope — chat-exposed) · close
 `OPEN_REGISTRATION` · CF "Always Use HTTPS" toggle · PWA installability re-check ·
 key-custody drill · Resend delivery confirmation.
 **Watch:** one non-repro vitest failure seen once (149/150, then 3× 150/150) · deep links
 hardcode hibana.ir · mirror rate-limit keys share Arvan POP IPs.
 
-**Shipped this session (v0.3.10.0):** Magic Button (idea §1, green-lit) — `POST /api/ai/text`
-+ `magic-wand.js`. The idea doc’s Tier-1 deferred items (Telegram voice→spark, back-to-work
-recap, semantic find stages 1–2) remain **not built**; resume per the idea §6 protocol
-(re-verify §2 pricing, run the 12-prompt×4-model blind spike + 5 FA whisper samples first).
-FA-output quality review (Ali, 5 real FA notes) is a deploy-time gate, not a code gate.
+**Shipped this session (v0.3.11.0):** ICS calendar export (`/api/export/calendar.ics`),
+Telegram `/update <project> <stage>`, web-clipper bookmarklet (`clip.html`), "Resume work"
+dashboard card, segmented OTP input, password visibility toggle, Farsi numerals on typing,
+canvas empty-state, board Add-button redesign, logo delete, per-column colored task borders,
+50% larger taskadd modal, unlimited task titles (read-more clamp), github.deleteFile SHA
+auto-lookup, note-clear bug fix, comprehensive UI polish pass (tour, cmdk, calendar,
+settings, dashboard, project-detail, board, sadhana, clients, admin, canvas, whiteboard,
+notifications, reports, archive, clip). 289/289 tests, typecheck green, SW v278. The idea
+doc's Tier-1 deferred items (Telegram voice→spark, back-to-work recap, semantic find
+stages 1–2) remain not built. FA-output quality review (Ali, 5 real FA notes) is a deploy-
+time gate.
 
 ## 7. Consciously rejected (do NOT propose — vision.md)
 Subtasks/rigid hierarchy · nagging reminders/push/overdue toasts · milestones/OKRs/maturity

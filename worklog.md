@@ -754,3 +754,49 @@ Stage Summary:
   polished across all surfaces (auth incl. OTP, dashboard, project-detail, board, sprint,
   cmdk, calendar, sparks, sadhana, clients, admin, canvas, whiteboard, settings,
   notifications, reports, archive, clip).
+
+---
+Task ID: session-19-cron-r10
+Agent: Z.ai Code (principal) — recurring webDevReview cron (id=371903)
+Task: Project Links + Screenshots empty-state upgrade (illustrated pattern)
+
+Work Log:
+- Baseline: tsc green; vitest 289/289. QA: project detail Links/Screenshots/Activity tabs
+  (verified tab switching via agent-browser click — the panel switches correctly),
+  command palette search (returns the "A wild idea about tea" spark), settings tags
+  section. VLM audits surfaced: the Links + Screenshots empty states were bare muted text
+  (not the illustrated `.empty-state` pattern used elsewhere). Dismissed: the recurring
+  "all" avatar misread (it's "ali"), cmdk backdrop "too aggressive" (intentional — blur
+  focuses the modal), Delete button red (correct for destructive + has hx-confirm).
+- POLISH BATCH (projects.ts + core.ts):
+  - **Links empty state** (`src/routes/projects.ts:441`): was a bare `<li class="muted">No
+    links yet.</li>`. Now the illustrated `.empty-state` pattern (link icon + "No links
+    yet" title + "Add the repo, the live site, or any reference — keep them one click away."
+    descriptive text). Verified live: `found:true, icon:true, title:"No links yet"`. VLM
+    PASS: "intentional illustrated state featuring a link icon + title + descriptive text."
+  - **Screenshots empty state** (`src/routes/core.ts:35`, `shotsGridHtml()`): was a bare
+    `<p class="muted">No screenshots yet — use the button above.</p>`. Now the illustrated
+    `.empty-state` (image icon + "No screenshots yet" title + "Upload design mockups, bug
+    repos, or progress snaps — they stay with the project." text). Verified live via DOM:
+    `hasEmpty:true, title:"No screenshots yet"`. (VLM misread the small title text as
+    absent — DOM confirms it renders.)
+  - Both reuse the existing `.empty-state` CSS (icon, title, text, dashed border) shipped
+    in round 6's board empty-state work — zero CSS change, zero cache-bust. Server-rendered
+    HTML only.
+- Verification: tsc green; vitest 289/289 (36 files); agent-browser live QA — Links tab
+  `.empty-state` with icon + title + text confirmed; Screenshots tab same. No asset
+  version bumps needed (server-rendered HTML, no CSS/JS changed). SW hibana-v278 unchanged.
+
+Stage Summary:
+- Polish shipped: project Links + Screenshots empty states upgraded to the illustrated
+  `.empty-state` pattern (matching the board, archive, clients, sparks, sadhana empty
+  states). Every empty surface in the app now uses the consistent illustrated pattern.
+- Assets: unchanged (server-rendered HTML only). app.css v245, SW v278.
+- Tests 289/289, typecheck green.
+- §6 open items status: 3 of 4 done (ICS export, Telegram /update, web-clipper). The 4th
+  (dev_tasks note column) needs a schema migration → Ali's written approval.
+- Next-phase priorities: dev_tasks note column (schema-gated), Magic Button FA-quality
+  review (deploy-time gate, needs env.AI), semantic find stages 1–2 (idea §6, deferred),
+  deploy to dev/prod (out of scope without Ali's go-ahead). The app is feature-stable +
+  polished across all surfaces — every empty state, every tab, every auth flow, every
+  interactive control has been audited + refined over 10 cron rounds.

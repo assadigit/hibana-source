@@ -32,7 +32,7 @@ export function shotsGridHtml(shots: ScreenshotRow[], lang: Locale): string {
         <figcaption class="muted small">${esc(s.caption)}</figcaption>
       </figure>`,
     )
-    .join('') || `<p class="muted">${trL(lang, 'No screenshots yet — use the button above.', 'هنوز اسکرین‌شاتی نیست — از دکمه بالا استفاده کن.')}</p>`
+    .join('') || `<div class="empty-state empty"><span class="empty-state-icon" aria-hidden="true">${icon('image')}</span><p class="empty-state-title">${trL(lang, 'No screenshots yet', 'هنوز اسکرین‌شاتی نیست')}</p><p class="empty-state-text">${trL(lang, 'Upload design mockups, bug repros, or progress snaps — they stay with the project.', 'طرح‌ها، باگ‌ها یا پیشرفت را آپلود کن — با پروژه می‌مانند.')}</p></div>`
 }
 
 /** Scoped child lookup: row must belong to a project that belongs to the user (rule 1). */

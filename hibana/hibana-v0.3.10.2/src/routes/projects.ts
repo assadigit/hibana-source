@@ -438,7 +438,7 @@ function detailHtml(p: ProjectRow, d: Awaited<ReturnType<typeof loadDetail>>, la
         <button class="ghost danger" hx-delete="/api/links/${l.id}" hx-target="#links" hx-swap="innerHTML" aria-label="${trL(lang, 'Delete link', 'حذف پیوند')}">${icon('x')}</button>
       </li>`,
       )
-      .join('') || '<li class="muted">' + trL(lang, 'No links yet.', 'هنوز پیوندی نیست.') + '</li>'
+      .join('') || `<div class="empty-state empty"><span class="empty-state-icon" aria-hidden="true">${icon('link')}</span><p class="empty-state-title">${trL(lang, 'No links yet', 'هنوز پیوندی نیست')}</p><p class="empty-state-text">${trL(lang, 'Add the repo, the live site, or any reference — keep them one click away.', 'ریپو، سایت زنده یا هر مرجع را اضافه کن — یک کلیک دور.')}</p></div>`
 
   const shots = shotsGridHtml(d.screenshots, lang)
 

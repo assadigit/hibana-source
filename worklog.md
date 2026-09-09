@@ -694,3 +694,63 @@ Stage Summary:
   polished across all surfaces (auth, dashboard, project-detail, board, sprint, cmdk,
   calendar, sparks, sadhana, clients, admin, canvas, whiteboard, settings, notifications,
   reports, archive, clip).
+
+---
+Task ID: session-19-cron-r9
+Agent: Z.ai Code (principal) — recurring webDevReview cron (id=371903)
+Task: Segmented 4-digit OTP input on the email-confirm page
+
+Work Log:
+- Baseline: tsc green; vitest 289/289. QA: admin users tab, confirm page, settings
+  telegram tab. VLM audit of the confirm page surfaced: the 4-digit code is a plain text
+  input (lacks the single-digit box segmentation that improves readability + reduces input
+  errors). Dismissed: settings telegram tab "mismatch" (the tabs are a scroll-spy — click
+  scrolls, IntersectionObserver updates active; intentional per round 1), admin "Last
+  backup never" bold (correct — it's the real status).
+- SHIPPED FEATURE — Segmented 4-digit OTP input (confirm.html):
+  - `public/css/app.css`: new `.otp-field` (flex row of 4 boxes) + `.otp-box` (2.5rem
+    min, 3.25rem tall, 1.5rem digit, teal border on active/filled, accent-soft ring on
+    active) + the real `<input>` is visually hidden (opacity:0, absolute, covers the
+    field) but focusable — so the mobile numeric keyboard + AT still work, and the
+    server-side `pattern="[0-9۰-۹]{4}"` validation is unchanged.
+  - `public/confirm.html`: replaced the single code `<input>` with an `.otp-field` div
+    containing the hidden input + 4 `.otp-box` spans. Added an IIFE that:
+    · captures input + boxes + field (with a guard for non-confirm pages)
+    · `faDig()` normalizes Persian digits (۰-۹) to ASCII so the input stays consistent
+    · `render()` updates each box's textContent + is-filled/is-active classes
+    · `input` event: strips non-digits, caps at 4, renders, auto-submits when all 4 filled
+    · `paste` event: fills all 4 from clipboard digits, auto-submits
+    · `click` on any box: focuses the input at the end caret
+    · autofocus on load
+  - BUG FOUND + FIXED: the IIFE wasn't running. Root cause: an ASI (Automatic Semicolon
+    Insertion) failure — the preceding `if (email) ...` line had no semicolon, and the
+    IIFE's `(() => {...})()` starting with `(` was parsed as a function-call continuation
+    of the `if` expression → silent parse error that aborted the rest of the inline
+    script. Fix: prefix the IIFE with `;` (`;(() => {...})()`). This is a classic JS gotcha
+    — leading `(` IIFEs need a defensive semicolon. Verified the fix: `iifeRan: true`,
+    boxes render `9,8,7,6` on fill. The debug markers (`window.__otpIifeRan` etc.) were
+    removed after confirmation.
+- Cache-bust: app.css 244→245 on all 23 pages (the `.otp-field` rules are global CSS).
+  confirm.html also references app.css (bumped). SW hibana-v278 unchanged (no sw.js
+  logic change this round).
+- Verification: tsc green; vitest 289/289 (36 files); agent-browser live QA — OTP field
+  renders 4 boxes, fill "9876" → boxes show `["9","8","7","6"]`, all filled=true. VLM
+  visual PASS: "4 segmented, rounded-square boxes arranged horizontally; digits 9, 8, 7, 6
+  visible, centered with teal borders."
+
+Stage Summary:
+- Feature shipped: segmented 4-digit OTP input on the email-confirm page. Auto-advance on
+  input, paste fills all 4, click any box focuses, Persian-digit normalization, auto-
+  submit when complete. The underlying single `<input>` stays as the form field (server-
+  side validation unchanged). Fixed a silent ASI-parse bug that had prevented the IIFE
+  from running (defensive `;` before the leading-`(` IIFE).
+- Assets: app.css v245 (consistent across 23 pages). SW v278 unchanged.
+- Tests 289/289, typecheck green.
+- §6 open items status: 3 of 4 done (ICS export, Telegram /update, web-clipper). The 4th
+  (dev_tasks note column) needs a schema migration → Ali's written approval.
+- Next-phase priorities: dev_tasks note column (schema-gated), Magic Button FA-quality
+  review (deploy-time gate, needs env.AI), semantic find stages 1–2 (idea §6, deferred),
+  deploy to dev/prod (out of scope without Ali's go-ahead). The app is feature-stable +
+  polished across all surfaces (auth incl. OTP, dashboard, project-detail, board, sprint,
+  cmdk, calendar, sparks, sadhana, clients, admin, canvas, whiteboard, settings,
+  notifications, reports, archive, clip).

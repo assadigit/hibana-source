@@ -451,6 +451,48 @@ code {
   font-size: var(--fs-md);
   color: var(--muted);
 }
+/* Session 19 (cron round 9): segmented 4-digit OTP input for the email-confirm page.
+   The underlying single <input> is visually hidden (kept as the form field for
+   server-side validation); 4 visible .otp-box <span>s render the digits. Auto-advance
+   + paste + backspace handled in confirm.html. */
+.otp-field { position: relative; display: flex; gap: 0.5rem; }
+.otp-box {
+  flex: 1;
+  inline-size: 0;
+  min-inline-size: 2.5rem;
+  block-size: 3.25rem;
+  display: grid;
+  place-items: center;
+  font-size: 1.5rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--text);
+  background: var(--bg);
+  border: 1.5px solid var(--line-strong);
+  border-radius: var(--radius-sm);
+  transition: border-color 0.12s ease, box-shadow 0.12s ease, background 0.12s ease;
+  user-select: none;
+}
+.otp-box.is-active {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+  background: var(--card);
+}
+.otp-box.is-filled { border-color: var(--accent); background: var(--card); }
+/* the real input — visually hidden but focusable (AT + mobile keyboard still work) */
+.otp-field input {
+  position: absolute;
+  inset: 0;
+  inline-size: 100%;
+  block-size: 100%;
+  opacity: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  font-size: 1rem;
+  cursor: text;
+}
+.otp-field input:focus { outline: none; } /* the .otp-box.is-active ring is the focus cue */
 
 /* --- forms & buttons ------------------------------------------------------ */
 input, textarea, select {

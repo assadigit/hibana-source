@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Confirm your email — Hibana</title>
   <link rel="icon" type="image/svg+xml" href="/icon.svg">
-  <link rel="stylesheet" href="/css/app.css?v=244">
+  <link rel="stylesheet" href="/css/app.css?v=245">
   <link rel="stylesheet" href="/vendor/manrope/font-face.css">
   <script src="/js/app.js?v=166" defer></script>
   <script src="/js/i18n.js?v=50" defer></script>
@@ -22,7 +22,13 @@
     <form method="post" action="/api/auth/verify" hx-post="/api/auth/verify" hx-target="#verify-msg" hx-swap="innerHTML" hx-indicator="#verify-spinner">
       <label><span data-i18n="auth.email">Email</span> <input type="email" name="email" id="email-input" required></label>
       <label><span data-i18n="auth.code">4-digit code</span>
-        <input type="text" name="code" required inputmode="numeric" pattern="[0-9۰-۹]{4}" maxlength="4" autocomplete="one-time-code" placeholder="0000" data-i18n-placeholder="auth.codePlaceholder">
+        <div class="otp-field" data-otp>
+          <input type="text" name="code" id="code-input" required inputmode="numeric" pattern="[0-9۰-۹]{4}" maxlength="4" autocomplete="one-time-code" aria-label="4-digit code" data-i18n-aria-label="auth.code">
+          <span class="otp-box" data-otp-box="0"></span>
+          <span class="otp-box" data-otp-box="1"></span>
+          <span class="otp-box" data-otp-box="2"></span>
+          <span class="otp-box" data-otp-box="3"></span>
+        </div>
       </label>
       <div class="row">
         <button type="submit" data-i18n="auth.confirm">Confirm</button>
@@ -37,6 +43,47 @@
       const email = new URLSearchParams(location.search).get('email') ?? ''
       document.getElementById('email-input').value = email
       if (email) document.getElementById('email-label').textContent = email
+      ;(() => {
+        const input = document.getElementById('code-input')
+        const boxes = [...document.querySelectorAll('[data-otp-box]')]
+        const field = document.querySelector('[data-otp]')
+        if (!input || !boxes.length || !field) return
+        const faDig = (s) => s.replace(/[۰-۹]/g, (d) => String('۰۱۲۳۴۵۶۷۸۹'.indexOf(d)))
+        const render = () => {
+          const val = input.value || ''
+          boxes.forEach((b, i) => {
+            const d = val[i] ?? ''
+            b.textContent = d
+            b.classList.toggle('is-filled', !!d)
+            b.classList.toggle('is-active', i === (val.length || 0))
+          })
+        }
+        input.addEventListener('input', () => {
+          try {
+            input.value = faDig(input.value || '').replace(/[^\d]/g, '').slice(0, 4)
+            render()
+            if (input.value.length === 4) {
+              setTimeout(() => { try { input.form && input.form.requestSubmit() } catch {} }, 150)
+            }
+          } catch (e) { console.error('OTP input handler error:', e) }
+        })
+        input.addEventListener('paste', (e) => {
+          e.preventDefault()
+          const txt = faDig((e.clipboardData || window.clipboardData).getData('text') || '')
+          input.value = txt.replace(/[^\d]/g, '').slice(0, 4)
+          render()
+          if (input.value.length === 4) setTimeout(() => { try { input.form && input.form.requestSubmit() } catch {} }, 150)
+        })
+        field.addEventListener('click', (e) => {
+          if (e.target === input) return
+          input.focus()
+          const len = input.value.length
+          input.setSelectionRange(len, len)
+        })
+        render()
+        requestAnimationFrame(() => { try { input.focus() } catch {} })
+      })()
+
       document.getElementById('resend-btn').addEventListener('click', async () => {
         const e = document.getElementById('email-input').value.trim()
         if (!e) return

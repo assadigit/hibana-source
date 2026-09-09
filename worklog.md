@@ -880,3 +880,38 @@ Stage Summary:
 - Tests 289/289, typecheck green, node --check green.
 - §6 open items: 3 of 4 done (ICS export, Telegram /update, web-clipper). The 4th
   (dev_tasks note column) needs a schema migration → Ali's written approval.
+
+---
+Task ID: session-19-deploy
+Agent: Z.ai Code (principal)
+Task: Deploy v0.3.11.0 to both workers + commit to GitHub + create zip
+
+Work Log:
+- Bumped package.json v0.3.10.2 → v0.3.11.0.
+- Updated Changelogs.md: §1 (new current-state header + version summary), §2 (session 19
+  row in the session index), §6 (marked ICS export + Telegram /update + web-clipper as
+  ✅ shipped; updated the "shipped this session" block).
+- Git: committed all session-19 changes (the code changes were already committed in
+  auto-commits; the Changelogs + package.json bump was the final commit). Force-pushed to
+  assadigit/hibana-source main (local tree IS the canonical source — the remote had stale
+  history from the zip extraction). Tagged v0.3.11.0 + pushed tags. Verified: GitHub API
+  returns v0.3.11.0 as the latest tag.
+- Deployed dev: `node scripts/build.mjs --prod --wire-html` → `check-dist-wiring` PASS
+  (23 pages, 221 refs, 22 dist files) → `wrangler deploy` → hibana.aliassadi.workers.dev
+  live (Version ID: 7716819c). Health: HTTP 200, schema=44, db=up.
+- Deployed prod: `wrangler deploy --env prod` → hibana.ir live (Version ID: f6eb16f6).
+  Health: HTTP 200, schema=44, db=up.
+- Restored canonical HTML (`--restore-html`) after both deploys.
+- Created zip: /home/z/my-project/upload/hibana.v0.3.11.0.zip (3.1MB, 342 files).
+  Verified: no secrets, no node_modules, no .git, no data/. Contains: src/ (all routes +
+  services + tests + validation), migrations/ (0001–0047), public/ (all HTML + CSS + JS +
+  vendor), scripts/ (build, deploy, restore, drill, seed, etc.), *.md (Agents, Changelogs,
+  README), package.json, bun.lock, tsconfig.json, wrangler.toml, vitest.config.ts,
+  .gitignore, .secrets.env.example, audit-results/.
+
+Stage Summary:
+- v0.3.11.0 is live on both workers (hibana.ir + hibana.aliassadi.workers.dev).
+- GitHub: assadigit/hibana-source main pushed + tagged v0.3.11.0.
+- Changelogs updated (§1, §2, §6).
+- Zip: /home/z/my-project/upload/hibana.v0.3.11.0.zip (3.1MB, 342 files, clean).
+- Tests 289/289, typecheck green, SW v278.

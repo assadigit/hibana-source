@@ -1406,6 +1406,44 @@ input::placeholder, textarea::placeholder { font-size: 0.88em; opacity: 0.7; } /
    matched anything (user report: "sections cramped together with no distance"). The hook
    is now the .shell-dash class on that <main> (see dashboard.html). */
 main.shell-dash > section { margin-block-end: 2.9rem; }
+/* Session 19 (cron round 4): "Resume work" pinned card — the first thing on the dashboard.
+   A compact, accent-tinted card: rocket glyph + label + project title (deep link) + the
+   time since last touch + an "Open" CTA. Pinned above the ordered sections; hidden server-
+   side when no 'doing' project exists. */
+.dash-resume {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1rem 1.25rem;
+  margin-block-end: 2rem;
+  background: linear-gradient(100deg, var(--accent-soft), var(--card) 70%);
+  border: 1px solid color-mix(in srgb, var(--accent) 30%, var(--line));
+  border-inline-start: 4px solid var(--accent);
+  border-radius: var(--radius);
+  box-shadow: 0 2px 8px -4px rgb(0 0 0 / 0.08);
+}
+.dash-resume-glyph {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 2.5rem; height: 2.5rem;
+  border-radius: 50%;
+  background: var(--accent);
+  color: var(--btn-text);
+}
+.dash-resume-glyph .icon { width: 1.25rem; height: 1.25rem; }
+.dash-resume-body { display: flex; flex-direction: column; gap: 0.1rem; min-inline-size: 0; flex: 1; }
+.dash-resume-label { font-size: var(--fs-xs); font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; color: var(--accent); opacity: 0.85; }
+.dash-resume-title { font-size: var(--fs-lg); font-weight: 600; color: var(--text); text-decoration: none; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dash-resume-title:hover { color: var(--brand); }
+.dash-resume-meta { font-size: var(--fs-sm); }
+.dash-resume-cta { flex: none; }
+@media (max-width: 540px) {
+  .dash-resume { flex-wrap: wrap; gap: 0.6rem; padding: 0.85rem 1rem; }
+  .dash-resume-glyph { width: 2rem; height: 2rem; }
+  .dash-resume-title { font-size: var(--fs-md); white-space: normal; }
+  .dash-resume-cta { margin-inline-start: auto; }
+}
 /* Session-12: grid-template-columns: minmax(0,1fr) pins the single implicit track to the
    section's width — with a bare `auto` track, the phone carousel's flex-row min-content
    (the SUM of all four slides' min-content) stretched the track to ~532px on a 390px

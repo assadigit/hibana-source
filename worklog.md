@@ -444,3 +444,58 @@ Stage Summary:
   (deploy-time gate, needs env.AI), semantic find stages 1–2 (idea §6, deferred), deploy
   to dev/prod (out of scope without Ali's go-ahead). The app is feature-stable; further
   work is polish + the schema-gated dev_tasks column + deploy-time AI review.
+
+---
+Task ID: session-19-cron-r4
+Agent: Z.ai Code (principal) — recurring webDevReview cron (id=371903)
+Task: Ship "Resume work" dashboard card (Mission #2) + notifications/FA QA
+
+Work Log:
+- Baseline: tsc green; vitest 286/286. Full QA pass: project-detail, notifications, FA/RTL
+  dashboard. Investigated the recurring VLM "all text near avatar" finding — confirmed
+  it's a VLM misread of the username "ali" (the chip renders avatar "A" + "ali"); the
+  .user-name contrast (--muted, 6.3:1) is fine. No fix needed.
+- SHIPPED FEATURE — "Resume work" pinned dashboard card (Mission #2: "never lose your
+  place"):
+  - `src/routes/dashboard.ts`: added a `resumeCard` SafeHtml rendered ABOVE the ordered
+    sections. Uses the already-loaded `recent` query (ORDER BY updated_at DESC LIMIT 10)
+    — `recent.find(p => p.status === 'doing')` is the most-recently-touched in-progress
+    project. Zero new queries. Hidden server-side when no 'doing' project exists (the
+    card would be noise). Card structure: rocket glyph (filled teal circle) + "RESUME
+    WORK" label + project title (deep link to /project.html?id=) + "In progress · <time-ago>"
+    meta + an "Open" CTA button.
+  - `public/css/app.css`: new `.dash-resume` styles — flex row, accent-tinted gradient
+    background, 4px teal left border, 2.5rem rocket glyph circle, uppercase accent label,
+    ellipsized title, responsive wrap at ≤540px (glyph shrinks, title goes to normal
+    whitespace, CTA pushes to the end).
+  - i18n: 4 new keys (dash.resumeWork, dash.resumeHint, dash.inProgress, dash.open) EN+FA.
+    The route uses `trL`/`t()` so FA renders correctly.
+  - Tests: 3 new cases in `src/tests/dashboard.test.ts` — (1) shows the card with the
+    MOST RECENTLY touched doing project + deep link (verifies ordering: two doing
+    projects, the newer one wins), (2) hides the card when no doing project exists,
+    (3) user-scoped: another user's doing project never appears in the resume card.
+- Verification: tsc green; vitest 289/289 (36 files, +3 new); agent-browser live QA —
+  resume card renders on the dashboard with label "Resume work", title "Audit Test
+  Project", correct deep-link href, "Open" CTA. VLM visual check PASS: "clearly visible
+  and well-styled, teal left border, rocket icon, first content section, no glaring issues."
+- Cache-bust: app.css 239→240; i18n.js 49→50. All 23 HTML pages consistent. SW
+  hibana-v278 unchanged (no sw.js logic change).
+- Dismissed false-positive VLM findings (no code change): notifications h1 weight
+  (already font-weight 600 at 1.5rem — the VLM misread nav-link size), user-name "all"
+  (VLM misread "ali"), feed-item URL overflow (already ellipsized, confirmed via
+  scrollWidth probe).
+
+Stage Summary:
+- Feature shipped: "Resume work" dashboard card — the most-recently-touched in-progress
+  project pinned at the top of the dashboard with a one-click deep link. Serves Hibana's
+  Mission #2 ("never lose your place"). Zero new queries (reuses the existing recent-
+  projects load); hidden when no doing project; user-scoped; FA-rendered; responsive.
+- Assets: app.css v240, i18n.js v50 (all consistent). SW v278 unchanged.
+- Tests 289/289 (+3), typecheck green.
+- §6 open items status: 3 of 4 done (ICS export, Telegram /update, web-clipper). The 4th
+  (dev_tasks note column) needs a schema migration → Ali's written approval.
+- Next-phase priorities: dev_tasks note column (schema-gated), Magic Button FA-quality
+  review (deploy-time gate, needs env.AI), semantic find stages 1–2 (idea §6, deferred),
+  deploy to dev/prod (out of scope without Ali's go-ahead). The app is feature-stable;
+  this round added the #1 Mission-#2 affordance (resume work) which was the single
+  highest-value remaining UX gap.

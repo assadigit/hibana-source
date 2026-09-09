@@ -414,8 +414,28 @@ export function dashboardRoutes(cfg: Config) {
         renderOrder.splice(todoIndex, 1)
         renderOrder.splice(renderOrder.indexOf('projects'), 0, 'todo')
       }
+
+      // Session 19 (cron round 4): "Resume work" pinned card — the most recently touched
+      // in-progress project, with a one-click deep link. Serves Mission #2 ("never lose
+      // your place"). Renders ABOVE the ordered sections so it's the first thing the user
+      // sees. Hidden when no project is in the 'doing' stage (the card would be noise).
+      // The `recent` query (already loaded) is ORDER BY updated_at DESC LIMIT 10, so the
+      // first 'doing' row IS the most-recently-touched in-progress project. No new query.
+      const resumeProject = recent.find((p) => p.status === 'doing')
+      const resumeCard: SafeHtml = resumeProject
+        ? html`<section class="dash-resume card">
+            <div class="dash-resume-glyph" aria-hidden="true">${raw(icon('rocket'))}</div>
+            <div class="dash-resume-body">
+              <span class="dash-resume-label">${t('Resume work', 'از سرگیری کار')}</span>
+              <a class="dash-resume-title" href="/project.html?id=${resumeProject.id}">${resumeProject.title}</a>
+              <span class="dash-resume-meta muted small">${t('In progress', 'در حال انجام')} · ${timeAgo(resumeProject.updated_at, lang)}</span>
+            </div>
+            <a class="btn dash-resume-cta" href="/project.html?id=${resumeProject.id}">${t('Open', 'باز کردن')} ${raw(icon('arrow-right', 'icon'))}</a>
+          </section>`
+        : html``
+
       const sectionHtmls = renderOrder.map((id) => sections[id]())
-      const out: SafeHtml = sectionHtmls.length ? html`${sectionHtmls}` : html`<div class="dash-empty">${t('Nothing on your dashboard — enable a section in Settings → View options.', 'پیشخوان خالی است — یک بخش را در تنظیمات ← گزینه‌های نمایش روشن کن.')} <a href="/settings.html">${t('Open settings', 'باز کردن تنظیمات')}</a></div>`
+      const out: SafeHtml = sectionHtmls.length ? html`${resumeCard}${sectionHtmls}` : html`${resumeCard}<div class="dash-empty">${t('Nothing on your dashboard — enable a section in Settings → View options.', 'پیشخوان خالی است — یک بخش را در تنظیمات ← گزینه‌های نمایش روشن کن.')} <a href="/settings.html">${t('Open settings', 'باز کردن تنظیمات')}</a></div>`
 
       return await etag(c, c.html(toString(out)))
     }

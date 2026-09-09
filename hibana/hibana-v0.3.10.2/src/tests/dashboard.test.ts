@@ -361,3 +361,74 @@ describe('dashboard view options (2026-08-26)', () => {
     }
   })
 })
+describe('dashboard "Resume work" card (Session 19 cron round 4)', () => {
+  it('shows the resume card with the most recently touched doing project + deep link', async () => {
+    const { db, close } = makeTestDb()
+    try {
+      const user = await makeUser(db)
+      const { app, auth } = await makeClient(db, user)
+      const doing1 = await createProject(app, auth, 'Older doing', 'doing')
+      // a tiny delay so the second one has a newer updated_at (the query orders by updated_at DESC)
+      await new Promise((r) => setTimeout(r, 20))
+      const doing2 = await createProject(app, auth, 'Latest doing', 'doing')
+      await createProject(app, auth, 'A spark', 'spark')
+      await createProject(app, auth, 'A halted', 'halted')
+
+      const res = await app.fetch(new Request('http://local/api/dashboard', { headers: { ...auth, 'HX-Request': 'true' } }))
+      expect(res.status).toBe(200)
+      const html = await res.text()
+      // The resume card is present...
+      expect(html).toContain('dash-resume')
+      expect(html).toContain('Resume work')
+      // ...and it links to the MOST RECENTLY touched 'doing' project (doing2), not the older one.
+      expect(html).toContain(`/project.html?id=${doing2}`)
+      expect(html).toContain('Latest doing')
+      expect(html).toContain('In progress')
+      // The older doing project is NOT the resume target (its title may appear in the
+      // projects carousel, but the resume card's title link points at doing2).
+      const resumeTitleMatch = html.match(/dash-resume-title[^>]*href="\/project\.html\?id=([^"]+)"[^>]*>([^<]+)/)
+      expect(resumeTitleMatch).not.toBeNull()
+      expect(resumeTitleMatch![2]).toBe('Latest doing')
+    } finally {
+      close()
+    }
+  })
+
+  it('hides the resume card when no project is in the doing stage', async () => {
+    const { db, close } = makeTestDb()
+    try {
+      const user = await makeUser(db)
+      const { app, auth } = await makeClient(db, user)
+      await createProject(app, auth, 'Just an idea', 'spark')
+      await createProject(app, auth, 'Unreviewed', 'unreviewed')
+      await createProject(app, auth, 'Halted', 'halted')
+
+      const res = await app.fetch(new Request('http://local/api/dashboard', { headers: { ...auth, 'HX-Request': 'true' } }))
+      const html = await res.text()
+      expect(html).not.toContain('dash-resume')
+    } finally {
+      close()
+    }
+  })
+
+  it('is user-scoped: another user\'s doing project never appears in the resume card', async () => {
+    const { db, close } = makeTestDb()
+    try {
+      const user = await makeUser(db)
+      const { app, auth } = await makeClient(db, user)
+      // Another user's doing project (created directly in the DB, never via the authed app)
+      const other = await makeUser(db, { email: 'other@x.local', username: 'other' })
+      await db.execute(
+        "INSERT INTO projects (id, user_id, title, status, type, sort_order, created_at, updated_at) VALUES (?, ?, 'Other user secret', 'doing', 'personal', 0, ?, ?)",
+        [crypto.randomUUID(), other, new Date().toISOString(), new Date().toISOString()],
+      )
+      // user has no doing project → no resume card
+      const res = await app.fetch(new Request('http://local/api/dashboard', { headers: { ...auth, 'HX-Request': 'true' } }))
+      const html = await res.text()
+      expect(html).not.toContain('dash-resume')
+      expect(html).not.toContain('Other user secret')
+    } finally {
+      close()
+    }
+  })
+})

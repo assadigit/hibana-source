@@ -34,6 +34,10 @@ window.hibanaI18n = (() => {
       'tour.next': 'Next', 'tour.skip': 'Skip', 'tour.prev': 'Back',
       // R5.2: dashboard counter animation
       'dash.countingUp': 'loading',
+      'dash.resumeWork': 'Resume work',
+      'dash.resumeHint': 'Pick up where you left off',
+      'dash.inProgress': 'In progress',
+      'dash.open': 'Open',
       // common
       'common.save': 'Save', 'common.cancel': 'Cancel', 'common.delete': 'Delete',
       // Magic Button (idea §1) — AI polish/rewrite/translate wand
@@ -672,6 +676,10 @@ window.hibanaI18n = (() => {
       'tour.next': 'بعدی', 'tour.skip': 'رد کردن', 'tour.prev': 'قبلی',
       // R5.2: dashboard counter animation
       'dash.countingUp': 'در حال شمارش',
+      'dash.resumeWork': 'از سرگیری کار',
+      'dash.resumeHint': 'از جایی که رها کردی ادامه بده',
+      'dash.inProgress': 'در حال انجام',
+      'dash.open': 'باز کردن',
       // common
       'common.save': 'ذخیره', 'common.cancel': 'انصراف', 'common.delete': 'حذف',
       // Magic Button (idea §1) — AI polish/rewrite/translate wand

@@ -7050,6 +7050,21 @@ html[data-theme='dark'] .pd-col[data-status='bug']         { --pd-c: 150 110 120
 }
 .pd-task.st-done .pd-task-title { text-decoration: line-through; color: var(--muted); }
 .pd-more { padding-inline: 0.5rem; }
+/* Session 19 (user request): the "more" link is a TEXT link, not a styled button.
+   Was .pd-more.muted.small — looked like a disabled button. Now a plain teal text link. */
+.pd-more-link {
+  background: none;
+  border: 0;
+  padding: 0.3rem 0.5rem;
+  font: inherit;
+  font-size: var(--fs-xs);
+  color: var(--link);
+  cursor: pointer;
+  text-decoration: none;
+  display: block;
+  text-align: start;
+}
+.pd-more-link:hover { color: var(--text); text-decoration: underline; }
 /* Item 8: per-column export/copy action buttons in the pd-col header */
 .pd-col-actions { display: inline-flex; gap: 0.15rem; margin-inline-start: auto; }
 .pd-col-actions button { padding: 0.15rem 0.35rem; }

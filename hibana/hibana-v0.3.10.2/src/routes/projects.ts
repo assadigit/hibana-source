@@ -567,15 +567,15 @@ function detailHtml(p: ProjectRow, d: Awaited<ReturnType<typeof loadDetail>>, la
             </div>
             <div class="pd-tasks" data-pd-tasks="${col.key}" data-pd-total="${items.length}">
               ${top.map((t) => `<div class="pd-task-wrap" data-pd-task="${t.id}" data-pd-status="${t.status}" data-pd-created="${t.created_at}"${t.done_at ? ` data-pd-done="${t.done_at}"` : ''}>
-                <a class="pd-task st-${t.status}" href="/board.html?project=${p.id}&task=${t.id}" draggable="true">
+                <div class="pd-task st-${t.status}" draggable="true" role="button" tabindex="0" aria-label="${esc(t.title)}">
                   <span class="prio-dot prio-${t.priority}" title="${t.priority}"></span>
                   <span class="pd-task-body">
                     <span class="pd-task-title">${esc(t.title)}</span>
                     <span class="pd-task-meta">${taskMetaLabel(t)}</span>
                   </span>
-                </a>
+                </div>
               </div>`).join('')}
-              ${hiddenCount > 0 ? `<button type="button" class="pd-more muted small" data-pd-more="${col.key}">+${dig(hiddenCount)} ${trL(lang, 'more', 'بیشتر')}</button>` : ''}
+              ${hiddenCount > 0 ? `<button type="button" class="pd-more-link" data-pd-more="${col.key}">+${dig(hiddenCount)} ${trL(lang, 'more', 'بیشتر')}</button>` : ''}
             </div>
             <button type="button" class="pd-task-add" data-pd-add="${col.key}">${icon('plus')} ${trL(lang, 'Add', 'افزودن')}</button>
           </div>`

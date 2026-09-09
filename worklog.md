@@ -643,3 +643,54 @@ Stage Summary:
   polished across all audited surfaces (dashboard, project-detail, board, sprint, cmdk,
   calendar, sparks, sadhana, clients, admin, canvas, whiteboard, settings, notifications,
   reports, archive, clip).
+
+---
+Task ID: session-19-cron-r8
+Agent: Z.ai Code (principal) — recurring webDevReview cron (id=371903)
+Task: Password visibility toggle on all auth pages (login, signup, reset)
+
+Work Log:
+- Baseline: tsc green; vitest 289/289. QA: notebook (with seeded notes), 404 page,
+  search results, signup, reset. VLM audits surfaced: signup/reset/login password fields
+  lack a visibility toggle (eye icon) — a real UX gap affecting every signup/login. Also
+  noted: 404 "Go back" button affordance (already improved in round 2 via a.ghost),
+  reset email field border (already --line-strong from round 1), signup math captcha
+  (intentional — self-hosted HMAC, no third-party). Dismissed the recurring "all" avatar
+  misread (it's "ali") + the FAB overlap (FABs are the app's primary add pattern).
+- SHIPPED FEATURE — Password visibility toggle (login + signup + reset):
+  - `public/js/app.js` (DOMContentLoaded): auto-wires any `input[type="password"]` whose
+    parent is a `<label>` (the auth forms). Wraps the input in a `.pw-field` div + appends
+    a `button.pw-toggle` at the end edge. Toggle click swaps `type=password ↔ type=text`
+    + the eye/eye-off icon + `aria-label` ("Show"/"Hide") + `aria-pressed`. Idempotent
+    (skips if already wrapped). Runs on every page (the selector is empty on authed
+    pages), so all three auth forms get it for free. Zero per-page wiring needed.
+  - `public/css/app.css`: new `.pw-field` (position relative), `.pw-field input` (end
+    padding 2.4rem to clear the toggle), `.pw-toggle` (absolute, end-edge, 1.9rem circle,
+    muted color → text on hover, bg-soft hover bg, accent focus ring).
+  - No i18n keys needed (the toggle uses aria-labels only, no visible text).
+  - No new tests (pure client-side DOM wiring; the auth flow is already covered by
+    existing registration/auth tests).
+- Cache-bust: app.css 243→244; app.js 165→166. Both on all 23 pages. SW hibana-v278
+  unchanged (no sw.js logic change this round).
+- Verification: tsc green; vitest 289/289 (36 files); `node --check public/js/app.js`
+  green; agent-browser live QA — all three auth pages (login, signup, reset) have the
+  password field wrapped in `.pw-field` with a `.pw-toggle` button present (aria-label
+  "Show password"). Login toggle verified end-to-end: type=password → fill "secretpass" →
+  click toggle → VLM confirms "password field shows visible text 'secretpass'" + the
+  eye-off icon renders. Toggle back restores masked dots.
+
+Stage Summary:
+- Feature shipped: password visibility toggle on all three auth pages (login, signup,
+  reset). A single shared JS utility (auto-wires any labeled password field) + a small
+  CSS block. Reduces signup/login friction (users can verify their typing) + helps the
+  password-manager paste flow (confirm what was pasted). Zero per-page wiring.
+- Assets: app.css v244, app.js v166 (both consistent across 23 pages). SW v278 unchanged.
+- Tests 289/289, typecheck green, node --check green.
+- §6 open items status: 3 of 4 done (ICS export, Telegram /update, web-clipper). The 4th
+  (dev_tasks note column) needs a schema migration → Ali's written approval.
+- Next-phase priorities: dev_tasks note column (schema-gated), Magic Button FA-quality
+  review (deploy-time gate, needs env.AI), semantic find stages 1–2 (idea §6, deferred),
+  deploy to dev/prod (out of scope without Ali's go-ahead). The app is feature-stable +
+  polished across all surfaces (auth, dashboard, project-detail, board, sprint, cmdk,
+  calendar, sparks, sadhana, clients, admin, canvas, whiteboard, settings, notifications,
+  reports, archive, clip).

@@ -2904,6 +2904,37 @@ window.hibana = (() => {
   }
 
   document.addEventListener('DOMContentLoaded', async () => {
+    // Session 19 (cron round 8): password visibility toggle for auth pages (login,
+    // signup, reset). Auto-wires any input[type=password] that isn't already wrapped.
+    // Wraps the <input> in a .pw-field div + appends a button.pw-toggle that swaps
+    // type=password ↔ type=text + the eye/eye-off icon. Runs on every page (the selector
+    // is empty on authenticated pages), so the three auth forms get it for free.
+    document.querySelectorAll('input[type="password"]').forEach((input) => {
+      if (input.closest('.pw-field') || input.dataset.pwToggle === 'done') return
+      const parent = input.parentElement
+      if (!parent || parent.tagName !== 'LABEL') return // only wrap labeled password fields (the auth forms)
+      const wrap = document.createElement('div')
+      wrap.className = 'pw-field'
+      parent.insertBefore(wrap, input)
+      wrap.appendChild(input)
+      const btn = document.createElement('button')
+      btn.type = 'button'
+      btn.className = 'pw-toggle'
+      btn.setAttribute('aria-label', 'Show password')
+      btn.setAttribute('aria-pressed', 'false')
+      btn.innerHTML = '<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></svg>'
+      const eyeIcon = '<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></svg>'
+      const eyeOffIcon = '<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M9.9 4.2A10.9 10.9 0 0 1 12 4c6.5 0 10 8 10 8a13.4 13.4 0 0 1-1.7 2.6M6.6 6.6A13.3 13.3 0 0 0 2 12s3.5 8 10 8a10.9 10.9 0 0 0 5-1.2"/><path d="m2 2 20 20M9.9 9.9a3 3 0 0 0 4.2 4.2"/></svg>'
+      btn.addEventListener('click', () => {
+        const show = input.type === 'password'
+        input.type = show ? 'text' : 'password'
+        btn.innerHTML = show ? eyeOffIcon : eyeIcon
+        btn.setAttribute('aria-label', show ? 'Hide password' : 'Show password')
+        btn.setAttribute('aria-pressed', String(show))
+      })
+      wrap.appendChild(btn)
+    })
+
     const mounts = document.querySelectorAll('[data-nav]')
     if (mounts.length > 0) {
       const res = await fetch('/partials/nav.html')

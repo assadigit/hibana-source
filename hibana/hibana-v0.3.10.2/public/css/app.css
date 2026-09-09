@@ -468,6 +468,31 @@ input[type="password"], input[type="text"][name*="password" i] {
   background: var(--card);
 }
 input[type="password"]:hover { border-color: var(--text-dim, var(--muted)); }
+/* Session 19 (cron round 8): password visibility toggle. The auth forms wrap their
+   password <input> in a .pw-field div; a button.pw-toggle sits at the end edge. The
+   toggle swaps type=password ↔ type=text + the eye/eye-off icon. */
+.pw-field { position: relative; display: block; }
+.pw-field input { padding-inline-end: 2.4rem; }
+.pw-toggle {
+  position: absolute;
+  inset-inline-end: 0.3rem;
+  inset-block-start: 50%;
+  transform: translateY(-50%);
+  display: inline-grid;
+  place-items: center;
+  inline-size: 1.9rem;
+  block-size: 1.9rem;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  transition: color 0.12s ease, background 0.12s ease;
+}
+.pw-toggle:hover { color: var(--text); background: var(--bg-soft); }
+.pw-toggle:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.pw-toggle .icon { inline-size: 1.05rem; block-size: 1.05rem; }
 input:hover, textarea:hover, select:hover { border-color: var(--line-strong); }
 textarea { width: 100%; resize: vertical; }
 

@@ -5885,6 +5885,14 @@ html[data-theme='dark'] .kanban-card,
 .stat-kanban-card,
 html[data-theme='dark'] .stat-kanban-card,
 :root:not([data-theme='light']) .stat-kanban-card { background: transparent; /* Session 19 (user request): was var(--statcard-bg) — colorless surface with only a border. The .stat-kanban-card:hover rule (line 1230) adds the bg-soft fill on hover. */ }
+/* Session 19 (user report round 2): the dashboard project cards STILL showed a white
+   (--card) fill because the .kanban-card rule above (line 5882, same specificity, but the
+   card carries BOTH classes) was winning the cascade in some theme-resolution paths.
+   This triple-class rule (0,3,0) beats every .kanban-card / .card / :root:not() variant
+   unambiguously — the dashboard item card is TRANSPARENT, only the border shows. */
+.card.kanban-card.stat-kanban-card,
+html[data-theme='dark'] .card.kanban-card.stat-kanban-card,
+:root:not([data-theme='light']) .card.kanban-card.stat-kanban-card { background: transparent; }
 
 /* Status-coded kanban cards (2026-08-30 (g), Ali's request) — SPLIT in session-11
    (user report 2026-09-14): the dashboard's stage boxes read as "all box colored pale

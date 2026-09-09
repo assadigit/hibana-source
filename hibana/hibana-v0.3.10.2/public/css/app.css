@@ -3226,8 +3226,16 @@ cite { font-style: normal; }
   overflow-x: auto;
   scroll-snap-type: x mandatory;
   padding-block-end: 0.5rem;
-  scrollbar-width: none; /* carousel: no visible scrollbar, arrows only (2026-08-25) */
-  align-items: flex-start; /* long notes never stretch their siblings (2026-08-25) */
+  /* Session 19 (user report): the sticky carousel clipped the right + bottom shadows of
+     the last note. The inline padding gives the shadow (4px 12px 20px) room to render on
+     the end edge; the block padding gives the bottom shadow room. The scroll-padding
+     keeps the snap target inside the padding so the last note isn't flush against the
+     container edge after a scroll. */
+  padding-inline: 0.5rem;
+  padding-block: 0.25rem 0.75rem;
+  scroll-padding-inline: 0.5rem;
+  scrollbar-width: none;
+  align-items: flex-start;
 }
 #notebook #nv-sticky:checked ~ .note-list::-webkit-scrollbar { display: none; }
 #notebook #nv-sticky:checked ~ .note-list > .note-card { flex: 0 0 calc(25% - 0.6rem); min-width: 10rem; }
@@ -3346,6 +3354,10 @@ cite { font-style: normal; }
   overflow-y: auto;
   max-height: calc(50cqw - 0.2rem); /* 3 rows of half-width cards = half the notebook's width */
   scrollbar-width: thin;
+  /* Session 19 (user report): give the sticky shadows room on all edges so they're never
+     clipped by the scroll container. */
+  padding: 0.5rem;
+  margin: -0.25rem; /* negates the extra padding so the grid doesn't shift the layout */
 }
 /* Narrow screens (session 14, user request): 6 columns would be unreadable — and the
    old 3-up fallback left each paper too cramped to read (a 390px phone gave ~101px

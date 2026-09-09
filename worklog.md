@@ -550,3 +550,50 @@ Stage Summary:
   review (deploy-time gate, needs env.AI), semantic find stages 1–2 (idea §6, deferred),
   deploy to dev/prod (out of scope without Ali's go-ahead). The app is feature-stable +
   polished across all audited surfaces.
+
+---
+Task ID: session-19-cron-r6
+Agent: Z.ai Code (principal) — recurring webDevReview cron (id=371903)
+Task: Command palette + project board empty-state polish
+
+Work Log:
+- Baseline: tsc green; vitest 289/289. QA: project-detail (with content), projects-search,
+  command palette (Ctrl+K), project board preview. VLM audits on cmdk + board surfaced
+  concrete issues: cmdk selected-state too subtle (14% brand tint); board empty-state was
+  a faint muted <p> that read as placeholder/broken; project-detail ghost.small buttons
+  low contrast (intentional — secondary actions). Dismissed the recurring "all" avatar
+  misread (confirmed false positive: it's "ali").
+- POLISH BATCH (app.css + projects.ts):
+  - **Command palette selected state** (`.cmdk-item.is-selected`): background
+    `color-mix(brand 14%, card)` → `22%` (VLM-flagged as too subtle); added
+    `box-shadow: inset 3px 0 0 var(--brand)` — a left accent bar so the selected row is
+    unmistakable. Verified live: bg now a clear teal-tinted color (0.84/0.92/0.92 sRGB) +
+    the 3px inset teal bar. VLM PASS: "distinct light blue background and a colored border."
+  - **Project board empty state** (`.pd-board-empty`): was a bare `<p class="muted">`
+    ("Serious development tasks live here…") that read as a placeholder, not an intentional
+    empty state. Upgraded to the illustrated `.empty-state` pattern (kanban icon +
+    "No tasks yet" title + descriptive text "Add one with the ＋ on a column below").
+    Reuses the existing empty-state CSS (icon, title, text, dashed border). Route passes
+    the trL-localized strings. Verified live: `isIllustrated: true`, icon + title present.
+    VLM PASS: "intentional illustrated empty state with icon + 'No tasks yet' + text."
+- Cache-bust: app.css 241→242 on all 23 pages. SW hibana-v278 unchanged (no sw.js logic
+  change this round).
+- Verification: tsc green; vitest 289/289 (36 files); agent-browser live QA confirmed
+  cmdk selected state (clearer bg + accent bar) + board empty state (illustrated). VLM
+  visual PASS on both.
+
+Stage Summary:
+- Polish shipped: command palette selected-row visibility (clearer tint + left accent bar),
+  project board empty state (illustrated, matching the app's empty-state pattern).
+- Assets: app.css v242 (consistent across 23 pages). SW v278 unchanged.
+- Tests 289/289, typecheck green.
+- §6 open items status: 3 of 4 done (ICS export, Telegram /update, web-clipper). The 4th
+  (dev_tasks note column) needs a schema migration → Ali's written approval.
+- Dismissed false positives: the "all" avatar misread (it's "ali"), ghost.small button
+  contrast (intentional secondary styling — `--link` color at small size).
+- Next-phase priorities: dev_tasks note column (schema-gated), Magic Button FA-quality
+  review (deploy-time gate, needs env.AI), semantic find stages 1–2 (idea §6, deferred),
+  deploy to dev/prod (out of scope without Ali's go-ahead). The app is feature-stable +
+  polished across all audited surfaces (dashboard, project-detail, board, cmdk, calendar,
+  sparks, sadhana, clients, admin, canvas, whiteboard, settings, notifications, reports,
+  archive, clip).

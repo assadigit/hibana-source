@@ -546,8 +546,10 @@ function detailHtml(p: ProjectRow, d: Awaited<ReturnType<typeof loadDetail>>, la
       </div>
     </div>
     ${d.devTasks.length === 0
-      ? `<div class="pd-board-empty" data-pd-empty>
-          <p class="muted">${trL(lang, 'Serious development tasks live here — from first idea to launched.', 'کارهای جدیِ توسعه اینجا زندگی می‌کنند — از اولین ایده تا عرضه.')}</p>
+      ? `<div class="pd-board-empty empty-state empty" data-pd-empty>
+          <span class="empty-state-icon" aria-hidden="true">${icon('kanban')}</span>
+          <p class="empty-state-title">${trL(lang, 'No tasks yet', 'هنوز کاری نیست')}</p>
+          <p class="empty-state-text">${trL(lang, 'Serious development tasks live here — from first idea to launched. Add one with the ＋ on a column below.', 'کارهای جدیِ توسعه اینجا زندگی می‌کنند — از اولین ایده تا عرضه. یکی را با ＋ پایین اضافه کن.')}</p>
         </div>`
       : ''}
     <div class="pd-board-grid">${COLS.map((col) => {

@@ -4792,7 +4792,8 @@ dialog.cmdk::backdrop {
   outline: none;
 }
 .cmdk-item.is-selected {
-  background: color-mix(in srgb, var(--brand) 14%, var(--card));
+  background: color-mix(in srgb, var(--brand) 22%, var(--card)); /* Session 19 (cron round 6): was 14% — too subtle (VLM-flagged). 22% reads as a clear selection. */
+  box-shadow: inset 3px 0 0 var(--brand); /* a left accent bar so the selected row is unmistakable */
 }
 .cmdk-icon {
   flex: none;
@@ -6781,7 +6782,11 @@ html[data-theme="dark"] .heatmap-l4,
   padding: 0.05rem 0.45rem;
   border-radius: 999px;
 }
-.pd-board-empty { display: grid; gap: 0.6rem; justify-items: start; padding: 0.4rem 0; }
+.pd-board-empty { display: grid; gap: 0.6rem; justify-items: start; padding: 0.5rem 0.6rem; }
+/* Session 19 (cron round 6): the empty-board hint was a faint muted <p> that read as
+   placeholder/broken (VLM-flagged). Style it as an intentional empty-state: an icon +
+   the hint, with a quiet dashed border so the column reads as "intentionally empty". */
+.pd-board-empty p { color: var(--muted); font-size: var(--fs-sm); line-height: 1.5; margin: 0; }
 .pd-board-grid {
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr)); /* 0031: red Problems column; batch (s) ⑩: second slot */

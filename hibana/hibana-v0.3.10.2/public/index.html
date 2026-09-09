@@ -1,0 +1,17 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Hibana</title>
+  <link rel="stylesheet" href="/css/app.css?v=235">
+  <link rel="stylesheet" href="/vendor/manrope/font-face.css">
+</head>
+<body>
+  <script>
+    // Entry point: already logged in? → app. Otherwise → login.
+    fetch('/api/auth/me').then((r) => window.location.replace(r.ok ? '/app' : '/login.html'))
+  </script>
+  <noscript><p style="font-family:sans-serif;text-align:center;padding:3rem">Hibana needs JavaScript. / هیبانا برای کار نیاز به جاوااسکریپت دارد.</p></noscript>
+</body>
+</html>

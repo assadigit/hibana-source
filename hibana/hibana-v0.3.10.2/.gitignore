@@ -1,0 +1,25 @@
+node_modules/
+.wrangler/
+.dev.vars
+.dev.vars.*
+.secrets.env
+.admin.secrets
+.env
+dist/
+public/dist/
+.build-backup/
+coverage/
+data/
+*.sql.tmp
+dashboard-check.png
+# never commit session cookies / curl jars
+cookies.txt
+*.cookies
+# local Node run logs (dev server stdout)
+*.log
+# session audit evidence screenshots (heavy PNGs; results/tooling are tracked, shots stay local)
+audit-results/shots/
+# live credentials — gitignored forever; the agent reads it but it never ships to git or a zip
+credentials.md
+# safety net: capitalized variant (gitignore matching is case-sensitive)
+Credentials.md

@@ -1,0 +1,1788 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Project — Hibana</title>
+  <link rel="stylesheet" href="/css/app.css?v=235">
+  <link rel="stylesheet" href="/css/magic-wand.css?v=2">
+  <link rel="stylesheet" href="/vendor/manrope/font-face.css">
+  <script src="/vendor/htmx.min.js" defer></script>
+  <script src="/js/boot.js?v=4"></script>
+  <script src="/vendor/alpine.min.js" defer></script>
+  <script src="/js/app.js?v=165" defer></script>
+  <script src="/js/touch-drag.js?v=1" defer></script>
+  <script src="/js/nav.js?v=1" defer></script>
+  <script src="/js/command-palette.js?v=1" defer></script>
+  <script src="/js/mobile-nav.js?v=4" defer></script>
+  <script src="/js/zen-mode.js?v=1" defer></script>
+  <script src="/js/micro-interactions.js?v=1" defer></script>
+  <script src="/js/go-to.js?v=1" defer></script>
+  <script src="/js/install-prompt.js?v=1" defer></script>
+  <script src="/js/i18n.js?v=46" defer></script>
+  <script src="/js/magic-wand.js?v=8" defer></script>
+</head>
+<body>
+  <a href="#main" class="skip-link" data-i18n="a11y.skipToMain">Skip to main content</a>
+  <div data-nav></div>
+  <main class="shell" id="main" tabindex="-1">
+    <!-- hx-indicator omitted on purpose: after the first swap #loading is gone, and the
+         default indicator (htmx-request on this element + .htmx-indicator child) behaves
+         identically without the "selector returned no matches" console error on every
+         later htmx call (links/hurdles/screenshots actions). -->
+    <div id="project-body" hx-get="/api/projects/__ID__" hx-trigger="load" hx-swap="innerHTML">
+      <div id="loading" class="skeleton-loading htmx-indicator" aria-label="Loading project" role="status">
+        <div class="skeleton skeleton-line w-60" style="height:1.5rem"></div>
+        <div class="skeleton skeleton-line w-40"></div>
+        <div class="skeleton skeleton-box"></div>
+        <div class="skeleton skeleton-line"></div>
+        <div class="skeleton skeleton-line w-60"></div>
+        <div class="skeleton skeleton-line w-40"></div>
+      </div>
+    </div>
+  </main>
+  <script>
+    window.__hibanaPage = window.__hibanaPage || ((d) => (window.__hibanaPageQueue = window.__hibanaPageQueue || []).push(d))
+    window.__hibanaPage({
+      name: 'project',
+      mount(ctx) {
+        // The static page carries the id in the query (no build step — inline replace).
+        const id = new URLSearchParams(location.search).get('id')
+        // Guarded lookup — hibanaI18n.t returns the KEY itself when missing; never leak it.
+        const _t = (k, f) => { const s = window.hibanaI18n?.t(k); return s && s !== k ? s : f }
+        const body = document.getElementById('project-body')
+        if (body && id) body.setAttribute('hx-get', `/api/projects/${id}`)
+
+        // R4.2: Record this project visit for the command palette's "Recent" section.
+        // Fires after the htmx swap renders the project HTML (title lives in the <h1>).
+        if (id) {
+          ctx.on('htmx:afterSwap', (e) => {
+            if (e.target?.id !== 'project-body' && e.detail?.target?.id !== 'project-body') return
+            const h1 = document.querySelector('#project-body header h1')
+            const status = document.querySelector('#project-body [data-status]')?.dataset.status
+            if (h1 && h1.textContent) {
+              window.hibanaCmdK?.recordRecent?.(id, h1.textContent.trim(), status || '')
+            }
+          })
+          // A deleted/missing project 404s — htmx would just leave the skeleton spinning
+          // forever. Say what happened and offer the way back (same pattern as board/sprint).
+          ctx.on('htmx:responseError', (e) => {
+            if (e.target?.id !== 'project-body') return
+            if (e.detail?.xhr?.status !== 404) return
+            const escS = (s) => String(s).replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' })[c])
+            body.innerHTML = '<div class="card" style="padding:2rem;text-align:center">' +
+              '<p style="margin:0 0 1rem">' + escS(_t('db.projectGone', "This project doesn't exist or was deleted")) + '</p>' +
+              '<a class="btn small" href="/projects.html">' + escS(_t('db.backToProjects', 'Back to projects')) + '</a></div>'
+          })
+        }
+
+        // Screenshot gallery upload (drag-drop/paste/file-picker — spec §4.6).
+        const upload = async (files) => {
+          for (const file of files) {
+            const b64 = await new Promise((resolve, reject) => {
+              const r = new FileReader()
+              r.onload = () => resolve(String(r.result).split(',')[1])
+              r.onerror = reject
+              r.readAsDataURL(file)
+            })
+            const caption = prompt(_t('project.captionPrompt', 'Caption (optional):'), '') ?? ''
+            const res = await fetch(`/api/projects/${id}/screenshots`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ fileName: file.name, mimeType: file.type, dataBase64: b64, caption }),
+            })
+            const toastOk = res.ok
+            window.hibana?.toast(toastOk ? _t('project.shotUploaded', 'Screenshot uploaded') : _t('project.shotFailed', 'Upload failed'), toastOk ? 'info' : 'err')
+            // 2026-09-05 repair: #shots carries no hx-get, so the old
+            // `htmx.trigger('#shots','load')` was a no-op and fresh uploads never
+            // showed. Pull the server-rendered grid fragment instead.
+            if (toastOk && window.htmx) window.htmx.ajax('GET', `/api/projects/${id}/screenshots`, { target: '#shots', swap: 'innerHTML' })
+          }
+        }
+        // 2026-09-05 repair: #shot-input renders INSIDE the htmx project fragment, so the
+        // old mount-time getElementById bound nothing (the fragment hadn't loaded yet) —
+        // the picker opened but no change listener existed and nothing uploaded.
+        // Delegated on ctx so it survives every re-render of #project-body; value resets
+        // so picking the same file twice still fires change.
+        ctx.on('change', (e) => {
+          if (e.target?.id !== 'shot-input') return
+          const files = [...e.target.files]
+          e.target.value = ''
+          if (files.length) upload(files)
+        })
+        ctx.on('dragover', (e) => e.preventDefault())
+        ctx.on('dragenter', (e) => e.preventDefault())
+        ctx.on('drop', (e) => {
+          e.preventDefault()
+          if (e.target.closest('#project-body')) {
+            const files = [...e.dataTransfer.files].filter((f) => f.type.startsWith('image/'))
+            if (files.length) upload(files)
+          }
+        })
+
+        // --- batch q 2026-09-07: the STAGE select finally persists. The old htmx wiring
+        // (hx-patch + js hx-vals) evaluated "this.value" in GLOBAL scope — the PATCH
+        // shipped status=undefined, zod 400'd, and the stage silently never changed.
+        // Now: change → PATCH → swap #pd-stage-badge in place (no full re-render, so an
+        // in-progress description edit is never lost) + toast. The ذخیره button re-sends
+        // the current value (idempotent — covers a failed change-save) and then navigates
+        // back to the projects list, matching the user's mental model of "save".
+        const patchStage = async (projectId, status) => {
+          const res = await fetch(`/api/projects/${projectId}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ status }),
+          })
+          if (!res.ok) throw new Error(String(res.status))
+          return res
+        }
+        ctx.on('change', (e) => {
+          if (e.target?.id !== 'pd-stage') return
+          const sel = e.target
+          const projectId = sel.dataset.projectId || id
+          const badge = document.getElementById('pd-stage-badge')
+          patchStage(projectId, sel.value)
+            .then(() => {
+              // swap the badge with the freshly-rendered select's sibling? simplest robust:
+              // re-render just the badge from the server's project payload (rule: server is
+              // the authority for the label/icon pairing).
+              return fetch(`/api/projects/${projectId}`).then((r) => r.json())
+            })
+            .then((body) => {
+              const p = body?.project
+              if (badge && p?.status) {
+                // rebuild the badge span from the project row: same classes the server uses
+                const ICONS = {
+                  spark: '<path d="M9 18h6M10 22h4"/><path d="M12 2a7 7 0 0 0-4.2 12.6c.9.7 1.2 1.6 1.2 2.4h6c0-.8.3-1.7 1.2-2.4A7 7 0 0 0 12 2Z"/>',
+                  unreviewed: '<circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/>',
+                  investigating: '<circle cx="11" cy="11" r="6.5"/><path d="M16 16l4.5 4.5"/>',
+                  awaiting: '<rect x="3.5" y="5" width="17" height="16" rx="2"/><path d="M3.5 9.5h17M8 3v4M16 3v4"/>',
+                  doing: '<circle cx="12" cy="12" r="3"/><path d="M12 2.5v2.8M12 18.7v2.8M2.5 12h2.8M18.7 12h2.8M5.3 5.3l2 2M16.7 16.7l2 2M18.7 5.3l-2 2M7.3 16.7l-2 2"/>',
+                  halted: '<path d="M9 5.5v13M15 5.5v13"/>',
+                  operational: '<path d="M12 2.5s4.5 3 4.5 8c0 2.6-1.6 4.6-1.6 6.5h-5.8c0-1.9-1.6-3.9-1.6-6.5 0-5 4.5-8 4.5-8Z"/><circle cx="12" cy="9.5" r="1.8"/><path d="M9.5 20.5h5"/>',
+                }
+                const label = sel.querySelector(`option[value="${p.status}"]`)?.textContent || p.status
+                badge.innerHTML = `<span class="badge badge-${p.status}"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true">${ICONS[p.status] || ''}</svg>${label}</span>`
+              }
+              window.hibana?.toast(_t('project.stageSaved', 'Stage saved'), 'info', 3000)
+            })
+            .catch(() => {
+              window.hibana?.toast(_t('dashboard.moveFailed', "Couldn't move it — try again"), 'err')
+            })
+        })
+        ctx.on('click', (e) => {
+          const save = e.target.closest('#pd-stage-save')
+          if (!save) return
+          e.preventDefault()
+          const sel = document.getElementById('pd-stage')
+          const projectId = save.dataset.projectId || id
+          const finish = () => { window.hibanaNav ? window.hibanaNav.go('/projects.html') : (window.location.href = '/projects.html') }
+          if (!sel) return finish()
+          patchStage(projectId, sel.value).then(finish).catch(finish)
+        })
+
+        // --- Hurdles drag-reorder (spec §4.3): delegated on the document so htmx fragment swaps
+        // (toggle/add/delete re-render #hurdles) never need re-binding. ctx.on keeps the
+        // listeners mounted — nav.js removes them when this page unmounts. ---
+        let hurdleDrag = null
+        let hurdleOver = null
+        const clearHurdleOver = () => {
+          if (hurdleOver) { hurdleOver.classList.remove('drag-over'); hurdleOver = null }
+        }
+        ctx.on('dragstart', (e) => {
+          const h = e.target.closest('#hurdles [data-hurdle-id]')
+          if (!h) return
+          hurdleDrag = h
+          e.dataTransfer.effectAllowed = 'move'
+          h.classList.add('dragging')
+        })
+        ctx.on('dragover', (e) => {
+          if (!hurdleDrag) return
+          e.preventDefault()
+          const h = e.target.closest('#hurdles [data-hurdle-id]')
+          clearHurdleOver()
+          if (!h || h === hurdleDrag) return
+          const r = h.getBoundingClientRect()
+          const after = e.clientY > r.top + r.height / 2
+          h.parentElement.insertBefore(hurdleDrag, after ? h.nextSibling : h)
+          hurdleOver = h
+          h.classList.add('drag-over')
+        })
+        ctx.on('drop', async (e) => {
+          if (!hurdleDrag) return
+          e.preventDefault()
+          const ids = [...document.querySelectorAll('#hurdles [data-hurdle-id]')].map((x) => x.dataset.hurdleId)
+          try {
+            if (ids.length > 1) {
+              const res = await fetch(`/api/projects/${id}/hurdles/reorder`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ ids }),
+              })
+              if (!res.ok) throw new Error('reorder failed')
+            }
+          } catch (err) {
+            window.hibana?.toast(_t('list.reorderFailed', 'Reorder failed — try again'), 'err')
+          } finally {
+            clearHurdleOver()
+            if (hurdleDrag) hurdleDrag.classList.remove('dragging')
+            hurdleDrag = null
+          }
+        })
+        ctx.on('dragend', () => {
+          clearHurdleOver()
+          if (hurdleDrag) hurdleDrag.classList.remove('dragging')
+          hurdleDrag = null
+        })
+
+        // --- Where-I-left-off AUTOSAVE (user request: typing saves itself, no button) -----
+        // Debounced while typing, flushed on blur; delegated so htmx swaps of #project-body
+        // (drag reorder, hurdle actions target only their lists, but the header status select
+        // re-renders the body) never lose the behavior. ctx.on unmounts it on navigation.
+        let noteBase = null // the value the field had when the user first touched it
+        let noteValue = '' // the last value actually saved
+        let noteTimer = null
+        const noteStatus = (text) => {
+          const el = document.getElementById('note-status')
+          if (!el) return
+          el.hidden = !text
+          el.textContent = text || ''
+        }
+        const isNoteField = (el) => el instanceof HTMLTextAreaElement && el.matches('#project-body textarea[name="note"]')
+        const saveNoteNow = async () => {
+          noteTimer = null
+          const ta = document.querySelector('#project-body textarea[name="note"]')
+          if (!ta) return
+          const value = ta.value
+          if (value === noteValue) { noteStatus(''); return }
+          if (noteValue === '' && value === noteBase) { noteStatus(''); return } // never modified
+          try {
+            const res = await fetch(`/api/projects/${id}/note`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ note: value }),
+            })
+            if (!res.ok) throw new Error('save failed')
+            noteValue = value
+            if (noteBase === null) noteBase = value
+            noteStatus('✓ ' + _t('project.noteSaved', 'saved'))
+            setTimeout(() => { if (ta.value === noteValue) noteStatus('') }, 1600)
+          } catch {
+            noteStatus('')
+            window.hibana?.toast(_t('project.noteSaveFailed', "Couldn't auto-save — press Save note"), 'err')
+          }
+        }
+        ctx.on('focusin', (e) => {
+          if (!isNoteField(e.target)) return
+          if (noteBase === null) noteBase = e.target.value
+        })
+        ctx.on('input', (e) => {
+          if (!isNoteField(e.target)) return
+          if (noteBase === null) noteBase = e.target.value
+          clearTimeout(noteTimer)
+          if (e.target.value !== noteValue) noteStatus('…')
+          noteTimer = setTimeout(saveNoteNow, 800)
+        })
+        ctx.on('blur', (e) => {
+          if (!isNoteField(e.target)) return
+          clearTimeout(noteTimer)
+          saveNoteNow()
+        }, true) // blur doesn't bubble — capture phase
+
+        // --- Hurdles composer (Quick-Notebook feel, user request) ---
+        // Enter adds the current text (Shift+Enter = newline); the server splits pasted
+        // multi-line blocks into one hurdle per line. Same htmx path as the ＋ button.
+        ctx.on('keydown', (e) => {
+          if (e.key !== 'Enter' || e.shiftKey || e.isComposing) return
+          const ta = e.target
+          if (!(ta instanceof HTMLTextAreaElement) || !ta.classList.contains('hurdle-compose-text')) return
+          e.preventDefault()
+          const text = ta.value.trim()
+          if (!text || !window.htmx) return
+          ta.value = ''
+          window.htmx.ajax('POST', `/api/projects/${id}/hurdles`, {
+            target: '#hurdles',
+            swap: 'innerHTML',
+            values: { text },
+          })
+        })
+
+        // --- Hurdle hover-pen editing (user request 2026-09-05 — picked over dblclick) ---
+        // Hover a hurdle → the pen appears (CSS); click it → the text becomes an input.
+        // Enter/blur saves (PATCH /api/hurdles/:id {text}), Esc cancels; the list then
+        // re-renders from the server so the markup stays single-sourced. Delegated so
+        // htmx swaps of #hurdles (add/toggle/delete) never lose the behavior.
+        ctx.on('click', (e) => {
+          const pen = e.target.closest('[data-hurdle-edit]')
+          if (!pen) return
+          const li = pen.closest('[data-hurdle-id]')
+          const span = li?.querySelector('.hurdle-text')
+          if (!li || !span || li.querySelector('.hurdle-edit-input')) return
+          const hurdleId = li.dataset.hurdleId
+          const orig = span.textContent
+          const refreshList = () => {
+            if (window.htmx) window.htmx.ajax('GET', `/api/projects/${id}/hurdles`, { target: '#hurdles', swap: 'innerHTML' })
+          }
+          const input = document.createElement('input')
+          input.className = 'hurdle-edit-input'
+          input.maxLength = 500
+          input.dir = 'auto'
+          input.setAttribute('aria-label', _t('project.hurdleText', 'Hurdle text'))
+          input.value = orig
+          span.replaceWith(input)
+          input.focus()
+          input.select()
+          let done = false
+          const finish = async (save) => {
+            if (done) return
+            done = true
+            const value = input.value.trim()
+            input.remove()
+            if (!save || !value || value === orig) { refreshList(); return }
+            try {
+              const res = await fetch(`/api/hurdles/${hurdleId}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ text: value }),
+              })
+              if (!res.ok) throw new Error('save failed')
+              window.hibana?.toast(_t('sparks.saved', 'Saved'))
+            } catch {
+              window.hibana?.toast(_t('sparks.saveFailed', "Couldn't save"), 'err')
+            }
+            refreshList()
+          }
+          input.addEventListener('keydown', (ev) => {
+            if (ev.key === 'Enter') { ev.preventDefault(); finish(true) }
+            if (ev.key === 'Escape') { ev.preventDefault(); finish(false) }
+          })
+          input.addEventListener('blur', () => finish(true))
+        })
+
+        // --- B3.3: Project detail tabs (Overview / Hurdles / Media / Links / Activity) ---
+        // Delegated click handler so htmx swaps that re-render #project-body keep working.
+        // Also supports keyboard arrow nav between tabs (WCAG tablist pattern).
+        let pdActiveTab = 'notes' // batch (p): remember the open tab across htmx re-renders
+        function switchTab(name) {
+          pdActiveTab = name
+          const root = document.getElementById('project-body')
+          if (!root) return
+          root.querySelectorAll('[data-detail-tab]').forEach((b) => {
+            const on = b.dataset.detailTab === name
+            b.classList.toggle('is-active', on)
+            b.setAttribute('aria-selected', on ? 'true' : 'false')
+            b.tabIndex = on ? 0 : -1
+          })
+          root.querySelectorAll('[data-detail-panel]').forEach((p) => {
+            const on = p.dataset.detailPanel === name
+            p.hidden = !on
+            p.classList.toggle('is-active', on)
+          })
+        }
+        ctx.on('click', (e) => {
+          const tab = e.target.closest('[data-detail-tab]')
+          if (tab && tab.closest('#project-body')) switchTab(tab.dataset.detailTab)
+        })
+        ctx.on('keydown', (e) => {
+          const tab = e.target.closest('[data-detail-tab]')
+          if (!tab || !e.target.closest('#project-body')) return
+          if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') {
+            e.preventDefault()
+            const tabs = [...document.querySelectorAll('[data-detail-tab]')]
+            const idx = tabs.indexOf(tab)
+            const next = e.key === 'ArrowRight' ? (idx + 1) % tabs.length : (idx - 1 + tabs.length) % tabs.length
+            tabs[next].focus()
+            switchTab(tabs[next].dataset.detailTab)
+          }
+        })
+        // Re-select the tab that was OPEN before htmx swaps #project-body (status change
+        // re-renders). The old code always forced Notes — a save from any other tab yanked
+        // the user's view back. Default stays Notes (first tab in the (p) order).
+        for (const evt of ['htmx:afterSwap', 'afterSwap']) {
+          ctx.on(evt, (e) => {
+            if (e.target?.id === 'project-body' || e.detail?.target?.id === 'project-body') {
+              switchTab(pdActiveTab)
+            }
+          })
+        }
+
+        // --- Redesigned header (user sketch 2026-08-29) ---------------------------------
+
+        // Title: click the h1 (or its ✎ pen) → inline input; Enter/blur saves, Esc cancels.
+        const refreshBody = () => {
+          if (window.htmx) window.htmx.ajax('GET', `/api/projects/${id}`, { target: '#project-body', swap: 'innerHTML' })
+        }
+        const startTitleEdit = (h1) => {
+          if (document.getElementById('pd-title-input')) return
+          const input = document.createElement('input')
+          input.id = 'pd-title-input'
+          input.value = h1.textContent.trim()
+          input.maxLength = 200
+          input.dir = 'auto'
+          h1.replaceChildren(input)
+          input.focus()
+          input.select()
+          let done = false
+          const finish = async (save) => {
+            if (done) return
+            done = true
+            const value = input.value.trim()
+            input.remove()
+            if (!save || !value || value === h1.dataset.orig) { refreshBody(); return }
+            try {
+              const res = await fetch(`/api/projects/${id}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ title: value }),
+              })
+              if (!res.ok) throw new Error('save failed')
+              window.hibana?.toast(_t('sparks.saved', 'Saved'))
+            } catch {
+              window.hibana?.toast(_t('sparks.saveFailed', "Couldn't save"), 'err')
+            }
+            refreshBody()
+          }
+          h1.dataset.orig = input.value
+          input.addEventListener('keydown', (ev) => {
+            if (ev.key === 'Enter') { ev.preventDefault(); finish(true) }
+            if (ev.key === 'Escape') { ev.preventDefault(); finish(false) }
+          })
+          input.addEventListener('blur', () => finish(true))
+        }
+        ctx.on('click', (e) => {
+          const h1 = e.target.closest('#pd-title')
+          if (!h1) return
+          if (e.target.closest('[data-edit-title]') || e.target === h1) startTitleEdit(h1)
+        })
+
+        // Description: always-editable box, debounced autosave like the note field.
+        let descTimer = null
+        let descValue = null
+        const descStatus = (txt) => {
+          const el = document.getElementById('pd-desc-status')
+          if (el) el.textContent = txt || ''
+        }
+        const saveDescNow = async () => {
+          descTimer = null
+          const ta = document.getElementById('pd-desc')
+          if (!ta) return
+          if (descValue === null) descValue = ta.value
+          if (ta.value === descValue) { descStatus(''); return }
+          try {
+            const res = await fetch(`/api/projects/${id}`, {
+              method: 'PATCH',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ description: ta.value }),
+            })
+            if (!res.ok) throw new Error('save failed')
+            descValue = ta.value
+            descStatus('✓ ' + _t('project.noteSaved', 'saved'))
+            setTimeout(() => { if (ta.value === descValue) descStatus('') }, 1600)
+          } catch {
+            descStatus('')
+            window.hibana?.toast(_t('project.noteSaveFailed', "Couldn't auto-save"), 'err')
+          }
+        }
+        ctx.on('input', (e) => {
+          if (e.target?.id !== 'pd-desc') return
+          descStatus('…')
+          clearTimeout(descTimer)
+          descTimer = setTimeout(saveDescNow, 800)
+        })
+        ctx.on('blur', (e) => {
+          if (e.target?.id !== 'pd-desc') return
+          clearTimeout(descTimer)
+          saveDescNow()
+        }, true)
+
+        // Tags: ＋ opens the popover; submit find-or-creates + attaches; × detaches.
+        const tagPop = () => document.querySelector('[data-tag-pop]')
+        ctx.on('click', (e) => {
+          const pop = tagPop()
+          if (!pop) return
+          if (e.target.closest('[data-tag-add]')) {
+            pop.hidden = false
+            pop.querySelector('input[name=name]').focus()
+            return
+          }
+          if (e.target.closest('[data-tag-cancel]') || !e.target.closest('[data-tag-pop]')) pop.hidden = true
+        })
+        ctx.on('submit', async (e) => {
+          const pop = tagPop()
+          if (!pop || e.target !== pop) return
+          e.preventDefault()
+          const name = pop.querySelector('input[name=name]').value.trim()
+          if (!name) return
+          try {
+            const res = await fetch(`/api/projects/${id}/tags`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              // Phase 5 item 17: no color is sent — labels are the consistent grey now.
+              body: JSON.stringify({ name }),
+            })
+            if (!res.ok) throw new Error('tag failed')
+            const data = await res.json()
+            pop.hidden = true
+            pop.querySelector('input[name=name]').value = ''
+            // local chip insert (no full reload — keeps the composer state). The chip
+            // goes in BEFORE the ＋ برچسب button, so the add button keeps its fixed
+            // position (Phase 5 item 5 — chips never push it around, whatever the user
+            // does: adding, removing, re-adding).
+            const holder = document.getElementById('pd-tags')
+            const chip = document.createElement('span')
+            chip.className = 'chip pd-tag-chip'
+            chip.dataset.tagChip = data.id
+            chip.textContent = name
+            const x = document.createElement('button')
+            x.type = 'button'
+            x.className = 'ghost danger pd-tag-x'
+            x.dataset.tagRemove = data.id
+            x.setAttribute('aria-label', 'x')
+            x.textContent = '✕'
+            chip.appendChild(x)
+            const addBtn = holder.querySelector('.pd-tag-add')
+            if (addBtn) holder.insertBefore(chip, addBtn)
+            else holder.appendChild(chip)
+            window.hibana?.toast(_t('sparks.saved', 'Saved'))
+          } catch {
+            window.hibana?.toast(_t('sparks.saveFailed', "Couldn't save"), 'err')
+          }
+        })
+        ctx.on('click', async (e) => {
+          const btn = e.target.closest('[data-tag-remove]')
+          if (!btn) return
+          const tagId = btn.dataset.tagRemove
+          try {
+            const res = await fetch(`/api/projects/${id}/tags/${tagId}`, { method: 'DELETE' })
+            if (!res.ok) throw new Error('detach failed')
+            const chip = document.querySelector(`[data-tag-chip="${tagId}"]`)
+            if (chip) chip.remove()
+          } catch {
+            window.hibana?.toast(_t('sparks.saveFailed', "Couldn't save"), 'err')
+          }
+        })
+
+        // --- Dev-task quick add (user request 2026-08-29, modal since 2026-09-15): adding
+        // a task happens DIRECTLY in the project page's progress boxes — no trip to
+        // board.html. Each column's «＋ Add task» opens the #pd-taskadd-modal dialog (see
+        // the wiring below — wide textarea, long sentences fully visible); Enter creates
+        // the task in that status and the chip/count/progress update in place. All
+        // delegated so htmx re-renders of #project-body (status select etc.) keep working.
+        const pdEsc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c])
+        const pdLang = () => (window.hibanaI18n && window.hibanaI18n.lang ? window.hibanaI18n.lang() : 'en')
+        const pdDig = (s) => (pdLang() === 'fa' ? String(s).replace(/\d/g, (d) => '۰۱۲۳۴۵۶۷۸۹'[+d]) : String(s))
+        const pdTasksLine = (done, total) => {
+          let s = window.hibanaI18n?.t('pd.tasksDone')
+          if (!s || s === 'pd.tasksDone') s = '{n} of {m} tasks done'
+          return s.replace('{n}', pdDig(done)).replace('{m}', pdDig(total))
+        }
+        // Meta line under a task title (user request 2026-09-03): date + CLOCK — Jalali +
+        // FA digits when fa (Intl persian calendar; project.html never loads the jalaali
+        // vendor), Gregorian + 12h clock when en. UTC edge — twin of the server-side
+        // taskMetaLabel() in routes/projects.ts.
+        const PD_G_MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+        const pdMetaLine = (iso, done) => {
+          const d = new Date(iso)
+          const hh = d.getUTCHours()
+          const mm = String(d.getUTCMinutes()).padStart(2, '0')
+          const clock = pdLang() === 'fa'
+            ? pdDig(String(hh).padStart(2, '0')) + ':' + pdDig(mm)
+            : ((hh % 12) || 12) + ':' + mm + ' ' + (hh < 12 ? 'AM' : 'PM')
+          let date
+          if (pdLang() === 'fa') {
+            try {
+              date = new Intl.DateTimeFormat('fa-IR-u-ca-persian', { timeZone: 'UTC', day: 'numeric', month: 'long', year: 'numeric' }).format(d)
+            } catch {
+              date = d.toISOString().slice(0, 10)
+            }
+          } else {
+            date = d.getUTCDate() + ' ' + PD_G_MONTHS[d.getUTCMonth()] + ' ' + d.getUTCFullYear()
+          }
+          return (done ? '✓ ' : '') + date + ' · ' + clock
+        }
+
+        const insertTaskChip = (status, task) => {
+          const colTasks = document.querySelector(`[data-pd-tasks="${status}"]`)
+          const countEl = document.querySelector(`[data-pd-count="${status}"]`)
+          if (!colTasks || !countEl) return
+          const n = Number(countEl.dataset.n || '0') + 1
+          countEl.dataset.n = String(n)
+          countEl.textContent = pdDig(n)
+
+          const wrap = document.createElement('div')
+          wrap.className = 'pd-task-wrap'
+          wrap.dataset.pdTask = String(task.id)
+          wrap.dataset.pdStatus = status
+          wrap.dataset.pdCreated = task.created_at || new Date().toISOString()
+          wrap.innerHTML = `<a class="pd-task st-${status}" href="/board.html?project=${id}&task=${task.id}" draggable="true"><span class="prio-dot prio-${pdEsc(task.priority)}"></span><span class="pd-task-body"><span class="pd-task-title">${pdEsc(task.title)}</span><span class="pd-task-meta">${pdEsc(pdMetaLine(wrap.dataset.pdCreated, false))}</span></span></a>`
+
+          const shown = colTasks.querySelectorAll('.pd-task').length
+          const more = colTasks.querySelector('[data-pd-more]')
+          if (shown < 3) {
+            colTasks.insertBefore(wrap, more || null)
+          } else if (more) {
+            more.textContent = '+' + pdDig(n - 3) + ' ' + _t('pd.more', 'more')
+          } else {
+            const el = document.createElement('a')
+            el.className = 'pd-more muted small'
+            el.dataset.pdMore = status
+            el.href = `/board.html?project=${id}`
+            el.textContent = '+1 ' + _t('pd.more', 'more')
+            colTasks.appendChild(el)
+          }
+
+          // Header meta + progress bar (data hooks come from detailHtml).
+          const board = document.getElementById('pd-board')
+          if (board) {
+            board.dataset.total = String(Number(board.dataset.total || '0') + 1)
+            if (status === 'done') board.dataset.done = String(Number(board.dataset.done || '0') + 1)
+            const total = Number(board.dataset.total)
+            const done = Number(board.dataset.done || '0')
+            const pct = total ? Math.round((done / total) * 100) : 0
+            const line = document.querySelector('[data-pd-tasks-line]')
+            if (line) { line.hidden = false; line.textContent = ' · ' + pdTasksLine(done, total) }
+            const pctEl = document.querySelector('[data-pd-pct]')
+            if (pctEl) pctEl.textContent = pdDig(pct) + '%'
+            const bar = document.querySelector('[data-pd-bar]')
+            if (bar) bar.style.inlineSize = pct + '%'
+          }
+          const empty = document.querySelector('[data-pd-empty]')
+          if (empty) empty.remove()
+        }
+
+        // --- Dev-task composer modal (user request 2026-09-15): the «افزودن» button in
+        // each progress box used to reveal a one-line inline input — a long sentence
+        // only showed a few words while typing. It now opens the #pd-taskadd-modal
+        // dialog (server-rendered with #project-body): a wide multi-row textarea with
+        // the whole sentence visible, a char counter (۳۰۰ max, matches the server's
+        // zod rule), and the target column shown as a chip. Enter adds (the title is
+        // single-line — Shift+Enter newlines are collapsed to spaces on submit), Esc
+        // / Cancel / ✕ close. Same POST + insertTaskChip path as the old composer, so
+        // chip/count/progress still update in place. All delegated through ctx with
+        // click-time lookups — the dialog markup re-renders on every htmx swap of
+        // #project-body, so nothing can be cached at mount time.
+        const taskAddEl = () => document.getElementById('pd-taskadd-modal')
+        let taskAddStatus = null
+        const taskAddCounter = () => {
+          const ta = document.getElementById('pd-taskadd-textarea')
+          const el = document.getElementById('pd-taskadd-count')
+          if (ta && el) el.textContent = pdDig(ta.value.length) + ' / ' + pdDig(300)
+        }
+        ctx.on('click', (e) => {
+          const btn = e.target.closest('[data-pd-add]')
+          if (!btn) return
+          e.preventDefault()
+          const m = taskAddEl()
+          const ta = document.getElementById('pd-taskadd-textarea')
+          if (!m || !ta) return
+          taskAddStatus = btn.dataset.pdAdd || null
+          ta.value = ''
+          const err = document.getElementById('pd-taskadd-error')
+          if (err) { err.hidden = true; err.textContent = '' }
+          const chip = document.getElementById('pd-taskadd-col-chip')
+          if (chip) {
+            const label = document.querySelector(`.pd-col[data-status="${taskAddStatus}"] .pd-col-title`)
+            chip.textContent = label ? label.textContent.trim() : (taskAddStatus || '')
+          }
+          taskAddCounter()
+          m.showModal()
+          setTimeout(() => ta.focus(), 10)
+        })
+        // ✕ / لغو — Esc is native dialog cancel, no handler needed
+        ctx.on('click', (e) => {
+          if (e.target.closest('#pd-taskadd-close') || e.target.closest('#pd-taskadd-cancel')) {
+            const m = taskAddEl()
+            if (m && m.open) m.close()
+          }
+        })
+        ctx.on('input', (e) => {
+          if (e.target?.id === 'pd-taskadd-textarea') taskAddCounter()
+        })
+        ctx.on('submit', async (e) => {
+          const form = e.target.closest ? e.target.closest('#pd-taskadd-form') : null
+          if (!form) return
+          e.preventDefault()
+          const m = taskAddEl()
+          const ta = document.getElementById('pd-taskadd-textarea')
+          const save = document.getElementById('pd-taskadd-save')
+          const err = document.getElementById('pd-taskadd-error')
+          if (!m || !ta || !taskAddStatus) return
+          // Task titles are single-line (chip + board cards render them as one row):
+          // Shift+Enter newlines are collapsed to spaces. The 300 maxlength on the
+          // textarea already enforces the server's zod .max(300).
+          const title = ta.value.replace(/\s*\n\s*/g, ' ').trim()
+          if (!title) { m.close(); return }
+          if (save) save.disabled = true
+          if (err) { err.hidden = true; err.textContent = '' }
+          try {
+            const res = await fetch(`/api/projects/${id}/devtasks`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ title, status: taskAddStatus }),
+            })
+            if (!res.ok) throw new Error('add failed')
+            const data = await res.json()
+            insertTaskChip(taskAddStatus, { id: data.id, title, priority: 'medium' })
+            ta.value = ''
+            m.close()
+            window.hibana?.toast(_t('db.taskAdded', 'Task added'))
+          } catch {
+            // Inline error (NOT a toast): the dialog sits in the top layer, so a toast
+            // fired while it is open would render behind the veil and never be seen.
+            if (err) { err.hidden = false; err.textContent = _t('sparks.saveFailed', "Couldn't save") }
+          } finally {
+            if (save) save.disabled = false
+          }
+        })
+        // Enter adds the task — the field is a textarea only so long sentences stay
+        // visible; plain Enter must behave like the old composer's input.
+        ctx.on('keydown', (e) => {
+          if (e.target?.id !== 'pd-taskadd-textarea') return
+          if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault()
+            document.getElementById('pd-taskadd-form')?.requestSubmit()
+          }
+        })
+
+        // --- ⋯ hover menu on .pd-task items (Edit + Delete) — user request 2026-09 ----
+        // Injects a 3-dot menu into each .pd-task card. Edit navigates to board.html (the
+        // existing task editor); Delete calls DELETE /api/devtasks/:id + removes the card
+        // with an Undo toast. Also marks .pd-task-title with [data-magic] so the magic wand
+        // can polish/translate it. Re-runs on every htmx swap (cards are re-rendered).
+        function injectPdTaskMenus() {
+          // Target .pd-task-wrap (the wrapper OUTSIDE the <a>) so menu clicks don't
+          // bubble into the <a>'s navigation. Falls back to .pd-task for back-compat.
+          const tasks = document.querySelectorAll('.pd-task-wrap:not([data-menu-ok]), .pd-task:not([data-menu-ok])')
+          tasks.forEach((task) => {
+            const tid = task.dataset.pdTask
+            if (!tid) return
+            // Mark the title for the magic wand (polish/translate)
+            const title = task.querySelector('.pd-task-title')
+            if (title) {
+              title.setAttribute('data-magic', '')
+              title.setAttribute('data-magic-save', '/api/devtasks/' + tid)
+              title.setAttribute('data-magic-field', 'title')
+            }
+            // Inject the ⋯ menu (spark-menu pattern, same as sparks/projects pages)
+            const menu = document.createElement('div')
+            menu.className = 'spark-menu pd-task-menu'
+            menu.innerHTML =
+              '<button type="button" data-menu-open aria-haspopup="true" aria-label="' + _t('sparks.more', 'More actions') + '">' +
+                '<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="5" cy="12" r="1.7" fill="currentColor"/><circle cx="12" cy="12" r="1.7" fill="currentColor"/><circle cx="19" cy="12" r="1.7" fill="currentColor"/></svg>' +
+              '</button>' +
+              '<div class="spark-menu-pop" hidden>' +
+                '<button type="button" data-pd-task-edit="' + tid + '"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg><span>' + _t('common.edit', 'Edit') + '</span></button>' +
+                '<button type="button" class="danger" data-pd-task-delete="' + tid + '"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg><span>' + _t('common.delete', 'Delete') + '</span></button>' +
+              '</div>'
+            task.appendChild(menu)
+            task.setAttribute('data-menu-ok', '')
+            // Direct click handlers on the menu buttons — preventDefault stops the parent <a>
+            // from navigating. Document-level delegation was too late (the <a> navigated first).
+            const openBtn = menu.querySelector('[data-menu-open]')
+            openBtn.addEventListener('click', (ev) => {
+              ev.preventDefault()
+              ev.stopPropagation()
+              const pop = menu.querySelector('.spark-menu-pop')
+              if (!pop) return
+              const willOpen = pop.hidden
+              closePdTaskMenus()
+              pop.hidden = !willOpen
+              if (willOpen) openBtn.setAttribute('data-open', '')
+              else openBtn.removeAttribute('data-open')
+            })
+            menu.querySelector('[data-pd-task-edit]').addEventListener('click', (ev) => {
+              ev.preventDefault()
+              ev.stopPropagation()
+              closePdTaskMenus()
+              openPdTaskEditor(tid, task)
+            })
+            menu.querySelector('[data-pd-task-delete]').addEventListener('click', (ev) => {
+              ev.preventDefault()
+              ev.stopPropagation()
+              closePdTaskMenus()
+              const card = task
+              const status = card.dataset.pdStatus || 'idea'
+              const titleText = card.querySelector('.pd-task-title')?.textContent || ''
+              // Optimistic removal
+              card.remove()
+              // Decrement the column count
+              const countEl = document.querySelector('[data-pd-count="' + status + '"]')
+              if (countEl) {
+                const n = Math.max(0, Number(countEl.dataset.n || '0') - 1)
+                countEl.dataset.n = String(n)
+                countEl.textContent = pdDig(n)
+              }
+              window.hibana?.toast(_t('db.taskDeleted', 'Task deleted'), 'info', 6000, [{
+                label: _t('common.undo', 'Undo'),
+                onClick: () => {
+                  fetch('/api/projects/' + id + '/devtasks', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ title: titleText, status: status }),
+                  }).then((r) => r.ok ? window.location.reload() : null).catch(() => {})
+                },
+              }])
+              fetch('/api/devtasks/' + tid, { method: 'DELETE' })
+                .catch(() => window.hibana?.toast(_t('notes.deleteFailed', "Couldn't delete"), 'err'))
+            })
+          })
+        }
+        function closePdTaskMenus() {
+          document.querySelectorAll('.pd-task .spark-menu-pop:not([hidden])').forEach((pop) => {
+            pop.hidden = true
+            const btn = pop.parentElement && pop.parentElement.querySelector('[data-menu-open]')
+            if (btn) btn.removeAttribute('data-open')
+          })
+        }
+        // Outside click → close (kept as document-level for outside-click only)
+        document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closePdTaskMenus() })
+        for (const evt of ['htmx:afterSwap', 'afterSwap', 'htmx:load', 'load']) {
+          document.addEventListener(evt, injectPdTaskMenus)
+        }
+        if (document.readyState !== 'loading') injectPdTaskMenus()
+
+        // --- Inline task editor modal (user request 2026-09) — no navigation, opens in-place ---
+        // The Edit button on .pd-task cards opens this modal directly (no board.html redirect).
+        // Fetches the task's current data via GET /api/projects/:id/devtasks (filtered by id),
+        // then PATCHes /api/devtasks/:id on save. Fields: title, status, priority.
+        // The card's data-pd-status + the title text are the initial values (no fetch needed
+        // for those); priority isn't on the card, so we default to 'medium' if unknown.
+        let pdTaskEditDlg = null
+        function openPdTaskEditor(tid, cardEl) {
+          if (!pdTaskEditDlg) {
+            pdTaskEditDlg = document.createElement('dialog')
+            pdTaskEditDlg.id = 'pd-task-edit-modal'
+            pdTaskEditDlg.className = 'dialog'
+            pdTaskEditDlg.innerHTML =
+              '<form class="modal" id="pde-form" novalidate>' +
+                '<div class="row spread"><h3 id="pde-title">' + _t('common.edit', 'Edit') + '</h3>' +
+                '<button type="button" class="ghost icon-btn" id="pde-close" aria-label="' + _t('common.close', 'Close') + '"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>' +
+                '<label>' + _t('db.title', 'Title') + ' <textarea id="pde-input" rows="3" maxlength="300" dir="auto" required></textarea></label>' +
+                '<div class="row" style="gap:1rem;margin-top:.5rem">' +
+                  '<label style="flex:1">' + _t('db.status', 'Status') + ' <select id="pde-status">' +
+                    ['idea','planned','in_progress','done','bug'].map(function(s){return '<option value="'+s+'">'+_t('status.'+s, s)+'</option>'}).join('') +
+                  '</select></label>' +
+                  '<label style="flex:1">' + _t('db.priority', 'Priority') + ' <select id="pde-priority">' +
+                    ['low','medium','high','urgent'].map(function(p){return '<option value="'+p+'">'+_t('prio.'+p, p)+'</option>'}).join('') +
+                  '</select></label>' +
+                '</div>' +
+                '<p class="error" id="pde-error" role="alert"></p>' +
+                '<div class="row" style="justify-content:flex-end;gap:.5rem;margin-top:1rem">' +
+                  '<button type="button" class="ghost" id="pde-cancel">' + _t('common.cancel', 'Cancel') + '</button>' +
+                  '<button type="submit" class="btn" id="pde-save">' + _t('common.save', 'Save') + '</button>' +
+                '</div>' +
+              '</form>'
+            document.body.appendChild(pdTaskEditDlg)
+            const close = () => pdTaskEditDlg.close()
+            pdTaskEditDlg.addEventListener('cancel', (e) => { e.preventDefault(); close() })
+            pdTaskEditDlg.addEventListener('click', (e) => { if (e.target === pdTaskEditDlg) close() })
+            pdTaskEditDlg.querySelector('#pde-close').addEventListener('click', close)
+            pdTaskEditDlg.querySelector('#pde-cancel').addEventListener('click', close)
+            pdTaskEditDlg.querySelector('#pde-form').addEventListener('submit', async (e) => {
+              e.preventDefault()
+              const id = pdTaskEditDlg.dataset.tid
+              if (!id) return
+              const title = pdTaskEditDlg.querySelector('#pde-input').value.trim()
+              if (!title) { pdTaskEditDlg.querySelector('#pde-input').focus(); return }
+              const status = pdTaskEditDlg.querySelector('#pde-status').value
+              const priority = pdTaskEditDlg.querySelector('#pde-priority').value
+              const err = pdTaskEditDlg.querySelector('#pde-error')
+              const save = pdTaskEditDlg.querySelector('#pde-save')
+              err.textContent = ''
+              save.disabled = true
+              save.textContent = _t('common.saving', 'Saving…')
+              try {
+                const res = await fetch('/api/devtasks/' + id, {
+                  method: 'PATCH',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ title, status, priority }),
+                })
+                if (!res.ok) throw new Error('save failed')
+                window.hibana?.toast(_t('sparks.saved', 'Saved'), 'info')
+                pdTaskEditDlg.close()
+                // Update the card in-place (no page reload). The title + status reflect the
+                // edit immediately. The card's data-pd-status + the title span are updated.
+                const card = document.querySelector('.pd-task[data-pd-task="' + id + '"]')
+                if (card) {
+                  card.dataset.pdStatus = status
+                  card.className = 'pd-task st-' + status
+                  const titleSpan = card.querySelector('.pd-task-title')
+                  if (titleSpan) titleSpan.textContent = title
+                }
+              } catch {
+                err.textContent = _t('sparks.saveFailed', "Couldn't save")
+                save.disabled = false
+                save.textContent = _t('common.save', 'Save')
+              }
+            })
+          }
+          pdTaskEditDlg.dataset.tid = tid
+          // Pre-fill from the card (no fetch needed — the card has the title + status)
+          const titleEl = cardEl.querySelector('.pd-task-title')
+          pdTaskEditDlg.querySelector('#pde-input').value = titleEl ? titleEl.textContent : ''
+          const status = cardEl.dataset.pdStatus || 'idea'
+          pdTaskEditDlg.querySelector('#pde-status').value = status
+          pdTaskEditDlg.querySelector('#pde-priority').value = 'medium' // default; card doesn't show priority
+          pdTaskEditDlg.querySelector('#pde-save').disabled = false
+          pdTaskEditDlg.querySelector('#pde-save').textContent = _t('common.save', 'Save')
+          pdTaskEditDlg.querySelector('#pde-error').textContent = ''
+          pdTaskEditDlg.showModal()
+          setTimeout(() => pdTaskEditDlg.querySelector('#pde-input').focus(), 50)
+        }
+
+        // --- Project Archives (user request 2026-09): view + restore archived done tasks ----
+        // The "Archive Done" button on board.html moves done tasks to project_archives.
+        // This section (on project.html) lists them + lets the user restore or permanently
+        // delete. Loaded lazily on first tab open (GET /api/projects/:id/archives).
+        let archivesLoaded = false
+        async function loadArchives() {
+          const list = document.getElementById('pd-archives-list')
+          if (!list) return
+          list.hidden = false
+          if (!archivesLoaded) {
+            try {
+              const res = await fetch('/api/projects/' + id + '/archives')
+              const body = await res.json()
+              const archives = body.archives || []
+              list.innerHTML = archives.length
+                ? archives.map((a) => {
+                    const date = new Date(a.archived_at).toLocaleDateString(window.hibanaI18n?.lang === 'fa' ? 'fa-IR' : 'en-US')
+                    return '<div class="pd-archive-item" data-archive-id="' + pdEsc(a.id) + '">' +
+                      '<span class="pd-archive-title" title="' + pdEsc(a.title) + '">' + pdEsc(a.title) + '</span>' +
+                      '<span class="pd-archive-date muted small">' + pdEsc(date) + '</span>' +
+                      '<span class="pd-archive-actions">' +
+                        '<button type="button" class="ghost small" data-archive-restore="' + pdEsc(a.id) + '" title="' + _t('pd.restore', 'Restore to board') + '"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7M3 4v4h4"/></svg></button>' +
+                        '<button type="button" class="ghost small danger" data-archive-delete="' + pdEsc(a.id) + '" title="' + _t('common.delete', 'Delete') + '"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg></button>' +
+                      '</span>' +
+                    '</div>'
+                  }).join('')
+                : '<p class="muted small">' + _t('pd.archivesEmpty', 'No archived tasks yet. Archive done tasks from the board.') + '</p>'
+              archivesLoaded = true
+            } catch {
+              list.innerHTML = '<p class="muted small">' + _t('pd.archivesEmpty', 'No archived tasks yet.') + '</p>'
+            }
+          }
+        }
+        document.addEventListener('click', async (e) => {
+          // Toggle the archives section open/closed
+          const toggle = e.target.closest('[data-pd-archives-toggle]')
+          if (toggle) {
+            const list = document.getElementById('pd-archives-list')
+            if (!list) return
+            if (list.hidden) {
+              await loadArchives()
+            } else {
+              list.hidden = true
+            }
+            return
+          }
+          const restoreBtn = e.target.closest('[data-archive-restore]')
+          if (restoreBtn) {
+            const aid = restoreBtn.getAttribute('data-archive-restore')
+            try {
+              const res = await fetch('/api/projects/' + id + '/archives/' + aid + '/restore', { method: 'POST' })
+              if (!res.ok) throw new Error('restore failed')
+              window.hibana?.toast(_t('pd.restored', 'Task restored to Done'), 'info')
+              archivesLoaded = false
+              loadArchives()
+            } catch {
+              window.hibana?.toast(_t('pd.restoreFailed', "Couldn't restore"), 'err')
+            }
+            return
+          }
+          const delBtn = e.target.closest('[data-archive-delete]')
+          if (delBtn) {
+            const aid = delBtn.getAttribute('data-archive-delete')
+            if (!confirm(_t('pd.deleteArchiveConfirm', 'Permanently delete this archived task?'))) return
+            try {
+              const res = await fetch('/api/projects/' + id + '/archives/' + aid, { method: 'DELETE' })
+              if (!res.ok) throw new Error('delete failed')
+              window.hibana?.toast(_t('pd.deleted', 'Archived task deleted'), 'info')
+              archivesLoaded = false
+              loadArchives()
+            } catch {
+              window.hibana?.toast(_t('notes.deleteFailed', "Couldn't delete"), 'err')
+            }
+            return
+          }
+        })
+
+        // --- مشکل‌ها tab (batch p): the tab and the board's Problems box are ONE list ----
+        // (dev_tasks status='bug'). Composer lines → bug tasks (auto-added to the box);
+        // solving moves the task to انجام‌شده (done_at stamped) and it leaves the open
+        // list — exactly the box's contract. Edit is inline; delete removes it everywhere.
+        const P_ICON = {
+          check: '<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="4.5" y="4.5" width="15" height="15" rx="3"/><path d="M7.4 12.4l3 3 6.2-6.2"/></svg>',
+          pencil: '<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20l4.5-1L19.5 8a2 2 0 0 0-2.8-2.8L6.5 15.5 4 20Z"/><path d="M13.5 6.5l3.5 3.5"/></svg>',
+          x: '<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>',
+          trash: '<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M9 7V5.5A1.5 1.5 0 0 1 10.5 4h3A1.5 1.5 0 0 1 15 5.5V7M6.5 7l1 12.5A1.5 1.5 0 0 0 9 21h6a1.5 1.5 0 0 0 1.5-1.5L17.5 7"/><path d="M10 11v6M14 11v6"/></svg>',
+        }
+        const setTabCount = (name, delta) => {
+          const el = document.querySelector('[data-tab-count="' + name + '"]')
+          if (!el) return
+          const n = Math.max(0, Number(el.dataset.n || '0') + delta)
+          el.dataset.n = String(n)
+          el.textContent = pdDig(n)
+        }
+        // Optimistic chip move between board columns (problem solve = bug → done), the
+        // same repaint contract as the drop handler below.
+        const pdMoveChip = (taskId, to) => {
+          const chip = document.querySelector('#pd-board .pd-task[data-pd-task="' + taskId + '"]')
+          if (!chip) return
+          const from = chip.dataset.pdStatus
+          if (from === to) return
+          const dest = document.querySelector('[data-pd-tasks="' + to + '"]')
+          chip.dataset.pdStatus = to
+          chip.classList.remove('st-' + from)
+          chip.classList.add('st-' + to)
+          const meta = chip.querySelector('.pd-task-meta')
+          if (meta) meta.textContent = pdMetaLine(to === 'done' ? new Date().toISOString() : (chip.dataset.pdCreated || new Date().toISOString()), to === 'done')
+          if (dest) {
+            const more = dest.querySelector('[data-pd-more]')
+            dest.insertBefore(chip, more || null)
+          }
+          pdSetCount(from, Number(pdCountEl(from)?.dataset.n || '0') - 1)
+          pdSetCount(to, Number(pdCountEl(to)?.dataset.n || '0') + 1)
+          const board = document.getElementById('pd-board')
+          if (board) {
+            if (from === 'done') board.dataset.done = String(Math.max(0, Number(board.dataset.done || '0') - 1))
+            if (to === 'done') board.dataset.done = String(Number(board.dataset.done || '0') + 1)
+            pdRepaintProgress()
+          }
+          for (const status of [from, to]) {
+            const list = document.querySelector('[data-pd-tasks="' + status + '"]')
+            if (!list) continue
+            const n = Number(pdCountEl(status)?.dataset.n || '0')
+            const more = list.querySelector('[data-pd-more]')
+            if (n > 3) {
+              const label = '+' + pdDig(n - 3) + ' ' + _t('pd.more', 'more')
+              if (more) more.textContent = label
+            } else if (more) {
+              more.remove()
+            }
+          }
+        }
+        const pdRemoveChip = (taskId) => {
+          const chip = document.querySelector('#pd-board .pd-task[data-pd-task="' + taskId + '"]')
+          if (!chip) return
+          const from = chip.dataset.pdStatus
+          chip.remove()
+          pdSetCount(from, Number(pdCountEl(from)?.dataset.n || '0') - 1)
+          const list = document.querySelector('[data-pd-tasks="' + from + '"]')
+          const more = list?.querySelector('[data-pd-more]')
+          if (more) {
+            const n = Number(pdCountEl(from)?.dataset.n || '0')
+            if (n > 3) more.textContent = '+' + pdDig(n - 3) + ' ' + _t('pd.more', 'more')
+            else more.remove()
+          }
+          const board = document.getElementById('pd-board')
+          if (board) {
+            board.dataset.total = String(Math.max(0, Number(board.dataset.total || '0') - 1))
+            if (from === 'done') board.dataset.done = String(Math.max(0, Number(board.dataset.done || '0') - 1))
+            pdRepaintProgress()
+          }
+        }
+        const problemLi = (task) => {
+          const li = document.createElement('li')
+          li.className = 'hurdle'
+          li.dataset.problem = task.id
+          li.innerHTML =
+            '<button type="button" class="ghost toggle" data-problem-solve="' + pdEsc(task.id) + '" aria-label="' + pdEsc(_t('pd.solve', 'Mark solved')) + '" title="' + pdEsc(_t('pd.problemSolved', 'Solved — moves to Implemented')) + '">' + P_ICON.check + '</button>' +
+            '<span class="hurdle-text">' + pdEsc(task.title) + '</span>' +
+            '<button type="button" class="ghost hurdle-edit" data-problem-edit="' + pdEsc(task.id) + '" aria-label="' + pdEsc(_t('pd.editProblem', 'Edit problem')) + '">' + P_ICON.pencil + '</button>' +
+            '<button type="button" class="ghost danger" data-problem-del="' + pdEsc(task.id) + '" aria-label="' + pdEsc(_t('pd.deleteProblem', 'Delete problem')) + '">' + P_ICON.x + '</button>'
+          return li
+        }
+        ctx.on('submit', async (e) => {
+          const form = e.target.closest ? e.target.closest('[data-problem-add]') : null
+          if (!form) return
+          e.preventDefault()
+          const ta = form.querySelector('textarea[name=text]')
+          const lines = ta.value.split(/\r?\n+/).map((s) => s.trim()).filter(Boolean).slice(0, 50)
+          if (!lines.length) { ta.focus(); return }
+          ta.disabled = true
+          try {
+            const list = document.getElementById('problems')
+            for (const line of lines) {
+              const res = await fetch(`/api/projects/${id}/devtasks`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ title: line, status: 'bug' }),
+              })
+              if (!res.ok) throw new Error('add failed')
+              const data = await res.json()
+              insertTaskChip('bug', { id: data.id, title: line, priority: 'medium' })
+              if (list) {
+                const empty = list.querySelector('li.muted')
+                if (empty) empty.remove()
+                list.appendChild(problemLi({ id: data.id, title: line }))
+              }
+              setTabCount('problems', 1)
+            }
+            window.hibana?.toast(_t('db.taskAdded', 'Task added'))
+            ta.value = ''
+          } catch {
+            window.hibana?.toast(_t('sparks.saveFailed', "Couldn't save"), 'err')
+          } finally {
+            ta.disabled = false
+            ta.focus()
+          }
+        })
+        ctx.on('click', async (e) => {
+          const solve = e.target.closest('[data-problem-solve]')
+          if (solve) {
+            const taskId = solve.dataset.problemSolve
+            try {
+              const res = await fetch('/api/devtasks/' + taskId, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ status: 'done' }),
+              })
+              if (!res.ok) throw new Error('solve failed')
+              const li = document.querySelector('[data-problem="' + taskId + '"]')
+              if (li) li.remove()
+              pdMoveChip(taskId, 'done')
+              setTabCount('problems', -1)
+              window.hibana?.toast(_t('pd.problemSolved', 'Solved — moved to Implemented'))
+            } catch {
+              window.hibana?.toast(_t('sparks.saveFailed', "Couldn't save"), 'err')
+            }
+            return
+          }
+          const del = e.target.closest('[data-problem-del]')
+          if (del) {
+            const taskId = del.dataset.problemDel
+            try {
+              const res = await fetch('/api/devtasks/' + taskId, { method: 'DELETE' })
+              if (!res.ok) throw new Error('delete failed')
+              const li = document.querySelector('[data-problem="' + taskId + '"]')
+              if (li) li.remove()
+              pdRemoveChip(taskId)
+              setTabCount('problems', -1)
+            } catch {
+              window.hibana?.toast(_t('sparks.saveFailed', "Couldn't save"), 'err')
+            }
+            return
+          }
+          const editBtn = e.target.closest('[data-problem-edit]')
+          if (editBtn) {
+            const li = editBtn.closest('[data-problem]')
+            const span = li?.querySelector('.hurdle-text')
+            if (!li || !span || li.querySelector('[data-problem-input]')) return
+            const original = span.textContent.trim()
+            const input = document.createElement('input')
+            input.className = 'pd-inline-edit'
+            input.dataset.problemInput = ''
+            input.value = original
+            input.maxLength = 300
+            input.dir = 'auto'
+            span.replaceWith(input)
+            input.focus()
+            input.select()
+            let done = false
+            const finish = async (save) => {
+              if (done) return
+              done = true
+              const value = input.value.trim()
+              const restored = document.createElement('span')
+              restored.className = 'hurdle-text'
+              restored.textContent = save && value ? value : original
+              input.replaceWith(restored)
+              if (!save || !value || value === original) return
+              try {
+                const res = await fetch('/api/devtasks/' + li.dataset.problem, {
+                  method: 'PATCH',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ title: value }),
+                })
+                if (!res.ok) throw new Error('edit failed')
+                const chipTitle = document.querySelector('#pd-board .pd-task[data-pd-task="' + li.dataset.problem + '"] .pd-task-title')
+                if (chipTitle) chipTitle.textContent = value
+              } catch {
+                restored.textContent = original
+                window.hibana?.toast(_t('sparks.saveFailed', "Couldn't save"), 'err')
+              }
+            }
+            input.addEventListener('keydown', (ev) => {
+              if (ev.key === 'Enter') { ev.preventDefault(); finish(true) }
+              if (ev.key === 'Escape') { ev.preventDefault(); finish(false) }
+            })
+            input.addEventListener('blur', () => finish(true))
+          }
+        })
+
+        // --- برنامه آتی tab (batch p): mode A quick items + mode B documents + history ---
+        const pdTimeAgo = (iso) => {
+          const fa = pdLang() === 'fa'
+          const m = Math.floor((Date.now() - new Date(iso).getTime()) / 60000)
+          if (m < 1) return fa ? 'همین حالا' : 'just now'
+          const u = m < 60 ? ['m', m] : m < 1440 ? ['h', Math.floor(m / 60)] : m < 43200 ? ['d', Math.floor(m / 1440)] : m < 525600 ? ['mo', Math.floor(m / 43200)] : ['y', Math.floor(m / 525600)]
+          const faU = { m: 'دقیقه پیش', h: 'ساعت پیش', d: 'روز پیش', mo: 'ماه پیش', y: 'سال پیش' }
+          const enU = { m: 'm ago', h: 'h ago', d: 'd ago', mo: 'mo ago', y: 'y ago' }
+          return (fa ? pdDig(String(u[1])) : String(u[1])) + ' ' + (fa ? faU[u[0]] : enU[u[0]])
+        }
+        let blDocsCache = null
+        const blRenderDocs = (docs) => {
+          const holder = document.querySelector('[data-bl-docs]')
+          if (!holder) return
+          holder.innerHTML = docs.length ? docs.map((doc) =>
+            '<article class="bl-doc" data-bl-doc="' + pdEsc(doc.id) + '">' +
+              '<div class="row spread bl-doc-head">' +
+                '<strong class="bl-doc-title">' + pdEsc(doc.title) + '</strong>' +
+                '<span class="muted small">' + pdEsc(_t('bl.docUpdated', 'updated')) + ' ' + pdEsc(pdTimeAgo(doc.updated_at)) + '</span>' +
+              '</div>' +
+              '<div class="bl-doc-body">' + pdEsc(doc.content) + '</div>' +
+              '<div class="row bl-doc-actions">' +
+                '<button type="button" class="ghost small" data-bl-edit="' + pdEsc(doc.id) + '">' + P_ICON.pencil + ' ' + pdEsc(_t('common.edit', 'Edit')) + '</button>' +
+                '<button type="button" class="ghost danger small" data-bl-del="' + pdEsc(doc.id) + '">' + P_ICON.trash + ' ' + pdEsc(_t('common.delete', 'Delete')) + '</button>' +
+              '</div>' +
+            '</article>'
+          ).join('') : '<p class="muted bl-docs-empty">' + pdEsc(_t('bl.noDocs', 'No plan documents yet — write the first full plan here.')) + '</p>'
+        }
+        const blRenderHistory = (data) => {
+          const head = document.querySelector('[data-bl-history-head]')
+          if (head) {
+            head.innerHTML = pdEsc(_t('bl.historyTitle', 'Latest changes')) +
+              (data.latestAt ? ' <span class="muted small">· ' + pdEsc(_t('bl.latest', 'last change')) + ' ' + pdEsc(pdTimeAgo(data.latestAt)) + '</span>' : '')
+          }
+          const list = document.querySelector('[data-bl-history]')
+          if (!list) return
+          const events = data.history || []
+          list.innerHTML = events.length ? events.map((ev) => {
+            const phrase = ev.kind === 'doc_created'
+              ? _t('bl.docCreated', 'Document “{t}” created').replace('{t}', ev.label)
+              : ev.kind === 'doc_updated'
+                ? _t('bl.docUpdatedH', 'Document “{t}” updated').replace('{t}', ev.label)
+                : _t('bl.itemAdded', 'New item: {t}').replace('{t}', ev.label)
+            return '<li><span class="muted small">' + pdEsc(pdTimeAgo(ev.at)) + '</span> — ' + pdEsc(phrase) + '</li>'
+          }).join('') : '<li class="muted">' + pdEsc(_t('bl.noHistory', 'No backlog changes yet.')) + '</li>'
+        }
+        const blRefresh = async () => {
+          try {
+            const res = await fetch(`/api/projects/${id}/backlog`)
+            if (!res.ok) return
+            const data = await res.json()
+            blDocsCache = data.docs || []
+            blRenderDocs(blDocsCache)
+            blRenderHistory(data)
+          } catch { /* transient — the next action retries */ }
+        }
+        const blForm = () => document.querySelector('[data-bl-docform]')
+        const blOpenForm = (doc) => {
+          const form = blForm()
+          if (!form) return
+          form.dataset.blDocid = doc ? doc.id : ''
+          form.querySelector('input[name=title]').value = doc ? doc.title : ''
+          form.querySelector('textarea[name=content]').value = doc ? doc.content : ''
+          form.hidden = false
+          form.scrollIntoView({ block: 'nearest' })
+          form.querySelector('input[name=title]').focus()
+        }
+        const blCloseForm = () => {
+          const form = blForm()
+          if (form) { form.hidden = true; form.dataset.blDocid = '' }
+        }
+        ctx.on('submit', async (e) => {
+          const form = e.target.closest ? e.target.closest('[data-bl-item]') : null
+          if (!form) return
+          e.preventDefault()
+          const inp = form.querySelector('input[name=title]')
+          const title = inp.value.trim()
+          if (!title) { form.hidden = true; return }
+          inp.disabled = true
+          try {
+            const res = await fetch(`/api/projects/${id}/devtasks`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ title, status: 'planned' }),
+            })
+            if (!res.ok) throw new Error('add failed')
+            const data = await res.json()
+            insertTaskChip('planned', { id: data.id, title, priority: 'medium' })
+            setTabCount('backlog', 1)
+            window.hibana?.toast(_t('db.taskAdded', 'Task added'))
+            inp.value = ''
+            inp.focus()
+            blRefresh()
+          } catch {
+            window.hibana?.toast(_t('sparks.saveFailed', "Couldn't save"), 'err')
+          } finally {
+            inp.disabled = false
+          }
+        })
+        ctx.on('click', async (e) => {
+          const newDoc = e.target.closest('[data-bl-newdoc]')
+          if (newDoc) { blOpenForm(null); return }
+          const cancel = e.target.closest('[data-bl-cancel]')
+          if (cancel) { blCloseForm(); return }
+          const editDoc = e.target.closest('[data-bl-edit]')
+          if (editDoc) {
+            const docId = editDoc.dataset.blEdit
+            let doc = (blDocsCache || []).find((d) => d.id === docId)
+            if (!doc) {
+              try {
+                const res = await fetch(`/api/projects/${id}/backlog`)
+                if (res.ok) {
+                  const data = await res.json()
+                  blDocsCache = data.docs || []
+                  doc = blDocsCache.find((d) => d.id === docId)
+                }
+              } catch { /* fallthrough */ }
+            }
+            if (doc) blOpenForm(doc)
+            return
+          }
+          const delDoc = e.target.closest('[data-bl-del]')
+          if (delDoc) {
+            const docId = delDoc.dataset.blDel
+            if (!window.confirm(_t('bl.delDocConfirm', 'Delete this plan document and its history?'))) return
+            try {
+              const res = await fetch('/api/backlog/docs/' + docId, { method: 'DELETE' })
+              if (!res.ok) throw new Error('delete failed')
+              window.hibana?.toast(_t('bl.docDeleted', 'Document deleted'))
+              blRefresh()
+            } catch {
+              window.hibana?.toast(_t('sparks.saveFailed', "Couldn't save"), 'err')
+            }
+          }
+        })
+        ctx.on('submit', async (e) => {
+          const form = e.target.closest ? e.target.closest('[data-bl-docform]') : null
+          if (!form) return
+          e.preventDefault()
+          const titleIn = form.querySelector('input[name=title]')
+          const contentIn = form.querySelector('textarea[name=content]')
+          const title = titleIn.value.trim()
+          const content = contentIn.value
+          if (!title) { titleIn.focus(); return }
+          const docId = form.dataset.blDocid || ''
+          try {
+            const res = await fetch(docId ? '/api/backlog/docs/' + docId : `/api/projects/${id}/backlog/docs`, {
+              method: docId ? 'PATCH' : 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ title, content }),
+            })
+            if (!res.ok) throw new Error('save failed')
+            window.hibana?.toast(_t('bl.docSaved', 'Document saved'))
+            blCloseForm()
+            blRefresh()
+          } catch {
+            window.hibana?.toast(_t('sparks.saveFailed', "Couldn't save"), 'err')
+          }
+        })
+
+        // --- Cross-box drag & drop (user request 2026-09-03): move tasks between the four
+        // progress boxes RIGHT HERE, same contract as board.html — cross-box drop PATCHes
+        // /api/devtasks/:id {status}, same-box drop persists the new order through the
+        // reorder endpoint. The DOM move + counts/meta/progress repaint are optimistic;
+        // a failed PATCH toasts and reloads server truth. All delegated + ctx.on so htmx
+        // re-renders of #project-body never need re-binding, and click-to-open survives
+        // (browsers don't fire click after a real drag; touch-drag.js covers mobile and
+        // blocks the stray post-drag click itself).
+        let pdDrag = null
+        let pdOver = null
+        const pdClearOver = () => { if (pdOver) { pdOver.classList.remove('drag-over'); pdOver = null } }
+        const pdCountEl = (status) => document.querySelector(`[data-pd-count="${status}"]`)
+        const pdSetCount = (status, n) => { const el = pdCountEl(status); if (el) { el.dataset.n = String(n); el.textContent = pdDig(n) } }
+        const pdRepaintProgress = () => {
+          const board = document.getElementById('pd-board')
+          if (!board) return
+          const total = Number(board.dataset.total || '0')
+          const done = Number(board.dataset.done || '0')
+          const pct = total ? Math.round((done / total) * 100) : 0
+          const line = document.querySelector('[data-pd-tasks-line]')
+          if (line) { line.hidden = false; line.textContent = ' · ' + pdTasksLine(done, total) }
+          const pctEl = document.querySelector('[data-pd-pct]')
+          if (pctEl) pctEl.textContent = pdDig(pct) + '%'
+          const bar = document.querySelector('[data-pd-bar]')
+          if (bar) bar.style.inlineSize = pct + '%'
+        }
+        ctx.on('dragstart', (e) => {
+          const task = e.target.closest ? e.target.closest('#pd-board .pd-task') : null
+          if (!task) return
+          // data-pd-task + data-pd-status live on the .pd-task-wrap (the wrapper outside
+          // the <a>), so the drag carries the wrapper — not just the <a>.
+          const wrap = task.closest('.pd-task-wrap') || task
+          pdDrag = wrap
+          e.dataTransfer.effectAllowed = 'move'
+          try { e.dataTransfer.setData('text/plain', wrap.dataset.pdTask || '') } catch {}
+          wrap.classList.add('dragging')
+        })
+        ctx.on('dragover', (e) => {
+          if (!pdDrag) return
+          const col = e.target.closest ? e.target.closest('#pd-board .pd-col') : null
+          if (!col) return
+          e.preventDefault()
+          if (pdOver !== col) { pdClearOver(); pdOver = col; col.classList.add('drag-over') }
+          // live position feedback inside the hovered column (lands before the +N more link)
+          const list = col.querySelector('.pd-tasks')
+          if (!list) return
+          // targets are .pd-task-wrap elements (the wrapper, not the <a> inside)
+          const target = e.target.closest ? e.target.closest('.pd-task-wrap') : null
+          const more = list.querySelector('[data-pd-more]')
+          if (target && target !== pdDrag) {
+            const r = target.getBoundingClientRect()
+            list.insertBefore(pdDrag, e.clientY > r.top + r.height / 2 ? target.nextSibling : target)
+          } else if (!target && more && more !== pdDrag) {
+            list.insertBefore(pdDrag, more)
+          } else if (!target && !more) {
+            list.appendChild(pdDrag)
+          }
+        })
+        ctx.on('drop', async (e) => {
+          if (!pdDrag) return
+          e.preventDefault()
+          const el = pdDrag
+          const col = el.closest('.pd-col')
+          const from = el.dataset.pdStatus
+          const to = col ? col.dataset.status : from
+          pdClearOver()
+          el.classList.remove('dragging')
+          pdDrag = null
+          if (!col || !el.dataset.pdTask) return
+          if (from === to) {
+            // same box — only the order changed (board.html contract)
+            const ids = [...col.querySelectorAll('.pd-task-wrap')].map((x) => x.dataset.pdTask)
+            if (ids.length > 1) {
+              try {
+                const res = await fetch(`/api/projects/${id}/devtasks/reorder`, {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ ids }),
+                })
+                if (!res.ok) throw new Error('reorder failed')
+              } catch {
+                window.hibana?.toast(_t('list.reorderFailed', 'Reorder failed — try again'), 'err')
+              }
+            }
+            return
+          }
+          // cross-box: repaint optimistically, PATCH behind it
+          el.dataset.pdStatus = to
+          // the st-* class is on the <a> inside the wrapper, not on the wrapper itself
+          const taskEl = el.querySelector('.pd-task')
+          if (taskEl) {
+            taskEl.classList.remove('st-' + from)
+            taskEl.classList.add('st-' + to)
+          }
+          const meta = el.querySelector('.pd-task-meta')
+          if (meta) {
+            if (to === 'done') meta.textContent = pdMetaLine(new Date().toISOString(), true) // server stamps done_at = now
+            else meta.textContent = pdMetaLine(el.dataset.pdCreated || new Date().toISOString(), false)
+          }
+          pdSetCount(from, Number(pdCountEl(from)?.dataset.n || '0') - 1)
+          pdSetCount(to, Number(pdCountEl(to)?.dataset.n || '0') + 1)
+          const board = document.getElementById('pd-board')
+          if (board) {
+            if (from === 'done') board.dataset.done = String(Math.max(0, Number(board.dataset.done || '0') - 1))
+            if (to === 'done') board.dataset.done = String(Number(board.dataset.done || '0') + 1)
+            pdRepaintProgress()
+          }
+          // the +N more links follow the new counts
+          for (const status of [from, to]) {
+            const list = document.querySelector(`[data-pd-tasks="${status}"]`)
+            if (!list) continue
+            const n = Number(pdCountEl(status)?.dataset.n || '0')
+            const more = list.querySelector('[data-pd-more]')
+            if (n > 3) {
+              const label = '+' + pdDig(n - 3) + ' ' + _t('pd.more', 'more')
+              if (more) more.textContent = label
+              else {
+                const a = document.createElement('a')
+                a.className = 'pd-more muted small'
+                a.dataset.pdMore = status
+                a.href = `/board.html?project=${id}`
+                a.textContent = label
+                list.appendChild(a)
+              }
+            } else if (more) {
+              more.remove()
+            }
+          }
+          try {
+            const res = await fetch('/api/devtasks/' + el.dataset.pdTask, {
+              method: 'PATCH',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ status: to }),
+            })
+            if (!res.ok) throw new Error('move failed')
+          } catch {
+            window.hibana?.toast(_t('pd.moveFailed', "Couldn't move the task"), 'err')
+            refreshBody() // restore server truth
+          }
+        })
+        ctx.on('dragend', () => {
+          pdClearOver()
+          if (pdDrag) { pdDrag.classList.remove('dragging'); pdDrag = null }
+        })
+
+        // --- Item 5 + 7 (user request 2026-09-09): shared full-screen modal editor -------
+        // The note textarea (Expand) and the backlog-doc editor (Full screen) both open
+        // this modal with a large textarea. The save target depends on the context:
+        //   - note:  POST /api/projects/:id/note  { note: text }
+        //   - bl-doc: POST/PATCH /api/backlog/docs/:id or /api/projects/:id/backlog/docs
+        //     { title, content }
+        // The modal is server-rendered inside #project-body (loaded via htmx AFTER mount),
+        // so all element lookups happen at click time, not at mount time (the elements don't
+        // exist when mount runs). Looked up via getter functions each time.
+        const editorEl = () => document.getElementById('pd-editor-modal')
+        let editorMode = null // 'note' | 'bldoc'
+        let editorDocId = ''
+        const openEditor = (mode, opts) => {
+          const m = editorEl()
+          if (!m) return
+          editorMode = mode
+          editorDocId = opts.docId || ''
+          const ta = document.getElementById('pd-editor-textarea')
+          const title = document.getElementById('pd-editor-title')
+          const subtitle = document.getElementById('pd-editor-subtitle')
+          const hint = document.getElementById('pd-editor-hint')
+          if (title) title.textContent = opts.title || _t('pd.editor', 'Editor')
+          if (ta) {
+            ta.value = opts.content || ''
+            ta.maxLength = opts.maxlen || 50000
+            ta.dir = opts.rtl ? 'rtl' : 'auto'
+            ta.placeholder = opts.placeholder || ''
+          }
+          if (hint) hint.textContent = opts.hint || ''
+          if (subtitle) {
+            if (opts.subtitle !== undefined) {
+              subtitle.hidden = false
+              subtitle.value = opts.subtitle
+            } else {
+              subtitle.hidden = true
+              subtitle.value = ''
+            }
+          }
+          m.showModal()
+          setTimeout(() => ta?.focus(), 10)
+        }
+        const closeEditor = () => { const m = editorEl(); if (m && m.open) m.close() }
+        // Wire the modal's close/cancel/submit buttons once — they're inside #project-body
+        // so they reload with each htmx swap; use a MutationObserver-free approach: check on
+        // every relevant click whether the target is one of these buttons.
+        ctx.on('click', (e) => {
+          if (e.target.closest('#pd-editor-close') || e.target.closest('#pd-editor-cancel')) { closeEditor(); return }
+        })
+        ctx.on('submit', async (e) => {
+          const form = e.target.closest ? e.target.closest('#pd-editor-form') : null
+          if (!form) return
+          e.preventDefault()
+          const ta = document.getElementById('pd-editor-textarea')
+          if (!ta) return
+          if (editorMode === 'note') {
+            const text = ta.value
+            try {
+              const res = await fetch(`/api/projects/${id}/note`, {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ note: text }),
+              })
+              if (!res.ok) throw new Error('save failed')
+              const noteTa = document.getElementById('pd-note-textarea')
+              if (noteTa) noteTa.value = text
+              window.hibana?.toast(_t('pd.noteSaved', 'Note saved'))
+              closeEditor()
+            } catch { window.hibana?.toast(_t('sparks.saveFailed', "Couldn't save"), 'err') }
+          } else if (editorMode === 'bldoc') {
+            const subtitle = document.getElementById('pd-editor-subtitle')
+            const title = subtitle ? subtitle.value.trim() : ''
+            const content = ta.value
+            if (!title) { subtitle?.focus(); return }
+            try {
+              const res = await fetch(editorDocId ? '/api/backlog/docs/' + editorDocId : `/api/projects/${id}/backlog/docs`, {
+                method: editorDocId ? 'PATCH' : 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ title, content }),
+              })
+              if (!res.ok) throw new Error('save failed')
+              window.hibana?.toast(_t('bl.docSaved', 'Document saved'))
+              closeEditor()
+              blRefresh()
+            } catch { window.hibana?.toast(_t('sparks.saveFailed', "Couldn't save"), 'err') }
+          }
+        })
+
+        // Wire the note "Expand" button (Item 5) + "Clear" button (user request 2026-09)
+        ctx.on('click', (e) => {
+          const clear = e.target.closest('[data-note-clear]')
+          if (clear) {
+            const ta = document.getElementById('pd-note-textarea')
+            if (ta) {
+              ta.value = ''
+              ta.focus()
+              // Also save the empty note to the server (so it persists)
+              fetch('/api/projects/' + id + '/note', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ note: '' }),
+              }).then(() => {
+                const st = document.getElementById('note-status')
+                if (st) { st.textContent = '✓ ' + _t('project.noteSaved', 'saved'); st.hidden = false; setTimeout(() => { st.hidden = true }, 1600) }
+              }).catch(() => window.hibana?.toast(_t('project.noteSaveFailed', "Couldn't clear"), 'err'))
+            }
+            return
+          }
+          const expand = e.target.closest('[data-note-expand]')
+          if (expand) {
+            const ta = document.getElementById('pd-note-textarea')
+            openEditor('note', {
+              title: _t('pd.noteEditor', 'Note editor'),
+              content: ta?.value || '',
+              maxlen: 5000,
+              rtl: pdLang() === 'fa',
+              placeholder: ta?.placeholder || '',
+              hint: _t('pd.noteHint', 'Write your progress update — it saves to the Notes tab.'),
+            })
+          }
+        })
+
+        // Wire the backlog-doc "Full screen" button (Item 7)
+        ctx.on('click', (e) => {
+          const fs = e.target.closest('[data-bl-fullscreen]')
+          if (fs) {
+            const form = fs.closest('[data-bl-docform]')
+            if (!form) return
+            const titleIn = form.querySelector('input[name=title]')
+            const contentIn = form.querySelector('textarea[name=content]')
+            openEditor('bldoc', {
+              title: _t('pd.docEditor', 'Plan document editor'),
+              content: contentIn?.value || '',
+              subtitle: titleIn?.value || '',
+              maxlen: 50000,
+              placeholder: contentIn?.placeholder || '',
+              hint: _t('pd.docHint', 'Write the full plan — it saves as a document in the برنامه آتی tab.'),
+              docId: form.dataset.blDocid || '',
+            })
+          }
+        })
+
+        // --- Item 8 (user request 2026-09-09): Markdown export + Quick Copy per column ---
+        // Each pd-col header has a clipboard (Quick Copy) + download (Export Markdown)
+        // button. Quick Copy copies the column's task titles as bullet points.
+        // Export Markdown generates a clean .md file with the column name as the heading
+        // and the task titles as a bullet list — no HTML, dates, styling, or internal data.
+        const pdColLabel = (status) => {
+          const el = document.querySelector(`.pd-col[data-status="${status}"] .pd-col-title`)
+          return el ? el.textContent.trim() : status
+        }
+        const pdColItems = (status) => {
+          const list = document.querySelector(`[data-pd-tasks="${status}"]`)
+          if (!list) return []
+          return Array.from(list.querySelectorAll('.pd-task')).map((el) => {
+            const title = el.querySelector('.pd-task-title')
+            return title ? title.textContent.trim() : ''
+          }).filter(Boolean)
+        }
+        const pdColToMarkdown = (status) => {
+          const label = pdColLabel(status)
+          const items = pdColItems(status)
+          const heading = '# ' + label + '\n'
+          if (!items.length) return heading + '\n_(No items)_\n'
+          return heading + '\n' + items.map((t) => '- ' + t).join('\n') + '\n'
+        }
+        const pdColToBullets = (status) => {
+          const items = pdColItems(status)
+          return items.length ? items.map((t) => '- ' + t).join('\n') : ''
+        }
+        ctx.on('click', async (e) => {
+          const copy = e.target.closest('[data-pd-copy]')
+          if (copy) {
+            const status = copy.dataset.pdCopy
+            const text = pdColToBullets(status)
+            try {
+              await navigator.clipboard.writeText(text)
+              window.hibana?.toast(_t('pd.copied', 'Copied to clipboard'))
+            } catch {
+              // fallback for non-secure contexts
+              const ta = document.createElement('textarea')
+              ta.value = text; document.body.appendChild(ta); ta.select()
+              try { document.execCommand('copy'); window.hibana?.toast(_t('pd.copied', 'Copied to clipboard')) } catch {}
+              ta.remove()
+            }
+            return
+          }
+          const exp = e.target.closest('[data-pd-export]')
+          if (exp) {
+            const status = exp.dataset.pdExport
+            const md = pdColToMarkdown(status)
+            const label = pdColLabel(status)
+            const blob = new Blob([md], { type: 'text/markdown;charset=utf-8' })
+            const url = URL.createObjectURL(blob)
+            const a = document.createElement('a')
+            a.href = url
+            a.download = label.replace(/[^a-zA-Z0-9\u0600-\u06FF_-]+/g, '_') + '.md'
+            document.body.appendChild(a); a.click(); a.remove()
+            URL.revokeObjectURL(url)
+            window.hibana?.toast(_t('pd.exported', 'Exported as Markdown'))
+          }
+          // Archive Done (project page — same as board.html)
+          const archiveBtn = e.target.closest('[data-pd-archive-done]')
+          if (archiveBtn) {
+            const col = document.querySelector('.pd-col[data-status="done"], .pd-col[data-status="operational"]')
+            const count = col ? col.querySelectorAll('.pd-task').length : 0
+            if (count === 0) return
+            const msg = _t('pd.archiveDoneConfirm', 'Archive all {n} done tasks? They move to the project archives (restorable).').replace('{n}', pdDig(count))
+            if (!confirm(msg)) return
+            fetch('/api/projects/' + id + '/devtasks/archive-done', { method: 'POST' })
+              .then((r) => r.ok ? r.json() : null)
+              .then((body) => {
+                const n = body && typeof body.archived === 'number' ? body.archived : count
+                window.hibana?.toast(_t('pd.archivedDone', '{n} tasks archived').replace('{n}', pdDig(n)), 'info')
+                location.reload()
+              })
+              .catch(() => window.hibana?.toast(_t('notes.deleteFailed', "Couldn't archive"), 'err'))
+            return
+          }
+          // Clear Done (hard delete — project page — same as board.html)
+          const clearBtn = e.target.closest('[data-pd-clear-done]')
+          if (clearBtn) {
+            const col = document.querySelector('.pd-col[data-status="done"], .pd-col[data-status="operational"]')
+            const count = col ? col.querySelectorAll('.pd-task').length : 0
+            if (count === 0) return
+            const msg = _t('pd.clearDoneConfirm', 'PERMANENTLY delete all {n} done tasks? This cannot be undone. Use "Archive" to keep them.').replace('{n}', pdDig(count))
+            if (!confirm(msg)) return
+            const ids = Array.from(col.querySelectorAll('.pd-task-wrap')).map((w) => w.dataset.pdTask)
+            Promise.all(ids.map((tid) => fetch('/api/devtasks/' + tid, { method: 'DELETE' })))
+              .then(() => {
+                window.hibana?.toast(_t('pd.clearedDone', '{n} tasks deleted').replace('{n}', pdDig(count)), 'info')
+                location.reload()
+              })
+              .catch(() => window.hibana?.toast(_t('notes.deleteFailed', "Couldn't clear"), 'err'))
+            return
+          }
+          // Project logo upload (user request 2026-09)
+          const logoPlaceholder = e.target.closest('[data-pd-logo-upload]')
+          if (logoPlaceholder) {
+            const input = document.createElement('input')
+            input.type = 'file'
+            input.accept = 'image/png,image/jpeg,image/webp'
+            input.onchange = async () => {
+              const file = input.files?.[0]
+              if (!file) return
+              const reader = new FileReader()
+              reader.onload = async () => {
+                const base64 = reader.result.split(',')[1]
+                try {
+                  const res = await fetch('/api/projects/' + id + '/logo', {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ dataBase64: base64, mimeType: file.type }),
+                  })
+                  if (!res.ok) throw new Error('upload failed')
+                  window.hibana?.toast(_t('pd.logoSaved', 'Logo saved'), 'info')
+                  location.reload()
+                } catch {
+                  window.hibana?.toast(_t('pd.logoFailed', "Couldn't upload logo"), 'err')
+                }
+              }
+              reader.readAsDataURL(file)
+            }
+            input.click()
+            return
+          }
+        })
+      },
+    })
+  </script>
+</body>
+</html>

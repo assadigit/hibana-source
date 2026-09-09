@@ -1,0 +1,77 @@
+/*.html
+  Cache-Control: no-store
+
+/
+  Cache-Control: no-store
+
+/sadhana*
+  Cache-Control: no-store
+
+/to-do-list*
+  Cache-Control: no-store
+
+# Security headers (hardening 2026-08-28) — mirror of the Worker middleware in src/app.ts
+# (static assets serve before the Worker runs, so they need their own copy here).
+# CSP: 'unsafe-inline' + 'unsafe-eval' are required by the no-build frontend (inline scripts,
+# Alpine expressions); the policy still blocks external scripts, plugins, foreign form
+# targets, framing and base-tag hijack.
+# 2026-08-30 (e): the Turnstile exception was REMOVED with the widget — the signup
+# human-check is now a self-hosted math captcha (zero third-party origins) and frame-src
+# is gone entirely (kept in lockstep with src/app.ts; security.test.ts pins the absence).
+# 2026-09-06 (k): img-src gains https: — the canvas/notebook image-from-link tools
+# hotlink user-pasted picture URLs; 'self'-only blocked every external image (lockstep
+# with src/app.ts; https only — no mixed-content http:).
+/*
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: strict-origin-when-cross-origin
+  X-Frame-Options: SAMEORIGIN
+  Cross-Origin-Opener-Policy: same-origin
+  Permissions-Policy: camera=(), geolocation=(), payment=(), usb=()
+  Strict-Transport-Security: max-age=15552000
+  Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; font-src 'self' data:; connect-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'self'
+
+# Static assets (perf audit 2026-08-25): the CF default was max-age=0/must-revalidate —
+# every repeat visit revalidated 20+ files. App code (css/js) gets 1h bounded staleness
+# (this app has a cache-pain history — no long-lived unhashed app files); vendor libs,
+# images and fonts only change on deploy and get 1d + a week of stale-while-revalidate.
+/css/*
+  Cache-Control: public, max-age=3600, stale-while-revalidate=86400
+
+/js/*
+  Cache-Control: public, max-age=3600, stale-while-revalidate=86400
+
+/vendor/*
+  Cache-Control: public, max-age=86400, stale-while-revalidate=604800
+
+/*.png
+  Cache-Control: public, max-age=86400, stale-while-revalidate=604800
+
+/*.jpg
+  Cache-Control: public, max-age=86400, stale-while-revalidate=604800
+
+/*.svg
+  Cache-Control: public, max-age=86400, stale-while-revalidate=604800
+
+/*.woff2
+  Cache-Control: public, max-age=86400, stale-while-revalidate=604800
+
+/*.webmanifest
+  Cache-Control: public, max-age=86400
+
+# Content-hashed bundles (perf session 2026-09-10, wired by the dr-integrity session
+# 2026-09-12 — docs/dr-integrity-closeout.md §5): every file under /dist/*.js|css is
+# content-hashed by scripts/build.mjs (name.<hash>.ext) AND referenced by the DEPLOYED
+# HTML (build --wire-html rewrites the pages at deploy time; the committed HTML keeps
+# the ?v= canonical form). A different content ALWAYS means a different URL, so these
+# are safely immutable (cache forever, zero revalidation). build.mjs purges stale dist
+# files on PROD builds so no orphan can ever sit under an immutable rule.
+# manifest.json is the one mutable dist file (rewrites on every build) — it revalidates
+# every use (the SW's manifest-driven precache fetches it with cache: no-store at install).
+/dist/manifest.json
+  Cache-Control: no-cache
+
+/dist/*.js
+  Cache-Control: public, max-age=31536000, immutable
+
+/dist/*.css
+  Cache-Control: public, max-age=31536000, immutable

@@ -1,0 +1,51 @@
+# Hibana CI — typecheck + unit tests + smoke on every push and pull request.
+# H4 fix (2026-09-10): all quality gates were manual; a regression could ship without
+# anyone running them. This workflow catches type errors, test failures, and broken
+# smoke scenarios before they reach a deploy.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  ci:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Build assets
+        run: bun run build
+
+      - name: Typecheck
+        run: bun run typecheck
+
+      - name: Cache-bust check
+        run: node scripts/check-cache-bust.mjs
+
+      - name: Unit tests
+        run: bun run test
+
+      - name: Smoke test
+        run: bun run smoke
+
+      # dr-integrity session: validate the DEPLOY artifact shape (wired HTML ↔ manifest
+      # consistency) on every push, not just on deploy day. Restore the canonical HTML
+      # afterwards and assert the working tree came back byte-identical.
+      - name: Dist wiring check (deploy artifact shape)
+        run: |
+          node scripts/build.mjs --prod --wire-html
+          node scripts/check-dist-wiring.mjs
+          node scripts/build.mjs --restore-html
+          git diff --exit-code -- public/ || (echo "FAIL: wired build left the canonical HTML modified"; git diff --stat -- public/; exit 1)

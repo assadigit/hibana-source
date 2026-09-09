@@ -1,0 +1,256 @@
+/* Shared Sadhana task controls. Loaded with app.css through the page shell. */
+.dash-todo-task {
+  grid-template-columns: minmax(0, 1fr) auto;
+  max-block-size: 100vh;
+}
+.dash-todo-task .dash-todo-check { grid-column: 1; }
+.dash-todo-task.is-completing,
+.sadhana-card.is-completing { background: var(--task-complete-bg); }
+.dash-todo-task.is-completing .dash-todo-check span,
+.sadhana-card.is-completing .sadhana-title { text-decoration: line-through; }
+.dash-todo-task.is-removing,
+.sadhana-card.is-removing {
+  max-block-size: 0;
+  margin-block: 0;
+  opacity: 0;
+  pointer-events: none;
+}
+.task-hover-controls {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  max-inline-size: 100%;
+  min-inline-size: 0;
+  opacity: 0;
+  transition: opacity 0.12s ease;
+}
+.dash-todo-task,
+.sadhana-card {
+  max-block-size: 100vh;
+  overflow: hidden;
+  transition: opacity 0.24s ease, max-block-size 0.3s ease, background-color 0.18s ease, margin-block 0.3s ease;
+}
+.dash-todo-task .task-hover-controls { grid-column: 2; grid-row: 1; }
+.sadhana-card .task-hover-controls { grid-column: 3; grid-row: 1; }
+.dash-todo-task:hover .task-hover-controls,
+.dash-todo-task:focus-within .task-hover-controls,
+.sadhana-card:hover .task-hover-controls,
+.sadhana-card:focus-within .task-hover-controls { opacity: 1; }
+
+.task-status-track {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.1rem;
+  white-space: nowrap;
+}
+.task-status-dot,
+.task-note-trigger,
+.task-edit-trigger {
+  display: inline-grid;
+  place-items: center;
+  inline-size: 2.25rem;
+  block-size: 2.25rem;
+  flex: none;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--muted);
+}
+.task-status-dot > span {
+  inline-size: 0.62rem;
+  block-size: 0.62rem;
+  border: 1px solid currentColor;
+  border-radius: 50%;
+  background: transparent;
+}
+.task-status-dot.is-current > span { background: currentColor; }
+.task-status-dot.status-info { color: var(--color-info); }
+.task-status-dot.status-success { color: var(--color-success); }
+.task-status-dot.status-warning { color: var(--color-warning); }
+.task-status-dot.status-info.is-current > span { background: var(--status-info-soft); }
+.task-status-dot.status-success.is-current > span { background: var(--status-success-soft); }
+.task-status-dot.status-warning.is-current > span { background: var(--status-warning-soft); }
+.task-status-dot:hover,
+.task-status-dot:focus-visible,
+.task-note-trigger:hover,
+.task-note-trigger:focus-visible,
+.task-edit-trigger:hover,
+.task-edit-trigger:focus-visible { background: var(--bg-soft); color: var(--text); }
+.task-status-dot.status-info.is-current { color: var(--status-info-soft); }
+.task-status-dot.status-success.is-current { color: var(--status-success-soft); }
+.task-status-dot.status-warning.is-current { color: var(--status-warning-soft); }
+.task-status-label {
+  margin-inline-start: 0.2rem;
+  color: var(--muted);
+  font-size: var(--fs-xs);
+}
+.task-note-trigger,
+.task-edit-trigger { position: relative; }
+.task-note-trigger .icon,
+.task-edit-trigger .icon { inline-size: 1rem; block-size: 1rem; }
+.task-note-badge {
+  position: absolute;
+  inset-block-start: 0.15rem;
+  inset-inline-end: 0.1rem;
+  min-inline-size: 0.95rem;
+  block-size: 0.95rem;
+  padding-inline: 0.18rem;
+  border: 1px solid var(--card);
+  border-radius: 999px;
+  background: var(--muted);
+  color: var(--card);
+  font-size: 0.62rem;
+  line-height: 0.85rem;
+  text-align: center;
+}
+
+.task-inline-edit,
+.task-notes-panel {
+  grid-column: 1 / -1;
+  min-inline-size: 0;
+}
+.task-inline-edit {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem;
+}
+.task-inline-edit input {
+  min-inline-size: 0;
+  flex: 1 1 12rem;
+  padding-block: 0.35rem;
+}
+.task-inline-edit button { min-inline-size: 2.25rem; min-block-size: 2.25rem; padding: 0.25rem; }
+.task-edit-error {
+  flex: 1 1 100%;
+  color: var(--err);
+  font-size: var(--fs-xs);
+}
+.task-notes-panel {
+  display: grid;
+  gap: 0.45rem;
+  margin-block-start: 0.2rem;
+  padding-block-start: 0.45rem;
+  border-block-start: 1px solid var(--line);
+}
+.task-notes-list {
+  display: grid;
+  gap: 0.35rem;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.task-note-item {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.45rem;
+  min-inline-size: 0;
+}
+.task-note-copy {
+  display: grid;
+  gap: 0.1rem;
+  min-inline-size: 0;
+}
+.task-note-copy time {
+  color: var(--muted);
+  font-size: var(--fs-xs);
+}
+.task-note-copy span {
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+.task-note-delete {
+  display: inline-grid;
+  place-items: center;
+  min-inline-size: 2.25rem;
+  min-block-size: 2.25rem;
+  flex: none;
+  padding: 0;
+  color: var(--danger);
+}
+.task-note-delete .icon { inline-size: 0.95rem; block-size: 0.95rem; }
+.task-note-add-form {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
+  gap: 0.35rem;
+}
+.task-note-add-form textarea {
+  min-inline-size: 0;
+  width: 100%;
+  resize: vertical;
+  background: var(--bg);
+  color: var(--text);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  padding: 0.35rem 0.5rem;
+  font: inherit;
+}
+.task-note-add-form button { min-inline-size: 2.75rem; min-block-size: 2.75rem; padding: 0.25rem; }
+.task-note-add-form .icon { inline-size: 1rem; block-size: 1rem; }
+
+/* Secondary task actions retain pin/delete without another unlabeled overflow control. */
+.sadhana-card > .task-secondary-actions {
+  display: flex;
+  grid-column: 3;
+  grid-row: 2;
+  justify-self: end;
+  gap: 0.2rem;
+  opacity: 0;
+  transition: opacity 0.12s ease;
+}
+.sadhana-card:hover .task-secondary-actions,
+.sadhana-card:focus-within .task-secondary-actions { opacity: 1; }
+.task-secondary-actions button { display: inline-grid; place-items: center; min-inline-size: 2.25rem; min-block-size: 2.25rem; padding: 0; }
+.task-secondary-actions .icon { inline-size: 0.95rem; block-size: 0.95rem; }
+.dash-todo-reorder { grid-column: 2; grid-row: 2; justify-self: end; }
+
+/* The category icon is the single quadrant settings entry point on the full board. */
+.sadhana-qtitle { position: relative; }
+.sadhana-style-trigger { border: 0; background: transparent; color: var(--q-accent, var(--muted)); cursor: pointer; }
+.sadhana-style-trigger:hover,
+.sadhana-style-trigger:focus-visible { background: var(--bg-soft); }
+.sadhana-style-trigger .icon { inline-size: 1.25rem; block-size: 1.25rem; }
+.sadhana-style-pop {
+  position: absolute;
+  z-index: 60;
+  inset-block-start: 2.5rem;
+  inset-inline-start: 0;
+  inline-size: min(18rem, calc(100vw - 2rem));
+  padding: 0.65rem;
+  background: var(--card);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-dropdown);
+}
+.sadhana-style-pop[hidden] { display: none; }
+.sadhana-rename-form { display: grid; gap: 0.25rem; margin-block-end: 0.45rem; }
+.sadhana-rename-form label { display: grid; gap: 0.25rem; color: var(--muted); font-size: var(--fs-xs); }
+.sadhana-rename-form input { min-inline-size: 0; width: 100%; padding-block: 0.25rem; }
+.sadhana-rename-form button { min-inline-size: 2rem; min-block-size: 2rem; padding: 0.2rem; }
+/* 2026-09-02: the symbol picker is now an EMOJI grid (8 columns, scrollable) — this
+   used to lay out the old 12-SVG-glyph set as a 4-column grid.
+   2026-09-05: the accent-swatch row was REMOVED (user — "color is for icons, now we
+   use emojis"); only the icon grid remains. */
+.dash-style-icons { display: grid; grid-template-columns: repeat(8, 1fr); gap: 2px; margin-block-start: 0.45rem; max-block-size: 9.6rem; overflow-y: auto; overscroll-behavior: contain; }
+.dash-style-icon { min-inline-size: 2.75rem; min-block-size: 2.75rem; padding: 0.45rem; border: 1px solid transparent; border-radius: var(--radius-sm); background: transparent; color: var(--text); }
+.dash-style-icon:hover,
+.dash-style-icon:focus-visible { background: var(--bg-soft); }
+.dash-style-icon.is-selected { border-color: var(--text); }
+.dash-style-icon .icon { inline-size: 1.1rem; block-size: 1.1rem; }
+.q-style-focus { display: inline-flex; align-items: center; gap: 0.35rem; margin-block-start: 0.45rem; color: var(--muted); font-size: var(--fs-sm); }
+.q-style-focus .icon { inline-size: 1rem; block-size: 1rem; }
+
+/* A shared minimum hit area keeps dots and icon buttons usable on touch. */
+@media (hover: none) {
+  .task-hover-controls,
+  .sadhana-card > .task-secondary-actions { opacity: 1; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .task-hover-controls { transition: none; }
+}

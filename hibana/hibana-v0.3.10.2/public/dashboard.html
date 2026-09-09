@@ -1,0 +1,195 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Dashboard — Hibana</title>
+  <link rel="stylesheet" href="/css/app.css?v=235">
+  <link rel="stylesheet" href="/css/task-controls.css?v=4">
+  <link rel="stylesheet" href="/css/magic-wand.css?v=2">
+  <link rel="stylesheet" href="/vendor/manrope/font-face.css">
+  <script src="/vendor/htmx.min.js" defer></script>
+  <script src="/js/boot.js?v=4"></script>
+  <script src="/vendor/alpine.min.js" defer></script>
+  <script src="/js/queue.js?v=2" defer></script>
+  <!-- Phase 6 item 2: full emoji library + shared picker (quadrant symbol) -->
+  <!-- M7: emoji-data.js lazy-loaded by emoji-picker.js on first open (saves 49KB on every page load) -->
+  <script src="/js/emoji-picker.js?v=2" defer></script>
+  <script src="/js/app.js?v=165" defer></script>
+  <script src="/js/touch-drag.js?v=1" defer></script>
+  <script src="/js/i18n.js?v=46" defer></script>
+  <script src="/js/magic-wand.js?v=8" defer></script>
+  <script src="/js/ai-autopolish.js?v=1" defer></script>
+  <script src="/js/nav.js?v=1" defer></script>
+  <script src="/js/command-palette.js?v=1" defer></script>
+  <script src="/js/mobile-nav.js?v=4" defer></script>
+  <script src="/js/zen-mode.js?v=1" defer></script>
+  <script src="/js/micro-interactions.js?v=1" defer></script>
+  <script src="/js/go-to.js?v=1" defer></script>
+  <script src="/js/install-prompt.js?v=1" defer></script>
+  <script src="/js/tour.js?v=2" defer></script>
+</head>
+<body>
+  <a href="#main" class="skip-link" data-i18n="a11y.skipToMain">Skip to main content</a>
+  <!-- Phase 7 item 13: dedicated skeleton state. The topbar placeholder lives inside
+       [data-nav] itself — app.js replaces the mount's innerHTML with the real nav the
+       moment /partials/nav.html lands, so the swap is atomic. Shape widths mirror the
+       real labels (brand · 7 nav links · avatar + username) and the RTL flow order is
+       the real one. -->
+  <div data-nav aria-busy="true">
+    <nav class="topbar sk-topbar" aria-hidden="true">
+      <strong class="brand"><span class="sk sk-brand"></span></strong>
+      <div class="nav-links">
+        <span class="sk sk-navlink" style="inline-size: 4.6rem"></span>
+        <span class="sk sk-navlink" style="inline-size: 5.4rem"></span>
+        <span class="sk sk-navlink" style="inline-size: 4.2rem"></span>
+        <span class="sk sk-navlink" style="inline-size: 3.4rem"></span>
+        <span class="sk sk-navlink" style="inline-size: 3rem"></span>
+        <span class="sk sk-navlink" style="inline-size: 5.8rem"></span>
+        <span class="sk sk-navlink" style="inline-size: 3.8rem"></span>
+      </div>
+      <span class="grow"></span>
+      <span class="row nav-actions">
+        <span class="sk sk-avatar"></span>
+        <span class="sk sk-username"></span>
+      </span>
+    </nav>
+  </div>
+  <!-- Phase 7 item 13: the skeleton mirrors the REAL dashboard grid — it reuses the very
+       classes htmx will swap in (.dash-todo-quadrant, .stat-box, .stat-kanban-card…),
+       each block carrying a .sk shimmer placeholder instead of content. Same widths,
+       heights, paddings and RTL ordering, so real content replaces the skeleton in
+       place with zero layout jump. ONE shared sweep animation (sk-sweep) drives every
+       block — one direction, one clock; prefers-reduced-motion falls back to static. -->
+  <!-- Session-11 (user report 2026-09-14): this tag carried BOTH id="main" and id="dash".
+       Duplicate attributes are dropped at parse time (first wins), so #dash NEVER matched
+       — the 2.9rem section spacing, the 96rem shell width, the aria-busy cleanup and every
+       htmx refresh targeting #dash (task complete / move / rename) were silently dead.
+       The skip-link anchor keeps id="main"; the dashboard hook is now the .shell-dash
+       class (CSS + app.js + htmx targets all point at main.shell-dash). -->
+  <main class="shell shell-dash" id="main" tabindex="-1" hx-get="/api/dashboard" hx-trigger="load" hx-swap="innerHTML" aria-busy="true">
+    <div id="dash-skeleton" class="dash-skeleton" role="status" aria-label="Loading dashboard">
+      <section class="dash-todo-section">
+        <header class="dash-todo-head">
+          <h2><span class="sk sk-heading"></span></h2>
+        </header>
+        <!-- Session-12: .dash-quad-wrap mirrors the SSR structure so the skeleton swaps
+             into the real carousel layout with zero jump (phone carousel, user request). -->
+        <div class="dash-quad-wrap">
+        <div class="dash-todo-grid">
+          <article class="dash-todo-quadrant sk-quad" aria-hidden="true">
+            <header class="dash-todo-qhead">
+              <div class="dash-todo-qtitle">
+                <span class="sk sk-quad-ico"></span>
+                <span class="dash-todo-qcol"><span class="sk sk-quad-title"></span></span>
+              </div>
+              <span class="row dash-todo-qactions"><span class="sk sk-quad-count"></span></span>
+            </header>
+            <ul class="dash-todo-list">
+              <li class="dash-todo-task"><span class="sk sk-task"></span><span class="sk sk-prog"></span></li>
+              <li class="dash-todo-task"><span class="sk sk-task"></span><span class="sk sk-prog"></span></li>
+            </ul>
+          </article>
+          <article class="dash-todo-quadrant sk-quad" aria-hidden="true">
+            <header class="dash-todo-qhead">
+              <div class="dash-todo-qtitle">
+                <span class="sk sk-quad-ico"></span>
+                <span class="dash-todo-qcol"><span class="sk sk-quad-title"></span></span>
+              </div>
+              <span class="row dash-todo-qactions"><span class="sk sk-quad-count"></span></span>
+            </header>
+            <ul class="dash-todo-list">
+              <li class="dash-todo-task"><span class="sk sk-task"></span><span class="sk sk-prog"></span></li>
+              <li class="dash-todo-task"><span class="sk sk-task"></span><span class="sk sk-prog"></span></li>
+            </ul>
+          </article>
+          <article class="dash-todo-quadrant sk-quad" aria-hidden="true">
+            <header class="dash-todo-qhead">
+              <div class="dash-todo-qtitle">
+                <span class="sk sk-quad-ico"></span>
+                <span class="dash-todo-qcol"><span class="sk sk-quad-title"></span></span>
+              </div>
+              <span class="row dash-todo-qactions"><span class="sk sk-quad-count"></span></span>
+            </header>
+            <ul class="dash-todo-list">
+              <li class="dash-todo-task"><span class="sk sk-task"></span><span class="sk sk-prog"></span></li>
+              <li class="dash-todo-task"><span class="sk sk-task"></span><span class="sk sk-prog"></span></li>
+            </ul>
+          </article>
+          <article class="dash-todo-quadrant sk-quad" aria-hidden="true">
+            <header class="dash-todo-qhead">
+              <div class="dash-todo-qtitle">
+                <span class="sk sk-quad-ico"></span>
+                <span class="dash-todo-qcol"><span class="sk sk-quad-title"></span></span>
+              </div>
+              <span class="row dash-todo-qactions"><span class="sk sk-quad-count"></span></span>
+            </header>
+            <ul class="dash-todo-list">
+              <li class="dash-todo-task"><span class="sk sk-task"></span><span class="sk sk-prog"></span></li>
+              <li class="dash-todo-task"><span class="sk sk-task"></span><span class="sk sk-prog"></span></li>
+            </ul>
+          </article>
+        </div>
+        </div>
+      </section>
+      <section class="dash-projects-section">
+        <div class="row spread dash-projects-head">
+          <span class="sk sk-heading"></span>
+        </div>
+        <div class="stat-carousel">
+          <div class="stat-strip stat-boxes">
+            <div class="stat stat-box sk-stat" aria-hidden="true">
+              <div class="row spread">
+                <span class="row"><span class="sk sk-stat-ico"></span><span class="sk sk-stat-count"></span><span class="sk sk-stat-label"></span></span>
+              </div>
+              <div class="stat-kanban">
+                <div class="card kanban-card stat-kanban-card"><span class="sk sk-proj"></span></div>
+                <div class="card kanban-card stat-kanban-card"><span class="sk sk-proj"></span></div>
+              </div>
+            </div>
+            <div class="stat stat-box sk-stat" aria-hidden="true">
+              <div class="row spread">
+                <span class="row"><span class="sk sk-stat-ico"></span><span class="sk sk-stat-count"></span><span class="sk sk-stat-label"></span></span>
+              </div>
+              <div class="stat-kanban">
+                <div class="card kanban-card stat-kanban-card"><span class="sk sk-proj"></span></div>
+                <div class="card kanban-card stat-kanban-card"><span class="sk sk-proj"></span></div>
+              </div>
+            </div>
+            <div class="stat stat-box sk-stat" aria-hidden="true">
+              <div class="row spread">
+                <span class="row"><span class="sk sk-stat-ico"></span><span class="sk sk-stat-count"></span><span class="sk sk-stat-label"></span></span>
+              </div>
+              <div class="stat-kanban">
+                <div class="card kanban-card stat-kanban-card"><span class="sk sk-proj"></span></div>
+                <div class="card kanban-card stat-kanban-card"><span class="sk sk-proj"></span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
+  </main>
+  <div class="fab-stack" data-fab>
+    <div class="fab-menu" data-fab-menu hidden role="menu">
+      <button type="button" class="fab-item" data-taskadd-open role="menuitem" aria-label="New task" data-i18n-title="fab.task" title="New task">
+        <span class="fab-item-icon" aria-hidden="true"><svg class="icon" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg></span>
+        <span data-i18n="fab.task">New Task</span>
+      </button>
+      <button type="button" class="fab-item" data-projectquickadd role="menuitem" aria-label="New project" data-i18n-title="fab.project" title="New project">
+        <span class="fab-item-icon" aria-hidden="true"><svg class="icon" viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7Z"/><path d="M12 11v4M10 13h4"/></svg></span>
+        <span data-i18n="fab.project">New project</span>
+      </button>
+      <!-- Phase 7 item 12: the FAB's third option — a quick-note modal (textarea +
+           attach-to-project + save) landing in the Quick Notebook. -->
+      <button type="button" class="fab-item" data-notequickadd role="menuitem" aria-label="New quick note" data-i18n-title="fab.note" title="New quick note">
+        <span class="fab-item-icon" aria-hidden="true"><svg class="icon" viewBox="0 0 24 24"><path d="M5 5h9l5 5v9a1.5 1.5 0 0 1-1.5 1.5h-12A1.5 1.5 0 0 1 4 19V6.5A1.5 1.5 0 0 1 5.5 5Z"/><path d="M8 12h8M8 15.5h5"/></svg></span>
+        <span data-i18n="fab.note">Quick note</span>
+      </button>
+    </div>
+    <button class="fab" data-fab-toggle type="button" aria-expanded="false" aria-label="New" data-i18n-title="fab.new" title="New">
+      <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+    </button>
+  </div>
+</body>
+</html>

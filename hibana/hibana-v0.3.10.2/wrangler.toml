@@ -1,0 +1,83 @@
+# Hibana — Cloudflare Workers config.
+# Default config = DEV database. Production lives under [env.prod] (rule: dev first, prod only by deliberate deploy).
+
+name = "hibana"
+main = "src/index.ts"
+compatibility_date = "2026-01-01"
+
+# Scheduled backup: exports the D1 database to the GitHub assets repo.
+# Only fires on a deployed Worker; locally it's triggered via POST /api/admin/backup.
+# RECOVERED (hotfix window, 2026-08-31): the 03:17 daily backup was widened to
+# 4× daily (03:17 / 09:17 / 15:17 / 21:17 UTC) — matches the live deployment's
+# schedule exactly. Keep both crons.
+[triggers]
+crons = ["17 3,9,15,21 * * *", "*/30 * * * *"]
+
+# Static frontend served by the same Worker (single origin, decision Q1-A).
+# html_handling/not_found_handling mirror the live deployment's asset settings:
+# /404.html is served for missing assets (the app also renders its own branded
+# 404 for page routes via notFoundPage in src/app.ts).
+#
+# P2.5b (live 404 on /app fix, 2026-09-02): not_found_handling was "404-page",
+# which made the Cloudflare assets binding serve /404.html (HTTP 404) for ANY
+# path it couldn't resolve to a file — INCLUDING Worker-served routes like /app,
+# /register, /signup, /to-do-list, /timeline. Those routes never reached the
+# Worker, so /app (the authenticated dashboard shell) returned 404 instead of
+# redirecting to /login.html. Switched to "none": the assets binding passes
+# unresolved paths to the Worker, whose app.get('*') fallback (app.ts:254)
+# serves the branded /404.html itself. Static files (.html/.css/.js/.png/etc.)
+# are still served directly by the assets binding (they exist on disk).
+[assets]
+directory = "./public"
+binding = "ASSETS"
+html_handling = "auto-trailing-slash"
+not_found_handling = "none"
+
+[vars]
+ENVIRONMENT = "dev"
+GITHUB_OWNER = "assadigit"
+GITHUB_REPO = "hibana-safe"
+
+# Workers AI binding (idea §1 — Magic Button, green-lit). Surfaces `env.AI` on the Worker;
+# POST /api/ai/text uses it for polish/rewrite/translate via @cf/qwen/qwen3-30b-a3b-fp8.
+# Free-tier only (10k neurons/day); no paid overage possible on the Workers Free plan.
+# The Node self-host path has no Ai binding → the route degrades to a 503 "Workers-only" notice.
+[ai]
+binding = "AI"
+
+# Dev database — created via: npx wrangler d1 create pm-app-dev
+[[d1_databases]]
+binding = "DB"
+database_name = "pm-app-dev"
+database_id = "80e02ce2-ca0a-4ccc-beda-8b6cb9c3a984"
+
+# -----------------------------------------------------------------------------------
+# Production environment — only touched by `wrangler deploy --env prod`.
+# -----------------------------------------------------------------------------------
+[env.prod.vars]
+ENVIRONMENT = "prod"
+GITHUB_OWNER = "assadigit"
+GITHUB_REPO = "hibana-safe"
+# Mirror origins allowed through the CSRF gate for the ArvanCloud front (docs/edge-mirror.md).
+# v0.3.3: sadhana.ir — a dedicated MAIN domain delegated to ArvanCloud in full (NS at IRNIC);
+# main domains are free on Arvan's Basic plan, subdomain entries are not. Served at the apex
+# only (no www/fast entries under it — those are the paid feature). fast.hibana.ir — the
+# v0.3.2 subdomain plan, kept inert while NXDOMAIN as a future option. Both entries are
+# inert until their hostnames actually resolve; the hibana.ir apex NS stay on Cloudflare.
+MIRROR_ORIGIN = "https://sadhana.ir https://fast.hibana.ir"
+
+# Custom domain (hibana.ir): wrangler 4 no longer supports the `custom_domains`
+# toml key (it warns "Unexpected fields found ... custom_domains"). Attach it via the
+# Cloudflare dashboard (Worker -> hibana-prod -> Settings -> Domains & Routes) or with a
+# write-scoped API token + `node scripts/custom-domain.mjs add hibana.ir`. Zone is active.
+
+# Created via: npx wrangler d1 create pm-app-prod
+[[env.prod.d1_databases]]
+binding = "DB"
+database_name = "pm-app-prod"
+database_id = "d842fcb5-44f6-4bbd-a772-3699ccadb496"
+
+# Workers AI binding for prod (idea §1). The top-level [ai] doesn't inherit into [env.prod]
+# for binding-type keys in wrangler 4, so it must be repeated here explicitly.
+[env.prod.ai]
+binding = "AI"

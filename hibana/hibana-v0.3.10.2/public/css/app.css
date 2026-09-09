@@ -878,8 +878,8 @@ html[data-theme='dark'] .bug-bubble { background: #ef4444; box-shadow: 0 1px 6px
    + &nbsp;) but takes a line of height. */
 .pc-desc-empty { min-block-size: 1.4rem; opacity: 0; }
 .pc-meta-empty { min-block-size: 1rem; opacity: 0; }
-input::placeholder, textarea::placeholder { font-size: 0.88em; } /* placeholders one step smaller than their field (user 2026-08-30) */
-.note-compose-text::placeholder { font-size: 0.8em; }
+input::placeholder, textarea::placeholder { font-size: 0.88em; opacity: 0.7; } /* Session 19: opacity bump so placeholders read clearly (was browser default ~0.5) */
+.note-compose-text::placeholder { font-size: 0.8em; opacity: 0.75; }
 .pc-wire .pc-title {
   justify-self: center;
   text-align: center;
@@ -2316,6 +2316,24 @@ dialog.dialog::backdrop { background: rgb(0 0 0 / 0.55); }
 .canvas-page { background: var(--bg-soft); overflow: hidden; height: 100dvh; display: flex; flex-direction: column; }
 .canvas-page .topbar { flex: 0 0 auto; }
 #canvas-wrap { flex: 1; position: relative; }
+/* Session 19: empty-canvas affordance — a centered faint hint that disappears once the
+   user draws anything. canvas.js adds .has-content to #canvas-wrap to hide it. */
+#canvas-wrap .canvas-empty-hint {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.6rem;
+  color: var(--muted);
+  font-size: var(--fs-md);
+  pointer-events: none;
+  opacity: 0.55;
+  transition: opacity 0.2s ease;
+}
+#canvas-wrap .canvas-empty-hint .icon { width: 2rem; height: 2rem; opacity: 0.7; }
+#canvas-wrap.has-content .canvas-empty-hint { opacity: 0; }
 /* GOLDEN RULE (2026-08-26): the drawing surface itself is direction-neutral — Latin text
    must always lay out and type LTR even on the Farsi (rtl) page. Canvas 2D inherits
    direction from the element (an rtl canvas flips Fabric's text alignment semantics and
@@ -2660,7 +2678,9 @@ html[data-theme='dark'] {
 .canvas-toolbar [data-tool].active {
   background: var(--accent-soft);
   border-color: var(--accent);
-  color: var(--text);
+  color: var(--brand);
+  font-weight: 600;
+  box-shadow: 0 0 0 1px var(--accent) inset; /* Session 19: clearer active-tool ring (was subtle pastel) */
 }
 .canvas-toolbar button.active:not([data-tool]) { background: transparent; } /* properties stay quiet */
 .width-pick { display: inline-flex; align-items: center; gap: 0.5rem; }
@@ -5216,10 +5236,19 @@ body.has-mobile-nav { padding-block-end: calc(3.5rem + env(safe-area-inset-botto
 .heatmap-legend {
   display: inline-flex;
   align-items: center;
-  gap: 3px;
+  gap: 4px;
   margin-block-start: 0.5rem;
+  /* Session 19: separate the Less/More labels from the swatch ramp so they read as
+     caption + scale, not a continuous run. */
+  gap: 0.4rem;
 }
+.heatmap-legend [data-i18n="reports.less"],
+.heatmap-legend [data-i18n="reports.more"] { margin-inline: 0.25rem; font-weight: 500; }
 .heatmap-legend .heatmap-cell { width: 11px; height: 11px; }
+/* Session 19: weekday hint under the heatmap — a tiny Sat-row tick so the 7-row grid
+   reads as a calendar week, not abstract squares. Added by reports.html render. */
+.heatmap-weekdays { display: flex; gap: 3px; margin-block-start: 0.15rem; font-size: 0.55rem; color: var(--muted); opacity: 0.7; }
+.heatmap-weekdays span { width: 13px; text-align: center; }
 @media (prefers-reduced-motion: reduce) {
   .heatmap-cell:hover { transform: none; }
 }
@@ -6085,16 +6114,16 @@ html[data-theme="dark"] .card,
   to { opacity: 1; transform: translateY(0) scale(1); }
 }
 .tour-title { margin: 0 0 0.5rem; font-size: var(--fs-xl); font-weight: 700; }
-.tour-body { margin: 0 0 0.85rem; color: var(--muted); line-height: 1.55; font-size: var(--fs-md); }
+.tour-body { margin: 0 0 0.85rem; color: var(--text); line-height: 1.55; font-size: var(--fs-md); opacity: 0.92; }
 .tour-progress { display: flex; gap: 0.3rem; margin-block-end: 0.85rem; }
 .tour-dot {
-  inline-size: 6px;
-  block-size: 6px;
+  inline-size: 7px;
+  block-size: 7px;
   border-radius: 50%;
-  background: var(--line-strong);
+  background: rgb(0 0 0 / 0.25); /* Session 19: was --line-strong which was near-invisible on the card surface */
   transition: background 0.15s ease, inline-size 0.15s ease;
 }
-.tour-dot.active { background: var(--brand); inline-size: 18px; border-radius: 999px; }
+.tour-dot.active { background: var(--brand); inline-size: 20px; border-radius: 999px; }
 .tour-actions { display: flex; align-items: center; gap: 0.4rem; }
 .tour-spacer { flex: 1; }
 .tour-next {

@@ -1823,6 +1823,16 @@ window.hibanaCanvas = (() => {
 
     canvas.on('after:render', () => { loadChunk(); updateDots(); syncLockBadges(); syncStickyPalette(); syncPinSizes(); syncCommentPop() })
 
+    // Session 19: toggle the empty-canvas hint. `after:render` fires on every change
+    // (add/remove/clear/modify), so this is the one reliable hook to keep the hint in
+    // sync with canvas.getObjects().length. Excludes the transient lock-badge helpers.
+    canvas.on('after:render', () => {
+      const wrap = document.getElementById('canvas-wrap')
+      if (!wrap) return
+      const realObjects = canvas.getObjects().filter((o) => !o.__isLockBadge && !o.__isGuide)
+      wrap.classList.toggle('has-content', realObjects.length > 0)
+    })
+
     // autosave events
     canvas.on('path:created', (e) => {
       const path = e.path

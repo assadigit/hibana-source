@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Canvas — Hibana</title>
-  <link rel="stylesheet" href="/css/app.css?v=238">
+  <link rel="stylesheet" href="/css/app.css?v=239">
   <link rel="stylesheet" href="/vendor/manrope/font-face.css">
   <link rel="stylesheet" href="/vendor/bebas-note/font-face.css">
   <script src="/vendor/htmx.min.js" defer></script>
@@ -19,8 +19,8 @@
   <script src="/js/micro-interactions.js?v=1" defer></script>
   <script src="/js/go-to.js?v=1" defer></script>
   <script src="/js/install-prompt.js?v=1" defer></script>
-  <script src="/js/i18n.js?v=48" defer></script>
-  <script src="/js/canvas.js?v=16" defer></script>
+  <script src="/js/i18n.js?v=49" defer></script>
+  <script src="/js/canvas.js?v=17" defer></script>
 </head>
 <body class="canvas-page">
   <div data-nav></div>
@@ -126,6 +126,12 @@
          .paper-checkered / .paper-shaded (default plain) + .dots-off; canvas.js
          composes the multi-layer background-position sync. -->
     <canvas id="board" width="1200" height="800"></canvas>
+    <!-- Session 19: empty-canvas affordance — a faint hint that disappears as soon as the
+         user draws. canvas.js toggles .has-content on #canvas-wrap to hide this. -->
+    <div class="canvas-empty-hint" id="canvas-empty-hint" aria-hidden="true">
+      <svg class="icon" viewBox="0 0 24 24"><path d="M12 3v18M3 12h18"/></svg>
+      <span data-i18n="canvas.emptyHint">Click a tool above, then drag here to begin</span>
+    </div>
     <!-- Floating note-color palette — canvas.js shows it under a selected sticky -->
     <div class="sticky-palette" data-sticky-palette hidden></div>
     <!-- squig batch popovers (2026-08-31) — canvas.js positions/anchors each one -->

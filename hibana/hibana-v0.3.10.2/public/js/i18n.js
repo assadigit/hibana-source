@@ -270,6 +270,7 @@ window.hibanaI18n = (() => {
       'dashboard.taskRestoreFailed': "Couldn't restore the task",
       // canvas page + toolbar
       'canvas.select': 'Select / move / pan (space or middle-drag)',
+      'canvas.emptyHint': 'Click a tool above, then drag here to begin',
       'canvas.pen': 'Draw freehand (desktop)',
       'canvas.colorBlack': 'Black pen',
       'canvas.fontLabel': 'Font', 'font.bebas': 'Bebas', 'font.classic': 'Classic',
@@ -906,6 +907,7 @@ window.hibanaI18n = (() => {
       'dashboard.taskRestoreFailed': 'بازگرداندن کار ممکن نشد',
       // canvas page + toolbar
       'canvas.select': 'انتخاب / جابه‌جایی / پیمایش (Space یا درگ با دکمهٔ وسط)',
+      'canvas.emptyHint': 'یک ابزار از بالا انتخاب کن، بعد اینجا بکش تا شروع شود',
       'canvas.pen': 'کشیدن نقاشی آزاد (دسکتاپ)',
       'canvas.colorBlack': 'قلم مشکی',
       'canvas.fontLabel': 'فونت', 'font.bebas': 'بباس', 'font.classic': 'کلاسیک',

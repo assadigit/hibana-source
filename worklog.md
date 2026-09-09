@@ -385,3 +385,62 @@ Stage Summary:
   scope without Ali's go-ahead). The 3 remaining §6 open items are now: dev_tasks note
   column (schema), Telegram voice→spark (deferred — idea §6 protocol), back-to-work
   recap (deferred). Semantic find stages 1–2 (idea §6) also deferred.
+
+---
+Task ID: session-19-cron-r3
+Agent: Z.ai Code (principal) — recurring webDevReview cron (id=371903)
+Task: Full-page VLM audit + cross-cutting polish (tour, canvas, reports, placeholders)
+
+Work Log:
+- Baseline: tsc green; vitest 286/286. Full QA pass (qa.sh) across all 16 auth + 4 public
+  pages — zero console errors everywhere. VLM audits (z-ai vision) on dashboard,
+  notifications, reports, settings, sparks, whiteboard, canvas → ~40 findings. Verified
+  the high-value ones against code; dismissed false positives (e.g. feed-item URL overflow
+  was actually ellipsized correctly — scrollWidth ≤ clientWidth confirmed via DOM probe).
+- POLISH BATCH (app.css):
+  - **Tour progress dots** (.tour-dot): was `--line-strong` bg (near-invisible on the card
+    surface) + 6px. Now `rgb(0 0 0 / 0.25)` + 7px; active dot 18px→20px. Verified live:
+    4 dots, active = 20px teal pill, inactive = small dark dots. VLM PASS.
+  - **Tour body text** (.tour-body): was `var(--muted)` (low contrast). Now `var(--text)`
+    at opacity 0.92 — readable but not stark.
+  - **Placeholders** (input/textarea): added `opacity: 0.7` (browser default ~0.5 was
+    flagged as low-contrast by VLM on the dashboard "Type a note…" composer).
+  - **Canvas active-tool** (.canvas-toolbar [data-tool].active): was subtle pastel fill.
+    Now `color: var(--brand)`, `font-weight: 600`, `box-shadow: inset 0 0 0 1px var(--accent)`
+    — clearly rings the selected tool.
+- FEATURE: Canvas empty-state affordance (canvas.html + canvas.js + app.css + i18n.js):
+  - New `.canvas-empty-hint` element in canvas.html: centered faint hint
+    "Click a tool above, then drag here to begin" with a + icon. `pointer-events: none`
+    so it never blocks drawing. `opacity: 0.55` → 0 via `.has-content` class.
+  - canvas.js: added a second `after:render` listener that toggles `#canvas-wrap`'s
+    `.has-content` class based on `canvas.getObjects().length` (excluding transient
+    lock-badge + guide helpers). Fires on every add/remove/clear/modify — the hint
+    disappears the instant the user draws anything, reappears if they clear all.
+  - i18n: `canvas.emptyHint` EN + FA. Verified live: hint renders opacity 0.55,
+    has-content=false on empty canvas; text correct.
+- FEATURE: Reports heatmap context (reports.html + app.css):
+  - Added `.heatmap-weekdays` row under the grid (S _ _ _ _ _ S) so the 7-row grid
+    reads as a calendar week (Sun-Sat), not abstract squares. aria-hidden (decorative).
+  - `.heatmap-legend`: added `gap: 0.4rem` + `margin-inline: 0.25rem` on the Less/More
+    labels so they read as caption + scale, not a continuous run of swatches.
+- Cache-bust (load-bearing): app.css 238→239; i18n.js 48→49; canvas.js 16→17. All 23
+  HTML pages consistent. SW hibana-v278 unchanged (no sw.js logic change this round).
+- Verification: tsc green; vitest 286/286 (36 files); agent-browser live QA confirmed
+  tour dots (4 dots, active=20px teal), canvas empty hint (opacity 0.55, has-content
+  toggles), reports heatmap weekday labels render. VLM visual PASS on tour dots +
+  canvas hint.
+
+Stage Summary:
+- Polish shipped: tour progress-dot visibility + body contrast, placeholder opacity,
+  canvas active-tool ring, reports heatmap weekday labels + legend spacing.
+- Feature shipped: canvas empty-state affordance (fades out on first draw, reappears
+  on clear) — addresses the VLM "empty canvas looks like a loading error" finding.
+- Assets: app.css v239, i18n.js v49, canvas.js v17 (all consistent). SW v278 unchanged.
+- Tests 286/286, typecheck green.
+- §6 open items status: 3 of 4 done (ICS export, Telegram /update, web-clipper). The
+  4th (dev_tasks note column) needs a schema migration → Ali's written approval.
+- Next-phase priorities (for the next cron round): settings card-spacing consistency
+  (the first-gap-larger perception — low-value, defer), Magic Button FA-quality review
+  (deploy-time gate, needs env.AI), semantic find stages 1–2 (idea §6, deferred), deploy
+  to dev/prod (out of scope without Ali's go-ahead). The app is feature-stable; further
+  work is polish + the schema-gated dev_tasks column + deploy-time AI review.

@@ -2944,40 +2944,31 @@ window.hibana = (() => {
     // Opt-out: data-no-fa-digits on the field.
     const faDigMap = ['۰','۱','۲','۳','۴','۵','۶','۷','۸','۹']
     const isFaLetter = (ch) => ch && /[\u0600-\u06FF\uFB50-\uFDFF\uFE70-\uFEFF]/.test(ch)
-    document.addEventListener('input', (e) => {
-      const ta = e.target
-      if (!ta || ta.tagName !== 'TEXTAREA' || ta.dataset.noFaDigits === '') return
-      // Session 19 (user request): "When user is writing in Farsi, always Farsi numerals
-      // must be used." The page lang is 'fa' (set by i18n.js) — if so, convert ALL typed
-      // Latin digits to Persian. No guard on "char before" — the user wants universal
-      // conversion in the FA UI. The only exception: data-no-fa-digits on the field.
-      // Also covers <input> text fields (not just textareas) — task titles, descriptions, etc.
-      const isFa = document.documentElement.lang === 'fa'
-      if (!isFa) return
-      const pos = ta.selectionStart
-      const val = ta.value
+    // Session 19 (user report): i18n.js apply() is async (awaits /api/auth/me), so
+    // document.documentElement.lang is still 'en' at DOMContentLoaded. Check BOTH the
+    // live lang + the localStorage cache (written by i18n.js on the previous load).
+    const checkFa = () => document.documentElement.lang === 'fa' || localStorage.getItem('hibana-lang') === 'fa'
+    const convertDigit = (el) => {
+      if (!checkFa()) return
+      const pos = el.selectionStart
+      const val = el.value
       if (pos < 1) return
       const prev = val[pos - 1]
       if (!/[0-9]/.test(prev)) return
       const fa = faDigMap[+prev]
-      ta.value = val.slice(0, pos - 1) + fa + val.slice(pos)
-      ta.setSelectionRange(pos, pos)
+      el.value = val.slice(0, pos - 1) + fa + val.slice(pos)
+      el.setSelectionRange(pos, pos)
+    }
+    // Textareas: notes, descriptions, task titles, composers
+    document.addEventListener('input', (e) => {
+      if (e.target?.tagName === 'TEXTAREA' && e.target.dataset.noFaDigits !== '') convertDigit(e.target)
     })
-    // Session 19: also convert in <input type="text"> fields (task titles, etc.)
+    // Input text fields: task titles, tags, etc.
     document.addEventListener('input', (e) => {
       const inp = e.target
       if (!inp || inp.tagName !== 'INPUT' || inp.dataset.noFaDigits === '') return
-      const isFa = document.documentElement.lang === 'fa'
-      if (!isFa) return
       if (inp.type && !['text', 'search', ''].includes(inp.type)) return
-      const pos = inp.selectionStart
-      const val = inp.value
-      if (pos < 1) return
-      const prev = val[pos - 1]
-      if (!/[0-9]/.test(prev)) return
-      const fa = faDigMap[+prev]
-      inp.value = val.slice(0, pos - 1) + fa + val.slice(pos)
-      inp.setSelectionRange(pos, pos)
+      convertDigit(inp)
     })
 
     const mounts = document.querySelectorAll('[data-nav]')

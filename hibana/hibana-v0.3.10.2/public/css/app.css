@@ -549,8 +549,8 @@ button {
   font-weight: 600;
   transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
 }
-button:hover { background: var(--cta-hover, var(--accent-hover)); }
-button:active { background: var(--cta-hover, var(--accent-hover)); }
+button:hover { background: var(--cta-hover, var(--accent-hover)); color: var(--btn-text, #fff); /* Session 19 (user report): primary buttons turn teal on hover; text must be white, not the resting --text (dark). Ghost/btn overrides below reset for their light-bg hovers. */ }
+button:active { background: var(--cta-hover, var(--accent-hover)); color: var(--btn-text, #fff); }
 button:disabled { opacity: 0.5; cursor: not-allowed; }
 
 button.ghost,
@@ -563,7 +563,7 @@ a.ghost {
   border: 1px solid var(--line);
 }
 button.ghost:hover,
-a.ghost:hover { background: var(--bg-soft); border-color: var(--line-strong); }
+a.ghost:hover { background: var(--bg-soft); border-color: var(--line-strong); color: var(--link); /* reset: ghost hover bg is light grey, not teal — keep the teal link text, not white */ }
 /* Session 19: an <a class="ghost"> (e.g. the calendar Export .ics link) has no <button>
    base styles to inherit, so it needs an explicit box model to align with sibling
    ghost buttons in a .row. button.ghost keeps inheriting from the global button {} rule. */
@@ -3006,7 +3006,7 @@ html[data-theme='dark'] .pen-blue { color: #7fb5f0; }
   border-radius: 2px;
   border: 0;
   background: var(--card);
-  box-shadow: 1px 3px 4px rgb(0 0 0 / 0.10), 4px 12px 20px rgb(0 0 0 / 0.12);
+  box-shadow: 1px 2px 3px rgb(0 0 0 / 0.08), 2px 6px 10px rgb(0 0 0 / 0.10); /* Session 19 (user report): was 1px 3px 4px / 4px 12px 20px — too much spread, clipped hard by container-type containment. Reduced spread + opacity so the shadow stays soft + fits in the card's padding. */
   overflow: hidden;
   cursor: pointer;
   display: grid;
@@ -3093,7 +3093,7 @@ html[data-theme='dark'] .pen-blue { color: #7fb5f0; }
   text-decoration: none;
   font-size: var(--fs-lg);
 }
-.btn:hover { background: var(--bg-soft); text-decoration: none; }
+.btn:hover { background: var(--bg-soft); text-decoration: none; color: var(--text); /* reset: .btn hover bg is light grey, not teal — keep dark text, not the button:hover white */ }
 summary { cursor: pointer; color: var(--muted); font-size: var(--fs-lg); }
 cite { font-style: normal; }
 
@@ -3260,7 +3260,7 @@ cite { font-style: normal; }
   background: var(--note-color, #fff59d);
   border: 0;
   border-radius: 2px; /* near-sharp paper corners (was --radius-sm 14px) */
-  box-shadow: 1px 3px 4px rgb(0 0 0 / 0.10), 4px 12px 20px rgb(0 0 0 / 0.12);
+  box-shadow: 1px 2px 3px rgb(0 0 0 / 0.08), 2px 6px 10px rgb(0 0 0 / 0.10); /* Session 19 (user report): was 1px 3px 4px / 4px 12px 20px — too much spread, clipped hard by container-type containment. Reduced spread + opacity so the shadow stays soft + fits in the card's padding. */
   color: #3f3f46;
   overflow: hidden; /* hard boundary — content can never bleed off the paper (2026-08-25) */
 }

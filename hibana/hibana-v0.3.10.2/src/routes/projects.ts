@@ -554,7 +554,9 @@ function detailHtml(p: ProjectRow, d: Awaited<ReturnType<typeof loadDetail>>, la
       : ''}
     <div class="pd-board-grid">${COLS.map((col) => {
           const items = d.devTasks.filter((t) => t.status === col.key)
-          const top = items.slice(0, 3)
+          const MAX_VISIBLE = 5 // Session 19 (user request): was 3 — show up to 5 per column
+          const top = items.slice(0, MAX_VISIBLE)
+          const hiddenCount = items.length - MAX_VISIBLE
           return `<div class="pd-col" data-status="${col.key}">
             <div class="pd-col-head"><span class="pd-col-title">${trL(lang, col.en, col.fa)}</span><span class="detail-tab-count" data-pd-count="${col.key}" data-n="${items.length}">${dig(items.length)}</span>
               <span class="pd-col-actions">
@@ -563,7 +565,7 @@ function detailHtml(p: ProjectRow, d: Awaited<ReturnType<typeof loadDetail>>, la
                 <button type="button" class="ghost small" data-pd-export="${col.key}" title="${trL(lang, 'Export as Markdown', 'خروجی مارک‌داون')}" aria-label="${trL(lang, 'Export Markdown', 'خروجی مارک‌داون')}">${icon('download')}</button>
               </span>
             </div>
-            <div class="pd-tasks" data-pd-tasks="${col.key}">
+            <div class="pd-tasks" data-pd-tasks="${col.key}" data-pd-total="${items.length}">
               ${top.map((t) => `<div class="pd-task-wrap" data-pd-task="${t.id}" data-pd-status="${t.status}" data-pd-created="${t.created_at}"${t.done_at ? ` data-pd-done="${t.done_at}"` : ''}>
                 <a class="pd-task st-${t.status}" href="/board.html?project=${p.id}&task=${t.id}" draggable="true">
                   <span class="prio-dot prio-${t.priority}" title="${t.priority}"></span>
@@ -573,7 +575,7 @@ function detailHtml(p: ProjectRow, d: Awaited<ReturnType<typeof loadDetail>>, la
                   </span>
                 </a>
               </div>`).join('')}
-              ${items.length > 3 ? `<a class="pd-more muted small" data-pd-more="${col.key}" href="/board.html?project=${p.id}">+${dig(items.length - 3)} ${trL(lang, 'more', 'بیشتر')}</a>` : ''}
+              ${hiddenCount > 0 ? `<button type="button" class="pd-more muted small" data-pd-more="${col.key}">+${dig(hiddenCount)} ${trL(lang, 'more', 'بیشتر')}</button>` : ''}
             </div>
             <button type="button" class="pd-task-add" data-pd-add="${col.key}">${icon('plus')} ${trL(lang, 'Add', 'افزودن')}</button>
           </div>`

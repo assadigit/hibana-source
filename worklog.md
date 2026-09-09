@@ -499,3 +499,54 @@ Stage Summary:
   deploy to dev/prod (out of scope without Ali's go-ahead). The app is feature-stable;
   this round added the #1 Mission-#2 affordance (resume work) which was the single
   highest-value remaining UX gap.
+
+---
+Task ID: session-19-cron-r5
+Agent: Z.ai Code (principal) — recurring webDevReview cron (id=371903)
+Task: Project-detail page audit + polish (logo placeholder, tab contrast, mobile overflow)
+
+Work Log:
+- Baseline: tsc green; vitest 289/289. Full QA: project-detail (with content — QA Project
+  With Hurdles), sparks, dark-mode dashboard, mobile (390px) dashboard.
+- VLM audits identified concrete project-detail issues: empty logo placeholder too large
+  + lacks affordance; inactive detail-tabs low contrast; project description blends in;
+  metadata footer too faint. Verified against code: the mobile-nav "truncation" finding was
+  a false positive (topbar nav-links are hidden ≤1024px; bottom tab bar carries nav).
+- POLISH BATCH (app.css + projects.ts):
+  - **Project logo placeholder** (`.pd-logo-placeholder`): 96×96px → 64×64px (VLM-flagged
+    as "large empty space"); border `--line` → `--line-strong` (clearer dashed outline);
+    hover now adds `background: var(--accent-soft)` (was only border/color). Added a
+    `::after` hint label (`data-hint` attr → "Add logo"/"افزودن لوگو") positioned 1.4rem
+    below the placeholder, so the empty box reads as an affordance, not a broken element.
+    Route passes `data-hint="${trL(lang, 'Add logo', 'افزودن لوگو')}"`.
+  - **Detail tabs** (`.detail-tab`): inactive color `--muted` → `var(--text)` at opacity
+    0.72 (was full opacity muted — too faint vs the bold active tab); font-weight 500
+    baseline; active tab font-weight 600 → 700 + opacity 1 (clearer active/inactive
+    distinction). Hover bumps opacity to 1. Verified live: inactive color
+    `rgb(38,33,24)` @ 0.72, active font-weight 700. VLM PASS.
+  - **Mobile notebook URL overflow** (`.note-card`): added `min-inline-size: 0` +
+    `overflow-wrap: anywhere` to the card base. The textarea inside already had
+    overflow-wrap, but the card itself didn't guard the grid track — a note whose content
+    was a long URL overflowed its track on 390px (VLM-flagged on the dark+mobile dashboard
+    audit). Now the whole card clips cleanly.
+- Cache-bust: app.css 240→241 on all 23 pages. SW hibana-v278 unchanged (no sw.js logic
+  change this round).
+- Verification: tsc green; vitest 289/289 (36 files); agent-browser live QA — logo
+  placeholder 64px with "Add logo" hint, detail-tabs inactive readable (full text @ 0.72
+  opacity), active 700 weight; VLM visual PASS on both. Mobile notebook overflow guard
+  in place (0 overflow on the empty notebook; CSS applies when notes render).
+
+Stage Summary:
+- Polish shipped: project-detail logo placeholder (compact + hint affordance), detail-tab
+  contrast (readable inactive tabs), mobile notebook URL overflow guard.
+- Assets: app.css v241 (consistent across 23 pages). SW v278 unchanged.
+- Tests 289/289, typecheck green.
+- §6 open items status: 3 of 4 done (ICS export, Telegram /update, web-clipper). The 4th
+  (dev_tasks note column) needs a schema migration → Ali's written approval.
+- Dismissed false positives: mobile nav truncation (topbar hides nav ≤1024px; bottom tab
+  bar carries it — VLM saw a pre-JS-class state), dark-mode muted contrast (--muted is
+  #B0A79C @ 6.26:1 on card — already AA; the VLM is overly conservative on dark gradients).
+- Next-phase priorities: dev_tasks note column (schema-gated), Magic Button FA-quality
+  review (deploy-time gate, needs env.AI), semantic find stages 1–2 (idea §6, deferred),
+  deploy to dev/prod (out of scope without Ali's go-ahead). The app is feature-stable +
+  polished across all audited surfaces.

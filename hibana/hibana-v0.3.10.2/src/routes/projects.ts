@@ -597,7 +597,7 @@ function detailHtml(p: ProjectRow, d: Awaited<ReturnType<typeof loadDetail>>, la
   <header class="card pd-head">
     <div class="row spread">
       <div class="row">
-        ${p.logo_path ? `<img class="pd-logo" src="/api/projects/${p.id}/logo/file" alt="${esc(p.title)} logo" />` : `<div class="pd-logo-placeholder" data-pd-logo-upload title="${trL(lang, 'Add logo', 'افزودن لوگو')}">${icon('image')}</div>`}
+        ${p.logo_path ? `<img class="pd-logo" src="/api/projects/${p.id}/logo/file" alt="${esc(p.title)} logo" />` : `<div class="pd-logo-placeholder" data-pd-logo-upload data-hint="${trL(lang, 'Add logo', 'افزودن لوگو')}" title="${trL(lang, 'Add logo', 'افزودن لوگو')}">${icon('image')}</div>`}
       </div>
       <div class="row">
         <label class="sr-only" for="pd-stage">${trL(lang, 'Stage', 'مرحله')}</label>

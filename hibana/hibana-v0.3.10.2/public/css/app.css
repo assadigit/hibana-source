@@ -3330,6 +3330,12 @@ cite { font-style: normal; }
   display: grid;
   gap: 0.04rem;
   --note-body-fs: var(--fs-sm);
+  /* Session 19 (cron round 5): a note whose content is a long URL overflowed its grid
+     track on mobile (VLM-flagged). min-inline-size:0 lets the grid track shrink; the
+     textarea inside already has overflow-wrap:anywhere, but the card itself needs the
+     same guard so the whole card clips, not just the textarea. */
+  min-inline-size: 0;
+  overflow-wrap: anywhere;
   /* Hover hint (user request 2026-09): make it obvious notes are clickable/editable */
   cursor: text;
   transition: border-color 0.12s ease, box-shadow 0.12s ease;
@@ -5121,9 +5127,10 @@ body.has-mobile-nav { padding-block-end: calc(3.5rem + env(safe-area-inset-botto
   appearance: none;
   border: none;
   background: none;
-  color: var(--muted);
+  color: var(--text); /* Session 19: was --muted (too faint vs the bold active tab — VLM-flagged). Inactive tabs now use full text color at normal weight; the active one is distinguished by the bold weight + the brand underline. */
   font: inherit;
   font-size: var(--fs-lg);
+  font-weight: 500;
   padding: 0.5rem 0.85rem;
   border-radius: var(--radius-sm) var(--radius-sm) 0 0;
   cursor: pointer;
@@ -5131,12 +5138,14 @@ body.has-mobile-nav { padding-block-end: calc(3.5rem + env(safe-area-inset-botto
   align-items: center;
   gap: 0.35rem;
   position: relative;
-  transition: color 0.12s ease, background 0.12s ease;
+  transition: color 0.12s ease, background 0.12s ease, font-weight 0.12s ease;
+  opacity: 0.72;
 }
-.detail-tab:hover { color: var(--text); background: var(--accent-soft); }
+.detail-tab:hover { color: var(--text); background: var(--accent-soft); opacity: 1; }
 .detail-tab.is-active {
   color: var(--text);
-  font-weight: 600;
+  font-weight: 700;
+  opacity: 1;
 }
 .detail-tab.is-active::after {
   content: '';
@@ -6635,18 +6644,33 @@ html[data-theme="dark"] .heatmap-l4,
   border-radius: 0;
 }
 .pd-logo-placeholder {
-  inline-size: 96px;
-  block-size: 96px;
+  inline-size: 64px; /* Session 19 (cron round 5): was 96px — too much empty space (VLM-flagged). 64px is enough for a tap target. */
+  block-size: 64px;
   border-radius: var(--radius-sm);
-  border: 2px dashed var(--line);
+  border: 2px dashed var(--line-strong);
   display: inline-grid;
   place-items: center;
   color: var(--muted);
   cursor: pointer;
   flex: none;
-  transition: border-color 0.12s ease, color 0.12s ease;
+  position: relative;
+  transition: border-color 0.12s ease, color 0.12s ease, background 0.12s ease;
 }
-.pd-logo-placeholder:hover { border-color: var(--brand); color: var(--brand); }
+/* Session 19: a tiny hint label appears under the icon so the empty placeholder
+   reads as an affordance, not a broken box. */
+.pd-logo-placeholder::after {
+  content: attr(data-hint);
+  position: absolute;
+  inset-block-end: -1.4rem;
+  inset-inline: 0;
+  text-align: center;
+  font-size: var(--fs-xs);
+  color: var(--muted);
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0.8;
+}
+.pd-logo-placeholder:hover { border-color: var(--brand); color: var(--brand); background: var(--accent-soft); }
 
 /* --- redesigned project header ------------------------------------------- */
 .pd-head { display: grid; gap: 0.7rem; }

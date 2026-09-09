@@ -1005,3 +1005,214 @@ describe('telegram /status + /pause + /resume (spec §5.17/§6.22)', () => {
     }
   })
 })
+
+describe('telegram /update — move a project to a new stage (Session 19 cron round 2)', () => {
+  const stubBot = () => {
+    const originalFetch = globalThis.fetch
+    const sent: string[] = []
+    globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+      if (String(input).includes('api.telegram.org/bot')) {
+        sent.push(String(init?.body ?? ''))
+        return new Response('{"ok":true}')
+      }
+      return originalFetch(input, init)
+    }) as typeof fetch
+    return { sent, restore: () => { globalThis.fetch = originalFetch } }
+  }
+  const webhook = (app: { fetch: Function }, text: string, chatId = 700, fromId = 701) =>
+    app.fetch(
+      new Request('http://local/api/telegram/webhook', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-Telegram-Bot-Api-Secret-Token': 'wxyz-secret' },
+        body: JSON.stringify({ message: { chat: { id: chatId }, from: { id: fromId }, text } }),
+      }),
+    )
+  const linkMember = async (db: Db, chatId = 700, fromId = 701) => {
+    const memberId = await makeUser(db, { role: 'member' })
+    const { app, auth } = await makeApp(db, memberId)
+    const code = ((await (await app.fetch(new Request('http://local/api/telegram/link-code', { method: 'POST', headers: auth }))).json()) as { code: string }).code
+    const bot = stubTelegram()
+    try { await webhook(app, `/start ${code}`, chatId, fromId) } finally { bot.restore() }
+    return { app, memberId }
+  }
+
+  it('updates a project stage by title prefix + stage key', async () => {
+    const { db, close } = makeTestDb()
+    try {
+      const { app, memberId } = await linkMember(db)
+      // Seed a project at 'unreviewed'
+      const pid = crypto.randomUUID()
+      const now = new Date().toISOString()
+      await db.execute(
+        'INSERT INTO projects (id, user_id, title, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)',
+        [pid, memberId, 'Star Map', 'unreviewed', now, now],
+      )
+      const bot = stubBot()
+      try {
+        const res = await webhook(app, '/update star map doing')
+        expect(res.status).toBe(200)
+        const msg = bot.sent[bot.sent.length - 1]
+        expect(msg).toContain('Stage updated')
+        expect(msg).toContain('Star Map')
+        expect(msg).toContain('unreviewed')
+        expect(msg).toContain('doing')
+        expect(msg).toContain('/project.html?id=')
+        const after = await db.query<{ status: string }>('SELECT status FROM projects WHERE id = ?', [pid])
+        expect(after[0].status).toBe('doing')
+      } finally {
+        bot.restore()
+      }
+    } finally {
+      close()
+    }
+  })
+
+  it('accepts the EN label ("In Progress") and FA label ("در حال انجام")', async () => {
+    const { db, close } = makeTestDb()
+    try {
+      const { app, memberId } = await linkMember(db)
+      const pid = crypto.randomUUID()
+      const now = new Date().toISOString()
+      await db.execute(
+        'INSERT INTO projects (id, user_id, title, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)',
+        [pid, memberId, 'Star Map', 'unreviewed', now, now],
+      )
+      const bot = stubBot()
+      try {
+        await webhook(app, '/update star map In Progress')
+        let after = await db.query<{ status: string }>('SELECT status FROM projects WHERE id = ?', [pid])
+        expect(after[0].status).toBe('doing')
+        // reset and try FA
+        await db.execute('UPDATE projects SET status = ? WHERE id = ?', ['investigating', pid])
+        await webhook(app, '/update star map در حال انجام')
+        after = await db.query<{ status: string }>('SELECT status FROM projects WHERE id = ?', [pid])
+        expect(after[0].status).toBe('doing')
+      } finally {
+        bot.restore()
+      }
+    } finally {
+      close()
+    }
+  })
+
+  it('replies with usage when no project arg is given', async () => {
+    const { db, close } = makeTestDb()
+    try {
+      const { app } = await linkMember(db)
+      const bot = stubBot()
+      try {
+        await webhook(app, '/update doing')
+        expect(bot.sent[bot.sent.length - 1]).toContain('Usage: /update')
+      } finally {
+        bot.restore()
+      }
+    } finally {
+      close()
+    }
+  })
+
+  it('rejects an unknown stage with a helpful list', async () => {
+    const { db, close } = makeTestDb()
+    try {
+      const { app, memberId } = await linkMember(db)
+      const pid = crypto.randomUUID()
+      const now = new Date().toISOString()
+      await db.execute(
+        'INSERT INTO projects (id, user_id, title, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)',
+        [pid, memberId, 'Star Map', 'unreviewed', now, now],
+      )
+      const bot = stubBot()
+      try {
+        await webhook(app, '/update star map frobnicate')
+        const msg = bot.sent[bot.sent.length - 1]
+        expect(msg).toContain('Unknown stage')
+        expect(msg).toContain('unreviewed · investigating')
+        // status unchanged
+        const after = await db.query<{ status: string }>('SELECT status FROM projects WHERE id = ?', [pid])
+        expect(after[0].status).toBe('unreviewed')
+      } finally {
+        bot.restore()
+      }
+    } finally {
+      close()
+    }
+  })
+
+  it('refuses to set "spark" (ideas are promoted from the Ideas page)', async () => {
+    const { db, close } = makeTestDb()
+    try {
+      const { app, memberId } = await linkMember(db)
+      const pid = crypto.randomUUID()
+      const now = new Date().toISOString()
+      await db.execute(
+        'INSERT INTO projects (id, user_id, title, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)',
+        [pid, memberId, 'Star Map', 'doing', now, now],
+      )
+      const bot = stubBot()
+      try {
+        await webhook(app, '/update star map spark')
+        const msg = bot.sent[bot.sent.length - 1]
+        expect(msg).toContain("can't be set from here")
+        const after = await db.query<{ status: string }>('SELECT status FROM projects WHERE id = ?', [pid])
+        expect(after[0].status).toBe('doing') // unchanged
+      } finally {
+        bot.restore()
+      }
+    } finally {
+      close()
+    }
+  })
+
+  it('replies "already at" when the stage matches', async () => {
+    const { db, close } = makeTestDb()
+    try {
+      const { app, memberId } = await linkMember(db)
+      const pid = crypto.randomUUID()
+      const now = new Date().toISOString()
+      await db.execute(
+        'INSERT INTO projects (id, user_id, title, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)',
+        [pid, memberId, 'Star Map', 'doing', now, now],
+      )
+      const bot = stubBot()
+      try {
+        await webhook(app, '/update star map doing')
+        const msg = bot.sent[bot.sent.length - 1]
+        expect(msg).toContain('already at')
+      } finally {
+        bot.restore()
+      }
+    } finally {
+      close()
+    }
+  })
+
+  it('is user-scoped: a project owned by another user is not found', async () => {
+    const { db, close } = makeTestDb()
+    try {
+      const { app, memberId } = await linkMember(db)
+      // Another user's project with the same title prefix
+      const other = await makeUser(db, { email: 'other@x.local', username: 'other' })
+      const pid = crypto.randomUUID()
+      const now = new Date().toISOString()
+      await db.execute(
+        'INSERT INTO projects (id, user_id, title, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)',
+        [pid, other, 'Star Map', 'unreviewed', now, now],
+      )
+      const bot = stubBot()
+      try {
+        await webhook(app, '/update star map doing')
+        const msg = bot.sent[bot.sent.length - 1]
+        expect(msg).toContain('No project found')
+        // other user's project untouched (rule 1)
+        const after = await db.query<{ status: string; user_id: string }>('SELECT status, user_id FROM projects WHERE id = ?', [pid])
+        expect(after[0].status).toBe('unreviewed')
+        expect(after[0].user_id).toBe(other)
+        void memberId
+      } finally {
+        bot.restore()
+      }
+    } finally {
+      close()
+    }
+  })
+})

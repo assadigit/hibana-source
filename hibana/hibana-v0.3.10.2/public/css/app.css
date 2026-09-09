@@ -3338,6 +3338,11 @@ cite { font-style: normal; }
 .note-items .hurdle { background: var(--card); }
 .note-add { gap: 0.4rem; }
 .note-add input { flex: 1; min-inline-size: 0; padding-block: 0.35rem; }
+/* Session 19: the add-row's + button was a 2.25rem circle vs the ~1.5rem input → the
+   button extended below the input's baseline (VLM-flagged). Size it to match the input
+   height: same padding-block, a compact width, square corners. */
+.note-add .qa-btn { inline-size: auto; block-size: auto; padding: 0.35rem 0.6rem; border-radius: var(--radius-sm); }
+.note-add .qa-btn .icon { inline-size: 0.95rem; block-size: 0.95rem; }
 /* Draft preview (list mode): Enter drafts lines; only the + commits them. Dashed rows
    signal “not saved yet” against the solid saved note-items. */
 .note-draft { flex: 1 1 100%; list-style: none; padding: 0; margin: 0; display: grid; gap: 0.3rem; }
@@ -6332,7 +6337,7 @@ html[data-theme="dark"] .heatmap-l4,
     repeating-linear-gradient(135deg, color-mix(in srgb, var(--danger) 5%, transparent) 0 5px, transparent 5px 11px),
     color-mix(in srgb, var(--danger) 3%, var(--card));
 }
-.cal-cell.cal-weekend .cal-day-num { color: color-mix(in srgb, var(--danger) 55%, var(--muted)); font-weight: 600; }
+.cal-cell.cal-weekend .cal-day-num { color: var(--danger); font-weight: 600; }
 .cal-cell.cal-holiday {
   background: color-mix(in srgb, var(--danger) 8%, var(--card));
   border-color: color-mix(in srgb, var(--danger) 30%, var(--line));

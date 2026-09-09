@@ -1,0 +1,1204 @@
+     1→import { Hono, type MiddlewareHandler } from 'hono'
+     2→import { z } from 'zod'
+     3→import { requireAuth } from '../auth/middleware'
+     4→import { uuid } from '../lib/ids'
+     5→import { markdownFromZip, parseMarkdownNote, ZipLimitError } from '../lib/obsidian'
+     6→import { esc, requestOrigin } from '../lib/http'
+     7→import { clientIp, hitRateLimit, RATE_RULES } from '../services/ratelimit'
+     8→import { createResetToken } from '../services/reset'
+     9→import { sendTelegramMessage, answerCallbackQuery, editMessageText, type ReplyMarkup } from '../services/telegram'
+    10→import { sendPlanBBackupToChat } from '../services/backup-planb'
+    11→import { timingSafeEqualStr } from '../lib/crypto'
+    12→import { trL } from '../lib/i18n'
+    13→import { QUADRANTS, orderedQuadrants, parseQuadrantOrder, todayIn } from '../services/sadhana'
+    14→import type { Config, ProjectRow, UserRow } from '../types'
+    15→import type { Db } from '../db/types'
+    16→
+    17→// Telegram bot (spec §9 + §4.10) + Obsidian import (spec §9).
+    18→//
+    19→// Inline-keyboard redesign (design: docs/telegram-bot-flow.md, approved rounds 1+2).
+    20→// The webhook now dispatches in this order (§8.1): callback_query → slash command →
+    21→// active await_text intent → await_list_item → default idea capture. A single
+    22→// `telegram_bot_sessions` row per user (migration 0043, no TTL) backs every
+    23→// await_text intent + the /list flow — "not finite" by design.
+    24→
+    25→// timingSafeEqualStr moved to src/lib/crypto.ts (P2.2 / F-L28).
+    26→// register*() functions add routes directly to the ROOT Hono app, before any sub-app at
+    27→// '/' — this is deliberate: coreRoutes has a global requireAuth middleware that would
+    28→// otherwise intercept the (public) Telegram webhook. Root-level routes are matched first
+    29→// and are not subject to the mounted apps' wildcard middleware.
+    30→
+    31→const tgApi = (token: string, method: string, body: Record<string, unknown>) =>
+    32→  fetch(`https://api.telegram.org/bot${token}/${method}`, {
+    33→    method: 'POST',
+    34→    headers: { 'Content-Type': 'application/json' },
+    35→    body: JSON.stringify(body),
+    36→  })
+    37→
+    38→const UPDATE_SCHEMA = z.object({
+    39→  message: z
+    40→    .object({
+    41→      chat: z.object({ id: z.number() }),
+    42→      from: z.object({ id: z.number() }),
+    43→      text: z.string().optional().default(''),
+    44→    })
+    45→    .optional(),
+    46→  callback_query: z
+    47→    .object({
+    48→      id: z.string(),
+    49→      from: z.object({ id: z.number() }),
+    50→      message: z.object({ message_id: z.number(), chat: z.object({ id: z.number() }), text: z.string().optional() }),
+    51→      data: z.string(),
+    52→    })
+    53→    .optional(),
+    54→  text: z.string().optional(),
+    55→})
+    56→
+    57→// The bot's public identity — Settings shows it so users know what to open, and the
+    58→// webhook's unlinked-chat replies point back here. Tokens come from secrets; the handle
+    59→// is not secret, so a module constant is fine (it keeps Settings and replies in sync).
+    60→const TELEGRAM_BOT = { handle: '@Hibana_PM_bot', url: 'https://t.me/Hibana_PM_bot' }
+    61→const LINK_CODE_TTL_MS = 60 * 60 * 1000 // link codes expire after 1h, like password resets
+    62→
+    63→// ---- Bot note/list helpers (/note + /list flows) --------------------------------
+    64→const LIST_MAX_ITEMS = 50
+    65→const ITEM_MAX_CHARS = 300 // mirrors the web UI's per-item cap (quicknotes.ts)
+    66→const NOTE_MAX_CHARS = 20_000
+    67→const SADHANA_PAGE_SIZE = 8
+    68→const PROJECT_PAGE_SIZE = 10
+    69→
+    70→type Lang = 'en' | 'fa'
+    71→type BotState =
+    72→  | { kind: 'home' }
+    73→  | { kind: 'await_text'; intent: 'idea' }
+    74→  | { kind: 'await_text'; intent: 'note' }
+    75→  | { kind: 'await_text'; intent: 'sadhana_task'; quadrant: number }
+    76→  | { kind: 'await_text'; intent: 'proj_search'; noteId: string }
+    77→  | { kind: 'await_list_item'; items: string[] }
+    78→  | { kind: 'connect_list'; noteId: string }
+    79→
+    80→/** One row per linked user, JSON state, no TTL (design §7.3 — "not finite"). */
+    81→async function getSession(db: Db, userId: string): Promise<BotState | null> {
+    82→  const rows = await db.query<{ state: string }>('SELECT state FROM telegram_bot_sessions WHERE user_id = ?', [userId])
+    83→  if (rows.length === 0) return null
+    84→  try {
+    85→    const s = JSON.parse(rows[0].state)
+    86→    return s && typeof s === 'object' && typeof s.kind === 'string' ? (s as BotState) : null
+    87→  } catch {
+    88→    return null
+    89→  }
+    90→}
+    91→async function setSession(db: Db, userId: string, state: BotState): Promise<void> {
+    92→  await db.execute(
+    93→    'INSERT INTO telegram_bot_sessions (user_id, state, updated_at) VALUES (?, ?, ?) ON CONFLICT(user_id) DO UPDATE SET state = excluded.state, updated_at = excluded.updated_at',
+    94→    [userId, JSON.stringify(state), new Date().toISOString()],
+    95→  )
+    96→}
+    97→async function clearSession(db: Db, userId: string): Promise<void> {
+    98→  await db.execute('DELETE FROM telegram_bot_sessions WHERE user_id = ?', [userId])
+    99→}
+   100→
+   101→/** Pending items for a user's /list session; null when none exists. (No TTL — design §7.4.) */
+   102→async function noteSession(db: Db, userId: string): Promise<string[] | null> {
+   103→  const s = await getSession(db, userId)
+   104→  return s && s.kind === 'await_list_item' ? s.items : null
+   105→}
+   106→async function saveNoteSession(db: Db, userId: string, items: string[]): Promise<void> {
+   107→  await setSession(db, userId, { kind: 'await_list_item', items })
+   108→}
+   109→
+   110→/** A plain Quick Note card on the dashboard notebook (project_id optional for the connect step). */
+   111→async function createQuickNote(db: Db, userId: string, content: string, projectId: string | null = null): Promise<string> {
+   112→  const id = uuid()
+   113→  const now = new Date().toISOString()
+   114→  await db.execute(
+   115→    'INSERT INTO quick_notes (id, user_id, kind, title, content, project_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+   116→    [id, userId, 'note', '', content.trim().slice(0, NOTE_MAX_CHARS), projectId, now, now],
+   117→  )
+   118→  return id
+   119→}
+   120→
+   121→/** A checklist card on the dashboard notebook — same JSON items shape as the web UI. */
+   122→async function createListNote(db: Db, userId: string, items: string[]): Promise<number> {
+   123→  const tasks = items.map((t) => ({ id: uuid(), t: t.slice(0, ITEM_MAX_CHARS), d: 0 as const }))
+   124→  const id = uuid()
+   125→  const now = new Date().toISOString()
+   126→  await db.execute(
+   127→    'INSERT INTO quick_notes (id, user_id, kind, title, content, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
+   128→    [id, userId, 'list', '', JSON.stringify(tasks), now, now],
+   129→  )
+   130→  await clearSession(db, userId) // consumed by the save
+   131→  return tasks.length
+   132→}
+   133→
+   134→/** Insert a Spark-status idea (telegram_captures + projects). Returns the new project id. */
+   135→async function insertIdea(db: Db, userId: string, raw: string, telegramUserId: string): Promise<string> {
+   136→  const id = uuid()
+   137→  const now = new Date().toISOString()
+   138→  await db.execute(
+   139→    'INSERT INTO telegram_captures (id, user_id, raw_text, telegram_user_id, received_at, created_at) VALUES (?, ?, ?, ?, ?, ?)',
+   140→    [id, userId, raw, telegramUserId, now, now],
+   141→  )
+   142→  await db.execute(
+   143→    "INSERT INTO projects (id, user_id, title, description, type, status, sort_order, latest_note, reminders_enabled, created_at, updated_at) VALUES (?, ?, ?, ?, 'personal', 'spark', 0, 'Captured from Telegram', 0, ?, ?)",
+   144→    [id, userId, raw.slice(0, 120), raw, now, now],
+   145→  )
+   146→  return id
+   147→}
+   148→
+   149→// ---- i18n + keyboard helpers (bilingual, emoji-anchored; FA keyboards render LTR) --
+   150→const t = (lang: Lang, en: string, fa: string): string => (lang === 'fa' ? fa : en)
+   151→const tr = (lang: Lang, en: string, fa: string, vars?: Record<string, string | number>): string => trL(lang, en, fa, vars)
+   152→const truncate = (s: string, n: number): string => (s.length > n ? s.slice(0, n - 1) + '…' : s)
+   153→
+   154→function kb(rows: NonNullable<ReplyMarkup['inline_keyboard']>): ReplyMarkup {
+   155→  return { inline_keyboard: rows }
+   156→}
+   157→
+   158→function homeKeyboard(lang: Lang): ReplyMarkup {
+   159→  return kb([
+   160→    [{ text: t(lang, '💡 New Idea', '💡 ایده'), callback_data: 'idea' }],
+   161→    [
+   162→      { text: t(lang, '📋 To-do', '📋 کارها'), callback_data: 'todo' },
+   163→      { text: t(lang, '📝 Note', '📝 یادداشت'), callback_data: 'note' },
+   164→    ],
+   165→    [
+   166→      { text: t(lang, '⚙️ Settings', '⚙️ تنظیمات'), callback_data: 'set' },
+   167→      { text: t(lang, '❓ Help', '❓ راهنما'), callback_data: 'help' },
+   168→    ],
+   169→  ])
+   170→}
+   171→function homeText(lang: Lang): string {
+   172→  return t(lang, 'Hibana — what’s next?', 'هیبانا — بعدی چی؟')
+   173→}
+   174→
+   175→function cancelKeyboard(lang: Lang): ReplyMarkup {
+   176→  return kb([[{ text: t(lang, '↩️ Cancel', '↩️ لغو'), callback_data: 'home' }]])
+   177→}
+   178→
+   179→function helpText(lang: Lang): string {
+   180→  return t(
+   181→    lang,
+   182→    '🤖 Hibana bot — tap a button or send:\n\n/idea <text> — save a new Idea\n/note <text> — add a Quick Note\n/list — collect a list (/done saves, /cancel stops)\n/append <project> <text> — append to a project\n/status — open tasks + deadlines\n/pause · /resume — reminders\n/reset — password reset link\n/language — change language\n/menu — home',
+   183→    '🤖 ربات هیبانا — دکمه بزن یا بفرست:\n\n/idea <متن> — ذخیرهٔ ایده\n/note <متن> — یادداشت سریع\n/list — جمع‌آوری فهرست (/done ذخیره، /cancel لغو)\n/append <پروژه> <متن> — افزودن به پروژه\n/status — کارها و مهلت‌ها\n/pause · /resume — یادآوری‌ها\n/reset — بازنشانی رمز\n/language — تغییر زبان\n/menu — خانه',
+   184→  )
+   185→}
+   186→function helpKeyboard(lang: Lang): ReplyMarkup {
+   187→  return kb([
+   188→    [{ text: t(lang, '💡 New Idea', '💡 ایده'), callback_data: 'idea' }],
+   189→    [
+   190→      { text: t(lang, '📋 To-do', '📋 کارها'), callback_data: 'todo' },
+   191→      { text: t(lang, '📝 Note', '📝 یادداشت'), callback_data: 'note' },
+   192→    ],
+   193→    [{ text: t(lang, '🏠 Home', '🏠 خانه'), callback_data: 'home' }],
+   194→  ])
+   195→}
+   196→
+   197→function langKeyboard(lang: Lang): ReplyMarkup {
+   198→  return kb([
+   199→    [{ text: '🇬🇧 English', callback_data: 'lang:en' }, { text: '🇮🇷 فارسی', callback_data: 'lang:fa' }],
+   200→    [{ text: t(lang, '🏠 Home', '🏠 خانه'), callback_data: 'home' }],
+   201→  ])
+   202→}
+   203→function langText(lang: Lang): string {
+   204→  return t(lang, 'Pick a language for the bot (this also changes your web app language):', 'زبان ربات را انتخاب کن (این زبان برنامهٔ تحت وب هم تغییر می‌کند):')
+   205→}
+   206→
+   207→function settingsKeyboard(lang: Lang, paused: boolean, isOwner: boolean): ReplyMarkup {
+   208→  const rows: NonNullable<ReplyMarkup['inline_keyboard']> = [
+   209→    [{ text: t(lang, '🌐 Language', '🌐 زبان'), callback_data: 'lang' }],
+   210→    [
+   211→      paused
+   212→        ? { text: t(lang, '▶️ Resume reminders', '▶️ ازسرگیری یادآوری'), callback_data: 'resume' }
+   213→        : { text: t(lang, '⏸ Pause reminders', '⏸ توقف یادآوری'), callback_data: 'pause' },
+   214→    ],
+   215→  ]
+   216→  // Plan B backups (0044 → session 14): owner-only, ON-DEMAND — one tap sends one
+   217→  // encrypted snapshot right away. There is no automatic sending anymore (the 4×/day
+   218→  // cron push was removed per user request), so this is an action button, not a toggle.
+   219→  // Members never see it (the whole-DB snapshot may only reach an owner's chat).
+   220→  if (isOwner) {
+   221→    rows.push([
+   222→      { text: t(lang, '🗄 Send backup now', '🗄 ارسال پشتیبان الان'), callback_data: 'bak' },
+   223→    ])
+   224→  }
+   225→  rows.push([{ text: t(lang, '🔐 Reset password', '🔐 بازنشانی رمز'), callback_data: 'reset' }])
+   226→  rows.push([{ text: t(lang, '🏠 Home', '🏠 خانه'), callback_data: 'home' }])
+   227→  return kb(rows)
+   228→}
+   229→function settingsText(lang: Lang, paused: boolean, isOwner: boolean): string {
+   230→  const backupLine = isOwner
+   231→    ? t(
+   232→        lang,
+   233→        'Backup: on-demand — the button sends one encrypted snapshot to this chat. No automatic messages.',
+   234→        'پشتیبان: درخواستی — دکمه یک Snapshot رمزگذاری‌شده به این چت می‌فرستد. پیام خودکار ندارد.',
+   235→      )
+   236→    : ''
+   237→  return t(
+   238→    lang,
+   239→    `⚙️ <b>Settings</b>\n\nReminders: ${paused ? '⏸ paused' : '✅ on'}${backupLine ? `\n${backupLine}` : ''}`,
+   240→    `⚙️ <b>تنظیمات</b>\n\nیادآوری‌ها: ${paused ? '⏸ متوقف' : '✅ روشن'}${backupLine ? `\n${backupLine}` : ''}`,
+   241→  )
+   242→}
+   243→
+   244→function quadrantKeyboard(lang: Lang, names: Map<number, string>, orderRaw: string | null): ReplyMarkup {
+   245→  const order = orderedQuadrants(QUADRANTS, orderRaw)
+   246→  const rows: NonNullable<ReplyMarkup['inline_keyboard']> = []
+   247→  for (let i = 0; i < order.length; i += 2) {
+   248→    rows.push(
+   249→      order.slice(i, i + 2).map((q) => {
+   250→        const name = names.get(q.id) ?? t(lang, q.name.en, q.name.fa)
+   251→        return { text: truncate(`${q.icon} ${name}`, 20), callback_data: `q${q.id}` }
+   252→      }),
+   253→    )
+   254→  }
+   255→  rows.push([{ text: t(lang, '🏠 Home', '🏠 خانه'), callback_data: 'home' }])
+   256→  return kb(rows)
+   257→}
+   258→function quadrantGridText(lang: Lang): string {
+   259→  return t(lang, '📋 <b>To-do</b> — pick a quadrant:', '📋 <b>کارها</b> — یک بخش انتخاب کن:')
+   260→}
+   261→
+   262→function taskListText(lang: Lang, qid: number, names: Map<number, string>, tasks: { id: string; title: string; emoji: string }[], page: number, total: number): string {
+   263→  const meta = QUADRANTS.find((q) => q.id === qid)!
+   264→  const name = names.get(qid) ?? t(lang, meta.name.en, meta.name.fa)
+   265→  const header = `${meta.icon} <b>${esc(name)}</b> — ${tasks.length} open (page ${page + 1}/${total})\n\n`
+   266→  const body = tasks.map((task, i) => `${i + 1}. ${task.emoji || '📌'} ${esc(task.title)}`).join('\n')
+   267→  return header + body
+   268→}
+   269→function taskListKeyboard(lang: Lang, qid: number, page: number, total: number, tasks: { id: string }[]): ReplyMarkup {
+   270→  const rows: NonNullable<ReplyMarkup['inline_keyboard']> = []
+   271→  for (let i = 0; i < tasks.length; i += 4) {
+   272→    rows.push(tasks.slice(i, i + 4).map((task, idx) => ({ text: `✅ ${i + idx + 1}`, callback_data: `d:${task.id}` })))
+   273→  }
+   274→  const nav: { text: string; callback_data: string }[] = []
+   275→  if (page > 0) nav.push({ text: t(lang, '‹ Prev', '‹ قبلی'), callback_data: `q${qid}p${page - 1}` })
+   276→  if (page < total - 1) nav.push({ text: t(lang, 'Next ›', 'بعدی ›'), callback_data: `q${qid}p${page + 1}` })
+   277→  if (nav.length) rows.push(nav)
+   278→  rows.push([
+   279→    { text: t(lang, '➕ Add task', '➕ افزودن'), callback_data: `q${qid}add` },
+   280→    { text: t(lang, '↩️ Back', '↩️ بازگشت'), callback_data: 'todo' },
+   281→  ])
+   282→  rows.push([{ text: t(lang, '🏠 Home', '🏠 خانه'), callback_data: 'home' }])
+   283→  return kb(rows)
+   284→}
+   285→
+   286→function connectListText(lang: Lang, page: number, total: number): string {
+   287→  return t(lang, `🔗 Connect to a project (page ${page + 1}/${total}):`, `🔗 اتصال به پروژه (صفحه ${page + 1}/${total}):`)
+   288→}
+   289→function connectListKeyboard(lang: Lang, projects: { id: string; title: string }[], page: number, total: number): ReplyMarkup {
+   290→  const rows: NonNullable<ReplyMarkup['inline_keyboard']> = projects.map((p) => [
+   291→    { text: `📁 ${truncate(p.title, 28)}`, callback_data: `cp:${p.id}` },
+   292→  ])
+   293→  const nav: { text: string; callback_data: string }[] = []
+   294→  if (page > 0) nav.push({ text: t(lang, '‹ Prev', '‹ قبلی'), callback_data: `connectp${page - 1}` })
+   295→  if (page < total - 1) nav.push({ text: t(lang, 'Next ›', 'بعدی ›'), callback_data: `connectp${page + 1}` })
+   296→  if (nav.length) rows.push(nav)
+   297→  rows.push([
+   298→    { text: t(lang, '🔍 Search', '🔍 جستجو'), callback_data: 'psearch' },
+   299→    { text: t(lang, '↩️ Skip', '↩️ رد شدن'), callback_data: 'home' },
+   300→  ])
+   301→  rows.push([{ text: t(lang, '🏠 Home', '🏠 خانه'), callback_data: 'home' }])
+   302→  return kb(rows)
+   303→}
+   304→
+   305→/** Edit the tapped message in place; fall back to a new message if the edit is rejected (too old / unchanged). */
+   306→async function render(token: string, chatId: number, messageId: number, text: string, keyboard: ReplyMarkup, parseMode: 'HTML' | undefined = 'HTML'): Promise<void> {
+   307→  const r = await editMessageText(token, chatId, messageId, text, parseMode, keyboard)
+   308→  if (!r.ok) {
+   309→    // edit failed (message unchanged / too old) — send a fresh message
+   310→    await sendTelegramMessage(token, chatId, text, parseMode, keyboard)
+   311→  }
+   312→}
+   313→
+   314→/** Render a quadrant's task-list page (used by callbacks and after add-task). */
+   315→async function renderQuadrant(token: string, chatId: number, db: Db, userId: string, lang: Lang, qid: number, page: number, editMessageId?: number) {
+   316→  const nameRows = await db.query<{ quadrant: number; name: string }>('SELECT quadrant, name FROM sadhana_quadrant_names WHERE user_id = ?', [userId])
+   317→  const names = new Map(nameRows.map((r) => [r.quadrant, r.name]))
+   318→  const offset = page * SADHANA_PAGE_SIZE
+   319→  const tasks = await db.query<{ id: string; title: string; emoji: string }>(
+   320→    'SELECT id, title, emoji FROM sadhana_tasks WHERE user_id = ? AND quadrant = ? AND done = 0 AND deleted_at IS NULL AND cleared_at IS NULL ORDER BY pinned DESC, position ASC, created_at DESC LIMIT ? OFFSET ?',
+   321→    [userId, qid, SADHANA_PAGE_SIZE, offset],
+   322→  )
+   323→  const countRows = await db.query<{ n: number }>(
+   324→    'SELECT COUNT(*) AS n FROM sadhana_tasks WHERE user_id = ? AND quadrant = ? AND done = 0 AND deleted_at IS NULL AND cleared_at IS NULL',
+   325→    [userId, qid],
+   326→  )
+   327→  const total = Math.max(1, Math.ceil((countRows[0]?.n ?? 0) / SADHANA_PAGE_SIZE))
+   328→  const text = taskListText(lang, qid, names, tasks, page, total)
+   329→  const keyboard = taskListKeyboard(lang, qid, page, total, tasks)
+   330→  if (editMessageId) await render(token, chatId, editMessageId, text, keyboard)
+   331→  else await sendTelegramMessage(token, chatId, text, 'HTML', keyboard)
+   332→}
+   333→
+   334→export function registerTelegram(app: Hono<{ Variables: { user: UserRow } }>, cfg: Config) {
+   335→  // Spec §15: flood guard BEFORE the secret check (the limiter must count hostile traffic
+   336→  // too; 300 req/60s per IP — same value as the CF webhook rule).
+   337→  const webhookLimiter: MiddlewareHandler = async (c, next) => {
+   338→    if (await hitRateLimit(cfg.db, RATE_RULES.webhook, clientIp(c))) {
+   339→      return c.json({ error: 'rate_limited' }, 429)
+   340→    }
+   341→    return next()
+   342→  }
+   343→
+   344→  // Public webhook (secret-token header). Telegram calls this for every message (rule 11).
+   345→  // Timing-safe compare (hardening 2026-08-28): a plain !== leaks a (theoretical) early-exit
+   346→  // oracle on how many leading bytes match.
+   347→  app.post('/api/telegram/webhook', webhookLimiter, async (c) => {
+   348→    const secret = c.req.header('X-Telegram-Bot-Api-Secret-Token')
+   349→    if (!secret || !cfg.telegramSecret || !timingSafeEqualStr(secret, cfg.telegramSecret)) return c.json({ error: 'forbidden' }, 403) // rule 11
+   350→    const token = cfg.telegramToken
+   351→    if (!token) return c.json({ error: 'telegram_not_configured' }, 503)
+   352→
+   353→    const parsed = UPDATE_SCHEMA.safeParse(await c.req.json().catch(() => null))
+   354→    if (!parsed.success) return c.json({ ok: true }) // ignore non-message updates
+   355→
+   356→    const data = parsed.data
+   357→
+   358→    // ---- callback_query branch (inline keyboard taps) ---------------------------
+   359→    // Buttons always win and REPLACE any active await_text intent (design §8.1).
+   360→    if (data.callback_query) {
+   361→      const cq = data.callback_query
+   362→      const chatId = cq.message.chat.id
+   363→      // telegram_backup is retired (session 14: backups are on-demand, not opted-in) — the
+   364→      // column stays in the schema for rollback safety but no code reads it anymore.
+   365→      const owned = await cfg.db.query<Pick<UserRow, 'id' | 'username' | 'telegram_paused' | 'language_pref' | 'timezone' | 'sadhana_quadrant_order' | 'role'>>(
+   366→        'SELECT id, username, telegram_paused, language_pref, timezone, sadhana_quadrant_order, role FROM users WHERE telegram_chat_id = ?',
+   367→        [String(chatId)],
+   368→      )
+   369→      await answerCallbackQuery(token, cq.id)
+   370→      if (owned.length === 0) {
+   371→        await sendTelegramMessage(token, chatId, '🔗 Link your account first: Hibana Settings → Telegram → Generate link code, then send /start <code> here.')
+   372→        return c.json({ ok: true })
+   373→      }
+   374→      await handleCallback(token, chatId, cq.message.message_id, owned[0], cq.data, cfg, requestOrigin(c))
+   375→      return c.json({ ok: true })
+   376→    }
+   377→
+   378→    // ---- message branch ---------------------------------------------------------
+   379→    const msg = data.message ?? { chat: { id: 0 }, from: { id: 0 }, text: data.text ?? '' }
+   380→    const chatId = msg.chat.id
+   381→    const text = (msg.text ?? '').trim()
+   382→
+   383→    // The chat's account (if linked) drives every command below — rule 1: all bot data is
+   384→    // scoped to this user. Unlinked chats get a capture-now/link-later flow (§4.10).
+   385→    const owned = await cfg.db.query<Pick<UserRow, 'id' | 'username' | 'telegram_paused' | 'language_pref' | 'timezone' | 'sadhana_quadrant_order' | 'role'>>(
+   386→      'SELECT id, username, telegram_paused, language_pref, timezone, sadhana_quadrant_order, role FROM users WHERE telegram_chat_id = ?',
+   387→      [String(chatId)],
+   388→    )
+   389→
+   390→    // /start <code> links the chat to the account (one-time code from Settings).
+   391→    // Codes expire after 1h and are single-use, so an expired row is as invalid as a
+   392→    // missing one (created_at is stored as UTC ISO strings — lexicographically comparable).
+   393→    const start = text.match(/^\/start\s+(\S+)/i)
+   394→    if (start) {
+   395→      const expiredBefore = new Date(Date.now() - LINK_CODE_TTL_MS).toISOString()
+   396→      const links = await cfg.db.query<{ user_id: string }>(
+   397→        'SELECT user_id FROM telegram_links WHERE code = ? AND created_at >= ?',
+   398→        [start[1], expiredBefore],
+   399→      )
+   400→      if (links.length === 0) {
+   401→        await sendTelegramMessage(token, chatId, 'That link code is invalid or already used.')
+   402→        return c.json({ ok: true })
+   403→      }
+   404→      await cfg.db.transaction(async (tx) => {
+   405→        // H5 fix (2026-09-10): clear any PRIOR user who held this chat_id. Without this,
+   406→        // linking chat X to user B leaves user A's telegram_chat_id pointing at the same
+   407→        // chat — the `owned` query (WHERE telegram_chat_id = ?) then returns both A and B,
+   408→        // and owned[0] is used non-deterministically for captures, /reset, and /status.
+   409→        tx.sql('UPDATE users SET telegram_chat_id = NULL WHERE telegram_chat_id = ? AND id != ?', [String(chatId), links[0].user_id])
+   410→        tx.sql('UPDATE users SET telegram_chat_id = ?, telegram_paused = 0 WHERE id = ?', [String(chatId), links[0].user_id]) // re-linking also resumes reminders (spec §6.22)
+   411→        tx.sql('DELETE FROM telegram_links WHERE code = ?', [start[1]]) // single-use
+   412→        tx.sql('UPDATE telegram_captures SET user_id = ? WHERE telegram_user_id = ? AND user_id IS NULL', [links[0].user_id, String(msg.from.id)])
+   413→      })
+   414→      // Greet in the user's web locale and show the home inline keyboard (design §6.1, §2.2).
+   415→      const linkedUser = await cfg.db.query<Pick<UserRow, 'language_pref'>>('SELECT language_pref FROM users WHERE id = ?', [links[0].user_id])
+   416→      const lang = (linkedUser[0]?.language_pref ?? 'en') as Lang
+   417→      await sendTelegramMessage(
+   418→        token,
+   419→        chatId,
+   420→        t(lang, '✅ Linked to your Hibana account. Tap a button below — or just text me an idea.', '✅ به حساب هیبانا متصل شدی. دکمه پایین را بزن — یا ایده‌ات را بنویس.'),
+   421→        'HTML',
+   422→        homeKeyboard(lang),
+   423→      )
+   424→      return c.json({ ok: true })
+   425→    }
+   426→
+   427→    // /start alone: greet + show the home keyboard (linked) or link instructions (unlinked).
+   428→    if (/^\/start$/i.test(text)) {
+   429→      if (owned.length === 0) {
+   430→        await sendTelegramMessage(token, chatId, '🤖 Hibana bot — link your account first so your notes and ideas land safely:\n\nOpen Hibana Settings → Telegram → Generate link code, then send:\n/start <code>\n\nThen you can use: /idea, /note, /list, /help')
+   431→      } else {
+   432→        const lang = owned[0].language_pref as Lang
+   433→        await sendTelegramMessage(token, chatId, homeText(lang), 'HTML', homeKeyboard(lang))
+   434→      }
+   435→      return c.json({ ok: true })
+   436→    }
+   437→
+   438→    // /help: help screen (inline keyboard) for linked, link instructions for unlinked.
+   439→    if (/^\/help\b/i.test(text)) {
+   440→      if (owned.length === 0) {
+   441→        await sendTelegramMessage(token, chatId, '🤖 Hibana bot — link your account first:\n\nOpen Hibana Settings → Telegram → Generate link code, then send /start <code> here.')
+   442→      } else {
+   443→        const lang = owned[0].language_pref as Lang
+   444→        await sendTelegramMessage(token, chatId, helpText(lang), undefined, helpKeyboard(lang))
+   445→      }
+   446→      return c.json({ ok: true })
+   447→    }
+   448→
+   449→    // /menu — render the home inline keyboard from anywhere.
+   450→    if (/^\/menu$/i.test(text)) {
+   451→      if (owned.length === 0) {
+   452→        await sendTelegramMessage(token, chatId, '🔗 Link your account first: send /start <code>.')
+   453→      } else {
+   454→        const lang = owned[0].language_pref as Lang
+   455→        await sendTelegramMessage(token, chatId, homeText(lang), 'HTML', homeKeyboard(lang))
+   456→      }
+   457→      return c.json({ ok: true })
+   458→    }
+   459→
+   460→    // /language — open the language picker (updates language_pref — single source of truth, round 2 Q1).
+   461→    if (/^\/language$/i.test(text)) {
+   462→      if (owned.length === 0) {
+   463→        await sendTelegramMessage(token, chatId, '🔗 Link your account first: send /start <code>.')
+   464→      } else {
+   465→        const lang = owned[0].language_pref as Lang
+   466→        await sendTelegramMessage(token, chatId, langText(lang), 'HTML', langKeyboard(lang))
+   467→      }
+   468→      return c.json({ ok: true })
+   469→    }
+   470→
+   471→    // /todo — jump straight to the quadrant grid.
+   472→    if (/^\/todo$/i.test(text)) {
+   473→      if (owned.length === 0) {
+   474→        await sendTelegramMessage(token, chatId, '🔗 Link your account first: send /start <code>.')
+   475→      } else {
+   476→        const lang = owned[0].language_pref as Lang
+   477→        const nameRows = await cfg.db.query<{ quadrant: number; name: string }>('SELECT quadrant, name FROM sadhana_quadrant_names WHERE user_id = ?', [owned[0].id])
+   478→        const names = new Map(nameRows.map((r) => [r.quadrant, r.name]))
+   479→        await sendTelegramMessage(token, chatId, quadrantGridText(lang), 'HTML', quadrantKeyboard(lang, names, owned[0].sadhana_quadrant_order))
+   480→      }
+   481→      return c.json({ ok: true })
+   482→    }
+   483→
+   484→    // /status — linked account + how many open tasks have deadlines (spec §5.17).
+   485→    if (/^\/status\b/i.test(text)) {
+   486→      if (owned.length === 0) {
+   487→        await sendTelegramMessage(token, chatId, '🔗 You are not linked to a Hibana account yet. Link it first: Hibana Settings → Telegram → generate a code, then send /start <code> here.')
+   488→      } else {
+   489→        const rows = await cfg.db.query<{ n: number }>(
+   490→          'SELECT COUNT(*) AS n FROM sadhana_tasks WHERE user_id = ? AND done = 0 AND deleted_at IS NULL AND due_date IS NOT NULL',
+   491→          [owned[0].id],
+   492→        )
+   493→        const paused = owned[0].telegram_paused === 1
+   494→        await sendTelegramMessage(
+   495→          token,
+   496→          chatId,
+   497→          `📊 <b>${esc(owned[0].username ?? 'Hibana user')}</b> — open tasks with deadlines: <b>${rows[0]?.n ?? 0}</b>.\nReminders: ${paused ? '⏸ paused (send /resume)' : '✅ on'}.`,
+   498→          'HTML',
+   499→        )
+   500→      }
+   501→      return c.json({ ok: true })
+   502→    }
+   503→
+   504→    // /pause & /resume — suspend/resume bot reminders without unlinking (spec §5.17/§6.22;
+   505→    // §8 Q6 resolved: re-linking via /start <code> also resumes, and so does /resume).
+   506→    if (/^\/pause\b/i.test(text) || /^\/resume\b/i.test(text)) {
+   507→      const pause = /^\/pause\b/i.test(text)
+   508→      if (owned.length === 0) {
+   509→        await sendTelegramMessage(token, chatId, '🔗 You are not linked to a Hibana account yet. Link it first: Hibana Settings → Telegram → generate a code, then send /start <code> here.')
+   510→      } else {
+   511→        await cfg.db.execute('UPDATE users SET telegram_paused = ? WHERE id = ?', [pause ? 1 : 0, owned[0].id])
+   512→        await sendTelegramMessage(
+   513→          token,
+   514→          chatId,
+   515→          pause
+   516→            ? '⏸ Reminders paused — no deadline or progress alerts will arrive here. Send /resume to turn them back on (or generate a fresh code in Hibana Settings and /start it).'
+   517→            : '▶️ Reminders resumed — deadline and progress alerts will arrive here again.',
+   518→        )
+   519→      }
+   520→      return c.json({ ok: true })
+   521→    }
+   522→
+   523→    // /reset — secondary password reset through the linked chat (spec §9). The chat being
+   524→    // LINKED is the authentication: only the account owner's linked chat can ever trigger it.
+   525→    // Issues the same one-time hashed token as the email path; delivery is via the bot.
+   526→    if (/^\/reset\b/i.test(text)) {
+   527→      if (owned.length === 0) {
+   528→        await sendTelegramMessage(token, chatId, '🔐 Your Telegram is not linked to a Hibana account yet. Link it first: Hibana Settings → Telegram → generate a code, then send /start <code> here.')
+   529→      } else {
+   530→        const resetToken = await createResetToken(cfg.db, owned[0].id)
+   531→        const link = `${requestOrigin(c)}/reset.html?token=${resetToken}`
+   532→        await sendTelegramMessage(token, chatId, `🔐 Password reset for your Hibana account:\n\n<a href="${link}">Set a new password →</a>\n\nThis link expires in 1 hour.`, 'HTML')
+   533→      }
+   534→      return c.json({ ok: true })
+   535→    }
+   536→
+   537→    // Unlinked chat: nothing can be saved yet. Commands get the link-first instructions
+   538→    // (no junk captures); free text is captured for assignment once the account links (§4.10).
+   539→    if (owned.length === 0) {
+   540→      if (/^\//.test(text)) {
+   541→        await sendTelegramMessage(token, chatId, '🔗 Link your account first: Hibana Settings → Telegram → Generate link code, then send /start <code> here.')
+   542→        return c.json({ ok: true })
+   543→      }
+   544→      await cfg.db.execute(
+   545→        'INSERT INTO telegram_captures (id, user_id, raw_text, telegram_user_id, received_at, created_at) VALUES (?, NULL, ?, ?, ?, ?)',
+   546→        [uuid(), text, String(msg.from.id), new Date().toISOString(), new Date().toISOString()],
+   547→      )
+   548→      await sendTelegramMessage(token, chatId, '📩 Idea captured. Link your account in Hibana Settings → Telegram: generate a code, then send /start <code> here.')
+   549→      return c.json({ ok: true })
+   550→    }
+   551→
+   552→    const userId = owned[0].id
+   553→    const lang = owned[0].language_pref as Lang
+   554→    const origin = requestOrigin(c)
+   555→
+   556→    // The one save path for Ideas (explicit /idea and the default plain-text capture).
+   557→    const captureIdeaReply = async (raw: string, withButtons: boolean): Promise<void> => {
+   558→      const id = await insertIdea(cfg.db, userId, raw, String(msg.from.id))
+   559→      const body = `📎 ${t(lang, 'Captured', 'ذخیره شد')}:\n\n<b>${esc(raw)}</b>\n\n<a href="${origin}/project.html?id=${id}">${t(lang, 'Open it in Hibana →', 'باز کردن در هیبانا →')}</a>`
+   560→      if (withButtons) {
+   561→        await sendTelegramMessage(token, chatId, body, 'HTML', kb([
+   562→          [{ text: t(lang, '💡 Another', '💡 ایده'), callback_data: 'idea' }],
+   563→          [{ text: t(lang, '🏠 Home', '🏠 خانه'), callback_data: 'home' }],
+   564→        ]))
+   565→      } else {
+   566→        await sendTelegramMessage(token, chatId, body, 'HTML')
+   567→      }
+   568→    }
+   569→
+   570→    if (!text) {
+   571→      await sendTelegramMessage(token, chatId, homeText(lang), 'HTML', homeKeyboard(lang))
+   572→      return c.json({ ok: true })
+   573→    }
+   574→
+   575→    // /note <text> — a Quick Note on the dashboard notebook.
+   576→    const note = text.match(/^\/note\b([\s\S]*)/i)
+   577→    if (note) {
+   578→      const content = note[1].trim()
+   579→      if (!content) {
+   580→        await sendTelegramMessage(token, chatId, 'Usage: /note <text> — e.g. /note call mom')
+   581→        return c.json({ ok: true })
+   582→      }
+   583→      const id = await createQuickNote(cfg.db, userId, content)
+   584→      await setSession(cfg.db, userId, { kind: 'connect_list', noteId: id }) // so 🔗 Connect below knows the note
+   585→      await sendTelegramMessage(
+   586→        token,
+   587→        chatId,
+   588→        `✅ ${t(lang, 'Note added to your dashboard', 'یادداشت به داشبورد اضافه شد')}:\n\n<b>${esc(content.length > 120 ? content.slice(0, 117) + '…' : content)}</b>`,
+   589→        'HTML',
+   590→        kb([
+   591→          [{ text: t(lang, '🔗 Connect to a project', '🔗 اتصال به پروژه'), callback_data: 'connect' }, { text: t(lang, '🏠 Home', '🏠 خانه'), callback_data: 'home' }],
+   592→        ]),
+   593→      )
+   594→      return c.json({ ok: true })
+   595→    }
+   596→
+   597→    // /idea <text> — explicit alias of the default capture.
+   598→    const idea = text.match(/^\/idea\b([\s\S]*)/i)
+   599→    if (idea) {
+   600→      const content = idea[1].trim()
+   601→      if (!content) {
+   602→        await sendTelegramMessage(token, chatId, 'Usage: /idea <text> — e.g. /idea redesign the landing page')
+   603→        return c.json({ ok: true })
+   604→      }
+   605→      await captureIdeaReply(content, false)
+   606→      return c.json({ ok: true })
+   607→    }
+   608→
+   609→    // /append <project> <text> — append a note to an EXISTING project's latest_note (the
+   610→    // Phase 7-second item 2 ask the audit flagged as never built). The first arg is a
+   611→    // project id OR a fuzzy title prefix match (case-insensitive, first match wins,
+   612→    // user-scoped). The rest is the text to append. A project_history_log row records
+   613→    // the change so the project page's activity feed shows it. Replies with a deep link.
+   614→    const appendMatch = text.match(/^\/append\b\s+(?:(\S+)\s+)?([\s\S]+)/i)
+   615→    if (appendMatch) {
+   616→      const projectArg = (appendMatch[1] ?? '').trim()
+   617→      const appendText = appendMatch[2].trim()
+   618→      if (!projectArg) {
+   619→        await sendTelegramMessage(token, chatId, 'Usage: /append <project-title-or-id> <text> — e.g. /append star map research the competition')
+   620→        return c.json({ ok: true })
+   621→      }
+   622→      // Resolve the project: id first, then a LIKE prefix match on title (user-scoped,
+   623→      // not deleted). Spark + unreviewed + all active stages are eligible — appending to
+   624→      // an archived/halted project is allowed (the user knows what they're doing).
+   625→      let project: ProjectRow | null = null
+   626→      if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(projectArg)) {
+   627→        const rows = await cfg.db.query<ProjectRow>('SELECT * FROM projects WHERE id = ? AND user_id = ? AND deleted_at IS NULL', [projectArg, userId])
+   628→        project = rows[0] ?? null
+   629→      }
+   630→      if (!project) {
+   631→        const rows = await cfg.db.query<ProjectRow>(
+   632→          'SELECT * FROM projects WHERE user_id = ? AND deleted_at IS NULL AND LOWER(title) LIKE ? ORDER BY updated_at DESC LIMIT 1',
+   633→          [userId, projectArg.toLowerCase() + '%'],
+   634→        )
+   635→        project = rows[0] ?? null
+   636→      }
+   637→      if (!project) {
+   638→        await sendTelegramMessage(token, chatId, `No project found matching "${esc(projectArg)}". Use /idea to capture a new one, or check the title in Hibana.`)
+   639→        return c.json({ ok: true })
+   640→      }
+   641→      const now = new Date().toISOString()
+   642→      // Append to latest_note with a timestamp separator (or set it if empty).
+   643→      const sep = project.latest_note ? '\n\n— ' + now + ' (from Telegram):\n' : now + ' (from Telegram):\n'
+   644→      const newNote = (project.latest_note ?? '') + sep + appendText.slice(0, 5000)
+   645→      await cfg.db.execute('UPDATE projects SET latest_note = ?, updated_at = ? WHERE id = ? AND user_id = ?', [newNote, now, project.id, userId])
+   646→      // Mirror the web UI's project_history_log write so the activity feed shows the
+   647→      // append. The table schema (0002) is (id, project_id, note, created_at) — no kind.
+   648→      try {
+   649→        await cfg.db.execute(
+   650→          'INSERT INTO project_history_log (id, project_id, note, created_at) VALUES (?, ?, ?, ?)',
+   651→          [uuid(), project.id, appendText.slice(0, 5000), now],
+   652→        )
+   653→      } catch { /* history is best-effort — the latest_note write is the source of truth */ }
+   654→      const preview = appendText.length > 120 ? appendText.slice(0, 117) + '…' : appendText
+   655→      await sendTelegramMessage(token, chatId, `📎 Appended to <b>${esc(project.title)}</b>:\n\n${esc(preview)}\n\n<a href="${origin}/project.html?id=${project.id}">Open it in Hibana →</a>`, 'HTML')
+   656→      return c.json({ ok: true })
+   657→    }
+   658→
+   659→    // /list — start (or join) a list session: items arrive one per message, /done saves.
+   660→    if (/^\/list$/.test(text)) {
+   661→      const items = await noteSession(cfg.db, userId)
+   662→      if (items) {
+   663→        await sendTelegramMessage(token, chatId, `List already collecting — ${items.length} item${items.length === 1 ? '' : 's'} so far. Send /done to save or /cancel to stop.`)
+   664→      } else {
+   665→        await saveNoteSession(cfg.db, userId, [])
+   666→        await sendTelegramMessage(token, chatId, '📋 List mode on — send the items, one per message. Send /done to save the list to your dashboard, or /cancel to stop.')
+   667→      }
+   668→      return c.json({ ok: true })
+   669→    }
+   670→
+   671→    // /done — finalize the pending list into a dashboard list note.
+   672→    if (/^\/done$/.test(text)) {
+   673→      const items = await noteSession(cfg.db, userId)
+   674→      if (!items || items.length === 0) {
+   675→        await sendTelegramMessage(token, chatId, 'No active list — send /list first, then your items, then /done.')
+   676→        return c.json({ ok: true })
+   677→      }
+   678→      const count = await createListNote(cfg.db, userId, items)
+   679→      await sendTelegramMessage(token, chatId, `✅ List saved (${count} item${count === 1 ? '' : 's'}) — it is on your dashboard Quick Notebook.`)
+   680→      return c.json({ ok: true })
+   681→    }
+   682→
+   683→    // /cancel — abandon the list session (or any active await).
+   684→    if (/^\/cancel$/i.test(text)) {
+   685→      const session = await getSession(cfg.db, userId)
+   686→      await clearSession(cfg.db, userId)
+   687→      if (session?.kind === 'await_list_item' && session.items.length) {
+   688→        await sendTelegramMessage(token, chatId, `List discarded (${session.items.length} item${session.items.length === 1 ? '' : 's'}).`)
+   689→      } else if (session?.kind === 'await_list_item') {
+   690→        await sendTelegramMessage(token, chatId, 'No active list.')
+   691→      } else if (session) {
+   692→        await sendTelegramMessage(token, chatId, t(lang, '↩️ Cancelled.', '↩️ لغو شد.'))
+   693→      } else {
+   694→        await sendTelegramMessage(token, chatId, 'No active list.')
+   695→      }
+   696→      return c.json({ ok: true })
+   697→    }
+   698→
+   699→    // Plain text (no leading /): consume the active intent, else append to a list, else default-capture as an Idea.
+   700→    if (!/^\//.test(text)) {
+   701→      const session = await getSession(cfg.db, userId)
+   702→
+   703→      // (3) await_text intent — consume per intent (design §8.1).
+   704→      if (session?.kind === 'await_text') {
+   705→        const intent = session.intent
+   706→        if (intent === 'idea') {
+   707→          await clearSession(cfg.db, userId)
+   708→          await captureIdeaReply(text, true)
+   709→          return c.json({ ok: true })
+   710→        }
+   711→        if (intent === 'note') {
+   712→          await clearSession(cfg.db, userId)
+   713→          const id = await createQuickNote(cfg.db, userId, text)
+   714→          await setSession(cfg.db, userId, { kind: 'connect_list', noteId: id })
+   715→          const preview = text.length > 120 ? text.slice(0, 117) + '…' : text
+   716→          await sendTelegramMessage(
+   717→            token,
+   718→            chatId,
+   719→            `✅ ${t(lang, 'Note added to your dashboard', 'یادداشت به داشبورد اضافه شد')}:\n\n<b>${esc(preview)}</b>`,
+   720→            'HTML',
+   721→            kb([
+   722→              [{ text: t(lang, '🔗 Connect to a project', '🔗 اتصال به پروژه'), callback_data: 'connect' }, { text: t(lang, '🏠 Home', '🏠 خانه'), callback_data: 'home' }],
+   723→            ]),
+   724→          )
+   725→          return c.json({ ok: true })
+   726→        }
+   727→        if (intent === 'sadhana_task') {
+   728→          const qid = session.quadrant
+   729→          await clearSession(cfg.db, userId)
+   730→          const id = uuid()
+   731→          const now = new Date().toISOString()
+   732→          await cfg.db.execute(
+   733→            "INSERT INTO sadhana_tasks (id, user_id, quadrant, title, emoji, done, pinned, position, progress, note, recurring, recur_config, created_at, updated_at) VALUES (?, ?, ?, ?, '📌', 0, 0, 0, 'untouched', '', 0, '', ?, ?)",
+   734→            [id, userId, qid, text.slice(0, 255), now, now],
+   735→          )
+   736→          await renderQuadrant(token, chatId, cfg.db, userId, lang, qid, 0) // re-render page 0 (new task at top)
+   737→          return c.json({ ok: true })
+   738→        }
+   739→        if (intent === 'proj_search') {
+   740→          const noteId = session.noteId
+   741→          const rows = await cfg.db.query<{ id: string; title: string }>(
+   742→            'SELECT id, title FROM projects WHERE user_id = ? AND deleted_at IS NULL AND LOWER(title) LIKE ? ORDER BY updated_at DESC LIMIT 10',
+   743→            [userId, text.toLowerCase() + '%'],
+   744→          )
+   745→          await setSession(cfg.db, userId, { kind: 'connect_list', noteId }) // restore connect_list so cp:<id> resolves
+   746→          if (rows.length === 0) {
+   747→            await sendTelegramMessage(
+   748→              token,
+   749→              chatId,
+   750→              t(lang, `No project matches "${esc(text)}". Try again, or tap Skip.`, `پروژه‌ای برای «${esc(text)}» پیدا نشد. دوباره بنویس یا رد شو.`),
+   751→              'HTML',
+   752→              kb([
+   753→                [{ text: t(lang, '🔍 Search', '🔍 جستجو'), callback_data: 'psearch' }, { text: t(lang, '↩️ Skip', '↩️ رد شدن'), callback_data: 'home' }],
+   754→                [{ text: t(lang, '🏠 Home', '🏠 خانه'), callback_data: 'home' }],
+   755→              ]),
+   756→            )
+   757→          } else {
+   758→            await sendTelegramMessage(token, chatId, connectListText(lang, 0, 1), 'HTML', connectListKeyboard(lang, rows, 0, 1))
+   759→          }
+   760→          return c.json({ ok: true })
+   761→        }
+   762→      }
+   763→
+   764→      // (4) await_list_item — append the message's lines to the open list.
+   765→      if (session?.kind === 'await_list_item') {
+   766→        const lines = text.split(/\r?\n+/).map((l) => l.trim()).filter(Boolean)
+   767→        if (lines.length) {
+   768→          const total = session.items.length + lines.length
+   769→          if (total > LIST_MAX_ITEMS) {
+   770→            await sendTelegramMessage(token, chatId, `List is full (${LIST_MAX_ITEMS} items max) — send /done to save it.`)
+   771→            return c.json({ ok: true })
+   772→          }
+   773→          await setSession(cfg.db, userId, { kind: 'await_list_item', items: [...session.items, ...lines.map((l) => l.slice(0, ITEM_MAX_CHARS))] })
+   774→          await sendTelegramMessage(token, chatId, `✓ ${total} item${total === 1 ? '' : 's'} so far — send more, or /done to save.`)
+   775→        }
+   776→        return c.json({ ok: true })
+   777→      }
+   778→    }
+   779→
+   780→    // Unknown command → help pointer; anything else is an Idea (default capture, frictionless).
+   781→    if (/^\//.test(text)) {
+   782→      await sendTelegramMessage(token, chatId, 'Unknown command — try /help to see what I can do.')
+   783→      return c.json({ ok: true })
+   784→    }
+   785→    await captureIdeaReply(text, false)
+   786→    return c.json({ ok: true })
+   787→  })
+   788→
+   789→  // Any authenticated user can link their own Telegram chat (§4.10): Settings shows a
+   790→  // one-time code; the user sends /start <code> to the bot. Codes expire after 1h and
+   791→  // generating a new one invalidates any previous unused code for the same account.
+   792→  // M9 fix (2026-09-10): changed from GET to POST — this endpoint deletes + inserts in a
+   793→  // transaction (state-changing), so the CSRF middleware (which only checks POST/PUT/PATCH/
+   794→  // DELETE) must apply. A GET was exempt and could be triggered by <img src> or CSRF.
+   795→  app.post('/api/telegram/link-code', requireAuth(cfg), async (c) => {
+   796→    const user = c.get('user')
+   797→    // 12 hex chars (48 bits, hardening 2026-08-28): the code links a chat to an account —
+   798→    // 8 hex chars was only ~4.3B guesses. Telegram's own flood limits make brute force
+   799→    // impractical either way, but doubling the entropy costs nothing.
+   800→    const code = uuid().replace(/-/g, '').slice(0, 12)
+   801→    await cfg.db.transaction(async (tx) => {
+   802→      tx.sql('DELETE FROM telegram_links WHERE created_at < ?', [new Date(Date.now() - LINK_CODE_TTL_MS).toISOString()]) // expired sweep
+   803→      tx.sql('DELETE FROM telegram_links WHERE user_id = ?', [user.id]) // one active code per account
+   804→      tx.sql('INSERT INTO telegram_links (code, user_id, created_at) VALUES (?, ?, ?)', [code, user.id, new Date().toISOString()])
+   805→    })
+   806→    return c.json({ ok: true, code })
+   807→  })
+   808→
+   809→  // Authed status for Settings: is this account linked, and where is the bot?
+   810→  app.get('/api/telegram/status', requireAuth(cfg), async (c) => {
+   811→    const user = c.get('user')
+   812→    return c.json({ ok: true, bot: TELEGRAM_BOT.handle, botUrl: TELEGRAM_BOT.url, linked: !!user.telegram_chat_id, chat_id: user.telegram_chat_id })
+   813→  })
+   814→
+   815→  // Unlink: severs the chat mapping for this account. Captures already assigned stay —
+   816→  // they are account data now (rule 1); only the delivery channel is cut.
+   817→  app.delete('/api/telegram/link', requireAuth(cfg), async (c) => {
+   818→    const user = c.get('user')
+   819→    await cfg.db.transaction(async (tx) => {
+   820→      tx.sql('UPDATE users SET telegram_chat_id = NULL WHERE id = ?', [user.id])
+   821→      tx.sql('DELETE FROM telegram_links WHERE user_id = ?', [user.id])
+   822→    })
+   823→    return c.json({ ok: true })
+   824→  })
+   825→}
+   826→
+   827→// ---- callback_query dispatcher (inline keyboard taps) ---------------------------
+   828→// Every op-code is self-contained (≤ ~41 bytes, well under Telegram's 64-byte callback_data
+   829→// cap). The op-code always wins and REPLACES any active await_text intent (design §8.1).
+   830→async function handleCallback(
+   831→  token: string,
+   832→  chatId: number,
+   833→  messageId: number,
+   834→  user: Pick<UserRow, 'id' | 'username' | 'telegram_paused' | 'language_pref' | 'timezone' | 'sadhana_quadrant_order' | 'role'>,
+   835→  data: string,
+   836→  cfg: Config,
+   837→  origin: string,
+   838→): Promise<void> {
+   839→  const db = cfg.db
+   840→  const userId = user.id
+   841→  const lang = user.language_pref as Lang
+   842→
+   843→  // 🏠 Home / ↩️ Cancel — clear any active intent and show the home keyboard.
+   844→  if (data === 'home') {
+   845→    await clearSession(db, userId)
+   846→    await render(token, chatId, messageId, homeText(lang), homeKeyboard(lang))
+   847→    return
+   848→  }
+   849→
+   850→  // 💡 New Idea — enter await_text:idea.
+   851→  if (data === 'idea') {
+   852→    await setSession(db, userId, { kind: 'await_text', intent: 'idea' })
+   853→    await render(token, chatId, messageId, t(lang, '💡 Send me your idea — one message. I’ll capture it as a Spark.', '💡 ایده‌ات را بفرست — یک پیام. به‌عنوان ایده ذخیره می‌کنم.'), cancelKeyboard(lang))
+   854→    return
+   855→  }
+   856→
+   857→  // 📝 Note — enter await_text:note.
+   858→  if (data === 'note') {
+   859→    await setSession(db, userId, { kind: 'await_text', intent: 'note' })
+   860→    await render(token, chatId, messageId, t(lang, '📝 Send me the note — I’ll add it to your dashboard.', '📝 یادداشت را بفرست — به داشبوردت اضافه می‌کنم.'), cancelKeyboard(lang))
+   861→    return
+   862→  }
+   863→
+   864→  // 📋 To-do — show the user's quadrant grid (their names + order).
+   865→  if (data === 'todo') {
+   866→    const nameRows = await db.query<{ quadrant: number; name: string }>('SELECT quadrant, name FROM sadhana_quadrant_names WHERE user_id = ?', [userId])
+   867→    const names = new Map(nameRows.map((r) => [r.quadrant, r.name]))
+   868→    await render(token, chatId, messageId, quadrantGridText(lang), quadrantKeyboard(lang, names, user.sadhana_quadrant_order))
+   869→    return
+   870→  }
+   871→
+   872→  // Quadrant open: q{1-4} (page 0) or q{1-4}p{n} (page n).
+   873→  const qPageMatch = data.match(/^q([1-4])p(\d+)$/)
+   874→  const qOpenMatch = data.match(/^q([1-4])$/)
+   875→  if (qPageMatch || qOpenMatch) {
+   876→    const qid = Number((qPageMatch ?? qOpenMatch)![1])
+   877→    const page = qPageMatch ? Number(qPageMatch[2]) : 0
+   878→    await renderQuadrant(token, chatId, db, userId, lang, qid, page, messageId)
+   879→    return
+   880→  }
+   881→
+   882→  // Add a task to a quadrant: q{1-4}add → await_text:sadhana_task.
+   883→  const qAddMatch = data.match(/^q([1-4])add$/)
+   884→  if (qAddMatch) {
+   885→    const qid = Number(qAddMatch[1])
+   886→    await setSession(db, userId, { kind: 'await_text', intent: 'sadhana_task', quadrant: qid })
+   887→    const meta = QUADRANTS.find((q) => q.id === qid)!
+   888→    const nameRows = await db.query<{ quadrant: number; name: string }>('SELECT quadrant, name FROM sadhana_quadrant_names WHERE user_id = ? AND quadrant = ?', [userId, qid])
+   889→    const name = nameRows[0]?.name ?? t(lang, meta.name.en, meta.name.fa)
+   890→    await render(token, chatId, messageId, t(lang, `➕ New task for <b>${esc(name)}</b> — send the title:`, `➕ کار جدید برای <b>${esc(name)}</b> — عنوان را بفرست:`), cancelKeyboard(lang))
+   891→    return
+   892→  }
+   893→
+   894→  // ✅ Mark a task done: d:<uuid>. (Approved round 1, design §9 — reversible, non-losing.)
+   895→  const doneMatch = data.match(/^d:(.+)$/)
+   896→  if (doneMatch) {
+   897→    const taskId = doneMatch[1]
+   898→    const rows = await db.query<{ id: string; title: string; emoji: string; recurring: number }>(
+   899→      'SELECT id, title, emoji, recurring FROM sadhana_tasks WHERE id = ? AND user_id = ? AND done = 0 AND deleted_at IS NULL',
+   900→      [taskId, userId],
+   901→    )
+   902→    if (rows.length === 0) {
+   903→      await render(token, chatId, messageId, t(lang, 'Task not found (maybe already done).', 'کار پیدا نشد (شاید已完成 است).'), homeKeyboard(lang))
+   904→      return
+   905→    }
+   906→    const task = rows[0]
+   907→    const now = new Date().toISOString()
+   908→    const today = todayIn(user.timezone)
+   909→    // done=1; for recurring tasks set recur_last so resetDueRecurring can re-open on the next cycle (mirrors web app).
+   910→    await db.execute('UPDATE sadhana_tasks SET done = 1, updated_at = ?, recur_last = CASE WHEN recurring = 1 THEN ? ELSE recur_last END WHERE id = ? AND user_id = ?', [now, today, taskId, userId])
+   911→    await render(
+   912→      token,
+   913→      chatId,
+   914→      messageId,
+   915→      `✅ ${t(lang, 'Done', 'انجام شد')}: <b>${task.emoji || '📌'} ${esc(task.title)}</b>`,
+   916→      kb([
+   917→        [{ text: t(lang, '↩️ Undo', '↩️ برگردان'), callback_data: `u:${taskId}` }, { text: t(lang, '🏠 Home', '🏠 خانه'), callback_data: 'home' }],
+   918→      ]),
+   919→    )
+   920→    return
+   921→  }
+   922→
+   923→  // ↩️ Undo a mark-done: u:<uuid>.
+   924→  const undoMatch = data.match(/^u:(.+)$/)
+   925→  if (undoMatch) {
+   926→    const taskId = undoMatch[1]
+   927→    const rows = await db.query<{ title: string; emoji: string }>('SELECT title, emoji FROM sadhana_tasks WHERE id = ? AND user_id = ? AND done = 1', [taskId, userId])
+   928→    if (rows.length === 0) {
+   929→      await render(token, chatId, messageId, t(lang, 'Nothing to undo.', 'چیزی برای برگردان نیست.'), homeKeyboard(lang))
+   930→      return
+   931→    }
+   932→    const task = rows[0]
+   933→    const now = new Date().toISOString()
+   934→    await db.execute('UPDATE sadhana_tasks SET done = 0, recur_last = NULL, updated_at = ? WHERE id = ? AND user_id = ?', [now, taskId, userId])
+   935→    await render(
+   936→      token,
+   937→      chatId,
+   938→      messageId,
+   939→      `↩️ ${t(lang, 'Reopened', 'باز شد')}: <b>${task.emoji || '📌'} ${esc(task.title)}</b>`,
+   940→      kb([[{ text: t(lang, '🏠 Home', '🏠 خانه'), callback_data: 'home' }]]),
+   941→    )
+   942→    return
+   943→  }
+   944→
+   945→  // 🌐 Language picker.
+   946→  if (data === 'lang') {
+   947→    await render(token, chatId, messageId, langText(lang), langKeyboard(lang))
+   948→    return
+   949→  }
+   950→  // lang:en / lang:fa → update users.language_pref (single source of truth — web locale changes too, round 2 Q1).
+   951→  if (data === 'lang:en' || data === 'lang:fa') {
+   952→    const newLang: Lang = data === 'lang:en' ? 'en' : 'fa'
+   953→    await db.execute('UPDATE users SET language_pref = ? WHERE id = ?', [newLang, userId])
+   954→    await render(token, chatId, messageId, t(newLang, '✅ Language saved.', '✅ زبان ذخیره شد.'), homeKeyboard(newLang))
+   955→    return
+   956→  }
+   957→
+   958→  // ⚙️ Settings.
+   959→  if (data === 'set') {
+   960→    await render(
+   961→      token, chatId, messageId,
+   962→      settingsText(lang, user.telegram_paused === 1, user.role === 'owner'),
+   963→      settingsKeyboard(lang, user.telegram_paused === 1, user.role === 'owner'),
+   964→    )
+   965→    return
+   966→  }
+   967→  // 🗄 Send backup now (Plan B, 0044 → session 14) — owner-only ON-DEMAND action: one
+   968→  // tap sends one encrypted whole-DB snapshot document to THIS chat and confirms in
+   969→  // place. The old toggle (auto 4×/day sends) is gone — backups never message the chat
+   970→  // on their own anymore. A member's crafted 'bak' callback is a no-op (the snapshot
+   971→  // must never be deliverable to a member chat).
+   972→  if (data === 'bak') {
+   973→    if (user.role !== 'owner') {
+   974→      // The button is hidden for members, but a crafted callback must still be a no-op.
+   975→      await render(token, chatId, messageId, settingsText(lang, user.telegram_paused === 1, false), settingsKeyboard(lang, user.telegram_paused === 1, false))
+   976→      return
+   977→    }
+   978→    const r = await sendPlanBBackupToChat(cfg, userId, String(chatId))
+   979→    if (r.ok) {
+   980→      await render(
+   981→        token, chatId, messageId,
+   982→        t(
+   983→          lang,
+   984→          `🗄 <b>Backup sent</b> — ${new Date().toISOString().slice(11, 16)} UTC\nsha256 <code>${r.sha256.slice(0, 16)}…</code> · restore: docs/runbook.md §2b`,
+   985→          `🗄 <b>پشتیبان ارسال شد</b> — ${new Date().toISOString().slice(11, 16)} UTC\nsha256 <code>${r.sha256.slice(0, 16)}…</code> · بازیابی: docs/runbook.md §2b`,
+   986→        ),
+   987→        settingsKeyboard(lang, user.telegram_paused === 1, true),
+   988→      )
+   989→    } else {
+   990→      await render(
+   991→        token, chatId, messageId,
+   992→        t(
+   993→          lang,
+   994→          `⚠️ <b>Backup failed</b>\n${r.reason ?? 'unknown error'}\n\nTry again in a moment.`,
+   995→          `⚠️ <b>ارسال پشتیبان ناموفق بود</b>\n${r.reason ?? 'خطای ناشناخته'}\n\n کمی بعد دوباره امتحان کن.`,
+   996→        ),
+   997→        settingsKeyboard(lang, user.telegram_paused === 1, true),
+   998→      )
+   999→    }
+  1000→    return
+  1001→  }
+  1002→  // ⏸ Pause / ▶️ Resume reminders (toggles users.telegram_paused).
+  1003→  if (data === 'pause' || data === 'resume') {
+  1004→    const pause = data === 'pause'
+  1005→    await db.execute('UPDATE users SET telegram_paused = ? WHERE id = ?', [pause ? 1 : 0, userId])
+  1006→    const newPaused = pause
+  1007→    await render(
+  1008→      token, chatId, messageId,
+  1009→      settingsText(lang, newPaused, user.role === 'owner'),
+  1010→      settingsKeyboard(lang, newPaused, user.role === 'owner'),
+  1011→    )
+  1012→    return
+  1013→  }
+  1014→  // 🔐 Reset password (issues a one-time reset token, delivered in-chat).
+  1015→  if (data === 'reset') {
+  1016→    const resetToken = await createResetToken(db, userId)
+  1017→    const link = `${origin}/reset.html?token=${resetToken}`
+  1018→    await render(
+  1019→      token,
+  1020→      chatId,
+  1021→      messageId,
+  1022→      t(lang, `🔐 Password reset for your Hibana account:\n\n<a href="${link}">Set a new password →</a>\n\nExpires in 1 hour.`, `🔐 بازنشانی رمز هیبانا:\n\n<a href="${link}">رمز جدید →</a>\n\nتا ۱ ساعت دیگر اعتبار دارد.`),
+  1023→      kb([[{ text: t(lang, '🏠 Home', '🏠 خانه'), callback_data: 'home' }]]),
+  1024→    )
+  1025→    return
+  1026→  }
+  1027→
+  1028→  // ❓ Help.
+  1029→  if (data === 'help') {
+  1030→    await render(token, chatId, messageId, helpText(lang), helpKeyboard(lang), undefined)
+  1031→    return
+  1032→  }
+  1033→
+  1034→  // 🔗 Connect (open the project list for the note pending in session.connect_list).
+  1035→  if (data === 'connect') {
+  1036→    const session = await getSession(db, userId)
+  1037→    if (!session || session.kind !== 'connect_list') {
+  1038→      await render(token, chatId, messageId, t(lang, 'No note to connect. Tap 📝 Note first.', 'یادداشتی برای اتصال نیست. اول 📝 یادداشت را بزن.'), homeKeyboard(lang))
+  1039→      return
+  1040→    }
+  1041→    const offset = 0
+  1042→    const projects = await db.query<{ id: string; title: string }>(
+  1043→      'SELECT id, title FROM projects WHERE user_id = ? AND deleted_at IS NULL ORDER BY updated_at DESC LIMIT ? OFFSET ?',
+  1044→      [userId, PROJECT_PAGE_SIZE, offset],
+  1045→    )
+  1046→    const countRows = await db.query<{ n: number }>('SELECT COUNT(*) AS n FROM projects WHERE user_id = ? AND deleted_at IS NULL', [userId])
+  1047→    const total = Math.max(1, Math.ceil((countRows[0]?.n ?? 0) / PROJECT_PAGE_SIZE))
+  1048→    await render(token, chatId, messageId, connectListText(lang, 0, total), connectListKeyboard(lang, projects, 0, total))
+  1049→    return
+  1050→  }
+  1051→  // Connect-list pagination: connectp{n}.
+  1052→  const connectPageMatch = data.match(/^connectp(\d+)$/)
+  1053→  if (connectPageMatch) {
+  1054→    const page = Number(connectPageMatch[1])
+  1055→    const session = await getSession(db, userId)
+  1056→    if (!session || session.kind !== 'connect_list') {
+  1057→      await render(token, chatId, messageId, homeText(lang), homeKeyboard(lang))
+  1058→      return
+  1059→    }
+  1060→    const offset = page * PROJECT_PAGE_SIZE
+  1061→    const projects = await db.query<{ id: string; title: string }>(
+  1062→      'SELECT id, title FROM projects WHERE user_id = ? AND deleted_at IS NULL ORDER BY updated_at DESC LIMIT ? OFFSET ?',
+  1063→      [userId, PROJECT_PAGE_SIZE, offset],
+  1064→    )
+  1065→    const countRows = await db.query<{ n: number }>('SELECT COUNT(*) AS n FROM projects WHERE user_id = ? AND deleted_at IS NULL', [userId])
+  1066→    const total = Math.max(1, Math.ceil((countRows[0]?.n ?? 0) / PROJECT_PAGE_SIZE))
+  1067→    await render(token, chatId, messageId, connectListText(lang, page, total), connectListKeyboard(lang, projects, page, total))
+  1068→    return
+  1069→  }
+  1070→  // cp:<projectId> — connect the pending note (session.connect_list.noteId) to this project.
+  1071→  const connectMatch = data.match(/^cp:(.+)$/)
+  1072→  if (connectMatch) {
+  1073→    const projectId = connectMatch[1]
+  1074→    const session = await getSession(db, userId)
+  1075→    if (!session || session.kind !== 'connect_list') {
+  1076→      await render(token, chatId, messageId, t(lang, 'No note to connect.', 'یادداشتی برای اتصال نیست.'), homeKeyboard(lang))
+  1077→      return
+  1078→    }
+  1079→    const projRows = await db.query<{ id: string; title: string }>('SELECT id, title FROM projects WHERE id = ? AND user_id = ? AND deleted_at IS NULL', [projectId, userId])
+  1080→    if (projRows.length === 0) {
+  1081→      await render(token, chatId, messageId, t(lang, 'Project not found.', 'پروژه پیدا نشد.'), homeKeyboard(lang))
+  1082→      return
+  1083→    }
+  1084→    // Attach the note to the project (quick_notes.project_id — migration 0017). rule 1: user_id filter.
+  1085→    await db.execute('UPDATE quick_notes SET project_id = ? WHERE id = ? AND user_id = ?', [projectId, session.noteId, userId])
+  1086→    await clearSession(db, userId)
+  1087→    await render(
+  1088→      token,
+  1089→      chatId,
+  1090→      messageId,
+  1091→      `🔗 ${t(lang, 'Connected to', 'متصل شد به')} <b>${esc(projRows[0].title)}</b>\n\n<a href="${origin}/project.html?id=${projectId}">${t(lang, 'Open in Hibana →', 'باز کردن در هیبانا →')}</a>`,
+  1092→      kb([[{ text: t(lang, '🏠 Home', '🏠 خانه'), callback_data: 'home' }]]),
+  1093→    )
+  1094→    return
+  1095→  }
+  1096→  // 🔍 Search → await_text:proj_search (carry the noteId).
+  1097→  if (data === 'psearch') {
+  1098→    const session = await getSession(db, userId)
+  1099→    if (!session || session.kind !== 'connect_list') {
+  1100→      await render(token, chatId, messageId, homeText(lang), homeKeyboard(lang))
+  1101→      return
+  1102→    }
+  1103→    await setSession(db, userId, { kind: 'await_text', intent: 'proj_search', noteId: session.noteId })
+  1104→    await render(token, chatId, messageId, t(lang, '🔍 Type a few letters of the project title:', '🔍 چند حرف از عنوان پروژه را بنویس:'), cancelKeyboard(lang))
+  1105→    return
+  1106→  }
+  1107→
+  1108→  // Unknown callback — show home.
+  1109→  await render(token, chatId, messageId, homeText(lang), homeKeyboard(lang))
+  1110→}
+  1111→
+  1112→// Obsidian bulk import (spec §9): exported .md files — or a .zip of the whole vault —
+  1113→// become Ideas (H1 or filename as the title, tagged “Imported”). Re-importing the same
+  1114→// notes is a no-op: a title that already exists (case-insensitive, per user) is skipped.
+  1115→export function registerImport(app: Hono<{ Variables: { user: UserRow } }>, cfg: Config) {
+  1116→  app.post('/api/import/obsidian', requireAuth(cfg), async (c) => {
+  1117→    const user = c.get('user')
+  1118→    // Heavy-endpoint metering (hardening 2026-08-28): import inflates archives and writes
+  1119→    // unbounded rows — 5 per minute per IP is generous for a real vault import.
+  1120→    if (await hitRateLimit(cfg.db, RATE_RULES.import, clientIp(c))) {
+  1121→      return c.json({ error: 'rate_limited', message: 'Too many imports — wait a minute and try again.' }, 429)
+  1122→    }
+  1123→    const form = await c.req.formData().catch(() => null)
+  1124→    if (!form) return c.json({ error: 'invalid_input' }, 400)
+  1125→
+  1126→    const allFiles = (form.getAll('files') as File[]).filter((f) => f && typeof f.arrayBuffer === 'function')
+  1127→    const mdFiles = allFiles.filter((f) => /\.md$/i.test(f.name ?? ''))
+  1128→    const zipFiles = allFiles.filter((f) => /\.zip$/i.test(f.name ?? ''))
+  1129→    if (mdFiles.length === 0 && zipFiles.length === 0) {
+  1130→      return c.json({ error: 'no_markdown_files', message: 'Attach .md files or a .zip of your exported notes.' }, 400)
+  1131→    }
+  1132→    // Request-shape caps (hardening 2026-08-28): bounded file count + total upload bytes,
+  1133→    // enforced before anything is read into memory. 100MB matches Cloudflare's body cap.
+  1134→    const MAX_FILES = 200
+  1135→    const MAX_UPLOAD_BYTES = 100 * 1024 * 1024
+  1136→    if (allFiles.length > MAX_FILES) {
+  1137→      return c.json({ error: 'too_many', message: `Attach at most ${MAX_FILES} files per import.` }, 400)
+  1138→    }
+  1139→    const totalBytes = allFiles.reduce((n, f) => n + (f.size ?? 0), 0)
+  1140→    if (totalBytes > MAX_UPLOAD_BYTES) {
+  1141→      return c.json({ error: 'too_many', message: 'Import is limited to 100MB of uploads per request.' }, 413)
+  1142→    }
+  1143→
+  1144→    // rule 1: titles are scoped to this user; collect existing ones once for dedupe.
+  1145→    const existing = await cfg.db.query<{ title: string }>("SELECT LOWER(title) AS title FROM projects WHERE user_id = ?", [user.id])
+  1146→    const knownTitles = new Set(existing.map((r) => String(r.title).toLowerCase()))
+  1147→
+  1148→    const notes: Array<{ fileName: string; content: string }> = []
+  1149→    for (const file of mdFiles) notes.push({ fileName: file.name, content: await file.text() })
+  1150→    for (const file of zipFiles) {
+  1151→      try {
+  1152→        notes.push(...markdownFromZip(new Uint8Array(await file.arrayBuffer())))
+  1153→      } catch (err) {
+  1154→        if (err instanceof ZipLimitError) {
+  1155→          return c.json({ error: 'too_many', message: err.message }, 413)
+  1156→        }
+  1157→        return c.json({ error: 'invalid_zip', message: 'Could not read that .zip file — is it a valid archive?' }, 400)
+  1158→      }
+  1159→    }
+  1160→
+  1161→    let count = 0
+  1162→    let duplicates = 0
+  1163→    // H1 fix (2026-09-10): resolve the 'Imported' tag id atomically BEFORE the transaction
+  1164→    // loop. The old pattern queried inside the loop on every iteration — pre-batch reads see
+  1165→    // stale state, so every iteration after the first tried to INSERT a duplicate 'Imported'
+  1166→    // tag, hitting UNIQUE(user_id, name) and rolling back the ENTIRE import. A fresh-user
+  1167→    // multi-note import was guaranteed to fail.
+  1168→    const importedTagRows = await cfg.db.query<{ id: string }>(
+  1169→      `INSERT INTO tags (id, user_id, name, color, usage_count, created_at)
+  1170→       VALUES (?, ?, 'Imported', '#94a3b8', 0, ?)
+  1171→       ON CONFLICT(user_id, name) DO UPDATE SET usage_count = tags.usage_count
+  1172→       RETURNING id`,
+  1173→      [uuid(), user.id, new Date().toISOString()],
+  1174→    )
+  1175→    const importedTagId = importedTagRows[0]?.id
+  1176→    // P3.2 (F-M3): wrap the whole import loop in ONE transaction. Was ~200 sequential
+  1177→    // iterations each doing an INSERT + a sub-transaction (3-4 round trips each). Now
+  1178→    // batched: all INSERTs + tag links land atomically; a failure rolls back the whole
+  1179→    // import (no half-imported state).
+  1180→    await cfg.db.transaction(async (tx) => {
+  1181→      for (const note of notes) {
+  1182→        const parsed = parseMarkdownNote(note.fileName, note.content)
+  1183→        if (!parsed) continue
+  1184→        const key = parsed.title.toLowerCase()
+  1185→        if (knownTitles.has(key)) {
+  1186→          duplicates++
+  1187→          continue
+  1188→        }
+  1189→        knownTitles.add(key)
+  1190→
+  1191→        const id = uuid()
+  1192→        const now = new Date().toISOString()
+  1193→        tx.sql(
+  1194→          "INSERT INTO projects (id, user_id, title, description, type, status, sort_order, latest_note, reminders_enabled, created_at, updated_at) VALUES (?, ?, ?, ?, 'personal', 'spark', 0, '', 0, ?, ?)",
+  1195→          [id, user.id, parsed.title, parsed.description, now, now],
+  1196→        )
+  1197→        if (importedTagId) tx.sql('INSERT OR IGNORE INTO project_tags (project_id, tag_id) VALUES (?, ?)', [id, importedTagId])
+  1198→        count++
+  1199→      }
+  1200→    })
+  1201→    return c.json({ ok: true, imported: count, duplicates })
+  1202→  })
+  1203→}
+  1204→

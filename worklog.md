@@ -315,3 +315,73 @@ Stage Summary:
   Agents.md rule 4), web-clipper bookmarklet, dashboard FAB/quick-notebook micro-
   alignment, calendar weekend contrast polish, Magic Button FA-quality review (deploy-
   time gate, needs env.AI). Deploy to dev/prod remains out of scope without Ali's go-ahead.
+
+---
+Task ID: session-19-cron-r2
+Agent: Z.ai Code (principal) — recurring webDevReview cron (id=371903)
+Task: Ship Telegram /update command + web-clipper bookmarklet + styling polish
+
+Work Log:
+- Baseline: tsc green; vitest 279/279. Focused QA on calendar + settings.
+- SHIPPED FEATURE 1 — Telegram /update command (Changelogs §6 open item):
+  - New command `/update <project> <stage>` in `src/routes/integrations.ts`. Same project
+    resolution as /append (id first, then title-prefix LIKE, user-scoped, not deleted).
+    Stage accepts: the stage key (unreviewed/investigating/awaiting/doing/halted/
+    operational), the EN label ("In Progress", "Awaiting Execution", "Development Stopped"),
+    or the FA label («در حال انجام», «در انتظار اقدام», etc.) — case-insensitive.
+    spark/idea is deliberately excluded (ideas are promoted from the Ideas page, not set
+    from Telegram). Multi-word stage labels matched at the END of the input so project
+    titles with spaces work ("Star Map" + "doing"). Logs to project_history_log so the
+    project page activity feed shows it. Reply: "✅ Stage updated: <title> — <old> → <new>"
+    + deep link. Help text updated (EN + FA).
+  - Tests: 7 new cases in `src/tests/telegram.test.ts` — title-prefix+key resolution,
+    EN+FA label acceptance, usage message on missing project, unknown-stage rejection
+    with helpful list, spark refusal, "already at" idempotency, user-scoping (another
+    user's project not found).
+- SHIPPED FEATURE 2 — Web-clipper bookmarklet (Changelogs §6 open item):
+  - New page `public/clip.html`: a compact popup that reads `?title=`, `?url=`, `?text=`
+    (selected text) from the query string. Auth-gated via `/api/auth/me` (redirects to
+    login with return-to if not logged in). Pre-fills a textarea with the selected text +
+    `[title](url)` markdown. POSTs to the existing `/api/notes` API (kind=note) — zero new
+    endpoint, zero schema change. Same-origin popup → carries the session cookie; no token
+    management, no CORS issues. On success: toast + auto-close after 1.5s.
+  - Settings → Data tab: new "Web clipper (bookmarklet)" section with a "Clip to Hibana"
+    drag-to-bookmarkbar link. The href is JS-resolved at page load with `location.origin`
+    so it's absolute when dragged (hibana.ir in prod, localhost:3000 locally). Includes
+    instructions + a "not logged in" fallback note.
+  - SW: `clip.html` added to the SHELL precache list (offline-safe); SW version bumped
+    hibana-v277 → v278 (sw.js logic changed — SHELL list).
+  - i18n: 11 new keys (settings.clipper/Hint/Link/Note + clip.title/hint/note/save/saved/
+    savedHint) in EN + FA. Key parity verified.
+- STYLING POLISH (mandatory):
+  - `.note-add .qa-btn` (dashboard notebook add-row): the + button was a 2.25rem circle
+    vs the ~1.5rem input → button extended below the input's baseline (VLM-flagged).
+    Scoped to match input height: `inline-size:auto; block-size:auto; padding:0.35rem
+    0.6rem; border-radius:var(--radius-sm)`.
+  - `.cal-cell.cal-weekend .cal-day-num`: was `color-mix(danger 55%, muted)` (low contrast
+    on the striped pink background, VLM-flagged). Now full `var(--danger)` + font-weight
+    600 — matches the holiday treatment, clearly readable.
+- Cache-bust (load-bearing): app.css 236→237→238 (edited twice); i18n.js 47→48; SW
+  hibana-v277→v278 (SHELL list changed for clip.html). All 23 HTML pages consistent.
+- Verification: tsc green; vitest 286/286 (36 files, +7 new); agent-browser live QA —
+  settings "Clip to Hibana" bookmarklet renders with correct absolute-origin href;
+  clip.html popup opens authed, pre-fills selected text + [title](url), saves
+  successfully (success panel visible, no error); calendar weekend contrast improved;
+  Telegram /update webhook returns 200 + {"ok":true}.
+
+Stage Summary:
+- Features shipped: Telegram /update command (move projects to a new stage from Telegram,
+  EN+FA stage labels, multi-word title support, user-scoped) + web-clipper bookmarklet
+  (capture any page as a Quick Note via a popup, no token/schema change). Both are §6
+  open items — 2 of the 4 are now done (ICS export + /update + clipper; dev_tasks note
+  column remains, needs schema migration).
+- Polish shipped: notebook add-row button alignment, calendar weekend day-num contrast.
+- Assets: app.css v238, i18n.js v48, SW hibana-v278 (SHELL + version bump). All consistent.
+- Tests 286/286 (+7), typecheck green.
+- Next-phase priorities (for the next cron round): dev_tasks note column (needs schema
+  migration → Ali's written approval per Agents.md rule 4), dashboard FAB micro-alignment
+  (deferred — the .note-add fix covers the notebook; the FAB stack itself is fine), Magic
+  Button FA-quality review (deploy-time gate, needs env.AI), deploy to dev/prod (out of
+  scope without Ali's go-ahead). The 3 remaining §6 open items are now: dev_tasks note
+  column (schema), Telegram voice→spark (deferred — idea §6 protocol), back-to-work
+  recap (deferred). Semantic find stages 1–2 (idea §6) also deferred.

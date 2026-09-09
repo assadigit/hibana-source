@@ -106,7 +106,7 @@
 // v240 (2026-09): experimental auto-polish + custom AI prompt in Settings.
 // v239 (2026-09): Magic Button (Mistral default) + hover ⋯ menu on notes + modal editor.
 // Drops the v238 precache so every browser sees the new dashboard.html + dist bundles.
-const VERSION = "hibana-v277"
+const VERSION = "hibana-v278"
 
 // Static shell: unhashed pages/partials/icons/vendor/fonts (SWR or network-first at
 // runtime; precached here for offline). The hashed app bundles come from the manifest
@@ -135,6 +135,7 @@ const SHELL = [
   '/sprint.html',
   '/admin.html',
   '/404.html',
+  '/clip.html', // Session 19 cron round 2: web-clipper popup (offline-safe)
   '/partials/nav.html',
   '/manifest.webmanifest',
   '/icon.svg',

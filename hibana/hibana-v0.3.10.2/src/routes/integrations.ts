@@ -179,8 +179,8 @@ function cancelKeyboard(lang: Lang): ReplyMarkup {
 function helpText(lang: Lang): string {
   return t(
     lang,
-    '🤖 Hibana bot — tap a button or send:\n\n/idea <text> — save a new Idea\n/note <text> — add a Quick Note\n/list — collect a list (/done saves, /cancel stops)\n/append <project> <text> — append to a project\n/status — open tasks + deadlines\n/pause · /resume — reminders\n/reset — password reset link\n/language — change language\n/menu — home',
-    '🤖 ربات هیبانا — دکمه بزن یا بفرست:\n\n/idea <متن> — ذخیرهٔ ایده\n/note <متن> — یادداشت سریع\n/list — جمع‌آوری فهرست (/done ذخیره، /cancel لغو)\n/append <پروژه> <متن> — افزودن به پروژه\n/status — کارها و مهلت‌ها\n/pause · /resume — یادآوری‌ها\n/reset — بازنشانی رمز\n/language — تغییر زبان\n/menu — خانه',
+    '🤖 Hibana bot — tap a button or send:\n\n/idea <text> — save a new Idea\n/note <text> — add a Quick Note\n/list — collect a list (/done saves, /cancel stops)\n/append <project> <text> — append to a project\n/update <project> <stage> — move a project to a new stage\n/status — open tasks + deadlines\n/pause · /resume — reminders\n/reset — password reset link\n/language — change language\n/menu — home',
+    '🤖 ربات هیبانا — دکمه بزن یا بفرست:\n\n/idea <متن> — ذخیرهٔ ایده\n/note <متن> — یادداشت سریع\n/list — جمع‌آوری فهرست (/done ذخیره، /cancel لغو)\n/append <پروژه> <متن> — افزودن به پروژه\n/update <پروژه> <مرحله> — انتقال پروژه به مرحلهٔ جدید\n/status — کارها و مهلت‌ها\n/pause · /resume — یادآوری‌ها\n/reset — بازنشانی رمز\n/language — تغییر زبان\n/menu — خانه',
   )
 }
 function helpKeyboard(lang: Lang): ReplyMarkup {
@@ -653,6 +653,102 @@ export function registerTelegram(app: Hono<{ Variables: { user: UserRow } }>, cf
       } catch { /* history is best-effort — the latest_note write is the source of truth */ }
       const preview = appendText.length > 120 ? appendText.slice(0, 117) + '…' : appendText
       await sendTelegramMessage(token, chatId, `📎 Appended to <b>${esc(project.title)}</b>:\n\n${esc(preview)}\n\n<a href="${origin}/project.html?id=${project.id}">Open it in Hibana →</a>`, 'HTML')
+      return c.json({ ok: true })
+    }
+
+    // /update <project> <stage> — move a project to a new stage from Telegram (Changelogs
+    // §6 open item, Session 19 cron round 2). Same project resolution as /append (id OR
+    // title-prefix, user-scoped, not deleted). The stage accepts: the stage key
+    // (unreviewed/investigating/awaiting/doing/halted/operational — spark is excluded: a
+    // spark is an idea, not a stage you move INTO from here), the EN label, or the FA
+    // label. Case-insensitive. Stage labels can be multi-word (FA: «در حال انجام», EN:
+    // "In Progress"), so we match a known stage label at the END of the input; the project
+    // is everything before it. Logs to project_history_log so the activity feed shows it.
+    const updateMatch = text.match(/^\/update\b\s+([\s\S]+)/i)
+    if (updateMatch) {
+      const rest = updateMatch[1].trim()
+      // Build a (label → status) map. Multi-word labels first so they win over single-word
+      // stage keys when both could match (e.g. "در حال انجام" before "doing").
+      const STAGE_MAP: [string, ProjectRow['status']][] = [
+        ['awaiting execution', 'awaiting'],
+        ['in progress', 'doing'],
+        ['development stopped', 'halted'],
+        ['در حال انجام', 'doing'],
+        ['در حال تحقیق', 'investigating'],
+        ['در انتظار اقدام', 'awaiting'],
+        ['توقف توسعه', 'halted'],
+        ['بررسی نشده', 'unreviewed'],
+        ['unreviewed', 'unreviewed'],
+        ['investigating', 'investigating'],
+        ['awaiting', 'awaiting'],
+        ['doing', 'doing'],
+        ['halted', 'halted'],
+        ['operational', 'operational'],
+        ['idea', 'spark'],
+        ['spark', 'spark'],
+        ['عملیاتی', 'operational'],
+        ['ایده', 'spark'],
+      ]
+      let newStatus: ProjectRow['status'] | null = null
+      let projectArg = ''
+      for (const [label, status] of STAGE_MAP) {
+        // Match the label at the END of the input (case-insensitive for ASCII; FA is
+        // already the exact case). word-boundary-safe via the leading \s.
+        const re = new RegExp(`\\s${label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*$`, 'i')
+        const m = rest.match(re)
+        if (m) {
+          newStatus = status
+          projectArg = rest.slice(0, m.index).trim()
+          break
+        }
+      }
+      if (!newStatus) {
+        // No recognized stage → either no stage at all, or an unknown one.
+        if (rest.indexOf(' ') === -1) {
+          await sendTelegramMessage(token, chatId, 'Usage: /update <project-title-or-id> <stage>\n\nStages: unreviewed, investigating, awaiting, doing, halted, operational\n(e.g. /update star map doing)')
+        } else {
+          await sendTelegramMessage(token, chatId, `Unknown stage. Valid stages:\n\nunreviewed · investigating · awaiting · doing · halted · operational\n\n(spark/idea can't be set from here — promote an idea from the Ideas page instead.)`)
+        }
+        return c.json({ ok: true })
+      }
+      if (newStatus === 'spark') {
+        await sendTelegramMessage(token, chatId, "spark/idea can't be set from here — promote an idea from the Ideas page instead.")
+        return c.json({ ok: true })
+      }
+      if (!projectArg) {
+        await sendTelegramMessage(token, chatId, 'Usage: /update <project-title-or-id> <stage>\n\nStages: unreviewed, investigating, awaiting, doing, halted, operational\n(e.g. /update star map doing)')
+        return c.json({ ok: true })
+      }
+      // Resolve the project (id first, then title prefix — same as /append).
+      let project: ProjectRow | null = null
+      if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(projectArg)) {
+        const rows = await cfg.db.query<ProjectRow>('SELECT * FROM projects WHERE id = ? AND user_id = ? AND deleted_at IS NULL', [projectArg, userId])
+        project = rows[0] ?? null
+      }
+      if (!project) {
+        const rows = await cfg.db.query<ProjectRow>(
+          'SELECT * FROM projects WHERE user_id = ? AND deleted_at IS NULL AND LOWER(title) LIKE ? ORDER BY updated_at DESC LIMIT 1',
+          [userId, projectArg.toLowerCase() + '%'],
+        )
+        project = rows[0] ?? null
+      }
+      if (!project) {
+        await sendTelegramMessage(token, chatId, `No project found matching "${esc(projectArg)}". Send /status to see your open tasks, or open Hibana → Projects.`)
+        return c.json({ ok: true })
+      }
+      if (project.status === newStatus) {
+        await sendTelegramMessage(token, chatId, `${esc(project.title)} is already at "${newStatus}".`)
+        return c.json({ ok: true })
+      }
+      const now = new Date().toISOString()
+      await cfg.db.execute('UPDATE projects SET status = ?, archived_state = NULL, updated_at = ? WHERE id = ? AND user_id = ?', [newStatus, now, project.id, userId])
+      try {
+        await cfg.db.execute(
+          'INSERT INTO project_history_log (id, project_id, note, created_at) VALUES (?, ?, ?, ?)',
+          [uuid(), project.id, `Status → ${newStatus} (from Telegram)`, now],
+        )
+      } catch { /* history is best-effort — the status write is the source of truth */ }
+      await sendTelegramMessage(token, chatId, `✅ ${t(lang, 'Stage updated', 'مرحله به‌روز شد')}: <b>${esc(project.title)}</b>\n\n${esc(project.status)} → <b>${esc(newStatus)}</b>\n\n<a href="${origin}/project.html?id=${project.id}">${t(lang, 'Open it in Hibana', 'در هیبانا باز کن')} →</a>`, 'HTML')
       return c.json({ ok: true })
     }
 

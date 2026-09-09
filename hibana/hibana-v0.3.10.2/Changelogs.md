@@ -9,7 +9,15 @@
 > rewritten as a minimal pointer. Deleted files remain recoverable verbatim:
 > `git show <sha>:<file>`.
 
-## 1. Current state (v0.3.11.0 — Session 19: ICS export + Telegram /update + web-clipper + resume work + OTP + Farsi digits + UI polish)
+## 1. Current state (v0.3.11.1 — Session 19: ICS export + Telegram /update + web-clipper + resume work + OTP + Farsi digits + dark mode polish + board UX + UI fixes)
+- v0.3.11.1 = **Session 19 hotfix release** — all v0.3.11.0 features + fixes from Ali's
+  direct feedback: stat-carousel arrows flank the strip (HTML restructure), sticky-note
+  shadow spread reduced, dark mode flat card fills (no gradient), muted dark-mode kanban/
+  pd-col/sticky-note colors, button hover text white (primary) / dark (ghost/btn), board
+  shows 5 items per column (was 3), "بیشتر" expands inline (no board.html redirect), task
+  cards click-to-edit inline (no navigation), project logo delete, note-clear persistence
+  fix, unlimited task titles (300→2000) with read-more, Farsi numerals on typing (all text
+  fields + Fabric canvas/whiteboard text:changed), text width resize now reflows.
 - v0.3.11.0 = **Session 19 release** — 3 of 4 Changelogs §6 open items shipped (ICS calendar
   export, Telegram /update, web-clipper bookmarklet). Plus: "Resume work" dashboard card
   (Mission #2), segmented 4-digit OTP input on email-confirm, password visibility toggle on

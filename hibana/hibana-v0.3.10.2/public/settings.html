@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Settings — Hibana</title>
-  <link rel="stylesheet" href="/css/app.css?v=235">
+  <link rel="stylesheet" href="/css/app.css?v=236">
   <link rel="stylesheet" href="/vendor/manrope/font-face.css">
   <script src="/vendor/htmx.min.js" defer></script>
   <script src="/js/boot.js?v=4"></script>
@@ -19,7 +19,7 @@
   <script src="/js/micro-interactions.js?v=1" defer></script>
   <script src="/js/go-to.js?v=1" defer></script>
   <script src="/js/install-prompt.js?v=1" defer></script>
-  <script src="/js/i18n.js?v=46" defer></script>
+  <script src="/js/i18n.js?v=47" defer></script>
 </head>
 <body>
   <a href="#main" class="skip-link" data-i18n="a11y.skipToMain">Skip to main content</a>
@@ -261,8 +261,14 @@
              import above. A zip of .md files, one folder per app part, importable into a
              fresh Obsidian vault as-is. Plain <a download> like its siblings: no JS path. -->
         <a class="btn" href="/api/export/obsidian.zip" download><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M21 8v13H3V8M1 3h22v5H1zM10 12h4"/></svg> <span data-i18n="settings.obsidianExport">Obsidian export (.md vault, zipped)</span></a>
+        <!-- Session 19 (cron round 1): one-way ICS calendar export (Changelogs §6 High open item).
+             A subscribable .ics feed of all dated items (projects + tasks + to-dos + day-notes)
+             for the next 6 months. Import into Apple/Google Calendar, or host the URL for
+             periodic re-fetch. Plain <a download> — same pattern as the other exports. -->
+        <a class="btn" href="/api/export/calendar.ics" download><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="5" width="17" height="16" rx="2"/><path d="M3.5 9.5h17M8 3v4M16 3v4"/></svg> <span data-i18n="settings.icsExport">Calendar export (.ics, subscribable)</span></a>
       </div>
       <p class="muted small" data-i18n="settings.obsidianExportHint">A zip of .md files — one folder per part (quick notes, projects, ideas, to-do board…). Unzip into a new Obsidian vault, or re-import here; titles you already have are skipped.</p>
+      <p class="muted small" data-i18n="settings.icsExportHint">A .ics file of everything dated in the next 6 months — projects, tasks, to-dos, day-notes. Import it into Apple Calendar, Google Calendar, or Outlook. Re-export whenever you want a fresh copy.</p>
     </section>
 
     <!-- Owner tools (batch r) — hidden until app.js resolves role=owner; the API is the

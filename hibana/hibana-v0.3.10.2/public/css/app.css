@@ -461,6 +461,13 @@ input, textarea, select {
   background: var(--bg);
   color: var(--text);
 }
+/* Session 19: password fields read as disabled at the default hairline border weight —
+   bump to --line-strong + a faint surface tint so they're visibly editable. */
+input[type="password"], input[type="text"][name*="password" i] {
+  border-color: var(--line-strong);
+  background: var(--card);
+}
+input[type="password"]:hover { border-color: var(--text-dim, var(--muted)); }
 input:hover, textarea:hover, select:hover { border-color: var(--line-strong); }
 textarea { width: 100%; resize: vertical; }
 
@@ -479,7 +486,8 @@ button:hover { background: var(--cta-hover, var(--accent-hover)); }
 button:active { background: var(--cta-hover, var(--accent-hover)); }
 button:disabled { opacity: 0.5; cursor: not-allowed; }
 
-button.ghost {
+button.ghost,
+a.ghost {
   background: transparent;
   /* F14 (session 9): text-link teal. --accent as TEXT was 2.94:1 on white (AA fail for
      the 12–16px labels); --link is the text-safe shade of the same teal (5.45 on bg,
@@ -487,7 +495,23 @@ button.ghost {
   color: var(--link);
   border: 1px solid var(--line);
 }
-button.ghost:hover { background: var(--bg-soft); border-color: var(--line-strong); }
+button.ghost:hover,
+a.ghost:hover { background: var(--bg-soft); border-color: var(--line-strong); }
+/* Session 19: an <a class="ghost"> (e.g. the calendar Export .ics link) has no <button>
+   base styles to inherit, so it needs an explicit box model to align with sibling
+   ghost buttons in a .row. button.ghost keeps inheriting from the global button {} rule. */
+a.ghost {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  padding: 0.55rem 0.75rem;
+  border-radius: var(--radius-sm);
+  font: inherit;
+  text-decoration: none;
+  white-space: nowrap;
+  cursor: pointer;
+}
 button.ghost.danger {
   color: var(--danger);
   background: var(--danger-soft);
@@ -7629,8 +7653,15 @@ main.shell.adm-shell { max-inline-size: 56rem; }
   overflow-y: auto;
 }
 .adm-list li {
-  padding: 0.35rem 0.1rem;
+  padding: 0.5rem 0.6rem;
   border-block-end: 1px dashed var(--line);
+  border-inline-start: 3px solid transparent;
+  border-radius: var(--radius-sm);
+  transition: background 0.12s, border-color 0.12s;
+}
+.adm-list li:hover {
+  background: var(--bg-soft);
+  border-inline-start-color: var(--accent);
 }
 
 /* Users tab */

@@ -252,3 +252,66 @@ Stage Summary:
   FAB/quick-notebook button micro-alignment; admin Recent-signups row styling; calendar
   weekend contrast; deploy to dev/prod (out of scope without Ali's explicit go-ahead);
   feature additions from Changelogs §6 (ICS export is the highest-value next feature).
+
+---
+Task ID: session-19-cron-r1
+Agent: Z.ai Code (principal) — recurring webDevReview cron (id=371903)
+Task: QA + ship the highest-value open item (ICS calendar export) + styling polish
+
+Work Log:
+- Baseline: tsc green; vitest 268/268. Focused QA on calendar + settings (pages I'd touch).
+- SHIPPED FEATURE — ICS calendar export (Changelogs §6, High open item):
+  - New pure service `src/services/ics-export.ts`: `buildIcs(events)` (RFC 5545 emitter —
+    VCALENDAR/VERSION/PRODID/CALSCALE/X-WR-CALNAME, all-day VEVENTs with DTSTART;VALUE=DATE,
+    stable UIDs `hibana-<kind>-<id>@hibana.ir`, TEXT escaping for `\,;\n\\`, 75-octet line
+    folding with CRLF+space continuation, CRLF line terminators) + `loadIcsEvents(db,
+    userId, monthsAhead)` (user-scoped DB loader pulling the same 4 sources as /api/calendar:
+    projects + tasks + sadhana + day-notes; forward window default 6 months, clamped 1..24;
+    skips soft-deleted + undated rows; stable sort by date→summary).
+  - New route `GET /api/export/calendar.ics` in `routes/export.ts` (auth + rate-limit +
+    `?months=N` query; returns `text/calendar` with `Content-Disposition: attachment;
+    filename="hibana-calendar-<date>.ics"` + `X-Hibana-Events` count header).
+  - UI: "Export .ics" ghost link in the calendar action bar (next to Today/Next week/Next
+    month) + "Calendar export (.ics, subscribable)" button in Settings → Data tab (next to
+    the Obsidian export). Both are plain `<a download>` — no JS path, same pattern as the
+    other exports.
+  - i18n: 3 new keys (settings.icsExport, settings.icsExportHint, calendar.exportIcs) in
+    EN + FA. Key parity verified (each appears exactly twice).
+  - Tests: 11 new cases in `src/tests/ics-export.test.ts` — buildIcs (VCALENDAR shape,
+    TEXT escaping, line folding ≤75 octets, invalid-date skip, CRLF terminators) +
+    loadIcsEvents (user-scoping, soft-delete skip, window bounds) + route (401 without
+    session, 200 + text/calendar + VCALENDAR body when authed, months param honored).
+- STYLING POLISH (mandatory):
+  - `input[type="password"]`: stronger border (--line-strong) + --card bg so password
+    fields read as editable, not disabled (VLM-flagged in session 19 batch 1).
+  - `.adm-list li` (admin recent-signups + user lists): padding 0.35→0.5rem, left-border
+    accent on hover + bg-soft hover bg — reads as structured rows, not floating text.
+  - `a.ghost` box model: the calendar "Export .ics" `<a class="ghost">` was unstyled (only
+    `button.ghost` had the ghost rule) → vertical misalignment vs sibling buttons. Added
+    an explicit `a.ghost` rule (inline-flex, padding 0.55rem 0.75rem, border-radius,
+    text-decoration:none, cursor:pointer) so `<a class="ghost">` matches `<button
+    class="ghost">` height. Verified via getBoundingClientRect: all cal-controls now at
+    top=107 height=44 (was misaligned before). button.ghost unchanged (still inherits
+    from global button {}).
+- Cache-bust (load-bearing): app.css 235→236 on all 22 pages; i18n.js 46→47 on all 21
+  pages. SW hibana-v277 unchanged (no sw.js logic change).
+- Verification: tsc green; vitest 279/279 (36 files, +11 new); agent-browser live QA —
+  ICS endpoint returns HTTP 200 text/calendar with a valid VCALENDAR + 1 VEVENT for the
+  seeded test project (UID/DTSTAMP/DTSTART/SUMMARY/DESCRIPTION/URL all correct);
+  "Export .ics" button renders on calendar; "Calendar export (.ics, subscribable)"
+  renders on settings; FA i18n keys present (parity 2/2 each); calendar alignment fix
+  verified (all action-bar controls at top=107 height=44).
+
+Stage Summary:
+- Feature shipped: one-way ICS calendar export (the #1 High open item from Changelogs §6).
+  Auth-gated, user-scoped, RFC 5545-compliant, subscribable. Zero DB changes (pure read
+  aggregation). 11 new tests pin the contract.
+- Polish shipped: password-field contrast, admin list-row styling, a.ghost box-model
+  alignment.
+- Assets: app.css v236, i18n.js v47, admin.js v3 (all consistent). SW v277.
+- Tests 279/279 (+11), typecheck green.
+- Next-phase priorities (for the next cron round): Telegram /update command (Changelogs
+  §6), dev_tasks note column (needs schema migration → Ali's written approval per
+  Agents.md rule 4), web-clipper bookmarklet, dashboard FAB/quick-notebook micro-
+  alignment, calendar weekend contrast polish, Magic Button FA-quality review (deploy-
+  time gate, needs env.AI). Deploy to dev/prod remains out of scope without Ali's go-ahead.

@@ -3,6 +3,7 @@ import { zipSync, strToU8 } from 'fflate'
 import { requireAuth } from '../auth/middleware'
 import { buildUserSnapshot } from '../services/backup'
 import { buildObsidianVault } from '../services/obsidian-export'
+import { buildIcs, loadIcsEvents } from '../services/ics-export'
 import { clientIp, hitRateLimit, RATE_RULES } from '../services/ratelimit'
 import { timeAgo, STATUS_LABEL } from '../lib/html'
 import type { Config, ProjectRow, TagRow, UserRow } from '../types'
@@ -130,6 +131,30 @@ export function exportRoutes(cfg: Config) {
       headers: {
         'Content-Type': 'application/json; charset=utf-8',
         'Content-Disposition': 'attachment; filename="hibana-export.json"',
+      },
+    })
+  })
+
+  // Session 19 (cron round 1): ICS calendar export — a subscribable .ics feed of all dated
+  // items (projects + tasks + sadhana + day-notes) for the next N months. Open item from
+  // Changelogs §6 (High). Zero DB changes; pure read aggregation. The feed URL is the same
+  // auth-gated GET, so calendar apps that support authenticated subscriptions work; for
+  // Apple Calendar / Google Calendar import the user downloads the file once.
+  app.get('/calendar.ics', async (c) => {
+    const user = c.get('user')
+    if (await hitRateLimit(cfg.db, RATE_RULES.export, clientIp(c))) {
+      return c.json({ error: 'rate_limited' }, 429)
+    }
+    const monthsQ = Number(c.req.query('months') ?? 6)
+    const months = Number.isFinite(monthsQ) ? monthsQ : 6
+    const events = await loadIcsEvents(cfg.db, user.id, months)
+    const ics = buildIcs(events)
+    const day = new Date().toISOString().slice(0, 10)
+    return new Response(ics, {
+      headers: {
+        'Content-Type': 'text/calendar; charset=utf-8',
+        'Content-Disposition': `attachment; filename="hibana-calendar-${day}.ics"`,
+        'X-Hibana-Events': String(events.length),
       },
     })
   })

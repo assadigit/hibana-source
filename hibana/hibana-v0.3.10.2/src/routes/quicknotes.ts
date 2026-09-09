@@ -162,6 +162,7 @@ function noteCard(n: QuickNote, lang: Locale, titles: Map<string, string>): stri
   const t = (en: string, fa?: string) => trL(lang, en, fa)
   const attach = attachWidget(n, titles, lang)
   const color = `--note-color:${esc(NOTE_COLOR_HEX[n.color as NoteColor] ?? NOTE_COLOR_HEX.yellow)}`
+  const colorAttr = `data-note-color="${esc(n.color ?? 'yellow')}"`
   const doneBtn = (pid: string | null) =>
     pid && titles.has(pid)
       ? `<button class="ghost icon-btn note-done-btn" data-note-done="${n.id}" aria-pressed="${n.done === 1}" aria-label="${t('Mark done', 'انجام‌شده علامت بزن')}" title="${t('Mark done — stays on the project record', 'انجام‌شده — در پروژه می‌ماند')}">${icon(n.done === 1 ? 'check' : 'unchecked')}</button>`
@@ -173,7 +174,7 @@ function noteCard(n: QuickNote, lang: Locale, titles: Map<string, string>): stri
   const doneCls = n.done === 1 ? ' is-note-done' : ''
   if (n.kind === 'note') {
     const content = decodeEntities(n.content)
-    return `<div class="note-card${doneCls}" id="note-${n.id}" data-kind="note" style="${color}">
+    return `<div class="note-card${doneCls}" id="note-${n.id}" data-kind="note" ${colorAttr} style="${color}">
       ${headbar(n.project_id)}
       <textarea class="note-text" name="content" rows="1" maxlength="20000" dir="auto"
         hx-patch="/api/notes/${n.id}" hx-trigger="change" hx-target="#notebook" hx-swap="outerHTML">${esc(content)}</textarea>
@@ -192,7 +193,7 @@ function noteCard(n: QuickNote, lang: Locale, titles: Map<string, string>): stri
     </div>`
   }
   const items = parseItems(n.content)
-  return `<div class="note-card${doneCls}" id="note-${n.id}" data-kind="list" style="${color}">
+  return `<div class="note-card${doneCls}" id="note-${n.id}" data-kind="list" ${colorAttr} style="${color}">
     ${headbar(n.project_id)}
     <div class="row spread note-head">
       <span class="row note-head-main">

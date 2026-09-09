@@ -197,13 +197,15 @@ main.shell:focus {
     --badge-halted-bg: #3C231B;        --badge-halted-fg: #E89B85;
     --badge-operational-bg: #1F3727;  --badge-operational-fg: #90D598;
     /* kanban card tints — session 12: dark siblings with visible hue + a stronger
-       matching border (the old grey-on-grey fills read as one neutral). */
-    --kanban-unreviewed-bg: #24303E;    --kanban-unreviewed-line: rgba(168, 196, 232, 0.32);
-    --kanban-investigating-bg: #2C2744; --kanban-investigating-line: rgba(195, 180, 245, 0.32);
-    --kanban-awaiting-bg: #3A3110;      --kanban-awaiting-line: rgba(229, 195, 104, 0.34);
-    --kanban-doing-bg: #1B332E;         --kanban-doing-line: rgba(122, 210, 196, 0.34);
-    --kanban-halted-bg: #3C231B;        --kanban-halted-line: rgba(232, 155, 133, 0.32);
-    --kanban-operational-bg: #1F3727;  --kanban-operational-line: rgba(144, 213, 152, 0.34);
+       matching border (the old grey-on-grey fills read as one neutral).
+       Session 19 (user request): MUTED — darker + desaturated so the dark mode board
+       doesn't have too much visual noise. Was brighter tints that were distracting. */
+    --kanban-unreviewed-bg: #1E2832;    --kanban-unreviewed-line: rgba(168, 196, 232, 0.18);
+    --kanban-investigating-bg: #221F38; --kanban-investigating-line: rgba(195, 180, 245, 0.18);
+    --kanban-awaiting-bg: #2D2810;      --kanban-awaiting-line: rgba(229, 195, 104, 0.20);
+    --kanban-doing-bg: #163028;         --kanban-doing-line: rgba(122, 210, 196, 0.20);
+    --kanban-halted-bg: #2E1F18;        --kanban-halted-line: rgba(232, 155, 133, 0.18);
+    --kanban-operational-bg: #182E1F;  --kanban-operational-line: rgba(144, 213, 152, 0.20);
     /* deeper status dots — the bright pastel foregrounds glare on dark surfaces (user request) */
   --dot-spark: #7fa3c4; --dot-pending: #e4c17e; --dot-building: #7fc4bc;
   --color-primary-strong: #7fc4bc;  /* dark-theme text shade of primary: 8.08:1 on #212120 */
@@ -3338,6 +3340,27 @@ cite { font-style: normal; }
 .note-color-picker .dot-green { background: #bbf7d0; }
 .note-color-picker .dot-pink { background: #fbcfe8; }
 .note-color-picker .dot-blue { background: #bfdbfe; }
+/* Session 19 (user request): softer + darker sticky notes in dark mode. The bright
+   pastels (#FFF59D etc.) glare on the dark base. Muted darker tones reduce visual
+   noise. Uses data-note-color attr (set by the route) to target each color. */
+html[data-theme='dark'] .note-card[data-note-color='yellow'] { background: #4A4438 !important; }
+html[data-theme='dark'] .note-card[data-note-color='green'] { background: #384338 !important; }
+html[data-theme='dark'] .note-card[data-note-color='pink'] { background: #433840 !important; }
+html[data-theme='dark'] .note-card[data-note-color='blue'] { background: #384048 !important; }
+html[data-theme='dark'] .note-color-picker .dot-yellow { background: #4A4438; }
+html[data-theme='dark'] .note-color-picker .dot-green { background: #384338; }
+html[data-theme='dark'] .note-color-picker .dot-pink { background: #433840; }
+html[data-theme='dark'] .note-color-picker .dot-blue { background: #384048; }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) .note-card[data-note-color='yellow'] { background: #4A4438; }
+  :root:not([data-theme='light']) .note-card[data-note-color='green'] { background: #384338; }
+  :root:not([data-theme='light']) .note-card[data-note-color='pink'] { background: #433840; }
+  :root:not([data-theme='light']) .note-card[data-note-color='blue'] { background: #384048; }
+  :root:not([data-theme='light']) .note-color-picker .dot-yellow { background: #4A4438; }
+  :root:not([data-theme='light']) .note-color-picker .dot-green { background: #384338; }
+  :root:not([data-theme='light']) .note-color-picker .dot-pink { background: #433840; }
+  :root:not([data-theme='light']) .note-color-picker .dot-blue { background: #384048; }
+}
 #notebook #nv-list:checked ~ .note-list .note-color-picker { display: none; }
 #notebook #nv-grid:checked ~ .note-list .note-color-picker { display: none; }
 /* Grid view (2026-08-26 user request): a compact 3×3-maximum grid of square sticky
@@ -5862,11 +5885,11 @@ body.zen-mode .zen-exit { display: inline-flex; animation: zen-exit-in 0.3s ease
 }
 html[data-theme="dark"] .card,
 :root:not([data-theme="light"]) .card {
-  background: linear-gradient(to bottom, color-mix(in srgb, var(--card) 94%, #fff 6%), var(--card));
+  background: var(--card); /* Session 19 (user request): FLAT — was linear-gradient with a #fff 6% highlight. The gradient adds visual noise in dark mode. Flat solid fill. */
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme]) .card {
-    background: linear-gradient(to bottom, color-mix(in srgb, var(--card) 94%, #fff 6%), var(--card));
+    background: var(--card); /* Session 19: FLAT — was gradient. */
   }
 }
 
@@ -6950,17 +6973,17 @@ html[data-theme="dark"] .heatmap-l4,
 /* cross-box drop target: a faint stage tint + stronger edge, only while dragging */
 .pd-col.drag-over { border-color: rgb(var(--pd-c) / 0.7); background: rgb(var(--pd-c) / 0.08); }
 /* dark theme — lighter inks + softened borders (same recipe as the dark badges) */
-html[data-theme='dark'] .pd-col[data-status='idea']        { --pd-c: 128 155 186; --pd-ink: #93aed0; }
-html[data-theme='dark'] .pd-col[data-status='planned']     { --pd-c: 168 173 180; --pd-ink: #c2c8cf; }
-html[data-theme='dark'] .pd-col[data-status='in_progress'] { --pd-c: 212 170 128; --pd-ink: #e0b789; }
-html[data-theme='dark'] .pd-col[data-status='done']        { --pd-c: 148 197 162; --pd-ink: #9bd0a8; }
-html[data-theme='dark'] .pd-col[data-status='bug']         { --pd-c: 214 158 170; --pd-ink: #e4b2bd; }
+html[data-theme='dark'] .pd-col[data-status='idea']        { --pd-c: 80 100 128; --pd-ink: #7B9AB8; } /* Session 19: muted — was 128 155 186 (brighter) */
+html[data-theme='dark'] .pd-col[data-status='planned']     { --pd-c: 110 115 122; --pd-ink: #A0A8B0; }
+html[data-theme='dark'] .pd-col[data-status='in_progress'] { --pd-c: 150 120 85; --pd-ink: #C49A6E; }
+html[data-theme='dark'] .pd-col[data-status='done']        { --pd-c: 100 145 115; --pd-ink: #7BAA8E; }
+html[data-theme='dark'] .pd-col[data-status='bug']         { --pd-c: 150 110 120; --pd-ink: #C098A0; }
 @media (prefers-color-scheme: dark) {
-  html:not([data-theme='light']) .pd-col[data-status='idea']        { --pd-c: 128 155 186; --pd-ink: #93aed0; }
-  html:not([data-theme='light']) .pd-col[data-status='planned']     { --pd-c: 168 173 180; --pd-ink: #c2c8cf; }
-  html:not([data-theme='light']) .pd-col[data-status='in_progress'] { --pd-c: 212 170 128; --pd-ink: #e0b789; }
-  html:not([data-theme='light']) .pd-col[data-status='done']        { --pd-c: 148 197 162; --pd-ink: #9bd0a8; }
-  html:not([data-theme='light']) .pd-col[data-status='bug']         { --pd-c: 214 158 170; --pd-ink: #e4b2bd; }
+  html:not([data-theme='light']) .pd-col[data-status='idea']        { --pd-c: 80 100 128; --pd-ink: #7B9AB8; }
+  html:not([data-theme='light']) .pd-col[data-status='planned']     { --pd-c: 110 115 122; --pd-ink: #A0A8B0; }
+  html:not([data-theme='light']) .pd-col[data-status='in_progress'] { --pd-c: 150 120 85; --pd-ink: #C49A6E; }
+  html:not([data-theme='light']) .pd-col[data-status='done']        { --pd-c: 100 145 115; --pd-ink: #7BAA8E; }
+  html:not([data-theme='light']) .pd-col[data-status='bug']         { --pd-c: 150 110 120; --pd-ink: #C098A0; }
 }
 .pd-col-title { font-size: var(--fs-sm); font-weight: 600; color: var(--pd-ink, var(--muted)); display: inline-flex; align-items: center; gap: 0.35rem; }
 .pd-col-title::before {

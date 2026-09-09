@@ -88,7 +88,12 @@ try {
 
   const listFrag = await app.fetch(new Request('http://local/api/projects?status=spark', { headers: { ...auth, 'HX-Request': 'true' } }))
   const fragText = await listFrag.text()
-  check('htmx fragment renders the card (single-origin HX branching, Q1-A)', listFrag.status === 200 && fragText.includes('Star Map MVP'))
+  // Session 18 redesigned the Ideas page as a folder grid (file-manager view): the bare
+  // ?status=spark fragment renders folders + an "All ideas" card whose count reflects
+  // the ideas — NOT the flat card list (that renders when a folder or folder=all is
+  // picked). Session 20: updated the stale expectation (was: includes 'Star Map MVP').
+  const fragShowsIdeaCount = listFrag.status === 200 && fragText.includes('spark-folder-grid') && /All ideas[^]*?1 idea/.test(fragText)
+  check('htmx fragment renders the ideas folder grid with the created idea counted (Q1-A + session 18)', fragShowsIdeaCount)
 
   // hurdles drive the progress bar
   await app.fetch(new Request(`http://local/api/projects/${id}/hurdles`, { method: 'POST', headers: auth, body: JSON.stringify({ text: 'Source images' }) }))

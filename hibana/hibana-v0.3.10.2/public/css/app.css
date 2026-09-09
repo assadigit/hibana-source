@@ -22,7 +22,9 @@
   left: 1rem;
   z-index: 9999;
   padding: 0.5rem 1rem;
-  background: var(--accent, #0d9488);
+  /* Session 20 (AA): white on --accent was 3.1:1 — the skip link is a real text control
+     that keyboard users must read instantly; --cta keeps it teal at 4.93:1. */
+  background: var(--cta, #0d9488);
   color: #fff;
   border-radius: 0 0 8px 8px;
   font-size: 0.875rem;
@@ -674,7 +676,10 @@ button.active { background: var(--accent-soft); }
   width: 1.9rem;
   height: 1.9rem;
   border-radius: 50%;
-  background: var(--accent);
+  /* Session 20 (AA): the initial is real text — white on --accent #4A9FA3 was 3.1:1.
+     --cta is the design system's white-text fill (4.93:1) per the "CTA fills sit one
+     shade deeper" rule; the avatar is an identity mark, so it stays teal, just deeper. */
+  background: var(--cta);
   color: var(--btn-text);
   font-size: var(--fs-sm);
   font-weight: 700;
@@ -861,6 +866,12 @@ button.active { background: var(--accent-soft); }
 }
 .project-card { display: grid; gap: 0.6rem; margin: 0; }
 .project-card:hover { background: var(--bg); }
+/* Session 20 (390px sweep): the clients page's add-task / add-payment forms inside
+   <details> kept their inputs' intrinsic ~217px width in one non-wrapping row — the
+   Amount field bled 83px off-canvas on phones. Wrap + let inputs shrink/grow. */
+.project-card details > form.row { flex-wrap: wrap; row-gap: 0.4rem; }
+.project-card details > form.row > input { min-inline-size: 0; flex: 1 1 8.5rem; }
+.project-card details > form.row > input[type='number'] { flex: 0 1 7rem; }
 
 /* P-signals: notification-style icon+count chips on project rows (user request 2026-09-02).
    Shown on dashboard kanban cards + projects page cards/list/kanban. Only non-zero signals
@@ -882,9 +893,9 @@ button.active { background: var(--accent-soft); }
   vertical-align: middle; margin-inline-start: 0.35rem;
   flex-shrink: 0;
 }
-html[data-theme='dark'] .bug-bubble { background: #ef4444; box-shadow: 0 1px 6px rgb(239 68 68 / 0.4); }
+html[data-theme='dark'] .bug-bubble { background: #c81e1e; box-shadow: 0 1px 6px rgb(200 30 30 / 0.4); } /* Session 20 (AA): #ef4444 with white text was 3.8:1 — #c81e1e is 5.4:1, still a hot red */
 @media (prefers-color-scheme: dark) {
-  :root:not([data-theme='light']) .bug-bubble { background: #ef4444; box-shadow: 0 1px 6px rgb(239 68 68 / 0.4); }
+  :root:not([data-theme='light']) .bug-bubble { background: #c81e1e; box-shadow: 0 1px 6px rgb(200 30 30 / 0.4); }
 }
 
 .project-signals { display: inline-flex; align-items: center; gap: 0.3rem; flex-wrap: wrap; flex-shrink: 0; }
@@ -1502,14 +1513,16 @@ main.shell-dash > section { margin-block-end: 2.9rem; }
   place-items: center;
   width: 2.5rem; height: 2.5rem;
   border-radius: 50%;
-  background: var(--accent);
+  /* Session 20 (AA): icon on --accent was 3.1:1 (icons need 3:1, but the whole card
+     reads better at the deeper CTA fill next to the --link label). */
+  background: var(--cta);
   color: var(--btn-text);
 }
 .dash-resume-glyph .icon { width: 1.25rem; height: 1.25rem; }
 .dash-resume-body { display: flex; flex-direction: column; gap: 0.1rem; min-inline-size: 0; flex: 1; }
-.dash-resume-label { font-size: var(--fs-xs); font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; color: var(--accent); opacity: 0.85; }
+.dash-resume-label { font-size: var(--fs-xs); font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; color: var(--link); opacity: 0.95; } /* Session 20 (AA): --accent text on white was 3.1:1 — --link is the text-safe teal (4.9:1+) */
 .dash-resume-title { font-size: var(--fs-lg); font-weight: 600; color: var(--text); text-decoration: none; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.dash-resume-title:hover { color: var(--brand); }
+.dash-resume-title:hover { color: var(--link); } /* Session 20 (AA): hover text must meet the same 4.5:1 bar */
 .dash-resume-meta { font-size: var(--fs-sm); }
 .dash-resume-cta { flex: none; }
 @media (max-width: 540px) {
@@ -3353,6 +3366,18 @@ html[data-theme='dark'] .note-card .note-text,
 html[data-theme='dark'] .note-card .note-render,
 html[data-theme='dark'] .note-card .markdown-body { color: #EDE8DE !important; }
 html[data-theme='dark'] .note-card button.ghost { color: #B0A79C !important; }
+/* Session 20 (AA): the meta timestamp / Attach chip / footer small text sat on the muted
+   --dark text color (#B0A79C → 2.5:1 on the dark sticky fills). Same light ink as the
+   note body (#EDE8DE — 4.83:1 worst-case on #6B6450), so metadata stays quieter than
+   the body via size, not via an unreadable color. !important to beat the blanket
+   `button.ghost` rule above (which is also !important). */
+html[data-theme='dark'] .note-card .note-meta,
+html[data-theme='dark'] .note-card .note-footer .small,
+html[data-theme='dark'] .note-card .attach-btn,
+html[data-theme='dark'] .note-card .attach-btn .small,
+html[data-theme='dark'] .note-card button.ghost.small.attach-btn,
+html[data-theme='dark'] .note-card button.ghost.small.attach-btn .small { color: #EDE8DE !important; }
+html[data-theme='dark'] .note-card .attach-btn { border-color: rgb(237 232 222 / 0.35) !important; }
 html[data-theme='dark'] .note-color-picker .dot-yellow { background: #6B6450; }
 html[data-theme='dark'] .note-color-picker .dot-green { background: #506055; }
 html[data-theme='dark'] .note-color-picker .dot-pink { background: #605560; }
@@ -3367,6 +3392,15 @@ html[data-theme='dark'] .note-color-picker .dot-blue { background: #505865; }
   :root:not([data-theme='light']) .note-card .note-render,
   :root:not([data-theme='light']) .note-card .markdown-body { color: #EDE8DE; }
   :root:not([data-theme='light']) .note-card button.ghost { color: #B0A79C; }
+  /* Session 20 (AA): mirror of the [data-theme='dark'] rules above — meta text gets the
+     readable light ink on the dark sticky fills (system-dark users get the same fix). */
+  :root:not([data-theme='light']) .note-card .note-meta,
+  :root:not([data-theme='light']) .note-card .note-footer .small,
+  :root:not([data-theme='light']) .note-card .attach-btn,
+  :root:not([data-theme='light']) .note-card .attach-btn .small,
+  :root:not([data-theme='light']) .note-card button.ghost.small.attach-btn,
+  :root:not([data-theme='light']) .note-card button.ghost.small.attach-btn .small { color: #EDE8DE; }
+  :root:not([data-theme='light']) .note-card .attach-btn { border-color: rgb(237 232 222 / 0.35); }
   :root:not([data-theme='light']) .note-color-picker .dot-yellow { background: #6B6450; }
   :root:not([data-theme='light']) .note-color-picker .dot-green { background: #506055; }
   :root:not([data-theme='light']) .note-color-picker .dot-pink { background: #605560; }
@@ -3535,7 +3569,7 @@ html[data-theme='dark'] .note-color-picker .dot-blue { background: #505865; }
 /* Phase 5 item 14 (2026-09-08): the meta line (یادداشت · ۲۱:۰۵) is 40% smaller than
    the old footer size (0.8rem → 0.48rem) — it whispers, the content talks. */
 .note-footer { font-size: 0.48rem; }
-.note-footer .small, .note-footer .note-meta { font-size: 0.48rem; } /* .small's own rule would beat the inherited size */
+.note-footer .small, .note-footer .note-meta { font-size: 0.6rem; } /* .small's own rule would beat the inherited size. Session 20: was 0.48rem (~7.7px) — genuinely unreadable; 0.6rem keeps it quiet but legible */
 .note-footer .ghost.danger { padding: 0.18rem 0.35rem; } /* Fix 2026-09-09: unified with the 1rem color-dot tap target (was 0.12/0.3) */
 .note-footer .note-meta { overflow-wrap: anywhere; }
 /* Phase 7 item 11: the bottom action row in LOGICAL layout — margin-inline-start on the
@@ -5283,7 +5317,7 @@ body.has-mobile-nav { padding-block-end: calc(3.5rem + env(safe-area-inset-botto
   border-radius: 999px;
   font-weight: 500;
 }
-.detail-tab.is-active .detail-tab-count { background: var(--brand); color: var(--btn-text); }
+.detail-tab.is-active .detail-tab-count { background: var(--cta); color: var(--btn-text); } /* Session 20 (AA): white count on --brand fill was 3.1:1 — --cta is the white-text fill */
 .detail-panel { animation: tab-fade 0.18s ease-out; }
 .detail-panel[hidden] { display: none; }
 @keyframes tab-fade {
@@ -6624,7 +6658,7 @@ html[data-theme="dark"] .heatmap-l4,
   background: color-mix(in srgb, var(--brand) 8%, var(--card));
 }
 [dir="rtl"] .cal-cell.today .cal-day-num {
-  color: var(--brand);
+  color: var(--link); /* Session 20 (AA): was --brand — 2.9:1 as 13px text; --link matches the LTR .today rule */
   font-weight: 700;
 }
 [dir="rtl"] #cal-title {
@@ -6664,11 +6698,11 @@ html[data-theme="dark"] .heatmap-l4,
   transition: background 0.12s ease, color 0.12s ease;
 }
 .cal-sys button + button { border-inline-start: 1px solid var(--line); }
-.cal-sys button.on { background: var(--brand); color: #fff; }
+.cal-sys button.on { background: var(--cta); color: #fff; } /* Session 20 (AA): white on --brand #4A9FA3 was 3.1:1 (light) / 2.4:1 (dark, --accent-hover) — --cta is 4.93:1 in both themes */
 .cal-sys button:focus-visible { outline: 2px solid var(--brand); outline-offset: -2px; }
 /* the focused day (jumps/clicks) — a brand inset ring, distinct from today's border */
 .cal-cell.selected { border-color: var(--brand); box-shadow: inset 0 0 0 2px var(--brand); }
-.cal-cell.selected .cal-day-num { color: var(--brand); }
+.cal-cell.selected .cal-day-num { color: var(--link); } /* Session 20 (AA): --brand as text was 2.7:1 — --link is the text-safe teal (matches the .today rule above) */
 /* drop target while dragging a legend dot onto a day */
 .cal-cell.cal-drop {
   outline: 2px dashed var(--brand);
@@ -6834,6 +6868,14 @@ html[data-theme="dark"] .heatmap-l4,
    below ~375px min-content — let it wrap instead of bleeding off-canvas (RTL bleeds
    left). Found during the 2026-09-05 mobile sweep of the tabs/links/screenshots batch. */
 .pd-head .row.spread { flex-wrap: wrap; row-gap: 0.5rem; }
+/* Session 20 (390px sweep): the OUTER row wraps, but the inner stage-action cluster
+   (select + Save + Delete, ~372px min-content) still bled 13px off-canvas on phones —
+   horizontal scroll on the whole project page. Let the inner rows wrap too; the
+   controls settle onto a second line instead of bleeding. */
+@media (max-width: 480px) {
+  .pd-head .row { flex-wrap: wrap; row-gap: 0.4rem; }
+  .pd-head .pd-stage-select { max-inline-size: 11rem; }
+}
 .pd-stage-select {
   font-size: var(--fs-xs);
   padding: 0.2rem 0.5rem;
@@ -6975,11 +7017,11 @@ html[data-theme="dark"] .heatmap-l4,
    palette so the coding stays on-system. */
 .pd-col[data-status='idea']        { --pd-c: 172 199 233; --pd-ink: #5c7796; }
 .pd-col[data-status='planned']     { --pd-c: 209 212 216; --pd-ink: #6b727b; }
-.pd-col[data-status='in_progress'] { --pd-c: 240 197 155; --pd-ink: #9c7245; }
-.pd-col[data-status='done']        { --pd-c: 182 224 200; --pd-ink: #5e8f70; }
+.pd-col[data-status='in_progress'] { --pd-c: 240 197 155; --pd-ink: #7d5a34; } /* Session 20 (AA): was #9c7245 — 4.28:1 on white; darkened to 6.2:1 */
+.pd-col[data-status='done']        { --pd-c: 182 224 200; --pd-ink: #43704f; } /* Session 20 (AA): was #5e8f70 — 3.72:1; darkened to 5.7:1 */
 /* 0031 (user approval 2026-09-05): bugs read RED — same pastel treatment as the flow
    stages, so the defect column pops without shouting. */
-.pd-col[data-status='bug']         { --pd-c: 238 185 194; --pd-ink: #a96b78; }
+.pd-col[data-status='bug']         { --pd-c: 238 185 194; --pd-ink: #87555f; } /* Session 20 (AA): was #a96b78 — 4.15:1 on white; darkened to 6.0:1 */
 .pd-col { border-color: rgb(var(--pd-c) / 0.28); border-inline-start: 3px solid rgb(var(--pd-c) / 0.55); }
 /* cross-box drop target: a faint stage tint + stronger edge, only while dragging */
 .pd-col.drag-over { border-color: rgb(var(--pd-c) / 0.7); background: rgb(var(--pd-c) / 0.08); }
@@ -7107,11 +7149,11 @@ html[data-theme='dark'] .pd-col[data-status='bug']         { --pd-c: 150 110 120
   gap: 0.4rem;
   font-size: var(--fs-xs);
   font-weight: 600;
-  color: var(--brand);
+  color: var(--link); /* Session 20 (AA): --brand text on --card was 3.1:1 — --link is the text-safe teal */
   text-decoration: none;
   padding: 0.45rem 0.6rem;
   border-radius: var(--radius-sm);
-  border: 1px solid color-mix(in srgb, var(--brand) 35%, var(--line));
+  border: 1px solid color-mix(in srgb, var(--link) 35%, var(--line));
   background: var(--card);
   /* Session 19 (cron round 7): was a dashed --line-strong border + bg-soft fill that
      read as a disabled input (VLM-flagged twice). Now a solid brand-tinted outline so it
@@ -7129,8 +7171,8 @@ button.pd-task-add {
 .pd-task-add .icon { inline-size: 0.85rem; block-size: 0.85rem; }
 .pd-task-add:hover {
   color: #fff; /* Session 19 (user report): explicit white — was var(--btn-text, var(--text)) which could resolve to --text (dark) if --btn-text wasn't set. White-on-teal is the only readable hover. */
-  border-color: var(--brand);
-  background: var(--brand);
+  border-color: var(--cta);
+  background: var(--cta); /* Session 20 (AA): --brand fill was 3.1:1 for the white hover text — --cta keeps the teal at 4.93:1 */
 }
 .pd-task-add .icon { color: var(--brand); transition: color 0.15s ease; }
 .pd-task-add:hover .icon { color: #fff; }
@@ -7966,7 +8008,7 @@ main.shell.adm-shell { max-inline-size: 56rem; }
 .adm-self {
   font-size: 0.7rem;
   font-weight: 600;
-  color: var(--accent);
+  color: var(--link); /* Session 20 (AA): --accent text on white was 3.1:1 — --link is the text-safe teal */
   border: 1px solid var(--accent-soft);
   border-radius: var(--radius-sm);
   padding: 0 0.35rem;

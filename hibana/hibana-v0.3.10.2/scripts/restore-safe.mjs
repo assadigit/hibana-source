@@ -114,6 +114,31 @@ function generateRestoreSql(snapshot, tables) {
   return lines.join('\n')
 }
 
+// Session 20 (backup-coverage audit): canonical FK-safe table order — a frozen mirror
+// of SNAPSHOT_TABLES (src/services/backup.ts; parents before children: spark_folders →
+// projects → … → task_categories/sprints → dev_tasks → dev_task_tags →
+// project_archives → backlog_docs → backlog_doc_revisions). Object.keys(data).sort()
+// (the previous derivation) is ALPHABETICAL — it put dev_task_tags BEFORE dev_tasks,
+// which breaks inserts when the target enforces foreign keys mid-restore. Unknown
+// tables (future schema growth in a newer snapshot) append at the end, preserving
+// forward compatibility.
+const FK_SAFE_TABLE_ORDER = [
+  'invites', 'spark_folders', 'projects', 'project_history_log', 'hurdles', 'tags', 'project_tags',
+  'links', 'screenshots', 'changelogs', 'tasks', 'payments', 'telegram_captures', 'telegram_links',
+  'canvas_elements', 'password_resets',
+  'quick_notes',
+  'sadhana_tasks', 'sadhana_tags', 'sadhana_updates', 'sadhana_recur_history',
+  'sadhana_quadrant_names',
+  'task_categories', 'sprints', 'dev_tasks', 'dev_task_tags', 'project_archives',
+  'backlog_docs', 'backlog_doc_revisions',
+]
+
+function orderTablesFkSafe(tables) {
+  const known = FK_SAFE_TABLE_ORDER.filter((t) => tables.includes(t))
+  const unknown = tables.filter((t) => !FK_SAFE_TABLE_ORDER.includes(t)).sort()
+  return [...known, ...unknown]
+}
+
 function restoreIntoD1(dbName, snapshot, tables) {
   const tmpDir = mkdtempSync(join(tmpdir(), 'hibana-restore-safe-'))
   const sqlFile = join(tmpDir, 'restore.sql')
@@ -224,7 +249,7 @@ async function main() {
     process.exit(1)
   }
   const snapshot = JSON.parse(jsonText)
-  const tables = Object.keys(snapshot.data).sort()
+  const tables = orderTablesFkSafe(Object.keys(snapshot.data))
   const totalRows = tables.reduce((n, t) => n + (snapshot.data[t]?.length ?? 0), 0)
   console.log(`  ✓ Backup loaded: ${tables.length} tables, ${totalRows} total rows`)
   console.log(`  ✓ Backup exported at: ${snapshot.exported_at ?? 'unknown'}`)

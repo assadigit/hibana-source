@@ -12,7 +12,7 @@
   <link rel="icon" href="/favicon.ico">
   <link rel="manifest" href="/manifest.webmanifest">
   <meta name="theme-color" content="#EDE8DF">
-  <link rel="stylesheet" href="/css/app.css?v=258">
+  <link rel="stylesheet" href="/css/app.css?v=259">
   <link rel="stylesheet" href="/vendor/manrope/font-face.css">
   <link rel="stylesheet" href="/vendor/vazir/font-face.css">
   <script>
@@ -100,7 +100,7 @@ body.sadhana-body{overflow:hidden;display:flex;flex-direction:column}
    and the date pill, which moved into the subbar. */
 .sadhana-wrap .btn{display:inline-flex;align-items:center;gap:5px;padding:6px 13px;border-radius:var(--radius-sm);font-size:12px;font-weight:500;cursor:pointer;border:1px solid var(--border2);transition:all .2s;font-family:inherit;background:var(--surface2);color:var(--text-muted)}
 .sadhana-wrap .btn:hover{background:var(--surface);color:var(--text)}
-.sadhana-wrap .btn-primary{background:var(--accent);color:#fff;border-color:transparent}.btn-primary:hover{background:var(--accent-hover)}
+.sadhana-wrap .btn-primary{background:var(--cta);color:#fff;border-color:transparent}.btn-primary:hover{background:var(--cta-hover)} /* Session 20 (AA): was --accent fill (white 3.1:1) — --cta is the white-text teal (4.93:1) */
 /* Batch s (2026-09): the Archive subbar button drops its grey pill — transparent
    background + border, muted text that just brightens on hover. Scoped to
    #archiveBtn ONLY (the shared .btn base keeps its fill for modal action buttons);
@@ -118,7 +118,7 @@ body.sadhana-body{overflow:hidden;display:flex;flex-direction:column}
   letter-spacing:.01em;margin-left:8px;
 }
 body.rtl .hdr-date{margin-left:0;margin-right:8px}
-.sadhana-wrap .hdr-date-sep{color:var(--border2);margin:0 7px;font-size:9px;font-weight:300}
+.sadhana-wrap .hdr-date-sep{color:var(--text-muted);margin:0 7px;font-size:9px;font-weight:300} /* Session 20 (AA): was var(--border2) (3.5:1 in dark) — text-muted keeps the whisper but passes */
 
 /* ─── Subbar ───────────────────────────────────── */
 .sadhana-wrap .subbar-wrap{background:var(--surface);border-bottom:1px solid var(--border);flex-shrink:0}
@@ -255,11 +255,11 @@ body.rtl .task-tags{margin-left:0;margin-right:1px}
 .sadhana-wrap .task-tag:hover{opacity:.8}
 .sadhana-wrap .t-meta{display:flex;align-items:center;gap:5px;margin-top:3px;flex-wrap:wrap}
 .sadhana-wrap .tdl{font-size:10.5px;color:var(--text-muted);display:flex;align-items:center;gap:2px}
-.sadhana-wrap .tdl.overdue{color:var(--q3);font-weight:600}.tdl.fuzzy{color:var(--accent)}
+.sadhana-wrap .tdl.overdue{color:var(--q3);font-weight:600}.tdl.fuzzy{color:var(--link)} /* Session 20 (AA): fuzzy deadline text — accent-on-surface was 2.9:1 */
 .sadhana-wrap .t-actions{display:flex;flex-direction:column;gap:3px;opacity:0;transition:opacity .15s;flex-shrink:0}
 .sadhana-wrap .task-card:hover .t-actions{opacity:1}
 .sadhana-wrap .t-act{width:20px;height:20px;border-radius:4px;display:flex;align-items:center;justify-content:center;cursor:pointer;border:none;background:transparent;font-size:12px;color:var(--text-muted);transition:all .15s}
-.sadhana-wrap .t-act.del:hover{background:var(--q3-l);color:var(--q3)}.t-act.edt:hover{background:var(--accent-l);color:var(--accent)}.t-act.undo:hover{background:var(--accent-l);color:var(--accent)}
+.sadhana-wrap .t-act.del:hover{background:var(--q3-l);color:var(--q3)}.t-act.edt:hover{background:var(--accent-l);color:var(--link)}.t-act.undo:hover{background:var(--accent-l);color:var(--link)} /* Session 20 (AA): accent text was 2.9:1 */
 
 /* ─── Overdue task visual treatment ───────────── */
 @keyframes overdueShake{
@@ -285,8 +285,8 @@ body.rtl .task-tags{margin-left:0;margin-right:1px}
   color:var(--text-dim);cursor:pointer;transition:all .18s;
   font-family:inherit;
 }
-.sadhana-wrap .upd-toggle:hover{border-color:var(--accent);color:var(--accent);background:var(--accent-l)}
-.sadhana-wrap .upd-toggle.has-notes{border-color:var(--accent);color:var(--accent);background:var(--accent-l)}
+.sadhana-wrap .upd-toggle:hover{border-color:var(--accent);color:var(--link);background:var(--accent-l)} /* Session 20 (AA) */
+.sadhana-wrap .upd-toggle.has-notes{border-color:var(--accent);color:var(--link);background:var(--accent-l)} /* Session 20 (AA) */
 .sadhana-wrap .upd-toggle .upd-ico{font-size:11px}
 .sadhana-wrap .upd-panel{
   display:none;flex-direction:column;gap:0;
@@ -312,8 +312,8 @@ body.rtl .task-tags{margin-left:0;margin-right:1px}
   display:flex;align-items:center;justify-content:center;flex-shrink:0;
   padding:0;transition:all .15s;margin-inline-end:1px;
 }
-.sadhana-wrap .upd-edit:hover{color:var(--accent);background:var(--accent-l)}
-.sadhana-wrap .upd-save{color:var(--accent)}
+.sadhana-wrap .upd-edit:hover{color:var(--link);background:var(--accent-l)} /* Session 20 (AA) */
+.sadhana-wrap .upd-save{color:var(--link)} /* Session 20 (AA): 11.5px accent text was 2.9:1 */
 .sadhana-wrap .upd-edit-inp{
   flex:1;min-width:0;font-family:inherit;font-size:11px;color:var(--text);
   padding:3px 8px;border-radius:6px;outline:none;
@@ -336,7 +336,7 @@ body.rtl .task-tags{margin-left:0;margin-right:1px}
 }
 .sadhana-wrap .upd-inp::placeholder{color:var(--text-dim)}
 .sadhana-wrap .upd-add-btn{
-  padding:0 12px;border:none;background:var(--accent);color:#fff;
+  padding:0 12px;border:none;background:var(--cta);color:#fff; /* Session 20 (AA): was --accent (white 3.1:1) */
   font-size:13px;font-weight:700;cursor:pointer;border-radius:0;
   transition:opacity .15s;
 }
@@ -374,7 +374,7 @@ body.rtl .task-tags{margin-left:0;margin-right:1px}
   cursor:pointer;
   transition:transform .12s ease, border-color .15s ease, color .15s ease;
 }
-.sadhana-wrap .q-fab:hover{border-color:var(--accent);color:var(--accent)}
+.sadhana-wrap .q-fab:hover{border-color:var(--accent);color:var(--link)} /* Session 20 (AA) */
 .sadhana-wrap .q-fab:active{transform:scale(.94)}
 .sadhana-wrap .q-fab:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .sadhana-wrap .q-foot .add-form{width:100%}
@@ -410,6 +410,24 @@ body.rtl .task-tags{margin-left:0;margin-right:1px}
 .sadhana-wrap .ch-emo{font-size:22px;cursor:pointer;transition:transform .2s;user-select:none;line-height:1}.ch-emo:hover{transform:scale(1.2)}
 .sadhana-wrap .emo-hint{font-size:10.5px;color:var(--text-dim)}
 .sadhana-wrap .form-acts{display:flex;gap:5px;justify-content:flex-end}
+/* Session 20 (AA): the zen Add button was white text on the raw quadrant color
+   (q1 teal 3.1:1 · q2 amber 2.6:1 · q3 rose 3.4:1 · q4 lavender 3.7:1 — all fail).
+   Quadrant-tinted fill + quadrant-mixed ink (mixed toward --text, so it flips with the
+   theme) keeps the color coding readable in light AND dark. */
+.sadhana-wrap .zen-add-btn{--zq:var(--q1)}
+.sadhana-wrap .zen-add-btn[data-zen-q="2"]{--zq:var(--q2)}
+.sadhana-wrap .zen-add-btn[data-zen-q="3"]{--zq:var(--q3)}
+.sadhana-wrap .zen-add-btn[data-zen-q="4"]{--zq:var(--q4)}
+.sadhana-wrap .zen-add-btn{
+  background:color-mix(in srgb, var(--zq) 14%, var(--surface));
+  color:color-mix(in srgb, var(--zq) 52%, var(--text));
+  border-color:color-mix(in srgb, var(--zq) 40%, transparent);
+  font-weight:600;
+}
+.sadhana-wrap .zen-add-btn:hover{
+  background:color-mix(in srgb, var(--zq) 22%, var(--surface));
+  color:color-mix(in srgb, var(--zq) 60%, var(--text));
+}
 .sadhana-wrap .form-lbl{font-size:10.5px;font-weight:600;color:var(--text-muted);margin-bottom:3px;display:block;text-transform:uppercase;letter-spacing:.05em}
 .sadhana-wrap .tag-picker{display:flex;flex-wrap:wrap;gap:4px}
 /* Phase 6 item 13: the quick form's label row — same chips as the modal picker */
@@ -457,15 +475,15 @@ body.rtl .dl-trigger-clr{margin-left:0;margin-right:auto}
 }
 body.rtl .fuz-opt{text-align:right}
 .sadhana-wrap .fuz-opt:hover{border-color:var(--border2);background:var(--surface2)}
-.sadhana-wrap .fuz-opt.sel{border-color:var(--accent);background:var(--accent-l);color:var(--accent)}
+.sadhana-wrap .fuz-opt.sel{border-color:var(--accent);background:var(--accent-l);color:var(--link)} /* Session 20 (AA) */
 .sadhana-wrap .fuz-ico{font-size:14px;flex-shrink:0}
 
 /* Step-by-step date picker */
 .sadhana-wrap .step-picker{padding:10px}
 .sadhana-wrap .step-nav{display:flex;align-items:center;gap:6px;margin-bottom:10px}
 .sadhana-wrap .step-pill{padding:3px 10px;border-radius:20px;font-size:10.5px;font-weight:600;background:var(--surface2);border:1px solid var(--border2);color:var(--text-dim);cursor:pointer;transition:all .15s}
-.sadhana-wrap .step-pill.active{background:var(--accent);border-color:var(--accent);color:#fff}
-.sadhana-wrap .step-pill.done{background:var(--accent-l);border-color:var(--accent);color:var(--accent)}
+.sadhana-wrap .step-pill.active{background:var(--cta);border-color:var(--cta);color:#fff} /* Session 20 (AA): was --accent (white 3.1:1) */
+.sadhana-wrap .step-pill.done{background:var(--accent-l);border-color:var(--accent);color:var(--link)} /* Session 20 (AA) */
 .sadhana-wrap .step-arrow{color:var(--text-dim);font-size:11px}
 .sadhana-wrap .step-content{}
 .sadhana-wrap .year-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px}
@@ -476,12 +494,12 @@ body.rtl .fuz-opt{text-align:right}
   cursor:pointer;border:1.5px solid var(--border);background:transparent;
   color:var(--text);font-family:inherit;transition:all .15s;text-align:center;
 }
-.sadhana-wrap .pick-btn:hover{border-color:var(--accent);color:var(--accent);background:var(--accent-l)}
-.sadhana-wrap .pick-btn.sel{background:var(--accent);border-color:var(--accent);color:#fff}
+.sadhana-wrap .pick-btn:hover{border-color:var(--accent);color:var(--link);background:var(--accent-l)} /* Session 20 (AA) */
+.sadhana-wrap .pick-btn.sel{background:var(--cta);border-color:var(--cta);color:#fff} /* Session 20 (AA): was --accent (white 3.1:1) */
 .sadhana-wrap .pick-btn.disabled{opacity:.25;cursor:not-allowed}
 .sadhana-wrap .pick-btn.today-marker{border-color:var(--q3);color:var(--q3)}
 .sadhana-wrap .day-header{font-size:9.5px;color:var(--text-dim);text-align:center;padding:3px 0;font-weight:600}
-.sadhana-wrap .step-selected-display{font-size:11px;color:var(--accent);font-weight:600;margin-bottom:7px;text-align:center}
+.sadhana-wrap .step-selected-display{font-size:11px;color:var(--link);font-weight:600;margin-bottom:7px;text-align:center} /* Session 20 (AA) */
 .sadhana-wrap .dl-popup-foot{display:flex;gap:6px;padding:8px 10px;border-top:1px solid var(--border);justify-content:flex-end}
 
 /* ─── Emoji picker ─────────────────────────────── */
@@ -526,7 +544,7 @@ body.rtl .fuz-opt{text-align:right}
   transition:transform .3s cubic-bezier(.16,1,.3,1);pointer-events:none;
 }
 .sadhana-wrap .undo-toast.show{transform:translateX(-50%) translateY(0);pointer-events:all}
-.sadhana-wrap .undo-btn{background:var(--accent);color:#fff;border:none;border-radius:20px;padding:4px 12px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit}
+.sadhana-wrap .undo-btn{background:var(--cta);color:#fff;border:none;border-radius:20px;padding:4px 12px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit} /* Session 20 (AA): was --accent (white 3.1:1) */
 
 /* ─── Pin button ────────────────────────────────────── */
 .sadhana-wrap .t-act.pin{color:var(--text-dim);font-size:13px}
@@ -578,7 +596,7 @@ body.rtl .fuz-opt{text-align:right}
 .sadhana-wrap .task-note-preview:hover{color:var(--text-muted)}
 
 /* ─── Recurring badge on card ──────────────────── */
-.sadhana-wrap .recur-badge{display:inline-flex;align-items:center;gap:2px;font-size:9.5px;color:var(--accent);background:var(--accent-l);border-radius:4px;padding:1px 5px;font-weight:600;margin-top:2px}
+.sadhana-wrap .recur-badge{display:inline-flex;align-items:center;gap:2px;font-size:9.5px;color:var(--link);background:var(--accent-l);border-radius:4px;padding:1px 5px;font-weight:600;margin-top:2px} /* Session 20 (AA): 9.5px accent-on-tint was ~2.9:1 */
 
 /* ─── Recurring configurator ────────────────────── */
 .sadhana-wrap .recur-toggle-row{display:flex;align-items:center;gap:10px;padding:8px 0}
@@ -594,13 +612,13 @@ body.rtl .fuz-opt{text-align:right}
 .sadhana-wrap .recur-config{margin-top:8px;display:flex;flex-direction:column;gap:8px;animation:sIn .15s ease}
 .sadhana-wrap .recur-type-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:4px}
 .sadhana-wrap .recur-type-btn{padding:6px 4px;border-radius:8px;font-size:11px;font-weight:600;cursor:pointer;border:1.5px solid var(--border2);background:transparent;color:var(--text-muted);font-family:inherit;transition:all .15s;text-align:center}
-.sadhana-wrap .recur-type-btn.sel{border-color:var(--accent);background:var(--accent-l);color:var(--accent)}
+.sadhana-wrap .recur-type-btn.sel{border-color:var(--accent);background:var(--accent-l);color:var(--link)} /* Session 20 (AA) */
 .sadhana-wrap .recur-type-btn:hover:not(.sel){border-color:var(--border2);background:var(--surface2)}
 
 .sadhana-wrap .recur-sub{display:flex;flex-direction:column;gap:6px}
 .sadhana-wrap .recur-day-grid{display:flex;gap:4px;flex-wrap:wrap}
 .sadhana-wrap .recur-day-btn{width:32px;height:32px;border-radius:8px;font-size:11px;font-weight:700;cursor:pointer;border:1.5px solid var(--border2);background:transparent;color:var(--text-muted);font-family:inherit;transition:all .15s;display:flex;align-items:center;justify-content:center}
-.sadhana-wrap .recur-day-btn.sel{border-color:var(--accent);background:var(--accent);color:#fff}
+.sadhana-wrap .recur-day-btn.sel{border-color:var(--cta);background:var(--cta);color:#fff} /* Session 20 (AA): was --accent (white 3.1:1) */
 .sadhana-wrap .recur-day-btn:hover:not(.sel){border-color:var(--border2);background:var(--surface2);color:var(--text)}
 
 .sadhana-wrap .recur-n-row{display:flex;align-items:center;gap:8px}
@@ -821,8 +839,8 @@ body.rtl .fuz-opt{text-align:right}
 .sadhana-wrap .arch-task{display:flex;align-items:center;gap:8px;padding:7px 10px;border-radius:9px;background:var(--surface2);border:1px solid var(--border);font-size:12px;margin-bottom:5px;color:var(--text-muted)}
 .sadhana-wrap .arch-task b{color:var(--text);font-weight:500}
 .sadhana-wrap .arch-task .at-tags{display:inline-flex;gap:3px}
-.sadhana-wrap .arch-task .arch-restore{margin-inline-start:auto;flex:none;cursor:pointer;border:1px solid var(--accent);background:transparent;color:var(--accent);border-radius:8px;padding:4px 10px;font-size:11px;font-weight:600;transition:background .15s,color .15s}
-.sadhana-wrap .arch-task .arch-restore:hover{background:var(--accent);color:#fff}
+.sadhana-wrap .arch-task .arch-restore{margin-inline-start:auto;flex:none;cursor:pointer;border:1px solid var(--link);background:transparent;color:var(--link);border-radius:8px;padding:4px 10px;font-size:11px;font-weight:600;transition:background .15s,color .15s} /* Session 20 (AA): accent text was 2.9:1 */
+.sadhana-wrap .arch-task .arch-restore:hover{background:var(--cta);color:#fff} /* Session 20 (AA): was --accent (white 3.1:1) */
 .sadhana-wrap .arch-task .arch-restore:disabled{opacity:.5;cursor:default}
 /* Batch s: permanent delete from the Archive — a quiet ghost danger button
    (transparent bg; muted rose = the app's --accent-3 rose, no danger token on the
@@ -1685,7 +1703,7 @@ function tcHTML(task,q){
     </div>
     <div id="eRecurUI-${task.id}"></div>
     <div class="edit-acts">
-      <button class="btn" style="font-size:11px;padding:4px 9px;color:#c0392b" onclick="softDel('${task.id}',${q})" title="${lang==='fa'?'حذف':'Delete'}">🗑</button>
+      <button class="btn" style="font-size:11px;padding:4px 9px;color:var(--err)" onclick="softDel('${task.id}',${q})" title="${lang==='fa'?'حذف':'Delete'}">🗑</button> <!-- Session 20: theme-aware red (dark #f06161) — was fixed #c0392b (2.8:1 dark) -->
       <span style="flex:1"></span>
       <button class="btn" style="font-size:11px;padding:4px 9px" onclick="cancelEdit('${task.id}')">${tr('cancelEdit')}</button>
       <button class="btn btn-primary" style="font-size:11px;padding:4px 9px" onclick="saveEdit('${task.id}',${q})">${tr('saveEdit')}</button>
@@ -1740,7 +1758,7 @@ function startEdit(id, q) {
         '<div id="se-recur-ui"></div>' +
         '<p class="error" id="se-error" role="alert"></p>' +
         '<div class="edit-acts">' +
-          '<button type="button" class="btn" style="font-size:12px;padding:5px 12px;color:#c0392b" id="se-del" title="' + tr('delete') + '">🗑</button>' +
+          '<button type="button" class="btn" style="font-size:12px;padding:5px 12px;color:var(--err)" id="se-del" title="' + tr('delete') + '">🗑</button>' +
           '<span style="flex:1"></span>' +
           '<button type="button" class="btn" style="font-size:12px;padding:5px 12px" id="se-cancel">' + tr('cancelEdit') + '</button>' +
           '<button type="submit" class="btn btn-primary" style="font-size:12px;padding:5px 12px" id="se-save">' + tr('saveEdit') + '</button>' +
@@ -2153,7 +2171,7 @@ function openZen(q){
       </div>
       <div class="form-acts">
         <button class="btn" style="font-size:11.5px;padding:5px 10px" onclick="hideZenForm(${q})">${tr('cancel')}</button>
-        <button class="btn" style="background:${qDef.col};color:#fff;border-color:transparent;font-size:11.5px;padding:5px 10px" onclick="addTaskZen(${q})">${tr('add')}</button>
+        <button class="btn zen-add-btn" data-zen-q="${q}" style="font-size:11.5px;padding:5px 10px" onclick="addTaskZen(${q})">${tr('add')}</button>
       </div>
     </div>`;
   dlState[`z${q}`]={type:'none',val:''};

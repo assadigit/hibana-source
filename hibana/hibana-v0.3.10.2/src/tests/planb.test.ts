@@ -246,7 +246,7 @@ describe('Plan B — Telegram backup channel (0044, on-demand since session 14)'
         expect(log).toHaveLength(1)
         expect(log[0].file_id).toBe('FILE-ID-1')
         expect(log[0].sha256).toBe(result.sha256)
-        expect(log[0].schema_version).toBe(20260910)
+        expect(log[0].schema_version).toBe(20260920) // Session 20: snapshot shape gained project_archives + dev_task_tags
 
         // Round-trip: the document content is the BASE64 TEXT of the encrypted blob
         // (same format as a GitHub snapshot file). Extract it from the multipart body,
@@ -258,7 +258,7 @@ describe('Plan B — Telegram backup channel (0044, on-demand since session 14)'
         const key = await importAesKey(ENC_KEY)
         const plain = new TextDecoder().decode(await decryptBackup(key, blobBytes))
         const snapshot = JSON.parse(plain)
-        expect(snapshot.schema_version).toBe(20260910)
+        expect(snapshot.schema_version).toBe(20260920)
         expect((snapshot.data.users ?? []).some((r: Record<string, unknown>) => 'password_hash' in r)).toBe(false)
         expect('sessions' in snapshot.data).toBe(false)
         expect(snapshot.data.projects).toHaveLength(1) // the row we planted

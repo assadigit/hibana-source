@@ -100,7 +100,15 @@ export const SNAPSHOT_TABLES = [
   'telegram_captures', 'telegram_links',
   'quick_notes', 'sadhana_tasks', 'sadhana_tags', 'sadhana_updates',
   'sadhana_recur_history', 'sadhana_quadrant_names',
-  'dev_tasks', 'task_categories', 'sprints', 'backlog_docs', 'backlog_doc_revisions',
+  // Session 20 (backup-coverage audit): task_categories + sprints are FK PARENTS of
+  // dev_tasks (category_id, sprint_id) — they now precede it so the list is truly
+  // FK-safe for restores that enforce constraints. dev_task_tags (0029) and
+  // project_archives (0046) were missing from the snapshot entirely — archived dev
+  // tasks and task-tag links would have been silently lost on restore ("never lose an
+  // idea" tables). Both are project-scoped children, so they sit after their parents.
+  'task_categories', 'sprints', 'dev_tasks', 'dev_task_tags',
+  'project_archives',
+  'backlog_docs', 'backlog_doc_revisions',
 ] as const
 
 export interface Snapshot {
@@ -124,10 +132,11 @@ export async function buildSnapshot(db: Db): Promise<Snapshot> {
     }
   }
   return {
-    schema_version: 20260910,
-    // P2.5: bumped 20260909 -> 20260910 (snapshot shape changed: password_resets +
-    // changelogs dropped from SNAPSHOT_TABLES). Old snapshots stay interpretable — the
-    // restore script keys on table names present in the data, not on the table list.
+    schema_version: 20260920,
+    // Session 20 (backup-coverage audit): bumped 20260910 → 20260920 (snapshot shape
+    // changed: +project_archives, +dev_task_tags; dev-board cluster reordered FK-safe).
+    // Old snapshots stay interpretable — the restore scripts key on table names present
+    // in the data, not on the table list.
     exported_at: new Date().toISOString(),
     data,
   }
@@ -156,7 +165,15 @@ const USER_SCOPED_EXPORT_TABLES = [
 const PROJECT_SCOPED_EXPORT_TABLES = [
   'project_history_log', 'hurdles', 'links', 'screenshots', 'changelogs',
   'tasks', 'payments', 'project_tags',
+  // Session 20: archived dev tasks + the dev-board cluster are user content too — a
+  // personal export without them loses archived work ("never lose an idea").
+  'project_archives', 'dev_tasks',
+  'task_categories', 'sprints', 'backlog_docs',
 ] as const
+/** Tables that scope through dev_tasks.task_id (no project_id column of their own). */
+const DEV_TASK_CHILD_EXPORT_TABLES = ['dev_task_tags'] as const
+/** Tables that scope through backlog_docs.doc_id (no project_id column of their own). */
+const BACKLOG_CHILD_EXPORT_TABLES = ['backlog_doc_revisions'] as const
 /** Tables that scope through sadhana_tasks.task_id. */
 const SADHANA_CHILD_EXPORT_TABLES = [
   'sadhana_tags', 'sadhana_updates', 'sadhana_recur_history',
@@ -187,11 +204,24 @@ export async function buildUserSnapshot(db: Db, userId: string): Promise<Snapsho
       [userId],
     )
   }
+  for (const table of DEV_TASK_CHILD_EXPORT_TABLES) {
+    data[table] = await db.query(
+      `SELECT * FROM ${table} WHERE task_id IN (SELECT id FROM dev_tasks WHERE project_id IN (SELECT id FROM projects WHERE user_id = ?))`,
+      [userId],
+    )
+  }
+  for (const table of BACKLOG_CHILD_EXPORT_TABLES) {
+    data[table] = await db.query(
+      `SELECT * FROM ${table} WHERE doc_id IN (SELECT id FROM backlog_docs WHERE project_id IN (SELECT id FROM projects WHERE user_id = ?))`,
+      [userId],
+    )
+  }
 
   return {
-    // §15: the personal export shape was not touched by the Phase 5 bump — stays 20260828
-    // (exactly as deployed; only the whole-DB snapshot got the new version).
-    schema_version: 20260828,
+    // Session 20: bumped 20260828 → 20260920 (shape changed: +project_archives, dev_tasks,
+    // dev_task_tags, task_categories, sprints, backlog_docs, backlog_doc_revisions —
+    // the personal export now covers the whole dev-board cluster + archives).
+    schema_version: 20260920,
     exported_at: new Date().toISOString(),
     data,
   }

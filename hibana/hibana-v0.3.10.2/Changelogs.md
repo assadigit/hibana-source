@@ -9,7 +9,35 @@
 > rewritten as a minimal pointer. Deleted files remain recoverable verbatim:
 > `git show <sha>:<file>`.
 
-## 1. Current state (v0.3.11.1 — Session 19: ICS export + Telegram /update + web-clipper + resume work + OTP + Farsi digits + dark mode polish + board UX + UI fixes)
+## 1. Current state (v0.3.11.2 — Session 20: AA contrast sweep + mobile overflow fixes + backup coverage gaps fixed + stale smoke expectation)
+- v0.3.11.2 = **Session 20 polish release** — systematic UI audit (129 sweep rows: 20
+  pages × EN/FA × light/dark × desktop/390px; 0 console errors) + fixes:
+  - **AA contrast (22 unique offenders fixed)**: every white-text-on-#4A9FA3 fill moved to
+    `--cta` per the design system's own rule (avatar, skip-link, sadhana add/save/undo/
+    step/pick/recur buttons, calendar toggle, detail-tab count); every teal-as-text use
+    moved to `--link` (resume-card label, pd-task-add, adm-self, selected/today day
+    numbers incl. the RTL rule, 14 sadhana text rules); pd-col-title light inks darkened
+    to ≥5.7:1 (in_progress/done/bug); dark sticky-note metadata → #EDE8DE (was #B0A79C at
+    2.5:1); dark bug-bubble #ef4444→#c81e1e; zen Add button quadrant-tint + theme-flipping
+    ink (was white-on-quadrant, all 4 failed); note-meta 0.48→0.6rem (was ~7.7px).
+  - **Mobile overflows fixed (390px)**: project.html stage-action cluster (inner row now
+    wraps ≤480px); clients.html payment form (wraps + shrinkable inputs).
+  - **Backup coverage (CRITICAL, silent-data-loss)**: `project_archives` (0046) +
+    `dev_task_tags` (0029) were missing from SNAPSHOT_TABLES — restores dropped archived
+    tasks + tag links; restore.mjs tableOrder was frozen 2026-08-28 (missing the whole
+    Phase-5 spark/dev cluster); restore-safe.mjs ordered tables alphabetically (FK-unsafe);
+    personal JSON export lacked the dev-board cluster + archives. All fixed FK-safe,
+    snapshot + export schema_version → 20260920, +4 regression tests (289→293), local
+    snapshot→restore drill PASS.
+  - **Smoke test fixed**: stale htmx ?status=spark expectation (pre-session-20 failure at
+    HEAD) updated for the session-18 ideas-folder-grid — smoke ALL PASS.
+  - Verified by design (no change): reports bar-chart scroll strip, stat-strip carousel,
+    sadhana subbar chip carousel, closed ⋯ menu pops, theme-floater ::after hit area.
+  - Perf/SW review (no changes warranted, honest): D1 EXPLAIN all-indexed at busy-solo
+    scale (worst interactive 31.85ms canvas bbox @40k elements — under threshold);
+    SW class split sound; sw.js unversioned-URL risk covered by updateViaCache=imports
+    default + boot.js reg.update() polling.
+  - Assets: app.css ?v=259 (was 258), SW stays hibana-v279 (no sw.js logic change).
 - v0.3.11.1 = **Session 19 hotfix release** — all v0.3.11.0 features + fixes from Ali's
   direct feedback: stat-carousel arrows flank the strip (HTML restructure), sticky-note
   shadow spread reduced, dark mode flat card fills (no gradient), muted dark-mode kanban/
@@ -90,6 +118,7 @@
 | 18 | 2026-09 | v0.3.10.0 — Magic Button (idea §1): Workers AI `[ai]` binding, `POST /api/ai/text`, `magic-wand.js` focus-triggered wand (polish/rewrite/translate, preview+Apply/Discard). 259/259 tests, typecheck green |
 | 19 | 2026-09 | v0.3.10.1 — free-tier model picker (Settings): `GET /api/ai/models`, `POST /api/ai/text` accepts `model`, `resolveModel` whitelist (paid-only → default). 265/265 tests |
 | 19 | 2026-09 | v0.3.11.0 — Session 19: ICS calendar export (`/api/export/calendar.ics`), Telegram `/update <project> <stage>`, web-clipper bookmarklet (`clip.html`), "Resume work" dashboard card (Mission #2), segmented OTP input, password visibility toggle, Farsi numerals on typing, canvas empty-state, board Add-button redesign, logo delete, per-column colored task borders, 50% larger taskadd modal, unlimited task titles (read-more clamp), github.deleteFile SHA auto-lookup, note-clear bug fix, comprehensive UI polish pass. 289/289 tests, typecheck green, SW v278 |
+| 20 | 2026-09 | v0.3.11.2 — Session 20: systematic UI/UX audit (129-row sweep, 0 console errors), 22 AA-contrast offenders fixed (white-on-accent fills → --cta; teal-as-text → --link; pd-col inks darkened; dark sticky metadata + bug-bubble), 2 mobile overflows fixed (project header, clients payments form), CRITICAL backup coverage gaps fixed (project_archives + dev_task_tags in snapshot; restore.mjs stale tableOrder; restore-safe FK-safe ordering; personal export cluster), stale smoke expectation fixed. 293/293 tests, typecheck green, smoke ALL PASS, local restore drill PASS, app.css v259, SW v279 |
 
 ## 3. Timeline by era
 ### Foundation — 2026-08-21→25 (migrations 0014–0018; tests 75→163)
@@ -294,7 +323,7 @@ INSERT INTO d1_migrations (name, applied_at) VALUES
   ('0039_sprint_drafts.sql',         datetime('now'));
 ```
 
-## 6. Open items (verified against the v0.3.11.0 tree)
+## 6. Open items (verified against the v0.3.11.2 tree)
 **Code — verified absent:** admin feature-usage analytics + top-10 activity ranking · ~~Telegram
 `/update <project> <stage>`~~ ✅ shipped v0.3.11.0 · ~~one-way ICS calendar export (High)~~ ✅ shipped
 v0.3.11.0 · ~~web-clipper bookmarklet / extension~~ ✅ shipped v0.3.11.0 · `dev_tasks` note
@@ -304,7 +333,10 @@ connectors · multi-canvas. Deferred by design: incremental notebook swap.
 `OPEN_REGISTRATION` · CF "Always Use HTTPS" toggle · PWA installability re-check ·
 key-custody drill · Resend delivery confirmation.
 **Watch:** one non-repro vitest failure seen once (149/150, then 3× 150/150) · deep links
-hardcode hibana.ir · mirror rate-limit keys share Arvan POP IPs.
+hardcode hibana.ir · mirror rate-limit keys share Arvan POP IPs. Session 20 note: the
+smoke test's htmx spark-fragment expectation was stale (failed at v0.3.11.1 HEAD) —
+fixed to match the ideas-folder-grid; if a future smoke failure appears, check whether
+the expectation or the product changed first.
 
 **Shipped this session (v0.3.11.0):** ICS calendar export (`/api/export/calendar.ics`),
 Telegram `/update <project> <stage>`, web-clipper bookmarklet (`clip.html`), "Resume work"

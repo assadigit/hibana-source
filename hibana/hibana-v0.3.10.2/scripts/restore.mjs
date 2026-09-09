@@ -66,13 +66,21 @@ const snapshot = JSON.parse(jsonText)
 // 2026-08-28: quick_notes + sadhana tables added — restores previously skipped the notebook
 // and the whole to-do board (those tables were also missing from SNAPSHOT_TABLES, so old
 // snapshots don't carry them; both sides are fixed together from this version on).
+// Session 20 (backup-coverage audit): this list had drifted — snapshots gained the
+// spark/dev-board cluster in Phase 5 (2026-09-09) + project_archives/dev_task_tags in
+// Session 20, but this restore path still skipped them all (a direct-path restore would
+// silently drop idea folders, dev-board tasks, sprints, backlog docs, and archived
+// tasks). Now mirrors SNAPSHOT_TABLES from src/services/backup.ts in FK-safe order;
+// legacy tables (changelogs/password_resets) stay for old-snapshot compatibility.
 const tableOrder = [
-  'invites', 'projects', 'project_history_log', 'hurdles', 'tags', 'project_tags',
+  'invites', 'spark_folders', 'projects', 'project_history_log', 'hurdles', 'tags', 'project_tags',
   'links', 'screenshots', 'changelogs', 'tasks', 'payments', 'telegram_captures', 'telegram_links',
   'canvas_elements', 'password_resets',
   'quick_notes',
   'sadhana_tasks', 'sadhana_tags', 'sadhana_updates', 'sadhana_recur_history',
   'sadhana_quadrant_names',
+  'task_categories', 'sprints', 'dev_tasks', 'dev_task_tags', 'project_archives',
+  'backlog_docs', 'backlog_doc_revisions',
 ] // FK-safe order (parents before children; FTS virtual tables rebuild via triggers)
 
 const snapshotUsers = snapshot.data.users ?? []

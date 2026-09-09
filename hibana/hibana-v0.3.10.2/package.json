@@ -1,9 +1,9 @@
 {
   "name": "hibana",
-  "version": "0.3.11.1",
+  "version": "0.3.11.2",
   "private": true,
   "type": "module",
-  "description": "Personal project & idea manager \u2014 Cloudflare Workers (D1) or plain Node (SQLite)",
+  "description": "Personal project & idea manager — Cloudflare Workers (D1) or plain Node (SQLite)",
   "scripts": {
     "dev": "wrangler dev",
     "build": "node scripts/build.mjs --prod",

@@ -18,7 +18,18 @@ export function requireAuth(cfg: Config): MiddlewareHandler {
     // The extend-on-activity + expired-session-cleanup are fire-and-forget via waitUntil.
     const result = await validateSessionWithUser<UserRow>(cfg.db, token)
     if (!result) {
-      const wantsDocument = c.req.header('Sec-Fetch-Dest') === 'document' || c.req.header('HX-Request') !== undefined
+      const wantsDocument =
+        c.req.header('Sec-Fetch-Dest') === 'document' ||
+        c.req.header('HX-Request') !== undefined ||
+        // Session 20 (SW-navigation fix): a service worker's navigate-mode re-fetch
+        // (network-first shell strategy, public/sw.js) re-stamps the request as a
+        // worker-initiated fetch — Sec-Fetch-Dest: document is LOST on the way to the
+        // origin, so an expired-session reload of /app rendered the raw JSON 401 body
+        // instead of bouncing to login. Browsers always send Accept: text/html on real
+        // document navigations and the SW fetch preserves the original Accept header —
+        // this closes the gap for every HTML-expecting caller. JSON API clients (curl,
+        // the offline queue, XHR/fetch with */* or application/json) are unaffected.
+        (c.req.header('accept') ?? '').includes('text/html')
       if (wantsDocument) return c.redirect('/login.html')
       return c.json({ error: 'unauthorized' }, 401)
     }
@@ -27,7 +38,12 @@ export function requireAuth(cfg: Config): MiddlewareHandler {
     if (expiresMs <= Date.now()) {
       // Expired — best-effort delete via waitUntil; treat as unauthed.
       fireAndForget(c, () => deleteSessionById(cfg.db, sessionId))
-      const wantsDocument = c.req.header('Sec-Fetch-Dest') === 'document' || c.req.header('HX-Request') !== undefined
+      // Session 20: same Accept:text/html document check as the no-session branch (SW
+      // navigate re-fetches lose Sec-Fetch-Dest — see the comment above).
+      const wantsDocument =
+        c.req.header('Sec-Fetch-Dest') === 'document' ||
+        c.req.header('HX-Request') !== undefined ||
+        (c.req.header('accept') ?? '').includes('text/html')
       if (wantsDocument) return c.redirect('/login.html')
       return c.json({ error: 'unauthorized' }, 401)
     }

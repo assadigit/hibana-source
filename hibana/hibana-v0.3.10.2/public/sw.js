@@ -106,7 +106,7 @@
 // v240 (2026-09): experimental auto-polish + custom AI prompt in Settings.
 // v239 (2026-09): Magic Button (Mistral default) + hover ⋯ menu on notes + modal editor.
 // Drops the v238 precache so every browser sees the new dashboard.html + dist bundles.
-const VERSION = "hibana-v279"
+const VERSION = "hibana-v280" // Session 20: navigate-mode 401 → login redirect (Sec-Fetch-Dest lost through SW re-fetch)
 
 // Static shell: unhashed pages/partials/icons/vendor/fonts (SWR or network-first at
 // runtime; precached here for offline). The hashed app bundles come from the manifest
@@ -232,6 +232,14 @@ self.addEventListener('fetch', (e) => {
     e.respondWith(
       fetch(req)
         .then((res) => {
+          // Session 20 (v280): the navigate re-fetch above re-stamps the request as a
+          // worker-initiated fetch — Sec-Fetch-Dest: document never reaches the origin —
+          // so an expired/absent session on an authed shell (/app) came back as the raw
+          // JSON 401 body, which the browser rendered as a JSON viewer page (no JS, no
+          // login bounce). The Worker now also keys on Accept: text/html (middleware.ts),
+          // and this redirect is the client-side belt-and-suspenders: a 401 on a real
+          // navigation is never a renderable document — bounce to login.
+          if (res.status === 401) return Response.redirect('/login.html', 302)
           const copy = res.clone()
           caches.open(VERSION).then((c) => c.put(req, copy)).catch(() => {})
           return res

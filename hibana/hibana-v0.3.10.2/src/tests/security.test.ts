@@ -238,3 +238,41 @@ describe('security hardening (2026-08-28)', () => {
     }
   })
 })
+
+// Session 20 (SW-navigation fix): a service worker's navigate-mode re-fetch re-stamps the
+// request as worker-initiated — Sec-Fetch-Dest: document never reaches the origin. An
+// unauthenticated /app reload therefore rendered the raw JSON 401 body (a JSON-viewer
+// page — no JS, no login bounce) instead of the login redirect. The middleware now also
+// treats Accept: text/html as a document request.
+describe('unauthenticated document requests bounce to login (Session 20)', () => {
+  it('Accept: text/html without a session → 302 login redirect (the SW navigate shape)', async () => {
+    const { db, close } = makeTestDb()
+    try {
+      await makeUser(db)
+      const app = createApp({ db, isProd: false, github: { owner: 'x', repo: 'y', token: '' }, assets: undefined })
+      const res = await app.fetch(
+        new Request('http://local/app', { headers: { Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8' } }),
+      )
+      expect(res.status).toBe(302)
+      expect(res.headers.get('Location')).toBe('/login.html')
+    } finally {
+      close()
+    }
+  })
+
+  it('JSON clients without Accept: text/html still get the 401 JSON body (offline queue, curl)', async () => {
+    const { db, close } = makeTestDb()
+    try {
+      await makeUser(db)
+      const app = createApp({ db, isProd: false, github: { owner: 'x', repo: 'y', token: '' }, assets: undefined })
+      const plain = await app.fetch(new Request('http://local/api/dashboard'))
+      expect(plain.status).toBe(401)
+      expect(await plain.json()).toEqual({ error: 'unauthorized' })
+      const jsonAccept = await app.fetch(new Request('http://local/api/dashboard', { headers: { Accept: 'application/json' } }))
+      expect(jsonAccept.status).toBe(401)
+      expect(await jsonAccept.json()).toEqual({ error: 'unauthorized' })
+    } finally {
+      close()
+    }
+  })
+})

@@ -27,17 +27,24 @@
     tasks + tag links; restore.mjs tableOrder was frozen 2026-08-28 (missing the whole
     Phase-5 spark/dev cluster); restore-safe.mjs ordered tables alphabetically (FK-unsafe);
     personal JSON export lacked the dev-board cluster + archives. All fixed FK-safe,
-    snapshot + export schema_version → 20260920, +4 regression tests (289→293), local
-    snapshot→restore drill PASS.
+    snapshot + export schema_version → 20260920, +4 regression tests, local
+    snapshot→restore drill PASS. +2 SW-navigation auth tests (total 289→295).
   - **Smoke test fixed**: stale htmx ?status=spark expectation (pre-session-20 failure at
     HEAD) updated for the session-18 ideas-folder-grid — smoke ALL PASS.
+  - **SW-navigation 401 fix (pre-existing at HEAD)**: a service worker's navigate-mode
+    re-fetch loses Sec-Fetch-Dest: document at the origin, so an expired/absent session
+    on an /app reload rendered the raw JSON 401 body (a JSON-viewer page — no JS, no
+    login bounce). Fixed both layers: middleware treats Accept: text/html as a document
+    request (redirect to /login.html; JSON clients unaffected — pinned by 2 tests) +
+    sw.js v280 turns a 401 on any navigation into a login redirect (belt+ suspenders).
   - Verified by design (no change): reports bar-chart scroll strip, stat-strip carousel,
     sadhana subbar chip carousel, closed ⋯ menu pops, theme-floater ::after hit area.
   - Perf/SW review (no changes warranted, honest): D1 EXPLAIN all-indexed at busy-solo
     scale (worst interactive 31.85ms canvas bbox @40k elements — under threshold);
     SW class split sound; sw.js unversioned-URL risk covered by updateViaCache=imports
     default + boot.js reg.update() polling.
-  - Assets: app.css ?v=259 (was 258), SW stays hibana-v279 (no sw.js logic change).
+  - Assets: app.css ?v=259 (was 258), SW hibana-v279 → v280 (navigation-401 redirect
+    logic).
 - v0.3.11.1 = **Session 19 hotfix release** — all v0.3.11.0 features + fixes from Ali's
   direct feedback: stat-carousel arrows flank the strip (HTML restructure), sticky-note
   shadow spread reduced, dark mode flat card fills (no gradient), muted dark-mode kanban/
@@ -118,7 +125,7 @@
 | 18 | 2026-09 | v0.3.10.0 — Magic Button (idea §1): Workers AI `[ai]` binding, `POST /api/ai/text`, `magic-wand.js` focus-triggered wand (polish/rewrite/translate, preview+Apply/Discard). 259/259 tests, typecheck green |
 | 19 | 2026-09 | v0.3.10.1 — free-tier model picker (Settings): `GET /api/ai/models`, `POST /api/ai/text` accepts `model`, `resolveModel` whitelist (paid-only → default). 265/265 tests |
 | 19 | 2026-09 | v0.3.11.0 — Session 19: ICS calendar export (`/api/export/calendar.ics`), Telegram `/update <project> <stage>`, web-clipper bookmarklet (`clip.html`), "Resume work" dashboard card (Mission #2), segmented OTP input, password visibility toggle, Farsi numerals on typing, canvas empty-state, board Add-button redesign, logo delete, per-column colored task borders, 50% larger taskadd modal, unlimited task titles (read-more clamp), github.deleteFile SHA auto-lookup, note-clear bug fix, comprehensive UI polish pass. 289/289 tests, typecheck green, SW v278 |
-| 20 | 2026-09 | v0.3.11.2 — Session 20: systematic UI/UX audit (129-row sweep, 0 console errors), 22 AA-contrast offenders fixed (white-on-accent fills → --cta; teal-as-text → --link; pd-col inks darkened; dark sticky metadata + bug-bubble), 2 mobile overflows fixed (project header, clients payments form), CRITICAL backup coverage gaps fixed (project_archives + dev_task_tags in snapshot; restore.mjs stale tableOrder; restore-safe FK-safe ordering; personal export cluster), stale smoke expectation fixed. 293/293 tests, typecheck green, smoke ALL PASS, local restore drill PASS, app.css v259, SW v279 |
+| 20 | 2026-09 | v0.3.11.2 — Session 20: systematic UI/UX audit (129-row sweep, 0 console errors), 22 AA-contrast offenders fixed (white-on-accent fills → --cta; teal-as-text → --link; pd-col inks darkened; dark sticky metadata + bug-bubble), 2 mobile overflows fixed (project header, clients payments form), CRITICAL backup coverage gaps fixed (project_archives + dev_task_tags in snapshot; restore.mjs stale tableOrder; restore-safe FK-safe ordering; personal export cluster), stale smoke expectation fixed, SW-navigation 401→login redirect fix (middleware Accept:text/html + sw.js). 295/295 tests, typecheck green, smoke ALL PASS, local restore drill PASS, app.css v259, SW v280 |
 
 ## 3. Timeline by era
 ### Foundation — 2026-08-21→25 (migrations 0014–0018; tests 75→163)

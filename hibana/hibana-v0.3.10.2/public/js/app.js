@@ -2947,20 +2947,37 @@ window.hibana = (() => {
     document.addEventListener('input', (e) => {
       const ta = e.target
       if (!ta || ta.tagName !== 'TEXTAREA' || ta.dataset.noFaDigits === '') return
-      // Session 19: only convert in Farsi context — the field is dir=rtl (the FA UI sets
-      // note/box/description textareas to dir=rtl for FA users) OR the char before the
-      // digit is a Farsi letter. "hello 5" stays Latin (dir=auto + Latin run).
-      const rtl = ta.getAttribute('dir') === 'rtl'
+      // Session 19 (user request): "When user is writing in Farsi, always Farsi numerals
+      // must be used." The page lang is 'fa' (set by i18n.js) — if so, convert ALL typed
+      // Latin digits to Persian. No guard on "char before" — the user wants universal
+      // conversion in the FA UI. The only exception: data-no-fa-digits on the field.
+      // Also covers <input> text fields (not just textareas) — task titles, descriptions, etc.
+      const isFa = document.documentElement.lang === 'fa'
+      if (!isFa) return
       const pos = ta.selectionStart
       const val = ta.value
       if (pos < 1) return
       const prev = val[pos - 1]
       if (!/[0-9]/.test(prev)) return
-      const before = pos >= 2 ? val[pos - 2] : ''
-      if (!rtl && !isFaLetter(before)) return // Latin field + Latin char before → keep Latin
       const fa = faDigMap[+prev]
       ta.value = val.slice(0, pos - 1) + fa + val.slice(pos)
       ta.setSelectionRange(pos, pos)
+    })
+    // Session 19: also convert in <input type="text"> fields (task titles, etc.)
+    document.addEventListener('input', (e) => {
+      const inp = e.target
+      if (!inp || inp.tagName !== 'INPUT' || inp.dataset.noFaDigits === '') return
+      const isFa = document.documentElement.lang === 'fa'
+      if (!isFa) return
+      if (inp.type && !['text', 'search', ''].includes(inp.type)) return
+      const pos = inp.selectionStart
+      const val = inp.value
+      if (pos < 1) return
+      const prev = val[pos - 1]
+      if (!/[0-9]/.test(prev)) return
+      const fa = faDigMap[+prev]
+      inp.value = val.slice(0, pos - 1) + fa + val.slice(pos)
+      inp.setSelectionRange(pos, pos)
     })
 
     const mounts = document.querySelectorAll('[data-nav]')

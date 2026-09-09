@@ -148,7 +148,7 @@ export const resetConfirmSchema = z.object({
   // same floor as register (numbers-only OK)
 })
 
-export const noteSchema = z.object({ note: z.string().min(1).max(5000) })
+export const noteSchema = z.object({ note: z.string().max(5000) }) // min(0): an empty note is valid — the "Clear" button POSTs {note:''} to wipe latest_note (session-19 user report: clear didn't persist)
 
 export const searchSchema = z.object({ q: z.string().min(1).max(200) })
 

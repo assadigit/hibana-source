@@ -800,3 +800,83 @@ Stage Summary:
   deploy to dev/prod (out of scope without Ali's go-ahead). The app is feature-stable +
   polished across all surfaces — every empty state, every tab, every auth flow, every
   interactive control has been audited + refined over 10 cron rounds.
+
+---
+Task ID: session-19-user-batch
+Agent: Z.ai Code (principal) — direct user feedback batch (12 items)
+Task: Fix 1 bug + ship 11 polish/feature items from Ali's direct report
+
+Work Log:
+- **Bug #9 (note clear doesn't persist)**: `noteSchema = z.object({ note: z.string().min(1).max(5000) })`
+  — the `min(1)` rejected the empty string the Clear button POSTs, so the note was never
+  wiped server-side. Changed to `max(5000)` (min 0). Verified: POST {note:''} returns
+  {ok:true}, latest_note is empty after refresh. ROOT-CAUSE fix.
+- **Layout #1 (carousel nav position)**: `.stat-carousel` was a grid with the strip
+  stacked above the nav. Restructured to flex row: `[prev arrow][strip flex:1][next arrow]`
+  + dots row below. Verified via DOM: stripOrder=2, prevOrder=1, nextOrder=3. VLM PASS:
+  "arrows on the left and right of the stage strip (not below it)."
+- **Layout #2 (notes tab cropped)**: the notebook card's absolute controls panel
+  (`.note-head-controls`) was `inset-inline-start:0` — extended past the right edge +
+  shadow clipped. Changed to `inset-inline-end:0` (right-aligned, grows toward the left
+  within bounds) + `.notebook.card { overflow: visible }` so the shadow shows.
+- **Remove #3**: deleted the `<p>از یادداشت سریع داشبورد → اتصال</p>` helper text under
+  Related notes (projects.ts:661).
+- **Polish #4 (hover button text)**: `.pd-task-add:hover` color was `var(--btn-text, var(--text))`
+  — the fallback to `--text` could render dark on the teal bg. Changed to explicit `#fff`.
+  Icon hover also `#fff`.
+- **Polish #8 (kanban card bg)**: the dashboard project cards had `--statcard-bg` (grey
+  fill). Two rules set this: `.stat-kanban-card` (0,1,0) + `:root:not([data-theme='light'])
+  .stat-kanban-card` (0,2,0, later in source) — both won the cascade over my round-7
+  transparent rule. Fixed BOTH: `.card.stat-kanban-card` (raises specificity above the
+  .card gradient) + the `:root:not(...)` rule set to `transparent`. Verified live:
+  `bg: rgba(0,0,0,0)` (transparent). VLM PASS: "transparent/white background with only a border."
+- **Feature #10 (remove 300-char limit + read more)**: `createDevTaskSchema` + `updateDevTaskSchema`
+  title `max(300)` → `max(2000)`. Removed `maxlength="300"` from the taskadd textarea.
+  Added CSS line-clamp (3 lines) on `.pd-task-title` + a `.is-expanded` toggle. project.html
+  `injectPdTaskMenus` adds a `data-more="· read more"` hint + a click handler that toggles
+  `.is-expanded` (changes the hint to "read less"). Verified live: a 632-char task title
+  clamps to 3 lines + shows "· read more". i18n: pd.readMore/readLess EN+FA.
+- **Polish #11 (Add task modal 50% larger)**: `.pd-taskadd-modal` max-width 34rem→52rem
+  (94vw cap); padding 1.25rem→1.5rem; gap 0.6rem→0.8rem; `#pd-taskadd-textarea`
+  min-block-size 7.5rem→12rem. Verified live: modalMaxWidth=416px (viewport-capped),
+  taMinHeight=192px. VLM PASS: "significantly wider, textarea tall enough for multiple lines."
+- **Polish #5 (larger editor)**: covered by #11's textarea bump (the note editor modal
+  was already min-block-size:40vh).
+- **Feature #6 (per-box colored labels)**: `.pd-task-wrap` border-inline-start was colored
+  by PRIORITY (medium=#E8B27D orange → every column looked orange). Changed: the default
+  `.pd-col .pd-task-wrap` now inherits the column's `--pd-c` color (`rgb(var(--pd-c)/0.55)`).
+  Removed the `:has(.prio-medium)` override (medium now keeps the column color). Only
+  low/high/urgent override (grey/pink/red). i18n: pd.readMore/readLess.
+- **Feature #12 (logo edit/delete)**: the project header now wraps an existing logo in a
+  `.pd-logo-wrap` with a hover-revealed trash button (`.pd-logo-remove`). Click →
+  `DELETE /api/projects/:id/logo` (already existed, now uses the fixed `deleteFile` with
+  SHA auto-lookup) → confirm dialog → reload. CSS: absolute trash icon top-end corner,
+  opacity 0→1 on hover, red on hover. i18n: pd.logoRemoveConfirm/logoRemoved/logoRemoveFailed
+  EN+FA.
+- **Feature #7 (Farsi numerals when writing Farsi)**: a document-level `input` event
+  delegation (survives htmx swaps — the project page loads #project-body via htmx AFTER
+  DOMContentLoaded, so a per-element querySelectorAll at boot found 0 textareas). Converts
+  the just-typed Latin digit (0-9) to Persian (۰-۹) when EITHER the field is `dir=rtl`
+  (the FA UI) OR the char before the digit is a Farsi letter. "hello 5" (dir=auto + Latin
+  run) stays Latin; "سلام5" (dir=rtl) → "سلام۵". Opt-out: `data-no-fa-digits`. Verified
+  live: typing "5" after "سلام" in a dir=rtl textarea → "۵" (U+06F5). The guard keeps URLs
+  + code (Latin char before the digit) untouched.
+- Cache-bust: app.css 245→248 (3 edits), app.js 166→168 (2 edits), i18n.js 50→52 (2 edits).
+  All 23 pages consistent. SW hibana-v278 unchanged (no sw.js logic change).
+- Verification: tsc green; vitest 289/289 (36 files); node --check app.js green;
+  agent-browser live QA: #9 note clears + persists (empty after refresh), #1 carousel
+  arrows flank the strip (DOM-verified + VLM PASS), #8 kanban card transparent
+  (DOM-verified `rgba(0,0,0,0)` + VLM PASS), #10 long task (632 chars) clamps to 3 lines
+  + "read more", #11 modal wider + taller (VLM PASS), #7 Farsi digit "5"→"۵" after Farsi
+  text in rtl. VLM PASS on dashboard carousel + kanban card + taskadd modal.
+
+Stage Summary:
+- 1 bug fixed (note clear persistence — root cause: noteSchema.min(1) rejected empty).
+- 11 polish/feature items shipped: carousel nav position, notes tab overflow, helper text
+  removed, hover text white, kanban card transparent, taskadd modal 50% larger, read-more
+  on long task titles (limit lifted 300→2000), per-box colored labels, logo delete, Farsi
+  numerals on typing.
+- Assets: app.css v248, app.js v168, i18n.js v52 (all consistent). SW v278 unchanged.
+- Tests 289/289, typecheck green, node --check green.
+- §6 open items: 3 of 4 done (ICS export, Telegram /update, web-clipper). The 4th
+  (dev_tasks note column) needs a schema migration → Ali's written approval.

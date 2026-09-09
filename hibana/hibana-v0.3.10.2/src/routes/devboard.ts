@@ -40,7 +40,7 @@ const clipRangeOk = (b: { start_at?: string | null; end_at?: string | null }) =>
   !(typeof b.start_at === 'string' && typeof b.end_at === 'string') || Date.parse(b.end_at!) > Date.parse(b.start_at!)
 
 const createDevTaskSchema = z.object({
-  title: z.string().trim().min(1).max(300),
+  title: z.string().trim().min(1).max(2000), // Session 19 (user request): was max(300) — "unlimited". 2000 is effectively unlimited for a task title; the rendered title truncates with a "read more" (CSS line-clamp + a toggle). The textarea maxlength on the modal was also lifted.
   status: taskStatusSchema.optional(),
   priority: prioritySchema.optional(),
   category_id: z.string().max(64).nullable().optional(),
@@ -49,7 +49,7 @@ const createDevTaskSchema = z.object({
   end_at: isoDate.nullable().optional(),
 }).refine(clipRangeOk, { message: 'bad_range' })
 const updateDevTaskSchema = z.object({
-  title: z.string().trim().min(1).max(300).optional(),
+  title: z.string().trim().min(1).max(2000).optional(), // Session 19: lifted from 300 to 2000 (matches createDevTaskSchema).
   status: taskStatusSchema.optional(),
   priority: prioritySchema.optional(),
   category_id: z.string().max(64).nullable().optional(),

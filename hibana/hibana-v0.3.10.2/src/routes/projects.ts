@@ -599,7 +599,7 @@ function detailHtml(p: ProjectRow, d: Awaited<ReturnType<typeof loadDetail>>, la
   <header class="card pd-head">
     <div class="row spread">
       <div class="row">
-        ${p.logo_path ? `<img class="pd-logo" src="/api/projects/${p.id}/logo/file" alt="${esc(p.title)} logo" />` : `<div class="pd-logo-placeholder" data-pd-logo-upload data-hint="${trL(lang, 'Add logo', 'افزودن لوگو')}" title="${trL(lang, 'Add logo', 'افزودن لوگو')}">${icon('image')}</div>`}
+        ${p.logo_path ? `<div class="pd-logo-wrap"><img class="pd-logo" src="/api/projects/${p.id}/logo/file" alt="${esc(p.title)} logo" /><button type="button" class="ghost small danger pd-logo-remove" data-pd-logo-remove="${p.id}" title="${trL(lang, 'Remove logo', 'حذف لوگو')}" aria-label="${trL(lang, 'Remove logo', 'حذف لوگو')}">${icon('trash')}</button></div>` : `<div class="pd-logo-placeholder" data-pd-logo-upload data-hint="${trL(lang, 'Add logo', 'افزودن لوگو')}" title="${trL(lang, 'Add logo', 'افزودن لوگو')}">${icon('image')}</div>`}
       </div>
       <div class="row">
         <label class="sr-only" for="pd-stage">${trL(lang, 'Stage', 'مرحله')}</label>
@@ -658,7 +658,6 @@ function detailHtml(p: ProjectRow, d: Awaited<ReturnType<typeof loadDetail>>, la
     </form>
     <h3 style="margin-block-start:1.5rem">${trL(lang, 'Related notes ({n})', 'یادداشت‌های مرتبط ({n})', { n: dig(d.notes.length) })}</h3>
     <ul class="links related-notes">${relatedNotes}</ul>
-    <p class="muted small">${trL(lang, 'From the dashboard Quick Notebook → Attach', 'از یادداشت سریع داشبورد → اتصال')}</p>
   </section>
 
   <section class="card detail-panel" id="detail-problems" role="tabpanel" data-detail-panel="problems" hidden>
@@ -758,7 +757,7 @@ function detailHtml(p: ProjectRow, d: Awaited<ReturnType<typeof loadDetail>>, la
         <button type="button" class="ghost" id="pd-taskadd-close" aria-label="${trL(lang, 'Close', 'بستن')}">${icon('x')}</button>
       </div>
       <div class="pd-taskadd-col muted small">${trL(lang, 'Lands in', 'ثبت در')} <span class="chip" id="pd-taskadd-col-chip"></span></div>
-      <textarea id="pd-taskadd-textarea" rows="4" maxlength="300" dir="auto" autocomplete="off" aria-label="${trL(lang, 'Task title', 'عنوان کار')}" placeholder="${trL(lang, 'Write the task — long sentences are welcome…', 'کار را بنویس — جمله‌های بلند جای دارند…')}"></textarea>
+      <textarea id="pd-taskadd-textarea" rows="4" dir="auto" autocomplete="off" aria-label="${trL(lang, 'Task title', 'عنوان کار')}" placeholder="${trL(lang, 'Write the task — long sentences are welcome…', 'کار را بنویس — جمله‌های بلند جای دارند…')}"></textarea>
       <div class="row spread">
         <span class="muted small" id="pd-taskadd-count" aria-live="polite"></span>
         <span class="muted small">${trL(lang, 'Enter adds · Shift+Enter new line · Esc closes', 'Enter برای افزودن · Shift+Enter خط جدید · Esc برای بستن')}</span>

@@ -2935,6 +2935,34 @@ window.hibana = (() => {
       wrap.appendChild(btn)
     })
 
+    // Session 19 (user request): Farsi numerals when writing Farsi. Typed Latin digits
+    // (0-9) auto-convert to Persian (۰-۹) IF the character before the caret is a Farsi
+    // letter, a space, or nothing — so a URL/code run stays Latin. Scoped to <textarea> +
+    // contenteditable (the note/box/description fields). Uses DOCUMENT-LEVEL delegation so
+    // it survives htmx swaps (the project page loads #project-body via htmx AFTER
+    // DOMContentLoaded, so a per-element querySelectorAll at boot finds 0 textareas).
+    // Opt-out: data-no-fa-digits on the field.
+    const faDigMap = ['۰','۱','۲','۳','۴','۵','۶','۷','۸','۹']
+    const isFaLetter = (ch) => ch && /[\u0600-\u06FF\uFB50-\uFDFF\uFE70-\uFEFF]/.test(ch)
+    document.addEventListener('input', (e) => {
+      const ta = e.target
+      if (!ta || ta.tagName !== 'TEXTAREA' || ta.dataset.noFaDigits === '') return
+      // Session 19: only convert in Farsi context — the field is dir=rtl (the FA UI sets
+      // note/box/description textareas to dir=rtl for FA users) OR the char before the
+      // digit is a Farsi letter. "hello 5" stays Latin (dir=auto + Latin run).
+      const rtl = ta.getAttribute('dir') === 'rtl'
+      const pos = ta.selectionStart
+      const val = ta.value
+      if (pos < 1) return
+      const prev = val[pos - 1]
+      if (!/[0-9]/.test(prev)) return
+      const before = pos >= 2 ? val[pos - 2] : ''
+      if (!rtl && !isFaLetter(before)) return // Latin field + Latin char before → keep Latin
+      const fa = faDigMap[+prev]
+      ta.value = val.slice(0, pos - 1) + fa + val.slice(pos)
+      ta.setSelectionRange(pos, pos)
+    })
+
     const mounts = document.querySelectorAll('[data-nav]')
     if (mounts.length > 0) {
       const res = await fetch('/partials/nav.html')

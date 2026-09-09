@@ -1124,6 +1124,21 @@ input::placeholder, textarea::placeholder { font-size: 0.88em; opacity: 0.7; } /
    natively (touch/wheel). The drag-a-card-between-boxes gesture is unaffected: the boxes
    stay .stat-box children of the track. */
 .stat-carousel { display: grid; gap: 0.45rem; margin-block-end: 1.25rem; }
+/* Session 19 (user request): the prev/next arrows flank the strip on the left/right
+   edge (was: stacked below the whole strip). Layout: a flex row with [prev][strip flex:1][next],
+   + the dots row centered under the strip. On narrow screens the arrows shrink to icon-only. */
+.stat-carousel-nav { display: contents; }
+.stat-carousel > .stat-strip.stat-boxes { order: 2; }
+.stat-carousel [data-stat-prev] { order: 1; }
+.stat-carousel [data-stat-next] { order: 3; }
+.stat-carousel .stat-dots { order: 4; grid-column: 1 / -1; justify-content: center; }
+/* re-wrap the carousel as a flex row so the arrows sit beside the strip */
+.stat-carousel {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
 .stat-carousel .stat-strip.stat-boxes {
   display: flex;
   gap: 0.75rem;
@@ -1133,6 +1148,8 @@ input::placeholder, textarea::placeholder { font-size: 0.88em; opacity: 0.7; } /
   scrollbar-width: none; /* the arrows + dots are the affordance */
   overscroll-behavior-x: contain;
   -webkit-overflow-scrolling: touch;
+  flex: 1 1 0;
+  min-inline-size: 0;
 }
 .stat-carousel .stat-strip::-webkit-scrollbar { display: none; }
 .stat-carousel .stat-box {
@@ -1154,7 +1171,6 @@ input::placeholder, textarea::placeholder { font-size: 0.88em; opacity: 0.7; } /
 @media (max-width: 640px) {
   .stat-carousel .stat-box.is-empty { display: none; }
 }
-.stat-carousel-nav { display: flex; align-items: center; justify-content: center; gap: 0.75rem; }
 .stat-arrow {
   display: inline-flex;
   align-items: center;
@@ -1167,6 +1183,7 @@ input::placeholder, textarea::placeholder { font-size: 0.88em; opacity: 0.7; } /
   background: var(--card);
   color: var(--muted);
   cursor: pointer;
+  flex: none;
 }
 .stat-arrow:hover { color: var(--text); border-color: var(--line-strong); }
 .stat-arrow:disabled { opacity: 0.35; cursor: default; }
@@ -1197,21 +1214,21 @@ input::placeholder, textarea::placeholder { font-size: 0.88em; opacity: 0.7; } /
   gap: 0.4rem;
   align-content: start;
 }
-.stat-kanban-card {
-  /* Session 15 (user request): ONE neutral surface for every status — the card body never
-     encodes stage; the ::before indicator bar is the only status-colored element. */
-  background: var(--statcard-bg);
+.card.stat-kanban-card {
+  /* Session 19 (user request): colorless surface — transparent bg, only a border.
+     Was var(--statcard-bg) (a grey fill). The .card prefix raises specificity above
+     the .card gradient rule (line 5858) so transparent actually wins. The ::before
+     indicator bar still carries the status color (the only status-colored element). */
+  background: transparent;
+  border: 1px solid var(--line);
   padding: 0.35rem 0.5rem 0.3rem;
   cursor: grab;
   display: grid;
   gap: 0.1rem;
-  /* Phase 7 item 5: .card's 20px (--radius) read as "too much rounded" on these small
-     project cards — a standard modern 10px matches the compact rows. */
   border-radius: 10px;
 }
-/* Hover steps toward the text tone (darker in light mode, lifted in dark mode) — a visible
-   nudge on the new grey surface that stays theme-aware. */
-.stat-kanban-card:hover { background: color-mix(in srgb, var(--statcard-bg) 94%, var(--text) 6%); }
+/* Hover steps toward the text tone — a visible nudge on the now-borderless surface. */
+.card.stat-kanban-card:hover { background: var(--bg-soft); border-color: var(--line-strong); }
 .stat-kanban-card .tag-chip { margin-inline-start: 0.2rem; }
 /* Batch (q) 2026-09-07 — COMPACT dashboard cards (user: "they must only carry [project
    button + project heading], with last-updated below — no wasted white space"): the old
@@ -3098,7 +3115,7 @@ cite { font-style: normal; }
    --shadow: none), logical properties for RTL.
    User request 2026-09-02 (compact): the notebook container had the default .card
    padding (clamp 1.25-2rem) — too much wasted space. Tightened to 0.75-1rem. */
-.notebook.card { padding: clamp(0.75rem, 1.5vw, 1rem); }
+.notebook.card { padding: clamp(0.75rem, 1.5vw, 1rem); overflow: visible; /* Session 19 (user report): the view/size controls panel floats absolutely + its box-shadow was clipped by the card's implicit overflow. */ }
 .notebook .note-heading { margin-block-end: 0; font-size: 1rem; }
 .note-head .note-title { flex: 1; min-inline-size: 0; }
 /* User request 2026-09-02: controls FIRST, heading SECOND (near each other, not spread). */
@@ -3130,7 +3147,7 @@ cite { font-style: normal; }
 .note-controls-toggle[open] .note-head-controls {
   position: absolute;
   inset-block-start: calc(100% + 0.25rem);
-  inset-inline-start: 0;
+  inset-inline-end: 0; /* Session 19 (user report): was inset-inline-start:0 — the panel extended past the right edge + its shadow clipped. Right-align it so it grows toward the card's left edge within bounds. */
   z-index: 5;
   display: flex;
   gap: 0.5rem;
@@ -5867,7 +5884,7 @@ html[data-theme='dark'] .kanban-card,
 :root:not([data-theme='light']) .kanban-card { background: var(--card); }
 .stat-kanban-card,
 html[data-theme='dark'] .stat-kanban-card,
-:root:not([data-theme='light']) .stat-kanban-card { background: var(--statcard-bg); }
+:root:not([data-theme='light']) .stat-kanban-card { background: transparent; /* Session 19 (user request): was var(--statcard-bg) — colorless surface with only a border. The .stat-kanban-card:hover rule (line 1230) adds the bg-soft fill on hover. */ }
 
 /* Status-coded kanban cards (2026-08-30 (g), Ali's request) — SPLIT in session-11
    (user report 2026-09-14): the dashboard's stage boxes read as "all box colored pale
@@ -6680,8 +6697,14 @@ html[data-theme="dark"] .heatmap-l4,
 .pd-task .prio-urgent { background: #D96C63 !important; }
 /* Priority left-border + tint on the wrapper */
 .pd-task-wrap { border-inline-start: 3px solid transparent; }
+/* Session 19 (user request): the task card's left border now inherits the COLUMN's color
+   by default (via the --pd-c token set on .pd-col[data-status]). Was: transparent default +
+   priority colors on every card (most cards are prio-medium = orange, so every column
+   looked orange). Now the border matches the column; only high/urgent override to red/pink
+   to flag urgency. */
+.pd-col .pd-task-wrap { border-inline-start-color: rgb(var(--pd-c, 200 200 200) / 0.55); }
 .pd-task-wrap:has(.prio-low) { border-inline-start-color: #C9CDD2; }
-.pd-task-wrap:has(.prio-medium) { border-inline-start-color: #E8B27D; }
+/* prio-medium: no override — keeps the column color (the default .pd-col .pd-task-wrap rule above). Was orange #E8B27D which made every column look orange. */
 .pd-task-wrap:has(.prio-high) { border-inline-start-color: #E59AA5; }
 .pd-task-wrap:has(.prio-urgent) { border-inline-start-color: #D96C63; background: rgb(217 108 99 / 0.06); }
 .pd-task-wrap:has(.prio-urgent) .pd-task-title { font-weight: 600; }
@@ -6711,6 +6734,29 @@ html[data-theme="dark"] .heatmap-l4,
   background: transparent;
   border-radius: 0;
 }
+/* Session 19 (user request): logo edit/delete. The wrap holds the <img> + a small trash
+   button overlaid at the top-end corner. Hovering the logo reveals the button. */
+.pd-logo-wrap { position: relative; display: inline-block; flex: none; }
+.pd-logo-wrap .pd-logo-remove {
+  position: absolute;
+  inset-block-start: -0.35rem;
+  inset-inline-end: -0.35rem;
+  inline-size: 1.6rem;
+  block-size: 1.6rem;
+  padding: 0;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--card);
+  border: 1px solid var(--line-strong);
+  color: var(--danger);
+  opacity: 0;
+  transition: opacity 0.12s ease;
+  z-index: 2;
+}
+.pd-logo-wrap:hover .pd-logo-remove,
+.pd-logo-wrap:focus-within .pd-logo-remove { opacity: 1; }
+.pd-logo-wrap .pd-logo-remove:hover { background: var(--danger); color: #fff; border-color: var(--danger); }
 .pd-logo-placeholder {
   inline-size: 64px; /* Session 19 (cron round 5): was 96px — too much empty space (VLM-flagged). 64px is enough for a tap target. */
   block-size: 64px;
@@ -6941,7 +6987,17 @@ html[data-theme='dark'] .pd-col[data-status='bug']         { --pd-c: 214 158 170
   font-size: var(--fs-sm);
   overflow-wrap: anywhere;
   line-height: 1.3;
+  /* Session 19 (user request): long task titles (now up to 2000 chars) truncate to 3
+     lines + a "read more" toggle. The .is-expanded class (toggled by app.js on click)
+     lifts the clamp so the full title shows. */
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  cursor: pointer;
 }
+.pd-task-title.is-expanded { -webkit-line-clamp: unset; overflow: visible; }
+.pd-task-title::after { content: attr(data-more); font-size: var(--fs-xs); color: var(--brand); margin-inline-start: 0.3rem; }
 /* date + clock meta (user request 2026-09-03): smaller + muted — it must whisper */
 .pd-task-meta {
   font-size: calc(var(--fs-xs) * 0.8); /* 20% smaller — user request 2026-09 */
@@ -6979,9 +7035,9 @@ html[data-theme='dark'] .pd-col[data-status='bug']         { --pd-c: 214 158 170
    visible while typing. Mirrors the pd-editor-modal recipe at task-title scale — the
    global input/textarea rule (app.css :441) already carries font, padding, border and
    bg; only the sizing and rhythm live here. */
-.pd-taskadd-modal { max-inline-size: min(34rem, 92vw); }
-.pd-taskadd-inner { padding: 1.25rem; display: grid; gap: 0.6rem; }
-#pd-taskadd-textarea { font-size: var(--fs-md); line-height: 1.6; min-block-size: 7.5rem; border-radius: var(--radius); }
+.pd-taskadd-modal { max-inline-size: min(52rem, 94vw); /* Session 19 (user request): 50% larger — was 34rem. The wider modal gives the textarea more writing room + the column/priority chips don't wrap as aggressively. */ }
+.pd-taskadd-inner { padding: 1.5rem; display: grid; gap: 0.8rem; }
+#pd-taskadd-textarea { font-size: var(--fs-md); line-height: 1.6; min-block-size: 12rem; border-radius: var(--radius); /* Session 19: was 7.5rem — the writing area was too small for a "new task" that "long sentences are welcome". 12rem gives ~6 lines of visible text. */ }
 #pd-taskadd-textarea:focus-visible { border-color: var(--brand); }
 .pd-taskadd-col { display: flex; align-items: center; gap: 0.35rem; flex-wrap: wrap; }
 .pd-taskadd-col .chip { padding: 0.12rem 0.55rem; font-size: var(--fs-xs); }
@@ -7015,12 +7071,12 @@ button.pd-task-add {
 }
 .pd-task-add .icon { inline-size: 0.85rem; block-size: 0.85rem; }
 .pd-task-add:hover {
-  color: var(--btn-text, var(--text));
+  color: #fff; /* Session 19 (user report): explicit white — was var(--btn-text, var(--text)) which could resolve to --text (dark) if --btn-text wasn't set. White-on-teal is the only readable hover. */
   border-color: var(--brand);
   background: var(--brand);
 }
 .pd-task-add .icon { color: var(--brand); transition: color 0.15s ease; }
-.pd-task-add:hover .icon { color: var(--btn-text, #fff); }
+.pd-task-add:hover .icon { color: #fff; }
 /* the per-column task list; .pd-quick-add survives for the برنامه آتی Mode A quick-item
    composer ONLY (form.pd-quick-add.bl-item-form) — the dev-task columns' inline composer
    was replaced by the #pd-taskadd-modal dialog (2026-09-15) */

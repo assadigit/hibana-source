@@ -597,3 +597,49 @@ Stage Summary:
   polished across all audited surfaces (dashboard, project-detail, board, cmdk, calendar,
   sparks, sadhana, clients, admin, canvas, whiteboard, settings, notifications, reports,
   archive, clip).
+
+---
+Task ID: session-19-cron-r7
+Agent: Z.ai Code (principal) — recurring webDevReview cron (id=371903)
+Task: Board "Add" button affordance + sprint empty-state label polish
+
+Work Log:
+- Baseline: tsc green; vitest 289/289. QA: project board (seeded 4 dev_tasks: CI/docs/
+  bug/deploy), sprint timeline, full-screen board, sadhana (seeded a task). VLM audits
+  surfaced: board column "Add" buttons styled like disabled inputs (flagged twice across
+  rounds); sprint "No sprints yet" inline label read as placeholder. Dismissed: the
+  recurring "all" avatar misread (it's "ali"), sadhana location-pin icon semantics (the
+  empty state already has a bulb icon from round 2), sprint "Finish" red (correct for
+  a destructive workflow action).
+- POLISH BATCH (app.css):
+  - **Board "Add" button** (`.pd-task-add`): was a `1px dashed --line-strong` border +
+    `bg-soft` fill + `color: var(--text)` — read as a disabled input (VLM-flagged twice).
+    Now `1px solid color-mix(brand 35%, line)` + `background: var(--card)` + `color: var(--brand)`
+    — reads as a clear "+ Add" affordance. Hover inverts to solid brand bg + white text +
+    white icon (a strong primary-CTA hover). Verified live: color teal `rgb(74,159,163)`,
+    border teal-tinted, bg white. VLM PASS: "teal-tinted background and the + icon clearly
+    signal an interactive add action — inviting affordances rather than disabled inputs."
+  - **Sprint empty-state label** (`.sp-no-sprint`): was `var(--muted)` (read as a
+    placeholder per VLM). Now `color: var(--brand)` + `font-weight: 500` — reads as an
+    invitation to act (the Define button is in the toolbar). Verified live: color teal,
+    weight 500.
+- Cache-bust: app.css 242→243 on all 23 pages. SW hibana-v278 unchanged (no sw.js logic
+  change this round).
+- Verification: tsc green; vitest 289/289 (36 files); agent-browser live QA confirmed
+  board "Add" button (teal solid border + white bg) + sprint empty label (teal). VLM
+  visual PASS on the board add button.
+
+Stage Summary:
+- Polish shipped: board column "Add" button (clearer affordance — teal outline + brand
+  text + solid-fill hover), sprint "No sprints yet" inline label (teal, reads as an
+  invitation).
+- Assets: app.css v243 (consistent across 23 pages). SW v278 unchanged.
+- Tests 289/289, typecheck green.
+- §6 open items status: 3 of 4 done (ICS export, Telegram /update, web-clipper). The 4th
+  (dev_tasks note column) needs a schema migration → Ali's written approval.
+- Next-phase priorities: dev_tasks note column (schema-gated), Magic Button FA-quality
+  review (deploy-time gate, needs env.AI), semantic find stages 1–2 (idea §6, deferred),
+  deploy to dev/prod (out of scope without Ali's go-ahead). The app is feature-stable +
+  polished across all audited surfaces (dashboard, project-detail, board, sprint, cmdk,
+  calendar, sparks, sadhana, clients, admin, canvas, whiteboard, settings, notifications,
+  reports, archive, clip).

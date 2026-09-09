@@ -6927,15 +6927,15 @@ html[data-theme='dark'] .pd-col[data-status='bug']         { --pd-c: 214 158 170
   gap: 0.4rem;
   font-size: var(--fs-xs);
   font-weight: 600;
-  color: var(--text);
+  color: var(--brand);
   text-decoration: none;
   padding: 0.45rem 0.6rem;
   border-radius: var(--radius-sm);
-  border: 1px dashed var(--line-strong);
-  background: var(--bg-soft);
-  /* User request 2026-09-16: ALL shadows removed from the افزودن button (the 2026-09-09
-     elevation pass reverted) — flat like the rest of the card furniture; hover/active
-     feedback stays color-only (border + tint). */
+  border: 1px solid color-mix(in srgb, var(--brand) 35%, var(--line));
+  background: var(--card);
+  /* Session 19 (cron round 7): was a dashed --line-strong border + bg-soft fill that
+     read as a disabled input (VLM-flagged twice). Now a solid brand-tinted outline so it
+     reads as a clear "+ Add" affordance. Flat (no shadow) per the 2026-09-16 user request. */
   transition: border-color 0.15s ease, color 0.15s ease, background 0.15s ease;
 }
 /* the add affordance is a <button> now (inline composer, no navigation) — neutral resets */
@@ -6948,11 +6948,12 @@ button.pd-task-add {
 }
 .pd-task-add .icon { inline-size: 0.85rem; block-size: 0.85rem; }
 .pd-task-add:hover {
-  color: var(--brand);
+  color: var(--btn-text, var(--text));
   border-color: var(--brand);
-  border-style: solid;
-  background: var(--accent-soft);
+  background: var(--brand);
 }
+.pd-task-add .icon { color: var(--brand); transition: color 0.15s ease; }
+.pd-task-add:hover .icon { color: var(--btn-text, #fff); }
 /* the per-column task list; .pd-quick-add survives for the برنامه آتی Mode A quick-item
    composer ONLY (form.pd-quick-add.bl-item-form) — the dev-task columns' inline composer
    was replaced by the #pd-taskadd-modal dialog (2026-09-15) */
@@ -7401,7 +7402,7 @@ html[data-theme='dark'] .db-col[data-col='bug']         { --db-c: 214 158 170; -
 .sp-sprint-chip:hover { border-color: var(--brand); }
 .sp-sprint.is-open .sp-sprint-chip { border-color: var(--brand); color: var(--color-primary-strong, var(--brand)); }
 .sp-diamond { font-size: 0.6rem; }
-.sp-no-sprint { position: absolute; inset-block-start: 0.55rem; inset-inline-start: 0.6rem; }
+.sp-no-sprint { position: absolute; inset-block-start: 0.55rem; inset-inline-start: 0.6rem; color: var(--brand); font-weight: 500; } /* Session 19 (cron round 7): was muted — read as a placeholder. Now teal so it reads as an invitation to act (the Define button is in the toolbar). */
 
 /* category lanes + task clips */
 .sp-lane { position: relative; border-block-end: 1px solid var(--line); min-block-size: 2rem; z-index: 1; }

@@ -1123,29 +1123,17 @@ input::placeholder, textarea::placeholder { font-size: 0.88em; opacity: 0.7; } /
    horizontal scroll-snap rail the arrows page through. Without JS it still scrolls
    natively (touch/wheel). The drag-a-card-between-boxes gesture is unaffected: the boxes
    stay .stat-box children of the track. */
-.stat-carousel { display: grid; gap: 0.45rem; margin-block-end: 1.25rem; }
-/* Session 19 (user request): the prev/next arrows flank the strip on the left/right
-   edge (was: stacked below the whole strip). Layout: a flex row with [prev][strip flex:1][next],
-   + the dots row centered under the strip. On narrow screens the arrows shrink to icon-only. */
-.stat-carousel-nav { display: contents; }
-.stat-carousel > .stat-strip.stat-boxes { order: 2; }
-.stat-carousel [data-stat-prev] { order: 1; }
-.stat-carousel [data-stat-next] { order: 3; }
-.stat-carousel .stat-dots { order: 4; grid-column: 1 / -1; justify-content: center; }
-/* re-wrap the carousel as a flex row so the arrows sit beside the strip */
-.stat-carousel {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.5rem;
-}
+.stat-carousel { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; margin-block-end: 1.25rem; }
+/* Session 19 (user request): the prev/next arrows flank the strip on the left/right.
+   HTML order: [prev][strip flex:1][next][nav(dots) full-width below]. */
+.stat-carousel-nav { flex-basis: 100%; display: flex; justify-content: center; }
 .stat-carousel .stat-strip.stat-boxes {
   display: flex;
   gap: 0.75rem;
   margin-block-end: 0;
   overflow-x: auto;
   scroll-snap-type: x mandatory;
-  scrollbar-width: none; /* the arrows + dots are the affordance */
+  scrollbar-width: none;
   overscroll-behavior-x: contain;
   -webkit-overflow-scrolling: touch;
   flex: 1 1 0;

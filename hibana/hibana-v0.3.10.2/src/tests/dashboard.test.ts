@@ -56,11 +56,10 @@ describe('dashboard stat boxes', () => {
       const res = await app.fetch(new Request('http://local/api/dashboard', { headers: { ...auth, 'HX-Request': 'true' } }))
       expect(res.status).toBe(200)
       const html = await res.text()
-      // Scoped to the strip itself — the activity feed below still legitimately shows
-      // status badges for every stage. The notebook section's class is `card notebook`
-      // (notebook page) or `card notebook notebook-dashboard` (dashboard variant, 2026-09-09),
-      // so the slice anchor is the shared prefix `class="card notebook` (no closing quote).
-      const strip = html.slice(html.indexOf('stat-strip stat-boxes'), html.indexOf('class="card notebook'))
+      // Scoped to the carousel shell — slice from the carousel wrapper to the notebook
+      // section below. The prev/next arrows now sit BEFORE the strip (Session 19 layout
+      // change: arrows flank the strip on left/right, not stacked below).
+      const strip = html.slice(html.indexOf('stat-carousel'), html.indexOf('class="card notebook'))
 
       // The carousel shell (Phase 5): track + chevron arrows + dots.
       expect(strip).toContain('stat-carousel')

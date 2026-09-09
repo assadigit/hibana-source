@@ -976,6 +976,24 @@ window.hibanaNotebook = (() => {
       save(data)
     }, 2000)
     canvas.on('text:changed', (e) => {
+      // Session 19 (user request): convert Latin digits to Persian when the UI is FA.
+      const t = e.target
+      if (t && t.text) {
+        const isFa = document.documentElement.lang === 'fa' || localStorage.getItem('hibana-lang') === 'fa'
+        if (isFa && /[0-9]/.test(t.text)) {
+          const faDig = (s) => s.replace(/[0-9]/g, (d) => '۰۱۲۳۴۵۶۷۸۹'[+d])
+          const newText = faDig(t.text)
+          if (newText !== t.text) {
+            const selStart = t.selectionStart
+            const selEnd = t.selectionEnd
+            t.set('text', newText)
+            t.selectionStart = selStart
+            t.selectionEnd = selEnd
+            t.dirty = true
+            canvas.requestRenderAll()
+          }
+        }
+      }
       // sticky twin: the debounced crash-guard save runs against the NOTE (the twin
       // itself has no id)
       if (stickyEdit && e.target === stickyEdit.editor) {

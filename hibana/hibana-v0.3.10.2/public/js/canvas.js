@@ -217,7 +217,11 @@ window.hibanaCanvas = (() => {
       if (obj.__minHeight) obj.__minHeight = Math.max(14, Math.round(obj.__minHeight * (obj.scaleY || 1)))
       if (obj.__fixedWidth) obj.__fixedWidth = Math.max(28, Math.round(obj.__fixedWidth * (obj.scaleX || 1)))
       obj.set({ fontSize, scaleX: 1, scaleY: 1 })
-      if (typeof obj.initDimensions === 'function') obj.initDimensions() // pins size + re-syncs the clip
+      // Session 19 (user request): after baking the scale into fontSize + __fixedWidth,
+      // call initDimensions() so obj.width = __fixedWidth + the text REFLOWS (wraps to
+      // the new width). Was: only set the values without reflowing → width resize was
+      // purely graphical (stretched the text, didn't change the wrapping).
+      if (typeof obj.initDimensions === 'function') obj.initDimensions()
       obj.setCoords?.()
     }
     const inner = obj.getObjects ? (obj.getObjects().find((o) => o.type === 'textbox') ?? obj) : obj
@@ -439,12 +443,14 @@ window.hibanaCanvas = (() => {
     obj.clipPath = new fabric.Rect({ left: -w / 2, top: -h / 2, width: w, height: h })
     const base = obj.initDimensions.bind(obj)
     obj.initDimensions = () => {
+      // Session 19 (user request): set width BEFORE base() so the text reflows to the
+      // new width. Was: base() first (measures at old width) then pins width → text
+      // didn't reflow on resize.
+      obj.width = obj.__fixedWidth
       base()
-      // Re-pin the WIDTH only — base() re-measures and would let the box grow sideways.
       // Let the HEIGHT auto-fit: Fabric Textbox.height reflects the text block height
       // after base(); use Math.max(minHeight, measured) so the box never shrinks below
       // the user's drawn boundary but grows when content exceeds it.
-      obj.width = obj.__fixedWidth
       obj.height = Math.max(obj.__minHeight, Math.round(obj.height))
       obj.clipPath.set({ left: -obj.width / 2, top: -obj.height / 2, width: obj.width, height: obj.height })
     }
@@ -2348,6 +2354,28 @@ window.hibanaCanvas = (() => {
       save(data)
     }, 2000)
     canvas.on('text:changed', (e) => {
+      // Session 19 (user request): convert Latin digits to Persian when the UI is FA.
+      // Fabric's hidden textarea doesn't trigger our document-level input handler reliably
+      // (Fabric manages the cursor/selection differently), so we convert here on every
+      // text:changed event. Only fires when the user is actively editing.
+      const t = e.target
+      if (t && t.text) {
+        const isFa = document.documentElement.lang === 'fa' || localStorage.getItem('hibana-lang') === 'fa'
+        if (isFa && /[0-9]/.test(t.text)) {
+          const faDig = (s) => s.replace(/[0-9]/g, (d) => '۰۱۲۳۴۵۶۷۸۹'[+d])
+          const newText = faDig(t.text)
+          if (newText !== t.text) {
+            const selStart = t.selectionStart
+            const selEnd = t.selectionEnd
+            t.set('text', newText)
+            // restore caret position (text:changed re-renders)
+            t.selectionStart = selStart
+            t.selectionEnd = selEnd
+            t.dirty = true
+            canvas.requestRenderAll()
+          }
+        }
+      }
       // sticky twin: the debounced crash-guard save runs against the NOTE (the twin
       // itself has no id)
       if (stickyEdit && e.target === stickyEdit.editor) {

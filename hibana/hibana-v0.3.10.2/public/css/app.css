@@ -3340,26 +3340,37 @@ cite { font-style: normal; }
 .note-color-picker .dot-green { background: #bbf7d0; }
 .note-color-picker .dot-pink { background: #fbcfe8; }
 .note-color-picker .dot-blue { background: #bfdbfe; }
-/* Session 19 (user request): softer + darker sticky notes in dark mode. The bright
-   pastels (#FFF59D etc.) glare on the dark base. Muted darker tones reduce visual
-   noise. Uses data-note-color attr (set by the route) to target each color. */
-html[data-theme='dark'] .note-card[data-note-color='yellow'] { background: #4A4438 !important; }
-html[data-theme='dark'] .note-card[data-note-color='green'] { background: #384338 !important; }
-html[data-theme='dark'] .note-card[data-note-color='pink'] { background: #433840 !important; }
-html[data-theme='dark'] .note-card[data-note-color='blue'] { background: #384048 !important; }
-html[data-theme='dark'] .note-color-picker .dot-yellow { background: #4A4438; }
-html[data-theme='dark'] .note-color-picker .dot-green { background: #384338; }
-html[data-theme='dark'] .note-color-picker .dot-pink { background: #433840; }
-html[data-theme='dark'] .note-color-picker .dot-blue { background: #384048; }
+/* Session 19 (user request): softer sticky notes in dark mode. The bright pastels glare;
+   the first attempt was too dark (#4A4438 — invisible). These are the original hues
+   desaturated + grey-mixed: still clearly yellow/green/pink/blue but muted, with light
+   text (#EDE8DE) for readability on the darker surface. */
+html[data-theme='dark'] .note-card[data-note-color='yellow'] { background: #6B6450 !important; }
+html[data-theme='dark'] .note-card[data-note-color='green'] { background: #506055 !important; }
+html[data-theme='dark'] .note-card[data-note-color='pink'] { background: #605560 !important; }
+html[data-theme='dark'] .note-card[data-note-color='blue'] { background: #505865 !important; }
+html[data-theme='dark'] .note-card { color: #EDE8DE !important; }
+html[data-theme='dark'] .note-card .note-text,
+html[data-theme='dark'] .note-card .note-render,
+html[data-theme='dark'] .note-card .markdown-body { color: #EDE8DE !important; }
+html[data-theme='dark'] .note-card button.ghost { color: #B0A79C !important; }
+html[data-theme='dark'] .note-color-picker .dot-yellow { background: #6B6450; }
+html[data-theme='dark'] .note-color-picker .dot-green { background: #506055; }
+html[data-theme='dark'] .note-color-picker .dot-pink { background: #605560; }
+html[data-theme='dark'] .note-color-picker .dot-blue { background: #505865; }
 @media (prefers-color-scheme: dark) {
-  :root:not([data-theme='light']) .note-card[data-note-color='yellow'] { background: #4A4438; }
-  :root:not([data-theme='light']) .note-card[data-note-color='green'] { background: #384338; }
-  :root:not([data-theme='light']) .note-card[data-note-color='pink'] { background: #433840; }
-  :root:not([data-theme='light']) .note-card[data-note-color='blue'] { background: #384048; }
-  :root:not([data-theme='light']) .note-color-picker .dot-yellow { background: #4A4438; }
-  :root:not([data-theme='light']) .note-color-picker .dot-green { background: #384338; }
-  :root:not([data-theme='light']) .note-color-picker .dot-pink { background: #433840; }
-  :root:not([data-theme='light']) .note-color-picker .dot-blue { background: #384048; }
+  :root:not([data-theme='light']) .note-card[data-note-color='yellow'] { background: #6B6450; }
+  :root:not([data-theme='light']) .note-card[data-note-color='green'] { background: #506055; }
+  :root:not([data-theme='light']) .note-card[data-note-color='pink'] { background: #605560; }
+  :root:not([data-theme='light']) .note-card[data-note-color='blue'] { background: #505865; }
+  :root:not([data-theme='light']) .note-card { color: #EDE8DE; }
+  :root:not([data-theme='light']) .note-card .note-text,
+  :root:not([data-theme='light']) .note-card .note-render,
+  :root:not([data-theme='light']) .note-card .markdown-body { color: #EDE8DE; }
+  :root:not([data-theme='light']) .note-card button.ghost { color: #B0A79C; }
+  :root:not([data-theme='light']) .note-color-picker .dot-yellow { background: #6B6450; }
+  :root:not([data-theme='light']) .note-color-picker .dot-green { background: #506055; }
+  :root:not([data-theme='light']) .note-color-picker .dot-pink { background: #605560; }
+  :root:not([data-theme='light']) .note-color-picker .dot-blue { background: #505865; }
 }
 #notebook #nv-list:checked ~ .note-list .note-color-picker { display: none; }
 #notebook #nv-grid:checked ~ .note-list .note-color-picker { display: none; }

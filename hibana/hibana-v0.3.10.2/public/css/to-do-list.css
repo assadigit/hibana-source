@@ -75,7 +75,6 @@ main.shell-dash {
   box-shadow: 0 1px 4px rgb(0 0 0 / 0.18);
   z-index: 2;
 }
-[dir='rtl'] .sadhana-ribbon { transform: rotate(-45deg); }
 
 /* Fixed header height so a wrapping long title (e.g. Personal & Sentimental) can't change
    a card's header height relative to its siblings (audit §9). */

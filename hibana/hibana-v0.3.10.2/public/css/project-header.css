@@ -369,7 +369,6 @@ html[lang='fa'] body .t-code {
   opacity: 0.85;
   user-select: none;
 }
-[dir='rtl'] .t-code[data-lang]::before { float: left; }
 .t-code[hidden] { display: none; }
 .t-code .t-fence { display: none; } /* belt+ suspenders: fence marker spans never render */
 

@@ -1,0 +1,63 @@
+/* rtl.css — RTL directional overrides (extracted from modular files)
+   Session 25 Phase 1.5 (Option B): RTL rules extracted by-concern.
+   [dir='rtl'] prefix adds (0,1,0) specificity. Most base rules use CSS logical
+   properties (border-inline-start, margin-inline-end) which auto-mirror — these RTL
+   rules handle cases where logical properties aren't enough (SVG flips, transforms,
+   tooltip positioning). Loaded LAST (after themes.css) so RTL overrides always win. */
+
+[dir='rtl'] .pc-corner { clip-path: path('M52 0 L20 0 Q0 0 0 20 L0 52 Z'); } /* mirrored to the top-left corner */
+
+/* RTL: the track starts at the right edge, so «next» points LEFT — flip both glyphs. */
+[dir='rtl'] .stat-arrow svg { transform: scaleX(-1); }
+
+  [dir='rtl'] .dash-swipe-hint { animation-name: dashHintNudgeRtl; }
+
+[dir='rtl'] .fab-stack { align-items: flex-start; }
+
+[dir="rtl"] .icon.arrow { transform: scaleX(-1); }
+
+[dir='rtl'] .icon.arrow.opposite { transform: none; }
+
+[dir='rtl'] .sadhana-ribbon { transform: rotate(-45deg); }
+
+  [dir="rtl"] .feed-item:hover { transform: translateX(-2px); }
+
+  [dir="rtl"] .notif-item:hover { transform: translateX(-2px); }
+
+/* RTL: keep the tooltip centered (translateX(-50%) is symmetric) */
+[dir="rtl"] [data-tooltip]::before,
+[dir="rtl"] [data-tooltip]::after { transform: translateX(50%); }
+
+[dir="rtl"] .cal-cell.today {
+  border: 3px solid var(--brand) !important; /* thick brand border, overrides the 2px default */
+  background: color-mix(in srgb, var(--brand) 8%, var(--card));
+}
+
+[dir="rtl"] .cal-cell.today .cal-day-num {
+  color: var(--link); /* Session 20 (AA): was --brand — 2.9:1 as 13px text; --link matches the LTR .today rule */
+  font-weight: 700;
+}
+
+[dir="rtl"] #cal-title {
+  /* Prominent brand underline on the month heading in Jalali mode (Task 24: the h1 IS the month now) */
+  border-block-end: 3px solid var(--brand);
+  padding-block-end: 0.2rem;
+}
+
+[dir='rtl'] .t-code[data-lang]::before { float: left; }
+
+[dir="rtl"] .sp-month { border-inline-end: none; border-inline-start: 1px solid var(--line); }
+
+[dir="rtl"] .sp-month:last-child { border-inline-start: none; }
+
+[dir="rtl"] .sp-cell { }
+
+[dir="rtl"] .sp-bound::after { }
+
+[dir="rtl"] .sp-bar { }
+
+/* P4.7 (F-M19): mirror the sprint time-paging arrows in RTL so 'Older' points backward. */
+[dir='rtl'] .sp-arrow { transform: scaleX(-1); }
+
+[dir='rtl'] .dash-skeleton .sk::after,
+[dir='rtl'] .sk-topbar .sk::after { animation-name: sk-sweep-rtl; }

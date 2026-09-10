@@ -64,8 +64,6 @@
   color: var(--btn-text, #fff);
 }
 .stat-arrow:disabled { opacity: 0.35; cursor: default; }
-/* RTL: the track starts at the right edge, so «next» points LEFT — flip both glyphs. */
-[dir='rtl'] .stat-arrow svg { transform: scaleX(-1); }
 .stat-dots { display: flex; gap: 0.4rem; align-items: center; }
 .stat-dot {
   inline-size: 0.45rem;

@@ -317,7 +317,6 @@
 /* Prev is the mirror of next: flipped in LTR, un-flipped in RTL (next auto-flips via the
    global [dir=rtl] .icon.arrow rule). */
 .icon.arrow.opposite { transform: scaleX(-1); }
-[dir='rtl'] .icon.arrow.opposite { transform: none; }
 .note-card {
   background: color-mix(in srgb, var(--bg-soft) 45%, var(--card)); /* quieter fill (2026-08-25) */
   border: 1px solid var(--line);

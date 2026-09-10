@@ -333,9 +333,7 @@
   padding-block: 0.32rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   border-inline-end: 1px solid var(--line);
 }
-[dir="rtl"] .sp-month { border-inline-end: none; border-inline-start: 1px solid var(--line); }
 .sp-month:last-child { border-inline-end: none; }
-[dir="rtl"] .sp-month:last-child { border-inline-start: none; }
 .sp-cells { display: flex; }
 .sp-cell {
   display: grid; place-items: center; flex: none;
@@ -343,7 +341,6 @@
   padding-block: 0.22rem; white-space: nowrap; overflow: hidden;
   border-block-end: 1px solid var(--line);
 }
-[dir="rtl"] .sp-cell { }
 .sp-cell.is-today { color: var(--brand); font-weight: 700; }
 
 /* body: background layer (zebra bands + boundary lines + today), then lanes */
@@ -362,7 +359,6 @@
   content: ""; position: absolute; inset-block: 0; inset-inline-start: -1px; inline-size: 0;
   border-inline-start: 2px dashed #2c313b;
 }
-[dir="rtl"] .sp-bound::after { }
 .sp-bound:hover::after, .sp-bound:focus-visible::after { border-inline-start-style: solid; border-inline-start-color: var(--brand); }
 .sp-bound.is-open-bound::after { border-inline-start-color: var(--brand); }
 .sp-bound-grip {
@@ -410,7 +406,6 @@
 }
 .sp-bar:active { cursor: grabbing; }
 .sp-bar:hover { border-color: color-mix(in srgb, var(--bar-c, #C9CDD2) 40%, #22262e); z-index: 10; }
-[dir="rtl"] .sp-bar { }
 .sp-bar.st-idea { background: color-mix(in srgb, var(--bar-c, #C9CDD2) 40%, transparent); border-style: dashed; }
 .sp-bar.st-planned { background: color-mix(in srgb, var(--bar-c, #C9CDD2) 72%, transparent); }
 .sp-bar.st-done { background: color-mix(in srgb, var(--bar-c, #C9CDD2) 52%, transparent); }

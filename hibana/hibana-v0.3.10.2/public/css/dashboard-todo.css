@@ -550,7 +550,6 @@ section[id^="dashboard-"].is-collapsed > *:not(header) { display: none; }
     pointer-events: none;
     animation: dashHintNudge 1.6s ease-in-out infinite;
   }
-  [dir='rtl'] .dash-swipe-hint { animation-name: dashHintNudgeRtl; }
   .dash-swipe-hint.hide { display: none; }
 }
 @keyframes dashHintNudge { 0%, 100% { transform: translateX(0); } 50% { transform: translateX(-7px); } }

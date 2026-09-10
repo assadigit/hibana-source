@@ -458,8 +458,6 @@ dialog.adm-modal::backdrop { background: rgb(0 0 0 / 0.55); }
 
 .sp-timenav { display: inline-flex; align-items: center; gap: 0.3rem; }
 .sp-timenav .sp-timerange { white-space: nowrap; max-inline-size: 16rem; overflow: hidden; text-overflow: ellipsis; }
-/* P4.7 (F-M19): mirror the sprint time-paging arrows in RTL so 'Older' points backward. */
-[dir='rtl'] .sp-arrow { transform: scaleX(-1); }
 .sp-finish-btn { white-space: nowrap; }
 
 /* The DRAFT panel — a defined-but-not-started sprint. Card-like, above the timeline:
@@ -692,8 +690,6 @@ html[data-page-width="full"] main.shell.shell-flush { max-inline-size: none; }
 @keyframes sk-sweep { to { transform: translateX(110%); } }
 /* The sweep follows the reading direction: LTR pages sweep left→right, RTL flips it
    right→left — every block moves the same way because they share the ONE keyframes. */
-[dir='rtl'] .dash-skeleton .sk::after,
-[dir='rtl'] .sk-topbar .sk::after { animation-name: sk-sweep-rtl; }
 @keyframes sk-sweep-rtl { from { transform: translateX(110%); } to { transform: translateX(-110%); } }
 @media (prefers-reduced-motion: reduce) {
   .dash-skeleton .sk::after, .sk-topbar .sk::after { animation: none; content: none; }

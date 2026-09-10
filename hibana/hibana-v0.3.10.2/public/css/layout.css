@@ -364,7 +364,6 @@ input::placeholder, textarea::placeholder { font-size: 0.88em; opacity: 0.7; } /
   );
   clip-path: path('M0 0 L32 0 Q52 0 52 20 L52 52 Z');
 }
-[dir='rtl'] .pc-corner { clip-path: path('M52 0 L20 0 Q0 0 0 20 L0 52 Z'); } /* mirrored to the top-left corner */
 .pc-plain .pc-corner { opacity: 0.5; } /* no tags → neutral, quieter hatch */
 .project-title {
   font-weight: 600;

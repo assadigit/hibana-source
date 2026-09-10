@@ -48,9 +48,6 @@
 [data-tooltip]:focus-visible::after {
   opacity: 1;
 }
-/* RTL: keep the tooltip centered (translateX(-50%) is symmetric) */
-[dir="rtl"] [data-tooltip]::before,
-[dir="rtl"] [data-tooltip]::after { transform: translateX(50%); }
 /* Phase 6 item 5: elements pinned to the TOP of the viewport (the topbar's theme
    toggle) clipped their tooltip ABOVE the viewing frame — unreadable. In the topbar
    the tooltip flips to BELOW the element (arrow down). */
@@ -408,19 +405,6 @@
    system — the identity accent is the brand TEAL (--brand), not the ad-hoc green the
    first cut used (the "تقویم" heading showed an off-system green). The h1 keeps the
    standard heading color; only the today cell + month label carry the identity mark. */
-[dir="rtl"] .cal-cell.today {
-  border: 3px solid var(--brand) !important; /* thick brand border, overrides the 2px default */
-  background: color-mix(in srgb, var(--brand) 8%, var(--card));
-}
-[dir="rtl"] .cal-cell.today .cal-day-num {
-  color: var(--link); /* Session 20 (AA): was --brand — 2.9:1 as 13px text; --link matches the LTR .today rule */
-  font-weight: 700;
-}
-[dir="rtl"] #cal-title {
-  /* Prominent brand underline on the month heading in Jalali mode (Task 24: the h1 IS the month now) */
-  border-block-end: 3px solid var(--brand);
-  padding-block-end: 0.2rem;
-}
 @media (max-width: 560px) {
   .cal-legend { font-size: var(--fs-xs); gap: 0.5rem; padding: 0.4rem 0.6rem; }
   .cal-hol-badge { font-size: 0.5rem; }

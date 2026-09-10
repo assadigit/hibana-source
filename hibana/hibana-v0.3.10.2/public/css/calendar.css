@@ -324,7 +324,6 @@
     border-color: var(--line-strong);
     box-shadow: 0 2px 8px -4px rgb(0 0 0 / 0.1);
   }
-  [dir="rtl"] .feed-item:hover { transform: translateX(-2px); }
 }
 
 /* --- Print stylesheet (reports + calendar) ---------------------------------- */

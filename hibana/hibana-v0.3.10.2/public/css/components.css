@@ -14,7 +14,6 @@
 }
 /* RTL: cross-start is the right edge in a column flex, so flex-start keeps the menu
    anchored to the same physical right corner (flex-end would push it off-screen). */
-[dir='rtl'] .fab-stack { align-items: flex-start; }
 .fab-menu {
   display: flex;
   flex-direction: column;
@@ -146,7 +145,6 @@
    sets dir=rtl for Persian, so a single <svg class="icon arrow"> flips without duplicating
    per-language arrow characters. */
 .icon.arrow { display: inline-block; vertical-align: -0.15em; }
-[dir="rtl"] .icon.arrow { transform: scaleX(-1); }
 
 /* ≥44px tap target for circular icon-only buttons (audit 2026-08-25). The ghost ring
    itself is the whole circle — visually distinct from the filled CREATE circles (.fab,

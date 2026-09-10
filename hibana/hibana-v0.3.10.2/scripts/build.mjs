@@ -51,9 +51,12 @@ const ENTRY_POINTS = [
   'install-prompt.js', 'jalali-holidays.js', 'mobile-nav.js', 'nav.js', 'queue.js',
   'touch-drag.js', 'tour.js', 'whiteboard.js', 'zen-mode.js', 'micro-interactions.js',
   'i18n-en.js', 'i18n-fa.js',
+  'jalali.js',
   'hib-init.js',
   // Session 25 Phase 2: page-specific JS extracted from inline <script> blocks
   'project-page.js', 'sadhana-page.js', 'sprint-page.js',
+  'calendar-page.js', 'settings-page.js', 'sparks-page.js', 'projects-page.js', 'board-page.js',
+  'reports-page.js', 'signup-page.js', 'clients-page.js', 'clip-page.js', '404-page.js', 'confirm-page.js',
 ]
 
 // Page CSS files (all linked from HTML; all hashed + immutable via manifest).
@@ -70,7 +73,7 @@ const CSS_ENTRY_POINTS = [
   'variables.css', 'base.css', 'layout.css', 'dashboard.css', 'dashboard-todo.css',
   'components.css', 'canvas.css', 'quicknotes.css', 'to-do-list.css', 'polish-ui.css',
   'calendar.css', 'notifications.css', 'polish-batch.css', 'project-header.css',
-  'devboard.css', 'misc.css', 'themes.css', 'rtl.css', 'task-controls.css',
+  'devboard.css', 'misc.css', 'sadhana-board.css', 'themes.css', 'rtl.css', 'task-controls.css',
 ]
 
 // In-bundle dynamic-injection literals that get rewritten to hashed URLs during wiring.

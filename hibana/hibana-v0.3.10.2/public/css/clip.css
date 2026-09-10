@@ -1,0 +1,20 @@
+    /* Compact popup — centered card, no nav, auto-close on success. */
+    body { background: var(--bg); margin: 0; min-height: 100vh; display: grid; place-items: center; padding: 1rem; }
+    .clip-card { background: var(--card); border: 1px solid var(--line-strong); border-radius: var(--radius); padding: 1.5rem; max-width: 28rem; width: 100%; box-shadow: 0 4px 24px rgb(0 0 0 / 0.08); }
+    .clip-card h1 { margin: 0 0 0.25rem; font-size: 1.25rem; display: flex; align-items: center; gap: 0.5rem; }
+    .clip-card h1 .icon { color: var(--accent); }
+    .clip-card .clip-hint { color: var(--muted); font-size: var(--fs-sm); margin: 0 0 1rem; }
+    .clip-card label { display: grid; gap: 0.3rem; margin-block-end: 0.75rem; }
+    .clip-card label > span { font-size: var(--fs-sm); font-weight: 500; }
+    .clip-card input, .clip-card textarea { width: 100%; font: inherit; padding: 0.5rem 0.65rem; border: 1px solid var(--line-strong); border-radius: var(--radius-sm); background: var(--bg); color: var(--text); }
+    .clip-card input:focus, .clip-card textarea:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+    .clip-card textarea { resize: vertical; min-height: 4rem; }
+    .clip-card .clip-actions { display: flex; gap: 0.5rem; justify-content: flex-end; margin-block-start: 0.5rem; }
+    .clip-card .clip-source { font-size: var(--fs-xs); color: var(--muted); word-break: break-all; background: var(--bg-soft); padding: 0.4rem 0.6rem; border-radius: var(--radius-sm); margin-block-end: 0.75rem; }
+    .clip-card .clip-source a { color: var(--link); text-decoration: none; }
+    .clip-card .clip-success { text-align: center; padding: 2rem 0; }
+    .clip-card .clip-success .icon { width: 2.5rem; height: 2.5rem; color: var(--ok, var(--accent)); }
+    .clip-card .clip-success h2 { margin: 0.5rem 0 0; font-size: 1.1rem; }
+    .clip-card .clip-success p { color: var(--muted); font-size: var(--fs-sm); margin: 0.25rem 0 0; }
+    .clip-card .clip-error { color: var(--err); font-size: var(--fs-sm); margin-block-end: 0.5rem; }
+    .clip-card[hidden] { display: none; }

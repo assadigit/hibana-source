@@ -96,71 +96,15 @@ const updateBacklogDocSchema = z.object({
 // Math.floor(ms/86400000) day math the client uses in sprint.html.
 const dayIdx = (x: string) => Math.floor(Date.parse(x) / 86400000)
 
-async function logHistory(cfg: Config, projectId: string, note: string) {
-  await cfg.db.execute('INSERT INTO project_history_log (id, project_id, note, created_at) VALUES (?, ?, ?, ?)', [
-    uuid(), projectId, note, new Date().toISOString(),
-  ])
-}
 
-async function ownedTask(cfg: Config, userId: string, id: string): Promise<DevTaskRow | null> {
-  const rows = await cfg.db.query<DevTaskRow>(
-    'SELECT t.* FROM dev_tasks t JOIN projects p ON p.id = t.project_id WHERE t.id = ? AND p.user_id = ? AND p.deleted_at IS NULL',
-    [id, userId],
-  )
-  return rows[0] ?? null
-}
-
-async function ownedCategory(cfg: Config, userId: string, id: string): Promise<TaskCategory | null> {
-  const rows = await cfg.db.query<TaskCategory>(
-    'SELECT c.* FROM task_categories c JOIN projects p ON p.id = c.project_id WHERE c.id = ? AND p.user_id = ? AND p.deleted_at IS NULL',
-    [id, userId],
-  )
-  return rows[0] ?? null
-}
-
-async function ownedSprint(cfg: Config, userId: string, id: string): Promise<SprintRow | null> {
-  const rows = await cfg.db.query<SprintRow>(
-    'SELECT s.* FROM sprints s JOIN projects p ON p.id = s.project_id WHERE s.id = ? AND p.user_id = ? AND p.deleted_at IS NULL',
-    [id, userId],
-  )
-  return rows[0] ?? null
-}
-
-async function ownedBacklogDoc(cfg: Config, userId: string, id: string): Promise<BacklogDocRow | null> {
-  const rows = await cfg.db.query<BacklogDocRow>(
-    'SELECT d.* FROM backlog_docs d JOIN projects p ON p.id = d.project_id WHERE d.id = ? AND p.user_id = ? AND p.deleted_at IS NULL',
-    [id, userId],
-  )
-  return rows[0] ?? null
-}
-
-export type BacklogEvent = { at: string; kind: 'doc_created' | 'doc_updated' | 'item_added'; label: string }
-
-/** The whole backlog payload (0033): docs + the merged change history (revisions and
- *  quick planned items, newest first, top 10) + the latest change timestamp. Shared by
- *  the projects route's «برنامه آتی» tab and this module's JSON route. */
-export async function loadBacklog(cfg: Config, projectId: string): Promise<{ docs: BacklogDocRow[]; history: BacklogEvent[]; latestAt: string | null }> {
-  const [docs, revisions, planned] = await Promise.all([
-    cfg.db.query<BacklogDocRow>('SELECT * FROM backlog_docs WHERE project_id = ? ORDER BY updated_at DESC', [projectId]),
-    cfg.db.query<{ title: string; kind: string; created_at: string }>(
-      `SELECT r.title, r.kind, r.created_at FROM backlog_doc_revisions r
-       JOIN backlog_docs d ON d.id = r.doc_id WHERE d.project_id = ?
-       ORDER BY r.created_at DESC LIMIT 10`,
-      [projectId],
-    ),
-    // Quick items (mode A) are planned dev_tasks — their creation is a backlog change.
-    cfg.db.query<{ title: string; created_at: string }>(
-      `SELECT title, created_at FROM dev_tasks WHERE project_id = ? AND status = 'planned' ORDER BY created_at DESC LIMIT 10`,
-      [projectId],
-    ),
-  ])
-  const events: BacklogEvent[] = [
-    ...revisions.map((r) => ({ at: r.created_at, kind: r.kind === 'create' ? ('doc_created' as const) : ('doc_updated' as const), label: r.title })),
-    ...planned.map((t) => ({ at: t.created_at, kind: 'item_added' as const, label: t.title })),
-  ]
-  events.sort((a, b) => (a.at < b.at ? 1 : a.at > b.at ? -1 : 0))
-  return { docs, history: events.slice(0, 10), latestAt: events[0]?.at ?? null }
-}
+import {
+  logHistory,
+  ownedTask,
+  ownedCategory,
+  ownedSprint,
+  ownedBacklogDoc,
+  loadBacklog,
+} from './devboard-helpers'
 
 export function devboardRoutes(cfg: Config) {
   const app = new Hono<{ Variables: { user: UserRow } }>()

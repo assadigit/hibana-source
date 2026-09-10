@@ -24,28 +24,7 @@
   <link rel="stylesheet" href="/css/themes.css?v=1">
   <link rel="stylesheet" href="/css/rtl.css?v=1">
   <link rel="stylesheet" href="/vendor/manrope/font-face.css">
-  <style>
-    /* Compact popup — centered card, no nav, auto-close on success. */
-    body { background: var(--bg); margin: 0; min-height: 100vh; display: grid; place-items: center; padding: 1rem; }
-    .clip-card { background: var(--card); border: 1px solid var(--line-strong); border-radius: var(--radius); padding: 1.5rem; max-width: 28rem; width: 100%; box-shadow: 0 4px 24px rgb(0 0 0 / 0.08); }
-    .clip-card h1 { margin: 0 0 0.25rem; font-size: 1.25rem; display: flex; align-items: center; gap: 0.5rem; }
-    .clip-card h1 .icon { color: var(--accent); }
-    .clip-card .clip-hint { color: var(--muted); font-size: var(--fs-sm); margin: 0 0 1rem; }
-    .clip-card label { display: grid; gap: 0.3rem; margin-block-end: 0.75rem; }
-    .clip-card label > span { font-size: var(--fs-sm); font-weight: 500; }
-    .clip-card input, .clip-card textarea { width: 100%; font: inherit; padding: 0.5rem 0.65rem; border: 1px solid var(--line-strong); border-radius: var(--radius-sm); background: var(--bg); color: var(--text); }
-    .clip-card input:focus, .clip-card textarea:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
-    .clip-card textarea { resize: vertical; min-height: 4rem; }
-    .clip-card .clip-actions { display: flex; gap: 0.5rem; justify-content: flex-end; margin-block-start: 0.5rem; }
-    .clip-card .clip-source { font-size: var(--fs-xs); color: var(--muted); word-break: break-all; background: var(--bg-soft); padding: 0.4rem 0.6rem; border-radius: var(--radius-sm); margin-block-end: 0.75rem; }
-    .clip-card .clip-source a { color: var(--link); text-decoration: none; }
-    .clip-card .clip-success { text-align: center; padding: 2rem 0; }
-    .clip-card .clip-success .icon { width: 2.5rem; height: 2.5rem; color: var(--ok, var(--accent)); }
-    .clip-card .clip-success h2 { margin: 0.5rem 0 0; font-size: 1.1rem; }
-    .clip-card .clip-success p { color: var(--muted); font-size: var(--fs-sm); margin: 0.25rem 0 0; }
-    .clip-card .clip-error { color: var(--err); font-size: var(--fs-sm); margin-block-end: 0.5rem; }
-    .clip-card[hidden] { display: none; }
-  </style>
+    <link rel="stylesheet" href="/css/clip.css?v=1">
 </head>
 <body>
   <main class="clip-card" id="clip-card">
@@ -73,85 +52,6 @@
   <script src="/js/i18n-en.js?v=1" defer></script>
   <script src="/js/i18n-fa.js?v=1" defer></script>
   <script src="/js/i18n.js?v=56" defer></script>
-  <script>
-    (async () => {
-      const params = new URLSearchParams(location.search)
-      const title = params.get('title') || ''
-      const url = params.get('url') || ''
-      const sel = params.get('text') || ''
-      const source = document.getElementById('clip-source')
-      const form = document.getElementById('clip-form')
-      const errEl = document.getElementById('clip-error')
-      const successEl = document.getElementById('clip-success')
-      const cancelBtn = document.getElementById('clip-cancel')
-
-      // 1. Auth check — if not logged in, redirect to login with a return-to here.
-      try {
-        const me = await fetch('/api/auth/me', { headers: { 'Accept': 'application/json' } })
-        if (!me.ok) {
-          location.replace('/login.html?return=' + encodeURIComponent(location.pathname + location.search))
-          return
-        }
-      } catch {
-        location.replace('/login.html?return=' + encodeURIComponent(location.pathname + location.search))
-        return
-      }
-
-      // 2. Show the source link.
-      if (url) {
-        source.hidden = false
-        source.innerHTML = '🔗 <a href="' + escapeHtml(url) + '" target="_blank" rel="noopener noreferrer">' + escapeHtml(title || url) + '</a>'
-      }
-
-      // 3. Pre-fill the textarea: selected text first (if any), then title + url.
-      const prefill = [sel, title && url ? `[${title}](${url})` : title].filter(Boolean).join('\n\n')
-      document.getElementById('clip-text').value = prefill
-      document.getElementById('clip-text').focus()
-      document.getElementById('clip-text').setSelectionRange(0, 0)
-
-      // 4. Save → POST to the existing quick-notes API (kind=note).
-      form.addEventListener('submit', async (e) => {
-        e.preventDefault()
-        errEl.hidden = true
-        const content = document.getElementById('clip-text').value.trim()
-        // Always include the title + url in the note — even if the user cleared the textarea.
-        const body = (content || (title && url ? `${title}\n${url}` : title)).slice(0, 20000)
-        if (!body) {
-          errEl.textContent = 'Nothing to capture.'
-          errEl.hidden = false
-          return
-        }
-        const saveBtn = document.getElementById('clip-save')
-        saveBtn.disabled = true
-        saveBtn.textContent = '…'
-        try {
-          const res = await fetch('/api/notes', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ kind: 'note', content: body, title: title.slice(0, 120) || '' }),
-          })
-          if (!res.ok) throw new Error('HTTP ' + res.status)
-          form.hidden = true
-          successEl.hidden = false
-          setTimeout(() => window.close(), 1500)
-        } catch (err) {
-          saveBtn.disabled = false
-          saveBtn.textContent = 'Save idea'
-          errEl.textContent = 'Could not save — ' + (err.message || 'try again')
-          errEl.hidden = false
-        }
-      })
-
-      cancelBtn.addEventListener('click', () => window.close())
-
-      function escapeHtml(s) {
-        return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
-      }
-
-      // Apply i18n once loaded (FA users get FA labels).
-      try { await window.hibanaI18n?.ready } catch {}
-      window.hibanaI18n?.apply?.()
-    })()
-  </script>
+  <script src="/js/clip-page.js?v=1" defer></script>
 </body>
 </html>

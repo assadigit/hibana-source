@@ -43,7 +43,7 @@ import type {
   SparkFolderRow,
 } from '../../types'
 import type { QuickNote } from '../quicknotes'
-import { loadBacklog, type BacklogEvent } from '../devboard'
+import { loadBacklog, type BacklogEvent } from '../devboard-helpers'
 import { shotsGridHtml } from '../core'
 
 

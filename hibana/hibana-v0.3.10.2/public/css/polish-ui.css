@@ -1,0 +1,648 @@
+/* --- shadcn-style polish layer (2026-08-26 UI pass) -------------------------
+   One consistent interaction layer over every control, in pure tokens: quiet
+   placeholders, disabled field states, micro-transitions, thin scrollbars and
+   a branded text selection. No new dependencies, both themes, RTL-safe. */
+::placeholder { color: var(--muted); opacity: 1; }
+::selection { background: var(--pastel-tool); }
+input:disabled,
+textarea:disabled,
+select:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  background: var(--bg-soft);
+}
+button,
+.chip,
+.seg-btn,
+a,
+input,
+textarea,
+select {
+  transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease,
+    box-shadow 0.15s ease, opacity 0.15s ease;
+}
+/* Thin, quiet scrollbars everywhere (shadcn-like chrome).
+   (o) 2026-09-07: Chrome 121+ makes the STANDARD scrollbar-width/scrollbar-color
+   properties TAKE PRECEDENCE over ::-webkit-scrollbar pseudo styling — the old
+   solid `scrollbar-color: var(--muted)` painted a near-black thumb in LIGHT mode
+   too (Ali: "the scroll is black"). Both engines now resolve to the same soft
+   translucent token tone; the webkit rules below stay as the legacy fallback. */
+:root { scrollbar-width: thin; scrollbar-color: color-mix(in srgb, var(--muted) 55%, transparent) transparent; }
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb {
+  background: color-mix(in srgb, var(--muted) 55%, transparent);
+  border: 3px solid transparent;
+  border-radius: 999px;
+  background-clip: padding-box;
+}
+::-webkit-scrollbar-thumb:hover { background: color-mix(in srgb, var(--muted) 80%, transparent); border: 3px solid transparent; background-clip: padding-box; }
+
+/* --- Command Palette (Ctrl+K) — Phase B2.1 ----------------------------------- */
+/* Notion/Raycast-style command overlay. Dark backdrop, centered panel, keyboard-first.
+   Reuses existing design tokens (--bg, --card, --line, --text, --muted, --radius, --shadow-dropdown,
+   status badge classes). Theme-aware via the token system; no hard-coded colors. */
+dialog.cmdk {
+  border: none;
+  border-radius: var(--radius);
+  background: transparent;
+  padding: 0;
+  max-width: 640px;
+  width: calc(100vw - 2rem);
+  margin: 12vh auto auto;
+  box-shadow: var(--shadow-dropdown);
+  color: var(--text);
+}
+dialog.cmdk::backdrop {
+  background: rgb(0 0 0 / 0.4);
+  backdrop-filter: blur(4px);
+}
+.cmdk-panel {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  overflow: hidden;
+  box-shadow: var(--shadow-dropdown);
+}
+.cmdk-input-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid var(--line);
+}
+.cmdk-search-icon {
+  width: 1.2em;
+  height: 1.2em;
+  color: var(--muted);
+  flex: none;
+}
+.cmdk-input {
+  flex: 1;
+  border: none;
+  background: none;
+  color: var(--text);
+  font: inherit;
+  font-size: var(--fs-lg);
+  outline: none;
+  padding: 0;
+}
+.cmdk-input::placeholder { color: var(--muted); }
+.cmdk-esc {
+  font-family: var(--font-sans);
+  font-size: var(--fs-xs);
+  padding: 0.15rem 0.4rem;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  color: var(--muted);
+  background: var(--bg-soft);
+  flex: none;
+}
+.cmdk-list {
+  list-style: none;
+  margin: 0;
+  padding: 0.4rem;
+  max-height: 60vh;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+.cmdk-group {
+  padding: 0.35rem 0.6rem 0.15rem;
+  pointer-events: none;
+}
+.cmdk-group-label {
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+}
+.cmdk-item {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.5rem 0.6rem;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  font-size: var(--fs-lg);
+  color: var(--text);
+  transition: background 0.08s ease;
+}
+.cmdk-item.is-selected,
+.cmdk-item:focus-visible {
+  background: var(--accent-soft);
+  outline: none;
+}
+.cmdk-item.is-selected {
+  background: color-mix(in srgb, var(--brand) 22%, var(--card)); /* Session 19 (cron round 6): was 14% — too subtle (VLM-flagged). 22% reads as a clear selection. */
+  box-shadow: inset 3px 0 0 var(--brand); /* a left accent bar so the selected row is unmistakable */
+}
+.cmdk-icon {
+  flex: none;
+  width: 1.6em;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--muted);
+}
+.cmdk-item.is-selected .cmdk-icon { color: var(--brand); }
+.cmdk-label {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+/* 0040 search depth: backlog + sadhana results show a secondary line (project name /
+   quadrant) so the source surface is identifiable. The label stays one line; the
+   sublabel is an inline muted suffix that wraps to a second line when space is tight. */
+.cmdk-label .cmdk-sublabel {
+  font-size: var(--fs-xs);
+  font-weight: 400;
+  color: var(--muted);
+  white-space: normal;
+}
+.cmdk-hint {
+  font-family: var(--font-sans);
+  font-size: var(--fs-xs);
+  padding: 0.1rem 0.35rem;
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  color: var(--muted);
+  background: var(--bg-soft);
+  flex: none;
+}
+.cmdk-empty {
+  padding: 2rem 1rem;
+  text-align: center;
+}
+/* Status badges in palette results — reuse existing badge classes, just size down */
+.cmdk-item .badge { font-size: var(--fs-xs); padding: 0.15rem 0.4rem; }
+@media (prefers-reduced-motion: reduce) {
+  .cmdk-item { transition: none; }
+  dialog.cmdk::backdrop { backdrop-filter: none; }
+}
+
+/* --- Skeleton shimmer loaders (Phase B2.3) ----------------------------------- */
+/* Animated placeholder bars that match the shape of incoming content, replacing
+   plain "Loading…" text. The shimmer sweeps left-to-right; respects reduced-motion. */
+.skeleton {
+  position: relative;
+  overflow: hidden;
+  background: var(--accent-soft);
+  border-radius: var(--radius-sm);
+  min-height: 1em;
+}
+.skeleton::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--text) 8%, transparent), transparent);
+  animation: skel-shimmer 1.4s ease-in-out infinite;
+}
+@keyframes skel-shimmer {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+.skeleton-line { height: 0.85rem; margin-block-end: 0.5rem; }
+.skeleton-line.w-60 { width: 60%; }
+.skeleton-line.w-40 { width: 40%; }
+.skeleton-line.w-30 { width: 30%; }
+.skeleton-box {
+  height: 5rem;
+  border-radius: var(--radius);
+  margin-block-end: 0.75rem;
+}
+.skeleton-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(14rem, 1fr));
+  gap: 0.75rem;
+  padding: 0.5rem 0;
+}
+.skeleton-strip {
+  display: flex;
+  gap: 0.75rem;
+  padding: 0.5rem 0;
+}
+.skeleton-strip .skeleton-box { flex: 1; margin: 0; }
+@media (prefers-reduced-motion: reduce) {
+  .skeleton::after { animation: none; opacity: 0.5; }
+}
+/* The htmx-indicator class hides skeletons until htmx fires the request; htmx adds
+   the .htmx-request class to the trigger element while loading, which we use to show
+   the skeleton. But our skeletons ARE the indicators, so they start visible and hide
+   on swap. The existing .loading.htmx-indicator pattern already handles this. */
+.skeleton-loading { padding: 1rem 0; }
+
+/* --- toast upgrade (Phase B2.4) ---------------------------------------------- */
+/* Action-button support: .toast-msg takes the flex space; buttons stay compact. */
+.toast-msg { flex: 1; min-inline-size: 0; }
+/* Error toasts get a subtle slide-in + a retry-friendly look */
+.toast.err { animation: toast-in 0.25s ease-out; }
+@keyframes toast-in {
+  from { opacity: 0; transform: translate(-50%, calc(-50% - 0.5rem)); }
+  to { opacity: 1; transform: translate(-50%, -50%); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .toast.err { animation: none; }
+}
+
+/* ===========================================================================
+   Phase B2.5 — Empty states (consistent, illustrated)
+   Reusable empty-state component: icon + headline + helper text + optional CTA.
+   The old .empty is kept for backward compat; .empty-state is the new pattern.
+   =========================================================================== */
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 3.5rem 1.5rem;
+  text-align: center;
+  color: var(--muted);
+  border: 1px dashed var(--line-strong);
+  border-radius: var(--radius);
+  background: transparent; /* 2026-09-02 user request: no fill behind empty states — minimal */
+}
+/* Session 19: empty-state was too faint (icon opacity .7 + near-invisible dashed border
+   read as a broken/empty box). Stronger icon + a visible-but-quiet border. */
+.empty-state-icon {
+  width: 3rem;
+  height: 3rem;
+  color: var(--accent);
+  opacity: 0.9;
+}
+.empty-state-icon .icon { width: 100%; height: 100%; }
+.empty-state-title {
+  font-size: var(--fs-xl);
+  font-weight: 600;
+  color: var(--text);
+  margin: 0;
+}
+.empty-state-text { margin: 0; max-width: 32ch; line-height: 1.6; }
+.empty-state-cta {
+  margin-block-start: 0.5rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+/* Override the old .empty when paired with .empty-state (the new one wins by specificity) */
+.empty-state.empty { padding: 3.5rem 1.5rem; }
+
+/* ===========================================================================
+   Phase B2.6 — Mobile responsiveness pass
+   44px touch targets, sticky footer with safe-area insets, mobile bottom-tab nav.
+   The bottom-tab nav appears ≤1024px (the header-less chrome cut) and is hidden
+   by default; it's shown via .has-mobile-nav on <body> (set by JS only when
+   the nav partial is present, so login/signup don't get a bottom bar).
+   =========================================================================== */
+.mobile-nav {
+  position: fixed;
+  inset-block-end: 0;
+  inset-inline: 0;
+  z-index: 50;
+  display: none;
+  background: color-mix(in srgb, var(--card) 92%, transparent);
+  backdrop-filter: blur(12px);
+  border-block-start: 1px solid var(--line);
+  /* Fit flush to the bottom edge (user request 2026-08-29: "the sticky menu isn't
+     fully fit on the bottom"): block padding carries the gesture-bar safe area —
+     the old rule leaked safe-area-inset-bottom into the INLINE padding too, which
+     squeezed the tabs sideways on inset screens. */
+  padding: 0.3rem 0.5rem calc(0.3rem + env(safe-area-inset-bottom, 0px));
+  justify-content: space-around;
+  align-items: stretch;
+}
+body.has-mobile-nav .mobile-nav { display: flex; }
+/* Room for the bar itself (3.5rem) + its safe-area inset, so page content can
+   never be trapped underneath (the old flat 3.5rem left the last row hidden on
+   inset screens — the other half of the "not fully fit" bug). */
+body.has-mobile-nav { padding-block-end: calc(3.5rem + env(safe-area-inset-bottom, 0px)); }
+@media (min-width: 1025px) {
+  .mobile-nav { display: none !important; }
+  body.has-mobile-nav { padding-block-end: 0; }
+}
+.mobile-nav a,
+.mobile-nav .mobile-nav-more {
+  flex: 1;
+  min-inline-size: 0; /* let long FA labels ellipsize instead of blowing out the row */
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.15rem;
+  min-block-size: 44px; /* touch target (WCAG 2.5.5) */
+  padding: 0.3rem 0.1rem;
+  color: var(--muted);
+  text-decoration: none;
+  font-size: var(--fs-xs);
+  border-radius: var(--radius-sm);
+  transition: color 0.12s ease, background 0.12s ease;
+}
+/* The "More" tab is a <button> (opens the sheet) — reset UA button chrome. */
+.mobile-nav .mobile-nav-more {
+  background: transparent;
+  border: 0;
+  font-family: inherit;
+  font-weight: 500;
+  cursor: pointer;
+}
+.mobile-nav a:active { background: var(--accent-soft); }
+.mobile-nav .mobile-nav-more:active { background: var(--accent-soft); }
+.mobile-nav a[aria-current="page"] { color: var(--link); }
+.mobile-nav .mobile-nav-more[aria-expanded="true"] { color: var(--link); }
+.mobile-nav a .icon,
+.mobile-nav .mobile-nav-more .icon { width: 1.35em; height: 1.35em; }
+/* Long FA labels (e.g. «لیست کارها») must never blow out the row. */
+.mobile-nav-label { line-height: 1; max-inline-size: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* P4.12 (F-L25): at 390px the FA 'لیست کارها' label ellipsized — allow 2-line wrap + smaller font. */
+@media (max-width: 430px) {
+  .mobile-nav-label { white-space: normal; font-size: 0.625rem; line-height: 1.1; }
+}
+
+/* Touch-target sizing for interactive elements on mobile (WCAG 2.5.5: ≥44px) */
+@media (max-width: 720px) {
+  .ghost, .btn { min-block-size: 44px; min-inline-size: 44px; }
+  .btn:not(.fab):not(.fab-item) { padding-block: 0.6rem; }
+  .ghost[aria-label] { padding: 0.5rem; }
+}
+
+/* Sticky footer (existing pages already use main.shell; this makes the layout column
+   hold the footer to the bottom on short pages, per the UI rule). Hibana has no global
+   footer today, so this is a no-op until a footer is added — documented for the future. */
+/* Sticky-footer base (existing pages already use main.shell): the column keeps short
+   pages from collapsing. The old `.shell > :last-child { margin-block-start: auto }`
+   was removed (2026-08-29): no shell page ends in a footer, and the auto-margin shoved
+   short last blocks (e.g. the projects empty-state) to the bottom of the viewport —
+   a 160px dead zone between the filter bar and the "No projects yet" box. */
+.shell { min-block-size: calc(100vh - 4rem); display: flex; flex-direction: column; }
+
+/* ===========================================================================
+   Phase B2.7 — Subtle motion
+   FAB spring on open, card hover lift, drag ghost preview. All gated by
+   prefers-reduced-motion (the global guard at the top of this section already
+   zero-durations everything when the user opts out).
+   =========================================================================== */
+/* FAB: spring on click + expand */
+.fab { transition: transform 0.18s cubic-bezier(0.34, 1.56, 0.64, 1), background-color 0.15s ease, box-shadow 0.18s ease; }
+.fab:active { transform: scale(0.92); }
+.fab-stack[data-fab] .fab-menu { transition: transform 0.22s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.18s ease; transform-origin: bottom right; }
+.fab-stack[data-fab] .fab-menu[hidden] { transform: scale(0.85) translateY(0.5rem); opacity: 0; }
+
+/* Card hover lift — only on devices with hover (touchscreens skip it) */
+@media (hover: hover) {
+  .project-card, .kanban-card, .stat-kanban-card, .dash-todo-quadrant {
+    transition: transform 0.16s ease, box-shadow 0.16s ease, border-color 0.16s ease;
+  }
+  .project-card:hover, .kanban-card:hover, .stat-kanban-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 18px -8px rgb(0 0 0 / 0.12);
+    border-color: var(--line-strong);
+  }
+}
+
+/* Drag ghost preview — the dragged card gets a slight tilt + reduced opacity */
+[draggable="true"]:global(.dragging),
+.dragging {
+  opacity: 0.6;
+  transform: scale(0.98) rotate(-1deg);
+  cursor: grabbing !important;
+}
+.drag-over {
+  outline: 2px dashed var(--brand);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
+}
+
+/* Toast slide-in (info too, not just err) */
+.toast { animation: toast-slide-in 0.22s ease-out; }
+@keyframes toast-slide-in {
+  from { opacity: 0; transform: translate(-50%, calc(-50% - 0.5rem)); }
+  to { opacity: 1; transform: translate(-50%, -50%); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .toast { animation: none; }
+  .fab:active { transform: none; }
+  .project-card:hover, .kanban-card:hover, .stat-kanban-card:hover { transform: none; box-shadow: none; }
+  .dragging { transform: none; }
+}
+
+/* --- Dashboard "today" summary strip (Phase B3.1) --------------------------- */
+.dash-today-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin-inline-start: auto;
+  margin-inline-end: 0.75rem;
+}
+.dash-today-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.25rem 0.6rem;
+  border-radius: 999px;
+  background: var(--accent-soft);
+  color: var(--text);
+  font-size: var(--fs-sm);
+  font-weight: 500;
+  border: 1px solid var(--line);
+}
+.dash-today-chip .icon { width: 1em; height: 1em; color: var(--muted); }
+.dash-today-overdue {
+  background: var(--danger-soft);
+  color: var(--danger);
+  border-color: color-mix(in srgb, var(--danger) 30%, transparent);
+}
+.dash-today-overdue .icon { color: var(--danger); }
+@media (max-width: 560px) {
+  .dash-today-strip { margin-inline-start: 0; width: 100%; }
+}
+
+/* --- Project detail tabs (Phase B3.3) ---------------------------------------- */
+.detail-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  margin-block-end: 1rem;
+  border-block-end: 1px solid var(--line);
+  padding-block-end: 0.5rem;
+}
+.detail-tab {
+  appearance: none;
+  border: none;
+  background: none;
+  color: var(--text); /* Session 19: was --muted (too faint vs the bold active tab — VLM-flagged). Inactive tabs now use full text color at normal weight; the active one is distinguished by the bold weight + the brand underline. */
+  font: inherit;
+  font-size: var(--fs-lg);
+  font-weight: 500;
+  padding: 0.5rem 0.85rem;
+  border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  position: relative;
+  transition: color 0.12s ease, background 0.12s ease, font-weight 0.12s ease;
+  opacity: 0.72;
+}
+.detail-tab:hover { color: var(--text); background: var(--accent-soft); opacity: 1; }
+.detail-tab.is-active {
+  color: var(--text);
+  font-weight: 700;
+  opacity: 1;
+}
+.detail-tab.is-active::after {
+  content: '';
+  position: absolute;
+  inset-block-end: -0.5rem;
+  inset-inline: 0.5rem;
+  height: 2px;
+  background: var(--brand);
+  border-radius: 2px;
+}
+.detail-tab-count {
+  font-size: var(--fs-xs);
+  background: var(--accent-soft);
+  color: var(--muted);
+  padding: 0.05rem 0.4rem;
+  border-radius: 999px;
+  font-weight: 500;
+}
+.detail-tab.is-active .detail-tab-count { background: var(--cta); color: var(--btn-text); } /* Session 20 (AA): white count on --brand fill was 3.1:1 — --cta is the white-text fill */
+.detail-panel { animation: tab-fade 0.18s ease-out; }
+.detail-panel[hidden] { display: none; }
+@keyframes tab-fade {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .detail-panel { animation: none; }
+}
+@media (max-width: 560px) {
+  .detail-tab { font-size: var(--fs-md); padding: 0.45rem 0.6rem; }
+}
+
+/* --- Sadhana focus-mode animation polish (Phase B3.4) ------------------------ */
+/* The focus overlay fades + slides in instead of snapping. Backdrop gets a soft blur.
+   Gated by prefers-reduced-motion. */
+.sadhana-focus-mount[data-focus-q] {
+  animation: focus-fade-in 0.22s ease-out;
+  backdrop-filter: blur(8px);
+  background: color-mix(in srgb, var(--bg) 82%, transparent);
+}
+.sadhana-focus {
+  animation: focus-slide-in 0.26s cubic-bezier(0.16, 1, 0.3, 1);
+}
+@keyframes focus-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes focus-slide-in {
+  from { opacity: 0; transform: translateY(12px) scale(0.99); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .sadhana-focus-mount[data-focus-q],
+  .sadhana-focus { animation: none; }
+  .sadhana-focus-mount[data-focus-q] { backdrop-filter: none; }
+}
+
+/* --- Settings tabs (Phase B3.5) --------------------------------------------- */
+/* The settings page is a long single scroll. These tabs let users jump between sections.
+   The JS is a tiny progressive enhancement: tabs scroll to + highlight the section, keeping
+   all existing forms/htmx wiring untouched (no panel hiding — the page stays accessible
+   without JS). */
+.settings-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  border-block-end: 1px solid var(--line);
+  padding-block-end: 0.5rem;
+  margin-block-end: 1.5rem;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background: var(--bg);
+  padding-block: 0.5rem 0.5rem;
+}
+.settings-tab {
+  appearance: none;
+  border: none;
+  background: none;
+  color: var(--muted);
+  font: inherit;
+  font-size: var(--fs-lg);
+  padding: 0.45rem 0.85rem;
+  min-block-size: 2.5rem; /* F13 (session 9): ≥40px target — tabs are adjacent, so a real size (not a padded pseudo that would overlap the neighbors) */
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  transition: color 0.12s ease, background 0.12s ease;
+}
+.settings-tab:hover { color: var(--text); background: var(--accent-soft); }
+.settings-tab.is-active { color: var(--text); font-weight: 600; background: var(--accent-soft); border-block-end: 3px solid var(--brand); }
+.settings-section { scroll-margin-block-start: 4rem; } /* room for the sticky tabs */
+/* Settings audit fixes (2026-09): consistent label-input alignment + readable helper text */
+.settings-section label { display: grid; gap: 0.3rem; align-items: start; }
+.settings-section label > span:not(.muted) { font-weight: 500; font-size: var(--fs-sm); }
+.settings-section label > .muted.small { color: var(--muted); font-size: var(--fs-xs); line-height: 1.4; opacity: 0.9; }
+.settings-section select, .settings-section input[type="text"], .settings-section input:not([type]) {
+  font: inherit; padding: 0.45rem 0.6rem; border: 1px solid var(--line); border-radius: var(--radius-sm);
+  background: var(--card); color: var(--text); inline-size: 100%;
+}
+.settings-section select:hover, .settings-section input:hover { border-color: var(--line-strong); }
+@media (max-width: 560px) {
+  .settings-tab { font-size: var(--fs-md); padding: 0.4rem 0.6rem; }
+}
+
+/* --- Reports calendar heatmap (Phase B3.6) ----------------------------------- */
+/* GitHub-style contribution grid: 13 weeks × 7 days, color-graded by activity level. */
+.heatmap {
+  display: flex;
+  gap: 3px;
+  overflow-x: auto;
+  padding: 0.5rem 0;
+}
+.heatmap-col {
+  display: grid;
+  grid-template-rows: repeat(7, 1fr);
+  gap: 3px;
+}
+.heatmap-cell {
+  width: 13px;
+  height: 13px;
+  border-radius: 3px;
+  background: var(--accent-soft);
+  border: 1px solid color-mix(in srgb, var(--line) 60%, transparent);
+  transition: transform 0.1s ease;
+}
+.heatmap-cell:hover { transform: scale(1.25); }
+.heatmap-l0 { background: var(--accent-soft); }
+.heatmap-l1 { background: color-mix(in srgb, var(--color-success) 35%, var(--accent-soft)); }
+.heatmap-l2 { background: color-mix(in srgb, var(--color-success) 60%, var(--accent-soft)); }
+.heatmap-l3 { background: color-mix(in srgb, var(--color-success) 85%, transparent); }
+.heatmap-l4 { background: var(--color-success); }
+.heatmap-legend {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-block-start: 0.5rem;
+  /* Session 19: separate the Less/More labels from the swatch ramp so they read as
+     caption + scale, not a continuous run. */
+  gap: 0.4rem;
+}
+.heatmap-legend [data-i18n="reports.less"],
+.heatmap-legend [data-i18n="reports.more"] { margin-inline: 0.25rem; font-weight: 500; }
+.heatmap-legend .heatmap-cell { width: 11px; height: 11px; }
+/* Session 19: weekday hint under the heatmap — a tiny Sat-row tick so the 7-row grid
+   reads as a calendar week, not abstract squares. Added by reports.html render. */
+.heatmap-weekdays { display: flex; gap: 3px; margin-block-start: 0.15rem; font-size: 0.55rem; color: var(--muted); opacity: 0.7; }
+.heatmap-weekdays span { width: 13px; text-align: center; }
+@media (prefers-reduced-motion: reduce) {
+  .heatmap-cell:hover { transform: none; }
+}
+@media (max-width: 560px) {
+  .heatmap-cell { width: 10px; height: 10px; }
+}
+

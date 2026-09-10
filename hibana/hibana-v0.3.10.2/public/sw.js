@@ -1,4 +1,11 @@
 // Hibana service worker — PWA packaging (Phase 5).
+// Session 25 (2026-09-10, refactor): hibana-v292 → v293 — app.css (8,822 lines) split
+// into 16 modular CSS files (variables, base, layout, dashboard, dashboard-todo,
+// components, canvas, quicknotes, to-do-list, polish-ui, calendar, notifications,
+// polish-batch, project-header, devboard, misc). Byte-identical concatenation — zero
+// behavior change. Each file is now a separate CSS_ENTRY_POINT → own content-hashed
+// /dist/ artifact → independent cache invalidation. SW bump: manifest now lists 17 CSS
+// entries (was 2) so existing clients must re-fetch manifest + precache new files.
 // Session-17 (2026-09-18, v0.3.9.1 release): hibana-v237 → v238 — app.css v214 + canvas.js
 // v15 + whiteboard.js v10: the ONE sticky-note style app-wide (owner's reference
 // mockup): every sticky paper is a TRUE SQUARE (aspect-ratio 1/1 on the quick-note /
@@ -121,7 +128,7 @@
 // (clamp render + read-more delegation + counter removal), devboard.js v10 (title
 // input → textarea), magic-wand.js v9 (title-written re-clamp event). The precached
 // HTML shells must rotate so clients drop the old counter markup.
-const VERSION = "hibana-v292" // Session 24h: project card redesign — left-aligned content, removed hatched corner, hover lift, tighter rhythm
+const VERSION = "hibana-v293" // Session 25 (refactor): split app.css into 16 modular files — byte-identical, zero behavior change
 
 // Static shell: unhashed pages/partials/icons/vendor/fonts (SWR or network-first at
 // runtime; precached here for offline). The hashed app bundles come from the manifest

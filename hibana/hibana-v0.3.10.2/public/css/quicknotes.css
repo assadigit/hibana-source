@@ -1,0 +1,882 @@
+/* --- dashboard quick notebook ---------------------------------------------- */
+/* Card-within-card: the notebook widget sits on the dashboard as its own .card; each
+   note is a quieter surface (bg-soft + line + radius-sm). Flat, zero shadows (token
+   --shadow: none), logical properties for RTL.
+   User request 2026-09-02 (compact): the notebook container had the default .card
+   padding (clamp 1.25-2rem) — too much wasted space. Tightened to 0.75-1rem. */
+.notebook.card { padding: clamp(0.75rem, 1.5vw, 1rem) clamp(0.75rem, 1.5vw, 1rem) clamp(1rem, 2vw, 1.5rem) clamp(0.75rem, 1.5vw, 1rem); overflow: visible; /* Session 19 (user report): the view/size controls panel floats absolutely + its box-shadow was clipped by the card's implicit overflow. The bottom padding is larger (1–1.5rem) to give the sticky-note shadows (4px 12px 20px) room below — container-type:inline-size on #notebook clips block-axis overflow, so the card itself must reserve the space. */ }
+.notebook .note-heading { margin-block-end: 0; font-size: 1rem; }
+.note-head .note-title { flex: 1; min-inline-size: 0; }
+/* User request 2026-09-02: controls FIRST, heading SECOND (near each other, not spread). */
+.note-head { gap: 0.4rem; margin-block-end: 0.4rem; align-items: center; }
+.note-head .note-heading { margin: 0; }
+
+/* Session-11 (user decision 2026-09-14): the view/size controls collapse behind a single
+   ⚙ <details> again — the session-10 revert made them always visible, but the owner
+   settled on the toggle now that the picked view/size (and the toggle's own open state)
+   persist in localStorage (app.js): the widget boots in the remembered view, so the
+   controls row only surfaces when that choice actually changes. Collapsed → just the
+   gear sits next to the heading; open → the segmented controls float as a small panel
+   under the gear so they don't push the composer + notes down. Scoped to
+   .note-controls-toggle (any notebook surface), not just the dashboard variant. */
+.note-controls-toggle { position: relative; }
+.note-controls-toggle > summary {
+  display: inline-flex; align-items: center; justify-content: center;
+  inline-size: 1.6rem; block-size: 1.6rem;
+  border-radius: var(--radius-sm);
+  color: var(--muted);
+  cursor: pointer;
+  list-style: none; /* hide the default disclosure triangle */
+}
+.note-controls-toggle > summary::-webkit-details-marker { display: none; }
+.note-controls-toggle > summary:hover { color: var(--text); background: var(--bg-soft); }
+.note-controls-toggle[open] > summary { color: var(--brand); background: var(--accent-soft); }
+/* Open panel: the controls float as a small card under the gear so they don't push the
+   composer + notes down when revealed. */
+.note-controls-toggle[open] .note-head-controls {
+  position: absolute;
+  inset-block-start: calc(100% + 0.25rem);
+  inset-inline-end: 0; /* Session 19 (user report): was inset-inline-start:0 — the panel extended past the right edge + its shadow clipped. Right-align it so it grows toward the card's left edge within bounds. */
+  z-index: 5;
+  display: flex;
+  gap: 0.5rem;
+  padding: 0.5rem;
+  background: var(--card);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-dropdown);
+}
+/* When collapsed, the controls are hidden (the <details> hides non-summary content by
+   default, but the absolute panel above also needs the open state — belt and suspenders). */
+.note-controls-toggle:not([open]) .note-head-controls { display: none; }
+
+.note-compose { gap: 0.3rem; margin-block-start: 0.4rem; flex-wrap: wrap; }
+/* Persistent label above the composer (audit 6): the input keeps its placeholder too. */
+.note-compose-label {
+  flex: 1 1 100%;
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  color: var(--muted);
+}
+.note-compose-text { flex: 1 1 14rem; resize: vertical; min-height: 2.5rem; max-height: 40vh; } /* compact (was 4.25rem) — one-row minimum, bounded resize */
+/* Dashboard widget: composer is one row by default and grows on focus (user request
+   2026-09-09). rows="1" + a slightly smaller min-height keeps the widget dense; the
+   existing resize:vertical + max-height:40vh still let it grow when Ali types more. */
+.notebook-dashboard .note-compose-text { min-height: 2.1rem; }
+
+/* Segmented Note/List toggle (edge-to-edge on the focus ring, not a pill — quiet
+   underline state for the active mode). */
+.seg {
+  display: inline-flex;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+.seg-btn {
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: var(--muted);
+  padding: 0.45rem 0.8rem;
+  font-size: var(--fs-md);
+  font-weight: 600;
+}
+.seg-btn:hover { background: var(--bg-soft); color: var(--text); }
+.seg-btn.active { background: var(--accent-soft); color: var(--text); box-shadow: inset 0 -2px 0 var(--accent); }
+
+/* Project view switcher — real buttons with breathing room between them. */
+.view-switch { display: flex; flex-wrap: wrap; gap: 0.45rem; }
+.view-switch .seg-btn {
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  color: var(--muted);
+}
+.view-switch .seg-btn:hover { border-color: var(--line-strong); color: var(--text); }
+.view-switch .seg-btn.active { border-color: var(--accent); background: var(--accent-soft); color: var(--text); }
+
+.note-list { display: grid; gap: 0.3rem; margin-block-start: 0.4rem; }
+/* Sticky-note view (2026-08-25): pure-CSS toggle — the #nv-sticky radio (a sibling of
+   .note-list) switches the same cards into a horizontal carousel of paper notes, up to 4
+   across with scroll-snap + arrows when there are more. No JS required, so a stale cached
+   app.js can never leave the view stuck on the vertical list. */
+.note-view-radio { position: absolute; inline-size: 1px; block-size: 1px; opacity: 0; overflow: hidden; }
+.note-size-radio { position: absolute; inline-size: 1px; block-size: 1px; opacity: 0; overflow: hidden; }
+.note-view-seg { display: inline-flex; border: 1px solid var(--line); border-radius: var(--radius-sm); overflow: hidden; }
+.note-size-seg { display: inline-flex; border: 1px solid var(--line); border-radius: var(--radius-sm); overflow: hidden; }
+.note-size-seg label { padding: 0.4rem 0.8rem; font-size: var(--fs-sm); color: var(--muted); cursor: pointer; user-select: none; }
+.note-view-seg label { padding: 0.4rem 0.8rem; font-size: var(--fs-sm); color: var(--muted); cursor: pointer; user-select: none; }
+.note-view-seg label:hover { background: var(--bg-soft); color: var(--text); }
+#notebook #nv-list:checked ~ .note-head .note-view-seg label[for='nv-list'],
+#notebook #nv-sticky:checked ~ .note-head .note-view-seg label[for='nv-sticky'] {
+  background: var(--accent-soft); color: var(--text); box-shadow: inset 0 -2px 0 var(--accent);
+}
+#notebook .note-view-radio:focus-visible ~ .note-head .note-view-seg label { outline: 2px solid var(--accent); outline-offset: -2px; }
+#notebook .note-size-radio:focus-visible ~ .note-head .note-size-seg label { outline: 2px solid var(--accent); outline-offset: -2px; }
+#notebook #ns-s:checked ~ .note-head .note-size-seg label[for='ns-s'],
+#notebook #ns-m:checked ~ .note-head .note-size-seg label[for='ns-m'],
+#notebook #ns-l:checked ~ .note-head .note-size-seg label[for='ns-l'] {
+  background: var(--accent-soft); color: var(--text); box-shadow: inset 0 -2px 0 var(--accent);
+}
+#notebook .note-size-seg label:hover { background: var(--bg-soft); color: var(--text); }
+#notebook #nv-list:checked ~ .note-head .note-size-seg { display: none; } /* size is sticky-only (2026-08-26) */
+.note-head-controls { gap: 0.5rem; }
+#notebook #nv-list:checked ~ .note-list { display: grid; gap: 0.3rem; }
+#notebook #nv-sticky:checked ~ .note-list {
+  display: flex;
+  gap: 0.75rem;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  padding-block-end: 0.5rem;
+  /* Session 19 (user report): the sticky carousel clipped the right + bottom shadows of
+     the last note. The inline padding gives the shadow (4px 12px 20px) room to render on
+     the end edge; the block padding gives the bottom shadow room. The scroll-padding
+     keeps the snap target inside the padding so the last note isn't flush against the
+     container edge after a scroll. */
+  padding-inline: 0.5rem;
+  padding-block: 0.25rem 0.75rem;
+  scroll-padding-inline: 0.5rem;
+  scrollbar-width: none;
+  align-items: flex-start;
+}
+#notebook #nv-sticky:checked ~ .note-list::-webkit-scrollbar { display: none; }
+#notebook #nv-sticky:checked ~ .note-list > .note-card { flex: 0 0 calc(25% - 0.6rem); min-width: 10rem; }
+#notebook :is(#nv-sticky:checked, #nv-grid:checked) ~ .note-list > .note-card {
+  /* Session 17 (2026-09-18, owner reference mockup): the sticky paper is a TRUE SQUARE
+     with near-sharp corners and a Miro-style layered, directional shadow — light from
+     the top-left, so the shadow sits down-and-right and the top/left edges stay clean.
+     Two stacked layers: a tight low-opacity contact shadow hugging the paper + a larger
+     softer diffuse one beneath for depth. The shadow is neutral black on every paper
+     fill (yellow/green/pink/blue) — color-matched shadows read muddy, not realistic.
+     NOTE: this intentionally REVERSES Phase 7 item 11's auto-height (the "Box is too
+     big" complaint) per the owner's latest direction — the fixed square returns; long
+     content clips sooner, which the «بیشتر…» note-more chip + the internal scroll
+     (app.js markClampedNotes) keep handling. The height caps are GONE: min/max block
+     size would clip the 16rem square (old cap 15rem) and re-introduce non-square
+     papers on narrow grid tracks — aspect-ratio alone governs the paper now. */
+  aspect-ratio: 1 / 1;
+  grid-template-rows: auto minmax(0, 1fr) auto; /* header + content + footer — definite tracks (2026-08-26) */
+  scroll-snap-align: start;
+  position: relative; /* the hover palette overlays the paper */
+  align-self: flex-start; /* a long sibling never stretches this card (2026-08-25) */
+  background: var(--note-color, #fff59d);
+  border: 0;
+  border-radius: 2px; /* near-sharp paper corners (was --radius-sm 14px) */
+  box-shadow: 1px 2px 3px rgb(0 0 0 / 0.08), 2px 6px 10px rgb(0 0 0 / 0.10); /* Session 19 (user report): was 1px 3px 4px / 4px 12px 20px — too much spread, clipped hard by container-type containment. Reduced spread + opacity so the shadow stays soft + fits in the card's padding. */
+  color: #3f3f46;
+  overflow: hidden; /* hard boundary — content can never bleed off the paper (2026-08-25) */
+}
+#notebook #nv-sticky:checked ~ .note-list > .note-card.dragging { opacity: 0.45; }
+/* Sticky-note size toggle (2026-08-26): pure-CSS radios chained after #nv-sticky. Capped
+   pixel widths (not %) so cards stop ballooning on wide monitors — square, so height = width. */
+#notebook #nv-sticky:checked ~ #ns-s:checked ~ .note-list > .note-card { flex: 0 0 10.5rem; min-width: 10.5rem; }
+#notebook #nv-sticky:checked ~ #ns-m:checked ~ .note-list > .note-card { flex: 0 0 13rem; min-width: 13rem; }
+#notebook #nv-sticky:checked ~ #ns-l:checked ~ .note-list > .note-card { flex: 0 0 16rem; min-width: 16rem; }
+/* Body font per size. Was 1.8/2.1/2.5rem after the ≥100% bump (2026-08-26), then trimmed
+   back down — the user found it too large. Now 1.05/1.2/1.4rem (~17-22px). */
+#notebook #nv-sticky:checked ~ #ns-s:checked ~ .note-list .note-text,
+#notebook #nv-sticky:checked ~ #ns-s:checked ~ .note-list .markdown-body { font-size: 1.05rem; }
+#notebook #nv-sticky:checked ~ #ns-m:checked ~ .note-list .note-text,
+#notebook #nv-sticky:checked ~ #ns-m:checked ~ .note-list .markdown-body { font-size: 1.2rem; }
+#notebook #nv-sticky:checked ~ #ns-l:checked ~ .note-list .note-text,
+#notebook #nv-sticky:checked ~ #ns-l:checked ~ .note-list .markdown-body { font-size: 1.4rem; }
+#notebook :is(#nv-sticky:checked, #nv-grid:checked) ~ .note-list .note-text,
+#notebook :is(#nv-sticky:checked, #nv-grid:checked) ~ .note-list .note-render {
+  color: #3f3f46;
+  /* Session 17: the paper is a fixed square (aspect-ratio 1/1), so the content row is
+     the square minus the headbar/footer tracks — long notes scroll INSIDE the paper and
+     app.js's markClampedNotes still fires the «بیشتر…» chip at the truncation point. */
+  max-block-size: 100%;
+  overflow: hidden auto; /* horizontal clipped, long notes scroll vertically (2026-08-25) */
+  overflow-wrap: anywhere;
+  min-width: 0;
+  min-height: 0;
+}
+/* Sticky-note header (2026-08-26): a slim row holding the close × (the "Sticky note"
+   label was removed as redundant 2026-08-26). Sits at inline-start — top-right in RTL.
+   Hidden in list view, which keeps its own delete in the footer/head. */
+#notebook .note-headbar { display: none; }
+#notebook :is(#nv-sticky:checked, #nv-grid:checked) ~ .note-list > .note-card .note-headbar {
+  display: flex;
+  align-items: center;
+  min-block-size: 2.75rem; /* Phase 7 item 11: room for a 44px delete target */
+}
+#notebook :is(#nv-sticky:checked, #nv-grid:checked) ~ .note-list > .note-card .note-headbar [data-note-delete] {
+  inline-size: 2.75rem;
+  block-size: 2.75rem;
+  min-inline-size: 2.75rem;
+  min-block-size: 2.75rem; /* Phase 7 item 11: was 1.5rem (24px) — under the ~44px tap target */
+  padding: 0;
+  background: rgb(0 0 0 / 0.06);
+}
+#notebook :is(#nv-sticky:checked, #nv-grid:checked) ~ .note-list > .note-card .note-headbar [data-note-delete]:hover { background: rgb(0 0 0 / 0.14); }
+#notebook :is(#nv-sticky:checked, #nv-grid:checked) ~ .note-list > .note-card .note-headbar [data-note-delete] .icon { inline-size: 0.85rem; block-size: 0.85rem; }
+#notebook :is(#nv-sticky:checked, #nv-grid:checked) ~ .note-list > .note-card .note-footer-right [data-note-delete],
+#notebook :is(#nv-sticky:checked, #nv-grid:checked) ~ .note-list > .note-card .note-head-right [data-note-delete] { display: none; }
+#notebook :is(#nv-sticky:checked, #nv-grid:checked) ~ .note-list .note-text { background: transparent; border-color: transparent; }
+#notebook :is(#nv-sticky:checked, #nv-grid:checked) ~ .note-list .note-text:focus { background: transparent; border-color: transparent; }
+#notebook :is(#nv-sticky:checked, #nv-grid:checked) ~ .note-list .note-footer { color: #3f3f46; }
+#notebook :is(#nv-sticky:checked, #nv-grid:checked) ~ .note-list .note-footer .muted { color: rgb(63 63 70 / 0.72); }
+#notebook :is(#nv-sticky:checked, #nv-grid:checked) ~ .note-list .note-card button.ghost { color: #3f3f46; }
+#notebook :is(#nv-sticky:checked, #nv-grid:checked) ~ .note-list .note-card button.ghost.danger { color: #b42318; }
+#notebook :is(#nv-sticky:checked, #nv-grid:checked) ~ .note-list .note-attach { display: none; }
+#notebook :is(#nv-sticky:checked, #nv-grid:checked) ~ .note-list .markdown-body { color: #3f3f46; }
+#notebook :is(#nv-sticky:checked, #nv-grid:checked) ~ .note-list .markdown-body a { color: #3f3f46; text-decoration: underline; }
+#notebook :is(#nv-sticky:checked, #nv-grid:checked) ~ .note-list .markdown-body code { background: rgb(63 63 70 / 0.1); }
+#notebook :is(#nv-sticky:checked, #nv-grid:checked) ~ .note-list .markdown-body pre { background: rgb(63 63 70 / 0.08); border-color: rgb(63 63 70 / 0.2); }
+#notebook :is(#nv-sticky:checked, #nv-grid:checked) ~ .note-list .markdown-body blockquote { border-inline-start-color: rgb(63 63 70 / 0.35); color: rgb(63 63 70 / 0.8); }
+#notebook :is(#nv-sticky:checked, #nv-grid:checked) ~ .note-list .markdown-body hr { border-block-start-color: rgb(63 63 70 / 0.3); }
+/* Sticky hover palette (2026-08-25): four compact dots IN the footer/head row, revealed on
+   hover (always on touch). No absolute positioning — they live inline with the meta/delete. */
+#notebook .note-color-picker { display: none; gap: 0.25rem; align-items: center; }
+#notebook :is(#nv-sticky:checked, #nv-grid:checked) ~ .note-list > .note-card:hover .note-color-picker { display: inline-flex; }
+@media (hover: none) {
+  #notebook :is(#nv-sticky:checked, #nv-grid:checked) ~ .note-list > .note-card .note-color-picker { display: inline-flex; }
+}
+.note-color-picker .color-dot { inline-size: 1rem; block-size: 1rem; border-radius: 50%; padding: 0; cursor: pointer; flex: none; }
+.note-color-picker .color-dot.active { outline: 2px solid rgb(0 0 0 / 0.55); outline-offset: 1px; }
+.note-footer-right, .note-head-right { gap: 0.5rem; }
+.note-color-picker .dot-yellow { background: #fff59d; }
+.note-color-picker .dot-green { background: #bbf7d0; }
+.note-color-picker .dot-pink { background: #fbcfe8; }
+.note-color-picker .dot-blue { background: #bfdbfe; }
+/* Session 19 (user request): softer sticky notes in dark mode. The bright pastels glare;
+   the first attempt was too dark (#4A4438 — invisible). These are the original hues
+   desaturated + grey-mixed: still clearly yellow/green/pink/blue but muted, with light
+   text (#EDE8DE) for readability on the darker surface. */
+html[data-theme='dark'] .note-card[data-note-color='yellow'] { background: #6B6450 !important; }
+html[data-theme='dark'] .note-card[data-note-color='green'] { background: #506055 !important; }
+html[data-theme='dark'] .note-card[data-note-color='pink'] { background: #605560 !important; }
+html[data-theme='dark'] .note-card[data-note-color='blue'] { background: #505865 !important; }
+html[data-theme='dark'] .note-card { color: #EDE8DE !important; }
+html[data-theme='dark'] .note-card .note-text,
+html[data-theme='dark'] .note-card .note-render,
+html[data-theme='dark'] .note-card .markdown-body { color: #EDE8DE !important; }
+html[data-theme='dark'] .note-card button.ghost { color: #B0A79C !important; }
+/* Session 20 (AA): the meta timestamp / Attach chip / footer small text sat on the muted
+   --dark text color (#B0A79C → 2.5:1 on the dark sticky fills). Same light ink as the
+   note body (#EDE8DE — 4.83:1 worst-case on #6B6450), so metadata stays quieter than
+   the body via size, not via an unreadable color. !important to beat the blanket
+   `button.ghost` rule above (which is also !important). */
+html[data-theme='dark'] .note-card .note-meta,
+html[data-theme='dark'] .note-card .note-footer .small,
+html[data-theme='dark'] .note-card .attach-btn,
+html[data-theme='dark'] .note-card .attach-btn .small,
+html[data-theme='dark'] .note-card button.ghost.small.attach-btn,
+html[data-theme='dark'] .note-card button.ghost.small.attach-btn .small { color: #EDE8DE !important; }
+html[data-theme='dark'] .note-card .attach-btn { border-color: rgb(237 232 222 / 0.35) !important; }
+html[data-theme='dark'] .note-color-picker .dot-yellow { background: #6B6450; }
+html[data-theme='dark'] .note-color-picker .dot-green { background: #506055; }
+html[data-theme='dark'] .note-color-picker .dot-pink { background: #605560; }
+html[data-theme='dark'] .note-color-picker .dot-blue { background: #505865; }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) .note-card[data-note-color='yellow'] { background: #6B6450; }
+  :root:not([data-theme='light']) .note-card[data-note-color='green'] { background: #506055; }
+  :root:not([data-theme='light']) .note-card[data-note-color='pink'] { background: #605560; }
+  :root:not([data-theme='light']) .note-card[data-note-color='blue'] { background: #505865; }
+  :root:not([data-theme='light']) .note-card { color: #EDE8DE; }
+  :root:not([data-theme='light']) .note-card .note-text,
+  :root:not([data-theme='light']) .note-card .note-render,
+  :root:not([data-theme='light']) .note-card .markdown-body { color: #EDE8DE; }
+  :root:not([data-theme='light']) .note-card button.ghost { color: #B0A79C; }
+  /* Session 20 (AA): mirror of the [data-theme='dark'] rules above — meta text gets the
+     readable light ink on the dark sticky fills (system-dark users get the same fix). */
+  :root:not([data-theme='light']) .note-card .note-meta,
+  :root:not([data-theme='light']) .note-card .note-footer .small,
+  :root:not([data-theme='light']) .note-card .attach-btn,
+  :root:not([data-theme='light']) .note-card .attach-btn .small,
+  :root:not([data-theme='light']) .note-card button.ghost.small.attach-btn,
+  :root:not([data-theme='light']) .note-card button.ghost.small.attach-btn .small { color: #EDE8DE; }
+  :root:not([data-theme='light']) .note-card .attach-btn { border-color: rgb(237 232 222 / 0.35); }
+  :root:not([data-theme='light']) .note-color-picker .dot-yellow { background: #6B6450; }
+  :root:not([data-theme='light']) .note-color-picker .dot-green { background: #506055; }
+  :root:not([data-theme='light']) .note-color-picker .dot-pink { background: #605560; }
+  :root:not([data-theme='light']) .note-color-picker .dot-blue { background: #505865; }
+}
+#notebook #nv-list:checked ~ .note-list .note-color-picker { display: none; }
+#notebook #nv-grid:checked ~ .note-list .note-color-picker { display: none; }
+/* Grid view (2026-08-26 user request): a compact 3×3-maximum grid of square sticky
+   notes — no carousel arrows, no page-length list. Cards are HALF the original size
+   (2026-08-26: ≥50% smaller per user request): 6 columns instead of 3, gap halved to
+   0.4rem. Each row is still as tall as the column width, so 3 square rows now span
+   half the notebook's width — max-height: calc(50cqw − 0.2rem) caps it there (the
+   notebook is a size container, below) and any 4th+ row scrolls inside the grid so no
+   note is ever lost. The size toggle is hidden here (fixed size). */
+#notebook #nv-grid:checked ~ .note-list {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 0.4rem;
+  overflow-y: auto;
+  max-height: calc(50cqw - 0.2rem); /* 3 rows of half-width cards = half the notebook's width */
+  scrollbar-width: thin;
+  /* Session 19 (user report): give the sticky shadows room on all edges so they're never
+     clipped by the scroll container. */
+  padding: 0.5rem;
+  margin: -0.25rem; /* negates the extra padding so the grid doesn't shift the layout */
+}
+/* Narrow screens (session 14, user request): 6 columns would be unreadable — and the
+   old 3-up fallback left each paper too cramped to read (a 390px phone gave ~101px
+   columns with truncated text). Now 2 sticky notes per row, and each note is a little
+   SMALLER than the full half-width: tracks cap at 9.5rem and the pair centers in the
+   notebook, shrinking gracefully on narrower phones (minmax(0, …) floors the track at
+   0). Session 17: the 10.5rem card height cap is GONE — aspect-ratio 1/1 governs the
+   square paper (9.5rem track = 9.5rem square). */
+@media (max-width: 40rem) {
+  #notebook #nv-grid:checked ~ .note-list {
+    grid-template-columns: repeat(2, minmax(0, 9.5rem));
+    justify-content: center;
+    max-height: 100cqw;
+  }
+}
+#notebook #nv-grid:checked ~ .note-list > .note-card {
+  min-width: 0;
+  min-height: 0;
+}
+#notebook #nv-grid:checked ~ .note-list .note-text,
+#notebook #nv-grid:checked ~ .note-list .note-render { font-size: 1rem; }
+#notebook #nv-grid:checked ~ .note-sticky-nav { display: none; }
+#notebook #nv-grid:checked ~ .note-head .note-size-seg { display: none; }
+#notebook { position: relative; container-type: inline-size; } /* anchors the floating carousel handles; size container for the grid's 3-row cap (2026-08-26) */
+#notebook #nv-list:checked ~ .note-sticky-nav { display: none; }
+#notebook #nv-sticky:checked ~ .note-sticky-nav {
+  position: absolute;
+  inset-inline: 0;
+  top: 55%;
+  transform: translateY(-50%);
+  display: flex;
+  justify-content: space-between;
+  padding: 0;
+  z-index: 5;
+}
+/* Compact floating handles flanking the notes (2026-08-25) */
+.note-sticky-nav button {
+  min-inline-size: 2rem; min-block-size: 2rem; inline-size: 2rem; block-size: 2rem; padding: 0;
+  background: var(--card); border: 1px solid var(--line); color: var(--muted);
+  box-shadow: 0 2px 8px rgb(0 0 0 / 0.12);
+}
+.note-sticky-nav button:hover { color: var(--text); border-color: var(--line-strong); /* Session 19: was var(--accent) (teal) — now dark for readability */ }
+/* Prev is the mirror of next: flipped in LTR, un-flipped in RTL (next auto-flips via the
+   global [dir=rtl] .icon.arrow rule). */
+.icon.arrow.opposite { transform: scaleX(-1); }
+[dir='rtl'] .icon.arrow.opposite { transform: none; }
+.note-card {
+  background: color-mix(in srgb, var(--bg-soft) 45%, var(--card)); /* quieter fill (2026-08-25) */
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  /* Fix 2026-09-09 (user report, further compaction): tightened padding 0.22/0.4 -> 0.18/0.38
+     + gap 0.06 -> 0.04. Content dictates height; the card is now as dense as a sticky note. */
+  padding: 0.18rem 0.38rem;
+  display: grid;
+  gap: 0.04rem;
+  --note-body-fs: var(--fs-sm);
+  /* Session 19 (cron round 5): a note whose content is a long URL overflowed its grid
+     track on mobile (VLM-flagged). min-inline-size:0 lets the grid track shrink; the
+     textarea inside already has overflow-wrap:anywhere, but the card itself needs the
+     same guard so the whole card clips, not just the textarea. */
+  min-inline-size: 0;
+  overflow-wrap: anywhere;
+  /* Hover hint (user request 2026-09): make it obvious notes are clickable/editable */
+  cursor: text;
+  transition: border-color 0.12s ease, box-shadow 0.12s ease;
+}
+.note-card:hover {
+  border-color: var(--brand);
+  box-shadow: 0 1px 4px rgb(0 0 0 / 0.06);
+}
+
+/* Standardize quadrant icon visual weight (audit 2026-09): emoji + SVG glyphs
+   should match in size + opacity so the 4 quadrants look uniform. */
+.dash-todo-style .icon,
+.quadrant-emoji { inline-size: 1.1rem; block-size: 1.1rem; font-size: 1.1rem; line-height: 1; opacity: 0.7; }
+.dash-todo-style:hover .icon,
+.dash-todo-style:hover .quadrant-emoji { opacity: 1; }
+.note-card[data-kind='note'] .note-render,
+.note-card[data-kind='note'] .note-text { font-size: var(--note-body-fs, var(--fs-sm)); line-height: 1.62; }
+/* Phase 7 item 6: hovering a quick-note card lights it up — a pastel blue that reads
+   "active" (user: "the box must change color to a more active color, grabs the eye").
+   List view only: sticky/grid papers carry the user's own note color. */
+#notebook #nv-list:checked ~ .note-list > .note-card:hover,
+#notebook #nv-list:checked ~ .note-list > .note-card:focus-within {
+  background: color-mix(in srgb, #BFDBFE 55%, var(--card));
+  border-color: rgb(96 165 250 / 0.6);
+}
+.note-text {
+  background: transparent;
+  border-color: transparent;
+  resize: none;
+  overflow-y: auto;        /* a one-word note is one short line; long notes scroll at the cap */
+}
+.note-text:hover { border-color: var(--line); }
+.note-text:focus { border-color: var(--line-strong); background: var(--card); }
+/* Markdown reading (2026-08-25): notes show rendered markdown by default (Obsidian-style);
+   clicking the rendered body switches to the raw-textarea editor. */
+.note-card .note-text { display: none; }
+.note-card .note-render { display: block; }
+.note-card.note-edit .note-text { display: block; }
+.note-card.note-edit .note-render { display: none; }
+.markdown-body { overflow-wrap: anywhere; font-size: var(--fs-sm); line-height: 1.55; }
+.markdown-body h1, .markdown-body h2, .markdown-body h3 { margin: 0.4em 0 0.2em; line-height: 1.3; font-weight: 600; }
+.markdown-body h1 { font-size: 1.15rem; }
+.markdown-body h2 { font-size: 1.05rem; }
+.markdown-body h3 { font-size: 0.95rem; }
+.markdown-body p { margin: 0.25em 0; }
+.markdown-body p:last-child { margin-block-end: 0; } /* tight content→meta gap in note cards */
+.markdown-body ul, .markdown-body ol { margin: 0.25em 0; padding-inline-start: 1.25rem; }
+.markdown-body li { margin-block-end: 0.1em; }
+.markdown-body code { background: var(--accent-soft); border-radius: 4px; padding: 0.05em 0.3em; font-size: 0.92em; }
+.markdown-body pre { background: var(--bg-soft); border: 1px solid var(--line); border-radius: var(--radius-sm); padding: 0.5rem 0.6rem; overflow-x: auto; margin: 0.3em 0; }
+.markdown-body pre code { background: transparent; padding: 0; }
+.markdown-body blockquote { margin: 0.3em 0; padding-inline-start: 0.6rem; border-inline-start: 3px solid var(--line-strong); color: var(--muted); }
+.markdown-body hr { border: 0; border-block-start: 1px solid var(--line-strong); margin: 0.5em 0; }
+.markdown-body a { color: var(--link); text-decoration: underline; }
+.note-title {
+  background: transparent;
+  border-color: transparent;
+  font-weight: 600;
+  padding-block: 0.35rem;
+}
+.note-title:hover { border-color: var(--line); }
+.note-title:focus { border-color: var(--line-strong); background: var(--card); }
+.note-items { margin-block-end: 0; }
+.note-items .hurdle { background: var(--card); }
+.note-add { gap: 0.4rem; }
+.note-add input { flex: 1; min-inline-size: 0; padding-block: 0.35rem; }
+/* Session 19: the add-row's + button was a 2.25rem circle vs the ~1.5rem input → the
+   button extended below the input's baseline (VLM-flagged). Size it to match the input
+   height: same padding-block, a compact width, square corners. */
+.note-add .qa-btn { inline-size: auto; block-size: auto; padding: 0.35rem 0.6rem; border-radius: var(--radius-sm); }
+.note-add .qa-btn .icon { inline-size: 0.95rem; block-size: 0.95rem; }
+/* Draft preview (list mode): Enter drafts lines; only the + commits them. Dashed rows
+   signal “not saved yet” against the solid saved note-items. */
+.note-draft { flex: 1 1 100%; list-style: none; padding: 0; margin: 0; display: grid; gap: 0.3rem; }
+.note-draft .draft-hint { padding-inline-start: 0.15rem; }
+.note-draft .hurdle { padding: 0.4rem 0.6rem; border-style: dashed; background: var(--card); font-size: var(--fs-lg); }
+.note-draft .draft-check .icon { color: var(--muted); }
+.note-draft .hurdle .ghost.danger { padding: 0.2rem; }
+/* Phase 5 item 14 (2026-09-08): the meta line (یادداشت · ۲۱:۰۵) is 40% smaller than
+   the old footer size (0.8rem → 0.48rem) — it whispers, the content talks. */
+.note-footer { font-size: 0.48rem; }
+.note-footer .small, .note-footer .note-meta { font-size: 0.6rem; } /* .small's own rule would beat the inherited size. Session 20: was 0.48rem (~7.7px) — genuinely unreadable; 0.6rem keeps it quiet but legible */
+.note-footer .ghost.danger { padding: 0.18rem 0.35rem; } /* Fix 2026-09-09: unified with the 1rem color-dot tap target (was 0.12/0.3) */
+.note-footer .note-meta { overflow-wrap: anywhere; }
+/* Phase 7 item 11: the bottom action row in LOGICAL layout — margin-inline-start on the
+   controls group mirrors the row with the reading direction (RTL: meta at start/right,
+   controls at end/left; LTR: the mirror) with zero physical left/right rules. The page's
+   documentElement.dir (rtl for fa — i18n.js) governs; the card's dir=auto children never
+   bleed into this row. */
+.note-card .note-footer { display: flex; align-items: center; gap: 0.25rem; padding-inline-start: 0.1rem; padding-inline-end: 0.1rem; }
+.note-card .note-footer .note-footer-right { margin-inline-start: auto; display: flex; align-items: center; gap: 0.3rem; }
+
+/* --- quick-note ↔ project attach (user request 2026-08-25) ------------------ */
+.note-attach { margin-block-start: 0.05rem; }
+/* User request 2026-09-02: attach button too big — make it smaller + more compact. */
+.attach-btn { padding: 0.1rem 0.35rem; border-radius: 999px; font-size: 0.7rem; gap: 0.2rem; }
+.attach-btn .icon { width: 0.8em; height: 0.8em; }
+.attach-btn .small { font-size: inherit; }
+/* Phase 7 item 11: the اتصال button's teal (--accent #4A9FA3) measured ~2.9:1 against
+   the note card — under WCAG AA's 3:1 floor for text/UI. A dedicated darker teal
+   (#1F6B70) fixes the button without touching the app-wide accent. */
+.note-attach .attach-btn { color: #1F6B70; border-color: rgb(31 107 112 / 0.4); }
+.note-attach .attach-btn .icon { color: #1F6B70; }
+
+/* --- Phase 7 item 12: the FAB's «یادداشت سریع» modal (app.js builds it) ------------- */
+#quicknote-dialog .modal { display: grid; gap: 0.6rem; }
+#quicknote-text {
+  min-inline-size: 0; width: 100%;
+  min-block-size: 7rem;
+  resize: vertical;
+  padding: 0.55rem 0.65rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--bg);
+  color: var(--text);
+  font: inherit;
+}
+#quicknote-text:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+.qn-attach { display: flex; align-items: center; gap: 0.4rem; flex-wrap: wrap; }
+.qn-attach-chip { cursor: pointer; max-inline-size: 14rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.qn-attach-chip[hidden] { display: none; }
+.qn-attach-options { display: grid; gap: 0.2rem; max-block-size: 12rem; overflow-y: auto; border: 1px solid var(--line-strong); border-radius: var(--radius-sm); background: var(--bg); padding: 0.4rem 0.45rem; }
+.qn-attach-options[hidden] { display: none; }
+.qn-attach-option { text-align: start; padding: 0.4rem 0.55rem; border-radius: var(--radius-sm); border: 1px solid transparent; background: transparent; color: var(--text); cursor: pointer; font-size: var(--fs-md); overflow-wrap: anywhere; }
+.qn-attach-option:hover { background: var(--accent-soft); border-color: var(--line); }
+#quicknote-error { color: var(--err); }
+.attach-row { gap: 0.4rem; }
+.attach-chip { display: inline-flex; align-items: center; gap: 0.3rem; max-inline-size: 100%; }
+.attach-chip .icon { inline-size: 0.85rem; block-size: 0.85rem; color: var(--muted); }
+.attach-picker {
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-sm);
+  background: var(--bg);
+  padding: 0.45rem 0.5rem;
+  margin-block-start: 0.35rem;
+}
+.attach-options { display: grid; gap: 0.2rem; margin-block-start: 0.4rem; max-block-size: 13rem; overflow: auto; }
+.attach-option {
+  text-align: start;
+  padding: 0.4rem 0.55rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--text);
+  cursor: pointer;
+  font-size: var(--fs-md);
+  overflow-wrap: anywhere;
+}
+.attach-option:hover { background: var(--accent-soft); border-color: var(--line); }
+.related-notes a { color: var(--text); overflow-wrap: anywhere; }
+.related-notes a:hover { color: var(--accent); text-decoration: underline; }
+.related-notes .icon { inline-size: 0.85rem; block-size: 0.85rem; margin-inline-end: 0.3rem; vertical-align: -0.12em; }
+
+/* --- sparks shelf: drag-reorder + 3-dot menu ------------------------------- */
+/* Hover-reveal: the ⋯ button is invisible until the card is hovered/focused, so the card
+   stays clean at rest. The popover (when open) stays visible regardless. Applies to
+   .spark-menu on project cards (sparks + projects pages) AND note cards (dashboard). */
+.spark-menu { position: relative; margin-inline-start: auto; }
+.spark-menu > button[data-menu-open] {
+  position: relative;
+  display: inline-grid;
+  place-items: center;
+  inline-size: 1.75rem;
+  block-size: 1.75rem;
+  padding: 0;
+  line-height: 1;
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--muted);
+  border-radius: var(--radius-sm);
+  transition: background-color 0.12s ease, color 0.12s ease;
+}
+/* ≥40px hit area (same pattern as the theme/undo mini-buttons). */
+.spark-menu > button[data-menu-open]::after {
+  content: "";
+  position: absolute;
+  inset: -0.55rem;
+}
+.spark-menu > button[data-menu-open]:hover,
+.spark-menu > button[data-menu-open][data-open] {
+  background: var(--bg-soft);
+  color: var(--text);
+  border-color: var(--line);
+}
+.spark-menu-pop {
+  position: absolute;
+  inset-block-start: calc(100% + 0.4rem);
+  inset-inline-end: 0;
+  min-inline-size: 10rem;
+  padding: 0.25rem;
+  display: grid;
+  gap: 2px;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  z-index: 30;
+  box-shadow: 0 8px 30px rgb(0 0 0 / 0.08); /* the ONLY shadow: floating menus (same as .toast) */
+}
+.spark-menu-pop[hidden] { display: none; }
+.spark-menu-pop button {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  justify-content: flex-start;
+  width: 100%;
+  padding: 0.45rem 0.6rem;
+  background: transparent;
+  border: 0;
+  color: var(--text);
+  font-weight: 500;
+  text-align: start;
+}
+.spark-menu-pop button:hover { background: var(--bg-soft); }
+.spark-menu-pop button.danger { color: var(--err); }
+.spark-menu-pop .icon { inline-size: 1rem; block-size: 1rem; }
+
+/* Hover-reveal the ⋯ button on cards — cleaner UI (button hidden at rest, appears on
+   hover/focus-within). The open popover stays visible regardless. Touch devices: the
+   button is always visible (no hover) — kept at opacity 1 via @media (hover: none). */
+.spark-menu > button[data-menu-open] { opacity: 0; transition: opacity 0.12s ease, background-color 0.12s ease, color 0.12s ease; }
+.project-card:hover .spark-menu > button[data-menu-open],
+.project-card:focus-within .spark-menu > button[data-menu-open],
+.note-card:hover .spark-menu > button[data-menu-open],
+.note-card:focus-within .spark-menu > button[data-menu-open],
+.pd-task:hover .spark-menu > button[data-menu-open],
+.pd-task:focus-within .spark-menu > button[data-menu-open],
+.db-card:hover .spark-menu > button[data-menu-open],
+.db-card:focus-within .spark-menu > button[data-menu-open],
+.spark-menu > button[data-menu-open][data-open] { opacity: 1; }
+@media (hover: none) {
+  .spark-menu > button[data-menu-open] { opacity: 1; }
+}
+/* Note-card ⋯ menu positioning (the note headbar is flex — pin the menu to the end). */
+.note-card .note-headbar .spark-menu { margin-inline-start: 0; }
+.note-card .spark-menu-pop { inset-block-start: calc(100% + 0.25rem); }
+/* .pd-task-wrap: a wrapper around the <a.pd-task> + the ⋯ menu. The menu must be OUTSIDE
+   the <a> so its clicks don't trigger navigation. The wrapper is position:relative so
+   the absolute-positioned menu anchors to it. */
+.pd-task-wrap { position: relative; }
+.pd-task-wrap .pd-task { display: block; }
+.pd-task-wrap .spark-menu { position: absolute; inset-block-start: 0.25rem; inset-inline-end: 0.25rem; margin: 0; z-index: 5; }
+.pd-task-wrap .spark-menu-pop { inset-block-start: calc(100% + 0.25rem); inset-inline-end: 0; }
+/* .db-card ⋯ menu (board.html): the card is an <article>; pin the menu to the top-end
+   corner so it floats above the card content on hover. */
+.db-card { position: relative; }
+.db-card .db-card-menu { position: absolute; inset-block-start: 0.25rem; inset-inline-end: 0.25rem; margin: 0; z-index: 5; }
+.db-card .spark-menu-pop { inset-block-start: calc(100% + 0.25rem); inset-inline-end: 0; }
+
+/* --- user profile menu (topbar avatar hover) --------------------------------- */
+.user-menu { position: relative; display: inline-flex; }
+.user-menu > .user-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  padding: 0.15rem 0.4rem 0.15rem 0.2rem;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  color: var(--text);
+  font-weight: 600;
+  transition: background-color 0.12s ease, border-color 0.12s ease;
+}
+.user-menu > .user-chip:hover { background: var(--bg-soft); border-color: var(--line); }
+.user-menu-pop {
+  position: absolute;
+  inset-block-start: calc(100% + 0.5rem);
+  inset-inline-end: 0;
+  min-inline-size: 11rem;
+  padding: 0.3rem;
+  display: grid;
+  gap: 2px;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  z-index: 40;
+  box-shadow: 0 8px 30px rgb(0 0 0 / 0.08);
+  visibility: hidden;
+  opacity: 0;
+  translate: 0 -6px;
+  transition: opacity 0.15s ease, translate 0.15s ease, visibility 0s linear 0.15s;
+}
+/* Bridge the gap between chip and popup so the hover never drops. */
+.user-menu-pop::before {
+  content: "";
+  position: absolute;
+  inset-block-start: -0.5rem;
+  inset-inline: 0;
+  block-size: 0.5rem;
+}
+.user-menu:hover .user-menu-pop,
+.user-menu:focus-within .user-menu-pop {
+  visibility: visible;
+  opacity: 1;
+  translate: 0 0;
+  transition: opacity 0.15s ease, translate 0.15s ease;
+}
+.user-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  width: 100%;
+  padding: 0.55rem 0.75rem;   /* ≥44px row with the 1.9rem icon-chip (audit 11) */
+  background: transparent;
+  border: 0;
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  font-weight: 500;
+  font-size: var(--fs-lg);
+  text-align: start;
+}
+.user-menu-item:hover { background: var(--bg-soft); color: var(--text); text-decoration: none; }
+.user-menu-item .icon-chip { inline-size: 1.8rem; block-size: 1.8rem; }
+/* Active-language row: check mark + highlight (audit 13). */
+.lang-check { margin-inline-start: auto; inline-size: 1rem; block-size: 1rem; color: var(--brand); display: none; }
+.user-menu-item.active { background: var(--accent-soft); }
+.user-menu-item.active .lang-check { display: block; }
+/* Sign-out demoted to a quiet, low-emphasis row (audit 1) — danger only on hover. */
+.user-menu-item.user-menu-signout {
+  color: var(--muted);
+  font-size: var(--fs-md);
+  font-weight: 500;
+}
+.user-menu-item.user-menu-signout:hover { color: var(--danger); background: var(--danger-soft); }
+
+/* --- auth split-screen (login) ------------------------------------------------ */
+/* Replaces the centered auth-card for sign-in: 60% photo / 40% form, full-bleed. */
+.auth-split-page { display: block; padding: 0; }
+/* Force the split to fill the viewport — the shared `.auth-page` centering grid must
+   not trap it in a centered box (that caused white gutters on wide screens). */
+.auth-split {
+  display: grid;
+  grid-template-columns: 3fr 2fr; /* 60 / 40 */
+  min-height: 100dvh;
+  width: 100%;
+  max-inline-size: none;
+  background: var(--bg);
+}
+.auth-visual {
+  /* Full-bleed photo — nothing but the photo and a small corner brand (user request:
+     60% picture / 40% login, keep it minimal). */
+  position: relative;
+  display: block;
+  overflow: hidden;
+  background: url('/Login.jpg') center / cover no-repeat;
+}
+.auth-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.7rem;
+  color: #fff;
+  font-weight: 700;
+  text-shadow: 0 1px 14px rgb(0 0 0 / 0.35);
+}
+/* The brand text on the dark photo also softens in dark mode — pure white glares. */
+/* P4.5 (F-M16): guard with :not([data-theme='light']) so OS-dark + app-light doesn't dim the brand. */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) .auth-brand { color: #e9e9e7; }
+}
+html[data-theme='dark'] .auth-brand { color: #e9e9e7; }
+.auth-visual .auth-brand {
+  position: absolute;
+  inset-block-start: clamp(1.5rem, 3vw, 2.5rem);
+  inset-inline-start: clamp(1.5rem, 3vw, 2.5rem);
+  z-index: 1;
+}
+.auth-brand .mark { display: none; }
+/* The logo on the photo panel: always the light-glyph variant — the photo + scrim is dark. */
+.auth-logo {
+  display: block;
+  height: 2.4rem;
+  width: auto;
+  filter: drop-shadow(0 2px 10px rgb(0 0 0 / 0.3));
+}
+
+.auth-form {
+  display: grid;
+  place-content: center;
+  gap: 1.2rem;
+  justify-self: center;
+  width: min(24rem, 100%);
+  padding: clamp(2rem, 5vw, 4rem);
+}
+.auth-form h2 { margin: 0; font-size: 1.6rem; }
+.auth-form form { display: grid; gap: 1rem; }
+.auth-form label {
+  display: grid;
+  gap: 0.4rem;
+  font-size: var(--fs-md);
+  color: var(--muted);
+}
+.auth-form > p { margin: 0; }
+/* The inline brand is only for the collapsed (mobile) layout where the visual panel hides. */
+.auth-brand-inline {
+  display: none;
+  align-items: center;
+  gap: 0.55rem;
+  color: var(--text);
+  font-weight: 700;
+}
+.auth-brand-inline .mark { display: none; }
+/* Mobile login brand — theme-aware variant like the header. */
+.auth-logo-inline {
+  display: block;
+  height: 1.5rem;
+  width: auto;
+  content: var(--inline-logo);
+}
+@media (max-width: 860px) {
+  .auth-split { grid-template-columns: 1fr; }
+  .auth-visual { display: none; }
+  .auth-brand-inline { display: inline-flex; }
+}
+
+/* --- responsive topbar (roast plan Phase 4; header-less mobile pass 2026-08-29) --- */
+/* ≤1024px the app went header-less by the 2026-08-29 request (bottom tab bar carried
+   everything). Batch (s) 2026-09-08 — the user asked for the header BACK on mobile:
+   "in mobile view the header (logo) must always be visible". So the topbar survives
+   ≤1024px as a SLIM brand-only bar (logo + the offline sync badge), pinned sticky at
+   the top by the base rule; nav links / user chip / theme toggle stay hidden — the
+   fixed bottom bar + its More sheet still carry all navigation and account actions.
+   Desktop ≥1025px keeps the single-row topbar untouched. */
+@media (max-width: 1024px) {
+  .topbar { gap: 0; padding: 0.4rem 0.9rem; }
+  .topbar .nav-links,
+  .topbar .nav-actions { display: none; }
+  /* Shell fills the viewport minus BOTH bars (bottom 3.5rem + the slim top bar ~2.3rem)
+     so short pages never overflow into a scroll. */
+  .shell { min-block-size: calc(100dvh - 3.5rem - 2.3rem - env(safe-area-inset-bottom, 0px)); }
+}
+
+/* Mobile "More" sheet — the user-menu destinations, bottom-sheet edition (2026-08-29). */
+.mobile-more-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  background: rgb(0 0 0 / 0.42);
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.18s ease, visibility 0s linear 0.18s;
+}
+.mobile-more-backdrop.open { opacity: 1; visibility: visible; transition: opacity 0.18s ease; }
+.mobile-more-sheet {
+  position: fixed;
+  inset-inline: 0;
+  inset-block-end: 0;
+  z-index: 61;
+  max-inline-size: 26rem;
+  margin-inline: auto;
+  padding: 0.5rem 0.5rem calc(0.6rem + env(safe-area-inset-bottom, 0px));
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: var(--radius) var(--radius) 0 0;
+  box-shadow: 0 -8px 30px rgb(0 0 0 / 0.14);
+  display: grid;
+  gap: 2px;
+  max-block-size: min(72dvh, 30rem);
+  overflow-y: auto;
+  translate: 0 100%;
+  visibility: hidden;
+  transition: translate 0.22s ease, visibility 0s linear 0.22s;
+}
+.mobile-more-sheet.open { translate: 0 0; visibility: visible; transition: translate 0.22s ease; }
+.mobile-more-head {
+  padding: 0.55rem 0.75rem 0.35rem;
+  font-size: var(--fs-sm);
+  font-weight: 700;
+  color: var(--muted);
+  letter-spacing: 0.04em;
+}
+.mobile-more-row {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  padding: 0.7rem 0.75rem;
+  min-block-size: 44px; /* touch target (WCAG 2.5.5) */
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  font-weight: 500;
+  font-size: var(--fs-lg);
+  text-decoration: none;
+  background: transparent;
+  border: 0;
+  width: 100%;
+  font-family: inherit;
+  cursor: pointer;
+  text-align: start;
+}
+.mobile-more-row:hover { background: var(--bg-soft); text-decoration: none; }
+.mobile-more-row .icon { width: 1.4em; height: 1.4em; color: var(--muted); flex-shrink: 0; }
+.mobile-more-danger { color: var(--color-error); }
+.mobile-more-danger .icon { color: var(--color-error); }
+.mobile-more-div { block-size: 1px; background: var(--line); margin: 0.3rem 0.5rem; }
+@media (min-width: 1025px) {
+  .mobile-more-sheet, .mobile-more-backdrop { display: none !important; }
+}
+
+/* Respect reduced-motion (WCAG 2.3.3). */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+

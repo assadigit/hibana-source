@@ -1,0 +1,595 @@
+/* --- R4.3: Styling polish --------------------------------------------------- */
+/* Dark-mode card border refinement — in dark mode the flat --line border can make cards
+   blend into the bg. Add a slightly stronger top border so cards read as separate units.
+   Only applies when the user is actually in dark mode (not the default light). */
+html[data-theme="dark"] .card,
+:root:not([data-theme="light"]) .card {
+  border-block-start-color: var(--line-strong);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme]) .card {
+    border-block-start-color: var(--line-strong);
+  }
+}
+
+/* Tooltip component — a lightweight CSS-only tooltip via [data-tooltip] + ::after.
+   Usage: <button data-tooltip="Helpful text">…</button>. Appears on hover/focus,
+   positioned above by default. No JS, no library. */
+[data-tooltip] { position: relative; }
+[data-tooltip]::before,
+[data-tooltip]::after {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s ease;
+  z-index: 100;
+}
+[data-tooltip]::before {
+  content: attr(data-tooltip);
+  inset-block-end: calc(100% + 0.5rem);
+  inset-inline-start: 50%;
+  transform: translateX(-50%);
+  padding: 0.3rem 0.6rem;
+  background: var(--text);
+  color: var(--bg);
+  font-size: var(--fs-xs);
+  white-space: nowrap;
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-dropdown);
+  max-inline-size: 16rem;
+  white-space: normal;
+  text-align: center;
+}
+[data-tooltip]::after {
+  content: '';
+  inset-block-end: 100%;
+  inset-inline-start: 50%;
+  transform: translateX(-50%);
+  border: 5px solid transparent;
+  border-block-end-color: var(--text);
+  margin-block-end: -2px;
+}
+[data-tooltip]:hover::before,
+[data-tooltip]:hover::after,
+[data-tooltip]:focus-visible::before,
+[data-tooltip]:focus-visible::after {
+  opacity: 1;
+}
+/* RTL: keep the tooltip centered (translateX(-50%) is symmetric) */
+[dir="rtl"] [data-tooltip]::before,
+[dir="rtl"] [data-tooltip]::after { transform: translateX(50%); }
+/* Phase 6 item 5: elements pinned to the TOP of the viewport (the topbar's theme
+   toggle) clipped their tooltip ABOVE the viewing frame — unreadable. In the topbar
+   the tooltip flips to BELOW the element (arrow down). */
+.topbar [data-tooltip]::before { inset-block-end: auto; inset-block-start: calc(100% + 0.5rem); }
+.topbar [data-tooltip]::after {
+  inset-block-end: auto; inset-block-start: 100%;
+  border-block-end-color: transparent; border-block-start-color: var(--text);
+  margin-block-end: 0; margin-block-start: -2px;
+}
+/* Mobile: tooltips are awkward on touch; hide unless hover is available */
+@media (hover: none) {
+  [data-tooltip]::before, [data-tooltip]::after { display: none; }
+}
+
+/* ===========================================================================
+   Round 5 — Onboarding tour, counter animation, styling polish
+   =========================================================================== */
+
+/* --- R5.1: Onboarding tour -------------------------------------------------- */
+.tour-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  background: rgb(0 0 0 / 0.62); /* Session 19: was .45 — background content was readable through it, distracting from the coachmark */
+  backdrop-filter: blur(3px);
+  animation: tour-fade-in 0.2s ease-out;
+}
+@keyframes tour-fade-in { from { opacity: 0; } to { opacity: 1; } }
+.tour-card {
+  position: absolute;
+  background: var(--card);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius);
+  padding: 1.25rem 1.25rem 1rem;
+  box-shadow: 0 20px 50px -12px rgb(0 0 0 / 0.35), 0 4px 12px rgb(0 0 0 / 0.1);
+  max-inline-size: 320px;
+  animation: tour-card-in 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+@keyframes tour-card-in {
+  from { opacity: 0; transform: translateY(8px) scale(0.96); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+.tour-title { margin: 0 0 0.5rem; font-size: var(--fs-xl); font-weight: 700; }
+.tour-body { margin: 0 0 0.85rem; color: var(--text); line-height: 1.55; font-size: var(--fs-md); opacity: 0.92; }
+.tour-progress { display: flex; gap: 0.3rem; margin-block-end: 0.85rem; }
+.tour-dot {
+  inline-size: 7px;
+  block-size: 7px;
+  border-radius: 50%;
+  background: rgb(0 0 0 / 0.25); /* Session 19: was --line-strong which was near-invisible on the card surface */
+  transition: background 0.15s ease, inline-size 0.15s ease;
+}
+.tour-dot.active { background: var(--brand); inline-size: 20px; border-radius: 999px; }
+.tour-actions { display: flex; align-items: center; gap: 0.4rem; }
+.tour-spacer { flex: 1; }
+.tour-next {
+  background: var(--cta, var(--accent));
+  color: var(--btn-text);
+  border: none;
+  border-radius: var(--radius-sm);
+  padding: 0.45rem 1rem;
+  font: inherit;
+  font-size: var(--fs-md);
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.12s ease;
+}
+.tour-next:hover { background: var(--cta-hover, var(--accent-hover)); }
+/* The highlighted target element gets a ring + slight scale */
+.tour-target {
+  position: relative;
+  z-index: 81;
+  box-shadow: 0 0 0 4px var(--card), 0 0 0 6px var(--brand), 0 8px 24px rgb(0 0 0 / 0.3) !important;
+  border-radius: var(--radius-sm) !important;
+  animation: tour-target-pulse 1.8s ease-in-out infinite;
+}
+@keyframes tour-target-pulse {
+  0%, 100% { box-shadow: 0 0 0 4px var(--card), 0 0 0 6px var(--brand), 0 8px 24px rgb(0 0 0 / 0.3); }
+  50% { box-shadow: 0 0 0 4px var(--card), 0 0 0 8px color-mix(in srgb, var(--brand) 60%, transparent), 0 8px 24px rgb(0 0 0 / 0.3); }
+}
+/* Session 23 (user report: "the + CTA button is vanished") — ROOT CAUSE: .tour-target's
+   z-index:81 is trapped inside its ancestor's stacking context (.fab-stack z-index:40,
+   .topbar z-index:30), both BELOW the overlay's 80 — so during the tour the highlighted
+   FAB / theme toggle rendered UNDER the 62% black + blur veil: invisible + unclickable,
+   the coachmark pointing at a dark void. Lift the WHOLE stacking context above the
+   overlay whenever it contains the current tour target — the ring + pulse then show. */
+.fab-stack:has(.tour-target) { z-index: 82; }
+.topbar:has(.tour-target) { z-index: 82; }
+@media (prefers-reduced-motion: reduce) {
+  .tour-overlay, .tour-card, .tour-target { animation: none; }
+}
+
+/* --- R5.2: Counter animation ------------------------------------------------ */
+.stat-count.counting { color: var(--brand); transition: color 0.3s ease; }
+
+/* --- R5.3: Styling polish --------------------------------------------------- */
+/* Sadhana board dark-mode refinement — the quadrant cards use --bg-soft in light mode;
+   in dark mode that can flatten. Give them a subtle gradient + stronger border so the
+   2×2 grid reads as four distinct quadrants. */
+html[data-theme="dark"] .dash-todo-quadrant,
+:root:not([data-theme="light"]) .dash-todo-quadrant {
+  background: linear-gradient(160deg, color-mix(in srgb, var(--card) 96%, #fff 4%), var(--card));
+  border-color: var(--line-strong);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme]) .dash-todo-quadrant {
+    background: linear-gradient(160deg, color-mix(in srgb, var(--card) 96%, #fff 4%), var(--card));
+    border-color: var(--line-strong);
+  }
+}
+
+/* Focus-glow on interactive cards — a soft brand halo when a project-card or kanban-card
+   or notif-item receives keyboard focus (or focus-within). Pairs with the focus-visible
+   ring from R1; this is the "card is active" ambient signal. */
+.project-card:focus-within,
+.kanban-card:focus-within,
+.notif-item:focus-within,
+.feed-item:focus-within {
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--brand) 18%, transparent), 0 4px 12px -4px rgb(0 0 0 / 0.12);
+  border-color: color-mix(in srgb, var(--brand) 40%, var(--line));
+  transition: box-shadow 0.15s ease, border-color 0.15s ease;
+}
+
+/* Consistent letter-spacing on uppercase labels (badges, group labels, kind labels) for
+   a more refined typographic rhythm. */
+.badge, .cmdk-group-label, .notif-kind, .cal-dow, .dash-today-chip {
+  letter-spacing: 0.02em;
+}
+
+/* ===========================================================================
+   Round 6 — Voice quick-add, show-tour button, styling polish
+   =========================================================================== */
+
+/* --- R6.1: Voice quick-add mic button -------------------------------------- */
+.qa-title-row { gap: 0.4rem; align-items: center; }
+.qa-title-row input { flex: 1; }
+.qa-mic {
+  flex: none;
+  inline-size: 2.5rem;
+  block-size: 2.5rem;
+  padding: 0;
+  border-radius: var(--radius-sm);
+  display: grid;
+  place-items: center;
+  position: relative;
+}
+.qa-mic .icon { width: 1.2em; height: 1.2em; }
+.qa-mic.is-listening {
+  background: var(--danger-soft);
+  color: var(--danger);
+  border-color: var(--danger);
+  animation: mic-pulse 1.2s ease-in-out infinite;
+}
+@keyframes mic-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--danger) 40%, transparent); }
+  50% { box-shadow: 0 0 0 6px color-mix(in srgb, var(--danger) 0%, transparent); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .qa-mic.is-listening { animation: none; }
+}
+
+/* --- R6.3: Sticky table header for projects list view ---------------------- */
+/* The projects table is long; the header row (Title/Status/Tags/Updated/Progress) should
+   stick to the top of the scroll container so users always know which column is which. */
+.projects-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: var(--card);
+  border-block-end: 2px solid var(--line-strong);
+}
+/* When the page has the sticky settings-tabs (only on settings.html), bump the table
+   header down so they don't overlap. The projects page has no sticky bars, so 0 offset. */
+.projects-table thead th { top: 0; }
+
+/* --- R6.3: Reports page dark-mode refinement ------------------------------- */
+/* The reports page cards (snapshot, heatmap, activity) can flatten in dark mode. Give them
+   the same subtle gradient treatment as the sadhana quadrants from R5.3 for consistency. */
+html[data-theme="dark"] .reports .card,
+:root:not([data-theme="light"]) #report-body .card {
+  background: linear-gradient(160deg, color-mix(in srgb, var(--card) 96%, #fff 4%), var(--card));
+  border-color: var(--line-strong);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme]) #report-body .card {
+    background: linear-gradient(160deg, color-mix(in srgb, var(--card) 96%, #fff 4%), var(--card));
+    border-color: var(--line-strong);
+  }
+}
+/* The heatmap cells in dark mode — the l0 (empty) cell uses --accent-soft which is fine,
+   but the colored levels can glare. Soften the brightest level slightly. */
+html[data-theme="dark"] .heatmap-l4,
+:root:not([data-theme="light"]) .heatmap-l4 {
+  background: color-mix(in srgb, var(--color-success) 80%, var(--card));
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme]) .heatmap-l4 {
+    background: color-mix(in srgb, var(--color-success) 80%, var(--card));
+  }
+}
+
+/* --- R6.3: Settings "Help" subsection visual rhythm ------------------------ */
+#settings-account h4 {
+  font-size: var(--fs-md);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+  margin-block-end: 0.5rem;
+}
+#show-tour-btn { gap: 0.4rem; }
+
+/* ===========================================================================
+   Round 7 — Vim go-to shortcuts, PWA install prompt, styling polish
+   =========================================================================== */
+
+/* --- R7.1: Go-to hint pill ------------------------------------------------- */
+.goto-hint {
+  position: fixed;
+  inset-block-end: 1.5rem;
+  inset-inline-start: 50%;
+  transform: translateX(-50%) translateY(0.5rem);
+  z-index: 60;
+  padding: 0.4rem 0.9rem;
+  background: var(--text);
+  color: var(--bg);
+  border-radius: 999px;
+  font-size: var(--fs-md);
+  font-weight: 600;
+  font-family: var(--font-sans);
+  box-shadow: 0 8px 24px -6px rgb(0 0 0 / 0.3);
+  opacity: 0;
+  transition: opacity 0.15s ease, transform 0.15s ease;
+  pointer-events: none;
+}
+.goto-hint.visible {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+@media (prefers-reduced-motion: reduce) {
+  .goto-hint { transition: none; }
+}
+
+/* --- R7.3: Dashboard today strip -------------------------------------------- */
+/* The today-ring (R7.3/R8.1) was removed on user request 2026-08-29 — the strip keeps
+   only the outlier chips (overdue / pinned / solved this week), rendered by the server
+   only when at least one exists. */
+
+/* --- R7.3: Tooltip wiring on FAB items + view-switcher --------------------- */
+/* The [data-tooltip] component is already defined (R4.3); these just add the attribute
+   to the elements. The CSS here ensures the tooltip clears the FAB's high z-index. */
+.fab-item[data-tooltip]::before { z-index: 100; }
+.fab-item[data-tooltip]::after { z-index: 100; }
+.seg-btn[data-tooltip]::before { z-index: 100; }
+
+/* ===========================================================================
+   Round 8 — Today-ring wiring, fuzzy scoring, bar-chart animation, tooltip wiring
+   =========================================================================== */
+
+/* --- R8.1: done chip variant ------------------------------------------------- */
+.dash-today-done {
+  background: var(--badge-working-bg);
+  color: var(--badge-working-fg);
+  border-color: color-mix(in srgb, var(--badge-working-fg) 30%, transparent);
+}
+.dash-today-done .icon { color: var(--badge-working-fg); }
+
+/* --- R8.3: Reports bar-chart animation ------------------------------------- */
+/* The bar-chart bars (.bar / .bar-2) get a grow-up animation on first paint. */
+.bar-chart .bar,
+.bar-chart .bar-2 {
+  transform-origin: bottom;
+  animation: bar-grow 0.5s ease-out;
+}
+@keyframes bar-grow {
+  from { transform: scaleY(0); }
+  to { transform: scaleY(1); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .bar-chart .bar, .bar-chart .bar-2 { animation: none; }
+}
+
+/* --- R8.3: Tooltip-ready elements (the [data-tooltip] component is from R4.3) --- */
+/* These elements get tooltips wired in JS; the CSS just ensures they're positioned. */
+.seg-btn, .saved-filter-add, #save-filter-btn {
+  position: relative;
+}
+
+/* ===========================================================================
+   Round 9 — Iranian holidays, weekend marking, calendar legend, green Shamsi aesthetic
+   =========================================================================== */
+
+/* --- R9.1: Weekend (Friday) + holiday cell styling ------------------------- */
+/* 22-a #5: Fridays are the WEEKEND — a whisper of red plus subtle diagonal stripes
+   (repeating-linear-gradient), far softer than the full holiday treatment they used
+   to get (jalali-holidays.js tags every Friday as a 'holiday', so they rendered with an
+   8% danger fill, a 30% danger border and a solid-red number). Real named holidays
+   (نوروز، عاشورا، …) keep the stronger red styling below. */
+.cal-cell.cal-weekend {
+  color: var(--muted);
+  background:
+    repeating-linear-gradient(135deg, color-mix(in srgb, var(--danger) 5%, transparent) 0 5px, transparent 5px 11px),
+    color-mix(in srgb, var(--danger) 3%, var(--card));
+}
+.cal-cell.cal-weekend .cal-day-num { color: var(--danger); font-weight: 600; }
+.cal-cell.cal-holiday {
+  background: color-mix(in srgb, var(--danger) 8%, var(--card));
+  border-color: color-mix(in srgb, var(--danger) 30%, var(--line));
+}
+.cal-cell.cal-holiday .cal-day-num { color: var(--danger); font-weight: 700; }
+/* Real holiday falling on a Friday: keep the stripes, soften the old 12% red fill. */
+.cal-cell.cal-weekend.cal-holiday {
+  background:
+    repeating-linear-gradient(135deg, color-mix(in srgb, var(--danger) 7%, transparent) 0 5px, transparent 5px 11px),
+    color-mix(in srgb, var(--danger) 7%, var(--card));
+}
+/* Holiday badge inside the cell — small, truncates long names */
+.cal-hol-badge {
+  display: block;
+  font-size: 0.58rem;
+  line-height: 1.15;
+  color: var(--danger);
+  background: color-mix(in srgb, var(--danger) 12%, transparent);
+  padding: 0.05rem 0.25rem;
+  border-radius: 4px;
+  margin-block-start: 0.15rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-weight: 600;
+}
+.cal-cell.cal-holiday .cal-hol-badge { display: block; }
+.cal-cell:not(.cal-holiday) .cal-hol-badge { display: none; }
+/* The Friday column header (جمعه) gets a muted weekend tint */
+.cal-dow-weekend { color: var(--muted); font-weight: 700; }
+
+/* --- R9.3: Calendar legend -------------------------------------------------- */
+.cal-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-block: 0.85rem 0.5rem;
+  padding: 0.6rem 0.85rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--bg-soft);
+}
+.cal-legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  white-space: nowrap;
+}
+.cal-legend-item .cal-dot { inline-size: 24px; block-size: 24px; } /* match the 24px day pins (22-a) */
+.cal-weekend-swatch, .cal-holiday-swatch {
+  display: inline-block;
+  inline-size: 14px;
+  block-size: 14px;
+  border-radius: 4px;
+  border: 1px solid var(--line);
+}
+/* Weekend swatch mirrors the striped Friday cells (22-a #5) */
+.cal-weekend-swatch {
+  background:
+    repeating-linear-gradient(135deg, color-mix(in srgb, var(--danger) 9%, transparent) 0 2px, transparent 2px 5px),
+    color-mix(in srgb, var(--danger) 4%, var(--card));
+}
+.cal-holiday-swatch { background: color-mix(in srgb, var(--danger) 8%, var(--card)); border-color: color-mix(in srgb, var(--danger) 30%, var(--line)); }
+
+/* --- Day detail holiday row + add-task link -------------------------------- */
+.cal-day-holiday { list-style: none; margin: 0 0 0.5rem; padding: 0; }
+.cal-day-holiday .cal-hol-badge {
+  display: inline-block;
+  font-size: var(--fs-sm);
+  padding: 0.2rem 0.6rem;
+}
+#cal-add-task { margin-inline-end: auto; gap: 0.35rem; }
+
+/* --- R9.2: Shamsi "today" emphasis (Jalali mode) ---------------------------- */
+/* 2026-09-02 (user request): the calendar colors now comply with the Hibana design
+   system — the identity accent is the brand TEAL (--brand), not the ad-hoc green the
+   first cut used (the "تقویم" heading showed an off-system green). The h1 keeps the
+   standard heading color; only the today cell + month label carry the identity mark. */
+[dir="rtl"] .cal-cell.today {
+  border: 3px solid var(--brand) !important; /* thick brand border, overrides the 2px default */
+  background: color-mix(in srgb, var(--brand) 8%, var(--card));
+}
+[dir="rtl"] .cal-cell.today .cal-day-num {
+  color: var(--link); /* Session 20 (AA): was --brand — 2.9:1 as 13px text; --link matches the LTR .today rule */
+  font-weight: 700;
+}
+[dir="rtl"] #cal-title {
+  /* Prominent brand underline on the month heading in Jalali mode (Task 24: the h1 IS the month now) */
+  border-block-end: 3px solid var(--brand);
+  padding-block-end: 0.2rem;
+}
+@media (max-width: 560px) {
+  .cal-legend { font-size: var(--fs-xs); gap: 0.5rem; padding: 0.4rem 0.6rem; }
+  .cal-hol-badge { font-size: 0.5rem; }
+}
+
+/* sparks shelf indicator moved outside the swap target (Task 24) — keep it out of
+   the flow until a request is actually running (default htmx CSS is opacity-only). */
+#shelf-loading { display: none; }
+#shelf-loading.htmx-request { display: block; }
+
+/* --- Task 24 (2026-09-05): month-as-heading, Jalali⇄Gregorian switch, selected day,
+       dynamic pin rescale, legend drag-to-day --------------------------------- */
+.cal-title { margin: 0; min-inline-size: 10rem; text-align: center; }
+.cal-title-nav { gap: 0.25rem; }
+.cal-sys {
+  display: inline-flex;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  overflow: hidden;
+  background: var(--card);
+}
+.cal-sys button {
+  border: 0;
+  background: transparent;
+  padding: 0.32rem 0.8rem;
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  color: var(--muted);
+  cursor: pointer;
+  transition: background 0.12s ease, color 0.12s ease;
+}
+.cal-sys button + button { border-inline-start: 1px solid var(--line); }
+.cal-sys button.on { background: var(--cta); color: #fff; } /* Session 20 (AA): white on --brand #4A9FA3 was 3.1:1 (light) / 2.4:1 (dark, --accent-hover) — --cta is 4.93:1 in both themes */
+.cal-sys button:focus-visible { outline: 2px solid var(--brand); outline-offset: -2px; }
+/* the focused day (jumps/clicks) — a brand inset ring, distinct from today's border */
+.cal-cell.selected { border-color: var(--brand); box-shadow: inset 0 0 0 2px var(--brand); }
+.cal-cell.selected .cal-day-num { color: var(--link); } /* Session 20 (AA): --brand as text was 2.7:1 — --link is the text-safe teal (matches the .today rule above) */
+/* drop target while dragging a legend dot onto a day */
+.cal-cell.cal-drop {
+  outline: 2px dashed var(--brand);
+  outline-offset: -3px;
+  background: var(--accent-soft);
+}
+/* draggable legend dots */
+.cal-legend-item.cal-drag { cursor: grab; user-select: none; -webkit-user-select: none; }
+.cal-legend-item.cal-drag:active { cursor: grabbing; }
+.cal-legend-item.cal-drag.dragging { opacity: 0.4; }
+.cal-legend-hint { display: inline-flex; align-items: center; gap: 0.3rem; font-style: italic; }
+/* pins rescale as a day fills up — every pin stays visible, no “+N” (Task 24 #2) */
+.cal-dots.many { gap: 3px; }
+.cal-dots.many .cal-dot { inline-size: 16px; block-size: 16px; border-width: 2px; }
+.cal-dots.lots { gap: 2px; }
+.cal-dots.lots .cal-dot {
+  inline-size: 11px;
+  block-size: 11px;
+  border-width: 1.5px;
+  box-shadow: inset 0 1px 1px rgb(255 255 255 / 0.4), 0 1px 2px rgb(30 20 10 / 0.3);
+}
+@media (max-width: 640px) {
+  .cal-title { min-inline-size: 7rem; font-size: var(--fs-lg); }
+  .cal-sys button { padding: 0.28rem 0.6rem; }
+  .cal-controls { flex-wrap: wrap; justify-content: flex-end; }
+}
+@media (max-width: 480px) {
+  .cal-title { min-inline-size: 0; }
+  .cal-head { flex-direction: column; align-items: stretch; }
+  .cal-title-nav { justify-content: center; }
+  .cal-controls { justify-content: center; }
+}
+
+/* ==========================================================================
+   Dev-board + sprint roadmap + redesigned project header (0029, user sketch
+   2026-08-29). Pastel palette, physical-pin accents, full RTL/LTR + dark support.
+   ========================================================================== */
+
+/* priority pastels — one family, AA-checked as accents (not body text) */
+.prio-dot {
+  inline-size: 9px;
+  block-size: 9px;
+  border-radius: 999px;
+  flex: none;
+  background: var(--neutral-400, #c5c8cc);
+}
+/* Priority recolor (user request 2026-09-03): low/medium/high must differ at a glance —
+   grey / amber / red-ish pastels (medium used to be the pastel BLUE, so the sea of
+   default-priority tasks read "all blue"). urgent stays the hottest of the family. */
+.prio-low { background: #C9CDD2; }
+.prio-medium { background: #E8B27D; }
+.prio-high { background: #E59AA5; }
+.prio-urgent { background: #D96C63; }
+
+/* Priority visual weight (user request 2026-09): the prio-dot on .pd-task + .db-card
+   was OVERRIDDEN to use the column color — priority was invisible. Now: the prio-dot
+   keeps its priority color (not the column color), AND the card gets a left-border
+   accent + background tint matching its priority. Urgent items get the strongest
+   treatment (red border + tint + bold title) so they stand out at the top of the list.
+   The column color is still visible via the column's left border (the card's own border
+   is now priority-colored). */
+.pd-task .prio-dot { margin-block-start: 0.24rem; }
+/* The prio-* class on the dot wins over the st-* status override (higher specificity via
+   the .pd-task prefix on st-* — we match it with .pd-task prefix on prio-* too). */
+.pd-task .prio-low { background: #C9CDD2 !important; }
+.pd-task .prio-medium { background: #E8B27D !important; }
+.pd-task .prio-high { background: #E59AA5 !important; }
+.pd-task .prio-urgent { background: #D96C63 !important; }
+/* Priority left-border + tint on the wrapper */
+.pd-task-wrap { border-inline-start: 3px solid transparent; }
+/* Session 19 (user request): the task card's left border now inherits the COLUMN's color
+   by default (via the --pd-c token set on .pd-col[data-status]). Was: transparent default +
+   priority colors on every card (most cards are prio-medium = orange, so every column
+   looked orange). Now the border matches the column; only high/urgent override to red/pink
+   to flag urgency. */
+.pd-col .pd-task-wrap { border-inline-start-color: rgb(var(--pd-c, 200 200 200) / 0.55); }
+.pd-task-wrap:has(.prio-low) { border-inline-start-color: #C9CDD2; }
+/* prio-medium: no override — keeps the column color (the default .pd-col .pd-task-wrap rule above). Was orange #E8B27D which made every column look orange. */
+.pd-task-wrap:has(.prio-high) { border-inline-start-color: #E59AA5; }
+.pd-task-wrap:has(.prio-urgent) { border-inline-start-color: #D96C63; background: rgb(217 108 99 / 0.06); }
+.pd-task-wrap:has(.prio-urgent) .pd-task-title { font-weight: 600; }
+/* Same for db-card (board.html) — Session 22 (user request): the board now uses the
+   EXACT pd recipe. The comment here previously claimed parity while the rules
+   diverged: .db-card:has(.prio-medium) hard-coded an ORANGE left border (most tasks
+   are medium → every board column read orange), and the prio-dot was broken twice
+   over — `.db-card .prio-dot { background: var(--prio-color…) }` referenced a token
+   that exists NOWHERE, and the later `.db-card-main .prio-dot { background: inherit }`
+   (0,2,0) beat the `.prio-medium` class (0,1,0) → TRANSPARENT, invisible dots on the
+   board. Now: the dot carries its priority color (pd !important recipe), the card's
+   left border inherits the COLUMN's color via --db-c, and only low/high/urgent flag
+   their own color — prio-medium keeps the column color, exactly like .pd-task-wrap. */
+.db-card .prio-dot { margin-block-start: 0.24rem; }
+.db-card .prio-low { background: #C9CDD2 !important; }
+.db-card .prio-medium { background: #E8B27D !important; }
+.db-card .prio-high { background: #E59AA5 !important; }
+.db-card .prio-urgent { background: #D96C63 !important; }
+.db-col .db-card { border-inline-start: 3px solid rgb(var(--db-c, 200 200 200) / 0.55); }
+.db-card:has(.prio-low) { border-inline-start-color: #C9CDD2; }
+/* prio-medium: no override — keeps the column color (was #E8B27D which made every board column read orange). */
+.db-card:has(.prio-high) { border-inline-start-color: #E59AA5; }
+.db-card:has(.prio-urgent) { border-inline-start-color: #D96C63; background: rgb(217 108 99 / 0.06); }
+.db-card:has(.prio-urgent) .db-card-title { font-weight: 600; }
+

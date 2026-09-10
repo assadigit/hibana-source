@@ -1,0 +1,278 @@
+/* --- single creation FAB: one circle expands into a two-item labeled menu (2026-08-25).
+   The FAB circle means CREATE only; every other circular icon action is ghost/outline. ---
+   Corner rule (user request 2026-08-30): the + lives in the PHYSICAL bottom-right corner
+   on every page and in both directions — no RTL mirroring for a creation affordance. */
+.fab-stack {
+  position: fixed;
+  inset-block-end: 1.5rem;
+  right: 1.5rem;               /* physical right corner — never mirrors under dir=rtl */
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;       /* LTR: menu grows leftward from the right corner */
+  gap: 0.6rem;
+  z-index: 40;
+}
+/* RTL: cross-start is the right edge in a column flex, so flex-start keeps the menu
+   anchored to the same physical right corner (flex-end would push it off-screen). */
+[dir='rtl'] .fab-stack { align-items: flex-start; }
+.fab-menu {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.45rem;
+  min-inline-size: 11rem;
+}
+/* The author `display:flex` above overrides the UA [hidden] rule, so the menu items
+   rendered beside the + permanently. Explicit [hidden] wins (2026-08-26). */
+.fab-menu[hidden] { display: none; }
+.fab-item {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  min-block-size: 2.55rem;             /* slimmed 2026-08-30 (user: «ایدهٔ جدید» pills too large) */
+  padding: 0.3rem 0.8rem;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--card);
+  color: var(--text);
+  font: inherit;
+  font-size: var(--fs-xs);
+  box-shadow: 0 2px 10px rgb(0 0 0 / 0.1);
+  cursor: pointer;
+}
+.fab-item:hover {
+  /* Session 23 (user request: "on hover, buttons turn green, text becomes light"):
+     button:hover (0,1,1) leaked its green fill under this rule's dark text — the menu
+     pills read green-with-dark-ink. Now the FULL green+light recipe, explicitly. */
+  background: var(--cta-hover, var(--accent-hover));
+  border-color: var(--cta-hover, var(--accent-hover));
+  color: var(--btn-text, #fff);
+}
+.fab-item .fab-item-icon { display: grid; place-items: center; }
+.fab-item .fab-item-icon .icon { inline-size: 1.1rem; block-size: 1.1rem; }
+/* Keyboard shortcut hint inside the menu item (audit 18/19) — desktop affordance only. */
+.fab-kbd {
+  font: inherit;
+  font-size: var(--fs-xs);
+  color: var(--muted);
+  border: 1px solid var(--line-strong);
+  border-radius: 4px;
+  padding: 0 0.3em;
+  margin-inline-start: 0.35em;
+}
+@media (hover: none) {
+  .fab-kbd { display: none; }
+}
+/* Expanded state: the plus rotates into a close ✕ so the open/close affordance is one glyph. */
+.fab[aria-expanded="true"] .icon {
+  transform: rotate(45deg);
+}
+/* Mobile: thumb-friendly items; the corner stays the same logical corner (mirrored in RTL). */
+@media (max-width: 560px) {
+  .fab-item { min-block-size: 3rem; font-size: var(--fs-md); }
+  .fab-stack { gap: 0.5rem; }
+}
+/* Header-less mobile (2026-08-29): lift the FAB above the bottom tab bar so it never
+   covers the last tab (it used to sit ~32px into the bar — worst over the More tab).
+   Breakpoint follows the chrome cut (≤1024px) so the FAB clears the bar wherever
+   the bar is visible. */
+@media (max-width: 1024px) {
+  body.has-mobile-nav .fab-stack { inset-block-end: calc(3.5rem + env(safe-area-inset-bottom, 0px) + 0.75rem); }
+}
+.fab {
+  width: 3.15rem;             /* 30% smaller than the old single + (4.5rem) */
+  height: 3.15rem;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: var(--cta, var(--accent));
+  color: var(--btn-text);
+  display: grid;
+  place-items: center;       /* the glyph stays dead-center */
+  line-height: 0;
+  cursor: pointer;
+  user-select: none;
+  translate: 0 0;
+  scale: 1;
+  /* very pale soft shadow — a tight contact shadow + a broad, gentle one */
+  box-shadow:
+    0 2px 8px rgb(0 0 0 / 0.08),
+    0 12px 32px -10px rgb(0 0 0 / 0.24);
+  transition: transform 0.18s ease, background-color 0.15s ease, box-shadow 0.18s ease;
+}
+.fab .icon {
+  width: 1.47rem;
+  height: 1.47rem;
+  transition: transform 0.18s ease;
+}
+/* hover: a gentle lift + grow, slightly deeper shadow, the glyph swells */
+.fab:hover {
+  background: var(--cta-hover, var(--accent-hover));
+  translate: 0 -2px;
+  scale: 1.05;
+  box-shadow:
+    0 4px 12px rgb(0 0 0 / 0.1),
+    0 20px 44px -10px rgb(0 0 0 / 0.32);
+}
+.fab:hover .icon { scale: 1.12; }
+/* FAB tooltip (audit Phase 2) */
+.fab[title]::before {
+  content: attr(title);
+  position: absolute;
+  inset-inline-end: calc(100% + 0.6rem);
+  inset-block-start: 50%;
+  transform: translateY(-50%);
+  white-space: nowrap;
+  background: var(--card);
+  color: var(--text);
+  font-size: var(--fs-xs);
+  padding: 0.3rem 0.6rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--line);
+  box-shadow: 0 2px 8px rgb(0 0 0 / 0.1);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s ease;
+}
+.fab[title]:hover::before { opacity: 1; }
+/* pressed: settles back down */
+.fab:active {
+  translate: 0 0;
+  scale: 0.97;
+  box-shadow: 0 2px 8px rgb(0 0 0 / 0.08);
+}
+
+/* Directional arrows (view-all links): ONE glyph, mirrored by CSS for RTL — i18n.js
+   sets dir=rtl for Persian, so a single <svg class="icon arrow"> flips without duplicating
+   per-language arrow characters. */
+.icon.arrow { display: inline-block; vertical-align: -0.15em; }
+[dir="rtl"] .icon.arrow { transform: scaleX(-1); }
+
+/* ≥44px tap target for circular icon-only buttons (audit 2026-08-25). The ghost ring
+   itself is the whole circle — visually distinct from the filled CREATE circles (.fab,
+   .qa-btn) by design: filled = create, outline = any other circular action. */
+.icon-btn {
+  display: inline-grid;
+  place-items: center;
+  min-inline-size: 2.75rem;
+  min-block-size: 2.75rem;
+  padding: 0;
+  border-radius: 50%;
+}
+.icon-btn .icon { inline-size: 1.05rem; block-size: 1.05rem; }
+/* Small text buttons inside toasts also get a thumb-friendly hit area. */
+#toast button { min-inline-size: 2.5rem; min-block-size: 2.5rem; }
+
+/* --- modal (native <dialog>) ------------------------------------------------ */
+dialog.dialog {
+  border: 0;
+  padding: 0;
+  background: transparent;
+  max-inline-size: min(26rem, 92vw);
+  max-block-size: min(90vh, 40rem);
+  overflow: auto;
+}
+dialog.dialog::backdrop { background: rgb(0 0 0 / 0.55); }
+.modal {
+  background: var(--card);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius);
+  padding: 1.5rem;
+  width: 100%;
+  display: grid;
+  gap: 1rem;
+  /* Strong elevation (2026-08-26 user request): centered dialogs must read clearly on top
+     of the app — deep layered shadow + a darker backdrop instead of a hairline card. */
+  box-shadow:
+    0 32px 80px rgb(0 0 0 / 0.42),
+    0 12px 28px rgb(0 0 0 / 0.32),
+    0 2px 8px rgb(0 0 0 / 0.24);
+}
+.modal label { display: grid; gap: 0.3rem; font-size: var(--fs-md); color: var(--muted); }
+
+/* --- alert/error copy on auth pages ------------------------------------------- */
+.auth-form .error, .auth-card .error { color: var(--err); }
+.auth-links a { padding: 4px 0; } /* ≥24px inline-link targets even though 2.5.8 exempts them */
+
+/* --- email verification modal: 4 code boxes (Ali's spec, 2026-08-24) ---------- */
+.code-boxes {
+  display: flex;
+  gap: 0.6rem;
+  justify-content: center;
+  margin: 0.4rem 0;
+}
+.code-boxes input {
+  inline-size: 3rem;
+  block-size: 3.4rem;
+  text-align: center;
+  font-size: 1.35rem;
+  font-weight: 700;
+  border-radius: 0.6rem;
+}
+.code-boxes input:focus {
+  outline: 2px solid var(--cta, var(--accent));
+  outline-offset: 1px;
+}
+
+/* --- toast ----------------------------------------------------------------- */
+.toast {
+  position: fixed;
+  /* Dead-center of the viewport on BOTH axes (user request 2026-08-25). `left` + `transform`
+     is physical, so it centers identically in LTR and RTL. */
+  inset-block-start: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: var(--card);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-sm);
+  padding: 0.65rem 1rem;
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+  z-index: 60;
+  max-inline-size: 90vw;
+  /* Layered diffused shadow (2026-08-26 user spec): larger blur, no hard edge, enough
+     separation to read against the page — it is a toast/snackbar, not a modal. */
+  box-shadow:
+    0 10px 30px rgb(0 0 0 / 0.16),
+    0 2px 8px rgb(0 0 0 / 0.08);
+}
+.toast.err { border-color: var(--err); color: var(--err); }
+
+/* --- ping / status --------------------------------------------------------- */
+.ping-result {
+  margin-block-start: 0.75rem;
+  padding: 0.6rem 0.85rem;
+  border-radius: var(--radius-sm);
+  font-size: var(--fs-lg);
+}
+.ping-result.ok { background: var(--accent-soft); color: var(--ok); }
+.ping-result.err { background: var(--accent-soft); color: var(--err); }
+
+/* --- spinner --------------------------------------------------------------- */
+.spinner {
+  inline-size: 1rem;
+  block-size: 1rem;
+  border: 2px solid var(--line);
+  border-top-color: var(--text);
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+.htmx-request .spinner, .spinner.htmx-request { display: inline-block; }
+.spinner { display: none; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* --- theme ---------------------------------------------------------------- */
+.theme-floater {
+  position: fixed;
+  inset-block-start: 1rem;
+  inset-inline-end: 1rem;
+  z-index: 80;
+  font-size: var(--fs-xl);
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 0.4rem 0.5rem;
+}
+.theme-floater:hover { background: var(--bg-soft); }
+

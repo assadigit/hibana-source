@@ -1,0 +1,427 @@
+
+/* --- batch (s) 2026-09-08 — the dashboard projects strip is a CAROUSEL ----------------
+   (user request: "only three boxes by default, the rest behind carousel clicks").
+   The three MAIN working stages (در حال تحقیق · در انتظار اجرا · در حال انجام) render
+   first; بررسی نشده / توقف توسعه / عملیاتی page behind the arrows. The track keeps the
+   grid look — three boxes per page on desktop, two ≤980px, one ≤640px — but is a
+   horizontal scroll-snap rail the arrows page through. Without JS it still scrolls
+   natively (touch/wheel). The drag-a-card-between-boxes gesture is unaffected: the boxes
+   stay .stat-box children of the track. */
+.stat-carousel { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; margin-block-end: 1.25rem; }
+/* Session 19 (user request): the prev/next arrows flank the strip on the left/right.
+   HTML order: [prev][strip flex:1][next][nav(dots) full-width below]. */
+.stat-carousel-nav { flex-basis: 100%; display: flex; justify-content: center; }
+.stat-carousel .stat-strip.stat-boxes {
+  display: flex;
+  gap: 0.75rem;
+  margin-block-end: 0;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  scrollbar-width: none;
+  overscroll-behavior-x: contain;
+  -webkit-overflow-scrolling: touch;
+  flex: 1 1 0;
+  min-inline-size: 0;
+}
+.stat-carousel .stat-strip::-webkit-scrollbar { display: none; }
+.stat-carousel .stat-box {
+  flex: 0 0 calc((100% - 1.5rem) / 3);
+  min-inline-size: 0;
+  scroll-snap-align: start;
+  /* NOTE: no scroll-snap-stop:always — Chromium interrupts PROGRAMMATIC smooth scrolls
+     (scrollBy) at the FIRST snap point when it's set, so one arrow click advanced only a
+     single box (verified live). 'normal' lets the smooth page scroll complete and re-snap
+     at the nearest box boundary — which for a 3-wide track IS the next page. */
+}
+@media (max-width: 980px) { .stat-carousel .stat-box { flex-basis: calc((100% - 0.75rem) / 2); } }
+@media (max-width: 640px) { .stat-carousel .stat-box { flex-basis: 100%; } }
+/* Session 14 (user request): on phones each stage box is a full-width carousel slide —
+   an empty one ("Nothing here yet", .is-empty from dashboard.ts) is a wasted swipe.
+   Hidden ≤640px only; the dots/pages recompute because syncStatCarousel keys on
+   scrollWidth (display:none contributes nothing). When every stage is empty the server
+   marks none, so the section never renders hollow. */
+@media (max-width: 640px) {
+  .stat-carousel .stat-box.is-empty { display: none; }
+}
+.stat-arrow {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  inline-size: 2rem;
+  block-size: 2rem;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: 50%;
+  background: var(--card);
+  color: var(--muted);
+  cursor: pointer;
+  flex: none;
+}
+.stat-arrow:hover {
+  /* Session 23: full green+light hover (button:hover used to leak green under dark text) */
+  background: var(--cta-hover, var(--accent-hover));
+  border-color: var(--cta-hover, var(--accent-hover));
+  color: var(--btn-text, #fff);
+}
+.stat-arrow:disabled { opacity: 0.35; cursor: default; }
+/* RTL: the track starts at the right edge, so «next» points LEFT — flip both glyphs. */
+[dir='rtl'] .stat-arrow svg { transform: scaleX(-1); }
+.stat-dots { display: flex; gap: 0.4rem; align-items: center; }
+.stat-dot {
+  inline-size: 0.45rem;
+  block-size: 0.45rem;
+  border-radius: 50%;
+  background: var(--muted);
+  opacity: 0.35;
+}
+.stat-dot.is-active { background: var(--brand); opacity: 1; }
+
+/* batch (s): today's CALENDAR DATE rides next to the «لیست کارها» heading — the to-do
+   page's date, but minimal: muted text, NO pill background (user request). */
+.dash-todo-date { font-size: 0.78rem; font-weight: 400; color: var(--muted); letter-spacing: 0.01em; white-space: nowrap; }
+.stat-box .row { gap: 0.5rem; flex-wrap: wrap; }
+/* The count is a bold standalone numeral next to the single icon chip (roast 2026-08-25:
+   the old count-pill + icon-circle pair read as one cluttered double-circle group). */
+.stat-count { font-size: 1.35rem; font-weight: 700; letter-spacing: -0.01em; font-variant-numeric: tabular-nums; }
+/* Dashboard kanban columns (2026-08-25): every project per stage as a compact kanban card —
+   same visual language as the projects page, scaled for a 3-column strip. */
+.stat-kanban {
+  margin-block-start: 0.65rem;
+  display: grid;
+  gap: 0.4rem;
+  align-content: start;
+}
+.card.stat-kanban-card {
+  /* Session 19 (user request): colorless surface — transparent bg, only a border.
+     Was var(--statcard-bg) (a grey fill). The .card prefix raises specificity above
+     the .card gradient rule (line 5858) so transparent actually wins. The ::before
+     indicator bar still carries the status color (the only status-colored element). */
+  background: transparent;
+  border: 1px solid var(--line);
+  padding: 0.35rem 0.5rem 0.3rem;
+  cursor: grab;
+  display: grid;
+  gap: 0.1rem;
+  border-radius: 10px;
+}
+/* Hover steps toward the text tone — a visible nudge on the now-borderless surface. */
+.card.stat-kanban-card:hover { background: var(--bg-soft); border-color: var(--line-strong); }
+.stat-kanban-card .tag-chip { margin-inline-start: 0.2rem; }
+/* Batch (q) 2026-09-07 — COMPACT dashboard cards (user: "they must only carry [project
+   button + project heading], with last-updated below — no wasted white space"): the old
+   latest-note snippet, tag chip, and the «باز کردن →» footer row are gone. One tight row —
+   a small open-button (≥24px hit area via the padded ring) + a single-line ellipsized
+   heading — then the updated meta whispers underneath. */
+.skc-row { display: flex; align-items: center; gap: 0.4rem; min-inline-size: 0; }
+.skc-open {
+  display: inline-flex; align-items: center; justify-content: center;
+  inline-size: 1.35rem; block-size: 1.35rem;
+  border-radius: var(--radius-sm);
+  color: var(--muted);
+  background: rgb(74 159 163 / 0.10);
+  position: relative;
+  flex: none;
+}
+.skc-open::after { content: ""; position: absolute; inset: -0.6rem; } /* F13 (session 9): ≥40px hit zone (was -0.35rem ≈ 33px) */
+.skc-open .icon { inline-size: 0.85rem; block-size: 0.85rem; }
+.skc-open:hover { color: var(--brand); background: rgb(74 159 163 / 0.18); }
+.skc-title {
+  flex: 1 1 auto; min-inline-size: 0;
+  font-size: var(--fs-md); line-height: 1.35; font-weight: 600;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.skc-updated { font-size: var(--fs-xs); line-height: 1.3; }
+/* Reports Working/Archived boxes keep a plain list of project links (2026-08-25). */
+.stat-recent {
+  margin: 0.65rem 0 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 0.34rem;
+}
+.stat-recent a { color: var(--text); font-size: var(--fs-md); overflow-wrap: anywhere; }
+.stat-recent a:hover { color: var(--accent); text-decoration: underline; }
+.stat-recent li .muted { display: block; font-size: var(--fs-xs); }
+/* ≥40px tap targets for the dashboard's compact link rows (roast P5) — same
+   padded pseudo-element pattern as the small icon buttons: the visible layout
+   stays tight while the hit zone grows. */
+.stat-box a.small::after {
+  content: "";
+  position: absolute;
+  inset: -0.6rem;
+}
+.stat-box a.small { position: relative; }
+/* Standalone small links need a ≥24px target (WCAG 2.5.8) — text links inside a sentence
+   keep the inline exception, these don't. */
+.stat-box a.small,
+.activity-more { padding-block: 4px; }
+/* Kanban column labels read as plain text — only the count is bold. */
+.stat-label { font-weight: 400; }
+
+/* --- batch (q) 2026-09-07 — projects page «at a glance» strip -----------------
+   Six full-width boxes, one per PROJECT type (sparks excluded — ideas are not projects):
+   a big count + the stage label, softly tinted per stage, clicking filters the list.
+   The server renders it at the top of every /api/projects HTML fragment. */
+.pglance {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 0.55rem;
+  /* Session-10 (user report: "sections cramped"): more air below the strip before the
+     filtered list / next section begins. */
+  margin-block-end: 1.25rem;
+}
+@media (max-width: 980px) { .pglance { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+@media (max-width: 560px) { .pglance { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+/* Session 14 (user request): on phones an empty stage box (count 0, .is-empty from
+   glanceStrip) is dead weight in the 2-up grid — hide it. Desktop keeps every box so
+   the full stage map stays visible. When EVERY stage is empty the server marks none
+   (fresh-account fallback), so the group never collapses to nothing. */
+@media (max-width: 560px) {
+  .pglance .pglance-box.is-empty,
+  .pglance-grid .pglance-box.is-empty { display: none; }
+}
+.pglance-box {
+  --pg-c: 74 159 163; /* fallback: the teal accent */
+  display: grid;
+  justify-items: center;
+  gap: 0.1rem;
+  padding: 0.55rem 0.35rem 0.45rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--line);
+  background: var(--card);
+  text-decoration: none;
+  transition: border-color 0.15s ease, background 0.15s ease, transform 0.15s ease;
+  min-inline-size: 0;
+}
+.pglance-box:hover { border-color: rgb(var(--pg-c) / 0.45); background: rgb(var(--pg-c) / 0.05); }
+.pglance-box.is-active { border-color: rgb(var(--pg-c) / 0.55); background: rgb(var(--pg-c) / 0.08); }
+.pglance-count {
+  font-size: 1.3rem;
+  font-weight: 700;
+  line-height: 1.15;
+  font-variant-numeric: tabular-nums;
+  /* Session-10 (user proposal: "color only ~10% of each container"): the count is NEUTRAL
+     text now — the status color lives ONLY on the icon (the single small accent ≈ 10% of
+     the box). The old --pg-ink (badge-*-fg per status) painted the big number in the
+     status color too, which read as fully color-coded boxes = visual clutter. */
+  color: var(--text);
+}
+.pglance-label {
+  font-size: var(--fs-xs);
+  color: var(--muted);
+  text-align: center;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+/* Session-10: --pg-ink dropped (count went neutral, see .pglance-count) — only --pg-c
+   (the icon accent + hover/active tints) remains per status. */
+.pglance-box[data-pglance='unreviewed']    { --pg-c: 95 109 122; }
+.pglance-box[data-pglance='investigating'] { --pg-c: 111 101 147; }
+.pglance-box[data-pglance='awaiting']      { --pg-c: 126 115 87; }
+.pglance-box[data-pglance='doing']         { --pg-c: 63 126 120; }
+.pglance-box[data-pglance='halted']        { --pg-c: 111 103 90; }
+.pglance-box[data-pglance='operational']   { --pg-c: 76 123 82; }
+
+/* batch (s) 2026-09-08 — the grid view IS the projects page's home (user sketch: a
+   2×3 grid of status boxes; click one → that status's list; no raw project list on the
+   home page). Same boxes, bigger presence: 3 columns × 2 rows, roomier padding and a
+   larger count. Riding above another view (batch q strip) the compact 6-across stays.
+   Session-10: gap 0.75 → 1.25rem + roomier box padding (user report: "cramped"). */
+.pglance-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1.25rem; }
+@media (max-width: 560px) { .pglance-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.9rem; } }
+.pglance-grid .pglance-box { padding: 1.1rem 0.6rem 0.95rem; }
+.pglance-grid .pglance-count { font-size: 1.7rem; }
+.pglance-grid .pglance-label { font-size: var(--fs-sm); }
+
+/* --- batch (s) 2026-09-08 — idea folders (پوشه‌ها) on the Ideas shelf -------------
+   A pill row above the spark cards: All · every folder (with a live count + a ⋯ for
+   rename/delete) · بدون پوشه · a dashed ＋ to create. Chips filter client-side; the
+   bar rides INSIDE the shelf fragment so the 30s poll keeps counts live. */
+.sf-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 0.4rem; margin-block-end: 0.9rem; }
+
+/* Folder grid (file-manager view on the Ideas page — user request 2026-09) */
+.spark-folder-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(11rem, 1fr));
+  gap: 0.8rem;
+  margin-block-end: 1.2rem;
+}
+.spark-folder-card {
+  position: relative;
+  display: grid;
+  gap: 0.3rem;
+  place-items: center;
+  text-align: center;
+  padding: 1.2rem 0.8rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--card);
+  cursor: pointer;
+  transition: border-color 0.12s ease, box-shadow 0.12s ease, transform 0.08s ease;
+  text-decoration: none;
+  color: var(--text);
+}
+.spark-folder-card:hover {
+  border-color: var(--brand);
+  box-shadow: 0 2px 10px rgb(0 0 0 / 0.06);
+  transform: translateY(-1px);
+  /* Session 23: button:hover's green bg used to leak under this card on hover —
+     reset the surface to the intended neutral card fill (content card, not a CTA). */
+  background: var(--card);
+  color: var(--text);
+}
+.spark-folder-card:active { transform: translateY(0); }
+.spark-folder-icon { color: var(--muted); }
+.spark-folder-icon .icon { inline-size: 2rem; block-size: 2rem; }
+.spark-folder-card:hover .spark-folder-icon { color: var(--brand); }
+.spark-folder-name { font-weight: 600; font-size: var(--fs-sm); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-inline-size: 100%; }
+.spark-folder-count { font-size: var(--fs-xs); color: var(--muted); }
+.spark-folder-menu { position: absolute; inset-block-start: 0.3rem; inset-inline-end: 0.3rem; opacity: 0; transition: opacity 0.12s ease; }
+.spark-folder-card:hover .spark-folder-menu { opacity: 1; }
+.spark-folder-new { border-style: dashed; color: var(--muted); }
+.spark-folder-new:hover {
+  /* Session 23: green fill + light text (owner hover spec; was a green-bg/teal-text mix) */
+  background: var(--cta-hover, var(--accent-hover));
+  border-color: var(--cta-hover, var(--accent-hover));
+  color: var(--btn-text, #fff);
+}
+.spark-folder-all { background: var(--accent-soft); border-color: var(--brand); }
+.spark-folder-all .spark-folder-icon { color: var(--brand); }
+.sf-item { display: inline-flex; align-items: center; }
+.sf-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--card);
+  color: var(--muted);
+  padding: 0.22rem 0.7rem;
+  font-size: var(--fs-sm);
+  cursor: pointer;
+  max-inline-size: 14rem;
+}
+.sf-chip:hover {
+  /* Session 23: green fill + light text — button:hover's leak made these green+dark */
+  background: var(--cta-hover, var(--accent-hover));
+  border-color: var(--cta-hover, var(--accent-hover));
+  color: var(--btn-text, #fff);
+}
+.sf-chip.is-active {
+  color: var(--text);
+  border-color: var(--brand);
+  background: color-mix(in srgb, var(--brand) 12%, transparent);
+  font-weight: 600;
+}
+.sf-chip .sf-n {
+  font-size: 0.72rem;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.sf-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sf-more {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  padding: 0.15rem 0.25rem;
+  border-radius: 50%;
+  cursor: pointer;
+}
+.sf-more:hover {
+  /* Session 23: green fill + light icon (was transparent-base leak → green bg, muted icon) */
+  background: var(--cta-hover, var(--accent-hover));
+  color: var(--btn-text, #fff);
+}
+.sf-new { border-style: dashed; }
+.sf-new .icon { inline-size: 0.95rem; block-size: 0.95rem; }
+/* The ⋯ pop (rename / delete) — tiny absolute menu next to its folder item. */
+.sf-item { position: relative; }
+.sf-menu {
+  position: absolute;
+  inset-block-start: calc(100% + 0.3rem);
+  inset-inline-start: 0;
+  z-index: 40;
+  min-inline-size: 10rem;
+  display: grid;
+  gap: 0.1rem;
+  padding: 0.3rem;
+  background: var(--card);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-sm);
+  box-shadow: 0 10px 28px rgb(0 0 0 / 0.18);
+}
+.sf-menu button {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  border: 0;
+  background: transparent;
+  color: var(--text);
+  padding: 0.4rem 0.55rem;
+  border-radius: var(--radius-sm);
+  font-size: var(--fs-sm);
+  text-align: start;
+  cursor: pointer;
+}
+.sf-menu button:hover { background: color-mix(in srgb, var(--muted) 14%, transparent); }
+.sf-menu button.danger { color: var(--accent-3, #B85A54); }
+/* The move-to-folder radio list (dialog body). */
+.sf-move-list { display: grid; gap: 0.25rem; margin-block: 0.4rem 0.6rem; max-block-size: 16rem; overflow-y: auto; }
+.sf-move-list label { display: flex; align-items: center; gap: 0.5rem; cursor: pointer; padding: 0.3rem 0.4rem; border-radius: var(--radius-sm); }
+.sf-move-list label:hover { background: color-mix(in srgb, var(--muted) 12%, transparent); }
+
+/* Dashboard To-Do preview: compact mirror of the Sadhana board. */
+/* 2026-09-02 user request: generous whitespace BETWEEN dashboard sections — e.g. لیست کارها
+   and پیشخوان پروژه‌ها used to sit 1.25rem apart; every dashboard section now gets a wide
+   bottom margin for an airy, minimal rhythm.
+   Session-11 (2026-09-14): the rule was DEAD — the dashboard <main> carried a duplicate
+   id (id="main" … id="dash") and the parser drops the second attribute, so #dash never
+   matched anything (user report: "sections cramped together with no distance"). The hook
+   is now the .shell-dash class on that <main> (see dashboard.html). */
+main.shell-dash > section { margin-block-end: 2.9rem; }
+/* Session 19 (cron round 4): "Resume work" pinned card — the first thing on the dashboard.
+   A compact, accent-tinted card: rocket glyph + label + project title (deep link) + the
+   time since last touch + an "Open" CTA. Pinned above the ordered sections; hidden server-
+   side when no 'doing' project exists. */
+.dash-resume {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1rem 1.25rem;
+  margin-block-end: 2rem;
+  background: linear-gradient(100deg, var(--accent-soft), var(--card) 70%);
+  border: 1px solid color-mix(in srgb, var(--accent) 30%, var(--line));
+  border-inline-start: 4px solid var(--accent);
+  border-radius: var(--radius);
+  box-shadow: 0 2px 8px -4px rgb(0 0 0 / 0.08);
+}
+.dash-resume-glyph {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 2.5rem; height: 2.5rem;
+  border-radius: 50%;
+  /* Session 20 (AA): icon on --accent was 3.1:1 (icons need 3:1, but the whole card
+     reads better at the deeper CTA fill next to the --link label). */
+  background: var(--cta);
+  color: var(--btn-text);
+}
+.dash-resume-glyph .icon { width: 1.25rem; height: 1.25rem; }
+.dash-resume-body { display: flex; flex-direction: column; gap: 0.1rem; min-inline-size: 0; flex: 1; }
+.dash-resume-label { font-size: var(--fs-xs); font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; color: var(--link); opacity: 0.95; } /* Session 20 (AA): --accent text on white was 3.1:1 — --link is the text-safe teal (4.9:1+) */
+.dash-resume-title { font-size: var(--fs-lg); font-weight: 600; color: var(--text); text-decoration: none; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dash-resume-title:hover { color: var(--link); } /* Session 20 (AA): hover text must meet the same 4.5:1 bar */
+.dash-resume-meta { font-size: var(--fs-sm); }
+.dash-resume-cta { flex: none; }
+@media (max-width: 540px) {
+  .dash-resume { flex-wrap: wrap; gap: 0.6rem; padding: 0.85rem 1rem; }
+  .dash-resume-glyph { width: 2rem; height: 2rem; }
+  .dash-resume-title { font-size: var(--fs-md); white-space: normal; }
+  .dash-resume-cta { margin-inline-start: auto; }
+}

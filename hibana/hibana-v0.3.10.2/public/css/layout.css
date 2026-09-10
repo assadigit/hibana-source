@@ -1,0 +1,504 @@
+/* --- app shell ------------------------------------------------------------- */
+.topbar {
+  display: flex;
+  align-items: center;
+  gap: 1.25rem;
+  padding: 0.625rem clamp(1.25rem, 3vw, 2.5rem);
+  border-block-end: 1px solid var(--line);
+  background: var(--bg);
+  position: sticky;
+  inset-block-start: 0;
+  z-index: 30;
+}
+.topbar a { color: var(--muted); font-size: var(--fs-lg); padding: 0.45rem 0.35rem; border-block-end: 2px solid transparent; transition: color 0.12s ease, border-color 0.12s ease; }
+/* Brand identity (audit 20): hover + the active page underline use the warm spark amber. */
+.topbar a:hover { color: var(--brand); text-decoration: none; }
+.topbar a[aria-current='page'] { color: var(--text); font-weight: 600; border-block-end-color: var(--brand); border-block-end-width: 3px; }
+.topbar .brand a { color: var(--text); font-weight: 700; font-size: 1rem; border-block-end: 0; }
+/* Brand subtree as a deterministic flex chain: blockifies the anchor + img so no
+   inline/line-box quirks can shift the logo against the centered nav links. */
+.topbar .brand { display: flex; align-items: center; }
+/* Header logo — theme-aware (light/dark variants), swapped via the --brand-logo token. */
+.brand-logo {
+  display: block;
+  height: 1.4rem;
+  width: auto;
+  content: var(--brand-logo);
+  /* The wordmark's ink mass sits at 60.3% of the canvas height (measured via
+     scripts/probe-png.mjs) — a centered box still reads ~2.3px low against the nav
+     links. -2px compensates at the 1.4rem render size. */
+  translate: 0 -2px;
+}
+/* The five page links sit in a .nav-links wrapper: display: contents on desktop so
+   the topbar's own gap rules everything (identical layout to plain direct children);
+   at ≤720px it becomes a real flex row spanning 100% (roast plan Phase 4). */
+.topbar .nav-links { display: contents; }
+
+.topbar .muted { flex: 1; font-size: var(--fs-md); }
+/* header account cluster: avatar + theme + sign out, tight together */
+.nav-actions { gap: 0.5rem; }
+.user-chip { display: inline-flex; align-items: center; gap: 0.55rem; }
+.avatar {
+  display: inline-grid;
+  place-items: center;
+  width: 1.9rem;
+  height: 1.9rem;
+  border-radius: 50%;
+  /* Session 20 (AA): the initial is real text — white on --accent #4A9FA3 was 3.1:1.
+     --cta is the design system's white-text fill (4.93:1) per the "CTA fills sit one
+     shade deeper" rule; the avatar is an identity mark, so it stays teal, just deeper. */
+  background: var(--cta);
+  color: var(--btn-text);
+  font-size: var(--fs-sm);
+  font-weight: 700;
+  overflow: hidden;
+}
+.avatar img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.avatar-lg { width: 4.5rem; height: 4.5rem; font-size: 1.6rem; flex-shrink: 0; }
+.avatar-row { gap: 1rem; flex-wrap: wrap; align-items: flex-start; }
+.user-name { color: var(--muted); font-size: var(--fs-md); }
+
+.shell { padding: clamp(1.5rem, 3.5vw, 3rem); max-inline-size: 64rem; margin-inline: auto; }
+/* batch (p) 2026-09-06: board.html goes FULL-WIDTH (user request) — the five board
+   columns take the whole viewport instead of the 64rem reading measure. */
+.shell.shell-flush { max-inline-size: none; }
+
+/* Settings → View options (2026-08-26): ordered list of dashboard sections, reorderable
+   by drag (handle) or ↑/↓ arrows, each with a show/hide toggle. */
+.view-sort { display: flex; flex-direction: column; gap: 0.4rem; margin-block-start: 0.5rem; }
+.view-sort-row {
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.45rem 0.7rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--bg-soft);
+}
+.view-sort-row[draggable='true'] { cursor: grab; }
+.view-sort-row[draggable='true']:active { cursor: grabbing; }
+.view-sort-handle { display: inline-grid; place-items: center; color: var(--muted); cursor: grab; }
+.view-sort-handle .icon { inline-size: 1.05rem; block-size: 1.05rem; }
+.view-sort-name { flex: 1; font-size: var(--fs-md); }
+.view-sort-actions { gap: 0.3rem; }
+.view-sort-actions .icon-btn { min-inline-size: 2rem; min-block-size: 2rem; inline-size: 2rem; block-size: 2rem; }
+.view-sort-toggle { display: inline-flex; }
+
+.card {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: clamp(1.25rem, 2.5vw, 2rem);
+  margin-block-end: clamp(1.25rem, 2.5vw, 2rem);
+}
+.card ul { padding-inline-start: 1.25rem; }
+.card li { margin-block-end: 0.5rem; }
+
+/* --- status / chips --------------------------------------------------------- */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.15em 0.6em;
+  border-radius: 999px;
+  font-size: var(--fs-xs);
+  font-weight: 500;
+  letter-spacing: 0.01em;
+  /* No nowrap: Farsi labels like «در حال ساخت» must wrap instead of clipping (roast
+     plan Phase 4). Word-level wrapping keeps single-word pills unchanged. */
+  white-space: normal;
+  background: var(--badge-bg, var(--bg-soft));
+  color: var(--badge-fg, var(--muted));
+  border: 1px solid transparent;
+}
+/* Status badges now carry their per-status SVG icon (idea/pending/building/…), so the
+   matching pastel dot is redundant — the icon IS the marker. */
+
+/* One quiet pastel tint per stage (spec §7 — status via a small badge, minimal color).
+   Tints are theme variables (light pastels / muted dark fills) so dark mode can't glare.
+   Hue mapping follows the shared semantic tokens: Idea→info, Pending→warning,
+   Building→primary, Working→success (roast 2026-08-25 — one palette across pages). */
+.badge-spark        { --badge-bg: var(--badge-spark-bg, #FBF4E4);         --badge-fg: var(--badge-spark-fg, #86702F); }
+.badge-unreviewed    { --badge-bg: var(--badge-unreviewed-bg, #F0F2F5);    --badge-fg: var(--badge-unreviewed-fg, #5F6D7A); }
+.badge-investigating { --badge-bg: var(--badge-investigating-bg, #F2F0F8); --badge-fg: var(--badge-investigating-fg, #6F6593); }
+.badge-awaiting      { --badge-bg: var(--badge-awaiting-bg, #F8F4EA);      --badge-fg: var(--badge-awaiting-fg, #7E7357); }
+.badge-doing         { --badge-bg: var(--badge-doing-bg, #EAF4F3);         --badge-fg: var(--badge-doing-fg, #3F7E78); }
+.badge-halted        { --badge-bg: var(--badge-halted-bg, #F4F2EF);        --badge-fg: var(--badge-halted-fg, #6F675A); }
+.badge-operational   { --badge-bg: var(--badge-operational-bg, #EEF5EF);   --badge-fg: var(--badge-operational-fg, #4C7B52); }
+/* “Linked” state on Settings — the success tint family (--ok) so any theme reads it */
+.badge-ok { --badge-bg: var(--ok); --badge-fg: var(--bg); }
+.badge .icon { width: 0.85em; height: 0.85em; } /* the status glyph inside a small badge */
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.2em 0.7em;
+  border-radius: 999px;
+  font-size: var(--fs-sm);
+  color: var(--text);
+  background: var(--accent-soft);
+  border: 1px solid transparent;
+}
+.chip a { color: var(--link); }
+
+/* --- loading / empty -------------------------------------------------------- */
+.loading { padding: 2rem 0; color: var(--muted); }
+
+/* 2026-09-09 (user request): animated moving loader. Two reusable variants:
+   - .hibana-spinner: a rotating ring (border + transparent gap + accent arc).
+     Use inline: <span class="hibana-spinner" role="status" aria-label="Loading"></span>
+   - .hibana-dots: three bouncing dots. Use inline:
+     <span class="hibana-dots" role="status" aria-label="Loading"><i></i><i></i><i></i></span>
+   Both inherit currentColor for the visible arc/dots; the base color is var(--muted)
+   but a parent can set color: var(--brand) for the teal accent. Respects
+   prefers-reduced-motion (the animation stops, the element stays visible).
+   2026-09-09 (user follow-up): made it BIGGER + more eye-catching. The spinner is now
+   2.4rem (was 1.5rem), 3px border (was 2px), with a soft pulsing glow ring so the eye
+   is drawn to it. The loading-row label is also larger (fs-md, not fs-sm). */
+.hibana-spinner {
+  display: inline-block;
+  inline-size: 2.4rem;
+  block-size: 2.4rem;
+  border: 3px solid color-mix(in srgb, currentColor 22%, transparent);
+  border-block-start-color: currentColor;
+  border-radius: 50%;
+  animation: hibana-spin 0.8s linear infinite;
+  vertical-align: middle;
+  /* Soft pulsing glow so the spinner is eye-catching, not just a thin ring. The
+     box-shadow breathes (1.6s) in a second animation layered on the spin. */
+  box-shadow: 0 0 0 0 currentColor;
+  animation: hibana-spin 0.8s linear infinite, hibana-spin-glow 1.6s ease-in-out infinite;
+}
+.hibana-dots {
+  display: inline-flex;
+  gap: 0.4rem;
+  align-items: center;
+  vertical-align: middle;
+}
+.hibana-dots i {
+  display: inline-block;
+  inline-size: 0.7rem;
+  block-size: 0.7rem;
+  border-radius: 50%;
+  background: currentColor;
+  animation: hibana-dot-bounce 1.2s ease-in-out infinite;
+}
+.hibana-dots i:nth-child(2) { animation-delay: 0.15s; }
+.hibana-dots i:nth-child(3) { animation-delay: 0.3s; }
+@keyframes hibana-spin { to { transform: rotate(360deg); } }
+@keyframes hibana-spin-glow {
+  0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, currentColor 0%, transparent); }
+  50% { box-shadow: 0 0 0.6rem 0.15rem color-mix(in srgb, currentColor 35%, transparent); }
+}
+@keyframes hibana-dot-bounce {
+  0%, 80%, 100% { transform: scale(0.6); opacity: 0.4; }
+  40% { transform: scale(1); opacity: 1; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .hibana-spinner { animation: none; border-block-start-color: currentColor; box-shadow: none; }
+  .hibana-dots i { animation: none; transform: none; opacity: 1; }
+}
+/* A loading row: spinner + label, centered. Drop-in replacement for the old plain
+   "Loading…" text. The spinner rides the brand teal; the label sits next to it with
+   a larger gap + a larger font so the whole row reads as a deliberate loading state. */
+.hibana-loading-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.9rem;
+  padding: 2.5rem 0;
+  color: var(--muted);
+  font-size: var(--fs-md);
+}
+.hibana-loading-row .hibana-spinner { color: var(--brand); flex: none; }
+.hibana-loading-row > span:last-child { font-weight: 500; }
+.empty {
+  padding: 3rem 1.5rem;
+  text-align: center;
+  color: var(--muted);
+  border: 1px dashed var(--line-strong);
+  border-radius: var(--radius);
+}
+
+/* Session-9 extra: the projects page's header row and the filter bar sat flush
+   (0px gap — user report "no white space between sections"); 1.25rem above the
+   filters mirrors the 1.5rem below it. Projects page is the only .filters user. */
+.filters { margin-block-start: 1.25rem; margin-block-end: 1.5rem; }
+.filters input[type='search'] { flex: 1; }
+
+/* --- project lists ---------------------------------------------------------- */
+.card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(15rem, 1fr));
+  gap: 1rem;
+}
+.project-card { display: grid; gap: 0.5rem; margin: 0; transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease; }
+/* Redesign 2026-09 (Ali, UI/UX): flatter, more professional card. Hover lifts with a
+   soft warm shadow + a hair-stronger border instead of a flat background flip. The warm
+   rgb(30 20 10 / 0.08) matches the system's --shadow family (not a neutral gray, not
+   blue/indigo). transform/box-shadow are paint-only → no layout shift in the grid. */
+.project-card:hover { transform: translateY(-2px); box-shadow: 0 4px 12px -2px rgb(30 20 10 / 0.08); border-color: var(--line-strong); }
+/* Session 20 (390px sweep): the clients page's add-task / add-payment forms inside
+   <details> kept their inputs' intrinsic ~217px width in one non-wrapping row — the
+   Amount field bled 83px off-canvas on phones. Wrap + let inputs shrink/grow. */
+.project-card details > form.row { flex-wrap: wrap; row-gap: 0.4rem; }
+.project-card details > form.row > input { min-inline-size: 0; flex: 1 1 8.5rem; }
+.project-card details > form.row > input[type='number'] { flex: 0 1 7rem; }
+
+/* P-signals: notification-style icon+count chips on project rows (user request 2026-09-02).
+   Shown on dashboard kanban cards + projects page cards/list/kanban. Only non-zero signals
+   render. Each chip: icon + count, tinted by signal type. Compact + scannable.
+   User request 2026-09-02 (revision): make them BIGGER + place on the SAME ROW as the title.
+   User request 2026-09-02 (revision 2): BUG count gets its own solid red bubble (strong visual
+   weight, like a notification badge) right next to the project name. Other signals stay as
+   lighter chips. Also added: latest backlog update time metadata. */
+
+/* The standalone BUG notification bubble — next to the project name, renders when
+   bugs > 0. Session 21 (owner request): PASTEL red + no shadow — the solid #dc2626
+   badge read as too harsh next to the muted card surface. Same recipe as the sig-chip
+   family (translucent tint + deep-red ink): light 12% red tint + #b91c1c ink is
+   ≥5.1:1 everywhere it renders; dark 16% red tint + #f2a3a3 ink is ≥6.2:1. */
+.bug-bubble {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-inline-size: 1.4rem; height: 1.4rem; padding: 0 0.35rem;
+  border-radius: 999px;
+  background: rgb(220 38 38 / 0.12); color: #b91c1c;
+  font-size: 0.72rem; font-weight: 700; line-height: 1;
+  vertical-align: middle; margin-inline-start: 0.35rem;
+  flex-shrink: 0;
+}
+html[data-theme='dark'] .bug-bubble { background: rgb(248 113 113 / 0.16); color: #f2a3a3; }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) .bug-bubble { background: rgb(248 113 113 / 0.16); color: #f2a3a3; }
+}
+
+.project-signals { display: inline-flex; align-items: center; gap: 0.3rem; flex-wrap: wrap; flex-shrink: 0; }
+.sig-chip { display: inline-flex; align-items: center; gap: 0.25rem; padding: 0.15rem 0.5rem; border-radius: 999px; font-size: 0.8rem; line-height: 1.4; font-weight: 600; white-space: nowrap; }
+.sig-chip .icon { width: 1em; height: 1em; }
+.sig-ideas { background: rgb(245 158 78 / 0.15); color: #f59e4e; }
+.sig-backlog { background: rgb(74 159 163 / 0.15); color: var(--accent, #4A9FA3); }
+.sig-hurdles { background: rgb(245 197 126 / 0.15); color: #c9853e; }
+/* dashboard kanban card: the title row (open-arrow + title + bug bubble) stays on line 1.
+   The lighter signal chips (ideas/backlog/hurdles) dropped to their own line 2 (user
+   request 2026-09-09) so a 14rem-min card never crowds. Bug stays on the title row —
+   it's the only signal that warrants the red-bubble weight next to the name. */
+.stat-kanban-card .skc-row { align-items: center; }
+.stat-kanban-card .skc-signals {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  margin-block-start: 0.2rem;
+  margin-block-end: 0.1rem;
+}
+/* projects list table: signals in their own column (replaces the old % progress) */
+.projects-table .signals-cell { white-space: nowrap; }
+.projects-table .signals-cell .sig-chip { font-size: 0.75rem; }
+/* projects list table: bug bubble next to the title */
+.projects-table td .bug-bubble { margin-inline-start: 0.3rem; }
+/* card view: title + bug bubble wrap together; signals on the right */
+.pc-title-row { align-items: center; gap: 0.5rem; }
+.pc-title-wrap { display: inline-flex; align-items: center; gap: 0; }
+.pc-meta-row { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+.backlog-meta { font-size: 0.7rem; }
+
+/* --- wireframe project card (2026-08-30 sketch) — minimal centered card -----
+   [Updated 5m ago]      [stage pill]   ← head row (.title-meta also hosts the ⋯ menu)
+            Title of project            ← centered, largest text
+       Description — smaller font       ← centered, muted, 2-line clamp
+   ▞ color-coded hatched corner = first tag's color, top inline-end corner. */
+.pc-wire { gap: 0.5rem; }
+.pc-wire .pc-head { align-items: center; }
+.pc-wire .pc-head > .badge,
+.pc-wire .pc-head > .small { margin-block-start: 0; } /* undo .title-meta optical nudges */
+/* Batch (q) 2026-09-07 — the reported wrap glitch: «به‌روزرسانی ۲ ساعت پیش» + the stage
+   badge overflowed the head row, so the badge's TEXT wrapped INSIDE the pill onto two
+   lines. The row now never wraps; the UPDATED meta is the flexible item, the badge keeps
+   its single line.
+   Fix 2026-09-09 (user report): removed `overflow: hidden; text-overflow: ellipsis` —
+   it was cutting the Persian word mid-way («به‌روزر…»). The label now sizes to its
+   content. The badge stays `flex: none; white-space: nowrap`. If horizontal space is
+   genuinely tight, the source string itself should be shortened (drop the leading
+   «به‌روزرسانی» label word), not truncated by CSS. The card's grid handles the rest. */
+.pc-wire .pc-head .pc-updated {
+  flex: 1 1 auto;
+  min-inline-size: 0;
+  white-space: nowrap;
+}
+.pc-wire .pc-head .badge { flex: none; white-space: nowrap; }
+.pc-updated { white-space: nowrap; font-size: 0.68rem; } /* ~50% smaller than body, per user 2026-08-30 */
+/* Fix 2026-09-09 (normalize card height): the empty placeholder rows reserve the same
+   vertical space as a real line so cards with no description / no backlog-meta don't
+   collapse shorter than cards that have them. The placeholder is invisible (aria-hidden
+   + &nbsp;) but takes a line of height. */
+.pc-desc-empty { min-block-size: 1.4rem; opacity: 0; }
+.pc-meta-empty { min-block-size: 1rem; opacity: 0; }
+input::placeholder, textarea::placeholder { font-size: 0.88em; opacity: 0.7; } /* Session 19: opacity bump so placeholders read clearly (was browser default ~0.5) */
+.note-compose-text::placeholder { font-size: 0.8em; opacity: 0.75; }
+.pc-wire .pc-title {
+  justify-self: start;
+  text-align: start;
+  font-size: 1.15rem;
+  font-weight: 600;
+  line-height: 1.3;
+  padding-inline: 0;
+  transition: color 0.15s ease;
+}
+.pc-wire .pc-title:hover { color: var(--brand); text-decoration: none; }
+.pc-wire .pc-desc {
+  justify-self: start;
+  text-align: start;
+  max-inline-size: none;
+  margin: 0;
+}
+/* Hatched triangle clipped to the card's 20px corner radius (Q 52 0 52 20 = the curve).
+   pointer-events:none keeps the whole card clickable through the decoration. */
+.pc-corner {
+  position: absolute;
+  inset-block-start: 0;
+  inset-inline-end: 0;
+  inline-size: 52px;
+  block-size: 52px;
+  pointer-events: none;
+  background: repeating-linear-gradient(
+    -45deg,
+    color-mix(in srgb, var(--pc-accent, var(--line-strong)) 85%, transparent) 0 2px,
+    transparent 2px 7px
+  );
+  clip-path: path('M0 0 L32 0 Q52 0 52 20 L52 52 Z');
+}
+[dir='rtl'] .pc-corner { clip-path: path('M52 0 L20 0 Q0 0 0 20 L0 52 Z'); } /* mirrored to the top-left corner */
+.pc-plain .pc-corner { opacity: 0.5; } /* no tags → neutral, quieter hatch */
+.project-title {
+  font-weight: 600;
+  font-size: var(--fs-xl);
+  color: var(--text);
+  /* FULL title, always (user request 2026-08-29): the heading wraps to as many lines
+     as it needs — it was a single ellipsized line that hid most of the text.
+     overflow-wrap:anywhere also keeps long unbroken tokens (URLs, no-space titles)
+     inside the card instead of overflowing it (same pattern as .dash-todo-qtitle). */
+  white-space: normal;
+  overflow-wrap: anywhere;
+  min-inline-size: 0;
+}
+/* [title][status tag][meta] one row: the spread pushes badge/time/⋯ to the right edge.
+   The row is a grid item and must never widen the card: it can shrink (min-inline-size: 0)
+   and caps at the card width. overflow-x: clip (not hidden) guards horizontal overflow
+   while keeping the ⋯ dropdown, which opens BELOW the row, visible.
+   The title may now wrap to several lines — flex-start keeps the badge / time / ⋯
+   locked to the FIRST title line (the ⋯ menu still lives in the top corner), and the
+   tiny block-start margins re-center the smaller items on that first line optically. */
+.title-meta {
+  flex-wrap: nowrap;
+  min-inline-size: 0;
+  max-inline-size: 100%;
+  overflow-x: clip;
+  overflow-y: visible;
+  align-items: flex-start;
+}
+.title-meta > .badge { margin-block-start: 0.14rem; }
+.title-meta > .small { margin-block-start: 0.26rem; }
+.title-meta > .spark-menu { align-self: flex-start; }
+.clip-2 {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.projects-table { width: 100%; border-collapse: collapse; }
+.projects-table th,
+.projects-table td { text-align: start; padding: 0.6rem 0.75rem; border-block-end: 1px solid var(--line); }
+.projects-table th { font-size: var(--fs-xs); font-weight: 500; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); }
+.projects-table tr:hover td { background: var(--bg-soft); }
+.projects-table a { color: var(--text); }
+
+.progress {
+  block-size: 5px;
+  border-radius: 999px;
+  background: var(--bg-soft);
+  overflow: hidden;
+}
+.progress span { display: block; block-size: 100%; background: var(--text); border-radius: 999px; }
+
+/* --- hurdles / lists -------------------------------------------------------- */
+.hurdles { list-style: none; padding: 0; margin: 0 0 1rem; display: grid; gap: 0.35rem; }
+.hurdle {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.6rem 0.75rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--card);
+}
+.hurdle:hover { background: var(--bg-soft); }
+.hurdle.done span { text-decoration: line-through; color: var(--muted); }
+/* pre-line: legacy list items that stored multiple lines as one task render as real line breaks */
+.hurdle span { white-space: pre-line; }
+.hurdle .toggle { border: 0; background: transparent; color: var(--muted); }
+.hurdle .toggle:hover { color: var(--text); background: transparent; }
+.hurdle .toggle[aria-label^="Mark solved"] { color: var(--ok); }
+/* Hover-pen hurdle editing (user request 2026-09-05 — chosen over double-click): the
+   pen keeps its layout slot (no hover jank) but only reveals on row hover or keyboard
+   focus; touch devices have no hover, so it stays visible there. */
+.hurdle .hurdle-edit { visibility: hidden; border: 0; background: transparent; color: var(--muted); padding: 0.2rem; }
+.hurdle:hover .hurdle-edit, .hurdle:focus-within .hurdle-edit, .hurdle .hurdle-edit:focus-visible { visibility: visible; }
+.hurdle .hurdle-edit:hover { color: var(--text); background: transparent; }
+@media (hover: none) { .hurdle .hurdle-edit { visibility: visible; } }
+.hurdle .hurdle-edit-input { flex: 1 1 auto; min-inline-size: min(100%, 14rem); padding: 0.25rem 0.5rem; }
+
+.links, .history, .activity, .search-results { list-style: none; padding: 0; margin: 0 0 1rem; display: grid; gap: 0.35rem; }
+.history { font-size: var(--fs-lg); }
+.activity li, .links li { padding: 0.4rem 0.5rem; margin: 0; border-radius: 4px; }
+.activity li:hover, .links li:hover { background: var(--bg-soft); }
+/* Activity rows: the project name keeps its status badge right next to it (user request),
+   with the note/time pinned to the opposite edge — no dead space between title and badge. */
+.activity-item { display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap; min-width: 0; }
+.activity-main { display: inline-flex; align-items: center; gap: 0.5rem; min-width: 0; }
+.activity-main a { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.activity-sub { margin-inline-start: auto; text-align: end; font-size: var(--fs-xs); }
+
+/* Recent activity — flat, compact, secondary (2026-08-25): no card surface, small muted
+   heading, tight rows. Overrides the shared .links/.history/.activity base rules. */
+.activity-section { margin-block-start: 1rem; display: grid; gap: 0.35rem; }
+.activity-section h3 { margin: 0; font-size: var(--fs-sm); font-weight: 600; color: var(--muted); }
+.activity-section .activity { margin: 0; gap: 0.15rem; }
+.activity-section .activity li { padding: 0.1rem 0.15rem; }
+.activity-section .activity li:hover { background: transparent; }
+.activity-section .activity-main a { font-size: var(--fs-sm); color: var(--muted); }
+.activity-section .activity-main a:hover { color: var(--text); }
+.activity-section .activity-more { font-size: var(--fs-xs); padding-block: 2px; }
+
+/* --- media --------------------------------------------------------------- */
+.shot-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(9rem, 1fr)); gap: 0.75rem; margin-block-start: 1rem; }
+.shot { margin: 0; }
+.shot img {
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  object-fit: cover;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--line);
+  cursor: zoom-in;
+}
+.shot img:hover { filter: brightness(0.97); }
+
+/* --- dashboard stats ------------------------------------------------------- */
+.stat-strip {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
+  gap: 0.75rem;
+  margin-block-end: 1.25rem;
+}
+.stat {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  padding: 1.25rem 1rem;
+  text-align: center;
+}
+.stat .badge { font-size: var(--fs-lg); }
+.stat-stat-num { display: block; font-size: 1.5rem; font-weight: 600; margin-block-end: 0.15rem; }
+
+/* Dashboard/reports stat boxes: count + label header, the project kanban below. */
+.stat-boxes { grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr)); } /* batch q: six lifecycle boxes */
+.stat-box { text-align: start; padding: 0.9rem 1rem; }

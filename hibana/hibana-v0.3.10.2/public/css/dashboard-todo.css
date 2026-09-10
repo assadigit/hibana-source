@@ -1,0 +1,640 @@
+/* Session-12: grid-template-columns: minmax(0,1fr) pins the single implicit track to the
+   section's width — with a bare `auto` track, the phone carousel's flex-row min-content
+   (the SUM of all four slides' min-content) stretched the track to ~532px on a 390px
+   phone, dragging the header/dots/wrap out of the viewport (measured). */
+.dash-todo-section { display: grid; gap: 0.75rem; grid-template-columns: minmax(0, 1fr); }
+
+/* Collapsible dashboard sections (Phase 3): a [data-dash-collapse] button on each
+   section header toggles a .is-collapsed class on the section. The body (everything
+   after the header) is hidden via CSS grid trick (display:none would break htmx
+   swaps). The collapse state persists in localStorage. */
+.dash-todo-section.is-collapsed,
+.dash-projects-section.is-collapsed,
+section[id^="dashboard-"].is-collapsed { gap: 0; }
+.dash-todo-section.is-collapsed > *:not(header),
+.dash-projects-section.is-collapsed > *:not(.dash-projects-head),
+section[id^="dashboard-"].is-collapsed > *:not(header) { display: none; }
+.dash-collapse-btn {
+  background: none; border: none; padding: 0.2rem; cursor: pointer;
+  color: var(--muted); display: inline-flex; align-items: center; transition: transform 0.15s ease, color 0.12s ease;
+}
+.dash-collapse-btn:hover {
+  color: var(--brand);
+  /* Session 23: button:hover's green bg leaked behind this icon button — keep the
+     intended quiet icon-only hover (no fill). */
+  background: none;
+}
+.dash-collapse-btn .icon { inline-size: 1rem; block-size: 1rem; transition: transform 0.15s ease; }
+.is-collapsed .dash-collapse-btn .icon { transform: rotate(-90deg); }
+
+/* Smart empty states (Phase 3): when a quadrant has 0 tasks, show a friendly CTA */
+.dash-todo-list:empty::before {
+  content: attr(data-empty-hint);
+  display: grid; place-items: center; min-block-size: 4rem;
+  color: var(--muted); font-size: var(--fs-sm); text-align: center; padding: 0.5rem;
+}
+.dash-todo-head { display: flex; align-items: baseline; justify-content: space-between; gap: 1rem; flex-wrap: wrap; }
+.dash-todo-head h2 { margin: 0; }
+.dash-todo-head a { position: relative; padding-block: 4px; opacity: 0; transition: opacity 0.15s ease; }
+.dash-todo-head a::after { content: ""; position: absolute; inset: -0.6rem; }
+.dash-todo-section:hover .dash-todo-head a,
+.dash-todo-head a:focus-visible { opacity: 1; }
+@media (hover: none) { .dash-todo-head a { opacity: 1; } } /* touch: always visible */
+.dash-todo-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0.75rem; align-items: stretch; }
+.dash-todo-quadrant {
+  inline-size: 100%; min-inline-size: 0; min-block-size: 0;
+  background: var(--card); border: 1px solid var(--line-strong);
+  border-radius: var(--radius-sm); padding: 0.85rem; display: flex;
+  flex-direction: column; gap: 0.65rem; position: relative;
+  transition: border-color 0.12s ease, opacity 0.12s ease;
+}
+/* 2026-09 user request: quadrant boxes are MINIMAL/neutral — the per-quadrant accent
+   vars (.q-success/.q-info/.q-error/.q-warning → --dash-q-accent) are removed so all
+   four boxes share one look; only a user-PICKED accent (inline --dash-q-accent from the
+   swatch picker) can tint the pin markers again. Progress state lives on the task rows. */
+.dash-todo-quadrant.dragging { opacity: 0.45; }
+.dash-todo-quadrant.drag-over,
+.dash-todo-quadrant.task-drop-target { border-color: var(--accent); outline: 2px dashed var(--accent); outline-offset: 2px; }
+.dash-todo-task[draggable='true'] { cursor: grab; }
+.dash-todo-task[draggable='true']:active { cursor: grabbing; }
+.dash-todo-task.dragging { opacity: 0.45; }
+.dash-todo-task.move-pending { opacity: 0.65; }
+.dash-todo-task.move-error { border: 1px solid var(--err); border-radius: var(--radius-sm); padding-inline: 0.25rem; }
+.dash-todo-move-error { grid-column: 1 / -1; color: var(--err); font-size: var(--fs-xs); }
+.dash-todo-qhead { display: flex; align-items: flex-start; justify-content: space-between; gap: 0.6rem; min-block-size: 3.1rem; }
+.dash-todo-qtitle { display: flex; align-items: center; gap: 0.25rem; min-inline-size: 0; position: relative; }
+.dash-todo-qtitle strong { overflow-wrap: anywhere; line-height: 1.3; }
+/* Quadrant subheading (2026-09 user request — editable via the pen popover): stacks
+   under the title; icon + pen stay locked to the first (title) line. */
+.dash-todo-qcol { display: grid; gap: 0.1rem; min-inline-size: 0; }
+.dash-todo-qsub { font-size: var(--fs-xs); color: var(--muted); line-height: 1.3; overflow-wrap: anywhere; }
+.dash-todo-drag-handle { display: inline-grid; place-items: center; color: var(--dash-q-accent, var(--muted)); cursor: grab; min-inline-size: 1.5rem; min-block-size: 1.5rem; }
+.dash-todo-drag-handle:active { cursor: grabbing; }
+.dash-todo-drag-handle:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: var(--radius-sm); }
+.dash-todo-drag-handle .icon { inline-size: 1.05rem; block-size: 1.05rem; }
+.dash-todo-rename { display: inline-grid; place-items: center; opacity: 0; min-inline-size: 2rem; min-block-size: 2rem; padding: 0; border: 0; background: transparent; color: var(--muted); }
+.dash-todo-qtitle:hover .dash-todo-rename, .dash-todo-rename:focus-visible { opacity: 1; }
+.dash-todo-rename:hover { color: var(--text); background: var(--bg-soft); }
+.dash-todo-rename .icon { inline-size: 0.9rem; block-size: 0.9rem; }
+/* Pen button (2026-09-02): appears on hover over the quadrant NAME, opens the same
+   customize popover (rename + symbol + accent) as the icon button. */
+.dash-todo-pen { display: inline-grid; place-items: center; opacity: 0; min-inline-size: 1.5rem; min-block-size: 1.5rem; padding: 0; border: 0; background: transparent; color: var(--muted); transition: opacity 0.12s ease, background-color 0.12s ease, color 0.12s ease; }
+.dash-todo-qtitle:hover .dash-todo-pen, .dash-todo-pen:focus-visible { opacity: 1; }
+.dash-todo-pen:hover { color: var(--text); background: var(--bg-soft); border-radius: var(--radius-sm); }
+.dash-todo-pen .icon { inline-size: 0.85rem; block-size: 0.85rem; }
+@media (pointer: coarse) { .dash-todo-pen { opacity: 0.75; } }
+/* Emoji quadrant symbols (icon_id can be an emoji picked on the board page) render as
+   text at the icon size, matching the SVG glyphs. */
+.quadrant-emoji { font-size: 1.05rem; line-height: 1; }
+/* F13 (session 9): the dashboard style-picker trigger was 32×32 — padded hit zone
+   reaches ~43px without touching the quadrant header layout. */
+.dash-todo-style { display: inline-grid; place-items: center; min-inline-size: 2rem; min-block-size: 2rem; padding: 0; border: 0; background: transparent; color: var(--dash-q-accent, var(--muted)); position: relative; }
+.dash-todo-style::after { content: ""; position: absolute; inset: -0.35rem; }
+.dash-todo-style:hover, .dash-todo-style:focus-visible { background: var(--bg-soft); }
+.dash-todo-style .icon { inline-size: 0.95rem; block-size: 0.95rem; }
+.dash-todo-style-pop { position: absolute; z-index: 25; inset-block-start: 2.5rem; inset-inline-start: 0; inline-size: min(18rem, calc(100vw - 2rem)); padding: 0.75rem; background: var(--card); border: 1px solid var(--line-strong); border-radius: var(--radius-sm); box-shadow: 0 6px 20px rgb(30 20 10 / 0.08), 0 2px 6px rgb(30 20 10 / 0.05); }
+.dash-todo-style-pop[hidden] { display: none; }
+/* Phase 7 item 1: the pop keeps its dark-mode legibility with a SOFTER shadow too. */
+html[data-theme="dark"] .dash-todo-style-pop,
+:root:not([data-theme="light"]) .dash-todo-style-pop { box-shadow: 0 6px 22px rgb(0 0 0 / 0.35); }
+/* 2026-09-02 user request: the picker offers EMOJIS (like the board page quadrants), not
+   the limited SVG glyph set — a dense, scrollable grid of emoji buttons.
+   2026-09-05: the 8 accent-swatch row was REMOVED (user — "color is for icons, now we
+   use emojis"); a previously saved accent still tints via --dash-q-accent. */
+.dash-style-icons { display: grid; grid-template-columns: repeat(8, 1fr); gap: 2px; max-block-size: 9.6rem; overflow-y: auto; overscroll-behavior: contain; }
+/* F5 (session 9): color on the BASE rule — the global button{} paints every button's
+   text --btn-text (white); on the light card/soft bg the emoji glyphs were 1.1:1
+   (invisible). var(--text) covers .is-selected AND the hover/focus states that share
+   the same bg-soft fill; color-emoji fonts ignore it, text-glyph emoji become visible. */
+.dash-style-emoji { display: grid; place-items: center; aspect-ratio: 1 / 1; min-inline-size: 0; padding: 0.15rem; border: 1px solid transparent; border-radius: var(--radius-sm); background: transparent; color: var(--text); font-size: 1.05rem; line-height: 1; font-family: inherit; }
+.dash-style-emoji:hover, .dash-style-emoji:focus-visible, .dash-style-emoji.is-selected { border-color: var(--dash-q-accent, var(--accent)); background: var(--bg-soft); }
+.dash-todo-rename-form { display: grid; gap: 0.5rem; align-items: center; flex: 1; min-inline-size: 0; }
+.dash-todo-rename-form label { display: grid; gap: 0.25rem; font-size: var(--fs-xs); color: var(--muted); }
+.dash-todo-rename-form input { min-inline-size: 0; width: 100%; padding-block: 0.3rem; }
+/* Phase 7 item 1 — the redesigned pop's bottom half: a نماد row (label + the single
+   emoji-preview button that opens the shared picker) with the ذخیره / لغو actions
+   pushed to the row's end (inline-end: left in RTL, right in LTR). */
+.dash-style-emoji-row { display: flex; align-items: center; gap: 0.4rem; flex-wrap: wrap; }
+.dash-style-lbl { font-size: var(--fs-xs); color: var(--muted); flex: none; }
+.dash-style-emoji-row .dash-style-icons { display: flex; grid-template-columns: none; max-block-size: none; overflow: visible; }
+.dash-style-actions { margin-inline-start: auto; display: flex; gap: 0.35rem; flex: none; }
+.dash-style-cancel, .dash-style-save-btn {
+  min-inline-size: 0; padding: 0.32rem 0.9rem; border-radius: var(--radius-sm);
+  font: inherit; font-size: var(--fs-sm); cursor: pointer; border: 1px solid var(--line);
+  background: transparent; color: var(--text); transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+.dash-style-cancel:hover { background: var(--bg-soft); border-color: var(--line-strong); }
+.dash-style-save-btn { background: var(--cta, var(--accent)); border-color: var(--cta, var(--accent)); color: var(--btn-text); }
+.dash-style-save-btn:hover { background: var(--cta-hover, var(--accent-hover)); border-color: var(--cta-hover, var(--accent-hover)); }
+.dash-style-save-btn:disabled { opacity: 0.55; cursor: wait; }
+.dash-todo-qactions { gap: 0.35rem; flex: none; }
+/* 2026-09-02 user request: «تعداد فعال» — shorter label, smaller type, optically aligned
+   with the first line of the quadrant title (e.g. امروز) instead of the box top edge. */
+.dash-todo-counter { color: var(--muted); font-size: 0.68rem; line-height: 1.35; padding-block-start: 0.45rem; overflow-wrap: anywhere; text-align: end; flex: none; }
+/* (k) 2026-09-06: the old hover-reveal header + button and its form CSS were removed
+   with the popover add button — replaced by .dash-todo-fab + .dash-quickadd below. */
+/* (l) 2026-09-06: grid-auto-rows: max-content — the row-squash fix. With auto rows in
+   this definite-height (aspect-ratio square) scroll container, Chromium resolved the
+   implicit tracks to EQUAL FRACTIONS of the list height: 8 tasks in a ~168px window
+   rendered 17px-tall rows with the 44px checkbox row clipped inside each (Ali:
+   "tasks get compacted into each other and unable to read" — invisible at ≤4 tasks,
+   extreme at 7–8). max-content pins every row to its natural height so overflow:auto
+   actually scrolls; padding-block-end keeps the last row clear of the corner FAB. */
+.dash-todo-list { list-style: none; margin: 0; padding: 0; padding-block-end: 2.9rem; min-block-size: 0; flex: 1; overflow-y: auto; overflow-x: hidden; display: grid; align-content: start; grid-auto-rows: max-content; gap: 0.24rem;
+  /* Custom thin scrollbar (user request 2026-09) — the default ugly gray scrollbar
+     was bleeding through the 4th quadrant card. Now it's thin + themed. */
+  scrollbar-width: thin;
+  scrollbar-color: var(--line-strong) transparent;
+  -webkit-overflow-scrolling: touch;
+}
+.dash-todo-list::-webkit-scrollbar { inline-size: 5px; }
+.dash-todo-list::-webkit-scrollbar-track { background: transparent; }
+.dash-todo-list::-webkit-scrollbar-thumb { background: var(--line-strong); border-radius: 999px; }
+.dash-todo-list::-webkit-scrollbar-thumb:hover { background: var(--muted); }
+  /* (v) 2026-09-09: the to-do page's progress palette, ported verbatim from
+     sadhana.html's .sadhana-wrap tokens so both surfaces share ONE visual system
+     (grey = untouched, pastel orange = in progress, violet = on hold).
+     (x) 2026-09-09: on-hold yellow #E9C46A → violet #A78BFA — Ali: the yellow
+     and the in-progress orange "are not different enough"; a cool violet is a
+     different hue AND temperature, so در حال انجام / معلق never read as one. */
+  --st-none: #9CA3AF; --st-none-bg: rgba(156, 163, 175, .10); --st-none-bd: rgba(156, 163, 175, .38);
+  --st-inprog: #F59A4E; --st-inprog-bg: rgba(245, 154, 78, .14); --st-inprog-bd: rgba(245, 154, 78, .55);
+  --st-hold: #A78BFA; --st-hold-bg: rgba(167, 139, 250, .14); --st-hold-bd: rgba(167, 139, 250, .5);
+}
+.dash-todo-task {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: 0.25rem;
+  align-items: start; min-inline-size: 0; max-block-size: 100vh; overflow: hidden;
+  border: 1px solid var(--line); border-radius: var(--radius-sm);
+  padding: 0.1rem 0.4rem 0.08rem;
+  position: relative; /* Phase 7 item 3: the ⋯ menu anchors to the row's top-end corner */
+  transition: opacity 0.24s ease, max-block-size 0.3s ease, background-color 0.18s ease, border-color 0.18s ease, margin-block 0.3s ease;
+}
+/* 2026-09-09 (v) user request — SUPERSEDES (m)'s "minimal, no borders" rows: Ali saw
+   the to-do page's state boards (the «معلق» state container — violet since (x) —, the grey
+   not-started container) and wants the SAME on the dashboard's four quadrant boxes:
+   every task row is a BOARD (border + state tint + a 3px start crescent for the
+   active/hold states — sadhana.html's .task-card recipe). The st-* class names are
+   live again; only momentary FEEDBACK states still override (.is-completing flash,
+   .move-error drag failure). */
+.dash-todo-task.st-untouched { background: var(--st-none-bg); border-color: var(--st-none-bd); }
+.dash-todo-task.st-inprog { background: var(--st-inprog-bg); border-color: var(--st-inprog-bd); border-inline-start: 3px solid var(--st-inprog); }
+.dash-todo-task.st-hold { background: var(--st-hold-bg); border-color: var(--st-hold-bd); border-inline-start: 3px solid var(--st-hold); }
+/* the drag-failure red ring must win over the state tints (same specificity — later
+   in source order); the old .move-error rule near the drag rules lost the race once
+   rows grew real borders. */
+.dash-todo-task.move-error { border-color: var(--err); }
+.dash-todo-task.is-completing { background: var(--task-complete-bg); opacity: 1; }
+.dash-todo-task.is-completing .dash-todo-check span { text-decoration: line-through; }
+.dash-todo-task.is-removing { max-block-size: 0; opacity: 0; margin-block: 0; pointer-events: none; }
+/* (m) checkbox: flat and bare — no shadows (was box-shadow var(--shadow-soft) + a
+   second 0 1px 3px rule). The native checkbox + accent-color is all the row shows.
+   Phase 7 item 4: COMPACT rows (user: "make the content and font-size smaller so they
+   take less space — less space = more tasks visible") — smaller title type, a slimmer
+   row, a smaller checkbox, and a reserved end-corner gutter so long titles never run
+   under the absolutely-positioned ⋯ button (item 3). */
+.dash-todo-check { grid-column: 1; display: flex; align-items: flex-start; gap: var(--task-row-gap); min-inline-size: 0; min-block-size: 2.3rem; padding-block: 0.22rem; padding-inline-end: 2.5rem; cursor: pointer; }
+.dash-todo-check input { flex: none; inline-size: 1.05rem; block-size: 1.05rem; margin-block-start: 0.12rem; margin-inline: 0; accent-color: var(--accent); }
+.dash-todo-check span { padding-block: 0.1rem; overflow-wrap: anywhere; line-height: 1.3; color: var(--text); font-size: var(--fs-sm); }
+.dash-todo-note-preview {
+  grid-column: 1 / -1; min-inline-size: 0; max-block-size: 0; overflow: hidden; visibility: hidden;
+  display: block; padding: 0 0.25rem 0.25rem; border: 0; border-radius: 0; background: transparent;
+  color: var(--muted); text-align: start; font: inherit; font-size: var(--fs-xs); font-weight: 400;
+  line-height: 1.35; white-space: pre-wrap; overflow-wrap: anywhere; opacity: 0; pointer-events: none;
+  transition: opacity 0.16s ease, max-block-size 0.18s ease;
+}
+.dash-todo-task:hover .dash-todo-note-preview,
+.dash-todo-task:focus-within .dash-todo-note-preview,
+.dash-todo-note-preview:focus-visible {
+  max-block-size: 5rem; visibility: visible; opacity: 1; pointer-events: auto;
+}
+.dash-todo-note-preview:hover { background: var(--bg-soft); color: var(--text); }
+/* (v) 2026-09-09: the old .dash-todo-progress-dot hover control (the single status
+   dot from the pre-Phase-5 dashboard) is REMOVED — dead CSS since item 15 replaced
+   it with the 3-dot .prog-track further down; nothing in any HTML/JS emits that
+   markup anymore. */
+/* Phase 7 item 3 — the ⋯ settings button: TOP inline-end corner of the task box
+   (top-LEFT in RTL, top-RIGHT in LTR — inset-inline-end flips with the direction).
+   It used to be grid-column 3 in the flow, which auto-placed it on a row BELOW the
+   progress track — a whole invisible 2.25rem of dead white space after every
+   prog-track (user: "no wasted white space below the task progress switch").
+   Absolute + out-of-flow: the track is the row's last content, and the button hugs
+   the corner at a standard padding (0.25rem from the edges). */
+.dash-todo-menu { position: absolute; inset-block-start: 0.1rem; inset-inline-end: 0.25rem; grid-column: auto; opacity: 0; transition: opacity 0.12s ease; }
+.dash-todo-task:hover .dash-todo-menu, .dash-todo-task:focus-within .dash-todo-menu, .dash-todo-menu[open] { opacity: 1; }
+/* (n) 2026-09-06: the OPEN menu also lifts the <details> itself into the high z-index
+   layer — the fade transition (opacity < 1) transiently creates a stacking context at
+   z-index:auto, which would momentarily paint the pop under the FAB (z-index 20) and
+   any other raised layer; pinning z-index while open removes the whole edge case. */
+.dash-todo-menu[open] { z-index: 92; }
+.dash-todo-menu summary { list-style: none; display: inline-grid; place-items: center; min-inline-size: 2.25rem; min-block-size: 2.25rem; padding: 0; border-radius: 50%; color: var(--muted); cursor: pointer; }
+.dash-todo-menu summary::-webkit-details-marker { display: none; }
+.dash-todo-menu summary:hover { background: var(--bg-soft); color: var(--text); }
+.dash-todo-menu summary .icon { inline-size: 1rem; block-size: 1rem; }
+/* (n) 2026-09-06 fix — "the ⋯ menu opens UNDERNEATH other things, not visible".
+   The pop used to be position: absolute INSIDE the task row, but the row carries
+   overflow: hidden (the .is-removing collapse animation) and the quadrant list
+   scrolls (overflow: auto) — both CLIPPED the downward-opening pop into invisibility
+   (only a shadow sliver showed; every batch-(m) e2e click was a DOM .click() that
+   bypassed hit-testing, so the invisibility went undetected — the pinned lesson).
+   Now the pop is position: FIXED — same clipping-escape as the note panel
+   (.dash-note-pop) and the board's style popover — and app.js places it at the
+   ⋯ button's viewport coordinates on toggle-open (end-aligned like the old
+   inset-inline-end: 0, viewport-clamped, flips above the button when the space
+   below runs out). z-index 92: above the note bubble (90), below the note
+   history panel (95) that opens from the menu's «یادداشت‌ها» item. */
+.dash-todo-menu-pop { position: fixed; z-index: 92; min-inline-size: 10rem; background: var(--card); border: 1px solid var(--line-strong); border-radius: var(--radius-sm); box-shadow: 0 10px 28px rgb(0 0 0 / 0.2); display: grid; gap: 0.15rem; padding: 0.3rem; }
+.dash-todo-menu-item { display: flex; align-items: center; gap: 0.45rem; width: 100%; border: 0; border-radius: var(--radius-sm); background: transparent; color: var(--text); padding: 0.45rem 0.55rem; text-align: start; font: inherit; text-decoration: none; }
+.dash-todo-menu-item:hover { background: var(--bg-soft); text-decoration: none; }
+/* (m) the destructive item reads red so a task delete never looks like an edit. */
+.dash-todo-menu-item.danger { color: var(--err); }
+.dash-todo-menu-item.danger:hover { background: var(--danger-soft); }
+.dash-todo-reorder { display: flex; gap: 0.2rem; border-block-start: 1px solid var(--line); margin-block-start: 0.2rem; padding-block-start: 0.2rem; }
+.dash-todo-reorder-btn { display: inline-grid; place-items: center; min-inline-size: 2rem; min-block-size: 2rem; padding: 0; background: transparent; color: var(--muted); }
+.dash-todo-reorder-btn:hover, .dash-todo-reorder-btn:focus-visible { background: var(--bg-soft); color: var(--text); }
+.dash-todo-reorder-btn .icon { inline-size: 0.9rem; block-size: 0.9rem; }
+.dash-todo-menu-item .icon { inline-size: 0.95rem; block-size: 0.95rem; flex: none; }
+.dash-todo-edit, .dash-todo-note, .dash-todo-progress { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 0.35rem; align-items: end; min-inline-size: 0; }
+.dash-todo-edit input { min-inline-size: 0; flex: 1; padding-block: 0.35rem; }
+.dash-todo-edit button { min-inline-size: 2.25rem; min-block-size: 2.25rem; padding: 0.25rem; }
+.dash-todo-edit-error { flex: 1 1 100%; color: var(--err); font-size: var(--fs-xs); }
+.dash-todo-edit-error[hidden] { display: none; }
+.dash-todo-note textarea { min-inline-size: 0; width: 100%; resize: vertical; background: var(--bg); color: var(--text); border: 1px solid var(--line); border-radius: var(--radius-sm); padding: 0.35rem; font: inherit; }
+.dash-todo-note button { min-inline-size: 2.25rem; min-block-size: 2.25rem; padding: 0.25rem; }
+.dash-todo-progress { flex-wrap: wrap; }
+.dash-todo-progress .chip { font-size: var(--fs-xs); }
+/* F4 (session 9): the see-more link is a TEXT link, not a CTA — the global button{}
+   rule painted it solid --cta (muted-on-teal: 2.0 light / 1.2 dark). Transparent fill
+   in base, hover AND active (button:hover/:active would otherwise re-paint it teal). */
+.dash-todo-more { justify-self: start; color: var(--muted); font-size: var(--fs-sm); padding-inline: 0.35rem; background: transparent; }
+.dash-todo-more:hover { color: var(--text); background: transparent; }
+.dash-todo-more:active { background: transparent; }
+/* (k) 2026-09-06: the see-more link reserves the FAB corner (inline-end) so the two
+   never overlap when a quadrant shows 6+ tasks. (m) re-tuned for the smaller FAB. */
+.dash-todo-more { padding-inline-end: 2.9rem; }
+.dash-todo-edit[hidden], .dash-todo-note[hidden], .dash-todo-progress[hidden], .dash-todo-rename-form[hidden] { display: none; }
+
+/* ── (k) Per-quadrant quick-add FAB ─ 2026-09-06 user request ─────────────────────
+   The add-task affordance moved out of the customize popover into a circular + button
+   pinned to the quadrant's bottom corner. inset-inline-end is a LOGICAL property: it
+   resolves to the LEFT edge in RTL (fa) and the RIGHT edge in LTR (en) — exactly the
+   user's spec — with zero per-direction rules.
+   (m) 2026-09-06 restyle — "make the circles smaller, remove the drop shadow, remove
+   the green fill — border only and +, it's too much visual weight": 44px→36px,
+   transparent ground, a thin neutral ring, no shadow anywhere. Hover lights the ring
+   (accent) instead of lifting. Click ① reveals the input, click ② submits (app.js). */
+.dash-todo-fab {
+  position: absolute;
+  inset-block-end: 0.6rem;
+  inset-inline-end: 0.6rem;
+  z-index: 20;
+  display: inline-grid;
+  place-items: center;
+  min-inline-size: 2.25rem;
+  min-block-size: 2.25rem;
+  padding: 0;
+  border: 1.5px solid var(--line-strong);
+  border-radius: 50%;
+  background: transparent;
+  color: var(--muted);
+  transition: border-color 0.15s ease, color 0.15s ease, background-color 0.15s ease, transform 0.12s ease;
+}
+.dash-todo-fab:hover { border-color: var(--accent); color: var(--text); background: var(--bg-soft); /* Session 19: was var(--accent) (teal) text — now dark for readability */ }
+.dash-todo-fab:active { transform: scale(0.94); }
+.dash-todo-fab:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.dash-todo-fab .icon { inline-size: 1rem; block-size: 1rem; }
+/* (o) 2026-09-07 user request — "when the user writes in the input, the + button
+   must fill (green) and signal that it's ready to add a task". The moment the
+   quick-add input carries text, app.js toggles .is-ready and the FAB becomes the
+   app's filled capture circle (.qa-btn's exact CTA treatment — teal ground, white
+   glyph) with a gentle breathing pulse so the eye lands on it; an emptied input
+   returns the quiet outline. Pulse is disabled under reduced motion. */
+.dash-todo-fab.is-ready {
+  background: var(--cta, var(--accent));
+  border-color: var(--cta, var(--accent));
+  color: var(--btn-text);
+  animation: dash-fab-ready 1.6s ease-in-out infinite;
+}
+.dash-todo-fab.is-ready:hover {
+  background: var(--cta-hover, var(--accent-hover));
+  border-color: var(--cta-hover, var(--accent-hover));
+  color: var(--btn-text);
+}
+@keyframes dash-fab-ready {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.09); }
+}
+/* The revealed quick-add row: just the input — Enter OR a second click on the + FAB
+   adds (app.js), Esc/empty-blur hides. [hidden] guard is REQUIRED (repo lesson, batch
+   j): author display beats the UA hidden sheet without it. padding-inline-end keeps
+   the input clear of the FAB pinned in the corner below it. */
+.dash-quickadd {
+  display: grid;
+  gap: 0.3rem;
+  padding-inline-end: 2.9rem;
+  animation: dash-qa-in 0.16s ease-out;
+}
+.dash-quickadd[hidden] { display: none; }
+@keyframes dash-qa-in {
+  from { opacity: 0; transform: translateY(-0.3rem); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.dash-quickadd input[name='title'] {
+  inline-size: 100%;
+  padding: 0.5rem 0.65rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--bg);
+  color: var(--text);
+  font: inherit;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+.dash-quickadd input[name='title']:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+
+/* ── (k) Task note chip + hover bubble ─ 2026-09-06 user request ──────────────────
+   A task carrying notes (sadhana_updates + the legacy single note) gets a clipboard
+   chip beside its title (grid column 2 of .dash-todo-task). The BUBBLE is a
+   fixed-position singleton built/positioned by app.js: the task list scrolls, so an
+   absolutely-positioned child would clip at the overflow edge — fixed escapes it and
+   clamps inside the viewport. */
+.dash-note-chip {
+  grid-column: 2;
+  grid-row: 1; /* Phase 7 item 3: keep the chip on the TITLE row (auto-placement parked it below the prog-track) */
+  align-self: center;
+  display: inline-grid;
+  place-items: center;
+  inline-size: 2.1rem;
+  block-size: 2.1rem;
+  margin-block-start: 0.1rem;
+  /* Phase 7 item 3: keep clear of the ⋯ button now pinned to the row's top-end corner */
+  margin-inline-end: 2.35rem;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  transition: background-color 0.12s ease, color 0.12s ease;
+}
+.dash-note-chip:hover,
+.dash-note-chip:focus-visible,
+.dash-note-chip.is-open {
+  background: var(--bg-soft);
+  color: var(--text);
+  outline: none;
+}
+.dash-note-chip .icon { inline-size: 1.05rem; block-size: 1.05rem; }
+.dash-note-bubble {
+  position: fixed;
+  z-index: 90;
+  max-inline-size: min(18rem, calc(100vw - 1.5rem));
+  max-block-size: 11rem;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 0.55rem 0.7rem;
+  background: var(--card);
+  color: var(--text);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-dropdown);
+  font-size: var(--fs-sm);
+  line-height: 1.45;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  pointer-events: none;
+}
+.dash-note-bubble .dash-note-bubble-head {
+  display: block;
+  margin-block-end: 0.25rem;
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  color: var(--muted);
+}
+
+/* ── (m) Note history panel ─ 2026-09-06 user request ────────────────────────────
+   Clicking the note chip (or ⋯ → «یادداشت‌ها») opens the FULL note history as a
+   fixed-position panel — same clipping-escape reasoning as the hover bubble (the
+   task list scrolls), but INTERACTIVE: add / edit / delete notes without leaving
+   the dashboard. Fixed singleton built by app.js; content is fetched on demand
+   (GET /api/sadhana/tasks/:id/notes) so the dashboard HTML stays light. The note
+   rows reuse the board's .task-note-* classes (global) for a consistent look. */
+.dash-note-pop {
+  position: fixed;
+  z-index: 95;
+  inline-size: min(20rem, calc(100vw - 1.5rem));
+  max-block-size: min(26rem, 70vh);
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  padding: 0.6rem 0.7rem;
+  background: var(--card);
+  color: var(--text);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-dropdown);
+  font-size: var(--fs-sm);
+}
+.dash-note-pop-head { flex: none; display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; }
+.dash-note-pop-head strong { font-size: var(--fs-sm); }
+.dash-note-pop-close { display: inline-grid; place-items: center; min-inline-size: 1.75rem; min-block-size: 1.75rem; padding: 0; border: 0; border-radius: 50%; background: transparent; color: var(--muted); cursor: pointer; }
+.dash-note-pop-close:hover { background: var(--bg-soft); color: var(--text); }
+.dash-note-pop-close .icon { inline-size: 0.9rem; block-size: 0.9rem; }
+/* The history list scrolls INSIDE the panel (the panel itself never scrolls — its
+   scroll listener would read as page scroll and close it, app.js filters anyway). */
+.dash-note-pop-list { flex: 1; min-block-size: 0; overflow-y: auto; overscroll-behavior: contain; margin: 0; padding: 0; list-style: none; display: grid; gap: 0.4rem; align-content: start; }
+.dash-note-pop .task-note-item { display: flex; align-items: flex-start; gap: 0.4rem; padding: 0.3rem; border-radius: var(--radius-sm); }
+.dash-note-pop .task-note-item:hover { background: var(--bg-soft); }
+.dash-note-pop .task-note-copy { flex: 1; min-inline-size: 0; display: grid; gap: 0.1rem; }
+.dash-note-pop .task-note-copy time { color: var(--muted); font-size: var(--fs-xs); }
+.dash-note-pop .task-note-copy .task-note-text { overflow-wrap: anywhere; white-space: pre-wrap; text-align: start; }
+.dash-note-pop .task-note-acts { flex: none; display: flex; gap: 0.1rem; }
+.dash-note-pop .task-note-act { display: inline-grid; place-items: center; min-inline-size: 1.6rem; min-block-size: 1.6rem; padding: 0; border: 0; border-radius: 50%; background: transparent; color: var(--muted); cursor: pointer; }
+.dash-note-pop .task-note-act:hover { background: var(--bg); color: var(--text); }
+.dash-note-pop .task-note-act.danger:hover { color: var(--err); background: var(--danger-soft); }
+.dash-note-pop .task-note-act .icon { inline-size: 0.85rem; block-size: 0.85rem; }
+/* Inline note edit (✎ swaps the text for a textarea + ✓/✕ row). */
+.dash-note-pop .task-note-editbox { flex: 1; min-inline-size: 0; display: grid; gap: 0.25rem; }
+.dash-note-pop .task-note-editbox textarea { min-inline-size: 0; width: 100%; resize: vertical; background: var(--bg); color: var(--text); border: 1px solid var(--line); border-radius: var(--radius-sm); padding: 0.3rem; font: inherit; font-size: var(--fs-xs); }
+.dash-note-pop .task-note-editbox textarea:focus { border-color: var(--accent); outline: none; }
+.dash-note-pop .task-note-editacts { display: flex; gap: 0.15rem; justify-content: flex-end; }
+.dash-note-pop .task-note-editacts button { display: inline-grid; place-items: center; min-inline-size: 1.6rem; min-block-size: 1.6rem; padding: 0; border: 0; border-radius: 50%; background: transparent; color: var(--muted); cursor: pointer; }
+.dash-note-pop .task-note-editacts button:hover { background: var(--bg-soft); color: var(--text); }
+.dash-note-pop .task-note-editacts .icon { inline-size: 0.85rem; block-size: 0.85rem; }
+/* The add-note form pins to the panel bottom (the board's .task-note-add-form grid). */
+.dash-note-pop .task-note-add-form { margin: 0; flex: none; }
+/* Quadrant-name popovers: Save is the primary action — solid CTA fill so it can't
+   hide among the neutral inputs (user checklist 2026-08-30: "make save button more
+   visible in quadrant naming modal"). Applies to the dashboard rename popover and
+   the Sadhana board's qe-pop. */
+.dash-todo-rename-form button[type='submit'],
+.qe-save {
+  background: var(--cta, var(--accent));
+  color: var(--btn-text);
+  border: 1px solid transparent;
+  font-weight: 600;
+  padding: 0.35rem 0.75rem;
+  border-radius: var(--radius-sm);
+}
+.dash-todo-rename-form button[type='submit']:hover,
+.qe-save:hover { background: var(--cta-hover, var(--accent-hover)); }
+@media (hover: none) {
+  .dash-todo-menu { opacity: 1; }
+  .dash-todo-note-preview { max-block-size: 5rem; visibility: visible; opacity: 1; pointer-events: auto; }
+}
+@media (max-width: 900px) { .dash-todo-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+/* ══ Session-12 (2026-09-15, user request): the phone TO-DO QUADRANTS are a SWIPE
+   CAROUSEL ══ — "make the to-do-list quadrant only show 1 in mobile, the rest by
+   swipe". The old ≤720px layout showed Q1|Q3 half-width side by side and HID Q2/Q4
+   entirely (2026-08-29 request, superseded). Now ≤720px turns .dash-todo-grid into a
+   scroll-snap rail — ONE full-width quadrant per slide, thumb-swipe or dot-tap to
+   move, scroll-snap-stop:always so a flick lands exactly one quadrant over (the same
+   pattern as the Sadhana board's carousel, session 9). Guidance chrome (dots + the
+   one-time swipe hint) is phone-only: this BASE rule hides it on every wider screen —
+   it MUST precede the media block below (same specificity, later source wins; the
+   session-9 lesson). Desktop/tablet keeps the 2×2 (and ≤900px 2-col) grids. */
+.dash-quad-dots, .dash-swipe-hint { display: none; }
+.dash-quad-wrap { display: block; }
+@media (max-width: 720px) {
+  .dash-quad-wrap { position: relative; min-inline-size: 0; }
+  .dash-todo-grid {
+    display: flex;
+    grid-template-columns: none;
+    min-inline-size: 0;
+    overflow-x: auto;
+    overflow-y: hidden;
+    scroll-snap-type: x mandatory;
+    gap: 12px;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+  }
+  .dash-todo-grid::-webkit-scrollbar { display: none; }
+  .dash-todo-quadrant {
+    flex: 0 0 100%;
+    inline-size: 100%;
+    max-inline-size: 100%;
+    min-inline-size: 0; /* same lesson as the Sadhana carousel — content min-content must never inflate the slide */
+    scroll-snap-align: start;
+    scroll-snap-stop: always;
+    aspect-ratio: auto;      /* a full-width slide is not a square — a comfortable, */
+    block-size: min(26rem, 96vw); /* list-scrolling window instead (list scrolls inside) */
+  }
+  /* Dot indicators: one tappable dot per quadrant, the active dot tracks the visible
+     slide. The 26px button + -7px inset pseudo-element keeps the hit target ≥40px
+     (WCAG 2.5.8) while the dot itself stays 7px. */
+  .dash-quad-dots {
+    display: flex; justify-content: center; align-items: center;
+    gap: 14px; padding-block: 0.4rem 0.1rem;
+  }
+  .dash-quad-dot {
+    position: relative; inline-size: 26px; block-size: 26px; padding: 0;
+    background: transparent; border: 0; border-radius: 50%;
+    cursor: pointer; min-inline-size: 0; min-block-size: 0; font-size: 0; line-height: 0;
+  }
+  .dash-quad-dot::after { content: ''; position: absolute; inset: -7px; border-radius: 50%; }
+  .dash-quad-dot::before {
+    content: ''; position: absolute; left: 50%; top: 50%;
+    inline-size: 7px; block-size: 7px; margin: -3.5px 0 0 -3.5px; border-radius: 50%;
+    background: var(--muted); opacity: 0.55;
+    transition: transform 0.18s ease, background 0.18s ease, opacity 0.18s ease;
+  }
+  .dash-quad-dot.active::before { background: var(--accent); opacity: 1; transform: scale(1.7); }
+  .dash-quad-dot:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  /* One-time swipe hint: a pill at the inline-end edge pulsing toward the next
+     quadrant; dies on the first swipe or after 4s (app.js drives the lifecycle). */
+  .dash-swipe-hint {
+    display: flex; align-items: center; gap: 5px;
+    position: absolute; inset-block-start: 36%; inset-inline-end: 6px; z-index: 5;
+    background: var(--card); border: 1px solid var(--line-strong); border-radius: 999px;
+    box-shadow: var(--shadow-dropdown); color: var(--muted);
+    font-size: 10.5px; font-weight: 600; padding: 5px 10px;
+    pointer-events: none;
+    animation: dashHintNudge 1.6s ease-in-out infinite;
+  }
+  [dir='rtl'] .dash-swipe-hint { animation-name: dashHintNudgeRtl; }
+  .dash-swipe-hint.hide { display: none; }
+}
+@keyframes dashHintNudge { 0%, 100% { transform: translateX(0); } 50% { transform: translateX(-7px); } }
+@keyframes dashHintNudgeRtl { 0%, 100% { transform: translateX(0); } 50% { transform: translateX(7px); } }
+@media (prefers-reduced-motion: reduce) {
+  .dash-todo-task { transition: none; }
+  .dash-todo-fab.is-ready { animation: none; } /* (o) the ready pulse is decoration, not information */
+}
+
+/* Quick-capture family (audit 3): every capture control shares one filled-circle style
+   with the FABs — per-box quick-add, the notebook composer + and list +. The padded
+   pseudo-element keeps the hit area ≥44px (audit 11) over a compact 2.25rem circle. */
+.qa-btn {
+  display: inline-grid;
+  place-items: center;
+  inline-size: 2.25rem;
+  block-size: 2.25rem;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: var(--cta, var(--accent));
+  color: var(--btn-text);
+  position: relative;
+}
+.qa-btn:hover { background: var(--cta-hover, var(--accent-hover)); }
+.qa-btn .icon { inline-size: 1.05rem; block-size: 1.05rem; }
+.qa-btn::after { content: ""; position: absolute; inset: -0.4rem; }
+/* FAB tooltip (audit Phase 2): show a hint on hover so users know what the + does */
+.qa-btn[data-tooltip]::before {
+  content: attr(data-tooltip);
+  position: absolute;
+  inset-inline-end: calc(100% + 0.5rem);
+  inset-block-start: 50%;
+  transform: translateY(-50%);
+  white-space: nowrap;
+  background: var(--card);
+  color: var(--text);
+  font-size: var(--fs-xs);
+  padding: 0.25rem 0.5rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--line);
+  box-shadow: 0 2px 8px rgb(0 0 0 / 0.1);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s ease;
+}
+.qa-btn[data-tooltip]:hover::before { opacity: 1; }
+/* Icon-in-colored-circle (audit 17): stat-box status glyphs, dropdown menu icons and the
+   FABs all become a glyph inside a tinted circle — box/status tints here, accent-soft for
+   menus, cta for FABs + quick-add. */
+.icon-chip {
+  display: inline-grid;
+  place-items: center;
+  inline-size: 1.9rem;
+  block-size: 1.9rem;
+  border-radius: 50%;
+  background: var(--accent-soft);
+  color: var(--text);
+  flex: none;
+}
+.icon-chip .icon { inline-size: 1rem; block-size: 1rem; }
+.stat-box[data-status='spark'] .icon-chip { background: var(--badge-spark-bg); color: var(--badge-spark-fg); }
+.stat-box[data-status='unreviewed'] .icon-chip { background: var(--badge-unreviewed-bg); color: var(--badge-unreviewed-fg); }
+.stat-box[data-status='investigating'] .icon-chip { background: var(--badge-investigating-bg); color: var(--badge-investigating-fg); }
+.stat-box[data-status='awaiting'] .icon-chip { background: var(--badge-awaiting-bg); color: var(--badge-awaiting-fg); }
+.stat-box[data-status='doing'] .icon-chip { background: var(--badge-doing-bg); color: var(--badge-doing-fg); }
+.stat-box[data-status='halted'] .icon-chip { background: var(--badge-halted-bg); color: var(--badge-halted-fg); }
+.stat-box[data-status='operational'] .icon-chip { background: var(--badge-operational-bg); color: var(--badge-operational-fg); }
+/* Tag signal on dashboard rows (audit 4): a second, tag-colored chip next to the title's
+   status dot — the tint is passed inline as background so it adapts to both themes. */
+.tag-chip {
+  display: inline-block;
+  padding: 0.05em 0.55em;
+  border-radius: 999px;
+  font-size: var(--fs-xs);
+  line-height: 1.7;
+  color: var(--text);
+  margin-inline-start: 0.25rem;
+}
+/* Brand-colored interactive link states (audit 20). */
+.stat-box a.small:hover,
+.activity-main a:hover,
+.activity-more:hover { color: var(--brand); }
+

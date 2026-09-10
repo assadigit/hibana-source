@@ -52,8 +52,17 @@ const ENTRY_POINTS = [
   'touch-drag.js', 'tour.js', 'whiteboard.js', 'zen-mode.js', 'micro-interactions.js',
 ]
 
-// Page CSS files (both are linked from HTML; both must be hashed + immutable).
-const CSS_ENTRY_POINTS = ['app.css', 'task-controls.css']
+// Page CSS files (all linked from HTML; all hashed + immutable via manifest).
+// Session 25 (refactor): app.css (8,822 lines) split into 16 modular files by
+// contiguous section — byte-identical concatenation, zero cascade change.
+// Order matters: the 16 files MUST load in this order to reproduce app.css's
+// original cascade. task-controls.css loads after (separate concern).
+const CSS_ENTRY_POINTS = [
+  'variables.css', 'base.css', 'layout.css', 'dashboard.css', 'dashboard-todo.css',
+  'components.css', 'canvas.css', 'quicknotes.css', 'to-do-list.css', 'polish-ui.css',
+  'calendar.css', 'notifications.css', 'polish-batch.css', 'project-header.css',
+  'devboard.css', 'misc.css', 'task-controls.css',
+]
 
 // In-bundle dynamic-injection literals that get rewritten to hashed URLs during wiring.
 // app.js injects /js/queue.js; emoji-picker.js injects /js/emoji-data.js?v=1.

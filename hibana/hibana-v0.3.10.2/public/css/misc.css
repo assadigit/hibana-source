@@ -1,0 +1,741 @@
+/* --- the 404 stage: numeral + embers over a warm spark halo ---------------- */
+.nf-stage {
+  position: relative;
+  display: grid;
+  place-items: center;
+  padding-block: 0.5rem;
+}
+/* Spark-amber halo — --badge-spark-bg is cream in light, deep amber in dark. */
+.nf-stage::before {
+  content: '';
+  position: absolute;
+  inset: -8% -22%;
+  background: radial-gradient(closest-side, var(--badge-spark-bg), transparent);
+  pointer-events: none;
+}
+/* Digits stay Manrope even on the fa tree (Vazir's Latin digits would restyle
+   the display numeral) — .nf-page prefix out-specifies html[lang="fa"] body *. */
+.nf-page .nf-code {
+  position: relative;
+  margin: 0;
+  font-family: var(--font-sans);
+  font-size: clamp(6rem, 24vw, 9.5rem);
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: 0.03em;
+  font-variant-numeric: tabular-nums;
+  /* spark amber — pastel, softened by the halo + glow below */
+  color: var(--accent-2);
+  text-shadow: 0 0 26px color-mix(in srgb, var(--accent-2) 30%, transparent);
+}
+/* The ember at the heart of the zero — echoes icon.svg's H + spark-dot mark. */
+.nf-zero { position: relative; display: inline-block; }
+.nf-zero::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  margin: auto;
+  inline-size: 0.085em;
+  block-size: 0.085em;
+  translate: 0 -0.04em;        /* optical center of the glyph's counter */
+  border-radius: 50%;
+  background: var(--accent-2);
+  box-shadow: 0 0 0.18em color-mix(in srgb, var(--accent-2) 70%, transparent);
+  animation: nf-ember-pulse 2.8s ease-in-out infinite;
+}
+
+/* --- copy + actions -------------------------------------------------------- */
+.nf-copy { display: grid; gap: 0.35rem; justify-items: center; }
+.nf-heading { margin: 0; font-size: clamp(1.4rem, 4.5vw, 1.8rem); }
+.nf-sub {
+  margin: 0;
+  max-inline-size: 34ch;
+  color: var(--muted);
+  font-size: var(--fs-md);
+  text-wrap: balance;
+}
+.nf-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  gap: 0.75rem;
+  margin-block-start: 0.5rem;
+}
+/* Primary = the app's <button> recipe (tokens only) as a link to /app. */
+.nf-cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.55rem 1.25rem;
+  border-radius: var(--radius-sm);
+  background: var(--cta);
+  color: var(--btn-text);
+  font-weight: 600;
+  text-decoration: none;
+  transition: background-color 0.15s ease;
+}
+.nf-cta:hover { background: var(--cta-hover); text-decoration: none; }
+/* Back-arrow points along the reading direction: ← in LTR, → in RTL. */
+html[dir='rtl'] .nf-back .icon { transform: scaleX(-1); }
+
+/* --- embers: decorative drifting sparks, pure CSS --------------------------- */
+.nf-embers { position: absolute; inset: 0; pointer-events: none; }
+.nf-ember {
+  position: absolute;
+  border-radius: 50%;
+  background: currentColor;
+  box-shadow: 0 0 6px 1px;     /* glow color defaults to currentColor */
+  opacity: 0;
+  animation: nf-drift var(--nf-dur, 8s) ease-in-out var(--nf-delay, 0s) infinite;
+}
+/* Quadrant-palette sparks (teal · amber · rose · lavender), varied rise paths. */
+.nf-ember:nth-of-type(1) { color: var(--accent-2); inset-inline-start: 20%; inset-block-end: 6%;  inline-size: 5px;   block-size: 5px;   --nf-dx: -30px; --nf-dy: -120px; --nf-dur: 7s;   --nf-delay: 0.3s; --nf-o: 0.8;  }
+.nf-ember:nth-of-type(2) { color: var(--accent);   inset-inline-start: 64%; inset-block-end: 14%; inline-size: 4px;   block-size: 4px;   --nf-dx: 24px;  --nf-dy: -138px; --nf-dur: 8.5s; --nf-delay: 1.8s; --nf-o: 0.75; }
+.nf-ember:nth-of-type(3) { color: var(--accent-4); inset-inline-start: 34%; inset-block-end: 28%; inline-size: 4px;   block-size: 4px;   --nf-dx: -18px; --nf-dy: -104px; --nf-dur: 7.8s; --nf-delay: 3.1s; --nf-o: 0.7;  }
+.nf-ember:nth-of-type(4) { color: var(--accent-3); inset-inline-start: 56%; inset-block-end: 4%;  inline-size: 5px;   block-size: 5px;   --nf-dx: -14px; --nf-dy: -150px; --nf-dur: 9.6s; --nf-delay: 4.4s; --nf-o: 0.65; }
+.nf-ember:nth-of-type(5) { color: var(--accent-2); inset-inline-start: 80%; inset-block-end: 24%; inline-size: 6px;   block-size: 6px;   --nf-dx: -26px; --nf-dy: -96px;  --nf-dur: 6.8s; --nf-delay: 2.4s; --nf-o: 0.8;  }
+.nf-ember:nth-of-type(6) { color: var(--accent);   inset-inline-start: 10%; inset-block-end: 34%; inline-size: 3.5px; block-size: 3.5px; --nf-dx: 16px;  --nf-dy: -128px; --nf-dur: 9.2s; --nf-delay: 5.6s; --nf-o: 0.7;  }
+
+@keyframes nf-drift {
+  0%   { opacity: 0; transform: translate(0, 0) scale(0.4); }
+  14%  { opacity: var(--nf-o, 0.8); }
+  55%  { opacity: calc(var(--nf-o, 0.8) * 0.85); transform: translate(calc(var(--nf-dx, 0px) * 0.55), calc(var(--nf-dy, -110px) * 0.6)) scale(1); }
+  100% { opacity: 0; transform: translate(var(--nf-dx, 0px), var(--nf-dy, -110px)) scale(0.45); }
+}
+@keyframes nf-ember-pulse {
+  0%, 100% { opacity: 0.55; transform: scale(0.9); }
+  50%      { opacity: 1;    transform: scale(1.08); }
+}
+
+/* Motion opt-out (the app's per-feature guard convention). The zero's ember dot
+   stays visible, just static; the drift field hides entirely. */
+@media (prefers-reduced-motion: reduce) {
+  .nf-embers { display: none; }
+  .nf-zero::after { animation: none; }
+}
+
+/* Touch targets — the app's ≤720px rule extended to the CTA link. */
+@media (max-width: 720px) {
+  .nf-cta { min-block-size: 44px; }
+}
+
+/* ===========================================================================
+   Super-admin panel (batch r) — admin.html. Namespaced .adm-*. Tokens only,
+   pastel accents, RTL-safe logical properties throughout.
+   =========================================================================== */
+main.shell.adm-shell { max-inline-size: 56rem; }
+
+.adm-deny { display: grid; gap: 0.75rem; justify-items: start; }
+
+/* KPI cards (Overview) */
+.adm-kpis {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(9.5rem, 1fr));
+  gap: 0.75rem;
+  margin-block-end: 1rem;
+}
+.adm-kpi {
+  display: grid;
+  gap: 0.2rem;
+  justify-items: center;
+  padding: 0.9rem 0.6rem;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+}
+.adm-kpi strong { font-size: 1.35rem; font-variant-numeric: tabular-nums; }
+.adm-kpi.ok strong { color: var(--ok); }
+.adm-kpi.warn strong { color: var(--accent-2); }
+.adm-kpi.err strong { color: var(--err); }
+
+/* scrolling lists (both tabs) — the app's thin-scrollbar treatment applies */
+.adm-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.4rem;
+  max-block-size: 18rem;
+  overflow-y: auto;
+}
+.adm-list li {
+  padding: 0.5rem 0.6rem;
+  border-block-end: 1px dashed var(--line);
+  border-inline-start: 3px solid transparent;
+  border-radius: var(--radius-sm);
+  transition: background 0.12s, border-color 0.12s;
+}
+.adm-list li:hover {
+  background: var(--bg-soft);
+  border-inline-start-color: var(--accent);
+}
+
+/* Users tab */
+.adm-tools { margin-block-end: 0.75rem; }
+.adm-tools input[type='search'] { min-inline-size: min(18rem, 60vw); }
+.adm-userlist {
+  display: grid;
+  gap: 0.6rem;
+  max-block-size: 30rem;
+  overflow-y: auto;
+  padding-inline-end: 0.2rem;
+}
+.adm-user { cursor: pointer; transition: border-color 0.15s ease; }
+.adm-user:hover, .adm-user:focus-visible { border-color: var(--accent); }
+.adm-user-head { gap: 0.5rem; flex-wrap: wrap; }
+.adm-user-name { overflow-wrap: anywhere; }
+.adm-user-badges { flex-wrap: wrap; gap: 0.35rem; }
+.adm-user-mail { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.adm-user-meta { display: flex; flex-wrap: wrap; gap: 0.4rem 0.9rem; margin-block-start: 0.3rem; }
+.adm-self {
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--link); /* Session 20 (AA): --accent text on white was 3.1:1 — --link is the text-safe teal */
+  border: 1px solid var(--accent-soft);
+  border-radius: var(--radius-sm);
+  padding: 0 0.35rem;
+}
+.adm-ban-reason { margin-block-start: 0.3rem; }
+.adm-online-dot {
+  inline-size: 9px;
+  block-size: 9px;
+  border-radius: 50%;
+  background: var(--ok);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--ok) 25%, transparent);
+  flex: none;
+  align-self: center;
+}
+
+/* status badges — the app's --badge-bg/--badge-fg contract */
+.adm-badge-owner      { --badge-bg: var(--badge-spark-bg);   --badge-fg: var(--badge-spark-fg); }
+.adm-badge-verified   { --badge-bg: var(--badge-doing-bg);   --badge-fg: var(--badge-doing-fg); }
+.adm-badge-unverified { --badge-bg: var(--badge-unreviewed-bg); --badge-fg: var(--badge-unreviewed-fg); }
+.adm-badge-banned     { --badge-bg: color-mix(in srgb, var(--err) 14%, transparent); --badge-fg: var(--err); }
+
+/* Email tab */
+.adm-quota { display: flex; align-items: center; gap: 0.75rem; }
+.adm-quota-bar {
+  flex: 1;
+  block-size: 8px;
+  border-radius: 99px;
+  background: color-mix(in srgb, var(--muted) 22%, transparent);
+  overflow: hidden;
+}
+.adm-quota-bar i {
+  display: block;
+  block-size: 100%;
+  inline-size: 0;
+  border-radius: 99px;
+  background: var(--accent);
+  transition: inline-size 0.4s ease;
+}
+.adm-quota-bar i.is-high { background: var(--err); }
+.adm-form { display: grid; gap: 0.7rem; }
+.adm-form label { display: grid; gap: 0.25rem; }
+.adm-form input, .adm-form textarea, .adm-form select { inline-size: 100%; }
+.adm-primary { justify-self: start; }
+.adm-log .adm-log-row { align-items: center; gap: 0.5rem; flex-wrap: wrap; }
+
+/* Modal — the dialog.dialog recipe with direct content */
+dialog.adm-modal {
+  border: 0;
+  color: var(--text);
+  background: var(--card);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius);
+  padding: 1.25rem;
+  max-inline-size: min(30rem, 92vw);
+  max-block-size: min(88vh, 44rem);
+  overflow: auto;
+  display: grid;
+  gap: 0.9rem;
+  box-shadow: 0 32px 80px rgb(0 0 0 / 0.42), 0 12px 28px rgb(0 0 0 / 0.32);
+}
+dialog.adm-modal::backdrop { background: rgb(0 0 0 / 0.55); }
+.adm-modal-head { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
+.adm-modal-head strong { font-size: 1.1rem; overflow-wrap: anywhere; }
+.adm-modal-row { display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap; }
+.adm-modal-block {
+  display: grid;
+  gap: 0.6rem;
+  padding-block: 0.8rem;
+  border-block-start: 1px dashed var(--line);
+}
+.adm-modal-block h4 { margin: 0; }
+.adm-modal-block label { display: grid; gap: 0.25rem; }
+.adm-modal-block input, .adm-modal-block textarea { inline-size: 100%; }
+.adm-modal-foot { display: flex; justify-content: flex-end; border-block-start: 1px dashed var(--line); padding-block-start: 0.8rem; }
+.adm-presets { gap: 0.4rem; }
+.adm-preset {
+  border-radius: 99px;
+  padding: 0.3rem 0.9rem;
+  font-size: var(--fs-md);
+  background: color-mix(in srgb, var(--muted) 14%, transparent);
+}
+.adm-preset.is-active { background: var(--accent); color: var(--btn-text); }
+.adm-danger {
+  border-block-start-color: color-mix(in srgb, var(--err) 30%, transparent);
+  background: color-mix(in srgb, var(--err) 6%, transparent);
+  border-radius: var(--radius-sm);
+  padding: 0.9rem;
+  margin-block-start: 0.35rem;
+}
+.adm-danger h4 { color: var(--err); }
+.adm-danger-btn {
+  background: var(--err);
+  color: #fff;
+  border-radius: var(--radius-sm);
+  justify-self: start;
+}
+.adm-danger-btn:disabled { opacity: 0.55; }
+
+@media (max-width: 720px) {
+  .adm-userlist { max-block-size: none; } /* let the page scroll on phones */
+  .adm-list { max-block-size: 14rem; }
+  dialog.adm-modal { padding: 1rem; }
+}
+
+/* ===========================================================================
+   Phase 5 (2026-09-08) — Ali's 18-item batch
+   =========================================================================== */
+
+/* --- item 13: Latin runs inside notes render 2px smaller --------------------
+   Persian text reads fine at the note's font size, but Latin words (UI/UX, API,
+   CSS…) visually dominate at the same size. latinRuns() (quicknotes.ts) wraps every
+   Latin run ≥2 chars in a .lat-run span — this is the whole visual change. */
+.markdown-body .lat-run, .note-render .lat-run, .note-text .lat-run { font-size: calc(1em - 2px); }
+
+/* --- item 3: the note DONE state (✓ vs ×) -----------------------------------
+   A project-linked note can be MARKED DONE — it stays (dimmed + struck title) on the
+   notebook and carries a ✓ on the project's related-notes list. Visually distinct
+   from delete, which removes the card entirely. */
+.note-card.is-note-done { opacity: 0.72; }
+.note-card.is-note-done .note-render, .note-card.is-note-done .note-title { text-decoration: line-through; text-decoration-thickness: 1.5px; opacity: 0.8; }
+.note-card.is-note-done .note-title { text-decoration-color: var(--muted); }
+.note-done-btn { color: var(--muted); }
+.note-done-btn[aria-pressed='true'] { color: var(--st-done, var(--brand)); }
+.note-card.is-note-done .note-done-btn[aria-pressed='true'] { background: var(--accent-soft); }
+/* the project page's related-notes list: done rows keep their place, ✓ + dimmed */
+.related-note-done { opacity: 0.66; }
+.related-note-done .related-note { text-decoration: line-through; text-decoration-color: var(--muted); }
+.related-note-check { display: inline-flex; align-items: center; color: var(--st-done, var(--brand)); }
+
+/* --- item 9: pglance boxes — icons + more height --------------------------- */
+.pglance-box { padding-block: 0.85rem 0.6rem; }
+.pglance-icon { color: var(--muted); display: inline-flex; }
+/* Phase 7 item 8: 100% bigger state glyphs (1.1 → 2.2rem; grid view 1.9 → 3.8rem). */
+.pglance-icon .icon { inline-size: 2.2rem; block-size: 2.2rem; }
+.pglance-box { gap: 0.18rem; }
+.pglance-grid .pglance-box { padding: 1.5rem 0.75rem 1.3rem; gap: 0.28rem; }
+.pglance-grid .pglance-icon .icon { inline-size: 3.8rem; block-size: 3.8rem; }
+.pglance-grid .pglance-icon { color: rgb(var(--pg-c)); }
+.pglance-grid .pglance-count { font-size: 2rem; }
+.pglance-box:hover .pglance-icon { color: rgb(var(--pg-c)); }
+
+/* --- items 1+2: the dashboard's projects heading row (پروژه‌ها + go-to link) -- */
+.dash-projects-head { margin-block-end: 0.6rem; }
+.dash-projects-head h2 { margin: 0; }
+.dash-projects-head a.small { display: inline-flex; align-items: center; gap: 0.25rem; }
+
+/* --- item 12: the «نمایش:» view dropdown ------------------------------------ */
+.view-select { display: inline-flex; align-items: center; gap: 0.45rem; }
+.view-select label { white-space: nowrap; }
+.view-select select {
+  font: inherit;
+  font-size: var(--fs-sm);
+  padding: 0.45rem 0.7rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--card);
+  color: var(--text);
+  cursor: pointer;
+}
+.view-select select:hover { border-color: var(--line-strong); }
+.view-select select:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+/* --- item 17: grey project labels (لیبل‌های پروژه) ---------------------------
+   No per-tag colors anymore — one neutral grey chip everywhere (list view, detail
+   header, insert path). Stored colors stay in the DB, they just don't render. */
+.pd-tags-title { white-space: nowrap; align-self: center; }
+.chip.pd-tag-chip {
+  background: color-mix(in srgb, var(--muted) 12%, transparent);
+  color: var(--text);
+  border: 1px solid var(--line);
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+/* Phase 7 item 7: label chips — smaller, quieter (font color at reduced opacity —
+   user: "too obvious, too much attention grabbing") and a little air between
+   neighbors that sat nearly collided. */
+.chip.pd-tag-chip {
+  font-size: var(--fs-xs);
+  padding: 0.1em 0.55em;
+  color: color-mix(in srgb, var(--text) 62%, transparent);
+  margin-inline-end: 0.3rem;
+  margin-block: 0.15rem;
+}
+.chip.pd-tag-chip .pd-tag-x { padding: 0.05rem 0.25rem; font-size: var(--fs-xs); }
+
+/* --- (v) 2026-09-09: the progress track becomes the to-do page's pill board ------
+   Ali: "the circle progress state switcher for the dashboard is buggy, I want it to
+   behave the same as this circle-menu [the to-do list's prog-track] — they need a
+   board around them as well". The track is now ALWAYS visible (sadhana.html renders
+   it under every open card, no hover games), wrapped in the same pill (border + card
+   background + 999px radius), and the dots/label follow the --st-* palette declared
+   on .dash-todo-list. app.js mirrors sadhana's setProgress semantics: clicking the
+   already-active state resets the task to untouched. */
+.dash-todo-task .prog-track {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  gap: 0.22rem;
+  justify-self: start;
+  margin-block: 0.02rem 0.06rem;
+  padding: 0.14rem 0.45rem;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--card);
+  cursor: default;
+  /* Session-10 (user request 2026-09-14): the track + its label show ONLY while the row
+     is hovered or focused — at rest the task's state is already carried by the row tint
+     + the 3px start crescent (st-* rules above), so the always-on track read as visual
+     clutter. Same reveal pattern as .dash-todo-note-preview / the ⋯ menu: hover,
+     focus-within (keyboard + touch tap), and while a dot itself holds focus. */
+  max-block-size: 0;
+  overflow: hidden;
+  visibility: hidden;
+  opacity: 0;
+  padding-block: 0;
+  margin-block: 0;
+  border-block-width: 0;
+  transition: max-block-size 0.22s ease, opacity 0.22s ease, padding-block 0.22s ease, margin-block 0.22s ease;
+}
+.dash-todo-task:hover .prog-track,
+.dash-todo-task:focus-within .prog-track,
+.dash-todo-task .prog-track:focus-within {
+  max-block-size: 2.4rem;
+  visibility: visible;
+  opacity: 1;
+  padding-block: 0.14rem;
+  margin-block: 0.02rem 0.06rem;
+  border-block-width: 1px;
+}
+.dash-todo-task .prog-dot {
+  inline-size: 0.65rem;
+  block-size: 0.65rem;
+  border-radius: 50%;
+  border: 1.5px solid var(--line-strong);
+  background: transparent;
+  padding: 0;
+  cursor: pointer;
+  flex: none;
+  transition: transform 0.15s ease, background-color 0.15s ease, border-color 0.15s ease;
+}
+.dash-todo-task .prog-dot:hover { transform: scale(1.3); border-color: var(--muted); }
+.dash-todo-task .prog-dot.p-untouched { border-color: var(--st-none); }
+.dash-todo-task .prog-dot.p-inprog { border-color: var(--st-inprog); }
+.dash-todo-task .prog-dot.p-hold { border-color: var(--st-hold); }
+.dash-todo-task .prog-dot.p-active.p-untouched { background: var(--st-none); border-color: var(--st-none); }
+/* in-progress keeps the to-do page's soft pulse (a held dot stays static by design) */
+.dash-todo-task .prog-dot.p-active.p-inprog { background: var(--st-inprog); border-color: var(--st-inprog); animation: dashDotPulse 1.8s ease-in-out infinite; }
+.dash-todo-task .prog-dot.p-active.p-hold { background: var(--st-hold); border-color: var(--st-hold); }
+.dash-todo-task .prog-lbl { font-size: 0.62rem; font-weight: 700; letter-spacing: 0.03em; color: var(--muted); white-space: nowrap; }
+.dash-todo-task .prog-track.st-inprog .prog-lbl { color: var(--st-inprog); }
+.dash-todo-task .prog-track.st-hold .prog-lbl { color: var(--st-hold); }
+/* the to-do page's dotPulse, renamed so the two stylesheets never fight over the
+   @keyframes cascade (app.css + sadhana.html's inline block both define it) */
+@keyframes dashDotPulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(245, 154, 78, 0.45); }
+  50% { box-shadow: 0 0 0 4px rgba(245, 154, 78, 0); }
+}
+@media (prefers-reduced-motion: reduce) { .dash-todo-task .prog-dot { animation: none; } }
+
+/* --- items 7+8: sprint lifecycle UI (define → start → finish) + time paging -- */
+/* P4.3 (F-M17): notebook image popover — positioned near the toolbar (fixed top-center). */
+.nb-image-pop { position: fixed; inset-block-start: 4rem; inset-inline-start: 50%; transform: translateX(-50%); z-index: 50; }
+
+.sp-timenav { display: inline-flex; align-items: center; gap: 0.3rem; }
+.sp-timenav .sp-timerange { white-space: nowrap; max-inline-size: 16rem; overflow: hidden; text-overflow: ellipsis; }
+/* P4.7 (F-M19): mirror the sprint time-paging arrows in RTL so 'Older' points backward. */
+[dir='rtl'] .sp-arrow { transform: scaleX(-1); }
+.sp-finish-btn { white-space: nowrap; }
+
+/* The DRAFT panel — a defined-but-not-started sprint. Card-like, above the timeline:
+   ◆ name (inline-editable) · item count · hint · Start/Delete. Doubles as the drop
+   target that assigns tasks to the draft sprint. */
+.sp-draft { padding: 0 0 0.6rem; }
+.sp-draft-card {
+  display: grid;
+  gap: 0.4rem;
+  padding: 0.7rem 0.9rem;
+  border: 1.5px dashed var(--brand, var(--accent));
+  border-radius: var(--radius-sm);
+  background: var(--accent-soft);
+  max-inline-size: 34rem;
+}
+.sp-draft-card.is-target { border-style: solid; border-width: 2.5px; background: color-mix(in srgb, var(--accent-soft) 70%, var(--card)); }
+.sp-draft-head { display: flex; align-items: center; gap: 0.5rem; }
+.sp-draft-head .sp-diamond { color: var(--brand, var(--accent)); }
+.sp-draft-name {
+  font: inherit;
+  font-weight: 700;
+  flex: 1;
+  min-inline-size: 0;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  padding: 0.25rem 0.4rem;
+  color: var(--text);
+}
+.sp-draft-name:hover { border-color: var(--line); }
+.sp-draft-name:focus { border-color: var(--line-strong); background: var(--card); outline: none; }
+.sp-draft-hint { margin: 0; }
+.sp-draft-actions { gap: 0.5rem; flex-wrap: wrap; }
+
+/* the define dialog (a sibling of the sprint chip popover) */
+.sp-define-pop { z-index: 60; }
+
+/* item 8: when the axis fits the port exactly, keep the scrollbar hidden — Chromium
+   still paints a track for overflow-x:auto even when nothing overflows. */
+.sp-scroll { scrollbar-gutter: stable; }
+
+
+/* ══════════════════════════════════════════════════════════════════════════════
+   Phase 6 (2026-09-09) — shared full-library emoji picker, note clamp + reader
+   modal, unified page width.
+   ══════════════════════════════════════════════════════════════════════════════ */
+
+/* --- item 2: the shared emoji picker dialog (/js/emoji-picker.js) ---------------- */
+.emoji-pop-backdrop {
+  position: fixed; inset: 0; z-index: 700;
+  background: transparent; /* click-catcher only — the picker is small */
+  display: none;
+}
+.emoji-pop-backdrop.open { display: block; }
+.emoji-pop {
+  position: fixed; z-index: 701;
+  inline-size: 20.5rem; /* 328px — 8 columns of 2.4rem cells + padding */
+  max-inline-size: calc(100vw - 1rem);
+  background: var(--card); color: var(--text);
+  border: 1px solid var(--line-strong); border-radius: var(--radius);
+  box-shadow: var(--shadow-dropdown);
+  display: none; flex-direction: column; overflow: hidden;
+  font-family: inherit;
+}
+.emoji-pop.open { display: flex; }
+.emoji-pop-srch { padding: 0.5rem 0.6rem; border-block-end: 1px solid var(--line); }
+.emoji-pop-srch input {
+  inline-size: 100%; padding: 0.45rem 0.6rem;
+  background: var(--bg-soft); color: var(--text);
+  border: 1px solid var(--line); border-radius: var(--radius-sm);
+  font: inherit; font-size: 0.85rem; outline: none;
+}
+.emoji-pop-srch input:focus { border-color: var(--line-strong); }
+.emoji-pop-cats {
+  display: flex; gap: 2px; padding: 0.3rem 0.5rem;
+  border-block-end: 1px solid var(--line); overflow-x: auto; scrollbar-width: none;
+}
+.emoji-pop-cats::-webkit-scrollbar { display: none; }
+.emoji-pop-cat {
+  padding: 0.25rem 0.35rem; border: 0; border-radius: 0.4rem;
+  background: transparent; font-size: 1rem; cursor: pointer; line-height: 1.2;
+  transition: background 0.15s;
+}
+.emoji-pop-cat:hover { background: var(--bg-soft); }
+.emoji-pop-cat.active { background: var(--accent-soft); }
+.emoji-pop-grid {
+  display: grid; grid-template-columns: repeat(8, 1fr); gap: 1px;
+  padding: 0.35rem; overflow-y: auto; max-block-size: 14.5rem;
+  overscroll-behavior: contain; scrollbar-width: thin;
+}
+.emoji-pop-rec { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(8, 1fr); gap: 1px; }
+.emoji-pop-sep { grid-column: 1 / -1; block-size: 1px; background: var(--line); margin-block: 0.25rem 0.1rem; }
+.emoji-pop-em {
+  min-inline-size: 2.4rem; min-block-size: 2.4rem; padding: 0;
+  border: 0; border-radius: 0.4rem; background: transparent;
+  font-size: 1.25rem; line-height: 1; cursor: pointer;
+  display: grid; place-items: center;
+  transition: background 0.1s;
+}
+.emoji-pop-em:hover { background: var(--bg-soft); }
+.emoji-pop-empty {
+  grid-column: 1 / -1; padding: 1rem 0.5rem; text-align: center;
+  color: var(--muted); font-size: 0.85rem;
+}
+.emoji-pop-foot { padding: 0.35rem 0.6rem; border-block-start: 1px solid var(--line); }
+.emoji-pop-hint { color: var(--muted); font-size: var(--fs-xs); }
+/* Mobile: dock as a bottom sheet, ignore anchoring */
+@media (max-width: 39.9375rem) {
+  .emoji-pop {
+    inset-inline: 0; inset-block-end: 0; top: auto;
+    inline-size: 100%; max-inline-size: 100%;
+    border-radius: var(--radius) var(--radius) 0 0;
+  }
+  .emoji-pop-grid { max-block-size: 11rem; }
+  .emoji-pop-backdrop.open { background: rgb(0 0 0 / 0.25); }
+}
+@media (prefers-reduced-motion: reduce) { .emoji-pop-cat, .emoji-pop-em { transition: none; } }
+
+/* --- item 6: quick notes clamp to 3 lines + the full-note reader modal ------------ */
+/* The notebook's rendered note shows at most 3 lines; longer notes open the reader
+   modal (app.js). Short notes keep the classic click-to-edit behavior. */
+.note-card[data-kind="note"] .note-render {
+  cursor: pointer;
+}
+#notebook #nv-list:checked ~ .note-list .note-card[data-kind="note"] .note-render {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  overflow: hidden;
+}
+.note-card[data-kind="note"] .note-render:hover { color: var(--text); }
+/* Phase 7 item 11 — «بیشتر…»: a VISIBLE control at the truncation point. The server
+   renders the chip hidden; app.js measures the clamp after every swap and un-hides
+   it (list view) exactly when the 3-line cut fires. Click = the same full-note reader
+   modal as clicking the clamped text. */
+.note-more {
+  display: none;
+  justify-self: start;
+  margin-block-start: 0.05rem;
+  padding: 0.08rem 0.5rem;
+  border: 0;
+  border-radius: 999px;
+  background: var(--accent-soft);
+  /* F14 (session 9): --link (text-safe teal) — --accent text on the tint was ~2.9:1. */
+  color: var(--link);
+  font: inherit;
+  font-size: var(--fs-xs);
+  cursor: pointer;
+  /* Fix 2026-09-09 (user report): the "بیشتر…" text looked ghosted/doubled on the tinted
+     pill. Two causes were ruled out: no Alpine x-show/x-transition (toggled via classList
+     in app.js, display:none → inline-block, no opacity fade), and no text-shadow. The
+     real cause was subpixel font rendering fringing on the colored pill background +
+     the `text-decoration: underline dotted` adding a second visual mark that read as a
+     doubled glyph. Fix: antialiased font smoothing + drop the dotted underline (the
+     pill's accent background already signals interactivity). */
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+.note-more:hover { background: color-mix(in srgb, var(--accent-soft) 70%, var(--card)); color: var(--link); }
+.note-card.has-more .note-more { display: inline-block; }
+.note-reader {
+  inline-size: min(34rem, calc(100vw - 2rem));
+  max-block-size: min(80vh, 40rem);
+  padding: 0;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius);
+  background: var(--card); color: var(--text);
+}
+.note-reader::backdrop { background: rgb(0 0 0 / 0.4); }
+.note-reader-head {
+  display: flex; align-items: center; justify-content: space-between; gap: 0.5rem;
+  padding: 0.6rem 0.9rem; border-block-end: 1px solid var(--line);
+}
+.note-reader-head h3 { margin: 0; font-size: 1rem; }
+.note-reader-body {
+  padding: 0.9rem; overflow-y: auto; max-block-size: calc(80vh - 6rem);
+  white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.6;
+}
+.note-reader-body .markdown-body { font-size: 0.95rem; }
+.note-reader-foot { display: flex; gap: 0.5rem; justify-content: flex-end; padding: 0.6rem 0.9rem; border-block-start: 1px solid var(--line); }
+
+/* --- item 12: ONE page width, user-chosen ----------------------------------------- */
+/* Standard = 1366px (85.375rem) on every page; Full-width = no cap. boot.js paints
+   html[data-page-width] from localStorage before first render; the settings page
+   (Preferences) owns the choice. These rules deliberately sit at the END of the sheet
+   and carry higher specificity than every page-specific width (sp-shell flush,
+   adm-shell 56rem, shell-dash/sadhana 96rem) so all pages share the SAME width. Zen mode
+   keeps its focused 56rem deliberately. (Session-11: the dead main.shell#dash entries
+   were dropped from these lists — main.shell already covers the dashboard main.) */
+html[data-page-width="standard"] main.shell,
+html[data-page-width="standard"] main.shell.sp-shell,
+html[data-page-width="standard"] main.shell.adm-shell,
+html[data-page-width="standard"] main.shell.narrow,
+html[data-page-width="standard"] main.shell.shell-flush { max-inline-size: 85.375rem; }
+html[data-page-width="full"] main.shell,
+html[data-page-width="full"] main.shell.sp-shell,
+html[data-page-width="full"] main.shell.adm-shell,
+html[data-page-width="full"] main.shell.narrow,
+html[data-page-width="full"] main.shell.shell-flush { max-inline-size: none; }
+
+/* ══════════════════════════════════════════════════════════════════════════════
+   Phase 7 (2026-09-09) — item 13: the dedicated dashboard skeleton state.
+   The markup reuses the REAL component classes (.dash-todo-quadrant, .stat-box,
+   .stat-kanban-card, .topbar) so every block occupies exactly the box the real
+   content will replace — same grid, same paddings, same RTL ordering, zero layout
+   jump on the htmx innerHTML swap. Every placeholder carries .sk and shares ONE
+   sweep animation (one direction, one clock) — a coordinated whole-page loading
+   state, not independent spinners. prefers-reduced-motion: static placeholders.
+   ══════════════════════════════════════════════════════════════════════════════ */
+.dash-skeleton { pointer-events: none; }
+.dash-skeleton .sk,
+.sk-topbar .sk {
+  --sk-base: color-mix(in srgb, var(--muted) 16%, var(--card));
+  --sk-sheen: color-mix(in srgb, var(--text) 9%, transparent);
+  position: relative;
+  display: inline-block;
+  overflow: hidden;
+  border-radius: var(--radius-sm);
+  background: var(--sk-base);
+}
+.dash-skeleton .sk::after,
+.sk-topbar .sk::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  transform: translateX(-110%);
+  background: linear-gradient(90deg, transparent, var(--sk-sheen), transparent);
+  animation: sk-sweep 1.7s ease-in-out infinite;
+}
+@keyframes sk-sweep { to { transform: translateX(110%); } }
+/* The sweep follows the reading direction: LTR pages sweep left→right, RTL flips it
+   right→left — every block moves the same way because they share the ONE keyframes. */
+[dir='rtl'] .dash-skeleton .sk::after,
+[dir='rtl'] .sk-topbar .sk::after { animation-name: sk-sweep-rtl; }
+@keyframes sk-sweep-rtl { from { transform: translateX(110%); } to { transform: translateX(-110%); } }
+@media (prefers-reduced-motion: reduce) {
+  .dash-skeleton .sk::after, .sk-topbar .sk::after { animation: none; content: none; }
+}
+
+/* ── topbar placeholder (inside [data-nav] until app.js swaps the real partial) ── */
+.sk-topbar .sk-brand { inline-size: 2.8rem; block-size: 1.7rem; border-radius: 0.5rem; }
+.sk-topbar .sk-navlink { block-size: 1.05rem; border-radius: 999px; }
+.sk-topbar .sk-avatar { inline-size: 2.25rem; block-size: 2.25rem; border-radius: 50%; }
+.sk-topbar .sk-username { inline-size: 4.4rem; block-size: 1.05rem; border-radius: 999px; }
+
+/* ── task-board placeholder — same geometry as the real quadrants ─────────────── */
+.dash-skeleton .sk-heading { inline-size: 8.5rem; block-size: 1.35rem; border-radius: 999px; }
+.dash-skeleton .sk-quad-ico { inline-size: 1.5rem; block-size: 1.5rem; }
+.dash-skeleton .sk-quad-title { inline-size: 7.5rem; block-size: 1.05rem; border-radius: 999px; }
+.dash-skeleton .sk-quad-count { inline-size: 3.6rem; block-size: 0.85rem; border-radius: 999px; }
+.dash-skeleton .dash-todo-task {
+  display: grid;
+  gap: 0.28rem;
+  padding: 0.25rem 0.4rem;
+  /* skeleton rows keep the real task card look (border + neutral fill) without state classes */
+  background: var(--st-none-bg);
+  border-color: var(--st-none-bd);
+}
+.dash-skeleton .sk-task { grid-column: 1 / -1; block-size: 1.9rem; }
+.dash-skeleton .sk-prog { grid-column: 1 / -1; block-size: 1.15rem; inline-size: 62%; border-radius: 999px; }
+
+/* ── projects-board placeholder — same stat boxes + kanban rows ────────────────── */
+.dash-skeleton .sk-stat-ico { inline-size: 1.2rem; block-size: 1.2rem; }
+.dash-skeleton .sk-stat-count { inline-size: 1.4rem; block-size: 1.4rem; }
+.dash-skeleton .sk-stat-label { inline-size: 4.8rem; block-size: 0.95rem; border-radius: 999px; }
+.dash-skeleton .sk-proj { block-size: 2.4rem; inline-size: 100%; }
+/* the skeleton stat boxes keep the real card chrome but never invite interaction */
+.dash-skeleton .stat-box { cursor: default; }
+
+/* ── the FAB while the dashboard loads: a plain solid circle — no icon, no motion ── */
+body:has(.dash-skeleton) .fab-stack .fab {
+  background: color-mix(in srgb, var(--muted) 16%, var(--card));
+  border-color: transparent;
+  color: transparent;
+  box-shadow: none;
+  pointer-events: none;
+}
+body:has(.dash-skeleton) .fab-stack .fab .icon { visibility: hidden; }
+body:has(.dash-skeleton) .fab-stack .fab:hover { background: color-mix(in srgb, var(--muted) 16%, var(--card)); }

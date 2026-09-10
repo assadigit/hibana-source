@@ -1,0 +1,593 @@
+/* --- board page (board.html) ---------------------------------------------- */
+.db-toolbar { display: flex; align-items: center; gap: 0.7rem; padding: 0.7rem 0.9rem; margin-block-end: 1rem; flex-wrap: wrap; }
+.db-title { margin: 0; font-size: var(--fs-xl); overflow-wrap: anywhere; }
+.db-flex-gap { flex: 1; }
+.db-loading { color: var(--muted); padding: 2rem 0; text-align: center; }
+.db-board { padding-block-end: 2rem; }
+.db-cols {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr)); /* 0031: red Problems column; batch (s) ⑩: second slot */
+  gap: 0.8rem;
+  align-items: start;
+}
+@media (max-width: 1100px) { .db-cols { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 640px) { .db-cols { grid-template-columns: 1fr; } }
+.db-col {
+  display: grid;
+  gap: 0.35rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  /* Batch (s) ⑬ 2026-09-08 (Ali's 13-item list): the fullscreen board's columns drop the
+     grey/green fill — same minimal recipe as the project page's pd-col ("pastel stage
+     coding lives on the edge/header, not a fill"). Background transparent, padding + gap
+     + radius match .pd-col so the two boards read as one system. */
+  background: transparent;
+  padding: 0.55rem;
+  min-block-size: 8rem;
+}
+/* Session 22 (consistency with .pd-col-title): fs-md → fs-sm, gap 0.4 → 0.35 — the
+   column label now reads identically on both boards. */
+.db-col-head { display: flex; align-items: center; justify-content: space-between; gap: 0.4rem; }
+.db-col-name { font-weight: 600; font-size: var(--fs-sm); color: var(--muted); }
+/* batch (p) 2026-09-06 (user request): the fullscreen board's columns now carry the
+   SAME stage color coding as the project page's pd-board boxes — idea blue, planned
+   (برنامه آتی) grey, in-progress orange, done green, bug (مشکلات) red — border +
+   inline-start edge + colored name + dot, light and dark. The old bug-only rules are
+   superseded by the full set.
+   Session 22 (user request — consistency): the --db-ink values now MIRROR .pd-col
+   exactly — the light in_progress/done/bug inks were the pre-Session-20 values
+   (#9c7245 / #5e8f70 / #a96b78, 3.7–4.3:1) while pd had the AA-darkened set; the
+   dark block below was the pre-Session-19 bright set while pd used the muted set. */
+.db-col[data-col='idea']        { --db-c: 172 199 233; --db-ink: #5c7796; }
+.db-col[data-col='planned']     { --db-c: 209 212 216; --db-ink: #6b727b; }
+.db-col[data-col='in_progress'] { --db-c: 240 197 155; --db-ink: #7d5a34; } /* Session 22: was #9c7245 — mirrors .pd-col (Session-20 AA, 6.2:1) */
+.db-col[data-col='done']        { --db-c: 182 224 200; --db-ink: #43704f; } /* Session 22: was #5e8f70 — mirrors .pd-col (Session-20 AA, 5.7:1) */
+.db-col[data-col='bug']         { --db-c: 238 185 194; --db-ink: #87555f; } /* Session 22: was #a96b78 — mirrors .pd-col (Session-20 AA, 6.0:1) */
+.db-col { border-color: rgb(var(--db-c) / 0.28); border-inline-start: 3px solid rgb(var(--db-c) / 0.55); }
+.db-col-name { color: var(--db-ink, var(--muted)); display: inline-flex; align-items: center; gap: 0.35rem; }
+/* Session 22 (consistency with .pd-col-title::before): dot 0.6rem → 0.55rem, fill
+   opacity 0.95 → 0.72 — the exact pd recipe. */
+.db-col-name::before {
+  content: '';
+  inline-size: 0.55rem;
+  block-size: 0.55rem;
+  border-radius: 999px;
+  background: rgb(var(--db-c) / 0.72);
+  flex: none;
+}
+/* Done column: visually distinct — a subtle tinted background so the Archive/Clear buttons
+   are obviously tied to it, not the other columns. */
+.db-col-done { background: rgb(var(--db-c) / 0.12); }
+.db-col-done .db-col-head { border-bottom-color: rgb(var(--db-c) / 0.3); }
+/* Archives section (project.html) — list of archived done tasks with restore/delete */
+.pd-archives-list { display: flex; flex-direction: column; gap: 0.4rem; }
+.pd-archive-item { display: flex; align-items: center; gap: 0.6rem; padding: 0.5rem 0.7rem; border: 1px solid var(--line); border-radius: var(--radius-sm); background: var(--bg-soft); }
+.pd-archive-item .pd-archive-title { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pd-archive-item .pd-archive-date { font-size: var(--fs-sm); color: var(--muted); flex: none; }
+.pd-archive-item .pd-archive-actions { display: flex; gap: 0.25rem; flex: none; }
+/* Session 22 (consistency): was the pre-Session-19 bright set — now the exact muted
+   .pd-col dark values (label inks + softened borders). */
+html[data-theme='dark'] .db-col[data-col='idea']        { --db-c: 80 100 128; --db-ink: #7B9AB8; }
+html[data-theme='dark'] .db-col[data-col='planned']     { --db-c: 110 115 122; --db-ink: #A0A8B0; }
+html[data-theme='dark'] .db-col[data-col='in_progress'] { --db-c: 150 120 85; --db-ink: #C49A6E; }
+html[data-theme='dark'] .db-col[data-col='done']        { --db-c: 100 145 115; --db-ink: #7BAA8E; }
+html[data-theme='dark'] .db-col[data-col='bug']         { --db-c: 150 110 120; --db-ink: #C098A0; }
+@media (prefers-color-scheme: dark) {
+  html:not([data-theme='light']) .db-col[data-col='idea']        { --db-c: 80 100 128; --db-ink: #7B9AB8; }
+  html:not([data-theme='light']) .db-col[data-col='planned']     { --db-c: 110 115 122; --db-ink: #A0A8B0; }
+  html:not([data-theme='light']) .db-col[data-col='in_progress'] { --db-c: 150 120 85; --db-ink: #C49A6E; }
+  html:not([data-theme='light']) .db-col[data-col='done']        { --db-c: 100 145 115; --db-ink: #7BAA8E; }
+  html:not([data-theme='light']) .db-col[data-col='bug']         { --db-c: 150 110 120; --db-ink: #C098A0; }
+}
+.db-col-body { display: grid; gap: 0.45rem; border-radius: var(--radius-sm); transition: background 0.12s ease, outline 0.12s ease; outline: 2px dashed transparent; }
+.db-col-body.drag-over { outline-color: var(--brand); background: rgb(74 159 163 / 0.06); }
+.db-card {
+  display: grid;
+  gap: 0.3rem;
+  /* Session 22 (user request — consistency with .pd-task): was 0.55rem 0.6rem; the
+     progress-box card uses 0.4rem 0.5rem and the two boards must read as one system. */
+  padding: 0.4rem 0.5rem;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  cursor: grab;
+  transition: border-color 0.12s ease, box-shadow 0.12s ease, opacity 0.12s ease;
+}
+.db-card:hover { border-color: var(--brand); box-shadow: 0 1px 6px rgb(30 20 10 / 0.07); }
+.db-card.dragging { opacity: 0.45; }
+.db-card-main { display: flex; align-items: flex-start; gap: 0.45rem; }
+/* Item 3 — REMOVED Session 22: `.db-card-main .prio-dot { background: inherit }` beat the
+   `.prio-*` classes (0,2,0 > 0,1,0) so every board prio-dot rendered TRANSPARENT
+   (invisible). The !important `.db-card .prio-*` rules near the pd block now carry
+   the priority color, same as the project page. */
+/* Session 22 (consistency with .pd-task-title): fs-md/1.35 → fs-sm/1.3 so a task card
+   reads identically in the project progress box and on the full-screen board. */
+.db-card-title {
+  font-size: var(--fs-sm);
+  line-height: 1.3;
+  overflow-wrap: anywhere;
+  /* Session 23: multi-line titles (code blocks / manual breaks) render their line
+     structure — mirrors .pd-task-title; legacy single-line titles unchanged. */
+  white-space: pre-line;
+}
+.st-done .db-card-title, .st-done .sp-bar-title { text-decoration: line-through; color: var(--muted); }
+.db-card-meta { display: flex; flex-wrap: wrap; gap: 0.3rem; align-items: center; }
+.db-cat-chip, .db-mini-chip {
+  font-size: var(--fs-xs);
+  padding: 0.05rem 0.45rem;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  max-inline-size: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.db-sprint-badge {
+  font-size: var(--fs-xs);
+  color: var(--badge-building-fg);
+  background: var(--badge-building-bg);
+  border-radius: 999px;
+  padding: 0.05rem 0.45rem;
+  white-space: nowrap;
+}
+.db-card-date { font-size: var(--fs-xs); }
+.db-add {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  justify-content: center;
+  padding: 0.4rem;
+  border-radius: var(--radius-sm);
+  border: 1px dashed var(--line);
+  background: none;
+  color: var(--muted);
+  font: inherit;
+  font-size: var(--fs-sm);
+  cursor: pointer;
+  transition: color 0.12s ease, border-color 0.12s ease;
+}
+.db-add:hover {
+  /* Session 23: green fill + light text (owner hover spec; was a green-bg/teal-text mix) */
+  background: var(--cta-hover, var(--accent-hover));
+  border-color: var(--cta-hover, var(--accent-hover));
+  color: var(--btn-text, #fff);
+}
+
+/* --- task editor modal ----------------------------------------------------- */
+.db-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  background: rgb(15 12 8 / 0.4);
+  display: grid;
+  place-items: center;
+  padding: 1rem;
+}
+.db-modal[hidden] { display: none; }
+.db-modal-card {
+  /* Session 22 (user request): +53% (was 34rem) — the board's task editor gets the
+     same generous dimensions as the project-page composer; the title is a multi-line
+     textarea now, so it needs the room. */
+  inline-size: min(52rem, 100%);
+  max-block-size: 90vh;
+  overflow-y: auto;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-dropdown);
+  padding: 1.1rem 1.2rem;
+  display: grid;
+  gap: 0.8rem;
+  animation: tab-fade 0.15s ease-out;
+}
+.db-modal-card h3 { margin: 0; }
+.db-field { display: grid; gap: 0.3rem; }
+/* Session 22: the title field is a TEXTAREA (unlimited, multi-line) — give it a real
+   writing area + vertical resize, mirroring #pd-taskadd-textarea's rhythm. */
+.db-modal textarea[name="title"] {
+  min-block-size: 9rem;
+  line-height: 1.6;
+  resize: vertical;
+}
+.db-field > span { font-size: var(--fs-xs); font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; }
+.db-field input[type="text"], .db-field input:not([type]), .db-field select, .db-field textarea {
+  font: inherit;
+  padding: 0.45rem 0.6rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--card);
+  color: var(--text);
+}
+.db-two { display: grid; grid-template-columns: 1fr 1fr; gap: 0.7rem; }
+@media (max-width: 540px) { .db-two { grid-template-columns: 1fr; } }
+.db-cat-new { display: grid; gap: 0.4rem; }
+.db-cat-new[hidden] { display: none; }
+.db-seg { display: flex; flex-wrap: wrap; gap: 0.3rem; }
+.db-seg button {
+  font: inherit;
+  font-size: var(--fs-sm);
+  padding: 0.28rem 0.7rem;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: var(--card);
+  color: var(--muted);
+  cursor: pointer;
+  transition: all 0.12s ease;
+}
+.db-seg button:hover {
+  /* Session 23: green fill + light text — button:hover's leak made the editor's
+     status/priority pills green with dark ink. Selected (.is-on) pills keep their own
+     fill (later rules at ≥ equal specificity). */
+  background: var(--cta-hover, var(--accent-hover));
+  border-color: var(--cta-hover, var(--accent-hover));
+  color: var(--btn-text, #fff);
+}
+.db-seg button.is-on { background: var(--bg-soft); color: var(--text); font-weight: 600; border-color: var(--brand); }
+.db-seg button.prio-low.is-on { background: #C9CDD22E; border-color: #9aa0a8; }
+.db-seg button.prio-medium.is-on { background: #E8B27D45; border-color: #d99a55; }
+.db-seg button.prio-high.is-on { background: #E59AA54D; border-color: #d97e8d; }
+.db-seg button.prio-urgent.is-on { background: #D96C6352; border-color: #bd544c; }
+.db-tags-row { display: flex; flex-wrap: wrap; gap: 0.4rem; align-items: center; }
+.db-tags-row input {
+  min-inline-size: 9rem;
+  flex: 1;
+  font: inherit;
+  font-size: var(--fs-sm);
+  padding: 0.3rem 0.5rem;
+  border: 1px dashed var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--card);
+  color: var(--text);
+}
+.db-tag .ghost { padding: 0 0.2rem; }
+
+/* --- sprint page (sprint.html) — FLAT timeline (user reference 2026-08-30):
+       zero shadows, sharp container corners, hairline grid, zebra sprint columns,
+       solid pastel clips with same-hue borders, dashed boundary lines with grips. --- */
+.sp-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  padding: 0.45rem 0.2rem 0.7rem;
+  margin-block-end: 0.4rem;
+  flex-wrap: wrap;
+}
+.sp-wrap {
+  display: grid;
+  grid-template-columns: 16rem minmax(0, 1fr);
+  gap: 0;
+  overflow: hidden;
+  padding: 0;
+  min-block-size: 24rem;
+  border: 1px solid var(--line);
+  border-radius: 0;
+  background: var(--bg);
+}
+@media (max-width: 760px) {
+  .sp-wrap { grid-template-columns: 1fr; grid-template-rows: auto auto; }
+  .sp-side { max-block-size: 40vh; overflow-y: auto; border-inline-end: none; border-block-end: 1px solid var(--line); }
+}
+.sp-side { border-inline-end: 1px solid var(--line); padding: 0.6rem 0.5rem; display: grid; gap: 0; align-content: start; }
+.sp-side-head { font-size: var(--fs-xs); font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); padding-block: 0.2rem 0.5rem; }
+
+/* category rows: flat, hairline-separated; name sits in a tinted badge (color = identity) */
+.sp-cat { border-block-end: 1px solid var(--line); }
+.sp-cat:last-of-type { border-block-end: none; }
+.sp-cat-head {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  inline-size: 100%;
+  padding: 0.42rem 0.4rem;
+  font: inherit;
+  color: var(--text);
+  user-select: none;
+}
+.sp-cat-head:hover { background: var(--bg-soft); }
+/* F13 (session 9): ≥40px real touch target — the 15×18 ▾ glyph was the worst
+   measured target on the page. Grown in place (plain centered button, no
+   surrounding layout change). */
+.sp-cat-chevron {
+  background: none; border: none; padding: 0 0.9rem; min-block-size: 2.5rem; min-inline-size: 2.5rem;
+  inline-size: auto; text-align: center;
+  color: var(--muted); font-size: var(--fs-xs); cursor: pointer; transition: transform 0.12s ease; flex: none;
+}
+.sp-cat-badge {
+  flex: 1; min-inline-size: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  font-weight: 600; font-size: var(--fs-sm); padding: 0.1rem 0.5rem; border-radius: 4px;
+}
+.sp-cat.is-lane-hidden .sp-cat-badge { opacity: 0.5; }
+.sp-cat-tools { display: inline-flex; gap: 0.1rem; opacity: 0; transition: opacity 0.12s ease; flex: none; }
+.sp-cat-head:hover .sp-cat-tools, .sp-cat-head:focus-within .sp-cat-tools { opacity: 1; }
+.sp-cat-tools .ghost { padding: 0.05rem 0.3rem; font-size: var(--fs-xs); }
+.sp-cat-del:hover { color: #c0504f; }
+.sp-cat-tasks { list-style: none; margin: 0; padding: 0.05rem 0.3rem 0.45rem 1.35rem; display: grid; gap: 0.1rem; }
+.sp-cat-tasks.is-collapsed { display: none; }
+.sp-task {
+  display: flex; align-items: center; gap: 0.4rem;
+  padding: 0.22rem 0.35rem; border-radius: 4px; cursor: grab; font-size: var(--fs-sm);
+}
+.sp-task:hover { background: var(--bg-soft); }
+.sp-task-title { flex: 1; min-inline-size: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sp-task-st { inline-size: 8px; block-size: 8px; border-radius: 999px; flex: none; }
+.sp-task-st.st-idea { background: #AEB4BE; }
+.sp-task-st.st-planned { background: #8AB8F0; }
+.sp-task-st.st-in_progress { background: #E8A27D; }
+.sp-task-st.st-done { background: #6FB08D; }
+.sp-task-st.st-bug { background: #E59AA5; } /* 0031: bugs read red everywhere */
+.sp-task-addrow input {
+  inline-size: 100%; border: none; border-block-end: 1px dashed var(--line); border-radius: 0;
+  background: none; color: var(--text); font: inherit; font-size: var(--fs-sm);
+  padding: 0.3rem 0.25rem; margin-block-start: 0.15rem;
+}
+.sp-task-addrow input:focus { outline: none; border-block-end-color: var(--brand); }
+.sp-side-foot { display: grid; gap: 0.4rem; padding: 0.6rem 0.4rem 0.2rem; position: relative; }
+.sp-cat-pop { position: static; box-shadow: none; border-style: dashed; }
+
+/* timeline scroll port + shared width */
+.sp-scroll { overflow-x: auto; overflow-y: hidden; }
+.sp-timeline { display: grid; grid-template-rows: auto 1fr; min-inline-size: 100%; }
+.sp-head, .sp-body { position: relative; inline-size: var(--sp-width, 100%); }
+.sp-head { border-block-end: 1px solid var(--line); }
+.sp-months { display: flex; }
+.sp-month {
+  display: grid; place-items: center; flex: none;
+  font-weight: 600; font-size: var(--fs-xs); color: var(--text);
+  padding-block: 0.32rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  border-inline-end: 1px solid var(--line);
+}
+[dir="rtl"] .sp-month { border-inline-end: none; border-inline-start: 1px solid var(--line); }
+.sp-month:last-child { border-inline-end: none; }
+[dir="rtl"] .sp-month:last-child { border-inline-start: none; }
+.sp-cells { display: flex; }
+.sp-cell {
+  display: grid; place-items: center; flex: none;
+  font-size: var(--fs-xs); color: var(--muted);
+  padding-block: 0.22rem; white-space: nowrap; overflow: hidden;
+  border-block-end: 1px solid var(--line);
+}
+[dir="rtl"] .sp-cell { }
+.sp-cell.is-today { color: var(--brand); font-weight: 700; }
+
+/* body: background layer (zebra bands + boundary lines + today), then lanes */
+.sp-body { position: relative; }
+.sp-bg { position: absolute; inset: 0; pointer-events: none; z-index: auto; /* NO stacking context: the z-4 boundary rails must stack above the z-1 lanes/bars */ }
+.sp-band { position: absolute; inset-block: 0; pointer-events: none; }
+.sp-band.is-alt { background: rgb(23 20 12 / 0.05); }
+.sp-band.is-open-band { background: rgb(74 159 163 / 0.05); }
+.sp-today-line { position: absolute; inset-block: 0; pointer-events: none; z-index: 2; inline-size: 0; border-inline-start: 2px solid var(--brand); }
+
+/* sprint boundary lines — full-height dashed rails with a top grip, draggable (video-editor).
+   The parent .sp-bg is pointer-events:none (decoration) — the rails MUST re-enable it. */
+.sp-bound { position: absolute; inset-block: 0; inline-size: 0; z-index: 4; cursor: ew-resize; touch-action: none; pointer-events: auto; }
+.sp-bound::before { content: ""; position: absolute; inset-block: 0; inset-inline-start: -7px; inline-size: 14px; }
+.sp-bound::after {
+  content: ""; position: absolute; inset-block: 0; inset-inline-start: -1px; inline-size: 0;
+  border-inline-start: 2px dashed #2c313b;
+}
+[dir="rtl"] .sp-bound::after { }
+.sp-bound:hover::after, .sp-bound:focus-visible::after { border-inline-start-style: solid; border-inline-start-color: var(--brand); }
+.sp-bound.is-open-bound::after { border-inline-start-color: var(--brand); }
+.sp-bound-grip {
+  position: absolute; inset-block-start: 3px; inset-inline-start: -11px; inline-size: 22px; block-size: 15px;
+  border: 1px solid var(--line); border-radius: 4px; background: var(--card); color: #2c313b;
+  background-image: linear-gradient(currentColor 0 0), linear-gradient(currentColor 0 0), linear-gradient(currentColor 0 0);
+  background-repeat: no-repeat; background-size: 10px 2px;
+  background-position: center 3px, center 6.5px, center 10px;
+}
+.sp-bound.is-open-bound .sp-bound-grip { color: var(--brand); border-color: var(--brand); }
+
+/* sprint lane: chips live in a top strip; the band body is draggable (slide the sprint) */
+.sp-sprint-lane { position: relative; min-block-size: 2.3rem; border-block-end: 1px solid var(--line); z-index: 1; }
+.sp-sprint { position: absolute; inset-block-start: 0.28rem; block-size: 1.7rem; border-radius: 4px; cursor: grab; touch-action: none; }
+.sp-sprint:active { cursor: grabbing; }
+.sp-sprint.is-open { background: rgb(74 159 163 / 0.07); }
+.sp-sprint.is-target { outline: 2px solid var(--brand); outline-offset: 1px; background: rgb(74 159 163 / 0.14); }
+.sp-sprint-chip {
+  display: inline-flex; align-items: center; gap: 0.3rem;
+  max-inline-size: 100%; overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
+  border: 1px solid var(--line); border-radius: 4px; background: var(--card);
+  color: var(--text); font: inherit; font-size: var(--fs-xs); font-weight: 600;
+  padding: 0.08rem 0.5rem; cursor: pointer; box-shadow: none;
+}
+.sp-sprint-chip:hover {
+  /* Session 23: green fill + light text (was green-bg leak + dark text) */
+  background: var(--cta-hover, var(--accent-hover));
+  border-color: var(--cta-hover, var(--accent-hover));
+  color: var(--btn-text, #fff);
+}
+.sp-sprint.is-open .sp-sprint-chip { border-color: var(--brand); color: var(--color-primary-strong, var(--brand)); }
+.sp-diamond { font-size: 0.6rem; }
+.sp-no-sprint { position: absolute; inset-block-start: 0.55rem; inset-inline-start: 0.6rem; color: var(--brand); font-weight: 500; } /* Session 19 (cron round 7): was muted — read as a placeholder. Now teal so it reads as an invitation to act (the Define button is in the toolbar). */
+
+/* category lanes + task clips */
+.sp-lane { position: relative; border-block-end: 1px solid var(--line); min-block-size: 2rem; z-index: 1; }
+.sp-lane.is-target { background: rgb(74 159 163 / 0.06); }
+.sp-bar {
+  position: absolute; block-size: 22px; border-radius: 4px;
+  display: flex; align-items: center; gap: 0.35rem; padding-inline: 0.5rem;
+  font-size: var(--fs-xs); line-height: 1;
+  background: var(--bar-c, #C9CDD2);
+  border: 1px solid color-mix(in srgb, var(--bar-c, #C9CDD2) 60%, #3a3f4b);
+  overflow: visible; cursor: grab; z-index: 1;
+}
+.sp-bar:active { cursor: grabbing; }
+.sp-bar:hover { border-color: color-mix(in srgb, var(--bar-c, #C9CDD2) 40%, #22262e); z-index: 10; }
+[dir="rtl"] .sp-bar { }
+.sp-bar.st-idea { background: color-mix(in srgb, var(--bar-c, #C9CDD2) 40%, transparent); border-style: dashed; }
+.sp-bar.st-planned { background: color-mix(in srgb, var(--bar-c, #C9CDD2) 72%, transparent); }
+.sp-bar.st-done { background: color-mix(in srgb, var(--bar-c, #C9CDD2) 52%, transparent); }
+.sp-bar.st-bug { background: color-mix(in srgb, var(--bar-c, #E59AA5) 62%, transparent); } /* 0031 */
+
+/* Title hidden by default — the timeline is a visual graph, not a text list.
+   The title reveals on hover via a floating tooltip (CSS attr() + ::after).
+   On click, the existing task editor modal opens (sprint.html JS handles that). */
+.sp-bar-title { display: none; }
+.sp-bar:hover .sp-bar-title,
+.sp-bar:focus-within .sp-bar-title {
+  display: inline;
+  position: absolute;
+  inset-block-start: calc(100% + 4px);
+  inset-inline-start: 0;
+  background: var(--card, #242019);
+  color: var(--text, #EDE8DE);
+  padding: 0.35rem 0.6rem;
+  border-radius: 4px;
+  font-size: var(--fs-xs);
+  font-weight: 500;
+  white-space: normal;
+  inline-size: max-content;
+  max-inline-size: 280px;
+  z-index: 100;
+  box-shadow: 0 4px 12px rgb(0 0 0 / 0.3);
+  border: 1px solid var(--line);
+  pointer-events: none;
+}
+.sp-bar-check { font-weight: 700; }
+.sp-bar-sprint { font-size: 0.62rem; opacity: 0.85; }
+
+/* --- sprint timeline circles (user request 2026-09) ------------------------ */
+/* Tasks are shown as colored circles (dots) instead of text-heavy bars.
+   Only in_progress + done tasks appear. On hover, the native title tooltip
+   shows the task name. On click, the task editor modal opens. */
+.sp-dot {
+  position: absolute;
+  inline-size: 20px;
+  block-size: 20px;
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  z-index: 5;
+  border: 2px solid var(--bar-c, #C9CDD2);
+  background: var(--bar-c, #C9CDD2);
+  box-shadow: 0 2px 6px rgb(0 0 0 / 0.2);
+  transition: transform 0.12s ease, box-shadow 0.12s ease;
+  flex: none;
+}
+.sp-dot:hover {
+  transform: scale(1.3);
+  box-shadow: 0 4px 12px rgb(0 0 0 / 0.3);
+  z-index: 20;
+}
+.sp-dot:active { cursor: grabbing; }
+.sp-dot.st-active {
+  background: var(--bar-c, #E8B27D);
+  border-color: var(--bar-c, #E8B27D);
+}
+.sp-dot.st-done {
+  background: var(--bar-c, #8FD3A9);
+  border-color: var(--bar-c, #8FD3A9);
+  opacity: 0.7;
+}
+.sp-dot.st-done:hover { opacity: 1; }
+.sp-dot-prio {
+  inline-size: 6px;
+  block-size: 6px;
+  border-radius: 999px;
+  position: absolute;
+  inset-block-start: -3px;
+  inset-inline-end: -3px;
+  border: 1.5px solid var(--card, #fff);
+}
+.sp-dot-prio.prio-low { background: #C9CDD2; }
+.sp-dot-prio.prio-medium { background: #E8B27D; }
+.sp-dot-prio.prio-high { background: #E59AA5; }
+.sp-dot-prio.prio-urgent { background: #D96C63; }
+.sp-dot-check {
+  font-size: 11px;
+  font-weight: 700;
+  color: #fff;
+  line-height: 1;
+}
+/* Dark mode adjustments */
+:root[data-theme="dark"] .sp-dot { box-shadow: 0 2px 8px rgb(0 0 0 / 0.4); }
+:root[data-theme="dark"] .sp-dot-prio { border-color: var(--card, #242019); }
+
+/* clip trim handles (video-footage edges): invisible rails that reveal on hover */
+.sp-trim { position: absolute; inset-block: 0; inline-size: 13px; cursor: ew-resize; z-index: 3; touch-action: none; }
+.sp-trim-a { inset-inline-start: -6px; }
+.sp-trim-b { inset-inline-end: -6px; }
+.sp-trim::after {
+  content: ""; position: absolute; inset-block: 16%; inline-size: 3px; border-radius: 2px;
+  background: rgb(15 15 15 / 0.45); opacity: 0; transition: opacity 0.1s ease;
+}
+.sp-trim-a::after { inset-inline-start: 7px; }
+.sp-trim-b::after { inset-inline-end: 7px; }
+.sp-bar:hover .sp-trim::after, .sp-trim:hover::after { opacity: 1; }
+.sp-cat.dragging, .sp-task.dragging, .sp-bar.dragging { opacity: 0.4; }
+
+/* popovers (rename/finish/delete + category edit) + zoom + drag tooltip */
+.sp-sprint-pop {
+  position: absolute; z-index: 60; display: grid; gap: 0.5rem;
+  inline-size: 15.5rem; padding: 0.6rem;
+  border: 1px solid var(--line); border-radius: 6px; background: var(--card);
+  box-shadow: 0 4px 14px rgb(20 16 8 / 0.1);
+}
+.sp-sprint-pop input {
+  font: inherit; font-size: var(--fs-sm); padding: 0.35rem 0.5rem;
+  border: 1px solid var(--line); border-radius: 4px; background: var(--bg); color: var(--text);
+}
+.sp-cat-edit-pop { max-inline-size: 16rem; }
+.sp-pop-lab { font-size: var(--fs-xs); font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); }
+.sp-zoom select {
+  font: inherit; font-size: var(--fs-sm); padding: 0.25rem 0.45rem;
+  border: 1px solid var(--line); border-radius: 4px; background: var(--card); color: var(--text);
+}
+.sp-drag-tip {
+  position: fixed; z-index: 100; pointer-events: none;
+  border: 1px solid var(--line); border-radius: 4px; background: var(--card);
+  color: var(--text); font-size: var(--fs-xs); padding: 0.12rem 0.5rem;
+  box-shadow: 0 2px 8px rgb(20 16 8 / 0.12); white-space: nowrap;
+}
+body.sp-dragging { user-select: none; }
+body.sp-dragging .sp-scroll { cursor: ew-resize; }
+
+/* dark mode: neutralize zebra/bound colors, lift open-sprint tint */
+:root[data-theme="dark"] .sp-band.is-alt { background: rgb(255 255 255 / 0.045); }
+:root[data-theme="dark"] .sp-band.is-open-band { background: rgb(74 159 163 / 0.1); }
+:root[data-theme="dark"] .sp-bound::after { border-inline-start-color: #98a0ac; }
+:root[data-theme="dark"] .sp-bound-grip { color: #98a0ac; }
+:root[data-theme="dark"] .sp-sprint.is-open { background: rgb(74 159 163 / 0.14); }
+:root[data-theme="dark"] .sp-bar.st-idea { background: color-mix(in srgb, var(--bar-c, #C9CDD2) 30%, transparent); }
+
+/* full-bleed sprint board (sprint.html only): spans the viewport width, nav kept;
+   every other page keeps the 64rem .shell — this override only matches main.sp-shell */
+main.shell.sp-shell { max-inline-size: none; }
+body.zen-mode main.shell.sp-shell { max-inline-size: none; }
+main.shell.sp-shell .sp-wrap { min-block-size: min(64vh, 30rem); }
+
+/* ===========================================================================
+   404 / not-found (batch r) — standalone centered page, RTL-first, bilingual.
+   Every selector is namespaced .nf-* (no collisions). Only existing tokens are
+   referenced, so html[data-theme] and the OS media query re-skin the page for
+   free in light AND dark. Motion (drifting embers + the ember-in-the-zero pulse)
+   is gated by prefers-reduced-motion.
+   =========================================================================== */
+.nf-page {
+  min-block-size: 100dvh;
+  display: grid;
+  padding: clamp(1.25rem, 4vw, 2.5rem);
+}
+
+.nf-card {
+  margin-block: auto;          /* overflow-safe vertical centering */
+  justify-self: center;
+  width: min(34rem, 100%);
+  display: grid;
+  justify-items: center;
+  text-align: center;
+  gap: 0.9rem;
+  padding: clamp(2rem, 6vw, 3.25rem) clamp(1.25rem, 5vw, 3rem);
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-card);
+}
+
+/* Wordmark rides the existing .brand-logo theme swap (content: var(--brand-logo));
+   .nf-logo just enlarges it from the header's 1.4rem (appended after, so it wins). */
+.nf-logo { height: clamp(1.7rem, 6vw, 2.2rem); }
+

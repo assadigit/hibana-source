@@ -6,10 +6,6 @@
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --color-hibana: var(--hibana);
-  --color-hibana-foreground: var(--hibana-foreground);
-  --color-hibana-soft: var(--hibana-soft);
-  --color-hibana-soft-foreground: var(--hibana-soft-foreground);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
   --color-sidebar-ring: var(--sidebar-ring);
@@ -80,11 +76,6 @@
   --sidebar-accent-foreground: oklch(0.205 0 0);
   --sidebar-border: oklch(0.922 0 0);
   --sidebar-ring: oklch(0.708 0 0);
-  /* Hibana brand: warm teal (#4A9FA3) on warm near-white (#FAF9F6). */
-  --hibana: #4a9fa3;
-  --hibana-foreground: #ffffff;
-  --hibana-soft: #faf9f6;
-  --hibana-soft-foreground: #1c2b2c;
 }
 
 .dark {
@@ -119,11 +110,6 @@
   --sidebar-accent-foreground: oklch(0.985 0 0);
   --sidebar-border: oklch(1 0 0 / 10%);
   --sidebar-ring: oklch(0.556 0 0);
-  /* Hibana brand in dark mode: slightly brighter teal for contrast + warm dark surface. */
-  --hibana: #5cb8bc;
-  --hibana-foreground: #06201f;
-  --hibana-soft: #1a1916;
-  --hibana-soft-foreground: #f4f1ea;
 }
 
 @layer base {

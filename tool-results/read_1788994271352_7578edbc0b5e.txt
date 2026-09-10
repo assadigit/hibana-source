@@ -1,0 +1,354 @@
+     1→# Hibana — Changelogs.md (consolidated changelog + worklogs)
+     2→
+     3→> **Note for AI agents:** For exhaustive, granular commit-by-commit details, refer to the GitHub
+     4→> commit history (`assadigit/hibana-source`, tags `v0.x.y`). This file serves as a summarized
+     5→> context for AI efficiency.
+     6→> Consolidated in v0.3.9.2 from 33 deleted legacy docs (CHANGELOG.md, worklog-session7–17,
+     7→> RECOVERED.md, NEW_SESSION*.md, backlog/gap audits, ROADMAP.md, dr-bookmarks.md, docs/*,
+     8→> spec/vision/spark/instruction/tech-stack, DEPLOY.md, CLAUDE.md, rules.md); README.md was
+     9→> rewritten as a minimal pointer. Deleted files remain recoverable verbatim:
+    10→> `git show <sha>:<file>`.
+    11→
+    12→## 1. Current state (v0.3.11.1 — Session 19: ICS export + Telegram /update + web-clipper + resume work + OTP + Farsi digits + dark mode polish + board UX + UI fixes)
+    13→- v0.3.11.1 = **Session 19 hotfix release** — all v0.3.11.0 features + fixes from Ali's
+    14→  direct feedback: stat-carousel arrows flank the strip (HTML restructure), sticky-note
+    15→  shadow spread reduced, dark mode flat card fills (no gradient), muted dark-mode kanban/
+    16→  pd-col/sticky-note colors, button hover text white (primary) / dark (ghost/btn), board
+    17→  shows 5 items per column (was 3), "بیشتر" expands inline (no board.html redirect), task
+    18→  cards click-to-edit inline (no navigation), project logo delete, note-clear persistence
+    19→  fix, unlimited task titles (300→2000) with read-more, Farsi numerals on typing (all text
+    20→  fields + Fabric canvas/whiteboard text:changed), text width resize now reflows.
+    21→- v0.3.11.0 = **Session 19 release** — 3 of 4 Changelogs §6 open items shipped (ICS calendar
+    22→  export, Telegram /update, web-clipper bookmarklet). Plus: "Resume work" dashboard card
+    23→  (Mission #2), segmented 4-digit OTP input on email-confirm, password visibility toggle on
+    24→  all auth pages, Farsi numerals on typing, canvas empty-state affordance, board "Add" button
+    25→  redesign, project logo delete, per-column colored task borders, 50% larger taskadd modal,
+    26→  unlimited task titles (300→2000) with read-more clamp, and a comprehensive UI polish pass
+    27→  across every surface (tour, cmdk, calendar, settings, dashboard, project-detail, board,
+    28→  sadhana, clients, admin, canvas, whiteboard, notifications, reports, archive, clip). Bug
+    29→  fixed: note-clear didn't persist (noteSchema.min(1) rejected empty strings). Bug fixed:
+    30→  github.deleteFile silent failure on logo replace/remove (auto SHA lookup). Cache-bust
+    31→  unified (app.css 215/234→249, i18n.js 45→52, app.js 165→168, canvas.js 16→17, admin.js 2→3).
+    32→- v0.3.10.2 = **Mistral Small 3.1 24B Instruct as default** (was qwen3-30b). Pure instruct
+    33→  (no reasoning pass) → fast (~1-2s) + cheap (~3-5 neurons/call vs qwen3's ~10-32). Good FA
+    34→  polish quality verified live. qwen3-30b kept as an option for complex rewrites. Also fixes
+    35→  3 bugs found by testing the real CF API: response_format:{type:'text'} rejected by qwen3
+    36→  (removed), "Polish" in prompt made Llama translate to Polish the language (reworded),
+    37→  reasoning models need 2048 max_tokens + both response shapes parsed.
+    38→- v0.3.10.1 = model picker (Settings): GET /api/ai/models, POST /api/ai/text accepts model,
+    39→  resolveModel whitelist (paid-only → default).
+    40→- v0.3.10.0 = **Magic Button (idea §1, green-lit)** — on-demand AI wand (polish/rewrite/
+    41→  translate) next to editable text. Cloudflare Workers AI binding ([ai] → env.AI), model
+    42→  @cf/mistralai/mistral-small-3.1-24b-instruct (default), temperature 0.2, non-streaming.
+    43→  Free-tier only; no paid overage. Route POST /api/ai/text (auth + CSRF + 4000-char guard).
+    44→  Original never modified until Apply; Discard/Esc/error = zero writes (Mission #1). Node
+    45→  self-host path degrades to a 503 "Workers-only" notice. No schema change, no cron, no KV.
+    46→  Also: experimental auto-polish (off by default, save-first safety) + custom AI system
+    47→  prompt (Settings textarea, max 2000 chars, COMMON_RULES always appended).
+    48→- **Session 18 (2026-09) — 45 commits, deployed dev+prod:**
+    49→  - Magic Button: hover-triggered wand on project titles, task titles, note textareas.
+    50→  - Free-tier model picker (Settings): Mistral Small 3.1 24B Instruct (default), Qwen3 30B
+    51→    (reasoning), Llama 3.1 8B Fast. resolveModel whitelist.
+    52→  - Experimental auto-polish: capture-first, polish-after, Undo toast. Off by default.
+    53→  - Custom AI system prompt (Settings textarea, max 2000 chars).
+    54→  - Hover ⋯ menus on cards: .pd-task (project) + .db-card (board) + .note-card (dashboard).
+    55→    Edit opens inline modal. Delete shows confirm dialog. .pd-task-wrap wrapper.
+    56→  - Note modal editor + Sadhana (to-do) task edit as modal.
+    57→  - Project archives: migration 0046 (project_archives table). Archive/restore/delete.
+    58→  - Project logos: migration 0047 (projects.logo_path). Upload/serve/display.
+    59→  - Priority color coding: prio-dot shows priority color. Left-border accent. Urgent: red.
+    60→  - Sprint timeline redesign: circles instead of text bars (in_progress + done only).
+    61→  - VazirFA: unicode-range @font-face for all FA text everywhere.
+    62→  - Dark mode fixes: --muted #B0A79C (6.26:1), --line rgba(126,116,98,.45) (3.22:1).
+    63→  - i18n flash fix: boot.js critical FA dict before paint.
+    64→  - Sync badge fix: FTS5 rebuild + queue retry cap (MAX_RETRIES=5).
+    65→  - Dashboard audit (Phase 1-3): scrollbar, equal cards, nav active, note hover, icons,
+    66→    View All hide, FAB tooltip, collapsible sections, empty states.
+    67→  - Ideas folder grid: file-manager view. Telegram deep link connect.
+    68→  - Settings UI fixes: tab underline, label alignment, helper text, input styling.
+    69→- Tests **289/289** (was 265; +11 ICS export, +7 Telegram /update, +3 dashboard resume-card, +6 other); typecheck green.
+    70→- Schema **46** — migrations 0001–0047 (46 files; 0007 never existed).
+    71→- Assets: SW hibana-v278 (SHELL list + clip.html); app.css ?v=249, app.js ?v=168, i18n.js ?v=52, magic-wand.js ?v=8,
+    72→  canvas.js ?v=17, whiteboard.js ?v=11, admin.js ?v=3; content-hashed bundles in public/dist/.
+    73→- Repos: source assadigit/hibana-source; encrypted backups assadigit/hibana-safe.
+    74→- D1: pm-app-dev 80e02ce2..., pm-app-prod d842fcb5...; CF account 6ff25b58...
+    75→- Deployed: dev (hibana.aliassadi.workers.dev) + prod (hibana.ir); env.AI live on both.
+    76→
+    77→
+    78→## 2. Session index
+    79→| Session | Date | Outcome |
+    80→|---|---|---|
+    81→| 7 | 2026-08-28→09-05 | Audit hardening, Sadhana replica, mobile/i18n, dev-board+sprints (0029), sprint/calendar v2 (0030); ended `ddb3aa4` |
+    82→| 8 | 09-07→08 | = session 7 file + Tasks 28–32: v0.3.1–v0.3.4 ops era (file is a byte-identical superset; counted once) |
+    83→| 9 | 09-14 | v0.3.5 — 23-page UI/UX audit + critical screenshot-upload fix |
+    84→| 10 | 09-14 | v0.3.6 — 4 owner-report fixes |
+    85→| 11 | — | v0.3.7 — `#dash` duplicate-id root cause, notebook gear |
+    86→| 15 | 09-18 | v0.3.9 candidate — Obsidian export + neutral stage cards |
+    87→| 16 | 09-18 | v0.3.9 release — push `2a8a83c`, deploy dev+prod |
+    88→| 17 | 09-18 | v0.3.9.1 — the ONE sticky style, deploy `d98adea` |
+    89→| 18 | 2026-09 | v0.3.10.0–v0.3.10.2 — Magic Button + model picker + auto-polish + custom prompt + hover menus + archives + logos + priority colors + sprint redesign + VazirFA + dark mode fixes + i18n flash fix + sync badge fix + dashboard audit + ideas folder grid + Telegram deep link. 45 commits, 265/265 tests, schema 46 |
+    90→| 18 | 2026-09 | v0.3.10.0 — Magic Button (idea §1): Workers AI `[ai]` binding, `POST /api/ai/text`, `magic-wand.js` focus-triggered wand (polish/rewrite/translate, preview+Apply/Discard). 259/259 tests, typecheck green |
+    91→| 19 | 2026-09 | v0.3.10.1 — free-tier model picker (Settings): `GET /api/ai/models`, `POST /api/ai/text` accepts `model`, `resolveModel` whitelist (paid-only → default). 265/265 tests |
+    92→| 19 | 2026-09 | v0.3.11.0 — Session 19: ICS calendar export (`/api/export/calendar.ics`), Telegram `/update <project> <stage>`, web-clipper bookmarklet (`clip.html`), "Resume work" dashboard card (Mission #2), segmented OTP input, password visibility toggle, Farsi numerals on typing, canvas empty-state, board Add-button redesign, logo delete, per-column colored task borders, 50% larger taskadd modal, unlimited task titles (read-more clamp), github.deleteFile SHA auto-lookup, note-clear bug fix, comprehensive UI polish pass. 289/289 tests, typecheck green, SW v278 |
+    93→
+    94→## 3. Timeline by era
+    95→### Foundation — 2026-08-21→25 (migrations 0014–0018; tests 75→163)
+    96→- Telegram webhook live (@Hibana_PM_bot): `/note` `/list` capture (0016), quick-note↔project
+    97→  attach (0017, no FK cascade by design), `/reset` hashed one-time token.
+    98→- Signup saga: registration + Turnstile + emailed codes (0015); fixed in series — malformed
+    99→  `--/>` comment swallowed register.html body; Turnstile render races; `cf-turnstile-response`
+   100→  vs `captcha` field name; Resend shared-sender 403 → verified domain `noreply@hibana.ir`.
+   101→  Login CAPTCHA then removed deliberately (rate limiter is the real guard).
+   102→- In-app D1 rate limiting (0014) — wrangler token can't edit WAF.
+   103→- Sadhana quadrant board (0018): renamable quadrants, fuzzy+exact Jalali deadlines, recurrence
+   104→  + Monday sweep, archive, zen, 7d/3d/1d/0d/2h Telegram reminders; roast P1–P7 design pass.
+   105→- Root-cause lessons: GitHub raw reads corrupted every image (text decoding → `readBinary()`);
+   106→  canvas batch sync dedupes by newest `updated_at` (LWW vs pre-batch state = data loss);
+   107→  deleted canvas objects resurrected (tombstone debounce race → skip `deleted` +
+   108→  flush-on-delete); htmx swaps only 2xx/3xx → silent JSON errors; CSRF Origin/Referer guard
+   109→  on all mutations.
+   110→
+   111→### UI/UX overhaul + recovery — 2026-08-28→09-01 (SW v132→v178; 181→189 tests)
+   112→- Overhaul: typed HTML builder, ApiError registry, SQL table whitelist, ETags, command palette
+   113→  (Ctrl+K), skeletons/toasts/empty states, mobile bottom tabs, calendar (Jalali⇄Gregorian +
+   114→  Iranian holidays), timeline, notifications, heatmap, CSV export, zen/tour/Vim-go-to.
+   115→  CSS 2537→4501 lines; 16 prod deploys.
+   116→- Security: Quick-Find XSS (DocumentFragment); offline queue keeps items on 401/403; export
+   117→  user-scoping leak; security-headers middleware must clone immutable ASSETS responses.
+   118→- `/to-do-list` rebuilt as faithful Sadhana replica; whole app restyled to its design system.
+   119→- **Recovery (RECOVERED.md)**: ~50–60 hotfixes (2026-08-31→09-01) were lost from source; tree
+   120→  reconstructed from the live deployment (Worker bundle via CF API + frontend mirror + D1
+   121→  dumps), machine-verified (rebuild ≡ deployed bundle, 52/52 modules). Recovery carried:
+   122→  7-stage taxonomy (0031), spark folders (0037), «برنامه آتی» backlog docs (0033), problems
+   123→  tab (0034), changelog feature removed (table intentionally left in DB — do not drop),
+   124→  Turnstile → self-hosted HMAC math captcha, admin console (0035), email pipeline +
+   125→  `email_log`, ban gate, quick-note `done` (0038), sprint drafts (0039), dashboard redesign,
+   126→  canvas types (0032/0036), backup cron 4×/day, CSP `img-src https:`.
+   127→- Era lessons: duplicate `<main id>` (second id dropped at parse → all `#dash` selectors dead);
+   128→  jalaali port `_d2g` off-by-one-YEAR (Mar/Apr grids wrong years; 976 mismatches over
+   129→  2024–2031 sweep); sprint timeline needs one shared px/day scale; fabric group-child editing
+   130→  impossible → top-level "editing twin"; probe prod D1 before coding ("board broken" =
+   131→  soft-deleted project).
+   132→
+   133→### v0.1.x audit + task wave — 2026-09-02→09-10 (191 tests; 0040)
+   134→- 39-finding audit backlog (37 shipped): screenshot cap 140→5 MB (Worker OOM);
+   135→  newest-note-first; sequential cron; captcha operand leak → HMAC question; timing-safe
+   136→  compares; `/app` 404 root cause `not_found_handling="404-page"` starved Worker routes →
+   137→  `"none"`; structured logging + reqId; perf caps (dashboard LIMIT 48, notebook LIMIT 100).
+   138→- Sprint board v2 (0030, video-editor timeline) + calendar v2 (exact-day jumps, شمسی/میلادی
+   139→  switch, drag-to-plan legend). v0.1.7 (09-09): FTS5 depth (0040: quick_notes, backlog_docs,
+   140→  sadhana_tasks, canvas text; prod backfilled).
+   141→- **2026-09-10 security arc (CRITICAL)**: backups AES-GCM `HIBENC1`; hibana-safe history
+   142→  rewritten, 61 plaintext snapshots purged; PBKDF2 → 600k; invite link GET→POST; fabric v5→v6
+   143→  plan; CI workflow; canary restore; Telegram inline-keyboard redesign (0043
+   144→  `telegram_bot_sessions`, JSON state, no TTL).
+   145→
+   146→### v0.2.0 — 2026-09-11 (0044; tests 203)
+   147→- Plan B Telegram backup: encrypted snapshot to owner chats, retention 60, sha256 in caption,
+   148→  D1-independent manual restore (`drill:planb`).
+   149→- **Fixed: GitHub restore path broken for every encrypted backup since 09-10** — Contents API
+   150→  stores raw-binary; restore knew only base64. `lib-backup.mjs` 3-shape detection (test-pinned).
+   151→- SW strategy split (cache-first versioned assets, SWR vendor); D1 EXPLAIN: worst interactive
+   152→  4.91 ms — no new indexes needed.
+   153→
+   154→### v0.3.0–v0.3.4 ops era — 2026-09-07→08 (0045; tests 224→233)
+   155→- v0.3.0: healthchecks.io dead-man's switch + D1 Time Travel restore channel + pre-migration
+   156→  bookmark ritual (§5) + `error_log` (0045) + admin Errors tab + HTML→`/dist/` wiring + deploy
+   157→  gate. **Day-one real catch:** transient D1 `SQLITE_CORRUPT_VTAB` killed the cron backup
+   158→  while BOTH in-band alerts (email+Telegram, both query D1) failed silently — the out-of-band
+   159→  healthcheck was the only surviving signal.
+   160→- v0.3.1: healthchecks wired to owner (6h/6h); hibana.ir NS incident — IRNIC delegation
+   161→  silently moved to ArvanCloud (~08-31, DKIM dead); owner restored CF nameservers; zero data
+   162→  impact.
+   163→- v0.3.2: jitter-proof cron classification (keyed on `controller.cron`, not wall clock — a :31
+   164→  tick was misread as backup tick, masking the watchdog); `MIRROR_ORIGIN` CSRF allow-list.
+   165→- v0.3.3/0.3.4: mirror moved to sadhana.ir, then DEFERRED — Arvan API keys live in a different
+   166→  account than the zone. Frozen safely (resume = correct key + ~4 calls).
+   167→
+   168→### v0.3.5–v0.3.9.1 — 2026-09-14→18 (tests 233→244)
+   169→- **v0.3.5**: CRITICAL — screenshot uploads had NEVER worked (leading-slash `assetPath()` →
+   170→  Contents API 422; prod screenshots table 0 rows ever); offline boot stays on-page (guard
+   171→  misread SW 503 as logged-out); AA contrast pass (--cta #3D8D91→#2E7B7F); 77 unversioned refs
+   172→  versioned; quadrant carousel ≤740px; calendar "today" in profile TZ; dead to-do-list.html
+   173→  deleted. Lesson: Playwright set-offline doesn't block SW fetches — honest offline test =
+   174→  stop the server.
+   175→- **v0.3.6**: owner-report fixes — view controls always visible, board gap 12→20px, prog-track
+   176→  :focus-within, status-box counts neutral.
+   177→- **v0.3.7**: all 3 reports traced to duplicate `id` on `<main>` → `shell-dash` + 4 selector
+   178→  fixes; notebook gear + toggle-state persistence (capture-phase — toggle doesn't bubble).
+   179→  Lesson: "rule never applies" → computed-style probe, not stylesheet grep.
+   180→- **v0.3.8**: flat kanban cards + phase chroma (~90% L, AA), phone 2-up sticky grid, native
+   181→  `<dialog>` task composer (300-char Zod).
+   182→- **v0.3.9** (`2a8a83c`): Obsidian vault export `GET /api/export/obsidian.zip` (fflate, YAML
+   183→  frontmatter, round-trip dedup by title); neutral stage cards (status color only in
+   184→  inline-start pill, sr-only labels); Plan B Telegram on-demand only (cron +
+   185→  `telegram_backup` toggle removed; column retired but kept in schema for rollback safety).
+   186→- **v0.3.9.1** (`d98adea`, dot-release): the ONE sticky-note style — true square, 2px corners,
+   187→  layered shadow `1px 3px 4px rgba(0,0,0,.10)` + `4px 12px 20px rgba(0,0,0,.12)` across
+   188→  quick-notes, fabric stickies, corkboard, calendar chips. Fabric twin-rect shadow
+   189→  (`__shadowPaper` — fabric holds ONE Shadow per object; never shadow the group); `fitPaper`
+   190→  square growth via binary search (linear growth overshot ~8×); deliberately reverses
+   191→  Phase-7 auto-height caps.
+   192→
+   193→### v0.3.10.0 — 2026-09 (Magic Button / Workers AI; tests 244→259)
+   194→- **Green-lit scope (idea §1) only.** One on-demand AI wand (inline SVG) next to editable
+   195→  text — notes (`.note-text`), the quick-note composer (`#quicknote-text`), the project
+   196→  description (`#pd-desc`), plus a `data-magic` opt-in for any future textarea/
+   197→  contenteditable. Never background, never auto-run, never blocks capture (whiteboard rule).
+   198→- Actions: **Polish** (grammar/spelling/clarity, same language, similar length) · **Rewrite**
+   199→  (clean technical/developer register, same language) · **Translate** (auto-detect, EN↔FA).
+   200→  System prompt enforces output-discipline: ONLY the transformed text, no preamble/quotes/
+   201→  fences, names/numbers/dates/URLs/code identifiers verbatim, never add or drop meaning.
+   202→- Backend: `wrangler.toml` `[ai]` binding → `AI: Ai` in `Env` → `cfg.ai` (a structural slice
+   203→  of the binding). Route `POST /api/ai/text` (`src/routes/ai.ts`) under `requireAuth` + the
+   204→  global CSRF gate; Zod `{text:1..4000, action:polish|rewrite|translate}`; model
+   205→  `@cf/qwen/qwen3-30b-a3b-fp8`, temperature 0.2, non-streaming, `response_format:text`.
+   206→  Pure service `src/services/ai.ts` (buildMessages / runAiTransform / withinCharBudget /
+   207→  stripAccidentalWrappers) — testable with a mock binding, no network. Char guard counts
+   208→  code points (FA combining marks not double-counted). Node self-host path: `cfg.ai`
+   209→  undefined → 503 `unavailable` with a localized “Workers-only” notice (portability contract).
+   210→- UX (`public/js/magic-wand.js` + `magic-wand.css?v=1`): focus-triggered floating wand (zero
+   211→  DOM restructuring → no risk to htmx swap targets); popover with the 3 actions; on success a
+   212→  side-by-side Original vs Suggestion preview with **Apply / Discard**. Apply sets the field
+   213→  value and dispatches `input`+`change` so the surface’s OWN autosave persists (the wand never
+   214→  writes). Discard / Esc / outside-click / error / timeout / daily-cap = toast, original
+   215→  byte-for-byte intact (Mission #1). Spinner on the wand while running; repeated clicks
+   216→  disabled during a run. RTL-aware (wand anchors to the end corner; popover flips on-screen);
+   217→  EN/FA localized; `prefers-reduced-motion` honored. Re-arms on `htmx:afterSwap`.
+   218→- Cost: ~5–8 neurons/call → thousands/day inside the 10k/day free budget; no paid overage
+   219→  possible on Workers Free. **No schema change, no migration, no cron, no KV, no secret.**
+   220→- Acceptance: `npm run typecheck` green · `npm test` 259/259 (15 new in `src/tests/ai.test.ts`)
+   221→  · `node --check` on `magic-wand.js`/`i18n.js` green · i18n parity +15 EN/+15 FA. FA-quality
+   222→  review (Ali, 5 real FA notes) + idea §6 model spike deferred to deploy-time per the idea doc.
+   223→- Wired onto `dashboard.html`, `project.html`, `sparks.html`; `i18n.js` cache-bust 36→37 on
+   224→  all 21 pages (SW `hibana-v238` unchanged — SW logic untouched, new files runtime-SWR cached).
+   225→
+   226→## 4. Ops & DR state (condensed runbook)
+   227→- **Backups**: 4×/day cron `17 3,9,15,21 * * *` → AES-256-GCM `HIBENC1` (~100 KB) →
+   228→  `assadigit/hibana-safe` `backups/`; retention 120 (~15 days). `*/30` cron = Sadhana
+   229→  reminders; daily-only jobs (purge, weekly sweep, client reminders) gated to the 03:17 slot;
+   230→  sequential (subrequest budget).
+   231→- **Restore (recommended)**: `BACKUP_ENCRYPTION_KEY=<key> npm run restore:safe -- --file
+   232→  snapshot.json [--dry-run]` → sacrificial `pm-app-dev`, Check A (vs backup) + Check B (vs
+   233→  prod), typed "yes" for prod. Direct: `node scripts/restore.mjs --file <snap> --d1
+   234→  pm-app-prod` (wipes, unverified). Restores never include `password_hash`/`sessions`; lost
+   235→  admin → `npm run seed:admin:prod`. Drills quarterly: `npm run drill`, `npm run drill:planb`;
+   236→  decrypt failure = P1.
+   237→- **Pre-migration ritual (mandatory)**: `npm run bookmark:prod` (appends one row to §9
+   238→  below) → `npx wrangler d1 migrations apply pm-app-prod --remote`. Undo: `npx wrangler d1
+   239→  time-travel restore pm-app-prod --bookmark <id>` (in-place, destructive, 30-day window,
+   240→  minute granularity). Post-restore: verify `/api/health` schema_version, fresh bookmark,
+   241→  `curl -X POST https://hibana.ir/api/admin/backup`.
+   242→- **Monitoring**: healthchecks.io check `Hibana` / slug `hibana`, 6h period + 6h grace (alert
+   243→  = 12h silence), email channel independent of CF/Resend/Telegram/GitHub. Ping URL in
+   244→  `HEALTHCHECK_PING_URL`: success → GET, backup fail/skip → append `/fail`. Manual backups +
+   245→  dev worker never ping (anti-masking). Ticks classified by trigger (`src/lib/cron.ts`).
+   246→- **Plan B**: on-demand only — bot Settings 🗄 (owner-only) or `POST /api/admin/backup/planb`;
+   247→  files `hibana-backup-<UTC>.bin`, caption = schema/time/rows/sha256; failure →
+   248→  `planb_failed` + Resend email (deliberately not Telegram).
+   249→- **Key custody**: `BACKUP_ENCRYPTION_KEY` — two independent offline copies (print + password
+   250→  manager, non-repo device). **NEVER rotate** (orphans all encrypted backups; keep old key
+   251→  until 15-day retention ages out). Lost-key path: Worker alive → app export + new key (old
+   252→  backups forfeited). Key-custody drill not yet run (agent never sees the key by design).
+   253→- **Telegram bot**: commands `/start <code>` (1h TTL) `/help /idea /note /list /done /cancel
+   254→  /append <project> <text> /status /pause /resume /reset` (+proposed `/menu /language
+   255→  /todo`). Webhook `https://hibana.ir/api/telegram/webhook`, secret-token validated. State:
+   256→  `telegram_bot_sessions` (JSON, no TTL). **Add-only by design** — edit/delete → "Open in
+   257→  Hibana →" deep link; sole exception to-do mark-done+Undo. `telegram_paused` mutes reminders
+   258→  only, never Plan B.
+   259→- **Edge mirror (Iran) — DEFERRED**: frozen at sadhana.ir; needs zone-account Arvan key + ~4
+   260→  calls (origin `hibana.ir:443`, host_header, free SSL, `/api/*` BYPASS). Invariants:
+   261→  hibana.ir NS stay Cloudflare (isabel/patryk); sadhana.ir apex-only; `MIRROR_ORIGIN`
+   262→  allow-list. Rollback: remove NS at IRNIC.
+   263→- **Fabric v6**: plan = esbuild shim `src/vendor/fabric-shim.ts` → `window.fabric`
+   264→  (canvas.js / whiteboard.js unchanged); v6 ESM-only, `charWidthsCache` removed,
+   265→  `Image.fromURL` Promise-based. Currently deferred (v5.3.0 UMD in use, no known CVEs).
+   266→- **Perf**: no new indexes (rule-9 composites + 0042 cover hot paths; D1 RTT dominates).
+   267→  Re-run `npm run perf:explain` after schema/query changes; thresholds: `sadhana_updates`
+   268→  >~100k rows → index `(created_at)`; canvas >~50k elements → partial bbox index. Rejected:
+   269→  KV/DO hot reads, htmx fragment caching, HTML s-maxage. Caching contract: HTML + `/api/*`
+   270→  no-store; `?v=` 1h+SWR; vendor 1d; `/dist/*` immutable 1y; SW bumps only on sw.js logic
+   271→  changes.
+   272→- **Deploy**: `npm run deploy[:prod]` = build `--prod --wire-html` → `check-dist-wiring`
+   273→  gate → `wrangler deploy [--env prod]` → `--restore-html`. Committed HTML keeps human `?v=`
+   274→  refs; `.build-backup/` canonical-only invariant. Rollback: `git checkout <good> && npm run
+   275→  deploy:prod`. Node self-host: Node 24+ (`node:sqlite`; better-sqlite3 REMOVED), PORT 3000,
+   276→  `DB_PATH=data/hibana.db`; trusted-proxy requirement on Node (X-Forwarded-For spoofing
+   277→  dodges rate limits; Workers unaffected — CF-Connecting-IP authoritative).
+   278→
+   279→## 5. Migrations — live-DB warning
+   280→Live D1s run 0001–0045 (schema 44). The reconstructed 0031–0039 exist for fresh environments;
+   281→their `d1_migrations` bookkeeping rows were never backfilled — **never blindly `wrangler d1
+   282→migrations apply` against live DBs** (it would re-run table rebuilds). Backfill once to make
+   283→future applies a clean no-op:
+   284→```sql
+   285→INSERT INTO d1_migrations (name, applied_at) VALUES
+   286→  ('0031_project_status_stages.sql', datetime('now')),
+   287→  ('0032_canvas_squig_types.sql',    datetime('now')),
+   288→  ('0033_backlog_docs.sql',          datetime('now')),
+   289→  ('0034_dev_task_bug.sql',          datetime('now')),
+   290→  ('0035_admin_user_mgmt.sql',       datetime('now')),
+   291→  ('0036_canvas_sticky.sql',         datetime('now')),
+   292→  ('0037_spark_folders.sql',         datetime('now')),
+   293→  ('0038_quick_note_done.sql',       datetime('now')),
+   294→  ('0039_sprint_drafts.sql',         datetime('now'));
+   295→```
+   296→
+   297→## 6. Open items (verified against the v0.3.11.0 tree)
+   298→**Code — verified absent:** admin feature-usage analytics + top-10 activity ranking · ~~Telegram
+   299→`/update <project> <stage>`~~ ✅ shipped v0.3.11.0 · ~~one-way ICS calendar export (High)~~ ✅ shipped
+   300→v0.3.11.0 · ~~web-clipper bookmarklet / extension~~ ✅ shipped v0.3.11.0 · `dev_tasks` note
+   301→column · email-in (Email Workers) · Google Calendar 2-way sync · canvas auto-routing
+   302→connectors · multi-canvas. Deferred by design: incremental notebook swap.
+   303→**Owner-held:** rotate GitHub token (classic, `repo` scope — chat-exposed) · close
+   304→`OPEN_REGISTRATION` · CF "Always Use HTTPS" toggle · PWA installability re-check ·
+   305→key-custody drill · Resend delivery confirmation.
+   306→**Watch:** one non-repro vitest failure seen once (149/150, then 3× 150/150) · deep links
+   307→hardcode hibana.ir · mirror rate-limit keys share Arvan POP IPs.
+   308→
+   309→**Shipped this session (v0.3.11.0):** ICS calendar export (`/api/export/calendar.ics`),
+   310→Telegram `/update <project> <stage>`, web-clipper bookmarklet (`clip.html`), "Resume work"
+   311→dashboard card, segmented OTP input, password visibility toggle, Farsi numerals on typing,
+   312→canvas empty-state, board Add-button redesign, logo delete, per-column colored task borders,
+   313→50% larger taskadd modal, unlimited task titles (read-more clamp), github.deleteFile SHA
+   314→auto-lookup, note-clear bug fix, comprehensive UI polish pass (tour, cmdk, calendar,
+   315→settings, dashboard, project-detail, board, sadhana, clients, admin, canvas, whiteboard,
+   316→notifications, reports, archive, clip). 289/289 tests, typecheck green, SW v278. The idea
+   317→doc's Tier-1 deferred items (Telegram voice→spark, back-to-work recap, semantic find
+   318→stages 1–2) remain not built. FA-output quality review (Ali, 5 real FA notes) is a deploy-
+   319→time gate.
+   320→
+   321→## 7. Consciously rejected (do NOT propose — vision.md)
+   322→Subtasks/rigid hierarchy · nagging reminders/push/overdue toasts · milestones/OKRs/maturity
+   323→scores · cross-project Gantt/dependencies · backlinks/wiki-graph · daily-notes/diary ·
+   324→mood/energy tracking · tag nesting · templates · team features (@mentions, shared boards,
+   325→assignments) · native app (Capacitor path reserved) · time tracking. Scoped: Gantt →
+   326→per-project sprint timeline; canvas images via URL; journaling → per-task sadhana_updates;
+   327→fixed 4-color sticky palette; recurrence sadhana-only.
+   328→
+   329→## 8. Verified-implemented digest (backlog audits, ~98 items; pm-app-spec is fully implemented)
+   330→Parts 1–3 + Phases 4–7 (both blocks): all ✅ (tab order/backlog docs/renames · 7-stage
+   331→pipeline · admin console · stat carousel · spark folders · canvas circle/rect · notebook
+   332→stickies · sprint overhaul · notebook save hardening · emoji library · rename-pop ·
+   333→canvas→note · FAB modal · skeletons). Crown surfaces: 7-stage pipeline · 4 task surfaces
+   334→(hurdles/dev_tasks/sadhana/client) · 6-channel idea capture · manual promotion · spark
+   335→folders · two boundless canvases + LWW offline sync · 8 canvas element types · non-nagging
+   336→client reminders · Telegram bot · Obsidian import + JSON/MD/CSV export · PWA bottom-tab nav.
+   337→Roadmap DONE: prod rollout, P1/P2 all, roast P1–P7, signup+verification, Telegram linking,
+   338→rate limiting, HTTPS 301, CSRF, backup retention, `/api/health`, PWA icons, zero CDN deps,
+   339→Node self-host.
+   340→**Stale "open" items since fixed (do NOT carry):** quick-note newest-first ✅ · Telegram
+   341→`/append` ✅ · notebook photo inversion ✅ (counter-filter) · FTS depth ✅ (0040) · on-hold
+   342→violet = deliberate owner decision · sparks bulb ✅ · `#shots` auto-refresh ✅.
+   343→
+   344→## 9. D1 Time-Travel bookmark log (operational — newest last; KEEP THIS SECTION LAST)
+   345→Created by `npm run bookmark:prod` before each prod migration (`scripts/
+   346→pre-migrate-bookmark.mjs` appends rows at the end of this file — that is why this section
+   347→must stay last). Restore is in-place and destructive: `npx wrangler d1 time-travel restore
+   348→<db> --bookmark <id>`.
+   349→
+   350→| UTC timestamp | database | schema | bookmark id | reason |
+   351→|---|---|---|---|---|
+   352→| 2026-09-07T02:17:02.947Z | pm-app-prod | 43 | 000005ff-00000000-000050df-1931618c922f41a76b7c7562ca95765e | pre-migration bookmark (prod) |
+   353→| 2026-09-07T03:39:19.075Z | pm-app-prod | 44 | 00000607-00000002-000050df-b85cfafbd13f7bfecd16248d882d092b | post-0045 healthy state, after transient D1 SQLITE_CORRUPT_VTAB incident |
+   354→

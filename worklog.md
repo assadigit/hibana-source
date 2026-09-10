@@ -915,3 +915,310 @@ Stage Summary:
 - Changelogs updated (§1, §2, §6).
 - Zip: /home/z/my-project/upload/hibana.v0.3.11.0.zip (3.1MB, 342 files, clean).
 - Tests 289/289, typecheck green, SW v278.
+
+---
+Task ID: session-20-setup
+Agent: Z.ai Code (principal)
+Task: Session 20 kickoff — environment setup for UI/UX polish + optimization session
+
+Work Log:
+- Extracted hibana.v0.3.11.1.zip; discovered canonical repo layout (assadigit/hibana-source
+  root = sandbox root; hibana source at hibana/hibana-v0.3.10.2/). Synced working tree to
+  origin/main b80134d (SW v279 cache purge — 1 commit newer than the zip).
+- Wrote .secrets.env + credentials.md (gitignored, local-only) from session prompt.
+- bun install, typecheck green, vitest 289/289.
+- Seeded local test user (ali@hibana.local / hibana123), started Node server on :8787
+  (schema 46, /api/health OK). Log: /home/z/my-project/hibana-node.log.
+
+Stage Summary:
+- Baseline verified green at origin/main b80134d. Local E2E server ready on 8787.
+- Session focus: (1) UI/UX audit+fix per page, (2) visual bugs, (3) feature tweaks,
+  (4) D1/SW/backup optimization.
+
+---
+Task ID: session-20-fixes-1
+Agent: Z.ai Code (principal)
+Task: UI/UX audit + visual bug fixes (batch 1 — contrast + mobile overflow)
+
+Work Log:
+- Ran systematic DOM audit: 129 sweep rows (20 pages × EN/FA × light/dark × desktop/390px)
+  with audit-fn.js + contrast-fn.js (reused session-19 tooling, adapted paths). Key
+  discovery: FA sweep needs server-side language_pref (localStorage is overwritten by
+  /api/auth/me sync — documented in worklog).
+- 0 console errors across all 129 rows.
+- Found + fixed 22 unique AA contrast offenders:
+  * White-on-#4A9FA3 fills → --cta #2E7B7F (design system's own white-text rule): .avatar,
+    .skip-link, sadhana .btn-primary/.upd-add-btn/.undo-btn/.step-pill.active/.pick-btn.sel/
+    .recur-day-btn.sel/.arch-restore:hover, .cal-sys button.on, .detail-tab count chip.
+  * Teal-as-text #4A9FA3 → --link #297073/#6FC3C7: .dash-resume-label, .pd-task-add,
+    .adm-self, .cal-cell.selected + RTL .today day-num, 14 sadhana accent-text rules
+    (fuzzy deadlines, recur badges, toggles, arch-restore, hovers).
+  * pd-col-title light inks darkened: in_progress #9c7245→#7d5a34 (6.2:1), done
+    #5e8f70→#43704f (5.7:1), bug #a96b78→#87555f (6.0:1).
+  * Dark note-card metadata on sticky fills: #B0A79C → #EDE8DE (4.83:1 worst case) for
+    .note-meta/.note-footer .small/.attach-btn (+ !important to beat blanket ghost rule,
+    + prefers-color-scheme mirror). Note meta font 0.48rem → 0.6rem (was unreadable ~7.7px).
+  * Dark bug-bubble #ef4444 → #c81e1e (white 3.8→5.4:1). Zen add button: white-on-quadrant
+    (all 4 quadrants failed) → color-mix quadrant tint + theme-flipping ink.
+  * sadhana inline #c0392b delete → var(--err); .hdr-date-sep → --text-muted.
+- Fixed 2 real mobile overflows (390px): project.html stage-action cluster bled 13px
+  (inner .row now wraps ≤480px + select capped); clients.html payments form bled 83px
+  (details forms wrap + shrinkable inputs).
+- Verified by-design items (no fix needed): reports bar-chart scroll strip, stat-strip
+  carousel, sadhana subbar chip carousel, closed ⋯ menu popovers (not painted), theme
+  floater hit-area via ::after.
+- Cache-bust: app.css ?v=258→259 on all 23 pages (check-cache-bust PASS). SW stays v279
+  (no sw.js logic change; v259 never shipped before these edits — single clean bump).
+- Re-verified post-fix: 0 contrast offenders on all previously-failing surfaces (EN+FA,
+  light+dark, 1440+390). project.html + clients.html: no hscroll at 390px. typecheck
+  green, 289/289 tests.
+
+Stage Summary:
+- Batch 1 complete: all measured AA contrast failures fixed (22 unique + stragglers),
+  2 mobile overflow bugs fixed, no regressions. Awaiting user feedback for feature tweaks.
+
+---
+Task ID: session-20-optimization
+Agent: Z.ai Code (principal)
+Task: Optimization pass — D1 query performance, SW caching strategy, backup reliability
+
+Work Log:
+- D1 (npm run perf:explain @ busy-solo scale): all hot paths SEARCH via index; worst
+  interactive = canvas bbox 31.85ms @40k elements + todo journal feed 16.55ms @10k rows —
+  both under the documented intervention thresholds (50k canvas / 100k updates); backup
+  snapshot SCAN 135ms is cron-only. Honest verdict: no index changes warranted (matches
+  Changelogs §4 "D1 RTT dominates").
+- SW strategy review: class split sound (dist=cache-first immutable, ?v=cache-first,
+  vendor=SWR, API=network-only, nav=network-first, soft-nav=always network). sw.js is
+  unversioned but updateViaCache defaults to 'imports' (main script bypasses HTTP cache)
+  + boot.js polls reg.update() on every load — no gap found.
+- BACKUP — found 2 REAL coverage gaps + 1 ordering bug:
+  * project_archives (0046) MISSING from SNAPSHOT_TABLES — archived dev tasks would be
+    silently lost on any restore ("never lose an idea" violation). Added.
+  * dev_task_tags (0029) MISSING — task-tag links lost on restore. Added.
+  * restore.mjs tableOrder was frozen at 2026-08-28 — missing the ENTIRE Phase-5 cluster
+    (spark_folders, dev_tasks, task_categories, sprints, backlog_docs, backlog_doc_revisions)
+    + the two new tables: a direct-path restore would drop idea folders, dev board, sprints,
+    backlog docs, archives. Fixed to mirror SNAPSHOT_TABLES FK-safe.
+  * restore-safe.mjs derived table order ALPHABETICALLY (dev_task_tags before dev_tasks —
+    breaks under FK enforcement). Replaced with canonical FK-safe order + unknown-table
+    passthrough (forward compat).
+  * SNAPSHOT_TABLES dev-cluster reordered FK-safe (task_categories/sprints before dev_tasks).
+  * buildUserSnapshot (personal JSON export): +project_archives, dev_tasks, dev_task_tags
+    (via task_id subquery), task_categories, sprints, backlog_docs, backlog_doc_revisions
+    (via doc_id subquery) — schema_version 20260828→20260920; whole-DB 20260910→20260920.
+  * +4 regression tests (coverage pin, FK-order pin, buildSnapshot round-trip,
+    buildUserSnapshot scoping). Suite 289→293 green.
+- Fixed PRE-EXISTING smoke failure (failed at origin/main too): the htmx ?status=spark
+  fragment expectation was stale after session 18's ideas-folder-grid redesign — updated
+  to assert the folder grid + idea count. Smoke: ALL PASS (20 checks).
+- Local end-to-end restore drill: snapshot → restore.mjs → fresh DB — project_archives +
+  dev_task_tags round-trip verified (DRILL PASS).
+
+Stage Summary:
+- D1 + SW: verified healthy, no changes needed (documented honestly).
+- Backup: real silent-data-loss bugs fixed on BOTH sides (snapshot coverage + restore
+  paths); FK-safe ordering everywhere; 293/293 tests; smoke ALL PASS; local drill pass.
+
+---
+Task ID: session-20-ship
+Agent: Z.ai Code (principal)
+Task: Ship v0.3.11.2 — verify, commit, tag, deploy dev+prod, live probes, zip
+
+Work Log:
+- Found + fixed 1 more pre-existing interaction bug during live probing: unauthenticated
+  /app reload via SW navigate re-fetch rendered raw JSON 401 (Sec-Fetch-Dest lost through
+  SW re-fetch). Fixed both layers: middleware Accept:text/html → document redirect (2 new
+  tests; JSON clients pinned unaffected) + sw.js v280 401-on-navigation → login redirect.
+  Verified locally AND live (prod /app unauth → /login form, 0 console errors).
+- typecheck green; vitest 295/295 (289 + 4 backup + 2 auth); node --check on sw.js +
+  restore scripts; smoke ALL PASS; final sweep: FA 39 rows + EN 36 rows — 0 hscroll,
+  0 clipped, 0 contrast offenders, 0 console errors.
+- Changelogs.md §1 (new v0.3.11.2 header + detail), §2 (session-20 row), §6 (smoke note).
+- package.json 0.3.11.1 → 0.3.11.2.
+- Git: 2 commits (728115c main release, ce8f56a SW-navigation fix) pushed to
+  assadigit/hibana-source main; tag v0.3.11.2 re-pointed to ce8f56a and pushed.
+- Deploy dev: build --prod --wire-html → check-dist-wiring PASS (23 pages, 221 refs) →
+  wrangler deploy (Version d4e87598). Health 200.
+- Deploy prod: wrangler deploy --env prod (Version e4d6fc14). Health 200; sw.js serves
+  hibana-v280; unauth /app → /login verified in-browser; 0 console errors.
+- Restored canonical HTML after both deploys.
+- Zip: /home/z/my-project/upload/hibana.v0.3.11.2.zip + download/ copy (3.1MB, 345 files,
+  secrets-scan clean: 0 hits).
+- No probe users created on live DBs (verification used the local Node server + the real
+  owner account for one login/logout round-trip; session ended via logout — nothing to
+  purge; row counts untouched).
+
+Stage Summary:
+- v0.3.11.2 live on hibana.ir + hibana.aliassadi.workers.dev (SW v280, app.css v259).
+- 295/295 tests, typecheck green, smoke ALL PASS.
+- Session 20 delivered: 23 AA-contrast fixes, 2 mobile overflows, CRITICAL backup
+  coverage gaps (both sides), FK-safe restore ordering, stale smoke expectation,
+  SW-navigation 401 bounce. Awaiting Ali's feedback for feature tweaks.
+
+---
+Task ID: 1 (Session 21, batch 1)
+Agent: main-agent (Z.ai Code)
+Task: Three live-feedback visual fixes on Hibana v0.3.11.2: (1) bug-bubble shadow removal + pastel red, (2) pastel stage-bar label colors, (3) remove the skip-to-main-content button that covered the header avatar.
+
+Work Log:
+- Read Agents.md, Changelogs.md §1 (v0.3.11.2 state), README.md; confirmed versioning discipline (app.css ?v= + SW cache name).
+- app.css: .bug-bubble → sig-chip recipe (light rgb(220 38 38 / 0.12) + #b91c1c ink ≥5.1:1; dark rgb(248 113 113 / 0.16) + #f2a3a3 ink ≥6.2:1), box-shadow removed from all 3 theme rules.
+- app.css: --stage-bar-* set softened to one pastel register (spark #E8CFA0, unreviewed #C2CFDD, investigating #BCD5EF, awaiting #EFDEA5, doing #AEE0B8, halted #EFC2B5, operational #B7DFBC).
+- Skip-link removed: <a.skip-link> deleted from 17 HTML pages, .skip-link CSS block + main:focus rule deleted, a11y.skipToMain FA key removed from boot.js CRITICAL_FA (i18n.js never carried it — no parity impact). main id="main" kept for bookmarked anchors. dashboard.html historical comment updated.
+- Cache-bust: app.css ?v=259→260 across all HTML; sw.js hibana-v280→v281 (precached HTML shell must rotate so clients drop the anchor); node --check on sw.js/boot.js; check-cache-bust PASS.
+- Verification: typecheck green; vitest 295/295; smoke ALL PASS. Browser E2E on local Node server (ali@hibana.local): FA/EN × light/dark × 1440/390 — computed styles confirm pastel+shadowless bubble on dashboard AND projects Cards view, pastel bars (all checked), 0 skip-link anchors everywhere, 0 hscroll, 0 console/page errors. VLM close-up confirmed visual softness; one VLM mobile read was a hallucination (emitted HTML doc) — discarded, DOM facts used instead.
+- Note: local QA user language_pref flipped fa→en (restored) for the FA/EN test matrix.
+- Repo hygiene: sandbox snapshot commit 897ae6b (UUID message, tracked zips + deleted shots + Next.js scaffold noise) was LOCAL-ONLY garbage — reset main to origin/main ce8f56a and committed only the 27 hibana files. Zips stay untracked (matches pre-snapshot state).
+- Git: commit dda18e9 "v0.3.11.3: session 21 — live-feedback visual fixes (pastel bug-bubble, pastel stage bars, skip-link removed)" pushed to assadigit/hibana-source main; tag v0.3.11.3 pushed.
+- Deploy dev: build --prod --wire-html → check-dist-wiring PASS → wrangler deploy (Version 66b3bf91). Live probe: health 200, sw.js hibana-v281, dist/app.f3339ef6.css contains pastel values + 0 shadow/0 skip-link rules, login shell 0 skip anchors.
+- Deploy prod: wrangler deploy --env prod (Version 2ff030ec). Live probe: health 200 on hibana.ir, sw.js v281, login references the new hashed css. Authenticated probe with the owner account: dashboard 0 skip links, 3 bug-bubbles all pastel+shadowless, 7 stat-cards with pastel bars (investigating #BCD5EF confirmed), browser cache holds exactly [hibana-v281] (v280 purged), 0 console/page errors; signed out cleanly (no probe data created, row counts untouched).
+- Changelogs.md §1 (v0.3.11.3 header) + §2 (session-21 row); package.json 0.3.11.2→0.3.11.3.
+- Zip: upload/hibana.v0.3.11.3.zip + download/ copy (3.0MB, 345 files — parity with v0.3.11.2 zip; first build had include-list-after-−x bug, rebuilt). Secrets-scan clean: ghp_/cfut_/hc keys/telegram/password/BACKUP key/secret files all 0 hits (owner email appears only in the 4 pre-existing local dev scripts, same as prior zips).
+
+Stage Summary:
+- v0.3.11.3 live on hibana.ir + hibana.aliassadi.workers.dev (SW v281, app.css v260).
+- 295/295 tests, typecheck green, smoke ALL PASS, live probes clean.
+- All 3 owner-reported visual quirks fixed and verified end-to-end (local + live, both languages/themes/viewports). No backend/schema changes. A11y tradeoff documented: skip-link removal is the owner's explicit call (Tab order still reaches content).
+
+---
+Task ID: 1 (Session 22, investigation)
+Agent: main-agent (Z.ai Code)
+Task: Investigate Ali's 3 new live-feedback items on Hibana v0.3.11.3: (1) small text-editor space in task modals ("New Task" pd-taskadd), (2) halt the 300-char limit — unlimited, progress boxes clamp at 150 chars + read-more, (3) color-coding inconsistency between project progress box and full-screen board (board reads all-orange).
+
+Work Log:
+- Read Agents.md, Changelogs.md §1 (v0.3.11.3 live), README.md, worklog; confirmed Session 21 fixes are live (SW v281, app.css v260).
+- ROOT CAUSE found for "modal still small": `.pd-taskadd-modal { max-inline-size: min(52rem,94vw) }` (spec 0,1,0) LOSES the cascade to `dialog.dialog { max-inline-size: min(26rem,92vw) }` (spec 0,1,1) — the Session-19 "50% larger" bump NEVER rendered; the composer has been 26rem/416px all along. Same latent bug hits `.pd-editor-modal` (60rem intent, 26rem actual) and `.pd-taskedit` edit dialog (plain dialog.dialog). Native <dialog> is fit-content — even a winning max-inline-size only CAPS; an explicit inline-size is required to actually widen.
+- 300-char limit: server already lifted to 2000 (devboard.ts createDevTaskSchema, Session 19) BUT project.html's composer still displays "۰ / ۳۰۰" counter, the edit dialog textarea still has maxlength=300, the board editor (devboard.js) is a single-line <input maxlength=300>, and the problems-tab inline edit sets input.maxLength=300. The stale comment in project.html claims the server still enforces 300.
+- Board color inconsistency: `.db-card:has(.prio-medium)` still hard-codes an orange left border (Session 19 removed this only on the pd side — the comment "Same for db-card" is false); most tasks are prio-medium → every board column reads orange. ALSO: board prio-dots are INVISIBLE — `.db-card-main .prio-dot { background: inherit }` (0,2,0, later) overrides `.prio-medium` (0,1,0) → transparent dots; `--prio-color` referenced at 6762 is defined nowhere. AND db-col ink/color values diverge from pd-col: light inks are pre-Session-20 (#9c7245/#5e8f70/#a96b78 vs AA-darkened #7d5a34/#43704f/#87555f), dark values are the pre-Session-19 bright set vs pd's muted set, column dot 0.95 opacity + 0.6rem vs pd 0.72 + 0.55rem.
+- Read-more mechanism today: 3-line CSS line-clamp + ::after attr(data-more) hint set client-side at >120 chars (project page only; board has NO clamp at all).
+- Mapped every textContent consumer of .pd-task-title/.db-card-title (wand, editors, copy/export, undo, delete-confirm) — clamp design must keep full text in the DOM: first-150 chars visible + hidden .pd-title-rest span INSIDE the title element (textContent stays full) + a real read-more button.
+- ctx.on = plain document.addEventListener (boot.js) — same-node listeners can't be stopped by stopPropagation → guard pattern needed in card-click handlers.
+- Local QA env: sandbox Next.js dev server occupies port 3000 → Hibana Node server will run on PORT=3001 for this session's browser verification.
+
+Stage Summary:
+- All 3 items have concrete root causes (a CSS specificity bug, stale FE limits, divergent card/column color rules + an invisible prio-dot bug).
+- Implementation plan: fix specificity + widen modals (78rem taskadd/edit, 60rem editor, 52rem db-modal), lift all FE 300 limits + counter removal, server title cap 2000→100_000, 150-char hidden-span clamp with read-more buttons on project + board, unify db-card/db-col color system with pd recipes, bump app.css v261 / devboard.js v10 / magic-wand.js v9 / SW v282.
+
+---
+Task ID: 2 (Session 22, implementation + local verification)
+Agent: main-agent (Z.ai Code)
+Task: Implement the 3 fixes: (1) ≥50% larger text-editor modals, (2) halt the 300-char limit (unlimited; 150-char clamp + read-more), (3) unify project progress box ↔ full-screen board color coding. Verify everything locally, then ship.
+
+Work Log:
+- app.css: dialog.pd-taskadd-modal (spec fix — .pd-taskadd-modal 0,1,0 lost to dialog.dialog 0,1,1) opens at min(78rem,96vw) + textarea 18rem min + resize:vertical; new dialog.pd-taskedit-modal (78rem); dialog.pd-editor-modal prefixed (60rem actually renders now); .db-modal-card 34→52rem + textarea[name=title] 9rem; 150-char clamp CSS (.pd-title-rest[hidden], [data-clamped]::after ellipsis, .pd-read-more button) replacing the 3-line line-clamp + ::after data-more hint; db-card/db-col unified with pd recipes (medium keeps column color, prio-dot !important set, AA light inks, muted dark set, dot 0.72/0.55rem, card padding/title fs-sm).
+- src/routes/projects.ts: taskadd modal rows 4→8 + counter element removed + "Unlimited length / بدون محدودیت طول" hint; TITLE_CLAMP=150 helpers (titleHtml/titleAttrs/readMoreBtn) render the hidden-rest split + button server-side.
+- public/project.html: taskAddCounter + input listener + call sites removed; PD_TITLE_CLAMP helpers + pdApplyTitle (re-clamp in place); delegated [data-task-read-more] toggle + card-click guard; insertTaskChip + more-expansion now render div[role=button] cards (was <a href="/board.html">) with the clamp; injectPdTaskMenus data-more click-toggle block removed; edit dialog → pd-taskedit-modal class + rows 8 + no maxlength + newline collapse + FIXED the stale-card selector (.pd-task[data-pd-task] matched nothing — now queries the wrap) + re-clamps; problems-tab inline edit maxLength removed + chip sync via pdApplyTitle on the wrap selector; hibana:title-written listener re-clamps after wand writes.
+- public/board.html: render() clamps db-card-title (150 + hidden rest + button); read-more branch BEFORE the card-click branch (separate document listeners — guards, not stopPropagation).
+- public/js/devboard.js: title input → textarea (rows 6, no maxlength); save collapses newlines; Enter saves / Shift+Enter newline; focus/selector updates.
+- public/js/magic-wand.js: applyText dispatches hibana:title-written after writing textContent.
+- src/routes/devboard.ts: title caps 2000 → 100_000 (create + update).
+- BUG FOUND + FIXED during E2E: the interpolated data-clamped="" merged into the class attribute (class-closing quote sat AFTER the interpolation) — broken markup in all 4 render sites; fixed by moving the quote before the interpolation in projects.ts (1) + project.html (2) + board.html (1).
+- Cache-bust: app.css 260→261 (23 pages), devboard.js 9→10 (board+sprint ×2 each), magic-wand 8→9 (sparks/project/dashboard), SW v281→v282 + comment.
+- Verification: typecheck green; 295/295 tests; node --check on devboard/magic-wand/sw + inline-script parse; smoke ALL PASS; cache-bust PASS. Browser E2E on local Node (PORT=3001 — sandbox Next.js owns 3000): modal 1229px@1280 (was 416), 374px@390; textarea 288px; counter gone; 223-char task via Enter → card with 150+72 clamp + read-more (toggle verified both pages, no accidental editor); edit modal prefills FULL 310-char title, textarea, no maxlength; medium cards carry COLUMN color on both surfaces (planned rgba(209,212,216,.55), in_progress rgba(240,197,155,.55)); prio-dots visible (were transparent); dark = muted set; 5000-char POST 201 / 100001-char 400; FA/RTL strings (بیشتر بخوان / بدون محدودیت طول / افزودن کار); 390px no hscroll; 0 console/page errors; VLM visual pass on modal + board screenshots (one VLM strikethrough-overlap claim disproven by DOM geometry — 5px gap, no overlap — discarded).
+- E2E fixture: project "E2E Session 22 — Composer & Board" + 8 devtasks (310-char titles, all priorities) created in the LOCAL dev DB only.
+
+Stage Summary:
+- All 3 owner requests implemented with root-cause fixes (dialog specificity, stale FE caps, divergent color rules + invisible dots) + 3 adjacent bugs fixed (broken data-clamped markup, stale-card edit updates, <a>-vs-div card inconsistency).
+- Ready to ship: v0.3.11.4, app.css v261, SW v282. Deploy dev → probe → prod → live functional test (owner asked: "after deployment, make sure they really work, and test them").
+
+---
+Task ID: 3 (Session 22, ship)
+Agent: main-agent (Z.ai Code)
+Task: Ship v0.3.11.4 — changelog, version bump, commit, tag, deploy dev+prod, live functional verification, release zip.
+
+Work Log:
+- Changelogs.md §1 (v0.3.11.4 header + full detail incl. the dialog-specificity root cause, the unlimited/clamp design, the board color unification + the 3 adjacent bug fixes) + §2 (session-22 row); package.json 0.3.11.3 → 0.3.11.4.
+- Git: reset main to origin/main dda18e9 (dropped the local-only sandbox snapshot commit be18c67 — zips/tool-results/scaffold noise stays untracked), staged ONLY the 30 hibana files, verified no secrets staged, commit 80ab470 pushed to assadigit/hibana-source main + tag v0.3.11.4 pushed.
+- Deploy dev: build --prod --wire-html → check-dist-wiring PASS → wrangler deploy (Version 93749f4c). Live probe: health 200, sw.js VERSION=hibana-v282, login references /dist/app.28f9ad57.css (new hash) which contains dialog.pd-taskadd-modal + min(78rem,96vw) + pd-read-more + the .db-col .db-card rule.
+- Deploy prod: wrangler deploy --env prod (Version a8093870). Live probe on hibana.ir: health 200, sw.js VERSION=hibana-v282, login → app.28f9ad57.css with all new rules. (First probe minutes after deploy read the OLD css hash off the edge cache — a re-fetch showed the new artifact; an earlier "v237" sw.js alarm was a false positive — `grep | head -1` caught a historical mention in the sw.js comment header, not the VERSION constant.)
+- LIVE functional test on hibana.ir (owner's explicit ask: "after deployment, make sure they really work, and test them") — test account login → temp project created via the page's own fetch: modal opens 1229px wide with 288px textarea, rows 8, counter GONE; 242-char task → card clamps 150+91 with read-more "بیشتر بخوان"/"کمتر" toggle (account is FA); planned wrap border = column grey, in_progress (high) = #E59AA5; board: planned medium card = COLUMN color rgba(209,212,216,.55) (not orange), prio-dot visible, editor modal 832px TEXTAREA no maxlength; 0 console errors, 0 page errors. Fixture project deleted (DELETE 200, re-fetch 404, project list 7 with 0 fixtures), signed out cleanly.
+- Zip: upload/hibana.v0.3.11.4.zip + download/ copy — 345 files (parity with v0.3.11.3), structure mirrors the reference zip (no dist/, no data/, no secrets). Secrets scan clean: ghp_/cfut_/hcw_/RESEND/BACKUP key/telegram/owner-password/hibana123 = 0 hits; .secrets.env absent.
+
+Stage Summary:
+- v0.3.11.4 LIVE on hibana.ir + hibana.aliassadi.workers.dev (SW v282, app.css v261, devboard.js v10, magic-wand.js v9).
+- All 3 owner requests verified end-to-end on production with real user flows: (1) task modals open ≥50% larger (root cause: a CSS specificity bug that had silently capped every dialog at 26rem since v0.3.11.1), (2) 300-char limit halted — unlimited in, 150-char display clamp + read-more on both surfaces, (3) board color coding now identical to the project progress box (medium cards carry the column color; prio-dots fixed from invisible).
+- Bonus fixes shipped: stale-card edit updates, client-card click-to-edit unification, hidden-span design keeps every textContent consumer (wand/editors/exports/undo) on the FULL title.
+- 295/295 tests, typecheck green, smoke ALL PASS, 0 console errors local + live.
+
+---
+Task ID: 1 (Session 23, investigation)
+Agent: main-agent (Z.ai Code)
+Task: Investigate Ali's 5 new live-feedback items on Hibana v0.3.11.4: (1) English dropdown items in FA locale, (2) text editor LTR when writing Farsi, (3) editor options + dedicated CODE container, (4) ذخیره button not green, (5) vanished + FAB (new note/new project menu) + hover bug.
+
+Work Log:
+- Read Agents.md, Changelogs.md §1 (v0.3.11.4 live), README.md; repo at hibana/hibana-v0.3.10.2 (HTML canonical ?v=261, top commit = sandbox noise 9276ada on top of 80ab470).
+- (1) ROOT CAUSE: project.html's inline task editor (pde-status/pde-priority selects, lines 1001-1005) uses _t('status.idea'|'prio.low'|…) — the i18n dicts ONLY carry the 7-stage taxonomy (status.spark…operational); the devboard values have NO keys → FA falls back to raw English "idea/planned/in_progress/done/bug", "low/medium/high/urgent". The board's own labels use db.st.* / db.pr.* keys which DO exist in both dicts (idea→ایده‌های جدید, inprog→در حال انجام, pr→کم/متوسط/زیاد/فوری). FIX: reuse db.st.*/db.pr.* keys in the pde dropdowns.
+- (2) ROOT CAUSE: all 3 task editors hardcode dir="auto" (#pd-taskadd-textarea, #pde-input, devboard.js textarea[name=title]) — first-strong-char heuristic goes LTR when the first char is Latin/number, and never matches the UI locale. Other editors on the same page already use the lang-aware recipe dir="${lang==='fa'?'rtl':'auto'}" (pd-desc, pd-note, problems composer). FIX: apply the same recipe to the 3 task editors + the backlog editor (#pd-editor-textarea) + backlog composer (name=content).
+- (3) DESIGN: titles gain fenced code blocks (```…```), **bold**, and "- " bullets; newlines STOP being collapsed (currently collapsed client-side in all 3 editors; server trims only). Renderer ports to 3 sites (projects.ts titleHtml, project.html pdTitleHtml, board.html titleHtml): escape-first, line-walk, fences → <code class="t-code" dir="ltr"> with the fence LINES preserved in <span hidden> INSIDE the code element so textContent round-trips the RAW title exactly (editors prefill, wand writes, copy/export, delete-undo all consume textContent — zero consumer changes). 150-char clamp unchanged; both halves render through the same renderer. CSS: .t-code (mono, soft bg, pre, LTR island, data-lang label) + white-space:pre-line on .pd-task-title/.db-card-title. Toolbar (Code/Bold/List buttons) in all 3 editors; i18n keys pd.fmtCode/fmtBold/fmtList.
+- (4) ROOT CAUSE: pde-save + devboard data-db-save use class="btn" (neutral card-bg button) while every primary action in the system is a plain <button> (green --cta fill + white text). FIX: drop the .btn class.
+- (5) ROOT CAUSE (FAB vanished, verified LIVE on hibana.ir with owner account): the onboarding tour (tour.js, shipped v0.3.11.2+) step 1 targets the FAB — .tour-overlay is z-index 80 full-screen 62% black + blur(3px), but the FAB's z-index:81 sits INSIDE .fab-stack's stacking context (z-index 40) → trapped UNDER the overlay: elementsFromPoint(fabCenter) = [tour-overlay, …, button.fab]. The FAB is effectively invisible+unclickable during the tour (fresh browsers / cleared storage / second device). Same trap hits step 2's theme toggle (.topbar z-index 30). FIX: .fab-stack:has(.tour-target) + .topbar:has(.tour-target) → z-index 82.
+- (5b) HOVER BUG (root cause of "buttons turn green, text becomes light… fix hover bug"): button:hover (0,1,1) sets green bg + white text GLOBALLY; any single-class button rule (0,1,0) whose :hover only overrides color/border leaks the green bg → mixed rendering (green bg + dark/brand text). Confirmed leaks: .fab-item, .db-seg button, .db-add, .pd-read-more, .pd-more-link, .stat-arrow, .zen-exit, .sp-sprint-chip, .sf-chip, .sf-more, .pd-tag-add, .spark-folder-new (green+light per owner rule), + .spark-folder-card/.dash-collapse-btn (bg reset to intended neutral). Not-leaks verified: .heatmap-l* (0,2,0), .prog-dot (0,2,0 context), .cal-color-dot (inline style), ghost/.btn (set both bg+color).
+- Verified live: FAB present+visible after tour completion (fresh browser saw the buried-FAB tour state first); login/app flow works; no console errors observed during probe.
+
+Stage Summary:
+- All 5 items have concrete root causes; no schema changes needed (title is TEXT; newlines+fences live in the string; server keeps Zod 100k guard).
+- Implementation plan: i18n keys, app.css (t-code + toolbar + pre-line + 15 hover fixes + tour lift + .pd-title-rest[hidden] selector fix), projects.ts (renderer + toolbar + dir + hint), project.html (renderer + pde dropdown keys + dir + green save + newline preservation + toolbar wiring), devboard.js (dir + toolbar + green save + newline preservation), board.html (renderer). Cache-bust: app.css 261→262, devboard.js 10→11, SW v282→v283. Ship as v0.3.11.5.
+
+---
+Task ID: 2 (Session 23, implementation + local verification)
+Agent: main-agent (Z.ai Code)
+Task: Implement all 5 fixes: FA dropdown labels, RTL editors in FA, editor toolbar + ``` code containers, green ذخیره buttons, FAB tour z-index restore + green/light hover recipe. Verify locally end-to-end, then ship v0.3.11.5.
+
+Work Log:
+- i18n.js: +6 keys both dicts (pd.fmtCode/fmtBold/fmtList/fmtCodeHint — EN + FA) for the toolbar labels/tooltips.
+- app.css: (a) .t-code container (block, dir ltr + isolate, mono via --mono fallback stack, pre, overflow-x auto, soft bg/border, data-lang ::before label, .t-fence spans never render) + a specificity-armed twin html[lang='fa'] .t-code rule — the FA font rule html[lang=fa] body * (0,1,2) was re-Vazir-ing the code container; Vazir sits LAST in the mono stack so Farsi comments in code still render; (b) white-space: pre-line on .pd-task-title + .db-card-title (multi-line titles); (c) .pd-tb/.pd-tb-btn toolbar CSS with explicit green+light hover; (d) 14 hover-leak fixes (fab-item, db-seg button, db-add, pd-read-more, pd-more-link, stat-arrow, zen-exit, sp-sprint-chip, sf-chip, sf-more, pd-tag-add, spark-folder-new → full green+light; spark-folder-card + dash-collapse-btn → bg reset to intended neutral); (e) .fab-stack:has(.tour-target)/.topbar:has(.tour-target) → z-index 82 (above the tour overlay's 80 — the vanished-FAB root cause).
+- src/routes/projects.ts: renderTitle() fence/bold renderer (escape-first line-walk; fence LINES kept in <span hidden class="t-fence"> INSIDE <code> so textContent round-trips the RAW title exactly); titleHtml clamps at 150 with both halves rendered; taskadd modal gets the toolbar (Code/Bold/Bullet), lang-aware dir (fa→rtl), updated hints; backlog composer + full-screen editor textareas lang-aware dir.
+- public/project.html: pdRenderTitle (same renderer, JS); pde edit dialog → dir lang-aware + toolbar + status/priority options now use the BOARD's translated keys (db.st.idea/planned/inprog/done/bug + db.pr.low/medium/high/urgent — the missing status.*/prio.* keys were the English-dropdown root cause) + pde-save plain button (green); taskadd + pde submit PRESERVE newlines (\r\n normalize + trim only); pdApplyTb toolbar helper + ONE delegated [data-tb] handler serving both composers.
+- public/js/devboard.js: board editor modal → lang-aware dir on card + textarea, toolbar markup + per-render wiring, data-db-save plain button (green), save preserves newlines.
+- public/board.html: renderTitle port; read-more toggle unchanged (structure-compatible).
+- Cache-bust: app.css 261→262 (23 pages), i18n.js 54→55 (all), devboard.js 10→11 (board+sprint ×2), SW hibana-v282→v283, package.json 0.3.11.4→0.3.11.5.
+- Fixed during E2E: (1) a ``` in a TS template-literal comment broke the build (tsc caught; reworded); (2) the FA mono-font override (found via computed styles; fixed with the specificity twin); (3) early hover readings caught mid-transition colors (transition 0.12s) — re-verified final states.
+- Local E2E (Node server PORT=3001, ali@hibana.local, fresh browser): TOUR z-fix — fresh context, tour step 1: elementsFromPoint(fab) = [svg, BUTTON.fab tour-target] (overlay NO LONGER on top; stack z=82), step 2 topbar z=82, skip → overlay gone + FAB visible; FA locale: taskadd modal taDir=rtl + toolbar [کد/پررنگ/بولت] + FA hints; CSS-code task via toolbar → card renders code.t-code (dir ltr, data-lang=css, mono, pre, hidden fences, 175×103px box inside card, ::before "css") + strong bold + read-more کمتر/بیشتر بخوان toggle + textContent round-trip exact; edit dialog: statusOpts [ایده‌های جدید/برنامه آتی/در حال انجام/انجام‌شده/مشکلات], prioOpts [کم/متوسط/زیاد/فوری], pde-input dir=rtl prefilled WITH fences (8 lines), save bg #2E7B7F + white; edit→save appends line + card updates in place (9 lines, fences intact); board: code card + editor (dir rtl, toolbar, green save #2E7B7F, FA segments) + html-code task saved+rendered (data-lang=html, escaped); hover VERIFIED via real mouse: .db-add green #276A6D + white, .db-seg button green+white, .fab-item green+white (VLM confirms readable menu + teal/white hover); dark: code container #28241E bg / #EDE8DE ink / visible border / mono; 390px: 0 hscroll (code scrolls internally); EN locale: dropdowns [New Ideas/Upcoming Plan/In Progress/Implemented/Problems], dir auto, green save; server-rendered code block matches client renderer; multi-page sweep (projects/sparks/board/sprint/project) 0 console/page errors.
+- Verification ladder: typecheck green, 295/295 tests, smoke ALL PASS, node --check (sw/devboard/i18n) + inline-script Function parse (project/board), check-cache-bust PASS (app.css 262, i18n.js 55, devboard.js 11). Local fixture project deleted (DELETE 200). Local server stopped.
+
+Stage Summary:
+- All 5 owner items implemented with root-cause fixes; 3 adjacent bugs found + fixed during E2E (template-literal backticks, FA mono override, transition-timing misreads).
+- v0.3.11.5 ready to ship: SW v283, app.css v262, i18n.js v55, devboard.js v11.
+
+---
+Task ID: 3 (Session 23, ship)
+Agent: main-agent (Z.ai Code)
+Task: Ship v0.3.11.5 — changelog, commit, tag, deploy dev+prod, live functional verification, release zip.
+
+Work Log:
+- Changelogs.md §1 (v0.3.11.5 header + full detail) + §2 (session-23 row); package.json 0.3.11.4→0.3.11.5 (already done pre-commit).
+- Git: reset main to origin/main 80ab470 (dropped the sandbox noise commit 9276ada), staged EXACTLY the 30 session files (full index reset needed — the soft reset kept the snapshot's zips/worklog staged), secrets scan on the staged diff clean, commit 3400112 pushed to assadigit/hibana-source main + tag v0.3.11.5 pushed.
+- Deploy dev: build --prod --wire-html → check-dist-wiring PASS (via npm run deploy) → wrangler deploy (Version aedacb47). Live probe: /api/health 200, sw.js VERSION=hibana-v283, app.css?v=262 contains .t-code + fab-stack:has + .pd-tb-btn + ui-monospace, devboard.js?v=11 + i18n.js?v=55 served.
+- Deploy prod: npm run deploy:prod (Version e92f8e29). Live probe on hibana.ir: /api/health 200, sw.js hibana-v283, login references the NEW hashed bundle /dist/app.3ad10b58.css which contains all new rules (t-code ×7, fab-stack:has, pd-tb-btn ×4, ui-monospace ×2).
+- LIVE functional verification (owner's standing requirement; fresh browser + owner account, FA locale):
+  - Tour FAB fix ON PROD: fresh browser → tour auto-started → .fab-stack z-index=82, FAB carries tour-target, elementsFromPoint topAtFab = the FAB's own SVG (overlay BELOW it — pre-fix the overlay was on top), VLM confirms the + FAB visible ABOVE the dim with its highlight ring; skip → overlay gone, FAB visible, tourDone=1.
+  - Temp fixture project created via the page's own fetch → taskadd modal: taDir=rtl, toolbar [کد/پررنگ/بولت], save bg #2E7B7F; task with CSS code block submitted → card renders code.t-code (lang=css, dir=ltr, MONOSPACE, hidden fences, raw textContent round-trip) + bold strong.
+  - Edit dialog: status dropdown [ایده‌های جدید/برنامه آتی/در حال انجام/انجام‌شده/مشکلات], priority [کم/متوسط/زیاد/فوری] (was raw English pre-fix), pde-input dir=rtl prefilled WITH fences, ذخیره bg #2E7B7F + white text.
+  - Board: code card renders identically (lang=css, raw round-trip); VLM visual pass — monospace boxed LTR code + CSS label + bold Farsi phrase + clean layout, no raw backticks.
+  - 0 console/page errors during the whole live session.
+  - Cleanup: fixture project DELETE 200 → re-fetch 404; browser closed (session cookie destroyed with the context); /tmp/cf-env.sh removed.
+- Zip: upload/hibana.v0.3.11.5.zip + download/ copy (3.1MB, 319 files). Structure scan: no node_modules/.wrangler/.dev.vars/.secrets.env/data/dist entries. Secrets scan: ghp_/cfut_/hcw_/telegram-token/BACKUP key/owner password = 0 hits; seed-local-user.ts carries only the local-dev QA password 'hibana123' (parity with the v0.3.11.3/4 zips — not a real credential, script is marked NOT-for-prod).
+
+Stage Summary:
+- v0.3.11.5 LIVE on hibana.ir + hibana.aliassadi.workers.dev (SW v283, app.css v262, i18n.js v55, devboard.js v11).
+- All 5 owner requests verified end-to-end ON PRODUCTION with real user flows: (1) FA dropdown items now Farsi, (2) FA editors RTL, (3) Code/Bold/Bullet toolbar + dedicated monospace LTR code containers that round-trip raw titles exactly, (4) ذخیره buttons green + white, (5) the + FAB visible again during the tour (z-index root cause) + every action-button hover now the full green+light recipe.
+- 295/295 tests, typecheck green, smoke ALL PASS, 0 console errors local + live. No schema changes. Tag v0.3.11.5 pushed; release zips delivered to upload/ + download/.
+
+---
+Task ID: 4 (Session 23, close-out)
+Agent: Z.ai Code (principal)
+Task: Owner-requested session close-out — commit the latest version to GitHub, compile the release zip from the GitHub version for local backup, and deliver a next-session handoff prompt (backlog-first protocol).
+
+Work Log:
+- Read Agents.md, Changelogs.md §1, README.md + worklog tail. Verified repo state: origin/main = tag v0.3.11.5 = 3400112 (ls-remote confirms both on the remote); Changelogs.md already carries the full v0.3.11.5 entry (shipped in 3400112); working tree clean against the unpushed sandbox auto-snapshot commit d1cccdb.
+- Found one unpushed auto-snapshot noise commit d1cccdb (UUID message; contents: release zips, session-23 worklog, workspace cleanup, tool-results) — replaced it with a clean, properly-messaged close-out commit instead of pushing the noise as-is.
+- Rebuilt the release zip FROM THE GITHUB TAG: `git archive v0.3.11.5:hibana/hibana-v0.3.10.2` with the v0.3.11.5 exclude set (.github/, audit-results/, .secrets.env.example, dev-supervisor.sh, qa.sh, qa2.sh, start-dev.sh) → 319 files, 3,156,265 bytes.
+- Zip verification: file-set diff vs the session-23 artifact = IDENTICAL; extracted content diff (diff -rq) = IDENTICAL — the shipped zip was already byte-for-byte equal to the GitHub tag content; secrets scan (ghp_/cfut_/hcw_/ping key/telegram token/owner password) = 0 hits; structure scan (node_modules/.wrangler/.dev.vars/.secrets.env/data/dist/.git/credentials.md) = 0 hits. Placed at upload/hibana.v0.3.11.5.zip + download/hibana.v0.3.11.5.zip.
+- Live prod probe (hibana.ir): /api/health 200, /dist/manifest.json 200, served sw.js sha256 == repo public/sw.js at the tag; active VERSION const = hibana-v283 (the v237 first-grep hit is the line-2 version-history comment, not the active version). Prod confirmed running v0.3.11.5 right now.
+- Git close-out: reset --soft to 3400112 (dropped the UUID noise commit), staged worklog.md (s19–s23 + this entry), release zips v0.3.11.1–5 (upload/ + download/), workspace cleanup, .gitignore entry for NEXT_SESSION_PROMPT.md; verified NO credentials files staged; staged-diff secrets scan clean; committed + pushed to assadigit/hibana-source main. No new tag — zero code changes; v0.3.11.5 already covers the code state.
+- Delivered the next-session handoff prompt: full text in chat + saved to download/NEXT_SESSION_PROMPT.md (gitignored; carries credentials — never commit, never zip, never re-upload into chat).
+
+Stage Summary:
+- GitHub = local workspace = release zip = deployed prod, all at v0.3.11.5 (SW v283). Owner's local backup: download/hibana.v0.3.11.5.zip, built provably from tag v0.3.11.5.
+- Next session starts from download/NEXT_SESSION_PROMPT.md — focus: tweaks/corrections/UI-UX fixes; the agent's FIRST action is to ask the owner for the backlog list (~10–12 items) before touching any code.

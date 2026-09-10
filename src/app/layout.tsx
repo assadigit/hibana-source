@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { Toaster } from "@/components/ui/toaster";
-import { ThemeProvider } from "@/components/theme-provider";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -15,33 +14,24 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Hibana — Session 19 Status",
-  description:
-    "Hibana is a personal project & idea manager built with Hono on Cloudflare Workers + D1. This page tracks the Session 19 (v0.3.10.2) worklog: fixes, polish, and verification.",
-  keywords: [
-    "Hibana",
-    "idea manager",
-    "Hono",
-    "Cloudflare Workers",
-    "D1",
-    "Session 19",
-    "v0.3.10.2",
-  ],
-  authors: [{ name: "Hibana" }],
+  title: "Z.ai Code Scaffold - AI-Powered Development",
+  description: "Modern Next.js scaffold optimized for AI-powered development with Z.ai. Built with TypeScript, Tailwind CSS, and shadcn/ui.",
+  keywords: ["Z.ai", "Next.js", "TypeScript", "Tailwind CSS", "shadcn/ui", "AI development", "React"],
+  authors: [{ name: "Z.ai Team" }],
   icons: {
-    icon: "/logo.svg",
+    icon: "https://z-cdn.chatglm.cn/z-ai/static/logo.svg",
   },
   openGraph: {
-    title: "Hibana — Session 19 Status",
-    description:
-      "A safe for your ideas. Session 19 (v0.3.10.2) worklog, fixes, and live QA status.",
-    siteName: "Hibana",
+    title: "Z.ai Code Scaffold",
+    description: "AI-powered development with modern React stack",
+    url: "https://chat.z.ai",
+    siteName: "Z.ai",
     type: "website",
   },
   twitter: {
-    card: "summary",
-    title: "Hibana — Session 19 Status",
-    description: "A safe for your ideas. Session 19 worklog + live QA status.",
+    card: "summary_large_image",
+    title: "Z.ai Code Scaffold",
+    description: "AI-powered development with modern React stack",
   },
 };
 
@@ -55,15 +45,8 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased bg-background text-foreground`}
       >
-        <ThemeProvider
-          attribute="class"
-          defaultTheme="light"
-          enableSystem
-          disableTransitionOnChange
-        >
-          {children}
-          <Toaster />
-        </ThemeProvider>
+        {children}
+        <Toaster />
       </body>
     </html>
   );

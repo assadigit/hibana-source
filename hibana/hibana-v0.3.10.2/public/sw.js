@@ -121,7 +121,7 @@
 // (clamp render + read-more delegation + counter removal), devboard.js v10 (title
 // input → textarea), magic-wand.js v9 (title-written re-clamp event). The precached
 // HTML shells must rotate so clients drop the old counter markup.
-const VERSION = "hibana-v287" // Session 24c2: digit conversion line-by-line (mixed Farsi+English text element: Farsi lines → Farsi digits, English lines → Latin digits)
+const VERSION = "hibana-v288" // Session 24d: delete button class fix (ghost.danger→btn.danger — was rendering as 28px icon square instead of padded text button)
 
 // Static shell: unhashed pages/partials/icons/vendor/fonts (SWR or network-first at
 // runtime; precached here for offline). The hashed app bundles come from the manifest

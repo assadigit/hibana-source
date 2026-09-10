@@ -9,7 +9,44 @@
 > rewritten as a minimal pointer. Deleted files remain recoverable verbatim:
 > `git show <sha>:<file>`.
 
-## 1. Current state (v0.3.11.5 — Session 23: live-feedback fixes — editor CODE blocks + toolbar, FA dropdown labels, RTL editors, green save, FAB tour z-fix, unified hover)
+## 1. Current state (v0.3.11.6 — Session 24: progress-box copy-all + magic-wand-for-all + delete-in-edit-modal + logo radius)
+- v0.3.11.6 = **Session 24 hotfix release** — 4 fixes from Ali's live feedback (project.html
+  inline JS + app.css; no schema changes, no new i18n keys):
+  - **Progress-box copy truncates at 5 items (root cause)**: the server renders only
+    MAX_VISIBLE=5 items per column into the DOM (Session 19). `pdColItems` read `.pd-task`
+    from the DOM → copy/export only ever saw the first 5. Now `pdColItems` is async and
+    fetches the full task list from `/api/projects/:id` (same endpoint the "more" button
+    uses) when the column isn't fully expanded, so copy/export always see EVERY item.
+    Fast path: if the column is expanded (`data-expanded="1"`), reads from the DOM directly.
+  - **Magic wand only appears on first 5 items (root cause)**: `injectPdTaskMenus()` sets
+    `data-magic` on `.pd-task-title` elements. It runs on page load + htmx swaps, but the
+    "more" expand handler inserted new `.pd-task-wrap` elements WITHOUT calling
+    `injectPdTaskMenus()` afterward → expanded items 6+ never got `data-magic` → wand
+    never appeared. Fixed: `injectPdTaskMenus()` is now called after the expand loop
+    inserts hidden items. Idempotent (`:not([data-menu-ok])` guard) — safe to re-run.
+  - **Delete from inside the edit modal (user request)**: the inline task editor modal
+    (`#pde-form`) had Title + toolbar + Status + Priority + Cancel + Save but NO delete.
+    Delete only existed in the card's ⋯ hover menu. Now a red ghost Delete button sits on
+    the left of the modal's button row (Cancel + Save stay on the right). Handler reuses
+    the exact card-menu delete recipe: optimistic remove + decrement count + keep
+    `data-pd-total` in sync + Undo toast → `DELETE /api/devtasks/:id`. No confirm dialog —
+    matches the existing card-delete UX (Undo is the safety net).
+  - **Project logo radius (user request: "need 64px radius… soft, modern, rounded")**:
+    `.pd-logo` had `border-radius: 0` (hard square corners). Now `border-radius: 64px` —
+    soft, modern, rounded edges on any uploaded logo (square logos become circular;
+    rectangular logos get fully-rounded short edges). The placeholder keeps its
+    `--radius-sm` (it's a dashed-border upload prompt, not a logo image).
+  - Verified locally: typecheck green, 295/295 tests, `node --check sw.js` OK, cache-bust
+    PASS. HTTP-based E2E on the local Node server (PORT=3001): login OK, htmx fragment
+    renders 5 task cards + "+3 more" button (confirms MAX_VISIBLE root cause), API returns
+    all 8 tasks (confirms copy-all fetches full list), inline JS serves all 3 fixes
+    (`injectPdTaskMenus()` after expand, `#pde-delete` in modal, `pdColItems` async +
+    fetch), `border-radius: 64px` on `.pd-logo`, SW `hibana-v284`, `app.css ?v=263` on 23
+    HTML pages. Playwright browser E2E attempted but sandbox process-reaping prevented
+    multi-step browser tests within a single bash call; static + HTTP verification covers
+    all code paths.
+  - Assets: `app.css` ?v=262→263 (23 pages), SW `hibana-v283`→`v284`, `package.json`
+    0.3.11.5→0.3.11.6.
 - v0.3.11.5 = **Session 23 hotfix release** — 5 fixes from Ali's live feedback (CSS + JS +
   i18n keys + one TS renderer; no schema changes):
   - **English dropdown items in FA locale (root cause)**: the inline task editor's

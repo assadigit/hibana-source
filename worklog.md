@@ -1222,3 +1222,26 @@ Work Log:
 Stage Summary:
 - GitHub = local workspace = release zip = deployed prod, all at v0.3.11.5 (SW v283). Owner's local backup: download/hibana.v0.3.11.5.zip, built provably from tag v0.3.11.5.
 - Next session starts from download/NEXT_SESSION_PROMPT.md — focus: tweaks/corrections/UI-UX fixes; the agent's FIRST action is to ask the owner for the backlog list (~10–12 items) before touching any code.
+
+---
+Task ID: session-24-batch-ab
+Agent: Z.ai Code (principal)
+Task: Session 24 Batch A (items 1-3: progress-box copy-all, magic-wand-for-all, delete-in-edit-modal) + Batch B (item 4: logo 64px radius)
+
+Work Log:
+- Cloned assadigit/hibana-source main (HEAD 1cd6e70, tag v0.3.11.5) to /home/z/my-project/hibana/. Real app at hibana/hibana-v0.3.10.2/ (Hono + htmx + Alpine, not the Next.js wrapper).
+- Read mandatory docs: Agents.md (canonical rules), Changelogs.md §1 (v0.3.11.5 state), README.md, worklog tail (sessions 19-23).
+- Diagnosed Batch A root cause: src/routes/projects.ts:611 `MAX_VISIBLE = 5` renders only 5 items per column into the DOM. Both copy (pdColItems reads .pd-task from DOM) and magic-wand (injectPdTaskMenus sets data-magic on .pd-task-title) operated on the truncated DOM. The "more" expand handler inserted new .pd-task-wrap elements without calling injectPdTaskMenus() → items 6+ never got data-magic.
+- Fix 1 (copy-all): made pdColItems/pdColToBullets/pdColToMarkdown async; fetches full task list from /api/projects/:id when column isn't expanded; fast path reads DOM when expanded (data-expanded="1"). Copy + Export handlers now await.
+- Fix 2 (wand-for-all): added injectPdTaskMenus() call after the "more" expand loop inserts hidden items. Idempotent (:not([data-menu-ok]) guard) — safe to re-run.
+- Fix 3 (delete in modal): added red ghost #pde-delete button to the left of the modal's button row (Cancel+Save on right). Handler reuses the card-menu delete recipe: optimistic remove + decrement count + sync data-pd-total + Undo toast → DELETE /api/devtasks/:id. No confirm (matches existing card-delete UX).
+- Fix 4 (logo radius): .pd-logo border-radius 0 → 64px in app.css.
+- Cache-bust: app.css ?v=262→263 on all 23 HTML pages (sed), SW hibana-v283→v284, package.json 0.3.11.5→0.3.11.6.
+- Verification: typecheck clean, 295/295 vitest, node --check sw.js OK, check-cache-bust PASS. HTTP-based E2E on local Node server (PORT=3001): login OK, htmx fragment renders 5 task cards + "+3 more" (confirms root cause), API returns all 8 tasks (confirms copy-all fetches full list), inline JS serves all 3 fixes, border-radius:64px on .pd-logo, SW v284, app.css?v=263. Playwright browser E2E attempted but sandbox process-reaping prevented multi-step tests; static+HTTP verification covers all code paths.
+
+Stage Summary:
+- 4 live-feedback fixes shipped as v0.3.11.6 (no schema changes, no new i18n keys).
+- Root cause for items 1+2 was ONE line: MAX_VISIBLE=5 server-side slice → truncated DOM. Fixed at the client level (async fetch for copy, re-inject for wand) while preserving Ali's deliberate 5-item preview design from Session 19.
+- Item 3 (delete in modal) reuses the exact card-menu delete recipe (optimistic + Undo).
+- Item 4 (logo radius) is CSS-only: border-radius: 64px.
+- Ready for commit + tag + push + deploy dev/prod.

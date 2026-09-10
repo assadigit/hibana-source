@@ -192,15 +192,25 @@
     const cats = state.categories
     const lang = window.hibanaI18n && window.hibanaI18n.lang ? window.hibanaI18n.lang() : 'en'
     el.innerHTML =
-      '<div class="db-modal-card" dir="auto">' +
+      '<div class="db-modal-card" dir="' + (lang === 'fa' ? 'rtl' : 'auto') + '">' +
         '<div class="row spread"><h3>' + (isNew ? esc(t('db.newTask', 'New task')) : esc(t('db.editTask', 'Edit task'))) + '</h3>' +
         '<button type="button" class="ghost" data-db-close aria-label="' + esc(t('common.close', 'Close')) + '">✕</button></div>' +
         '<label class="db-field"><span>' + esc(t('db.title', 'Title')) + '</span>' +
           // Session 22 (user request): TEXTAREA (was a single-line input with
           // maxlength=300) — unlimited, multi-line, 9rem min + resizable (app.css),
           // matching the project-page composer. Enter saves, Shift+Enter breaks the
-          // line; newlines collapse to spaces on save (titles are single-line).
-          '<textarea name="title" rows="6" dir="auto" placeholder="' + esc(t('db.titlePh', 'What needs to be built?')) + '">' + esc(d.title) + '</textarea></label>' +
+          // line. Session 23 (user request): (a) dir follows the UI locale — fa → rtl
+          // (dir="auto" let a Latin first char keep the editor LTR while writing
+          // Farsi; rendered code blocks stay LTR islands via .t-code), (b) a
+          // formatting toolbar (Code / Bold / Bullet) sits under the title field —
+          // same [data-tb] wiring as project.html's composers, and newlines are
+          // PRESERVED on save (titles render multi-line with fenced code blocks).
+          '<div class="pd-tb" role="toolbar" aria-label="' + esc(t('pd.fmtCode', 'Code block')) + '">' +
+            '<button type="button" class="pd-tb-btn" data-tb="code" title="' + esc(t('pd.fmtCode', 'Code block')) + '"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m8 6-6 6 6 6M16 6l6 6-6 6"/></svg> ' + esc(t('pd.fmtCode', 'Code block')) + '</button>' +
+            '<button type="button" class="pd-tb-btn" data-tb="bold" title="' + esc(t('pd.fmtBold', 'Bold')) + '"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 5h6a3.5 3.5 0 1 1 0 7H7zM7 12h7a3.5 3.5 0 1 1 0 7H7z"/></svg> ' + esc(t('pd.fmtBold', 'Bold')) + '</button>' +
+            '<button type="button" class="pd-tb-btn" data-tb="list" title="' + esc(t('pd.fmtList', 'Bullet list')) + '"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6h12M9 12h12M9 18h12"/><circle cx="4.5" cy="6" r="1.3" fill="currentColor"/><circle cx="4.5" cy="12" r="1.3" fill="currentColor"/><circle cx="4.5" cy="18" r="1.3" fill="currentColor"/></svg> ' + esc(t('pd.fmtList', 'Bullet list')) + '</button>' +
+          '</div>' +
+          '<textarea name="title" rows="6" dir="' + (lang === 'fa' ? 'rtl' : 'auto') + '" placeholder="' + esc(t('db.titlePh', 'What needs to be built?')) + '">' + esc(d.title) + '</textarea></label>' +
         '<div class="db-field"><span>' + esc(t('db.status', 'Status')) + '</span>' +
           '<div class="db-seg" data-seg="status">' + STATUSES.map((s) =>
             '<button type="button" data-val="' + s + '" class="' + (d.status === s ? 'is-on' : '') + '">' + esc(statusLabel(s)) + '</button>').join('') + '</div></div>' +
@@ -233,10 +243,49 @@
         '<div class="row spread" style="margin-block-start:1rem">' +
           (isNew ? '' : '<button type="button" class="btn ghost danger" data-db-del>' + esc(t('common.delete', 'Delete')) + '</button>') +
           '<div class="row"><button type="button" class="ghost" data-db-close>' + esc(t('common.cancel', 'Cancel')) + '</button>' +
-          '<button type="button" class="btn" data-db-save>' + esc(isNew ? t('common.add', 'Add') : t('common.save', 'Save')) + '</button></div>' +
+          // Session 23 (user request: "the ذخیره button must be green like other
+          // buttons"): plain <button> = the system's green CTA fill (was .btn neutral).
+          '<button type="button" data-db-save>' + esc(isNew ? t('common.add', 'Add') : t('common.save', 'Save')) + '</button></div></div>' +
         '</div>' +
       '</div>'
 
+    // Session 23 (user request): formatting toolbar wiring — Code wraps the selection
+    // in ``` fences (or drops an empty block at the caret), Bold wraps in **pairs**,
+    // Bullet prefixes the selected lines with "- ". Fences land on their OWN lines so
+    // the renderers (board.html / projects.ts / project.html) recognize them.
+    el.querySelectorAll('.pd-tb [data-tb]').forEach((b) => {
+      b.onclick = () => {
+        const ta = el.querySelector('[name=title]')
+        if (!ta) return
+        const s = ta.selectionStart == null ? ta.value.length : ta.selectionStart
+        const en = ta.selectionEnd == null ? s : ta.selectionEnd
+        const v = ta.value
+        const sel = v.slice(s, en)
+        const kind = b.dataset.tb
+        if (kind === 'list') {
+          const ls = v.lastIndexOf('\n', s - 1) + 1
+          let le = v.length
+          if (sel.includes('\n')) { const n = v.indexOf('\n', Math.max(en, s)); if (n !== -1) le = n }
+          const marked = v.slice(ls, le).split('\n').map((l) => (l === '' || l.startsWith('- ')) ? l : '- ' + l).join('\n')
+          ta.setRangeText(marked, ls, le, 'end')
+          ta.focus()
+          return
+        }
+        let before = '', after = ''
+        if (kind === 'code') {
+          const pre = s === 0 || v[s - 1] === '\n' ? '' : '\n'
+          before = pre + '```\n'
+          after = '\n```' + (en === v.length || v[en] === '\n' ? '' : '\n')
+        } else {
+          before = '**'
+          after = '**'
+        }
+        ta.setRangeText(before + sel + after, s, en, 'end')
+        if (sel) ta.setSelectionRange(s + before.length, s + before.length + sel.length)
+        else ta.setSelectionRange(s + before.length, s + before.length)
+        ta.focus()
+      }
+    })
     el.querySelectorAll('[data-db-close]').forEach((b) => { b.onclick = () => closeModal(false) })
     el.querySelectorAll('.db-seg button').forEach((b) => {
       b.onclick = () => {
@@ -296,9 +345,10 @@
     }
     el.querySelector('[data-db-save]').onclick = async () => {
       const titleIn = el.querySelector('[name=title]')
-      // Session 22: unlimited title — newlines collapse to spaces (same contract as
-      // the project-page composer; the card renders the title as one flowing block).
-      const title = titleIn.value.replace(/\s*\n\s*/g, ' ').trim()
+      // Session 23 (user request): newlines PRESERVED (multi-line titles with fenced
+      // code blocks / bullet lists) — only \r\n normalized + outer trim. Was collapsed
+      // to single spaces ("titles are single-line", pre-Session-23 contract).
+      const title = titleIn.value.replace(/\r\n/g, '\n').trim()
       if (!title) { titleIn.focus(); return }
       try {
         let categoryId = modalCtx.draft.category_id

@@ -9,7 +9,82 @@
 > rewritten as a minimal pointer. Deleted files remain recoverable verbatim:
 > `git show <sha>:<file>`.
 
-## 1. Current state (v0.3.11.4 — Session 22: live-feedback fixes — task-editor modal sizing, unlimited titles + 150-char read-more, board color consistency)
+## 1. Current state (v0.3.11.5 — Session 23: live-feedback fixes — editor CODE blocks + toolbar, FA dropdown labels, RTL editors, green save, FAB tour z-fix, unified hover)
+- v0.3.11.5 = **Session 23 hotfix release** — 5 fixes from Ali's live feedback (CSS + JS +
+  i18n keys + one TS renderer; no schema changes):
+  - **English dropdown items in FA locale (root cause)**: the inline task editor's
+    Status/Priority selects used `_t('status.idea'|'prio.low'|…)` — those keys NEVER
+    existed (the dicts only carry the 7-stage project taxonomy), so FA fell back to raw
+    English "idea/planned/in_progress/done/bug" + "low/medium/high/urgent". Now the
+    selects reuse the BOARD's translated keys (db.st.idea/planned/inprog/done/bug +
+    db.pr.*) — the dropdown matches the column names the owner already sees
+    (ایده‌های جدید / برنامه آتی / در حال انجام / انجام‌شده / مشکلات / کم / متوسط /
+    زیاد / فوری). EN unchanged (New Ideas/Upcoming Plan/In Progress/Implemented/Problems).
+  - **RTL text editors in FA (root cause)**: all three task editors hardcoded
+    dir="auto" — the first-strong-char heuristic keeps the editor LTR whenever the
+    first typed character is Latin/numeric, so Farsi writing read misaligned. All now
+    follow the UI locale (fa → rtl, else auto — the recipe the description/note
+    editors already used): #pd-taskadd-textarea, #pde-input, the board editor's
+    textarea + modal card, plus the backlog composer + full-screen plan editor.
+    Rendered CODE blocks stay LTR islands regardless (see below).
+  - **Editor options + dedicated CODE container (owner: "many times my tasks have Codes
+    in them, mostly html css")**: task titles now carry fenced ``` code blocks, **bold**
+    and manual line breaks. A formatting toolbar (Code / Bold / Bullet — کد/پررنگ/بولت
+    in FA, 6 new i18n keys) sits above the textarea in all three composers (add modal,
+    inline edit dialog, board editor); Code wraps the selection in fences or drops an
+    empty block at the caret. Newlines are PRESERVED on save everywhere (was collapsed
+    to spaces; only \r\n normalized + outer trim; the problems-box line-splitting
+    composer keeps its per-line behavior by design). Rendering — ONE renderer ported
+    to three sites (routes/projects.ts renderTitle, project.html pdRenderTitle,
+    board.html renderTitle): escape-first line-walk; fence lines open/close
+    `<code class="t-code" dir="ltr">` — monospace, soft inset surface, pre + horizontal
+    scroll, an optional data-lang label (```css → "CSS"), an LTR island inside RTL
+    cards; prose lines get **pair** → <strong>; titles render multi-line
+    (white-space: pre-line). The ``` fence LINES live in `<span hidden class="t-fence">`
+    markers INSIDE the <code>, so the title's textContent still reads the RAW title
+    EXACTLY — every textContent consumer (editors' prefill, magic wand, quick-copy,
+    Markdown export, delete-undo) round-trips with zero changes; unclosed fences render
+    as code till end (self-healing); the Session-22 150-char clamp + read-more work
+    unchanged (both halves rendered through the same renderer). A specificity twin
+    `html[lang='fa'] .t-code` keeps the container monospace against the
+    `html[lang=fa] body *` Vazir rule (Vazir sits last in the stack so Farsi comments
+    inside code still render).
+  - **ذخیره green (owner: "must be green like other buttons of the system")**: the
+    inline editor's #pde-save and the board editor's data-db-save carried class="btn"
+    (the neutral card-bg style) while every primary action in the system is a plain
+    <button> (the --cta green fill + white text). Both dropped the class → #2E7B7F +
+    white, matching افزودن/Add and every other CTA.
+  - **Vanished + FAB (root cause, verified live on hibana.ir before fixing)**: the
+    onboarding tour (shipped v0.3.11.2) highlights the FAB at step 1 — but the FAB's
+    z-index:81 was trapped inside .fab-stack's stacking context (z-index 40), BELOW
+    the tour overlay (z-index 80, 62% black + blur): during the tour the FAB rendered
+    INVISIBLE + unclickable under the veil (elementsFromPoint proved the overlay on
+    top). Fresh browsers / cleared storage / a second device re-trigger the tour →
+    "the + cta button … is vanished". Fixed with `.fab-stack:has(.tour-target)` and
+    `.topbar:has(.tour-target)` → z-index 82 (same trap hit step 2's theme toggle in
+    the z-30 sticky topbar). Verified: fresh browser now shows the FAB above the dim,
+    ring + pulse visible, clickable; skip/end restores normally.
+  - **Hover bug (owner: "in hover, buttons turn green, text becomes light — fix hover
+    bug")**: `button:hover` (0,1,1) sets green bg + white text globally; any
+    single-class button rule whose :hover only overrides color/border LEAKED the green
+    fill under dark/brand text — mixed green+dark pills everywhere. 12 rules now carry
+    the FULL green+light recipe explicitly (.fab-item, .db-seg button, .db-add,
+    .pd-read-more, .pd-more-link, .stat-arrow, .zen-exit, .sp-sprint-chip, .sf-chip,
+    .sf-more, .pd-tag-add, .spark-folder-new) and 2 content-surfaces got their intended
+    neutral bg reset on hover (.spark-folder-card, .dash-collapse-btn). Verified with
+    real mouse hovers: #276A6D + #fff on db-add, db-seg buttons, fab-item (transition
+    mid-frames initially misread as muted — final states re-verified).
+  - Verified locally: typecheck green, 295/295 tests, smoke ALL PASS, cache-bust PASS;
+    browser E2E on the local Node server (PORT=3001) — FA + EN × light + dark ×
+    1280/390: FA dropdown labels, RTL editors, toolbar flows (Code button inserts
+    fences at the caret; caret lands inside the block), CSS+HTML code tasks round-trip
+    add→card→edit-prefill→save→card on BOTH surfaces, textContent exact, mono font in
+    FA, dark container colors, 0 hscroll at 390px (long code scrolls inside the block),
+    0 console/page errors across projects/sparks/board/sprint/project. Local fixture
+    project deleted after the run.
+  - Assets: app.css ?v=261→262 (23 pages), i18n.js ?v=54→55 (all pages), devboard.js
+    ?v=10→11 (board + sprint ×2), SW hibana-v282→v283 (precached HTML shells rotate —
+    project/board markup changed), package.json 0.3.11.4→0.3.11.5.
 - v0.3.11.4 = **Session 22 hotfix release** — 3 fixes from Ali's live feedback (CSS + JS +
   two Zod caps lifted; no schema changes):
   - **Task-composer modals actually open big now (root-cause fix)**: the v0.3.11.1 "50%
@@ -209,6 +284,7 @@
 | 20 | 2026-09 | v0.3.11.2 — Session 20: systematic UI/UX audit (129-row sweep, 0 console errors), 22 AA-contrast offenders fixed (white-on-accent fills → --cta; teal-as-text → --link; pd-col inks darkened; dark sticky metadata + bug-bubble), 2 mobile overflows fixed (project header, clients payments form), CRITICAL backup coverage gaps fixed (project_archives + dev_task_tags in snapshot; restore.mjs stale tableOrder; restore-safe FK-safe ordering; personal export cluster), stale smoke expectation fixed, SW-navigation 401→login redirect fix (middleware Accept:text/html + sw.js). 295/295 tests, typecheck green, smoke ALL PASS, local restore drill PASS, app.css v259, SW v280 |
 | 21 | 2026-09 | v0.3.11.3 — Session 21: live-feedback visual fixes — bug-bubble pastel red + shadow removed (sig-chip recipe, AA-checked both themes), whole --stage-bar-* set softened to pastel (7 tokens), skip-to-main-content anchor removed from all 17 pages (+CSS +i18n key; owner: covered the header avatar). 295/295 tests, typecheck green, smoke ALL PASS, app.css v260, SW v281 |
 | 22 | 2026-09 | v0.3.11.4 — Session 22: live-feedback fixes — dialog.modal specificity bug fixed (taskadd/taskedit actually open at min(78rem,96vw); pd-editor 60rem; db-modal 52rem; textareas 18rem/9rem + resizable), 300-char limit halted everywhere (FE caps removed, devboard.ts 2000→100k guard; 150-char hidden-rest clamp + read-more button on project + board, textContent stays full), board color system unified with pd recipes (medium keeps column color — board no longer all-orange; prio-dots un-hidden; AA inks; muted dark set), client-rendered cards click-to-edit like server cards, stale-card edit-update selector fixed. 295/295 tests, typecheck green, smoke ALL PASS, app.css v261, SW v282 |
+| 23 | 2026-09 | v0.3.11.5 — Session 23: live-feedback fixes — task editor CODE support (``` fenced blocks rendered as monospace LTR `<code class="t-code">` islands with data-lang labels + hidden fence markers so textContent round-trips the raw title exactly; **bold**; multi-line titles with preserved newlines; Code/Bold/Bullet toolbar in all 3 composers; one renderer ported to projects.ts/project.html/board.html), FA dropdown root cause (pde selects used never-existing status.*/prio.* keys → now the board's db.st.*/db.pr.* translations), FA editors now dir=rtl (was auto→LTR on Latin first char; recipe applied to 5 textareas incl. backlog), ذخیره buttons green (#pde-save + data-db-save plain-button CTA), vanished FAB root cause (tour overlay z-80 buried the z-81 target trapped in .fab-stack's z-40 context → :has(.tour-target) lifts fab-stack/topbar to z-82; verified live pre-fix), 14 hover-leak fixes (button:hover's green bg leaked under dark/brand text — full green+light recipe on 12 action buttons, neutral reset on 2 content surfaces), FA mono-font specificity twin for .t-code. 295/295 tests, typecheck green, smoke ALL PASS, app.css v262, i18n.js v55, devboard.js v11, SW v283 |
 
 ## 3. Timeline by era
 ### Foundation — 2026-08-21→25 (migrations 0014–0018; tests 75→163)

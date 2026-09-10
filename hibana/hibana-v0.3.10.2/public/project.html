@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Project — Hibana</title>
-  <link rel="stylesheet" href="/css/app.css?v=261">
+  <link rel="stylesheet" href="/css/app.css?v=262">
   <link rel="stylesheet" href="/css/magic-wand.css?v=2">
   <link rel="stylesheet" href="/vendor/manrope/font-face.css">
   <script src="/vendor/htmx.min.js" defer></script>
@@ -19,7 +19,7 @@
   <script src="/js/micro-interactions.js?v=1" defer></script>
   <script src="/js/go-to.js?v=1" defer></script>
   <script src="/js/install-prompt.js?v=1" defer></script>
-  <script src="/js/i18n.js?v=54" defer></script>
+  <script src="/js/i18n.js?v=55" defer></script>
   <script src="/js/magic-wand.js?v=9" defer></script>
 </head>
 <body>
@@ -605,11 +605,46 @@
         // span INSIDE the title element — textContent still reads the FULL title (the
         // magic wand, inline editors, copy/export, undo all consume textContent).
         // [data-task-read-more] toggles it; the delegated handler lives below.
+        //
+        // Session 23 (user request): titles may carry fenced ``` CODE blocks, **bold**
+        // and manual line breaks — SAME renderer as the server (routes/projects.ts
+        // renderTitle): fence lines open/close a <code class="t-code" dir="ltr"> mono
+        // container with the fence LINES kept in <span hidden class="t-fence"> markers
+        // INSIDE it, so textContent round-trips the RAW title exactly. Prose lines get
+        // **pair** → <strong>. Unclosed fences render as code till end (self-healing).
         const PD_TITLE_CLAMP = 150
+        const pdRenderTitle = (raw) => {
+          const escd = pdEsc(raw)
+          const hasFence = /(^|\n)\s*```/.test(escd)
+          const hasBold = /\*\*[^*\n]+\*\*/.test(escd)
+          if (!hasFence && !hasBold) return escd
+          const lines = escd.split('\n')
+          let out = ''
+          let inCode = false
+          for (let i = 0; i < lines.length; i++) {
+            const line = lines[i]
+            const nl = i < lines.length - 1 ? '\n' : ''
+            if (!inCode && /^\s*```/.test(line)) {
+              inCode = true
+              const codeLang = line.trim().slice(3).trim()
+              out += '<code class="t-code"' + (codeLang ? ' data-lang="' + codeLang + '"' : '') + ' dir="ltr"><span hidden class="t-fence">' + line + '</span>'
+            } else if (inCode && line.trim() === '```') {
+              inCode = false
+              out += '<span hidden class="t-fence">' + line + '</span></code>'
+            } else if (inCode) {
+              out += line
+            } else {
+              out += line.replace(/\*\*([^*\n]+)\*\*/g, '<strong>$1</strong>')
+            }
+            out += nl
+          }
+          if (inCode) out += '</code>'
+          return out
+        }
         const pdTitleHtml = (title) => {
           const s = String(title == null ? '' : title)
-          if (s.length <= PD_TITLE_CLAMP) return pdEsc(s)
-          return pdEsc(s.slice(0, PD_TITLE_CLAMP)) + '<span class="pd-title-rest" hidden>' + pdEsc(s.slice(PD_TITLE_CLAMP)) + '</span>'
+          if (s.length <= PD_TITLE_CLAMP) return pdRenderTitle(s)
+          return pdRenderTitle(s.slice(0, PD_TITLE_CLAMP)) + '<span class="pd-title-rest" hidden>' + pdRenderTitle(s.slice(PD_TITLE_CLAMP)) + '</span>'
         }
         const pdTitleAttrs = (title) => (String(title || '').length > PD_TITLE_CLAMP ? ' data-clamped=""' : '')
         const pdReadMoreBtn = (title) => (String(title || '').length > PD_TITLE_CLAMP
@@ -839,11 +874,12 @@
           const save = document.getElementById('pd-taskadd-save')
           const err = document.getElementById('pd-taskadd-error')
           if (!m || !ta || !taskAddStatus) return
-          // Task titles are single-line (chip + board cards render them as one row):
-          // Shift+Enter newlines are collapsed to spaces. Session 22: the title is
-          // UNLIMITED — the old 300 maxlength + counter are gone; the server's Zod
-          // schema keeps only a 100k sanity guard.
-          const title = ta.value.replace(/\s*\n\s*/g, ' ').trim()
+          // Session 22: the title is UNLIMITED — the old 300 maxlength + counter are
+          // gone; the server's Zod schema keeps only a 100k sanity guard.
+          // Session 23 (user request): newlines are PRESERVED now — titles render
+          // multi-line (code blocks, bullet lists). Only \r\n is normalized (browsers
+          // on Windows paste) + outer trim. The 100k server guard still applies.
+          const title = ta.value.replace(/\r\n/g, '\n').trim()
           if (!title) { m.close(); return }
           if (save) save.disabled = true
           if (err) { err.hidden = true; err.textContent = '' }
@@ -875,6 +911,51 @@
             e.preventDefault()
             document.getElementById('pd-taskadd-form')?.requestSubmit()
           }
+        })
+
+        // --- Session 23 (user request): composer formatting toolbar (Code / Bold / Bullet) ---
+        // ONE delegated handler serves BOTH composers: the server-rendered add dialog
+        // (re-rendered on every htmx swap of #project-body) and the JS-built inline edit
+        // dialog — the button looks up the editable textarea in its own <form>. Code
+        // wraps the selection in ``` fences (or drops an empty block at the cursor and
+        // puts the caret inside it); Bold wraps in **pairs**; Bullet prefixes every
+        // selected line with "- ". Fences always land on their OWN lines so the renderer
+        // (pdRenderTitle / renderTitle) recognizes them.
+        const pdApplyTb = (ta, kind) => {
+          if (!ta) return
+          const s = ta.selectionStart == null ? ta.value.length : ta.selectionStart
+          const e = ta.selectionEnd == null ? s : ta.selectionEnd
+          const v = ta.value
+          const sel = v.slice(s, e)
+          if (kind === 'list') {
+            const ls = v.lastIndexOf('\n', s - 1) + 1
+            let le = v.length
+            if (sel.includes('\n')) { const n = v.indexOf('\n', Math.max(e, s)); if (n !== -1) le = n }
+            const marked = v.slice(ls, le).split('\n').map((l) => (l === '' || l.startsWith('- ')) ? l : '- ' + l).join('\n')
+            ta.setRangeText(marked, ls, le, 'end')
+            ta.focus()
+            return
+          }
+          let before = '', after = ''
+          if (kind === 'code') {
+            const pre = s === 0 || v[s - 1] === '\n' ? '' : '\n'
+            before = pre + '```\n'
+            after = '\n```' + (e === v.length || v[e] === '\n' ? '' : '\n')
+          } else { // bold
+            before = '**'
+            after = '**'
+          }
+          ta.setRangeText(before + sel + after, s, e, 'end')
+          if (sel) ta.setSelectionRange(s + before.length, s + before.length + sel.length)
+          else ta.setSelectionRange(s + before.length, s + before.length) // caret inside the pair/fence
+          ta.focus()
+        }
+        ctx.on('click', (e) => {
+          const btn = e.target.closest('[data-tb]')
+          if (!btn) return
+          e.preventDefault()
+          const form = btn.closest('form')
+          pdApplyTb(form ? form.querySelector('textarea') : null, btn.dataset.tb)
         })
 
         // --- ⋯ hover menu on .pd-task items (Edit + Delete) — user request 2026-09 ----
@@ -996,19 +1077,33 @@
               '<form class="modal" id="pde-form" novalidate>' +
                 '<div class="row spread"><h3 id="pde-title">' + _t('common.edit', 'Edit') + '</h3>' +
                 '<button type="button" class="ghost icon-btn" id="pde-close" aria-label="' + _t('common.close', 'Close') + '"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>' +
-                '<label>' + _t('db.title', 'Title') + ' <textarea id="pde-input" rows="8" dir="auto" required></textarea></label>' +
+                // Session 23 (user request): dir follows the UI locale — fa → rtl
+                // (dir="auto" let a Latin first char flip the whole editor to LTR while
+                // writing Farsi). Same recipe as the add composer.
+                '<label>' + _t('db.title', 'Title') + ' <textarea id="pde-input" rows="8" dir="' + (pdLang() === 'fa' ? 'rtl' : 'auto') + '" required></textarea></label>' +
+                // Session 23 (user request): formatting toolbar — Code block / Bold /
+                // Bullet (same wiring as the add composer's [data-tb] delegation).
+                '<div class="pd-tb" role="toolbar" aria-label="' + _t('pd.fmtCode', 'Code block') + '"><button type="button" class="pd-tb-btn" data-tb="code" title="' + _t('pd.fmtCode', 'Code block') + '"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m8 6-6 6 6 6M16 6l6 6-6 6"/></svg> ' + _t('pd.fmtCode', 'Code block') + '</button><button type="button" class="pd-tb-btn" data-tb="bold" title="' + _t('pd.fmtBold', 'Bold') + '"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 5h6a3.5 3.5 0 1 1 0 7H7zM7 12h7a3.5 3.5 0 1 1 0 7H7z"/></svg> ' + _t('pd.fmtBold', 'Bold') + '</button><button type="button" class="pd-tb-btn" data-tb="list" title="' + _t('pd.fmtList', 'Bullet list') + '"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6h12M9 12h12M9 18h12"/><circle cx="4.5" cy="6" r="1.3" fill="currentColor"/><circle cx="4.5" cy="12" r="1.3" fill="currentColor"/><circle cx="4.5" cy="18" r="1.3" fill="currentColor"/></svg> ' + _t('pd.fmtList', 'Bullet list') + '</button></div>' +
                 '<div class="row" style="gap:1rem;margin-top:.5rem">' +
+                // Session 23 (user report: "when in Farsi locale it shows English drop
+                // down menu items"): _t('status.idea'|'prio.low'|…) keys never existed —
+                // the options fell back to raw English. Reuse the BOARD's translated
+                // keys (db.st.* / db.pr.*) so the dropdown matches the column names
+                // the user already sees (ایده‌های جدید / برنامه آتی / …).
                   '<label style="flex:1">' + _t('db.status', 'Status') + ' <select id="pde-status">' +
-                    ['idea','planned','in_progress','done','bug'].map(function(s){return '<option value="'+s+'">'+_t('status.'+s, s)+'</option>'}).join('') +
+                    [['idea','db.st.idea'],['planned','db.st.planned'],['in_progress','db.st.inprog'],['done','db.st.done'],['bug','db.st.bug']].map(function(pair){return '<option value="'+pair[0]+'">'+_t(pair[1], pair[0])+'</option>'}).join('') +
                   '</select></label>' +
                   '<label style="flex:1">' + _t('db.priority', 'Priority') + ' <select id="pde-priority">' +
-                    ['low','medium','high','urgent'].map(function(p){return '<option value="'+p+'">'+_t('prio.'+p, p)+'</option>'}).join('') +
+                    [['low','db.pr.low'],['medium','db.pr.medium'],['high','db.pr.high'],['urgent','db.pr.urgent']].map(function(pair){return '<option value="'+pair[0]+'">'+_t(pair[1], pair[0])+'</option>'}).join('') +
                   '</select></label>' +
                 '</div>' +
                 '<p class="error" id="pde-error" role="alert"></p>' +
                 '<div class="row" style="justify-content:flex-end;gap:.5rem;margin-top:1rem">' +
                   '<button type="button" class="ghost" id="pde-cancel">' + _t('common.cancel', 'Cancel') + '</button>' +
-                  '<button type="submit" class="btn" id="pde-save">' + _t('common.save', 'Save') + '</button>' +
+                  // Session 23 (user request: "the ذخیره button must be green like other
+                  // buttons"): plain <button> = the system's green CTA fill (was .btn,
+                  // the neutral card-bg style).
+                  '<button type="submit" id="pde-save">' + _t('common.save', 'Save') + '</button>' +
                 '</div>' +
               '</form>'
             document.body.appendChild(pdTaskEditDlg)
@@ -1021,9 +1116,10 @@
               e.preventDefault()
               const id = pdTaskEditDlg.dataset.tid
               if (!id) return
-              // Session 22: unlimited title (no maxlength) — newlines collapse to
-              // spaces, same contract as the add composer.
-              const title = pdTaskEditDlg.querySelector('#pde-input').value.replace(/\s*\n\s*/g, ' ').trim()
+          // Task titles are multi-line since Session 23 (code blocks + bullet lists):
+          // newlines PRESERVED (only \r\n normalized + outer trim) — was collapsed to
+          // single spaces. Session 22: the title is UNLIMITED; server keeps a 100k guard.
+          const title = pdTaskEditDlg.querySelector('#pde-input').value.replace(/\r\n/g, '\n').trim()
               if (!title) { pdTaskEditDlg.querySelector('#pde-input').focus(); return }
               const status = pdTaskEditDlg.querySelector('#pde-status').value
               const priority = pdTaskEditDlg.querySelector('#pde-priority').value

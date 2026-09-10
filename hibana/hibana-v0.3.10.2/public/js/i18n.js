@@ -88,6 +88,11 @@ window.hibanaI18n = (() => {
       'pd.logoRemoveFailed': "Couldn't remove logo",
       'pd.readMore': 'read more',
       'pd.readLess': 'read less',
+      // Session 23 (user request): the task-composer toolbar — Code block / Bold / Bullet.
+      'pd.fmtCode': 'Code block',
+      'pd.fmtBold': 'Bold',
+      'pd.fmtList': 'Bullet list',
+      'pd.fmtCodeHint': 'Wrap the selection in a ``` code block',
       'pd.showLess': 'show less',
       'pd.archivesEmpty': 'No archived tasks yet. Archive done tasks from the board.',
       'pd.restore': 'Restore to board',
@@ -736,6 +741,11 @@ window.hibanaI18n = (() => {
       'pd.logoRemoveFailed': 'حذف لوگو ناموفق بود',
       'pd.readMore': 'بیشتر بخوان',
       'pd.readLess': 'کمتر',
+      // Session 23 (user request): دکمه‌های قالب‌بندی ادیتور کار — بلوک کد / پررنگ / بولت.
+      'pd.fmtCode': 'بلوک کد',
+      'pd.fmtBold': 'پررنگ',
+      'pd.fmtList': 'بولت',
+      'pd.fmtCodeHint': 'گزینهٔ انتخاب‌شده را در بلوک کد ``` بگذار',
       'pd.showLess': 'نمایش کمتر',
       'pd.archivesEmpty': 'هنوز کار بایگانی‌شده‌ای نیست. کارهای انجام‌شده را از بورد بایگانی کن.',
       'pd.restore': 'بازگرداندن به بورد',

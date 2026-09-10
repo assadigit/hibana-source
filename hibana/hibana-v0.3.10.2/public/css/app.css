@@ -1160,7 +1160,12 @@ input::placeholder, textarea::placeholder { font-size: 0.88em; opacity: 0.7; } /
   cursor: pointer;
   flex: none;
 }
-.stat-arrow:hover { color: var(--text); border-color: var(--line-strong); }
+.stat-arrow:hover {
+  /* Session 23: full green+light hover (button:hover used to leak green under dark text) */
+  background: var(--cta-hover, var(--accent-hover));
+  border-color: var(--cta-hover, var(--accent-hover));
+  color: var(--btn-text, #fff);
+}
 .stat-arrow:disabled { opacity: 0.35; cursor: default; }
 /* RTL: the track starts at the right edge, so «next» points LEFT — flip both glyphs. */
 [dir='rtl'] .stat-arrow svg { transform: scaleX(-1); }
@@ -1363,6 +1368,10 @@ input::placeholder, textarea::placeholder { font-size: 0.88em; opacity: 0.7; } /
   border-color: var(--brand);
   box-shadow: 0 2px 10px rgb(0 0 0 / 0.06);
   transform: translateY(-1px);
+  /* Session 23: button:hover's green bg used to leak under this card on hover —
+     reset the surface to the intended neutral card fill (content card, not a CTA). */
+  background: var(--card);
+  color: var(--text);
 }
 .spark-folder-card:active { transform: translateY(0); }
 .spark-folder-icon { color: var(--muted); }
@@ -1373,7 +1382,12 @@ input::placeholder, textarea::placeholder { font-size: 0.88em; opacity: 0.7; } /
 .spark-folder-menu { position: absolute; inset-block-start: 0.3rem; inset-inline-end: 0.3rem; opacity: 0; transition: opacity 0.12s ease; }
 .spark-folder-card:hover .spark-folder-menu { opacity: 1; }
 .spark-folder-new { border-style: dashed; color: var(--muted); }
-.spark-folder-new:hover { color: var(--brand); border-color: var(--brand); }
+.spark-folder-new:hover {
+  /* Session 23: green fill + light text (owner hover spec; was a green-bg/teal-text mix) */
+  background: var(--cta-hover, var(--accent-hover));
+  border-color: var(--cta-hover, var(--accent-hover));
+  color: var(--btn-text, #fff);
+}
 .spark-folder-all { background: var(--accent-soft); border-color: var(--brand); }
 .spark-folder-all .spark-folder-icon { color: var(--brand); }
 .sf-item { display: inline-flex; align-items: center; }
@@ -1390,7 +1404,12 @@ input::placeholder, textarea::placeholder { font-size: 0.88em; opacity: 0.7; } /
   cursor: pointer;
   max-inline-size: 14rem;
 }
-.sf-chip:hover { color: var(--text); border-color: var(--line-strong); }
+.sf-chip:hover {
+  /* Session 23: green fill + light text — button:hover's leak made these green+dark */
+  background: var(--cta-hover, var(--accent-hover));
+  border-color: var(--cta-hover, var(--accent-hover));
+  color: var(--btn-text, #fff);
+}
 .sf-chip.is-active {
   color: var(--text);
   border-color: var(--brand);
@@ -1417,7 +1436,11 @@ input::placeholder, textarea::placeholder { font-size: 0.88em; opacity: 0.7; } /
   border-radius: 50%;
   cursor: pointer;
 }
-.sf-more:hover { color: var(--text); }
+.sf-more:hover {
+  /* Session 23: green fill + light icon (was transparent-base leak → green bg, muted icon) */
+  background: var(--cta-hover, var(--accent-hover));
+  color: var(--btn-text, #fff);
+}
 .sf-new { border-style: dashed; }
 .sf-new .icon { inline-size: 0.95rem; block-size: 0.95rem; }
 /* The ⋯ pop (rename / delete) — tiny absolute menu next to its folder item. */
@@ -1525,7 +1548,12 @@ section[id^="dashboard-"].is-collapsed > *:not(header) { display: none; }
   background: none; border: none; padding: 0.2rem; cursor: pointer;
   color: var(--muted); display: inline-flex; align-items: center; transition: transform 0.15s ease, color 0.12s ease;
 }
-.dash-collapse-btn:hover { color: var(--brand); }
+.dash-collapse-btn:hover {
+  color: var(--brand);
+  /* Session 23: button:hover's green bg leaked behind this icon button — keep the
+     intended quiet icon-only hover (no fill). */
+  background: none;
+}
 .dash-collapse-btn .icon { inline-size: 1rem; block-size: 1rem; transition: transform 0.15s ease; }
 .is-collapsed .dash-collapse-btn .icon { transform: rotate(-90deg); }
 
@@ -2182,7 +2210,14 @@ html[data-theme="dark"] .dash-todo-style-pop,
   box-shadow: 0 2px 10px rgb(0 0 0 / 0.1);
   cursor: pointer;
 }
-.fab-item:hover { border-color: var(--accent); color: var(--text); /* Session 19: was var(--accent) (teal) — user wants readable, not green */ }
+.fab-item:hover {
+  /* Session 23 (user request: "on hover, buttons turn green, text becomes light"):
+     button:hover (0,1,1) leaked its green fill under this rule's dark text — the menu
+     pills read green-with-dark-ink. Now the FULL green+light recipe, explicitly. */
+  background: var(--cta-hover, var(--accent-hover));
+  border-color: var(--cta-hover, var(--accent-hover));
+  color: var(--btn-text, #fff);
+}
 .fab-item .fab-item-icon { display: grid; place-items: center; }
 .fab-item .fab-item-icon .icon { inline-size: 1.1rem; block-size: 1.1rem; }
 /* Keyboard shortcut hint inside the menu item (audit 18/19) — desktop affordance only. */
@@ -5821,7 +5856,12 @@ body.zen-mode { padding-block-end: 0; }
   cursor: pointer;
   transition: color 0.12s ease, border-color 0.12s ease;
 }
-.zen-exit:hover { color: var(--text); border-color: var(--line-strong); }
+.zen-exit:hover {
+  /* Session 23: green fill + light text (was green-bg leak under dark text) */
+  background: var(--cta-hover, var(--accent-hover));
+  border-color: var(--cta-hover, var(--accent-hover));
+  color: var(--btn-text, #fff);
+}
 .zen-exit .icon { width: 1em; height: 1em; }
 body.zen-mode .zen-exit { display: inline-flex; animation: zen-exit-in 0.3s ease-out 0.2s both; }
 @keyframes zen-exit-in {
@@ -6333,6 +6373,14 @@ html[data-theme="dark"] .card,
   0%, 100% { box-shadow: 0 0 0 4px var(--card), 0 0 0 6px var(--brand), 0 8px 24px rgb(0 0 0 / 0.3); }
   50% { box-shadow: 0 0 0 4px var(--card), 0 0 0 8px color-mix(in srgb, var(--brand) 60%, transparent), 0 8px 24px rgb(0 0 0 / 0.3); }
 }
+/* Session 23 (user report: "the + CTA button is vanished") — ROOT CAUSE: .tour-target's
+   z-index:81 is trapped inside its ancestor's stacking context (.fab-stack z-index:40,
+   .topbar z-index:30), both BELOW the overlay's 80 — so during the tour the highlighted
+   FAB / theme toggle rendered UNDER the 62% black + blur veil: invisible + unclickable,
+   the coachmark pointing at a dark void. Lift the WHOLE stacking context above the
+   overlay whenever it contains the current tour target — the ring + pulse then show. */
+.fab-stack:has(.tour-target) { z-index: 82; }
+.topbar:has(.tour-target) { z-index: 82; }
 @media (prefers-reduced-motion: reduce) {
   .tour-overlay, .tour-card, .tour-target { animation: none; }
 }
@@ -6924,7 +6972,12 @@ html[data-theme="dark"] .heatmap-l4,
 .pd-tag-chip { display: inline-flex; align-items: center; gap: 0.3rem; }
 .pd-tag-x { padding: 0 0.15rem; font-size: var(--fs-xs); }
 .pd-tag-add { cursor: pointer; border-style: dashed; }
-.pd-tag-add:hover { border-color: var(--brand); color: var(--brand); }
+.pd-tag-add:hover {
+  /* Session 23: green fill + light text (the .chip base's soft bg lost to the leak) */
+  background: var(--cta-hover, var(--accent-hover));
+  border-color: var(--cta-hover, var(--accent-hover));
+  color: var(--btn-text, #fff);
+}
 .pd-tag-pop {
   position: absolute;
   inset-block-start: calc(100% + 0.4rem);
@@ -7059,6 +7112,10 @@ html[data-theme='dark'] .pd-col[data-status='bug']         { --pd-c: 150 110 120
   font-size: var(--fs-sm);
   overflow-wrap: anywhere;
   line-height: 1.3;
+  /* Session 23 (user request): titles may be MULTI-LINE now (code blocks, manual line
+     breaks) — pre-line renders the author's line structure while still collapsing
+     runs of spaces. Single-line legacy titles render exactly as before. */
+  white-space: pre-line;
 }
 /* Session 22 (user request): task titles are UNLIMITED now (server cap 100k). The
    progress boxes + board clamp at 150 CHARACTERS (was a 3-line CSS clamp). The split
@@ -7086,8 +7143,112 @@ html[data-theme='dark'] .pd-col[data-status='bug']         { --pd-c: 150 110 120
   text-decoration: none;
   min-block-size: 1.5rem;
 }
-.pd-read-more:hover { color: var(--text); text-decoration: underline; }
+.pd-read-more:hover {
+  /* Session 23 (user request: "on hover, buttons turn green, text becomes light"):
+     button:hover (0,1,1) used to leak its green bg under this rule's dark text —
+     the pill read green+dark. Now the FULL green+light recipe, explicitly. */
+  background: var(--cta-hover, var(--accent-hover));
+  color: var(--btn-text, #fff);
+  text-decoration: none;
+}
 .pd-read-more:focus-visible { outline: 2px solid var(--brand); outline-offset: 1px; }
+
+/* --- Session 23 (user request): CODE blocks inside task titles -------------------
+   Titles may carry fenced ``` code blocks (typed via the composer toolbar or pasted).
+   The renderer wraps them in <code class="t-code" dir="ltr"> — a dedicated, visually
+   distinct container: monospace, soft inset surface, LTR island inside RTL cards,
+   preserved whitespace, horizontal scroll for long lines, and an optional language
+   label from data-lang (```html → "HTML"). The ``` fence lines themselves live in
+   <span hidden> markers INSIDE the <code> so textContent still round-trips the RAW
+   title exactly (editors prefill / wand / copy / export all consume textContent).
+   Same rule serves .pd-task-title (project progress boxes) and .db-card-title (board). */
+.t-code {
+  display: block;
+  direction: ltr;
+  text-align: left;
+  unicode-bidi: isolate;
+  font-family: var(--mono, ui-monospace, SFMono-Regular, Menlo, Consolas, monospace);
+  font-size: var(--fs-xs);
+  line-height: 1.5;
+  white-space: pre;
+  overflow-x: auto;
+  scrollbar-width: thin;
+  margin-block: 0.3rem;
+  padding: 0.45rem 0.6rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--line);
+  background: var(--bg-soft);
+  color: var(--text);
+  overflow-wrap: normal;
+}
+/* The FA font rule "html[lang=fa] body *" (0,1,2) beats the single class above and
+   re-Vazirs the code container — code MUST stay monospace in every locale. Matching
+   specificity + later in the file wins; Vazir sits LAST in the stack so Farsi comments
+   inside code blocks still render (Latin glyphs stay mono). */
+html[lang='fa'] .t-code,
+html[lang='fa'] body .t-code {
+  font-family: var(--mono, ui-monospace, SFMono-Regular, Menlo, Consolas, 'Vazir', monospace);
+}
+.t-code[data-lang]::before {
+  content: attr(data-lang);
+  display: block;
+  float: right;
+  font-family: inherit;
+  font-size: calc(var(--fs-xs) * 0.82);
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+  opacity: 0.85;
+  user-select: none;
+}
+[dir='rtl'] .t-code[data-lang]::before { float: left; }
+.t-code[hidden] { display: none; }
+.t-code .t-fence { display: none; } /* belt+ suspenders: fence marker spans never render */
+
+/* --- Session 23 (user request): composer formatting toolbar (Code / Bold / Bullet) --
+   Small ghost icon-button row rendered directly above the task-composer textareas
+   (taskadd modal, inline edit dialog, board editor). Hover = the system button rule:
+   green fill, light text (owner's explicit hover spec). */
+.pd-tb {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.3rem;
+  margin-block-end: 0.45rem;
+}
+.pd-tb-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  min-block-size: 1.9rem;
+  padding: 0.15rem 0.6rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--card);
+  color: var(--muted);
+  font: inherit;
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.12s ease, color 0.12s ease, border-color 0.12s ease;
+}
+.pd-tb-btn .icon { inline-size: 0.95rem; block-size: 0.95rem; }
+.pd-tb-btn:hover {
+  /* Session 23 (user request): green fill + light text — the system hover recipe,
+     written EXPLICITLY so button:hover's leak can never mix with a dark ink. */
+  background: var(--cta-hover, var(--accent-hover));
+  border-color: var(--cta-hover, var(--accent-hover));
+  color: var(--btn-text, #fff);
+}
+.pd-tb-btn:focus-visible { outline: 2px solid var(--brand); outline-offset: 1px; }
+.pd-tb-sep {
+  inline-size: 1px;
+  block-size: 1.1rem;
+  background: var(--line);
+  margin-inline: 0.1rem;
+}
+
 /* date + clock meta (user request 2026-09-03): smaller + muted — it must whisper */
 .pd-task-meta {
   font-size: calc(var(--fs-xs) * 0.8); /* 20% smaller — user request 2026-09 */
@@ -7112,7 +7273,12 @@ html[data-theme='dark'] .pd-col[data-status='bug']         { --pd-c: 150 110 120
   display: block;
   text-align: start;
 }
-.pd-more-link:hover { color: var(--text); text-decoration: underline; }
+.pd-more-link:hover {
+  /* Session 23: green pill + light text (owner hover spec; was green-bg leak + dark text) */
+  background: var(--cta-hover, var(--accent-hover));
+  color: var(--btn-text, #fff);
+  text-decoration: none;
+}
 /* Item 8: per-column export/copy action buttons in the pd-col header */
 .pd-col-actions { display: inline-flex; gap: 0.15rem; margin-inline-start: auto; }
 .pd-col-actions button { padding: 0.15rem 0.35rem; }
@@ -7416,7 +7582,14 @@ html[data-theme='dark'] .db-col[data-col='bug']         { --db-c: 150 110 120; -
    the priority color, same as the project page. */
 /* Session 22 (consistency with .pd-task-title): fs-md/1.35 → fs-sm/1.3 so a task card
    reads identically in the project progress box and on the full-screen board. */
-.db-card-title { font-size: var(--fs-sm); line-height: 1.3; overflow-wrap: anywhere; }
+.db-card-title {
+  font-size: var(--fs-sm);
+  line-height: 1.3;
+  overflow-wrap: anywhere;
+  /* Session 23: multi-line titles (code blocks / manual breaks) render their line
+     structure — mirrors .pd-task-title; legacy single-line titles unchanged. */
+  white-space: pre-line;
+}
 .st-done .db-card-title, .st-done .sp-bar-title { text-decoration: line-through; color: var(--muted); }
 .db-card-meta { display: flex; flex-wrap: wrap; gap: 0.3rem; align-items: center; }
 .db-cat-chip, .db-mini-chip {
@@ -7455,7 +7628,12 @@ html[data-theme='dark'] .db-col[data-col='bug']         { --db-c: 150 110 120; -
   cursor: pointer;
   transition: color 0.12s ease, border-color 0.12s ease;
 }
-.db-add:hover { color: var(--brand); border-color: var(--brand); }
+.db-add:hover {
+  /* Session 23: green fill + light text (owner hover spec; was a green-bg/teal-text mix) */
+  background: var(--cta-hover, var(--accent-hover));
+  border-color: var(--cta-hover, var(--accent-hover));
+  color: var(--btn-text, #fff);
+}
 
 /* --- task editor modal ----------------------------------------------------- */
 .db-modal {
@@ -7518,7 +7696,14 @@ html[data-theme='dark'] .db-col[data-col='bug']         { --db-c: 150 110 120; -
   cursor: pointer;
   transition: all 0.12s ease;
 }
-.db-seg button:hover { border-color: var(--brand); color: var(--text); }
+.db-seg button:hover {
+  /* Session 23: green fill + light text — button:hover's leak made the editor's
+     status/priority pills green with dark ink. Selected (.is-on) pills keep their own
+     fill (later rules at ≥ equal specificity). */
+  background: var(--cta-hover, var(--accent-hover));
+  border-color: var(--cta-hover, var(--accent-hover));
+  color: var(--btn-text, #fff);
+}
 .db-seg button.is-on { background: var(--bg-soft); color: var(--text); font-weight: 600; border-color: var(--brand); }
 .db-seg button.prio-low.is-on { background: #C9CDD22E; border-color: #9aa0a8; }
 .db-seg button.prio-medium.is-on { background: #E8B27D45; border-color: #d99a55; }
@@ -7687,7 +7872,12 @@ html[data-theme='dark'] .db-col[data-col='bug']         { --db-c: 150 110 120; -
   color: var(--text); font: inherit; font-size: var(--fs-xs); font-weight: 600;
   padding: 0.08rem 0.5rem; cursor: pointer; box-shadow: none;
 }
-.sp-sprint-chip:hover { border-color: var(--brand); }
+.sp-sprint-chip:hover {
+  /* Session 23: green fill + light text (was green-bg leak + dark text) */
+  background: var(--cta-hover, var(--accent-hover));
+  border-color: var(--cta-hover, var(--accent-hover));
+  color: var(--btn-text, #fff);
+}
 .sp-sprint.is-open .sp-sprint-chip { border-color: var(--brand); color: var(--color-primary-strong, var(--brand)); }
 .sp-diamond { font-size: 0.6rem; }
 .sp-no-sprint { position: absolute; inset-block-start: 0.55rem; inset-inline-start: 0.6rem; color: var(--brand); font-weight: 500; } /* Session 19 (cron round 7): was muted — read as a placeholder. Now teal so it reads as an invitation to act (the Define button is in the toolbar). */

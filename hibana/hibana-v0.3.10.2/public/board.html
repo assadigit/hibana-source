@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Progress board — Hibana</title>
-  <link rel="stylesheet" href="/css/app.css?v=261">
+  <link rel="stylesheet" href="/css/app.css?v=262">
   <link rel="stylesheet" href="/vendor/manrope/font-face.css">
   <script src="/vendor/htmx.min.js" defer></script>
   <script src="/js/boot.js?v=4"></script>
@@ -17,9 +17,9 @@
   <script src="/js/zen-mode.js?v=1" defer></script>
   <script src="/js/micro-interactions.js?v=1" defer></script>
   <script src="/js/go-to.js?v=1" defer></script>
-  <script src="/js/i18n.js?v=54" defer></script>
+  <script src="/js/i18n.js?v=55" defer></script>
   <script src="/vendor/jalaali.min.js" defer></script>
-  <script src="/js/devboard.js?v=10" defer></script>
+  <script src="/js/devboard.js?v=11" defer></script>
 </head>
 <body>
   <div data-nav></div>
@@ -73,10 +73,45 @@
           // the wand all consume it), + a read-more button. The two boards read as ONE
           // system now.
           const TITLE_CLAMP = 150
+          // Session 23 (user request): titles may carry fenced ``` CODE blocks, **bold**
+          // and manual line breaks — SAME renderer as project.html / routes/projects.ts:
+          // fence lines open/close a <code class="t-code" dir="ltr"> mono container with
+          // the fence LINES kept in <span hidden class="t-fence"> markers INSIDE it, so
+          // textContent round-trips the RAW title exactly (copy/export/delete/wand all
+          // consume textContent). Prose lines get **pair** → <strong>. Unclosed fences
+          // render as code till end (self-healing).
+          const renderTitle = (raw) => {
+            const escd = B().esc(raw)
+            const hasFence = /(^|\n)\s*```/.test(escd)
+            const hasBold = /\*\*[^*\n]+\*\*/.test(escd)
+            if (!hasFence && !hasBold) return escd
+            const lines = escd.split('\n')
+            let out = ''
+            let inCode = false
+            for (let i = 0; i < lines.length; i++) {
+              const line = lines[i]
+              const nl = i < lines.length - 1 ? '\n' : ''
+              if (!inCode && /^\s*```/.test(line)) {
+                inCode = true
+                const codeLang = line.trim().slice(3).trim()
+                out += '<code class="t-code"' + (codeLang ? ' data-lang="' + codeLang + '"' : '') + ' dir="ltr"><span hidden class="t-fence">' + line + '</span>'
+              } else if (inCode && line.trim() === '```') {
+                inCode = false
+                out += '<span hidden class="t-fence">' + line + '</span></code>'
+              } else if (inCode) {
+                out += line
+              } else {
+                out += line.replace(/\*\*([^*\n]+)\*\*/g, '<strong>$1</strong>')
+              }
+              out += nl
+            }
+            if (inCode) out += '</code>'
+            return out
+          }
           const titleHtml = (title) => {
             const s = String(title == null ? '' : title)
-            if (s.length <= TITLE_CLAMP) return B().esc(s)
-            return B().esc(s.slice(0, TITLE_CLAMP)) + '<span class="pd-title-rest" hidden>' + B().esc(s.slice(TITLE_CLAMP)) + '</span>'
+            if (s.length <= TITLE_CLAMP) return renderTitle(s)
+            return renderTitle(s.slice(0, TITLE_CLAMP)) + '<span class="pd-title-rest" hidden>' + renderTitle(s.slice(TITLE_CLAMP)) + '</span>'
           }
           const titleAttrs = (title) => (String(title || '').length > TITLE_CLAMP ? ' data-clamped=""' : '')
           const readMoreBtn = (title) => (String(title || '').length > TITLE_CLAMP
@@ -427,7 +462,7 @@
             if (window.HibanaBoard) return resolve(true)
             if (!injected && waited >= 1200) {
               injected = true
-              inject('/js/devboard.js?v=10') // keep in sync with the <head> tag + sw SHELL
+              inject('/js/devboard.js?v=11') // keep in sync with the <head> tag + sw SHELL
               if (!window.jalaali) inject('/vendor/jalaali.min.js') // Jalali dates for FA
             }
             if (waited >= 9000) return resolve(false)

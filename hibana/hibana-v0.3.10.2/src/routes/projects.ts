@@ -541,9 +541,49 @@ function detailHtml(p: ProjectRow, d: Awaited<ReturnType<typeof loadDetail>>, la
   // hidden .pd-title-rest span INSIDE the title element, so textContent (the magic
   // wand, inline editors, copy/export, undo) still reads the FULL title. A real
   // "read more" button (data-task-read-more) toggles the rest — project.html wires it.
+  //
+  // Session 23 (user request): titles may carry fenced ``` CODE blocks (inserted via
+  // the composer toolbar or pasted), **bold** spans and manual line breaks. renderTitle
+  // walks the ESCAPED string line-by-line: fence lines open/close a dedicated
+  // <code class="t-code" dir="ltr"> container (monospace LTR island, data-lang label);
+  // prose lines get **pair** → <strong>. The ``` fence LINES themselves are emitted as
+  // <span hidden class="t-fence"> markers INSIDE the <code>, so the title element's
+  // textContent still reads the RAW title EXACTLY — every textContent consumer
+  // (editors' prefill, magic wand, copy/export, delete-undo) round-trips with zero
+  // changes. Unclosed fences render as code till end-of-string (self-healing).
   const TITLE_CLAMP = 150
+  const renderTitle = (raw: string): string => {
+    const escd = esc(raw)
+    const hasFence = /(^|\n)\s*```/.test(escd)
+    const hasBold = /\*\*[^*\n]+\*\*/.test(escd)
+    if (!hasFence && !hasBold) return escd
+    const lines = escd.split('\n')
+    let out = ''
+    let inCode = false
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i]
+      const nl = i < lines.length - 1 ? '\n' : ''
+      if (!inCode && /^\s*```/.test(line)) {
+        inCode = true
+        const codeLang = line.trim().slice(3).trim()
+        out += `<code class="t-code"${codeLang ? ` data-lang="${codeLang}"` : ''} dir="ltr"><span hidden class="t-fence">${line}</span>`
+      } else if (inCode && line.trim() === '```') {
+        inCode = false
+        out += `<span hidden class="t-fence">${line}</span></code>`
+      } else if (inCode) {
+        out += line // code content: verbatim (already escaped), no inline transforms
+      } else {
+        out += line.replace(/\*\*([^*\n]+)\*\*/g, '<strong>$1</strong>')
+      }
+      out += nl
+    }
+    if (inCode) out += '</code>'
+    return out
+  }
   const titleHtml = (title: string): string =>
-    title.length <= TITLE_CLAMP ? esc(title) : esc(title.slice(0, TITLE_CLAMP)) + `<span class="pd-title-rest" hidden>${esc(title.slice(TITLE_CLAMP))}</span>`
+    title.length <= TITLE_CLAMP
+      ? renderTitle(title)
+      : renderTitle(title.slice(0, TITLE_CLAMP)) + `<span class="pd-title-rest" hidden>${renderTitle(title.slice(TITLE_CLAMP))}</span>`
   const titleAttrs = (title: string): string => (title.length > TITLE_CLAMP ? ' data-clamped=""' : '')
   const readMoreBtn = (title: string): string =>
     title.length > TITLE_CLAMP
@@ -704,7 +744,7 @@ function detailHtml(p: ProjectRow, d: Awaited<ReturnType<typeof loadDetail>>, la
 
     <form class="bl-doc-form" data-bl-docform hidden>
       <input name="title" maxlength="200" dir="auto" autocomplete="off" placeholder="${trL(lang, 'Document title — e.g. Backlog of V 12.1', 'عنوان سند — مثلاً برنامهٔ نسخهٔ ۱۲٫۱')}" required>
-      <textarea name="content" rows="8" maxlength="50000" dir="auto" placeholder="${trL(lang, 'The full plan — everything that has to be done…', 'برنامهٔ کامل — همهٔ کارهایی که باید انجام شود…')}"></textarea>
+      <textarea name="content" rows="8" maxlength="50000" dir="${lang === 'fa' ? 'rtl' : 'auto'}" placeholder="${trL(lang, 'The full plan — everything that has to be done…', 'برنامهٔ کامل — همهٔ کارهایی که باید انجام شود…')}"></textarea>
       <div class="row">
         <button type="submit" class="btn small">${trL(lang, 'Save document', 'ذخیرهٔ سند')}</button>
         <button type="button" class="ghost small" data-bl-fullscreen title="${trL(lang, 'Open in full-screen editor', 'باز کردن در ویرایشگر تمام‌صفحه')}">${icon('expand')} ${trL(lang, 'Full screen', 'تمام‌صفحه')}</button>
@@ -750,7 +790,7 @@ function detailHtml(p: ProjectRow, d: Awaited<ReturnType<typeof loadDetail>>, la
         <button type="button" class="ghost" id="pd-editor-close" aria-label="${trL(lang, 'Close', 'بستن')}">${icon('x')}</button>
       </div>
       <input type="text" id="pd-editor-subtitle" class="pd-editor-subtitle" maxlength="200" hidden placeholder="${trL(lang, 'Title…', 'عنوان…')}">
-      <textarea id="pd-editor-textarea" rows="20" maxlength="50000" dir="auto" autocomplete="off"></textarea>
+      <textarea id="pd-editor-textarea" rows="20" maxlength="50000" dir="${lang === 'fa' ? 'rtl' : 'auto'}" autocomplete="off"></textarea>
       <div class="row pd-editor-footer">
         <span class="muted small" id="pd-editor-hint"></span>
         <span class="grow"></span>
@@ -766,10 +806,15 @@ function detailHtml(p: ProjectRow, d: Awaited<ReturnType<typeof loadDetail>>, la
        whole sentence stays visible. Session 22 (user request): the dialog now actually
        OPENS at 78rem (a CSS specificity bug had it stuck at 26rem — see app.css), the
        textarea is 18rem min + user-resizable, and the title is UNLIMITED — the "۰ / ۳۰۰"
-       counter is gone (the 300 cap is lifted end-to-end). Enter adds (Shift+Enter
-       newlines are collapsed to spaces on submit), Esc / Cancel / ✕ close. Same POST +
-       insertTaskChip path as before; project.html's delegated JS wires it (click-time
-       lookups — the dialog re-renders with every htmx swap of #project-body). -->
+       counter is gone (the 300 cap is lifted end-to-end). Enter adds, Esc / Cancel / ✕
+       close. Session 23 (user request): (a) dir follows the UI locale — fa → rtl (an
+       auto-detected LTR made Farsi writing read backwards; code blocks stay LTR islands
+       at RENDER time), (b) a formatting toolbar (Code block / Bold / Bullet) inserts
+       triple-backtick fences, **pairs** and "- " prefixes — newlines are now PRESERVED
+       on submit (titles render multi-line; the problems-box composer still splits
+       lines into separate tasks by design). Same POST + insertTaskChip path as before;
+       project.html's delegated JS wires it (click-time lookups — the dialog re-renders
+       with every htmx swap of #project-body). -->
   <dialog id="pd-taskadd-modal" class="dialog pd-taskadd-modal" aria-labelledby="pd-taskadd-title">
     <form class="modal pd-taskadd-inner" id="pd-taskadd-form" novalidate>
       <div class="row spread pd-editor-head">
@@ -777,9 +822,14 @@ function detailHtml(p: ProjectRow, d: Awaited<ReturnType<typeof loadDetail>>, la
         <button type="button" class="ghost" id="pd-taskadd-close" aria-label="${trL(lang, 'Close', 'بستن')}">${icon('x')}</button>
       </div>
       <div class="pd-taskadd-col muted small">${trL(lang, 'Lands in', 'ثبت در')} <span class="chip" id="pd-taskadd-col-chip"></span></div>
-      <textarea id="pd-taskadd-textarea" rows="8" dir="auto" autocomplete="off" aria-label="${trL(lang, 'Task title', 'عنوان کار')}" placeholder="${trL(lang, 'Write the task — long sentences are welcome…', 'کار را بنویس — جمله‌های بلند جای دارند…')}"></textarea>
+      <div class="pd-tb" role="toolbar" aria-label="${trL(lang, 'Formatting', 'قالب‌بندی')}">
+        <button type="button" class="pd-tb-btn" data-tb="code" title="${trL(lang, 'Code block (```…```)', 'بلوک کد (```…```)')}" aria-label="${trL(lang, 'Code block', 'بلوک کد')}"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m8 6-6 6 6 6M16 6l6 6-6 6"/></svg> ${trL(lang, 'Code', 'کد')}</button>
+        <button type="button" class="pd-tb-btn" data-tb="bold" title="${trL(lang, 'Bold (**text**)', 'پررنگ (**متن**)')}" aria-label="${trL(lang, 'Bold', 'پررنگ')}"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 5h6a3.5 3.5 0 1 1 0 7H7zM7 12h7a3.5 3.5 0 1 1 0 7H7z"/></svg> ${trL(lang, 'Bold', 'پررنگ')}</button>
+        <button type="button" class="pd-tb-btn" data-tb="list" title="${trL(lang, 'Bullet list', 'بولت')}" aria-label="${trL(lang, 'Bullet list', 'بولت')}"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6h12M9 12h12M9 18h12"/><circle cx="4.5" cy="6" r="1.3" fill="currentColor"/><circle cx="4.5" cy="12" r="1.3" fill="currentColor"/><circle cx="4.5" cy="18" r="1.3" fill="currentColor"/></svg> ${trL(lang, 'Bullet', 'بولت')}</button>
+      </div>
+      <textarea id="pd-taskadd-textarea" rows="8" dir="${lang === 'fa' ? 'rtl' : 'auto'}" autocomplete="off" aria-label="${trL(lang, 'Task title', 'عنوان کار')}" placeholder="${trL(lang, 'Write the task — long sentences and code blocks are welcome…', 'کار را بنویس — جمله‌های بلند و بلوک‌های کد جای دارند…')}"></textarea>
       <div class="row spread">
-        <span class="muted small">${trL(lang, 'Unlimited length', 'بدون محدودیت طول')}</span>
+        <span class="muted small">${trL(lang, 'Unlimited length · newlines kept', 'بدون محدودیت طول · خطوط حفظ می‌شوند')}</span>
         <span class="muted small">${trL(lang, 'Enter adds · Shift+Enter new line · Esc closes', 'Enter برای افزودن · Shift+Enter خط جدید · Esc برای بستن')}</span>
       </div>
       <p class="error" id="pd-taskadd-error" role="alert" hidden></p>

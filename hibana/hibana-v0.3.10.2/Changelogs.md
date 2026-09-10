@@ -9,13 +9,43 @@
 > rewritten as a minimal pointer. Deleted files remain recoverable verbatim:
 > `git show <sha>:<file>`.
 
-## 1. Current state (v0.3.12.1 — Session 25: CSS + JS architecture refactor — app.css split, dark/RTL extracted, inline JS externalized)
+## 1. Current state (v0.3.12.2 — Session 25: CSS + JS architecture refactor — app.css split, dark/RTL extracted, inline JS externalized, JS files modularized)
 - **Session 25 summary** — pure refactoring session (zero behavior change). Phase 1:
   split `public/css/app.css` (8,822 lines) into 16 modular CSS files. Phase 1.5:
   extracted dark-theme + RTL rules into by-concern files. Phase 2: extracted inline JS
-  from 3 HTML files into external .js files. No schema changes, no new i18n keys.
-  295/295 tests green throughout. Every change VLM-verified "IDENTICAL" or "RENDERED
-  CORRECTLY" via screenshot comparison.
+  from 3 HTML files into external .js files. Phase 3: modularized large JS files (i18n.js
+  + app.js). No schema changes, no new i18n keys. 295/295 tests green throughout. Every
+  change VLM-verified "IDENTICAL" or "RENDERED CORRECTLY" via screenshot comparison.
+- v0.3.12.2 = **Session 25 Phase 3 — JS file modularization** (patch — continuation):
+  - **Phase 3c (i18n.js — COMPLETE):** clean data/logic split. 1,451 lines → 3 files:
+    `i18n.js` (150 lines logic) + `i18n-en.js` (656 lines EN dictionary) +
+    `i18n-fa.js` (653 lines FA dictionary). Dictionaries exposed as
+    `window.__hibanaDictEN`/`window.__hibanaDictFA`, loaded before i18n.js. Key parity
+    maintained (586/586 matching keys). VLM-confirmed TRANSLATIONS CORRECT for EN+FA.
+  - **Phase 3a (app.js — COMPLETE):** extracted DOMContentLoaded handlers using shared-
+    namespace pattern. Created `window.__hib` namespace inside IIFE, exposed 70 internal
+    functions via `Object.assign`. Extracted 328 lines of init handlers → `hib-init.js`
+    (336 lines). `app.js`: 3,094 → 2,768 lines (−10%). `hib-init.js` destructures shared
+    helpers from `window.__hib`. Bug found + fixed: `Object.assign` initially referenced
+    5 functions defined inside the DOMContentLoaded handlers (now in hib-init.js), not in
+    app.js IIFE scope → ReferenceError → IIFE crashed → `window.hibana` undefined. Fixed
+    by removing them from Object.assign. VLM-confirmed RENDERED CORRECTLY, theme toggle
+    works, zero console errors.
+  - **Phase 3b (canvas.js — DEFERRED):** structural analysis shows canvas.js CANNOT be
+    safely split without major risk. 3,061 lines, 126 function declarations, ALL sharing
+    IIFE closure scope. 64 `let` mutable state variables (canvas instance, tool mode,
+    element map, undo stack, clipboard, etc.). 340 references to `canvas` variable, 30 to
+    `elems`, 38 to `mode` — pervasive shared state. Unlike app.js (which had extractable
+    DOMContentLoaded handlers), canvas.js has NO separation between init code and function
+    definitions. Splitting would require exposing 64+ mutable variables to a
+    `window.__hibCanvas` namespace — high risk of subtle timing bugs with no clear benefit.
+    DECISION: canvas.js remains as one cohesive stateful module.
+  - **Build pipeline:** `ENTRY_POINTS` grew 23→25 (added i18n-en.js, i18n-fa.js, hib-init.js).
+    Manifest 49→52 entries.
+  - **Verification:** typecheck 0 err, 295/295 tests, build PASS, check-dist-wiring PASS.
+    VLM-confirmed all changes correct. Deployed dev+prod.
+  - **Assets:** i18n.js ?v=55→56, new i18n-en.js/i18n-fa.js at ?v=1, app.js ?v=171→172,
+    hib-init.js ?v=1, SW v296→v297→v298, manifest 49→52 entries, package.json 0.3.12.1→0.3.12.2.
 - v0.3.12.1 = **Session 25 Phase 1.5 + Phase 2 — by-concern CSS extraction + inline JS
   externalization** (patch — continuation of v0.3.12.0 refactor):
   - **Phase 1.5a (themes.css):** extracted 75 dark-theme rules from 10 modular CSS files

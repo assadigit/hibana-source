@@ -9,7 +9,7 @@
 > rewritten as a minimal pointer. Deleted files remain recoverable verbatim:
 > `git show <sha>:<file>`.
 
-## 1. Current state (v0.3.12.4 — Session 25: comprehensive CSS + JS + TS architecture refactor — ~31,000 lines modularized across ~61 new files)
+## 1. Current state (v0.3.12.14 — Session 25: comprehensive CSS + JS + TS architecture refactor — ~31,000 lines modularized across ~61 new files)
 - **Session 25 summary** — pure refactoring session (zero behavior change). A comprehensive
   architecture refactor across CSS, JS, TS, and HTML — ~31,000 lines of monolithic code
   modularized into ~61 new files. No schema changes, no new i18n keys, no behavior

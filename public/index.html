@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Hibana</title>
+  <link rel="stylesheet" href="/dist/variables.3ddc4250.css">
+  <link rel="stylesheet" href="/dist/base.59c24138.css">
+  <link rel="stylesheet" href="/dist/layout.62df3716.css">
+  <link rel="stylesheet" href="/dist/dashboard.8a51acb7.css">
+  <link rel="stylesheet" href="/dist/dashboard-todo.6bd5e18c.css">
+  <link rel="stylesheet" href="/dist/components.29a317c3.css">
+  <link rel="stylesheet" href="/dist/canvas.33308edf.css">
+  <link rel="stylesheet" href="/dist/quicknotes.399d1e19.css">
+  <link rel="stylesheet" href="/dist/to-do-list.94490eac.css">
+  <link rel="stylesheet" href="/dist/polish-ui.601c73b6.css">
+  <link rel="stylesheet" href="/dist/calendar.41b55ea3.css">
+  <link rel="stylesheet" href="/dist/notifications.0a75ad5d.css">
+  <link rel="stylesheet" href="/dist/polish-batch.ca8010aa.css">
+  <link rel="stylesheet" href="/dist/project-header.bfd6e5ef.css">
+  <link rel="stylesheet" href="/dist/devboard.ea94913f.css">
+  <link rel="stylesheet" href="/dist/misc.72077b24.css">
+  <link rel="stylesheet" href="/dist/themes.70c2e69f.css">
+  <link rel="stylesheet" href="/dist/rtl.81faac85.css">
+  <link rel="stylesheet" href="/vendor/manrope/font-face.css">
+</head>
+<body>
+  <script>
+    // Entry point: already logged in? → app. Otherwise → login.
+    fetch('/api/auth/me').then((r) => window.location.replace(r.ok ? '/app' : '/login.html'))
+  </script>
+  <noscript><p style="font-family:sans-serif;text-align:center;padding:3rem">Hibana needs JavaScript. / هیبانا برای کار نیاز به جاوااسکریپت دارد.</p></noscript>
+</body>
+</html>

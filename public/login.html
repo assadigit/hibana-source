@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Sign in — Hibana</title>
+  <link rel="icon" type="image/svg+xml" href="/icon.svg">
+  <link rel="preload" as="image" href="/Login.jpg">
+  <link rel="stylesheet" href="/dist/variables.3ddc4250.css">
+  <link rel="stylesheet" href="/dist/base.59c24138.css">
+  <link rel="stylesheet" href="/dist/layout.62df3716.css">
+  <link rel="stylesheet" href="/dist/dashboard.8a51acb7.css">
+  <link rel="stylesheet" href="/dist/dashboard-todo.6bd5e18c.css">
+  <link rel="stylesheet" href="/dist/components.29a317c3.css">
+  <link rel="stylesheet" href="/dist/canvas.33308edf.css">
+  <link rel="stylesheet" href="/dist/quicknotes.399d1e19.css">
+  <link rel="stylesheet" href="/dist/to-do-list.94490eac.css">
+  <link rel="stylesheet" href="/dist/polish-ui.601c73b6.css">
+  <link rel="stylesheet" href="/dist/calendar.41b55ea3.css">
+  <link rel="stylesheet" href="/dist/notifications.0a75ad5d.css">
+  <link rel="stylesheet" href="/dist/polish-batch.ca8010aa.css">
+  <link rel="stylesheet" href="/dist/project-header.bfd6e5ef.css">
+  <link rel="stylesheet" href="/dist/devboard.ea94913f.css">
+  <link rel="stylesheet" href="/dist/misc.72077b24.css">
+  <link rel="stylesheet" href="/dist/themes.70c2e69f.css">
+  <link rel="stylesheet" href="/dist/rtl.81faac85.css">
+  <link rel="stylesheet" href="/vendor/manrope/font-face.css">
+  <script src="/dist/app.f5c1a0f9.js" defer></script>
+  <script src="/dist/hib-init.8cef873b.js" defer></script>
+  <script src="/dist/i18n-en.96bdbbf2.js" defer></script>
+  <script src="/dist/i18n-fa.379bab70.js" defer></script>
+  <script src="/dist/i18n.03ef7c8b.js" defer></script>
+  <script src="/dist/touch-drag.7f6a4a4e.js" defer></script>
+  <script src="/vendor/htmx.min.js" defer></script>
+</head>
+<body class="auth-page auth-split-page public-page">
+  <button class="theme-floater" onclick="window.hibana?.toggleTheme()" title="Theme: light / dark / system" aria-label="Toggle theme" data-i18n-title="auth.themeHint" data-i18n-aria-label="auth.toggleTheme"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg></button>
+
+  <main id="main" tabindex="-1" class="auth-split">
+    <!-- 60% — full-bleed photo (Login.jpg) with a small corner brand only -->
+    <section class="auth-visual" aria-hidden="true">
+      <span class="auth-brand"><img class="auth-logo" src="/logo-dark.png" alt="Hibana"></span>
+    </section>
+
+    <!-- 40% — sign-in form -->
+    <section class="auth-form">
+      <span class="auth-brand-inline" aria-hidden="true"><img class="auth-logo-inline" src="/logo-light.png" alt=""></span>
+      <div>
+        <h1 data-i18n="auth.welcomeBack">Welcome back</h1>
+      </div>
+      <form
+        method="post"
+        action="/api/auth/login"
+        data-auth-form
+        novalidate
+      >
+        <label><span data-i18n="auth.emailOrUsername">Email or username</span>
+          <input type="text" name="login" required autofocus autocomplete="username">
+        </label>
+        <label><span data-i18n="auth.password">Password</span>
+          <input type="password" name="password" required autocomplete="current-password">
+        </label>
+        <div class="row">
+          <button type="submit" data-i18n="auth.signIn">Sign in</button>
+          <span id="login-spinner" class="spinner" data-auth-spinner></span>
+        </div>
+        <p id="login-error" role="alert" data-auth-error></p>
+      </form>
+      <p class="small auth-links"><a href="/reset.html" data-i18n="auth.forgotPassword">Forgot your password?</a> · <a href="/signup" data-i18n="auth.createAccount">Create an account</a></p>
+    </section>
+  </main>
+
+  <!-- Batch (r): the auth middleware redirects suspended sessions here with their ban
+       details in the query string — surface them in the form's alert slot. textContent
+       only, so a hand-crafted query can never inject markup. -->
+  <script>
+    (function () {
+      var q = new URLSearchParams(location.search)
+      if (q.get('banned') !== '1') return
+      var el = document.getElementById('login-error')
+      if (!el) return
+      var until = q.get('until')
+      var reason = q.get('reason')
+      var msg = 'این حساب مسدود شده است. — This account is suspended'
+      if (until && until !== 'forever') msg += ' (until ' + until.slice(0, 16).replace('T', ' ') + ' UTC)'
+      msg += '.'
+      if (reason) msg += '\n' + reason
+      el.textContent = msg
+    })()
+  </script>
+</body>
+</html>

@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Ideas — Hibana</title>
+  <link rel="stylesheet" href="/dist/variables.3ddc4250.css">
+  <link rel="stylesheet" href="/dist/base.59c24138.css">
+  <link rel="stylesheet" href="/dist/layout.62df3716.css">
+  <link rel="stylesheet" href="/dist/dashboard.8a51acb7.css">
+  <link rel="stylesheet" href="/dist/dashboard-todo.6bd5e18c.css">
+  <link rel="stylesheet" href="/dist/components.29a317c3.css">
+  <link rel="stylesheet" href="/dist/canvas.33308edf.css">
+  <link rel="stylesheet" href="/dist/quicknotes.399d1e19.css">
+  <link rel="stylesheet" href="/dist/to-do-list.94490eac.css">
+  <link rel="stylesheet" href="/dist/polish-ui.601c73b6.css">
+  <link rel="stylesheet" href="/dist/calendar.41b55ea3.css">
+  <link rel="stylesheet" href="/dist/notifications.0a75ad5d.css">
+  <link rel="stylesheet" href="/dist/polish-batch.ca8010aa.css">
+  <link rel="stylesheet" href="/dist/project-header.bfd6e5ef.css">
+  <link rel="stylesheet" href="/dist/devboard.ea94913f.css">
+  <link rel="stylesheet" href="/dist/misc.72077b24.css">
+  <link rel="stylesheet" href="/dist/themes.70c2e69f.css">
+  <link rel="stylesheet" href="/dist/rtl.81faac85.css">
+  <link rel="stylesheet" href="/css/magic-wand.css?v=3">
+  <link rel="stylesheet" href="/vendor/manrope/font-face.css">
+  <script src="/vendor/htmx.min.js" defer></script>
+  <script src="/dist/boot.3f11c220.js"></script>
+  <script src="/vendor/alpine.min.js" defer></script>
+  <script src="/dist/queue.ebcbeb47.js" defer></script>
+  <script src="/dist/app.f5c1a0f9.js" defer></script>
+  <script src="/dist/hib-init.8cef873b.js" defer></script>
+  <script src="/dist/touch-drag.7f6a4a4e.js" defer></script>
+  <script src="/dist/nav.8c7a89df.js" defer></script>
+  <script src="/dist/command-palette.9a5a160e.js" defer></script>
+  <script src="/dist/mobile-nav.761b6e01.js" defer></script>
+  <script src="/dist/zen-mode.4a150d3a.js" defer></script>
+  <script src="/dist/micro-interactions.413f21b5.js" defer></script>
+  <script src="/dist/go-to.5208c116.js" defer></script>
+  <script src="/dist/install-prompt.0b935c6a.js" defer></script>
+  <script src="/dist/i18n-en.96bdbbf2.js" defer></script>
+  <script src="/dist/i18n-fa.379bab70.js" defer></script>
+  <script src="/dist/i18n.03ef7c8b.js" defer></script>
+  <script src="/js/magic-wand.js?v=10" defer></script>
+</head>
+<body>
+  <div data-nav></div>
+  <main class="shell" id="main" tabindex="-1">
+    <div class="row spread">
+      <h1 data-i18n="sparks.heading">Ideas</h1>
+      <!-- Phase 6 item 3: the ideas get the projects page's «نمایش:» dropdown (same
+           component, remembered preference). KANBAN here files ideas into folders:
+           each column is a پوشه, dragging a card moves it. -->
+      <div class="row wrap">
+        <div class="view-select" role="group" aria-label="View">
+          <label class="small muted" for="sparks-view-sel" data-i18n="view.label">View</label>
+          <select id="sparks-view-sel" aria-label="View">
+            <option value="cards" data-i18n="view.cards">Cards</option>
+            <option value="list" data-i18n="view.list">List</option>
+            <option value="sticky" data-i18n="view.sticky">Sticky Notes</option>
+            <option value="kanban" data-i18n="view.kanban">Kanban</option>
+          </select>
+        </div>
+        <button data-quickadd-open><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg> <span data-i18n="sparks.capture">Capture an idea</span></button>
+      </div>
+    </div>
+    <p class="muted" data-i18n="sparks.hint">The whiteboard replacement — capture in seconds, promote later.</p>
+
+    <!-- Task 24: the indicator lives OUTSIDE the shelf — an innerHTML swap of #spark-shelf
+         used to delete #shelf-loading, leaving every later poll/reload logging
+         "hx-indicator returned no matches". -->
+    <div id="shelf-loading" class="loading htmx-indicator hibana-loading-row"><span class="hibana-spinner" role="status" aria-hidden="true"></span><span data-i18n="common.loading">Loading…</span></div>
+    <!-- batch (s): the ACTIVE folder selection lives in this hidden input OUTSIDE the swap
+         target — hx-include serializes it into the 30s poll and the load trigger, so the
+         poll never resets the filter. The folder BAR itself rides inside the fragment. -->
+    <input type="hidden" id="spark-folder" name="folder" value="">
+    <!-- Phase 6 item 3: the view rides the poll exactly like the folder selection —
+         hx-include serializes BOTH hidden inputs (outside the swap target) so the 30s
+         poll never resets the view or the folder filter. -->
+    <input type="hidden" id="spark-view" name="view" value="cards">
+    <div id="spark-shelf" hx-get="/api/projects?status=spark" hx-trigger="load, every 30s" hx-include="#spark-folder,#spark-view" hx-swap="innerHTML" hx-indicator="#shelf-loading"></div>
+  </main>
+
+  <script src="/dist/sparks-page.031b8a79.js" defer></script>
+</body>
+</html>

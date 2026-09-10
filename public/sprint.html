@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Sprints — Hibana</title>
+  <link rel="stylesheet" href="/dist/variables.3ddc4250.css">
+  <link rel="stylesheet" href="/dist/base.59c24138.css">
+  <link rel="stylesheet" href="/dist/layout.62df3716.css">
+  <link rel="stylesheet" href="/dist/dashboard.8a51acb7.css">
+  <link rel="stylesheet" href="/dist/dashboard-todo.6bd5e18c.css">
+  <link rel="stylesheet" href="/dist/components.29a317c3.css">
+  <link rel="stylesheet" href="/dist/canvas.33308edf.css">
+  <link rel="stylesheet" href="/dist/quicknotes.399d1e19.css">
+  <link rel="stylesheet" href="/dist/to-do-list.94490eac.css">
+  <link rel="stylesheet" href="/dist/polish-ui.601c73b6.css">
+  <link rel="stylesheet" href="/dist/calendar.41b55ea3.css">
+  <link rel="stylesheet" href="/dist/notifications.0a75ad5d.css">
+  <link rel="stylesheet" href="/dist/polish-batch.ca8010aa.css">
+  <link rel="stylesheet" href="/dist/project-header.bfd6e5ef.css">
+  <link rel="stylesheet" href="/dist/devboard.ea94913f.css">
+  <link rel="stylesheet" href="/dist/misc.72077b24.css">
+  <link rel="stylesheet" href="/dist/themes.70c2e69f.css">
+  <link rel="stylesheet" href="/dist/rtl.81faac85.css">
+  <link rel="stylesheet" href="/vendor/manrope/font-face.css">
+  <script src="/vendor/htmx.min.js" defer></script>
+  <script src="/dist/boot.3f11c220.js"></script>
+  <script src="/vendor/alpine.min.js" defer></script>
+  <script src="/dist/app.f5c1a0f9.js" defer></script>
+  <script src="/dist/hib-init.8cef873b.js" defer></script>
+  <script src="/dist/touch-drag.7f6a4a4e.js" defer></script>
+  <script src="/dist/nav.8c7a89df.js" defer></script>
+  <script src="/dist/command-palette.9a5a160e.js" defer></script>
+  <script src="/dist/mobile-nav.761b6e01.js" defer></script>
+  <script src="/dist/zen-mode.4a150d3a.js" defer></script>
+  <script src="/dist/micro-interactions.413f21b5.js" defer></script>
+  <script src="/dist/go-to.5208c116.js" defer></script>
+  <script src="/dist/i18n-en.96bdbbf2.js" defer></script>
+  <script src="/dist/i18n-fa.379bab70.js" defer></script>
+  <script src="/dist/i18n.03ef7c8b.js" defer></script>
+  <script src="/vendor/jalaali.min.js" defer></script>
+  <script src="/dist/devboard.cd94756f.js" defer></script>
+</head>
+<body>
+  <div data-nav></div>
+  <!-- sp-shell: full-bleed flat board (user "flat" reference 2026-08-30: zero shadows,
+       hairline grid, zebra sprint columns, solid pastel clips, dashed boundary lines). -->
+  <main class="shell sp-shell">
+    <div class="sp-toolbar" id="sp-toolbar">
+      <a class="btn ghost small" href="/project.html" data-back-link>← <span data-i18n="db.backToProject">Back to project</span></a>
+      <h2 id="sp-title" class="db-title">…</h2>
+      <span class="db-flex-gap"></span>
+      <!-- Phase 5 item 8 (2026-09-08): time PAGING instead of a constant horizontal
+           scroll — ‹ steps the visible window one window back in time (older sprints/
+           tasks), › steps forward (capped at today). The label shows the window range. -->
+      <div class="sp-timenav" id="sp-timenav">
+        <button type="button" class="btn ghost small sp-arrow" id="sp-time-prev" aria-label="Older" data-i18n-aria="sp.older" title="Older" data-i18n-title="sp.older"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg></button>
+        <span class="sp-timerange small muted" id="sp-timerange">…</span>
+        <button type="button" class="btn ghost small sp-arrow" id="sp-time-next" aria-label="Newer" data-i18n-aria="sp.newer" title="Newer" data-i18n-title="sp.newer"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg></button>
+      </div>
+      <label class="sp-zoom small">
+        <span class="sr-only" data-i18n="db.zoom">Zoom</span>
+        <select id="sp-zoom-sel" aria-label="Zoom">
+          <option value="d" data-i18n="db.zoomDays">Days</option>
+          <option value="w1" data-i18n="db.zoom1w">1 week</option>
+          <option value="m1" selected data-i18n="db.zoom1m">1 month</option>
+          <option value="m3" data-i18n="db.zoom3m">3 months</option>
+          <option value="m6" data-i18n="db.zoom6m">6 months</option>
+          <option value="y1" data-i18n="db.zoom12m">12 months</option>
+        </select>
+      </label>
+      <a class="btn ghost small" id="sp-board-link" href="#"><span data-i18n="db.board">Board</span></a>
+      <!-- Phase 5 item 7: the lifecycle is DEFINE → add items/categories → START →
+           continue → FINISH. The ◆ button opens the define dialog (name); the running
+           sprint carries a prominent Finish button in the toolbar. -->
+      <button type="button" class="btn small" id="sp-new-sprint">◆ <span data-i18n="db.defineSprint">Sprint</span></button>
+      <button type="button" class="btn danger small sp-finish-btn" id="sp-finish-btn" hidden>⏹ <span id="sp-finish-lbl">Finish sprint</span></button>
+    </div>
+    <!-- Phase 5 item 7: the DRAFT sprint panel — a defined-but-not-started sprint lives
+         here (name + item count + Start/Delete + a drop target that assigns tasks to it)
+         until the user starts it, at which point it moves onto the timeline. -->
+    <div class="sp-draft" id="sp-draft" hidden></div>
+    <div class="db-loading" id="sp-loading" role="status"><span class="hibana-spinner" aria-hidden="true"></span><span data-i18n="db.loading">Loading…</span></div>
+    <div class="sp-wrap" id="sp-wrap" hidden>
+      <aside class="sp-side" id="sp-side"></aside>
+      <div class="sp-scroll" id="sp-scroll">
+        <div class="sp-timeline" id="sp-timeline"></div>
+      </div>
+    </div>
+  </main>
+  <script src="/dist/sprint-page.29676a15.js" defer></script>
+</body>
+</html>

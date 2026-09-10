@@ -1,0 +1,150 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Calendar — Hibana</title>
+  <link rel="stylesheet" href="/dist/variables.3ddc4250.css">
+  <link rel="stylesheet" href="/dist/base.59c24138.css">
+  <link rel="stylesheet" href="/dist/layout.62df3716.css">
+  <link rel="stylesheet" href="/dist/dashboard.8a51acb7.css">
+  <link rel="stylesheet" href="/dist/dashboard-todo.6bd5e18c.css">
+  <link rel="stylesheet" href="/dist/components.29a317c3.css">
+  <link rel="stylesheet" href="/dist/canvas.33308edf.css">
+  <link rel="stylesheet" href="/dist/quicknotes.399d1e19.css">
+  <link rel="stylesheet" href="/dist/to-do-list.94490eac.css">
+  <link rel="stylesheet" href="/dist/polish-ui.601c73b6.css">
+  <link rel="stylesheet" href="/dist/calendar.41b55ea3.css">
+  <link rel="stylesheet" href="/dist/notifications.0a75ad5d.css">
+  <link rel="stylesheet" href="/dist/polish-batch.ca8010aa.css">
+  <link rel="stylesheet" href="/dist/project-header.bfd6e5ef.css">
+  <link rel="stylesheet" href="/dist/devboard.ea94913f.css">
+  <link rel="stylesheet" href="/dist/misc.72077b24.css">
+  <link rel="stylesheet" href="/dist/themes.70c2e69f.css">
+  <link rel="stylesheet" href="/dist/rtl.81faac85.css">
+  <link rel="stylesheet" href="/vendor/manrope/font-face.css">
+  <script src="/vendor/htmx.min.js" defer></script>
+  <script src="/dist/boot.3f11c220.js"></script>
+  <script src="/vendor/alpine.min.js" defer></script>
+  <script src="/dist/queue.ebcbeb47.js" defer></script>
+  <script src="/dist/app.f5c1a0f9.js" defer></script>
+  <script src="/dist/hib-init.8cef873b.js" defer></script>
+  <script src="/dist/touch-drag.7f6a4a4e.js" defer></script>
+  <script src="/vendor/jalaali.min.js" defer></script>
+  <script src="/dist/jalali-holidays.1b0d99d4.js" defer></script>
+  <script src="/dist/i18n-en.96bdbbf2.js" defer></script>
+  <script src="/dist/i18n-fa.379bab70.js" defer></script>
+  <script src="/dist/i18n.03ef7c8b.js" defer></script>
+  <script src="/dist/nav.8c7a89df.js" defer></script>
+  <script src="/dist/command-palette.9a5a160e.js" defer></script>
+  <script src="/dist/mobile-nav.761b6e01.js" defer></script>
+  <script src="/dist/zen-mode.4a150d3a.js" defer></script>
+  <script src="/dist/micro-interactions.413f21b5.js" defer></script>
+  <script src="/dist/go-to.5208c116.js" defer></script>
+  <script src="/dist/install-prompt.0b935c6a.js" defer></script>
+</head>
+<body>
+  <div data-nav></div>
+  <main class="shell" id="main" tabindex="-1">
+    <!-- Task 24 #3: the heading IS the displayed month (e.g. «مهر ۱۴۰۵» / “October 2026”) —
+         the redundant month label between the arrows is gone. -->
+    <div class="row spread cal-head">
+      <div class="row cal-title-nav">
+        <button class="ghost" id="cal-prev" aria-label="Previous month" data-i18n-aria-label="calendar.prevMonth"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 18l-6-6 6-6"/></svg></button>
+        <h1 id="cal-title" class="cal-title"></h1>
+        <button class="ghost" id="cal-next" aria-label="Next month" data-i18n-aria-label="calendar.nextMonth"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 18l6-6-6-6"/></svg></button>
+      </div>
+      <div class="row cal-controls">
+        <!-- Task 24 #4: Jalali ⇄ Gregorian switch (e.g. booking a hotel that runs on the
+             international calendar). Persisted per browser; default follows the language. -->
+        <div class="cal-sys" role="group" aria-label="Calendar system" data-i18n-aria-label="calendar.sysLabel">
+          <button type="button" data-cal-sys="jalali" data-i18n="calendar.jalali">Jalali</button>
+          <button type="button" data-cal-sys="gregorian" data-i18n="calendar.gregorian">Gregorian</button>
+        </div>
+        <button class="ghost" id="cal-today" data-i18n="calendar.today">Today</button>
+        <!-- 22-a #7 + Task 24 #1: «هفته بعد»/«ماه بعد» jump to THE EXACT DAY — next week =
+             same weekday +7d; next month = the same day number in the next month
+             (7 شهریور → 7 مهر, clamped to the month length). The target day is
+             highlighted and its detail panel opens, so the jump is always visible. -->
+        <button class="ghost" id="cal-next-week" data-i18n="calendar.nextWeek">Next week</button>
+        <button class="ghost" id="cal-next-month" data-i18n="calendar.nextMonth">Next month</button>
+        <!-- Session 19 (cron round 1): one-way ICS export of everything dated in the next
+             6 months. Plain <a download> — same pattern as the Settings export buttons. -->
+        <a class="ghost" href="/api/export/calendar.ics" download data-i18n="calendar.exportIcs">Export .ics</a>
+      </div>
+    </div>
+
+    <div id="cal-grid" class="cal-grid"></div>
+
+    <!-- R9.3 legend — Task 24 #5: the four kind dots are DRAGGABLE. Drop one on any day
+         to open that day's panel with the matching creator (a new way to define a
+         project / task / to-do / note straight on the date). -->
+    <div class="cal-legend muted small">
+      <span class="cal-legend-item cal-drag" draggable="true" data-legend-kind="project"><span class="cal-dot cal-dot-project"></span> <span data-i18n="calendar.project">Project</span></span>
+      <span class="cal-legend-item cal-drag" draggable="true" data-legend-kind="task"><span class="cal-dot cal-dot-task"></span> <span data-i18n="calendar.task">Task</span></span>
+      <span class="cal-legend-item cal-drag" draggable="true" data-legend-kind="sadhana"><span class="cal-dot cal-dot-sadhana"></span> <span data-i18n="calendar.sadhana">To-do</span></span>
+      <span class="cal-legend-item cal-drag" draggable="true" data-legend-kind="note"><span class="cal-dot cal-dot-note"></span> <span data-i18n="calendar.legendNote">Note</span></span>
+      <span class="cal-legend-item"><span class="cal-weekend-swatch"></span> <span id="cal-weekend-legend" data-i18n="calendar.weekendLegend">Weekend (Fridays)</span></span>
+      <span class="cal-legend-item"><span class="cal-holiday-swatch"></span> <span data-i18n="calendar.holiday">Holiday / تعطیل</span></span>
+      <span class="cal-legend-hint" data-i18n="calendar.dragHint">Drag a dot onto a day to plan it there</span>
+    </div>
+
+    <div id="cal-day-detail" class="cal-day-detail" hidden>
+      <h3 id="cal-day-title"></h3>
+      <ul id="cal-day-list" class="cal-day-list"></ul>
+
+      <!-- Day creators (user request 2026-08-30): clicking a day offers three ways to plan
+           it — a colored sticky note for the date, a task in one of the quadrants (with this
+           day as its deadline), or a plain note for the day.
+           Task 24 #5 adds two more composers, opened by dropping a legend dot:
+           a whole PROJECT due that day, and a client-project TASK due that day. -->
+      <div class="row wrap cal-day-actions">
+        <button type="button" class="ghost small" id="cal-add-sticky"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5.5A1.5 1.5 0 0 1 5.5 4h13A1.5 1.5 0 0 1 20 5.5V14l-6 6H5.5A1.5 1.5 0 0 1 4 18.5Z"/><path d="M14 20v-4.5A1.5 1.5 0 0 1 15.5 14H20"/></svg> <span data-i18n="calendar.addSticky">Sticky note</span></button>
+        <button type="button" class="ghost small" id="cal-add-task"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg> <span data-i18n="calendar.addTaskBtn">Task</span></button>
+        <button type="button" class="ghost small" id="cal-add-note"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg> <span data-i18n="calendar.addNote">Note</span></button>
+        <span class="grow"></span>
+        <button type="button" class="ghost small" id="cal-day-close" data-i18n="calendar.close">Close</button>
+      </div>
+      <form id="cal-sticky-form" class="cal-composer" hidden>
+        <textarea id="cal-sticky-text" rows="2" maxlength="2000" data-i18n-placeholder="calendar.stickyPh" placeholder="Sticky for this day…"></textarea>
+        <div class="row spread cal-composer-row">
+          <span class="cal-colors row" role="radiogroup" aria-label="Sticky color" data-i18n-aria-label="calendar.stickyColor" id="cal-sticky-colors"></span>
+          <button type="submit" class="small" data-i18n="calendar.saveSticky">Add sticky</button>
+        </div>
+      </form>
+      <form id="cal-task-form" class="cal-composer" hidden>
+        <input type="text" id="cal-task-title" maxlength="255" data-i18n-placeholder="calendar.taskPh" placeholder="Task title…">
+        <div class="row wrap cal-composer-row">
+          <select id="cal-task-quad" aria-label="Quadrant" data-i18n-aria-label="calendar.quadrant"></select>
+          <button type="submit" class="small" data-i18n="calendar.saveTask">Add task</button>
+        </div>
+      </form>
+      <form id="cal-note-form" class="cal-composer" hidden>
+        <textarea id="cal-note-text" rows="3" maxlength="20000" data-i18n-placeholder="calendar.notePh" placeholder="A note for this day…"></textarea>
+        <div class="row end cal-composer-row">
+          <button type="submit" class="small" data-i18n="calendar.saveNote">Add note</button>
+        </div>
+      </form>
+      <!-- Task 24 #5: legend-drop composers — a project due this day / a client-project
+           task due this day. -->
+      <form id="cal-project-form" class="cal-composer" hidden>
+        <input type="text" id="cal-project-title" maxlength="200" data-i18n-placeholder="calendar.projectPh" placeholder="Project title…">
+        <div class="row wrap cal-composer-row">
+          <select id="cal-project-status" aria-label="Stage" data-i18n-aria-label="calendar.stage"></select>
+          <button type="submit" class="small" data-i18n="calendar.saveProject">Add project</button>
+        </div>
+      </form>
+      <form id="cal-ctask-form" class="cal-composer" hidden>
+        <input type="text" id="cal-ctask-title" maxlength="300" data-i18n-placeholder="calendar.taskPh" placeholder="Task title…">
+        <div class="row wrap cal-composer-row">
+          <select id="cal-ctask-project" aria-label="Project" data-i18n-aria-label="calendar.project"></select>
+          <button type="submit" class="small" data-i18n="calendar.saveTask">Add task</button>
+        </div>
+      </form>
+      <p class="error small" id="cal-add-error" role="alert" hidden></p>
+    </div>
+  </main>
+
+  <script src="/dist/calendar-page.3d194455.js" defer></script>
+</body>
+</html>

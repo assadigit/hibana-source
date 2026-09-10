@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Projects — Hibana</title>
+  <link rel="stylesheet" href="/dist/variables.3ddc4250.css">
+  <link rel="stylesheet" href="/dist/base.59c24138.css">
+  <link rel="stylesheet" href="/dist/layout.62df3716.css">
+  <link rel="stylesheet" href="/dist/dashboard.8a51acb7.css">
+  <link rel="stylesheet" href="/dist/dashboard-todo.6bd5e18c.css">
+  <link rel="stylesheet" href="/dist/components.29a317c3.css">
+  <link rel="stylesheet" href="/dist/canvas.33308edf.css">
+  <link rel="stylesheet" href="/dist/quicknotes.399d1e19.css">
+  <link rel="stylesheet" href="/dist/to-do-list.94490eac.css">
+  <link rel="stylesheet" href="/dist/polish-ui.601c73b6.css">
+  <link rel="stylesheet" href="/dist/calendar.41b55ea3.css">
+  <link rel="stylesheet" href="/dist/notifications.0a75ad5d.css">
+  <link rel="stylesheet" href="/dist/polish-batch.ca8010aa.css">
+  <link rel="stylesheet" href="/dist/project-header.bfd6e5ef.css">
+  <link rel="stylesheet" href="/dist/devboard.ea94913f.css">
+  <link rel="stylesheet" href="/dist/misc.72077b24.css">
+  <link rel="stylesheet" href="/dist/themes.70c2e69f.css">
+  <link rel="stylesheet" href="/dist/rtl.81faac85.css">
+  <link rel="stylesheet" href="/vendor/manrope/font-face.css">
+  <script src="/vendor/htmx.min.js" defer></script>
+  <script src="/dist/boot.3f11c220.js"></script>
+  <script src="/vendor/alpine.min.js" defer></script>
+  <script src="/dist/queue.ebcbeb47.js" defer></script>
+  <script src="/dist/app.f5c1a0f9.js" defer></script>
+  <script src="/dist/hib-init.8cef873b.js" defer></script>
+  <script src="/dist/touch-drag.7f6a4a4e.js" defer></script>
+  <script src="/dist/i18n-en.96bdbbf2.js" defer></script>
+  <script src="/dist/i18n-fa.379bab70.js" defer></script>
+  <script src="/dist/i18n.03ef7c8b.js" defer></script>
+  <script src="/dist/nav.8c7a89df.js" defer></script>
+  <script src="/dist/command-palette.9a5a160e.js" defer></script>
+  <script src="/dist/mobile-nav.761b6e01.js" defer></script>
+  <script src="/dist/zen-mode.4a150d3a.js" defer></script>
+  <script src="/dist/micro-interactions.413f21b5.js" defer></script>
+  <script src="/dist/go-to.5208c116.js" defer></script>
+  <script src="/dist/install-prompt.0b935c6a.js" defer></script>
+</head>
+<body>
+  <div data-nav></div>
+  <main class="shell" id="main" tabindex="-1">
+    <div class="row spread wrap">
+      <h1 data-i18n="pages.projects">Projects</h1>
+      <!-- wrap: at phone widths the Select / New project / view-switcher controls flow to a
+           second line instead of overflowing the viewport sideways (390px fix 2026-08-30). -->
+      <div class="row wrap">
+        <!-- Phase 5 item 12 (2026-09-08): the create-project CTA matches the other pages'
+             primary CTAs (sparks' «Capture an idea» — plain primary button + plus icon). -->
+        <button type="button" data-projectquickadd title="New project" data-i18n-title="fab.project">
+          <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg>
+          <span data-i18n="fab.project">New project</span>
+        </button>
+        <!-- Phase 5 item 12: the five views live in ONE «نمایش:» dropdown (the old
+             five-button segmented bar crowded the header). setView persists the choice
+             (item 10) so the page always reopens in the user's preferred view. -->
+        <div class="view-select" role="group" aria-label="View">
+          <label class="small muted" for="view-select-sel" data-i18n="view.label">View</label>
+          <select id="view-select-sel" onchange="setView(this.value)" aria-label="View">
+            <option value="grid" data-i18n="view.grid">Stages</option>
+            <option value="cards" data-i18n="view.cards">Cards</option>
+            <option value="list" data-i18n="view.list">List</option>
+            <option value="sticky" data-i18n="view.sticky">Sticky Notes</option>
+            <option value="kanban" data-i18n="view.kanban">Kanban</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <!-- Shared filter bar (spec §5.3): tag, status, search — all refresh-less. -->
+    <form class="row filters" hx-get="/api/projects" hx-target="#project-list" hx-swap="innerHTML" hx-trigger="change, submit, keyup changed delay:400ms from:input" x-data="{ tags: [] }" x-init="fetch('/api/tags').then(r => r.json()).then(d => tags = d.tags)">
+      <input type="hidden" name="view" id="view" value="grid">
+      <input type="search" name="q" placeholder="Search (exact match)…" aria-label="Search" data-i18n-placeholder="filter.search">
+      <select name="status" aria-label="Status">
+        <option value="" data-i18n="filter.allStatuses">All statuses</option>
+        <!-- batch q: the projects page filters the six PROJECT stages only — sparks are
+             ideas and live on the Ideas shelf (sparks.html). -->
+        <option value="unreviewed" data-i18n="status.unreviewed">Unreviewed</option>
+        <option value="investigating" data-i18n="status.investigating">Investigating</option>
+        <option value="awaiting" data-i18n="status.awaiting">Awaiting Execution</option>
+        <option value="doing" data-i18n="status.doing">In Progress</option>
+        <option value="halted" data-i18n="status.halted">Development Stopped</option>
+        <option value="operational" data-i18n="status.operational">Operational</option>
+      </select>
+      <select name="tag" aria-label="Tag">
+        <option value="" data-i18n="filter.allTags">All tags</option>
+        <template x-for="t in tags" :key="t.id">
+          <option :value="t.id" x-text="t.name"></option>
+        </template>
+      </select>
+    </form>
+
+    <!-- R2.3: Saved filters (localStorage-backed chips). Save the current filter combo as a
+         named chip; click to re-apply. Zero server state — pure client convenience. -->
+    <div id="saved-filters" class="saved-filters" hidden>
+      <span class="saved-filters-label muted small" data-i18n="filters.saved">Saved:</span>
+      <div id="saved-filters-list" class="saved-filters-list"></div>
+      <button type="button" class="ghost small saved-filter-add" id="save-filter-btn" data-i18n-title="filters.saveCurrent" title="Save current filter" data-tooltip="Save current filter" data-i18n-tooltip="filters.saveCurrent">
+        <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+      </button>
+    </div>
+
+    <!-- hx-include="form.filters" (2026-08-30 (g)): the initial load now serializes the
+         filter form itself, so ?view=kanban / ?status=… URL params — which the page mount
+         writes into the form before this trigger fires (nav.js evals pre-DOMContentLoaded;
+         soft nav runs page scripts before htmx.process) — reach the server on the FIRST
+         request. Before, the load trigger sent a bare GET that overwrote the mount's
+         param-carrying reload with the unfiltered cards view — the dashboard's
+         “View all → /projects.html?status=…” links landed on an unfiltered list. -->
+    <div id="project-list" hx-get="/api/projects" hx-trigger="load" hx-include="form.filters" hx-swap="innerHTML" hx-indicator="#list-loading">
+      <div id="list-loading" class="skeleton-loading htmx-indicator" aria-label="Loading projects" role="status">
+        <div class="skeleton-grid">
+          <div class="skeleton skeleton-box"></div>
+          <div class="skeleton skeleton-box"></div>
+          <div class="skeleton skeleton-box"></div>
+          <div class="skeleton skeleton-box"></div>
+          <div class="skeleton skeleton-box"></div>
+          <div class="skeleton skeleton-box"></div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <div class="fab-stack">
+    <span class="fab-row"><span class="fab-label"><span data-i18n="fab.idea">New idea</span></span>
+      <button class="fab" data-quickadd-open type="button" aria-label="New idea" data-i18n-title="fab.idea" title="New idea"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 18h6M10 22h4"/><path d="M12 2a7 7 0 0 0-4.2 12.6c.9.7 1.2 1.6 1.2 2.4h6c0-.8.3-1.7 1.2-2.4A7 7 0 0 0 12 2Z"/></svg></button>
+    </span>
+    <span class="fab-row"><span class="fab-label" data-i18n="fab.project">New project</span>
+      <button class="fab" data-projectquickadd type="button" aria-label="New project" data-i18n-title="fab.project" title="New project"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7Z"/><path d="M12 11v4M10 13h4"/></svg></button>
+    </span>
+  </div>
+
+  <script src="/dist/projects-page.68b591bb.js" defer></script>
+</body>
+</html>

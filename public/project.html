@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Project — Hibana</title>
+  <link rel="stylesheet" href="/dist/variables.3ddc4250.css">
+  <link rel="stylesheet" href="/dist/base.59c24138.css">
+  <link rel="stylesheet" href="/dist/layout.62df3716.css">
+  <link rel="stylesheet" href="/dist/dashboard.8a51acb7.css">
+  <link rel="stylesheet" href="/dist/dashboard-todo.6bd5e18c.css">
+  <link rel="stylesheet" href="/dist/components.29a317c3.css">
+  <link rel="stylesheet" href="/dist/canvas.33308edf.css">
+  <link rel="stylesheet" href="/dist/quicknotes.399d1e19.css">
+  <link rel="stylesheet" href="/dist/to-do-list.94490eac.css">
+  <link rel="stylesheet" href="/dist/polish-ui.601c73b6.css">
+  <link rel="stylesheet" href="/dist/calendar.41b55ea3.css">
+  <link rel="stylesheet" href="/dist/notifications.0a75ad5d.css">
+  <link rel="stylesheet" href="/dist/polish-batch.ca8010aa.css">
+  <link rel="stylesheet" href="/dist/project-header.bfd6e5ef.css">
+  <link rel="stylesheet" href="/dist/devboard.ea94913f.css">
+  <link rel="stylesheet" href="/dist/misc.72077b24.css">
+  <link rel="stylesheet" href="/dist/themes.70c2e69f.css">
+  <link rel="stylesheet" href="/dist/rtl.81faac85.css">
+  <link rel="stylesheet" href="/css/magic-wand.css?v=3">
+  <link rel="stylesheet" href="/vendor/manrope/font-face.css">
+  <script src="/vendor/htmx.min.js" defer></script>
+  <script src="/dist/boot.3f11c220.js"></script>
+  <script src="/vendor/alpine.min.js" defer></script>
+  <script src="/dist/app.f5c1a0f9.js" defer></script>
+  <script src="/dist/hib-init.8cef873b.js" defer></script>
+  <script src="/dist/touch-drag.7f6a4a4e.js" defer></script>
+  <script src="/dist/nav.8c7a89df.js" defer></script>
+  <script src="/dist/command-palette.9a5a160e.js" defer></script>
+  <script src="/dist/mobile-nav.761b6e01.js" defer></script>
+  <script src="/dist/zen-mode.4a150d3a.js" defer></script>
+  <script src="/dist/micro-interactions.413f21b5.js" defer></script>
+  <script src="/dist/go-to.5208c116.js" defer></script>
+  <script src="/dist/install-prompt.0b935c6a.js" defer></script>
+  <script src="/dist/i18n-en.96bdbbf2.js" defer></script>
+  <script src="/dist/i18n-fa.379bab70.js" defer></script>
+  <script src="/dist/i18n.03ef7c8b.js" defer></script>
+  <script src="/js/magic-wand.js?v=10" defer></script>
+</head>
+<body>
+  <div data-nav></div>
+  <main class="shell" id="main" tabindex="-1">
+    <!-- hx-indicator omitted on purpose: after the first swap #loading is gone, and the
+         default indicator (htmx-request on this element + .htmx-indicator child) behaves
+         identically without the "selector returned no matches" console error on every
+         later htmx call (links/hurdles/screenshots actions). -->
+    <div id="project-body" hx-get="/api/projects/__ID__" hx-trigger="load" hx-swap="innerHTML">
+      <div id="loading" class="skeleton-loading htmx-indicator" aria-label="Loading project" role="status">
+        <div class="skeleton skeleton-line w-60" style="height:1.5rem"></div>
+        <div class="skeleton skeleton-line w-40"></div>
+        <div class="skeleton skeleton-box"></div>
+        <div class="skeleton skeleton-line"></div>
+        <div class="skeleton skeleton-line w-60"></div>
+        <div class="skeleton skeleton-line w-40"></div>
+      </div>
+    </div>
+  </main>
+  <script src="/dist/project-page.c7a3d708.js" defer></script>
+</body>
+</html>

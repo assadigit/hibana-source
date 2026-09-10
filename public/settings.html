@@ -1,0 +1,319 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Settings — Hibana</title>
+  <link rel="stylesheet" href="/dist/variables.3ddc4250.css">
+  <link rel="stylesheet" href="/dist/base.59c24138.css">
+  <link rel="stylesheet" href="/dist/layout.62df3716.css">
+  <link rel="stylesheet" href="/dist/dashboard.8a51acb7.css">
+  <link rel="stylesheet" href="/dist/dashboard-todo.6bd5e18c.css">
+  <link rel="stylesheet" href="/dist/components.29a317c3.css">
+  <link rel="stylesheet" href="/dist/canvas.33308edf.css">
+  <link rel="stylesheet" href="/dist/quicknotes.399d1e19.css">
+  <link rel="stylesheet" href="/dist/to-do-list.94490eac.css">
+  <link rel="stylesheet" href="/dist/polish-ui.601c73b6.css">
+  <link rel="stylesheet" href="/dist/calendar.41b55ea3.css">
+  <link rel="stylesheet" href="/dist/notifications.0a75ad5d.css">
+  <link rel="stylesheet" href="/dist/polish-batch.ca8010aa.css">
+  <link rel="stylesheet" href="/dist/project-header.bfd6e5ef.css">
+  <link rel="stylesheet" href="/dist/devboard.ea94913f.css">
+  <link rel="stylesheet" href="/dist/misc.72077b24.css">
+  <link rel="stylesheet" href="/dist/themes.70c2e69f.css">
+  <link rel="stylesheet" href="/dist/rtl.81faac85.css">
+  <link rel="stylesheet" href="/vendor/manrope/font-face.css">
+  <script src="/vendor/htmx.min.js" defer></script>
+  <script src="/dist/boot.3f11c220.js"></script>
+  <script src="/vendor/alpine.min.js" defer></script>
+  <script src="/vendor/jalaali.min.js" defer></script>
+  <script src="/dist/app.f5c1a0f9.js" defer></script>
+  <script src="/dist/hib-init.8cef873b.js" defer></script>
+  <script src="/dist/touch-drag.7f6a4a4e.js" defer></script>
+  <script src="/dist/nav.8c7a89df.js" defer></script>
+  <script src="/dist/command-palette.9a5a160e.js" defer></script>
+  <script src="/dist/mobile-nav.761b6e01.js" defer></script>
+  <script src="/dist/zen-mode.4a150d3a.js" defer></script>
+  <script src="/dist/micro-interactions.413f21b5.js" defer></script>
+  <script src="/dist/go-to.5208c116.js" defer></script>
+  <script src="/dist/install-prompt.0b935c6a.js" defer></script>
+  <script src="/dist/i18n-en.96bdbbf2.js" defer></script>
+  <script src="/dist/i18n-fa.379bab70.js" defer></script>
+  <script src="/dist/i18n.03ef7c8b.js" defer></script>
+</head>
+<body>
+  <div data-nav></div>
+  <main class="shell narrow" id="main" tabindex="-1">
+    <h1 data-i18n="nav.settings">Settings</h1>
+
+    <div class="settings-tabs" role="tablist" aria-label="Settings sections">
+      <button type="button" class="settings-tab is-active" data-settings-tab="prefs" data-i18n="settings.tabPreferences">Preferences</button>
+      <button type="button" class="settings-tab" data-settings-tab="appearance" data-i18n="settings.tabAppearance">Appearance</button>
+      <button type="button" class="settings-tab" data-settings-tab="account" data-i18n="settings.tabAccount">Account</button>
+      <button type="button" class="settings-tab" data-settings-tab="telegram" data-i18n="settings.tabTelegram">Telegram</button>
+      <button type="button" class="settings-tab" data-settings-tab="data" data-i18n="settings.tabData">Data</button>
+    </div>
+
+    <section class="card settings-section" id="settings-prefs" x-data="prefs">
+      <h3 data-i18n="settings.preferences">Preferences</h3>
+      <label><span data-i18n="settings.language">Language</span>
+        <select x-model="language_pref" @change="save()">
+          <option value="en">English</option>
+          <option value="fa">فارسی (Farsi)</option>
+        </select>
+      </label>
+      <label><span data-i18n="settings.calendar">Calendar</span>
+        <select x-model="calendar_pref" disabled aria-describedby="cal-hint">
+          <option value="gregorian" data-i18n="settings.calGregorian">Gregorian (Miladi)</option>
+          <option value="shamsi" data-i18n="settings.calShamsi">Shamsi (Jalali)</option>
+        </select>
+        <span class="muted small" id="cal-hint" data-i18n="settings.calendarHint">Follows your language — Farsi uses the Jalali calendar.</span>
+      </label>
+      <label><span data-i18n="settings.timezone">Timezone</span>
+        <select x-model="timezone" @change="save()">
+          <option value="UTC">UTC</option>
+          <option value="Asia/Tehran">Asia/Tehran (GMT+3:30)</option>
+          <option value="Europe/London">Europe/London</option>
+          <option value="America/New_York">America/New_York</option>
+          <option value="America/Los_Angeles">America/Los_Angeles</option>
+        </select>
+      </label>
+      <!-- Phase 6 item 12: ONE page width everywhere. Local preference (boot.js paints
+           it pre-render on every page); Standard = 1366px, Full = no cap. -->
+      <label><span data-i18n="settings.pageWidth">Page width</span>
+        <select id="page-width-sel">
+          <option value="standard" data-i18n="settings.widthStandard">Standard (1366 px)</option>
+          <option value="full" data-i18n="settings.widthFull">Full-width</option>
+        </select>
+        <span class="muted small" data-i18n="settings.pageWidthHint">Applies the same content width to every page.</span>
+      </label>
+      <!-- Magic Button (idea §1) — free-tier model choice. Pure client pref (localStorage),
+           sent per-request by magic-wand.js. Registry fetched from GET /api/ai/models. -->
+      <label><span data-i18n="settings.aiSection">AI model (Cloudflare Workers AI)</span>
+        <select id="ai-model-sel"></select>
+        <span class="muted small" id="ai-model-note"></span>
+        <span class="muted small" data-i18n="settings.aiHint">Free-tier models only — no paid overage possible. Default is Qwen3 30B (best Persian).</span>
+      </label>
+      <!-- Experimental: auto-polish on note capture. Off by default. The note saves FIRST
+           (capture is never blocked); the AI polish runs after-save with an Undo toast. -->
+      <label class="ai-autopolish-toggle">
+        <span data-i18n="settings.aiAutopolish">AI auto-polish (experimental)</span>
+        <input type="checkbox" id="ai-autopolish-toggle">
+        <span class="muted small" data-i18n="settings.aiAutopolishHint">Automatically polish notes after you write them. The original is saved first; an Undo toast recovers it. Off by default.</span>
+      </label>
+      <!-- Custom system prompt (replaces the default persona for all 3 actions; output
+           discipline rules are always appended to keep the format clean). -->
+      <label class="ai-custom-prompt-wrap">
+        <span data-i18n="settings.aiCustomPrompt">Custom AI instructions</span>
+        <textarea id="ai-custom-prompt" rows="4" maxlength="2000" dir="auto" placeholder="Leave empty for defaults. E.g.: Keep my informal tone. Use Persian digits. Be concise."></textarea>
+        <span class="muted small" data-i18n="settings.aiCustomPromptHint">Replaces the default system prompt for polish/rewrite/translate. Output-discipline rules are always appended. Max 2000 chars.</span>
+      </label>
+      <button class="ghost" @click="load()" data-i18n="settings.reload">Reload from server</button>
+    </section>
+
+    <section class="card settings-section" id="settings-views" x-data="views">
+      <h3 data-i18n="settings.views">View options</h3>
+      <p class="muted small" data-i18n="settings.viewsHint">Pick which sections appear on your dashboard and their order. Drag the handle or use the arrows — every change saves automatically.</p>
+      <div class="view-sort" x-show="loaded">
+        <template x-for="(id, i) in order" :key="id">
+          <div class="row view-sort-row" draggable="true" :data-view-id="id" @dragstart="dragStart($event, i)" @dragover.prevent="dragOver()" @drop.prevent="drop($event, i)">
+            <span class="view-sort-handle" aria-hidden="true"><svg class="icon" viewBox="0 0 24 24"><path d="M9 6h.01M9 12h.01M9 18h.01M15 6h.01M15 12h.01M15 18h.01"/></svg></span>
+            <span class="view-sort-name" x-text="label(id)"></span>
+            <span class="row view-sort-actions">
+              <button type="button" class="ghost icon-btn" @click="move(i, -1)" :title="t('settings.moveUp', 'Move up')" :aria-label="t('settings.moveUp', 'Move up')"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M18 15l-6-6-6 6"/></svg></button>
+              <button type="button" class="ghost icon-btn" @click="move(i, 1)" :title="t('settings.moveDown', 'Move down')" :aria-label="t('settings.moveDown', 'Move down')"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></button>
+            </span>
+            <span class="view-sort-toggle">
+              <button type="button" class="ghost" @click="toggle(id)" :aria-pressed="shown(id) ? 'true' : 'false'">
+                <span x-text="toggleLabel(id)"></span>
+              </button>
+            </span>
+          </div>
+        </template>
+      </div>
+    </section>
+
+    <section class="card settings-section" id="settings-account" x-data="account">
+      <h3 data-i18n="settings.account">Account</h3>
+      <div class="row avatar-row" x-data="avatar">
+        <span class="avatar avatar-lg" x-show="!pic" aria-hidden="true"><span x-text="initial"></span></span>
+        <img class="avatar avatar-lg" x-show="pic" :src="url" :alt="initial" @error="onErr()">
+        <div class="stack">
+          <label class="btn ghost" for="avatar-file">
+            <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16v14H4zM3 3h18M8 17l3-3 2 2 3-3 3 3M15 8h.5a1 1 0 0 1 0 2h-.5a1 1 0 0 1 0-2Z"/></svg>
+            <span data-i18n="settings.uploadAvatar">Upload profile picture</span>
+          </label>
+          <input id="avatar-file" type="file" accept="image/png,image/jpeg,image/webp,image/gif" hidden @change="upload($event)">
+          <div class="row">
+            <button type="button" class="ghost danger" x-show="pic" @click="remove()"><span data-i18n="settings.removeAvatar">Remove</span></button>
+          </div>
+          <span class="muted small" data-i18n="settings.avatarHint">Shown next to your name. Automatically cropped to a square.</span>
+        </div>
+      </div>
+      <label><span data-i18n="settings.account.email">Email</span>
+        <input type="email" value="" disabled x-model="email">
+      </label>
+      <form class="stack" @submit.prevent="changePassword()">
+        <label><span data-i18n="settings.currentPassword">Current password</span>
+          <input type="password" x-model="currentPassword" autocomplete="current-password" required minlength="1">
+        </label>
+        <label><span data-i18n="settings.newPassword">New password</span>
+          <input type="password" x-model="newPassword" autocomplete="new-password" required minlength="8">
+        </label>
+        <label><span data-i18n="settings.confirmPassword">Confirm new password</span>
+          <input type="password" x-model="confirmPassword" autocomplete="new-password" required minlength="8">
+        </label>
+        <button :disabled="busy"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 11V7a5 5 0 0 1 10 0v4M6 11h12a1 1 0 0 1 1 1v7a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1v-7a1 1 0 0 1 1-1Z"/></svg> <span data-i18n="settings.changePassword">Change password</span></button>
+        <span class="muted small" data-i18n="settings.passwordHint">Min 8 characters (numbers alone are fine). Other devices are signed out.</span>
+      </form>
+      <h4 style="margin-block-start:1.5rem" data-i18n="settings.help">Help</h4>
+      <div class="row">
+        <button type="button" class="ghost" id="show-tour-btn">
+          <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 8v4M12 16h.01"/></svg>
+          <span data-i18n="settings.showTour">Show onboarding tour</span>
+        </button>
+        <button type="button" class="ghost" id="install-app-btn" hidden>
+          <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m0 0l-4-4m4 4l4-4M5 21h14"/></svg>
+          <span data-i18n="settings.installApp">Install app</span>
+        </button>
+      </div>
+      <p class="muted small" data-i18n="settings.tourHint">Replays the 4-step intro on the dashboard.</p>
+    </section>
+
+    <section class="card settings-section" id="settings-appearance">
+      <h3 data-i18n="settings.theme">Theme</h3>
+      <div class="row wrap" x-data="theme">
+        <button class="ghost" :class="{active: t === 'light'}" @click="set('light')" data-i18n="settings.light">Light</button>
+        <button class="ghost" :class="{active: t === 'dark'}" @click="set('dark')" data-i18n="settings.dark">Dark</button>
+        <button class="ghost" :class="{active: t === 'system'}" @click="set('system')" data-i18n="settings.system">Follow system</button>
+      </div>
+    </section>
+
+    <section class="card">
+      <h3 data-i18n="settings.tags">Tags</h3>
+      <div class="row">
+        <form class="row" hx-post="/api/tags" hx-target="#taglist" hx-swap="innerHTML" x-data="{ name: '' }" @submit="name = ''">
+          <input name="name" x-model="name" placeholder="New tag name" data-i18n-placeholder="settings.newTag" required maxlength="50">
+          <button><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg> <span data-i18n="settings.create">Create</span></button>
+        </form>
+      </div>
+      <div id="taglist" class="row wrap" hx-get="/api/tags" hx-trigger="load" hx-swap="innerHTML">
+        <span class="muted hibana-loading-row" style="padding:1rem 0"><span class="hibana-spinner" role="status" aria-hidden="true"></span><span data-i18n="common.loading">Loading…</span></span>
+      </div>
+    </section>
+
+    <section class="card" x-data="invites">
+      <h3 data-i18n="settings.invites">Invites</h3>
+      <!-- Item 6 (user request 2026-09-09): invite-by-email. Enter an email → Hibana
+           generates a code + emails it to that address via Resend. -->
+      <div class="row wrap" style="margin-block-end:0.6rem">
+        <input type="email" x-model="inviteEmail" placeholder="friend@example.com" aria-label="Invite email" style="min-inline-size:14rem">
+        <button type="button" @click="sendInvite()" :disabled="sending">
+          <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7l9 6 9-6M3 7v10a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V7M3 7l2-2h14l2 2"/></svg>
+          <span data-i18n="settings.sendInvite">Send invite</span>
+        </button>
+      </div>
+      <button class="ghost" @click="generate()"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg> <span data-i18n="settings.generateInvite">Generate invite code</span></button>
+      <ul id="invite-list" x-show="invites.length">
+        <template x-for="inv in invites" :key="inv.id">
+          <li class="row spread"><code x-text="inv.code"></code><span class="muted small" x-text="(inv.used_at ? 'used' : 'available') + ' · ' + inv.created_at"></span></li>
+        </template>
+      </ul>
+      <p class="muted small" x-show="!invites.length && loaded" data-i18n="settings.noInvites">No invites yet — generate one above.</p>
+      <p class="muted small" x-show="!loaded" style="display:flex;align-items:center;gap:0.5rem"><span class="hibana-spinner" aria-hidden="true" style="inline-size:1.2rem;block-size:1.2rem;border-width:2px"></span><span data-i18n="common.loading">Loading…</span></p>
+    </section>
+
+    <section class="card settings-section" id="settings-telegram">
+      <h3 data-i18n="settings.telegram">Telegram</h3>
+      <div x-data="telegram">
+        <div class="row" x-show="ready">
+          <span class="badge" :class="linked ? 'badge-ok' : ''"><span x-text="linkLabel()"></span></span>
+        </div>
+        <!-- New flow (user request 2026-09): one-click connect via Telegram deep link.
+             Clicking "Connect to Telegram" generates a code + opens t.me/Hibana_PM_bot?start=<code>
+             in a new tab. Telegram launches with the bot + the /start command pre-filled —
+             the user just taps Start. No copy-paste needed. -->
+        <div x-show="ready && !linked" style="margin-block:0.8rem">
+          <a :href="connectUrl" target="_blank" rel="noopener"
+             class="btn" style="display:inline-flex;align-items:center;gap:.5rem"
+             @click="generateAndOpen($event)">
+            <svg class="icon" viewBox="0 0 24 24" aria-hidden="true" style="inline-size:1.2rem;block-size:1.2rem">
+              <path d="M21.5 4.5 2.5 12.5l5.5 1.5 1.5 5 3-3.5 5.5 4z"/>
+              <path d="M8 14l9-6"/>
+            </svg>
+            <span data-i18n="settings.telegramConnect">اتصال به تلگرام</span>
+          </a>
+          <p class="muted small" style="margin-block-start:0.5rem" data-i18n="settings.telegramConnectHint">Click the button — Telegram opens with the bot ready. Just tap Start.</p>
+        </div>
+        <!-- Show the code (for manual fallback) only if auto-open failed -->
+        <div class="muted small" x-show="ready && !linked && code" style="line-height:1.8">
+          <span data-i18n="settings.sendToBot">Send this to your bot:</span> <code x-text="code"></code>
+        </div>
+        <div class="row wrap" x-show="ready && linked">
+          <button type="button" class="ghost danger" @click="unlink()"><span data-i18n="settings.unlink">Unlink</span></button>
+        </div>
+        <p class="muted small" data-i18n="settings.telegramHint">After linking, text any idea to the bot — it creates the Idea and replies with a link back.</p>
+      </div>
+    </section>
+
+    <section class="card settings-section" id="settings-data">
+      <h3 data-i18n="settings.obsidian">Obsidian import (one-time)</h3>
+      <form class="row wrap" id="obsidian-form" hx-post="/api/import/obsidian" hx-target="body" hx-swap="beforeend">
+        <input type="file" id="obsidian-files" name="files" accept=".md,.zip" multiple hidden>
+        <label class="btn ghost" for="obsidian-files">
+          <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 16V4m0 0l-5 5m5-5l5 5"/><path d="M4 20h16"/></svg>
+          <span data-i18n="settings.chooseFiles">Choose files</span>
+        </label>
+        <span class="muted small" id="obsidian-files-info" data-i18n="settings.noFiles">No file chosen</span>
+        <button data-i18n="settings.importAsSparks">Import</button>
+      </form>
+      <p class="muted small" data-i18n="settings.obsidianHint">Upload the .md files — or a .zip of your whole vault — they become Ideas tagged “Imported”. Re-importing skips notes you already have.</p>
+    </section>
+
+    <section class="card">
+      <h3 data-i18n="settings.export">Export &amp; backup</h3>
+      <div class="row wrap">
+        <a class="btn" href="/api/export?format=json" download><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m0 0l-4-4m4 4l4-4M5 21h14"/></svg> <span data-i18n="settings.jsonExport">JSON export (full data)</span></a>
+        <a class="btn" href="/api/export?format=md" download><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m0 0l-4-4m4 4l4-4M5 21h14"/></svg> <span data-i18n="settings.mdExport">Markdown export (readable)</span></a>
+        <a class="btn" href="/api/export/tasks.csv" download><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m0 0l-4-4m4 4l4-4M5 21h14"/></svg> <span data-i18n="settings.csvExport">CSV export (tasks, for spreadsheets)</span></a>
+        <!-- Session 15 (user request): the Obsidian vault export — the mirror of the §9
+             import above. A zip of .md files, one folder per app part, importable into a
+             fresh Obsidian vault as-is. Plain <a download> like its siblings: no JS path. -->
+        <a class="btn" href="/api/export/obsidian.zip" download><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M21 8v13H3V8M1 3h22v5H1zM10 12h4"/></svg> <span data-i18n="settings.obsidianExport">Obsidian export (.md vault, zipped)</span></a>
+        <!-- Session 19 (cron round 1): one-way ICS calendar export (Changelogs §6 High open item).
+             A subscribable .ics feed of all dated items (projects + tasks + to-dos + day-notes)
+             for the next 6 months. Import into Apple/Google Calendar, or host the URL for
+             periodic re-fetch. Plain <a download> — same pattern as the other exports. -->
+        <a class="btn" href="/api/export/calendar.ics" download><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="5" width="17" height="16" rx="2"/><path d="M3.5 9.5h17M8 3v4M16 3v4"/></svg> <span data-i18n="settings.icsExport">Calendar export (.ics, subscribable)</span></a>
+      </div>
+      <p class="muted small" data-i18n="settings.obsidianExportHint">A zip of .md files — one folder per part (quick notes, projects, ideas, to-do board…). Unzip into a new Obsidian vault, or re-import here; titles you already have are skipped.</p>
+      <p class="muted small" data-i18n="settings.icsExportHint">A .ics file of everything dated in the next 6 months — projects, tasks, to-dos, day-notes. Import it into Apple Calendar, Google Calendar, or Outlook. Re-export whenever you want a fresh copy.</p>
+    </section>
+
+    <!-- Session 19 (cron round 2): web-clipper bookmarklet (Changelogs §6 open item).
+         Drag the link to your bookmarks bar; click it on any page to capture the title +
+         URL (+ any selected text) as a Quick Note. Opens a small popup — same-origin, so
+         it carries your Hibana session cookie; no token, no schema change. -->
+    <section class="card settings-section" id="settings-clipper">
+      <h3 data-i18n="settings.clipper">Web clipper (bookmarklet)</h3>
+      <p class="muted small" data-i18n="settings.clipperHint">Drag this link to your browser's bookmarks bar. Click it on any page to capture the title + link as a Quick Note in Hibana. If you have text selected, it's included too.</p>
+      <div class="row wrap">
+        <a class="btn" id="clipper-bookmarklet" href="javascript:void(window.open(clipOrigin+'/clip.html?title='+encodeURIComponent(document.title)+'&amp;url='+encodeURIComponent(location.href)+'&amp;text='+encodeURIComponent(window.getSelection().toString()),'hibana-clip','width=480,height=440,noopener'))" draggable="true"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 18h6M10 22h4"/><path d="M12 2a7 7 0 0 0-4.2 12.6c.9.7 1.2 1.6 1.2 2.4h6c0-.8.3-1.7 1.2-2.4A7 7 0 0 0 12 2Z"/></svg> <span data-i18n="settings.clipperLink">Clip to Hibana</span></a>
+      </div>
+      <p class="muted small" data-i18n="settings.clipperNote">If you're not logged in when you click it, Hibana's login page opens first — sign in, then click the bookmarklet again.</p>
+    </section>
+
+    <!-- Owner tools (batch r) — hidden until app.js resolves role=owner; the API is the
+         real gate. Moves the GitHub backup button out of the member-visible card. -->
+    <section class="card" id="owner-tools" data-owner-tools hidden>
+      <h3 data-i18n="settings.ownerTools">Owner tools</h3>
+      <div class="row wrap">
+        <a class="btn" href="/admin.html"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l8 3v5c0 4.4-3.4 8.4-8 10-4.6-1.6-8-5.6-8-10V6l8-3Z"/><path d="M12 8v4M12 15h.01"/></svg> <span data-i18n="settings.adminPanel">Super-admin panel</span></a>
+        <button class="ghost" hx-post="/api/admin/backup" hx-target="body" hx-swap="beforeend"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M17.5 18.5a4 4 0 0 0-.3-7.99A5.5 5.5 0 0 0 6.9 9.6 3.5 3.5 0 0 0 7 18.5Z"/></svg> <span data-i18n="settings.backup">Commit backup to GitHub (owner)</span></button>
+      </div>
+    </section>
+  </main>
+
+  <script src="/dist/settings-page.2b94fc6e.js" defer></script>
+</body>
+</html>

@@ -2354,28 +2354,12 @@ window.hibanaCanvas = (() => {
       save(data)
     }, 2000)
     canvas.on('text:changed', (e) => {
-      // Session 19 (user request): convert Latin digits to Persian when the UI is FA.
-      // Fabric's hidden textarea doesn't trigger our document-level input handler reliably
-      // (Fabric manages the cursor/selection differently), so we convert here on every
-      // text:changed event. Only fires when the user is actively editing.
-      const t = e.target
-      if (t && t.text) {
-        const isFa = document.documentElement.lang === 'fa' || localStorage.getItem('hibana-lang') === 'fa'
-        if (isFa && /[0-9]/.test(t.text)) {
-          const faDig = (s) => s.replace(/[0-9]/g, (d) => '۰۱۲۳۴۵۶۷۸۹'[+d])
-          const newText = faDig(t.text)
-          if (newText !== t.text) {
-            const selStart = t.selectionStart
-            const selEnd = t.selectionEnd
-            t.set('text', newText)
-            // restore caret position (text:changed re-renders)
-            t.selectionStart = selStart
-            t.selectionEnd = selEnd
-            t.dirty = true
-            canvas.requestRenderAll()
-          }
-        }
-      }
+      // Session 24 (user request): removed the Latin→Persian digit auto-conversion.
+      // The old code force-converted ALL Latin digits to Persian when the UI was FA —
+      // even when the user alt-shifted to an English keyboard and typed English text.
+      // Now the numerals match the KEYBOARD: English keyboard → Latin (0-9), Farsi
+      // keyboard → whatever the layout produces. The UI language no longer overrides
+      // the user's active keyboard layout.
       // sticky twin: the debounced crash-guard save runs against the NOTE (the twin
       // itself has no id)
       if (stickyEdit && e.target === stickyEdit.editor) {

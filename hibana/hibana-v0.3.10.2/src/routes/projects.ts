@@ -656,7 +656,7 @@ function detailHtml(p: ProjectRow, d: Awaited<ReturnType<typeof loadDetail>>, la
   <header class="card pd-head">
     <div class="row spread">
       <div class="row">
-        ${p.logo_path ? `<div class="pd-logo-wrap"><img class="pd-logo" src="/api/projects/${p.id}/logo/file" alt="${esc(p.title)} logo" /><button type="button" class="ghost small danger pd-logo-remove" data-pd-logo-remove="${p.id}" title="${trL(lang, 'Remove logo', 'حذف لوگو')}" aria-label="${trL(lang, 'Remove logo', 'حذف لوگو')}">${icon('trash')}</button></div>` : `<div class="pd-logo-placeholder" data-pd-logo-upload data-hint="${trL(lang, 'Add logo', 'افزودن لوگو')}" title="${trL(lang, 'Add logo', 'افزودن لوگو')}">${icon('image')}</div>`}
+        ${p.logo_path ? `<div class="pd-logo-wrap"><img class="pd-logo" src="/api/projects/${p.id}/logo/file" alt="${esc(p.title)} logo" loading="lazy" decoding="async" /><button type="button" class="ghost small danger pd-logo-remove" data-pd-logo-remove="${p.id}" title="${trL(lang, 'Remove logo', 'حذف لوگو')}" aria-label="${trL(lang, 'Remove logo', 'حذف لوگو')}">${icon('trash')}</button></div>` : `<div class="pd-logo-placeholder" data-pd-logo-upload data-hint="${trL(lang, 'Add logo', 'افزودن لوگو')}" title="${trL(lang, 'Add logo', 'افزودن لوگو')}">${icon('image')}</div>`}
       </div>
       <div class="row">
         <label class="sr-only" for="pd-stage">${trL(lang, 'Stage', 'مرحله')}</label>
@@ -1236,7 +1236,7 @@ export function projectsRoutes(cfg: Config) {
     const gh = githubClient(cfg.github as GitHubConfig)
     const bytes = await gh.readBinary(p.logo_path)
     if (!bytes) return c.json({ error: 'not_found' }, 404)
-    return new Response(bytes, { headers: { 'Content-Type': 'image/png', 'Cache-Control': 'private, no-cache' } })
+    return new Response(bytes, { headers: { 'Content-Type': 'image/png', 'Cache-Control': 'public, max-age=3600, stale-while-revalidate=604800' } })
   })
 
   // Remove the logo

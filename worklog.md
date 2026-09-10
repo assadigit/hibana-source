@@ -1245,3 +1245,23 @@ Stage Summary:
 - Item 3 (delete in modal) reuses the exact card-menu delete recipe (optimistic + Undo).
 - Item 4 (logo radius) is CSS-only: border-radius: 64px.
 - Ready for commit + tag + push + deploy dev/prod.
+
+---
+Task ID: session-24b
+Agent: Z.ai Code (principal)
+Task: Session 24b — 4 follow-up fixes from Ali's live feedback on v0.3.11.6
+
+Work Log:
+- Item 1 (copy truncates at "read more"): Made pdColItems ALWAYS fetch from /api/projects/:id, removed all DOM-reading paths (fast-path + fallback). Uses t.title from the API (full untruncated title from DB). Bulletproof — no DOM dependency.
+- Item 2 (delete button looks like circle): Removed SVG icon from #pde-delete. Now text-only ("Delete"/"حذف"), matching Cancel and Save.
+- Item 3 (logo radius + performance): border-radius 64px→16px (64px on 64px image = circle). Logo endpoint Cache-Control: private,no-cache → public,max-age=3600,stale-while-revalidate=604800 (browser caches 1h). Added loading="lazy" decoding="async" to the img tag.
+- Item 4 (canvas/whiteboard Persian numerals): Removed the text:changed Latin→Persian auto-conversion from canvas.js + whiteboard.js. Numerals now match the KEYBOARD layout (alt-shift), not the UI language.
+- Cache-bust: app.css ?v=263→264 (23 pages), canvas.js ?v=18→19, whiteboard.js ?v=12→13, SW hibana-v284→v285, package.json 0.3.11.6→0.3.11.7.
+- Verification: typecheck clean, 295/295 vitest, node --check on sw.js + canvas.js + whiteboard.js, cache-bust PASS.
+
+Stage Summary:
+- 4 follow-up fixes shipped as v0.3.11.7.
+- Copy-all is now bulletproof (API-only, no DOM paths).
+- Logo no longer circularized (16px radius) + browser-cached (no more row-by-row loading).
+- Canvas/whiteboard numerals now respect keyboard layout (alt-shift), not UI language.
+- Ready for commit + tag + push + deploy dev/prod.

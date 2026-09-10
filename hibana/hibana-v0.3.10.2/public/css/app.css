@@ -6844,7 +6844,7 @@ html[data-theme="dark"] .heatmap-l4,
   flex: none;
   border: none;
   background: transparent;
-  border-radius: 64px; /* Session 24 (user request): soft, modern, rounded logo edges — was 0 (hard square corners). */
+  border-radius: 16px; /* Session 24 (revised): 64px turned 64px-square logos into circles (50%). 16px = soft, modern, rounded — never circular on any logo size. */
 }
 /* Session 19 (user request): logo edit/delete. The wrap holds the <img> + a small trash
    button overlaid at the top-end corner. Hovering the logo reveals the button. */

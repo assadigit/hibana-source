@@ -9,7 +9,43 @@
 > rewritten as a minimal pointer. Deleted files remain recoverable verbatim:
 > `git show <sha>:<file>`.
 
-## 1. Current state (v0.3.11.6 — Session 24: progress-box copy-all + magic-wand-for-all + delete-in-edit-modal + logo radius)
+## 1. Current state (v0.3.11.7 — Session 24b: copy-all bulletproof, delete-btn text-only, logo radius 16px + caching, canvas/whiteboard numeral auto-conversion removed)
+- v0.3.11.7 = **Session 24b hotfix release** — 4 fixes from Ali's live feedback on v0.3.11.6
+  (project.html inline JS + app.css + projects.ts + canvas.js + whiteboard.js; no schema
+  changes, no new i18n keys):
+  - **Copy-all still truncated at "read more" (root cause, revised)**: the v0.3.11.6 fix
+    had a DOM fast-path (read textContent when column expanded) + a DOM fallback (on fetch
+    failure). textContent SHOULD include the hidden .pd-title-rest span, but Ali still saw
+    truncation at the 150-char "read more" boundary. Now `pdColItems` ALWAYS fetches from
+    `/api/projects/:id` and uses `t.title` (the FULL untruncated title from the database) —
+    no DOM paths at all, bulletproof. If the fetch fails, returns empty (no silent DOM
+    fallback that could truncate).
+  - **Delete button "looks like a circle" (user report)**: the #pde-delete button had an
+    SVG trash icon + text, but the icon was taking the button's space and the text was
+    pushed out of view — rendering as an icon-only circle. Removed the SVG; the button is
+    now text-only ("Delete" / "حذف"), matching Cancel and Save (which are also text-only).
+  - **Logo radius too large + renders row-by-row (user report)**: 64px border-radius on a
+    64px-square logo = 50% = perfect circle (not "soft rounded" as intended). Revised to
+    16px — soft, modern, rounded corners that never circularize any logo size (64px or
+    128px). Also fixed the performance issue ("renders row by row"): the logo endpoint had
+    `Cache-Control: private, no-cache` → the browser re-fetched the logo from the GitHub
+    assets repo (via the Worker) on EVERY page load. Changed to
+    `public, max-age=3600, stale-while-revalidate=604800` (1h fresh, 1 week stale) — logos
+    rarely change, and the browser now caches them. Added `loading="lazy"` +
+    `decoding="async"` to the `<img>` tag for non-blocking decode.
+  - **Canvas/whiteboard always Persian numerals (root cause)**: canvas.js:2363 +
+    whiteboard.js:982 had a `text:changed` handler that auto-converted ALL Latin digits to
+    Persian when the UI was FA — regardless of the user's active keyboard layout. So if
+    Ali alt-shifted to English and typed numbers, they were force-converted to Persian.
+    Ali's desired behavior: "ENGLISH → LATIN NUMERALS, FARSI → FARSI NUMERALS — if user
+    alt-shift and changed language numerals will have to change as well." Fix: removed the
+    auto-conversion entirely. Now the numerals match the KEYBOARD: English keyboard →
+    Latin (0-9), Farsi keyboard → whatever the layout produces. The UI language no longer
+    overrides the user's active keyboard layout.
+  - Verified locally: typecheck green, 295/295 tests, node --check on sw.js + canvas.js +
+    whiteboard.js OK, cache-bust PASS (3 files: app.css, canvas.js, whiteboard.js).
+  - Assets: `app.css` ?v=263→264 (23 pages), `canvas.js` ?v=18→19, `whiteboard.js`
+    ?v=12→13, SW `hibana-v284`→`v285`, `package.json` 0.3.11.6→0.3.11.7.
 - v0.3.11.6 = **Session 24 hotfix release** — 4 fixes from Ali's live feedback (project.html
   inline JS + app.css; no schema changes, no new i18n keys):
   - **Progress-box copy truncates at 5 items (root cause)**: the server renders only

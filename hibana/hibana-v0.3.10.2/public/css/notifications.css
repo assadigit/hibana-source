@@ -63,14 +63,7 @@
   position: relative;
   background: linear-gradient(to bottom, color-mix(in srgb, var(--card) 96%, var(--text) 4%), var(--card)) var(--card);
 }
-html[data-theme="dark"] .card,
-:root:not([data-theme="light"]) .card {
-  background: var(--card); /* Session 19 (user request): FLAT — was linear-gradient with a #fff 6% highlight. The gradient adds visual noise in dark mode. Flat solid fill. */
-}
 @media (prefers-color-scheme: dark) {
-  :root:not([data-theme]) .card {
-    background: var(--card); /* Session 19: FLAT — was gradient. */
-  }
 }
 
 /* Session-12 (2026-09-15, user request): FLAT kanban cards — "make the design flat,
@@ -83,19 +76,13 @@ html[data-theme="dark"] .card,
    so the flat fill wins the cascade in explicit-light, explicit-dark and system modes.
    The status fills/label-bars below use higher-specificity selectors and still win. */
 .kanban-card,
-html[data-theme='dark'] .kanban-card,
-:root:not([data-theme='light']) .kanban-card { background: var(--card); }
 .stat-kanban-card,
-html[data-theme='dark'] .stat-kanban-card,
-:root:not([data-theme='light']) .stat-kanban-card { background: transparent; /* Session 19 (user request): was var(--statcard-bg) — colorless surface with only a border. The .stat-kanban-card:hover rule (line 1230) adds the bg-soft fill on hover. */ }
 /* Session 19 (user report round 2): the dashboard project cards STILL showed a white
    (--card) fill because the .kanban-card rule above (line 5882, same specificity, but the
    card carries BOTH classes) was winning the cascade in some theme-resolution paths.
    This triple-class rule (0,3,0) beats every .kanban-card / .card / :root:not() variant
    unambiguously — the dashboard item card is TRANSPARENT, only the border shows. */
 .card.kanban-card.stat-kanban-card,
-html[data-theme='dark'] .card.kanban-card.stat-kanban-card,
-:root:not([data-theme='light']) .card.kanban-card.stat-kanban-card { background: transparent; }
 
 /* Status-coded kanban cards (2026-08-30 (g), Ali's request) — SPLIT in session-11
    (user report 2026-09-14): the dashboard's stage boxes read as "all box colored pale
@@ -112,35 +99,11 @@ html[data-theme='dark'] .card.kanban-card.stat-kanban-card,
      directly above (same shapes, later position) so the fills win the cascade in
      explicit-light, explicit-dark, and system modes. */
 .kanban-col .kanban-card[data-status='unreviewed'],
-html[data-theme='dark'] .kanban-col .kanban-card[data-status='unreviewed'],
-:root:not([data-theme='light']) .kanban-col .kanban-card[data-status='unreviewed'] {
-  background: var(--kanban-unreviewed-bg); border-color: var(--kanban-unreviewed-line);
-}
 .kanban-col .kanban-card[data-status='investigating'],
-html[data-theme='dark'] .kanban-col .kanban-card[data-status='investigating'],
-:root:not([data-theme='light']) .kanban-col .kanban-card[data-status='investigating'] {
-  background: var(--kanban-investigating-bg); border-color: var(--kanban-investigating-line);
-}
 .kanban-col .kanban-card[data-status='awaiting'],
-html[data-theme='dark'] .kanban-col .kanban-card[data-status='awaiting'],
-:root:not([data-theme='light']) .kanban-col .kanban-card[data-status='awaiting'] {
-  background: var(--kanban-awaiting-bg); border-color: var(--kanban-awaiting-line);
-}
 .kanban-col .kanban-card[data-status='doing'],
-html[data-theme='dark'] .kanban-col .kanban-card[data-status='doing'],
-:root:not([data-theme='light']) .kanban-col .kanban-card[data-status='doing'] {
-  background: var(--kanban-doing-bg); border-color: var(--kanban-doing-line);
-}
 .kanban-col .kanban-card[data-status='halted'],
-html[data-theme='dark'] .kanban-col .kanban-card[data-status='halted'],
-:root:not([data-theme='light']) .kanban-col .kanban-card[data-status='halted'] {
-  background: var(--kanban-halted-bg); border-color: var(--kanban-halted-line);
-}
 .kanban-col .kanban-card[data-status='operational'],
-html[data-theme='dark'] .kanban-col .kanban-card[data-status='operational'],
-:root:not([data-theme='light']) .kanban-col .kanban-card[data-status='operational'] {
-  background: var(--kanban-operational-bg); border-color: var(--kanban-operational-line);
-}
 /* Hover deepens the tint slightly instead of snapping back to the neutral gray */
 .kanban-col .kanban-card[data-status='unreviewed']:hover { background: color-mix(in srgb, var(--kanban-unreviewed-bg) 94%, var(--kanban-unreviewed-line) 6%); }
 .kanban-col .kanban-card[data-status='investigating']:hover { background: color-mix(in srgb, var(--kanban-investigating-bg) 94%, var(--kanban-investigating-line) 6%); }

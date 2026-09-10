@@ -267,9 +267,7 @@
   vertical-align: middle; margin-inline-start: 0.35rem;
   flex-shrink: 0;
 }
-html[data-theme='dark'] .bug-bubble { background: rgb(248 113 113 / 0.16); color: #f2a3a3; }
 @media (prefers-color-scheme: dark) {
-  :root:not([data-theme='light']) .bug-bubble { background: rgb(248 113 113 / 0.16); color: #f2a3a3; }
 }
 
 .project-signals { display: inline-flex; align-items: center; gap: 0.3rem; flex-wrap: wrap; flex-shrink: 0; }

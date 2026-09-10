@@ -52,10 +52,7 @@
   /* :not([data-theme='light']) — the canvas theme bug (2026-08-31): the header toggle
      always writes an explicit theme, so OS-dark + app-light must NOT re-darken the
      canvas. Same guard batch (g) established for the kanban tints. */
-  /* dots (t): 0.135 → 0.08 */
-  :root:not([data-theme='light']) { --dot-grid: rgb(255 255 255 / 0.08); }
 }
-html[data-theme='dark'] { --dot-grid: rgb(255 255 255 / 0.08); }
 
 /* ===== squig batch (2026-08-31): paper variants + board popovers ====================
    Paper picker (user request: squig.sh "same checkered and dotted pattern"). Four papers,
@@ -74,20 +71,6 @@ html[data-theme='dark'] { --dot-grid: rgb(255 255 255 / 0.08); }
   /* guarded (canvas theme bug 2026-08-31): explicit app-light must beat the OS media
      query — without the :not() the dark-OS + light-app combination served DARK paper
      vars on the light-themed canvas page */
-  :root:not([data-theme='light']) {
-    --paper-white: #151412;
-    --paper-checkered: #1a1916;
-    --paper-shaded: #1e1b15;
-    --checker-a: rgb(255 240 200 / 0.02);
-    --checker-b: rgb(255 240 200 / 0.045);
-  }
-}
-html[data-theme='dark'] {
-  --paper-white: #151412;
-  --paper-checkered: #1a1916;
-  --paper-shaded: #1e1b15;
-  --checker-a: rgb(255 240 200 / 0.02);
-  --checker-b: rgb(255 240 200 / 0.045);
 }
 #canvas-wrap.paper-white .lower-canvas { background-color: var(--paper-white); }
 #canvas-wrap.paper-shaded .lower-canvas { background-color: var(--paper-shaded); }
@@ -433,24 +416,12 @@ html[data-theme='dark'] {
 /* Dark mode: light fills swallow a near-white ring (measured 1.04:1), so the
    selection becomes a dark inset ring + light hairline — visible on every swatch,
    including the black one. */
-html[data-theme='dark'] .palette button.active {
-  border-color: transparent;
-  box-shadow: 0 0 0 1.5px rgb(15 15 14 / 0.9), 0 0 0 3px var(--text);
-}
 @media (prefers-color-scheme: dark) {
-  /* guarded — explicit app-light keeps the light baseline (canvas theme bug 2026-08-31) */
-  :root:not([data-theme='light']) .palette button.active {
-    border-color: transparent;
-    box-shadow: 0 0 0 1.5px rgb(15 15 14 / 0.9), 0 0 0 3px var(--text);
-  }
 }
 /* Blue pen icon: the drawn ink stays #2f6fd1 (the sheet's ink filter handles dark
    paper); the toolbar icon needs a lighter blue on the dark toolbar (was 3.39:1). */
 .pen-blue { color: #2f6fd1; }
-html[data-theme='dark'] .pen-blue { color: #7fb5f0; }
 @media (prefers-color-scheme: dark) {
-  /* guarded — explicit app-light keeps #2f6fd1 (canvas theme bug 2026-08-31) */
-  :root:not([data-theme='light']) .pen-blue { color: #7fb5f0; }
 }
 /* Board text-font picker (user request): Bebas Notes default, Classic opt-out. */
 .font-pick { display: inline-flex; align-items: center; gap: 0.35rem; white-space: nowrap; }

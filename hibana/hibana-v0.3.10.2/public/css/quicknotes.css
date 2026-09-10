@@ -243,54 +243,14 @@
    the first attempt was too dark (#4A4438 — invisible). These are the original hues
    desaturated + grey-mixed: still clearly yellow/green/pink/blue but muted, with light
    text (#EDE8DE) for readability on the darker surface. */
-html[data-theme='dark'] .note-card[data-note-color='yellow'] { background: #6B6450 !important; }
-html[data-theme='dark'] .note-card[data-note-color='green'] { background: #506055 !important; }
-html[data-theme='dark'] .note-card[data-note-color='pink'] { background: #605560 !important; }
-html[data-theme='dark'] .note-card[data-note-color='blue'] { background: #505865 !important; }
-html[data-theme='dark'] .note-card { color: #EDE8DE !important; }
-html[data-theme='dark'] .note-card .note-text,
-html[data-theme='dark'] .note-card .note-render,
-html[data-theme='dark'] .note-card .markdown-body { color: #EDE8DE !important; }
-html[data-theme='dark'] .note-card button.ghost { color: #B0A79C !important; }
 /* Session 20 (AA): the meta timestamp / Attach chip / footer small text sat on the muted
    --dark text color (#B0A79C → 2.5:1 on the dark sticky fills). Same light ink as the
    note body (#EDE8DE — 4.83:1 worst-case on #6B6450), so metadata stays quieter than
    the body via size, not via an unreadable color. !important to beat the blanket
    `button.ghost` rule above (which is also !important). */
-html[data-theme='dark'] .note-card .note-meta,
-html[data-theme='dark'] .note-card .note-footer .small,
-html[data-theme='dark'] .note-card .attach-btn,
-html[data-theme='dark'] .note-card .attach-btn .small,
-html[data-theme='dark'] .note-card button.ghost.small.attach-btn,
-html[data-theme='dark'] .note-card button.ghost.small.attach-btn .small { color: #EDE8DE !important; }
-html[data-theme='dark'] .note-card .attach-btn { border-color: rgb(237 232 222 / 0.35) !important; }
-html[data-theme='dark'] .note-color-picker .dot-yellow { background: #6B6450; }
-html[data-theme='dark'] .note-color-picker .dot-green { background: #506055; }
-html[data-theme='dark'] .note-color-picker .dot-pink { background: #605560; }
-html[data-theme='dark'] .note-color-picker .dot-blue { background: #505865; }
 @media (prefers-color-scheme: dark) {
-  :root:not([data-theme='light']) .note-card[data-note-color='yellow'] { background: #6B6450; }
-  :root:not([data-theme='light']) .note-card[data-note-color='green'] { background: #506055; }
-  :root:not([data-theme='light']) .note-card[data-note-color='pink'] { background: #605560; }
-  :root:not([data-theme='light']) .note-card[data-note-color='blue'] { background: #505865; }
-  :root:not([data-theme='light']) .note-card { color: #EDE8DE; }
-  :root:not([data-theme='light']) .note-card .note-text,
-  :root:not([data-theme='light']) .note-card .note-render,
-  :root:not([data-theme='light']) .note-card .markdown-body { color: #EDE8DE; }
-  :root:not([data-theme='light']) .note-card button.ghost { color: #B0A79C; }
   /* Session 20 (AA): mirror of the [data-theme='dark'] rules above — meta text gets the
      readable light ink on the dark sticky fills (system-dark users get the same fix). */
-  :root:not([data-theme='light']) .note-card .note-meta,
-  :root:not([data-theme='light']) .note-card .note-footer .small,
-  :root:not([data-theme='light']) .note-card .attach-btn,
-  :root:not([data-theme='light']) .note-card .attach-btn .small,
-  :root:not([data-theme='light']) .note-card button.ghost.small.attach-btn,
-  :root:not([data-theme='light']) .note-card button.ghost.small.attach-btn .small { color: #EDE8DE; }
-  :root:not([data-theme='light']) .note-card .attach-btn { border-color: rgb(237 232 222 / 0.35); }
-  :root:not([data-theme='light']) .note-color-picker .dot-yellow { background: #6B6450; }
-  :root:not([data-theme='light']) .note-color-picker .dot-green { background: #506055; }
-  :root:not([data-theme='light']) .note-color-picker .dot-pink { background: #605560; }
-  :root:not([data-theme='light']) .note-color-picker .dot-blue { background: #505865; }
 }
 #notebook #nv-list:checked ~ .note-list .note-color-picker { display: none; }
 #notebook #nv-grid:checked ~ .note-list .note-color-picker { display: none; }
@@ -730,9 +690,7 @@ html[data-theme='dark'] .note-color-picker .dot-blue { background: #505865; }
 /* The brand text on the dark photo also softens in dark mode — pure white glares. */
 /* P4.5 (F-M16): guard with :not([data-theme='light']) so OS-dark + app-light doesn't dim the brand. */
 @media (prefers-color-scheme: dark) {
-  :root:not([data-theme='light']) .auth-brand { color: #e9e9e7; }
 }
-html[data-theme='dark'] .auth-brand { color: #e9e9e7; }
 .auth-visual .auth-brand {
   position: absolute;
   inset-block-start: clamp(1.5rem, 3vw, 2.5rem);

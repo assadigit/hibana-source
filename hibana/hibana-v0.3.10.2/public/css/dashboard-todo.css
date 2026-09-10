@@ -94,9 +94,6 @@ section[id^="dashboard-"].is-collapsed > *:not(header) { display: none; }
 .dash-todo-style .icon { inline-size: 0.95rem; block-size: 0.95rem; }
 .dash-todo-style-pop { position: absolute; z-index: 25; inset-block-start: 2.5rem; inset-inline-start: 0; inline-size: min(18rem, calc(100vw - 2rem)); padding: 0.75rem; background: var(--card); border: 1px solid var(--line-strong); border-radius: var(--radius-sm); box-shadow: 0 6px 20px rgb(30 20 10 / 0.08), 0 2px 6px rgb(30 20 10 / 0.05); }
 .dash-todo-style-pop[hidden] { display: none; }
-/* Phase 7 item 1: the pop keeps its dark-mode legibility with a SOFTER shadow too. */
-html[data-theme="dark"] .dash-todo-style-pop,
-:root:not([data-theme="light"]) .dash-todo-style-pop { box-shadow: 0 6px 22px rgb(0 0 0 / 0.35); }
 /* 2026-09-02 user request: the picker offers EMOJIS (like the board page quadrants), not
    the limited SVG glyph set — a dense, scrollable grid of emoji buttons.
    2026-09-05: the 8 accent-swatch row was REMOVED (user — "color is for icons, now we

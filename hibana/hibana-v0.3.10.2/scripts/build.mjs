@@ -53,15 +53,19 @@ const ENTRY_POINTS = [
 ]
 
 // Page CSS files (all linked from HTML; all hashed + immutable via manifest).
-// Session 25 (refactor): app.css (8,822 lines) split into 16 modular files by
+// Session 25 Phase 1 (refactor): app.css (8,822 lines) split into 16 modular files by
 // contiguous section — byte-identical concatenation, zero cascade change.
-// Order matters: the 16 files MUST load in this order to reproduce app.css's
-// original cascade. task-controls.css loads after (separate concern).
+// Session 25 Phase 1.5 (Option B): dark-theme rules extracted from the 16 files into
+// themes.css (loaded LAST). Safe because html[data-theme='dark'] selectors have higher
+// specificity than base rules — they win by specificity, not source order.
+// Order matters: the 16 feature files MUST load in this order to reproduce app.css's
+// original cascade. themes.css loads after all of them (dark overrides). task-controls.css
+// loads after (separate concern).
 const CSS_ENTRY_POINTS = [
   'variables.css', 'base.css', 'layout.css', 'dashboard.css', 'dashboard-todo.css',
   'components.css', 'canvas.css', 'quicknotes.css', 'to-do-list.css', 'polish-ui.css',
   'calendar.css', 'notifications.css', 'polish-batch.css', 'project-header.css',
-  'devboard.css', 'misc.css', 'task-controls.css',
+  'devboard.css', 'misc.css', 'themes.css', 'task-controls.css',
 ]
 
 // In-bundle dynamic-injection literals that get rewritten to hashed URLs during wiring.

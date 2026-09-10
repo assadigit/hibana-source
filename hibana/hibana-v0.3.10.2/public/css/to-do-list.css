@@ -173,13 +173,8 @@ main.shell-dash {
 .sadhana-card.p-in_progress,
 .sadhana-card.p-on_hold { background: var(--sadhana-status-tint); }
 .sadhana-card.is-expanded { background: var(--card); border-block-end-color: var(--line-strong); }
-html[data-theme='dark'] .sadhana-card.p-in_progress { --sadhana-status-tint: rgb(245 154 78 / 0.14); }
-html[data-theme='dark'] .sadhana-card.p-on_hold { --sadhana-status-tint: rgb(167 139 250 / 0.14); }
-html[data-theme='dark'] .sadhana-card.is-expanded { background: var(--card); }
 /* P4.5 (F-M16): guard with :not([data-theme='light']) so OS-dark + app-light doesn't tint the rows. */
 @media (prefers-color-scheme: dark) {
-  :root:not([data-theme='light']) .sadhana-card.p-in_progress { --sadhana-status-tint: rgb(245 154 78 / 0.14); }
-  :root:not([data-theme='light']) .sadhana-card.p-on_hold { --sadhana-status-tint: rgb(167 139 250 / 0.14); }
 }
 
 /* Pinned tasks get the quadrant accent on the start edge (kept from the old design). */

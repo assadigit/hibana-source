@@ -9,10 +9,92 @@
 > rewritten as a minimal pointer. Deleted files remain recoverable verbatim:
 > `git show <sha>:<file>`.
 
-## 1. Current state (v0.3.11.14 — Session 24: live-feedback fixes — progress-box copy/wand/delete, logo radius+caching, canvas/whiteboard numerals, magic-wand consistency+purple, compact header, stage badge order, project card redesign)
-- **Session 24 summary** — 9 hotfix releases (v0.3.11.6 → v0.3.11.14) from Ali's live feedback.
-  No schema changes, no new i18n keys across the whole session. All CSS + JS + one TS
-  template change. 295/295 tests green throughout.
+## 1. Current state (v0.3.12.0 — Session 25: CSS architecture refactor — app.css split into 16 modular files)
+- **Session 25 summary** — pure refactoring session (zero behavior change). Split the
+  monolithic `public/css/app.css` (8,822 lines) into 16 modular CSS files by contiguous
+  section. No schema changes, no new i18n keys, no JS/TS logic changes. 295/295 tests
+  green throughout. The split is byte-identical concatenation — zero cascade risk.
+- v0.3.12.0 = **Session 25 — app.css → 16 modular CSS files** (Option A: contiguous
+  chunks). Minor version bump signals architecture change; `.0` patch signals zero
+  behavior change.
+  - **Why:** app.css had grown to 8,822 lines — unmaintainable. Single file contained
+    EVERYTHING: reset, variables, layout, components, pages, themes, RTL, responsive.
+    Every CSS edit required scrolling a 8.8K-line file; cache-bust on any change busted
+    the entire 224KB bundle for all 23 pages.
+  - **Strategy choice (Option A over Option B):** the file was organized
+    chronologically (by session/feature), NOT by concern. Dark-theme rules (73
+    selectors), RTL rules (20 selectors), and @media queries (93 blocks) were
+    SCATTERED throughout — not in contiguous blocks. Option A (split at section
+    boundaries, keep concerns inline in their feature chunk) was chosen because it
+    guarantees zero cascade change structurally (concatenation == original). Option B
+    (extract by concern into themes.css/rtl.css/responsive.css) is deferred to
+    Phase 1.5 — requires specificity analysis to prove safety.
+  - **The 16 files** (line ranges from original app.css, in source order):
+    1. `variables.css` (1–260, 260 lines) — `:root` custom properties + `html[data-theme]`
+       variable blocks + `@media (prefers-color-scheme)`.
+    2. `base.css` (261–604, 344) — reset (`*{box-sizing}`), body/html/typography/links,
+       auth page, forms & buttons (global element styles).
+    3. `layout.css` (605–1108, 504) — app shell, status/chips, loading/empty, project
+       lists, wireframe card, hurdles/lists, media, dashboard stats.
+    4. `dashboard.css` (1109–1535, 427) — dashboard projects strip (carousel), at-a-glance
+       strip, idea folders, dash-resume.
+    5. `dashboard-todo.css` (1536–2175, 640) — dashboard to-do quadrants, collapse sections,
+       smart empty states, FAB. (Split from dashboard.css at the .dash-resume/@media
+       boundary — natural break before to-do section.)
+    6. `components.css` (2176–2453, 278) — FAB, native dialog modal, toast, ping/status,
+       spinner, theme toggle button.
+    7. `canvas.css` (2454–3128, 675) — canvas/whiteboard UI, squig batch, notebook page,
+       sticky kanban, drag&drop, reports chart, misc.
+    8. `quicknotes.css` (3129–4010, 882) — dashboard quick notebook, quick-note↔project
+       attach, FAB modal, sparks shelf, profile menu, auth split-screen, responsive topbar.
+    9. `to-do-list.css` (4011–4824, 814) — Sadhana standalone board: collapsed row, progress
+       dots, state selector, checkbox, expandable section, actions/notes panels, inline
+       title editor, emoji badges, legacy hover, to-do polish. (Renamed from internal
+       codename "sadhana" — owner request: no internal codenames in filenames.)
+    10. `polish-ui.css` (4825–5472, 648) — shadcn-style polish, command palette, skeleton
+        shimmer, toast upgrade, dashboard today strip, project detail tabs, Sadhana
+        focus-mode, settings tabs, reports heatmap.
+    11. `calendar.css` (5473–5884, 412) — calendar view, day creators, right-click day menu,
+        activity timeline, on-this-day, print stylesheet.
+    12. `notifications.css` (5885–6240, 356) — notification center, saved filters, search
+        upgrades, avatar skeleton, command palette tag swatch.
+    13. `polish-batch.css` (6241–6835, 595) — R4.3–R9.3 polish batch: styling polish,
+        onboarding tour, counter animation, voice quick-add, sticky table header, reports
+        dark-mode, settings help, go-to hint, tooltip wiring, done chip, reports bar-chart,
+        weekend/holiday, calendar legend, Shamsi today, Task 24 month-heading.
+    14. `project-header.css` (6836–7488, 653) — project logo (0047), redesigned project
+        header, inline board preview, Session 23 code blocks, composer formatting toolbar,
+        upcoming plan tab.
+    15. `devboard.css` (7489–8081, 593) — board page (board.html), task editor modal, sprint
+        page (sprint.html), sprint timeline circles.
+    16. `misc.css` (8082–8822, 741) — 404 stage + embers, misc items (Latin runs in notes,
+        DONE state, pglance boxes, view dropdown, grey labels, progress track, sprint
+        lifecycle, emoji picker, quick notes clamp, page width).
+  - **Build pipeline:** `CSS_ENTRY_POINTS` in `scripts/build.mjs` expanded from
+    `['app.css', 'task-controls.css']` (2) to 17 entries. Each file → esbuild → own
+    content-hashed `/dist/FILE.<hash>.css` → own manifest entry. Independent cache
+    invalidation per file (a tweak to `components.css` no longer busts `variables.css`).
+  - **HTML wiring:** all 23 HTML pages updated — single `<link href="/css/app.css?v=267">`
+    replaced with 16 `<link href="/css/FILE.css?v=1">` tags in source order. Source order
+    is load-bearing: the 16 files MUST load in the order listed above to reproduce
+    app.css's original cascade (documented in build.mjs comment).
+  - **Verification (3 levels of zero-behavior-change proof):**
+    1. Structural — `cat variables.css base.css … misc.css | diff -q app.css` →
+       BYTE-IDENTICAL (concatenation == original).
+    2. Rendering — light mode screenshots (EN/LTR + FA/RTL) MD5-identical to baseline.
+    3. Visual — VLM (vision model) confirmed dark mode screenshots: "IDENTICAL — zero
+       visual difference."
+  - **Cache-bust:** SW `hibana-v292`→`v293` (manifest grew 29→44 entries; existing PWA
+    clients re-fetch manifest + precache new /dist/ files). All 16 new CSS files ship at
+    `?v=1` (fresh version namespace — independent from the old app.css ?v=267 lineage).
+  - **Pre-existing esbuild warnings:** 2 CSS-syntax warnings on a one-line `--st-none`
+    custom property declaration (was `app.css:1695`, now correctly located in
+    `dashboard-todo.css:160`). Pre-existing, not introduced by this refactor.
+  - **Assets:** app.css ?v=267 (deleted) → 16 files at ?v=1 each, SW v292→v293, manifest
+    29→44 entries, package.json 0.3.11.14→0.3.12.0.
+  - **Follow-up (Phase 1.5):** Option B — extract dark-theme → `themes.css`, RTL →
+    `rtl.css`, @media → `responsive.css` for true by-concern modularity. Requires
+    specificity analysis to prove cascade safety before moving any rules.
 - v0.3.11.14 = **Session 24h — project card redesign** (app.css + projects.ts):
   - Removed the hatched diagonal corner decoration (`.pc-corner` element) — looked like an
     unfinished placeholder, added visual clutter.

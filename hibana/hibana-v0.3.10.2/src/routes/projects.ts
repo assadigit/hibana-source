@@ -657,8 +657,8 @@ function detailHtml(p: ProjectRow, d: Awaited<ReturnType<typeof loadDetail>>, la
     <div class="row spread pd-head-main">
       <div class="row pd-head-left">
         ${p.logo_path ? `<div class="pd-logo-wrap"><img class="pd-logo" src="/api/projects/${p.id}/logo/file" alt="${esc(p.title)} logo" loading="lazy" decoding="async" /><button type="button" class="ghost small danger pd-logo-remove" data-pd-logo-remove="${p.id}" title="${trL(lang, 'Remove logo', 'حذف لوگو')}" aria-label="${trL(lang, 'Remove logo', 'حذف لوگو')}">${icon('trash')}</button></div>` : `<div class="pd-logo-placeholder" data-pd-logo-upload data-hint="${trL(lang, 'Add logo', 'افزودن لوگو')}" title="${trL(lang, 'Add logo', 'افزودن لوگو')}">${icon('image')}</div>`}
-        <span id="pd-stage-badge">${STATUS_BADGE(p.status, lang)}</span>
         <h1 id="pd-title" title="${trL(lang, 'Click to edit', 'برای ویرایش کلیک کن')}">${esc(p.title)}<button type="button" class="pd-title-pen" data-edit-title aria-label="${trL(lang, 'Edit title', 'ویرایش عنوان')}">${icon('pencil')}</button></h1>
+        <span id="pd-stage-badge">${STATUS_BADGE(p.status, lang)}</span>
       </div>
       <div class="row pd-head-actions">
         <label class="sr-only" for="pd-stage">${trL(lang, 'Stage', 'مرحله')}</label>

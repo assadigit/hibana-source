@@ -121,7 +121,7 @@
 // (clamp render + read-more delegation + counter removal), devboard.js v10 (title
 // input → textarea), magic-wand.js v9 (title-written re-clamp event). The precached
 // HTML shells must rotate so clients drop the old counter markup.
-const VERSION = "hibana-v290" // Session 24f: compact project header (6 rows→3, logo 64→40px, desc rows=2→1, tags+meta merged)
+const VERSION = "hibana-v291" // Session 24g: stage badge moved after title (was before); #pd-title flex:1→flex:0 1 auto so badge sits right next to title
 
 // Static shell: unhashed pages/partials/icons/vendor/fonts (SWR or network-first at
 // runtime; precached here for offline). The hashed app bundles come from the manifest

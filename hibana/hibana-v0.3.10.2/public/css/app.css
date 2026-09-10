@@ -6930,7 +6930,7 @@ html[data-theme="dark"] .heatmap-l4,
   cursor: text;
   overflow-wrap: anywhere;
   margin-block: 0;
-  flex: 1;
+  flex: 0 1 auto; /* Session 24g: was flex:1 — let the badge sit right after the title, not pushed to the far end */
   min-inline-size: 0;
 }
 #pd-title input {

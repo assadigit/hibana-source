@@ -9,13 +9,41 @@
 > rewritten as a minimal pointer. Deleted files remain recoverable verbatim:
 > `git show <sha>:<file>`.
 
-## 1. Current state (v0.3.12.2 — Session 25: CSS + JS architecture refactor — app.css split, dark/RTL extracted, inline JS externalized, JS files modularized)
-- **Session 25 summary** — pure refactoring session (zero behavior change). Phase 1:
-  split `public/css/app.css` (8,822 lines) into 16 modular CSS files. Phase 1.5:
-  extracted dark-theme + RTL rules into by-concern files. Phase 2: extracted inline JS
-  from 3 HTML files into external .js files. Phase 3: modularized large JS files (i18n.js
-  + app.js). No schema changes, no new i18n keys. 295/295 tests green throughout. Every
-  change VLM-verified "IDENTICAL" or "RENDERED CORRECTLY" via screenshot comparison.
+## 1. Current state (v0.3.12.4 — Session 25: comprehensive CSS + JS + TS architecture refactor — ~31,000 lines modularized across ~61 new files)
+- **Session 25 summary** — pure refactoring session (zero behavior change). A comprehensive
+  architecture refactor across CSS, JS, TS, and HTML — ~31,000 lines of monolithic code
+  modularized into ~61 new files. No schema changes, no new i18n keys, no behavior
+  changes. 295/295 tests green throughout. Every change VLM-verified "IDENTICAL" or
+  "RENDERED CORRECTLY" via screenshot comparison. Deployed to dev + prod at every step.
+  Repo flattened (Hibana moved from `hibana/hibana-v0.3.10.2/` to repo root).
+- v0.3.12.4 = **Session 25 final — sadhana.ts + quicknotes.ts split + notifications.html
+  inline JS extraction + repo flatten** (patch):
+  - **sadhana.ts (1,029 → 932 + 137):** extracted 17 helpers (schemas, constants, types)
+    → `sadhana-helpers.ts`.
+  - **quicknotes.ts (591 → 323 + 311):** extracted 20 helpers (HTML renderers, schemas,
+    types) → `quicknotes-helpers.ts`. Added re-exports for backward compat (dashboard.ts,
+    projects/helpers.ts, ics-export.ts import QuickNote/notebookHtml from quicknotes).
+  - **notifications.html:** 23-line inline JS → `js/notifications-page.js`. Completes
+    Phase 2 — ALL 23 HTML files now have 0 inline `<script>` blocks >5 lines.
+  - **Repo flatten:** moved Hibana from `hibana/hibana-v0.3.10.2/` to repo root. Deleted
+    sandbox wrapper files (Next.js/Prisma/shadcn template — not part of Hibana). CI
+    workflow now visible to GitHub Actions.
+- v0.3.12.3 = **Session 25 Category 1-6 — extract remaining inline CSS/JS + split TS
+  helpers + Jalali extraction** (patch):
+  - **sadhana.html inline `<style>` (827 lines) → `css/sadhana-board.css`:** the biggest
+    single inline block — should have been in Phase 1.
+  - **clip.html inline `<style>` (22 lines) → `css/clip.css`.**
+  - **11 HTML inline JS extractions:** calendar(891) + settings(571) + sparks(516) +
+    projects(510) + board(467) + reports(125) + signup(148) + clients(79) + clip(100) +
+    confirm(68) + 404(31) = 3,520 lines → 11 external `.js` files.
+  - **telegram.ts helpers (333 lines) → `integrations/telegram-helpers.ts`:** 40 exports
+    (session mgmt, createQuickNote, keyboard builders, render, etc.).
+  - **devboard.ts helpers (66 lines) → `devboard-helpers.ts`:** 6 exports (logHistory,
+    ownedTask, ownedCategory, ownedSprint, ownedBacklogDoc, loadBacklog).
+  - **sadhana-page.js Jalali calendar (67 lines) → `js/jalali.js`:** g2j, j2g, jalaliLeap,
+    jMonthDays2, nowJalali, jalaliWeekNum, J_MONTHS, etc. + toFa digit converter. Exposed
+    via `window.__hibJalali`. sadhana-page.js: 1,913→1,846 lines.
+  - Total: ~4,821 lines → 15 new modular files.
 - v0.3.12.2 = **Session 25 Phase 3 — JS file modularization** (patch — continuation):
   - **Phase 3c (i18n.js — COMPLETE):** clean data/logic split. 1,451 lines → 3 files:
     `i18n.js` (150 lines logic) + `i18n-en.js` (656 lines EN dictionary) +

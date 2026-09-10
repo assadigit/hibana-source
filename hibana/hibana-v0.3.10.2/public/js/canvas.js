@@ -2354,12 +2354,26 @@ window.hibanaCanvas = (() => {
       save(data)
     }, 2000)
     canvas.on('text:changed', (e) => {
-      // Session 24 (user request): removed the Latin→Persian digit auto-conversion.
-      // The old code force-converted ALL Latin digits to Persian when the UI was FA —
-      // even when the user alt-shifted to an English keyboard and typed English text.
-      // Now the numerals match the KEYBOARD: English keyboard → Latin (0-9), Farsi
-      // keyboard → whatever the layout produces. The UI language no longer overrides
-      // the user's active keyboard layout.
+      // Session 24c (user request): digits match the SCRIPT of the text, not the UI
+      // language. If the text contains Farsi/Arabic letters → convert Latin digits to
+      // Persian. If the text has only Latin letters (or numbers only) → keep Latin.
+      // Same "first strong character" heuristic the editors use for RTL/LTR direction.
+      //   "سلام ۱۲۳" → "سلام ۱۲۳"  (Farsi text → Farsi digits)
+      //   "Hello 123" → "Hello 123"  (Latin text → Latin digits)
+      const t = e.target
+      if (t && t.text && /[0-9]/.test(t.text) && /[\u0600-\u06FF]/.test(t.text)) {
+        const faDig = (s) => s.replace(/[0-9]/g, (d) => '۰۱۲۳۴۵۶۷۸۹'[+d])
+        const newText = faDig(t.text)
+        if (newText !== t.text) {
+          const selStart = t.selectionStart
+          const selEnd = t.selectionEnd
+          t.set('text', newText)
+          t.selectionStart = selStart
+          t.selectionEnd = selEnd
+          t.dirty = true
+          canvas.requestRenderAll()
+        }
+      }
       // sticky twin: the debounced crash-guard save runs against the NOTE (the twin
       // itself has no id)
       if (stickyEdit && e.target === stickyEdit.editor) {

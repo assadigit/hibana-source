@@ -6834,17 +6834,17 @@ html[data-theme="dark"] .heatmap-l4,
    the browser scale proportionally (object-fit: contain). The min is 64px so tiny
    logos don't look lost. */
 .pd-logo {
-  max-inline-size: 128px;
-  max-block-size: 128px;
-  min-inline-size: 64px;
-  min-block-size: 64px;
+  max-inline-size: 56px;
+  max-block-size: 56px;
+  min-inline-size: 40px;
+  min-block-size: 40px;
   width: auto;
   height: auto;
   object-fit: contain;
   flex: none;
   border: none;
   background: transparent;
-  border-radius: 16px; /* Session 24 (revised): 64px turned 64px-square logos into circles (50%). 16px = soft, modern, rounded — never circular on any logo size. */
+  border-radius: 12px; /* Session 24f: compacted header — logo shrunk from 64/128px to 40/56px */
 }
 /* Session 19 (user request): logo edit/delete. The wrap holds the <img> + a small trash
    button overlaid at the top-end corner. Hovering the logo reveals the button. */
@@ -6870,8 +6870,8 @@ html[data-theme="dark"] .heatmap-l4,
 .pd-logo-wrap:focus-within .pd-logo-remove { opacity: 1; }
 .pd-logo-wrap .pd-logo-remove:hover { background: var(--danger); color: #fff; border-color: var(--danger); }
 .pd-logo-placeholder {
-  inline-size: 64px; /* Session 19 (cron round 5): was 96px — too much empty space (VLM-flagged). 64px is enough for a tap target. */
-  block-size: 64px;
+  inline-size: 40px; /* Session 24f: compacted — was 64px */
+  block-size: 40px;
   border-radius: var(--radius-sm);
   border: 2px dashed var(--line-strong);
   display: inline-grid;
@@ -6899,18 +6899,21 @@ html[data-theme="dark"] .heatmap-l4,
 .pd-logo-placeholder:hover { border-color: var(--brand); color: var(--brand); background: var(--accent-soft); }
 
 /* --- redesigned project header ------------------------------------------- */
-.pd-head { display: grid; gap: 0.7rem; }
-/* 390px: the header's action row (stage badge + select + Save/Delete) can't shrink
-   below ~375px min-content — let it wrap instead of bleeding off-canvas (RTL bleeds
-   left). Found during the 2026-09-05 mobile sweep of the tabs/links/screenshots batch. */
-.pd-head .row.spread { flex-wrap: wrap; row-gap: 0.5rem; }
-/* Session 20 (390px sweep): the OUTER row wraps, but the inner stage-action cluster
-   (select + Save + Delete, ~372px min-content) still bled 13px off-canvas on phones —
-   horizontal scroll on the whole project page. Let the inner rows wrap too; the
-   controls settle onto a second line instead of bleeding. */
+.pd-head { display: grid; gap: 0.4rem; /* Session 24f: compacted — was 0.7rem */ }
+/* Session 24f: main row = logo + badge + title (left) | stage select + save + delete (right).
+   Merged the old 2-row layout (logo+actions row AND badge+title row) into ONE row. */
+.pd-head-main { align-items: center; flex-wrap: wrap; row-gap: 0.4rem; }
+.pd-head-left { align-items: center; gap: 0.5rem; flex: 1; min-inline-size: 0; }
+.pd-head-actions { gap: 0.4rem; flex-wrap: wrap; }
+.pd-head-bottom { align-items: center; flex-wrap: wrap; row-gap: 0.3rem; gap: 0.5rem; }
+.pd-head-bottom .pd-tags { flex: 1; min-inline-size: 0; }
+.pd-head-bottom .pd-meta { gap: 0.75rem; flex: none; }
+/* Session 24f: mobile — the main row wraps (logo+title on one line, actions wrap below).
+   The stage select clamps so it doesn't push off-canvas. */
 @media (max-width: 480px) {
-  .pd-head .row { flex-wrap: wrap; row-gap: 0.4rem; }
-  .pd-head .pd-stage-select { max-inline-size: 11rem; }
+  .pd-head-main { flex-wrap: wrap; }
+  .pd-head-actions { flex-wrap: wrap; row-gap: 0.4rem; }
+  .pd-stage-select { max-inline-size: 11rem; }
 }
 .pd-stage-select {
   font-size: var(--fs-xs);
@@ -6958,16 +6961,16 @@ html[data-theme="dark"] .heatmap-l4,
 #pd-title input { min-inline-size: 0; }
 #pd-desc {
   resize: vertical;
-  min-block-size: 2.6rem;
+  min-block-size: 2.2rem; /* Session 24f: compacted — was 2.6rem; rows=1 now (was 2) */
   font: inherit;
   color: var(--text);
   background: var(--card);
   border: 1px dashed var(--line);
   border-radius: var(--radius-sm);
-  padding: 0.5rem 0.6rem;
+  padding: 0.35rem 0.6rem; /* Session 24f: tighter padding — was 0.5rem 0.6rem */
 }
 #pd-desc:focus { border-style: solid; border-color: var(--brand); outline: none; }
-#pd-desc-status { min-block-size: 1rem; }
+#pd-desc-status { min-block-size: 0.8rem; /* Session 24f: was 1rem — tighter */ }
 .pd-tags { flex-wrap: wrap; position: relative; align-items: center; }
 .pd-tag-chip { display: inline-flex; align-items: center; gap: 0.3rem; }
 .pd-tag-x { padding: 0 0.15rem; font-size: var(--fs-xs); }

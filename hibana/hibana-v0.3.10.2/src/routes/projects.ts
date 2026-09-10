@@ -654,11 +654,13 @@ function detailHtml(p: ProjectRow, d: Awaited<ReturnType<typeof loadDetail>>, la
 
   return `
   <header class="card pd-head">
-    <div class="row spread">
-      <div class="row">
+    <div class="row spread pd-head-main">
+      <div class="row pd-head-left">
         ${p.logo_path ? `<div class="pd-logo-wrap"><img class="pd-logo" src="/api/projects/${p.id}/logo/file" alt="${esc(p.title)} logo" loading="lazy" decoding="async" /><button type="button" class="ghost small danger pd-logo-remove" data-pd-logo-remove="${p.id}" title="${trL(lang, 'Remove logo', 'حذف لوگو')}" aria-label="${trL(lang, 'Remove logo', 'حذف لوگو')}">${icon('trash')}</button></div>` : `<div class="pd-logo-placeholder" data-pd-logo-upload data-hint="${trL(lang, 'Add logo', 'افزودن لوگو')}" title="${trL(lang, 'Add logo', 'افزودن لوگو')}">${icon('image')}</div>`}
+        <span id="pd-stage-badge">${STATUS_BADGE(p.status, lang)}</span>
+        <h1 id="pd-title" title="${trL(lang, 'Click to edit', 'برای ویرایش کلیک کن')}">${esc(p.title)}<button type="button" class="pd-title-pen" data-edit-title aria-label="${trL(lang, 'Edit title', 'ویرایش عنوان')}">${icon('pencil')}</button></h1>
       </div>
-      <div class="row">
+      <div class="row pd-head-actions">
         <label class="sr-only" for="pd-stage">${trL(lang, 'Stage', 'مرحله')}</label>
         <select id="pd-stage" class="pd-stage-select" data-project-id="${p.id}" title="${trL(lang, 'Stage — saved on change', 'مرحله — با تغییر ذخیره می‌شود')}">
           ${STATUS_ORDER.map((k) => `<option value="${k}" ${k === p.status ? 'selected' : ''}>${statusLabel(k, lang)}</option>`).join('')}
@@ -667,27 +669,24 @@ function detailHtml(p: ProjectRow, d: Awaited<ReturnType<typeof loadDetail>>, la
         <button class="btn danger small" hx-delete="/api/projects/${p.id}" hx-confirm="${trL(lang, 'Delete this project?', 'این پروژه حذف شود؟')}" hx-target="#project-body" hx-swap="innerHTML">${icon('trash')} ${trL(lang, 'Delete', 'حذف')}</button>
       </div>
     </div>
-    <div class="row" style="align-items:center;gap:.5rem;flex-wrap:wrap">
-      <span id="pd-stage-badge">${STATUS_BADGE(p.status, lang)}</span>
-      <h1 id="pd-title" title="${trL(lang, 'Click to edit', 'برای ویرایش کلیک کن')}">${esc(p.title)}<button type="button" class="pd-title-pen" data-edit-title aria-label="${trL(lang, 'Edit title', 'ویرایش عنوان')}">${icon('pencil')}</button></h1>
-    </div>
-    <textarea id="pd-desc" rows="2" maxlength="2000" dir="${lang === 'fa' ? 'rtl' : 'auto'}" placeholder="${trL(lang, 'Short description here…', 'توضیح کوتاه اینجا…')}">${esc(p.description)}</textarea>
+    <textarea id="pd-desc" rows="1" maxlength="2000" dir="${lang === 'fa' ? 'rtl' : 'auto'}" placeholder="${trL(lang, 'Short description here…', 'توضیح کوتاه اینجا…')}">${esc(p.description)}</textarea>
     <div class="muted small" id="pd-desc-status" aria-live="polite"></div>
-    <div class="row pd-tags" id="pd-tags">
-      <span class="pd-tags-title muted small">${trL(lang, 'Project labels', 'لیبل‌های پروژه')}</span>
-      ${tagChips}
-      <button type="button" class="chip pd-tag-add" data-tag-add>${icon('plus')} ${trL(lang, 'tag', 'برچسب')}</button>
-      <form class="pd-tag-pop" data-tag-pop hidden>
-        <input name="name" maxlength="60" dir="auto" placeholder="${trL(lang, 'Tag name (UI/UX…)', 'نام برچسب (UI/UX…)')}" required>
-        <div class="row">
-          <button type="submit" class="btn small">${trL(lang, 'Add', 'افزودن')}</button>
-          <button type="button" class="ghost small" data-tag-cancel>${trL(lang, 'Cancel', 'لغو')}</button>
-        </div>
-      </form>
-    </div>
-    <div class="row spread small muted pd-meta">
-      <span data-pd-meta>${trL(lang, p.type, p.type === 'client' ? 'مشتری' : 'شخصی')} · ${trL(lang, 'created {x}', 'ساخت {x}', { x: timeAgo(p.created_at, lang) })}<span data-pd-tasks-line ${d.devTasks.length ? '' : 'hidden'}> · ${trL(lang, '{n} of {m} tasks done', '{n} از {m} کار انجام شد', { n: dig(doneTasks), m: dig(d.devTasks.length) })}</span></span>
-      <span class="row">${progressBar(pct).replace('<span ', '<span data-pd-bar ')} <b data-pd-pct>${dig(pct)}%</b></span>
+    <div class="row spread pd-head-bottom">
+      <div class="row pd-tags" id="pd-tags">
+        ${tagChips}
+        <button type="button" class="chip pd-tag-add" data-tag-add>${icon('plus')} ${trL(lang, 'tag', 'برچسب')}</button>
+        <form class="pd-tag-pop" data-tag-pop hidden>
+          <input name="name" maxlength="60" dir="auto" placeholder="${trL(lang, 'Tag name (UI/UX…)', 'نام برچسب (UI/UX…)')}" required>
+          <div class="row">
+            <button type="submit" class="btn small">${trL(lang, 'Add', 'افزودن')}</button>
+            <button type="button" class="ghost small" data-tag-cancel>${trL(lang, 'Cancel', 'لغو')}</button>
+          </div>
+        </form>
+      </div>
+      <div class="row small muted pd-meta">
+        <span data-pd-meta>${trL(lang, p.type, p.type === 'client' ? 'مشتری' : 'شخصی')} · ${trL(lang, 'created {x}', 'ساخت {x}', { x: timeAgo(p.created_at, lang) })}<span data-pd-tasks-line ${d.devTasks.length ? '' : 'hidden'}> · ${trL(lang, '{n} of {m} tasks done', '{n} از {m} کار انجام شد', { n: dig(doneTasks), m: dig(d.devTasks.length) })}</span></span>
+        <span class="row">${progressBar(pct).replace('<span ', '<span data-pd-bar ')} <b data-pd-pct>${dig(pct)}%</b></span>
+      </div>
     </div>
   </header>
 

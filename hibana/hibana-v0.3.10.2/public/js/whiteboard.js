@@ -977,15 +977,16 @@ window.hibanaNotebook = (() => {
     }, 2000)
     canvas.on('text:changed', (e) => {
       // Session 24c (user request): digits match the SCRIPT of the text, not the UI
-      // language. If the text contains Farsi/Arabic letters → convert Latin digits to
-      // Persian. If the text has only Latin letters (or numbers only) → keep Latin.
-      // Same "first strong character" heuristic the editors use for RTL/LTR direction.
-      //   "سلام ۱۲۳" → "سلام ۱۲۳"  (Farsi text → Farsi digits)
-      //   "Hello 123" → "Hello 123"  (Latin text → Latin digits)
+      // language. Processed LINE BY LINE so a mixed-script text element (Farsi line +
+      // English line) converts digits per-line, not globally:
+      //   "سلام 123\nHello 123" → "سلام ۱۲۳\nHello 123"
+      // A line with Farsi/Arabic letters → Latin digits → Persian. A Latin-only (or
+      // numbers-only) line → digits stay Latin.
       const t = e.target
-      if (t && t.text && /[0-9]/.test(t.text) && /[\u0600-\u06FF]/.test(t.text)) {
+      if (t && t.text && /[0-9]/.test(t.text)) {
         const faDig = (s) => s.replace(/[0-9]/g, (d) => '۰۱۲۳۴۵۶۷۸۹'[+d])
-        const newText = faDig(t.text)
+        const hasFarsi = (s) => /[\u0600-\u06FF]/.test(s)
+        const newText = t.text.split('\n').map((line) => (hasFarsi(line) ? faDig(line) : line)).join('\n')
         if (newText !== t.text) {
           const selStart = t.selectionStart
           const selEnd = t.selectionEnd

@@ -56,7 +56,7 @@ const ENTRY_POINTS = [
   // Session 25 Phase 2: page-specific JS extracted from inline <script> blocks
   'project-page.js', 'sadhana-page.js', 'sprint-page.js',
   'calendar-page.js', 'settings-page.js', 'sparks-page.js', 'projects-page.js', 'board-page.js',
-  'reports-page.js', 'signup-page.js', 'clients-page.js', 'clip-page.js', '404-page.js', 'confirm-page.js',
+  'reports-page.js', 'signup-page.js', 'clients-page.js', 'clip-page.js', '404-page.js', 'confirm-page.js', 'notifications-page.js',
 ]
 
 // Page CSS files (all linked from HTML; all hashed + immutable via manifest).

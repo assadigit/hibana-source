@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Sprints — Hibana</title>
-  <link rel="stylesheet" href="/css/app.css?v=260">
+  <link rel="stylesheet" href="/css/app.css?v=261">
   <link rel="stylesheet" href="/vendor/manrope/font-face.css">
   <script src="/vendor/htmx.min.js" defer></script>
   <script src="/js/boot.js?v=4"></script>
@@ -19,7 +19,7 @@
   <script src="/js/go-to.js?v=1" defer></script>
   <script src="/js/i18n.js?v=54" defer></script>
   <script src="/vendor/jalaali.min.js" defer></script>
-  <script src="/js/devboard.js?v=9" defer></script>
+  <script src="/js/devboard.js?v=10" defer></script>
 </head>
 <body>
   <div data-nav></div>
@@ -1117,7 +1117,7 @@
             if (window.HibanaBoard) return resolve(true)
             if (!injected && waited >= 1200) {
               injected = true
-              inject('/js/devboard.js?v=9') // keep in sync with the <head> tag + sw SHELL
+              inject('/js/devboard.js?v=10') // keep in sync with the <head> tag + sw SHELL
               if (!window.jalaali) inject('/vendor/jalaali.min.js') // Jalali timeline for FA
             }
             if (waited >= 9000) return resolve(false)

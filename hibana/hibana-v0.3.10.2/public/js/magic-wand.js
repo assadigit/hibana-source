@@ -107,6 +107,11 @@
     }
     // Rendered text — update the DOM + PATCH the save URL.
     el.textContent = text
+    // Session 22: task titles carry a 150-char clamp structure (hidden .pd-title-rest
+    // span INSIDE the title element — textContent reads the full title, which is why
+    // fieldText above still works). Writing textContent wipes that structure, so tell
+    // the page to re-clamp (project.html listens + rebuilds the split + read-more).
+    el.dispatchEvent(new CustomEvent('hibana:title-written', { bubbles: true }))
     const saveUrl = el.getAttribute('data-magic-save')
     const field = el.getAttribute('data-magic-field') || 'title'
     if (saveUrl) {

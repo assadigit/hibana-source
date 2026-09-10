@@ -40,7 +40,12 @@ const clipRangeOk = (b: { start_at?: string | null; end_at?: string | null }) =>
   !(typeof b.start_at === 'string' && typeof b.end_at === 'string') || Date.parse(b.end_at!) > Date.parse(b.start_at!)
 
 const createDevTaskSchema = z.object({
-  title: z.string().trim().min(1).max(2000), // Session 19 (user request): was max(300) — "unlimited". 2000 is effectively unlimited for a task title; the rendered title truncates with a "read more" (CSS line-clamp + a toggle). The textarea maxlength on the modal was also lifted.
+  // Session 22 (user request: "the limitation of 300 characters must be halted. it
+  // must be unlimited"): was 2000 (Session 19's "effectively unlimited"). Now a pure
+  // sanity guard at 100k — beyond any conceivable task title (and far under the
+  // Workers body limit); the card display clamps at 150 chars + read-more, so long
+  // titles stay sane in the UI. Zod stays on every endpoint (rule 10).
+  title: z.string().trim().min(1).max(100_000),
   status: taskStatusSchema.optional(),
   priority: prioritySchema.optional(),
   category_id: z.string().max(64).nullable().optional(),
@@ -49,7 +54,7 @@ const createDevTaskSchema = z.object({
   end_at: isoDate.nullable().optional(),
 }).refine(clipRangeOk, { message: 'bad_range' })
 const updateDevTaskSchema = z.object({
-  title: z.string().trim().min(1).max(2000).optional(), // Session 19: lifted from 300 to 2000 (matches createDevTaskSchema).
+  title: z.string().trim().min(1).max(100_000).optional(), // Session 22: lifted 2000 → 100k sanity guard (matches createDevTaskSchema).
   status: taskStatusSchema.optional(),
   priority: prioritySchema.optional(),
   category_id: z.string().max(64).nullable().optional(),

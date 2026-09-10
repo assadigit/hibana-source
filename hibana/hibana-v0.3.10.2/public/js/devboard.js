@@ -174,7 +174,7 @@
       : { title: '', status: modalCtx.defaults.status || 'idea', priority: 'medium', category_id: null, sprint_id: null, tags: [] }
     renderModal()
     buildModal().hidden = false
-    const focus = modalEl.querySelector('input[name=title]')
+    const focus = modalEl.querySelector('[name=title]')
     if (focus) { focus.focus(); focus.select() }
   }
 
@@ -196,7 +196,11 @@
         '<div class="row spread"><h3>' + (isNew ? esc(t('db.newTask', 'New task')) : esc(t('db.editTask', 'Edit task'))) + '</h3>' +
         '<button type="button" class="ghost" data-db-close aria-label="' + esc(t('common.close', 'Close')) + '">✕</button></div>' +
         '<label class="db-field"><span>' + esc(t('db.title', 'Title')) + '</span>' +
-          '<input name="title" maxlength="300" dir="auto" value="' + esc(d.title) + '" placeholder="' + esc(t('db.titlePh', 'What needs to be built?')) + '"></label>' +
+          // Session 22 (user request): TEXTAREA (was a single-line input with
+          // maxlength=300) — unlimited, multi-line, 9rem min + resizable (app.css),
+          // matching the project-page composer. Enter saves, Shift+Enter breaks the
+          // line; newlines collapse to spaces on save (titles are single-line).
+          '<textarea name="title" rows="6" dir="auto" placeholder="' + esc(t('db.titlePh', 'What needs to be built?')) + '">' + esc(d.title) + '</textarea></label>' +
         '<div class="db-field"><span>' + esc(t('db.status', 'Status')) + '</span>' +
           '<div class="db-seg" data-seg="status">' + STATUSES.map((s) =>
             '<button type="button" data-val="' + s + '" class="' + (d.status === s ? 'is-on' : '') + '">' + esc(statusLabel(s)) + '</button>').join('') + '</div></div>' +
@@ -291,8 +295,10 @@
       }
     }
     el.querySelector('[data-db-save]').onclick = async () => {
-      const titleIn = el.querySelector('input[name=title]')
-      const title = titleIn.value.trim()
+      const titleIn = el.querySelector('[name=title]')
+      // Session 22: unlimited title — newlines collapse to spaces (same contract as
+      // the project-page composer; the card renders the title as one flowing block).
+      const title = titleIn.value.replace(/\s*\n\s*/g, ' ').trim()
       if (!title) { titleIn.focus(); return }
       try {
         let categoryId = modalCtx.draft.category_id
@@ -319,9 +325,9 @@
         closeModal(true)
       } catch { window.hibana && window.hibana.toast(t('sparks.saveFailed', "Couldn't save"), 'err') }
     }
-    // Enter on the title saves
-    el.querySelector('input[name=title]').onkeydown = (ev) => {
-      if (ev.key === 'Enter') { ev.preventDefault(); el.querySelector('[data-db-save]').click() }
+    // Enter on the title saves (Shift+Enter = a real newline — Session 22)
+    el.querySelector('[name=title]').onkeydown = (ev) => {
+      if (ev.key === 'Enter' && !ev.shiftKey) { ev.preventDefault(); el.querySelector('[data-db-save]').click() }
     }
   }
 

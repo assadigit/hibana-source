@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Progress board — Hibana</title>
-  <link rel="stylesheet" href="/css/app.css?v=260">
+  <link rel="stylesheet" href="/css/app.css?v=261">
   <link rel="stylesheet" href="/vendor/manrope/font-face.css">
   <script src="/vendor/htmx.min.js" defer></script>
   <script src="/js/boot.js?v=4"></script>
@@ -19,7 +19,7 @@
   <script src="/js/go-to.js?v=1" defer></script>
   <script src="/js/i18n.js?v=54" defer></script>
   <script src="/vendor/jalaali.min.js" defer></script>
-  <script src="/js/devboard.js?v=9" defer></script>
+  <script src="/js/devboard.js?v=10" defer></script>
 </head>
 <body>
   <div data-nav></div>
@@ -66,6 +66,22 @@
             .replace('{n}', B().faDig(done)).replace('{m}', B().faDig(S.tasks.length))
 
           const lang = window.hibanaI18n && window.hibanaI18n.lang ? window.hibanaI18n.lang() : 'en'
+          // Session 22 (user request): unlimited task titles clamp at 150 CHARS — same
+          // recipe as the project page's progress boxes: first 150 chars visible, the
+          // rest in a hidden .pd-title-rest span INSIDE the title element (so
+          // textContent keeps reading the FULL title — copy/export, delete-confirm,
+          // the wand all consume it), + a read-more button. The two boards read as ONE
+          // system now.
+          const TITLE_CLAMP = 150
+          const titleHtml = (title) => {
+            const s = String(title == null ? '' : title)
+            if (s.length <= TITLE_CLAMP) return B().esc(s)
+            return B().esc(s.slice(0, TITLE_CLAMP)) + '<span class="pd-title-rest" hidden>' + B().esc(s.slice(TITLE_CLAMP)) + '</span>'
+          }
+          const titleAttrs = (title) => (String(title || '').length > TITLE_CLAMP ? ' data-clamped=""' : '')
+          const readMoreBtn = (title) => (String(title || '').length > TITLE_CLAMP
+            ? '<button type="button" class="pd-read-more" data-task-read-more aria-expanded="false">' + B().esc(_t('pd.readMore', 'read more')) + '</button>'
+            : '')
           // Item 8: inline SVG icons for the export/copy buttons (board.html has no P_ICON)
           const I_CLIPBOARD = '<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4V3.5A.5.5 0 0 1 9.5 3h5a.5.5 0 0 1 .5.5V4M9 9.5h6M9 13.5h6M9 17.5h4"/></svg>'
           const I_DOWNLOAD = '<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m0 0l-4-4m4 4l4-4M5 21h14"/></svg>'
@@ -97,8 +113,9 @@
                   return '<article class="db-card st-' + task.status + '" draggable="true" data-task-card="' + task.id + '" data-status="' + task.status + '">' +
                     '<div class="db-card-main">' +
                       '<span class="prio-dot prio-' + task.priority + '" title="' + task.priority + '"></span>' +
-                      '<span class="db-card-title">' + B().esc(task.title) + '</span>' +
+                      '<span class="db-card-title"' + titleAttrs(task.title) + '>' + titleHtml(task.title) + '</span>' +
                     '</div>' +
+                    readMoreBtn(task.title) +
                     // ⋯ hover menu (Edit + Delete) — injected client-side after render so
                     // it survives every reload(). Edit opens the existing modal (no refresh);
                     // Delete shows a confirm modal (no refresh).
@@ -239,8 +256,32 @@
             B().openEditor(null, { defaults: { status: add.dataset.add }, onSaved: reload })
             return
           }
+          // Session 22: read-more / read-less toggle — must run BEFORE the card branch
+          // (the button lives INSIDE [data-task-card], and ctx.on handlers are separate
+          // document-level listeners — stopPropagation can't stop the card branch).
+          const moreBtn = e.target.closest('[data-task-read-more]')
+          if (moreBtn) {
+            e.preventDefault()
+            const card = moreBtn.closest('.db-card')
+            const title = card ? card.querySelector('.db-card-title') : null
+            const rest = title ? title.querySelector('.pd-title-rest') : null
+            if (title && rest) {
+              if (rest.hidden) {
+                rest.hidden = false
+                title.removeAttribute('data-clamped')
+                moreBtn.textContent = _t('pd.readLess', 'read less')
+                moreBtn.setAttribute('aria-expanded', 'true')
+              } else {
+                rest.hidden = true
+                title.setAttribute('data-clamped', '')
+                moreBtn.textContent = _t('pd.readMore', 'read more')
+                moreBtn.setAttribute('aria-expanded', 'false')
+              }
+            }
+            return
+          }
           const card = e.target.closest('[data-task-card]')
-          if (card) B().openEditor(card.dataset.taskCard, { onSaved: reload })
+          if (card && !e.target.closest('[data-task-read-more]')) B().openEditor(card.dataset.taskCard, { onSaved: reload })
 
           // Item 8: per-column Quick Copy + Export Markdown (same logic as project.html)
           const copy = e.target.closest('[data-db-copy]')
@@ -386,7 +427,7 @@
             if (window.HibanaBoard) return resolve(true)
             if (!injected && waited >= 1200) {
               injected = true
-              inject('/js/devboard.js?v=9') // keep in sync with the <head> tag + sw SHELL
+              inject('/js/devboard.js?v=10') // keep in sync with the <head> tag + sw SHELL
               if (!window.jalaali) inject('/vendor/jalaali.min.js') // Jalali dates for FA
             }
             if (waited >= 9000) return resolve(false)

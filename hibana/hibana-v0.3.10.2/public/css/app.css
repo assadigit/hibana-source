@@ -6758,13 +6758,27 @@ html[data-theme="dark"] .heatmap-l4,
 .pd-task-wrap:has(.prio-high) { border-inline-start-color: #E59AA5; }
 .pd-task-wrap:has(.prio-urgent) { border-inline-start-color: #D96C63; background: rgb(217 108 99 / 0.06); }
 .pd-task-wrap:has(.prio-urgent) .pd-task-title { font-weight: 600; }
-/* Same for db-card (board.html) */
-.db-card .prio-dot { background: var(--prio-color, #C9CDD2); }
-.db-card:has(.prio-urgent) { border-inline-start: 3px solid #D96C63; background: rgb(217 108 99 / 0.06); }
+/* Same for db-card (board.html) — Session 22 (user request): the board now uses the
+   EXACT pd recipe. The comment here previously claimed parity while the rules
+   diverged: .db-card:has(.prio-medium) hard-coded an ORANGE left border (most tasks
+   are medium → every board column read orange), and the prio-dot was broken twice
+   over — `.db-card .prio-dot { background: var(--prio-color…) }` referenced a token
+   that exists NOWHERE, and the later `.db-card-main .prio-dot { background: inherit }`
+   (0,2,0) beat the `.prio-medium` class (0,1,0) → TRANSPARENT, invisible dots on the
+   board. Now: the dot carries its priority color (pd !important recipe), the card's
+   left border inherits the COLUMN's color via --db-c, and only low/high/urgent flag
+   their own color — prio-medium keeps the column color, exactly like .pd-task-wrap. */
+.db-card .prio-dot { margin-block-start: 0.24rem; }
+.db-card .prio-low { background: #C9CDD2 !important; }
+.db-card .prio-medium { background: #E8B27D !important; }
+.db-card .prio-high { background: #E59AA5 !important; }
+.db-card .prio-urgent { background: #D96C63 !important; }
+.db-col .db-card { border-inline-start: 3px solid rgb(var(--db-c, 200 200 200) / 0.55); }
+.db-card:has(.prio-low) { border-inline-start-color: #C9CDD2; }
+/* prio-medium: no override — keeps the column color (was #E8B27D which made every board column read orange). */
+.db-card:has(.prio-high) { border-inline-start-color: #E59AA5; }
+.db-card:has(.prio-urgent) { border-inline-start-color: #D96C63; background: rgb(217 108 99 / 0.06); }
 .db-card:has(.prio-urgent) .db-card-title { font-weight: 600; }
-.db-card:has(.prio-high) { border-inline-start: 3px solid #E59AA5; }
-.db-card:has(.prio-medium) { border-inline-start: 3px solid #E8B27D; }
-.db-card:has(.prio-low) { border-inline-start: 3px solid #C9CDD2; }
 
 /* --- project logo (0047) ----------------------------------------------------- */
 /* No border, no background, no fixed container shape — logos are often transparent
@@ -7039,23 +7053,41 @@ html[data-theme='dark'] .pd-col[data-status='bug']         { --pd-c: 150 110 120
 /* Priority color is now shown on the dot (see prio-dot rules above). The column color
    is still visible via the column's own left border (set on .pd-col, not the card). */
 .pd-task:hover { border-color: var(--brand); box-shadow: 0 1px 6px rgb(30 20 10 / 0.06); }
-.pd-task-body { flex: 1; min-inline-size: 0; display: grid; gap: 0.05rem; }
+.pd-task-body { flex: 1; min-inline-size: 0; display: grid; gap: 0.12rem; }
 .pd-task-title {
   min-inline-size: 0;
   font-size: var(--fs-sm);
   overflow-wrap: anywhere;
   line-height: 1.3;
-  /* Session 19 (user request): long task titles (now up to 2000 chars) truncate to 3
-     lines + a "read more" toggle. The .is-expanded class (toggled by app.js on click)
-     lifts the clamp so the full title shows. */
-  display: -webkit-box;
-  -webkit-line-clamp: 3;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-  cursor: pointer;
 }
-.pd-task-title.is-expanded { -webkit-line-clamp: unset; overflow: visible; }
-.pd-task-title::after { content: attr(data-more); font-size: var(--fs-xs); color: var(--brand); margin-inline-start: 0.3rem; }
+/* Session 22 (user request): task titles are UNLIMITED now (server cap 100k). The
+   progress boxes + board clamp at 150 CHARACTERS (was a 3-line CSS clamp). The split
+   is content-based: the first 150 chars render; the rest lives in a hidden
+   .pd-title-rest span INSIDE the title element — so textContent still reads the FULL
+   title (magic wand, inline editors, copy/export, undo all consume textContent and
+   keep working on the untruncated text). The ellipsis shows only while clamped;
+   [data-task-read-more] toggles the rest open/closed. */
+.pd-title-rest[hidden] { display: none; }
+.pd-task-title[data-clamped]::after,
+.db-card-title[data-clamped]::after { content: '…'; }
+.pd-read-more {
+  justify-self: start;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2rem;
+  padding: 0.1rem 0.45rem;
+  border: 0;
+  border-radius: 999px;
+  background: var(--accent-soft);
+  font: inherit;
+  font-size: var(--fs-xs);
+  color: var(--link);
+  cursor: pointer;
+  text-decoration: none;
+  min-block-size: 1.5rem;
+}
+.pd-read-more:hover { color: var(--text); text-decoration: underline; }
+.pd-read-more:focus-visible { outline: 2px solid var(--brand); outline-offset: 1px; }
 /* date + clock meta (user request 2026-09-03): smaller + muted — it must whisper */
 .pd-task-meta {
   font-size: calc(var(--fs-xs) * 0.8); /* 20% smaller — user request 2026-09 */
@@ -7086,7 +7118,10 @@ html[data-theme='dark'] .pd-col[data-status='bug']         { --pd-c: 150 110 120
 .pd-col-actions button { padding: 0.15rem 0.35rem; }
 .pd-col-actions .icon { inline-size: 0.85rem; block-size: 0.85rem; }
 /* Item 5 + 7: the shared full-screen modal editor (note Expand + backlog Full screen) */
-.pd-editor-modal { max-inline-size: min(90vw, 60rem); max-block-size: 85vh; padding: 0; inline-size: min(90vw, 60rem); }
+/* Session 22: `dialog.` prefix added — same specificity bug as the taskadd composer:
+   .pd-editor-modal (0,1,0) lost to dialog.dialog's 26rem max-inline-size (0,1,1), so
+   the "full screen" note/backlog editor has been rendering 416px wide instead of 60rem. */
+dialog.pd-editor-modal { max-inline-size: min(90vw, 60rem); max-block-size: 85vh; padding: 0; inline-size: min(90vw, 60rem); }
 .pd-editor-modal-inner { padding: 1.25rem; max-block-size: 85vh; display: flex; flex-direction: column; gap: 0.6rem; }
 .pd-editor-head { margin-block-end: 0.2rem; }
 .pd-editor-head h3 { margin: 0; font-size: 1.1rem; }
@@ -7108,10 +7143,41 @@ html[data-theme='dark'] .pd-col[data-status='bug']         { --pd-c: 150 110 120
    visible while typing. Mirrors the pd-editor-modal recipe at task-title scale — the
    global input/textarea rule (app.css :441) already carries font, padding, border and
    bg; only the sizing and rhythm live here. */
-.pd-taskadd-modal { max-inline-size: min(52rem, 94vw); /* Session 19 (user request): 50% larger — was 34rem. The wider modal gives the textarea more writing room + the column/priority chips don't wrap as aggressively. */ }
+/* Session 22 (user request — the modal was STILL small after Session 19): the v0.3.11.1
+   "50% larger" bump never rendered — `.pd-taskadd-modal` (0,1,0) lost the cascade to
+   `dialog.dialog`'s max-inline-size min(26rem, 92vw) (0,1,1), so the composer stayed
+   416px wide. Fix: `dialog.pd-taskadd-modal` (ties with dialog.dialog, later in this
+   file → wins) + an EXPLICIT inline-size — a native <dialog> is fit-content by default,
+   a max only caps. 78rem = +50% over the 52rem Session 19 intended, +200% over what
+   actually rendered. */
+dialog.pd-taskadd-modal {
+  inline-size: min(78rem, 96vw);
+  max-inline-size: min(78rem, 96vw);
+  max-block-size: min(88vh, 46rem);
+}
 .pd-taskadd-inner { padding: 1.5rem; display: grid; gap: 0.8rem; }
-#pd-taskadd-textarea { font-size: var(--fs-md); line-height: 1.6; min-block-size: 12rem; border-radius: var(--radius); /* Session 19: was 7.5rem — the writing area was too small for a "new task" that "long sentences are welcome". 12rem gives ~6 lines of visible text. */ }
+#pd-taskadd-textarea {
+  font-size: var(--fs-md);
+  line-height: 1.6;
+  min-block-size: 18rem; /* Session 22: +50% (was 12rem) — owner wants a real writing area */
+  border-radius: var(--radius);
+  resize: vertical; /* Session 22: the owner can drag it taller for very long tasks */
+}
 #pd-taskadd-textarea:focus-visible { border-color: var(--brand); }
+/* Session 22: the inline task EDIT dialog (project.html builds it client-side) gets the
+   same recipe as the composer — it was a bare `dialog.dialog` (26rem cap) with a
+   3-row, 300-char textarea. */
+dialog.pd-taskedit-modal {
+  inline-size: min(78rem, 96vw);
+  max-inline-size: min(78rem, 96vw);
+  max-block-size: min(88vh, 46rem);
+}
+#pde-input {
+  min-block-size: 14rem;
+  font-size: var(--fs-md);
+  line-height: 1.6;
+  resize: vertical;
+}
 .pd-taskadd-col { display: flex; align-items: center; gap: 0.35rem; flex-wrap: wrap; }
 .pd-taskadd-col .chip { padding: 0.12rem 0.55rem; font-size: var(--fs-xs); }
 #pd-taskadd-error { margin: 0; }
@@ -7273,26 +7339,34 @@ button.pd-task-add {
   padding: 0.55rem;
   min-block-size: 8rem;
 }
+/* Session 22 (consistency with .pd-col-title): fs-md → fs-sm, gap 0.4 → 0.35 — the
+   column label now reads identically on both boards. */
 .db-col-head { display: flex; align-items: center; justify-content: space-between; gap: 0.4rem; }
-.db-col-name { font-weight: 600; font-size: var(--fs-md); color: var(--muted); }
+.db-col-name { font-weight: 600; font-size: var(--fs-sm); color: var(--muted); }
 /* batch (p) 2026-09-06 (user request): the fullscreen board's columns now carry the
    SAME stage color coding as the project page's pd-board boxes — idea blue, planned
    (برنامه آتی) grey, in-progress orange, done green, bug (مشکلات) red — border +
    inline-start edge + colored name + dot, light and dark. The old bug-only rules are
-   superseded by the full set. */
+   superseded by the full set.
+   Session 22 (user request — consistency): the --db-ink values now MIRROR .pd-col
+   exactly — the light in_progress/done/bug inks were the pre-Session-20 values
+   (#9c7245 / #5e8f70 / #a96b78, 3.7–4.3:1) while pd had the AA-darkened set; the
+   dark block below was the pre-Session-19 bright set while pd used the muted set. */
 .db-col[data-col='idea']        { --db-c: 172 199 233; --db-ink: #5c7796; }
 .db-col[data-col='planned']     { --db-c: 209 212 216; --db-ink: #6b727b; }
-.db-col[data-col='in_progress'] { --db-c: 240 197 155; --db-ink: #9c7245; }
-.db-col[data-col='done']        { --db-c: 182 224 200; --db-ink: #5e8f70; }
-.db-col[data-col='bug']         { --db-c: 238 185 194; --db-ink: #a96b78; }
+.db-col[data-col='in_progress'] { --db-c: 240 197 155; --db-ink: #7d5a34; } /* Session 22: was #9c7245 — mirrors .pd-col (Session-20 AA, 6.2:1) */
+.db-col[data-col='done']        { --db-c: 182 224 200; --db-ink: #43704f; } /* Session 22: was #5e8f70 — mirrors .pd-col (Session-20 AA, 5.7:1) */
+.db-col[data-col='bug']         { --db-c: 238 185 194; --db-ink: #87555f; } /* Session 22: was #a96b78 — mirrors .pd-col (Session-20 AA, 6.0:1) */
 .db-col { border-color: rgb(var(--db-c) / 0.28); border-inline-start: 3px solid rgb(var(--db-c) / 0.55); }
-.db-col-name { color: var(--db-ink, var(--muted)); display: inline-flex; align-items: center; gap: 0.4rem; }
+.db-col-name { color: var(--db-ink, var(--muted)); display: inline-flex; align-items: center; gap: 0.35rem; }
+/* Session 22 (consistency with .pd-col-title::before): dot 0.6rem → 0.55rem, fill
+   opacity 0.95 → 0.72 — the exact pd recipe. */
 .db-col-name::before {
   content: '';
-  inline-size: 0.6rem;
-  block-size: 0.6rem;
+  inline-size: 0.55rem;
+  block-size: 0.55rem;
   border-radius: 999px;
-  background: rgb(var(--db-c) / 0.95);
+  background: rgb(var(--db-c) / 0.72);
   flex: none;
 }
 /* Done column: visually distinct — a subtle tinted background so the Archive/Clear buttons
@@ -7305,24 +7379,28 @@ button.pd-task-add {
 .pd-archive-item .pd-archive-title { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .pd-archive-item .pd-archive-date { font-size: var(--fs-sm); color: var(--muted); flex: none; }
 .pd-archive-item .pd-archive-actions { display: flex; gap: 0.25rem; flex: none; }
-html[data-theme='dark'] .db-col[data-col='idea']        { --db-c: 128 155 186; --db-ink: #93aed0; }
-html[data-theme='dark'] .db-col[data-col='planned']     { --db-c: 168 173 180; --db-ink: #c2c8cf; }
-html[data-theme='dark'] .db-col[data-col='in_progress'] { --db-c: 212 170 128; --db-ink: #e0b789; }
-html[data-theme='dark'] .db-col[data-col='done']        { --db-c: 148 197 162; --db-ink: #9bd0a8; }
-html[data-theme='dark'] .db-col[data-col='bug']         { --db-c: 214 158 170; --db-ink: #e4b2bd; }
+/* Session 22 (consistency): was the pre-Session-19 bright set — now the exact muted
+   .pd-col dark values (label inks + softened borders). */
+html[data-theme='dark'] .db-col[data-col='idea']        { --db-c: 80 100 128; --db-ink: #7B9AB8; }
+html[data-theme='dark'] .db-col[data-col='planned']     { --db-c: 110 115 122; --db-ink: #A0A8B0; }
+html[data-theme='dark'] .db-col[data-col='in_progress'] { --db-c: 150 120 85; --db-ink: #C49A6E; }
+html[data-theme='dark'] .db-col[data-col='done']        { --db-c: 100 145 115; --db-ink: #7BAA8E; }
+html[data-theme='dark'] .db-col[data-col='bug']         { --db-c: 150 110 120; --db-ink: #C098A0; }
 @media (prefers-color-scheme: dark) {
-  html:not([data-theme='light']) .db-col[data-col='idea']        { --db-c: 128 155 186; --db-ink: #93aed0; }
-  html:not([data-theme='light']) .db-col[data-col='planned']     { --db-c: 168 173 180; --db-ink: #c2c8cf; }
-  html:not([data-theme='light']) .db-col[data-col='in_progress'] { --db-c: 212 170 128; --db-ink: #e0b789; }
-  html:not([data-theme='light']) .db-col[data-col='done']        { --db-c: 148 197 162; --db-ink: #9bd0a8; }
-  html:not([data-theme='light']) .db-col[data-col='bug']         { --db-c: 214 158 170; --db-ink: #e4b2bd; }
+  html:not([data-theme='light']) .db-col[data-col='idea']        { --db-c: 80 100 128; --db-ink: #7B9AB8; }
+  html:not([data-theme='light']) .db-col[data-col='planned']     { --db-c: 110 115 122; --db-ink: #A0A8B0; }
+  html:not([data-theme='light']) .db-col[data-col='in_progress'] { --db-c: 150 120 85; --db-ink: #C49A6E; }
+  html:not([data-theme='light']) .db-col[data-col='done']        { --db-c: 100 145 115; --db-ink: #7BAA8E; }
+  html:not([data-theme='light']) .db-col[data-col='bug']         { --db-c: 150 110 120; --db-ink: #C098A0; }
 }
 .db-col-body { display: grid; gap: 0.45rem; border-radius: var(--radius-sm); transition: background 0.12s ease, outline 0.12s ease; outline: 2px dashed transparent; }
 .db-col-body.drag-over { outline-color: var(--brand); background: rgb(74 159 163 / 0.06); }
 .db-card {
   display: grid;
   gap: 0.3rem;
-  padding: 0.55rem 0.6rem;
+  /* Session 22 (user request — consistency with .pd-task): was 0.55rem 0.6rem; the
+     progress-box card uses 0.4rem 0.5rem and the two boards must read as one system. */
+  padding: 0.4rem 0.5rem;
   background: var(--card);
   border: 1px solid var(--line);
   border-radius: var(--radius-sm);
@@ -7331,10 +7409,14 @@ html[data-theme='dark'] .db-col[data-col='bug']         { --db-c: 214 158 170; -
 }
 .db-card:hover { border-color: var(--brand); box-shadow: 0 1px 6px rgb(30 20 10 / 0.07); }
 .db-card.dragging { opacity: 0.45; }
-.db-card-main { display: flex; align-items: flex-start; gap: 0.5rem; }
-/* Item 3: the full-screen board's prio-dot uses the priority color (not the column color). */
-.db-card-main .prio-dot { background: inherit; }
-.db-card-title { font-size: var(--fs-md); line-height: 1.35; overflow-wrap: anywhere; }
+.db-card-main { display: flex; align-items: flex-start; gap: 0.45rem; }
+/* Item 3 — REMOVED Session 22: `.db-card-main .prio-dot { background: inherit }` beat the
+   `.prio-*` classes (0,2,0 > 0,1,0) so every board prio-dot rendered TRANSPARENT
+   (invisible). The !important `.db-card .prio-*` rules near the pd block now carry
+   the priority color, same as the project page. */
+/* Session 22 (consistency with .pd-task-title): fs-md/1.35 → fs-sm/1.3 so a task card
+   reads identically in the project progress box and on the full-screen board. */
+.db-card-title { font-size: var(--fs-sm); line-height: 1.3; overflow-wrap: anywhere; }
 .st-done .db-card-title, .st-done .sp-bar-title { text-decoration: line-through; color: var(--muted); }
 .db-card-meta { display: flex; flex-wrap: wrap; gap: 0.3rem; align-items: center; }
 .db-cat-chip, .db-mini-chip {
@@ -7387,7 +7469,10 @@ html[data-theme='dark'] .db-col[data-col='bug']         { --db-c: 214 158 170; -
 }
 .db-modal[hidden] { display: none; }
 .db-modal-card {
-  inline-size: min(34rem, 100%);
+  /* Session 22 (user request): +53% (was 34rem) — the board's task editor gets the
+     same generous dimensions as the project-page composer; the title is a multi-line
+     textarea now, so it needs the room. */
+  inline-size: min(52rem, 100%);
   max-block-size: 90vh;
   overflow-y: auto;
   background: var(--card);
@@ -7401,6 +7486,13 @@ html[data-theme='dark'] .db-col[data-col='bug']         { --db-c: 214 158 170; -
 }
 .db-modal-card h3 { margin: 0; }
 .db-field { display: grid; gap: 0.3rem; }
+/* Session 22: the title field is a TEXTAREA (unlimited, multi-line) — give it a real
+   writing area + vertical resize, mirroring #pd-taskadd-textarea's rhythm. */
+.db-modal textarea[name="title"] {
+  min-block-size: 9rem;
+  line-height: 1.6;
+  resize: vertical;
+}
 .db-field > span { font-size: var(--fs-xs); font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; }
 .db-field input[type="text"], .db-field input:not([type]), .db-field select, .db-field textarea {
   font: inherit;

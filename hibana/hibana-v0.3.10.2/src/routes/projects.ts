@@ -536,6 +536,20 @@ function detailHtml(p: ProjectRow, d: Awaited<ReturnType<typeof loadDetail>>, la
   // with their top cards — adding happens RIGHT HERE through the per-column inline
   // composer (user request 2026-08-29: "add tasks directly in project's page into boxes");
   // the full drag & drop board stays one click away.
+  // Session 22 (user request): task titles are unlimited (server cap is a 100k sanity
+  // guard). The progress boxes show the first 150 CHARACTERS; the rest lives in a
+  // hidden .pd-title-rest span INSIDE the title element, so textContent (the magic
+  // wand, inline editors, copy/export, undo) still reads the FULL title. A real
+  // "read more" button (data-task-read-more) toggles the rest — project.html wires it.
+  const TITLE_CLAMP = 150
+  const titleHtml = (title: string): string =>
+    title.length <= TITLE_CLAMP ? esc(title) : esc(title.slice(0, TITLE_CLAMP)) + `<span class="pd-title-rest" hidden>${esc(title.slice(TITLE_CLAMP))}</span>`
+  const titleAttrs = (title: string): string => (title.length > TITLE_CLAMP ? ' data-clamped=""' : '')
+  const readMoreBtn = (title: string): string =>
+    title.length > TITLE_CLAMP
+      ? `<button type="button" class="pd-read-more" data-task-read-more aria-expanded="false">${trL(lang, 'read more', 'بیشتر بخوان')}</button>`
+      : ''
+
   const boardPreview = `
   <section class="card pd-board" id="pd-board" data-total="${d.devTasks.length}" data-done="${doneTasks}">
     <div class="row spread pd-board-head">
@@ -570,7 +584,8 @@ function detailHtml(p: ProjectRow, d: Awaited<ReturnType<typeof loadDetail>>, la
                 <div class="pd-task st-${t.status}" draggable="true" role="button" tabindex="0" aria-label="${esc(t.title)}">
                   <span class="prio-dot prio-${t.priority}" title="${t.priority}"></span>
                   <span class="pd-task-body">
-                    <span class="pd-task-title">${esc(t.title)}</span>
+                    <span class="pd-task-title"${titleAttrs(t.title)}>${titleHtml(t.title)}</span>
+                    ${readMoreBtn(t.title)}
                     <span class="pd-task-meta">${taskMetaLabel(t)}</span>
                   </span>
                 </div>
@@ -748,10 +763,13 @@ function detailHtml(p: ProjectRow, d: Awaited<ReturnType<typeof loadDetail>>, la
   <!-- Modal task composer (user request 2026-09-15): the «افزودن» button in each progress
        column used to reveal a one-line inline input — long sentences only showed a few
        words while typing. It now opens THIS dialog: a wide multi-line textarea where the
-       whole sentence stays visible. Same POST /api/projects/:id/devtasks + in-place
-       insertTaskChip path as the old composer; project.html's delegated JS wires it
-       (lookups at click time — the dialog re-renders with every htmx swap of
-       #project-body). -->
+       whole sentence stays visible. Session 22 (user request): the dialog now actually
+       OPENS at 78rem (a CSS specificity bug had it stuck at 26rem — see app.css), the
+       textarea is 18rem min + user-resizable, and the title is UNLIMITED — the "۰ / ۳۰۰"
+       counter is gone (the 300 cap is lifted end-to-end). Enter adds (Shift+Enter
+       newlines are collapsed to spaces on submit), Esc / Cancel / ✕ close. Same POST +
+       insertTaskChip path as before; project.html's delegated JS wires it (click-time
+       lookups — the dialog re-renders with every htmx swap of #project-body). -->
   <dialog id="pd-taskadd-modal" class="dialog pd-taskadd-modal" aria-labelledby="pd-taskadd-title">
     <form class="modal pd-taskadd-inner" id="pd-taskadd-form" novalidate>
       <div class="row spread pd-editor-head">
@@ -759,9 +777,9 @@ function detailHtml(p: ProjectRow, d: Awaited<ReturnType<typeof loadDetail>>, la
         <button type="button" class="ghost" id="pd-taskadd-close" aria-label="${trL(lang, 'Close', 'بستن')}">${icon('x')}</button>
       </div>
       <div class="pd-taskadd-col muted small">${trL(lang, 'Lands in', 'ثبت در')} <span class="chip" id="pd-taskadd-col-chip"></span></div>
-      <textarea id="pd-taskadd-textarea" rows="4" dir="auto" autocomplete="off" aria-label="${trL(lang, 'Task title', 'عنوان کار')}" placeholder="${trL(lang, 'Write the task — long sentences are welcome…', 'کار را بنویس — جمله‌های بلند جای دارند…')}"></textarea>
+      <textarea id="pd-taskadd-textarea" rows="8" dir="auto" autocomplete="off" aria-label="${trL(lang, 'Task title', 'عنوان کار')}" placeholder="${trL(lang, 'Write the task — long sentences are welcome…', 'کار را بنویس — جمله‌های بلند جای دارند…')}"></textarea>
       <div class="row spread">
-        <span class="muted small" id="pd-taskadd-count" aria-live="polite"></span>
+        <span class="muted small">${trL(lang, 'Unlimited length', 'بدون محدودیت طول')}</span>
         <span class="muted small">${trL(lang, 'Enter adds · Shift+Enter new line · Esc closes', 'Enter برای افزودن · Shift+Enter خط جدید · Esc برای بستن')}</span>
       </div>
       <p class="error" id="pd-taskadd-error" role="alert" hidden></p>

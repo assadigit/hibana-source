@@ -9,7 +9,64 @@
 > rewritten as a minimal pointer. Deleted files remain recoverable verbatim:
 > `git show <sha>:<file>`.
 
-## 1. Current state (v0.3.11.3 — Session 21: live-feedback visual fixes — pastel bug-bubble, pastel stage bars, skip-link removed)
+## 1. Current state (v0.3.11.4 — Session 22: live-feedback fixes — task-editor modal sizing, unlimited titles + 150-char read-more, board color consistency)
+- v0.3.11.4 = **Session 22 hotfix release** — 3 fixes from Ali's live feedback (CSS + JS +
+  two Zod caps lifted; no schema changes):
+  - **Task-composer modals actually open big now (root-cause fix)**: the v0.3.11.1 "50%
+    larger taskadd modal" NEVER rendered — `.pd-taskadd-modal` (0,1,0) lost the cascade to
+    `dialog.dialog`'s `max-inline-size: min(26rem, 92vw)` (0,1,1), so the composer (and the
+    "full screen" pd-editor-modal, intended 60rem) were stuck at 416px. Fixed with
+    `dialog.`-prefixed rules + an explicit `inline-size` (a native <dialog> is
+    fit-content; a max only caps). New sizes: taskadd + inline task-edit dialogs
+    min(78rem, 96vw) (≥50% over the 52rem Session 19 intended; ~3× what actually
+    rendered), pd-editor-modal 60rem, board db-modal 34→52rem. Textareas: taskadd
+    12→18rem min + `resize: vertical`, rows 4→8 (add) / 3→8 (edit); board editor title
+    converted from a single-line `<input maxlength=300>` to a 9rem-min textarea.
+  - **300-char limit halted — titles unlimited, cards clamp at 150 chars**: every FE cap
+    removed (taskadd "۰ / ۳۰۰" counter element + taskAddCounter JS, edit-dialog
+    maxlength=300, board-editor input maxlength=300, problems-tab inline-edit
+    input.maxLength=300 — the last three silently truncated data despite the server
+    accepting 2000 since v0.3.11.1). Server: devboard.ts title caps 2000 → 100k sanity
+    guard (Zod stays, rule 10; 100k is beyond any real title + under the Workers body
+    limit). Display: progress boxes + board show the first 150 CHARS — the rest lives in
+    a hidden `.pd-title-rest` span INSIDE the title element, so `textContent` (magic
+    wand, inline editors, copy/export, delete-undo, delete-confirm) keeps reading the
+    FULL title; a real `[data-task-read-more]` button toggles it (was the 3-line CSS
+    line-clamp + ::after hint, project page only). Wand writes re-clamp via a
+    `hibana:title-written` event.
+  - **Board↔progress-box color consistency (owner: "project page shows labels with
+    different color codings, the full-screen board shows all of them orange")**: root
+    cause — `.db-card:has(.prio-medium)` still hard-coded an ORANGE left border (the
+    Session-19 column-color fix was only applied to the pd side; the "Same for db-card"
+    comment was false) and most tasks are prio-medium, so every board column read
+    orange. The board now uses the exact pd recipe: card left border = column color via
+    `--db-c`, only low/high/urgent flag their own color, medium keeps the column color;
+    urgent keeps the tint + bold title. Also fixed while unifying: board prio-dots were
+    INVISIBLE (`background: inherit` at 0,2,0 beat the .prio-* classes at 0,1,0 →
+    transparent, and the referenced `--prio-color` token was defined nowhere) — now the
+    pd !important priority recipe; db-col light inks were pre-Session-20 values → AA set
+    (in_progress #7d5a34, done #43704f, bug #87555f); db-col dark set was the
+    pre-Session-19 bright values → pd muted set; column dot 0.95/0.6rem → 0.72/0.55rem;
+    card padding + title size unified with .pd-task (fs-sm).
+  - Also fixed (found during verification): client-rendered task cards (freshly added +
+    "more"-expanded) were `<a href="/board.html">` while server cards were
+    click-to-edit divs — now all divs with role=button (click opens the inline editor
+    everywhere); the edit-dialog in-place update queried
+    `.pd-task[data-pd-task=…]` which matched NOTHING (data-pd-task lives on the wrap)
+    — cards silently stayed stale after edits, now updated + re-clamped; same
+    wrap-selector fix in the problems-tab sync.
+  - Verified locally: typecheck green, 295/295 tests, smoke ALL PASS, cache-bust PASS;
+    browser E2E on the local Node server — modal 1229px@1280/374px@390 (was 416),
+    textarea 288px, 223-char task via Enter → 201 + 150+72 clamp split + read-more
+    toggle (project AND board), edit modal prefills the FULL 310-char title, medium
+    cards carry the column color on both surfaces (planned grey rgba(209,212,216,.55),
+    in_progress rgba(240,197,155,.55)), prio-dots visible, dark = muted set,
+    5000-char POST → 201 / 100001-char → 400, FA/RTL strings (بیشتر بخوان، بدون
+    محدودیت طول), 390px no hscroll, 0 console/page errors. One VLM claim (strikethrough
+    "crossing" the read-more button) disproven by DOM geometry (5px gap, no overlap) —
+    discarded as a screenshot-scale misread. Assets: app.css ?v=260→261, devboard.js
+    ?v=9→10, magic-wand.js ?v=8→9, SW hibana-v281→v282 (precached HTML shells rotate —
+    project.html/board.html markup changed).
 - v0.3.11.3 = **Session 21 hotfix release** — 3 visual fixes from Ali's live feedback on
   the dashboard/projects pages (all CSS/markup-only, no backend or schema changes):
   - **Bug-bubble pastel + shadowless**: the red open-bugs badge next to project titles
@@ -151,6 +208,7 @@
 | 19 | 2026-09 | v0.3.11.0 — Session 19: ICS calendar export (`/api/export/calendar.ics`), Telegram `/update <project> <stage>`, web-clipper bookmarklet (`clip.html`), "Resume work" dashboard card (Mission #2), segmented OTP input, password visibility toggle, Farsi numerals on typing, canvas empty-state, board Add-button redesign, logo delete, per-column colored task borders, 50% larger taskadd modal, unlimited task titles (read-more clamp), github.deleteFile SHA auto-lookup, note-clear bug fix, comprehensive UI polish pass. 289/289 tests, typecheck green, SW v278 |
 | 20 | 2026-09 | v0.3.11.2 — Session 20: systematic UI/UX audit (129-row sweep, 0 console errors), 22 AA-contrast offenders fixed (white-on-accent fills → --cta; teal-as-text → --link; pd-col inks darkened; dark sticky metadata + bug-bubble), 2 mobile overflows fixed (project header, clients payments form), CRITICAL backup coverage gaps fixed (project_archives + dev_task_tags in snapshot; restore.mjs stale tableOrder; restore-safe FK-safe ordering; personal export cluster), stale smoke expectation fixed, SW-navigation 401→login redirect fix (middleware Accept:text/html + sw.js). 295/295 tests, typecheck green, smoke ALL PASS, local restore drill PASS, app.css v259, SW v280 |
 | 21 | 2026-09 | v0.3.11.3 — Session 21: live-feedback visual fixes — bug-bubble pastel red + shadow removed (sig-chip recipe, AA-checked both themes), whole --stage-bar-* set softened to pastel (7 tokens), skip-to-main-content anchor removed from all 17 pages (+CSS +i18n key; owner: covered the header avatar). 295/295 tests, typecheck green, smoke ALL PASS, app.css v260, SW v281 |
+| 22 | 2026-09 | v0.3.11.4 — Session 22: live-feedback fixes — dialog.modal specificity bug fixed (taskadd/taskedit actually open at min(78rem,96vw); pd-editor 60rem; db-modal 52rem; textareas 18rem/9rem + resizable), 300-char limit halted everywhere (FE caps removed, devboard.ts 2000→100k guard; 150-char hidden-rest clamp + read-more button on project + board, textContent stays full), board color system unified with pd recipes (medium keeps column color — board no longer all-orange; prio-dots un-hidden; AA inks; muted dark set), client-rendered cards click-to-edit like server cards, stale-card edit-update selector fixed. 295/295 tests, typecheck green, smoke ALL PASS, app.css v261, SW v282 |
 
 ## 3. Timeline by era
 ### Foundation — 2026-08-21→25 (migrations 0014–0018; tests 75→163)

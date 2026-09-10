@@ -110,7 +110,18 @@
 // app.css v260 (bug-bubble pastel red, no shadow; pastel --stage-bar-* set) + the
 // skip-to-main anchor removed from every page (owner: covered the header avatar), so
 // the precached HTML shell must rotate.
-const VERSION = "hibana-v281" // Session 21: bug-bubble pastel + pastel stage bars + skip-link removal
+// Session-22 (2026-09-21, live owner feedback — 3 fixes on the task composer/boards):
+// hibana-v281 → v282 — app.css v261 (dialog.pd-taskadd-modal actually OPENS at 78rem —
+// the v0.3.11.1 "50% larger" bump never rendered, .pd-taskadd-modal 0,1,0 lost the
+// cascade to dialog.dialog's 26rem cap 0,1,1; same fix for dialog.pd-editor-modal +
+// the new .pd-taskedit-modal; textarea 18rem min + resizable; db-modal 52rem; the
+// 150-char title clamp + .pd-read-more button; the db-card/db-col color system unified
+// with the pd recipes — column-colored card borders (no more all-orange medium cards),
+// visible prio-dots, AA inks, muted dark set), project.html + board.html markup changes
+// (clamp render + read-more delegation + counter removal), devboard.js v10 (title
+// input → textarea), magic-wand.js v9 (title-written re-clamp event). The precached
+// HTML shells must rotate so clients drop the old counter markup.
+const VERSION = "hibana-v282" // Session 22: modal sizing fix + unlimited titles + board color consistency
 
 // Static shell: unhashed pages/partials/icons/vendor/fonts (SWR or network-first at
 // runtime; precached here for offline). The hashed app bundles come from the manifest

@@ -4,14 +4,14 @@
    themselves (zero risk to htmx swap targets / existing layouts). */
 
 :root {
-  --mw-accent: #6b4f3a;        /* warm brown — pairs with Hibana's palette, never indigo/blue */
-  --mw-accent-ink: #fff8ef;
+  --mw-accent: #8B7AB8;        /* Session 24e (user request): pastel purple — was warm brown #6b4f3a */
+  --mw-accent-ink: #ffffff;
   --mw-radius: 10px;
-  --mw-shadow: 0 4px 14px rgba(0, 0, 0, .14), 0 1px 3px rgba(0, 0, 0, .08);
+  --mw-shadow: 0 4px 14px rgba(80, 60, 130, .18), 0 1px 3px rgba(80, 60, 130, .10);
 }
 [data-theme="dark"] {
-  --mw-accent: #c79a73;
-  --mw-accent-ink: #221b12;
+  --mw-accent: #C4B5E0;        /* lighter pastel purple for dark theme */
+  --mw-accent-ink: #2b2418;
   --mw-shadow: 0 6px 18px rgba(0, 0, 0, .45), 0 1px 3px rgba(0, 0, 0, .4);
 }
 
@@ -56,7 +56,7 @@
   z-index: 61;
   min-inline-size: 220px;
   max-inline-size: min(92vw, 420px);
-  background: var(--mw-accent-ink);
+  background: #F5F0FA;        /* Session 24e: pastel purple-tinted surface */
   color: #2b2418;
   border: 1px solid color-mix(in srgb, var(--mw-accent) 35%, transparent);
   border-radius: var(--mw-radius);
@@ -66,7 +66,7 @@
   flex-direction: column;
   gap: 8px;
 }
-[data-theme="dark"] .magic-popover { color: #f3ece1; background: #211b12; }
+[data-theme="dark"] .magic-popover { color: #f3ece1; background: #2A2440; }
 .magic-popover h3 {
   margin: 0;
   font-size: .82rem;

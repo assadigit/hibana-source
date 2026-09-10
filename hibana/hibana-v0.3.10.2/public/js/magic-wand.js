@@ -137,6 +137,15 @@
   function showWand(el) {
     ensureUI()
     activeEl = el
+    // Session 24e (user report: wand inconsistent): if the target is inside an open
+    // <dialog>, mount the wand + popover + backdrop INSIDE that dialog. A dialog opened
+    // via showModal() renders in the browser's top layer (above ALL z-indexes); a wand
+    // left on document.body is trapped under the dialog's backdrop → invisible. Moving
+    // the wand into the dialog makes it inherit the top-layer positioning.
+    const dlg = el.closest('dialog[open]')
+    const mount = dlg || document.body
+    if (wand && wand.parentElement !== mount) mount.appendChild(wand)
+    if (backdrop && backdrop.parentElement !== mount) mount.appendChild(backdrop)
     wand.setAttribute('aria-label', t('magic.tooltip'))
     wand.title = t('magic.tooltip')
     positionWand(el)
@@ -173,9 +182,15 @@
       backdrop = document.createElement('div')
       backdrop.className = 'magic-backdrop'
       backdrop.addEventListener('click', closePopover)
-      document.body.appendChild(backdrop)
+      // Session 24e: don't append to body here — showWand() moves the backdrop into
+      // the open dialog (if any) so it renders in the top layer with the wand.
     }
     backdrop.hidden = false
+    // Session 24e: ensure backdrop is mounted in the same dialog as the wand (if any).
+    if (!backdrop.parentElement) {
+      const dlg = activeEl?.closest('dialog[open]')
+      ;(dlg || document.body).appendChild(backdrop)
+    }
     const m = chosenModel() || '@cf/mistralai/mistral-small-3.1-24b-instruct'
     const short = m.split('/').pop() || m
     popover = document.createElement('div')
@@ -186,7 +201,9 @@
       '<h3>' + t('magic.title') + '</h3>' +
       '<div class="magic-model-badge"><span class="magic-model-label">' + t('magic.modelBadge') + ':</span> <code>' + short + '</code></div>' +
       '<div class="magic-actions">' + actionsRow(false) + '</div>'
-    document.body.appendChild(popover)
+    // Session 24e: mount popover inside the same dialog as the wand (if any).
+    const dlg = activeEl?.closest('dialog[open]')
+    ;(dlg || document.body).appendChild(popover)
     positionPopover()
     popover.querySelectorAll('[data-action]').forEach((b) =>
       b.addEventListener('click', () => runAction(b.getAttribute('data-action')))

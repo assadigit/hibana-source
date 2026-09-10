@@ -9,7 +9,57 @@
 > rewritten as a minimal pointer. Deleted files remain recoverable verbatim:
 > `git show <sha>:<file>`.
 
-## 1. Current state (v0.3.11.7 — Session 24b: copy-all bulletproof, delete-btn text-only, logo radius 16px + caching, canvas/whiteboard numeral auto-conversion removed)
+## 1. Current state (v0.3.11.14 — Session 24: live-feedback fixes — progress-box copy/wand/delete, logo radius+caching, canvas/whiteboard numerals, magic-wand consistency+purple, compact header, stage badge order, project card redesign)
+- **Session 24 summary** — 9 hotfix releases (v0.3.11.6 → v0.3.11.14) from Ali's live feedback.
+  No schema changes, no new i18n keys across the whole session. All CSS + JS + one TS
+  template change. 295/295 tests green throughout.
+- v0.3.11.14 = **Session 24h — project card redesign** (app.css + projects.ts):
+  - Removed the hatched diagonal corner decoration (`.pc-corner` element) — looked like an
+    unfinished placeholder, added visual clutter.
+  - Left-aligned title + description (was centered) — conventional dashboard reading flow,
+    auto-mirrors for RTL via logical `start` properties.
+  - Title: 1.3rem→1.15rem, explicit `font-weight: 600` — clearer focal point.
+  - Hover: flat bg swap → `translateY(-2px)` + soft warm shadow + stronger border (0.15s
+    transition) — cards feel alive, not flat/static.
+  - Gap: 0.6rem→0.5rem — tighter, more consistent vertical rhythm.
+  - Assets: app.css ?v=266→267, SW v291→v292.
+- v0.3.11.13 = **Session 24g — stage badge after title** (projects.ts + app.css):
+  - Swapped header order: was `[logo][badge][title]`, now `[logo][title][badge]`.
+  - `#pd-title` flex:1→flex:0 1 auto so the badge sits right next to the title, not pushed
+    to the far end.
+  - Assets: app.css ?v=265→266, SW v290→v291.
+- v0.3.11.12 = **Session 24f — compact project header** (projects.ts + app.css):
+  - Merged the old 2-row layout (logo+actions row AND badge+title row) into ONE main row.
+  - Description: rows=2→1, tighter padding, smaller min-height.
+  - Tags + meta merged into one spread row (tags left, meta+progress right).
+  - Logo: min 64px→40px, max 128px→56px, radius 16px→12px.
+  - Grid gap: 0.7rem→0.4rem. Progress boxes now appear ~210px higher on the page.
+  - Assets: app.css ?v=264→265, SW v289→v290.
+- v0.3.11.11 = **Session 24e — magic-wand dialog-mount + pastel purple** (magic-wand.js + magic-wand.css):
+  - Root cause: wand was `position:fixed; z-index:60` on `document.body`. When a `<dialog>`
+    modal opened (`showModal()`), the dialog rendered in the browser's top layer — above ALL
+    z-indexes — trapping the wand under the modal backdrop → invisible.
+  - Fix: `showWand(el)` now moves wand + backdrop + popover into the nearest open `<dialog>`
+    (inherits top-layer positioning). Consistent appearance on page + inside modals.
+  - Theme: `--mw-accent` brown `#6b4f3a` → pastel purple `#8B7AB8` (light) / `#C4B5E0`
+    (dark). Popover bg → `#F5F0FA` (light) / `#2A2440` (dark).
+  - Assets: magic-wand.css ?v=2→3, magic-wand.js ?v=9→10, SW v288→v289.
+- v0.3.11.10 = **Session 24d — delete button class fix** (project.html):
+  - `#pde-delete` was `class="ghost danger"` → CSS rule `.ghost.danger:not(.btn):not(.small)`
+    forces 1.75rem (28px) square = looked like a pink circle.
+  - Changed to `class="btn danger"` → proper padded text button with danger palette.
+  - Assets: SW v287→v288.
+- v0.3.11.9 = **Session 24c2 — line-by-line digit conversion** (canvas.js + whiteboard.js):
+  - v0.3.11.8's script-detection checked the entire text element — mixed-script text
+    (Farsi line + English line) converted ALL digits to Persian.
+  - Fix: process LINE BY LINE. Each line independently checks for Farsi letters.
+    `سلام 123\nHello 123` → `سلام ۱۲۳\nHello 123`.
+  - Assets: canvas.js ?v=20→21, whiteboard.js ?v=14→15, SW v286→v287.
+- v0.3.11.8 = **Session 24c — digit conversion restored with script-detection** (canvas.js + whiteboard.js):
+  - v0.3.11.7 overcorrected (removed auto-conversion entirely → everything Latin).
+  - Fix: digits match the SCRIPT of the text. Farsi letters → Persian digits; Latin-only →
+    Latin digits. Same first-strong-character heuristic editors use for RTL/LTR.
+  - Assets: canvas.js ?v=19→20, whiteboard.js ?v=13→14, SW v285→v286.
 - v0.3.11.7 = **Session 24b hotfix release** — 4 fixes from Ali's live feedback on v0.3.11.6
   (project.html inline JS + app.css + projects.ts + canvas.js + whiteboard.js; no schema
   changes, no new i18n keys):

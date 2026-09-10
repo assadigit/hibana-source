@@ -68,7 +68,6 @@ try {
       'nav.admin': 'مدیریت', 'common.save': 'ذخیره', 'common.cancel': 'انصراف',
       'common.delete': 'حذف', 'common.close': 'بستن', 'common.edit': 'ویرایش',
       'common.add': 'افزودن', 'common.loading': 'در حال بارگذاری…',
-      'a11y.skipToMain': 'پرش به محتوای اصلی',
       'settings.preferences': 'ترجیحات', 'settings.views': 'گزینه‌های نمایش',
       'settings.account': 'حساب', 'settings.telegram': 'تلگرام', 'settings.data': 'داده',
     }

@@ -106,7 +106,11 @@
 // v240 (2026-09): experimental auto-polish + custom AI prompt in Settings.
 // v239 (2026-09): Magic Button (Mistral default) + hover ⋯ menu on notes + modal editor.
 // Drops the v238 precache so every browser sees the new dashboard.html + dist bundles.
-const VERSION = "hibana-v280" // Session 20: navigate-mode 401 → login redirect (Sec-Fetch-Dest lost through SW re-fetch)
+// Session-21 (2026-09-20, live owner feedback — 3 visual fixes): hibana-v280 → v281 —
+// app.css v260 (bug-bubble pastel red, no shadow; pastel --stage-bar-* set) + the
+// skip-to-main anchor removed from every page (owner: covered the header avatar), so
+// the precached HTML shell must rotate.
+const VERSION = "hibana-v281" // Session 21: bug-bubble pastel + pastel stage bars + skip-link removal
 
 // Static shell: unhashed pages/partials/icons/vendor/fonts (SWR or network-first at
 // runtime; precached here for offline). The hashed app bundles come from the manifest

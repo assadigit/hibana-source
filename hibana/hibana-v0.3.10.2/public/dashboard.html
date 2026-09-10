@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Dashboard — Hibana</title>
-  <link rel="stylesheet" href="/css/app.css?v=259">
+  <link rel="stylesheet" href="/css/app.css?v=260">
   <link rel="stylesheet" href="/css/task-controls.css?v=4">
   <link rel="stylesheet" href="/css/magic-wand.css?v=2">
   <link rel="stylesheet" href="/vendor/manrope/font-face.css">
@@ -30,7 +30,6 @@
   <script src="/js/tour.js?v=2" defer></script>
 </head>
 <body>
-  <a href="#main" class="skip-link" data-i18n="a11y.skipToMain">Skip to main content</a>
   <!-- Phase 7 item 13: dedicated skeleton state. The topbar placeholder lives inside
        [data-nav] itself — app.js replaces the mount's innerHTML with the real nav the
        moment /partials/nav.html lands, so the swap is atomic. Shape widths mirror the
@@ -65,7 +64,9 @@
        Duplicate attributes are dropped at parse time (first wins), so #dash NEVER matched
        — the 2.9rem section spacing, the 96rem shell width, the aria-busy cleanup and every
        htmx refresh targeting #dash (task complete / move / rename) were silently dead.
-       The skip-link anchor keeps id="main"; the dashboard hook is now the .shell-dash
+       id="main" (originally the skip-link anchor target; the skip link was removed in
+       Session 21 — the id stays so any bookmarked #main anchors keep working); the
+       dashboard hook is now the .shell-dash
        class (CSS + app.js + htmx targets all point at main.shell-dash). -->
   <main class="shell shell-dash" id="main" tabindex="-1" hx-get="/api/dashboard" hx-trigger="load" hx-swap="innerHTML" aria-busy="true">
     <div id="dash-skeleton" class="dash-skeleton" role="status" aria-label="Loading dashboard">

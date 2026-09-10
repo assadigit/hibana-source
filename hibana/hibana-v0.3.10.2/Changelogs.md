@@ -9,7 +9,31 @@
 > rewritten as a minimal pointer. Deleted files remain recoverable verbatim:
 > `git show <sha>:<file>`.
 
-## 1. Current state (v0.3.11.2 — Session 20: AA contrast sweep + mobile overflow fixes + backup coverage gaps fixed + stale smoke expectation)
+## 1. Current state (v0.3.11.3 — Session 21: live-feedback visual fixes — pastel bug-bubble, pastel stage bars, skip-link removed)
+- v0.3.11.3 = **Session 21 hotfix release** — 3 visual fixes from Ali's live feedback on
+  the dashboard/projects pages (all CSS/markup-only, no backend or schema changes):
+  - **Bug-bubble pastel + shadowless**: the red open-bugs badge next to project titles
+    (dashboard stat cards, projects cards/list, kanban) was solid #dc2626 with a red drop
+    shadow — read as too harsh. Now the sig-chip recipe: light 12% red tint + #b91c1c ink
+    (≥5.1:1 everywhere it renders), dark 16% red tint + #f2a3a3 ink (≥6.2:1), box-shadow
+    removed in all three theme rules.
+  - **Pastel stage bars**: the whole `--stage-bar-*` set (the slim per-card status label
+    on dashboard stat-kanban-cards) softened to one pastel register: spark #E9BC5F→#E8CFA0,
+    unreviewed #A9BFD8→#C2CFDD, investigating #9DC7FF→#BCD5EF, awaiting #FFD658→#EFDEA5,
+    doing #6FE983→#AEE0B8, halted #F2A08C→#EFC2B5, operational #8FD694→#B7DFBC. Same
+    register both themes (unchanged design decision); bar is 45%-saturation pastel — on
+    dark it reads luminous purely from light-on-dark contrast, not saturation.
+  - **Skip-to-main-content link removed** (owner request: the focus pill covered the header
+    avatar in RTL): `<a.skip-link>` deleted from all 17 pages, `.skip-link` CSS block +
+    `main:focus` outline rule deleted, `a11y.skipToMain` FA key removed from boot.js
+    CRITICAL_FA (i18n.js never carried it — no parity impact). `main id="main"` stays so
+    bookmarked #main anchors keep working. A11y note: keyboard users lose the jump-to-
+    content shortcut; Tab order still reaches main content normally. Owner's explicit call.
+  - Verified: FA/EN × light/dark × 1440/390 — bubble+bar computed styles pastel+shadowless
+    on dashboard AND projects Cards view, 0 skip-link anchors on every checked page, 0
+    horizontal scroll, 0 console/page errors. typecheck green, 295/295 tests, smoke ALL
+    PASS. Assets: app.css ?v=260 (was 259), SW hibana-v281 (was 280 — precached HTML shell
+    rotates so every client drops the skip-link anchor).
 - v0.3.11.2 = **Session 20 polish release** — systematic UI audit (129 sweep rows: 20
   pages × EN/FA × light/dark × desktop/390px; 0 console errors) + fixes:
   - **AA contrast (22 unique offenders fixed)**: every white-text-on-#4A9FA3 fill moved to
@@ -126,6 +150,7 @@
 | 19 | 2026-09 | v0.3.10.1 — free-tier model picker (Settings): `GET /api/ai/models`, `POST /api/ai/text` accepts `model`, `resolveModel` whitelist (paid-only → default). 265/265 tests |
 | 19 | 2026-09 | v0.3.11.0 — Session 19: ICS calendar export (`/api/export/calendar.ics`), Telegram `/update <project> <stage>`, web-clipper bookmarklet (`clip.html`), "Resume work" dashboard card (Mission #2), segmented OTP input, password visibility toggle, Farsi numerals on typing, canvas empty-state, board Add-button redesign, logo delete, per-column colored task borders, 50% larger taskadd modal, unlimited task titles (read-more clamp), github.deleteFile SHA auto-lookup, note-clear bug fix, comprehensive UI polish pass. 289/289 tests, typecheck green, SW v278 |
 | 20 | 2026-09 | v0.3.11.2 — Session 20: systematic UI/UX audit (129-row sweep, 0 console errors), 22 AA-contrast offenders fixed (white-on-accent fills → --cta; teal-as-text → --link; pd-col inks darkened; dark sticky metadata + bug-bubble), 2 mobile overflows fixed (project header, clients payments form), CRITICAL backup coverage gaps fixed (project_archives + dev_task_tags in snapshot; restore.mjs stale tableOrder; restore-safe FK-safe ordering; personal export cluster), stale smoke expectation fixed, SW-navigation 401→login redirect fix (middleware Accept:text/html + sw.js). 295/295 tests, typecheck green, smoke ALL PASS, local restore drill PASS, app.css v259, SW v280 |
+| 21 | 2026-09 | v0.3.11.3 — Session 21: live-feedback visual fixes — bug-bubble pastel red + shadow removed (sig-chip recipe, AA-checked both themes), whole --stage-bar-* set softened to pastel (7 tokens), skip-to-main-content anchor removed from all 17 pages (+CSS +i18n key; owner: covered the header avatar). 295/295 tests, typecheck green, smoke ALL PASS, app.css v260, SW v281 |
 
 ## 3. Timeline by era
 ### Foundation — 2026-08-21→25 (migrations 0014–0018; tests 75→163)

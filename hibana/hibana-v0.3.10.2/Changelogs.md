@@ -9,12 +9,56 @@
 > rewritten as a minimal pointer. Deleted files remain recoverable verbatim:
 > `git show <sha>:<file>`.
 
-## 1. Current state (v0.3.12.0 — Session 25: CSS architecture refactor — app.css split into 16 modular files)
-- **Session 25 summary** — pure refactoring session (zero behavior change). Split the
-  monolithic `public/css/app.css` (8,822 lines) into 16 modular CSS files by contiguous
-  section. No schema changes, no new i18n keys, no JS/TS logic changes. 295/295 tests
-  green throughout. The split is byte-identical concatenation — zero cascade risk.
-- v0.3.12.0 = **Session 25 — app.css → 16 modular CSS files** (Option A: contiguous
+## 1. Current state (v0.3.12.1 — Session 25: CSS + JS architecture refactor — app.css split, dark/RTL extracted, inline JS externalized)
+- **Session 25 summary** — pure refactoring session (zero behavior change). Phase 1:
+  split `public/css/app.css` (8,822 lines) into 16 modular CSS files. Phase 1.5:
+  extracted dark-theme + RTL rules into by-concern files. Phase 2: extracted inline JS
+  from 3 HTML files into external .js files. No schema changes, no new i18n keys.
+  295/295 tests green throughout. Every change VLM-verified "IDENTICAL" or "RENDERED
+  CORRECTLY" via screenshot comparison.
+- v0.3.12.1 = **Session 25 Phase 1.5 + Phase 2 — by-concern CSS extraction + inline JS
+  externalization** (patch — continuation of v0.3.12.0 refactor):
+  - **Phase 1.5a (themes.css):** extracted 75 dark-theme rules from 10 modular CSS files
+    into `themes.css` (302 lines). SAFE by specificity: `html[data-theme='dark']`
+    selectors (0,2,1) > base `.x` (0,1,0) — they win by specificity, not source order.
+    Sources: variables(2), layout(2), dashboard-todo(1), canvas(8), quicknotes(28),
+    to-do-list(5), notifications(11), polish-batch(8), project-header(5), devboard(5).
+    Loads LAST among feature files. VLM-confirmed dark mode IDENTICAL.
+  - **Phase 1.5b (rtl.css):** extracted 21 RTL directional-override rules from 12 files
+    into `rtl.css` (64 lines). SAFE by specificity: `[dir='rtl']` prefix (0,1,0) beats
+    base. Sources: layout(1), dashboard(2), dashboard-todo(1), components(2),
+    quicknotes(1), to-do-list(1), calendar(1), notifications(1), polish-batch(16),
+    project-header(1), devboard(5), misc(4). Loads after themes.css. VLM-confirmed
+    FA/RTL light + dark IDENTICAL.
+  - **Phase 1.5c (@media extraction DEFERRED):** 93 @media blocks NOT extracted to
+    `responsive.css`. Risk: @media rules have SAME specificity as base rules, so source
+    order is load-bearing. Unlike dark/RTL (higher specificity, always win), @media
+    extraction requires exhaustive per-rule analysis. Value (one more file) doesn't
+    justify risk in this session.
+  - **Phase 2 (inline JS extraction):** extracted 5,064 lines of inline JS from 3 HTML
+    files into 3 external .js files:
+    1. `js/project-page.js` (2,060 lines) ← project.html lines 61-2120.
+       project.html: 2,122→61 lines. Uses `window.__hibanaPage({mount(ctx){...}})`
+       registration pattern — queue buffers until app.js ready. `defer` safe.
+    2. `js/sadhana-page.js` (1,913 lines) ← sadhana.html block 2 (lines 1029-2941).
+       sadhana.html: 2,944→1,030 lines. Block 1 (3-line theme pre-paint) KEPT INLINE —
+       load-bearing for FOUC prevention (must run synchronously in <head> before paint).
+    3. `js/sprint-page.js` (1,091 lines) ← sprint.html lines 89-1179.
+       sprint.html: 1,182→90 lines. Same __hibanaPage pattern as project.html.
+  - All 3 HTML files are STATIC (no server-side template variables). The `${}` in inline
+    JS were JS template literals (`/api/projects/${id}`), not server templates. Hono
+    routes render HTML fragments for htmx swaps, not the static pages.
+  - **Build pipeline:** `ENTRY_POINTS` in build.mjs grew 20→23 (added project-page.js,
+    sadhana-page.js, sprint-page.js). `CSS_ENTRY_POINTS` grew 17→18 (Phase 1.5a) →19
+    (Phase 1.5b). Manifest 44→49 entries. Each new file → own content-hashed /dist/
+    artifact → independent cache invalidation.
+  - **Verification:** typecheck 0 err, 295/295 tests, build PASS, check-dist-wiring
+    PASS at every step. VLM-confirmed all 3 HTML pages "RENDERED CORRECTLY" with zero
+    console errors. Prod live probe: sadhana page works in FA mode ("لیست کارها —
+    هیبانا"), zero console errors.
+  - **Assets:** 3 new JS at ?v=1, themes.css ?v=1, rtl.css ?v=1, SW v293→v294→v295→v296,
+    manifest 44→49 entries, package.json 0.3.12.0→0.3.12.1.
+- v0.3.12.0 = **Session 25 Phase 1 — app.css → 16 modular CSS files** (Option A: contiguous
   chunks). Minor version bump signals architecture change; `.0` patch signals zero
   behavior change.
   - **Why:** app.css had grown to 8,822 lines — unmaintainable. Single file contained

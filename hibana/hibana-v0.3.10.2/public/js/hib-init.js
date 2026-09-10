@@ -1,0 +1,336 @@
+/* hib-init.js — DOMContentLoaded event handlers (extracted from app.js Phase 3)
+   Session 25 Phase 3: app.js IIFE split. This file contains the init wiring that
+   runs on page load. All functions are defined in app.js and exposed via window.__hib.
+   Loads AFTER app.js (defer preserves order). */
+(() => {
+  const { toast, toggleTheme, paintThemeButton, applyNoteView, applyNoteSize, applyNoteControlsOpen, autosizeNote, markClampedNotes, buildQuickNoteAdd, injectNoteMenus, closeNoteMenus, buildNoteReader } = window.__hib
+
+  document.addEventListener('DOMContentLoaded', () => {
+    applyNoteView()
+    applyNoteSize()
+    applyNoteControlsOpen()
+    requestAnimationFrame(() => document.querySelectorAll('.note-text').forEach(autosizeNote))
+    requestAnimationFrame(markClampedNotes)
+  })
+
+  // ---- Sign-in form (2026-08-26): explicit submit handler. The htmx HX-Redirect flow
+  // kept leaving the button stuck in its loading state, so this owns every branch:
+  // loading on submit → redirect on success → reset + visible error on failure/timeout.
+  document.querySelectorAll('form[data-auth-form]').forEach((form) => {
+    const btn = form.querySelector('button[type="submit"]')
+    const spinner = form.querySelector('[data-auth-spinner]')
+    const err = form.querySelector('[data-auth-error]')
+    const btnLabel = btn?.textContent || 'Sign in'
+    const setLoading = (loading) => {
+      if (btn) {
+        btn.disabled = loading
+        btn.textContent = loading ? 'Signing in…' : btnLabel
+      }
+      if (spinner) spinner.classList.toggle('htmx-request', loading)
+    }
+    const showError = (msg) => {
+      if (err) {
+        err.textContent = msg
+        err.className = 'error'
+      }
+    }
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault()
+      showError('')
+      if (!form.reportValidity()) return
+      setLoading(true)
+      // Bilingual messages for this public page (no session → no language pref; best-effort
+      // detect from the browser locale, English otherwise).
+      const fa = (navigator.language || '').toLowerCase().startsWith('fa')
+      const netErr = fa
+        ? 'اتصال به سرور برقرار نشد — اینترنت یا VPN را بررسی و دوباره تلاش کنید.'
+        : "Can't reach the server — check your connection (VPN?) and try again."
+      const timeoutErr = fa
+        ? 'سرور دیر پاسخ داد — دوباره تلاش کنید.'
+        : 'The server took too long to respond — try again.'
+      const genericErr = fa ? 'ورود ناموفق بود، دوباره تلاش کنید.' : 'Sign-in failed, try again.'
+      const ctrl = new AbortController()
+      const timer = setTimeout(() => ctrl.abort(), 12000)
+      try {
+        // HX-Request header makes the server answer with HX-Redirect (dashboard, or the
+        // email-confirm gate) so this handler navigates to the exact same routes htmx did.
+        const res = await fetch(form.action || '/api/auth/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'HX-Request': 'true' },
+          body: new URLSearchParams(new FormData(form)).toString(),
+          signal: ctrl.signal,
+        })
+        clearTimeout(timer)
+        const redirect = res.headers.get('HX-Redirect')
+        if (redirect) {
+          window.location.href = redirect
+          return
+        }
+        // Server errors for htmx requests come back as 200 with an HTML <p class="error">
+        // (invalid credentials, missing fields) — strip tags and surface the message.
+        const text = await res.text()
+        const msg = text.replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim()
+        showError(msg || genericErr)
+      } catch (err) {
+        // fetch throws ONLY when the request never completed: offline, DNS/VPN failure,
+        // connection reset, or the 12s abort. Say so explicitly instead of a vague
+        // "try again" — wrong credentials look totally different ("Wrong email/username…").
+        showError(err && err.name === 'AbortError' ? timeoutErr : netErr)
+      } finally {
+        setLoading(false)
+      }
+    })
+  })
+
+  // ---- boot: nav, auth guard, PWA, trigger wiring ----
+  let userChecked = false
+
+  // F2 (session 9): the offline banner — the queue-badge pattern (queue.js paints
+  // [data-syncbadge] the same way): a small fixed pill, i18n'd via data-i18n so a
+  // language toggle re-translates it, removed when the browser fires 'online' (the
+  // same cue the queue uses to re-flush). The auth guard shows it instead of
+  // redirecting to login when /api/auth/me can't be reached.
+  function showOfflineBanner() {
+    if (document.querySelector('[data-offline-banner]')) return
+    const banner = document.createElement('div')
+    banner.className = 'offline-banner'
+    banner.setAttribute('data-offline-banner', '')
+    banner.setAttribute('data-i18n', 'offline.banner')
+    banner.setAttribute('role', 'status')
+    banner.textContent = window.hibanaI18n?.t('offline.banner') || 'Offline — your work is saved locally and will sync when you reconnect'
+    document.body.appendChild(banner)
+    window.addEventListener('online', () => banner.remove(), { once: true })
+  }
+
+  // F8 (session 9): GLOBAL htmx error surface. Only project.html registered an
+  // htmx:responseError handler — every other page left failed swaps SILENT (audit
+  // finding: offline/500 fragments leave the zone stale with no cue). Policy:
+  //   - htmx already leaves the existing content in place on error — we keep that
+  //     (never blank a zone on failure), we only ADD a toast explaining what happened.
+  //   - 401 = the session died: redirect to login (the app-wide auth contract, same
+  //     as handle401) — a "couldn't load" toast would mislead.
+  //   - 404 = semantic "gone": page-specific handlers own it (project.html renders
+  //     its own friendly box; delete flows treat 404 as already-gone) — no toast.
+  //   - anything else (SW offline 503, network 0, 5xx, 429…): status-aware toast.
+  document.addEventListener('htmx:responseError', (e) => {
+    const status = e.detail?.xhr?.status
+    if (status === 401) {
+      if (location.pathname !== '/login.html') window.location.replace('/login.html')
+      return
+    }
+    if (status === 404) return
+    const _t = (k, fb) => { const s = window.hibanaI18n?.t(k); return s && s !== k ? s : fb }
+    let msg
+    if (status === 0 || status === 503) {
+      // 0 = request never completed (offline, no SW catch); 503 = the SW's offline
+      // answer or an origin overload — both read as "you may be offline".
+      msg = _t('hx.offline', "You're offline — showing saved content")
+    } else {
+      msg = _t('hx.failed', "Couldn't load the latest — content unchanged")
+    }
+    toast(msg, 'err', 5000)
+  })
+
+  const favicon = document.createElement('link')
+  favicon.rel = 'icon'
+  favicon.type = 'image/svg+xml'
+  favicon.href = '/icon.svg'
+  document.head.appendChild(favicon)
+  const link = document.createElement('link')
+  link.rel = 'manifest'
+  link.href = '/manifest.webmanifest'
+  document.head.appendChild(link)
+  // Fonts: Manrope (Latin) loads statically in every page head; Vazir is injected by
+  // i18n.js only when the UI is in fa (keeps English lean).
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('/sw.js').catch((err) => console.warn('SW registration failed:', err))
+  }
+
+  document.addEventListener('DOMContentLoaded', async () => {
+    // Session 19 (cron round 8): password visibility toggle for auth pages (login,
+    // signup, reset). Auto-wires any input[type=password] that isn't already wrapped.
+    // Wraps the <input> in a .pw-field div + appends a button.pw-toggle that swaps
+    // type=password ↔ type=text + the eye/eye-off icon. Runs on every page (the selector
+    // is empty on authenticated pages), so the three auth forms get it for free.
+    document.querySelectorAll('input[type="password"]').forEach((input) => {
+      if (input.closest('.pw-field') || input.dataset.pwToggle === 'done') return
+      const parent = input.parentElement
+      if (!parent || parent.tagName !== 'LABEL') return // only wrap labeled password fields (the auth forms)
+      const wrap = document.createElement('div')
+      wrap.className = 'pw-field'
+      parent.insertBefore(wrap, input)
+      wrap.appendChild(input)
+      const btn = document.createElement('button')
+      btn.type = 'button'
+      btn.className = 'pw-toggle'
+      btn.setAttribute('aria-label', 'Show password')
+      btn.setAttribute('aria-pressed', 'false')
+      btn.innerHTML = '<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></svg>'
+      const eyeIcon = '<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></svg>'
+      const eyeOffIcon = '<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M9.9 4.2A10.9 10.9 0 0 1 12 4c6.5 0 10 8 10 8a13.4 13.4 0 0 1-1.7 2.6M6.6 6.6A13.3 13.3 0 0 0 2 12s3.5 8 10 8a10.9 10.9 0 0 0 5-1.2"/><path d="m2 2 20 20M9.9 9.9a3 3 0 0 0 4.2 4.2"/></svg>'
+      btn.addEventListener('click', () => {
+        const show = input.type === 'password'
+        input.type = show ? 'text' : 'password'
+        btn.innerHTML = show ? eyeOffIcon : eyeIcon
+        btn.setAttribute('aria-label', show ? 'Hide password' : 'Show password')
+        btn.setAttribute('aria-pressed', String(show))
+      })
+      wrap.appendChild(btn)
+    })
+
+    // Session 19 (user request): Farsi numerals when writing Farsi. Typed Latin digits
+    // (0-9) auto-convert to Persian (۰-۹) IF the character before the caret is a Farsi
+    // letter, a space, or nothing — so a URL/code run stays Latin. Scoped to <textarea> +
+    // contenteditable (the note/box/description fields). Uses DOCUMENT-LEVEL delegation so
+    // it survives htmx swaps (the project page loads #project-body via htmx AFTER
+    // DOMContentLoaded, so a per-element querySelectorAll at boot finds 0 textareas).
+    // Opt-out: data-no-fa-digits on the field.
+    const faDigMap = ['۰','۱','۲','۳','۴','۵','۶','۷','۸','۹']
+    const isFaLetter = (ch) => ch && /[\u0600-\u06FF\uFB50-\uFDFF\uFE70-\uFEFF]/.test(ch)
+    // Session 19 (user report): i18n.js apply() is async (awaits /api/auth/me), so
+    // document.documentElement.lang is still 'en' at DOMContentLoaded. Check BOTH the
+    // live lang + the localStorage cache (written by i18n.js on the previous load).
+    const checkFa = () => document.documentElement.lang === 'fa' || localStorage.getItem('hibana-lang') === 'fa'
+    const convertDigit = (el) => {
+      if (!checkFa()) return
+      const pos = el.selectionStart
+      const val = el.value
+      if (pos < 1) return
+      const prev = val[pos - 1]
+      if (!/[0-9]/.test(prev)) return
+      const fa = faDigMap[+prev]
+      el.value = val.slice(0, pos - 1) + fa + val.slice(pos)
+      el.setSelectionRange(pos, pos)
+    }
+    // Textareas: notes, descriptions, task titles, composers
+    document.addEventListener('input', (e) => {
+      if (e.target?.tagName === 'TEXTAREA' && e.target.dataset.noFaDigits !== '') convertDigit(e.target)
+    })
+    // Input text fields: task titles, tags, etc.
+    document.addEventListener('input', (e) => {
+      const inp = e.target
+      if (!inp || inp.tagName !== 'INPUT' || inp.dataset.noFaDigits === '') return
+      if (inp.type && !['text', 'search', ''].includes(inp.type)) return
+      convertDigit(inp)
+    })
+
+    const mounts = document.querySelectorAll('[data-nav]')
+    if (mounts.length > 0) {
+      const res = await fetch('/partials/nav.html')
+      if (res.ok) {
+        const html = await res.text()
+        for (const m of mounts) m.innerHTML = html
+        // Phase 7 item 13: the skeleton's aria-busy leaves WITH the placeholder content
+        for (const m of mounts) m.removeAttribute('aria-busy')
+        // Re-run i18n now that nav chrome is in the DOM (data-i18n elements).
+        window.hibanaI18n?.apply()
+        const userEl = document.querySelector('[data-user]')
+        // F2 (session 9): offline boot with the SW not yet controlling this page makes
+        // fetch() itself throw — an unhandled rejection here would abort the rest of the
+        // nav wiring (logout/theme/lang listeners below). Treat it as "no info": the auth
+        // guard's offline banner explains the state.
+        let info = null
+        try {
+          info = await fetch('/api/auth/me').then((r) => (r.ok ? r.json() : null))
+        } catch {
+          info = null
+        }
+        // Super-admin panel link (batch r): the nav item ships hidden in the partial;
+        // only owners ever see it. The API is the real gate — this is pure UX. The flag +
+        // event let late-built chrome (the mobile sheet) catch up.
+        if (info?.user?.role === 'owner') {
+          window.__hibanaOwner = true
+          document.querySelectorAll('[data-admin-link], [data-owner-tools]').forEach((el) => { el.hidden = false })
+          document.dispatchEvent(new CustomEvent('hibana:role', { detail: { role: 'owner' } }))
+        }
+        if (userEl) {
+          const name = info ? (info.user.username ?? info.user.email) : ''
+          userEl.textContent = ''
+          const avatar = document.createElement('span')
+          avatar.className = 'avatar'
+          if (info?.user?.avatar_path) {
+            // profile picture (user request) — served through the worker so the GitHub token
+            // never reaches the browser; cache-busted so a fresh upload shows on next load
+            const img = document.createElement('img')
+            img.src = '/api/settings/avatar/file?v=' + Date.now()
+            img.alt = ''
+            img.decoding = 'async'
+            avatar.appendChild(img)
+          } else {
+            avatar.textContent = (name[0] || '?').toUpperCase()
+          }
+          const label = document.createElement('span')
+          label.className = 'user-name'
+          label.textContent = name
+          userEl.append(avatar, label)
+        }
+        document.querySelector('[data-logout]')?.addEventListener('click', () => {
+          fetch('/api/auth/logout', { method: 'POST' }).then(() => (window.location.href = '/login.html'))
+        })
+        document.querySelectorAll('[data-theme-toggle]').forEach((b) => {
+          b.addEventListener('click', () => window.hibana.toggleTheme())
+        })
+        window.hibana.paintThemeButton()
+        // Profile avatar menu (nav partial): quick language toggle + quick-add. The global
+        // quick-add wiring above ran before the nav fetch, so nav buttons need their own hookup.
+        document.querySelectorAll('[data-lang-toggle]').forEach((b) => {
+          b.addEventListener('click', async () => {
+            // Explicit target (en/fa row buttons) wins; a bare data-lang-toggle keeps the
+            // old toggle semantics (switch to the other language).
+            const next = b.dataset.langToggle || ((window.hibanaI18n?.lang() ?? 'en') === 'fa' ? 'en' : 'fa')
+            try {
+              await fetch('/api/settings', {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ language_pref: next }),
+              })
+            } catch { /* still apply the client dictionary so the toggle works offline */ }
+            if (window.hibanaI18n) await window.hibanaI18n.apply()
+            // Re-fetch the current page in place — server-rendered fragments re-render in the
+            // new language without a hard reload.
+            if (window.hibanaNav) window.hibanaNav.reload()
+            else window.location.reload()
+          })
+        })
+        // Mark the current page in the nav (aria-current → visible underline + SR cue).
+        // The five links live inside .nav-links (same selector as nav.js's soft-nav marking)
+        // — matching structural parent, not visual, so display:contents doesn't affect it.
+        document.querySelectorAll('.topbar .nav-links a').forEach((a) => {
+          if (a.getAttribute('href') === location.pathname) a.setAttribute('aria-current', 'page')
+        })
+      }
+    }
+    if (!userChecked) {
+      userChecked = true
+      // Defense in depth (2026-08-24 /register incident): the assets edge cached an
+      // attribute-stripped variant of the signup page, so the body-class check alone
+      // bounced guests to login. Public paths are exempted by URL too — a public page
+      // must never redirect to login just because a cached variant lost its classes.
+      const publicPaths = ['/login', '/login.html', '/signup', '/signup.html', '/confirm', '/confirm.html', '/reset', '/reset.html']
+      const isPublic = publicPaths.includes(location.pathname) || (document.body?.classList.contains('public-page') ?? false)
+      // F2 (session 9): offline boots used to redirect to login — the guard read ANY
+      // failed /api/auth/me as "logged out", but the SW answers API calls with
+      // 503 {error:'offline'} when the network is gone, so the PWA offline story
+      // (cached shell + queue capture) was dead on arrival. Now: a thrown fetch or
+      // the SW's offline 503 keeps you ON the page with the offline banner; ONLY a
+      // deterministic 401 redirects. A bare 503/5xx (origin blip) also stays put —
+      // bouncing an authed user during a restart was never right either.
+      let me = null
+      let offline = false
+      try {
+        me = await fetch('/api/auth/me')
+      } catch {
+        offline = true // request never completed: no network, DNS/VPN, or no SW catch
+      }
+      if (!offline && me && me.status === 503) {
+        try { offline = (await me.clone().json())?.error === 'offline' } catch { offline = false }
+      }
+      if (offline) {
+        if (!isPublic) showOfflineBanner()
+      } else if (me && me.status === 401 && !isPublic) {
+        window.location.replace('/login.html')
+      }
+    }
+  })
+
+})()

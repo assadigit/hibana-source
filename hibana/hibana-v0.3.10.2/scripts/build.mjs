@@ -51,6 +51,7 @@ const ENTRY_POINTS = [
   'install-prompt.js', 'jalali-holidays.js', 'mobile-nav.js', 'nav.js', 'queue.js',
   'touch-drag.js', 'tour.js', 'whiteboard.js', 'zen-mode.js', 'micro-interactions.js',
   'i18n-en.js', 'i18n-fa.js',
+  'hib-init.js',
   // Session 25 Phase 2: page-specific JS extracted from inline <script> blocks
   'project-page.js', 'sadhana-page.js', 'sprint-page.js',
 ]

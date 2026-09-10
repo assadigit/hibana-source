@@ -230,7 +230,6 @@ function cardHtml(p: ProjectRow, tags: TagRow[], lang: Locale, signals?: Project
     </div>
     ${descHtml}
     ${metaHtml}
-    <i class="pc-corner" aria-hidden="true"></i>
   </article>`
 }
 

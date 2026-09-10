@@ -836,8 +836,12 @@ button.active { background: var(--accent-soft); }
   grid-template-columns: repeat(auto-fill, minmax(15rem, 1fr));
   gap: 1rem;
 }
-.project-card { display: grid; gap: 0.6rem; margin: 0; }
-.project-card:hover { background: var(--bg); }
+.project-card { display: grid; gap: 0.5rem; margin: 0; transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease; }
+/* Redesign 2026-09 (Ali, UI/UX): flatter, more professional card. Hover lifts with a
+   soft warm shadow + a hair-stronger border instead of a flat background flip. The warm
+   rgb(30 20 10 / 0.08) matches the system's --shadow family (not a neutral gray, not
+   blue/indigo). transform/box-shadow are paint-only → no layout shift in the grid. */
+.project-card:hover { transform: translateY(-2px); box-shadow: 0 4px 12px -2px rgb(30 20 10 / 0.08); border-color: var(--line-strong); }
 /* Session 20 (390px sweep): the clients page's add-task / add-payment forms inside
    <details> kept their inputs' intrinsic ~217px width in one non-wrapping row — the
    Amount field bled 83px off-canvas on phones. Wrap + let inputs shrink/grow. */
@@ -906,7 +910,7 @@ html[data-theme='dark'] .bug-bubble { background: rgb(248 113 113 / 0.16); color
             Title of project            ← centered, largest text
        Description — smaller font       ← centered, muted, 2-line clamp
    ▞ color-coded hatched corner = first tag's color, top inline-end corner. */
-.pc-wire { gap: 0.55rem; }
+.pc-wire { gap: 0.5rem; }
 .pc-wire .pc-head { align-items: center; }
 .pc-wire .pc-head > .badge,
 .pc-wire .pc-head > .small { margin-block-start: 0; } /* undo .title-meta optical nudges */
@@ -935,18 +939,19 @@ html[data-theme='dark'] .bug-bubble { background: rgb(248 113 113 / 0.16); color
 input::placeholder, textarea::placeholder { font-size: 0.88em; opacity: 0.7; } /* Session 19: opacity bump so placeholders read clearly (was browser default ~0.5) */
 .note-compose-text::placeholder { font-size: 0.8em; opacity: 0.75; }
 .pc-wire .pc-title {
-  justify-self: center;
-  text-align: center;
-  font-size: 1.3rem;
+  justify-self: start;
+  text-align: start;
+  font-size: 1.15rem;
+  font-weight: 600;
   line-height: 1.3;
-  padding-inline: 0.25rem;
+  padding-inline: 0;
   transition: color 0.15s ease;
 }
 .pc-wire .pc-title:hover { color: var(--brand); text-decoration: none; }
 .pc-wire .pc-desc {
-  justify-self: center;
-  text-align: center;
-  max-inline-size: 36ch;
+  justify-self: start;
+  text-align: start;
+  max-inline-size: none;
   margin: 0;
 }
 /* Hatched triangle clipped to the card's 20px corner radius (Q 52 0 52 20 = the curve).

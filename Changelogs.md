@@ -9,16 +9,57 @@
 > rewritten as a minimal pointer. Deleted files remain recoverable verbatim:
 > `git show <sha>:<file>`.
 
-## 1. Current state (v0.3.12.15 — Session 26: SWOT audit + HTML canonical recovery + security/CI hygiene batch)
-- **Session 26 summary** — strategic audit + hygiene session. Began with a four-faceted SWOT
-  audit (frontend / backend-security / test-CI / deps-PWA-build) via four parallel evidence
-  agents, producing a comprehensive report at `/home/z/my-project/SWOT-Session26.md`. Then
-  recovered the HTML canonical invariant (W1 — a load-bearing prerequisite blocked by commit
-  c016fa4's wired-HTML-with-no-backup state), shipped a 5-item security/CI hygiene batch
-  (T4/T2/T1/W8/W12), and deployed to dev + prod. 295/295 tests green throughout; new i18n
-  parity CI gate (953/953 keys). No schema changes, no new i18n keys, no behavior change
-  for end users (T1 is prod-only and refuses plaintext backups — BACKUP_ENCRYPTION_KEY is
-  set in both Worker envs, so no prod impact).
+## 1. Current state (v0.3.12.16 — Session 26: SWOT audit + hygiene batch + Focus 2 performance batch)
+- **Session 26 summary** — strategic audit + hygiene + performance session. SWOT audit (4
+  parallel evidence agents), HTML canonical recovery (W1), security/CI hygiene batch
+  (T4/T2/T1/W8/W12), then Focus 2 performance batch (P1-P12). 295/295 tests green
+  throughout; VLM-verified zero visual change on all CSS/HTML modifications. No schema
+  changes, no new i18n keys. Deployed to dev + prod.
+- v0.3.12.16 = **Focus 2 performance batch — P1 through P12** (patch):
+  - **P1 (commit ce96937) — per-page CSS loading on public pages:** login.html +
+    signup.html: 18→7 CSS files (dropped canvas, dashboard, devboard, to-do-list, etc.
+    — ~190KB raw / ~40KB gz unused). 404.html: 18→7. index.html: 18→2 (redirect page).
+    Authed pages keep full CSS bundle (SW-cached). VLM-verified "visually identical."
+  - **P2 (commit 7aa0ea2) — lazy-load i18n-fa.js:** EN users never download the FA
+    dictionary (17KB gz saved on every page). i18n.js's ensureFaDict() injects it
+    dynamically when apply() resolves lang=fa. Promise guard prevents double-injection.
+    Added to DYNAMIC_INJECTED in check-dist-wiring. i18n.js ?v= 56→58.
+  - **P3 (commit a0bba84) — logo + avatar Content-Type fix:** uploads now store with
+    correct extension (.png/.jpg/.webp based on mimeType); serve derives Content-Type
+    from the stored path. Was hardcoded .png + image/png for all uploads. Responsive
+    variants (srcset/resize) deferred — requires image processing lib not in the stack.
+  - **P4 (commit 29e1d70) — morph swap on notebook:** vendored idiomorph-ext.min.js
+    (11KB / ~4KB gz); added to all 17 htmx pages. Changed 9 notebook routes from
+    hx-swap=outerHTML to hx-swap=morph — preserves textarea focus + form state on
+    edits (was full-replace → focus loss). Sadhana NOT changed (uses plain JS, not htmx).
+  - **P5 (commit 314d82c) — Login.jpg media attr:** media=(min-width:768px) on the
+    preload in login.html + signup.html. Mobile users save 112KB (image is display:none
+    on mobile). WebP re-encode deferred (no cwebp/sharp in the stack).
+  - **P6 (commit 379c566) — font preload:** `<link rel=preload as=font>` for Manrope-400
+    woff2 on all 23 HTML pages. ~200ms FCP improvement (fonts were fetching late, after
+    CSSOM). SW v299→v300 (covers P6+P7+P8).
+  - **P7+P8 (commit 922bbaf) — drop htmx + touch-drag from login:** login.html has zero
+    hx-* attrs (uses explicit fetch() for form submit) and zero draggable elements.
+    Removed /vendor/htmx.min.js (51KB / 16KB gz) + /js/touch-drag.js (3.4KB / 1.5KB gz).
+  - **P9 (commit 7b06ad3) — SW precache audit:** removed Vazir woff2 (3 × ~44KB =
+    ~132KB) from SW SHELL precache — only FA users need Vazir; EN users never inject it.
+    Runtime SWR cache handles on-demand. Audit confirmed: SHELL list not stale, manifest
+    precache appropriate for solo-owner PWA. Fabric + Bebas Notes kept (canvas offline).
+  - **P10 (commit bc6b8f5) — etag on 3 list endpoints:** sadhana GET /, quicknotes GET /,
+    devboard GET /api/projects/:id/devboard. 304 on repeat loads where nothing changed.
+    8 route files already had etag; these 3 were missing.
+  - **P11 (commit 3e0ef08) — batch reminders cron query:** findBehindProjects() was N+1
+    (one SELECT per project). Now batch-fetches all tasks in one WHERE project_id IN (…)
+    query. Daily cron, <50 projects — modest D1 subrequest budget win.
+  - **P12 (commit 087eb9f) — build parallelization:** JS + CSS esbuild loops changed from
+    sequential for...await to Promise.all. Build was already ~0.35s — modest improvement.
+  - **Verification:** typecheck 0 errors · i18n parity 953/953 · vitest 295/295 · build
+    PASS · check-dist-wiring PASS · build cycle idempotent. Browser E2E: EN login (no
+    i18n-fa, no htmx), FA dashboard (Vazir + i18n-fa lazy-loaded, morph swap works),
+    404 page (7 CSS, VLM-confirmed "polished"), zero console/page errors throughout.
+  - **Assets:** SW hibana-v299→v306 (7 bumps across the batch). i18n.js ?v= 56→58.
+    New vendored file: /vendor/idiomorph-ext.min.js. No CSS/JS ?v= bumps (no source CSS/JS
+    content changes — only HTML refs + i18n.js logic). package.json 0.3.12.15→0.3.12.16.
 - v0.3.12.15 = **Session 26 hygiene batch — SWOT W1/T4/T2/T1/W8/W12** (patch):
   - **W1 (commit 5c449bc) — recover HTML canonical invariant:** commit c016fa4 (repo flatten)
     committed `public/*.html` in the WIRED state (referencing `/dist/<hash>`) with no

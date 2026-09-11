@@ -1,7 +1,7 @@
 import { Hono, type Context } from 'hono'
 import { z } from 'zod'
 import { requireAuth } from '../auth/middleware'
-import { esc, jsonBody } from '../lib/http'
+import { esc, jsonBody, etag } from '../lib/http'
 import { icon, quadrantGlyph } from '../lib/html'
 import { legacyTaskNote, sadhanaTaskControls, taskStatusTrack, type SadhanaTaskNote } from '../lib/sadhana-task-controls'
 import { localeOf, trL, type Locale, type Vars } from '../lib/i18n'
@@ -293,7 +293,7 @@ export function sadhanaRoutes(cfg: Config) {
     const ctx = ctxOf(c)
     await resetDueRecurring(cfg.db, ctx.user.id, ctx.tz) // spec §7.1: resets run on board load too
     const data = await loadAll(ctx.user.id)
-    if (isHx(c)) return c.html(boardZoneHtml(data, ctx))
+    if (isHx(c)) return await etag(c, c.html(boardZoneHtml(data, ctx)))
     // JSON consumers (the standalone Sadhana board page): everything one paint needs —
     // quadrant meta (names/subtitles/order), tags, and the full task set with journals.
     const lang = ctx.lang
@@ -318,7 +318,7 @@ export function sadhanaRoutes(cfg: Config) {
         updates: (data.notes.get(task.id) ?? []).map((u) => ({ id: u.id, text: u.text, ts: u.created_at })),
       })
     }
-    return c.json({
+    return await etag(c, c.json({
       ok: true,
       today: ctx.today,
       lang,
@@ -347,7 +347,7 @@ export function sadhanaRoutes(cfg: Config) {
       })),
       tags: Object.entries(TAGS).map(([id, tg]) => ({ id, icon: tg.icon, text: lang === 'fa' ? tg.fa : tg.en })),
       tasks: tasksByQ,
-    })
+    }))
   })
 
   // Inline quadrant rename form (spec §5.19; subtitle added 0025): the card header swaps

@@ -20,7 +20,7 @@
 import { Hono } from 'hono'
 import { z } from 'zod'
 import { requireAuth } from '../auth/middleware'
-import { jsonBody } from '../lib/http'
+import { jsonBody, etag } from '../lib/http'
 import { getOwnedProject, toastHtml } from '../lib/html'
 import { localeOf, trFor } from '../lib/i18n'
 import { uuid } from '../lib/ids'
@@ -125,13 +125,13 @@ export function devboardRoutes(cfg: Config) {
       cfg.db.query<SprintRow>('SELECT * FROM sprints WHERE project_id = ? ORDER BY started_at', [p.id]),
       cfg.db.query<TagRow>('SELECT t.* FROM tags t WHERE t.user_id = ? ORDER BY t.name', [user.id]),
     ])
-    return c.json({
+    return await etag(c, c.json({
       project: { id: p.id, title: p.title, status: p.status, type: p.type },
       tasks: tasks.map((t) => ({ ...t, tags: t.tags ? t.tags.split(',') : [] })),
       categories,
       sprints,
       tags,
-    })
+    }))
   })
 
   // ---- dev tasks --------------------------------------------------------------

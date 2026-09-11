@@ -2,7 +2,7 @@ import { Hono, type Context } from 'hono'
 import type { ContentfulStatusCode } from 'hono/utils/http-status'
 import { z } from 'zod'
 import { requireAuth } from '../auth/middleware'
-import { esc, jsonBody } from '../lib/http'
+import { esc, jsonBody, etag } from '../lib/http'
 import { icon } from '../lib/html'
 import { localeOf, trL, type Locale } from '../lib/i18n'
 import { renderMarkdown } from '../lib/markdown'
@@ -95,7 +95,7 @@ export function quickNotesRoutes(cfg: Config) {
   app.get('/', async (c) => {
     const user = c.get('user')
     const notes = await activeNotes(user.id)
-    return c.req.header('HX-Request') ? await widget(c, notes, composerMode(c)) : json(c, { notes })
+    return await etag(c, c.req.header('HX-Request') ? await widget(c, notes, composerMode(c)) : json(c, { notes }))
   })
 
   // Create a note or a list (accepts an optional client id, like the quick-add flow).

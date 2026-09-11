@@ -39,7 +39,7 @@ export function resetRoutes(cfg: Config) {
   app.post('/reset/request', async (c) => {
     const body = await jsonBody<z.infer<typeof resetRequestSchema>>(c, resetRequestSchema)
     if (!body) return isHtmx(c) ? hxError(c, 'Enter a valid email address.') : c.json({ error: 'invalid_input' }, 400)
-    const users = await cfg.db.query<UserRow>('SELECT * FROM users WHERE email = ?', [body.email])
+    const users = await cfg.db.query<UserRow>('SELECT * FROM users WHERE email = ?', [body.email.toLowerCase()])
     // Same response whether or not the email exists — never leak account existence. The
     // htmx panel only echoes the address the user typed themselves, never a stored one.
     const sent = `<section id="request-section" data-reset-sent="1">

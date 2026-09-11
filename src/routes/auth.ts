@@ -82,7 +82,11 @@ export function authRoutes(cfg: Config) {
     }
 
     const { login, password } = body.data
-    const users = await cfg.db.query<UserRow>('SELECT * FROM users WHERE email = ? OR username = ?', [login, login])
+    // Email is case-insensitive (RFC 5321) — normalize to lowercase at lookup time.
+    // SQLite's = operator is case-sensitive by default; a user who types Email@Example.com
+    // after registering as email@example.com would otherwise get "wrong credentials".
+    const loginLower = login.toLowerCase()
+    const users = await cfg.db.query<UserRow>('SELECT * FROM users WHERE email = ? OR username = ?', [loginLower, login])
     if (users.length === 0) {
       if (isHtmx(c)) return c.html('<p class="error">Wrong email/username or password.</p>')
       return c.json({ error: 'invalid_credentials' }, 401)

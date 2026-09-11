@@ -77,7 +77,7 @@ export function registrationRoutes(cfg: Config) {
     }
 
     // Duplicate checks, separately so the error is precise (rule 1: users are global).
-    const byEmail = await cfg.db.query<{ id: string }>('SELECT id FROM users WHERE email = ?', [body.email])
+    const byEmail = await cfg.db.query<{ id: string }>('SELECT id FROM users WHERE email = ?', [body.email.toLowerCase()])
     if (byEmail.length > 0) {
       if (isHtmx(c)) return c.html('<p class="error">That email is already registered — sign in instead.</p>')
       return c.json({ error: 'email_taken' }, 409)
@@ -112,7 +112,7 @@ export function registrationRoutes(cfg: Config) {
       // email_verified_at stays NULL — the account is locked until the code lands.
       tx.sql(
         'INSERT INTO users (id, username, email, password_hash, role, language_pref, calendar_pref, timezone, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
-        [id, body.username, body.email, await hashPassword(body.password), 'member', 'en', 'gregorian', 'UTC', now],
+        [id, body.username, body.email.toLowerCase(), await hashPassword(body.password), 'member', 'en', 'gregorian', 'UTC', now],
       )
       if (invite) tx.sql('UPDATE invites SET used_at = ?, used_by = ? WHERE id = ?', [now, id, invite.id])
     })
@@ -163,7 +163,7 @@ export function registrationRoutes(cfg: Config) {
       return c.json({ error: 'invalid_input' }, 400)
     }
 
-    const users = await cfg.db.query<UserRow>('SELECT * FROM users WHERE email = ?', [body.email])
+    const users = await cfg.db.query<UserRow>('SELECT * FROM users WHERE email = ?', [body.email.toLowerCase()])
     // No such account → the same response as a wrong code (no existence leak).
     if (users.length === 0) {
       if (isHtmx(c)) return c.html('<p class="error">That code doesn&#39;t match — check it and try again.</p>')
@@ -210,7 +210,7 @@ export function registrationRoutes(cfg: Config) {
     const body = await jsonBody<z.infer<typeof resendVerifySchema>>(c, resendVerifySchema)
     if (!body) return c.json({ error: 'invalid_input' }, 400)
 
-    const users = await cfg.db.query<UserRow>('SELECT * FROM users WHERE email = ?', [body.email])
+    const users = await cfg.db.query<UserRow>('SELECT * FROM users WHERE email = ?', [body.email.toLowerCase()])
     // Same policy as reset/request: never reveal whether an address exists.
     if (users.length === 0 || users[0].email_verified_at) return c.json({ ok: true })
     const user = users[0]

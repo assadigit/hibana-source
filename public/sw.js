@@ -128,7 +128,7 @@
 // (clamp render + read-more delegation + counter removal), devboard.js v10 (title
 // input → textarea), magic-wand.js v9 (title-written re-clamp event). The precached
 // HTML shells must rotate so clients drop the old counter markup.
-const VERSION = "hibana-v304" // Session 26 P2: lazy-load i18n-fa.js (EN users save 17KB gz) + i18n.js ?v=57
+const VERSION = "hibana-v305" // Session 26 P2: lazy-load i18n-fa.js (EN users save 17KB gz) + i18n.js ?v=57
 
 // Static shell: unhashed pages/partials/icons/vendor/fonts (SWR or network-first at
 // runtime; precached here for offline). The hashed app bundles come from the manifest
@@ -179,11 +179,12 @@ const SHELL = [
   '/vendor/alpine.min.js',
   '/vendor/jalaali.min.js',
   '/vendor/vazir/font-face.css',
-  // P4.14 (F-M5): Vazir woff2 precache — offline FA users lose the font without these.
-  // Only the 3 used weights (Regular/Medium/Bold); Thin/Light/Black are unused.
-  '/vendor/vazir/Vazir-Regular.woff2',
-  '/vendor/vazir/Vazir-Medium.woff2',
-  '/vendor/vazir/Vazir-Bold.woff2',
+  // P9 (Focus 2): Vazir woff2 files removed from SHELL precache — they're only needed
+  // by FA users (~132KB for 3 weights). EN users never inject Vazir (i18n.js:ensureVazir
+  // only fires when lang=fa). The runtime SWR cache (Class 3 below) caches them on
+  // first FA page visit. Offline FA users who never visited a FA page online fall back
+  // to system-ui (acceptable degradation). font-face.css stays in SHELL (tiny, and the
+  // CSS is needed to trigger the woff2 fetch when Vazir activates).
   '/Login.jpg',
 ]
 

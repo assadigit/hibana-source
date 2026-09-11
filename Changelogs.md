@@ -9,7 +9,33 @@
 > rewritten as a minimal pointer. Deleted files remain recoverable verbatim:
 > `git show <sha>:<file>`.
 
-## 1. Current state (v0.3.12.16 — Session 26: SWOT audit + hygiene batch + Focus 2 performance batch)
+## 1. Current state (v0.3.12.17 — Session 26: SWOT + hygiene + performance + dead-code + modularization)
+- **Session 26 summary** — comprehensive audit + refactor session. SWOT audit (4 parallel evidence
+  agents), HTML canonical recovery (W1), security/CI hygiene batch (T4/T2/T1/W8/W12), Focus 2
+  performance batch (P1-P12), Focus 4 dead-code removal (~130 items, ~340 net lines deleted),
+  Focus 3 modularization (2 clean extractions). 295/295 tests green throughout; VLM-verified zero
+  visual change. Registration fixed (case-insensitive email + PBKDF2 600k→100k Workers cap).
+  Deployed to dev + prod at every milestone.
+- v0.3.12.17 = **Focus 4 dead-code + Focus 3 modularization** (patch):
+  - **Focus 4 (dead code, ~130 items removed):**
+    - 10 dead scripts (4 stale shells + 6 one-off scripts) — commit 2a3c321
+    - 14 stale audit-results files (kept 2 live JS) — commit d2ea8db
+    - 40 dead exports + 11 dead imports (−41 net lines) — commit dba8348
+    - 47 dead CSS classes (−285 net lines, VLM-verified identical) — commit dd05f0d
+    - 65 dead i18n keys (953→888) + admin.banForever casing bug fix — commit 676fe4b
+    - window.__hib audit: 0 dead functions (all 70 used). Dead HTML audit: 0 (all alive).
+    - 2 superseded tables (changelogs, telegram_note_sessions) left — rule 4, needs Ali's approval.
+  - **Focus 3 (modularization, 2 extractions):**
+    - sadhana-page.js TAGS+FUZZY → sadhana-data.js (−16 lines, Focus 3.1) — commit d5eb7fb
+    - projects/helpers.ts detail rendering → detail-helpers.ts (842→388 + 484, Focus 3.2) — commit 75b6183
+    - Remaining candidates (whiteboard.js, project-page.js, app.js) assessed but deferred — high
+      risk (frontend JS, no typecheck, expensive call-site changes) with low immediate reward.
+  - **Auth fixes (deployed mid-session):**
+    - Case-insensitive email lookup (4 sites) — commit 40e8c7c
+    - PBKDF2 600k→100k (Workers platform cap, fixes all future registrations) — commit 231d024
+  - **Assets:** SW hibana-v299→v309 (10 bumps across the session). i18n parity 953→888.
+    New files: sadhana-data.js, detail-helpers.ts, idiomorph-ext.min.js, check-i18n-parity.mjs.
+    package.json 0.3.12.16→0.3.12.17.
 - **Session 26 summary** — strategic audit + hygiene + performance session. SWOT audit (4
   parallel evidence agents), HTML canonical recovery (W1), security/CI hygiene batch
   (T4/T2/T1/W8/W12), then Focus 2 performance batch (P1-P12). 295/295 tests green

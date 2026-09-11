@@ -1,4 +1,4 @@
-// Fabric v6 → v5 compatibility shim (L14 / P3-a, 2026-09-10).
+// Fabric v7 → v5 compatibility shim (v7.4.0 fixes SVG XSS CVE GHSA-hfvx-25r5-qc3w + GHSA-w22m-hvvm-xmwx) (L14 / P3-a, 2026-09-10).
 //
 // Fabric v6 is ESM-only (no UMD global), which conflicts with Hibana's no-build frontend.
 // This shim imports the v6 classes and assigns them to `window.fabric`, so canvas.js and

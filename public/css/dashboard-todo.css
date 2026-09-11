@@ -140,12 +140,13 @@ section[id^="dashboard-"].is-collapsed > *:not(header) { display: none; }
 .dash-todo-list::-webkit-scrollbar-track { background: transparent; }
 .dash-todo-list::-webkit-scrollbar-thumb { background: var(--line-strong); border-radius: 999px; }
 .dash-todo-list::-webkit-scrollbar-thumb:hover { background: var(--muted); }
-  /* (v) 2026-09-09: the to-do page's progress palette, ported verbatim from
-     sadhana.html's .sadhana-wrap tokens so both surfaces share ONE visual system
-     (grey = untouched, pastel orange = in progress, violet = on hold).
-     (x) 2026-09-09: on-hold yellow #E9C46A → violet #A78BFA — Ali: the yellow
-     and the in-progress orange "are not different enough"; a cool violet is a
-     different hue AND temperature, so در حال انجام / معلق never read as one. */
+/* (v) 2026-09-09: the to-do page's progress palette, ported verbatim from
+   sadhana.html's .sadhana-wrap tokens so both surfaces share ONE visual system
+   (grey = untouched, pastel orange = in progress, violet = on hold).
+   (x) 2026-09-09: on-hold yellow #E9C46A → violet #A78BFA — Ali: the yellow
+   and the in-progress orange "are not different enough"; a cool violet is a
+   different hue AND temperature, so در حال انجام / معلق never read as one. */
+:root {
   --st-none: #9CA3AF; --st-none-bg: rgba(156, 163, 175, .10); --st-none-bd: rgba(156, 163, 175, .38);
   --st-inprog: #F59A4E; --st-inprog-bg: rgba(245, 154, 78, .14); --st-inprog-bd: rgba(245, 154, 78, .55);
   --st-hold: #A78BFA; --st-hold-bg: rgba(167, 139, 250, .14); --st-hold-bd: rgba(167, 139, 250, .5);

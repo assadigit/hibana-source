@@ -423,7 +423,7 @@ window.__hibanaDictFA = {
       // Phase 5 — پیمایش زمان در برد اسپرینت
       'sp.older': 'قدیمی‌تر', 'sp.newer': 'جدیدتر', 'sp.now': 'الان',
       'db.tags': 'برچسب‌ها', 'db.addTag': 'افزودن برچسب + Enter', 'db.taskAdded': 'کار اضافه شد', 'db.taskDeleted': 'کار حذف شد',
-      'db.delConfirm': 'این کار حذف شود؟', 'db.zoom': 'بزرگ‌نمایی', 'db.zoomDays': 'روزانه',
+      'db.zoom': 'بزرگ‌نمایی', 'db.zoomDays': 'روزانه',
       'db.zoomMonths': 'ماهانه', 'db.newSprintTitle': 'اسپرینت',
       'db.zoom1w': '۱ هفته', 'db.zoom1m': '۱ ماه', 'db.zoom3m': '۳ ماه', 'db.zoom6m': '۶ ماه', 'db.zoom12m': '۱۲ ماه',
       'db.delCatConfirm': 'این دسته‌بندی حذف شود؟ کارهایش به دسته‌بندی‌نشده می‌روند.', 'db.catDeleted': 'دسته‌بندی حذف شد',
@@ -440,7 +440,6 @@ window.__hibanaDictFA = {
       'bl.historyTitle': 'آخرین تغییرات برنامه', 'bl.latest': 'آخرین تغییر',
       'bl.docSaved': 'سند ذخیره شد', 'bl.docDeleted': 'سند حذف شد',
       'bl.delDocConfirm': 'این سند برنامه و تاریخچه‌اش حذف شود؟',
-      'common.close': 'بستن',
       // offline queue badge
       'queue.unsynced': 'تغییرات همگام‌نشده',
       'queue.saving': 'در حال ذخیره…',
@@ -544,7 +543,7 @@ window.__hibanaDictFA = {
       'admin.roleOwner': 'مدیر ارشد', 'admin.roleMember': 'عضو',
       'admin.stVerified': 'تأییدشده', 'admin.stUnverified': 'تأییدنشده',
       'admin.stBannedUntil': 'مسدود تا', 'admin.stForever': 'مسدود دائم',
-      'admin.onlineNow': 'آنلاین', 'admin.never': 'هرگز', 'admin.self': 'شما', 'admin.noMatch': 'کاربری پیدا نشد.',
+      'admin.onlineNow': 'آنلاین', 'admin.self': 'شما', 'admin.noMatch': 'کاربری پیدا نشد.',
       'admin.relNow': 'همین حالا',
       'admin.ownerProtected': 'مدیران ارشد محافظت‌شده‌اند — اول تنزل بده.',
       'admin.ownRoleNote': 'نقش خودت را نمی‌توانی تغییر دهی — از مدیر ارشد دیگر استفاده کن.',

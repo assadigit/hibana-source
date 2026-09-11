@@ -163,7 +163,7 @@ const USER_SCOPED_EXPORT_TABLES = [
 ] as const
 /** Tables that scope through projects.project_id (the user's projects, incl. soft-deleted). */
 const PROJECT_SCOPED_EXPORT_TABLES = [
-  'project_history_log', 'hurdles', 'links', 'screenshots', 'changelogs',
+  'project_history_log', 'hurdles', 'links', 'screenshots',
   'tasks', 'payments', 'project_tags',
   // Session 20: archived dev tasks + the dev-board cluster are user content too — a
   // personal export without them loses archived work ("never lose an idea").

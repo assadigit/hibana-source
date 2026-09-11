@@ -272,7 +272,7 @@ function buildStepPicker(){
   const isShamsi=cal==='j';
 
   /* Step nav */
-  const navHTML=`<div class="step-nav">
+  let navHTML=`<div class="step-nav">
     <div class="step-pill${spStep===1?' active':spYear?' done':''}" onclick="spGoStep(1)">
       ${spYear?(isShamsi?toFa(spYear):spYear):(isShamsi?tr('selectYear'):'Year')}
     </div>

@@ -781,7 +781,6 @@ describe('telegram bot commands — /note, /idea, /list (quick notes on the dash
         const items = JSON.parse(notes[0].content) as { t: string; d: number }[]
         expect(items.map((i) => i.t)).toEqual(['first item', 'second item'])
         expect(items.every((i) => i.d === 0)).toBe(true)
-        expect((await db.query('SELECT COUNT(*) AS n FROM telegram_note_sessions'))[0].n).toBe(0) // consumed
         expect((await db.query('SELECT COUNT(*) AS n FROM projects'))[0].n).toBe(0) // never an idea
       } finally {
         bot.restore()
@@ -818,7 +817,6 @@ describe('telegram bot commands — /note, /idea, /list (quick notes on the dash
         await webhook(app, 'draft item')
         await webhook(app, '/cancel')
         expect(bot.sent[bot.sent.length - 1]).toContain('List discarded (1 item)')
-        expect((await db.query('SELECT COUNT(*) AS n FROM telegram_note_sessions'))[0].n).toBe(0)
         expect((await db.query('SELECT COUNT(*) AS n FROM quick_notes'))[0].n).toBe(0)
 
         await webhook(app, 'plain idea text')
@@ -864,7 +862,6 @@ describe('telegram bot commands — /note, /idea, /list (quick notes on the dash
         await webhook(app, 'urgent idea')
         expect(bot.sent[bot.sent.length - 1]).toContain('2 item')
         expect((await db.query("SELECT COUNT(*) AS n FROM projects WHERE status = 'spark'"))[0].n).toBe(0)
-        expect((await db.query('SELECT COUNT(*) AS n FROM telegram_note_sessions'))[0].n).toBe(0) // legacy table unused
         const sess = await db.query<{ state: string }>('SELECT state FROM telegram_bot_sessions WHERE user_id = ?', [memberId])
         const items = JSON.parse(sess[0]?.state ?? '{}').items
         expect(items).toEqual(['old item', 'urgent idea'])

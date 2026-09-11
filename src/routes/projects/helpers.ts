@@ -1,30 +1,14 @@
-import { Hono } from 'hono'
-import { z } from 'zod'
-import { requireAuth } from '../../auth/middleware'
-import { esc, etag, jsonBody } from '../../lib/http'
+import { esc } from '../../lib/http'
 import {
-  getOwnedProject,
   icon,
   statusLabel,
   STATUS_BADGE,
   STATUS_ICON,
-  STATUS_LABEL,
   timeAgo,
-  toastHtml,
 } from '../../lib/html'
-import { trFor, localeOf, trL, type Locale } from '../../lib/i18n'
+import { trL, type Locale } from '../../lib/i18n'
 import { faDigits } from '../../lib/jalali'
 import { personalProgress, clientProgress } from '../../services/progress'
-import { githubClient, type GitHubConfig } from '../../services/github'
-import { uuid } from '../../lib/ids'
-import {
-  createProjectSchema,
-  updateProjectSchema,
-  reorderSchema,
-  listProjectsSchema,
-  noteSchema,
-  sparkFolderSchema,
-} from '../../validation/schemas'
 import { PROJECT_STAGES } from '../../types'
 import type {
   Config,
@@ -32,7 +16,6 @@ import type {
   ProjectStatus,
   TagRow,
   HurdleRow,
-  UserRow,
   SparkFolderRow,
 } from '../../types'
 

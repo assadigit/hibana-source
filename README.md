@@ -140,11 +140,12 @@ task-controls → magic-wand
 
 ### i18n (EN + FA)
 - Server-side: `src/lib/i18n.ts` translates htmx fragments.
-- Client-side: `public/js/i18n.js` + `i18n-en.js` + `i18n-fa.js`. Key parity enforced (871/871).
+- Client-side: `public/js/i18n.js` + `i18n-en.js` + `i18n-fa.js`. Key parity enforced (953/953) via
+  `scripts/check-i18n-parity.mjs` (CI gate).
 - Persian digit normalization. CSS logical properties for RTL/LTR.
 
 ### Service worker (PWA)
-`public/sw.js` — manifest-driven precache. `VERSION = "hibana-v301"` (bump on SW logic
+`public/sw.js` — manifest-driven precache. `VERSION = "hibana-v299"` (bump on SW logic
 changes or cache-bust needs). Network-first for navigations, cache-first for app shell.
 
 ---
@@ -229,7 +230,7 @@ Any CSS/JS change bumps `?v=` on EVERY referencing HTML page AND the SW cache na
 Since v0.3.0 `/dist/` is content-hashed; SW version bumps only on `sw.js` logic changes
 or when existing clients need to re-fetch the manifest. `check-cache-bust` is a CI gate.
 
-**Current numbers (v0.3.12.14):** SW `hibana-v301`, 66 manifest entries.
+**Current numbers (v0.3.12.14):** SW `hibana-v299`, 66 manifest entries, schema 46, 295 tests.
 
 ---
 

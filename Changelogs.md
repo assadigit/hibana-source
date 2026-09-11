@@ -779,7 +779,7 @@
   dodges rate limits; Workers unaffected — CF-Connecting-IP authoritative).
 
 ## 5. Migrations — live-DB warning
-Live D1s run 0001–0045 (schema 44). The reconstructed 0031–0039 exist for fresh environments;
+Live D1s run 0001–0047 (schema 46). The reconstructed 0031–0039 exist for fresh environments;
 their `d1_migrations` bookkeeping rows were never backfilled — **never blindly `wrangler d1
 migrations apply` against live DBs** (it would re-run table rebuilds). Backfill once to make
 future applies a clean no-op:

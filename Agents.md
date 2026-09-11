@@ -36,7 +36,7 @@ a whiteboard note.
    server accepts as canonical; server-generated otherwise.
 3. All timestamps stored UTC. Calendar (Gregorian/Shamsi via jalaali-js) + TZ conversion only
    at render time — never in storage or query filters.
-4. Schema changes ONLY via numbered files in `migrations/` (0001–0045; `0007` gap is
+4. Schema changes ONLY via numbered files in `migrations/` (0001–0047; `0007` gap is
    original). Never ad-hoc `ALTER TABLE`. Never untested migrations against prod.
    Pre-migration bookmark ritual (Changelogs §4 + §9). Schema changes need Ali's explicit
    written approval.
@@ -78,7 +78,7 @@ a whiteboard note.
   `/home/z/my-project/worklog.md`.
 
 ## Verification ladder (per batch — required before "done")
-`npm run typecheck` (authoritative tsc) → `npm test` (244) → `node --check` on touched JS →
+`npm run typecheck` (authoritative tsc) → `npm test` (295) → `node --check` on touched JS →
 browser E2E on the local Node server (FA/RTL **and** EN/LTR, light **and** dark, desktop
 **and** 390 px; test user `e2e@test.local`) → deploy dev → live probe → deploy prod → live
 probe (console 0 / page errors 0) → **purge probe users** (DELETE cascade verified;
@@ -92,13 +92,14 @@ If you edit after a bump, re-bump (stale HTTP cache under the same URL). `check-
 is a CI gate. Current numbers: Changelogs §1.
 
 ## i18n
-EN + FA ship together, always. Programmatic key-parity check (871/871). Persian digit
-normalization; CSS logical properties for RTL/LTR.
+EN + FA ship together, always. Programmatic key-parity check (953/953) via
+`scripts/check-i18n-parity.mjs` (CI gate). Persian digit normalization; CSS logical
+properties for RTL/LTR.
 
 ## D1 discipline
 - Remote D1 writes only via real `.mjs` script files (`wrangler d1 execute --file`) — never
   inline `node -e` inside double-quoted bash (`${…}` mangles).
-- Live DBs at schema 44 — never re-apply migrations blindly (Changelogs §6).
+- Live DBs at schema 46 — never re-apply migrations blindly (Changelogs §6).
 - Diagnose against prod data before coding ("board broken" was a soft-deleted project).
 
 ## Secrets & credentials

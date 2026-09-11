@@ -18,12 +18,12 @@ import { noteSchema, reorderSchema, sparkFolderSchema, updateProjectSchema, crea
 import type { HurdleRow, TagRow, ProjectStatus, SparkFolderRow } from '../../types'
 import type { ProjectSignals } from './helpers'
 import {
-  loadTags, loadProjectSignals, loadDetail, projectProgress,
+  loadTags, loadProjectSignals, projectProgress,
   bugBubbleHtml, signalsHtml, backlogMetaHtml,
   cardHtml, listFragment, glanceStrip,
   sparkEmptyHtml, sparkKanbanHtml, sparkFolderBar, sparkFolderGrid,
-  detailHtml,
 } from './helpers'
+import { loadDetail, detailHtml } from './detail-helpers'
 export function projectsRoutes(cfg: Config) {
   const app = new Hono<{ Variables: { user: UserRow } }>()
   app.use('*', requireAuth(cfg))

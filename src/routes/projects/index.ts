@@ -3,7 +3,7 @@
 import { Hono, type MiddlewareHandler } from 'hono'
 import { z } from 'zod'
 import { requireAuth } from '../../auth/middleware'
-import { esc, etag, jsonBody } from '../../lib/http'
+import { esc, etag, jsonBody, extForMime, mimeForPath } from '../../lib/http'
 import { html } from '../../lib/htmlx'
 import { trFor, localeOf, trL, type Locale } from '../../lib/i18n'
 import { faDigits, toJalali } from '../../lib/jalali'
@@ -405,7 +405,7 @@ export function projectsRoutes(cfg: Config) {
     if (!p) return c.json({ error: 'not_found' }, 404)
     if (!cfg.github.token) return c.json({ error: 'github_not_configured' }, 503)
     const gh = githubClient(cfg.github as GitHubConfig)
-    const path = `project-logos/${p.id}/logo-${Date.now()}-${uuid().slice(0, 8)}.png`
+    const path = `project-logos/${p.id}/logo-${Date.now()}-${uuid().slice(0, 8)}${extForMime(body.mimeType)}`
     // Remove the old logo if there was one
     if (p.logo_path) {
       try { await gh.deleteFile(p.logo_path) } catch { /* old logo may be gone */ }
@@ -424,7 +424,7 @@ export function projectsRoutes(cfg: Config) {
     const gh = githubClient(cfg.github as GitHubConfig)
     const bytes = await gh.readBinary(p.logo_path)
     if (!bytes) return c.json({ error: 'not_found' }, 404)
-    return new Response(bytes, { headers: { 'Content-Type': 'image/png', 'Cache-Control': 'public, max-age=3600, stale-while-revalidate=604800' } })
+    return new Response(bytes, { headers: { 'Content-Type': mimeForPath(p.logo_path), 'Cache-Control': 'public, max-age=3600, stale-while-revalidate=604800' } })
   })
 
   // Remove the logo

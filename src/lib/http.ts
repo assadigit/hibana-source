@@ -14,6 +14,21 @@ export const requestOrigin = (c: Context): string => new URL(c.req.url).origin
 export const esc = (s: string): string =>
   s.replace(/[&<>"']/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[ch]!)
 
+// P3 (Focus 2): image mime/extension helpers. Previously logo + avatar uploads stored
+// every file as .png regardless of mime, and served with hardcoded Content-Type: image/png
+// — a JPEG or WebP upload got the wrong extension + wrong Content-Type. These helpers
+// derive the correct values from the actual mime type (upload) and stored path (serve).
+export function extForMime(mime: string): string {
+  if (mime === 'image/jpeg') return '.jpg'
+  if (mime === 'image/webp') return '.webp'
+  return '.png'
+}
+export function mimeForPath(path: string): string {
+  if (path.endsWith('.webp')) return 'image/webp'
+  if (path.endsWith('.jpg') || path.endsWith('.jpeg')) return 'image/jpeg'
+  return 'image/png'
+}
+
 export const jsonError = (c: Context, status: ContentfulStatusCode, message: string): Response =>
   c.json({ error: message }, status)
 

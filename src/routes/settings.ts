@@ -1,7 +1,7 @@
 import { Hono } from 'hono'
 import { z } from 'zod'
 import { requireAuth } from '../auth/middleware'
-import { jsonBody } from '../lib/http'
+import { jsonBody, extForMime, mimeForPath } from '../lib/http'
 import { toastHtml } from '../lib/html'
 import { localeOf, trFor } from '../lib/i18n'
 import { calendarFor } from '../lib/jalali'
@@ -114,7 +114,7 @@ export function settingsRoutes(cfg: Config) {
     if (!body) return c.json({ error: 'invalid_input' }, 400)
     const user = c.get('user')
     if (!cfg.github.token) return c.json({ error: 'github_not_configured' }, 503)
-    const path = `avatars/${user.id}/avatar-${Date.now()}-${uuid().slice(0, 8)}.png`
+    const path = `avatars/${user.id}/avatar-${Date.now()}-${uuid().slice(0, 8)}${extForMime(body.mimeType)}`
     await removeRemote(user.avatar_path)
     await gh().pushFile(path, body.dataBase64, 'Hibana profile picture')
     await cfg.db.execute('UPDATE users SET avatar_path = ? WHERE id = ?', [path, user.id])
@@ -127,7 +127,7 @@ export function settingsRoutes(cfg: Config) {
     if (!user.avatar_path) return c.json({ error: 'not_found' }, 404)
     const bytes = await gh().readBinary(user.avatar_path)
     return new Response(bytes, {
-      headers: { 'Content-Type': 'image/png', 'Cache-Control': 'private, max-age=3600' },
+      headers: { 'Content-Type': mimeForPath(user.avatar_path), 'Cache-Control': 'private, max-age=3600' },
     })
   })
 

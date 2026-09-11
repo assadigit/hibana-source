@@ -95,21 +95,25 @@ async function buildAssets() {
   //    can appear earlier OR later in ENTRY_POINTS than their referencer (app.js —
   //    entry #1 — injects queue.js — entry #15), so hashing happens in a FIXPOINT loop
   //    below instead of a single ordered pass.
+  // P12 (Focus 2): parallelized with Promise.all (was sequential for...await).
   const rawCodes = new Map()
-  for (const entry of ENTRY_POINTS) {
-    const srcPath = join(JS_DIR, entry)
-    if (!existsSync(srcPath)) continue
-    const result = await build({
-      entryPoints: [srcPath],
-      bundle: false, // don't bundle imports — these are IIFE globals, not ESM
-      minify: PROD,
-      sourcemap: PROD ? false : 'linked',
-      write: false,
-      target: ['es2020'],
-      format: 'iife',
-    })
-    rawCodes.set(entry, result.outputFiles[0].text)
-  }
+  const jsResults = await Promise.all(
+    ENTRY_POINTS.map(async (entry) => {
+      const srcPath = join(JS_DIR, entry)
+      if (!existsSync(srcPath)) return null
+      const result = await build({
+        entryPoints: [srcPath],
+        bundle: false, // don't bundle imports — these are IIFE globals, not ESM
+        minify: PROD,
+        sourcemap: PROD ? false : 'linked',
+        write: false,
+        target: ['es2020'],
+        format: 'iife',
+      })
+      return { entry, code: result.outputFiles[0].text }
+    }),
+  )
+  for (const r of jsResults) if (r) rawCodes.set(r.entry, r.code)
 
   // 2. Fixpoint: rewrite each bundle's quoted '/js/<entry>.js' literals to the hashed
   //    URLs (the dynamic-injection graph becomes immutable too), hashing the REWRITTEN
@@ -153,17 +157,24 @@ async function buildAssets() {
   }
 
   // 2. Minify + hash each CSS entry point
-  for (const cssEntry of CSS_ENTRY_POINTS) {
-    const cssSrc = join(CSS_DIR, cssEntry)
-    if (!existsSync(cssSrc)) continue
-    const cssResult = await build({
-      entryPoints: [cssSrc],
-      bundle: false,
-      minify: PROD,
-      write: false,
-      loader: { '.css': 'css' },
-    })
-    const css = cssResult.outputFiles[0].text
+  // P12 (Focus 2): parallelized with Promise.all (was sequential for...await).
+  const cssResults = await Promise.all(
+    CSS_ENTRY_POINTS.map(async (cssEntry) => {
+      const cssSrc = join(CSS_DIR, cssEntry)
+      if (!existsSync(cssSrc)) return null
+      const cssResult = await build({
+        entryPoints: [cssSrc],
+        bundle: false,
+        minify: PROD,
+        write: false,
+        loader: { '.css': 'css' },
+      })
+      return { cssEntry, css: cssResult.outputFiles[0].text }
+    }),
+  )
+  for (const r of cssResults) {
+    if (!r) continue
+    const { cssEntry, css } = r
     const hash = fileHash(css)
     const hashedName = cssEntry.replace(/\.css$/, `.${hash}.css`)
     writeFileSync(join(DIST_DIR, hashedName), css)

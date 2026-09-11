@@ -34,6 +34,9 @@ jobs:
       - name: Cache-bust check
         run: node scripts/check-cache-bust.mjs
 
+      - name: i18n parity check
+        run: node scripts/check-i18n-parity.mjs
+
       - name: Unit tests
         run: bun run test
 

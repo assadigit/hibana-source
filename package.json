@@ -30,7 +30,8 @@
     "test:watch": "vitest",
     "smoke": "node --import tsx scripts/smoke.mjs",
     "typecheck": "tsc --noEmit",
-    "check-cache-bust": "node scripts/check-cache-bust.mjs"
+    "check-cache-bust": "node scripts/check-cache-bust.mjs",
+    "check-i18n-parity": "node scripts/check-i18n-parity.mjs"
   },
   "dependencies": {
     "@hono/node-server": "^1.13.7",

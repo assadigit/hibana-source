@@ -84,15 +84,6 @@
 .seg-btn:hover { background: var(--bg-soft); color: var(--text); }
 .seg-btn.active { background: var(--accent-soft); color: var(--text); box-shadow: inset 0 -2px 0 var(--accent); }
 
-/* Project view switcher — real buttons with breathing room between them. */
-.view-switch { display: flex; flex-wrap: wrap; gap: 0.45rem; }
-.view-switch .seg-btn {
-  border: 1px solid var(--line);
-  border-radius: var(--radius-sm);
-  color: var(--muted);
-}
-.view-switch .seg-btn:hover { border-color: var(--line-strong); color: var(--text); }
-.view-switch .seg-btn.active { border-color: var(--accent); background: var(--accent-soft); color: var(--text); }
 
 .note-list { display: grid; gap: 0.3rem; margin-block-start: 0.4rem; }
 /* Sticky-note view (2026-08-25): pure-CSS toggle — the #nv-sticky radio (a sibling of

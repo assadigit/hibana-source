@@ -408,13 +408,6 @@ html[lang='fa'] body .t-code {
   color: var(--btn-text, #fff);
 }
 .pd-tb-btn:focus-visible { outline: 2px solid var(--brand); outline-offset: 1px; }
-.pd-tb-sep {
-  inline-size: 1px;
-  block-size: 1.1rem;
-  background: var(--line);
-  margin-inline: 0.1rem;
-}
-
 /* date + clock meta (user request 2026-09-03): smaller + muted — it must whisper */
 .pd-task-meta {
   font-size: calc(var(--fs-xs) * 0.8); /* 20% smaller — user request 2026-09 */
@@ -424,7 +417,6 @@ html[lang='fa'] body .t-code {
   overflow-wrap: anywhere;
 }
 .pd-task.st-done .pd-task-title { text-decoration: line-through; color: var(--muted); }
-.pd-more { padding-inline: 0.5rem; }
 /* Session 19 (user request): the "more" link is a TEXT link, not a styled button.
    Was .pd-more.muted.small — looked like a disabled button. Now a plain teal text link. */
 .pd-more-link {

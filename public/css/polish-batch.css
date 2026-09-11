@@ -175,30 +175,6 @@
 /* --- R6.1: Voice quick-add mic button -------------------------------------- */
 .qa-title-row { gap: 0.4rem; align-items: center; }
 .qa-title-row input { flex: 1; }
-.qa-mic {
-  flex: none;
-  inline-size: 2.5rem;
-  block-size: 2.5rem;
-  padding: 0;
-  border-radius: var(--radius-sm);
-  display: grid;
-  place-items: center;
-  position: relative;
-}
-.qa-mic .icon { width: 1.2em; height: 1.2em; }
-.qa-mic.is-listening {
-  background: var(--danger-soft);
-  color: var(--danger);
-  border-color: var(--danger);
-  animation: mic-pulse 1.2s ease-in-out infinite;
-}
-@keyframes mic-pulse {
-  0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--danger) 40%, transparent); }
-  50% { box-shadow: 0 0 0 6px color-mix(in srgb, var(--danger) 0%, transparent); }
-}
-@media (prefers-reduced-motion: reduce) {
-  .qa-mic.is-listening { animation: none; }
-}
 
 /* --- R6.3: Sticky table header for projects list view ---------------------- */
 /* The projects table is long; the header row (Title/Status/Tags/Updated/Progress) should

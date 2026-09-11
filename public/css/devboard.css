@@ -435,9 +435,6 @@
   border: 1px solid var(--line);
   pointer-events: none;
 }
-.sp-bar-check { font-weight: 700; }
-.sp-bar-sprint { font-size: 0.62rem; opacity: 0.85; }
-
 /* --- sprint timeline circles (user request 2026-09) ------------------------ */
 /* Tasks are shown as colored circles (dots) instead of text-heavy bars.
    Only in_progress + done tasks appear. On hover, the native title tooltip
@@ -497,16 +494,6 @@
 :root[data-theme="dark"] .sp-dot-prio { border-color: var(--card, #242019); }
 
 /* clip trim handles (video-footage edges): invisible rails that reveal on hover */
-.sp-trim { position: absolute; inset-block: 0; inline-size: 13px; cursor: ew-resize; z-index: 3; touch-action: none; }
-.sp-trim-a { inset-inline-start: -6px; }
-.sp-trim-b { inset-inline-end: -6px; }
-.sp-trim::after {
-  content: ""; position: absolute; inset-block: 16%; inline-size: 3px; border-radius: 2px;
-  background: rgb(15 15 15 / 0.45); opacity: 0; transition: opacity 0.1s ease;
-}
-.sp-trim-a::after { inset-inline-start: 7px; }
-.sp-trim-b::after { inset-inline-end: 7px; }
-.sp-bar:hover .sp-trim::after, .sp-trim:hover::after { opacity: 1; }
 .sp-cat.dragging, .sp-task.dragging, .sp-bar.dragging { opacity: 0.4; }
 
 /* popovers (rename/finish/delete + category edit) + zoom + drag tooltip */

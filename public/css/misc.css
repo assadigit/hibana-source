@@ -357,7 +357,6 @@ dialog.adm-modal::backdrop { background: rgb(0 0 0 / 0.55); }
 /* --- item 17: grey project labels (لیبل‌های پروژه) ---------------------------
    No per-tag colors anymore — one neutral grey chip everywhere (list view, detail
    header, insert path). Stored colors stay in the DB, they just don't render. */
-.pd-tags-title { white-space: nowrap; align-self: center; }
 .chip.pd-tag-chip {
   background: color-mix(in srgb, var(--muted) 12%, transparent);
   color: var(--text);

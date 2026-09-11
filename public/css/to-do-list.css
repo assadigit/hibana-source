@@ -96,37 +96,6 @@ main.shell-dash {
 }
 
 /* Quadrant overflow menu (⋯) — rename / focus / add-task dialog, one trigger (audit §3-4). */
-.q-menu { position: relative; }
-.q-menu summary {
-  list-style: none;
-  display: inline-grid; place-items: center;
-  min-inline-size: 2.75rem; min-block-size: 2.75rem;  /* ≥44px hit area (audit §8) */
-  padding: 0;
-  border-radius: 50%;
-  color: var(--muted); background: transparent;
-}
-.q-menu summary::-webkit-details-marker { display: none; }
-.q-menu summary:hover { background: var(--bg-soft); color: var(--text); }
-.q-menu summary .icon { inline-size: 1.25rem; block-size: 1.25rem; }
-.q-menu-pop {
-  position: absolute; z-index: 50;
-  inset-block-start: calc(100% + 0.3rem); inset-inline-end: 0;
-  min-inline-size: 11rem;
-  background: var(--card);
-  border: 1px solid var(--line-strong); border-radius: var(--radius-sm);
-  box-shadow: 0 10px 28px rgb(0 0 0 / 0.22);
-  display: grid; gap: 0.15rem; padding: 0.35rem;
-}
-.q-menu-item {
-  display: flex; align-items: center; gap: 0.5rem;
-  width: 100%; text-align: start;
-  border: 0; border-radius: var(--radius-sm);
-  background: transparent; color: var(--text);
-  padding: 0.45rem 0.6rem; font-weight: 500;
-}
-.q-menu-item:hover { background: var(--bg-soft); }
-.q-menu-item .icon { inline-size: 1rem; block-size: 1rem; }
-
 .sadhana-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.35rem; max-block-size: 18rem; overflow: auto; flex: 1; }
 /* Empty state: quiet, centered in the free space (roast 2026-08-25) — not a heavy
    headline pinned to the top of a two-thirds-empty card. */
@@ -157,7 +126,6 @@ main.shell-dash {
   color: var(--muted);
 }
 .sadhana-card.done .sadhana-emoji { opacity: 0.5; }
-.sadhana-move-error { display: block; color: var(--err); font-size: var(--fs-xs); }
 
 /* Always-on pastel status tint (2026-08-26): desaturated high-lightness tones so the
    three progress states read at a glance. NEVER the only cue — the progress-label
@@ -542,18 +510,6 @@ main.shell-dash {
   transition: background-color 0.12s ease;
 }
 .task-note-text:hover { background: var(--bg); box-shadow: inset 0 0 0 1px var(--line-strong); }
-.task-note-edit-input {
-  width: 100%;
-  resize: vertical;
-  min-height: 2.5rem;
-  padding: 0.35rem 0.5rem;
-  border: 1px solid var(--accent);
-  border-radius: var(--radius-sm);
-  background: var(--bg);
-  color: var(--text);
-  font: inherit;
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 15%, transparent);
-}
 .task-note-delete {
   all: unset;
   cursor: pointer;
@@ -649,17 +605,8 @@ main.shell-dash {
    .task-menu — those classes are not in the new markup. The rules stay so any
    third-party surface that still emits them (e.g. the dashboard preview shell)
    continues to render correctly. */
-.task-hover-controls {
-  display: inline-flex; align-items: center; gap: 0.35rem;
-  opacity: 0; pointer-events: auto; transition: opacity 0.12s ease;
-}
-.sadhana-card:hover .task-hover-controls,
-.sadhana-card:focus-within .task-hover-controls { opacity: 1; }
-@media (hover: none) { .task-hover-controls { opacity: 1; } }
+/* (Task 4-F-impl: removed the .task-hover-controls / .task-secondary-actions / .task-menu rules — the new card never renders them and no third-party surface uses them either; audit found zero references in HTML/JS/TS.) */
 .task-status-track { display: inline-flex; align-items: center; gap: 0.3rem; }
-.task-secondary-actions { display: inline-flex; align-items: center; gap: 0.25rem; align-self: center; }
-.task-menu { position: relative; }
-.sadhana-note { overflow-wrap: anywhere; }
 
 .sadhana-done summary {
   cursor: pointer; font-size: var(--fs-sm); color: var(--muted);
@@ -703,16 +650,7 @@ main.shell-dash {
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 15%, transparent);
 }
 
-.sadhana-focus-mount {
-  position: fixed; inset: 0; z-index: 60; overflow: auto;
-  background: var(--bg); padding: 1rem;
-}
-/* Idle state: the mount is always in the DOM but must never cover the board — it is
-   only the focus overlay. It is hidden unless a focus quadrant is actually open.
-   (Bug 2026-08-25: this rule was missing, so the empty full-viewport panel painted
-   the whole page as plain background — blank black/white page in every browser.) */
-.sadhana-focus-mount:not([data-focus-q]),
-.sadhana-focus-mount[data-focus-q=""] { display: none; }
+/* (Task 4-F-impl: removed the .sadhana-focus-mount rules — the focus overlay is now mounted elsewhere; audit found zero references in HTML/JS/TS.) */
 .sadhana-focus { max-inline-size: 46rem; margin: 0 auto; display: grid; gap: 0.8rem; padding-top: 0.5rem; }
 .sadhana-focus .sadhana-list { max-block-size: none; }
 
@@ -768,15 +706,6 @@ main.shell-dash {
 }
 .emoji-pop[hidden] { display: none; }
 .emoji-pop input[type=search] { inline-size: 100%; }
-.emoji-cats { display: flex; flex-wrap: wrap; gap: 0.25rem; }
-.emoji-cats .chip { cursor: pointer; }
-.emoji-grid { display: grid; grid-template-columns: repeat(8, 1fr); gap: 0.15rem; max-block-size: 9rem; overflow: auto; }
-.emoji-grid button {
-  font-size: 1.15rem; padding: 0.15rem; line-height: 1.25; background: none; border: none;
-  border-radius: var(--radius-sm); cursor: pointer;
-}
-.emoji-grid button:hover { background: var(--accent-soft); }
-
 /* recurrence panels */
 .recur-days { gap: 0.25rem; }
 .recur-days .chip { cursor: pointer; }
@@ -797,12 +726,6 @@ main.shell-dash {
 .focus-tags .focus-tag { cursor: pointer; }
 .chip:has(input:checked) { background: var(--accent-soft); border-color: var(--accent); color: var(--text); }
 
-.modal-backdrop {
-  position: fixed; inset: 0; z-index: 80;
-  background: rgb(0 0 0 / 0.6); /* darker veil so the centered dialog pops (2026-08-26) */
-  display: grid; place-items: center; padding: 1rem; overflow: auto;
-}
-.modal-backdrop .modal { max-inline-size: 30rem; }
 [x-cloak] { display: none !important; }
 .error { color: var(--danger); font-size: var(--fs-sm); }
 

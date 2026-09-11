@@ -364,7 +364,6 @@ body.rtl .task-tags{margin-left:0;margin-right:1px}
   box-shadow:0 4px 14px rgba(30,20,10,.11), 0 1px 3px rgba(30,20,10,.07);
 }
 /* Plus icon — slightly larger */
-.sadhana-wrap .add-btn-lbl{font-size:12px;font-weight:500}
 .sadhana-wrap .add-form{display:none;flex-direction:column;gap:6px;animation:sIn .15s ease}
 .sadhana-wrap .add-form.vis{display:flex}
 .sadhana-wrap .ai{background:var(--surface);border:1px solid var(--border2);border-radius:var(--radius-sm);padding:7px 10px;color:var(--text);font-size:12.5px;font-family:inherit;outline:none;transition:border-color .2s;width:100%;resize:none}
@@ -448,7 +447,6 @@ body.rtl .fuz-opt{text-align:right}
 .sadhana-wrap .step-pill.active{background:var(--cta);border-color:var(--cta);color:#fff} /* Session 20 (AA): was --accent (white 3.1:1) */
 .sadhana-wrap .step-pill.done{background:var(--accent-l);border-color:var(--accent);color:var(--link)} /* Session 20 (AA) */
 .sadhana-wrap .step-arrow{color:var(--text-dim);font-size:11px}
-.sadhana-wrap .step-content{}
 .sadhana-wrap .year-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px}
 .sadhana-wrap .month-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:5px}
 .sadhana-wrap .day-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:3px}
@@ -462,7 +460,6 @@ body.rtl .fuz-opt{text-align:right}
 .sadhana-wrap .pick-btn.disabled{opacity:.25;cursor:not-allowed}
 .sadhana-wrap .pick-btn.today-marker{border-color:var(--q3);color:var(--q3)}
 .sadhana-wrap .day-header{font-size:9.5px;color:var(--text-dim);text-align:center;padding:3px 0;font-weight:600}
-.sadhana-wrap .step-selected-display{font-size:11px;color:var(--link);font-weight:600;margin-bottom:7px;text-align:center} /* Session 20 (AA) */
 .sadhana-wrap .dl-popup-foot{display:flex;gap:6px;padding:8px 10px;border-top:1px solid var(--border);justify-content:flex-end}
 
 /* ─── Emoji picker ─────────────────────────────── */
@@ -487,7 +484,7 @@ body.rtl .fuz-opt{text-align:right}
 .sadhana-wrap .modal-bg{display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);backdrop-filter:blur(6px);z-index:300;align-items:center;justify-content:center}.modal-bg.open{display:flex}
 .sadhana-wrap .modal{background:var(--surface);border:1px solid var(--border2);border-radius:var(--radius);padding:22px;width:480px;max-width:calc(100vw - 32px);box-shadow:var(--shadow-lg);animation:mIn .2s ease;max-height:90vh;overflow-y:auto}
 @keyframes mIn{from{opacity:0;transform:scale(.95) translateY(10px)}to{opacity:1;transform:scale(1) translateY(0)}}
-.sadhana-wrap .mtitle{font-size:16px;font-weight:700;margin-bottom:3px}.msub{font-size:12px;color:var(--text-muted);margin-bottom:14px}
+.sadhana-wrap .mtitle{font-size:16px;font-weight:700;margin-bottom:3px}
 .sadhana-wrap .mlbl{font-size:10.5px;color:var(--text-muted);margin-bottom:5px;display:block;font-weight:600;text-transform:uppercase;letter-spacing:.05em}
 .sadhana-wrap .mfield{margin-bottom:12px}
 .sadhana-wrap .sel-in{background:var(--surface2);border:1px solid var(--border2);border-radius:var(--radius-sm);padding:8px 10px;color:var(--text);font-size:12.5px;font-family:inherit;outline:none;width:100%;cursor:pointer}
@@ -570,7 +567,6 @@ body.rtl .fuz-opt{text-align:right}
 .sadhana-wrap .recur-switch input:checked+.recur-slider{background:var(--accent)}
 .sadhana-wrap .recur-switch input:checked+.recur-slider::before{transform:translateX(16px)}
 .sadhana-wrap .recur-toggle-lbl{font-size:12.5px;font-weight:600;color:var(--text);cursor:pointer;user-select:none}
-.sadhana-wrap .recur-toggle-sub{font-size:10.5px;color:var(--text-dim)}
 
 .sadhana-wrap .recur-config{margin-top:8px;display:flex;flex-direction:column;gap:8px;animation:sIn .15s ease}
 .sadhana-wrap .recur-type-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:4px}
@@ -722,7 +718,6 @@ body.rtl .fuz-opt{text-align:right}
   /* ── Inline add form ──────────────────────────── */
   .sadhana-wrap .q-foot{padding:6px 10px 10px;min-height:56px}
   .sadhana-wrap .add-btn{padding:9px 14px;font-size:12px;min-height:38px;opacity:1!important;border:1.5px dashed var(--border2)!important}
-  .sadhana-wrap .add-btn .add-btn-lbl{max-width:150px!important;opacity:1!important;margin-left:5px!important}
   .sadhana-wrap .ai{padding:9px 12px;font-size:13px}
   .sadhana-wrap .emo-row{gap:10px}
   .sadhana-wrap .ch-emo{font-size:26px}

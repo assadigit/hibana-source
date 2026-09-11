@@ -178,7 +178,6 @@
 }
 .blocks-grid button:hover { background: var(--bg-soft); border-color: var(--accent); }
 /* export scope rows */
-.export-rows { display: grid; gap: 0.3rem; }
 .export-row {
   display: flex;
   align-items: baseline;

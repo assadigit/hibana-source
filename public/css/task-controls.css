@@ -15,30 +15,12 @@
   opacity: 0;
   pointer-events: none;
 }
-.task-hover-controls {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  flex-wrap: wrap;
-  gap: 0.25rem;
-  max-inline-size: 100%;
-  min-inline-size: 0;
-  opacity: 0;
-  transition: opacity 0.12s ease;
-}
 .dash-todo-task,
 .sadhana-card {
   max-block-size: 100vh;
   overflow: hidden;
   transition: opacity 0.24s ease, max-block-size 0.3s ease, background-color 0.18s ease, margin-block 0.3s ease;
 }
-.dash-todo-task .task-hover-controls { grid-column: 2; grid-row: 1; }
-.sadhana-card .task-hover-controls { grid-column: 3; grid-row: 1; }
-.dash-todo-task:hover .task-hover-controls,
-.dash-todo-task:focus-within .task-hover-controls,
-.sadhana-card:hover .task-hover-controls,
-.sadhana-card:focus-within .task-hover-controls { opacity: 1; }
-
 .task-status-track {
   display: inline-flex;
   align-items: center;
@@ -46,9 +28,7 @@
   gap: 0.1rem;
   white-space: nowrap;
 }
-.task-status-dot,
-.task-note-trigger,
-.task-edit-trigger {
+.task-status-dot {
   display: inline-grid;
   place-items: center;
   inline-size: 2.25rem;
@@ -75,11 +55,7 @@
 .task-status-dot.status-success.is-current > span { background: var(--status-success-soft); }
 .task-status-dot.status-warning.is-current > span { background: var(--status-warning-soft); }
 .task-status-dot:hover,
-.task-status-dot:focus-visible,
-.task-note-trigger:hover,
-.task-note-trigger:focus-visible,
-.task-edit-trigger:hover,
-.task-edit-trigger:focus-visible { background: var(--bg-soft); color: var(--text); }
+.task-status-dot:focus-visible { background: var(--bg-soft); color: var(--text); }
 .task-status-dot.status-info.is-current { color: var(--status-info-soft); }
 .task-status-dot.status-success.is-current { color: var(--status-success-soft); }
 .task-status-dot.status-warning.is-current { color: var(--status-warning-soft); }
@@ -88,10 +64,6 @@
   color: var(--muted);
   font-size: var(--fs-xs);
 }
-.task-note-trigger,
-.task-edit-trigger { position: relative; }
-.task-note-trigger .icon,
-.task-edit-trigger .icon { inline-size: 1rem; block-size: 1rem; }
 .task-note-badge {
   position: absolute;
   inset-block-start: 0.15rem;
@@ -194,22 +166,6 @@
 .task-note-add-form button { min-inline-size: 2.75rem; min-block-size: 2.75rem; padding: 0.25rem; }
 .task-note-add-form .icon { inline-size: 1rem; block-size: 1rem; }
 
-/* Secondary task actions retain pin/delete without another unlabeled overflow control. */
-.sadhana-card > .task-secondary-actions {
-  display: flex;
-  grid-column: 3;
-  grid-row: 2;
-  justify-self: end;
-  gap: 0.2rem;
-  opacity: 0;
-  transition: opacity 0.12s ease;
-}
-.sadhana-card:hover .task-secondary-actions,
-.sadhana-card:focus-within .task-secondary-actions { opacity: 1; }
-.task-secondary-actions button { display: inline-grid; place-items: center; min-inline-size: 2.25rem; min-block-size: 2.25rem; padding: 0; }
-.task-secondary-actions .icon { inline-size: 0.95rem; block-size: 0.95rem; }
-.dash-todo-reorder { grid-column: 2; grid-row: 2; justify-self: end; }
-
 /* The category icon is the single quadrant settings entry point on the full board. */
 .sadhana-qtitle { position: relative; }
 .sadhana-style-trigger { border: 0; background: transparent; color: var(--q-accent, var(--muted)); cursor: pointer; }
@@ -246,11 +202,3 @@
 .q-style-focus { display: inline-flex; align-items: center; gap: 0.35rem; margin-block-start: 0.45rem; color: var(--muted); font-size: var(--fs-sm); }
 .q-style-focus .icon { inline-size: 1rem; block-size: 1rem; }
 
-/* A shared minimum hit area keeps dots and icon buttons usable on touch. */
-@media (hover: none) {
-  .task-hover-controls,
-  .sadhana-card > .task-secondary-actions { opacity: 1; }
-}
-@media (prefers-reduced-motion: reduce) {
-  .task-hover-controls { transition: none; }
-}

@@ -68,14 +68,6 @@ section[id^="dashboard-"].is-collapsed > *:not(header) { display: none; }
    under the title; icon + pen stay locked to the first (title) line. */
 .dash-todo-qcol { display: grid; gap: 0.1rem; min-inline-size: 0; }
 .dash-todo-qsub { font-size: var(--fs-xs); color: var(--muted); line-height: 1.3; overflow-wrap: anywhere; }
-.dash-todo-drag-handle { display: inline-grid; place-items: center; color: var(--dash-q-accent, var(--muted)); cursor: grab; min-inline-size: 1.5rem; min-block-size: 1.5rem; }
-.dash-todo-drag-handle:active { cursor: grabbing; }
-.dash-todo-drag-handle:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: var(--radius-sm); }
-.dash-todo-drag-handle .icon { inline-size: 1.05rem; block-size: 1.05rem; }
-.dash-todo-rename { display: inline-grid; place-items: center; opacity: 0; min-inline-size: 2rem; min-block-size: 2rem; padding: 0; border: 0; background: transparent; color: var(--muted); }
-.dash-todo-qtitle:hover .dash-todo-rename, .dash-todo-rename:focus-visible { opacity: 1; }
-.dash-todo-rename:hover { color: var(--text); background: var(--bg-soft); }
-.dash-todo-rename .icon { inline-size: 0.9rem; block-size: 0.9rem; }
 /* Pen button (2026-09-02): appears on hover over the quadrant NAME, opens the same
    customize popover (rename + symbol + accent) as the icon button. */
 .dash-todo-pen { display: inline-grid; place-items: center; opacity: 0; min-inline-size: 1.5rem; min-block-size: 1.5rem; padding: 0; border: 0; background: transparent; color: var(--muted); transition: opacity 0.12s ease, background-color 0.12s ease, color 0.12s ease; }
@@ -192,19 +184,6 @@ section[id^="dashboard-"].is-collapsed > *:not(header) { display: none; }
 .dash-todo-check { grid-column: 1; display: flex; align-items: flex-start; gap: var(--task-row-gap); min-inline-size: 0; min-block-size: 2.3rem; padding-block: 0.22rem; padding-inline-end: 2.5rem; cursor: pointer; }
 .dash-todo-check input { flex: none; inline-size: 1.05rem; block-size: 1.05rem; margin-block-start: 0.12rem; margin-inline: 0; accent-color: var(--accent); }
 .dash-todo-check span { padding-block: 0.1rem; overflow-wrap: anywhere; line-height: 1.3; color: var(--text); font-size: var(--fs-sm); }
-.dash-todo-note-preview {
-  grid-column: 1 / -1; min-inline-size: 0; max-block-size: 0; overflow: hidden; visibility: hidden;
-  display: block; padding: 0 0.25rem 0.25rem; border: 0; border-radius: 0; background: transparent;
-  color: var(--muted); text-align: start; font: inherit; font-size: var(--fs-xs); font-weight: 400;
-  line-height: 1.35; white-space: pre-wrap; overflow-wrap: anywhere; opacity: 0; pointer-events: none;
-  transition: opacity 0.16s ease, max-block-size 0.18s ease;
-}
-.dash-todo-task:hover .dash-todo-note-preview,
-.dash-todo-task:focus-within .dash-todo-note-preview,
-.dash-todo-note-preview:focus-visible {
-  max-block-size: 5rem; visibility: visible; opacity: 1; pointer-events: auto;
-}
-.dash-todo-note-preview:hover { background: var(--bg-soft); color: var(--text); }
 /* (v) 2026-09-09: the old .dash-todo-progress-dot hover control (the single status
    dot from the pre-Phase-5 dashboard) is REMOVED — dead CSS since item 15 replaced
    it with the 3-dot .prog-track further down; nothing in any HTML/JS emits that
@@ -245,20 +224,12 @@ section[id^="dashboard-"].is-collapsed > *:not(header) { display: none; }
 /* (m) the destructive item reads red so a task delete never looks like an edit. */
 .dash-todo-menu-item.danger { color: var(--err); }
 .dash-todo-menu-item.danger:hover { background: var(--danger-soft); }
-.dash-todo-reorder { display: flex; gap: 0.2rem; border-block-start: 1px solid var(--line); margin-block-start: 0.2rem; padding-block-start: 0.2rem; }
-.dash-todo-reorder-btn { display: inline-grid; place-items: center; min-inline-size: 2rem; min-block-size: 2rem; padding: 0; background: transparent; color: var(--muted); }
-.dash-todo-reorder-btn:hover, .dash-todo-reorder-btn:focus-visible { background: var(--bg-soft); color: var(--text); }
-.dash-todo-reorder-btn .icon { inline-size: 0.9rem; block-size: 0.9rem; }
 .dash-todo-menu-item .icon { inline-size: 0.95rem; block-size: 0.95rem; flex: none; }
-.dash-todo-edit, .dash-todo-note, .dash-todo-progress { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 0.35rem; align-items: end; min-inline-size: 0; }
+.dash-todo-edit { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 0.35rem; align-items: end; min-inline-size: 0; }
 .dash-todo-edit input { min-inline-size: 0; flex: 1; padding-block: 0.35rem; }
 .dash-todo-edit button { min-inline-size: 2.25rem; min-block-size: 2.25rem; padding: 0.25rem; }
 .dash-todo-edit-error { flex: 1 1 100%; color: var(--err); font-size: var(--fs-xs); }
 .dash-todo-edit-error[hidden] { display: none; }
-.dash-todo-note textarea { min-inline-size: 0; width: 100%; resize: vertical; background: var(--bg); color: var(--text); border: 1px solid var(--line); border-radius: var(--radius-sm); padding: 0.35rem; font: inherit; }
-.dash-todo-note button { min-inline-size: 2.25rem; min-block-size: 2.25rem; padding: 0.25rem; }
-.dash-todo-progress { flex-wrap: wrap; }
-.dash-todo-progress .chip { font-size: var(--fs-xs); }
 /* F4 (session 9): the see-more link is a TEXT link, not a CTA — the global button{}
    rule painted it solid --cta (muted-on-teal: 2.0 light / 1.2 dark). Transparent fill
    in base, hover AND active (button:hover/:active would otherwise re-paint it teal). */
@@ -268,7 +239,7 @@ section[id^="dashboard-"].is-collapsed > *:not(header) { display: none; }
 /* (k) 2026-09-06: the see-more link reserves the FAB corner (inline-end) so the two
    never overlap when a quadrant shows 6+ tasks. (m) re-tuned for the smaller FAB. */
 .dash-todo-more { padding-inline-end: 2.9rem; }
-.dash-todo-edit[hidden], .dash-todo-note[hidden], .dash-todo-progress[hidden], .dash-todo-rename-form[hidden] { display: none; }
+.dash-todo-edit[hidden], .dash-todo-rename-form[hidden] { display: none; }
 
 /* ── (k) Per-quadrant quick-add FAB ─ 2026-09-06 user request ─────────────────────
    The add-task affordance moved out of the customize popover into a circular + button
@@ -479,7 +450,6 @@ section[id^="dashboard-"].is-collapsed > *:not(header) { display: none; }
 .qe-save:hover { background: var(--cta-hover, var(--accent-hover)); }
 @media (hover: none) {
   .dash-todo-menu { opacity: 1; }
-  .dash-todo-note-preview { max-block-size: 5rem; visibility: visible; opacity: 1; pointer-events: auto; }
 }
 @media (max-width: 900px) { .dash-todo-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 /* ══ Session-12 (2026-09-15, user request): the phone TO-DO QUADRANTS are a SWIPE
@@ -618,17 +588,6 @@ section[id^="dashboard-"].is-collapsed > *:not(header) { display: none; }
 .stat-box[data-status='doing'] .icon-chip { background: var(--badge-doing-bg); color: var(--badge-doing-fg); }
 .stat-box[data-status='halted'] .icon-chip { background: var(--badge-halted-bg); color: var(--badge-halted-fg); }
 .stat-box[data-status='operational'] .icon-chip { background: var(--badge-operational-bg); color: var(--badge-operational-fg); }
-/* Tag signal on dashboard rows (audit 4): a second, tag-colored chip next to the title's
-   status dot — the tint is passed inline as background so it adapts to both themes. */
-.tag-chip {
-  display: inline-block;
-  padding: 0.05em 0.55em;
-  border-radius: 999px;
-  font-size: var(--fs-xs);
-  line-height: 1.7;
-  color: var(--text);
-  margin-inline-start: 0.25rem;
-}
 /* Brand-colored interactive link states (audit 20). */
 .stat-box a.small:hover,
 .activity-main a:hover,

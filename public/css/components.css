@@ -49,19 +49,8 @@
 }
 .fab-item .fab-item-icon { display: grid; place-items: center; }
 .fab-item .fab-item-icon .icon { inline-size: 1.1rem; block-size: 1.1rem; }
-/* Keyboard shortcut hint inside the menu item (audit 18/19) — desktop affordance only. */
-.fab-kbd {
-  font: inherit;
-  font-size: var(--fs-xs);
-  color: var(--muted);
-  border: 1px solid var(--line-strong);
-  border-radius: 4px;
-  padding: 0 0.3em;
-  margin-inline-start: 0.35em;
-}
-@media (hover: none) {
-  .fab-kbd { display: none; }
-}
+/* Keyboard shortcut hint inside the menu item (audit 18/19) — desktop affordance only.
+   (Task 4-F-impl: the .fab-kbd rule below was removed — audit found zero references in HTML/JS/TS.) */
 /* Expanded state: the plus rotates into a close ✕ so the open/close affordance is one glyph. */
 .fab[aria-expanded="true"] .icon {
   transform: rotate(45deg);

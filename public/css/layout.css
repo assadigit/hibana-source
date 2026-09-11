@@ -349,22 +349,9 @@ input::placeholder, textarea::placeholder { font-size: 0.88em; opacity: 0.7; } /
   margin: 0;
 }
 /* Hatched triangle clipped to the card's 20px corner radius (Q 52 0 52 20 = the curve).
-   pointer-events:none keeps the whole card clickable through the decoration. */
-.pc-corner {
-  position: absolute;
-  inset-block-start: 0;
-  inset-inline-end: 0;
-  inline-size: 52px;
-  block-size: 52px;
-  pointer-events: none;
-  background: repeating-linear-gradient(
-    -45deg,
-    color-mix(in srgb, var(--pc-accent, var(--line-strong)) 85%, transparent) 0 2px,
-    transparent 2px 7px
-  );
-  clip-path: path('M0 0 L32 0 Q52 0 52 20 L52 52 Z');
-}
-.pc-plain .pc-corner { opacity: 0.5; } /* no tags → neutral, quieter hatch */
+   pointer-events:none keeps the whole card clickable through the decoration.
+   (Task 4-F-impl: the .pc-corner rule below was removed — the .pc-corner HTML element
+   was deleted in Session 24h, audit confirmed zero references in HTML/JS/TS.) */
 .project-title {
   font-weight: 600;
   font-size: var(--fs-xl);
@@ -494,7 +481,6 @@ input::placeholder, textarea::placeholder { font-size: 0.88em; opacity: 0.7; } /
   text-align: center;
 }
 .stat .badge { font-size: var(--fs-lg); }
-.stat-stat-num { display: block; font-size: 1.5rem; font-weight: 600; margin-block-end: 0.15rem; }
 
 /* Dashboard/reports stat boxes: count + label header, the project kanban below. */
 .stat-boxes { grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr)); } /* batch q: six lifecycle boxes */

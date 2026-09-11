@@ -104,7 +104,6 @@
 }
 /* Hover steps toward the text tone — a visible nudge on the now-borderless surface. */
 .card.stat-kanban-card:hover { background: var(--bg-soft); border-color: var(--line-strong); }
-.stat-kanban-card .tag-chip { margin-inline-start: 0.2rem; }
 /* Batch (q) 2026-09-07 — COMPACT dashboard cards (user: "they must only carry [project
    button + project heading], with last-updated below — no wasted white space"): the old
    latest-note snippet, tag chip, and the «باز کردن →» footer row are gone. One tight row —

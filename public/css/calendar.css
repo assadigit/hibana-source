@@ -1,6 +1,5 @@
 /* --- Calendar view (Phase B4.1) ---------------------------------------------- */
 .cal-head { margin-block-end: 1rem; }
-.cal-month-label { margin: 0 0.5rem; min-inline-size: 10rem; text-align: center; }
 .cal-grid {
   display: grid;
   grid-template-columns: repeat(7, 1fr);
@@ -69,7 +68,6 @@
 .cal-dot-sadhana { background: var(--brand); }
 .cal-dot-note { background: var(--ok); }
 .cal-dot-done { opacity: 0.45; }
-.cal-more { font-size: var(--fs-xs); color: var(--muted); font-weight: 600; }
 .cal-day-detail {
   margin-block-start: 1.5rem;
   padding: 1rem;
@@ -191,7 +189,6 @@
   .cal-cell { min-block-size: 3.5rem; padding: 0.25rem; }
   .cal-day-num { font-size: var(--fs-xs); }
   .cal-dow { font-size: 0.65rem; }
-  .cal-month-label { min-inline-size: 8rem; font-size: var(--fs-lg); }
   .cal-dot { inline-size: 19px; block-size: 19px; border-width: 2px; } /* 24px pins shrink one step on phones */
   .cal-legend-item .cal-dot { inline-size: 19px; block-size: 19px; }
 }
@@ -305,7 +302,6 @@
   .cal-cell { min-inline-size: 2.75rem; }
   .cal-dow { min-inline-size: 2.75rem; }
   .cal-head { flex-wrap: wrap; gap: 0.5rem; }
-  .cal-month-label { min-inline-size: 0; flex: 1; text-align: center; }
 }
 
 /* Heatmap cell hover — already has scale, add a subtle ring on focus */

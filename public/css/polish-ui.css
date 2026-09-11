@@ -218,12 +218,6 @@ dialog.cmdk::backdrop {
   gap: 0.75rem;
   padding: 0.5rem 0;
 }
-.skeleton-strip {
-  display: flex;
-  gap: 0.75rem;
-  padding: 0.5rem 0;
-}
-.skeleton-strip .skeleton-box { flex: 1; margin: 0; }
 @media (prefers-reduced-motion: reduce) {
   .skeleton::after { animation: none; opacity: 0.5; }
 }
@@ -524,11 +518,6 @@ body.has-mobile-nav { padding-block-end: calc(3.5rem + env(safe-area-inset-botto
 /* --- Sadhana focus-mode animation polish (Phase B3.4) ------------------------ */
 /* The focus overlay fades + slides in instead of snapping. Backdrop gets a soft blur.
    Gated by prefers-reduced-motion. */
-.sadhana-focus-mount[data-focus-q] {
-  animation: focus-fade-in 0.22s ease-out;
-  backdrop-filter: blur(8px);
-  background: color-mix(in srgb, var(--bg) 82%, transparent);
-}
 .sadhana-focus {
   animation: focus-slide-in 0.26s cubic-bezier(0.16, 1, 0.3, 1);
 }
@@ -541,9 +530,7 @@ body.has-mobile-nav { padding-block-end: calc(3.5rem + env(safe-area-inset-botto
   to { opacity: 1; transform: translateY(0) scale(1); }
 }
 @media (prefers-reduced-motion: reduce) {
-  .sadhana-focus-mount[data-focus-q],
   .sadhana-focus { animation: none; }
-  .sadhana-focus-mount[data-focus-q] { backdrop-filter: none; }
 }
 
 /* --- Settings tabs (Phase B3.5) --------------------------------------------- */

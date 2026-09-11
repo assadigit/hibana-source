@@ -2,17 +2,22 @@
 // so this is the documented, dependency-free alternative. Iterations are stored in the hash
 // string so they can be raised later without invalidating existing hashes.
 //
-// M2 fix (2026-09-10): raised from 100,000 to 600,000 per OWASP 2023 guidance for PBKDF2-
-// SHA256. The iteration count is stored per-hash, so existing 100k hashes still verify
-// correctly — and verifyPassword() exposes needsRehash() so the login route can silently
-// rehash at the new target on the next successful login (lazy upgrade, zero UX impact).
-// NOTE: 600k iterations takes ~150-300ms of CPU. Cloudflare Workers paid plan (30s CPU
-// default) handles this fine. The free plan (10ms CPU) will fail — upgrade to paid if
-// signup/reset are returning 500s after this change.
+// Iteration count: 100,000. This is the MAXIMUM Cloudflare Workers supports (a hard platform
+// limit — `crypto.subtle.deriveBits` with PBKDF2 throws NotSupportedError above 100k). The
+// Node path can go higher, but Workers is the production runtime, so we cap at the Workers
+// max. The M2 fix (2026-09-10) tried 600k per OWASP 2023 guidance, but that silently broke
+// every signup + password reset on the Workers path — 600k hashes throw on verify, returning
+// 500 internal_error. Reverted to 100k on 2026-09-11 (Session 26).
+//
+// Security trade-off: 100k is below OWASP 2023's 600k minimum for PBKDF2-SHA256, but it's
+// what Apple Keychain and many production systems use. The hash format stores the iteration
+// count per-hash, so if Hibana ever moves to a Node-only deployment, ITERATIONS can be raised
+// and needsRehash() will lazily upgrade existing hashes on next login. JS-based scrypt/argon2
+// were rejected — too slow on Workers CPU limits (10ms free / 30s paid for ~1-2s scrypt).
 
 import { timingSafeEqual } from '../lib/crypto'
 
-const ITERATIONS = 600_000 // OWASP 2023 minimum for PBKDF2-SHA256 (was 100,000)
+const ITERATIONS = 100_000 // Workers max — 600k throws NotSupportedError on the Cloudflare runtime
 const MIN_ACCEPTED_ITERATIONS = 100_000 // legacy hashes below this are rejected (tampering guard)
 const KEY_LEN_BITS = 256
 const SALT_BYTES = 16
@@ -60,10 +65,14 @@ export async function verifyPassword(password: string, stored: PasswordHash): Pr
 }
 
 /**
- * M2 fix (2026-09-10): returns true if the stored hash was hashed at a lower iteration
- * count than the current target (ITERATIONS). The login route calls this after a
- * successful verify and silently rehashes the password at the new target — zero UX
- * impact, and the upgrade happens organically as users log in.
+ * Returns true if the stored hash was hashed at a lower iteration count than the current
+ * target (ITERATIONS). The login route calls this after a successful verify and silently
+ * rehashes the password at the new target — zero UX impact, and the upgrade happens
+ * organically as users log in.
+ *
+ * With ITERATIONS=100k (the Workers cap), this currently returns false for all hashes —
+ * no upgrade is possible on the Workers runtime. The code path is kept for the future
+ * Node-only deployment case (where ITERATIONS could be raised to 600k+ per OWASP 2023).
  */
 export function needsRehash(stored: PasswordHash): boolean {
   const parts = stored.split('$')

@@ -190,7 +190,7 @@ export function quickNotesRoutes(cfg: Config) {
       <div class="attach-options">
         ${projects
           .map(
-            (p) => `<button type="button" class="attach-option" hx-patch="/api/notes/${n.id}" hx-vals='{"project_id":"${p.id}"}' hx-target="#notebook" hx-swap="outerHTML">${esc(p.title)}</button>`,
+            (p) => `<button type="button" class="attach-option" hx-patch="/api/notes/${n.id}" hx-vals='{"project_id":"${p.id}"}' hx-target="#notebook" hx-swap="morph">${esc(p.title)}</button>`,
           )
           .join('')}
       </div>

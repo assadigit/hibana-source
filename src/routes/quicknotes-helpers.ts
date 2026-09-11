@@ -93,9 +93,9 @@ export function itemsHtml(items: TaskItem[], lang: Locale): string {
   return items
     .map(
       (it) => `<li class="hurdle ${it.d ? 'done' : ''}" id="item-${it.id}">
-        <button class="ghost toggle icon-btn" hx-patch="/api/notes/list/${it.id}" hx-vals='{"done":${it.d ? 0 : 1}}' hx-target="#notebook" hx-swap="outerHTML" aria-label="${trL(lang, 'toggle', 'تغییر وضعیت')}">${icon(it.d ? 'check' : 'unchecked')}</button>
+        <button class="ghost toggle icon-btn" hx-patch="/api/notes/list/${it.id}" hx-vals='{"done":${it.d ? 0 : 1}}' hx-target="#notebook" hx-swap="morph" aria-label="${trL(lang, 'toggle', 'تغییر وضعیت')}">${icon(it.d ? 'check' : 'unchecked')}</button>
         <span>${esc(it.t)}</span>
-        <button class="ghost danger icon-btn" hx-delete="/api/notes/list/${it.id}" hx-target="#notebook" hx-swap="outerHTML" aria-label="${trL(lang, 'remove', 'حذف')}">${icon('x')}</button>
+        <button class="ghost danger icon-btn" hx-delete="/api/notes/list/${it.id}" hx-target="#notebook" hx-swap="morph" aria-label="${trL(lang, 'remove', 'حذف')}">${icon('x')}</button>
       </li>`,
     )
     .join('')
@@ -112,7 +112,7 @@ export function colorPickerHtml(n: QuickNote, lang: Locale): string {
       // CSS class .color-dot now controls size (1rem) so all footer buttons (dots + delete
       // + done) share a consistent ~16px visual target. The inline background + border
       // stay (a stale cached stylesheet can't render the dots as black defaults).
-      return `<button type="button" class="color-dot dot-${c} ${n.color === c ? 'active' : ''}" hx-patch="/api/notes/${n.id}" hx-vals='{"color":"${c}"}' hx-target="#notebook" hx-swap="outerHTML" aria-label="${t(label, c)}" title="${t(label, c)}" style="background:${NOTE_COLOR_HEX[c]};border:1px solid rgb(0 0 0 / 0.18)"></button>`
+      return `<button type="button" class="color-dot dot-${c} ${n.color === c ? 'active' : ''}" hx-patch="/api/notes/${n.id}" hx-vals='{"color":"${c}"}' hx-target="#notebook" hx-swap="morph" aria-label="${t(label, c)}" title="${t(label, c)}" style="background:${NOTE_COLOR_HEX[c]};border:1px solid rgb(0 0 0 / 0.18)"></button>`
     }).join('')}
   </span>`
 }
@@ -177,7 +177,7 @@ export function noteCard(n: QuickNote, lang: Locale, titles: Map<string, string>
     return `<div class="note-card${doneCls}" id="note-${n.id}" data-kind="note" ${colorAttr} style="${color}">
       ${headbar(n.project_id)}
       <textarea class="note-text" name="content" rows="1" maxlength="20000" dir="auto"
-        hx-patch="/api/notes/${n.id}" hx-trigger="change" hx-target="#notebook" hx-swap="outerHTML">${esc(content)}</textarea>
+        hx-patch="/api/notes/${n.id}" hx-trigger="change" hx-target="#notebook" hx-swap="morph">${esc(content)}</textarea>
       <!-- Phase 6 item 6: the card clamps to 3 lines (app.css); data-note-open hands the
            full-note reader modal to app.js (long notes only — short ones keep click-to-edit).
            Phase 7 item 11: the «بیشتر…» chip is revealed by app.js (.has-more) exactly when
@@ -198,14 +198,14 @@ export function noteCard(n: QuickNote, lang: Locale, titles: Map<string, string>
     <div class="row spread note-head">
       <span class="row note-head-main">
         <input class="note-title" name="title" value="${esc(n.title)}" maxlength="120" dir="auto"
-          hx-patch="/api/notes/${n.id}" hx-trigger="change" hx-target="#notebook" hx-swap="outerHTML">
+          hx-patch="/api/notes/${n.id}" hx-trigger="change" hx-target="#notebook" hx-swap="morph">
         ${dateChipHtml(n, lang)}
       </span>
       <span class="row note-head-right">${colorPickerHtml(n, lang)}${doneBtn(n.project_id)}
       <button class="ghost danger icon-btn" data-note-delete="${n.id}" aria-label="${t('Delete', 'حذف')}">${icon('x')}</button></span>
     </div>
     <ul class="hurdles note-items">${itemsHtml(items, lang)}</ul>
-    <form class="row note-add" hx-post="/api/notes/list/${n.id}" hx-target="#notebook" hx-swap="outerHTML">
+    <form class="row note-add" hx-post="/api/notes/list/${n.id}" hx-target="#notebook" hx-swap="morph">
       <input name="text" placeholder="${t('Add a task…', 'وظیفه جدید…')}" maxlength="300" required autocomplete="off">
       <button class="qa-btn" aria-label="${t('Add', 'افزودن')}" title="${t('Add', 'افزودن')}">${icon('plus')}</button>
     </form>
@@ -220,7 +220,7 @@ export function attachWidget(n: QuickNote, titles: Map<string, string>, lang: Lo
   if (pid && titles.has(pid)) {
     return `<div class="row attach-row">
       <a class="chip attach-chip" href="/project.html?id=${pid}">${icon('link')}${esc(titles.get(pid)!)}</a>
-      <button class="ghost danger icon-btn" hx-patch="/api/notes/${n.id}" hx-vals='{"project_id":null}' hx-target="#notebook" hx-swap="outerHTML" aria-label="${t('Detach', 'جدا کردن')}" title="${t('Detach', 'جدا کردن')}">${icon('x')}</button>
+      <button class="ghost danger icon-btn" hx-patch="/api/notes/${n.id}" hx-vals='{"project_id":null}' hx-target="#notebook" hx-swap="morph" aria-label="${t('Detach', 'جدا کردن')}" title="${t('Detach', 'جدا کردن')}">${icon('x')}</button>
     </div>`
   }
   return `<button class="ghost small attach-btn" hx-get="/api/notes/attach-picker?note_id=${n.id}" hx-target="#attach-${n.id}" hx-swap="innerHTML" aria-label="${t('Attach to a project', 'اتصال به پروژه')}" title="${t('Attach to a project', 'اتصال به پروژه')}">${icon('link')} <span class="small">${t('Attach', 'اتصال')}</span></button>`
@@ -287,7 +287,7 @@ export function notebookHtml(notes: QuickNote[], lang: Locale, composerMode: 'no
       ${controlsHtml}
       <h3 class="note-heading">${t('Quick Notebook', 'یادداشت سریع')}</h3>
     </div>
-    <form class="row note-compose" hx-post="/api/notes${dashboard ? '?dashboard=1' : ''}" hx-target="#notebook" hx-swap="outerHTML" data-note-compose>
+    <form class="row note-compose" hx-post="/api/notes${dashboard ? '?dashboard=1' : ''}" hx-target="#notebook" hx-swap="morph" data-note-compose>
       <label class="note-compose-label" for="note-compose-box">${t('Quick note', 'یادداشت جدید')}</label>
       <div class="seg" role="tablist" aria-label="${t('Note mode', 'حالت یادداشت')}">
         <button type="button" class="seg-btn ${composerMode === 'note' ? 'active' : ''}" data-note-mode="note" aria-pressed="${composerMode === 'note'}">${t('Note', 'یادداشت')}</button>

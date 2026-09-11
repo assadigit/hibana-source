@@ -9,7 +9,7 @@
 
 window.hibanaI18n = (() => {
   // P2 (Focus 2): dict.fa is loaded lazily — EN users never download i18n-fa.js (17KB gz).
-  // When apply() resolves to fa, ensureFaDict() injects /js/i18n-fa.js?v=1 dynamically and
+  // When apply() resolves to fa, ensureFaDict() injects /js/i18n-fa.js?v=2 dynamically and
   // awaits it. The build pipeline's fixpoint loop rewrites the path to /dist/i18n-fa.<hash>.js.
   const dict = {
     en: window.__hibanaDictEN,
@@ -40,7 +40,7 @@ window.hibanaI18n = (() => {
   }
 
   // P2 (Focus 2): lazy-load the FA dictionary. Returns immediately if already loaded.
-  // Follows the queue.js injection pattern (app.js:13) — /js/i18n-fa.js?v=1 is rewritten
+  // Follows the queue.js injection pattern (app.js:13) — /js/i18n-fa.js?v=2 is rewritten
   // to /dist/i18n-fa.<hash>.js by the build pipeline's fixpoint loop.
   let faDictPromise = null // guards against double-injection if apply() fires twice
   function ensureFaDict() {
@@ -48,7 +48,7 @@ window.hibanaI18n = (() => {
     if (faDictPromise) return faDictPromise
     faDictPromise = new Promise((resolve) => {
       const s = document.createElement('script')
-      s.src = '/js/i18n-fa.js?v=1'
+      s.src = '/js/i18n-fa.js?v=2'
       s.onload = () => { dict.fa = window.__hibanaDictFA || {}; resolve() }
       s.onerror = () => { dict.fa = {}; resolve() } // graceful: t() falls back to EN
       document.head.appendChild(s)

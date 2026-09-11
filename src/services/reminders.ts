@@ -29,9 +29,24 @@ export async function findBehindProjects(cfg: Config): Promise<ReminderCandidate
      WHERE type = 'client' AND reminders_enabled = 1 AND due_date IS NOT NULL
        AND status IN ('doing', 'operational') AND deleted_at IS NULL`,
   )
+  if (projects.length === 0) return []
+  // P11 (Focus 2): batch-fetch all tasks for all projects in one query (was N+1 — one
+  // SELECT per project). Daily cron, <50 projects typical, but D1 subrequest budgets matter.
+  const ids = projects.map((p) => p.id)
+  const placeholders = ids.map(() => '?').join(',')
+  const allTasks = await cfg.db.query<TaskRow>(
+    `SELECT * FROM tasks WHERE project_id IN (${placeholders})`,
+    ids,
+  )
+  const tasksByProject = new Map<string, TaskRow[]>()
+  for (const t of allTasks) {
+    const arr = tasksByProject.get(t.project_id)
+    if (arr) arr.push(t)
+    else tasksByProject.set(t.project_id, [t])
+  }
   const out: ReminderCandidate[] = []
   for (const p of projects) {
-    const tasks = await cfg.db.query<TaskRow>('SELECT * FROM tasks WHERE project_id = ?', [p.id])
+    const tasks = tasksByProject.get(p.id) ?? []
     if (tasks.length === 0) continue // no tasks → nothing to measure yet; don't nag before the work starts
     const progress = p.progress_percent ?? clientProgress({ total: tasks.length, done: tasks.filter((t) => t.done === 1).length })
     const elapsed = elapsedFraction(p.due_date!, now)

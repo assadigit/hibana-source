@@ -29,7 +29,7 @@ async function makeAuthedApp(db: Db, userId: string) {
 const post = (cookie: string, path: string, body: unknown) =>
   new Request('http://local' + path, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', Cookie: cookie },
+    headers: { 'Content-Type': 'application/json', Cookie: cookie, Origin: 'http://local' },
     body: JSON.stringify(body),
   })
 const get = (cookie: string, path: string, extra: Record<string, string> = {}) =>
@@ -104,10 +104,10 @@ describe('security hardening (2026-08-28)', () => {
       // Owner creates a project, soft-deletes it (inside the 7-day undo window)
       const created = await appOwner.fetch(post(co, '/api/projects', { title: 'to-purge-later' }))
       const { id } = (await created.json()) as { id: string }
-      await appOwner.fetch(new Request(`http://local/api/projects/${id}`, { method: 'DELETE', headers: { Cookie: co } }))
+      await appOwner.fetch(new Request(`http://local/api/projects/${id}`, { method: 'DELETE', headers: { Cookie: co, Origin: 'http://local' } }))
 
       // Member forces a purge — must be forbidden
-      const res = await appMember.fetch(new Request('http://local/api/admin/purge', { method: 'POST', headers: { Cookie: cm } }))
+      const res = await appMember.fetch(new Request('http://local/api/admin/purge', { method: 'POST', headers: { Cookie: cm, Origin: 'http://local' } }))
       expect(res.status).toBe(403)
 
       // The soft-deleted row is still there (undo window intact)
@@ -118,7 +118,7 @@ describe('security hardening (2026-08-28)', () => {
       // stamp is NOW, so it is younger than the 7-day cutoff — the cron semantics say it
       // stays. Set the stamp back artificially to prove the delete path actually fires.
       await db.execute("UPDATE projects SET deleted_at = ? WHERE id = ?", [new Date(Date.now() - 8 * 24 * 3600 * 1000).toISOString(), id])
-      const resOwner = await appOwner.fetch(new Request('http://local/api/admin/purge', { method: 'POST', headers: { Cookie: co } }))
+      const resOwner = await appOwner.fetch(new Request('http://local/api/admin/purge', { method: 'POST', headers: { Cookie: co, Origin: 'http://local' } }))
       expect(resOwner.status).toBe(200)
       const body = (await resOwner.json()) as { ok: boolean; purged: number }
       expect(body.ok).toBe(true)

@@ -17,7 +17,7 @@ async function makeClient(db: Db, userId: string) {
     emailKey: undefined,
     assets: undefined,
   })
-  return { app, auth: { Cookie: `hibana_session=${await createSession(db, userId)}`, 'Content-Type': 'application/json' } }
+  return { app, auth: { Cookie: `hibana_session=${await createSession(db, userId)}`, 'Content-Type': 'application/json', Origin: 'http://local' } }
 }
 
 const cookie = (auth: Record<string, string>) => ({ Cookie: auth.Cookie ?? '' })
@@ -61,7 +61,7 @@ describe('profile picture (settings.avatar)', () => {
       const userId = await makeUser(db)
       const { app, auth } = await makeClient(db, userId)
 
-      const noAuth = await app.fetch(PUT({ 'Content-Type': 'application/json' }, { mimeType: 'image/png', dataBase64: 'aGk=' }))
+      const noAuth = await app.fetch(PUT({ 'Content-Type': 'application/json', Origin: 'http://local' }, { mimeType: 'image/png', dataBase64: 'aGk=' }))
       expect(noAuth.status).toBe(401)
 
       expect((await app.fetch(PUT(auth, { mimeType: 'text/html', dataBase64: 'aGk=' }))).status).toBe(400)

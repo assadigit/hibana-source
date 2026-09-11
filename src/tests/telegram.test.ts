@@ -19,7 +19,7 @@ async function makeApp(db: Db, userId?: string) {
     assets: undefined,
   })
   const cookie = userId ? `hibana_session=${await createSession(db, userId)}` : undefined
-  return { app, auth: { Cookie: cookie ?? '', 'Content-Type': 'application/json' } }
+  return { app, auth: { Cookie: cookie ?? '', 'Content-Type': 'application/json', Origin: 'http://local' } }
 }
 
 // Stub the outbound Telegram API (sendMessage) so tests need no network; captures the body.
@@ -50,7 +50,7 @@ describe('Phase 5 — telegram + obsidian import', () => {
       const res = await app.fetch(
         new Request('http://local/api/telegram/webhook', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 'Content-Type': 'application/json', Origin: 'http://local' },
           body: JSON.stringify({ message: { chat: { id: 1 }, from: { id: 2 }, text: 'spoofed idea' } }),
         }),
       )
@@ -160,7 +160,7 @@ describe('Phase 5 — telegram + obsidian import', () => {
       form.append('files', new File(['---\nyaml: frontmatter\n---\nDraft project two\n\nSome notes here.'], 'proj-b.md', { type: 'text/markdown' }))
 
       const res = await app.fetch(
-        new Request('http://local/api/import/obsidian', { method: 'POST', body: form, headers: { Cookie: auth.Cookie } }),
+        new Request('http://local/api/import/obsidian', { method: 'POST', body: form, headers: { Cookie: auth.Cookie, Origin: 'http://local' } }),
       )
       expect(res.status).toBe(200)
       const body = (await res.json()) as { imported: number }
@@ -197,7 +197,7 @@ describe('Phase 5 — telegram + obsidian import', () => {
       const form = new FormData()
       form.append('files', vaultZip())
       const res = await app.fetch(
-        new Request('http://local/api/import/obsidian', { method: 'POST', body: form, headers: { Cookie: auth.Cookie } }),
+        new Request('http://local/api/import/obsidian', { method: 'POST', body: form, headers: { Cookie: auth.Cookie, Origin: 'http://local' } }),
       )
       expect(res.status).toBe(200)
       const body = (await res.json()) as { imported: number; duplicates: number }
@@ -222,7 +222,7 @@ describe('Phase 5 — telegram + obsidian import', () => {
       const post = async () => {
         const form = new FormData()
         form.append('files', vaultZip())
-        return app.fetch(new Request('http://local/api/import/obsidian', { method: 'POST', body: form, headers: { Cookie: auth.Cookie } }))
+        return app.fetch(new Request('http://local/api/import/obsidian', { method: 'POST', body: form, headers: { Cookie: auth.Cookie, Origin: 'http://local' } }))
       }
 
       const first = (await (await post()).json()) as { imported: number; duplicates: number }
@@ -245,7 +245,7 @@ describe('Phase 5 — telegram + obsidian import', () => {
       const form = new FormData()
       form.append('files', new File(['this is just plain text, not a zip'], 'fake.zip', { type: 'application/zip' }))
       const res = await app.fetch(
-        new Request('http://local/api/import/obsidian', { method: 'POST', body: form, headers: { Cookie: auth.Cookie } }),
+        new Request('http://local/api/import/obsidian', { method: 'POST', body: form, headers: { Cookie: auth.Cookie, Origin: 'http://local' } }),
       )
       expect(res.status).toBe(400)
       expect(((await res.json()) as { error: string }).error).toBe('invalid_zip')
@@ -268,7 +268,7 @@ describe('Phase 5 — telegram + obsidian import', () => {
       const send = async (cookie: string) => {
         const form = new FormData()
         form.append('files', new File(['# Shared Idea\n\nsame title'], 'a.md', { type: 'text/markdown' }))
-        return app.fetch(new Request('http://local/api/import/obsidian', { method: 'POST', body: form, headers: { Cookie: cookie } }))
+        return app.fetch(new Request('http://local/api/import/obsidian', { method: 'POST', body: form, headers: { Cookie: cookie, Origin: 'http://local' } }))
       }
 
       expect((await ((await send(cookieA)).json() as Promise<{ imported: number }>)).imported).toBe(1)
@@ -434,7 +434,7 @@ describe('Phase 5 — telegram + obsidian import', () => {
         const confirm = await app.fetch(
           new Request('http://local/api/auth/reset/confirm', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 'Content-Type': 'application/json', Origin: 'http://local' },
             body: JSON.stringify({ token: raw, password: 'telegram-new-password' }),
           }),
         )
@@ -446,7 +446,7 @@ describe('Phase 5 — telegram + obsidian import', () => {
         const login = await app.fetch(
           new Request('http://local/api/auth/login', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 'Content-Type': 'application/json', Origin: 'http://local' },
             body: JSON.stringify({ login: email, password: 'telegram-new-password' }),
           }),
         )
@@ -649,7 +649,7 @@ describe('telegram account linking — any authenticated user', () => {
     const { db, close } = makeTestDb()
     try {
       const { app } = await makeApp(db)
-      const res = await app.fetch(new Request('http://local/api/telegram/link', { method: 'DELETE' }))
+      const res = await app.fetch(new Request('http://local/api/telegram/link', { method: 'DELETE', headers: { Origin: 'http://local' } }))
       expect(res.status).toBe(401)
     } finally {
       close()

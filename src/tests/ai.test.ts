@@ -171,7 +171,7 @@ function makeConfig(db: Db, ai?: AiRunner): Config {
 async function makeClient(db: Db, userId: string, ai?: AiRunner) {
   const app = createApp(makeConfig(db, ai))
   const token = await createSession(db, userId)
-  return { app, auth: { Cookie: `hibana_session=${token}`, 'Content-Type': 'application/json' } }
+  return { app, auth: { Cookie: `hibana_session=${token}`, 'Content-Type': 'application/json', Origin: 'http://local' } }
 }
 
 function post(client: { app: ReturnType<typeof createApp>; auth: Record<string, string> }, body: unknown) {
@@ -189,7 +189,7 @@ describe('POST /api/ai/text (Magic Button route)', () => {
       const app = createApp(makeConfig(db, { async run() { return { result: { response: 'x' } } } }))
       const res = await app.fetch(new Request('http://local/api/ai/text', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', Origin: 'http://local' },
         body: JSON.stringify({ text: 'hi', action: 'polish' }),
       }))
       expect(res.status).toBe(401)

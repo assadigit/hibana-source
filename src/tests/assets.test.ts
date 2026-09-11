@@ -74,7 +74,7 @@ describe('static assets (portability path)', () => {
       const res = await app.fetch(
         new Request('http://local/api/auth/login', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 'Content-Type': 'application/json', Origin: 'http://local' },
           body: JSON.stringify({ login: 'nobody@test.dev', password: 'wrong' }),
         }),
       )

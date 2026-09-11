@@ -164,7 +164,7 @@ describe('GET /api/export/obsidian.zip', () => {
       // 2) import it back through the real /api/import/obsidian endpoint
       const form = new FormData()
       for (const f of files) form.append('files', f)
-      const imp = await app.fetch(new Request('http://local/api/import/obsidian', { method: 'POST', headers: { Cookie: cookie }, body: form }))
+      const imp = await app.fetch(new Request('http://local/api/import/obsidian', { method: 'POST', headers: { Cookie: cookie, Origin: 'http://local' }, body: form }))
       expect(imp.status).toBe(200)
       const body = (await imp.json()) as { imported: number; duplicates: number }
       // Everything dedups: project + idea titles already exist; Home/Quick-Notes have no

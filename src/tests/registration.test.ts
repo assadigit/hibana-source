@@ -20,7 +20,7 @@ function makeApp(db: Db, over: Partial<Parameters<typeof createApp>[0]> = {}) {
 const post = (path: string, body: unknown, opts: { cookie?: string } = {}) =>
   new Request('http://local' + path, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', ...(opts.cookie ? { Cookie: opts.cookie } : {}) },
+    headers: { 'Content-Type': 'application/json', Origin: 'http://local', ...(opts.cookie ? { Cookie: opts.cookie } : {}) },
     body: JSON.stringify(body),
   })
 
@@ -216,7 +216,7 @@ describe('registration (spec §4.14)', () => {
       const hx = (path: string, body: unknown) =>
         new Request('http://local' + path, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'HX-Request': 'true' },
+          headers: { 'Content-Type': 'application/json', 'HX-Request': 'true', Origin: 'http://local' },
           body: JSON.stringify(body),
         })
 

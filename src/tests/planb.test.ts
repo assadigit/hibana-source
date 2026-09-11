@@ -83,7 +83,7 @@ describe('Plan B — Telegram backup channel (0044, on-demand since session 14)'
         const res = await app.fetch(
           new Request('http://local/api/telegram/webhook', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'X-Telegram-Bot-Api-Secret-Token': 'wxyz-secret' },
+            headers: { 'Content-Type': 'application/json', 'X-Telegram-Bot-Api-Secret-Token': 'wxyz-secret', Origin: 'http://local' },
             body: JSON.stringify({
               callback_query: {
                 id: 'cb1',
@@ -134,7 +134,7 @@ describe('Plan B — Telegram backup channel (0044, on-demand since session 14)'
         await app.fetch(
           new Request('http://local/api/telegram/webhook', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'X-Telegram-Bot-Api-Secret-Token': 'wxyz-secret' },
+            headers: { 'Content-Type': 'application/json', 'X-Telegram-Bot-Api-Secret-Token': 'wxyz-secret', Origin: 'http://local' },
             body: JSON.stringify({
               callback_query: { id: 'cb1', from: { id: 77 }, message: { message_id: 55, chat: { id: 9001 }, text: 'x' }, data: 'bak' },
             }),
@@ -166,7 +166,7 @@ describe('Plan B — Telegram backup channel (0044, on-demand since session 14)'
           app.fetch(
             new Request('http://local/api/telegram/webhook', {
               method: 'POST',
-              headers: { 'Content-Type': 'application/json', 'X-Telegram-Bot-Api-Secret-Token': 'wxyz-secret' },
+              headers: { 'Content-Type': 'application/json', 'X-Telegram-Bot-Api-Secret-Token': 'wxyz-secret', Origin: 'http://local' },
               body: JSON.stringify({
                 callback_query: { id: 'cb1', from: { id: 77 }, message: { message_id: 55, chat: { id: chatId }, text: 'x' }, data },
               }),

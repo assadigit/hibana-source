@@ -14,7 +14,7 @@ describe('rate limiting (spec §15)', () => {
       const app = createApp({ db, isProd: false, github: { owner: 'x', repo: 'y', token: '' }, emailKey: undefined, assets: undefined })
       const seed = await app.fetch(new Request('http://local/api/auth/login', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', Origin: 'http://local' },
         body: JSON.stringify({ login: 'a-user@test.dev', password: 'wrong-password' }),
       }))
       expect(seed.status).toBe(401) // wrong creds are 401, and the limiter counts them
@@ -23,7 +23,7 @@ describe('rate limiting (spec §15)', () => {
       for (let i = 0; i < 35; i++) {
         const res = await app.fetch(new Request('http://local/api/auth/login', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 'Content-Type': 'application/json', Origin: 'http://local' },
           body: JSON.stringify({ login: 'a-user@test.dev', password: 'wrong-password' }),
         }))
         statuses.push(res.status)
@@ -47,7 +47,7 @@ describe('rate limiting (spec §15)', () => {
       for (let i = 0; i < 32; i++) {
         last = await app.fetch(new Request('http://local/api/auth/register', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'HX-Request': 'true' },
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'HX-Request': 'true', Origin: 'http://local' },
           body: 'username=probe&email=probe@test.dev&password=correcthorsebattery&captcha=tok',
         }))
       }
@@ -68,14 +68,14 @@ describe('rate limiting (spec §15)', () => {
       for (let i = 0; i < 30; i++) {
         const res = await app.fetch(new Request('http://local/api/auth/reset/request', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 'Content-Type': 'application/json', Origin: 'http://local' },
           body: JSON.stringify({ email: 'nobody@test.dev' }), // unknown → ok, no email sent
         }))
         expect(res.status).toBe(200)
       }
       const blocked = await app.fetch(new Request('http://local/api/auth/reset/confirm', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', Origin: 'http://local' },
         body: JSON.stringify({ token: 'x', password: 'whatever123' }),
       }))
       expect(blocked.status).toBe(429)
@@ -92,7 +92,7 @@ describe('rate limiting (spec §15)', () => {
       for (let i = 0; i < 30; i++) {
         const res = await app.fetch(new Request('http://local/api/auth/login', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'CF-Connecting-IP': '198.51.100.7' },
+          headers: { 'Content-Type': 'application/json', 'CF-Connecting-IP': '198.51.100.7', Origin: 'http://local' },
           body: JSON.stringify({ login: 'a-user@test.dev', password: 'wrong-password' }),
         }))
         expect(res.status).toBe(401) // never blocked: separate budget
@@ -100,7 +100,7 @@ describe('rate limiting (spec §15)', () => {
       // the original 'local' budget is untouched
       const fresh = await app.fetch(new Request('http://local/api/auth/login', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', Origin: 'http://local' },
         body: JSON.stringify({ login: 'a-user@test.dev', password: 'wrong-password' }),
       }))
       expect(fresh.status).toBe(401)
@@ -119,14 +119,14 @@ describe('rate limiting (spec §15)', () => {
       for (let i = 0; i < 300; i++) {
         const res = await app.fetch(new Request('http://local/api/telegram/webhook', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'X-Telegram-Bot-Api-Secret-Token': 'wrong-secret' },
+          headers: { 'Content-Type': 'application/json', 'X-Telegram-Bot-Api-Secret-Token': 'wrong-secret', Origin: 'http://local' },
           body: JSON.stringify({ message: { chat: { id: 1 }, from: { id: 1 }, text: 'x' } }),
         }))
         expect(res.status).toBe(403) // wrong secret → 403, but still counted
       }
       const blocked = await app.fetch(new Request('http://local/api/telegram/webhook', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'X-Telegram-Bot-Api-Secret-Token': 'wxyz-secret' },
+        headers: { 'Content-Type': 'application/json', 'X-Telegram-Bot-Api-Secret-Token': 'wxyz-secret', Origin: 'http://local' },
         body: JSON.stringify({ message: { chat: { id: 1 }, from: { id: 1 }, text: 'x' } }),
       }))
       expect(blocked.status).toBe(429) // the limiter ran BEFORE the secret check

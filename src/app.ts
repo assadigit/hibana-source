@@ -120,9 +120,13 @@ export function createApp(cfg: Config) {
   // always attach an `Origin` (or `Referer`) to cross-site POST/PUT/PATCH/DELETE, so a
   // mismatched header is rejected before any route runs — this covers the form-encoded
   // htmx surface that the JSON-content-type argument can't, on top of SameSite=Lax already
-  // dropping the session cookie cross-site (defense in depth). Server-to-server callers
-  // that send neither header are allowed (internal automation, and the Telegram webhook —
-  // itself authenticated by its secret-token header, rule 11).
+  // dropping the session cookie cross-site (defense in depth).
+  //
+  // 2026-09-11 (SWOT T6): tightened the headerless-caller carve-out. Previously, a request
+  // with NEITHER Origin NOR Referer was allowed (intentional for server-side callers).
+  // Now at least one header must be present and trusted — a request with neither is
+  // rejected with 403. The Telegram webhook is exempted (rule 11 governs via secret-token).
+  // Server-side automation callers that need access should send an explicit Origin header.
   app.use('*', async (c, next) => {
     if (!['POST', 'PUT', 'PATCH', 'DELETE'].includes(c.req.method)) return next()
     if (c.req.path === '/api/telegram/webhook') return next() // rule 11 governs it
@@ -131,13 +135,18 @@ export function createApp(cfg: Config) {
     const trusted = (o: string) => o === self || mirrors.includes(o)
     const origin = c.req.header('Origin')
     const referer = c.req.header('Referer')
-    if (origin && !trusted(origin)) return c.json({ error: 'forbidden' }, 403)
-    if (referer) {
+    // T6: require at least one header to be present AND trusted (was: allow if neither present)
+    if (origin) {
+      if (!trusted(origin)) return c.json({ error: 'forbidden' }, 403)
+    } else if (referer) {
       try {
         if (!trusted(new URL(referer, self).origin)) return c.json({ error: 'forbidden' }, 403)
       } catch {
         return c.json({ error: 'forbidden' }, 403)
       }
+    } else {
+      // Neither Origin nor Referer present — reject (was: allowed pre-T6)
+      return c.json({ error: 'forbidden' }, 403)
     }
     return next()
   })

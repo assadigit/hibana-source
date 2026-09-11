@@ -11,7 +11,7 @@ import type { Db } from '../db/types'
 async function makeCanvasClient(db: Db, userId: string) {
   const app = createApp({ db, isProd: false, github: { owner: 'x', repo: 'y', token: '' }, emailKey: undefined, assets: undefined })
   const token = await createSession(db, userId)
-  return { app, auth: { Cookie: `hibana_session=${token}`, 'Content-Type': 'application/json' } }
+  return { app, auth: { Cookie: `hibana_session=${token}`, 'Content-Type': 'application/json', Origin: 'http://local' } }
 }
 
 const ago = (days: number) => new Date(Date.now() - days * 24 * 3600 * 1000).toISOString()

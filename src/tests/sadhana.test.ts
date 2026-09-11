@@ -17,7 +17,7 @@ function makeConfig2(db: Db): Config {
 async function makeClient(db: Db, userId?: string) {
   const app = createApp(makeConfig2(db))
   const cookie = userId ? `hibana_session=${await createSession(db, userId)}` : ''
-  return { app, auth: { Cookie: cookie, 'Content-Type': 'application/json' } }
+  return { app, auth: { Cookie: cookie, 'Content-Type': 'application/json', Origin: 'http://local' } }
 }
 
 const insert = async (db: Db, uid: string, over: Partial<{ quadrant: number; title: string; done: number; recurring: number; recur_type: string; recur_config: string; recur_last: string; due_date: string; deleted_at: string; cleared_at: string; position: number }> = {}) => {

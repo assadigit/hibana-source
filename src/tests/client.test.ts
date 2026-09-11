@@ -9,7 +9,7 @@ import type { Db } from '../db/types'
 async function makeClient(db: Db, userId: string) {
   const app = createApp({ db, isProd: false, github: { owner: 'x', repo: 'y', token: '' }, emailKey: 'test-key', assets: undefined })
   const token = await createSession(db, userId)
-  return { app, auth: { Cookie: `hibana_session=${token}`, 'Content-Type': 'application/json' } }
+  return { app, auth: { Cookie: `hibana_session=${token}`, 'Content-Type': 'application/json', Origin: 'http://local' } }
 }
 
 async function seedClientProject(db: Db, app: ReturnType<typeof createApp>, auth: Record<string, string>, over: Record<string, unknown> = {}) {

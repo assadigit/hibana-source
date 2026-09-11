@@ -62,7 +62,7 @@ describe('screenshot upload path shape (session-9 F1)', () => {
       const res = await app.fetch(
         new Request(`http://local/api/projects/${projectId}/screenshots`, {
           method: 'POST',
-          headers: { Cookie: `hibana_session=${token}`, 'Content-Type': 'application/json' },
+          headers: { Cookie: `hibana_session=${token}`, 'Content-Type': 'application/json', Origin: 'http://local' },
           body: JSON.stringify({ fileName: 'shot.png', mimeType: 'image/png', dataBase64: PNG_B64, caption: 'regression pin' }),
         }),
       )
@@ -125,7 +125,7 @@ describe('screenshot upload path shape (session-9 F1)', () => {
       const res = await app.fetch(
         new Request(`http://local/api/projects/${projectId}/screenshots`, {
           method: 'POST',
-          headers: { Cookie: `hibana_session=${token}`, 'Content-Type': 'application/json' },
+          headers: { Cookie: `hibana_session=${token}`, 'Content-Type': 'application/json', Origin: 'http://local' },
           body: JSON.stringify({ id: clientId, fileName: 're play.jpeg', mimeType: 'image/jpeg', dataBase64: PNG_B64 }),
         }),
       )

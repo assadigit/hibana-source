@@ -24,7 +24,7 @@ function makeApp(db: Db, over: Partial<Parameters<typeof createApp>[0]> = {}) {
 const post = (path: string, body: unknown) =>
   new Request('http://local' + path, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', Origin: 'http://local' },
     body: JSON.stringify(body),
   })
 
@@ -256,7 +256,7 @@ describe('email-code verification (open signup, temporarily)', () => {
       const res = await app.fetch(
         new Request('http://local/api/auth/register', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'HX-Request': 'true' },
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'HX-Request': 'true', Origin: 'http://local' },
           body: `username=nativefield&email=native@test.dev&password=correcthorsebattery&captcha=${encodeURIComponent(captcha)}&captcha_token=${encodeURIComponent(captcha_token)}`,
         }),
       )
@@ -284,7 +284,7 @@ describe('email-code verification (open signup, temporarily)', () => {
       const noCaptcha = await app.fetch(
         new Request('http://local/api/auth/register', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'HX-Request': 'true' },
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'HX-Request': 'true', Origin: 'http://local' },
           body: 'username=nocap&email=nocap@test.dev&password=correcthorsebattery',
         }),
       )
@@ -296,7 +296,7 @@ describe('email-code verification (open signup, temporarily)', () => {
       const wrong = await app.fetch(
         new Request('http://local/api/auth/verify', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'HX-Request': 'true' },
+          headers: { 'Content-Type': 'application/json', 'HX-Request': 'true', Origin: 'http://local' },
           body: JSON.stringify({ email: 'fresh@test.dev', code: '0000' }),
         }),
       )
@@ -311,7 +311,7 @@ describe('email-code verification (open signup, temporarily)', () => {
       const ok = await app.fetch(
         new Request('http://local/api/auth/verify', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'HX-Request': 'true' },
+          headers: { 'Content-Type': 'application/json', 'HX-Request': 'true', Origin: 'http://local' },
           body: JSON.stringify({ email: 'fresh@test.dev', code: lastVerificationCode(net) }),
         }),
       )

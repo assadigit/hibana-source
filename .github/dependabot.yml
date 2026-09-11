@@ -1,0 +1,20 @@
+# Dependabot — weekly checks for npm + github-actions updates.
+# Keeps CVEs + outdated packages visible without manual `npm outdated` runs.
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
+    # Group devDeps together (less noise); keep runtime deps separate for review.
+    groups:
+      dev-dependencies:
+        dependency-type: development
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 3

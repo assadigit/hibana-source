@@ -13,6 +13,7 @@ function passwordRequest(token: string | undefined, current_password: string, ne
     method: 'PATCH',
     headers: {
       'Content-Type': 'application/json',
+      Origin: 'http://local',
       ...(token ? { Cookie: `hibana_session=${token}` } : {}),
     },
     body: JSON.stringify({ current_password, new_password }),

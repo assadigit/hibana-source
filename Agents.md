@@ -42,8 +42,13 @@ a whiteboard note.
    written approval.
 5. Every credential is a secret (`wrangler secret put` / env vars). Never hardcoded, never
    committed, never echoed in chat.
-6. Password hashing: PBKDF2 via Web Crypto (`crypto.subtle`, 600,000 iterations since
-   2026-09-10, SHA-256). Never bcrypt/argon2 — native bindings don't run on Workers.
+6. Password hashing: PBKDF2 via Web Crypto (`crypto.subtle`, 100,000 iterations since
+   2026-09-11). Never bcrypt/argon2 — native bindings don't run on Workers. **Iteration
+   count is the Workers platform cap (100k)** — the M2 fix tried 600k per OWASP 2023
+   but Workers' `crypto.subtle.deriveBits` throws `NotSupportedError` above 100k. Do
+   NOT raise ITERATIONS above 100,000 — it silently breaks every signup + password
+   reset on the Workers path. The `needsRehash()` code path is a permanent no-op on
+   Workers (100k is already the target). If Hibana ever moves to Node-only, raise it.
 7. GitHub assets-repo reads over 1 MB require `Accept: application/vnd.github.v3.raw` —
    omit it and big files come back empty, silently.
 8. Backup export excludes `users.password_hash` and the entire `sessions` table.

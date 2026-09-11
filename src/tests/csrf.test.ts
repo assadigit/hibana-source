@@ -86,7 +86,7 @@ describe('CSRF hardening — cross-site state-changing requests are rejected', (
     }
   })
 
-  it('allows requests with neither Origin nor Referer (server-side/internal automation)', async () => {
+  it('rejects requests with neither Origin nor Referer (T6: headerless carve-out tightened)', async () => {
     const { db, close } = makeTestDb()
     try {
       const userId = await makeUser(db)
@@ -94,7 +94,7 @@ describe('CSRF hardening — cross-site state-changing requests are rejected', (
       const res = await app.fetch(
         new Request('http://local/api/projects', { method: 'POST', headers: auth, body: JSON.stringify({ title: 'script idea' }) }),
       )
-      expect(res.status).toBe(201) // no browser to correlate — same contract as server-side callers
+      expect(res.status).toBe(403) // T6: no browser headers → reject (was: 201 pre-T6)
     } finally {
       close()
     }

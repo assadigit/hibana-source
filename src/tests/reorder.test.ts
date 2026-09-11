@@ -7,7 +7,7 @@ import type { Db } from '../db/types'
 async function makeClient(db: Db, userId: string) {
   const app = createApp({ db, isProd: false, github: { owner: 'x', repo: 'y', token: '' }, emailKey: undefined, assets: undefined })
   const token = await createSession(db, userId)
-  return { app, auth: { Cookie: `hibana_session=${token}`, 'Content-Type': 'application/json' } }
+  return { app, auth: { Cookie: `hibana_session=${token}`, 'Content-Type': 'application/json', Origin: 'http://local' } }
 }
 
 async function createProject(app: ReturnType<typeof createApp>, auth: Record<string, string>, title: string, status: string) {
@@ -101,7 +101,7 @@ describe('reorder — projects', () => {
       const missingStatus = await app.fetch(new Request('http://local/api/projects/reorder', { method: 'POST', headers: auth, body: JSON.stringify({ ids: [id] }) }))
       expect(missingStatus.status).toBe(400)
 
-      const noAuth = await app.fetch(new Request('http://local/api/projects/reorder', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ status: 'spark', ids: [id] }) }))
+      const noAuth = await app.fetch(new Request('http://local/api/projects/reorder', { method: 'POST', headers: { 'Content-Type': 'application/json', Origin: 'http://local' }, body: JSON.stringify({ status: 'spark', ids: [id] }) }))
       expect(noAuth.status).toBe(401)
     } finally {
       close()
@@ -169,7 +169,7 @@ describe('reorder — hurdles', () => {
       const denied = await app2.fetch(new Request(`http://local/api/projects/${p1}/hurdles/reorder`, { method: 'POST', headers: auth2, body: JSON.stringify({ ids: [h1] }) }))
       expect(denied.status).toBe(404)
 
-      const noAuth = await app.fetch(new Request(`http://local/api/projects/${p1}/hurdles/reorder`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ids: [h1] }) }))
+      const noAuth = await app.fetch(new Request(`http://local/api/projects/${p1}/hurdles/reorder`, { method: 'POST', headers: { 'Content-Type': 'application/json', Origin: 'http://local' }, body: JSON.stringify({ ids: [h1] }) }))
       expect(noAuth.status).toBe(401)
     } finally {
       close()

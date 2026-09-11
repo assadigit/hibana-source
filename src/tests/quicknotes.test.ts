@@ -19,7 +19,7 @@ function makeConfig(db: Db): Config {
 async function makeClient(db: Db, userId: string) {
   const app = createApp(makeConfig(db))
   const token = await createSession(db, userId)
-  return { app, auth: { Cookie: `hibana_session=${token}`, 'Content-Type': 'application/json' } }
+  return { app, auth: { Cookie: `hibana_session=${token}`, 'Content-Type': 'application/json', Origin: 'http://local' } }
 }
 
 async function listNotes(client: { app: ReturnType<typeof createApp>; auth: Record<string, string> }): Promise<Note[]> {

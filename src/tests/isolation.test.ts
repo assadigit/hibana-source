@@ -34,7 +34,7 @@ describe('user isolation (rule 1)', () => {
       let res = await appA.fetch(
         new Request('http://local/api/projects', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json', Cookie: ca },
+          headers: { 'Content-Type': 'application/json', Cookie: ca, Origin: 'http://local' },
           body: JSON.stringify({ title: 'A project', status: 'unreviewed' }),
         }),
       )
@@ -58,12 +58,12 @@ describe('user isolation (rule 1)', () => {
       res = await appB.fetch(
         new Request(`http://local/api/projects/${aProject.id}`, {
           method: 'PATCH',
-          headers: { 'Content-Type': 'application/json', Cookie: cb },
+          headers: { 'Content-Type': 'application/json', Cookie: cb, Origin: 'http://local' },
           body: JSON.stringify({ title: 'hacked' }),
         }),
       )
       expect(res.status).toBe(404)
-      res = await appB.fetch(new Request(`http://local/api/projects/${aProject.id}`, { method: 'DELETE', headers: { Cookie: cb } }))
+      res = await appB.fetch(new Request(`http://local/api/projects/${aProject.id}`, { method: 'DELETE', headers: { Cookie: cb, Origin: 'http://local' } }))
       expect(res.status).toBe(404)
 
       // A can still see the project
@@ -75,7 +75,7 @@ describe('user isolation (rule 1)', () => {
       res = await appB.fetch(
         new Request(`http://local/api/projects/${aProject.id}/hurdles`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json', Cookie: cb },
+          headers: { 'Content-Type': 'application/json', Cookie: cb, Origin: 'http://local' },
           body: JSON.stringify({ text: 'intruder hurdle' }),
         }),
       )
@@ -96,7 +96,7 @@ describe('user isolation (rule 1)', () => {
       await appA.fetch(
         new Request('http://local/api/projects', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json', Cookie: ca },
+          headers: { 'Content-Type': 'application/json', Cookie: ca, Origin: 'http://local' },
           body: JSON.stringify({ title: 'secret treasure map', status: 'unreviewed' }),
         }),
       )
@@ -123,7 +123,7 @@ describe('user isolation (rule 1)', () => {
       await appA.fetch(
         new Request('http://local/api/tags', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json', Cookie: ca },
+          headers: { 'Content-Type': 'application/json', Cookie: ca, Origin: 'http://local' },
           body: JSON.stringify({ name: 'private-tag', color: '#ff0000' }),
         }),
       )

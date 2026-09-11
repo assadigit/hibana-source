@@ -9,7 +9,60 @@
 > rewritten as a minimal pointer. Deleted files remain recoverable verbatim:
 > `git show <sha>:<file>`.
 
-## 1. Current state (v0.3.12.14 — Session 25: comprehensive CSS + JS + TS architecture refactor — ~31,000 lines modularized across ~61 new files)
+## 1. Current state (v0.3.12.15 — Session 26: SWOT audit + HTML canonical recovery + security/CI hygiene batch)
+- **Session 26 summary** — strategic audit + hygiene session. Began with a four-faceted SWOT
+  audit (frontend / backend-security / test-CI / deps-PWA-build) via four parallel evidence
+  agents, producing a comprehensive report at `/home/z/my-project/SWOT-Session26.md`. Then
+  recovered the HTML canonical invariant (W1 — a load-bearing prerequisite blocked by commit
+  c016fa4's wired-HTML-with-no-backup state), shipped a 5-item security/CI hygiene batch
+  (T4/T2/T1/W8/W12), and deployed to dev + prod. 295/295 tests green throughout; new i18n
+  parity CI gate (953/953 keys). No schema changes, no new i18n keys, no behavior change
+  for end users (T1 is prod-only and refuses plaintext backups — BACKUP_ENCRYPTION_KEY is
+  set in both Worker envs, so no prod impact).
+- v0.3.12.15 = **Session 26 hygiene batch — SWOT W1/T4/T2/T1/W8/W12** (patch):
+  - **W1 (commit 5c449bc) — recover HTML canonical invariant:** commit c016fa4 (repo flatten)
+    committed `public/*.html` in the WIRED state (referencing `/dist/<hash>`) with no
+    `.build-backup/` canonical source — `--restore-html` was a false-positive no-op,
+    `--wire-html` refused (safety guard). The next CSS/JS change could not deploy.
+    Restored all 24 canonical HTML files from `c016fa4~1` (when they lived at
+    `hibana/hibana-v0.3.10.2/public/`). Verified build-cycle idempotency (wire→restore =
+    byte-identical), 295/295 tests, browser E2E renders with canonical CSS (VLM-confirmed).
+    No SW/?v= bump (source CSS/JS unchanged — only HTML refs went /dist/ → /css/?v=).
+  - **T4 (commit e3dae9f) — bump hono 4.13.3 → 4.13.7:** non-breaking patch. Fixes 3 CVEs:
+    GHSA-g6gw-c38x-mqfc (parseBody dot-notation memory exhaustion — Hibana uses parseBody
+    in auth.ts login), GHSA-gqvv-2mrq-wpjv (toSSG path-traversal, fix-incomplete),
+    GHSA-crvj-82cr-hjcx (query parser post-fragment params → cache-key/proxy differential).
+  - **T2 (commit 35594d0) — rate-limit logo upload route:** added `hitRateLimit(RATE_RULES.upload,
+    clientIp(c))` to `PUT /api/projects/:id/logo` (projects/index.ts:395). Was the only upload
+    route without a limiter — avatar (settings.ts:110) and screenshots (core.ts:279) both had
+    it. 30 req/60s per IP. Closes a 3.5MB-upload-×-unlimited-requests DoS vector.
+  - **T1 (commit de0e332) — hard-fail GitHub backup encryption in prod:** added prod guards at
+    both `backupToGitHub` call sites in admin.ts (manual route POST /backup line 320,
+    `scheduledBackup(cfg)` line 471). `cfg.isProd && !cfg.backupEncryptionKey` → refuse with a
+    clear error. Matches `backup-planb.ts:80-84`'s refuse-plaintext pattern. Dev/test path
+    unchanged (key still optional). Previously, a forgotten prod env var silently wrote
+    plaintext snapshots to the GitHub assets repo with no alert.
+  - **W8 (commit 697fc8c) — restore i18n parity check + wire into CI:** the old
+    `audit-consistency.mjs` parity check broke in Phase 3c (commit 145a1aa) — it regex-parsed
+    `i18n.js` for dict literals that had moved to `i18n-en.js`/`i18n-fa.js`. Created new
+    `scripts/check-i18n-parity.mjs` that reads the split dict files directly, loads each in a
+    `node:vm` sandbox (`window.__hibanaDictEN/__hibanaDictFA`), flattens keys recursively,
+    compares. Wired into `package.json` (`check:i18n-parity`) + `.github/workflows/ci.yml`
+    (new step between cache-bust and unit tests). 953/953 parity confirmed. Future EN/FA key
+    drift will now fail CI instead of silently falling back to English strings for FA users.
+    `audit-consistency.mjs` left as-is — its other 2 checks are superseded by CI gates (will
+    be removed in a future W13 dead-code sweep).
+  - **W12 (commit 13d842d) — doc-drift sweep:** Agents.md + README.md + Changelogs.md. Fixed:
+    schema 44→46, tests (244)→(295), keys 871/871→953/953, SW v301→v299 (actual code value),
+    migrations 0001–0045→0001–0047. Historical changelog entries (v0.3.5–v0.3.9.1 test counts)
+    left as-is — accurate for their era.
+  - **Verification:** typecheck 0 errors · i18n parity 953/953 PASS · vitest 295/295 · build
+    PASS · check-dist-wiring PASS · build cycle idempotent. Browser E2E on local Node server:
+    login → /app dashboard, zero console/page errors.
+  - **Assets:** no CSS/JS asset changes — no `?v=` bumps, no SW version bump (the SW stays at
+    `hibana-v299`; only the SW *logic* would trigger a bump, not a backend/doc/CI change).
+    package.json 0.3.12.14→0.3.12.15.
+- v0.3.12.14 = **Session 25: comprehensive CSS + JS + TS architecture refactor — ~31,000 lines modularized across ~61 new files**
 - **Session 25 summary** — pure refactoring session (zero behavior change). A comprehensive
   architecture refactor across CSS, JS, TS, and HTML — ~31,000 lines of monolithic code
   modularized into ~61 new files. No schema changes, no new i18n keys, no behavior

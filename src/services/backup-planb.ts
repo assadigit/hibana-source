@@ -1,4 +1,4 @@
-import { buildSnapshot, importAesKey, encryptBackup, bytesToBase64, SNAPSHOT_TABLES } from './backup'
+import { buildSnapshot, importAesKey, encryptBackup, bytesToBase64 } from './backup'
 import { sendTelegramDocument, deleteTelegramMessage, pinTelegramMessage, unpinAllTelegramMessages } from './telegram'
 import { log } from '../lib/log'
 import { uuid } from '../lib/ids'
@@ -32,7 +32,7 @@ import type { Config, PlanBBackupRow } from '../types'
  * on-demand sends are far rarer, so this simply bounds chat clutter. */
 export const PLANB_RETENTION_DEFAULT = 60
 
-export interface PlanBSendOutcome {
+interface PlanBSendOutcome {
   /** true when the document landed in the chat. */
   ok: boolean
   /** Set on success: the Bot API message/document handles. */
@@ -180,7 +180,3 @@ export async function prunePlanB(db: Db, token: string, userId: string, keepN = 
   }
   return pruned
 }
-
-/** How many snapshot tables the Plan B blob covers — exposed for the drill/tests to
- * sanity-check that the channel snapshots the same shape as the GitHub channel. */
-export const PLANB_SNAPSHOT_TABLE_COUNT = SNAPSHOT_TABLES.length

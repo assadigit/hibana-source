@@ -14,7 +14,7 @@ import type { Config, ProjectRow, TaskRow, UserRow } from '../types'
 // pm.sedanama.com value that predates the hibana.ir cutover).
 const APP_URL = 'https://hibana.ir'
 
-export interface ReminderCandidate {
+interface ReminderCandidate {
   project: ProjectRow
   progress: number
   elapsed: number

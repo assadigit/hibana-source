@@ -21,9 +21,6 @@ import type { Config, UserRow } from '../types'
 import {
   FUZZY_LABEL,
   quickAddSchema,
-  toBool,
-  deadlinishFields,
-  recurshFields,
   createTaskSchema,
   patchTaskSchema,
   moveSchema,
@@ -32,7 +29,6 @@ import {
   updateSchema,
   QUADRANT_ICONS,
   GLYPH_IDS,
-  QUADRANT_ACCENTS,
   renameSchema,
   WEEKDAYS,
   type BoardCtx,

@@ -61,7 +61,7 @@ export async function issueMathCaptcha(secret: string, ttlMs = CAPTCHA_TTL_MS): 
   return { question: questionOf(ch), token: `${payloadOf(ch)}.${sig}` }
 }
 
-export type CaptchaResult = 'missing_secret' | 'missing_token' | 'invalid' | 'expired' | 'ok'
+type CaptchaResult = 'missing_secret' | 'missing_token' | 'invalid' | 'expired' | 'ok'
 
 export async function verifyMathCaptcha(
   secret: string | undefined,

@@ -12,7 +12,7 @@ import type { Db } from '../db/types'
 // the user is waiting for (if D1 is the thing failing, the console fallback stays
 // `wrangler tail` — documented honestly in runbook §5).
 
-export interface ErrorRecord {
+interface ErrorRecord {
   reqId?: string
   userId?: string
   path: string

@@ -41,7 +41,7 @@ export const ErrorCode = {
   unavailable: 'unavailable',
 } as const
 
-export type ErrorCodeValue = (typeof ErrorCode)[keyof typeof ErrorCode]
+type ErrorCodeValue = (typeof ErrorCode)[keyof typeof ErrorCode]
 
 const STATUS_BY_CODE: Record<ErrorCodeValue, ContentfulStatusCode> = {
   invalid_input: 400,

@@ -7,14 +7,14 @@
 import type { Db } from '../db/types'
 
 /** Structural subset of Config the mail paths touch — keeps this module app-agnostic. */
-export interface MailConfig {
+interface MailConfig {
   db: Db
   emailKey?: string
   assets?: (url: URL, req?: Request) => Promise<Response>
 }
 
 /** One send request: `to`/`kind`/`subject`/`title`/`bodyHtml` + the origin the deep links and logo derive from. */
-export interface SendAndLogOptions {
+interface SendAndLogOptions {
   to: string
   kind: string
   subject: string
@@ -24,19 +24,19 @@ export interface SendAndLogOptions {
 }
 
 /** Resend attachment (logo cid path) — `content` is base64 (see toB64). */
-export interface EmailAttachment {
+interface EmailAttachment {
   filename: string
   content: string
   content_type?: string
   content_id?: string
 }
 
-export interface EmailService {
+interface EmailService {
   send(to: string, subject: string, html: string, attachments?: EmailAttachment[]): Promise<void>
 }
 
 /** Resend uses a `from` of `Name <email>`; the domain must be verified (Resend → Domains). */
-export function resendEmail(apiKey: string | undefined, from = 'Hibana <noreply@hibana.ir>'): EmailService {
+function resendEmail(apiKey: string | undefined, from = 'Hibana <noreply@hibana.ir>'): EmailService {
   return {
     async send(to, subject, html, attachments) {
       if (!apiKey) throw new Error('Resend API key not configured')
@@ -61,7 +61,7 @@ export function textToEmailHtml(text: string): string {
 
 /** The branded wrapper: RTL-aware (any Arabic-script char flips it), inline-styled table
  * layout, logo header + tagline footer — every send goes through it (batch e). */
-export function brandedEmailHtml(title: string, bodyHtml: string, logoSrc: string): string {
+function brandedEmailHtml(title: string, bodyHtml: string, logoSrc: string): string {
   const rtl = /[\u0600-\u06FF]/.test(`${title}${bodyHtml}`)
   const dir = rtl ? 'rtl' : 'ltr'
   const align = rtl ? 'right' : 'left'
@@ -104,7 +104,7 @@ interface EmailLogEntry {
 }
 
 /** Best-effort email_log insert — a logging failure must never break the send path. */
-export async function logEmail(db: Db, e: EmailLogEntry): Promise<void> {
+async function logEmail(db: Db, e: EmailLogEntry): Promise<void> {
   try {
     await db.execute(
       'INSERT INTO email_log (id, to_email, kind, subject, status, error, sent_at) VALUES (?, ?, ?, ?, ?, ?, ?)',

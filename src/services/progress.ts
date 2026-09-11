@@ -2,7 +2,7 @@
 // Personal: solved hurdles / total hurdles. Client: done tasks / total tasks.
 // Manual override (projects.progress_percent) wins when set; null = computed.
 
-export interface Count { total: number; done: number }
+interface Count { total: number; done: number }
 
 export function personalProgress(hurdles: Count): number {
   if (hurdles.total <= 0) return 0

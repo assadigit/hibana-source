@@ -50,7 +50,7 @@ export type TagId = keyof typeof TAGS
 // `glyph` is the outline icon from the shared SVG set used on the board.
 // `color` maps 1:1 to a semantic token (CSS class q-<color>): Q1→success, Q2→info,
 // Q3→error, Q4→warning — one real semantic hue each, not ad hoc pastels.
-export const DEFAULT_QUADRANT_ORDER = [1, 3, 2, 4] as const
+const DEFAULT_QUADRANT_ORDER = [1, 3, 2, 4] as const
 
 export function parseQuadrantOrder(raw: string | null | undefined): number[] {
   const ids = String(raw ?? '')
@@ -81,9 +81,9 @@ export const QUADRANTS: {
 
 // 'YYYY-MM-DD' parses/compares as UTC so calendar arithmetic is pure string math.
 const DAY = 24 * 60 * 60 * 1000
-export const parseDate = (s: string): number => Date.parse(s + 'T00:00:00Z')
-export const addDays = (date: string, n: number): string => new Date(parseDate(date) + n * DAY).toISOString().slice(0, 10)
-export const daysBetween = (from: string, to: string): number => Math.round((parseDate(to) - parseDate(from)) / DAY)
+const parseDate = (s: string): number => Date.parse(s + 'T00:00:00Z')
+const addDays = (date: string, n: number): string => new Date(parseDate(date) + n * DAY).toISOString().slice(0, 10)
+const daysBetween = (from: string, to: string): number => Math.round((parseDate(to) - parseDate(from)) / DAY)
 
 /** Today's 'YYYY-MM-DD' in the given IANA timezone (fallback UTC). */
 export function todayIn(tz: string | undefined): string {

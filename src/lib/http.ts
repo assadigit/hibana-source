@@ -1,4 +1,3 @@
-import type { ContentfulStatusCode } from 'hono/utils/http-status'
 import type { Context } from 'hono'
 
 // Single-origin decision (Q1-A): routes serve JSON to fetch()/the offline queue and
@@ -28,9 +27,6 @@ export function mimeForPath(path: string): string {
   if (path.endsWith('.jpg') || path.endsWith('.jpeg')) return 'image/jpeg'
   return 'image/png'
 }
-
-export const jsonError = (c: Context, status: ContentfulStatusCode, message: string): Response =>
-  c.json({ error: message }, status)
 
 // Zod body parsing for every route (rule 10) — JSON or form-encoded (htmx forms).
 // Returns null on parse failure; routes reply 400 consistently.

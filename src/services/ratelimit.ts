@@ -8,7 +8,7 @@
 import type { Db } from '../db/types'
 import { log } from '../lib/log'
 
-export interface RateRule {
+interface RateRule {
   /** short key segment for the DB row, e.g. 'login' */
   name: string
   limit: number

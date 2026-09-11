@@ -111,7 +111,7 @@ export const SNAPSHOT_TABLES = [
   'backlog_docs', 'backlog_doc_revisions',
 ] as const
 
-export interface Snapshot {
+interface Snapshot {
   schema_version: number
   exported_at: string
   data: Record<string, unknown[]>

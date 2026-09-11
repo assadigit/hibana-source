@@ -88,7 +88,7 @@ export function githubClient(cfg: GitHubConfig) {
   return { pushFile, readRaw, readBinary, listDir, deleteFile }
 }
 
-export interface GitHubEntry {
+interface GitHubEntry {
   name: string
   path: string
   sha: string

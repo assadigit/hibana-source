@@ -9,7 +9,7 @@
 // Inline keyboard markup (callback_data buttons). Buttons carry short op-codes
 // (design §8) — all op-codes are ≤ ~41 bytes, well under Telegram's 64-byte
 // callback_data cap. The data layer is locale-independent; only `text` is translated.
-export type InlineKeyboardButton = { text: string; callback_data: string }
+type InlineKeyboardButton = { text: string; callback_data: string }
 export type ReplyMarkup = { inline_keyboard: InlineKeyboardButton[][] }
 
 const TG_TIMEOUT_MS = 25_000

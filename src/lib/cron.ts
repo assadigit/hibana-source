@@ -15,7 +15,7 @@ export const BACKUP_CRON = '17 3,9,15,21 * * *'
 
 /** The minimum a scheduled controller must carry for classification. The real
  *  ScheduledController satisfies this structurally (cron: string, scheduledTime: number). */
-export interface TickController {
+interface TickController {
   cron?: string
   scheduledTime: number
 }

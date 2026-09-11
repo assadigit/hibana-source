@@ -9,7 +9,7 @@
 // Deliberately tiny: no transports, no levels above info/warn/error, no async. The goal
 // is observability for a single-owner app, not a logging framework.
 
-export type LogLevel = 'info' | 'warn' | 'error'
+type LogLevel = 'info' | 'warn' | 'error'
 
 interface LogFields {
   [k: string]: unknown

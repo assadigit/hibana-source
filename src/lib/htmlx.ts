@@ -25,11 +25,9 @@ export interface SafeHtml {
 export function raw(s: string): SafeHtml {
   return { __safeHtml: true, s }
 }
-/** Alias for `raw` — same semantics, reads better at call sites. */
-export const safe = raw
 
 /** Escape a string for HTML text/attribute contexts. */
-export function esc(s: unknown): string {
+function esc(s: unknown): string {
   return String(s ?? '').replace(
     /[&<>"']/g,
     (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[ch]!,
@@ -50,7 +48,7 @@ export function html(strings: TemplateStringsArray, ...values: unknown[]): SafeH
 
 /** Render a single value per the rules above. Exported for callers that need to render
  *  without building a full template (e.g. mapping an array of SafeHtml fragments). */
-export function render(v: unknown): string {
+function render(v: unknown): string {
   if (v == null || v === false) return '' // null/undefined/false → empty
   if (v === true) return '' // booleans render empty (cond rendering)
   if (typeof v === 'number') return String(v) // numbers are safe (no injection)
@@ -65,12 +63,4 @@ export const toString = (h: SafeHtml): string => h.s
 
 function isSafe(v: unknown): v is SafeHtml {
   return typeof v === 'object' && v !== null && (v as { __safeHtml?: true }).__safeHtml === true
-}
-
-/** Build an HTML attribute: `attr('href', url)` → ` href="…"`. Falsy values produce
- *  an empty string (attribute omitted); `true` produces a bare name (`disabled`). */
-export function attr(name: string, value: unknown): string {
-  if (value == null || value === false) return ''
-  if (value === true) return ` ${name}`
-  return ` ${name}="${esc(value)}"`
 }

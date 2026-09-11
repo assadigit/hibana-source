@@ -25,9 +25,9 @@ import type { ProjectRow, TagRow, HurdleRow, LinkRow, ScreenshotRow, PaymentRow,
 // export was fixed for in 2026-08-28.
 
 /** path → markdown text. The route UTF-8-encodes + zips this. */
-export type VaultFiles = Map<string, string>
+type VaultFiles = Map<string, string>
 
-export interface VaultStats {
+interface VaultStats {
   projects: number
   ideas: number
   quickNotes: number

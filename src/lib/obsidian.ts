@@ -5,7 +5,7 @@ import { unzipSync } from 'fflate'
 // identically. Pure functions — no DB, no runtime dependencies beyond fflate (pure JS,
 // works on both the Worker and Node runtimes).
 
-export interface ParsedMarkdown {
+interface ParsedMarkdown {
   title: string
   description: string
 }
@@ -22,7 +22,7 @@ export function parseMarkdownNote(fileName: string, content: string): ParsedMark
   return { title, description: description.slice(0, 2000) }
 }
 
-export interface ZipMarkdown {
+interface ZipMarkdown {
   fileName: string
   content: string
 }

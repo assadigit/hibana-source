@@ -17,7 +17,7 @@ import type { ProjectRow } from '../types'
 import type { SadhanaTask } from './sadhana'
 import type { QuickNote } from '../routes/quicknotes'
 
-export interface IcsEvent {
+interface IcsEvent {
   uid: string
   summary: string
   description?: string

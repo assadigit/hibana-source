@@ -40,7 +40,7 @@ export const DEFAULT_AI_MODEL = '@cf/mistralai/mistral-small-3.1-24b-instruct'
  * protocol). `note` is a short, honest one-liner for the settings UI. `reasoning` flags MoE
  * models that emit reasoning_content (need higher max_tokens, slower, costlier).
  */
-export interface AiModelInfo {
+interface AiModelInfo {
   model: string
   label: string
   note: string
@@ -78,7 +78,7 @@ export const FREE_TIER_MODELS: readonly AiModelInfo[] = [
 ] as const
 
 /** Whitelist of valid model IDs (for route-level validation). */
-export const FREE_TIER_MODEL_IDS: readonly string[] = FREE_TIER_MODELS.map((m) => m.model)
+const FREE_TIER_MODEL_IDS: readonly string[] = FREE_TIER_MODELS.map((m) => m.model)
 
 /** Resolve a client-sent model id to a valid one (or the default). Never throws. */
 export function resolveModel(model: string | undefined | null): string {
@@ -110,7 +110,7 @@ export interface AiRunner {
 }
 
 /** Inputs handed to `Ai.run()`. Matches the Workers AI text-generation schema. */
-export interface AiRunInputs {
+interface AiRunInputs {
   messages: { role: 'system' | 'user'; content: string }[]
   temperature?: number
   max_tokens?: number
@@ -122,7 +122,7 @@ export interface AiRunInputs {
  *  - chat/reasoning: `{ choices: [{ message: { content, reasoning_content } }] }`
  *  The REST API wraps these in `{ result: ... }` — we handle both shapes so the same
  *  service works against the binding (production) AND the REST API (sandbox/tests). */
-export interface AiRunResult {
+interface AiRunResult {
   // Direct (binding):
   response?: string
   choices?: Array<{ message?: { content?: string; reasoning_content?: string } }>

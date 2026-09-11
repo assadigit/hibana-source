@@ -8,11 +8,11 @@ import { sha256Hex } from './reset'
 // hashed at rest (same guarantee as reset tokens), expires in 15 minutes, and is
 // invalidated after 5 wrong attempts (resend starts a fresh code).
 
-export const EMAIL_CODE_TTL_MS = 15 * 60 * 1000
+const EMAIL_CODE_TTL_MS = 15 * 60 * 1000
 export const EMAIL_CODE_MAX_ATTEMPTS = 5
 export const RESEND_COOLDOWN_MS = 60 * 1000
 
-export type VerifyResult = 'ok' | 'invalid' | 'expired' | 'too_many_attempts'
+type VerifyResult = 'ok' | 'invalid' | 'expired' | 'too_many_attempts'
 
 interface VerificationRow {
   id: string

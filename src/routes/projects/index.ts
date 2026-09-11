@@ -9,6 +9,7 @@ import { trFor, localeOf, trL, type Locale } from '../../lib/i18n'
 import { faDigits, toJalali } from '../../lib/jalali'
 import { personalProgress, clientProgress } from '../../services/progress'
 import { githubClient, type GitHubConfig } from '../../services/github'
+import { hitRateLimit, RATE_RULES, clientIp } from '../../services/ratelimit'
 import { uuid } from '../../lib/ids'
 import { PROJECT_STAGES, STATUS_ORDER } from '../../types'
 import type { Config, ProjectRow, UserRow } from '../../types'
@@ -392,6 +393,11 @@ export function projectsRoutes(cfg: Config) {
     mimeType: z.string().regex(/^image\/(png|jpeg|webp)$/),
   })
   app.put('/:id/logo', async (c) => {
+    // T2 (SWOT Session 26): wire the upload rate limiter — logo uploads push bytes
+    // into the GitHub assets repo, same as avatar uploads. 30 req/60s per IP.
+    if (await hitRateLimit(cfg.db, RATE_RULES.upload, clientIp(c))) {
+      return c.json({ error: 'rate_limited', message: 'Too many uploads — wait a minute and try again.' }, 429)
+    }
     const body = await jsonBody<z.infer<typeof logoUploadSchema>>(c, logoUploadSchema)
     if (!body) return c.json({ error: 'invalid_input' }, 400)
     const user = c.get('user')

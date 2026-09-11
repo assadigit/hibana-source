@@ -315,6 +315,11 @@ export function adminRoutes(cfg: Config) {
   app.post('/backup', async (c) => {
     const t = trFor(c)
     if (!cfg.github.token) return c.json({ error: 'github_not_configured' }, 503)
+    // T1 (SWOT Session 26): production refuses to write plaintext backups to GitHub —
+    // matches backup-planb.ts:80-84's refuse-plaintext pattern. Dev/test may omit the key.
+    if (cfg.isProd && !cfg.backupEncryptionKey) {
+      return c.json({ error: 'backup_encryption_key_not_set', message: 'Production requires BACKUP_ENCRYPTION_KEY — refusing to write plaintext backup.' }, 500)
+    }
     try {
       const result = await backupToGitHub(cfg.db, {
         owner: cfg.github.owner,
@@ -459,6 +464,13 @@ export async function scheduledBackup(cfg: Config): Promise<BackupOutcome> {
   if (!cfg.github.token) {
     log.warn('backup_skipped', { reason: 'GITHUB_TOKEN not set' })
     return { kind: 'skipped', reason: 'GITHUB_TOKEN not set' }
+  }
+  // T1 (SWOT Session 26): production refuses to write plaintext backups — matches
+  // backup-planb.ts:80-84. A missing key in prod is a configuration error, not a
+  // silent degradation to plaintext.
+  if (cfg.isProd && !cfg.backupEncryptionKey) {
+    log.error('backup_skipped', { reason: 'BACKUP_ENCRYPTION_KEY not set in production — refusing plaintext' })
+    return { kind: 'skipped', reason: 'BACKUP_ENCRYPTION_KEY not set — production refuses to write plaintext' }
   }
   try {
     const result = await backupToGitHub(cfg.db, {

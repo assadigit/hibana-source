@@ -77,6 +77,9 @@ describe('healthcheck — scheduledBackup outcome contract', () => {
       db,
       isProd: true,
       github: { owner: 'x', repo: 'y', token: 'gt' },
+      // T1 (SWOT Session 26): prod requires BACKUP_ENCRYPTION_KEY — use a valid
+      // 32-byte AES-GCM key for tests that exercise the scheduledBackup prod path.
+      backupEncryptionKey: 'MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=',
       ...over,
     }
   }

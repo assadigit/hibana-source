@@ -65,22 +65,8 @@ function buildHeaderDate(){
                      Q2 bot-right | Q4 bot-left
   This matches the user's wireframe exactly.
 */
-const TAGS=[
-  {id:'w',cls:'w',ico:'💼',en:'Work',fa:'کار'},
-  {id:'p',cls:'p',ico:'🏠',en:'Personal',fa:'شخصی'},
-  {id:'sg',cls:'sg',ico:'📈',en:'Self-Growth',fa:'رشد فردی'},
-  {id:'so',cls:'so',ico:'🤝',en:'Social',fa:'اجتماعی'},
-  {id:'h',cls:'h',ico:'💪',en:'Health',fa:'سلامت'},
-];
-const FUZZY=[
-  {k:'tom', ico:'🌅',en:'Until Tomorrow',   fa:'تا فردا'},
-  {k:'48h', ico:'⏰',en:'Within 48 hours',  fa:'ظرف ۴۸ ساعت'},
-  {k:'week',ico:'📅',en:'This week',         fa:'این هفته'},
-  {k:'mon', ico:'🗓️',en:'This month',        fa:'این ماه'},
-  {k:'3mo', ico:'🌿',en:'Next 3 months',     fa:'۳ ماه آینده'},
-  {k:'6mo', ico:'🌊',en:'Next 6 months',     fa:'۶ ماه آینده'},
-  {k:'ny',  ico:'🎆',en:'By the new year',   fa:'تا سال نو'},
-];
+/* Focus 3.1: TAGS + FUZZY extracted to sadhana-data.js (loaded before this file). */
+const { TAGS, FUZZY } = window.__hibanaSadhanaData
 
 /* ══ TRANSLATIONS ══════════════════════════════ */
 const T={

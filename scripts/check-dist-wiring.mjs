@@ -24,7 +24,7 @@ const DIST_DIR = join(PUBLIC_DIR, 'dist')
 const MANIFEST_PATH = join(DIST_DIR, 'manifest.json')
 
 // Entries loaded dynamically by other JS (not linked from any HTML page).
-const DYNAMIC_INJECTED = new Set(['emoji-data.js'])
+const DYNAMIC_INJECTED = new Set(['emoji-data.js', 'i18n-fa.js'])
 
 function fail(msgs) {
   console.error('FAIL: dist wiring check found issues:')

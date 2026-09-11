@@ -8,9 +8,12 @@
 // t('key') is the programmatic lookup used by app.js/queue.js/Alpine toasts & the quick-add modal.
 
 window.hibanaI18n = (() => {
+  // P2 (Focus 2): dict.fa is loaded lazily — EN users never download i18n-fa.js (17KB gz).
+  // When apply() resolves to fa, ensureFaDict() injects /js/i18n-fa.js?v=1 dynamically and
+  // awaits it. The build pipeline's fixpoint loop rewrites the path to /dist/i18n-fa.<hash>.js.
   const dict = {
     en: window.__hibanaDictEN,
-    fa: window.__hibanaDictFA,
+    fa: window.__hibanaDictFA || null, // null until ensureFaDict() loads it
   }
 
   let lang = 'en'
@@ -20,9 +23,9 @@ window.hibanaI18n = (() => {
   let readyResolve
   const ready = new Promise((resolve) => (readyResolve = resolve))
 
-  /** Programmatic lookup — returns the English fallback for unknown keys. */
+  /** Programmatic lookup — returns the English fallback for unknown keys or when FA dict hasn't loaded yet. */
   function t(key) {
-    return dict[lang][key] ?? dict.en[key] ?? key
+    return (dict[lang] && dict[lang][key]) ?? dict.en[key] ?? key
   }
 
   // Vazir for Farsi: injected only when fa is active (spec font decision — CLAUDE.md
@@ -34,6 +37,23 @@ window.hibanaI18n = (() => {
     link.dataset.vazir = '1'
     link.href = '/vendor/vazir/font-face.css'
     document.head.appendChild(link)
+  }
+
+  // P2 (Focus 2): lazy-load the FA dictionary. Returns immediately if already loaded.
+  // Follows the queue.js injection pattern (app.js:13) — /js/i18n-fa.js?v=1 is rewritten
+  // to /dist/i18n-fa.<hash>.js by the build pipeline's fixpoint loop.
+  let faDictPromise = null // guards against double-injection if apply() fires twice
+  function ensureFaDict() {
+    if (dict.fa) return Promise.resolve()
+    if (faDictPromise) return faDictPromise
+    faDictPromise = new Promise((resolve) => {
+      const s = document.createElement('script')
+      s.src = '/js/i18n-fa.js?v=1'
+      s.onload = () => { dict.fa = window.__hibanaDictFA || {}; resolve() }
+      s.onerror = () => { dict.fa = {}; resolve() } // graceful: t() falls back to EN
+      document.head.appendChild(s)
+    })
+    return faDictPromise
   }
 
   async function apply() {
@@ -53,6 +73,10 @@ window.hibanaI18n = (() => {
     }
     cal = lang === 'fa' ? 'shamsi' : 'gregorian' // calendar follows the language (2026-08-25)
     tz = me?.user?.timezone ?? 'UTC'
+
+    // P2 (Focus 2): if the resolved language is FA, ensure the FA dictionary is loaded
+    // before translating. EN users never trigger this fetch.
+    if (lang === 'fa') await ensureFaDict()
 
     document.documentElement.lang = lang
     document.documentElement.dir = lang === 'fa' ? 'rtl' : 'ltr'

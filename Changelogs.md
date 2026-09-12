@@ -9,6 +9,38 @@
 > rewritten as a minimal pointer. Deleted files remain recoverable verbatim:
 > `git show <sha>:<file>`.
 
+## 1. Current state (v0.3.12.25 — Session 28 R4: release close-out + Session-29 handover)
+- **Session 28 R4 summary** — docs-only close-out release. No application code changed;
+  the entire Session 28 release train was re-verified end-to-end on a fresh sandbox and
+  packaged: environment restore (Hibana Node server on :3000, schema 47), typecheck 0 ·
+  vitest 323/323 · cache-bust PASS (canonical form) · build --prod --wire-html (71
+  manifest entries, 23/23 pages wired) · check-dist-wiring PASS · Playwright 22/22 ·
+  smoke ALL PASS. Released as v0.3.12.25 (commit + push to assadigit/hibana-source main),
+  deployed to BOTH the dev and prod Workers, and archived as
+  `download/hibana.0.3.12.25.zip` (git-archive of the release commit — secret-scan clean).
+- **Session 28 complete (what shipped this session):** R1 — the Alpine hard-load P0
+  (reports/settings components dead since v0.3.12.3; script-order fix 5550991) + the
+  soft-nav MutationObserver twin + 5-test regression spec; main round — canvas-page E2E
+  safety net, sticky-factory consolidation (public/js/sticky.js), notebook PNG export
+  (pixel-verified canonical light view), clipboard PNG copy on both boards, notebook
+  recolor palette with the first undoable modify, a11y/polish batch (v0.3.12.22);
+  R2 — the owner's 6 filed bugs incl. the fabric-v7 CENTER-origin P0 (topLeftOriginCompat
+  shim), notebook auto-growing scrollable sheet, sparks folder=all + folder-scoped
+  capture, Jalali weekday note-meta, compact note buttons, repaired kanban stat-card
+  selectors (v0.3.12.23); R3 — width-driven text-box resize with live reflow on both
+  boards (v0.3.12.24).
+- **Session 29 agenda (owner-directed):** (1) SWOT analysis of the project;
+  (2) performance optimization; (3) responsive-flawless audit; (4) backup/restore
+  flawless-ness (incl. the standing OWNER ACTION: trigger a Plan B backup on prod —
+  planb_backups still empty — and run the full decrypt drills); (5) feature additions
+  and tweaks, starting with richer project-progress-box options.
+- Standing caveats carried forward: clipboard-write needs a real-browser spot check
+  (headless denies the permission; code path verified to the browser boundary);
+  sticky notes still resize by SCALE (group semantics; width-driven sticky resize is a
+  candidate sticky.js surgery); text-box mtr rotation doesn't persist (no angle field in
+  the record schema); notebook object:modified has no history commit for moves/resizes;
+  canvas.js (~3,040 lines) + app.js modularization backlog.
+
 ## 1. Current state (v0.3.12.24 — Session 28 R3: width-driven text-box resize, live reflow)
 - **Session 28 R3 summary** — the owner reported the text-box resize handles looked
   decorative: dragging them never changed the line wrapping. Root cause was TWO bugs

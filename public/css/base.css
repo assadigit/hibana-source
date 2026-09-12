@@ -252,6 +252,22 @@ input[type="password"]:hover { border-color: var(--text-dim, var(--muted)); }
 .pw-toggle:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 .pw-toggle .icon { inline-size: 1.05rem; block-size: 1.05rem; }
 input:hover, textarea:hover, select:hover { border-color: var(--line-strong); }
+/* Review-round 2 (2026-09-12): select affordance — the browser-default arrow reads as
+   faint/nothing on custom dark backgrounds (VLM audit: dropdowns "look identical to
+   disabled inputs"). Replace the native arrow with an explicit muted chevron that
+   follows the theme; padding-inline-end reserves its space on BOTH directions (RTL
+   position flip below). Multi/size selects keep their native list rendering. */
+select:not([multiple]):not([size]) {
+  appearance: none;
+  -webkit-appearance: none;
+  padding-inline-end: 2.1rem;
+  background-image: var(--select-chevron);
+  background-repeat: no-repeat;
+  background-position: right 0.65rem center;
+  background-size: 12px 12px;
+}
+[dir='rtl'] select:not([multiple]):not([size]) { background-position: left 0.65rem center; }
+select:not([multiple]):not([size]):disabled { background-image: none; } /* no chevron on disabled: it can't open */
 textarea { width: 100%; resize: vertical; }
 
 button {

@@ -5,8 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Reports — Hibana</title>
   <link rel="preload" as="font" type="font/woff2" href="/vendor/manrope/Manrope-400.woff2" crossorigin>
-  <link rel="stylesheet" href="/css/variables.css?v=4">
-  <link rel="stylesheet" href="/css/base.css?v=1">
+  <link rel="stylesheet" href="/css/variables.css?v=5">
+  <link rel="stylesheet" href="/css/base.css?v=2">
   <link rel="stylesheet" href="/css/layout.css?v=2">
   <link rel="stylesheet" href="/css/dashboard.css?v=2">
   <link rel="stylesheet" href="/css/dashboard-todo.css?v=4">
@@ -14,14 +14,14 @@
   <link rel="stylesheet" href="/css/canvas.css?v=2">
   <link rel="stylesheet" href="/css/quicknotes.css?v=4">
   <link rel="stylesheet" href="/css/to-do-list.css?v=2">
-  <link rel="stylesheet" href="/css/polish-ui.css?v=2">
+  <link rel="stylesheet" href="/css/polish-ui.css?v=3">
   <link rel="stylesheet" href="/css/calendar.css?v=2">
   <link rel="stylesheet" href="/css/notifications.css?v=2">
-  <link rel="stylesheet" href="/css/polish-batch.css?v=2">
+  <link rel="stylesheet" href="/css/polish-batch.css?v=3">
   <link rel="stylesheet" href="/css/project-header.css?v=2">
   <link rel="stylesheet" href="/css/devboard.css?v=2">
   <link rel="stylesheet" href="/css/misc.css?v=2">
-  <link rel="stylesheet" href="/css/themes.css?v=1">
+  <link rel="stylesheet" href="/css/themes.css?v=2">
   <link rel="stylesheet" href="/css/rtl.css?v=2">
   <link rel="stylesheet" href="/vendor/manrope/font-face.css">
   <script src="/vendor/htmx.min.js" defer></script>
@@ -33,7 +33,7 @@
        order) Alpine had already walked the tree and every x-data expression died with
        "report is not defined" — Snapshot, heatmap and the activity chart never rendered on
        a hard load (silent since the inline-script extraction, 317724e). -->
-  <script src="/js/reports-page.js?v=2" defer></script>
+  <script src="/js/reports-page.js?v=3" defer></script>
   <script src="/vendor/alpine.min.js" defer></script>
   <script src="/js/app.js?v=172" defer></script>
   <script src="/js/hib-init.js?v=1" defer></script>
@@ -45,14 +45,28 @@
   <script src="/js/micro-interactions.js?v=1" defer></script>
   <script src="/js/go-to.js?v=1" defer></script>
   <script src="/js/install-prompt.js?v=1" defer></script>
-  <script src="/js/i18n-en.js?v=2" defer></script>
-  <script src="/js/i18n.js?v=59" defer></script>
+  <script src="/js/i18n-en.js?v=3" defer></script>
+  <script src="/js/i18n.js?v=60" defer></script>
 </head>
 <body>
   <div data-nav></div>
   <main class="shell" id="main" tabindex="-1">
     <h1 data-i18n="pages.reports">Reports</h1>
     <div id="report-body" x-data="report" x-init="load()">
+      <!-- Review-round 2 feature: digest export — Copy-as-Markdown (clipboard) + CSV
+           download. Both build from the already-loaded Alpine scope; see
+           reports-page.js copyDigest()/downloadCsv(). Buttons sit inside the x-data
+           scope on purpose so the methods bind directly. -->
+      <div class="row export-actions" style="margin-block-end:0.75rem">
+        <button type="button" class="ghost small" @click="copyDigest()" :disabled="!summary" :title="t('reports.copyDigest', 'Copy as Markdown')">
+          <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg>
+          <span data-i18n="reports.copyDigest">Copy as Markdown</span>
+        </button>
+        <button type="button" class="ghost small" @click="downloadCsv()" :disabled="!summary" :title="t('reports.downloadCsv', 'Download CSV')">
+          <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m0 0 4-4m-4 4-4-4"/><path d="M4 19h16"/></svg>
+          <span data-i18n="reports.downloadCsv">Download CSV</span>
+        </button>
+      </div>
       <template x-if="!summary">
         <p class="loading" data-i18n="reports.loading">Loading reports…</p>
       </template>

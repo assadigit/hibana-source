@@ -120,6 +120,81 @@
             }
             this.$nextTick(() => window.hibanaI18n.apply())
           },
+
+          // ---- Review-round 2 feature: report digest export ----------------------
+          // Both exports run purely client-side from the ALREADY-loaded scope (no new
+          // API surface): Markdown digest → clipboard, CSV → Blob download. If the data
+          // hasn't loaded (summary null), both no-op with a toast instead of exporting
+          // an empty shell.
+          async copyDigest() {
+            if (!this.summary) return window.hibana?.toast(this.t('reports.nothingToExport', 'Nothing to export yet — data is still loading'))
+            const today = new Date().toISOString().slice(0, 10)
+            const st = this.summary.status || {}
+            const lines = []
+            lines.push(`# ${this.t('reports.digestHeading', 'Hibana report digest')} — ${today}`)
+            lines.push('')
+            lines.push(`## ${this.t('reports.snapshot', 'Snapshot')}`)
+            lines.push(`- ${this.t('reports.personal', 'Personal')}: ${this.summary.type?.personal ?? 0}`)
+            lines.push(`- ${this.t('reports.client', 'Client')}: ${this.summary.type?.client ?? 0}`)
+            for (const s of ['spark', 'unreviewed', 'investigating', 'awaiting', 'doing', 'halted', 'operational']) {
+              if (st[s]) lines.push(`- ${this.statusLabel(s)}: ${st[s]}`)
+            }
+            const activeDays = this.heatmap.rows.filter((r) => r.total > 0).length
+            const totalEvents = this.heatmap.rows.reduce((a, r) => a + r.total, 0)
+            lines.push('')
+            lines.push(`## ${this.t('reports.digestLast13', 'Active days (last 13 weeks)')}`)
+            lines.push(`- ${activeDays} ${this.t('reports.digestLast13Note', 'of {n} days with activity').replace('{n}', String(this.heatmap.rows.length || 91))}`)
+            lines.push(`- ${this.t('reports.events', 'events')}: ${totalEvents}`)
+            // Top 5 activity periods from the current granularity view.
+            const top = [...this.rows].sort((a, b) => (b.hurdlesCompleted + b.projectsCreated) - (a.hurdlesCompleted + a.projectsCreated)).slice(0, 5)
+              .filter((r) => r.hurdlesCompleted + r.projectsCreated > 0)
+            if (top.length) {
+              lines.push('')
+              lines.push(`## ${this.t('reports.digestTop', 'Top periods')} (${this.gran})`)
+              for (const r of top) {
+                lines.push(`- ${r.label}: ${r.hurdlesCompleted} ${this.t('reports.solved', 'solved')}, ${r.projectsCreated} ${this.t('reports.created', 'created')}`)
+              }
+            }
+            const md = lines.join('\n') + '\n'
+            try {
+              await navigator.clipboard.writeText(md)
+              window.hibana?.toast(this.t('reports.digestCopied', 'Summary copied as Markdown'))
+            } catch {
+              window.hibana?.toast(this.t('reports.copyFailed', 'Copy failed — your browser blocked clipboard access'), 'err')
+            }
+          },
+          downloadCsv() {
+            if (!this.summary) return window.hibana?.toast(this.t('reports.nothingToExport', 'Nothing to export yet — data is still loading'))
+            const today = new Date().toISOString().slice(0, 10)
+            const q = (v) => `"${String(v ?? '').replace(/"/g, '""')}"`
+            const out = []
+            // Section 1: snapshot counts (label,value) — one CSV, two labeled sections,
+            // so a spreadsheet import keeps one file per report.
+            out.push(['section', 'label', 'value'].map(q).join(','))
+            const st = this.summary.status || {}
+            out.push(['snapshot', this.t('reports.personal', 'Personal'), this.summary.type?.personal ?? 0].map(q).join(','))
+            out.push(['snapshot', this.t('reports.client', 'Client'), this.summary.type?.client ?? 0].map(q).join(','))
+            for (const s of ['spark', 'unreviewed', 'investigating', 'awaiting', 'doing', 'halted', 'operational']) {
+              out.push(['snapshot', this.statusLabel(s), st[s] ?? 0].map(q).join(','))
+            }
+            for (const r of this.heatmap.rows) {
+              if (r.total > 0) out.push(['heatmap', r.date, r.total].map(q).join(','))
+            }
+            for (const r of this.rows) {
+              out.push(['activity', r.label, `${r.hurdlesCompleted}/${r.projectsCreated}`].map(q).join(','))
+            }
+            // \uFEFF BOM so Excel opens UTF-8 (Farsi labels) without mojibake.
+            const blob = new Blob(['\uFEFF' + out.join('\n')], { type: 'text/csv;charset=utf-8' })
+            const url = URL.createObjectURL(blob)
+            const a = document.createElement('a')
+            a.href = url
+            a.download = `hibana-report-${today}.csv`
+            document.body.appendChild(a)
+            a.click()
+            a.remove()
+            setTimeout(() => URL.revokeObjectURL(url), 4000)
+            window.hibana?.toast(this.t('reports.csvSaved', 'CSV downloaded'))
+          },
         }))
       },
     })

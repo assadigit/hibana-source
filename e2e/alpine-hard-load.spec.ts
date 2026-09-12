@@ -9,6 +9,7 @@
 
 import { test, expect, type Page } from '@playwright/test'
 import { randomBytes } from 'node:crypto'
+import { readFileSync } from 'node:fs'
 
 const TEST_EMAIL = 'e2e-alp@test.local'
 const TEST_PASS = 'e2e-password-123'
@@ -121,5 +122,33 @@ test('soft navigation: dashboard → settings keeps the prefs component alive', 
   await expect(page.locator('#settings-prefs')).toBeVisible()
   // prefs.load() fills the language <select> value from /api/settings.
   await expect.poll(async () => page.locator('#settings-prefs select[x-model="language_pref"]').inputValue(), { timeout: 10_000 }).toMatch(/en|fa/)
+  expect(alpine, `Alpine expression warnings: ${alpine.join(' | ')}`).toEqual([])
+})
+
+// Review-round 2 feature: the digest export (Copy-as-Markdown + CSV) builds from the
+// live Alpine scope — if the component is dead, both buttons no-op with a toast.
+test('reports export: digest copy + CSV download produce real content', async ({ page }) => {
+  const alpine = trackAlpineWarnings(page)
+  await login(page)
+  await page.goto('/reports.html')
+  await expect(page.getByRole('button', { name: /copy as markdown/i })).toBeVisible({ timeout: 10_000 })
+  await expect(page.getByRole('button', { name: /download csv/i })).toBeVisible()
+
+  // Copy-as-Markdown: grant clipboard permission, click, read back the digest.
+  await page.context().grantPermissions(['clipboard-read', 'clipboard-write'])
+  await page.getByRole('button', { name: /copy as markdown/i }).click()
+  const digest = await page.evaluate(() => navigator.clipboard.readText())
+  expect(digest).toContain('# ')
+  expect(digest).toContain('## ')
+
+  // CSV download: intercept the blob anchor download (no dialog) and check the file.
+  const [download] = await Promise.all([
+    page.waitForEvent('download', { timeout: 10_000 }),
+    page.getByRole('button', { name: /download csv/i }).click(),
+  ])
+  expect(download.suggestedFilename()).toMatch(/^hibana-report-\d{4}-\d{2}-\d{2}\.csv$/)
+  const csv = await download.path().then((p) => (p ? readFileSync(p, 'utf8') : ''))
+  expect(csv).toContain('"section","label","value"')
+  expect(csv).toContain('"snapshot"')
   expect(alpine, `Alpine expression warnings: ${alpine.join(' | ')}`).toEqual([])
 })

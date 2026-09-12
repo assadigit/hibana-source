@@ -623,8 +623,12 @@ body.has-mobile-nav { padding-block-end: calc(3.5rem + env(safe-area-inset-botto
 .heatmap-legend [data-i18n="reports.more"] { margin-inline: 0.25rem; font-weight: 500; }
 .heatmap-legend .heatmap-cell { width: 11px; height: 11px; }
 /* Session 19: weekday hint under the heatmap — a tiny Sat-row tick so the 7-row grid
-   reads as a calendar week, not abstract squares. Added by reports.html render. */
-.heatmap-weekdays { display: flex; gap: 3px; margin-block-start: 0.15rem; font-size: 0.55rem; color: var(--muted); opacity: 0.7; }
+   reads as a calendar week, not abstract squares. Added by reports.html render.
+   Review-round 2 (2026-09-12): was 0.55rem + opacity .7 — VLM audit flagged the labels
+   as nearly invisible in dark mode (8.8px text at ~4.6:1 effective reads as noise).
+   Size up to 0.62rem and drop the stacked opacity — var(--muted) is already the soft
+   tone; stacking two reductions double-dimmed it. */
+.heatmap-weekdays { display: flex; gap: 3px; margin-block-start: 0.15rem; font-size: 0.62rem; color: var(--muted); font-weight: 500; }
 .heatmap-weekdays span { width: 13px; text-align: center; }
 @media (prefers-reduced-motion: reduce) {
   .heatmap-cell:hover { transform: none; }
@@ -633,3 +637,11 @@ body.has-mobile-nav { padding-block-end: calc(3.5rem + env(safe-area-inset-botto
   .heatmap-cell { width: 10px; height: 10px; }
 }
 
+
+/* --- Review-round 2 feature: reports digest export row ---------------------- */
+/* Two ghost buttons under the page h1. Icon + label inline (the base .row handles the
+   gap); on narrow screens the row wraps instead of overflowing. The icons inherit the
+   button's --link color and dim slightly on the disabled (data-still-loading) state. */
+.export-actions { flex-wrap: wrap; }
+.export-actions .icon { inline-size: 0.95rem; block-size: 0.95rem; }
+.export-actions button:disabled { opacity: 0.55; cursor: default; }

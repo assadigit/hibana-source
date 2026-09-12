@@ -195,6 +195,9 @@
   --fs-xl: 1.12rem;  /* subheadings + card titles */
   --brand-logo: url('/logo-light.png');   /* header + mobile login brand (theme-aware) */
   --inline-logo: url('/logo-light.png');
+  /* Review-round 2: theme-aware select chevron (base.css consumes it — see the
+     select affordance rule there). Light: --muted tone. */
+  --select-chevron: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%235A5248' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
 }
 
 @media (prefers-color-scheme: dark) {
@@ -254,6 +257,7 @@
     --brand-hover: #7CC7CB;
     --brand-logo: url('/logo-dark.png');
     --inline-logo: url('/logo-dark.png');
+    --select-chevron: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23B0A79C' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
   }
 }
 

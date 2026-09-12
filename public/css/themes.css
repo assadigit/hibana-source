@@ -13,6 +13,7 @@ html[data-theme='light'] {
   --accent-soft: rgba(74,159,163,.13); --cta: #2E7B7F; --cta-hover: #276A6D; --link: #297073; --ok: #1f7a34; --err: #c02626; --btn-text: #ffffff;
   --pastel-tool: #fef3c7; --pastel-tool-strong: #fde68a;
   --danger: #b42318; --danger-soft: #fdeaea; --danger-soft-hover: #fbdddd;
+  --select-chevron: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%235A5248' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E"); /* review-round 2 select affordance — explicit light must win over the OS-dark media twin */
   --badge-spark-bg: #F9F1D7;         --badge-spark-fg: #8A6714;
   --badge-unreviewed-bg: #E8EEF6;    --badge-unreviewed-fg: #46618C;
   --badge-investigating-bg: #ECE9F9; --badge-investigating-fg: #5F51B5;
@@ -44,6 +45,7 @@ html[data-theme='dark'] {
   --pastel-tool: #40391f; --pastel-tool-strong: #5c5127;
   --danger: #ffb4a8; --danger-soft: rgb(255 142 128 / 0.16); --danger-soft-hover: rgb(255 142 128 / 0.26);
   --badge-spark-bg: #3B3018;         --badge-spark-fg: #E8CB70;
+  --select-chevron: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23B0A79C' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E"); /* review-round 2 select affordance — matches the variables.css auto-dark twin */
   --badge-unreviewed-bg: #24303E;    --badge-unreviewed-fg: #A8C4E8;
   --badge-investigating-bg: #2C2744; --badge-investigating-fg: #C3B4F5;
   --badge-awaiting-bg: #3A3110;      --badge-awaiting-fg: #E5C368;

@@ -192,13 +192,12 @@
 
 /* --- R6.3: Reports page dark-mode refinement ------------------------------- */
 /* The reports page cards (snapshot, heatmap, activity) can flatten in dark mode. Give them
-   the same subtle gradient treatment as the sadhana quadrants from R5.3 for consistency. */
-@media (prefers-color-scheme: dark) {
-}
-/* The heatmap cells in dark mode — the l0 (empty) cell uses --accent-soft which is fine,
-   but the colored levels can glare. Soften the brightest level slightly. */
-@media (prefers-color-scheme: dark) {
-}
+   the same subtle gradient treatment as the sadhana quadrants from R5.3 for consistency.
+   Review-round 2 (2026-09-12): these two @media (prefers-color-scheme: dark) blocks were
+   left EMPTY (rule bodies never written) — and the mechanism was wrong anyway: the app
+   themes manually via html[data-theme], not the OS media query. The working rules live in
+   themes.css (#report-body .card gradient + .heatmap-l4 softening, data-theme-scoped).
+   Stubs removed to stop implying dark coverage that never applied. */
 
 /* --- R6.3: Settings "Help" subsection visual rhythm ------------------------ */
 #settings-account h4 {

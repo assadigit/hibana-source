@@ -39,16 +39,27 @@ if (modified.length === 0) {
 // Read all HTML files and build a map: filename → highest ?v=N seen
 const htmlFiles = readdirSync(PUBLIC_DIR).filter((f) => f.endsWith('.html'))
 const versionMap = new Map() // 'app.js' → Set of version numbers seen across all HTML
+const addRef = (file, version) => {
+  if (!versionMap.has(file)) versionMap.set(file, new Set())
+  versionMap.get(file).add(Number(version))
+}
 
 for (const html of htmlFiles) {
   const content = readFileSync(join(PUBLIC_DIR, html), 'utf8')
   // Match: src="/js/app.js?v=159" or href="/css/app.css?v=200"
   const matches = content.matchAll(/(?:src|href)="\/(?:js|css)\/([^"?]+)\?v=(\d+)"/g)
-  for (const m of matches) {
-    const [, file, version] = m
-    if (!versionMap.has(file)) versionMap.set(file, new Set())
-    versionMap.get(file).add(Number(version))
-  }
+  for (const m of matches) addRef(m[1], m[2])
+}
+
+// Review-round 2: dynamically-injected assets (i18n-fa.js via i18n.js's ensureFaDict,
+// queue.js via app.js) have NO HTML reference — their ?v= lives in a JS string literal
+// ('/js/<name>.js?v=N'). Without this scan the gate fails (or, worse in CI where the
+// diff-vs-HEAD is empty post-commit, silently skips) the lazy-loaded file class. The
+// build's fixpoint loop rewrites these same literals, so they are first-class refs.
+for (const js of readdirSync(JS_DIR).filter((f) => f.endsWith('.js'))) {
+  const content = readFileSync(join(JS_DIR, js), 'utf8')
+  const matches = content.matchAll(/['`]\/(?:js)\/([^"'`?]+)\?v=(\d+)['`]/g)
+  for (const m of matches) addRef(m[1], m[2])
 }
 
 // Check: each modified file must have a ?v= reference, and it must be unique (one version)

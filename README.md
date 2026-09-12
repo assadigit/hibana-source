@@ -79,8 +79,8 @@ hibana/
 │   └── ...                       # (email, backup, domain, zone ops scripts)
 │
 ├── migrations/                   # 46 numbered .sql files (0001-0047; 0007 gap is original)
-├── audit-results/                # CSS contrast/accessibility audit data
-├── .github/workflows/ci.yml      # CI: typecheck + test + build on every push
+├── e2e/fixtures/                 # browser-injected a11y audit functions (a11y.spec.ts)
+├── .github/workflows/            # CI: ci.yml (test+build gates) + cd.yml (auto-deploy)
 │
 ├── Agents.md                     # ⚠️ READ FIRST — canonical agent rules
 ├── Changelogs.md                 # History + current state + ops runbook + open items

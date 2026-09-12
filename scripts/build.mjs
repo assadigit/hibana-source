@@ -54,7 +54,8 @@ const ENTRY_POINTS = [
   'jalali.js',
   'hib-init.js',
   // Session 25 Phase 2: page-specific JS extracted from inline <script> blocks
-  'project-page.js', 'sadhana-page.js',
+  'project-page.js',
+  'image-resize.js', 'sadhana-page.js',
   'sadhana-data.js', 'sprint-page.js',
   'calendar-page.js', 'settings-page.js', 'sparks-page.js', 'projects-page.js', 'board-page.js',
   'reports-page.js', 'signup-page.js', 'clients-page.js', 'clip-page.js', '404-page.js', 'confirm-page.js', 'notifications-page.js',

@@ -2008,6 +2008,7 @@
             return
           }
           // Project logo upload (user request 2026-09)
+          // Image-resize.js: client-side resize to 512×512 max + WebP conversion (3.5MB→~100KB)
           const logoPlaceholder = e.target.closest('[data-pd-logo-upload]')
           if (logoPlaceholder) {
             const input = document.createElement('input')
@@ -2016,23 +2017,20 @@
             input.onchange = async () => {
               const file = input.files?.[0]
               if (!file) return
-              const reader = new FileReader()
-              reader.onload = async () => {
-                const base64 = reader.result.split(',')[1]
-                try {
-                  const res = await fetch('/api/projects/' + id + '/logo', {
-                    method: 'PUT',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ dataBase64: base64, mimeType: file.type }),
-                  })
-                  if (!res.ok) throw new Error('upload failed')
-                  window.hibana?.toast(_t('pd.logoSaved', 'Logo saved'), 'info')
-                  location.reload()
-                } catch {
-                  window.hibana?.toast(_t('pd.logoFailed', "Couldn't upload logo"), 'err')
-                }
+              try {
+                // Resize + convert to WebP (falls back to PNG if WebP unsupported)
+                const { dataBase64, mimeType } = await window.hibanaImageResize.resizeAndEncode(file, { maxDim: 512, quality: 0.85 })
+                const res = await fetch('/api/projects/' + id + '/logo', {
+                  method: 'PUT',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ dataBase64, mimeType }),
+                })
+                if (!res.ok) throw new Error('upload failed')
+                window.hibana?.toast(_t('pd.logoSaved', 'Logo saved'), 'info')
+                location.reload()
+              } catch {
+                window.hibana?.toast(_t('pd.logoFailed', "Couldn't upload logo"), 'err')
               }
-              reader.readAsDataURL(file)
             }
             input.click()
             return

@@ -128,7 +128,7 @@
 // (clamp render + read-more delegation + counter removal), devboard.js v10 (title
 // input → textarea), magic-wand.js v9 (title-written re-clamp event). The precached
 // HTML shells must rotate so clients drop the old counter markup.
-const VERSION = "hibana-v310" // Session 26 P2: lazy-load i18n-fa.js (EN users save 17KB gz) + i18n.js ?v=57
+const VERSION = "hibana-v311" // Session 26 P2: lazy-load i18n-fa.js (EN users save 17KB gz) + i18n.js ?v=57
 
 // Static shell: unhashed pages/partials/icons/vendor/fonts (SWR or network-first at
 // runtime; precached here for offline). The hashed app bundles come from the manifest

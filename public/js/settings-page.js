@@ -443,25 +443,13 @@
           },
           init() { this.load() },
         }))
-        // Profile picture (user request): crop the chosen image to a centered 256×256 PNG on
-        // the client (cover-fit), then PUT it — tiny payload, no server-side image tooling.
-        const fileToSquarePng = (file) =>
-          new Promise((resolve, reject) => {
-            const img = new Image()
-            img.onload = () => {
-              const size = 256
-              const c = document.createElement('canvas')
-              c.width = c.height = size
-              const ctx = c.getContext('2d')
-              const s = Math.min(img.width, img.height)
-              // cover-fit: crop to the largest centered square, then downscale to 256
-              ctx.drawImage(img, (img.width - s) / 2, (img.height - s) / 2, s, s, 0, 0, size, size)
-              URL.revokeObjectURL(img.src)
-              resolve(c.toDataURL('image/png').split(',')[1])
-            }
-            img.onerror = () => { URL.revokeObjectURL(img.src); reject(new Error('decode')) }
-            img.src = URL.createObjectURL(file)
-          })
+        // Profile picture: crop the chosen image to a centered 256×256 square + convert to WebP
+        // on the client (cover-fit), then PUT it — tiny payload, no server-side image tooling.
+        // Uses the shared image-resize.js utility (window.hibanaImageResize.resizeSquare).
+        const fileToSquarePng = async (file) => {
+          const { dataBase64, mimeType } = await window.hibanaImageResize.resizeSquare(file, 256, { mimeType: 'image/webp', quality: 0.85 })
+          return { dataBase64, mimeType }
+        }
         window.Alpine?.data('avatar', () => ({
           pic: false,
           url: '',
@@ -483,11 +471,11 @@
               return window.hibana?.toast(window.hibanaI18n?.t('settings.avatarBadType') || 'Please choose an image file', 'err')
             }
             try {
-              const dataBase64 = await fileToSquarePng(file)
+              const { dataBase64, mimeType } = await fileToSquarePng(file)
               const r = await fetch('/api/settings/avatar', {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ mimeType: 'image/png', dataBase64 }),
+                body: JSON.stringify({ mimeType, dataBase64 }),
               })
               if (!r.ok) throw new Error('upload failed')
               await this.load()

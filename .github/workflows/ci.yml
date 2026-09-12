@@ -97,3 +97,11 @@ jobs:
             e2e/**/*.png
             test-results/
           retention-days: 7
+
+      # Lighthouse CI (SWOT #15): automated performance + a11y + best-practices tracking.
+      # Runs Lighthouse against the local Node server (login page — no auth needed).
+      # Asserts: a11y ≥ 0.9 (error), performance ≥ 0.8 (warn), best-practices ≥ 0.85 (warn).
+      - name: Lighthouse CI
+        run: npx @lhci/cli autorun
+        env:
+          LHCI_GITHUB_APP_TOKEN: ${{ secrets.LHCI_GITHUB_APP_TOKEN }}

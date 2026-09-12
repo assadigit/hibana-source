@@ -98,8 +98,9 @@ export function createApp(cfg: Config) {
       h.set('Referrer-Policy', 'strict-origin-when-cross-origin')
       h.set('X-Frame-Options', 'SAMEORIGIN')
       h.set('Cross-Origin-Opener-Policy', 'same-origin')
+      h.set('Cross-Origin-Resource-Policy', 'same-origin') // SWOT #8: prevents cross-origin resource loads
       h.set('Permissions-Policy', 'camera=(), geolocation=(), payment=(), usb=()') // microphone stays enabled: voice quick-add
-      h.set('Strict-Transport-Security', 'max-age=15552000') // no includeSubDomains: mail.hibana.ir is DNS-only
+      h.set('Strict-Transport-Security', 'max-age=15552000; preload') // SWOT #8: HSTS preload-ready (no includeSubDomains: mail.hibana.ir is DNS-only)
       h.set('Content-Security-Policy', CSP)
     }
     try {

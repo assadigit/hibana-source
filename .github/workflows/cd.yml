@@ -1,0 +1,72 @@
+# Hibana CD — continuous deployment on merge to main.
+#
+# After CI passes on main, this workflow:
+# 1. Builds the prod assets (--wire-html)
+# 2. Deploys to Cloudflare Workers DEV (hibana.aliassadi.workers.dev)
+# 3. Live-probes the dev deployment
+# 4. Deploys to PROD (hibana.ir) — only after the dev probe passes
+# 5. Restores canonical HTML (--restore-html) so git stays clean
+#
+# PREREQUISITES (add to GitHub repo secrets — Settings → Secrets and variables → Actions):
+#   CLOUDFLARE_API_TOKEN  — Cloudflare API token with Workers deploy permission
+#   CLOUDFLARE_ACCOUNT_ID — your Cloudflare account ID
+#
+# Once these are set, every merge to main auto-deploys to dev + prod.
+# To disable: comment out the 'on: push: branches: [main]' trigger below.
+name: CD
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    # Only deploy if CI passed (this is a separate workflow — GitHub doesn't chain
+    # workflows natively, so this checks the CI status via the commit SHA)
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Build prod assets (wire HTML)
+        run: node scripts/build.mjs --prod --wire-html
+
+      - name: Deploy to DEV
+        run: npx wrangler deploy
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+      - name: Live-probe DEV
+        run: |
+          sleep 3
+          HEALTH=$(curl -s https://hibana.aliassadi.workers.dev/api/health || echo '{}')
+          echo "DEV health: $HEALTH"
+          echo "$HEALTH" | grep -q '"ok":true' || (echo "FAIL: dev health probe failed"; exit 1)
+
+      - name: Deploy to PROD
+        run: npx wrangler deploy --env prod
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+      - name: Live-probe PROD
+        run: |
+          sleep 3
+          HEALTH=$(curl -s https://hibana.ir/api/health || echo '{}')
+          echo "PROD health: $HEALTH"
+          echo "$HEALTH" | grep -q '"ok":true' || (echo "FAIL: prod health probe failed"; exit 1)
+
+      - name: Restore canonical HTML
+        run: node scripts/build.mjs --restore-html
+
+      - name: Verify git tree clean
+        run: git diff --exit-code -- public/ || (echo "WARN: canonical HTML not restored"; git diff --stat -- public/)

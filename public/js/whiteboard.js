@@ -147,6 +147,13 @@ window.hibanaNotebook = (() => {
       obj.height = Math.max(obj.__minHeight, Math.round(obj.height))
       obj.clipPath.set({ left: -obj.width / 2, top: -obj.height / 2, width: obj.width, height: obj.height })
     }
+    // Session 28 (user report: "parts of my notes are cropped — the container only shows
+    // a portion"): the box used to load at the SAVED height with the clipPath pinned to
+    // it — if the re-measured text is taller (fabric-metric drift after the v5→v7
+    // migration, a font-preference change, a different wrap), everything past the saved
+    // height stayed invisible with no way to reach it. Fit ONCE at construction so a
+    // loaded note always shows all of its saved content (grow-only: max(saved, measured)).
+    obj.initDimensions()
     return obj
   }
 
@@ -655,8 +662,10 @@ window.hibanaNotebook = (() => {
     const top = bb.top + oy
     stickyPaletteEl.hidden = false
     stickyPaletteEl.style.left = Math.round(Math.max(8, Math.min(left - 4, hr.width - stickyPaletteEl.offsetWidth - 8))) + 'px'
-    // under the note; flip above it when there is no room below
-    stickyPaletteEl.style.top = Math.round(bottom + 8 + stickyPaletteEl.offsetHeight > hr.height ? Math.max(8, top - stickyPaletteEl.offsetHeight - 8) : bottom + 8) + 'px'
+    // Session 28 (user request: "the menu for edit/etc of sticky notes must come top"):
+    // the palette rides ABOVE the note like a toolbar pinned to its top edge; it flips
+    // BELOW only when the note hugs the sheet's top and there is no room above.
+    stickyPaletteEl.style.top = Math.round(top - stickyPaletteEl.offsetHeight - 8 < 8 ? Math.max(8, bottom + 8) : top - stickyPaletteEl.offsetHeight - 8) + 'px'
     const cur = String(g.__lightColor || '').toLowerCase()
     stickyPaletteEl.querySelectorAll('button[data-note-color]').forEach((b) => {
       b.classList.toggle('active', b.dataset.noteColor.toLowerCase() === cur)
@@ -1198,6 +1207,19 @@ window.hibanaNotebook = (() => {
     sizeToPage()
     window.addEventListener('resize', sizeToPage)
     await load()
+    // Session 28 (cropped-notes fix, belt-and-braces): when the webfonts were CACHED,
+    // document.fonts.ready resolves before `await load()` above adds the elements — the
+    // reflow pass then saw an empty canvas and never re-measured the loaded notes. Run
+    // it once more now that every element exists (idempotent: measures at the pinned
+    // width, grows heights only).
+    reflowTextMetrics()
+    // Session 28: the sheet sizes to its content after the first layout pass (tall notes
+    // grow the page — see fitSheetToContent below), and keeps tracking content changes.
+    fitSheetToContent()
+    canvas.on('object:added', scheduleSheetFit)
+    canvas.on('object:removed', scheduleSheetFit)
+    canvas.on('object:modified', scheduleSheetFit)
+    canvas.on('text:changed', scheduleSheetFit) // sticky papers grow while typing
 
     // #1 crash-guard autosave (Phase 6 item 1, ported from canvas.js): the RENDER updates
     // per keystroke (Fabric native); only the SAVE is decoupled — a debounced mid-edit
@@ -1535,7 +1557,7 @@ window.hibanaNotebook = (() => {
     ui.toolbar.querySelector('[data-action="delete"]').addEventListener('click', deleteActive)
     ui.toolbar.querySelector('[data-action="addimage"]')?.addEventListener('click', addImageByUrl)
     // Session 28 sticky recolor palette: build the swatches once; after:render keeps it
-    // glued under the selected note (follows moves — this sheet has no pan/zoom, but the
+    // glued ABOVE the selected note (follows moves — this sheet has no pan/zoom, but the
     // note itself moves) and hides it while the edit twin is open.
     stickyPaletteEl = document.querySelector('[data-sticky-palette]')
     if (stickyPaletteEl) {
@@ -1594,6 +1616,35 @@ window.hibanaNotebook = (() => {
     canvas.setDimensions({ width: w, height: h })
     canvas.calcOffset()
     canvas.renderAll()
+  }
+
+  // Session 28 (closes the cropped-notes report): the sheet GROWS to fit its content.
+  // The canvas is a fixed bitmap sized to the page element — a note taller than the
+  // viewport used to be cut off at the sheet's bottom edge with no way to reach the
+  // tail. The page's height now tracks the content's bottom edge (+ breathing room);
+  // the window scrolls when the sheet is taller than the viewport (CSS: body scrolls,
+  // toolbar stays pinned). Debounced so drag-live updates stay cheap.
+  let sheetFitTimer = null
+  function fitSheetToContent() {
+    if (!canvas || !page) return
+    let bottom = 0
+    for (const o of canvas.getObjects()) {
+      if (!o.id) continue // drafts, guides and palettes never drive the sheet size
+      const b = o.getBoundingRect()
+      bottom = Math.max(bottom, b.top + b.height)
+    }
+    // Never shrink below what the viewport would give the sheet (the flex baseline).
+    const minH = page.clientHeight || 0
+    const target = Math.ceil(Math.max(minH, bottom + 96))
+    const current = Math.round(page.getBoundingClientRect().height)
+    if (target > current + 2) {
+      page.style.minHeight = target + 'px'
+      sizeToPage()
+    }
+  }
+  const scheduleSheetFit = () => {
+    clearTimeout(sheetFitTimer)
+    sheetFitTimer = setTimeout(fitSheetToContent, 200)
   }
 
   return { init, getCanvas: () => canvas }

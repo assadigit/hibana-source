@@ -453,6 +453,10 @@ window.hibanaCanvas = (() => {
       obj.height = Math.max(obj.__minHeight, Math.round(obj.height))
       obj.clipPath.set({ left: -obj.width / 2, top: -obj.height / 2, width: obj.width, height: obj.height })
     }
+    // Session 28 (user report, canvas board parity with the notebook fix): fit ONCE at
+    // construction — a loaded note renders ALL its saved content even when re-measured
+    // text is taller than the persisted height (grow-only: max(saved, measured)).
+    obj.initDimensions()
     wireTextDir(obj)
     return obj
   }
@@ -857,8 +861,8 @@ window.hibanaCanvas = (() => {
 
   // ---- sticky-note recolor palette (2026-09-02 request) -------------------------------
   // The app's note colors (dashboard quick-notes yellow + the board pastels). The
-  // palette floats under the selected sticky; a click recolors the paper through the
-  // normal persist/history path so it survives save/reload + undo.
+  // palette floats ABOVE the selected sticky (Session 28 user request); a click recolors
+  // the paper through the normal persist/history path so it survives save/reload + undo.
   const NOTE_COLORS = ['#FFF59D', '#fef08a', '#fbcfe8', '#bbf7d0', '#bfdbfe', '#fed7aa', '#e9d5ff']
   const selectedSticky = () => {
     const a = canvas?.getActiveObject?.()
@@ -885,8 +889,10 @@ window.hibanaCanvas = (() => {
     const bottom = Math.max(...ys) - wr.top
     const top = Math.min(...ys) - wr.top
     stickyPaletteEl.style.left = Math.round(Math.max(8, Math.min(left - 4, wr.width - stickyPaletteEl.offsetWidth - 8))) + 'px'
-    // under the note; flip above it when there is no room below
-    stickyPaletteEl.style.top = Math.round(bottom + 8 + stickyPaletteEl.offsetHeight > wr.height ? Math.max(8, top - stickyPaletteEl.offsetHeight - 8) : bottom + 8) + 'px'
+    // Session 28 (user request: "the menu for edit/etc of sticky notes must come top"):
+    // the recolor palette rides ABOVE the note like a toolbar pinned to its top edge;
+    // it flips BELOW only when the note hugs the wrap's top edge and there is no room.
+    stickyPaletteEl.style.top = Math.round(top - stickyPaletteEl.offsetHeight - 8 < 8 ? Math.max(8, bottom + 8) : top - stickyPaletteEl.offsetHeight - 8) + 'px'
     const cur = String(g.__noteColor || '').toLowerCase()
     stickyPaletteEl.querySelectorAll('button[data-note-color]').forEach((b) => {
       b.classList.toggle('active', b.dataset.noteColor.toLowerCase() === cur)
@@ -1543,6 +1549,10 @@ window.hibanaCanvas = (() => {
 
     // initial load: just the visible viewport
     await loadChunk()
+    // Session 28 (cropped-notes fix, canvas parity): cached fonts resolve fonts.ready
+    // BEFORE loadChunk() puts elements on the canvas — the reflow pass then saw nothing.
+    // Re-run it now that the first chunk exists (idempotent, grow-only heights).
+    reflowTextMetrics()
 
     // pan: space-drag (Figma-style, user request), middle-drag, or the pan tool
     canvas.on('mouse:down', (e) => {

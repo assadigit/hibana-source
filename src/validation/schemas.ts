@@ -36,6 +36,11 @@ export const createProjectSchema = z.object({
   client_name: z.string().max(200).nullable().optional(),
   due_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().optional(),
   reminders_enabled: z.union([z.literal(0), z.literal(1)]).optional().default(0),
+  // Session 28 (user request: "go to a folder and create the idea there"): a spark may
+  // be born INSIDE a folder — the Ideas-page quick-add passes the open folder so the
+  // capture lands where the user stands. Only meaningful while status stays 'spark'
+  // (the route drops it otherwise); ownership is re-validated in the route.
+  folder_id: z.string().uuid().nullable().optional(),
 })
 
 export const updateProjectSchema = z

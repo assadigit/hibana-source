@@ -126,6 +126,7 @@ window.hibana = (() => {
           <input type="text" id="qa-title" required maxlength="200" autocomplete="off">
         </span></label>
         <p class="muted small" id="qa-dup" hidden></p>
+        <p class="muted small" id="qa-folder-hint" hidden></p>
         <label>${_t('qa.oneLiner', 'One-liner')} <textarea id="qa-description" rows="2" maxlength="2000"></textarea></label>
         <label>${_t('qa.tags', 'Tags (comma-separated, optional)')} <input type="text" id="qa-tags" placeholder="${_t('qa.tagsPlaceholder', 'AI, WordPress, …')}" maxlength="200"></label>
         <label>${_t('qa.sketch', 'Sketch (optional)')} <input type="file" id="qa-file" accept="image/png,image/jpeg,image/webp,image/gif"></label>
@@ -199,6 +200,14 @@ window.hibana = (() => {
           .map((name) => ({ name })) // server assigns the default palette color
         const id = crypto.randomUUID() // rule 2: addressable before the network call
         const payload = { id, title, description: document.getElementById('qa-description').value, tags, status: 'spark' }
+        // Session 28 (user request: "go to a folder and create the idea there"): when the
+        // quick-add opens ON the Ideas page with a specific folder open, the capture files
+        // itself into that folder (the server re-validates ownership). 'all'/''/'none' and
+        // every other page capture as unfiled — same behavior as before.
+        if (location.pathname === '/sparks.html') {
+          const f = (document.getElementById('spark-folder') || {}).value || ''
+          if (/^[0-9a-f-]{36}$/i.test(f)) payload.folder_id = f
+        }
         await window.hibanaQueue.enqueue({ kind: 'project', data: payload })
         const synced = await window.hibanaQueue.flush()
         const drained = (await window.hibanaQueue.count()) === 0
@@ -243,6 +252,20 @@ window.hibana = (() => {
 
   function openQuickAdd() {
     buildQuickAdd()
+    // Session 28: surface where the capture will land — when a specific folder is open on
+    // the Ideas page, its name rides the hidden input's data attribute (sparks-page.js
+    // stamps it on every folder click); otherwise the hint stays hidden.
+    const hint = quickAddEl.querySelector('#qa-folder-hint')
+    if (hint) {
+      const f = (document.getElementById('spark-folder') || {}).value || ''
+      const name = (document.getElementById('spark-folder') || {}).dataset?.folderName || ''
+      if (location.pathname === '/sparks.html' && /^[0-9a-f-]{36}$/i.test(f) && name) {
+        hint.textContent = _t('qa.filesInto', 'Files into') + ': ' + name
+        hint.hidden = false
+      } else {
+        hint.hidden = true
+      }
+    }
     quickAddEl.showModal()
   }
 

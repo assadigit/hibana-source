@@ -129,6 +129,7 @@ window.__hibanaDictFA = {
       'qa.savedOffline': 'آفلاین ذخیره شد — به محض اتصال همگام می‌شود',
       'qa.errorPrefix': 'ایجاد ایده ممکن نشد —',
       'qa.duplicate': 'پروژه‌ای با این نام قبلاً وجود دارد',
+      'qa.filesInto': 'ثبت در پوشه',
       // theme
       'theme.toLight': 'حالت روشن', 'theme.toDark': 'حالت تاریک',
       // page titles / headings

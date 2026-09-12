@@ -95,6 +95,62 @@ const fabric = {
 // Cast to any because the v6 Image type doesn't have a `filters` static property.
 ;(fabric.Image as any).filters = filters
 
+// v5 origin compat (Session 28 P0 — "notebook notes are cropped / everything renders
+// half-shifted"): fabric ≤5 anchored every object's left/top at its TOP-LEFT corner
+// (originX/originY 'left'/'top'); v6/v7 anchor at the CENTER. Both boards were authored
+// for the v5 contract — they persist getBoundingRect().top-left and re-create with
+// left/top — so under center-origin every text note, stroke and shape reloaded HALF ITS
+// SIZE up-and-left (drifting further on every save cycle), and the pinned-width
+// textboxes' clipPaths cropped their content. Sites that pass an EXPLICIT origin (the
+// comment pins, guides, block badges) are left untouched.
+//
+// Implementation: wrap the exported shape classes so `new C(...)` flips the freshly
+// built object back to top-left anchoring unless the options said otherwise. The
+// wrapper keeps the real class's prototype (instanceof) and statics (proto chain), and
+// always returns the genuine class instance — `new Wrapped(...)` just re-anchors it.
+type Originful = {
+  originX?: unknown
+  originY?: unknown
+  set: (o: Record<string, unknown>) => void
+  setCoords?: () => void
+}
+function topLeftOriginCompat<C extends new (...args: never[]) => Originful>(C: C): C {
+  const Wrapped = function (this: unknown, ...args: unknown[]) {
+    const opts = args[args.length - 1] as Record<string, unknown> | undefined
+    const explicitOrigin =
+      !!opts && typeof opts === 'object' && !Array.isArray(opts) && ('originX' in opts || 'originY' in opts)
+    const obj = new (C as unknown as new (...args: unknown[]) => Originful)(...args)
+    if (!explicitOrigin && obj && typeof obj.set === 'function') {
+      obj.set({ originX: 'left', originY: 'top' })
+      obj.setCoords?.()
+    }
+    return obj
+  } as unknown as C
+  Object.setPrototypeOf(Wrapped, C) // statics resolve through the real class
+  Wrapped.prototype = C.prototype // instanceof keeps working for the real class
+  return Wrapped
+}
+
+for (const key of [
+  'Rect',
+  'Group',
+  'Line',
+  'Text',
+  'Path',
+  'Textbox',
+  'Circle',
+  'Ellipse',
+  'ActiveSelection',
+  'Image',
+  'IText',
+  'Polygon',
+  'Polyline',
+  'Triangle',
+] as const) {
+  const C = (fabric as unknown as Record<string, new (...args: never[]) => Originful>)[key]
+  if (typeof C === 'function') (fabric as unknown as Record<string, unknown>)[key] = topLeftOriginCompat(C)
+}
+
 // v5 backwards compat: Canvas-level methods REMOVED in v6 (2026-09-12 fix — the v6/v7
 // security upgrades silently broke every pointer-driven handler on both boards).
 // whiteboard.js + canvas.js still call the v5 forms:

@@ -570,6 +570,27 @@
    tail stops the inverted whites from being pure #fff (user request 2026-08-24). */
 #nb-board { display: block; filter: var(--nb-ink, none); }
 
+/* Session 28 (closes the cropped-notes report): the notebook sheet grows with its
+   content — whiteboard.js (fitSheetToContent) stretches #nb-page's min-height to the
+   content's bottom edge, and the page itself SCROLLS (the canvas is a fixed bitmap, so
+   a tall note used to be cut off at the sheet's bottom edge, unreachable). The toolbar
+   stays pinned to the top while the sheet scrolls under it. The Canvas board keeps the
+   overflow:hidden no-scroll page — it pans internally. */
+.notebook-scroll { height: auto; min-height: 100dvh; overflow-y: auto; }
+.notebook-scroll .canvas-toolbar {
+  position: sticky;
+  top: 0;
+  z-index: 30;
+  background: var(--bg-soft);
+  border-block-end: 1px solid var(--line);
+}
+/* Keep the sheet's own overflow boundary (the paper edge) while allowing the window
+   to scroll — no clip of children beyond the paper's bottom edge. */
+.notebook-scroll .notebook-page { overflow: visible; }
+/* The board-loading pill + sticky palette are anchored to #nb-page — visible overflow
+   keeps them positioned even when the sheet is taller than the viewport. */
+.notebook-scroll .board-loading { position: sticky; }
+
 /* --- Phase 3 — sticky, kanban ------------------------------------------------ */
 .sticky-board {
   display: grid;

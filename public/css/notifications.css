@@ -65,23 +65,26 @@
 @media (prefers-color-scheme: dark) {
 }
 
-/* Session-12 (2026-09-15, user request): FLAT kanban cards — "make the design flat,
-   like how tasks of the to-do list are presented; remove the gradient". Every
-   kanban card (dashboard stage cards + projects-board cards) drops the .card vertical
-   gradient for one solid tone: .kanban-card sits on var(--card) inside the soft lanes,
-   the dashboard's compact stat-kanban-card sits on var(--statcard-bg) (session-15:
-   neutral #F5F6F7 light / #28241E dark — was --bg-soft). The theme
-   triplets mirror the .card depth rules directly above (same shapes, later position)
-   so the flat fill wins the cascade in explicit-light, explicit-dark and system modes.
-   The status fills/label-bars below use higher-specificity selectors and still win. */
+/* Session-12 (2026-09-15, user request) → Session 28 REPAIR (2026-09-12 user report:
+   "remove the bg color of these boxes — only keep border"): this block was a BROKEN
+   SELECTOR LIST — the opening fill selectors (`.kanban-card, .stat-kanban-card,
+   .card.kanban-card.stat-kanban-card,` …) ran through the status selectors and merged
+   into the FIRST :hover rule's declaration block, so every kanban card — including the
+   dashboard's stat cards — painted the unreviewed hover pastel. The list is now closed
+   with its own block:
+   - .kanban-card (projects board): flat var(--card) — no gradient.
+   - .stat-kanban-card / triple-class (dashboard): TRANSPARENT, border only (the user's
+     request; the ::before status bar stays the sole color signal). */
 .kanban-card,
 .stat-kanban-card,
-/* Session 19 (user report round 2): the dashboard project cards STILL showed a white
-   (--card) fill because the .kanban-card rule above (line 5882, same specificity, but the
-   card carries BOTH classes) was winning the cascade in some theme-resolution paths.
-   This triple-class rule (0,3,0) beats every .kanban-card / .card / :root:not() variant
-   unambiguously — the dashboard item card is TRANSPARENT, only the border shows. */
-.card.kanban-card.stat-kanban-card,
+.card.kanban-card.stat-kanban-card {
+  background: transparent;
+}
+
+/* Session-28 follow-up: the flat fill for the PROJECTS board's cards (inside .kanban-col
+   lanes) — a solid card tone, no gradient (session-12 request). Scoped so it can never
+   reach the dashboard's stat cards. */
+.kanban-col .kanban-card { background: var(--card); }
 
 /* Status-coded kanban cards (2026-08-30 (g), Ali's request) — SPLIT in session-11
    (user report 2026-09-14): the dashboard's stage boxes read as "all box colored pale
@@ -91,18 +94,15 @@
      glance inside a lane that is itself status-labeled (the original 2026-08-30 design).
      Selectors are scoped to .kanban-col .kanban-card[...] so they can no longer reach the
      dashboard cards.
-   - DASHBOARD (.stat-kanban-card): neutral card + a small colored LABEL on each item
-     (user: "only 10% of each item must be filled, like a label on them") — a slim
-     status-colored bar pinned to each card's inline-start edge, matching the tint the
-     box's icon-chip already carries. The selector triplets mirror the .card depth rules
-     directly above (same shapes, later position) so the fills win the cascade in
-     explicit-light, explicit-dark, and system modes. */
-.kanban-col .kanban-card[data-status='unreviewed'],
-.kanban-col .kanban-card[data-status='investigating'],
-.kanban-col .kanban-card[data-status='awaiting'],
-.kanban-col .kanban-card[data-status='doing'],
-.kanban-col .kanban-card[data-status='halted'],
-.kanban-col .kanban-card[data-status='operational'],
+   - DASHBOARD (.stat-kanban-card): neutral transparent card + a small colored LABEL on
+     each item — a slim status-colored bar pinned to each card's inline-start edge (the
+     "10% label"), matching the tint the box's icon-chip already carries. */
+.kanban-col .kanban-card[data-status='unreviewed'] { background: var(--kanban-unreviewed-bg); }
+.kanban-col .kanban-card[data-status='investigating'] { background: var(--kanban-investigating-bg); }
+.kanban-col .kanban-card[data-status='awaiting'] { background: var(--kanban-awaiting-bg); }
+.kanban-col .kanban-card[data-status='doing'] { background: var(--kanban-doing-bg); }
+.kanban-col .kanban-card[data-status='halted'] { background: var(--kanban-halted-bg); }
+.kanban-col .kanban-card[data-status='operational'] { background: var(--kanban-operational-bg); }
 /* Hover deepens the tint slightly instead of snapping back to the neutral gray */
 .kanban-col .kanban-card[data-status='unreviewed']:hover { background: color-mix(in srgb, var(--kanban-unreviewed-bg) 94%, var(--kanban-unreviewed-line) 6%); }
 .kanban-col .kanban-card[data-status='investigating']:hover { background: color-mix(in srgb, var(--kanban-investigating-bg) 94%, var(--kanban-investigating-line) 6%); }

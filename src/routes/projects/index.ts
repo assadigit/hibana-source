@@ -55,7 +55,11 @@ export function projectsRoutes(cfg: Config) {
       params.push(match)
     }
     const folderParam = query.success ? query.data.folder : undefined
-    if (folderParam && query.success && query.data.status === 'spark') {
+    if (folderParam && folderParam !== 'all' && query.success && query.data.status === 'spark') {
+      // Session 28 (user report: "نمایش همه ایده‌ها — the ideas don't appear"): 'all'
+      // used to fall into the else branch and filter `folder_id = 'all'` — a literal
+      // that matches nothing (ids are UUIDs) — so the shelf came back EMPTY and the
+      // grid branch rendered the folder grid again. 'all' now skips the filter entirely.
       if (folderParam === 'none') conds.push('folder_id IS NULL')
       else {
         conds.push('folder_id = ?')
@@ -135,10 +139,22 @@ export function projectsRoutes(cfg: Config) {
       if (existing[0].user_id === user.id) return c.json({ ok: true, duplicate: true }, 200)
       return c.json({ error: 'id_conflict' }, 409) // UUID collision across users — never 500
     }
+    // Session 28 (user request: capture INTO the open folder): a spark born on the Ideas
+    // page while a folder is open files itself there. Mirrors the PATCH path's ownership
+    // check — the FK alone can't scope users — and only applies while the record is a
+    // spark (a promoted/created project ignores the folder entirely).
+    let folderId: string | null = null
+    if (body.folder_id && body.status === 'spark') {
+      const folderRow = await cfg.db.query<{ id: string }>(
+        'SELECT id FROM spark_folders WHERE id = ? AND user_id = ?',
+        [body.folder_id, user.id],
+      )
+      if (folderRow.length > 0) folderId = folderRow[0].id
+    }
     await cfg.db.execute(
-      `INSERT INTO projects (id, user_id, title, description, type, status, sort_order, latest_note, reminders_enabled, client_name, due_date, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, 0, '', ?, ?, ?, ?, ?)`,
-      [id, user.id, body.title, body.description, body.type, body.status, body.reminders_enabled ?? 0, body.client_name ?? null, body.due_date ?? null, now, now],
+      `INSERT INTO projects (id, user_id, title, description, type, status, sort_order, latest_note, reminders_enabled, client_name, due_date, folder_id, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, 0, '', ?, ?, ?, ?, ?, ?)`,
+      [id, user.id, body.title, body.description, body.type, body.status, body.reminders_enabled ?? 0, body.client_name ?? null, body.due_date ?? null, folderId, now, now],
     )
     // Optional tags on create (quick-add modal, spec §5.5): find-or-create per user, then link.
     // H1 fix (2026-09-10): resolve tag IDs atomically via INSERT ... ON CONFLICT ... RETURNING

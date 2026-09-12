@@ -193,13 +193,17 @@
 #notebook :is(#nv-sticky:checked, #nv-grid:checked) ~ .note-list > .note-card .note-headbar {
   display: flex;
   align-items: center;
-  min-block-size: 2.75rem; /* Phase 7 item 11: room for a 44px delete target */
+  min-block-size: 1.9rem; /* Session 28 (user: "make the button whitespace less"): was 2.75rem — a 44px strip holding a 14px icon; now a slim 30px strip, hit area preserved by the ::after ring below. */
+  padding-inline: 0.15rem;
+  flex: none;
 }
 #notebook :is(#nv-sticky:checked, #nv-grid:checked) ~ .note-list > .note-card .note-headbar [data-note-delete] {
-  /* UI/UX R6 (2026-09-12): increased the tap target to 44px (WCAG 2.5.5 Target Size).
-     The icon stays 0.85rem but the clickable area grows via min-width/min-height + padding. */
-  min-inline-size: 2.75rem; min-block-size: 2.75rem;
+  /* Session 28: compact visual box (1.75rem ≈ 28px, was 2.75rem/44px) — the icon is
+     0.85rem so the old box was ~70% padding. The tap target stays ≥44px via the
+     base.css .ghost.danger::after ring (inset -0.55rem ⇒ 2.85rem hit zone). */
+  min-inline-size: 1.75rem; min-block-size: 1.75rem;
   display: grid; place-items: center;
+  border-radius: 50%;
 }
 #notebook :is(#nv-sticky:checked, #nv-grid:checked) ~ .note-list > .note-card .note-headbar [data-note-delete]:hover { background: rgb(0 0 0 / 0.14); }
 #notebook :is(#nv-sticky:checked, #nv-grid:checked) ~ .note-list > .note-card .note-headbar [data-note-delete] .icon { inline-size: 0.85rem; block-size: 0.85rem; }
@@ -413,13 +417,32 @@
    the old footer size (0.8rem → 0.48rem) — it whispers, the content talks. */
 .note-footer { font-size: 0.48rem; }
 .note-footer .small, .note-footer .note-meta { font-size: 0.6rem; } /* .small's own rule would beat the inherited size. Session 20: was 0.48rem (~7.7px) — genuinely unreadable; 0.6rem keeps it quiet but legible */
-/* UI/UX R6 (2026-09-12): the list-view dismiss «×» (button.ghost.danger in the footer) had
-   padding 0.18rem 0.35rem — a ~20px tap target, well under the WCAG 2.5.5 44px floor.
-   The visible icon size stays at 0.85rem (~14px); the padding grows the hit area to
-   ~44px (min-inline-size + min-block-size: 2.75rem) without changing the visual glyph.
-   The sticky-view dismiss is already 2.75rem (quicknotes.css line ~195). */
-.note-footer .ghost.danger { padding: 0.5rem 0.6rem; min-inline-size: 2.75rem; min-block-size: 2.75rem; display: inline-grid; place-items: center; border-radius: var(--radius-sm); }
+/* UI/UX R6 (2026-09-12) → Session 28 revision (user: "make this button whitespace
+   less"): the list-view dismiss «×» (button.ghost.danger in the footer) was a 2.75rem
+   min square PLUS 0.5rem/0.6rem padding — a ~60px button around a ~14px glyph.
+   Compact visual box: 1.75rem square, zero padding, circular. WCAG 2.5.5 is kept —
+   the base.css .ghost.danger::after ring (inset -0.55rem) still expands the touch
+   target to ~2.85rem ≈ 45px, and the footer row itself is a taller hit lane. */
+.note-footer .ghost.danger { padding: 0; min-inline-size: 1.75rem; min-block-size: 1.75rem; display: inline-grid; place-items: center; border-radius: 50%; }
 .note-footer .note-meta { overflow-wrap: anywhere; }
+
+/* Session 28 (user request, whitespace batch): every icon-only control INSIDE a note
+   card shares the compact 1.75rem visual box (done ✓, list toggle, item remove ×).
+   Non-danger buttons don't get the base.css ::after ring, so this adds it — inset
+   -0.5rem on a 1.75rem box = 2.75rem ≈ 44px touch zone (WCAG 2.5.5 floor). */
+.note-card .icon-btn {
+  min-inline-size: 1.75rem;
+  min-block-size: 1.75rem;
+  padding: 0;
+  position: relative;
+}
+.note-card .icon-btn:not(.danger)::after {
+  content: "";
+  position: absolute;
+  inset: -0.5rem;
+  border-radius: 50%;
+}
+.note-card .icon-btn .icon { inline-size: 0.9rem; block-size: 0.9rem; }
 /* Phase 7 item 11: the bottom action row in LOGICAL layout — margin-inline-start on the
    controls group mirrors the row with the reading direction (RTL: meta at start/right,
    controls at end/left; LTR: the mirror) with zero physical left/right rules. The page's

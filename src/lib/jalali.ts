@@ -136,3 +136,23 @@ export function formatDateLong(iso: string, cal: 'gregorian' | 'shamsi', lang: '
   }
   return `${WEEKDAYS_EN[wd]}, ${gd} ${G_MONTHS_EN[gm - 1]} ${gy}`
 }
+
+// Session 28 (user request): note-meta dates carry the weekday + day + month next to
+// the time — «یکشنبه ۲۱ شهریور ۰۱:۲۳» — so a glance at a note says WHICH day it was
+// touched, not just the clock. Gregorian keeps English months abbreviated.
+const G_MONTHS_EN_AB = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+
+/** ISO timestamp → weekday + day + month (no year): 'یکشنبه ۲۱ شهریور' (fa/shamsi) or
+ *  'Sunday 21 Sep' (en/gregorian). The caller appends the time — the pair reads as one
+ *  meta chip: «یکشنبه ۲۱ شهریور ۰۱:۲۳». */
+export function formatNoteDay(iso: string, cal: 'gregorian' | 'shamsi', lang: 'en' | 'fa'): string {
+  const gy = Number(iso.slice(0, 4))
+  const gm = Number(iso.slice(5, 7))
+  const gd = Number(iso.slice(8, 10))
+  const wd = new Date(Date.UTC(gy, gm - 1, gd)).getUTCDay()
+  if (cal === 'shamsi') {
+    const j = toJalali(gy, gm, gd)
+    return `${WEEKDAYS_FA[wd]} ${faDigits(String(j.jd))} ${J_MONTHS_FA[j.jm - 1]}`
+  }
+  return `${WEEKDAYS_EN[wd]} ${gd} ${G_MONTHS_EN_AB[gm - 1]}`
+}

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { toJalali, toGregorian, formatDate } from '../lib/jalali'
+import { toJalali, toGregorian, formatDate, formatNoteDay } from '../lib/jalali'
 
 // lib/jalali — pure calendar math used for server-side deadline display (rule 3:
 // Gregorian UTC storage, calendar conversion only at the render edge).
@@ -26,5 +26,14 @@ describe('jalali calendar (lib/jalali)', () => {
     expect(formatDate('2026-08-25', 'shamsi', 'en')).toBe('1405/06/03')
     expect(formatDate('2026-08-25', 'shamsi', 'fa')).toBe('۱۴۰۵/۰۶/۰۳')
     expect(formatDate('2026-08-25', 'gregorian', 'fa')).toBe('۲۰۲۶/۰۸/۲۵')
+  })
+
+  it('formatNoteDay renders weekday + day + month (Session 28 note-meta chip)', () => {
+    // 2026-09-12 is a Saturday: شنبه in the fa week, 21 Shahrivar 1405 in shamsi.
+    expect(formatNoteDay('2026-09-12', 'shamsi', 'fa')).toBe('شنبه ۲۱ شهریور')
+    expect(formatNoteDay('2026-09-12', 'gregorian', 'en')).toBe('Saturday 12 Sep')
+    // 2026-08-25 is a Tuesday: سه‌شنبه, 3 Shahrivar.
+    expect(formatNoteDay('2026-08-25', 'shamsi', 'fa')).toBe('سه‌شنبه ۳ شهریور')
+    expect(formatNoteDay('2026-08-25', 'gregorian', 'en')).toBe('Tuesday 25 Aug')
   })
 })

@@ -396,7 +396,13 @@
           const sfChip = e.target.closest('[data-sf]')
           if (sfChip) {
             const input = document.getElementById('spark-folder')
-            if (input) input.value = sfChip.getAttribute('data-sf') || ''
+            if (input) {
+              input.value = sfChip.getAttribute('data-sf') || ''
+              // Session 28: stamp the picked folder's NAME too — the quick-add modal
+              // reads it to hint where the capture will land («Files into: …»).
+              const label = sfChip.querySelector('.sf-label, .spark-folder-name')
+              if (input.dataset) input.dataset.folderName = label ? label.textContent.trim() : ''
+            }
             reloadShelf()
             return
           }

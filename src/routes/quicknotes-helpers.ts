@@ -6,7 +6,7 @@ import { esc, jsonBody } from '../lib/http'
 import { icon } from '../lib/html'
 import { localeOf, trL, type Locale } from '../lib/i18n'
 import { renderMarkdown } from '../lib/markdown'
-import { calendarFor, formatDate } from '../lib/jalali'
+import { calendarFor, formatDate, formatNoteDay } from '../lib/jalali'
 import { uuid } from '../lib/ids'
 import type { Config, UserRow } from '../types'
 import type { Db } from '../db/types'
@@ -185,7 +185,11 @@ export function noteCard(n: QuickNote, lang: Locale, titles: Map<string, string>
       <div class="note-render markdown-body" dir="auto" data-note-open="${n.id}" title="${t('Read the full note', 'خواندن کامل یادداشت')}" role="button" tabindex="0">${latinRuns(renderMarkdown(content))}</div>
       <button type="button" class="note-more" data-note-more="${n.id}" hidden>${t('More…', 'بیشتر…')}</button>
       <div class="row spread note-footer">
-        <span class="small muted note-meta">${dateChipHtml(n, lang)}${new Date(n.updated_at).toLocaleTimeString(lang === 'fa' ? 'fa-IR' : 'en-US', { hour: '2-digit', minute: '2-digit' })}</span>
+        <!-- Session 28 (user request): the meta chip carries the weekday + Jalali day +
+             month next to the clock — «یکشنبه ۲۱ شهریور ۰۱:۲۳» — so a glance says which
+             DAY the note was touched, not just the time. fa keeps fa-IR 24h Persian
+             digits; en uses a 24h clock to match (was '01:23 AM'). -->
+        <span class="small muted note-meta">${dateChipHtml(n, lang)}${formatNoteDay(n.updated_at, calendarFor(lang), lang)} ${new Date(n.updated_at).toLocaleTimeString(lang === 'fa' ? 'fa-IR' : 'en-GB', { hour: '2-digit', minute: '2-digit', hour12: false })}</span>
         <span class="row note-footer-right">${colorPickerHtml(n, lang)}${doneBtn(n.project_id)}
         <button class="ghost danger icon-btn" data-note-delete="${n.id}" aria-label="${t('Delete', 'حذف')}">${icon('x')}</button></span>
       </div>

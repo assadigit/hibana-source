@@ -129,6 +129,7 @@ window.__hibanaDictEN = {
       'qa.savedOffline': 'Saved offline — it will sync when you reconnect',
       'qa.errorPrefix': "Couldn't create the idea —",
       'qa.duplicate': 'A project with this title already exists',
+      'qa.filesInto': 'Files into',
       // theme
       'theme.toLight': 'Switch to light mode', 'theme.toDark': 'Switch to dark mode',
       // page titles / headings

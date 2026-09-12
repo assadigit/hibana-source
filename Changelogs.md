@@ -9,7 +9,53 @@
 > rewritten as a minimal pointer. Deleted files remain recoverable verbatim:
 > `git show <sha>:<file>`.
 
-## 1. Current state (v0.3.12.19 — Session 27: fabric-v6 compat P0 fix + modularization + backup/restore hardening + 54-test coverage)
+## 1. Current state (v0.3.12.20 — Session 27 R2: Alpine hard-load P0 fix + digest export + dark-mode polish)
+- **Review-round 2 summary** — the QA sweep (agent-browser + VLM screenshot audit) found
+  a P0 as severe as Session 27's fabric bug: every Alpine component on Reports and
+  Settings was DEAD on hard load since v0.3.12.3 (2026-09-10, the 317724e inline-script
+  extraction). Plus a styling batch from the VLM audit and a new client-side digest
+  export feature. SW v316→v318.
+- **P0 — Alpine components dead on hard load (commit 5550991):** the inline-script
+  extraction moved page scripts that register `Alpine.data` components to end-of-<body>
+  with `defer` — but deferred scripts run in document order, so alpine.min.js (in <head>)
+  had already walked the tree. On EVERY hard load: reports lost Snapshot/heatmap/activity
+  chart ("report is not defined"; only the plain-JS feed lived), settings lost ALL 8
+  components (~80 expression errors — prefs/views/account/avatar/theme/telegram/invites:
+  language/calendar/timezone selects, password change, avatar, Telegram link, invites).
+  The settings-page's own `alpine:init` "invites backup" never fired either (the event
+  had already passed — dead listener since the extraction). Invisible to error-only
+  trackers because Alpine logs *warnings*, not errors — two review rounds missed it.
+  Fix: script tags moved before alpine.min.js (the mechanism boot.js's alpine:init queue
+  drain was designed for). SOFT-NAV TWIN also fixed: Alpine's own MutationObserver
+  auto-initialized the swapped <main> before nav.js finished injecting the page script
+  (x-if/x-show effects error once and never re-render) — nav.js now pauses the observer
+  (depth-counted) across the swap → script-load → initTree window.
+  Regression net: e2e/alpine-hard-load.spec.ts (5 tests, verified to fail 4/4 on the
+  unfixed tree — tracks the "Alpine Expression Error" console-warning class).
+- **Feature — reports digest export (commit 1a5c62e):** "Copy as Markdown" + "Download
+  CSV" on the reports page, purely client-side from the already-loaded Alpine scope (no
+  new API). MD digest: snapshot counts + active-days tally + top activity periods,
+  i18n'd (FA verified live on hibana.ir with real data). CSV: hibana-report-YYYY-MM-DD.csv
+  with BOM (Excel + Farsi) and quoted cells. 13 new i18n keys (888→901).
+- **Styling (VLM audit findings):** theme-aware select chevron (`--select-chevron` in
+  variables/themes — explicit-light, explicit-dark AND auto-dark paths; RTL flip; no
+  chevron on disabled selects), heatmap weekday labels 0.62rem/weight 500/no stacked
+  opacity (was 8.8px + double-dimmed), two EMPTY `prefers-color-scheme` stubs removed
+  (dead since written — app themes via data-theme, the working rules were already in
+  themes.css).
+- **Tooling:** check-cache-bust.mjs now scans JS string literals for the
+  dynamically-injected asset class (i18n-fa.js lives in a JS literal, not HTML — the
+  gate never covered it).
+- Assets: SW hibana-v318. nav.js v2, reports-page.js v3, settings-page.js v3, i18n-en v3,
+  i18n-fa v3 (dynamic), i18n.js v60, base.css v2, variables.css v5, themes.css v2,
+  polish-ui.css v3, polish-batch.css v3. package.json 0.3.12.19→0.3.12.20. i18n 901/901.
+- Verified: typecheck 0 · vitest 311/311 · build+wiring PASS · cache-bust PASS (9 files)
+  · i18n 901/901 · Playwright 17/17 (12 + 5 new alpine/export tests) · live dev+prod:
+  reports 4 sections + export buttons + 0 Alpine warnings, settings all 8 components
+  live, digest verified with real prod data.
+
+- **v0.3.12.19 = Session 27 (fabric compat P0 + modularization + backup/restore hardening
+  + 54-test coverage)**:
 - **Session 27 summary** — started as the modularization session, found a P0 on the way: the
   Session 26 fabric v5→6→7 security upgrades had silently broken EVERY pointer-driven
   interaction on both boards (canvas + notebook). Fixed via a completed v5 compat layer in

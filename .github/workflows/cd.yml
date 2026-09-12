@@ -69,4 +69,5 @@ jobs:
         run: node scripts/build.mjs --restore-html
 
       - name: Verify git tree clean
-        run: git diff --exit-code -- public/ || (echo "WARN: canonical HTML not restored"; git diff --stat -- public/)
+        run: |
+          git diff --exit-code -- public/ || (echo "WARN: canonical HTML not restored"; git diff --stat -- public/)

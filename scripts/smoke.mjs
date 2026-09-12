@@ -49,15 +49,18 @@ const check = (name, ok, extra = '') => {
 const j = (r) => r.json()
 
 // login once
+// 2026-09-12: Origin header added — the T6 CSRF tighten (b2649a5) requires a trusted
+// Origin OR Referer on every POST/PUT/PATCH/DELETE and updated the 15 vitest files but
+// missed this script, leaving `npm run smoke` 403-dead at the login step ever since.
 const login = await app.fetch(
   new Request('http://local/api/auth/login', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', Origin: 'http://local' },
     body: JSON.stringify({ login: 'smoketest', password: 'smoke-pass-123' }),
   }),
 )
 const cookie = (login.headers.get('set-cookie') ?? '').split(';')[0]
-const auth = { Cookie: cookie, 'Content-Type': 'application/json' }
+const auth = { Cookie: cookie, 'Content-Type': 'application/json', Origin: 'http://local' }
 check('login', login.status === 200 && cookie.startsWith('hibana_session='))
 
 // public health endpoint (no session, ROADMAP P2 monitoring)
@@ -149,7 +152,7 @@ try {
     const reg = await app.fetch(
       new Request('http://local/api/auth/register', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', Origin: 'http://local' },
         body: JSON.stringify({ inviteCode: code, email: 'friend@test.dev', username: 'friend', password: 'friendpass12345', captcha: String(answer), captcha_token: capBody.token }),
       }),
     )

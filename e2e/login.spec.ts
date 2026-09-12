@@ -40,10 +40,21 @@ test('login → dashboard renders with zero console errors', async ({ page, brow
   test.skip(browserName !== 'chromium', 'Desktop Chromium only for now')
 
   const errors: string[] = []
+  const expectedErrorPatterns = [
+    /Failed to load resource.*401/, // /api/auth/me before login + SW navigation check (expected: unauthenticated)
+    /Failed to load resource.*404/, // SW manifest fetch on first load (expected: not built in CI before build step)
+  ]
   page.on('console', (msg) => {
-    if (msg.type() === 'error') errors.push(msg.text())
+    if (msg.type() !== 'error') return
+    const text = msg.text()
+    if (expectedErrorPatterns.some((re) => re.test(text))) return
+    errors.push(text)
   })
-  page.on('pageerror', (err) => errors.push(err.message))
+  page.on('pageerror', (err) => {
+    // Filter known-expected page errors
+    if (expectedErrorPatterns.some((re) => re.test(err.message))) return
+    errors.push(err.message)
+  })
 
   // Go to login page
   await page.goto('/login.html')
@@ -64,8 +75,8 @@ test('login → dashboard renders with zero console errors', async ({ page, brow
   // The "Projects" link appears in both topbar + mobile nav — use first()
   await expect(page.locator('a[href="/projects.html"]').first()).toBeVisible({ timeout: 10_000 })
 
-  // Log console errors for visibility (no assertion yet — need to baseline expected errors)
-  if (errors.length) console.log('CONSOLE ERRORS (not failing the test yet):', JSON.stringify(errors))
+  // Assert zero UNEXPECTED console errors (401s from auth-me + SW checks are expected)
+  expect(errors).toEqual([])
 })
 
 test('404 page renders correctly', async ({ page }) => {

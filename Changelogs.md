@@ -9,7 +9,32 @@
 > rewritten as a minimal pointer. Deleted files remain recoverable verbatim:
 > `git show <sha>:<file>`.
 
-## 1. Current state (v0.3.12.17 — Session 26: SWOT + hygiene + performance + dead-code + modularization)
+## 1. Current state (v0.3.12.18 — Session 26: comprehensive audit + refactor + security + CI/CD + UI/UX)
+- **Session 26 summary** — the most comprehensive session in Hibana's history. 40+ commits across
+  SWOT audit, HTML canonical recovery, security/CI hygiene, performance optimization, dead-code
+  removal, modularization, auth fixes, CI/CD infrastructure, security hardening, and UI/UX polish.
+  295/295 vitest + 9/9 Playwright + 3/3 Workers-runtime tests green. 0 npm audit vulnerabilities.
+  Deployed to dev + prod throughout.
+- v0.3.12.18 = **Security hardening + CI/CD + Lighthouse + UI/UX + image optimization** (patch):
+  - **Security (0 CVEs):** fabric 6→7 (SVG XSS), tar override (CRITICAL), CSRF headerless-caller
+    tightened (T6), CSP audit (CORP + HSTS preload added), AI Magic Button rate-limited.
+  - **CI/CD infrastructure:** npm audit gate, eslint (0 errors), bundle-size tracking, Playwright
+    E2E + screenshot-diff + a11y (9/9 tests), Workers-runtime smoke test (3/3 — catches PBKDF2-type
+    bugs), CD workflow (auto-deploy on merge), Lighthouse CI, Dependabot.
+  - **Auth fixes:** case-insensitive email lookup (Nilooofar login bug), PBKDF2 600k→100k (Workers
+    platform cap — registration was broken for a week). Nilooofar user added.
+  - **Performance:** client-side image resize + WebP (3.5MB→~100KB), per-page CSS on public pages,
+    lazy-load i18n-fa.js, font preload, Login.jpg media attr, morph swap (notebook), SW precache
+    audit, etag on 3 endpoints, N+1 fix, build parallelization.
+  - **Dead code (~130 items removed):** 10 dead scripts, 14 stale audit files, 40 dead exports,
+    47 dead CSS classes, 65 dead i18n keys, migration 0048 (drop 2 superseded tables).
+  - **Modularization:** sadhana-page.js TAGS+FUZZY extraction, projects/helpers.ts detail extraction.
+  - **UI/UX (8 fixes):** neutral note borders, tap targets (44px), semantic color system, RTL arrow,
+    active nav indicator, badge icon/label audit, Persian font verification.
+  - **Cleanup:** d1_migrations backfill (46+47), unused imports removal, esbuild warnings fixed
+    (3 dup i18n keys + navHTML const + --st-none CSS), branch protection documented.
+  - **Assets:** SW hibana-v299→v312 (13 bumps). i18n keys 953→888. Schema 47 (migration 0048).
+    package.json 0.3.12.14→0.3.12.18.
 - **Session 26 summary** — comprehensive audit + refactor session. SWOT audit (4 parallel evidence
   agents), HTML canonical recovery (W1), security/CI hygiene batch (T4/T2/T1/W8/W12), Focus 2
   performance batch (P1-P12), Focus 4 dead-code removal (~130 items, ~340 net lines deleted),

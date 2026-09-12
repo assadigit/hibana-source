@@ -17,7 +17,7 @@
   // esc() is defined above (line 7) — the window.hibana.esc fallback was redundant.
   // H2 fix (2026-09-10): the local esc() already escapes all 5 HTML special chars.
 
-  const state = { me: null, users: [], summary: null, log: [], quota: null, backup: null, filter: '' }
+  const state = { me: null, users: [], summary: null, log: [], quota: null, backup: null, filter: '', usage: null }
   let timer = null
   let booted = false
 
@@ -265,6 +265,123 @@
         .join('') || `<li class="muted small">—</li>`
   }
 
+  // ---- usage analytics (2026-09-12, §6 open item) -------------------------------------
+  // Feature labels live here (not in the API) so the endpoint ships stable keys and
+  // the panel stays fully i18n'd. Order matches the API's USAGE_SURFACES order.
+  const USAGE_FEAT_LABELS = {
+    projects: ['admin.usageFeatProjects', 'Projects'],
+    sparkFolders: ['admin.usageFeatFolders', 'Spark folders'],
+    canvas: ['admin.usageFeatCanvas', 'Canvas elements'],
+    notebook: ['admin.usageFeatNotebook', 'Notebook elements'],
+    quickNotes: ['admin.usageFeatNotes', 'Quick notes'],
+    sadhanaTasks: ['admin.usageFeatSadhana', 'To-do tasks'],
+    sadhanaUpdates: ['admin.usageFeatJournal', 'Task journal'],
+    devTasks: ['admin.usageFeatDev', 'Dev tasks'],
+    hurdles: ['admin.usageFeatHurdles', 'Hurdles'],
+    sprints: ['admin.usageFeatSprints', 'Sprints'],
+    backlogDocs: ['admin.usageFeatBacklog', 'Backlog docs'],
+    links: ['admin.usageFeatLinks', 'Links'],
+    payments: ['admin.usageFeatPayments', 'Payments'],
+    telegramCaptures: ['admin.usageFeatTelegram', 'Telegram captures'],
+    screenshots: ['admin.usageFeatAI', 'AI screenshots'],
+    archives: ['admin.usageFeatArchives', 'Archives'],
+    invites: ['admin.usageFeatInvites', 'Invites'],
+  }
+  const USAGE_PART_LABELS = {
+    projects: ['admin.usagePartProjects', 'projects'],
+    canvas: ['admin.usagePartCanvas', 'canvas'],
+    notebook: ['admin.usagePartNotebook', 'notebook'],
+    notes: ['admin.usagePartNotes', 'notes'],
+    sadhana: ['admin.usagePartSadhana', 'to-dos'],
+    updates: ['admin.usagePartUpdates', 'journal'],
+    devtasks: ['admin.usagePartDev', 'dev tasks'],
+    backlog: ['admin.usagePartBacklog', 'backlog'],
+    telegram: ['admin.usagePartTelegram', 'telegram'],
+    screenshots: ['admin.usagePartAI', 'AI'],
+  }
+
+  async function refreshUsage() {
+    state.usage = await api('GET', '/api/admin/usage')
+    renderUsage()
+  }
+
+  function renderUsage() {
+    if (!state.usage) return
+    renderUsageFeats()
+    renderUsageTop()
+    renderUsageDaily()
+  }
+
+  function renderUsageFeats() {
+    const el = $('#adm-usage-feats')
+    if (!el) return
+    const feats = state.usage.features || []
+    const max = Math.max(1, ...feats.map((f) => f.count))
+    el.innerHTML =
+      feats
+        .map((f) => {
+          const label = USAGE_FEAT_LABELS[f.key] || [null, f.key]
+          const pct = Math.round((f.count / max) * 100)
+          return `<li class="adm-usage-feat${f.count ? '' : ' is-zero'}">
+            <span class="adm-usage-feat-name">${esc(t(label[0], label[1]))}</span>
+            <span class="adm-usage-feat-bar" aria-hidden="true"><i style="inline-size:${pct}%"></i></span>
+            <span class="adm-usage-feat-count">${faNum(f.count)}</span>
+            <span class="adm-usage-feat-last muted small">${f.last_at ? esc(relTime(f.last_at) || '') : '&mdash;'}</span>
+          </li>`
+        })
+        .join('') || `<li class="muted small">—</li>`
+  }
+
+  function renderUsageTop() {
+    const el = $('#adm-usage-top')
+    if (!el) return
+    const users = state.usage.top_users || []
+    const max = Math.max(1, ...users.map((u) => u.score))
+    el.innerHTML =
+      users
+        .map((u, i) => {
+          const pct = Math.round((u.score / max) * 100)
+          const parts = Object.entries(u.parts || {})
+            .map(([k, n]) => {
+              const label = USAGE_PART_LABELS[k] || [null, k]
+              return `<span class="adm-usage-part">${faNum(n)} ${esc(t(label[0], label[1]))}</span>`
+            })
+            .join('')
+          return `<li class="adm-usage-row">
+            <span class="adm-usage-rank${i === 0 ? ' is-first' : ''}">${faNum(i + 1)}</span>
+            <span class="adm-usage-user">
+              <strong>${esc(u.username ?? u.email)}</strong>
+              <span class="adm-usage-bar" aria-hidden="true"><i style="inline-size:${pct}%"></i></span>
+              <span class="muted small">${parts}</span>
+            </span>
+            <span class="adm-usage-score">${faNum(u.score)}</span>
+          </li>`
+        })
+        .join('') || `<li class="muted small">${esc(t('admin.usageNone', 'No activity yet.'))}</li>`
+  }
+
+  function renderUsageDaily() {
+    const el = $('#adm-usage-daily')
+    if (!el) return
+    const days = state.usage.daily || []
+    const max = Math.max(1, ...days.map((d) => d.count))
+    // Bar chart as flex columns; each carries its count as title text (native tooltip,
+    // works for keyboard+touch too). Labels: first + last day + every 3rd, FA digits in fa.
+    el.innerHTML = days
+      .map((d) => {
+        const pct = Math.round((d.count / max) * 100)
+        const showLabel = days.indexOf(d) === 0 || days.indexOf(d) === days.length - 1 || days.indexOf(d) % 3 === 0
+        const label = showLabel ? `<span class="adm-usage-daylbl">${faNum(d.day.slice(5))}</span>` : '<span class="adm-usage-daylbl" aria-hidden="true"></span>'
+        return `<span class="adm-usage-day" title="${esc(d.day)} · ${faNum(d.count)}">
+          <span class="adm-usage-col" aria-hidden="true"><i style="block-size:${Math.max(pct, d.count ? 6 : 2)}%"></i></span>
+          ${label}
+        </span>`
+      })
+      .join('')
+    const total = days.reduce((n, d) => n + d.count, 0)
+    el.setAttribute('aria-label', `${t('admin.usageDailyTitle', 'Creations — last 14 days')}: ${faNum(total)}`)
+  }
+
   // ---- modal (one dialog, content per user) -----------------------------------------
   function closeModal() {
     const d = $('#adm-modal')
@@ -499,6 +616,9 @@
         // 0045: the Errors panel fetches on activation — no need to hit the endpoint on
         // every console visit for a log that is usually empty.
         if (btn.dataset.admTab === 'errors') refreshErrors().catch(() => {})
+        // Same lazy-load contract for the Usage analytics (aggregates over every
+        // content table — never pay for it unless the tab is opened).
+        if (btn.dataset.admTab === 'usage') refreshUsage().catch(() => {})
       })
     })
     const search = $('#adm-search')

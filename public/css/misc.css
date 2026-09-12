@@ -237,6 +237,165 @@ main.shell.adm-shell { max-inline-size: 56rem; }
 .adm-primary { justify-self: start; }
 .adm-log .adm-log-row { align-items: center; gap: 0.5rem; flex-wrap: wrap; }
 
+/* Usage tab (2026-09-12) — feature totals, weighted top-10, 14-day histogram.
+   All colors ride the theme vars so light/dark + themes.css palettes just work;
+   logical properties keep FA/RTL mirrored correctly. */
+.adm-usage-feats {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.3rem;
+  /* name | bar | count | last-activity — the bar flexes, the rest size to content */
+  grid-template-columns: minmax(8.5rem, auto) 1fr 3.2rem minmax(5.5rem, auto);
+  align-items: center;
+}
+.adm-usage-feat {
+  display: grid;
+  grid-column: 1 / -1;
+  grid-template-columns: subgrid;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.32rem 0.4rem;
+  border-radius: var(--radius-sm);
+  transition: background 0.12s;
+}
+.adm-usage-feat:hover { background: var(--bg-soft); }
+.adm-usage-feat-name { font-size: var(--fs-md); overflow-wrap: anywhere; }
+.adm-usage-feat-bar {
+  block-size: 7px;
+  border-radius: 99px;
+  background: color-mix(in srgb, var(--muted) 20%, transparent);
+  overflow: hidden;
+}
+.adm-usage-feat-bar i {
+  display: block;
+  block-size: 100%;
+  border-radius: 99px;
+  background: var(--accent);
+  min-inline-size: 0;
+  transition: inline-size 0.4s ease;
+}
+.adm-usage-feat-count {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  text-align: end;
+}
+.adm-usage-feat-last { text-align: end; white-space: nowrap; }
+.adm-usage-feat.is-zero { opacity: 0.6; }
+.adm-usage-feat.is-zero .adm-usage-feat-bar i { inline-size: 0; }
+
+/* Top activity ranking — an ordered list with rank medal, name, breakdown, score bar */
+.adm-usage-top {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.45rem;
+}
+.adm-usage-row {
+  display: grid;
+  grid-template-columns: 2rem 1fr 3.2rem;
+  align-items: center;
+  gap: 0.7rem;
+  padding: 0.45rem 0.5rem;
+  border-radius: var(--radius-sm);
+  transition: background 0.12s;
+}
+.adm-usage-row:hover { background: var(--bg-soft); }
+.adm-usage-rank {
+  inline-size: 2rem;
+  block-size: 2rem;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  font-size: var(--fs-md);
+  background: color-mix(in srgb, var(--muted) 16%, transparent);
+  color: var(--text);
+}
+.adm-usage-rank.is-first {
+  background: var(--cta, var(--accent));
+  color: var(--btn-text);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--cta, var(--accent)) 22%, transparent);
+}
+.adm-usage-user { display: grid; gap: 0.25rem; min-inline-size: 0; }
+.adm-usage-user strong { overflow-wrap: anywhere; }
+.adm-usage-bar {
+  block-size: 6px;
+  border-radius: 99px;
+  background: color-mix(in srgb, var(--muted) 20%, transparent);
+  overflow: hidden;
+}
+.adm-usage-bar i {
+  display: block;
+  block-size: 100%;
+  border-radius: 99px;
+  background: var(--accent);
+  transition: inline-size 0.4s ease;
+}
+.adm-usage-row:first-child .adm-usage-bar i { background: var(--cta, var(--accent)); }
+.adm-usage-part {
+  display: inline-block;
+  font-size: var(--fs-sm);
+  padding: 0 0.3rem;
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--muted) 12%, transparent);
+}
+.adm-usage-part + .adm-usage-part { margin-inline-start: 0.25rem; }
+.adm-usage-score {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  text-align: end;
+}
+
+/* 14-day creation histogram — flex columns over a shared baseline */
+.adm-usage-daily {
+  display: flex;
+  align-items: flex-end;
+  gap: 0.3rem;
+  padding-block-start: 0.3rem;
+}
+.adm-usage-day {
+  flex: 1;
+  display: grid;
+  gap: 0.25rem;
+  justify-items: center;
+  min-inline-size: 0;
+  padding: 0.2rem 0.1rem;
+  border-radius: var(--radius-sm);
+  cursor: default;
+}
+.adm-usage-day:hover { background: var(--bg-soft); }
+.adm-usage-col {
+  display: flex;
+  align-items: flex-end;
+  block-size: 4.6rem;
+  inline-size: 100%;
+}
+.adm-usage-col i {
+  display: block;
+  inline-size: min(62%, 1.15rem);
+  margin-inline: auto;
+  border-radius: 3px 3px 0 0;
+  background: var(--accent);
+  min-block-size: 2px;
+  opacity: 0.9;
+  transition: block-size 0.4s ease;
+}
+.adm-usage-day:last-child .adm-usage-col i {
+  background: var(--cta, var(--accent));
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--cta, var(--accent)) 40%, transparent);
+}
+.adm-usage-daylbl {
+  font-size: 0.62rem;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
 /* Modal — the dialog.dialog recipe with direct content */
 dialog.adm-modal {
   border: 0;
@@ -294,6 +453,15 @@ dialog.adm-modal::backdrop { background: rgb(0 0 0 / 0.55); }
   .adm-userlist { max-block-size: none; } /* let the page scroll on phones */
   .adm-list { max-block-size: 14rem; }
   dialog.adm-modal { padding: 1rem; }
+  /* Usage: the four-column feature grid collapses to name+count above bar+recency */
+  .adm-usage-feats { grid-template-columns: 1fr auto; }
+  .adm-usage-feat { grid-template-columns: subgrid; row-gap: 0.15rem; }
+  .adm-usage-feat-name { grid-row: 1; grid-column: 1; }
+  .adm-usage-feat-count { grid-row: 1; grid-column: 2; }
+  .adm-usage-feat-bar { grid-row: 2; grid-column: 1; }
+  .adm-usage-feat-last { grid-row: 2; grid-column: 2; font-size: 0.62rem; }
+  .adm-usage-col { block-size: 3.4rem; }
+  .adm-usage-daylbl { font-size: 0.56rem; }
 }
 
 /* ===========================================================================

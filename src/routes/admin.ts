@@ -407,6 +407,109 @@ export function adminRoutes(cfg: Config) {
     return c.json({ rows, counts_7d: byStatus })
   })
 
+  // Feature-usage analytics + top-10 activity ranking (the last open item on the §6
+  // list, 2026-09-12). One read-only owner-scoped endpoint feeding the Usage tab:
+  //   (a) features  — per-surface totals with last-activity recency (non-deleted rows)
+  //   (b) top_users — weighted all-time activity ranking with a per-surface breakdown
+  //   (c) daily     — 14-day zero-filled creation histogram across the main content tables
+  // All queries are trivial aggregates (GROUP BY / COUNT / MAX) over the same tables
+  // /api/admin/users and /api/reports already scan — no new indexes needed at app scale.
+  // Soft-delete conventions differ per table (deleted_at vs deleted flag) and are
+  // respected surface-by-surface so the panel never counts tombstoned rows.
+  const USAGE_SURFACES: Array<{ key: string; sql: string }> = [
+    { key: 'projects', sql: "SELECT COUNT(*) AS c, MAX(COALESCE(updated_at, created_at)) AS m FROM projects WHERE deleted_at IS NULL" },
+    { key: 'sparkFolders', sql: 'SELECT COUNT(*) AS c, MAX(created_at) AS m FROM spark_folders' },
+    { key: 'canvas', sql: "SELECT COUNT(*) AS c, MAX(updated_at) AS m FROM canvas_elements WHERE board = 'canvas' AND deleted = 0" },
+    { key: 'notebook', sql: "SELECT COUNT(*) AS c, MAX(updated_at) AS m FROM canvas_elements WHERE board = 'notebook' AND deleted = 0" },
+    { key: 'quickNotes', sql: 'SELECT COUNT(*) AS c, MAX(COALESCE(updated_at, created_at)) AS m FROM quick_notes WHERE deleted_at IS NULL' },
+    { key: 'sadhanaTasks', sql: 'SELECT COUNT(*) AS c, MAX(COALESCE(updated_at, created_at)) AS m FROM sadhana_tasks WHERE deleted_at IS NULL' },
+    { key: 'sadhanaUpdates', sql: 'SELECT COUNT(*) AS c, MAX(created_at) AS m FROM sadhana_updates' },
+    { key: 'devTasks', sql: 'SELECT COUNT(*) AS c, MAX(d.created_at) AS m FROM dev_tasks d JOIN projects p ON d.project_id = p.id WHERE p.deleted_at IS NULL' },
+    { key: 'hurdles', sql: 'SELECT COUNT(*) AS c, MAX(h.created_at) AS m FROM hurdles h JOIN projects p ON h.project_id = p.id WHERE p.deleted_at IS NULL' },
+    { key: 'sprints', sql: 'SELECT COUNT(*) AS c, MAX(s.created_at) AS m FROM sprints s JOIN projects p ON s.project_id = p.id WHERE p.deleted_at IS NULL' },
+    { key: 'backlogDocs', sql: 'SELECT COUNT(*) AS c, MAX(COALESCE(b.updated_at, b.created_at)) AS m FROM backlog_docs b JOIN projects p ON b.project_id = p.id WHERE p.deleted_at IS NULL' },
+    { key: 'links', sql: 'SELECT COUNT(*) AS c, MAX(l.created_at) AS m FROM links l JOIN projects p ON l.project_id = p.id WHERE p.deleted_at IS NULL' },
+    { key: 'payments', sql: 'SELECT COUNT(*) AS c, MAX(pay.created_at) AS m FROM payments pay JOIN projects p ON pay.project_id = p.id WHERE p.deleted_at IS NULL' },
+    { key: 'telegramCaptures', sql: 'SELECT COUNT(*) AS c, MAX(created_at) AS m FROM telegram_captures' },
+    { key: 'screenshots', sql: 'SELECT COUNT(*) AS c, MAX(sc.created_at) AS m FROM screenshots sc JOIN projects p ON sc.project_id = p.id WHERE p.deleted_at IS NULL' },
+    { key: 'archives', sql: 'SELECT COUNT(*) AS c, MAX(archived_at) AS m FROM project_archives' },
+    { key: 'invites', sql: 'SELECT COUNT(*) AS c, MAX(created_at) AS m FROM invites' },
+  ]
+  // Per-user GROUP BY feeds for the ranking. Weighted: creating a project/task/backlog
+  // doc is a heavier commitment than a pen stroke or a quick note, so the score reflects
+  // deliberate acts, not raw row counts (a single doodle session would otherwise drown
+  // out a week of planning). The breakdown ships unweighted — the UI shows real counts.
+  // Project-scoped tables (dev_tasks/backlog_docs/screenshots) join through projects for
+  // the owner; sadhana_updates joins through its task (both verified against schema 47:
+  // none of them carry user_id directly).
+  const RANKING_FEEDS: Array<{ part: string; sql: string; weight: number }> = [
+    { part: 'projects', sql: 'SELECT user_id, COUNT(*) AS c FROM projects WHERE deleted_at IS NULL GROUP BY user_id', weight: 3 },
+    { part: 'canvas', sql: "SELECT user_id, COUNT(*) AS c FROM canvas_elements WHERE board = 'canvas' AND deleted = 0 GROUP BY user_id", weight: 1 },
+    { part: 'notebook', sql: "SELECT user_id, COUNT(*) AS c FROM canvas_elements WHERE board = 'notebook' AND deleted = 0 GROUP BY user_id", weight: 1 },
+    { part: 'notes', sql: 'SELECT user_id, COUNT(*) AS c FROM quick_notes WHERE deleted_at IS NULL GROUP BY user_id', weight: 1 },
+    { part: 'sadhana', sql: 'SELECT user_id, COUNT(*) AS c FROM sadhana_tasks WHERE deleted_at IS NULL GROUP BY user_id', weight: 2 },
+    { part: 'updates', sql: 'SELECT t.user_id AS user_id, COUNT(*) AS c FROM sadhana_updates u JOIN sadhana_tasks t ON u.task_id = t.id WHERE t.deleted_at IS NULL GROUP BY t.user_id', weight: 1 },
+    { part: 'devtasks', sql: 'SELECT p.user_id AS user_id, COUNT(*) AS c FROM dev_tasks d JOIN projects p ON d.project_id = p.id WHERE p.deleted_at IS NULL GROUP BY p.user_id', weight: 2 },
+    { part: 'backlog', sql: 'SELECT p.user_id AS user_id, COUNT(*) AS c FROM backlog_docs b JOIN projects p ON b.project_id = p.id WHERE p.deleted_at IS NULL GROUP BY p.user_id', weight: 2 },
+    { part: 'telegram', sql: 'SELECT user_id, COUNT(*) AS c FROM telegram_captures GROUP BY user_id', weight: 2 },
+    { part: 'screenshots', sql: 'SELECT p.user_id AS user_id, COUNT(*) AS c FROM screenshots sc JOIN projects p ON sc.project_id = p.id WHERE p.deleted_at IS NULL GROUP BY p.user_id', weight: 2 },
+  ]
+  app.get('/usage', async (c) => {
+    const [featRows, rankRows, users, dailyRows] = await Promise.all([
+      Promise.all(USAGE_SURFACES.map((s) => cfg.db.query<{ c: number; m: string | null }>(s.sql))),
+      Promise.all(RANKING_FEEDS.map((f) => cfg.db.query<{ user_id: string; c: number }>(f.sql))),
+      cfg.db.query<{ id: string; username: string | null; email: string; last_seen_at: string | null }>(
+        'SELECT id, username, email, last_seen_at FROM users',
+      ),
+      cfg.db.query<{ day: string; c: number }>(
+        `SELECT day, SUM(c) AS c FROM (
+           SELECT substr(created_at, 1, 10) AS day, COUNT(*) AS c FROM projects WHERE deleted_at IS NULL GROUP BY day
+           UNION ALL SELECT substr(created_at, 1, 10), COUNT(*) FROM quick_notes WHERE deleted_at IS NULL GROUP BY 1
+           UNION ALL SELECT substr(created_at, 1, 10), COUNT(*) FROM canvas_elements WHERE deleted = 0 GROUP BY 1
+           UNION ALL SELECT substr(created_at, 1, 10), COUNT(*) FROM sadhana_tasks WHERE deleted_at IS NULL GROUP BY 1
+           UNION ALL SELECT substr(created_at, 1, 10), COUNT(*) FROM sadhana_updates GROUP BY 1
+           UNION ALL SELECT substr(created_at, 1, 10), COUNT(*) FROM dev_tasks GROUP BY 1
+           UNION ALL SELECT substr(created_at, 1, 10), COUNT(*) FROM backlog_docs GROUP BY 1
+           UNION ALL SELECT substr(created_at, 1, 10), COUNT(*) FROM links GROUP BY 1
+           UNION ALL SELECT substr(created_at, 1, 10), COUNT(*) FROM telegram_captures GROUP BY 1
+           UNION ALL SELECT substr(created_at, 1, 10), COUNT(*) FROM screenshots GROUP BY 1
+         ) GROUP BY day ORDER BY day DESC LIMIT 14`,
+      ),
+    ])
+    const features = USAGE_SURFACES.map((s, i) => ({ key: s.key, count: featRows[i][0]?.c ?? 0, last_at: featRows[i][0]?.m ?? null }))
+    // Merge the per-surface GROUP BYs into one per-user record, then rank by score.
+    const byUser = new Map<string, { parts: Record<string, number>; score: number }>()
+    for (const [i, feed] of RANKING_FEEDS.entries()) {
+      for (const row of rankRows[i]) {
+        let rec = byUser.get(row.user_id)
+        if (!rec) { rec = { parts: {}, score: 0 }; byUser.set(row.user_id, rec) }
+        rec.parts[feed.part] = row.c
+        rec.score += row.c * feed.weight
+      }
+    }
+    const nameOf = new Map(users.map((u) => [u.id, u]))
+    const topUsers = [...byUser.entries()]
+      .filter(([id]) => nameOf.has(id)) // orphaned rows (hard-deleted user cascade gap) never rank
+      .map(([id, rec]) => ({
+        id,
+        username: nameOf.get(id)!.username,
+        email: nameOf.get(id)!.email,
+        last_seen_at: nameOf.get(id)!.last_seen_at,
+        score: rec.score,
+        parts: rec.parts,
+      }))
+      .sort((a, b) => b.score - a.score || a.email.localeCompare(b.email))
+      .slice(0, 10)
+    // Zero-fill the last 14 days (oldest → newest) so the chart never has gaps.
+    const dailyMap = new Map(dailyRows.map((r) => [r.day, r.c]))
+    const daily: Array<{ day: string; count: number }> = []
+    for (let i = 13; i >= 0; i--) {
+      const day = new Date(Date.now() - i * 24 * 3600 * 1000).toISOString().slice(0, 10)
+      daily.push({ day, count: dailyMap.get(day) ?? 0 })
+    }
+    return c.json({ features, top_users: topUsers, daily })
+  })
+
   // Manual trigger of the 7-day purge — owner-only via requireOwner (like every console
   // route): it hard-deletes every user's soft-deleted rows, so a member must never be
   // able to force that early. (History: 2026-08-28, this route shipped without the

@@ -9,6 +9,74 @@
 > rewritten as a minimal pointer. Deleted files remain recoverable verbatim:
 > `git show <sha>:<file>`.
 
+## 1. Current state (v0.3.12.23 — Session 28 R2: 6 user-reported bugs + the fabric-v7 origin P0)
+- **Session 28 R2 summary** — the owner filed 6 concrete bug reports (2 with screenshots);
+  investigation found ONE of them was the deepest bug since the fabric migration, four were
+  quick CSS/server fixes, one was a feature gap. All fixed, ladder-verified, deployed.
+- **THE P0 — fabric v7 anchors objects by CENTER (v5 used TOP-LEFT):** both boards persist
+  getBoundingRect().top-left and re-create with left/top, so after the v5→v7 migration every
+  text note, stroke and shape reloaded HALF ITS SIZE up-and-left — and drifted further on
+  every save cycle. Combined with the pinned-width Textbox clipPath (loaded at the SAVED
+  height, never re-measured), this is exactly the reported "notebook notes are cropped /
+  the container only shows a portion of them" (screenshot 444: notes scattered at drifted
+  offsets, mid-crop). Fix at the SHIM level (src/vendor/fabric-shim.ts topLeftOriginCompat):
+  every exported shape class gets wrapped so `new C({left, top, …})` re-anchors to
+  top-left unless the call passes an explicit origin (the comment pins/guides keep their
+  center math). Empirically verified end-to-end: sticky renders at saved (400,200) 1:1,
+  × hit-region click deletes, body click doesn't, dblclick edit-twin opens + types + saves
+  (paper grows 200→201), sticky tool creates at the drag origin, E2E 20/20.
+- **Notebook text auto-fit + sheet growth (the rest of the crop report):** makeTextBox now
+  calls its initDimensions override once at construction (height = max(saved, measured) —
+  never crops saved content), and a post-load reflowTextMetrics() pass covers the cached-
+  fonts case (fonts.ready can resolve BEFORE load() adds elements). Then the sheet itself:
+  fitSheetToContent() stretches #nb-page's min-height to the content bottom + 96px and the
+  notebook body scrolls (canvas-page notebook-scroll; toolbar sticky) — a 1100px note is
+  fully reachable (verified: page 393→1208px, scrolled to the tail, VLM "last line fully
+  visible"). The Canvas board keeps its no-scroll pan page.
+- **Sparks «نمایش همهٔ ایده‌ها» + folder capture (report 5):** folder=all fell into the
+  folder_id='all' SQL filter (matches nothing — ids are UUIDs) → empty list → the folder
+  grid rendered AGAIN ("the ideas don't appear"). Now 'all' skips the filter (ideas list +
+  breadcrumb bar). And the second half of the report — "cannot go to any folder to create
+  their idea there" — quick-add now files into the OPEN folder: folder_id accepted on POST
+  /api/projects (ownership re-validated like PATCH; dropped for non-spark creates), the
+  sparks-page stamps the folder name on the hidden input, and the modal shows
+  «ثبت در پوشه: …». Verified live: 6 ideas under folder=all, capture lands in the folder.
+- **Sticky palette on top (report 3):** the recolor palette (the "menu for edit/etc")
+  floats ABOVE the selected sticky on BOTH boards — top - paletteH - 8, flipping below
+  only when the note hugs the sheet top. (The screenshot's "⋮ dots at top-left" was the
+  palette's color dots at thumbnail scale.)
+- **Note meta weekday + date (report 2):** «شنبه ۲۱ شهریور ۰۱:۲۳» — new formatNoteDay
+  (weekday + Jalali day + month, fa digits; 'Sunday 21 Sep' EN) + fa-IR/en-GB 24h clock.
+  Verified live on the owner's real notes.
+- **Compact note buttons (report 1):** the delete × was a 2.75rem min square PLUS
+  0.5/0.6rem padding (~60px around a 14px glyph). Now a 1.75rem visual circle on all
+  note-card icon buttons; tap targets stay ≥44px via the base.css ::after ring trick
+  (the danger ring existed; non-danger buttons got their own). Sticky headbar strip
+  2.75rem→1.9rem.
+- **Kanban stat cards transparent (report 4):** notifications.css had a BROKEN SELECTOR
+  LIST — the flat-fill block (`.kanban-card, .stat-kanban-card, .card.kanban-card.stat-
+  kanban-card,` + the six status selectors) never closed and merged into the first
+  :hover rule's declaration block, so EVERY kanban card (dashboard stat cards included)
+  painted the unreviewed hover pastel. The list is repaired: stat cards transparent +
+  border only (the ::before status bar stays the sole color signal), .kanban-col cards
+  keep their per-status fills (now as proper standalone rules).
+- Assets: SW hibana-v322. canvas.js v25, whiteboard.js v21, app.js v173, sparks-page.js
+  v2, i18n-en v7, i18n-fa v7 (dynamic ref in i18n.js v64), quicknotes.css v5,
+  notifications.css v3, canvas.css v4, fabric.min.js →?v=2. package.json
+  0.3.12.22→0.3.12.23. i18n 942→943 (+1 key qa.filesInto).
+- Verified: typecheck 0 · vitest 323/323 (+5: sparks folder views ×4, formatNoteDay) ·
+  build+wiring PASS (71 entries) · Playwright 20/20 · smoke ALL PASS · deployed
+  hibana-prod fa086760 · LIVE: /api/health ok, sparks folder=all lists 6 ideas, note-meta
+  «شنبه ۲۱ شهریور ۰۱:۲۳» on real notes, notebook sheet 733px/scrollable with the owner's
+  data, zero page errors. Pushed assadigit/hibana-source@550d293.
+- Notes on the debugging: (a) the Bash tool's output rendering EATS `[h` sequences — the
+  `.sticky-palette[hidden]` selector LOOKED typo'd (`.sticky-paletteidden]`) in grep/sed
+  output but od -c proved the bytes correct — a false P0 that almost shipped; (b)
+  agent-browser's low-level mouse does NOT set detail=2 on double clicks, so fabric's
+  dblclick (which requires e.detail===2) never fired from raw mouse pairs — dispatch a
+  synthetic MouseEvent with detail:2 to test editing; (c) the E2E suite needs
+  `npx playwright install chromium` in a fresh sandbox.
+
 ## 1. Current state (v0.3.12.22 — Session 28: sticky-factory consolidation + board export v2 + notebook recolor)
 - **Session 28 summary** — status assessment + agent-browser QA sweep first (11 pages, zero
   page errors AND zero console warnings — the RR-2 lesson: Alpine bug-classes log warnings),

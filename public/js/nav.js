@@ -50,6 +50,20 @@
   for (const def of window[QUEUE_KEY] || []) applyDef(def)
   window[QUEUE_KEY] = []
 
+  // --- Alpine auto-init pause (P0, review round 2) ------------------------------
+  // Depth-based wrapper around Alpine's mutation observer. nav.js pauses it across the
+  // shell swap → page-script-load → initTree window (see the long comment in load());
+  // depth counting keeps overlapping/superseded navigations from resuming the observer
+  // while a newer navigation is still inside its own paused window.
+  let alpinePauseDepth = 0
+  const pauseAlpine = () => {
+    if (++alpinePauseDepth === 1) window.Alpine?.stopObservingMutations()
+  }
+  const resumeAlpine = () => {
+    if (alpinePauseDepth === 0) return
+    if (--alpinePauseDepth === 0) window.Alpine?.startObservingMutations()
+  }
+
   // --- navigation ---------------------------------------------------------------
   function go(path, opts = {}) {
     let url
@@ -81,6 +95,17 @@
       if (!nextShell || !shell) throw new Error('no main.shell')
 
       if (active) { active.unmount(); active = null }
+      // P0 fix (2026-09-12, review round 2) — Alpine auto-init race on the swapped shell:
+      // Alpine's own MutationObserver initializes any x-data element the moment it lands in
+      // the DOM. The fresh <main> below can contain x-data components (reports, settings)
+      // whose Alpine.data registration happens when the page script loads — INSIDE the
+      // await below. Without pausing the observer it walked the tree first, every x-data
+      // expression died ("report is not defined" etc.), the x-if/x-show effects were never
+      // registered, and nav.js's later initTree skipped the now-processed element — the
+      // component stayed half-dead for the rest of the visit (soft-nav twin of the
+      // hard-load defer-order bug; only literal x-data="{…}" pages were immune).
+      // Pause observation for the whole swap → script-load → initTree window; restart after.
+      pauseAlpine()
       // Replace the <main> element outright instead of reusing it: htmx skips already-processed
       // nodes, so reusing the old element means its hx-trigger="load" never re-fires and the
       // dashboard (hx-get on <main> itself) would strand on its loading state after any soft
@@ -122,7 +147,7 @@
           el.onerror = () => { console.warn('hibana nav: script failed:', url); resolve() }
           document.head.appendChild(el)
         })))
-        if (seq !== navSeq) return // a newer navigation superseded this one
+        if (seq !== navSeq) { resumeAlpine(); return } // a newer navigation superseded this one
       }
 
       // Run the fetched page's inline scripts. adoptNode doesn't auto-execute inline
@@ -145,15 +170,21 @@
         } catch (err) { console.error('hibana page script:', err) }
       }
 
-      // htmx + Alpine take over the fresh subtree.
+      // htmx + Alpine take over the fresh subtree. Alpine's own tree walk initializes
+      // x-data components NOW (registration completed above); the auto-observer resumes
+      // right after, so any mutation from here on (htmx swaps, x-if template inserts)
+      // behaves exactly as on a hard load.
       if (window.htmx?.process) window.htmx.process(fresh)
       if (window.Alpine?.initTree) window.Alpine.initTree(fresh)
+      resumeAlpine()
       markNav(url.pathname)
       hideNavLoader()
     } catch (err) {
-      // Any parse/fetch failure → standard full navigation.
+      // Any parse/fetch failure → standard full navigation. The observer restart is
+      // belt-and-suspenders: the reload tears this document down anyway.
       console.warn('soft navigation failed, reloading:', err)
       hideNavLoader()
+      resumeAlpine()
       location.href = url.href
     }
   }

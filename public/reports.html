@@ -27,11 +27,18 @@
   <script src="/vendor/htmx.min.js" defer></script>
   <script src="/vendor/idiomorph-ext.min.js" defer></script>
   <script src="/js/boot.js?v=4"></script>
+  <!-- P0 fix (2026-09-12, review round 2): this script MUST load before alpine.min.js. The
+       `report` Alpine component registers via __hibanaPage → boot.js drains the queue at
+       alpine:init; when the tag sat at the end of <body> (deferred scripts run in document
+       order) Alpine had already walked the tree and every x-data expression died with
+       "report is not defined" — Snapshot, heatmap and the activity chart never rendered on
+       a hard load (silent since the inline-script extraction, 317724e). -->
+  <script src="/js/reports-page.js?v=2" defer></script>
   <script src="/vendor/alpine.min.js" defer></script>
   <script src="/js/app.js?v=172" defer></script>
   <script src="/js/hib-init.js?v=1" defer></script>
   <script src="/js/touch-drag.js?v=1" defer></script>
-  <script src="/js/nav.js?v=1" defer></script>
+  <script src="/js/nav.js?v=2" defer></script>
   <script src="/js/command-palette.js?v=1" defer></script>
   <script src="/js/mobile-nav.js?v=4" defer></script>
   <script src="/js/zen-mode.js?v=1" defer></script>
@@ -153,6 +160,5 @@
     </div>
   </main>
 
-  <script src="/js/reports-page.js?v=1" defer></script>
 </body>
 </html>

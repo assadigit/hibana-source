@@ -128,7 +128,7 @@
 // (clamp render + read-more delegation + counter removal), devboard.js v10 (title
 // input → textarea), magic-wand.js v9 (title-written re-clamp event). The precached
 // HTML shells must rotate so clients drop the old counter markup.
-const VERSION = "hibana-v316" // 2026-09-12 (review round): shell precache fetches with cache:'reload' (a version bump can no longer precache a STALE vendor file from the browser HTTP cache — the v313 fabric-v7 compat rollout was exposed to exactly that) + whiteboard.js ?v=18 (dark-mode sticky theming: papers get the app-wide dark register instead of the blanket-inverted near-black).
+const VERSION = "hibana-v317" // 2026-09-12 (review round 2) P0: reports.html + settings.html script-order fix — the page scripts moved from end-of-body to BEFORE alpine.min.js so boot.js's alpine:init queue drain registers their Alpine components in time (defer order = document order; at end-of-body Alpine walked the tree first and every x-data expression died — reports Snapshot/heatmap/chart + all 8 settings components were dead on every hard load since the 317724e inline-script extraction). reports-page.js ?v=1→2, settings-page.js ?v=2→3. The precached HTML shells must rotate so clients drop the old tag order. Carries forward v316: shell precache fetches with cache:'reload' (a version bump can no longer precache a STALE vendor file from the browser HTTP cache — the v313 fabric-v7 compat rollout was exposed to exactly that) + whiteboard.js ?v=18 (dark-mode sticky theming: papers get the app-wide dark register instead of the blanket-inverted near-black).
 
 // Static shell: unhashed pages/partials/icons/vendor/fonts (SWR or network-first at
 // runtime; precached here for offline). The hashed app bundles come from the manifest

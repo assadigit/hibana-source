@@ -71,7 +71,7 @@ a whiteboard note.
   tsconfig.json wrangler.toml vitest.config.ts .gitignore .secrets.env.example
   credentials.md` (owner's PC copy is the ONLY credentials-carrying artifact). Exclude
   `node_modules/ .wrangler/ .dev.vars .secrets.env .admin.secrets *.log coverage/ data/
-  .git/ cookies.txt *.cookies *.sql.tmp dashboard-check.png audit-results/shots/`.
+  .git/ cookies.txt *.cookies *.sql.tmp dashboard-check.png`.
 - **⚠️ Never re-upload a credentials-carrying zip into chat.** Fresh-sandbox agents get
   credentials from the session prompt, never a re-uploaded zip.
 - **Ask vs assume**: ask when ambiguous AND high-stakes (deploy, delete, schema change,

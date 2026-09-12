@@ -9,8 +9,8 @@ import { join, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..')
-const auditFn = readFileSync(join(ROOT, 'audit-results', 'audit-fn.js'), 'utf8')
-const contrastFn = readFileSync(join(ROOT, 'audit-results', 'contrast-fn.js'), 'utf8')
+const auditFn = readFileSync(join(ROOT, 'e2e', 'fixtures', 'audit-fn.js'), 'utf8')
+const contrastFn = readFileSync(join(ROOT, 'e2e', 'fixtures', 'contrast-fn.js'), 'utf8')
 
 // The audit-fn.js + contrast-fn.js are pure JS that run in the browser context.
 // We inject them via page.evaluate() and collect the findings.

@@ -122,9 +122,14 @@ function generateRestoreSql(snapshot, tables) {
 // which breaks inserts when the target enforces foreign keys mid-restore. Unknown
 // tables (future schema growth in a newer snapshot) append at the end, preserving
 // forward compatibility.
+// 2026-09-12 (Session 27 backup audit): changelogs REMOVED — migration 0048 dropped the
+// table from the schema, and an old snapshot still carrying changelogs rows would crash
+// the generated SQL ("no such table"). Same treatment as restore.mjs: dropped-dead
+// tables are filtered from the snapshot's table list before any SQL is generated.
+const DROPPED_DEAD_TABLES = new Set(['changelogs', 'telegram_note_sessions'])
 const FK_SAFE_TABLE_ORDER = [
   'invites', 'spark_folders', 'projects', 'project_history_log', 'hurdles', 'tags', 'project_tags',
-  'links', 'screenshots', 'changelogs', 'tasks', 'payments', 'telegram_captures', 'telegram_links',
+  'links', 'screenshots', 'tasks', 'payments', 'telegram_captures', 'telegram_links',
   'canvas_elements', 'password_resets',
   'quick_notes',
   'sadhana_tasks', 'sadhana_tags', 'sadhana_updates', 'sadhana_recur_history',
@@ -134,8 +139,12 @@ const FK_SAFE_TABLE_ORDER = [
 ]
 
 function orderTablesFkSafe(tables) {
-  const known = FK_SAFE_TABLE_ORDER.filter((t) => tables.includes(t))
-  const unknown = tables.filter((t) => !FK_SAFE_TABLE_ORDER.includes(t)).sort()
+  const live = tables.filter((t) => !DROPPED_DEAD_TABLES.has(t))
+  for (const t of tables) {
+    if (DROPPED_DEAD_TABLES.has(t)) console.warn(`  ⚠ skipping dead table "${t}" (dropped by migration 0048 — data is inert)`)
+  }
+  const known = FK_SAFE_TABLE_ORDER.filter((t) => live.includes(t))
+  const unknown = live.filter((t) => !FK_SAFE_TABLE_ORDER.includes(t)).sort()
   return [...known, ...unknown]
 }
 

@@ -59,22 +59,24 @@ if (parsedFile.kind === 'encrypted') {
 }
 
 const snapshot = JSON.parse(jsonText)
-// FK-safe order (parents before children; FTS virtual tables rebuild via triggers).
-// `users` is intentionally NOT here: rule 8 excludes users.password_hash from backups, the
+// 2026-09-12 (Session 27 backup audit — CRITICAL fix): the restore table list is now
+// DERIVED from the snapshot's own data keys (like restore-safe.mjs), ordered FK-safe —
+// the previous hardcoded tableOrder unconditionally emitted `DELETE FROM changelogs`...
+// but migration 0048 DROPPED changelogs, so every restore against schema 47 crashed with
+// "no such table: changelogs" (found by running the drill — the restore path was broken
+// at HEAD). Deriving from the snapshot keys also fixes the drift class permanently: any
+// table a FUTURE backup carries is restored (unknown tables append after the FK-safe
+// knowns, mirroring restore-safe.mjs), and tables the snapshot doesn't carry produce no
+// statements at all (no phantom DELETEs against tables the target may not have).
+// `users` is intentionally excluded: rule 8 strips users.password_hash from backups, the
 // column is NOT NULL, and auth principals are created on the target via seed:admin, never
 // by a restore. Sessions are auth records too and are absent from snapshots by design.
-// 2026-08-28: quick_notes + sadhana tables added — restores previously skipped the notebook
-// and the whole to-do board (those tables were also missing from SNAPSHOT_TABLES, so old
-// snapshots don't carry them; both sides are fixed together from this version on).
-// Session 20 (backup-coverage audit): this list had drifted — snapshots gained the
-// spark/dev-board cluster in Phase 5 (2026-09-09) + project_archives/dev_task_tags in
-// Session 20, but this restore path still skipped them all (a direct-path restore would
-// silently drop idea folders, dev-board tasks, sprints, backlog docs, and archived
-// tasks). Now mirrors SNAPSHOT_TABLES from src/services/backup.ts in FK-safe order;
-// legacy tables (changelogs/password_resets) stay for old-snapshot compatibility.
-const tableOrder = [
+// Dead tables dropped from the schema (0048: changelogs, telegram_note_sessions) — data
+// for them in OLD snapshots is dead by definition; skipped with a warning, never restored.
+const DROPPED_DEAD_TABLES = new Set(['changelogs', 'telegram_note_sessions'])
+const FK_SAFE_ORDER = [
   'invites', 'spark_folders', 'projects', 'project_history_log', 'hurdles', 'tags', 'project_tags',
-  'links', 'screenshots', 'changelogs', 'tasks', 'payments', 'telegram_captures', 'telegram_links',
+  'links', 'screenshots', 'tasks', 'payments', 'telegram_captures', 'telegram_links',
   'canvas_elements', 'password_resets',
   'quick_notes',
   'sadhana_tasks', 'sadhana_tags', 'sadhana_updates', 'sadhana_recur_history',
@@ -82,6 +84,14 @@ const tableOrder = [
   'task_categories', 'sprints', 'dev_tasks', 'dev_task_tags', 'project_archives',
   'backlog_docs', 'backlog_doc_revisions',
 ] // FK-safe order (parents before children; FTS virtual tables rebuild via triggers)
+const snapshotTables = Object.keys(snapshot.data ?? {}).filter((t) => t !== 'users' && !t.endsWith('_fts'))
+for (const t of snapshotTables) {
+  if (DROPPED_DEAD_TABLES.has(t)) console.warn(`skipping dead table "${t}" (dropped by migration 0048 — its data is inert)`)
+}
+const tableOrder = [
+  ...FK_SAFE_ORDER.filter((t) => snapshotTables.includes(t)),
+  ...snapshotTables.filter((t) => !FK_SAFE_ORDER.includes(t) && !DROPPED_DEAD_TABLES.has(t)).sort(),
+]
 
 const snapshotUsers = snapshot.data.users ?? []
 console.log(`users in snapshot: ${snapshotUsers.length} (skipped by design — re-seed the admin on a fresh target via npm run seed:admin)`)
@@ -108,8 +118,9 @@ function sqlLiteral(v) {
 const sqlStatements = (() => {
   const lines = []
   // Deterministic free! No — restore is deliberate disaster recovery; wipe and refill.
+  // Only tables the snapshot actually carries (tableOrder was derived from snapshot.data
+  // keys) — a table absent from the snapshot is not managed by this restore.
   for (const table of tableOrder) {
-    if (table.endsWith('_fts')) continue // rebuilt automatically by triggers
     lines.push(`DELETE FROM ${table} WHERE 1=1;`)
     const rows = snapshot.data[table] ?? []
     for (const row of rows) lines.push(sqlStatement(table, row))
@@ -120,16 +131,29 @@ const sqlStatements = (() => {
 if (!d1Name) {
   const dbPath = process.env.DB_PATH ?? join(process.cwd(), 'data', 'hibana.db')
   const db = new DatabaseSync(dbPath)
+  // Belt + braces: a snapshot table the TARGET schema doesn't have (e.g. an old snapshot
+  // carrying a table a later migration renamed/dropped) is skipped with a warning
+  // instead of crashing the whole restore.
+  const existing = new Set(
+    db.prepare("SELECT name FROM sqlite_master WHERE type='table'").all().map((r) => r.name),
+  )
+  const missing = tableOrder.filter((t) => !existing.has(t))
+  for (const t of missing) console.warn(`skipping "${t}" — table does not exist in the target schema (nothing to restore into)`)
+  const runnable = tableOrder.filter((t) => existing.has(t))
   db.exec('PRAGMA foreign_keys = OFF; BEGIN;')
   try {
-    for (const sql of sqlStatements) db.exec(sql)
+    for (const table of runnable) {
+      db.exec(`DELETE FROM ${table} WHERE 1=1;`)
+      const rows = snapshot.data[table] ?? []
+      for (const row of rows) db.exec(sqlStatement(table, row))
+    }
     db.exec('COMMIT; PRAGMA foreign_keys = ON;')
   } catch (err) {
     db.exec('ROLLBACK; PRAGMA foreign_keys = ON;')
     throw err
   }
   db.close()
-  console.log(`Restored into SQLite at ${dbPath} (${Object.values(snapshot.data).reduce((n, r) => n + r.length, 0)} rows)`)
+  console.log(`Restored into SQLite at ${dbPath} (${runnable.reduce((n, t) => n + (snapshot.data[t]?.length ?? 0), 0)} rows)`)
 } else {
   const tmpDir = mkdtempSync(join(tmpdir(), 'hibana-restore-'))
   const sqlFile = join(tmpDir, 'restore.sql')

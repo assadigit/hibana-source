@@ -66,10 +66,28 @@ try {
 
 // Step 3: start wrangler dev in the background
 console.log(`\n3. Starting wrangler dev --local on :${PORT}...`)
+// 2026-09-12 (Session 27 finding): spawn in its own PROCESS GROUP (detached on POSIX) so
+// cleanup can kill the whole tree. `wrangler.kill()` alone SIGTERMs only the npx wrapper —
+// the `workerd serve` grandchildren survive and spin at 80-100% CPU, which starved every
+// subsequent run's 30s startup (the smoke test could only run once per sandbox).
 const wrangler = spawn('npx', ['wrangler', 'dev', '--port', String(PORT), '--local'], {
   cwd: ROOT,
   stdio: ['pipe', 'pipe', 'pipe'],
+  detached: process.platform !== 'win32', // POSIX: new process group (pgid = child pid)
 })
+
+// Kill the ENTIRE wrangler process tree (npx → wrangler → workerd children). Order:
+// group SIGKILL first (catches stragglers mid-spawn), then the wrapper itself. Idempotent.
+function killWranglerTree() {
+  try {
+    if (wrangler.pid && process.platform !== 'win32') process.kill(-wrangler.pid, 'SIGKILL')
+  } catch { /* group already gone */ }
+  try {
+    wrangler.kill('SIGKILL')
+  } catch { /* wrapper already gone */ }
+}
+// Belt: any unexpected exit path still reaps the tree (failed assertions, thrown errors).
+process.on('exit', killWranglerTree)
 
 let started = false
 const output = []
@@ -88,7 +106,7 @@ for (let i = 0; i < 60; i++) {
 if (!started) {
   console.error('   ✗ wrangler dev did not start in 30s')
   console.error('   output:', output.join('').slice(-1000))
-  wrangler.kill()
+  killWranglerTree()
   process.exit(1)
 }
 console.log('   ✓ wrangler dev ready')
@@ -147,8 +165,8 @@ if (r.status === 200 && r.body.includes('Sign in')) {
 
 // Step 5: cleanup
 console.log('\n5. Stopping wrangler dev...')
-wrangler.kill()
-await new Promise((r) => setTimeout(r, 2000))
+killWranglerTree()
+await new Promise((r) => setTimeout(r, 500))
 
 // Report
 console.log('')

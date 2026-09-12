@@ -230,6 +230,12 @@ window.hibanaNotebook = (() => {
     group.__paper = box
     group.__shadowPaper = shadowBox
     group.__innerText = text
+    // 2026-09-12 (review round, dark-mode fix): the close × refs for applyStickyTheme +
+    // the CANONICAL pastel (what saves round-trip — the live fill may be themed dark).
+    group.__closeBg = closeBg
+    group.__closeX = close
+    group.__lightColor = color
+    if (boardIsDark()) applyStickyTheme(group, true)
     group.__fitPaper = fitPaper
     return group
   }
@@ -348,6 +354,45 @@ window.hibanaNotebook = (() => {
     return !!v && v !== 'none' && v !== ''
   }
 
+  // Dark-mode sticky theming (2026-09-12, review round): the notebook sheet's blanket CSS
+  // invert (--nb-ink) flips pen strokes + text notes to light — but it ALSO flips sticky
+  // papers to near-black with a low-contrast pale ink (VLM-verified: "hard to read"), and
+  // the dark-gray close × became nearly invisible. Fabric filters only exist on Image
+  // objects (the counter-filter trick below can't apply to Groups), so the sticky carries
+  // its OWN theme: the paper switches to the app-wide dark-sticky register (themes.css:
+  // #6B6450 muted yellow + #EDE8DE light ink — same recipe as the DOM sticky notes) and the
+  // ink/×/close-background flip with it. The PASTEL stays canonical: __lightColor rides
+  // through objectToData, so a note created + saved in dark mode never reloads as a dark
+  // paper in light mode (and re-themes correctly on reload into dark).
+  const STICKY_DARK_PAPER = '#6B6450' // themes.css dark sticky-yellow register
+  const STICKY_DARK_INK = '#EDE8DE' // themes.css dark sticky ink (4.83:1 worst-case AA)
+  const STICKY_LIGHT_INK = '#3f3f46'
+  function applyStickyTheme(group, dark) {
+    if (!group || !group.__paper) return
+    const base = group.__lightColor || group.__paper.fill || STICKY_PAPER
+    if (dark) {
+      group.__paper.fill = STICKY_DARK_PAPER
+      group.__shadowPaper.fill = STICKY_DARK_PAPER
+      if (group.__innerText) group.__innerText.fill = STICKY_DARK_INK
+      if (group.__closeBg) group.__closeBg.fill = 'rgba(255, 255, 255, 0.10)'
+      if (group.__closeX) group.__closeX.fill = 'rgba(237, 232, 222, 0.9)'
+    } else {
+      group.__paper.fill = base
+      group.__shadowPaper.fill = base
+      if (group.__innerText) group.__innerText.fill = STICKY_LIGHT_INK
+      if (group.__closeBg) group.__closeBg.fill = 'rgba(0, 0, 0, 0.06)'
+      if (group.__closeX) group.__closeX.fill = 'rgba(63, 63, 70, 0.85)'
+    }
+    group.dirty = true
+    // Fabric child caching: the paper/shadow/×/text objects keep their own bitmaps —
+    // marking only the group dirty leaves the children rendering their OLD fill. Every
+    // themed child must be dirtied or the recolor never reaches the pixels.
+    for (const child of [group.__paper, group.__shadowPaper, group.__innerText, group.__closeBg, group.__closeX]) {
+      if (child) child.dirty = true
+    }
+    if (canvas) canvas.requestRenderAll()
+  }
+
   function applyDarkInvertCounterFilter(obj) {
     if (!boardIsDark()) return
     obj.filters = obj.filters ?? []
@@ -360,15 +405,20 @@ window.hibanaNotebook = (() => {
     obj.applyFilters()
   }
 
-  // Re-apply (or clear) the counter-filter on every image when the theme changes.
+  // Re-apply (or clear) the counter-filter on every image + the sticky theme when the
+  // theme changes (2026-09-12: stickies joined — they theme by recolor, images by the
+  // invert counter-filter; both ride the same observer in init).
   function reapplyDarkInvertFilters() {
     if (!canvas) return
     const dark = boardIsDark()
     canvas.getObjects().forEach((obj) => {
-      if (obj.type !== 'image') return
-      obj.filters = []
-      if (dark) applyDarkInvertCounterFilter(obj)
-      else obj.applyFilters()
+      if (obj.type === 'image') {
+        obj.filters = []
+        if (dark) applyDarkInvertCounterFilter(obj)
+        else obj.applyFilters()
+      } else if (obj.__paper) {
+        applyStickyTheme(obj, dark)
+      }
     })
     canvas.renderAll()
   }
@@ -492,13 +542,13 @@ window.hibanaNotebook = (() => {
     if (obj.kind === 'sticky' || obj.__close) {
       // sticky note (batch s): the group is the record — position/size from the group frame
       // (scale baked in defensively; hasControls:false means no user scaling), paper hex from
-      // __paper, text from the hidden inner textbox (falling back to the cached content if a
-      // twin editor is live). x/y stay the group's own left/top, exactly like the canvas
-      // board's note round-trip, so reloads land the paper where it was saved.
+      // __lightColor (the CANONICAL pastel — the live fill may be dark-themed; saves must
+      // round-trip the light-mode color), text from the hidden inner textbox (falling back
+      // to the cached content if a twin editor is live).
       return {
         id: obj.id, type: 'sticky', x: obj.left, y: obj.top,
         width: Math.round((obj.width || 180) * (obj.scaleX || 1)), height: Math.round((obj.height || 120) * (obj.scaleY || 1)),
-        color: (obj.__paper && obj.__paper.fill) || STICKY_PAPER, content: (obj.__innerText && obj.__innerText.text) || obj.content || '',
+        color: obj.__lightColor || (obj.__paper && obj.__paper.fill) || STICKY_PAPER, content: (obj.__innerText && obj.__innerText.text) || obj.content || '',
         font_size: null,
         z_index: obj.zIndex || 0, deleted: 0, created_at: obj.createdAt || now(), updated_at: now(), board: BOARD,
       }

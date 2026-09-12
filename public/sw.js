@@ -128,7 +128,7 @@
 // (clamp render + read-more delegation + counter removal), devboard.js v10 (title
 // input → textarea), magic-wand.js v9 (title-written re-clamp event). The precached
 // HTML shells must rotate so clients drop the old counter markup.
-const VERSION = "hibana-v315" // Session 27 Focus 1a: canvas.js ?v=23 adopts the shared history.js helper (both boards now single-source undo/redo). 
+const VERSION = "hibana-v316" // 2026-09-12 (review round): shell precache fetches with cache:'reload' (a version bump can no longer precache a STALE vendor file from the browser HTTP cache — the v313 fabric-v7 compat rollout was exposed to exactly that) + whiteboard.js ?v=18 (dark-mode sticky theming: papers get the app-wide dark register instead of the blanket-inverted near-black).
 
 // Static shell: unhashed pages/partials/icons/vendor/fonts (SWR or network-first at
 // runtime; precached here for offline). The hashed app bundles come from the manifest
@@ -193,8 +193,23 @@ self.addEventListener('install', (e) => {
   e.waitUntil(
     (async () => {
       const cache = await caches.open(VERSION)
-      // Static shell first — install must survive even if the manifest is unavailable.
-      await cache.addAll(SHELL)
+      // Static shell — with cache:'reload' (Session 27 fix, 2026-09-12): cache.addAll()
+      // uses default fetch semantics, so the browser's HTTP cache (vendor files are served
+      // max-age=86400) can hand back a STALE file during a new version's install — a
+      // deploy that updated fabric.min.js would precache the OLD bytes under the NEW
+      // cache version, and clients would keep running the stale vendor until the next
+      // version bump (the v313 fabric-v7 compat rollout was exposed to exactly this).
+      // 'reload' forces a fresh network fetch per shell file. Install still must survive
+      // a missing manifest — but a shell file that cannot be fetched AT ALL fails install
+      // (same atomic behavior as the previous addAll).
+      await Promise.all(
+        SHELL.map((url) =>
+          fetch(url, { cache: 'reload' }).then((res) => {
+            if (!res.ok) throw new Error(`shell precache failed: ${url} → ${res.status}`)
+            return cache.put(url, res)
+          }),
+        ),
+      )
       // Manifest-driven precache: the hashed app bundles (app.<hash>.js etc.). Best-effort
       // per file: one missing hash must not kill installation for the whole shell.
       try {

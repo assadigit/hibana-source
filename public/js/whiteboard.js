@@ -29,8 +29,7 @@ window.hibanaNotebook = (() => {
   let color = BLACK
   const elems = new Map() // id → data (source of truth, kept in sync with the server)
   const objects = new Map() // id → fabric object
-  const undoStack = [] // { kind: 'add' | 'erase', data } — inverses let us undo/redo both ways
-  const redoStack = []
+  const history = new (window.hibanaHistory.History)() // shared two-stack undo/redo (Session 27 extraction — semantics identical to the inline stacks it replaced)
   let toolbarEl = null
   const IMG_RADIUS = 14 // placed pictures keep the app's soft corners (no sharp edges)
 
@@ -472,8 +471,7 @@ window.hibanaNotebook = (() => {
       canvas.setActiveObject(obj)
       canvas.requestRenderAll()
       save(data)
-      undoStack.push({ kind: 'add', data })
-      redoStack.length = 0
+      history.commit('add', data)
       setTool('move') // settle into move so the picture can be dragged
       if (toolbarEl) toolbarEl.querySelectorAll('[data-tool]').forEach((x) => x.classList.toggle('active', x.dataset.tool === 'move'))
     } catch (err) {
@@ -627,15 +625,11 @@ window.hibanaNotebook = (() => {
           removeObject(group.id)
           elems.delete(group.id)
           if (cur) save({ ...cur, deleted: 1, updated_at: now() })
-          const top = undoStack[undoStack.length - 1]
-          if (top?.kind === 'add' && top.data.id === group.id) undoStack.pop()
+          history.dropLastAdd(group.id)
           canvas.discardActiveObject()
         } else {
           save(data)
-          const top = undoStack[undoStack.length - 1]
-          if (top?.kind === 'add' && top.data.id === group.id) top.data = data // upgrade the commit snapshot instead of stacking a second undo step
-          else undoStack.push({ kind: 'add', data })
-          redoStack.length = 0
+          history.commitAdd(group.id, data) // upgrade the commit snapshot instead of stacking a second undo step
           // reselect the note ONLY when nothing else was just selected (clicking another
           // object or empty sheet while editing must keep that outcome)
           if (canvas.getActiveObject() === editor) canvas.setActiveObject(group)
@@ -699,7 +693,7 @@ window.hibanaNotebook = (() => {
       removeObject(obj.id)
       if (data) {
         save({ ...data, deleted: 1, updated_at: now() })
-        undoStack.push({ kind: 'erase', data })
+        history.log('erase', data)
       }
     }
     canvas.renderAll()
@@ -715,7 +709,7 @@ window.hibanaNotebook = (() => {
       if (!data) continue
       removeObject(obj.id)
       save({ ...data, deleted: 1, updated_at: now() })
-      undoStack.push({ kind: 'erase', data })
+      history.log('erase', data)
     }
     canvas.discardActiveObject()
     canvas.renderAll()
@@ -840,9 +834,9 @@ window.hibanaNotebook = (() => {
       elems.set(data.id, data)
       putObject(data)
       save(data)
-      undoStack.push({ kind: 'add', data })
+      history.log('add', data)
     }
-    redoStack.length = 0
+    history.clearRedo()
     const first = canvas.getActiveObjects()[0] ?? objects.get(clipboard[0]?.id)
     if (first) canvas.setActiveObject(first)
     canvas.requestRenderAll()
@@ -872,10 +866,10 @@ window.hibanaNotebook = (() => {
       elems.set(data.id, data)
       putObject(data)
       save(data)
-      undoStack.push({ kind: 'add', data })
+      history.log('add', data)
       clones.push(objects.get(data.id))
     }
-    redoStack.length = 0
+    history.clearRedo()
     canvas.setActiveObject(clones.length === 1 ? clones[0] : new fabric.ActiveSelection(clones, { canvas }))
     canvas.requestRenderAll()
   }
@@ -901,33 +895,33 @@ window.hibanaNotebook = (() => {
   }
 
   function undo() {
-    const entry = undoStack.pop()
-    if (!entry) return
-    if (entry.kind === 'add') {
-      const data = elems.get(entry.data.id)
-      removeObject(entry.data.id)
-      if (data) save({ ...data, deleted: 1, updated_at: now() })
-    } else { // erase → restore the object
-      elems.set(entry.data.id, entry.data)
-      putObject(entry.data)
-      save({ ...entry.data, deleted: 0, updated_at: now() })
-    }
-    redoStack.push(entry)
+    history.undo((entry) => {
+      if (entry.kind === 'add') {
+        const data = elems.get(entry.data.id)
+        removeObject(entry.data.id)
+        if (data) save({ ...data, deleted: 1, updated_at: now() })
+      } else { // erase → restore the object
+        elems.set(entry.data.id, entry.data)
+        putObject(entry.data)
+        save({ ...entry.data, deleted: 0, updated_at: now() })
+      }
+      return entry // the same entry rides back onto the redo stack
+    })
   }
 
   function redo() {
-    const entry = redoStack.pop()
-    if (!entry) return
-    if (entry.kind === 'add') {
-      elems.set(entry.data.id, entry.data)
-      putObject(entry.data)
-      save({ ...entry.data, deleted: 0, updated_at: now() })
-    } else { // erase again
-      const data = elems.get(entry.data.id)
-      removeObject(entry.data.id)
-      if (data) save({ ...data, deleted: 1, updated_at: now() })
-    }
-    undoStack.push(entry)
+    history.redo((entry) => {
+      if (entry.kind === 'add') {
+        elems.set(entry.data.id, entry.data)
+        putObject(entry.data)
+        save({ ...entry.data, deleted: 0, updated_at: now() })
+      } else { // erase again
+        const data = elems.get(entry.data.id)
+        removeObject(entry.data.id)
+        if (data) save({ ...data, deleted: 1, updated_at: now() })
+      }
+      return entry
+    })
   }
 
   async function init(selector, ui) {
@@ -1062,8 +1056,7 @@ window.hibanaNotebook = (() => {
       path.set({ left: b.left, top: b.top }).setCoords()
       objects.set(data.id, path)
       save(data)
-      undoStack.push({ kind: 'add', data })
-      redoStack.length = 0
+      history.commit('add', data)
     })
 
     // moved / resized
@@ -1143,8 +1136,7 @@ window.hibanaNotebook = (() => {
       }
       obj.content = data.content
       save(data)
-      undoStack.push({ kind: 'add', data })
-      redoStack.length = 0
+      history.commit('add', data)
     })
 
     // note tool (batch s — the notebook port of the canvas note tool, with one deliberate
@@ -1209,8 +1201,7 @@ window.hibanaNotebook = (() => {
       objects.set(id, obj)
       canvas.add(obj)
       save(data)
-      undoStack.push({ kind: 'add', data })
-      redoStack.length = 0
+      history.commit('add', data)
       canvas.setActiveObject(obj)
       canvas.requestRenderAll()
       beginStickyEdit(obj) // open the edit twin right away — type immediately
@@ -1244,7 +1235,7 @@ window.hibanaNotebook = (() => {
       removeObject(g.id)
       if (data) {
         save({ ...data, deleted: 1, updated_at: now() })
-        undoStack.push({ kind: 'erase', data })
+        history.log('erase', data)
       }
       return true
     }

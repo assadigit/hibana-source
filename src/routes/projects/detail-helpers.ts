@@ -9,7 +9,7 @@ import {
 } from '../../lib/html'
 import { trL, type Locale } from '../../lib/i18n'
 import { faDigits, toJalali } from '../../lib/jalali'
-import { loadBacklog, type BacklogEvent } from '../devboard-helpers'
+import { loadBacklog, taskTagsForProject, PRIO_ORDER_SQL, type BacklogEvent, type TaskTagJoin } from '../devboard-helpers'
 import { shotsGridHtml } from '../core'
 import { STATUS_ORDER } from '../../types'
 import type {
@@ -28,7 +28,7 @@ import { projectProgress } from './helpers'
 
 
 export async function loadDetail(cfg: Config, p: ProjectRow) {
-  const [hurdles, links, screenshots, history, tags, notes, canvasPromos, devTasks, categories, sprints, backlog, progressLog] = await Promise.all([
+  const [hurdles, links, screenshots, history, tags, notes, canvasPromos, devTasks, devTaskTags, categories, sprints, backlog, progressLog] = await Promise.all([
     cfg.db.query<HurdleRow>('SELECT * FROM hurdles WHERE project_id = ? ORDER BY sort_order, created_at', [p.id]),
     cfg.db.query<LinkRow>('SELECT * FROM links WHERE project_id = ? ORDER BY created_at', [p.id]),
     cfg.db.query<ScreenshotRow>('SELECT * FROM screenshots WHERE project_id = ? ORDER BY created_at DESC', [p.id]),
@@ -55,7 +55,11 @@ export async function loadDetail(cfg: Config, p: ProjectRow) {
       [p.id, p.user_id],
     ),
     // Dev-board pool (0029): tasks + categories + sprints for the inline progress board.
-    cfg.db.query<DevTaskRow>('SELECT * FROM dev_tasks WHERE project_id = ? ORDER BY sort_order, created_at', [p.id]),
+    // S29 follow-up (user request 2026-09-12): PRIORITY-FIRST ordering — the boxes
+    // auto-sort urgent → high → medium → low (manual drag order survives within a tier).
+    cfg.db.query<DevTaskRow>(`SELECT t.* FROM dev_tasks t WHERE t.project_id = ? ORDER BY ${PRIO_ORDER_SQL}, t.sort_order, t.created_at`, [p.id]),
+    // S29 follow-up: per-task labels ({task_id, id, name, color}) — chips on the cards.
+    taskTagsForProject(cfg, p.id),
     cfg.db.query<TaskCategory>('SELECT * FROM task_categories WHERE project_id = ? ORDER BY sort_order, created_at', [p.id]),
     cfg.db.query<SprintRow>('SELECT * FROM sprints WHERE project_id = ? ORDER BY started_at', [p.id]),
     // برنامه آتی tab payload (0033): documents + merged history feed.
@@ -66,7 +70,7 @@ export async function loadDetail(cfg: Config, p: ProjectRow) {
       [p.id, p.user_id],
     ),
   ])
-  return { hurdles, links, screenshots, history, tags, notes, canvasPromos, devTasks, categories, sprints, backlog, progressLog }
+  return { hurdles, links, screenshots, history, tags, notes, canvasPromos, devTasks, devTaskTags, categories, sprints, backlog, progressLog }
 }
 
 
@@ -207,6 +211,38 @@ export function detailHtml(p: ProjectRow, d: Awaited<ReturnType<typeof loadDetai
     const h12 = hh % 12 || 12
     return `${done ? '✓ ' : ''}${dt.getUTCDate()} ${PD_G_MONTHS[dt.getUTCMonth()]} ${dt.getUTCFullYear()} · ${h12}:${mm} ${hh < 12 ? 'AM' : 'PM'}`
   }
+  // S29 follow-up (user request 2026-09-12): the four priorities with their color coding —
+  // the dropdown wording the owner asked for ("Urgent / High Priority / Medium Priority /
+  // Low Priority") + a shared label for the meta line so the auto-sort reads at a glance.
+  const PRIO_LABEL: Record<string, [string, string]> = {
+    urgent: ['Urgent', 'فوری'],
+    high: ['High Priority', 'اولویت بالا'],
+    medium: ['Medium Priority', 'اولویت متوسط'],
+    low: ['Low Priority', 'اولویت کم'],
+  }
+  const prioLabel = (p: string): string => {
+    const pair = PRIO_LABEL[p] ?? PRIO_LABEL.medium
+    return lang === 'fa' ? pair[1] : pair[0]
+  }
+  // Per-task label chips — d.devTaskTags is the flat join; group once, render little
+  // colored pills under the title (data-pd-tags carries the same JSON for the client).
+  const tagsByTask = new Map<string, TaskTagJoin[]>()
+  for (const row of d.devTaskTags) {
+    const list = tagsByTask.get(row.task_id) ?? []
+    list.push(row)
+    tagsByTask.set(row.task_id, list)
+  }
+  const taskTagChips = (taskId: string): string => {
+    const list = tagsByTask.get(taskId) ?? []
+    if (!list.length) return ''
+    return `<span class="pd-task-tags">${list
+      .map((tg) => `<span class="pd-tag" data-pd-tag-name="${esc(tg.name)}"><i class="pd-tag-dot" style="background:${esc(tg.color)}"></i>${esc(tg.name)}</span>`)
+      .join('')}</span>`
+  }
+  const taskTagsAttr = (taskId: string): string => {
+    const list = tagsByTask.get(taskId) ?? []
+    return esc(JSON.stringify(list.map((tg) => ({ name: tg.name, color: tg.color }))))
+  }
   // Inline "Project Progress" board preview (user sketch 2026-08-29): the five columns
   // with their top cards — adding happens RIGHT HERE through the per-column inline
   // composer (user request 2026-08-29: "add tasks directly in project's page into boxes");
@@ -295,13 +331,14 @@ export function detailHtml(p: ProjectRow, d: Awaited<ReturnType<typeof loadDetai
               </span>
             </div>
             <div class="pd-tasks" data-pd-tasks="${col.key}" data-pd-total="${items.length}">
-              ${top.map((t) => `<div class="pd-task-wrap" data-pd-task="${t.id}" data-pd-status="${t.status}" data-pd-created="${t.created_at}"${t.done_at ? ` data-pd-done="${t.done_at}"` : ''}>
+              ${top.map((t) => `<div class="pd-task-wrap" data-pd-task="${t.id}" data-pd-status="${t.status}" data-pd-created="${t.created_at}" data-pd-priority="${t.priority}" data-pd-tags="${taskTagsAttr(t.id)}"${t.done_at ? ` data-pd-done="${t.done_at}"` : ''}>
                 <div class="pd-task st-${t.status}" draggable="true" role="button" tabindex="0" aria-label="${esc(t.title)}">
-                  <span class="prio-dot prio-${t.priority}" title="${t.priority}"></span>
+                  <span class="prio-dot prio-${t.priority}" title="${esc(prioLabel(t.priority))}"></span>
                   <span class="pd-task-body">
                     <span class="pd-task-title"${titleAttrs(t.title)}>${titleHtml(t.title)}</span>
                     ${readMoreBtn(t.title)}
-                    <span class="pd-task-meta">${taskMetaLabel(t)}</span>
+                    ${taskTagChips(t.id)}
+                    <span class="pd-task-meta"><span class="pd-meta-prio prio-${t.priority}">${esc(prioLabel(t.priority))}</span> · ${taskMetaLabel(t)}</span>
                   </span>
                 </div>
               </div>`).join('')}
@@ -505,6 +542,28 @@ export function detailHtml(p: ProjectRow, d: Awaited<ReturnType<typeof loadDetai
         <button type="button" class="pd-tb-btn" data-tb="list" title="${trL(lang, 'Bullet list', 'بولت')}" aria-label="${trL(lang, 'Bullet list', 'بولت')}"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6h12M9 12h12M9 18h12"/><circle cx="4.5" cy="6" r="1.3" fill="currentColor"/><circle cx="4.5" cy="12" r="1.3" fill="currentColor"/><circle cx="4.5" cy="18" r="1.3" fill="currentColor"/></svg> ${trL(lang, 'Bullet', 'بولت')}</button>
       </div>
       <textarea id="pd-taskadd-textarea" rows="8" dir="${lang === 'fa' ? 'rtl' : 'auto'}" autocomplete="off" aria-label="${trL(lang, 'Task title', 'عنوان کار')}" placeholder="${trL(lang, 'Write the task — long sentences and code blocks are welcome…', 'کار را بنویس — جمله‌های بلند و بلوک‌های کد جای دارند…')}"></textarea>
+      <!-- S29 follow-up (user request 2026-09-12): Priority dropdown + Labels on the task
+           composer — the task lands in its box ALREADY prioritized (color-coded, options
+           ordered urgent → low) and labeled; the boxes then auto-sort by the chosen
+           priority. The chip mirrors the select (a live color preview) — plain <option>
+           styling varies by browser, the chip is the guaranteed color signal. -->
+      <div class="row pd-taskadd-opts">
+        <label class="pd-opt">${trL(lang, 'Priority', 'اولویت')}
+          <span class="pd-prio-row">
+            <select id="pd-taskadd-priority" class="pd-prio-select">
+              <option value="urgent" class="prio-urgent">${trL(lang, 'Urgent', 'فوری')}</option>
+              <option value="high" class="prio-high">${trL(lang, 'High Priority', 'اولویت بالا')}</option>
+              <option value="medium" class="prio-medium" selected>${trL(lang, 'Medium Priority', 'اولویت متوسط')}</option>
+              <option value="low" class="prio-low">${trL(lang, 'Low Priority', 'اولویت کم')}</option>
+            </select>
+            <span class="pd-prio-chip" id="pd-taskadd-prio-chip" aria-hidden="true"><span class="prio-dot prio-medium"></span><span class="pd-prio-chip-label">${trL(lang, 'Medium Priority', 'اولویت متوسط')}</span></span>
+          </span>
+        </label>
+        <label class="pd-opt">${trL(lang, 'Labels', 'برچسب‌ها')}
+          <input id="pd-taskadd-tags" dir="auto" autocomplete="off" maxlength="480" aria-label="${trL(lang, 'Labels', 'برچسب‌ها')}" placeholder="${trL(lang, 'e.g. UI/UX, Security', 'مثلاً UI/UX، امنیت')}" />
+          <span class="muted small">${trL(lang, 'Comma-separated — a chip per label', 'با کاما جدا کن — یک چیپ برای هر برچسب')}</span>
+        </label>
+      </div>
       <div class="row spread">
         <span class="muted small">${trL(lang, 'Unlimited length · newlines kept', 'بدون محدودیت طول · خطوط حفظ می‌شوند')}</span>
         <span class="muted small">${trL(lang, 'Enter adds · Shift+Enter new line · Esc closes', 'Enter برای افزودن · Shift+Enter خط جدید · Esc برای بستن')}</span>

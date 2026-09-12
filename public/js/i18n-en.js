@@ -411,6 +411,9 @@ window.__hibanaDictEN = {
       'db.loading': 'Loading…', 'db.loadFailed': "Couldn't load — try again", 'db.retry': 'Try again',
       'db.projectGone': "This project doesn't exist or was deleted", 'db.backToProjects': 'Back to projects',
       'pd.tasksDone': '{n} of {m} tasks done', 'pd.more': 'more', 'pd.moveFailed': "Couldn't move the task",
+      // S29 follow-up (user request 2026-09-12): priority dropdown wording + task labels
+      'pd.pr.urgent': 'Urgent', 'pd.pr.high': 'High Priority', 'pd.pr.medium': 'Medium Priority', 'pd.pr.low': 'Low Priority',
+      'pd.labels': 'Labels', 'pd.labelsPh': 'e.g. UI/UX, Security', 'pd.labelsHint': 'Comma-separated — a chip per label',
       // S29 (agenda 5): the interactive progress box
       'pd.progressSaved': 'Progress saved', 'pd.progressAuto': 'Auto — computed from tasks', 'pd.progressManual': 'Manual — saved on release',
       'pd.editor': 'Editor', 'pd.noteEditor': 'Note editor', 'pd.docEditor': 'Plan document editor',

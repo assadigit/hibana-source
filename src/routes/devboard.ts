@@ -52,6 +52,9 @@ const createDevTaskSchema = z.object({
   sprint_id: z.string().max(64).nullable().optional(),
   start_at: isoDate.nullable().optional(),
   end_at: isoDate.nullable().optional(),
+  // S29 follow-up (user request 2026-09-12): labels like "UI/UX", "Security" on the
+  // task itself — find-or-create per user (0029's dev_task_tags), palette-colored.
+  tags: z.array(z.string().trim().min(1).max(48)).max(12).optional(),
 }).refine(clipRangeOk, { message: 'bad_range' })
 const updateDevTaskSchema = z.object({
   title: z.string().trim().min(1).max(100_000).optional(), // Session 22: lifted 2000 → 100k sanity guard (matches createDevTaskSchema).
@@ -62,6 +65,9 @@ const updateDevTaskSchema = z.object({
   sort_order: z.number().int().min(0).optional(),
   start_at: isoDate.nullable().optional(),
   end_at: isoDate.nullable().optional(),
+  // Replace-set semantics: an array makes the link set EXACTLY these names ([] clears);
+  // omitted leaves tags untouched. Never a dev_tasks column — special-cased below.
+  tags: z.array(z.string().trim().min(1).max(48)).max(12).optional(),
 }).refine(clipRangeOk, { message: 'bad_range' })
 const createCategorySchema = z.object({
   name: z.string().trim().min(1).max(80),
@@ -104,6 +110,10 @@ import {
   ownedSprint,
   ownedBacklogDoc,
   loadBacklog,
+  setTaskTags,
+  taskTagsForProject,
+  tagPaletteColor,
+  PRIO_ORDER_SQL,
 } from './devboard-helpers'
 
 export function devboardRoutes(cfg: Config) {
@@ -115,15 +125,19 @@ export function devboardRoutes(cfg: Config) {
     const user = c.get('user')
     const p = await getOwnedProject(cfg, user.id, c.req.param('projectId'))
     if (!p) return c.json({ error: 'not_found' }, 404)
-    const [tasks, categories, sprints, tags] = await Promise.all([
+    const [tasks, categories, sprints, tags, taskTags] = await Promise.all([
       cfg.db.query<DevTaskRow & { tags: string }>(
+        // S29 follow-up: PRIORITY-FIRST ordering — tasks auto-sort urgent → high →
+        // medium → low inside every column (sort_order = manual drag still orders
+        // within the same priority tier).
         `SELECT t.*, COALESCE((SELECT GROUP_CONCAT(tt.tag_id) FROM dev_task_tags tt WHERE tt.task_id = t.id), '') AS tags
-         FROM dev_tasks t WHERE t.project_id = ? ORDER BY t.sort_order, t.created_at`,
+         FROM dev_tasks t WHERE t.project_id = ? ORDER BY ${PRIO_ORDER_SQL}, t.sort_order, t.created_at`,
         [p.id],
       ),
       cfg.db.query<TaskCategory>('SELECT * FROM task_categories WHERE project_id = ? ORDER BY sort_order, created_at', [p.id]),
       cfg.db.query<SprintRow>('SELECT * FROM sprints WHERE project_id = ? ORDER BY started_at', [p.id]),
       cfg.db.query<TagRow>('SELECT t.* FROM tags t WHERE t.user_id = ? ORDER BY t.name', [user.id]),
+      taskTagsForProject(cfg, p.id),
     ])
     return await etag(c, c.json({
       project: { id: p.id, title: p.title, status: p.status, type: p.type },
@@ -131,6 +145,9 @@ export function devboardRoutes(cfg: Config) {
       categories,
       sprints,
       tags,
+      // Flat per-task label join ({task_id, id, name, color}) — one query, joined
+      // client-side by whoever renders cards.
+      task_tags: taskTags,
     }))
   })
 
@@ -174,9 +191,12 @@ export function devboardRoutes(cfg: Config) {
        VALUES (?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?, ?)`,
       [id, p.id, body.title, status, body.priority ?? 'medium', body.category_id ?? null, sprintId, now, status === 'done' ? now : null, body.start_at ?? null, body.end_at ?? null],
     )
+    // Labels ride the create (user request 2026-09-12): find-or-create + link, so a
+    // fresh "UI/UX, Security" task is fully labeled in ONE round-trip.
+    const linked = body.tags?.length ? await setTaskTags(cfg, user.id, id, body.tags) : []
     await cfg.db.execute('UPDATE projects SET updated_at = ? WHERE id = ?', [now, p.id])
     await logHistory(cfg, p.id, t('Task added: {title}', 'کار جدید: {title}', { title: body.title }))
-    return c.json({ ok: true, id }, 201)
+    return c.json({ ok: true, id, tags: linked }, 201)
   })
 
   app.post('/api/projects/:projectId/devtasks/reorder', async (c) => {
@@ -203,12 +223,16 @@ export function devboardRoutes(cfg: Config) {
     if (body.category_id && !(await ownedCategory(cfg, user.id, body.category_id))) return c.json({ error: 'invalid_input' }, 400)
     if (body.sprint_id && !(await ownedSprint(cfg, user.id, body.sprint_id))) return c.json({ error: 'invalid_input' }, 400)
     const now = new Date().toISOString()
+    // tags is NOT a dev_tasks column (replace-set semantics on dev_task_tags) — pull it
+    // out BEFORE the generic SET builder, or the loop below would emit SET tags = ?
+    // and 500 with "no such column".
+    const { tags: tagNames, ...columns } = body
     const sets: string[] = []
     const params: unknown[] = []
     // start_at/end_at (0030 clip trims) ride this same generic path as category_id/
     // sprint_id: a string sets the manual edge, an explicit null clears it (back to the
     // automatic created_at→done_at|today bar).
-    for (const [k, v] of Object.entries(body)) {
+    for (const [k, v] of Object.entries(columns)) {
       if (v === undefined) continue
       sets.push(`${k} = ?`)
       params.push(v)
@@ -225,11 +249,16 @@ export function devboardRoutes(cfg: Config) {
         params.push(null)
       }
     }
-    if (!sets.length) return c.json({ ok: true })
-    params.push(task.id)
-    await cfg.db.execute(`UPDATE dev_tasks SET ${sets.join(', ')} WHERE id = ?`, params)
+    if (!sets.length && tagNames === undefined) return c.json({ ok: true })
+    if (sets.length) {
+      params.push(task.id)
+      await cfg.db.execute(`UPDATE dev_tasks SET ${sets.join(', ')} WHERE id = ?`, params)
+    }
+    // Labels ride the PATCH (replace-set): the response carries the task's FINAL tag
+    // set (with server-assigned palette colors) so the client repaints chips truthfully.
+    const appliedTags = tagNames !== undefined ? await setTaskTags(cfg, user.id, task.id, tagNames) : undefined
     await cfg.db.execute('UPDATE projects SET updated_at = ? WHERE id = ?', [now, task.project_id])
-    return c.json({ ok: true })
+    return c.json({ ok: true, tags: appliedTags })
   })
 
   app.delete('/api/devtasks/:id', async (c) => {
@@ -332,7 +361,7 @@ export function devboardRoutes(cfg: Config) {
     const tagId = found[0]?.id ?? uuid()
     if (!found.length) {
       await cfg.db.execute('INSERT INTO tags (id, user_id, name, color, usage_count, created_at) VALUES (?, ?, ?, ?, 0, ?)', [
-        tagId, user.id, body.name, body.color ?? '#8AB8F0', now,
+        tagId, user.id, body.name, body.color ?? tagPaletteColor(body.name), now,
       ])
     }
     await cfg.db.execute('INSERT OR IGNORE INTO dev_task_tags (task_id, tag_id) VALUES (?, ?)', [task.id, tagId])

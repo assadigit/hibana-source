@@ -127,3 +127,94 @@ test('progress box: Auto ⇄ Manual, milestone chip + note, reload round-trip, t
   await expect(page.locator('[data-pd-slider]')).toBeDisabled()
   expect(errors).toEqual([])
 })
+
+// S29 follow-up (user request 2026-09-12 — "O1: richer progress box, part 2"): the task
+// composer's PRIORITY dropdown (Urgent / High / Medium / Low, color-coded via the live
+// chip), LABELS (UI/UX, Security…), the boxes' AUTO-SORT by priority, and the edit
+// dialog's faithful priority pre-fill (the old editor always defaulted to medium).
+test('task composer: priority dropdown + labels; boxes auto-sort by priority', async ({ page, browserName }) => {
+  test.skip(browserName !== 'chromium', 'Desktop Chromium only')
+  const errors = trackErrors(page)
+  await login(page)
+  const id = await openProject(page)
+
+  const ideaTasks = page.locator('[data-pd-tasks="idea"]')
+
+  // Helper: open the composer on the idea box, type, pick a priority, add labels, save.
+  const addTask = async (title: string, priority: string | null, labels?: string) => {
+    await page.click('[data-pd-add="idea"]')
+    const dlg = page.locator('#pd-taskadd-modal')
+    await expect(dlg).toBeVisible()
+    // the dropdown + labels input exist and are reset per open
+    await expect(page.locator('#pd-taskadd-priority')).toHaveValue('medium')
+    if (priority) await page.selectOption('#pd-taskadd-priority', priority)
+    if (priority) {
+      // the live color chip mirrors the selection
+      await expect(page.locator('#pd-taskadd-prio-chip')).toHaveClass(/prio-/)
+      await expect(page.locator('#pd-taskadd-prio-chip .prio-dot')).toHaveClass(new RegExp(`prio-${priority}`))
+    }
+    if (labels) await page.fill('#pd-taskadd-tags', labels)
+    await page.fill('#pd-taskadd-textarea', title)
+    await page.click('#pd-taskadd-save')
+    await expect(dlg).not.toBeVisible()
+  }
+
+  // 1. a LOW task — the meta line carries the muted priority label
+  await addTask('low one', 'low')
+  await expect(ideaTasks.locator('.pd-task-wrap')).toHaveCount(1)
+  await expect(ideaTasks.locator('.pd-task-wrap').first()).toHaveAttribute('data-pd-priority', 'low')
+  await expect(ideaTasks.locator('.pd-meta-prio').first()).toHaveText(/Low Priority/i)
+
+  // 2. a MEDIUM task (the dropdown's default) lands AFTER the low card? No — it
+  // OUTRANKS low, so it auto-sorts ABOVE it.
+  await addTask('medium one', null)
+  // 3. an URGENT task WITH LABELS — jumps to the top of the box
+  await addTask('urgent labeled', 'urgent', 'UI/UX, Security')
+  await expect(ideaTasks.locator('.pd-task-wrap')).toHaveCount(3)
+  // the boxes AUTO-SORT: urgent → medium → low
+  await expect.poll(async () =>
+    (await ideaTasks.locator('.pd-task-wrap').evaluateAll((els) => els.map((el) => (el as HTMLElement).dataset.pdPriority))).join(','),
+  ).toBe('urgent,medium,low')
+  // label chips ride the urgent card (server-assigned palette colors)
+  const urgentCard = ideaTasks.locator('.pd-task-wrap').first()
+  await expect(urgentCard.locator('.pd-tag[data-pd-tag-name="UI/UX"]')).toBeVisible()
+  await expect(urgentCard.locator('.pd-tag[data-pd-tag-name="Security"]')).toBeVisible()
+  // the urgent card's meta leads with the (red) Urgent label + tinted dot
+  await expect(urgentCard.locator('.pd-meta-prio')).toHaveText(/Urgent/i)
+
+  // 4. RELOAD: the server renders the same priority-first order + the same chips
+  await page.goto(`/project.html?id=${id}`)
+  await expect(page.locator('[data-pd-progress]')).toBeVisible({ timeout: 10_000 })
+  const reloaded = page.locator('[data-pd-tasks="idea"]')
+  await expect(reloaded.locator('.pd-task-wrap')).toHaveCount(3)
+  await expect.poll(async () =>
+    (await reloaded.locator('.pd-task-wrap').evaluateAll((els) => els.map((el) => (el as HTMLElement).dataset.pdPriority))).join(','),
+  ).toBe('urgent,medium,low')
+  await expect(reloaded.locator('.pd-task-wrap').first().locator('.pd-tag')).toHaveCount(2)
+
+  // 5. EDIT round-trip: the low card's editor pre-fills its REAL priority (the old
+  // editor always defaulted to medium and silently reset it on save) — then promote
+  // it to Urgent and watch it jump above the medium card.
+  await reloaded.locator('.pd-task-wrap').nth(2).locator('.pd-task').click()
+  const edit = page.locator('#pd-task-edit-modal')
+  await expect(edit).toBeVisible()
+  await expect(page.locator('#pde-priority')).toHaveValue('low') // the REAL pre-fill
+  // the labels input pre-fills from the card's datasets (empty here)
+  await expect(page.locator('#pde-tags')).toHaveValue('')
+  await page.selectOption('#pde-priority', 'urgent')
+  await page.click('#pde-save')
+  await expect(edit).not.toBeVisible()
+  // auto-sort snaps the promoted card into the top tier (arrival order within it)
+  await expect.poll(async () =>
+    (await reloaded.locator('.pd-task-wrap').evaluateAll((els) => els.map((el) => (el as HTMLElement).dataset.pdPriority))).join(','),
+  ).toBe('urgent,urgent,medium')
+  // and the priority PERSISTED (reload once more — the server is the source of truth)
+  await page.goto(`/project.html?id=${id}`)
+  await expect(page.locator('[data-pd-progress]')).toBeVisible({ timeout: 10_000 })
+  const finalBox = page.locator('[data-pd-tasks="idea"]')
+  await expect.poll(async () =>
+    (await finalBox.locator('.pd-task-wrap').evaluateAll((els) => els.map((el) => (el as HTMLElement).dataset.pdPriority))).join(','),
+  ).toBe('urgent,urgent,medium')
+
+  expect(errors).toEqual([])
+})

@@ -701,3 +701,80 @@ button.pd-task-add {
 .pd-pl-pct.is-done { background: var(--cta); color: #fff; border-color: transparent; }
 .pd-pl-pct.is-auto { color: var(--muted); border-style: dashed; }
 .pd-pl-note { overflow-wrap: anywhere; }
+
+/* ==== S29 follow-up (user request 2026-09-12): priority dropdown + task labels ====
+   The owner's ask: a Priority dropdown in the modals (Urgent / High Priority /
+   Medium Priority / Low Priority, color-coded), boxes that AUTO-SORT by priority,
+   and label/meta tags (UI/UX, Security…) on every task. Colors ride the theme-aware
+   tokens (--err red, --badge-awaiting-fg amber, --muted grey) so both themes stay
+   AA; the pastel dot hues match the existing .prio-* dots in polish-batch.css. */
+
+/* The modals' priority row: <select> + live color preview chip side by side. */
+.pd-prio-row { display: inline-flex; align-items: center; gap: 0.45rem; flex-wrap: wrap; }
+.pd-prio-select { min-inline-size: 11rem; }
+
+/* Color-coded <option>s — honored by Chromium/Firefox in the open list; the chip
+   beside the select is the guaranteed color signal on every engine/platform. */
+.pd-prio-select option.prio-urgent { background: #fde3e0; color: var(--err); font-weight: 600; }
+.pd-prio-select option.prio-high { background: #fbe9e7; color: var(--err); }
+.pd-prio-select option.prio-medium { background: #F6EFCB; color: var(--badge-awaiting-fg); }
+.pd-prio-select option.prio-low { background: #eceef0; color: var(--muted); }
+
+/* Live preview chip — dot + label, tinted per priority (its class is swapped by
+   pdSyncPrioChip on every select change). */
+.pd-prio-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.3rem 0.65rem;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: var(--card);
+  font-size: var(--fs-xs);
+  color: var(--text);
+  white-space: nowrap;
+}
+.pd-prio-chip .prio-dot { inline-size: 9px; block-size: 9px; margin-block-start: 0; }
+.pd-prio-chip.prio-urgent { border-color: #D96C63; background: rgb(217 108 99 / 0.12); color: var(--err); }
+.pd-prio-chip.prio-high { border-color: #D96C63; background: rgb(217 108 99 / 0.08); color: var(--err); }
+.pd-prio-chip.prio-medium { border-color: #E8B27D; background: #F6EFCB; color: var(--badge-awaiting-fg); }
+.pd-prio-chip.prio-low { border-color: #C9CDD2; background: rgb(201 205 210 / 0.14); color: var(--muted); }
+
+/* The composer's options row (priority + labels side by side, wrapping on mobile). */
+.pd-taskadd-opts { display: flex; gap: 1rem; flex-wrap: wrap; align-items: flex-start; }
+.pd-taskadd-opts .pd-opt { flex: 1 1 16rem; display: grid; gap: 0.3rem; }
+.pd-opt input {
+  font: inherit;
+  font-size: var(--fs-md);
+  padding: 0.45rem 0.6rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--card);
+  color: var(--text);
+}
+.pd-opt input:focus-visible { border-color: var(--brand); outline: none; }
+
+/* Label chips on the task cards (under the title) — a colored dot + the name. */
+.pd-task-tags { display: flex; flex-wrap: wrap; gap: 0.25rem; margin-block: 0.18rem 0.05rem; }
+.pd-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.32rem;
+  font-size: calc(var(--fs-xs) * 0.85);
+  line-height: 1.4;
+  padding: 0.02rem 0.5rem 0.14rem;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: var(--card);
+  color: var(--text);
+  overflow-wrap: anywhere;
+}
+.pd-tag-dot { inline-size: 7px; block-size: 7px; border-radius: 999px; flex: none; }
+
+/* Priority label leading the card meta line — tinted so the auto-sort reads at a
+   glance (the dot alone can't say "High Priority" to a color-blind eye). */
+.pd-meta-prio { font-weight: 600; }
+.pd-meta-prio.prio-urgent { color: var(--err); }
+.pd-meta-prio.prio-high { color: var(--err); }
+.pd-meta-prio.prio-medium { color: var(--badge-awaiting-fg); }
+.pd-meta-prio.prio-low { color: var(--muted); }

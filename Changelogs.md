@@ -9,6 +9,48 @@
 > rewritten as a minimal pointer. Deleted files remain recoverable verbatim:
 > `git show <sha>:<file>`.
 
+## 1. Current state (v0.3.12.26.1 — Session 29 follow-up: task priorities + labels in the progress box)
+- **O1 part 2 (owner request 2026-09-12, verbatim)**: "when user opens modal I want a
+  drop down menu for Priority of it: Urgent - High Priority - Medium Priority - Low
+  Priority (with different color coding). They must be auto-sorted in their boxes
+  based on their priority. ALSO each task in project progress can have label or meta
+  tag, for example UI/UX, Security." No migration — dev_tasks.priority (CHECK
+  low/medium/high/urgent, 0029) + dev_task_tags (0029, user-scoped tags) already
+  existed; the entire feature is wiring. Shipped:
+  **(a) the modals**: the add composer (#pd-taskadd-modal) gained the Priority
+  dropdown (urgent→low, class-coded options + a LIVE color preview chip — plain
+  <option> styling varies by engine, the chip is the guaranteed signal) and a Labels
+  input (comma-separated, Latin/Persian/Arabic separators; placeholder "e.g. UI/UX,
+  Security"); the inline editor's plain select was upgraded the same way + a labels
+  row. **(b) AUTO-SORT everywhere a task lists**: PRIO_ORDER_SQL (CASE urgent→0
+  high→1 medium→2 low→3, then manual sort_order, then age) now orders GET /devboard
+  (board.html + sprint page), the detail loader (project page server render), and the
+  JSON GET /:id payload; the client's insertTaskChip/drop/move/edit paths all snap
+  cards into their PRIORITY slot (manual drag re-orders within a tier only — what a
+  reload renders); a full column shows an outranking newcomer by displacing the last
+  visible card (reload-equivalent). **(c) labels end-to-end**: POST /devtasks accepts
+  tags (find-or-create per user, COLLATE NOCASE so "UI/UX"=="ui/ux", palette color =
+  name hash — one of the 8 app pastels), PATCH tags = REPLACE-SET semantics (array =
+  exactly these, [] clears, omitted untouched) with the response carrying the final
+  set; the devboard GET + detail payload carry a flat task_tags join; cards render
+  chips (data-pd-tags mirrors for the editor prefill); the standalone POST
+  /devtasks/:id/tags default color is now the palette hash too. **(d) two latent bugs
+  fixed on the way**: the inline editor ALWAYS pre-filled priority 'medium' ("card
+  doesn't show priority") — SAVING silently reset an urgent task's priority (the card
+  now carries data-pd-priority/pd-tags and the editor pre-fills the REAL values);
+  pdMoveChip/pdRemoveChip used the Session-22-known stale selector
+  `.pd-task[data-pd-task]` (matches nothing — data-pd-task lives on the wrap) so the
+  problems-box optimistic move never fired.
+- Cards now show: prio-dot (tinted) + leading priority LABEL in the meta line
+  (var(--err)/--badge-awaiting-fg/--muted, bold) + label chips under the title.
+  i18n: 7 new keys EN+FA (pd.pr.*, pd.labels*) — parity 971/971. Tests: vitest 338
+  (+4: create-carries-priority+tags/listing-priority-first, PATCH replace-set, tag
+  reuse + priority persist, isolation) · Playwright 38 (+1: composer dropdown + live
+  chip, labels, auto-sort, reload round-trip, editor real-priority prefill + live
+  re-sort) · cache-bust PASS (4 files: project-page.js, project-header.css,
+  i18n-en/fa) · bundle-size PASS. Browser-verified live on :3000 (EN+FA surfaces,
+  mobile 390px wrap, zero console errors).
+
 ## 1. Current state (v0.3.12.26 — Session 29: SWOT batch + board data integrity + monitoring + responsive + backup health + the richer progress box)
 - **Session 29 summary** — the owner-directed 5-agenda session, executed against a fresh
   re-clone after a context-loss recovery (the previous conversation's identical work was

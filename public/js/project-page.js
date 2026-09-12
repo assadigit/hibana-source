@@ -677,6 +677,60 @@
           return (done ? '✓ ' : '') + date + ' · ' + clock
         }
 
+        // --- S29 follow-up (user request 2026-09-12): priorities + labels on tasks ----
+        // The four priorities as the owner worded them (Urgent / High Priority /
+        // Medium Priority / Low Priority), color-coded. The RANK drives the boxes'
+        // AUTO-SORT (urgent first); the label rides the card meta + both modals' chips.
+        const PD_PRIO_LABEL = {
+          urgent: { en: 'Urgent', fa: 'فوری' },
+          high: { en: 'High Priority', fa: 'اولویت بالا' },
+          medium: { en: 'Medium Priority', fa: 'اولویت متوسط' },
+          low: { en: 'Low Priority', fa: 'اولویت کم' },
+        }
+        const pdPrioLabel = (p) => {
+          const e = PD_PRIO_LABEL[p] || PD_PRIO_LABEL.medium
+          return pdLang() === 'fa' ? e.fa : e.en
+        }
+        const PD_PRIO_RANK = { urgent: 0, high: 1, medium: 2, low: 3 }
+        const pdPrioRank = (p) => PD_PRIO_RANK[p] ?? 2
+        // Meta line HTML with the leading priority label (twin of the server's render).
+        const pdMetaHtml = (prio, iso, done) =>
+          '<span class="pd-meta-prio prio-' + pdEsc(prio || 'medium') + '">' + pdEsc(pdPrioLabel(prio || 'medium')) + '</span> · ' + pdEsc(pdMetaLine(iso, done))
+        // Label chips on a card — list = [{name, color}] (mirror of the server's
+        // taskTagChips; the chip color is the tag's palette color).
+        const pdTagChipsHtml = (list) => {
+          if (!list || !list.length) return ''
+          return '<span class="pd-task-tags">' + list.map((tg) =>
+            '<span class="pd-tag" data-pd-tag-name="' + pdEsc(tg.name) + '"><i class="pd-tag-dot" style="background:' + pdEsc(tg.color || '#8AB8F0') + '"></i>' + pdEsc(tg.name) + '</span>'
+          ).join('') + '</span>'
+        }
+        // Comma-separated labels input → names (Latin, Persian and Arabic separators).
+        const pdParseTags = (raw) => (raw || '').split(/[,،؛]/).map((s) => s.trim()).filter(Boolean)
+        // Live color preview chip next to a priority <select> (options styling varies
+        // by browser; the chip is the guaranteed color signal).
+        const pdSyncPrioChip = (chipId, prio) => {
+          const chip = document.getElementById(chipId)
+          if (!chip) return
+          chip.className = 'pd-prio-chip prio-' + (prio || 'medium')
+          const dot = chip.querySelector('.prio-dot')
+          if (dot) dot.className = 'prio-dot prio-' + (prio || 'medium')
+          const label = chip.querySelector('.pd-prio-chip-label')
+          if (label) label.textContent = pdPrioLabel(prio)
+        }
+        // AUTO-SORT placement (user request): a wrap sits BEFORE the first card whose
+        // priority ranks below it (equal ranks keep arrival/drag order).
+        const pdSortWrap = (colTasks, wrap) => {
+          const prio = wrap.dataset.pdPriority || 'medium'
+          for (const w of colTasks.querySelectorAll('.pd-task-wrap')) {
+            if (w === wrap) continue
+            if (pdPrioRank(w.dataset.pdPriority || 'medium') > pdPrioRank(prio)) {
+              colTasks.insertBefore(wrap, w)
+              return
+            }
+          }
+          colTasks.insertBefore(wrap, colTasks.querySelector('[data-pd-more]') || null)
+        }
+
         // --- Session 22 (user request): unlimited task titles, clamped at 150 CHARS in
         // the progress boxes. The rest of the title lives in a hidden .pd-title-rest
         // span INSIDE the title element — textContent still reads the FULL title (the
@@ -792,26 +846,51 @@
           wrap.dataset.pdTask = String(task.id)
           wrap.dataset.pdStatus = status
           wrap.dataset.pdCreated = task.created_at || new Date().toISOString()
+          // S29 follow-up: the card CARRIES its priority + labels (data-pd-tags) — the
+          // inline editor pre-fills from these (the old editor always defaulted to
+          // medium and silently reset an urgent task's priority on save).
+          const prio = task.priority || 'medium'
+          const tags = Array.isArray(task.tags) ? task.tags : []
+          wrap.dataset.pdPriority = prio
+          wrap.dataset.pdTags = JSON.stringify(tags)
           // Session 22: div + role=button (matches the server-rendered cards) — click
           // opens the inline editor everywhere; the old <a href="/board.html"> made
           // freshly-added tasks navigate instead. Title clamped at 150 chars with the
           // hidden rest + read-more button.
-          wrap.innerHTML = `<div class="pd-task st-${status}" draggable="true" role="button" tabindex="0" aria-label="${pdEsc(task.title)}"><span class="prio-dot prio-${pdEsc(task.priority || 'medium')}"></span><span class="pd-task-body"><span class="pd-task-title"${pdTitleAttrs(task.title)}>${pdTitleHtml(task.title)}</span>${pdReadMoreBtn(task.title)}<span class="pd-task-meta">${pdEsc(pdMetaLine(wrap.dataset.pdCreated, false))}</span></span></div>`
+          wrap.innerHTML = `<div class="pd-task st-${status}" draggable="true" role="button" tabindex="0" aria-label="${pdEsc(task.title)}"><span class="prio-dot prio-${pdEsc(prio)}" title="${pdEsc(pdPrioLabel(prio))}"></span><span class="pd-task-body"><span class="pd-task-title"${pdTitleAttrs(task.title)}>${pdTitleHtml(task.title)}</span>${pdReadMoreBtn(task.title)}${pdTagChipsHtml(tags)}<span class="pd-task-meta">${pdMetaHtml(prio, wrap.dataset.pdCreated, false)}</span></span></div>`
 
-          const shown = colTasks.querySelectorAll('.pd-task').length
+          // AUTO-SORT (user request 2026-09-12): the card lands BEFORE the first card
+          // whose priority ranks below it — urgent tasks jump to the top of their box.
+          // A full column only shows the newcomer when it OUTRANKS the last visible
+          // card (exactly what a reload renders); otherwise it grows the more-count.
+          const wraps = [...colTasks.querySelectorAll('.pd-task-wrap')]
+          const shown = wraps.length
           const MAX_VISIBLE = 5 // Session 19 (user request): was 3
-          const more = colTasks.querySelector('[data-pd-more]')
           if (shown < MAX_VISIBLE) {
-            colTasks.insertBefore(wrap, more || null)
-          } else if (more) {
-            more.textContent = '+' + pdDig(n - MAX_VISIBLE) + ' ' + _t('pd.more', 'more')
+            pdSortWrap(colTasks, wrap)
           } else {
-            const el = document.createElement('button')
-            el.type = 'button'
-            el.className = 'pd-more-link'
-            el.dataset.pdMore = status
-            el.textContent = '+1 ' + _t('pd.more', 'more')
-            colTasks.appendChild(el)
+            const last = wraps[wraps.length - 1]
+            if (last && pdPrioRank(prio) < pdPrioRank(last.dataset.pdPriority || 'medium')) {
+              pdSortWrap(colTasks, wrap)
+              last.remove() // displaced below the visible five
+            }
+          }
+          // The +N more link always reflects n − visible (stays correct through
+          // displacements — the old text was only patched on the plain-append path).
+          const visibleNow = colTasks.querySelectorAll('.pd-task-wrap').length
+          const hidden = n - visibleNow
+          if (hidden > 0) {
+            const moreEl = colTasks.querySelector('[data-pd-more]')
+            if (moreEl) {
+              moreEl.textContent = '+' + pdDig(hidden) + ' ' + _t('pd.more', 'more')
+            } else {
+              const el = document.createElement('button')
+              el.type = 'button'
+              el.className = 'pd-more-link'
+              el.dataset.pdMore = status
+              el.textContent = '+' + pdDig(hidden) + ' ' + _t('pd.more', 'more')
+              colTasks.appendChild(el)
+            }
           }
 
           // Header meta + progress bar (data hooks come from detailHtml).
@@ -855,6 +934,12 @@
           if (!m || !ta) return
           taskAddStatus = btn.dataset.pdAdd || null
           ta.value = ''
+          // S29 follow-up: reset the priority dropdown (+ its preview chip) and the
+          // labels input — every open starts clean at Medium.
+          const prioSel = document.getElementById('pd-taskadd-priority')
+          if (prioSel) { prioSel.value = 'medium'; pdSyncPrioChip('pd-taskadd-prio-chip', 'medium') }
+          const tagsIn = document.getElementById('pd-taskadd-tags')
+          if (tagsIn) tagsIn.value = ''
           const err = document.getElementById('pd-taskadd-error')
           if (err) { err.hidden = true; err.textContent = '' }
           const chip = document.getElementById('pd-taskadd-col-chip')
@@ -871,6 +956,12 @@
             const m = taskAddEl()
             if (m && m.open) m.close()
           }
+        })
+        // S29 follow-up: the priority selects' live color chips (add composer + inline
+        // editor) — delegated because both dialogs re-render with every htmx swap.
+        ctx.on('change', (e) => {
+          if (e.target?.id === 'pd-taskadd-priority') pdSyncPrioChip('pd-taskadd-prio-chip', e.target.value)
+          else if (e.target?.id === 'pde-priority') pdSyncPrioChip('pde-prio-chip', e.target.value)
         })
         // Session 19 (user request): clicking a task card opens the inline edit modal
         // (no more redirect to board.html). The ⋯ menu's Edit button already does this;
@@ -923,6 +1014,10 @@
               const data = await res.json()
               // The JSON endpoint returns { project: { ...p, ...d } } — devTasks is nested
               const allTasks = ((data.project ? data.project.devTasks : data.devTasks) || []).filter((t) => t.status === status)
+              // S29 follow-up: labels come down as a flat devTaskTags join — group once.
+              const tagRows = (data.project ? data.project.devTaskTags : data.devTaskTags) || []
+              const tagsBy = {}
+              for (const r of tagRows) (tagsBy[r.task_id] = tagsBy[r.task_id] || []).push({ name: r.name, color: r.color })
               const shownIds = new Set([...tasksEl.querySelectorAll('.pd-task-wrap')].map((w) => w.dataset.pdTask))
               const hiddenTasks = allTasks.filter((t) => !shownIds.has(t.id))
               for (const t of hiddenTasks) {
@@ -932,8 +1027,12 @@
                 wrap.dataset.pdStatus = status
                 wrap.dataset.pdCreated = t.created_at
                 if (t.done_at) wrap.dataset.pdDone = t.done_at
+                const tp = t.priority || 'medium'
+                const tt = tagsBy[t.id] || []
+                wrap.dataset.pdPriority = tp
+                wrap.dataset.pdTags = JSON.stringify(tt)
                 // Session 22: div + role=button + 150-char clamp — same as insertTaskChip.
-                wrap.innerHTML = `<div class="pd-task st-${status}" draggable="true" role="button" tabindex="0" aria-label="${pdEsc(t.title)}"><span class="prio-dot prio-${pdEsc(t.priority || 'medium')}"></span><span class="pd-task-body"><span class="pd-task-title"${pdTitleAttrs(t.title)}>${pdTitleHtml(t.title)}</span>${pdReadMoreBtn(t.title)}<span class="pd-task-meta">${pdEsc(pdMetaLine(t.created_at, status === 'done'))}</span></span></div>`
+                wrap.innerHTML = `<div class="pd-task st-${status}" draggable="true" role="button" tabindex="0" aria-label="${pdEsc(t.title)}"><span class="prio-dot prio-${pdEsc(tp)}" title="${pdEsc(pdPrioLabel(tp))}"></span><span class="pd-task-body"><span class="pd-task-title"${pdTitleAttrs(t.title)}>${pdTitleHtml(t.title)}</span>${pdReadMoreBtn(t.title)}${pdTagChipsHtml(tt)}<span class="pd-task-meta">${pdMetaHtml(tp, t.created_at, status === 'done')}</span></span></div>`
                 tasksEl.insertBefore(wrap, moreBtn)
               }
               // Session 24 (root-cause fix): wire data-magic + ⋯ menu on the newly
@@ -965,15 +1064,23 @@
           if (save) save.disabled = true
           if (err) { err.hidden = true; err.textContent = '' }
           try {
+            // S29 follow-up: the composer's priority dropdown + labels ride the create
+            // POST (find-or-create + link server-side) — the task lands in its box
+            // already prioritized and labeled, then auto-sorts into place.
+            const prioSel = document.getElementById('pd-taskadd-priority')
+            const priority = prioSel ? prioSel.value : 'medium'
+            const tagNames = pdParseTags((document.getElementById('pd-taskadd-tags') || {}).value || '')
             const res = await fetch(`/api/projects/${id}/devtasks`, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ title, status: taskAddStatus }),
+              body: JSON.stringify({ title, status: taskAddStatus, priority, tags: tagNames }),
             })
             if (!res.ok) throw new Error('add failed')
             const data = await res.json()
-            insertTaskChip(taskAddStatus, { id: data.id, title, priority: 'medium' })
+            insertTaskChip(taskAddStatus, { id: data.id, title, priority, tags: (data.tags || []).map((tg) => ({ name: tg.name, color: tg.color })) })
             ta.value = ''
+            const tagsClear = document.getElementById('pd-taskadd-tags')
+            if (tagsClear) tagsClear.value = ''
             m.close()
             window.hibana?.toast(_t('db.taskAdded', 'Task added'))
           } catch {
@@ -1174,10 +1281,17 @@
                   '<label style="flex:1">' + _t('db.status', 'Status') + ' <select id="pde-status">' +
                     [['idea','db.st.idea'],['planned','db.st.planned'],['in_progress','db.st.inprog'],['done','db.st.done'],['bug','db.st.bug']].map(function(pair){return '<option value="'+pair[0]+'">'+_t(pair[1], pair[0])+'</option>'}).join('') +
                   '</select></label>' +
-                  '<label style="flex:1">' + _t('db.priority', 'Priority') + ' <select id="pde-priority">' +
-                    [['low','db.pr.low'],['medium','db.pr.medium'],['high','db.pr.high'],['urgent','db.pr.urgent']].map(function(pair){return '<option value="'+pair[0]+'">'+_t(pair[1], pair[0])+'</option>'}).join('') +
-                  '</select></label>' +
+                  // S29 follow-up (user request 2026-09-12): color-coded priority options
+                  // (urgent → low, the owner's wording) + the live preview chip + a
+                  // labels row — the editor now round-trips priority + tags faithfully.
+                  '<label style="flex:1">' + _t('db.priority', 'Priority') + ' <span class="pd-prio-row"><select id="pde-priority" class="pd-prio-select">' +
+                    [['urgent','pd.pr.urgent','Urgent'],['high','pd.pr.high','High Priority'],['medium','pd.pr.medium','Medium Priority'],['low','pd.pr.low','Low Priority']].map(function(trio){return '<option value="'+trio[0]+'" class="prio-'+trio[0]+'">'+_t(trio[1], trio[2])+'</option>'}).join('') +
+                  '</select><span class="pd-prio-chip" id="pde-prio-chip" aria-hidden="true"><span class="prio-dot prio-medium"></span><span class="pd-prio-chip-label"></span></span></span></label>' +
                 '</div>' +
+                '<label class="pd-opt" style="margin-top:.5rem">' + _t('pd.labels', 'Labels') +
+                  ' <input id="pde-tags" dir="auto" autocomplete="off" maxlength="480" placeholder="' + _t('pd.labelsPh', 'e.g. UI/UX, Security') + '" aria-label="' + _t('pd.labels', 'Labels') + '" />' +
+                  '<span class="muted small">' + _t('pd.labelsHint', 'Comma-separated — a chip per label') + '</span>' +
+                '</label>' +
                 '<p class="error" id="pde-error" role="alert"></p>' +
                 '<div class="row" style="justify-content:space-between;gap:.5rem;margin-top:1rem">' +
                   // Session 24 (user request): delete from inside the edit modal — no
@@ -1248,6 +1362,9 @@
               if (!title) { pdTaskEditDlg.querySelector('#pde-input').focus(); return }
               const status = pdTaskEditDlg.querySelector('#pde-status').value
               const priority = pdTaskEditDlg.querySelector('#pde-priority').value
+              // S29 follow-up: labels — replace-set semantics (the input was pre-filled
+              // with the task's labels; editing it re-sets them exactly).
+              const tagNames = pdParseTags((pdTaskEditDlg.querySelector('#pde-tags') || {}).value || '')
               const err = pdTaskEditDlg.querySelector('#pde-error')
               const save = pdTaskEditDlg.querySelector('#pde-save')
               err.textContent = ''
@@ -1257,9 +1374,10 @@
                 const res = await fetch('/api/devtasks/' + id, {
                   method: 'PATCH',
                   headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({ title, status, priority }),
+                  body: JSON.stringify({ title, status, priority, tags: tagNames }),
                 })
                 if (!res.ok) throw new Error('save failed')
+                const data = await res.json().catch(() => ({}))
                 window.hibana?.toast(_t('sparks.saved', 'Saved'), 'info')
                 pdTaskEditDlg.close()
                 // Update the card in-place (no page reload). Session 22: the OLD
@@ -1269,14 +1387,51 @@
                 // re-clamp the title (pdApplyTitle).
                 const wrap = document.querySelector('.pd-task-wrap[data-pd-task="' + id + '"]')
                 if (wrap) {
+                  const src = wrap.closest('.pd-tasks')
+                  const from = src ? src.dataset.pdTasks : status
                   wrap.dataset.pdStatus = status
+                  wrap.dataset.pdPriority = priority
+                  const serverTags = (data && Array.isArray(data.tags)) ? data.tags.map((tg) => ({ name: tg.name, color: tg.color })) : tagNames.map((name) => ({ name, color: null }))
+                  wrap.dataset.pdTags = JSON.stringify(serverTags)
                   const card = wrap.querySelector('.pd-task')
                   if (card) {
                     card.className = 'pd-task st-' + status
                     card.setAttribute('aria-label', title)
                   }
+                  const dot = wrap.querySelector('.prio-dot')
+                  if (dot) { dot.className = 'prio-dot prio-' + priority; dot.title = pdPrioLabel(priority) }
                   const titleSpan = wrap.querySelector('.pd-task-title')
                   if (titleSpan) pdApplyTitle(titleSpan, title)
+                  // Rebuild the label chips + the priority half of the meta line.
+                  const oldTags = wrap.querySelector('.pd-task-tags')
+                  if (oldTags) oldTags.remove()
+                  const chips = pdTagChipsHtml(serverTags)
+                  const metaEl = wrap.querySelector('.pd-task-meta')
+                  if (chips && metaEl) metaEl.insertAdjacentHTML('beforebegin', chips)
+                  if (metaEl) {
+                    const prioSpan = metaEl.querySelector('.pd-meta-prio')
+                    if (prioSpan) { prioSpan.className = 'pd-meta-prio prio-' + priority; prioSpan.textContent = pdPrioLabel(priority) }
+                  }
+                  // Status change = the card moves to the new box (counts + progress
+                  // repaint, same contract as the drop handler); then AUTO-SORT snaps
+                  // it into its priority slot.
+                  const dest = document.querySelector('[data-pd-tasks="' + status + '"]')
+                  if (dest && dest !== src) {
+                    pdSetCount(from, Number(pdCountEl(from)?.dataset.n || '0') - 1)
+                    pdSetCount(status, Number(pdCountEl(status)?.dataset.n || '0') + 1)
+                    const tasksSrc = src
+                    if (tasksSrc) tasksSrc.dataset.pdTotal = String(Math.max(0, Number(tasksSrc.dataset.pdTotal || '0') - 1))
+                    dest.dataset.pdTotal = String(Number(dest.dataset.pdTotal || '0') + 1)
+                    const board = document.getElementById('pd-board')
+                    if (board) {
+                      if (from === 'done') board.dataset.done = String(Math.max(0, Number(board.dataset.done || '0') - 1))
+                      if (status === 'done') board.dataset.done = String(Number(board.dataset.done || '0') + 1)
+                      pdRepaintProgress()
+                    }
+                    dest.appendChild(wrap)
+                  }
+                  const list = wrap.closest('.pd-tasks')
+                  if (list) pdSortWrap(list, wrap)
                 }
               } catch {
                 err.textContent = _t('sparks.saveFailed', "Couldn't save")
@@ -1291,7 +1446,19 @@
           pdTaskEditDlg.querySelector('#pde-input').value = titleEl ? titleEl.textContent : ''
           const status = cardEl.dataset.pdStatus || 'idea'
           pdTaskEditDlg.querySelector('#pde-status').value = status
-          pdTaskEditDlg.querySelector('#pde-priority').value = 'medium' // default; card doesn't show priority
+          // S29 follow-up: pre-fill the task's REAL priority + labels from the card's
+          // datasets — the old editor always defaulted to medium, so SAVING silently
+          // reset an urgent task's priority (and dropped nothing since tags had no UI;
+          // now they'd be reset too if not pre-filled).
+          const prio = cardEl.dataset.pdPriority || 'medium'
+          pdTaskEditDlg.querySelector('#pde-priority').value = prio
+          pdSyncPrioChip('pde-prio-chip', prio)
+          let tagsVal = ''
+          try {
+            tagsVal = (JSON.parse(cardEl.dataset.pdTags || '[]') || []).map((tg) => tg.name).join(', ')
+          } catch { /* corrupt dataset — fall back to empty */ }
+          const tagsInput = pdTaskEditDlg.querySelector('#pde-tags')
+          if (tagsInput) tagsInput.value = tagsVal
           pdTaskEditDlg.querySelector('#pde-save').disabled = false
           pdTaskEditDlg.querySelector('#pde-save').textContent = _t('common.save', 'Save')
           pdTaskEditDlg.querySelector('#pde-error').textContent = ''
@@ -1396,20 +1563,24 @@
         // Optimistic chip move between board columns (problem solve = bug → done), the
         // same repaint contract as the drop handler below.
         const pdMoveChip = (taskId, to) => {
-          const chip = document.querySelector('#pd-board .pd-task[data-pd-task="' + taskId + '"]')
+          // S29 fix: the selector matched NOTHING since Session 22 (data-pd-task lives on
+          // the .pd-task-wrap, not .pd-task — same stale-selector bug the edit dialog
+          // had) — the optimistic move never fired. Query the wrap; st-* is on the inner
+          // card. The move also AUTO-SORTS into the destination box.
+          const chip = document.querySelector('#pd-board .pd-task-wrap[data-pd-task="' + taskId + '"]')
           if (!chip) return
           const from = chip.dataset.pdStatus
           if (from === to) return
           const dest = document.querySelector('[data-pd-tasks="' + to + '"]')
           chip.dataset.pdStatus = to
-          chip.classList.remove('st-' + from)
-          chip.classList.add('st-' + to)
-          const meta = chip.querySelector('.pd-task-meta')
-          if (meta) meta.textContent = pdMetaLine(to === 'done' ? new Date().toISOString() : (chip.dataset.pdCreated || new Date().toISOString()), to === 'done')
-          if (dest) {
-            const more = dest.querySelector('[data-pd-more]')
-            dest.insertBefore(chip, more || null)
+          const cardEl = chip.querySelector('.pd-task')
+          if (cardEl) {
+            cardEl.classList.remove('st-' + from)
+            cardEl.classList.add('st-' + to)
           }
+          const meta = chip.querySelector('.pd-task-meta')
+          if (meta) meta.innerHTML = pdMetaHtml(chip.dataset.pdPriority || 'medium', to === 'done' ? new Date().toISOString() : (chip.dataset.pdCreated || new Date().toISOString()), to === 'done')
+          if (dest) pdSortWrap(dest, chip)
           pdSetCount(from, Number(pdCountEl(from)?.dataset.n || '0') - 1)
           pdSetCount(to, Number(pdCountEl(to)?.dataset.n || '0') + 1)
           const board = document.getElementById('pd-board')
@@ -1432,7 +1603,7 @@
           }
         }
         const pdRemoveChip = (taskId) => {
-          const chip = document.querySelector('#pd-board .pd-task[data-pd-task="' + taskId + '"]')
+          const chip = document.querySelector('#pd-board .pd-task-wrap[data-pd-task="' + taskId + '"]')
           if (!chip) return
           const from = chip.dataset.pdStatus
           chip.remove()
@@ -1809,8 +1980,11 @@
           pdDrag = null
           if (!col || !el.dataset.pdTask) return
           if (from === to) {
-            // same box — only the order changed (board.html contract)
+            // same box — only the order changed (board.html contract). S29 follow-up:
+            // AUTO-SORT then snaps the card back to its PRIORITY slot — manual drag
+            // re-orders within a tier (what the server renders on reload), never across.
             const ids = [...col.querySelectorAll('.pd-task-wrap')].map((x) => x.dataset.pdTask)
+            pdSortWrap(el.closest('.pd-tasks') || col, el)
             if (ids.length > 1) {
               try {
                 const res = await fetch(`/api/projects/${id}/devtasks/reorder`, {
@@ -1835,9 +2009,12 @@
           }
           const meta = el.querySelector('.pd-task-meta')
           if (meta) {
-            if (to === 'done') meta.textContent = pdMetaLine(new Date().toISOString(), true) // server stamps done_at = now
-            else meta.textContent = pdMetaLine(el.dataset.pdCreated || new Date().toISOString(), false)
+            // S29 follow-up: rebuild with the priority label (textContent would wipe it)
+            meta.innerHTML = pdMetaHtml(el.dataset.pdPriority || 'medium', to === 'done' ? new Date().toISOString() : (el.dataset.pdCreated || new Date().toISOString()), to === 'done')
           }
+          // S29 follow-up: cross-box drop lands in its priority slot, not the pointer's.
+          const destList = document.querySelector('[data-pd-tasks="' + to + '"]')
+          if (destList && destList.contains(el)) pdSortWrap(destList, el)
           pdSetCount(from, Number(pdCountEl(from)?.dataset.n || '0') - 1)
           pdSetCount(to, Number(pdCountEl(to)?.dataset.n || '0') + 1)
           const board = document.getElementById('pd-board')

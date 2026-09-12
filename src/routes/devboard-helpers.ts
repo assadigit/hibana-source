@@ -134,6 +134,93 @@ export async function ownedBacklogDoc(cfg: Config, userId: string, id: string): 
   return rows[0] ?? null
 }
 
+// ---- task labels (S29 agenda 5 follow-up — user request 2026-09-12) -----------------------
+// "each task can have label or meta tag, for example UI/UX, Security". dev_task_tags (0029)
+// links tasks to the user-scoped tags table; these helpers normalize + find-or-create +
+// sync the link set. New tags get a deterministic palette color (hash of the name) so
+// "UI/UX" and "Security" read as distinct chips without a color picker.
+export const TAG_PALETTE = ['#8AB8F0', '#E8B27D', '#E59AA5', '#8FD3A9', '#B3A5D6', '#7CC7C1', '#F2D58A', '#C9CDD2']
+export function tagPaletteColor(name: string): string {
+  let h = 0
+  for (let i = 0; i < name.length; i++) h = (h * 31 + name.charCodeAt(i)) >>> 0
+  return TAG_PALETTE[h % TAG_PALETTE.length]
+}
+
+// One flat row shape for every task-tag join (detail page render + devboard GET).
+export interface TaskTagJoin {
+  task_id: string
+  id: string
+  name: string
+  color: string
+}
+export async function taskTagsForProject(cfg: Config, projectId: string): Promise<TaskTagJoin[]> {
+  return cfg.db.query<TaskTagJoin>(
+    `SELECT tt.task_id, tg.id, tg.name, tg.color FROM dev_task_tags tt
+     JOIN dev_tasks t ON t.id = tt.task_id JOIN tags tg ON tg.id = tt.tag_id
+     WHERE t.project_id = ? ORDER BY tg.name`,
+    [projectId],
+  )
+}
+
+// Normalize a raw names list (trim, clamp, case-insensitive dedupe — "UI/UX" and
+// "ui/ux" are the SAME label; the find-or-create lookup below is exact-match, so
+// dedupe keeps the link set from drifting into case twins).
+export function normalizeTagNames(names: string[]): string[] {
+  const out: string[] = []
+  const seen = new Set<string>()
+  for (const raw of names) {
+    const n = raw.trim().slice(0, 48)
+    if (!n) continue
+    const k = n.toLowerCase()
+    if (seen.has(k)) continue
+    seen.add(k)
+    out.push(n)
+  }
+  return out
+}
+
+// Find-or-create each tag by name (user-scoped), then make the task's link set EXACTLY
+// these names: add missing links, drop links not in the set. [] clears all tags;
+// the caller only invokes this when the body carried a tags array.
+export async function setTaskTags(cfg: Config, userId: string, taskId: string, names: string[]): Promise<TaskTagJoin[]> {
+  const wanted = normalizeTagNames(names)
+  const keepIds: string[] = []
+  for (const name of wanted) {
+    // COLLATE NOCASE: "UI/UX" and "ui/ux" are the SAME label — the lookup reuses the
+    // row the first spelling created instead of forking a case twin.
+    const found = await cfg.db.query<{ id: string }>('SELECT id FROM tags WHERE user_id = ? AND name = ? COLLATE NOCASE', [userId, name])
+    if (found[0]) {
+      keepIds.push(found[0].id)
+      continue
+    }
+    const id = uuid()
+    await cfg.db.execute('INSERT INTO tags (id, user_id, name, color, usage_count, created_at) VALUES (?, ?, ?, ?, 0, ?)', [
+      id, userId, name, tagPaletteColor(name), new Date().toISOString(),
+    ])
+    keepIds.push(id)
+  }
+  const existing = await cfg.db.query<{ tag_id: string }>('SELECT tag_id FROM dev_task_tags WHERE task_id = ?', [taskId])
+  const keep = new Set(keepIds)
+  for (const row of existing) {
+    if (!keep.has(row.tag_id)) await cfg.db.execute('DELETE FROM dev_task_tags WHERE task_id = ? AND tag_id = ?', [taskId, row.tag_id])
+  }
+  for (const id of keepIds) {
+    await cfg.db.execute('INSERT OR IGNORE INTO dev_task_tags (task_id, tag_id) VALUES (?, ?)', [taskId, id])
+  }
+  if (!keepIds.length) return [] // cleared — an empty IN () is not valid SQL
+  return cfg.db.query<TaskTagJoin>(
+    'SELECT ? AS task_id, id, name, color FROM tags WHERE id IN (' + keepIds.map(() => '?').join(',') + ') ORDER BY name',
+    [taskId, ...keepIds],
+  )
+}
+
+// Priority-first column ordering (user request 2026-09-12: "they must be auto-sorted in
+// their boxes based on their priority") — urgent → high → medium → low, then the manual
+// drag order (sort_order) and age. Every task listing shares this ORDER BY so the
+// project page, board.html and the sprint page agree.
+export const PRIO_ORDER_SQL =
+  "CASE t.priority WHEN 'urgent' THEN 0 WHEN 'high' THEN 1 WHEN 'medium' THEN 2 WHEN 'low' THEN 3 ELSE 4 END"
+
 export type BacklogEvent = { at: string; kind: 'doc_created' | 'doc_updated' | 'item_added'; label: string }
 
 /** The whole backlog payload (0033): docs + the merged change history (revisions and

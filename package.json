@@ -31,7 +31,8 @@
     "smoke": "node --import tsx scripts/smoke.mjs",
     "typecheck": "tsc --noEmit",
     "check-cache-bust": "node scripts/check-cache-bust.mjs",
-    "check-i18n-parity": "node scripts/check-i18n-parity.mjs"
+    "check-i18n-parity": "node scripts/check-i18n-parity.mjs",
+    "check:prod-errors": "node scripts/check-prod-errors.mjs"
   },
   "dependencies": {
     "@hono/node-server": "^1.13.7",

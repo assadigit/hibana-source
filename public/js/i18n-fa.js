@@ -21,7 +21,7 @@ window.__hibanaDictFA = {
       'tour.themeBody': 'پوسته را اینجا تغییر بده — در موبایل داخل منوی بیشتر (⋯) است. کاربران فارسی همچنین تقویم جلالی می‌گیرند.',
       'tour.done': 'همه چیز آماده است',
       'tour.doneBody': 'هر وقت خواستی ? را بزن تا همهٔ میان‌برها را ببینی. ساختنِ خوبی!',
-      'tour.next': 'بعدی', 'tour.skip': 'رد کردن', 'tour.prev': 'قبلی',
+      'tour.next': 'بعدی', 'tour.skip': 'رد کردن', 'tour.prev': 'قبلی', 'tour.step': 'گام',
       // R5.2: dashboard counter animation
       // common
       'common.save': 'ذخیره', 'common.cancel': 'انصراف', 'common.delete': 'حذف',

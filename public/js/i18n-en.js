@@ -21,7 +21,7 @@ window.__hibanaDictEN = {
       'tour.themeBody': 'Toggle the theme here — on mobile it lives in the More (⋯) menu. Farsi users also get the Jalali calendar.',
       'tour.done': 'You’re all set',
       'tour.doneBody': 'Press ? anytime to see all keyboard shortcuts. Happy building!',
-      'tour.next': 'Next', 'tour.skip': 'Skip', 'tour.prev': 'Back',
+      'tour.next': 'Next', 'tour.skip': 'Skip', 'tour.prev': 'Back', 'tour.step': 'Step',
       // R5.2: dashboard counter animation
       // common
       'common.save': 'Save', 'common.cancel': 'Cancel', 'common.delete': 'Delete',

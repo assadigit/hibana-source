@@ -93,14 +93,28 @@
 .tour-title { margin: 0 0 0.5rem; font-size: var(--fs-xl); font-weight: 700; }
 .tour-body { margin: 0 0 0.85rem; color: var(--text); line-height: 1.55; font-size: var(--fs-md); opacity: 0.92; }
 .tour-progress { display: flex; gap: 0.3rem; margin-block-end: 0.85rem; }
+/* 2026-09-12: dots are real buttons now — 8px visual, 24px hit area via padding +
+   background-clip (border-box would swallow the padding into the size). Inactive
+   dots brighten on hover; focus-visible gets the app-standard accent ring. */
 .tour-dot {
-  inline-size: 7px;
-  block-size: 7px;
+  box-sizing: content-box;
+  inline-size: 8px;
+  block-size: 8px;
+  padding: 8px; /* 8 visual + 2×8 hit padding = 24px target */
+  border: 0;
   border-radius: 50%;
   background: rgb(0 0 0 / 0.25); /* Session 19: was --line-strong which was near-invisible on the card surface */
-  transition: background 0.15s ease, inline-size 0.15s ease;
+  background-clip: content-box;
+  cursor: pointer;
+  transition: background-color 0.15s ease, inline-size 0.15s ease;
 }
-.tour-dot.active { background: var(--brand); inline-size: 20px; border-radius: 999px; }
+.tour-dot:hover { background-color: rgb(0 0 0 / 0.45); }
+.tour-dot:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 50%;
+}
+.tour-dot.active { background-color: var(--brand); inline-size: 20px; border-radius: 99px; cursor: default; }
 .tour-actions { display: flex; align-items: center; gap: 0.4rem; }
 .tour-spacer { flex: 1; }
 .tour-next {

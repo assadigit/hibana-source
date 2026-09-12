@@ -1,11 +1,11 @@
-    // Item 6 fix (2026-09-09): register the invites Alpine component on alpine:init as a
-    // bulletproof backup. The __hibanaPage mount callback below also registers it, but if
-    // that runs after Alpine has already walked the DOM (timing race on slow loads / SW-
-    // cached pages), the x-data="invites" element would get no methods. alpine:init fires
-    // BEFORE the DOM walk, so registering here guarantees the component is available.
-    // Re-registering is safe (Alpine.data last-wins).
-    document.addEventListener('alpine:init', () => {
-      window.Alpine?.data('invites', () => ({
+    // Item 6 fix (2026-09-09), re-deduped 2026-09-12: ONE factory, registered on BOTH
+    // paths - alpine:init covers the hard load (settings-page.js loads before
+    // alpine.min.js since the 5550991 script-order fix, so the listener fires before
+    // the DOM walk), and the mount callback covers the soft nav (alpine:init already
+    // fired long ago on the dashboard - removing the mount registration broke
+    // invites on soft-nav, caught by e2e/alpine-hard-load.spec.ts #6). Alpine.data
+    // last-wins makes the double call safe; the DEFINITION exists exactly once.
+    const invitesComponent = () => ({
         inviteEmail: '', sending: false, invites: [], loaded: false,
         async init() { await this.loadInvites() },
         async loadInvites() {
@@ -44,8 +44,9 @@
           window.hibana?.toast(`${window.hibanaI18n?.t('settings.inviteCopied') || 'Copied invite code'}: ${code}`)
           await this.loadInvites()
         },
-      }))
     })
+    document.addEventListener('alpine:init', () => { window.Alpine?.data('invites', invitesComponent) })
+
 
     window.__hibanaPage = window.__hibanaPage || ((d) => (window.__hibanaPageQueue = window.__hibanaPageQueue || []).push(d))
     window.__hibanaPage({
@@ -184,6 +185,8 @@
 
         // Alpine.data() registers globally; re-registering on each visit is safe (last wins) and
         // required on soft navigation — nav.js calls these before Alpine.initTree().
+        // invites: same factory as the alpine:init registration above (soft-nav path).
+        window.Alpine?.data('invites', invitesComponent)
         window.Alpine?.data('prefs', () => ({
           language_pref: 'en', timezone: 'UTC', calendar_pref: 'gregorian',
           async load() {
@@ -361,53 +364,6 @@
             window.hibana?.toast(this.t('settings.unlinked', 'Telegram unlinked'))
           },
           init() { this.load() },
-        }))
-        window.Alpine?.data('invites', () => ({
-          inviteEmail: '',
-          sending: false,
-          invites: [],
-          loaded: false,
-          async init() {
-            await this.loadInvites()
-          },
-          async loadInvites() {
-            try {
-              const r = await fetch('/api/auth/invites')
-              if (!r.ok) { this.loaded = true; return }
-              const data = await r.json()
-              this.invites = data.invites || []
-              this.loaded = true
-            } catch { this.loaded = true }
-          },
-          async sendInvite() {
-            const email = (this.inviteEmail || '').trim()
-            if (!email) return window.hibana?.toast(window.hibanaI18n?.t('settings.inviteEmailRequired') || 'Enter an email first', 'err')
-            this.sending = true
-            try {
-              const r = await fetch('/api/auth/invites/email', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ email }),
-              })
-              if (!r.ok) {
-                const body = await r.json().catch(() => ({}))
-                return window.hibana?.toast(body.detail || body.error || (window.hibanaI18n?.t('settings.inviteFailed') || 'Invite failed'), 'err')
-              }
-              const data = await r.json()
-              window.hibana?.toast(`${window.hibanaI18n?.t('settings.inviteSent') || 'Invitation sent to'} ${email}`)
-              this.inviteEmail = ''
-              await this.loadInvites()
-            } catch { window.hibana?.toast(window.hibanaI18n?.t('settings.inviteFailed') || 'Invite failed', 'err') }
-            finally { this.sending = false }
-          },
-          async generate() {
-            const r = await fetch('/api/auth/invites', { method: 'POST' })
-            if (!r.ok) return window.hibana?.toast(window.hibanaI18n?.t('settings.inviteFailed') || 'Invite creation failed', 'err')
-            const { code } = await r.json()
-            await navigator.clipboard?.writeText(code)
-            window.hibana?.toast(`${window.hibanaI18n?.t('settings.inviteCopied') || 'Copied invite code'}: ${code}`)
-            await this.loadInvites()
-          },
         }))
         window.Alpine?.data('account', () => ({
           email: '',

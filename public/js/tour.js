@@ -95,6 +95,16 @@
     tourEl.querySelector('.tour-prev').addEventListener('click', () => { if (stepIdx > 0) { stepIdx--; renderStep() } })
     tourEl.querySelector('.tour-next').addEventListener('click', nextStep)
     tourEl.addEventListener('click', (e) => { if (e.target === tourEl) endTour() })
+    // 2026-09-12 polish: the progress dots are real step-jump buttons (delegated —
+    // renderStep() re-creates them on every step change). 24px hit area via CSS
+    // padding + background-clip; keyboard users get the same jump via Tab + Enter
+    // (and the arrow keys keep working alongside).
+    tourEl.querySelector('.tour-card').addEventListener('click', (e) => {
+      const dot = e.target.closest('.tour-dot')
+      if (!dot || !tourEl) return
+      const i = Number(dot.dataset.step)
+      if (Number.isInteger(i) && i >= 0 && i < STEPS.length && i !== stepIdx) { stepIdx = i; renderStep() }
+    })
     document.addEventListener('keydown', tourKeyHandler)
     renderStep()
   }
@@ -119,8 +129,9 @@
     const next = card.querySelector('.tour-next')
     next.textContent = stepIdx < STEPS.length - 1 ? _t('tour.next', 'Next') : _t('tour.done', 'Done')
     card.querySelector('.tour-prev').hidden = stepIdx === 0
-    // Progress dots
-    card.querySelector('.tour-progress').innerHTML = STEPS.map((_, i) => `<span class="tour-dot ${i === stepIdx ? 'active' : ''}"></span>`).join('')
+    // Progress dots — buttons (jump to step). aria-current marks the live step;
+    // the visible label stays dots-only (the count is implicit in the row length).
+    card.querySelector('.tour-progress').innerHTML = STEPS.map((_, i) => `<button type="button" class="tour-dot ${i === stepIdx ? 'active' : ''}" data-step="${i}" ${i === stepIdx ? 'aria-current="step"' : ''} aria-label="${_t('tour.step', 'Step')} ${i + 1}"></button>`).join('')
     // Position: try to anchor to the target element; fall back to center.
     const target = step.target()
     if (target && target.getBoundingClientRect) {

@@ -70,6 +70,13 @@ html[data-theme='dark'] .bug-bubble { background: rgb(248 113 113 / 0.16); color
 
   :root:not([data-theme='light']) .bug-bubble { background: rgb(248 113 113 / 0.16); color: #f2a3a3; }
 
+/* UI/UX R1 (2026-09-12): dark-mode sibling for the quick-note card's neutral border.
+   Light mode uses rgba(0,0,0,0.10) (quicknotes.css); dark mode flips to rgba(255,255,255,0.10).
+   The sticky/grid view overrides (the user-picked note color fills) still win — the rule
+   below only affects the list-view note card on transparent ground. */
+html[data-theme='dark'] .note-card,
+:root:not([data-theme='light']) .note-card { border-color: rgba(255, 255, 255, 0.10); }
+
 /* Phase 7 item 1: the pop keeps its dark-mode legibility with a SOFTER shadow too. */
 html[data-theme="dark"] .dash-todo-style-pop,
 :root:not([data-theme="light"]) .dash-todo-style-pop { box-shadow: 0 6px 22px rgb(0 0 0 / 0.35); }

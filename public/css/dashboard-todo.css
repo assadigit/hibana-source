@@ -181,9 +181,23 @@ section[id^="dashboard-"].is-collapsed > *:not(header) { display: none; }
    Phase 7 item 4: COMPACT rows (user: "make the content and font-size smaller so they
    take less space — less space = more tasks visible") — smaller title type, a slimmer
    row, a smaller checkbox, and a reserved end-corner gutter so long titles never run
-   under the absolutely-positioned ⋯ button (item 3). */
-.dash-todo-check { grid-column: 1; display: flex; align-items: flex-start; gap: var(--task-row-gap); min-inline-size: 0; min-block-size: 2.3rem; padding-block: 0.22rem; padding-inline-end: 2.5rem; cursor: pointer; }
-.dash-todo-check input { flex: none; inline-size: 1.05rem; block-size: 1.05rem; margin-block-start: 0.12rem; margin-inline: 0; accent-color: var(--accent); }
+   under the absolutely-positioned ⋯ button (item 3).
+   UI/UX R6 (2026-09-12): the wrapper's min-block-size is lifted 2.3rem → 2.75rem (~44px)
+   per WCAG 2.5.5 (Target Size — minimum 24×24, recommended 44×44). The visible checkbox
+   stays at 1.05rem; the wrapper's padding grows the hit zone around the visual so the
+   tap target clears the floor without the icon visibly changing size. The whole row is
+   clickable (cursor: pointer + the label wraps the checkbox), so the 44px target is
+   the row itself, not just the 17px square. */
+.dash-todo-check { grid-column: 1; display: flex; align-items: flex-start; gap: var(--task-row-gap); min-inline-size: 0; min-block-size: 2.75rem; padding-block: 0.45rem; padding-inline-end: 2.5rem; cursor: pointer; }
+.dash-todo-check input {
+  flex: none;
+  inline-size: 1.05rem; block-size: 1.05rem;
+  margin-block-start: 0.12rem; margin-inline: 0;
+  accent-color: var(--accent);
+}
+/* UI/UX R6 (2026-09-12): 44px tap target wrapper for the checkbox (WCAG 2.5.5).
+   The checkbox stays 1.05rem visually, but the clickable wrapper grows. */
+.dash-todo-check input::before { content: ''; position: absolute; inset: -0.85rem; }
 .dash-todo-check span { padding-block: 0.1rem; overflow-wrap: anywhere; line-height: 1.3; color: var(--text); font-size: var(--fs-sm); }
 /* (v) 2026-09-09: the old .dash-todo-progress-dot hover control (the single status
    dot from the pre-Phase-5 dashboard) is REMOVED — dead CSS since item 15 replaced

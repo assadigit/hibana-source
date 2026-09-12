@@ -3,7 +3,32 @@
    quadrant palette (teal · amber · rose · lavender), 16px radii and soft warm
    shadows. CSS logical properties (Farsi/RTL ready). The board page (/to-do-list)
    is the reference implementation — these tokens are its palette, extracted so
-   every page re-skins together. */
+   every page re-skins together.
+
+   UI/UX R5 — Semantic color system (2026-09-12):
+   ──────────────────────────────────────────────────────────────────────────────
+   Every accent color in the app maps to EXACTLY ONE semantic role. Multiple states
+   may share a color when they share the role, but no color encodes two different
+   meanings.
+
+     RED (urgent / overdue)        → prio-urgent, bug-bubble (overdue/urgent bugs),
+                                     halted status (project stopped, needs attention)
+     ORANGE (warning)              → prio-medium, awaiting status (waiting on input)
+     TEAL (brand / primary)        → sig-backlog chip, brand elements, accent fills,
+                                     doing status (the active primary stage)
+     GRAY (plain count / neutral)   → prio-low, sig-ideas count chip, sig-hurdles count
+                                     chip, plain count pills anywhere in the UI
+     STATUS HUES (info per stage)   → spark amber, unreviewed slate, investigating violet,
+                                     operational green (each is a unique hue, never reused)
+
+   The pink #E59AA5 that previously encoded prio-high is GONE — high-priority items
+   now share RED with prio-urgent (both signal urgency at different intensities, and
+   prio-urgent gets the additional red-tinted background to distinguish it). The two
+   ORANGE sig-chips (.sig-ideas, .sig-hurdles) are GONE — both were plain sub-item
+   counts, now converted to neutral gray pills per WCAG 1.4.1 (color is never the
+   sole carrier of meaning for a count). See polish-batch.css + layout.css for the
+   per-class definitions.
+   ────────────────────────────────────────────────────────────────────────────── */
 
 /* Vazir available on EVERY page and in EVERY language (user checklist: "Vazir font
    displays for Farsi text even in English mode"). Previously the @font-face was
@@ -55,6 +80,23 @@
      (the old ~95%-lightness pastels read as grey). Each fg stays AA (≥4.5:1) on its bg:
        spark amber · unreviewed blue-slate · investigating violet · awaiting gold ·
        doing teal · halted brick · operational green. */
+/* ══ SEMANTIC COLOR SYSTEM (UI/UX R5, 2026-09-12) ═══════════════════════════════
+   Each accent color has exactly ONE meaning across the entire dashboard:
+
+   • RED (--err, --danger)    → urgent / overdue / error / delete
+   • ORANGE (--warn, --badge-awaiting-fg) → warning / waiting / attention-needed
+   • TEAL (--brand, --accent) → brand / primary action / active state / current page
+   • GREEN (--ok, --badge-operational-fg) → success / done / operational
+   • PURPLE (--badge-investigating-fg) → in-progress / investigating
+   • AMBER/YELLOW (--badge-spark-fg) → idea / spark / new
+   • GRAY (--muted, rgba(0,0,0,0.06)) → plain count / neutral pill / no special status
+
+   Rule: a badge that is just a plain sub-item count (not a status) MUST use the gray
+   neutral pill (background: rgba(0,0,0,0.06); color: var(--muted)). Only a genuinely
+   urgent/status signal gets a "loud" color. The --badge-*-bg/-fg pairs below are the
+   canonical status colors — each maps to exactly one 7-stage taxonomy state. ════ */
+
+  /* Status badge colors — one per 7-stage taxonomy state (do NOT reuse for other purposes) */
   --badge-spark-bg: #F9F1D7;         --badge-spark-fg: #8A6714;
   --badge-unreviewed-bg: #E8EEF6;    --badge-unreviewed-fg: #46618C;
   --badge-investigating-bg: #ECE9F9; --badge-investigating-fg: #5F51B5;
@@ -64,7 +106,18 @@
   --badge-operational-bg: #E0F0E5;  --badge-operational-fg: #277334;
   /* Status-coded kanban cards — session 12: the lane fills gain the same real chroma
      (~90% lightness, visible hue) + stronger matching borders so each phase reads at
-     a glance (user: "currently they all look greyish"). */
+     a glance (user: "currently they all look greyish").
+     UI/UX R4 (2026-09-12): audited for a "light-blue #E0E8F2 project-card background" —
+     the literal hex does NOT exist in the codebase (rg 'e0e8f2' = 0 matches across
+     src + public + migrations). The closest match is `--kanban-unreviewed-bg: #E4EBF4`
+     below, which is the per-status tint for the "unreviewed" lane on the devboard
+     (.kanban-col .kanban-card[data-status='unreviewed'] — see notifications.css +
+     themes.css). That tint IS a real info state (signals "not yet reviewed" at a
+     glance inside a status-labeled lane), so per the task instruction it is kept
+     as-is + documented here. Dashboard project cards (.stat-kanban-card) are already
+     transparent with only a border (Session 19 change, dashboard.css:92). The
+     projects-page cards inherit var(--card) white. No code change required — only
+     this clarification comment. */
   --kanban-unreviewed-bg: #E4EBF4;    --kanban-unreviewed-line: rgba(70, 97, 140, 0.45);
   --kanban-investigating-bg: #E9E5F8; --kanban-investigating-line: rgba(95, 81, 181, 0.45);
   --kanban-awaiting-bg: #F5EECB;      --kanban-awaiting-line: rgba(133, 98, 13, 0.50);
@@ -87,6 +140,16 @@
      --accent itself stays the brighter Sadhana teal for fills/borders/icons. */
   --link: #297073;
   --font-sans: 'Manrope', 'VazirFA', 'Vazir', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  /* UI/UX R7 (2026-09-12): VERIFIED — the Persian font stack is correct.
+     `--font-fa` lists 'Vazir' FIRST (the self-hosted Persian-shaped sans at
+     /vendor/vazir/*.woff2 — font-face.css declares every weight from 100 to 900).
+     'VazirFA' is the same glyphs under a separate family name with a unicode-range
+     restricted to Arabic/Persian blocks (0600-06FF, FB50-FDFF, FE70-FEFF) — added to
+     --font-sans so any FA text in an EN document auto-uses Vazir without EN-only
+     users downloading the woff2. The @import url('/vendor/vazir/font-face.css') at
+     the top of this file + i18n.js's ensureVazir() (re-injects the link when lang=fa
+     is toggled) are both in place. No changes needed — this comment documents the
+     audit confirmation. */
   --font-fa: 'Vazir', 'VazirFA', 'Manrope', Tahoma, system-ui, sans-serif;
   /* Brand accent = the Sadhana teal: active nav underline, link hovers, identity
      marks. CTA fills sit one shade deeper (--cta) for white-text contrast. */

@@ -466,10 +466,15 @@
 }
 /* Priority recolor (user request 2026-09-03): low/medium/high must differ at a glance —
    grey / amber / red-ish pastels (medium used to be the pastel BLUE, so the sea of
-   default-priority tasks read "all blue"). urgent stays the hottest of the family. */
+   default-priority tasks read "all blue"). urgent stays the hottest of the family.
+   UI/UX R5 (2026-09-12): prio-high was PINK #E59AA5 — pink has no semantic role in the
+   app's palette. Reassigned to RED #D96C63 (the prio-urgent hue) so both high + urgent
+   share the "urgent/overdue" semantic per the variables.css color-system comment. The
+   prio-urgent's red-tinted background (below) still distinguishes urgent from high —
+   the dot color alone no longer tries to encode two different urgencies. */
 .prio-low { background: #C9CDD2; }
 .prio-medium { background: #E8B27D; }
-.prio-high { background: #E59AA5; }
+.prio-high { background: #D96C63; }
 .prio-urgent { background: #D96C63; }
 
 /* Priority visual weight (user request 2026-09): the prio-dot on .pd-task + .db-card
@@ -484,7 +489,9 @@
    the .pd-task prefix on st-* — we match it with .pd-task prefix on prio-* too). */
 .pd-task .prio-low { background: #C9CDD2 !important; }
 .pd-task .prio-medium { background: #E8B27D !important; }
-.pd-task .prio-high { background: #E59AA5 !important; }
+/* UI/UX R5 (2026-09-12): prio-high was pink #E59AA5 — now RED #D96C63 (shares the
+   prio-urgent hue). See polish-batch.css top-of-file comment for the semantic rationale. */
+.pd-task .prio-high { background: #D96C63 !important; }
 .pd-task .prio-urgent { background: #D96C63 !important; }
 /* Priority left-border + tint on the wrapper */
 .pd-task-wrap { border-inline-start: 3px solid transparent; }
@@ -496,7 +503,9 @@
 .pd-col .pd-task-wrap { border-inline-start-color: rgb(var(--pd-c, 200 200 200) / 0.55); }
 .pd-task-wrap:has(.prio-low) { border-inline-start-color: #C9CDD2; }
 /* prio-medium: no override — keeps the column color (the default .pd-col .pd-task-wrap rule above). Was orange #E8B27D which made every column look orange. */
-.pd-task-wrap:has(.prio-high) { border-inline-start-color: #E59AA5; }
+/* UI/UX R5 (2026-09-12): prio-high border flipped pink→red so it matches the prio-high
+   dot. Was #E59AA5. */
+.pd-task-wrap:has(.prio-high) { border-inline-start-color: #D96C63; }
 .pd-task-wrap:has(.prio-urgent) { border-inline-start-color: #D96C63; background: rgb(217 108 99 / 0.06); }
 .pd-task-wrap:has(.prio-urgent) .pd-task-title { font-weight: 600; }
 /* Same for db-card (board.html) — Session 22 (user request): the board now uses the
@@ -512,12 +521,14 @@
 .db-card .prio-dot { margin-block-start: 0.24rem; }
 .db-card .prio-low { background: #C9CDD2 !important; }
 .db-card .prio-medium { background: #E8B27D !important; }
-.db-card .prio-high { background: #E59AA5 !important; }
+/* UI/UX R5 (2026-09-12): prio-high pink→red — same rationale as the .pd-task rule above. */
+.db-card .prio-high { background: #D96C63 !important; }
 .db-card .prio-urgent { background: #D96C63 !important; }
 .db-col .db-card { border-inline-start: 3px solid rgb(var(--db-c, 200 200 200) / 0.55); }
 .db-card:has(.prio-low) { border-inline-start-color: #C9CDD2; }
 /* prio-medium: no override — keeps the column color (was #E8B27D which made every board column read orange). */
-.db-card:has(.prio-high) { border-inline-start-color: #E59AA5; }
+/* UI/UX R5 (2026-09-12): prio-high border pink→red. Was #E59AA5. */
+.db-card:has(.prio-high) { border-inline-start-color: #D96C63; }
 .db-card:has(.prio-urgent) { border-inline-start-color: #D96C63; background: rgb(217 108 99 / 0.06); }
 .db-card:has(.prio-urgent) .db-card-title { font-weight: 600; }
 

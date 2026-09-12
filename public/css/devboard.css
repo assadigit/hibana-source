@@ -222,7 +222,10 @@
 .db-seg button.is-on { background: var(--bg-soft); color: var(--text); font-weight: 600; border-color: var(--brand); }
 .db-seg button.prio-low.is-on { background: #C9CDD22E; border-color: #9aa0a8; }
 .db-seg button.prio-medium.is-on { background: #E8B27D45; border-color: #d99a55; }
-.db-seg button.prio-high.is-on { background: #E59AA54D; border-color: #d97e8d; }
+/* UI/UX R5 (2026-09-12): prio-high button pink #E59AA54D → red #D96C6352 (matches prio-urgent
+   tint). The prio-urgent's stronger background (same hue, slightly different opacity) + the
+   prio-urgent's red-border on the card itself (polish-batch.css) still distinguish them. */
+.db-seg button.prio-high.is-on { background: #D96C6352; border-color: #bd544c; }
 .db-seg button.prio-urgent.is-on { background: #D96C6352; border-color: #bd544c; }
 .db-tags-row { display: flex; flex-wrap: wrap; gap: 0.4rem; align-items: center; }
 .db-tags-row input {
@@ -481,7 +484,8 @@
 }
 .sp-dot-prio.prio-low { background: #C9CDD2; }
 .sp-dot-prio.prio-medium { background: #E8B27D; }
-.sp-dot-prio.prio-high { background: #E59AA5; }
+/* UI/UX R5 (2026-09-12): prio-high pink #E59AA5 → red #D96C63 (shares the prio-urgent hue). */
+.sp-dot-prio.prio-high { background: #D96C63; }
 .sp-dot-prio.prio-urgent { background: #D96C63; }
 .sp-dot-check {
   font-size: 11px;

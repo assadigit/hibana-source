@@ -143,6 +143,50 @@
 .stat-kanban-card[data-status='halted']::before { background: var(--stage-bar-halted); }
 .stat-kanban-card[data-status='operational']::before { background: var(--stage-bar-operational); }
 
+/* UI/UX R8 (2026-09-12): the per-card colored bar (::before above) was the SOLE status
+   carrier on the dashboard's project cards — the parent stat-box header (icon + count +
+   label) carries the status at the LANE level, but a card scrolled out of its parent's
+   context (or read in isolation by a screen magnifier, or printed) had no visible text
+   fallback. The card already ships a `<span class="sr-only">${statusLabel}</span>`
+   (dashboard.ts) — this override makes that span VISIBLE as a tiny uppercase text chip
+   pinned to the inline-end corner of the card, so the status has a non-color carrier
+   per WCAG 1.4.1. The chip uses var(--muted) (theme-aware) so it doesn't compete with
+   the colored bar for attention; the bar remains the primary visual signal, the chip
+   is the redundant text fallback. Positioned at the bottom-end corner so it never
+   overlaps the title row (which carries the bug-bubble at the top-end) nor the
+   meta row (which is inline-start aligned). */
+.stat-kanban-card[data-status] > .sr-only {
+  position: absolute;
+  inset-block-end: 0.3rem;
+  inset-inline-end: 0.5rem;
+  inline-size: auto;
+  block-size: auto;
+  padding: 0;
+  margin: 0;
+  overflow: visible;
+  clip-path: none;
+  white-space: nowrap;
+  font-size: 0.6rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted);
+  pointer-events: none;
+  z-index: 1;
+}
+@media (max-width: 640px) {
+  /* On phones the carousel slide is narrower — the chip would crowd the meta row.
+     Hide the visible chip (the colored bar + the parent stat-box label still convey
+     the status) — the sr-only text is still in the DOM for AT users. */
+  .stat-kanban-card[data-status] > .sr-only {
+    clip-path: inset(50%);
+    inline-size: 1px;
+    block-size: 1px;
+    overflow: hidden;
+    margin: -1px;
+  }
+}
+
 /* Custom scrollbar styling — the existing ::-webkit-scrollbar rule is plain; this adds
    a thinner, rounder, theme-aware rail + thumb that matches the token system. Applies
    to scrollable regions (lists, the heatmap, the command palette, dialogs).

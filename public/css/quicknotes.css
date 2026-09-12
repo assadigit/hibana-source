@@ -149,8 +149,12 @@
   scroll-snap-align: start;
   position: relative; /* the hover palette overlays the paper */
   align-self: flex-start; /* a long sibling never stretches this card (2026-08-25) */
-  background: var(--note-color, #fff59d);
-  border: 0;
+  /* UI/UX R1 (2026-09-12): removed the colored fill — sticky notes now use a neutral
+     border so the task board reads as the primary zone. The fill is kept only if a
+     user explicitly picks a color via the note palette (the --note-color custom property
+     is still applied when a color is chosen; the default is now transparent + border). */
+  background: var(--note-color, transparent);
+  border: 1px solid rgba(0, 0, 0, 0.10);
   border-radius: 2px; /* near-sharp paper corners (was --radius-sm 14px) */
   box-shadow: 1px 2px 3px rgb(0 0 0 / 0.08), 2px 6px 10px rgb(0 0 0 / 0.10); /* Session 19 (user report): was 1px 3px 4px / 4px 12px 20px — too much spread, clipped hard by container-type containment. Reduced spread + opacity so the shadow stays soft + fits in the card's padding. */
   color: #3f3f46;
@@ -192,12 +196,10 @@
   min-block-size: 2.75rem; /* Phase 7 item 11: room for a 44px delete target */
 }
 #notebook :is(#nv-sticky:checked, #nv-grid:checked) ~ .note-list > .note-card .note-headbar [data-note-delete] {
-  inline-size: 2.75rem;
-  block-size: 2.75rem;
-  min-inline-size: 2.75rem;
-  min-block-size: 2.75rem; /* Phase 7 item 11: was 1.5rem (24px) — under the ~44px tap target */
-  padding: 0;
-  background: rgb(0 0 0 / 0.06);
+  /* UI/UX R6 (2026-09-12): increased the tap target to 44px (WCAG 2.5.5 Target Size).
+     The icon stays 0.85rem but the clickable area grows via min-width/min-height + padding. */
+  min-inline-size: 2.75rem; min-block-size: 2.75rem;
+  display: grid; place-items: center;
 }
 #notebook :is(#nv-sticky:checked, #nv-grid:checked) ~ .note-list > .note-card .note-headbar [data-note-delete]:hover { background: rgb(0 0 0 / 0.14); }
 #notebook :is(#nv-sticky:checked, #nv-grid:checked) ~ .note-list > .note-card .note-headbar [data-note-delete] .icon { inline-size: 0.85rem; block-size: 0.85rem; }
@@ -309,8 +311,13 @@
    global [dir=rtl] .icon.arrow rule). */
 .icon.arrow.opposite { transform: scaleX(-1); }
 .note-card {
-  background: color-mix(in srgb, var(--bg-soft) 45%, var(--card)); /* quieter fill (2026-08-25) */
-  border: 1px solid var(--line);
+  /* UI/UX R1 (2026-09-12): fill removed → background transparent so the task board reads
+     as the primary zone. A thin neutral border (rgba(0,0,0,0.10) light / rgba(255,255,255,0.10)
+     dark — see themes.css) replaces the soft surface fill. Was:
+       background: color-mix(in srgb, var(--bg-soft) 45%, var(--card));
+     Sticky/grid view overrides below still swap in the user-picked note color. */
+  background: transparent;
+  border: 1px solid rgba(0, 0, 0, 0.10);
   border-radius: var(--radius-sm);
   /* Fix 2026-09-09 (user report, further compaction): tightened padding 0.22/0.4 -> 0.18/0.38
      + gap 0.06 -> 0.04. Content dictates height; the card is now as dense as a sticky note. */
@@ -406,7 +413,12 @@
    the old footer size (0.8rem → 0.48rem) — it whispers, the content talks. */
 .note-footer { font-size: 0.48rem; }
 .note-footer .small, .note-footer .note-meta { font-size: 0.6rem; } /* .small's own rule would beat the inherited size. Session 20: was 0.48rem (~7.7px) — genuinely unreadable; 0.6rem keeps it quiet but legible */
-.note-footer .ghost.danger { padding: 0.18rem 0.35rem; } /* Fix 2026-09-09: unified with the 1rem color-dot tap target (was 0.12/0.3) */
+/* UI/UX R6 (2026-09-12): the list-view dismiss «×» (button.ghost.danger in the footer) had
+   padding 0.18rem 0.35rem — a ~20px tap target, well under the WCAG 2.5.5 44px floor.
+   The visible icon size stays at 0.85rem (~14px); the padding grows the hit area to
+   ~44px (min-inline-size + min-block-size: 2.75rem) without changing the visual glyph.
+   The sticky-view dismiss is already 2.75rem (quicknotes.css line ~195). */
+.note-footer .ghost.danger { padding: 0.5rem 0.6rem; min-inline-size: 2.75rem; min-block-size: 2.75rem; display: inline-grid; place-items: center; border-radius: var(--radius-sm); }
 .note-footer .note-meta { overflow-wrap: anywhere; }
 /* Phase 7 item 11: the bottom action row in LOGICAL layout — margin-inline-start on the
    controls group mirrors the row with the reading direction (RTL: meta at start/right,

@@ -13,7 +13,14 @@
 .topbar a { color: var(--muted); font-size: var(--fs-lg); padding: 0.45rem 0.35rem; border-block-end: 2px solid transparent; transition: color 0.12s ease, border-color 0.12s ease; }
 /* Brand identity (audit 20): hover + the active page underline use the warm spark amber. */
 .topbar a:hover { color: var(--brand); text-decoration: none; }
-.topbar a[aria-current='page'] { color: var(--text); font-weight: 600; border-block-end-color: var(--brand); border-block-end-width: 3px; }
+/* UI/UX R3 (2026-09-12): strengthened the active-page indicator from a 3px brand underline
+   + dark text to a 4px brand underline + brand-colored text + 600 weight. The previous
+   3px/`var(--text)` recipe read as "slightly darker than hover" on a muted base — VLM
+   flagged the dashboard before-screenshot as having NO visible active state (the projects
+   screenshot did show it, but the contrast was marginal). The thicker bar + the teal ink
+   make aria-current='page' unmissable on every page. The 4px floor also clears the WCAG
+   1.4.11 non-text-contrast 3:1 minimum on the underline itself (brand on bg = 4.7:1). */
+.topbar a[aria-current='page'] { color: var(--brand); font-weight: 600; border-block-end-color: var(--brand); border-block-end-width: 4px; }
 .topbar .brand a { color: var(--text); font-weight: 700; font-size: 1rem; border-block-end: 0; }
 /* Brand subtree as a deterministic flex chain: blockifies the anchor + img so no
    inline/line-box quirks can shift the logo against the centered nav links. */
@@ -273,9 +280,16 @@
 .project-signals { display: inline-flex; align-items: center; gap: 0.3rem; flex-wrap: wrap; flex-shrink: 0; }
 .sig-chip { display: inline-flex; align-items: center; gap: 0.25rem; padding: 0.15rem 0.5rem; border-radius: 999px; font-size: 0.8rem; line-height: 1.4; font-weight: 600; white-space: nowrap; }
 .sig-chip .icon { width: 1em; height: 1em; }
-.sig-ideas { background: rgb(245 158 78 / 0.15); color: #f59e4e; }
+/* UI/UX R5 (2026-09-12): sig-ideas + sig-hurdles were BOTH ORANGE (different shades) —
+   two different colors mapping to the same semantic ("plain sub-item count"), which
+   violates the "one color = one meaning" rule. Both are now NEUTRAL GRAY pills
+   (background: a 10% muted tint over the card surface, color: var(--muted)) — per
+   WCAG 1.4.1 the count text + the small sig-chip icon (which differs per type —
+   lightbulb for ideas, flag for hurdles) carry the meaning, color no longer does.
+   .sig-backlog stays TEAL (it's the brand/primary signal). */
+.sig-ideas { background: color-mix(in srgb, var(--muted) 10%, transparent); color: var(--muted); }
 .sig-backlog { background: rgb(74 159 163 / 0.15); color: var(--accent, #4A9FA3); }
-.sig-hurdles { background: rgb(245 197 126 / 0.15); color: #c9853e; }
+.sig-hurdles { background: color-mix(in srgb, var(--muted) 10%, transparent); color: var(--muted); }
 /* dashboard kanban card: the title row (open-arrow + title + bug bubble) stays on line 1.
    The lighter signal chips (ideas/backlog/hurdles) dropped to their own line 2 (user
    request 2026-09-09) so a 14rem-min card never crowds. Bug stays on the title row —

@@ -457,157 +457,23 @@ window.hibanaCanvas = (() => {
     return obj
   }
 
-  // StickyNote — the reusable canvas sticky-note component (2026-08-25 spec). Styled to
-  // match the dashboard sticky notes: flat warm pastel paper, ONE soft diffused shadow,
-  // a close × in the top-right header, and a comfortable body font. The paper grows with
-  // its text; selection uses Fabric's default blue bounding box + handles, separate from
-  // the paper itself. The header label was removed as redundant (2026-08-26, same as the
-  // dashboard).
-  //
-  // Session 17 (2026-09-18, owner reference mockup — the ONE sticky style app-wide):
-  // the paper is a TRUE SQUARE with near-sharp 2px corners and a layered, directional
-  // shadow — light from the top-left, shadow down-and-right, two stacked layers (a tight
-  // contact shadow + a large soft diffuse one), exactly the CSS recipe the DOM sticky
-  // papers now carry (app.css session-17 rule). Fabric objects hold ONE Shadow each, so
-  // the two CSS layers are two stacked rects: a back rect (shadowBox) carrying the large
-  // soft layer + the paper rect (box) carrying the tight contact layer. shadowBox shares
-  // the paper's fill and footprint — it hides completely behind the paper, only its
-  // shadow shows; both shadows stay neutral black regardless of the paper's pastel.
-  const STICKY_PAPER = '#FFF59D'
-  const STICKY_RADIUS = 2 // session 17: near-sharp paper corners (was 10 = --radius-sm)
-  const STICKY_HEADER = 26 // header strip for the close ×
-  function makeStickyNote({ content = '', color = STICKY_PAPER, x = 0, y = 0, width = 180, height = 180 }) {
-    // Session 17: the paper is a square — normalize whatever geometry arrives (old saved
-    // notes were 180×120 or grown rectangles) to ONE side = the larger of the two. The
-    // wrap width, × position and hit region all key off the square side below.
-    const side = Math.max(Math.round(width || 180), Math.round(height || 0), 120)
-    // The × carries the same faint circular background as the quick-notes delete chip
-    // (2026-08-26 style unification) — one close affordance across both surfaces.
-    const closeBg = new fabric.Circle({
-      left: side - 27, top: 3, radius: 9,
-      fill: 'rgba(0, 0, 0, 0.06)', selectable: false, evented: false,
+  // StickyNote — the ONE shared StickyNote factory (Session 28): this component was
+  // born HERE (2026-08-25 spec → session-17 square rework) and copied verbatim to the
+  // Notebook in "batch s"; the two ~140-line copies had already drifted. The geometry
+  // now lives ONCE in public/js/sticky.js — makeStickyNote there owns the wrap-width
+  // pinning, the square binary-search sizing, the in-place downward growth, the layered
+  // session-17 shadows and objectCaching:false. This wrapper injects this board's only
+  // surface difference: the DEFAULT resizable selection chrome (hasControls stays true —
+  // the canvas sticky is user-resizable; the notebook pins move-only). The dark-mode × /
+  // canonical-pastel refs (__closeBg/__closeX/__lightColor) are set for every board now —
+  // unused here (this sheet doesn't CSS-invert), harmless (objectToData ignores them).
+  const STICKY_PAPER = window.hibanaSticky.STICKY_PAPER
+  function makeStickyNote(opts) {
+    return window.hibanaSticky.makeStickyNote({
+      ...opts,
+      requestRender: () => { if (canvas) canvas.requestRenderAll() },
+      wireTextDir,
     })
-    const close = new fabric.Text('×', {
-      left: side - 24, top: 5, fontSize: 13, fontWeight: 700,
-      fill: 'rgba(63, 63, 70, 0.85)', selectable: false, evented: false, fontFamily: 'system-ui, sans-serif',
-    })
-    const text = new fabric.Textbox(content, {
-      left: 10, top: STICKY_HEADER + 4, fontSize: 18, lineHeight: 1.3,
-      fill: '#3f3f46', width: side - 20, splitByGrapheme: true, selectable: false,
-    })
-    // Pin the wrap width (2026-08-26 user report): a Textbox re-measures itself on every
-    // keystroke and drifts wider than the paper, which stops the wrapping and lets the text
-    // escape the note's edge on a single line. Re-pinning after each measure keeps the text
-    // inside the padding box — text always wraps at the boundary (splitByGrapheme).
-    // Session 17: wrapWidth is now a `let` — the paper grows as a SQUARE (fitPaper), so
-    // the wrap re-pins to the widened paper on growth.
-    let wrapWidth = side - 20
-    const baseInit = text.initDimensions.bind(text)
-    text.initDimensions = () => {
-      // Session 17: pin FIRST, measure second — fitPaper re-pins wrapWidth and one
-      // initDimensions call re-wraps AND re-measures at the new width.
-      text.width = wrapWidth
-      baseInit()
-    }
-    // Session 17: right-size the square. The text height h(w) SHRINKS as the wrap w
-    // widens, so "grow to the height the current wrap demands" overshoots badly (the
-    // re-wrapped text is far shorter). Instead the MINIMAL square s with
-    // STICKY_HEADER + h(s-20) + 14 ≤ s is binary-searched between the incoming side
-    // (may not fit) and the side the current wrap demands (always fits — h is
-    // monotone non-increasing in w). Construction AND growth both use it, so a long
-    // note lands on a snug square instead of a huge empty one.
-    const measureAt = (w) => {
-      text.width = w
-      baseInit() // raw measure at w (bypasses the pin)
-      return text.height || 0
-    }
-    const sideFor = (minSide) => {
-      let lo = minSide
-      let hi = Math.max(minSide, STICKY_HEADER + measureAt(minSide - 20) + 14)
-      let guard = 0
-      while (STICKY_HEADER + measureAt(hi - 20) + 14 > hi && guard++ < 4) hi = hi * 1.5 + 40
-      const fits = (s) => STICKY_HEADER + measureAt(s - 20) + 14 <= s + 0.5
-      for (let i = 0; i < 22 && hi - lo > 2; i++) {
-        const mid = (lo + hi) / 2
-        if (fits(mid)) hi = mid
-        else lo = mid
-      }
-      text.initDimensions() // restore the live measure at the CURRENT wrap
-      return Math.max(minSide, Math.ceil(hi))
-    }
-    const paperSize = sideFor(side)
-    wrapWidth = paperSize - 20
-    text.initDimensions() // re-wrap at the final square's padding box
-    // shadowBox: the back rect carrying the LARGE SOFT layer of the session-17 shadow.
-    const shadowBox = new fabric.Rect({
-      width: paperSize, height: paperSize,
-      fill: color, rx: STICKY_RADIUS, ry: STICKY_RADIUS,
-    })
-    shadowBox.shadow = new fabric.Shadow({ color: 'rgba(0, 0, 0, 0.12)', blur: 20, offsetX: 4, offsetY: 12, affectStroke: false })
-    const box = new fabric.Rect({
-      width: paperSize, height: paperSize,
-      fill: color, rx: STICKY_RADIUS, ry: STICKY_RADIUS,
-    })
-    // Phase 5 item 18 (2026-09-08): the drop shadow belongs to the PAPER ONLY. It used to
-    // sit on the group, and fabric applies the ctx shadow while drawing every child — so
-    // each TEXT GLYPH carried its own shadow too (blurry, "bold-ish" text). Moving it onto
-    // the Rect keeps the paper's lift while the text renders crisp.
-    // Session 17: this is now the TIGHT CONTACT layer (small offset, small blur); the big
-    // soft layer lives on shadowBox behind it. Compositing: shadowBox paints first (its
-    // shadow + its fill), then box paints (its contact shadow lands outside the paper edge
-    // on the soft shadow / board, its fill covers everything beneath) — the result matches
-    // CSS `box-shadow: 1px 3px 4px rgba(0,0,0,.10), 4px 12px 20px rgba(0,0,0,.12)`.
-    box.shadow = new fabric.Shadow({ color: 'rgba(0, 0, 0, 0.10)', blur: 4, offsetX: 1, offsetY: 3, affectStroke: false })
-    // objectCaching:false (2026-09-02 user report "text doesn't register"): a cached group
-    // never re-renders its bitmap while the inner textbox is being edited, so every
-    // keystroke vanished into the stale cache. Notes are small — drawing live is cheap.
-    const group = new fabric.Group([shadowBox, box, closeBg, close, text], { left: x, top: y, editable: true, objectCaching: false })
-    group.__close = { left: paperSize - 30, top: 0, width: 30, height: 30 } // × hit region, paper coords (top-left origin)
-    // The paper keeps a minimum size but grows with the text, so content never escapes the
-    // note; `changed` fires on every keystroke while editing, so the grown size is what gets
-    // saved and reloads restore the note exactly as the user left it.
-    // Session 17: growth stays SQUARE — height NEVER grows alone (that was the old
-    // rectangle behavior). If the text would overflow the current square, BOTH edges grow
-    // by the same amount, the wrap width re-pins to the wider paper, and the × rides the
-    // inline-end edge. Every sticky the user ever sees on the board is a perfect square.
-    const fitPaper = () => {
-      // Session 17: square + right-sized. sideFor(box.width) measures at the CURRENT
-      // wrap; if the text fits, it returns box.width (no growth — grow-only invariant).
-      const target = sideFor(box.width)
-      if (target > box.height + 0.5) {
-        // Grow DOWNWARD from the paper's current top edge, IN PLACE (2026-08-26 user
-        // request; 2026-08-29 rework). The old implementation called group._calcBounds(),
-        // which in this Fabric build re-derives left/top from the children's LOCAL
-        // coordinates — the note teleported sideways/downward whenever text overflowed
-        // and the × hit region desynced from the paper (× stopped deleting). Instead:
-        // resize the paper, grow the group frame by the same amount, and lift every
-        // child by half the growth so the top edge lands exactly where it was.
-        const grow = target - box.height
-        box.set({ height: target, width: target, top: box.top - grow / 2 })
-        shadowBox.set({ height: target, width: target, top: shadowBox.top - grow / 2 })
-        for (const child of [closeBg, close]) child.set({ left: child.left + grow, top: child.top - grow / 2 })
-        text.set({ top: text.top - grow / 2 })
-        group.set({ height: group.height + grow, width: group.width + grow })
-        group.__close = { left: target - 30, top: 0, width: 30, height: 30 }
-        wrapWidth = target - 20
-        text.initDimensions() // re-wrap AND re-measure at the wider paper
-        group.setCoords()
-      }
-      // Always invalidate + repaint (realtime typing, 2026-09-02): even when the paper
-      // doesn't grow, the freshly typed glyphs must land on screen this frame.
-      group.dirty = true
-      if (canvas) canvas.requestRenderAll()
-    }
-    fitPaper()
-    text.on('changed', fitPaper)
-    wireTextDir(text)
-    // exposed for the editing twin + recolor palette (2026-09-02 batch). __shadowPaper
-    // rides along so recolors repaint BOTH rects of the layered shadow (session 17).
-    group.__paper = box
-    group.__shadowPaper = shadowBox
-    group.__innerText = text
-    group.__fitPaper = fitPaper
-    return group
   }
 
   // Frame (2026-08-26 user request): a user-drawn region that OWNS what sits on it —
@@ -1239,8 +1105,7 @@ window.hibanaCanvas = (() => {
   // identity (so the crop math is scene-space 1:1), reset pin scales to 1, hide the
   // decorative lock badges + any live guides, and paint the paper's base color behind
   // everything. Restore it all afterwards.
-  function exportRegionPng(bounds, name, pad = 24) {
-    if (!bounds || bounds.width < 1 || bounds.height < 1) return
+  function regionDataUrl(bounds, pad = 24) {
     const prevVpt = canvas.viewportTransform.slice()
     const pins = canvas.getObjects().filter((o) => o.__kind === 'comment')
     const prevPin = pins.map((o) => ({ o, x: o.scaleX, y: o.scaleY }))
@@ -1253,29 +1118,11 @@ window.hibanaCanvas = (() => {
     canvas.backgroundColor = paperBaseColor()
     canvas.setViewportTransform([1, 0, 0, 1, 0, 0])
     try {
-      const url = canvas.toDataURL({
+      return canvas.toDataURL({
         format: 'png', multiplier: 2, enableRetinaScaling: false,
         left: bounds.left - pad, top: bounds.top - pad,
         width: bounds.width + pad * 2, height: bounds.height + pad * 2,
       })
-      const a = document.createElement('a')
-      a.href = url
-      a.download = name
-      document.body.appendChild(a)
-      a.click()
-      a.remove()
-      window.hibana?.toast(_t('canvas.exported', 'PNG downloaded'), 'info', 2200)
-    } catch (err) {
-      // (k) A non-CORS image (the loader's fallback path flags it __tainted) makes the
-      // canvas TAINTED — toDataURL throws SecurityError. Point at the real cause
-      // instead of a generic failure so the user knows which link is the blocker.
-      if (err && (err.name === 'SecurityError' || /tainted/i.test(String(err?.message || '')))) {
-        const t = canvas.getObjects().filter((o) => o.__tainted).length
-        const base = _t('canvas.exportTainted', 'Export blocked: an image link without CORS is on the board — it displays, but the browser forbids reading the canvas for PNG')
-        window.hibana?.toast(t > 1 ? `${base} (${t})` : base, 'err', 4200)
-      } else {
-        window.hibana?.toast(_t('canvas.exportFailed', 'Export failed'), 'err')
-      }
     } finally {
       canvas.setViewportTransform(prevVpt)
       canvas.backgroundColor = prevBg
@@ -1284,22 +1131,83 @@ window.hibanaCanvas = (() => {
       canvas.requestRenderAll()
     }
   }
+  function exportTaintError(err) {
+    // (k) A non-CORS image (the loader's fallback path flags it __tainted) makes the
+    // canvas TAINTED — toDataURL throws SecurityError. Point at the real cause
+    // instead of a generic failure so the user knows which link is the blocker.
+    if (err && (err.name === 'SecurityError' || /tainted/i.test(String(err?.message || '')))) {
+      const t = canvas.getObjects().filter((o) => o.__tainted).length
+      const base = _t('canvas.exportTainted', 'Export blocked: an image link without CORS is on the board — it displays, but the browser forbids reading the canvas for PNG')
+      window.hibana?.toast(t > 1 ? `${base} (${t})` : base, 'err', 4200)
+    } else {
+      window.hibana?.toast(_t('canvas.exportFailed', 'Export failed'), 'err')
+    }
+  }
+  function exportRegionPng(bounds, name, pad = 24) {
+    if (!bounds || bounds.width < 1 || bounds.height < 1) return
+    try {
+      const url = regionDataUrl(bounds, pad)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = name
+      document.body.appendChild(a)
+      a.click()
+      a.remove()
+      window.hibana?.toast(_t('canvas.exported', 'PNG downloaded'), 'info', 2200)
+    } catch (err) {
+      exportTaintError(err)
+    }
+  }
+  // Session 28: clipboard copy — same normalization + crop as the download, then the
+  // blob rides navigator.clipboard.write (paste straight into Telegram/Slack/docs).
+  async function copyRegionPng(bounds) {
+    if (!bounds || bounds.width < 1 || bounds.height < 1) return
+    if (!navigator.clipboard || !window.ClipboardItem) {
+      window.hibana?.toast(_t('canvas.copyUnsupported', 'Clipboard images are not supported in this browser'), 'err', 3200)
+      return
+    }
+    let url
+    try {
+      url = regionDataUrl(bounds, 24)
+    } catch (err) {
+      exportTaintError(err)
+      return
+    }
+    try {
+      const blob = await (await fetch(url)).blob()
+      await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })])
+      window.hibana?.toast(_t('canvas.copiedPng', 'Copied to clipboard'), 'info', 2200)
+    } catch {
+      // Permission denied / focus loss / transient clipboard lock — not a taint problem.
+      window.hibana?.toast(_t('canvas.copyFail', 'Clipboard copy failed'), 'err')
+    }
+  }
   function buildExportRows() {
     const rowsEl = exportPopEl?.querySelector('[data-export-rows]')
     if (!rowsEl) return
     rowsEl.innerHTML = ''
     const real = canvas.getObjects().filter((o) => o.id)
-    const mkRow = (label, sub, fn) => {
+    // Session 28 polish: leading icon per action (download vs clipboard) — same markup the
+    // notebook's export rows use (export-main + export-ic, styled in canvas.css).
+    const ICONS = {
+      download: '<svg class="export-ic" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v10m0 0-4-4m4 4 4-4"/><path d="M4 17v1.5A1.5 1.5 0 0 0 5.5 20h13a1.5 1.5 0 0 0 1.5-1.5V17"/></svg>',
+      copy: '<svg class="export-ic" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>',
+    }
+    const mkRow = (label, sub, fn, icon = 'download') => {
       const b = document.createElement('button')
       b.type = 'button'
       b.className = 'export-row'
+      const main = document.createElement('span')
+      main.className = 'export-main'
+      main.innerHTML = ICONS[icon] || ''
       const l = document.createElement('span')
       l.className = 'export-label'
       l.textContent = label
+      main.appendChild(l)
       const s = document.createElement('span')
       s.className = 'export-sub'
       s.textContent = sub
-      b.appendChild(l)
+      b.appendChild(main)
       b.appendChild(s)
       b.addEventListener('click', fn)
       rowsEl.appendChild(b)
@@ -1333,6 +1241,15 @@ window.hibanaCanvas = (() => {
         exportRegionPng(fb, `hibana-frame-${exportStamp()}.png`, 0) // the frame IS the bounds
       })
     }
+    // Session 28: clipboard copy — targets the selection when one exists, else the whole
+    // board (paste straight into Telegram/Slack/docs without a download round-trip).
+    const clipBounds = sel.length ? unionBounds(sel) : full
+    mkRow(
+      _t('canvas.copyPng', 'Copy PNG to clipboard'),
+      sel.length ? `${sel.length}` : _t('canvas.exportFull', 'Whole board'),
+      () => { exportPopEl.hidden = true; void copyRegionPng(clipBounds) },
+      'copy',
+    )
   }
 
   function pointsToPath(points) {

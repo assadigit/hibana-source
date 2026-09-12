@@ -49,7 +49,7 @@ const ENTRY_POINTS = [
   'app.js', 'admin.js', 'boot.js', 'canvas.js', 'command-palette.js',
   'devboard.js', 'emoji-data.js', 'emoji-picker.js', 'go-to.js', 'i18n.js',
   'install-prompt.js', 'jalali-holidays.js', 'mobile-nav.js', 'nav.js', 'queue.js',
-  'touch-drag.js', 'tour.js', 'history.js', 'whiteboard.js', 'zen-mode.js', 'micro-interactions.js',
+  'touch-drag.js', 'tour.js', 'history.js', 'sticky.js', 'whiteboard.js', 'zen-mode.js', 'micro-interactions.js',
   'i18n-en.js', 'i18n-fa.js',
   'jalali.js',
   'hib-init.js',

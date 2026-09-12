@@ -99,6 +99,11 @@
   border: 1px solid var(--line-strong);
   border-radius: var(--radius-sm);
   box-shadow: 0 10px 28px rgb(0 0 0 / 0.18);
+  /* Session 28 polish: entrance animation (pop-in, defined near the sticky palette —
+     reduced-motion guarded there). Replays on every open: [hidden] display flips restart
+     CSS animations. The comment popover's per-frame position updates compose with the
+     one-shot transform without conflict. */
+  animation: pop-in 0.14s ease-out;
 }
 /* THE GHOST POPOVER BUG (Ali, 2026-08-31 (j)): the display:grid above beats the UA
    [hidden] sheet (the Task-17 / fab-menu / sticky-palette lesson — the squig batch
@@ -180,7 +185,7 @@
 /* export scope rows */
 .export-row {
   display: flex;
-  align-items: baseline;
+  align-items: center;
   justify-content: space-between;
   gap: 0.6rem;
   min-inline-size: 0;
@@ -192,8 +197,22 @@
   color: var(--text);
   cursor: pointer;
   text-align: start;
+  transition: background 0.15s ease, border-color 0.15s ease, transform 0.1s ease;
 }
 .export-row:hover { background: var(--bg-soft); border-color: var(--accent); }
+.export-row:active { transform: scale(0.985); }
+.export-row:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+/* Session 28 polish: label group = leading icon + text (scan-ability: download vs
+   clipboard reads at a glance). The icon tints with the row's accent on hover. */
+.export-main { display: flex; align-items: center; gap: 0.45rem; min-inline-size: 0; }
+.export-ic {
+  inline-size: 0.95rem;
+  block-size: 0.95rem;
+  flex: none;
+  color: var(--muted);
+  transition: color 0.15s ease;
+}
+.export-row:hover .export-ic { color: var(--accent); }
 .export-label { font-size: 0.85rem; }
 .export-sub { font-size: 0.72rem; color: var(--muted); flex: none; }
 /* comment pin popover */
@@ -292,18 +311,40 @@
   border: 1px solid var(--line-strong);
   border-radius: var(--radius-sm);
   box-shadow: 0 10px 24px rgb(0 0 0 / 0.16);
+  /* Session 28 polish: pop in like the board popovers (fade + slight drop). */
+  animation: pop-in 0.14s ease-out;
 }
 .sticky-palette[hidden] { display: none; }
 .sticky-palette button {
-  inline-size: 1.35rem;
-  block-size: 1.35rem;
+  /* Session 28 polish: 24px hit areas (was 21.6px) + hover lift + focus ring — the
+     canvas AND notebook palettes share this rule; keyboard users previously got
+     NO visible focus on the swatches at all. */
+  inline-size: 1.5rem;
+  block-size: 1.5rem;
   min-inline-size: 0;
   min-block-size: 0;
   padding: 0;
   border-radius: 50%;
   border: 1px solid rgb(0 0 0 / 0.16);
+  transition: transform 0.12s ease, box-shadow 0.12s ease;
+}
+.sticky-palette button:hover { transform: translateY(-1px) scale(1.08); }
+.sticky-palette button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
 }
 .sticky-palette button.active { box-shadow: inset 0 0 0 2px var(--accent); }
+.sticky-palette button.active:focus-visible { outline-offset: 1px; }
+
+/* Session 28 polish: one entrance animation for the floating board surfaces (popovers,
+   palettes) — a fast fade + 4px settle. Guarded for reduced motion below. */
+@keyframes pop-in {
+  from { opacity: 0; transform: translateY(4px) scale(0.98); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .sticky-palette, .board-popover { animation: none; }
+}
 
 .canvas-toolbar {
   display: flex;

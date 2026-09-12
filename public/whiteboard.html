@@ -11,7 +11,7 @@
   <link rel="stylesheet" href="/css/dashboard.css?v=2">
   <link rel="stylesheet" href="/css/dashboard-todo.css?v=4">
   <link rel="stylesheet" href="/css/components.css?v=2">
-  <link rel="stylesheet" href="/css/canvas.css?v=2">
+  <link rel="stylesheet" href="/css/canvas.css?v=3">
   <link rel="stylesheet" href="/css/quicknotes.css?v=4">
   <link rel="stylesheet" href="/css/to-do-list.css?v=2">
   <link rel="stylesheet" href="/css/polish-ui.css?v=3">
@@ -20,7 +20,7 @@
   <link rel="stylesheet" href="/css/polish-batch.css?v=4">
   <link rel="stylesheet" href="/css/project-header.css?v=2">
   <link rel="stylesheet" href="/css/devboard.css?v=2">
-  <link rel="stylesheet" href="/css/misc.css?v=3">
+  <link rel="stylesheet" href="/css/misc.css?v=4">
   <link rel="stylesheet" href="/css/themes.css?v=2">
   <link rel="stylesheet" href="/css/rtl.css?v=2">
   <link rel="stylesheet" href="/vendor/manrope/font-face.css">
@@ -39,10 +39,11 @@
   <script src="/js/micro-interactions.js?v=1" defer></script>
   <script src="/js/go-to.js?v=1" defer></script>
   <script src="/js/install-prompt.js?v=1" defer></script>
-  <script src="/js/i18n-en.js?v=5" defer></script>
-  <script src="/js/i18n.js?v=62" defer></script>
+  <script src="/js/i18n-en.js?v=6" defer></script>
+  <script src="/js/i18n.js?v=63" defer></script>
   <script src="/js/history.js?v=1" defer></script>
-  <script src="/js/whiteboard.js?v=18" defer></script>
+  <script src="/js/sticky.js?v=1" defer></script>
+  <script src="/js/whiteboard.js?v=19" defer></script>
 </head>
 <body class="canvas-page">
   <div data-nav></div>
@@ -64,6 +65,7 @@
       </select>
     </span>
     <button data-action="addimage" title="Add an image from a link (URL)" data-i18n-title="canvas.addImage"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="8.5" cy="10" r="1.5"/><path d="M5 19l5-6 3 3 4-4 3 3"/></svg></button>
+    <button data-action="export" title="Export as PNG" data-i18n-title="canvas.exportPng"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v10m0 0-4-4m4 4 4-4"/><path d="M4 17v1.5A1.5 1.5 0 0 0 5.5 20h13a1.5 1.5 0 0 0 1.5-1.5V17"/></svg></button>
     <span class="td"></span>
     <button data-action="delete" class="danger" title="Delete selected" data-i18n-title="canvas.deleteSel"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg></button>
     <button data-action="undo" title="Undo" data-i18n-title="wb.undo"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 14L4 9l5-5M4 9h10a6 6 0 0 1 0 12h-4"/></svg></button>
@@ -83,8 +85,21 @@
     <p class="image-error" data-image-error hidden></p>
   </div>
 
+  <!-- Session 28: PNG export popover (parity with the Canvas board's data-export-pop —
+       whole page / selection downloads + clipboard copy; 2× resolution, canonical light
+       paper background in both themes). Reuses the board-popover + export-row CSS from
+       canvas.css and the nb-image-pop fixed top-center placement. -->
+  <div class="board-popover export-pop nb-export-pop" data-export-pop hidden>
+    <div class="pop-title" data-i18n="canvas.exportPng">Export as PNG</div>
+    <div class="pop-hint" data-i18n="canvas.exportHint">2× resolution · paper background</div>
+    <div data-export-rows></div>
+  </div>
+
   <div id="nb-page" class="notebook-page">
     <canvas id="nb-board"></canvas>
+    <!-- Session 28: sticky recolor palette (parity with the Canvas board's
+         data-sticky-palette) — floats under a selected sticky note; 7 pastels. -->
+    <div class="sticky-palette" data-sticky-palette hidden></div>
     <div class="board-loading" data-board-loading><span class="hibana-spinner" aria-hidden="true"></span><span data-i18n="wb.loading">Loading sheet…</span></div>
   </div>
 

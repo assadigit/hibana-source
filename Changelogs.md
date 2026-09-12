@@ -9,7 +9,70 @@
 > rewritten as a minimal pointer. Deleted files remain recoverable verbatim:
 > `git show <sha>:<file>`.
 
-## 1. Current state (v0.3.12.21 — Session 27 R3: smoke-tooling fix + admin Usage analytics + tour polish)
+## 1. Current state (v0.3.12.22 — Session 28: sticky-factory consolidation + board export v2 + notebook recolor)
+- **Session 28 summary** — status assessment + agent-browser QA sweep first (11 pages, zero
+  page errors AND zero console warnings — the RR-2 lesson: Alpine bug-classes log warnings),
+  functional probes on both boards (pen, sticky, undo, dark mode, FA/RTL), then the top
+  code-side priority from every handover since S27.
+- **Safety net first (e2e/canvas-board.spec.ts, 3 tests):** the canvas-page E2E the
+  handovers asked for — render+0-errors, pen-stroke→server sync, sticky drag-create →
+  double-click edit-twin → type → save round-trip → undo×2/redo×2. Taught the per-test-user
+  pattern (server-persisted board data leaks across tests in one file) and the
+  scene→viewport coordinate offset (the toolbar sits above the board). 17→20 Playwright.
+- **Refactor — the ONE sticky factory (public/js/sticky.js):** makeStickyNote lived as two
+  ~140-line verbatim copies (canvas.js + whiteboard.js) that had already drifted (the
+  notebook added dark-mode refs; the canvas kept resizable controls). Extracted to a shared
+  module with per-board injection (hasControls, requestRender thunk, wireTextDir callback);
+  each board keeps a ~12-line wrapper. canvas.js 3069→2986, whiteboard.js 1396→1600 (with
+  new features added). Behavior-preserving: verified by the new canvas spec + the notebook
+  spec + live round-trips (create → type → save → undo; saved notes render through the
+  shared factory on both boards). sticky.js joins the build manifest (content-hashed).
+- **Feature — notebook PNG export (parity gap):** the Canvas board had whole-board /
+  selection / frame PNG export since the squig batch; the notebook had nothing. New export
+  toolbar button + popover (whole page / selection downloads, 2× resolution). THE DARK-MODE
+  DESIGN: this sheet's dark look is a CSS invert (--nb-ink) which a PNG bitmap cannot
+  carry — the export renders the CANONICAL LIGHT view (image counter-filters cleared,
+  stickies re-themed to __lightColor, light paper #fdfdfb) — verified at the PIXEL level
+  (decoded the exported PNG: paper 253,253,251 + note 255,245,157 in dark mode). The
+  popover hint says so in dark mode (new key canvas.exportHintLight).
+- **Feature — clipboard PNG copy (both boards):** "Copy PNG to clipboard" row in both
+  export popovers — regionDataUrl → blob → navigator.clipboard.write; graceful
+  unsupported-browser + permission-denied toasts; taint errors surface the __noCors count
+  (the notebook's image loader now propagates __noCors to the fabric object). Targets the
+  selection when one exists, else the whole board/page. canvas.js's exportRegionPng
+  refactored into regionDataUrl + exportTaintError + copyRegionPng (zero duplication of
+  the normalization block).
+- **Feature — notebook sticky recolor palette (parity gap):** the Canvas shows 7 pastel
+  swatches under a selected sticky; notebook stickies could only be default yellow. Same
+  palette language, adapted to the fixed sheet (no vpt math) and CSS-invert dark mode
+  (recolor sets the CANONICAL pastel on __lightColor, then applyStickyTheme re-derives the
+  dark paper/ink/× — verified live: pink recolor in dark mode saves #fbcfe8, renders
+  #6B6450 live). The recolor is the notebook's first UNDOABLE MODIFY: undo/redo grew a
+  symmetric 'modify' branch (revert-to-carried-record + swap) — verified live through
+  save/undo/redo with server persistence at every step.
+- **Polish (shared CSS, both boards):** palette swatches 22px→24px hit areas + hover lift
+  + FOCUS-VISIBLE RINGS (keyboard users previously got NO visible focus on the swatches —
+  on BOTH boards); pop-in entrance animation (0.14s fade+drop) for board popovers + the
+  palette, prefers-reduced-motion guarded; export rows get leading icons (download vs
+  clipboard — reads at a glance), focus ring, active press, icon tint-on-hover; the
+  notebook export button carries .pop-open while its popover is open (same affordance as
+  the Canvas popovers); one-board-popover-at-a-time (export ↔ image).
+- **Process notes:** (a) build --restore-html must run BEFORE check-cache-bust locally —
+  the gate reads canonical ?v= refs (CI sees the committed canonical form); (b) a
+  mid-session git-stash + rebuild poisoned .build-backup with a pre-edit canonical HTML —
+  the restore ate the source edits (re-applied; lesson: never build while stashed).
+- Assets: SW hibana-v321. canvas.js v24, whiteboard.js v19, sticky.js NEW v1,
+  canvas.css v3, misc.css v4 (20 pages), i18n-en v6, i18n-fa v6 (dynamic ref in
+  i18n.js), i18n.js v63. package.json 0.3.12.21→0.3.12.22. i18n 936→942 (+6 keys).
+- Verified: typecheck 0 · vitest 318/318 · build+wiring PASS (71 entries) · cache-bust
+  PASS (7 files) · i18n 942/942 · Playwright 20/20 (one flake re-run: soft-nav timeout
+  under full-suite load, green alone + green on the full re-run) · smoke 20/20 ·
+  workers-smoke 5/5 (zero leaked workerd) · live: export popover EN+FA light+dark,
+  download produces a real 2× PNG, recolor→save→undo→redo with server persistence,
+  palette positioning + active swatch, pop-open affordance, zero console errors
+  throughout.
+
+## History: v0.3.12.21 — Session 27 R3 (smoke-tooling fix + admin Usage analytics + tour polish)
 - **Review-round 3 summary** — status assessment + full QA sweep first (13 pages × light/dark
   × EN/FA, zero page errors, zero Alpine warnings), then a programmatic WCAG-AA contrast
   audit across every page (all clean — the RR-1 "tooltip contrast" VLM concern does not

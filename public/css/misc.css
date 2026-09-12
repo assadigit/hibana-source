@@ -623,6 +623,11 @@ dialog.adm-modal::backdrop { background: rgb(0 0 0 / 0.55); }
 /* P4.3 (F-M17): notebook image popover — positioned near the toolbar (fixed top-center). */
 .nb-image-pop { position: fixed; inset-block-start: 4rem; inset-inline-start: 50%; transform: translateX(-50%); z-index: 50; }
 
+/* Session 28: notebook PNG-export popover — same fixed top-center placement as the image
+   popover (only one board popover shows at a time: opening one closes the other in JS). */
+.nb-export-pop { position: fixed; inset-block-start: 4rem; inset-inline-start: 50%; transform: translateX(-50%); z-index: 50; }
+/* RTL: the translateX(-50%) centering is direction-neutral — no flip needed. */
+
 .sp-timenav { display: inline-flex; align-items: center; gap: 0.3rem; }
 .sp-timenav .sp-timerange { white-space: nowrap; max-inline-size: 16rem; overflow: hidden; text-overflow: ellipsis; }
 .sp-finish-btn { white-space: nowrap; }

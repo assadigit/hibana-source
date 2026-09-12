@@ -98,145 +98,28 @@ window.hibanaNotebook = (() => {
     obj.on('changed', apply)
   }
 
-  // Sticky notes (batch s, 2026-09 user request: "copy it from the canvas") — the notebook
-  // port of the Canvas board's polished StickyNote component: flat warm pastel paper, a
-  // close × in the top-right header, and a comfortable body font. The paper grows with its
-  // text (as a SQUARE — session 17); selection is Fabric's default bounding box. See
-  // makeStickyNote in public/js/canvas.js — the geometry and every hard-won fix below
-  // (wrap-width pinning, objectCaching, in-place growth) are copied verbatim from that
-  // battle-tested implementation.
-  //
-  // Session 17 (2026-09-18, owner reference mockup): the ONE sticky style app-wide — true
-  // square paper, near-sharp 2px corners, layered directional shadow (light from the
-  // top-left: a tight contact layer on the paper rect + a large soft layer on a back rect
-  // that hides behind the paper). Matches app.css's session-17 rule + canvas.js exactly.
-  const STICKY_PAPER = '#FFF59D'
-  const STICKY_RADIUS = 2 // session 17: near-sharp paper corners (was 10)
-  const STICKY_HEADER = 26 // header strip for the close ×
-  function makeStickyNote({ content = '', color = STICKY_PAPER, x = 0, y = 0, width = 180, height = 180 }) {
-    // Session 17: square-normalize whatever geometry arrives (old saved notes were
-    // 180×120 or grown rectangles) — one side = the larger of the two.
-    const side = Math.max(Math.round(width || 180), Math.round(height || 0), 120)
-    // The × carries a faint circular background, same as the canvas board's sticky close.
-    const closeBg = new fabric.Circle({
-      left: side - 27, top: 3, radius: 9,
-      fill: 'rgba(0, 0, 0, 0.06)', selectable: false, evented: false,
+  // Sticky notes — the ONE shared StickyNote factory (Session 28): the component was
+  // born on the Canvas board and copied verbatim here in "batch s"; the two ~140-line
+  // copies had already drifted (this sheet added the dark-mode theming refs, that board
+  // kept resizable controls). The geometry now lives ONCE in public/js/sticky.js —
+  // makeStickyNote there owns the wrap-width pinning, the square binary-search sizing,
+  // the in-place downward growth, the layered session-17 shadows and objectCaching:false.
+  // This wrapper injects the notebook's surface differences only:
+  //   hasControls:false — move-only (growth is automatic via fitPaper; the sizing path
+  //                       that round-trips through the pinned wrap width — hand-resizing
+  //                       would fight it; angle stays 0 as the rotate handle is a control)
+  //   dark-mode theming — this sheet's dark mode is a CSS invert (--nb-ink), so the
+  //                       sticky self-themes by recolor (paper/ink/×) while the canonical
+  //                       pastel rides __lightColor for save round-trips (2026-09-12 fix).
+  const STICKY_PAPER = window.hibanaSticky.STICKY_PAPER
+  function makeStickyNote(opts) {
+    const group = window.hibanaSticky.makeStickyNote({
+      ...opts,
+      hasControls: false,
+      requestRender: () => { if (canvas) canvas.requestRenderAll() },
+      wireTextDir,
     })
-    const close = new fabric.Text('×', {
-      left: side - 24, top: 5, fontSize: 13, fontWeight: 700,
-      fill: 'rgba(63, 63, 70, 0.85)', selectable: false, evented: false, fontFamily: 'system-ui, sans-serif',
-    })
-    const text = new fabric.Textbox(content, {
-      left: 10, top: STICKY_HEADER + 4, fontSize: 18, lineHeight: 1.3,
-      fill: '#3f3f46', width: side - 20, splitByGrapheme: true, selectable: false,
-    })
-    // Pin the wrap width (canvas.js 2026-08-26 user report): a Textbox re-measures itself
-    // on every keystroke and drifts wider than the paper, which stops the wrapping. Re-pinning
-    // keeps the text inside the padding box — text always wraps at the boundary.
-    // Session 17: `let` + pin-FIRST so the square growth's re-wrap measures at the new width.
-    let wrapWidth = side - 20
-    const baseInit = text.initDimensions.bind(text)
-    text.initDimensions = () => {
-      text.width = wrapWidth
-      baseInit()
-    }
-    // Session 17: right-size the square (same search as canvas.js): the minimal square
-    // s with STICKY_HEADER + h(s-20) + 14 ≤ s, binary-searched — h(w) shrinks as the wrap
-    // widens, so growing to the height the current wrap demands would overshoot badly.
-    const measureAt = (w) => {
-      text.width = w
-      baseInit() // raw measure at w (bypasses the pin)
-      return text.height || 0
-    }
-    const sideFor = (minSide) => {
-      let lo = minSide
-      let hi = Math.max(minSide, STICKY_HEADER + measureAt(minSide - 20) + 14)
-      let guard = 0
-      while (STICKY_HEADER + measureAt(hi - 20) + 14 > hi && guard++ < 4) hi = hi * 1.5 + 40
-      const fits = (s) => STICKY_HEADER + measureAt(s - 20) + 14 <= s + 0.5
-      for (let i = 0; i < 22 && hi - lo > 2; i++) {
-        const mid = (lo + hi) / 2
-        if (fits(mid)) hi = mid
-        else lo = mid
-      }
-      text.initDimensions() // restore the live measure at the CURRENT wrap
-      return Math.max(minSide, Math.ceil(hi))
-    }
-    const paperSize = sideFor(side)
-    wrapWidth = paperSize - 20
-    text.initDimensions() // re-wrap at the final square's padding box
-    // shadowBox: the back rect carrying the LARGE SOFT layer of the session-17 shadow.
-    const shadowBox = new fabric.Rect({
-      width: paperSize, height: paperSize,
-      fill: color, rx: STICKY_RADIUS, ry: STICKY_RADIUS,
-    })
-    shadowBox.shadow = new fabric.Shadow({ color: 'rgba(0, 0, 0, 0.12)', blur: 20, offsetX: 4, offsetY: 12, affectStroke: false })
-    const box = new fabric.Rect({
-      width: paperSize, height: paperSize,
-      fill: color, rx: STICKY_RADIUS, ry: STICKY_RADIUS,
-    })
-    // Phase 5 item 18 (2026-09-08): the soft drop shadow belongs to the PAPER ONLY (on the
-    // group, every TEXT GLYPH carried its own shadow too — blurry, "bold-ish" text).
-    // Session 17: this is now the TIGHT CONTACT layer; the big soft layer sits on
-    // shadowBox behind it. Net: CSS `1px 3px 4px rgba(0,0,0,.10), 4px 12px 20px rgba(0,0,0,.12)`.
-    box.shadow = new fabric.Shadow({ color: 'rgba(0, 0, 0, 0.10)', blur: 4, offsetX: 1, offsetY: 3, affectStroke: false })
-    // objectCaching:false (canvas.js 2026-09-02 "text doesn't register" report): a cached
-    // group never re-renders its bitmap while the inner textbox is being edited, so every
-    // keystroke vanished into the stale cache. Notes are small — drawing live is cheap.
-    //
-    // RESIZE DECISION (batch s, kept simple+robust): hasControls:false makes the sticky
-    // NON-resizable — movable only (angle stays 0; the rotate handle is a control too).
-    // Growth stays AUTOMATIC via fitPaper, which is the only sizing path that round-trips
-    // through the pinned wrap width. objectToData still bakes scaleX/scaleY into width/height,
-    // so any code-path scaling is absorbed on save without normalization.
-    const group = new fabric.Group([shadowBox, box, closeBg, close, text], { left: x, top: y, editable: true, objectCaching: false, hasControls: false })
-    group.__close = { left: paperSize - 30, top: 0, width: 30, height: 30 } // × hit region, paper coords (top-left origin)
-    // The paper keeps a minimum size but grows with the text, so content never escapes the
-    // note; `changed` fires on every keystroke while editing, so the grown size is what gets
-    // saved and reloads restore the note exactly as the user left it.
-    // Session 17: growth stays SQUARE — height never grows alone. Both edges grow by the
-    // same amount, the wrap re-pins to the wider paper, the × rides the inline-end edge.
-    const fitPaper = () => {
-      // Session 17: square + right-sized (same search as canvas.js). Grow-only: when the
-      // text fits at the current wrap, sideFor returns the current side — no change.
-      const target = sideFor(box.width)
-      if (target > box.height + 0.5) {
-        // Grow DOWNWARD from the paper's current top edge, IN PLACE (canvas.js 2026-08-26
-        // request; 2026-08-29 rework — never call group._calcBounds(), it re-derives left/top
-        // from the children and teleports the note). Instead: resize the paper, grow the group
-        // frame by the same amount, and lift every child by half the growth so the top edge
-        // lands exactly where it was. Grow-only — a note never shrinks back.
-        const grow = target - box.height
-        box.set({ height: target, width: target, top: box.top - grow / 2 })
-        shadowBox.set({ height: target, width: target, top: shadowBox.top - grow / 2 })
-        for (const child of [closeBg, close]) child.set({ left: child.left + grow, top: child.top - grow / 2 })
-        text.set({ top: text.top - grow / 2 })
-        group.set({ height: group.height + grow, width: group.width + grow })
-        group.__close = { left: target - 30, top: 0, width: 30, height: 30 }
-        wrapWidth = target - 20
-        text.initDimensions() // re-wrap AND re-measure at the wider paper
-        group.setCoords()
-      }
-      // Always invalidate + repaint (realtime typing): even when the paper doesn't grow, the
-      // freshly typed glyphs must land on screen this frame.
-      group.dirty = true
-      if (canvas) canvas.requestRenderAll()
-    }
-    fitPaper()
-    text.on('changed', fitPaper)
-    wireTextDir(text)
-    // exposed for the editing twin (below) + objectToData's color/content reads. __shadowPaper
-    // rides along so any recolor repaints BOTH rects of the layered shadow (session 17).
-    group.__paper = box
-    group.__shadowPaper = shadowBox
-    group.__innerText = text
-    // 2026-09-12 (review round, dark-mode fix): the close × refs for applyStickyTheme +
-    // the CANONICAL pastel (what saves round-trip — the live fill may be themed dark).
-    group.__closeBg = closeBg
-    group.__closeX = close
-    group.__lightColor = color
     if (boardIsDark()) applyStickyTheme(group, true)
-    group.__fitPaper = fitPaper
     return group
   }
 
@@ -444,6 +327,7 @@ window.hibanaNotebook = (() => {
       ctx.drawImage(e, 0, 0, sw, sh, -w / 2, -h / 2, w, h)
     }
     obj.clipPath = new fabric.Rect({ left: -width / 2, top: -height / 2, width, height, rx: IMG_RADIUS, ry: IMG_RADIUS })
+    obj.__noCors = !!raw.__noCors // Session 28: surfaces in the export-taint toast count
     applyDarkInvertCounterFilter(obj)
     return obj
   }
@@ -471,6 +355,7 @@ window.hibanaNotebook = (() => {
   function showImagePopover() {
     if (!imagePopEl) imagePopEl = document.querySelector('[data-image-pop]')
     if (!imagePopEl) return
+    hideExportPopover() // one board popover at a time
     imagePopEl.hidden = false
     const input = imagePopEl.querySelector('[data-image-url]')
     const err = imagePopEl.querySelector('[data-image-error]')
@@ -527,6 +412,276 @@ window.hibanaNotebook = (() => {
     } catch (err) {
       window.hibana?.toast(_t('canvas.imageFailed', "Couldn't load that image — check the link"), 'err')
     }
+  }
+
+  // ---- PNG export (Session 28): whole-page / selection download + clipboard copy ------
+  // Parity with the Canvas board's export popover (squig batch 2026-08-31), adapted for
+  // THIS sheet's two structural differences:
+  //   1. fixed page — no viewportTransform juggling (canvas.js pins the vpt to identity
+  //      before cropping; here it already is), no frames, no comment-pin scale pins.
+  //   2. dark mode is a CSS invert on #nb-board (--nb-ink), which a PNG bitmap CANNOT
+  //      carry — toDataURL renders the AUTHORED colors. Exporting "what the sheet looks
+  //      like in dark mode" would need the filter in the bitmap (impossible without
+  //      re-compositing offscreen). Instead the export always renders the CANONICAL
+  //      LIGHT view — exactly what a light-mode user sees: images' dark counter-filters
+  //      cleared (they assume the sheet invert on top), stickies re-themed to their
+  //      light pastel via __lightColor, authored ink, light paper base. One predictable
+  //      output from both themes (matches how the paper sticky look is canonical).
+  let exportPopEl = null
+  const LIGHT_PAPER = '#fdfdfb' // themes.css light --nb-paper
+  const exportStamp = () => {
+    const d = new Date()
+    const p = (n) => String(n).padStart(2, '0')
+    return `${d.getFullYear()}${p(d.getMonth() + 1)}${p(d.getDate())}-${p(d.getHours())}${p(d.getMinutes())}`
+  }
+  function unionBounds(objs) {
+    let l = Infinity, t = Infinity, r = -Infinity, b = -Infinity
+    for (const o of objs) {
+      const bb = o.getBoundingRect(true)
+      l = Math.min(l, bb.left)
+      t = Math.min(t, bb.top)
+      r = Math.max(r, bb.left + bb.width)
+      b = Math.max(b, bb.top + bb.height)
+    }
+    if (l === Infinity) return null
+    return { left: l, top: t, width: r - l, height: b - t }
+  }
+  function setExportLightView() {
+    // Enter the canonical light composition (restore rides reapplyDarkInvertFilters(),
+    // which re-derives image counter-filters + sticky theme from the live sheet state).
+    canvas.getObjects().forEach((obj) => {
+      if (obj.type === 'image') {
+        obj.filters = []
+        obj.applyFilters()
+      } else if (obj.__paper) {
+        applyStickyTheme(obj, false)
+      }
+    })
+  }
+  function regionDataUrl(bounds, pad = 24) {
+    const dark = boardIsDark()
+    const prevBg = canvas.backgroundColor
+    if (dark) setExportLightView()
+    canvas.backgroundColor = LIGHT_PAPER
+    try {
+      return canvas.toDataURL({
+        format: 'png', multiplier: 2, enableRetinaScaling: false,
+        left: bounds.left - pad, top: bounds.top - pad,
+        width: bounds.width + pad * 2, height: bounds.height + pad * 2,
+      })
+    } finally {
+      canvas.backgroundColor = prevBg
+      if (dark) reapplyDarkInvertFilters()
+      canvas.requestRenderAll()
+    }
+  }
+  function exportTaintError(err) {
+    // A non-CORS image (the loader's fallback flags it __noCors) makes the canvas
+    // TAINTED — toDataURL throws SecurityError. Point at the real cause so the user
+    // knows which link is the blocker (same handling as the Canvas board).
+    if (err && (err.name === 'SecurityError' || /tainted/i.test(String(err?.message || '')))) {
+      const t = canvas.getObjects().filter((o) => o.__noCors).length
+      const base = _t('canvas.exportTainted', 'Export blocked: an image link without CORS is on the board — it displays, but the browser forbids reading the canvas for PNG')
+      window.hibana?.toast(t > 1 ? `${base} (${t})` : base, 'err', 4200)
+    } else {
+      window.hibana?.toast(_t('canvas.exportFailed', 'Export failed'), 'err')
+    }
+  }
+  function exportRegionPng(bounds, name, pad = 24) {
+    if (!bounds || bounds.width < 1 || bounds.height < 1) return
+    try {
+      const url = regionDataUrl(bounds, pad)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = name
+      document.body.appendChild(a)
+      a.click()
+      a.remove()
+      window.hibana?.toast(_t('canvas.exported', 'PNG downloaded'), 'info', 2200)
+    } catch (err) {
+      exportTaintError(err)
+    }
+  }
+  async function copyRegionPng(bounds) {
+    if (!bounds || bounds.width < 1 || bounds.height < 1) return
+    if (!navigator.clipboard || !window.ClipboardItem) {
+      window.hibana?.toast(_t('canvas.copyUnsupported', 'Clipboard images are not supported in this browser'), 'err', 3200)
+      return
+    }
+    let url
+    try {
+      url = regionDataUrl(bounds, 24)
+    } catch (err) {
+      exportTaintError(err)
+      return
+    }
+    try {
+      const blob = await (await fetch(url)).blob()
+      await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })])
+      window.hibana?.toast(_t('canvas.copiedPng', 'Copied to clipboard'), 'info', 2200)
+    } catch {
+      // Permission denied / focus loss / transient clipboard lock — not a taint problem.
+      window.hibana?.toast(_t('canvas.copyFail', 'Clipboard copy failed'), 'err')
+    }
+  }
+  function buildExportRows() {
+    const rowsEl = exportPopEl?.querySelector('[data-export-rows]')
+    if (!rowsEl) return
+    rowsEl.innerHTML = ''
+    const real = canvas.getObjects().filter((o) => o.id)
+    // Session 28 polish: leading icon per action (download vs clipboard) — reads at a glance.
+    const ICONS = {
+      download: '<svg class="export-ic" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v10m0 0-4-4m4 4 4-4"/><path d="M4 17v1.5A1.5 1.5 0 0 0 5.5 20h13a1.5 1.5 0 0 0 1.5-1.5V17"/></svg>',
+      copy: '<svg class="export-ic" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>',
+    }
+    const mkRow = (label, sub, fn, icon = 'download') => {
+      const b = document.createElement('button')
+      b.type = 'button'
+      b.className = 'export-row'
+      const main = document.createElement('span')
+      main.className = 'export-main'
+      main.innerHTML = ICONS[icon] || ''
+      const l = document.createElement('span')
+      l.className = 'export-label'
+      l.textContent = label
+      main.appendChild(l)
+      const s = document.createElement('span')
+      s.className = 'export-sub'
+      s.textContent = sub
+      b.appendChild(main)
+      b.appendChild(s)
+      b.addEventListener('click', fn)
+      rowsEl.appendChild(b)
+    }
+    if (!real.length) {
+      const empty = document.createElement('div')
+      empty.className = 'pop-hint'
+      empty.textContent = _t('canvas.exportEmpty', 'Nothing on the board yet')
+      rowsEl.appendChild(empty)
+      return
+    }
+    const full = unionBounds(real)
+    mkRow(_t('canvas.exportPage', 'Whole page'), `${Math.round(full.width)}×${Math.round(full.height)}`, () => {
+      hideExportPopover()
+      exportRegionPng(full, `hibana-notebook-${exportStamp()}.png`, 40)
+    })
+    const sel = canvas.getActiveObjects().filter((o) => o.id)
+    if (sel.length) {
+      const sb = unionBounds(sel)
+      mkRow(`${_t('canvas.exportSel', 'Selection')} (${sel.length})`, `${Math.round(sb.width)}×${Math.round(sb.height)}`, () => {
+        hideExportPopover()
+        exportRegionPng(sb, `hibana-selection-${exportStamp()}.png`)
+      })
+    }
+    // Clipboard copy targets the selection when one exists, else the whole page.
+    const clipBounds = sel.length ? unionBounds(sel) : full
+    mkRow(
+      _t('canvas.copyPng', 'Copy PNG to clipboard'),
+      sel.length ? `${sel.length}` : _t('canvas.exportPage', 'Whole page'),
+      () => { hideExportPopover(); void copyRegionPng(clipBounds) },
+      'copy',
+    )
+  }
+  function showExportPopover() {
+    if (!exportPopEl) exportPopEl = document.querySelector('[data-export-pop]')
+    if (!exportPopEl) return
+    hideImagePopover() // one board popover at a time
+    buildExportRows()
+    // In dark mode the PNG renders the CANONICAL LIGHT view (the CSS invert can't ride a
+    // bitmap) — say so instead of letting the user wonder why the export isn't dark.
+    const hint = exportPopEl.querySelector('.pop-hint')
+    if (hint) {
+      hint.textContent = boardIsDark()
+        ? _t('canvas.exportHintLight', '2× resolution · light paper background')
+        : _t('canvas.exportHint', '2× resolution · paper background')
+    }
+    exportPopEl.hidden = false
+  }
+  function hideExportPopover() {
+    if (!exportPopEl) exportPopEl = document.querySelector('[data-export-pop]')
+    if (exportPopEl) exportPopEl.hidden = true
+    // drop the toolbar affordance wherever the close came from (row click, Escape, outside)
+    toolbarEl?.querySelector('[data-action="export"]')?.classList.remove('pop-open')
+  }
+
+  // ---- sticky recolor palette (Session 28): parity with the Canvas board ----------------
+  // The Canvas shows a floating pastel palette under a selected sticky (canvas.js
+  // syncStickyPalette / recolorSticky); the notebook sticky could only ever be the default
+  // yellow. Same 7 pastels, same placement language (under the note, flips above when the
+  // sheet has no room below). Board differences vs the Canvas version:
+  //   - fixed sheet: no viewportTransform in the math (bbox is already page-space);
+  //   - dark mode: this sheet's dark look is a CSS invert + per-object theming, so a
+  //     recolor sets the CANONICAL pastel on __lightColor (what objectToData saves) and
+  //     then re-themes via applyStickyTheme when the sheet is dark;
+  //   - the recolor is the notebook's first UNDOABLE MODIFY: undo/redo grew a symmetric
+  //     'modify' branch (revert-to-carried-record + swap) to support it.
+  const NOTE_COLORS = ['#FFF59D', '#fef08a', '#fbcfe8', '#bbf7d0', '#bfdbfe', '#fed7aa', '#e9d5ff']
+  let stickyPaletteEl = null
+  const selectedSticky = () => {
+    const a = canvas?.getActiveObject?.()
+    return a && a.type === 'group' && a.__close && a.id ? a : null
+  }
+  function buildStickyPalette() {
+    if (!stickyPaletteEl) return
+    stickyPaletteEl.innerHTML = ''
+    for (const c of NOTE_COLORS) {
+      const b = document.createElement('button')
+      b.type = 'button'
+      b.dataset.noteColor = c
+      b.style.background = c
+      b.title = _t('canvas.noteColor', 'Note color')
+      b.setAttribute('aria-label', _t('canvas.noteColor', 'Note color'))
+      stickyPaletteEl.appendChild(b)
+    }
+    stickyPaletteEl.addEventListener('click', (e) => {
+      const btn = e.target.closest('button[data-note-color]')
+      if (!btn) return
+      recolorSticky(selectedSticky(), btn.dataset.noteColor)
+    })
+  }
+  function syncStickyPalette() {
+    if (!stickyPaletteEl || !canvas) return
+    const g = stickyEdit ? null : selectedSticky()
+    if (!g) { stickyPaletteEl.hidden = true; return }
+    // note bbox is already PAGE-space on this fixed sheet (no viewport transform) — offset
+    // it by the canvas element's own offset inside the palette's offset parent (#nb-page).
+    const bb = g.getBoundingRect()
+    const cr = canvas.lowerCanvasEl.getBoundingClientRect()
+    const host = stickyPaletteEl.parentElement
+    const hr = host ? host.getBoundingClientRect() : { left: 0, top: 0, width: 0, height: 0 }
+    const ox = cr.left - hr.left, oy = cr.top - hr.top
+    const left = bb.left + ox
+    const bottom = bb.top + bb.height + oy
+    const top = bb.top + oy
+    stickyPaletteEl.hidden = false
+    stickyPaletteEl.style.left = Math.round(Math.max(8, Math.min(left - 4, hr.width - stickyPaletteEl.offsetWidth - 8))) + 'px'
+    // under the note; flip above it when there is no room below
+    stickyPaletteEl.style.top = Math.round(bottom + 8 + stickyPaletteEl.offsetHeight > hr.height ? Math.max(8, top - stickyPaletteEl.offsetHeight - 8) : bottom + 8) + 'px'
+    const cur = String(g.__lightColor || '').toLowerCase()
+    stickyPaletteEl.querySelectorAll('button[data-note-color]').forEach((b) => {
+      b.classList.toggle('active', b.dataset.noteColor.toLowerCase() === cur)
+    })
+  }
+  function recolorSticky(g, c) {
+    if (!g || !c) return
+    const before = elems.get(g.id)
+    // Session 17 (shared factory): BOTH rects of the layered shadow repaint, or the recolor
+    // leaves a stale rim at the paper's edges.
+    g.__paper?.set({ fill: c })
+    g.__shadowPaper?.set({ fill: c })
+    g.__lightColor = c // the canonical pastel — objectToData saves THIS (the live fill may be dark-themed)
+    if (boardIsDark()) applyStickyTheme(g, true) // re-derive the dark paper/ink/× from the new pastel
+    // (the RR-1 lesson: group.dirty alone renders stale child fills — dirty every child)
+    for (const child of [g.__paper, g.__shadowPaper, g.__innerText, g.__closeBg, g.__closeX]) {
+      if (child) child.dirty = true
+    }
+    g.dirty = true
+    canvas.requestRenderAll()
+    const data = objectToData(g)
+    elems.set(g.id, data)
+    save(data)
+    if (before) history.commit('modify', before) // recolors are undoable (Session 28)
+    syncStickyPalette()
   }
 
   function objectToData(obj) {
@@ -778,6 +933,13 @@ window.hibanaNotebook = (() => {
     // Escape while the Fabric text editor is open: exit editing and drop the selection —
     // Fabric keeps the text object active after exitEditing, so a plain Escape feels stuck.
     if (key === 'Escape') {
+      // An open export popover closes first (the image popover self-closes on its own
+      // Escape/click-outside handlers — it holds focus while open; this one doesn't).
+      if (exportPopEl && !exportPopEl.hidden) {
+        hideExportPopover()
+        e.preventDefault()
+        return
+      }
       const active = canvas.getActiveObject()
       const editingText = t instanceof HTMLTextAreaElement && !!t.dataset?.fabricHiddentextarea
       if (editingText || (active && active.isEditing)) {
@@ -950,6 +1112,16 @@ window.hibanaNotebook = (() => {
         const data = elems.get(entry.data.id)
         removeObject(entry.data.id)
         if (data) save({ ...data, deleted: 1, updated_at: now() })
+      } else if (entry.kind === 'modify') {
+        // Session 28 (sticky recolor): revert to the BEFORE record the entry carries; the
+        // AFTER record (still live in elems) rides back onto the redo stack — the swap is
+        // symmetric, so undo and redo share the exact same shape for modify entries.
+        const inverse = { kind: 'modify', data: elems.get(entry.data.id) || entry.data }
+        elems.set(entry.data.id, entry.data)
+        removeObject(entry.data.id)
+        putObject(entry.data)
+        save({ ...entry.data, deleted: 0, updated_at: now() })
+        return inverse
       } else { // erase → restore the object
         elems.set(entry.data.id, entry.data)
         putObject(entry.data)
@@ -965,6 +1137,14 @@ window.hibanaNotebook = (() => {
         elems.set(entry.data.id, entry.data)
         putObject(entry.data)
         save({ ...entry.data, deleted: 0, updated_at: now() })
+      } else if (entry.kind === 'modify') {
+        // re-apply the AFTER record; capture the current (pre-apply) record for the next undo
+        const inverse = { kind: 'modify', data: elems.get(entry.data.id) || entry.data }
+        elems.set(entry.data.id, entry.data)
+        removeObject(entry.data.id)
+        putObject(entry.data)
+        save({ ...entry.data, deleted: 0, updated_at: now() })
+        return inverse
       } else { // erase again
         const data = elems.get(entry.data.id)
         removeObject(entry.data.id)
@@ -1354,6 +1534,30 @@ window.hibanaNotebook = (() => {
     ui.toolbar.querySelector('[data-action="redo"]').addEventListener('click', redo)
     ui.toolbar.querySelector('[data-action="delete"]').addEventListener('click', deleteActive)
     ui.toolbar.querySelector('[data-action="addimage"]')?.addEventListener('click', addImageByUrl)
+    // Session 28 sticky recolor palette: build the swatches once; after:render keeps it
+    // glued under the selected note (follows moves — this sheet has no pan/zoom, but the
+    // note itself moves) and hides it while the edit twin is open.
+    stickyPaletteEl = document.querySelector('[data-sticky-palette]')
+    if (stickyPaletteEl) {
+      buildStickyPalette()
+      canvas.on('after:render', syncStickyPalette)
+    }
+    // Session 28 export popover: toggle from the toolbar; click-outside closes it.
+    // The button carries .pop-open while its popover is open (same affordance as the
+    // Canvas board's popovers — canvas.css styles it).
+    const exportBtn = ui.toolbar.querySelector('[data-action="export"]')
+    exportBtn?.addEventListener('click', () => {
+      const willOpen = exportPopEl?.hidden !== false
+      if (willOpen) showExportPopover()
+      else hideExportPopover()
+      exportBtn?.classList.toggle('pop-open', willOpen)
+    })
+    document.addEventListener('click', (e) => {
+      if (!exportPopEl || exportPopEl.hidden) return
+      if (exportPopEl.contains(e.target) || e.target.closest('[data-action="export"]')) return
+      hideExportPopover()
+      exportBtn?.classList.remove('pop-open')
+    })
     // P4.3 (F-M17): wire the image popover form submit + Escape/click-outside to close.
     imagePopEl = document.querySelector('[data-image-pop]')
     if (imagePopEl) {

@@ -1506,6 +1506,10 @@ window.hibanaCanvas = (() => {
     mode = name
     canvas.isDrawingMode = name === 'pen' && !isTouch()
     if (name === 'pen' && !isTouch()) {
+      // 2026-09-12 pen fix: Fabric v6+ no longer auto-creates a PencilBrush on the canvas —
+      // without this the width/color assignments below threw on undefined (since the fabric
+      // v6/v7 security upgrade) and every pen stroke silently drew nothing.
+      if (!canvas.freeDrawingBrush) canvas.freeDrawingBrush = new fabric.PencilBrush(canvas)
       canvas.freeDrawingBrush.width = penWidth
       // The brush must draw the SELECTED color — previously the brush used Fabric's default
       // black while strokes were saved with the palette (yellow) color, so drawings came
@@ -2458,7 +2462,7 @@ window.hibanaCanvas = (() => {
       b.addEventListener('click', () => {
         penWidth = parseFloat(b.dataset.width) || 4
         ui.toolbar.querySelectorAll('[data-width]').forEach((x) => x.classList.toggle('active', x === b))
-        if (mode === 'pen' && !isTouch()) canvas.freeDrawingBrush.width = penWidth
+        if (mode === 'pen' && !isTouch() && canvas.freeDrawingBrush) canvas.freeDrawingBrush.width = penWidth
       })
     })
     ui.palette.querySelectorAll('[data-color]').forEach((b) => {

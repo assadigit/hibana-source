@@ -95,6 +95,68 @@ const fabric = {
 // Cast to any because the v6 Image type doesn't have a `filters` static property.
 ;(fabric.Image as any).filters = filters
 
+// v5 backwards compat: Canvas-level methods REMOVED in v6 (2026-09-12 fix — the v6/v7
+// security upgrades silently broke every pointer-driven handler on both boards).
+// whiteboard.js + canvas.js still call the v5 forms:
+//   - canvas.getPointer(e)            → v6 canvas.getScenePoint(e) (28 call sites: note/
+//     text/eraser/arrow/shape/sticky-close handlers — without this every drag/click threw
+//     "canvas.getPointer is not a function" and no element could be created)
+//   - canvas.bringToFront(obj)        → v6 canvas.bringObjectToFront(obj) (11 z-order
+//     canvas.sendToBack(obj)          → v6 canvas.sendObjectToBack(obj)   call sites incl.
+//     canvas.bringForward(obj)        → v6 canvas.bringObjectForward(obj) frames-under-content
+//     canvas.sendBackwards(obj)       → v6 canvas.sendObjectBackwards(obj) on load + moveZ)
+//   - canvas.getViewportCenter()      → v6 canvas.getVpCenter() (both call sites guard with
+//     a fallback, shimmed anyway so the guard never trips)
+// v5 getPointer(e) default semantics = scene coordinates (inverse-viewport-transform);
+// no Hibana call site passes the second (ignoreVpt) argument, so getScenePoint is exact.
+const canvasProto = Canvas.prototype as unknown as Record<string, unknown>
+if (typeof canvasProto.getPointer !== 'function') {
+  canvasProto.getPointer = function (this: { getScenePoint: (e: unknown) => unknown }, e: unknown) {
+    return this.getScenePoint(e)
+  }
+}
+if (typeof canvasProto.getViewportCenter !== 'function') {
+  canvasProto.getViewportCenter = function (this: { getVpCenter: () => unknown }) {
+    return this.getVpCenter()
+  }
+}
+const zOrderCompat: Record<string, string> = {
+  bringToFront: 'bringObjectToFront',
+  sendToBack: 'sendObjectToBack',
+  bringForward: 'bringObjectForward',
+  sendBackwards: 'sendObjectBackwards',
+}
+for (const [v5Name, v6Name] of Object.entries(zOrderCompat)) {
+  if (typeof canvasProto[v5Name] !== 'function' && typeof canvasProto[v6Name] === 'function') {
+    canvasProto[v5Name] = function (this: Record<string, (obj: unknown, ...rest: unknown[]) => unknown>, obj: unknown, ...rest: unknown[]) {
+      return this[v6Name](obj, ...rest)
+    }
+  }
+}
+
+// v5 backwards compat: textarea blur → exitEditing. In v5, blurring Fabric's hidden
+// textarea exited editing; v6's blur handler only aborts the cursor animation, so after
+// the v6/v7 upgrade, typing in a note and then clicking ANY DOM element outside the
+// canvas (toolbar button, theme toggle) left the editing twin live on the board with
+// isEditing stuck (the commit then depended only on the 2s crash-guard debounce).
+// Guard: only exit while still editing — fabric's own exitEditingImpl() blurs the
+// textarea during exit, and the app's editing:exited handlers are idempotent.
+const iTextProto = IText.prototype as unknown as Record<string, unknown>
+const origEnterEditing = iTextProto.enterEditing as (this: { hiddenTextarea?: HTMLTextAreaElement | null; isEditing: boolean; exitEditing: () => unknown }, ...args: unknown[]) => unknown
+if (typeof origEnterEditing === 'function') {
+  iTextProto.enterEditing = function (this: { hiddenTextarea?: HTMLTextAreaElement | null; isEditing: boolean; exitEditing: () => unknown }, ...args: unknown[]) {
+    const result = origEnterEditing.apply(this, args)
+    const ta = this.hiddenTextarea
+    if (ta && !(ta as HTMLTextAreaElement & { __hibBlurExit?: boolean }).__hibBlurExit) {
+      ;(ta as HTMLTextAreaElement & { __hibBlurExit?: boolean }).__hibBlurExit = true
+      ta.addEventListener('blur', () => {
+        if (this.isEditing) this.exitEditing()
+      })
+    }
+    return result
+  }
+}
+
 declare global {
   interface Window {
     fabric: typeof fabric

@@ -64,8 +64,16 @@ window.hibanaNotebook = (() => {
     return d
   }
   function serializePath(path) {
+    // 2026-09-12 fix: path commands are ARRAYS (['M',x,y] / ['L',x,y] / ['Q',cx,cy,x,y] /
+    // ['C',c1x,c1y,c2x,c2y,x,y] — canvas.js's serializer reads the same shape). The old
+    // c.x/c.y reads returned undefined for every command, serializing every stroke as
+    // [[null,null],…] — corrupt data that reloads as a degenerate NaN path.
     const pts = []
-    for (const c of path.path ?? []) pts.push([c.x, c.y])
+    for (const c of path.path ?? []) {
+      if (c[0] === 'M' || c[0] === 'L') pts.push([c[1], c[2]])
+      else if (c[0] === 'Q') pts.push([c[3], c[4]])
+      else if (c[0] === 'C') pts.push([c[5], c[6]])
+    }
     return JSON.stringify(pts)
   }
 
@@ -669,6 +677,10 @@ window.hibanaNotebook = (() => {
     canvas.selection = t === 'move'
     canvas.defaultCursor = t === 'eraser' ? 'cell' : t === 'move' ? 'default' : 'crosshair'
     if (t === 'pen') {
+      // 2026-09-12 pen fix: Fabric v6+ no longer auto-creates a PencilBrush on the canvas —
+      // without this the very assignment below threw on undefined (since the fabric v6/v7
+      // security upgrade) and strokes silently drew nothing. Create it on first use.
+      if (!canvas.freeDrawingBrush) canvas.freeDrawingBrush = new fabric.PencilBrush(canvas)
       canvas.freeDrawingBrush.color = color
       canvas.freeDrawingBrush.width = 3
     }

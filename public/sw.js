@@ -128,7 +128,7 @@
 // (clamp render + read-more delegation + counter removal), devboard.js v10 (title
 // input → textarea), magic-wand.js v9 (title-written re-clamp event). The precached
 // HTML shells must rotate so clients drop the old counter markup.
-const VERSION = "hibana-v312" // Session 26 P2: lazy-load i18n-fa.js (EN users save 17KB gz) + i18n.js ?v=57
+const VERSION = "hibana-v313" // 2026-09-12 pen fix: Fabric v6+ removed auto PencilBrush creation — both boards' pen tools threw on undefined and drew nothing (fabric v6/v7 security upgrades). whiteboard.js ?v=16 (+ notebook serializePath command-array fix — strokes were saving [[null,null]]), canvas.js ?v=22.
 
 // Static shell: unhashed pages/partials/icons/vendor/fonts (SWR or network-first at
 // runtime; precached here for offline). The hashed app bundles come from the manifest

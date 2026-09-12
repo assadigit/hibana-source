@@ -13,7 +13,7 @@ on:
 jobs:
   ci:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
 
@@ -43,12 +43,32 @@ jobs:
       - name: Smoke test
         run: bun run smoke
 
-      # dr-integrity session: validate the DEPLOY artifact shape (wired HTML ↔ manifest
-      # consistency) on every push, not just on deploy day. Restore the canonical HTML
-      # afterwards and assert the working tree came back byte-identical.
+      # Dist wiring: validate the DEPLOY artifact shape (wired HTML ↔ manifest
+      # consistency). Restore canonical HTML + assert byte-identical.
       - name: Dist wiring check (deploy artifact shape)
         run: |
           node scripts/build.mjs --prod --wire-html
           node scripts/check-dist-wiring.mjs
           node scripts/build.mjs --restore-html
           git diff --exit-code -- public/ || (echo "FAIL: wired build left the canonical HTML modified"; git diff --stat -- public/; exit 1)
+
+      # E2E + screenshot-diff + a11y (SWOT W5+W6+W7): Playwright against the local
+      # Node server. Starts the server on port 3017 with a fresh DB, runs browser
+      # tests. Catches "compiles but doesn't work" regressions that unit tests miss.
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+
+      - name: E2E + visual regression + a11y tests
+        run: npx playwright test
+        env:
+          CI: true
+
+      # On failure, upload screenshots + traces for debugging.
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-results
+          path: |
+            e2e/**/*.png
+            test-results/
+          retention-days: 7

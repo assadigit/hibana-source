@@ -128,7 +128,7 @@
 // (clamp render + read-more delegation + counter removal), devboard.js v10 (title
 // input → textarea), magic-wand.js v9 (title-written re-clamp event). The precached
 // HTML shells must rotate so clients drop the old counter markup.
-const VERSION = "hibana-v314" // Session 27 Focus 1a: new /js/history.js manifest entry (shared two-stack undo/redo helper) + whiteboard.js ?v=17 adopts it.
+const VERSION = "hibana-v315" // Session 27 Focus 1a: canvas.js ?v=23 adopts the shared history.js helper (both boards now single-source undo/redo). 
 
 // Static shell: unhashed pages/partials/icons/vendor/fonts (SWR or network-first at
 // runtime; precached here for offline). The hashed app bundles come from the manifest

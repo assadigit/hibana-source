@@ -31,8 +31,7 @@ window.hibanaCanvas = (() => {
   let clipboard = null // serialized copies (Ctrl+C / Ctrl+X) for Ctrl+V
   let markingDelete = false
   let spaceHeld = false // Figma-style: hold Space to grab-and-pan (user request)
-  const undoStack = [] // { kind: 'add' | 'erase' | 'modify', data } — unlimited, back to first state
-  const redoStack = []
+  const history = new (window.hibanaHistory.History)() // shared two-stack undo/redo (Session 27 — same helper as the notebook; semantics identical to the inline stacks it replaced)
   const elems = new Map() // id → element data (source of truth, stays in sync with server)
   const objects = new Map() // id → fabric object
   const pendingFetch = new Set() // bbox requests in flight
@@ -164,7 +163,7 @@ window.hibanaCanvas = (() => {
   // Unlimited undo/redo: every action records its previous state, so undoing walks all the
   // way back to the first state of the session. Each entry is one element's data (cheap),
   // and the stacks are never capped.
-  const pushHistory = (kind, data) => { undoStack.push({ kind, data }); redoStack.length = 0 }
+  const pushHistory = (kind, data) => history.commit(kind, data)
   const snapshotOf = (id) => (elems.has(id) ? { ...elems.get(id) } : null)
   const tombstone = (id) => {
     const cur = elems.get(id)
@@ -2402,8 +2401,7 @@ window.hibanaCanvas = (() => {
         // nothing typed into a fresh text box → discard without syncing
         removeObject(owner.id)
         elems.delete(owner.id)
-        const top = undoStack[undoStack.length - 1]
-        if (top?.kind === 'add' && top.data.id === owner.id) undoStack.pop()
+        history.dropLastAdd(owner.id)
         return
       }
       const before = snapshotOf(owner.id)
@@ -2991,32 +2989,38 @@ window.hibanaCanvas = (() => {
   // all the way back to the first state of the session (and redo forward again). LWW on
   // updated_at means the server converges no matter what order the offline queue flushes.
   function undoCanvas() {
-    const entry = undoStack.pop()
-    if (!entry) return
-    if (entry.kind === 'add') {
-      redoStack.push({ kind: 'erase', data: entry.data })
-      tombstone(entry.data.id)
-    } else if (entry.kind === 'erase') {
-      redoStack.push({ kind: 'add', data: entry.data })
+    history.undo((entry) => {
+      if (entry.kind === 'add') {
+        const inverse = { kind: 'erase', data: entry.data }
+        tombstone(entry.data.id)
+        return inverse
+      }
+      if (entry.kind === 'erase') {
+        const inverse = { kind: 'add', data: entry.data }
+        restore(entry.data)
+        return inverse
+      }
+      const inverse = { kind: 'modify', data: snapshotOf(entry.data.id) } // capture BEFORE restore overwrites the record
       restore(entry.data)
-    } else {
-      redoStack.push({ kind: 'modify', data: snapshotOf(entry.data.id) })
-      restore(entry.data)
-    }
+      return inverse
+    })
   }
   function redoCanvas() {
-    const entry = redoStack.pop()
-    if (!entry) return
-    if (entry.kind === 'add') {
-      undoStack.push({ kind: 'erase', data: entry.data })
+    history.redo((entry) => {
+      if (entry.kind === 'add') {
+        const inverse = { kind: 'erase', data: entry.data }
+        restore(entry.data)
+        return inverse
+      }
+      if (entry.kind === 'erase') {
+        const inverse = { kind: 'erase', data: entry.data }
+        restore(entry.data)
+        return inverse
+      }
+      const inverse = { kind: 'modify', data: snapshotOf(entry.data.id) } // capture BEFORE restore
       restore(entry.data)
-    } else if (entry.kind === 'erase') {
-      undoStack.push({ kind: 'erase', data: entry.data })
-      restore(entry.data)
-    } else {
-      undoStack.push({ kind: 'modify', data: snapshotOf(entry.data.id) })
-      restore(entry.data)
-    }
+      return inverse
+    })
   }
 
   async function promoteActive() {

@@ -9,6 +9,51 @@
 > rewritten as a minimal pointer. Deleted files remain recoverable verbatim:
 > `git show <sha>:<file>`.
 
+## 1. Current state (v0.3.12.24 — Session 28 R3: width-driven text-box resize, live reflow)
+- **Session 28 R3 summary** — the owner reported the text-box resize handles looked
+  decorative: dragging them never changed the line wrapping. Root cause was TWO bugs
+  stacked: fabric v7's Textbox defaults give the four corner handles `scalingEqually`
+  (letters stretch, wrap frozen) and only ml/mr a width action — AND our own
+  `initDimensions` override re-pinned `obj.width = __fixedWidth`, which clobbered any
+  width a resize set (fabric's `Text.set('width')` synchronously re-measures, so the
+  stale pin made `changeObjectWidth` see "unchanged" and the whole resize no-op'd).
+- **The fix (both boards — canvas.js + whiteboard.js):** `wireTextBoxResize(obj)` is
+  called from each board's `makeTextBox` and (1) rebinds EVERY horizontal handle
+  (tl/tr/bl/br/ml/mr) to fabric's own width action (the stock `mr` actionHandler:
+  pointer→width, opposite edge pinned via wrapWithFixedAnchor, fires object:resizing)
+  with honest per-handle cursors; (2) hides the vertical mt/mb handles (height is
+  content-driven, never hand-set); (3) on every `resizing` tick mirrors the live width
+  into `__fixedWidth` and refreshes the control coords. The `initDimensions` override
+  became WIDTH-TRANSPARENT (it never writes `obj.width` — the wrap measures at the live
+  width; height auto-fits, clipPath re-syncs), and `objectToData`'s multi-select scale
+  bake now applies the baked width explicitly (`obj.width = obj.__fixedWidth`) since
+  nothing re-pins it anymore.
+- **Result:** dragging any corner/edge handle updates the CONTAINER WIDTH and the text
+  re-wraps LIVE (fewer lines as the box widens, taller as it narrows), scale stays 1
+  forever (no stretched letterforms), the opposite edge stays anchored, the height
+  auto-fits with the top fixed, and the width round-trips through the record (undo
+  restores the pre-resize width; reload rebuilds at the resized wrap width — verified:
+  160→560 drag, server record width 560, reload renders 1 line at 560). Locked notes
+  stay gated (hasControls=false hides the handles); the stock single-click-enters-editing
+  behavior is untouched (resize works right after leaving the editor — the note stays
+  active with handles live).
+- Assets: SW hibana-v323. canvas.js v25→26, whiteboard.js v21→22. package.json
+  0.3.12.23→0.3.12.24. No i18n changes.
+- Verified: typecheck 0 · vitest 323/323 · build+wiring PASS (71 entries) · cache-bust
+  PASS (canonical form) · Playwright 22/22 (+2: canvas-board mr-handle reflow with
+  persistence + undo, notebook tr-corner reflow with persistence) · smoke ALL PASS ·
+  live-verified on the dev board (instrumented resize events, exact drag-delta width,
+  left-edge anchoring) and on hibana.ir.
+- Debugging notes for future sessions: (a) fabric v7's `Text.set('width'|'fontSize')`
+  runs `initDimensions()` + `setCoords()` synchronously — ANY override that writes
+  width inside initDimensions will fight width-driven resize handlers; (b) a click on
+  an already-selected fabric IText re-enters EDITING (stock mouseUpHandler) — E2E
+  must drag handles directly after exiting the editor, not "select then resize"; (c)
+  the E2E canvas-board probe math must use the FULL affine vpt mapping
+  (x'=a·x+c·y+e, y'=b·x+d·y+f) — a partial mapping silently lands clicks ~200px off;
+  (d) the VLM misreads small upscaled canvas text (it "read" words that don't exist) —
+  geometric assertions via page.evaluate are the reliable verification.
+
 ## 1. Current state (v0.3.12.23 — Session 28 R2: 6 user-reported bugs + the fabric-v7 origin P0)
 - **Session 28 R2 summary** — the owner filed 6 concrete bug reports (2 with screenshots);
   investigation found ONE of them was the deepest bug since the fabric migration, four were

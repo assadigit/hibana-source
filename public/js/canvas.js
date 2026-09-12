@@ -214,12 +214,15 @@ window.hibanaCanvas = (() => {
       // and reloads render at exactly the size the user left it.
       fontSize = Math.max(6, Math.min(400, Math.round((obj.fontSize || 16) * (obj.scaleY || 1))))
       if (obj.__minHeight) obj.__minHeight = Math.max(14, Math.round(obj.__minHeight * (obj.scaleY || 1)))
-      if (obj.__fixedWidth) obj.__fixedWidth = Math.max(28, Math.round(obj.__fixedWidth * (obj.scaleX || 1)))
+      if (obj.__fixedWidth) {
+        obj.__fixedWidth = Math.max(28, Math.round(obj.__fixedWidth * (obj.scaleX || 1)))
+        obj.width = obj.__fixedWidth // apply the bake to the LIVE wrap width (initDimensions no longer re-pins)
+      }
       obj.set({ fontSize, scaleX: 1, scaleY: 1 })
       // Session 19 (user request): after baking the scale into fontSize + __fixedWidth,
-      // call initDimensions() so obj.width = __fixedWidth + the text REFLOWS (wraps to
-      // the new width). Was: only set the values without reflowing → width resize was
-      // purely graphical (stretched the text, didn't change the wrapping).
+      // re-measure so the text REFLOWS at the new width (wraps to fewer/more lines). v7's
+      // Text.set('width'|'fontSize') also triggers initDimensions — the explicit call is
+      // belt-and-suspenders for property combinations that skip it.
       if (typeof obj.initDimensions === 'function') obj.initDimensions()
       obj.setCoords?.()
     }
@@ -430,6 +433,44 @@ window.hibanaCanvas = (() => {
   // nothing is clipped. Width never grows sideways (wrapping prevents that); height is
   // auto-fit. splitByGrapheme = character-level wrapping (overflow-wrap: anywhere) so a
   // single unbroken word still wraps.
+  //
+  // Width-driven text-box resize (2026-09-12 user report: "the resize handles look
+  // decorative — resizing never changes the wrapping"). Fabric v7's Textbox defaults
+  // give the four CORNERS scalingEqually (the letters stretch, the wrap stays frozen)
+  // and only ml/mr a width action — and nothing re-measures the wrap on a width change
+  // anyway (v7 has no initDimensions call in the resize path; the lines cache is only
+  // rebuilt on text/style edits). Rebind EVERY horizontal
+  // handle (corners + edges) to
+  // fabric's own width action (mr's actionHandler: pointer→width, opposite edge pinned
+  // via wrapWithFixedAnchor, fires object:resizing), then re-run the wrap on every tick:
+  // __fixedWidth ← width, initDimensions() re-wraps (fewer lines as the box widens,
+  // taller as it narrows), the height auto-fits and the clipPath re-syncs. Vertical
+  // handles go away — the height is content-driven, never hand-set (same contract as
+  // typing). Scale stays 1 forever, so objectToData's fontSize/__fixedWidth bake is a
+  // no-op and the width round-trips through the record.
+  function wireTextBoxResize(obj) {
+    const widthAction = obj.controls?.mr?.actionHandler
+    if (!widthAction) return // fabric layout drift → default handles, no reflow
+    const cursors = { tl: 'nwse-resize', tr: 'nesw-resize', bl: 'nesw-resize', br: 'nwse-resize', ml: 'ew-resize', mr: 'ew-resize' }
+    for (const key of Object.keys(cursors)) {
+      const c = obj.controls[key]
+      if (!c) continue
+      c.actionHandler = widthAction
+      c.actionName = 'resizing'
+      c.cursorStyleHandler = () => cursors[key] // width resize is axis-x; ignore angle cursors
+    }
+    obj.setControlsVisibility({ mt: false, mb: false }) // height is auto-fit
+    obj.on('resizing', () => {
+      if (obj.isEditing) return // while editing, the box owns its own geometry
+      // fabric's set('width') already re-measured (initDimensions + setCoords run inside
+      // Text.set) — sync the pin + clamp, then refresh the control coords for the new
+      // height so the handles track the box mid-drag.
+      obj.width = Math.max(28, Math.round(obj.width))
+      obj.__fixedWidth = obj.width
+      obj.setCoords()
+    })
+  }
+
   function makeTextBox(data, textOpts) {
     const w = Math.max(28, data.width)
     const h = Math.max(14, data.height || 28)
@@ -442,10 +483,13 @@ window.hibanaCanvas = (() => {
     obj.clipPath = new fabric.Rect({ left: -w / 2, top: -h / 2, width: w, height: h })
     const base = obj.initDimensions.bind(obj)
     obj.initDimensions = () => {
-      // Session 19 (user request): set width BEFORE base() so the text reflows to the
-      // new width. Was: base() first (measures at old width) then pins width → text
-      // didn't reflow on resize.
-      obj.width = obj.__fixedWidth
+      // WIDTH-TRANSPARENT (Session 28-R3 resize fix): never write obj.width here — the
+      // wrap measures at the LIVE width. v7's Text.set('width') runs initDimensions +
+      // setCoords synchronously, so a width-set from a resize handle re-wraps here; an
+      // old __fixedWidth re-pin (Session 19) would clobber the new width back and the
+      // resize would no-op (changeObjectWidth returns "unchanged"). The pin syncs the
+      // OTHER way now: the 'resizing' handler mirrors obj.width into __fixedWidth, and
+      // objectToData's multi-select bake applies the baked width explicitly.
       base()
       // Let the HEIGHT auto-fit: Fabric Textbox.height reflects the text block height
       // after base(); use Math.max(minHeight, measured) so the box never shrinks below
@@ -457,6 +501,7 @@ window.hibanaCanvas = (() => {
     // construction — a loaded note renders ALL its saved content even when re-measured
     // text is taller than the persisted height (grow-only: max(saved, measured)).
     obj.initDimensions()
+    wireTextBoxResize(obj)
     wireTextDir(obj)
     return obj
   }

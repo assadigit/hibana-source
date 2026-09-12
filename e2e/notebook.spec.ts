@@ -175,6 +175,83 @@ test('sticky note: create → type → save round-trip, then undo/redo', async (
   expect(errors).toEqual([])
 })
 
+// Locate the text-tool note on the notebook + the PAGE-space position of its
+// middle-right / top-right resize handles (scene coords → vpt → canvas element offset).
+const textBoxProbe = (page: Page) =>
+  page.evaluate(() => {
+    const c = window.hibanaNotebook?.getCanvas()
+    const o = (c?.getObjects() ?? []).find((x) => x.id && x.type === 'textbox' && !x.isEditing)
+    if (!o || !c) return null
+    const b = o.getBoundingRect()
+    const vpt = c.viewportTransform
+    const el = document.getElementById('nb-board')
+    if (!el) return null
+    const r = el.getBoundingClientRect()
+    const toPage = (x: number, y: number) => ({ x: r.left + vpt[0] * x + vpt[2] * y + vpt[4], y: r.top + vpt[1] * x + vpt[3] * y + vpt[5] })
+    const mr = toPage(b.left + b.width, b.top + b.height / 2)
+    const tr = toPage(b.left + b.width, b.top)
+    const ctr = toPage(b.left + b.width / 2, b.top + b.height / 2)
+    return { mrX: mr.x, mrY: mr.y, trX: tr.x, trY: tr.y, cx: ctr.x, cy: ctr.y, width: o.width, fixed: o.__fixedWidth, lines: o.textLines.length, scaleX: o.scaleX }
+  })
+
+test('text box: drag a corner handle → width grows and the text re-wraps (fewer lines)', async ({ page, browserName }) => {
+  test.skip(browserName !== 'chromium', 'Desktop Chromium only')
+  const errors = trackErrors(page)
+
+  await login(page)
+  await openNotebook(page)
+  await page.evaluate(() => window.hibanaNotebook.getCanvas().clear())
+
+  // Text tool: drag a NARROW ~140×90 box so the typed sentence wraps to several lines.
+  await page.click('#nb-toolbar [data-tool="text"]')
+  const box = await page.locator('#nb-board').boundingBox()
+  expect(box).not.toBeNull()
+  await page.mouse.move(box!.x + 260, box!.y + 200)
+  await page.mouse.down()
+  await page.mouse.move(box!.x + 400, box!.y + 290, { steps: 8 })
+  await page.mouse.up()
+
+  // The fresh box enters editing (fabric's hidden textarea takes focus).
+  await page.waitForFunction(() => {
+    const c = window.hibanaNotebook?.getCanvas()
+    const t = c?.getObjects().find((o) => o.type === 'textbox' && o.isEditing)
+    return !!t && document.activeElement instanceof HTMLTextAreaElement
+  }, null, { timeout: 5_000 })
+  await page.keyboard.type('e2e nb reflow one two three four five six seven eight nine')
+
+  // Leave editing: switching to the move tool blurs the textarea → editing:exited → save.
+  // The note REMAINS the active object — the handles are live immediately (no re-select
+  // click: a click on an already-selected fabric IText re-enters editing instead).
+  await page.click('#nb-toolbar [data-tool="move"]')
+
+  const before = await textBoxProbe(page)
+  expect(before).not.toBeNull()
+  const isStillSelected = await page.evaluate(() => window.hibanaNotebook?.getCanvas()?.getActiveObject()?.type === 'textbox')
+  expect(isStillSelected).toBe(true)
+  expect(before!.lines).toBeGreaterThan(2) // the sentence is wrapped at the narrow width
+
+  // Drag the TOP-RIGHT CORNER handle 200px outward — corners drive the width too.
+  await page.mouse.move(before!.trX, before!.trY)
+  await page.mouse.down()
+  await page.mouse.move(before!.trX + 200, before!.trY + 6, { steps: 12 })
+  await page.mouse.up()
+
+  const after = await textBoxProbe(page)
+  // Width-driven resize: the container width grew, the scale never moved, and the
+  // wrapping re-ran — the same text now fits on fewer lines.
+  expect(after!.fixed).toBeGreaterThan(before!.fixed + 140)
+  expect(after!.scaleX).toBe(1)
+  expect(after!.lines).toBeLessThan(before!.lines)
+
+  // Durable: the record persists the new width (object:modified → save → queue → server).
+  const els = await syncedElements(page)
+  expect(els).not.toBeNull()
+  const rec = els!.find((e: { type: string; content: string; deleted: number }) => e.type === 'note' && !e.deleted && String(e.content).includes('e2e nb reflow one'))
+  expect(rec).toBeTruthy()
+  expect(rec!.width).toBeGreaterThan(before!.fixed + 140)
+  expect(errors).toEqual([])
+})
+
 // Type augmentation for the notebook global (whiteboard.js exposes { init, getCanvas }).
 declare global {
   interface Window {

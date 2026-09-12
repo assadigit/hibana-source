@@ -17,6 +17,7 @@ const USERS = {
   render: 'e2e-cv-r@test.local',
   pen: 'e2e-cv-p@test.local',
   sticky: 'e2e-cv-s@test.local',
+  text: 'e2e-cv-t@test.local',
 }
 
 // Seed a test user (migrations auto-run on server boot).
@@ -47,6 +48,7 @@ test.beforeAll(async () => {
   await seedUser(USERS.render)
   await seedUser(USERS.pen)
   await seedUser(USERS.sticky)
+  await seedUser(USERS.text)
 })
 
 async function login(page: Page, email: string) {
@@ -206,10 +208,101 @@ test('sticky note: drag-create → double-click edit → save round-trip, then u
   expect(errors).toEqual([])
 })
 
+// Locate the given text-box note on the board + the PAGE-space position of its
+// middle-right resize handle (scene coords → vpt → canvas element offset). The vpt math
+// is explicit (identity on a fresh load, but the formula stays correct at any zoom).
+const textBoxProbe = (page: Page) =>
+  page.evaluate(() => {
+    const c = window.hibanaCanvas?.getCanvas()
+    const o = c?.getObjects().find((x) => x.id && x.type === 'textbox' && !x.isEditing)
+    if (!o || !c) return null
+    const b = o.getBoundingRect()
+    const vpt = c.viewportTransform
+    const el = document.getElementById('board')
+    if (!el) return null
+    const r = el.getBoundingClientRect()
+    const mr = { x: b.left + b.width, y: b.top + b.height / 2 } // middle-right handle (scene)
+    return {
+      mrX: r.left + vpt[0] * mr.x + vpt[2] * mr.y + vpt[4],
+      mrY: r.top + vpt[1] * mr.x + vpt[3] * mr.y + vpt[5],
+      cx: r.left + vpt[0] * (b.left + b.width / 2) + vpt[2] * (b.top + b.height / 2) + vpt[4],
+      cy: r.top + vpt[1] * (b.left + b.width / 2) + vpt[3] * (b.top + b.height / 2) + vpt[5],
+      width: o.width,
+      fixed: o.__fixedWidth,
+      lines: o.textLines.length,
+      scaleX: o.scaleX,
+      id: o.id,
+    }
+  })
+
+test('text box: drag the mr handle → width grows and the text re-wraps (fewer lines)', async ({ page, browserName }) => {
+  test.skip(browserName !== 'chromium', 'Desktop Chromium only')
+  const errors = trackErrors(page)
+
+  await login(page, USERS.text)
+  await openCanvas(page)
+
+  // Text tool: drag a NARROW ~150×90 box so the typed sentence wraps to several lines.
+  await page.click('#canvas-toolbar [data-tool="text"]')
+  const box = await page.locator('#board').boundingBox()
+  expect(box).not.toBeNull()
+  await page.mouse.move(box!.x + 300, box!.y + 160)
+  await page.mouse.down()
+  await page.mouse.move(box!.x + 450, box!.y + 250, { steps: 8 })
+  await page.mouse.up()
+
+  // The fresh box enters editing (fabric's hidden textarea takes focus).
+  await page.waitForFunction(() => {
+    const c = window.hibanaCanvas?.getCanvas()
+    const t = c?.getObjects().find((o) => o.type === 'textbox' && o.isEditing)
+    return !!t && document.activeElement instanceof HTMLTextAreaElement
+  }, null, { timeout: 5_000 })
+  await page.keyboard.type('e2e reflow alpha beta gamma delta epsilon zeta eta theta')
+
+  // Leave editing: switching to the select tool blurs the textarea → editing:exited → save.
+  // The note REMAINS the active object — the handles are live immediately (no re-select
+  // click: a click on an already-selected fabric IText re-enters editing instead).
+  await page.click('#canvas-toolbar [data-tool="select"]')
+
+  const before = await textBoxProbe(page)
+  expect(before).not.toBeNull()
+  const isStillSelected = await page.evaluate(() => window.hibanaCanvas?.getCanvas()?.getActiveObject()?.type === 'textbox')
+  expect(isStillSelected).toBe(true)
+  expect(before!.lines).toBeGreaterThan(2) // the sentence is wrapped at the narrow width
+
+  // Drag the middle-right handle 180px outward.
+  await page.mouse.move(before!.mrX, before!.mrY)
+  await page.mouse.down()
+  await page.mouse.move(before!.mrX + 180, before!.mrY, { steps: 12 })
+  await page.mouse.up()
+
+  const after = await textBoxProbe(page)
+  // Width-driven resize: the container width grew, the scale never moved, and the
+  // wrapping re-ran — the same text now fits on fewer lines.
+  expect(after!.fixed).toBeGreaterThan(before!.fixed + 120)
+  expect(after!.scaleX).toBe(1)
+  expect(after!.lines).toBeLessThan(before!.lines)
+
+  // Durable: the record persists the new width (persistDebounced 400ms → queue → server).
+  await page.waitForTimeout(650)
+  const els = await syncedElements(page)
+  expect(els).not.toBeNull()
+  const rec = els!.find((e: { type: string; content: string; deleted: number }) => e.type === 'note' && !e.deleted && String(e.content).includes('e2e reflow alpha'))
+  expect(rec).toBeTruthy()
+  expect(rec!.width).toBeGreaterThan(before!.fixed + 120)
+
+  // Undo the resize ('modify' entry): the note rebuilds at the original wrap width.
+  await page.keyboard.press('Control+z')
+  await page.waitForTimeout(300)
+  const undone = await textBoxProbe(page)
+  expect(Math.round(undone!.fixed)).toBe(Math.round(before!.fixed))
+  expect(errors).toEqual([])
+})
+
 // Type augmentation for the canvas global (canvas.js exposes { init, getElement, getCanvas }).
 declare global {
   interface Window {
-    hibanaCanvas?: { init: (sel: string, ui: Record<string, unknown>) => Promise<void>; getElement: (id: string) => unknown; getCanvas: () => { getObjects: () => { id?: string; type?: string; isEditing?: boolean; getBoundingRect: () => { left: number; top: number; width: number; height: number } }[]; clear: () => void } | null }
+    hibanaCanvas?: { init: (sel: string, ui: Record<string, unknown>) => Promise<void>; getElement: (id: string) => unknown; getCanvas: () => ({ getObjects: () => { id?: string; type?: string; isEditing?: boolean; width?: number; scaleX?: number; __fixedWidth?: number; textLines?: unknown[]; getBoundingRect: () => { left: number; top: number; width: number; height: number } }[]; getActiveObject: () => { type?: string } | undefined; viewportTransform: number[] } & { clear: () => void }) | null }
     hibanaQueue?: { flush: () => Promise<void>; enqueue: (item: unknown) => void }
   }
 }

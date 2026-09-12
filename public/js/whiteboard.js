@@ -129,6 +129,44 @@ window.hibanaNotebook = (() => {
   // nothing is clipped. Width never grows sideways (wrapping prevents that); height is
   // auto-fit. splitByGrapheme = character-level wrapping (overflow-wrap: anywhere) so a
   // single unbroken word still wraps.
+  //
+  // Width-driven text-box resize (2026-09-12 user report: "the resize handles look
+  // decorative — resizing never changes the wrapping"). Fabric v7's Textbox defaults
+  // give the four CORNERS scalingEqually (the letters stretch, the wrap stays frozen)
+  // and only ml/mr a width action — and nothing re-measures the wrap on a width change
+  // anyway (v7 has no initDimensions call in the resize path; the lines cache is only
+  // rebuilt on text/style edits). Rebind EVERY horizontal handle (corners + edges) to
+  // fabric's own width action (mr's actionHandler: pointer→width, opposite edge pinned
+  // via wrapWithFixedAnchor, fires object:resizing), then re-run the wrap on every tick:
+  // __fixedWidth ← width, initDimensions() re-wraps (fewer lines as the box widens,
+  // taller as it narrows), the height auto-fits and the clipPath re-syncs. Vertical
+  // handles go away — the height is content-driven, never hand-set (same contract as
+  // typing). Scale stays 1 forever, so objectToData's fontSize/__fixedWidth bake is a
+  // no-op and the width round-trips through the record. (Same helper as canvas.js —
+  // kept in sync deliberately; the boards' makeTextBox twins are already duplicated.)
+  function wireTextBoxResize(obj) {
+    const widthAction = obj.controls?.mr?.actionHandler
+    if (!widthAction) return // fabric layout drift → default handles, no reflow
+    const cursors = { tl: 'nwse-resize', tr: 'nesw-resize', bl: 'nesw-resize', br: 'nwse-resize', ml: 'ew-resize', mr: 'ew-resize' }
+    for (const key of Object.keys(cursors)) {
+      const c = obj.controls[key]
+      if (!c) continue
+      c.actionHandler = widthAction
+      c.actionName = 'resizing'
+      c.cursorStyleHandler = () => cursors[key] // width resize is axis-x; ignore angle cursors
+    }
+    obj.setControlsVisibility({ mt: false, mb: false }) // height is auto-fit
+    obj.on('resizing', () => {
+      if (obj.isEditing) return // while editing, the box owns its own geometry
+      // fabric's set('width') already re-measured (initDimensions + setCoords run inside
+      // Text.set) — sync the pin + clamp, then refresh the control coords for the new
+      // height so the handles track the box mid-drag.
+      obj.width = Math.max(28, Math.round(obj.width))
+      obj.__fixedWidth = obj.width
+      obj.setCoords()
+    })
+  }
+
   function makeTextBox(data, textOpts) {
     const w = Math.max(28, data.width)
     const h = Math.max(14, data.height || 28)
@@ -140,10 +178,15 @@ window.hibanaNotebook = (() => {
     obj.clipPath = new fabric.Rect({ left: -w / 2, top: -h / 2, width: w, height: h })
     const base = obj.initDimensions.bind(obj)
     obj.initDimensions = () => {
+      // WIDTH-TRANSPARENT (Session 28-R3 resize fix): never write obj.width here — the
+      // wrap measures at the LIVE width (set at construction, or by a resize handle via
+      // v7's Text.set('width') which re-runs initDimensions + setCoords synchronously —
+      // an old __fixedWidth re-pin here would clobber the new width and the resize would
+      // no-op). The pin syncs the other way: the 'resizing' handler mirrors obj.width
+      // into __fixedWidth; objectToData's multi-select bake applies the baked width.
       base()
-      // Re-pin the WIDTH only. Let the HEIGHT auto-fit to the text (Math.max with the
-      // user's drawn min height so it never shrinks below the boundary but grows).
-      obj.width = obj.__fixedWidth
+      // Let the HEIGHT auto-fit to the text (Math.max with the user's drawn min height
+      // so it never shrinks below the boundary but grows).
       obj.height = Math.max(obj.__minHeight, Math.round(obj.height))
       obj.clipPath.set({ left: -obj.width / 2, top: -obj.height / 2, width: obj.width, height: obj.height })
     }
@@ -154,6 +197,7 @@ window.hibanaNotebook = (() => {
     // height stayed invisible with no way to reach it. Fit ONCE at construction so a
     // loaded note always shows all of its saved content (grow-only: max(saved, measured)).
     obj.initDimensions()
+    wireTextBoxResize(obj)
     return obj
   }
 
@@ -723,9 +767,12 @@ window.hibanaNotebook = (() => {
       // and reloads render at exactly the size the user left it.
       const fontSize = Math.max(6, Math.min(400, Math.round((obj.fontSize || 18) * (obj.scaleY || 1))))
       if (obj.__minHeight) obj.__minHeight = Math.max(14, Math.round(obj.__minHeight * (obj.scaleY || 1)))
-      if (obj.__fixedWidth) obj.__fixedWidth = Math.max(28, Math.round(obj.__fixedWidth * (obj.scaleX || 1)))
+      if (obj.__fixedWidth) {
+        obj.__fixedWidth = Math.max(28, Math.round(obj.__fixedWidth * (obj.scaleX || 1)))
+        obj.width = obj.__fixedWidth // apply the bake to the LIVE wrap width (initDimensions no longer re-pins)
+      }
       obj.set({ fontSize, scaleX: 1, scaleY: 1 })
-      if (typeof obj.initDimensions === 'function') obj.initDimensions() // pins size + re-syncs the clip
+      if (typeof obj.initDimensions === 'function') obj.initDimensions() // re-wraps at the baked width + re-syncs the clip
       obj.setCoords?.()
       const b = obj.getBoundingRect()
       return {

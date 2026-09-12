@@ -51,7 +51,7 @@ function d2g(jdn: number): { gy: number; gm: number; gd: number } {
 }
 
 function d2j(jdn: number): { jy: number; jm: number; jd: number } {
-  let gy = d2g(jdn).gy
+  const gy = d2g(jdn).gy
   let jy = gy - 621
   const r = jalCal(jy)
   const jdn1f = g2d(gy, 3, r.march)

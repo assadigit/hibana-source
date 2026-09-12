@@ -18,6 +18,7 @@ import { Hono } from 'hono'
 import { z } from 'zod'
 import { requireAuth } from '../auth/middleware'
 import { jsonBody } from '../lib/http'
+import { hitRateLimit, RATE_RULES, clientIp } from '../services/ratelimit'
 import { localeOf } from '../lib/i18n'
 import { ApiError, ErrorCode, apiError } from '../lib/errors'
 import type { Config } from '../types'
@@ -57,6 +58,11 @@ export function aiRoutes(cfg: Config): Hono {
   })
 
   app.post('/text', requireAuth(cfg), async (c) => {
+    // SWOT T-low: rate-limit the AI Magic Button — 20 req/60s per IP. Stops a runaway
+    // script from burning the Workers AI free-tier neuron budget (10k/day).
+    if (await hitRateLimit(cfg.db, RATE_RULES.ai, clientIp(c))) {
+      throw apiError(ErrorCode.rate_limited, 'Too many AI requests — wait a minute and try again.')
+    }
     const body = await jsonBody(c, textBodySchema)
     if (!body) throw apiError(ErrorCode.invalid_input, 'text and action are required')
 

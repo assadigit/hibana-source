@@ -106,7 +106,7 @@ describe('sadhana — quadrant task board (spec 2026-08-25)', () => {
       const { app, auth } = await makeClient(db, uid)
       const id = await insert(db, uid, { title: 'daily habit', recurring: 1, recur_type: 'daily', recur_last: '2026-08-01' })
       await app.fetch(new Request(`http://local/api/sadhana/tasks/${id}/complete`, { method: 'POST', headers: auth }))
-      let task = await db.query<{ done: number; recur_last: string | null }>('SELECT done, recur_last FROM sadhana_tasks WHERE id = ?', [id])
+      const task = await db.query<{ done: number; recur_last: string | null }>('SELECT done, recur_last FROM sadhana_tasks WHERE id = ?', [id])
       expect(task[0].done).toBe(1)
       expect(task[0].recur_last).toBeTruthy()
       expect((await db.query('SELECT COUNT(*) AS n FROM sadhana_recur_history WHERE task_id = ?', [id]))[0].n).toBe(1)

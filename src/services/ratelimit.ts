@@ -28,6 +28,10 @@ export const RATE_RULES = {
   // 2 per 60s per IP is generous for a real broadcast (owner-only) but stops a runaway
   // script or a compromised owner session from flooding Resend's API.
   broadcast: { name: 'broadcast', limit: 2, windowSec: 60 },
+  // SWOT T-low: AI Magic Button (Workers AI). 20 req/60s per IP — generous for normal
+  // use (the Magic Button is a per-task action, not a bulk operation) but stops a
+  // runaway script from burning the free-tier neuron budget (10k/day).
+  ai: { name: 'ai', limit: 20, windowSec: 60 },
 } as const satisfies Record<string, RateRule>
 
 /**

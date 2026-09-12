@@ -25,8 +25,21 @@ jobs:
       - name: Install dependencies
         run: bun install --frozen-lockfile
 
+      # Security: npm audit gate (fails on any vulnerability)
+      - name: npm audit
+        run: npm audit --omit=dev --audit-level=high
+
+      # Code quality: eslint (catches unused vars, prefer-const, no-undef, etc.)
+      # Fails on errors only (warnings are tracked but don't block).
+      - name: ESLint
+        run: npx eslint src/
+
       - name: Build assets
         run: bun run build
+
+      # Bundle-size tracking: fails if /dist/ grows >15% total or >25% per file.
+      - name: Bundle-size check
+        run: node scripts/check-bundle-size.mjs
 
       - name: Typecheck
         run: bun run typecheck

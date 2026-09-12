@@ -8,6 +8,7 @@
       "startServerCommand": "DB_PATH=/tmp/hibana-lhci.db PORT=3017 NODE_ENV=development OPEN_REGISTRATION=true GITHUB_OWNER=x GITHUB_REPO=y GITHUB_TOKEN=x OWNER_EMAIL=test@test.local TELEGRAM_BOT_TOKEN=x TELEGRAM_SECRET=x node --import tsx src/server.ts",
       "startServerReadyPattern": "listening on http://localhost:3017",
       "numberOfRuns": 1,
+      "chromeFlags": "--no-sandbox --disable-dev-shm-usage",
       "settings": {
         "preset": "desktop"
       }

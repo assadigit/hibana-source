@@ -18,6 +18,7 @@ const USERS = {
   pen: 'e2e-cv-p@test.local',
   sticky: 'e2e-cv-s@test.local',
   text: 'e2e-cv-t@test.local',
+  w2: 'e2e-cv-w2@test.local',
 }
 
 // Seed a test user (migrations auto-run on server boot).
@@ -49,6 +50,7 @@ test.beforeAll(async () => {
   await seedUser(USERS.pen)
   await seedUser(USERS.sticky)
   await seedUser(USERS.text)
+  await seedUser(USERS.w2)
 })
 
 async function login(page: Page, email: string) {
@@ -57,6 +59,12 @@ async function login(page: Page, email: string) {
   await page.fill('[name="password"]', TEST_PASS)
   await page.click('button[type="submit"]')
   await page.waitForURL('**/app', { timeout: 10_000 })
+  // First-visit SW claim race (see viewport.spec.ts for the full write-up): the login
+  // page's SW registration activates + claims /app → boot.js reloads it once — that
+  // reload can supersede the next goto. Let it settle first.
+  await page.waitForFunction(() => navigator.serviceWorker.controller !== null, null, { timeout: 8_000 }).catch(() => {})
+  await page.waitForLoadState('load').catch(() => {})
+  await page.waitForTimeout(400)
 }
 
 // 401s from /api/auth/me before login + the SW navigation probe are expected (login.spec.ts
@@ -299,10 +307,70 @@ test('text box: drag the mr handle → width grows and the text re-wraps (fewer 
   expect(errors).toEqual([])
 })
 
+test('sticky resize by scale + mtr rotation persist through reload (W2 + 0049)', async ({ page, browserName }) => {
+  test.skip(browserName !== 'chromium', 'Desktop Chromium only')
+  const errors = trackErrors(page)
+
+  await login(page, USERS.w2)
+  await openCanvas(page)
+
+  // Create a sticky via the note tool drag (the same gesture as the sticky test).
+  await page.click('#canvas-toolbar [data-tool="note"]')
+  const box = await page.locator('#board').boundingBox()
+  expect(box).not.toBeNull()
+  await page.mouse.move(box!.x + 150, box!.y + 150)
+  await page.mouse.down()
+  await page.mouse.move(box!.x + 300, box!.y + 300, { steps: 8 })
+  await page.mouse.up()
+  await expect.poll(() => objectCount(page)).toBe(1)
+
+  // Scale + rotate the sticky through the REAL event path (a fabric control resize
+  // + mtr rotate end in exactly this state): set the transform, then fire
+  // object:modified → persistActive → objectToData bakes width×scale + angle.
+  const before = await page.evaluate(() => {
+    const c = window.hibanaCanvas?.getCanvas()
+    const o = c?.getObjects().find((x) => x.id && x.__innerText)
+    if (!o || !c) return null
+    o.set({ scaleX: 1.5, scaleY: 1.5, angle: 30 })
+    o.setCoords()
+    c.setActiveObject(o)
+    c.fire('object:modified', { target: o })
+    c.requestRenderAll()
+    return { id: o.id, baseW: Math.round(o.width || 0), angle: o.angle }
+  })
+  expect(before).not.toBeNull()
+
+  // persistDebounced (400ms) → queue → server: the record must carry the BAKED display
+  // size (~base×1.5) and the rotation. Pre-fix the record kept the base width (the
+  // resize reverted on reload) and angle didn't exist at all.
+  await page.waitForTimeout(650)
+  const els = await syncedElements(page)
+  expect(els).not.toBeNull()
+  const rec = els!.find((e: { id: string; deleted: number }) => e.id === before!.id && !e.deleted) as { width: number; angle: number } | undefined
+  expect(rec).toBeTruthy()
+  expect(rec!.width).toBeGreaterThan(Math.round(before!.baseW * 1.4)) // baked, not base
+  expect(rec!.angle).toBe(30)
+
+  // RELOAD: the sticky rebuilds at the baked size (scale back to 1, paper = record
+  // width) and rotates via makeObject's 0049 restore path.
+  await openCanvas(page)
+  const after = await page.evaluate((id) => {
+    const c = window.hibanaCanvas?.getCanvas()
+    const o = c?.getObjects().find((x) => x.id === id && x.__innerText)
+    if (!o) return null
+    return { width: Math.round(o.width || 0), angle: o.angle, scaleX: o.scaleX }
+  }, before!.id)
+  expect(after).not.toBeNull()
+  expect(after!.width).toBeGreaterThan(Math.round(before!.baseW * 1.4)) // resized size survived
+  expect(Math.round(after!.angle)).toBe(30) // rotation survived
+  expect(after!.scaleX).toBe(1) // rebuild is at scale 1 — the size is in the record
+  expect(errors).toEqual([])
+})
+
 // Type augmentation for the canvas global (canvas.js exposes { init, getElement, getCanvas }).
 declare global {
   interface Window {
-    hibanaCanvas?: { init: (sel: string, ui: Record<string, unknown>) => Promise<void>; getElement: (id: string) => unknown; getCanvas: () => ({ getObjects: () => { id?: string; type?: string; isEditing?: boolean; width?: number; scaleX?: number; __fixedWidth?: number; textLines?: unknown[]; getBoundingRect: () => { left: number; top: number; width: number; height: number } }[]; getActiveObject: () => { type?: string } | undefined; viewportTransform: number[] } & { clear: () => void }) | null }
+    hibanaCanvas?: { init: (sel: string, ui: Record<string, unknown>) => Promise<void>; getElement: (id: string) => unknown; getCanvas: () => ({ getObjects: () => { id?: string; type?: string; isEditing?: boolean; width?: number; scaleX?: number; angle?: number; __innerText?: unknown; __fixedWidth?: number; textLines?: unknown[]; getBoundingRect: () => { left: number; top: number; width: number; height: number }; set: (opts: Record<string, unknown>) => void; setCoords: () => void }[]; getActiveObject: () => { type?: string } | undefined; setActiveObject: (o: unknown) => void; fire: (name: string, opts?: Record<string, unknown>) => void; requestRenderAll: () => void; viewportTransform: number[] } & { clear: () => void }) | null }
     hibanaQueue?: { flush: () => Promise<void>; enqueue: (item: unknown) => void }
   }
 }

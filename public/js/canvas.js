@@ -198,6 +198,7 @@ window.hibanaCanvas = (() => {
         y: obj.top,
         width: Math.round((obj.width || 0) * (obj.scaleX || 1)),
         height: Math.round((obj.height || 0) * (obj.scaleY || 1)),
+        angle: Math.round(obj.angle || 0), // 0049: rotation round-trips
         color: '',
         content: obj.content || '',
         font_size: null,
@@ -238,6 +239,7 @@ window.hibanaCanvas = (() => {
         y: obj.top,
         width: Math.round((r?.width || 0) * (obj.scaleX || 1)),
         height: Math.round((r?.height || 0) * (obj.scaleY || 1)),
+        angle: Math.round(obj.angle || 0), // 0049: rotation round-trips
         color: '',
         content: obj.content || '',
         font_size: null,
@@ -257,6 +259,7 @@ window.hibanaCanvas = (() => {
         y: obj.top,
         width: Math.round((obj.width || 0) * (obj.scaleX || 1)),
         height: Math.round((obj.height || 0) * (obj.scaleY || 1)),
+        angle: Math.round(obj.angle || 0), // 0049: rotation round-trips
         color: obj.__shapeColor || '',
         content: obj.content || '',
         font_size: null,
@@ -276,6 +279,7 @@ window.hibanaCanvas = (() => {
         y: obj.top,
         width: null,
         height: null,
+        angle: Math.round(obj.angle || 0), // 0049: rotation round-trips
         color: '',
         content: obj.content || '',
         font_size: null,
@@ -299,6 +303,7 @@ window.hibanaCanvas = (() => {
         y: obj.top,
         width: Math.round((r?.width || obj.width || 0) * (obj.scaleX || 1)),
         height: Math.round((r?.height || obj.height || 0) * (obj.scaleY || 1)),
+        angle: Math.round(obj.angle || 0), // 0049: rotation round-trips
         color: '',
         content: obj.content || 'button',
         font_size: null,
@@ -309,13 +314,22 @@ window.hibanaCanvas = (() => {
         created_at: obj.createdAt || new Date().toISOString(),
       }
     }
+    // W2 fix (S29): sticky notes resize by SCALE (group semantics) — bake the display
+    // size (base × scale, min 80) into the record like the image/shape branches, so a
+    // control-resize round-trips instead of silently reverting on every reload. Text
+    // notes are already scale-normalized above (scaleX=1 → the bake is a no-op); paths
+    // and arrows stay point-anchored (null dims).
+    const isSticky = !isText && obj.__innerText != null
+    const bakeDim = (base, scale) =>
+      isSticky ? Math.max(80, Math.round((base || 0) * (scale || 1))) : base || null
     return {
       id: obj.id,
       type: obj.__kind === 'arrow' ? 'stroke' : obj.type === 'path' ? 'stroke' : 'note',
       x: obj.left,
       y: obj.top,
-      width: obj.type === 'path' || obj.__kind === 'arrow' ? null : obj.width || null,
-      height: obj.type === 'path' || obj.__kind === 'arrow' ? null : obj.height || null,
+      width: obj.type === 'path' || obj.__kind === 'arrow' ? null : bakeDim(obj.width, obj.scaleX),
+      height: obj.type === 'path' || obj.__kind === 'arrow' ? null : bakeDim(obj.height, obj.scaleY),
+      angle: Math.round(obj.angle || 0), // 0049: rotation round-trips (arrows are rotation-locked, stay 0)
       color: isText ? 'text' : obj.__noteColor || obj.fill || color,
       content: inner.text != null ? inner.text : obj.content || '',
       font_size: isText ? fontSize : null,
@@ -748,6 +762,9 @@ window.hibanaCanvas = (() => {
     obj.zIndex = data.z_index ?? 0
     obj.createdAt = data.created_at
     obj.__locked = !!data.locked // 0024: per-element lock survives save/reload
+    // 0049: restore persisted rotation (mtr handle). Arrows stay rotation-locked by
+    // design (makeArrowObject sets lockRotation + hasControls:false → angle stays 0).
+    if (data.angle) { obj.rotate(data.angle); obj.setCoords?.() }
     applyLock(obj)
     return obj
   }
@@ -1395,6 +1412,9 @@ window.hibanaCanvas = (() => {
       obj.createdAt = data.created_at
       obj.content = data.content
       obj.__tainted = !!raw.__noCors // display-only: a non-CORS host taints the canvas
+      // 0049: restore persisted rotation on the async image load path (makeObject's
+      // rotate only covers the synchronous branches — images land here).
+      if (data.angle) { obj.rotate(data.angle); obj.setCoords() }
       objects.set(data.id, obj)
       canvas.add(obj)
       canvas.requestRenderAll()

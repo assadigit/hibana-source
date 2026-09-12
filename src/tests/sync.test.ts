@@ -274,4 +274,42 @@ describe('canvas sync (rule 2 + Q4-A + Phase 2 gate)', () => {
       close()
     }
   })
+
+  it('angle round-trips through sync — mtr rotation survives reload (0049)', async () => {
+    const { db, close } = makeTestDb()
+    try {
+      const userId = await makeUser(db)
+      const { app, auth } = await makeCanvasClient(db, userId)
+      // a rotated text note, an untouched note (angle omitted), and an out-of-range probe
+      const rotated = el({ type: 'note', color: 'text', content: 'Tilted', angle: 42, updated_at: ago(1) })
+      const untouched = el({ type: 'note', content: 'Flat', updated_at: ago(1) }) // no angle — defaults to 0
+      const bad = el({ type: 'note', content: 'impossible', angle: 7200, updated_at: ago(0) }) // > 3600 — schema rejects
+
+      const res = await app.fetch(new Request('http://local/api/canvas/sync', { method: 'POST', headers: auth, body: JSON.stringify({ elements: [rotated, untouched, bad] }) }))
+      expect(res.status).toBe(400) // the batch fails validation — nothing lands
+      const full0 = await app.fetch(new Request('http://local/api/canvas/full', { headers: auth }))
+      expect(((await full0.json()) as { elements: unknown[] }).elements).toHaveLength(0)
+
+      // now the legal batch: rotated + untouched
+      const ok = await app.fetch(new Request('http://local/api/canvas/sync', { method: 'POST', headers: auth, body: JSON.stringify({ elements: [rotated, untouched] }) }))
+      expect(ok.status).toBe(200)
+      const full = await app.fetch(new Request('http://local/api/canvas/full', { headers: auth }))
+      const body = (await full.json()) as { elements: { id: string; angle: number }[] }
+      const byId = new Map(body.elements.map((e) => [e.id, e]))
+      expect(byId.get(rotated.id)?.angle).toBe(42) // rotation persisted
+      expect(byId.get(untouched.id)?.angle).toBe(0) // angleless records default to 0, not NULL
+
+      // LWW update: a newer version of the same element re-rotates it; an OLDER one is ignored
+      const spun = { ...rotated, angle: 200, content: 'Spun', updated_at: ago(0) }
+      const stale = { ...rotated, angle: 0, updated_at: ago(3) }
+      await app.fetch(new Request('http://local/api/canvas/sync', { method: 'POST', headers: auth, body: JSON.stringify({ elements: [stale, spun] }) }))
+      const full2 = await app.fetch(new Request('http://local/api/canvas/full', { headers: auth }))
+      const body2 = (await full2.json()) as { elements: { id: string; angle: number; content: string }[] }
+      const after = body2.elements.find((e) => e.id === rotated.id)
+      expect(after?.angle).toBe(200) // newest write wins
+      expect(after?.content).toBe('Spun')
+    } finally {
+      close()
+    }
+  })
 })

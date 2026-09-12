@@ -39,6 +39,12 @@ async function login(page: Page) {
   await page.fill('[name="password"]', TEST_PASS)
   await page.click('button[type="submit"]')
   await page.waitForURL('**/app', { timeout: 10_000 })
+  // First-visit SW claim race (see viewport.spec.ts for the full write-up): the login
+  // page's SW registration activates + claims /app → boot.js reloads it once — that
+  // reload can supersede the next goto. Let it settle first.
+  await page.waitForFunction(() => navigator.serviceWorker.controller !== null, null, { timeout: 8_000 }).catch(() => {})
+  await page.waitForLoadState('load').catch(() => {})
+  await page.waitForTimeout(400)
 }
 
 // 401s from /api/auth/me before login + the SW navigation probe are expected (login.spec.ts
@@ -252,10 +258,84 @@ test('text box: drag a corner handle → width grows and the text re-wraps (fewe
   expect(errors).toEqual([])
 })
 
+test('notebook move is durable and undoable — Ctrl+Z restores position (W3 + 0049)', async ({ page, browserName }) => {
+  test.skip(browserName !== 'chromium', 'Desktop Chromium only')
+  const errors = trackErrors(page)
+
+  await login(page)
+  await openNotebook(page)
+  await page.evaluate(() => window.hibanaNotebook.getCanvas().clear())
+
+  // A text note with a unique marker so its SERVER record is identifiable.
+  await page.click('#nb-toolbar [data-tool="text"]')
+  const box = await page.locator('#nb-board').boundingBox()
+  expect(box).not.toBeNull()
+  await page.mouse.move(box!.x + 260, box!.y + 180)
+  await page.mouse.down()
+  await page.mouse.move(box!.x + 400, box!.y + 270, { steps: 8 })
+  await page.mouse.up()
+  await page.waitForFunction(() => {
+    const c = window.hibanaNotebook?.getCanvas()
+    const t = c?.getObjects().find((o) => o.type === 'textbox' && o.isEditing)
+    return !!t && document.activeElement instanceof HTMLTextAreaElement
+  }, null, { timeout: 5_000 })
+  await page.keyboard.type('e2e nb move marker zulu')
+  await page.click('#nb-toolbar [data-tool="move"]') // exit editing → save
+
+  const note = await page.evaluate(() => {
+    const c = window.hibanaNotebook?.getCanvas()
+    const o = (c?.getObjects() ?? []).find((x) => x.type === 'textbox' && !x.isEditing && String(x.text ?? x.content ?? '').includes('e2e nb move marker zulu'))
+    return o ? { id: o.id, left: o.left, top: o.top } : null
+  })
+  expect(note).not.toBeNull()
+
+  // Move it through the REAL event path (what a fabric drag ends in): set position,
+  // fire object:modified → the W3 handler must save AND commit an undo entry.
+  await page.evaluate(({ id, dx, dy }) => {
+    const c = window.hibanaNotebook?.getCanvas()
+    const o = (c?.getObjects() ?? []).find((x) => x.id === id)
+    if (!o || !c) return false
+    o.set({ left: o.left + dx, top: o.top + dy })
+    o.setCoords()
+    c.setActiveObject(o)
+    c.fire('object:modified', { target: o })
+    c.renderAll()
+    return true
+  }, { id: note!.id, dx: 120, dy: 80 })
+
+  // Durable: the server record carries the moved position.
+  const moved = await syncedElements(page)
+  expect(moved).not.toBeNull()
+  const movedRec = moved!.find((e: { id: string; content: string; deleted: number }) => e.id === note!.id && !e.deleted) as { x: number; y: number } | undefined
+  expect(movedRec).toBeTruthy()
+  expect(Math.round(movedRec!.x)).toBeGreaterThan(Math.round(note!.left + 100))
+  expect(Math.round(movedRec!.y)).toBeGreaterThan(Math.round(note!.top + 60))
+
+  // UNDO the move — pre-W3 there was NO undo entry for notebook moves (the old handler
+  // only saved); now history carries 'modify' and Ctrl+Z rebuilds at the old position.
+  await page.keyboard.press('Control+z')
+  await page.waitForTimeout(300)
+  const restored = await page.evaluate((id) => {
+    const c = window.hibanaNotebook?.getCanvas()
+    const o = (c?.getObjects() ?? []).find((x) => x.id === id)
+    return o ? { left: o.left, top: o.top } : null
+  }, note!.id)
+  expect(restored).not.toBeNull()
+  expect(Math.abs(Math.round(restored!.left) - Math.round(note!.left))).toBeLessThanOrEqual(2)
+  expect(Math.abs(Math.round(restored!.top) - Math.round(note!.top))).toBeLessThanOrEqual(2)
+
+  // And the undo durably reverted the server record too.
+  const undone = await syncedElements(page)
+  const undoneRec = undone!.find((e: { id: string; deleted: number }) => e.id === note!.id && !e.deleted) as { x: number; y: number } | undefined
+  expect(undoneRec).toBeTruthy()
+  expect(Math.abs(Math.round(undoneRec!.x) - Math.round(note!.left))).toBeLessThanOrEqual(2)
+  expect(errors).toEqual([])
+})
+
 // Type augmentation for the notebook global (whiteboard.js exposes { init, getCanvas }).
 declare global {
   interface Window {
-    hibanaNotebook?: { init: (sel: string, ui: Record<string, unknown>) => Promise<void>; getCanvas: () => { getObjects: () => unknown[]; clear: () => void } | null }
+    hibanaNotebook?: { init: (sel: string, ui: Record<string, unknown>) => Promise<void>; getCanvas: () => { getObjects: () => { id?: string; type?: string; isEditing?: boolean; text?: string; content?: string; left?: number; top?: number; width?: number; scaleX?: number; angle?: number; __innerText?: unknown; set: (opts: Record<string, unknown>) => void; setCoords: () => void; getBoundingRect: () => { left: number; top: number; width: number; height: number } }[]; clear: () => void; setActiveObject: (o: unknown) => void; fire: (name: string, opts?: Record<string, unknown>) => void; renderAll: () => void; getActiveObject: () => { type?: string } | undefined } | null }
     hibanaQueue?: { flush: () => Promise<void>; enqueue: (item: unknown) => void }
   }
 }

@@ -51,6 +51,10 @@ export const updateProjectSchema = z
     sort_order: z.number().int().min(0).optional(),
     latest_note: z.string().max(5000).optional(),
     progress_percent: z.number().int().min(0).max(100).nullable().optional(),
+    // S29 (agenda 5): rides ALONGSIDE a progress_percent change — the milestone note for
+    // the progress-history timeline. Never stored on projects (the column doesn't exist);
+    // the route intercepts it and it lands in project_progress_log (0050).
+    progress_note: z.string().max(200).optional(),
     archived_state: z.enum(['online', 'offline']).nullable().optional(),
     client_name: z.string().max(200).nullable().optional(),
     due_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().optional(),

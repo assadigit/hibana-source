@@ -7,21 +7,21 @@
   <link rel="icon" type="image/svg+xml" href="/icon.svg">
   <link rel="preload" as="font" type="font/woff2" href="/vendor/manrope/Manrope-400.woff2" crossorigin>
   <link rel="stylesheet" href="/css/variables.css?v=5">
-  <link rel="stylesheet" href="/css/base.css?v=2">
+  <link rel="stylesheet" href="/css/base.css?v=3">
   <link rel="stylesheet" href="/css/layout.css?v=2">
   <link rel="stylesheet" href="/css/dashboard.css?v=2">
-  <link rel="stylesheet" href="/css/dashboard-todo.css?v=4">
+  <link rel="stylesheet" href="/css/dashboard-todo.css?v=5">
   <link rel="stylesheet" href="/css/components.css?v=2">
-  <link rel="stylesheet" href="/css/canvas.css?v=3">
+  <link rel="stylesheet" href="/css/canvas.css?v=4">
   <link rel="stylesheet" href="/css/quicknotes.css?v=5">
   <link rel="stylesheet" href="/css/to-do-list.css?v=2">
   <link rel="stylesheet" href="/css/polish-ui.css?v=3">
   <link rel="stylesheet" href="/css/calendar.css?v=2">
   <link rel="stylesheet" href="/css/notifications.css?v=3">
-  <link rel="stylesheet" href="/css/polish-batch.css?v=4">
-  <link rel="stylesheet" href="/css/project-header.css?v=2">
+  <link rel="stylesheet" href="/css/polish-batch.css?v=5">
+  <link rel="stylesheet" href="/css/project-header.css?v=3">
   <link rel="stylesheet" href="/css/devboard.css?v=2">
-  <link rel="stylesheet" href="/css/misc.css?v=4">
+  <link rel="stylesheet" href="/css/misc.css?v=5">
   <link rel="stylesheet" href="/css/themes.css?v=2">
   <link rel="stylesheet" href="/css/rtl.css?v=2">
   <link rel="stylesheet" href="/vendor/manrope/font-face.css">
@@ -32,13 +32,13 @@
   <!-- admin.js MUST load before nav.js: nav.js drains the __hibanaPage queue on hard
        load (defer order = document order) and the page-def's mount lambda calls
        window.hibanaAdmin — which doesn't exist yet if admin.js comes after. -->
-  <script src="/js/admin.js?v=4" defer></script>
+  <script src="/js/admin.js?v=5" defer></script>
   <script src="/js/touch-drag.js?v=1" defer></script>
   <script src="/js/nav.js?v=2" defer></script>
   <script src="/js/mobile-nav.js?v=4" defer></script>
   <script src="/js/go-to.js?v=1" defer></script>
-  <script src="/js/i18n-en.js?v=7" defer></script>
-  <script src="/js/i18n.js?v=64" defer></script>
+  <script src="/js/i18n-en.js?v=8" defer></script>
+  <script src="/js/i18n.js?v=65" defer></script>
 </head>
 <body>
   <div data-nav></div>
@@ -126,11 +126,16 @@
         </div>
       </section>
 
-      <!-- Backup: GitHub status + on-demand actions -->
+      <!-- Backup: GitHub status + on-demand actions. S29 (agenda 4): the health line +
+           the Plan-B row make the backup chain's state VISIBLE — freshness verdict
+           (fresh/late/stale vs the 4×/day cadence), encryption flag, and the Telegram
+           Plan-B channel with a one-click trigger (empty since birth = standing owner
+           action — now surfaced in-app instead of buried in the runbook). -->
       <section class="adm-panel" id="adm-panel-backup" hidden>
         <div class="card">
           <h3 data-i18n="admin.backupRepo">GitHub snapshots</h3>
           <p id="adm-backup-status" class="muted small">…</p>
+          <p id="adm-backup-health" class="muted small">…</p>
           <p class="muted small" data-i18n="admin.backupHint">Automatic backup runs every 6 hours; password hashes are never included.</p>
           <div class="row wrap">
             <button type="button" class="ghost" id="adm-backup-now">
@@ -141,6 +146,17 @@
               <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m0 0l-4-4m4 4l4-4M5 21h14"/></svg>
               <span data-i18n="admin.backupDownload">Download backup (JSON)</span>
             </a>
+          </div>
+        </div>
+        <div class="card" style="margin-block-start: 0.75rem">
+          <h3 data-i18n="admin.planbTitle">Plan B — Telegram channel</h3>
+          <p id="adm-planb-status" class="muted small">…</p>
+          <p class="muted small" data-i18n="admin.planbHint">Sends ONE encrypted snapshot (same AES-256-GCM format as GitHub) to every linked owner chat. On-demand only — the chat is never spammed.</p>
+          <div class="row wrap">
+            <button type="button" class="ghost" id="adm-planb-now">
+              <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M22 2 11 13"/><path d="M22 2 15 22l-4-9-9-4Z"/></svg>
+              <span data-i18n="admin.planbNow">Send Plan B backup now</span>
+            </button>
           </div>
         </div>
       </section>

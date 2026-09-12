@@ -55,6 +55,16 @@ window.hibanaNotebook = (() => {
     if (data.deleted) window.hibanaQueue?.flush?.()
   }
 
+  // W3 fix (S29): the snapshot/diff twins of canvas.js — object:modified needs them to
+  // decide "real change vs click noise" and to capture the pre-modify record for undo.
+  const snapshotOf = (id) => (elems.has(id) ? { ...elems.get(id) } : null)
+  const dataChanged = (a, b) => {
+    if (!a || !b) return true
+    const { updated_at: _x, ...ar } = a
+    const { updated_at: _y, ...br } = b
+    return JSON.stringify(ar) !== JSON.stringify(br)
+  }
+
   // ---- rendering -----------------------------------------------------------
   function pointsToPath(points) {
     if (!points || points.length === 0 || typeof points[0] === 'number') return ''
@@ -234,6 +244,9 @@ window.hibanaNotebook = (() => {
     obj.id = data.id
     obj.zIndex = data.z_index ?? 0
     obj.createdAt = data.created_at
+    // 0049: restore persisted rotation (mtr handle). Notebook stickies are hasControls:false
+    // (never rotated by hand); text notes + pen strokes + images can carry an angle.
+    if (data.angle) { obj.rotate(data.angle); obj.setCoords?.() }
     return obj
   }
 
@@ -393,6 +406,9 @@ window.hibanaNotebook = (() => {
       obj.zIndex = data.z_index ?? 0
       obj.createdAt = data.created_at
       obj.content = data.content
+      // 0049: restore persisted rotation on the async image load path (makeObject's
+      // rotate only covers the synchronous branches — images land here).
+      if (data.angle) { obj.rotate(data.angle); obj.setCoords() }
       objects.set(data.id, obj)
       canvas.add(obj)
       canvas.renderAll()
@@ -742,6 +758,7 @@ window.hibanaNotebook = (() => {
       return {
         id: obj.id, type: 'image', x: obj.left, y: obj.top,
         width: Math.round((obj.width || 0) * (obj.scaleX || 1)), height: Math.round((obj.height || 0) * (obj.scaleY || 1)),
+        angle: Math.round(obj.angle || 0), // 0049: rotation round-trips
         color: '', content: obj.content || '',
         font_size: null,
         z_index: obj.zIndex || 0, deleted: 0, created_at: obj.createdAt || now(), updated_at: now(), board: BOARD,
@@ -756,6 +773,7 @@ window.hibanaNotebook = (() => {
       return {
         id: obj.id, type: 'sticky', x: obj.left, y: obj.top,
         width: Math.round((obj.width || 180) * (obj.scaleX || 1)), height: Math.round((obj.height || 120) * (obj.scaleY || 1)),
+        angle: Math.round(obj.angle || 0), // 0049: rotation round-trips (hasControls:false keeps it 0 in practice)
         color: obj.__lightColor || (obj.__paper && obj.__paper.fill) || STICKY_PAPER, content: (obj.__innerText && obj.__innerText.text) || obj.content || '',
         font_size: null,
         z_index: obj.zIndex || 0, deleted: 0, created_at: obj.createdAt || now(), updated_at: now(), board: BOARD,
@@ -774,16 +792,23 @@ window.hibanaNotebook = (() => {
       obj.set({ fontSize, scaleX: 1, scaleY: 1 })
       if (typeof obj.initDimensions === 'function') obj.initDimensions() // re-wraps at the baked width + re-syncs the clip
       obj.setCoords?.()
-      const b = obj.getBoundingRect()
+      const b = obj.angle ? null : obj.getBoundingRect()
       return {
-        id: obj.id, type: 'note', x: b.left, y: b.top, width: obj.width || b.width, height: obj.type === 'textbox' ? Math.round(obj.height) : null,
+        id: obj.id, type: 'note',
+        // 0049: under rotation the ORIGIN (obj.left/top — the rotate pivot) is what
+        // reconstructs exactly via makeObject's rotate(); the AABB was only safe at angle 0.
+        x: b ? b.left : obj.left, y: b ? b.top : obj.top, width: obj.width || b?.width, height: obj.type === 'textbox' ? Math.round(obj.height) : null,
+        angle: Math.round(obj.angle || 0), // 0049: rotation round-trips
         color: obj.fill || color, content: obj.text || obj.content || '', font_size: fontSize,
         z_index: obj.zIndex || 0, deleted: 0, created_at: obj.createdAt || now(), updated_at: now(), board: BOARD,
       }
     }
-    const b = obj.getBoundingRect()
+    const b = obj.angle ? null : obj.getBoundingRect()
     return {
-      id: obj.id, type: 'stroke', x: b.left, y: b.top, width: null, height: null,
+      id: obj.id, type: 'stroke',
+      // 0049: same origin-vs-AABB rule as the text branch — exact reconstruction under rotation.
+      x: b ? b.left : obj.left, y: b ? b.top : obj.top, width: null, height: null,
+      angle: Math.round(obj.angle || 0), // 0049: rotation round-trips
       color: obj.stroke || color, content: obj.content || '', font_size: null,
       z_index: obj.zIndex || 0, deleted: 0, created_at: obj.createdAt || now(), updated_at: now(), board: BOARD,
     }
@@ -1358,9 +1383,21 @@ window.hibanaNotebook = (() => {
       history.commit('add', data)
     })
 
-    // moved / resized
+    // moved / resized / rotated — W3 fix (S29): mirrors canvas.js persistActive (snapshot
+    // before → save → history.commit('modify') when the record actually changed), so
+    // notebook moves/resizes/rotations are undoable with the rest of the board instead
+    // of silently skipping the undo stack (the old handler saved without committing).
     canvas.on('object:modified', () => {
-      for (const obj of canvas.getActiveObjects()) if (obj.id) save(objectToData(obj))
+      for (const obj of canvas.getActiveObjects()) {
+        if (!obj || !obj.id) continue
+        const before = snapshotOf(obj.id)
+        const data = objectToData(obj)
+        obj.content = data.content
+        if (dataChanged(before, data)) {
+          save(data)
+          if (before) history.commit('modify', before)
+        }
+      }
     })
 
     // text tool: click-drag draws a rectangular text container (Figma/Photoshop style) —

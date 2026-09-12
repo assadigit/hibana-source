@@ -170,7 +170,7 @@ export function cardHtml(p: ProjectRow, tags: TagRow[], lang: Locale, signals?: 
   </article>`
 }
 
-export function listFragment(projects: ProjectRow[], tagsMap: Map<string, TagRow[]>, view: string, lang: Locale, signalsMap?: Map<string, ProjectSignals>, statusFilter?: string): string {
+export function listFragment(projects: ProjectRow[], tagsMap: Map<string, TagRow[]>, view: string, lang: Locale, signalsMap?: Map<string, ProjectSignals>, statusFilter?: string, progressMap?: Map<string, number>): string {
   if (projects.length === 0) {
     // B2.5: illustrated empty state — icon + headline + helper + CTA.
     // Status-aware: the Archive (status=halted) and other filtered views get a contextually
@@ -244,10 +244,14 @@ export function listFragment(projects: ProjectRow[], tagsMap: Map<string, TagRow
           const sigs = signalsHtml(sigObj, lang)
           const bugBubble = bugBubbleHtml(sigObj, lang)
           const blMeta = backlogMetaHtml(sigObj, lang)
+          // S29 (agenda 5 — color weights): a bucket-tinted progress strip rides the card's
+          // bottom edge — the board reads each project's weight at a glance.
+          const pct = progressMap?.get(p.id) ?? 0
           return `<div class="card kanban-card" draggable="true" data-project-id="${p.id}" data-status="${s}" data-nav-url="/project.html?id=${p.id}">
           <div class="row spread"><strong>${esc(p.title)}</strong>${bugBubble}</div>
           ${sigs}
           <div class="muted small">${timeAgo(p.updated_at, lang)}${blMeta ? ` · ${blMeta}` : ''}</div>
+          <div class="kanban-progress ${progressBucket(pct)}" role="progressbar" aria-valuenow="${pct}" aria-valuemin="0" aria-valuemax="100" aria-label="${esc(trL(lang, 'Progress', 'پیشرفت'))}"><span style="inline-size:${pct}%"></span></div>
         </div>`
         }).join('') || `<div class="kanban-empty">${trL(lang, 'Drop here', 'اینجا رها کن')}</div>`}
       </div>`
@@ -359,3 +363,46 @@ export function sparkFolderGrid(folders: (SparkFolderRow & { n: number })[], unf
   return `<div class="spark-folder-grid">${allCard}${cards}${unfiledCard}${newBtn}</div>`
 }
 
+
+// S29 (agenda 5 — kanban color weights): batched per-project progress for the board
+// renderers. One dev-task aggregate + one hurdle aggregate across ALL visible ids (the
+// same batched pattern as loadProjectSignals), then pct = manual override (0002) ?? the
+// computed formula (dev tasks once they exist → hurdles). Buckets tint the kanban strip.
+export async function loadProjectProgress(
+  cfg: Config,
+  projects: ProjectRow[],
+): Promise<Map<string, number>> {
+  const map = new Map<string, number>()
+  const ids = projects.map((p) => p.id)
+  if (ids.length === 0) return map
+  const placeholders = ids.map(() => '?').join(',')
+  const devRows = await cfg.db.query<{ project_id: string; total: number; done: number }>(
+    `SELECT project_id, COUNT(*) AS total, SUM(CASE WHEN status = 'done' THEN 1 ELSE 0 END) AS done FROM dev_tasks WHERE project_id IN (${placeholders}) GROUP BY project_id`,
+    ids,
+  )
+  const devMap = new Map(devRows.map((r) => [r.project_id, r]))
+  const hRows = await cfg.db.query<{ project_id: string; total: number; done: number }>(
+    `SELECT project_id, COUNT(*) AS total, SUM(CASE WHEN status = 'solved' THEN 1 ELSE 0 END) AS done FROM hurdles WHERE project_id IN (${placeholders}) GROUP BY project_id`,
+    ids,
+  )
+  const hMap = new Map(hRows.map((r) => [r.project_id, r]))
+  for (const p of projects) {
+    if (p.progress_percent !== null) {
+      map.set(p.id, p.progress_percent)
+      continue
+    }
+    const dev = devMap.get(p.id)
+    if (dev && dev.total > 0) {
+      map.set(p.id, Math.round((dev.done / dev.total) * 100))
+      continue
+    }
+    const h = hMap.get(p.id)
+    map.set(p.id, h && h.total > 0 ? Math.round((h.done / h.total) * 100) : 0)
+  }
+  return map
+}
+
+// The kanban strip's bucket class — same thresholds as the timeline badges (pd-pl-pct),
+// so one visual language reads across the board and the Activity tab.
+export const progressBucket = (pct: number): string =>
+  pct >= 100 ? 'is-done' : pct >= 75 ? 'is-high' : pct >= 50 ? 'is-mid' : pct >= 25 ? 'is-low' : 'is-zero'

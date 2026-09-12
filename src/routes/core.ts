@@ -340,6 +340,7 @@ export function coreRoutes(cfg: Config) {
     z_index: z.number().int().optional().default(0),
     deleted: z.union([z.literal(0), z.literal(1)]).optional().default(0),
     locked: z.union([z.literal(0), z.literal(1)]).optional().default(0), // 0024: per-element lock
+    angle: z.number().min(-3600).max(3600).optional().default(0), // 0049: persisted rotation (fabric mtr), degrees CW y-down
     created_at: z.string().optional(),
     updated_at: z.string().max(40),
   })
@@ -405,15 +406,15 @@ export function coreRoutes(cfg: Config) {
         if (prev && el.updated_at <= prev.updated_at) continue // LWW (Q4-A)
         const createdAt = el.created_at ?? prev?.created_at ?? new Date().toISOString()
         tx.sql(
-          `INSERT INTO canvas_elements (id, user_id, board, type, x, y, width, height, color, content, font_size, promoted_project_id, z_index, deleted, locked, created_at, updated_at)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          `INSERT INTO canvas_elements (id, user_id, board, type, x, y, width, height, color, content, font_size, promoted_project_id, z_index, deleted, locked, angle, created_at, updated_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
            ON CONFLICT(id) DO UPDATE SET
              board = excluded.board, type = excluded.type, x = excluded.x, y = excluded.y, width = excluded.width,
              height = excluded.height, color = excluded.color, content = excluded.content, font_size = excluded.font_size,
              promoted_project_id = excluded.promoted_project_id, z_index = excluded.z_index,
-             deleted = excluded.deleted, locked = excluded.locked, updated_at = excluded.updated_at`,
+             deleted = excluded.deleted, locked = excluded.locked, angle = excluded.angle, updated_at = excluded.updated_at`,
           [el.id, user.id, el.board ?? 'canvas', el.type, el.x, el.y, el.width ?? null, el.height ?? null, el.color, el.content,
-           el.font_size ?? null, el.promoted_project_id ?? null, el.z_index, el.deleted, el.locked ?? 0, createdAt, el.updated_at],
+           el.font_size ?? null, el.promoted_project_id ?? null, el.z_index, el.deleted, el.locked ?? 0, el.angle ?? 0, createdAt, el.updated_at],
         )
         applied.push(el.id)
       }

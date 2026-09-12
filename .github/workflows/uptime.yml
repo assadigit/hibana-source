@@ -1,0 +1,71 @@
+# Hibana uptime prober — external monitoring of the PROD site (Session 29, O1).
+#
+# Why: the only existing healthcheck ("hibana") is a dead-man's switch for the
+# deployed worker's own backup cron — it proves the CRON is alive, not that
+# hibana.ir actually SERVES users. A Cloudflare-side outage (routing, D1 incident,
+# broken deploy, certificate) would keep that check green while every request 500s.
+# This workflow runs ON GITHUB INFRA — an independent failure domain — every 30
+# minutes, hits https://hibana.ir/api/health, validates the payload, and pings
+# healthchecks.io. Silence there (missed ticks) or an explicit /fail pages the
+# existing alert channel.
+#
+# PREREQUISITE (repo secret, already set via the GitHub API):
+#   HIBANA_UPTIME_PING_URL — https://hc-ping.com/<ping-key>/hibana-uptime
+# The healthchecks.io check "hibana-uptime" (6h timeout + 1h grace) shares the
+# backup check's alert channel.
+#
+# Cost: ~2 runs/hour × ~5s curl ≈ 190 min/month — inside the private-repo free tier.
+name: Uptime
+
+on:
+  schedule:
+    # every 30 minutes (offset 7/37 to avoid the top-of-hour cron stampede)
+    - cron: "7,37 * * * *"
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Probe hibana.ir/api/health and ping healthchecks.io
+        env:
+          PING_URL: ${{ secrets.HIBANA_UPTIME_PING_URL }}
+        run: |
+          set -u
+          fail() {
+            echo "::error::$1"
+            # explicit /fail → the check goes red immediately (no grace wait)
+            if [ -n "${PING_URL:-}" ]; then
+              curl -fsS --max-time 15 "${PING_URL}/fail" --data-raw "hibana.ir uptime probe failed: $1" >/dev/null 2>&1 || true
+            fi
+            exit 1
+          }
+          # 1. Fetch health with retries (a single transient blip shouldn't page anyone).
+          body=""
+          for attempt in 1 2 3; do
+            if body=$(curl -fsS --max-time 15 -H 'Accept: application/json' https://hibana.ir/api/health); then
+              break
+            fi
+            echo "attempt $attempt failed; sleeping 20s"
+            sleep 20
+          done
+          [ -n "$body" ] || fail "hibana.ir/api/health unreachable after 3 attempts"
+          # 2. Validate payload: ok:true + a numeric schema_version. The live endpoint
+          #    serializes schema_version as a STRING ("47") — accept both forms.
+          ok=$(printf '%s' "$body" | jq -r '.ok // empty')
+          schema=$(printf '%s' "$body" | jq -r '.schema_version // empty')
+          [ "$ok" = "true" ] || fail "health payload ok != true: $body"
+          if [ -z "$schema" ] || ! printf '%s' "$schema" | jq -e 'tonumber? // empty' >/dev/null; then
+            fail "schema_version missing/non-numeric: $body"
+          fi
+          echo "hibana.ir healthy (schema_version $schema)"
+          # 3. Success ping (checks green + timer resets).
+          if [ -n "${PING_URL:-}" ]; then
+            curl -fsS --max-time 15 "$PING_URL" >/dev/null || fail "healthchecks.io ping failed"
+          else
+            echo "::warning::HIBANA_UPTIME_PING_URL secret not set — probe ran but nobody is watching"
+          fi

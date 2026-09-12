@@ -109,6 +109,10 @@ export const SNAPSHOT_TABLES = [
   'task_categories', 'sprints', 'dev_tasks', 'dev_task_tags',
   'project_archives',
   'backlog_docs', 'backlog_doc_revisions',
+  // S29 (agenda 5): project_progress_log (0050) — the progress timeline carries real
+  // user content (milestone notes). A restore without it loses "where I left off"
+  // history; projects.progress_percent survives on the projects row, but the WHY dies.
+  'project_progress_log',
 ] as const
 
 interface Snapshot {

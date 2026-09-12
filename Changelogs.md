@@ -9,6 +9,69 @@
 > rewritten as a minimal pointer. Deleted files remain recoverable verbatim:
 > `git show <sha>:<file>`.
 
+## 1. Current state (v0.3.12.26 — Session 29: SWOT batch + board data integrity + monitoring + responsive + backup health + the richer progress box)
+- **Session 29 summary** — the owner-directed 5-agenda session, executed against a fresh
+  re-clone after a context-loss recovery (the previous conversation's identical work was
+  never pushed; it was reconstructed 1:1 from the worklog and re-verified end-to-end —
+  the only permanent loss was two gitignored tmp-debug audit scripts). Shipped:
+  **(a) a P0 fix discovered in-session**: the sadhana/To-do board had been DEAD since
+  v0.3.10.2 (jalali.js top-level functions collided with sadhana-page.js's const
+  destructuring → SyntaxError at parse → "Loading…" forever; jalali.js is now
+  IIFE-wrapped with window.__hibJalali as the sole global, and e2e/sadhana.spec.ts —
+  the page's FIRST E2E coverage — pins the boot + task round-trip). **(b) SWOT
+  highest-leverage batch — board DATA INTEGRITY**: migration 0049 (canvas_elements.angle
+  REAL DEFAULT 0) + angle in every objectToData branch on both boards + rotate() on the
+  makeObject + async image load paths (the mtr rotation handle now round-trips; arrows
+  stay rotation-locked by design); W2 — sticky resize durable (canvas.js note branch
+  bakes width×scale, min 80); W3 — notebook moves/resizes/rotations undoable
+  (object:modified now mirrors persistActive: snapshot → save → history.commit).
+  **(c) O1 — external uptime monitoring**: healthchecks.io check "hibana-uptime" +
+  .github/workflows/uptime.yml (GitHub Actions prober every 30 min, jq-validated,
+  /fail pings — independent failure domain from Cloudflare) + GitHub repo secrets set
+  via API (the CD workflow is actually deployable now) + bun.lock regenerated (CI had
+  been red for 181 runs on frozen-lockfile drift). **(d) Responsive audit**: the ONE
+  real page-level bug (calendar.html 69px h-scroll @768 — .cal-controls wrap was gated
+  ≤640px) fixed + cal-head wraps ≤1024 + cal-sys 40px floor + ::after hit rings on
+  dash-collapse-btn/dash-todo-pen/pw-toggle + e2e/viewport.spec.ts (10 tests: 7 pages ×
+  4 widths + the calendar regression pin + cal-sys height + shell-fills-viewport).
+  **(e) Agenda 4 — backup-health visibility (W8)**: GET /api/admin/backup/status
+  extended with health (fresh ≤6h | late ≤12h | stale >12h | never | unknown, parsed
+  from the newest snapshot filename), planb {count, lastSentAt} on EVERY branch, and
+  encrypted (boolean only); the admin Backup tab renders a health line (+ error tint
+  on stale/never/plaintext) and a Plan B card with a ONE-CLICK trigger — planb_backups
+  being empty since birth is now a visible warning next to a button instead of a hidden
+  runbook step. **(f) Agenda 5 — the richer project progress box**: migration
+  0050_project_progress_log (pct nullable 0-100 + note ≤200 + created_at, user_id rule
+  1, indexed) + the project header's read-only bar became an interactive box (range
+  slider 0-100 step 5, milestone chips 0/25/50/75/100, Auto ⇄ Manual toggle, optional
+  milestone note; PATCH logs only CHANGED values, progress_note is a timeline rider
+  never a SET column) + GET /api/projects/:id/progress (entries + current {pct, auto,
+  autoPct}; ?format=html htmx fragment) + the Activity-tab Progress-history timeline
+  (bucket-tinted badges) + kanban color weights (projects.html cards carry a bottom
+  progress strip tinted by the same buckets; loadProjectProgress = batched dev-task +
+  hurdle aggregates) + the detail page now honors the manual override even when dev
+  tasks exist (the one surface where it was dead) + project_progress_log joined
+  SNAPSHOT_TABLES (the drift guard caught it — milestone notes are user content).
+- **E2E hardening found + fixed in-session**: the first-visit SW-claim race — the SW
+  registered on /login.html activates + clients.claim()s /app, boot.js's
+  controllerchange listener reloads /app once, and that reload SUPERSEDES a goto issued
+  in the same instant (observed: /calendar.html and soft-nav /settings.html landings
+  dragged back to /app, navType "reload", ~1-in-8). All authed specs' login() helpers
+  now wait for controller + load + settle.
+- **OWNER ACTIONS still standing (surfaced in-app now)**: trigger a Plan B backup on
+  PROD (admin console → Backup tab → "Send Plan B backup now" — planb_backups is still
+  empty) and run the full decrypt drills (scripts/drill + drill:planb) from the
+  owner's machine. The health line will show fresh/stale + encryption status for the
+  GitHub channel once the deployed worker's own token lists the repo.
+- Tests: 334 vitest (+1 angle round-trip, +5 backup-status, +5 project-progress) · 37
+  E2E (+2 sadhana, +1 canvas scale/rotation, +1 notebook move-undo, +10 viewport, +1
+  progress box) · build 71 entries 23/23 wired · cache-bust PASS (14 modified files) ·
+  i18n parity 964/964 (21 new keys EN+FA) · bundle-size PASS · smoke ALL PASS ·
+  workers 5/5. Schema 47→49 (0049 + 0050). SW v324/v325 (v325 carries the agenda-4+5
+  shell changes; bump trail: canvas.js v27, whiteboard.js v23, jalali v2, admin.js v5,
+  misc.css v5, project-page.js v3, project-header.css v3, canvas.css v4, i18n-en/fa
+  v8, i18n.js v65, polish-batch v5, dashboard-todo v5, base.css v3).
+
 ## 1. Current state (v0.3.12.25 — Session 28 R4: release close-out + Session-29 handover)
 - **Session 28 R4 summary** — docs-only close-out release. No application code changed;
   the entire Session 28 release train was re-verified end-to-end on a fresh sandbox and
@@ -1290,3 +1353,4 @@ must stay last). Restore is in-place and destructive: `npx wrangler d1 time-trav
 |---|---|---|---|---|
 | 2026-09-07T02:17:02.947Z | pm-app-prod | 43 | 000005ff-00000000-000050df-1931618c922f41a76b7c7562ca95765e | pre-migration bookmark (prod) |
 | 2026-09-07T03:39:19.075Z | pm-app-prod | 44 | 00000607-00000002-000050df-b85cfafbd13f7bfecd16248d882d092b | post-0045 healthy state, after transient D1 SQLITE_CORRUPT_VTAB incident |
+| 2026-09-12T22:24:32.712Z | pm-app-prod | 47 | 00000822-00000000-000050e4-a61be4b43323dca9f3fc24fc16465e42 | pre-0049+0050 migration bookmark (prod) — canvas angle + project progress log |

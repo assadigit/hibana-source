@@ -222,20 +222,50 @@
 
   function renderBackup() {
     const el = $('#adm-backup-status')
-    if (!el || !state.backup) return
-    if (!state.backup.configured) {
-      el.textContent = t('admin.backupNoRepo', 'GitHub backup is not configured (GITHUB_TOKEN secret missing).')
-      return
+    if (el && state.backup) {
+      if (!state.backup.configured) {
+        el.textContent = t('admin.backupNoRepo', 'GitHub backup is not configured (GITHUB_TOKEN secret missing).')
+      } else if (state.backup.error) {
+        el.textContent = `${t('admin.backupRepoError', 'Could not list the repo:')} ${state.backup.error}`
+      } else {
+        const b = state.backup
+        el.textContent =
+          (b.count ? `${faNum(b.count)} ${t('admin.backupSnapshots', 'snapshots')} · ` : '') +
+          (b.newest ? `${t('admin.backupNewest', 'newest:')} ${esc(b.newest)} · ` : t('admin.backupNone', 'No snapshots yet') + ' · ') +
+          `${faNum(b.retention)} ${t('admin.backupRetention', 'kept (auto-pruned)')}`
+      }
     }
-    if (state.backup.error) {
-      el.textContent = `${t('admin.backupRepoError', 'Could not list the repo:')} ${state.backup.error}`
-      return
+    // S29 (agenda 4): the HEALTH line — freshness verdict + encryption flag, rendered
+    // from the extended /backup/status payload (health: fresh|late|stale|never|unknown).
+    const healthEl = $('#adm-backup-health')
+    if (healthEl && state.backup?.configured && !state.backup.error) {
+      const b = state.backup
+      const parts = []
+      const age = b.ageHours != null ? (lang() === 'fa' ? `${faNum(b.ageHours)} ساعت پیش` : `${faNum(b.ageHours)}h old`) : null
+      if (b.health === 'fresh') parts.push(`✓ ${t('admin.backupFresh', 'Backup on schedule')} (${age})`)
+      else if (b.health === 'late') parts.push(`⚠ ${t('admin.backupLate', 'Last snapshot is late')} (${age} — ${t('admin.backupCadence', 'expected every ~6h')})`)
+      else if (b.health === 'stale') parts.push(`✗ ${t('admin.backupStale', 'STALE — the backup cron may be down')} (${age}) — ${t('admin.backupStaleHint', 'check the healthchecks.io alert channel')}`)
+      else if (b.health === 'unknown') parts.push(`? ${t('admin.backupUnknown', 'Newest snapshot timestamp unparseable')}`)
+      else parts.push(`✗ ${t('admin.backupNever', 'No snapshot has ever landed')}`)
+      parts.push(b.encrypted ? `🔒 ${t('admin.backupEncOn', 'Encryption ON (AES-256-GCM)')}` : `⚠ ${t('admin.backupEncOff', 'Encryption OFF — plaintext (dev only; production refuses this)')}`)
+      healthEl.textContent = parts.join(' · ')
+      healthEl.classList.toggle('adm-health-bad', b.health === 'stale' || b.health === 'never' || !b.encrypted)
+    } else if (healthEl) {
+      healthEl.textContent = ''
     }
-    const b = state.backup
-    el.textContent =
-      (b.count ? `${faNum(b.count)} ${t('admin.backupSnapshots', 'snapshots')} · ` : '') +
-      (b.newest ? `${t('admin.backupNewest', 'newest:')} ${esc(b.newest)} · ` : t('admin.backupNone', 'No snapshots yet') + ' · ') +
-      `${faNum(b.retention)} ${t('admin.backupRetention', 'kept (auto-pruned)')}`
+    // S29 (agenda 4): the Plan-B line — empty-since-birth is the standing OWNER ACTION;
+    // make that visible instead of silently zero.
+    const planbEl = $('#adm-planb-status')
+    if (planbEl) {
+      const p = state.backup?.planb
+      if (!p || !p.count) {
+        planbEl.textContent = `⚠ ${t('admin.planbEmpty', 'Never triggered — 0 documents. Tap "Send Plan B backup now" to prove the channel end-to-end (then run the decrypt drill from the runbook).')}`
+        planbEl.classList.add('adm-health-bad')
+      } else {
+        planbEl.textContent = `✓ ${faNum(p.count)} ${t('admin.planbDocs', 'documents')} · ${t('admin.planbLast', 'last:')} ${p.lastSentAt ? `${fmtDate(p.lastSentAt)} ${fmtTime(p.lastSentAt)}` : '—'}`
+        planbEl.classList.remove('adm-health-bad')
+      }
+    }
   }
 
   function renderErrors() {
@@ -639,6 +669,26 @@
           toast(errMessage(err), 'err')
         } finally {
           backupNow.disabled = false
+        }
+      })
+    // S29 (agenda 4): the one-click Plan-B trigger — POST /api/admin/backup/planb sends
+    // one encrypted snapshot to every linked owner chat. Empty-since-birth was a hidden
+    // standing owner action; now it's a button next to the warning that surfaces it.
+    const planbNow = $('#adm-planb-now')
+    if (planbNow)
+      planbNow.addEventListener('click', async () => {
+        planbNow.disabled = true
+        try {
+          const r = await api('POST', '/api/admin/backup/planb')
+          toast(`${t('admin.planbSent', 'Plan B backup sent:')} ${faNum(r.sent?.length ?? 0)} ${t('admin.planbChats', 'chat(s)')}`)
+          refreshBackup().catch(() => {})
+        } catch (err) {
+          // the skip paths answer { ok:false, skipped } with 4xx/5xx — api() throws, but
+          // the reason rides on err.data.skipped (a bare status string would hide it)
+          const why = err?.data?.skipped || errMessage(err)
+          toast(`${t('admin.planbSkipped', 'Plan B skipped:')} ${esc(String(why))}`, 'err')
+        } finally {
+          planbNow.disabled = false
         }
       })
   }

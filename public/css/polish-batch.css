@@ -545,3 +545,17 @@
 .db-card:has(.prio-urgent) { border-inline-start-color: #D96C63; background: rgb(217 108 99 / 0.06); }
 .db-card:has(.prio-urgent) .db-card-title { font-weight: 600; }
 
+
+/* ==========================================================================
+   S29 responsive audit (2026-09-12) — the ONE real page-level bug + touch floors
+   ==========================================================================
+   Calendar @768 EN scrolled 69px horizontally: .cal-controls (prev/today/next) never
+   wrapped because the wrap was gated ≤640px. Unconditional wrap + .cal-head wraps
+   ≤1024px (was ≤480px, calendar.css). The Jalali/Gregorian segmented toggle measured
+   27px tall — lifted to the 40px touch floor (segmented pairs read as ONE affordance;
+   40px is the documented compromise, matching the sadhana ftag precedent). */
+.cal-controls { flex-wrap: wrap; }
+@media (max-width: 1024px) {
+  .cal-head { flex-wrap: wrap; gap: 0.5rem; }
+}
+.cal-sys button { min-block-size: 40px; }

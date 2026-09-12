@@ -705,3 +705,24 @@
 summary { cursor: pointer; color: var(--muted); font-size: var(--fs-lg); }
 cite { font-style: normal; }
 
+
+/* S29 (agenda 5 — kanban color weights): the project card's bottom progress strip.
+   Same bucket thresholds as the timeline badges (pd-pl-pct in project-header.css) —
+   one visual language across the board, the project page, and the Activity tab.
+   Auto-computed (dev tasks → hurdles) or the manual override; 4px tall, never grabs
+   the pointer from the card's drag affordance. */
+.kanban-progress {
+  position: relative;
+  block-size: 4px;
+  border-radius: 999px;
+  background: var(--bg-soft);
+  overflow: hidden;
+  pointer-events: none;
+  margin-block-start: 0.15rem;
+}
+.kanban-progress span { display: block; block-size: 100%; border-radius: inherit; background: var(--line-strong); transition: inline-size 0.25s ease; }
+.kanban-progress.is-zero span { background: var(--line); }
+.kanban-progress.is-low span { background: var(--accent-2); }
+.kanban-progress.is-mid span { background: var(--brand); }
+.kanban-progress.is-high span { background: var(--brand); box-shadow: 0 0 0 1px var(--accent-soft); }
+.kanban-progress.is-done span { background: var(--ok, var(--cta)); }

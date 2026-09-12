@@ -358,3 +358,9 @@ button.active { background: var(--accent-soft); }
   inset: -0.55rem;
 }
 
+
+/* S29 responsive audit (2026-09-12): the login password eye (~30px visual — the FIRST
+   button a new user touches) gets the ::after hit ring (same trick as .ghost.danger
+   and .theme-floater above) → ≥44px tap target. .pw-toggle is already position:absolute,
+   so the ::after inset resolves against the button itself. */
+.pw-toggle::after { content: ""; position: absolute; inset: -0.45rem; }

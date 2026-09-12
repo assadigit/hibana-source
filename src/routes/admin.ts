@@ -283,23 +283,65 @@ export function adminRoutes(cfg: Config) {
     })
   })
 
+  // S29 (agenda 4 — backup-health visibility, W8): the status endpoint now answers the
+  // three questions the owner previously had to eyeball from a filename:
+  //   1. FRESHNESS — the 4×/day cron should land a snapshot every ~6h; the dead-man's
+  //      switch alerts at 12h of silence. health: fresh (≤6h) | late (≤12h) | stale
+  //      (>12h — something is wrong) | never | unknown (timestamp unparseable).
+  //   2. PLAN B — the Telegram channel is ON-DEMAND only, so an empty planb_backups is
+  //      the standing owner action, not an error. Exposed instead of hidden.
+  //   3. ENCRYPTION — whether BACKUP_ENCRYPTION_KEY is set (boolean only — never the key).
   app.get('/backup/status', async (c) => {
-    if (!cfg.github.token) return c.json({ configured: false })
+    // Plan-B bookkeeping (any owner's rows — the console is owner-scoped already) +
+    // the encryption flag ride EVERY branch: the Telegram channel and the key are
+    // independent of the GitHub repo, so an unconfigured repo still answers them.
+    const [planbRow] = await cfg.db.query<{ n: number; last: string | null }>(
+      'SELECT COUNT(*) AS n, MAX(sent_at) AS last FROM planb_backups',
+    ).catch(() => [{ n: 0, last: null }])
+    const planb = { count: planbRow?.n ?? 0, lastSentAt: planbRow?.last ?? null }
+    const encrypted = !!cfg.backupEncryptionKey
+    if (!cfg.github.token) return c.json({ configured: false, planb, encrypted })
     try {
       const entries = await githubClient(cfg.github).listDir('backups')
       const snaps = entries
         .filter((e) => e.name.startsWith('snapshot-') && e.name.endsWith('.json'))
         .sort((a, b) => a.name.localeCompare(b.name))
+      // snapshot-<ISO with : and . dashed>.json → back to ISO → age. The time separator
+      // positions are fixed by the format (T at 11; ':' at 14/17; '.' at 20).
+      let newestAt: string | null = null
+      let ageHours: number | null = null
+      let health: 'fresh' | 'late' | 'stale' | 'never' | 'unknown' = 'never'
+      const newestName = snaps.at(-1)?.name ?? null
+      if (newestName) {
+        // 'snapshot-' is 9 chars (slice(8) left the leading dash — caught by the regex → unknown)
+        const raw = newestName.slice(9, newestName.length - 5) // strip prefix + '.json'
+        if (/^\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}-\d{3}Z$/.test(raw)) {
+          const iso = `${raw.slice(0, 13)}:${raw.slice(14, 16)}:${raw.slice(17, 19)}.${raw.slice(20)}`
+          const at = new Date(iso)
+          if (!Number.isNaN(at.getTime())) {
+            newestAt = at.toISOString()
+            ageHours = Math.round(((Date.now() - at.getTime()) / 3_600_000) * 10) / 10
+            health = ageHours <= 6 ? 'fresh' : ageHours <= 12 ? 'late' : 'stale'
+          }
+        } else {
+          health = 'unknown'
+        }
+      }
       return c.json({
         configured: true,
         count: snaps.length,
-        newest: snaps.at(-1)?.name ?? null,
+        newest: newestName,
+        newestAt,
+        ageHours,
+        health,
         retention: BACKUP_RETENTION_DEFAULT,
+        planb,
+        encrypted,
       })
     } catch (err) {
       // An upstream GitHub hiccup must not break the console page — report it as data.
       const msg = err instanceof Error ? err.message : String(err)
-      return c.json({ configured: true, error: msg }, 200)
+      return c.json({ configured: true, error: msg, planb, encrypted }, 200)
     }
   })
 

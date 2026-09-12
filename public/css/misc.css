@@ -907,3 +907,7 @@ body:has(.dash-skeleton) .fab-stack .fab {
 }
 body:has(.dash-skeleton) .fab-stack .fab .icon { visibility: hidden; }
 body:has(.dash-skeleton) .fab-stack .fab:hover { background: color-mix(in srgb, var(--muted) 16%, var(--card)); }
+
+/* S29 (agenda 4): backup-health lines — the stale/never/unencrypted verdicts get the
+   error tint so a degraded backup chain can't read as quiet fine-print. */
+.adm-health-bad { color: var(--err); }

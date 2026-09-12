@@ -608,3 +608,12 @@ section[id^="dashboard-"].is-collapsed > *:not(header) { display: none; }
 .activity-main a:hover,
 .activity-more:hover { color: var(--brand); }
 
+
+/* S29 responsive audit (2026-09-12): hit zones for the two sub-44px dashboard controls —
+   the same ::after ring trick as base.css (.ghost.danger / .theme-floater). The collapse
+   chevron (~23px visual) and the quadrant-name pen (~24px visual) now tap at ≥44px;
+   the visual sizes stay untouched (the audit's measurement noise finding). */
+.dash-collapse-btn { position: relative; }
+.dash-collapse-btn::after { content: ""; position: absolute; inset: -0.65rem; }
+.dash-todo-pen { position: relative; }
+.dash-todo-pen::after { content: ""; position: absolute; inset: -0.625rem; }

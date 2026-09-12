@@ -42,6 +42,13 @@ async function login(page: Page) {
   await page.fill('[name="password"]', TEST_PASS)
   await page.click('button[type="submit"]')
   await page.waitForURL('**/app', { timeout: 10_000 })
+  // First-visit SW claim race (see viewport.spec.ts for the full write-up): the login
+  // page's SW registration activates + claims /app → boot.js reloads it once — that
+  // reload can supersede the very next navigation (observed here: a soft-nav to
+  // /settings.html being dragged back to /app as navType "reload"). Settle first.
+  await page.waitForFunction(() => navigator.serviceWorker.controller !== null, null, { timeout: 8_000 }).catch(() => {})
+  await page.waitForLoadState('load').catch(() => {})
+  await page.waitForTimeout(400)
 }
 
 // THE signal of this bug class: Alpine logs expression failures as console *warnings*

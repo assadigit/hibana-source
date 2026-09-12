@@ -32,7 +32,8 @@
     "typecheck": "tsc --noEmit",
     "check-cache-bust": "node scripts/check-cache-bust.mjs",
     "check-i18n-parity": "node scripts/check-i18n-parity.mjs",
-    "check:prod-errors": "node scripts/check-prod-errors.mjs"
+    "check:prod-errors": "node scripts/check-prod-errors.mjs",
+    "test:workers": "node scripts/workers-smoke.mjs"
   },
   "dependencies": {
     "@hono/node-server": "^1.13.7",

@@ -52,6 +52,18 @@ jobs:
           node scripts/build.mjs --restore-html
           git diff --exit-code -- public/ || (echo "FAIL: wired build left the canonical HTML modified"; git diff --stat -- public/; exit 1)
 
+      # Workers-runtime smoke test (SWOT W9): runs the Workers entry via wrangler dev
+      # (miniflare) + verifies health + login + page render. Catches "works on Node,
+      # breaks on Workers" bugs — the PBKDF2 600k bug would have been caught here.
+      # Uses LOCAL miniflare D1 (isolated, no remote D1 writes). Needs Cloudflare creds
+      # for the wrangler dev runtime (CLOUDFLARE_API_TOKEN + CLOUDFLARE_ACCOUNT_ID).
+      - name: Workers-runtime smoke test
+        run: npm run test:workers
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        continue-on-error: true # TODO: make this required once CF secrets are added to GitHub
+
       # E2E + screenshot-diff + a11y (SWOT W5+W6+W7): Playwright against the local
       # Node server. Starts the server on port 3017 with a fresh DB, runs browser
       # tests. Catches "compiles but doesn't work" regressions that unit tests miss.

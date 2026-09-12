@@ -9,7 +9,69 @@
 > rewritten as a minimal pointer. Deleted files remain recoverable verbatim:
 > `git show <sha>:<file>`.
 
-## 1. Current state (v0.3.12.18 — Session 26: comprehensive audit + refactor + security + CI/CD + UI/UX)
+## 1. Current state (v0.3.12.19 — Session 27: fabric-v6 compat P0 fix + modularization + backup/restore hardening + 54-test coverage)
+- **Session 27 summary** — started as the modularization session, found a P0 on the way: the
+  Session 26 fabric v5→6→7 security upgrades had silently broken EVERY pointer-driven
+  interaction on both boards (canvas + notebook). Fixed via a completed v5 compat layer in
+  the shim. Then: history.js extraction (both boards single-source undo/redo), the
+  backup/restore audit (found + fixed a DEAD restore path), and 16 new tests taking the
+  backup/restore system from 38 to 54 tests. Deployed dev + prod throughout.
+- **P0 — fabric v6/v7 compat layer (commit ef8f9bc):** the v6 migration verified "all 14
+  exports present" but missed method-level removals. Broken at HEAD since d46b159:
+  `canvas.getPointer` (→ getScenePoint; 28 call sites — note/text/eraser/arrow/shape/
+  sticky-close handlers all threw), canvas-level z-order API (→ bringObjectToFront etc.;
+  frames-under-content on load + moveZ), auto-created freeDrawingBrush (pen drew nothing,
+  setTool threw on undefined), textarea blur no longer exits editing (stuck editing twin
+  when clicking DOM elements mid-edit), + whiteboard serializePath read c.x/c.y from
+  command arrays (strokes would save [[null,null]]). All fixed in src/vendor/fabric-shim.ts
+  (+ lazy PencilBrush in both setTools, command-array serializer). Found by writing the
+  new e2e/notebook.spec.ts FIRST — the safety net caught what Session 26's "fabric loads,
+  Canvas constructor available" check could not.
+- **Modularization (Focus 1):** `public/js/history.js` — shared two-stack undo/redo
+  (window.hibanaHistory.History: commit/log/commitAdd/dropLastAdd/clearRedo/undo(apply)/
+  redo(apply)). whiteboard.js adopts it (?v=17, commit 85984fa), canvas.js adopts it
+  (?v=23, keeping its pushHistory alias — 29 call sites untouched, commit 95be9ce).
+  Behavior-preserving down to the eraser-path quirk (log() without redo-clear). Verdicts
+  documented for the rest: canvas.js stays cohesive (state-object migration = ~1,000-line
+  churn with no canvas E2E; only narrow-interface extractions are worth it), sticky-note
+  factory duplication between boards has diverged (unification = consolidation project,
+  not mechanical extraction), app.js/project-page.js/sadhana-page.js by-concern splits
+  add the exact namespace fragility that caused the Phase 3a ReferenceError with no
+  user-facing payoff, @media→responsive.css rejected on principle (feature-local media
+  queries beat breakpoint-grouped files; screenshot-diff covers only 4/23 pages).
+- **Tidy (Focus 2):** audit-results/{audit,contrast}-fn.js → e2e/fixtures/ (they are
+  E2E test fixtures, not audit data; folder deleted; README/Agents doc lines updated).
+- **Backup/restore hardening (Focus 3, commit a3a8bc5):** running the drills found real rot:
+  (1) CRITICAL — restore.mjs was DEAD against schema 47 (hardcoded tableOrder emitted
+  DELETE FROM changelogs; 0048 dropped it — every restore crashed "no such table"). Fixed
+  by deriving the table list from the snapshot's own data keys (FK-safe ordered, dropped
+  tables skipped with warnings, sqlite_master guard on the local path) — also permanently
+  fixes the mirror-drift class (future SNAPSHOT_TABLES additions restore automatically).
+  (2) The drill's own synthetic data used pre-0031 statuses (CHECK violation). (3) Both
+  drills hard-failed without the owner-held BACKUP_ENCRYPTION_KEY — now Part A/channel-
+  integrity runs with a LOUD skip, the synthetic round-trip still proves the mechanics.
+  Audit results: SNAPSHOT_TABLES = complete + FK-safe (33/33 edges verified against the
+  real FK graph; every non-snapshotted table is FTS/bookkeeping/transient —
+  telegram_bot_sessions = bot navigation state, correctly excluded). OPS FINDING:
+  planb_backups on prod is EMPTY — the Plan B Telegram channel has NEVER carried a real
+  backup (owner action: trigger one via bot ⚙ Settings 🗄 or POST /api/admin/backup/planb,
+  then re-run npm run drill:planb).
+- **Test coverage (Focus 4, commit fbb42b1):** 311 total (was 295). New
+  src/tests/restore.test.ts (11 — E2E through the REAL scripts/restore.mjs: FK-check
+  clean, encrypted round-trips both shapes, wrong-key rejection, legacy plaintext,
+  partial/cross-schema/forward-compat restores, 1,100-row large snapshots, concurrent
+  restores) + src/tests/backup-audit.test.ts (5 — THE schema-change drift guard [a new
+  user table missing from SNAPSHOT_TABLES fails CI], personal-export isolation with a
+  generic ownership verifier, retention exactness, Plan B receive-side round-trip).
+  The backup/restore system: 54 tests (was 38).
+- Assets: SW hibana-v315 (v313 fabric fix, v314 history.js+whiteboard, v315 canvas
+  adoption). whiteboard.js ?v=17, canvas.js ?v=23, new history.js ?v=1, manifest 70
+  entries. package.json 0.3.12.18→0.3.12.19. i18n 888/888 unchanged.
+- Verified: typecheck 0 · vitest 311/311 · build+wiring PASS · cache-bust PASS ·
+  Playwright 12/12 (9 + 3 new notebook tests) · Workers-smoke 3/3 · drill PASS ·
+  live-prod E2E: whiteboard note create→type→save→undo→tombstone round-trip on
+  hibana.ir, Ali's 12 real notebook objects intact, zero console errors.
+- v0.3.12.18 = **Security hardening + CI/CD + Lighthouse + UI/UX + image optimization** (patch):
 - **Session 26 summary** — the most comprehensive session in Hibana's history. 40+ commits across
   SWOT audit, HTML canonical recovery, security/CI hygiene, performance optimization, dead-code
   removal, modularization, auth fixes, CI/CD infrastructure, security hardening, and UI/UX polish.

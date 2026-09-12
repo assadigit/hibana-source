@@ -214,4 +214,26 @@ describe('admin usage analytics (2026-09-12)', () => {
       close()
     }
   })
+
+  // Source-level guard for the D1 compound-SELECT limit (2026-09-12): the histogram
+  // shipped as ONE 10-term UNION ALL and node:sqlite happily ran it — production D1
+  // 500'd with "too many terms in compound SELECT" (found live on the deployed worker).
+  // node-side tests can never catch this (the runtimes disagree), so the guard is
+  // structural: no SQL string in admin.ts may carry more than 5 UNION ALL terms.
+  // scripts/workers-smoke.mjs Test 4 is the runtime-side canary.
+  it('keeps every compound SELECT under the D1 term cap (≤5 UNION ALL terms per query)', async () => {
+    const { readFileSync } = await import('node:fs')
+    const src = readFileSync(new URL('../routes/admin.ts', import.meta.url), 'utf-8')
+    const noComments = src.replace(/^\s*\/\/.*$/gm, '')
+    const countTerms = (sql: string) => (sql.toUpperCase().match(/UNION ALL\s+SELECT/g) || []).length
+    // (a) each named histogram half stays under the cap
+    const dailyA = noComments.match(/const dailyPartA = `([^`]*)`/s)?.[1] ?? ''
+    const dailyB = noComments.match(/const dailyPartB = `([^`]*)`/s)?.[1] ?? ''
+    expect(dailyA.length + dailyB.length).toBeGreaterThan(100) // both halves actually extracted
+    expect(countTerms(dailyA)).toBeLessThanOrEqual(5)
+    expect(countTerms(dailyB)).toBeLessThanOrEqual(5)
+    // (b) no OTHER compound SELECT hides anywhere in the route file (if one is added
+    // legitimately, it must also stay ≤5 — extend this assertion then)
+    expect(countTerms(noComments)).toBe(countTerms(dailyA) + countTerms(dailyB))
+  })
 })

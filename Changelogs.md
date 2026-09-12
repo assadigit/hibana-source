@@ -9,7 +9,52 @@
 > rewritten as a minimal pointer. Deleted files remain recoverable verbatim:
 > `git show <sha>:<file>`.
 
-## 1. Current state (v0.3.12.20 — Session 27 R2: Alpine hard-load P0 fix + digest export + dark-mode polish)
+## 1. Current state (v0.3.12.21 — Session 27 R3: smoke-tooling fix + admin Usage analytics + tour polish)
+- **Review-round 3 summary** — status assessment + full QA sweep first (13 pages × light/dark
+  × EN/FA, zero page errors, zero Alpine warnings), then a programmatic WCAG-AA contrast
+  audit across every page (all clean — the RR-1 "tooltip contrast" VLM concern does not
+  reproduce under real alpha-composited math), then the last §6 open item shipped.
+- **DevEx fix (commit 7f8e272):** `npm run smoke` was 403-dead at the login step since the
+  T6 CSRF tighten (b2649a5, 2026-09-11) updated the 15 vitest files but missed the
+  in-process smoke script — every POST/PUT/PATCH/DELETE now carries `Origin: 'http://local'`
+  (20/20 checks pass again). Found while re-running the baseline ladder.
+- **Feature — admin Usage analytics tab (commit 912df83):** the LAST §6 open item
+  ("feature-usage analytics + top-10 activity ranking"). One owner-scoped read endpoint
+  `GET /api/admin/usage` returning (a) 17 feature surfaces with non-deleted totals +
+  last-activity recency (project-scoped tables JOIN through projects; project_archives
+  uses archived_at), (b) a weighted top-10 user ranking (projects ×3, tasks/backlog/
+  Telegram/AI ×2, notes/strokes ×1) with unweighted per-surface breakdowns, (c) a 14-day
+  zero-filled creation histogram (UNION ALL over 10 content tables). Frontend: a lazy-loaded
+  Usage tab in the admin console (bars scaled to the busiest surface, rank medals with a
+  first-place highlight, CSS histogram with native title tooltips), subgrid responsive
+  collapse at 720px, fully i18n'd (34 new keys, 901→936, FA verified live). 6 new vitest
+  tests (owner-only 403, shape, soft-delete respect, project-scoped attribution, weighted
+  ranking + 10-cap, histogram windowing) → 317 total.
+- **UX polish (commit 0b2fc89):** tour progress dots are now step-jump BUTTONS — 24px hit
+  areas (8px visual via padding + background-clip: content-box; box-sizing: content-box
+  overrides the app-wide border-box), hover states, focus-visible accent rings,
+  aria-current="step", i18n'd aria-labels (new key tour.step). Plus the settings-page.js
+  invites-component dedup: ONE factory registered on BOTH alpine:init (hard load) AND
+  mount() (soft nav) — the naive "remove the duplicate" first attempt broke soft-nav
+  invites and was caught IN-FLIGHT by e2e/alpine-hard-load.spec.ts #6 (the spec written
+  in RR-2 earning its keep); 559→515 lines.
+- **D1 runtime fix (follow-up commit):** the histogram's original single 10-term UNION ALL
+  500'd ONLY on the deployed Workers runtime ("D1_ERROR: too many terms in compound
+  SELECT" — node:sqlite accepted it; found via the dev-worker live probe + error_log 0045).
+  Restructured as TWO 5-term compound SELECTs merged in JS. Two new guards: (a) a
+  vitest source-level pin that every compound SELECT in admin.ts stays ≤5 terms, (b)
+  workers-smoke Test 4 — the usage endpoint now runs on the real Workers runtime in the
+  smoke (plus an owner seed + fetchApi headers). Tests 317→318.
+- Assets: SW hibana-v320. admin.js v4, misc.css v3 (20 pages), tour.js v3,
+  polish-batch.css v4 (19 pages), settings-page.js v4, i18n-en v5, i18n-fa v5 (dynamic
+  ref in i18n.js), i18n.js v62. package.json 0.3.12.20→0.3.12.21. i18n 936/936.
+- Verified: typecheck 0 · vitest 318/318 · build+wiring PASS · cache-bust PASS (6 files)
+  · i18n 936/936 · Playwright 17/17 · smoke 20/20 · workers-smoke 5/5 · live: Usage tab
+  renders on the dev worker with real data (17 features / top-10 / 14-day chart) as a
+  seeded owner, member-deny gate verified on prod, EN+FA light+dark 390px no-overflow,
+  contrast audit CLEAN, tour dot-jump verified live (step 1→3 via dot click).
+
+- **v0.3.12.20 = Session 27 R2 (Alpine hard-load P0 fix + digest export + dark-mode polish):**
 - **Review-round 2 summary** — the QA sweep (agent-browser + VLM screenshot audit) found
   a P0 as severe as Session 27's fabric bug: every Alpine component on Reports and
   Settings was DEAD on hard load since v0.3.12.3 (2026-09-10, the 317724e inline-script

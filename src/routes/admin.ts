@@ -455,26 +455,33 @@ export function adminRoutes(cfg: Config) {
     { part: 'screenshots', sql: 'SELECT p.user_id AS user_id, COUNT(*) AS c FROM screenshots sc JOIN projects p ON sc.project_id = p.id WHERE p.deleted_at IS NULL GROUP BY p.user_id', weight: 2 },
   ]
   app.get('/usage', async (c) => {
-    const [featRows, rankRows, users, dailyRows] = await Promise.all([
-      Promise.all(USAGE_SURFACES.map((s) => cfg.db.query<{ c: number; m: string | null }>(s.sql))),
-      Promise.all(RANKING_FEEDS.map((f) => cfg.db.query<{ user_id: string; c: number }>(f.sql))),
-      cfg.db.query<{ id: string; username: string | null; email: string; last_seen_at: string | null }>(
-        'SELECT id, username, email, last_seen_at FROM users',
-      ),
-      cfg.db.query<{ day: string; c: number }>(
-        `SELECT day, SUM(c) AS c FROM (
+    // The 14-day histogram is TWO 5-term compound SELECTs (not one 10-term UNION ALL),
+    // merged by day in JS: D1 enforces a compound-SELECT term cap that the 10-term form
+    // blew past live on the Workers runtime ("D1_ERROR: too many terms in compound
+    // SELECT" — node:sqlite accepted it, so only the deployed worker caught it).
+    // 5 terms per compound stays under the cap with headroom for future surfaces.
+    const dailyPartA = `SELECT day, SUM(c) AS c FROM (
            SELECT substr(created_at, 1, 10) AS day, COUNT(*) AS c FROM projects WHERE deleted_at IS NULL GROUP BY day
            UNION ALL SELECT substr(created_at, 1, 10), COUNT(*) FROM quick_notes WHERE deleted_at IS NULL GROUP BY 1
            UNION ALL SELECT substr(created_at, 1, 10), COUNT(*) FROM canvas_elements WHERE deleted = 0 GROUP BY 1
            UNION ALL SELECT substr(created_at, 1, 10), COUNT(*) FROM sadhana_tasks WHERE deleted_at IS NULL GROUP BY 1
            UNION ALL SELECT substr(created_at, 1, 10), COUNT(*) FROM sadhana_updates GROUP BY 1
-           UNION ALL SELECT substr(created_at, 1, 10), COUNT(*) FROM dev_tasks GROUP BY 1
+         ) GROUP BY day`
+    const dailyPartB = `SELECT day, SUM(c) AS c FROM (
+           SELECT substr(created_at, 1, 10) AS day, COUNT(*) AS c FROM dev_tasks GROUP BY day
            UNION ALL SELECT substr(created_at, 1, 10), COUNT(*) FROM backlog_docs GROUP BY 1
            UNION ALL SELECT substr(created_at, 1, 10), COUNT(*) FROM links GROUP BY 1
            UNION ALL SELECT substr(created_at, 1, 10), COUNT(*) FROM telegram_captures GROUP BY 1
            UNION ALL SELECT substr(created_at, 1, 10), COUNT(*) FROM screenshots GROUP BY 1
-         ) GROUP BY day ORDER BY day DESC LIMIT 14`,
+         ) GROUP BY day`
+    const [featRows, rankRows, users, dailyA, dailyB] = await Promise.all([
+      Promise.all(USAGE_SURFACES.map((s) => cfg.db.query<{ c: number; m: string | null }>(s.sql))),
+      Promise.all(RANKING_FEEDS.map((f) => cfg.db.query<{ user_id: string; c: number }>(f.sql))),
+      cfg.db.query<{ id: string; username: string | null; email: string; last_seen_at: string | null }>(
+        'SELECT id, username, email, last_seen_at FROM users',
       ),
+      cfg.db.query<{ day: string; c: number }>(dailyPartA),
+      cfg.db.query<{ day: string; c: number }>(dailyPartB),
     ])
     const features = USAGE_SURFACES.map((s, i) => ({ key: s.key, count: featRows[i][0]?.c ?? 0, last_at: featRows[i][0]?.m ?? null }))
     // Merge the per-surface GROUP BYs into one per-user record, then rank by score.
@@ -501,7 +508,9 @@ export function adminRoutes(cfg: Config) {
       .sort((a, b) => b.score - a.score || a.email.localeCompare(b.email))
       .slice(0, 10)
     // Zero-fill the last 14 days (oldest → newest) so the chart never has gaps.
-    const dailyMap = new Map(dailyRows.map((r) => [r.day, r.c]))
+    // dailyA + dailyB are merged first (the two compound halves of the histogram).
+    const dailyMap = new Map<string, number>()
+    for (const row of [...dailyA, ...dailyB]) dailyMap.set(row.day, (dailyMap.get(row.day) ?? 0) + row.c)
     const daily: Array<{ day: string; count: number }> = []
     for (let i = 13; i >= 0; i--) {
       const day = new Date(Date.now() - i * 24 * 3600 * 1000).toISOString().slice(0, 10)

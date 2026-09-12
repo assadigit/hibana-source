@@ -51,7 +51,10 @@ const now = new Date().toISOString()
 const id = randomBytes(16).toString('hex')
 const seedSql = `DELETE FROM users WHERE email = 'workers-test@hibana.local';
 INSERT INTO users (id, username, email, password_hash, role, language_pref, calendar_pref, timezone, created_at, email_verified_at)
-VALUES ('${id}', 'workerstest', 'workers-test@hibana.local', '${hash.replace(/'/g, "''")}', 'member', 'en', 'gregorian', 'UTC', '${now}', '${now}');`
+VALUES ('${id}', 'workerstest', 'workers-test@hibana.local', '${hash.replace(/'/g, "''")}', 'member', 'en', 'gregorian', 'UTC', '${now}', '${now}');
+DELETE FROM users WHERE email = 'workers-owner@hibana.local';
+INSERT INTO users (id, username, email, password_hash, role, language_pref, calendar_pref, timezone, created_at, email_verified_at)
+VALUES ('${id}owner', 'workersowner', 'workers-owner@hibana.local', '${hash.replace(/'/g, "''")}', 'owner', 'en', 'gregorian', 'UTC', '${now}', '${now}');`
 const seedFile = '/tmp/workers-seed-local.sql'
 writeFileSync(seedFile, seedSql)
 try {
@@ -125,7 +128,7 @@ async function fetchApi(path, opts = {}) {
         ...(opts.headers || {}),
       },
     })
-    return { status: res.status, body: await res.text() }
+    return { status: res.status, body: await res.text(), headers: res.headers }
   } catch (e) {
     return { status: 0, error: e.message }
   }
@@ -154,6 +157,19 @@ if (r.status === 200 && r.body.includes('"ok":true')) {
   console.error(`   ✗ POST /api/auth/login → ${r.status}: ${r.body?.slice(0, 200)}`)
 }
 
+// Test 2b: owner login (feeds Test 4 — the usage analytics endpoint)
+const ownerLogin = await fetchApi('/api/auth/login', {
+  method: 'POST',
+  body: JSON.stringify({ login: 'workers-owner@hibana.local', password: 'workers-test-123' }),
+})
+const ownerCookie = String(ownerLogin.headers?.get?.('set-cookie') || '').split(';')[0]
+if (ownerLogin.status === 200 && ownerCookie.startsWith('hibana_session=')) {
+  console.log('   ✓ POST /api/auth/login (owner) → 200 (session cookie captured)')
+} else {
+  findings.push(`owner login failed: status=${ownerLogin.status}`)
+  console.error(`   ✗ owner login → ${ownerLogin.status}`)
+}
+
 // Test 3: login page renders
 r = await fetchApi('/login.html')
 if (r.status === 200 && r.body.includes('Sign in')) {
@@ -161,6 +177,26 @@ if (r.status === 200 && r.body.includes('Sign in')) {
 } else {
   findings.push(`GET /login.html failed: status=${r.status}`)
   console.error(`   ✗ GET /login.html → ${r.status}`)
+}
+
+// Test 4: admin usage analytics endpoint (2026-09-12 — added after the D1 compound-SELECT
+// limit 500'd the 10-term UNION ALL live on the deployed worker while node:sqlite accepted
+// it. This is the runtime-parity canary for every SQL the admin console runs.)
+if (ownerCookie) {
+  r = await fetchApi('/api/admin/usage', { headers: { Cookie: ownerCookie } })
+  let usageOk = r.status === 200
+  if (usageOk) {
+    try {
+      const body = JSON.parse(r.body)
+      usageOk = Array.isArray(body.features) && body.features.length >= 15 && Array.isArray(body.daily) && body.daily.length === 14
+    } catch { usageOk = false }
+  }
+  if (usageOk) {
+    console.log('   ✓ GET /api/admin/usage → 200 (features + 14-day histogram work on the Workers runtime)')
+  } else {
+    findings.push(`GET /api/admin/usage failed on Workers runtime: status=${r.status}, body=${r.body?.slice(0, 300)}`)
+    console.error(`   ✗ GET /api/admin/usage → ${r.status}: ${r.body?.slice(0, 200)}`)
+  }
 }
 
 // Step 5: cleanup

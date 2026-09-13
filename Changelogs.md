@@ -9,6 +9,68 @@
 > rewritten as a minimal pointer. Deleted files remain recoverable verbatim:
 > `git show <sha>:<file>`.
 
+## 1. Current state (v0.3.12.47 — Session 45: THE CROWN-SURFACES OVERHAUL, batch B (sprints) shipped: the sprint page's INJECTED DOM translates at render time (the third-bite guard — «دسته‌بندی‌ها» finally renders on the FA page); mobile hierarchy FLIPPED — the timeline is the hero, categories drop below; FINISH is a compact outlined control (was a 264px red banner); the video-editing strip is finally VISIBLE (9px→20px); the sprint chip clears the 40px touch floor; the no-sprints lane is a rich empty state; batch A (projects): compact rail + «فعالیت اخیر» + user sort; S44: the owner's three bug reports fixed at the root; S43: FULL MOBILE RESPONSIVITY AUDIT + 200-control 40px touch floor; S42: dashboard stage-carousel handles OVER the strip; S41: Sparks MOBILE pass + folder EMOJI icons (0056); S40: Sparks page FULL AUDIT + TEXT ALIGNMENT (0055); S39: media GALLERY + screenshot pinning; S38: KV storage — never expires; S37: English-always chat rule)
+- **(S45) CROWN SURFACES — BATCH B: THE SPRINT PAGE (owner: "Do batch B and C now.")**
+  — grounded in the same fresh-clone audit; the S35 strip anatomy (startdot / clip /
+  clip-fill / ticks / live-edge / enddot / chip stats) and every S44 contract (today
+  pad + «امروز» flag) preserved and re-pinned:
+  1. **RENDER-TIME i18n — THE THIRD-BITE GUARD (S1)**: the sprint page's INJECTED DOM
+     rendered English on the FA page forever — the categories side-head
+     ("Categories"), the chip popover's Save/Finish/Reopen/Delete, the
+     new-category form's Add/Cancel. Root cause: i18n.js's apply() scans the STATIC
+     DOM only; data-i18n attrs on dynamically injected markup are never re-scanned
+     (the same bug class bit in Session 23 and S30). Fix: every injected string now
+     translates AT RENDER via _t() — race-free because boot() already awaited
+     hibanaI18n.ready (S30 batch 5). The law is now documented in i18n.js's header
+     so it can't bite a third time: "JS that builds DOM must translate at RENDER
+     time via t()". e2e-pinned by a dedicated FA spec (sprint-ux.spec.ts).
+  2. **MOBILE HIERARCHY FLIP (S2)**: ≤760px the TIMELINE now renders FIRST and the
+     categories panel drops BELOW it — the side panel used to stack ~580px of chrome
+     (wrapped toolbar rows + a 326px side) above the page's whole purpose. ≤640px the
+     toolbar compacts too: the project title ellipsizes into the back-link row and
+     the desktop flex-gap spacer stops burning a row (~6 rows ≈250px → ~4). DOM
+     untouched (flex order flip — the aside stays first for no-JS/SEO).
+  3. **FINISH READS AS A CONTROL, NOT AN ERROR BANNER (S3)**: the running sprint's
+     Finish button was a 264px solid-danger block (full-width on phones; a lone
+     second row on desktop) that read as an alarm, not a control. Now: outlined
+     ghost-danger, max 15rem, the action label stays SHORT and the sprint's NAME
+     rides its own ellipsized span (#sp-finish-name); the full context (what
+     finishing means + which sprint) lives on the tooltip + aria-label.
+  4. **THE STRIP IS FINALLY VISIBLE (S4)**: the crown visualization was 9px tall —
+     nearly invisible. Clip 9→20px, chip 22→28px (fs-sm), dots re-anchored on the
+     taller strip (startdot 42 / enddot 43 / live-edge centered), lane 3.1→4.4rem.
+     All S35 anatomy classes preserved — the sprint-timeline.spec.ts pins pass
+     unchanged.
+  5. **THE 40px TOUCH FLOOR (S5)**: the sprint chip (74×22, 198×22 — the mobile
+     audit's last standing page-specific TAP flag) + the popover buttons + the side
+     panel's cat-tools + the toolbar's own buttons (the back link measured 99×37)
+     now clear 40px on (pointer:coarse); the lane grows WITH the chip so the strip
+     geometry never collides. Desktop visuals untouched. Sprint TAP 3→1 — the one
+     remaining flag is the shared nav-logo anchor present on EVERY page (the
+     accepted cross-page baseline, identical to projects).
+  6. **A RICH NO-SPRINTS EMPTY STATE (S7)**: the sprint lane's empty state was a
+     bare muted span — which was also permanently ENGLISH (its `lang === 'fa'`
+     ternary compared the lang FUNCTION to a string: always false). Now a dashed
+     card in the app's empty-state language: ◆ tile + title + one-line hint
+     (sp.emptyHint, FA+EN) + a CTA that opens the SAME define popover as the
+     toolbar's ◆ button (one code path — the 409 draft-exists handling included;
+     openDefinePop is a named fn so the outside-click guard can't eat the CTA's
+     opening tick).
+  - Bumps: sprint-page.js v6→v7, devboard.css v9→v10 (20 shells), i18n-en/fa
+    v21→v22 (+sp.emptyHint), i18n.js v77→v78 (injects fa v22), sw v344→v345,
+    package 0.3.12.47.
+  - Ladder: typecheck 0 · vitest 394/394 · NEW e2e sprint-ux.spec.ts 4/4 (FA
+    render-time i18n on side-head + popover + form; finish compact/ghost/name-span/
+    aria; strip ≥19px + chip ≥27px + no chip/clip overlap; empty state → CTA →
+    define popover → draft panel round-trip; @390 timeline-above-side + no
+    h-scroll) · full e2e 79/79 · mobile-audit (fa light+dark, 390, coarse): sprint
+    docHScroll 0, TAP 3→1 (the shared baseline anchor), console errors 0 · live
+    24-point browser probe FA/EN × light/dark × 1440/390 × coarse: all pass ·
+    smoke ALL PASS · i18n 1079/1079 · cache-bust PASS · bundle +0.7% PASS ·
+    node --check PASS.
+  - S45 is COMPLETE (both crown surfaces overhauled). The storage/screenshots
+    workstream stays owner-held-paused (B2 activation) per Agents.md.
+
 ## 1. Current state (v0.3.12.46 — Session 45: THE CROWN-SURFACES OVERHAUL, batch A (projects) shipped: the stages home is a COMPACT RAIL + «فعالیت اخیر/Recently active» — the home finally shows real work; user-facing SORT (stage/recent/title); 390px filter reflow; FAB clearance; S44: the owner's three bug reports fixed at the root — (1) sparks: EVERY view gets the ⋯ edit/delete; (2) projects glance strip: the dead-click bug fixed — boxes filter IN PLACE; (3) sprint timeline: today's line gets ~10% leading pad + a «امروز/Today» flag chip; S43: FULL MOBILE RESPONSIVITY AUDIT + 200-control 40px touch floor; S42: dashboard stage-carousel handles OVER the strip; S41: Sparks MOBILE pass + folder EMOJI icons (0056); S40: Sparks page FULL AUDIT + TEXT ALIGNMENT (0055); S39: media GALLERY + screenshot pinning; S38: KV storage — never expires; S37: English-always chat rule)
 - **(S45) CROWN SURFACES (owner, 2026-09-14: "improving UI/UX of sprints and projects
   page and functionality, as the most important aspect of hibana for me") — BATCH A:

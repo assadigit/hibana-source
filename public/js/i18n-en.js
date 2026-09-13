@@ -492,6 +492,8 @@ window.__hibanaDictEN = {
       'db.draftTag': 'draft', 'db.sprintName': 'Sprint name',
       // Phase 5 — sprint time paging
       'sp.older': 'Older', 'sp.newer': 'Newer', 'sp.now': 'Now',
+      // S45: the sprint lane's rich empty state (one-line hint under the title)
+      'sp.emptyHint': 'Define it, add items, start it — it runs here as a strip.',
       // S44: the sprint timeline's today-flag chip (rides the today line)
       'db.today': 'Today',
       'db.tags': 'Tags', 'db.addTag': 'Add tag + Enter', 'db.taskAdded': 'Task added', 'db.taskDeleted': 'Task deleted',

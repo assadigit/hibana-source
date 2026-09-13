@@ -5,8 +5,10 @@
 // owner's "nothing happens" dead-click fix), (2) the shipped nav.js bundle carries
 // the data-nav-local check + the same-page re-execution logic, (3) the shipped
 // sparks-page bundle injects menus into every view (the data-nav-local hosts), (4)
-// the shipped sprint-page bundle carries the today-flag + the i18n key, (5) the SW
-// rotated to v344. Purges the probe user afterwards.
+// the shipped sprint-page bundle carries the today-flag + the S45 sprint-batch
+// contracts (render-time i18n, the rich empty state, the finish name span) + the
+// shipped devboard.css (20px strip, .sp-empty, the coarse floor), (5) the SW
+// rotated to v345. Purges the probe user afterwards.
 // Usage: node scripts/live-glance-probe.mjs [dev|prod]   (default: dev)
 
 import { execFileSync } from 'node:child_process'
@@ -98,16 +100,30 @@ const main = async () => {
   if (sprintSrc) {
     const spr = await (await fetch(`${URL_BASE}${sprintSrc}`)).text()
     check('sprint-page: the today flag shipped', spr.includes('sp-today-flag') && spr.includes('db.today'))
+    // S45 sprint batch: render-time i18n (S1), rich empty state (S7), finish name (S3)
+    check('sprint-page: render-time i18n shipped (db.categories at render)', spr.includes("_t('db.categories'"))
+    check('sprint-page: render-time i18n shipped (popover buttons)', spr.includes("_t('common.save'") && spr.includes("_t('db.finishSprint'"))
+    check('sprint-page: the rich empty state shipped (sp-empty + CTA)', spr.includes('sp-empty') && spr.includes('data-sp-empty-define') && spr.includes('sp.emptyHint'))
+    check('sprint-page: the finish name span shipped', spr.includes('sp-finish-name'))
+  }
+  // S45: the shipped devboard.css — the 20px strip + the empty-state card + the coarse floor
+  const devCss = sprintShell.match(/\/dist\/devboard\.[a-f0-9]+\.css|\/css\/devboard\.css\?v=\d+/)?.[0] || ''
+  check('sprint shell references devboard.css', !!devCss, devCss)
+  if (devCss) {
+    const css = await (await fetch(`${URL_BASE}${devCss}`)).text()
+    check('devboard.css: the 20px strip + .sp-empty shipped', css.includes('block-size: 20px') && css.includes('.sp-empty'))
+    check('devboard.css: the coarse touch floor shipped', css.includes('.sp-sprint-chip { min-block-size: 40px'))
   }
   const i18nFa = sparksShell.match(/\/dist\/i18n-fa\.[a-f0-9]+\.js/)?.[0] || ''
   if (i18nFa) {
     const dict = await (await fetch(`${URL_BASE}${i18nFa}`)).text()
     check('i18n-fa carries db.today («امروز»)', dict.includes("'db.today'") && dict.includes('امروز'))
+    check('i18n-fa carries sp.emptyHint (the S45 empty-state hint)', dict.includes("'sp.emptyHint'"))
   }
 
   // 5) the SW rotated
   const sw = await (await fetch(`${URL_BASE}/sw.js`)).text()
-  check('sw version v344', sw.includes('hibana-v344'))
+  check('sw version v345', sw.includes('hibana-v345'))
 
   // 6) purge the probe user (cascade)
   await d1(`DELETE FROM users WHERE email = '${EMAIL}';`)

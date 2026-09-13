@@ -168,6 +168,22 @@
           return (0.299 * ((n >> 16) & 255) + 0.587 * ((n >> 8) & 255) + 0.114 * (n & 255)) / 255 > 0.62
         }
 
+        // S45/S7: the no-sprints lane speaks the app's empty-state language — a dashed
+        // card with a ◆ tile, a one-line hint, and a CTA that opens the SAME define
+        // popover as the toolbar (data-sp-empty-define → #sp-new-sprint). Replaces the
+        // old bare span — which was also permanently ENGLISH (its `lang === 'fa'`
+        // ternary compared the lang FUNCTION to a string: always false). Render-time
+        // _t(), same law as the S1 popover fix.
+        const sprintEmptyHtml = () =>
+          '<div class="sp-empty">' +
+            '<span class="sp-empty-icon" aria-hidden="true">◆</span>' +
+            '<span class="sp-empty-body">' +
+              '<span class="sp-empty-title">' + B().esc(_t('db.noSprintsYet', 'No sprints yet — create one')) + '</span>' +
+              '<span class="sp-empty-hint">' + B().esc(_t('sp.emptyHint', 'Define it, add items, start it — it runs here as a strip.')) + '</span>' +
+            '</span>' +
+            '<button type="button" class="btn small sp-empty-cta" data-sp-empty-define>◆ ' + B().esc(_t('db.defineSprintOk', 'Define')) + '</button>' +
+          '</div>'
+
         // sidebar ----------------------------------------------------------------
         function renderSide() {
           const S = B().state
@@ -175,7 +191,10 @@
           const uncategorized = S.tasks.filter((x) => !x.category_id || !B().findCategory(x.category_id))
           groups.push({ cat: null, tasks: uncategorized })
           sideEl.innerHTML =
-            '<div class="sp-side-head" data-i18n="db.categories">Categories</div>' +
+            // S45/S1: injected DOM is never re-scanned by i18n.js's static apply()
+            // pass — translate AT RENDER via _t() (boot already awaits
+            // hibanaI18n.ready, so the FA dictionary has landed by now).
+            '<div class="sp-side-head">' + B().esc(_t('db.categories', 'Categories')) + '</div>' +
             groups.map((g) => {
               const color = g.cat ? g.cat.color : '#C9CDD2'
               const name = g.cat ? g.cat.name : _t('db.uncategorized', 'Uncategorized')
@@ -205,12 +224,12 @@
                 '</ul>' +
               '</div>'
             }).join('') +
-            '<div class="sp-side-foot"><button type="button" class="db-add" data-new-category>＋ <span data-i18n="db.newCategory">' + B().esc(_t('db.newCategory', 'New category…')) + '</span></button>' +
+            '<div class="sp-side-foot"><button type="button" class="db-add" data-new-category>＋ ' + B().esc(_t('db.newCategory', 'New category…')) + '</button>' +
             '<form class="pd-tag-pop sp-cat-pop" data-cat-form hidden>' +
               '<input name="name" maxlength="80" dir="auto" placeholder="' + B().esc(_t('db.categoryName', 'Category name (Feature Development…)')) + '" required>' +
               '<div class="pd-tag-colors">' + PALETTE.map((c, i) =>
                 '<label class="pd-swatch"><input type="radio" name="catcolor" value="' + c + '" ' + (i === 0 ? 'checked' : '') + '><span style="background:' + c + '"></span></label>').join('') + '</div>' +
-              '<div class="row"><button type="submit" class="btn small" data-i18n="common.add">Add</button><button type="button" class="ghost small" data-cat-cancel data-i18n="common.cancel">Cancel</button></div>' +
+              '<div class="row"><button type="submit" class="btn small">' + B().esc(_t('common.add', 'Add')) + '</button><button type="button" class="ghost small" data-cat-cancel>' + B().esc(_t('common.cancel', 'Cancel')) + '</button></div>' +
             '</form></div>'
         }
 
@@ -452,7 +471,7 @@
             '</div>' +
             '<div class="sp-body" style="--sp-width:' + width + 'px">' +
               '<div class="sp-bg">' + bgHtml + todayLine + '</div>' +
-              '<div class="sp-sprint-lane">' + (sprintLane || '<span class="muted small sp-no-sprint" data-i18n="db.noSprintsYet">' + (lang === 'fa' ? 'هنوز اسپرینتی نیست — یکی بساز' : 'No sprints yet — create one') + '</span>') + '</div>' +
+              '<div class="sp-sprint-lane">' + (sprintLane || sprintEmptyHtml()) + '</div>' +
               lanesHtml +
             '</div>'
 
@@ -556,13 +575,23 @@
         function renderFinishBtn() {
           const btn = document.getElementById('sp-finish-btn')
           const lbl = document.getElementById('sp-finish-lbl')
+          const nameEl = document.getElementById('sp-finish-name')
           if (!btn || !lbl) return
           const S = B().state
           const open = S.sprints.find((s) => !s.is_draft && !s.ended_at) || null
           btn.hidden = !open
           if (open) {
-            lbl.textContent = _t('db.finishSprint', 'Finish sprint') + (open ? ' · ' + open.name : '')
-            btn.title = _t('db.finishSprintHint', 'Finish this sprint — its window closes and the next one can be defined')
+            // S45/S3: the action label stays SHORT — the running sprint's name rides
+            // its own ellipsized span (the old full "Finish sprint · name" label made
+            // a 264px solid-red block that read as an error banner, not a control).
+            // Full context lives on the tooltip + aria-label.
+            lbl.textContent = _t('db.finishSprint', 'Finish sprint')
+            if (nameEl) {
+              if (open.name) { nameEl.hidden = false; nameEl.textContent = '· ' + open.name }
+              else nameEl.hidden = true
+            }
+            btn.title = _t('db.finishSprintHint', 'Finish this sprint — its window closes and the next one can be defined') + (open.name ? ' — ' + open.name : '')
+            btn.setAttribute('aria-label', btn.title)
           }
         }
 
@@ -817,11 +846,11 @@
               statsHtml +
               '<input value="' + B().esc(s.name) + '" maxlength="80" dir="auto" data-sp-rename>' +
               '<div class="row">' +
-                '<button type="button" class="btn small" data-sp-save data-i18n="common.save">Save</button>' +
+                '<button type="button" class="btn small" data-sp-save>' + B().esc(_t('common.save', 'Save')) + '</button>' +
                 (open
-                  ? '<button type="button" class="btn ghost small" data-sp-finish data-i18n="db.finishSprint">Finish sprint</button>'
-                  : '<button type="button" class="btn ghost small" data-sp-reopen data-i18n="db.reopenSprint">Reopen</button>') +
-                '<button type="button" class="btn ghost danger small" data-sp-del data-i18n="common.delete">Delete</button>' +
+                  ? '<button type="button" class="btn ghost small" data-sp-finish>' + B().esc(_t('db.finishSprint', 'Finish sprint')) + '</button>'
+                  : '<button type="button" class="btn ghost small" data-sp-reopen>' + B().esc(_t('db.reopenSprint', 'Reopen')) + '</button>') +
+                '<button type="button" class="btn ghost danger small" data-sp-del>' + B().esc(_t('common.delete', 'Delete')) + '</button>' +
               '</div>' +
               '<a class="btn ghost small sp-pop-plan" href="/project.html?id=' + encodeURIComponent(projectId) + '&sprint=' + encodeURIComponent(s.id) + '">' +
                 B().esc(_t('sprint.plan', 'Plan')) + '</a>'
@@ -903,6 +932,12 @@
 
         // ---- interactions ------------------------------------------------------
         ctx.on('click', (e) => {
+          // S45/S7: the empty-state CTA opens the SAME define popover as the toolbar's
+          // ◆ button — one code path (draft-exists 409 handling included).
+          if (e.target.closest('[data-sp-empty-define]')) {
+            openDefinePop()
+            return
+          }
           if (catPop && !e.target.closest('.sp-cat-edit-pop')) closeCatPop()
           const eye = e.target.closest('[data-cat-eye]')
           if (eye) {
@@ -976,7 +1011,11 @@
         // 'draft_exists' message instead of silently stacking drafts.
         let definePop = null
         const closeDefinePop = () => { if (definePop) { definePop.remove(); definePop = null } }
-        document.getElementById('sp-new-sprint').onclick = () => {
+        // S45/S7: named (not just onclick-assigned) so the empty-state CTA opens the
+        // SAME popover directly — a synthetic #sp-new-sprint.click() would nest a
+        // second bubbling event inside the CTA's own, and the outside-click guard
+        // (below) would close the popover in the same tick it opened.
+        const openDefinePop = () => {
           if (definePop) { closeDefinePop(); return }
           definePop = document.createElement('div')
           definePop.className = 'sp-sprint-pop sp-define-pop'
@@ -1023,7 +1062,8 @@
             if (ev.key === 'Escape') closeDefinePop()
           }
         }
-        ctx.on('click', (e) => { if (definePop && !e.target.closest('.sp-define-pop') && !e.target.closest('#sp-new-sprint')) closeDefinePop() })
+        document.getElementById('sp-new-sprint').onclick = openDefinePop
+        ctx.on('click', (e) => { if (definePop && !e.target.closest('.sp-define-pop') && !e.target.closest('#sp-new-sprint') && !e.target.closest('[data-sp-empty-define]')) closeDefinePop() })
 
         // ---- Phase 5: toolbar FINISH button (the running sprint's big red button) ---
         document.getElementById('sp-finish-btn').onclick = async () => {

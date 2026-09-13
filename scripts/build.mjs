@@ -47,7 +47,7 @@ const RESTORE_HTML = process.argv.includes('--restore-html')
 // referenced by pages/SW but never bundled (wiring needs ALL of them hashed).
 const ENTRY_POINTS = [
   'app.js', 'admin.js', 'boot.js', 'canvas.js', 'command-palette.js',
-  'devboard.js', 'emoji-data.js', 'emoji-picker.js', 'go-to.js', 'i18n.js',
+  'devboard.js', 'chip-render.js', 'emoji-data.js', 'emoji-picker.js', 'go-to.js', 'i18n.js',
   'install-prompt.js', 'jalali-holidays.js', 'mobile-nav.js', 'nav.js', 'queue.js',
   'touch-drag.js', 'tour.js', 'history.js', 'sticky.js', 'whiteboard.js', 'zen-mode.js', 'micro-interactions.js',
   'i18n-en.js', 'i18n-fa.js',

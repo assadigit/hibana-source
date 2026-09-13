@@ -547,6 +547,7 @@
             if (!injected && waited >= 1200) {
               injected = true
               inject('/js/devboard.js?v=16') // keep in sync with the <head> tag + sw SHELL
+              if (!window.HibanaChips) inject('/js/chip-render.js?v=1') // S30 batch 5: shared title/chip renderer
               if (!window.jalaali) inject('/vendor/jalaali.min.js') // Jalali dates for FA
             }
             if (waited >= 9000) return resolve(false)
@@ -584,7 +585,11 @@
           if (openTask && B().findTask(openTask)) B().openEditor(openTask, { onSaved: reload })
           else if (addStatus) B().openEditor(null, { defaults: { status: addStatus }, onSaved: reload })
         }
-        if (window.hibanaI18n && window.hibanaI18n.ready) boot()
+        // S30 batch 5 (FA-guard find): `ready` is a PROMISE (always truthy) — the old
+        // truthy-check booted BEFORE apply() resolved the language, so FA users got an
+        // English first render. Await it: it resolves AFTER the lazy FA dictionary
+        // lands (i18n.js's apply awaits ensureFaDict before resolving).
+        if (window.hibanaI18n && window.hibanaI18n.ready) window.hibanaI18n.ready.then(boot).catch(boot)
         else document.addEventListener('hibana:i18n', boot, { once: true })
       },
     })

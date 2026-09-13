@@ -593,12 +593,8 @@
           '<span class="pd-meta-prio prio-' + pdEsc(prio || 'medium') + '">' + pdEsc(pdPrioLabel(prio || 'medium')) + '</span> · ' + pdEsc(pdMetaLine(iso, done))
         // Label chips on a card — list = [{name, color}] (mirror of the server's
         // taskTagChips; the chip color is the tag's palette color).
-        const pdTagChipsHtml = (list) => {
-          if (!list || !list.length) return ''
-          return '<span class="pd-task-tags">' + list.map((tg) =>
-            '<span class="pd-tag" data-pd-tag-name="' + pdEsc(tg.name) + '"><i class="pd-tag-dot" style="background:' + pdEsc(tg.color || '#8AB8F0') + '"></i>' + pdEsc(tg.name) + '</span>'
-          ).join('') + '</span>'
-        }
+        // S30 batch 5: the chip markup is the shared HibanaChips.tagChipsRow.
+        const pdTagChipsHtml = (list) => window.HibanaChips.tagChipsRow(list)
         // Comma-separated labels input → names (Latin, Persian and Arabic separators).
         const pdParseTags = (raw) => (raw || '').split(/[,،؛]/).map((s) => s.trim()).filter(Boolean)
         // Live color preview chip next to a priority <select> (options styling varies
@@ -828,62 +824,18 @@
         // container with the fence LINES kept in <span hidden class="t-fence"> markers
         // INSIDE it, so textContent round-trips the RAW title exactly. Prose lines get
         // **pair** → <strong>. Unclosed fences render as code till end (self-healing).
-        const PD_TITLE_CLAMP = 150
-        const pdRenderTitle = (raw) => {
-          const escd = pdEsc(raw)
-          const hasFence = /(^|\n)\s*```/.test(escd)
-          const hasBold = /\*\*[^*\n]+\*\*/.test(escd)
-          if (!hasFence && !hasBold) return escd
-          const lines = escd.split('\n')
-          let out = ''
-          let inCode = false
-          for (let i = 0; i < lines.length; i++) {
-            const line = lines[i]
-            const nl = i < lines.length - 1 ? '\n' : ''
-            if (!inCode && /^\s*```/.test(line)) {
-              inCode = true
-              const codeLang = line.trim().slice(3).trim()
-              out += '<code class="t-code"' + (codeLang ? ' data-lang="' + codeLang + '"' : '') + ' dir="ltr"><span hidden class="t-fence">' + line + '</span>'
-            } else if (inCode && line.trim() === '```') {
-              inCode = false
-              out += '<span hidden class="t-fence">' + line + '</span></code>'
-            } else if (inCode) {
-              out += line
-            } else {
-              out += line.replace(/\*\*([^*\n]+)\*\*/g, '<strong>$1</strong>')
-            }
-            out += nl
-          }
-          if (inCode) out += '</code>'
-          return out
-        }
-        const pdTitleHtml = (title) => {
-          const s = String(title == null ? '' : title)
-          if (s.length <= PD_TITLE_CLAMP) return pdRenderTitle(s)
-          return pdRenderTitle(s.slice(0, PD_TITLE_CLAMP)) + '<span class="pd-title-rest" hidden>' + pdRenderTitle(s.slice(PD_TITLE_CLAMP)) + '</span>'
-        }
-        const pdTitleAttrs = (title) => (String(title || '').length > PD_TITLE_CLAMP ? ' data-clamped=""' : '')
-        const pdReadMoreBtn = (title) => (String(title || '').length > PD_TITLE_CLAMP
-          ? '<button type="button" class="pd-read-more" data-task-read-more aria-expanded="false">' + _t('pd.readMore', 'read more') + '</button>'
-          : '')
+        // S30 batch 5 (the W3 first slice): the title-clamp renderer is the SHARED
+        // HibanaChips module (chip-render.js) — byte-identical twins of this code
+        // lived in board-page.js too. Local names stay so the render call-sites are
+        // untouched; the wand listener below uses HibanaChips.applyTitle.
+        const PD_TITLE_CLAMP = window.HibanaChips.TITLE_CLAMP
+        const pdRenderTitle = (raw) => window.HibanaChips.renderTitle(raw)
+        const pdTitleHtml = (title) => window.HibanaChips.titleHtml(title)
+        const pdTitleAttrs = (title) => window.HibanaChips.titleAttrs(title)
+        const pdReadMoreBtn = (title) => window.HibanaChips.readMoreBtn(title)
         // Re-clamp an existing title element in place (after edits / wand writes) and
-        // keep its read-more button in sync.
-        const pdApplyTitle = (el, text) => {
-          if (!el) return
-          el.innerHTML = pdTitleHtml(text)
-          if (String(text || '').length > PD_TITLE_CLAMP) el.setAttribute('data-clamped', '')
-          else el.removeAttribute('data-clamped')
-          const btn = el.parentElement ? el.parentElement.querySelector('[data-task-read-more]') : null
-          if (btn) {
-            if (String(text || '').length > PD_TITLE_CLAMP) {
-              btn.hidden = false
-              btn.textContent = _t('pd.readMore', 'read more')
-              btn.setAttribute('aria-expanded', 'false')
-            } else {
-              btn.hidden = true
-            }
-          }
-        }
+        // keep its read-more button in sync — the shared HibanaChips.applyTitle.
+        const pdApplyTitle = (el, text) => window.HibanaChips.applyTitle(el, text)
         // read-more / read-less toggle (delegated — cards re-render on every swap).
         // NOTE: ctx.on handlers are separate document-level listeners, so
         // stopPropagation can't stop the card-click editor handler — the card-click

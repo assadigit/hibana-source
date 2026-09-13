@@ -9,6 +9,28 @@
 > rewritten as a minimal pointer. Deleted files remain recoverable verbatim:
 > `git show <sha>:<file>`.
 
+## 1. Current state (v0.3.12.31 — Session 30 batch 5: the shared chip module + the FA-locale guard)
+- **(a) The shared chip/title module (the W3 first slice, owner request)**:
+  public/js/chip-render.js (window.HibanaChips) — the title-clamp renderer (fenced
+  ``` code blocks, **bold**, the 150-char clamp + hidden .pd-title-rest + read-more
+  button), the tag chips (.pd-tag span / .db-mini-chip button), and applyTitle (the
+  magic-wand re-clamp). Byte-identical twins of this code lived in board-page.js AND
+  project-page.js; both pages now delegate (local names kept, call-sites untouched —
+  sticky.js's Session-28 consolidation pattern). Added to build ENTRY_POINTS + the
+  board's ensureLib self-heal.
+- **(b) The FA-locale E2E guard (e2e/fa-locale-guard.spec.ts)**: seeds a
+  language_pref='fa' account and pins the FARSI render of every S30 surface — the
+  composer's priority options (فوری/اولویت بالا/اولویت متوسط/اولویت کم), both filter
+  bars, the dot-cycle tooltip, the bar's tier tooltip, the problems picker, the board's
+  filter row. **The guard caught a real P0-class bug on its first run**: board.html and
+  sprint.html booted on `window.hibanaI18n.ready` — a PROMISE, always truthy — so FA
+  users got an ENGLISH first render (the lazy FA dictionary lands after apply()
+  resolves). Both pages now await the promise (which resolves after ensureFaDict).
+- Also fixed: the batch-4 version bumps for board-page/project-page never landed (a
+  swallowed script error) — honest v6/v8 now. Bumps: board-page.js v6, sprint-page.js
+  v3, chip-render.js NEW v1. Ladder: typecheck 0 · vitest 348/348 · Playwright 45/45 ·
+  smoke ALL PASS · i18n 1003/1003 · cache-bust PASS.
+
 ## 1. Current state (v0.3.12.30 — Session 30 batch 4: Tier-3 UX depth — drag-into-zone, tooltip breakdown, label manager)
 - **(a) Drag vertically = change priority tier (owner request)**: a same-column drop
   ADOPTS the priority of the card it landed next to — the columns are priority-sorted,

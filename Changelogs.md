@@ -2231,6 +2231,19 @@ INSERT INTO d1_migrations (name, applied_at) VALUES
 ```
 
 ## 6. Open items (verified against the v0.3.11.2 tree)
+**S45 OWNER DIRECTIVE (2026-09-14, S44 session close — the NEXT session's first
+priority, verbatim): "improving UI/UX of sprints and projects page and functionality,
+as the most important aspect of hibana for me."** Scope = sprints.html + projects.html
+as the product's crown surfaces: a full design + hierarchy + density + functionality
+audit/overhaul of BOTH pages (glance boxes, filters, chips, empty states, sprint
+timeline, mobile at 390px — S43's `npm run audit:mobile` harness + 40px touch floor
+are the floor, not the ceiling). Fold in the standing backlog that touches them:
+sprint timeline visualization (start dot; after finish, a video-editing-style strip
+built from the done tasks), sprint-basics refinements (اسپرینت جدید flow, full-screen
+plan editor, private comments), shrink filter chips (desktop visual). S44's fresh
+baseline: glance boxes filter in place (`data-nav-local` + same-page re-mount), today
+line carries ~10% pad + «امروز/Today» flag. Start from a fresh clone of
+`assadigit/hibana-source` main (S44 = `c865811` = v0.3.12.45, sw v343, schema 55).
 **Code — verified absent:** admin feature-usage analytics + top-10 activity ranking · ~~Telegram
 `/update <project> <stage>`~~ ✅ shipped v0.3.11.0 · ~~one-way ICS calendar export (High)~~ ✅ shipped
 v0.3.11.0 · ~~web-clipper bookmarklet / extension~~ ✅ shipped v0.3.11.0 · `dev_tasks` note

@@ -432,9 +432,20 @@ main.shell-dash > section { margin-block-end: 2.9rem; }
 
 .dash-urgent {
   position: relative;
-  border: 1px solid rgb(192 57 43 / 0.45);
+  /* S31 (user request 2026-09-13 — "colors and backgrounds aren't very nice… without
+     red background"): the old rest was a red-tinted gradient that NEVER rendered —
+     `linear-gradient(to inline-end, …)` is not a valid gradient direction (logical
+     keywords don't exist in gradients), so the whole declaration was dropped at
+     parse time and the strip sat transparent while its rows leaked solid red
+     (the unscoped .prio-* bug, polish-batch.css). Now: a NEUTRAL card surface that
+     mirrors the resume card's structure (soft border + 4px edge) — the alert
+     identity is carried by the flame, the count badge, the red EDGE, and the
+     beeping urgent dots, not by painted backgrounds. */
+  border: 1px solid color-mix(in srgb, var(--err, #c0392b) 30%, var(--line));
+  border-inline-start: 4px solid var(--err, #c0392b);
   border-radius: var(--radius);
-  background: linear-gradient(to inline-end, rgb(192 57 43 / 0.07), transparent 65%);
+  background: var(--card);
+  box-shadow: 0 2px 8px -4px rgb(0 0 0 / 0.08);
   padding: 0.75rem 0.9rem;
 }
 .dash-urgent-head h2 {
@@ -445,6 +456,20 @@ main.shell-dash > section { margin-block-end: 2.9rem; }
   font-size: var(--fs-md, 1.05rem);
 }
 .dash-urgent-flame { color: var(--err, #c0392b); display: inline-flex; }
+/* S31 (user request 2026-09-13): "a beeping pulsating red light" — the flame
+   flickers in the SAME double-beat rhythm as the urgent dots (prio-beep,
+   polish-batch.css), so the whole strip pulses as one alarm. Guarded by
+   prefers-reduced-motion like every animation in the app. */
+@keyframes dash-flame-flicker {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  6% { opacity: 0.5; transform: scale(1.14); }
+  14% { opacity: 1; transform: scale(1); }
+  22% { opacity: 0.5; transform: scale(1.14); }
+  32% { opacity: 1; transform: scale(1); }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .dash-urgent-flame { animation: dash-flame-flicker 1.6s ease-in-out infinite; }
+}
 .dash-urgent-count {
   display: inline-grid;
   place-items: center;
@@ -466,13 +491,13 @@ main.shell-dash > section { margin-block-end: 2.9rem; }
   padding: 0.3rem 0.4rem;
   border-radius: var(--radius-sm);
 }
-.dash-urgent-row:hover { background: rgb(192 57 43 / 0.05); }
+.dash-urgent-row:hover { background: var(--bg-soft); } /* S31: neutral hover — was a 5% red wash */
 .dash-urgent-row .prio-dot { align-self: center; flex: none; }
 .dash-urgent-title {
   flex: 0 1 auto;
   min-inline-size: 0;
   overflow-wrap: anywhere;
-  font-weight: 600;
+  font-weight: 400; /* S31 (user request): row titles read like every other task title */
 }
 .dash-urgent-project { flex: none; margin-inline-start: auto; }
 @media (max-width: 640px) {

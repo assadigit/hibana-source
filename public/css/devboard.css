@@ -601,6 +601,10 @@ main.shell.sp-shell .sp-wrap { min-block-size: min(64vh, 30rem); }
   border-color: var(--line);
   background: var(--card);
   color: var(--text);
+  /* S31 (user request 2026-09-13): "unbold this text chips" — the global button
+     rule (base.css, fw 600) was bolding every filter toggle; text now reads at the
+     same weight as the labels around it. */
+  font-weight: 400;
 }
 .db-filter .chip .prio-dot { flex: none; }
 .db-filter .chip.is-on,

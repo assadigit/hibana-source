@@ -9,6 +9,43 @@
 > rewritten as a minimal pointer. Deleted files remain recoverable verbatim:
 > `git show <sha>:<file>`.
 
+## 1. Current state (v0.3.12.32 — Session 31: the beeping red light + the de-tint batch)
+- **(a) ROOT-CAUSE FIX — the solid red rows/chips (user report 2026-09-13, "colors and
+  backgrounds aren't very nice… without red background")**: the four tier-color rules in
+  polish-batch.css were UNscoped (`.prio-urgent { background: #D96C63 }`) so every NON-dot
+  element carrying the class got painted — the dashboard fire-strip rows
+  (`li.dash-urgent-row.prio-urgent` → SOLID RED blocks, the user's screenshot) and the
+  task-card meta text chips (`span.pd-meta-prio.prio-*` → solid red/orange pills behind
+  the text). Scoped to `.prio-dot.prio-*` now; the `.pd-task`/`.db-card` `!important` card
+  rules got the same `.prio-dot` scope (they matched ANY prio-* descendant, so the meta
+  chip caught those too). The color lives on the 9px dots only.
+- **(b) THE BEEPING RED LIGHT (user request: "instead add a beeping pulsating red
+  light")**: `@keyframes prio-beep` — a double-beat pulse (two quick flashes + a soft
+  expanding ring, 1.6s loop) on every urgent dot (cards, filter chips, the fire strip,
+  sprint circles `.sp-dot-prio`, the command palette, reports velocity heads); done tasks
+  opt out (`.pd-task.st-done`/`.db-card.st-done` → animation: none); the fire-strip flame
+  flickers the same rhythm (`dash-flame-flicker`). All gated behind
+  `prefers-reduced-motion: no-preference`. `.prio-dot` is `display: inline-block` now —
+  transforms never applied to raw inline spans.
+- **(c) DE-TINT + unbold**: urgent cards lose the 6% red background AND the 600-weight
+  title on both surfaces (the red left border stays — the card-accent treatment every
+  tier gets); the fire strip becomes a NEUTRAL card (white surface, red 4px left edge,
+  matching the resume card's structure) — which also fixed a latent bug: its old
+  `linear-gradient(to inline-end, …)` direction never parsed (gradients have no logical
+  keywords) so the intended tint had silently never rendered; row hover is neutral, row
+  titles weight 400; the filter-bar chips are unbolded (`.db-filter .chip` fw 400 — the
+  global `button` 600 was bolding every toggle; user request: "unbold this text chips");
+  `.pd-meta-prio` reads like all other meta text (muted, 400, no pill).
+- **(d) Fire-strip dots got translated titles** (were the raw English word — "urgent"):
+  «فوری / اولویت بالا / اولویت متوسط / اولویت کم» via the dashboard's PRIO_TITLES map;
+  the row `<li>` no longer carries `prio-*` at all.
+- Bumps: polish-batch.css v5→6, devboard.css v4→5, project-header.css v4→5,
+  dashboard.css v3→4 (all 19 shells), sw v330→v331. Ladder: typecheck 0 · vitest
+  348/348 · Playwright 45/45 (×2 — one timing flake on the auto-sort poll re-ran clean)
+  · smoke ALL PASS · i18n 1003/1003 · cache-bust PASS · bundle-size +8.5% PASS ·
+  prod-errors PASS. New style pins: board-filters (chip fw 400 + plain bg + prio-beep)
+  and analytics (fire-strip row transparent, title 400, dot + flame animations).
+
 ## 1. Current state (v0.3.12.31 — Session 30 batch 5: the shared chip module + the FA-locale guard)
 - **(a) The shared chip/title module (the W3 first slice, owner request)**:
   public/js/chip-render.js (window.HibanaChips) — the title-clamp renderer (fenced

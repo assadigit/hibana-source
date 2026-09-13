@@ -99,6 +99,15 @@ test('board: filter bar (priority × label), dot cycles priority, exports carry 
   await expect(labelToggles).toHaveCount(1)
   await expect(labelToggles.first()).toContainText('Security')
 
+  // S31 (user request: "unbold this text chips… without red background"): the filter
+  // toggles read at weight 400 on a plain card background — the global button rule's
+  // 600 was bolding them, and nothing paints them red.
+  const urgentToggle = page.locator('[data-db-filter] [data-fp="urgent"]')
+  await expect(urgentToggle).toHaveCSS('font-weight', '400')
+  await expect(urgentToggle).toHaveCSS('background-color', /rgb\(255, 255, 255\)|rgba\(0, 0, 0, 0\)/)
+  // and the urgent dot is the beeping red light (double-beat keyframes, reduced-motion off in headless)
+  await expect(urgentToggle.locator('.prio-dot')).toHaveCSS('animation-name', 'prio-beep')
+
   // priority filter: urgent only → one card; the column counts follow
   await page.click('[data-db-filter] [data-fp="urgent"]')
   await expect(page.locator('.db-card')).toHaveCount(1)

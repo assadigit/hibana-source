@@ -458,17 +458,31 @@ export function dashboardRoutes(cfg: Config) {
       // pref-ordered sections) ONLY when something is actually burning — quiet means
       // invisible (it is an alert layer, not a content section, so no dash_show_* pref).
       // Each row deep-links to the board with the task editor open (?task=).
+      // S31 (user request 2026-09-13): the row <li> no longer carries prio-* — that
+      // class fed the (now-scoped) .prio-* background rules and painted the whole row
+      // SOLID RED (the "colors and backgrounds aren't very nice" report). The dot span
+      // keeps the tier class + now gets a translated title (was the raw English word).
+      const PRIO_TITLES: Record<string, [string, string]> = {
+        urgent: ['Urgent', 'فوری'],
+        high: ['High Priority', 'اولویت بالا'],
+        medium: ['Medium Priority', 'اولویت متوسط'],
+        low: ['Low Priority', 'اولویت کم'],
+      }
+      const stripTasks: SafeHtml[] = urgentTasks.map((u) => {
+        const pair = PRIO_TITLES[u.priority] ?? PRIO_TITLES.medium
+        return html`<li class="dash-urgent-row">
+              <span class="prio-dot prio-${u.priority}" title="${t(pair[0], pair[1])}"></span>
+              <a href="/board.html?project=${u.project_id}&task=${u.id}" class="dash-urgent-title">${u.title}</a>
+              <a href="/project.html?id=${u.project_id}" class="muted small dash-urgent-project">${u.project_title}</a>
+            </li>`
+      })
       const urgentStrip: SafeHtml = urgentTasks.length
         ? html`<section class="dash-urgent" id="dash-urgent" role="region" aria-label="${t('Urgent across projects', 'فوری در همهٔ پروژه‌ها')}">
           <div class="row spread dash-urgent-head">
             <h2><span class="dash-urgent-flame" aria-hidden="true">${raw(icon('flame'))}</span> ${t('Urgent across projects', 'فوری در همهٔ پروژه‌ها')} <span class="dash-urgent-count">${num(urgentTotal)}</span></h2>
           </div>
           <ul class="dash-urgent-list">
-            ${urgentTasks.map((u) => html`<li class="dash-urgent-row prio-${u.priority}">
-              <span class="prio-dot prio-${u.priority}" title="${u.priority}"></span>
-              <a href="/board.html?project=${u.project_id}&task=${u.id}" class="dash-urgent-title">${u.title}</a>
-              <a href="/project.html?id=${u.project_id}" class="muted small dash-urgent-project">${u.project_title}</a>
-            </li>`)}
+            ${stripTasks}
           </ul>
         </section>`
         : html``

@@ -705,10 +705,11 @@ button.pd-task-add {
 }
 .pd-tag-dot { inline-size: 7px; block-size: 7px; border-radius: 999px; flex: none; }
 
-/* Priority label leading the card meta line — tinted so the auto-sort reads at a
-   glance (the dot alone can't say "High Priority" to a color-blind eye). */
-.pd-meta-prio { font-weight: 600; }
-.pd-meta-prio.prio-urgent { color: var(--err); }
-.pd-meta-prio.prio-high { color: var(--err); }
-.pd-meta-prio.prio-medium { color: var(--badge-awaiting-fg); }
-.pd-meta-prio.prio-low { color: var(--muted); }
+/* Priority label leading the card meta line.
+   S31 (user request 2026-09-13 — "keep the texts themselves like other texts,
+   without red background"): the tier colors + 600 weight are gone, and the solid
+   red/orange pill behind the text was the unscoped .prio-* background leak (fixed
+   in polish-batch.css — scoped to .prio-dot now). The meta priority text inherits
+   the .pd-task-meta muted treatment exactly like the date next to it; the colored
+   dot (pulsing for urgent) carries the whole priority signal. */
+.pd-meta-prio { font-weight: 400; }

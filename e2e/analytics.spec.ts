@@ -96,4 +96,12 @@ test('dashboard: the urgent fire strip renders + deep-links, quiet projects hide
   await expect(row.locator('.dash-urgent-title')).toHaveAttribute('href', new RegExp(`/board\\.html\\?project=${pid}&task=`))
   // the row carries the project name link
   await expect(row.locator('.dash-urgent-project')).toHaveAttribute('href', `/project.html?id=${pid}`)
+  // S31 (user request: "no red background — instead a beeping pulsating red light"):
+  // the row itself stays TRANSPARENT (the old unscoped .prio-* rule painted the whole
+  // <li> solid red), the title reads at weight 400, and the urgent dot runs the
+  // double-beat prio-beep keyframes; the flame flickers on the same rhythm.
+  await expect(row).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)')
+  await expect(row.locator('.dash-urgent-title')).toHaveCSS('font-weight', '400')
+  await expect(row.locator('.prio-dot')).toHaveCSS('animation-name', 'prio-beep')
+  await expect(page.locator('.dash-urgent-flame')).toHaveCSS('animation-name', 'dash-flame-flicker')
 })

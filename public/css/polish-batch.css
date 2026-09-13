@@ -469,8 +469,12 @@
    2026-08-29). Pastel palette, physical-pin accents, full RTL/LTR + dark support.
    ========================================================================== */
 
-/* priority pastels — one family, AA-checked as accents (not body text) */
+/* priority pastels — one family, AA-checked as accents (not text fills).
+   S31 (user request 2026-09-13): display:inline-block added — transforms (the
+   urgent dot's beep pulse below) never apply to raw inline spans, and the 9x9
+   box was already being blockified by every flex parent anyway. */
 .prio-dot {
+  display: inline-block;
   inline-size: 9px;
   block-size: 9px;
   border-radius: 999px;
@@ -482,13 +486,39 @@
    default-priority tasks read "all blue"). urgent stays the hottest of the family.
    UI/UX R5 (2026-09-12): prio-high was PINK #E59AA5 — pink has no semantic role in the
    app's palette. Reassigned to RED #D96C63 (the prio-urgent hue) so both high + urgent
-   share the "urgent/overdue" semantic per the variables.css color-system comment. The
-   prio-urgent's red-tinted background (below) still distinguishes urgent from high —
-   the dot color alone no longer tries to encode two different urgencies. */
-.prio-low { background: #C9CDD2; }
-.prio-medium { background: #E8B27D; }
-.prio-high { background: #D96C63; }
-.prio-urgent { background: #D96C63; }
+   share the "urgent/overdue" semantic per the variables.css color-system comment.
+   S31 (user request 2026-09-13 — ROOT-CAUSE FIX for the "solid red rows/chips"): these
+   four rules were UNscoped (.prio-urgent { background: … }) so they also painted every
+   NON-dot element that carried the class — the dashboard fire-strip rows
+   (li.dash-urgent-row.prio-urgent → SOLID RED blocks) and the task-card meta text chips
+   (span.pd-meta-prio.prio-* → solid red/orange pills behind the text). Scoped to
+   .prio-dot now: the color lives on the 9px dots only. Urgent distinguishes itself
+   from high via the beep pulse below, not via painted backgrounds. */
+.prio-dot.prio-low { background: #C9CDD2; }
+.prio-dot.prio-medium { background: #E8B27D; }
+.prio-dot.prio-high { background: #D96C63; }
+.prio-dot.prio-urgent { background: #D96C63; }
+
+/* S31 (user request 2026-09-13): "instead add a beeping pulsating red light" — the
+   urgent DOT is the alarm now. Double-beep rhythm (two quick flashes, then dark —
+   reads like a beeping LED), a soft expanding ring carries the eye from across the
+   page. Runs ONLY under prefers-reduced-motion: no-preference; done tasks opt out
+   (a completed urgent task is not an alarm). Applies wherever an urgent dot renders:
+   board + project cards, filter chips, the dashboard fire strip, sprint circles
+   (.sp-dot-prio), the command palette, the reports velocity heads. */
+@keyframes prio-beep {
+  0%, 100% { transform: scale(1); box-shadow: 0 0 0 0 rgb(217 108 99 / 0); }
+  6% { transform: scale(1.5); box-shadow: 0 0 0 4px rgb(217 108 99 / 0.4); }
+  14% { transform: scale(1); box-shadow: 0 0 0 9px rgb(217 108 99 / 0); }
+  22% { transform: scale(1.5); box-shadow: 0 0 0 4px rgb(217 108 99 / 0.4); }
+  32% { transform: scale(1); box-shadow: 0 0 0 0 rgb(217 108 99 / 0); }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .prio-dot.prio-urgent,
+  .sp-dot-prio.prio-urgent { animation: prio-beep 1.6s ease-out infinite; }
+  .pd-task.st-done .prio-dot.prio-urgent,
+  .db-card.st-done .prio-dot.prio-urgent { animation: none; }
+}
 
 /* Priority visual weight (user request 2026-09): the prio-dot on .pd-task + .db-card
    was OVERRIDDEN to use the column color — priority was invisible. Now: the prio-dot
@@ -499,13 +529,16 @@
    is now priority-colored). */
 .pd-task .prio-dot { margin-block-start: 0.24rem; }
 /* The prio-* class on the dot wins over the st-* status override (higher specificity via
-   the .pd-task prefix on st-* — we match it with .pd-task prefix on prio-* too). */
-.pd-task .prio-low { background: #C9CDD2 !important; }
-.pd-task .prio-medium { background: #E8B27D !important; }
+   the .pd-task prefix on st-* — we match it with .pd-task prefix on prio-* too).
+   S31 (2026-09-13): .prio-dot added to these selectors — they matched ANY descendant
+   carrying prio-*, so the meta text chip (span.pd-meta-prio.prio-*) caught the
+   !important too and rendered as a solid red pill. The color targets the dot only. */
+.pd-task .prio-dot.prio-low { background: #C9CDD2 !important; }
+.pd-task .prio-dot.prio-medium { background: #E8B27D !important; }
 /* UI/UX R5 (2026-09-12): prio-high was pink #E59AA5 — now RED #D96C63 (shares the
    prio-urgent hue). See polish-batch.css top-of-file comment for the semantic rationale. */
-.pd-task .prio-high { background: #D96C63 !important; }
-.pd-task .prio-urgent { background: #D96C63 !important; }
+.pd-task .prio-dot.prio-high { background: #D96C63 !important; }
+.pd-task .prio-dot.prio-urgent { background: #D96C63 !important; }
 /* Priority left-border + tint on the wrapper */
 .pd-task-wrap { border-inline-start: 3px solid transparent; }
 /* Session 19 (user request): the task card's left border now inherits the COLUMN's color
@@ -519,8 +552,10 @@
 /* UI/UX R5 (2026-09-12): prio-high border flipped pink→red so it matches the prio-high
    dot. Was #E59AA5. */
 .pd-task-wrap:has(.prio-high) { border-inline-start-color: #D96C63; }
-.pd-task-wrap:has(.prio-urgent) { border-inline-start-color: #D96C63; background: rgb(217 108 99 / 0.06); }
-.pd-task-wrap:has(.prio-urgent) .pd-task-title { font-weight: 600; }
+/* S31 (user request 2026-09-13): urgent cards keep ONLY the red edge — the 6% red
+   background tint and the 600-weight title are gone ("keep the texts themselves
+   like other texts, without red background"); the pulsing urgent dot is the alarm. */
+.pd-task-wrap:has(.prio-urgent) { border-inline-start-color: #D96C63; }
 /* Same for db-card (board.html) — Session 22 (user request): the board now uses the
    EXACT pd recipe. The comment here previously claimed parity while the rules
    diverged: .db-card:has(.prio-medium) hard-coded an ORANGE left border (most tasks
@@ -532,18 +567,21 @@
    left border inherits the COLUMN's color via --db-c, and only low/high/urgent flag
    their own color — prio-medium keeps the column color, exactly like .pd-task-wrap. */
 .db-card .prio-dot { margin-block-start: 0.24rem; }
-.db-card .prio-low { background: #C9CDD2 !important; }
-.db-card .prio-medium { background: #E8B27D !important; }
+/* S31 (2026-09-13): .prio-dot added here too — same descendant-leak fix as the .pd-task
+   set above (any prio-* carrying non-dot inside a card caught the !important). */
+.db-card .prio-dot.prio-low { background: #C9CDD2 !important; }
+.db-card .prio-dot.prio-medium { background: #E8B27D !important; }
 /* UI/UX R5 (2026-09-12): prio-high pink→red — same rationale as the .pd-task rule above. */
-.db-card .prio-high { background: #D96C63 !important; }
-.db-card .prio-urgent { background: #D96C63 !important; }
+.db-card .prio-dot.prio-high { background: #D96C63 !important; }
+.db-card .prio-dot.prio-urgent { background: #D96C63 !important; }
 .db-col .db-card { border-inline-start: 3px solid rgb(var(--db-c, 200 200 200) / 0.55); }
 .db-card:has(.prio-low) { border-inline-start-color: #C9CDD2; }
 /* prio-medium: no override — keeps the column color (was #E8B27D which made every board column read orange). */
 /* UI/UX R5 (2026-09-12): prio-high border pink→red. Was #E59AA5. */
 .db-card:has(.prio-high) { border-inline-start-color: #D96C63; }
-.db-card:has(.prio-urgent) { border-inline-start-color: #D96C63; background: rgb(217 108 99 / 0.06); }
-.db-card:has(.prio-urgent) .db-card-title { font-weight: 600; }
+/* S31 (user request 2026-09-13): same de-tint on the board — border only + the
+   beeping dot; title weight matches every other card. */
+.db-card:has(.prio-urgent) { border-inline-start-color: #D96C63; }
 
 
 /* ==========================================================================

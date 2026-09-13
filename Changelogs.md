@@ -9,6 +9,33 @@
 > rewritten as a minimal pointer. Deleted files remain recoverable verbatim:
 > `git show <sha>:<file>`.
 
+## 1. Current state (v0.3.12.29 — Session 30 batch 3: Tier-2 analytics — the data becomes visible)
+- **(a) Reports task analytics (owner request)**: /api/reports/summary gained
+  tasks.priority (per-tier {total, done} across every live task — "how much of my
+  backlog is urgent?"), labels (top 12 by task usage with done + fresh-30d counts — the
+  label-trends ask, counts-only per the vision), and sprints (the last 10 real sprints
+  with DONE counts per priority tier). The reports page grew the Task analytics card:
+  the 4-tier stat strip, the backlog SHARE BAR (urgent-first segments reusing the
+  prio-* pastels; the aria-label carries the per-tier counts), label distribution chips
+  (dot + name + n + ✓done + +fresh), and the sprint-velocity table (prio-dot column
+  heads, per-tier done counts, deep links to each sprint). copyDigest/downloadCsv
+  carry the new sections (MD per-tier open/done + top-8 labels; CSV tasks/labels rows).
+- **(b) Dashboard "urgent across projects" — the fire strip**: cross-project urgent +
+  high non-done tasks (up to 12 rows, urgent first, each deep-linking to
+  board.html?project&task with the editor open; the project name links to the project
+  page; the header carries the total). Renders right under the resume card ONLY when
+  something is burning — an alert layer like the overdue chips, not a pref-gated
+  section, so quiet means invisible. JSON branch carries urgent + urgentTotal; new
+  'flame' icon case; faNum() keeps FA digits on the reports card.
+- 14 i18n keys EN+FA (reports.tasks*/labelDist/labelHint/velocity/vel* + dash.urgent*;
+  977→991). Bumps: i18n-en v10→11 + i18n-fa v10→11 (dynamic ref in i18n.js v67→68),
+  reports-page.js v3→4, calendar.css v2→3 (rep-tasks styles), dashboard.css v2→3
+  (dash-urgent styles). Tests: +4 vitest (priority mix + labels + velocity; rule-1
+  isolation; JSON urgent payload; HTML strip only-when-burning) + 2 E2E
+  (analytics.spec.ts — the reports card end-to-end + the fire strip deep-links), 42
+  e2e total. Ladder: typecheck 0 · vitest 344/344 · Playwright 42/42 · smoke ALL PASS ·
+  i18n 991/991 · cache-bust PASS.
+
 ## 1. Current state (v0.3.12.28 — Session 30 batch 2: board UX — filters, translations, truthful exports, dot-cycling)
 - **(a) The FILTER BAR (owner request)**: "a filter bar on board.html + project page (e.g.
   show only 🔴 urgent × #Security)". board.html renders a priority × label toggle row

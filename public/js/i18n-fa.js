@@ -506,6 +506,13 @@ window.__hibanaDictFA = {
       'cmdk.noResults': 'نتیجه‌ای نیست.',
       // 0040 search depth: result-group headers + canvas element type labels + quadrant names.
       'cmdk.notes': 'یادداشت‌ها',
+      // S30 بستهٔ ۳: تحلیل کارهای گزارش + نوار فوریِ داشبورد
+      'reports.tasksHeading': 'تحلیل کارها', 'reports.openTasks': 'باز', 'reports.openTasks2': 'باز',
+      'reports.shareNote': 'بازِ باقی‌مانده:', 'reports.shareUrgent': 'فوری',
+      'reports.labelDist': 'برچسب‌ها', 'reports.labelHint': 'کارها به تفکیک برچسب — ✓ انجام‌شده، + شروع‌شده در ۳۰ روز اخیر.',
+      'reports.velocity': 'سرعت اسپرینت بر اساس اولویت', 'reports.velSprint': 'اسپرینت', 'reports.velDone': 'انجام‌شده',
+      'reports.velocityHint': 'کارهای انجام‌شده به تفکیک اولویت در هر اسپرینت — کدام سطح واقعاً تمام می‌شود.',
+      'dash.urgentHeading': 'فوری در همهٔ پروژه‌ها', 'dash.urgentOpen': 'باز کردن برد', 'dash.urgentQuiet': 'چیزی فوری نیست — نوار آتش مخفی می‌ماند.',
       // S30 بستهٔ ۲: نوار فیلتر برد + چرخش اولویت
       'db.filterAria': 'فیلتر کارها', 'db.filterPrio': 'اولویت', 'db.filterLabels': 'برچسب‌ها',
       'db.filterPrioHint': 'فقط کارهای {p}', 'db.filterTagHint': 'برای فیلتر با این برچسب کلیک کن',

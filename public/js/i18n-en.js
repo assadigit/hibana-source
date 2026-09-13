@@ -507,6 +507,13 @@ window.__hibanaDictEN = {
       'cmdk.noResults': 'No matches.',
       // 0040 search depth: result-group headers + canvas element type labels + quadrant names.
       'cmdk.notes': 'Notes',
+      // S30 batch 3: reports task analytics + the dashboard urgent strip
+      'reports.tasksHeading': 'Task analytics', 'reports.openTasks': 'open', 'reports.openTasks2': 'open',
+      'reports.shareNote': 'Open backlog:', 'reports.shareUrgent': 'urgent',
+      'reports.labelDist': 'Labels', 'reports.labelHint': 'Tasks per label — ✓ done, + started in the last 30 days.',
+      'reports.velocity': 'Sprint velocity by priority', 'reports.velSprint': 'Sprint', 'reports.velDone': 'Done',
+      'reports.velocityHint': 'Done tasks per priority tier in each sprint — which tier actually ships.',
+      'dash.urgentHeading': 'Urgent across projects', 'dash.urgentOpen': 'Open board', 'dash.urgentQuiet': 'Nothing urgent — the fire strip stays hidden.',
       // S30 batch 2: the board filter bar + priority cycling
       'db.filterAria': 'Filter tasks', 'db.filterPrio': 'Priority', 'db.filterLabels': 'Labels',
       'db.filterPrioHint': 'Show only {p} tasks', 'db.filterTagHint': 'Click to filter by this label',

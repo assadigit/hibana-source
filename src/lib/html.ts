@@ -73,6 +73,8 @@ export function icon(name: string, cls = 'icon'): string {
       case 'archive': return '<rect x="3.5" y="4.5" width="17" height="15" rx="1.5"/><path d="M3.5 9.5h17M10 9.5v3h4v-3"/>'
       case 'calendar': return '<rect x="3.5" y="5" width="17" height="16" rx="2"/><path d="M3.5 9.5h17M8 3v4M16 3v4"/>'
       case 'alert': return '<path d="M12 3.5 2.8 19.5h18.4L12 3.5Z"/><path d="M12 10v4.5M12 17.4v.3"/>'
+      // S30 batch 3: the dashboard urgent strip's glyph.
+      case 'flame': return '<path d="M12 2.5s5.5 4.2 5.5 9.5a5.5 5.5 0 0 1-11 0c0-2 1-3.8 2.2-5.4.4 1.5 1.3 2.4 2.3 2.9-.4-2.5.2-5 1-7Z"/>'
       case 'pencil': return '<path d="M4 20l4.5-1L19.5 8a2 2 0 0 0-2.8-2.8L6.5 15.5 4 20Z"/><path d="M13.5 6.5l3.5 3.5"/>'
       case 'trash': return '<path d="M4 7h16M9 7V5.5A1.5 1.5 0 0 1 10.5 4h3A1.5 1.5 0 0 1 15 5.5V7M6.5 7l1 12.5A1.5 1.5 0 0 0 9 21h6a1.5 1.5 0 0 0 1.5-1.5L17.5 7"/><path d="M10 11v6M14 11v6"/>'
       case 'clipboard': return '<rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4V3.5A.5.5 0 0 1 9.5 3h5a.5.5 0 0 1 .5.5V4M9 9.5h6M9 13.5h6M9 17.5h4"/>'

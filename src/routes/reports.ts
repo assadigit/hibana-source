@@ -38,7 +38,15 @@ export function reportsRoutes(cfg: Config) {
 
   app.get('/summary', async (c) => {
     const user = c.get('user')
-    const [byStatus, byType, totalHurdles, recents] = await Promise.all([
+    // S30 batch 3 (user request 2026-09-12, "make the data visible"): task analytics —
+    //   · taskPrio: the priority MIX across every live task ("how much of my backlog
+    //     is urgent?") — per tier {total, done}.
+    //   · taskLabels: label distribution (top 12 by task usage, with done + fresh-30d
+    //     counts — the "label trends over time" ask, counts-only per the vision).
+    //   · sprintVel: the last 10 real sprints with DONE counts per priority tier —
+    //     "which tier actually gets done per sprint" (no time tracking, ever).
+    const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 3600 * 1000).toISOString()
+    const [byStatus, byType, totalHurdles, recents, taskPrio, taskLabels, sprintVel] = await Promise.all([
       cfg.db.query<{ status: string; n: number }>(
         'SELECT status, COUNT(*) AS n FROM projects WHERE user_id = ? AND deleted_at IS NULL GROUP BY status',
         [user.id],
@@ -55,6 +63,37 @@ export function reportsRoutes(cfg: Config) {
         "SELECT id, title, status FROM projects WHERE user_id = ? AND deleted_at IS NULL AND status IN ('operational', 'halted') ORDER BY updated_at DESC LIMIT 8",
         [user.id],
       ),
+      cfg.db.query<{ priority: string; total: number; done: number }>(
+        `SELECT priority, COUNT(*) AS total, SUM(CASE WHEN status = 'done' THEN 1 ELSE 0 END) AS done
+         FROM dev_tasks WHERE project_id IN (SELECT id FROM projects WHERE user_id = ? AND deleted_at IS NULL)
+         GROUP BY priority`,
+        [user.id],
+      ),
+      cfg.db.query<{ name: string; color: string; n: number; done: number; fresh: number }>(
+        `SELECT tg.name, tg.color, COUNT(*) AS n,
+           SUM(CASE WHEN t.status = 'done' THEN 1 ELSE 0 END) AS done,
+           SUM(CASE WHEN t.created_at >= ? THEN 1 ELSE 0 END) AS fresh
+         FROM dev_task_tags tt
+         JOIN dev_tasks t ON t.id = tt.task_id
+         JOIN projects p ON p.id = t.project_id AND p.user_id = ? AND p.deleted_at IS NULL
+         JOIN tags tg ON tg.id = tt.tag_id
+         GROUP BY tg.id ORDER BY n DESC, tg.name LIMIT 12`,
+        [thirtyDaysAgo, user.id],
+      ),
+      cfg.db.query<{ id: string; name: string; project_id: string; project_title: string; started_at: string; ended_at: string | null; urgent: number; high: number; medium: number; low: number; done: number }>(
+        `SELECT s.id, s.name, s.project_id, p.title AS project_title, s.started_at, s.ended_at,
+           SUM(CASE WHEN t.priority = 'urgent' THEN 1 ELSE 0 END) AS urgent,
+           SUM(CASE WHEN t.priority = 'high' THEN 1 ELSE 0 END) AS high,
+           SUM(CASE WHEN t.priority = 'medium' THEN 1 ELSE 0 END) AS medium,
+           SUM(CASE WHEN t.priority = 'low' THEN 1 ELSE 0 END) AS low,
+           COUNT(t.id) AS done
+         FROM sprints s
+         JOIN projects p ON p.id = s.project_id AND p.user_id = ? AND p.deleted_at IS NULL
+         LEFT JOIN dev_tasks t ON t.sprint_id = s.id AND t.status = 'done'
+         WHERE s.is_draft = 0
+         GROUP BY s.id ORDER BY s.started_at DESC LIMIT 10`,
+        [user.id],
+      ),
     ])
     const status = { spark: 0, unreviewed: 0, investigating: 0, awaiting: 0, doing: 0, halted: 0, operational: 0 }
     for (const r of byStatus) if (r.status in status) status[r.status as keyof typeof status] = r.n
@@ -68,7 +107,18 @@ export function reportsRoutes(cfg: Config) {
       if (list.length < 4) list.push({ id: r.id, title: r.title })
       recentsByStatus[r.status] = list
     }
-    const summary = { status, type, recents: recentsByStatus, totalProjects: byStatus.reduce((s, r) => s + r.n, 0), totalHurdles: totalHurdles[0]?.n ?? 0 }
+    // S30 batch 3: the task analytics payload — normalized shapes for the reports page.
+    const prio: Record<string, { total: number; done: number }> = { urgent: { total: 0, done: 0 }, high: { total: 0, done: 0 }, medium: { total: 0, done: 0 }, low: { total: 0, done: 0 } }
+    for (const r of taskPrio) if (r.priority in prio) prio[r.priority] = { total: r.total, done: r.done ?? 0 }
+    const tasksTotal = Object.values(prio).reduce((s, x) => s + x.total, 0)
+    const tasksDone = Object.values(prio).reduce((s, x) => s + x.done, 0)
+    const summary = {
+      status, type, recents: recentsByStatus,
+      totalProjects: byStatus.reduce((s, r) => s + r.n, 0), totalHurdles: totalHurdles[0]?.n ?? 0,
+      tasks: { priority: prio, total: tasksTotal, done: tasksDone },
+      labels: taskLabels.map((l) => ({ name: l.name, color: l.color, n: l.n, done: l.done ?? 0, fresh: l.fresh ?? 0 })),
+      sprints: sprintVel.map((s) => ({ id: s.id, name: s.name, project_id: s.project_id, project_title: s.project_title, started_at: s.started_at, ended_at: s.ended_at, done: s.done, by: { urgent: s.urgent, high: s.high, medium: s.medium, low: s.low } })),
+    }
     return await etag(c, c.json(summary))
   })
 

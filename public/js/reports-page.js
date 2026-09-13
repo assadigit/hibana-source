@@ -90,6 +90,36 @@
           statusLabel(s) { void this.i18nTick; return window.hibanaI18n?.t('status.' + s) || s },
           viewAllLabel() { void this.i18nTick; return window.hibanaI18n?.t('reports.viewAll') || 'view all →' },
           nothingLabel() { void this.i18nTick; return window.hibanaI18n?.t('dashboard.nothing') || 'Nothing here yet' },
+          // S30 batch 3: task analytics helpers — the priority mix, the backlog share
+          // bar, and the label chips' tooltip. i18nTick-dependent like the labels above.
+          prioLabel(p) {
+            void this.i18nTick
+            const keys = { urgent: 'db.pr.urgent', high: 'db.pr.high', medium: 'db.pr.medium', low: 'db.pr.low' }
+            return window.hibanaI18n?.t(keys[p]) || p
+          },
+          openCount(p) { const x = this.summary?.tasks?.priority?.[p]; return x ? x.total - x.done : 0 },
+          backlogPct(p) { const t = this.summary?.tasks?.total ?? 0; if (!t) return 0; const d = this.summary?.tasks?.done ?? 0; const open = t - d; if (!open) return 0; return Math.round((this.openCount(p) / open) * 100) },
+          get shareSegments() {
+            const ps = ['urgent', 'high', 'medium', 'low']
+            const t = this.summary?.tasks?.total ?? 0
+            const d = this.summary?.tasks?.done ?? 0
+            const open = t - d
+            if (!open) return ps.map((p) => ({ p, pct: p === 'medium' ? 100 : 0 }))
+            return ps.map((p) => ({ p, pct: Math.round((this.openCount(p) / open) * 100) }))
+          },
+          get shareAria() {
+            void this.i18nTick
+            return ['urgent', 'high', 'medium', 'low']
+              .map((p) => this.prioLabel(p) + ': ' + this.openCount(p))
+              .join(' · ')
+          },
+          labelTitle(l) { void this.i18nTick; return (l.n ?? 0) + ' × — ✓' + (l.done ?? 0) + ' · +' + (l.fresh ?? 0) },
+          // FA digits for the template's raw numbers (parity with the server's faDigits).
+          faNum(v) {
+            void this.i18nTick
+            const isFA = window.hibanaI18n?.lang?.() === 'fa'
+            return isFA ? String(v).replace(/\d/g, (d) => '۰۱۲۳۴۵۶۷۸۹'[+d]) : String(v)
+          },
           async load() {
             const s = await fetch('/api/reports/summary')
             this.summary = s.ok ? await s.json() : null
@@ -139,6 +169,18 @@
             for (const s of ['spark', 'unreviewed', 'investigating', 'awaiting', 'doing', 'halted', 'operational']) {
               if (st[s]) lines.push(`- ${this.statusLabel(s)}: ${st[s]}`)
             }
+            // S30 batch 3: the task analytics ride the digest — priority mix + labels.
+            if (this.summary?.tasks?.total) {
+              lines.push('')
+              lines.push(`## ${this.t('reports.tasksHeading', 'Task analytics')}`)
+              for (const p of ['urgent', 'high', 'medium', 'low']) {
+                const x = this.summary.tasks.priority?.[p]
+                if (x && x.total) lines.push(`- ${this.prioLabel(p)}: ${x.total - x.done} ${this.t('reports.openTasks', 'open')} / ${x.done} ✓`)
+              }
+              for (const l of (this.summary.labels || []).slice(0, 8)) {
+                lines.push(`- #${l.name}: ${l.n} (${l.done} ✓, +${l.fresh})`)
+              }
+            }
             const activeDays = this.heatmap.rows.filter((r) => r.total > 0).length
             const totalEvents = this.heatmap.rows.reduce((a, r) => a + r.total, 0)
             lines.push('')
@@ -176,6 +218,13 @@
             out.push(['snapshot', this.t('reports.client', 'Client'), this.summary.type?.client ?? 0].map(q).join(','))
             for (const s of ['spark', 'unreviewed', 'investigating', 'awaiting', 'doing', 'halted', 'operational']) {
               out.push(['snapshot', this.statusLabel(s), st[s] ?? 0].map(q).join(','))
+            }
+            for (const p of ['urgent', 'high', 'medium', 'low']) {
+              const x = this.summary?.tasks?.priority?.[p]
+              if (x) out.push(['tasks', this.prioLabel(p), `${x.total - x.done} open / ${x.done} done`].map(q).join(','))
+            }
+            for (const l of (this.summary?.labels || [])) {
+              out.push(['labels', l.name, `${l.n} tasks / ${l.done} done / +${l.fresh} fresh`].map(q).join(','))
             }
             for (const r of this.heatmap.rows) {
               if (r.total > 0) out.push(['heatmap', r.date, r.total].map(q).join(','))

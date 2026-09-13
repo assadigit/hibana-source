@@ -422,3 +422,60 @@ main.shell-dash > section { margin-block-end: 2.9rem; }
   .dash-resume-title { font-size: var(--fs-md); white-space: normal; }
   .dash-resume-cta { margin-inline-start: auto; }
 }
+
+/* ==========================================================================
+   S30 batch 3 (user request 2026-09-12): "urgent across projects" — the fire strip
+   ==========================================================================
+   An ALERT layer right under the resume card: cross-project urgent + high tasks.
+   Renders only when something is burning; quiet means invisible. Rows deep-link to
+   the board with the task editor open; the project name links to the project page. */
+
+.dash-urgent {
+  position: relative;
+  border: 1px solid rgb(192 57 43 / 0.45);
+  border-radius: var(--radius);
+  background: linear-gradient(to inline-end, rgb(192 57 43 / 0.07), transparent 65%);
+  padding: 0.75rem 0.9rem;
+}
+.dash-urgent-head h2 {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  margin: 0;
+  font-size: var(--fs-md, 1.05rem);
+}
+.dash-urgent-flame { color: var(--err, #c0392b); display: inline-flex; }
+.dash-urgent-count {
+  display: inline-grid;
+  place-items: center;
+  min-inline-size: 1.6rem;
+  padding-inline: 0.3rem;
+  block-size: 1.6rem;
+  border-radius: 999px;
+  background: var(--err, #c0392b);
+  color: #fff;
+  font-size: var(--fs-xs);
+  font-variant-numeric: tabular-nums;
+}
+.dash-urgent-list { list-style: none; margin: 0.55rem 0 0; padding: 0; display: grid; gap: 0.25rem; }
+.dash-urgent-row {
+  display: flex;
+  align-items: baseline;
+  gap: 0.45rem;
+  flex-wrap: wrap;
+  padding: 0.3rem 0.4rem;
+  border-radius: var(--radius-sm);
+}
+.dash-urgent-row:hover { background: rgb(192 57 43 / 0.05); }
+.dash-urgent-row .prio-dot { align-self: center; flex: none; }
+.dash-urgent-title {
+  flex: 0 1 auto;
+  min-inline-size: 0;
+  overflow-wrap: anywhere;
+  font-weight: 600;
+}
+.dash-urgent-project { flex: none; margin-inline-start: auto; }
+@media (max-width: 640px) {
+  .dash-urgent-project { margin-inline-start: 0; }
+  .dash-urgent-list { max-block-size: 13rem; overflow-y: auto; }
+}

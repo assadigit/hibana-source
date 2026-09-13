@@ -405,3 +405,47 @@ body.zen-mode .zen-exit { display: inline-flex; animation: zen-exit-in 0.3s ease
    Round 2 — Notification Center + styling polish
    =========================================================================== */
 
+
+/* ==========================================================================
+   S30 batch 3 (user request 2026-09-12): Task analytics on the reports page
+   ==========================================================================
+   Priority mix stats + the backlog share bar + label distribution chips + the sprint
+   velocity table. Counts-only (the vision rejects time tracking). */
+
+.rep-tasks h4 { margin-block: 1rem 0.4rem; font-size: var(--fs-md, 1rem); }
+.rep-tasks .stat { display: inline-flex; align-items: center; gap: 0.3rem; flex-wrap: wrap; }
+
+/* the backlog share bar — one horizontal strip, urgent first; segments reuse the
+   .prio-* background colors with 0.55 alpha (pastel, AA-safe as fills). */
+.rep-share {
+  display: flex;
+  block-size: 14px;
+  border-radius: 999px;
+  overflow: hidden;
+  margin-block: 0.8rem 0.3rem;
+  border: 1px solid var(--line);
+  background: var(--bg-inset, var(--bg));
+}
+.rep-share-seg { block-size: 100%; min-inline-size: 0; }
+.rep-share-seg.prio-low { background: rgb(201 205 210 / 0.75); }
+.rep-share-seg.prio-medium { background: rgb(232 178 125 / 0.75); }
+.rep-share-seg.prio-high { background: rgb(217 108 99 / 0.75); }
+.rep-share-seg.prio-urgent { background: var(--err, #c0392b); }
+.rep-share-seg.bg.prio-urgent { background: var(--err, #c0392b); }
+.rep-share-note { margin-block: 0 0.4rem; }
+
+/* label chips — dot + name + count + done/fresh riders */
+.rep-label-chip { gap: 0.35rem; min-block-size: 40px; }
+.rep-label-dot { inline-size: 9px; block-size: 9px; border-radius: 999px; flex: none; }
+.rep-label-fresh { color: var(--brand); }
+
+/* sprint velocity — compact table, numbers centered, dots as column heads */
+.rep-vel-table { inline-size: 100%; border-collapse: collapse; font-size: var(--fs-sm); }
+.rep-vel-table th, .rep-vel-table td { padding: 0.3rem 0.45rem; text-align: start; border-block-end: 1px solid var(--line); }
+.rep-vel-num { text-align: center; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.rep-vel-num .prio-dot { display: inline-block; margin-inline-end: 0.15rem; }
+.rep-vel-name a { font-weight: 600; }
+.rep-vel-name .muted { margin-inline-start: 0.25rem; }
+@media (max-width: 640px) {
+  .rep-vel-name .muted { display: none; }
+}

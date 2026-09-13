@@ -39,7 +39,7 @@ export function dashboardRoutes(cfg: Config) {
     // at the 03:17 tick; resetDueRecurring is idempotent (only resets tasks past their
     // due date), so daily is frequent enough.
 
-    const [byStatus, recent, activeProjects, solvedThisWeek, notes, todoTasks, todoNameRows, todoNoteRows] = await Promise.all([
+    const [byStatus, recent, activeProjects, solvedThisWeek, notes, todoTasks, todoNameRows, todoNoteRows, urgentTasks, urgentCount] = await Promise.all([
       cfg.db.query<{ status: string; n: number }>(
         'SELECT status, COUNT(*) AS n FROM projects WHERE user_id = ? AND deleted_at IS NULL GROUP BY status',
         [user.id],
@@ -84,10 +84,29 @@ export function dashboardRoutes(cfg: Config) {
          ORDER BY u.created_at DESC`,
         [user.id],
       ),
+      // S30 batch 3 (user request 2026-09-12): "urgent across projects" — the cross-
+      // project urgent + high strip. The dashboard had ZERO task visibility; this is
+      // the alert layer (not a pref-gated section — it renders only when something is
+      // actually burning, like the overdue chips, and stays hidden when quiet).
+      cfg.db.query<{ id: string; title: string; priority: string; status: string; project_id: string; project_title: string }>(
+        `SELECT t.id, t.title, t.priority, t.status, t.project_id, p.title AS project_title
+         FROM dev_tasks t JOIN projects p ON p.id = t.project_id
+         WHERE p.user_id = ? AND p.deleted_at IS NULL AND t.status != 'done' AND t.priority IN ('urgent', 'high')
+         ORDER BY CASE t.priority WHEN 'urgent' THEN 0 ELSE 1 END, t.created_at DESC LIMIT 12`,
+        [user.id],
+      ),
+      cfg.db.query<{ n: number }>(
+        `SELECT COUNT(*) AS n FROM dev_tasks t JOIN projects p ON p.id = t.project_id
+         WHERE p.user_id = ? AND p.deleted_at IS NULL AND t.status != 'done' AND t.priority IN ('urgent', 'high')`,
+        [user.id],
+      ),
     ])
 
     // Project titles for the notebook's attach chips (0038 done buttons key off these too).
     const noteTitles = await attachedTitles(cfg.db, user.id, notes)
+    // S30 batch 3: the urgent strip's totals (computed once, used by both the JSON
+    // payload and the HTML branch).
+    const urgentTotal = urgentCount[0]?.n ?? urgentTasks.length
     const counts = { spark: 0, unreviewed: 0, investigating: 0, awaiting: 0, doing: 0, halted: 0, operational: 0 }
     for (const row of byStatus) if (row.status in counts) counts[row.status as keyof typeof counts] = row.n
 
@@ -129,7 +148,7 @@ export function dashboardRoutes(cfg: Config) {
     const recentBox = (s: ProjectStatus): ProjectRow[] => (byStatusList.get(s) ?? []).slice(0, 8) // P5.1 (F-M1): cap to 8 per stage box
 
     // Keep the JSON field for API compatibility; the dashboard no longer renders the metric.
-    const data = { counts, recent, recents: activeProjects, solvedThisWeek: solvedThisWeek[0]?.n ?? 0, notes }
+    const data = { counts, recent, recents: activeProjects, solvedThisWeek: solvedThisWeek[0]?.n ?? 0, notes, urgent: urgentTasks, urgentTotal }
 
     if (c.req.header('HX-Request')) {
       const t = trFor(c)
@@ -434,8 +453,28 @@ export function dashboardRoutes(cfg: Config) {
           </section>`
         : html``
 
+      // S30 batch 3 (user request 2026-09-12): "urgent across projects" — the cross-
+      // project urgent+high FIRE STRIP. Renders right under the resume card (above the
+      // pref-ordered sections) ONLY when something is actually burning — quiet means
+      // invisible (it is an alert layer, not a content section, so no dash_show_* pref).
+      // Each row deep-links to the board with the task editor open (?task=).
+      const urgentStrip: SafeHtml = urgentTasks.length
+        ? html`<section class="dash-urgent" id="dash-urgent" role="region" aria-label="${t('Urgent across projects', 'فوری در همهٔ پروژه‌ها')}">
+          <div class="row spread dash-urgent-head">
+            <h2><span class="dash-urgent-flame" aria-hidden="true">${raw(icon('flame'))}</span> ${t('Urgent across projects', 'فوری در همهٔ پروژه‌ها')} <span class="dash-urgent-count">${num(urgentTotal)}</span></h2>
+          </div>
+          <ul class="dash-urgent-list">
+            ${urgentTasks.map((u) => html`<li class="dash-urgent-row prio-${u.priority}">
+              <span class="prio-dot prio-${u.priority}" title="${u.priority}"></span>
+              <a href="/board.html?project=${u.project_id}&task=${u.id}" class="dash-urgent-title">${u.title}</a>
+              <a href="/project.html?id=${u.project_id}" class="muted small dash-urgent-project">${u.project_title}</a>
+            </li>`)}
+          </ul>
+        </section>`
+        : html``
+
       const sectionHtmls = renderOrder.map((id) => sections[id]())
-      const out: SafeHtml = sectionHtmls.length ? html`${resumeCard}${sectionHtmls}` : html`${resumeCard}<div class="dash-empty">${t('Nothing on your dashboard — enable a section in Settings → View options.', 'پیشخوان خالی است — یک بخش را در تنظیمات ← گزینه‌های نمایش روشن کن.')} <a href="/settings.html">${t('Open settings', 'باز کردن تنظیمات')}</a></div>`
+      const out: SafeHtml = sectionHtmls.length ? html`${resumeCard}${urgentStrip}${sectionHtmls}` : html`${resumeCard}${urgentStrip}<div class="dash-empty">${t('Nothing on your dashboard — enable a section in Settings → View options.', 'پیشخوان خالی است — یک بخش را در تنظیمات ← گزینه‌های نمایش روشن کن.')} <a href="/settings.html">${t('Open settings', 'باز کردن تنظیمات')}</a></div>`
 
       return await etag(c, c.html(toString(out)))
     }

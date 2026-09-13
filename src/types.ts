@@ -13,6 +13,16 @@ export interface Env {
   GITHUB_TOKEN?: string
   GITHUB_OWNER?: string
   GITHUB_REPO?: string
+  /** S35 (user request 2026-09, "a free cloud storage we connect by API"): Cloudflare R2 —
+   *  10 GB-month free, 1M Class A + 10M Class B ops/month, ZERO egress — the natural
+   *  pick for a Workers app (same account, wrangler secrets). When set it takes over
+   *  screenshot storage from the GitHub Contents API; unset = GitHub as before. Any
+   *  S3-compatible endpoint also works via R2_ENDPOINT (B2, Wasabi, MinIO…). */
+  R2_ACCOUNT_ID?: string
+  R2_ACCESS_KEY_ID?: string
+  R2_SECRET_ACCESS_KEY?: string
+  R2_BUCKET?: string
+  R2_ENDPOINT?: string
   BREVO_KEY?: string // legacy — superseded by Resend
   RESEND_KEY?: string
   OWNER_EMAIL?: string
@@ -36,6 +46,16 @@ export interface Config {
   db: Db
   isProd: boolean
   github: { owner: string; repo: string; token?: string }
+  /** S35: S3-compatible object storage (Cloudflare R2 by default — see Env.R2_*).
+   *  When set, screenshot bytes go here instead of the GitHub Contents API; the
+   *  media route reads through the same adapter. Runtime-agnostic: plain fetch +
+   *  Web Crypto SigV4, works on Workers and Node. */
+  r2?: {
+    endpoint: string
+    bucket: string
+    accessKeyId: string
+    secretAccessKey: string
+  }
   emailKey?: string
   ownerEmail?: string
   telegramToken?: string
@@ -210,6 +230,8 @@ export interface ScreenshotRow {
   mime_type: string
   caption: string
   created_at: string
+  /** 0053 (S35): 0 = an OPEN UI/UX problem, 1 = fixed. */
+  resolved: number
 }
 
 export interface ChangelogRow {

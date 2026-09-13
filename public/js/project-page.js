@@ -33,6 +33,8 @@
         }
 
         // Screenshot gallery upload (drag-drop/paste/file-picker — spec §4.6).
+        // S35: shots upload IMMEDIATELY (no caption prompt) — each lands as an OPEN
+        // problem card; the note ("what & where to work") is written on the card after.
         const upload = async (files) => {
           for (const file of files) {
             const b64 = await new Promise((resolve, reject) => {
@@ -41,11 +43,10 @@
               r.onerror = reject
               r.readAsDataURL(file)
             })
-            const caption = prompt(_t('project.captionPrompt', 'Caption (optional):'), '') ?? ''
             const res = await fetch(`/api/projects/${id}/screenshots`, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ fileName: file.name, mimeType: file.type, dataBase64: b64, caption }),
+              body: JSON.stringify({ fileName: file.name, mimeType: file.type, dataBase64: b64, caption: '' }),
             })
             const toastOk = res.ok
             window.hibana?.toast(toastOk ? _t('project.shotUploaded', 'Screenshot uploaded') : _t('project.shotFailed', 'Upload failed'), toastOk ? 'info' : 'err')
@@ -74,6 +75,136 @@
             const files = [...e.dataTransfer.files].filter((f) => f.type.startsWith('image/'))
             if (files.length) upload(files)
           }
+        })
+
+        // --- S35: the ARCHIVE — park an idea/project (not delete, not halted) ------
+        // POST /:id/archive sets archived_state='offline': the row leaves the projects
+        // list, the glance counts and the ideas shelf, and rests on /archive.html.
+        // Restore flips it back ('online'). Both re-render the project fragment so the
+        // head swaps between the Archive button and the archived banner honestly.
+        const pdArchiveToggle = async (e) => {
+          const btn = e.target.closest('[data-pd-archive],[data-pd-unarchive]')
+          if (!btn) return
+          e.preventDefault()
+          const pid = btn.getAttribute('data-project-id') || id
+          const archiving = !!btn.closest('[data-pd-archive]')
+          if (archiving && !window.confirm(_t('pd.archiveConfirm', 'Park this for later? It leaves your lists but stays safe under Archive — restorable any time.'))) return
+          btn.disabled = true
+          try {
+            const res = await fetch('/api/projects/' + pid + (archiving ? '/archive' : '/unarchive'), { method: 'POST' })
+            if (!res.ok) throw new Error('status ' + res.status)
+            window.hibana?.toast(archiving
+              ? _t('pd.archived', 'Archived — find it under Archive')
+              : _t('pd.unarchived', 'Restored from archive'), 'info')
+            if (window.htmx) window.htmx.ajax('GET', '/api/projects/' + pid, { target: '#project-body', swap: 'innerHTML' })
+          } catch {
+            window.hibana?.toast(_t('sparks.saveFailed', "Couldn't save"), 'err')
+            btn.disabled = false
+          }
+        }
+        ctx.on('click', pdArchiveToggle)
+
+        // --- S35: the screenshot PROBLEM CARDS -------------------------------------
+        // Each shot = a broken-UI/UX report: [image] + note + open/fixed. Delegated on
+        // ctx (the grid re-renders after every change). Interactions: zoom (lightbox
+        // overlay), note edit (the caption becomes a textarea + save/cancel), resolve
+        // toggle, delete (confirm). Every mutation PATCHes then re-pulls the fragment.
+        const shotsRefresh = () => { if (window.htmx) window.htmx.ajax('GET', `/api/projects/${id}/screenshots`, { target: '#shots', swap: 'innerHTML' }) }
+        let shotLightbox = null
+        const closeShotLightbox = () => { if (shotLightbox) { shotLightbox.remove(); shotLightbox = null; document.body.style.overflow = '' } }
+        const openShotLightbox = (src) => {
+          closeShotLightbox()
+          shotLightbox = document.createElement('div')
+          shotLightbox.className = 'shot-lightbox'
+          shotLightbox.setAttribute('role', 'dialog')
+          shotLightbox.setAttribute('aria-label', _t('project.shotZoom', 'Screenshot'))
+          shotLightbox.innerHTML = '<img src="' + src + '" alt="' + _t('project.shotZoom', 'Screenshot') + '">'
+          shotLightbox.addEventListener('click', closeShotLightbox)
+          document.body.appendChild(shotLightbox)
+          document.body.style.overflow = 'hidden'
+        }
+        ctx.on('keydown', (e) => { if (e.key === 'Escape' && shotLightbox) closeShotLightbox() })
+
+        const shotNoteForm = (figure) => {
+          const noteEl = figure.querySelector('.shot-note')
+          if (!noteEl || figure.querySelector('.shot-note-form')) return
+          const current = figure.dataset.note || noteEl.textContent.trim() || ''
+          const isPlaceholder = !!noteEl.querySelector('.shot-note-empty')
+          const form = document.createElement('form')
+          form.className = 'row shot-note-form'
+          const ta = document.createElement('textarea')
+          ta.value = isPlaceholder ? '' : current
+          ta.rows = 2
+          ta.maxLength = 1000
+          ta.dir = 'auto'
+          ta.setAttribute('data-no-fa-digits', '')
+          ta.placeholder = _t('project.shotNotePh', 'What is broken & where — the exact spot to work on…')
+          const save = document.createElement('button')
+          save.type = 'submit'
+          save.className = 'btn small'
+          save.textContent = _t('common.save', 'Save')
+          const cancel = document.createElement('button')
+          cancel.type = 'button'
+          cancel.className = 'ghost small'
+          cancel.textContent = _t('common.cancel', 'Cancel')
+          cancel.onclick = () => { form.remove() }
+          form.appendChild(ta)
+          form.appendChild(save)
+          form.appendChild(cancel)
+          form.addEventListener('submit', async (ev) => {
+            ev.preventDefault()
+            try {
+              const res = await fetch('/api/screenshots/' + figure.dataset.shot, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ caption: ta.value.trim() }),
+              })
+              if (!res.ok) throw new Error('status ' + res.status)
+              figure.dataset.note = ta.value.trim()
+              shotsRefresh()
+            } catch { window.hibana?.toast(_t('sparks.saveFailed', "Couldn't save"), 'err') }
+          })
+          noteEl.replaceWith(form)
+          ta.focus()
+        }
+
+        ctx.on('click', async (e) => {
+          const zoom = e.target.closest('[data-shot-zoom]')
+          if (zoom) {
+            const img = zoom.querySelector('img')
+            if (img) openShotLightbox(img.src)
+            return
+          }
+          const noteBtn = e.target.closest('[data-shot-note]')
+          if (noteBtn) { shotNoteForm(noteBtn.closest('.shot-card')); return }
+          const toggle = e.target.closest('[data-shot-toggle]')
+          if (toggle) {
+            const figure = toggle.closest('.shot-card')
+            if (!figure) return
+            const next = figure.dataset.resolved === '1' ? 0 : 1
+            try {
+              const res = await fetch('/api/screenshots/' + figure.dataset.shot, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ resolved: next }),
+              })
+              if (!res.ok) throw new Error('status ' + res.status)
+              window.hibana?.toast(next ? _t('project.shotFixed', 'Marked fixed') : _t('project.shotReopened', 'Back to open'), 'info')
+              shotsRefresh()
+            } catch { window.hibana?.toast(_t('sparks.saveFailed', "Couldn't save"), 'err') }
+            return
+          }
+          const del = e.target.closest('[data-shot-del]')
+          if (del) {
+            if (!window.confirm(_t('project.shotDelConfirm', 'Delete this screenshot?'))) return
+            try {
+              const res = await fetch('/api/screenshots/' + del.getAttribute('data-shot-del'), { method: 'DELETE' })
+              if (!res.ok) throw new Error('status ' + res.status)
+              shotsRefresh()
+            } catch { window.hibana?.toast(_t('sparks.saveFailed', "Couldn't save"), 'err') }
+            return
+          }
+          if (shotLightbox && !e.target.closest('.shot-lightbox img')) closeShotLightbox()
         })
 
         // --- batch q 2026-09-07: the STAGE select finally persists. The old htmx wiring

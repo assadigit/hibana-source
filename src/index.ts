@@ -5,6 +5,7 @@ import { scheduledBackup, scheduledPurge, type BackupOutcome } from './routes/ad
 import { runReminders } from './services/reminders'
 import { runSadhanaReminders, sweepCompletedTasks, resetDueRecurring } from './services/sadhana'
 import { pingHealthcheck } from './services/healthcheck'
+import { r2ConfigFromEnv } from './services/r2'
 import type { Config, Env } from './types'
 
 // Cloudflare Workers entry — a thin shell over createApp() plus the daily cron.
@@ -18,6 +19,8 @@ function buildConfig(env: Env): Config {
     assets: (url) => env.ASSETS.fetch(url) as Promise<Response>,
     isProd: env.ENVIRONMENT === 'prod',
     github: { owner: env.GITHUB_OWNER ?? '', repo: env.GITHUB_REPO ?? '', token: env.GITHUB_TOKEN },
+    // S35: optional S3/R2 screenshot storage (see services/r2.ts) — unset = GitHub.
+    r2: r2ConfigFromEnv(env) ?? undefined,
     emailKey: env.RESEND_KEY,
     ownerEmail: env.OWNER_EMAIL ?? '',
     telegramToken: env.TELEGRAM_BOT_TOKEN ?? '',

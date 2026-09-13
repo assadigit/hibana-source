@@ -365,9 +365,16 @@ export function detailHtml(p: ProjectRow, d: Awaited<ReturnType<typeof loadDetai
           ${STATUS_ORDER.map((k) => `<option value="${k}" ${k === p.status ? 'selected' : ''}>${statusLabel(k, lang)}</option>`).join('')}
         </select>
         <a class="btn small" id="pd-stage-save" href="/projects.html" data-project-id="${p.id}">${icon('check')} ${trL(lang, 'Save', 'ذخیره')}</a>
+        ${p.archived_state === 'offline'
+          ? `<button type="button" class="btn small" data-pd-unarchive data-project-id="${p.id}" title="${trL(lang, 'Put it back on your boards', 'برگرداندن به برد‌هایت')}">${icon('archive')} ${trL(lang, 'Restore', 'بازگردانی')}</button>`
+          : `<button type="button" class="btn ghost small" data-pd-archive data-project-id="${p.id}" title="${trL(lang, 'Park this idea/project for later — kept safe, restorable any time, not deleted', 'این ایده/پروژه را برای بعد کنار بگذار — سالم می‌ماند، هر وقت خواستی بازگردانی می‌شود، حذف نمی‌شود')}">${icon('archive')} ${trL(lang, 'Archive', 'بایگانی')}</button>`}
         <button class="btn danger small" hx-delete="/api/projects/${p.id}" hx-confirm="${trL(lang, 'Delete this project?', 'این پروژه حذف شود؟')}" hx-target="#project-body" hx-swap="innerHTML">${icon('trash')} ${trL(lang, 'Delete', 'حذف')}</button>
       </div>
     </div>
+    ${p.archived_state === 'offline' ? `<div class="pd-archived-banner" role="status">
+      ${icon('archive')} <span>${trL(lang, 'Archived — parked, not deleted. It stays out of your lists until you restore it.', 'بایگانی‌شده — کنار گذاشته، نه حذف. تا بازگردانیش از لیست‌هایت بیرون می‌ماند.')}</span>
+      <a class="ghost small" href="/archive.html">${trL(lang, 'See the Archive', 'دیدن آرشیو')}</a>
+    </div>` : ''}
     <textarea id="pd-desc" rows="1" maxlength="2000" dir="${lang === 'fa' ? 'rtl' : 'auto'}" placeholder="${trL(lang, 'Short description here…', 'توضیح کوتاه اینجا…')}">${esc(p.description)}</textarea>
     <div class="muted small" id="pd-desc-status" aria-live="polite"></div>
     <div class="row spread pd-head-bottom">
@@ -474,7 +481,8 @@ export function detailHtml(p: ProjectRow, d: Awaited<ReturnType<typeof loadDetai
   </section>
 
   <section class="card detail-panel" id="detail-media" role="tabpanel" data-detail-panel="media" hidden>
-    <h3>${trL(lang, 'Screenshots', 'اسکرین‌شات‌ها')}</h3>
+    <h3>${trL(lang, 'Screenshots — UI/UX problems', 'اسکرین‌شات‌ها — مشکلات UI/UX')}</h3>
+    <p class="muted small">${trL(lang, 'Snap what looks broken (button, file picker, gallery), drop it here or paste it, then write the note on the card — what & where to work. Fix it and check it off.', 'از چیزهای خراب عکس بگیر (دکمه، فایل‌پیکر، گالری)، همین‌جا رها کن یا پیست کن، بعد روی کارت یادداشتش را بنویس — چه چیزی و کجا. درستش که شد تیکش را بزن.')}</p>
     <input type="file" id="shot-input" accept="image/png,image/jpeg,image/webp,image/gif" multiple hidden>
     <button class="ghost" onclick="document.getElementById('shot-input').click()">${trL(lang, 'Upload screenshots', 'آپلود اسکرین‌شات‌ها')}</button>
     <div class="shot-grid" id="shots" hx-trigger="load" hx-swap="innerHTML">${shots}</div>

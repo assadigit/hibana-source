@@ -6,6 +6,7 @@ import { getOwnedProject, icon, toastHtml } from '../lib/html'
 import { localeOf, trFor, trL, type Locale } from '../lib/i18n'
 import { uuid } from '../lib/ids'
 import { githubClient, type GitHubConfig } from '../services/github'
+import { r2Storage } from '../services/r2'
 import { clientIp, hitRateLimit, RATE_RULES } from '../services/ratelimit'
 import {
   createHurdleSchema,
@@ -23,16 +24,32 @@ import type { Config, HurdleRow, LinkRow, ScreenshotRow, UserRow } from '../type
 
 /** Shared screenshot grid (Batch (p)): the project page's Screenshots tab and the
  *  HX screenshots endpoint render the same figures, so an uploaded shot appears in
- *  both after one swap. */
+ *  both after one swap.
+ *  S35 (user request 2026-09): each shot is a UI/UX PROBLEM REPORT — image + note
+ *  (caption) + open/fixed state. Clicking the image opens the lightbox; the note
+ *  edits inline (client swaps the figcaption into a form); the resolve toggle PATCHes
+ *  {resolved}; delete asks first. Bidi law: the note is dir="auto" + plaintext. */
 export function shotsGridHtml(shots: ScreenshotRow[], lang: Locale): string {
   return shots
     .map(
-      (s) => `<figure class="shot">
-        <img src="/api/media/screenshots/${s.id}/file" alt="${esc(s.caption)}" loading="lazy">
-        <figcaption class="muted small">${esc(s.caption)}</figcaption>
+      (s) => `<figure class="shot shot-card${s.resolved ? ' is-fixed' : ''}" data-shot="${s.id}" data-resolved="${s.resolved ? '1' : '0'}">
+        <button type="button" class="shot-img-btn" data-shot-zoom="${s.id}" aria-label="${trL(lang, 'View screenshot', 'دیدن اسکرین‌شات')}">
+          <img src="/api/media/screenshots/${s.id}/file" alt="${esc(s.caption)}" loading="lazy">
+        </button>
+        <figcaption class="shot-body">
+          <p class="shot-note muted small" dir="auto">${esc(s.caption) || '<span class="shot-note-empty">' + trL(lang, 'Add a note — what & where to work…', 'یادداشت اضافه کن — چه چیزی و کجا…') + '</span>'}</p>
+          <div class="row spread shot-actions">
+            <span class="shot-state${s.resolved ? ' is-fixed' : ''}" data-shot-state>${s.resolved ? '✓ ' + trL(lang, 'fixed', 'درست شد') : trL(lang, 'open problem', 'باز')}${''}</span>
+            <span class="row" style="gap:0.2rem">
+              <button type="button" class="ghost small" data-shot-note="${s.id}" title="${trL(lang, 'Edit note', 'ویرایش یادداشت')}" aria-label="${trL(lang, 'Edit note', 'ویرایش یادداشت')}">${icon('pencil')}</button>
+              <button type="button" class="ghost small" data-shot-toggle="${s.id}" title="${s.resolved ? trL(lang, 'Mark as open again', 'بازگشتی به باز') : trL(lang, 'Mark as fixed', 'علامت درست‌شد')}" aria-label="${s.resolved ? trL(lang, 'Mark as open again', 'بازگشتی به باز') : trL(lang, 'Mark as fixed', 'علامت درست‌شد')}">${s.resolved ? '↺' : '✓'}</button>
+              <button type="button" class="ghost small danger" data-shot-del="${s.id}" title="${trL(lang, 'Delete', 'حذف')}" aria-label="${trL(lang, 'Delete', 'حذف')}">${icon('x')}</button>
+            </span>
+          </div>
+        </figcaption>
       </figure>`,
     )
-    .join('') || `<div class="empty-state empty"><span class="empty-state-icon" aria-hidden="true">${icon('image')}</span><p class="empty-state-title">${trL(lang, 'No screenshots yet', 'هنوز اسکرین‌شاتی نیست')}</p><p class="empty-state-text">${trL(lang, 'Upload design mockups, bug repros, or progress snaps — they stay with the project.', 'طرح‌ها، باگ‌ها یا پیشرفت را آپلود کن — با پروژه می‌مانند.')}</p></div>`
+    .join('') || `<div class="empty-state empty"><span class="empty-state-icon" aria-hidden="true">${icon('image')}</span><p class="empty-state-title">${trL(lang, 'No screenshots yet', 'هنوز اسکرین‌شاتی نیست')}</p><p class="empty-state-text">${trL(lang, 'Snap the broken UI/UX, drop it here, write what & where — so you know exactly what to work on.', 'از UI/UX خراب عکس بگیر، همین‌جا رها کن و بنویس چه چیزی و کجاست — تا دقیقاً بدانی روی چه کار کنی.')}</p></div>`
 }
 
 /** Scoped child lookup: row must belong to a project that belongs to the user (rule 1). */
@@ -258,7 +275,20 @@ export function coreRoutes(cfg: Config) {
     return c.json({ ok: true })
   })
 
-  // ---- media (screenshots via GitHub) ----------------------------------------
+  // ---- media (screenshots: R2/S3 when configured, else GitHub) ------------------
+  // S35: the screenshots pipeline is provider-agnostic. Cloudflare R2 (10 GB-month
+  // free, zero egress, S3 API) is the recommended "free cloud storage by API" — set
+  // R2_ACCESS_KEY_ID/SECRET/BUCKET(+ACCOUNT_ID or ENDPOINT) and uploads move there;
+  // unset keeps the GitHub Contents API path exactly as before. The `github_path`
+  // column stays (it is the storage key either way).
+  const shotStore = cfg.r2
+    ? r2Storage(cfg.r2)
+    : {
+        putObject: async (key: string, contentB64: string, _ct: string) => { await gh().pushFile(key, contentB64, 'Screenshot upload') },
+        getObject: async (key: string) => gh().readBinary(key),
+        deleteObject: async (key: string) => { try { await gh().deleteFile(key) } catch { /* already gone */ } },
+      }
+
   async function ownedRecord(userId: string, id: string, table: 'screenshots') {
     return ownedProjectId(cfg, userId, table, id)
   }
@@ -274,8 +304,9 @@ export function coreRoutes(cfg: Config) {
 
   app.post('/api/projects/:projectId/screenshots', async (c) => {
     // M8 fix (2026-09-10): wire the upload rate limiter — screenshots push bytes into the
-    // GitHub assets repo, and under open registration (now invite-only) an authed abuser
-    // could spam uploads unbounded. 30 req/60s per IP matches the RATE_RULES.upload intent.
+    // storage backend (GitHub repo or R2 bucket), and under open registration (now
+    // invite-only) an authed abuser could spam uploads unbounded. 30 req/60s per IP
+    // matches the RATE_RULES.upload intent.
     if (await hitRateLimit(cfg.db, RATE_RULES.upload, clientIp(c))) {
       return c.json({ error: 'rate_limited', message: 'Too many uploads — wait a minute and try again.' }, 429)
     }
@@ -293,13 +324,38 @@ export function coreRoutes(cfg: Config) {
     const id = body.id ?? uuid()
     const safeName = body.fileName.replace(/[^\w.\- ]/g, '_')
     const path = assetPath({ user_id: user.id, project_id: p.id }, 'screenshots', `${id}-${safeName}`)
-    await gh().pushFile(path, body.dataBase64, `Screenshot for ${p.title}`)
+    await shotStore.putObject(path, body.dataBase64, body.mimeType)
     await cfg.db.execute(
-      'INSERT INTO screenshots (id, project_id, github_path, mime_type, caption, created_at) VALUES (?, ?, ?, ?, ?, ?)',
+      'INSERT INTO screenshots (id, project_id, github_path, mime_type, caption, resolved, created_at) VALUES (?, ?, ?, ?, ?, 0, ?)',
       [id, p.id, path, body.mimeType, body.caption, new Date().toISOString()],
     )
     if (c.req.header('HX-Request')) return c.html(toastHtml(t('Screenshot uploaded', 'اسکرین‌شات آپلود شد'), localeOf(c)))
     return c.json({ ok: true, id }, 201)
+  })
+
+  // S35: the note + the open/fixed state are editable after upload — the note is the
+  // "what & where to work" text, resolved flips when the fix lands (and back).
+  const patchScreenshotSchema = z.object({
+    caption: z.string().max(1000).optional(),
+    resolved: z.union([z.literal(0), z.literal(1)]).optional(),
+  })
+  app.patch('/api/screenshots/:id', async (c) => {
+    const body = await jsonBody<z.infer<typeof patchScreenshotSchema>>(c, patchScreenshotSchema)
+    if (!body || (body.caption === undefined && body.resolved === undefined)) return c.json({ error: 'invalid_input' }, 400)
+    const user = c.get('user')
+    const t = trFor(c)
+    const projectId = await ownedRecord(user.id, c.req.param('id'), 'screenshots')
+    if (!projectId) return c.json({ error: 'not_found' }, 404)
+    const now = new Date().toISOString()
+    if (body.caption !== undefined) {
+      await cfg.db.execute('UPDATE screenshots SET caption = ? WHERE id = ? AND project_id = ?', [body.caption, c.req.param('id'), projectId])
+    }
+    if (body.resolved !== undefined) {
+      await cfg.db.execute('UPDATE screenshots SET resolved = ? WHERE id = ? AND project_id = ?', [body.resolved, c.req.param('id'), projectId])
+    }
+    await cfg.db.execute('UPDATE projects SET updated_at = ? WHERE id = ?', [now, projectId])
+    if (c.req.header('HX-Request')) return c.html(toastHtml(t('Saved', 'ذخیره شد'), localeOf(c)))
+    return c.json({ ok: true })
   })
 
   app.get('/api/media/screenshots/:id/file', async (c) => {
@@ -307,7 +363,7 @@ export function coreRoutes(cfg: Config) {
     const projectId = await ownedRecord(user.id, c.req.param('id'), 'screenshots')
     if (!projectId) return c.json({ error: 'not_found' }, 404)
     const rec = await cfg.db.query<ScreenshotRow>('SELECT * FROM screenshots WHERE id = ? AND project_id = ?', [c.req.param('id'), projectId])
-    const bytes = await gh().readBinary(rec[0].github_path) // rule 7: raw Accept header for >1MB files
+    const bytes = await shotStore.getObject(rec[0].github_path) // raw bytes — never text-decoded
     return new Response(bytes, {
       headers: { 'Content-Type': rec[0].mime_type, 'Cache-Control': 'private, max-age=3600' },
     })
@@ -318,6 +374,9 @@ export function coreRoutes(cfg: Config) {
     const t = trFor(c)
     const projectId = await ownedRecord(user.id, c.req.param('id'), 'screenshots')
     if (!projectId) return c.json({ error: 'not_found' }, 404)
+    // S35: clean the remote bytes too (best-effort — the row is the truth either way).
+    const rec = await cfg.db.query<ScreenshotRow>('SELECT github_path FROM screenshots WHERE id = ? AND project_id = ?', [c.req.param('id'), projectId])
+    try { if (rec[0]?.github_path) await shotStore.deleteObject(rec[0].github_path) } catch { /* storage hiccup — the row still goes */ }
     await cfg.db.execute('DELETE FROM screenshots WHERE id = ? AND project_id = ?', [c.req.param('id'), projectId])
     if (c.req.header('HX-Request')) return c.html(toastHtml(t('Screenshot deleted', 'اسکرین‌شات حذف شد'), localeOf(c)))
     return c.json({ ok: true })

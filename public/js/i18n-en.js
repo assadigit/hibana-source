@@ -82,6 +82,10 @@ window.__hibanaDictEN = {
       'pd.restore': 'Restore to board',
       'pd.restored': 'Task restored to Done',
       'pd.restoreFailed': "Couldn't restore",
+      // S35: the project/idea ARCHIVE (archived_state='offline' — parked, restorable)
+      'pd.archiveConfirm': 'Park this for later? It leaves your lists but stays safe under Archive — restorable any time.',
+      'pd.archived': 'Archived — find it under Archive',
+      'pd.unarchived': 'Restored from archive',
       'pd.deleteArchiveConfirm': 'Permanently delete this archived task?',
       'pd.deleted': 'Archived task deleted',
       // Delete confirm modal (board.html .db-card ⋯ menu)
@@ -329,7 +333,7 @@ window.__hibanaDictEN = {
       'clients.dialog.projectTitle': 'Project title', 'clients.dialog.dueDate': 'Due date',
       'clients.dialog.failed': 'Failed to create client project — ', 'clients.dialog.networkError': 'network error',
       // archive page
-      'archive.hint': 'Frozen projects — parked, obsolete, or set aside. Each carries a live/offline indicator (spec §5.6).',
+      'archive.hint': 'Parked ideas & projects — not trash, not lost. Archive what you won’t build soon; restore it whenever the moment is right.',
       // reports page
       'reports.snapshot': 'Snapshot', 'reports.activity': 'Activity over time',
       'reports.day': 'Day', 'reports.week': 'Week', 'reports.month': 'Month', 'reports.year': 'Year',
@@ -405,6 +409,9 @@ window.__hibanaDictEN = {
       // project page
       'project.stageSaved': 'Stage saved', 'project.captionPrompt': 'Caption (optional):',
       'project.shotUploaded': 'Screenshot uploaded', 'project.shotFailed': 'Upload failed',
+      // S35: the screenshot problem cards
+      'project.shotZoom': 'Screenshot', 'project.shotNotePh': 'What is broken & where — the exact spot to work on…',
+      'project.shotFixed': 'Marked fixed', 'project.shotReopened': 'Back to open', 'project.shotDelConfirm': 'Delete this screenshot?',
       'project.noteSaved': 'saved', 'project.noteSaveFailed': "Couldn't auto-save — press Save note",
       // dev-board + sprints (0029)
       'db.backToProject': 'Back to project', 'db.sprints': 'Sprints', 'db.board': 'Board',
@@ -455,6 +462,10 @@ window.__hibanaDictEN = {
       'db.startSprint': 'Start sprint', 'db.draftHint': 'Add items in the sidebar or drag them here — they join this sprint. Start it when ready.',
       'db.sprintFinished': 'Sprint finished — on to the next one',
       'db.finishSprintHint': 'Finish this sprint — its window closes and the next one can be defined',
+      // S35: the sprint strip (video-editing timeline) — duration + done stats
+      'db.sprintDay': 'Day {n}', 'db.sprintDays': '{n} days', 'db.sprintTo': 'to',
+      'db.sprintDoneTasks': '{n} done', 'db.sprintDoneDays': '{n} active days',
+      'db.sprintDocChecked': '{n} checked in plan',
       'db.draftTag': 'draft', 'db.sprintName': 'Sprint name',
       // Phase 5 — sprint time paging
       'sp.older': 'Older', 'sp.newer': 'Newer', 'sp.now': 'Now',

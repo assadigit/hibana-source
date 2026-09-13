@@ -185,6 +185,10 @@ export const listProjectsSchema = z.object({
   // 'folder' narrows the Ideas shelf (uuid = a folder, 'none' = unfiled sparks).
   view: z.preprocess(emptyToUndef, z.enum(['grid', 'cards', 'list', 'sticky', 'kanban']).optional().default('cards')),
   folder: z.preprocess(emptyToUndef, z.union([z.string().uuid(), z.literal('none'), z.literal('all')]).optional()),
+  // S35 (user request 2026-09): archived=1 lists ONLY archived_state='offline' rows —
+  // the Archive shelf. Absent/0 excludes them everywhere else (they are not deleted,
+  // just parked: ideas not being implemented in the foreseeable future, restorable).
+  archived: z.preprocess(emptyToUndef, z.enum(['0', '1']).optional()),
 })
 
 // Spark folders (0036): a named shelf sparks can be filed into.

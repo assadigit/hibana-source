@@ -78,7 +78,24 @@
           // starts at TODAY and only ever extends forward (dayOffset < 0 is the explicit
           // "go back in time" page). Past indexes clamp to the window start or drop out
           // entirely at render time, exactly as before.
-          const min = today + dayOffset
+          let min = today + dayOffset
+          // S35 (user request 2026-09, the "video-editing timeline"): the sprint lane is
+          // now made of STRIPS — a dot at the start, the strip dragging along while the
+          // sprint runs, frozen at its length when finished. A finished strip that fell
+          // off the left edge would defeat the whole point, so the home window extends
+          // BACK to the earliest sprint still overlapping the last ~6 months (sprints
+          // entirely older drop off exactly like the (e) rule — the ‹ pager reaches
+          // them). With no sprints the axis stays today-forward, unchanged for tasks.
+          if (dayOffset === 0) {
+            const cap = today - 179
+            S.sprints.forEach((s) => {
+              if (s.is_draft) return
+              const a = B().dayIdx(s.started_at)
+              if (!Number.isFinite(a) || a >= min) return
+              const b = s.ended_at ? B().dayIdx(s.ended_at) : today
+              if (Number.isFinite(b) && b > cap) min = Math.max(a, cap)
+            })
+          }
           // END-INCLUSIVE window of exactly `win` days: [min, min + win - 1]. The px
           // scale is avail/win, so an un-extended axis is EXACTLY the port's width —
           // zero horizontal scroll when the data fits (the old +1/+2 padding always
@@ -210,6 +227,38 @@
             .filter(Boolean)
         }
 
+        // S35: the strip's progress is built from the same truth the board uses —
+        // dev_tasks ASSIGNED to the sprint (the fill ratio) + every task DONE inside the
+        // sprint's date window (ticks, one per day with ≥1 done: the «انجام شده» column
+        // and anything checked done) + the plan doc's own [x] checkboxes (S34 editor).
+        function sprintStats(s) {
+          const S = B().state
+          const assigned = S.tasks.filter((t) => t.sprint_id === s.id)
+          const done = assigned.filter((t) => t.status === 'done')
+          const s0r = B().dayIdx(s.started_at)
+          const s1r = s.ended_at ? B().dayIdx(s.ended_at) : B().todayIdx()
+          const days = new Map()
+          S.tasks.forEach((t) => {
+            if (t.status !== 'done' || !t.done_at) return
+            const i = B().dayIdx(t.done_at)
+            if (!Number.isFinite(i) || i < s0r || i > s1r) return
+            const list = days.get(i)
+            if (list) list.push(t.title)
+            else days.set(i, [t.title])
+          })
+          const docChecked = (String(s.description || '').match(/^- \[x\] /gm) || []).length
+          return { assigned: assigned.length, done: done.length, days, docChecked }
+        }
+
+        // strip extent as a % of the sprint container: open sprints run to TODAY (the
+        // clip "drags" along like footage being recorded), finished ones to their end.
+        const clipPctOf = (g) => {
+          const today = B().todayIdx()
+          const span = Math.max(g.s1 - g.s0, 0.001)
+          const end = g.open ? Math.max(Math.min(today, g.s1), g.s0) : g.s1
+          return Math.max(Math.min(((end - g.s0) / span) * 100, 100), 1)
+        }
+
         function renderTimeline() {
           const S = B().state
           const L = lang()
@@ -280,10 +329,47 @@
           geom.forEach((g) => {
             const left = pctOf(g.s0)
             const w = Math.max(pctOf(g.s1) - left, 1.2)
+            // S35 (the video-editing strip): [●start-dot ▶ strip …live-edge●] — the chip
+            // carries name + duration + done stats; the strip itself is the sprint's
+            // lifetime (open → grows to today, finished → frozen at its end) with a
+            // progress fill (assigned tasks done) and a tick for every day that closed
+            // at least one task. Bidi law: the chip's stats span is dir="auto".
+            const st = sprintStats(g.s)
+            const L2 = lang()
+            const s0raw = B().dayIdx(g.s.started_at)
+            const s1raw = g.s.ended_at ? B().dayIdx(g.s.ended_at) : B().todayIdx()
+            const dur = Math.max(s1raw - s0raw + 1, 1)
+            const durTxt = g.open
+              ? _t('db.sprintDay', 'Day {n}').replace('{n}', B().faDig(dur))
+              : _t('db.sprintDays', '{n} days').replace('{n}', B().faDig(dur))
+            const statsTxt = (st.assigned
+              ? '✓ ' + B().faDig(st.done) + '/' + B().faDig(st.assigned)
+              : '✓ ' + B().faDig(st.done)) + (st.docChecked ? ' · ☑ ' + B().faDig(st.docChecked) : '')
+            const chipStats = '<span class="sp-chip-stats" dir="auto"> · ' + B().esc(durTxt) + ' · ' + B().esc(statsTxt) + '</span>'
+            const clipPct = clipPctOf(g)
+            const fillPct = st.assigned ? Math.round((st.done / st.assigned) * 100) : 0
+            let ticksHtml = ''
+            const clipEndIdx = g.open ? Math.max(Math.min(B().todayIdx(), g.s1), g.s0) : g.s1
+            const clipSpan = Math.max(clipEndIdx - g.s0, 0.001)
+            Array.from(st.days.keys())
+              .filter((i) => i >= g.s0 && i <= clipEndIdx)
+              .sort((a, b) => a - b)
+              .forEach((i) => {
+                const p = Math.max(Math.min(((i - g.s0) / clipSpan) * 100, 100), 0)
+                const titles = (st.days.get(i) || []).join(' · ')
+                ticksHtml += '<i class="sp-clip-tick" style="inset-inline-start:' + p.toFixed(2) + '%" title="' +
+                  B().esc(B().fullLabel(i, L2) + ' — ' + titles) + '" aria-hidden="true"></i>'
+              })
             sprintLane += '<div class="sp-sprint' + (g.open ? ' is-open' : '') + '" data-sprint="' + g.s.id + '" data-bandmove="' + g.s.id + '" style="inset-inline-start:' + left + '%;inline-size:' + w + '%">' +
-              '<button type="button" class="sp-sprint-chip" data-sprint-menu="' + g.s.id + '">' +
-                '<span class="sp-diamond">◆</span>' + B().esc(g.s.name) +
+              '<button type="button" class="sp-sprint-chip" data-sprint-menu="' + g.s.id + '" title="' + B().esc(g.s.name + ' · ' + durTxt + ' · ' + statsTxt) + '">' +
+                '<span class="sp-diamond">◆</span><span dir="auto">' + B().esc(g.s.name) + '</span>' + chipStats +
               '</button>' +
+              '<i class="sp-startdot" aria-hidden="true"></i>' +
+              '<div class="sp-clip' + (g.open ? ' is-open-clip' : '') + '" style="inline-size:' + clipPct.toFixed(2) + '%">' +
+                '<div class="sp-clip-fill" style="inline-size:' + fillPct + '%"></div>' +
+                ticksHtml +
+              '</div>' +
+              (g.open ? '' : '<i class="sp-enddot" aria-hidden="true"></i>') +
             '</div>'
           })
 
@@ -433,7 +519,6 @@
           const lbl = document.getElementById('sp-timerange')
           if (!prev || !next || !lbl) return
           const L = lang()
-          const win = ZOOMS[zoom].win
           // earliest data anywhere (tasks' starts + started sprints) — nothing older to see?
           const S = B().state
           let earliest = Infinity
@@ -441,8 +526,10 @@
           S.sprints.forEach((s) => { if (!s.is_draft) { const a = B().dayIdx(s.started_at); if (Number.isFinite(a) && a < earliest) earliest = a } })
           prev.disabled = !Number.isFinite(earliest) || earliest >= range.start
           next.disabled = dayOffset >= 0
+          // S35: the home window extends back over sprint history, so the label shows
+          // the ACTUAL axis span (not the nominal zoom window).
           const w0 = range.start
-          const w1 = range.start + win - 1
+          const w1 = range.end
           const rangeTxt = B().fullLabel(w0, L) + ' — ' + B().fullLabel(w1, L)
           lbl.textContent = (dayOffset === 0 ? _t('sp.now', 'Now') + ' · ' : '') + rangeTxt
           lbl.title = rangeTxt
@@ -483,7 +570,19 @@
           const left = pctOf(a)
           const w = Math.max(pctOf(b) - left, 0.8)
           if (band) { band.style.insetInlineStart = left + '%'; band.style.inlineSize = w + '%' }
-          if (lane) { lane.style.insetInlineStart = left + '%'; lane.style.inlineSize = Math.max(pctOf(b) - left, 1.2) + '%' }
+          if (lane) {
+            lane.style.insetInlineStart = left + '%'
+            lane.style.inlineSize = Math.max(pctOf(b) - left, 1.2) + '%'
+            // S35: the strip follows the drag — open sprints still end at TODAY,
+            // finished ones at their (dragged) end.
+            const clip = lane.querySelector('.sp-clip')
+            if (clip) {
+              const today = B().todayIdx()
+              const span = Math.max(b - a, 0.001)
+              const end = open ? Math.max(Math.min(today, b), a) : b
+              clip.style.inlineSize = Math.max(Math.min(((end - a) / span) * 100, 100), 1) + '%'
+            }
+          }
           if (b0) b0.style.insetInlineStart = left + '%'
           if (b1) b1.style.insetInlineStart = pctOf(b) + '%'
         }
@@ -675,7 +774,30 @@
             sprintPop = document.createElement('div')
             sprintPop.className = 'sp-sprint-pop'
             const open = !s.ended_at
+            // S35: the strip's story in numbers — dates, duration, done works (dev tasks
+            // done in the window + the plan doc's checked items), + the plan doc link.
+            const L = lang()
+            const st = sprintStats(s)
+            const s0i = B().dayIdx(s.started_at)
+            const s1i = s.ended_at ? B().dayIdx(s.ended_at) : B().todayIdx()
+            const dur = Math.max(s1i - s0i + 1, 1)
+            const durTxt = open
+              ? _t('db.sprintDay', 'Day {n}').replace('{n}', B().faDig(dur))
+              : _t('db.sprintDays', '{n} days').replace('{n}', B().faDig(dur))
+            const rangeTxt = B().fullLabel(s0i, L) + (s.ended_at
+              ? ' ' + _t('db.sprintTo', 'to') + ' ' + B().fullLabel(s1i, L)
+              : ' · ' + _t('sp.now', 'Now'))
+            const doneDays = st.days.size
+            const statsHtml =
+              '<div class="sp-pop-stats" dir="auto">' +
+                '<span class="sp-pop-dates">' + B().esc(rangeTxt) + '</span>' +
+                '<span>' + B().esc(durTxt) + '</span>' +
+                '<span>' + B().esc(_t('db.sprintDoneTasks', '{n} done').replace('{n}', B().faDig(st.done) + '/' + B().faDig(st.assigned))) + '</span>' +
+                (doneDays ? '<span>' + B().esc(_t('db.sprintDoneDays', '{n} active days').replace('{n}', B().faDig(doneDays))) + '</span>' : '') +
+                (st.docChecked ? '<span>' + B().esc(_t('db.sprintDocChecked', '{n} checked in plan').replace('{n}', B().faDig(st.docChecked))) + '</span>' : '') +
+              '</div>'
             sprintPop.innerHTML =
+              statsHtml +
               '<input value="' + B().esc(s.name) + '" maxlength="80" dir="auto" data-sp-rename>' +
               '<div class="row">' +
                 '<button type="button" class="btn small" data-sp-save data-i18n="common.save">Save</button>' +
@@ -683,7 +805,9 @@
                   ? '<button type="button" class="btn ghost small" data-sp-finish data-i18n="db.finishSprint">Finish sprint</button>'
                   : '<button type="button" class="btn ghost small" data-sp-reopen data-i18n="db.reopenSprint">Reopen</button>') +
                 '<button type="button" class="btn ghost danger small" data-sp-del data-i18n="common.delete">Delete</button>' +
-              '</div>'
+              '</div>' +
+              '<a class="btn ghost small sp-pop-plan" href="/project.html?id=' + encodeURIComponent(projectId) + '&sprint=' + encodeURIComponent(s.id) + '">' +
+                B().esc(_t('sprint.plan', 'Plan')) + '</a>'
             chip.closest('.sp-sprint').appendChild(sprintPop)
             const r = chip.getBoundingClientRect()
             const pr = sprintPop.getBoundingClientRect()
@@ -691,7 +815,7 @@
             sprintPop.style.insetInlineStart = ''
             if (document.documentElement.dir === 'rtl') sprintPop.style.right = Math.max(8, r.right - pr.width - 8) + 'px'
             else sprintPop.style.left = Math.max(8, Math.min(r.left, window.innerWidth - pr.width - 8)) + 'px'
-            sprintPop.style.top = Math.min(r.bottom + 6, window.innerHeight - 90) + 'px'
+            sprintPop.style.top = Math.min(r.bottom + 6, Math.max(8, window.innerHeight - pr.height - 8)) + 'px'
             sprintPop.querySelector('[data-sp-rename]').focus()
             return
           }

@@ -20,6 +20,48 @@ import type {
 } from '../../types'
 
 
+// S35 (user request 2026-09): the ARCHIVE SHELF — parked ideas/projects
+// (archived_state='offline', any stage — mostly sparks that won't be built in the
+// foreseeable future). NOT trash: rows stay forever, restorable, browsable here.
+// One row per project: stage badge, title (deep link), description one-liner,
+// folder note for sparks, the archived date, and the restore action.
+export function archiveShelfHtml(projects: ProjectRow[], tagsMap: Map<string, TagRow[]>, lang: Locale): string {
+  if (projects.length === 0) {
+    return `<div class="empty-state empty">
+      <span class="empty-state-icon" aria-hidden="true">${icon('archive')}</span>
+      <p class="empty-state-title">${trL(lang, 'Nothing archived yet', 'هنوز چیزی بایگانی نشده')}</p>
+      <p class="empty-state-text">${trL(lang, 'Ideas and projects you archive rest here — kept safe, never deleted, ready whenever you want to look again.', 'ایده‌ها و پروژه‌هایی که بایگانی می‌کنی اینجا می‌خوابند — سالم می‌مانند، حذف نمی‌شوند، و هر وقت بخواهی دوباره سراغشان می‌روی.')}</p>
+      <a class="empty-state-cta btn ghost" href="/projects.html">${trL(lang, 'Go to projects', 'رفتن به پروژه‌ها')}</a>
+    </div>`
+  }
+  const dig = (n: number) => (lang === 'fa' ? faDigits(String(n)) : String(n))
+  const rows = projects
+    .map((p) => {
+      const tags = tagsMap.get(p.id) ?? []
+      const desc = p.description ? `<p class="muted small clip-2 arc-desc">${esc(p.description)}</p>` : ''
+      const tagChips = tags.length
+        ? `<div class="row arc-tags">${tags.map((t) => `<span class="chip pd-tag-chip" dir="auto">${esc(t.name)}</span>`).join('')}</div>`
+        : ''
+      return `<article class="card arc-row" id="archived-${p.id}" data-project-id="${p.id}">
+        <div class="row spread arc-head">
+          <span class="row arc-title-wrap">
+            <a href="/project.html?id=${p.id}" class="arc-title" dir="auto">${esc(p.title)}</a>
+            ${STATUS_BADGE(p.status, lang)}
+          </span>
+          <span class="muted small">${trL(lang, 'archived {t}', 'بایگانی {t}', { t: timeAgo(p.updated_at, lang) })}</span>
+        </div>
+        ${desc}
+        ${tagChips}
+        <div class="row arc-actions">
+          <button type="button" class="btn ghost small" hx-post="/api/projects/${p.id}/unarchive?shelf=1" hx-target="#archive-list" hx-swap="innerHTML">${icon('archive')} ${trL(lang, 'Restore', 'بازگردانی')}</button>
+          <a class="btn ghost small" href="/project.html?id=${p.id}">${trL(lang, 'Open', 'باز کردن')}</a>
+        </div>
+      </article>`
+    })
+    .join('')
+  return `<div class="arc-list">${rows}</div><p class="muted small arc-total">${trL(lang, '{n} archived', '{n} مورد بایگانی‌شده', { n: dig(projects.length) })}</p>`
+}
+
 export async function loadTags(cfg: Config, userId: string): Promise<Map<string, TagRow[]>> {
   const rows = await cfg.db.query<TagRow & { project_id: string }>(
     `SELECT t.*, pt.project_id FROM tags t
@@ -173,14 +215,14 @@ export function cardHtml(p: ProjectRow, tags: TagRow[], lang: Locale, signals?: 
 export function listFragment(projects: ProjectRow[], tagsMap: Map<string, TagRow[]>, view: string, lang: Locale, signalsMap?: Map<string, ProjectSignals>, statusFilter?: string, progressMap?: Map<string, number>): string {
   if (projects.length === 0) {
     // B2.5: illustrated empty state — icon + headline + helper + CTA.
-    // Status-aware: the Archive (status=halted) and other filtered views get a contextually
-    // correct message instead of the generic "capture your first idea" CTA (which is wrong
-    // for an archive — archiving is not creating). Session 19 fix.
+    // Status-aware: a specific status filter with no matches gets a contextually
+    // correct message instead of the generic "capture your first idea" CTA (which is
+    // wrong for an empty stage). Session 19 fix.
     if (statusFilter === 'halted') {
       return `<div class="empty-state empty">
         <span class="empty-state-icon" aria-hidden="true"><svg class="icon" viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7Z"/><path d="M12 11v4M10 13h4"/></svg></span>
-        <p class="empty-state-title">${trL(lang, 'Nothing archived yet', 'هنوز چیزی بایگانی نشده')}</p>
-        <p class="empty-state-text">${trL(lang, 'Projects you archive from their page will rest here. Archived projects are paused — never destroyed.', 'پروژه‌هایی که از صفحه‌شان بایگانی می‌کنی اینجا می‌خوابند. پروژه‌های بایگانی‌شده متوقف می‌شوند — هرگز نابود نمی‌شوند.')}</p>
+        <p class="empty-state-title">${trL(lang, 'Nothing halted right now', 'هیچ پروژه‌ای متوقف نیست')}</p>
+        <p class="empty-state-text">${trL(lang, 'Projects paused mid-work live here. Ideas parked for the foreseeable future live under Archive instead.', 'پروژه‌هایی که وسط کار متوقف شده‌اند اینجا هستند. ایده‌هایی که برای آیندهٔ نامشخص کنار گذاشته‌ای در «آرشیو» می‌مانند.')}</p>
         <a class="empty-state-cta btn ghost" href="/projects.html">${trL(lang, 'Go to projects', 'رفتن به پروژه‌ها')}</a>
       </div>`
     }

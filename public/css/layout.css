@@ -480,6 +480,36 @@ input::placeholder, textarea::placeholder { font-size: 0.88em; opacity: 0.7; } /
 }
 .shot img:hover { filter: brightness(0.97); }
 
+/* S35: screenshots are UI/UX PROBLEM REPORTS — a card per broken thing: image +
+   note + open/fixed state. The old bare figure kept its base styles above (the
+   .shot-card layer adds the report structure on top). */
+.shot-card { display: flex; flex-direction: column; }
+.shot-img-btn { padding: 0; border: 0; background: none; cursor: zoom-in; display: block; }
+.shot-img-btn img { display: block; }
+.shot-card.is-fixed .shot-img-btn img { opacity: 0.75; }
+.shot-body { display: grid; gap: 0.3rem; padding: 0.4rem 0.1rem 0.1rem; }
+.shot-note { margin: 0; white-space: pre-wrap; word-break: break-word; }
+.shot-note-empty { font-style: italic; opacity: 0.75; }
+.shot-note-form { align-items: flex-start; margin: 0; }
+.shot-note-form textarea { flex: 1 1 9rem; min-block-size: 2.6rem; font: inherit; font-size: var(--fs-xs); padding: 0.3rem 0.45rem; border: 1px solid var(--brand); border-radius: var(--radius-sm); background: var(--bg); color: var(--text); }
+.shot-state {
+  font-size: var(--fs-xs); font-weight: 600; color: #B4762E;
+  background: rgb(201 151 59 / 0.12); border-radius: 999px; padding: 0.05rem 0.5rem;
+}
+.shot-state.is-fixed { color: #3E7D5A; background: rgb(143 211 169 / 0.2); }
+.shot-card.is-fixed { border: 1px solid rgb(143 211 169 / 0.55); border-radius: var(--radius-sm); padding: 0.3rem; }
+/* the zoom lightbox — click or Esc closes */
+.shot-lightbox {
+  position: fixed; inset: 0; z-index: 200;
+  display: grid; place-items: center; padding: 2rem;
+  background: rgb(10 8 4 / 0.82); cursor: zoom-out;
+}
+.shot-lightbox img {
+  max-inline-size: 100%; max-block-size: 100%;
+  border-radius: var(--radius-sm); box-shadow: 0 8px 40px rgb(0 0 0 / 0.5);
+}
+:root[data-theme="dark"] .shot-state { color: #D9A55C; }
+
 /* --- dashboard stats ------------------------------------------------------- */
 .stat-strip {
   display: grid;

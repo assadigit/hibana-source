@@ -9,6 +9,68 @@
 > rewritten as a minimal pointer. Deleted files remain recoverable verbatim:
 > `git show <sha>:<file>`.
 
+## 1. Current state (v0.3.12.37 — Session 35: sprint strips + the idea archive + screenshot problem reports w/ R2)
+- **(a) SPRINT STRIPS (user, 2026-09-13: "the sprint board … the one which has timeline
+  should show sprints like this … a dot on the timeline appear for 3 september which
+  shows the start of my sprint … then last until 13 september, i click finish sprint, a
+  line … drags from 3 to 12 september, showing how long that sprint lasted … also it must
+  show the works and progress done on that period based on the انجام شده tasks")** — the
+  sprint lane is now a VIDEO-EDITING TIMELINE: each sprint renders `[◆ name · 11 days ·
+  ✓ 3/4 · ☑ 2]` chip + a STRIP — a start-dot at started_at, a teal clip that DRAGS to
+  today while the sprint runs (pulsing live-edge dot sitting exactly on the today line,
+  prefers-reduced-motion gated) and FREEZES at ended_at when finished (grey end-dot).
+  The strip carries the WORK: a fill sized by assigned-tasks-done ratio + one tick per
+  day that closed ≥1 task (any dev task done inside the sprint's date window — hover a
+  tick for the date + task titles). The chip popover shows dates + duration + done
+  counts + active days + doc-checked + a «برنامه» deep link into the plan editor.
+  computeRange extends the home axis BACK to the earliest sprint still overlapping the
+  last ~6 months so finished strips stay visible; older sprints drop off (the ‹ pager
+  reaches them). The time-nav label + drag repaints follow the new axis.
+- **(b) THE ARCHIVE (user: "an option to archive projects ideas, some ideas might never
+  be implemented … not essentially bad ideas or trash … i might check them again later …
+  archive ideas that are not being implemented in foreseeable future, but not trash
+  either")** — `archived_state='offline'` (the 0031 column, finally earning its keep)
+  parks a project OR spark: POST `/api/projects/:id/archive` + `/unarchive`
+  (history-logged «بایگانی شد — کنار گذاشته، نه حذف» / «از آرشیو بازگردانی شد»,
+  rule-1 scoped, 409 on double-archive). Archived rows leave the projects list, the
+  glance counts, the ideas shelf + folder counts, and the dashboard (counts/resume/
+  kanban), and rest on `/archive.html` — now the PARKED shelf (`?archived=1`; sparks
+  INCLUDED there — the spark-exclusion is waived) with restore-in-place rows (stage
+  badge + description + tags + archived-time). The project head swaps the Archive
+  button for an amber banner + Restore. Distinct from trash (soft-delete's 7-day
+  purge) and from halted (paused mid-work).
+- **(c) SCREENSHOTS AS UI/UX PROBLEM REPORTS (user: "improve the screenshot part of the
+  projects page, so i can upload screenshots of broken UI/UX problems and add some text
+  about them, so i know what and where to work") + THE CLOUD STORAGE (user: "we need to
+  find a space, like a free cloud storage, that I can connect to this hibana, by
+  something like an API")** — migration 0053 (`screenshots.resolved 0/1`): each shot is
+  a CARD (zoom lightbox on click/Esc, INLINE note editing — the caption becomes a
+  textarea with save/cancel, dir=auto + digit-safe, PATCH on save, open↔fixed toggle
+  PATCHes `resolved`, delete asks + removes row AND remote bytes). Upload drops the
+  caption prompt — shots land immediately as OPEN problems; the note is written on the
+  card. **The chosen storage: Cloudflare R2** (10 GB-month free, 1M Class A + 10M Class
+  B ops/month, ZERO egress, S3 API, same CF account as the Worker — research-verified
+  against B2/Supabase/Bunny). New adapter `src/services/r2.ts`: S3 REST + AWS SigV4 in
+  pure Web Crypto (runs on Workers AND Node, zero deps); configured via
+  R2_ACCESS_KEY_ID/R2_SECRET_ACCESS_KEY/R2_BUCKET (+R2_ACCOUNT_ID, or R2_ENDPOINT for
+  any S3-compatible — B2, Wasabi, MinIO). UNSET = the GitHub Contents API exactly as
+  before (screenshots only; avatars/logos/backups stay on GitHub — `github_path` keeps
+  its name as the storage key). Verified end-to-end against a local S3-compatible
+  mini-service (`mini-services/shot-store`, port 3040) through the real SigV4 client.
+- Bumps: sprint-page.js v4→5, devboard.css v6→7 (19 shells), project-page.js v11→12,
+  layout.css v2→3 (22 shells), project-header.css v7→8 (19 shells), i18n-en/fa v14→16 +
+  i18n.js v71→73 (20 new keys EN+FA; 1025→1039 + archive.hint rewrite), sw v335→v336,
+  package.json 0.3.12.37.
+- Tests: +13 vitest (`r2-storage` — SigV4 request shape + env parsing;
+  `screenshot-problems` — PATCH/resolve/rule-1/R2-routing-pin; `project-archive` —
+  round-trip + exclusions + banner + rule-1) and +3 e2e `sprint-timeline.spec.ts` (the
+  strip anatomy + freeze, the archive shelf round-trip, the shot card interactions).
+  Ladder: typecheck 0 · 366 vitest · 49 e2e · smoke ALL PASS · i18n 1039/1039 ·
+  cache-bust PASS · bundle-size PASS · prod-errors PASS · dist-wiring PASS.
+- Known-issue (pre-existing, verified against the clean S34 tree): the project page at
+  390px RTL bleeds ~33px left from the board block (`.pd-board-head` already wraps —
+  the shift is deeper); not introduced by this session, noted for a future pass.
+
 ## 1. Current state (v0.3.12.36 — Session 34: sprint-editor private comments + tasks/tables/images/strike)
 - **(a) PRIVATE COMMENTS (user, 2026-09-13: "add option to add comment … to any part of
   text i want which is only visible for myself … a reminder of rationale for why i am
@@ -1793,3 +1855,5 @@ must stay last). Restore is in-place and destructive: `npx wrangler d1 time-trav
 | 2026-09-13T02:01:05.301Z | pm-app-prod | 49 | 00000835-00000002-000050e5-e7ccb2011a5843aabea78001f96f2912 | pre-migration bookmark (prod) |
 | 2026-09-13T04:31:24.024Z | pm-app-dev | 50 | 000004a4-00000000-000050e5-27c0f30f9df3141725d8871beb81746a | pre-migration bookmark (dev) |
 | 2026-09-13T04:31:27.403Z | pm-app-prod | 50 | 0000084a-00000000-000050e5-35264bba52c3717740e025b637786dc8 | pre-migration bookmark (prod) |
+| 2026-09-13T06:24:36.874Z | pm-app-dev | 51 | 000004a9-00000000-000050e5-a2d8af5ee15a85733b704404667a6046 | pre-0053 bookmark (dev) |
+| 2026-09-13T06:24:40.206Z | pm-app-prod | 51 | 00000855-00000000-000050e5-fb4b5a34d3e327cf06618fd8ceb93289 | pre-0053 bookmark (prod) |

@@ -41,18 +41,18 @@ export function dashboardRoutes(cfg: Config) {
 
     const [byStatus, recent, activeProjects, solvedThisWeek, notes, todoTasks, todoNameRows, todoNoteRows, urgentTasks, urgentCount] = await Promise.all([
       cfg.db.query<{ status: string; n: number }>(
-        'SELECT status, COUNT(*) AS n FROM projects WHERE user_id = ? AND deleted_at IS NULL GROUP BY status',
+        "SELECT status, COUNT(*) AS n FROM projects WHERE user_id = ? AND deleted_at IS NULL AND (archived_state IS NULL OR archived_state != 'offline') GROUP BY status",
         [user.id],
       ),
       cfg.db.query<ProjectRow>(
-        'SELECT * FROM projects WHERE user_id = ? AND deleted_at IS NULL ORDER BY updated_at DESC LIMIT 10',
+        "SELECT * FROM projects WHERE user_id = ? AND deleted_at IS NULL AND (archived_state IS NULL OR archived_state != 'offline') ORDER BY updated_at DESC LIMIT 10",
         [user.id],
       ),
       // P5.1 (F-M1): cap the stage-box over-fetch. Was unbounded SELECT * of every project
       // across every stage; now capped to 8 per stage (latest by updated_at). The "View all"
       // link in each stat box already links to projects.html?status=X for the full list.
       cfg.db.query<ProjectRow>(
-        `SELECT * FROM projects WHERE user_id = ? AND deleted_at IS NULL AND status IN (${PROJECT_STAGES.map(() => '?').join(',')}) ORDER BY updated_at DESC LIMIT 48`,
+        `SELECT * FROM projects WHERE user_id = ? AND deleted_at IS NULL AND (archived_state IS NULL OR archived_state != 'offline') AND status IN (${PROJECT_STAGES.map(() => '?').join(',')}) ORDER BY updated_at DESC LIMIT 48`,
         [user.id, ...PROJECT_STAGES],
       ),
 

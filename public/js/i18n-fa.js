@@ -82,6 +82,10 @@ window.__hibanaDictFA = {
       'pd.restore': 'بازگرداندن به بورد',
       'pd.restored': 'کار به انجام‌شده‌ها بازگردانده شد',
       'pd.restoreFailed': 'بازگردانی ناموفق بود',
+      // S35: the project/idea ARCHIVE (archived_state='offline' — parked, restorable)
+      'pd.archiveConfirm': 'برای بعد کنار گذاشته شود؟ از لیست‌هایت بیرون می‌رود اما در «آرشیو» سالم می‌ماند — هر وقت بخواهی بازگردانی می‌شود.',
+      'pd.archived': 'بایگانی شد — در «آرشیو» پیدایش کن',
+      'pd.unarchived': 'از آرشیو بازگردانی شد',
       'pd.deleteArchiveConfirm': 'این کار بایگانی‌شده برای همیشه حذف شود؟',
       'pd.deleted': 'کار بایگانی‌شده حذف شد',
       // Delete confirm modal (board.html .db-card ⋯ menu)
@@ -328,7 +332,7 @@ window.__hibanaDictFA = {
       'clients.dialog.projectTitle': 'عنوان پروژه', 'clients.dialog.dueDate': 'تاریخ سررسید',
       'clients.dialog.failed': 'ساخت پروژه مشتری ممکن نشد — ', 'clients.dialog.networkError': 'خطای شبکه',
       // archive page
-      'archive.hint': 'پروژه‌های منجمد — کنار گذاشته‌شده، منسوخ یا به تعویق افتاده. هرکدام نشانگر آنلاین/آفلاین دارد (spec §5.6).',
+      'archive.hint': 'ایده‌ها و پروژه‌های کنار گذاشته‌شده — نه زباله، نه گم‌شده. چیزی که به‌زودی نمی‌سازی بایگانی کن؛ هر وقت وقتش شد بازگردانش.',
       // reports page
       'reports.snapshot': 'نمای کلی', 'reports.activity': 'فعالیت در طول زمان',
       'reports.day': 'روز', 'reports.week': 'هفته', 'reports.month': 'ماه', 'reports.year': 'سال',
@@ -404,6 +408,9 @@ window.__hibanaDictFA = {
       // project page
       'project.stageSaved': 'مرحله ذخیره شد', 'project.captionPrompt': 'توضیح (اختیاری):',
       'project.shotUploaded': 'اسکرین‌شات آپلود شد', 'project.shotFailed': 'آپلود انجام نشد',
+      // S35: the screenshot problem cards
+      'project.shotZoom': 'اسکرین‌شات', 'project.shotNotePh': 'چه چیزی خراب است و کجا — دقیقاً همان‌جا که باید کار کنی…',
+      'project.shotFixed': 'درست‌شده علامت خورد', 'project.shotReopened': 'دوباره باز شد', 'project.shotDelConfirm': 'این اسکرین‌شات حذف شود؟',
       'project.noteSaved': 'یادداشت ذخیره شد.', 'project.noteSaveFailed': 'ذخیرهٔ یادداشت ناموفق بود.',
       // dev-board + sprints (0029)
       'db.backToProject': 'بازگشت به پروژه', 'db.sprints': 'اسپرینت‌ها', 'db.board': 'برد',
@@ -454,6 +461,10 @@ window.__hibanaDictFA = {
       'db.startSprint': 'شروع اسپرینت', 'db.draftHint': 'آیتم‌ها را از نوار کنار اضافه کن یا همین‌جا رها کن — به این اسپرینت می‌پیوندند. آماده بودی شروعش کن.',
       'db.sprintFinished': 'اسپرینت با موفقیت پایان یافت — نوبت بعدی',
       'db.finishSprintHint': 'این اسپرینت را پایان بده — پنجره‌اش می‌بندد و می‌توانی اسپرینت بعدی را تعریف کنی',
+      // S35: the sprint strip (video-editing timeline) — duration + done stats
+      'db.sprintDay': 'روز {n}', 'db.sprintDays': '{n} روز', 'db.sprintTo': 'تا',
+      'db.sprintDoneTasks': '{n} انجام‌شده', 'db.sprintDoneDays': '{n} روز فعال',
+      'db.sprintDocChecked': '{n} تیک‌خورده در برنامه',
       'db.draftTag': 'پیش‌نویس', 'db.sprintName': 'نام اسپرینت',
       // Phase 5 — پیمایش زمان در برد اسپرینت
       'sp.older': 'قدیمی‌تر', 'sp.newer': 'جدیدتر', 'sp.now': 'الان',

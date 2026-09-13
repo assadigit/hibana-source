@@ -23,6 +23,7 @@ import {
   bugBubbleHtml, signalsHtml, backlogMetaHtml,
   cardHtml, listFragment, glanceStrip,
   sparkEmptyHtml, sparkKanbanHtml, sparkFolderBar, sparkFolderGrid,
+  archiveShelfHtml,
 } from './helpers'
 import { loadDetail, detailHtml } from './detail-helpers'
 export function projectsRoutes(cfg: Config) {
@@ -37,11 +38,21 @@ export function projectsRoutes(cfg: Config) {
     const user = c.get('user')
     const conds = ['deleted_at IS NULL', 'user_id = ?']
     const params: unknown[] = [user.id]
+    // S35: the archive shelf. archived=1 → ONLY parked rows (archived_state='offline');
+    // every other view EXCLUDES them (they are not deleted, just not being worked on).
+    const archivedOnly = query.success && query.data.archived === '1'
+    if (archivedOnly) {
+      conds.push("archived_state = 'offline'")
+    } else {
+      conds.push("(archived_state IS NULL OR archived_state != 'offline')")
+    }
     if (query.success && query.data.status) {
       conds.push('status = ?')
       params.push(query.data.status)
-    } else {
-      // Sparks live on their own shelf (the Ideas page) — every other view excludes them.
+    } else if (!archivedOnly) {
+      // Sparks live on their own shelf (the Ideas page) — every other view excludes
+      // them. The ARCHIVE shelf is exempt: parked SPARKS are exactly the use case
+      // (ideas not being implemented in the foreseeable future).
       conds.push("status != 'spark'")
     }
     if (query.success && query.data.tag) {
@@ -73,11 +84,18 @@ export function projectsRoutes(cfg: Config) {
     )
     const tagsMap = await loadTags(cfg, user.id)
     if (c.req.header('HX-Request')) {
+      // S35: the ARCHIVE SHELF fragment — one row per parked idea/project with its
+      // stage badge, a one-line description, and the restore action (htmx POST that
+      // re-renders this same fragment). Distinct from listFragment on purpose: the
+      // shelf is a browsing surface, not a working surface.
+      if (archivedOnly) {
+        return await etag(c, c.html(archiveShelfHtml(projects, tagsMap, lang)))
+      }
       const activeStatus = query.success ? query.data.status : undefined
       if (view === 'grid') {
         const countRows = await cfg.db.query<{ status: string; n: number }>(
-          'SELECT status, COUNT(*) AS n FROM projects WHERE user_id = ? AND deleted_at IS NULL AND status != ? GROUP BY status',
-          [user.id, 'spark'],
+          "SELECT status, COUNT(*) AS n FROM projects WHERE user_id = ? AND deleted_at IS NULL AND status != 'spark' AND (archived_state IS NULL OR archived_state != 'offline') GROUP BY status",
+          [user.id],
         )
         const counts = new Map<string, number>(countRows.map((r) => [r.status, r.n]))
         return await etag(c, c.html(glanceStrip(counts, activeStatus, lang, true)))
@@ -89,20 +107,20 @@ export function projectsRoutes(cfg: Config) {
       let fragment = listFragment(projects, tagsMap, view, lang, signalsMap, activeStatus, progressMap)
       if (c.req.query('view') !== undefined && activeStatus !== 'spark') {
         const countRows = await cfg.db.query<{ status: string; n: number }>(
-          'SELECT status, COUNT(*) AS n FROM projects WHERE user_id = ? AND deleted_at IS NULL AND status != ? GROUP BY status',
-          [user.id, 'spark'],
+          "SELECT status, COUNT(*) AS n FROM projects WHERE user_id = ? AND deleted_at IS NULL AND status != 'spark' AND (archived_state IS NULL OR archived_state != 'offline') GROUP BY status",
+          [user.id],
         )
         const counts = new Map<string, number>(countRows.map((r) => [r.status, r.n]))
         if (countRows.some((r) => r.n > 0)) fragment = glanceStrip(counts, activeStatus, lang) + fragment
       }
       if (activeStatus === 'spark') {
         const folderRows = await cfg.db.query<SparkFolderRow & { n: number }>(
-          `SELECT f.id, f.name, (SELECT COUNT(*) FROM projects p WHERE p.folder_id = f.id AND p.user_id = ? AND p.deleted_at IS NULL AND p.status = 'spark') AS n
+          `SELECT f.id, f.name, (SELECT COUNT(*) FROM projects p WHERE p.folder_id = f.id AND p.user_id = ? AND p.deleted_at IS NULL AND p.status = 'spark' AND (p.archived_state IS NULL OR p.archived_state != 'offline')) AS n
            FROM spark_folders f WHERE f.user_id = ? ORDER BY f.sort_order, f.created_at`,
           [user.id, user.id],
         )
         const unfiledRows = await cfg.db.query<{ n: number }>(
-          "SELECT COUNT(*) AS n FROM projects WHERE user_id = ? AND deleted_at IS NULL AND status = 'spark' AND folder_id IS NULL",
+          "SELECT COUNT(*) AS n FROM projects WHERE user_id = ? AND deleted_at IS NULL AND status = 'spark' AND folder_id IS NULL AND (archived_state IS NULL OR archived_state != 'offline')",
           [user.id],
         )
         if (projects.length === 0) {
@@ -378,6 +396,54 @@ export function projectsRoutes(cfg: Config) {
       return c.html('')
     }
     return c.json({ ok: true })
+  })
+
+  // ---- S35 (user request 2026-09): the ARCHIVE — parked ideas/projects ------------
+  // archived_state='offline' takes a row off every working surface (list, glance,
+  // ideas shelf, dashboard) and parks it on the Archive page. NOT the 7-day
+  // soft-delete (that is trash); NOT halted (that is paused mid-work). The row keeps
+  // its status, folder, notes, tasks — restore is one click, any time, forever.
+  app.post('/:id/archive', async (c) => {
+    const t = trFor(c)
+    const lang = localeOf(c)
+    const user = c.get('user')
+    const p = await getOwnedProject(cfg, user.id, c.req.param('id'))
+    if (!p) return c.json({ error: 'not_found' }, 404)
+    if (p.archived_state === 'offline') return c.json({ error: 'already_archived' }, 409)
+    const now = new Date().toISOString()
+    await cfg.db.execute("UPDATE projects SET archived_state = 'offline', updated_at = ? WHERE id = ? AND user_id = ?", [
+      now, p.id, user.id,
+    ])
+    await cfg.db.execute('INSERT INTO project_history_log (id, project_id, note, created_at) VALUES (?, ?, ?, ?)', [
+      uuid(), p.id, t('Archived — parked, not deleted', 'بایگانی شد — کنار گذاشته، نه حذف'), now,
+    ])
+    if (c.req.header('HX-Request')) return c.html(toastHtml(t('Archived "{title}". Find it under Archive.', '«{title}» بایگانی شد. در «آرشیو» پیدایش می‌کنی.', { title: p.title }), lang, `/api/projects/${p.id}/unarchive`))
+    return c.json({ ok: true, archived: true })
+  })
+
+  app.post('/:id/unarchive', async (c) => {
+    const t = trFor(c)
+    const lang = localeOf(c)
+    const user = c.get('user')
+    const p = await getOwnedProject(cfg, user.id, c.req.param('id'))
+    if (!p) return c.json({ error: 'not_found' }, 404)
+    const now = new Date().toISOString()
+    await cfg.db.execute("UPDATE projects SET archived_state = 'online', updated_at = ? WHERE id = ? AND user_id = ?", [
+      now, p.id, user.id,
+    ])
+    await cfg.db.execute('INSERT INTO project_history_log (id, project_id, note, created_at) VALUES (?, ?, ?, ?)', [
+      uuid(), p.id, t('Restored from archive', 'از آرشیو بازگردانی شد'), now,
+    ])
+    // The Archive shelf's restore button re-renders the SHELF fragment (shelf=1) so
+    // the row disappears in place; other callers get the undo toast.
+    if (c.req.header('HX-Request') && c.req.query('shelf') === '1') {
+      const conds = ["archived_state = 'offline'", 'deleted_at IS NULL', 'user_id = ?']
+      const rest = await cfg.db.query<ProjectRow>(`SELECT * FROM projects WHERE ${conds.join(' AND ')} ORDER BY updated_at DESC`, [user.id])
+      const tagsMap = await loadTags(cfg, user.id)
+      return c.html(archiveShelfHtml(rest, tagsMap, lang))
+    }
+    if (c.req.header('HX-Request')) return c.html(toastHtml(t('Restored "{title}"', '«{title}» بازگردانی شد', { title: p.title }), lang))
+    return c.json({ ok: true, archived: false })
   })
 
   app.post('/:id/note', async (c) => {

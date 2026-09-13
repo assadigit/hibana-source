@@ -305,6 +305,9 @@
 .spark-folder-count { font-size: var(--fs-xs); color: var(--muted); }
 .spark-folder-menu { position: absolute; inset-block-start: 0.3rem; inset-inline-end: 0.3rem; opacity: 0; transition: opacity 0.12s ease; }
 .spark-folder-card:hover .spark-folder-menu { opacity: 1; }
+/* S44: keyboard parity — the ⋯ is hover-revealed for mice and (hover:none)-revealed
+   for touch; focus-within covers keyboard tabbing to the card/menu. */
+.spark-folder-card:focus-within .spark-folder-menu { opacity: 1; }
 .spark-folder-new { border-style: dashed; color: var(--muted); }
 .spark-folder-new:hover {
   /* Session 23: green fill + light text (owner hover spec; was a green-bg/teal-text mix) */

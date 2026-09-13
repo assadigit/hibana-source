@@ -210,3 +210,51 @@ test('screenshot problem cards: note edit, resolve toggle, delete', async ({ pag
 
   expect(errors).toEqual([])
 })
+
+// S44 (owner: "there must be some space and offset to todays timeline on sprints so
+// you can see the actual point"): a sprint started today used to render the today
+// line FLUSH at the axis's leading edge — clipped, indistinguishable from the border.
+// The home axis now LEADS with ~10% pad days (part of the px fit — zero horizontal
+// scroll preserved) and the line carries a small «Today» flag chip.
+test('sprint timeline: the today line has breathing room + the flag (S44)', async ({ page, browserName }) => {
+  test.skip(browserName !== 'chromium', 'Desktop Chromium only')
+  const errors = trackErrors(page)
+  await login(page)
+
+  const pid = ((await api(page, '/api/projects', 'POST', { title: `e2e s44 today-pad ${Date.now()}` })) as { json: { id: string } }).json.id
+  const created = (await api(page, `/api/projects/${pid}/sprints`, 'POST', { name: 'Today sprint' })) as { json: { id: string } }
+  await api(page, `/api/sprints/${created.json.id}/start`, 'POST')
+
+  await page.goto(`/sprint.html?project=${pid}`)
+  await page.waitForSelector('.sp-today-line', { timeout: 10_000 })
+  await page.waitForTimeout(600)
+
+  // The flag chip rides the line and reads "Today" (EN e2e user).
+  const flag = page.locator('.sp-today-flag')
+  await expect(flag).toHaveCount(1)
+  await expect(flag).toBeVisible()
+  await expect(flag).toContainText(/today/i)
+
+  // Breathing room: the line sits clear of BOTH edges of the scroll port (the axis
+  // leads with pad days before today), and the today CELL is not the first cell.
+  const geom = await page.evaluate(() => {
+    const line = document.querySelector('.sp-today-line') as HTMLElement
+    const sc = document.getElementById('sp-scroll') as HTMLElement
+    const lr = line.getBoundingClientRect()
+    const sr = sc.getBoundingClientRect()
+    const cells = Array.from(document.querySelectorAll('.sp-cell'))
+    return {
+      fromStart: Math.round(lr.left - sr.left),
+      fromEnd: Math.round(sr.right - lr.right),
+      todayCellIdx: cells.findIndex((c) => c.classList.contains('is-today')),
+      docHScroll: document.documentElement.scrollWidth > document.documentElement.clientWidth + 1,
+    }
+  })
+  expect(geom.fromStart).toBeGreaterThan(15)
+  expect(geom.fromEnd).toBeGreaterThan(15)
+  expect(geom.todayCellIdx).toBeGreaterThanOrEqual(2) // pad days lead the axis
+  // Zero-scroll property preserved: the axis still fits the port when data does.
+  expect(geom.docHScroll).toBe(false)
+
+  expect(errors).toEqual([])
+})

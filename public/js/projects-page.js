@@ -433,17 +433,23 @@
         // fragment). Clicking a box applies the stage filter in place — no page reload;
         // the href is the no-JS fallback. The server re-renders the strip with the active
         // highlight on the next fragment swap.
+        // S44: the boxes carry data-nav-local — nav.js's capture-phase link interceptor
+        // used to swallow the click (stopPropagation) and then no-op on the same URL, so
+        // NOTHING happened when the filter was already the URL's status. The handler now
+        // actually runs. It sets the select and dispatches a real (bubbling) change event
+        // so the EXISTING filter machinery fires: flipOutOfGrid (grid → cards when a
+        // filter is touched) + the form's own hx-trigger="change" request.
         ctx.on('click', (e) => {
           const box = e.target.closest('[data-pglance]')
           if (!box) return
           e.preventDefault()
           const form = document.querySelector('form.filters')
-          if (!form || !window.htmx) return
-          const sel = form.querySelector('[name="status"]')
+          const sel = form?.querySelector('[name="status"]')
+          if (!form || !sel || !window.htmx) return
           const stage = box.getAttribute('data-pglance')
           // clicking the active box clears the filter (toggle)
           sel.value = sel.value === stage ? '' : stage
-          window.htmx.ajax('GET', '/api/projects', { source: form, target: '#project-list', swap: 'innerHTML' })
+          sel.dispatchEvent(new Event('change', { bubbles: true }))
         })
 
         // ---- R3.2: Search highlight — after every list swap, wrap the query text in <mark>

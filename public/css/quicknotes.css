@@ -587,10 +587,26 @@
 .pd-task:focus-within .spark-menu > button[data-menu-open],
 .db-card:hover .spark-menu > button[data-menu-open],
 .db-card:focus-within .spark-menu > button[data-menu-open],
+.kanban-card:hover .spark-menu > button[data-menu-open],
+.kanban-card:focus-within .spark-menu > button[data-menu-open],
+.sticky-note:hover .spark-menu > button[data-menu-open],
+.sticky-note:focus-within .spark-menu > button[data-menu-open],
+.projects-table tr:hover .spark-menu > button[data-menu-open],
+.projects-table tr:focus-within .spark-menu > button[data-menu-open],
 .spark-menu > button[data-menu-open][data-open] { opacity: 1; }
 @media (hover: none) {
   .spark-menu > button[data-menu-open] { opacity: 1; }
 }
+/* S44 (owner: "there must be a way to delete/edit the folder ideas"): sparks' LIST,
+   KANBAN and STICKY views render the same ideas with NO edit/delete affordance — only
+   the cards view injected the ⋯. The hosts below dock the same spark-menu; kanban and
+   sticky cards are navigable ([data-nav-url]) so the injected host carries
+   data-nav-local (nav.js stands down for clicks inside it — the ⋯ opens the menu
+   instead of navigating). */
+.projects-table td .spark-menu { display: inline-flex; margin-inline-start: 0.4rem; vertical-align: middle; }
+.kanban-card, .sticky-note { position: relative; }
+.kanban-card .spark-menu, .sticky-note .spark-menu { position: absolute; inset-block-start: 0.25rem; inset-inline-end: 0.25rem; margin: 0; z-index: 5; }
+.kanban-card .spark-menu-pop, .sticky-note .spark-menu-pop { inset-block-start: calc(100% + 0.25rem); inset-inline-end: 0; }
 /* Note-card ⋯ menu positioning (the note headbar is flex — pin the menu to the end). */
 .note-card .note-headbar .spark-menu { margin-inline-start: 0; }
 .note-card .spark-menu-pop { inset-block-start: calc(100% + 0.25rem); }

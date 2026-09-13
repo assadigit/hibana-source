@@ -490,6 +490,8 @@ window.__hibanaDictEN = {
       'db.draftTag': 'draft', 'db.sprintName': 'Sprint name',
       // Phase 5 — sprint time paging
       'sp.older': 'Older', 'sp.newer': 'Newer', 'sp.now': 'Now',
+      // S44: the sprint timeline's today-flag chip (rides the today line)
+      'db.today': 'Today',
       'db.tags': 'Tags', 'db.addTag': 'Add tag + Enter', 'db.taskAdded': 'Task added', 'db.taskDeleted': 'Task deleted',
       'db.zoom': 'Zoom', 'db.zoomDays': 'Days',
       'db.zoomMonths': 'Months', 'db.newSprintTitle': 'Sprint',

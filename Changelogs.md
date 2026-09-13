@@ -9,7 +9,69 @@
 > rewritten as a minimal pointer. Deleted files remain recoverable verbatim:
 > `git show <sha>:<file>`.
 
-## 1. Current state (v0.3.12.44 — Session 43: FULL MOBILE RESPONSIVITY AUDIT (every page, 390px, FA+EN, light+dark, richly seeded — scripts/mobile-audit.mjs): settings/reports/project-detail/404/canvas/notifications sideways overflows ELIMINATED (the shadowed /api/tags route, ghost grid tracks, the 404 halo, Fabric's 1200×800 birth, the board-head CTA row) + a 200-control 40px coarse-pointer touch floor; S42: dashboard stage-carousel EXPANDED — handles float OVER the strip; S41: Sparks MOBILE pass + folder EMOJI icons (0056); S40: Sparks page FULL AUDIT + TEXT ALIGNMENT (0055); S39: media GALLERY + screenshot pinning; S38: KV storage — never expires; S37: English-always chat rule)
+## 1. Current state (v0.3.12.45 — Session 44: the owner's three bug reports fixed at the root — (1) sparks: EVERY view gets the ⋯ edit/delete (list rows / kanban cards / sticky notes used to render ideas with NO affordance) + open menus survive the 30s shelf poll; (2) projects glance strip: the dead-click bug (nav.js's capture-phase interceptor swallowed [data-pglance] clicks then same-URL no-op'd) — boxes now filter IN PLACE, + nav.js re-mounts pages on SAME-PAGE re-entry (language toggle / popstate kept landing unmounted on the default grid); (3) sprint timeline: today's line gets ~10% leading pad + a «امروز/Today» flag chip so the actual point is visible; S43: FULL MOBILE RESPONSIVITY AUDIT + 200-control 40px touch floor; S42: dashboard stage-carousel handles OVER the strip; S41: Sparks MOBILE pass + folder EMOJI icons (0056); S40: Sparks page FULL AUDIT + TEXT ALIGNMENT (0055); S39: media GALLERY + screenshot pinning; S38: KV storage — never expires; S37: English-always chat rule)
+- **(S44) THREE OWNER BUG REPORTS, ROOT-CAUSED (user: sparks "there must be a way to
+  delete/edit the folder ideas, for example clicking on this [⋯] on folders" /
+  projects "when you click [the در حال انجام glance box] nothing happens, but it is
+  supposed to show در حال انجام projects" / sprints "there must be some space and
+  offset to todays timeline so you can see the actual point")** —
+  1. **SPARKS — delete/edit in EVERY view**: the ⋯ menu injected into CARDS only;
+     the list/kanban/sticky views of the SAME ideas had no edit/delete at all (the
+     owner's "folder ideas" are browsed there). `injectSparksMenus()` now builds
+     every view's host (table rows, `.kanban-card`, `.sticky-note`) with the SAME
+     delegated menu (Move/Edit/Delete); kanban + sticky hosts carry `data-nav-local`
+     because those cards are `[data-nav-url]` navigable — nav.js's capture
+     interceptor now checks `data-nav-local` FIRST so the ⋯ opens the menu instead
+     of dragging the card into navigation (the card body still opens the project).
+  2. **SPARKS — menus that vanish mid-read**: the shelf's every-30s htmx poll
+     innerHTML-swaps the whole shelf, DESTROYING any open ⋯ menu (or folder menu) —
+     on a phone, tap → menu flashes → gone reads exactly as "clicking does nothing".
+     `htmx:beforeSwap` now captures the open menu's id (spark card or folder), and
+     the afterSwap reinjection re-OPENS it on the fresh DOM. The folder-grid ⋯ also
+     reveals on `:focus-within` (keyboard parity with the hover/touch reveals).
+  3. **PROJECTS — the glance-strip dead click**: nav.js's CAPTURE-phase link
+     interceptor `stopPropagation()`'d the `[data-pglance]` click before the page's
+     in-place filter handler could run, then `go()` same-SKIPPED on the byte-identical
+     URL — a swallowed click, dead in both directions. The boxes now carry
+     `data-nav-local` (navigator stands down; href stays as the no-JS fallback) and
+     the handler dispatches a real bubbling `change` on the status select so the
+     EXISTING filter machinery fires (flipOutOfGrid: grid → cards, the form's own
+     hx-trigger request, saved-filter serialization). Verified against the owner's
+     exact URL: on `?status=doing&view=cards`, clicking the doing box now clears
+     the filter in place; from the stages grid it flips to cards + filters.
+  4. **NAV.JS — same-page re-entry re-mounts (the structural find)**: navigating
+     projects.html → projects.html?status=… (glance strip pre-fix, language toggle's
+     `hibanaNav.reload()`, popstate) swapped the fresh shell but NEVER re-ran the
+     page's own `-page.js` (it was "already present" in the document, and pages
+     carry no inline defs) — the new shell sat UNMOUNTED: default grid, dead
+     listeners, lost URL params. `load()` now re-EXECUTES the fetched page's
+     `-page.js` scripts even when present (fresh <script> elements always run; regex
+     matches both source `/js/x-page.js` and dist `/dist/x-page.<hash>.js` shapes;
+     shared scripts stay missing-only — re-running alpine/nav.js would be
+     catastrophic). `go()` no longer skips ?-only changes (a query change IS a
+     navigation now); only byte-identical URLs no-op.
+  5. **SPRINTS — today's point**: a sprint starting today (or any today-forward
+     axis) rendered the today line FLUSH at the leading edge — clipped, unreadable
+     as a point. The home axis now LEADS with `max(2, ~10% of the zoom window)` pad
+     days (floor, not cap — sprint history still wins); the pad rides the px fit
+     (`avail/(win+pad)`), so a data-free board still fills the port with ZERO
+     horizontal scroll, and the future span keeps its full `win` days. The line
+     carries a small `«امروز/Today»` flag chip (`db.today`, i18n 1073→1074) at its
+     top — direction-blind centering via physical `left:0` + `translateX(-50%)`.
+  - Bumps: nav.js v2→v3 (17 shells), sparks-page.js v4→v5, projects-page.js v1→v2,
+    sprint-page.js v5→v6, quicknotes.css v5→v6 (22 shells), devboard.css v8→v9
+    (20 shells), dashboard.css v7→v8, i18n-en.js v19→v20 + i18n-fa.js v19→v20
+    (injected ref in i18n.js) + i18n.js v75→v76, sw v342→v343, package 0.3.12.45.
+  - Ladder: typecheck 0 · vitest 394/394 · e2e 71/71 (4 new pins: projects-glance
+    spec — in-place filter + toggle + the owner's exact ?status URL + same-page
+    re-mount; sparks — every-view ⋯ + list-row delete + kanban menu-vs-navigate +
+    poll survival; sprint — today-pad + flag + zero-scroll) · i18n 1074/1074 ·
+    cache-bust PASS (10 files) · mobile-audit re-run: docHScroll NONE on every page,
+    projects/sparks fully clean, sprint axis flags unchanged in class (intentional
+    scroll strip) · browser-verified interactive FA/RTL desktop + 390px (glance
+    filter 3 scenarios, folder rename + delete, list/kanban/sticky menus, today
+    flag; console clean; VLM approval on the timeline renders).
+
 - **(S43) FULL MOBILE RESPONSIVITY AUDIT (user: "there are lots of responsive
   problems in mobile. like button sizes. container out of box etc. audit the
   responsivity.")** — built `scripts/mobile-audit.mjs` (reusable): boots the Node

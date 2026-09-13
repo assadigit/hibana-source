@@ -38,6 +38,14 @@
         // gone: an empty board now fits the port with zero horizontal scroll).
         let dayOffset = 0
         let range = { start: 0, end: 1 } // absolute day indexes inclusive
+        // S44 (owner: “there must be some space and offset to today's timeline on sprints
+        // so you can see the actual point”): the home window LEADS with a small pad of
+        // EMPTY days before today — the today line never sits flush at the axis's leading
+        // edge (clipped, indistinguishable from the border). The pad rides the fit (part
+        // of the px denominator), so a data-free board still fills the port with ZERO
+        // horizontal scroll; the 2026-08-30 (e) “never show passed dates” rule keeps its
+        // real meaning — no past DATA renders by default, the pad is bare grid context.
+        let todayPad = 0
         const PALETTE = ['#8AB8F0', '#E8B27D', '#E59AA5', '#8FD3A9', '#B3A5D6', '#7CC7C1', '#F2D58A', '#C9CDD2']
 
         const lang = () => (window.hibanaI18n && window.hibanaI18n.lang ? window.hibanaI18n.lang() : 'en')
@@ -74,11 +82,14 @@
           const S = B().state
           const today = B().todayIdx()
           const win = ZOOMS[zoom].win
+          // S44: ~10% of the window leads as empty days before today (min 2). When
+          // sprint history reaches further back, it wins — the pad is a floor, not a cap.
+          todayPad = dayOffset === 0 ? Math.max(2, Math.round(win * 0.1)) : 0
           // 2026-08-30 (e) user rule: NEVER show a passed date by default — the window
           // starts at TODAY and only ever extends forward (dayOffset < 0 is the explicit
           // "go back in time" page). Past indexes clamp to the window start or drop out
           // entirely at render time, exactly as before.
-          let min = today + dayOffset
+          let min = today + dayOffset - todayPad
           // S35 (user request 2026-09, the "video-editing timeline"): the sprint lane is
           // now made of STRIPS — a dot at the start, the strip dragging along while the
           // sprint runs, frozen at its length when finished. A finished strip that fell
@@ -96,11 +107,13 @@
               if (Number.isFinite(b) && b > cap) min = Math.max(a, cap)
             })
           }
-          // END-INCLUSIVE window of exactly `win` days: [min, min + win - 1]. The px
-          // scale is avail/win, so an un-extended axis is EXACTLY the port's width —
-          // zero horizontal scroll when the data fits (the old +1/+2 padding always
-          // left a sliver of scrollbar, even on an empty board).
-          let max = min + win - 1
+          // END-INCLUSIVE window: the home window keeps its full `win` FUTURE days (the
+          // pad only adds leading context, it never eats the future); a past-browsing
+          // window is exactly `win` days as before. The px scale is avail/(win+pad), so
+          // an un-extended axis is EXACTLY the port's width — zero horizontal scroll when
+          // the data fits (the old +1/+2 padding always left a sliver of scrollbar, even
+          // on an empty board).
+          let max = (dayOffset === 0 ? today : min) + win - 1
           if (dayOffset === 0) {
             // The home window: future data (task ends, sprint bounds) may extend the
             // axis — the ONLY source of horizontal scroll, and only when data needs it.
@@ -267,7 +280,9 @@
           // content extends the axis (scrollable). One shared px/day for cells + bars.
           const scEl = document.getElementById('sp-scroll')
           const avail = Math.max(280, (scEl ? scEl.clientWidth : 800) - 2)
-          const px = Math.max(0.5, avail / ZOOMS[zoom].win)
+          // S44: the pad days are part of the fit — the window + leading context fill
+          // the port together, keeping the zero-scroll property for a data-free board.
+          const px = Math.max(0.5, avail / (ZOOMS[zoom].win + todayPad))
           const width = Math.round(total * px)
           tlEl.style.setProperty('--sp-width', width + 'px')
 
@@ -323,7 +338,9 @@
             bgHtml += '<div class="sp-bound" data-bound="' + g.s.id + '" data-edge="start" style="inset-inline-start:' + left + '%"><i class="sp-bound-grip" aria-hidden="true"></i></div>'
             bgHtml += '<div class="sp-bound' + (g.open ? ' is-open-bound' : '') + '" data-bound="' + g.s.id + '" data-edge="end" style="inset-inline-start:' + pctOf(g.s1) + '%"><i class="sp-bound-grip" aria-hidden="true"></i></div>'
           })
-          const todayLine = '<div class="sp-today-line" style="inset-inline-start:' + pctOf(B().todayIdx()) + '%"></div>'
+          const todayLine = '<div class="sp-today-line" style="inset-inline-start:' + pctOf(B().todayIdx()) + '%">' +
+            '<span class="sp-today-flag" dir="auto">' + B().esc(_t('db.today', 'Today')) + '</span>' +
+          '</div>'
 
           let sprintLane = ''
           geom.forEach((g) => {

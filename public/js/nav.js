@@ -69,8 +69,12 @@
     let url
     try { url = new URL(path, location.href) } catch { return }
     if (url.origin !== location.origin) { location.href = url.href; return }
-    if (HARD_PAGES.has(url.pathname)) { location.href = url.href; return }
-    if (opts.sameSkip !== false && url.pathname + url.search === location.pathname + location.search) return
+    if (HARD_PAGES.has(url.pathname)) { location.href = url.href; return } // full load
+    // S44: ?-only changes (projects.html?status=… from the glance strip, the language
+    // toggle's reload()) are NOT skipped anymore — the same-page re-entry path below
+    // re-mounts the page, so a query change is a real navigation. Only a byte-identical
+    // URL is a no-op.
+    if (opts.sameSkip !== false && url.pathname === location.pathname && url.search === location.search) return
     load(url, opts.push !== false)
   }
 
@@ -129,24 +133,41 @@
           new URL(s.getAttribute('src') || s.src, location.href).href),
       )
       const missing = []
+      // S44: SAME-PAGE RE-ENTRY — navigating projects.html → projects.html?status=…
+      // (glance strip, language toggle, popstate) skipped the page's own script above
+      // ("already present"), so the fresh shell never got a mount: the URL changed but
+      // the content stayed the default grid. The page-def scripts follow the
+      // /js/<name>-page.js convention — re-EXECUTE those even when present (a fresh
+      // <script> element always runs) so the new shell mounts. Shared scripts (app.js,
+      // alpine, nav.js itself…) stay missing-only — re-running those would be catastrophic.
+      const reexec = []
+      // Matches BOTH script shapes: source (/js/projects-page.js) and the content-hashed
+      // dist build (/dist/projects-page.72191d7a.js). NOTE: no leading "/" — the marker
+      // is the FILENAME's "-page" tail (…/projects-page.js), not a path segment.
+      const pageScriptRe = /-page(\.[0-9a-f]+)?\.js$/
       for (const s of doc.querySelectorAll('script[src]')) {
         if (s.type && s.type !== 'text/javascript') continue
         const raw = s.getAttribute('src')
         if (!raw) continue
         const url = new URL(raw, location.href).href
-        if (existing.has(url)) continue
+        if (existing.has(url)) {
+          if (pageScriptRe.test(new URL(url, location.href).pathname)) reexec.push(url)
+          continue
+        }
         existing.add(url)
         missing.push(url)
       }
-      if (missing.length) {
-        await Promise.all(missing.map((url) => new Promise((resolve) => {
-          const el = document.createElement('script')
-          el.src = url
-          el.async = false // preserve document order among the batch
-          el.onload = resolve
-          el.onerror = () => { console.warn('hibana nav: script failed:', url); resolve() }
-          document.head.appendChild(el)
-        })))
+      const loadScript = (url) => new Promise((resolve) => {
+        const el = document.createElement('script')
+        el.src = url
+        el.async = false // preserve document order among the batch
+        el.onload = resolve
+        el.onerror = () => { console.warn('hibana nav: script failed:', url); resolve() }
+        document.head.appendChild(el)
+      })
+      const batch = [...missing, ...reexec]
+      if (batch.length) {
+        await Promise.all(batch.map(loadScript))
         if (seq !== navSeq) { resumeAlpine(); return } // a newer navigation superseded this one
       }
 
@@ -246,10 +267,14 @@
 
   // --- interception -------------------------------------------------------------
   // Boards (canvas/notebook) keep their full-page lifecycle — no soft-nav from them.
+  // data-nav-local (S44): a page-owned control — the navigator stands down and lets the
+  // page's own click handler run (projects.html's glance strip filters the list in
+  // place; sparks' kanban/sticky ⋯ menus open instead of navigating the card).
   const isBoardOrigin = /^\/(canvas|whiteboard)\.html/.test(location.pathname)
   document.addEventListener(
     'click',
     (e) => {
+      if (e.target.closest?.('[data-nav-local]')) return
       const a = e.target.closest('a[href]')
       if (!a || a.href?.startsWith('javascript:')) return
       if (a.target === '_blank' || a.hasAttribute('download') || a.hasAttribute('data-ajax-off')) return
@@ -267,9 +292,12 @@
   )
 
   // Server-rendered clickable cards (kanban / sticky notes) with navigation semantics.
+  // The data-nav-local check comes FIRST: a page-owned control (a ⋯ menu button) inside
+  // a navigable card must not drag the card into navigation.
   document.addEventListener(
     'click',
     (e) => {
+      if (e.target.closest?.('[data-nav-local]')) return
       const card = e.target.closest('[data-nav-url]')
       if (!card || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return
       e.preventDefault()

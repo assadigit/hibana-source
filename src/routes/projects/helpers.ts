@@ -317,7 +317,10 @@ export function glanceStrip(counts: Map<string, number>, activeStatus: ProjectSt
   const boxes = PROJECT_STAGES.map((s) => {
     const isActive = activeStatus === s
     const isEmpty = anyNonEmpty && (counts.get(s) ?? 0) === 0
-    return `<a class="pglance-box${isActive ? ' is-active' : ''}${isEmpty ? ' is-empty' : ''}" href="/projects.html?status=${s}&view=cards" data-pglance="${s}" title="${esc(statusLabel(s, lang))}">
+    // data-nav-local (S44): the page's own click handler filters the list IN PLACE
+    // (htmx fragment swap) — nav.js's interceptor stands down for these anchors. The
+    // href stays as the no-JS fallback (a bare full load with the status param).
+    return `<a class="pglance-box${isActive ? ' is-active' : ''}${isEmpty ? ' is-empty' : ''}" href="/projects.html?status=${s}&view=cards" data-pglance="${s}" data-nav-local title="${esc(statusLabel(s, lang))}">
       <span class="pglance-icon" aria-hidden="true">${icon(STATUS_ICON[s])}</span>
       <span class="pglance-count" title="${esc(trL(lang, '{n} projects', '{n} پروژه', { n: String(counts.get(s) ?? 0) }))}">${dig(counts.get(s) ?? 0)}</span>
       <span class="pglance-label">${statusLabel(s, lang)}</span>

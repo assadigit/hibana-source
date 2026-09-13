@@ -489,6 +489,8 @@ window.__hibanaDictFA = {
       'db.draftTag': 'پیش‌نویس', 'db.sprintName': 'نام اسپرینت',
       // Phase 5 — پیمایش زمان در برد اسپرینت
       'sp.older': 'قدیمی‌تر', 'sp.newer': 'جدیدتر', 'sp.now': 'الان',
+      // S44: the sprint timeline's today-flag chip (rides the today line)
+      'db.today': 'امروز',
       'db.tags': 'برچسب‌ها', 'db.addTag': 'افزودن برچسب + Enter', 'db.taskAdded': 'کار اضافه شد', 'db.taskDeleted': 'کار حذف شد',
       'db.zoom': 'بزرگ‌نمایی', 'db.zoomDays': 'روزانه',
       'db.zoomMonths': 'ماهانه', 'db.newSprintTitle': 'اسپرینت',

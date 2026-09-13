@@ -106,6 +106,24 @@
 
         // ---- ⋯ menu injection — client-side only (cardHtml is shared with the
         // projects page, where a server-rendered menu would render dead buttons) ----
+        // S44 (owner: "there must be a way to delete/edit the folder ideas"): the ⋯
+        // used to inject into CARDS only — the list/kanban/sticky views of the SAME
+        // ideas had no edit/delete at all. Every view's row/card/note now gets the
+        // same menu; all clicks run through the delegation below. The injected host
+        // carries data-nav-local so nav.js's [data-nav-url] interceptor (kanban +
+        // sticky cards are navigable) lets the ⋯ open the menu instead of navigating.
+        function sparkMenuHtml(id) {
+          return '<button type="button" data-menu-open aria-haspopup="true" aria-label="' + _t('sparks.more', 'More actions') + '">' +
+              '<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="5" cy="12" r="1.7" fill="currentColor"/><circle cx="12" cy="12" r="1.7" fill="currentColor"/><circle cx="19" cy="12" r="1.7" fill="currentColor"/></svg>' +
+            '</button>' +
+            '<div class="spark-menu-pop" hidden>' +
+              // batch (s): file the idea into a folder right from its card.
+              '<button type="button" data-spark-move="' + id + '"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M3.5 7a2 2 0 0 1 2-2h4l2 2h7a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-13a2 2 0 0 1-2-2V7Z"/></svg><span>' + _t('sparks.moveToFolder', 'Move to folder') + '</span></button>' +
+              '<button type="button" data-spark-edit="' + id + '"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg><span>' + _t('sparks.edit', 'Edit spark') + '</span></button>' +
+              '<button type="button" class="danger" data-spark-delete="' + id + '"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg><span>' + _t('common.delete', 'Delete') + '</span></button>' +
+            '</div>'
+        }
+        const MENU_HOST = '.project-card, .projects-table tr, .kanban-card, .sticky-note'
         function injectSparksMenus() {
           const root = shelf()
           if (!root) return
@@ -115,17 +133,31 @@
             const id = card.dataset.projectId
             const menu = document.createElement('div')
             menu.className = 'spark-menu'
-            menu.innerHTML =
-              '<button type="button" data-menu-open aria-haspopup="true" aria-label="' + _t('sparks.more', 'More actions') + '">' +
-                '<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="5" cy="12" r="1.7" fill="currentColor"/><circle cx="12" cy="12" r="1.7" fill="currentColor"/><circle cx="19" cy="12" r="1.7" fill="currentColor"/></svg>' +
-              '</button>' +
-              '<div class="spark-menu-pop" hidden>' +
-                // batch (s): file the idea into a folder right from its card.
-                '<button type="button" data-spark-move="' + id + '"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M3.5 7a2 2 0 0 1 2-2h4l2 2h7a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-13a2 2 0 0 1-2-2V7Z"/></svg><span>' + _t('sparks.moveToFolder', 'Move to folder') + '</span></button>' +
-                '<button type="button" data-spark-edit="' + id + '"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg><span>' + _t('sparks.edit', 'Edit spark') + '</span></button>' +
-                '<button type="button" class="danger" data-spark-delete="' + id + '"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg><span>' + _t('common.delete', 'Delete') + '</span></button>' +
-              '</div>'
+            menu.setAttribute('data-nav-local', '')
+            menu.innerHTML = sparkMenuHtml(id)
             meta.appendChild(menu)
+            card.setAttribute('data-menu-ok', '')
+          }
+          // S44: the other three views. LIST — the ⋯ rides the title cell next to the
+          // project link (rows are not navigable; the link itself is an anchor the
+          // interceptor ignores for buttons). KANBAN + STICKY — the ⋯ docks the top-end
+          // corner (quicknotes.css hosts); the card stays click-to-open otherwise.
+          for (const row of root.querySelectorAll('.projects-table tr[data-project-id]:not([data-menu-ok])')) {
+            const td = row.querySelector('td')
+            if (!td) continue
+            const menu = document.createElement('div')
+            menu.className = 'spark-menu'
+            menu.setAttribute('data-nav-local', '')
+            menu.innerHTML = sparkMenuHtml(row.dataset.projectId)
+            td.appendChild(menu)
+            row.setAttribute('data-menu-ok', '')
+          }
+          for (const card of root.querySelectorAll('.kanban-card[data-project-id]:not([data-menu-ok]), .sticky-note[data-project-id]:not([data-menu-ok])')) {
+            const menu = document.createElement('div')
+            menu.className = 'spark-menu'
+            menu.setAttribute('data-nav-local', '')
+            menu.innerHTML = sparkMenuHtml(card.dataset.projectId)
+            card.appendChild(menu)
             card.setAttribute('data-menu-ok', '')
           }
         }
@@ -521,7 +553,7 @@
           const editBtn = e.target.closest('[data-spark-edit]')
           if (editBtn) { closeMenus(); openEdit(editBtn.getAttribute('data-spark-edit')); return }
           const delBtn = e.target.closest('[data-spark-delete]')
-          if (delBtn) { closeMenus(); deleteSpark(delBtn.getAttribute('data-spark-delete'), delBtn.closest('.project-card')); return }
+          if (delBtn) { closeMenus(); deleteSpark(delBtn.getAttribute('data-spark-delete'), delBtn.closest(MENU_HOST)); return }
           if (!e.target.closest('#spark-shelf .spark-menu')) closeMenus()
         })
         ctx.on('keydown', (e) => { if (e.key === 'Escape') { closeMenus(); closeSfMenus() } })
@@ -579,7 +611,39 @@
         // Re-inject menus on every shelf render (initial load, 30s refresh, manual reload).
         // htmx 2.x dispatches both the legacy `htmx:`-prefixed and the new unprefixed event
         // names — register both so the injection never misses a swap.
-        const reinject = () => injectSparksMenus()
+        // S44: open menus used to DIE with the 30s poll's innerHTML swap — a ⋯ popped,
+        // then vanished mid-read before the tap landed ("clicking does nothing").
+        // beforeSwap captures what was open; afterSwap re-opens it on the fresh DOM.
+        let reopenSparkId = null
+        let reopenFolderId = null
+        const captureOpenMenus = () => {
+          const root = shelf()
+          if (!root) return
+          const pop = root.querySelector('.spark-menu-pop:not([hidden])')
+          reopenSparkId = pop ? (pop.closest('[data-project-id]')?.dataset.projectId || null) : null
+          const sfm = root.querySelector('.sf-menu')
+          reopenFolderId = sfm ? (sfm.querySelector('[data-sf-rename]')?.getAttribute('data-sf-rename') || null) : null
+        }
+        for (const name of ['htmx:beforeSwap', 'beforeSwap']) ctx.on(name, captureOpenMenus)
+        const reinject = () => {
+          injectSparksMenus()
+          const root = shelf()
+          if (!root) return
+          if (reopenSparkId) {
+            const pop = root.querySelector('[data-project-id="' + reopenSparkId + '"] .spark-menu-pop')
+            if (pop) {
+              pop.hidden = false
+              const btn = pop.parentElement?.querySelector('[data-menu-open]')
+              if (btn) btn.setAttribute('data-open', '')
+            }
+            reopenSparkId = null
+          }
+          if (reopenFolderId) {
+            const btn = root.querySelector('[data-sf-menu="' + reopenFolderId + '"]')
+            if (btn) toggleSfMenu(btn)
+            reopenFolderId = null
+          }
+        }
         for (const name of ['htmx:afterSwap', 'afterSwap', 'htmx:load', 'load']) {
           ctx.on(name, reinject)
         }

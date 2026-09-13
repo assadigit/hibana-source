@@ -330,3 +330,97 @@ test('sparks: mobile — two-up folder grid + the bar home chip exits to it (S41
   await expect(page.locator('#spark-folder')).toHaveValue('')
   expect(errors).toEqual([])
 })
+
+// S44 (owner: "there must be a way to delete/edit the folder ideas, for example
+// clicking on this [⋯] on folders"): the ⋯ used to exist ONLY in the cards view —
+// list rows, kanban cards and sticky notes rendered the same ideas with NO
+// edit/delete affordance. Every view now injects the same menu; kanban/sticky hosts
+// carry data-nav-local so nav.js lets the ⋯ open instead of navigating the card; and
+// open menus survive the 30s shelf poll (beforeSwap capture / afterSwap re-open —
+// they used to vanish mid-read, which read as "clicking does nothing").
+test('sparks: every view offers the ⋯ — list/kanban/sticky edit + delete + poll survival (S44)', async ({ page, browserName }) => {
+  test.skip(browserName !== 'chromium', 'Desktop Chromium only')
+  const errors = trackErrors(page)
+  await login(page)
+  await openSparks(page)
+
+  // Enter «All ideas» so a flat view (not the folder grid) is showing.
+  await page.click('.spark-folder-card[data-sf="all"]')
+  await page.waitForSelector('#spark-shelf .project-card', { timeout: 10_000 })
+  await page.waitForTimeout(400)
+
+  // ---- LIST view: every row carries the ⋯ --------------------------------------
+  await page.selectOption('#sparks-view-sel', 'list')
+  await page.waitForSelector('#spark-shelf .projects-table tr[data-project-id]', { timeout: 10_000 })
+  await page.waitForTimeout(400)
+  const rows = await page.$$eval('#spark-shelf .projects-table tr[data-project-id]', (els) => els.map((el) => el.dataset.projectId))
+  expect(rows.length).toBeGreaterThanOrEqual(3)
+  const rowMenus = await page.$$eval('#spark-shelf .projects-table tr .spark-menu', (els) => els.length)
+  expect(rowMenus).toBe(rows.length)
+  // The menu host is page-owned (nav.js stands down inside it).
+  const navLocal = await page.$$eval('#spark-shelf .spark-menu[data-nav-local]', (els) => els.length)
+  expect(navLocal).toBe(rows.length)
+
+  // Delete an idea straight from a LIST row: confirm → row gone. (Playwright
+  // auto-DISMISSES unhandled dialogs, so the accept handler is registered BEFORE
+  // the click — one click, one confirm.)
+  const victim = rows[0]
+  await page.click(`#spark-shelf .projects-table tr[data-project-id="${victim}"] .spark-menu [data-menu-open]`)
+  page.once('dialog', (d) => d.accept())
+  await page.click(`#spark-shelf .projects-table tr[data-project-id="${victim}"] .spark-menu-pop [data-spark-delete]`)
+  await page.waitForTimeout(900)
+  const rowsAfter = await page.$$eval('#spark-shelf .projects-table tr[data-project-id]', (els) => els.map((el) => el.dataset.projectId))
+  expect(rowsAfter).not.toContain(victim)
+
+  // ---- KANBAN view: ⋯ opens the menu, the card BODY still navigates --------------
+  await page.selectOption('#sparks-view-sel', 'kanban')
+  await page.waitForSelector('#spark-shelf .kanban-card[data-project-id]', { timeout: 10_000 })
+  await page.waitForTimeout(400)
+  const cards = await page.$$eval('#spark-shelf .kanban-card[data-project-id]', (els) => els.length)
+  const cardMenus = await page.$$eval('#spark-shelf .kanban-card .spark-menu', (els) => els.length)
+  expect(cardMenus).toBe(cards)
+  // ⋯ click: the menu opens IN PLACE (no navigation to project.html).
+  await page.click('#spark-shelf .kanban-card .spark-menu [data-menu-open]')
+  const pop = page.locator('#spark-shelf .kanban-card .spark-menu-pop').first()
+  await expect(pop).not.toBeHidden()
+  expect(page.url()).toContain('/sparks.html')
+  // The menu offers the real actions (Move / Edit / Delete).
+  const popText = (await pop.textContent()) || ''
+  expect(popText).toMatch(/delete/i)
+  expect(popText).toMatch(/edit/i)
+  // Close the menu (Escape), then click the card BODY (the title) → navigates as before.
+  await page.keyboard.press('Escape')
+  await page.waitForTimeout(200)
+  await page.click('#spark-shelf .kanban-card[data-project-id] strong')
+  await page.waitForURL(/\/project\.html\?id=/, { timeout: 10_000 })
+
+  // ---- STICKY view + POLL SURVIVAL ----------------------------------------------
+  // (The goto re-enters with the persisted kanban view — the folder grid only boots
+  // on the cards default. Drive the shelf straight into the all-ideas sticky view.)
+  await page.goto('/sparks.html')
+  await page.waitForSelector('#spark-shelf .kanban-col, #spark-shelf .spark-folder-grid', { timeout: 10_000 })
+  await page.waitForTimeout(300)
+  await page.evaluate(() => {
+    document.getElementById('spark-folder').value = 'all'
+    document.getElementById('spark-view').value = 'sticky'
+    const sel = document.getElementById('sparks-view-sel')
+    if (sel) sel.value = 'sticky'
+    window.__hibanaShelfReload && window.__hibanaShelfReload()
+  })
+  await page.waitForSelector('#spark-shelf .sticky-note[data-project-id]', { timeout: 10_000 })
+  await page.waitForTimeout(400)
+  const noteMenus = await page.$$eval('#spark-shelf .sticky-note .spark-menu', (els) => els.length)
+  expect(noteMenus).toBeGreaterThanOrEqual(2)
+  // Open the ⋯, then swap the shelf exactly like the 30s poll does — the menu must
+  // still be open afterwards (it used to be destroyed with the swapped DOM).
+  await page.click('#spark-shelf .sticky-note .spark-menu [data-menu-open]')
+  await expect(page.locator('#spark-shelf .sticky-note .spark-menu-pop').first()).not.toBeHidden()
+  await page.evaluate(() => {
+    const f = document.getElementById('spark-folder')?.value || ''
+    const v = document.getElementById('spark-view')?.value || 'sticky'
+    window.htmx.ajax('GET', '/api/projects?status=spark&view=' + encodeURIComponent(v) + (f ? '&folder=' + encodeURIComponent(f) : ''), { target: '#spark-shelf', swap: 'innerHTML' })
+  })
+  await page.waitForTimeout(900)
+  await expect(page.locator('#spark-shelf .sticky-note .spark-menu-pop').first()).not.toBeHidden()
+  expect(errors).toEqual([])
+})

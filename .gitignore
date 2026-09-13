@@ -33,3 +33,7 @@ hibana.db-wal
 # stray curl output file
 -- -s
 -s
+
+# scratch: agent-session debug artifacts (screenshots, probe SQL, repro seeds)
+tmp-debug/
+scripts/tmp/

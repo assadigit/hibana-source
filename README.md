@@ -35,7 +35,10 @@ Agents.md (exception: `BACKUP_ENCRYPTION_KEY` — NEVER rotate).
 - **DB:** SQLite. Same numbered migrations behind one `Db` interface (`src/db/`).
 - **Build:** `scripts/build.mjs` (esbuild) → content-hashed immutable `public/dist/` +
   `manifest.json` → deploy-time HTML wiring (`--wire-html` / `--restore-html`).
-- **Storage:** private GitHub repo `assadigit/hibana-safe` (Contents API).
+- **Storage:** private GitHub repo `assadigit/hibana-safe` (Contents API). Screenshots:
+  pluggable S3-compatible object store (`src/services/r2.ts` — set R2_* env). R2's free
+  tier needs a card on file, so the no-card pick is **Backblaze B2** (10 GB free, S3 API);
+  any S3 endpoint works via R2_ENDPOINT (+R2_REGION if autodetect misses).
 - **Integrations:** Resend (email), healthchecks.io (monitoring), Telegram bot
   (@Hibana_PM_bot), Cloudflare Workers AI (Magic Button).
 

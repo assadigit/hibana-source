@@ -83,8 +83,8 @@ describe('screenshot problem reports (S35)', () => {
       await app.fetch(
         new Request(`http://local/api/screenshots/${id}`, { method: 'PATCH', headers: jsonHeaders(token), body: JSON.stringify({ resolved: 0 }) }),
       )
-      rows = await db.query<{ resolved: number }>('SELECT resolved FROM screenshots WHERE id = ?', [id])
-      expect(rows[0].resolved).toBe(0)
+      const openRows = await db.query<{ resolved: number }>('SELECT resolved FROM screenshots WHERE id = ?', [id])
+      expect(openRows[0].resolved).toBe(0)
     } finally {
       close()
     }

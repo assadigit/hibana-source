@@ -4,6 +4,18 @@
 // pick: 10 GB-month storage, 1M Class A + 10M Class B ops/month, ZERO egress — and
 // it lives on the same Cloudflare account the Worker already deploys to.
 //
+// S36 (user: "for now i can't buy R2 from cloudflare. what are free alternatives"):
+// R2's free tier itself is card-gated (a payment method must be on file before the
+// service can be enabled) — the verified no-card alternatives are Backblaze B2
+// (10 GB free, S3 API, signup explicitly "no credit card required"), Supabase
+// Storage (1 GB, REST not S3) and Cloudinary (~25 credits/month, image CDN). B2 —
+// and any other S3-compatible provider — works through THIS adapter unchanged: set
+// R2_ENDPOINT to the provider's S3 endpoint and credentials. The one thing that
+// differs per provider is the SigV4 REGION in the credential scope: R2 answers to
+// 'auto'; B2 validates it against the endpoint (s3.us-west-004.backblazeb2.com →
+// us-west-004); generic S3 wants e.g. 'us-east-1'. So the region is now part of the
+// config (env R2_REGION, auto-derived from the endpoint host, 'auto' for R2).
+//
 // Scope: the SCREENSHOT pipeline only (push/read/delete). Avatars, logos and backups
 // stay on the GitHub Contents API (spec §8) — screenshots are the high-volume,
 // user-facing surface that benefits from a real object store. The `github_path`
@@ -19,10 +31,13 @@
 //   - x-amz-content-sha256 must be the SAME hash used in the canonical request.
 
 export interface R2Config {
-  endpoint: string // e.g. https://<account>.r2.cloudflarestorage.com
+  endpoint: string // e.g. https://<account>.r2.cloudflarestorage.com or https://s3.us-west-004.backblazeb2.com
   bucket: string
   accessKeyId: string
   secretAccessKey: string
+  /** S36: SigV4 credential-scope region. 'auto' (R2) when omitted; B2 needs the
+   *  endpoint's region (us-west-004…); generic S3 typically 'us-east-1'. */
+  region?: string
 }
 
 export interface ObjectStore {
@@ -82,7 +97,9 @@ export function r2Storage(cfg: R2Config): ObjectStore {
       signedHeaderNames.join(';'),
       payloadHash,
     ].join('\n')
-    const scope = `${dateStamp}/auto/s3/aws4_request` // R2 uses region 'auto'
+    // S36: the region must match the provider — R2 answers to 'auto', B2 validates
+    // the scope against its endpoint region, generic S3 uses its bucket region.
+    const scope = `${dateStamp}/${cfg.region ?? 'auto'}/s3/aws4_request`
     const stringToSign = [
       'AWS4-HMAC-SHA256',
       amzDate,
@@ -126,6 +143,26 @@ export function r2Storage(cfg: R2Config): ObjectStore {
   }
 }
 
+/**
+ * S36: the region the SigV4 scope must carry, derived from the endpoint host.
+ * R2 → 'auto' (and only checks the scope against itself); Backblaze B2 → the
+ * endpoint's own region (s3.us-west-004.backblazeb2.com → 'us-west-004'); anything
+ * else (Wasabi, MinIO, the local dev store…) → 'us-east-1', the de-facto default
+ * that most S3-compatible gateways accept. An explicit env override always wins.
+ */
+function regionFromEndpoint(endpoint: string): string {
+  try {
+    const host = new URL(endpoint).host
+    if (/(^|\.)r2\.cloudflarestorage\.com$/.test(host)) return 'auto'
+    const b2 = /^s3\.([a-z0-9-]+)\.backblazeb2\.com$/.exec(host)
+    if (b2) return b2[1]
+    if (/(^|\.)backblazeb2\.com$/.test(host)) return 'us-west-004'
+  } catch {
+    /* not a parseable URL — the local dev store; any region is fine */
+  }
+  return 'us-east-1'
+}
+
 /** Build the config from Worker/Node env (see Env.R2_*); null when not configured. */
 export function r2ConfigFromEnv(env: {
   R2_ACCOUNT_ID?: string
@@ -133,10 +170,18 @@ export function r2ConfigFromEnv(env: {
   R2_SECRET_ACCESS_KEY?: string
   R2_BUCKET?: string
   R2_ENDPOINT?: string
+  R2_REGION?: string
+  S3_REGION?: string
 }): R2Config | null {
   if (!env.R2_ACCESS_KEY_ID || !env.R2_SECRET_ACCESS_KEY || !env.R2_BUCKET) return null
   const endpoint = env.R2_ENDPOINT?.trim() ||
     (env.R2_ACCOUNT_ID ? `https://${env.R2_ACCOUNT_ID}.r2.cloudflarestorage.com` : null)
   if (!endpoint) return null
-  return { endpoint: endpoint.replace(/\/+$/, ''), bucket: env.R2_BUCKET, accessKeyId: env.R2_ACCESS_KEY_ID, secretAccessKey: env.R2_SECRET_ACCESS_KEY }
+  return {
+    endpoint: endpoint.replace(/\/+$/, ''),
+    bucket: env.R2_BUCKET,
+    accessKeyId: env.R2_ACCESS_KEY_ID,
+    secretAccessKey: env.R2_SECRET_ACCESS_KEY,
+    region: env.R2_REGION?.trim() || env.S3_REGION?.trim() || regionFromEndpoint(endpoint),
+  }
 }

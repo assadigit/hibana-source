@@ -94,7 +94,7 @@ describe('r2 adapter request shape (SigV4)', () => {
 describe('r2ConfigFromEnv', () => {
   it('builds the endpoint from the account id, strips trailing slashes', () => {
     const cfg = r2ConfigFromEnv({ R2_ACCOUNT_ID: 'abc123', R2_ACCESS_KEY_ID: 'k', R2_SECRET_ACCESS_KEY: 's', R2_BUCKET: 'b' })
-    expect(cfg).toEqual({ endpoint: 'https://abc123.r2.cloudflarestorage.com', bucket: 'b', accessKeyId: 'k', secretAccessKey: 's' })
+    expect(cfg).toEqual({ endpoint: 'https://abc123.r2.cloudflarestorage.com', bucket: 'b', accessKeyId: 'k', secretAccessKey: 's', region: 'auto' })
     expect(r2ConfigFromEnv({ R2_ACCOUNT_ID: 'abc123', R2_ACCESS_KEY_ID: 'k', R2_SECRET_ACCESS_KEY: 's', R2_BUCKET: 'b', R2_ENDPOINT: 'https://s3.example.org/' })?.endpoint).toBe('https://s3.example.org')
   })
 
@@ -102,5 +102,33 @@ describe('r2ConfigFromEnv', () => {
     expect(r2ConfigFromEnv({})).toBeNull()
     expect(r2ConfigFromEnv({ R2_ACCESS_KEY_ID: 'k', R2_SECRET_ACCESS_KEY: 's', R2_BUCKET: 'b' })).toBeNull() // no account id, no endpoint
     expect(r2ConfigFromEnv({ R2_ACCOUNT_ID: 'a', R2_SECRET_ACCESS_KEY: 's', R2_BUCKET: 'b' })).toBeNull() // no access key
+  })
+
+  // S36: the SigV4 scope region — R2 answers to 'auto'; Backblaze B2 (the no-card
+  // free alternative) validates it against the endpoint; anything else defaults
+  // us-east-1; an explicit R2_REGION/S3_REGION always wins.
+  it('derives the SigV4 region from the endpoint host (B2, R2, default)', () => {
+    const b2 = r2ConfigFromEnv({ R2_ENDPOINT: 'https://s3.us-west-004.backblazeb2.com', R2_ACCESS_KEY_ID: 'k', R2_SECRET_ACCESS_KEY: 's', R2_BUCKET: 'b' })
+    expect(b2?.region).toBe('us-west-004')
+    const r2 = r2ConfigFromEnv({ R2_ENDPOINT: 'https://acct.r2.cloudflarestorage.com', R2_ACCESS_KEY_ID: 'k', R2_SECRET_ACCESS_KEY: 's', R2_BUCKET: 'b' })
+    expect(r2?.region).toBe('auto')
+    const generic = r2ConfigFromEnv({ R2_ENDPOINT: 'https://s3.example.org', R2_ACCESS_KEY_ID: 'k', R2_SECRET_ACCESS_KEY: 's', R2_BUCKET: 'b' })
+    expect(generic?.region).toBe('us-east-1')
+    const local = r2ConfigFromEnv({ R2_ENDPOINT: 'http://localhost:3040', R2_ACCESS_KEY_ID: 'k', R2_SECRET_ACCESS_KEY: 's', R2_BUCKET: 'b' })
+    expect(local?.region).toBe('us-east-1')
+  })
+
+  it('R2_REGION (or S3_REGION) overrides the derived region', () => {
+    expect(r2ConfigFromEnv({ R2_ENDPOINT: 'https://s3.us-west-004.backblazeb2.com', R2_ACCESS_KEY_ID: 'k', R2_SECRET_ACCESS_KEY: 's', R2_BUCKET: 'b', R2_REGION: 'eu-central-1' })?.region).toBe('eu-central-1')
+    expect(r2ConfigFromEnv({ R2_ENDPOINT: 'https://s3.example.org', R2_ACCESS_KEY_ID: 'k', R2_SECRET_ACCESS_KEY: 's', R2_BUCKET: 'b', S3_REGION: 'us-west-1' })?.region).toBe('us-west-1')
+  })
+})
+
+describe('S36 region flows into the SigV4 credential scope', () => {
+  it('a B2 config signs with the endpoint region, not auto', async () => {
+    const calls = stubStore()
+    const store = r2Storage({ endpoint: 'https://s3.us-west-004.backblazeb2.com', bucket: 'hibana-shots', accessKeyId: 'testkey', secretAccessKey: 'testsecret', region: 'us-west-004' })
+    await store.putObject('user1/proj1/screenshots/abc-shot.png', PNG_B64, 'image/png')
+    expect(calls[0].headers['authorization']).toMatch(/^AWS4-HMAC-SHA256 Credential=testkey\/\d{8}\/us-west-004\/s3\/aws4_request/)
   })
 })

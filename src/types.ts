@@ -1,6 +1,10 @@
 import type { Ai, D1Database, Fetcher } from '@cloudflare/workers-types'
 import type { Db } from './db/types'
 
+// S36: re-export Db so tests (and future consumers) can import the interface from the
+// same place they get Config/Env — types.ts is the project's public type surface.
+export type { Db }
+
 // Worker bindings (wrangler.toml). Secrets arrive as plain env properties at runtime —
 // they are never in the codebase (rule 5).
 export interface Env {
@@ -17,12 +21,17 @@ export interface Env {
    *  10 GB-month free, 1M Class A + 10M Class B ops/month, ZERO egress — the natural
    *  pick for a Workers app (same account, wrangler secrets). When set it takes over
    *  screenshot storage from the GitHub Contents API; unset = GitHub as before. Any
-   *  S3-compatible endpoint also works via R2_ENDPOINT (B2, Wasabi, MinIO…). */
+   *  S3-compatible endpoint also works via R2_ENDPOINT (B2, Wasabi, MinIO…).
+   *  S36: R2 is card-gated (payment method required to enable), so the no-card pick
+   *  is Backblaze B2 — 10 GB free, S3 API. R2_REGION overrides the SigV4 scope region
+   *  (auto-derived from the endpoint host otherwise: R2→auto, B2→its region, else
+   *  us-east-1). */
   R2_ACCOUNT_ID?: string
   R2_ACCESS_KEY_ID?: string
   R2_SECRET_ACCESS_KEY?: string
   R2_BUCKET?: string
   R2_ENDPOINT?: string
+  R2_REGION?: string
   BREVO_KEY?: string // legacy — superseded by Resend
   RESEND_KEY?: string
   OWNER_EMAIL?: string

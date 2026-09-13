@@ -9,6 +9,60 @@
 > rewritten as a minimal pointer. Deleted files remain recoverable verbatim:
 > `git show <sha>:<file>`.
 
+## 1. Current state (v0.3.12.38 — Session 36: S3 adapter goes provider-generic — the no-card alternative to R2)
+- **(a) THE QUESTION (user, 2026-09-13: "for now i can't buy R2 from cloudflare. what are
+  free alternatives")** — research-verified (web-search, sources below): **R2's free tier
+  itself is card-gated** — Cloudflare requires a valid payment method on the account
+  before R2 can be enabled at all (community.cloudflare.com + stackoverflow corroborate;
+  the marketing "no credit card required" refers to Cloudflare signup, not R2 activation).
+  The no-card alternatives: **Backblaze B2** — 10 GB free FOREVER, S3-compatible API,
+  signup page literally says "No credit card required" (backblaze.com/sign-up/cloud-storage
+  + their own blog) — THE pick, it speaks the same S3 REST+SigV4 dialect the S35 adapter
+  already implements; **Supabase Storage** — 1 GB / 5 GB egress free, no card, but REST
+  not S3 (needs its own adapter — offered, not built); **Cloudinary** — ~25 credits/month
+  (1 credit ≈ 1 GB storage OR bandwidth), no card, image CDN with transformations (also
+  needs its own adapter). DEPRECATED ADVICE: Storj's old 25 GB free tier was discontinued
+  Feb 2024 (forum announcement) — don't trust old posts recommending it. Imgur is free but
+  PUBLIC (no private uploads — wrong for unreleased-UI bug shots). Oracle Cloud 20 GB free
+  S3 needs a card for signup verification. **Meanwhile: screenshots ALREADY run free with
+  zero signup** — R2_* unset keeps the GitHub Contents API path (the private
+  assadigit/hibana-safe repo; 100 MB/file, 5 k req/h — ample for bug shots).
+- **(b) THE GENERALIZATION (B2 works through the existing adapter — 4 env vars, no code)** —
+  `src/services/r2.ts`: `R2Config.region` joins the config and flows into the **SigV4
+  credential scope** (the one R2-specific assumption left — R2 answers to region 'auto',
+  B2 validates the scope against its endpoint `s3.<region>.backblazeb2.com`, generic S3
+  wants e.g. 'us-east-1'). Source: env `R2_REGION` (or `S3_REGION` alias) → else
+  **auto-derived from the endpoint host** (`*.r2.cloudflarestorage.com` → 'auto';
+  `s3.<region>.backblazeb2.com` → that region; anything else → 'us-east-1') → else 'auto'
+  for backward compat with hand-built `R2Config`s. Env type + `r2ConfigFromEnv` extended;
+  `Env.R2_REGION` documented in types.ts. Switching prod to B2 = create the bucket + app
+  key, then `wrangler secret put` R2_ACCESS_KEY_ID / R2_SECRET_ACCESS_KEY / R2_BUCKET /
+  R2_ENDPOINT (the s3.<region>.backblazeb2.com URL) — **nothing else changes** (the
+  github_path column stays the storage key; unset = GitHub path exactly as before).
+- **(c) CACHE-BUST GATE CAUGHT A LATENT INCONSISTENCY (fixed)** — the sandbox's file-mode
+  noise makes git report all public/js as "modified", which flipped check-cache-bust from
+  its usual skip to a real scan — and it found `board-page.js` line 550 dynamically
+  injecting `chip-render.js?v=1` while board.html/project.html carry `?v=2` (two cache
+  entries for one file; the v=1 URL could serve stale bytes on the local-dev path — prod
+  dist wiring rewrites the literal to a content-hashed URL so prod was never exposed).
+  Fixed: literal aligned to v=2 + board-page.js bumped v7→8 (board.html) + sw v336→v337.
+- **(d) PRE-EXISTING TEST-FILE TYPE ERRORS FIXED (typecheck honestly 0 again)** — the S35
+  tree carried 4 tsc errors (verified pre-existing by swapping in the HEAD test file):
+  `Db` imported from types.ts but not re-exported (now `export type { Db }`), `Headers.entries()`
+  missing (tsconfig lib + `DOM.Iterable`), a re-typed `rows` reassignment in
+  screenshot-problems (own variable now). S35's "typecheck 0" ladder line was optimistic.
+- Bumps: board-page.js v7→8 (board.html), sw hibana-v336→v337, package.json 0.3.12.38.
+  No i18n keys touched (1039/1039 parity holds).
+- Tests: +3 vitest (r2-storage: region derivation from endpoint host / explicit override /
+  region flows into the SigV4 scope) — 369 total. Ladder: typecheck 0 · 369 vitest · 49
+  e2e (full re-run after `npx playwright install chromium` — fresh-sandbox browser cache
+  was empty) · smoke ALL PASS · i18n 1039/1039 · cache-bust PASS (now robust to the
+  mode-noise) · live SigV4 round-trip vs mini-services/shot-store with a B2-style region
+  override (PUT/GET 70 B/DELETE/GET-404).
+- Not built (offered): a Supabase-Storage or Cloudinary adapter — both need non-S3 code;
+  say the word and it's a session's work. Neither is needed while GitHub carries the
+  shots for free.
+
 ## 1. Current state (v0.3.12.37 — Session 35: sprint strips + the idea archive + screenshot problem reports w/ R2)
 - **(a) SPRINT STRIPS (user, 2026-09-13: "the sprint board … the one which has timeline
   should show sprints like this … a dot on the timeline appear for 3 september which

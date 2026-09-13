@@ -126,7 +126,7 @@ function generateRestoreSql(snapshot, tables) {
 // table from the schema, and an old snapshot still carrying changelogs rows would crash
 // the generated SQL ("no such table"). Same treatment as restore.mjs: dropped-dead
 // tables are filtered from the snapshot's table list before any SQL is generated.
-const DROPPED_DEAD_TABLES = new Set(['changelogs', 'telegram_note_sessions'])
+const DROPPED_DEAD_TABLES = new Set(['changelogs', 'telegram_note_sessions', 'project_progress_log'])
 const FK_SAFE_TABLE_ORDER = [
   'invites', 'spark_folders', 'projects', 'project_history_log', 'hurdles', 'tags', 'project_tags',
   'links', 'screenshots', 'tasks', 'payments', 'telegram_captures', 'telegram_links',
@@ -141,7 +141,7 @@ const FK_SAFE_TABLE_ORDER = [
 function orderTablesFkSafe(tables) {
   const live = tables.filter((t) => !DROPPED_DEAD_TABLES.has(t))
   for (const t of tables) {
-    if (DROPPED_DEAD_TABLES.has(t)) console.warn(`  ⚠ skipping dead table "${t}" (dropped by migration 0048 — data is inert)`)
+    if (DROPPED_DEAD_TABLES.has(t)) console.warn(`  ⚠ skipping dead table "${t}" (dropped by an earlier migration — data is inert)`)
   }
   const known = FK_SAFE_TABLE_ORDER.filter((t) => live.includes(t))
   const unknown = live.filter((t) => !FK_SAFE_TABLE_ORDER.includes(t)).sort()

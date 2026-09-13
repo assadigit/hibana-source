@@ -413,8 +413,7 @@ window.__hibanaDictFA = {
       // S29 پیگیری (درخواست کاربر ۱۴۰۵/۰۳/۲۱): واژه‌های منوی اولویت + برچسب‌های کار
       'pd.pr.urgent': 'فوری', 'pd.pr.high': 'اولویت بالا', 'pd.pr.medium': 'اولویت متوسط', 'pd.pr.low': 'اولویت کم',
       'pd.labels': 'برچسب‌ها', 'pd.labelsPh': 'مثلاً UI/UX، امنیت', 'pd.labelsHint': 'با کاما جدا کن — یک چیپ برای هر برچسب',
-      // S29 (دست‌ور کار ۵): جعبهٔ پیشرفت تعاملی
-      'pd.progressSaved': 'پیشرفت ذخیره شد', 'pd.progressAuto': 'خودکار — از روی کارها محاسبه می‌شود', 'pd.progressManual': 'دستی — با رها کردن ذخیره می‌شود',
+      // S30: کلیدهای جعبهٔ پیشرفت با خودِ ویژگی حذف شدند (درخواست کاربر).
       'pd.editor': 'ویرایشگر', 'pd.noteEditor': 'ویرایشگر یادداشت', 'pd.docEditor': 'ویرایشگر سند برنامه',
       'pd.noteHint': 'یادداشت پیشرفت را بنویس — در تب یادداشت‌ها ذخیره می‌شود.',
       'pd.docHint': 'برنامهٔ کامل را بنویس — به‌صورت یک سند در تب برنامه آتی ذخیره می‌شود.',
@@ -507,6 +506,7 @@ window.__hibanaDictFA = {
       'cmdk.noResults': 'نتیجه‌ای نیست.',
       // 0040 search depth: result-group headers + canvas element type labels + quadrant names.
       'cmdk.notes': 'یادداشت‌ها',
+      'cmdk.tasks': 'کارها',
       'cmdk.backlog': 'برنامه آتی',
       'cmdk.sadhana': 'لیست کارها',
       'cmdk.canvas': 'بوم',

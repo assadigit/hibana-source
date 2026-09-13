@@ -167,8 +167,8 @@
     let projects = []
     // 0040 search depth: the API now returns notes, backlog, sadhana, and canvas hits
     // alongside projects. Each group is capped at 20 server-side; the palette shows a
-    // smaller slice per group so one keyword surfaces all five surfaces without scroll.
-    let notes = [], backlog = [], sadhana = [], canvas = []
+    // smaller slice per group so one keyword surfaces all six surfaces without scroll.
+    let notes = [], backlog = [], sadhana = [], canvas = [], tasks = []
     if (q.length >= 1) {
       try {
         const res = await fetch('/api/search?q=' + encodeURIComponent(q))
@@ -179,12 +179,13 @@
           backlog = (body.backlog || []).slice(0, 5)
           sadhana = (body.sadhana || []).slice(0, 5)
           canvas = (body.canvas || []).slice(0, 5)
+          tasks = (body.tasks || []).slice(0, 5)
         }
       } catch { /* search is best-effort */ }
     }
     // If the response is stale (user typed more), ignore it
     if (q !== lastQuery) return
-    render(actions, projects, notes, backlog, sadhana, canvas)
+    render(actions, projects, notes, backlog, sadhana, canvas, tasks)
   }
 
   function iconSvg(name) {
@@ -238,7 +239,7 @@
     return _t(labels[q - 1] || 'cmdk.q1', fallbacks[q - 1] || 'Q1')
   }
 
-  function render(actions, projects, notes, backlog, sadhana, canvas) {
+  function render(actions, projects, notes, backlog, sadhana, canvas, tasks) {
     items = []
     const html = []
 
@@ -362,6 +363,22 @@
         html.push(`<li class="cmdk-item" role="option" data-idx="${idx}" tabindex="-1">
           <span class="cmdk-icon">${iconSvg('book')}</span>
           <span class="cmdk-label">${esc(typeLabel)}</span>
+        </li>`)
+      }
+    }
+
+    // S30 (B3, 0051): dev tasks — title + labels searchable at last. Deep link → the
+    // board page with ?task=ID (the board opens the task editor for it); the sublabel
+    // carries the project title + the priority dot so urgent hits read at a glance.
+    if (tasks && tasks.length) {
+      html.push('<li class="cmdk-group" role="presentation"><span class="cmdk-group-label">' + _t('cmdk.tasks', 'Tasks') + '</span></li>')
+      for (const t of tasks) {
+        const idx = items.length
+        const url = '/board.html?project=' + t.project_id + '&task=' + t.id
+        items.push({ kind: 'task', label: t.title, action: () => (window.hibanaNav ? window.hibanaNav.go(url) : (window.location.href = url)) })
+        html.push(`<li class="cmdk-item" role="option" data-idx="${idx}" tabindex="-1">
+          <span class="cmdk-icon"><span class="prio-dot prio-${esc(t.priority)}"></span></span>
+          <span class="cmdk-label">${esc(t.title)}<span class="cmdk-sublabel muted"> · ${esc(t.project_title)}</span></span>
         </li>`)
       }
     }

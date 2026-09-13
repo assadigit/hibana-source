@@ -9,6 +9,53 @@
 > rewritten as a minimal pointer. Deleted files remain recoverable verbatim:
 > `git show <sha>:<file>`.
 
+## 1. Current state (v0.3.12.27 — Session 30: manual progress box REMOVED + the B-fixes (B1–B4))
+- **(a) Removal (owner request, verbatim)**: "Remove the whole thing and its function,
+  i dont want this: `<div class="pd-progress" …slider/milestone chips/Auto/note…>`".
+  Migration **0051** nulls every projects.progress_percent override (progress is ALWAYS
+  the computed dev-tasks→hurdles number), drops project_progress_log (0050 — one day
+  old); PATCH progress_percent/progress_note now 400 (fields stripped from
+  updateProjectSchema — a stale client is rejected cleanly), GET /api/projects/:id/progress
+  is 404 (route deleted with its only caller); the detail page's Activity tab lost the
+  "Progress history" timeline; project-page.js lost ~7k of wiring — only the read-only
+  computed bar + its sr-only % label remain, repainted by the (now unconditional)
+  __pdPaintAutoProgress. SNAPSHOT_TABLES dropped the dead table (old snapshots carrying
+  the key restore harmlessly — restore.mjs skips dead/missing tables with a warning).
+- **(b) B1 — labels survive archive→restore**: project_archives.tags (JSON name+color
+  snapshot, 0051) written BEFORE the dev_task_tags CASCADE delete in archive-done;
+  GET /archives returns the snapshot; restore relinks by name through setTaskTags
+  (existing tag keeps its CURRENT color; a vanished name re-creates with the snapshot
+  color). Priority always survived; labels now do too.
+- **(c) B2 — tags.usage_count finally maintained** (was written 0 at insert, never
+  touched): refreshTagUsage recomputes dev-task links + project chips for the touched
+  ids on EVERY mutation — setTaskTags (replace-set), POST/DELETE /api/devtasks/:id/tags,
+  task delete (cascade), archive-done (cascade), restore, project-tag attach/detach.
+  The label manager (Tier 3, next) can now show an honest "used 12×".
+- **(d) B3 — dev_tasks enter the FTS index**: dev_tasks.search_tags (0051, denormalized
+  space-joined label names) + external-content dev_tasks_fts + ai/ad/au triggers;
+  syncTaskSearchTags rewrites the column after every link change (the UPDATE trigger
+  re-indexes). /api/search returns a tasks group (title hits AND label hits — searching
+  "Security" finds every task labeled Security); the command palette renders it with
+  the priority dot + project sublabel, deep-linking to board.html?project=X&task=ID.
+  **Found + fixed an FTS5 landmine**: the 0040-style delete-then-insert backfill dance
+  errors SQLITE_CORRUPT_VTAB ("database disk image is malformed") on modern SQLite
+  when the index is empty but the content table has rows — 0051 uses the canonical
+  `INSERT INTO dev_tasks_fts(dev_tasks_fts) VALUES('rebuild')` instead (idempotent,
+  cannot fail; 0040's own dance only ever ran against empty tables, which is why it
+  worked).
+- **(e) B4 — palette collision fix**: new tags pick the LEAST-USED palette color
+  (tagColorFor — counts the user's tags per color, ties break toward fixed palette
+  order) instead of the name hash that gave "Refactor" and "Tech-Debt" the same
+  #E59AA5. tagPaletteColor stays as the hash fallback.
+- Tests: project-progress.test.ts rewritten (2 removal pins: 400/404/no-table, legacy
+  override nulling), +5 devtask-archive-search.test.ts (B1 snapshot+relink+usage,
+  B2 lifecycle incl. project chips, B3 title+label+isolation+re-index, B4 8 distinct
+  colors). E2E: the slider spec replaced by the removal pin (no box, PATCH rejected,
+  computed bar at 100%). Bumps: project-page.js v3→4, project-header.css v3→4,
+  command-palette.js v1→2, i18n-en v8→9 + i18n-fa v8→9 (cmdk.tasks + the 3 progress
+  keys dropped; dynamic ref in i18n.js v65→66), sw v325→326. Ladder: typecheck 0 ·
+  vitest 340/340 · Playwright 38/38 · smoke ALL PASS · i18n 969/969 · cache-bust PASS.
+
 ## 1. Current state (v0.3.12.26.1 — Session 29 follow-up: task priorities + labels in the progress box)
 - **O1 part 2 (owner request 2026-09-12, verbatim)**: "when user opens modal I want a
   drop down menu for Priority of it: Urgent - High Priority - Medium Priority - Low

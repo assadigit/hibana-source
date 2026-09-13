@@ -23,6 +23,7 @@ type NoteHit = { id: string; title: string; kind: string }
 type BacklogHit = { id: string; doc_id: string; project_id: string; project_title: string; title: string }
 type SadhanaHit = { id: string; title: string; quadrant: number }
 type CanvasHit = { id: string; type: string; board: string }
+type TaskHit = { id: string; title: string; status: string; priority: string; project_id: string; project_title: string }
 
 export function searchRoutes(cfg: Config) {
   const app = new Hono<{ Variables: { user: UserRow } }>()
@@ -97,6 +98,22 @@ export function searchRoutes(cfg: Config) {
     // removed (RECOVERED.md), the table carries no live data, and the FTS index returns
     // nothing. The dead query was a wasted DB round trip per search.
 
+    // S30 (B3, 0051): dev_tasks FINALLY searchable — title + label names (search_tags,
+    // the denormalized space-join the app maintains on every link mutation). Rule 1 via
+    // the project join; a deleted project's tasks CASCADE away with it. Searching
+    // "auth token" now finds the task itself, searching "Security" finds every task
+    // labeled Security. Deep link → the board with the task editor open (the task id
+    // rides the ?task= query the board page already understands).
+    const tasks = await cfg.db.query<TaskHit>(
+      `SELECT t.id, t.title, t.status, t.priority, t.project_id, p.title AS project_title
+       FROM dev_tasks_fts f
+       JOIN dev_tasks t ON t.rowid = f.rowid
+       JOIN projects p ON p.id = t.project_id
+       WHERE p.user_id = ? AND p.deleted_at IS NULL AND dev_tasks_fts MATCH ?
+       ORDER BY t.created_at DESC LIMIT 20`,
+      [user.id, match],
+    )
+
     if (c.req.header('HX-Request')) {
       const t = trFor(c)
       const lang = localeOf(c)
@@ -109,7 +126,7 @@ export function searchRoutes(cfg: Config) {
           : `<div class="empty">${t('No matches.', 'نتیجه‌ای نیست.')}</div>`,
       ))
     }
-    return await etag(c, c.json({ projects, notes, backlog, sadhana, canvas }))
+    return await etag(c, c.json({ projects, notes, backlog, sadhana, canvas, tasks }))
   })
 
   return app

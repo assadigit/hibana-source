@@ -137,125 +137,20 @@
           patchStage(projectId, sel.value).then(finish).catch(finish)
         })
 
-        // --- S29 (agenda 5): the interactive progress box — slider + milestone chips +
-        // Auto/Manual toggle + optional note. Auto = computed (dev tasks → hurdles);
-        // Manual = projects.progress_percent override, saved through PATCH (which lands
-        // the change in the 0050 progress timeline). Delegated like everything else:
-        // #project-body re-renders on htmx swaps, so no cached element refs. ---
-        const pdBox = () => document.querySelector('[data-pd-progress]')
-        const pdIsAuto = () => !!document.querySelector('[data-pd-auto]')?.checked
+        // --- S30 (user request 2026-09-12: "remove the whole thing"): the interactive
+        // progress box (slider + milestone chips + Auto/Manual + note) is REMOVED, with
+        // every handler. Progress is a read-only computed number: the header strip +
+        // its sr-only % label, repainted by the task-board handlers through the shared
+        // painter below (no more Auto/Manual split — there is only the computed value). ---
         const pdBoxDig = (n) => (document.documentElement.lang === 'fa' ? String(n).replace(/\d/g, (d) => '۰۱۲۳۴۵۶۷۸۹'[d]) : String(n))
-        // Paint the header bar + the box's % label + slider (slider only tracks in Auto —
-        // in Manual the slider IS the source of truth, never re-painted from task math).
         const paintProgress = (pct) => {
           const bar = document.querySelector('[data-pd-bar]')
           if (bar) bar.style.inlineSize = Math.max(0, Math.min(100, pct)) + '%'
-          const label = document.querySelector('[data-pd-pct]')
-          if (label) label.textContent = pdBoxDig(pct) + '%'
-          const slider = document.querySelector('[data-pd-slider]')
-          if (slider && pdIsAuto()) {
-            slider.value = String(pct)
-            slider.setAttribute('aria-valuetext', pdBoxDig(pct) + '%')
-          }
+          const sr = document.querySelector('[data-pd-pct-sr]')
+          if (sr) sr.textContent = pdBoxDig(Math.max(0, Math.min(100, Math.round(pct)))) + '%'
         }
-        // The shared repaint the task-board handlers call (they compute the AUTO pct —
-        // in Manual mode the override stays displayed, per 0002's contract).
-        window.__pdPaintAutoProgress = (pct) => { if (pdIsAuto()) paintProgress(pct) }
-        // Persist a manual value (+ the optional milestone note) and refresh the timeline.
-        const saveProgress = async (projectId, pct, note) => {
-          const body = { progress_percent: pct }
-          if (note) body.progress_note = note
-          const res = await fetch(`/api/projects/${projectId}`, {
-            method: 'PATCH',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(body),
-          })
-          if (!res.ok) throw new Error(String(res.status))
-          // refresh the Activity-tab timeline in place (the htmx-swappable fragment)
-          const log = document.querySelector('[data-pd-progress-log]')
-          if (log) {
-            const tl = await fetch(`/api/projects/${projectId}/progress?format=html`).then((r) => (r.ok ? r.text() : null)).catch(() => null)
-            if (tl) log.innerHTML = tl
-          }
-        }
-        // Slider: live % while dragging; persist on release (change) with the note.
-        ctx.on('input', (e) => {
-          if (e.target?.id !== 'pd-progress-slider') return
-          const label = document.querySelector('[data-pd-pct]')
-          if (label) label.textContent = pdBoxDig(Number(e.target.value)) + '%'
-          e.target.setAttribute('aria-valuetext', pdBoxDig(Number(e.target.value)) + '%')
-        })
-        ctx.on('change', async (e) => {
-          if (e.target?.id !== 'pd-progress-slider') return
-          const box = pdBox()
-          const projectId = box?.dataset.projectId || id
-          const note = document.querySelector('[data-pd-note]')?.value?.trim() || ''
-          try {
-            await saveProgress(projectId, Number(e.target.value), note)
-            const noteEl = document.querySelector('[data-pd-note]')
-            if (noteEl) noteEl.value = '' // the note landed in the timeline
-            window.hibana?.toast(_t('pd.progressSaved', 'Progress saved'), 'info', 2000)
-          } catch {
-            window.hibana?.toast(_t('dashboard.moveFailed', "Couldn't save — try again"), 'err')
-          }
-        })
-        // Milestone chips: set the slider + save in one gesture.
-        ctx.on('click', async (e) => {
-          const chip = e.target.closest('[data-pd-milestone]')
-          if (!chip || chip.disabled) return
-          e.preventDefault()
-          const box = pdBox()
-          const projectId = box?.dataset.projectId || id
-          const pct = Number(chip.dataset.pdMilestone)
-          const slider = document.querySelector('[data-pd-slider]')
-          if (slider) slider.value = String(pct)
-          paintProgress(pct)
-          chip.parentElement?.querySelectorAll('[data-pd-milestone]').forEach((c) => c.removeAttribute('aria-current'))
-          chip.setAttribute('aria-current', 'true')
-          const note = document.querySelector('[data-pd-note]')?.value?.trim() || ''
-          try {
-            await saveProgress(projectId, pct, note)
-            const noteEl = document.querySelector('[data-pd-note]')
-            if (noteEl) noteEl.value = ''
-            window.hibana?.toast(_t('pd.progressSaved', 'Progress saved'), 'info', 2000)
-          } catch {
-            window.hibana?.toast(_t('dashboard.moveFailed', "Couldn't save — try again"), 'err')
-          }
-        })
-        // Auto ⇄ Manual: checking Auto PATCHes progress_percent: null (computed takes over,
-        // a null-pct "Auto" entry lands in the timeline); unchecking enables the slider at
-        // the currently displayed value (the next release/save commits it).
-        ctx.on('change', async (e) => {
-          if (!e.target?.matches?.('[data-pd-auto]')) return
-          const box = pdBox()
-          const projectId = box?.dataset.projectId || id
-          const auto = e.target.checked
-          for (const el of document.querySelectorAll('[data-pd-slider], [data-pd-milestone], [data-pd-note]')) el.disabled = auto
-          const hint = document.querySelector('[data-pd-hint]')
-          if (hint) hint.textContent = auto
-            ? _t('pd.progressAuto', 'Auto — computed from tasks')
-            : _t('pd.progressManual', 'Manual — saved on release')
-          try {
-            if (auto) {
-              await saveProgress(projectId, null, '')
-              // fresh truth from the server: the computed number (dev tasks → hurdles)
-              const fresh = await fetch(`/api/projects/${projectId}/progress`).then((r) => (r.ok ? r.json() : null)).catch(() => null)
-              if (fresh?.current) paintProgress(fresh.current.pct)
-            } else {
-              // going manual: commit the currently displayed value so the timeline starts
-              // at a real point (not a silent divergence between display and record)
-              const label = document.querySelector('[data-pd-pct]')?.textContent?.replace('%', '') ?? '0'
-              const pct = Number(String(label).replace(/[۰-۹]/g, (d) => String('۰۱۲۳۴۵۶۷۸۹'.indexOf(d))))
-              const slider = document.querySelector('[data-pd-slider]')
-              const start = Number.isFinite(pct) ? Math.max(0, Math.min(100, pct)) : 0
-              if (slider) slider.value = String(start)
-              await saveProgress(projectId, start, '')
-            }
-            window.hibana?.toast(_t('pd.progressSaved', 'Progress saved'), 'info', 2000)
-          } catch {
-            window.hibana?.toast(_t('dashboard.moveFailed', "Couldn't save — try again"), 'err')
-          }
-        })
+        // The shared repaint the task-board handlers call — now ALWAYS the computed pct.
+        window.__pdPaintAutoProgress = (pct) => paintProgress(pct)
 
         // --- Hurdles drag-reorder (spec §4.3): delegated on the document so htmx fragment swaps
         // (toggle/add/delete re-render #hurdles) never need re-binding. ctx.on keeps the

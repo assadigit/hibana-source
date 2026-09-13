@@ -112,7 +112,9 @@ import {
   loadBacklog,
   setTaskTags,
   taskTagsForProject,
-  tagPaletteColor,
+  tagColorFor,
+  refreshTagUsage,
+  syncTaskSearchTags,
   PRIO_ORDER_SQL,
 } from './devboard-helpers'
 
@@ -266,7 +268,11 @@ export function devboardRoutes(cfg: Config) {
     const t = trFor(c)
     const task = await ownedTask(cfg, user.id, c.req.param('id'))
     if (!task) return c.json({ error: 'not_found' }, 404)
+    // S30 (B2): the dev_task_tags rows CASCADE away with the task — their tags' usage
+    // counts must follow, or the label manager shows ghosts ("used 3×" for a dead link).
+    const linked = await cfg.db.query<{ tag_id: string }>('SELECT tag_id FROM dev_task_tags WHERE task_id = ?', [task.id])
     await cfg.db.execute('DELETE FROM dev_tasks WHERE id = ?', [task.id])
+    await refreshTagUsage(cfg, linked.map((r) => r.tag_id))
     await logHistory(cfg, task.project_id, t('Task removed: {title}', 'کار حذف شد: {title}', { title: task.title }))
     return c.json({ ok: true })
   })
@@ -284,37 +290,68 @@ export function devboardRoutes(cfg: Config) {
       sprint_id: string | null; done_at: string | null; created_at: string
     }>(`SELECT id, title, priority, category_id, sprint_id, done_at, created_at FROM dev_tasks WHERE project_id = ? AND status = 'done'`, [p.id])
     if (tasks.length === 0) return c.json({ ok: true, archived: 0 })
+    // S30 (B1): snapshot each task's LABELS into the archive row (names + colors, JSON)
+    // BEFORE the dev_task_tags rows cascade away — restore relinks them by name, so a
+    // done task comes back labeled, not stripped. Priority already survived; labels now
+    // do too (the flat join is task_id-keyed, so group once per task here).
+    const links = await taskTagsForProject(cfg, p.id)
+    const tagsByTask = new Map<string, { name: string; color: string }[]>()
+    for (const row of links) {
+      const onlyDone = tasks.find((tk) => tk.id === row.task_id)
+      if (!onlyDone) continue // only the tasks being archived carry links
+      const list = tagsByTask.get(row.task_id) ?? []
+      list.push({ name: row.name, color: row.color })
+      tagsByTask.set(row.task_id, list)
+    }
     const now = new Date().toISOString()
     // Insert into project_archives, then delete from dev_tasks (the dev_task_tags rows
-    // cascade via ON DELETE SET NULL — tags stay on the project, not the archived task).
+    // cascade via ON DELETE CASCADE — the snapshot above is what preserves the labels).
+    const touchedTagIds = links.filter((l) => tagsByTask.has(l.task_id)).map((l) => l.id)
     for (const task of tasks) {
+      const snapshot = tagsByTask.get(task.id) ?? []
       await cfg.db.execute(
-        `INSERT INTO project_archives (id, project_id, title, status, priority, category_id, sprint_id, done_at, original_created_at, archived_at) VALUES (?, ?, ?, 'done', ?, ?, ?, ?, ?, ?)`,
-        [task.id, p.id, task.title, task.priority, task.category_id, task.sprint_id, task.done_at, task.created_at, now],
+        `INSERT INTO project_archives (id, project_id, title, status, priority, category_id, sprint_id, done_at, original_created_at, archived_at, tags) VALUES (?, ?, ?, 'done', ?, ?, ?, ?, ?, ?, ?)`,
+        [task.id, p.id, task.title, task.priority, task.category_id, task.sprint_id, task.done_at, task.created_at, now, JSON.stringify(snapshot)],
       )
     }
     const ids = tasks.map((t) => t.id)
     const placeholders = ids.map(() => '?').join(',')
     await cfg.db.execute(`DELETE FROM dev_tasks WHERE id IN (${placeholders})`, ids)
+    // S30 (B2): the cascade just removed the link rows — recompute those tags' usage.
+    await refreshTagUsage(cfg, touchedTagIds)
     await cfg.db.execute('UPDATE projects SET updated_at = ? WHERE id = ?', [now, p.id])
     await logHistory(cfg, p.id, t('{n} done tasks archived', '{n} کار انجام‌شده بایگانی شد', { n: String(tasks.length) }))
     return c.json({ ok: true, archived: tasks.length })
   })
 
   // GET the archives for a project — the permanent record of archived done tasks.
+  // S30 (B1): the rows carry their label snapshots (names + colors) so the archive UI
+  // can render the chips exactly as they were the day the task was archived.
   app.get('/api/projects/:projectId/archives', async (c) => {
     const user = c.get('user')
     const p = await getOwnedProject(cfg, user.id, c.req.param('projectId'))
     if (!p) return c.json({ error: 'not_found' }, 404)
     const rows = await cfg.db.query<{
       id: string; title: string; priority: string; done_at: string | null
-      original_created_at: string; archived_at: string
-    }>(`SELECT id, title, priority, done_at, original_created_at, archived_at FROM project_archives WHERE project_id = ? ORDER BY archived_at DESC`, [p.id])
-    return c.json({ archives: rows })
+      original_created_at: string; archived_at: string; tags: string
+    }>(`SELECT id, title, priority, done_at, original_created_at, archived_at, tags FROM project_archives WHERE project_id = ? ORDER BY archived_at DESC`, [p.id])
+    let parsed: { name: string; color: string }[][] = rows.map(() => [])
+    try {
+      parsed = rows.map((r) => {
+        const arr = JSON.parse(r.tags || '[]')
+        return Array.isArray(arr) ? arr.filter((x) => x && typeof x.name === 'string') : []
+      })
+    } catch {
+      // pre-0051 rows carry '[]' or garbage — parse failures degrade to no labels
+    }
+    return c.json({ archives: rows.map((r, i) => ({ id: r.id, title: r.title, priority: r.priority, done_at: r.done_at, original_created_at: r.original_created_at, archived_at: r.archived_at, tags: parsed[i] })) })
   })
 
   // Restore an archived task back to the dev_tasks table (as 'done' status). The task
   // reappears on the board's Done column. Removes it from project_archives.
+  // S30 (B1): the label snapshot rides along — find-or-create by name (setTaskTags),
+  // so restore comes back LABELED. Colors: an existing tag keeps its CURRENT color; a
+  // name that no longer exists re-creates with the snapshot's color.
   app.post('/api/projects/:projectId/archives/:aid/restore', async (c) => {
     const user = c.get('user')
     const p = await getOwnedProject(cfg, user.id, c.req.param('projectId'))
@@ -322,8 +359,8 @@ export function devboardRoutes(cfg: Config) {
     const aid = c.req.param('aid')
     const rows = await cfg.db.query<{
       id: string; title: string; priority: string; category_id: string | null
-      sprint_id: string | null; done_at: string | null; original_created_at: string
-    }>(`SELECT id, title, priority, category_id, sprint_id, done_at, original_created_at FROM project_archives WHERE id = ? AND project_id = ?`, [aid, p.id])
+      sprint_id: string | null; done_at: string | null; original_created_at: string; tags: string
+    }>(`SELECT id, title, priority, category_id, sprint_id, done_at, original_created_at, tags FROM project_archives WHERE id = ? AND project_id = ?`, [aid, p.id])
     if (rows.length === 0) return c.json({ error: 'not_found' }, 404)
     const a = rows[0]
     const now = new Date().toISOString()
@@ -334,9 +371,17 @@ export function devboardRoutes(cfg: Config) {
       `INSERT INTO dev_tasks (id, project_id, title, status, priority, category_id, sprint_id, sort_order, created_at, done_at) VALUES (?, ?, ?, 'done', ?, ?, ?, ?, ?, ?)`,
       [a.id, p.id, a.title, a.priority, a.category_id, a.sprint_id, nextOrder, a.original_created_at, a.done_at ?? now],
     )
+    // B1 relink: parse the snapshot (tolerating pre-0051 '[]') and set the link set —
+    // setTaskTags also refreshes usage + search_tags for the restored task.
+    let names: string[] = []
+    try {
+      const arr = JSON.parse(a.tags || '[]')
+      if (Array.isArray(arr)) names = arr.filter((x) => x && typeof x.name === 'string').map((x) => String(x.name).slice(0, 48))
+    } catch { /* degraded snapshot — restore without labels */ }
+    if (names.length) await setTaskTags(cfg, user.id, a.id, names)
     await cfg.db.execute('DELETE FROM project_archives WHERE id = ? AND project_id = ?', [aid, p.id])
     await cfg.db.execute('UPDATE projects SET updated_at = ? WHERE id = ?', [now, p.id])
-    return c.json({ ok: true })
+    return c.json({ ok: true, tags: names })
   })
 
   // Permanently delete an archived task (no restore). The "delete from archive" action.
@@ -361,10 +406,13 @@ export function devboardRoutes(cfg: Config) {
     const tagId = found[0]?.id ?? uuid()
     if (!found.length) {
       await cfg.db.execute('INSERT INTO tags (id, user_id, name, color, usage_count, created_at) VALUES (?, ?, ?, ?, 0, ?)', [
-        tagId, user.id, body.name, body.color ?? tagPaletteColor(body.name), now,
+        tagId, user.id, body.name, body.color ?? (await tagColorFor(cfg, user.id)), now,
       ])
     }
     await cfg.db.execute('INSERT OR IGNORE INTO dev_task_tags (task_id, tag_id) VALUES (?, ?)', [task.id, tagId])
+    // S30 (B2 + B3): keep usage honest + the FTS text in step with the new link.
+    await refreshTagUsage(cfg, [tagId])
+    await syncTaskSearchTags(cfg, task.id)
     return c.json({ ok: true, id: tagId }, 201)
   })
 
@@ -373,6 +421,9 @@ export function devboardRoutes(cfg: Config) {
     const task = await ownedTask(cfg, user.id, c.req.param('id'))
     if (!task) return c.json({ error: 'not_found' }, 404)
     await cfg.db.execute('DELETE FROM dev_task_tags WHERE task_id = ? AND tag_id = ?', [task.id, c.req.param('tagId')])
+    // S30 (B2 + B3): the link went away — usage and the FTS text follow.
+    await refreshTagUsage(cfg, [c.req.param('tagId')])
+    await syncTaskSearchTags(cfg, task.id)
     return c.json({ ok: true })
   })
 
@@ -684,10 +735,12 @@ export function devboardRoutes(cfg: Config) {
     const tagId = found[0]?.id ?? uuid()
     if (!found.length) {
       await cfg.db.execute('INSERT INTO tags (id, user_id, name, color, usage_count, created_at) VALUES (?, ?, ?, ?, 0, ?)', [
-        tagId, user.id, body.name, body.color ?? '#f6d365', new Date().toISOString(),
+        tagId, user.id, body.name, body.color ?? (await tagColorFor(cfg, user.id)), new Date().toISOString(),
       ])
     }
     await cfg.db.execute('INSERT OR IGNORE INTO project_tags (project_id, tag_id) VALUES (?, ?)', [p.id, tagId])
+    // S30 (B2): project chips count toward usage too — the label manager totals both.
+    await refreshTagUsage(cfg, [tagId])
     return c.json({ ok: true, id: tagId }, 201)
   })
 
@@ -696,6 +749,7 @@ export function devboardRoutes(cfg: Config) {
     const p = await getOwnedProject(cfg, user.id, c.req.param('projectId'))
     if (!p) return c.json({ error: 'not_found' }, 404)
     await cfg.db.execute('DELETE FROM project_tags WHERE project_id = ? AND tag_id = ?', [p.id, c.req.param('tagId')])
+    await refreshTagUsage(cfg, [c.req.param('tagId')])
     return c.json({ ok: true })
   })
 

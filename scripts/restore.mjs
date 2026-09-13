@@ -73,7 +73,7 @@ const snapshot = JSON.parse(jsonText)
 // by a restore. Sessions are auth records too and are absent from snapshots by design.
 // Dead tables dropped from the schema (0048: changelogs, telegram_note_sessions) — data
 // for them in OLD snapshots is dead by definition; skipped with a warning, never restored.
-const DROPPED_DEAD_TABLES = new Set(['changelogs', 'telegram_note_sessions'])
+const DROPPED_DEAD_TABLES = new Set(['changelogs', 'telegram_note_sessions', 'project_progress_log'])
 const FK_SAFE_ORDER = [
   'invites', 'spark_folders', 'projects', 'project_history_log', 'hurdles', 'tags', 'project_tags',
   'links', 'screenshots', 'tasks', 'payments', 'telegram_captures', 'telegram_links',
@@ -86,7 +86,7 @@ const FK_SAFE_ORDER = [
 ] // FK-safe order (parents before children; FTS virtual tables rebuild via triggers)
 const snapshotTables = Object.keys(snapshot.data ?? {}).filter((t) => t !== 'users' && !t.endsWith('_fts'))
 for (const t of snapshotTables) {
-  if (DROPPED_DEAD_TABLES.has(t)) console.warn(`skipping dead table "${t}" (dropped by migration 0048 — its data is inert)`)
+  if (DROPPED_DEAD_TABLES.has(t)) console.warn(`skipping dead table "${t}" (dropped by an earlier migration — its data is inert)`)
 }
 const tableOrder = [
   ...FK_SAFE_ORDER.filter((t) => snapshotTables.includes(t)),

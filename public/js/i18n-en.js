@@ -414,8 +414,7 @@ window.__hibanaDictEN = {
       // S29 follow-up (user request 2026-09-12): priority dropdown wording + task labels
       'pd.pr.urgent': 'Urgent', 'pd.pr.high': 'High Priority', 'pd.pr.medium': 'Medium Priority', 'pd.pr.low': 'Low Priority',
       'pd.labels': 'Labels', 'pd.labelsPh': 'e.g. UI/UX, Security', 'pd.labelsHint': 'Comma-separated — a chip per label',
-      // S29 (agenda 5): the interactive progress box
-      'pd.progressSaved': 'Progress saved', 'pd.progressAuto': 'Auto — computed from tasks', 'pd.progressManual': 'Manual — saved on release',
+      // S30 (2026-09-12): the progress-box keys are GONE with the feature (user request).
       'pd.editor': 'Editor', 'pd.noteEditor': 'Note editor', 'pd.docEditor': 'Plan document editor',
       'pd.noteHint': 'Write your progress update — it saves to the Notes tab.',
       'pd.docHint': 'Write the full plan — it saves as a document in the Upcoming Plan tab.',
@@ -508,6 +507,7 @@ window.__hibanaDictEN = {
       'cmdk.noResults': 'No matches.',
       // 0040 search depth: result-group headers + canvas element type labels + quadrant names.
       'cmdk.notes': 'Notes',
+      'cmdk.tasks': 'Tasks',
       'cmdk.backlog': 'Upcoming Plan',
       'cmdk.sadhana': 'To-Do',
       'cmdk.canvas': 'Canvas',

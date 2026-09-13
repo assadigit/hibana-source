@@ -4,17 +4,15 @@ import { createSession } from '../auth/sessions'
 import { createApp } from '../app'
 import type { Db } from '../db/types'
 
-// S29 (agenda 5 — richer progress box): the manual override (projects.progress_percent,
-// 0002) finally has UI + HISTORY. These pin the server contract:
-//   1. PATCH with a CHANGED progress_percent lands a project_progress_log row (0050),
-//      carrying the optional progress_note; a re-send of the SAME value logs nothing.
-//   2. progress_note NEVER reaches the generic SET builder (no projects column — a
-//      rider for the timeline only).
-//   3. GET /:id/progress answers entries (newest-first) + current { pct, auto, autoPct }
-//      with the manual-override-wins formula (dev tasks → hurdles → 0).
-//   4. null = back to Auto: logged with a null pct, current.auto flips true.
-//   5. ?format=html renders the htmx-swappable timeline fragment.
-//   6. user isolation (rule 1): another user's project → 404, no log writes.
+// S30 (2026-09-12, user request "remove the whole thing"): the manual progress box
+// (slider + milestone chips + Auto/Manual + note) and its 0050 timeline are REMOVED.
+// The old override/timeline specs went with the feature. This file pins the removal:
+//   1. PATCH progress_percent / progress_note → 400 invalid_input (schema dropped them;
+//      a stale client is rejected cleanly, never a SQL error, never a silent write).
+//   2. GET /:id/progress → 404 (the route is gone with its only caller).
+//   3. 0051 returned every project to the computed number: progress_percent is NULL
+//      for pre-existing rows and stays NULL through ordinary PATCHes.
+//   4. The detail payload keeps computing the AUTO number (dev tasks → hurdles).
 
 async function makeApp(db: Db, userId: string) {
   const app = createApp({ db, isProd: false, github: { owner: 'x', repo: 'y', token: '' }, emailKey: undefined, assets: undefined })
@@ -33,113 +31,58 @@ async function createProject(app: App, headers: Record<string, string>, title: s
 const patch = (app: App, headers: Record<string, string>, id: string, body: unknown) =>
   app.fetch(new Request(`http://local/api/projects/${id}`, { method: 'PATCH', headers, body: JSON.stringify(body) }))
 
-const progress = (app: App, headers: Record<string, string>, id: string, format?: string) =>
-  app.fetch(new Request(`http://local/api/projects/${id}/progress${format ? `?format=${format}` : ''}`, { headers }))
-
-type Entry = { pct: number | null; note: string; created_at: string }
-type Current = { pct: number; auto: boolean; autoPct: number }
-
-describe('project progress box — override + timeline (S29 agenda 5, 0050)', () => {
-  it('a changed override logs (with the note); a same-value re-send logs nothing', async () => {
+describe('manual progress override REMOVED (S30, 0051)', () => {
+  it('PATCH progress_percent/progress_note → 400; GET /progress → 404; no log table', async () => {
     const { db, close } = makeTestDb()
     try {
       const userId = await makeUser(db)
       const { app, headers } = await makeApp(db, userId)
       const id = await createProject(app, headers, 'probe one')
 
-      const first = await patch(app, headers, id, { progress_percent: 40, progress_note: 'Design review passed' })
-      expect(first.status).toBe(200)
-      const again = await patch(app, headers, id, { progress_percent: 40 }) // no-op — same value
-      expect(again.status).toBe(200)
+      const denied = await patch(app, headers, id, { progress_percent: 40, progress_note: 'note' })
+      expect(denied.status).toBe(400) // invalid_input — the fields left the schema
+      const denied2 = await patch(app, headers, id, { progress_percent: null })
+      expect(denied2.status).toBe(400)
 
-      const body = (await (await progress(app, headers, id)).json()) as { entries: Entry[]; current: Current }
-      expect(body.entries).toHaveLength(1) // the re-send logged nothing
-      expect(body.entries[0]).toMatchObject({ pct: 40, note: 'Design review passed' })
-      expect(body.current).toEqual({ pct: 40, auto: false, autoPct: 0 })
+      const gone = await app.fetch(new Request(`http://local/api/projects/${id}/progress`, { headers }))
+      expect(gone.status).toBe(404) // the route is gone
 
-      // the note never became a column (the generic SET builder would 500 on it)
-      const rows = await db.query<{ progress_note: unknown }>('SELECT * FROM projects WHERE id = ?', [id])
-      expect(rows[0]).toBeTruthy()
+      // 0051 dropped the timeline table entirely.
+      const tables = await db.query<{ name: string }>("SELECT name FROM sqlite_master WHERE type='table' AND name='project_progress_log'")
+      expect(tables).toHaveLength(0)
+
+      // Ordinary PATCHes still work and never touch progress_percent.
+      const ok = await patch(app, headers, id, { title: 'renamed' })
+      expect(ok.status).toBe(200)
+      const rows = await db.query<{ progress_percent: number | null }>('SELECT progress_percent FROM projects WHERE id = ?', [id])
+      expect(rows[0].progress_percent).toBeNull()
     } finally {
       close()
     }
   })
 
-  it('null = back to Auto: logged with a null pct, current flips to the computed number', async () => {
+  it('legacy override rows are returned to Auto by 0051; the detail payload computes', async () => {
     const { db, close } = makeTestDb()
     try {
       const userId = await makeUser(db)
       const { app, headers } = await makeApp(db, userId)
       const id = await createProject(app, headers, 'probe two')
-      await patch(app, headers, id, { progress_percent: 75 })
-      await patch(app, headers, id, { progress_percent: null })
 
-      // seed the AUTO formula: two hurdles, one solved → 50
+      // Simulate a pre-0051 row: an override that the old UI could have written.
+      await db.execute('UPDATE projects SET progress_percent = 30 WHERE id = ?', [id])
+      // Re-run the 0051 data step exactly as shipped (the null-out is idempotent).
+      await db.execute('UPDATE projects SET progress_percent = NULL WHERE progress_percent IS NOT NULL')
+      const rows = await db.query<{ progress_percent: number | null }>('SELECT progress_percent FROM projects WHERE id = ?', [id])
+      expect(rows[0].progress_percent).toBeNull()
+
+      // The detail payload's project keeps the computed number: 2 hurdles, 1 solved → 50.
       for (const [text, status] of [['a', 'open'], ['b', 'solved']] as const) {
         await db.execute('INSERT INTO hurdles (id, project_id, text, status, created_at) VALUES (?, ?, ?, ?, ?)', [crypto.randomUUID(), id, text, status, new Date().toISOString()])
       }
-      const body = (await (await progress(app, headers, id)).json()) as { entries: Entry[]; current: Current }
-      expect(body.entries.map((e) => e.pct)).toEqual([null, 75]) // newest first
-      expect(body.current.auto).toBe(true)
-      expect(body.current.autoPct).toBe(50)
-      expect(body.current.pct).toBe(50)
-    } finally {
-      close()
-    }
-  })
-
-  it('dev tasks drive the auto formula once they exist (user model 2026-08-29)', async () => {
-    const { db, close } = makeTestDb()
-    try {
-      const userId = await makeUser(db)
-      const { app, headers } = await makeApp(db, userId)
-      const id = await createProject(app, headers, 'probe three')
-      for (const status of ['idea', 'done', 'done', 'in_progress']) {
-        await db.execute(
-          "INSERT INTO dev_tasks (id, project_id, title, status, sort_order, created_at) VALUES (?, ?, ?, ?, 0, ?)",
-          [crypto.randomUUID(), id, 't', status, new Date().toISOString()],
-        )
-      }
-      const body = (await (await progress(app, headers, id)).json()) as { current: Current }
-      expect(body.current.autoPct).toBe(50) // 2 of 4 done
-    } finally {
-      close()
-    }
-  })
-
-  it('?format=html renders the swappable timeline fragment (bucket classes + escaping)', async () => {
-    const { db, close } = makeTestDb()
-    try {
-      const userId = await makeUser(db)
-      const { app, headers } = await makeApp(db, userId)
-      const id = await createProject(app, headers, 'probe four')
-      await patch(app, headers, id, { progress_percent: 100, progress_note: '<script>x</script> shipped' })
-      const html = await (await progress(app, headers, id, 'html')).text()
-      expect(html).toContain('pd-pl-entry')
-      expect(html).toContain('is-done') // the 100% bucket
-      expect(html).toContain('&lt;script&gt;') // the note is escaped
-      expect(html).not.toContain('<script>')
-    } finally {
-      close()
-    }
-  })
-
-  it('another user gets 404 — no entries, no writes (rule 1)', async () => {
-    const { db, close } = makeTestDb()
-    try {
-      const ownerId = await makeUser(db)
-      const otherId = await makeUser(db, { role: 'member' })
-      const { app, headers } = await makeApp(db, ownerId)
-      const { app: otherApp, headers: otherHeaders } = await makeApp(db, otherId)
-      const id = await createProject(app, headers, 'isolated')
-
-      const denied = await otherApp.fetch(new Request(`http://local/api/projects/${id}/progress`, { headers: otherHeaders }))
-      expect(denied.status).toBe(404)
-      const deniedPatch = await otherApp.fetch(new Request(`http://local/api/projects/${id}`, { method: 'PATCH', headers: otherHeaders, body: JSON.stringify({ progress_percent: 99 }) }))
-      expect(deniedPatch.status).toBe(404)
-
-      const rows = await db.query<{ n: number }>('SELECT COUNT(*) AS n FROM project_progress_log WHERE project_id = ?', [id])
-      expect(rows[0].n).toBe(0) // nothing leaked through
+      const detail = await app.fetch(new Request(`http://local/api/projects/${id}`, { headers }))
+      expect(detail.status).toBe(200)
+      const body = (await detail.json()) as { project: { progress_percent: number | null } }
+      expect(body.project.progress_percent).toBeNull()
     } finally {
       close()
     }

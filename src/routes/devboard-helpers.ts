@@ -137,13 +137,71 @@ export async function ownedBacklogDoc(cfg: Config, userId: string, id: string): 
 // ---- task labels (S29 agenda 5 follow-up — user request 2026-09-12) -----------------------
 // "each task can have label or meta tag, for example UI/UX, Security". dev_task_tags (0029)
 // links tasks to the user-scoped tags table; these helpers normalize + find-or-create +
-// sync the link set. New tags get a deterministic palette color (hash of the name) so
-// "UI/UX" and "Security" read as distinct chips without a color picker.
+// sync the link set. New tags get a palette color picked LEAST-USED-FIRST (B4, 2026-09-12:
+// the old name-hash collided — "Refactor" and "Tech-Debt" both hashed to #E59AA5), so
+// fresh labels spread across the palette before ever doubling up.
 export const TAG_PALETTE = ['#8AB8F0', '#E8B27D', '#E59AA5', '#8FD3A9', '#B3A5D6', '#7CC7C1', '#F2D58A', '#C9CDD2']
 export function tagPaletteColor(name: string): string {
   let h = 0
   for (let i = 0; i < name.length; i++) h = (h * 31 + name.charCodeAt(i)) >>> 0
   return TAG_PALETTE[h % TAG_PALETTE.length]
+}
+
+/** B4: pick the palette color least-used by this user's existing tags — collisions
+ * ("Refactor" vs "Tech-Debt" both #E59AA5) become structurally rare instead of
+ * hash-inevitable. Ties break toward the palette's fixed order (deterministic for an
+ * empty tag table). */
+export async function tagColorFor(cfg: Config, userId: string): Promise<string> {
+  try {
+    const counts = await cfg.db.query<{ color: string; n: number }>(
+      'SELECT color, COUNT(*) AS n FROM tags WHERE user_id = ? GROUP BY color',
+      [userId],
+    )
+    const used = new Map(counts.map((r) => [r.color.toLowerCase(), r.n]))
+    let best = TAG_PALETTE[0]
+    let bestN = Infinity
+    for (const c of TAG_PALETTE) {
+      const n = used.get(c.toLowerCase()) ?? 0
+      if (n < bestN) {
+        best = c
+        bestN = n
+        if (n === 0) break // untouched color — take it, stop scanning
+      }
+    }
+    return best
+  } catch {
+    return tagPaletteColor('fallback') // defensive: table not migrated yet
+  }
+}
+
+/** B2 (2026-09-12): tags.usage_count was dead — written 0 at insert, never maintained.
+ * Recompute the real usage (dev-task links + project links) for the given tag ids after
+ * ANY link mutation. Cheap (two COUNT subqueries per id), and it is what makes the
+ * label manager's "used 12×" honest. */
+export async function refreshTagUsage(cfg: Config, tagIds: string[]): Promise<void> {
+  const ids = [...new Set(tagIds.filter(Boolean))]
+  if (!ids.length) return
+  const placeholders = ids.map(() => '?').join(',')
+  await cfg.db.execute(
+    `UPDATE tags SET usage_count =
+       (SELECT COUNT(*) FROM dev_task_tags WHERE tag_id = tags.id) +
+       (SELECT COUNT(*) FROM project_tags WHERE tag_id = tags.id)
+     WHERE tags.id IN (${placeholders})`,
+    ids,
+  )
+}
+
+/** B3 (2026-09-12): dev_tasks.search_tags (0051) is the denormalized space-joined
+ * label-name column the FTS5 external-content table reads. The app rewrites it after
+ * every link mutation; the generic dev_tasks_fts_au trigger then re-indexes the row.
+ * Never index tag IDs here — the searchable text is the NAME the user typed. */
+export async function syncTaskSearchTags(cfg: Config, taskId: string): Promise<void> {
+  await cfg.db.execute(
+    `UPDATE dev_tasks SET search_tags = COALESCE(
+       (SELECT group_concat(tg.name, ' ') FROM dev_task_tags tt JOIN tags tg ON tg.id = tt.tag_id
+        WHERE tt.task_id = ?), '') WHERE id = ?`,
+    [taskId, taskId],
+  )
 }
 
 // One flat row shape for every task-tag join (detail page render + devboard GET).
@@ -182,6 +240,8 @@ export function normalizeTagNames(names: string[]): string[] {
 // Find-or-create each tag by name (user-scoped), then make the task's link set EXACTLY
 // these names: add missing links, drop links not in the set. [] clears all tags;
 // the caller only invokes this when the body carried a tags array.
+// S30: after the link sync this also (a) refreshes usage_count for every touched tag
+// (B2) and (b) rewrites the task's search_tags so the FTS index follows (B3/0051).
 export async function setTaskTags(cfg: Config, userId: string, taskId: string, names: string[]): Promise<TaskTagJoin[]> {
   const wanted = normalizeTagNames(names)
   const keepIds: string[] = []
@@ -195,7 +255,7 @@ export async function setTaskTags(cfg: Config, userId: string, taskId: string, n
     }
     const id = uuid()
     await cfg.db.execute('INSERT INTO tags (id, user_id, name, color, usage_count, created_at) VALUES (?, ?, ?, ?, 0, ?)', [
-      id, userId, name, tagPaletteColor(name), new Date().toISOString(),
+      id, userId, name, await tagColorFor(cfg, userId), new Date().toISOString(),
     ])
     keepIds.push(id)
   }
@@ -207,6 +267,10 @@ export async function setTaskTags(cfg: Config, userId: string, taskId: string, n
   for (const id of keepIds) {
     await cfg.db.execute('INSERT OR IGNORE INTO dev_task_tags (task_id, tag_id) VALUES (?, ?)', [taskId, id])
   }
+  // S30 (B2 + B3): usage_count follows the link delta (dropped links included), and
+  // the task's searchable label text is rewritten so FTS sees the new set.
+  await refreshTagUsage(cfg, [...keepIds, ...existing.map((r) => r.tag_id)])
+  await syncTaskSearchTags(cfg, taskId)
   if (!keepIds.length) return [] // cleared — an empty IN () is not valid SQL
   return cfg.db.query<TaskTagJoin>(
     'SELECT ? AS task_id, id, name, color FROM tags WHERE id IN (' + keepIds.map(() => '?').join(',') + ') ORDER BY name',

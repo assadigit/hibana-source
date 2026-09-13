@@ -1,7 +1,9 @@
-// e2e/project-progress.spec.ts — the interactive progress box (S29 agenda 5) E2E:
-// the Auto ⇄ Manual toggle, the milestone chip save (with a note), the reload
-// round-trip, and the timeline. Pins the full client→server→0050-log→re-render loop.
-// Run: npx playwright test e2e/project-progress.spec.ts
+// e2e/project-progress.spec.ts — the progress board E2E. S30 (2026-09-12): the
+// manual progress box (slider + milestones + Auto/Manual + note — S29 agenda 5) was
+// REMOVED at the user's request, so its spec went with it; progress is the computed
+// read-only bar. What stays (and is pinned here): the task composer's PRIORITY dropdown
+// (color-coded) + LABELS, the boxes' AUTO-SORT by priority, and the edit dialog's
+// faithful priority pre-fill. Run: npx playwright test e2e/project-progress.spec.ts
 
 import { test, expect, type Page } from '@playwright/test'
 import { randomBytes } from 'node:crypto'
@@ -53,14 +55,20 @@ async function openProject(page: Page): Promise<string> {
     return ((await res.json()) as { id: string }).id
   })
   await page.goto(`/project.html?id=${id}`)
-  await expect(page.locator('[data-pd-progress]')).toBeVisible({ timeout: 10_000 })
+  // S30: the manual progress box is gone — the project header's title is the
+  // page-ready marker (always rendered + visible; the bar's fill span is 0-width and
+  // the empty boxes collapse on a fresh project, so neither can serve as a marker).
+  await expect(page.locator('#pd-title')).toBeVisible({ timeout: 10_000 })
   return id
 }
 
-// 401s from /api/auth/me before login + the SW navigation probe are expected.
+// 401s from /api/auth/me before login, the SW navigation probe's 404, and this spec's
+// own deliberate 400 (PATCH progress_percent — pinning that the field is rejected) are
+// expected.
 const expectedErrorPatterns = [
   /Failed to load resource.*401/,
   /Failed to load resource.*404/,
+  /Failed to load resource.*400/,
 ]
 const trackErrors = (page: Page) => {
   const errors: string[] = []
@@ -76,55 +84,50 @@ const trackErrors = (page: Page) => {
   return errors
 }
 
-test('progress box: Auto ⇄ Manual, milestone chip + note, reload round-trip, timeline', async ({ page, browserName }) => {
+// S30 (2026-09-12 — user request "remove the whole thing"): the manual progress box
+// (slider, milestone chips, Auto/Manual toggle, note, timeline) is GONE. This spec pins
+// the REMOVAL — no box, no handlers, no endpoints — plus the computed bar staying live.
+test('progress box removed: no slider UI, PATCH progress_percent rejected, computed bar stays', async ({ page, browserName }) => {
   test.skip(browserName !== 'chromium', 'Desktop Chromium only')
   const errors = trackErrors(page)
   await login(page)
   const id = await openProject(page)
 
-  // Fresh project: Auto is on — slider + chips + note are disabled, hint says Auto.
-  const auto = page.locator('[data-pd-auto]')
-  await expect(auto).toBeChecked()
-  await expect(page.locator('[data-pd-slider]')).toBeDisabled()
-  await expect(page.locator('[data-pd-hint]')).toContainText(/Auto/i)
+  // The whole box is gone from the DOM — every S29 selector must match nothing.
+  await expect(page.locator('[data-pd-progress]')).toHaveCount(0)
+  await expect(page.locator('[data-pd-slider]')).toHaveCount(0)
+  await expect(page.locator('[data-pd-milestone]')).toHaveCount(0)
+  await expect(page.locator('[data-pd-auto]')).toHaveCount(0)
+  await expect(page.locator('[data-pd-progress-log]')).toHaveCount(0)
 
-  // Switch to Manual: the controls enable and the current value commits immediately.
-  await auto.uncheck()
-  await expect(page.locator('[data-pd-slider]')).toBeEnabled()
-  await expect(page.locator('[data-pd-milestone="0"]')).toBeEnabled()
-
-  // Type a milestone note, then tap the 50% chip — one gesture sets + saves.
-  await page.fill('[data-pd-note]', 'Halfway checkpoint')
-  await page.click('[data-pd-milestone="50"]')
-  // The % label + the header bar repaint to 50.
-  await expect(page.locator('[data-pd-pct]')).toHaveText('50%')
-  await expect.poll(() =>
-    page.evaluate(async (pid) => {
-      const body = (await (await fetch(`/api/projects/${pid}/progress`)).json()) as { entries: { pct: number; note: string }[]; current: { pct: number; auto: boolean } }
-      return body
-    }, id),
-  ).toMatchObject({ current: { pct: 50, auto: false } })
-
-  // RELOAD: the manual value persists, the box re-opens in Manual, the timeline carries
-  // both commits (the 0 on switching + the 50 with the note).
+  // The computed bar is alive: a single done task via the API → 100%.
+  await page.evaluate(async (pid) => {
+    await fetch(`/api/projects/${pid}/devtasks`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ title: 'only task', status: 'done', priority: 'low' }),
+    })
+  }, id)
   await page.goto(`/project.html?id=${id}`)
-  await expect(page.locator('[data-pd-progress]')).toBeVisible({ timeout: 10_000 })
-  await expect(page.locator('[data-pd-slider]')).toHaveValue('50')
-  await expect(page.locator('[data-pd-auto]')).not.toBeChecked()
-  await expect(page.locator('[data-pd-pct]')).toHaveText('50%')
-  const timeline = page.locator('[data-pd-progress-log]')
-  await expect(timeline).toContainText('Halfway checkpoint')
-  await expect(timeline.locator('.pd-pl-pct.is-mid')).toHaveCount(1) // the 50% bucket badge
+  // data-pd-bar is the bar's FILL span (inline-size style) — at 100% it is full width;
+  // assert the style attribute directly (computed px would be resolution-dependent).
+  await expect(page.locator('[data-pd-bar]')).toHaveAttribute('style', 'inline-size:100%', { timeout: 10_000 })
+  await expect(page.locator('[data-pd-pct-sr]')).toHaveText('100%')
 
-  // Back to Auto: the override clears (null), the timeline gains an "Auto" entry.
-  await page.locator('[data-pd-auto]').check()
-  await expect.poll(() =>
-    page.evaluate(async (pid) => {
-      const body = (await (await fetch(`/api/projects/${pid}/progress`)).json()) as { current: { auto: boolean; pct: number } }
-      return body.current
-    }, id),
-  ).toMatchObject({ auto: true, pct: 0 })
-  await expect(page.locator('[data-pd-slider]')).toBeDisabled()
+  // The override + timeline endpoints are closed: PATCH progress_percent → 400
+  // (the schema dropped the field), GET /progress → 404 (the route is gone).
+  const patch = await page.evaluate(async (pid) => {
+    const res = await fetch(`/api/projects/${pid}`, {
+      method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ progress_percent: 40, progress_note: 'x' }),
+    })
+    return res.status
+  }, id)
+  expect(patch).toBe(400)
+  const gone = await page.evaluate(async (pid) => {
+    const res = await fetch(`/api/projects/${pid}/progress`)
+    return res.status
+  }, id)
+  expect(gone).toBe(404)
   expect(errors).toEqual([])
 })
 
@@ -184,7 +187,7 @@ test('task composer: priority dropdown + labels; boxes auto-sort by priority', a
 
   // 4. RELOAD: the server renders the same priority-first order + the same chips
   await page.goto(`/project.html?id=${id}`)
-  await expect(page.locator('[data-pd-progress]')).toBeVisible({ timeout: 10_000 })
+  await expect(page.locator('#pd-title')).toBeVisible({ timeout: 10_000 })
   const reloaded = page.locator('[data-pd-tasks="idea"]')
   await expect(reloaded.locator('.pd-task-wrap')).toHaveCount(3)
   await expect.poll(async () =>
@@ -210,7 +213,7 @@ test('task composer: priority dropdown + labels; boxes auto-sort by priority', a
   ).toBe('urgent,urgent,medium')
   // and the priority PERSISTED (reload once more — the server is the source of truth)
   await page.goto(`/project.html?id=${id}`)
-  await expect(page.locator('[data-pd-progress]')).toBeVisible({ timeout: 10_000 })
+  await expect(page.locator('#pd-title')).toBeVisible({ timeout: 10_000 })
   const finalBox = page.locator('[data-pd-tasks="idea"]')
   await expect.poll(async () =>
     (await finalBox.locator('.pd-task-wrap').evaluateAll((els) => els.map((el) => (el as HTMLElement).dataset.pdPriority))).join(','),

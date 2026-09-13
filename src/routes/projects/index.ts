@@ -24,7 +24,7 @@ import {
   cardHtml, listFragment, glanceStrip,
   sparkEmptyHtml, sparkKanbanHtml, sparkFolderBar, sparkFolderGrid,
 } from './helpers'
-import { loadDetail, detailHtml, progressTimelineHtml } from './detail-helpers'
+import { loadDetail, detailHtml } from './detail-helpers'
 export function projectsRoutes(cfg: Config) {
   const app = new Hono<{ Variables: { user: UserRow } }>()
   app.use('*', requireAuth(cfg))
@@ -302,9 +302,6 @@ export function projectsRoutes(cfg: Config) {
     const sets: string[] = []
     const params: unknown[] = []
     for (const [k, v] of Object.entries(body)) {
-      // progress_note (S29 agenda 5) is a rider for the timeline, NOT a projects column —
-      // it must never reach the generic SET builder (a SQL error).
-      if (k === 'progress_note') continue
       sets.push(`${k} = ?`)
       params.push(v === undefined ? null : v)
     }
@@ -322,15 +319,6 @@ export function projectsRoutes(cfg: Config) {
       await cfg.db.execute(
         'INSERT INTO project_history_log (id, project_id, note, created_at) VALUES (?, ?, ?, ?)',
         [uuid(), p.id, body.latest_note, now],
-      )
-    }
-    // S29 (agenda 5): a CHANGED progress_percent lands in the progress-history timeline
-    // (0050). Only real changes log — a re-send of the same value is a no-op (the slider
-    // fires 'change' per commit, not per tick). null = back to Auto, logged with a null pct.
-    if (body.progress_percent !== undefined && body.progress_percent !== p.progress_percent) {
-      await cfg.db.execute(
-        'INSERT INTO project_progress_log (id, user_id, project_id, pct, note, created_at) VALUES (?, ?, ?, ?, ?, ?)',
-        [uuid(), user.id, p.id, body.progress_percent, (body.progress_note ?? '').trim(), now],
       )
     }
     if (c.req.header('HX-Request')) return c.html(toastHtml(t('Saved', 'ذخیره شد'), lang))
@@ -446,38 +434,6 @@ export function projectsRoutes(cfg: Config) {
     return c.json({ ok: true, path })
   })
 
-  // S29 (agenda 5): the progress-history timeline for the project page's Activity tab.
-  // JSON for clients (entries + the CURRENT progress state — pct + mode, computed with
-  // the same formula as the detail page); ?format=html renders the htmx-swappable <ul>
-  // fragment (the slider save refreshes the timeline in place). User-scoped (rule 1),
-  // newest-first, last 50.
-  app.get('/:id/progress', async (c) => {
-    const user = c.get('user')
-    const p = await getOwnedProject(cfg, user.id, c.req.param('id'))
-    if (!p) return c.json({ error: 'not_found' }, 404)
-    const rows = await cfg.db.query<{ pct: number | null; note: string; created_at: string }>(
-      'SELECT pct, note, created_at FROM project_progress_log WHERE project_id = ? AND user_id = ? ORDER BY created_at DESC, rowid DESC LIMIT 50',
-      [p.id, user.id],
-    )
-    // current state (the Auto ⇄ Manual toggle paints from this after a switch):
-    // manual override wins (0002); auto = dev tasks once they exist, else the hurdle formula.
-    const [devAgg] = await cfg.db.query<{ total: number; done: number }>(
-      "SELECT COUNT(*) AS total, SUM(CASE WHEN status = 'done' THEN 1 ELSE 0 END) AS done FROM dev_tasks WHERE project_id = ?",
-      [p.id],
-    )
-    const [hAgg] = await cfg.db.query<{ total: number; done: number }>(
-      "SELECT COUNT(*) AS total, SUM(CASE WHEN status = 'solved' THEN 1 ELSE 0 END) AS done FROM hurdles WHERE project_id = ?",
-      [p.id],
-    )
-    const autoPct = devAgg?.total
-      ? Math.round(((devAgg.done ?? 0) / devAgg.total) * 100)
-      : hAgg?.total
-        ? Math.round(((hAgg.done ?? 0) / hAgg.total) * 100)
-        : 0
-    const current = { pct: p.progress_percent ?? autoPct, auto: p.progress_percent === null, autoPct }
-    if (c.req.query('format') === 'html') return c.html(progressTimelineHtml(rows, localeOf(c)))
-    return c.json({ entries: rows, current })
-  })
 
   // Serve the logo bytes (rule 7: raw Accept header for files over 1MB).
   app.get('/:id/logo/file', async (c) => {

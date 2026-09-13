@@ -28,7 +28,7 @@ import { projectProgress } from './helpers'
 
 
 export async function loadDetail(cfg: Config, p: ProjectRow) {
-  const [hurdles, links, screenshots, history, tags, notes, canvasPromos, devTasks, devTaskTags, categories, sprints, backlog, progressLog] = await Promise.all([
+  const [hurdles, links, screenshots, history, tags, notes, canvasPromos, devTasks, devTaskTags, categories, sprints, backlog] = await Promise.all([
     cfg.db.query<HurdleRow>('SELECT * FROM hurdles WHERE project_id = ? ORDER BY sort_order, created_at', [p.id]),
     cfg.db.query<LinkRow>('SELECT * FROM links WHERE project_id = ? ORDER BY created_at', [p.id]),
     cfg.db.query<ScreenshotRow>('SELECT * FROM screenshots WHERE project_id = ? ORDER BY created_at DESC', [p.id]),
@@ -64,28 +64,19 @@ export async function loadDetail(cfg: Config, p: ProjectRow) {
     cfg.db.query<SprintRow>('SELECT * FROM sprints WHERE project_id = ? ORDER BY started_at', [p.id]),
     // برنامه آتی tab payload (0033): documents + merged history feed.
     loadBacklog(cfg, p.id),
-    // S29 (agenda 5): the progress-history timeline (0050) — newest-first, last 50.
-    cfg.db.query<{ pct: number | null; note: string; created_at: string }>(
-      'SELECT pct, note, created_at FROM project_progress_log WHERE project_id = ? AND user_id = ? ORDER BY created_at DESC, rowid DESC LIMIT 50',
-      [p.id, p.user_id],
-    ),
   ])
-  return { hurdles, links, screenshots, history, tags, notes, canvasPromos, devTasks, devTaskTags, categories, sprints, backlog, progressLog }
+  return { hurdles, links, screenshots, history, tags, notes, canvasPromos, devTasks, devTaskTags, categories, sprints, backlog }
 }
 
 
 export function detailHtml(p: ProjectRow, d: Awaited<ReturnType<typeof loadDetail>>, lang: Locale): string {
-  // Progress model (S29 agenda 5, aligned to 0002's contract): the MANUAL override
-  // (projects.progress_percent) wins when set; Auto = computed. The auto formula keeps
-  // the user model: dev tasks drive progress once they exist (2026-08-29); before that
-  // the hurdle formula. (Previously the override was dead on this page whenever dev
-  // tasks existed — the one surface where it never applied.)
+  // Progress model (S30, user request 2026-09-12: "remove the whole thing"): the manual
+  // override UI is GONE — progress is ALWAYS the computed number. dev tasks drive it
+  // once they exist (2026-08-29); before that the hurdle formula (0002's Auto).
   const doneTasks = d.devTasks.filter((t) => t.status === 'done').length
-  const autoPct = d.devTasks.length
+  const pct = d.devTasks.length
     ? Math.round((doneTasks / d.devTasks.length) * 100)
     : projectProgress(p, d.hurdles)
-  const isAuto = p.progress_percent === null
-  const pct = isAuto ? autoPct : p.progress_percent!
   const links =
     d.links
       .map(
@@ -170,29 +161,6 @@ export function detailHtml(p: ProjectRow, d: Awaited<ReturnType<typeof loadDetai
     { key: 'done', en: 'Done', fa: 'انجام‌شده' },
   ]
   const dig = (n: number) => (lang === 'fa' ? faDigits(String(n)) : String(n))
-
-  // S29 (agenda 5): the interactive progress box — slider (0–100, step 5) + milestone
-  // chips + Auto/Manual toggle + optional note. Auto = computed (dev tasks/hurdles);
-  // Manual = the override, saved through PATCH /api/projects/:id (progress_percent +
-  // progress_note), landing in the 0050 timeline. project-page.js owns the wiring.
-  const progressBoxHtml = `
-    <div class="pd-progress" data-pd-progress data-project-id="${p.id}">
-      <div class="row pd-progress-row">
-        <label class="sr-only" for="pd-progress-slider">${trL(lang, 'Progress percent', 'درصد پیشرفت')}</label>
-        <input type="range" id="pd-progress-slider" min="0" max="100" step="5" value="${pct}" ${isAuto ? 'disabled' : ''} data-pd-slider aria-valuetext="${dig(pct)}%">
-        <b data-pd-pct>${dig(pct)}%</b>
-      </div>
-      <div class="row wrap pd-progress-chips">
-        ${[0, 25, 50, 75, 100].map((m) => `<button type="button" class="chip pd-milestone" data-pd-milestone="${m}" ${isAuto ? 'disabled' : ''} ${pct === m && !isAuto ? 'aria-current="true"' : ''}>${dig(m)}%</button>`).join('')}
-        <label class="pd-progress-auto"><input type="checkbox" data-pd-auto ${isAuto ? 'checked' : ''}> ${trL(lang, 'Auto', 'خودکار')}</label>
-      </div>
-      <input type="text" class="pd-progress-note" data-pd-note maxlength="200" dir="${lang === 'fa' ? 'rtl' : 'auto'}"
-        placeholder="${trL(lang, 'Milestone note (optional) — lands in the timeline', 'یادداشت نقطهٔ عطف (اختیاری) — در خط زمانی می‌نشیند')}"
-        ${isAuto ? 'disabled' : ''} aria-label="${trL(lang, 'Milestone note', 'یادداشت نقطهٔ عطف')}">
-      <div class="muted small pd-progress-hint" data-pd-hint>${isAuto
-        ? trL(lang, 'Auto — computed from tasks', 'خودکار — از روی کارها محاسبه می‌شود')
-        : trL(lang, 'Manual — saved on release', 'دستی — با رها کردن ذخیره می‌شود')}</div>
-    </div>`
 
   // Task meta line (user request 2026-09-03): date + CLOCK — Jalali + FA digits when fa,
   // Gregorian + 12h clock when en; UTC edge like the board page (rule 3). Done tasks
@@ -399,7 +367,6 @@ export function detailHtml(p: ProjectRow, d: Awaited<ReturnType<typeof loadDetai
         <span data-pd-meta>${trL(lang, p.type, p.type === 'client' ? 'مشتری' : 'شخصی')} · ${trL(lang, 'created {x}', 'ساخت {x}', { x: timeAgo(p.created_at, lang) })}<span data-pd-tasks-line ${d.devTasks.length ? '' : 'hidden'}> · ${trL(lang, '{n} of {m} tasks done', '{n} از {m} کار انجام شد', { n: dig(doneTasks), m: dig(d.devTasks.length) })}</span></span>
         <span class="row">${progressBar(pct).replace('<span ', '<span data-pd-bar ')} <b data-pd-pct-sr class="sr-only">${dig(pct)}%</b></span>
       </div>
-      ${progressBoxHtml}
     </div>
   </header>
 
@@ -488,8 +455,6 @@ export function detailHtml(p: ProjectRow, d: Awaited<ReturnType<typeof loadDetai
   <section class="card detail-panel" id="detail-activity" role="tabpanel" data-detail-panel="activity" hidden>
     <h3>${trL(lang, 'Latest Activity', 'آخرین تغییرات')}</h3>
     <ul class="history">${history}</ul>
-    <h3 style="margin-block-start:1.5rem">${trL(lang, 'Progress history', 'خط زمانی پیشرفت')}</h3>
-    <ul class="pd-progress-log" data-pd-progress-log>${progressTimelineHtml(d.progressLog, lang)}</ul>
     ${d.canvasPromos.length ? html`<h3 style="margin-block-start:1.5rem">${trL(lang, 'Promoted from canvas', 'ترفیع‌شده از بوم')}</h3>
     <ul class="links backlinks">${d.canvasPromos.map((cp) => html`<li class="row spread"><a href="${cp.board === 'notebook' ? '/whiteboard.html' : '/canvas.html'}">${icon('pencil')} ${trL(lang, 'Canvas note', 'یادداشت بوم')}</a> <span class="muted small">${esc((cp.content || '').slice(0, 60))}</span></li>`)}</ul>` : ''}
   </section>
@@ -578,24 +543,3 @@ export function detailHtml(p: ProjectRow, d: Awaited<ReturnType<typeof loadDetai
 }
 
 
-// S29 (agenda 5): the progress-history timeline renderer — shared by the detail page's
-// Activity tab (server render) and GET /api/projects/:id/progress?format=html (the htmx
-// refresh after a slider save). Entries: newest-first; pct null = "returned to Auto".
-// The pct badge is bucket-tinted (CSS .pd-pl-pct.is-*) so the timeline reads at a glance.
-export function progressTimelineHtml(
-  entries: { pct: number | null; note: string; created_at: string }[],
-  lang: Locale,
-): string {
-  const dig = (n: number) => (lang === 'fa' ? faDigits(String(n)) : String(n))
-  if (!entries.length) {
-    return `<li class="muted">${trL(lang, 'No progress changes yet — move the slider (or a milestone chip) to record the first one.', 'هنوز تغییری ثبت نشده — نشانگر (یا دکمهٔ نقطهٔ عطف) را جابه‌جا کن تا اولین مورد ثبت شود.')}</li>`
-  }
-  const bucket = (pct: number | null) =>
-    pct === null ? 'is-auto' : pct >= 100 ? 'is-done' : pct >= 75 ? 'is-high' : pct >= 50 ? 'is-mid' : pct >= 25 ? 'is-low' : 'is-zero'
-  return entries
-    .map(
-      (e) =>
-        `<li class="pd-pl-entry"><span class="pd-pl-pct ${bucket(e.pct)}">${e.pct === null ? trL(lang, 'Auto', 'خودکار') : dig(e.pct) + '%'}</span> <span class="muted small">${timeAgo(e.created_at, lang)}</span>${e.note ? ` — <span class="pd-pl-note">${esc(e.note)}</span>` : ''}</li>`,
-    )
-    .join('')
-}

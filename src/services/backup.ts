@@ -109,10 +109,11 @@ export const SNAPSHOT_TABLES = [
   'task_categories', 'sprints', 'dev_tasks', 'dev_task_tags',
   'project_archives',
   'backlog_docs', 'backlog_doc_revisions',
-  // S29 (agenda 5): project_progress_log (0050) — the progress timeline carries real
-  // user content (milestone notes). A restore without it loses "where I left off"
-  // history; projects.progress_percent survives on the projects row, but the WHY dies.
-  'project_progress_log',
+  // S30 (2026-09-12): project_progress_log REMOVED — 0051 dropped the table with the
+  // manual progress box (user request "remove the whole thing"). Old snapshots that
+  // still carry a project_progress_log key restore harmlessly: restore.mjs only writes
+  // tables it finds in the target schema (IF-EXISTS guarded), and the table no longer
+  // exists, so the key is skipped.
 ] as const
 
 interface Snapshot {

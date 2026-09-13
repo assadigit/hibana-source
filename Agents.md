@@ -28,7 +28,11 @@ a whiteboard note.
 - DB: SQLite. D1 in prod (`pm-app-dev` / `pm-app-prod`); Node target = `node:sqlite`
   (Node 24+; better-sqlite3 is REMOVED). Same numbered migrations behind one `Db` interface
   (`src/db/`).
-- Storage: private GitHub repo `assadigit/hibana-safe` (Contents API; D1 stores paths only).
+- Storage: screenshots on **Cloudflare Workers KV** (free 1 GB, no card — `HIBANA_SHOTS`
+  binding, `src/services/kv.ts`; written WITHOUT expirationTtl → objects NEVER expire,
+  only the app's delete removes them). Storage precedence: kv → r2 (B2/R2/S3 via R2_* env,
+  `src/services/r2.ts`) → GitHub repo `assadigit/hibana-safe` (Contents API — avatars,
+  logos, backups). `npm run shotcheck:local|:dev|:prod` = live round-trip proof.
   Email: Resend. Monitoring: healthchecks.io. Telegram: @Hibana_PM_bot.
 - 7-stage taxonomy (0031): `spark → unreviewed → investigating → awaiting → doing → halted →
   operational` (legacy map in `validation/schemas.ts`).

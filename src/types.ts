@@ -1,4 +1,4 @@
-import type { Ai, D1Database, Fetcher } from '@cloudflare/workers-types'
+import type { Ai, D1Database, Fetcher, KVNamespace } from '@cloudflare/workers-types'
 import type { Db } from './db/types'
 
 // S36: re-export Db so tests (and future consumers) can import the interface from the
@@ -13,6 +13,11 @@ export interface Env {
   // Workers AI binding (idea §1 — Magic Button). Added via `[ai]` in wrangler.toml; absent
   // on the Node self-host path, where the feature degrades to a friendly 503 notice.
   AI: Ai
+  /** S38: Workers KV binding for screenshot storage (free 1 GB, no card — the
+   *  no-card pick since R2's tier is payment-gated). Declared in wrangler.toml for
+   *  both envs. Values are written WITHOUT expirationTtl → they never expire; only
+   *  DELETE /api/screenshots/:id removes them. See services/kv.ts. */
+  HIBANA_SHOTS?: KVNamespace
   ENVIRONMENT: string // 'dev' | 'prod' — set per wrangler environment
   GITHUB_TOKEN?: string
   GITHUB_OWNER?: string
@@ -55,6 +60,11 @@ export interface Config {
   db: Db
   isProd: boolean
   github: { owner: string; repo: string; token?: string }
+  /** S38: Cloudflare Workers KV screenshot storage — takes precedence over r2 (free,
+   *  no card, zero signup — it rides the account the Worker already deploys to).
+   *  Binding mode on the Worker, REST mode on the Node self-host path; unset = the
+   *  r2/GitHub chain decides. Storage precedence overall: kv → r2 (B2/R2/S3) → GitHub. */
+  kv?: import('./services/kv').KvShotsConfig
   /** S35: S3-compatible object storage (Cloudflare R2 by default — see Env.R2_*).
    *  When set, screenshot bytes go here instead of the GitHub Contents API; the
    *  media route reads through the same adapter. Runtime-agnostic: plain fetch +

@@ -40,6 +40,10 @@ export function registerHealth(app: Hono<{ Variables: { user: UserRow } }>, cfg:
       environment: cfg.isProd ? 'prod' : 'dev',
       db: 'up',
       schema_version: version,
+      // S38: which screenshot store is active — kv (Workers KV, the no-card default),
+      // s3 (B2/R2 via R2_*), or github (the Contents-API fallback). Lets live probes
+      // and the owner verify the storage wiring at a glance.
+      storage: cfg.kv ? 'kv' : cfg.r2 ? 's3' : 'github',
       time: new Date().toISOString(),
     })
   })

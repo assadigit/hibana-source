@@ -19,6 +19,9 @@ function buildConfig(env: Env): Config {
     assets: (url) => env.ASSETS.fetch(url) as Promise<Response>,
     isProd: env.ENVIRONMENT === 'prod',
     github: { owner: env.GITHUB_OWNER ?? '', repo: env.GITHUB_REPO ?? '', token: env.GITHUB_TOKEN },
+    // S38: KV beats R2 in the precedence (free, no card, zero signup). Binding mode —
+    // no credential lives inside the Worker; the deployment itself is the auth.
+    kv: env.HIBANA_SHOTS ? { mode: 'binding', binding: env.HIBANA_SHOTS } : undefined,
     // S35: optional S3/R2 screenshot storage (see services/r2.ts) — unset = GitHub.
     r2: r2ConfigFromEnv(env) ?? undefined,
     emailKey: env.RESEND_KEY,

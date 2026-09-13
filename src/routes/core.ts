@@ -7,6 +7,7 @@ import { localeOf, trFor, trL, type Locale } from '../lib/i18n'
 import { uuid } from '../lib/ids'
 import { githubClient, type GitHubConfig } from '../services/github'
 import { r2Storage } from '../services/r2'
+import { kvStorage } from '../services/kv'
 import { clientIp, hitRateLimit, RATE_RULES } from '../services/ratelimit'
 import {
   createHurdleSchema,
@@ -275,13 +276,16 @@ export function coreRoutes(cfg: Config) {
     return c.json({ ok: true })
   })
 
-  // ---- media (screenshots: R2/S3 when configured, else GitHub) ------------------
-  // S35: the screenshots pipeline is provider-agnostic. Cloudflare R2 (10 GB-month
-  // free, zero egress, S3 API) is the recommended "free cloud storage by API" — set
-  // R2_ACCESS_KEY_ID/SECRET/BUCKET(+ACCOUNT_ID or ENDPOINT) and uploads move there;
-  // unset keeps the GitHub Contents API path exactly as before. The `github_path`
-  // column stays (it is the storage key either way).
-  const shotStore = cfg.r2
+  // ---- media (screenshots: KV → S3/R2 → GitHub, first configured wins) -------------
+  // S38: Cloudflare Workers KV is the default store — free 1 GB on the account the
+  // Worker already runs on, no card (R2's tier is payment-gated), values written with
+  // NO expirationTtl → pictures never expire unless the user deletes them (the S38
+  // requirement). S36's provider-generic S3 adapter stays the upgrade path (B2 10 GB)
+  // via R2_* env vars; unset everything = GitHub Contents API exactly as before. The
+  // `github_path` column stays (it is the storage key either way).
+  const shotStore = cfg.kv
+    ? kvStorage(cfg.kv)
+    : cfg.r2
     ? r2Storage(cfg.r2)
     : {
         putObject: async (key: string, contentB64: string, _ct: string) => { await gh().pushFile(key, contentB64, 'Screenshot upload') },

@@ -88,7 +88,9 @@ describe('health endpoint', () => {
     try {
       const res = await makeApp(db).fetch(new Request('http://local/api/health'))
       const body = (await res.json()) as Record<string, unknown>
-      expect(Object.keys(body).sort()).toEqual(['db', 'environment', 'ok', 'schema_version', 'service', 'time'])
+      // S38: 'storage' joins the safe set — the active screenshot store ('kv' | 's3' |
+      // 'github'), so live probes can verify the wiring. Still no user data.
+      expect(Object.keys(body).sort()).toEqual(['db', 'environment', 'ok', 'schema_version', 'service', 'storage', 'time'])
       const text = JSON.stringify(body)
       expect(text.toLowerCase()).not.toContain('user')
       expect(text.toLowerCase()).not.toContain('project')

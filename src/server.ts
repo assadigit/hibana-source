@@ -6,6 +6,7 @@ import { createApp } from './app'
 import { createSqliteDb } from './db/sqlite'
 import { applyMigrations } from './db/migrate-node'
 import { r2ConfigFromEnv } from './services/r2'
+import { kvRestConfigFromEnv } from './services/kv'
 import type { Config } from './types'
 
 // Non-Cloudflare deployment path (portability requirement — "deployment must be easily
@@ -89,6 +90,10 @@ const cfg: Config = {
     repo: process.env.GITHUB_REPO ?? 'pm-app-assets',
     token: process.env.GITHUB_TOKEN,
   },
+  // S38: Workers KV screenshot storage (free 1 GB, no card — see services/kv.ts).
+  // REST mode via KV_ACCOUNT_ID/KV_NAMESPACE_ID/KV_API_TOKEN; unset = the r2/GitHub
+  // chain decides. Storage precedence: kv → r2 → GitHub.
+  kv: kvRestConfigFromEnv(process.env) ?? undefined,
   // S35: optional S3/R2 screenshot storage (see services/r2.ts) — unset = GitHub.
   r2: r2ConfigFromEnv(process.env) ?? undefined,
   emailKey: process.env.RESEND_KEY,

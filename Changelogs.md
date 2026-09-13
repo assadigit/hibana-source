@@ -9,7 +9,56 @@
 > rewritten as a minimal pointer. Deleted files remain recoverable verbatim:
 > `git show <sha>:<file>`.
 
-## 1. Current state (v0.3.12.38 — Session 37: doc-only — Agents.md codifies the "English always" chat rule; Session 36: S3 adapter provider-generic / B2 no-card)
+## 1. Current state (v0.3.12.39 — Session 38: screenshot storage LIVE on Cloudflare Workers KV — free, no card, never expires; S37: English-always chat rule)
+- **(S38) THE PICK + THE IMPLEMENTATION (user: "which free alternative to R2 do you suggest —
+  implement it, test it: upload in hibana, check they're really uploaded and shown, and make
+  sure pictures never expire unless the user deletes them")** — **Cloudflare Workers KV**.
+  Why not B2 (the S36 pick): B2 stays the best 10 GB option but needs the owner's signup
+  (email verification an agent can't do) — it failed "implement AND test it today". KV was
+  provisioned in ONE command on the existing account (`wrangler kv namespace create
+  HIBANA_SHOTS`, dev `7c6eb81b…` + prod `1a64052f…`) — **zero signup, zero card** (R2 is
+  card-gated; KV is not). Free tier: 1 GB storage (≈5,000+ shots at the 5 MB upload cap),
+  100k reads / 1k writes / day, values ≤ 25 MB. **The never-expire guarantee**: KV keys
+  written WITHOUT `expirationTtl` have NO expiry — the adapter (`src/services/kv.ts`)
+  never passes one (unit-pinned: `puts[0].options` must be undefined), so the ONLY removal
+  path is the app's own DELETE. One `ObjectStore` contract, two transports: the Worker uses
+  the `HIBANA_SHOTS` **binding** (no credential lives inside the Worker at all); the Node
+  self-host / scripts use the **KV REST API** (env `KV_ACCOUNT_ID` / `KV_NAMESPACE_ID` /
+  `KV_API_TOKEN`, in .secrets.env for local dev). Storage precedence: **kv → r2 → github**
+  (`routes/core.ts`); `/api/health` now reports `"storage":"kv|s3|github"` so any probe can
+  see the wiring. wrangler.toml binds both envs (separate namespaces — prod bytes never mix
+  with dev probes). The B2/S3 upgrade path is untouched: set R2_* and it wins only if KV is
+  unbound.
+- **(S38) THE TEST SERIES (all green — the user's exact requested flow)**
+  1. `src/tests/kv-storage.test.ts` (10 tests): binding-mode put/get/delete + **the
+     no-options assertion (never-expire pin)**; REST-mode request shape (bearer, percent-
+     encoded key with slashes, raw bytes, 404-idempotent delete); env parsing.
+  2. `scripts/live-shot-check.mjs` (`npm run shotcheck:local|:dev|:prod`) — a REUSABLE
+     live round-trip: probe user + session via the D1-discipline-compliant write path
+     (wrangler `--file` for writes, `--command` for reads — wrangler's `--json` with
+     `--file` returns execution SUMMARIES, not rows; gotcha hit live and handled), then
+     health(storage=kv) → create project → upload PNG through the app's own route →
+     media GET (same bytes, image/png) → **direct Cloudflare KV REST read of the same key
+     (byte-identical — "really uploaded", bypassing the app)** → DELETE via the app →
+     media 404 + KV 404 → probe purge + users row-count parity. **9/9 PASS on all three
+     targets: local Node (REST path), live dev worker, live PROD worker (binding path).**
+  3. Browser-level (agent-browser, real UI on local 8788 AND on the live dev worker):
+     upload via the actual file picker → card renders → canvas pixel read = **[124,58,237]
+     exactly** (the purple test PNG's bytes served from KV through the media route) →
+     lightbox open/close → note edit (EN+FA mixed, `dir="auto"`) → resolved toggle
+     ("✓ fixed") → delete with confirm → 0 cards. VLM confirmed the purple image renders
+     on both; console clean. Restart proof: upload → full server kill + reboot → same
+     bytes served (persistence ≠ process; KV + SQLite only).
+  4. Gotchas hit: (a) Node fetch resolves `localhost` → ::1 while the node-server binds
+     IPv4 — script uses 127.0.0.1; (b) sandbox reaps plain background children — the
+     local server must be double-forked `( setsid … & )` to reparent to init; (c) a
+     hand-rolled test PNG had 1-pixel rows (decoded IHDR fine, painted nothing) — the
+     pipeline was byte-exact all along, the test image was broken; fixed.
+  5. Ladder: typecheck 0 · vitest 379/379 (+10 kv-storage; health key-set test updated for
+     `storage`) · e2e 49/49 · smoke ALL PASS · i18n 1039/1039 · cache-bust PASS ·
+     bundle-size PASS. Deployed dev `ea468579` + prod `c1e512d4`; live probes: health ok,
+     `storage:kv` on BOTH. No frontend files touched → no cache-bust bump, SW stays v337.
+
 - **(S37 · doc-only · 2026-09-13) "ENGLISH ALWAYS" RULE IN AGENTS.MD** — Ali asked: "Always
   speak english with me, add this to agents.md so you never forget." Codified in TWO places
   in `Agents.md`: (1) a bold callout in the file header: "Agent↔owner language: English,

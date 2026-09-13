@@ -35,10 +35,14 @@ Agents.md (exception: `BACKUP_ENCRYPTION_KEY` — NEVER rotate).
 - **DB:** SQLite. Same numbered migrations behind one `Db` interface (`src/db/`).
 - **Build:** `scripts/build.mjs` (esbuild) → content-hashed immutable `public/dist/` +
   `manifest.json` → deploy-time HTML wiring (`--wire-html` / `--restore-html`).
-- **Storage:** private GitHub repo `assadigit/hibana-safe` (Contents API). Screenshots:
-  pluggable S3-compatible object store (`src/services/r2.ts` — set R2_* env). R2's free
-  tier needs a card on file, so the no-card pick is **Backblaze B2** (10 GB free, S3 API);
-  any S3 endpoint works via R2_ENDPOINT (+R2_REGION if autodetect misses).
+- **Storage:** screenshots live on **Cloudflare Workers KV** (free 1 GB, no card, no
+  TTL — pictures never expire until deleted in-app; `HIBANA_SHOTS` binding in both
+  wrangler envs, `src/services/kv.ts`; Node self-host sets KV_ACCOUNT_ID /
+  KV_NAMESPACE_ID / KV_API_TOKEN). Fallback chain: pluggable S3-compatible store
+  (`src/services/r2.ts` — set R2_* env; **Backblaze B2** 10 GB free is the no-card pick
+  if more space is ever needed) → private GitHub repo `assadigit/hibana-safe` (Contents
+  API) for everything else (avatars, logos, backups). `npm run shotcheck:dev|:prod`
+  runs a live upload→Cloudflare→render→delete round-trip against the real workers.
 - **Integrations:** Resend (email), healthchecks.io (monitoring), Telegram bot
   (@Hibana_PM_bot), Cloudflare Workers AI (Magic Button).
 

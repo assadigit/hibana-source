@@ -51,6 +51,17 @@ binding = "DB"
 database_name = "pm-app-dev"
 database_id = "80e02ce2-ca0a-4ccc-beda-8b6cb9c3a984"
 
+# S38: screenshot storage on Workers KV — the no-card pick (user can't enable the
+# card-gated R2). FREE tier: 1 GB storage (≈5,000+ shots at the 5 MB upload cap),
+# 100k reads / 1k writes per day, values ≤ 25 MB. Keys are written WITHOUT
+# expirationTtl → they NEVER expire; only the app's DELETE /api/screenshots/:id
+# removes them (the user's S38 requirement). The Worker reads/writes via the
+# HIBANA_SHOTS binding (src/services/kv.ts) — no credential lives in the Worker.
+# Created via: npx wrangler kv namespace create HIBANA_SHOTS
+[[kv_namespaces]]
+binding = "HIBANA_SHOTS"
+id = "7c6eb81bac1a42c09e2a2d4686d48199"
+
 # -----------------------------------------------------------------------------------
 # Production environment — only touched by `wrangler deploy --env prod`.
 # -----------------------------------------------------------------------------------
@@ -76,6 +87,13 @@ MIRROR_ORIGIN = "https://sadhana.ir https://fast.hibana.ir"
 binding = "DB"
 database_name = "pm-app-prod"
 database_id = "d842fcb5-44f6-4bbd-a772-3699ccadb496"
+
+# Prod screenshot storage — SEPARATE namespace so prod bytes never mix with dev
+# probe uploads (keys are per-DB UUID paths anyway; separation is hygiene).
+# Created via: npx wrangler kv namespace create HIBANA_SHOTS --env prod
+[[env.prod.kv_namespaces]]
+binding = "HIBANA_SHOTS"
+id = "1a64052f77364c2f979be26bdec95d67"
 
 # Workers AI binding for prod (idea §1). The top-level [ai] doesn't inherit into [env.prod]
 # for binding-type keys in wrangler 4, so it must be repeated here explicitly.

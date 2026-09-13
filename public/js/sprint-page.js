@@ -320,8 +320,8 @@
               const dotClass = isDone ? 'sp-dot st-done' : 'sp-dot st-active'
               return '<div class="' + dotClass + '" draggable="true" data-bar="' + task.id + '" data-task="' + task.id + '" ' +
                 'style="--bar-c:' + color + ';inset-inline-start:' + left + '%;inset-block-start:' + (4 + ti * 24) + 'px" ' +
-                'title="' + B().esc(task.title) + '">' +
-                '<span class="sp-dot-prio prio-' + task.priority + '"></span>' +
+                'title="' + B().esc(task.title) + ' · ' + B().esc(B().prioLabel(task.priority)) + '">' +
+                '<span class="sp-dot-prio prio-' + task.priority + '" title="' + B().esc(B().prioLabel(task.priority)) + '" aria-label="' + B().esc(B().prioLabel(task.priority)) + '"></span>' +
                 (isDone ? '<span class="sp-dot-check">✓</span>' : '') +
               '</div>'
             }).join('')
@@ -1046,7 +1046,7 @@
             if (window.HibanaBoard) return resolve(true)
             if (!injected && waited >= 1200) {
               injected = true
-              inject('/js/devboard.js?v=11') // keep in sync with the <head> tag + sw SHELL
+              inject('/js/devboard.js?v=12') // keep in sync with the <head> tag + sw SHELL
               if (!window.jalaali) inject('/vendor/jalaali.min.js') // Jalali timeline for FA
             }
             if (waited >= 9000) return resolve(false)

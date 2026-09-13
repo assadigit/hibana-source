@@ -572,3 +572,75 @@ main.shell.sp-shell .sp-wrap { min-block-size: min(64vh, 30rem); }
    .nf-logo just enlarges it from the header's 1.4rem (appended after, so it wins). */
 .nf-logo { height: clamp(1.7rem, 6vw, 2.2rem); }
 
+
+/* ==========================================================================
+   S30 batch 2 (user request 2026-09-12): the filter bar + the clickable prio-dot
+   ==========================================================================
+   The FILTER BAR (.db-filter — board.html render, .pd-filter twin on the project page,
+   same classes): priority toggles + label toggles. Empty selection = show everything;
+   each group is an OR within itself, the two groups AND. The toggles are .chip buttons
+   (≥40px touch floor, aria-pressed driven); active state = .is-on tint. */
+
+.db-filter {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem;
+  margin-block-end: 0.7rem;
+  padding: 0.45rem 0.6rem;
+  border: 1px dashed var(--line-strong);
+  border-radius: var(--radius-sm);
+}
+.db-filter-label { flex: none; }
+.db-filter .chip {
+  min-block-size: 40px;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  cursor: pointer;
+  border-color: var(--line);
+  background: var(--card);
+  color: var(--text);
+}
+.db-filter .chip .prio-dot { flex: none; }
+.db-filter .chip.is-on,
+.db-filter .chip[aria-pressed="true"] {
+  border-style: solid;
+  border-color: var(--brand);
+  background: var(--brand-soft, rgb(42 132 96 / 0.12));
+}
+.db-filter-clear { flex: none; }
+.db-filter-shown { flex: none; margin-inline-start: auto; }
+@media (max-width: 640px) {
+  .db-filter-shown { margin-inline-start: 0; }
+}
+
+/* The clickable prio-dot: a TRANSPARENT 24px hit-area button wrapping the unchanged
+   9px .prio-dot span (the span keeps every existing color rule — including the
+   !important .pd-task/.db-card overrides — so the button never fights them). Click =
+   cycle low → medium → high → urgent (board.html + the project page). */
+.prio-dot-btn {
+  border: 0;
+  background: transparent;
+  padding: 0;
+  margin: 0;
+  cursor: pointer;
+  inline-size: 24px;
+  block-size: 24px;
+  flex: none;
+  align-self: flex-start;
+  display: inline-grid;
+  place-items: center;
+  border-radius: 999px;
+}
+.prio-dot-btn .prio-dot { margin: 0; }
+.prio-dot-btn:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
+.prio-dot-btn:active { transform: scale(0.88); }
+
+/* The project page's preview dot aligned with the title's first line (the old bare
+   span used margin-block-start: 0.24rem; the button centers its 24px box, so the
+   nudge lives on the button now). */
+.pd-task .prio-dot-btn { margin-block-start: 0.1rem; }
+
+/* Label chips are FILTER toggles now (GitHub behavior) — keep the pointer honest. */
+.db-mini-chip, .pd-task .pd-tag { cursor: pointer; }

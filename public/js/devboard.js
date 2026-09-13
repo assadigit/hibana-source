@@ -28,6 +28,27 @@
   // «ایده‌های جدید» and «برنامه آتی» — second in reading order, not parked at the end.
   const STATUSES = ['idea', 'bug', 'planned', 'in_progress', 'done']
   const PRIORITIES = ['low', 'medium', 'high', 'urgent']
+  // S30 batch 2: click-the-dot cycles low → medium → high → urgent → low (the
+  // ascending promotion reads naturally — one click = one step up).
+  const PRIO_CYCLE = ['low', 'medium', 'high', 'urgent']
+  const cyclePriority = (p) => {
+    const i = PRIO_CYCLE.indexOf(p)
+    return PRIO_CYCLE[(i + 1 + PRIO_CYCLE.length) % PRIO_CYCLE.length] || 'medium'
+  }
+  // S30 batch 2: the Markdown bullet for a task — "- [URGENT] Fix auth leak #UI/UX
+  // #Security" (user's own format). Title whitespace collapses to one space so a
+  // multi-line title (fenced code etc.) stays ONE bullet; label spaces hyphenate
+  // (GitHub-style). tagNames: the DISPLAY names (board resolves ids, project page
+  // resolves its flat join).
+  const mdTaskLine = (task, tagNames) => {
+    const title = String((task && task.title) || '').replace(/\s+/g, ' ').trim()
+    if (!title) return ''
+    const prio = String((task && task.priority) || 'medium').toUpperCase()
+    const tags = (tagNames || [])
+      .map((n) => '#' + String(n || '').trim().replace(/\s+/g, '-'))
+      .filter((n) => n.length > 1)
+    return '- [' + prio + '] ' + title + (tags.length ? ' ' + tags.join(' ') : '')
+  }
 
   const statusLabel = (s) => ({
     idea: t('db.st.idea', 'New Ideas'),
@@ -383,7 +404,7 @@
 
   window.HibanaBoard = {
     state, load, api, t, esc, faDig,
-    STATUSES, PRIORITIES, statusLabel, prioLabel,
+    STATUSES, PRIORITIES, PRIO_CYCLE, cyclePriority, mdTaskLine, statusLabel, prioLabel,
     DAY, dayIdx, todayIdx, calOf, monthLabel, dayLabel, fullLabel, weekdayIdx,
     findTask, findCategory, findSprint, tagById,
     createTask, patchTask, deleteTask, reorderTasks, addTaskTag, removeTaskTag,

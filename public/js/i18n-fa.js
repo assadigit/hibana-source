@@ -506,6 +506,11 @@ window.__hibanaDictFA = {
       'cmdk.noResults': 'نتیجه‌ای نیست.',
       // 0040 search depth: result-group headers + canvas element type labels + quadrant names.
       'cmdk.notes': 'یادداشت‌ها',
+      // S30 بستهٔ ۲: نوار فیلتر برد + چرخش اولویت
+      'db.filterAria': 'فیلتر کارها', 'db.filterPrio': 'اولویت', 'db.filterLabels': 'برچسب‌ها',
+      'db.filterPrioHint': 'فقط کارهای {p}', 'db.filterTagHint': 'برای فیلتر با این برچسب کلیک کن',
+      'db.filterClear': 'پاک‌کردن فیلتر', 'db.filterShown': 'نمایش {n} از {m}',
+      'db.cyclePrio': 'اولویت: {p} — برای تغییر کلیک کن',
       'cmdk.tasks': 'کارها',
       'cmdk.backlog': 'برنامه آتی',
       'cmdk.sadhana': 'لیست کارها',

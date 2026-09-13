@@ -18,6 +18,11 @@
 
         if (!projectId) { location.replace('/projects.html'); return }
 
+        // S30 batch 2: the filter state (module-scope — render() reads it; the toggles
+        // mutate + re-render). Names are stored LOWERCASE for case-insensitive matching.
+        const filterPrios = new Set()
+        const filterTags = new Set()
+
         const render = () => {
           const S = B().state
           document.getElementById('db-title').textContent = S.project ? S.project.title : ''
@@ -27,6 +32,41 @@
             .replace('{n}', B().faDig(done)).replace('{m}', B().faDig(S.tasks.length))
 
           const lang = window.hibanaI18n && window.hibanaI18n.lang ? window.hibanaI18n.lang() : 'en'
+          // S30 batch 2 (user request): the FILTER BAR — priority toggles + label
+          // toggles above the columns. Empty selection = show everything (the default);
+          // each group is an OR within itself, the two groups AND together ("only 🔴
+          // urgent × #Security"). A task's label names resolve through tagById (the
+          // API carries tag ids on the task rows + the tag table in state).
+          const usedTags = []
+          const seenTag = new Set()
+          for (const task of S.tasks) {
+            for (const id of (task.tags || [])) {
+              const tg = B().tagById(id)
+              if (tg && !seenTag.has(tg.name.toLowerCase())) { seenTag.add(tg.name.toLowerCase()); usedTags.push(tg) }
+            }
+          }
+          usedTags.sort((a, b) => a.name.localeCompare(b.name))
+          const taskMatches = (task) => {
+            if (filterPrios.size && !filterPrios.has(task.priority || 'medium')) return false
+            if (filterTags.size) {
+              const names = (task.tags || []).map((id) => { const tg = B().tagById(id); return tg ? tg.name.toLowerCase() : '' }).filter(Boolean)
+              if (!names.some((n) => filterTags.has(n))) return false
+            }
+            return true
+          }
+          const shownCount = S.tasks.filter(taskMatches).length
+          const anyFilter = filterPrios.size > 0 || filterTags.size > 0
+          const filterBarHtml = S.tasks.length ? '<div class="db-filter" data-db-filter role="toolbar" aria-label="' + B().esc(_t('db.filterAria', 'Filter tasks')) + '">' +
+            '<span class="db-filter-label muted small">' + B().esc(_t('db.filterPrio', 'Priority')) + '</span>' +
+            B().PRIORITIES.slice().reverse().map((p) =>
+              '<button type="button" class="chip db-filter-prio prio-' + p + '" data-fp="' + p + '" aria-pressed="' + (filterPrios.has(p) ? 'true' : 'false') + '" title="' + B().esc(_t('db.filterPrioHint', 'Show only {p} tasks').replace('{p}', B().prioLabel(p))) + '"><span class="prio-dot prio-' + p + '"></span>' + B().esc(B().prioLabel(p)) + '</button>'
+            ).join('') +
+            (usedTags.length ? '<span class="db-filter-label muted small">' + B().esc(_t('db.filterLabels', 'Labels')) + '</span>' +
+              usedTags.map((tg) =>
+                '<button type="button" class="chip db-filter-tag" data-ft="' + B().esc(tg.name.toLowerCase()) + '" style="color:' + B().esc(tg.color) + '" aria-pressed="' + (filterTags.has(tg.name.toLowerCase()) ? 'true' : 'false') + '" title="' + B().esc(_t('db.filterTagHint', 'Click to filter by this label')) + '"><span style="color:' + B().esc(tg.color) + '">●</span> ' + B().esc(tg.name) + '</button>'
+              ).join('') : '') +
+            (anyFilter ? '<button type="button" class="chip db-filter-clear" data-db-filter-clear>✕ ' + B().esc(_t('db.filterClear', 'Clear filter')) + '</button><span class="muted small db-filter-shown">' + _t('db.filterShown', '{n} of {m} shown').replace('{n}', B().faDig(shownCount)).replace('{m}', B().faDig(S.tasks.length)) + '</span>' : '') +
+            '</div>' : ''
           // Session 22 (user request): unlimited task titles clamp at 150 CHARS — same
           // recipe as the project page's progress boxes: first 150 chars visible, the
           // rest in a hidden .pd-title-rest span INSIDE the title element (so
@@ -83,8 +123,8 @@
           const I_DOWNLOAD = '<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m0 0l-4-4m4 4l4-4M5 21h14"/></svg>'
           const I_ARCHIVE = '<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="4" rx="1"/><path d="M5 8v11a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V8M10 12h4"/></svg>'
           const I_TRASH = '<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>'
-          root.innerHTML = '<div class="db-cols">' + B().STATUSES.map((st) => {
-            const items = S.tasks.filter((x) => x.status === st)
+          root.innerHTML = filterBarHtml + '<div class="db-cols">' + B().STATUSES.map((st) => {
+            const items = S.tasks.filter((x) => x.status === st && taskMatches(x))
             const isDone = st === 'done'
             // Done column gets TWO extra buttons: Archive (moves done → project_archives,
             // viewable + restorable) + Clear (hard-deletes, no archive). Only shown when
@@ -108,7 +148,9 @@
                   const tags = (task.tags || []).map((id) => B().tagById(id)).filter(Boolean)
                   return '<article class="db-card st-' + task.status + '" draggable="true" data-task-card="' + task.id + '" data-status="' + task.status + '">' +
                     '<div class="db-card-main">' +
-                      '<span class="prio-dot prio-' + task.priority + '" title="' + task.priority + '"></span>' +
+                      // S30 batch 2: the dot's tooltip is the TRANSLATED label (was the raw
+                      // 'urgent' string) + the cycle hint; clicking it cycles the priority.
+                      '<button type="button" class="prio-dot-btn" data-db-cycle-prio="' + task.id + '" title="' + B().esc(_t('db.cyclePrio', 'Priority: {p} — click to change').replace('{p}', B().prioLabel(task.priority))) + '" aria-label="' + B().esc(_t('db.cyclePrio', 'Priority: {p} — click to change').replace('{p}', B().prioLabel(task.priority))) + '"><span class="prio-dot prio-' + task.priority + '"></span></button>' +
                       '<span class="db-card-title"' + titleAttrs(task.title) + '>' + titleHtml(task.title) + '</span>' +
                     '</div>' +
                     readMoreBtn(task.title) +
@@ -119,7 +161,9 @@
                     (cat || tags.length || sprint
                       ? '<div class="db-card-meta">' +
                         (cat ? '<span class="db-cat-chip" style="background:' + cat.color + '2E;color:' + cat.color + '">' + B().esc(cat.name) + '</span>' : '') +
-                        tags.map((tg) => '<span class="db-mini-chip" style="background:' + tg.color + '26"><span style="color:' + tg.color + '">●</span>' + B().esc(tg.name) + '</span>').join('') +
+                        // S30 batch 2: label chips are FILTER toggles (GitHub behavior) —
+                        // data-tag-name carries the match key.
+                        tags.map((tg) => '<button type="button" class="db-mini-chip" data-tag-name="' + B().esc(tg.name.toLowerCase()) + '" style="background:' + tg.color + '26" title="' + B().esc(_t('db.filterTagHint', 'Click to filter by this label')) + '"><span style="color:' + tg.color + '">●</span>' + B().esc(tg.name) + '</button>').join('') +
                         (sprint ? '<span class="db-sprint-badge">◆ ' + B().esc(sprint.name) + '</span>' : '') +
                       '</div>'
                       : '') +
@@ -247,6 +291,56 @@
             boot()
             return
           }
+          // S30 batch 2 — the FILTER BAR toggles (priority × label, clear).
+          const fp = e.target.closest('[data-fp]')
+          if (fp) {
+            const p = fp.dataset.fp
+            if (filterPrios.has(p)) filterPrios.delete(p); else filterPrios.add(p)
+            render()
+            return
+          }
+          const ft = e.target.closest('[data-ft]')
+          if (ft) {
+            const n = ft.dataset.ft
+            if (filterTags.has(n)) filterTags.delete(n); else filterTags.add(n)
+            render()
+            return
+          }
+          if (e.target.closest('[data-db-filter-clear]')) {
+            filterPrios.clear(); filterTags.clear()
+            render()
+            return
+          }
+          // S30 batch 2 — clicking a card's LABEL chip toggles that label's filter
+          // (GitHub behavior). Runs before the card-open branch below; the card-open
+          // branch also guards on .db-mini-chip (ctx.on handlers are independent
+          // document listeners — stopPropagation can't cross them).
+          const chip = e.target.closest('.db-mini-chip[data-tag-name]')
+          if (chip) {
+            e.preventDefault()
+            const n = chip.dataset.tagName
+            if (filterTags.has(n)) filterTags.delete(n); else filterTags.add(n)
+            render()
+            return
+          }
+          // S30 batch 2 — click the priority dot: cycle low → medium → high → urgent
+          // without opening the editor. PATCH + optimistic state mutation + re-render
+          // (the re-render re-sorts the column for free).
+          const cycleDot = e.target.closest('[data-db-cycle-prio]')
+          if (cycleDot) {
+            e.preventDefault()
+            const tid = cycleDot.dataset.dbCyclePrio
+            const task = B().findTask(tid)
+            if (!task) return
+            const next = B().cyclePriority(task.priority)
+            task.priority = next
+            render()
+            B().patchTask(tid, { priority: next }).catch(() => {
+              window.hibana?.toast(_t('sparks.saveFailed', "Couldn't save"), 'err')
+              reload()
+            })
+            return
+          }
           const add = e.target.closest('[data-add]')
           if (add) {
             B().openEditor(null, { defaults: { status: add.dataset.add }, onSaved: reload })
@@ -277,15 +371,22 @@
             return
           }
           const card = e.target.closest('[data-task-card]')
-          if (card && !e.target.closest('[data-task-read-more]')) B().openEditor(card.dataset.taskCard, { onSaved: reload })
+          // S30 batch 2: never open the editor from the prio dot / label chips (they
+          // are actions of their own — cycling and filtering).
+          if (card && !e.target.closest('[data-task-read-more]') && !e.target.closest('[data-db-cycle-prio]') && !e.target.closest('.db-mini-chip')) B().openEditor(card.dataset.taskCard, { onSaved: reload })
 
-          // Item 8: per-column Quick Copy + Export Markdown (same logic as project.html)
+          // Item 8 + S30 batch 2: per-column Quick Copy + Export Markdown — the bullets
+          // now carry priority + labels ("- [URGENT] Fix auth leak #UI/UX #Security") and
+          // read from the LOADED STATE, not the DOM (the DOM only shows what the filter
+          // lets through; the export stays truthful to the whole column).
+          const colLines = (st) => B().state.tasks
+            .filter((x) => x.status === st)
+            .map((x) => B().mdTaskLine(x, (x.tags || []).map((id) => { const tg = B().tagById(id); return tg ? tg.name : '' }).filter(Boolean)))
+            .filter(Boolean)
           const copy = e.target.closest('[data-db-copy]')
           if (copy) {
             const st = copy.dataset.dbCopy
-            const col = document.querySelector(`.db-col[data-col="${st}"]`)
-            const items = col ? Array.from(col.querySelectorAll('.db-card-title')).map((el) => el.textContent.trim()).filter(Boolean) : []
-            const text = items.length ? items.map((t) => '- ' + t).join('\n') : ''
+            const text = colLines(st).join('\n')
             navigator.clipboard?.writeText(text).then(
               () => window.hibana?.toast(_t('pd.copied', 'Copied to clipboard')),
               () => { const ta = document.createElement('textarea'); ta.value = text; document.body.appendChild(ta); ta.select(); try { document.execCommand('copy') } catch {}; ta.remove() }
@@ -297,8 +398,8 @@
             const st = exp.dataset.dbExport
             const col = document.querySelector(`.db-col[data-col="${st}"]`)
             const label = col ? (col.querySelector('.db-col-name')?.textContent.trim() || st) : st
-            const items = col ? Array.from(col.querySelectorAll('.db-card-title')).map((el) => el.textContent.trim()).filter(Boolean) : []
-            const md = '# ' + label + '\n\n' + (items.length ? items.map((t) => '- ' + t).join('\n') : '_(No items)_') + '\n'
+            const lines = colLines(st)
+            const md = '# ' + label + '\n\n' + (lines.length ? lines.join('\n') : '_(No items)_') + '\n'
             const blob = new Blob([md], { type: 'text/markdown;charset=utf-8' })
             const url = URL.createObjectURL(blob)
             const a = document.createElement('a')
@@ -423,7 +524,7 @@
             if (window.HibanaBoard) return resolve(true)
             if (!injected && waited >= 1200) {
               injected = true
-              inject('/js/devboard.js?v=11') // keep in sync with the <head> tag + sw SHELL
+              inject('/js/devboard.js?v=12') // keep in sync with the <head> tag + sw SHELL
               if (!window.jalaali) inject('/vendor/jalaali.min.js') // Jalali dates for FA
             }
             if (waited >= 9000) return resolve(false)

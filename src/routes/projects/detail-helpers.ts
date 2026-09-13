@@ -278,6 +278,10 @@ export function detailHtml(p: ProjectRow, d: Awaited<ReturnType<typeof loadDetai
         <a class="btn ghost small" href="/sprint.html?project=${p.id}">${icon('diamond')} ${trL(lang, 'Sprints', 'اسپرینت‌ها')}${d.sprints.length ? ` <span class="pd-sprint-count">${dig(d.sprints.length)}</span>` : ''}</a>
       </div>
     </div>
+    <!-- S30 batch 2 (user request): the filter-bar mount — project-page.js builds the
+         priority × label toggles here from the API truth payload (the DOM only renders
+         5 per column, so the label list can't come from markup). -->
+    <div class="db-filter pd-filter" data-pd-filter hidden></div>
     ${d.devTasks.length === 0
       ? `<div class="pd-board-empty empty-state empty" data-pd-empty>
           <span class="empty-state-icon" aria-hidden="true">${icon('kanban')}</span>
@@ -301,7 +305,7 @@ export function detailHtml(p: ProjectRow, d: Awaited<ReturnType<typeof loadDetai
             <div class="pd-tasks" data-pd-tasks="${col.key}" data-pd-total="${items.length}">
               ${top.map((t) => `<div class="pd-task-wrap" data-pd-task="${t.id}" data-pd-status="${t.status}" data-pd-created="${t.created_at}" data-pd-priority="${t.priority}" data-pd-tags="${taskTagsAttr(t.id)}"${t.done_at ? ` data-pd-done="${t.done_at}"` : ''}>
                 <div class="pd-task st-${t.status}" draggable="true" role="button" tabindex="0" aria-label="${esc(t.title)}">
-                  <span class="prio-dot prio-${t.priority}" title="${esc(prioLabel(t.priority))}"></span>
+                  <button type="button" class="prio-dot-btn" data-pd-cycle-prio title="${esc(trL(lang, 'Priority: {p} — click to change', 'اولویت: {p} — برای تغییر کلیک کن', { p: prioLabel(t.priority) }))}" aria-label="${esc(trL(lang, 'Priority: {p} — click to change', 'اولویت: {p} — برای تغییر کلیک کن', { p: prioLabel(t.priority) }))}"><span class="prio-dot prio-${t.priority}"></span></button>
                   <span class="pd-task-body">
                     <span class="pd-task-title"${titleAttrs(t.title)}>${titleHtml(t.title)}</span>
                     ${readMoreBtn(t.title)}
@@ -400,8 +404,17 @@ export function detailHtml(p: ProjectRow, d: Awaited<ReturnType<typeof loadDetai
     <h3>${trL(lang, 'Problems', 'مشکل‌ها')}</h3>
     <p class="muted small">${trL(lang, 'Bugs and blockers — the exact same items as the Problems box on the board. Solving one moves it to Done.', 'باگ و مانع — دقیقاً همان موارد جعبهٔ «مشکلات» روی برد. با حل‌شدن، به «انجام‌شده» می‌رود.')}</p>
     <ul class="hurdles" id="problems">${problemsList}</ul>
+    <!-- S30 batch 2 (user request): the bulk bug-add composer gets a PRIORITY picker —
+         the flow used to default every line to medium. One picker, applied to all the
+         lines in the batch (the per-task editor can still diverge them afterwards). -->
     <form class="row note-compose" data-problem-add>
       <textarea class="note-compose-text" name="text" rows="2" maxlength="5000" autocomplete="off" dir="${lang === 'fa' ? 'rtl' : 'auto'}" placeholder="${trL(lang, 'Type it and press Enter — each line becomes a problem in the board’s Problems box', 'بنویس و Enter بزن — هر خط یک مشکل می‌شود و خودکار در جعبهٔ «مشکلات» می‌نشیند')}"></textarea>
+      <select name="priority" class="pd-problem-prio pd-prio-select" aria-label="${trL(lang, 'Priority for the new problems', 'اولویت مشکلات جدید')}" title="${trL(lang, 'Priority for the new problems', 'اولویت مشکلات جدید')}">
+        <option class="prio-urgent" value="urgent">${prioLabel('urgent')}</option>
+        <option class="prio-high" value="high">${prioLabel('high')}</option>
+        <option class="prio-medium" value="medium" selected>${prioLabel('medium')}</option>
+        <option class="prio-low" value="low">${prioLabel('low')}</option>
+      </select>
       <button type="submit" class="ghost" aria-label="${trL(lang, 'Add problem', 'افزودن مشکل')}">${icon('plus')}</button>
     </form>
   </section>

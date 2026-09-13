@@ -507,6 +507,11 @@ window.__hibanaDictEN = {
       'cmdk.noResults': 'No matches.',
       // 0040 search depth: result-group headers + canvas element type labels + quadrant names.
       'cmdk.notes': 'Notes',
+      // S30 batch 2: the board filter bar + priority cycling
+      'db.filterAria': 'Filter tasks', 'db.filterPrio': 'Priority', 'db.filterLabels': 'Labels',
+      'db.filterPrioHint': 'Show only {p} tasks', 'db.filterTagHint': 'Click to filter by this label',
+      'db.filterClear': 'Clear filter', 'db.filterShown': '{n} of {m} shown',
+      'db.cyclePrio': 'Priority: {p} — click to change',
       'cmdk.tasks': 'Tasks',
       'cmdk.backlog': 'Upcoming Plan',
       'cmdk.sadhana': 'To-Do',

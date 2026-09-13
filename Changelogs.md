@@ -9,6 +9,46 @@
 > rewritten as a minimal pointer. Deleted files remain recoverable verbatim:
 > `git show <sha>:<file>`.
 
+## 1. Current state (v0.3.12.28 — Session 30 batch 2: board UX — filters, translations, truthful exports, dot-cycling)
+- **(a) The FILTER BAR (owner request)**: "a filter bar on board.html + project page (e.g.
+  show only 🔴 urgent × #Security)". board.html renders a priority × label toggle row
+  above the columns (each group OR within itself, AND across groups; empty selection =
+  show all; clear chip + "{n} of {m} shown" hint; column counts follow the filter); the
+  project page's board preview gets the TWIN — client-built into the server-mounted
+  [data-pd-filter] div from the /api/projects/:id truth payload (the DOM renders only
+  5/column so the label list can't come from markup), built on htmx:afterSwap (the page
+  boots with an empty #project-body), filtering hides .pd-task-wrap in place so the
+  server markup survives; insertTaskChip + the more-link expansion respect the active
+  filter. Clicking a CARD's label chip toggles that label's filter (GitHub behavior) on
+  both surfaces.
+- **(b) Translated priority labels**: board cards' prio-dot title was the raw "urgent"
+  string — now B().prioLabel (db.pr.* keys) + the cycle hint; the sprint circles' dot
+  gained its own title/aria-label, and the parent dot title appends " · prioLabel".
+- **(c) MD export/copy carries priority + labels**: "- [URGENT] Fix auth leak #UI/UX
+  #Security" (the owner's own format) via mdTaskLine (devboard.js, shared by both
+  surfaces): title whitespace collapses to one space (multi-line titles stay one
+  bullet), label spaces hyphenate GitHub-style. The board's export also stopped reading
+  the DOM (which the filter now filters!) — it reads the loaded state; the project
+  page's pdColItems went rich ({title, priority, tagNames} via the devTaskTags join).
+- **(d) Click the dot = cycle priority**: the prio-dot became a TRANSPARENT 24px
+  hit-area button (.prio-dot-btn, devboard.css) wrapping the unchanged 9px .prio-dot
+  span — zero specificity fights with the !important .pd-task/.db-card color rules.
+  low → medium → high → urgent → low; optimistic DOM update (dataset + dot + meta +
+  re-sort via pdSortWrap) + PATCH; the card-open handlers guard on the dot + label
+  chips so the editor never opens from them.
+- **(e) Problems-box composer priority picker**: the bulk bug-add flow (Problems tab,
+  one line = one task) defaulted everything to medium — now a class-coded <select>
+  (Urgent/High/Medium/Low, trL'd) rides the whole batch.
+- 9 i18n keys EN+FA (db.filter*/db.cyclePrio; 969→977). Bumps: devboard.js v11→12,
+  board-page.js v1→2, sprint-page.js v1→2, project-page.js v4→5, i18n-en v9→10 +
+  i18n-fa v9→10 (dynamic ref in i18n.js v66→67), devboard.css v2→3 (filter bar +
+  .prio-dot-btn + click affordances). Tests: +2 E2E (board-filters.spec.ts — filter
+  matrix + dot cycle + persistence + clipboard-carried MD line + problems picker),
+  40 e2e total. Ladder: typecheck 0 · vitest 340/340 · Playwright 40/40 · smoke ALL
+  PASS · i18n 977/977 · cache-bust PASS. Browser-verified live (FA + EN): filter
+  toggles, chip-click filter, dot-cycle with server persistence, MD line format,
+  problems picker options فوری/اولویت بالا/…
+
 ## 1. Current state (v0.3.12.27 — Session 30: manual progress box REMOVED + the B-fixes (B1–B4))
 - **(a) Removal (owner request, verbatim)**: "Remove the whole thing and its function,
   i dont want this: `<div class="pd-progress" …slider/milestone chips/Auto/note…>`".

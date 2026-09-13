@@ -612,6 +612,162 @@
           const label = chip.querySelector('.pd-prio-chip-label')
           if (label) label.textContent = pdPrioLabel(prio)
         }
+        // --- S30 batch 2 (user request): the board-preview FILTER BAR (priority × labels) ---
+        // Twin of board.html's db-filter, adapted to the server-rendered preview: the
+        // bar is client-built into [data-pd-filter] (the server mounts an empty div)
+        // from the TRUTH payload (GET /api/projects/:id — the DOM renders only 5 per
+        // column, so the label list cannot come from markup), and filtering HIDES wraps
+        // in place instead of re-rendering — the htmx-swapped server markup survives.
+        // Clicking a card's label chip toggles the same filter (GitHub behavior); the
+        // priority DOT cycles priority without opening the editor.
+        const pdFilterPrios = new Set()
+        const pdFilterTags = new Set()
+        let pdFilterKnown = [] // [{name, color}] — distinct labels across the project
+        const pdTaskTagNames = (wrap) => {
+          try {
+            return (JSON.parse(wrap.dataset.pdTags || '[]') || []).map((tg) => String((tg && tg.name) || '').toLowerCase()).filter(Boolean)
+          } catch { return [] }
+        }
+        const pdFilterMatches = (wrap) => {
+          if (pdFilterPrios.size && !pdFilterPrios.has(wrap.dataset.pdPriority || 'medium')) return false
+          if (pdFilterTags.size) {
+            const names = pdTaskTagNames(wrap)
+            if (!names.some((n) => pdFilterTags.has(n))) return false
+          }
+          return true
+        }
+        const pdFilterApply = () => {
+          let shown = 0
+          const wraps = document.querySelectorAll('.pd-task-wrap')
+          wraps.forEach((w) => { const ok = pdFilterMatches(w); w.hidden = !ok; if (ok) shown++ })
+          document.querySelectorAll('[data-pd-filter] [data-fp]').forEach((b) => {
+            b.setAttribute('aria-pressed', pdFilterPrios.has(b.dataset.fp) ? 'true' : 'false')
+            b.classList.toggle('is-on', pdFilterPrios.has(b.dataset.fp))
+          })
+          document.querySelectorAll('[data-pd-filter] [data-ft]').forEach((b) => {
+            b.setAttribute('aria-pressed', pdFilterTags.has(b.dataset.ft) ? 'true' : 'false')
+            b.classList.toggle('is-on', pdFilterTags.has(b.dataset.ft))
+          })
+          const any = pdFilterPrios.size > 0 || pdFilterTags.size > 0
+          const clearBtn = document.querySelector('[data-pd-filter-clear]')
+          if (clearBtn) clearBtn.hidden = !any
+          const hint = document.querySelector('[data-pd-filter-shown]')
+          if (hint) {
+            hint.hidden = !any
+            hint.textContent = _t('db.filterShown', '{n} of {m} shown').replace('{n}', pdDig(shown)).replace('{m}', pdDig(wraps.length))
+          }
+        }
+        const pdFilterBuild = async () => {
+          const bar = document.querySelector('[data-pd-filter]')
+          const grid = document.querySelector('.pd-board-grid')
+          if (!bar || !grid) return
+          if (bar.childElementCount) return // already built (idempotent)
+          // label truth from the API (once — the bar re-renders from pdFilterKnown)
+          try {
+            const res = await fetch('/api/projects/' + id)
+            if (res.ok) {
+              const data = await res.json()
+              const rows = (data.project ? data.project.devTaskTags : data.devTaskTags) || []
+              const seen = new Set()
+              pdFilterKnown = []
+              for (const r of rows) {
+                const k = String(r.name || '').toLowerCase()
+                if (k && !seen.has(k)) { seen.add(k); pdFilterKnown.push({ name: r.name, color: r.color }) }
+              }
+              pdFilterKnown.sort((a, b) => String(a.name).localeCompare(String(b.name)))
+            }
+          } catch { /* offline — the bar still renders with the priority toggles */ }
+          const prioBtn = (p) => '<button type="button" class="chip db-filter-prio prio-' + p + '" data-fp="' + p + '" aria-pressed="false" title="' + pdEsc(_t('db.filterPrioHint', 'Show only {p} tasks').replace('{p}', pdPrioLabel(p))) + '"><span class="prio-dot prio-' + p + '"></span>' + pdEsc(pdPrioLabel(p)) + '</button>'
+          bar.innerHTML =
+            '<span class="db-filter-label muted small">' + pdEsc(_t('db.filterPrio', 'Priority')) + '</span>' +
+            ['urgent', 'high', 'medium', 'low'].map(prioBtn).join('') +
+            (pdFilterKnown.length
+              ? '<span class="db-filter-label muted small">' + pdEsc(_t('db.filterLabels', 'Labels')) + '</span>' +
+                pdFilterKnown.map((tg) =>
+                  '<button type="button" class="chip db-filter-tag" data-ft="' + pdEsc(String(tg.name).toLowerCase()) + '" style="color:' + pdEsc(tg.color || '#8AB8F0') + '" aria-pressed="false" title="' + pdEsc(_t('db.filterTagHint', 'Click to filter by this label')) + '"><span style="color:' + pdEsc(tg.color || '#8AB8F0') + '">●</span> ' + pdEsc(tg.name) + '</button>'
+                ).join('')
+              : '') +
+            '<button type="button" class="chip db-filter-clear" data-pd-filter-clear hidden>✕ ' + pdEsc(_t('db.filterClear', 'Clear filter')) + '</button>' +
+            '<span class="muted small db-filter-shown" data-pd-filter-shown hidden></span>'
+          bar.hidden = false
+          // re-sync pressed states + the hidden wraps (a fresh server render came in)
+          pdFilterApply()
+        }
+        // filter-bar toggles (delegated — the bar is rebuilt on every htmx swap of
+        // #project-body, so no cached refs; the sets survive because they live here).
+        ctx.on('click', (e) => {
+          const fp = e.target.closest('[data-pd-filter] [data-fp]')
+          if (fp) {
+            e.preventDefault()
+            const v = fp.dataset.fp
+            if (pdFilterPrios.has(v)) pdFilterPrios.delete(v); else pdFilterPrios.add(v)
+            pdFilterApply()
+            return
+          }
+          const ft = e.target.closest('[data-pd-filter] [data-ft]')
+          if (ft) {
+            e.preventDefault()
+            const v = ft.dataset.ft
+            if (pdFilterTags.has(v)) pdFilterTags.delete(v); else pdFilterTags.add(v)
+            pdFilterApply()
+            return
+          }
+          if (e.target.closest('[data-pd-filter-clear]')) {
+            e.preventDefault()
+            pdFilterPrios.clear(); pdFilterTags.clear()
+            pdFilterApply()
+            return
+          }
+          // a card's label chip toggles the same label filter (GitHub behavior)
+          const tagChip = e.target.closest('.pd-task .pd-tag[data-pd-tag-name]')
+          if (tagChip) {
+            e.preventDefault()
+            const v = String(tagChip.dataset.pdTagName || '').toLowerCase()
+            if (!v) return
+            if (pdFilterTags.has(v)) pdFilterTags.delete(v); else pdFilterTags.add(v)
+            pdFilterApply()
+            return
+          }
+          // the prio-dot: cycle low → medium → high → urgent WITHOUT opening the editor
+          const cycleDot = e.target.closest('[data-pd-cycle-prio]')
+          if (cycleDot) {
+            e.preventDefault()
+            const wrap = cycleDot.closest('.pd-task-wrap')
+            const tid = wrap && wrap.dataset.pdTask
+            if (!wrap || !tid) return
+            const order = ['low', 'medium', 'high', 'urgent']
+            const cur = wrap.dataset.pdPriority || 'medium'
+            const next = order[(order.indexOf(cur) + 1 + order.length) % order.length] || 'medium'
+            wrap.dataset.pdPriority = next
+            const dot = wrap.querySelector('.prio-dot')
+            if (dot) dot.className = 'prio-dot prio-' + next
+            const btn = wrap.querySelector('[data-pd-cycle-prio]')
+            if (btn) {
+              const hint = _t('db.cyclePrio', 'Priority: {p} — click to change').replace('{p}', pdPrioLabel(next))
+              btn.setAttribute('title', hint)
+              btn.setAttribute('aria-label', hint)
+            }
+            const meta = wrap.querySelector('.pd-meta-prio')
+            if (meta) { meta.className = 'pd-meta-prio prio-' + next; meta.textContent = pdPrioLabel(next) }
+            const col = wrap.closest('[data-pd-tasks]')
+            if (col) pdSortWrap(col, wrap)
+            fetch('/api/devtasks/' + tid, {
+              method: 'PATCH',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ priority: next }),
+            }).catch(() => {
+              window.hibana?.toast(_t('sparks.saveFailed', "Couldn't save"), 'err')
+              location.reload()
+            })
+          }
+        })
+        // Build the bar once the body is here — the page boots with an EMPTY
+        // #project-body (hx-get on load), so the first build lands on htmx:afterSwap;
+        // every later swap re-renders the server markup (the bar div comes back empty)
+        // and the rebuild restores the toggles from the LIVE filter sets.
+        ctx.on('htmx:afterSwap', () => { pdFilterBuild() })
+        pdFilterBuild()
+
         // AUTO-SORT placement (user request): a wrap sits BEFORE the first card whose
         // priority ranks below it (equal ranks keep arrival/drag order).
         const pdSortWrap = (colTasks, wrap) => {
@@ -752,7 +908,7 @@
           // opens the inline editor everywhere; the old <a href="/board.html"> made
           // freshly-added tasks navigate instead. Title clamped at 150 chars with the
           // hidden rest + read-more button.
-          wrap.innerHTML = `<div class="pd-task st-${status}" draggable="true" role="button" tabindex="0" aria-label="${pdEsc(task.title)}"><span class="prio-dot prio-${pdEsc(prio)}" title="${pdEsc(pdPrioLabel(prio))}"></span><span class="pd-task-body"><span class="pd-task-title"${pdTitleAttrs(task.title)}>${pdTitleHtml(task.title)}</span>${pdReadMoreBtn(task.title)}${pdTagChipsHtml(tags)}<span class="pd-task-meta">${pdMetaHtml(prio, wrap.dataset.pdCreated, false)}</span></span></div>`
+          wrap.innerHTML = `<div class="pd-task st-${status}" draggable="true" role="button" tabindex="0" aria-label="${pdEsc(task.title)}"><button type="button" class="prio-dot-btn" data-pd-cycle-prio title="${pdEsc(_t('db.cyclePrio', 'Priority: {p} — click to change').replace('{p}', pdPrioLabel(prio)))}" aria-label="${pdEsc(_t('db.cyclePrio', 'Priority: {p} — click to change').replace('{p}', pdPrioLabel(prio)))}"><span class="prio-dot prio-${pdEsc(prio)}"></span></button><span class="pd-task-body"><span class="pd-task-title"${pdTitleAttrs(task.title)}>${pdTitleHtml(task.title)}</span>${pdReadMoreBtn(task.title)}${pdTagChipsHtml(tags)}<span class="pd-task-meta">${pdMetaHtml(prio, wrap.dataset.pdCreated, false)}</span></span></div>`
 
           // AUTO-SORT (user request 2026-09-12): the card lands BEFORE the first card
           // whose priority ranks below it — urgent tasks jump to the top of their box.
@@ -787,6 +943,10 @@
               colTasks.appendChild(el)
             }
           }
+
+          // S30 batch 2: an active filter applies to the newcomer too (a hidden card
+          // beats a filter-breaking one).
+          pdFilterApply()
 
           // Header meta + progress bar (data hooks come from detailHtml).
           const board = document.getElementById('pd-board')
@@ -869,6 +1029,9 @@
           if (e.target.closest('.spark-menu, .spark-menu-pop, [data-menu-open]')) return
           // Don't open the editor when the read-more button was clicked
           if (e.target.closest('[data-task-read-more]')) return
+          // S30 batch 2: the prio-dot (cycle priority) + label chips (filter) are their
+          // own actions — never open the editor from them.
+          if (e.target.closest('[data-pd-cycle-prio], .pd-tag')) return
           const wrap = task.closest('.pd-task-wrap')
           if (!wrap) return
           const tid = wrap.dataset.pdTask
@@ -927,7 +1090,7 @@
                 wrap.dataset.pdPriority = tp
                 wrap.dataset.pdTags = JSON.stringify(tt)
                 // Session 22: div + role=button + 150-char clamp — same as insertTaskChip.
-                wrap.innerHTML = `<div class="pd-task st-${status}" draggable="true" role="button" tabindex="0" aria-label="${pdEsc(t.title)}"><span class="prio-dot prio-${pdEsc(tp)}" title="${pdEsc(pdPrioLabel(tp))}"></span><span class="pd-task-body"><span class="pd-task-title"${pdTitleAttrs(t.title)}>${pdTitleHtml(t.title)}</span>${pdReadMoreBtn(t.title)}${pdTagChipsHtml(tt)}<span class="pd-task-meta">${pdMetaHtml(tp, t.created_at, status === 'done')}</span></span></div>`
+                wrap.innerHTML = `<div class="pd-task st-${status}" draggable="true" role="button" tabindex="0" aria-label="${pdEsc(t.title)}"><button type="button" class="prio-dot-btn" data-pd-cycle-prio title="${pdEsc(_t('db.cyclePrio', 'Priority: {p} — click to change').replace('{p}', pdPrioLabel(tp)))}" aria-label="${pdEsc(_t('db.cyclePrio', 'Priority: {p} — click to change').replace('{p}', pdPrioLabel(tp)))}"><span class="prio-dot prio-${pdEsc(tp)}"></span></button><span class="pd-task-body"><span class="pd-task-title"${pdTitleAttrs(t.title)}>${pdTitleHtml(t.title)}</span>${pdReadMoreBtn(t.title)}${pdTagChipsHtml(tt)}<span class="pd-task-meta">${pdMetaHtml(tp, t.created_at, status === 'done')}</span></span></div>`
                 tasksEl.insertBefore(wrap, moreBtn)
               }
               // Session 24 (root-cause fix): wire data-magic + ⋯ menu on the newly
@@ -937,6 +1100,8 @@
               injectPdTaskMenus()
               moreBtn.textContent = _t('pd.showLess', 'show less')
               tasksEl.dataset.expanded = '1'
+              // S30 batch 2: the expanded wraps respect the active filter.
+              pdFilterApply()
             } catch { /* fetch failed — keep the more button as-is */ }
           }
         })
@@ -1533,6 +1698,10 @@
           if (!form) return
           e.preventDefault()
           const ta = form.querySelector('textarea[name=text]')
+          // S30 batch 2: the composer's priority picker rides the whole batch (was a
+          // hard medium default — "the bulk bug-add flow still defaults everything to
+          // medium", the owner's words).
+          const problemPrio = form.querySelector('select[name=priority]')?.value || 'medium'
           const lines = ta.value.split(/\r?\n+/).map((s) => s.trim()).filter(Boolean).slice(0, 50)
           if (!lines.length) { ta.focus(); return }
           ta.disabled = true
@@ -1542,11 +1711,11 @@
               const res = await fetch(`/api/projects/${id}/devtasks`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ title: line, status: 'bug' }),
+                body: JSON.stringify({ title: line, status: 'bug', priority: problemPrio }),
               })
               if (!res.ok) throw new Error('add failed')
               const data = await res.json()
-              insertTaskChip('bug', { id: data.id, title: line, priority: 'medium' })
+              insertTaskChip('bug', { id: data.id, title: line, priority: problemPrio })
               if (list) {
                 const empty = list.querySelector('li.muted')
                 if (empty) empty.remove()
@@ -2111,24 +2280,38 @@
         // span. Reading from the DOM (even textContent) was unreliable for users seeing
         // truncation at the "read more" boundary. The API returns t.title = the FULL
         // untruncated title from the database. No DOM paths — bulletproof.
+        // S30 batch 2: the items are now RICH ({title, priority, tagNames}) — the export
+        // carries priority + labels ("- [URGENT] Fix auth leak #UI/UX #Security", the
+        // owner's own format); the devTaskTags flat join resolves the names.
         const pdColItems = async (status) => {
           const res = await fetch('/api/projects/' + id)
           if (!res.ok) return []
           const data = await res.json()
           const allTasks = ((data.project ? data.project.devTasks : data.devTasks) || [])
             .filter((t) => t.status === status)
-          return allTasks.map((t) => (t.title || '').trim()).filter(Boolean)
+          const tagRows = (data.project ? data.project.devTaskTags : data.devTaskTags) || []
+          const tagsBy = {}
+          for (const r of tagRows) (tagsBy[r.task_id] = tagsBy[r.task_id] || []).push(r.name)
+          return allTasks
+            .map((t) => ({ title: (t.title || '').trim(), priority: t.priority || 'medium', tagNames: tagsBy[t.id] || [] }))
+            .filter((x) => x.title)
+        }
+        const pdMdLine = (item) => {
+          const tags = (item.tagNames || [])
+            .map((n) => '#' + String(n || '').trim().replace(/\s+/g, '-'))
+            .filter((n) => n.length > 1)
+          return '- [' + String(item.priority || 'medium').toUpperCase() + '] ' + item.title.replace(/\s+/g, ' ') + (tags.length ? ' ' + tags.join(' ') : '')
         }
         const pdColToMarkdown = async (status) => {
           const label = pdColLabel(status)
           const items = await pdColItems(status)
           const heading = '# ' + label + '\n'
           if (!items.length) return heading + '\n_(No items)_\n'
-          return heading + '\n' + items.map((t) => '- ' + t).join('\n') + '\n'
+          return heading + '\n' + items.map(pdMdLine).join('\n') + '\n'
         }
         const pdColToBullets = async (status) => {
           const items = await pdColItems(status)
-          return items.length ? items.map((t) => '- ' + t).join('\n') : ''
+          return items.length ? items.map(pdMdLine).join('\n') : ''
         }
         ctx.on('click', async (e) => {
           const copy = e.target.closest('[data-pd-copy]')

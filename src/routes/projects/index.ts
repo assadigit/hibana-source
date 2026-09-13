@@ -116,7 +116,7 @@ export function projectsRoutes(cfg: Config) {
       }
       if (activeStatus === 'spark') {
         const folderRows = await cfg.db.query<SparkFolderRow & { n: number }>(
-          `SELECT f.id, f.name, (SELECT COUNT(*) FROM projects p WHERE p.folder_id = f.id AND p.user_id = ? AND p.deleted_at IS NULL AND p.status = 'spark' AND (p.archived_state IS NULL OR p.archived_state != 'offline')) AS n
+          `SELECT f.id, f.name, f.icon, (SELECT COUNT(*) FROM projects p WHERE p.folder_id = f.id AND p.user_id = ? AND p.deleted_at IS NULL AND p.status = 'spark' AND (p.archived_state IS NULL OR p.archived_state != 'offline')) AS n
            FROM spark_folders f WHERE f.user_id = ? ORDER BY f.sort_order, f.created_at`,
           [user.id, user.id],
         )
@@ -143,14 +143,14 @@ export function projectsRoutes(cfg: Config) {
         } else if (folderParam === 'all') {
           // "All ideas" explicitly — the flat list + the breadcrumb bar, and an honest
           // empty state when there are no sparks at all (never silently back to the grid).
-          fragment = sparkFolderBar(folderRows, unfiled, 'all', lang) + (projects.length === 0 ? sparkFolderEmptyHtml('all', null, folderRows, lang) : fragment)
+          fragment = sparkFolderBar(folderRows, unfiled, 'all', lang) + (projects.length === 0 ? sparkFolderEmptyHtml('all', null, null, folderRows, lang) : fragment)
         } else if (folderParam === 'none') {
-          fragment = sparkFolderBar(folderRows, unfiled, 'none', lang) + (projects.length === 0 ? sparkFolderEmptyHtml('none', null, folderRows, lang) : fragment)
+          fragment = sparkFolderBar(folderRows, unfiled, 'none', lang) + (projects.length === 0 ? sparkFolderEmptyHtml('none', null, null, folderRows, lang) : fragment)
         } else {
           // A specific folder IS selected — the breadcrumb bar + the filtered list; an
           // empty folder gets its own capture-into-me empty state instead of the grid.
           const folder = folderRows.find((f) => f.id === folderParam)
-          fragment = sparkFolderBar(folderRows, unfiled, folderParam, lang) + (projects.length === 0 ? sparkFolderEmptyHtml('folder', folder?.name ?? '', folderRows, lang) : fragment)
+          fragment = sparkFolderBar(folderRows, unfiled, folderParam, lang) + (projects.length === 0 ? sparkFolderEmptyHtml('folder', folder?.name ?? '', folder?.icon ?? null, folderRows, lang) : fragment)
         }
       }
       return await etag(c, c.html(fragment))
@@ -241,7 +241,7 @@ export function projectsRoutes(cfg: Config) {
   app.get('/sparks/folders', async (c) => {
     const user = c.get('user')
     const folders = await cfg.db.query<SparkFolderRow & { n: number }>(
-      `SELECT f.id, f.name, f.sort_order, f.created_at,
+      `SELECT f.id, f.name, f.icon, f.sort_order, f.created_at,
               (SELECT COUNT(*) FROM projects p WHERE p.folder_id = f.id AND p.user_id = ? AND p.deleted_at IS NULL AND p.status = 'spark') AS n
        FROM spark_folders f WHERE f.user_id = ? ORDER BY f.sort_order, f.created_at`,
       [user.id, user.id],
@@ -256,20 +256,26 @@ export function projectsRoutes(cfg: Config) {
     const now = new Date().toISOString()
     const id = uuid()
     const max = await cfg.db.query<{ m: number }>('SELECT COALESCE(MAX(sort_order), -1) AS m FROM spark_folders WHERE user_id = ?', [user.id])
+    // S41: icon rides the insert (emoji-only, schema-validated; NULL = folder-plus glyph)
     await cfg.db.execute(
-      'INSERT INTO spark_folders (id, user_id, name, sort_order, created_at) VALUES (?, ?, ?, ?, ?)',
-      [id, user.id, body.name, (max[0]?.m ?? -1) + 1, now],
+      'INSERT INTO spark_folders (id, user_id, name, icon, sort_order, created_at) VALUES (?, ?, ?, ?, ?, ?)',
+      [id, user.id, body.name, body.icon ?? null, (max[0]?.m ?? -1) + 1, now],
     )
-    return c.json({ folder: { id, name: body.name, n: 0 } }, 201)
+    return c.json({ folder: { id, name: body.name, icon: body.icon ?? null, n: 0 } }, 201)
   })
 
   app.patch('/sparks/folders/:id', async (c) => {
     const body = await jsonBody<z.infer<typeof sparkFolderSchema>>(c, sparkFolderSchema)
     if (!body) return c.json({ error: 'invalid_input' }, 400)
     const user = c.get('user')
-    const res = await cfg.db.execute('UPDATE spark_folders SET name = ? WHERE id = ? AND user_id = ?', [
-      body.name, c.req.param('id'), user.id,
-    ])
+    // S41 icon PATCH semantics: undefined = keep the current icon, null = clear it,
+    // string = set it. The column list is built from `icon`'s presence so a
+    // rename-only PATCH never touches the emoji.
+    const setIcon = body.icon !== undefined
+    const res = await cfg.db.execute(
+      `UPDATE spark_folders SET name = ?${setIcon ? ', icon = ?' : ''} WHERE id = ? AND user_id = ?`,
+      setIcon ? [body.name, body.icon, c.req.param('id'), user.id] : [body.name, c.req.param('id'), user.id],
+    )
     if (!res.changes) return c.json({ error: 'not_found' }, 404)
     return c.json({ ok: true })
   })

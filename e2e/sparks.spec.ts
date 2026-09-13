@@ -214,3 +214,119 @@ test('sparks: the open folder survives a reload (S40 inline stamp + persisted pr
   expect(folderVal).toBe(FOLDER_FILLED.id)
   expect(errors).toEqual([])
 })
+
+// ---- S41: folder EMOJI icons + the mobile layout ---------------------------------
+
+test('sparks: a folder born through the dialog carries its picked emoji (S41)', async ({ page, browserName }) => {
+  test.skip(browserName !== 'chromium', 'Desktop Chromium only')
+  const errors = trackErrors(page)
+  await login(page)
+  await openSparks(page)
+
+  // Open the New-folder card's dialog, then the emoji picker from its preview button.
+  await page.click('.spark-folder-new')
+  await page.waitForSelector('#spark-folder-dialog', { state: 'visible', timeout: 5_000 })
+  await page.click('#sf-icon-btn')
+  await page.waitForSelector('.emoji-pop.open', { timeout: 5_000 })
+
+  // Search + pick the rocket.
+  await page.fill('#emoji-pop-q', 'rocket')
+  await page.click('.emoji-pop-em')
+  // The picker closes itself; the preview carries the pick; the clear affordance shows.
+  await expect(page.locator('.emoji-pop.open')).toHaveCount(0)
+  await expect(page.locator('#sf-icon-preview')).toHaveText('🚀')
+  await expect(page.locator('#sf-icon-clear')).toBeVisible()
+
+  await page.fill('#sf-name', 'e2e emoji folder')
+  await page.click('#sf-save')
+  await page.waitForTimeout(600) // toast + shelf refetch
+
+  // The grid card renders the emoji (not the folder-plus glyph) and stamps data-sf-icon.
+  const card = page.locator('.spark-folder-card', { hasText: 'e2e emoji folder' })
+  await expect(card).toHaveCount(1)
+  await expect(card.locator('.spark-folder-emoji')).toHaveText('🚀')
+  await expect(card).toHaveAttribute('data-sf-icon', '🚀')
+
+  // Durable server-side truth: the folders API returns the icon.
+  const icon = await page.evaluate(async () => {
+    const res = await fetch('/api/projects/sparks/folders')
+    const body = await res.json()
+    const f = body.folders.find((x) => x.name === 'e2e emoji folder')
+    return f ? f.icon : null
+  })
+  expect(icon).toBe('🚀')
+  expect(errors).toEqual([])
+})
+
+test('sparks: rename prefills the emoji and clearing it restores the glyph (S41)', async ({ page, browserName }) => {
+  test.skip(browserName !== 'chromium', 'Desktop Chromium only')
+  const errors = trackErrors(page)
+  await login(page)
+  await openSparks(page)
+
+  // The folder from the prior test (name-unique; if this run is standalone the prior
+  // test created it) — create it if missing so the test is order-independent.
+  const hasFolder = await page.evaluate(async () => {
+    const res = await fetch('/api/projects/sparks/folders')
+    const body = await res.json()
+    return body.folders.some((x) => x.name === 'e2e emoji folder')
+  })
+  if (!hasFolder) {
+    await page.evaluate(async () => {
+      await fetch('/api/projects/sparks/folders', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: 'e2e emoji folder', icon: '🚀' }),
+      })
+    })
+    await page.reload()
+    await openSparks(page)
+  }
+
+  // ⋯ menu → rename: the dialog prefills BOTH the name and the emoji.
+  const card = page.locator('.spark-folder-card', { hasText: 'e2e emoji folder' })
+  await card.locator('.spark-folder-menu').click()
+  await page.click('#spark-shelf .sf-menu [data-sf-rename]')
+  await page.waitForSelector('#spark-folder-dialog', { state: 'visible', timeout: 5_000 })
+  await expect(page.locator('#sf-name')).toHaveValue('e2e emoji folder')
+  await expect(page.locator('#sf-icon-preview')).toHaveText('🚀')
+
+  // Clear → save: the PATCH sends icon:null; the card returns to the folder-plus glyph.
+  await page.click('#sf-icon-clear')
+  await expect(page.locator('#sf-icon-preview')).toHaveText('📁')
+  await page.click('#sf-save')
+  await page.waitForTimeout(600)
+  const cardAfter = page.locator('.spark-folder-card', { hasText: 'e2e emoji folder' })
+  await expect(cardAfter.locator('.spark-folder-emoji')).toHaveCount(0)
+  await expect(cardAfter.locator('.spark-folder-icon .icon')).toHaveCount(1)
+  await expect(cardAfter).toHaveAttribute('data-sf-icon', '')
+  expect(errors).toEqual([])
+})
+
+test('sparks: mobile — two-up folder grid + the bar home chip exits to it (S41)', async ({ page, browserName }) => {
+  test.skip(browserName !== 'chromium', 'Desktop Chromium only')
+  const errors = trackErrors(page)
+  await page.setViewportSize({ width: 390, height: 844 })
+  await login(page)
+  await openSparks(page)
+
+  // Two-up: every grid card is ~half the 390px viewport (≤ 200px), never full-width.
+  const widths = await page.$$eval('.spark-folder-card', (els) => els.map((el) => Math.round(el.getBoundingClientRect().width)))
+  expect(widths.length).toBeGreaterThanOrEqual(4)
+  for (const w of widths) expect(w).toBeLessThanOrEqual(200)
+  // No horizontal scroll at 390px.
+  const hscroll = await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth)
+  expect(hscroll).toBe(false)
+
+  // Enter a folder, then come HOME via the bar's «Folders» chip — the grid returns
+  // (previously there was NO in-session exit: «All» was the flat list, folders vanished).
+  await page.click(`.spark-folder-card[data-sf="${FOLDER_FILLED.id}"]`)
+  await page.waitForSelector('#spark-shelf .sf-bar', { timeout: 10_000 })
+  await expect(page.locator('#spark-shelf .sf-home')).toBeVisible()
+  await page.click('#spark-shelf .sf-home')
+  await page.waitForSelector('#spark-shelf .spark-folder-grid', { timeout: 10_000 })
+  await expect(page.locator('#spark-shelf .sf-bar')).toHaveCount(0)
+  // The folder context is cleared — a capture from here files to «All»/unfiled.
+  await expect(page.locator('#spark-folder')).toHaveValue('')
+  expect(errors).toEqual([])
+})

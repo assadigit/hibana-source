@@ -329,36 +329,52 @@ export function glanceStrip(counts: Map<string, number>, activeStatus: ProjectSt
 export function sparkEmptyHtml(lang: Locale): string {
   // Fix 2026-09-09 (Phase 6 deviation #6): the CTA now carries the bulb icon (the audit
   // flagged it as text-only). The icon rides inline-start of the label.
+  // S41 (user report: "doesn't show … adding a new folder"): the 0-folders-0-ideas boot
+  // state used to offer ONLY capture — a fresh account literally had no way to create
+  // its first folder. The New-folder CTA rides the same data-sf-new delegation as the
+  // grid's dashed card, so it opens the folder dialog (with the emoji picker).
   return `<div class="empty-state empty">
     <span class="empty-state-icon" aria-hidden="true">${icon('idea')}</span>
     <p class="empty-state-title">${trL(lang, 'No ideas yet!', 'هنوز ایده ای رو ثبت نکردی!')}</p>
     <p class="empty-state-text">${trL(lang, 'Capture your first idea — it stays safe here until the moment is right to pursue it.', 'اولین ایده‌ات را ثبت کن، اینجا امن می‌ماند تا وقتی برای فرصت کنی به آن بپردازی.')}</p>
-    <button type="button" class="empty-state-cta btn" data-quickadd-open>${icon('idea', 'icon')} ${trL(lang, 'Capture a new idea', 'ثبت ایده جدید')}</button>
+    <div class="empty-state-actions">
+      <button type="button" class="empty-state-cta btn" data-quickadd-open>${icon('idea', 'icon')} ${trL(lang, 'Capture a new idea', 'ثبت ایده جدید')}</button>
+      <button type="button" class="empty-state-cta btn ghost" data-sf-new>${icon('folder-plus', 'icon')} ${trL(lang, 'New folder', 'پوشهٔ جدید')}</button>
+    </div>
   </div>`
 }
 
 export function sparkKanbanHtml(projects: ProjectRow[], folders: (SparkFolderRow & { n: number })[], lang: Locale): string {
   const dig = (n: number) => (lang === 'fa' ? faDigits(String(n)) : String(n))
-  const col = (key: string, label: string, rows: ProjectRow[]) => `<div class="kanban-col" data-spark-folder="${key}">
-    <h4><span class="chip">${icon('folder-plus', 'icon')}</span> <span>${esc(label)}</span> <span class="muted small">${dig(rows.length)}</span></h4>
+  // S41: a folder with an emoji leads its column with the emoji (not folder-plus)
+  const col = (key: string, label: string, rows: ProjectRow[], glyph: string) => `<div class="kanban-col" data-spark-folder="${key}">
+    <h4><span class="chip">${glyph}</span> <span>${esc(label)}</span> <span class="muted small">${dig(rows.length)}</span></h4>
     ${rows.map((p) => `<div class="card kanban-card" draggable="true" data-project-id="${p.id}" data-nav-url="/project.html?id=${p.id}">
       <strong>${esc(p.title)}</strong>
       <div class="muted small">${timeAgo(p.updated_at, lang)}</div>
     </div>`).join('') || `<div class="kanban-empty">${trL(lang, 'Drop here', 'اینجا رها کن')}</div>`}
   </div>`
   const byFolder = (fid: string | null) => projects.filter((p) => (p.folder_id ?? null) === fid)
-  return `<div class="kanban">${folders.map((f) => col(f.id, f.name, byFolder(f.id))).join('')}${col('', trL(lang, 'No folder', 'بدون پوشه'), byFolder(null))}</div>`
+  return `<div class="kanban">${folders.map((f) => col(f.id, f.name, byFolder(f.id), f.icon ? esc(f.icon) : icon('folder-plus', 'icon'))).join('')}${col('', trL(lang, 'No folder', 'بدون پوشه'), byFolder(null), icon('folder-plus', 'icon'))}</div>`
 }
 
 export function sparkFolderBar(folders: (SparkFolderRow & { n: number })[], unfiled: number, activeFolder: string | undefined, lang: Locale): string {
   const dig = (n: number) => (lang === 'fa' ? faDigits(String(n)) : String(n))
   const chip = (key: string, label: string, count: number) => `<button type="button" class="sf-chip${activeFolder === key ? ' is-active' : ''}" data-sf="${key}"><span class="sf-label">${esc(label)}</span> <span class="sf-n">${dig(count)}</span></button>`
+  // S41: the HOME chip — «پوشه‌ها» rides first in the bar. Before it, a session that
+  // entered a folder could never return to the file-manager grid (the only other exit,
+  // «همه», is the flat all-ideas list — folders vanish from view; the owner's mobile
+  // report: "doesn't show already made folders"). data-sf="" rides the EXISTING
+  // delegation: input.value='' + pref cleared + a folder-less fetch = the grid home.
+  const homeChip = `<button type="button" class="sf-chip sf-home" data-sf="" title="${trL(lang, 'All folders', 'همهٔ پوشه‌ها')}">${icon('folder', 'icon')} <span class="sf-label">${trL(lang, 'Folders', 'پوشه‌ها')}</span></button>`
   // "All" chip: active when activeFolder is 'all' or '' (back-compat)
   const allActive = activeFolder === 'all' || activeFolder === '' ? ' is-active' : ''
-  const parts = [`<button type="button" class="sf-chip${allActive}" data-sf="all"><span class="sf-label">${trL(lang, 'All', 'همه')}</span> <span class="sf-n">${dig(unfiled + folders.reduce((a, f) => a + f.n, 0))}</span></button>`]
+  const parts = [homeChip, `<button type="button" class="sf-chip${allActive}" data-sf="all"><span class="sf-label">${trL(lang, 'All', 'همه')}</span> <span class="sf-n">${dig(unfiled + folders.reduce((a, f) => a + f.n, 0))}</span></button>`]
   for (const f of folders) {
+    // S41: the folder's emoji rides inline-start of the chip label (data-sf-icon feeds
+    // the rename dialog's prefill — same pattern as the grid card).
     parts.push(
-      `<span class="sf-item"><button type="button" class="sf-chip${activeFolder === f.id ? ' is-active' : ''}" data-sf="${f.id}" title="${esc(f.name)}"><span class="sf-label">${esc(f.name)}</span> <span class="sf-n">${dig(f.n)}</span></button><button type="button" class="sf-more" data-sf-menu="${f.id}" aria-label="${trL(lang, 'Folder actions', 'کارهای پوشه')}" title="${trL(lang, 'Folder actions', 'کارهای پوشه')}">${icon('more-h')}</button></span>`,
+      `<span class="sf-item" data-sf-icon="${esc(f.icon ?? '')}"><button type="button" class="sf-chip${activeFolder === f.id ? ' is-active' : ''}" data-sf="${f.id}" title="${esc(f.name)}">${f.icon ? `<span class="sf-emoji" aria-hidden="true">${esc(f.icon)}</span>` : ''}<span class="sf-label">${esc(f.name)}</span> <span class="sf-n">${dig(f.n)}</span></button><button type="button" class="sf-more" data-sf-menu="${f.id}" aria-label="${trL(lang, 'Folder actions', 'کارهای پوشه')}" title="${trL(lang, 'Folder actions', 'کارهای پوشه')}">${icon('more-h')}</button></span>`,
     )
   }
   if (folders.length > 0) parts.push(chip('none', trL(lang, 'No folder', 'بدون پوشه'), unfiled))
@@ -379,8 +395,8 @@ export function sparkFolderGrid(folders: (SparkFolderRow & { n: number })[], unf
     return sparkEmptyHtml(lang)
   }
   const cards = folders.map((f) =>
-    `<div class="spark-folder-card" data-sf="${f.id}" draggable="false">
-      <div class="spark-folder-icon">${icon('folder-plus')}</div>
+    `<div class="spark-folder-card" data-sf="${f.id}" data-sf-icon="${esc(f.icon ?? '')}" draggable="false">
+      <div class="spark-folder-icon">${f.icon ? `<span class="spark-folder-emoji" role="img" aria-label="${esc(f.name)}">${esc(f.icon)}</span>` : icon('folder-plus')}</div>
       <div class="spark-folder-name">${esc(f.name)}</div>
       <div class="spark-folder-count">${dig(f.n)} ${trL(lang, f.n === 1 ? 'idea' : 'ideas', f.n === 1 ? 'ایده' : 'ایده')}</div>
       <button type="button" class="ghost small spark-folder-menu" data-sf-menu="${f.id}" aria-label="${trL(lang, 'Folder actions', 'کارهای پوشه')}" title="${trL(lang, 'Folder actions', 'کارهای پوشه')}">${icon('more-h')}</button>
@@ -414,6 +430,7 @@ export function sparkFolderGrid(folders: (SparkFolderRow & { n: number })[], unf
 export function sparkFolderEmptyHtml(
   kind: 'folder' | 'none' | 'all',
   folderName: string | null,
+  folderIcon: string | null,
   folders: (SparkFolderRow & { n: number })[],
   lang: Locale,
 ): string {
@@ -425,13 +442,16 @@ export function sparkFolderEmptyHtml(
         : folders.length > 0
           ? trL(lang, 'No ideas yet — folders are ready and waiting.', 'هنوز ایده‌ای نیست — پوشه‌ها آماده‌اند.')
           : trL(lang, 'No ideas yet!', 'هنوز ایده‌ای نیست!')
-  const nameLine = kind === 'folder' && folderName ? `<p class="empty-state-title">${trL(lang, 'Folder', 'پوشه')}: ${esc(folderName)}</p>` : ''
+  const iconHtml = kind === 'folder' ? (folderIcon ? `<span aria-hidden="true">${esc(folderIcon)}</span>` : icon('folder-plus')) : icon('idea')
+  const nameLine = kind === 'folder' && folderName ? `<p class="empty-state-title">${folderIcon ? `<span aria-hidden="true">${esc(folderIcon)} </span>` : ''}${trL(lang, 'Folder', 'پوشه')}: ${esc(folderName)}</p>` : ''
   return `<div class="empty-state empty spark-folder-empty" data-spark-empty="${kind}">
-    <span class="empty-state-icon" aria-hidden="true">${icon(kind === 'folder' ? 'folder-plus' : 'idea')}</span>
+    <span class="empty-state-icon" aria-hidden="true">${iconHtml}</span>
     ${nameLine}
     <p class="empty-state-text">${where}</p>
     <p class="empty-state-text">${trL(lang, 'Capture an idea — it files into the open view and stays safe here.', 'یک ایده ثبت کن — در همین نمای باز ثبت می‌شود و اینجا امن می‌ماند.')}</p>
-    <button type="button" class="empty-state-cta btn" data-quickadd-open>${icon('idea', 'icon')} ${trL(lang, 'Capture a new idea', 'ثبت ایده جدید')}</button>
+    <div class="empty-state-actions">
+      <button type="button" class="empty-state-cta btn" data-quickadd-open>${icon('idea', 'icon')} ${trL(lang, 'Capture a new idea', 'ثبت ایده جدید')}</button>
+    </div>
   </div>`
 }
 

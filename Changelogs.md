@@ -9,7 +9,57 @@
 > rewritten as a minimal pointer. Deleted files remain recoverable verbatim:
 > `git show <sha>:<file>`.
 
-## 1. Current state (v0.3.12.41 — Session 40: Sparks page FULL AUDIT (empty-folder entry + «همهٔ ایده‌ها» + grid ⋯ menu + capture-keeps-context) + TEXT ALIGNMENT on both boards (0055); S39: media GALLERY + screenshots stuck to progress-box items; S38: screenshot storage LIVE on Cloudflare Workers KV — free, no card, never expires; S37: English-always chat rule)
+## 1. Current state (v0.3.12.42 — Session 41: Sparks MOBILE pass (two-up folder grid, touch menus, header stack) + folder EMOJI icons (0056) + the empty-state New-folder CTA + the bar's «پوشه‌ها» home chip; S40: Sparks page FULL AUDIT + TEXT ALIGNMENT (0055); S39: media GALLERY + screenshot pinning; S38: KV storage — never expires; S37: English-always chat rule)
+- **(S41) SPARKS MOBILE + FOLDER EMOJI ICONS (user: "the ui need modification. not good in
+  mobile. also doesnt show already made folders or adding a new folder, also users must be
+  able to choose emojies for their folder ideas icon" + a 390px phone screenshot)** —
+  diagnosed with the screenshot (VLM) + live geometry probes at 390px:
+  1. **Mobile layout**: the folder grid rendered ONE full-width 363×125 card per row
+     (auto-fill/minmax(11rem) misses the second column by ~2px — six full-width cards of
+     scroll before the first idea) → **two-up at ≤480px**; the folder cards' ⋯ menu was
+     hover-only (`opacity: 0` — invisible AND unreachable on touch; the S40 fix solved only
+     the click-delegation half) → **always visible under `@media (hover: none)`**; folder
+     chips were 29px tall (44px tap-target law) → **≥40px on coarse pointers**; the header
+     row now **stacks at ≤640px** (h1 / capture-button flex-1 + compact view select
+     side-by-side, «نمایش:» label goes sr-only). Kanban columns stack vertically at 390px
+     (pre-existing, kept); no horizontal scroll anywhere (geometry-probed + e2e-pinned).
+  2. **"Doesn't show already made folders"**: TWO real causes fixed. (a) The
+     0-folders-0-ideas boot state (exactly the screenshot's account state) offered ONLY
+     "capture an idea" — **no way to create the first folder at all**: the empty state now
+     carries a second CTA (New folder → the folder dialog, riding the existing `data-sf-new`
+     delegation). (b) Once a session entered ANY folder, **the folder grid was unreachable
+     in-session** («همه» = the flat all-ideas list, where folder cards vanish): the bar now
+     leads with a **«پوشه‌ها» home chip** (`data-sf=""` rides the existing delegation —
+     clears the hidden input + the localStorage pref + refetches folder-less = the grid
+     home). The owner's screenshot itself was a fresh/secondary account or a stale shell
+     (verified: prod renders the folder grid for his 3-folder account — S40's live probe);
+     if his phone still shows the old page, one hard refresh (the SW rotated to v340).
+  3. **Folder EMOJI icons (the feature ask)** — migration **0056** (`spark_folders.icon TEXT
+     NULL`, schema 54→55; the owner's message is the explicit written approval per rule 4):
+     folders carry a user-picked emoji on **grid cards, bar chips, kanban column headers,
+     the folder-empty state, and the move-to-folder dialog**; the create/rename dialog gets
+     an emoji preview button → the **shared `/js/emoji-picker.js`** (1100+ emojis, search,
+     recents — docks as a bottom sheet under 640px) + a **clear (✕)** action. PATCH
+     semantics: `icon` undefined = unchanged, `null` = cleared, emoji = set — a rename that
+     never opens the picker never touches the emoji. **Zod emoji-only regex**
+     (Extended_Pictographic / flags / skin tones / subdivision tags / ZWJ / VS16 — plain
+     text like `<script>` 400s; everything renders through `esc()` regardless).
+  4. **THE TOP-LAYER BUG (e2e-caught, fixed in emoji-picker.js v3)**: a picker opened from
+     inside a native `<dialog>` (showModal = the top layer) rendered BEHIND it — **no
+     z-index can ever beat the top layer**, so the sheet was visible-but-unclickable (real
+     pointer clicks landed on the dialog; my first manual pass used JS `.click()` which
+     bypasses hit-testing and masked it — Playwright's actionability check exposed it).
+     Fix: the picker **re-parents itself into the open dialog** (children ride its
+     top-layer slot; `position: fixed` still resolves to the viewport — `dialog.dialog`
+     has no transform/filter containing block; no dialog open → body, dashboard/sadhana
+     unchanged) + Escape now `preventDefault()`s so the sheet closes ALONE (the dialog's
+     cancel no longer double-fires) + a detached-root rebuild guard (sparks-page tears its
+     dialogs down on unmount, taking re-parented nodes with them).
+  - Bumps: sparks-page.js v3→4, emoji-picker.js v2→v3 (3 pages), dashboard.css v5→v6 (2
+    pages), i18n-en/fa v18→19 (23 pages) + i18n.js v74→75 (injects i18n-fa.js?v=19), sw
+    v339→**v340** (sparks.html SHELL rotate), package.json 0.3.12.42. +4 vitest (392),
+    +3 e2e (62). Bundle baseline updated (intentional S39→S41 growth, was tripping the
+    15% total gate).
 - **(S40) THE SPARKS AUDIT (user: "do a full audit of the sparks page — I can't enter a folder
   which I made and add an idea there; also نمایش همه ایده‌ها shows nothing")** — diagnosed
   against the LIVE prod D1 first (the owner's real state: 3 folders, ALL EMPTY; 7 sparks, ALL
@@ -2070,3 +2120,5 @@ must stay last). Restore is in-place and destructive: `npx wrangler d1 time-trav
 | 2026-09-13T15:19:40.953Z | pm-app-prod | 52 | 00000873-00000016-000050e5-02e8748cc82810285274657a5e7a2bc6 | pre-0054 bookmark (prod) — screenshot pin (task_id) + bytes |
 | 2026-09-13T16:26:48.557Z | pm-app-dev | 53 | 000004c7-00000000-000050e5-2fcbc2b70837fadc9961d40b621ec7ab | pre-0055 (S40 text alignment) bookmark |
 | 2026-09-13T16:26:52.740Z | pm-app-prod | 53 | 00000879-00000000-000050e5-7e5d6f08b551b06d304312aeef49ee19 | pre-0055 (S40 text alignment) bookmark |
+| 2026-09-13T17:17:08.393Z | pm-app-dev | 54 | 000004ca-00000000-000050e5-40331fcc0b2ba028bfad7efa9e5bc560 | pre-migration bookmark (dev) |
+| 2026-09-13T17:17:14.111Z | pm-app-prod | 54 | 0000087e-00000000-000050e5-447a2880744a5e041a4ddaf3f11b9e3c | pre-migration bookmark (prod) |

@@ -243,6 +243,12 @@
         // ---- Folders (batch s) — create / rename / delete / move-to-folder -----------
         // The folder BAR is server-rendered inside the shelf fragment (fresh counts on
         // every swap); these dialogs are lazily-built natives like the spark edit dialog.
+        // S41: the create/rename dialog carries the folder's EMOJI icon — a preview
+        // button that opens the shared emoji picker (window.hibanaEmojiPicker, which
+        // docks as a bottom sheet under 640px — mobile-first by design). Icon PATCH
+        // semantics mirror the server: only send `icon` when the user touched it
+        // (dirty flag); null = clear back to the folder-plus glyph.
+        const DEFAULT_FOLDER_ICON = '📁'
         let folderDlg = null
         let moveDlg = null
 
@@ -254,6 +260,10 @@
           dlg.innerHTML =
             '<form class="modal" id="sf-form" novalidate>' +
               '<h3 id="sf-title"></h3>' +
+              '<div class="sf-icon-row">' +
+                '<button type="button" id="sf-icon-btn" class="sf-icon-btn" aria-label="' + _t('sparks.folderIcon', 'Folder icon') + '" title="' + _t('sparks.folderIcon', 'Folder icon') + '"><span id="sf-icon-preview" aria-hidden="true">' + DEFAULT_FOLDER_ICON + '</span></button>' +
+                '<button type="button" class="ghost small" id="sf-icon-clear" hidden>✕ <span>' + _t('sparks.clearIcon', 'Remove icon') + '</span></button>' +
+              '</div>' +
               '<label>' + _t('sparks.folderName', 'Folder name') + ' <input id="sf-name" required maxlength="50" autocomplete="off"></label>' +
               '<p class="error" id="sf-error" role="alert"></p>' +
               '<div class="row">' +
@@ -263,6 +273,27 @@
             '</form>'
           document.body.appendChild(dlg)
           const close = () => dlg.close()
+          const preview = () => dlg.querySelector('#sf-icon-preview')
+          const clearBtn = () => dlg.querySelector('#sf-icon-clear')
+          const setIconState = (icon, dirty) => {
+            dlg.dataset.icon = icon || ''
+            dlg.dataset.iconDirty = dirty ? '1' : ''
+            preview().textContent = icon || DEFAULT_FOLDER_ICON
+            clearBtn().hidden = !icon
+          }
+          dlg.querySelector('#sf-icon-btn').addEventListener('click', () => {
+            const picker = window.hibanaEmojiPicker
+            if (!picker) {
+              window.hibana?.toast(_t('sparks.folderFailed', "Couldn't update the folder — try again"), 'err')
+              return
+            }
+            picker.open({
+              anchor: dlg.querySelector('#sf-icon-btn'),
+              current: dlg.dataset.icon || '',
+              onPick: (emoji) => setIconState(emoji, true),
+            })
+          })
+          clearBtn().addEventListener('click', () => setIconState('', true))
           dlg.addEventListener('cancel', (e) => { e.preventDefault(); close() })
           dlg.addEventListener('click', (e) => { if (e.target === dlg) close() })
           dlg.querySelector('#sf-cancel').addEventListener('click', close)
@@ -277,10 +308,14 @@
             save.disabled = true
             save.textContent = _t('sparks.saving', 'Saving…')
             try {
+              // icon rides along ONLY when the user touched it (rename without opening
+              // the picker never clears the stored emoji; null = explicit clear).
+              const iconDirty = dlg.dataset.iconDirty === '1'
+              const payload = iconDirty ? { name, icon: dlg.dataset.icon || null } : { name }
               const res = await fetch(id ? '/api/projects/sparks/folders/' + id : '/api/projects/sparks/folders', {
                 method: id ? 'PATCH' : 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ name }),
+                body: JSON.stringify(payload),
               })
               if (!res.ok) throw new Error('folder save failed')
               close()
@@ -296,13 +331,17 @@
           folderDlg = dlg
         }
 
-        function openFolderDialog(id, name) {
+        function openFolderDialog(id, name, icon) {
           buildFolderDialog()
           const dlg = folderDlg
           dlg.dataset.folderId = id || ''
           dlg.querySelector('#sf-title').textContent = _t(id ? 'sparks.renameFolder' : 'sparks.newFolder', id ? 'Rename folder' : 'New folder')
           dlg.querySelector('#sf-error').textContent = ''
           dlg.querySelector('#sf-name').value = name || ''
+          dlg.dataset.icon = icon || ''
+          dlg.querySelector('#sf-icon-preview').textContent = icon || DEFAULT_FOLDER_ICON
+          dlg.querySelector('#sf-icon-clear').hidden = !icon
+          dlg.dataset.iconDirty = ''
           dlg.showModal()
           dlg.querySelector('#sf-name').focus()
         }
@@ -343,6 +382,9 @@
             const id = btn.getAttribute('data-sf-menu')
             const label = item.querySelector('.sf-label, .spark-folder-name')
             const name = (label || {}).textContent || ''
+            // S41: the host chip/card carries data-sf-icon — the rename dialog prefills
+            // the folder's current emoji from it.
+            const folderIcon = item.getAttribute('data-sf-icon') || ''
             menu.innerHTML =
               '<button type="button" data-sf-rename="' + id + '">' +
                 '<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>' +
@@ -351,6 +393,7 @@
                 '<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>' +
                 '<span>' + _t('sparks.deleteFolder', 'Delete folder') + '</span></button>'
             menu.dataset.folderName = name
+            menu.dataset.folderIcon = folderIcon
             item.appendChild(menu)
           }
         }
@@ -367,9 +410,10 @@
               const dlg = document.createElement('dialog')
               dlg.id = 'spark-move-dialog'
               dlg.className = 'dialog'
+              const escHtml = (s) => (s || '').replace(/[&<>"']/g, (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))
               const rows = ['<label class="row"><input type="radio" name="sf-move" value=""' + (current ? '' : ' checked') + '> <span>' + _t('sparks.noFolder', 'No folder') + '</span></label>']
               for (const f of folders) {
-                rows.push('<label class="row"><input type="radio" name="sf-move" value="' + f.id + '"' + (current === f.id ? ' checked' : '') + '> <span>' + (f.name || '').replace(/[&<>"']/g, (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])) + '</span></label>')
+                rows.push('<label class="row"><input type="radio" name="sf-move" value="' + f.id + '"' + (current === f.id ? ' checked' : '') + '> <span>' + (f.icon ? '<span class="sf-emoji" aria-hidden="true">' + escHtml(f.icon) + '</span> ' : '') + escHtml(f.name) + '</span></label>')
               }
               if (folders.length === 0) {
                 rows.unshift('<p class="muted small">' + _t('sparks.noFoldersYet', 'No folders yet — create one first.') + '</p>')
@@ -423,14 +467,14 @@
           // button sits INSIDE the [data-sf] card, so the old order turned every menu
           // click into a folder entry (rename/delete were unreachable there).
           const sfNew = e.target.closest('[data-sf-new]')
-          if (sfNew) { e.preventDefault(); openFolderDialog('', ''); return }
+          if (sfNew) { e.preventDefault(); openFolderDialog('', '', ''); return }
           const sfMenuBtn = e.target.closest('[data-sf-menu]')
           if (sfMenuBtn) { e.preventDefault(); toggleSfMenu(sfMenuBtn); return }
           const sfRename = e.target.closest('[data-sf-rename]')
           if (sfRename) {
-            const name = sfRename.closest('.sf-menu')?.dataset.folderName || ''
+            const host = sfRename.closest('.sf-menu')
+            openFolderDialog(sfRename.getAttribute('data-sf-rename'), host?.dataset.folderName || '', host?.dataset.folderIcon || '')
             closeSfMenus()
-            openFolderDialog(sfRename.getAttribute('data-sf-rename'), name)
             return
           }
           const sfDelete = e.target.closest('[data-sf-delete]')
@@ -448,7 +492,9 @@
               input.value = sfChip.getAttribute('data-sf') || ''
               // Session 28: stamp the picked folder's NAME too — the quick-add modal
               // reads it to hint where the capture will land («Files into: …»).
-              const label = sfChip.querySelector('.sf-label, .spark-folder-name')
+              // S41: only for a REAL folder selection — the bar's home chip (data-sf="")
+              // clears the context; stamping «پوشه‌ها» there would lie to the hint.
+              const label = input.value ? sfChip.querySelector('.sf-label, .spark-folder-name') : null
               const name = label ? label.textContent.trim() : ''
               if (input.dataset) input.dataset.folderName = name
               // S40: persist the working folder so reloads/captures keep the context.

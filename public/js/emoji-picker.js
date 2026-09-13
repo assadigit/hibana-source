@@ -41,6 +41,19 @@
   let searchEl = null
   let tabsEl = null
 
+  // S41: registered ONCE at module scope — ensureDom() may REBUILD root after its host
+  // dialog was torn down (sparks-page.js removes its dialogs on unmount), and a
+  // listener bound inside ensureDom would reference the dead node.
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && root && root.classList.contains('open')) {
+      // preventDefault: when the picker opened FROM a native <dialog>, Escape must
+      // close ONLY the sheet — the dialog's own cancel event fires otherwise too.
+      e.preventDefault()
+      e.stopPropagation()
+      close()
+    }
+  }, true)
+
   function recent() {
     try { return JSON.parse(localStorage.getItem(RECENT_KEY) || '[]').filter((x) => typeof x === 'string').slice(0, 12) } catch { return [] }
   }
@@ -50,7 +63,11 @@
   }
 
   function ensureDom() {
-    if (root) return
+    // S41: the picker can outlive its host — sparks-page.js tears its dialogs down on
+    // unmount, taking re-parented picker nodes with them. A detached root renders
+    // nowhere; rebuild rather than trust a stale reference.
+    if (root && root.isConnected) return
+    if (root) { root.remove(); if (backdrop) backdrop.remove() }
     backdrop = document.createElement('div')
     backdrop.className = 'emoji-pop-backdrop'
     backdrop.addEventListener('click', () => close())
@@ -82,9 +99,6 @@
       if (!btn || !state) return
       pick(btn.dataset.emoji)
     })
-    document.addEventListener('keydown', (e) => {
-      if (e.key === 'Escape' && root && root.classList.contains('open')) { e.stopPropagation(); close() }
-    }, true)
   }
 
   function renderTabs() {
@@ -151,6 +165,16 @@
     searchEl.value = ''
     renderTabs()
     renderGrid()
+    // S41 TOP-LAYER FIX: a native <dialog> opened with showModal() lives in the top
+    // layer — no z-index can ever paint above it, so a picker opened from inside one
+    // (the sparks folder dialog's icon button) rendered BEHIND it: visible but
+    // unclickable (real pointer clicks landed on the dialog; Playwright exposed it).
+    // Re-parent both layers into the OPEN dialog: children ride its top-layer slot
+    // and paint above the page, while position:fixed still resolves to the viewport
+    // (dialog.dialog carries no transform/filter containing block). No dialog open
+    // → the body, exactly as before (dashboard/sadhana behavior unchanged).
+    const hostDlg = document.querySelector('dialog[open]')
+    ;(hostDlg || document.body).append(backdrop, root)
     root.classList.add('open')
     backdrop.classList.add('open')
     root.setAttribute('aria-label', _t('emojiPicker.label', 'انتخاب ایموجی', 'Emoji picker'))

@@ -161,6 +161,7 @@ export interface SparkFolderRow {
   id: string
   user_id: string
   name: string
+  icon: string | null // 0056 (S41) — user-picked emoji (NULL = folder-plus glyph)
   sort_order: number
   created_at: string
 }

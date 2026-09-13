@@ -1,6 +1,6 @@
 {
   "name": "hibana",
-  "version": "0.3.12.41",
+  "version": "0.3.12.42",
   "private": true,
   "type": "module",
   "description": "Personal project & idea manager — Cloudflare Workers (D1) or plain Node (SQLite)",
@@ -32,6 +32,8 @@
     "shotcheck:local": "node --import tsx scripts/live-shot-check.mjs --local",
     "shotcheck:dev": "node --import tsx scripts/live-shot-check.mjs --remote dev",
     "shotcheck:prod": "node --import tsx scripts/live-shot-check.mjs --remote prod",
+    "probe:emoji": "node scripts/live-emoji-probe.mjs",
+    "probe:emoji:dev": "node scripts/live-emoji-probe.mjs --dev",
     "typecheck": "tsc --noEmit",
     "check-cache-bust": "node scripts/check-cache-bust.mjs",
     "check-i18n-parity": "node scripts/check-i18n-parity.mjs",

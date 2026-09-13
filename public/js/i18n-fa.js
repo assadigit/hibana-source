@@ -237,6 +237,8 @@ window.__hibanaDictFA = {
       'sparks.moveToFolder': 'انتقال به پوشه', 'sparks.folderCreated': 'پوشه ساخته شد',
       'sparks.folderRenamed': 'نام پوشه تغییر کرد', 'sparks.folderDeleted': 'پوشه حذف شد',
       'sparks.folderFailed': 'به‌روزرسانی پوشه ممکن نشد — دوباره تلاش کن',
+      // S41 — folder emoji icons (the folder dialog's picker button + its clear action)
+      'sparks.folderIcon': 'آیکن پوشه', 'sparks.clearIcon': 'حذف آیکن',
       // project-cards quick menu (projects page)
       'card.dialogTitle': 'ویرایش پروژه', 'card.saveFailed': 'ذخیره پروژه ممکن نشد',
       'card.loadFailed': 'دریافت پروژه ممکن نشد', 'card.saving': 'در حال ذخیره…', 'card.deleted': 'پروژه حذف شد',

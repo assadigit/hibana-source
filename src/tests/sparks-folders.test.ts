@@ -235,4 +235,133 @@ describe('sparks shelf — folder views (Session 28)', () => {
       close()
     }
   })
+
+  // ---- S41: folder emoji icons + the fresh-account empty state ---------------------
+  it('a folder created with an icon carries its emoji through every render (grid card, chip, kanban header) + the folders API', async () => {
+    const { db, close } = makeTestDb()
+    try {
+      const u = await makeUser(db)
+      const { app, auth } = await makeClient(db, u)
+      // makeFolder() posts name-only — post with the icon directly here.
+      const res = await app.fetch(
+        new Request('http://local/api/projects/sparks/folders', { method: 'POST', headers: auth, body: JSON.stringify({ name: 'Rocket lab', icon: '🚀' }) }),
+      )
+      expect(res.status).toBe(201)
+      const created = (await res.json()) as { folder: { id: string; icon: string | null } }
+      expect(created.folder.icon).toBe('🚀')
+      await createSpark(app, auth, 'Filed idea', created.folder.id)
+
+      // The folders API feeds the move dialog — the emoji rides along.
+      const foldersJson = await app.fetch(new Request('http://local/api/projects/sparks/folders', { headers: auth }))
+      const folders = (await foldersJson.json()) as { folders: { icon: string | null }[] }
+      expect(folders.folders[0]?.icon).toBe('🚀')
+
+      // Home (no folder param): the file-manager GRID card renders the emoji…
+      const home = await app.fetch(
+        new Request('http://local/api/projects?status=spark&view=cards', { headers: { ...auth, 'HX-Request': 'true' } }),
+      )
+      const homeHtml = await home.text()
+      expect(homeHtml).toContain('spark-folder-emoji')
+      expect(homeHtml).toContain('🚀')
+      expect(homeHtml).toContain('data-sf-icon="🚀"') // the rename dialog's prefill source
+
+      // …inside the folder: the BAR chip leads with the emoji…
+      const inFolder = await app.fetch(
+        new Request(`http://local/api/projects?status=spark&view=cards&folder=${created.folder.id}`, { headers: { ...auth, 'HX-Request': 'true' } }),
+      )
+      const barHtml = await inFolder.text()
+      expect(barHtml).toContain('sf-emoji')
+      expect(barHtml).toContain('🚀')
+      // …and the bar carries the S41 HOME chip — the exit back to the folder grid.
+      expect(barHtml).toContain('sf-home')
+      expect(barHtml).toContain('data-sf=""')
+
+      // …and the kanban column header swaps folder-plus for the emoji.
+      const kanban = await app.fetch(
+        new Request('http://local/api/projects?status=spark&view=kanban', { headers: { ...auth, 'HX-Request': 'true' } }),
+      )
+      const kbHtml = await kanban.text()
+      expect(kbHtml).toContain('🚀')
+      expect(kbHtml).toContain('kanban-col')
+    } finally {
+      close()
+    }
+  })
+
+  it('icon PATCH semantics: rename-only keeps the emoji, icon:null clears it, plain text is rejected', async () => {
+    const { db, close } = makeTestDb()
+    try {
+      const u = await makeUser(db)
+      const { app, auth } = await makeClient(db, u)
+      const created = await app.fetch(
+        new Request('http://local/api/projects/sparks/folders', { method: 'POST', headers: auth, body: JSON.stringify({ name: 'UI bugs', icon: '🐞' }) }),
+      )
+      const fid = ((await created.json()) as { folder: { id: string } }).folder.id
+
+      // Rename WITHOUT touching the icon — the emoji must survive.
+      const rename = await app.fetch(
+        new Request(`http://local/api/projects/sparks/folders/${fid}`, { method: 'PATCH', headers: auth, body: JSON.stringify({ name: 'UI bugs v2' }) }),
+      )
+      expect(rename.status).toBe(200)
+      const afterRename = await app.fetch(new Request('http://local/api/projects/sparks/folders', { headers: auth }))
+      expect(((await afterRename.json()) as { folders: { icon: string | null; name: string }[] }).folders[0]?.icon).toBe('🐞')
+
+      // icon:null — an explicit clear back to the folder-plus glyph.
+      const clear = await app.fetch(
+        new Request(`http://local/api/projects/sparks/folders/${fid}`, { method: 'PATCH', headers: auth, body: JSON.stringify({ name: 'UI bugs v2', icon: null }) }),
+      )
+      expect(clear.status).toBe(200)
+      const afterClear = await app.fetch(new Request('http://local/api/projects/sparks/folders', { headers: auth }))
+      expect(((await afterClear.json()) as { folders: { icon: string | null }[] }).folders[0]?.icon).toBeNull()
+
+      // Non-emoji text is rejected at the schema gate (the contract is one emoji token).
+      const bad = await app.fetch(
+        new Request(`http://local/api/projects/sparks/folders/${fid}`, { method: 'PATCH', headers: auth, body: JSON.stringify({ name: 'UI bugs v2', icon: '<script>' }) }),
+      )
+      expect(bad.status).toBe(400)
+    } finally {
+      close()
+    }
+  })
+
+  it('the fresh-account boot state (0 folders + 0 ideas) offers the New-folder CTA, not just capture', async () => {
+    const { db, close } = makeTestDb()
+    try {
+      const u = await makeUser(db)
+      const { app, auth } = await makeClient(db, u)
+
+      const res = await app.fetch(
+        new Request('http://local/api/projects?status=spark&view=cards', { headers: { ...auth, 'HX-Request': 'true' } }),
+      )
+      const html = await res.text()
+      // The empty state carries BOTH affordances: capture (data-quickadd-open) AND the
+      // folder creation (data-sf-new) — S41's "doesn't show adding a new folder" fix.
+      expect(html).toContain('empty-state')
+      expect(html).toContain('data-quickadd-open')
+      expect(html).toContain('data-sf-new')
+    } finally {
+      close()
+    }
+  })
+
+  it('an empty folder WITH an icon shows the emoji in its scoped empty state', async () => {
+    const { db, close } = makeTestDb()
+    try {
+      const u = await makeUser(db)
+      const { app, auth } = await makeClient(db, u)
+      const created = await app.fetch(
+        new Request('http://local/api/projects/sparks/folders', { method: 'POST', headers: auth, body: JSON.stringify({ name: 'Empty art', icon: '🎨' }) }),
+      )
+      const fid = ((await created.json()) as { folder: { id: string } }).folder.id
+
+      const res = await app.fetch(
+        new Request(`http://local/api/projects?status=spark&view=cards&folder=${fid}`, { headers: { ...auth, 'HX-Request': 'true' } }),
+      )
+      const html = await res.text()
+      expect(html).toContain('data-spark-empty="folder"')
+      expect(html).toContain('🎨')
+    } finally {
+      close()
+    }
+  })
 })

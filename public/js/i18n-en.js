@@ -238,6 +238,8 @@ window.__hibanaDictEN = {
       'sparks.moveToFolder': 'Move to folder', 'sparks.folderCreated': 'Folder created',
       'sparks.folderRenamed': 'Folder renamed', 'sparks.folderDeleted': 'Folder deleted',
       'sparks.folderFailed': "Couldn't update the folder — try again",
+      // S41 — folder emoji icons (the folder dialog's picker button + its clear action)
+      'sparks.folderIcon': 'Folder icon', 'sparks.clearIcon': 'Remove icon',
       // project-cards quick menu (projects page)
       'card.dialogTitle': 'Edit project', 'card.saveFailed': "Couldn't save the project",
       'card.loadFailed': "Couldn't load the project", 'card.saving': 'Saving…', 'card.deleted': 'Project deleted',

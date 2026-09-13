@@ -192,8 +192,16 @@ export const listProjectsSchema = z.object({
 })
 
 // Spark folders (0036): a named shelf sparks can be filed into.
+// S41: `icon` — the folder's emoji (folder cards / chips / kanban headers). Nullable so
+// PATCH semantics work: undefined = leave unchanged, null = clear (back to the
+// folder-plus glyph), string = set. Emoji-only by regex — the classes cover pictographs,
+// flags (regional indicators), skin tones (Emoji_Modifier), subdivision-tag sequences,
+// ZWJ joins, and variation selectors; plain text is rejected (rendered via esc() anyway,
+// but the contract is "one emoji token", not arbitrary markup).
+const EMOJI_TOKEN_RE = /^[\p{Extended_Pictographic}\u{1F1E6}-\u{1F1FF}\u{1F3FB}-\u{1F3FF}\u{E0020}-\u{E007F}\u200D\uFE0F]{1,8}$/u
 export const sparkFolderSchema = z.object({
   name: z.string().trim().min(1).max(50),
+  icon: z.string().trim().max(16).regex(EMOJI_TOKEN_RE).nullish(),
 })
 
 // Admin console (batch e) — ban presets and the user-management payloads.

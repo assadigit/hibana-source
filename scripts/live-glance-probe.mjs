@@ -100,19 +100,22 @@ const main = async () => {
   if (sprintSrc) {
     const spr = await (await fetch(`${URL_BASE}${sprintSrc}`)).text()
     check('sprint-page: the today flag shipped', spr.includes('sp-today-flag') && spr.includes('db.today'))
-    // S45 sprint batch: render-time i18n (S1), rich empty state (S7), finish name (S3)
-    check('sprint-page: render-time i18n shipped (db.categories at render)', spr.includes("_t('db.categories'"))
-    check('sprint-page: render-time i18n shipped (popover buttons)', spr.includes("_t('common.save'") && spr.includes("_t('db.finishSprint'"))
+    // S45 sprint batch: render-time i18n (S1), rich empty state (S7), finish name (S3).
+    // NB: the dist bundle is MINIFIED — the _t helper gets renamed, so we pin the
+    // string LITERALS (keys survive minification verbatim) instead of call sites.
+    check('sprint-page: render-time i18n shipped (db.categories at render)', spr.includes('db.categories'))
+    check('sprint-page: render-time i18n shipped (popover buttons)', spr.includes('common.save') && spr.includes('db.finishSprint'))
     check('sprint-page: the rich empty state shipped (sp-empty + CTA)', spr.includes('sp-empty') && spr.includes('data-sp-empty-define') && spr.includes('sp.emptyHint'))
     check('sprint-page: the finish name span shipped', spr.includes('sp-finish-name'))
   }
   // S45: the shipped devboard.css — the 20px strip + the empty-state card + the coarse floor
+  // (minified: no spaces after colons — regex with \s*)
   const devCss = sprintShell.match(/\/dist\/devboard\.[a-f0-9]+\.css|\/css\/devboard\.css\?v=\d+/)?.[0] || ''
   check('sprint shell references devboard.css', !!devCss, devCss)
   if (devCss) {
     const css = await (await fetch(`${URL_BASE}${devCss}`)).text()
-    check('devboard.css: the 20px strip + .sp-empty shipped', css.includes('block-size: 20px') && css.includes('.sp-empty'))
-    check('devboard.css: the coarse touch floor shipped', css.includes('.sp-sprint-chip { min-block-size: 40px'))
+    check('devboard.css: the 20px strip + .sp-empty shipped', /block-size:\s*20px/.test(css) && css.includes('.sp-empty'))
+    check('devboard.css: the coarse touch floor shipped', /\.sp-sprint-chip\s*\{[^}]*min-block-size:\s*40px/.test(css.replace(/\n/g, ' ')))
   }
   const i18nFa = sparksShell.match(/\/dist\/i18n-fa\.[a-f0-9]+\.js/)?.[0] || ''
   if (i18nFa) {

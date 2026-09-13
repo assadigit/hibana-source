@@ -329,6 +329,32 @@ export function glanceStrip(counts: Map<string, number>, activeStatus: ProjectSt
   return `<div class="pglance${asMain ? ' pglance-grid' : ''}" role="group" aria-label="${trL(lang, 'Projects by type', 'پروژه‌ها بر اساس نوع')}">${boxes}</div>`
 }
 
+// S45 (owner directive: "improving UI/UX of sprints and projects page"): the stages
+// home used to be the six glance boxes and NOTHING else — zero actual work visible on
+// the projects page's home. «فعالیت اخیر / Recently active» rides under the compact
+// rail: the six most recently touched projects (stage badge + title + updated-ago),
+// one flat hairline row each — the "never lose your place" job, answered at a glance.
+// Plain href anchors: nav.js's capture-phase link interceptor already soft-navigates
+// every relative <a> through go() (same-page re-entry re-mounts per S44).
+export function recentSectionHtml(projects: ProjectRow[], lang: Locale): string {
+  const rows = projects
+    .map((p) => {
+      return `<a class="precent-row" href="/project.html?id=${p.id}">
+        ${STATUS_BADGE(p.status, lang)}
+        <span class="precent-title" dir="auto">${esc(p.title)}</span>
+        <span class="precent-ago muted small">${timeAgo(p.updated_at, lang)}</span>
+      </a>`
+    })
+    .join('')
+  return `<section class="precent" aria-labelledby="precent-heading">
+    <div class="precent-head">
+      <h2 id="precent-heading">${trL(lang, 'Recently active', 'فعالیت اخیر')}</h2>
+      <a class="small muted precent-all" href="/projects.html?view=cards">${trL(lang, 'All projects', 'همهٔ پروژه‌ها')} ${lang === 'fa' ? '←' : '→'}</a>
+    </div>
+    <div class="precent-list">${rows}</div>
+  </section>`
+}
+
 export function sparkEmptyHtml(lang: Locale): string {
   // Fix 2026-09-09 (Phase 6 deviation #6): the CTA now carries the bulb icon (the audit
   // flagged it as text-only). The icon rides inline-start of the label.

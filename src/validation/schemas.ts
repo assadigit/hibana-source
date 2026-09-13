@@ -189,6 +189,11 @@ export const listProjectsSchema = z.object({
   // the Archive shelf. Absent/0 excludes them everywhere else (they are not deleted,
   // just parked: ideas not being implemented in the foreseeable future, restorable).
   archived: z.preprocess(emptyToUndef, z.enum(['0', '1']).optional()),
+  // S45 (owner directive: projects page functionality): a user-facing sort for the
+  // list views. 'stage' (absent default) = the historical order — status groups, then
+  // sort_order, then recency; 'recent' = updated_at DESC ("never lose your place");
+  // 'title' = alphabetical. The kanban view groups by column regardless.
+  sort: z.preprocess(emptyToUndef, z.enum(['stage', 'recent', 'title']).optional()),
 })
 
 // Spark folders (0036): a named shelf sparks can be filed into.

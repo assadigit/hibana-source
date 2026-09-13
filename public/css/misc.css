@@ -493,17 +493,15 @@ dialog.adm-modal::backdrop { background: rgb(0 0 0 / 0.55); }
 .related-note-done .related-note { text-decoration: line-through; text-decoration-color: var(--muted); }
 .related-note-check { display: inline-flex; align-items: center; color: var(--st-done, var(--brand)); }
 
-/* --- item 9: pglance boxes — icons + more height --------------------------- */
-.pglance-box { padding-block: 0.85rem 0.6rem; }
-.pglance-icon { color: var(--muted); display: inline-flex; }
-/* Phase 7 item 8: 100% bigger state glyphs (1.1 → 2.2rem; grid view 1.9 → 3.8rem). */
-.pglance-icon .icon { inline-size: 2.2rem; block-size: 2.2rem; }
-.pglance-box { gap: 0.18rem; }
-.pglance-grid .pglance-box { padding: 1.5rem 0.75rem 1.3rem; gap: 0.28rem; }
-.pglance-grid .pglance-icon .icon { inline-size: 3.8rem; block-size: 3.8rem; }
-.pglance-grid .pglance-icon { color: rgb(var(--pg-c)); }
-.pglance-grid .pglance-count { font-size: 2rem; }
-.pglance-box:hover .pglance-icon { color: rgb(var(--pg-c)); }
+/* --- item 9: pglance boxes — S45: compact rail icons -------------------------
+   The old stacked layout grew icons to 2.2rem (strip) / 3.8rem (grid home). The S45
+   rail puts [icon · count · label] on ONE line — the icon is a small stage accent
+   (~1.15rem), colored per stage via --pg-c, hovering bright. */
+.pglance-icon { color: var(--muted); display: inline-flex; flex: none; }
+.pglance-icon .icon { inline-size: 1.15rem; block-size: 1.15rem; }
+.pglance-box:hover .pglance-icon,
+.pglance-grid .pglance-icon,
+.pglance-box.is-active .pglance-icon { color: rgb(var(--pg-c)); }
 
 /* --- items 1+2: the dashboard's projects heading row (پروژه‌ها + go-to link) -- */
 .dash-projects-head { margin-block-end: 0.6rem; }
@@ -933,6 +931,9 @@ body:has(.dash-skeleton) .fab-stack .fab:hover { background: color-mix(in srgb, 
   .db-mini-chip { min-block-size: 40px; }
   .db-add, .pd-task-add { min-block-size: 40px; }
   .pd-tag-add { min-block-size: 40px; }
+  /* S45: the projects home's «All projects →» row link (flex-blockified inside the
+     precent-head — the audit's inline-link exemption does not apply to it). */
+  .precent-all { min-block-size: 40px; display: inline-flex; align-items: center; }
   /* the S32 compact filter chips (26px) — visual compactness stays on desktop;
      on touch the tap law wins (S43: "button sizes" on mobile) */
   .db-filter .chip { min-block-size: 40px; }

@@ -145,6 +145,8 @@ window.__hibanaDictEN = {
       'view.label': 'View:',
       'filter.search': 'Search (exact match)…', 'filter.allStatuses': 'All statuses',
       'filter.allTags': 'All tags', 'filter.byStatus': 'Status', 'filter.byTag': 'Tag', 'filter.searchLabel': 'Search',
+      // S45: the projects page sort select ('stage' = the historical order)
+      'sort.label': 'Sort', 'sort.stage': 'By stage', 'sort.recent': 'Recently updated', 'sort.title': 'Name',
       'list.reorderFailed': 'Reorder failed — try again',
       // batch q lifecycle: spark = idea; the six project stages follow Ali's funnel
       'status.spark': 'Idea', 'status.unreviewed': 'Unreviewed', 'status.investigating': 'Investigating',

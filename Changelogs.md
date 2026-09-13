@@ -9,6 +9,63 @@
 > rewritten as a minimal pointer. Deleted files remain recoverable verbatim:
 > `git show <sha>:<file>`.
 
+## 1. Current state (v0.3.12.46 — Session 45: THE CROWN-SURFACES OVERHAUL, batch A (projects) shipped: the stages home is a COMPACT RAIL + «فعالیت اخیر/Recently active» — the home finally shows real work; user-facing SORT (stage/recent/title); 390px filter reflow; FAB clearance; S44: the owner's three bug reports fixed at the root — (1) sparks: EVERY view gets the ⋯ edit/delete; (2) projects glance strip: the dead-click bug fixed — boxes filter IN PLACE; (3) sprint timeline: today's line gets ~10% leading pad + a «امروز/Today» flag chip; S43: FULL MOBILE RESPONSIVITY AUDIT + 200-control 40px touch floor; S42: dashboard stage-carousel handles OVER the strip; S41: Sparks MOBILE pass + folder EMOJI icons (0056); S40: Sparks page FULL AUDIT + TEXT ALIGNMENT (0055); S39: media GALLERY + screenshot pinning; S38: KV storage — never expires; S37: English-always chat rule)
+- **(S45) CROWN SURFACES (owner, 2026-09-14: "improving UI/UX of sprints and projects
+  page and functionality, as the most important aspect of hibana for me") — BATCH A:
+  THE PROJECTS PAGE (owner: "Do batch A first.")** — grounded in a fresh-clone audit
+  (live DOM geometry probes, not impressions; the S43 mobile-audit harness + 40px touch
+  floor = the floor, not the ceiling; S44's in-place glance filter + today flag kept):
+  1. **THE STAGES HOME FINALLY SHOWS WORK**: the home used to render six 169px-tall
+     count-boxes (410×169 desktop; 537px of a 390px phone) and NOTHING else — zero
+     actual projects on the projects page's home. The glance boxes are now a COMPACT
+     INLINE RAIL everywhere — [icon · count · label] on one line, 44px tall (6-across
+     desktop / 3 / 2-across phone; the strip above filtered lists and the home share
+     ONE geometry now; click-to-filter, is-active/is-empty semantics, data-nav-local,
+     per-stage tints ALL preserved — the S44 contract is pinned by tests). Under the
+     rail: **«فعالیت اخیر / Recently active»** — the six most recently touched projects
+     as flat hairline rows (stage badge + bidi-plaintext title + updated-ago), one tap
+     → the project; derived from the already-fetched rows (zero extra queries). A
+     zero-project home renders the capture empty state (listFragment) instead of a
+     hollow rail; a grid+status load (the no-JS fallback) now renders that stage's
+     CARDS below the rail — it used to be a rail-only dead end with no way to see the
+     stage's projects.
+  2. **SORT (the "never lose your place" job)**: `?sort=stage|recent|title` on
+     GET /api/projects (zod enum; ORDER BY switch — recent = updated_at DESC, title =
+     COLLATE NOCASE, absent/default = the historical order untouched) + a sort select
+     in the filter form (i18n sort.*; ?sort= deep link wins, else the
+     `hibana-projects-sort` localStorage pref rides — same pattern as the view pref;
+     rides every htmx request; a sort change on the home flips to cards via the
+     existing flipOutOfGrid so the control never reads dead). Saved filters keep
+     status/tag/q/view semantics (sort is arrangement, not criterion).
+  3. **390px FILTER REFLOW**: the search input used to collapse to a **48px sliver**
+     beside two 44px selects. ≤640px the form is a grid: search gets its own
+     full-width line; the three selects (status/tag/sort) share the row below.
+  4. **FAB CLEARANCE**: the fixed FAB stack (projects + dashboard) sat ON the last row
+     of content — `body:has(.fab-stack) main.shell` earns bottom padding ≤1140px (and
+     a taller calc past the bottom-tab lift ≤1024px) so the final row scrolls clear.
+  5. **CAUGHT LIVE BY MY OWN PROBE (the S43 ghost-track law, again)**:
+     `.precent-list`'s implicit auto grid track sized rows to the nowrap title's
+     max-content — 476px inside a 363px phone. `minmax(0,1fr)` fixes it; e2e-pinned.
+     + the audit flagged the «همهٔ پروژه‌ها» row link at 21px (flex-blockified — the
+     inline-link exemption can't save it) → 40px in the (pointer:coarse) layer.
+  - Bumps: dashboard.css v8→v9 (20 shells), misc.css v6→v7 (21), layout.css v7→v8
+    (23), components.css v2→v3 (23), i18n-en/fa v20→v21 (+4 sort.* keys each),
+    i18n.js v76→v77 (injects fa v21), projects-page.js v2→v3, sw v343→v344,
+    package 0.3.12.46.
+  - Ladder: typecheck 0 · vitest 394/394 · NEW e2e projects-home.spec.ts 4/4 (rail
+    ≤80px + recent-row navigation + recency-first; sort deep-link/select/persist/
+    stage-default; @390 search full-width + no h-scroll + FAB clearance + contained
+    rows; empty-account capture state) · full e2e 75/75 (projects.png visual baseline
+    re-generated after the redesign) · mobile-audit: projects back to the pre-S45
+    baseline class, doc h-scroll 0 in all sweeps · smoke ALL PASS · i18n 1078/1078 ·
+    cache-bust PASS · bundle-size +0.7% PASS · node --check PASS · browser-verified
+    6-sweep FA/EN × light/dark × 1440/390: console 0/page errors 0, glance in-place
+    filter + toggle intact, sort round-trips, recent rows navigate.
+  - NEXT (S45 batch B, not yet started): sprint.html — the timeline becomes the hero
+    (strip 9px→~20px tall, mobile hierarchy flip: timeline first/categories below,
+    finish-button redesign, Categories i18n root-fix, chips ≥40px touch, rich
+    no-sprints empty state).
+
 ## 1. Current state (v0.3.12.45 — Session 44: the owner's three bug reports fixed at the root — (1) sparks: EVERY view gets the ⋯ edit/delete (list rows / kanban cards / sticky notes used to render ideas with NO affordance) + open menus survive the 30s shelf poll; (2) projects glance strip: the dead-click bug (nav.js's capture-phase interceptor swallowed [data-pglance] clicks then same-URL no-op'd) — boxes now filter IN PLACE, + nav.js re-mounts pages on SAME-PAGE re-entry (language toggle / popstate kept landing unmounted on the default grid); (3) sprint timeline: today's line gets ~10% leading pad + a «امروز/Today» flag chip so the actual point is visible; S43: FULL MOBILE RESPONSIVITY AUDIT + 200-control 40px touch floor; S42: dashboard stage-carousel handles OVER the strip; S41: Sparks MOBILE pass + folder EMOJI icons (0056); S40: Sparks page FULL AUDIT + TEXT ALIGNMENT (0055); S39: media GALLERY + screenshot pinning; S38: KV storage — never expires; S37: English-always chat rule)
 - **(S44) THREE OWNER BUG REPORTS, ROOT-CAUSED (user: sparks "there must be a way to
   delete/edit the folder ideas, for example clicking on this [⋯] on folders" /

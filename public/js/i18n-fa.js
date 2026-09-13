@@ -145,6 +145,8 @@ window.__hibanaDictFA = {
       'view.label': 'نمایش:',
       'filter.search': 'جستجو (تطابق دقیق)…', 'filter.allStatuses': 'همهٔ وضعیت‌ها',
       'filter.allTags': 'همهٔ برچسب‌ها', 'filter.byStatus': 'وضعیت', 'filter.byTag': 'برچسب', 'filter.searchLabel': 'جستجو',
+      // S45: مرتب‌سازی فهرست پروژه‌ها ('stage' = ترتیب همیشگی)
+      'sort.label': 'مرتب‌سازی', 'sort.stage': 'به ترتیب مرحله', 'sort.recent': 'به‌روزرسانی اخیر', 'sort.title': 'نام',
       'list.reorderFailed': 'مرتب‌سازی ناموفق بود — دوباره تلاش کن',
       // batch q lifecycle: spark = idea; the six project stages follow Ali's funnel
       'status.spark': 'ایده', 'status.unreviewed': 'بررسی نشده', 'status.investigating': 'در حال تحقیق',

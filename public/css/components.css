@@ -67,6 +67,19 @@
 @media (max-width: 1024px) {
   body.has-mobile-nav .fab-stack { inset-block-end: calc(3.5rem + env(safe-area-inset-bottom, 0px) + 0.75rem); }
 }
+/* S45 (mobile audit finding: FABs sit ON the last row of content): pages that carry a
+   FAB stack earn bottom shell padding so the final row can scroll clear of the fixed
+   stack — :has() scopes it to exactly those pages (projects + dashboard). Two tiers:
+   ≤1140px the stack starts overlapping the centered 64rem content column; ≤1024px it
+   also rides above the bottom tab bar (matching the .fab-stack lift above). */
+@media (max-width: 1140px) {
+  body:has(.fab-stack) main.shell { padding-block-end: 7rem; }
+}
+@media (max-width: 1024px) {
+  body:has(.fab-stack) main.shell {
+    padding-block-end: calc(3.5rem + 3.15rem + 2.25rem + env(safe-area-inset-bottom, 0px));
+  }
+}
 .fab {
   width: 3.15rem;             /* 30% smaller than the old single + (4.5rem) */
   height: 3.15rem;

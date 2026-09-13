@@ -232,6 +232,18 @@
    filters mirrors the 1.5rem below it. Projects page is the only .filters user. */
 .filters { margin-block-start: 1.25rem; margin-block-end: 1.5rem; }
 .filters input[type='search'] { flex: 1; }
+/* S45: mobile-first filter reflow. At phone widths the search input used to collapse
+   to ~48px beside two 44px selects — an unusable sliver. ≤640px the form becomes a
+   grid: the search takes its own full-width line, the three selects (status/tag/sort)
+   share the row below. Desktop keeps the flex row (search flex-1 + selects inline). */
+@media (max-width: 640px) {
+  .filters {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0.5rem;
+  }
+  .filters input[type='search'] { grid-column: 1 / -1; flex: none; }
+}
 
 /* --- project lists ---------------------------------------------------------- */
 .card-grid {

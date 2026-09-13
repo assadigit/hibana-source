@@ -43,6 +43,29 @@
         // (hx-include="form.filters") — no manual ajax here anymore: the old second
         // request raced the load trigger's bare GET and lost, wiping the params.
 
+        // S45: the sort select mirrors the view pref pattern — ?sort= carries intent
+        // (deep links), else the stored choice rides, else 'stage' (server default).
+        // Changing the select is a normal form change: htmx re-requests the list AND
+        // flipOutOfGrid (below) flips the stages home → cards, so the sort immediately
+        // has visible results — a sort change on the home must not look like a dead
+        // control. We just persist the choice here.
+        const SORT_PREF_KEY = 'hibana-projects-sort'
+        const VALID_SORTS = ['stage', 'recent', 'title']
+        const sortSel = () => document.getElementById('sort-select-sel')
+        const urlSort = qs.get('sort')
+        if (urlSort && VALID_SORTS.includes(urlSort)) {
+          if (sortSel()) sortSel().value = urlSort
+        } else {
+          let pref = ''
+          try { pref = localStorage.getItem(SORT_PREF_KEY) || '' } catch { /* storage unavailable */ }
+          if (VALID_SORTS.includes(pref) && sortSel()) sortSel().value = pref
+        }
+        if (sortSel()) {
+          sortSel().addEventListener('change', () => {
+            try { localStorage.setItem(SORT_PREF_KEY, sortSel().value) } catch {}
+          })
+        }
+
         window.setView = function (v) {
           if (!VALID_VIEWS.includes(v)) return
           document.getElementById('view').value = v

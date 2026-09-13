@@ -22,7 +22,7 @@ import type { ProjectSignals } from './helpers'
 import {
   loadTags, loadProjectSignals, projectProgress,
   bugBubbleHtml, signalsHtml, backlogMetaHtml,
-  cardHtml, listFragment, glanceStrip,
+  cardHtml, listFragment, glanceStrip, recentSectionHtml,
   sparkEmptyHtml, sparkKanbanHtml, sparkFolderBar, sparkFolderGrid, sparkFolderEmptyHtml,
   archiveShelfHtml,
 } from './helpers'
@@ -79,8 +79,17 @@ export function projectsRoutes(cfg: Config) {
         params.push(folderParam)
       }
     }
+    // S45: user-facing sort (see listProjectsSchema). 'stage' (default/absent) keeps the
+    // historical ORDER BY exactly — status groups, sort_order, recency.
+    const sort = query.success ? query.data.sort : undefined
+    const orderBy =
+      sort === 'recent'
+        ? 'updated_at DESC'
+        : sort === 'title'
+          ? 'title COLLATE NOCASE ASC, updated_at DESC'
+          : 'status, sort_order, updated_at DESC'
     const projects = await cfg.db.query<ProjectRow>(
-      `SELECT * FROM projects WHERE ${conds.join(' AND ')} ORDER BY status, sort_order, updated_at DESC`,
+      `SELECT * FROM projects WHERE ${conds.join(' AND ')} ORDER BY ${orderBy}`,
       params,
     )
     const tagsMap = await loadTags(cfg, user.id)
@@ -99,7 +108,31 @@ export function projectsRoutes(cfg: Config) {
           [user.id],
         )
         const counts = new Map<string, number>(countRows.map((r) => [r.status, r.n]))
-        return await etag(c, c.html(glanceStrip(counts, activeStatus, lang, true)))
+        // S45 (owner directive: the projects home finally shows WORK, not just counts).
+        // - The pure home (no status/q/tag): the compact glance rail + «Recently active»
+        //   (top 6 by updated_at — the main query already fetched every non-spark row,
+        //   zero extra queries) — or the capture empty state when nothing exists yet.
+        // - grid+status (no-JS fallback / hard reload): the rail with its active box +
+        //   that stage's cards below — the old render left the no-JS user on a rail-only
+        //   dead end with no way to see the stage's projects.
+        // - A q/tag-filtered grid keeps the rail alone (filters are the focus; matches
+        //   render in the other views — the glance click flow flips to cards anyway).
+        if (activeStatus && activeStatus !== 'spark') {
+          const signalsMap = await loadProjectSignals(cfg, user.id, projects.map((p) => p.id))
+          const progressMap = await loadProjectProgress(cfg, projects)
+          return await etag(c, c.html(
+            glanceStrip(counts, activeStatus, lang, true) +
+            listFragment(projects, tagsMap, 'cards', lang, signalsMap, activeStatus, progressMap),
+          ))
+        }
+        if (query.success && (query.data.q || query.data.tag)) {
+          return await etag(c, c.html(glanceStrip(counts, activeStatus, lang, true)))
+        }
+        const recent = [...projects].sort((a, b) => (a.updated_at < b.updated_at ? 1 : a.updated_at > b.updated_at ? -1 : 0)).slice(0, 6)
+        return await etag(c, c.html(
+          glanceStrip(counts, activeStatus, lang, true) +
+          (recent.length > 0 ? recentSectionHtml(recent, lang) : listFragment([], tagsMap, 'cards', lang)),
+        ))
       }
       // P-signals: batch-load per-project signal counts (bugs, ideas, backlog, hurdles)
       const signalsMap = await loadProjectSignals(cfg, user.id, projects.map((p) => p.id))

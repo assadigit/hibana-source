@@ -402,12 +402,22 @@ export function dashboardRoutes(cfg: Config) {
             <h2>${t('Projects', 'پروژه‌ها')}</h2>
             <a class="small" href="/projects.html">${t('Go to projects', 'رفتن به بخش پروژه‌ها')} ${raw(icon('arrow-right', 'icon arrow'))}</a>
           </div>
+          <!-- S42 (owner: "this part is too compacted because of right left handles.
+               expand this section. make handles over them."): the strip now spans the
+               FULL section width — the paging handles float OVER the strip's edges
+               (.stat-stage is the position:relative anchor; .stat-arrow is absolute +
+               translucent) instead of flanking it as flex columns that stole ~5rem of
+               card width on phones. At the ends the driver's .at-start/.at-end flags
+               fade the handle that has nothing left to page (so a card edge is only
+               ever covered when the handle is actually usable). -->
           <div class="stat-carousel" data-stat-carousel>
-            <button type="button" class="stat-arrow" data-stat-prev aria-label="${t('Previous stages', 'مراحل قبلی')}">${raw(icon('chevron-left'))}</button>
-            <div class="stat-strip stat-boxes" data-stat-track role="group" aria-label="${t('Projects by stage', 'پروژه‌ها بر اساس مرحله')}">
-            ${CAROUSEL.map(statBox)}
+            <div class="stat-stage">
+              <div class="stat-strip stat-boxes" data-stat-track role="group" aria-label="${t('Projects by stage', 'پروژه‌ها بر اساس مرحله')}">
+              ${CAROUSEL.map(statBox)}
+              </div>
+              <button type="button" class="stat-arrow" data-stat-prev aria-label="${t('Previous stages', 'مراحل قبلی')}">${raw(icon('chevron-left'))}</button>
+              <button type="button" class="stat-arrow" data-stat-next aria-label="${t('Next stages', 'مراحل بعدی')}">${raw(icon('chevron-right'))}</button>
             </div>
-            <button type="button" class="stat-arrow" data-stat-next aria-label="${t('Next stages', 'مراحل بعدی')}">${raw(icon('chevron-right'))}</button>
             <div class="stat-carousel-nav">
               <div class="stat-dots" data-stat-dots aria-hidden="true"></div>
             </div>

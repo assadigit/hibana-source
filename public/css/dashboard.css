@@ -7,10 +7,20 @@
    horizontal scroll-snap rail the arrows page through. Without JS it still scrolls
    natively (touch/wheel). The drag-a-card-between-boxes gesture is unaffected: the boxes
    stay .stat-box children of the track. */
-.stat-carousel { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; margin-block-end: 1.25rem; }
-/* Session 19 (user request): the prev/next arrows flank the strip on the left/right.
-   HTML order: [prev][strip flex:1][next][nav(dots) full-width below]. */
-.stat-carousel-nav { flex-basis: 100%; display: flex; justify-content: center; }
+/* S42 (owner: "this part is too compacted because of right left handles. expand
+   this section. make handles over them."): the carousel is now a 2-row GRID — the
+   stage row (.stat-stage, the position:relative anchor) carries the strip at FULL
+   section width, with the prev/next arrows floating OVER the strip's edges (absolute,
+   translucent + blur) instead of flanking it as flex columns that stole ~5rem of card
+   width on phones. The dots row sits below. At the ends the driver's .at-start/
+   .at-end flags (app.js syncStatCarousel) fade the handle that has nothing to page,
+   so a card edge is only covered while the handle is actually usable. */
+.stat-carousel { display: grid; gap: 0.5rem; margin-block-end: 1.25rem; }
+.stat-carousel-nav { display: flex; justify-content: center; }
+/* min-inline-size: 0 breaks the grid-item auto-minimum chain (the track's max-content
+   ~591px would otherwise size the stage and overflow the section); display stays block —
+   the .stat-strip stretches to the stage width as a block-level flex container. */
+.stat-stage { position: relative; min-inline-size: 0; }
 .stat-carousel .stat-strip.stat-boxes {
   display: flex;
   gap: 0.75rem;
@@ -20,7 +30,7 @@
   scrollbar-width: none;
   overscroll-behavior-x: contain;
   -webkit-overflow-scrolling: touch;
-  flex: 1 1 0;
+  flex: 1 1 0; /* full .stat-stage row (the stage is the only flex parent now) */
   min-inline-size: 0;
 }
 .stat-carousel .stat-strip::-webkit-scrollbar { display: none; }
@@ -43,27 +53,47 @@
 @media (max-width: 640px) {
   .stat-carousel .stat-box.is-empty { display: none; }
 }
+/* S42: overlay handles — absolute inside .stat-stage, vertically centered on the
+   strip, slight overhang into the page gutter (inset-inline-start/end: -0.35rem) so
+   most of their footprint covers padding, not card content. Translucent fill + blur
+   keeps the covered edge readable; 2.5rem (40px) hits the coarse-pointer tap law. */
 .stat-arrow {
+  position: absolute;
+  inset-block-start: 50%;
+  transform: translateY(-50%);
+  z-index: 3;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  inline-size: 2rem;
-  block-size: 2rem;
+  inline-size: 2.5rem;
+  block-size: 2.5rem;
   padding: 0;
   border: 1px solid var(--line);
   border-radius: 50%;
-  background: var(--card);
-  color: var(--muted);
+  background: color-mix(in srgb, var(--card) 78%, transparent);
+  -webkit-backdrop-filter: blur(3px);
+  backdrop-filter: blur(3px);
+  box-shadow: 0 1px 8px rgb(0 0 0 / 0.16);
+  color: var(--text);
   cursor: pointer;
-  flex: none;
+  transition: opacity 0.25s ease, background 0.15s ease, border-color 0.15s ease;
 }
+.stat-arrow[data-stat-prev] { inset-inline-start: -0.35rem; }
+.stat-arrow[data-stat-next] { inset-inline-end: -0.35rem; }
+/* Nothing left to page that way → the handle steps aside entirely (native touch/wheel
+   scroll still reaches everything). :focus-visible overrides it so keyboard users
+   tabbing onto the handle still SEE it appear. */
+.stat-carousel.at-start .stat-arrow[data-stat-prev],
+.stat-carousel.at-end .stat-arrow[data-stat-next] { opacity: 0; pointer-events: none; }
+.stat-carousel.at-start .stat-arrow[data-stat-prev]:focus-visible,
+.stat-carousel.at-end .stat-arrow[data-stat-next]:focus-visible { opacity: 1; pointer-events: auto; }
 .stat-arrow:hover {
   /* Session 23: full green+light hover (button:hover used to leak green under dark text) */
   background: var(--cta-hover, var(--accent-hover));
   border-color: var(--cta-hover, var(--accent-hover));
   color: var(--btn-text, #fff);
 }
-.stat-arrow:disabled { opacity: 0.35; cursor: default; }
+.stat-arrow:disabled { cursor: default; }
 .stat-dots { display: flex; gap: 0.4rem; align-items: center; }
 .stat-dot {
   inline-size: 0.45rem;

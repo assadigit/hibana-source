@@ -57,16 +57,29 @@ describe('dashboard stat boxes', () => {
       expect(res.status).toBe(200)
       const html = await res.text()
       // Scoped to the carousel shell — slice from the carousel wrapper to the notebook
-      // section below. The prev/next arrows now sit BEFORE the strip (Session 19 layout
-      // change: arrows flank the strip on left/right, not stacked below).
+      // section below. S42 (owner: "make handles over them"): the strip spans the full
+      // section width inside .stat-stage (the position:relative anchor) and the chevron
+      // handles sit AFTER the track as absolute overlays — the old Session-19
+      // arrows-BEFORE-the-strip flank layout is gone.
       const strip = html.slice(html.indexOf('stat-carousel'), html.indexOf('class="card notebook'))
 
-      // The carousel shell (Phase 5): track + chevron arrows + dots.
+      // The carousel shell: stage anchor + track + overlay chevron handles + dots.
       expect(strip).toContain('stat-carousel')
+      expect(strip).toContain('stat-stage')
       expect(strip).toContain('data-stat-track')
       expect(strip).toContain('data-stat-prev')
       expect(strip).toContain('data-stat-next')
       expect(strip).toContain('data-stat-dots')
+      // Overlay order pin: the stage wraps track + handles, and the handles FOLLOW the
+      // track in the DOM (absolute positioning inside .stat-stage, above the cards).
+      const stageAt = strip.indexOf('stat-stage')
+      const trackAt = strip.indexOf('data-stat-track')
+      const prevAt = strip.indexOf('data-stat-prev')
+      const nextAt = strip.indexOf('data-stat-next')
+      expect(stageAt).toBeGreaterThan(-1)
+      expect(trackAt).toBeGreaterThan(stageAt)
+      expect(prevAt).toBeGreaterThan(trackAt)
+      expect(nextAt).toBeGreaterThan(prevAt)
 
       // One box per ACTIVE stage, in carousel order; the boxes carry no status badges
       // (icon-chip + stat-count + stat-label replaced them). Session 14: empty stages

@@ -26,3 +26,10 @@ Credentials.md
 # Playwright E2E output (screenshots/traces on failure — local-only)
 test-results/
 playwright-report/
+
+# local sqlite sidecars of the tracked root dev db (WAL/SHM never ship)
+hibana.db-shm
+hibana.db-wal
+# stray curl output file
+-- -s
+-s

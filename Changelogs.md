@@ -9,7 +9,49 @@
 > rewritten as a minimal pointer. Deleted files remain recoverable verbatim:
 > `git show <sha>:<file>`.
 
-## 1. Current state (v0.3.12.42 — Session 41: Sparks MOBILE pass (two-up folder grid, touch menus, header stack) + folder EMOJI icons (0056) + the empty-state New-folder CTA + the bar's «پوشه‌ها» home chip; S40: Sparks page FULL AUDIT + TEXT ALIGNMENT (0055); S39: media GALLERY + screenshot pinning; S38: KV storage — never expires; S37: English-always chat rule)
+## 1. Current state (v0.3.12.43 — Session 42: dashboard stage-carousel EXPANDED — handles float OVER the strip (was: flanking columns squeezing the cards ~80px on phones); S41: Sparks MOBILE pass (two-up folder grid, touch menus, header stack) + folder EMOJI icons (0056) + the empty-state New-folder CTA + the bar's «پوشه‌ها» home chip; S40: Sparks page FULL AUDIT + TEXT ALIGNMENT (0055); S39: media GALLERY + screenshot pinning; S38: KV storage — never expires; S37: English-always chat rule)
+- **(S42) DASHBOARD STAGE-CAROUSEL: FULL-WIDTH STRIP + OVERLAY HANDLES (user: "this part
+  is too compacted because of right left handles. expand this section. make handles over
+  them." + a 390px phone screenshot of the projects-by-stage section)** — the owner's
+  screenshot showed the dashboard's «پروژه‌ها بر اساس مرحله» carousel: the prev/next
+  circular handles flanked the strip as FLEX COLUMNS (2rem + gap per side ≈ 80px of a
+  342px section on a 390px phone), so every stage card rendered ~262px wide with
+  ellipsized titles. The fix (CSS + a markup re-arrangement; app.js's paging driver is
+  UNTOUCHED — all `data-stat-*` hooks preserved):
+  1. **The strip spans the FULL section width** (was ~77%): the carousel is now a 2-row
+     grid — `.stat-stage` (the position:relative anchor) carries the track at 100% of
+     the section, the dots row sits below. **Gotcha caught live**: `.stat-stage` as a
+     grid item needs `min-inline-size: 0` — with the auto minimum, the track's
+     content-based max-content (~591px) sized the stage and overflowed the section
+     sideways (document h-scroll 617px on a 390px viewport).
+  2. **The handles float OVER the strip's edges** (the owner's literal ask): absolute,
+     vertically centered on the track, 40px (coarse-pointer tap law; was 32px),
+     translucent fill (`color-mix(var(--card) 78%)`) + 3px backdrop blur + soft shadow,
+     slight gutter overhang (`inset-inline: -0.35rem`) so most of their footprint covers
+     page padding, not card content. `inset-inline-*` keeps RTL/LTR placement right, and
+     the existing `[dir='rtl'] .stat-arrow svg` flip still rides along.
+  3. **Auto-hide at the ends**: the driver's `.at-start`/`.at-end` flags (toggled by
+     syncStatCarousel on every scroll/swap) now fade the useless handle out entirely
+     (`opacity: 0` + `pointer-events: none`) — a card edge is only covered while the
+     handle is actually usable; `:focus-visible` still reveals it for keyboard users.
+     A 1-page carousel renders with NO handles (quiet means invisible). The old
+     `:disabled { opacity: .35 }` dim became redundant and was dropped.
+  4. **Interaction safety**: the whole `.stat-kanban-card` is clickable (`data-nav-url`)
+     so a handle covering the small `skc-open` edge button never blocks opening the
+     project; native touch/wheel paging still works everywhere (the track is unchanged
+     as a scroll-snap rail).
+  - Bumps: `dashboard.css` v6→v7 (20 shells), `sw` v340→v341, package 0.3.12.43,
+    `probe:carousel[:dev]` script (S41's D1 probe-user pattern; 9/9 PASS on both workers).
+  - Tests: dashboard vitest structure pin updated (stat-stage + the overlay order
+    track < prev < next) + NEW e2e in viewport.spec.ts (`dashboard @390: strip is
+    full-width; handles overlay + auto-hide` — pins track ≥94% of the section, 40px
+    absolute handles centered ±8px, at-start prev fade → returns after one page, at-end
+    next fade; idempotent seeding + tour dismissal + direct-scroll end-paging to dodge
+    hidden-handle actionability). Ladder: typecheck 0 · vitest 392/392 · e2e 63 (62+1
+    contention flake per run, each passes isolated) · smoke ALL PASS · i18n 1073/1073 ·
+    cache-bust PASS · bundle-size PASS (+0.0%) · browser-verified FA RTL 390px + dark +
+    EN desktop 1440px (geometry probes + VLM screenshots; console clean).
+
 - **(S41) SPARKS MOBILE + FOLDER EMOJI ICONS (user: "the ui need modification. not good in
   mobile. also doesnt show already made folders or adding a new folder, also users must be
   able to choose emojies for their folder ideas icon" + a 390px phone screenshot)** —

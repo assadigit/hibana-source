@@ -159,3 +159,129 @@ test('short pages fill the viewport — no dead gap below the layout column', as
   })
   expect(filled.shellHeight).toBeGreaterThanOrEqual(filled.vh - 80) // the 4rem header band
 })
+
+// S42 (owner: "this part is too compacted because of right left handles. expand this
+// section. make handles over them."): the dashboard's projects-by-stage carousel. The
+// OLD layout flanked the strip with the prev/next handles as flex columns — on a 390px
+// phone they stole ~80px (2rem + gap per side), so every stage card rendered ~262px
+// wide with ellipsized titles. The pin: the strip spans the FULL section width, the
+// handles float OVER it (absolute, inside .stat-stage), and at the ends the useless
+// handle steps aside (at-start/at-end auto-hide from app.js's syncStatCarousel).
+test('dashboard @390: stage-carousel strip is full-width; handles overlay + auto-hide', async ({ page, browserName }) => {
+  test.skip(browserName !== 'chromium', 'Desktop Chromium only')
+  test.setTimeout(60_000) // login + seeding + paging settle
+  await page.setViewportSize({ width: 390, height: 844 })
+  await login(page)
+  // The first-visit onboarding tour's coachmark backdrop intercepts pointer clicks —
+  // dismiss it (localStorage gate) before interacting with the carousel.
+  await page.evaluate(() => { try { localStorage.setItem('hibana-tour-done', '1') } catch { /* private mode */ } })
+
+  // Idempotent: drop probe projects left by a failed earlier run first.
+  await page.evaluate(async () => {
+    const list = (await (await fetch('/api/projects')).json()) as { projects?: { id: string; title: string }[] }
+    for (const p of list.projects ?? []) {
+      if (p.title.startsWith('e2e s42 carousel')) await fetch(`/api/projects/${p.id}`, { method: 'DELETE' })
+    }
+  })
+
+  // Seed ≥2 non-empty stages so the track actually pages (is-empty boxes are hidden
+  // ≤640px; one visible box would be a 1-page carousel and both handles would hide).
+  const made: string[] = []
+  for (const st of ['investigating', 'awaiting', 'doing']) {
+    const res = await page.evaluate(async ({ st }) => {
+      const create = await fetch('/api/projects', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ title: `e2e s42 carousel ${st} ${Date.now()}` }) })
+      const { id } = (await create.json()) as { id: string }
+      await fetch(`/api/projects/${id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ status: st }) })
+      return id
+    }, { st })
+    made.push(res)
+  }
+  await page.goto('/app')
+  await page.waitForLoadState('networkidle')
+  // The at-start fade-out (0.25s transition) must settle before opacity is pinned.
+  await page.waitForTimeout(500)
+
+  const geo = await page.evaluate(() => {
+    const track = document.querySelector('[data-stat-track]') as HTMLElement
+    const section = document.querySelector('.dash-projects-section') as HTMLElement
+    const stage = document.querySelector('.stat-stage') as HTMLElement
+    const prev = document.querySelector('[data-stat-prev]') as HTMLElement
+    const next = document.querySelector('[data-stat-next]') as HTMLElement
+    const r = (el: Element) => el.getBoundingClientRect()
+    return {
+      sectionW: r(section).width,
+      trackW: r(track).width,
+      stageW: r(stage).width,
+      pages: Math.round(track.scrollWidth / Math.max(1, track.clientWidth)),
+      prev: { position: getComputedStyle(prev).position, opacity: getComputedStyle(prev).opacity, x: r(prev).x, cy: r(prev).y + r(prev).height / 2 },
+      next: { position: getComputedStyle(next).position, opacity: getComputedStyle(next).opacity, x: r(next).x, cy: r(next).y + r(next).height / 2 },
+      trackCY: r(track).y + r(track).height / 2,
+      handleSize: r(next).width,
+      docScroll: document.documentElement.scrollWidth,
+    }
+  })
+
+  // 1) The section EXPANDED: the strip (and its anchor) spans ≥94% of the section —
+  //    the old flank layout measured ~77% (262/342) on this exact viewport.
+  expect(geo.trackW).toBeGreaterThanOrEqual(geo.sectionW * 0.94)
+  expect(geo.stageW).toBeGreaterThanOrEqual(geo.sectionW * 0.94)
+  expect(geo.pages).toBeGreaterThanOrEqual(2)
+  // No sideways document scroll introduced by the overlay overhang.
+  expect(geo.docScroll).toBeLessThanOrEqual(390)
+
+  // 2) The handles are OVER the strip: absolute, ≥40px (coarse-pointer tap law), and
+  //    vertically centered on the track (±8px tolerance).
+  expect(geo.prev.position).toBe('absolute')
+  expect(geo.next.position).toBe('absolute')
+  expect(geo.handleSize).toBeGreaterThanOrEqual(40)
+  expect(Math.abs(geo.prev.cy - geo.trackCY)).toBeLessThanOrEqual(8)
+  expect(Math.abs(geo.next.cy - geo.trackCY)).toBeLessThanOrEqual(8)
+  // They sit at the outer edges flanking the strip (direction-agnostic: one handle's
+  // CENTER near the left edge, the other's near the right edge) — over the strip's
+  // edge region, inside the viewport.
+  const centers = [geo.prev.x + geo.handleSize / 2, geo.next.x + geo.handleSize / 2]
+  expect(Math.min(...centers)).toBeLessThanOrEqual(52)
+  expect(Math.max(...centers)).toBeGreaterThanOrEqual(390 - 52)
+
+  // 3) At the start the useless prev handle steps aside; after one page it returns.
+  //    (Tolerance-based: the 0.25s fade means "invisible" < 0.1, "visible" > 0.9.)
+  expect(parseFloat(geo.prev.opacity)).toBeLessThan(0.1)
+  expect(parseFloat(geo.next.opacity)).toBeGreaterThan(0.9)
+  await page.click('[data-stat-next]')
+  await page.waitForTimeout(700)
+  const paged = await page.evaluate(() => {
+    const track = document.querySelector('[data-stat-track]') as HTMLElement
+    const prev = document.querySelector('[data-stat-prev]') as HTMLElement
+    const dots = [...document.querySelectorAll('.stat-dot')]
+    return { scroll: Math.abs(track.scrollLeft), prevOpacity: getComputedStyle(prev).opacity, activeDot: dots.findIndex((d) => d.classList.contains('is-active')) }
+  })
+  expect(paged.scroll).toBeGreaterThan(200)
+  expect(parseFloat(paged.prevOpacity)).toBeGreaterThan(0.9)
+  expect(paged.activeDot).toBe(1)
+
+  // 4) Page to the end via direct scrolls (the same capture-scroll driver path native
+  //    swipes take; clicking the hidden handle would fail Playwright actionability) →
+  //    the next handle steps aside too.
+  for (let i = 0; i < 8 && !(await page.evaluate(() => document.querySelector('.stat-carousel')?.classList.contains('at-end'))); i++) {
+    await page.evaluate(() => {
+      const t = document.querySelector('[data-stat-track]') as HTMLElement
+      const rtl = getComputedStyle(t).direction === 'rtl'
+      t.scrollBy({ left: (rtl ? -1 : 1) * t.clientWidth, behavior: 'instant' })
+    })
+    await page.waitForTimeout(180)
+  }
+  const atEnd = await page.evaluate(() => {
+    const car = document.querySelector('.stat-carousel') as HTMLElement
+    const next = document.querySelector('[data-stat-next]') as HTMLElement
+    const track = document.querySelector('[data-stat-track]') as HTMLElement
+    return { classes: car.className, nextOpacity: getComputedStyle(next).opacity, maxed: Math.abs(track.scrollLeft) >= track.scrollWidth - track.clientWidth - 1 }
+  })
+  expect(atEnd.classes).toContain('at-end')
+  expect(parseFloat(atEnd.nextOpacity)).toBeLessThan(0.1)
+  expect(atEnd.maxed).toBe(true)
+
+  // Cleanup the probe projects.
+  for (const id of made) {
+    await page.evaluate(async (id) => { await fetch(`/api/projects/${id}`, { method: 'DELETE' }) }, id)
+  }
+})

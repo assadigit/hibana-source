@@ -507,6 +507,12 @@ window.__hibanaDictEN = {
       'cmdk.noResults': 'No matches.',
       // 0040 search depth: result-group headers + canvas element type labels + quadrant names.
       'cmdk.notes': 'Notes',
+      // S30 batch 4: the label manager
+      'db.labelsTitle': 'Labels', 'db.labelsHint': 'Rename merges onto an existing name; colors are yours to pick; unused labels can be deleted.',
+      'db.labelsName': 'Label name', 'db.labelsColor': 'Recolor', 'db.labelsMerge': 'Merge into…', 'db.labelsMergePh': 'merge into…',
+      'db.labelsMergeConfirm': 'Merge this label into {name}? Every link moves.', 'db.labelsMerged': 'Merged into the existing label',
+      'db.labelsDel': 'Delete unused label', 'db.labelsDeleted': 'Label deleted', 'db.labelsEmpty': 'No labels yet — add one from a task.',
+      'db.usedTimes': 'used {n}×',
       // S30 batch 3: reports task analytics + the dashboard urgent strip
       'reports.tasksHeading': 'Task analytics', 'reports.openTasks': 'open', 'reports.openTasks2': 'open',
       'reports.shareNote': 'Open backlog:', 'reports.shareUrgent': 'urgent',

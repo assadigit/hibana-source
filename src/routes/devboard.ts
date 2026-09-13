@@ -753,7 +753,103 @@ export function devboardRoutes(cfg: Config) {
     return c.json({ ok: true })
   })
 
-  // HX toast helper kept for any future htmx surface
+  // ---- S30 batch 4: the LABEL MANAGER (user request — rename/merge/recolor/delete) ----
+  // User-scoped tags CRUD. usage_count stays honest (B2's refreshTagUsage runs after
+  // every mutation); renames REWRITE the affected tasks' search_tags so FTS follows.
+
+  // List every tag with its live usage (the manager's data source).
+  app.get('/api/tags', async (c) => {
+    const user = c.get('user')
+    const rows = await cfg.db.query<{ id: string; name: string; color: string; usage_count: number }>(
+      'SELECT id, name, color, usage_count FROM tags WHERE user_id = ? ORDER BY usage_count DESC, name',
+      [user.id],
+    )
+    return c.json({ tags: rows })
+  })
+
+  const tagUpdateSchema = z.object({
+    name: z.string().trim().min(1).max(60).optional(),
+    color: hexColor.optional(),
+  })
+  const tagMergeSchema = z.object({ into: z.string().max(64) })
+  app.patch('/api/tags/:id', async (c) => {
+    const body = await jsonBody<z.infer<typeof tagUpdateSchema>>(c, tagUpdateSchema)
+    if (!body) return c.json({ error: 'invalid_input' }, 400)
+    const user = c.get('user')
+    const tag = await cfg.db.query<{ id: string; name: string }>('SELECT id, name FROM tags WHERE id = ? AND user_id = ?', [c.req.param('id'), user.id])
+    if (!tag.length) return c.json({ error: 'not_found' }, 404)
+    const tagRow = tag[0]
+
+    // RENAME with collision = MERGE (the manager's rename doubles as a merge when the
+    // target name already exists): "Refactor" → "Tech-Debt" moves every link onto the
+    // existing Tech-Debt tag and deletes Refactor. Exact + NOCASE collisions only.
+    if (body.name !== undefined && body.name !== tagRow.name) {
+      const clash = await cfg.db.query<{ id: string }>('SELECT id FROM tags WHERE user_id = ? AND name = ? COLLATE NOCASE AND id != ?', [user.id, body.name, tagRow.id])
+      if (clash.length) {
+        const target = clash[0].id
+        // dev-task links: INSERT OR IGNORE (a task linked to both keeps ONE row — the PK)
+        await cfg.db.execute(
+          `INSERT OR IGNORE INTO dev_task_tags (task_id, tag_id) SELECT task_id, ? FROM dev_task_tags WHERE tag_id = ?`,
+          [target, tagRow.id],
+        )
+        await cfg.db.execute(
+          `INSERT OR IGNORE INTO project_tags (project_id, tag_id) SELECT project_id, ? FROM project_tags WHERE tag_id = ?`,
+          [target, tagRow.id],
+        )
+        // rewrite search_tags for every task that carried the old tag, then drop it
+        const affected = await cfg.db.query<{ task_id: string }>('SELECT task_id FROM dev_task_tags WHERE tag_id = ?', [tagRow.id])
+        await cfg.db.execute('DELETE FROM dev_task_tags WHERE tag_id = ?', [tagRow.id])
+        await cfg.db.execute('DELETE FROM project_tags WHERE tag_id = ?', [tagRow.id])
+        await cfg.db.execute('DELETE FROM tags WHERE id = ?', [tagRow.id])
+        for (const row of affected) await syncTaskSearchTags(cfg, row.task_id)
+        await refreshTagUsage(cfg, [tagRow.id, target])
+        return c.json({ ok: true, merged_into: target })
+      }
+      await cfg.db.execute('UPDATE tags SET name = ? WHERE id = ?', [body.name, tagRow.id])
+    }
+    if (body.color !== undefined) {
+      await cfg.db.execute('UPDATE tags SET color = ? WHERE id = ?', [body.color, tagRow.id])
+    }
+    // a plain rename/color change rewrites every affected task's FTS text
+    if (body.name !== undefined) {
+      const affected = await cfg.db.query<{ task_id: string }>('SELECT task_id FROM dev_task_tags WHERE tag_id = ?', [tagRow.id])
+      for (const row of affected) await syncTaskSearchTags(cfg, row.task_id)
+    }
+    return c.json({ ok: true })
+  })
+
+  // Explicit merge: { into: targetTagId } — moves every link, deletes the source.
+  app.post('/api/tags/:id/merge', async (c) => {
+    const body = await jsonBody<z.infer<typeof tagMergeSchema>>(c, tagMergeSchema)
+    if (!body) return c.json({ error: 'invalid_input' }, 400)
+    const user = c.get('user')
+    const src = await cfg.db.query<{ id: string }>('SELECT id FROM tags WHERE id = ? AND user_id = ?', [c.req.param('id'), user.id])
+    const dst = await cfg.db.query<{ id: string }>('SELECT id FROM tags WHERE id = ? AND user_id = ?', [body.into, user.id])
+    if (!src.length || !dst.length || src[0].id === dst[0].id) return c.json({ error: 'not_found' }, 404)
+    const srcId = src[0].id
+    const dstId = dst[0].id
+    await cfg.db.execute('INSERT OR IGNORE INTO dev_task_tags (task_id, tag_id) SELECT task_id, ? FROM dev_task_tags WHERE tag_id = ?', [dstId, srcId])
+    await cfg.db.execute('INSERT OR IGNORE INTO project_tags (project_id, tag_id) SELECT project_id, ? FROM project_tags WHERE tag_id = ?', [dstId, srcId])
+    const affected = await cfg.db.query<{ task_id: string }>('SELECT task_id FROM dev_task_tags WHERE tag_id = ?', [srcId])
+    await cfg.db.execute('DELETE FROM dev_task_tags WHERE tag_id = ?', [srcId])
+    await cfg.db.execute('DELETE FROM project_tags WHERE tag_id = ?', [srcId])
+    await cfg.db.execute('DELETE FROM tags WHERE id = ?', [srcId])
+    for (const row of affected) await syncTaskSearchTags(cfg, row.task_id)
+    await refreshTagUsage(cfg, [srcId, dstId])
+    return c.json({ ok: true })
+  })
+
+  // Delete a tag — UNUSED tags only (usage_count = 0). Used tags must be merged or
+  // unlinked first ("delete-unused tags", the owner's wording).
+  app.delete('/api/tags/:id', async (c) => {
+    const user = c.get('user')
+    const rows = await cfg.db.query<{ usage_count: number }>('SELECT usage_count FROM tags WHERE id = ? AND user_id = ?', [c.req.param('id'), user.id])
+    if (!rows.length) return c.json({ error: 'not_found' }, 404)
+    if ((rows[0].usage_count ?? 0) > 0) return c.json({ error: 'tag_in_use' }, 409)
+    await cfg.db.execute('DELETE FROM tags WHERE id = ?', [c.req.param('id')])
+    return c.json({ ok: true })
+  })
+
   app.all('/api/devboard/ping', (c) => {
     const t = trFor(c)
     return c.html(toastHtml(t('Saved', 'ذخیره شد'), localeOf(c)))

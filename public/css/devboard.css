@@ -644,3 +644,38 @@ main.shell.sp-shell .sp-wrap { min-block-size: min(64vh, 30rem); }
 
 /* Label chips are FILTER toggles now (GitHub behavior) — keep the pointer honest. */
 .db-mini-chip, .pd-task .pd-tag { cursor: pointer; }
+
+/* ---- S30 batch 4: the label-manager dialog (board toolbar → Labels) ------------ */
+.db-labels-card { max-inline-size: 46rem; }
+.db-labels-list { display: grid; gap: 0.4rem; margin-block: 0.6rem; max-block-size: 24rem; overflow-y: auto; }
+.db-label-row {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  flex-wrap: wrap;
+  padding: 0.4rem 0.5rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--card);
+}
+.db-label-swatch { inline-size: 14px; block-size: 14px; border-radius: 999px; flex: none; }
+.db-label-name {
+  flex: 1 1 10rem;
+  min-inline-size: 0;
+  padding: 0.3rem 0.5rem;
+  border: 1px dashed var(--line-strong);
+  border-radius: var(--radius-sm);
+  background: var(--bg-inset, var(--bg));
+  color: var(--text);
+}
+.db-label-name:focus { border-style: solid; border-color: var(--brand); outline: none; }
+.db-label-usage { flex: none; font-variant-numeric: tabular-nums; }
+.db-label-actions { display: inline-flex; align-items: center; gap: 0.3rem; flex: none; }
+.db-label-actions .db-label-merge { max-inline-size: 11rem; }
+.db-label-palette { flex-basis: 100%; justify-content: flex-start; }
+.db-label-palette .pd-swatch { inline-size: 24px; block-size: 24px; border-radius: 999px; border: 2px solid transparent; cursor: pointer; padding: 0; }
+.db-label-palette .pd-swatch:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
+@media (max-width: 640px) {
+  .db-label-name { flex-basis: 100%; }
+  .db-label-usage { margin-inline-start: auto; }
+}

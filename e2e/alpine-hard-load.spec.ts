@@ -90,7 +90,10 @@ test('reports page: hard load registers the report component (Snapshot + heatmap
   // load() resolved — the single clearest "Alpine is alive" assertion on this page.
   await expect(page.getByRole('heading', { name: 'Snapshot', exact: true })).toBeVisible({ timeout: 10_000 })
   // Heatmap grid (13 weeks + padding ≈ 90+ cells) + activity bars both render from data.
-  await expect(page.locator('.heatmap-cell').first()).toBeVisible({ timeout: 10_000 })
+  // NOTE: .first() is the pad-to-Sunday cell whenever the 91-day window starts mid-week
+  // (it renders but stays x-show="d" hidden — a date-dependent flake found 2026-09-13,
+  // a Sunday-window day). Index 7 is always inside the first full week = a real cell.
+  await expect(page.locator('.heatmap-cell').nth(7)).toBeVisible({ timeout: 10_000 })
   await expect(page.locator('#report-body .bar-row').first()).toBeVisible({ timeout: 10_000 })
   expect(alpine, `Alpine expression warnings: ${alpine.join(' | ')}`).toEqual([])
   expect(errors, `console/page errors: ${errors.join(' | ')}`).toEqual([])

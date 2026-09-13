@@ -146,7 +146,7 @@
                   const cat = task.category_id ? B().findCategory(task.category_id) : null
                   const sprint = task.sprint_id ? B().findSprint(task.sprint_id) : null
                   const tags = (task.tags || []).map((id) => B().tagById(id)).filter(Boolean)
-                  return '<article class="db-card st-' + task.status + '" draggable="true" data-task-card="' + task.id + '" data-status="' + task.status + '">' +
+                  return '<article class="db-card st-' + task.status + '" draggable="true" data-task-card="' + task.id + '" data-status="' + task.status + '" data-priority="' + (task.priority || 'medium') + '">' +
                     '<div class="db-card-main">' +
                       // S30 batch 2: the dot's tooltip is the TRANSLATED label (was the raw
                       // 'urgent' string) + the cycle hint; clicking it cycles the priority.
@@ -184,6 +184,14 @@
         }
 
         const reload = async () => { await B().load(projectId); render() }
+
+        // S30 batch 4: the LABEL MANAGER — rename/merge/recolor/delete-unused, opened
+        // from the toolbar. Every change reloads the board (labels ride the cards).
+        ctx.on('click', (e) => {
+          if (!e.target.closest('#db-labels-btn')) return
+          e.preventDefault()
+          B().openLabels({ onChanged: reload })
+        })
 
         // ⋯ hover menu on each .db-card — Edit opens the existing modal (no refresh),
         // Delete shows a confirm modal (no refresh). Re-injected after every render().
@@ -487,12 +495,26 @@
           const colBody = drag.closest('[data-colbody]')
           const newStatus = colBody ? colBody.dataset.colbody : null
           const task = B().findTask(id)
+          // S30 batch 4 (user request: "drop into the urgent zone of the column"):
+          // a SAME-COLUMN drop ADOPTS the priority of the card it landed next to —
+          // the columns are priority-sorted, so the neighbor IS the tier zone. The
+          // card below the drop point (or the one above when dropping at the end)
+          // defines it; a differing tier PATCHes the priority with the move.
+          let adoptedPrio = null
+          if (task && newStatus === task.status && colBody) {
+            const next = drag.nextElementSibling && drag.nextElementSibling.matches('[data-task-card]') ? drag.nextElementSibling : null
+            const prev = drag.previousElementSibling && drag.previousElementSibling.matches('[data-task-card]') ? drag.previousElementSibling : null
+            const zone = next || prev
+            const zonePrio = zone ? (zone.dataset.priority || 'medium') : null
+            if (zonePrio && zonePrio !== (task.priority || 'medium')) adoptedPrio = zonePrio
+          }
           clearOver()
           drag.classList.remove('dragging')
           drag = null
           if (!task || !newStatus) return
           try {
             if (newStatus !== task.status) await B().patchTask(id, { status: newStatus })
+            if (adoptedPrio) await B().patchTask(id, { priority: adoptedPrio })
             const ids = [...(colBody ? colBody.querySelectorAll('[data-task-card]') : [])].map((x) => x.dataset.taskCard)
             if (ids.length > 1) await B().reorderTasks(ids)
             await reload()
@@ -524,7 +546,7 @@
             if (window.HibanaBoard) return resolve(true)
             if (!injected && waited >= 1200) {
               injected = true
-              inject('/js/devboard.js?v=12') // keep in sync with the <head> tag + sw SHELL
+              inject('/js/devboard.js?v=16') // keep in sync with the <head> tag + sw SHELL
               if (!window.jalaali) inject('/vendor/jalaali.min.js') // Jalali dates for FA
             }
             if (waited >= 9000) return resolve(false)

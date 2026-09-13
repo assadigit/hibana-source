@@ -9,6 +9,41 @@
 > rewritten as a minimal pointer. Deleted files remain recoverable verbatim:
 > `git show <sha>:<file>`.
 
+## 1. Current state (v0.3.12.30 — Session 30 batch 4: Tier-3 UX depth — drag-into-zone, tooltip breakdown, label manager)
+- **(a) Drag vertically = change priority tier (owner request)**: a same-column drop
+  ADOPTS the priority of the card it landed next to — the columns are priority-sorted,
+  so the neighbor IS the tier zone ("drop into the urgent zone of the column"). The
+  card below the drop point (or the one above at the end) defines it; both surfaces
+  (board.html's drop handler + the project preview's same-box path) PATCH {priority}
+  with the move and re-sort optimistically. Horizontal drag = status (unchanged);
+  vertical drag = priority — one predictable gesture pair.
+- **(b) Progress-bar tooltip breakdown**: hovering the project header strip shows the
+  per-tier composition ("3 urgent · 2 high · 5 medium"; FA «۱ فوری · ۲ اولویت
+  بالا…») — server-rendered from the task pool and kept LIVE client-side
+  (pdTaskTruth: the full task list the filter-bar fetch already loads; add/cycle/
+  drag/delete update it and repaint [data-pd-bar]'s title).
+- **(c) The label manager (rename/merge/recolor/delete-unused)**: board toolbar →
+  Labels opens a dialog listing every tag with its LIVE usage_count (B2's honest
+  counts: «۲ بار استفاده»). Enter renames (a colliding name MERGES onto the existing
+  tag — links move, the source dies); the 8-swatch palette recolors (cures B4's
+  collisions: pick, don't hash); a merge-select folds one label into another; the ✕
+  deletes UNUSED tags only (409 tag_in_use while linked). New API: GET /api/tags,
+  PATCH /api/tags/:id (rename-merge OR recolor; renames rewrite every affected task's
+  search_tags so FTS follows), POST /api/tags/:id/merge, DELETE /api/tags/:id — all
+  user-scoped, all refreshing usage.
+- **Two modal-race fixes found by the e2e hammer**: the manager's onChanged callback
+  is close-proof (Esc racing an in-flight PATCH→refresh used to cancel the board
+  reload — silently stale chips), and the recolor path now triggers refresh().
+- 12 i18n keys EN+FA (db.labels*/usedTimes; 991→1003). Bumps: devboard.js v13→16,
+  board-page.js v3→4, project-page.js v6→7, i18n-en/fa v12→13 (i18n.js v69→70),
+  devboard.css v4→5. Tests: +4 vitest (devtask-label-manager: rename-FTS-follows,
+  merge totals + single links, delete 409/200, rule 1) + 2 e2e
+  (label-manager.spec.ts: the manager UI + drag-into-zone + tier tooltip) — 44 e2e
+  total. Also fixed a DATE-DEPENDENT flake in alpine-hard-load (the heatmap's
+  .first() is the pad-to-Sunday cell whenever the 91-day window starts mid-week —
+  nth(7) is always a real cell). Ladder: typecheck 0 · vitest 348/348 · Playwright
+  44/44 (×2 consecutive full runs) · smoke ALL PASS · i18n 1003/1003 · cache-bust PASS.
+
 ## 1. Current state (v0.3.12.29 — Session 30 batch 3: Tier-2 analytics — the data becomes visible)
 - **(a) Reports task analytics (owner request)**: /api/reports/summary gained
   tasks.priority (per-tier {total, done} across every live task — "how much of my

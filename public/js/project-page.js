@@ -620,6 +620,36 @@
         // in place instead of re-rendering — the htmx-swapped server markup survives.
         // Clicking a card's label chip toggles the same filter (GitHub behavior); the
         // priority DOT cycles priority without opening the editor.
+        // S30 batch 4 (user request: "hover the project header strip → '3 urgent ·
+        // 2 high · 5 medium'"): the computed bar carries a per-tier tooltip. The truth
+        // rides pdTaskTruth (the full task list from the filter-bar fetch); every
+        // add/move/delete/cycle keeps it in step and repaints the [data-pd-bar] title.
+        let pdTaskTruth = [] // [{id, priority}]
+        const pdTierLabel = (p) => {
+          const map = { urgent: ['urgent', 'فوری'], high: ['high', 'اولویت بالا'], medium: ['medium', 'اولویت متوسط'], low: ['low', 'اولویت کم'] }
+          const e = map[p] || map.medium
+          return document.documentElement.lang === 'fa' ? e[1] : e[0]
+        }
+        const pdPaintBarTooltip = () => {
+          const bar = document.querySelector('[data-pd-bar]')
+          if (!bar) return
+          const counts = { urgent: 0, high: 0, medium: 0, low: 0 }
+          for (const t of pdTaskTruth) counts[t.priority || 'medium'] = (counts[t.priority || 'medium'] || 0) + 1
+          const parts = ['urgent', 'high', 'medium', 'low'].filter((p) => counts[p] > 0)
+            .map((p) => pdDig(counts[p]) + ' ' + pdTierLabel(p))
+          bar.setAttribute('title', parts.join(' · '))
+        }
+        const pdTierTrack = (taskId, priority) => {
+          const row = pdTaskTruth.find((t) => t.id === taskId)
+          if (row) row.priority = priority || 'medium'
+          else pdTaskTruth.push({ id: taskId, priority: priority || 'medium' })
+          pdPaintBarTooltip()
+        }
+        const pdTierForget = (taskId) => {
+          pdTaskTruth = pdTaskTruth.filter((t) => t.id !== taskId)
+          pdPaintBarTooltip()
+        }
+
         const pdFilterPrios = new Set()
         const pdFilterTags = new Set()
         let pdFilterKnown = [] // [{name, color}] — distinct labels across the project
@@ -667,6 +697,9 @@
             const res = await fetch('/api/projects/' + id)
             if (res.ok) {
               const data = await res.json()
+              // S30 batch 4: the tier-tooltip truth (every task's priority).
+              pdTaskTruth = ((data.project ? data.project.devTasks : data.devTasks) || []).map((t) => ({ id: t.id, priority: t.priority || 'medium' }))
+              pdPaintBarTooltip()
               const rows = (data.project ? data.project.devTaskTags : data.devTaskTags) || []
               const seen = new Set()
               pdFilterKnown = []
@@ -739,6 +772,7 @@
             const cur = wrap.dataset.pdPriority || 'medium'
             const next = order[(order.indexOf(cur) + 1 + order.length) % order.length] || 'medium'
             wrap.dataset.pdPriority = next
+            pdTierTrack(tid, next)
             const dot = wrap.querySelector('.prio-dot')
             if (dot) dot.className = 'prio-dot prio-' + next
             const btn = wrap.querySelector('[data-pd-cycle-prio]')
@@ -903,6 +937,7 @@
           const prio = task.priority || 'medium'
           const tags = Array.isArray(task.tags) ? task.tags : []
           wrap.dataset.pdPriority = prio
+          pdTierTrack(String(task.id), prio)
           wrap.dataset.pdTags = JSON.stringify(tags)
           // Session 22: div + role=button (matches the server-rendered cards) — click
           // opens the inline editor everywhere; the old <a href="/board.html"> made
@@ -1666,6 +1701,7 @@
           const chip = document.querySelector('#pd-board .pd-task-wrap[data-pd-task="' + taskId + '"]')
           if (!chip) return
           const from = chip.dataset.pdStatus
+          pdTierForget(taskId)
           chip.remove()
           pdSetCount(from, Number(pdCountEl(from)?.dataset.n || '0') - 1)
           const list = document.querySelector('[data-pd-tasks="' + from + '"]')
@@ -2047,6 +2083,32 @@
             // same box — only the order changed (board.html contract). S29 follow-up:
             // AUTO-SORT then snaps the card back to its PRIORITY slot — manual drag
             // re-orders within a tier (what the server renders on reload), never across.
+            // S30 batch 4 (user request: "drop into the urgent zone of the column"):
+            // a same-column drop ADOPTS the priority of the card it landed next to —
+            // the wraps are priority-sorted, so the neighbor IS the tier zone. The wrap
+            // below the drop point (or the one above at the end) defines it.
+            let pdAdopted = null
+            const isWrap = (n) => n && n.classList && n.classList.contains('pd-task-wrap')
+            const next = isWrap(el.nextElementSibling) ? el.nextElementSibling : null
+            const prev = isWrap(el.previousElementSibling) ? el.previousElementSibling : null
+            const zoneWrap = next || prev
+            if (zoneWrap) {
+              const zonePrio = zoneWrap.dataset.pdPriority || 'medium'
+              if (zonePrio !== (el.dataset.pdPriority || 'medium')) pdAdopted = zonePrio
+            }
+            if (pdAdopted) {
+              el.dataset.pdPriority = pdAdopted
+              const dot = el.querySelector('.prio-dot')
+              if (dot) dot.className = 'prio-dot prio-' + pdAdopted
+              const metaPrio = el.querySelector('.pd-meta-prio')
+              if (metaPrio) { metaPrio.className = 'pd-meta-prio prio-' + pdAdopted; metaPrio.textContent = pdPrioLabel(pdAdopted) }
+              fetch('/api/devtasks/' + el.dataset.pdTask, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ priority: pdAdopted }),
+              }).catch(() => window.hibana?.toast(_t('sparks.saveFailed', "Couldn't save"), 'err'))
+              pdTierTrack(el.dataset.pdTask, pdAdopted)
+            }
             const ids = [...col.querySelectorAll('.pd-task-wrap')].map((x) => x.dataset.pdTask)
             pdSortWrap(el.closest('.pd-tasks') || col, el)
             if (ids.length > 1) {

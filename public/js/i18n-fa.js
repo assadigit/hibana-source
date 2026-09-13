@@ -506,6 +506,12 @@ window.__hibanaDictFA = {
       'cmdk.noResults': 'نتیجه‌ای نیست.',
       // 0040 search depth: result-group headers + canvas element type labels + quadrant names.
       'cmdk.notes': 'یادداشت‌ها',
+      // S30 بستهٔ ۴: مدیر برچسب‌ها
+      'db.labelsTitle': 'برچسب‌ها', 'db.labelsHint': 'تغییر نام روی نام موجود ادغام می‌کند؛ رنگ با خودت است؛ برچسب بلااستفاده قابل حذف است.',
+      'db.labelsName': 'نام برچسب', 'db.labelsColor': 'تغییر رنگ', 'db.labelsMerge': 'ادغام در…', 'db.labelsMergePh': 'ادغام در…',
+      'db.labelsMergeConfirm': 'این برچسب در «{name}» ادغام شود؟ همهٔ پیوندها منتقل می‌شوند.', 'db.labelsMerged': 'در برچسب موجود ادغام شد',
+      'db.labelsDel': 'حذف برچسب بلااستفاده', 'db.labelsDeleted': 'برچسب حذف شد', 'db.labelsEmpty': 'هنوز برچسبی نیست — از یک کار اضافه کن.',
+      'db.usedTimes': '{n} بار استفاده',
       // S30 بستهٔ ۳: تحلیل کارهای گزارش + نوار فوریِ داشبورد
       'reports.tasksHeading': 'تحلیل کارها', 'reports.openTasks': 'باز', 'reports.openTasks2': 'باز',
       'reports.shareNote': 'بازِ باقی‌مانده:', 'reports.shareUrgent': 'فوری',

@@ -402,9 +402,161 @@
     }
   }
 
+  // ---------------------------------------------------------------- label manager
+  // S30 batch 4 (user request — "rename/merge/recolor/delete-unused tags, powered by
+  // fixing B2"): a dialog listing every user tag with its LIVE usage_count. Row actions:
+  // rename (Enter; a colliding name MERGES onto the existing tag), recolor (8-swatch
+  // palette), merge (a select of the other tags), delete (only usage 0). Owned here so
+  // any surface can open it; board.html's toolbar is the first.
+  let labelsEl = null
+  let labelsCtx = null // open-flag ({ onChanged } shape kept for renderLabels' guard)
+  // The changed-callback lives OUTSIDE the close lifecycle: Esc racing an in-flight
+  // action (PATCH → refresh → reload) must not cancel the board's repaint — the chips
+  // would silently keep the stale color until the next manual refresh.
+  let labelsOnChanged = null
+
+  async function fetchTags() {
+    const res = await fetch('/api/tags')
+    if (!res.ok) throw new Error('tags failed')
+    return (await res.json()).tags || []
+  }
+
+  function renderLabels(tags) {
+    const el = labelsEl
+    if (!el || !labelsCtx) return
+    const lang = window.hibanaI18n && window.hibanaI18n.lang ? window.hibanaI18n.lang() : 'en'
+    const d = document.createElement('div')
+    d.className = 'db-modal-card db-labels-card'
+    d.dir = lang === 'fa' ? 'rtl' : 'auto'
+    d.innerHTML =
+      '<div class="row spread"><h3>' + esc(t('db.labelsTitle', 'Labels')) + '</h3>' +
+        '<button type="button" class="ghost" data-lbl-close aria-label="' + esc(t('common.close', 'Close')) + '">✕</button></div>' +
+      '<p class="muted small">' + esc(t('db.labelsHint', 'Rename merges onto an existing name; colors are yours to pick; unused labels can be deleted.')) + '</p>' +
+      '<div class="db-labels-list">' + (tags.length ? tags.map(function (tg) {
+        return '<div class="db-label-row" data-tag-id="' + esc(tg.id) + '">' +
+          '<span class="db-label-swatch" style="background:' + esc(tg.color) + '"></span>' +
+          '<input class="db-label-name" value="' + esc(tg.name) + '" maxlength="60" dir="auto" aria-label="' + esc(t('db.labelsName', 'Label name')) + '">' +
+          '<span class="muted small db-label-usage">' + esc(t('db.usedTimes', 'used {n}×').split('{n}').join(String(tg.usage_count == null ? 0 : tg.usage_count))) + '</span>' +
+          '<span class="db-label-actions">' +
+            '<button type="button" class="ghost small" data-lbl-color title="' + esc(t('db.labelsColor', 'Recolor')) + '" aria-label="' + esc(t('db.labelsColor', 'Recolor')) + '">🎨</button>' +
+            '<select class="db-label-merge" data-lbl-merge aria-label="' + esc(t('db.labelsMerge', 'Merge into…')) + '">' +
+              '<option value="">' + esc(t('db.labelsMergePh', 'merge into…')) + '</option>' +
+              tags.filter(function (o) { return o.id !== tg.id }).map(function (o) { return '<option value="' + esc(o.id) + '">' + esc(o.name) + '</option>' }).join('') +
+            '</select>' +
+            ((tg.usage_count == null ? 0 : tg.usage_count) === 0
+              ? '<button type="button" class="ghost small danger" data-lbl-del title="' + esc(t('db.labelsDel', 'Delete unused label')) + '" aria-label="' + esc(t('db.labelsDel', 'Delete unused label')) + '">✕</button>'
+              : '') +
+          '</span>' +
+          '<span class="pd-tag-colors db-label-palette" hidden>' +
+            ['#8AB8F0', '#E8B27D', '#E59AA5', '#8FD3A9', '#B3A5D6', '#7CC7C1', '#F2D58A', '#C9CDD2'].map(function (c) {
+              return '<button type="button" class="pd-swatch" data-color="' + c + '" style="background:' + c + '" aria-label="' + c + '"></button>'
+            }).join('') +
+          '</span>' +
+        '</div>'
+      }).join('') : '<p class="muted">' + esc(t('db.labelsEmpty', 'No labels yet — add one from a task.')) + '</p>') + '</div>'
+    el.innerHTML = ''
+    el.appendChild(d)
+
+    const close = function () { el.hidden = true; labelsCtx = null }
+    d.querySelector('[data-lbl-close]').onclick = close
+    el.onclick = function (ev) { if (ev.target === el) close() }
+
+    const rows = Array.prototype.slice.call(d.querySelectorAll('.db-label-row'))
+    rows.forEach(function (row) {
+      const id = row.dataset.tagId
+      // rename (Enter) — a colliding name merges (the API doubles as merge)
+      const nameIn = row.querySelector('.db-label-name')
+      nameIn.onkeydown = async function (ev) {
+        if (ev.key !== 'Enter' || ev.isComposing) return
+        ev.preventDefault()
+        const name = nameIn.value.trim()
+        if (!name) return
+        try {
+          const res = await fetch('/api/tags/' + id, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: name }) })
+          if (!res.ok) throw new Error('rename failed')
+          const body = await res.json()
+          if (body.merged_into) window.hibana && window.hibana.toast(t('db.labelsMerged', 'Merged into the existing label'))
+          else window.hibana && window.hibana.toast(t('sparks.saved', 'Saved'))
+          refresh()
+        } catch (e) { window.hibana && window.hibana.toast(t('sparks.saveFailed', "Couldn't save"), 'err') }
+      }
+      // recolor palette toggle + pick
+      row.querySelector('[data-lbl-color]').onclick = function () {
+        const pal = row.querySelector('.db-label-palette')
+        if (pal) pal.hidden = !pal.hidden
+      }
+      Array.prototype.slice.call(row.querySelectorAll('.db-label-palette [data-color]')).forEach(function (sw) {
+        sw.onclick = async function () {
+          try {
+            const res = await fetch('/api/tags/' + id, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ color: sw.dataset.color }) })
+            if (!res.ok) throw new Error('color failed')
+            const swatch = row.querySelector('.db-label-swatch')
+            if (swatch) swatch.style.background = sw.dataset.color
+            const pal = row.querySelector('.db-label-palette')
+            if (pal) pal.hidden = true
+            window.hibana && window.hibana.toast(t('sparks.saved', 'Saved'))
+            refresh() // repaints the list + fires onChanged (the board reloads its chips)
+          } catch (e) { window.hibana && window.hibana.toast(t('sparks.saveFailed', "Couldn't save"), 'err') }
+        }
+      })
+      // merge select
+      const mergeSel = row.querySelector('[data-lbl-merge]')
+      mergeSel.onchange = async function () {
+        const into = mergeSel.value
+        if (!into) return
+        const targetName = mergeSel.options[mergeSel.selectedIndex].textContent
+        const msg = t('db.labelsMergeConfirm', 'Merge this label into {name}? Every link moves.').split('{name}').join(targetName)
+        if (!window.confirm(msg)) { mergeSel.value = ''; return }
+        try {
+          const res = await fetch('/api/tags/' + id + '/merge', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ into: into }) })
+          if (!res.ok) throw new Error('merge failed')
+          window.hibana && window.hibana.toast(t('db.labelsMerged', 'Merged into the existing label'))
+          refresh()
+        } catch (e) { window.hibana && window.hibana.toast(t('sparks.saveFailed', "Couldn't save"), 'err') }
+      }
+      // delete (unused only — the row only renders the button then)
+      const delBtn = row.querySelector('[data-lbl-del]')
+      if (delBtn) delBtn.onclick = async function () {
+        try {
+          const res = await fetch('/api/tags/' + id, { method: 'DELETE' })
+          if (!res.ok) throw new Error('delete failed')
+          window.hibana && window.hibana.toast(t('db.labelsDeleted', 'Label deleted'))
+          refresh()
+        } catch (e) { window.hibana && window.hibana.toast(t('sparks.saveFailed', "Couldn't save"), 'err') }
+      }
+    })
+  }
+
+  async function refresh() {
+    // labelsOnChanged is close-proof (see its declaration) — the board reload fires
+    // even when Esc beat the async chain.
+    const cb = labelsOnChanged
+    try {
+      const tags = await fetchTags()
+      renderLabels(tags)
+    } catch (e) { window.hibana && window.hibana.toast(t('sparks.saveFailed', "Couldn't load"), 'err') }
+    if (cb) cb()
+  }
+
+  async function openLabels(opts) {
+    labelsCtx = { open: true }
+    labelsOnChanged = (opts && opts.onChanged) || null
+    if (!labelsEl) {
+      labelsEl = document.createElement('div')
+      labelsEl.className = 'db-modal'
+      labelsEl.setAttribute('role', 'dialog')
+      labelsEl.setAttribute('aria-modal', 'true')
+      labelsEl.hidden = true
+      document.body.appendChild(labelsEl)
+      document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && labelsEl && !labelsEl.hidden) { labelsEl.hidden = true; labelsCtx = null } })
+    }
+    labelsEl.hidden = false
+    await refresh()
+  }
+
   window.HibanaBoard = {
     state, load, api, t, esc, faDig,
-    STATUSES, PRIORITIES, PRIO_CYCLE, cyclePriority, mdTaskLine, statusLabel, prioLabel,
+    STATUSES, PRIORITIES, PRIO_CYCLE, cyclePriority, mdTaskLine, statusLabel, prioLabel, openLabels,
     DAY, dayIdx, todayIdx, calOf, monthLabel, dayLabel, fullLabel, weekdayIdx,
     findTask, findCategory, findSprint, tagById,
     createTask, patchTask, deleteTask, reorderTasks, addTaskTag, removeTaskTag,

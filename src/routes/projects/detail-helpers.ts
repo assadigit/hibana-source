@@ -192,6 +192,16 @@ export function detailHtml(p: ProjectRow, d: Awaited<ReturnType<typeof loadDetai
     const pair = PRIO_LABEL[p] ?? PRIO_LABEL.medium
     return lang === 'fa' ? pair[1] : pair[0]
   }
+
+  // S30 batch 4 (user request: "hover the project header strip → '3 urgent · 2 high ·
+  // 5 medium'"): the bar's tooltip breaks the task pool down by priority tier. The
+  // client repaints it live (pdTaskTruth in project-page.js) as tasks move.
+  const tierCounts: Record<string, number> = {}
+  for (const t of d.devTasks) tierCounts[t.priority || 'medium'] = (tierCounts[t.priority || 'medium'] ?? 0) + 1
+  const tierTitle = ['urgent', 'high', 'medium', 'low']
+    .filter((p) => tierCounts[p])
+    .map((p) => `${dig(tierCounts[p])} ${prioLabel(p)}`)
+    .join(' · ')
   // Per-task label chips — d.devTaskTags is the flat join; group once, render little
   // colored pills under the title (data-pd-tags carries the same JSON for the client).
   const tagsByTask = new Map<string, TaskTagJoin[]>()
@@ -369,7 +379,7 @@ export function detailHtml(p: ProjectRow, d: Awaited<ReturnType<typeof loadDetai
       </div>
       <div class="row small muted pd-meta">
         <span data-pd-meta>${trL(lang, p.type, p.type === 'client' ? 'مشتری' : 'شخصی')} · ${trL(lang, 'created {x}', 'ساخت {x}', { x: timeAgo(p.created_at, lang) })}<span data-pd-tasks-line ${d.devTasks.length ? '' : 'hidden'}> · ${trL(lang, '{n} of {m} tasks done', '{n} از {m} کار انجام شد', { n: dig(doneTasks), m: dig(d.devTasks.length) })}</span></span>
-        <span class="row">${progressBar(pct).replace('<span ', '<span data-pd-bar ')} <b data-pd-pct-sr class="sr-only">${dig(pct)}%</b></span>
+        <span class="row">${progressBar(pct).replace('<span ', `<span data-pd-bar title="${tierTitle}" `)} <b data-pd-pct-sr class="sr-only">${dig(pct)}%</b></span>
       </div>
     </div>
   </header>

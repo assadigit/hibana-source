@@ -6,7 +6,7 @@
 // the data-nav-local check + the same-page re-execution logic, (3) the shipped
 // sparks-page bundle injects menus into every view (the data-nav-local hosts), (4)
 // the shipped sprint-page bundle carries the today-flag + the i18n key, (5) the SW
-// rotated to v343. Purges the probe user afterwards.
+// rotated to v344. Purges the probe user afterwards.
 // Usage: node scripts/live-glance-probe.mjs [dev|prod]   (default: dev)
 
 import { execFileSync } from 'node:child_process'
@@ -107,7 +107,7 @@ const main = async () => {
 
   // 5) the SW rotated
   const sw = await (await fetch(`${URL_BASE}/sw.js`)).text()
-  check('sw version v343', sw.includes('hibana-v343'))
+  check('sw version v344', sw.includes('hibana-v344'))
 
   // 6) purge the probe user (cascade)
   await d1(`DELETE FROM users WHERE email = '${EMAIL}';`)

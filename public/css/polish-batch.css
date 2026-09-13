@@ -499,6 +499,27 @@
 .prio-dot.prio-high { background: #D96C63; }
 .prio-dot.prio-urgent { background: #D96C63; }
 
+/* S31b (user report 2026-09-13 — "the text is latin but showing RTL"): task titles,
+   problem-box text and palette labels are USER content inside the FA/RTL app — a
+   Latin-first line was laid out as an RTL paragraph (right-aligned, the sentence's
+   period flipped to the line's far end, ragged-left wraps). unicode-bidi: plaintext
+   resolves EACH bidi paragraph's base direction from its OWN first strong character:
+   an English line reads LTR (left-aligned, punctuation at the sentence end), a Farsi
+   line stays RTL — multi-line titles (white-space: pre-line = one paragraph per line)
+   mix correctly line by line. Surfaces: project cards (.pd-task-title), board cards
+   (.db-card-title), the problems box (.hurdle-text), the command palette (.cmdk-label)
+   — and the two title textareas (per-line direction while typing; dir="auto" on the
+   element handles the empty-caret base). The fire strip solves it structurally
+   instead (.dash-urgent-main, dashboard.css: the dot + title flow inline in ONE
+   plaintext paragraph so the dot LEADS the text — English titles put it at the line
+   start, not trailing the sentence like the reported "stray bullet"). */
+.pd-task-title,
+.db-card-title,
+.hurdle-text,
+.cmdk-label,
+#pd-taskadd-textarea,
+#pde-input { unicode-bidi: plaintext; }
+
 /* S31 (user request 2026-09-13): "instead add a beeping pulsating red light" — the
    urgent DOT is the alarm now. Double-beep rhythm (two quick flashes, then dark —
    reads like a beeping LED), a soft expanding ring carries the eye from across the

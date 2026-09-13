@@ -107,6 +107,11 @@ test('board: filter bar (priority × label), dot cycles priority, exports carry 
   await expect(urgentToggle).toHaveCSS('background-color', /rgb\(255, 255, 255\)|rgba\(0, 0, 0, 0\)/)
   // and the urgent dot is the beeping red light (double-beat keyframes, reduced-motion off in headless)
   await expect(urgentToggle.locator('.prio-dot')).toHaveCSS('animation-name', 'prio-beep')
+  // S31b (user report: "the text is latin but showing RTL"): card titles resolve
+  // per-paragraph direction from their own first strong character — the English
+  // seeded titles read LTR inside the FA/RTL page instead of a right-aligned
+  // ragged-left RTL paragraph with flipped punctuation.
+  await expect(page.locator('.db-card-title').first()).toHaveCSS('unicode-bidi', 'plaintext')
 
   // priority filter: urgent only → one card; the column counts follow
   await page.click('[data-db-filter] [data-fp="urgent"]')

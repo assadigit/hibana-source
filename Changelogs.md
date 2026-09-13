@@ -9,6 +9,38 @@
 > rewritten as a minimal pointer. Deleted files remain recoverable verbatim:
 > `git show <sha>:<file>`.
 
+## 1. Current state (v0.3.12.33 — Session 31b: the bidi fix — Latin text reads LTR, the "stray bullet" dissolved)
+- **(a) THE REPORT (user, 2026-09-13, dashboard fire-strip screenshot): "there is a stray
+  bullet point, the text is latin but showing RTL"** — two symptoms, one root. Task
+  titles are USER content inside the FA/RTL app: a Latin-first line was laid out as an
+  RTL paragraph (right-aligned, ragged-left wraps, the sentence's period flipped to the
+  line's far end — ".A full session…" reads). And the fire-strip row's prio-dot was the
+  row's FIRST FLEX ITEM (always the right edge) — for an English sentence the text's END
+  landed right next to it: "…tests thereof •" read as a stray trailing bullet.
+- **(b) THE FIX — `unicode-bidi: plaintext` everywhere user text renders**: each bidi
+  paragraph now resolves its base direction from its OWN first strong character — an
+  English line reads LTR (left-aligned, period at the sentence end), a Farsi line stays
+  RTL; multi-line titles (pre-line = one paragraph per line) mix correctly line by line.
+  Surfaces: project cards (.pd-task-title), board cards (.db-card-title), the problems
+  box (.hurdle-text), the command palette (.cmdk-label), and both title textareas
+  (#pd-taskadd-textarea, #pde-input — per-line direction while typing, the
+  GitHub-textarea recipe; the FA dir=rtl stays as the empty-caret default so Farsi
+  typing never flips).
+- **(c) THE FIRE STRIP RESTRUCTURE — the dot now LEADS the text**: dot + title flow
+  INLINE inside one `.dash-urgent-main` plaintext paragraph, so the dot sits at the
+  line START on BOTH sides — English rows: dot at the left, left-flowing text; Farsi
+  rows: dot at the right, identically to before. No more trailing "bullet". The
+  flex/min-width/overflow-wrap props moved from the title anchor to the main span.
+- Bumps: polish-batch.css v6→7, dashboard.css v4→5 (all 19 shells), sw v331→v332.
+  Ladder: typecheck 0 · vitest 348/348 · Playwright 45/45 · smoke ALL PASS · i18n
+  1003/1003 · cache-bust PASS · prod-errors PASS. New pins: analytics (dot inside
+  .dash-urgent-main + plaintext + a seeded FARSI row's dot stays right) and
+  board-filters (.db-card-title plaintext).
+- Browser-verified (FA, local, a seeded 700-char English urgent title + a Farsi row):
+  fire strip English rows LTR/flush-left with the dot leading; Farsi row dot-right;
+  period renders after "thereof" (line-end); project + board card titles flush-left
+  LTR; the dot column stays at the card edge.
+
 ## 1. Current state (v0.3.12.32 — Session 31: the beeping red light + the de-tint batch)
 - **(a) ROOT-CAUSE FIX — the solid red rows/chips (user report 2026-09-13, "colors and
   backgrounds aren't very nice… without red background")**: the four tier-color rules in

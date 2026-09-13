@@ -470,9 +470,15 @@ export function dashboardRoutes(cfg: Config) {
       }
       const stripTasks: SafeHtml[] = urgentTasks.map((u) => {
         const pair = PRIO_TITLES[u.priority] ?? PRIO_TITLES.medium
+        // S31b: dot + title flow INLINE inside .dash-urgent-main (unicode-bidi:
+        // plaintext, dashboard.css) — the paragraph's direction comes from the title's
+        // first strong character, so the dot LEADS the text on BOTH sides: English
+        // titles render LTR with the dot at the line start (left), Farsi titles stay
+        // RTL with the dot at the right. Before, the dot was the row's first flex item
+        // (always the right edge) — for LTR text it landed at the END of the sentence
+        // and read as a stray trailing bullet.
         return html`<li class="dash-urgent-row">
-              <span class="prio-dot prio-${u.priority}" title="${t(pair[0], pair[1])}"></span>
-              <a href="/board.html?project=${u.project_id}&task=${u.id}" class="dash-urgent-title">${u.title}</a>
+              <span class="dash-urgent-main"><span class="prio-dot prio-${u.priority}" title="${t(pair[0], pair[1])}"></span> <a href="/board.html?project=${u.project_id}&task=${u.id}" class="dash-urgent-title">${u.title}</a></span>
               <a href="/project.html?id=${u.project_id}" class="muted small dash-urgent-project">${u.project_title}</a>
             </li>`
       })

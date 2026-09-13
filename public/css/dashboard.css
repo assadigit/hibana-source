@@ -492,11 +492,21 @@ main.shell-dash > section { margin-block-end: 2.9rem; }
   border-radius: var(--radius-sm);
 }
 .dash-urgent-row:hover { background: var(--bg-soft); } /* S31: neutral hover — was a 5% red wash */
-.dash-urgent-row .prio-dot { align-self: center; flex: none; }
-.dash-urgent-title {
+/* S31b (user report 2026-09-13): the dot + title flow INLINE here — unicode-bidi:
+   plaintext takes the paragraph's base direction from the TITLE's first strong
+   character, so the dot LEADS the text on both sides (English: dot at the line's
+   left start; Farsi: dot at the right start). The old layout had the dot as the
+   row's first flex item (always the right edge) — an English sentence's END landed
+   right next to it and read as a stray trailing bullet. The flex/min-width props
+   moved here from .dash-urgent-title (now a plain inline anchor). */
+.dash-urgent-main {
+  unicode-bidi: plaintext;
   flex: 0 1 auto;
   min-inline-size: 0;
   overflow-wrap: anywhere;
+}
+.dash-urgent-row .prio-dot { margin-inline-end: 0.1rem; }
+.dash-urgent-title {
   font-weight: 400; /* S31 (user request): row titles read like every other task title */
 }
 .dash-urgent-project { flex: none; margin-inline-start: auto; }

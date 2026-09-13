@@ -85,6 +85,9 @@ test('dashboard: the urgent fire strip renders + deep-links, quiet projects hide
     const res = await fetch('/api/projects', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ title: `e2e fire ${Date.now()}` }) })
     const p = ((await res.json()) as { id: string }).id
     await fetch(`/api/projects/${p}/devtasks`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ title: 'e2e fire task', status: 'in_progress', priority: 'urgent' }) })
+    // S31b: a FARSI-first urgent row in the same strip — pins the mirror side of the
+    // plaintext fix (its dot must stay on the RIGHT, leading the RTL text).
+    await fetch(`/api/projects/${p}/devtasks`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ title: 'کارِ فارسیِ سنجش', status: 'in_progress', priority: 'urgent' }) })
     return p
   })
   await page.goto('/app')
@@ -104,4 +107,21 @@ test('dashboard: the urgent fire strip renders + deep-links, quiet projects hide
   await expect(row.locator('.dash-urgent-title')).toHaveCSS('font-weight', '400')
   await expect(row.locator('.prio-dot')).toHaveCSS('animation-name', 'prio-beep')
   await expect(page.locator('.dash-urgent-flame')).toHaveCSS('animation-name', 'dash-flame-flicker')
+  // S31b (user report: "the text is latin but showing RTL" + the stray trailing
+  // bullet): the dot + title flow INLINE inside one .dash-urgent-main paragraph with
+  // unicode-bidi: plaintext — the paragraph direction follows the title's first
+  // strong character (an English row renders LTR with the dot LEADING at the line
+  // start; a Farsi row stays RTL with the dot on the right). Before, the dot was the
+  // row's first flex item (always the right edge) — an English sentence's END landed
+  // right next to it and read as a stray bullet.
+  await expect(row.locator('.dash-urgent-main .prio-dot')).toHaveCount(1)
+  await expect(row.locator('.dash-urgent-main')).toHaveCSS('unicode-bidi', 'plaintext')
+  // a Farsi-first row keeps its dot on the RIGHT (RTL lead) — the mirror of the fix
+  const faRow = strip.locator('.dash-urgent-row', { hasText: 'کارِ فارسیِ سنجش' })
+  await expect(faRow).toBeVisible()
+  const dotSide = await faRow.locator('.dash-urgent-main').evaluate((main) => {
+    const dot = main.querySelector('.prio-dot')!
+    return dot.getBoundingClientRect().left - main.getBoundingClientRect().left > 30 ? 'right' : 'left'
+  })
+  expect(dotSide).toBe('right')
 })

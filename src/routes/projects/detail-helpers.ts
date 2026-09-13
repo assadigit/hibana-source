@@ -530,6 +530,11 @@ export function detailHtml(p: ProjectRow, d: Awaited<ReturnType<typeof loadDetai
         <button type="button" class="pd-tb-btn" data-tb="list" title="${trL(lang, 'Bullet list', 'بولت')}" aria-label="${trL(lang, 'Bullet list', 'بولت')}"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6h12M9 12h12M9 18h12"/><circle cx="4.5" cy="6" r="1.3" fill="currentColor"/><circle cx="4.5" cy="12" r="1.3" fill="currentColor"/><circle cx="4.5" cy="18" r="1.3" fill="currentColor"/></svg> ${trL(lang, 'Bullet', 'بولت')}</button>
       </div>
       <textarea id="pd-taskadd-textarea" rows="8" dir="${lang === 'fa' ? 'rtl' : 'auto'}" autocomplete="off" aria-label="${trL(lang, 'Task title', 'عنوان کار')}" placeholder="${trL(lang, 'Write the task — long sentences and code blocks are welcome…', 'کار را بنویس — جمله‌های بلند و بلوک‌های کد جای دارند…')}"></textarea>
+      <!-- S31b: the RTL dir stays the FA typing default (caret/empty line), while
+           polish-batch.css sets unicode-bidi: plaintext on this textarea — each
+           RENDERED line resolves its own direction (English lines LTR, Farsi lines
+           RTL), the GitHub-textarea recipe. The old whole-value dir="auto" flip is
+           gone; the mangled-Latin-display class is gone too. -->
       <!-- S29 follow-up (user request 2026-09-12): Priority dropdown + Labels on the task
            composer — the task lands in its box ALREADY prioritized (color-coded, options
            ordered urgent → low) and labeled; the boxes then auto-sort by the chosen

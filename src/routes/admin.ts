@@ -11,6 +11,7 @@ import { banUserSchema, roleUserSchema, removeUserSchema, customEmailSchema, bro
 import { BANNED_FOREVER_DATE } from '../auth/ban'
 import { buildSnapshot, backupToGitHub, BACKUP_RETENTION_DEFAULT } from '../services/backup'
 import { sendPlanBBackupToChat } from '../services/backup-planb'
+import { purgeShotBytes } from '../services/shotstore'
 import { sendAndLog, emailsSentToday, RESEND_DAILY_LIMIT, resetEmailHtml, textToEmailHtml } from '../services/email'
 import { createResetToken } from '../services/reset'
 import { githubClient } from '../services/github'
@@ -586,6 +587,10 @@ export function adminRoutes(cfg: Config) {
     // hard-deleted — their update journal, tags, reminder logs and recurrence history
     // (all ON DELETE CASCADE, migration 0018) piled up forever. Also sweeps expired
     // email-verification codes (rejected by /verify anyway, so deleting is invisible).
+    // S39: screenshot BYTES are cleaned BEFORE the rows cascade away — the KV objects
+    // were permanent orphans before (the gallery can only offer deletion for rows it
+    // can still see). Best-effort; the purge itself proceeds on failure.
+    await purgeShotBytes(cfg, gone.map((g) => g.id))
     await cfg.db.transaction(async (tx) => {
       tx.sql('DELETE FROM projects WHERE deleted_at IS NOT NULL AND deleted_at < ?', [cutoff]) // children cascade
       tx.sql('DELETE FROM quick_notes WHERE deleted_at IS NOT NULL AND deleted_at < ?', [cutoff])
@@ -697,6 +702,9 @@ export async function scheduledPurge(cfg: Config): Promise<void> {
     'SELECT id FROM sadhana_tasks WHERE deleted_at IS NOT NULL AND deleted_at < ?',
     [cutoff],
   )
+  // S39: same byte-cleanup as the admin route — BEFORE the cascade deletes the rows
+  // (afterwards the SELECT that finds the object keys would return nothing).
+  await purgeShotBytes(cfg, gone.map((g) => g.id))
   await cfg.db.transaction(async (tx) => {
     tx.sql('DELETE FROM projects WHERE deleted_at IS NOT NULL AND deleted_at < ?', [cutoff])
     tx.sql('DELETE FROM quick_notes WHERE deleted_at IS NOT NULL AND deleted_at < ?', [cutoff])

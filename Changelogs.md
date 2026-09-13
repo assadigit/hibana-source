@@ -9,7 +9,45 @@
 > rewritten as a minimal pointer. Deleted files remain recoverable verbatim:
 > `git show <sha>:<file>`.
 
-## 1. Current state (v0.3.12.39 — Session 38: screenshot storage LIVE on Cloudflare Workers KV — free, no card, never expires; S37: English-always chat rule)
+## 1. Current state (v0.3.12.40 — Session 39: media GALLERY (WordPress-style) + screenshots stuck to progress-box items; S38: screenshot storage LIVE on Cloudflare Workers KV — free, no card, never expires; S37: English-always chat rule)
+- **(S39) THE MEDIA GALLERY (user: "an archive gallery of pics, similar to wordpress, so the
+  user can delete the unneeded files to make up more space")** — `/gallery.html` (nav: user
+  menu + mobile sheet, «نگارخانه»/Gallery) + `GET /api/media`: EVERY picture the user owns
+  across projects in one grid — thumbnail + note + project chip (deep-link) + pin chip (which
+  box + which item) + open/fixed state + date + exact size; filters (All / Open problems /
+  Fixed / Pinned + per-project dropdown); a space meter (`{n} pictures · ≈{m}`, summing the
+  0054 `bytes` column — legacy rows self-heal their size on first view via the media-file
+  route); zoom lightbox; delete (confirm) = the ONLY removal path, the S38 never-expire law.
+- **(S39) NOTE CARDS + PINNING (user: "you can't add note card on that screenshot; you must
+  be able to stick that screenshot to progress box items — a UI bug screenshot sticky to
+  Problems box, so there is note + picture proof, and how it's categorized in the
+  project")** — migration **0054** (`screenshots.task_id` FK dev_tasks ON DELETE SET NULL +
+  `screenshots.bytes` + `idx_screenshots_task`): the note is now **CLICK-TO-EDIT** (the
+  whole note area is a `role=button` — the tiny pencil alone read as "can't add a note");
+  every shot carries a pin button → a grouped task picker (the five boxes in board order,
+  search box, current pin ✓, unpin row) → PATCH `{taskId}`; the shot card grows the **pin
+  line** («Problems · task title» — note + picture proof + categorization); the board task
+  cards AND the Problems-tab rows grow a **📌 N badge** → a pinned-pictures dialog (zoom +
+  unpin); unpin detaches, never deletes. Deleting the TASK detaches the shot (SET NULL) —
+  the picture survives. Project hard-delete + the 7-day purge now clean the remote KV/S3/
+  GitHub bytes through the shared `services/shotstore.ts` (same kv→r2→github precedence)
+  — before S39 those paths orphaned the bytes forever (invisible space leaks).
+- **(S39) verification**: typecheck 0 · vitest 383/383 (+4 media-gallery: pin/unpin/foreign
+  task rejection/scoping/bytes/self-heal) · e2e 51/51 (+2 media-gallery.spec.ts: the full
+  note→pin→badge→dialog→unpin flow + the gallery filters/meter/delete) · smoke · i18n
+  1068/1068 · cache-bust · bundle-size · prod-errors · shotcheck 9/9 × local+dev+prod.
+  Browser-verified (local, real KV): upload through the file picker → byte-identical
+  round-trip + canvas pixel read → note click-to-edit (FA+EN) → pin picker (FA labels,
+  Persian-digit badge «۱») → pin line + badges → dialog zoom (e2e-caught bubbling bug:
+  the zoom click bubbled to the document handler which closed the lightbox in the same
+  event — fixed with stopPropagation + close-dialog-first; the modal <dialog> sits in the
+  top layer ABOVE any z-index, so the lightbox must open after the dialog closes) →
+  unpin (picture survives) → gallery stats/pin chip/filters/delete → 390px FA dark RTL
+  (two e2e/browser-caught CSS bugs: the actions row bled the delete button ~32px into the
+  neighbor card — now wraps; the gal-chips row refused to shrink under max-content —
+  min-inline-size 0) + VLM-confirmed layouts. Deployed: dev 2ba2b530 + prod 1f0501f4,
+  0054 applied + registered on both D1s (bookmarks dev 000004c3 / prod 00000873),
+  sw hibana-v337→v338, schema 52→53, live probes + gallery + new JS grep-verified on both.
 - **(S38) THE PICK + THE IMPLEMENTATION (user: "which free alternative to R2 do you suggest —
   implement it, test it: upload in hibana, check they're really uploaded and shown, and make
   sure pictures never expire unless the user deletes them")** — **Cloudflare Workers KV**.
@@ -1969,3 +2007,5 @@ must stay last). Restore is in-place and destructive: `npx wrangler d1 time-trav
 | 2026-09-13T04:31:27.403Z | pm-app-prod | 50 | 0000084a-00000000-000050e5-35264bba52c3717740e025b637786dc8 | pre-migration bookmark (prod) |
 | 2026-09-13T06:24:36.874Z | pm-app-dev | 51 | 000004a9-00000000-000050e5-a2d8af5ee15a85733b704404667a6046 | pre-0053 bookmark (dev) |
 | 2026-09-13T06:24:40.206Z | pm-app-prod | 51 | 00000855-00000000-000050e5-fb4b5a34d3e327cf06618fd8ceb93289 | pre-0053 bookmark (prod) |
+| 2026-09-13T15:19:37.384Z | pm-app-dev | 52 | 000004c3-00000000-000050e5-dbd40158391cfaca44e2a30d62c66028 | pre-0054 bookmark (dev) — screenshot pin (task_id) + bytes |
+| 2026-09-13T15:19:40.953Z | pm-app-prod | 52 | 00000873-00000016-000050e5-02e8748cc82810285274657a5e7a2bc6 | pre-0054 bookmark (prod) — screenshot pin (task_id) + bytes |

@@ -59,6 +59,8 @@ const ENTRY_POINTS = [
   'sadhana-data.js', 'sprint-page.js',
   'calendar-page.js', 'settings-page.js', 'sparks-page.js', 'projects-page.js', 'board-page.js',
   'reports-page.js', 'signup-page.js', 'clients-page.js', 'clip-page.js', '404-page.js', 'confirm-page.js', 'notifications-page.js',
+  // S39: the media library page controller
+  'gallery-page.js',
 ]
 
 // Page CSS files (all linked from HTML; all hashed + immutable via manifest).

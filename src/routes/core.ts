@@ -5,9 +5,7 @@ import { esc, jsonBody } from '../lib/http'
 import { getOwnedProject, icon, toastHtml } from '../lib/html'
 import { localeOf, trFor, trL, type Locale } from '../lib/i18n'
 import { uuid } from '../lib/ids'
-import { githubClient, type GitHubConfig } from '../services/github'
-import { r2Storage } from '../services/r2'
-import { kvStorage } from '../services/kv'
+import { shotStoreFor } from '../services/shotstore'
 import { clientIp, hitRateLimit, RATE_RULES } from '../services/ratelimit'
 import {
   createHurdleSchema,
@@ -23,25 +21,54 @@ import type { Config, HurdleRow, LinkRow, ScreenshotRow, UserRow } from '../type
 // sub-apps mounted at the same path (the first one returns its own 404), so everything
 // root-mounted shares a single Hono instance. Full paths make the URL scheme explicit.
 
+/** The five progress boxes a shot can be STUCK to (0054). Kept in lockstep with the
+ *  COLS map in routes/projects/detail-helpers.ts — the SAME board the user sees. */
+const SHOT_BOX: Record<string, [string, string]> = {
+  idea: ['New Ideas', 'ایده‌های جدید'],
+  bug: ['Problems', 'مشکلات'],
+  planned: ['Upcoming Plan', 'برنامه آتی'],
+  in_progress: ['In Progress', 'در حال انجام'],
+  done: ['Done', 'انجام‌شده'],
+}
+
 /** Shared screenshot grid (Batch (p)): the project page's Screenshots tab and the
  *  HX screenshots endpoint render the same figures, so an uploaded shot appears in
  *  both after one swap.
  *  S35 (user request 2026-09): each shot is a UI/UX PROBLEM REPORT — image + note
  *  (caption) + open/fixed state. Clicking the image opens the lightbox; the note
  *  edits inline (client swaps the figcaption into a form); the resolve toggle PATCHes
- *  {resolved}; delete asks first. Bidi law: the note is dir="auto" + plaintext. */
-export function shotsGridHtml(shots: ScreenshotRow[], lang: Locale): string {
+ *  {resolved}; delete asks first. Bidi law: the note is dir="auto" + plaintext.
+ *  S39 (user request 2026-09-13): the note is CLICK-TO-EDIT (the whole note area opens
+ *  the form — the tiny pencil alone was undiscoverable, which read as "you can't add
+ *  a note"), and each shot can be STUCK to a progress-box item: a pin button opens the
+ *  task picker (project-page.js) and the pin line shows WHERE it lives — box + task
+ *  title — with a one-click unpin. tasks: the id → {title, status} map of the project's
+ *  dev_tasks (only pinned ids are needed; callers may pass a superset). */
+export function shotsGridHtml(
+  shots: ScreenshotRow[],
+  lang: Locale,
+  tasks: Map<string, { title: string; status: string }> = new Map(),
+): string {
   return shots
     .map(
-      (s) => `<figure class="shot shot-card${s.resolved ? ' is-fixed' : ''}" data-shot="${s.id}" data-resolved="${s.resolved ? '1' : '0'}">
+      (s) => `<figure class="shot shot-card${s.resolved ? ' is-fixed' : ''}" data-shot="${s.id}" data-resolved="${s.resolved ? '1' : '0'}"${s.task_id ? ` data-task="${s.task_id}"` : ''}>
         <button type="button" class="shot-img-btn" data-shot-zoom="${s.id}" aria-label="${trL(lang, 'View screenshot', 'دیدن اسکرین‌شات')}">
           <img src="/api/media/screenshots/${s.id}/file" alt="${esc(s.caption)}" loading="lazy">
         </button>
         <figcaption class="shot-body">
-          <p class="shot-note muted small" dir="auto">${esc(s.caption) || '<span class="shot-note-empty">' + trL(lang, 'Add a note — what & where to work…', 'یادداشت اضافه کن — چه چیزی و کجا…') + '</span>'}</p>
+          ${s.task_id && tasks.get(s.task_id) ? (() => {
+            const t = tasks.get(s.task_id)!
+            const box = SHOT_BOX[t.status] ?? SHOT_BOX.idea
+            return `<div class="row spread shot-pin" dir="auto">
+              <span class="row shot-pin-text" style="gap:0.25rem">${icon('pin')} <b>${trL(lang, box[0], box[1])}</b> · <span class="shot-pin-task">${esc(t.title)}</span></span>
+              <button type="button" class="ghost small danger shot-unpin" data-shot-unpin="${s.id}" title="${trL(lang, 'Unpin — keep the picture, just detach it', 'برداشتن سنجاق — تصویر می‌ماند، فقط جدا می‌شود')}" aria-label="${trL(lang, 'Unpin', 'برداشتن سنجاق')}">${icon('x')}</button>
+            </div>`
+          })() : ''}
+          <p class="shot-note muted small" dir="auto" data-shot-note-edit title="${trL(lang, 'Click to write the note — what & where to work', 'برای نوشتن یادداشت کلیک کن — چه چیزی و کجا')}" role="button" tabindex="0">${esc(s.caption) || '<span class="shot-note-empty">' + trL(lang, 'Add a note — what & where to work…', 'یادداشت اضافه کن — چه چیزی و کجا…') + '</span>'}</p>
           <div class="row spread shot-actions">
             <span class="shot-state${s.resolved ? ' is-fixed' : ''}" data-shot-state>${s.resolved ? '✓ ' + trL(lang, 'fixed', 'درست شد') : trL(lang, 'open problem', 'باز')}${''}</span>
             <span class="row" style="gap:0.2rem">
+              <button type="button" class="ghost small" data-shot-pin="${s.id}" title="${trL(lang, 'Stick this picture to a progress-box item (e.g. the Problems box)', 'این تصویر را به یک قلم جعبهٔ پیشرفت سنجاق کن (مثلاً جعبهٔ مشکلات)')}" aria-label="${trL(lang, 'Pin to a task', 'سنجاق به یک کار')}">${icon('pin')}</button>
               <button type="button" class="ghost small" data-shot-note="${s.id}" title="${trL(lang, 'Edit note', 'ویرایش یادداشت')}" aria-label="${trL(lang, 'Edit note', 'ویرایش یادداشت')}">${icon('pencil')}</button>
               <button type="button" class="ghost small" data-shot-toggle="${s.id}" title="${s.resolved ? trL(lang, 'Mark as open again', 'بازگشتی به باز') : trL(lang, 'Mark as fixed', 'علامت درست‌شد')}" aria-label="${s.resolved ? trL(lang, 'Mark as open again', 'بازگشتی به باز') : trL(lang, 'Mark as fixed', 'علامت درست‌شد')}">${s.resolved ? '↺' : '✓'}</button>
               <button type="button" class="ghost small danger" data-shot-del="${s.id}" title="${trL(lang, 'Delete', 'حذف')}" aria-label="${trL(lang, 'Delete', 'حذف')}">${icon('x')}</button>
@@ -51,6 +78,23 @@ export function shotsGridHtml(shots: ScreenshotRow[], lang: Locale): string {
       </figure>`,
     )
     .join('') || `<div class="empty-state empty"><span class="empty-state-icon" aria-hidden="true">${icon('image')}</span><p class="empty-state-title">${trL(lang, 'No screenshots yet', 'هنوز اسکرین‌شاتی نیست')}</p><p class="empty-state-text">${trL(lang, 'Snap the broken UI/UX, drop it here, write what & where — so you know exactly what to work on.', 'از UI/UX خراب عکس بگیر، همین‌جا رها کن و بنویس چه چیزی و کجاست — تا دقیقاً بدانی روی چه کار کنی.')}</p></div>`
+}
+
+/** The task map for pinned shots in ONE project (S39): id → {title, status} for every
+ *  task a shot is stuck to, so the pin line can say WHICH box + item. */
+export async function shotTaskMap(
+  cfg: Config,
+  shots: ScreenshotRow[],
+): Promise<Map<string, { title: string; status: string }>> {
+  const ids = [...new Set(shots.map((s) => s.task_id).filter((x): x is string => !!x))]
+  const map = new Map<string, { title: string; status: string }>()
+  if (!ids.length) return map
+  const rows = await cfg.db.query<{ id: string; title: string; status: string }>(
+    `SELECT id, title, status FROM dev_tasks WHERE id IN (${ids.map(() => '?').join(',')})`,
+    ids,
+  )
+  for (const r of rows) map.set(r.id, { title: r.title, status: r.status })
+  return map
 }
 
 /** Scoped child lookup: row must belong to a project that belongs to the user (rule 1). */
@@ -75,7 +119,6 @@ export function coreRoutes(cfg: Config) {
   const app = new Hono<{ Variables: { user: UserRow } }>()
   app.use('*', requireAuth(cfg))
 
-  const gh = () => githubClient(cfg.github as GitHubConfig)
   // Session-9 F1 (2026-09-14): NO leading slash. The GitHub Contents API 422s on
   // `path cannot start with a slash` — the historic `/${user}/…` shape broke EVERY
   // screenshot upload (500 internal_error) and the feature never worked in prod
@@ -283,15 +326,9 @@ export function coreRoutes(cfg: Config) {
   // requirement). S36's provider-generic S3 adapter stays the upgrade path (B2 10 GB)
   // via R2_* env vars; unset everything = GitHub Contents API exactly as before. The
   // `github_path` column stays (it is the storage key either way).
-  const shotStore = cfg.kv
-    ? kvStorage(cfg.kv)
-    : cfg.r2
-    ? r2Storage(cfg.r2)
-    : {
-        putObject: async (key: string, contentB64: string, _ct: string) => { await gh().pushFile(key, contentB64, 'Screenshot upload') },
-        getObject: async (key: string) => gh().readBinary(key),
-        deleteObject: async (key: string) => { try { await gh().deleteFile(key) } catch { /* already gone */ } },
-      }
+  // S39: the constructor moved to services/shotstore.ts so the project hard-delete +
+  //  the purge cron clean remote bytes through the SAME precedence the routes use.
+  const shotStore = shotStoreFor(cfg)
 
   async function ownedRecord(userId: string, id: string, table: 'screenshots') {
     return ownedProjectId(cfg, userId, table, id)
@@ -302,8 +339,38 @@ export function coreRoutes(cfg: Config) {
     const p = await getOwnedProject(cfg, user.id, c.req.param('projectId'))
     if (!p) return c.json({ error: 'not_found' }, 404)
     const shots = await cfg.db.query<ScreenshotRow>('SELECT * FROM screenshots WHERE project_id = ? ORDER BY created_at DESC', [p.id])
-    if (c.req.header('HX-Request')) return c.html(shotsGridHtml(shots, localeOf(c)))
+    if (c.req.header('HX-Request')) return c.html(shotsGridHtml(shots, localeOf(c), await shotTaskMap(cfg, shots)))
     return c.json({ screenshots: shots })
+  })
+
+  // S39 (user request: "archive gallery of pics, similar to wordpress — delete the
+  // unneeded files to make up more space"): EVERY picture the user owns, across all
+  // projects, in one listing. Joins project title (soft-deleted projects included —
+  // their bytes are still real until purged, and the gallery is where you free them)
+  // and the pinned task's title + status so each card can say where the picture
+  // lives. totalBytes = the gallery's space meter (sum of the 0054 bytes column).
+  app.get('/api/media', async (c) => {
+    const user = c.get('user')
+    const rows = await cfg.db.query<
+      ScreenshotRow & {
+        project_title: string
+        project_deleted: string | null
+        task_title: string | null
+        task_status: string | null
+      }
+    >(
+      `SELECT s.id, s.project_id, s.github_path, s.mime_type, s.caption, s.created_at, s.resolved, s.task_id, s.bytes,
+              p.title AS project_title, p.deleted_at AS project_deleted,
+              dt.title AS task_title, dt.status AS task_status
+       FROM screenshots s
+       JOIN projects p ON p.id = s.project_id
+       LEFT JOIN dev_tasks dt ON dt.id = s.task_id
+       WHERE p.user_id = ?
+       ORDER BY s.created_at DESC`,
+      [user.id],
+    )
+    const totalBytes = rows.reduce((n, r) => n + (r.bytes || 0), 0)
+    return c.json({ screenshots: rows, count: rows.length, totalBytes })
   })
 
   app.post('/api/projects/:projectId/screenshots', async (c) => {
@@ -329,9 +396,12 @@ export function coreRoutes(cfg: Config) {
     const safeName = body.fileName.replace(/[^\w.\- ]/g, '_')
     const path = assetPath({ user_id: user.id, project_id: p.id }, 'screenshots', `${id}-${safeName}`)
     await shotStore.putObject(path, body.dataBase64, body.mimeType)
+    // S39 (0054): exact decoded size — base64 without padding × 3/4. Never re-encoded,
+    // never estimated: the gallery's space meter sums THIS column.
+    const byteLen = Math.floor(body.dataBase64.replace(/=+$/, '').length * 3 / 4)
     await cfg.db.execute(
-      'INSERT INTO screenshots (id, project_id, github_path, mime_type, caption, resolved, created_at) VALUES (?, ?, ?, ?, ?, 0, ?)',
-      [id, p.id, path, body.mimeType, body.caption, new Date().toISOString()],
+      'INSERT INTO screenshots (id, project_id, github_path, mime_type, caption, resolved, task_id, bytes, created_at) VALUES (?, ?, ?, ?, ?, 0, NULL, ?, ?)',
+      [id, p.id, path, body.mimeType, body.caption, byteLen, new Date().toISOString()],
     )
     if (c.req.header('HX-Request')) return c.html(toastHtml(t('Screenshot uploaded', 'اسکرین‌شات آپلود شد'), localeOf(c)))
     return c.json({ ok: true, id }, 201)
@@ -339,23 +409,38 @@ export function coreRoutes(cfg: Config) {
 
   // S35: the note + the open/fixed state are editable after upload — the note is the
   // "what & where to work" text, resolved flips when the fix lands (and back).
+  // S39: taskId sticks the shot to a progress-box item (0054) — uuid = pin, '' or
+  // null = unpin. The task must live in the SAME project (a shot can't cross
+  // projects) and belong to the caller (rule 1, through the projects join).
   const patchScreenshotSchema = z.object({
     caption: z.string().max(1000).optional(),
     resolved: z.union([z.literal(0), z.literal(1)]).optional(),
+    taskId: z.union([z.string().uuid(), z.literal(''), z.null()]).optional(),
   })
   app.patch('/api/screenshots/:id', async (c) => {
     const body = await jsonBody<z.infer<typeof patchScreenshotSchema>>(c, patchScreenshotSchema)
-    if (!body || (body.caption === undefined && body.resolved === undefined)) return c.json({ error: 'invalid_input' }, 400)
+    if (!body || (body.caption === undefined && body.resolved === undefined && body.taskId === undefined)) return c.json({ error: 'invalid_input' }, 400)
     const user = c.get('user')
     const t = trFor(c)
     const projectId = await ownedRecord(user.id, c.req.param('id'), 'screenshots')
     if (!projectId) return c.json({ error: 'not_found' }, 404)
+    if (body.taskId !== undefined && body.taskId !== '' && body.taskId !== null) {
+      const owned = await cfg.db.query<{ id: string }>(
+        'SELECT dt.id FROM dev_tasks dt JOIN projects p ON p.id = dt.project_id WHERE dt.id = ? AND p.user_id = ? AND p.deleted_at IS NULL AND dt.project_id = ?',
+        [body.taskId, user.id, projectId],
+      )
+      if (!owned.length) return c.json({ error: 'task_not_found' }, 404)
+    }
     const now = new Date().toISOString()
     if (body.caption !== undefined) {
       await cfg.db.execute('UPDATE screenshots SET caption = ? WHERE id = ? AND project_id = ?', [body.caption, c.req.param('id'), projectId])
     }
     if (body.resolved !== undefined) {
       await cfg.db.execute('UPDATE screenshots SET resolved = ? WHERE id = ? AND project_id = ?', [body.resolved, c.req.param('id'), projectId])
+    }
+    if (body.taskId !== undefined) {
+      const target = body.taskId === '' || body.taskId === null ? null : body.taskId
+      await cfg.db.execute('UPDATE screenshots SET task_id = ? WHERE id = ? AND project_id = ?', [target, c.req.param('id'), projectId])
     }
     await cfg.db.execute('UPDATE projects SET updated_at = ? WHERE id = ?', [now, projectId])
     if (c.req.header('HX-Request')) return c.html(toastHtml(t('Saved', 'ذخیره شد'), localeOf(c)))
@@ -368,6 +453,13 @@ export function coreRoutes(cfg: Config) {
     if (!projectId) return c.json({ error: 'not_found' }, 404)
     const rec = await cfg.db.query<ScreenshotRow>('SELECT * FROM screenshots WHERE id = ? AND project_id = ?', [c.req.param('id'), projectId])
     const bytes = await shotStore.getObject(rec[0].github_path) // raw bytes — never text-decoded
+    // S39 self-heal: legacy rows (pre-0054) have bytes=0; the object is ALREADY in
+    // hand here, so record its true size once — the gallery's space meter goes honest
+    // on the first view. Idempotent (guarded by bytes = 0) + best-effort (a failed
+    // write never breaks the picture).
+    if (rec[0].bytes === 0 && bytes.byteLength > 0) {
+      try { await cfg.db.execute('UPDATE screenshots SET bytes = ? WHERE id = ? AND bytes = 0', [bytes.byteLength, c.req.param('id')]) } catch { /* meter stays 0 — harmless */ }
+    }
     return new Response(bytes, {
       headers: { 'Content-Type': rec[0].mime_type, 'Cache-Control': 'private, max-age=3600' },
     })

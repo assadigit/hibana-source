@@ -32,6 +32,7 @@
     { href: '/notifications.html', i18n: 'nav.notifications', label: 'Notifications', icon: '<path d="M18 8.5a6 6 0 0 0-12 0c0 6.5-2.5 7.8-2.5 9h17c0-1.2-2.5-2.5-2.5-9"/><path d="M10 21a2 2 0 0 0 4 0"/>' },
     { href: '/reports.html', i18n: 'nav.reports', label: 'Reports', icon: '<path d="M4 20V14M10 20V10M16 20V4"/>' },
     { href: '/archive.html', i18n: 'nav.archive', label: 'Archive', icon: '<rect x="2" y="4" width="20" height="4"/><path d="M4 8v10a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8"/><path d="M10 12h4"/>' },
+    { href: '/gallery.html', i18n: 'nav.gallery', label: 'Gallery', icon: '<rect x="3.5" y="5" width="17" height="14" rx="2"/><circle cx="8" cy="10" r="1.5"/><path d="M21 16l-5-5L5 19"/>' },
     { href: '/settings.html', i18n: 'nav.settings', label: 'Settings', icon: '<path d="M4 7h10M18 7h2M4 17h2M10 17h10"/><circle cx="16" cy="7" r="2"/><circle cx="8" cy="17" r="2"/>' },
     { href: '/admin.html', i18n: 'nav.admin', label: 'Admin', adminOnly: true, icon: '<path d="M12 3l8 3v5c0 4.4-3.4 8.4-8 10-4.6-1.6-8-5.6-8-10V6l8-3Z"/><path d="M12 8v4M12 15h.01"/>' },
   ]

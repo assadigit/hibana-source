@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Clients — Hibana</title>
+  <title>Gallery — Hibana</title>
   <link rel="preload" as="font" type="font/woff2" href="/vendor/manrope/Manrope-400.woff2" crossorigin>
   <link rel="stylesheet" href="/css/variables.css?v=5">
   <link rel="stylesheet" href="/css/base.css?v=3">
@@ -28,10 +28,11 @@
   <script src="/vendor/idiomorph-ext.min.js" defer></script>
   <script src="/js/boot.js?v=4"></script>
   <script src="/vendor/alpine.min.js" defer></script>
-  <script src="/js/queue.js?v=2" defer></script>
   <script src="/js/app.js?v=173" defer></script>
   <script src="/js/hib-init.js?v=1" defer></script>
   <script src="/js/touch-drag.js?v=1" defer></script>
+  <script src="/js/i18n-en.js?v=17" defer></script>
+  <script src="/js/i18n.js?v=74" defer></script>
   <script src="/js/nav.js?v=2" defer></script>
   <script src="/js/command-palette.js?v=2" defer></script>
   <script src="/js/mobile-nav.js?v=5" defer></script>
@@ -39,22 +40,36 @@
   <script src="/js/micro-interactions.js?v=1" defer></script>
   <script src="/js/go-to.js?v=1" defer></script>
   <script src="/js/install-prompt.js?v=1" defer></script>
-  <script src="/js/i18n-en.js?v=17" defer></script>
-  <script src="/js/i18n.js?v=74" defer></script>
 </head>
 <body>
   <div data-nav></div>
   <main class="shell" id="main" tabindex="-1">
-    <div class="row spread">
-      <h1 data-i18n="pages.clients">Clients</h1>
-      <button class="ghost" data-clientquickadd><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg> <span data-i18n="clients.newProject">New client project</span></button>
+    <!-- S39 (user request: "an archive gallery of pics, similar to wordpress, so the user
+         can delete the unneeded files to make up more space"): the MEDIA LIBRARY — every
+         uploaded picture across all projects, browsable, filterable, deletable, with a
+         space meter. gallery-page.js owns the whole grid (JSON API, no htmx). -->
+    <div class="row spread gallery-head">
+      <h1 data-i18n="gallery.title">Gallery</h1>
+      <div class="gallery-stats" id="gallery-stats" hidden role="status" aria-live="polite"></div>
     </div>
-    <p class="muted" data-i18n="clients.hint">The other world — deadlines, task-time progress, and milestone payments (spec §5.9). Fully separate from your personal work.</p>
-    <div id="client-body" hx-get="/api/clients" hx-trigger="load" hx-swap="innerHTML" hx-indicator="#loading">
-      <div id="loading" class="loading htmx-indicator hibana-loading-row"><span class="hibana-spinner" role="status" aria-hidden="true"></span><span data-i18n="common.loading">Loading…</span></div>
+    <p class="muted small" data-i18n="gallery.subtitle">Every picture you have uploaded across projects — browse, see where each is pinned, and delete what you no longer need to free space.</p>
+    <div class="row gallery-tools">
+      <label class="sr-only" for="gallery-project" data-i18n="gallery.allProjects">All projects</label>
+      <select id="gallery-project" class="gallery-project-select"></select>
+      <div class="row gallery-states" role="toolbar" aria-label="Filter">
+        <button type="button" class="chip gallery-state is-on" data-gs="all" aria-pressed="true" data-i18n="gallery.all">All</button>
+        <button type="button" class="chip gallery-state" data-gs="open" aria-pressed="false" data-i18n="gallery.open">Open problems</button>
+        <button type="button" class="chip gallery-state" data-gs="fixed" aria-pressed="false" data-i18n="gallery.fixed">Fixed</button>
+        <button type="button" class="chip gallery-state" data-gs="pinned" aria-pressed="false" data-i18n="gallery.pinned">Pinned</button>
+      </div>
+    </div>
+    <div class="shot-grid gallery-grid" id="gallery-grid" aria-busy="true">
+      <div class="skeleton-loading" role="status" aria-label="Loading gallery">
+        <div class="skeleton skeleton-box"></div>
+        <div class="skeleton skeleton-line w-60"></div>
+      </div>
     </div>
   </main>
-
-  <script src="/js/clients-page.js?v=1" defer></script>
+  <script src="/js/gallery-page.js?v=1" defer></script>
 </body>
 </html>

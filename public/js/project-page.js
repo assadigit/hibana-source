@@ -168,6 +168,152 @@
           ta.focus()
         }
 
+        // --- S39: STICK a shot to a progress-box item (the user's exact ask: "a UI bug
+        // screenshot, sticky to Problems box in project progress, so there is note +
+        // picture proof, and how it's categorized in the project"). PATCH
+        // /api/screenshots/:id {taskId} (0054) — the pin line on the card + the pin
+        // badge on the task chip render server-side; every mutation re-renders the
+        // whole #project-body so BOTH sides (shots grid + board badges) stay true. ---
+        const bodyRefresh = () => { if (window.htmx) window.htmx.ajax('GET', '/api/projects/' + id, { target: '#project-body', swap: 'innerHTML' }) }
+        const patchShot = async (shotId, payload) => {
+          const res = await fetch('/api/screenshots/' + shotId, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload),
+          })
+          if (!res.ok) throw new Error('status ' + res.status)
+        }
+        // Box labels: lockstep with the server COLS map (detail-helpers.ts) — the five
+        // boxes in the SAME order the board above shows them.
+        const pinBoxLabel = (k) => {
+          const map = { idea: ['New Ideas', 'ایده‌های جدید'], bug: ['Problems', 'مشکلات'], planned: ['Upcoming Plan', 'برنامه آتی'], in_progress: ['In Progress', 'در حال انجام'], done: ['Done', 'انجام‌شده'] }
+          const p = map[k] || map.idea
+          return document.documentElement.lang === 'fa' ? p[1] : p[0]
+        }
+        const PIN_BOX_ORDER = ['idea', 'bug', 'planned', 'in_progress', 'done']
+        const makeDialog = (title, labelId) => {
+          const dlg = document.createElement('dialog')
+          dlg.className = 'dialog pd-pin-modal'
+          if (labelId) dlg.setAttribute('aria-labelledby', labelId)
+          dlg.innerHTML = '<div class="modal pd-pin-inner">' +
+            '<div class="row spread pd-pin-head"><h3 id="' + (labelId || '') + '"></h3>' +
+            '<button type="button" class="ghost" data-pin-close aria-label="' + _t('common.close', 'Close') + '">✕</button></div>' +
+            '<div class="pd-pin-body"></div></div>'
+          dlg.querySelector('h3').textContent = title
+          document.body.appendChild(dlg)
+          dlg.querySelector('[data-pin-close]').addEventListener('click', () => dlg.close())
+          // self-cleaning: closed dialogs leave the DOM (no id duplication, no pile-up
+          // across repeated picker opens)
+          dlg.addEventListener('close', () => dlg.remove())
+          return { dlg, body: dlg.querySelector('.pd-pin-body') }
+        }
+        const shotPinPicker = async (figure) => {
+          const shotId = figure.dataset.shot
+          const current = figure.dataset.task || ''
+          // fresh task truth — tasks move between boxes while the page sits open
+          let devTasks = []
+          try {
+            const res = await fetch('/api/projects/' + id)
+            if (res.ok) {
+              const data = await res.json()
+              devTasks = (data.project ? data.project.devTasks : data.devTasks) || []
+            }
+          } catch { /* offline — the picker still opens with the DOM-only truth */ }
+          for (const wrap of document.querySelectorAll('.pd-task-wrap')) {
+            if (wrap.dataset.pdTask && !devTasks.some((t) => t.id === wrap.dataset.pdTask)) {
+              const title = wrap.querySelector('.pd-task-title')
+              devTasks.push({ id: wrap.dataset.pdTask, title: title ? title.textContent : '', status: wrap.dataset.pdStatus })
+            }
+          }
+          const { dlg, body } = makeDialog(_t('project.shotPinPickerTitle', 'Stick this picture to a progress-box item'), 'pd-pin-title')
+          if (!devTasks.length) {
+            body.innerHTML = '<p class="muted">' + _t('project.shotPinNone', 'No tasks yet — add tasks in the progress boxes first.') + '</p>'
+            dlg.showModal()
+            return
+          }
+          const clamp = (s) => (s.length > 90 ? s.slice(0, 87) + '…' : s)
+          const row = (t) => '<button type="button" class="pd-pin-row" dir="auto" data-pin-task="' + t.id + '"' + (t.id === current ? ' aria-current="true"' : '') + '>' +
+            '<span class="chip pd-pin-box pd-pin-box-' + t.status + '">' + pinBoxLabel(t.status) + '</span>' +
+            '<span class="pd-pin-title">' + clamp(String(t.title || '').replace(/\s+/g, ' ')) + '</span>' +
+            (t.id === current ? ' <span class="pd-pin-cur">✓</span>' : '') +
+            '</button>'
+          const groups = () => PIN_BOX_ORDER
+            .map((k) => {
+              const items = devTasks.filter((t) => t.status === k)
+              if (!items.length) return ''
+              return '<div class="pd-pin-group"><span class="muted small pd-pin-grouplabel">' + pinBoxLabel(k) + '</span>' + items.map(row).join('') + '</div>'
+            })
+            .join('')
+          body.innerHTML =
+            (current ? '<button type="button" class="pd-pin-row pd-pin-unrow" data-pin-task=""><span class="chip pd-pin-box">✕</span><span class="pd-pin-title">' + _t('project.shotUnpin', 'Unpin — keep the picture, just detach it') + '</span></button>' : '') +
+            '<input type="search" class="pd-pin-search" dir="auto" placeholder="' + _t('project.shotPinSearch', 'Search tasks…') + '" aria-label="' + _t('project.shotPinSearch', 'Search tasks…') + '">' +
+            '<div class="pd-pin-list">' + groups() + '</div>'
+          const search = body.querySelector('.pd-pin-search')
+          search.addEventListener('input', () => {
+            const q = search.value.trim().toLowerCase()
+            body.querySelectorAll('.pd-pin-row').forEach((r) => {
+              r.hidden = q && !r.textContent.toLowerCase().includes(q)
+            })
+          })
+          dlg.showModal()
+          search.focus()
+          dlg.addEventListener('click', async (ev) => {
+            const btn = ev.target.closest('[data-pin-task]')
+            if (!btn) return
+            const target = btn.getAttribute('data-pin-task')
+            try {
+              await patchShot(shotId, target ? { taskId: target } : { taskId: null })
+              window.hibana?.toast(target ? _t('project.shotPinned', 'Pinned') : _t('project.shotUnpinned', 'Unpinned'), 'info')
+              dlg.close()
+              bodyRefresh()
+            } catch { window.hibana?.toast(_t('sparks.saveFailed', "Couldn't save"), 'err') }
+          })
+        }
+        const taskShotsDialog = async (taskId) => {
+          let shots = []
+          try {
+            const res = await fetch('/api/projects/' + id + '/screenshots')
+            if (res.ok) shots = ((await res.json()).screenshots) || []
+          } catch { /* offline — the empty dialog explains itself */ }
+          const pinned = shots.filter((s) => s.task_id === taskId)
+          const { dlg, body } = makeDialog(_t('project.taskShotsTitle', 'Pinned pictures'), 'pd-tshots-title')
+          if (!pinned.length) {
+            body.innerHTML = '<p class="muted">' + _t('project.shotsNone', 'No pictures pinned to this item yet.') + '</p>'
+            dlg.showModal()
+            return
+          }
+          body.innerHTML = '<div class="pd-tshots-grid">' + pinned.map((s) =>
+            '<figure class="shot shot-card' + (s.resolved ? ' is-fixed' : '') + '" data-shot="' + s.id + '">' +
+            '<button type="button" class="shot-img-btn" data-tshots-zoom="' + s.id + '"><img src="/api/media/screenshots/' + s.id + '/file" alt="" loading="lazy"></button>' +
+            '<figcaption class="shot-body"><p class="shot-note muted small" dir="auto">' + (s.caption ? String(s.caption).replace(/[&<>]/g, (c2) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' })[c2]) : '') + '</p>' +
+            '<div class="row spread shot-actions"><span class="shot-state' + (s.resolved ? ' is-fixed' : '') + '">' + (s.resolved ? '✓ ' + _t('project.shotFixedLabel', 'fixed') : _t('project.shotOpenLabel', 'open problem')) + '</span>' +
+            '<button type="button" class="ghost small danger" data-tshots-unpin="' + s.id + '" title="' + _t('project.shotUnpin', 'Unpin') + '">✕</button></div></figcaption></figure>',
+          ).join('') + '</div>'
+          dlg.showModal()
+          dlg.addEventListener('click', async (ev) => {
+            const zoomBtn = ev.target.closest('[data-tshots-zoom]')
+            if (zoomBtn) {
+              // stopPropagation: without it this click keeps bubbling to the document
+              // handler, whose trailing "click outside the lightbox closes it" check
+              // would kill the lightbox in the SAME event that opened it. And the
+              // dialog closes FIRST — a modal <dialog> sits in the top layer ABOVE any
+              // z-index, so a lightbox opened behind it would be invisible.
+              ev.stopPropagation()
+              const img = zoomBtn.querySelector('img')
+              if (img) { dlg.close(); openShotLightbox(img.src) }
+              return
+            }
+            const un = ev.target.closest('[data-tshots-unpin]')
+            if (!un) return
+            try {
+              await patchShot(un.getAttribute('data-tshots-unpin'), { taskId: null })
+              window.hibana?.toast(_t('project.shotUnpinned', 'Unpinned'), 'info')
+              dlg.close()
+              bodyRefresh()
+            } catch { window.hibana?.toast(_t('sparks.saveFailed', "Couldn't save"), 'err') }
+          })
+        }
+
         ctx.on('click', async (e) => {
           const zoom = e.target.closest('[data-shot-zoom]')
           if (zoom) {
@@ -175,8 +321,26 @@
             if (img) openShotLightbox(img.src)
             return
           }
+          // S39: the note AREA itself is the edit trigger (role=button, tabindex=0 — the
+          // tiny pencil alone was undiscoverable; the owner read it as "you can't add a
+          // note"). Checked BEFORE the note button so both paths work.
+          const noteArea = e.target.closest('[data-shot-note-edit]')
+          if (noteArea) { shotNoteForm(noteArea.closest('.shot-card')); return }
           const noteBtn = e.target.closest('[data-shot-note]')
           if (noteBtn) { shotNoteForm(noteBtn.closest('.shot-card')); return }
+          const pinBtn = e.target.closest('[data-shot-pin]')
+          if (pinBtn) { const f = pinBtn.closest('.shot-card'); if (f) shotPinPicker(f); return }
+          const unpin = e.target.closest('[data-shot-unpin]')
+          if (unpin) {
+            try {
+              await patchShot(unpin.getAttribute('data-shot-unpin'), { taskId: null })
+              window.hibana?.toast(_t('project.shotUnpinned', 'Unpinned'), 'info')
+              bodyRefresh()
+            } catch { window.hibana?.toast(_t('sparks.saveFailed', "Couldn't save"), 'err') }
+            return
+          }
+          const taskShots = e.target.closest('[data-pd-shots]')
+          if (taskShots) { e.preventDefault(); taskShotsDialog(taskShots.getAttribute('data-pd-shots')); return }
           const toggle = e.target.closest('[data-shot-toggle]')
           if (toggle) {
             const figure = toggle.closest('.shot-card')
@@ -205,6 +369,12 @@
             return
           }
           if (shotLightbox && !e.target.closest('.shot-lightbox img')) closeShotLightbox()
+        })
+        // keyboard parity for the click-to-edit note (role="button" needs Enter/Space)
+        ctx.on('keydown', (e) => {
+          if (e.key !== 'Enter' && e.key !== ' ') return
+          const noteArea = e.target.closest && e.target.closest('[data-shot-note-edit]')
+          if (noteArea) { e.preventDefault(); shotNoteForm(noteArea.closest('.shot-card')) }
         })
 
         // --- batch q 2026-09-07: the STAGE select finally persists. The old htmx wiring

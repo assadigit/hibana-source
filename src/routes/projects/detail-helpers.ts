@@ -87,7 +87,20 @@ export function detailHtml(p: ProjectRow, d: Awaited<ReturnType<typeof loadDetai
       )
       .join('') || `<div class="empty-state empty"><span class="empty-state-icon" aria-hidden="true">${icon('link')}</span><p class="empty-state-title">${trL(lang, 'No links yet', 'هنوز پیوندی نیست')}</p><p class="empty-state-text">${trL(lang, 'Add the repo, the live site, or any reference — keep them one click away.', 'ریپو، سایت زنده یا هر مرجع را اضافه کن — یک کلیک دور.')}</p></div>`
 
-  const shots = shotsGridHtml(d.screenshots, lang)
+  // S39: the shots grid needs the pinned tasks' {title, status} (the pin line says
+  // WHICH box + item the picture is stuck to) — build the map from the dev tasks the
+  // detail payload already loaded, and count pins per task for the board badges.
+  const taskById = new Map<string, DevTaskRow>()
+  for (const t of d.devTasks) taskById.set(t.id, t)
+  const shotTasks = new Map<string, { title: string; status: string }>()
+  const pinsByTask = new Map<string, number>()
+  for (const s of d.screenshots) {
+    if (!s.task_id) continue
+    const t = taskById.get(s.task_id)
+    if (t) shotTasks.set(t.id, { title: t.title, status: t.status })
+    pinsByTask.set(s.task_id, (pinsByTask.get(s.task_id) ?? 0) + 1)
+  }
+  const shots = shotsGridHtml(d.screenshots, lang, shotTasks)
 
   const history =
     d.history
@@ -114,6 +127,9 @@ export function detailHtml(p: ProjectRow, d: Awaited<ReturnType<typeof loadDetai
   // Problems tab (Phase 5): the board's «مشکلات» box mirrored here — bug dev-tasks, not
   // the old hurdles table. 'bug' is a dev-task status (devboard's taskStatusSchema); the
   // row union in types.ts is the board's four, so the comparison widens it locally.
+  // S39: `dig` lives HERE now (the pin badges below use it — it used to sit below COLS,
+  // which is AFTER this block: a temporal-dead-zone ReferenceError on the whole page).
+  const dig = (n: number) => (lang === 'fa' ? faDigits(String(n)) : String(n))
   const bugTasks = d.devTasks.filter((t) => (t.status as DevTaskRow['status'] | 'bug') === 'bug')
   const problemsList =
     bugTasks
@@ -121,6 +137,7 @@ export function detailHtml(p: ProjectRow, d: Awaited<ReturnType<typeof loadDetai
         (t) => `<li class="hurdle" data-problem="${t.id}">
         <button type="button" class="ghost toggle" data-problem-solve="${t.id}" aria-label="${trL(lang, 'Mark solved', 'حل‌شده علامت بزن')}" title="${trL(lang, 'Solved — moves to Done', 'حل شد — می‌رود به انجام‌شده')}">${icon('check')}</button>
         <span class="hurdle-text">${esc(t.title)}</span>
+        ${pinsByTask.has(t.id) ? `<button type="button" class="pd-task-shots" data-pd-shots="${t.id}" title="${esc(trL(lang, 'Pinned pictures — note + proof stuck to this problem', 'تصاویر سنجاق‌شده — یادداشت + مدرکِ سنجاق‌شده به این مشکل'))}" aria-label="${esc(trL(lang, 'Pinned pictures ({n})', 'تصاویر سنجاق‌شده ({n})', { n: dig(pinsByTask.get(t.id)!) }))}">${icon('pin')} ${dig(pinsByTask.get(t.id)!)}</button>` : ''}
         <button type="button" class="ghost hurdle-edit" data-problem-edit="${t.id}" aria-label="${trL(lang, 'Edit problem', 'ویرایش مشکل')}" title="${trL(lang, 'Edit problem', 'ویرایش مشکل')}">${icon('pencil')}</button>
         <button type="button" class="ghost danger" data-problem-del="${t.id}" aria-label="${trL(lang, 'Delete problem', 'حذف مشکل')}">${icon('x')}</button>
       </li>`,
@@ -160,7 +177,6 @@ export function detailHtml(p: ProjectRow, d: Awaited<ReturnType<typeof loadDetai
     { key: 'in_progress', en: 'In Progress', fa: 'در حال انجام' },
     { key: 'done', en: 'Done', fa: 'انجام‌شده' },
   ]
-  const dig = (n: number) => (lang === 'fa' ? faDigits(String(n)) : String(n))
 
   // Task meta line (user request 2026-09-03): date + CLOCK — Jalali + FA digits when fa,
   // Gregorian + 12h clock when en; UTC edge like the board page (rule 3). Done tasks
@@ -325,7 +341,7 @@ export function detailHtml(p: ProjectRow, d: Awaited<ReturnType<typeof loadDetai
                     <span class="pd-task-title"${titleAttrs(t.title)}>${titleHtml(t.title)}</span>
                     ${readMoreBtn(t.title)}
                     ${taskTagChips(t.id)}
-                    <span class="pd-task-meta"><span class="pd-meta-prio prio-${t.priority}">${esc(prioLabel(t.priority))}</span> · ${taskMetaLabel(t)}</span>
+                    <span class="pd-task-meta"><span class="pd-meta-prio prio-${t.priority}">${esc(prioLabel(t.priority))}</span> · ${taskMetaLabel(t)}${pinsByTask.has(t.id) ? ` · <button type="button" class="pd-task-shots" data-pd-shots="${t.id}" title="${esc(trL(lang, 'Pinned pictures — note + proof stuck to this item', 'تصاویر سنجاق‌شده — یادداشت + مدرکِ سنجاق‌شده به این قلم'))}" aria-label="${esc(trL(lang, 'Pinned pictures ({n})', 'تصاویر سنجاق‌شده ({n})', { n: dig(pinsByTask.get(t.id)!) }))}">${icon('pin')} ${dig(pinsByTask.get(t.id)!)}</button>` : ''}</span>
                   </span>
                 </div>
               </div>`).join('')}

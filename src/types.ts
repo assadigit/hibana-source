@@ -251,6 +251,12 @@ export interface ScreenshotRow {
   created_at: string
   /** 0053 (S35): 0 = an OPEN UI/UX problem, 1 = fixed. */
   resolved: number
+  /** 0054 (S39): the progress-box item this shot is STUCK to (dev_tasks.id; NULL =
+   *  unpinned). ON DELETE SET NULL — deleting the task detaches, never loses the picture. */
+  task_id?: string | null
+  /** 0054 (S39): decoded binary size in bytes, recorded at upload (0 = legacy row;
+   *  self-heals on first view via the media file route). */
+  bytes?: number
 }
 
 export interface ChangelogRow {

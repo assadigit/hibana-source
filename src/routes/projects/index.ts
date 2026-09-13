@@ -9,6 +9,7 @@ import { trFor, localeOf, trL, type Locale } from '../../lib/i18n'
 import { faDigits, toJalali } from '../../lib/jalali'
 import { personalProgress, clientProgress } from '../../services/progress'
 import { githubClient, type GitHubConfig } from '../../services/github'
+import { purgeShotBytes } from '../../services/shotstore'
 import { hitRateLimit, RATE_RULES, clientIp } from '../../services/ratelimit'
 import { uuid } from '../../lib/ids'
 import { PROJECT_STAGES, STATUS_ORDER } from '../../types'
@@ -353,6 +354,10 @@ export function projectsRoutes(cfg: Config) {
     const force = c.req.query('force') === '1'
     if (canHardDelete && force) {
       // Hard delete allowed only for Spark/Unreviewed that were force-confirmed (spec §4.15).
+      // S39: the screenshots' remote BYTES go first — the row cascade below would make
+      // their storage keys unfindable, orphaning them in KV/GitHub forever (best-effort;
+      // the delete proceeds regardless).
+      await purgeShotBytes(cfg, [p.id])
       await cfg.db.execute('DELETE FROM projects WHERE id = ? AND user_id = ?', [p.id, user.id])
     } else {
       // Soft delete — undo-toast stays honest for 7 days (Q2 decision), then the cron purges.

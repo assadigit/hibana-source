@@ -1073,3 +1073,45 @@ dialog.pd-sd-full::backdrop { background: rgb(26 20 12 / 0.55); }
 .arc-actions { gap: 0.5rem; flex-wrap: wrap; }
 .arc-total { margin-block-start: 0.75rem; }
 :root[data-theme="dark"] .pd-archived-banner { background: rgb(201 151 59 / 0.12); }
+
+/* --- S39: the pin picker + the pinned-pictures dialog (dynamically created
+   <dialog.pd-pin-modal> — same specificity recipe as dialog.pd-sprintnew-modal:
+   (0,1,1) ties with components.css's dialog.dialog and this file loads later,
+   so the explicit inline-size beats the 26rem cap). Self-removing on close. --- */
+dialog.pd-pin-modal {
+  inline-size: min(34rem, 92vw);
+  max-inline-size: min(34rem, 92vw);
+  max-block-size: min(80vh, 40rem);
+}
+.pd-pin-inner { padding: 1.1rem; display: grid; gap: 0.6rem; }
+.pd-pin-head h3 { margin: 0; }
+.pd-pin-body { display: grid; gap: 0.6rem; min-block-size: 0; }
+.pd-pin-search {
+  font: inherit; padding: 0.45rem 0.6rem;
+  border: 1px solid var(--line); border-radius: var(--radius-sm);
+  background: var(--bg); color: var(--text);
+}
+.pd-pin-list {
+  display: grid; gap: 0.5rem; overflow-y: auto;
+  max-block-size: min(46vh, 26rem);
+  border: 1px solid var(--line); border-radius: var(--radius-sm);
+  padding: 0.5rem; margin: 0;
+}
+.pd-pin-group { display: grid; gap: 0.3rem; }
+.pd-pin-grouplabel { text-transform: none; letter-spacing: 0.02em; }
+.pd-pin-row {
+  display: flex; align-items: baseline; gap: 0.5rem; inline-size: 100%;
+  font: inherit; font-size: var(--fs-sm); text-align: start;
+  padding: 0.4rem 0.5rem; border: 1px solid transparent;
+  border-radius: var(--radius-sm); background: none; color: var(--text);
+  cursor: pointer;
+}
+.pd-pin-row:hover { background: var(--soft, rgb(0 0 0 / 0.05)); border-color: var(--line); }
+.pd-pin-row[aria-current="true"] { border-color: var(--brand); }
+.pd-pin-box { flex: none; max-inline-size: 9rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pd-pin-box-bug { color: #C0453B; border-color: rgb(192 69 59 / 0.4); }
+.pd-pin-box-idea { color: var(--brand); }
+.pd-pin-title { flex: 1 1 auto; min-inline-size: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; unicode-bidi: plaintext; }
+.pd-pin-cur { color: var(--brand); flex: none; }
+.pd-pin-unrow { border: 1px dashed var(--line); }
+.pd-tshots-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(10rem, 1fr)); gap: 0.75rem; overflow-y: auto; max-block-size: min(52vh, 30rem); }

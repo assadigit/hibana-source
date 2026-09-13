@@ -32,7 +32,12 @@ a whiteboard note.
   binding, `src/services/kv.ts`; written WITHOUT expirationTtl → objects NEVER expire,
   only the app's delete removes them). Storage precedence: kv → r2 (B2/R2/S3 via R2_* env,
   `src/services/r2.ts`) → GitHub repo `assadigit/hibana-safe` (Contents API — avatars,
-  logos, backups). `npm run shotcheck:local|:dev|:prod` = live round-trip proof.
+  logos, backups); ONE shared constructor `src/services/shotstore.ts` (also cleans bytes
+  on project hard-delete + the purge cron). `npm run shotcheck:local|:dev|:prod` = live
+  round-trip proof. S39: the media GALLERY (/gallery.html + GET /api/media) browses every
+  picture with a space meter and delete-to-free; shots stick to progress-box items
+  (0054 screenshots.task_id → dev_tasks, ON DELETE SET NULL — the pin line shows box +
+  item; the task cards carry 📌 badges).
   Email: Resend. Monitoring: healthchecks.io. Telegram: @Hibana_PM_bot.
 - 7-stage taxonomy (0031): `spark → unreviewed → investigating → awaiting → doing → halted →
   operational` (legacy map in `validation/schemas.ts`).

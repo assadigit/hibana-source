@@ -490,6 +490,9 @@ export function coreRoutes(cfg: Config) {
     color: z.string().max(20).optional().default('#fef08a'),
     content: z.string().max(10_000).optional().default(''),
     font_size: z.number().int().min(6).max(400).nullable().optional(),
+    // 0055 (S40): fabric text alignment — NULL/absent = 'left' (the fabric default),
+    // so legacy rows and old clients keep rendering exactly as before.
+    text_align: z.enum(['left', 'center', 'right']).nullable().optional(),
     board: z.enum(['canvas', 'notebook']).optional().default('canvas'),
     promoted_project_id: z.string().uuid().nullable().optional(),
     z_index: z.number().int().optional().default(0),
@@ -561,15 +564,16 @@ export function coreRoutes(cfg: Config) {
         if (prev && el.updated_at <= prev.updated_at) continue // LWW (Q4-A)
         const createdAt = el.created_at ?? prev?.created_at ?? new Date().toISOString()
         tx.sql(
-          `INSERT INTO canvas_elements (id, user_id, board, type, x, y, width, height, color, content, font_size, promoted_project_id, z_index, deleted, locked, angle, created_at, updated_at)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          `INSERT INTO canvas_elements (id, user_id, board, type, x, y, width, height, color, content, font_size, text_align, promoted_project_id, z_index, deleted, locked, angle, created_at, updated_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
            ON CONFLICT(id) DO UPDATE SET
              board = excluded.board, type = excluded.type, x = excluded.x, y = excluded.y, width = excluded.width,
              height = excluded.height, color = excluded.color, content = excluded.content, font_size = excluded.font_size,
+             text_align = excluded.text_align,
              promoted_project_id = excluded.promoted_project_id, z_index = excluded.z_index,
              deleted = excluded.deleted, locked = excluded.locked, angle = excluded.angle, updated_at = excluded.updated_at`,
           [el.id, user.id, el.board ?? 'canvas', el.type, el.x, el.y, el.width ?? null, el.height ?? null, el.color, el.content,
-           el.font_size ?? null, el.promoted_project_id ?? null, el.z_index, el.deleted, el.locked ?? 0, el.angle ?? 0, createdAt, el.updated_at],
+           el.font_size ?? null, el.text_align ?? null, el.promoted_project_id ?? null, el.z_index, el.deleted, el.locked ?? 0, el.angle ?? 0, createdAt, el.updated_at],
         )
         applied.push(el.id)
       }

@@ -142,4 +142,97 @@ describe('sparks shelf — folder views (Session 28)', () => {
       close()
     }
   })
+
+  // S40 (user report: "I can't enter a folder which I made and add an idea there"):
+  // an EMPTY folder must still be enterable — the old `projects.length === 0 → grid`
+  // fallback re-rendered the file-manager grid, so clicking a fresh folder looked
+  // like a dead click and no capture context ever opened.
+  it('an EMPTY folder opens as a folder view (bar + scoped empty state), never the grid', async () => {
+    const { db, close } = makeTestDb()
+    try {
+      const u = await makeUser(db)
+      const { app, auth } = await makeClient(db, u)
+      const fid = await makeFolder(app, auth, 'Fresh empty folder')
+      await createSpark(app, auth, 'Unfiled idea')
+
+      const res = await app.fetch(
+        new Request(`http://local/api/projects?status=spark&view=cards&folder=${fid}`, { headers: { ...auth, 'HX-Request': 'true' } }),
+      )
+      expect(res.status).toBe(200)
+      const html = await res.text()
+      // The folder BAR rides above the scoped empty state — the user is INSIDE the folder.
+      expect(html).toContain('data-sf-bar')
+      expect(html).toContain('data-spark-empty="folder"')
+      expect(html).toContain('Fresh empty folder')
+      expect(html).toContain('data-quickadd-open') // the capture CTA files into the open folder
+      // The file-manager grid is GONE — the click visibly went somewhere.
+      expect(html).not.toContain('spark-folder-grid')
+      expect(html).not.toContain('spark-folder-card')
+      // The unfiled idea is NOT in this folder view.
+      expect(html).not.toContain('Unfiled idea')
+    } finally {
+      close()
+    }
+  })
+
+  it('folder=all with ZERO sparks shows the bar + empty state (never silently back to the grid)', async () => {
+    const { db, close } = makeTestDb()
+    try {
+      const u = await makeUser(db)
+      const { app, auth } = await makeClient(db, u)
+      await makeFolder(app, auth, 'Holding folder')
+
+      const res = await app.fetch(
+        new Request('http://local/api/projects?status=spark&view=cards&folder=all', { headers: { ...auth, 'HX-Request': 'true' } }),
+      )
+      const html = await res.text()
+      expect(html).toContain('data-sf-bar')
+      expect(html).toContain('data-spark-empty="all"')
+      expect(html).not.toContain('spark-folder-grid')
+      expect(html).not.toContain('spark-folder-card')
+    } finally {
+      close()
+    }
+  })
+
+  it('folder=none with zero unfiled ideas shows the bar + the none empty state', async () => {
+    const { db, close } = makeTestDb()
+    try {
+      const u = await makeUser(db)
+      const { app, auth } = await makeClient(db, u)
+      const fid = await makeFolder(app, auth, 'Only folder')
+      await createSpark(app, auth, 'Filed idea', fid)
+
+      const res = await app.fetch(
+        new Request('http://local/api/projects?status=spark&view=cards&folder=none', { headers: { ...auth, 'HX-Request': 'true' } }),
+      )
+      const html = await res.text()
+      expect(html).toContain('data-sf-bar')
+      expect(html).toContain('data-spark-empty="none"')
+      expect(html).not.toContain('Filed idea')
+      expect(html).not.toContain('spark-folder-grid')
+    } finally {
+      close()
+    }
+  })
+
+  it('kanban view with a folder param keeps the folder bar (the filter must stay visible)', async () => {
+    const { db, close } = makeTestDb()
+    try {
+      const u = await makeUser(db)
+      const { app, auth } = await makeClient(db, u)
+      const fid = await makeFolder(app, auth, 'Kanban folder')
+      await createSpark(app, auth, 'Filed idea', fid)
+
+      const res = await app.fetch(
+        new Request(`http://local/api/projects?status=spark&view=kanban&folder=${fid}`, { headers: { ...auth, 'HX-Request': 'true' } }),
+      )
+      const html = await res.text()
+      expect(html).toContain('data-sf-bar')
+      expect(html).toContain('kanban-col')
+      expect(html).toContain('Filed idea')
+    } finally {
+      close()
+    }
+  })
 })

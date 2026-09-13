@@ -9,7 +9,66 @@
 > rewritten as a minimal pointer. Deleted files remain recoverable verbatim:
 > `git show <sha>:<file>`.
 
-## 1. Current state (v0.3.12.40 — Session 39: media GALLERY (WordPress-style) + screenshots stuck to progress-box items; S38: screenshot storage LIVE on Cloudflare Workers KV — free, no card, never expires; S37: English-always chat rule)
+## 1. Current state (v0.3.12.41 — Session 40: Sparks page FULL AUDIT (empty-folder entry + «همهٔ ایده‌ها» + grid ⋯ menu + capture-keeps-context) + TEXT ALIGNMENT on both boards (0055); S39: media GALLERY + screenshots stuck to progress-box items; S38: screenshot storage LIVE on Cloudflare Workers KV — free, no card, never expires; S37: English-always chat rule)
+- **(S40) THE SPARKS AUDIT (user: "do a full audit of the sparks page — I can't enter a folder
+  which I made and add an idea there; also نمایش همه ایده‌ها shows nothing")** — diagnosed
+  against the LIVE prod D1 first (the owner's real state: 3 folders, ALL EMPTY; 7 sparks, ALL
+  unfiled — every folder click hit the dead branch). Four confirmed bugs, all fixed:
+  1. **Empty folders were un-enterable (the P0)**: a folder view matching ZERO sparks fell
+     into `projects.length === 0 → sparkFolderGrid` — the click re-rendered the file-manager
+     grid, so a fresh folder "did nothing" and no capture context ever opened. Now ANY
+     deliberate folder param (uuid / 'none' / 'all') always answers with the folder BAR + the
+     scoped empty state (`sparkFolderEmptyHtml`: «این پوشه خالی است» / "This folder is empty"
+     + the capture CTA that files into the open folder); only the no-param boot keeps the grid
+     as home. Live-verified on prod via a D1 probe user replicating the owner's exact state.
+  2. **«همهٔ ایده‌ها» "shows nothing"**: server + assets byte-verified identical to local and
+     the folder=all fragment CORRECT on live — the report was the compounding of #1 (dead
+     clicks) + #3/#4 (context loss). Fixed by making every click visibly land somewhere, and
+     pinned by e2e (All = flat list, never silently back to the grid, zero-spark case
+     included).
+  3. **The grid ⋯ folder menu was unreachable — TWO layers**: the menu button sits INSIDE the
+     `[data-sf]` card so `closest('[data-sf]')` shadowed it (every menu click = folder entry),
+     AND `toggleSfMenu` only built menus for the BAR's `.sf-item` (grid cards never got one).
+     Fixed: the delegated click checks `data-sf-new/menu/rename/delete` BEFORE `data-sf`, and
+     the menu hosts both shapes (`.sf-item, .spark-folder-card` — the card was already
+     `position: relative`).
+  4. **Capture wiped the folder context**: every quick-add hard-reloaded `/sparks.html`
+     (losing the open folder + scroll); the folder selection also died on any reload. Now:
+     sparks-page installs `window.__hibanaShelfReload` (app.js calls it → soft shelf refresh,
+     fallback = the old reload), the folder persists in localStorage
+     (`hibana-sparks-folder` {id, name}), and sparks.html restores it SYNCHRONOUSLY via an
+     inline stamp before htmx's first fetch (no grid→folder flash; mount re-applies as
+     belt-and-suspenders). Deleting the open folder clears the pref (no ghost selection).
+  5. **Kanban drops the folder bar**: an active folder filter was invisible in kanban view
+     (cards "vanished" when dragged out of the filtered folder) — the bar now rides above the
+     kanban whenever a folder param is present.
+  Test debt paid: the page had ZERO functional e2e — new **e2e/sparks.spec.ts** (6 tests:
+  grid render, empty-folder entry, grid ⋯ menu, capture-into-folder soft refresh + server
+  truth, All-ideas, reload persistence) + 4 vitest regressions in sparks-folders.test.ts.
+- **(S40) TEXT ALIGNMENT ON BOTH BOARDS (user: "add text alignment option to editor options in
+  both whiteboard and canvas")** — migration **0055** (`canvas_elements.text_align TEXT`
+  NULL; 'left' stores as NULL — legacy rows byte-identical; plain ADD COLUMN, both D1s
+  applied + registered, bookmarks dev 000004c7 / prod 00000879, schema 53→54): three toolbar
+  buttons (چپ‌چین/وسط‌چین/راست‌چین) in the canvas text-props cluster and the notebook toolbar —
+  the default for NEW text boxes (localStorage per board), applied LIVE to the selected text
+  object, persisted through objectToData → /api/canvas/sync (`text_align` in elementSchema,
+  enum left/center/right) → makeObject loads it back. The notebook's align click mirrors the
+  W3 save pattern (snapshot → save → undoable 'modify' commit); canvas uses persistActive.
+  +1 vitest (sync round-trip incl. off-enum 400 + LWW clear-to-NULL) + 2 e2e (canvas: live
+  realign + persist + reload + born-aligned new box; notebook: realign + persist + reload).
+- Assets: sw hibana-v338→**v339**; app.js v173→174 (21 pages — the soft shelf-refresh),
+  sparks-page.js v2→v3, canvas.js v28→29, whiteboard.js v24→25, i18n-en/fa v17→18 (+3 keys
+  canvas.alignLeft/Center/Right, 1068→1071). sparks.html (inline restore script), canvas.html
+  + whiteboard.html (align buttons) — SHELL re-fetch rides the SW bump. package.json
+  0.3.12.40→0.3.12.41.
+- Verified: typecheck 0 · vitest 388/388 · Playwright 59/59 (+8: 6 sparks + 2 alignment) ·
+  smoke ALL PASS · i18n 1071/1071 · cache-bust PASS (44 files) · node --check × 4 ·
+  browser-verified FA/RTL on the local server (empty-folder entry + inline-stamp boot + All
+  list + grid ⋯ menu + live realign round-trips on BOTH boards incl. the server record) ·
+  deployed dev 04a101db + prod 7f4a1ae4, 0055 on both D1s, live probes: health ok schema 54
+  storage kv, the empty-folder fragment carries data-spark-empty="folder" + sf-bar on PROD,
+  sw v339 + the hashed sparks-page grep-verified live. Probe user purged (parity users 5).
+
 - **(S39) THE MEDIA GALLERY (user: "an archive gallery of pics, similar to wordpress, so the
   user can delete the unneeded files to make up more space")** — `/gallery.html` (nav: user
   menu + mobile sheet, «نگارخانه»/Gallery) + `GET /api/media`: EVERY picture the user owns
@@ -2009,3 +2068,5 @@ must stay last). Restore is in-place and destructive: `npx wrangler d1 time-trav
 | 2026-09-13T06:24:40.206Z | pm-app-prod | 51 | 00000855-00000000-000050e5-fb4b5a34d3e327cf06618fd8ceb93289 | pre-0053 bookmark (prod) |
 | 2026-09-13T15:19:37.384Z | pm-app-dev | 52 | 000004c3-00000000-000050e5-dbd40158391cfaca44e2a30d62c66028 | pre-0054 bookmark (dev) — screenshot pin (task_id) + bytes |
 | 2026-09-13T15:19:40.953Z | pm-app-prod | 52 | 00000873-00000016-000050e5-02e8748cc82810285274657a5e7a2bc6 | pre-0054 bookmark (prod) — screenshot pin (task_id) + bytes |
+| 2026-09-13T16:26:48.557Z | pm-app-dev | 53 | 000004c7-00000000-000050e5-2fcbc2b70837fadc9961d40b621ec7ab | pre-0055 (S40 text alignment) bookmark |
+| 2026-09-13T16:26:52.740Z | pm-app-prod | 53 | 00000879-00000000-000050e5-7e5d6f08b551b06d304312aeef49ee19 | pre-0055 (S40 text alignment) bookmark |

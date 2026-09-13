@@ -19,6 +19,7 @@ const USERS = {
   sticky: 'e2e-cv-s@test.local',
   text: 'e2e-cv-t@test.local',
   w2: 'e2e-cv-w2@test.local',
+  align: 'e2e-cv-al@test.local',
 }
 
 // Seed a test user (migrations auto-run on server boot).
@@ -51,6 +52,7 @@ test.beforeAll(async () => {
   await seedUser(USERS.sticky)
   await seedUser(USERS.text)
   await seedUser(USERS.w2)
+  await seedUser(USERS.align)
 })
 
 async function login(page: Page, email: string) {
@@ -364,6 +366,90 @@ test('sticky resize by scale + mtr rotation persist through reload (W2 + 0049)',
   expect(after!.width).toBeGreaterThan(Math.round(before!.baseW * 1.4)) // resized size survived
   expect(Math.round(after!.angle)).toBe(30) // rotation survived
   expect(after!.scaleX).toBe(1) // rebuild is at scale 1 — the size is in the record
+  expect(errors).toEqual([])
+})
+
+test('text alignment: toolbar buttons realign the selected text, persist, and birth new boxes aligned (S40 / 0055)', async ({ page, browserName }) => {
+  test.skip(browserName !== 'chromium', 'Desktop Chromium only')
+  const errors = trackErrors(page)
+
+  await login(page, USERS.align)
+  await openCanvas(page)
+
+  // Create a text box with the text tool and type into it.
+  await page.click('#canvas-toolbar [data-tool="text"]')
+  const box = await page.locator('#board').boundingBox()
+  expect(box).not.toBeNull()
+  await page.mouse.move(box!.x + 300, box!.y + 160)
+  await page.mouse.down()
+  await page.mouse.move(box!.x + 450, box!.y + 250, { steps: 8 })
+  await page.mouse.up()
+  await page.waitForFunction(() => {
+    const c = window.hibanaCanvas?.getCanvas()
+    return !!c?.getObjects().find((o) => o.type === 'textbox' && o.isEditing)
+  }, null, { timeout: 5_000 })
+  await page.keyboard.type('e2e align center me')
+  await page.click('#canvas-toolbar [data-tool="select"]') // exit editing, stays selected
+
+  // The align buttons are visible + reflect the current object state (left default).
+  await expect(page.locator('#canvas-toolbar [data-text-align="left"]')).toBeVisible()
+  const initial = await page.evaluate(() => {
+    const a = window.hibanaCanvas?.getCanvas()?.getActiveObject()
+    return { kind: a?.kind, align: a?.textAlign, btnLeft: document.querySelector('#canvas-toolbar [data-text-align="left"]')?.classList.contains('active') }
+  })
+  expect(initial.kind).toBe('text')
+  expect(initial.align).toBe('left')
+  expect(initial.btnLeft).toBe(true)
+
+  // Click CENTER — the live object realigns and the button states move.
+  await page.click('#canvas-toolbar [data-text-align="center"]')
+  const centered = await page.evaluate(() => {
+    const c = window.hibanaCanvas?.getCanvas()
+    const o = c?.getObjects().find((x) => x.type === 'textbox') as { id?: string; textAlign?: string } | undefined
+    const btnCenter = document.querySelector('#canvas-toolbar [data-text-align="center"]')?.classList.contains('active')
+    return { id: o?.id, align: o?.textAlign, btnCenter }
+  })
+  expect(centered.align).toBe('center')
+  expect(centered.btnCenter).toBe(true)
+
+  // Durable: the synced record carries text_align='center' (persistActive → queue → server).
+  await page.waitForTimeout(500)
+  const els = await syncedElements(page)
+  expect(els).not.toBeNull()
+  const rec = els!.find((e: { id: string; deleted: number }) => e.id === centered!.id && !e.deleted) as { text_align: string | null } | undefined
+  expect(rec).toBeTruthy()
+  expect(rec!.text_align).toBe('center')
+
+  // RELOAD: the text rebuilds centered (0055 round-trip).
+  await openCanvas(page)
+  const after = await page.evaluate((id) => {
+    const c = window.hibanaCanvas?.getCanvas()
+    const o = c?.getObjects().find((x) => x.id === id) as { textAlign?: string } | undefined
+    return o?.textAlign ?? null
+  }, centered!.id)
+  expect(after).toBe('center')
+
+  // Default-alignment path: pick RIGHT while nothing is selected → a NEW box is born right.
+  // The text-props cluster only shows while the text tool is active OR a text object is
+  // selected — activate the text tool first so the align buttons are visible.
+  await page.click('#canvas-toolbar [data-tool="select"]') // clear selection (Escape would re-edit)
+  await page.evaluate(() => {
+    const c = window.hibanaCanvas?.getCanvas() as unknown as { discardActiveObject?: () => void; requestRenderAll?: () => void } | undefined
+    c?.discardActiveObject?.()
+    c?.requestRenderAll?.()
+  })
+  await page.click('#canvas-toolbar [data-tool="text"]') // cluster visible now
+  await page.click('#canvas-toolbar [data-text-align="right"]')
+  await page.mouse.move(box!.x + 300, box!.y + 360)
+  await page.mouse.down()
+  await page.mouse.move(box!.x + 450, box!.y + 450, { steps: 8 })
+  await page.mouse.up()
+  const born = await page.evaluate(() => {
+    const c = window.hibanaCanvas?.getCanvas()
+    const t = c?.getObjects().find((o) => o.type === 'textbox' && o.isEditing) as { textAlign?: string } | undefined
+    return t?.textAlign ?? null
+  })
+  expect(born).toBe('right')
   expect(errors).toEqual([])
 })
 

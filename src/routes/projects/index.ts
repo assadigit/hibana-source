@@ -23,7 +23,7 @@ import {
   loadTags, loadProjectSignals, projectProgress,
   bugBubbleHtml, signalsHtml, backlogMetaHtml,
   cardHtml, listFragment, glanceStrip,
-  sparkEmptyHtml, sparkKanbanHtml, sparkFolderBar, sparkFolderGrid,
+  sparkEmptyHtml, sparkKanbanHtml, sparkFolderBar, sparkFolderGrid, sparkFolderEmptyHtml,
   archiveShelfHtml,
 } from './helpers'
 import { loadDetail, detailHtml } from './detail-helpers'
@@ -124,22 +124,33 @@ export function projectsRoutes(cfg: Config) {
           "SELECT COUNT(*) AS n FROM projects WHERE user_id = ? AND deleted_at IS NULL AND status = 'spark' AND folder_id IS NULL AND (archived_state IS NULL OR archived_state != 'offline')",
           [user.id],
         )
-        if (projects.length === 0) {
-          fragment = sparkFolderGrid(folderRows, unfiledRows[0]?.n ?? 0, lang)
-        } else if (view === 'kanban') {
-          fragment = sparkKanbanHtml(projects, folderRows, lang)
-        } else if (!folderParam || folderParam === 'all') {
-          // No folder param OR 'all' explicitly — show the folder grid (file-manager view)
-          // UNLESS the user explicitly clicked "All ideas" (folder=all), in which case
-          // we skip the grid and show the flat idea list with a breadcrumb bar.
-          if (folderParam === 'all') {
-            fragment = sparkFolderBar(folderRows, unfiledRows[0]?.n ?? 0, 'all', lang) + fragment
-          } else {
-            fragment = sparkFolderGrid(folderRows, unfiledRows[0]?.n ?? 0, lang)
-          }
+        // S40 (user report: "I can't enter a folder which I made and add an idea there"
+        // + "نمایش همه ایده‌ها shows nothing"): a request that CARRIES a folder param
+        // (uuid / 'none' / 'all') is a deliberate folder view — the user clicked
+        // something and must SEE the result, even when it matches zero sparks. The old
+        // `projects.length === 0 → grid` fallback re-rendered the file-manager grid for
+        // every empty folder, so clicking a fresh folder "did nothing" and its capture
+        // context never visibly opened. Only the NO-param request (initial load) keeps
+        // the folder grid as the Ideas page's home view.
+        const unfiled = unfiledRows[0]?.n ?? 0
+        if (view === 'kanban') {
+          fragment = (folderParam ? sparkFolderBar(folderRows, unfiled, folderParam, lang) : '') + sparkKanbanHtml(projects, folderRows, lang)
+        } else if (!folderParam) {
+          // Initial load, nothing selected — the folder grid (file-manager home),
+          // exactly as before (sparkFolderGrid itself degrades to the capture empty
+          // state when there are no folders AND no ideas at all).
+          fragment = sparkFolderGrid(folderRows, unfiled, lang)
+        } else if (folderParam === 'all') {
+          // "All ideas" explicitly — the flat list + the breadcrumb bar, and an honest
+          // empty state when there are no sparks at all (never silently back to the grid).
+          fragment = sparkFolderBar(folderRows, unfiled, 'all', lang) + (projects.length === 0 ? sparkFolderEmptyHtml('all', null, folderRows, lang) : fragment)
+        } else if (folderParam === 'none') {
+          fragment = sparkFolderBar(folderRows, unfiled, 'none', lang) + (projects.length === 0 ? sparkFolderEmptyHtml('none', null, folderRows, lang) : fragment)
         } else {
-          // A folder IS selected — show the breadcrumb back + the filtered idea list
-          fragment = sparkFolderBar(folderRows, unfiledRows[0]?.n ?? 0, folderParam, lang) + fragment
+          // A specific folder IS selected — the breadcrumb bar + the filtered list; an
+          // empty folder gets its own capture-into-me empty state instead of the grid.
+          const folder = folderRows.find((f) => f.id === folderParam)
+          fragment = sparkFolderBar(folderRows, unfiled, folderParam, lang) + (projects.length === 0 ? sparkFolderEmptyHtml('folder', folder?.name ?? '', folderRows, lang) : fragment)
         }
       }
       return await etag(c, c.html(fragment))

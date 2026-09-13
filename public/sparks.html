@@ -30,7 +30,7 @@
   <script src="/js/boot.js?v=4"></script>
   <script src="/vendor/alpine.min.js" defer></script>
   <script src="/js/queue.js?v=2" defer></script>
-  <script src="/js/app.js?v=173" defer></script>
+  <script src="/js/app.js?v=174" defer></script>
   <script src="/js/hib-init.js?v=1" defer></script>
   <script src="/js/touch-drag.js?v=1" defer></script>
   <script src="/js/nav.js?v=2" defer></script>
@@ -40,7 +40,7 @@
   <script src="/js/micro-interactions.js?v=1" defer></script>
   <script src="/js/go-to.js?v=1" defer></script>
   <script src="/js/install-prompt.js?v=1" defer></script>
-  <script src="/js/i18n-en.js?v=17" defer></script>
+  <script src="/js/i18n-en.js?v=18" defer></script>
   <script src="/js/i18n.js?v=74" defer></script>
   <script src="/js/magic-wand.js?v=10" defer></script>
 </head>
@@ -75,6 +75,22 @@
          target — hx-include serializes it into the 30s poll and the load trigger, so the
          poll never resets the filter. The folder BAR itself rides inside the fragment. -->
     <input type="hidden" id="spark-folder" name="folder" value="">
+    <!-- S40: restore the remembered folder SYNCHRONOUSLY, before htmx's deferred init
+         fires the #spark-shelf load trigger — otherwise the first fetch boots folder-less
+         (the folder grid) and only a later refetch would land in the folder (a visible
+         grid→folder flash on every reload). Runs during parse; CSP allows inline. -->
+    <script>
+      try {
+        var __sf = JSON.parse(localStorage.getItem('hibana-sparks-folder') || 'null')
+        if (__sf && typeof __sf.id === 'string' && __sf.id && __sf.id !== 'all') {
+          var __inp = document.getElementById('spark-folder')
+          if (__inp) {
+            __inp.value = __sf.id
+            __inp.dataset.folderName = __sf.name || ''
+          }
+        }
+      } catch (e) { /* storage unavailable — boot folder-less, the grid home */ }
+    </script>
     <!-- Phase 6 item 3: the view rides the poll exactly like the folder selection —
          hx-include serializes BOTH hidden inputs (outside the swap target) so the 30s
          poll never resets the view or the folder filter. -->
@@ -82,6 +98,6 @@
     <div id="spark-shelf" hx-get="/api/projects?status=spark" hx-trigger="load, every 30s" hx-include="#spark-folder,#spark-view" hx-swap="innerHTML" hx-indicator="#shelf-loading"></div>
   </main>
 
-  <script src="/js/sparks-page.js?v=2" defer></script>
+  <script src="/js/sparks-page.js?v=3" defer></script>
 </body>
 </html>

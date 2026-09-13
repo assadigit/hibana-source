@@ -332,6 +332,67 @@ test('notebook move is durable and undoable — Ctrl+Z restores position (W3 + 0
   expect(errors).toEqual([])
 })
 
+test('text alignment: toolbar buttons realign the selected text and persist through reload (S40 / 0055)', async ({ page, browserName }) => {
+  test.skip(browserName !== 'chromium', 'Desktop Chromium only')
+  const errors = trackErrors(page)
+
+  await login(page)
+  await openNotebook(page)
+  await page.evaluate(() => window.hibanaNotebook.getCanvas().clear())
+
+  // Create a text box, type, leave editing (move tool keeps it selected).
+  await page.click('#nb-toolbar [data-tool="text"]')
+  const box = await page.locator('#nb-board').boundingBox()
+  expect(box).not.toBeNull()
+  await page.mouse.move(box!.x + 260, box!.y + 200)
+  await page.mouse.down()
+  await page.mouse.move(box!.x + 400, box!.y + 290, { steps: 8 })
+  await page.mouse.up()
+  await page.waitForFunction(() => {
+    const c = window.hibanaNotebook?.getCanvas()
+    return !!c?.getObjects().find((o) => o.type === 'textbox' && o.isEditing)
+  }, null, { timeout: 5_000 })
+  await page.keyboard.type('e2e nb align center me')
+  await page.click('#nb-toolbar [data-tool="move"]')
+
+  // Default state: left-aligned + the left button carries .active.
+  const initial = await page.evaluate(() => {
+    const c = window.hibanaNotebook?.getCanvas()
+    const o = c?.getObjects().find((x) => x.type === 'textbox') as { id?: string; textAlign?: string } | undefined
+    return { id: o?.id, align: o?.textAlign, btnLeft: document.querySelector('#nb-toolbar [data-text-align="left"]')?.classList.contains('active') }
+  })
+  expect(initial.align).toBe('left')
+  expect(initial.btnLeft).toBe(true)
+
+  // Click CENTER: live object + button states move, the save path fires immediately
+  // (snapshot → save → undoable modify — no debounce on the toolbar path).
+  await page.click('#nb-toolbar [data-text-align="center"]')
+  const centered = await page.evaluate(() => {
+    const c = window.hibanaNotebook?.getCanvas()
+    const o = c?.getObjects().find((x) => x.type === 'textbox') as { id?: string; textAlign?: string } | undefined
+    return { id: o?.id, align: o?.textAlign, btnCenter: document.querySelector('#nb-toolbar [data-text-align="center"]')?.classList.contains('active') }
+  })
+  expect(centered.align).toBe('center')
+  expect(centered.btnCenter).toBe(true)
+
+  // Durable: the synced record carries text_align='center'.
+  const els = await syncedElements(page)
+  expect(els).not.toBeNull()
+  const rec = els!.find((e: { id: string; deleted: number }) => e.id === centered!.id && !e.deleted) as { text_align: string | null } | undefined
+  expect(rec).toBeTruthy()
+  expect(rec!.text_align).toBe('center')
+
+  // RELOAD: the note rebuilds centered (0055 round-trip through makeObject).
+  await openNotebook(page)
+  const after = await page.evaluate((id) => {
+    const c = window.hibanaNotebook?.getCanvas()
+    const o = c?.getObjects().find((x) => x.id === id) as { textAlign?: string } | undefined
+    return o?.textAlign ?? null
+  }, centered!.id)
+  expect(after).toBe('center')
+  expect(errors).toEqual([])
+})
+
 // Type augmentation for the notebook global (whiteboard.js exposes { init, getCanvas }).
 declare global {
   interface Window {

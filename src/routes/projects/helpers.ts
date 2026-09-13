@@ -405,6 +405,36 @@ export function sparkFolderGrid(folders: (SparkFolderRow & { n: number })[], unf
   return `<div class="spark-folder-grid">${allCard}${cards}${unfiledCard}${newBtn}</div>`
 }
 
+// S40 (user report: "I can't enter a folder which I made and add an idea there"):
+// a deliberately opened view (folder uuid / 'none' / 'all') that matches ZERO sparks
+// still owes the user a visible destination — the folder bar + this scoped empty
+// state. The capture CTA keeps working because the page's #spark-folder hidden input
+// still carries the selection; a capture from here files straight into the folder.
+// kind: 'folder' (a named folder), 'none' (unfiled), 'all' (everything, nothing yet).
+export function sparkFolderEmptyHtml(
+  kind: 'folder' | 'none' | 'all',
+  folderName: string | null,
+  folders: (SparkFolderRow & { n: number })[],
+  lang: Locale,
+): string {
+  const where =
+    kind === 'folder'
+      ? trL(lang, `This folder is empty`, `این پوشه خالی است`)
+      : kind === 'none'
+        ? trL(lang, 'No unfiled ideas — everything lives in a folder.', 'ایدهٔ بدون پوشه‌ای نیست — همه در پوشه‌ها هستند.')
+        : folders.length > 0
+          ? trL(lang, 'No ideas yet — folders are ready and waiting.', 'هنوز ایده‌ای نیست — پوشه‌ها آماده‌اند.')
+          : trL(lang, 'No ideas yet!', 'هنوز ایده‌ای نیست!')
+  const nameLine = kind === 'folder' && folderName ? `<p class="empty-state-title">${trL(lang, 'Folder', 'پوشه')}: ${esc(folderName)}</p>` : ''
+  return `<div class="empty-state empty spark-folder-empty" data-spark-empty="${kind}">
+    <span class="empty-state-icon" aria-hidden="true">${icon(kind === 'folder' ? 'folder-plus' : 'idea')}</span>
+    ${nameLine}
+    <p class="empty-state-text">${where}</p>
+    <p class="empty-state-text">${trL(lang, 'Capture an idea — it files into the open view and stays safe here.', 'یک ایده ثبت کن — در همین نمای باز ثبت می‌شود و اینجا امن می‌ماند.')}</p>
+    <button type="button" class="empty-state-cta btn" data-quickadd-open>${icon('idea', 'icon')} ${trL(lang, 'Capture a new idea', 'ثبت ایده جدید')}</button>
+  </div>`
+}
+
 
 // S29 (agenda 5 — kanban color weights): batched per-project progress for the board
 // renderers. One dev-task aggregate + one hurdle aggregate across ALL visible ids (the

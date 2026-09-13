@@ -283,7 +283,7 @@ window.__hibanaDictEN = {
       'canvas.frame': 'Frame — drag to draw one; its content moves with it',
       'canvas.newFrame': 'New frame',
       'canvas.noteColor': 'Note color',
-      'canvas.fontSize': 'Text size', 'canvas.more': 'More tools', 'canvas.lock': 'Lock / unlock selection', 'canvas.lockNone': 'Select an element first',
+      'canvas.fontSize': 'Text size', 'canvas.more': 'More tools', 'canvas.lock': 'Lock / unlock selection', 'canvas.lockNone': 'Select an element first', 'canvas.alignLeft': 'Align left', 'canvas.alignCenter': 'Align center', 'canvas.alignRight': 'Align right',
       'canvas.saved': 'Saved',
       'canvas.deleted': 'Deleted (undo unavailable after sync)',
       'canvas.loading': 'Loading canvas…',

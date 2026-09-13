@@ -13,6 +13,25 @@
           const input = document.getElementById('spark-folder')
           return input ? input.value : ''
         }
+        // ---- S40: the remembered FOLDER (the view pref's sibling). The inline stamp in
+        // sparks.html restores #spark-folder before htmx's first fetch; this module keeps
+        // the pref in sync on every folder click. Only REAL folders + 'none' persist —
+        // 'all' and '' are browsing states that boot back to the folder grid (home).
+        const FOLDER_PREF_KEY = 'hibana-sparks-folder'
+        const readFolderPref = () => {
+          try {
+            const raw = localStorage.getItem(FOLDER_PREF_KEY)
+            if (!raw) return null
+            const v = JSON.parse(raw)
+            return v && typeof v.id === 'string' ? v : null
+          } catch { return null }
+        }
+        const writeFolderPref = (id, name) => {
+          try {
+            if (id && id !== 'all') localStorage.setItem(FOLDER_PREF_KEY, JSON.stringify({ id, name: name || '' }))
+            else localStorage.removeItem(FOLDER_PREF_KEY)
+          } catch {}
+        }
         // ---- Phase 6 item 3: the remembered view (projects.html's pattern — item 10 of
         // Phase 5). The hidden #spark-view input rides the initial load + the 30s poll
         // through hx-include, so the poll never resets the choice.
@@ -298,6 +317,9 @@
               if (!r.ok) throw new Error('folder delete failed')
               // Viewing the deleted folder? Fall back to «All» before reloading.
               if (currentFolder() === id && document.getElementById('spark-folder')) document.getElementById('spark-folder').value = ''
+              // S40: the persisted context died with the folder — clear it so the next
+              // boot lands on the folder grid instead of a ghost selection.
+              if (readFolderPref()?.id === id) writeFolderPref('', '')
               window.hibana?.toast(_t('sparks.folderDeleted', 'Folder deleted'), 'info', 3000)
               reloadShelf()
             })
@@ -305,18 +327,22 @@
         }
 
         // The ⋯ pop next to each folder chip — a tiny inline menu (rename / delete).
+        // S40: hosts are BOTH shapes — the bar's .sf-item chips AND the file-manager
+        // grid's .spark-folder-card (whose ⋯ button previously only ever entered the
+        // folder, see the click-order note below).
         function closeSfMenus() {
           document.querySelectorAll('#spark-shelf .sf-menu').forEach((m) => m.remove())
         }
         function toggleSfMenu(btn) {
-          const item = btn.closest('.sf-item')
+          const item = btn.closest('.sf-item, .spark-folder-card')
           const wasOpen = item && item.querySelector('.sf-menu')
           closeSfMenus()
           if (item && !wasOpen) {
             const menu = document.createElement('div')
             menu.className = 'sf-menu'
             const id = btn.getAttribute('data-sf-menu')
-            const name = (item.querySelector('.sf-chip .sf-label') || {}).textContent || ''
+            const label = item.querySelector('.sf-label, .spark-folder-name')
+            const name = (label || {}).textContent || ''
             menu.innerHTML =
               '<button type="button" data-sf-rename="' + id + '">' +
                 '<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>' +
@@ -391,23 +417,13 @@
 
         // ---- Delegated clicks: menu toggle / outside-close / edit / delete / folders ----
         ctx.on('click', (e) => {
-          // Folder bar first (it lives inside the shelf but must not fall through to the
-          // card-menu branch): chips filter, ＋ creates, ⋯ opens its tiny pop.
-          const sfChip = e.target.closest('[data-sf]')
-          if (sfChip) {
-            const input = document.getElementById('spark-folder')
-            if (input) {
-              input.value = sfChip.getAttribute('data-sf') || ''
-              // Session 28: stamp the picked folder's NAME too — the quick-add modal
-              // reads it to hint where the capture will land («Files into: …»).
-              const label = sfChip.querySelector('.sf-label, .spark-folder-name')
-              if (input.dataset) input.dataset.folderName = label ? label.textContent.trim() : ''
-            }
-            reloadShelf()
-            return
-          }
+          // ---- Folder bar / folder GRID first (they live inside the shelf but must not
+          // fall through to the card-menu branch). S40 ORDER FIX: [data-sf-new] and
+          // [data-sf-menu] are checked BEFORE [data-sf] — in the folder GRID the ⋯ menu
+          // button sits INSIDE the [data-sf] card, so the old order turned every menu
+          // click into a folder entry (rename/delete were unreachable there).
           const sfNew = e.target.closest('[data-sf-new]')
-          if (sfNew) { openFolderDialog('', ''); return }
+          if (sfNew) { e.preventDefault(); openFolderDialog('', ''); return }
           const sfMenuBtn = e.target.closest('[data-sf-menu]')
           if (sfMenuBtn) { e.preventDefault(); toggleSfMenu(sfMenuBtn); return }
           const sfRename = e.target.closest('[data-sf-rename]')
@@ -425,6 +441,22 @@
             return
           }
           if (!e.target.closest('#spark-shelf .sf-menu')) closeSfMenus()
+          const sfChip = e.target.closest('[data-sf]')
+          if (sfChip) {
+            const input = document.getElementById('spark-folder')
+            if (input) {
+              input.value = sfChip.getAttribute('data-sf') || ''
+              // Session 28: stamp the picked folder's NAME too — the quick-add modal
+              // reads it to hint where the capture will land («Files into: …»).
+              const label = sfChip.querySelector('.sf-label, .spark-folder-name')
+              const name = label ? label.textContent.trim() : ''
+              if (input.dataset) input.dataset.folderName = name
+              // S40: persist the working folder so reloads/captures keep the context.
+              writeFolderPref(input.value, name)
+            }
+            reloadShelf()
+            return
+          }
 
           const openBtn = e.target.closest('[data-menu-open]')
           if (openBtn && openBtn.closest('#spark-shelf')) {
@@ -507,6 +539,25 @@
         }
         injectSparksMenus()
 
+        // ---- S40: belt-and-suspenders restore of the remembered folder. sparks.html's
+        // inline stamp covers hard loads (before htmx's first fetch); THIS covers soft
+        // navigation back to the page and any future boot-order drift: if the hidden
+        // input is still empty while a pref exists, apply it and fetch the folder view.
+        const pref = readFolderPref()
+        if (pref && !currentFolder() && pref.id !== 'all') {
+          const input = document.getElementById('spark-folder')
+          if (input) {
+            input.value = pref.id
+            if (input.dataset) input.dataset.folderName = pref.name || ''
+            reloadShelf()
+          }
+        }
+
+        // ---- S40: the post-capture soft refresh hook. app.js's quick-add used to hard
+        // reload /sparks.html (losing the open folder + scroll position every capture);
+        // it now calls this when present and falls back to the reload otherwise.
+        window.__hibanaShelfReload = () => { reloadShelf() }
+
         // Teardown: drop the lazily-built dialogs from the body on unmount.
         return () => {
           closeMenus()
@@ -517,6 +568,7 @@
           folderDlg = null
           if (moveDlg) moveDlg.remove()
           moveDlg = null
+          delete window.__hibanaShelfReload
         }
       },
     })

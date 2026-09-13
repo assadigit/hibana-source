@@ -23,6 +23,10 @@ window.hibanaNotebook = (() => {
   let fontMode = localStorage.getItem(FONT_KEY) || 'bebas'
   const textFont = () => (fontMode === 'classic' ? "'Manrope', 'VazirFA', system-ui, sans-serif" : "'Bebas Notes', 'VazirFA', 'Manrope', system-ui, sans-serif")
   const textWeight = () => (fontMode === 'bebas' ? 300 : 400)
+  // Text alignment (S40 — mirrors canvas.js): the default for NEW text boxes, applied
+  // live to the selected one and persisted through objectToData (0055 text_align).
+  const VALID_ALIGNS = ['left', 'center', 'right']
+  let textAlign = VALID_ALIGNS.includes(localStorage.getItem('hibana-text-align-notebook')) ? localStorage.getItem('hibana-text-align-notebook') : 'left'
   let canvas = null
   let page = null
   let mode = 'move'
@@ -241,7 +245,8 @@ window.hibanaNotebook = (() => {
       // notebook 'note' elements: every text box is a fixed-size wrapping Textbox — a drag
       // defines its size, a click gets a default 240×60 box; text wraps at the edge and
       // clips at the fixed height.
-      const textOpts = { left: data.x, top: data.y, fontSize: data.font_size || 18, fill: data.color || BLACK, fontFamily: textFont(), fontWeight: textWeight() }
+      // 0055 (S40): persisted text alignment rides the saved record (NULL/'left' = default).
+      const textOpts = { left: data.x, top: data.y, fontSize: data.font_size || 18, fill: data.color || BLACK, fontFamily: textFont(), fontWeight: textWeight(), textAlign: data.text_align || 'left' }
       obj = makeTextBox(data.width && data.height ? data : { ...data, width: 240, height: 60 }, textOpts)
       obj.kind = 'text'
       obj.content = data.content || ''
@@ -805,6 +810,8 @@ window.hibanaNotebook = (() => {
         x: b ? b.left : obj.left, y: b ? b.top : obj.top, width: obj.width || b?.width, height: obj.type === 'textbox' ? Math.round(obj.height) : null,
         angle: Math.round(obj.angle || 0), // 0049: rotation round-trips
         color: obj.fill || color, content: obj.text || obj.content || '', font_size: fontSize,
+        // 0055 (S40): fabric text alignment round-trips; 'left' stores as NULL (legacy-identical).
+        text_align: obj.textAlign && obj.textAlign !== 'left' ? obj.textAlign : null,
         z_index: obj.zIndex || 0, deleted: 0, created_at: obj.createdAt || now(), updated_at: now(), board: BOARD,
       }
     }
@@ -1451,6 +1458,8 @@ window.hibanaNotebook = (() => {
         id, type: 'note', x: Math.min(x0, p.x), y: Math.min(y0, p.y),
         width: isBox ? Math.round(w) : null, height: isBox ? Math.round(h) : null,
         color, content: '', z_index: 0, deleted: 0,
+        // S40: new text boxes are born with the toolbar's alignment default (0055).
+        text_align: textAlign && textAlign !== 'left' ? textAlign : null,
         created_at: now(), updated_at: now(), board: BOARD,
       }
       elems.set(id, data)
@@ -1641,6 +1650,46 @@ window.hibanaNotebook = (() => {
         canvas.requestRenderAll()
       })
     }
+    // Text alignment (S40 user request — "both whiteboard and canvas"): three-state
+    // toggle. Default for NEW text boxes; live-realigns the selected text object and
+    // persists (objectToData carries text_align, migration 0055).
+    const alignButtons = [...ui.toolbar.querySelectorAll('[data-text-align]')]
+    const syncAlignButtons = (active) => {
+      for (const b of alignButtons) b.classList.toggle('active', b.dataset.textAlign === (active || 'left'))
+    }
+    const syncAlignFromSelection = () => {
+      const a = canvas.getActiveObject()
+      syncAlignButtons(a?.kind === 'text' && a.textAlign ? a.textAlign : textAlign)
+    }
+    for (const b of alignButtons) {
+      b.addEventListener('click', () => {
+        const align = VALID_ALIGNS.includes(b.dataset.textAlign) ? b.dataset.textAlign : 'left'
+        textAlign = align
+        try { localStorage.setItem('hibana-text-align-notebook', align) } catch { /* private mode */ }
+        syncAlignButtons(align)
+        // Mirror the object:modified save path (W3 pattern): snapshot → save → undoable
+        // modify commit, per realigned text object.
+        let touched = false
+        for (const obj of canvas.getActiveObjects()) {
+          if (obj.kind !== 'text' || !obj.id) continue
+          const before = snapshotOf(obj.id)
+          obj.set({ textAlign: align })
+          obj.setCoords?.()
+          const data = objectToData(obj)
+          obj.content = data.content
+          if (dataChanged(before, data)) {
+            save(data)
+            if (before) history.commit('modify', before)
+          }
+          touched = true
+        }
+        if (touched) canvas.requestRenderAll()
+      })
+    }
+    syncAlignButtons(textAlign)
+    canvas.on('selection:created', syncAlignFromSelection)
+    canvas.on('selection:updated', syncAlignFromSelection)
+    canvas.on('selection:cleared', syncAlignFromSelection)
     ui.toolbar.querySelector('[data-action="undo"]').addEventListener('click', undo)
     ui.toolbar.querySelector('[data-action="redo"]').addEventListener('click', redo)
     ui.toolbar.querySelector('[data-action="delete"]').addEventListener('click', deleteActive)

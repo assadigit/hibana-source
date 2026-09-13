@@ -153,6 +153,11 @@ window.hibanaCanvas = (() => {
   // Text size (2026-08-26 user request): its own control, independent of the pen's
   // stroke-width dots. Applies to new text boxes and live to the selected text object.
   let textSize = parseInt(localStorage.getItem('hibana-font-size-canvas') || '16', 10) || 16
+  // Text alignment (S40 user request — "add text alignment option to editor options in
+  // both whiteboard and canvas"): same semantics as the size control — the default for
+  // NEW text boxes, applied live to the selected one and persisted (0055 text_align).
+  const VALID_ALIGNS = ['left', 'center', 'right']
+  let textAlign = VALID_ALIGNS.includes(localStorage.getItem('hibana-text-align-canvas')) ? localStorage.getItem('hibana-text-align-canvas') : 'left'
 
   const send = (path, opts = {}) =>
     fetch(path, { headers: { 'Content-Type': 'application/json' }, ...opts })
@@ -341,6 +346,9 @@ window.hibanaCanvas = (() => {
       color: isText ? 'text' : obj.__noteColor || obj.fill || color,
       content: inner.text != null ? inner.text : obj.content || '',
       font_size: isText ? fontSize : null,
+      // 0055 (S40): fabric text alignment round-trips; 'left' (the fabric default)
+      // stores as NULL so legacy rows and the default case stay byte-identical.
+      text_align: isText && obj.textAlign && obj.textAlign !== 'left' ? obj.textAlign : null,
       locked: obj.__locked ? 1 : 0,
       z_index: obj.zIndex || 0,
       deleted: 0,
@@ -744,7 +752,8 @@ window.hibanaCanvas = (() => {
     } else if (data.color === 'text') {
       // Text tool: every text box is a fixed-size wrapping Textbox — a drag defines its size,
       // a click gets a default 240×60 box; text wraps at the edge and clips at the fixed height.
-      const textOpts = { left: data.x, top: data.y, fontSize: data.font_size || 16, fill: '#1c1c1a', fontFamily: textFont(), fontWeight: textWeight() }
+      // 0055 (S40): persisted text alignment rides the saved record (NULL/'left' = default).
+      const textOpts = { left: data.x, top: data.y, fontSize: data.font_size || 16, fill: '#1c1c1a', fontFamily: textFont(), fontWeight: textWeight(), textAlign: data.text_align || 'left' }
       obj = makeTextBox(data.width && data.height ? data : { ...data, width: 240, height: 60 }, textOpts)
       obj.kind = 'text'
       obj.content = data.content || ''
@@ -2339,6 +2348,8 @@ window.hibanaCanvas = (() => {
         x: Math.min(x0, p.x), y: Math.min(y0, p.y),
         width: isBox ? Math.round(w) : null, height: isBox ? Math.round(h) : null,
         content: '', font_size: textSize, z_index: 0, deleted: 0,
+        // S40: new text boxes are born with the toolbar's alignment default (0055).
+        text_align: textAlign && textAlign !== 'left' ? textAlign : null,
         created_at: new Date().toISOString(), updated_at: new Date().toISOString(),
       }
       elems.set(id, data)
@@ -2545,12 +2556,40 @@ window.hibanaCanvas = (() => {
         if (touched) { canvas.requestRenderAll(); persistActive() }
       })
     }
+    // Text-alignment control (S40): three-state toggle. Sets the default for NEW text
+    // boxes; when a text object is selected the click realigns it live and persists
+    // through the normal save path (objectToData carries text_align, migration 0055).
+    const alignButtons = [...toolbarEl.querySelectorAll('[data-text-align]')]
+    const syncAlignButtons = (active) => {
+      for (const b of alignButtons) b.classList.toggle('active', b.dataset.textAlign === (active || 'left'))
+    }
+    for (const b of alignButtons) {
+      b.addEventListener('click', () => {
+        const align = VALID_ALIGNS.includes(b.dataset.textAlign) ? b.dataset.textAlign : 'left'
+        textAlign = align
+        try { localStorage.setItem('hibana-text-align-canvas', align) } catch { /* private mode */ }
+        syncAlignButtons(align)
+        let touched = false
+        for (const obj of canvas.getActiveObjects()) {
+          if (obj.kind === 'text') {
+            obj.set({ textAlign: align })
+            obj.setCoords?.()
+            touched = true
+          }
+        }
+        if (touched) { canvas.requestRenderAll(); persistActive() }
+      })
+    }
+    syncAlignButtons(textAlign)
     // The text-property cluster only shows when it's relevant: the text tool is active,
     // or a text object is selected (2026-08-26 toolbar declutter).
     const syncTextPropsLocal = () => {
       const a = canvas.getActiveObject()
       toolbarEl.classList.toggle('text-props-on', mode === 'text' || a?.kind === 'text')
       if (a?.kind === 'text' && fontSizeEl) fontSizeEl.value = String(Math.round(a.fontSize || textSize))
+      // S40: the align buttons reflect the selected text object's alignment (falling
+      // back to the stored default when nothing relevant is selected).
+      syncAlignButtons(a?.kind === 'text' && a.textAlign ? a.textAlign : textAlign)
     }
     syncTextProps = syncTextPropsLocal
     canvas.on('selection:created', syncTextPropsLocal)

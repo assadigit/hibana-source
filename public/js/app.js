@@ -232,7 +232,15 @@ window.hibana = (() => {
           // User request (2026-08-25): capturing from the Ideas page lands back there with a
           // real reload so the new idea shows; anywhere else the dashboard. (nav.js skips
           // same-page navigation, hence the hard reload for the Ideas page.)
-          if (location.pathname === '/sparks.html') window.location.href = '/sparks.html'
+          // S40 (user report: "can't enter a folder and add an idea there"): the hard
+          // reload wiped the open-folder context on EVERY capture (the new idea landed
+          // in a folder the page silently forgot). sparks-page.js now installs a soft
+          // refresh hook that refetches the shelf with the folder intact — no reload
+          // flash, no context loss. Fallback keeps the old reload for page drift.
+          if (location.pathname === '/sparks.html') {
+            if (typeof window.__hibanaShelfReload === 'function') window.__hibanaShelfReload()
+            else window.location.href = '/sparks.html'
+          }
           else if (window.hibanaNav) window.hibanaNav.go('/app')
           else window.location.href = '/app'
         } else {

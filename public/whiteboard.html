@@ -30,7 +30,7 @@
   <script src="/vendor/idiomorph-ext.min.js" defer></script>
   <script src="/vendor/alpine.min.js" defer></script>
   <script src="/js/queue.js?v=2" defer></script>
-  <script src="/js/app.js?v=173" defer></script>
+  <script src="/js/app.js?v=174" defer></script>
   <script src="/js/hib-init.js?v=1" defer></script>
   <script src="/js/touch-drag.js?v=1" defer></script>
   <script src="/js/command-palette.js?v=2" defer></script>
@@ -39,11 +39,11 @@
   <script src="/js/micro-interactions.js?v=1" defer></script>
   <script src="/js/go-to.js?v=1" defer></script>
   <script src="/js/install-prompt.js?v=1" defer></script>
-  <script src="/js/i18n-en.js?v=17" defer></script>
+  <script src="/js/i18n-en.js?v=18" defer></script>
   <script src="/js/i18n.js?v=74" defer></script>
   <script src="/js/history.js?v=1" defer></script>
   <script src="/js/sticky.js?v=1" defer></script>
-  <script src="/js/whiteboard.js?v=24" defer></script>
+  <script src="/js/whiteboard.js?v=25" defer></script>
 </head>
 <body class="canvas-page notebook-scroll">
   <div data-nav></div>
@@ -64,6 +64,11 @@
         <option value="classic" data-i18n="font.classic">Classic</option>
       </select>
     </span>
+    <!-- S40 (user request): text alignment — default for new text, live on the selected
+         one. Mirrors the canvas toolbar; persisted (0055). -->
+    <button data-text-align="left" class="active" title="Align left" data-i18n-title="canvas.alignLeft"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 10h10M4 14h16M4 18h10"/></svg></button>
+    <button data-text-align="center" title="Align center" data-i18n-title="canvas.alignCenter"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M7 10h10M4 14h16M7 18h10"/></svg></button>
+    <button data-text-align="right" title="Align right" data-i18n-title="canvas.alignRight"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M10 10h10M4 14h16M10 18h10"/></svg></button>
     <button data-action="addimage" title="Add an image from a link (URL)" data-i18n-title="canvas.addImage"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="8.5" cy="10" r="1.5"/><path d="M5 19l5-6 3 3 4-4 3 3"/></svg></button>
     <button data-action="export" title="Export as PNG" data-i18n-title="canvas.exportPng"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v10m0 0-4-4m4 4 4-4"/><path d="M4 17v1.5A1.5 1.5 0 0 0 5.5 20h13a1.5 1.5 0 0 0 1.5-1.5V17"/></svg></button>
     <span class="td"></span>

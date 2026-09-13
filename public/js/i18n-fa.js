@@ -282,7 +282,7 @@ window.__hibanaDictFA = {
       'canvas.frame': 'قاب — برای ساخت، بکش؛ محتوایش با آن جابه‌جا می‌شود',
       'canvas.newFrame': 'قاب جدید',
       'canvas.noteColor': 'رنگ یادداشت',
-      'canvas.fontSize': 'اندازه متن', 'canvas.more': 'ابزارهای بیشتر', 'canvas.lock': 'قفل/باز کردن انتخاب', 'canvas.lockNone': 'اول یک عنصر را انتخاب کن',
+      'canvas.fontSize': 'اندازه متن', 'canvas.more': 'ابزارهای بیشتر', 'canvas.lock': 'قفل/باز کردن انتخاب', 'canvas.lockNone': 'اول یک عنصر را انتخاب کن', 'canvas.alignLeft': 'چپ‌چین', 'canvas.alignCenter': 'وسط‌چین', 'canvas.alignRight': 'راست‌چین',
       'canvas.saved': 'ذخیره شد',
       'canvas.deleted': 'حذف شد (بعد از همگام‌سازی امکان بازگردانی نیست)',
       'canvas.loading': 'در حال بارگذاری بوم…',

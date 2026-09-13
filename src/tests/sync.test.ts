@@ -275,6 +275,41 @@ describe('canvas sync (rule 2 + Q4-A + Phase 2 gate)', () => {
     }
   })
 
+  it('text_align round-trips through sync — toolbar alignment survives reload (0055)', async () => {
+    const { db, close } = makeTestDb()
+    try {
+      const userId = await makeUser(db)
+      const { app, auth } = await makeCanvasClient(db, userId)
+      const centered = el({ type: 'note', color: 'text', content: 'Centered', width: 40, text_align: 'center', updated_at: ago(1) })
+      const righty = el({ type: 'note', color: 'text', content: 'Right', width: 40, text_align: 'right', updated_at: ago(1) })
+      const legacy = el({ type: 'note', color: 'text', content: 'Lefty', width: 40, updated_at: ago(1) }) // no text_align — NULL (fabric default 'left')
+      const bad = el({ type: 'note', color: 'text', content: 'impossible', text_align: 'justify', updated_at: ago(0) }) // off-enum — schema rejects
+
+      const res = await app.fetch(new Request('http://local/api/canvas/sync', { method: 'POST', headers: auth, body: JSON.stringify({ elements: [centered, righty, legacy, bad] }) }))
+      expect(res.status).toBe(400) // the batch fails validation — nothing lands
+      const full0 = await app.fetch(new Request('http://local/api/canvas/full', { headers: auth }))
+      expect(((await full0.json()) as { elements: unknown[] }).elements).toHaveLength(0)
+
+      const ok = await app.fetch(new Request('http://local/api/canvas/sync', { method: 'POST', headers: auth, body: JSON.stringify({ elements: [centered, righty, legacy] }) }))
+      expect(ok.status).toBe(200)
+      const full = await app.fetch(new Request('http://local/api/canvas/full', { headers: auth }))
+      const body = (await full.json()) as { elements: { id: string; text_align: string | null }[] }
+      const byId = new Map(body.elements.map((e) => [e.id, e]))
+      expect(byId.get(centered.id)?.text_align).toBe('center')
+      expect(byId.get(righty.id)?.text_align).toBe('right')
+      expect(byId.get(legacy.id)?.text_align).toBeNull() // legacy/default stays NULL, never a literal 'left'
+
+      // LWW: a newer write realigns; NULL on a later write clears it back to default
+      const flipped = { ...centered, text_align: null, updated_at: ago(0) }
+      await app.fetch(new Request('http://local/api/canvas/sync', { method: 'POST', headers: auth, body: JSON.stringify({ elements: [flipped] }) }))
+      const full2 = await app.fetch(new Request('http://local/api/canvas/full', { headers: auth }))
+      const body2 = (await full2.json()) as { elements: { id: string; text_align: string | null }[] }
+      expect(body2.elements.find((e) => e.id === centered.id)?.text_align).toBeNull()
+    } finally {
+      close()
+    }
+  })
+
   it('angle round-trips through sync — mtr rotation survives reload (0049)', async () => {
     const { db, close } = makeTestDb()
     try {

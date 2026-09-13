@@ -113,6 +113,17 @@ test('board: filter bar (priority × label), dot cycles priority, exports carry 
   // ragged-left RTL paragraph with flipped punctuation.
   await expect(page.locator('.db-card-title').first()).toHaveCSS('unicode-bidi', 'plaintext')
 
+  // S32 (user request: "decrease the size of this chips — a little too big"): the
+  // filter toggles read compact — 26px min-block-size (was the 40px touch floor)
+  // at xs font; and the GENERAL bidi law covers the chips themselves (a Latin
+  // label like "Security" resolves LTR inside the FA page, a Farsi one stays RTL).
+  expect(await urgentToggle.boundingBox()).not.toBeNull()
+  expect((await urgentToggle.boundingBox())!.height).toBeLessThanOrEqual(30)
+  await expect(urgentToggle).toHaveCSS('min-height', '26px')
+  await expect(labelToggles.first()).toHaveCSS('unicode-bidi', 'plaintext')
+  // the card's label chips follow the law too (S32)
+  await expect(page.locator('.db-card .db-mini-chip').first()).toHaveCSS('unicode-bidi', 'plaintext')
+
   // priority filter: urgent only → one card; the column counts follow
   await page.click('[data-db-filter] [data-fp="urgent"]')
   await expect(page.locator('.db-card')).toHaveCount(1)
@@ -170,6 +181,11 @@ test('project page: filter bar on the preview + problems composer priority picke
   await expect(page.locator('[data-pd-filter] [data-fp]')).toHaveCount(4, { timeout: 10_000 })
   await expect(page.locator('[data-pd-filter] [data-ft]')).toHaveCount(1)
   await expect(page.locator('.pd-task-wrap')).toHaveCount(2)
+
+  // S32: the project page's twin bar carries the same compact chips (26px floor)
+  const pdChipBox = await page.locator('[data-pd-filter] [data-fp="urgent"]').boundingBox()
+  expect(pdChipBox).not.toBeNull()
+  expect(pdChipBox!.height).toBeLessThanOrEqual(30)
 
   // urgent filter hides the low card in place
   await page.click('[data-pd-filter] [data-fp="urgent"]')

@@ -9,6 +9,63 @@
 > rewritten as a minimal pointer. Deleted files remain recoverable verbatim:
 > `git show <sha>:<file>`.
 
+## 1. Current state (v0.3.12.34 — Session 32: the bidi GENERAL LAW + compact filter chips)
+- **(a) THE LAW (user, 2026-09-13): "GENERAL LAW: show RTL text RTL (when typing Farsi),
+  show LTR text LTR (when writing Latin or AI translates it to Latin)"** — S31b's
+  four-surface point patch promoted to a law over EVERY user-text surface
+  (polish-batch.css, loaded by all 19 shells): `unicode-bidi: plaintext` on
+  project/idea cards + list view + kanban + sticky board + folder names, quick notes
+  (cards + markdown BLOCKS + attach chips + the reader modal), the project detail page
+  (title/desc/plan docs/links/history/related notes/archived tasks), board + sprint
+  chips + titles, the whole sadhana board (tasks/notes/quadrants/zen/archive), the
+  dashboard (todo rows/quadrant names/kanban/activity/resume/fire-strip project/note
+  bubbles), notifications, palette sublabels + htmx search results, the AI magic-wand
+  output panes, calendar day items, reports rows, toasts. Markdown `pre` blocks stay
+  LTR code islands (.t-code twin). The TYPING side: the GitHub per-paragraph textarea
+  recipe on every composer/editor (#pd-desc, #pd-note-textarea, #pd-editor-*,
+  .note-compose-text, backlog forms, the board modal title, sadhana
+  .ai/.edit-input/.upd-inp/.qe-name, dashboard rename/edit/quickadd, #cmdk-input, the
+  global #qa/#pa/#taskadd/#quicknote/#ne dialogs) — the FA dir=rtl stays the
+  empty-caret default; a Latin line flips only its own paragraph.
+- **(b) CANVAS — the one surface CSS can't reach**: wireTextDir (canvas.js +
+  whiteboard.js) now sets the fabric object's `direction` from the first strong
+  character too (fabric reads it when drawing each line), so canvas text follows the
+  law — Latin notes draw LTR on the Farsi board, Farsi notes draw RTL (fabric's
+  implicit ltr default was flipping Farsi edge punctuation). Frame name labels
+  resolve direction at creation + after rename. Sticky notes inherit via the shared
+  factory.
+- **(c) THE CHIP LEADING GLYPH — dir="auto" on label-carrying chips** (filter toggles,
+  card mini-chips, editor tags, project tag chips, attach chips, reports label
+  chips): flex order follows the ELEMENT dir, so a Latin label puts its ● dot at the
+  chip's LEFT edge (leading the text — was trailing it), Farsi chips keep dot-right
+  identically.
+- **(d) THE CHIPS SHRANK (user request: "decrease the size of this chips — they are a
+  little too big")**: the filter bar's toggles — min-block-size 40px→26px, fs-sm→fs-xs,
+  tighter padding/gap, a 7px dot inside the filter (cards keep the 9px dot + beep).
+  Visual compactness wins over the 40px touch floor per the explicit request; the
+  full-chip focus ring keeps keyboard targets honest.
+- **(e) FLAKE FIX the FA-locale guard caught under full-suite load**: the project
+  page's filter bar could build between "language applied" and "FA dict fetched" —
+  prio buttons Farsi (lang()-driven) but group labels/clear button ENGLISH (_t()
+  fallback). pdFilterBuild now awaits `hibanaI18n.ready` (resolved → instant no-op on
+  later swaps).
+- Bumps: polish-batch.css v7→8, devboard.css v5→6 (all 19 shells), canvas.js v27→28,
+  whiteboard.js v23→24, chip-render.js v1→2, board-page.js v6→7, project-page.js
+  v8→9, devboard.js v16→17, sw v332→v333.
+- Ladder: typecheck 0 · vitest 348/348 · Playwright 45/45 (one alpine soft-nav timing
+  flake didn't reproduce in isolation or on the next full run) · smoke ALL PASS ·
+  i18n 1003/1003 · cache-bust PASS · bundle-size PASS · prod-errors PASS. New pins:
+  board-filters (chip height ≤30 + min-height 26px + plaintext on the label chip and
+  .db-mini-chip; the project twin's chip height).
+- Browser-verified (FA, local): chips 26px/fs-xs with the 7px beeping urgent dot;
+  Latin label chips dot-LEFT (leading), Farsi chips dot-right; the Farsi task title
+  starts at the RIGHT edge (first-line rect), the English title flush-left; project
+  bar labels «اولویت»/«برچسب‌ها» + «پاک‌کردن فیلتر» post-flake-fix; fire strip
+  (VLM-verified): English rows dot-leading LTR with end-of-line punctuation, Farsi
+  rows right-aligned; canvas live probe: 'Hello world.'→ltr, 'سلام دنیا.'→rtl
+  (fabric direction flip on the changed path). No layout breakage (VLM on both
+  screenshots).
+
 ## 1. Current state (v0.3.12.33 — Session 31b: the bidi fix — Latin text reads LTR, the "stray bullet" dissolved)
 - **(a) THE REPORT (user, 2026-09-13, dashboard fire-strip screenshot): "there is a stray
   bullet point, the text is latin but showing RTL"** — two symptoms, one root. Task

@@ -81,9 +81,13 @@
     const n = String(name == null ? '' : name)
     const c = String(color || '#8AB8F0')
     if (kind === 'db') {
-      return '<button type="button" class="db-mini-chip" data-tag-name="' + esc(n.toLowerCase()) + '" style="background:' + esc(c) + '26" title="' + esc(t('db.filterTagHint', 'Click to filter by this label')) + '"><span style="color:' + esc(c) + '">●</span> ' + esc(n) + '</button>'
+      return '<button type="button" dir="auto" class="db-mini-chip" data-tag-name="' + esc(n.toLowerCase()) + '" style="background:' + esc(c) + '26" title="' + esc(t('db.filterTagHint', 'Click to filter by this label')) + '"><span style="color:' + esc(c) + '">●</span> ' + esc(n) + '</button>'
     }
-    return '<span class="pd-tag" data-pd-tag-name="' + esc(n) + '"><i class="pd-tag-dot" style="background:' + esc(c) + '"></i>' + esc(n) + '</span>'
+    // dir="auto" (S32 — the general bidi law at chip level): the leading dot must LEAD
+    // the label on both sides — flex order follows the element's dir, so a Latin label
+    // flips the whole chip LTR (dot left) while a Farsi one keeps dot-right. The chip
+    // text itself is covered by the .pd-tag/.db-mini-chip plaintext rule (polish-batch).
+    return '<span dir="auto" class="pd-tag" data-pd-tag-name="' + esc(n) + '"><i class="pd-tag-dot" style="background:' + esc(c) + '"></i>' + esc(n) + '</span>'
   }
   // The project page's chip ROW (list = [{name, color}]).
   function tagChipsRow(list) {

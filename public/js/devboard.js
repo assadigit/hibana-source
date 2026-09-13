@@ -258,7 +258,7 @@
         (isNew ? '' :
         '<div class="db-field"><span>' + esc(t('db.tags', 'Tags')) + '</span>' +
           '<div class="db-tags-row" data-db-tags>' +
-            d.tags.map((id) => { const tg = tagById(id); return tg ? '<span class="chip db-tag" data-tag="' + esc(id) + '" style="background:' + esc(tg.color) + '33"><span style="color:' + esc(tg.color) + '">●</span> ' + esc(tg.name) + ' <button type="button" class="ghost danger" data-untag="' + esc(id) + '" aria-label="✕">✕</button></span>' : '' }).join('') +
+            d.tags.map((id) => { const tg = tagById(id); return tg ? '<span dir="auto" class="chip db-tag" data-tag="' + esc(id) + '" style="background:' + esc(tg.color) + '33"><span style="color:' + esc(tg.color) + '">●</span> ' + esc(tg.name) + ' <button type="button" class="ghost danger" data-untag="' + esc(id) + '" aria-label="✕">✕</button></span>' : '' }).join('') +
             '<input data-db-tag-in maxlength="60" dir="auto" placeholder="' + esc(t('db.addTag', 'Add tag + Enter')) + '">' +
           '</div></div>') +
         '<div class="row spread" style="margin-block-start:1rem">' +

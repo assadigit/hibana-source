@@ -499,26 +499,164 @@
 .prio-dot.prio-high { background: #D96C63; }
 .prio-dot.prio-urgent { background: #D96C63; }
 
-/* S31b (user report 2026-09-13 — "the text is latin but showing RTL"): task titles,
-   problem-box text and palette labels are USER content inside the FA/RTL app — a
-   Latin-first line was laid out as an RTL paragraph (right-aligned, the sentence's
-   period flipped to the line's far end, ragged-left wraps). unicode-bidi: plaintext
-   resolves EACH bidi paragraph's base direction from its OWN first strong character:
-   an English line reads LTR (left-aligned, punctuation at the sentence end), a Farsi
-   line stays RTL — multi-line titles (white-space: pre-line = one paragraph per line)
-   mix correctly line by line. Surfaces: project cards (.pd-task-title), board cards
-   (.db-card-title), the problems box (.hurdle-text), the command palette (.cmdk-label)
-   — and the two title textareas (per-line direction while typing; dir="auto" on the
-   element handles the empty-caret base). The fire strip solves it structurally
-   instead (.dash-urgent-main, dashboard.css: the dot + title flow inline in ONE
-   plaintext paragraph so the dot LEADS the text — English titles put it at the line
-   start, not trailing the sentence like the reported "stray bullet"). */
+/* S32 (user request 2026-09-13 — "GENERAL LAW: show RTL text RTL (when typing
+   Farsi), show LTR text LTR (when writing Latin or AI translates it to Latin)").
+   S31b fixed the four board/report surfaces as a point patch; this is the same
+   fix promoted to a LAW over EVERY user-text surface in the app (this file is
+   loaded by all 19 authed shells). unicode-bidi: plaintext resolves EACH bidi
+   paragraph's base direction from its OWN first strong character: an English
+   line reads LTR (left-aligned, punctuation at the sentence end), a Farsi line
+   stays RTL — mixed content follows its own text, never the page language, and
+   multi-line bodies (white-space: pre-line / markdown blocks = one paragraph
+   per line) mix correctly line by line. text-align stays `start` everywhere
+   (inherited default — no explicit left/right rule exists on these surfaces),
+   which resolves per-paragraph under plaintext. Code blocks stay LTR islands
+   (see the pre rule at the end — code is Latin by convention, .t-code twin).
+   The canvas boards are the one surface CSS can't reach (fabric draws to
+   <canvas>) — their fix lives in canvas.js/whiteboard.js wireTextDir, which
+   now also sets the fabric object's direction from the first strong char. */
+
+/* — project / idea cards, list view, kanban, sticky board, folders
+     (projects + sparks + archive pages, server-rendered) — */
+.pc-title,
+.project-title,
+.pc-desc,
+.projects-table td a,
+.sticky-note strong,
+.sticky-note .muted.small,
+.kanban-card strong,
+.kanban-col[data-spark-folder] h4 span,
+.sf-label,
+.spark-folder-name,
+.pd-tag,
+.pd-tag-chip,
+
+/* — quick notes: card text, list items, attach chips, reader modal — */
+.note-render,
+.note-render :is(p, h1, h2, h3, h4, h5, h6, li, blockquote, dd, dt),
+.note-reader-body,
+.note-reader-body :is(p, h1, h2, h3, h4, h5, h6, li, blockquote, dd, dt),
+.hurdle > span,
+.attach-chip,
+.attach-option,
+.qn-attach-option,
+
+/* — project detail: title, plan documents, links, history, related notes,
+     archived tasks — */
+#pd-title,
+.bl-doc-title,
+.bl-doc-body,
+a.related-note,
+.links li a,
+.history li,
+.pd-archive-title,
+
+/* — board: card titles, header title, category/label/sprint chips, filter
+     toggles — (S31b's .pd-task-title/.db-card-title/.cmdk-label/.hurdle-text
+     now live inside the law — kept verbatim below) — */
 .pd-task-title,
 .db-card-title,
-.hurdle-text,
 .cmdk-label,
+.hurdle-text,
+.db-title,
+.db-cat-chip,
+.db-mini-chip,
+.db-sprint-badge,
+.db-tag,
+.db-filter-tag,
+
+/* — sprint roadmap: categories, task titles, sprint chips, timeline bars — */
+.sp-cat-badge,
+.sp-task-title,
+.sp-sprint-chip,
+.sp-bar-title,
+
+/* — sadhana / to-do board: tasks, notes, quadrants, zen overlay, archive — */
+.task-txt,
+.task-note-preview,
+.upd-text,
+.q-title,
+.q-sub,
+.zen-title,
+.zen-sub,
+.arch-task b,
+.arch-ritem b,
+
+/* — dashboard: todo rows, quadrant names, stage kanban, activity feed,
+     resume card, fire-strip project, task-note rows + hover bubble — */
+.dash-todo-check span[data-task-title],
+.dash-todo-qcol strong,
+.dash-todo-qsub,
+.skc-title,
+.activity-main a,
+.activity-sub,
+.dash-resume-title,
+.dash-urgent-project,
+.task-note-text,
+.dash-note-bubble,
+
+/* — notifications, search palette + htmx results, AI output (magic wand),
+     calendar day items, reports labels/velocity/on-this-day/feed, toasts — */
+.notif-detail,
+.cmdk-sublabel,
+.search-results a,
+.magic-pane-body,
+.cal-day-sticky-text,
+.cal-day-note-text,
+.cal-day-item a,
+.rep-label-chip,
+.rep-vel-name,
+.otd-item a,
+.feed-title,
+.toast-msg { unicode-bidi: plaintext; }
+
+/* — the TYPING side of the law (composers + editors + inline edits): the
+     GitHub textarea recipe — per-paragraph direction while typing, the
+     element's dir attribute stays the FA default (rtl) so an empty caret
+     still starts Farsi-side; a Latin line flips its own paragraph mid-field.
+     Fields that already carry dir="auto" keep it (whole-field first-strong);
+     plaintext refines multi-line ones per line — harmless on inputs. */
 #pd-taskadd-textarea,
-#pde-input { unicode-bidi: plaintext; }
+#pde-input,
+#pd-desc,
+#pd-note-textarea,
+#pd-editor-subtitle,
+#pd-editor-textarea,
+.note-compose-text,
+.note-text,
+.note-title,
+.note-add input,
+.bl-doc-form input,
+.bl-doc-form textarea,
+.db-modal-card textarea[name="title"],
+textarea.ai,
+.edit-input,
+.upd-inp,
+input.qe-name,
+.dash-todo-rename-form input,
+.dash-todo-edit input[name="title"],
+.dash-quickadd input,
+.task-note-editbox textarea,
+.dash-note-pop textarea,
+#cmdk-input,
+#note-compose-box,
+#ne-title,
+#ne-content,
+#qa-title,
+#qa-description,
+#pa-title,
+#pa-description,
+#taskadd-title,
+#quicknote-text { unicode-bidi: plaintext; }
+
+/* Code blocks inside markdown renders stay LTR islands — the law is for
+   prose, not code (mirrors .t-code in project-header.css). */
+.note-render pre,
+.note-reader-body pre {
+  direction: ltr;
+  unicode-bidi: isolate;
+  text-align: left;
+}
 
 /* S31 (user request 2026-09-13): "instead add a beeping pulsating red light" — the
    urgent DOT is the alarm now. Double-beep rhythm (two quick flashes, then dark —

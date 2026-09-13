@@ -214,7 +214,7 @@ export function detailHtml(p: ProjectRow, d: Awaited<ReturnType<typeof loadDetai
     const list = tagsByTask.get(taskId) ?? []
     if (!list.length) return ''
     return `<span class="pd-task-tags">${list
-      .map((tg) => `<span class="pd-tag" data-pd-tag-name="${esc(tg.name)}"><i class="pd-tag-dot" style="background:${esc(tg.color)}"></i>${esc(tg.name)}</span>`)
+      .map((tg) => `<span dir="auto" class="pd-tag" data-pd-tag-name="${esc(tg.name)}"><i class="pd-tag-dot" style="background:${esc(tg.color)}"></i>${esc(tg.name)}</span>`)
       .join('')}</span>`
   }
   const taskTagsAttr = (taskId: string): string => {
@@ -343,7 +343,7 @@ export function detailHtml(p: ProjectRow, d: Awaited<ReturnType<typeof loadDetai
   </section>`
 
   const tagChips = d.tags
-    .map((tg) => `<span class="chip pd-tag-chip" data-tag-chip="${tg.id}">${esc(tg.name)} <button type="button" class="ghost danger pd-tag-x" data-tag-remove="${tg.id}" aria-label="${trL(lang, 'Remove tag', 'حذف برچسب')}">${icon('x')}</button></span>`)
+    .map((tg) => `<span dir="auto" class="chip pd-tag-chip" data-tag-chip="${tg.id}">${esc(tg.name)} <button type="button" class="ghost danger pd-tag-x" data-tag-remove="${tg.id}" aria-label="${trL(lang, 'Remove tag', 'حذف برچسب')}">${icon('x')}</button></span>`)
     .join('')
 
   return `

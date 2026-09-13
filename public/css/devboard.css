@@ -579,24 +579,31 @@ main.shell.sp-shell .sp-wrap { min-block-size: min(64vh, 30rem); }
    The FILTER BAR (.db-filter — board.html render, .pd-filter twin on the project page,
    same classes): priority toggles + label toggles. Empty selection = show everything;
    each group is an OR within itself, the two groups AND. The toggles are .chip buttons
-   (≥40px touch floor, aria-pressed driven); active state = .is-on tint. */
+   (aria-pressed driven); active state = .is-on tint.
+   S32 (user request 2026-09-13 — "decrease the size of this chips, they are a little
+   too big"): compact chips — min-block-size 40px → 26px, fs-sm → fs-xs text, tighter
+   padding/gap and a 7px dot inside the filter (the cards keep the 9px dot). Visual
+   compactness wins over the 40px touch floor per the explicit request; the focus ring
+   stays the full-chip outline, so keyboard users keep an honest target. */
 
 .db-filter {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 0.35rem;
+  gap: 0.3rem;
   margin-block-end: 0.7rem;
-  padding: 0.45rem 0.6rem;
+  padding: 0.3rem 0.5rem;
   border: 1px dashed var(--line-strong);
   border-radius: var(--radius-sm);
 }
 .db-filter-label { flex: none; }
 .db-filter .chip {
-  min-block-size: 40px;
+  min-block-size: 26px;
   display: inline-flex;
   align-items: center;
-  gap: 0.3rem;
+  gap: 0.28rem;
+  padding: 0.16em 0.55em;
+  font-size: var(--fs-xs);
   cursor: pointer;
   border-color: var(--line);
   background: var(--card);
@@ -606,7 +613,8 @@ main.shell.sp-shell .sp-wrap { min-block-size: min(64vh, 30rem); }
      same weight as the labels around it. */
   font-weight: 400;
 }
-.db-filter .chip .prio-dot { flex: none; }
+/* S32: the filter's own dot shrinks with the chip (cards keep the 9px dot + beep). */
+.db-filter .chip .prio-dot { flex: none; inline-size: 7px; block-size: 7px; }
 .db-filter .chip.is-on,
 .db-filter .chip[aria-pressed="true"] {
   border-style: solid;

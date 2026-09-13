@@ -17,9 +17,9 @@
   <link rel="stylesheet" href="/css/polish-ui.css?v=3">
   <link rel="stylesheet" href="/css/calendar.css?v=3">
   <link rel="stylesheet" href="/css/notifications.css?v=3">
-  <link rel="stylesheet" href="/css/polish-batch.css?v=7">
+  <link rel="stylesheet" href="/css/polish-batch.css?v=8">
   <link rel="stylesheet" href="/css/project-header.css?v=5">
-  <link rel="stylesheet" href="/css/devboard.css?v=5">
+  <link rel="stylesheet" href="/css/devboard.css?v=6">
   <link rel="stylesheet" href="/css/misc.css?v=5">
   <link rel="stylesheet" href="/css/themes.css?v=2">
   <link rel="stylesheet" href="/css/rtl.css?v=2">
@@ -133,7 +133,7 @@
               <h4 data-i18n="reports.labelDist">Labels</h4>
               <div class="row wrap">
                 <template x-for="l in summary.labels" :key="l.name">
-                  <span class="chip rep-label-chip" :title="labelTitle(l)">
+                  <span dir="auto" class="chip rep-label-chip" :title="labelTitle(l)">
                     <span class="rep-label-dot" :style="'background:' + l.color"></span>
                     <span x-text="l.name"></span>
                     <b x-text="faNum(l.n)"></b>

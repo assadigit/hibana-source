@@ -63,7 +63,7 @@
             ).join('') +
             (usedTags.length ? '<span class="db-filter-label muted small">' + B().esc(_t('db.filterLabels', 'Labels')) + '</span>' +
               usedTags.map((tg) =>
-                '<button type="button" class="chip db-filter-tag" data-ft="' + B().esc(tg.name.toLowerCase()) + '" style="color:' + B().esc(tg.color) + '" aria-pressed="' + (filterTags.has(tg.name.toLowerCase()) ? 'true' : 'false') + '" title="' + B().esc(_t('db.filterTagHint', 'Click to filter by this label')) + '"><span style="color:' + B().esc(tg.color) + '">●</span> ' + B().esc(tg.name) + '</button>'
+                '<button type="button" dir="auto" class="chip db-filter-tag" data-ft="' + B().esc(tg.name.toLowerCase()) + '" style="color:' + B().esc(tg.color) + '" aria-pressed="' + (filterTags.has(tg.name.toLowerCase()) ? 'true' : 'false') + '" title="' + B().esc(_t('db.filterTagHint', 'Click to filter by this label')) + '"><span style="color:' + B().esc(tg.color) + '">●</span> ' + B().esc(tg.name) + '</button>'
               ).join('') : '') +
             (anyFilter ? '<button type="button" class="chip db-filter-clear" data-db-filter-clear>✕ ' + B().esc(_t('db.filterClear', 'Clear filter')) + '</button><span class="muted small db-filter-shown">' + _t('db.filterShown', '{n} of {m} shown').replace('{n}', B().faDig(shownCount)).replace('{m}', B().faDig(S.tasks.length)) + '</span>' : '') +
             '</div>' : ''
@@ -163,7 +163,7 @@
                         (cat ? '<span class="db-cat-chip" style="background:' + cat.color + '2E;color:' + cat.color + '">' + B().esc(cat.name) + '</span>' : '') +
                         // S30 batch 2: label chips are FILTER toggles (GitHub behavior) —
                         // data-tag-name carries the match key.
-                        tags.map((tg) => '<button type="button" class="db-mini-chip" data-tag-name="' + B().esc(tg.name.toLowerCase()) + '" style="background:' + tg.color + '26" title="' + B().esc(_t('db.filterTagHint', 'Click to filter by this label')) + '"><span style="color:' + tg.color + '">●</span>' + B().esc(tg.name) + '</button>').join('') +
+                        tags.map((tg) => '<button type="button" dir="auto" class="db-mini-chip" data-tag-name="' + B().esc(tg.name.toLowerCase()) + '" style="background:' + tg.color + '26" title="' + B().esc(_t('db.filterTagHint', 'Click to filter by this label')) + '"><span style="color:' + tg.color + '">●</span>' + B().esc(tg.name) + '</button>').join('') +
                         (sprint ? '<span class="db-sprint-badge">◆ ' + B().esc(sprint.name) + '</span>' : '') +
                       '</div>'
                       : '') +

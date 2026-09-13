@@ -134,13 +134,21 @@ window.hibanaCanvas = (() => {
   }
   const wireTextDir = (obj) => {
     const apply = () => {
-      const ta = obj.hiddenTextarea
-      if (!ta) return
       const d = textDir(obj.text)
-      if (d) ta.dir = d
+      if (!d) return
+      // S32 — the GENERAL LAW on canvas (CSS unicode-bidi:plaintext can't reach a
+      // <canvas>): the RENDERED text follows its own first strong character too.
+      // fabric's text render path reads the object's `direction` property (it sets
+      // the canvas element's dir + ctx.direction + textAlign before drawing each
+      // line), so a Latin note draws LTR — period at the sentence end — even on the
+      // Farsi board, and a Farsi note draws RTL (was: fabric's 'ltr' default flipped
+      // Farsi edge punctuation). Same rule as the hidden editing textarea below.
+      obj.set('direction', d)
+      if (obj.hiddenTextarea) obj.hiddenTextarea.dir = d
     }
     obj.on('editing:entered', apply)
     obj.on('changed', apply)
+    apply() // also at wire time — loaded notes get their direction before first paint
   }
   // Text size (2026-08-26 user request): its own control, independent of the pen's
   // stroke-width dots. Applies to new text boxes and live to the selected text object.
@@ -561,6 +569,10 @@ window.hibanaCanvas = (() => {
       left: 8, top: 6, fontSize: 12,
       fill: FRAME_STROKE, selectable: false, evented: false, fontFamily: 'system-ui, sans-serif',
     })
+    // S32 — the frame NAME follows its own script (the general bidi law; the edit twin
+    // already did this via wireTextDir — the resting label now matches it).
+    const labelDir = textDir(name)
+    if (labelDir) label.set('direction', labelDir)
     const group = new fabric.Group([rect, label], { left: data.x, top: data.y })
     group.__kind = 'frame'
     group.__frameLabel = label
@@ -902,6 +914,9 @@ window.hibanaCanvas = (() => {
       const name = String(editor.text || '').replace(/[\r\n]+/g, ' ').trim().slice(0, 200)
       frame.content = name // frame names persist on the element record's content
       label.set('text', name || _t('canvas.newFrame', 'New frame'))
+      // S32 — the renamed label re-resolves its direction from the new text's script.
+      const labelDir = textDir(name)
+      if (labelDir) label.set('direction', labelDir)
       label.visible = true
       frame.dirty = true
       canvas.remove(editor)

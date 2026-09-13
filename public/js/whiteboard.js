@@ -99,13 +99,18 @@ window.hibanaNotebook = (() => {
   }
   const wireTextDir = (obj) => {
     const apply = () => {
-      const ta = obj.hiddenTextarea
-      if (!ta) return
       const d = textDir(obj.text)
-      if (d) ta.dir = d
+      if (!d) return
+      // S32 — the GENERAL LAW on canvas (ported from canvas.js): the RENDERED text
+      // follows its own first strong character (fabric reads `direction` when drawing
+      // each line), not just the hidden editing textarea. Latin draws LTR on a Farsi
+      // board; Farsi draws RTL (fabric's 'ltr' default was flipping its punctuation).
+      obj.set('direction', d)
+      if (obj.hiddenTextarea) obj.hiddenTextarea.dir = d
     }
     obj.on('editing:entered', apply)
     obj.on('changed', apply)
+    apply() // also at wire time — loaded notes get their direction before first paint
   }
 
   // Sticky notes — the ONE shared StickyNote factory (Session 28): the component was

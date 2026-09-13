@@ -502,6 +502,7 @@
             const holder = document.getElementById('pd-tags')
             const chip = document.createElement('span')
             chip.className = 'chip pd-tag-chip'
+            chip.dir = 'auto' // S32: a Latin label chip reads LTR (dot/✕ order follows)
             chip.dataset.tagChip = data.id
             chip.textContent = name
             const x = document.createElement('button')
@@ -684,6 +685,13 @@
           }
         }
         const pdFilterBuild = async () => {
+          // S32 flake fix (caught by the FA-locale guard under full-suite load): the bar
+          // builds on the FIRST htmx afterSwap, which can beat ensureFaDict — the prio
+          // BUTTONS read pdLang() (immediate, server-set) but the group labels + clear
+          // button read _t() (needs the fetched dict) — the mixed EN-labels/Farsi-buttons
+          // state the guard flagged. Await the dict promise (resolved → instant no-op on
+          // every later swap); a failed fetch falls through to the EN fallbacks.
+          try { await window.hibanaI18n?.ready } catch { /* dict unavailable — EN fallbacks */ }
           const bar = document.querySelector('[data-pd-filter]')
           const grid = document.querySelector('.pd-board-grid')
           if (!bar || !grid) return
@@ -713,7 +721,7 @@
             (pdFilterKnown.length
               ? '<span class="db-filter-label muted small">' + pdEsc(_t('db.filterLabels', 'Labels')) + '</span>' +
                 pdFilterKnown.map((tg) =>
-                  '<button type="button" class="chip db-filter-tag" data-ft="' + pdEsc(String(tg.name).toLowerCase()) + '" style="color:' + pdEsc(tg.color || '#8AB8F0') + '" aria-pressed="false" title="' + pdEsc(_t('db.filterTagHint', 'Click to filter by this label')) + '"><span style="color:' + pdEsc(tg.color || '#8AB8F0') + '">●</span> ' + pdEsc(tg.name) + '</button>'
+                  '<button type="button" dir="auto" class="chip db-filter-tag" data-ft="' + pdEsc(String(tg.name).toLowerCase()) + '" style="color:' + pdEsc(tg.color || '#8AB8F0') + '" aria-pressed="false" title="' + pdEsc(_t('db.filterTagHint', 'Click to filter by this label')) + '"><span style="color:' + pdEsc(tg.color || '#8AB8F0') + '">●</span> ' + pdEsc(tg.name) + '</button>'
                 ).join('')
               : '') +
             '<button type="button" class="chip db-filter-clear" data-pd-filter-clear hidden>✕ ' + pdEsc(_t('db.filterClear', 'Clear filter')) + '</button>' +

@@ -223,7 +223,7 @@ export function attachWidget(n: QuickNote, titles: Map<string, string>, lang: Lo
   const pid = n.project_id
   if (pid && titles.has(pid)) {
     return `<div class="row attach-row">
-      <a class="chip attach-chip" href="/project.html?id=${pid}">${icon('link')}${esc(titles.get(pid)!)}</a>
+      <a dir="auto" class="chip attach-chip" href="/project.html?id=${pid}">${icon('link')}${esc(titles.get(pid)!)}</a>
       <button class="ghost danger icon-btn" hx-patch="/api/notes/${n.id}" hx-vals='{"project_id":null}' hx-target="#notebook" hx-swap="morph" aria-label="${t('Detach', 'جدا کردن')}" title="${t('Detach', 'جدا کردن')}">${icon('x')}</button>
     </div>`
   }

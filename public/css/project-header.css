@@ -222,6 +222,14 @@
    line at .small; match the task-meta treatment. */
 .pd-meta { font-size: 0.72rem; }
 .pd-board-head { flex-wrap: wrap; }
+/* S43 (mobile audit): the head's CTA row (اسپرینت جدید · برد تمام‌صفحه · اسپرینت‌ها)
+   is a nowrap flex row — its ~396px min-content overflowed the 363px card content
+   box (the project page scrolled +37/+48 sideways at 390px, the long-known S35
+   "board bleed"). Let the buttons wrap onto their own line on phones. */
+@media (max-width: 640px) {
+  .pd-board-head .row { flex-wrap: wrap; gap: 0.35rem; }
+  .pd-board-head .row .btn { flex: 1 1 auto; justify-content: center; }
+}
 .pd-col { min-inline-size: 0; }
 .pd-col-title { overflow-wrap: anywhere; }
 /* Pastel stage coding (user request 2026-09-03; grey backlog per user checklist

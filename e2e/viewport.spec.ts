@@ -35,6 +35,35 @@ test.beforeAll(async () => {
     `INSERT INTO users (id, username, email, password_hash, role, language_pref, calendar_pref, timezone, created_at, email_verified_at)
      VALUES ('${id}', 'e2e-viewport', '${TEST_EMAIL}', '${hash.replace(/'/g, "''")}', 'owner', 'en', 'gregorian', 'UTC', '${now}', '${now}')`,
   )
+  // S43 (mobile audit): the old seed was EMPTY — the reports/settings pins passed
+  // vacuously (no timeline entries → no wide feed titles; no tags → the shadowed
+  // /api/tags JSON dump was a tiny {"tags":[]} that didn't overflow). Seed the exact
+  // shapes that broke: a LONG project title + history rows (the feed), tags (one used,
+  // one loose — the settings #taglist), an overdue task (notifications), and a doing
+  // project with dev tasks (project-detail board).
+  const UUID = () => randomBytes(16).toString('hex').replace(/(.{8})(.{4})(.{4})(.{4})(.{12})/, '$1-$2-$3-$4-$5')
+  const days = (n: number) => new Date(Date.now() + n * 86400000).toISOString().slice(0, 10)
+  const longTitle = 'A deliberately long project title that used to overflow the timeline feed sideways'
+  const pid = UUID()
+  db.exec(
+    `INSERT INTO projects (id, user_id, title, description, type, status, sort_order, latest_note, reminders_enabled, created_at, updated_at)
+     VALUES ('${pid}', '${id}', '${longTitle.replace(/'/g, "''")}', '', 'personal', 'doing', 0, '', 0, '${now}', '${now}')`,
+  )
+  for (const note of ['started the audit sweep', 'fixed the ghost grid track', 'shipped the touch floor']) {
+    db.exec(`INSERT INTO project_history_log (id, project_id, note, created_at) VALUES ('${UUID()}', '${pid}', '${note}', '${now}')`)
+  }
+  db.exec(`INSERT INTO tasks (id, project_id, title, done, due_date, created_at) VALUES ('${UUID()}', '${pid}', 'overdue probe task', 0, '${days(-2)}', '${now}')`)
+  const tagUsed = UUID()
+  const tagLoose = UUID()
+  db.exec(`INSERT INTO tags (id, user_id, name, color, usage_count, created_at) VALUES ('${tagUsed}', '${id}', 'ui', '#d4a373', 1, '${now}')`)
+  db.exec(`INSERT INTO tags (id, user_id, name, color, usage_count, created_at) VALUES ('${tagLoose}', '${id}', 'loose', '#e63946', 0, '${now}')`)
+  db.exec(`INSERT INTO project_tags (project_id, tag_id) VALUES ('${pid}', '${tagUsed}')`)
+  for (const [title, status] of [['board task one', 'idea'], ['board task two', 'in_progress'], ['board task three', 'done']] as const) {
+    db.exec(
+      `INSERT INTO dev_tasks (id, project_id, title, status, priority, sort_order, created_at, done_at, start_at, end_at, search_tags)
+       VALUES ('${UUID()}', '${pid}', '${title}', '${status}', 'medium', 0, '${now}', ${status === 'done' ? `'${now}'` : 'NULL'}, NULL, NULL, '')`,
+    )
+  }
   db.close()
 })
 
@@ -284,4 +313,86 @@ test('dashboard @390: stage-carousel strip is full-width; handles overlay + auto
   for (const id of made) {
     await page.evaluate(async (id) => { await fetch(`/api/projects/${id}`, { method: 'DELETE' }) }, id)
   }
+})
+
+// --- S43 (mobile audit) regression pins --------------------------------------------
+// The audit found page-level sideways overflow on project-detail (+37), 404 (+87),
+// canvas (+810) and notifications (+9) — plus the reports/settings breaks that the
+// ENRICHED seed above now exercises honestly. Each pin = the exact defect shape.
+
+test('project-detail: the progress board never scrolls the document sideways (S35-known bleed, fixed S43)', async ({ page, browserName }) => {
+  test.skip(browserName !== 'chromium', 'Desktop Chromium only')
+  await login(page)
+  const pid = await page.evaluate(async () => {
+    const r = await fetch('/api/projects?status=doing&limit=1', { headers: { Accept: 'application/json' } })
+    const j = await r.json()
+    return j?.projects?.[0]?.id || ''
+  })
+  expect(pid).toBeTruthy()
+  for (const width of [360, 390, 768]) {
+    await page.setViewportSize({ width, height: 900 })
+    await page.goto(`/project.html?id=${pid}`)
+    await page.waitForLoadState('networkidle')
+    await page.waitForTimeout(600) // htmx board + filter mount settle
+    const overflow = await noDocHScroll(page)
+    expect(overflow, `project-detail @${width}px h-scrolls ${overflow}px`).toBeLessThanOrEqual(1)
+  }
+})
+
+test('notifications + 404: no document h-scroll at 360/390 (S43)', async ({ page, browserName }) => {
+  test.skip(browserName !== 'chromium', 'Desktop Chromium only')
+  await login(page)
+  for (const width of [360, 390]) {
+    await page.setViewportSize({ width, height: 900 })
+    await page.goto('/notifications.html')
+    await page.waitForLoadState('networkidle')
+    await page.waitForTimeout(400)
+    const notifItems = await page.locator('.notif-item').count()
+    expect(notifItems).toBeGreaterThan(0) // the overdue-task notification renders — an honest pin
+    expect(await noDocHScroll(page), `notifications @${width}px`).toBeLessThanOrEqual(1)
+    await page.goto('/404.html')
+    await page.waitForLoadState('networkidle')
+    expect(await noDocHScroll(page), `404 @${width}px`).toBeLessThanOrEqual(1)
+  }
+})
+
+test('canvas: the fabric board is born viewport-sized — never the 1200×800 markup attributes (S43)', async ({ page, browserName }) => {
+  test.skip(browserName !== 'chromium', 'Desktop Chromium only')
+  await login(page)
+  await page.setViewportSize({ width: 390, height: 844 })
+  await page.goto('/canvas.html')
+  await page.waitForLoadState('networkidle')
+  await page.waitForTimeout(2500) // fabric init + first chunk
+  const geo = await page.evaluate(() => {
+    const wrap = document.getElementById('canvas-wrap')
+    const cont = document.querySelector('.canvas-container') as HTMLElement | null
+    if (!wrap || !cont) return null
+    const w = wrap.getBoundingClientRect()
+    const c = cont.getBoundingClientRect()
+    return { wrap: Math.round(w.width), cont: Math.round(c.width), doc: document.documentElement.scrollWidth - document.documentElement.clientWidth }
+  })
+  expect(geo).not.toBeNull()
+  expect(geo!.cont).toBeLessThanOrEqual(geo!.wrap + 2) // the wrapper fits the wrap (was: 1200 on a 390 phone)
+  expect(geo!.cont).toBeGreaterThanOrEqual(390 - 2) // ...and fills it
+  expect(geo!.doc).toBeLessThanOrEqual(1)
+})
+
+test('settings @390: the taglist receives CHIPS, not raw JSON (the shadowed-route bug)', async ({ page, browserName }) => {
+  test.skip(browserName !== 'chromium', 'Desktop Chromium only')
+  await login(page)
+  await page.setViewportSize({ width: 390, height: 844 })
+  await page.goto('/settings.html')
+  await page.waitForLoadState('networkidle')
+  await page.waitForTimeout(900) // the hx-get taglist swap
+  const state = await page.evaluate(() => {
+    const tl = document.getElementById('taglist')
+    return {
+      chips: tl ? tl.querySelectorAll('.chip').length : -1,
+      rawJson: tl ? tl.textContent?.includes('{"tags"') : true,
+      doc: document.documentElement.scrollWidth - document.documentElement.clientWidth,
+    }
+  })
+  expect(state.rawJson).toBe(false) // the S43 signature: JSON dumped as text
+  expect(state.chips).toBeGreaterThanOrEqual(2) // ui + loose (the enriched seed)
+  expect(state.doc).toBeLessThanOrEqual(1)
 })

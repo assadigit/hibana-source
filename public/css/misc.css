@@ -4,6 +4,10 @@
   display: grid;
   place-items: center;
   padding-block: 0.5rem;
+  /* S43 (mobile audit): the -8%/-22% halo pseudo below is decorative — unclipped it
+     extended ~87px past the viewport (the 404 page scrolled sideways +87 and mobile
+     Chrome zoomed-to-fit the whole card). clip (not hidden — no scroll container). */
+  overflow: clip;
 }
 /* Spark-amber halo — --badge-spark-bg is cream in light, deep amber in dark. */
 .nf-stage::before {
@@ -911,3 +915,42 @@ body:has(.dash-skeleton) .fab-stack .fab:hover { background: color-mix(in srgb, 
 /* S29 (agenda 4): backup-health lines — the stale/never/unencrypted verdicts get the
    error tint so a degraded backup chain can't read as quiet fine-print. */
 .adm-health-bad { color: var(--err); }
+
+/* ===========================================================================
+   S43 (mobile audit): the COARSE-POINTER TOUCH FLOOR.
+   The audit (scripts/mobile-audit.mjs, 390px FA+EN) flagged 200+ interactive
+   controls under 40px on phones — the owner's "button sizes on mobile" report.
+   These rules run ONLY on (pointer: coarse); desktop visuals are untouched.
+   40px is the floor per the S41 precedent (44 is the bar; 40 flags real
+   problems, not rounding). Controls that already carry pseudo-element hit
+   expanders (`.palette button::after`, `.pw-toggle::after`, `.ghost::after`)
+   are deliberately left alone.
+   =========================================================================== */
+@media (pointer: coarse) {
+  /* board.html + project.html task cards */
+  .prio-dot-btn { min-inline-size: 40px; min-block-size: 40px; }
+  button[data-menu-open] { min-inline-size: 40px; min-block-size: 40px; }
+  .db-mini-chip { min-block-size: 40px; }
+  .db-add, .pd-task-add { min-block-size: 40px; }
+  .pd-tag-add { min-block-size: 40px; }
+  /* the S32 compact filter chips (26px) — visual compactness stays on desktop;
+     on touch the tap law wins (S43: "button sizes" on mobile) */
+  .db-filter .chip { min-block-size: 40px; }
+  .detail-tab { min-block-size: 40px; }
+  /* forms */
+  select, textarea { min-block-size: 40px; }
+  input:not([type='checkbox']):not([type='radio']):not([type='hidden']) { min-block-size: 40px; }
+  /* dashboard quick-todo quadrant controls */
+  .dash-todo-pen, .dash-todo-style, .dash-todo-fab, .dash-collapse-btn { min-inline-size: 40px; min-block-size: 40px; }
+  .tb-more-pop button { min-block-size: 40px; }
+  .dash-todo-menu-item { min-block-size: 40px; }
+  /* settings + misc chrome */
+  .ghost.icon-btn, .view-sort-actions .icon-btn { min-inline-size: 40px; min-block-size: 40px; }
+  .theme-floater { min-inline-size: 40px; min-block-size: 40px; }
+  /* gallery state chips */
+  .gallery-state { min-block-size: 40px; }
+}
+/* S43: the settings #taglist received raw JSON through the (now fixed) shadowed
+   /api/tags route — an unbreakable ~497px token that overflowed the whole page.
+   anywhere-wrapping keeps ANY unbreakable token from ever blowing the page again. */
+#taglist { overflow-wrap: anywhere; }

@@ -195,6 +195,12 @@
 
 /* --- Activity timeline feed (Phase B4.2) ------------------------------------- */
 .feed { list-style: none; margin: 1rem 0; padding: 0; display: grid; gap: 0.5rem; max-inline-size: 42rem; }
+/* S43 (mobile audit): the feed's single implicit grid track sizes to the items'
+   min-content, and a .feed-item's min-content is its nowrap .feed-title (a long
+   project name measured 547px → the reports page scrolled +286 sideways at 390px,
+   the whole shell zoomed to fit). A minmax(0,1fr) track lets the li shrink and the
+   title's own ellipsis (overflow:hidden) do its job. */
+.feed { grid-template-columns: minmax(0, 1fr); }
 .feed-item {
   display: flex;
   gap: 0.75rem;

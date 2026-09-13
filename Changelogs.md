@@ -9,7 +9,84 @@
 > rewritten as a minimal pointer. Deleted files remain recoverable verbatim:
 > `git show <sha>:<file>`.
 
-## 1. Current state (v0.3.12.43 — Session 42: dashboard stage-carousel EXPANDED — handles float OVER the strip (was: flanking columns squeezing the cards ~80px on phones); S41: Sparks MOBILE pass (two-up folder grid, touch menus, header stack) + folder EMOJI icons (0056) + the empty-state New-folder CTA + the bar's «پوشه‌ها» home chip; S40: Sparks page FULL AUDIT + TEXT ALIGNMENT (0055); S39: media GALLERY + screenshot pinning; S38: KV storage — never expires; S37: English-always chat rule)
+## 1. Current state (v0.3.12.44 — Session 43: FULL MOBILE RESPONSIVITY AUDIT (every page, 390px, FA+EN, light+dark, richly seeded — scripts/mobile-audit.mjs): settings/reports/project-detail/404/canvas/notifications sideways overflows ELIMINATED (the shadowed /api/tags route, ghost grid tracks, the 404 halo, Fabric's 1200×800 birth, the board-head CTA row) + a 200-control 40px coarse-pointer touch floor; S42: dashboard stage-carousel EXPANDED — handles float OVER the strip; S41: Sparks MOBILE pass + folder EMOJI icons (0056); S40: Sparks page FULL AUDIT + TEXT ALIGNMENT (0055); S39: media GALLERY + screenshot pinning; S38: KV storage — never expires; S37: English-always chat rule)
+- **(S43) FULL MOBILE RESPONSIVITY AUDIT (user: "there are lots of responsive
+  problems in mobile. like button sizes. container out of box etc. audit the
+  responsivity.")** — built `scripts/mobile-audit.mjs` (reusable): boots the Node
+  server on a RICHLY seeded fresh DB (folders, sparks in every stage, dev tasks in
+  all 5 boxes, sprints, sadhana quadrants, canvas + notebook elements, overdue
+  tasks — empty pages hide layout bugs), then sweeps every page at 390px mobile in
+  FA-RTL + EN-LTR, light + dark, measuring: document h-scroll, viewport overflows,
+  container spills (children escaping card ancestors), touch targets < 40px,
+  clipped controls, micro fonts. Findings → fixes, each root-caused live:
+  1. **SETTINGS +107/+144px sideways (the "container out of box" on its worst day)**:
+     `app.route('/', devboardRoutes)` registered devboard's JSON-only `GET /api/tags`
+     BEFORE `app.route('/api/tags', tagsRoutes)` — Hono first-match SHADOWED the
+     HX-aware handler, so settings.html's `hx-get` (expects chip HTML) received RAW
+     JSON, and that unbreakable ~497px string dumped into `#taglist` overflowed the
+     page (mobile Chrome then expanded the layout viewport → the whole page renders
+     zoomed-out/shifted — caught by tracing `innerWidth` 390→497 between DCL and
+     load). CONSOLIDATED: all tag CRUD now lives ONLY in tags.ts (the S30-batch-4
+     label-manager semantics ported: rename-collision-merge, search_tags FTS
+     rewrite, delete-unused-only 409), GET serves chips for HX + JSON for fetch with
+     `Vary: HX-Request`, the chips carry delete buttons only on UNUSED tags, HX
+     delete returns the refreshed chip row. `#taglist` also gains
+     `overflow-wrap: anywhere` as a belt against any future unbreakable token.
+     +2 vitest (tags-hx.test.ts: HX/JSON/Vary/delete-refresh/409) + an honest e2e
+     (the old settings/reports pins passed VACUOUSLY on the empty seed — the seed now
+     carries tags + long titles + history rows).
+  2. **REPORTS +286/+272px**: `.feed`'s implicit grid track sized to the items'
+     min-content = the nowrap `.feed-title` (a long project title measured 547px →
+     li 625 → shell 676). `grid-template-columns: minmax(0, 1fr)` lets the li shrink
+     and the title's own ellipsis work. Same ghost-track fix on
+     **notifications** (+9, `.notif-list`).
+  3. **PROJECT-DETAIL +37/+48px — the S35-documented "board bleed", finally dead**:
+     the `pd-board-head` CTA row (اسپرینت جدید · برد تمام‌صفحه · اسپرینت‌ها) is a
+     nowrap flex row whose ~396px min-content overflowed the 363px card. The row
+     wraps ≤640px (buttons flex to share the line).
+  4. **404 +87px**: the `.nf-stage::before` halo's `-8% -22%` inset extended ~87px
+     past the viewport. `overflow: clip` on the stage (visual snapshot re-approved).
+  5. **CANVAS +810px (the biggest, and the sneakiest)**: Fabric sizes its wrapper
+     from the host's width/height ATTRIBUTES — the markup ships `<canvas width=1200
+     height=800>` — while the CSS box is inset:0/100% of #canvas-wrap. On a 390px
+     phone the wrapper was born 1200px, the document overflowed, and mobile Chrome's
+     auto-fit EXPANDED the layout viewport — which poisons `window.innerWidth` (it
+     reported 1200), so the resize listener then BAKED the poison in (1200×2501
+     zoomed-out board, unfixable by reload). canvas.js now syncs the host attributes
+     to the real layout box BEFORE construction and resizes via `sizeToWrap()` (the
+     wrap's client box — the whiteboard's proven pattern; never `window.innerWidth`).
+  6. **SPRINT chip spill** (stats text overflowing the chip by 87px): flex ellipsis
+     needs min-width:0 + overflow:hidden on the ITEM (`.sp-sprint-chip > span`), not
+     the container. **SADHANA subbar** buttons were flex-shrunk below their content
+     (Archive label clipped) → `flex: none` (the strip already scrolls).
+  7. **THE TOUCH FLOOR ("button sizes")**: a `(pointer: coarse)` layer in misc.css
+     (loads after every page's own bundle) + a sadhana-board.css block (it loads
+     last on its page): 200+ controls lifted to ≥40px min tap boxes on touch —
+     prio-dot buttons (24), task ⋯ menus (28), filter chips (26 — S32's compact
+     visual stays on desktop; the tap law wins on touch), db-add/pd-task-add (35),
+     db-mini-chips (19), pd-tag-add, detail-tabs (35), selects/inputs/textareas,
+     dashboard todo pens/styles/FABs/collapse (22-36), sadhana t-act/q-pen/zen/
+     upd-toggle (20-24), settings ghost icon-btns (32), gallery state chips (27),
+     canvas tb-more rows (26), theme-floater (28). Controls that already carry
+     pseudo-element hit expanders (palette swatches, pw-toggle, skc-open, .ghost)
+     were verified compliant and left untouched.
+  - Audit output now: **every page clean of document h-scroll** in all 6 sweeps
+    (fa/en × light/dark × 390); remaining flags are triaged-accepted (intentional
+    in-page scroll strips, wide text links, design-language micro fonts).
+  - Bumps: calendar.css v3→4, notifications.css v3→4, misc.css v5→6,
+    project-header.css v10→11, devboard.css v7→8, sadhana-board.css v2→3,
+    canvas.js v29→30 (all shells sed'd), sw v341→v342, package 0.3.12.44,
+    `audit:mobile` + `probe:tags[:prod]` scripts (live-tags-probe 10/10 PASS on
+    BOTH workers).
+  - Ladder: typecheck 0 · vitest 394/394 (392+2) · e2e 67/67 (15 viewport pins —
+    4 new: project-detail board, notifications+404, canvas viewport-born, settings
+    chips-not-JSON; 404 visual snapshot re-baselined after the halo clip) · smoke
+    ALL PASS · i18n 1073/1073 · cache-bust PASS · bundle-size +0.1% PASS ·
+    node --check ×2 · browser-verified interactive FA 390px golden paths (settings
+    tag delete refresh, prio-dot cycling at 40px, canvas wrap-sized board + 40px
+    zoom rows, reports feed ellipsized, board chips 40px; console clean; VLM
+    screenshot approval).
+
 - **(S42) DASHBOARD STAGE-CAROUSEL: FULL-WIDTH STRIP + OVERLAY HANDLES (user: "this part
   is too compacted because of right left handles. expand this section. make handles over
   them." + a 390px phone screenshot of the projects-by-stage section)** — the owner's

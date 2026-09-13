@@ -1,6 +1,6 @@
 {
   "name": "hibana",
-  "version": "0.3.12.43",
+  "version": "0.3.12.44",
   "private": true,
   "type": "module",
   "description": "Personal project & idea manager — Cloudflare Workers (D1) or plain Node (SQLite)",
@@ -41,7 +41,10 @@
     "check-i18n-parity": "node scripts/check-i18n-parity.mjs",
     "check:prod-errors": "node scripts/check-prod-errors.mjs",
     "test:workers": "node scripts/workers-smoke.mjs",
-    "check:bundle-size": "node scripts/check-bundle-size.mjs"
+    "check:bundle-size": "node scripts/check-bundle-size.mjs",
+    "audit:mobile": "node scripts/mobile-audit.mjs",
+    "probe:tags": "node scripts/live-tags-probe.mjs dev",
+    "probe:tags:prod": "node scripts/live-tags-probe.mjs prod"
   },
   "dependencies": {
     "@hono/node-server": "^1.13.7",

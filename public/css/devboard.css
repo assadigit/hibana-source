@@ -402,6 +402,11 @@
 .sp-diamond { font-size: 0.6rem; }
 /* the chip's stats tail — duration + done counts, dimmed so the name stays the hero */
 .sp-chip-stats { font-weight: 400; color: var(--muted); }
+/* S43 (mobile audit): the chip is an inline-flex button — its nowrap stats span
+   overflowed the chip by up to 87px (clipped text + spill onto the strip). Flex
+   ellipsis needs min-width 0 + overflow hidden on the ITEM, not the container. */
+.sp-sprint-chip > span { min-inline-size: 0; overflow: hidden; text-overflow: ellipsis; }
+.sp-sprint-chip { min-inline-size: 0; }
 .sp-sprint.is-open .sp-chip-stats { color: color-mix(in srgb, var(--brand) 75%, var(--muted)); }
 
 /* --- S35: the sprint STRIP (video-editing clip) -------------------------------- */

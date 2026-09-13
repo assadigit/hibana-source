@@ -817,3 +817,24 @@ body.rtl .fuz-opt{text-align:right}
    used to paint a full-height BLACK STRIP over the board while it loaded (2026-08-29
    user report). This class is board-private and spans the whole grid. */
 .sadhana-wrap .sadhana-loading{grid-column:1/-1;grid-row:1/-1;display:flex;align-items:center;justify-content:center;min-height:200px;color:var(--text-dim);font-size:13px;gap:8px}
+
+/* ===========================================================================
+   S43 (mobile audit): sadhana touch floor — same 40px law as the app-wide layer
+   (misc.css), but scoped here because sadhana-board.css loads LAST on sadhana.html
+   (an app-wide rule would lose the cascade to these compact local sizes).
+   The 20–24px icon controls (q-pen, t-act, upd-toggle, zen-btn) were untappable
+   on phones; visual glyphs stay small — the transparent hit boxes grow.
+   =========================================================================== */
+@media (pointer: coarse) {
+  .sadhana-wrap .q-pen { min-inline-size: 40px; min-block-size: 40px; width: 40px; height: 40px; }
+  .sadhana-wrap .zen-btn { min-inline-size: 40px; min-block-size: 40px; width: 40px; height: 40px; }
+  .sadhana-wrap .t-act { min-inline-size: 40px; min-block-size: 40px; width: 40px; height: 40px; }
+  .sadhana-wrap .upd-toggle { min-inline-size: 40px; min-block-size: 40px; }
+  .sadhana-wrap .t-actions { gap: 6px; }
+}
+/* S43 (mobile audit): the subbar buttons were flex-SHRUNK below their content on
+   phones (the Archive label spilled + clipped — scrollWidth > box). The strip is
+   already overflow-x:auto; buttons must never shrink, only scroll. */
+.sadhana-wrap .subbar-inner .btn { flex: none; }
+/* S43: the subbar action buttons landed at 39px — one under the floor. */
+@media (pointer: coarse) { .sadhana-wrap .subbar-inner .btn { min-block-size: 40px; } }

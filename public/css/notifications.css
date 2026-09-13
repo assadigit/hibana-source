@@ -15,6 +15,10 @@
 .notif-chip.notif-info { background: var(--badge-spark-bg); color: var(--badge-spark-fg); border-color: color-mix(in srgb, var(--badge-spark-fg) 30%, transparent); }
 
 .notif-list { list-style: none; margin: 1rem 0; padding: 0; display: grid; gap: 0.5rem; max-inline-size: 42rem; }
+/* S43 (mobile audit): same ghost-track fix as the reports .feed — the li's nowrap
+   .notif-detail set the implicit track's min-content ~22px past the viewport
+   (notifications scrolled +9 sideways at 390px). */
+.notif-list { grid-template-columns: minmax(0, 1fr); }
 .notif-item {
   display: flex;
   gap: 0.75rem;

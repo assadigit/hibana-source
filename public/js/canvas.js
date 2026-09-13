@@ -1601,6 +1601,21 @@ window.hibanaCanvas = (() => {
     // silent no-op in some published Fabric builds (cdnjs mislabels 5.1.0 as 5.3.0), so we
     // always hand Fabric the real DOM element (works in every 5.x).
     const host = typeof selector === 'string' ? document.querySelector(selector) : selector
+    // S43 (mobile audit): Fabric sizes its wrapper from the host's width/height
+    // ATTRIBUTES (the markup ships 1200×800) — NOT the CSS box (#board is
+    // inset:0/100% of #canvas-wrap). On a 390px phone the wrapper was born 1200px
+    // wide, the document overflowed, and mobile Chrome expanded the layout viewport
+    // (auto-fit) — which POISONS window.innerWidth (it reported 1200, so the resize
+    // listener below then baked the poison in at 1200×2501: an unusable zoomed-out
+    // board). Sync the attributes to the real layout box FIRST so Fabric is born
+    // viewport-sized; the listener below then measures the WRAP (never innerWidth).
+    if (host) {
+      const hostBox = host.getBoundingClientRect()
+      if (hostBox.width > 1 && hostBox.height > 1) {
+        host.width = Math.max(1, Math.round(hostBox.width))
+        host.height = Math.max(1, Math.round(hostBox.height))
+      }
+    }
     canvas = new fabric.Canvas(host, { preserveObjectStacking: true })
 
     // Font-metrics race (wrap-bug fix 2026-08-25): Fabric measures text with the fallback
@@ -2731,12 +2746,22 @@ window.hibanaCanvas = (() => {
       ui.toolbar.querySelectorAll('.pen-only').forEach((el) => (el.hidden = true))
     }
 
-    window.addEventListener('resize', () => {
-      canvas.setDimensions({ width: window.innerWidth, height: window.innerHeight - 96 })
+    // S43: sizeToWrap (not window.innerWidth — a wide board USED to expand the
+    // mobile layout viewport, and innerWidth then reported the EXPANDED size:
+    // resizing to innerWidth baked the overflow in forever. The wrap's own client
+    // box is the truth — the whiteboard's proven sizeToPage pattern).
+    function sizeToWrap() {
+      const wrap = document.getElementById('canvas-wrap')
+      const w = wrap?.clientWidth || document.documentElement.clientWidth
+      const h = wrap?.clientHeight || Math.max(240, window.innerHeight - 96)
+      if (!canvas || !w || !h) return
+      if (canvas.getWidth() === w && canvas.getHeight() === h) return
+      canvas.setDimensions({ width: w, height: h })
       canvas.calcOffset()
       loadChunk()
-    })
-    window.dispatchEvent(new Event('resize'))
+    }
+    window.addEventListener('resize', () => { sizeToWrap() })
+    sizeToWrap()
   }
 
   function serializePath(path, w) {

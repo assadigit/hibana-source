@@ -395,6 +395,9 @@
               '<p class="sp-draft-hint muted small">' + B().esc(_t('db.draftHint', 'Add items in the sidebar or drag them here — they join this sprint. Start it when ready.')) + '</p>' +
               '<div class="row sp-draft-actions">' +
                 '<button type="button" class="btn small" data-sp-draft-start>▸ ' + B().esc(_t('db.startSprint', 'Start sprint')) + '</button>' +
+                // S33: the draft's plan doc — deep-links into the project page's
+                // full-screen sprint editor (?sprint= opens it directly).
+                '<a class="btn ghost small" href="/project.html?id=' + encodeURIComponent(projectId) + '&sprint=' + encodeURIComponent(draft.id) + '" title="' + B().esc(_t('sprint.openDoc', 'Open the sprint plan — the full-screen editor')) + '">' + B().esc(_t('sprint.plan', 'Plan')) + '</a>' +
                 '<button type="button" class="btn ghost danger small" data-sp-draft-del>' + B().esc(_t('common.delete', 'Delete')) + '</button>' +
               '</div>' +
             '</div>'

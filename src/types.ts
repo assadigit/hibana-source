@@ -181,6 +181,8 @@ export interface SprintRow {
   ended_at: string | null
   created_at: string
   is_draft: 0 | 1 // draft sprint (never started) — the create flow parks it here until /start
+  version: string | null // 0052: the sprint's version-number label ("12.1") — free text
+  description: string | null // 0052: the sprint's rich doc (markdown + fenced code) — the full-screen editor's subject
 }
 
 // --- Backlog docs (0033 — برنامه آتی «upcoming plan» tab) -----------------------

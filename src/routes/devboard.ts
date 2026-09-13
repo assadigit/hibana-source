@@ -77,11 +77,19 @@ const updateCategorySchema = z.object({
   name: z.string().trim().min(1).max(80).optional(),
   color: hexColor.optional(),
 })
+// 0052 (Session 33 — user request: «اسپرینت جدید» CTA → name/version/description modal →
+// full-screen rich editor): a sprint carries a version label + a rich markdown doc.
+// The description IS the editor's subject — seeded by the modal box, edited in the
+// full-screen editor, autosaved via PATCH. 100k matches the task-title sanity guard.
 const createSprintSchema = z.object({
   name: z.string().trim().min(1).max(80).optional(),
+  version: z.string().trim().min(1).max(40).optional(),
+  description: z.string().max(100_000).optional(),
 })
 const updateSprintSchema = z.object({
   name: z.string().trim().min(1).max(80).optional(),
+  version: z.string().trim().min(1).max(40).nullable().optional(), // explicit null clears the label
+  description: z.string().max(100_000).optional(),
   started_at: isoDate.optional(),
   ended_at: isoDate.nullable().optional(), // explicit null = reopen this sprint's end
 })
@@ -512,11 +520,11 @@ export function devboardRoutes(cfg: Config) {
       [p.id],
     )
     if (draft.length) return c.json({ error: 'draft_exists', draft_id: draft[0].id }, 409)
-    await cfg.db.execute('INSERT INTO sprints (id, project_id, name, started_at, ended_at, is_draft, created_at) VALUES (?, ?, ?, ?, NULL, 1, ?)', [
-      id, p.id, name, now, now,
+    await cfg.db.execute('INSERT INTO sprints (id, project_id, name, version, description, started_at, ended_at, is_draft, created_at) VALUES (?, ?, ?, ?, ?, ?, NULL, 1, ?)', [
+      id, p.id, name, body.version ?? null, body.description ?? '', now, now,
     ])
     await logHistory(cfg, p.id, t('{name} defined', '{name} تعریف شد', { name }))
-    return c.json({ ok: true, id, name, draft: true }, 201)
+    return c.json({ ok: true, id, name, version: body.version ?? null, draft: true }, 201)
   })
 
   app.post('/api/sprints/:id/start', async (c) => {
@@ -554,11 +562,19 @@ export function devboardRoutes(cfg: Config) {
     const user = c.get('user')
     const s = await ownedSprint(cfg, user.id, c.req.param('id'))
     if (!s) return c.json({ error: 'not_found' }, 404)
-    // A draft only carries a name (0034) — its dates are set by /start, never by PATCH.
+    // A draft carries name + version + its doc (0034 + 0052) — its dates are set by
+    // /start, never by PATCH. description (the full-screen editor's subject) is ALWAYS
+    // writable; an empty string is a legal empty doc (the modal seeds an empty one).
     if (s.is_draft) {
       if (body.started_at !== undefined || body.ended_at !== undefined) return c.json({ error: 'invalid_input' }, 400)
-      if (body.name === undefined) return c.json({ ok: true })
-      await cfg.db.execute('UPDATE sprints SET name = ? WHERE id = ?', [body.name, s.id])
+      const sets: string[] = []
+      const params: unknown[] = []
+      if (body.name !== undefined) { sets.push('name = ?'); params.push(body.name) }
+      if (body.version !== undefined) { sets.push('version = ?'); params.push(body.version) }
+      if (body.description !== undefined) { sets.push('description = ?'); params.push(body.description) }
+      if (!sets.length) return c.json({ ok: true })
+      params.push(s.id)
+      await cfg.db.execute(`UPDATE sprints SET ${sets.join(', ')} WHERE id = ?`, params)
       return c.json({ ok: true })
     }
     const siblings = await cfg.db.query<SprintRow>('SELECT * FROM sprints WHERE project_id = ? AND is_draft = 0 ORDER BY started_at', [s.project_id])
@@ -598,11 +614,21 @@ export function devboardRoutes(cfg: Config) {
       if (aS <= bE && bS <= aE) return c.json({ error: 'invalid_input' }, 400)
     }
     // One UPDATE touching only the fields the body provided (explicit null reopens).
+    // version/description ride along on started sprints too (0052) — the doc stays
+    // editable for the whole sprint lifetime, not just while drafting.
     const sets: string[] = []
     const params: unknown[] = []
     if (body.name !== undefined) {
       sets.push('name = ?')
       params.push(body.name)
+    }
+    if (body.version !== undefined) {
+      sets.push('version = ?')
+      params.push(body.version)
+    }
+    if (body.description !== undefined) {
+      sets.push('description = ?')
+      params.push(body.description)
     }
     if (body.started_at !== undefined) {
       sets.push('started_at = ?')

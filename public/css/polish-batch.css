@@ -608,6 +608,11 @@ a.related-note,
 .rep-vel-name,
 .otd-item a,
 .feed-title,
+
+/* — S33 (user request 2026-09-13): the sprint plan editor's live preview — every
+     rendered block resolves per its own first strong char, code islands excluded — */
+.pd-sd-preview,
+.pd-sd-preview :is(p, h1, h2, h3, h4, h5, h6, li, blockquote, dd, dt),
 .toast-msg { unicode-bidi: plaintext; }
 
 /* — the TYPING side of the law (composers + editors + inline edits): the
@@ -622,6 +627,14 @@ a.related-note,
 #pd-note-textarea,
 #pd-editor-subtitle,
 #pd-editor-textarea,
+
+/* — S33: the «اسپرینت جدید» modal (name / version / description) + the full-screen
+     sprint plan editor — same recipe: FA dir=rtl typing default, per-line plaintext — */
+#pd-sprintnew-name,
+#pd-sprintnew-version,
+#pd-sprintnew-desc,
+#pd-sd-text,
+
 .note-compose-text,
 .note-text,
 .note-title,

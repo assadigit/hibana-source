@@ -621,6 +621,11 @@
         // 2 high · 5 medium'"): the computed bar carries a per-tier tooltip. The truth
         // rides pdTaskTruth (the full task list from the filter-bar fetch); every
         // add/move/delete/cycle keeps it in step and repaints the [data-pd-bar] title.
+        // S33: sprint truth rides the SAME fetch (the project JSON carries the devboard
+        // payload — sprints included). The «اسپرینت جدید» CTA + the deep-link
+        // (?sprint=<id> from the sprint page's draft card) both read it from here.
+        let pdSprintTruth = [] // [{id, name, version, description, is_draft, ended_at}]
+        let pdSdDeepLinked = false
         let pdTaskTruth = [] // [{id, priority}]
         const pdTierLabel = (p) => {
           const map = { urgent: ['urgent', 'فوری'], high: ['high', 'اولویت بالا'], medium: ['medium', 'اولویت متوسط'], low: ['low', 'اولویت کم'] }
@@ -703,6 +708,12 @@
               const data = await res.json()
               // S30 batch 4: the tier-tooltip truth (every task's priority).
               pdTaskTruth = ((data.project ? data.project.devTasks : data.devTasks) || []).map((t) => ({ id: t.id, priority: t.priority || 'medium' }))
+              // S33: the sprint truth (draft detection + deep-link targets).
+              pdSprintTruth = (data.project ? data.project.sprints : data.sprints) || []
+              if (!pdSdDeepLinked) {
+                const sp = new URLSearchParams(location.search).get('sprint')
+                if (sp) { pdSdDeepLinked = true; pdSprintOpenDoc(sp) }
+              }
               pdPaintBarTooltip()
               const rows = (data.project ? data.project.devTaskTags : data.devTaskTags) || []
               const seen = new Set()
@@ -805,6 +816,479 @@
         // and the rebuild restores the toggles from the LIVE filter sets.
         ctx.on('htmx:afterSwap', () => { pdFilterBuild() })
         pdFilterBuild()
+
+        // --- S33 (user request 2026-09-13): «اسپرینت جدید» → modal → «ورود به اسپرینت»
+        //     → the FULL-SCREEN sprint editor with code blocks -------------------------
+        // Flow: the board head's [data-pd-new-sprint] CTA opens #pd-sprintnew-modal
+        // (name + version + description). Create POSTs a DRAFT (0034); a 409
+        // draft_exists flips the SAME form into edit-the-draft mode (prefill + PATCH).
+        // The created view's big button ENTERS the sprint: #pd-sprintdoc-modal — a true
+        // full-bleed editor (H2/H3 · bold · italic · bullet/numbered list · quote ·
+        // inline code · CODE BLOCKS · link · divider) with live preview + AUTOSAVE
+        // (debounced PATCH /api/sprints/:id {description}). ?sprint=<id> deep-links in
+        // (the sprint page's draft card links here). The bidi law applies: the textarea
+        // keeps the locale dir as the typing default while polish-batch.css gives it
+        // per-line plaintext; fenced blocks render as LTR .t-code islands in preview.
+        const pdSprintNewModal = () => document.getElementById('pd-sprintnew-modal')
+        const pdSdModal = () => document.getElementById('pd-sprintdoc-modal')
+        let pdSprintNewMode = 'create' // 'create' | 'edit' (an existing draft)
+        let pdSprintEditId = '' // the draft being edited / the sprint just created
+        let sdSprint = null // the open editor's subject {id, name, version}
+        let sdTimer = null // autosave debounce
+        let sdPreviewTimer = null
+        let sdStatusTimer = null
+        let sdDirty = false
+        let sdSaving = false
+
+        // -- new-sprint modal plumbing --------------------------------------------------
+        const pdSprintShowView = (which) => { // 'fields' | 'done'
+          const fields = document.getElementById('pd-sprintnew-fields')
+          const actions = document.getElementById('pd-sprintnew-actions')
+          const done = document.getElementById('pd-sprintnew-done')
+          const err = document.getElementById('pd-sprintnew-error')
+          if (fields) fields.hidden = which !== 'fields'
+          if (actions) actions.hidden = which !== 'fields'
+          if (done) done.hidden = which !== 'done'
+          if (err) { err.hidden = true; err.textContent = '' }
+        }
+        const pdSprintSetMode = (mode, draft) => {
+          pdSprintNewMode = mode
+          pdSprintEditId = mode === 'edit' && draft ? draft.id : ''
+          const nameIn = document.getElementById('pd-sprintnew-name')
+          const verIn = document.getElementById('pd-sprintnew-version')
+          const descIn = document.getElementById('pd-sprintnew-desc')
+          const hint = document.getElementById('pd-sprintnew-hint')
+          const label = document.getElementById('pd-sprintnew-save-label')
+          if (nameIn) nameIn.value = mode === 'edit' && draft ? (draft.name || '') : ''
+          if (verIn) verIn.value = mode === 'edit' && draft ? (draft.version || '') : ''
+          if (descIn) descIn.value = mode === 'edit' && draft ? (draft.description || '') : ''
+          if (hint) hint.textContent = mode === 'edit'
+            ? _t('sprint.draftExists', 'A draft sprint is already open here — you are editing it.')
+            : _t('sprint.draftHint', 'Born as a draft — start it later from the sprint timeline.')
+          if (label) label.textContent = mode === 'edit'
+            ? _t('sprint.update', 'Update draft')
+            : _t('sprint.create', 'Create sprint')
+        }
+        const pdSprintPaintCount = () => {
+          // keep the «اسپرینت‌ها n» badge honest after a create
+          const link = document.querySelector('.pd-board-head a[href^="/sprint.html"]')
+          if (!link) return
+          let span = link.querySelector('.pd-sprint-count')
+          if (!span) { span = document.createElement('span'); span.className = 'pd-sprint-count'; link.appendChild(span) }
+          span.textContent = pdDig(String(pdSprintTruth.length))
+        }
+        const pdSprintTruthTrack = (s) => {
+          const i = pdSprintTruth.findIndex((x) => x && x.id === s.id)
+          if (i >= 0) pdSprintTruth[i] = { ...pdSprintTruth[i], ...s }
+          else pdSprintTruth.push(s)
+          pdSprintPaintCount()
+        }
+        const pdSprintDoneView = (name, version) => {
+          pdSprintShowView('done')
+          const nameEl = document.getElementById('pd-sprintnew-done-name')
+          if (nameEl) nameEl.textContent = version ? name + ' · ' + version : (name || '')
+          window.hibana?.toast(_t('sprint.created', 'Sprint created'))
+        }
+        // CTA click → open the modal (create mode, or prefill the existing draft)
+        ctx.on('click', (e) => {
+          const cta = e.target.closest('[data-pd-new-sprint]')
+          if (!cta) return
+          e.preventDefault()
+          const m = pdSprintNewModal()
+          if (!m) return
+          pdSprintShowView('fields')
+          const draft = pdSprintTruth.find((s) => s && s.is_draft)
+          pdSprintSetMode(draft ? 'edit' : 'create', draft)
+          m.showModal()
+          setTimeout(() => { const n = document.getElementById('pd-sprintnew-name'); if (n) n.focus() }, 30)
+        })
+        // close paths + the ENTER button (the reason this modal exists)
+        ctx.on('click', (e) => {
+          if (e.target.closest('#pd-sprintnew-close') || e.target.closest('#pd-sprintnew-cancel') || e.target.closest('#pd-sprintnew-done-close')) {
+            const m = pdSprintNewModal()
+            if (m && m.open) m.close()
+            return
+          }
+          const enter = e.target.closest('#pd-sprintnew-enter')
+          if (enter) {
+            e.preventDefault()
+            const m = pdSprintNewModal()
+            if (m && m.open) m.close()
+            pdSprintOpenDoc(pdSprintEditId)
+          }
+        })
+        // create / update-draft
+        ctx.on('submit', async (e) => {
+          const form = e.target.closest ? e.target.closest('#pd-sprintnew-form') : null
+          if (!form) return
+          e.preventDefault()
+          const nameIn = document.getElementById('pd-sprintnew-name')
+          const verIn = document.getElementById('pd-sprintnew-version')
+          const descIn = document.getElementById('pd-sprintnew-desc')
+          const err = document.getElementById('pd-sprintnew-error')
+          const save = document.getElementById('pd-sprintnew-save')
+          if (!nameIn || !verIn || !descIn) return
+          const body = { description: descIn.value }
+          const name = nameIn.value.trim()
+          if (name) body.name = name
+          const version = verIn.value.trim()
+          if (version) body.version = version
+          if (save) save.disabled = true
+          const fail = () => { if (err) { err.hidden = false; err.textContent = _t('sparks.saveFailed', "Couldn't save") } }
+          try {
+            if (pdSprintNewMode === 'edit' && pdSprintEditId) {
+              const res = await fetch('/api/sprints/' + pdSprintEditId, {
+                method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body),
+              })
+              if (!res.ok) throw new Error('save failed')
+              const row = pdSprintTruth.find((x) => x.id === pdSprintEditId)
+              pdSprintTruthTrack({ ...body, id: pdSprintEditId, name: name || (row ? row.name : ''), version: version || (row ? row.version : '') })
+              pdSprintDoneView(name || (row ? row.name : ''), version || (row ? row.version : ''))
+            } else {
+              let res = await fetch('/api/projects/' + id + '/sprints', {
+                method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body),
+              })
+              if (res.status === 409) {
+                // A draft already exists (truth was stale — another tab, or the page sat
+                // open): flip into PATCH mode against the returned draft_id.
+                const j = await res.json().catch(() => ({}))
+                if (!j.draft_id) throw new Error('save failed')
+                res = await fetch('/api/sprints/' + j.draft_id, {
+                  method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body),
+                })
+                if (!res.ok) throw new Error('save failed')
+                pdSprintNewMode = 'edit'
+                pdSprintEditId = j.draft_id
+                const row = pdSprintTruth.find((x) => x.id === j.draft_id)
+                pdSprintTruthTrack({ ...body, id: j.draft_id, name: name || (row ? row.name : ''), version: version || (row ? row.version : '') })
+                pdSprintDoneView(name || (row ? row.name : ''), version || (row ? row.version : ''))
+              } else {
+                if (!res.ok) throw new Error('save failed')
+                const j = await res.json()
+                pdSprintEditId = j.id
+                pdSprintTruthTrack({ id: j.id, name: j.name, version: j.version ?? null, description: descIn.value, is_draft: 1 })
+                pdSprintDoneView(j.name, j.version)
+              }
+            }
+          } catch { fail() } finally { if (save) save.disabled = false }
+        })
+
+        // -- the full-screen editor -----------------------------------------------------
+        // MARKDOWN → HTML for the live preview (a client twin of src/lib/markdown.ts's
+        // renderMarkdown + the task-title .t-code treatment): escape FIRST, then
+        // line-level blocks (fences → LTR .t-code islands with data-lang labels,
+        // self-healing when unclosed; headings; grouped ul/ol/blockquote; hr; paragraphs)
+        // and inline marks (links http(s) only, bold, strike, italic, inline code).
+        const pdSdInline = (t) => t
+          .replace(/\[([^\]]+)\]\((https?:[^)\s]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>')
+          .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+          .replace(/~~([^~]+)~~/g, '<del>$1</del>')
+          .replace(/(^|[^*])\*([^*\n]+)\*(?!\*)/g, '$1<em>$2</em>')
+          .replace(/`([^`]+)`/g, '<code>$1</code>')
+        const pdSdRender = (raw) => {
+          const lines = pdEsc(String(raw ?? '')).split('\n')
+          const out = []
+          let inCode = false
+          let list = null // 'ul' | 'ol' | null
+          let quote = false
+          let para = []
+          const closeList = () => { if (list) { out.push('</' + list + '>'); list = null } }
+          const closeQuote = () => { if (quote) { out.push('</blockquote>'); quote = false } }
+          const flush = () => { closeList(); closeQuote(); if (para.length) { out.push('<p>' + para.join('<br>') + '</p>'); para = [] } }
+          for (const line of lines) {
+            if (!inCode && /^\s*```/.test(line)) {
+              flush()
+              inCode = true
+              const codeLang = line.trim().slice(3).trim()
+              out.push('<code class="t-code"' + (codeLang ? ' data-lang="' + pdEsc(codeLang) + '"' : '') + ' dir="ltr">')
+              continue
+            }
+            if (inCode) {
+              if (line.trim() === '```') { inCode = false; out.push('</code>') }
+              else out.push(line) // verbatim (already escaped) — no inline transforms in code
+              continue
+            }
+            const t = line.trim()
+            if (t === '') { flush(); continue }
+            let m
+            if ((m = t.match(/^(#{1,3})\s+(.*)$/))) { flush(); out.push('<h' + m[1].length + '>' + pdSdInline(m[2]) + '</h' + m[1].length + '>'); continue }
+            if (/^---+$/.test(t)) { flush(); out.push('<hr>'); continue }
+            if ((m = t.match(/^&gt;\s?(.*)$/))) {
+              closeList()
+              if (!quote) { out.push('<blockquote>'); quote = true }
+              out.push('<p>' + pdSdInline(m[1]) + '</p>')
+              continue
+            }
+            if ((m = t.match(/^[-*]\s+(.*)$/))) {
+              closeQuote()
+              if (list !== 'ul') { closeList(); out.push('<ul>'); list = 'ul' }
+              out.push('<li>' + pdSdInline(m[1]) + '</li>')
+              continue
+            }
+            if ((m = t.match(/^\d+\.\s+(.*)$/))) {
+              closeQuote()
+              if (list !== 'ol') { closeList(); out.push('<ol>'); list = 'ol' }
+              out.push('<li>' + pdSdInline(m[1]) + '</li>')
+              continue
+            }
+            closeList(); closeQuote()
+            para.push(pdSdInline(line))
+          }
+          if (inCode) out.push('</code>') // self-healing: unclosed fence renders as code
+          flush()
+          return out.join('\n')
+        }
+        const pdSdPaintPreview = (v) => {
+          const pv = document.getElementById('pd-sd-preview')
+          if (!pv) return
+          pv.innerHTML = v ? pdSdRender(v) : '<p class="muted">' + pdEsc(_t('sprint.emptyPreview', 'Nothing to preview yet.')) + '</p>'
+        }
+        const pdSdPaintCount = () => {
+          const ta = document.getElementById('pd-sd-text')
+          const el = document.getElementById('pd-sd-count')
+          if (ta && el) el.textContent = pdDig(String(ta.value.length)) + ' ' + _t('sprint.chars', 'chars')
+        }
+        const pdSdSetStatus = (kind) => {
+          const st = document.getElementById('pd-sd-status')
+          if (!st) return
+          clearTimeout(sdStatusTimer)
+          st.classList.remove('pd-sd-err')
+          if (kind === 'saving') st.textContent = _t('sprint.saving', 'Saving…')
+          else if (kind === 'saved') {
+            st.textContent = '✓ ' + _t('sprint.saved', 'Saved')
+            sdStatusTimer = setTimeout(() => { if (st) st.textContent = '' }, 2500)
+          } else if (kind === 'error') {
+            st.textContent = _t('sprint.saveFailed', "Couldn't save — will retry")
+            st.classList.add('pd-sd-err')
+          } else st.textContent = ''
+        }
+        const pdSdSave = async () => {
+          if (!sdSprint || sdSaving) return
+          const ta = document.getElementById('pd-sd-text')
+          if (!ta) return
+          sdSaving = true
+          pdSdSetStatus('saving')
+          try {
+            const res = await fetch('/api/sprints/' + sdSprint.id, {
+              method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ description: ta.value }),
+            })
+            if (!res.ok) throw new Error('save failed')
+            sdDirty = false
+            pdSdSetStatus('saved')
+            const row = pdSprintTruth.find((x) => x && x.id === sdSprint.id)
+            if (row) row.description = ta.value
+          } catch {
+            sdDirty = true
+            pdSdSetStatus('error')
+            sdTimer = setTimeout(pdSdSave, 6000) // retry — the doc must never silently lose edits
+          } finally { sdSaving = false }
+        }
+        const pdSdSchedule = () => {
+          sdDirty = true
+          clearTimeout(sdTimer)
+          sdTimer = setTimeout(pdSdSave, 1200)
+        }
+        const pdSdSetView = (v) => {
+          const main = document.getElementById('pd-sd-main')
+          if (main) main.dataset.view = v
+          const w = document.getElementById('pd-sd-tab-write')
+          const p = document.getElementById('pd-sd-tab-preview')
+          if (w) w.setAttribute('aria-pressed', v === 'write' ? 'true' : 'false')
+          if (p) p.setAttribute('aria-pressed', v === 'preview' ? 'true' : 'false')
+        }
+        const pdSprintOpenDoc = async (sid) => {
+          const m = pdSdModal()
+          if (!m || !sid) return
+          let s = pdSprintTruth.find((x) => x && x.id === sid)
+          if (!s) {
+            // stale truth (created in another tab / old page state) — refresh once
+            try {
+              const res = await fetch('/api/projects/' + id)
+              if (res.ok) {
+                const data = await res.json()
+                pdSprintTruth = (data.project ? data.project.sprints : data.sprints) || []
+                pdSprintPaintCount()
+                s = pdSprintTruth.find((x) => x && x.id === sid)
+              }
+            } catch { /* offline — fall through to the not-found toast */ }
+          }
+          if (!s) { window.hibana?.toast(_t('sprint.gone', "Couldn't open this sprint"), 'err'); return }
+          sdSprint = { id: s.id, name: s.name, version: s.version || '' }
+          const title = document.getElementById('pd-sd-title')
+          if (title) title.textContent = s.name || ''
+          const ver = document.getElementById('pd-sd-ver')
+          if (ver) {
+            if (s.version) { ver.hidden = false; ver.textContent = s.version }
+            else { ver.hidden = true; ver.textContent = '' }
+          }
+          const proj = document.getElementById('pd-sd-project')
+          if (proj) proj.textContent = (document.getElementById('pd-title')?.textContent || '').trim()
+          const ta = document.getElementById('pd-sd-text')
+          if (ta) { ta.value = s.description || ''; ta.dir = pdLang() === 'fa' ? 'rtl' : 'auto' }
+          clearTimeout(sdTimer); clearTimeout(sdPreviewTimer)
+          sdDirty = false
+          pdSdSetView('write')
+          pdSdPaintPreview(ta ? ta.value : '')
+          pdSdPaintCount()
+          pdSdSetStatus('')
+          m.showModal()
+          setTimeout(() => { const t = document.getElementById('pd-sd-text'); if (t) t.focus() }, 30)
+        }
+        const pdSdClose = async () => {
+          const m = pdSdModal()
+          if (!m || !m.open) return
+          if (sdDirty) {
+            await pdSdSave()
+            if (sdDirty) { // the save failed — refuse to close, the edits still live here
+              window.hibana?.toast(_t('sprint.saveFailed', "Couldn't save — check your connection"), 'err')
+              return
+            }
+          }
+          m.close()
+        }
+        ctx.on('click', (e) => {
+          if (e.target.closest('#pd-sd-close') || e.target.closest('#pd-sd-done')) { e.preventDefault(); pdSdClose(); return }
+          const w = e.target.closest('#pd-sd-tab-write')
+          if (w) { e.preventDefault(); pdSdSetView('write'); const t = document.getElementById('pd-sd-text'); if (t) t.focus(); return }
+          const p = e.target.closest('#pd-sd-tab-preview')
+          if (p) {
+            e.preventDefault()
+            const t = document.getElementById('pd-sd-text')
+            pdSdPaintPreview(t ? t.value : '')
+            pdSdSetView('preview')
+          }
+        })
+        // Esc on the editor dialog: flush the pending autosave BEFORE closing (the
+        // 'cancel' event bubbles — catch it at the document, target = the dialog).
+        ctx.on('cancel', (e) => {
+          const m = pdSdModal()
+          if (e.target !== m || !m || !m.open) return
+          e.preventDefault()
+          pdSdClose()
+        })
+        // typing → autosave + live preview + count
+        ctx.on('input', (e) => {
+          if (e.target?.id !== 'pd-sd-text') return
+          // CODE PROTECTION: hib-init's Session-19 converter (typed Latin digits →
+          // Persian when the preceding char is Farsi/space/nothing) would corrupt CODE —
+          // inside a ``` fence, "= 12" is a space before the digit → "۱۲". This listener
+          // registers BEFORE hib-init's DOMContentLoaded one (defer order), so stopping
+          // propagation here keeps fence digits Latin. Prose OUTSIDE fences keeps the
+          // conversion — the app's FA-numeral policy applies to the plan's prose, not its code.
+          if (pdSdInFence(e.target)) e.stopImmediatePropagation()
+          pdSdSchedule()
+          pdSdPaintCount()
+          clearTimeout(sdPreviewTimer)
+          sdPreviewTimer = setTimeout(() => pdSdPaintPreview(e.target.value), 250)
+        })
+        // -- the rich-text toolbar ------------------------------------------------------
+        // Markdown-in-textarea (same philosophy as the task composer's [data-tb]): every
+        // button edits the RAW text around the selection so the value round-trips
+        // verbatim. Line-prefix kinds (h2/h3/list/num/quote) operate per line and
+        // TOGGLE; wrap kinds (bold/italic/inline/code/link) wrap the selection; hr
+        // drops a rule on its own line. Fences always land on their OWN lines (the
+        // renderer + the API's round-trip contract).
+        const pdSdApply = (ta, kind) => {
+          if (!ta) return
+          const s = ta.selectionStart == null ? ta.value.length : ta.selectionStart
+          const e = ta.selectionEnd == null ? s : ta.selectionEnd
+          const v = ta.value
+          const sel = v.slice(s, e)
+          const after = () => { ta.focus(); pdSdSchedule(); pdSdPaintCount() }
+          if (kind === 'bold' || kind === 'italic' || kind === 'inline') {
+            const w = kind === 'bold' ? '**' : kind === 'italic' ? '*' : '`'
+            ta.setRangeText(w + sel + w, s, e, 'end')
+            if (sel) ta.setSelectionRange(s + w.length, s + w.length + sel.length)
+            else ta.setSelectionRange(s + w.length, s + w.length) // caret inside the pair
+            after()
+            return
+          }
+          if (kind === 'code') {
+            const pre = s === 0 || v[s - 1] === '\n' ? '' : '\n'
+            const post = e === v.length || v[e] === '\n' ? '' : '\n'
+            ta.setRangeText(pre + '```\n' + sel + '\n```' + post, s, e, 'end')
+            const caret = s + pre.length + 4 // first code line — start typing code right away
+            ta.setSelectionRange(caret, caret)
+            after()
+            return
+          }
+          if (kind === 'link') {
+            const text = sel || _t('sprint.linkText', 'link')
+            ta.setRangeText('[' + text + '](https://)', s, e, 'end')
+            const us = s + 1 + text.length + 3 // 'h' of https://
+            ta.setSelectionRange(us, us + 8) // the placeholder URL selected — type to replace
+            after()
+            return
+          }
+          if (kind === 'hr') {
+            const pre = s === 0 || v[s - 1] === '\n' ? '' : '\n'
+            const post = e === v.length || v[e] === '\n' ? '' : '\n'
+            ta.setRangeText(pre + '---\n' + post, s, e, 'end')
+            after()
+            return
+          }
+          // line-prefix kinds: h2 / h3 / list / num / quote — operate on the whole
+          // selected line block; toggling strips the same prefix, and list/num
+          // conversions replace whichever block prefix was there.
+          const ls = v.lastIndexOf('\n', s - 1) + 1
+          let le = v.indexOf('\n', Math.max(e, s))
+          if (le === -1) le = v.length
+          const block = v.slice(ls, le)
+          const lines = block.split('\n')
+          const stripAny = (l) => l.replace(/^\s*(?:#{1,3}\s+|[-*]\s+|\d+\.\s+|>\s+)/, '')
+          // A bare click on an EMPTY field must INSERT the prefix (the vacuous toggle
+          // check would read "already prefixed" and do nothing); blank SEPARATOR lines
+          // inside a multi-line block stay blank (only the line the caret is on — or
+          // was last on — receives the prefix when the block is otherwise empty).
+          const loneEmpty = lines.length === 1 && lines[0].trim() === ''
+          let out
+          if (kind === 'list' || kind === 'num') {
+            out = lines.map((l, i) => {
+              if (loneEmpty) return kind === 'list' ? '- ' : '1. '
+              const bare = stripAny(l)
+              if (bare.trim() === '') return l
+              return kind === 'list' ? '- ' + bare : (i + 1) + '. ' + bare
+            }).join('\n')
+          } else {
+            const p = kind === 'h2' ? '## ' : kind === 'h3' ? '### ' : '> '
+            const re = new RegExp('^(\\s*)' + p.replace(/[.*+?^${}()|[\]\\>]/g, '\\$&'))
+            const nonEmpty = lines.filter((l) => l.trim() !== '')
+            const has = nonEmpty.length > 0 && nonEmpty.every((l) => re.test(l))
+            out = lines.map((l) => {
+              if (loneEmpty) return p
+              if (l.trim() === '') return l
+              return has ? l.replace(re, '$1') : p + l
+            }).join('\n')
+          }
+          ta.setRangeText(out, ls, le, 'end')
+          after()
+        }
+        ctx.on('click', (e) => {
+          const btn = e.target.closest('[data-sb]')
+          if (!btn || !pdSdModal()?.open) return
+          e.preventDefault()
+          pdSdApply(document.getElementById('pd-sd-text'), btn.dataset.sb)
+        })
+        // keyboard: Ctrl/Cmd+B / Ctrl/Cmd+I shortcuts; Tab indents (2 spaces) when the
+        // caret sits inside a ``` fence — the code-block writing experience.
+        const pdSdInFence = (ta) => {
+          const upto = ta.value.slice(0, ta.selectionStart)
+          const fences = upto.split('\n').filter((l) => /^\s*```/.test(l)).length
+          return fences % 2 === 1
+        }
+        ctx.on('keydown', (e) => {
+          const ta = e.target
+          if (ta?.id !== 'pd-sd-text') return
+          const mod = e.ctrlKey || e.metaKey
+          if (mod && (e.key === 'b' || e.key === 'B')) { e.preventDefault(); pdSdApply(ta, 'bold'); return }
+          if (mod && (e.key === 'i' || e.key === 'I')) { e.preventDefault(); pdSdApply(ta, 'italic'); return }
+          if (e.key === 'Tab' && !e.shiftKey && pdSdInFence(ta)) {
+            e.preventDefault()
+            ta.setRangeText('  ', ta.selectionStart, ta.selectionEnd, 'end')
+            pdSdSchedule()
+            pdSdPaintCount()
+          }
+        })
 
         // AUTO-SORT placement (user request): a wrap sits BEFORE the first card whose
         // priority ranks below it (equal ranks keep arrival/drag order).

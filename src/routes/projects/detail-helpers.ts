@@ -284,6 +284,11 @@ export function detailHtml(p: ProjectRow, d: Awaited<ReturnType<typeof loadDetai
     <div class="row spread pd-board-head">
       <h3>${icon('kanban')} ${trL(lang, 'Project Progress', 'پیشرفت پروژه')}</h3>
       <div class="row">
+        <!-- S33 (user request 2026-09-13): the «اسپرینت جدید» CTA — a PROMINENT (solid,
+             brand-colored) button, first in the head row. Opens the new-sprint dialog
+             (name + version + description → create → «ورود به اسپرینت» → the full-screen
+             rich sprint editor). project-page.js wires [data-pd-new-sprint]. -->
+        <button type="button" class="small pd-new-sprint" data-pd-new-sprint title="${trL(lang, 'Define the next sprint — name, version and plan', 'اسپرینت بعدی را تعریف کن — نام، نسخه و برنامه')}">${icon('diamond')} ${trL(lang, 'New sprint', 'اسپرینت جدید')}</button>
         <a class="btn ghost small" href="/board.html?project=${p.id}">${icon('expand')} ${trL(lang, 'Full screen board', 'برد تمام‌صفحه')}</a>
         <a class="btn ghost small" href="/sprint.html?project=${p.id}">${icon('diamond')} ${trL(lang, 'Sprints', 'اسپرینت‌ها')}${d.sprints.length ? ` <span class="pd-sprint-count">${dig(d.sprints.length)}</span>` : ''}</a>
       </div>
@@ -567,6 +572,104 @@ export function detailHtml(p: ProjectRow, d: Awaited<ReturnType<typeof loadDetai
         <button type="button" class="ghost" id="pd-taskadd-cancel">${trL(lang, 'Cancel', 'لغو')}</button>
       </div>
     </form>
+  </dialog>
+
+  <!-- S33 (user request 2026-09-13): the «اسپرینت جدید» flow. The CTA in the board head
+       opens THIS dialog: sprint name + version number + a description box. Create POSTs
+       /api/projects/:id/sprints (a DRAFT, 0034) — then the dialog flips to the "created"
+       view whose big button ENTERS the sprint (the full-screen editor below). When a
+       draft already exists (409 draft_exists) project-page.js prefills THIS SAME form and
+       the save button PATCHes the existing draft instead. All lookups at click time —
+       the dialog re-renders with every htmx swap of #project-body. -->
+  <dialog id="pd-sprintnew-modal" class="dialog pd-sprintnew-modal" aria-labelledby="pd-sprintnew-title">
+    <form class="modal pd-sprintnew-inner" id="pd-sprintnew-form" novalidate>
+      <div class="row spread pd-editor-head">
+        <h3 id="pd-sprintnew-title">${trL(lang, 'New sprint', 'اسپرینت جدید')}</h3>
+        <button type="button" class="ghost" id="pd-sprintnew-close" aria-label="${trL(lang, 'Close', 'بستن')}">${icon('x')}</button>
+      </div>
+      <div id="pd-sprintnew-fields" class="pd-sprintnew-fields">
+        <label class="pd-opt">${trL(lang, 'Sprint name', 'نام اسپرینت')}
+          <input id="pd-sprintnew-name" dir="auto" autocomplete="off" maxlength="80" placeholder="${trL(lang, 'e.g. Payments flow', 'مثلاً فرآیند پرداخت')}" aria-label="${trL(lang, 'Sprint name', 'نام اسپرینت')}">
+        </label>
+        <label class="pd-opt">${trL(lang, 'Version number', 'شمارهٔ نسخه')}
+          <!-- data-no-fa-digits (hib-init's opt-out): a version label is a code-like token
+               ("12.1.0" — monospace chip, semantic-versioning conventions) — it stays
+               Latin-form even while typing Farsi around it. -->
+          <input id="pd-sprintnew-version" dir="auto" autocomplete="off" inputmode="text" maxlength="40" data-no-fa-digits placeholder="${trL(lang, 'e.g. 12.1', 'مثلاً 12.1')}" aria-label="${trL(lang, 'Version number', 'شمارهٔ نسخه')}">
+        </label>
+        <label class="pd-opt">${trL(lang, 'Description', 'توضیح')}
+          <textarea id="pd-sprintnew-desc" rows="6" maxlength="100000" dir="${lang === 'fa' ? 'rtl' : 'auto'}" placeholder="${trL(lang, 'What is this sprint about? A sentence now — the full plan lives in the editor.', 'این اسپرینت دربارهٔ چیست؟ الان یک جمله — برنامهٔ کامل در ویرایشگر.')}" aria-label="${trL(lang, 'Description', 'توضیح')}"></textarea>
+        </label>
+        <p class="muted small" id="pd-sprintnew-hint">${trL(lang, 'Born as a draft — start it later from the sprint timeline.', 'به‌صورت پیش‌نویس ساخته می‌شود — بعداً از تایم‌لاین اسپرینت شروعش کن.')}</p>
+      </div>
+      <p class="error" id="pd-sprintnew-error" role="alert" hidden></p>
+      <div class="row pd-sprintnew-actions" id="pd-sprintnew-actions">
+        <button type="submit" id="pd-sprintnew-save">${icon('diamond')} <span id="pd-sprintnew-save-label">${trL(lang, 'Create sprint', 'ساخت اسپرینت')}</span></button>
+        <button type="button" class="ghost" id="pd-sprintnew-cancel">${trL(lang, 'Cancel', 'لغو')}</button>
+      </div>
+      <div id="pd-sprintnew-done" class="pd-sprintnew-done" hidden>
+        <p class="pd-sprintnew-done-title"><span class="pd-sprintnew-check" aria-hidden="true">✓</span> ${trL(lang, 'Sprint created', 'اسپرینت ساخته شد')}</p>
+        <p class="pd-sprintnew-done-name" id="pd-sprintnew-done-name" dir="auto"></p>
+        <p class="muted small">${trL(lang, 'Now write its plan — tasks, decisions, code. Everything is saved as you type.', 'حالا برنامه‌اش را بنویس — کارها، تصمیم‌ها، کد. همه‌چیز هم‌زمان با نوشتن ذخیره می‌شود.')}</p>
+        <div class="row pd-sprintnew-actions">
+          <button type="button" class="pd-sprintnew-enter" id="pd-sprintnew-enter">${icon('expand')} ${trL(lang, 'Enter sprint', 'ورود به اسپرینت')}</button>
+          <button type="button" class="ghost" id="pd-sprintnew-done-close">${trL(lang, 'Close', 'بستن')}</button>
+        </div>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- S33: the FULL-SCREEN sprint editor («ورود به اسپرینت» lands here). A true
+       full-bleed dialog (100vw × 100dvh) with a rich-text toolbar (headings, bold,
+       italic, lists, quote, inline code, LINKS, and CODE BLOCKS — the special ask), a
+       live Markdown preview, and AUTOSAVE (debounced PATCH /api/sprints/:id
+       {description}). The textarea follows the S32 bidi law (locale dir as typing
+       default + unicode-bidi: plaintext per line); the preview's fenced blocks render
+       as LTR .t-code islands with data-lang labels, identical to task-title code.
+       state: which sprint, its name/version chip, and the project title all live in
+       project-page.js (openSprintDoc). -->
+  <dialog id="pd-sprintdoc-modal" class="dialog pd-sd-full" aria-labelledby="pd-sd-title">
+    <div class="pd-sd" id="pd-sd">
+      <header class="pd-sd-head">
+        <div class="pd-sd-titlewrap">
+          <span class="pd-sd-diamond" aria-hidden="true">${icon('diamond')}</span>
+          <h3 id="pd-sd-title" dir="auto">${trL(lang, 'Sprint plan', 'برنامهٔ اسپرینت')}</h3>
+          <span class="chip pd-sd-ver" id="pd-sd-ver" dir="auto" hidden></span>
+          <span class="muted small pd-sd-project" id="pd-sd-project"></span>
+        </div>
+        <div class="row pd-sd-headactions">
+          <span class="muted small pd-sd-status" id="pd-sd-status" role="status" aria-live="polite"></span>
+          <div class="pd-tb pd-sd-tabs" role="group" aria-label="${trL(lang, 'Editor view', 'نمای ویرایشگر')}">
+            <button type="button" class="pd-tb-btn" id="pd-sd-tab-write" aria-pressed="true">${trL(lang, 'Write', 'نوشتن')}</button>
+            <button type="button" class="pd-tb-btn" id="pd-sd-tab-preview" aria-pressed="false">${trL(lang, 'Preview', 'پیش‌نمایش')}</button>
+          </div>
+          <button type="button" class="btn small" id="pd-sd-done">${trL(lang, 'Done', 'تمام')}</button>
+          <button type="button" class="ghost" id="pd-sd-close" aria-label="${trL(lang, 'Close', 'بستن')}">${icon('x')}</button>
+        </div>
+      </header>
+      <div class="pd-tb pd-sd-tb" role="toolbar" aria-label="${trL(lang, 'Formatting', 'قالب‌بندی')}">
+        <button type="button" class="pd-tb-btn" data-sb="h2" title="${trL(lang, 'Heading (##)', 'تیتر (##)')}" aria-label="${trL(lang, 'Heading', 'تیتر')}">H2</button>
+        <button type="button" class="pd-tb-btn" data-sb="h3" title="${trL(lang, 'Subheading (###)', 'تیتر فرعی (###)')}" aria-label="${trL(lang, 'Subheading', 'تیتر فرعی')}">H3</button>
+        <button type="button" class="pd-tb-btn" data-sb="bold" title="${trL(lang, 'Bold (**text**)', 'پررنگ (**متن**)')}" aria-label="${trL(lang, 'Bold', 'پررنگ')}"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 5h6a3.5 3.5 0 1 1 0 7H7zM7 12h7a3.5 3.5 0 1 1 0 7H7z"/></svg></button>
+        <button type="button" class="pd-tb-btn" data-sb="italic" title="${trL(lang, 'Italic (*text*)', 'کج (*متن*)')}" aria-label="${trL(lang, 'Italic', 'کج')}"><span class="pd-sd-ital" aria-hidden="true">I</span></button>
+        <button type="button" class="pd-tb-btn" data-sb="list" title="${trL(lang, 'Bullet list', 'بولت')}" aria-label="${trL(lang, 'Bullet list', 'بولت')}"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6h12M9 12h12M9 18h12"/><circle cx="4.5" cy="6" r="1.3" fill="currentColor"/><circle cx="4.5" cy="12" r="1.3" fill="currentColor"/><circle cx="4.5" cy="18" r="1.3" fill="currentColor"/></svg></button>
+        <button type="button" class="pd-tb-btn" data-sb="num" title="${trL(lang, 'Numbered list', 'لیست شماره‌دار')}" aria-label="${trL(lang, 'Numbered list', 'لیست شماره‌دار')}"><span aria-hidden="true">1.</span></button>
+        <button type="button" class="pd-tb-btn" data-sb="quote" title="${trL(lang, 'Quote (&gt; text)', 'نقل‌قول (&gt; متن)')}" aria-label="${trL(lang, 'Quote', 'نقل‌قول')}"><span class="pd-sd-quote" aria-hidden="true">❝</span></button>
+        <button type="button" class="pd-tb-btn" data-sb="inline" title="${trL(lang, 'Inline code (`code`)', 'کد درون‌خطی (`کد`)')}" aria-label="${trL(lang, 'Inline code', 'کد درون‌خطی')}"><code class="pd-sd-inlineg" aria-hidden="true">&lt;/&gt;</code></button>
+        <button type="button" class="pd-tb-btn pd-sd-codebtn" data-sb="code" title="${trL(lang, 'Code block (```…```) — the special place for code', 'بلوک کد (```…```) — جای مخصوص کد')}" aria-label="${trL(lang, 'Code block', 'بلوک کد')}"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m8 6-6 6 6 6M16 6l6 6-6 6"/></svg> ${trL(lang, 'Code', 'کد')}</button>
+        <button type="button" class="pd-tb-btn" data-sb="link" title="${trL(lang, 'Link [text](https://…)', 'پیوند [متن](https://…)')}" aria-label="${trL(lang, 'Link', 'پیوند')}"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M10 14a5 5 0 0 0 7 0l3-3a5 5 0 0 0-7-7l-1.2 1.2"/><path d="M14 10a5 5 0 0 0-7 0l-3 3a5 5 0 0 0 7 7l1.2-1.2"/></svg></button>
+        <button type="button" class="pd-tb-btn" data-sb="hr" title="${trL(lang, 'Divider (---)', 'جداکننده (---)')}" aria-label="${trL(lang, 'Divider', 'جداکننده')}"><span aria-hidden="true">—</span></button>
+      </div>
+      <div class="pd-sd-main" id="pd-sd-main" data-view="write">
+        <textarea id="pd-sd-text" dir="${lang === 'fa' ? 'rtl' : 'auto'}" autocomplete="off" spellcheck="true" aria-label="${trL(lang, 'Sprint plan text', 'متن برنامهٔ اسپرینت')}" placeholder="${trL(lang, 'Write the sprint plan… headings, lists, decisions — and code blocks for the code.', 'برنامهٔ اسپرینت را بنویس… تیتر، لیست، تصمیم — و بلوک کد برای کد.')}"></textarea>
+        <div class="pd-sd-preview" id="pd-sd-preview" dir="auto" aria-label="${trL(lang, 'Preview', 'پیش‌نمایش')}"></div>
+      </div>
+      <footer class="pd-sd-foot">
+        <span class="muted small pd-sd-kbd">${trL(lang, 'Ctrl+B bold · Ctrl+I italic · Tab indents inside code', 'Ctrl+B پررنگ · Ctrl+I کج · Tab تورفتگی داخل کد')}</span>
+        <span class="grow"></span>
+        <span class="muted small" id="pd-sd-count"></span>
+      </footer>
+    </div>
   </dialog>`
 }
 

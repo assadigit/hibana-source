@@ -713,3 +713,236 @@ button.pd-task-add {
    the .pd-task-meta muted treatment exactly like the date next to it; the colored
    dot (pulsing for urgent) carries the whole priority signal. */
 .pd-meta-prio { font-weight: 400; }
+
+/* --- S33 (user request 2026-09-13): «اسپرینت جدید» — the CTA + modal + the
+   FULL-SCREEN sprint editor ----------------------------------------------------
+   The board head's CTA is a SOLID teal button (the ghost links stay quiet next to
+   it). The new-sprint dialog mirrors the taskadd recipe (34rem). The sprint doc
+   editor is a true full-bleed dialog: 100vw × 100dvh, opaque --bg surface, a
+   sticky head + formatting toolbar (reusing .pd-tb), a write pane (centered
+   readable column) + live preview pane (≥75rem shows both side-by-side; below it
+   the Write/Preview tabs swap), and a footer with the autosave state + char count. */
+
+/* The CTA: SOLID teal (a PLAIN <button> — the app's .btn class in canvas.css is the
+   NEUTRAL card-colored button, and .ghost is transparent; neither reads "primary".
+   The plain button base carries --cta fill + white text + 600). Compact row sizing
+   to sit even with the ghost links beside it. */
+.pd-new-sprint {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.55rem 0.9rem;
+  font-size: var(--fs-md);
+  min-block-size: 2.75rem; /* match the ghost row's 44px touch floor */
+}
+.pd-new-sprint .icon { inline-size: 0.95rem; block-size: 0.95rem; }
+.pd-new-sprint:hover { box-shadow: 0 2px 10px rgb(74 159 163 / 0.35); }
+/* The modal's ENTER button — the flow's primary CTA (same solid recipe). */
+.pd-sprintnew-enter { display: inline-flex; align-items: center; gap: 0.4rem; }
+
+/* -- the new-sprint dialog ------------------------------------------------------ */
+/* Same specificity recipe as dialog.pd-taskadd-modal: `dialog.pd-sprintnew-modal`
+   (0,1,1) ties with components.css's `dialog.dialog` (0,1,1) and this file loads
+   later — the explicit inline-size wins over the 26rem cap. */
+dialog.pd-sprintnew-modal {
+  inline-size: min(36rem, 92vw);
+  max-inline-size: min(36rem, 92vw);
+  max-block-size: min(88vh, 44rem);
+}
+.pd-sprintnew-inner { padding: 1.25rem; display: grid; gap: 0.75rem; }
+.pd-sprintnew-fields { display: grid; gap: 0.75rem; }
+.pd-sprintnew-fields .pd-opt { display: grid; gap: 0.3rem; font-size: var(--fs-md); color: var(--text); }
+.pd-sprintnew-fields .pd-opt input,
+.pd-sprintnew-fields .pd-opt textarea { font: inherit; }
+#pd-sprintnew-desc {
+  font-size: var(--fs-md);
+  line-height: 1.6;
+  min-block-size: 7.5rem;
+  border-radius: var(--radius);
+  resize: vertical;
+}
+#pd-sprintnew-desc:focus-visible,
+#pd-sprintnew-name:focus-visible,
+#pd-sprintnew-version:focus-visible { border-color: var(--brand); outline: none; }
+.pd-sprintnew-actions { justify-content: flex-start; gap: 0.4rem; }
+/* the "created → enter" view */
+.pd-sprintnew-done { display: grid; gap: 0.6rem; padding-block: 0.4rem; }
+.pd-sprintnew-done-title { margin: 0; display: flex; align-items: center; gap: 0.45rem; font-size: var(--fs-xl); }
+.pd-sprintnew-check {
+  display: inline-grid;
+  place-items: center;
+  inline-size: 1.6rem;
+  block-size: 1.6rem;
+  border-radius: 999px;
+  background: var(--accent-soft, rgb(74 159 163 / 0.16));
+  color: var(--brand);
+  font-weight: 700;
+}
+.pd-sprintnew-done-name { margin: 0; font-size: var(--fs-lg); font-weight: 600; overflow-wrap: anywhere; }
+.pd-sprintnew-enter { flex: 0 1 auto; }
+
+/* -- the full-screen sprint editor ---------------------------------------------- */
+/* True full-bleed: ties with dialog.dialog then overrides every cap. 100dvh (with
+   the 100vh fallback) keeps mobile browser chrome honest. The ::backdrop dims the
+   page behind — the editor IS the surface now (no floating card). */
+dialog.pd-sd-full {
+  inline-size: 100vw;
+  max-inline-size: 100vw;
+  block-size: 100vh;
+  block-size: 100dvh;
+  max-block-size: 100vh;
+  max-block-size: 100dvh;
+  padding: 0;
+  border: 0;
+  background: var(--bg);
+  overflow: hidden;
+}
+dialog.pd-sd-full::backdrop { background: rgb(26 20 12 / 0.55); }
+.pd-sd {
+  display: flex;
+  flex-direction: column;
+  inline-size: 100vw;
+  block-size: 100vh;
+  block-size: 100dvh;
+  background: var(--bg);
+}
+.pd-sd-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+  padding: 0.6rem 1rem;
+  border-block-end: 1px solid var(--line);
+  background: var(--card);
+}
+.pd-sd-titlewrap { display: flex; align-items: center; gap: 0.5rem; min-inline-size: 0; flex-wrap: wrap; }
+.pd-sd-titlewrap h3 { margin: 0; font-size: var(--fs-lg); overflow-wrap: anywhere; }
+.pd-sd-diamond { display: inline-grid; place-items: center; color: var(--brand); }
+.pd-sd-diamond .icon { inline-size: 1rem; block-size: 1rem; }
+.pd-sd-ver {
+  font-family: var(--mono, ui-monospace, SFMono-Regular, Menlo, Consolas, monospace);
+  font-size: var(--fs-xs);
+  padding: 0.12rem 0.5rem;
+  background: var(--bg-soft);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  color: var(--text);
+  font-weight: 600;
+}
+.pd-sd-project { overflow-wrap: anywhere; }
+.pd-sd-headactions { display: flex; align-items: center; gap: 0.45rem; flex-wrap: wrap; }
+.pd-sd-status { min-inline-size: 4.5rem; text-align: center; }
+.pd-sd-status.pd-sd-err { color: var(--danger); }
+.pd-sd-tabs { margin-block: 0; }
+
+/* the formatting toolbar — .pd-tb/.pd-tb-btn carry the look; here: one scrollable
+   row that never wraps (11 buttons), hairline bottom edge, card surface. */
+.pd-sd-tb {
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  scrollbar-width: thin;
+  margin-block-end: 0;
+  padding: 0.4rem 1rem;
+  border-block-end: 1px solid var(--line);
+  background: var(--card);
+}
+.pd-sd-tb .pd-tb-btn { flex: none; }
+.pd-sd-codebtn { border-color: var(--brand); color: var(--text); } /* the special ask: code gets the brand edge */
+.pd-sd-ital { font-style: italic; font-family: Georgia, 'Times New Roman', serif; font-weight: 600; }
+.pd-sd-quote { font-family: Georgia, 'Times New Roman', serif; }
+.pd-sd-inlineg { font-family: var(--mono, ui-monospace, SFMono-Regular, Menlo, Consolas, monospace); font-size: var(--fs-xs); }
+
+/* the writing surface + preview. data-view drives the layout:
+   write  → ≥75rem: BOTH panes (editor | preview); below: editor only
+   preview → preview only (all widths). */
+.pd-sd-main { flex: 1 1 auto; display: flex; min-block-size: 0; }
+#pd-sd-text {
+  flex: 1 1 auto;
+  min-block-size: 0;
+  block-size: 100%;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-size: var(--fs-md);
+  line-height: 1.75;
+  padding: 1.4rem 1.2rem;
+  resize: none;
+  overflow-y: auto;
+  /* a readable centered column — long prose lines stay digestible at any width */
+  margin-inline: auto;
+  max-inline-size: 50rem;
+}
+#pd-sd-text:focus-visible { outline: none; }
+.pd-sd-preview {
+  display: none;
+  flex: 1 1 auto;
+  min-block-size: 0;
+  overflow-y: auto;
+  padding: 1.4rem 1.2rem;
+  margin-inline: auto;
+  max-inline-size: 50rem;
+  inline-size: 100%;
+  font-size: var(--fs-md);
+  line-height: 1.75;
+  color: var(--text);
+}
+.pd-sd-main[data-view='preview'] #pd-sd-text { display: none; }
+.pd-sd-main[data-view='preview'] .pd-sd-preview { display: block; }
+@media (min-width: 75rem) {
+  .pd-sd-main[data-view='write'] .pd-sd-preview {
+    display: block;
+    border-inline-start: 1px solid var(--line);
+    max-inline-size: none;
+    flex: 1 1 46%;
+  }
+  .pd-sd-main[data-view='write'] #pd-sd-text { max-inline-size: none; }
+}
+/* the preview's markdown typography (the .t-code island is already global above) */
+.pd-sd-preview p { margin: 0 0 0.7rem; }
+.pd-sd-preview h1, .pd-sd-preview h2, .pd-sd-preview h3 { margin: 1.1rem 0 0.5rem; line-height: 1.3; }
+.pd-sd-preview h1 { font-size: 1.35rem; }
+.pd-sd-preview h2 { font-size: 1.18rem; }
+.pd-sd-preview h3 { font-size: 1.04rem; }
+.pd-sd-preview ul, .pd-sd-preview ol { margin: 0 0 0.7rem; padding-inline-start: 1.4rem; }
+.pd-sd-preview li { margin-block: 0.2rem; }
+.pd-sd-preview blockquote {
+  margin: 0 0 0.7rem;
+  padding: 0.35rem 0.9rem;
+  border-inline-start: 3px solid var(--brand);
+  background: var(--bg-soft);
+  border-radius: var(--radius-sm);
+}
+.pd-sd-preview blockquote p { margin: 0; }
+.pd-sd-preview code {
+  font-family: var(--mono, ui-monospace, SFMono-Regular, Menlo, Consolas, monospace);
+  font-size: 0.85em;
+  background: var(--bg-soft);
+  border: 1px solid var(--line);
+  border-radius: 0.35em;
+  padding: 0.08em 0.35em;
+}
+.pd-sd-preview .t-code { margin-block: 0.45rem; } /* fenced blocks: the global .t-code recipe */
+.pd-sd-preview a { color: var(--link); text-underline-offset: 2px; }
+.pd-sd-preview hr { border: 0; border-block-start: 1px solid var(--line); margin: 1rem 0; }
+
+.pd-sd-foot {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+  padding: 0.45rem 1rem;
+  border-block-start: 1px solid var(--line);
+  background: var(--card);
+}
+/* ≤640px: the head folds (project name hides, status shrinks), toolbar keeps its
+   own scroll, footer hint hides — the writing surface keeps the space. */
+@media (max-width: 640px) {
+  .pd-sd-project, .pd-sd-kbd { display: none; }
+  .pd-sd-status { min-inline-size: 0; }
+  .pd-sd-head { padding: 0.5rem 0.7rem; }
+  .pd-sd-tb { padding: 0.35rem 0.7rem; }
+  #pd-sd-text, .pd-sd-preview { padding: 1rem 0.8rem; }
+}

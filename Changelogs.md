@@ -9,6 +9,68 @@
 > rewritten as a minimal pointer. Deleted files remain recoverable verbatim:
 > `git show <sha>:<file>`.
 
+## 1. Current state (v0.3.12.35 — Session 33: «اسپرینت جدید» — the sprint CTA + full-screen plan editor)
+- **(a) THE CTA (user, 2026-09-13: "in project's page add a button (CTA) with this text: اسپرینت جدید")**
+  — a SOLID teal button (plain `<button>` base: --cta fill, white text, 600 — the
+  app's `.btn` class is the NEUTRAL card button, `.ghost` the quiet one; neither
+  reads primary) first in the board head, 44px touch floor to sit even with the
+  ghost links beside it. Rightmost in RTL, leftmost in LTR.
+- **(b) THE MODAL** — #pd-sprintnew-modal: sprint name + version number
+  («شمارهٔ نسخه») + description box. Create POSTs a DRAFT (the 0034 rule untouched:
+  one draft per project, /start promotes). 409 draft_exists flips the SAME form into
+  edit-the-draft mode (prefill + PATCH, button relabels «به‌روزرسانی پیش‌نویس»).
+  The created view carries the big «ورود به اسپرینت» button. data-no-fa-digits on
+  the version input (hib-init's opt-out): version labels are code-like tokens
+  ("12.1") — Latin-form even while typing Farsi around them.
+- **(c) THE FULL-SCREEN EDITOR («ورود به اسپرینت» → #pd-sprintdoc-modal)** — a true
+  full-bleed dialog (100vw × 100dvh, opaque --bg, no floating card): head (sprint
+  name + version chip + project + autosave status + Write/Preview tabs + Done),
+  a rich-text toolbar (H2/H3 · bold · italic · bullet/numbered list · quote ·
+  inline code · CODE BLOCKS — the special ask: ``` fences on their own lines, the
+  caret parked on the first code line, language label via data-lang — · link ·
+  divider; Ctrl/Cmd+B/I shortcuts; Tab indents 2 spaces INSIDE fences), the writing
+  surface (centered 50rem column) + a live Markdown preview (client twin of
+  renderMarkdown: escape-first, fences → LTR .t-code islands, headings, grouped
+  ul/ol/blockquote, hr, paragraphs + soft breaks; links http(s) only) — ≥75rem
+  shows editor|preview side-by-side, below that the tabs swap; ≤640px the head
+  folds + the toolbar keeps its own horizontal scroll. AUTOSAVE: debounced 1.2s
+  PATCH /api/sprints/:id {description} (6s retry on failure); Esc/Done FLUSH the
+  pending save first and REFUSE to close while a save is failing (the doc never
+  silently loses edits); the char count uses FA digits.
+- **(d) CODE-DIGIT PROTECTION** — hib-init's Session-19 converter (typed Latin
+  digits → Persian when preceded by Farsi/space/nothing) would corrupt code
+  ("= 12" → "= ۱۲" inside a fence). The editor's input listener registers BEFORE
+  hib-init's DOMContentLoaded one (defer order) and stops immediate propagation
+  for keystrokes inside a ``` fence — prose OUTSIDE fences keeps the conversion.
+- **(e) THE DEEP LINK** — ?sprint=<id> opens the editor directly (unknown id →
+  toast, no editor); the sprint page's draft card grew a «برنامه» button linking
+  there. The bidi law covers the new surfaces (polish-batch.css): the modal inputs
+  + editor textarea get the per-line plaintext typing recipe, every preview block
+  resolves per its own first strong char, code stays LTR.
+- **(f) MIGRATION 0052 + API** — sprints.version (free text ≤40, renders as a
+  monospace chip) + sprints.description (the doc, ≤100k guard). POST /sprints
+  accepts both; PATCH edits the doc on drafts AND started sprints (the plan stays
+  writable for the sprint's whole lifetime — dates stay /start-only on drafts);
+  the project detail JSON carries both (the CTA's draft detection + the deep link
+  read it from the same truth fetch the filter bar uses).
+- Bumps: project-page.js v9→10, sprint-page.js v3→4, project-header.css v5→6
+  (19 shells), polish-batch.css v8→9 (19 shells), i18n-en/fa v12→13 + i18n.js
+  v69→70 (14 keys each; 1003→1017), sw v333→v334, package.json 0.3.12.35.
+- Tests: +5 vitest sprint-doc.test.ts (create round-trip; doc PATCH on draft+started
+  + date guard; zod 400s; rule-1 404; the 409 draft_id contract) + e2e
+  sprint-doc.spec.ts (CTA → modal → enter → full-bleed editor + toolbar code
+  blocks + live preview + autosave server-verified + deep link reopens + re-open
+  lands in edit-draft mode). Ladder: typecheck 0 · 353 vitest · 46 e2e · smoke ALL
+  PASS · i18n 1017/1017 · cache-bust PASS · bundle-size PASS · prod-errors PASS.
+- Browser-verified (FA light/dark + EN, 1280px + 390px): CTA solid/44px/rightmost
+  (geometry-checked), modal RTL-correct (computed dir rtl + start align), editor
+  full-bleed with side-by-side panes (fixed a media-query bug: min-inline-size →
+  min-width), H2/bold/code/link toolbar round-trips (fixed the vacuous-toggle bug
+  — a bare click on an empty line now inserts the prefix), digits Latin inside
+  fences + Persian in prose, autosave + Esc-flush persisted server-side, dark
+  mode clean. VLM false-positives (CTA "on the left", "empty pane") disproved by
+  geometry + computed styles + content transcription.
+
 ## 1. Current state (v0.3.12.34 — Session 32: the bidi GENERAL LAW + compact filter chips)
 - **(a) THE LAW (user, 2026-09-13): "GENERAL LAW: show RTL text RTL (when typing Farsi),
   show LTR text LTR (when writing Latin or AI translates it to Latin)"** — S31b's

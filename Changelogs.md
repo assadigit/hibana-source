@@ -9,7 +9,16 @@
 > rewritten as a minimal pointer. Deleted files remain recoverable verbatim:
 > `git show <sha>:<file>`.
 
-## 1. Current state (v0.3.12.38 — Session 36: S3 adapter goes provider-generic — the no-card alternative to R2)
+## 1. Current state (v0.3.12.38 — Session 37: doc-only — Agents.md codifies the "English always" chat rule; Session 36: S3 adapter provider-generic / B2 no-card)
+- **(S37 · doc-only · 2026-09-13) "ENGLISH ALWAYS" RULE IN AGENTS.MD** — Ali asked: "Always
+  speak english with me, add this to agents.md so you never forget." Codified in TWO places
+  in `Agents.md`: (1) a bold callout in the file header: "Agent↔owner language: English,
+  always. All chat, summaries, and explanations to Ali are in English — even if his message
+  is Persian. App UI copy stays FA+EN per the i18n rules below. (Added at Ali's request,
+  2026-09-13 — never revert.)"; (2) the FIRST bullet of Workflow rules: "Language: English
+  with Ali. Always. Regardless of the app's FA UI or the language he writes in, the agent's
+  replies are English. FA/EN applies to in-app copy only." No app code, no bundle, no
+  deploy, no cache-bust, no version bump (markdown isn't shipped) — commit only.
 - **(a) THE QUESTION (user, 2026-09-13: "for now i can't buy R2 from cloudflare. what are
   free alternatives")** — research-verified (web-search, sources below): **R2's free tier
   itself is card-gated** — Cloudflare requires a valid payment method on the account

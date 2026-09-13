@@ -5,6 +5,10 @@ Consolidated in v0.3.9.2 from `CLAUDE.md` + `rules.md` + session ground rules + 
 History/current state/ops/open items: `Changelogs.md`. Live credentials: `credentials.md`
 (gitignored, local-only — never committed, never zipped into chat).
 
+**Agent↔owner language: English, always.** All chat, summaries, and explanations to Ali are
+in English — even if his message is Persian. App UI copy stays FA+EN per the i18n rules
+below. (Added at Ali's request, 2026-09-13 — never revert.)
+
 ## What this is
 Personal project/idea tracker for Ali (solo UI/UX designer; runs Sedanama e-commerce; works
 12–16 h self-directed; directs AI coding agents; never reads or patches code himself).
@@ -59,6 +63,8 @@ a whiteboard note.
     data.
 
 ## Workflow rules
+- **Language: English with Ali. Always.** Regardless of the app's FA UI or the language he
+  writes in, the agent's replies are English. FA/EN applies to in-app copy only.
 - **Commit after every modification**: push to `assadigit/hibana-source` main; tag (`v0.x.y`)
   when user-facing. Format: `<area>: <change> — <one-line why>`.
 - **Never commit secrets.** `credentials.md`, `.secrets.env`, `.dev.vars`, `.admin.secrets`

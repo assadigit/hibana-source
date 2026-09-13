@@ -621,11 +621,17 @@ export function detailHtml(p: ProjectRow, d: Awaited<ReturnType<typeof loadDetai
 
   <!-- S33: the FULL-SCREEN sprint editor («ورود به اسپرینت» lands here). A true
        full-bleed dialog (100vw × 100dvh) with a rich-text toolbar (headings, bold,
-       italic, lists, quote, inline code, LINKS, and CODE BLOCKS — the special ask), a
-       live Markdown preview, and AUTOSAVE (debounced PATCH /api/sprints/:id
-       {description}). The textarea follows the S32 bidi law (locale dir as typing
-       default + unicode-bidi: plaintext per line); the preview's fenced blocks render
-       as LTR .t-code islands with data-lang labels, identical to task-title code.
+       italic, strike, bullet/numbered/TASK lists, quote, inline code, LINKS, IMAGES,
+       TABLES, dividers, and CODE BLOCKS — the special ask), a live Markdown preview,
+       and AUTOSAVE (debounced PATCH /api/sprints/:id {description}). S34 (user request
+       2026-09-13): PRIVATE COMMENTS — the «==text== %%note%%» toolbar button + Ctrl+M
+       wrap any span of the doc with an author-only note (rationale reminders); the
+       preview renders the anchor amber with a hover/tap popover, and the foot toggle
+       hides them for a clean read. The task list's checkboxes TOGGLE from the preview
+       (each click writes [x]/[ ] back into the source + autosaves). The textarea
+       follows the S32 bidi law (locale dir as typing default + unicode-bidi:
+       plaintext per line); the preview's fenced blocks render as LTR .t-code islands
+       with data-lang labels, identical to task-title code.
        state: which sprint, its name/version chip, and the project title all live in
        project-page.js (openSprintDoc). -->
   <dialog id="pd-sprintdoc-modal" class="dialog pd-sd-full" aria-labelledby="pd-sd-title">
@@ -652,21 +658,32 @@ export function detailHtml(p: ProjectRow, d: Awaited<ReturnType<typeof loadDetai
         <button type="button" class="pd-tb-btn" data-sb="h3" title="${trL(lang, 'Subheading (###)', 'تیتر فرعی (###)')}" aria-label="${trL(lang, 'Subheading', 'تیتر فرعی')}">H3</button>
         <button type="button" class="pd-tb-btn" data-sb="bold" title="${trL(lang, 'Bold (**text**)', 'پررنگ (**متن**)')}" aria-label="${trL(lang, 'Bold', 'پررنگ')}"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 5h6a3.5 3.5 0 1 1 0 7H7zM7 12h7a3.5 3.5 0 1 1 0 7H7z"/></svg></button>
         <button type="button" class="pd-tb-btn" data-sb="italic" title="${trL(lang, 'Italic (*text*)', 'کج (*متن*)')}" aria-label="${trL(lang, 'Italic', 'کج')}"><span class="pd-sd-ital" aria-hidden="true">I</span></button>
+        <button type="button" class="pd-tb-btn" data-sb="strike" title="${trL(lang, 'Strikethrough (~~text~~)', 'خط‌خورده (~~متن~~)')}" aria-label="${trL(lang, 'Strikethrough', 'خط‌خورده')}"><span class="pd-sd-strike" aria-hidden="true">S</span></button>
         <button type="button" class="pd-tb-btn" data-sb="list" title="${trL(lang, 'Bullet list', 'بولت')}" aria-label="${trL(lang, 'Bullet list', 'بولت')}"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6h12M9 12h12M9 18h12"/><circle cx="4.5" cy="6" r="1.3" fill="currentColor"/><circle cx="4.5" cy="12" r="1.3" fill="currentColor"/><circle cx="4.5" cy="18" r="1.3" fill="currentColor"/></svg></button>
         <button type="button" class="pd-tb-btn" data-sb="num" title="${trL(lang, 'Numbered list', 'لیست شماره‌دار')}" aria-label="${trL(lang, 'Numbered list', 'لیست شماره‌دار')}"><span aria-hidden="true">1.</span></button>
+        <button type="button" class="pd-tb-btn" data-sb="task" title="${trL(lang, 'Task list (- [ ] task — clickable in preview)', 'لیست کار (- [ ] کار — در پیش‌نمایش تیک‌خورده)')}" aria-label="${trL(lang, 'Task list', 'لیست کار')}"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="4.5" y="4.5" width="15" height="15" rx="3"/><path d="m7.6 12.3 3 3 5.6-6.2"/></svg></button>
         <button type="button" class="pd-tb-btn" data-sb="quote" title="${trL(lang, 'Quote (&gt; text)', 'نقل‌قول (&gt; متن)')}" aria-label="${trL(lang, 'Quote', 'نقل‌قول')}"><span class="pd-sd-quote" aria-hidden="true">❝</span></button>
         <button type="button" class="pd-tb-btn" data-sb="inline" title="${trL(lang, 'Inline code (`code`)', 'کد درون‌خطی (`کد`)')}" aria-label="${trL(lang, 'Inline code', 'کد درون‌خطی')}"><code class="pd-sd-inlineg" aria-hidden="true">&lt;/&gt;</code></button>
         <button type="button" class="pd-tb-btn pd-sd-codebtn" data-sb="code" title="${trL(lang, 'Code block (```…```) — the special place for code', 'بلوک کد (```…```) — جای مخصوص کد')}" aria-label="${trL(lang, 'Code block', 'بلوک کد')}"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m8 6-6 6 6 6M16 6l6 6-6 6"/></svg> ${trL(lang, 'Code', 'کد')}</button>
         <button type="button" class="pd-tb-btn" data-sb="link" title="${trL(lang, 'Link [text](https://…)', 'پیوند [متن](https://…)')}" aria-label="${trL(lang, 'Link', 'پیوند')}"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M10 14a5 5 0 0 0 7 0l3-3a5 5 0 0 0-7-7l-1.2 1.2"/><path d="M14 10a5 5 0 0 0-7 0l-3 3a5 5 0 0 0 7 7l1.2-1.2"/></svg></button>
+        <button type="button" class="pd-tb-btn" data-sb="img" title="${trL(lang, 'Image ![alt](https://…)', 'تصویر ![توضیح](https://…)')}" aria-label="${trL(lang, 'Image', 'تصویر')}">${icon('image')}</button>
+        <button type="button" class="pd-tb-btn" data-sb="table" title="${trL(lang, 'Table (| col | col |)', 'جدول (| ستون | ستون |)')}" aria-label="${trL(lang, 'Table', 'جدول')}"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="5" width="17" height="14" rx="2"/><path d="M3.5 9.5h17M9.5 9.5V19M15 9.5V19"/></svg></button>
         <button type="button" class="pd-tb-btn" data-sb="hr" title="${trL(lang, 'Divider (---)', 'جداکننده (---)')}" aria-label="${trL(lang, 'Divider', 'جداکننده')}"><span aria-hidden="true">—</span></button>
+        <!-- S34 (user request 2026-09-13): PRIVATE COMMENTS — «==text== %%note%%» wraps any
+             part of the doc with a note only the author reads in preview (hover/tap the
+             amber anchor). The toggle in the foot hides them for a clean read. -->
+        <button type="button" class="pd-tb-btn pd-sd-notebtn" data-sb="note" title="${trL(lang, 'Comment (==text== %%note%%) — visible only to you', 'دیدگاه (==متن== %%یادداشت%%) — فقط خودت می‌بینی')}" aria-label="${trL(lang, 'Comment', 'دیدگاه')}">${icon('message')} ${trL(lang, 'Comment', 'دیدگاه')}</button>
       </div>
       <div class="pd-sd-main" id="pd-sd-main" data-view="write">
         <textarea id="pd-sd-text" dir="${lang === 'fa' ? 'rtl' : 'auto'}" autocomplete="off" spellcheck="true" aria-label="${trL(lang, 'Sprint plan text', 'متن برنامهٔ اسپرینت')}" placeholder="${trL(lang, 'Write the sprint plan… headings, lists, decisions — and code blocks for the code.', 'برنامهٔ اسپرینت را بنویس… تیتر، لیست، تصمیم — و بلوک کد برای کد.')}"></textarea>
         <div class="pd-sd-preview" id="pd-sd-preview" dir="auto" aria-label="${trL(lang, 'Preview', 'پیش‌نمایش')}"></div>
       </div>
       <footer class="pd-sd-foot">
-        <span class="muted small pd-sd-kbd">${trL(lang, 'Ctrl+B bold · Ctrl+I italic · Tab indents inside code', 'Ctrl+B پررنگ · Ctrl+I کج · Tab تورفتگی داخل کد')}</span>
+        <span class="muted small pd-sd-kbd">${trL(lang, 'Ctrl+B bold · Ctrl+I italic · Ctrl+M comment · Tab indents inside code', 'Ctrl+B پررنگ · Ctrl+I کج · Ctrl+M دیدگاه · Tab تورفتگی داخل کد')}</span>
         <span class="grow"></span>
+        <!-- S34: show/hide the doc's private comments (==…== %%…%%) + their count. Toggling
+             off gives the clean read — anchors render as plain text, notes vanish. -->
+        <button type="button" class="pd-tb-btn pd-sd-notesbtn" id="pd-sd-notes" aria-pressed="true" title="${trL(lang, 'Show or hide your private comments', 'نمایش/پنهان‌کردن دیدگاه‌های خصوصی')}" aria-label="${trL(lang, 'Toggle comments', 'دیدگاه‌ها')}">${icon('eye')} <span id="pd-sd-notes-label">${trL(lang, 'Comments', 'دیدگاه‌ها')}</span></button>
         <span class="muted small" id="pd-sd-count"></span>
       </footer>
     </div>

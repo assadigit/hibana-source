@@ -429,6 +429,11 @@ window.__hibanaDictFA = {
       'sprint.chars': 'نویسه', 'sprint.emptyPreview': 'هنوز چیزی برای پیش‌نمایش نیست.',
       'sprint.linkText': 'پیوند', 'sprint.plan': 'برنامه',
       'sprint.openDoc': 'بازکردن برنامهٔ اسپرینت — ویرایشگر تمام‌صفحه',
+      // S34: گزینه‌های جدید ویرایشگر — دیدگاه خصوصی، لیست کار، جدول، تصویر
+      'sprint.noteText': 'متن', 'sprint.notePh': 'دیدگاه…',
+      'sprint.notesLabel': 'دیدگاه‌ها', 'sprint.toggleTask': 'تغییر وضعیت کار',
+      'sprint.tColA': 'ستون الف', 'sprint.tColB': 'ستون ب', 'sprint.tRow': 'ردیف ۱',
+      'sprint.imgAlt': 'تصویر',
       'db.counts': '{n} از {m} انجام شد', 'db.addTask': 'افزودن کار', 'db.quickAdd': '+ کار',
       'db.newTask': 'کار جدید', 'db.editTask': 'ویرایش کار', 'db.title': 'عنوان',
       'db.titlePh': 'چه چیزی باید ساخته شود؟', 'db.status': 'وضعیت', 'db.priority': 'اولویت',

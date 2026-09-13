@@ -610,9 +610,11 @@ a.related-note,
 .feed-title,
 
 /* — S33 (user request 2026-09-13): the sprint plan editor's live preview — every
-     rendered block resolves per its own first strong char, code islands excluded — */
+     rendered block resolves per its own first strong char, code islands excluded.
+     S34 additions: table cells (th/td) and the private-comment anchor + popover
+     (==…== %%…%%) — a Latin rationale note inside a Farsi doc reads LTR. — */
 .pd-sd-preview,
-.pd-sd-preview :is(p, h1, h2, h3, h4, h5, h6, li, blockquote, dd, dt),
+.pd-sd-preview :is(p, h1, h2, h3, h4, h5, h6, li, blockquote, dd, dt, th, td, .sd-note, .sd-note-pop, .sd-note-txt),
 .toast-msg { unicode-bidi: plaintext; }
 
 /* — the TYPING side of the law (composers + editors + inline edits): the

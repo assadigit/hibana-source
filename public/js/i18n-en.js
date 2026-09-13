@@ -430,6 +430,11 @@ window.__hibanaDictEN = {
       'sprint.chars': 'chars', 'sprint.emptyPreview': 'Nothing to preview yet.',
       'sprint.linkText': 'link', 'sprint.plan': 'Plan',
       'sprint.openDoc': 'Open the sprint plan — the full-screen editor',
+      // S34: the editor's new options — private comments, tasks, tables, images
+      'sprint.noteText': 'text', 'sprint.notePh': 'comment…',
+      'sprint.notesLabel': 'comments', 'sprint.toggleTask': 'Toggle task',
+      'sprint.tColA': 'Column A', 'sprint.tColB': 'Column B', 'sprint.tRow': 'Row 1',
+      'sprint.imgAlt': 'image',
       'db.counts': '{n} of {m} done', 'db.addTask': 'Add task', 'db.quickAdd': '+ task',
       'db.newTask': 'New task', 'db.editTask': 'Edit task', 'db.title': 'Title',
       'db.titlePh': 'What needs to be built?', 'db.status': 'Status', 'db.priority': 'Priority',

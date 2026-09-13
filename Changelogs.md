@@ -9,6 +9,40 @@
 > rewritten as a minimal pointer. Deleted files remain recoverable verbatim:
 > `git show <sha>:<file>`.
 
+## 1. Current state (v0.3.12.36 — Session 34: sprint-editor private comments + tasks/tables/images/strike)
+- **(a) PRIVATE COMMENTS (user, 2026-09-13: "add option to add comment … to any part of
+  text i want which is only visible for myself … a reminder of rationale for why i am
+  doing this")** — the inline-comment syntax `==anchor== %%note%%` + its own
+  amber-edged toolbar button («دیدگاه» / Comment) + Ctrl/Cmd+M. With a selection the
+  selected text becomes the anchor; the note placeholder lands SELECTED so the next
+  keystroke types the rationale. The live preview renders the anchor as amber
+  dashed-underline text (soft amber tint); hover, keyboard focus, or a tap (the
+  .sd-note-open pin — touch has no hover) lifts a lock-glyph popover carrying the
+  note. The foot's eye toggle (#pd-sd-notes, live count in FA digits) switches the
+  CLEAN READ — anchors render as plain text, popovers vanish (#pd-sd.nonotes). The
+  syntax round-trips the doc verbatim (the note IS the author's own stored text —
+  server/API untouched, zero migrations); comments never render anywhere but the
+  author's own editor preview.
+- **(b) MORE EDITOR OPTIONS (the same request's first half)** — strikethrough (~~text~~
+  wrap + button), TASK lists (- [ ] via the toolbar button; the preview's checkboxes
+  are LIVE — each click writes [x]/[ ] back into the raw source line (data-sdl = the
+  raw line index) and autosaves), TABLES (button drops a localized 3-row skeleton,
+  first header cell selected; the renderer groups |-led line runs into
+  header/separator/body tables whose cells receive the inline marks + the bidi law),
+  and IMAGES (![alt](https://…) insert with the URL placeholder selected; preview
+  renders lazy, capped, rounded .sd-img).
+- **(c) BIDI LAW** — the preview's plaintext list extended with th/td (table cells) +
+  .sd-note/.sd-note-pop/.sd-note-txt (a Latin rationale inside a Farsi doc reads LTR).
+- New icons: 'message' (the comment button) + 'eye' (the notes toggle) in the shared
+  inline set.
+- Bumps: project-page.js v10→11, project-header.css v6→7 (19 shells),
+  polish-batch.css v9→10 (19 shells), i18n-en/fa v13→14 + i18n.js v70→71 (8 keys
+  each; 1017→1025), sw v334→v335, package.json 0.3.12.36.
+- Tests: e2e sprint-doc.spec.ts extended (strike/task/table/image inserts + the
+  comment round-trip + the popover + the clean-read toggle + the preview checkbox
+  writeback server-verified). Ladder: typecheck 0 · 353 vitest · 47 e2e · smoke ALL
+  PASS · i18n 1025/1025 · cache-bust PASS · bundle-size PASS · prod-errors PASS.
+
 ## 1. Current state (v0.3.12.35 — Session 33: «اسپرینت جدید» — the sprint CTA + full-screen plan editor)
 - **(a) THE CTA (user, 2026-09-13: "in project's page add a button (CTA) with this text: اسپرینت جدید")**
   — a SOLID teal button (plain `<button>` base: --cta fill, white text, 600 — the

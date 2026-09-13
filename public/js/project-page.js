@@ -977,62 +977,122 @@
         // MARKDOWN → HTML for the live preview (a client twin of src/lib/markdown.ts's
         // renderMarkdown + the task-title .t-code treatment): escape FIRST, then
         // line-level blocks (fences → LTR .t-code islands with data-lang labels,
-        // self-healing when unclosed; headings; grouped ul/ol/blockquote; hr; paragraphs)
-        // and inline marks (links http(s) only, bold, strike, italic, inline code).
+        // self-healing when unclosed; headings; grouped ul/ol/TASK lists; blockquote;
+        // TABLES (S34); hr; paragraphs) and inline marks (S34 private comments
+        // ==…== %%…%%, images, links http(s) only, bold, strike, italic, inline code).
+        // S34: the task list's checkboxes carry data-sdl (the RAW line index) so the
+        // preview click handler can toggle [ ]→[x] straight into the source.
         const pdSdInline = (t) => t
+          // PRIVATE COMMENTS (user request 2026-09-13: "add comments to any part of text
+          // i want which are only visible for myself — a reminder of rationale"):
+          // ==anchor== %%note%% → an amber dashed-underline anchor with a hover/tap
+          // popover. Runs FIRST so the anchor's + note's inner text still receives the
+          // inline marks below. Only ever rendered in THIS author's preview.
+          .replace(/==([^=\n]+)==\s*%%((?:[^%\n]|%(?!%))+)%%/g,
+            '<span class="sd-note" tabindex="0">$1<span class="sd-note-pop" role="note"><svg class="icon sd-note-lock" viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="10.5" width="14" height="9.5" rx="2"/><path d="M8 10.5V7.5a4 4 0 0 1 8 0v3"/></svg><span class="sd-note-txt">$2</span></span></span>')
+          // images before links — ![alt](url) would otherwise match the link pattern
+          .replace(/!\[([^\]]*)\]\((https?:[^)\s]+)\)/g, '<img class="sd-img" src="$2" alt="$1" loading="lazy">')
           .replace(/\[([^\]]+)\]\((https?:[^)\s]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>')
           .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
           .replace(/~~([^~]+)~~/g, '<del>$1</del>')
           .replace(/(^|[^*])\*([^*\n]+)\*(?!\*)/g, '$1<em>$2</em>')
           .replace(/`([^`]+)`/g, '<code>$1</code>')
+        // table rows: split on | (dropping the outer pipes), trim each cell
+        const pdSdCells = (row) => {
+          let t = row.trim()
+          if (t.startsWith('|')) t = t.slice(1)
+          if (t.endsWith('|')) t = t.slice(0, -1)
+          return t.split('|').map((c) => c.trim())
+        }
+        // the | --- | --- | separator row (optional colons)
+        const pdSdIsSep = (row) => {
+          const cells = pdSdCells(row)
+          return cells.length > 0 && cells.every((c) => /^:?-{3,}:?$/.test(c.replace(/\s/g, '')))
+        }
+        const pdSdTable = (rows) => {
+          const grid = rows.map(pdSdCells)
+          const hasSep = grid.length > 1 && pdSdIsSep(rows[1])
+          const head = hasSep ? grid[0] : null
+          const body = hasSep ? grid.slice(2) : grid
+          let html = '<table>'
+          if (head) html += '<thead><tr>' + head.map((c) => '<th>' + pdSdInline(c) + '</th>').join('') + '</tr></thead>'
+          if (body.length) html += '<tbody>' + body.map((r) => '<tr>' + r.map((c) => '<td>' + pdSdInline(c) + '</td>').join('') + '</tr>').join('') + '</tbody>'
+          return html + '</table>'
+        }
         const pdSdRender = (raw) => {
           const lines = pdEsc(String(raw ?? '')).split('\n')
           const out = []
           let inCode = false
-          let list = null // 'ul' | 'ol' | null
+          let list = null // 'ul' | 'ol' | 'tasks'
           let quote = false
           let para = []
-          const closeList = () => { if (list) { out.push('</' + list + '>'); list = null } }
+          const closeList = () => { if (list) { out.push(list === 'ol' ? '</ol>' : '</ul>'); list = null } }
           const closeQuote = () => { if (quote) { out.push('</blockquote>'); quote = false } }
           const flush = () => { closeList(); closeQuote(); if (para.length) { out.push('<p>' + para.join('<br>') + '</p>'); para = [] } }
-          for (const line of lines) {
+          let i = 0
+          while (i < lines.length) {
+            const line = lines[i]
             if (!inCode && /^\s*```/.test(line)) {
               flush()
               inCode = true
               const codeLang = line.trim().slice(3).trim()
               out.push('<code class="t-code"' + (codeLang ? ' data-lang="' + pdEsc(codeLang) + '"' : '') + ' dir="ltr">')
+              i++
               continue
             }
             if (inCode) {
               if (line.trim() === '```') { inCode = false; out.push('</code>') }
               else out.push(line) // verbatim (already escaped) — no inline transforms in code
+              i++
               continue
             }
             const t = line.trim()
-            if (t === '') { flush(); continue }
+            if (t === '') { flush(); i++; continue }
+            // S34 tables: a run of |-led lines renders as ONE table (header + separator
+            // + body). Unclosed/separatorless runs degrade to all-body rows.
+            if (/^\|/.test(t)) {
+              flush()
+              const tbl = []
+              while (i < lines.length && lines[i].trim() !== '' && /^\|/.test(lines[i].trim())) { tbl.push(lines[i]); i++ }
+              if (tbl.length) out.push(pdSdTable(tbl))
+              continue
+            }
             let m
-            if ((m = t.match(/^(#{1,3})\s+(.*)$/))) { flush(); out.push('<h' + m[1].length + '>' + pdSdInline(m[2]) + '</h' + m[1].length + '>'); continue }
-            if (/^---+$/.test(t)) { flush(); out.push('<hr>'); continue }
+            if ((m = t.match(/^(#{1,3})\s+(.*)$/))) { flush(); out.push('<h' + m[1].length + '>' + pdSdInline(m[2]) + '</h' + m[1].length + '>'); i++; continue }
+            if (/^---+$/.test(t)) { flush(); out.push('<hr>'); i++; continue }
             if ((m = t.match(/^&gt;\s?(.*)$/))) {
               closeList()
               if (!quote) { out.push('<blockquote>'); quote = true }
               out.push('<p>' + pdSdInline(m[1]) + '</p>')
+              i++
+              continue
+            }
+            // S34 task items BEFORE the plain bullet match (- [ ] also starts with "- ").
+            // data-sdl = the raw line index — the preview's checkbox toggle writes back.
+            if ((m = t.match(/^[-*]\s+\[([ xX])\]\s*(.*)$/))) {
+              closeQuote()
+              if (list !== 'tasks') { closeList(); out.push('<ul class="sd-tasklist">'); list = 'tasks' }
+              out.push('<li class="sd-task"><input type="checkbox" data-sdl="' + i + '"' + (m[1] === ' ' ? '' : ' checked') + ' aria-label="' + pdEsc(_t('sprint.toggleTask', 'Toggle task')) + '"><span class="sd-task-txt">' + pdSdInline(m[2]) + '</span></li>')
+              i++
               continue
             }
             if ((m = t.match(/^[-*]\s+(.*)$/))) {
               closeQuote()
               if (list !== 'ul') { closeList(); out.push('<ul>'); list = 'ul' }
               out.push('<li>' + pdSdInline(m[1]) + '</li>')
+              i++
               continue
             }
             if ((m = t.match(/^\d+\.\s+(.*)$/))) {
               closeQuote()
               if (list !== 'ol') { closeList(); out.push('<ol>'); list = 'ol' }
               out.push('<li>' + pdSdInline(m[1]) + '</li>')
+              i++
               continue
             }
             closeList(); closeQuote()
             para.push(pdSdInline(line))
+            i++
           }
           if (inCode) out.push('</code>') // self-healing: unclosed fence renders as code
           flush()
@@ -1042,6 +1102,13 @@
           const pv = document.getElementById('pd-sd-preview')
           if (!pv) return
           pv.innerHTML = v ? pdSdRender(v) : '<p class="muted">' + pdEsc(_t('sprint.emptyPreview', 'Nothing to preview yet.')) + '</p>'
+          // S34: the foot's comments toggle carries the live count of ==…== %%…%% pairs
+          const n = (String(v ?? '').match(/==[^=\n]+==\s*%%(?:[^%\n]|%(?!%))+%%/g) || []).length
+          const lb = document.getElementById('pd-sd-notes-label')
+          if (lb) {
+            const base = _t('sprint.notesLabel', 'comments')
+            lb.textContent = n > 0 ? base + ' (' + pdDig(String(n)) + ')' : base
+          }
         }
         const pdSdPaintCount = () => {
           const ta = document.getElementById('pd-sd-text')
@@ -1156,6 +1223,51 @@
             const t = document.getElementById('pd-sd-text')
             pdSdPaintPreview(t ? t.value : '')
             pdSdSetView('preview')
+            return
+          }
+          // S34: the foot's comments show/hide — off = the clean read (anchors render
+          // as plain text, popovers vanish); the state rides the #pd-sd.nonotes class.
+          const nb = e.target.closest('#pd-sd-notes')
+          if (nb) {
+            e.preventDefault()
+            const wrap = document.getElementById('pd-sd')
+            if (!wrap) return
+            const hidden = wrap.classList.toggle('nonotes')
+            nb.setAttribute('aria-pressed', hidden ? 'false' : 'true')
+            return
+          }
+          // S34: task checkboxes TOGGLE straight from the preview — data-sdl is the RAW
+          // line index, so the click writes [x]/[ ] back into the source + autosaves.
+          // (The browser toggles input.checked BEFORE dispatching this click.)
+          const cb = e.target.closest ? e.target.closest('.sd-task input[type="checkbox"]') : null
+          if (cb && pdSdModal()?.open) {
+            const ta = document.getElementById('pd-sd-text')
+            if (ta) {
+              const li = Number(cb.dataset.sdl)
+              const ls = ta.value.split('\n')
+              if (ls[li] && /^(\s*[-*]\s+)\[[ xX]\]/.test(ls[li])) {
+                ls[li] = ls[li].replace(/^(\s*[-*]\s+)\[[ xX]\]/, (m0, p1) => p1 + (cb.checked ? '[x]' : '[ ]'))
+                ta.value = ls.join('\n')
+                pdSdSchedule()
+                pdSdPaintCount()
+                pdSdPaintPreview(ta.value)
+              }
+            }
+            return
+          }
+          // S34: tap/click on a comment anchor PINS its popover (touch has no hover);
+          // a click anywhere else in the preview clears the pin.
+          const note = e.target.closest ? e.target.closest('.sd-note') : null
+          if (note) {
+            const was = note.classList.contains('sd-note-open')
+            const pv = document.getElementById('pd-sd-preview')
+            if (pv) pv.querySelectorAll('.sd-note-open').forEach((n) => n.classList.remove('sd-note-open'))
+            if (!was) note.classList.add('sd-note-open')
+            return
+          }
+          if (e.target.closest && e.target.closest('#pd-sd-preview')) {
+            const pv = document.getElementById('pd-sd-preview')
+            if (pv) pv.querySelectorAll('.sd-note-open').forEach((n) => n.classList.remove('sd-note-open'))
           }
         })
         // Esc on the editor dialog: flush the pending autosave BEFORE closing (the
@@ -1195,11 +1307,44 @@
           const v = ta.value
           const sel = v.slice(s, e)
           const after = () => { ta.focus(); pdSdSchedule(); pdSdPaintCount() }
-          if (kind === 'bold' || kind === 'italic' || kind === 'inline') {
-            const w = kind === 'bold' ? '**' : kind === 'italic' ? '*' : '`'
+          if (kind === 'bold' || kind === 'italic' || kind === 'strike' || kind === 'inline') {
+            const w = kind === 'bold' ? '**' : kind === 'italic' ? '*' : kind === 'strike' ? '~~' : '`'
             ta.setRangeText(w + sel + w, s, e, 'end')
             if (sel) ta.setSelectionRange(s + w.length, s + w.length + sel.length)
             else ta.setSelectionRange(s + w.length, s + w.length) // caret inside the pair
+            after()
+            return
+          }
+          // S34: PRIVATE COMMENT — ==selection== %%note%%; the note placeholder lands
+          // SELECTED so the very next keystroke types the rationale over it.
+          if (kind === 'note') {
+            const anchor = sel || _t('sprint.noteText', 'text')
+            const ph = _t('sprint.notePh', 'comment…')
+            ta.setRangeText('==' + anchor + '== %%' + ph + '%%', s, e, 'end')
+            const ns = s + anchor.length + 2 + 3 // first char of the note placeholder
+            ta.setSelectionRange(ns, ns + ph.length)
+            after()
+            return
+          }
+          // S34: image — selection becomes the alt text, the URL placeholder selected
+          if (kind === 'img') {
+            const alt = sel || _t('sprint.imgAlt', 'image')
+            ta.setRangeText('![' + alt + '](https://)', s, e, 'end')
+            const us = s + 2 + alt.length + 3 // 'h' of the https:// placeholder
+            ta.setSelectionRange(us, us + 8) // type to replace
+            after()
+            return
+          }
+          // S34: table skeleton — header + separator + one body row, first cell selected
+          if (kind === 'table') {
+            const pre = s === 0 || v[s - 1] === '\n' ? '' : '\n'
+            const post = e === v.length || v[e] === '\n' ? '' : '\n'
+            const cA = _t('sprint.tColA', 'Column A')
+            const cB = _t('sprint.tColB', 'Column B')
+            const row = _t('sprint.tRow', 'Row 1')
+            ta.setRangeText(pre + '| ' + cA + ' | ' + cB + ' |\n| --- | --- |\n| ' + row + ' |  |' + post, s, e, 'end')
+            const cs = s + pre.length + 2 // first header cell's text
+            ta.setSelectionRange(cs, cs + cA.length)
             after()
             return
           }
@@ -1227,27 +1372,30 @@
             after()
             return
           }
-          // line-prefix kinds: h2 / h3 / list / num / quote — operate on the whole
-          // selected line block; toggling strips the same prefix, and list/num
+          // line-prefix kinds: h2 / h3 / list / num / task / quote — operate on the whole
+          // selected line block; toggling strips the same prefix, and list/num/task
           // conversions replace whichever block prefix was there.
           const ls = v.lastIndexOf('\n', s - 1) + 1
           let le = v.indexOf('\n', Math.max(e, s))
           if (le === -1) le = v.length
           const block = v.slice(ls, le)
           const lines = block.split('\n')
-          const stripAny = (l) => l.replace(/^\s*(?:#{1,3}\s+|[-*]\s+|\d+\.\s+|>\s+)/, '')
+          // the task marker strips FIRST (a "- [ ] x" line would otherwise re-stack)
+          const stripAny = (l) => l.replace(/^\s*(?:#{1,3}\s+|[-*]\s+\[[ xX]\]\s*|[-*]\s+|\d+\.\s+|>\s+)/, '')
           // A bare click on an EMPTY field must INSERT the prefix (the vacuous toggle
           // check would read "already prefixed" and do nothing); blank SEPARATOR lines
           // inside a multi-line block stay blank (only the line the caret is on — or
           // was last on — receives the prefix when the block is otherwise empty).
           const loneEmpty = lines.length === 1 && lines[0].trim() === ''
           let out
-          if (kind === 'list' || kind === 'num') {
+          if (kind === 'list' || kind === 'num' || kind === 'task') {
             out = lines.map((l, i) => {
-              if (loneEmpty) return kind === 'list' ? '- ' : '1. '
+              if (loneEmpty) return kind === 'list' ? '- ' : kind === 'task' ? '- [ ] ' : '1. '
               const bare = stripAny(l)
               if (bare.trim() === '') return l
-              return kind === 'list' ? '- ' + bare : (i + 1) + '. ' + bare
+              if (kind === 'list') return '- ' + bare
+              if (kind === 'task') return '- [ ] ' + bare
+              return (i + 1) + '. ' + bare
             }).join('\n')
           } else {
             const p = kind === 'h2' ? '## ' : kind === 'h3' ? '### ' : '> '
@@ -1269,8 +1417,9 @@
           e.preventDefault()
           pdSdApply(document.getElementById('pd-sd-text'), btn.dataset.sb)
         })
-        // keyboard: Ctrl/Cmd+B / Ctrl/Cmd+I shortcuts; Tab indents (2 spaces) when the
-        // caret sits inside a ``` fence — the code-block writing experience.
+        // keyboard: Ctrl/Cmd+B / Ctrl/Cmd+I shortcuts; Ctrl/Cmd+M drops a PRIVATE
+        // COMMENT (the S34 ask); Tab indents (2 spaces) when the caret sits inside a
+        // ``` fence — the code-block writing experience.
         const pdSdInFence = (ta) => {
           const upto = ta.value.slice(0, ta.selectionStart)
           const fences = upto.split('\n').filter((l) => /^\s*```/.test(l)).length
@@ -1282,6 +1431,7 @@
           const mod = e.ctrlKey || e.metaKey
           if (mod && (e.key === 'b' || e.key === 'B')) { e.preventDefault(); pdSdApply(ta, 'bold'); return }
           if (mod && (e.key === 'i' || e.key === 'I')) { e.preventDefault(); pdSdApply(ta, 'italic'); return }
+          if (mod && (e.key === 'm' || e.key === 'M')) { e.preventDefault(); pdSdApply(ta, 'note'); return }
           if (e.key === 'Tab' && !e.shiftKey && pdSdInFence(ta)) {
             e.preventDefault()
             ta.setRangeText('  ', ta.selectionStart, ta.selectionEnd, 'end')

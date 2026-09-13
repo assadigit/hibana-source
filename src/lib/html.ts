@@ -99,6 +99,10 @@ export function icon(name: string, cls = 'icon'): string {
       case 'expand': return '<path d="M14 4.5h5.5V10M10 19.5H4.5V14M19.5 4.5 13 11M4.5 19.5 11 13"/>'
       case 'kanban': return '<rect x="3.5" y="4.5" width="17" height="15" rx="2"/><path d="M9.2 8v8M14.8 8v5"/>'
       case 'diamond': return '<path d="M12 3.5 20.5 12 12 20.5 3.5 12 12 3.5Z"/>'
+      // S34 (user request 2026-09-13): the sprint editor's private-comment toolbar
+      // button (speech bubble) + the preview's comments show/hide toggle (eye).
+      case 'message': return '<path d="M4 6a2.5 2.5 0 0 1 2.5-2.5h11A2.5 2.5 0 0 1 20 6v7a2.5 2.5 0 0 1-2.5 2.5H9.2L5 19v-3.5h1.5A2.5 2.5 0 0 1 4 13V6Z"/>'
+      case 'eye': return '<path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12Z"/><circle cx="12" cy="12" r="3"/>'
       default: return '<circle cx="12" cy="12" r="8.2"/>'
     }
   })()

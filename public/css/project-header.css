@@ -837,7 +837,8 @@ dialog.pd-sd-full::backdrop { background: rgb(26 20 12 / 0.55); }
 .pd-sd-tabs { margin-block: 0; }
 
 /* the formatting toolbar — .pd-tb/.pd-tb-btn carry the look; here: one scrollable
-   row that never wraps (11 buttons), hairline bottom edge, card surface. */
+   row that never wraps (15 buttons, S34: strike + task + table + image + comment),
+   hairline bottom edge, card surface. */
 .pd-sd-tb {
   flex-wrap: nowrap;
   overflow-x: auto;
@@ -849,8 +850,11 @@ dialog.pd-sd-full::backdrop { background: rgb(26 20 12 / 0.55); }
 }
 .pd-sd-tb .pd-tb-btn { flex: none; }
 .pd-sd-codebtn { border-color: var(--brand); color: var(--text); } /* the special ask: code gets the brand edge */
+/* S34: the COMMENT button gets the amber edge — private notes are their own semantic */
+.pd-sd-notebtn { border-color: #C9973B; color: var(--text); }
 .pd-sd-ital { font-style: italic; font-family: Georgia, 'Times New Roman', serif; font-weight: 600; }
 .pd-sd-quote { font-family: Georgia, 'Times New Roman', serif; }
+.pd-sd-strike { text-decoration: line-through; font-weight: 600; }
 .pd-sd-inlineg { font-family: var(--mono, ui-monospace, SFMono-Regular, Menlo, Consolas, monospace); font-size: var(--fs-xs); }
 
 /* the writing surface + preview. data-view drives the layout:
@@ -927,6 +931,102 @@ dialog.pd-sd-full::backdrop { background: rgb(26 20 12 / 0.55); }
 .pd-sd-preview .t-code { margin-block: 0.45rem; } /* fenced blocks: the global .t-code recipe */
 .pd-sd-preview a { color: var(--link); text-underline-offset: 2px; }
 .pd-sd-preview hr { border: 0; border-block-start: 1px solid var(--line); margin: 1rem 0; }
+
+/* — S34 (user request 2026-09-13): PRIVATE COMMENTS «==text== %%note%%» — visible
+   only to the author: the anchor reads as amber underlined text; hover, focus, or a
+   tap (the .sd-note-open pin — touch has no hover) lifts the note in a popover with
+   a lock glyph. #pd-sd.nonotes (the foot's eye toggle) is the CLEAN READ: anchors
+   render as plain text and the popovers vanish. — */
+.pd-sd-preview .sd-note {
+  position: relative;
+  border-block-end: 2px dashed #C9973B;
+  background: rgb(201 151 59 / 0.09);
+  border-start-start-radius: 0.2em;
+  border-start-end-radius: 0.2em;
+  cursor: help;
+  outline: none;
+}
+.pd-sd-preview .sd-note:focus-visible {
+  background: rgb(201 151 59 / 0.16);
+}
+.pd-sd-preview .sd-note-pop {
+  position: absolute;
+  inset-block-end: calc(100% + 0.45rem);
+  inset-inline-start: 0;
+  inline-size: max-content;
+  max-inline-size: min(22rem, 78vw);
+  display: flex;
+  align-items: flex-start;
+  gap: 0.4rem;
+  background: var(--card);
+  border: 1px solid #C9973B;
+  border-radius: var(--radius-sm);
+  box-shadow: 0 6px 24px rgb(26 20 12 / 0.18);
+  padding: 0.5rem 0.7rem;
+  font-size: var(--fs-sm);
+  line-height: 1.6;
+  color: var(--text);
+  z-index: 5;
+  visibility: hidden;
+  opacity: 0;
+  transition: opacity 0.12s ease, visibility 0.12s;
+  cursor: auto;
+}
+.pd-sd-preview .sd-note:hover .sd-note-pop,
+.pd-sd-preview .sd-note:focus-visible .sd-note-pop,
+.pd-sd-preview .sd-note:focus-within .sd-note-pop,
+.pd-sd-preview .sd-note.sd-note-open .sd-note-pop {
+  visibility: visible;
+  opacity: 1;
+}
+.sd-note-lock { flex: none; inline-size: 0.95rem; block-size: 0.95rem; margin-block-start: 0.2rem; color: #C9973B; }
+.sd-note-txt { overflow-wrap: anywhere; }
+/* the clean read: anchors neutral, popovers gone */
+#pd-sd.nonotes .sd-note-pop { display: none !important; }
+#pd-sd.nonotes .sd-note {
+  background: transparent;
+  border-block-end: 0;
+  cursor: inherit;
+}
+
+/* — S34: TASK LISTS — the checkboxes toggle straight from the preview (each click
+   writes [x]/[ ] back into the source and autosaves) — */
+.pd-sd-preview ul.sd-tasklist { list-style: none; padding-inline-start: 0.35rem; }
+.pd-sd-preview li.sd-task { display: flex; align-items: flex-start; gap: 0.5rem; }
+.pd-sd-preview li.sd-task input[type="checkbox"] {
+  flex: none;
+  inline-size: 1.05rem;
+  block-size: 1.05rem;
+  margin-block-start: 0.32rem;
+  accent-color: var(--brand);
+  cursor: pointer;
+}
+.pd-sd-preview li.sd-task .sd-task-txt { min-inline-size: 0; }
+
+/* — S34: TABLES + IMAGES — */
+.pd-sd-preview table {
+  border-collapse: collapse;
+  inline-size: 100%;
+  margin: 0 0 0.75rem;
+  font-size: 0.95em;
+}
+.pd-sd-preview th,
+.pd-sd-preview td {
+  border: 1px solid var(--line);
+  padding: 0.35rem 0.6rem;
+  text-align: start;
+}
+.pd-sd-preview th { background: var(--bg-soft); font-weight: 600; }
+.pd-sd-preview img.sd-img {
+  max-inline-size: 100%;
+  border-radius: var(--radius-sm);
+  margin-block: 0.45rem;
+  display: block;
+}
+
+/* the foot's comments show/hide toggle (S34) — reads as a toolbar chip */
+.pd-sd-notesbtn { margin-block: 0; }
+.pd-sd-notesbtn[aria-pressed="false"] { opacity: 0.6; }
 
 .pd-sd-foot {
   display: flex;

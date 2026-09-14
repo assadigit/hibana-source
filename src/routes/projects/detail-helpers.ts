@@ -570,6 +570,15 @@ export function detailHtml(p: ProjectRow, d: Awaited<ReturnType<typeof loadDetai
            priority. The chip mirrors the select (a live color preview) — plain <option>
            styling varies by browser, the chip is the guaranteed color signal. -->
       <div class="row pd-taskadd-opts">
+        <label class="pd-opt">${trL(lang, 'Status', 'وضعیت')}
+          <select id="pd-taskadd-status" class="pd-prio-select">
+            <option value="idea">${trL(lang, 'New Ideas', 'ایده‌های جدید')}</option>
+            <option value="bug">${trL(lang, 'Problems', 'مشکلات')}</option>
+            <option value="planned">${trL(lang, 'Upcoming Plan', 'برنامه آتی')}</option>
+            <option value="in_progress">${trL(lang, 'In Progress', 'در حال انجام')}</option>
+            <option value="done">${trL(lang, 'Done', 'انجام‌شده')}</option>
+          </select>
+        </label>
         <label class="pd-opt">${trL(lang, 'Priority', 'اولویت')}
           <span class="pd-prio-row">
             <select id="pd-taskadd-priority" class="pd-prio-select">
@@ -586,14 +595,19 @@ export function detailHtml(p: ProjectRow, d: Awaited<ReturnType<typeof loadDetai
           <span class="muted small">${trL(lang, 'Comma-separated — a chip per label', 'با کاما جدا کن — یک چیپ برای هر برچسب')}</span>
         </label>
       </div>
-      <!-- S46 (user request 2026-09-14): attach screenshots when defining a progress-box
-           task — e.g. a UI/UX bug picture pinned to the new item (0054 screenshots.task_id).
-           Files upload + pin AFTER the task POST succeeds (project-page.js submit). The
-           count span is the live "N attached" signal so the user knows what rides along. -->
+      <!-- S46.3 (owner mockup: "Screenshots Uploaded and shown in the same page. ability to
+           delete screenshot, or edit it's note"): screenshots now upload IMMEDIATELY on
+           pick (POST, no task_id yet) + render as inline thumbnails in #pd-taskadd-shots-grid
+           (each with a delete ✕ + a note-edit button). On submit they're pinned to the new
+           task (PATCH taskId); on cancel they're deleted (cleanup). project-page.js owns the
+           stagedShots[] state + the render/delete/edit-note/pin/cleanup lifecycle. -->
       <div class="pd-taskadd-shots">
         <input type="file" id="pd-taskadd-shots" accept="image/png,image/jpeg,image/webp,image/gif" multiple hidden>
-        <button type="button" class="ghost small" onclick="document.getElementById('pd-taskadd-shots').click()" title="${trL(lang, 'Attach a UI/UX screenshot — pinned to this item', 'افزودن اسکرین‌شات UI/UX — سنجاق شده به این قلم')}">${icon('image')} ${trL(lang, 'Attach screenshot', 'افزودن اسکرین‌شات')}</button>
-        <span class="muted small" id="pd-taskadd-shots-count"></span>
+        <div class="row" style="gap:.4rem;align-items:center;margin-top:.5rem">
+          <button type="button" class="ghost small" onclick="document.getElementById('pd-taskadd-shots').click()" title="${trL(lang, 'Attach a UI/UX screenshot — pinned to this item', 'افزودن اسکرین‌شات UI/UX — سنجاق شده به این قلم')}">${icon('image')} ${trL(lang, 'Attach screenshot', 'افزودن اسکرین‌شات')}</button>
+          <span class="muted small" id="pd-taskadd-shots-count"></span>
+        </div>
+        <div class="pd-taskadd-shots-grid" id="pd-taskadd-shots-grid"></div>
       </div>
       <div class="row spread">
         <span class="muted small">${trL(lang, 'Unlimited length · newlines kept', 'بدون محدودیت طول · خطوط حفظ می‌شوند')}</span>

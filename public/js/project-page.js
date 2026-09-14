@@ -68,12 +68,81 @@
           if (files.length) upload(files)
         })
         // S46: live "N attached" count on the task composer's screenshot picker
-        ctx.on('change', (e) => {
+        // S46.3: now uploads IMMEDIATELY on pick (POST, no task_id) + renders inline
+        // thumbnails in #pd-taskadd-shots-grid (each with delete ✕ + edit-note). The
+        // shots stay unattached until the task is saved (then PATCHed to pin) OR the
+        // modal is cancelled (then DELETEd for cleanup).
+        ctx.on('change', async (e) => {
           if (e.target?.id !== 'pd-taskadd-shots') return
-          const cnt = document.getElementById('pd-taskadd-shots-count')
-          if (!cnt) return
-          const n = (e.target.files || []).length
-          cnt.textContent = n ? _t('project.shotsAttached', '{n} attached').replace('{n}', String(n)) : ''
+          const files = [...(e.target.files || [])].filter((f) => f.type.startsWith('image/'))
+          e.target.value = ''
+          if (!files.length) return
+          let ok = 0, fail = 0
+          for (const file of files) {
+            try {
+              const b64 = await new Promise((resolve, reject) => {
+                const r = new FileReader()
+                r.onload = () => resolve(String(r.result).split(',')[1])
+                r.onerror = reject
+                r.readAsDataURL(file)
+              })
+              const upRes = await fetch('/api/projects/' + id + '/screenshots', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ fileName: file.name, mimeType: file.type, dataBase64: b64, caption: '' }),
+              })
+              if (!upRes.ok) throw new Error('status ' + upRes.status)
+              const shot = await upRes.json().catch(() => ({}))
+              if (shot.id) { stagedShots.push({ id: shot.id, fileName: file.name, caption: '' }); ok++ }
+              else throw new Error('no id')
+            } catch { fail++ }
+          }
+          renderTaskAddShots()
+          if (ok && !fail) window.hibana?.toast(_t('project.shotUploaded', 'Screenshot uploaded'), 'info')
+          else if (fail && !ok) window.hibana?.toast(_t('project.shotFailed', 'Upload failed'), 'err')
+          else if (fail) window.hibana?.toast(String(ok) + ' ok, ' + String(fail) + ' failed', 'err')
+        })
+        // S46.3: delegated handlers on the staged-shot grid — zoom / delete / edit-note
+        ctx.on('click', async (e) => {
+          const zoom = e.target.closest('[data-staged-zoom]')
+          if (zoom) {
+            const img = zoom.querySelector('img')
+            if (img) openShotLightbox(img.src)
+            return
+          }
+          const del = e.target.closest('[data-staged-del]')
+          if (del) {
+            const sid = del.getAttribute('data-staged-del')
+            try { await fetch('/api/screenshots/' + sid, { method: 'DELETE' }) } catch { /* best-effort */ }
+            stagedShots = stagedShots.filter((s) => s.id !== sid)
+            renderTaskAddShots()
+            return
+          }
+          const note = e.target.closest('[data-staged-note]')
+          if (note) {
+            const sid = note.getAttribute('data-staged-note')
+            const s = stagedShots.find((x) => x.id === sid)
+            // reuse makeDialog for a small note editor
+            const { dlg, body } = makeDialog(_t('project.shotNoteTitle', 'Note — what & where to work'), 'pd-tashot-title')
+            const escXml = (v) => String(v || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+            body.innerHTML =
+              '<textarea class="pd-shot-note-ta" rows="6" maxlength="1000" dir="auto" data-no-fa-digits="" placeholder="' + escXml(_t('project.shotNotePh', 'What is broken & where — the exact spot to work on…')) + '">' + escXml(s?.caption || '') + '</textarea>' +
+              '<div class="pd-shot-note-actions"><button type="button" class="ghost small" data-tashot-cancel>' + _t('common.cancel', 'Cancel') + '</button><button type="button" class="btn small" data-tashot-save>' + _t('common.save', 'Save') + '</button></div>'
+            const ta2 = body.querySelector('.pd-shot-note-ta')
+            body.querySelector('[data-tashot-cancel]').addEventListener('click', () => dlg.close())
+            body.querySelector('[data-tashot-save]').addEventListener('click', async () => {
+              const cap = ta2.value.trim()
+              try {
+                await patchShot(sid, { caption: cap })
+                if (s) s.caption = cap
+                renderTaskAddShots()
+                dlg.close()
+              } catch { window.hibana?.toast(_t('sparks.saveFailed', "Couldn't save"), 'err') }
+            })
+            dlg.showModal()
+            setTimeout(() => ta2.focus(), 0)
+            return
+          }
         })
         ctx.on('dragover', (e) => e.preventDefault())
         ctx.on('dragenter', (e) => e.preventDefault())
@@ -1956,6 +2025,40 @@
         // #project-body, so nothing can be cached at mount time.
         const taskAddEl = () => document.getElementById('pd-taskadd-modal')
         let taskAddStatus = null
+        // S46.3: staged screenshots — uploaded immediately on pick (POST, no task_id),
+        // rendered as inline thumbnails in #pd-taskadd-shots-grid. Pinned to the new
+        // task on submit (PATCH taskId); deleted on cancel/close (cleanup). Each entry:
+        // { id, fileName, caption }.
+        let stagedShots = []
+        const renderTaskAddShots = () => {
+          const grid = document.getElementById('pd-taskadd-shots-grid')
+          const cnt = document.getElementById('pd-taskadd-shots-count')
+          if (cnt) cnt.textContent = stagedShots.length ? _t('project.shotsAttached', '{n} attached').replace('{n}', String(stagedShots.length)) : ''
+          if (!grid) return
+          if (!stagedShots.length) { grid.innerHTML = ''; return }
+          const esc = (s) => String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
+          grid.innerHTML = stagedShots.map((s) =>
+            '<figure class="shot-card pd-staged-shot" data-staged="' + esc(s.id) + '">' +
+              '<button type="button" class="shot-img-btn" data-staged-zoom="' + esc(s.id) + '"><img src="/api/media/screenshots/' + esc(s.id) + '/file" alt="" loading="lazy"></button>' +
+              '<figcaption class="shot-body">' +
+                (s.caption ? '<p class="shot-note muted small" dir="auto">' + esc(s.caption) + '</p>' : '') +
+                '<div class="row spread shot-actions">' +
+                  '<button type="button" class="ghost small" data-staged-note="' + esc(s.id) + '" title="' + _t('notes.editNote', 'Edit note') + '">' + _t('notes.editNote', 'Edit note') + '</button>' +
+                  '<button type="button" class="ghost small danger" data-staged-del="' + esc(s.id) + '" title="' + _t('common.delete', 'Delete') + '" aria-label="' + _t('common.delete', 'Delete') + '">✕</button>' +
+                '</div>' +
+              '</figcaption>' +
+            '</figure>'
+          ).join('')
+        }
+        const cleanupStagedShots = async () => {
+          // S46.3: on cancel/close, delete every staged (unattached) screenshot so they
+          // don't orphan in the project's gallery. Best-effort — silent on per-shot failure.
+          for (const s of [...stagedShots]) {
+            try { await fetch('/api/screenshots/' + s.id, { method: 'DELETE' }) } catch { /* leave it — gallery can clean later */ }
+          }
+          stagedShots = []
+          renderTaskAddShots()
+        }
         ctx.on('click', (e) => {
           const btn = e.target.closest('[data-pd-add]')
           if (!btn) return
@@ -1965,12 +2068,19 @@
           if (!m || !ta) return
           taskAddStatus = btn.dataset.pdAdd || null
           ta.value = ''
+          stagedShots = []
+          renderTaskAddShots()
           // S29 follow-up: reset the priority dropdown (+ its preview chip) and the
           // labels input — every open starts clean at Medium.
           const prioSel = document.getElementById('pd-taskadd-priority')
           if (prioSel) { prioSel.value = 'medium'; pdSyncPrioChip('pd-taskadd-prio-chip', 'medium') }
           const tagsIn = document.getElementById('pd-taskadd-tags')
           if (tagsIn) tagsIn.value = ''
+          // S46.3: the Status dropdown defaults to the clicked column (taskAddStatus) +
+          // the "Lands in" chip mirrors it. The user can change the dropdown to land the
+          // task in a different column than the one whose + they clicked.
+          const statusSel = document.getElementById('pd-taskadd-status')
+          if (statusSel && taskAddStatus) statusSel.value = taskAddStatus
           const err = document.getElementById('pd-taskadd-error')
           if (err) { err.hidden = true; err.textContent = '' }
           const chip = document.getElementById('pd-taskadd-col-chip')
@@ -1981,12 +2091,32 @@
           m.showModal()
           setTimeout(() => ta.focus(), 10)
         })
+        // S46.3: the Status dropdown updates the "Lands in" chip live (so the user sees
+        // which column the task will land in before they save).
+        ctx.on('change', (e) => {
+          if (e.target?.id !== 'pd-taskadd-status') return
+          const chip = document.getElementById('pd-taskadd-col-chip')
+          if (!chip) return
+          const label = document.querySelector(`.pd-col[data-status="${e.target.value}"] .pd-col-title`)
+          chip.textContent = label ? label.textContent.trim() : (e.target.value || '')
+        })
         // ✕ / لغو — Esc is native dialog cancel, no handler needed
-        ctx.on('click', (e) => {
+        ctx.on('click', async (e) => {
           if (e.target.closest('#pd-taskadd-close') || e.target.closest('#pd-taskadd-cancel')) {
             const m = taskAddEl()
-            if (m && m.open) m.close()
+            if (m && m.open) {
+              // S46.3: cleanup any staged (unattached) screenshots so they don't orphan
+              await cleanupStagedShots()
+              m.close()
+            }
           }
+        })
+        // S46.3: Esc (native dialog cancel) ALSO needs cleanup — listen for the 'close'
+        // event so both the ✕/لغو click + the Esc key clean up staged shots.
+        document.addEventListener('close', (e) => {
+          const d = e.target
+          if (!(d instanceof Element) || d.id !== 'pd-taskadd-modal') return
+          if (stagedShots.length) cleanupStagedShots()
         })
         // S29 follow-up: the priority selects' live color chips (add composer + inline
         // editor) — delegated because both dialogs re-render with every htmx swap.
@@ -2103,52 +2233,40 @@
             // S29 follow-up: the composer's priority dropdown + labels ride the create
             // POST (find-or-create + link server-side) — the task lands in its box
             // already prioritized and labeled, then auto-sorts into place.
+            // S46.3: the Status dropdown (#pd-taskadd-status) lets the user land the task
+            // in a DIFFERENT column than the one whose + they clicked. Defaults to the
+            // clicked column (taskAddStatus) but the user can change it in the modal.
             const prioSel = document.getElementById('pd-taskadd-priority')
             const priority = prioSel ? prioSel.value : 'medium'
+            const statusSel = document.getElementById('pd-taskadd-status')
+            const finalStatus = (statusSel && statusSel.value) || taskAddStatus
             const tagNames = pdParseTags((document.getElementById('pd-taskadd-tags') || {}).value || '')
             const res = await fetch(`/api/projects/${id}/devtasks`, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ title, status: taskAddStatus, priority, tags: tagNames }),
+              body: JSON.stringify({ title, status: finalStatus, priority, tags: tagNames }),
             })
             if (!res.ok) throw new Error('add failed')
             const data = await res.json()
-            // S46 (user request 2026-09-14): if screenshots are staged on the composer
-            // (#pd-taskadd-shots), upload each + pin to the new task (0054). The
-            // upload POST returns { ok, id } (core.ts:407); the PATCH pins taskId.
-            // When shots ride along, bodyRefresh re-renders #project-body so the new
-            // task chip shows up with its 📌 pinned-shot badge (server-rendered truth);
-            // when no shots, insertTaskChip stays the smooth optimistic path.
-            const shotsInput = document.getElementById('pd-taskadd-shots')
-            const shotFiles = shotsInput ? [...shotsInput.files].filter((f) => f.type.startsWith('image/')) : []
-            if (shotFiles.length) {
-              for (const file of shotFiles) {
-                const b64 = await new Promise((resolve, reject) => {
-                  const r = new FileReader()
-                  r.onload = () => resolve(String(r.result).split(',')[1])
-                  r.onerror = reject
-                  r.readAsDataURL(file)
-                })
-                const upRes = await fetch(`/api/projects/${id}/screenshots`, {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({ fileName: file.name, mimeType: file.type, dataBase64: b64, caption: '' }),
-                })
-                if (upRes.ok) {
-                  const shot = await upRes.json().catch(() => ({}))
-                  if (shot.id) await patchShot(shot.id, { taskId: data.id })
-                }
+            // S46.3: the staged screenshots (already uploaded, unattached) are now PINNED
+            // to the new task (PATCH taskId via the 0054 link). Clear stagedShots BEFORE
+            // m.close() so the dialog's 'close' listener doesn't double-delete them.
+            if (stagedShots.length) {
+              for (const s of [...stagedShots]) {
+                try { await patchShot(s.id, { taskId: data.id }) } catch { /* per-shot pin failure — the shot stays in the gallery unattached */ }
               }
+              stagedShots = []
+              renderTaskAddShots()
               bodyRefresh()
             } else {
-              insertTaskChip(taskAddStatus, { id: data.id, title, priority, tags: (data.tags || []).map((tg) => ({ name: tg.name, color: tg.color })) })
+              insertTaskChip(finalStatus, { id: data.id, title, priority, tags: (data.tags || []).map((tg) => ({ name: tg.name, color: tg.color })) })
             }
             ta.value = ''
             const tagsClear = document.getElementById('pd-taskadd-tags')
             if (tagsClear) tagsClear.value = ''
-            if (shotsInput) shotsInput.value = ''
-            const shotsCount = document.getElementById('pd-taskadd-shots-count')
-            if (shotsCount) shotsCount.textContent = ''
+            // S46.3: stagedShots already cleared + grid re-rendered above (pin path);
+            // renderTaskAddShots keeps the count in sync. No separate file-input clear
+            // (the change handler already resets e.target.value after each pick).
             m.close()
             window.hibana?.toast(_t('db.taskAdded', 'Task added'))
           } catch {

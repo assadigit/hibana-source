@@ -126,7 +126,7 @@ const main = async () => {
 
   // 5) the SW rotated
   const sw = await (await fetch(`${URL_BASE}/sw.js`)).text()
-  check('sw version v347', sw.includes('hibana-v347'))
+  check('sw version v349', sw.includes('hibana-v349'))
 
   // 6) purge the probe user (cascade)
   await d1(`DELETE FROM users WHERE email = '${EMAIL}';`)

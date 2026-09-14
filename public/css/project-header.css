@@ -696,9 +696,20 @@ button.pd-task-add {
 .pd-taskadd-opts .pd-opt { flex: 1 1 16rem; display: grid; gap: 0.3rem; }
 /* S46 (user request 2026-09-14): the screenshot-attach row on the task composer —
    one file input (hidden) + a small ghost picker + a muted "N attached" count. */
-.pd-taskadd-shots { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
+.pd-taskadd-shots { display: flex; flex-direction: column; gap: 0.5rem; }
 .pd-taskadd-shots .ghost.small { font-size: var(--fs-xs); padding: 0.2rem 0.55rem; min-block-size: 0; }
 .pd-taskadd-shots #pd-taskadd-shots-count { font-size: var(--fs-xs); }
+/* S46.3: the inline thumbnail grid for staged screenshots in the task-add composer.
+   Reuses .shot-card (the screenshots-tab card styling) — each thumbnail has a zoom
+   button (img), an optional note line, + delete ✕ / edit-note actions. Compact
+   minmax so 2-3 fit per row in the modal. */
+.pd-taskadd-shots-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(8rem, 1fr)); gap: 0.5rem; margin-block-start: 0.3rem; }
+.pd-taskadd-shots-grid:empty { display: none; }
+.pd-taskadd-shots-grid .shot-card { margin: 0; }
+.pd-taskadd-shots-grid .shot-card img { inline-size: 100%; block-size: 6rem; object-fit: cover; }
+.pd-taskadd-shots-grid .shot-body { padding: 0.3rem; }
+.pd-taskadd-shots-grid .shot-actions { gap: 0.2rem; }
+.pd-taskadd-shots-grid .shot-actions .ghost.small { font-size: var(--fs-xs); padding: 0.1rem 0.4rem; min-block-size: 0; }
 .pd-opt input {
   font: inherit;
   font-size: var(--fs-md);

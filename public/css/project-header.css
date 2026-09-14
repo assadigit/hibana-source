@@ -685,6 +685,11 @@ button.pd-task-add {
 /* The composer's options row (priority + labels side by side, wrapping on mobile). */
 .pd-taskadd-opts { display: flex; gap: 1rem; flex-wrap: wrap; align-items: flex-start; }
 .pd-taskadd-opts .pd-opt { flex: 1 1 16rem; display: grid; gap: 0.3rem; }
+/* S46 (user request 2026-09-14): the screenshot-attach row on the task composer —
+   one file input (hidden) + a small ghost picker + a muted "N attached" count. */
+.pd-taskadd-shots { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
+.pd-taskadd-shots .ghost.small { font-size: var(--fs-xs); padding: 0.2rem 0.55rem; min-block-size: 0; }
+.pd-taskadd-shots #pd-taskadd-shots-count { font-size: var(--fs-xs); }
 .pd-opt input {
   font: inherit;
   font-size: var(--fs-md);
@@ -1094,6 +1099,30 @@ dialog.pd-pin-modal {
 .pd-pin-inner { padding: 1.1rem; display: grid; gap: 0.6rem; }
 .pd-pin-head h3 { margin: 0; }
 .pd-pin-body { display: grid; gap: 0.6rem; min-block-size: 0; }
+/* S46 (user request 2026-09-14): screenshot note modal (shotNoteForm → makeDialog).
+   Replaces the old 2-row inline textarea. Compact Save/Cancel (the owner said the
+   old buttons were too big) + a "create bug/idea from this screenshot" row that
+   turns the note into a tracked progress-box item with the shot pinned to it. */
+.pd-shot-note-ta {
+  width: 100%; box-sizing: border-box;
+  min-block-size: 8rem; resize: vertical;
+  font: inherit; font-size: var(--fs-md);
+  padding: 0.6rem; border: 1px solid var(--line); border-radius: var(--radius);
+  background: var(--bg); color: var(--text);
+}
+.pd-shot-note-actions { display: flex; gap: 0.4rem; justify-content: flex-end; }
+.pd-shot-note-actions .btn, .pd-shot-note-actions .ghost {
+  font-size: var(--fs-xs); padding: 0.2rem 0.6rem; min-block-size: 0;
+}
+.pd-shot-note-create {
+  display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;
+  margin-block-start: 0.4rem; padding-block-start: 0.6rem;
+  border-block-start: 1px dashed var(--line);
+}
+.pd-shot-note-create-btns { display: inline-flex; gap: 0.4rem; flex-wrap: wrap; }
+.pd-shot-note-create-btns .ghost {
+  font-size: var(--fs-xs); padding: 0.2rem 0.6rem; min-block-size: 0;
+}
 .pd-pin-search {
   font: inherit; padding: 0.45rem 0.6rem;
   border: 1px solid var(--line); border-radius: var(--radius-sm);

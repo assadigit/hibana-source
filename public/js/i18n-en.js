@@ -303,6 +303,7 @@ window.__hibanaDictEN = {
       'canvas.arrow': 'Arrow — drag from start to end',
       'canvas.width2': 'Thin pen', 'canvas.width4': 'Medium pen',
       'canvas.width7': 'Thick pen', 'canvas.width12': 'Very thick pen',
+      'canvas.penWidth': 'Pen width', 'canvas.penColor': 'Pen color',
       'canvas.undo': 'Undo', 'canvas.redo': 'Redo',
       'canvas.addImage': 'Add an image from a link (URL)', 'canvas.imagePrompt': 'Image URL — paste a link (flowchart, diagram, photo…)', 'canvas.imageFailed': "Couldn't load that image — check the link",
       // (k) 2026-09-06: image popover (input + Add) replaces prompt(); CORS-aware loader
@@ -415,6 +416,14 @@ window.__hibanaDictEN = {
       'project.shotUploaded': 'Screenshot uploaded', 'project.shotFailed': 'Upload failed',
       // S35: the screenshot problem cards
       'project.shotZoom': 'Screenshot', 'project.shotNotePh': 'What is broken & where — the exact spot to work on…',
+      // S46: screenshot-note modal + create-bug/idea-from-screenshot + task-composer shot-attach count
+      'project.shotNoteTitle': 'Note — what & where to work',
+      'project.shotNoteCreateHint': 'Turn this into a tracked item:',
+      'project.shotNoteCreateBug': 'Create problem', 'project.shotNoteCreateIdea': 'Create idea',
+      'project.shotNoteNeedText': 'Write what & where first',
+      'project.shotBugCreated': 'Problem added', 'project.shotIdeaCreated': 'Idea added',
+      'project.shotsAttached': '{n} attached',
+      'tags.label': 'Tags',
       'project.shotFixed': 'Marked fixed', 'project.shotReopened': 'Back to open', 'project.shotDelConfirm': 'Delete this screenshot?',
       // S39: note-card + pinning to progress-box items + the media gallery
       'project.shotPinPickerTitle': 'Stick this picture to a progress-box item',

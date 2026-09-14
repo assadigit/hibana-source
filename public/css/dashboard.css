@@ -678,6 +678,7 @@ main.shell-dash > section { margin-block-end: 2.9rem; }
    moved here from .dash-urgent-title (now a plain inline anchor). */
 .dash-urgent-main {
   unicode-bidi: plaintext;
+  text-align: start; /* S46: follow the plaintext paragraph direction so a WRAPPED Latin title's lines align LEFT (start of the LTR paragraph) instead of inheriting the page's RTL alignment — the user's "one Latin item reads RTL" report. The dot position is unchanged (it's a flex sibling, not text). */
   flex: 0 1 auto;
   min-inline-size: 0;
   overflow-wrap: anywhere;

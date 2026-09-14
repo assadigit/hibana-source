@@ -194,8 +194,13 @@ test('screenshot problem cards: note edit, resolve toggle, delete', async ({ pag
 
   // edit the note inline
   await card.locator('[data-shot-note]').click()
-  await card.locator('.shot-note-form textarea').fill('Fixed zone: the toolbar wraps instead of overlapping')
-  await card.locator('.shot-note-form button[type="submit"]').click()
+  // S46: the note editor is now a MODAL (was the inline .shot-note-form). The modal
+  // reuses makeDialog → dialog.pd-pin-modal, distinguished by its aria-labelledby.
+  const noteDlg = page.locator('dialog:has(#pd-shotnote-title)')
+  await expect(noteDlg).toBeVisible()
+  await noteDlg.locator('.pd-shot-note-ta').fill('Fixed zone: the toolbar wraps instead of overlapping')
+  await noteDlg.locator('[data-shot-note-save]').click()
+  await expect(noteDlg).not.toBeVisible()
   await expect(page.locator(`.shot-card[data-shot="${shotId}"] .shot-note`)).toContainText('toolbar wraps')
 
   // resolve it → the card flips

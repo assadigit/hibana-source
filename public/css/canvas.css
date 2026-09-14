@@ -396,6 +396,30 @@
 .width-pick button { padding: 0; } /* 40px target comes from the toolbar rule */
 .width-pick button.active { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
 .width-pick .dot { display: block; width: var(--dot-size, 8px); height: var(--dot-size, 8px); border-radius: 50%; background: currentColor; }
+/* S46 (user request 2026-09-14): pen widths + colors grouped behind a <details>
+   toggle so the toolbar stays compact (was 4 width buttons + 7 color buttons inline).
+   The summary shows the active selection; the list expands inline when open. */
+.tb-popover { display: inline-flex; align-items: center; position: relative; gap: 0; }
+.tb-pop-summary {
+  appearance: none; list-style: none; cursor: pointer;
+  display: inline-flex; align-items: center; justify-content: center;
+  min-block-size: 2.5rem; min-inline-size: 2.5rem; padding: 0;
+  border: 1px solid var(--line); border-radius: var(--radius-sm);
+  background: transparent; color: var(--text);
+  transition: border-color .15s ease, color .15s ease;
+}
+.tb-pop-summary::-webkit-details-marker, .tb-pop-summary::marker { display: none; content: ''; }
+.tb-popover[open] .tb-pop-summary { border-color: var(--accent); color: var(--accent); }
+.tb-pop-summary .tb-pop-dot { display: block; width: var(--dot-size, 8px); height: var(--dot-size, 8px); border-radius: 50%; background: currentColor; }
+.tb-pop-summary .tb-pop-swatch { display: block; inline-size: 1.15rem; block-size: 1.15rem; border-radius: 50%; border: 1px solid var(--line); box-shadow: inset 0 0 0 1px var(--bg); }
+.tb-pop-list {
+  display: inline-flex; align-items: center; gap: 0.4rem; flex-wrap: wrap;
+  padding: 0.3rem 0.45rem; margin-inline-start: 0.3rem;
+  background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-sm);
+  box-shadow: 0 4px 12px rgba(0,0,0,.14);
+}
+/* the popover list is hidden by <details> when closed; only show when open. */
+.tb-popover:not([open]) .tb-pop-list { display: none; }
 .canvas-toolbar button.arrow-on { cursor: crosshair; }
 /* Text-property cluster: only visible with the text tool / a selected text object
    (canvas.js toggles .text-props-on on the toolbar). */

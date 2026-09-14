@@ -88,6 +88,16 @@ body.rtl .hdr-date{margin-left:0;margin-right:8px}
 /* subbar-inner defined below */
 /* subbar: filter tags only, calendar is in user menu */
 .sadhana-wrap .subbar-inner{display:flex;align-items:center;gap:6px;padding:6px 22px;max-width:1440px;margin:0 auto;flex-wrap:wrap}
+/* S46 (user request 2026-09-14): the filter tags live behind a toggle so the subbar
+   doesn't crowd. The toggle is a chip-like summary; the count badge (#filterCount,
+   outside the toggle) still announces the active filter when closed. */
+.sadhana-wrap .filter-tags-toggle{display:inline-flex;flex-direction:column;gap:6px}
+.sadhana-wrap .filter-tags-summary{display:inline-flex;align-items:center;gap:6px;padding:4px 12px;border-radius:20px;font-size:11px;font-weight:600;cursor:pointer;border:1.5px solid var(--line);background:var(--bg-soft);color:var(--text);list-style:none;user-select:none;font-family:inherit;transition:all .2s}
+.sadhana-wrap .filter-tags-summary::-webkit-details-marker{display:none}
+.sadhana-wrap .filter-tags-summary:hover{border-color:var(--accent);color:var(--accent)}
+.sadhana-wrap .filter-tags-summary .ftag-summary-chev{font-size:9px;opacity:.7;transition:transform .2s}
+.sadhana-wrap .filter-tags-toggle[open] .filter-tags-summary .ftag-summary-chev{transform:rotate(180deg)}
+.sadhana-wrap .filter-tags-toggle[open] .filter-tags-summary{border-color:var(--accent);color:var(--accent)}
 .sadhana-wrap .filter-tags{display:flex;gap:5px;flex-wrap:wrap;flex:1}
 .sadhana-wrap .ftag{display:inline-flex;align-items:center;gap:4px;padding:4px 10px;border-radius:20px;font-size:11px;font-weight:500;cursor:pointer;border:1.5px solid transparent;transition:all .2s;user-select:none;font-family:inherit;background:none}
 /* Batch s (2026-09): "All tasks" chip is background-free — recognized by weight +

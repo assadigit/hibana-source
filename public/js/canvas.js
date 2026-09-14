@@ -2494,6 +2494,11 @@ window.hibanaCanvas = (() => {
         penWidth = parseFloat(b.dataset.width) || 4
         ui.toolbar.querySelectorAll('[data-width]').forEach((x) => x.classList.toggle('active', x === b))
         if (mode === 'pen' && !isTouch() && canvas.freeDrawingBrush) canvas.freeDrawingBrush.width = penWidth
+        // S46: keep the popover summary in sync + close the popover after a pick
+        const pop = b.closest('.tb-popover')
+        const sumDot = pop && pop.querySelector('.tb-pop-summary .tb-pop-dot')
+        if (sumDot) sumDot.style.setProperty('--dot-size', b.style.getPropertyValue('--dot-size') || '8px')
+        if (pop) pop.open = false
       })
     })
     ui.palette.querySelectorAll('[data-color]').forEach((b) => {
@@ -2503,6 +2508,11 @@ window.hibanaCanvas = (() => {
         ui.palette.querySelectorAll('[data-color]').forEach((x) => x.classList.toggle('active', x === b))
         // if the pen is already selected, the next stroke uses the newly picked color too
         if (mode === 'pen' && !isTouch() && canvas.freeDrawingBrush) canvas.freeDrawingBrush.color = color
+        // S46: keep the popover summary swatch in sync + close the popover after a pick
+        const pop = b.closest('.tb-popover')
+        const sumSw = pop && pop.querySelector('.tb-pop-summary .tb-pop-swatch')
+        if (sumSw) sumSw.style.background = color
+        if (pop) pop.open = false
       })
     })
     // Theme-follow for the default ink: re-apply black/white when the theme flips, until
@@ -2512,6 +2522,9 @@ window.hibanaCanvas = (() => {
       color = defaultInk()
       ui.palette.querySelectorAll('[data-color]').forEach((x) => x.classList.toggle('active', x.dataset.color === color))
       if (mode === 'pen' && !isTouch() && canvas.freeDrawingBrush) canvas.freeDrawingBrush.color = color
+      // S46: keep the palette popover summary swatch in sync with the theme-default ink
+      const sumSw = ui.palette.querySelector('.tb-pop-summary .tb-pop-swatch')
+      if (sumSw) sumSw.style.background = color
     }
     // Hollow shape strokes follow the theme TOO (2026-08-31 dark-mode fix): a hollow shape
     // bakes the theme ink at creation, so a mid-session flip to dark would leave near-black

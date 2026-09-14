@@ -67,6 +67,14 @@
           e.target.value = ''
           if (files.length) upload(files)
         })
+        // S46: live "N attached" count on the task composer's screenshot picker
+        ctx.on('change', (e) => {
+          if (e.target?.id !== 'pd-taskadd-shots') return
+          const cnt = document.getElementById('pd-taskadd-shots-count')
+          if (!cnt) return
+          const n = (e.target.files || []).length
+          cnt.textContent = n ? _t('project.shotsAttached', '{n} attached').replace('{n}', String(n)) : ''
+        })
         ctx.on('dragover', (e) => e.preventDefault())
         ctx.on('dragenter', (e) => e.preventDefault())
         ctx.on('drop', (e) => {
@@ -127,45 +135,75 @@
 
         const shotNoteForm = (figure) => {
           const noteEl = figure.querySelector('.shot-note')
-          if (!noteEl || figure.querySelector('.shot-note-form')) return
+          if (!noteEl) return
           const current = figure.dataset.note || noteEl.textContent.trim() || ''
           const isPlaceholder = !!noteEl.querySelector('.shot-note-empty')
-          const form = document.createElement('form')
-          form.className = 'row shot-note-form'
-          const ta = document.createElement('textarea')
-          ta.value = isPlaceholder ? '' : current
-          ta.rows = 2
-          ta.maxLength = 1000
-          ta.dir = 'auto'
-          ta.setAttribute('data-no-fa-digits', '')
-          ta.placeholder = _t('project.shotNotePh', 'What is broken & where — the exact spot to work on…')
-          const save = document.createElement('button')
-          save.type = 'submit'
-          save.className = 'btn small'
-          save.textContent = _t('common.save', 'Save')
-          const cancel = document.createElement('button')
-          cancel.type = 'button'
-          cancel.className = 'ghost small'
-          cancel.textContent = _t('common.cancel', 'Cancel')
-          cancel.onclick = () => { form.remove() }
-          form.appendChild(ta)
-          form.appendChild(save)
-          form.appendChild(cancel)
-          form.addEventListener('submit', async (ev) => {
-            ev.preventDefault()
+          const shotId = figure.dataset.shot
+          // S46 (user request 2026-09-14): the note editor is now a MODAL (was a tiny
+          // 2-row inline textarea — unusable for a real "what & where" note). Reuses
+          // makeDialog (the same shell as the pin picker). Also adds a "create bug/idea
+          // from this screenshot" path: the note text becomes a new dev_task title
+          // (status bug|idea) AND the screenshot is pinned to it via the 0054
+          // screenshots.task_id link — so it lands in the project progress box (مشکلات
+          // or ایده‌های جدید) with a 📌 badge + proof.
+          const { dlg, body } = makeDialog(_t('project.shotNoteTitle', 'Note — what & where to work'), 'pd-shotnote-title')
+          const escXml = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+          body.innerHTML =
+            '<textarea class="pd-shot-note-ta" rows="6" maxlength="1000" dir="auto" data-no-fa-digits="" placeholder="' + escXml(_t('project.shotNotePh', 'What is broken & where — the exact spot to work on…')) + '">' + (isPlaceholder ? '' : escXml(current)) + '</textarea>' +
+            '<div class="pd-shot-note-actions">' +
+              '<button type="button" class="ghost small" data-shot-note-cancel>' + escXml(_t('common.cancel', 'Cancel')) + '</button>' +
+              '<button type="button" class="btn small" data-shot-note-save>' + escXml(_t('common.save', 'Save')) + '</button>' +
+            '</div>' +
+            '<div class="pd-shot-note-create">' +
+              '<span class="muted small">' + escXml(_t('project.shotNoteCreateHint', 'Turn this into a tracked item:')) + '</span>' +
+              '<span class="pd-shot-note-create-btns">' +
+                '<button type="button" class="ghost small" data-shot-note-create="bug">' + escXml(_t('project.shotNoteCreateBug', 'Create problem')) + '</button>' +
+                '<button type="button" class="ghost small" data-shot-note-create="idea">' + escXml(_t('project.shotNoteCreateIdea', 'Create idea')) + '</button>' +
+              '</span>' +
+            '</div>'
+          const ta = body.querySelector('.pd-shot-note-ta')
+          const saveNote = async () => {
             try {
-              const res = await fetch('/api/screenshots/' + figure.dataset.shot, {
+              const res = await fetch('/api/screenshots/' + shotId, {
                 method: 'PATCH',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ caption: ta.value.trim() }),
               })
               if (!res.ok) throw new Error('status ' + res.status)
               figure.dataset.note = ta.value.trim()
+              dlg.close()
               shotsRefresh()
             } catch { window.hibana?.toast(_t('sparks.saveFailed', "Couldn't save"), 'err') }
+          }
+          const createFromShot = async (status) => {
+            const title = ta.value.trim()
+            if (!title) { window.hibana?.toast(_t('project.shotNoteNeedText', 'Write what & where first'), 'err'); ta.focus(); return }
+            try {
+              // 1. save the caption first (the screenshot carries the note regardless)
+              await patchShot(shotId, { caption: title })
+              // 2. create the dev_task (bug|idea) with the note as its title; bugs default
+              //    to high priority (a UI/UX problem worth tracking), ideas to medium
+              const res = await fetch('/api/projects/' + id + '/devtasks', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ title, status, priority: status === 'bug' ? 'high' : 'medium', tags: [] }),
+              })
+              if (!res.ok) throw new Error('add failed')
+              const data = await res.json()
+              // 3. pin THIS screenshot to the new task (0054 screenshots.task_id)
+              await patchShot(shotId, { taskId: data.id })
+              window.hibana?.toast(_t(status === 'bug' ? 'project.shotBugCreated' : 'project.shotIdeaCreated', status === 'bug' ? 'Problem added' : 'Idea added'), 'info')
+              dlg.close()
+              bodyRefresh()
+            } catch { window.hibana?.toast(_t('sparks.saveFailed', "Couldn't save"), 'err') }
+          }
+          body.querySelector('[data-shot-note-cancel]').addEventListener('click', () => dlg.close())
+          body.querySelector('[data-shot-note-save]').addEventListener('click', saveNote)
+          body.querySelectorAll('[data-shot-note-create]').forEach((b) => {
+            b.addEventListener('click', () => createFromShot(b.dataset.shotNoteCreate))
           })
-          noteEl.replaceWith(form)
-          ta.focus()
+          dlg.showModal()
+          setTimeout(() => ta.focus(), 0)
         }
 
         // --- S39: STICK a shot to a progress-box item (the user's exact ask: "a UI bug
@@ -1894,6 +1932,14 @@
           }
           const empty = document.querySelector('[data-pd-empty]')
           if (empty) empty.remove()
+          // S46 (user request 2026-09-14): inject the ⋯ menu + [data-magic] attrs
+          // into the freshly-added card NOW. Before this, a newly-added task showed
+          // NO ⋯ menu and NO magic-wand until a page refresh — injectPdTaskMenus was
+          // only wired to htmx swap/load events, and insertTaskChip builds the DOM
+          // directly (no swap fires). Idempotent: the :not([data-menu-ok]) guard in
+          // injectPdTaskMenus means only the new card (which lacks data-menu-ok) is
+          // touched; already-injected cards are skipped.
+          injectPdTaskMenus()
         }
 
         // --- Dev-task composer modal (user request 2026-09-15): the «افزودن» button in
@@ -2067,10 +2113,42 @@
             })
             if (!res.ok) throw new Error('add failed')
             const data = await res.json()
-            insertTaskChip(taskAddStatus, { id: data.id, title, priority, tags: (data.tags || []).map((tg) => ({ name: tg.name, color: tg.color })) })
+            // S46 (user request 2026-09-14): if screenshots are staged on the composer
+            // (#pd-taskadd-shots), upload each + pin to the new task (0054). The
+            // upload POST returns { ok, id } (core.ts:407); the PATCH pins taskId.
+            // When shots ride along, bodyRefresh re-renders #project-body so the new
+            // task chip shows up with its 📌 pinned-shot badge (server-rendered truth);
+            // when no shots, insertTaskChip stays the smooth optimistic path.
+            const shotsInput = document.getElementById('pd-taskadd-shots')
+            const shotFiles = shotsInput ? [...shotsInput.files].filter((f) => f.type.startsWith('image/')) : []
+            if (shotFiles.length) {
+              for (const file of shotFiles) {
+                const b64 = await new Promise((resolve, reject) => {
+                  const r = new FileReader()
+                  r.onload = () => resolve(String(r.result).split(',')[1])
+                  r.onerror = reject
+                  r.readAsDataURL(file)
+                })
+                const upRes = await fetch(`/api/projects/${id}/screenshots`, {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ fileName: file.name, mimeType: file.type, dataBase64: b64, caption: '' }),
+                })
+                if (upRes.ok) {
+                  const shot = await upRes.json().catch(() => ({}))
+                  if (shot.id) await patchShot(shot.id, { taskId: data.id })
+                }
+              }
+              bodyRefresh()
+            } else {
+              insertTaskChip(taskAddStatus, { id: data.id, title, priority, tags: (data.tags || []).map((tg) => ({ name: tg.name, color: tg.color })) })
+            }
             ta.value = ''
             const tagsClear = document.getElementById('pd-taskadd-tags')
             if (tagsClear) tagsClear.value = ''
+            if (shotsInput) shotsInput.value = ''
+            const shotsCount = document.getElementById('pd-taskadd-shots-count')
+            if (shotsCount) shotsCount.textContent = ''
             m.close()
             window.hibana?.toast(_t('db.taskAdded', 'Task added'))
           } catch {

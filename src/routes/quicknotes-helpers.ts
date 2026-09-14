@@ -262,7 +262,7 @@ export function notebookHtml(notes: QuickNote[], lang: Locale, composerMode: 'no
   // visiting when that choice changes. The `dashboard` flag still echoes through
   // hx-vals so htmx re-renders preserve the compact composer.
   const controlsHtml = `<details class="note-controls-toggle">
-      <summary aria-label="${t('View options', 'گزینه‌های نمایش')}" title="${t('View options', 'گزینه‌های نمایش')}">${icon('gear', 'icon')}</summary>
+      <summary aria-label="${t('View options', 'گزینه‌های نمایش')}" title="${t('View options', 'گزینه‌های نمایش')}">${icon('settings', 'icon')}</summary>
       <span class="row note-head-controls">
         <span class="note-size-seg" role="radiogroup" aria-label="${t('Note size', 'اندازه')}">
           <label for="ns-s">${t('Small', 'کوچک')}</label>

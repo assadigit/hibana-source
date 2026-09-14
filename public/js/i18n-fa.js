@@ -302,6 +302,7 @@ window.__hibanaDictFA = {
       'canvas.arrow': 'پیکان — از شروع تا پایان بکش',
       'canvas.width2': 'قلم نازک', 'canvas.width4': 'قلم متوسط',
       'canvas.width7': 'قلم ضخیم', 'canvas.width12': 'قلم خیلی ضخیم',
+      'canvas.penWidth': 'ضخامت قلم', 'canvas.penColor': 'رنگ قلم',
       'canvas.undo': 'بازگردانی', 'canvas.redo': 'از نو',
       'canvas.addImage': 'افزودن تصویر از لینک', 'canvas.imagePrompt': 'آدرس تصویر — لینک شکل/فلوچارت/عکس را جایگذاری کن', 'canvas.imageFailed': 'تصویر بارگذاری نشد — لینک را بررسی کن',
       // (k) 2026-09-06: image popover (input + Add) replaces prompt(); CORS-aware loader
@@ -414,6 +415,14 @@ window.__hibanaDictFA = {
       'project.shotUploaded': 'اسکرین‌شات آپلود شد', 'project.shotFailed': 'آپلود انجام نشد',
       // S35: the screenshot problem cards
       'project.shotZoom': 'اسکرین‌شات', 'project.shotNotePh': 'چه چیزی خراب است و کجا — دقیقاً همان‌جا که باید کار کنی…',
+      // S46: screenshot-note modal + create-bug/idea-from-screenshot + task-composer shot-attach count
+      'project.shotNoteTitle': 'یادداشت — چه چیزی و کجا',
+      'project.shotNoteCreateHint': 'از این اسکرین‌شات یک قلم بساز:',
+      'project.shotNoteCreateBug': 'ایجاد مشکل', 'project.shotNoteCreateIdea': 'ایجاد ایده',
+      'project.shotNoteNeedText': 'اول بنویس چه چیزی و کجا',
+      'project.shotBugCreated': 'مشکل اضافه شد', 'project.shotIdeaCreated': 'ایده اضافه شد',
+      'project.shotsAttached': '{n} تصویر پیوست',
+      'tags.label': 'برچسب‌ها',
       'project.shotFixed': 'درست‌شده علامت خورد', 'project.shotReopened': 'دوباره باز شد', 'project.shotDelConfirm': 'این اسکرین‌شات حذف شود؟',
       // S39: یادداشت روی کارت + سنجاق تصویر به قلم‌های جعبهٔ پیشرفت + نگارخانهٔ رسانه
       'project.shotPinPickerTitle': 'این تصویر را به یک قلم جعبهٔ پیشرفت سنجاق کن',

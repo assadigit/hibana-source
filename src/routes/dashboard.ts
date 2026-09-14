@@ -464,14 +464,19 @@ export function dashboardRoutes(cfg: Config) {
         : html``
 
       // S30 batch 3 (user request 2026-09-12): "urgent across projects" — the cross-
-      // project urgent+high FIRE STRIP. Renders right under the resume card (above the
-      // pref-ordered sections) ONLY when something is actually burning — quiet means
-      // invisible (it is an alert layer, not a content section, so no dash_show_* pref).
-      // Each row deep-links to the board with the task editor open (?task=).
+      // project urgent+high FIRE STRIP. S46 (user request 2026-09-14): the strip now
+      // renders right UNDER the projects section (was above all pref-ordered sections);
+      // if projects is hidden it falls back to right under the resume card. Still an
+      // alert layer — quiet means invisible (no dash_show_* pref; renders only when
+      // something is actually burning). Each row deep-links to the board (?task=).
       // S31 (user request 2026-09-13): the row <li> no longer carries prio-* — that
       // class fed the (now-scoped) .prio-* background rules and painted the whole row
       // SOLID RED (the "colors and backgrounds aren't very nice" report). The dot span
       // keeps the tier class + now gets a translated title (was the raw English word).
+      // S46 (user request 2026-09-14): dir="auto" on the title + project anchors so
+      // each row isolates its own direction — Latin titles read LTR, Farsi titles read
+      // RTL, per row (the S31b plaintext-paragraph fix handled the dot, but two Latin
+      // rows still split LTR/RTL because the row container inherited the page dir).
       const PRIO_TITLES: Record<string, [string, string]> = {
         urgent: ['Urgent', 'فوری'],
         high: ['High Priority', 'اولویت بالا'],
@@ -504,7 +509,24 @@ export function dashboardRoutes(cfg: Config) {
         : html``
 
       const sectionHtmls = renderOrder.map((id) => sections[id]())
-      const out: SafeHtml = sectionHtmls.length ? html`${resumeCard}${urgentStrip}${sectionHtmls}` : html`${resumeCard}${urgentStrip}<div class="dash-empty">${t('Nothing on your dashboard — enable a section in Settings → View options.', 'پیشخوان خالی است — یک بخش را در تنظیمات ← گزینه‌های نمایش روشن کن.')} <a href="/settings.html">${t('Open settings', 'باز کردن تنظیمات')}</a></div>`
+      // S46 (user request 2026-09-14): the urgent strip renders right AFTER the
+      // projects section (was above all pref-ordered sections). If projects is hidden
+      // (or absent from the user's dash_order), fall back to right after the resume
+      // card so the alert still surfaces when something is burning. The strip stays
+      // an alert layer — it only renders when urgentTasks.length > 0 (urgentStrip is
+      // empty-html otherwise, so inserting it is a no-op).
+      const projectsIdx = renderOrder.indexOf('projects')
+      const out: SafeHtml = sectionHtmls.length
+        ? (() => {
+            const parts: SafeHtml[] = [resumeCard]
+            if (projectsIdx === -1 && urgentTasks.length) parts.push(urgentStrip)
+            sectionHtmls.forEach((h, i) => {
+              parts.push(h)
+              if (i === projectsIdx && urgentTasks.length) parts.push(urgentStrip)
+            })
+            return html`${parts}`
+          })()
+        : html`${resumeCard}${urgentStrip}<div class="dash-empty">${t('Nothing on your dashboard — enable a section in Settings → View options.', 'پیشخوان خالی است — یک بخش را در تنظیمات ← گزینه‌های نمایش روشن کن.')} <a href="/settings.html">${t('Open settings', 'باز کردن تنظیمات')}</a></div>`
 
       return await etag(c, c.html(toString(out)))
     }

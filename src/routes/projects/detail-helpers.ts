@@ -586,6 +586,15 @@ export function detailHtml(p: ProjectRow, d: Awaited<ReturnType<typeof loadDetai
           <span class="muted small">${trL(lang, 'Comma-separated — a chip per label', 'با کاما جدا کن — یک چیپ برای هر برچسب')}</span>
         </label>
       </div>
+      <!-- S46 (user request 2026-09-14): attach screenshots when defining a progress-box
+           task — e.g. a UI/UX bug picture pinned to the new item (0054 screenshots.task_id).
+           Files upload + pin AFTER the task POST succeeds (project-page.js submit). The
+           count span is the live "N attached" signal so the user knows what rides along. -->
+      <div class="pd-taskadd-shots">
+        <input type="file" id="pd-taskadd-shots" accept="image/png,image/jpeg,image/webp,image/gif" multiple hidden>
+        <button type="button" class="ghost small" onclick="document.getElementById('pd-taskadd-shots').click()" title="${trL(lang, 'Attach a UI/UX screenshot — pinned to this item', 'افزودن اسکرین‌شات UI/UX — سنجاق شده به این قلم')}">${icon('image')} ${trL(lang, 'Attach screenshot', 'افزودن اسکرین‌شات')}</button>
+        <span class="muted small" id="pd-taskadd-shots-count"></span>
+      </div>
       <div class="row spread">
         <span class="muted small">${trL(lang, 'Unlimited length · newlines kept', 'بدون محدودیت طول · خطوط حفظ می‌شوند')}</span>
         <span class="muted small">${trL(lang, 'Enter adds · Shift+Enter new line · Esc closes', 'Enter برای افزودن · Shift+Enter خط جدید · Esc برای بستن')}</span>

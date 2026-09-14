@@ -9,7 +9,73 @@
 > rewritten as a minimal pointer. Deleted files remain recoverable verbatim:
 > `git show <sha>:<file>`.
 
-## 1. Current state (v0.3.12.47 — Session 45: THE CROWN-SURFACES OVERHAUL, batch B (sprints) shipped: the sprint page's INJECTED DOM translates at render time (the third-bite guard — «دسته‌بندی‌ها» finally renders on the FA page); mobile hierarchy FLIPPED — the timeline is the hero, categories drop below; FINISH is a compact outlined control (was a 264px red banner); the video-editing strip is finally VISIBLE (9px→20px); the sprint chip clears the 40px touch floor; the no-sprints lane is a rich empty state; batch A (projects): compact rail + «فعالیت اخیر» + user sort; S44: the owner's three bug reports fixed at the root; S43: FULL MOBILE RESPONSIVITY AUDIT + 200-control 40px touch floor; S42: dashboard stage-carousel handles OVER the strip; S41: Sparks MOBILE pass + folder EMOJI icons (0056); S40: Sparks page FULL AUDIT + TEXT ALIGNMENT (0055); S39: media GALLERY + screenshot pinning; S38: KV storage — never expires; S37: English-always chat rule)
+## 1. Current state (v0.3.12.48 — Session 46: the owner's 13-item refinement batch on top of S45's shipped crown work — (1) dashboard urgent rows: `text-align: start` on `.dash-urgent-main` so a WRAPPED Latin title's lines align LEFT (was inheriting the page RTL alignment → "one Latin item reads RTL"); (2) the urgent box moved UNDER پروژه‌ها (was above all sections; falls back to under the resume card if projects is hidden); (3) the note-controls-toggle icon → a real gear (new `'settings'` icon case in html.ts; the sun-burst `'gear'` stays for the doing stage); (4) sadhana filter-tags hidden behind a `<details>` toggle (the subbar stops crowding; `#filterCount` still announces the active filter); (5) projects FAB unified to a single `+` (the header «New project» button covers project creation — was two split fab-rows); (6) smaller project list titles (`.pc-title` 1.15→1rem); (7) canvas pen-widths + colors grouped behind `<details>` popovers (summary shows the active pick, list expands inline); (8) softer/smaller tag chips (bg 12%→7%, border 50%-softened, text 62%→55%); (9) screenshot empty-state spans the `.shot-grid` (grid-column 1/-1 — was squeezed into one 9rem cell, "compacted on the right" in Farsi); (10) screenshot note → MODAL (reuses `makeDialog`) + compact Save/Cancel + «create bug/idea from this screenshot» (note becomes a dev_task title, shot pinned via 0054); (11) smaller «آخرین تغییرات» tab (`.detail-tab` fs-lg→fs-sm) + history (fs-lg→fs-sm); (12) magic-wand + ⋯ menu now inject on freshly-added tasks (`injectPdTaskMenus()` in `insertTaskChip` — was swap-only, needed a refresh); (13) attach screenshots when defining a progress-box task (`#pd-taskadd-shots`; upload + pin via 0054 after the task POST). No schema change. S45: THE CROWN-SURFACES OVERHAUL, batch B (sprints) + batch A (projects); S44: the owner's three bug reports fixed at the root; S43: FULL MOBILE RESPONSIVITY AUDIT + 200-control 40px touch floor; S42: dashboard stage-carousel handles OVER the strip; S41: Sparks MOBILE pass + folder EMOJI icons (0056); S40: Sparks page FULL AUDIT + TEXT ALIGNMENT (0055); S39: media GALLERY + screenshot pinning; S38: KV storage — never expires; S37: English-always chat rule)
+- **(S46) THE 13-ITEM REFINEMENT BATCH (owner, 2026-09-14: 13 UI/UX fixes observed while
+  using the just-shipped S45 crown work).** All 13 are small, surgical, no schema change
+  (items 10 & 13 reuse the 0054 `screenshots.task_id → dev_tasks` pin). Grouped by area:
+  - **Dashboard (`src/routes/dashboard.ts` + `dashboard.css`)**: (1) the urgent fire strip's
+    Latin titles finally align LEFT when they wrap — `text-align: start` on
+    `.dash-urgent-main` follows the S31b plaintext paragraph direction (LTR for Latin,
+    RTL for Farsi). The earlier `dir="auto"` / `unicode-bidi: plaintext`-on-anchor
+    attempts broke the Farsi dot-position e2e pin (the dot is a flex sibling of the
+    anchor, so isolating the anchor removed the parent's first-strong-char signal);
+    `text-align: start` is the safe fix — the dot position is untouched. (2) the strip
+    renders right AFTER the projects section (was above all pref-ordered sections); if
+    projects is hidden it falls back to right after the resume card so the alert still
+    surfaces when something is burning.
+  - **Notebook (`quicknotes-helpers.ts` + `html.ts`)**: (3) the note-controls-toggle
+    summary now renders a real cog (new `'settings'` icon case — the old `'gear'`
+    sun-burst read as a sun/eye and hid the "view options" affordance; the doing-stage
+    `'gear'` is untouched per owner-held decision).
+  - **Sadhana / to-do-list (`sadhana.html` + `sadhana-board.css`)**: (4) the filter-tags
+    row is hidden behind a `<details>` toggle (summary = 🏷 Tags chip; chevrotates 180°
+    when open). The `#filterCount` span stays outside the toggle so the active filter
+    is still announced when closed. `buildFilterBar`/`setFilter` unchanged.
+  - **Projects list (`projects.html`)**: (5) the FAB is a SINGLE `+` (matches every
+    sibling page). The header «New project» primary button covers project creation;
+    was two split fab-rows (+ idea + + project) — inconsistent.
+  - **Project detail (`project-page.js` + `project-header.css` + `devboard.css` +
+    `layout.css` + `polish-ui.css` + `polish-batch.css` + `misc.css`)**: (6) project
+    list titles down a step (`.pc-title` 1.15→1rem). (8) tag chips softer/smaller (bg
+    12%→7%, border 50%-softened, text 62%→55%, padding tightened). (11) «آخرین تغییرات»
+    tab + history list both down a size (fs-lg→fs-sm). (12) `insertTaskChip` now calls
+    `injectPdTaskMenus()` at the end — freshly-added tasks get the ⋯ menu + the
+    `[data-magic]` wand attrs without a page refresh (was swap-only). (10) the
+    screenshot note editor is a MODAL (reuses `makeDialog`) with a 6-row autosize
+    textarea + compact Save/Cancel (`.pd-shot-note-ta` etc.); a «create bug/idea from
+    this screenshot» row turns the note into a new dev_task (status bug|idea, priority
+    high|medium) and pins the shot to it via the 0054 link — so it lands in the
+    Problems/Ideas box with a 📌 badge. (13) the task composer carries an
+    «افزودن اسکرین‌شات» file picker (`#pd-taskadd-shots`); on submit, each file uploads
+    + pins to the new task, then `bodyRefresh` re-renders the board with the pin badges.
+  - **Canvas (`canvas.html` + `canvas.css` + `canvas.js`)**: (7) pen-widths + colors
+    each collapse behind a `<details class="tb-popover">` — the summary shows the
+    active dot/swatch; the list expands inline when open. The width/color click
+    handlers now sync the summary + close the popover on pick (and `applyThemeInk`
+    keeps the swatch in sync on theme flip).
+  - **Screenshots (`core.ts` empty-state + `polish-ui.css`)**: (9) `.empty-state` gets
+    `grid-column: 1 / -1` — was squeezed into one 9rem cell of the `.shot-grid`
+    (`repeat(auto-fill, minmax(9rem,1fr))`) and read "compacted on the right" in Farsi.
+  - **i18n**: 11 new keys (FA+EN parity): `project.shotNoteTitle/CreateHint/CreateBug/
+    CreateIdea/NeedText/shotBugCreated/shotIdeaCreated/shotsAttached`, `tags.label`,
+    `canvas.penWidth/penColor`. i18n-en/fa v22→v23; i18n.js v78→v79 (injects fa v23).
+  - **Cache-bust**: SW `hibana-v345`→`v346`; ?v= bumped on EVERY referencing HTML page
+    for the 12 touched CSS/JS files (layout.css 8→9, polish-ui.css 3→4, misc.css 7→8,
+    project-header.css 11→12, canvas.css 4→5, sadhana-board.css 3→4, dashboard.css 9→10,
+    project-page.js 14→15, canvas.js 30→31, i18n-en.js 22→23, i18n-fa.js 22→23,
+    i18n.js 78→79). check-cache-bust CI gate PASS.
+  - **Specs updated for the intentional behavior change**: `e2e/media-gallery.spec.ts`
+    + `e2e/sprint-timeline.spec.ts` — the screenshot-note editor selectors moved from
+    the old inline `.shot-note-form` to the new modal (`dialog:has(#pd-shotnote-title)`
+    + `.pd-shot-note-ta` + `[data-shot-note-save]`).
+  - **Ladder**: typecheck 0 · vitest 394/394 · node --check on all touched JS ·
+    i18n parity 1090/1090 (+11) · cache-bust 12 files PASS · playwright e2e 79/79
+    (incl. viewport.spec 360/390/768/1024/1440 no-h-scroll on every page; analytics
+    urgent-strip Farsi-dot-right pin still green; screenshot-note modal flow pinned).
+  - **No schema change.** Items 10 & 13 reuse the existing 0054 `screenshots.task_id`
+    FK (S39) — the upload POST returns `{ ok, id }` (core.ts:407), the PATCH pins
+    `taskId`; both client-only, no server route or migration touched.
+
 - **(S45) CROWN SURFACES — BATCH B: THE SPRINT PAGE (owner: "Do batch B and C now.")**
   — grounded in the same fresh-clone audit; the S35 strip anatomy (startdot / clip /
   clip-fill / ticks / live-edge / enddot / chip stats) and every S44 contract (today

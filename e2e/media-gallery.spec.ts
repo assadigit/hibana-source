@@ -107,10 +107,13 @@ test('note card + pin flow: click-to-edit, stick to the Problems box, badge, unp
 
   // 1. THE NOTE: clicking the note AREA (not the pencil) opens the form — the S39 fix
   await card.locator('[data-shot-note-edit]').click()
-  const noteForm = card.locator('.shot-note-form textarea')
-  await expect(noteForm).toBeVisible()
-  await noteForm.fill('Cards overlap on the small board — the meta line wraps under the badge')
-  await card.locator('.shot-note-form button[type="submit"]').click()
+  // S46: the note editor is now a MODAL (was the inline .shot-note-form). The modal
+  // reuses makeDialog → dialog.pd-pin-modal, distinguished by its aria-labelledby.
+  const noteDlg = page.locator('dialog:has(#pd-shotnote-title)')
+  await expect(noteDlg).toBeVisible()
+  await noteDlg.locator('.pd-shot-note-ta').fill('Cards overlap on the small board — the meta line wraps under the badge')
+  await noteDlg.locator('[data-shot-note-save]').click()
+  await expect(noteDlg).not.toBeVisible()
   await expect(page.locator(`.shot-card[data-shot="${shotId}"] .shot-note`)).toContainText('Cards overlap')
 
   // 2. THE PIN: the pin button opens the picker, grouped by box, bug task listed

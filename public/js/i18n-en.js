@@ -457,6 +457,9 @@ window.__hibanaDictEN = {
       'pde.shotsAttach': 'Attach screenshot', 'pde.shotsAttachTitle': 'Attach a UI/UX screenshot — pinned to this item',
       'pde.shotsView': 'Pinned pictures', 'pde.shotsViewTitle': 'View pictures pinned to this item',
       'pde.shotsUploading': 'Uploading image…',
+      // S46.7: editor title + full-screen writing + add-note button (when no note)
+      'pde.title': 'Create a new task', 'pde.fullscreen': 'Full-screen writing',
+      'notes.addNote': 'Add note',
       // S30 (2026-09-12): the progress-box keys are GONE with the feature (user request).
       'pd.editor': 'Editor', 'pd.noteEditor': 'Note editor', 'pd.docEditor': 'Plan document editor',
       'pd.noteHint': 'Write your progress update — it saves to the Notes tab.',

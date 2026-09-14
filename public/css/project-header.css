@@ -514,11 +514,32 @@ dialog.pd-taskedit-modal {
 /* S46.2: shrink the «ویرایش» label (h3) — was the base h3 size; now a compact header. */
 #pde-title { font-size: var(--fs-md); font-weight: 600; margin: 0; }
 #pde-input {
-  min-block-size: 14rem;
+  min-block-size: 8rem;
   font-size: var(--fs-md);
-  line-height: 1.6;
+  line-height: 1.5;
   resize: vertical;
 }
+/* S46.7 (owner: "compact things so it doesn't need scroll"): the modal's inner padding
+   + the textarea's min-block-size shrunk so the whole form fits a typical viewport
+   without scrolling. The .modal grid gap + the row margins are already tight. */
+dialog.pd-taskedit-modal .modal { padding: 1.1rem; gap: 0.7rem; }
+/* S46.7 (owner: "add a button for full screen writing"): toggling .pde-fullscreen on the
+   dialog expands the textarea to fill the viewport + hides the other rows (status,
+   priority, labels, screenshots, error, delete/cancel/save) so the user can focus on
+   writing the task definition. Click the button again (or ✕) to exit. */
+dialog.pd-taskedit-modal.pde-fullscreen {
+  inline-size: 100vw; max-inline-size: 100vw;
+  max-block-size: 100vh; block-size: 100vh;
+  margin: 0; border-radius: 0;
+}
+dialog.pd-taskedit-modal.pde-fullscreen .modal { block-size: 100vh; padding: 1.5rem 2rem; gap: 0.8rem; }
+dialog.pd-taskedit-modal.pde-fullscreen #pde-input { min-block-size: calc(100vh - 8rem); }
+dialog.pd-taskedit-modal.pde-fullscreen .pd-tb,
+dialog.pd-taskedit-modal.pde-fullscreen .pd-taskadd-shots,
+dialog.pd-taskedit-modal.pde-fullscreen .pd-opt,
+dialog.pd-taskedit-modal.pde-fullscreen .error,
+dialog.pd-taskedit-modal.pde-fullscreen .row:has(#pde-status),
+dialog.pd-taskedit-modal.pde-fullscreen .row:has(#pde-delete) { display: none; }
 .pd-taskadd-col { display: flex; align-items: center; gap: 0.35rem; flex-wrap: wrap; }
 .pd-taskadd-col .chip { padding: 0.12rem 0.55rem; font-size: var(--fs-xs); }
 #pd-taskadd-error { margin: 0; }

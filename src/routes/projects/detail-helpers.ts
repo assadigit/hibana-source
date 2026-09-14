@@ -549,7 +549,7 @@ export function detailHtml(p: ProjectRow, d: Awaited<ReturnType<typeof loadDetai
   <dialog id="pd-taskadd-modal" class="dialog pd-taskadd-modal" aria-labelledby="pd-taskadd-title">
     <form class="modal pd-taskadd-inner" id="pd-taskadd-form" novalidate>
       <div class="row spread pd-editor-head">
-        <h3 id="pd-taskadd-title">${trL(lang, 'Add task', 'افزودن کار')}</h3>
+        <h3 id="pd-taskadd-title">${trL(lang, 'Create a new task', 'ایجاد یک کار جدید')}</h3>
         <button type="button" class="ghost" id="pd-taskadd-close" aria-label="${trL(lang, 'Close', 'بستن')}">${icon('x')}</button>
       </div>
       <div class="pd-taskadd-col muted small">${trL(lang, 'Lands in', 'ثبت در')} <span class="chip" id="pd-taskadd-col-chip"></span></div>

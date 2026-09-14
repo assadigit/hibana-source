@@ -2049,7 +2049,7 @@
               '<figcaption class="shot-body">' +
                 (s.caption ? '<p class="shot-note muted small" dir="auto">' + esc(s.caption) + '</p>' : '') +
                 '<div class="row spread shot-actions">' +
-                  '<button type="button" class="ghost small" data-staged-note="' + esc(s.id) + '" title="' + _t('notes.editNote', 'Edit note') + '">' + _t('notes.editNote', 'Edit note') + '</button>' +
+                  '<button type="button" class="ghost small" data-staged-note="' + esc(s.id) + '" title="' + (s.caption ? _t('notes.editNote', 'Edit note') : _t('notes.addNote', 'Add note')) + '">' + (s.caption ? _t('notes.editNote', 'Edit note') : _t('notes.addNote', 'Add note')) + '</button>' +
                   '<button type="button" class="ghost small danger" data-staged-del="' + esc(s.id) + '" title="' + _t('common.delete', 'Delete') + '" aria-label="' + _t('common.delete', 'Delete') + '">✕</button>' +
                 '</div>' +
               '</figcaption>' +
@@ -2128,7 +2128,6 @@
         // editor) — delegated because both dialogs re-render with every htmx swap.
         ctx.on('change', (e) => {
           if (e.target?.id === 'pd-taskadd-priority') pdSyncPrioChip('pd-taskadd-prio-chip', e.target.value)
-          else if (e.target?.id === 'pde-priority') pdSyncPrioChip('pde-prio-chip', e.target.value)
         })
         // Session 19 (user request): clicking a task card opens the inline edit modal
         // (no more redirect to board.html). The ⋯ menu's Edit button already does this;
@@ -2455,30 +2454,23 @@
             pdTaskEditDlg.className = 'dialog pd-taskedit-modal'
             pdTaskEditDlg.innerHTML =
               '<form class="modal" id="pde-form" novalidate>' +
-                '<div class="row spread"><h3 id="pde-title">' + _t('common.edit', 'Edit') + '</h3>' +
-                '<button type="button" class="ghost icon-btn" id="pde-close" aria-label="' + _t('common.close', 'Close') + '"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>' +
-                // Session 23 (user request): dir follows the UI locale — fa → rtl
-                // (dir="auto" let a Latin first char flip the whole editor to LTR while
-                // writing Farsi). Same recipe as the add composer.
-                '<label>' + _t('db.title', 'Title') + ' <textarea id="pde-input" rows="8" dir="' + (pdLang() === 'fa' ? 'rtl' : 'auto') + '" required></textarea></label>' +
-                // Session 23 (user request): formatting toolbar — Code block / Bold /
-                // Bullet (same wiring as the add composer's [data-tb] delegation).
+                '<div class="row spread"><h3 id="pde-title">' + _t('pde.title', 'Create a new task') + '</h3>' +
+                '<div class="row" style="gap:.25rem">' +
+                  '<button type="button" class="ghost icon-btn" id="pde-fullscreen" aria-label="' + _t('pde.fullscreen', 'Full-screen writing') + '" title="' + _t('pde.fullscreen', 'Full-screen writing') + '"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4h6M4 4v6M14 4h6M20 4v6M4 20v-6M4 20h6M20 20h-6M20 20v-6"/></svg></button>' +
+                  '<button type="button" class="ghost icon-btn" id="pde-close" aria-label="' + _t('common.close', 'Close') + '"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button>' +
+                '</div></div>' +
+                '<label>' + _t('db.title', 'Title') + ' <textarea id="pde-input" rows="5" dir="' + (pdLang() === 'fa' ? 'rtl' : 'auto') + '" required></textarea></label>' +
                 '<div class="pd-tb" role="toolbar" aria-label="' + _t('pd.fmtCode', 'Code block') + '"><button type="button" class="pd-tb-btn" data-tb="code" title="' + _t('pd.fmtCode', 'Code block') + '"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m8 6-6 6 6 6M16 6l6 6-6 6"/></svg> ' + _t('pd.fmtCode', 'Code block') + '</button><button type="button" class="pd-tb-btn" data-tb="bold" title="' + _t('pd.fmtBold', 'Bold') + '"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 5h6a3.5 3.5 0 1 1 0 7H7zM7 12h7a3.5 3.5 0 1 1 0 7H7z"/></svg> ' + _t('pd.fmtBold', 'Bold') + '</button><button type="button" class="pd-tb-btn" data-tb="list" title="' + _t('pd.fmtList', 'Bullet list') + '"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6h12M9 12h12M9 18h12"/><circle cx="4.5" cy="6" r="1.3" fill="currentColor"/><circle cx="4.5" cy="12" r="1.3" fill="currentColor"/><circle cx="4.5" cy="18" r="1.3" fill="currentColor"/></svg> ' + _t('pd.fmtList', 'Bullet list') + '</button></div>' +
-                '<div class="row" style="gap:1rem;margin-top:.5rem">' +
-                // Session 23 (user report: "when in Farsi locale it shows English drop
-                // down menu items"): _t('status.idea'|'prio.low'|…) keys never existed —
-                // the options fell back to raw English. Reuse the BOARD's translated
-                // keys (db.st.* / db.pr.*) so the dropdown matches the column names
-                // the user already sees (ایده‌های جدید / برنامه آتی / …).
+                '<div class="row" style="gap:1rem;margin-top:.4rem">' +
                   '<label style="flex:1">' + _t('db.status', 'Status') + ' <select id="pde-status">' +
                     [['idea','db.st.idea'],['planned','db.st.planned'],['in_progress','db.st.inprog'],['done','db.st.done'],['bug','db.st.bug']].map(function(pair){return '<option value="'+pair[0]+'">'+_t(pair[1], pair[0])+'</option>'}).join('') +
                   '</select></label>' +
-                  // S29 follow-up (user request 2026-09-12): color-coded priority options
-                  // (urgent → low, the owner's wording) + the live preview chip + a
-                  // labels row — the editor now round-trips priority + tags faithfully.
-                  '<label style="flex:1">' + _t('db.priority', 'Priority') + ' <span class="pd-prio-row"><select id="pde-priority" class="pd-prio-select">' +
+                  // S46.7 (owner: "remove the preview chip from defining task"): the
+                  // .pd-prio-chip live-color preview is GONE — the select alone is the
+                  // priority signal (the chip was redundant + crowded the row).
+                  '<label style="flex:1">' + _t('db.priority', 'Priority') + ' <select id="pde-priority" class="pd-prio-select">' +
                     [['urgent','pd.pr.urgent','Urgent'],['high','pd.pr.high','High Priority'],['medium','pd.pr.medium','Medium Priority'],['low','pd.pr.low','Low Priority']].map(function(trio){return '<option value="'+trio[0]+'" class="prio-'+trio[0]+'">'+_t(trio[1], trio[2])+'</option>'}).join('') +
-                  '</select><span class="pd-prio-chip" id="pde-prio-chip" aria-hidden="true"><span class="prio-dot prio-medium"></span><span class="pd-prio-chip-label"></span></span></span></label>' +
+                  '</select></label>' +
                 '</div>' +
                 '<label class="pd-opt" style="margin-top:.5rem">' + _t('pd.labels', 'Labels') +
                   ' <input id="pde-tags" dir="auto" autocomplete="off" maxlength="480" placeholder="' + _t('pd.labelsPh', 'e.g. UI/UX, Security') + '" aria-label="' + _t('pd.labels', 'Labels') + '" />' +
@@ -2520,10 +2512,23 @@
               '</form>'
             document.body.appendChild(pdTaskEditDlg)
             const close = () => pdTaskEditDlg.close()
-            pdTaskEditDlg.addEventListener('cancel', (e) => { e.preventDefault(); close() })
-            pdTaskEditDlg.addEventListener('click', (e) => { if (e.target === pdTaskEditDlg) close() })
-            pdTaskEditDlg.querySelector('#pde-close').addEventListener('click', close)
-            pdTaskEditDlg.querySelector('#pde-cancel').addEventListener('click', close)
+            // S46.7: in fullscreen mode, ✕/Cancel/Escape EXIT fullscreen first (not
+            // close the modal) — so the user doesn't lose their task definition.
+            const exitOrClose = () => {
+              if (pdTaskEditDlg.classList.contains('pde-fullscreen')) pdTaskEditDlg.classList.remove('pde-fullscreen')
+              else close()
+            }
+            pdTaskEditDlg.addEventListener('cancel', (e) => { e.preventDefault(); exitOrClose() })
+            pdTaskEditDlg.addEventListener('click', (e) => { if (e.target === pdTaskEditDlg) exitOrClose() })
+            pdTaskEditDlg.querySelector('#pde-close').addEventListener('click', exitOrClose)
+            pdTaskEditDlg.querySelector('#pde-cancel').addEventListener('click', exitOrClose)
+            // S46.7 (owner: "add a button for full screen writing to optimize focus"):
+            // toggles a .pde-fullscreen class on the dialog — CSS expands the textarea
+            // to fill the viewport + hides the other rows, so the user can focus on
+            // writing the task definition. Click again (or the ✕) to exit.
+            pdTaskEditDlg.querySelector('#pde-fullscreen').addEventListener('click', () => {
+              pdTaskEditDlg.classList.toggle('pde-fullscreen')
+            })
             // S46.4: screenshot upload + INLINE grid on the task editor. The file input
             // uploads each picked file + pins to this task (0054), showing the
             // «در حال اپلود تصویر ...» indicator during the upload. The inline grid
@@ -2735,7 +2740,6 @@
           // now they'd be reset too if not pre-filled).
           const prio = cardEl.dataset.pdPriority || 'medium'
           pdTaskEditDlg.querySelector('#pde-priority').value = prio
-          pdSyncPrioChip('pde-prio-chip', prio)
           let tagsVal = ''
           try {
             tagsVal = (JSON.parse(cardEl.dataset.pdTags || '[]') || []).map((tg) => tg.name).join(', ')
@@ -2782,7 +2786,7 @@
                 '<figcaption class="shot-body">' +
                   (s.caption ? '<p class="shot-note muted small" dir="auto">' + esc(s.caption) + '</p>' : '') +
                   '<div class="row spread shot-actions">' +
-                    '<button type="button" class="ghost small" data-pde-shot-note="' + esc(s.id) + '">' + _t('notes.editNote', 'Edit note') + '</button>' +
+                    '<button type="button" class="ghost small" data-pde-shot-note="' + esc(s.id) + '">' + (s.caption ? _t('notes.editNote', 'Edit note') : _t('notes.addNote', 'Add note')) + '</button>' +
                     '<button type="button" class="ghost small danger" data-pde-shot-del="' + esc(s.id) + '" title="' + _t('common.delete', 'Delete') + '" aria-label="' + _t('common.delete', 'Delete') + '">✕</button>' +
                   '</div>' +
                 '</figcaption>' +

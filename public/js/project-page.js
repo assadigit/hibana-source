@@ -77,6 +77,9 @@
           const files = [...(e.target.files || [])].filter((f) => f.type.startsWith('image/'))
           e.target.value = ''
           if (!files.length) return
+          // S46.4: show «در حال اپلود تصویر ...» during the upload
+          const upl = document.getElementById('pd-taskadd-shots-uploading')
+          if (upl) upl.hidden = false
           let ok = 0, fail = 0
           for (const file of files) {
             try {
@@ -97,6 +100,7 @@
               else throw new Error('no id')
             } catch { fail++ }
           }
+          if (upl) upl.hidden = true
           renderTaskAddShots()
           if (ok && !fail) window.hibana?.toast(_t('project.shotUploaded', 'Screenshot uploaded'), 'info')
           else if (fail && !ok) window.hibana?.toast(_t('project.shotFailed', 'Upload failed'), 'err')
@@ -2482,12 +2486,19 @@
                 // and ability to see previously uploaded and attached screenshots"):
                 // a screenshot row on the task editor — upload + pin to THIS task (reuses
                 // the 0054 screenshots.task_id link) + a "view pinned" button that opens
-                // the existing taskShotsDialog(tid). Same pattern as the #pd-taskadd-shots
-                // composer (S46 item 13).
+                // S46.4 (owner: "Screenshot gallery must be visible on same page, not
+                // hidden behind a button — like the wireframe, with thumbnails"). The
+                // editor now shows pinned shots INLINE (a thumbnail grid with zoom /
+                // edit-note / delete), not behind the «تصاویر سنجاق‌شده» button. The
+                // upload button stays; an «در حال اپلود تصویر ...» indicator shows during
+                // the upload. Same pattern as the #pd-taskadd-shots composer (S46.3).
                 '<div class="pd-taskadd-shots" style="margin-top:.5rem">' +
                   '<input type="file" id="pde-shots" accept="image/png,image/jpeg,image/webp,image/gif" multiple hidden>' +
-                  '<button type="button" class="ghost small" id="pde-shots-add" onclick="document.getElementById(\'pde-shots\').click()" title="' + _t('pde.shotsAttachTitle', 'Attach a UI/UX screenshot — pinned to this item') + '"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="5" width="17" height="14" rx="2"/><circle cx="8" cy="10" r="1.5"/><path d="M21 16l-5-5L5 19"/></svg> ' + _t('pde.shotsAttach', 'Attach screenshot') + '</button>' +
-                  '<button type="button" class="ghost small" id="pde-shots-view" title="' + _t('pde.shotsViewTitle', 'View pictures pinned to this item') + '"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 17v4M8.5 3.5h7l-.8 7.2 2.8 2.8v1.5H6.5v-1.5l2.8-2.8-.8-7.2Z"/></svg> ' + _t('pde.shotsView', 'Pinned pictures') + ' <span id="pde-shots-count" class="pd-sprint-count" hidden>0</span></button>' +
+                  '<div class="row" style="gap:.5rem;align-items:center">' +
+                    '<button type="button" class="ghost small" id="pde-shots-add" onclick="document.getElementById(\'pde-shots\').click()" title="' + _t('pde.shotsAttachTitle', 'Attach a UI/UX screenshot — pinned to this item') + '"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="5" width="17" height="14" rx="2"/><circle cx="8" cy="10" r="1.5"/><path d="M21 16l-5-5L5 19"/></svg> ' + _t('pde.shotsAttach', 'Attach screenshot') + '</button>' +
+                    '<span class="muted small" id="pde-shots-uploading" hidden>' + _t('pde.shotsUploading', 'Uploading image…') + '</span>' +
+                  '</div>' +
+                  '<div class="pd-taskadd-shots-grid" id="pde-shots-grid"></div>' +
                 '</div>' +
                 '<p class="error" id="pde-error" role="alert"></p>' +
                 '<div class="row" style="justify-content:space-between;gap:.5rem;margin-top:1rem">' +
@@ -2511,21 +2522,20 @@
             pdTaskEditDlg.addEventListener('click', (e) => { if (e.target === pdTaskEditDlg) close() })
             pdTaskEditDlg.querySelector('#pde-close').addEventListener('click', close)
             pdTaskEditDlg.querySelector('#pde-cancel').addEventListener('click', close)
-            // S46.2: screenshot upload + view on the task editor. The "view" button opens
-            // the existing taskShotsDialog(tid) (zoom/unpin). The file input uploads each
-            // picked file + pins to this task (reuses the 0054 screenshots.task_id link),
-            // then refreshes the count badge + the board (so the 📌 badge renders). Same
-            // upload+pin recipe as the #pd-taskadd-shots composer (S46 item 13).
-            pdTaskEditDlg.querySelector('#pde-shots-view').addEventListener('click', () => {
-              const tid = pdTaskEditDlg.dataset.tid
-              if (tid) taskShotsDialog(tid)
-            })
+            // S46.4: screenshot upload + INLINE grid on the task editor. The file input
+            // uploads each picked file + pins to this task (0054), showing the
+            // «در حال اپلود تصویر ...» indicator during the upload. The inline grid
+            // (#pde-shots-grid) shows the task's pinned shots with zoom / edit-note /
+            // delete — no more "تصاویر سنجاق‌شده" button hiding them behind a dialog.
             pdTaskEditDlg.querySelector('#pde-shots').addEventListener('change', async (e) => {
               const tid = pdTaskEditDlg.dataset.tid
               if (!tid) return
               const files = [...(e.target.files || [])].filter((f) => f.type.startsWith('image/'))
               e.target.value = ''
               if (!files.length) return
+              const upl = pdTaskEditDlg.querySelector('#pde-shots-uploading')
+              if (upl) upl.hidden = false
+              let ok = 0, fail = 0
               for (const file of files) {
                 try {
                   const b64 = await new Promise((resolve, reject) => {
@@ -2539,15 +2549,48 @@
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ fileName: file.name, mimeType: file.type, dataBase64: b64, caption: '' }),
                   })
-                  if (upRes.ok) {
-                    const shot = await upRes.json().catch(() => ({}))
-                    if (shot.id) await patchShot(shot.id, { taskId: tid })
-                  }
-                } catch { /* per-file failure — keep going */ }
+                  if (!upRes.ok) throw new Error('status ' + upRes.status)
+                  const shot = await upRes.json().catch(() => ({}))
+                  if (shot.id) { await patchShot(shot.id, { taskId: tid }); ok++ }
+                  else throw new Error('no id')
+                } catch { fail++ }
               }
-              window.hibana?.toast(_t('project.shotUploaded', 'Screenshot uploaded'), 'info')
-              pdeRefreshShotsCount(tid)
+              if (upl) upl.hidden = true
+              if (ok && !fail) window.hibana?.toast(_t('project.shotUploaded', 'Screenshot uploaded'), 'info')
+              else if (fail) window.hibana?.toast(_t('project.shotFailed', 'Upload failed'), 'err')
+              pdeRenderShotsGrid(tid)
               bodyRefresh()
+            })
+            // S46.4: delegated handlers on the editor's inline shot grid — zoom / edit-note / delete
+            pdTaskEditDlg.querySelector('#pde-shots-grid').addEventListener('click', async (e) => {
+              const tid = pdTaskEditDlg.dataset.tid
+              const zoom = e.target.closest('[data-pde-shot-zoom]')
+              if (zoom) { const img = zoom.querySelector('img'); if (img) openShotLightbox(img.src); return }
+              const del = e.target.closest('[data-pde-shot-del]')
+              if (del) {
+                const sid = del.getAttribute('data-pde-shot-del')
+                try { await fetch('/api/screenshots/' + sid, { method: 'DELETE' }) } catch { /* best-effort */ }
+                pdeRenderShotsGrid(tid)
+                bodyRefresh()
+                return
+              }
+              const note = e.target.closest('[data-pde-shot-note]')
+              if (note) {
+                const sid = note.getAttribute('data-pde-shot-note')
+                const { dlg, body } = makeDialog(_t('project.shotNoteTitle', 'Note — what & where to work'), 'pd-peshot-title')
+                const escXml = (v) => String(v || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+                body.innerHTML =
+                  '<textarea class="pd-shot-note-ta" rows="6" maxlength="1000" dir="auto" data-no-fa-digits="" placeholder="' + escXml(_t('project.shotNotePh', 'What is broken & where — the exact spot to work on…')) + '"></textarea>' +
+                  '<div class="pd-shot-note-actions"><button type="button" class="ghost small" data-peshot-cancel>' + _t('common.cancel', 'Cancel') + '</button><button type="button" class="btn small" data-peshot-save>' + _t('common.save', 'Save') + '</button></div>'
+                const ta2 = body.querySelector('.pd-shot-note-ta')
+                body.querySelector('[data-peshot-cancel]').addEventListener('click', () => dlg.close())
+                body.querySelector('[data-peshot-save]').addEventListener('click', async () => {
+                  try { await patchShot(sid, { caption: ta2.value.trim() }); dlg.close(); pdeRenderShotsGrid(tid) }
+                  catch { window.hibana?.toast(_t('sparks.saveFailed', "Couldn't save"), 'err') }
+                })
+                dlg.showModal()
+                setTimeout(() => ta2.focus(), 0)
+              }
             })
             // Session 24 (user request): delete from inside the edit modal. Same recipe
             // as the card's ⋯ menu delete — optimistic remove + Undo toast + DELETE call.
@@ -2698,24 +2741,38 @@
           pdTaskEditDlg.querySelector('#pde-save').textContent = _t('common.save', 'Save')
           pdTaskEditDlg.querySelector('#pde-error').textContent = ''
           // S46.2: refresh the pinned-shots count badge for THIS task on every open
-          pdeRefreshShotsCount(tid)
+          pdeRenderShotsGrid(tid)
           pdTaskEditDlg.showModal()
           setTimeout(() => pdTaskEditDlg.querySelector('#pde-input').focus(), 50)
         }
-        // S46.2: fetch this task's pinned-shot count + show/hide the badge on the
-        // #pde-shots-view button. Reuses the existing GET /api/projects/:id/screenshots
-        // (same one taskShotsDialog uses). Silent on failure (offline → no badge).
-        const pdeRefreshShotsCount = async (tid) => {
-          const badge = pdTaskEditDlg?.querySelector('#pde-shots-count')
-          if (!badge || !tid) return
+        // S46.4: fetch this task's pinned shots + render them as an INLINE thumbnail grid
+        // in #pde-shots-grid (zoom / edit-note / delete). Replaces the old count-badge
+        // approach (S46.2's pdeRefreshShotsCount) — the gallery is now visible directly
+        // in the editor, not behind a button. Reuses GET /api/projects/:id/screenshots
+        // (same one taskShotsDialog uses). Silent on failure (offline → empty grid).
+        const pdeRenderShotsGrid = async (tid) => {
+          const grid = pdTaskEditDlg?.querySelector('#pde-shots-grid')
+          if (!grid || !tid) return
           try {
             const res = await fetch('/api/projects/' + id + '/screenshots')
             if (!res.ok) return
             const shots = ((await res.json()).screenshots) || []
-            const n = shots.filter((s) => s.task_id === tid).length
-            badge.textContent = String(n)
-            badge.hidden = n === 0
-          } catch { /* offline — badge stays hidden */ }
+            const pinned = shots.filter((s) => s.task_id === tid)
+            const esc = (s) => String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
+            if (!pinned.length) { grid.innerHTML = ''; return }
+            grid.innerHTML = pinned.map((s) =>
+              '<figure class="shot-card" data-pde-shot="' + esc(s.id) + '">' +
+                '<button type="button" class="shot-img-btn" data-pde-shot-zoom="' + esc(s.id) + '"><img src="/api/media/screenshots/' + esc(s.id) + '/file" alt="" loading="lazy"></button>' +
+                '<figcaption class="shot-body">' +
+                  (s.caption ? '<p class="shot-note muted small" dir="auto">' + esc(s.caption) + '</p>' : '') +
+                  '<div class="row spread shot-actions">' +
+                    '<button type="button" class="ghost small" data-pde-shot-note="' + esc(s.id) + '">' + _t('notes.editNote', 'Edit note') + '</button>' +
+                    '<button type="button" class="ghost small danger" data-pde-shot-del="' + esc(s.id) + '" title="' + _t('common.delete', 'Delete') + '" aria-label="' + _t('common.delete', 'Delete') + '">✕</button>' +
+                  '</div>' +
+                '</figcaption>' +
+              '</figure>'
+            ).join('')
+          } catch { /* offline — grid stays as-is */ }
         }
 
         // --- Project Archives (user request 2026-09): view + restore archived done tasks ----

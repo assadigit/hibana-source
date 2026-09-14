@@ -2699,31 +2699,49 @@ window.hibana = (() => {
     if (!toggle || !toggle.open) return
     const panel = toggle.querySelector('.note-head-controls')
     if (!panel) return
-    // Reset to CSS default (inset-inline-end:0 → extends toward inline-start)
+    // Step 1: reset to CSS default (inset-inline-end:0 → extends toward inline-start).
+    // In RTL this is left:0 → panel's left edge at toggle's left edge, extends rightward.
     panel.style.insetInlineStart = ''
     panel.style.insetInlineEnd = '0'
     panel.style.left = ''
     panel.style.right = ''
     panel.style.inlineSize = ''
+    // Step 2: after layout settles, measure + flip/shift if overflow.
     requestAnimationFrame(() => {
       const pr = panel.getBoundingClientRect()
       const vw = document.documentElement.clientWidth || window.innerWidth
-      const overflowStart = pr.left < 8          // overflows the inline-start (left) edge
-      const overflowEnd = pr.right > vw - 8       // overflows the inline-end (right) edge
-      if (overflowStart && !overflowEnd) {
-        // Overflow on the start side → flip: anchor to inline-start (extend toward end)
+      // With the default (extend toward inline-start / rightward in RTL), the likely
+      // overflow is on the inline-END side (right edge past viewport).
+      if (pr.right > vw - 8) {
+        // Overflow on the end (right) side → FLIP: anchor to inline-start instead.
+        // In RTL: inset-inline-start:0 = right:0 → panel's right edge at toggle's right
+        // edge, extends LEFTWARD.
         panel.style.insetInlineEnd = 'auto'
         panel.style.insetInlineStart = '0'
-      } else if (overflowEnd && !overflowStart) {
-        // Overflow on the end side → flip: anchor to inline-end (extend toward start)
-        panel.style.insetInlineEnd = '0'
-        panel.style.insetInlineStart = 'auto'
-      } else if (overflowStart && overflowEnd) {
-        // BOTH sides overflow → shift inward: anchor to the viewport edge + cap width
-        panel.style.insetInlineStart = ''
+        // Step 3: re-measure after the flip — if the start (left) side now overflows too,
+        // BOTH sides overflow → shift inward (anchor to viewport edge + cap width).
+        requestAnimationFrame(() => {
+          const pr2 = panel.getBoundingClientRect()
+          if (pr2.left < 8) {
+            panel.style.insetInlineStart = ''
+            panel.style.insetInlineEnd = 'auto'
+            panel.style.right = '8px'
+            panel.style.inlineSize = `min(20rem, ${vw - 16}px)`
+          }
+        })
+      } else if (pr.left < 8) {
+        // Overflow on the start (left) side with the default → flip to extend toward end
         panel.style.insetInlineEnd = 'auto'
-        panel.style.right = '8px'
-        panel.style.inlineSize = `min(20rem, ${vw - 16}px)`
+        panel.style.insetInlineStart = '0'
+        requestAnimationFrame(() => {
+          const pr2 = panel.getBoundingClientRect()
+          if (pr2.right > vw - 8) {
+            panel.style.insetInlineStart = ''
+            panel.style.insetInlineEnd = 'auto'
+            panel.style.left = '8px'
+            panel.style.inlineSize = `min(20rem, ${vw - 16}px)`
+          }
+        })
       }
     })
   }

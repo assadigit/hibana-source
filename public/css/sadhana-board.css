@@ -87,7 +87,7 @@ body.rtl .hdr-date{margin-left:0;margin-right:8px}
 .sadhana-wrap .subbar-wrap{background:var(--surface);border-bottom:1px solid var(--border);flex-shrink:0}
 /* subbar-inner defined below */
 /* subbar: filter tags only, calendar is in user menu */
-.sadhana-wrap .subbar-inner{display:flex;align-items:center;gap:6px;padding:6px 22px;max-width:1440px;margin:0 auto;flex-wrap:wrap}
+.sadhana-wrap .subbar-inner{display:flex;align-items:center;gap:6px;padding:6px 22px;max-width:none;margin:0 auto;flex-wrap:wrap}
 /* S46 (user request 2026-09-14): the filter tags live behind a toggle so the subbar
    doesn't crowd. The toggle is a chip-like summary; the count badge (#filterCount,
    outside the toggle) still announces the active filter when closed. */
@@ -128,7 +128,7 @@ body.rtl .hdr-date{margin-left:0;margin-right:8px}
    Session-10 (user report: "sections of to-do-list still cramped"): doubled down —
    quadrant gap 12→20px, mat-outer block padding 16/14 → 22/18 so the subbar and the
    matrix read as distinct sections with real white space between them. */
-.sadhana-wrap .mat-outer{flex:1;overflow:hidden;padding:22px 22px 18px;max-width:1440px;margin:0 auto;width:100%;display:flex;flex-direction:column}
+.sadhana-wrap .mat-outer{flex:1;overflow:hidden;padding:22px 22px 18px;max-width:none;margin:0 auto;width:100%;display:flex;flex-direction:column}
 .sadhana-wrap .mat-grid{display:grid;grid-template-columns:1fr 1fr;grid-template-rows:1fr 1fr;gap:20px;flex:1;overflow:hidden}
 
 /* ─── Quadrant ─────────────────────────────────── */
@@ -848,3 +848,21 @@ body.rtl .fuz-opt{text-align:right}
 .sadhana-wrap .subbar-inner .btn { flex: none; }
 /* S43: the subbar action buttons landed at 39px — one under the floor. */
 @media (pointer: coarse) { .sadhana-wrap .subbar-inner .btn { min-block-size: 40px; } }
+
+/* S46.12 (owner: "clicking 'بیشتر' must show all tasks on that quadrant"): when
+   expanded, the quadrant becomes position:absolute filling the mat-outer + the
+   body shows all tasks (no scroll). The mat-grid needs position:relative for the
+   absolute child to anchor. Click "↑ less" to collapse back to the grid cell. */
+.sadhana-wrap .mat-grid { position: relative; }
+.sadhana-wrap .quadrant.q-expanded {
+  position: absolute;
+  inset: 0;
+  z-index: 20;
+  max-height: 100%;
+  overflow-y: auto;
+}
+.sadhana-wrap .quadrant.q-expanded .q-body {
+  overflow-y: visible;
+  max-height: none;
+  flex: none;
+}

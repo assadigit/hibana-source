@@ -90,23 +90,13 @@
           // "go back in time" page). Past indexes clamp to the window start or drop out
           // entirely at render time, exactly as before.
           let min = today + dayOffset - todayPad
-          // S35 (user request 2026-09, the "video-editing timeline"): the sprint lane is
-          // now made of STRIPS — a dot at the start, the strip dragging along while the
-          // sprint runs, frozen at its length when finished. A finished strip that fell
-          // off the left edge would defeat the whole point, so the home window extends
-          // BACK to the earliest sprint still overlapping the last ~6 months (sprints
-          // entirely older drop off exactly like the (e) rule — the ‹ pager reaches
-          // them). With no sprints the axis stays today-forward, unchanged for tasks.
-          if (dayOffset === 0) {
-            const cap = today - 179
-            S.sprints.forEach((s) => {
-              if (s.is_draft) return
-              const a = B().dayIdx(s.started_at)
-              if (!Number.isFinite(a) || a >= min) return
-              const b = s.ended_at ? B().dayIdx(s.ended_at) : today
-              if (Number.isFinite(b) && b > cap) min = Math.max(a, cap)
-            })
-          }
+          // S46.12 (owner: "the sprint should only show current month"): the S35 backward
+          // extension that showed older sprints (up to 179 days back) is REMOVED — the
+          // window stays at the current month (today ± todayPad forward). Older sprints
+          // are reachable via the ‹ pager (dayOffset < 0). The timeline is more compact
+          // + there's more space for tasks.
+          // (The S35 block that was here iterated S.sprints + extended `min` backward
+          // to include finished sprints overlapping the last ~6 months — removed.)
           // END-INCLUSIVE window: the home window keeps its full `win` FUTURE days (the
           // pad only adds leading context, it never eats the future); a past-browsing
           // window is exactly `win` days as before. The px scale is avail/(win+pad), so
@@ -579,18 +569,26 @@
           if (!btn || !lbl) return
           const S = B().state
           const open = S.sprints.find((s) => !s.is_draft && !s.ended_at) || null
-          btn.hidden = !open
+          // S46.12 (owner: "this button still doesn't work at all, either when there is a
+          // sprint active or there is no sprint at all"): the button is ALWAYS VISIBLE now
+          // (was: btn.hidden = !open → hidden when no active sprint). When no open sprint,
+          // it's disabled (greyed out) with a "no active sprint" tooltip. When there IS an
+          // open sprint, it's enabled + carries the sprint name + the finish hint.
+          btn.hidden = false
           if (open) {
-            // S45/S3: the action label stays SHORT — the running sprint's name rides
-            // its own ellipsized span (the old full "Finish sprint · name" label made
-            // a 264px solid-red block that read as an error banner, not a control).
-            // Full context lives on the tooltip + aria-label.
+            btn.disabled = false
             lbl.textContent = _t('db.finishSprint', 'Finish sprint')
             if (nameEl) {
               if (open.name) { nameEl.hidden = false; nameEl.textContent = '· ' + open.name }
               else nameEl.hidden = true
             }
             btn.title = _t('db.finishSprintHint', 'Finish this sprint — its window closes and the next one can be defined') + (open.name ? ' — ' + open.name : '')
+            btn.setAttribute('aria-label', btn.title)
+          } else {
+            btn.disabled = true
+            lbl.textContent = _t('db.finishSprint', 'Finish sprint')
+            if (nameEl) nameEl.hidden = true
+            btn.title = _t('sp.noActiveSprint', 'No active sprint to finish')
             btn.setAttribute('aria-label', btn.title)
           }
         }
@@ -1112,7 +1110,7 @@
         document.getElementById('sp-finish-btn').onclick = async () => {
           const S = B().state
           const open = S.sprints.find((s) => !s.is_draft && !s.ended_at) || null
-          if (!open) return
+          if (!open) { window.hibana && window.hibana.toast(_t('sp.noActiveSprint', 'No active sprint to finish'), 'info'); return }
           try {
             await B().finishSprint(open.id)
             window.hibana && window.hibana.toast(_t('db.sprintFinished', 'Sprint finished — on to the next one'))

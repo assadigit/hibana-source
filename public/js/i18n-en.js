@@ -511,6 +511,7 @@ window.__hibanaDictEN = {
       'sp.older': 'Older', 'sp.newer': 'Newer', 'sp.now': 'Now',
       // S46.10: sprints list (below the timeline)
       'sp.allSprints': 'All sprints', 'sp.notStarted': 'not started', 'sp.untitled': 'Untitled', 'sp.items': 'items',
+      'sp.noActiveSprint': 'No active sprint to finish',
       // S45: the sprint lane's rich empty state (one-line hint under the title)
       'sp.emptyHint': 'Define it, add items, start it — it runs here as a strip.',
       // S44: the sprint timeline's today-flag chip (rides the today line)

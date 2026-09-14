@@ -36,7 +36,7 @@
 .note-controls-toggle[open] .note-head-controls {
   position: absolute;
   inset-block-start: calc(100% + 0.25rem);
-  inset-inline-end: 0; /* Session 19 (user report): was inset-inline-start:0 — the panel extended past the right edge + its shadow clipped. Right-align it so it grows toward the card's left edge within bounds. */
+  inset-inline-end: 0;
   z-index: 5;
   display: flex;
   gap: 0.5rem;
@@ -45,6 +45,10 @@
   border: 1px solid var(--line-strong);
   border-radius: var(--radius);
   box-shadow: var(--shadow-dropdown);
+  /* S46.12 (owner: "part of it is outside the edge of container"): cap the panel
+     width so it never extends past the container's left edge. */
+  max-inline-size: calc(100vw - 2rem);
+  flex-wrap: wrap;
 }
 /* When collapsed, the controls are hidden (the <details> hides non-summary content by
    default, but the absolute panel above also needs the open state — belt and suspenders). */

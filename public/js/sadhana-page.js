@@ -77,7 +77,7 @@ const T={
       task:'Task',quickAdd:'Quick Add Task',
       noTasks:'No tasks yet',completed:'completed',
       tapEmoji:'Tap to pick emoji',clearDL:'Clear',done:'Done',
-      saveEdit:'Save',cancelEdit:'Cancel',moreTasks:'↓ more',
+      saveEdit:'Save',cancelEdit:'Cancel',moreTasks:'↓ more',showLess:'less',
       undoMsg:'Task deleted',undo:'↩ Undo',
       selectYear:'Select year',selectMonth:'Select month',selectDay:'Select day',
       noDeadline:'Set deadline…',
@@ -97,7 +97,7 @@ const T={
       task:'وظیفه',quickAdd:'افزودن سریع وظیفه',
       noTasks:'وظیفه‌ای ندارید',completed:'انجام‌شده',
       tapEmoji:'برای انتخاب لمس کنید',clearDL:'پاک کردن',done:'تایید',
-      saveEdit:'ذخیره',cancelEdit:'لغو',moreTasks:'↓ بیشتر',
+      saveEdit:'ذخیره',cancelEdit:'لغو',moreTasks:'↓ بیشتر',showLess:'کمتر',
       undoMsg:'وظیفه حذف شد',undo:'↩ بازگردانی',
       selectYear:'انتخاب سال',selectMonth:'انتخاب ماه',selectDay:'انتخاب روز',
       noDeadline:'تنظیم مهلت…',
@@ -182,7 +182,17 @@ function checkMore(q){
 }
 function scrollMore(q){
   const body=document.getElementById(`tb-${q}`);
-  if(body)body.scrollBy({top:120,behavior:'smooth'});
+  if(!body)return;
+  // S46.12 (owner: "clicking 'بیشتر' must show all tasks on that quadrant, not just
+  // scroll 120px"): toggle the quadrant's expanded state — when expanded, the quadrant
+  // becomes position:absolute filling the mat-outer + the body shows all tasks (no
+  // scroll). When collapsed, it returns to its grid cell.
+  const quadrant = body.closest('.quadrant');
+  if(!quadrant)return;
+  const expanded = quadrant.classList.toggle('q-expanded');
+  const badge = quadrant.querySelector('.more-badge');
+  if(badge) badge.textContent = expanded ? '↑ '+tr('showLess') : '↓ '+tr('moreTasks');
+  if(!expanded) body.scrollTo({top:0,behavior:'smooth'});
 }
 function checkAllMore(){[1,2,3,4].forEach(q=>checkMore(q));}
 

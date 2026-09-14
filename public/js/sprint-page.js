@@ -491,7 +491,7 @@
           }
         }
 
-        const render = () => { computeRange(); renderSide(); renderTimeline(); renderDraft(); renderTimeNav(); renderFinishBtn(); wrap.hidden = false; if (loading) loading.hidden = true }
+        const render = () => { computeRange(); renderSide(); renderTimeline(); renderDraft(); renderTimeNav(); renderFinishBtn(); renderSprintsList(); wrap.hidden = false; if (loading) loading.hidden = true }
         const reload = async () => { await B().load(projectId); render() }
 
         // ---- Phase 5 item 7: the DRAFT sprint panel ---------------------------------
@@ -593,6 +593,45 @@
             btn.title = _t('db.finishSprintHint', 'Finish this sprint — its window closes and the next one can be defined') + (open.name ? ' — ' + open.name : '')
             btn.setAttribute('aria-label', btn.title)
           }
+        }
+
+        // S46.10 (owner: "see the sprints in a list — Sprint A, Sprint B. Create this
+        // section below the sprint timeline as a separate section.") — a flat list of ALL
+        // sprints (drafts, running, finished) with name + status badge + dates + item count.
+        function renderSprintsList() {
+          const section = document.getElementById('sp-sprints-list-section')
+          const list = document.getElementById('sp-sprints-list')
+          if (!section || !list) return
+          const S = B().state
+          const all = [...(S.sprints || [])].sort((a, b) => {
+            const da = a.started_at || a.created_at || ''
+            const db = b.started_at || b.created_at || ''
+            return db.localeCompare(da)
+          })
+          section.hidden = !all.length
+          if (!all.length) { list.innerHTML = ''; return }
+          const esc = B().esc
+          const statusBadge = (s) => {
+            if (s.ended_at) return '<span class="sp-list-badge is-done">' + _t('db.st.done', 'Done') + '</span>'
+            if (s.started_at && !s.is_draft) return '<span class="sp-list-badge is-running">' + _t('db.st.inprog', 'In Progress') + '</span>'
+            return '<span class="sp-list-badge is-draft">' + _t('db.st.planned', 'Upcoming Plan') + '</span>'
+          }
+          const fmtDate = (d) => {
+            if (!d) return '—'
+            try { return new Date(d).toLocaleDateString(document.documentElement.lang === 'fa' ? 'fa-IR' : 'en-US', { month: 'short', day: 'numeric' }) } catch { return String(d).slice(0, 10) }
+          }
+          list.innerHTML = all.map((s) => {
+            const itemCount = (s.items || []).length
+            const dateTxt = s.started_at
+              ? (s.ended_at ? fmtDate(s.started_at) + ' → ' + fmtDate(s.ended_at) : fmtDate(s.started_at) + ' → ' + _t('sp.now', 'now'))
+              : _t('sp.notStarted', 'not started')
+            return '<div class="sp-list-row" data-sprint="' + esc(s.id) + '">' +
+              '<span class="sp-list-name">' + esc(s.name || _t('sp.untitled', 'Untitled')) + '</span>' +
+              statusBadge(s) +
+              '<span class="sp-list-dates muted small">' + esc(dateTxt) + '</span>' +
+              '<span class="sp-list-items muted small">' + esc(String(itemCount)) + ' ' + _t('sp.items', 'items') + '</span>' +
+            '</div>'
+          }).join('')
         }
 
         // ---- floating date tooltip shared by every drag -----------------------------

@@ -843,3 +843,39 @@ main.shell.sp-shell .sp-wrap { min-block-size: min(64vh, 30rem); }
   .db-label-name { flex-basis: 100%; }
   .db-label-usage { margin-inline-start: auto; }
 }
+
+/* S46.10 (owner: "see the sprints in a list — Sprint A, Sprint B. Create this section
+   below the sprint timeline as a separate section.") — the sprints list section. */
+.sp-sprints-list-section {
+  padding: 1rem 1.5rem;
+  border-block-start: 1px solid var(--line);
+}
+.sp-sprints-list-title {
+  font-size: var(--fs-md);
+  font-weight: 600;
+  margin: 0 0 0.6rem;
+}
+.sp-sprints-list { display: grid; gap: 0.3rem; }
+.sp-list-row {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.4rem 0.6rem;
+  border-radius: var(--radius-sm);
+  background: var(--bg-soft);
+  flex-wrap: wrap;
+}
+.sp-list-row:hover { background: var(--card); box-shadow: 0 1px 4px rgb(0 0 0 / 0.08); }
+.sp-list-name { font-weight: 600; flex: 1 1 auto; min-inline-size: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sp-list-badge {
+  font-size: var(--fs-xs);
+  padding: 0.1rem 0.5rem;
+  border-radius: 999px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+.sp-list-badge.is-running { background: var(--accent-soft); color: var(--accent); }
+.sp-list-badge.is-done { background: color-mix(in srgb, var(--success, #4a9fa3) 15%, transparent); color: var(--success, #4a9fa3); }
+.sp-list-badge.is-draft { background: color-mix(in srgb, var(--muted) 12%, transparent); color: var(--muted); }
+.sp-list-dates { white-space: nowrap; }
+.sp-list-items { white-space: nowrap; }

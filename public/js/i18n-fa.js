@@ -508,6 +508,8 @@ window.__hibanaDictFA = {
       'db.draftTag': 'پیش‌نویس', 'db.sprintName': 'نام اسپرینت',
       // Phase 5 — پیمایش زمان در برد اسپرینت
       'sp.older': 'قدیمی‌تر', 'sp.newer': 'جدیدتر', 'sp.now': 'الان',
+      // S46.10: فهرست اسپرینت‌ها (زیر تایم‌لاین)
+      'sp.allSprints': 'همهٔ اسپرینت‌ها', 'sp.notStarted': 'شروع نشده', 'sp.untitled': 'بدون نام', 'sp.items': 'آیتم',
       // S45: حالت خالیِ غنیِ لاین اسپرینت (یک خط راهنما زیر عنوان)
       'sp.emptyHint': 'تعریفش کن، آیتم‌ها را اضافه کن، شروعش کن — همین‌جا به‌صورت نوار اجرا می‌شود.',
       // S44: the sprint timeline's today-flag chip (rides the today line)

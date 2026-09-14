@@ -628,16 +628,28 @@ a.related-note,
    lists (<ul><li>) inside task titles now have list-style:disc + padding-inline-start
    so the bullet dots sit NEXT to the text (not detached on the far edge). The
    parent's white-space:pre-line is overridden to normal inside <ul> so list items
-   don't get extra blank lines between them. */
+   don't get extra blank lines between them.
+   S46.9 (owner insight: "texts were originally Farsi, translated to English via the
+   AI tool — the bullets stayed RTL"): list markers (list-style:disc) are positioned
+   by the `direction` property (inherited RTL from the FA page), so the bullet dot sits
+   on the RIGHT while English text is LTR (left) → detached. Fix: list-style:NONE +
+   li::before content "•  " (INLINE content at the paragraph start) + unicode-bidi:
+   plaintext on each <li> → the bullet is inline content whose position follows the
+   paragraph direction (resolved per-<li> from the first strong char: English → LTR →
+   bullet on LEFT; Farsi → RTL → bullet on RIGHT). The bullet is now TIED to the text. */
 .pd-task-title ul, .db-card-title ul, .sp-task-title ul, .sp-bar-title ul {
-  list-style: disc;
-  padding-inline-start: 1.2rem;
+  list-style: none;
+  padding-inline-start: 0;
   margin: 0.15rem 0;
   white-space: normal;
 }
 .pd-task-title li, .db-card-title li, .sp-task-title li, .sp-bar-title li {
   margin: 0.1rem 0;
   white-space: normal;
+  unicode-bidi: plaintext;
+}
+.pd-task-title li::before, .db-card-title li::before, .sp-task-title li::before, .sp-bar-title li::before {
+  content: "\2022\00a0\00a0";
 }
 #pd-taskadd-textarea,
 #pde-input,

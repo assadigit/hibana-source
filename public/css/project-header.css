@@ -439,6 +439,18 @@ html[lang='fa'] body .t-code {
   .pd-task .prio-dot { margin-block-start: 0.15rem; }
   .pd-task .spark-menu { flex: none; }
   .pd-task-shots { font-size: calc(var(--fs-xs) * 0.8); padding: 0 0.3rem; }
+  /* S46.14 (owner: "the buttons are too big on mobile"): shrink the modal action
+     buttons (Save / Cancel / Delete / Add) — the base .btn has padding:0.55rem 1rem +
+     font-size:var(--fs-lg) which is 2-3x too tall on mobile. */
+  #pde-save, #pde-cancel, #pde-delete,
+  #pd-taskadd-save, #pd-taskadd-cancel {
+    padding: 0.3rem 0.6rem !important;
+    font-size: var(--fs-sm) !important;
+    min-block-size: 2rem !important;
+    gap: 0.25rem !important;
+  }
+  #pde-save .icon, #pde-cancel .icon, #pde-delete .icon,
+  #pd-taskadd-save .icon, #pd-taskadd-cancel .icon { inline-size: 0.85rem; block-size: 0.85rem; }
 }
 .pd-task.st-done .pd-task-title { text-decoration: line-through; color: var(--muted); }
 /* Session 19 (user request): the "more" link is a TEXT link, not a styled button.

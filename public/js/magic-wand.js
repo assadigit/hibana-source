@@ -364,6 +364,20 @@
       title.setAttribute('data-magic-save', '/api/dev/tasks/' + id)
       title.setAttribute('data-magic-field', 'title')
     })
+    // S46.2 (owner report: "wand still not on newly-added tasks without refresh"):
+    // also stamp the PROJECT-PAGE task titles (.pd-task-wrap .pd-task-title) so the
+    // wand is the single source of truth — project-page.js's injectPdTaskMenus still
+    // does the ⋯ menu + stamps on insertTaskChip (the immediate path), but this makes
+    // the wand robust to any future change + covers htmx-swapped cards too. Idempotent:
+    // :not([data-magic]) skips already-stamped titles.
+    document.querySelectorAll('.pd-task-wrap:not([data-magic-ok]) .pd-task-title:not([data-magic])').forEach((title) => {
+      const wrap = title.closest('.pd-task-wrap')
+      const tid = wrap?.dataset.pdTask
+      if (!tid) return
+      title.setAttribute('data-magic', '')
+      title.setAttribute('data-magic-save', '/api/devtasks/' + tid)
+      title.setAttribute('data-magic-field', 'title')
+    })
   }
   for (const name of ['htmx:afterSwap', 'afterSwap', 'htmx:load', 'load']) {
     document.addEventListener(name, injectDevTaskMagic)

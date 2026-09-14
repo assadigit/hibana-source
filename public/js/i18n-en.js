@@ -453,6 +453,9 @@ window.__hibanaDictEN = {
       // S29 follow-up (user request 2026-09-12): priority dropdown wording + task labels
       'pd.pr.urgent': 'Urgent', 'pd.pr.high': 'High Priority', 'pd.pr.medium': 'Medium Priority', 'pd.pr.low': 'Low Priority',
       'pd.labels': 'Labels', 'pd.labelsPh': 'e.g. UI/UX, Security', 'pd.labelsHint': 'Comma-separated — a chip per label',
+      // S46.2: screenshots in the task editor (pde-form) — upload + pin to this item + view pinned
+      'pde.shotsAttach': 'Attach screenshot', 'pde.shotsAttachTitle': 'Attach a UI/UX screenshot — pinned to this item',
+      'pde.shotsView': 'Pinned pictures', 'pde.shotsViewTitle': 'View pictures pinned to this item',
       // S30 (2026-09-12): the progress-box keys are GONE with the feature (user request).
       'pd.editor': 'Editor', 'pd.noteEditor': 'Note editor', 'pd.docEditor': 'Plan document editor',
       'pd.noteHint': 'Write your progress update — it saves to the Notes tab.',

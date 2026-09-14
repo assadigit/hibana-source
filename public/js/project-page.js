@@ -2360,6 +2360,17 @@
                   ' <input id="pde-tags" dir="auto" autocomplete="off" maxlength="480" placeholder="' + _t('pd.labelsPh', 'e.g. UI/UX, Security') + '" aria-label="' + _t('pd.labels', 'Labels') + '" />' +
                   '<span class="muted small">' + _t('pd.labelsHint', 'Comma-separated — a chip per label') + '</span>' +
                 '</label>' +
+                // S46.2 (owner: "add ability to upload a screenshot directly in this page,
+                // and ability to see previously uploaded and attached screenshots"):
+                // a screenshot row on the task editor — upload + pin to THIS task (reuses
+                // the 0054 screenshots.task_id link) + a "view pinned" button that opens
+                // the existing taskShotsDialog(tid). Same pattern as the #pd-taskadd-shots
+                // composer (S46 item 13).
+                '<div class="pd-taskadd-shots" style="margin-top:.5rem">' +
+                  '<input type="file" id="pde-shots" accept="image/png,image/jpeg,image/webp,image/gif" multiple hidden>' +
+                  '<button type="button" class="ghost small" id="pde-shots-add" onclick="document.getElementById(\'pde-shots\').click()" title="' + _t('pde.shotsAttachTitle', 'Attach a UI/UX screenshot — pinned to this item') + '"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="5" width="17" height="14" rx="2"/><circle cx="8" cy="10" r="1.5"/><path d="M21 16l-5-5L5 19"/></svg> ' + _t('pde.shotsAttach', 'Attach screenshot') + '</button>' +
+                  '<button type="button" class="ghost small" id="pde-shots-view" title="' + _t('pde.shotsViewTitle', 'View pictures pinned to this item') + '"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 17v4M8.5 3.5h7l-.8 7.2 2.8 2.8v1.5H6.5v-1.5l2.8-2.8-.8-7.2Z"/></svg> ' + _t('pde.shotsView', 'Pinned pictures') + ' <span id="pde-shots-count" class="pd-sprint-count" hidden>0</span></button>' +
+                '</div>' +
                 '<p class="error" id="pde-error" role="alert"></p>' +
                 '<div class="row" style="justify-content:space-between;gap:.5rem;margin-top:1rem">' +
                   // Session 24 (user request): delete from inside the edit modal — no
@@ -2382,6 +2393,44 @@
             pdTaskEditDlg.addEventListener('click', (e) => { if (e.target === pdTaskEditDlg) close() })
             pdTaskEditDlg.querySelector('#pde-close').addEventListener('click', close)
             pdTaskEditDlg.querySelector('#pde-cancel').addEventListener('click', close)
+            // S46.2: screenshot upload + view on the task editor. The "view" button opens
+            // the existing taskShotsDialog(tid) (zoom/unpin). The file input uploads each
+            // picked file + pins to this task (reuses the 0054 screenshots.task_id link),
+            // then refreshes the count badge + the board (so the 📌 badge renders). Same
+            // upload+pin recipe as the #pd-taskadd-shots composer (S46 item 13).
+            pdTaskEditDlg.querySelector('#pde-shots-view').addEventListener('click', () => {
+              const tid = pdTaskEditDlg.dataset.tid
+              if (tid) taskShotsDialog(tid)
+            })
+            pdTaskEditDlg.querySelector('#pde-shots').addEventListener('change', async (e) => {
+              const tid = pdTaskEditDlg.dataset.tid
+              if (!tid) return
+              const files = [...(e.target.files || [])].filter((f) => f.type.startsWith('image/'))
+              e.target.value = ''
+              if (!files.length) return
+              for (const file of files) {
+                try {
+                  const b64 = await new Promise((resolve, reject) => {
+                    const r = new FileReader()
+                    r.onload = () => resolve(String(r.result).split(',')[1])
+                    r.onerror = reject
+                    r.readAsDataURL(file)
+                  })
+                  const upRes = await fetch('/api/projects/' + id + '/screenshots', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ fileName: file.name, mimeType: file.type, dataBase64: b64, caption: '' }),
+                  })
+                  if (upRes.ok) {
+                    const shot = await upRes.json().catch(() => ({}))
+                    if (shot.id) await patchShot(shot.id, { taskId: tid })
+                  }
+                } catch { /* per-file failure — keep going */ }
+              }
+              window.hibana?.toast(_t('project.shotUploaded', 'Screenshot uploaded'), 'info')
+              pdeRefreshShotsCount(tid)
+              bodyRefresh()
+            })
             // Session 24 (user request): delete from inside the edit modal. Same recipe
             // as the card's ⋯ menu delete — optimistic remove + Undo toast + DELETE call.
             pdTaskEditDlg.querySelector('#pde-delete').addEventListener('click', () => {
@@ -2530,8 +2579,25 @@
           pdTaskEditDlg.querySelector('#pde-save').disabled = false
           pdTaskEditDlg.querySelector('#pde-save').textContent = _t('common.save', 'Save')
           pdTaskEditDlg.querySelector('#pde-error').textContent = ''
+          // S46.2: refresh the pinned-shots count badge for THIS task on every open
+          pdeRefreshShotsCount(tid)
           pdTaskEditDlg.showModal()
           setTimeout(() => pdTaskEditDlg.querySelector('#pde-input').focus(), 50)
+        }
+        // S46.2: fetch this task's pinned-shot count + show/hide the badge on the
+        // #pde-shots-view button. Reuses the existing GET /api/projects/:id/screenshots
+        // (same one taskShotsDialog uses). Silent on failure (offline → no badge).
+        const pdeRefreshShotsCount = async (tid) => {
+          const badge = pdTaskEditDlg?.querySelector('#pde-shots-count')
+          if (!badge || !tid) return
+          try {
+            const res = await fetch('/api/projects/' + id + '/screenshots')
+            if (!res.ok) return
+            const shots = ((await res.json()).screenshots) || []
+            const n = shots.filter((s) => s.task_id === tid).length
+            badge.textContent = String(n)
+            badge.hidden = n === 0
+          } catch { /* offline — badge stays hidden */ }
         }
 
         // --- Project Archives (user request 2026-09): view + restore archived done tasks ----

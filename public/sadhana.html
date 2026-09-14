@@ -16,7 +16,7 @@
   <link rel="stylesheet" href="/css/variables.css?v=5">
   <link rel="stylesheet" href="/css/base.css?v=3">
   <link rel="stylesheet" href="/css/layout.css?v=9">
-  <link rel="stylesheet" href="/css/dashboard.css?v=10">
+  <link rel="stylesheet" href="/css/dashboard.css?v=11">
   <link rel="stylesheet" href="/css/dashboard-todo.css?v=5">
   <link rel="stylesheet" href="/css/components.css?v=3">
   <link rel="stylesheet" href="/css/canvas.css?v=6">
@@ -26,7 +26,7 @@
   <link rel="stylesheet" href="/css/calendar.css?v=4">
   <link rel="stylesheet" href="/css/notifications.css?v=4">
   <link rel="stylesheet" href="/css/polish-batch.css?v=10">
-  <link rel="stylesheet" href="/css/project-header.css?v=12">
+  <link rel="stylesheet" href="/css/project-header.css?v=13">
   <link rel="stylesheet" href="/css/devboard.css?v=10">
   <link rel="stylesheet" href="/css/misc.css?v=8">
   <link rel="stylesheet" href="/css/themes.css?v=2">
@@ -47,8 +47,8 @@
   <script src="/js/app.js?v=174" defer></script>
   <script src="/js/hib-init.js?v=1" defer></script>
   <script src="/js/touch-drag.js?v=1" defer></script>
-  <script src="/js/i18n-en.js?v=23" defer></script>
-  <script src="/js/i18n.js?v=79" defer></script>
+  <script src="/js/i18n-en.js?v=24" defer></script>
+  <script src="/js/i18n.js?v=80" defer></script>
   <script src="/js/nav.js?v=3" defer></script>
   <script src="/js/command-palette.js?v=2" defer></script>
   <script src="/js/mobile-nav.js?v=5" defer></script>
@@ -207,6 +207,30 @@
 
 </div><!-- /.sadhana-wrap — everything the board styles lives in here; the Hibana
           chrome (topbar + bottom bar + cmdk + toasts) sits outside and keeps app.css -->
+
+  <!-- S46.2: the unified + chooser (new note / new idea / new project) — same markup
+       as the dashboard's. The header «＋ Add Task» button stays as a sadhana-specific
+       quadrant composer; this FAB is the consistent cross-surface capture. -->
+  <div class="fab-stack" data-fab>
+    <div class="fab-menu" data-fab-menu hidden role="menu">
+      <button type="button" class="fab-item" data-quickadd-open role="menuitem" aria-label="New idea" data-i18n-title="fab.idea" title="New idea">
+        <span class="fab-item-icon" aria-hidden="true"><svg class="icon" viewBox="0 0 24 24"><path d="M9 18h6M10 22h4"/><path d="M12 2a7 7 0 0 0-4.2 12.6c.9.7 1.2 1.6 1.2 2.4h6c0-.8.3-1.7 1.2-2.4A7 7 0 0 0 12 2Z"/></svg></span>
+        <span data-i18n="fab.idea">New idea</span>
+      </button>
+      <button type="button" class="fab-item" data-projectquickadd role="menuitem" aria-label="New project" data-i18n-title="fab.project" title="New project">
+        <span class="fab-item-icon" aria-hidden="true"><svg class="icon" viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7Z"/><path d="M12 11v4M10 13h4"/></svg></span>
+        <span data-i18n="fab.project">New project</span>
+      </button>
+      <button type="button" class="fab-item" data-notequickadd role="menuitem" aria-label="New quick note" data-i18n-title="fab.note" title="New quick note">
+        <span class="fab-item-icon" aria-hidden="true"><svg class="icon" viewBox="0 0 24 24"><path d="M5 5h9l5 5v9a1.5 1.5 0 0 1-1.5 1.5h-12A1.5 1.5 0 0 1 4 19V6.5A1.5 1.5 0 0 1 5.5 5Z"/><path d="M8 12h8M8 15.5h5"/></svg></span>
+        <span data-i18n="fab.note">Quick note</span>
+      </button>
+    </div>
+    <button class="fab" data-fab-toggle type="button" aria-expanded="false" aria-label="New" data-i18n-title="fab.new" title="New">
+      <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+    </button>
+  </div>
+
   <script src="/js/jalali.js?v=2" defer></script>
   <script src="/js/sadhana-data.js?v=1" defer></script>
   <script src="/js/sadhana-page.js?v=2" defer></script>

@@ -503,7 +503,16 @@ dialog.pd-taskedit-modal {
   inline-size: min(78rem, 96vw);
   max-inline-size: min(78rem, 96vw);
   max-block-size: min(88vh, 46rem);
+  /* S46.2 (owner: "too much distance between it and the project title"): native <dialog>
+     UA style centers the modal vertically in the viewport (margin:auto in the top
+     layer), so on a tall viewport the modal floats mid-screen, far from the project
+     heading at the top. Anchoring it near the top (margin-block-start small,
+     margin-block-end auto) flips the UA flex-centering to start-aligned. */
+  margin-block-start: clamp(1rem, 4vh, 3rem);
+  margin-block-end: auto;
 }
+/* S46.2: shrink the «ویرایش» label (h3) — was the base h3 size; now a compact header. */
+#pde-title { font-size: var(--fs-md); font-weight: 600; margin: 0; }
 #pde-input {
   min-block-size: 14rem;
   font-size: var(--fs-md);
@@ -750,6 +759,20 @@ button.pd-task-add {
 }
 .pd-new-sprint .icon { inline-size: 0.95rem; block-size: 0.95rem; }
 .pd-new-sprint:hover { box-shadow: 0 2px 10px rgb(74 159 163 / 0.35); }
+/* S46.2 (owner: "decrease the size of these buttons" — برد تمام‌صفحه / اسپرینت جدید /
+   اسپرینت‌ها). A single high-specificity rule shrinks all three project-progress head
+   buttons consistently. Specificity (0,2,1) beats both .btn (0,1,0) + .small (0,1,0) +
+   ties .pd-new-sprint (0,1,0) but loads later in this file → wins. The 2rem
+   min-block-size keeps them tap-friendly on (pointer:coarse) without dominating the row. */
+.pd-board-head .row > .btn,
+.pd-board-head .row > .pd-new-sprint {
+  padding: 0.32rem 0.6rem;
+  font-size: var(--fs-sm);
+  min-block-size: 2rem;
+  gap: 0.3rem;
+}
+.pd-board-head .row > .btn .icon,
+.pd-board-head .row > .pd-new-sprint .icon { inline-size: 0.85rem; block-size: 0.85rem; }
 /* The modal's ENTER button — the flow's primary CTA (same solid recipe). */
 .pd-sprintnew-enter { display: inline-flex; align-items: center; gap: 0.4rem; }
 

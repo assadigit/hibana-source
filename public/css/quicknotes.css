@@ -45,15 +45,23 @@
   border: 1px solid var(--line-strong);
   border-radius: var(--radius);
   box-shadow: var(--shadow-dropdown);
-  /* S46.15 (owner: "the handle to show other view modes is out of containers and not
-     visible — you can't click and see list option"): use an EXPLICIT inline-size (not
-     just max-inline-size) so the absolutely-positioned panel respects the width cap.
-     Without an explicit width, the panel could grow past the viewport edge on mobile.
-     The inset-inline-end:0 positions the inline-START edge (left in RTL) at the toggle's
-     start edge; the panel extends inward (rightward in RTL, leftward in LTR). */
   inline-size: min(22rem, calc(100vw - 2rem));
   max-inline-size: min(22rem, calc(100vw - 2rem));
   flex-wrap: wrap;
+}
+/* S46.16 (owner: "the problem is not solved yet — the overflow setting"): on mobile,
+   position:fixed relative to the VIEWPORT (not the toggle) so the panel is ALWAYS
+   visible regardless of where the gear sits in the card. right:0.5rem anchors the
+   panel's right edge to the viewport's right edge; the panel extends leftward. */
+@media (max-width: 768px) {
+  .note-controls-toggle[open] .note-head-controls {
+    position: fixed;
+    right: 0.5rem;
+    inset-block-start: 7rem;
+    inset-inline-end: auto;
+    inline-size: min(20rem, calc(100vw - 1rem));
+    max-inline-size: min(20rem, calc(100vw - 1rem));
+  }
 }
 /* When collapsed, the controls are hidden (the <details> hides non-summary content by
    default, but the absolute panel above also needs the open state — belt and suspenders). */

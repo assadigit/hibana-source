@@ -423,6 +423,22 @@ html[lang='fa'] body .t-code {
   color: var(--muted);
   opacity: 0.85;
   overflow-wrap: anywhere;
+  /* S46.13 (owner: "each icon has taken a row, they must be in a row together and
+     compacted"): the meta line is a flex row so the prio label, date, + 📌 button
+     stay on ONE line (was: inline text that wrapped on mobile, putting each element
+     on its own row). */
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  flex-wrap: wrap;
+}
+/* S46.13: compact the task cards on mobile — less padding, less gap, tighter body. */
+@media (max-width: 768px) {
+  .pd-task { padding: 0.3rem 0.35rem; gap: 0.3rem; }
+  .pd-task-body { gap: 0.06rem; }
+  .pd-task .prio-dot { margin-block-start: 0.15rem; }
+  .pd-task .spark-menu { flex: none; }
+  .pd-task-shots { font-size: calc(var(--fs-xs) * 0.8); padding: 0 0.3rem; }
 }
 .pd-task.st-done .pd-task-title { text-decoration: line-through; color: var(--muted); }
 /* Session 19 (user request): the "more" link is a TEXT link, not a styled button.

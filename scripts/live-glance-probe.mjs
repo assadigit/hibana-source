@@ -8,7 +8,7 @@
 // the shipped sprint-page bundle carries the today-flag + the S45 sprint-batch
 // contracts (render-time i18n, the rich empty state, the finish name span) + the
 // shipped devboard.css (20px strip, .sp-empty, the coarse floor), (5) the SW
-// rotated to v345. Purges the probe user afterwards.
+// rotated to v346. Purges the probe user afterwards.
 // Usage: node scripts/live-glance-probe.mjs [dev|prod]   (default: dev)
 
 import { execFileSync } from 'node:child_process'
@@ -126,7 +126,7 @@ const main = async () => {
 
   // 5) the SW rotated
   const sw = await (await fetch(`${URL_BASE}/sw.js`)).text()
-  check('sw version v345', sw.includes('hibana-v345'))
+  check('sw version v346', sw.includes('hibana-v346'))
 
   // 6) purge the probe user (cascade)
   await d1(`DELETE FROM users WHERE email = '${EMAIL}';`)

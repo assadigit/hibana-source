@@ -413,13 +413,29 @@
 .tb-pop-summary .tb-pop-dot { display: block; width: var(--dot-size, 8px); height: var(--dot-size, 8px); border-radius: 50%; background: currentColor; }
 .tb-pop-summary .tb-pop-swatch { display: block; inline-size: 1.15rem; block-size: 1.15rem; border-radius: 50%; border: 1px solid var(--line); box-shadow: inset 0 0 0 1px var(--bg); }
 .tb-pop-list {
-  display: inline-flex; align-items: center; gap: 0.4rem; flex-wrap: wrap;
-  padding: 0.3rem 0.45rem; margin-inline-start: 0.3rem;
+  position: absolute;
+  top: 100%;
+  right: 0;
+  margin-block-start: 0.3rem;
+  display: inline-flex; align-items: center; gap: 0.4rem; flex-wrap: nowrap;
+  padding: 0.3rem 0.45rem;
   background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-sm);
   box-shadow: 0 4px 12px rgba(0,0,0,.14);
+  z-index: 20;
+  max-inline-size: calc(100vw - 1rem);
 }
 /* the popover list is hidden by <details> when closed; only show when open. */
 .tb-popover:not([open]) .tb-pop-list { display: none; }
+/* S46 fix: the popover overlays (absolute) — JS (canvas.js) dynamically picks left/right
+   alignment on open so the list never overflows the viewport, regardless of where the
+   trigger sits (the toolbar wraps on mobile so a trigger's position varies by viewport).
+   The CSS default (right:0) is the fallback if JS doesn't run — it fits the palette at
+   the visual right edge, the most common mobile position. */
+/* S46 fix: the popover must OVERLAY (absolute) — not push the toolbar inline. On a
+   390px mobile toolbar the inline expansion (was display:inline-flex + position:static)
+   shoved the palette list onto the same row as the trigger, displacing sibling toolbar
+   buttons + reading as a "floating/disconnected" popover. Absolute positioning drops
+   it neatly below its trigger (the .tb-popover is position:relative). */
 .canvas-toolbar button.arrow-on { cursor: crosshair; }
 /* Text-property cluster: only visible with the text tool / a selected text object
    (canvas.js toggles .text-props-on on the toolbar). */

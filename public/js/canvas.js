@@ -2526,6 +2526,33 @@ window.hibanaCanvas = (() => {
       const sumSw = ui.palette.querySelector('.tb-pop-summary .tb-pop-swatch')
       if (sumSw) sumSw.style.background = color
     }
+    // S46: dynamic popover positioning — on each <details> open, measure the trigger +
+    // list and pick left/right alignment so the list never overflows the viewport. The
+    // toolbar wraps on mobile (a trigger's x varies by viewport), so a fixed CSS anchor
+    // can't cover every case. requestAnimationFrame waits one frame for the list to lay
+    // out before we measure it.
+    document.querySelectorAll('.tb-popover').forEach((pop) => {
+      pop.addEventListener('toggle', () => {
+        if (!pop.open) return
+        requestAnimationFrame(() => {
+          const list = pop.querySelector('.tb-pop-list')
+          const sum = pop.querySelector('.tb-pop-summary')
+          if (!list || !sum) return
+          list.style.left = ''
+          list.style.right = ''
+          const sr = sum.getBoundingClientRect()
+          const lr = list.getBoundingClientRect()
+          const vw = document.documentElement.clientWidth || window.innerWidth
+          if (sr.left + lr.width > vw - 8) {
+            list.style.left = 'auto'
+            list.style.right = '0'
+          } else {
+            list.style.left = '0'
+            list.style.right = 'auto'
+          }
+        })
+      })
+    })
     // Hollow shape strokes follow the theme TOO (2026-08-31 dark-mode fix): a hollow shape
     // bakes the theme ink at creation, so a mid-session flip to dark would leave near-black
     // strokes invisible on dark paper. Restyle every no-palette hollow shape live; filled

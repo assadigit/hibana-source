@@ -2798,6 +2798,10 @@ window.hibana = (() => {
       requestAnimationFrame(markClampedNotes)
     })
   }
+  // S46.17b: also call on initial load (not just htmx swaps) — ensures the panel is
+  // ALWAYS closed on page load, even if localStorage has stale '1' from the old code.
+  if (document.readyState !== 'loading') applyNoteControlsOpen()
+  else document.addEventListener('DOMContentLoaded', () => applyNoteControlsOpen(), { once: true })
   Object.assign(window.__hib, { _t, esc, escHtml, toast, handle401, currentTheme, setTheme, paintThemeButton, toggleTheme, buildQuickAdd, openQuickAdd, buildProjectAdd, openProjectAdd, buildTaskAdd, openTaskAdd, buildQuickNoteAdd, openQuickNoteAdd, draftLines, DRAFT_X, renderDraft, syncStatCarousel, initStatCarousel, getCollapsed, setCollapsed, initCollapseButtons, dashQuadPhone, dashQuadGrid, dashQuadIndex, syncDashQuadDots, goToDashQuad, hideDashSwipeHint, wireDashSwipeHint, buildDashQuadDots, refreshDashboard, closeDashMenu, dashTaskRequest, refreshTaskSurface, setDashQuickaddReady, closeDashNoteBubble, closeDashNotePanel, openDashNoteBubble, dashNoteFmt, dashNoteEditStart, dashNoteEditRestore, dashNoteDelete, dashNoteRow, dashNoteAnchorRect, placeDashNotePanel, openDashNotePanel, closeOpenDashMenus, placeDashMenu, clearDashTaskDropTargets, dashTaskList, updateDashTaskEmpty, persistDashOrder, updateDashTaskCounter, showDashTaskMoveError, autosizeNote, buildNoteReader, enterNoteEdit, openNoteReader, injectNoteMenus, closeNoteMenus, buildNoteEditor, applyNoteView, applyNoteSize, applyNoteControlsOpen, markClampedNotes, fabEl, setFabOpen })
   return { toast, handle401, openQuickAdd, openProjectAdd, openTaskAdd, setTheme, toggleTheme, paintThemeButton, currentTheme, esc }
 })()

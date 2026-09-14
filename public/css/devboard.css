@@ -393,7 +393,10 @@
 .sp-bound::before { content: ""; position: absolute; inset-block: 0; inset-inline-start: -7px; inline-size: 14px; }
 .sp-bound::after {
   content: ""; position: absolute; inset-block: 0; inset-inline-start: -1px; inline-size: 0;
-  border-inline-start: 2px dashed #2c313b;
+  /* S46.11 (owner: "remove this - - - - - - lines from sprint timeline"): the dashed
+     boundary line is GONE — only the grip (the drag handle) remains. The sprint
+     boundaries are still visible via the .sp-band background + the chip positions. */
+  display: none;
 }
 .sp-bound:hover::after, .sp-bound:focus-visible::after { border-inline-start-style: solid; border-inline-start-color: var(--brand); }
 .sp-bound.is-open-bound::after { border-inline-start-color: var(--brand); }

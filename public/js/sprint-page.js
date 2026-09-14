@@ -625,7 +625,7 @@
             const dateTxt = s.started_at
               ? (s.ended_at ? fmtDate(s.started_at) + ' → ' + fmtDate(s.ended_at) : fmtDate(s.started_at) + ' → ' + _t('sp.now', 'now'))
               : _t('sp.notStarted', 'not started')
-            return '<div class="sp-list-row" data-sprint="' + esc(s.id) + '">' +
+            return '<div class="sp-list-row" data-sprint-menu="' + esc(s.id) + '" role="button" tabindex="0" title="' + esc(_t('sprint.openDoc', 'Open the sprint plan — the full-screen editor')) + '">' +
               '<span class="sp-list-name">' + esc(s.name || _t('sp.untitled', 'Untitled')) + '</span>' +
               statusBadge(s) +
               '<span class="sp-list-dates muted small">' + esc(dateTxt) + '</span>' +
@@ -858,6 +858,7 @@
             if (!s) return
             sprintPop = document.createElement('div')
             sprintPop.className = 'sp-sprint-pop'
+            sprintPop.dataset.spSprintId = s.id // S46.11: so the action handler finds the id even for list-row popovers (appended to body, not .sp-sprint)
             const open = !s.ended_at
             // S35: the strip's story in numbers — dates, duration, done works (dev tasks
             // done in the window + the plan doc's checked items), + the plan doc link.
@@ -893,7 +894,7 @@
               '</div>' +
               '<a class="btn ghost small sp-pop-plan" href="/project.html?id=' + encodeURIComponent(projectId) + '&sprint=' + encodeURIComponent(s.id) + '">' +
                 B().esc(_t('sprint.plan', 'Plan')) + '</a>'
-            chip.closest('.sp-sprint').appendChild(sprintPop)
+            chip.closest('.sp-sprint')?.appendChild(sprintPop) || document.body.appendChild(sprintPop)
             const r = chip.getBoundingClientRect()
             const pr = sprintPop.getBoundingClientRect()
             sprintPop.style.position = 'fixed'
@@ -907,7 +908,10 @@
           if (sprintPop && !e.target.closest('.sp-sprint-pop')) { closeSprintPop(); return }
           const spBtn = e.target.closest('[data-sp-save],[data-sp-finish],[data-sp-reopen],[data-sp-del]')
           if (!spBtn || !sprintPop) return
-          const id = sprintPop.closest('.sp-sprint') ? sprintPop.closest('.sp-sprint').dataset.sprint : null
+          // S46.11: the popover may be appended to .sp-sprint (timeline chip) OR
+          // document.body (list row) — check both for the sprint id.
+          const spEl = sprintPop.closest('.sp-sprint')
+          const id = spEl ? spEl.dataset.sprint : (sprintPop.dataset.spSprintId || null)
           if (!id) return
           try {
             if (spBtn.matches('[data-sp-save]')) await B().renameSprint(id, sprintPop.querySelector('[data-sp-rename]').value.trim())

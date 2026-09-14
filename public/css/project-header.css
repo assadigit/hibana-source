@@ -710,8 +710,8 @@ button.pd-task-add {
    overflow so the grid rows align perfectly. */
 .pd-taskadd-shots-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(8rem, 1fr)); gap: 0.5rem; margin-block-start: 0.3rem; }
 .pd-taskadd-shots-grid:empty { display: none; }
-.pd-taskadd-shots-grid .shot-card { margin: 0; overflow: hidden; }
-.pd-taskadd-shots-grid .shot-img-btn { display: block; aspect-ratio: 1 / 1; overflow: hidden; padding: 0; }
+.pd-taskadd-shots-grid .shot-card { margin: 0; overflow: hidden; border: 1px solid var(--line); border-radius: var(--radius); background: var(--card); }
+.pd-taskadd-shots-grid .shot-img-btn { display: block; aspect-ratio: 1 / 1; overflow: hidden; padding: 0; border-radius: var(--radius-sm); }
 .pd-taskadd-shots-grid .shot-img-btn img { inline-size: 100%; block-size: 100%; object-fit: cover; object-position: center; display: block; }
 .pd-taskadd-shots-grid .shot-body { padding: 0.3rem; }
 .pd-taskadd-shots-grid .shot-actions { gap: 0.2rem; }

@@ -2041,9 +2041,11 @@
           if (!grid) return
           if (!stagedShots.length) { grid.innerHTML = ''; return }
           const esc = (s) => String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
+          // S46.6: IMG onerror retries up to 4× (KV read-after-write propagation delay)
+          const retryAttr = ' onerror="(function(i){var n=+(i.dataset.r||0)+1;if(n<4){i.dataset.r=n;var s=i.src;i.onerror=null;setTimeout(function(){i.src=s},800*n)}})(this)"'
           grid.innerHTML = stagedShots.map((s) =>
             '<figure class="shot-card pd-staged-shot" data-staged="' + esc(s.id) + '">' +
-              '<button type="button" class="shot-img-btn" data-staged-zoom="' + esc(s.id) + '"><img src="/api/media/screenshots/' + esc(s.id) + '/file" alt="" loading="lazy"></button>' +
+              '<button type="button" class="shot-img-btn" data-staged-zoom="' + esc(s.id) + '"><img src="/api/media/screenshots/' + esc(s.id) + '/file" alt="" loading="lazy"' + retryAttr + '></button>' +
               '<figcaption class="shot-body">' +
                 (s.caption ? '<p class="shot-note muted small" dir="auto">' + esc(s.caption) + '</p>' : '') +
                 '<div class="row spread shot-actions">' +
@@ -2528,9 +2530,8 @@
             // (#pde-shots-grid) shows the task's pinned shots with zoom / edit-note /
             // delete — no more "تصاویر سنجاق‌شده" button hiding them behind a dialog.
             pdTaskEditDlg.querySelector('#pde-shots').addEventListener('change', async (e) => {
-              console.log('[pde-shots change] FIRED, tid=', pdTaskEditDlg.dataset.tid)
               const tid = pdTaskEditDlg.dataset.tid
-              if (!tid) { console.log('[pde-shots change] no tid, returning'); return }
+              if (!tid) return
               const files = [...(e.target.files || [])].filter((f) => f.type.startsWith('image/'))
               e.target.value = ''
               if (!files.length) return
@@ -2556,13 +2557,13 @@
                   else throw new Error('no id')
                 } catch { fail++ }
               }
+              // S46.6: keep the «در حال اپلود تصویر ...» indicator visible UNTIL the
+              // grid re-renders (await pdeRenderShotsGrid), so the user sees continuous
+              // feedback: indicator → (upload) → indicator → (fetch+render) → thumbnail.
+              await pdeRenderShotsGrid(tid)
               if (upl) upl.hidden = true
-              console.log('[pde-shots change] upload loop done, ok=', ok, 'fail=', fail, 'tid=', tid)
               if (ok && !fail) window.hibana?.toast(_t('project.shotUploaded', 'Screenshot uploaded'), 'info')
               else if (fail) window.hibana?.toast(_t('project.shotFailed', 'Upload failed'), 'err')
-              console.log('[pde-shots change] about to call pdeRenderShotsGrid, typeof=', typeof pdeRenderShotsGrid)
-              pdeRenderShotsGrid(tid)
-              console.log('[pde-shots change] pdeRenderShotsGrid called (async)')
               bodyRefresh()
             })
             // S46.4: delegated handlers on the editor's inline shot grid — zoom / edit-note / delete
@@ -2761,23 +2762,23 @@
         // → the editor modal never actually opened (the element was in the DOM but not
         // shown), so the upload AJAX flow + the inline grid never worked.
         async function pdeRenderShotsGrid(tid) {
-          console.log('[pdeRenderShotsGrid] called, tid=', tid, 'pdTaskEditDlg=', !!pdTaskEditDlg)
           const grid = pdTaskEditDlg?.querySelector('#pde-shots-grid')
-          console.log('[pdeRenderShotsGrid] grid=', !!grid, 'tid=', tid)
           if (!grid || !tid) return
           try {
-            const fetchUrl = '/api/projects/' + id + '/screenshots'
-            console.log('[pdeRenderShotsGrid] fetching', fetchUrl)
-            const res = await fetch(fetchUrl)
-            console.log('[pdeRenderShotsGrid] res.ok=', res.ok)
+            const res = await fetch('/api/projects/' + id + '/screenshots')
             if (!res.ok) return
             const shots = ((await res.json()).screenshots) || []
             const pinned = shots.filter((s) => s.task_id === tid)
             const esc = (s) => String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
+            // S46.6: the IMG onerror retries up to 4× with backoff (800ms, 1.6s, 2.4s, 3.2s)
+            // — handles the KV read-after-write propagation delay (a freshly-uploaded
+            // screenshot's file might 404/500 on a KV edge that hasn't seen the write yet;
+            // the retry gives it time to propagate without a page refresh).
+            const retryAttr = ' onerror="(function(i){var n=+(i.dataset.r||0)+1;if(n<4){i.dataset.r=n;var s=i.src;i.onerror=null;setTimeout(function(){i.src=s},800*n)}})(this)"'
             if (!pinned.length) { grid.innerHTML = ''; return }
             grid.innerHTML = pinned.map((s) =>
               '<figure class="shot-card" data-pde-shot="' + esc(s.id) + '">' +
-                '<button type="button" class="shot-img-btn" data-pde-shot-zoom="' + esc(s.id) + '"><img src="/api/media/screenshots/' + esc(s.id) + '/file" alt="" loading="lazy"></button>' +
+                '<button type="button" class="shot-img-btn" data-pde-shot-zoom="' + esc(s.id) + '"><img src="/api/media/screenshots/' + esc(s.id) + '/file" alt="" loading="lazy"' + retryAttr + '></button>' +
                 '<figcaption class="shot-body">' +
                   (s.caption ? '<p class="shot-note muted small" dir="auto">' + esc(s.caption) + '</p>' : '') +
                   '<div class="row spread shot-actions">' +

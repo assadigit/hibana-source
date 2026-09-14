@@ -699,14 +699,20 @@ button.pd-task-add {
 .pd-taskadd-shots { display: flex; flex-direction: column; gap: 0.5rem; }
 .pd-taskadd-shots .ghost.small { font-size: var(--fs-xs); padding: 0.2rem 0.55rem; min-block-size: 0; }
 .pd-taskadd-shots #pd-taskadd-shots-count { font-size: var(--fs-xs); }
-/* S46.3: the inline thumbnail grid for staged screenshots in the task-add composer.
-   Reuses .shot-card (the screenshots-tab card styling) — each thumbnail has a zoom
-   button (img), an optional note line, + delete ✕ / edit-note actions. Compact
-   minmax so 2-3 fit per row in the modal. */
+/* S46.3: the inline thumbnail grid for staged screenshots in the task-add composer
+   + the editor (#pde-shots-grid). Reuses .shot-card — each thumbnail has a zoom
+   button (img), an optional note line, + delete ✕ / edit-note actions.
+   S46.5 (owner: "align the pictures regardless of their size, if the ratio of a
+   picture differs with thumbnail, only show part of it"): the thumbnail box is a
+   UNIFORM SQUARE (aspect-ratio 1/1) + object-fit: cover crops any aspect ratio to
+   fill the square — a tall portrait + a wide landscape both render as the same
+   square, showing only the center crop. overflow:hidden on the button clips the
+   overflow so the grid rows align perfectly. */
 .pd-taskadd-shots-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(8rem, 1fr)); gap: 0.5rem; margin-block-start: 0.3rem; }
 .pd-taskadd-shots-grid:empty { display: none; }
-.pd-taskadd-shots-grid .shot-card { margin: 0; }
-.pd-taskadd-shots-grid .shot-card img { inline-size: 100%; block-size: 6rem; object-fit: cover; }
+.pd-taskadd-shots-grid .shot-card { margin: 0; overflow: hidden; }
+.pd-taskadd-shots-grid .shot-img-btn { display: block; aspect-ratio: 1 / 1; overflow: hidden; padding: 0; }
+.pd-taskadd-shots-grid .shot-img-btn img { inline-size: 100%; block-size: 100%; object-fit: cover; object-position: center; display: block; }
 .pd-taskadd-shots-grid .shot-body { padding: 0.3rem; }
 .pd-taskadd-shots-grid .shot-actions { gap: 0.2rem; }
 .pd-taskadd-shots-grid .shot-actions .ghost.small { font-size: var(--fs-xs); padding: 0.1rem 0.4rem; min-block-size: 0; }

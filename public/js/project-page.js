@@ -2528,8 +2528,9 @@
             // (#pde-shots-grid) shows the task's pinned shots with zoom / edit-note /
             // delete — no more "تصاویر سنجاق‌شده" button hiding them behind a dialog.
             pdTaskEditDlg.querySelector('#pde-shots').addEventListener('change', async (e) => {
+              console.log('[pde-shots change] FIRED, tid=', pdTaskEditDlg.dataset.tid)
               const tid = pdTaskEditDlg.dataset.tid
-              if (!tid) return
+              if (!tid) { console.log('[pde-shots change] no tid, returning'); return }
               const files = [...(e.target.files || [])].filter((f) => f.type.startsWith('image/'))
               e.target.value = ''
               if (!files.length) return
@@ -2556,9 +2557,12 @@
                 } catch { fail++ }
               }
               if (upl) upl.hidden = true
+              console.log('[pde-shots change] upload loop done, ok=', ok, 'fail=', fail, 'tid=', tid)
               if (ok && !fail) window.hibana?.toast(_t('project.shotUploaded', 'Screenshot uploaded'), 'info')
               else if (fail) window.hibana?.toast(_t('project.shotFailed', 'Upload failed'), 'err')
+              console.log('[pde-shots change] about to call pdeRenderShotsGrid, typeof=', typeof pdeRenderShotsGrid)
               pdeRenderShotsGrid(tid)
+              console.log('[pde-shots change] pdeRenderShotsGrid called (async)')
               bodyRefresh()
             })
             // S46.4: delegated handlers on the editor's inline shot grid — zoom / edit-note / delete
@@ -2750,11 +2754,22 @@
         // approach (S46.2's pdeRefreshShotsCount) — the gallery is now visible directly
         // in the editor, not behind a button. Reuses GET /api/projects/:id/screenshots
         // (same one taskShotsDialog uses). Silent on failure (offline → empty grid).
-        const pdeRenderShotsGrid = async (tid) => {
+        // S46.5 fix: this is a FUNCTION DECLARATION (hoisted) — not a const arrow — so
+        // the open-time call at L2744 + the handler calls (L2561/2573/2588) all resolve
+        // without a TDZ ReferenceError. The const-arrow form (S46.4) threw on every open
+        // because the call site ran before the declaration line → showModal() never ran
+        // → the editor modal never actually opened (the element was in the DOM but not
+        // shown), so the upload AJAX flow + the inline grid never worked.
+        async function pdeRenderShotsGrid(tid) {
+          console.log('[pdeRenderShotsGrid] called, tid=', tid, 'pdTaskEditDlg=', !!pdTaskEditDlg)
           const grid = pdTaskEditDlg?.querySelector('#pde-shots-grid')
+          console.log('[pdeRenderShotsGrid] grid=', !!grid, 'tid=', tid)
           if (!grid || !tid) return
           try {
-            const res = await fetch('/api/projects/' + id + '/screenshots')
+            const fetchUrl = '/api/projects/' + id + '/screenshots'
+            console.log('[pdeRenderShotsGrid] fetching', fetchUrl)
+            const res = await fetch(fetchUrl)
+            console.log('[pdeRenderShotsGrid] res.ok=', res.ok)
             if (!res.ok) return
             const shots = ((await res.json()).screenshots) || []
             const pinned = shots.filter((s) => s.task_id === tid)

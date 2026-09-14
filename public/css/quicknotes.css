@@ -45,9 +45,14 @@
   border: 1px solid var(--line-strong);
   border-radius: var(--radius);
   box-shadow: var(--shadow-dropdown);
-  /* S46.12 (owner: "part of it is outside the edge of container"): cap the panel
-     width so it never extends past the container's left edge. */
-  max-inline-size: calc(100vw - 2rem);
+  /* S46.15 (owner: "the handle to show other view modes is out of containers and not
+     visible — you can't click and see list option"): use an EXPLICIT inline-size (not
+     just max-inline-size) so the absolutely-positioned panel respects the width cap.
+     Without an explicit width, the panel could grow past the viewport edge on mobile.
+     The inset-inline-end:0 positions the inline-START edge (left in RTL) at the toggle's
+     start edge; the panel extends inward (rightward in RTL, leftward in LTR). */
+  inline-size: min(22rem, calc(100vw - 2rem));
+  max-inline-size: min(22rem, calc(100vw - 2rem));
   flex-wrap: wrap;
 }
 /* When collapsed, the controls are hidden (the <details> hides non-summary content by

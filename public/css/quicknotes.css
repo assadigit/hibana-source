@@ -45,17 +45,15 @@
   border: 1px solid var(--line-strong);
   border-radius: var(--radius);
   box-shadow: var(--shadow-dropdown);
-  /* S46.17 (owner: "its way too much on top + its always on"): reverted the S46.16
-     position:fixed (was too high at 7rem + stayed visible). Back to position:absolute
-     right below the gear (calc(100% + 0.25rem)). The explicit inline-size constrains
-     the width so it doesn't overflow. The open state is NOT persisted anymore
-     (applyNoteControlsOpen now always starts closed). */
+  /* S46.18: collision-aware positioning is JS-driven (positionNoteControlsPanel in
+     app.js). The CSS provides the DEFAULT (inset-inline-end:0 → extends toward
+     inline-start, the preferred side). The JS measures + flips/shifts if overflow.
+     inline-size caps the width; the JS may override with a smaller size if both sides
+     overflow. */
   inline-size: min(20rem, calc(100vw - 2rem));
   max-inline-size: min(20rem, calc(100vw - 2rem));
   flex-wrap: wrap;
 }
-/* S46.16 mobile override REMOVED — the position:fixed was too high + stayed visible.
-   The base position:absolute + explicit inline-size handles mobile overflow. */
 /* When collapsed, the controls are hidden (the <details> hides non-summary content by
    default, but the absolute panel above also needs the open state — belt and suspenders). */
 .note-controls-toggle:not([open]) .note-head-controls { display: none; }

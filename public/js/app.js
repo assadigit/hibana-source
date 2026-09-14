@@ -2685,20 +2685,62 @@ window.hibana = (() => {
     const nb = document.getElementById('notebook')
     const d = nb?.querySelector('.note-controls-toggle')
     if (!d) return
-    // S46.17 (owner: "its always on — it should be visible only when clicked on setting"):
-    // ALWAYS start closed. The old localStorage persistence kept the panel open across
-    // reloads if the user had opened it once. Now it's closed on every load — click the
-    // gear to open, click again (or outside) to close.
     d.open = false
     try { localStorage.setItem(NOTE_CONTROLS_OPEN_KEY, '0') } catch { /* storage unavailable */ }
+  }
+  // S46.18 (owner: "collision-aware positioning — stays fully inside the viewport on
+  // both mobile and desktop. When the default placement overflows, flip to the opposite
+  // side or shift inward. Use logical properties. Prefer inline-start side first."):
+  // Measures the panel's bounding rect after the <details> opens. If it overflows the
+  // viewport, flips to the opposite side (inset-inline-start:0). If BOTH sides overflow,
+  // shifts inward (anchored to the viewport edge with reduced width).
+  const positionNoteControlsPanel = () => {
+    const toggle = document.querySelector('#notebook .note-controls-toggle')
+    if (!toggle || !toggle.open) return
+    const panel = toggle.querySelector('.note-head-controls')
+    if (!panel) return
+    // Reset to CSS default (inset-inline-end:0 → extends toward inline-start)
+    panel.style.insetInlineStart = ''
+    panel.style.insetInlineEnd = '0'
+    panel.style.left = ''
+    panel.style.right = ''
+    panel.style.inlineSize = ''
+    requestAnimationFrame(() => {
+      const pr = panel.getBoundingClientRect()
+      const vw = document.documentElement.clientWidth || window.innerWidth
+      const overflowStart = pr.left < 8          // overflows the inline-start (left) edge
+      const overflowEnd = pr.right > vw - 8       // overflows the inline-end (right) edge
+      if (overflowStart && !overflowEnd) {
+        // Overflow on the start side → flip: anchor to inline-start (extend toward end)
+        panel.style.insetInlineEnd = 'auto'
+        panel.style.insetInlineStart = '0'
+      } else if (overflowEnd && !overflowStart) {
+        // Overflow on the end side → flip: anchor to inline-end (extend toward start)
+        panel.style.insetInlineEnd = '0'
+        panel.style.insetInlineStart = 'auto'
+      } else if (overflowStart && overflowEnd) {
+        // BOTH sides overflow → shift inward: anchor to the viewport edge + cap width
+        panel.style.insetInlineStart = ''
+        panel.style.insetInlineEnd = 'auto'
+        panel.style.right = '8px'
+        panel.style.inlineSize = `min(20rem, ${vw - 16}px)`
+      }
+    })
   }
   // 'toggle' does NOT bubble — the capture phase on document still sees every one.
   document.addEventListener('toggle', (e) => {
     const d = e.target
     if (!(d instanceof Element) || !d.matches?.('#notebook .note-controls-toggle')) return
-    // S46.17: don't persist the open state — always start closed on next load.
     try { localStorage.setItem(NOTE_CONTROLS_OPEN_KEY, '0') } catch { /* storage unavailable */ }
+    // S46.18: position the panel collision-aware after it opens
+    if (d.open) positionNoteControlsPanel()
   }, true)
+  // S46.18: re-position on viewport resize (the panel might need to flip after resize)
+  let resizeTimer = null
+  window.addEventListener('resize', () => {
+    clearTimeout(resizeTimer)
+    resizeTimer = setTimeout(positionNoteControlsPanel, 100)
+  })
   document.addEventListener('change', (e) => {
     if (e.target.matches?.('#notebook .note-view-radio')) {
       try { localStorage.setItem(NOTE_VIEW_KEY, e.target.checked ? e.target.value : 'list') } catch { /* storage unavailable */ }

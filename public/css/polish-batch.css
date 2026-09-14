@@ -623,6 +623,22 @@ a.related-note,
      still starts Farsi-side; a Latin line flips its own paragraph mid-field.
      Fields that already carry dir="auto" keep it (whole-field first-strong);
      plaintext refines multi-line ones per line — harmless on inputs. */
+
+/* S46.8 (owner: "The bullet point is not tied to text items. fix it"): bullet
+   lists (<ul><li>) inside task titles now have list-style:disc + padding-inline-start
+   so the bullet dots sit NEXT to the text (not detached on the far edge). The
+   parent's white-space:pre-line is overridden to normal inside <ul> so list items
+   don't get extra blank lines between them. */
+.pd-task-title ul, .db-card-title ul, .sp-task-title ul, .sp-bar-title ul {
+  list-style: disc;
+  padding-inline-start: 1.2rem;
+  margin: 0.15rem 0;
+  white-space: normal;
+}
+.pd-task-title li, .db-card-title li, .sp-task-title li, .sp-bar-title li {
+  margin: 0.1rem 0;
+  white-space: normal;
+}
 #pd-taskadd-textarea,
 #pde-input,
 #pd-desc,

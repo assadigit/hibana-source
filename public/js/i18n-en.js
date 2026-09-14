@@ -414,6 +414,7 @@ window.__hibanaDictEN = {
       // project page
       'project.stageSaved': 'Stage saved', 'project.captionPrompt': 'Caption (optional):',
       'project.shotUploaded': 'Screenshot uploaded', 'project.shotFailed': 'Upload failed',
+      'project.shotDeleted': 'Screenshot deleted',
       // S35: the screenshot problem cards
       'project.shotZoom': 'Screenshot', 'project.shotNotePh': 'What is broken & where — the exact spot to work on…',
       // S46: screenshot-note modal + create-bug/idea-from-screenshot + task-composer shot-attach count

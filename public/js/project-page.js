@@ -117,9 +117,18 @@
           const del = e.target.closest('[data-staged-del]')
           if (del) {
             const sid = del.getAttribute('data-staged-del')
-            try { await fetch('/api/screenshots/' + sid, { method: 'DELETE' }) } catch { /* best-effort */ }
-            stagedShots = stagedShots.filter((s) => s.id !== sid)
-            renderTaskAddShots()
+            // S46.8 (owner: "make sure the photo is deleted from database not just invisible"):
+            // check res.ok + toast on success/failure — the DELETE removes the DB row +
+            // the KV bytes (core.ts:468). If the DELETE fails, don't remove from stagedShots.
+            try {
+              const r = await fetch('/api/screenshots/' + sid, { method: 'DELETE' })
+              if (!r.ok) throw new Error('status ' + r.status)
+              stagedShots = stagedShots.filter((s) => s.id !== sid)
+              renderTaskAddShots()
+              window.hibana?.toast(_t('project.shotDeleted', 'Screenshot deleted'), 'info')
+            } catch {
+              window.hibana?.toast(_t('sparks.saveFailed', "Couldn't delete"), 'err')
+            }
             return
           }
           const note = e.target.closest('[data-staged-note]')
@@ -2579,7 +2588,15 @@
               const del = e.target.closest('[data-pde-shot-del]')
               if (del) {
                 const sid = del.getAttribute('data-pde-shot-del')
-                try { await fetch('/api/screenshots/' + sid, { method: 'DELETE' }) } catch { /* best-effort */ }
+                // S46.8 (owner: "make sure the photo is deleted from database not just invisible"):
+                // check res.ok + toast — the DELETE removes the DB row + KV bytes (core.ts:468)
+                try {
+                  const r = await fetch('/api/screenshots/' + sid, { method: 'DELETE' })
+                  if (!r.ok) throw new Error('status ' + r.status)
+                  window.hibana?.toast(_t('project.shotDeleted', 'Screenshot deleted'), 'info')
+                } catch {
+                  window.hibana?.toast(_t('sparks.saveFailed', "Couldn't delete"), 'err')
+                }
                 pdeRenderShotsGrid(tid)
                 bodyRefresh()
                 return

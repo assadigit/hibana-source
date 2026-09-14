@@ -32,32 +32,49 @@
   const TITLE_CLAMP = 150
 
   // Session 23 renderer (user request): titles may carry fenced ``` CODE blocks,
-  // **bold** spans and manual line breaks.
+  // **bold** spans, - / * BULLET lists and manual line breaks.
+  // S46.8 (owner: "The bullet point is not tied to text items. fix it"): `- ` / `* `
+  // prefixed lines now render as <ul><li> with proper list-style (bullets sit NEXT to
+  // the text via padding-inline-start, not detached on the far edge). The \n between
+  // list items is suppressed (the <ul> layout is structural — pre-line would add
+  // blank lines between items).
   function renderTitle(raw) {
     const escd = esc(raw)
     const hasFence = /(^|\n)\s*```/.test(escd)
     const hasBold = /\*\*[^*\n]+\*\*/.test(escd)
-    if (!hasFence && !hasBold) return escd
+    const hasBullet = /(^|\n)\s*[-*]\s+/.test(escd)
+    if (!hasFence && !hasBold && !hasBullet) return escd
     const lines = escd.split('\n')
     let out = ''
-    let inCode = false
+    let inCode = false, inList = false
+    const closeList = () => { if (inList) { out += '</ul>'; inList = false } }
+    const bold = (s) => s.replace(/\*\*([^*\n]+)\*\*/g, '<strong>$1</strong>')
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i]
       const nl = i < lines.length - 1 ? '\n' : ''
       if (!inCode && /^\s*```/.test(line)) {
+        closeList()
         inCode = true
         const codeLang = line.trim().slice(3).trim()
         out += '<code class="t-code"' + (codeLang ? ' data-lang="' + codeLang + '"' : '') + ' dir="ltr"><span hidden class="t-fence">' + line + '</span>'
       } else if (inCode && line.trim() === '```') {
         inCode = false
-        out += '<span hidden class="t-fence">' + line + '</span></code>'
+        out += '<span hidden class="t-fence">' + line + '</span></code>' + nl
       } else if (inCode) {
-        out += line
+        out += line + nl
       } else {
-        out += line.replace(/\*\*([^*\n]+)\*\*/g, '<strong>$1</strong>')
+        const bm = line.match(/^(\s*)(?:[-*])\s+(.*)$/)
+        if (bm) {
+          if (!inList) { out += '<ul>'; inList = true }
+          out += '<li>' + bold(bm[2]) + '</li>'
+          // no nl — <ul> layout is structural
+        } else {
+          closeList()
+          out += bold(line) + nl
+        }
       }
-      out += nl
     }
+    closeList()
     if (inCode) out += '</code>'
     return out
   }

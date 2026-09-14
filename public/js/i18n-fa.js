@@ -413,6 +413,7 @@ window.__hibanaDictFA = {
       // project page
       'project.stageSaved': 'مرحله ذخیره شد', 'project.captionPrompt': 'توضیح (اختیاری):',
       'project.shotUploaded': 'اسکرین‌شات آپلود شد', 'project.shotFailed': 'آپلود انجام نشد',
+      'project.shotDeleted': 'اسکرین‌شات حذف شد',
       // S35: the screenshot problem cards
       'project.shotZoom': 'اسکرین‌شات', 'project.shotNotePh': 'چه چیزی خراب است و کجا — دقیقاً همان‌جا که باید کار کنی…',
       // S46: screenshot-note modal + create-bug/idea-from-screenshot + task-composer shot-attach count

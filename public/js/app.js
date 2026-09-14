@@ -2685,15 +2685,19 @@ window.hibana = (() => {
     const nb = document.getElementById('notebook')
     const d = nb?.querySelector('.note-controls-toggle')
     if (!d) return
-    let open = false
-    try { open = localStorage.getItem(NOTE_CONTROLS_OPEN_KEY) === '1' } catch { /* storage unavailable — collapsed */ }
-    d.open = open
+    // S46.17 (owner: "its always on — it should be visible only when clicked on setting"):
+    // ALWAYS start closed. The old localStorage persistence kept the panel open across
+    // reloads if the user had opened it once. Now it's closed on every load — click the
+    // gear to open, click again (or outside) to close.
+    d.open = false
+    try { localStorage.setItem(NOTE_CONTROLS_OPEN_KEY, '0') } catch { /* storage unavailable */ }
   }
   // 'toggle' does NOT bubble — the capture phase on document still sees every one.
   document.addEventListener('toggle', (e) => {
     const d = e.target
     if (!(d instanceof Element) || !d.matches?.('#notebook .note-controls-toggle')) return
-    try { localStorage.setItem(NOTE_CONTROLS_OPEN_KEY, d.open ? '1' : '0') } catch { /* storage unavailable */ }
+    // S46.17: don't persist the open state — always start closed on next load.
+    try { localStorage.setItem(NOTE_CONTROLS_OPEN_KEY, '0') } catch { /* storage unavailable */ }
   }, true)
   document.addEventListener('change', (e) => {
     if (e.target.matches?.('#notebook .note-view-radio')) {

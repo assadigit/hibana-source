@@ -45,24 +45,17 @@
   border: 1px solid var(--line-strong);
   border-radius: var(--radius);
   box-shadow: var(--shadow-dropdown);
-  inline-size: min(22rem, calc(100vw - 2rem));
-  max-inline-size: min(22rem, calc(100vw - 2rem));
+  /* S46.17 (owner: "its way too much on top + its always on"): reverted the S46.16
+     position:fixed (was too high at 7rem + stayed visible). Back to position:absolute
+     right below the gear (calc(100% + 0.25rem)). The explicit inline-size constrains
+     the width so it doesn't overflow. The open state is NOT persisted anymore
+     (applyNoteControlsOpen now always starts closed). */
+  inline-size: min(20rem, calc(100vw - 2rem));
+  max-inline-size: min(20rem, calc(100vw - 2rem));
   flex-wrap: wrap;
 }
-/* S46.16 (owner: "the problem is not solved yet — the overflow setting"): on mobile,
-   position:fixed relative to the VIEWPORT (not the toggle) so the panel is ALWAYS
-   visible regardless of where the gear sits in the card. right:0.5rem anchors the
-   panel's right edge to the viewport's right edge; the panel extends leftward. */
-@media (max-width: 768px) {
-  .note-controls-toggle[open] .note-head-controls {
-    position: fixed;
-    right: 0.5rem;
-    inset-block-start: 7rem;
-    inset-inline-end: auto;
-    inline-size: min(20rem, calc(100vw - 1rem));
-    max-inline-size: min(20rem, calc(100vw - 1rem));
-  }
-}
+/* S46.16 mobile override REMOVED — the position:fixed was too high + stayed visible.
+   The base position:absolute + explicit inline-size handles mobile overflow. */
 /* When collapsed, the controls are hidden (the <details> hides non-summary content by
    default, but the absolute panel above also needs the open state — belt and suspenders). */
 .note-controls-toggle:not([open]) .note-head-controls { display: none; }

@@ -107,12 +107,23 @@ async function buildAssets() {
       if (!existsSync(srcPath)) return null
       const result = await build({
         entryPoints: [srcPath],
-        bundle: false, // don't bundle imports — these are IIFE globals, not ESM
+        bundle: false, // don't bundle imports — these are classic-script globals, not ESM
         minify: PROD,
         sourcemap: PROD ? false : 'linked',
         write: false,
         target: ['es2020'],
-        format: 'iife',
+        // S48 (owner: "More button not showing other tasks"): DO NOT set format:'iife'.
+        // IIFE wrapping traps every top-level function declaration inside a closure, so
+        // inline HTML handlers (onclick="scrollMore(...)", onscroll="checkMore(...)")
+        // can't reach them — ReferenceError in the deployed dist build. The e2e tests
+        // use the Node server (serves source directly, no IIFE) so they never caught it.
+        // Without a format, esbuild treats the file as a classic script: top-level
+        // declarations stay global + function names are preserved (not renamed), which
+        // is exactly what the inline-onclick contract requires. 59 inline handlers in
+        // sadhana-page.js (scrollMore/checkMore/openArchive/openQA/setFilter/showForm/
+        // checkAllMore) + 1 in project-page.js were silently tree-shaken or trapped.
+        // NOTE: the fabric shim below KEEPS format:'iife' + globalName — that's a
+        // different case (bundle:true, intentionally exposes window.fabricShim).
       })
       return { entry, code: result.outputFiles[0].text }
     }),

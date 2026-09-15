@@ -78,9 +78,8 @@ body.sadhana-body{overflow:hidden;display:flex;flex-direction:column}
   display:inline-flex;align-items:center;padding:2px 4px 2px 0;
   border-radius:0;background:transparent;border:none;
   font-size:12px;font-weight:500;color:var(--text-muted);white-space:nowrap;
-  letter-spacing:.01em;margin-left:8px;
+  letter-spacing:.01em;margin-inline-start:8px;
 }
-body.rtl .hdr-date{margin-left:0;margin-right:8px}
 .sadhana-wrap .hdr-date-sep{color:var(--text-muted);margin:0 7px;font-size:9px;font-weight:300} /* Session 20 (AA): was var(--border2) (3.5:1 in dark) — text-muted keeps the whisper but passes */
 
 /* ─── Subbar ───────────────────────────────────── */
@@ -88,11 +87,19 @@ body.rtl .hdr-date{margin-left:0;margin-right:8px}
 /* subbar-inner defined below */
 /* subbar: filter tags only, calendar is in user menu */
 .sadhana-wrap .subbar-inner{display:flex;align-items:center;gap:6px;padding:6px 22px;max-width:none;margin:0 auto;flex-wrap:wrap}
+/* S48 (owner: "alignment here" — subbar items stair-stepped): the .btn pair sits
+   ~32px tall but the date pill, filter-tags-summary, and #filterCount were 14–25px.
+   align-items:center centered them mathematically but the height mismatch read as
+   a visible stair-step. Every flex child now carries the .btn box height (32px) +
+   internal centering so baselines + boxes line up. #filterCount (a span, inline by
+   default) is promoted to inline-flex so min-block-size applies. */
+.sadhana-wrap .subbar-inner > *{min-block-size:32px}
+.sadhana-wrap .subbar-inner #filterCount{display:inline-flex;align-items:center}
 /* S46 (user request 2026-09-14): the filter tags live behind a toggle so the subbar
    doesn't crowd. The toggle is a chip-like summary; the count badge (#filterCount,
    outside the toggle) still announces the active filter when closed. */
 .sadhana-wrap .filter-tags-toggle{display:inline-flex;flex-direction:column;gap:6px}
-.sadhana-wrap .filter-tags-summary{display:inline-flex;align-items:center;gap:6px;padding:4px 12px;border-radius:20px;font-size:11px;font-weight:600;cursor:pointer;border:1.5px solid var(--line);background:var(--bg-soft);color:var(--text);list-style:none;user-select:none;font-family:inherit;transition:all .2s}
+.sadhana-wrap .filter-tags-summary{display:inline-flex;align-items:center;gap:6px;padding:4px 12px;border-radius:20px;font-size:11px;font-weight:600;cursor:pointer;border:1.5px solid var(--line);background:var(--bg-soft);color:var(--text);list-style:none;user-select:none;font-family:inherit;transition:all .2s;min-block-size:32px}
 .sadhana-wrap .filter-tags-summary::-webkit-details-marker{display:none}
 .sadhana-wrap .filter-tags-summary:hover{border-color:var(--accent);color:var(--accent)}
 .sadhana-wrap .filter-tags-summary .ftag-summary-chev{font-size:9px;opacity:.7;transition:transform .2s}

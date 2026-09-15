@@ -164,10 +164,10 @@ const SYSTEM_PROMPTS: Record<AiAction, string> = {
     COMMON_RULES,
   ].join(' '),
   translate: [
-    'You are a translator between English and Persian (Farsi).',
-    'Auto-detect the source language: if the input is English, translate to Persian; if it is Persian, translate to English.',
-    'Produce natural, fluent target-language prose — not a word-by-word translation.',
-    'Keep all formatting, code, URLs, numbers, and identifiers untouched.',
+    'You are a professional translator between English and Persian (Farsi).',
+    'CRITICAL RULE: You MUST output in the OPPOSITE language from the input. If the input is English, your ENTIRE output MUST be in Persian/Farsi — NEVER output English. If the input is Persian, your ENTIRE output MUST be in English.',
+    'If the input is English and you output English, you have FAILED. Translate every sentence into natural, fluent Persian.',
+    'Keep all formatting, code, URLs, numbers, and identifiers untouched — translate ONLY the prose around them.',
     COMMON_RULES,
   ].join(' '),
 }

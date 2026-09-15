@@ -347,7 +347,11 @@
             bgHtml += '<div class="sp-bound" data-bound="' + g.s.id + '" data-edge="start" style="inset-inline-start:' + left + '%"><i class="sp-bound-grip" aria-hidden="true"></i></div>'
             bgHtml += '<div class="sp-bound' + (g.open ? ' is-open-bound' : '') + '" data-bound="' + g.s.id + '" data-edge="end" style="inset-inline-start:' + pctOf(g.s1) + '%"><i class="sp-bound-grip" aria-hidden="true"></i></div>'
           })
-          const todayLine = '<div class="sp-today-line" style="inset-inline-start:' + pctOf(B().todayIdx()) + '%">' +
+          // S48k: position the today line at the CENTER of today's cell (was: left edge =
+          // the boundary between yesterday + today, which read as "off by one"). Half a
+          // cell width = 100 / totalDays / 2 percent.
+          const todayPct = pctOf(B().todayIdx()) + (100 / totalDays() / 2)
+          const todayLine = '<div class="sp-today-line" style="inset-inline-start:' + todayPct + '%">' +
             '<span class="sp-today-flag" dir="auto">' + B().esc(_t('db.today', 'Today')) + '</span>' +
           '</div>'
 
@@ -419,19 +423,20 @@
               return b == null || b >= range.start // ongoing, or ends inside/after the window
             })
             const laneH = Math.max(visTasks.length, 1) * 28 + 10
-            // User request 2026-09: only show in_progress + done tasks on the timeline.
-            // Other tasks (idea/planned/bug) are hidden from the graph to reduce clutter.
-            // The bar becomes a circle (dot) positioned at the task's START date, colored
-            // by status. On hover, a tooltip reveals the title. On click, the editor opens.
-            const bars = visTasks.filter(t => t.status === 'in_progress' || t.status === 'done').map((task, ti) => {
+            // S48k: show ALL tasks on the timeline (was: only in_progress + done). Tasks
+            // with other statuses (idea/planned/bug) appear as muted dots so the user
+            // sees their planned work alongside active work. The status class on the dot
+            // controls the color: st-active (teal), st-done (green + ✓), st-planned (grey).
+            const dotStatusClass = (st) => st === 'done' ? 'st-done' : st === 'in_progress' ? 'st-active' : 'st-planned'
+            const bars = visTasks.map((task, ti) => {
               const a0 = tStart(task)
               const t0 = clampIdx(a0 == null ? range.start : a0)
               const left = pctOf(t0)
               const txt = darkText(color) ? '#20242c' : '#ffffff'
               const isDone = task.status === 'done'
-              const dotClass = isDone ? 'sp-dot st-done' : 'sp-dot st-active'
+              const dotClass = 'sp-dot ' + dotStatusClass(task.status)
               return '<div class="' + dotClass + '" draggable="true" data-bar="' + task.id + '" data-task="' + task.id + '" ' +
-                'style="--bar-c:' + color + ';inset-inline-start:' + left + '%;inset-block-start:' + (4 + ti * 24) + 'px" ' +
+                'style="inset-inline-start:' + left + '%;inset-block-start:' + (4 + ti * 24) + 'px" ' +
                 'title="' + B().esc(task.title) + ' · ' + B().esc(B().prioLabel(task.priority)) + '">' +
                 '<span class="sp-dot-prio prio-' + task.priority + '" title="' + B().esc(B().prioLabel(task.priority)) + '" aria-label="' + B().esc(B().prioLabel(task.priority)) + '"></span>' +
                 (isDone ? '<span class="sp-dot-check">✓</span>' : '') +
@@ -893,13 +898,8 @@
               '<a class="btn ghost small sp-pop-plan" href="/project.html?id=' + encodeURIComponent(projectId) + '&sprint=' + encodeURIComponent(s.id) + '">' +
                 B().esc(_t('sprint.plan', 'Plan')) + '</a>'
             chip.closest('.sp-sprint')?.appendChild(sprintPop) || document.body.appendChild(sprintPop)
-            const r = chip.getBoundingClientRect()
-            const pr = sprintPop.getBoundingClientRect()
-            sprintPop.style.position = 'fixed'
-            sprintPop.style.insetInlineStart = ''
-            if (document.documentElement.dir === 'rtl') sprintPop.style.right = Math.max(8, r.right - pr.width - 8) + 'px'
-            else sprintPop.style.left = Math.max(8, Math.min(r.left, window.innerWidth - pr.width - 8)) + 'px'
-            sprintPop.style.top = Math.min(r.bottom + 6, Math.max(8, window.innerHeight - pr.height - 8)) + 'px'
+            // S48k: CSS centers the modal (position:fixed + transform:translate(-50%,-50%)).
+            // No manual positioning needed (was: fixed inline positioning for the popover).
             sprintPop.querySelector('[data-sp-rename]').focus()
             return
           }

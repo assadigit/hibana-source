@@ -46,14 +46,19 @@ describe('screenshot upload path shape (session-9 F1)', () => {
       const token = await createSession(db, userId)
 
       // Capture the Contents API PUT: URL + body, and answer like GitHub would (201).
+      // S48k: the pushFile now probes for SHA first (a GET) — return 404 (new file,
+      // no SHA needed) so only the PUT is captured in `puts`.
       const puts: { url: string; body: { message: string; content: string } }[] = []
       vi.stubGlobal('fetch', (async (input: RequestInfo | URL, init?: RequestInit) => {
         const url = String(input)
         if (url.startsWith('https://api.github.com/repos/testowner/testrepo/contents/')) {
-          puts.push({ url, body: JSON.parse(String(init?.body)) })
+          if (init?.method === 'PUT') {
+            puts.push({ url, body: JSON.parse(String(init?.body)) })
+          }
+          // GET (SHA probe) → 404 (new file); PUT → 201 (created)
           return new Response(
             JSON.stringify({ content: { html_url: 'https://github.com/testowner/testrepo/blob/main/x' } }),
-            { status: 201, headers: { 'Content-Type': 'application/json' } },
+            { status: init?.method === 'PUT' ? 201 : 404, headers: { 'Content-Type': 'application/json' } },
           )
         }
         return new Response('{}', { status: 200 })

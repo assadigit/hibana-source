@@ -46,7 +46,7 @@ describe('ai service (idea §1)', () => {
     expect(buildMessages('rewrite', 'x')[0].content).toContain('SAME language')
     const tr = buildMessages('translate', 'x')[0].content
     expect(tr).toContain('English and Persian')
-    expect(tr).toContain('Auto-detect')
+    expect(tr).toContain('OPPOSITE language') // S48k: stronger prompt — no more "Auto-detect"
   })
 
   it('withinCharBudget counts code points, not UTF-16 units', () => {

@@ -2621,7 +2621,7 @@
                   '</select></label>' +
                 '</div>' +
                 '<label class="pd-opt" style="margin-top:.5rem">' + _t('pd.labels', 'Labels') +
-                  ' <input id="pde-tags" dir="auto" autocomplete="off" maxlength="480" placeholder="' + _t('pd.labelsPh', 'e.g. UI/UX, Security') + '" aria-label="' + _t('pd.labels', 'Labels') + '" />' +
+                  ' <input id="pde-tags" dir="' + (pdLang() === 'fa' ? 'rtl' : 'auto') + '" autocomplete="off" maxlength="480" placeholder="' + _t('pd.labelsPh', 'e.g. UI/UX, Security') + '" aria-label="' + _t('pd.labels', 'Labels') + '" />' +
                   '<span class="muted small">' + _t('pd.labelsHint', 'Comma-separated — a chip per label') + '</span>' +
                 '</label>' +
                 // S46.2 (owner: "add ability to upload a screenshot directly in this page,

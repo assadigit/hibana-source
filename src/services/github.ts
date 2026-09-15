@@ -22,10 +22,27 @@ export function githubClient(cfg: GitHubConfig) {
   }
 
   async function pushFile(path: string, contentB64: string, message: string): Promise<{ html_url: string }> {
+    // S48k: GitHub's Contents API requires the file's current SHA when updating an
+    // EXISTING file. Without it, GitHub returns 409 Conflict ("is at X but expected Y").
+    // The backup pushes to the SAME path each time (overwrite), so the file always
+    // exists after the first run. Fix: probe the file's SHA first (404 = new file,
+    // no SHA needed), then include it in the PUT body. Wrap in try/catch so a failed
+    // probe (non-JSON response, network error) never blocks the push — the PUT proceeds
+    // without SHA (GitHub 404s new files without it, + existing files get a clear 409).
+    let sha: string | undefined
+    try {
+      const probe = await fetch(`${API}/repos/${cfg.owner}/${cfg.repo}/contents/${path}`, {
+        headers: headers({ Accept: 'application/vnd.github+json' }),
+      })
+      if (probe.ok) {
+        const meta = (await probe.json()) as { sha?: string }
+        sha = meta.sha
+      }
+    } catch { /* probe failed — proceed without SHA */ }
     const res = await fetch(`${API}/repos/${cfg.owner}/${cfg.repo}/contents/${path}`, {
       method: 'PUT',
       headers: headers({ 'Content-Type': 'application/json' }),
-      body: JSON.stringify({ message, content: contentB64 }),
+      body: JSON.stringify({ message, content: contentB64, ...(sha ? { sha } : {}) }),
     })
     if (!res.ok) throw new Error(`GitHub push failed (${res.status}): ${await res.text()}`)
     const data = (await res.json()) as { content: { html_url: string } }

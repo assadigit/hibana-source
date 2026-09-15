@@ -147,7 +147,7 @@ task-controls → magic-wand
 
 ### i18n (EN + FA)
 - Server-side: `src/lib/i18n.ts` translates htmx fragments.
-- Client-side: `public/js/i18n.js` + `i18n-en.js` + `i18n-fa.js`. Key parity enforced (953/953) via
+- Client-side: `public/js/i18n.js` + `i18n-en.js` + `i18n-fa.js`. Key parity enforced (1124/1124) via
   `scripts/check-i18n-parity.mjs` (CI gate).
 - Persian digit normalization. CSS logical properties for RTL/LTR.
 
@@ -226,7 +226,8 @@ deploy: `curl https://hibana.ir/api/health` → `{"ok":true}`.
 4. **Schema changes ONLY via numbered files in `migrations/`** — never ad-hoc `ALTER TABLE`.
    Schema changes need Ali's explicit written approval.
 5. **Every credential is a secret** — `wrangler secret put` / env vars. Never hardcoded.
-6. **Password hashing: PBKDF2** via Web Crypto (600k iterations, SHA-256). Never bcrypt/argon2.
+6. **Password hashing: PBKDF2** via Web Crypto (100k iterations, SHA-256 — the Cloudflare Workers
+   platform cap; see Agents.md rule 6). Never bcrypt/argon2.
 7. **Validate all API input with Zod** at the route level, on every endpoint.
 8. **Telegram webhook validates the secret-token header** — unauthenticated calls never create data.
 

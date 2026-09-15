@@ -49,7 +49,7 @@ a whiteboard note.
    server accepts as canonical; server-generated otherwise.
 3. All timestamps stored UTC. Calendar (Gregorian/Shamsi via jalaali-js) + TZ conversion only
    at render time — never in storage or query filters.
-4. Schema changes ONLY via numbered files in `migrations/` (0001–0047; `0007` gap is
+4. Schema changes ONLY via numbered files in `migrations/` (0001–0056; `0007` gap is
    original). Never ad-hoc `ALTER TABLE`. Never untested migrations against prod.
    Pre-migration bookmark ritual (Changelogs §4 + §9). Schema changes need Ali's explicit
    written approval.
@@ -112,7 +112,7 @@ If you edit after a bump, re-bump (stale HTTP cache under the same URL). `check-
 is a CI gate. Current numbers: Changelogs §1.
 
 ## i18n
-EN + FA ship together, always. Programmatic key-parity check (953/953) via
+EN + FA ship together, always. Programmatic key-parity check (1124/1124) via
 `scripts/check-i18n-parity.mjs` (CI gate). Persian digit normalization; CSS logical
 properties for RTL/LTR.
 

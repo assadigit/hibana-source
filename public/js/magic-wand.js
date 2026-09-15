@@ -86,6 +86,8 @@
   }
 
   // Read the text from an element: textarea → .value; other → .textContent (stripped)
+  // S48p: for .pd-task-title (which now shows only the first line), read the TITLE LINE
+  // from textContent — the AI translates just the title, not the full content.
   function fieldText(el) {
     if (el instanceof HTMLTextAreaElement || el instanceof HTMLInputElement) return el.value ?? ''
     if (el.isContentEditable) return el.innerText
@@ -93,6 +95,11 @@
   }
   // Write text back: textarea → .value + dispatch input (autosave); rendered → textContent
   // + PATCH the save URL if present.
+  // S48p: for .pd-task-title with data-raw-title (title\ncontent), the AI translates
+  // only the TITLE line (what's visible on the card). When applying, preserve the
+  // ORIGINAL CONTENT (everything after the first \n in data-raw-title) by PATCHing
+  // title = translated_title + '\n' + original_content. Without this, the PATCH
+  // would overwrite the entire field with just the translated title, LOSING the content.
   function applyText(el, text) {
     if (el instanceof HTMLTextAreaElement || el instanceof HTMLInputElement) {
       el.value = text
@@ -115,10 +122,23 @@
     const saveUrl = el.getAttribute('data-magic-save')
     const field = el.getAttribute('data-magic-field') || 'title'
     if (saveUrl) {
+      // S48p: if the element has data-raw-title (title\ncontent), preserve the content.
+      // The AI translated only the TITLE line. PATCH back: translated_title + '\n' + original_content.
+      let patchValue = text
+      const rawTitle = el.getAttribute('data-raw-title')
+      if (rawTitle) {
+        const nlIdx = rawTitle.indexOf('\n')
+        if (nlIdx >= 0) {
+          // Preserve the content (everything after the first \n)
+          patchValue = text + '\n' + rawTitle.slice(nlIdx + 1)
+        }
+        // Update data-raw-title so the editor loads the correct value next time
+        el.setAttribute('data-raw-title', patchValue)
+      }
       fetch(saveUrl, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ [field]: text }),
+        body: JSON.stringify({ [field]: patchValue }),
       }).catch(() => toast(t('magic.failed')))
     }
   }

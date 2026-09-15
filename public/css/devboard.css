@@ -323,11 +323,11 @@
 .sp-task:hover { background: var(--bg-soft); }
 .sp-task-title { flex: 1; min-inline-size: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .sp-task-st { inline-size: 8px; block-size: 8px; border-radius: 999px; flex: none; }
-.sp-task-st.st-idea { background: #AEB4BE; }
-.sp-task-st.st-planned { background: #8AB8F0; }
-.sp-task-st.st-in_progress { background: #E8A27D; }
-.sp-task-st.st-done { background: #6FB08D; }
-.sp-task-st.st-bug { background: #E59AA5; } /* 0031: bugs read red everywhere */
+.sp-task-st.st-idea { background: #5B8DEF; } /* S48p: BLUE for ideas */
+.sp-task-st.st-planned { background: #F0C040; } /* S48p: YELLOW for future plans */
+.sp-task-st.st-in_progress { background: #E8A27D; } /* S48p: ORANGE for currently doing */
+.sp-task-st.st-done { background: #6FB08D; } /* S48p: GREEN for done */
+.sp-task-st.st-bug { background: #E54D4D; } /* S48p: RED for bugs */
 .sp-task-addrow input {
   inline-size: 100%; border: none; border-block-end: 1px dashed var(--line); border-radius: 0;
   background: none; color: var(--text); font: inherit; font-size: var(--fs-sm);
@@ -613,22 +613,25 @@
 }
 .sp-dot:active { cursor: grabbing; }
 .sp-dot.st-active {
-  --bar-c: #4A9FA3;
-  border-color: #4A9FA3;
+  /* S48p: ORANGE for currently doing (was: teal — inconsistent with project box) */
+  --bar-c: #E8A27D;
+  border-color: #E8A27D;
 }
 .sp-dot.st-done {
+  /* S48p: GREEN for done */
   --bar-c: #6FB08D;
   border-color: #6FB08D;
   opacity: 0.7;
 }
 .sp-dot.st-done:hover { opacity: 1; }
-/* S48k: planned/idea/bug tasks — muted dots (lighter, semi-transparent). */
+/* S48p: planned/idea/bug tasks — colored by status (BLUE for ideas, YELLOW for
+   planned, RED for bugs). Semi-transparent so active/done tasks stand out more. */
 .sp-dot.st-planned {
-  --bar-c: #B0B8C0;
-  border-color: #B0B8C0;
-  opacity: 0.5;
+  --bar-c: #F0C040; /* YELLOW for future plans */
+  border-color: #F0C040;
+  opacity: 0.6;
 }
-.sp-dot.st-planned:hover { opacity: 0.8; }
+.sp-dot.st-planned:hover { opacity: 0.9; }
 .sp-dot-prio {
   inline-size: 6px;
   block-size: 6px;
@@ -679,6 +682,10 @@
 }
 .sp-pop-stats .sp-pop-dates { flex-basis: 100%; font-weight: 600; color: var(--text); }
 .sp-pop-plan { justify-self: start; text-decoration: none; }
+/* S48p: sprint log — task count + category breakdown */
+.sp-pop-log { display: grid; gap: 0.3rem; border-block-start: 1px solid var(--line); padding-block-start: 0.5rem; }
+.sp-pop-log-row { display: flex; justify-content: space-between; font-size: var(--fs-xs); color: var(--muted); }
+.sp-pop-log-row span:last-child { font-weight: 600; color: var(--text); }
 .sp-cat-edit-pop { max-inline-size: 16rem; }
 .sp-pop-lab { font-size: var(--fs-xs); font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); }
 /* S48n: sprint define popover date inputs + presets */

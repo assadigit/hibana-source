@@ -513,6 +513,9 @@ window.__hibanaDictFA = {
       'db.draftExists': 'یک اسپرینت در حال تعریف است — اول شروعش کن یا حذفش کن',
       'db.startSprint': 'شروع اسپرینت', 'db.draftHint': 'آیتم‌ها را از نوار کنار اضافه کن یا همین‌جا رها کن — به این اسپرینت می‌پیوندند. آماده بودی شروعش کن.',
       'db.sprintFinished': 'اسپرینت با موفقیت پایان یافت — نوبت بعدی',
+      'db.extendSprint': 'تمدید', 'db.extendPrompt': 'چند روز تمديد شود؟',
+      'db.sprintLog': 'گزارش اسپرینت', 'db.sprintTotalTasks': 'کل وظایف',
+      'common.copy': 'کپی', 'common.copied': 'کپی شد',
       'db.finishSprintHint': 'این اسپرینت را پایان بده — پنجره‌اش می‌بندد و می‌توانی اسپرینت بعدی را تعریف کنی',
       // S35: the sprint strip (video-editing timeline) — duration + done stats
       'db.sprintDay': 'روز {n}', 'db.sprintDays': '{n} روز', 'db.sprintTo': 'تا',

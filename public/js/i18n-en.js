@@ -514,6 +514,9 @@ window.__hibanaDictEN = {
       'db.draftExists': 'A sprint is already being defined — start it or delete it first',
       'db.startSprint': 'Start sprint', 'db.draftHint': 'Add items in the sidebar or drag them here — they join this sprint. Start it when ready.',
       'db.sprintFinished': 'Sprint finished — on to the next one',
+      'db.extendSprint': 'Extend', 'db.extendPrompt': 'Extend by how many days?',
+      'db.sprintLog': 'Sprint log', 'db.sprintTotalTasks': 'Total tasks',
+      'common.copy': 'Copy', 'common.copied': 'Copied to clipboard',
       'db.finishSprintHint': 'Finish this sprint — its window closes and the next one can be defined',
       // S35: the sprint strip (video-editing timeline) — duration + done stats
       'db.sprintDay': 'Day {n}', 'db.sprintDays': '{n} days', 'db.sprintTo': 'to',

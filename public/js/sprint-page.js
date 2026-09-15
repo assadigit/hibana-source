@@ -269,7 +269,16 @@
             else days.set(i, [t.title])
           })
           const docChecked = (String(s.description || '').match(/^- \[x\] /gm) || []).length
-          return { assigned: assigned.length, done: done.length, days, docChecked }
+          // S48p: category breakdown — count tasks per category in this sprint
+          const catMap = new Map()
+          assigned.forEach((t) => {
+            if (!t.category_id) return
+            const cat = S.categories.find((c) => c.id === t.category_id)
+            const name = cat ? cat.name : '—'
+            catMap.set(name, (catMap.get(name) || 0) + 1)
+          })
+          const categories = Array.from(catMap.entries()).map(([name, count]) => ({ name, count }))
+          return { assigned: assigned.length, done: done.length, days, docChecked, categories }
         }
 
         // strip extent as a % of the sprint container: open sprints run to TODAY (the
@@ -895,9 +904,19 @@
               '<div class="row">' +
                 '<button type="button" class="btn small" data-sp-save>' + B().esc(_t('common.save', 'Save')) + '</button>' +
                 (open
-                  ? '<button type="button" class="btn ghost small" data-sp-finish>' + B().esc(_t('db.finishSprint', 'Finish sprint')) + '</button>'
+                  ? '<button type="button" class="btn ghost small" data-sp-finish>' + B().esc(_t('db.finishSprint', 'Finish sprint')) + '</button>' +
+                    '<button type="button" class="btn ghost small" data-sp-extend>' + B().esc(_t('db.extendSprint', 'Extend')) + '</button>'
                   : '<button type="button" class="btn ghost small" data-sp-reopen>' + B().esc(_t('db.reopenSprint', 'Reopen')) + '</button>') +
                 '<button type="button" class="btn ghost danger small" data-sp-del>' + B().esc(_t('common.delete', 'Delete')) + '</button>' +
+              '</div>' +
+              // S48p: sprint log — task count + category breakdown
+              '<div class="sp-pop-log" dir="auto">' +
+                '<div class="sp-pop-lab">' + B().esc(_t('db.sprintLog', 'Sprint log')) + '</div>' +
+                '<div class="sp-pop-log-row"><span>' + B().esc(_t('db.sprintTotalTasks', 'Total tasks')) + '</span><span>' + B().faDig(st.assigned) + '</span></div>' +
+                '<div class="sp-pop-log-row"><span>' + B().esc(_t('db.sprintDoneTasks', '{n} done').replace('{n}', '')) + '</span><span>' + B().faDig(st.done) + '</span></div>' +
+                (st.categories && st.categories.length
+                  ? st.categories.map((c) => '<div class="sp-pop-log-row"><span>' + B().esc(c.name) + '</span><span>' + B().faDig(c.count) + '</span></div>').join('')
+                  : '') +
               '</div>' +
               '<a class="btn ghost small sp-pop-plan" href="/project.html?id=' + encodeURIComponent(projectId) + '&sprint=' + encodeURIComponent(s.id) + '">' +
                 B().esc(_t('sprint.plan', 'Plan')) + '</a>'
@@ -908,7 +927,7 @@
             return
           }
           if (sprintPop && !e.target.closest('.sp-sprint-pop')) { closeSprintPop(); return }
-          const spBtn = e.target.closest('[data-sp-save],[data-sp-finish],[data-sp-reopen],[data-sp-del]')
+          const spBtn = e.target.closest('[data-sp-save],[data-sp-finish],[data-sp-reopen],[data-sp-del],[data-sp-extend]')
           if (!spBtn || !sprintPop) return
           // S46.11: the popover may be appended to .sp-sprint (timeline chip) OR
           // document.body (list row) — check both for the sprint id.
@@ -919,6 +938,17 @@
             if (spBtn.matches('[data-sp-save]')) await B().renameSprint(id, sprintPop.querySelector('[data-sp-rename]').value.trim())
             if (spBtn.matches('[data-sp-finish]')) await B().finishSprint(id)
             if (spBtn.matches('[data-sp-reopen]')) await B().reopenSprint(id)
+            // S48p: extend sprint — prompt for days, PATCH ended_at = current_end + days
+            if (spBtn.matches('[data-sp-extend]')) {
+              const daysStr = window.prompt(_t('db.extendPrompt', 'Extend by how many days?'))
+              const days = parseInt(daysStr, 10)
+              if (!Number.isFinite(days) || days <= 0) return
+              const sprint = B().state.sprints.find((s) => s.id === id)
+              if (!sprint) return
+              const currentEnd = sprint.ended_at ? new Date(sprint.ended_at) : new Date()
+              const newEnd = new Date(currentEnd.getTime() + days * 86400000)
+              await B().patchSprint(id, { ended_at: newEnd.toISOString() })
+            }
             if (spBtn.matches('[data-sp-del]')) {
               if (!window.confirm(_t('db.delSprintConfirm', 'Delete this sprint? Its tasks stay, unassigned.'))) return
               await B().deleteSprint(id)
@@ -1330,7 +1360,7 @@
             if (window.HibanaBoard) return resolve(true)
             if (!injected && waited >= 1200) {
               injected = true
-              inject('/js/devboard.js?v=19') // keep in sync with the <head> tag + sw SHELL
+              inject('/js/devboard.js?v=20') // keep in sync with the <head> tag + sw SHELL
               if (!window.jalaali) inject('/vendor/jalaali.min.js') // Jalali timeline for FA
             }
             if (waited >= 9000) return resolve(false)

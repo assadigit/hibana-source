@@ -2522,6 +2522,7 @@
               '</button>' +
               '<div class="spark-menu-pop" hidden>' +
                 '<button type="button" data-pd-task-edit="' + tid + '"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg><span>' + _t('common.edit', 'Edit') + '</span></button>' +
+                '<button type="button" data-pd-task-copy="' + tid + '"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg><span>' + _t('common.copy', 'Copy') + '</span></button>' +
                 '<button type="button" class="danger" data-pd-task-delete="' + tid + '"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg><span>' + _t('common.delete', 'Delete') + '</span></button>' +
               '</div>'
             task.appendChild(menu)
@@ -2539,6 +2540,20 @@
               pop.hidden = !willOpen
               if (willOpen) openBtn.setAttribute('data-open', '')
               else openBtn.removeAttribute('data-open')
+            })
+            // S48p: copy full content (title + content from data-raw-title) to clipboard
+            menu.querySelector('[data-pd-task-copy]').addEventListener('click', (ev) => {
+              ev.preventDefault()
+              ev.stopPropagation()
+              closePdTaskMenus()
+              const titleEl = task.querySelector('.pd-task-title')
+              const rawTitle = titleEl ? titleEl.getAttribute('data-raw-title') : null
+              const text = rawTitle || (titleEl ? titleEl.textContent : '')
+              navigator.clipboard.writeText(text).then(() => {
+                window.hibana?.toast(_t('common.copied', 'Copied to clipboard'))
+              }).catch(() => {
+                window.hibana?.toast(_t('sparks.saveFailed', "Couldn't copy"), 'err')
+              })
             })
             menu.querySelector('[data-pd-task-edit]').addEventListener('click', (ev) => {
               ev.preventDefault()

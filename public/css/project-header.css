@@ -570,6 +570,12 @@ dialog.pd-taskedit-modal {
 /* S48g: the separate Title input above the contenteditable — single-line, plain text */
 .pde-title-field { font-size: var(--fs-md); font-weight: 600; padding: 0.45rem 0.75rem; border: 1px solid var(--line); border-radius: var(--radius-sm); background: var(--bg); color: var(--text); }
 .pde-title-field:focus-visible { border-color: var(--brand); outline: 2px solid transparent; box-shadow: 0 0 0 3px color-mix(in srgb, var(--brand) 15%, transparent); }
+/* S48h: the contenteditable field wrapper — replaces the invalid <label> that wrapped
+   the contenteditable (a contenteditable is interactive content, not allowed inside
+   <label>). Mirrors .modal label's grid + gap + muted color so the field label reads
+   the same as the other labels in the form. */
+.pde-field { display: grid; gap: 0.3rem; font-size: var(--fs-md); color: var(--muted); }
+.pde-field-label { font-size: var(--fs-md); color: var(--muted); }
 .pde-edit-area:focus-visible { border-color: var(--brand); outline: 2px solid transparent; box-shadow: 0 0 0 3px color-mix(in srgb, var(--brand) 15%, transparent); }
 .pde-edit-area:empty::before { content: attr(data-placeholder); color: var(--muted); pointer-events: none; }
 .pde-edit-area ul, .pde-edit-area ol { margin: 0.3rem 0; padding-inline-start: 1.5rem; }

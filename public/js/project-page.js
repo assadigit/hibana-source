@@ -2284,7 +2284,9 @@
             } else {
               insertTaskChip(finalStatus, { id: data.id, title, priority, tags: (data.tags || []).map((tg) => ({ name: tg.name, color: tg.color })) })
             }
-            ta.value = ''
+            ta.innerHTML = ''
+            const taskTitleClear = document.getElementById('pd-taskadd-title-input')
+            if (taskTitleClear) taskTitleClear.value = ''
             const tagsClear = document.getElementById('pd-taskadd-tags')
             if (tagsClear) tagsClear.value = ''
             // S46.3: stagedShots already cleared + grid re-rendered above (pin path);
@@ -2606,7 +2608,7 @@
                 //   compatible: existing tasks with no \n split load the first line as
                 //   the title, the rest as content).
                 '<label>' + _t('db.title', 'Title') + ' <input type="text" id="pde-title-input" class="pde-title-field" dir="auto" placeholder="' + _t('pd.titlePh', 'e.g. UI/UX Tweaks') + '"></label>' +
-                '<label>' + _t('pd.content', 'Content') + ' <div id="pde-input" contenteditable="true" role="textbox" aria-multiline="true" dir="' + (pdLang() === 'fa' ? 'rtl' : 'auto') + '" class="pde-edit-area" data-placeholder="' + _t('pd.writeHere', 'Write here…') + '"></div></label>' +
+                '<div class="pde-field"><span class="pde-field-label">' + _t('pd.content', 'Content') + '</span><div id="pde-input" contenteditable="true" role="textbox" aria-multiline="true" aria-label="' + _t('pd.content', 'Content') + '" dir="' + (pdLang() === 'fa' ? 'rtl' : 'auto') + '" class="pde-edit-area" data-placeholder="' + _t('pd.writeHere', 'Write here…') + '"></div></div>' +
                 '<div class="row" style="gap:1rem;margin-top:.4rem">' +
                   '<label style="flex:1">' + _t('db.status', 'Status') + ' <select id="pde-status">' +
                     [['idea','db.st.idea'],['planned','db.st.planned'],['in_progress','db.st.inprog'],['done','db.st.done'],['bug','db.st.bug']].map(function(pair){return '<option value="'+pair[0]+'">'+_t(pair[1], pair[0])+'</option>'}).join('') +

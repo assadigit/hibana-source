@@ -712,3 +712,59 @@ body.has-mobile-nav { padding-block-end: calc(3.5rem + env(safe-area-inset-botto
   .trash-item { padding: 0.55rem 0.6rem; gap: 0.5rem; }
   .trash-ico { inline-size: 1.75rem; block-size: 1.75rem; }
 }
+
+
+/* --- S50: skeleton widening (sparks shelf + reports summary/feed) -------------
+   The sparks shelf's spinner row and the reports page's «Loading…» lines adopt
+   the projects-page skeleton pattern (same .skeleton shimmer base) so every
+   list surface reads as "content is coming". The sparks cards mimic the shelf's
+   idea-card grid; the reports shapes mimic the stat-strip + the two snapshot
+   stat-boxes + the activity feed rows. All aria-hidden — an sr-only sibling
+   carries the status text for screen readers. */
+.sk-card {
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface, var(--accent-soft));
+  padding: 0.9rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+  min-block-size: 6.5rem;
+}
+.sk-card-ico { inline-size: 2rem; block-size: 2rem; border-radius: 999px; margin-block-end: 0.2rem; }
+/* reports: the summary snapshot — a row of stat pills, then the two boxes */
+.sk-stat-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  padding: 0.5rem 0;
+}
+.sk-stat-pill { inline-size: 6.2rem; block-size: 1.7rem; border-radius: 999px; }
+.sk-stat-boxes {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr));
+  gap: 0.75rem;
+  padding: 0.35rem 0 0.5rem;
+}
+.sk-stat-box {
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface, var(--accent-soft));
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+/* reports: the activity feed — three item rows (icon + two lines) */
+.sk-feed-rows { list-style: none; display: flex; flex-direction: column; gap: 0.6rem; }
+.sk-feed-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  padding: 0.85rem 1rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+}
+.sk-feed-ico { inline-size: 2rem; block-size: 2rem; border-radius: 999px; flex: none; }
+.sk-feed-lines { flex: 1 1 auto; min-inline-size: 0; }
+.sk-feed-lines .skeleton-line { margin-block-end: 0.45rem; }

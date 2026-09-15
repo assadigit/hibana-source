@@ -22,7 +22,7 @@
   <link rel="stylesheet" href="/css/canvas.css?v=6">
   <link rel="stylesheet" href="/css/quicknotes.css?v=12">
   <link rel="stylesheet" href="/css/to-do-list.css?v=3">
-  <link rel="stylesheet" href="/css/polish-ui.css?v=6">
+  <link rel="stylesheet" href="/css/polish-ui.css?v=7">
   <link rel="stylesheet" href="/css/calendar.css?v=4">
   <link rel="stylesheet" href="/css/notifications.css?v=4">
   <link rel="stylesheet" href="/css/polish-batch.css?v=13">
@@ -54,7 +54,7 @@
   <script src="/js/mobile-nav.js?v=5" defer></script>
   <script src="/js/go-to.js?v=1" defer></script>
   <script src="/js/install-prompt.js?v=1" defer></script>
-    <link rel="stylesheet" href="/css/sadhana-board.css?v=9">
+    <link rel="stylesheet" href="/css/sadhana-board.css?v=11">
 </head>
 <body class="sadhana-body">
   <div id="hibana-page-loader" aria-hidden="true"><div class="hibana-page-loader-spinner"></div></div>
@@ -91,7 +91,32 @@
 </div>
 
 <div class="mat-outer">
-  <div class="mat-grid" id="matGrid"><div class="sadhana-loading" id="boardLoading">Loading…</div></div>
+  <div class="mat-grid" id="matGrid">
+  <!-- S50: skeleton boot state — four quadrant-shaped placeholders in the same 2×2
+       geometry the real board renders into (≤740px keeps ONE: the carousel shows a
+       quadrant per view). Replaces the bare «Loading…» text, which read as a glitch
+       flash before the board painted. #boardLoading keeps its id — the e2e contract
+       (sadhana.spec.ts openSadhana) waits for this element to detach on healthy boot. -->
+  <div class="sadhana-loading sadhana-sk" id="boardLoading" role="status">
+    <span class="sr-only" data-i18n="common.loading">Loading…</span>
+    <div class="sk-quad" aria-hidden="true">
+      <div class="sk-quad-hero"><div class="skeleton sk-quad-ico"></div><div><div class="skeleton sk-quad-title"></div><div class="skeleton sk-quad-sub"></div></div></div>
+      <div class="skeleton sk-task"></div><div class="skeleton sk-task"></div><div class="skeleton sk-task"></div>
+    </div>
+    <div class="sk-quad" aria-hidden="true">
+      <div class="sk-quad-hero"><div class="skeleton sk-quad-ico"></div><div><div class="skeleton sk-quad-title"></div><div class="skeleton sk-quad-sub"></div></div></div>
+      <div class="skeleton sk-task"></div><div class="skeleton sk-task"></div><div class="skeleton sk-task"></div>
+    </div>
+    <div class="sk-quad" aria-hidden="true">
+      <div class="sk-quad-hero"><div class="skeleton sk-quad-ico"></div><div><div class="skeleton sk-quad-title"></div><div class="skeleton sk-quad-sub"></div></div></div>
+      <div class="skeleton sk-task"></div><div class="skeleton sk-task"></div><div class="skeleton sk-task"></div>
+    </div>
+    <div class="sk-quad" aria-hidden="true">
+      <div class="sk-quad-hero"><div class="skeleton sk-quad-ico"></div><div><div class="skeleton sk-quad-title"></div><div class="skeleton sk-quad-sub"></div></div></div>
+      <div class="skeleton sk-task"></div><div class="skeleton sk-task"></div><div class="skeleton sk-task"></div>
+    </div>
+  </div>
+  </div>
   <!-- Carousel guidance (≤740px only, hidden on desktop): dots + one-time swipe hint.
        Built by buildQuadDots() after the grid renders; siblings of #matGrid so they
        survive every re-render. -->

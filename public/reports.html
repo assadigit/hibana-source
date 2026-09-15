@@ -14,7 +14,7 @@
   <link rel="stylesheet" href="/css/canvas.css?v=6">
   <link rel="stylesheet" href="/css/quicknotes.css?v=12">
   <link rel="stylesheet" href="/css/to-do-list.css?v=3">
-  <link rel="stylesheet" href="/css/polish-ui.css?v=6">
+  <link rel="stylesheet" href="/css/polish-ui.css?v=7">
   <link rel="stylesheet" href="/css/calendar.css?v=4">
   <link rel="stylesheet" href="/css/notifications.css?v=4">
   <link rel="stylesheet" href="/css/polish-batch.css?v=13">
@@ -68,8 +68,21 @@
           <span data-i18n="reports.downloadCsv">Download CSV</span>
         </button>
       </div>
+      <!-- S50: skeleton boot state — the stat-strip + two stat-boxes shapes the summary
+           renders into (the projects-page skeleton pattern, polish-ui.css); replaces the
+           bare «Loading reports…» line. -->
       <template x-if="!summary">
-        <p class="loading" data-i18n="reports.loading">Loading reports…</p>
+        <div class="skeleton-loading" role="status" aria-label="Loading reports">
+          <div class="sk-stat-strip" aria-hidden="true">
+            <div class="skeleton sk-stat-pill"></div><div class="skeleton sk-stat-pill"></div><div class="skeleton sk-stat-pill"></div>
+            <div class="skeleton sk-stat-pill"></div><div class="skeleton sk-stat-pill"></div><div class="skeleton sk-stat-pill"></div>
+          </div>
+          <div class="sk-stat-boxes" aria-hidden="true">
+            <div class="sk-stat-box"><div class="skeleton skeleton-line"></div><div class="skeleton skeleton-line w-60"></div><div class="skeleton skeleton-line w-40"></div></div>
+            <div class="sk-stat-box"><div class="skeleton skeleton-line"></div><div class="skeleton skeleton-line w-60"></div><div class="skeleton skeleton-line w-40"></div></div>
+          </div>
+          <span class="sr-only" data-i18n="reports.loading">Loading reports…</span>
+        </div>
       </template>
       <template x-if="summary">
         <section class="card">
@@ -240,7 +253,14 @@
           <div id="otd-content"></div>
         </div>
         <ul id="feed" class="feed" hx-get="/api/timeline" hx-trigger="load" hx-swap="innerHTML" hx-indicator="#feed-loading">
-          <li id="feed-loading" class="muted htmx-indicator" data-i18n="common.loading">Loading…</li>
+          <!-- S50: skeleton feed rows (the spinner text became three item-shaped
+               placeholders — same swap/indicator contract, id preserved). -->
+          <li id="feed-loading" class="htmx-indicator sk-feed-rows" role="status">
+            <div class="sk-feed-row" aria-hidden="true"><div class="skeleton sk-feed-ico"></div><div class="sk-feed-lines"><div class="skeleton skeleton-line"></div><div class="skeleton skeleton-line w-60"></div></div></div>
+            <div class="sk-feed-row" aria-hidden="true"><div class="skeleton sk-feed-ico"></div><div class="sk-feed-lines"><div class="skeleton skeleton-line"></div><div class="skeleton skeleton-line w-60"></div></div></div>
+            <div class="sk-feed-row" aria-hidden="true"><div class="skeleton sk-feed-ico"></div><div class="sk-feed-lines"><div class="skeleton skeleton-line"></div><div class="skeleton skeleton-line w-60"></div></div></div>
+            <span class="sr-only" data-i18n="common.loading">Loading…</span>
+          </li>
         </ul>
         <button class="ghost" id="feed-more" hidden data-i18n="timeline.loadMore">Load more</button>
       </section>

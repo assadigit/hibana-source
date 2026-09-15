@@ -14,7 +14,7 @@
   <link rel="stylesheet" href="/css/canvas.css?v=6">
   <link rel="stylesheet" href="/css/quicknotes.css?v=12">
   <link rel="stylesheet" href="/css/to-do-list.css?v=3">
-  <link rel="stylesheet" href="/css/polish-ui.css?v=6">
+  <link rel="stylesheet" href="/css/polish-ui.css?v=7">
   <link rel="stylesheet" href="/css/calendar.css?v=4">
   <link rel="stylesheet" href="/css/notifications.css?v=4">
   <link rel="stylesheet" href="/css/polish-batch.css?v=13">
@@ -76,8 +76,20 @@
 
     <!-- Task 24: the indicator lives OUTSIDE the shelf — an innerHTML swap of #spark-shelf
          used to delete #shelf-loading, leaving every later poll/reload logging
-         "hx-indicator returned no matches". -->
-    <div id="shelf-loading" class="loading htmx-indicator hibana-loading-row"><span class="hibana-spinner" role="status" aria-hidden="true"></span><span data-i18n="common.loading">Loading…</span></div>
+         "hx-indicator returned no matches". S50: the spinner row became a SKELETON grid
+         matching the shelf's card layout (the projects-page pattern, polish-ui.css) —
+         the load reads as "content is coming" instead of a bare spinner flash. -->
+    <div id="shelf-loading" class="skeleton-loading htmx-indicator" role="status" aria-label="Loading ideas">
+      <div class="skeleton-grid" aria-hidden="true">
+        <div class="sk-card"><div class="skeleton sk-card-ico"></div><div class="skeleton skeleton-line"></div><div class="skeleton skeleton-line w-60"></div></div>
+        <div class="sk-card"><div class="skeleton sk-card-ico"></div><div class="skeleton skeleton-line"></div><div class="skeleton skeleton-line w-60"></div></div>
+        <div class="sk-card"><div class="skeleton sk-card-ico"></div><div class="skeleton skeleton-line"></div><div class="skeleton skeleton-line w-60"></div></div>
+        <div class="sk-card"><div class="skeleton sk-card-ico"></div><div class="skeleton skeleton-line"></div><div class="skeleton skeleton-line w-60"></div></div>
+        <div class="sk-card"><div class="skeleton sk-card-ico"></div><div class="skeleton skeleton-line"></div><div class="skeleton skeleton-line w-60"></div></div>
+        <div class="sk-card"><div class="skeleton sk-card-ico"></div><div class="skeleton skeleton-line"></div><div class="skeleton skeleton-line w-60"></div></div>
+      </div>
+      <span class="sr-only" data-i18n="common.loading">Loading…</span>
+    </div>
     <!-- batch (s): the ACTIVE folder selection lives in this hidden input OUTSIDE the swap
          target — hx-include serializes it into the 30s poll and the load trigger, so the
          poll never resets the filter. The folder BAR itself rides inside the fragment. -->

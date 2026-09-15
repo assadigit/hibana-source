@@ -882,3 +882,32 @@ body.rtl .fuz-opt{text-align:right}
   max-height: none;
   flex: none;
 }
+
+/* ══ S50: skeleton boot state ═══════════════════════════════════════════════
+   #boardLoading keeps its id (the e2e openSadhana contract waits for it to
+   detach on healthy boot) but now carries four quadrant-shaped placeholders
+   in the same 2×2 geometry the real board paints into — the bare «Loading…»
+   text read as a glitch flash. Reuses the shared .skeleton shimmer base
+   (polish-ui.css). ≤740px keeps ONE skeleton quadrant: the mat-grid carousel
+   shows a quadrant per view, so four would squish into the first slide. */
+.sadhana-wrap .sadhana-sk{
+  display:grid;grid-template-columns:1fr 1fr;grid-template-rows:1fr 1fr;
+  gap:20px;align-items:stretch;min-height:0;
+}
+.sk-quad{
+  border-radius:var(--radius);border:1px solid var(--q-edge);background:var(--surface);
+  display:flex;flex-direction:column;gap:14px;padding:16px;min-height:180px;
+}
+.sk-quad-hero{display:flex;align-items:center;gap:10px}
+.sadhana-sk .sk-quad-ico{inline-size:44px;block-size:44px;border-radius:999px;flex:none}
+.sadhana-sk .sk-quad-title{inline-size:7.5rem;block-size:1rem;border-radius:999px}
+.sadhana-sk .sk-quad-sub{inline-size:4.5rem;block-size:0.7rem;border-radius:999px;margin-block-start:7px}
+.sadhana-sk .sk-task{block-size:2.7rem;border-radius:var(--radius-sm)}
+@media (max-width:740px){
+  .sadhana-wrap .mat-grid .sadhana-sk{flex:0 0 100%;display:flex;min-height:60vh}
+  /* The sr-only status span is the first child — :not(:first-child) would hide ALL
+     quads (caught in QA). Sibling selector instead: every quad FOLLOWED-BY-PREDECESSOR
+     (i.e. quads 2–4) hides; the first stays. */
+  .sadhana-wrap .sadhana-sk .sk-quad ~ .sk-quad{display:none}
+  .sadhana-wrap .sadhana-sk .sk-quad{flex:1}
+}

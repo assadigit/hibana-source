@@ -541,13 +541,50 @@ dialog.adm-modal::backdrop { background: rgb(0 0 0 / 0.55); }
    S46 (user request 2026-09-14): softer still — bg 12%→7%, border 50%-softened,
    padding tightened, text 62%→55% so the chip reads as a quiet tag, not a badge. */
 .chip.pd-tag-chip {
-  font-size: var(--fs-xs);
-  padding: 0.05em 0.45em;
+  font-size: 0.78rem;  /* S48c: 12.5px — compact tag proportion (was fs-xs 11.5px; owner asked 12-13px) */
+  padding: 0.25rem 0.65rem;  /* S48c: 4px / 10.4px — owner's suggested compact tag padding (was 0.05em 0.45em = 0.6/5px) */
+  line-height: 1.3;  /* S48c: tight tag line-height (default 1.5 made the text row 19px → chip 30px; 1.3 → 16px → chip ~26px) */
   color: color-mix(in srgb, var(--text) 55%, transparent);
   margin-inline-end: 0.25rem;
   margin-block: 0.1rem;
 }
-.chip.pd-tag-chip .pd-tag-x { padding: 0 0.2rem; font-size: var(--fs-xs); opacity: 0.7; }
+/* S48c (owner: "tag chips read as oversized — closer to a button than a tag"):
+   ROOT CAUSE — the .ghost.danger base rule (base.css:341) makes .pd-tag-x a 28px
+   square, which FORCED the chip to 31px tall even though the chip's own padding
+   was only 0.6px. The 28px remove button was the oversized part, not the padding.
+   FIX: override the 28px square — the remove button now auto-sizes to its ~13px
+   icon + small padding. The chip height drops to ~22px (the content row). The
+   ::after tap expander (base.css, inset:-0.55rem) KEEPS the desktop tap area
+   comfortable (~36px). On touch, the ::after is widened (inset:-0.85rem) so the
+   tap target clears the 40px floor WITHOUT growing the visible button — verified
+   in-browser that ::after with position:absolute + negative inset DOES capture
+   clicks (elementFromPoint 10px outside the button returns the button). */
+.chip.pd-tag-chip .ghost.danger.pd-tag-x {
+  inline-size: auto;
+  block-size: auto;
+  padding: 0.1rem 0.15rem;
+  font-size: inherit;
+  opacity: 0.65;
+}
+.chip.pd-tag-chip .pd-tag-x .icon {
+  inline-size: 0.8rem;   /* 12.8px — owner's suggested 12-14px icon range */
+  block-size: 0.8rem;
+}
+@media (pointer: coarse) {
+  /* Touch: widen the ::after so the tap target clears 40px without growing the
+     visible button (18px button + 0.85rem×2 inset = ~45px tap area). */
+  .chip.pd-tag-chip .ghost.danger.pd-tag-x::after { inset: -0.85rem; }
+}
+/* S48c (owner: "the برچسب + add-tag pill looks similarly oversized"): the
+   .pd-tag-add pill is a .chip — it inherited the BASE .chip's larger padding
+   (0.2em 0.7em) + font (fs-sm 12.8px), making it visibly bigger than the tag
+   chips next to it. Match the tag chips' compact proportions so the row reads
+   consistently. The mobile min-block-size:40px (misc.css:935) stays for the
+   tap floor — it overrides the visual height on touch only. */
+.chip.pd-tag-add {
+  font-size: 0.78rem;
+  padding: 0.25rem 0.65rem;
+}
 
 /* --- (v) 2026-09-09: the progress track becomes the to-do page's pill board ------
    Ali: "the circle progress state switcher for the dashboard is buggy, I want it to

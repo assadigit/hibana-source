@@ -282,6 +282,17 @@
    is still visible via the column's own left border (set on .pd-col, not the card). */
 .pd-task:hover { border-color: var(--brand); box-shadow: 0 1px 6px rgb(30 20 10 / 0.06); }
 .pd-task-body { flex: 1; min-inline-size: 0; display: grid; gap: 0.12rem; }
+/* S48 (owner: "the priority dot doesn't stick to its item — strays when text is
+   translated Farsi→English"): the dot was a flex SIBLING of .pd-task-body,
+   positioned by the page's RTL direction. When the title text is English (LTR
+   via unicode-bidi:plaintext on .pd-task-title), the text starts on the LEFT
+   while the dot stayed on the RIGHT → visible gap. Fix: the dot now lives INSIDE
+   .pd-task-title-row — a flex row with dir="auto" so the row's main-axis direction
+   follows EACH title's first strong character (English→LTR→dot on left; Persian→
+   RTL→dot on right). The gap is a logical property (respects the row's direction).
+   The .pd-task-title keeps unicode-bidi:plaintext so the text itself still flows
+   correctly per-paragraph. */
+.pd-task-title-row { display: flex; align-items: flex-start; gap: 0.45rem; }
 .pd-task-title {
   min-inline-size: 0;
   font-size: var(--fs-sm);

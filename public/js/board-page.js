@@ -147,7 +147,7 @@
                   const sprint = task.sprint_id ? B().findSprint(task.sprint_id) : null
                   const tags = (task.tags || []).map((id) => B().tagById(id)).filter(Boolean)
                   return '<article class="db-card st-' + task.status + '" draggable="true" data-task-card="' + task.id + '" data-status="' + task.status + '" data-priority="' + (task.priority || 'medium') + '">' +
-                    '<div class="db-card-main">' +
+                    '<div class="db-card-main" dir="auto">' +
                       // S30 batch 2: the dot's tooltip is the TRANSLATED label (was the raw
                       // 'urgent' string) + the cycle hint; clicking it cycles the priority.
                       '<button type="button" class="prio-dot-btn" data-db-cycle-prio="' + task.id + '" title="' + B().esc(_t('db.cyclePrio', 'Priority: {p} — click to change').replace('{p}', B().prioLabel(task.priority))) + '" aria-label="' + B().esc(_t('db.cyclePrio', 'Priority: {p} — click to change').replace('{p}', B().prioLabel(task.priority))) + '"><span class="prio-dot prio-' + task.priority + '"></span></button>' +

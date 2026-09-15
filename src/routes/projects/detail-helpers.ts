@@ -336,9 +336,11 @@ export function detailHtml(p: ProjectRow, d: Awaited<ReturnType<typeof loadDetai
             <div class="pd-tasks" data-pd-tasks="${col.key}" data-pd-total="${items.length}">
               ${top.map((t) => `<div class="pd-task-wrap" data-pd-task="${t.id}" data-pd-status="${t.status}" data-pd-created="${t.created_at}" data-pd-priority="${t.priority}" data-pd-tags="${taskTagsAttr(t.id)}"${t.done_at ? ` data-pd-done="${t.done_at}"` : ''}>
                 <div class="pd-task st-${t.status}" draggable="true" role="button" tabindex="0" aria-label="${esc(t.title)}">
-                  <button type="button" class="prio-dot-btn" data-pd-cycle-prio title="${esc(trL(lang, 'Priority: {p} — click to change', 'اولویت: {p} — برای تغییر کلیک کن', { p: prioLabel(t.priority) }))}" aria-label="${esc(trL(lang, 'Priority: {p} — click to change', 'اولویت: {p} — برای تغییر کلیک کن', { p: prioLabel(t.priority) }))}"><span class="prio-dot prio-${t.priority}"></span></button>
                   <span class="pd-task-body">
-                    <span class="pd-task-title"${titleAttrs(t.title)}>${titleHtml(t.title)}</span>
+                    <span class="pd-task-title-row" dir="auto">
+                      <button type="button" class="prio-dot-btn" data-pd-cycle-prio title="${esc(trL(lang, 'Priority: {p} — click to change', 'اولویت: {p} — برای تغییر کلیک کن', { p: prioLabel(t.priority) }))}" aria-label="${esc(trL(lang, 'Priority: {p} — click to change', 'اولویت: {p} — برای تغییر کلیک کن', { p: prioLabel(t.priority) }))}"><span class="prio-dot prio-${t.priority}"></span></button>
+                      <span class="pd-task-title"${titleAttrs(t.title)}>${titleHtml(t.title)}</span>
+                    </span>
                     ${readMoreBtn(t.title)}
                     ${taskTagChips(t.id)}
                     <span class="pd-task-meta"><span class="pd-meta-prio prio-${t.priority}">${esc(prioLabel(t.priority))}</span> · ${taskMetaLabel(t)}${pinsByTask.has(t.id) ? ` · <button type="button" class="pd-task-shots" data-pd-shots="${t.id}" title="${esc(trL(lang, 'Pinned pictures — note + proof stuck to this item', 'تصاویر سنجاق‌شده — یادداشت + مدرکِ سنجاق‌شده به این قلم'))}" aria-label="${esc(trL(lang, 'Pinned pictures ({n})', 'تصاویر سنجاق‌شده ({n})', { n: dig(pinsByTask.get(t.id)!) }))}">${icon('pin')} ${dig(pinsByTask.get(t.id)!)}</button>` : ''}</span>

@@ -13,14 +13,18 @@
 # Security headers (hardening 2026-08-28) — mirror of the Worker middleware in src/app.ts
 # (static assets serve before the Worker runs, so they need their own copy here).
 # CSP: 'unsafe-inline' + 'unsafe-eval' are required by the no-build frontend (inline scripts,
-# Alpine expressions); the policy still blocks external scripts, plugins, foreign form
-# targets, framing and base-tag hijack.
+# Alpine expressions); the policy still allows only the app's own scripts plus the one
+# pinned CF-analytics origin, and still blocks plugins, foreign form targets, framing
+# and base-tag hijack.
 # 2026-08-30 (e): the Turnstile exception was REMOVED with the widget — the signup
 # human-check is now a self-hosted math captcha (zero third-party origins) and frame-src
 # is gone entirely (kept in lockstep with src/app.ts; security.test.ts pins the absence).
 # 2026-09-06 (k): img-src gains https: — the canvas/notebook image-from-link tools
 # hotlink user-pasted picture URLs; 'self'-only blocked every external image (lockstep
 # with src/app.ts; https only — no mixed-content http:).
+# 2026-09-16: script-src + connect-src gain the two exact Cloudflare Web-Analytics origins
+# (beacon script + telemetry) — owner decision executing the S49 probe finding (lockstep
+# with src/app.ts; exact https hosts, no wildcards).
 /*
   X-Content-Type-Options: nosniff
   Referrer-Policy: strict-origin-when-cross-origin
@@ -29,7 +33,7 @@
   Cross-Origin-Resource-Policy: same-origin
   Permissions-Policy: camera=(), geolocation=(), payment=(), usb=()
   Strict-Transport-Security: max-age=15552000; preload
-  Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; font-src 'self' data:; connect-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'self'
+  Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://static.cloudflareinsights.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; font-src 'self' data:; connect-src 'self' https://cloudflareinsights.com; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'self'
 
 # Static assets (perf audit 2026-08-25): the CF default was max-age=0/must-revalidate —
 # every repeat visit revalidated 20+ files. App code (css/js) gets 1h bounded staleness

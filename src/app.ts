@@ -69,19 +69,26 @@ export function createApp(cfg: Config) {
   // htmx fragments, proxied media, redirects. Static pages are covered by public/_headers
   // (the assets binding serves those before the Worker runs — the same set lives there).
   // CSP notes: 'unsafe-inline' + 'unsafe-eval' are required by the no-build frontend (inline
-  // <script> blocks, Alpine.js expression evaluation); the CSP still blocks external script
-  // loads, plugins (object-src), foreign form targets, framing (clickjacking) and base-tag
-  // hijack — defense in depth behind the escaping discipline, not a substitute for it.
+  // <script> blocks, Alpine.js expression evaluation); the CSP still allows only the app's
+  // own scripts plus the one pinned CF-analytics origin, and still blocks plugins
+  // (object-src), foreign form targets, framing (clickjacking) and base-tag hijack —
+  // defense in depth behind the escaping discipline, not a substitute for it.
   // 2026-09-06 (k): img-src gains https: — the canvas/notebook image-from-link tools
   // hotlink user-pasted picture URLs; 'self'-only blocked every external image (lockstep
   // with public/_headers; https only — no mixed-content http:).
+  // 2026-09-16: script-src + connect-src gain the two exact Cloudflare Web-Analytics
+  // origins (beacon script on static.cloudflareinsights.com; telemetry on
+  // cloudflareinsights.com) — owner decision executing the S49 probe finding: CF
+  // auto-injects the beacon on every page and the 'self'-only policy killed it (one
+  // console error per page, analytics never ran). Exact https hosts, no wildcards,
+  // nothing else unlocked (lockstep with public/_headers).
   const CSP = [
     "default-src 'self'",
-    "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
+    "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://static.cloudflareinsights.com",
     "style-src 'self' 'unsafe-inline'",
     "img-src 'self' data: blob: https:",
     "font-src 'self' data:",
-    "connect-src 'self'",
+    "connect-src 'self' https://cloudflareinsights.com",
     "object-src 'none'",
     "base-uri 'self'",
     "form-action 'self'",

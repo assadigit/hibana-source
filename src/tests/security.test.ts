@@ -171,6 +171,13 @@ describe('security hardening (2026-08-28)', () => {
       expect(csp).toContain("frame-ancestors 'self'")
       expect(csp).toContain("object-src 'none'")
       expect(csp).toContain("form-action 'self'")
+      // CF Web-Analytics beacon allowance (2026-09-16 owner decision, S49 probe finding):
+      // the ONLY two external origins the CSP ever grants, both exact https hosts. Pinned
+      // here so a future CSP rewrite cannot silently re-block the beacon (or widen it).
+      expect(csp).toContain("script-src 'self' 'unsafe-inline' 'unsafe-eval' https://static.cloudflareinsights.com")
+      expect(csp).toContain("connect-src 'self' https://cloudflareinsights.com")
+      // No wildcard crept in alongside the allowances
+      expect(csp).not.toMatch(/(script|connect)-src[^\n]*\*/)
       // Even the 401 path (unauthenticated) carries them
       const anon = await app.fetch(new Request('http://local/api/dashboard'))
       expect(anon.headers.get('X-Content-Type-Options')).toBe('nosniff')

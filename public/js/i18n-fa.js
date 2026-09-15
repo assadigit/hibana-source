@@ -86,6 +86,8 @@ window.__hibanaDictFA = {
       'pd.fmtAlignJustify': 'هم‌تراز',
       'pd.fmtToolbar': 'قالب‌بندی',
       'pd.writeHere': 'اینجا بنویس…',
+      'pd.content': 'محتوا',
+      'pd.titlePh': 'مثلاً بهینه‌سازی رابط کاربری',
       'pd.showLess': 'نمایش کمتر',
       'pd.archivesEmpty': 'هنوز کار بایگانی‌شده‌ای نیست. کارهای انجام‌شده را از بورد بایگانی کن.',
       'pd.restore': 'بازگرداندن به بورد',

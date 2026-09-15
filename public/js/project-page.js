@@ -2083,6 +2083,8 @@
           if (!m || !ta) return
           taskAddStatus = btn.dataset.pdAdd || null
           ta.innerHTML = ''
+          const taskTitleInput = document.getElementById('pd-taskadd-title-input')
+          if (taskTitleInput) taskTitleInput.value = ''
           stagedShots = []
           renderTaskAddShots()
           // S29 follow-up: reset the priority dropdown (+ its preview chip) and the
@@ -2241,7 +2243,12 @@
           // on Windows paste) + outer trim. The 100k server guard still applies.
           // S48f: #pd-taskadd-textarea is now contenteditable — read innerHTML +
           // convert to markdown via pdeHtmlToMd (the DB + renderer expect markdown).
-          const title = pdeHtmlToMd(ta.innerHTML).replace(/\r\n/g, '\n').trim()
+          // S48g: combine the separate Title input + Content contenteditable into the
+          // single DB title field (title + '\n' + content).
+          const titleInputEl = document.getElementById('pd-taskadd-title-input')
+          const titleVal = titleInputEl ? titleInputEl.value.trim() : ''
+          const contentVal = pdeHtmlToMd(ta.innerHTML).replace(/\r\n/g, '\n').trim()
+          const title = titleVal + (titleVal && contentVal ? '\n' : '') + contentVal
           if (!title) { m.close(); return }
           if (save) save.disabled = true
           if (err) { err.hidden = true; err.textContent = '' }
@@ -2295,8 +2302,10 @@
         })
         // Enter adds the task — the field is a textarea only so long sentences stay
         // visible; plain Enter must behave like the old composer's input.
+        // S48g: also submit on Enter from the Title input (single-line field).
         ctx.on('keydown', (e) => {
-          if (e.target?.id !== 'pd-taskadd-textarea') return
+          const id = e.target?.id
+          if (id !== 'pd-taskadd-textarea' && id !== 'pd-taskadd-title-input') return
           if (e.key === 'Enter' && !e.shiftKey) {
             e.preventDefault()
             document.getElementById('pd-taskadd-form')?.requestSubmit()
@@ -2590,7 +2599,14 @@
                   // Code block
                   '<button type="button" class="pd-tb-btn" data-tb="code" title="' + _t('pd.fmtCode', 'Code block') + '"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m8 6-6 6 6 6M16 6l6 6-6 6"/></svg></button>' +
                 '</div>' +
-                '<label>' + _t('db.title', 'Title') + ' <div id="pde-input" contenteditable="true" role="textbox" aria-multiline="true" dir="' + (pdLang() === 'fa' ? 'rtl' : 'auto') + '" class="pde-edit-area" data-placeholder="' + _t('pd.writeHere', 'Write here…') + '"></div></label>' +
+                // S48g (owner: "Add Title field for add a new task — e.g. Title: UI/UX Tweaks;
+                //   full content written in the current content field"): a separate short
+                //   Title input above the contenteditable. Stored as title + '\n' + content
+                //   in the single DB title column (no migration needed — backward
+                //   compatible: existing tasks with no \n split load the first line as
+                //   the title, the rest as content).
+                '<label>' + _t('db.title', 'Title') + ' <input type="text" id="pde-title-input" class="pde-title-field" dir="auto" placeholder="' + _t('pd.titlePh', 'e.g. UI/UX Tweaks') + '"></label>' +
+                '<label>' + _t('pd.content', 'Content') + ' <div id="pde-input" contenteditable="true" role="textbox" aria-multiline="true" dir="' + (pdLang() === 'fa' ? 'rtl' : 'auto') + '" class="pde-edit-area" data-placeholder="' + _t('pd.writeHere', 'Write here…') + '"></div></label>' +
                 '<div class="row" style="gap:1rem;margin-top:.4rem">' +
                   '<label style="flex:1">' + _t('db.status', 'Status') + ' <select id="pde-status">' +
                     [['idea','db.st.idea'],['planned','db.st.planned'],['in_progress','db.st.inprog'],['done','db.st.done'],['bug','db.st.bug']].map(function(pair){return '<option value="'+pair[0]+'">'+_t(pair[1], pair[0])+'</option>'}).join('') +
@@ -2786,8 +2802,13 @@
           // single spaces. Session 22: the title is UNLIMITED; server keeps a 100k guard.
           // S48f: #pde-input is now a contenteditable div — read innerHTML + convert to
           // markdown via pdeHtmlToMd (the DB + renderer expect markdown, not HTML).
+          // S48g: combine the separate Title input + Content contenteditable into the
+          // single DB title field (title + '\n' + content). No migration needed.
           const pdeEl = pdTaskEditDlg.querySelector('#pde-input')
-          const title = pdeHtmlToMd(pdeEl ? pdeEl.innerHTML : '').replace(/\r\n/g, '\n').trim()
+          const titleInput = pdTaskEditDlg.querySelector('#pde-title-input')
+          const titleVal = (titleInput ? titleInput.value.trim() : '')
+          const contentVal = pdeHtmlToMd(pdeEl ? pdeEl.innerHTML : '').replace(/\r\n/g, '\n').trim()
+          const title = titleVal + (titleVal && contentVal ? '\n' : '') + contentVal
               if (!title) { if (pdeEl) pdeEl.focus(); return }
               const status = pdTaskEditDlg.querySelector('#pde-status').value
               const priority = pdTaskEditDlg.querySelector('#pde-priority').value
@@ -2871,19 +2892,33 @@
           }
           pdTaskEditDlg.dataset.tid = tid
           // Pre-fill from the card (no fetch needed — the card has the title + status)
-          // S48f: #pde-input is now contenteditable. Load the RENDERED HTML (cloned +
-          // cleaned: strip the hidden .t-fence spans, unhide the clamped .pd-title-rest)
-          // so the existing formatting (bold/underline/lists/code) is preserved in the
-          // editor. On save, pdeHtmlToMd converts the edited HTML back to markdown.
+          // S48f: #pde-input is now contenteditable. S48g: split the stored title
+          // (title + '\n' + content) into the separate Title input + Content
+          // contenteditable. Reconstruct the raw markdown from the rendered card HTML
+          // via pdeHtmlToMd, split on the first \n, convert the content part back to
+          // HTML via renderTitle for the WYSIWYG editor.
           const titleEl = cardEl.querySelector('.pd-task-title')
           const editArea = pdTaskEditDlg.querySelector('#pde-input')
+          const titleInput = pdTaskEditDlg.querySelector('#pde-title-input')
           if (titleEl && editArea) {
             const clone = titleEl.cloneNode(true)
             clone.querySelectorAll('.t-fence').forEach((f) => f.remove())
             clone.querySelectorAll('.pd-title-rest').forEach((r) => r.removeAttribute('hidden'))
-            editArea.innerHTML = clone.innerHTML
-          } else if (editArea) {
-            editArea.innerHTML = ''
+            const rawMd = pdeHtmlToMd(clone.innerHTML).replace(/\r\n/g, '\n').trim()
+            const nlIdx = rawMd.indexOf('\n')
+            if (nlIdx >= 0) {
+              // Split: first line → Title input (plain text); rest → Content (markdown→HTML)
+              if (titleInput) titleInput.value = rawMd.slice(0, nlIdx).trim()
+              const contentMd = rawMd.slice(nlIdx + 1).trim()
+              editArea.innerHTML = (window.HibanaChips && window.HibanaChips.renderTitle) ? window.HibanaChips.renderTitle(contentMd) : contentMd
+            } else {
+              // No newline — single-line title: put it in the Title field, leave content empty
+              if (titleInput) titleInput.value = rawMd
+              editArea.innerHTML = ''
+            }
+          } else {
+            if (editArea) editArea.innerHTML = ''
+            if (titleInput) titleInput.value = ''
           }
           const status = cardEl.dataset.pdStatus || 'idea'
           pdTaskEditDlg.querySelector('#pde-status').value = status

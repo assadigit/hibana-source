@@ -2400,9 +2400,28 @@
         // formatting (bold/underline/strike/lists/alignment). For code blocks, execCommand
         // doesn't have a "code" command — we manually wrap the selection in a <pre><code>
         // block. The `ta` param is the contenteditable element (was a textarea).
+        // S48l (owner: "bold and underline don't work, but strikethrough does"):
+        // ROOT CAUSE — when the user clicks a toolbar button, the button steals focus
+        // from the contenteditable → the selection (caret position) is LOST. execCommand
+        // then runs on no selection → nothing happens. Fix: prevent the mousedown on
+        // toolbar buttons from stealing focus (e.preventDefault), so the contenteditable
+        // keeps its selection. Also save/restore the selection as a belt-and-suspenders.
+        let savedRange = null
+        // Listen for mousedown on toolbar buttons + prevent focus theft
+        ctx.on('mousedown', (e) => {
+          if (e.target.closest('.pd-tb-btn')) {
+            e.preventDefault() // prevent the button from stealing focus from the contenteditable
+          }
+        })
         const pdApplyTb = (ta, kind) => {
           if (!ta) return
           ta.focus()
+          // Restore the saved selection (in case focus was lost before ta.focus())
+          if (savedRange && ta.contains(savedRange.commonAncestorContainer)) {
+            const sel = window.getSelection()
+            sel.removeAllRanges()
+            sel.addRange(savedRange.cloneRange())
+          }
           // execCommand-based formatting (WYSIWYG — the styling appears visually)
           const cmdMap = {
             'bold': 'bold',
@@ -2417,39 +2436,46 @@
           }
           if (cmdMap[kind]) {
             document.execCommand(cmdMap[kind], false, null)
+            // Save the selection after the command (for the next toolbar action)
+            const sel = window.getSelection()
+            if (sel.rangeCount > 0 && ta.contains(sel.anchorNode)) {
+              savedRange = sel.getRangeAt(0).cloneRange()
+            }
             return
           }
           // Code block: wrap the selection in <pre><code class="t-code" dir="ltr">
           if (kind === 'code') {
             const sel = window.getSelection()
-            if (!sel || sel.rangeCount === 0) {
-              // No selection — insert an empty code block + place caret inside
-              const pre = document.createElement('pre')
-              const code = document.createElement('code')
-              code.className = 't-code'
-              code.setAttribute('dir', 'ltr')
-              code.textContent = ''
-              pre.appendChild(code)
-              document.execCommand('insertHTML', false, pre.outerHTML)
-              return
+            // S48l: check if already inside a <pre> — don't nest code blocks
+            const anchor = sel.anchorNode
+            if (anchor) {
+              const el = anchor.nodeType === 3 ? anchor.parentElement : anchor
+              if (el && (el.closest('pre') || el.closest('code.t-code'))) {
+                return // already inside a code block — don't nest
+              }
             }
-            const range = sel.getRangeAt(0)
-            const text = range.toString()
-            const pre = document.createElement('pre')
-            const code = document.createElement('code')
-            code.className = 't-code'
-            code.setAttribute('dir', 'ltr')
-            code.textContent = text || ''
-            pre.appendChild(code)
-            // Replace the selection with the code block
-            range.deleteContents()
-            range.insertNode(pre)
+            const range = sel && sel.rangeCount > 0 ? sel.getRangeAt(0) : null
+            const text = range ? range.toString() : ''
+            // S48l: use insertHTML instead of insertNode — it handles block-level
+            // insertion more gracefully + the trailing <p> gives the cursor a place
+            // to escape to after the code block (was: insertNode created a mess + the
+            // cursor got stuck inside the <pre> → clicking Code again nested boxes).
+            const html = '<pre><code class="t-code" dir="ltr">' + String(text || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;') + '</code></pre><p><br></p>'
+            document.execCommand('insertHTML', false, html)
             // Place caret inside the code element
-            const newRange = document.createRange()
-            newRange.selectNodeContents(code)
-            newRange.collapse(false)
-            sel.removeAllRanges()
-            sel.addRange(newRange)
+            setTimeout(() => {
+              const codeEl = ta.querySelector('pre:last-of-type > code')
+              if (codeEl) {
+                codeEl.focus()
+                const r = document.createRange()
+                r.selectNodeContents(codeEl)
+                r.collapse(false)
+                const s = window.getSelection()
+                s.removeAllRanges()
+                s.addRange(r)
+                savedRange = r.cloneRange()
+              }
+            }, 0)
           }
         }
         ctx.on('click', (e) => {

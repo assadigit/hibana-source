@@ -1097,6 +1097,12 @@
           // S48n: added date inputs (start/end) + preset buttons (24h/48h/72h/1w/2w/1m).
           // If dates are provided, the sprint is created as STARTED immediately.
           // Presets compute end = now + duration; start = now.
+          // S49 FIX (CI-red e2e catch, sprint-ux S7): the start input used to be
+          // PRE-FILLED with today — which made the "No start date → create as DRAFT"
+          // branch in commit() unreachable, silently killing the S33/S35 draft flow
+          // ("Sprint defined — add items, then start it"). The start input now opens
+          // EMPTY: name-only + Define = draft (the original contract); picking a start
+          // date (or a preset, which fills BOTH start and end) = started sprint.
           const now = new Date()
           const todayStr = now.toISOString().slice(0, 10)
           const presets = [
@@ -1119,7 +1125,7 @@
             activeWarn +
             '<input maxlength="80" dir="auto" data-sp-define-name placeholder="' + B().esc(_t('db.sprintNamePh', 'Sprint 2 — auth module…')) + '">' +
             '<div class="sp-define-dates">' +
-              '<label class="sp-date-label">' + B().esc(_t('db.startDate', 'Start date')) + ' <input type="date" data-sp-define-start value="' + todayStr + '"></label>' +
+              '<label class="sp-date-label">' + B().esc(_t('db.startDate', 'Start date')) + ' <input type="date" data-sp-define-start></label>' +
               '<label class="sp-date-label">' + B().esc(_t('db.endDate', 'End date')) + ' <input type="date" data-sp-define-end></label>' +
             '</div>' +
             '<div class="sp-define-presets">' +
@@ -1135,11 +1141,14 @@
           const startIn = definePop.querySelector('[data-sp-define-start]')
           const endIn = definePop.querySelector('[data-sp-define-end]')
           nameIn.focus()
-          // Preset buttons: set end = start + duration
+          // Preset buttons: set start (defaults to today when empty) + end = start + duration.
+          // S49: the preset ALSO writes the start input — a picked preset always means
+          // "start a dated sprint now", so commit() must see a non-empty startVal.
           definePop.querySelectorAll('[data-sp-preset]').forEach((btn) => {
             btn.onclick = () => {
               const ms = parseInt(btn.dataset.spPreset, 10)
               const startVal = startIn.value || todayStr
+              startIn.value = startVal
               const startDate = new Date(startVal + 'T00:00:00')
               const endDate = new Date(startDate.getTime() + ms)
               endIn.value = endDate.toISOString().slice(0, 10)

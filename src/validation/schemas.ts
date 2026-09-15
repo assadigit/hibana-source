@@ -203,6 +203,11 @@ export const listProjectsSchema = z.object({
 // flags (regional indicators), skin tones (Emoji_Modifier), subdivision-tag sequences,
 // ZWJ joins, and variation selectors; plain text is rejected (rendered via esc() anyway,
 // but the contract is "one emoji token", not arbitrary markup).
+// S49: eslint-disable — the "misleading" character class is INTENTIONAL: emoji component
+// code points (skin tones, ZWJ, variation selectors) must match as INDIVIDUAL atoms here
+// so 1-8 of them combine freely into any sequence the user's picker can emit; forming
+// them into joined sequences would wrongly reject valid composites (flags + tones + ZWJ).
+// eslint-disable-next-line no-misleading-character-class
 const EMOJI_TOKEN_RE = /^[\p{Extended_Pictographic}\u{1F1E6}-\u{1F1FF}\u{1F3FB}-\u{1F3FF}\u{E0020}-\u{E007F}\u200D\uFE0F]{1,8}$/u
 export const sparkFolderSchema = z.object({
   name: z.string().trim().min(1).max(50),

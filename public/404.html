@@ -7,7 +7,10 @@
   <meta name="robots" content="noindex">
   <link rel="icon" type="image/svg+xml" href="/icon.svg">
   <!-- Pre-paint theme restore — the same three lines app.js runs on every other page,
-       so this standalone page honors the saved light/dark choice (hibana-theme). -->
+       so this standalone page honors the saved light/dark choice (hibana-theme).
+       S49: this is the ONE load of 404-page.js (a second copy used to sit at the end of
+       <body> — the double run added the #nf-back click listener twice, so "back"
+       navigated two history entries at once). -->
   <script src="/js/404-page.js?v=1" defer></script>
   <link rel="preload" as="font" type="font/woff2" href="/vendor/manrope/Manrope-400.woff2" crossorigin>
   <link rel="stylesheet" href="/css/variables.css?v=5">
@@ -60,7 +63,5 @@
       </button>
     </div>
   </main>
-
-  <script src="/js/404-page.js?v=1" defer></script>
 </body>
 </html>

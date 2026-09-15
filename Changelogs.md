@@ -952,7 +952,12 @@ key-custody drill · Resend delivery confirmation.
 future smoke/e2e failures — check whether the expectation or the product changed first
 (the 404-baseline lesson: environment rendering drift, not product change, can break
 visual pins — regenerate via the documented --update-snapshots procedure and verify the
-diff is background-noise-class before committing).
+diff is background-noise-class before committing) · **OWNER DECISION (S49 live probe):
+Cloudflare auto-injects its Web-Analytics beacon (static.cloudflareinsights.com) on
+every page, but the app CSP (`script-src 'self' …`, src/app.ts:80) blocks it — one
+console error per page load in every browser, and the analytics never actually run.**
+Either allow the origin in the CSP (one line) or turn OFF Web Analytics in the CF
+dashboard; pre-existing since the CSP was added, surfaced by the S49 probe.
 
 ## 7. Consciously rejected (do NOT propose — vision.md)
 Subtasks/rigid hierarchy · nagging reminders/push/overdue toasts · milestones/OKRs/maturity

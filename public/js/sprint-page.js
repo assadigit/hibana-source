@@ -431,7 +431,11 @@
             const bars = visTasks.map((task, ti) => {
               const a0 = tStart(task)
               const t0 = clampIdx(a0 == null ? range.start : a0)
-              const left = pctOf(t0)
+              // S48m: position the dot at the CENTER of its day cell (was: LEFT edge).
+              // The today line is at the CENTER of today's cell. A task created today
+              // should have its dot AT the today line, not past it (the 20px dot extended
+              // to the right of the LEFT edge, reading as "past the line").
+              const left = pctOf(t0) + (100 / totalDays() / 2)
               const txt = darkText(color) ? '#20242c' : '#ffffff'
               const isDone = task.status === 'done'
               const dotClass = 'sp-dot ' + dotStatusClass(task.status)

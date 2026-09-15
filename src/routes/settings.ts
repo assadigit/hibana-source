@@ -138,5 +138,57 @@ export function settingsRoutes(cfg: Config) {
     return c.json({ ok: true })
   })
 
+  // Trash (S50): the user-facing view of the 7-day soft-delete window. Notes, to-dos and
+  // projects deleted in the UI keep deleted_at set and stay invisible everywhere until
+  // the daily cron (admin.ts scheduledPurge — same cutoff) hard-deletes them. Until now
+  // the ONLY recovery path was the 5-6s undo toast at delete time; a missed toast meant
+  // the item was unrecoverable in practice even though the row still existed. This route
+  // lists what is still recoverable, newest first. The restore POSTs ride the EXISTING
+  // per-entity endpoints (POST /api/notes/:id/restore, /api/sadhana/tasks/:id/restore,
+  // /api/projects/:id/restore) — this file adds no write path of its own. Read-only,
+  // user_id-scoped (rule 1), no schema change: the purge cutoff is duplicated here in
+  // days, not SQL, because the listing must NOT filter by age — an item at day 7 minus
+  // one hour still shows (with days_left 0 = "purges today") right up until the cron runs.
+  app.get('/trash', async (c) => {
+    const user = c.get('user')
+    const DAY = 24 * 3600 * 1000
+    const now = Date.now()
+    const daysLeft = (deletedAt: string) => Math.max(0, 7 - Math.floor((now - Date.parse(deletedAt)) / DAY))
+    type Item = { id: string; kind: 'project' | 'note' | 'todo'; title: string; snippet: string | null; deleted_at: string; days_left: number }
+    const items: Item[] = []
+
+    const projects = await cfg.db.query<{ id: string; title: string; deleted_at: string }>(
+      'SELECT id, title, deleted_at FROM projects WHERE user_id = ? AND deleted_at IS NOT NULL ORDER BY deleted_at DESC LIMIT 50',
+      [user.id],
+    )
+    for (const p of projects) items.push({ id: p.id, kind: 'project', title: p.title, snippet: null, deleted_at: p.deleted_at, days_left: daysLeft(p.deleted_at) })
+
+    const notes = await cfg.db.query<{ id: string; title: string | null; content: string; kind: string; deleted_at: string }>(
+      'SELECT id, title, content, kind, deleted_at FROM quick_notes WHERE user_id = ? AND deleted_at IS NOT NULL ORDER BY deleted_at DESC LIMIT 50',
+      [user.id],
+    )
+    for (const n of notes) {
+      // List notes store their tasks as JSON items — surface the first line either way;
+      // the UI truncates to one row, this is a recognition hint, not the full content.
+      let first = n.content
+      if (n.kind === 'list') {
+        try {
+          const arr = JSON.parse(n.content) as { t?: string }[]
+          if (Array.isArray(arr) && arr.length) first = String(arr[0]?.t ?? '')
+        } catch { /* unparseable list — fall back to raw content */ }
+      }
+      items.push({ id: n.id, kind: 'note', title: n.title || first.slice(0, 80) || '(untitled)', snippet: first.slice(0, 120), deleted_at: n.deleted_at, days_left: daysLeft(n.deleted_at) })
+    }
+
+    const todos = await cfg.db.query<{ id: string; title: string; deleted_at: string }>(
+      'SELECT id, title, deleted_at FROM sadhana_tasks WHERE user_id = ? AND deleted_at IS NOT NULL ORDER BY deleted_at DESC LIMIT 50',
+      [user.id],
+    )
+    for (const t of todos) items.push({ id: t.id, kind: 'todo', title: t.title, snippet: null, deleted_at: t.deleted_at, days_left: daysLeft(t.deleted_at) })
+
+    items.sort((a, b) => Date.parse(b.deleted_at) - Date.parse(a.deleted_at))
+    return c.json({ items: items.slice(0, 100) })
+  })
+
   return app
 }

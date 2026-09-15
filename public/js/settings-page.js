@@ -511,5 +511,84 @@
           const href = `javascript:void(window.open('${origin}/clip.html?title='+encodeURIComponent(document.title)+'&url='+encodeURIComponent(location.href)+'&text='+encodeURIComponent(window.getSelection().toString()),'hibana-clip','width=480,height=440,noopener'))`
           clipLink.setAttribute('href', href)
         }
+
+        // S50: the Trash panel — GET /api/settings/trash (read-only, user-scoped). The
+        // per-item Restore buttons POST the EXISTING restore endpoints (notes/sadhana/
+        // projects) — this panel owns no write path of its own. Titles come from the
+        // server: escape EVERYTHING before it touches innerHTML (the H2 rule).
+        const trashList = document.getElementById('trash-list')
+        if (trashList) {
+          const tT = (k, f) => window.hibanaI18n?.t(k) || f
+          const escHtml = (s) => String(s ?? '').replace(/[&<>"']/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[ch])
+          // FA is the primary language: digits render as Persian when fa is active.
+          const dig = (n) => (document.documentElement.lang === 'fa' ? String(n).replace(/\d/g, (d) => '۰۱۲۳۴۵۶۷۸۹'[Number(d)]) : String(n))
+          const KIND_META = {
+            project: { label: () => tT('trash.kind.project', 'Project'), endpoint: (id) => `/api/projects/${encodeURIComponent(id)}/restore`, ico: '<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2Z"/></svg>' },
+            note: { label: () => tT('trash.kind.note', 'Note'), endpoint: (id) => `/api/notes/${encodeURIComponent(id)}/restore`, ico: '<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 3h9l5 5v13H5Z"/><path d="M14 3v5h5M8 13h8M8 17h5"/></svg>' },
+            todo: { label: () => tT('trash.kind.todo', 'To-do'), endpoint: (id) => `/api/sadhana/tasks/${encodeURIComponent(id)}/restore`, ico: '<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12l5 5L20 6"/></svg>' },
+          }
+          const purgeLabel = (daysLeft) =>
+            daysLeft <= 0
+              ? tT('trash.purgeToday', 'purges today')
+              : tT('trash.purgeIn', 'purges in {n}d').replace('{n}', dig(daysLeft))
+
+          const renderTrash = (items) => {
+            trashList.textContent = ''
+            if (!items.length) {
+              const li = document.createElement('li')
+              li.className = 'trash-empty muted'
+              li.textContent = tT('settings.trashEmpty', 'Nothing here — deleted items wait for 7 days, then purge forever.')
+              trashList.appendChild(li)
+              return
+            }
+            for (const it of items) {
+              const meta = KIND_META[it.kind] || KIND_META.note
+              const li = document.createElement('li')
+              li.className = 'trash-item'
+              li.dataset.trashId = it.id
+              li.innerHTML =
+                `<span class="trash-ico" aria-hidden="true">${meta.ico}</span>` +
+                `<div class="trash-body">` +
+                  `<div class="trash-title" dir="auto">${escHtml(it.title)}</div>` +
+                  `<div class="trash-meta muted small${it.days_left <= 1 ? ' is-urgent' : ''}"><span>${escHtml(meta.label())} · ${escHtml(purgeLabel(it.days_left))}</span></div>` +
+                `</div>` +
+                `<button type="button" class="btn ghost small trash-restore">${escHtml(tT('trash.restore', 'Restore'))}</button>`
+              if (it.snippet && it.snippet !== it.title) {
+                li.querySelector('.trash-title')?.setAttribute('title', it.snippet)
+              }
+              li.querySelector('.trash-restore')?.addEventListener('click', async (ev) => {
+                const btn = ev.currentTarget
+                btn.disabled = true
+                try {
+                  const r = await fetch(meta.endpoint(it.id), { method: 'POST' })
+                  if (!r.ok) throw new Error('restore failed')
+                  window.hibana?.toast(tT('trash.restored', 'Restored'))
+                  li.classList.add('is-restoring')
+                  setTimeout(() => { li.remove(); if (!trashList.children.length) renderTrash([]) }, 260)
+                } catch {
+                  btn.disabled = false
+                  window.hibana?.toast(tT('trash.restoreFailed', "Couldn't restore — try again"), 'err')
+                }
+              })
+              trashList.appendChild(li)
+            }
+          }
+
+          const loadTrash = async () => {
+            try {
+              const r = await fetch('/api/settings/trash')
+              if (!r.ok) throw new Error('trash failed')
+              const body = await r.json()
+              renderTrash(body.items || [])
+            } catch {
+              trashList.textContent = ''
+              const li = document.createElement('li')
+              li.className = 'trash-empty muted'
+              li.textContent = tT('trash.loadFailed', "Couldn't load the trash")
+              trashList.appendChild(li)
+            }
+          }
+          loadTrash()
+        }
       },
     })

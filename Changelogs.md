@@ -9,7 +9,7 @@
 > rewritten as a minimal pointer. Deleted files remain recoverable verbatim:
 > `git show <sha>:<file>`.
 
-## 1. Current state (v0.3.13.2 — Session 49: CODEBASE HEALTH — audit → 3 real bugs fixed (CI red since S41, S48n broke the sprint draft flow, 404 double script), dead code removed, htmlToMd modularized into chip-render.js, sw.js + Changelogs.md trimmed from ~150-line inline changelogs to pointers; follow-ups (2026-09-16): CSP now allows the CF Web-Analytics beacon (owner decision), deep-link domain de-hardcoded (APP_URL). SW v387.
+## 1. Current state (v0.3.13.3 — Session 50: TRASH PANEL — the user-facing view of the 7-day soft-delete window (Settings → Data): deleted notes, to-dos and projects were recoverable ONLY via the 5-6s undo toast at delete time; now they list with kind + purge countdown + one-click Restore riding the existing per-entity endpoints. Read-only GET /api/settings/trash, user_id-scoped, no schema change. Plus: 4 stale doc numbers fixed (i18n 953→1124 ×2 pre-batch, migrations 0047→0056, PBKDF2 600k→100k). SW v388.
 
 Session 49 was a no-schema-change hygiene session on top of the stable S48p ship. Audit → fix → verify → deploy batches, each run through the full ladder. **CI is green for the first time since 2026-09-13** (ESLint red since S41; the e2e step had also been failing on a stale 404 visual baseline).
 
@@ -730,6 +730,7 @@ Session 48 was a massive UI/UX refinement session (S48 → S48p, 16 commits) on 
 | 47 | 2026-09-14 | v0.3.12.x — polish continuity (detail in §1 S46/S45 context blocks) |
 | 48→48p | 2026-09-15 | v0.3.12.84 — 16 commits: WYSIWYG contenteditable editor (S48d–f,h), the IIFE-trapping dist bug (S48), sprint board fixes (b,m,o), loading animation (i), AI-translate content-loss fix (p). SW v384 |
 | 49 | 2026-09-15→16 | v0.3.13.2 — CODEBASE HEALTH: CI red since S41 fixed (ESLint + stale 404 baseline), S48n sprint-draft regression fixed, 404 dedup, dead code removed (5 fns + 3 CSS rules + 1 script), htmlToMd → chip-render.js, sw.js 53KB→10.8KB, Changelogs 2,550→~1,000 lines; +b5: CSP allows the CF Web-Analytics beacon (owner decision); +b6: deep-link domain de-hardcoded (APP_URL, single source of truth). SW v387. CI green for the first time since 09-13 |
+| 50 | 2026-09-16 | v0.3.13.3 — TRASH PANEL: Settings → Data shows the 7-day soft-delete window (notes/to-dos/projects, kind + purge countdown, one-click Restore via existing endpoints; GET /api/settings/trash read-only, no schema change); +docs: 4 stale numbers fixed (i18n 953→1124, migrations 0047→0056, PBKDF2 600k→100k). Vitest 399→404, i18n 1124→1136. SW v388 |
 
 ## 3. Timeline by era
 ### Foundation — 2026-08-21→25 (migrations 0014–0018; tests 75→163)

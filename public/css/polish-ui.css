@@ -652,3 +652,63 @@ body.has-mobile-nav { padding-block-end: calc(3.5rem + env(safe-area-inset-botto
 .export-actions { flex-wrap: wrap; }
 .export-actions .icon { inline-size: 0.95rem; block-size: 0.95rem; }
 .export-actions button:disabled { opacity: 0.55; cursor: default; }
+
+
+/* --- S50: the Trash panel (Settings → Data) ---------------------------------- */
+/* The user-facing view of the 7-day soft-delete window: one row per recoverable
+   item, icon + title + (kind · purge countdown) + Restore. Rows use the card
+   surface + logical properties so RTL mirrors for free; the urgent tint marks
+   items the next cron purge will destroy (days_left ≤ 1). Restore animates the
+   row away (opacity + slide toward the inline start) under no-reduced-motion. */
+.trash-list {
+  list-style: none;
+  margin: 0.5rem 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+.trash-item {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  padding: 0.6rem 0.75rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--accent-soft);
+}
+.trash-ico {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  inline-size: 2rem;
+  block-size: 2rem;
+  border-radius: 999px;
+  color: var(--muted);
+  background: var(--bg);
+}
+.trash-ico .icon { inline-size: 1rem; block-size: 1rem; }
+.trash-body { flex: 1 1 auto; min-inline-size: 0; }
+.trash-title {
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.trash-meta { margin-block-start: 0.1rem; }
+/* days_left ≤ 1: the next purge run destroys it — amber per the semantic scale. */
+.trash-meta.is-urgent { color: var(--warn); font-weight: 500; }
+.trash-restore { flex: 0 0 auto; }
+.trash-empty { padding: 0.4rem 0 0.2rem; }
+.trash-item.is-restoring {
+  opacity: 0;
+  transition: opacity 0.25s ease;
+}
+@media (prefers-reduced-motion: reduce) {
+  .trash-item.is-restoring { transition: none; }
+}
+@media (max-width: 560px) {
+  .trash-item { padding: 0.55rem 0.6rem; gap: 0.5rem; }
+  .trash-ico { inline-size: 1.75rem; block-size: 1.75rem; }
+}

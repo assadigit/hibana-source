@@ -2,6 +2,7 @@ import { sendAndLog } from './email'
 import { sendTelegramMessage } from './telegram'
 import { clientProgress, isBehindPace, elapsedFraction } from './progress'
 import { esc } from '../lib/http'
+import { appUrlOf } from '../lib/app-url'
 import type { Config, ProjectRow, TaskRow, UserRow } from '../types'
 
 // Progress-based reminders (spec §6.3): fires only when ACTUAL progress falls behind the
@@ -9,10 +10,9 @@ import type { Config, ProjectRow, TaskRow, UserRow } from '../types'
 // Used by the daily cron. Channels: the owner's email (Resend) + Telegram, when the
 // account has a linked chat (Phase 5 bot — spec §6.3 names Telegram as the second channel).
 
-// The single-owner cron has no request to derive an origin from, so the deep link URL is
-// the real prod domain (this is what the email path already hardcoded — fixing the stale
-// pm.sedanama.com value that predates the hibana.ir cutover).
-const APP_URL = 'https://hibana.ir'
+// The single-owner cron has no request to derive an origin from, so the deep link URL
+// comes from cfg.appUrl (env APP_URL — S49-b6; default = the prod domain, preserving
+// the pre-S49-b6 behavior byte-for-byte until the owner sets APP_URL).
 
 interface ReminderCandidate {
   project: ProjectRow
@@ -60,6 +60,7 @@ export async function findBehindProjects(cfg: Config): Promise<ReminderCandidate
 /** Returns how many pushes were sent (email + Telegram). Each channel is best-effort. */
 export async function runReminders(cfg: Config, ownerEmail: string): Promise<number> {
   const behind = await findBehindProjects(cfg)
+  const appUrl = appUrlOf(cfg)
   let sent = 0
   for (const c of behind) {
     const { id, title, due_date: due } = c.project
@@ -75,14 +76,14 @@ export async function runReminders(cfg: Config, ownerEmail: string): Promise<num
         // "Hibana —" subject prefix and the branded wrapper now come from sendAndLog,
         // and every send lands in email_log for the owner's quota console.
         await sendAndLog(cfg, {
-          origin: APP_URL,
+          origin: appUrl,
           to: ownerEmail,
           subject: `"${title}" is behind pace (${c.progress}% of tasks done)`,
           kind: 'reminder',
           title: 'Project pace reminder — یادآوری پیشرفت',
           bodyHtml: `<p>You have <b>${c.progress}%</b> of tasks done on <b>${esc(title)}</b> with a due date of <b>${esc(due ?? '')}</b>.</p>
            <p>This is behind the pace the remaining time window expects. Open it here:
-           <a href="${APP_URL}/project.html?id=${id}">${esc(title)}</a>.</p>`,
+           <a href="${appUrl}/project.html?id=${id}">${esc(title)}</a>.</p>`,
         })
         sent++
       } catch (err) {
@@ -97,7 +98,7 @@ export async function runReminders(cfg: Config, ownerEmail: string): Promise<num
           cfg.telegramToken,
           chatId,
           `🔔 <b>${esc(title)}</b> is behind pace — ${c.progress}% of tasks done, due ${esc(due ?? '')}.\n\n` +
-            `<a href="${APP_URL}/project.html?id=${id}">Open in Hibana →</a>`,
+            `<a href="${appUrl}/project.html?id=${id}">Open in Hibana →</a>`,
           'HTML',
         )
         sent++

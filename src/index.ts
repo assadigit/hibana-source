@@ -18,6 +18,9 @@ function buildConfig(env: Env): Config {
     // Config contract runtime-agnostic (Node's Response is the DOM-aligned global).
     assets: (url) => env.ASSETS.fetch(url) as Promise<Response>,
     isProd: env.ENVIRONMENT === 'prod',
+    // S49-b6: canonical origin for cron/email/ICS deep links ([env.prod.vars] APP_URL).
+    // Unset (dev) = the prod-domain default — see lib/app-url.ts.
+    appUrl: env.APP_URL,
     github: { owner: env.GITHUB_OWNER ?? '', repo: env.GITHUB_REPO ?? '', token: env.GITHUB_TOKEN },
     // S38: KV beats R2 in the precedence (free, no card, zero signup). Binding mode —
     // no credential lives inside the Worker; the deployment itself is the auth.

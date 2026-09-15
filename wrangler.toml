@@ -69,6 +69,12 @@ id = "7c6eb81bac1a42c09e2a2d4686d48199"
 ENVIRONMENT = "prod"
 GITHUB_OWNER = "assadigit"
 GITHUB_REPO = "hibana-safe"
+# S49-b6: canonical public origin for deep links in no-request contexts (cron emails,
+# Telegram reminder pushes, the ICS feed) — request-scoped paths derive the origin from
+# the request itself and never read this. THIS is the line to change when the domain
+# changes (plus the Resend sender note in Changelogs §6 — noreply@<domain> must stay a
+# Resend-VERIFIED address, so it is deliberately NOT derived from APP_URL).
+APP_URL = "https://hibana.ir"
 # Mirror origins allowed through the CSRF gate for the ArvanCloud front (docs/edge-mirror.md).
 # v0.3.3: sadhana.ir — a dedicated MAIN domain delegated to ArvanCloud in full (NS at IRNIC);
 # main domains are free on Arvan's Basic plan, subdomain entries are not. Served at the apex

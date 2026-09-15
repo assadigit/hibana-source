@@ -35,7 +35,12 @@ interface EmailService {
   send(to: string, subject: string, html: string, attachments?: EmailAttachment[]): Promise<void>
 }
 
-/** Resend uses a `from` of `Name <email>`; the domain must be verified (Resend → Domains). */
+/** Resend uses a `from` of `Name <email>`; the domain must be verified (Resend → Domains).
+ *  ⚠️ Domain-tied (S49-b6 note): this sender is bound to the RESEND-VERIFIED domain
+ *  (hibana.ir, verified 2026-08-24) — it is deliberately NOT derived from APP_URL, because
+ *  a new domain must be verified in the Resend dashboard BEFORE sends can use it; flipping
+ *  APP_URL alone must never silently break every email. When the domain changes: verify the
+ *  new domain in Resend, then change this default (or override via a from-arg call site). */
 function resendEmail(apiKey: string | undefined, from = 'Hibana <noreply@hibana.ir>'): EmailService {
   return {
     async send(to, subject, html, attachments) {
@@ -80,15 +85,18 @@ export function verifyEmailHtml(code: string): string {
 /** Item 6 (user request 2026-09-09): invite-by-email. The owner enters an email; Hibana
  *  generates an invite code + emails it to that address via Resend. The recipient uses
  *  the code at signup (OPEN_REGISTRATION off) or as a courtesy (OPEN_REGISTRATION on).
- *  The email is bilingual, branded, and carries the code prominently. */
-export function inviteEmailHtml(code: string, inviterName?: string): string {
+ *  The email is bilingual, branded, and carries the code prominently. S49-b6: the signup
+ *  link derives from the caller's origin (request-scoped) — no hardcoded domain. */
+export function inviteEmailHtml(code: string, inviterName: string | undefined, origin: string): string {
+  const signupUrl = `${origin}/signup`
+  const signupLabel = `${new URL(origin).host}/signup`
   const from = inviterName ? `${escapeHtml(inviterName)} ` : ''
   return `<h2 style="margin:0 0 10px;color:#3A3226">دعوت به Hibana — You're invited to Hibana</h2>
 <p>${from}شما را به Hibana دعوت کرده است. ${from}has invited you to Hibana — a personal project &amp; idea manager.</p>
 <p>برای ثبت‌نام، از این کد دعوت استفاده کنید:</p>
 <p style="font-size:24px;letter-spacing:6px;font-weight:bold;color:#3A3226;background:#F4F0E8;padding:12px 20px;border-radius:8px;display:inline-block">${escapeHtml(code)}</p>
 <p>Use this invite code when you sign up at:</p>
-<p><a href="https://hibana.ir/signup" style="color:#3D8D91;font-weight:bold">hibana.ir/signup</a></p>
+<p><a href="${escapeHtml(signupUrl)}" style="color:#3D8D91;font-weight:bold">${escapeHtml(signupLabel)}</a></p>
 <p style="font-size:12px;color:#8A8278">اگر این دعوت را انتظار نداشتید، می‌توانید این ایمیل را نادیده بگیرید. — If you weren't expecting this invitation, you can safely ignore this email.</p>`
 }
 

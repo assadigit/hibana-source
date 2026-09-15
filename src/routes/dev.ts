@@ -62,9 +62,12 @@ export function devRoutes(cfg: Config) {
     // Registers the bot webhook FROM the worker (Cloudflare reaches Telegram even when a
     // local sandbox cannot). Uses the worker's own token + secret (rule 11).
     // Optional ?host= override points the bot at any base (e.g. prod's workers.dev URL
-    // before the custom domain is live); defaults to the environment's canonical base.
+    // before the custom domain is live); defaults to the environment's canonical base
+    // (S49-b6: cfg.appUrl / APP_URL when set — NOT appUrlOf, whose non-prod default is
+    // the prod domain; the dev fallback here must stay the workers.dev URL because
+    // Telegram's webhook needs a publicly reachable origin).
     if (!cfg.telegramToken || !cfg.telegramSecret) return c.json({ error: 'telegram_not_configured' }, 503)
-    const defaultBase = cfg.isProd ? 'https://hibana.ir' : 'https://hibana.aliassadi.workers.dev'
+    const defaultBase = cfg.appUrl ?? (cfg.isProd ? 'https://hibana.ir' : 'https://hibana.aliassadi.workers.dev')
     const base = c.req.query('host') ?? defaultBase
     const res = await fetch(`https://api.telegram.org/bot${cfg.telegramToken}/setWebhook`, {
       method: 'POST',
@@ -93,7 +96,7 @@ export function devRoutes(cfg: Config) {
       ok?: boolean
       result?: { url?: string; pending_update_count?: number; last_error_message?: string }
     }
-    const defaultBase = cfg.isProd ? 'https://hibana.ir' : 'https://hibana.aliassadi.workers.dev'
+    const defaultBase = cfg.appUrl ?? (cfg.isProd ? 'https://hibana.ir' : 'https://hibana.aliassadi.workers.dev')
     const expected = `${defaultBase}/api/telegram/webhook`
     const actual = infoJson.result?.url ?? null
     return c.json({

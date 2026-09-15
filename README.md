@@ -92,7 +92,7 @@ hibana/
 ├── Agents.md                     # ⚠️ READ FIRST — canonical agent rules
 ├── Changelogs.md                 # History + current state + ops runbook + open items
 ├── README.md                     # This file
-├── package.json                  # v0.3.13.1
+├── package.json                  # v0.3.13.2
 ├── wrangler.toml                 # Cloudflare Workers config (dev + prod envs)
 ├── tsconfig.json
 ├── vitest.config.ts
@@ -238,7 +238,7 @@ Any CSS/JS change bumps `?v=` on EVERY referencing HTML page AND the SW cache na
 Since v0.3.0 `/dist/` is content-hashed; SW version bumps only on `sw.js` logic changes
 or when existing clients need to re-fetch the manifest. `check-cache-bust` is a CI gate.
 
-**Current numbers (v0.3.13.1):** SW `hibana-v387`, 73 manifest entries, schema 55, 394 tests.
+**Current numbers (v0.3.13.2):** SW `hibana-v387`, 73 manifest entries, schema 55, 394 tests.
 
 ---
 
@@ -257,6 +257,10 @@ Each deploy runs: `build --prod --wire-html` → `check-dist-wiring` → `wrangl
 
 **Prod D1:** `pm-app-prod`. **Dev D1:** `pm-app-dev`. Both at schema 55.
 **Custom domain:** hibana.ir (attached via Cloudflare dashboard, not wrangler.toml).
+**Deep links** (cron emails, Telegram reminders, the ICS feed — anything built outside a
+request) read `APP_URL` from `wrangler.toml` `[env.prod.vars]` — the one line to change on
+a domain migration (see the domain-migration runbook in Changelogs.md §6). Request-scoped
+links derive the origin from the request itself.
 
 ---
 

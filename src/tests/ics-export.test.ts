@@ -100,8 +100,8 @@ describe('loadIcsEvents (user-scoped DB loader)', () => {
         'INSERT INTO projects (id, user_id, title, status, due_date, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
         [crypto.randomUUID(), bob, 'Bob project', 'doing', inDays(3), new Date().toISOString(), new Date().toISOString()],
       )
-      const aEvents = await loadIcsEvents(db, alice, 6)
-      const bEvents = await loadIcsEvents(db, bob, 6)
+      const aEvents = await loadIcsEvents(db, alice, 'https://hibana.ir', 6)
+      const bEvents = await loadIcsEvents(db, bob, 'https://hibana.ir', 6)
       expect(aEvents.some((e) => e.summary === 'Alice project')).toBe(true)
       expect(aEvents.some((e) => e.summary === 'Bob project')).toBe(false)
       expect(bEvents.some((e) => e.summary === 'Bob project')).toBe(true)
@@ -123,7 +123,7 @@ describe('loadIcsEvents (user-scoped DB loader)', () => {
         'INSERT INTO projects (id, user_id, title, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)',
         [crypto.randomUUID(), user, 'Undated', 'doing', new Date().toISOString(), new Date().toISOString()],
       )
-      const events = await loadIcsEvents(db, user, 6)
+      const events = await loadIcsEvents(db, user, 'https://hibana.ir', 6)
       expect(events).toHaveLength(0)
     } finally {
       close()
@@ -144,9 +144,33 @@ describe('loadIcsEvents (user-scoped DB loader)', () => {
         'INSERT INTO projects (id, user_id, title, status, due_date, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
         [crypto.randomUUID(), user, 'Far', 'doing', inDays(730), new Date().toISOString(), new Date().toISOString()],
       )
-      const events = await loadIcsEvents(db, user, 6)
+      const events = await loadIcsEvents(db, user, 'https://hibana.ir', 6)
       expect(events.some((e) => e.summary === 'Soon')).toBe(true)
       expect(events.some((e) => e.summary === 'Far')).toBe(false)
+    } finally {
+      close()
+    }
+  })
+
+  it('derives deep-link URLs and UID hosts from the passed app origin (S49-b6 — no hardcoded domain)', async () => {
+    const { db, close } = makeTestDb()
+    try {
+      const user = await makeUser(db)
+      const pid = crypto.randomUUID()
+      await db.execute(
+        'INSERT INTO projects (id, user_id, title, status, due_date, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
+        [pid, user, 'Migrated domain', 'doing', inDays(3), new Date().toISOString(), new Date().toISOString()],
+      )
+      const events = await loadIcsEvents(db, user, 'https://newdomain.example', 6)
+      const ev = events.find((e) => e.summary === 'Migrated domain')
+      expect(ev).toBeTruthy()
+      expect(ev!.url).toBe(`https://newdomain.example/project.html?id=${pid}`)
+      expect(ev!.uid).toBe(`hibana-project-${pid}@newdomain.example`)
+      // And the default (what the route passes when APP_URL is unset) stays the prod domain
+      const def = await loadIcsEvents(db, user, 'https://hibana.ir', 6)
+      const evDef = def.find((e) => e.summary === 'Migrated domain')
+      expect(evDef!.url).toBe(`https://hibana.ir/project.html?id=${pid}`)
+      expect(evDef!.uid).toBe(`hibana-project-${pid}@hibana.ir`)
     } finally {
       close()
     }

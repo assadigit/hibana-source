@@ -10,6 +10,9 @@ export type { Db }
 export interface Env {
   DB: D1Database
   ASSETS: Fetcher
+  // Canonical public origin for no-request deep links (S49-b6) — a [vars] entry,
+  // not a secret. Unset = the prod domain default (lib/app-url.ts).
+  APP_URL?: string
   // Workers AI binding (idea §1 — Magic Button). Added via `[ai]` in wrangler.toml; absent
   // on the Node self-host path, where the feature degrades to a friendly 503 notice.
   AI: Ai
@@ -59,6 +62,11 @@ export interface Env {
 export interface Config {
   db: Db
   isProd: boolean
+  /** Canonical public origin ("https://host") for deep links built outside a request
+   *  context — cron emails, Telegram reminder pushes, the ICS feed (S49-b6). Env APP_URL;
+   *  unset = the prod domain default (see lib/app-url.ts). Request-scoped paths keep
+   *  using requestOrigin() and ignore this. */
+  appUrl?: string
   github: { owner: string; repo: string; token?: string }
   /** S38: Cloudflare Workers KV screenshot storage — takes precedence over r2 (free,
    *  no card, zero signup — it rides the account the Worker already deploys to).

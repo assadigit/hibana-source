@@ -1,5 +1,6 @@
 import { sendTelegramMessage } from './telegram'
 import { esc } from '../lib/http'
+import { appUrlOf } from '../lib/app-url'
 import type { Config } from '../types'
 import type { Db } from '../db/types'
 
@@ -173,6 +174,8 @@ export async function runSadhanaReminders(cfg: Config, onDate?: string, nowUtcMi
   const now = new Date()
   const today = onDate ?? todayIn('Asia/Tehran')
   const nowMin = nowUtcMin ?? now.getUTCHours() * 60 + now.getUTCMinutes() // UTC minutes (2h window, best effort)
+  // Cron context — no request origin; the deep link uses the configured app origin (S49-b6).
+  const appUrl = appUrlOf(cfg)
   // JOIN users up front (Phase 2, 2026-08-28): the old shape ran one users lookup per task
   // (N+1) on every 30-min tick — this pass is the hottest cron. One query, same behavior.
   const tasks = await cfg.db.query<SadhanaTask & { telegram_chat_id: string | null; telegram_paused: 0 | 1 }>(
@@ -207,7 +210,7 @@ export async function runSadhanaReminders(cfg: Config, onDate?: string, nowUtcMi
       await sendTelegramMessage(
         cfg.telegramToken,
         chatId,
-        `⏰ <b>${esc(`${t.emoji} ${t.title}`)}</b>\n\nDeadline: ${esc(label ?? '')}\n\n<a href="https://hibana.ir/sadhana.html">Open Sadhana →</a>`,
+        `⏰ <b>${esc(`${t.emoji} ${t.title}`)}</b>\n\nDeadline: ${esc(label ?? '')}\n\n<a href="${appUrl}/sadhana.html">Open Sadhana →</a>`,
         'HTML',
       )
       for (const kind of fresh) {

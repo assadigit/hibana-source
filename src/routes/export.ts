@@ -4,6 +4,7 @@ import { requireAuth } from '../auth/middleware'
 import { buildUserSnapshot } from '../services/backup'
 import { buildObsidianVault } from '../services/obsidian-export'
 import { buildIcs, loadIcsEvents } from '../services/ics-export'
+import { appUrlOf } from '../lib/app-url'
 import { clientIp, hitRateLimit, RATE_RULES } from '../services/ratelimit'
 import { timeAgo, STATUS_LABEL } from '../lib/html'
 import type { Config, ProjectRow, TagRow, UserRow } from '../types'
@@ -147,7 +148,7 @@ export function exportRoutes(cfg: Config) {
     }
     const monthsQ = Number(c.req.query('months') ?? 6)
     const months = Number.isFinite(monthsQ) ? monthsQ : 6
-    const events = await loadIcsEvents(cfg.db, user.id, months)
+    const events = await loadIcsEvents(cfg.db, user.id, appUrlOf(cfg), months)
     const ics = buildIcs(events)
     const day = new Date().toISOString().slice(0, 10)
     return new Response(ics, {

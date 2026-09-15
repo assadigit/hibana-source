@@ -9,11 +9,11 @@
 > rewritten as a minimal pointer. Deleted files remain recoverable verbatim:
 > `git show <sha>:<file>`.
 
-## 1. Current state (v0.3.13.1 — Session 49: CODEBASE HEALTH — audit → 3 real bugs fixed (CI red since S41, S48n broke the sprint draft flow, 404 double script), dead code removed, htmlToMd modularized into chip-render.js, sw.js + Changelogs.md trimmed from ~150-line inline changelogs to pointers; follow-up (2026-09-16): CSP now allows the CF Web-Analytics beacon (owner decision). SW v387.
+## 1. Current state (v0.3.13.2 — Session 49: CODEBASE HEALTH — audit → 3 real bugs fixed (CI red since S41, S48n broke the sprint draft flow, 404 double script), dead code removed, htmlToMd modularized into chip-render.js, sw.js + Changelogs.md trimmed from ~150-line inline changelogs to pointers; follow-ups (2026-09-16): CSP now allows the CF Web-Analytics beacon (owner decision), deep-link domain de-hardcoded (APP_URL). SW v387.
 
 Session 49 was a no-schema-change hygiene session on top of the stable S48p ship. Audit → fix → verify → deploy batches, each run through the full ladder. **CI is green for the first time since 2026-09-13** (ESLint red since S41; the e2e step had also been failing on a stale 404 visual baseline).
 
-### Session 49 changelog (6 batches):
+### Session 49 changelog (7 batches):
 
 - **S49-b1 — CI-red + sprint draft-flow + 404 dedup**: (1) ESLint: `EMOJI_TOKEN_RE` (S41) tripped `no-misleading-character-class` ×3 — every CI run since S41 failed at the ESLint step (CD deployed anyway); scoped disable + rationale comment. (2) S48n REGRESSION (e2e-pinned by sprint-ux S7): the sprint define popover PRE-FILLED the start date, making the "no start date → create as DRAFT" branch unreachable — every Define created a STARTED sprint; the start input now opens EMPTY (name-only Define = draft, the S33/S45 contract), presets fill BOTH start+end. (3) 404.html loaded 404-page.js TWICE (head + body-end) — the double run added the #nf-back listener twice so Back skipped two history entries; removed the body-end copy. sw.js's 27KB single-line VERSION comment replaced with a pointer (v384→v385).
 - **S49-b2 — dead-code removal**: 5 never-called functions in sadhana-page.js (doLogout, gregWeek, toggleAdvanced, toggleUserMenu, updateDate — 53 lines), 3 dead CSS rules (.shot-note-form ×2, .sadhana-quadrant.drop-target, .skeleton-line.w-30), scripts/tmp-b4-helpers.py (one-shot S30b4 codemod) deleted. Bumps: sadhana-page.js v3→4, to-do-list.css v2→3, layout.css v9→10, polish-ui.css v4→5; SW v385→v386.
@@ -21,6 +21,7 @@ Session 49 was a no-schema-change hygiene session on top of the stable S48p ship
 - **S49-b3 — modularize**: pdeHtmlToMd (68-line pure HTML→markdown converter) moved VERBATIM from project-page.js to chip-render.js as `HibanaChips.htmlToMd` — its md→HTML inverse renderTitle already lives there; one module now owns both directions of the WYSIWYG round-trip. The cache-bust gate ALSO caught board-page.js's dynamic fallback still injecting chip-render.js?v=4 (stale since the S48-era) — aligned to v6. Bumps: chip-render.js v5→6, project-page.js v33→34, board-page.js v11→12; SW v386→v387.
 - **S49-b4 — debt + ancient parts**: sw.js header 146 lines of session narrative → 13-line pointer (file 53KB→10.8KB; recover via `git show 7283678:public/sw.js`); Changelogs.md pre-S40 session details (S7→S35, ~1,560 lines) removed with a git-recovery note + the three duplicate "## 1. Current state" headers deduped (keep newest, demote S44/S45 to context subheaders) — file 2,550→~1,000 lines; README/Agents/package.json stale numbers refreshed (v0.3.12.14-era); audit verdict recorded: monolith splits are NO-GO (closure-bound IIFEs), the audit found the tree otherwise clean (no dead files, no version drift, no debug logs).
 - **S49-b5 (2026-09-16, owner instruction) — CSP allows the CF Web-Analytics beacon**: executing the S49 live-probe owner decision — Cloudflare auto-injects `static.cloudflareinsights.com/beacon.min.js` on every page (verified: module + SRI + token, `spa:2`) and the `'self'`-only policy killed it (one console error per page, analytics never ran). The CSP (src/app.ts + public/_headers, kept in lockstep) now grants exactly two external https origins: `script-src … https://static.cloudflareinsights.com` (beacon) and `connect-src … https://cloudflareinsights.com` (telemetry) — no wildcards, everything else unchanged; security.test.ts pins BOTH origins + the absence of wildcards so a future CSP rewrite cannot silently re-block or widen it. No asset content changed → no ?v=/SW bumps. v0.3.13.0→0.3.13.1.
+- **S49-b6 (2026-09-16, owner instruction) — deep-link domain de-hardcoded (APP_URL)**: "domain must not be hardcoded, domain might change" — the audit's Watch item, executed. New single source of truth: `APP_URL` env var → `cfg.appUrl` → `appUrlOf()` (src/lib/app-url.ts); default stays `https://hibana.ir` byte-for-byte, so nothing changes until the owner sets it (wrangler.toml [env.prod.vars] carries `APP_URL = "https://hibana.ir"` as the one line to edit on a domain change). Replaced all 7 runtime hardcodes: reminders email/Telegram links (was module const APP_URL), Sadhana Telegram reminder link, backup-failure email origin, ICS feed URLs + UID hosts (`loadIcsEvents` gained an `appUrl` param; UIDs derive their host from it — a domain change intentionally starts a fresh ICS identity since the old feed's URLs are dead), the invite-email signup link (`inviteEmailHtml` gained an origin param, request-scoped), and dev.ts Telegram-webhook defaultBase (honors the override, keeps the workers.dev dev fallback — Telegram needs a reachable origin). Request-scoped paths (reset/verify/Telegram-command links) already used `requestOrigin()` and are untouched. DELIBERATELY still domain-tied: the Resend sender `noreply@hibana.ir` (a Resend-VERIFIED address — deriving it from APP_URL would break every send if verification lags a domain change; documented on the function + §6 runbook). Tests: app-url.test.ts pins the default; reminders + ICS tests pin that a set `appUrl` flows into every link/UID. No public/ asset changed → no ?v=/SW bumps. v0.3.13.1→0.3.13.2.
 
 No schema change, no DB touch, no migration. Ladder per batch: eslint 0 errors · typecheck 0 · vitest 394/394 · node --check · cache-bust PASS · i18n 1124/1124 · build + dist-wiring PASS · playwright (full suite once after b1: 78/79 → the 1 failure was the 404 baseline, fixed in b2.5; targeted specs per batch all green).
 
@@ -728,7 +729,7 @@ Session 48 was a massive UI/UX refinement session (S48 → S48p, 16 commits) on 
 | 46–46.2 | 2026-09-14 | v0.3.12.49 — 13-item refinement batch + 4 follow-ups (urgent RTL, unified + chooser, wand robustness, task-editor shots row) |
 | 47 | 2026-09-14 | v0.3.12.x — polish continuity (detail in §1 S46/S45 context blocks) |
 | 48→48p | 2026-09-15 | v0.3.12.84 — 16 commits: WYSIWYG contenteditable editor (S48d–f,h), the IIFE-trapping dist bug (S48), sprint board fixes (b,m,o), loading animation (i), AI-translate content-loss fix (p). SW v384 |
-| 49 | 2026-09-15→16 | v0.3.13.1 — CODEBASE HEALTH: CI red since S41 fixed (ESLint + stale 404 baseline), S48n sprint-draft regression fixed, 404 dedup, dead code removed (5 fns + 3 CSS rules + 1 script), htmlToMd → chip-render.js, sw.js 53KB→10.8KB, Changelogs 2,550→~1,000 lines; +b5: CSP allows the CF Web-Analytics beacon (owner decision). SW v387. CI green for the first time since 09-13 |
+| 49 | 2026-09-15→16 | v0.3.13.2 — CODEBASE HEALTH: CI red since S41 fixed (ESLint + stale 404 baseline), S48n sprint-draft regression fixed, 404 dedup, dead code removed (5 fns + 3 CSS rules + 1 script), htmlToMd → chip-render.js, sw.js 53KB→10.8KB, Changelogs 2,550→~1,000 lines; +b5: CSP allows the CF Web-Analytics beacon (owner decision); +b6: deep-link domain de-hardcoded (APP_URL, single source of truth). SW v387. CI green for the first time since 09-13 |
 
 ## 3. Timeline by era
 ### Foundation — 2026-08-21→25 (migrations 0014–0018; tests 75→163)
@@ -933,7 +934,7 @@ INSERT INTO d1_migrations (name, applied_at) VALUES
   ('0039_sprint_drafts.sql',         datetime('now'));
 ```
 
-## 6. Open items (S49 refresh — verified against the v0.3.13.1 tree)
+## 6. Open items (S49 refresh — verified against the v0.3.13.2 tree)
 **S49 audit verdict (the session's deliverable):** the tree is CLEAN at the file level —
 zero dead JS/CSS files (all 47 JS + 22 CSS referenced), zero debug console.logs, zero
 ?v= drift, SW SHELL covers every page. Fixed this session: CI red (ESLint S41 + stale
@@ -949,12 +950,24 @@ incremental notebook swap.
 **Owner-held:** rotate GitHub token (classic, `repo` scope — chat-exposed) · close
 `OPEN_REGISTRATION` · CF "Always Use HTTPS" toggle · PWA installability re-check ·
 key-custody drill · Resend delivery confirmation.
-**Watch:** deep links hardcode hibana.ir · mirror rate-limit keys share Arvan POP IPs ·
+**Watch:** mirror rate-limit keys share Arvan POP IPs ·
 future smoke/e2e failures — check whether the expectation or the product changed first
 (the 404-baseline lesson: environment rendering drift, not product change, can break
 visual pins — regenerate via the documented --update-snapshots procedure and verify the
-diff is background-noise-class before committing) · **RESOLVED 2026-09-16 (owner instruction,
-S49-b5):** the Cloudflare Web-Analytics beacon vs app CSP item below — the CSP now grants
+diff is background-noise-class before committing) · **RESOLVED 2026-09-16 (S49-b6): deep
+links no longer hardcode hibana.ir** — request-scoped paths always derived the origin
+from the request; the no-request contexts (cron reminder emails, Sadhana Telegram
+pushes, backup-failure alert, ICS feed, invite email) now use `cfg.appUrl` (env APP_URL,
+default the prod domain; the one line to change is wrangler.toml [env.prod.vars]).
+**Domain-migration runbook (when the domain changes):** (1) DNS/custom domain on the
+Worker (dashboard or scripts/custom-domain.mjs) — traffic flows, request-scoped paths
+self-correct; (2) set APP_URL in wrangler.toml [env.prod.vars] to the new origin → all
+cron/email/ICS links follow; (3) Resend: verify the new domain in the dashboard, THEN
+change the `noreply@…` default in src/services/email.ts `resendEmail()` (deliberately
+NOT derived from APP_URL — a send must never silently break on an unverified domain);
+(4) ICS subscribers re-subscribe (UIDs change with the host — correct, the old feed is
+dead); (5) CSP needs nothing ('self'-based) · **RESOLVED 2026-09-16 (owner instruction,
+S49-b5):** the Cloudflare Web-Analytics beacon vs app CSP item — the CSP now grants
 the two exact origins (`script-src … https://static.cloudflareinsights.com`, `connect-src …
 https://cloudflareinsights.com`, src/app.ts + public/_headers in lockstep; pinned by
 security.test.ts). History: Cloudflare auto-injects its Web-Analytics beacon

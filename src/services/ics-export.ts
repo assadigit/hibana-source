@@ -5,8 +5,11 @@
 //
 // Design:
 //  - All-day events (DTSTART;VALUE=DATE:YYYYMMDD) — Hibana stores dates, not times.
-//  - Stable UIDs (hibana-<kind>-<id>@hibana.ir) so calendar apps dedupe on re-import /
-//    re-subscribe instead of creating duplicates.
+//  - Stable UIDs (hibana-<kind>-<id>@<app-origin host>) so calendar apps dedupe on
+//    re-import / re-subscribe instead of creating duplicates. The host comes from the
+//    configured app origin (S49-b6) — a domain change therefore changes UIDs, which is
+//    correct: the old feed's URLs are dead anyway and re-subscribing to the new origin
+//    starts a fresh identity.
 //  - RFC 5545 line folding (75-octet limit, CRLF + space fold) + text escaping.
 //  - Forward window (default 6 months, max 24) — a subscribe feed wants upcoming, not
 //    historical. The user re-subscribes / the app re-fetches on its own schedule.
@@ -99,13 +102,17 @@ export function buildIcs(events: IcsEvent[]): string {
 
 /** Load all dated items for a user within a forward window (today → today + monthsAhead).
  *  Mirrors the /api/calendar aggregation but without a start bound (includes today forward)
- *  and with a generous default window. user_id filter on every query (rule 1). */
+ *  and with a generous default window. user_id filter on every query (rule 1).
+ *  appUrl: the canonical public origin (S49-b6) — deep-link URLs and UID hosts derive
+ *  from it; the caller passes appUrlOf(cfg). */
 export async function loadIcsEvents(
   db: Db,
   userId: string,
+  appUrl: string,
   monthsAhead = 6,
 ): Promise<IcsEvent[]> {
   const months = Math.max(1, Math.min(24, monthsAhead | 0))
+  const uidHost = new URL(appUrl).host
   const today = new Date()
   const start = today.toISOString().slice(0, 10)
   const endD = new Date(today.getTime() + months * 30 * 24 * 3600 * 1000)
@@ -138,40 +145,40 @@ export async function loadIcsEvents(
   const events: IcsEvent[] = []
   for (const p of projects) {
     events.push({
-      uid: `hibana-project-${p.id}@hibana.ir`,
+      uid: `hibana-project-${p.id}@${uidHost}`,
       summary: p.title,
       description: `Project — ${p.status}`,
       date: p.due_date!,
-      url: `https://hibana.ir/project.html?id=${p.id}`,
+      url: `${appUrl}/project.html?id=${p.id}`,
     })
   }
   for (const t of tasks) {
     events.push({
-      uid: `hibana-task-${t.id}@hibana.ir`,
+      uid: `hibana-task-${t.id}@${uidHost}`,
       summary: `${t.done ? '✓ ' : '▢ '}${t.title}`,
       description: `Task in: ${t.project_title}${t.done ? ' (done)' : ''}`,
       categories: t.project_title,
       date: t.due_date,
-      url: `https://hibana.ir/project.html?id=${t.project_id}`,
+      url: `${appUrl}/project.html?id=${t.project_id}`,
     })
   }
   for (const s of sadhana) {
     events.push({
-      uid: `hibana-sadhana-${s.id}@hibana.ir`,
+      uid: `hibana-sadhana-${s.id}@${uidHost}`,
       summary: `${s.done ? '✓ ' : ''}${s.title}`,
       description: 'To-do (Sadhana)',
       date: s.due_date!,
-      url: 'https://hibana.ir/to-do-list',
+      url: `${appUrl}/to-do-list`,
     })
   }
   for (const n of notes) {
     const text = (n.content || n.title || 'Note').replace(/\s+/g, ' ').trim()
     events.push({
-      uid: `hibana-note-${n.id}@hibana.ir`,
+      uid: `hibana-note-${n.id}@${uidHost}`,
       summary: n.sticky === 1 ? `📌 ${text}` : text,
       description: n.sticky === 1 ? 'Sticky note' : 'Day note',
       date: n.note_date!,
-      url: 'https://hibana.ir/app',
+      url: `${appUrl}/app`,
     })
   }
   // Stable order: by date, then kind, then title — so re-exports diff cleanly.

@@ -295,7 +295,7 @@ export function registrationRoutes(cfg: Config) {
     try {
       await sendAndLog(
         { db: cfg.db, emailKey: cfg.emailKey, assets: cfg.assets },
-        { to: body.email, kind: 'invite', subject: "You're invited to Hibana", title: 'You\'re invited to Hibana', bodyHtml: inviteEmailHtml(code, inviterName), origin },
+        { to: body.email, kind: 'invite', subject: "You're invited to Hibana", title: 'You\'re invited to Hibana', bodyHtml: inviteEmailHtml(code, inviterName, origin), origin },
       )
     } catch (e) {
       return c.json({ error: 'email_failed', detail: e instanceof Error ? e.message : String(e) }, 502)

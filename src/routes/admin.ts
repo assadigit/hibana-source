@@ -6,6 +6,7 @@ import { isBanned } from '../auth/ban'
 import { toastHtml } from '../lib/html'
 import { localeOf, trFor } from '../lib/i18n'
 import { jsonBody, requestOrigin } from '../lib/http'
+import { appUrlOf } from '../lib/app-url'
 import { log } from '../lib/log'
 import { banUserSchema, roleUserSchema, removeUserSchema, customEmailSchema, broadcastEmailSchema, BAN_PRESET_MS } from '../validation/schemas'
 import { BANNED_FOREVER_DATE } from '../auth/ban'
@@ -654,7 +655,7 @@ export async function scheduledBackup(cfg: Config): Promise<BackupOutcome> {
             subject: 'Hibana backup failed',
             title: 'Backup failed',
             bodyHtml: `<p>The scheduled Hibana backup failed at ${new Date().toISOString()}.</p><p>Error: ${err instanceof Error ? err.message : String(err)}</p><p>The next scheduled run will retry. Check <code>wrangler tail</code> for the structured error.</p>`,
-            origin: 'https://hibana.ir',
+            origin: appUrlOf(cfg),
           },
         )
       } catch (emailErr) {

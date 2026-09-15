@@ -129,4 +129,42 @@ describe('client reminders — delivery channels (spec §6.3: email + Telegram)'
       close()
     }
   })
+
+  it('deep links follow cfg.appUrl when set (S49-b6 — domain is configurable, never hardcoded)', async () => {
+    const { db, close } = makeTestDb()
+    try {
+      const userId = await makeUser(db)
+      await db.execute('UPDATE users SET telegram_chat_id = ? WHERE id = ?', ['4242', userId])
+      const { app, auth } = await makeClient(db, userId)
+      await seedBehind(db, app, auth)
+
+      const bodies: string[] = []
+      const originalFetch = globalThis.fetch
+      globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+        const url = String(input)
+        if (url.includes('api.resend.com') || url.includes('api.telegram.org')) {
+          bodies.push(String(init?.body ?? ''))
+          return new Response(JSON.stringify({ ok: true }), { status: 200 })
+        }
+        return originalFetch(input, init)
+      }) as typeof fetch
+      try {
+        const sent = await runReminders(
+          { db, isProd: false, appUrl: 'https://newdomain.example', github: { owner: 'x', repo: 'y', token: '' }, emailKey: 'resend-key', telegramToken: 'tg-bot-token' },
+          'owner@example.com',
+        )
+        expect(sent).toBe(2) // email + Telegram
+        const all = bodies.join('\n')
+        expect(all).toContain('https://newdomain.example/project.html?id=')
+        // No deep-link form of the OLD domain may survive (the Resend `from` address is
+        // deliberately domain-tied — noreply@hibana.ir — and not part of this contract).
+        expect(all).not.toContain('https://hibana.ir/project.html')
+        expect(all).not.toContain('hibana.ir/')
+      } finally {
+        globalThis.fetch = originalFetch
+      }
+    } finally {
+      close()
+    }
+  })
 })

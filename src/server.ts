@@ -85,6 +85,9 @@ function serveFile(url: URL, req?: Request): Promise<Response> {
 const cfg: Config = {
   db: createSqliteDb(dbPath),
   isProd: process.env.NODE_ENV === 'production',
+  // S49-b6: canonical origin for cron/email/ICS deep links (env APP_URL — set it to
+  // wherever this Node instance is reachable, e.g. https://my-host.example).
+  appUrl: process.env.APP_URL,
   github: {
     owner: process.env.GITHUB_OWNER ?? '',
     repo: process.env.GITHUB_REPO ?? 'pm-app-assets',

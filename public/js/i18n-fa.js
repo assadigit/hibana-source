@@ -85,6 +85,7 @@ window.__hibanaDictFA = {
       'pd.fmtAlignRight': 'راست‌چین',
       'pd.fmtAlignJustify': 'هم‌تراز',
       'pd.fmtToolbar': 'قالب‌بندی',
+      'pd.writeHere': 'اینجا بنویس…',
       'pd.showLess': 'نمایش کمتر',
       'pd.archivesEmpty': 'هنوز کار بایگانی‌شده‌ای نیست. کارهای انجام‌شده را از بورد بایگانی کن.',
       'pd.restore': 'بازگرداندن به بورد',

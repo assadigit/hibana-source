@@ -530,13 +530,11 @@ dialog.pd-taskadd-modal {
 }
 .pd-taskadd-inner { padding: 1.5rem; display: grid; gap: 0.8rem; }
 #pd-taskadd-textarea {
-  font-size: var(--fs-md);
-  line-height: 1.6;
+  /* S48f: now a contenteditable div (was a textarea). The shared .pde-edit-area
+     class handles the textarea-like appearance (padding, border, background,
+     focus, etc.). Only the min-height is specific to the composer (taller). */
   min-block-size: 18rem; /* Session 22: +50% (was 12rem) — owner wants a real writing area */
-  border-radius: var(--radius);
-  resize: vertical; /* Session 22: the owner can drag it taller for very long tasks */
 }
-#pd-taskadd-textarea:focus-visible { border-color: var(--brand); }
 /* Session 22: the inline task EDIT dialog (project.html builds it client-side) gets the
    same recipe as the composer — it was a bare `dialog.dialog` (26rem cap) with a
    3-row, 300-char textarea. */
@@ -554,12 +552,30 @@ dialog.pd-taskedit-modal {
 }
 /* S46.2: shrink the «ویرایش» label (h3) — was the base h3 size; now a compact header. */
 #pde-title { font-size: var(--fs-md); font-weight: 600; margin: 0; }
-#pde-input {
-  min-block-size: 8rem;
+/* S48f: #pde-input + #pd-taskadd-textarea are now contenteditable divs (WYSIWYG).
+   Shared .pde-edit-area styling: textarea-like appearance (padding, border,
+   background, focus ring, overflow-y). Individual IDs keep their own min-height. */
+.pde-edit-area {
   font-size: var(--fs-md);
   line-height: 1.5;
-  resize: vertical;
+  overflow-y: auto;
+  padding: 0.55rem 0.75rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--bg);
+  color: var(--text);
+  cursor: text;
+  word-break: break-word;
 }
+.pde-edit-area:focus-visible { border-color: var(--brand); outline: 2px solid transparent; box-shadow: 0 0 0 3px color-mix(in srgb, var(--brand) 15%, transparent); }
+.pde-edit-area:empty::before { content: attr(data-placeholder); color: var(--muted); pointer-events: none; }
+.pde-edit-area ul, .pde-edit-area ol { margin: 0.3rem 0; padding-inline-start: 1.5rem; }
+.pde-edit-area li { margin: 0.15rem 0; }
+.pde-edit-area pre { background: color-mix(in srgb, var(--muted) 8%, transparent); padding: 0.5rem 0.75rem; border-radius: var(--radius-sm); overflow-x: auto; margin: 0.4rem 0; }
+.pde-edit-area code { font-family: var(--mono, ui-monospace, monospace); font-size: 0.9em; }
+.pde-edit-area b, .pde-edit-area strong { font-weight: 700; }
+.pde-edit-area div[style*="text-align"] { margin: 0.2rem 0; }
+#pde-input { min-block-size: 8rem; }
 /* S46.7 (owner: "compact things so it doesn't need scroll"): the modal's inner padding
    + the textarea's min-block-size shrunk so the whole form fits a typical viewport
    without scrolling. The .modal grid gap + the row margins are already tight. */

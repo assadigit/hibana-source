@@ -2082,7 +2082,7 @@
           const ta = document.getElementById('pd-taskadd-textarea')
           if (!m || !ta) return
           taskAddStatus = btn.dataset.pdAdd || null
-          ta.value = ''
+          ta.innerHTML = ''
           stagedShots = []
           renderTaskAddShots()
           // S29 follow-up: reset the priority dropdown (+ its preview chip) and the
@@ -2239,7 +2239,9 @@
           // Session 23 (user request): newlines are PRESERVED now — titles render
           // multi-line (code blocks, bullet lists). Only \r\n is normalized (browsers
           // on Windows paste) + outer trim. The 100k server guard still applies.
-          const title = ta.value.replace(/\r\n/g, '\n').trim()
+          // S48f: #pd-taskadd-textarea is now contenteditable — read innerHTML +
+          // convert to markdown via pdeHtmlToMd (the DB + renderer expect markdown).
+          const title = pdeHtmlToMd(ta.innerHTML).replace(/\r\n/g, '\n').trim()
           if (!title) { m.close(); return }
           if (save) save.disabled = true
           if (err) { err.hidden = true; err.textContent = '' }
@@ -2304,77 +2306,147 @@
         // --- Session 23 (user request): composer formatting toolbar (Code / Bold / Bullet) ---
         // ONE delegated handler serves BOTH composers: the server-rendered add dialog
         // (re-rendered on every htmx swap of #project-body) and the JS-built inline edit
-        // dialog — the button looks up the editable textarea in its own <form>. Code
-        // wraps the selection in ``` fences (or drops an empty block at the cursor and
-        // puts the caret inside it); Bold wraps in **pairs**; Bullet prefixes every
-        // selected line with "- ". Fences always land on their OWN lines so the renderer
-        // (pdRenderTitle / renderTitle) recognizes them.
-        // S48d (owner: "fullscreen editor needs underline/strikethrough/ordered-list/
-        // alignment"): extended with __underline__, ~~strikethrough~~, 1. ordered list,
-        // and {:left}/{:center}/{:right}/{:justify} paragraph-alignment markers.
+        // dialog. S48f (owner: "the text editor is not actually working — Bold adds **
+        // stars instead of bolding"): converted the #pde-input from a plain <textarea>
+        // (which can ONLY show raw markdown markers) to a contenteditable WYSIWYG editor.
+        // The toolbar buttons now use document.execCommand('bold'/'underline'/etc) so the
+        // formatting appears VISUALLY in the editor as the user clicks. STORAGE stays
+        // markdown (backward compatible): pdeHtmlToMd converts the contenteditable's HTML
+        // → markdown on save; renderTitle converts markdown → HTML on load. The renderer
+        // (chip-render.js + detail-helpers.ts) is UNCHANGED.
+        // pdeHtmlToMd: walks the contenteditable's DOM + converts execCommand's HTML
+        // output (browser-dependent: Chrome uses <b>/<u>/<s>, others use <strong>/<span
+        // style>) back to the markdown syntax the renderer + DB expect.
+        const pdeHtmlToMd = (html) => {
+          const tmp = document.createElement('div')
+          tmp.innerHTML = html
+          const walk = (node) => {
+            let out = ''
+            for (const child of node.childNodes) {
+              if (child.nodeType === 3) { out += child.textContent; continue }
+              if (child.nodeType !== 1) continue
+              out += elToMd(child)
+            }
+            return out
+          }
+          const elToMd = (el) => {
+            const tag = el.tagName.toLowerCase()
+            const inner = walk(el)
+            switch (tag) {
+              case 'b': case 'strong': return '**' + inner + '**'
+              case 'u': return '__' + inner + '__'
+              case 's': case 'strike': case 'del': return '~~' + inner + '~~'
+              case 'ul': case 'ol': return inner // <li> handles its own marker
+              case 'li': {
+                const parent = el.parentElement
+                if (parent && parent.tagName === 'OL') {
+                  const sibs = Array.from(parent.children).filter((n) => n.tagName === 'LI')
+                  return (sibs.indexOf(el) + 1) + '. ' + inner + '\n'
+                }
+                return '- ' + inner + '\n'
+              }
+              case 'div': case 'p': {
+                const align = el.style && el.style.textAlign
+                if (align) return '{:' + align + '}' + inner + '\n'
+                return inner + '\n'
+              }
+              case 'pre': {
+                const code = el.querySelector('code')
+                const text = code ? code.textContent : el.textContent
+                return '\n```\n' + text + '\n```\n'
+              }
+              case 'code': {
+                // Could be <code class="t-code"> (loaded from the rendered card) —
+                // extract the content (skip hidden fence spans) + reconstruct the fence.
+                if (el.classList && el.classList.contains('t-code')) {
+                  const lang = el.getAttribute('data-lang') || ''
+                  let content = ''
+                  for (const c of el.childNodes) {
+                    if (c.nodeType === 3) content += c.textContent
+                    else if (c.nodeType === 1 && c.classList && c.classList.contains('t-fence')) continue
+                    else if (c.nodeType === 1) content += c.textContent
+                  }
+                  return '\n```' + lang + '\n' + content + '\n```\n'
+                }
+                return inner // inline code — just return the text
+              }
+              case 'br': return '\n'
+              case 'span': {
+                // Chrome sometimes emits <span style="text-decoration:underline"> for
+                // underline (when execCommand('underline') runs on a partial selection
+                // inside an existing inline). Detect + convert.
+                const deco = el.style && el.style.textDecoration
+                if (deco && deco.includes('underline')) return '__' + inner + '__'
+                if (deco && deco.includes('line-through')) return '~~' + inner + '~~'
+                return inner
+              }
+              default: return inner
+            }
+          }
+          return walk(tmp).replace(/\n{3,}/g, '\n\n').trim()
+        }
+        // pdApplyTb: the toolbar button handler. Uses document.execCommand for WYSIWYG
+        // formatting (bold/underline/strike/lists/alignment). For code blocks, execCommand
+        // doesn't have a "code" command — we manually wrap the selection in a <pre><code>
+        // block. The `ta` param is the contenteditable element (was a textarea).
         const pdApplyTb = (ta, kind) => {
           if (!ta) return
-          const s = ta.selectionStart == null ? ta.value.length : ta.selectionStart
-          const e = ta.selectionEnd == null ? s : ta.selectionEnd
-          const v = ta.value
-          const sel = v.slice(s, e)
-          if (kind === 'list' || kind === 'ordered-list') {
-            const bullet = kind === 'list' ? '- ' : '1. '
-            const ls = v.lastIndexOf('\n', s - 1) + 1
-            let le = v.length
-            if (sel.includes('\n')) { const n = v.indexOf('\n', Math.max(e, s)); if (n !== -1) le = n }
-            const lines = v.slice(ls, le).split('\n')
-            const marked = lines.map((l, i) => {
-              if (l === '' || l.startsWith('- ') || l.startsWith(/^\d+\.\s/)) return l
-              if (kind === 'ordered-list') return (i + 1) + '. ' + l
-              return '- ' + l
-            }).join('\n')
-            ta.setRangeText(marked, ls, le, 'end')
-            ta.focus()
-            return
-          }
-          // paragraph-level alignment markers — prefixed at the start of the paragraph
-          if (kind === 'align-left' || kind === 'align-center' || kind === 'align-right' || kind === 'align-justify') {
-            const dir = kind.replace('align-', '')
-            const marker = '{:' + dir + '}'
-            const ls = v.lastIndexOf('\n', s - 1) + 1
-            const already = v.slice(ls, ls + marker.length) === marker
-            if (already) {
-              // toggle off — remove the marker
-              ta.setRangeText('', ls, ls + marker.length, 'end')
-            } else {
-              // strip any existing alignment marker on this paragraph first
-              const existing = v.slice(ls).match(/^\{:(?:left|center|right|justify)\}/)
-              const stripTo = existing ? ls + existing[0].length : ls
-              ta.setRangeText(marker + (stripTo > ls ? '' : ''), ls, stripTo, 'end')
-            }
-            ta.focus()
-            return
-          }
-          let before = '', after = ''
-          if (kind === 'code') {
-            const pre = s === 0 || v[s - 1] === '\n' ? '' : '\n'
-            before = pre + '```\n'
-            after = '\n```' + (e === v.length || v[e] === '\n' ? '' : '\n')
-          } else if (kind === 'underline') {
-            before = '__'; after = '__'
-          } else if (kind === 'strikethrough') {
-            before = '~~'; after = '~~'
-          } else { // bold
-            before = '**'
-            after = '**'
-          }
-          ta.setRangeText(before + sel + after, s, e, 'end')
-          if (sel) ta.setSelectionRange(s + before.length, s + before.length + sel.length)
-          else ta.setSelectionRange(s + before.length, s + before.length) // caret inside the pair/fence
           ta.focus()
+          // execCommand-based formatting (WYSIWYG — the styling appears visually)
+          const cmdMap = {
+            'bold': 'bold',
+            'underline': 'underline',
+            'strikethrough': 'strikeThrough',
+            'list': 'insertUnorderedList',
+            'ordered-list': 'insertOrderedList',
+            'align-left': 'justifyLeft',
+            'align-center': 'justifyCenter',
+            'align-right': 'justifyRight',
+            'align-justify': 'justifyFull',
+          }
+          if (cmdMap[kind]) {
+            document.execCommand(cmdMap[kind], false, null)
+            return
+          }
+          // Code block: wrap the selection in <pre><code class="t-code" dir="ltr">
+          if (kind === 'code') {
+            const sel = window.getSelection()
+            if (!sel || sel.rangeCount === 0) {
+              // No selection — insert an empty code block + place caret inside
+              const pre = document.createElement('pre')
+              const code = document.createElement('code')
+              code.className = 't-code'
+              code.setAttribute('dir', 'ltr')
+              code.textContent = ''
+              pre.appendChild(code)
+              document.execCommand('insertHTML', false, pre.outerHTML)
+              return
+            }
+            const range = sel.getRangeAt(0)
+            const text = range.toString()
+            const pre = document.createElement('pre')
+            const code = document.createElement('code')
+            code.className = 't-code'
+            code.setAttribute('dir', 'ltr')
+            code.textContent = text || ''
+            pre.appendChild(code)
+            // Replace the selection with the code block
+            range.deleteContents()
+            range.insertNode(pre)
+            // Place caret inside the code element
+            const newRange = document.createRange()
+            newRange.selectNodeContents(code)
+            newRange.collapse(false)
+            sel.removeAllRanges()
+            sel.addRange(newRange)
+          }
         }
         ctx.on('click', (e) => {
           const btn = e.target.closest('[data-tb]')
           if (!btn) return
           e.preventDefault()
           const form = btn.closest('form')
-          pdApplyTb(form ? form.querySelector('textarea') : null, btn.dataset.tb)
+          pdApplyTb(form ? form.querySelector('[contenteditable], #pde-input') : null, btn.dataset.tb)
         })
 
         // --- ⋯ hover menu on .pd-task items (Edit + Delete) — user request 2026-09 ----
@@ -2518,7 +2590,7 @@
                   // Code block
                   '<button type="button" class="pd-tb-btn" data-tb="code" title="' + _t('pd.fmtCode', 'Code block') + '"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m8 6-6 6 6 6M16 6l6 6-6 6"/></svg></button>' +
                 '</div>' +
-                '<label>' + _t('db.title', 'Title') + ' <textarea id="pde-input" rows="5" dir="' + (pdLang() === 'fa' ? 'rtl' : 'auto') + '" required></textarea></label>' +
+                '<label>' + _t('db.title', 'Title') + ' <div id="pde-input" contenteditable="true" role="textbox" aria-multiline="true" dir="' + (pdLang() === 'fa' ? 'rtl' : 'auto') + '" class="pde-edit-area" data-placeholder="' + _t('pd.writeHere', 'Write here…') + '"></div></label>' +
                 '<div class="row" style="gap:1rem;margin-top:.4rem">' +
                   '<label style="flex:1">' + _t('db.status', 'Status') + ' <select id="pde-status">' +
                     [['idea','db.st.idea'],['planned','db.st.planned'],['in_progress','db.st.inprog'],['done','db.st.done'],['bug','db.st.bug']].map(function(pair){return '<option value="'+pair[0]+'">'+_t(pair[1], pair[0])+'</option>'}).join('') +
@@ -2712,8 +2784,11 @@
           // Task titles are multi-line since Session 23 (code blocks + bullet lists):
           // newlines PRESERVED (only \r\n normalized + outer trim) — was collapsed to
           // single spaces. Session 22: the title is UNLIMITED; server keeps a 100k guard.
-          const title = pdTaskEditDlg.querySelector('#pde-input').value.replace(/\r\n/g, '\n').trim()
-              if (!title) { pdTaskEditDlg.querySelector('#pde-input').focus(); return }
+          // S48f: #pde-input is now a contenteditable div — read innerHTML + convert to
+          // markdown via pdeHtmlToMd (the DB + renderer expect markdown, not HTML).
+          const pdeEl = pdTaskEditDlg.querySelector('#pde-input')
+          const title = pdeHtmlToMd(pdeEl ? pdeEl.innerHTML : '').replace(/\r\n/g, '\n').trim()
+              if (!title) { if (pdeEl) pdeEl.focus(); return }
               const status = pdTaskEditDlg.querySelector('#pde-status').value
               const priority = pdTaskEditDlg.querySelector('#pde-priority').value
               // S29 follow-up: labels — replace-set semantics (the input was pre-filled
@@ -2796,8 +2871,20 @@
           }
           pdTaskEditDlg.dataset.tid = tid
           // Pre-fill from the card (no fetch needed — the card has the title + status)
+          // S48f: #pde-input is now contenteditable. Load the RENDERED HTML (cloned +
+          // cleaned: strip the hidden .t-fence spans, unhide the clamped .pd-title-rest)
+          // so the existing formatting (bold/underline/lists/code) is preserved in the
+          // editor. On save, pdeHtmlToMd converts the edited HTML back to markdown.
           const titleEl = cardEl.querySelector('.pd-task-title')
-          pdTaskEditDlg.querySelector('#pde-input').value = titleEl ? titleEl.textContent : ''
+          const editArea = pdTaskEditDlg.querySelector('#pde-input')
+          if (titleEl && editArea) {
+            const clone = titleEl.cloneNode(true)
+            clone.querySelectorAll('.t-fence').forEach((f) => f.remove())
+            clone.querySelectorAll('.pd-title-rest').forEach((r) => r.removeAttribute('hidden'))
+            editArea.innerHTML = clone.innerHTML
+          } else if (editArea) {
+            editArea.innerHTML = ''
+          }
           const status = cardEl.dataset.pdStatus || 'idea'
           pdTaskEditDlg.querySelector('#pde-status').value = status
           // S29 follow-up: pre-fill the task's REAL priority + labels from the card's

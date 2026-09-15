@@ -607,7 +607,7 @@ export function detailHtml(p: ProjectRow, d: Awaited<ReturnType<typeof loadDetai
         <span class="pd-tb-sep" aria-hidden="true"></span>
         <button type="button" class="pd-tb-btn" data-tb="code" title="${trL(lang, 'Code block (```…```)', 'بلوک کد (```…```)')}" aria-label="${trL(lang, 'Code block', 'بلوک کد')}"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m8 6-6 6 6 6M16 6l6 6-6 6"/></svg></button>
       </div>
-      <textarea id="pd-taskadd-textarea" rows="8" dir="${lang === 'fa' ? 'rtl' : 'auto'}" autocomplete="off" aria-label="${trL(lang, 'Task title', 'عنوان کار')}" placeholder="${trL(lang, 'Write the task — long sentences and code blocks are welcome…', 'کار را بنویس — جمله‌های بلند و بلوک‌های کد جای دارند…')}"></textarea>
+      <div id="pd-taskadd-textarea" contenteditable="true" role="textbox" aria-multiline="true" dir="${lang === 'fa' ? 'rtl' : 'auto'}" aria-label="${trL(lang, 'Task title', 'عنوان کار')}" data-placeholder="${trL(lang, 'Write the task — long sentences and code blocks are welcome…', 'کار را بنویس — جمله‌های بلند و بلوک‌های کد جای دارند…')}" class="pde-edit-area"></div>
       <!-- S31b: the RTL dir stays the FA typing default (caret/empty line), while
            polish-batch.css sets unicode-bidi: plaintext on this textarea — each
            RENDERED line resolves its own direction (English lines LTR, Farsi lines

@@ -85,6 +85,7 @@ window.__hibanaDictEN = {
       'pd.fmtAlignRight': 'Align right',
       'pd.fmtAlignJustify': 'Justify',
       'pd.fmtToolbar': 'Formatting',
+      'pd.writeHere': 'Write here…',
       'pd.showLess': 'show less',
       'pd.archivesEmpty': 'No archived tasks yet. Archive done tasks from the board.',
       'pd.restore': 'Restore to board',

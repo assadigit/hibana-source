@@ -2499,7 +2499,6 @@
                   '<button type="button" class="ghost icon-btn" id="pde-fullscreen" aria-label="' + _t('pde.fullscreen', 'Full-screen writing') + '" title="' + _t('pde.fullscreen', 'Full-screen writing') + '"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4h6M4 4v6M14 4h6M20 4v6M4 20v-6M4 20h6M20 20h-6M20 20v-6"/></svg></button>' +
                   '<button type="button" class="ghost icon-btn" id="pde-close" aria-label="' + _t('common.close', 'Close') + '"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button>' +
                 '</div></div>' +
-                '<label>' + _t('db.title', 'Title') + ' <textarea id="pde-input" rows="5" dir="' + (pdLang() === 'fa' ? 'rtl' : 'auto') + '" required></textarea></label>' +
                 '<div class="pd-tb" role="toolbar" aria-label="' + _t('pd.fmtToolbar', 'Formatting') + '">' +
                   // Format group: Bold, Underline, Strikethrough
                   '<button type="button" class="pd-tb-btn" data-tb="bold" title="' + _t('pd.fmtBold', 'Bold') + '"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 5h6a3.5 3.5 0 1 1 0 7H7zM7 12h7a3.5 3.5 0 1 1 0 7H7z"/></svg></button>' +
@@ -2519,6 +2518,7 @@
                   // Code block
                   '<button type="button" class="pd-tb-btn" data-tb="code" title="' + _t('pd.fmtCode', 'Code block') + '"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m8 6-6 6 6 6M16 6l6 6-6 6"/></svg></button>' +
                 '</div>' +
+                '<label>' + _t('db.title', 'Title') + ' <textarea id="pde-input" rows="5" dir="' + (pdLang() === 'fa' ? 'rtl' : 'auto') + '" required></textarea></label>' +
                 '<div class="row" style="gap:1rem;margin-top:.4rem">' +
                   '<label style="flex:1">' + _t('db.status', 'Status') + ' <select id="pde-status">' +
                     [['idea','db.st.idea'],['planned','db.st.planned'],['in_progress','db.st.inprog'],['done','db.st.done'],['bug','db.st.bug']].map(function(pair){return '<option value="'+pair[0]+'">'+_t(pair[1], pair[0])+'</option>'}).join('') +

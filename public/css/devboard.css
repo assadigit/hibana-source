@@ -687,6 +687,8 @@
 .sp-date-label input { font: inherit; font-size: var(--fs-sm); padding: 0.3rem 0.5rem; border: 1px solid var(--line); border-radius: 4px; background: var(--bg); color: var(--text); }
 .sp-define-presets { display: flex; flex-wrap: wrap; gap: 0.3rem; }
 .sp-define-presets .chip { font-size: var(--fs-xs); padding: 0.2rem 0.5rem; cursor: pointer; }
+/* S48o: warning shown when a sprint is already active (creating a new one will end it) */
+.sp-define-warn { font-size: var(--fs-xs); color: var(--err, #b42318); background: color-mix(in srgb, var(--err, #b42318) 8%, transparent); padding: 0.4rem 0.6rem; border-radius: 4px; border-inline-start: 3px solid var(--err, #b42318); }
 .sp-zoom select {
   font: inherit; font-size: var(--fs-sm); padding: 0.25rem 0.45rem;
   border: 1px solid var(--line); border-radius: 4px; background: var(--card); color: var(--text);

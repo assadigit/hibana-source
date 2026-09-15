@@ -509,6 +509,7 @@ window.__hibanaDictFA = {
       'db.defineSprint': 'تعریف اسپرینت جدید', 'db.sprintNamePh': 'اسپرینت ۲ — ماژول ورود…',
       'db.defineSprintOk': 'تعریف', 'db.sprintDefined': 'اسپرینت تعریف شد — آیتم‌ها را اضافه کن، بعد شروعش کن',
       'db.startDate': 'تاریخ شروع', 'db.endDate': 'تاریخ پایان',
+      'db.sprintReplaceWarn': 'این کار اسپرینت فعلی را پایان می‌دهد: {name}',
       'db.draftExists': 'یک اسپرینت در حال تعریف است — اول شروعش کن یا حذفش کن',
       'db.startSprint': 'شروع اسپرینت', 'db.draftHint': 'آیتم‌ها را از نوار کنار اضافه کن یا همین‌جا رها کن — به این اسپرینت می‌پیوندند. آماده بودی شروعش کن.',
       'db.sprintFinished': 'اسپرینت با موفقیت پایان یافت — نوبت بعدی',

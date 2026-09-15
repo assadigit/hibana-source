@@ -1078,8 +1078,15 @@
             { label: 'یک ماه', en: '1 month', ms: 86400000 * 30 },
           ]
           const L = lang()
+          // S48o: warn the user if a sprint is already active — creating a new one
+          // with dates will auto-close it (the "only 1 active sprint" rule).
+          const activeSprint = B().state.sprints.find((s) => !s.is_draft && !s.ended_at)
+          const activeWarn = activeSprint
+            ? '<div class="sp-define-warn">' + B().esc(_t('db.sprintReplaceWarn', 'This will end the current sprint: {name}').replace('{name}', activeSprint.name)) + '</div>'
+            : ''
           definePop.innerHTML =
             '<div class="sp-pop-lab">' + B().esc(_t('db.defineSprint', 'Define a new sprint')) + '</div>' +
+            activeWarn +
             '<input maxlength="80" dir="auto" data-sp-define-name placeholder="' + B().esc(_t('db.sprintNamePh', 'Sprint 2 — auth module…')) + '">' +
             '<div class="sp-define-dates">' +
               '<label class="sp-date-label">' + B().esc(_t('db.startDate', 'Start date')) + ' <input type="date" data-sp-define-start value="' + todayStr + '"></label>' +
@@ -1323,7 +1330,7 @@
             if (window.HibanaBoard) return resolve(true)
             if (!injected && waited >= 1200) {
               injected = true
-              inject('/js/devboard.js?v=18') // keep in sync with the <head> tag + sw SHELL
+              inject('/js/devboard.js?v=19') // keep in sync with the <head> tag + sw SHELL
               if (!window.jalaali) inject('/vendor/jalaali.min.js') // Jalali timeline for FA
             }
             if (waited >= 9000) return resolve(false)

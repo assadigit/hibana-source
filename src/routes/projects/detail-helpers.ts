@@ -649,6 +649,13 @@ export function detailHtml(p: ProjectRow, d: Awaited<ReturnType<typeof loadDetai
           <input id="pd-taskadd-tags" dir="${lang === 'fa' ? 'rtl' : 'auto'}" autocomplete="off" maxlength="480" aria-label="${trL(lang, 'Labels', 'برچسب‌ها')}" placeholder="${trL(lang, 'e.g. UI/UX, Security', 'مثلاً UI/UX، امنیت')}" />
           <span class="muted small">${trL(lang, 'Comma-separated — a chip per label', 'با کاما جدا کن — یک چیپ برای هر برچسب')}</span>
         </label>
+        <label class="pd-opt">${trL(lang, 'Sprint', 'اسپرینت')}
+          <select id="pd-taskadd-sprint" class="pd-prio-select">
+            <option value="">${trL(lang, 'Auto (active sprint)', 'خودکار (اسپرینت فعال)')}</option>
+            ${d.sprints.filter((s) => !s.ended_at).map((s) => `<option value="${s.id}">${esc(s.name)}${s.is_draft ? ' ' + trL(lang, '(draft)', '(پیش‌نویس)') : ''}</option>`).join('')}
+            <option value="none">${trL(lang, 'No sprint', 'بدون اسپرینت')}</option>
+          </select>
+        </label>
       </div>
       <!-- S46.3 (owner mockup: "Screenshots Uploaded and shown in the same page. ability to
            delete screenshot, or edit it's note"): screenshots now upload IMMEDIATELY on

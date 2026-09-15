@@ -85,6 +85,11 @@ const createSprintSchema = z.object({
   name: z.string().trim().min(1).max(80).optional(),
   version: z.string().trim().min(1).max(40).optional(),
   description: z.string().max(100_000).optional(),
+  // S48n: optional start/end dates. If both provided, the sprint is created
+  // as STARTED (is_draft=0) with these dates — skips the draft step. The
+  // presets (24h/48h/72h/1w/2w/1m) compute end = start + duration.
+  started_at: isoDate.optional(),
+  ended_at: isoDate.nullable().optional(),
 })
 const updateSprintSchema = z.object({
   name: z.string().trim().min(1).max(80).optional(),
@@ -520,6 +525,32 @@ export function devboardRoutes(cfg: Config) {
       [p.id],
     )
     if (draft.length) return c.json({ error: 'draft_exists', draft_id: draft[0].id }, 409)
+    // S48n: if started_at is provided, create the sprint as STARTED (is_draft=0) with
+    // the chosen dates + close any currently open sprint first. Otherwise, create as
+    // a DRAFT (is_draft=1, started_at=now, ended_at=NULL — the user starts it later).
+    const hasDates = body.started_at != null
+    if (hasDates) {
+      // Close any open sprint first (same logic as /start)
+      const openSprint = await cfg.db.query<{ started_at: string }>(
+        'SELECT started_at FROM sprints WHERE project_id = ? AND ended_at IS NULL AND is_draft = 0 ORDER BY started_at DESC LIMIT 1',
+        [p.id],
+      )
+      if (openSprint[0]) {
+        const startMs = Date.parse(body.started_at!)
+        const dayBefore = startMs - 86400000
+        const closeMs = Math.max(dayBefore, Date.parse(openSprint[0].started_at))
+        await cfg.db.execute('UPDATE sprints SET ended_at = ? WHERE project_id = ? AND ended_at IS NULL AND is_draft = 0', [
+          new Date(closeMs).toISOString(), p.id,
+        ])
+      }
+      const startedAt = body.started_at!
+      const endedAt = body.ended_at ?? null
+      await cfg.db.execute('INSERT INTO sprints (id, project_id, name, version, description, started_at, ended_at, is_draft, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, 0, ?)', [
+        id, p.id, name, body.version ?? null, body.description ?? '', startedAt, endedAt, now,
+      ])
+      await logHistory(cfg, p.id, t('{name} started', '{name} شروع شد', { name }))
+      return c.json({ ok: true, id, name, version: body.version ?? null, draft: false }, 201)
+    }
     await cfg.db.execute('INSERT INTO sprints (id, project_id, name, version, description, started_at, ended_at, is_draft, created_at) VALUES (?, ?, ?, ?, ?, ?, NULL, 1, ?)', [
       id, p.id, name, body.version ?? null, body.description ?? '', now, now,
     ])

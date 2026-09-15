@@ -148,9 +148,16 @@
   })
   const deleteCategory = (id) => api('/api/categories/' + id, { method: 'DELETE' })
 
-  const createSprint = (name) => api('/api/projects/' + state.projectId + '/sprints', {
-    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(name ? { name } : {}),
-  })
+  // S48n: createSprint now accepts optional started_at/ended_at. If both provided,
+  // the sprint is created as STARTED (skips the draft step). Presets compute the dates.
+  const createSprint = (name, startedAt, endedAt) => {
+    const body = {}
+    if (name) body.name = name
+    if (startedAt) { body.started_at = startedAt; if (endedAt) body.ended_at = endedAt }
+    return api('/api/projects/' + state.projectId + '/sprints', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body),
+    })
+  }
   // Phase 5 (2026-09-08): start a DEFINED (draft) sprint — stamps started_at, puts it on
   // the board, and closes any currently open sprint first (server-side day edges).
   const startSprint = (id) => api('/api/sprints/' + id + '/start', { method: 'POST' })

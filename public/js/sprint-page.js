@@ -1064,26 +1064,74 @@
           if (definePop) { closeDefinePop(); return }
           definePop = document.createElement('div')
           definePop.className = 'sp-sprint-pop sp-define-pop'
+          // S48n: added date inputs (start/end) + preset buttons (24h/48h/72h/1w/2w/1m).
+          // If dates are provided, the sprint is created as STARTED immediately.
+          // Presets compute end = now + duration; start = now.
+          const now = new Date()
+          const todayStr = now.toISOString().slice(0, 10)
+          const presets = [
+            { label: '۲۴ ساعت', en: '24h', ms: 86400000 },
+            { label: '۴۸ ساعت', en: '48h', ms: 86400000 * 2 },
+            { label: '۷۲ ساعت', en: '72h', ms: 86400000 * 3 },
+            { label: 'یک هفته', en: '1 week', ms: 86400000 * 7 },
+            { label: 'دو هفته', en: '2 weeks', ms: 86400000 * 14 },
+            { label: 'یک ماه', en: '1 month', ms: 86400000 * 30 },
+          ]
+          const L = lang()
           definePop.innerHTML =
             '<div class="sp-pop-lab">' + B().esc(_t('db.defineSprint', 'Define a new sprint')) + '</div>' +
             '<input maxlength="80" dir="auto" data-sp-define-name placeholder="' + B().esc(_t('db.sprintNamePh', 'Sprint 2 — auth module…')) + '">' +
+            '<div class="sp-define-dates">' +
+              '<label class="sp-date-label">' + B().esc(_t('db.startDate', 'Start date')) + ' <input type="date" data-sp-define-start value="' + todayStr + '"></label>' +
+              '<label class="sp-date-label">' + B().esc(_t('db.endDate', 'End date')) + ' <input type="date" data-sp-define-end></label>' +
+            '</div>' +
+            '<div class="sp-define-presets">' +
+              presets.map((p) => '<button type="button" class="chip" data-sp-preset="' + p.ms + '">' + (L === 'fa' ? p.label : p.en) + '</button>').join('') +
+            '</div>' +
             '<div class="row">' +
               '<button type="button" class="btn small" data-sp-define-ok>' + B().esc(_t('db.defineSprintOk', 'Define')) + '</button>' +
               '<button type="button" class="ghost small" data-sp-define-cancel>' + B().esc(_t('common.cancel', 'Cancel')) + '</button>' +
             '</div>'
-          const btn = document.getElementById('sp-new-sprint')
-          btn.parentElement.appendChild(definePop)
-          const r = btn.getBoundingClientRect()
-          const pr = definePop.getBoundingClientRect()
-          definePop.style.position = 'fixed'
-          definePop.style.insetInlineStart = ''
-          if (document.documentElement.dir === 'rtl') definePop.style.right = Math.max(8, Math.min(r.right, window.innerWidth - pr.width - 8)) + 'px'
-          else definePop.style.left = Math.max(8, Math.min(r.left, window.innerWidth - pr.width - 8)) + 'px'
-          definePop.style.top = Math.min(r.bottom + 6, window.innerHeight - 120) + 'px'
+          // S48k: CSS centers the modal — no manual positioning needed.
+          document.body.appendChild(definePop)
           const nameIn = definePop.querySelector('[data-sp-define-name]')
+          const startIn = definePop.querySelector('[data-sp-define-start]')
+          const endIn = definePop.querySelector('[data-sp-define-end]')
           nameIn.focus()
+          // Preset buttons: set end = start + duration
+          definePop.querySelectorAll('[data-sp-preset]').forEach((btn) => {
+            btn.onclick = () => {
+              const ms = parseInt(btn.dataset.spPreset, 10)
+              const startVal = startIn.value || todayStr
+              const startDate = new Date(startVal + 'T00:00:00')
+              const endDate = new Date(startDate.getTime() + ms)
+              endIn.value = endDate.toISOString().slice(0, 10)
+            }
+          })
           const commit = async () => {
             const name = nameIn.value.trim()
+            const startVal = startIn.value
+            const endVal = endIn.value
+            // If start date is provided, create as STARTED with dates
+            if (startVal) {
+              const startedAt = new Date(startVal + 'T00:00:00').toISOString()
+              const endedAt = endVal ? new Date(endVal + 'T23:59:59').toISOString() : null
+              try {
+                await B().createSprint(name || undefined, startedAt, endedAt)
+                closeDefinePop()
+                window.hibana && window.hibana.toast(_t('db.sprintStarted', 'Sprint started'))
+                dayOffset = 0
+                await reload()
+              } catch (err) {
+                if (err && err.status === 409) {
+                  window.hibana && window.hibana.toast(_t('db.draftExists', 'A sprint is already being defined — start it or delete it first'), 'err')
+                } else {
+                  window.hibana && window.hibana.toast(_t('sparks.saveFailed', "Couldn't save"), 'err')
+                }
+              }
+              return
+            }
+            // No start date — create as DRAFT (original behavior)
             try {
               await B().createSprint(name || undefined)
               closeDefinePop()
@@ -1275,7 +1323,7 @@
             if (window.HibanaBoard) return resolve(true)
             if (!injected && waited >= 1200) {
               injected = true
-              inject('/js/devboard.js?v=16') // keep in sync with the <head> tag + sw SHELL
+              inject('/js/devboard.js?v=18') // keep in sync with the <head> tag + sw SHELL
               if (!window.jalaali) inject('/vendor/jalaali.min.js') // Jalali timeline for FA
             }
             if (waited >= 9000) return resolve(false)

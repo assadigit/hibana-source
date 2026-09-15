@@ -509,6 +509,7 @@ window.__hibanaDictEN = {
       // Phase 5 (2026-09-08) — the sprint lifecycle: define → add items → start → finish
       'db.defineSprint': 'Define a new sprint', 'db.sprintNamePh': 'Sprint 2 — auth module…',
       'db.defineSprintOk': 'Define', 'db.sprintDefined': 'Sprint defined — add items, then start it',
+      'db.startDate': 'Start date', 'db.endDate': 'End date',
       'db.draftExists': 'A sprint is already being defined — start it or delete it first',
       'db.startSprint': 'Start sprint', 'db.draftHint': 'Add items in the sidebar or drag them here — they join this sprint. Start it when ready.',
       'db.sprintFinished': 'Sprint finished — on to the next one',

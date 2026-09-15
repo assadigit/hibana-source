@@ -2264,10 +2264,14 @@
             const statusSel = document.getElementById('pd-taskadd-status')
             const finalStatus = (statusSel && statusSel.value) || taskAddStatus
             const tagNames = pdParseTags((document.getElementById('pd-taskadd-tags') || {}).value || '')
+            // S48n: read the sprint selector. '' = auto (server picks draft/open), 'none' = no sprint, otherwise the sprint ID.
+            const sprintSel = document.getElementById('pd-taskadd-sprint')
+            const sprintVal = sprintSel ? sprintSel.value : ''
+            const sprintId = sprintVal === 'none' ? null : (sprintVal || undefined)
             const res = await fetch(`/api/projects/${id}/devtasks`, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ title, status: finalStatus, priority, tags: tagNames }),
+              body: JSON.stringify({ title, status: finalStatus, priority, tags: tagNames, sprint_id: sprintId }),
             })
             if (!res.ok) throw new Error('add failed')
             const data = await res.json()

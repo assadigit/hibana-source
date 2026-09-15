@@ -681,6 +681,12 @@
 .sp-pop-plan { justify-self: start; text-decoration: none; }
 .sp-cat-edit-pop { max-inline-size: 16rem; }
 .sp-pop-lab { font-size: var(--fs-xs); font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); }
+/* S48n: sprint define popover date inputs + presets */
+.sp-define-dates { display: flex; gap: 0.6rem; }
+.sp-date-label { display: flex; flex-direction: column; gap: 0.2rem; font-size: var(--fs-xs); color: var(--muted); flex: 1; }
+.sp-date-label input { font: inherit; font-size: var(--fs-sm); padding: 0.3rem 0.5rem; border: 1px solid var(--line); border-radius: 4px; background: var(--bg); color: var(--text); }
+.sp-define-presets { display: flex; flex-wrap: wrap; gap: 0.3rem; }
+.sp-define-presets .chip { font-size: var(--fs-xs); padding: 0.2rem 0.5rem; cursor: pointer; }
 .sp-zoom select {
   font: inherit; font-size: var(--fs-sm); padding: 0.25rem 0.45rem;
   border: 1px solid var(--line); border-radius: 4px; background: var(--card); color: var(--text);

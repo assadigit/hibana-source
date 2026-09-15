@@ -20,7 +20,7 @@
   <link rel="stylesheet" href="/css/dashboard-todo.css?v=5">
   <link rel="stylesheet" href="/css/components.css?v=3">
   <link rel="stylesheet" href="/css/canvas.css?v=6">
-  <link rel="stylesheet" href="/css/quicknotes.css?v=11">
+  <link rel="stylesheet" href="/css/quicknotes.css?v=12">
   <link rel="stylesheet" href="/css/to-do-list.css?v=2">
   <link rel="stylesheet" href="/css/polish-ui.css?v=4">
   <link rel="stylesheet" href="/css/calendar.css?v=4">
@@ -54,7 +54,7 @@
   <script src="/js/mobile-nav.js?v=5" defer></script>
   <script src="/js/go-to.js?v=1" defer></script>
   <script src="/js/install-prompt.js?v=1" defer></script>
-    <link rel="stylesheet" href="/css/sadhana-board.css?v=5">
+    <link rel="stylesheet" href="/css/sadhana-board.css?v=6">
 </head>
 <body class="sadhana-body">
 <!-- Unified Hibana chrome: the topbar partial (brand, nav links incl. To-do list,
@@ -73,7 +73,7 @@
          the locale automatically (fa → Jalali/shamsi, en → Gregorian). setLang re-derives. -->
     <!-- Telegram linking lives in Hibana Settings → Telegram (user request 2026-08-29). -->
     <!-- Archive (was in the old user menu) -->
-    <button class="btn" id="archiveBtn" onclick="openArchive()">
+    <button class="btn btn-primary" id="archiveBtn" onclick="openArchive()">
       <span class="umenu-ico">🗄️</span><span id="archiveLbl">Archive</span>
     </button>
     <!-- Filter tags — S46 (user request 2026-09-14): hidden behind a toggle so they
@@ -83,7 +83,7 @@
       <summary class="filter-tags-summary" aria-label="Filter by tag"><span class="ftag-summary-ico" aria-hidden="true">🏷️</span><span data-i18n="tags.label">Tags</span><span class="ftag-summary-chev" aria-hidden="true">▾</span></summary>
       <div class="filter-tags" id="filterTags"></div>
     </details>
-    <span style="font-size:10.5px;color:var(--text-dim);white-space:nowrap;align-self:center;margin-left:8px" id="filterCount"></span>
+    <span style="font-size:10.5px;color:var(--text-dim);white-space:nowrap;align-self:center;margin-inline-start:8px" id="filterCount"></span>
     <!-- Primary action (was in the old header) -->
     <button class="btn btn-primary" id="addTaskBtn" onclick="openQA()">＋ Add Task</button>
   </div>

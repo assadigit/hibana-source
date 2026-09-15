@@ -100,25 +100,44 @@
    app.js can never leave the view stuck on the vertical list. */
 .note-view-radio { position: absolute; inline-size: 1px; block-size: 1px; opacity: 0; overflow: hidden; }
 .note-size-radio { position: absolute; inline-size: 1px; block-size: 1px; opacity: 0; overflow: hidden; }
-.note-view-seg { display: inline-flex; border: 1px solid var(--line); border-radius: var(--radius-sm); overflow: hidden; }
-.note-size-seg { display: inline-flex; border: 1px solid var(--line); border-radius: var(--radius-sm); overflow: hidden; }
-.note-size-seg label { padding: 0.4rem 0.8rem; font-size: var(--fs-sm); color: var(--muted); cursor: pointer; user-select: none; }
-.note-view-seg label { padding: 0.4rem 0.8rem; font-size: var(--fs-sm); color: var(--muted); cursor: pointer; user-select: none; }
-.note-view-seg label:hover { background: var(--bg-soft); color: var(--text); }
-#notebook #nv-list:checked ~ .note-head .note-view-seg label[for='nv-list'],
-#notebook #nv-sticky:checked ~ .note-head .note-view-seg label[for='nv-sticky'] {
-  background: var(--accent-soft); color: var(--text); box-shadow: inset 0 -2px 0 var(--accent);
+/* S47 (owner design critique): shared rounded track + captions + icons + filled active chip */
+.note-head-controls { display: flex; flex-direction: column; gap: 0.4rem; }
+.note-ctrl-group { display: flex; flex-direction: column; gap: 0.15rem; }
+.note-ctrl-cap { font-size: var(--fs-xs); color: var(--muted); font-weight: 500; }
+.note-view-seg, .note-size-seg {
+  display: inline-flex; border-radius: var(--radius-sm); overflow: hidden;
+  background: var(--bg-soft); border: 1px solid var(--line); padding: 2px; gap: 2px;
 }
+.note-size-seg label, .note-view-seg label {
+  padding: 0.3rem 0.6rem; font-size: var(--fs-sm); color: var(--muted); cursor: pointer;
+  user-select: none; border-radius: calc(var(--radius-sm) - 1px); display: inline-flex;
+  align-items: center; gap: 0.3rem; transition: background 0.12s ease, color 0.12s ease;
+}
+.note-view-seg label:hover, .note-size-seg label:hover { background: var(--card); color: var(--text); }
+.note-view-seg label svg, .note-size-seg label svg { inline-size: 0.85rem; block-size: 0.85rem; opacity: 0.7; }
+/* S47/Q2: filled pastel-teal chip for active (was: thin outline + accent-soft) */
+#notebook #nv-list:checked ~ .note-head .note-view-seg label[for='nv-list'],
+#notebook #nv-sticky:checked ~ .note-head .note-view-seg label[for='nv-sticky'],
+#notebook #nv-grid:checked ~ .note-head .note-view-seg label[for='nv-grid'] {
+  background: var(--accent); color: var(--btn-text, #fff); font-weight: 600;
+}
+#notebook #nv-list:checked ~ .note-head .note-view-seg label[for='nv-list'] svg,
+#notebook #nv-sticky:checked ~ .note-head .note-view-seg label[for='nv-sticky'] svg,
+#notebook #nv-grid:checked ~ .note-head .note-view-seg label[for='nv-grid'] svg { opacity: 1; }
 #notebook .note-view-radio:focus-visible ~ .note-head .note-view-seg label { outline: 2px solid var(--accent); outline-offset: -2px; }
 #notebook .note-size-radio:focus-visible ~ .note-head .note-size-seg label { outline: 2px solid var(--accent); outline-offset: -2px; }
 #notebook #ns-s:checked ~ .note-head .note-size-seg label[for='ns-s'],
 #notebook #ns-m:checked ~ .note-head .note-size-seg label[for='ns-m'],
 #notebook #ns-l:checked ~ .note-head .note-size-seg label[for='ns-l'] {
-  background: var(--accent-soft); color: var(--text); box-shadow: inset 0 -2px 0 var(--accent);
+  background: var(--accent); color: var(--btn-text, #fff); font-weight: 600;
 }
-#notebook .note-size-seg label:hover { background: var(--bg-soft); color: var(--text); }
-#notebook #nv-list:checked ~ .note-head .note-size-seg { display: none; } /* size is sticky-only (2026-08-26) */
-.note-head-controls { gap: 0.5rem; }
+/* S47/Q1: dim + disable the size row when NOT in sticky mode (list or grid active) */
+#notebook #nv-list:checked ~ .note-head .note-size-seg,
+#notebook #nv-grid:checked ~ .note-head .note-size-seg {
+  opacity: 0.35; pointer-events: none;
+}
+/* S47: size is sticky-only (2026-08-26) — but now dimmed instead of fully hidden so
+   the user knows it exists but isn't applicable in the current view mode */
 #notebook #nv-list:checked ~ .note-list { display: grid; gap: 0.3rem; }
 #notebook #nv-sticky:checked ~ .note-list {
   display: flex;

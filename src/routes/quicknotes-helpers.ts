@@ -263,16 +263,22 @@ export function notebookHtml(notes: QuickNote[], lang: Locale, composerMode: 'no
   // hx-vals so htmx re-renders preserve the compact composer.
   const controlsHtml = `<details class="note-controls-toggle">
       <summary aria-label="${t('View options', 'گزینه‌های نمایش')}" title="${t('View options', 'گزینه‌های نمایش')}">${icon('settings', 'icon')}</summary>
-      <span class="row note-head-controls">
-        <span class="note-size-seg" role="radiogroup" aria-label="${t('Note size', 'اندازه')}">
-          <label for="ns-s">${t('Small', 'کوچک')}</label>
-          <label for="ns-m">${t('Medium', 'متوسط')}</label>
-          <label for="ns-l">${t('Large', 'بزرگ')}</label>
+      <span class="note-head-controls">
+        <span class="note-ctrl-group">
+          <span class="note-ctrl-cap">${t('View', 'نما')}</span>
+          <span class="note-view-seg" role="radiogroup" aria-label="${t('View', 'نما')}">
+            <label for="nv-list"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"/></svg> ${t('List', 'فهرست')}</label>
+            <label for="nv-sticky"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16v14h-16z"/><path d="M4 9h16"/></svg> ${t('Sticky', 'چسبان')}</label>
+            <label for="nv-grid"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg> ${t('Grid', 'شبکه')}</label>
+          </span>
         </span>
-        <span class="note-view-seg" role="radiogroup" aria-label="${t('View', 'نما')}">
-          <label for="nv-list">${t('List', 'فهرست')}</label>
-          <label for="nv-sticky">${t('Sticky', 'چسبان')}</label>
-          <label for="nv-grid">${t('Grid', 'شبکه')}</label>
+        <span class="note-ctrl-group">
+          <span class="note-ctrl-cap">${t('Note size', 'اندازه')}</span>
+          <span class="note-size-seg" role="radiogroup" aria-label="${t('Note size', 'اندازه')}">
+            <label for="ns-s">${t('Small', 'کوچک')}</label>
+            <label for="ns-m">${t('Medium', 'متوسط')}</label>
+            <label for="ns-l">${t('Large', 'بزرگ')}</label>
+          </span>
         </span>
       </span>
     </details>`

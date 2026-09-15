@@ -6,7 +6,7 @@
   <title>Reports — Hibana</title>
   <link rel="preload" as="font" type="font/woff2" href="/vendor/manrope/Manrope-400.woff2" crossorigin>
   <link rel="stylesheet" href="/css/variables.css?v=5">
-  <link rel="stylesheet" href="/css/base.css?v=3">
+  <link rel="stylesheet" href="/css/base.css?v=4">
   <link rel="stylesheet" href="/css/layout.css?v=9">
   <link rel="stylesheet" href="/css/dashboard.css?v=11">
   <link rel="stylesheet" href="/css/dashboard-todo.css?v=5">
@@ -29,13 +29,14 @@
   <script src="/js/boot.js?v=4"></script>
   <!-- P0 fix (2026-09-12, review round 2): this script MUST load before alpine.min.js. The
        `report` Alpine component registers via __hibanaPage → boot.js drains the queue at
-       alpine:init; when the tag sat at the end of <body> (deferred scripts run in document
+       alpine:init; when the tag sat at the end of <body>
+  <div id="hibana-page-loader" aria-hidden="true"><div class="hibana-page-loader-spinner"></div></div> (deferred scripts run in document
        order) Alpine had already walked the tree and every x-data expression died with
        "report is not defined" — Snapshot, heatmap and the activity chart never rendered on
        a hard load (silent since the inline-script extraction, 317724e). -->
   <script src="/js/reports-page.js?v=4" defer></script>
   <script src="/vendor/alpine.min.js" defer></script>
-  <script src="/js/app.js?v=178" defer></script>
+  <script src="/js/app.js?v=179" defer></script>
   <script src="/js/hib-init.js?v=1" defer></script>
   <script src="/js/touch-drag.js?v=1" defer></script>
   <script src="/js/nav.js?v=3" defer></script>

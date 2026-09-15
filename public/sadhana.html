@@ -14,7 +14,7 @@
   <meta name="theme-color" content="#EDE8DF">
   <link rel="preload" as="font" type="font/woff2" href="/vendor/manrope/Manrope-400.woff2" crossorigin>
   <link rel="stylesheet" href="/css/variables.css?v=5">
-  <link rel="stylesheet" href="/css/base.css?v=3">
+  <link rel="stylesheet" href="/css/base.css?v=4">
   <link rel="stylesheet" href="/css/layout.css?v=9">
   <link rel="stylesheet" href="/css/dashboard.css?v=11">
   <link rel="stylesheet" href="/css/dashboard-todo.css?v=5">
@@ -44,7 +44,7 @@
   <!-- Phase 6 item 2: the full emoji library + the shared picker dialog -->
   <!-- M7: emoji-data.js lazy-loaded by emoji-picker.js on first open (saves 49KB on every page load) -->
   <script src="/js/emoji-picker.js?v=3" defer></script>
-  <script src="/js/app.js?v=178" defer></script>
+  <script src="/js/app.js?v=179" defer></script>
   <script src="/js/hib-init.js?v=1" defer></script>
   <script src="/js/touch-drag.js?v=1" defer></script>
   <script src="/js/i18n-en.js?v=32" defer></script>
@@ -57,6 +57,7 @@
     <link rel="stylesheet" href="/css/sadhana-board.css?v=9">
 </head>
 <body class="sadhana-body">
+  <div id="hibana-page-loader" aria-hidden="true"><div class="hibana-page-loader-spinner"></div></div>
 <!-- Unified Hibana chrome: the topbar partial (brand, nav links incl. To-do list,
      user menu, language, theme) injects here via app.js; ≤720px it is hidden and
      mobile-nav.js builds the bottom tab bar instead. -->

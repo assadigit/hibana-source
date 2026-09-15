@@ -1,5 +1,46 @@
 // Hibana frontend helpers — vanilla + htmx + Alpine (no build step, per the stack decision).
 
+// S48i (owner: "a loading animation between pages and navigations — sometimes it takes
+// some time for a page to open up"): the full-page overlay (#hibana-page-loader) is
+// painted in every page's HTML (before JS loads) so it's visible immediately during
+// initial load + hard navigation. Hide it once the page is ready. Also wire the top
+// progress bar (#hibana-nav-loader, normally driven by nav.js for soft navigation) to
+// htmx content swaps so the project page's content-load delay has feedback too.
+(function () {
+  // Hide the full-page overlay on DOMContentLoaded (or immediately if already loaded)
+  var pageLoader = document.getElementById('hibana-page-loader')
+  if (pageLoader) {
+    var hideOverlay = function () { pageLoader.classList.add('is-hidden') }
+    if (document.readyState !== 'loading') hideOverlay()
+    else document.addEventListener('DOMContentLoaded', hideOverlay, { once: true })
+    window.addEventListener('load', hideOverlay, { once: true }) // fallback: all assets loaded
+    // Safety: never let the overlay trap the user — hide after 8s no matter what
+    setTimeout(hideOverlay, 8000)
+  }
+  // Top progress bar for htmx content swaps (the project page's hx-get, etc.)
+  var navBar = null
+  var navBarTimer = null
+  var showBar = function () {
+    if (!navBar) navBar = document.getElementById('hibana-nav-loader')
+    if (!navBar) return
+    clearTimeout(navBarTimer)
+    navBar.className = 'is-loading'
+    void navBar.offsetWidth // reflow → restart animation
+  }
+  var hideBar = function () {
+    if (!navBar) navBar = document.getElementById('hibana-nav-loader')
+    if (!navBar) return
+    navBar.className = 'is-done'
+    clearTimeout(navBarTimer)
+    navBarTimer = setTimeout(function () { if (navBar) navBar.className = '' }, 400)
+  }
+  // htmx fires these on the document for every AJAX request (content swaps)
+  document.addEventListener('htmx:beforeRequest', showBar)
+  document.addEventListener('htmx:afterRequest', hideBar)
+  document.addEventListener('htmx:afterSwap', hideBar)
+  document.addEventListener('htmx:responseError', hideBar)
+})()
+
 // Apply the saved theme site-wide before paint (Settings → Theme store it in localStorage).
 try {
   const savedTheme = localStorage.getItem('hibana-theme')

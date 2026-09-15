@@ -55,6 +55,50 @@ body {
   #hibana-nav-loader.is-done { transition: none; }
 }
 
+/* S48i (owner: "a loading animation between pages and navigations — sometimes it
+   takes some time for a page to open up"): a full-page loading overlay for HARD
+   navigation (full page loads) + initial load. The top bar (#hibana-nav-loader)
+   handles SOFT navigation (AJAX swaps via nav.js); this overlay handles the cases
+   where the browser is loading a new page from scratch (hard refresh, first visit,
+   hard pages like /sadhana, /canvas). Painted early in the HTML (before JS loads) so
+   it's visible immediately; hidden by app.js on DOMContentLoaded. Also shows during
+   htmx content swaps (app.js listens to htmx:beforeRequest/afterSwap) so the project
+   page's content-load delay has feedback too. */
+#hibana-page-loader {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg, #fff);
+  opacity: 1;
+  transition: opacity 0.3s ease;
+  pointer-events: all;
+}
+#hibana-page-loader.is-hidden {
+  opacity: 0;
+  pointer-events: none;
+}
+#hibana-page-loader .hibana-page-loader-spinner {
+  inline-size: 2.5rem;
+  block-size: 2.5rem;
+  border: 3px solid color-mix(in srgb, var(--brand, #4A9FA3) 25%, transparent);
+  border-block-start-color: var(--brand, #4A9FA3);
+  border-radius: 50%;
+  animation: hibana-page-loader-spin 0.8s linear infinite;
+}
+@keyframes hibana-page-loader-spin {
+  to { transform: rotate(360deg); }
+}
+@media (prefers-reduced-motion: reduce) {
+  #hibana-page-loader .hibana-page-loader-spinner { animation: none; }
+  #hibana-page-loader .hibana-page-loader-spinner::after {
+    content: '⏳'; font-size: 1.5rem;
+  }
+  #hibana-page-loader .hibana-page-loader-spinner { border: 0; }
+}
+
 /* Subtle film grain over the whole app (trendy texture, 2026-08-26): an feTurbulence SVG
    noise tile at ~5% soft-light — barely visible, grains every surface in both themes.
    z-index 1 puts it above static content but below toasts/dialogs/menus (60–90). */

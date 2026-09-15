@@ -322,11 +322,16 @@ export function detailHtml(p: ProjectRow, d: Awaited<ReturnType<typeof loadDetai
     if (inCode) out += '</code>'
     return out
   }
-  const titleHtml = (title: string): string =>
-    title.length <= TITLE_CLAMP
-      ? renderTitle(title)
-      : renderTitle(title.slice(0, TITLE_CLAMP)) + `<span class="pd-title-rest" hidden>${renderTitle(title.slice(TITLE_CLAMP))}</span>`
-  const titleAttrs = (title: string): string => (title.length > TITLE_CLAMP ? ' data-clamped=""' : '')
+  // S48j: card shows ONLY the first line (the title). Full title+content is in
+  //   data-raw-title (the editor reads it on open → splits on \n → title + content).
+  const titleHtml = (title: string): string => {
+    const nl = title.indexOf('\n')
+    const titleOnly = nl >= 0 ? title.slice(0, nl) : title
+    return titleOnly.length <= TITLE_CLAMP
+      ? renderTitle(titleOnly)
+      : renderTitle(titleOnly.slice(0, TITLE_CLAMP)) + `<span class="pd-title-rest" hidden>${renderTitle(titleOnly.slice(TITLE_CLAMP))}</span>`
+  }
+  const titleAttrs = (title: string): string => (title.length > TITLE_CLAMP ? ' data-clamped=""' : '') + ` data-raw-title="${esc(title)}"`
   const readMoreBtn = (title: string): string =>
     title.length > TITLE_CLAMP
       ? `<button type="button" class="pd-read-more" data-task-read-more aria-expanded="false">${trL(lang, 'read more', 'بیشتر بخوان')}</button>`
@@ -365,7 +370,7 @@ export function detailHtml(p: ProjectRow, d: Awaited<ReturnType<typeof loadDetai
           return `<div class="pd-col" data-status="${col.key}">
             <div class="pd-col-head"><span class="pd-col-title">${trL(lang, col.en, col.fa)}</span><span class="detail-tab-count" data-pd-count="${col.key}" data-n="${items.length}">${dig(items.length)}</span>
               <span class="pd-col-actions">
-                ${col.key === 'done' ? `<button type="button" class="ghost small" data-pd-archive-done title="${trL(lang, 'Archive done tasks', 'بایگانی کارهای انجام‌شده')}" aria-label="${trL(lang, 'Archive done tasks', 'بایگانی کارهای انجام‌شده')}">${icon('archive')}</button><button type="button" class="ghost small danger" data-pd-clear-done title="${trL(lang, 'Clear done (delete)', 'پاک‌کردن انجام‌شده‌ها (حذف)')}" aria-label="${trL(lang, 'Clear done', 'پاک‌کردن انجام‌شده‌ها')}">${icon('trash')}</button>` : ''}
+                ${col.key === 'done' ? `<button type="button" class="ghost small" data-pd-archive-done title="${trL(lang, 'Archive done tasks', 'بایگانی کارهای انجام‌شده')}" aria-label="${trL(lang, 'Archive done tasks', 'بایگانی کارهای انجام‌شده')}">${icon('archive')}</button>` : ''}
                 <button type="button" class="ghost small" data-pd-copy="${col.key}" title="${trL(lang, 'Copy items as bullet points', 'کپی موارد به صورت بولت')}" aria-label="${trL(lang, 'Quick copy', 'کپی سریع')}">${icon('clipboard')}</button>
                 <button type="button" class="ghost small" data-pd-export="${col.key}" title="${trL(lang, 'Export as Markdown', 'خروجی مارک‌داون')}" aria-label="${trL(lang, 'Export Markdown', 'خروجی مارک‌داون')}">${icon('download')}</button>
               </span>
@@ -471,7 +476,7 @@ export function detailHtml(p: ProjectRow, d: Awaited<ReturnType<typeof loadDetai
          is; the composer starts immediately. The placeholder is the user's own wording. -->
     <form hx-post="/api/projects/${p.id}/note" hx-target="body" hx-swap="beforeend" id="pd-note-form">
       <textarea name="note" id="pd-note-textarea" rows="3" maxlength="5000" dir="${lang === 'fa' ? 'rtl' : 'auto'}" placeholder="${trL(lang, 'Write a quick note to follow up later.', 'یک یادداشت سریع بنویس تا بعدا پیگیری کنی.')}">${esc(p.latest_note)}</textarea>
-      <div class="row"><button type="submit">${trL(lang, 'Save note', 'ذخیره یادداشت')}</button><button type="button" class="ghost small danger" data-note-clear title="${trL(lang, 'Clear the note', 'پاک کردن یادداشت')}">${icon('x')} ${trL(lang, 'Clear', 'پاک‌کردن')}</button><button type="button" class="ghost small" data-note-expand title="${trL(lang, 'Open a larger editor', 'باز کردن ویرایشگر بزرگ‌تر')}">${icon('expand')} ${trL(lang, 'Expand', 'بزرگ‌نمایی')}</button><span class="muted small" id="note-status" hidden></span></div>
+      <div class="row pd-note-actions"><button type="submit">${trL(lang, 'Save note', 'ذخیره یادداشت')}</button><button type="button" class="ghost small danger" data-note-clear title="${trL(lang, 'Clear the note', 'پاک کردن یادداشت')}">${icon('x')} ${trL(lang, 'Clear', 'پاک‌کردن')}</button><button type="button" class="ghost small" data-note-expand title="${trL(lang, 'Open a larger editor', 'باز کردن ویرایشگر بزرگ‌تر')}">${icon('expand')} ${trL(lang, 'Expand', 'بزرگ‌نمایی')}</button><span class="muted small" id="note-status" hidden></span></div>
     </form>
     <h3 style="margin-block-start:1.5rem">${trL(lang, 'Related notes ({n})', 'یادداشت‌های مرتبط ({n})', { n: dig(d.notes.length) })}</h3>
     <ul class="links related-notes">${relatedNotes}</ul>

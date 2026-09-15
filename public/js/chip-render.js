@@ -110,13 +110,22 @@
   }
 
   // Session 22 (user request): unlimited titles clamp at TITLE_CLAMP CHARS.
+  // S48j (owner: "in the box, only title must be shown — like UI/UX Tweaks. When
+  //   clicked you can see full plans"): the card now shows ONLY the first line (the
+  //   title). The full title+content is stored in data-raw-title (the editor reads it
+  //   on open → splits on \n → title field + content field).
   function titleHtml(title) {
     const s = String(title == null ? '' : title)
-    if (s.length <= TITLE_CLAMP) return renderTitle(s)
-    return renderTitle(s.slice(0, TITLE_CLAMP)) + '<span class="pd-title-rest" hidden>' + renderTitle(s.slice(TITLE_CLAMP)) + '</span>'
+    const nl = s.indexOf('\n')
+    const titleOnly = nl >= 0 ? s.slice(0, nl) : s
+    if (titleOnly.length <= TITLE_CLAMP) return renderTitle(titleOnly)
+    return renderTitle(titleOnly.slice(0, TITLE_CLAMP)) + '<span class="pd-title-rest" hidden>' + renderTitle(titleOnly.slice(TITLE_CLAMP)) + '</span>'
   }
 
-  const titleAttrs = (title) => (String(title || '').length > TITLE_CLAMP ? ' data-clamped=""' : '')
+  const titleAttrs = (title) => {
+    const s = String(title || '')
+    return (s.length > TITLE_CLAMP ? ' data-clamped=""' : '') + ' data-raw-title="' + esc(s) + '"'
+  }
 
   const readMoreBtn = (title) => (String(title || '').length > TITLE_CLAMP
     ? '<button type="button" class="pd-read-more" data-task-read-more aria-expanded="false">' + esc(t('pd.readMore', 'read more')) + '</button>'

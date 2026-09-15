@@ -542,6 +542,13 @@ dialog.pd-taskedit-modal {
   inline-size: min(78rem, 96vw);
   max-inline-size: min(78rem, 96vw);
   max-block-size: min(88vh, 46rem);
+}
+/* S48j (owner: "these buttons are too big in mobile, decrease their size both
+   in PC and mobile"): the note actions row (Save note / Clear / Expand) gets
+   compact buttons — smaller font, tighter padding, no min-height. */
+.pd-note-actions { gap: 0.3rem; }
+.pd-note-actions button { font-size: var(--fs-xs); padding: 0.3rem 0.55rem; min-block-size: auto; gap: 0.2rem; }
+.pd-note-actions .icon { inline-size: 0.9rem; block-size: 0.9rem; }
   /* S46.2 (owner: "too much distance between it and the project title"): native <dialog>
      UA style centers the modal vertically in the viewport (margin:auto in the top
      layer), so on a tall viewport the modal floats mid-screen, far from the project

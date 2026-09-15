@@ -2893,23 +2893,16 @@
             })
           }
           pdTaskEditDlg.dataset.tid = tid
-          // Pre-fill from the card (no fetch needed — the card has the title + status)
-          // S48f: #pde-input is now contenteditable. S48g: split the stored title
-          // (title + '\n' + content) into the separate Title input + Content
-          // contenteditable. Reconstruct the raw markdown from the rendered card HTML
-          // via pdeHtmlToMd, split on the first \n, convert the content part back to
-          // HTML via renderTitle for the WYSIWYG editor.
+          // S48j: the card now shows only the title (first line). The full title+content
+          // is in the data-raw-title attribute (raw markdown). Read it directly (no need
+          // to clone/reconstruct from the rendered HTML) → split on \n → title + content.
           const titleEl = cardEl.querySelector('.pd-task-title')
           const editArea = pdTaskEditDlg.querySelector('#pde-input')
           const titleInput = pdTaskEditDlg.querySelector('#pde-title-input')
           if (titleEl && editArea) {
-            const clone = titleEl.cloneNode(true)
-            clone.querySelectorAll('.t-fence').forEach((f) => f.remove())
-            clone.querySelectorAll('.pd-title-rest').forEach((r) => r.removeAttribute('hidden'))
-            const rawMd = pdeHtmlToMd(clone.innerHTML).replace(/\r\n/g, '\n').trim()
+            const rawMd = (titleEl.getAttribute('data-raw-title') || titleEl.textContent || '').replace(/\r\n/g, '\n').trim()
             const nlIdx = rawMd.indexOf('\n')
             if (nlIdx >= 0) {
-              // Split: first line → Title input (plain text); rest → Content (markdown→HTML)
               if (titleInput) titleInput.value = rawMd.slice(0, nlIdx).trim()
               const contentMd = rawMd.slice(nlIdx + 1).trim()
               editArea.innerHTML = (window.HibanaChips && window.HibanaChips.renderTitle) ? window.HibanaChips.renderTitle(contentMd) : contentMd
@@ -3848,23 +3841,8 @@
               .catch(() => window.hibana?.toast(_t('notes.deleteFailed', "Couldn't archive"), 'err'))
             return
           }
-          // Clear Done (hard delete — project page — same as board.html)
-          const clearBtn = e.target.closest('[data-pd-clear-done]')
-          if (clearBtn) {
-            const col = document.querySelector('.pd-col[data-status="done"], .pd-col[data-status="operational"]')
-            const count = col ? col.querySelectorAll('.pd-task').length : 0
-            if (count === 0) return
-            const msg = _t('pd.clearDoneConfirm', 'PERMANENTLY delete all {n} done tasks? This cannot be undone. Use "Archive" to keep them.').replace('{n}', pdDig(count))
-            if (!confirm(msg)) return
-            const ids = Array.from(col.querySelectorAll('.pd-task-wrap')).map((w) => w.dataset.pdTask)
-            Promise.all(ids.map((tid) => fetch('/api/devtasks/' + tid, { method: 'DELETE' })))
-              .then(() => {
-                window.hibana?.toast(_t('pd.clearedDone', '{n} tasks deleted').replace('{n}', pdDig(count)), 'info')
-                location.reload()
-              })
-              .catch(() => window.hibana?.toast(_t('notes.deleteFailed', "Couldn't clear"), 'err'))
-            return
-          }
+          // S48j: removed the data-pd-clear-done handler — done tasks are archived
+          // (data-pd-archive-done), not hard-deleted. The button is gone from the UI.
           // Project logo upload (user request 2026-09)
           // Image-resize.js: client-side resize to 512×512 max + WebP conversion (3.5MB→~100KB)
           const logoPlaceholder = e.target.closest('[data-pd-logo-upload]')

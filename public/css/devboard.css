@@ -777,6 +777,10 @@ main.shell.sp-shell .sp-wrap { min-block-size: min(64vh, 30rem); }
   background: var(--brand-soft, rgb(42 132 96 / 0.12));
 }
 .db-filter-clear { flex: none; }
+/* S48j: .chip's display:inline-flex overrides the UA [hidden]{display:none} rule
+   (author > UA specificity), so a <button class="chip" hidden> is VISIBLE. This
+   forces [hidden] to win for the filter-clear chip (only shows when a filter is on). */
+.db-filter-clear[hidden] { display: none !important; }
 .db-filter-shown { flex: none; margin-inline-start: auto; }
 @media (max-width: 640px) {
   .db-filter-shown { margin-inline-start: 0; }
@@ -797,7 +801,11 @@ main.shell.sp-shell .sp-wrap { min-block-size: min(64vh, 30rem); }
   flex: none;
   align-self: flex-start;
   display: inline-grid;
-  place-items: center;
+  /* S48j: align the dot to the TOP of the 24px button so it sits at the first line of
+     text (was: place-items: center → the dot sat at 12px = below the first line's
+     visual center, reading as "aligned with the middle of the text body"). */
+  justify-items: center;
+  align-items: start;
   border-radius: 999px;
 }
 .prio-dot-btn .prio-dot { margin: 0; }

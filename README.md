@@ -64,13 +64,13 @@ hibana/
 │   │   └── projects/             # index.ts (routes) + helpers.ts (renderers)
 │   ├── services/                 # Business logic: backup, email, github, telegram, ai, etc.
 │   ├── validation/               # Zod schemas (input validation on every endpoint)
-│   ├── tests/                    # 295 vitest cases
+│   ├── tests/                    # 394 vitest cases
 │   └── vendor/                   # fabric-shim.ts
 │
 ├── public/                       # Frontend (static, served by Worker or Node)
-│   ├── *.html                    # 23 pages (dashboard, project, sadhana, calendar, etc.)
+│   ├── *.html                    # 24 pages (dashboard, project, sadhana, calendar, etc.)
 │   ├── css/                      # 22 modular CSS files (variables, base, layout, themes, rtl, etc.)
-│   ├── js/                       # 41 JS files (app.js, i18n.js, canvas.js, *-page.js, etc.)
+│   ├── js/                       # 47 JS files (app.js, i18n.js, canvas.js, *-page.js, etc.)
 │   ├── vendor/                   # htmx, alpine, fabric, manrope, vazir
 │   ├── dist/                     # Build output (content-hashed, gitignored)
 │   ├── sw.js                     # Service worker (PWA)
@@ -85,14 +85,14 @@ hibana/
 │   ├── migrate-node.ts           # Local SQLite migration runner
 │   └── ...                       # (email, backup, domain, zone ops scripts)
 │
-├── migrations/                   # 46 numbered .sql files (0001-0047; 0007 gap is original)
+├── migrations/                   # 55 numbered .sql files (0001-0056; 0007 gap is original)
 ├── e2e/fixtures/                 # browser-injected a11y audit functions (a11y.spec.ts)
 ├── .github/workflows/            # CI: ci.yml (test+build gates) + cd.yml (auto-deploy)
 │
 ├── Agents.md                     # ⚠️ READ FIRST — canonical agent rules
 ├── Changelogs.md                 # History + current state + ops runbook + open items
 ├── README.md                     # This file
-├── package.json                  # v0.3.12.14
+├── package.json                  # v0.3.13.0
 ├── wrangler.toml                 # Cloudflare Workers config (dev + prod envs)
 ├── tsconfig.json
 ├── vitest.config.ts
@@ -152,8 +152,9 @@ task-controls → magic-wand
 - Persian digit normalization. CSS logical properties for RTL/LTR.
 
 ### Service worker (PWA)
-`public/sw.js` — manifest-driven precache. `VERSION = "hibana-v299"` (bump on SW logic
-changes or cache-bust needs). Network-first for navigations, cache-first for app shell.
+`public/sw.js` — manifest-driven precache. `VERSION = "hibana-v387"` (bump ONLY on
+sw.js logic changes — see the header comment in sw.js). Network-first for navigations,
+cache-first for app shell.
 
 ---
 
@@ -184,7 +185,7 @@ or create via API). On the Node path, Workers AI returns 503 (expected — Worke
 
 ```bash
 npm run typecheck              # tsc --noEmit — 0 errors
-npm test                       # 295 vitest cases — all green
+npm test                       # 394 vitest cases — all green
 node scripts/build.mjs --prod --wire-html   # Build + wire HTML
 node scripts/check-dist-wiring.mjs          # Verify wired HTML matches manifest
 npm run check-cache-bust       # Verify ?v= bump discipline
@@ -237,7 +238,7 @@ Any CSS/JS change bumps `?v=` on EVERY referencing HTML page AND the SW cache na
 Since v0.3.0 `/dist/` is content-hashed; SW version bumps only on `sw.js` logic changes
 or when existing clients need to re-fetch the manifest. `check-cache-bust` is a CI gate.
 
-**Current numbers (v0.3.12.14):** SW `hibana-v299`, 66 manifest entries, schema 46, 295 tests.
+**Current numbers (v0.3.13.0):** SW `hibana-v387`, 73 manifest entries, schema 55, 394 tests.
 
 ---
 
@@ -254,7 +255,7 @@ npm run deploy:prod
 Each deploy runs: `build --prod --wire-html` → `check-dist-wiring` → `wrangler deploy` →
 `build --restore-html` (reverts HTML to canonical form for git).
 
-**Prod D1:** `pm-app-prod`. **Dev D1:** `pm-app-dev`. Both at schema 46.
+**Prod D1:** `pm-app-prod`. **Dev D1:** `pm-app-dev`. Both at schema 55.
 **Custom domain:** hibana.ir (attached via Cloudflare dashboard, not wrangler.toml).
 
 ---
@@ -269,8 +270,10 @@ Each deploy runs: `build --prod --wire-html` → `check-dist-wiring` → `wrangl
 
 ---
 
-## Session 25 summary (most recent)
+## Session 49 summary (most recent)
 
-Comprehensive CSS + JS + TS architecture refactor (~31,000 lines modularized across ~61
-new files). Zero behavior change — VLM-verified at every step. Repo flattened (Hibana
-moved to root, sandbox wrapper deleted). See `Changelogs.md` §1 for full details.
+Codebase-health session on the stable S48p ship: CI green for the first time since
+2026-09-13 (ESLint S41 + stale 404 visual baseline), the S48n sprint-draft regression
+fixed (e2e-pinned), dead code removed, `HibanaChips.htmlToMd` extracted to chip-render.js,
+sw.js 53KB→10.8KB, Changelogs.md 2,550→~1,000 lines. Audit verdict: monolith splits are
+NO-GO (closure-bound IIFEs). See `Changelogs.md` §1 for full details.

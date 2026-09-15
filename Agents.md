@@ -98,7 +98,7 @@ a whiteboard note.
   `/home/z/my-project/worklog.md`.
 
 ## Verification ladder (per batch — required before "done")
-`npm run typecheck` (authoritative tsc) → `npm test` (295) → `node --check` on touched JS →
+`npm run typecheck` (authoritative tsc) → `npm test` (394) → `node --check` on touched JS →
 browser E2E on the local Node server (FA/RTL **and** EN/LTR, light **and** dark, desktop
 **and** 390 px; test user `e2e@test.local`) → deploy dev → live probe → deploy prod → live
 probe (console 0 / page errors 0) → **purge probe users** (DELETE cascade verified;

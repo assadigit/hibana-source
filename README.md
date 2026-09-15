@@ -64,7 +64,7 @@ hibana/
 │   │   └── projects/             # index.ts (routes) + helpers.ts (renderers)
 │   ├── services/                 # Business logic: backup, email, github, telegram, ai, etc.
 │   ├── validation/               # Zod schemas (input validation on every endpoint)
-│   ├── tests/                    # 394 vitest cases
+│   ├── tests/                    # 399 vitest cases
 │   └── vendor/                   # fabric-shim.ts
 │
 ├── public/                       # Frontend (static, served by Worker or Node)
@@ -185,7 +185,7 @@ or create via API). On the Node path, Workers AI returns 503 (expected — Worke
 
 ```bash
 npm run typecheck              # tsc --noEmit — 0 errors
-npm test                       # 394 vitest cases — all green
+npm test                       # 399 vitest cases — all green
 node scripts/build.mjs --prod --wire-html   # Build + wire HTML
 node scripts/check-dist-wiring.mjs          # Verify wired HTML matches manifest
 npm run check-cache-bust       # Verify ?v= bump discipline
@@ -238,7 +238,7 @@ Any CSS/JS change bumps `?v=` on EVERY referencing HTML page AND the SW cache na
 Since v0.3.0 `/dist/` is content-hashed; SW version bumps only on `sw.js` logic changes
 or when existing clients need to re-fetch the manifest. `check-cache-bust` is a CI gate.
 
-**Current numbers (v0.3.13.2):** SW `hibana-v387`, 73 manifest entries, schema 55, 394 tests.
+**Current numbers (v0.3.13.2):** SW `hibana-v387`, 73 manifest entries, schema 55, 399 tests.
 
 ---
 

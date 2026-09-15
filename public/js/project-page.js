@@ -2329,77 +2329,14 @@
         // markdown (backward compatible): pdeHtmlToMd converts the contenteditable's HTML
         // → markdown on save; renderTitle converts markdown → HTML on load. The renderer
         // (chip-render.js + detail-helpers.ts) is UNCHANGED.
-        // pdeHtmlToMd: walks the contenteditable's DOM + converts execCommand's HTML
-        // output (browser-dependent: Chrome uses <b>/<u>/<s>, others use <strong>/<span
-        // style>) back to the markdown syntax the renderer + DB expect.
-        const pdeHtmlToMd = (html) => {
-          const tmp = document.createElement('div')
-          tmp.innerHTML = html
-          const walk = (node) => {
-            let out = ''
-            for (const child of node.childNodes) {
-              if (child.nodeType === 3) { out += child.textContent; continue }
-              if (child.nodeType !== 1) continue
-              out += elToMd(child)
-            }
-            return out
-          }
-          const elToMd = (el) => {
-            const tag = el.tagName.toLowerCase()
-            const inner = walk(el)
-            switch (tag) {
-              case 'b': case 'strong': return '**' + inner + '**'
-              case 'u': return '__' + inner + '__'
-              case 's': case 'strike': case 'del': return '~~' + inner + '~~'
-              case 'ul': case 'ol': return inner // <li> handles its own marker
-              case 'li': {
-                const parent = el.parentElement
-                if (parent && parent.tagName === 'OL') {
-                  const sibs = Array.from(parent.children).filter((n) => n.tagName === 'LI')
-                  return (sibs.indexOf(el) + 1) + '. ' + inner + '\n'
-                }
-                return '- ' + inner + '\n'
-              }
-              case 'div': case 'p': {
-                const align = el.style && el.style.textAlign
-                if (align) return '{:' + align + '}' + inner + '\n'
-                return inner + '\n'
-              }
-              case 'pre': {
-                const code = el.querySelector('code')
-                const text = code ? code.textContent : el.textContent
-                return '\n```\n' + text + '\n```\n'
-              }
-              case 'code': {
-                // Could be <code class="t-code"> (loaded from the rendered card) —
-                // extract the content (skip hidden fence spans) + reconstruct the fence.
-                if (el.classList && el.classList.contains('t-code')) {
-                  const lang = el.getAttribute('data-lang') || ''
-                  let content = ''
-                  for (const c of el.childNodes) {
-                    if (c.nodeType === 3) content += c.textContent
-                    else if (c.nodeType === 1 && c.classList && c.classList.contains('t-fence')) continue
-                    else if (c.nodeType === 1) content += c.textContent
-                  }
-                  return '\n```' + lang + '\n' + content + '\n```\n'
-                }
-                return inner // inline code — just return the text
-              }
-              case 'br': return '\n'
-              case 'span': {
-                // Chrome sometimes emits <span style="text-decoration:underline"> for
-                // underline (when execCommand('underline') runs on a partial selection
-                // inside an existing inline). Detect + convert.
-                const deco = el.style && el.style.textDecoration
-                if (deco && deco.includes('underline')) return '__' + inner + '__'
-                if (deco && deco.includes('line-through')) return '~~' + inner + '~~'
-                return inner
-              }
-              default: return inner
-            }
-          }
-          return walk(tmp).replace(/\n{3,}/g, '\n\n').trim()
-        }
+        // S49: the converter BODY moved to chip-render.js as HibanaChips.htmlToMd (its
+        // md→HTML inverse renderTitle already lives there — one shared module now owns
+        // both directions of the WYSIWYG round-trip). Local alias keeps every call site
+        // and the closure scope untouched; chip-render.js loads before this file.
+        // It walks the contenteditable's DOM + converts execCommand's browser-dependent
+        // output (Chrome: <b>/<u>/<s>; others: <strong>/<span style>) back to the
+        // markdown syntax the renderer + DB expect.
+        const pdeHtmlToMd = (html) => window.HibanaChips.htmlToMd(html)
         // pdApplyTb: the toolbar button handler. Uses document.execCommand for WYSIWYG
         // formatting (bold/underline/strike/lists/alignment). For code blocks, execCommand
         // doesn't have a "code" command — we manually wrap the selection in a <pre><code>

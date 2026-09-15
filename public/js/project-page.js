@@ -2309,18 +2309,45 @@
         // puts the caret inside it); Bold wraps in **pairs**; Bullet prefixes every
         // selected line with "- ". Fences always land on their OWN lines so the renderer
         // (pdRenderTitle / renderTitle) recognizes them.
+        // S48d (owner: "fullscreen editor needs underline/strikethrough/ordered-list/
+        // alignment"): extended with __underline__, ~~strikethrough~~, 1. ordered list,
+        // and {:left}/{:center}/{:right}/{:justify} paragraph-alignment markers.
         const pdApplyTb = (ta, kind) => {
           if (!ta) return
           const s = ta.selectionStart == null ? ta.value.length : ta.selectionStart
           const e = ta.selectionEnd == null ? s : ta.selectionEnd
           const v = ta.value
           const sel = v.slice(s, e)
-          if (kind === 'list') {
+          if (kind === 'list' || kind === 'ordered-list') {
+            const bullet = kind === 'list' ? '- ' : '1. '
             const ls = v.lastIndexOf('\n', s - 1) + 1
             let le = v.length
             if (sel.includes('\n')) { const n = v.indexOf('\n', Math.max(e, s)); if (n !== -1) le = n }
-            const marked = v.slice(ls, le).split('\n').map((l) => (l === '' || l.startsWith('- ')) ? l : '- ' + l).join('\n')
+            const lines = v.slice(ls, le).split('\n')
+            const marked = lines.map((l, i) => {
+              if (l === '' || l.startsWith('- ') || l.startsWith(/^\d+\.\s/)) return l
+              if (kind === 'ordered-list') return (i + 1) + '. ' + l
+              return '- ' + l
+            }).join('\n')
             ta.setRangeText(marked, ls, le, 'end')
+            ta.focus()
+            return
+          }
+          // paragraph-level alignment markers — prefixed at the start of the paragraph
+          if (kind === 'align-left' || kind === 'align-center' || kind === 'align-right' || kind === 'align-justify') {
+            const dir = kind.replace('align-', '')
+            const marker = '{:' + dir + '}'
+            const ls = v.lastIndexOf('\n', s - 1) + 1
+            const already = v.slice(ls, ls + marker.length) === marker
+            if (already) {
+              // toggle off — remove the marker
+              ta.setRangeText('', ls, ls + marker.length, 'end')
+            } else {
+              // strip any existing alignment marker on this paragraph first
+              const existing = v.slice(ls).match(/^\{:(?:left|center|right|justify)\}/)
+              const stripTo = existing ? ls + existing[0].length : ls
+              ta.setRangeText(marker + (stripTo > ls ? '' : ''), ls, stripTo, 'end')
+            }
             ta.focus()
             return
           }
@@ -2329,6 +2356,10 @@
             const pre = s === 0 || v[s - 1] === '\n' ? '' : '\n'
             before = pre + '```\n'
             after = '\n```' + (e === v.length || v[e] === '\n' ? '' : '\n')
+          } else if (kind === 'underline') {
+            before = '__'; after = '__'
+          } else if (kind === 'strikethrough') {
+            before = '~~'; after = '~~'
           } else { // bold
             before = '**'
             after = '**'
@@ -2469,7 +2500,25 @@
                   '<button type="button" class="ghost icon-btn" id="pde-close" aria-label="' + _t('common.close', 'Close') + '"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button>' +
                 '</div></div>' +
                 '<label>' + _t('db.title', 'Title') + ' <textarea id="pde-input" rows="5" dir="' + (pdLang() === 'fa' ? 'rtl' : 'auto') + '" required></textarea></label>' +
-                '<div class="pd-tb" role="toolbar" aria-label="' + _t('pd.fmtCode', 'Code block') + '"><button type="button" class="pd-tb-btn" data-tb="code" title="' + _t('pd.fmtCode', 'Code block') + '"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m8 6-6 6 6 6M16 6l6 6-6 6"/></svg> ' + _t('pd.fmtCode', 'Code block') + '</button><button type="button" class="pd-tb-btn" data-tb="bold" title="' + _t('pd.fmtBold', 'Bold') + '"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 5h6a3.5 3.5 0 1 1 0 7H7zM7 12h7a3.5 3.5 0 1 1 0 7H7z"/></svg> ' + _t('pd.fmtBold', 'Bold') + '</button><button type="button" class="pd-tb-btn" data-tb="list" title="' + _t('pd.fmtList', 'Bullet list') + '"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6h12M9 12h12M9 18h12"/><circle cx="4.5" cy="6" r="1.3" fill="currentColor"/><circle cx="4.5" cy="12" r="1.3" fill="currentColor"/><circle cx="4.5" cy="18" r="1.3" fill="currentColor"/></svg> ' + _t('pd.fmtList', 'Bullet list') + '</button></div>' +
+                '<div class="pd-tb" role="toolbar" aria-label="' + _t('pd.fmtToolbar', 'Formatting') + '">' +
+                  // Format group: Bold, Underline, Strikethrough
+                  '<button type="button" class="pd-tb-btn" data-tb="bold" title="' + _t('pd.fmtBold', 'Bold') + '"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 5h6a3.5 3.5 0 1 1 0 7H7zM7 12h7a3.5 3.5 0 1 1 0 7H7z"/></svg></button>' +
+                  '<button type="button" class="pd-tb-btn" data-tb="underline" title="' + _t('pd.fmtUnderline', 'Underline') + '"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4v5a5 5 0 0 0 10 0V4"/><path d="M5 19h14"/></svg></button>' +
+                  '<button type="button" class="pd-tb-btn" data-tb="strikethrough" title="' + _t('pd.fmtStrike', 'Strikethrough') + '"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14"/><path d="M16 8a4 4 0 0 0-4-2c-2 0-3.5 1-3.5 2.5M8 16a4 4 0 0 0 4 2c2 0 3.5-1 3.5-2.5"/></svg></button>' +
+                  '<span class="pd-tb-sep" aria-hidden="true"></span>' +
+                  // List group: Bullet list, Ordered list
+                  '<button type="button" class="pd-tb-btn" data-tb="list" title="' + _t('pd.fmtList', 'Bullet list') + '"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6h12M9 12h12M9 18h12"/><circle cx="4.5" cy="6" r="1.3" fill="currentColor"/><circle cx="4.5" cy="12" r="1.3" fill="currentColor"/><circle cx="4.5" cy="18" r="1.3" fill="currentColor"/></svg></button>' +
+                  '<button type="button" class="pd-tb-btn" data-tb="ordered-list" title="' + _t('pd.fmtOrderedList', 'Numbered list') + '"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6h12M9 12h12M9 18h12"/><path d="M3 5h.01M4 4.5v4M3.5 16h1a1 1 0 0 0 0-2h-.5a1 1 0 0 1 0-2H5" stroke-width="1.5" stroke-linecap="round"/></svg></button>' +
+                  '<span class="pd-tb-sep" aria-hidden="true"></span>' +
+                  // Alignment group
+                  '<button type="button" class="pd-tb-btn" data-tb="align-left" title="' + _t('pd.fmtAlignLeft', 'Align left') + '"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 10h10M4 14h16M4 18h10"/></svg></button>' +
+                  '<button type="button" class="pd-tb-btn" data-tb="align-center" title="' + _t('pd.fmtAlignCenter', 'Align center') + '"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M6 10h12M6 14h12M4 18h16"/></svg></button>' +
+                  '<button type="button" class="pd-tb-btn" data-tb="align-right" title="' + _t('pd.fmtAlignRight', 'Align right') + '"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M10 10h10M4 14h16M10 18h10"/></svg></button>' +
+                  '<button type="button" class="pd-tb-btn" data-tb="align-justify" title="' + _t('pd.fmtAlignJustify', 'Justify') + '"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 10h16M4 14h16M4 18h16"/></svg></button>' +
+                  '<span class="pd-tb-sep" aria-hidden="true"></span>' +
+                  // Code block
+                  '<button type="button" class="pd-tb-btn" data-tb="code" title="' + _t('pd.fmtCode', 'Code block') + '"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m8 6-6 6 6 6M16 6l6 6-6 6"/></svg></button>' +
+                '</div>' +
                 '<div class="row" style="gap:1rem;margin-top:.4rem">' +
                   '<label style="flex:1">' + _t('db.status', 'Status') + ' <select id="pde-status">' +
                     [['idea','db.st.idea'],['planned','db.st.planned'],['in_progress','db.st.inprog'],['done','db.st.done'],['bug','db.st.bug']].map(function(pair){return '<option value="'+pair[0]+'">'+_t(pair[1], pair[0])+'</option>'}).join('') +
@@ -2498,7 +2547,7 @@
                 '<div class="pd-taskadd-shots" style="margin-top:.5rem">' +
                   '<input type="file" id="pde-shots" accept="image/png,image/jpeg,image/webp,image/gif" multiple hidden>' +
                   '<div class="row" style="gap:.5rem;align-items:center">' +
-                    '<button type="button" class="ghost small" id="pde-shots-add" onclick="document.getElementById(\'pde-shots\').click()" title="' + _t('pde.shotsAttachTitle', 'Attach a UI/UX screenshot — pinned to this item') + '"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="5" width="17" height="14" rx="2"/><circle cx="8" cy="10" r="1.5"/><path d="M21 16l-5-5L5 19"/></svg> ' + _t('pde.shotsAttach', 'Attach screenshot') + '</button>' +
+                    '<button type="button" class="ghost" id="pde-shots-add" onclick="document.getElementById(\'pde-shots\').click()" title="' + _t('pde.shotsAttachTitle', 'Attach a UI/UX screenshot — pinned to this item') + '"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="5" width="17" height="14" rx="2"/><circle cx="8" cy="10" r="1.5"/><path d="M21 16l-5-5L5 19"/></svg> ' + _t('pde.shotsAttach', 'Add image') + '</button>' +
                     '<span class="muted small" id="pde-shots-uploading" hidden>' + _t('pde.shotsUploading', 'Uploading image…') + '</span>' +
                   '</div>' +
                   '<div class="pd-taskadd-shots-grid" id="pde-shots-grid"></div>' +

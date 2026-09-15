@@ -77,6 +77,14 @@ window.__hibanaDictFA = {
       'pd.fmtCode': 'بلوک کد',
       'pd.fmtBold': 'پررنگ',
       'pd.fmtList': 'بولت',
+      'pd.fmtUnderline': 'زیرخط',
+      'pd.fmtStrike': 'خط‌خورده',
+      'pd.fmtOrderedList': 'فهرست شماره‌دار',
+      'pd.fmtAlignLeft': 'چپ‌چین',
+      'pd.fmtAlignCenter': 'وسط‌چین',
+      'pd.fmtAlignRight': 'راست‌چین',
+      'pd.fmtAlignJustify': 'هم‌تراز',
+      'pd.fmtToolbar': 'قالب‌بندی',
       'pd.showLess': 'نمایش کمتر',
       'pd.archivesEmpty': 'هنوز کار بایگانی‌شده‌ای نیست. کارهای انجام‌شده را از بورد بایگانی کن.',
       'pd.restore': 'بازگرداندن به بورد',
@@ -454,7 +462,7 @@ window.__hibanaDictFA = {
       'pd.pr.urgent': 'فوری', 'pd.pr.high': 'اولویت بالا', 'pd.pr.medium': 'اولویت متوسط', 'pd.pr.low': 'اولویت کم',
       'pd.labels': 'برچسب‌ها', 'pd.labelsPh': 'مثلاً UI/UX، امنیت', 'pd.labelsHint': 'با کاما جدا کن — یک چیپ برای هر برچسب',
       // S46.2: اسکرین‌شات در ویرایشگر کار (pde-form) — بارگذاری + سنجاق به این قلم + دیدن تصاویر سنجاق‌شده
-      'pde.shotsAttach': 'افزودن اسکرین‌شات', 'pde.shotsAttachTitle': 'افزودن اسکرین‌شات UI/UX — سنجاق شده به این قلم',
+      'pde.shotsAttach': 'افزودن تصویر', 'pde.shotsAttachTitle': 'افزودن اسکرین‌شات UI/UX — سنجاق شده به این قلم',
       'pde.shotsView': 'تصاویر سنجاق‌شده', 'pde.shotsViewTitle': 'تصاویر سنجاق‌شده به این قلم را ببین',
       'pde.shotsUploading': 'در حال اپلود تصویر …',
       // S46.7: عنوان ویرایشگر کار + نوشتن تمام‌صفحه + دکمهٔ افزودن یادداشت (وقتی یادداشتی نیست)

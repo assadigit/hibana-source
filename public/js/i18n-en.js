@@ -77,6 +77,14 @@ window.__hibanaDictEN = {
       'pd.fmtCode': 'Code block',
       'pd.fmtBold': 'Bold',
       'pd.fmtList': 'Bullet list',
+      'pd.fmtUnderline': 'Underline',
+      'pd.fmtStrike': 'Strikethrough',
+      'pd.fmtOrderedList': 'Numbered list',
+      'pd.fmtAlignLeft': 'Align left',
+      'pd.fmtAlignCenter': 'Align center',
+      'pd.fmtAlignRight': 'Align right',
+      'pd.fmtAlignJustify': 'Justify',
+      'pd.fmtToolbar': 'Formatting',
       'pd.showLess': 'show less',
       'pd.archivesEmpty': 'No archived tasks yet. Archive done tasks from the board.',
       'pd.restore': 'Restore to board',
@@ -455,7 +463,7 @@ window.__hibanaDictEN = {
       'pd.pr.urgent': 'Urgent', 'pd.pr.high': 'High Priority', 'pd.pr.medium': 'Medium Priority', 'pd.pr.low': 'Low Priority',
       'pd.labels': 'Labels', 'pd.labelsPh': 'e.g. UI/UX, Security', 'pd.labelsHint': 'Comma-separated — a chip per label',
       // S46.2: screenshots in the task editor (pde-form) — upload + pin to this item + view pinned
-      'pde.shotsAttach': 'Attach screenshot', 'pde.shotsAttachTitle': 'Attach a UI/UX screenshot — pinned to this item',
+      'pde.shotsAttach': 'Add image', 'pde.shotsAttachTitle': 'Attach a UI/UX screenshot — pinned to this item',
       'pde.shotsView': 'Pinned pictures', 'pde.shotsViewTitle': 'View pictures pinned to this item',
       'pde.shotsUploading': 'Uploading image…',
       // S46.7: editor title + full-screen writing + add-note button (when no note)

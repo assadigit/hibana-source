@@ -256,19 +256,37 @@ export function detailHtml(p: ProjectRow, d: Awaited<ReturnType<typeof loadDetai
   // textContent still reads the RAW title EXACTLY — every textContent consumer
   // (editors' prefill, magic wand, copy/export, delete-undo) round-trips with zero
   // changes. Unclosed fences render as code till end-of-string (self-healing).
+  // S46.8 (bullet list): `- `/`* ` prefixed lines → <ul><li> (mirrors chip-render.js).
+  // S48d (owner: "fullscreen editor needs underline/strikethrough/ordered-list/
+  // alignment"): added __underline__ → <u>, ~~strikethrough~~ → <s>, 1. ordered list
+  // → <ol><li>, {:left}/{:center}/{:right}/{:justify} → <div style="text-align:…">.
   const TITLE_CLAMP = 150
   const renderTitle = (raw: string): string => {
     const escd = esc(raw)
     const hasFence = /(^|\n)\s*```/.test(escd)
     const hasBold = /\*\*[^*\n]+\*\*/.test(escd)
-    if (!hasFence && !hasBold) return escd
+    const hasUnderline = /__[^_\n]+__/.test(escd)
+    const hasStrike = /~~[^~\n]+~~/.test(escd)
+    const hasBullet = /(^|\n)\s*[-*]\s+/.test(escd)
+    const hasOrdered = /(^|\n)\s*\d+\.\s+/.test(escd)
+    const hasAlign = /(^|\n)\s*\{:(?:left|center|right|justify)\}/.test(escd)
+    if (!hasFence && !hasBold && !hasUnderline && !hasStrike && !hasBullet && !hasOrdered && !hasAlign) return escd
+    // inline transforms shared by prose + list items (NOT code)
+    const inline = (s: string): string => s
+      .replace(/\*\*([^*\n]+)\*\*/g, '<strong>$1</strong>')
+      .replace(/__([^_\n]+)__/g, '<u>$1</u>')
+      .replace(/~~([^~\n]+)~~/g, '<s>$1</s>')
     const lines = escd.split('\n')
     let out = ''
-    let inCode = false
+    let inCode = false, inUl = false, inOl = false
+    const closeUl = () => { if (inUl) { out += '</ul>'; inUl = false } }
+    const closeOl = () => { if (inOl) { out += '</ol>'; inOl = false } }
+    const closeLists = () => { closeUl(); closeOl() }
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i]
       const nl = i < lines.length - 1 ? '\n' : ''
       if (!inCode && /^\s*```/.test(line)) {
+        closeLists()
         inCode = true
         const codeLang = line.trim().slice(3).trim()
         out += `<code class="t-code"${codeLang ? ` data-lang="${codeLang}"` : ''} dir="ltr"><span hidden class="t-fence">${line}</span>`
@@ -278,10 +296,29 @@ export function detailHtml(p: ProjectRow, d: Awaited<ReturnType<typeof loadDetai
       } else if (inCode) {
         out += line // code content: verbatim (already escaped), no inline transforms
       } else {
-        out += line.replace(/\*\*([^*\n]+)\*\*/g, '<strong>$1</strong>')
+        const am = line.match(/^(\s*)\{:(left|center|right|justify)\}(.*)$/)
+        if (am) {
+          closeLists()
+          out += `<div style="text-align:${am[2]}">${inline(am[3])}</div>`
+        } else {
+          const bm = line.match(/^(\s*)(?:[-*])\s+(.*)$/)
+          const om = line.match(/^(\s*)(\d+)\.\s+(.*)$/)
+          if (bm) {
+            closeOl()
+            if (!inUl) { out += '<ul>'; inUl = true }
+            out += `<li>${inline(bm[2])}</li>`
+          } else if (om) {
+            closeUl()
+            if (!inOl) { out += '<ol>'; inOl = true }
+            out += `<li>${inline(om[3])}</li>`
+          } else {
+            closeLists()
+            out += inline(line) + nl
+          }
+        }
       }
-      out += nl
     }
+    closeLists()
     if (inCode) out += '</code>'
     return out
   }
@@ -556,9 +593,19 @@ export function detailHtml(p: ProjectRow, d: Awaited<ReturnType<typeof loadDetai
       </div>
       <div class="pd-taskadd-col muted small">${trL(lang, 'Lands in', 'ثبت در')} <span class="chip" id="pd-taskadd-col-chip"></span></div>
       <div class="pd-tb" role="toolbar" aria-label="${trL(lang, 'Formatting', 'قالب‌بندی')}">
-        <button type="button" class="pd-tb-btn" data-tb="code" title="${trL(lang, 'Code block (```…```)', 'بلوک کد (```…```)')}" aria-label="${trL(lang, 'Code block', 'بلوک کد')}"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m8 6-6 6 6 6M16 6l6 6-6 6"/></svg> ${trL(lang, 'Code', 'کد')}</button>
-        <button type="button" class="pd-tb-btn" data-tb="bold" title="${trL(lang, 'Bold (**text**)', 'پررنگ (**متن**)')}" aria-label="${trL(lang, 'Bold', 'پررنگ')}"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 5h6a3.5 3.5 0 1 1 0 7H7zM7 12h7a3.5 3.5 0 1 1 0 7H7z"/></svg> ${trL(lang, 'Bold', 'پررنگ')}</button>
-        <button type="button" class="pd-tb-btn" data-tb="list" title="${trL(lang, 'Bullet list', 'بولت')}" aria-label="${trL(lang, 'Bullet list', 'بولت')}"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6h12M9 12h12M9 18h12"/><circle cx="4.5" cy="6" r="1.3" fill="currentColor"/><circle cx="4.5" cy="12" r="1.3" fill="currentColor"/><circle cx="4.5" cy="18" r="1.3" fill="currentColor"/></svg> ${trL(lang, 'Bullet', 'بولت')}</button>
+        <button type="button" class="pd-tb-btn" data-tb="bold" title="${trL(lang, 'Bold (**text**)', 'پررنگ (**متن**)')}" aria-label="${trL(lang, 'Bold', 'پررنگ')}"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 5h6a3.5 3.5 0 1 1 0 7H7zM7 12h7a3.5 3.5 0 1 1 0 7H7z"/></svg></button>
+        <button type="button" class="pd-tb-btn" data-tb="underline" title="${trL(lang, 'Underline (__text__)', 'زیرخط (__متن__)')}" aria-label="${trL(lang, 'Underline', 'زیرخط')}"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4v5a5 5 0 0 0 10 0V4"/><path d="M5 19h14"/></svg></button>
+        <button type="button" class="pd-tb-btn" data-tb="strikethrough" title="${trL(lang, 'Strikethrough (~~text~~)', 'خط‌خورده (~~متن~~)')}" aria-label="${trL(lang, 'Strikethrough', 'خط‌خورده')}"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14"/><path d="M16 8a4 4 0 0 0-4-2c-2 0-3.5 1-3.5 2.5M8 16a4 4 0 0 0 4 2c2 0 3.5-1 3.5-2.5"/></svg></button>
+        <span class="pd-tb-sep" aria-hidden="true"></span>
+        <button type="button" class="pd-tb-btn" data-tb="list" title="${trL(lang, 'Bullet list', 'بولت')}" aria-label="${trL(lang, 'Bullet list', 'بولت')}"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6h12M9 12h12M9 18h12"/><circle cx="4.5" cy="6" r="1.3" fill="currentColor"/><circle cx="4.5" cy="12" r="1.3" fill="currentColor"/><circle cx="4.5" cy="18" r="1.3" fill="currentColor"/></svg></button>
+        <button type="button" class="pd-tb-btn" data-tb="ordered-list" title="${trL(lang, 'Numbered list', 'فهرست شماره‌دار')}" aria-label="${trL(lang, 'Numbered list', 'فهرست شماره‌دار')}"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6h12M9 12h12M9 18h12"/><path d="M3 5h.01M4 4.5v4M3.5 16h1a1 1 0 0 0 0-2h-.5a1 1 0 0 1 0-2H5" stroke-width="1.5" stroke-linecap="round"/></svg></button>
+        <span class="pd-tb-sep" aria-hidden="true"></span>
+        <button type="button" class="pd-tb-btn" data-tb="align-left" title="${trL(lang, 'Align left', 'چپ‌چین')}" aria-label="${trL(lang, 'Align left', 'چپ‌چین')}"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 10h10M4 14h16M4 18h10"/></svg></button>
+        <button type="button" class="pd-tb-btn" data-tb="align-center" title="${trL(lang, 'Align center', 'وسط‌چین')}" aria-label="${trL(lang, 'Align center', 'وسط‌چین')}"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M6 10h12M6 14h12M4 18h16"/></svg></button>
+        <button type="button" class="pd-tb-btn" data-tb="align-right" title="${trL(lang, 'Align right', 'راست‌چین')}" aria-label="${trL(lang, 'Align right', 'راست‌چین')}"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M10 10h10M4 14h16M10 18h10"/></svg></button>
+        <button type="button" class="pd-tb-btn" data-tb="align-justify" title="${trL(lang, 'Justify', 'هم‌تراز')}" aria-label="${trL(lang, 'Justify', 'هم‌تراز')}"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 10h16M4 14h16M4 18h16"/></svg></button>
+        <span class="pd-tb-sep" aria-hidden="true"></span>
+        <button type="button" class="pd-tb-btn" data-tb="code" title="${trL(lang, 'Code block (```…```)', 'بلوک کد (```…```)')}" aria-label="${trL(lang, 'Code block', 'بلوک کد')}"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m8 6-6 6 6 6M16 6l6 6-6 6"/></svg></button>
       </div>
       <textarea id="pd-taskadd-textarea" rows="8" dir="${lang === 'fa' ? 'rtl' : 'auto'}" autocomplete="off" aria-label="${trL(lang, 'Task title', 'عنوان کار')}" placeholder="${trL(lang, 'Write the task — long sentences and code blocks are welcome…', 'کار را بنویس — جمله‌های بلند و بلوک‌های کد جای دارند…')}"></textarea>
       <!-- S31b: the RTL dir stays the FA typing default (caret/empty line), while

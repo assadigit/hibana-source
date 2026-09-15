@@ -643,12 +643,21 @@ a.related-note,
   margin: 0.15rem 0;
   white-space: normal;
 }
+/* S48d: ordered lists use native decimal numbering (list-style: decimal). The
+   S46.9 bullet ::before is scoped to <ul> items only so <ol> shows real numbers. */
+.pd-task-title ol, .db-card-title ol, .sp-task-title ol, .sp-bar-title ol {
+  list-style: decimal;
+  padding-inline-start: 1.5rem;
+  margin: 0.15rem 0;
+  white-space: normal;
+}
 .pd-task-title li, .db-card-title li, .sp-task-title li, .sp-bar-title li {
   margin: 0.1rem 0;
   white-space: normal;
   unicode-bidi: plaintext;
 }
-.pd-task-title li::before, .db-card-title li::before, .sp-task-title li::before, .sp-bar-title li::before {
+/* the inline bullet is scoped to <ul> items only (not <ol> which has native numbers) */
+.pd-task-title ul > li::before, .db-card-title ul > li::before, .sp-task-title ul > li::before, .sp-bar-title ul > li::before {
   content: "\2022\00a0\00a0";
 }
 #pd-taskadd-textarea,

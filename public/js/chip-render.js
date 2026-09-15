@@ -38,22 +38,39 @@
   // the text via padding-inline-start, not detached on the far edge). The \n between
   // list items is suppressed (the <ul> layout is structural — pre-line would add
   // blank lines between items).
+  // S48d (owner: "fullscreen editor needs underline/strikethrough/ordered-list/
+  // alignment"): added __underline__ → <u>, ~~strikethrough~~ → <s>, 1. ordered list
+  // → <ol><li>, and {:left}/{:center}/{:right}/{:justify} paragraph-alignment markers
+  // → <div style="text-align:…">. The inline transforms (bold/underline/strike) run
+  // on every prose line (not inside code fences or list items, which keep their own
+  // structure). Alignment markers wrap the whole paragraph in a styled div.
   function renderTitle(raw) {
     const escd = esc(raw)
     const hasFence = /(^|\n)\s*```/.test(escd)
     const hasBold = /\*\*[^*\n]+\*\*/.test(escd)
+    const hasUnderline = /__[^_\n]+__/.test(escd)
+    const hasStrike = /~~[^~\n]+~~/.test(escd)
     const hasBullet = /(^|\n)\s*[-*]\s+/.test(escd)
-    if (!hasFence && !hasBold && !hasBullet) return escd
+    const hasOrdered = /(^|\n)\s*\d+\.\s+/.test(escd)
+    const hasAlign = /(^|\n)\s*\{:(?:left|center|right|justify)\}/.test(escd)
+    if (!hasFence && !hasBold && !hasUnderline && !hasStrike && !hasBullet && !hasOrdered && !hasAlign) return escd
+    // inline transforms shared by prose + list items (NOT code)
+    const inline = (s) => s
+      .replace(/\*\*([^*\n]+)\*\*/g, '<strong>$1</strong>')
+      .replace(/__([^_\n]+)__/g, '<u>$1</u>')
+      .replace(/~~([^~\n]+)~~/g, '<s>$1</s>')
     const lines = escd.split('\n')
     let out = ''
-    let inCode = false, inList = false
-    const closeList = () => { if (inList) { out += '</ul>'; inList = false } }
-    const bold = (s) => s.replace(/\*\*([^*\n]+)\*\*/g, '<strong>$1</strong>')
+    let inCode = false, inUl = false, inOl = false
+    const closeUl = () => { if (inUl) { out += '</ul>'; inUl = false } }
+    const closeOl = () => { if (inOl) { out += '</ol>'; inOl = false } }
+    const closeLists = () => { closeUl(); closeOl() }
+    // group consecutive alignment-marked lines into one <div> per paragraph
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i]
       const nl = i < lines.length - 1 ? '\n' : ''
       if (!inCode && /^\s*```/.test(line)) {
-        closeList()
+        closeLists()
         inCode = true
         const codeLang = line.trim().slice(3).trim()
         out += '<code class="t-code"' + (codeLang ? ' data-lang="' + codeLang + '"' : '') + ' dir="ltr"><span hidden class="t-fence">' + line + '</span>'
@@ -63,18 +80,31 @@
       } else if (inCode) {
         out += line + nl
       } else {
-        const bm = line.match(/^(\s*)(?:[-*])\s+(.*)$/)
-        if (bm) {
-          if (!inList) { out += '<ul>'; inList = true }
-          out += '<li>' + bold(bm[2]) + '</li>'
-          // no nl — <ul> layout is structural
+        // alignment marker — wrap the paragraph in a styled div (toggled off at the next blank line / non-aligned line)
+        const am = line.match(/^(\s*)\{:(left|center|right|justify)\}(.*)$/)
+        if (am) {
+          closeLists()
+          out += '<div style="text-align:' + am[2] + '">' + inline(am[3]) + '</div>'
+          // no nl — the div is structural
         } else {
-          closeList()
-          out += bold(line) + nl
+          const bm = line.match(/^(\s*)(?:[-*])\s+(.*)$/)
+          const om = line.match(/^(\s*)(\d+)\.\s+(.*)$/)
+          if (bm) {
+            closeOl()
+            if (!inUl) { out += '<ul>'; inUl = true }
+            out += '<li>' + inline(bm[2]) + '</li>'
+          } else if (om) {
+            closeUl()
+            if (!inOl) { out += '<ol>'; inOl = true }
+            out += '<li>' + inline(om[3]) + '</li>'
+          } else {
+            closeLists()
+            out += inline(line) + nl
+          }
         }
       }
     }
-    closeList()
+    closeLists()
     if (inCode) out += '</code>'
     return out
   }

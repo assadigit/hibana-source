@@ -9,7 +9,45 @@
 > rewritten as a minimal pointer. Deleted files remain recoverable verbatim:
 > `git show <sha>:<file>`.
 
-## 1. Current state (v0.3.12.49 — Session 46.2: the owner's 4 follow-up reports on the S46 ship — (1) desktop urgent rows RTL/LTR split fixed: `direction: ltr` on `.dash-urgent-row` (was the FA page's RTL flex shrink-wrapping `.dash-urgent-main` to content width, so short Latin titles sat further right than long ones; Farsi text still flows RTL via the S31b plaintext on `.dash-urgent-main`, Farsi-dot-right e2e pin still green); (2) the main CTA (+) corrected — the S46 idea-only `+` on projects was "dead-wrong"; now EVERY main surface (dashboard/projects/sparks/sadhana) carries the unified `.fab-stack[data-fab]` chooser with 3 items: new idea / new project / new quick note (the dashboard's "New Task" item swapped for "New idea" so all 4 surfaces match); (3) item 12 wand — confirmed working via local repro (`wandVisible: true` on hover of a freshly-added task); the owner's "needs refresh" was stale SW; defensive fix: `magic-wand.js`'s `injectDevTaskMagic` now also stamps `.pd-task-wrap .pd-task-title`; (4) item 13 bundle: shrunk the 3 project-progress head buttons (برد تمام‌صفحه/اسپرینت جدید/اسپرینت‌ها); `#pde-form` task editor now has a screenshot row (upload+pin via 0054 + view pinned via `taskShotsDialog` + live count badge); `#pde-form` modal anchored near the top (was UA-centered mid-viewport) + «ویرایش» label shrunk. No schema change. S46: 13-item refinement batch; S45: THE CROWN-SURFACES OVERHAUL, batch B (sprints) + batch A (projects); S44: the owner's three bug reports; S43: FULL MOBILE RESPONSIVITY AUDIT + 40px touch floor; S42: dashboard stage-carousel handles; S41: Sparks MOBILE pass + folder EMOJI icons (0056); S40: Sparks FULL AUDIT + TEXT ALIGNMENT (0055); S39: media GALLERY + screenshot pinning; S38: KV storage — never expires; S37: English-always chat rule)
+## 1. Current state (v0.3.12.84 — Session 48p: 6 fixes — AI translate content loss, copy icon, color coding, sprint extend, sprint log. SW v384.
+
+Session 48 was a massive UI/UX refinement session (S48 → S48p, 16 commits) on top of the S46 ship. Key themes: the WYSIWYG contenteditable editor (S48d–S48f), the IIFE-trapping dist build bug (S48), sprint board + timeline fixes (S48b, S48m, S48o), + a loading animation (S48i). All changes are CSS/JS only — no schema changes.
+
+### Session 48 changelog (commits S48 → S48p):
+
+- **S48** — ROOT CAUSE: the esbuild dist build used `format:'iife'` which wrapped every page JS file in `(()=>{...})()`, trapping ALL top-level function declarations inside the IIFE closure. Inline HTML handlers (`onclick="scrollMore()"`, `onscroll="checkMore()"` — 59 handlers in sadhana-page.js alone) couldn't find the function in the global scope → ReferenceError → "nothing happens" on the deployed dist build. The e2e tests (Node server, serves source directly, no IIFE) never caught it. Fix: removed `format:'iife'` from scripts/build.mjs. Also: sadhana subbar alignment (`.hdr-date` physical margin → logical; `.subbar-inner > *` gets `min-block-size:32px`). SW v366→v367.
+
+- **S48b** — Priority dot follows title direction (`dir="auto"` on `.pd-task-title-row`) + subbar alignment v2 (CSS variable `--subbar-item-h` tracks `.btn` height at each breakpoint). SW v367→v370.
+
+- **S48c** — Compact project tag chips (remove button 28→16px, chip 31→26px). SW v370→v371.
+
+- **S48d** — Fullscreen editor toolbar (Bold/Underline/Strikethrough/Numbered list/Align×4/Code block). Renderer extended (chip-render.js + detail-helpers.ts: `__underline__`→`<u>`, `~~strike~~`→`<s>`, `1. text`→`<ol>`, `{:align}`→`<div style="text-align">`). SW v371→v372.
+
+- **S48e** — Toolbar moved above the textarea (was below). SW v372→v373.
+
+- **S48f** — WYSIWYG contenteditable editor (textarea → contenteditable + `document.execCommand`). `pdeHtmlToMd()` converts HTML→markdown on save. SW v373→v374.
+
+- **S48g** — Separate Title field above the Content field (stored as `title\ncontent` in the DB — no migration). SW v374→v375.
+
+- **S48h** — Hotfix: `ta.value=''` → `ta.innerHTML=''` (contenteditable has no `.value`); invalid `<label>` wrapping contenteditable → `<div class="pde-field">`. SW v375→v376.
+
+- **S48i** — Loading animation: full-page overlay (`#hibana-page-loader` with spinner, painted in HTML, hidden on DOMContentLoaded) + top progress bar for htmx swaps. SW v376→v377.
+
+- **S48j** — 5 fixes: card shows only Title (first line, full content in `data-raw-title`); removed clear-done button; shrunk note buttons; filter clear visibility (`[hidden]` CSS specificity fix); priority dot alignment (`align-items:start`). SW v377→v378.
+
+- **S48k** — 7 fixes: backup 409 (GitHub SHA probe); AI translation prompt (stronger "MUST output OPPOSITE language"); placeholder RTL; sprint today line (center of cell); sprint dots (3D radial gradient, no shadow); all tasks on sprint board; sprint popover→modal. SW v378→v379.
+
+- **S48l** — Toolbar focus theft fix (`mousedown preventDefault` on `.pd-tb-btn` stops the button from stealing focus → contenteditable keeps its selection → bold/underline/strike all work). Code block: no nesting check, `insertHTML` instead of `insertNode`, trailing `<p><br></p>` for cursor escape. SW v379→v380.
+
+- **S48m** — Sprint dot position: center the dot on its day cell (`pctOf + half_cell` + `transform: translateX(-50%)`). Was: LEFT edge → dot appeared past the today line. SW v380→v381.
+
+- **S48n** — Sprint dates + presets (24h/48h/72h/1w/2w/1m) + task→sprint selector in the composer. `createSprintSchema` accepts `started_at`/`ended_at`. SW v381→v382.
+
+- **S48o** — Sprint active warning: "only 1 sprint active" rule confirmed (already enforced). Added UI warning in define popover. SW v382→v383.
+
+- **S48p** — 6 fixes: (1) AI translate content loss (magic-wand preserves `data-raw-title` content after `\n` when PATCHing); (2) Copy icon in ⋯ menu (copies full title+content); (3+4) Color coding: BLUE=idea, RED=bug, YELLOW=planned, ORANGE=in_progress, GREEN=done (both sprint + project); (5) Sprint extend button (PATCH `ended_at` + days); (6) Sprint log (total tasks, done count, category breakdown). SW v383→v384.
+
+### Pre-S48 state (v0.3.12.49 — Session 46.2)
 - **(S46.2) THE 4 FOLLOW-UP FIXES (owner, 2026-09-14, reported after testing the S46 ship):**
   - **(1) Desktop urgent RTL/LTR split**: the owner reported the urgent strip shows "one Latin item RTL, one LTR" on PC (mobile was fine). Root cause (reproduced via DOM geometry): the FA page's `direction: rtl` made the `.dash-urgent-row` flex reverse, so `.dash-urgent-main` (shrink-wrapped to content width via `flex: 0 1 auto`) sat at the RIGHT edge — short titles stayed narrow (right side), long titles extended left. The S46 `text-align: start` fix only helped wrapped (mobile) titles; on desktop (single-line), text-align is a no-op. Fix: `direction: ltr` on `.dash-urgent-row` — main now sits at the LEFT consistently (both titles start at the same x — verified: `titleLeft: 131` for both rows, was 370 vs 522). Farsi text still flows RTL via the S31b `unicode-bidi: plaintext` on `.dash-urgent-main` (plaintext overrides `direction` for bidi resolution); the analytics e2e Farsi-dot-right pin still passes.
   - **(2) Unified + chooser**: the owner called the S46 idea-only `+` on projects "dead-wrong" — wants "a (+) Button on every page, when clicked gives 3 options: new note, new idea, new project." The dashboard already had the `.fab-stack[data-fab]` chooser pattern (3 fab-items). Standardized: swapped the dashboard's "New Task" item for "New idea" (so the set is idea/project/note everywhere) + added the SAME chooser markup to projects (replaced the idea-only +), sparks (added), sadhana (added). The handlers in `app.js` are document-delegated (`data-quickadd-open` / `data-projectquickadd` / `data-notequickadd`), so dropping the markup on any page that loads `app.js` Just Works. Verified: projects FAB opens 3 items (ایده جدید / پروژه جدید / یادداشت سریع جدید).

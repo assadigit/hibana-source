@@ -206,7 +206,6 @@ dialog.cmdk::backdrop {
 .skeleton-line { height: 0.85rem; margin-block-end: 0.5rem; }
 .skeleton-line.w-60 { width: 60%; }
 .skeleton-line.w-40 { width: 40%; }
-.skeleton-line.w-30 { width: 30%; }
 .skeleton-box {
   height: 5rem;
   border-radius: var(--radius);

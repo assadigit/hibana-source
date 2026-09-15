@@ -1432,27 +1432,6 @@ function setProgress(e,id,q,state){
   api(`/api/sadhana/tasks/${id}`, { progress: task.progress }, 'PATCH');
 }
 
-/* ══ MODAL ADVANCED TOGGLE ══════════════════════ */
-function toggleAdvanced(){
-  const adv=document.getElementById('mAdvanced');
-  const tog=document.getElementById('mAdvToggle');
-  if(!adv||!tog)return;
-  const open=adv.style.display!=='none';
-  adv.style.display=open?'none':'block';
-  tog.textContent=open?tr('moreOptions'):tr('lessOptions');
-  tog.setAttribute('aria-expanded',String(!open));
-  if(!open){
-    buildTagPicker('mTags','m');
-    updateDLTrigger('m');
-    if(!recurState['m'])initRecur('m');
-    buildRecurUI('mRecurUI','m');
-    /* update labels */
-    document.getElementById('mLblTags').textContent=tr('tags');
-    document.getElementById('mLblDL').textContent=tr('deadline');
-    document.getElementById('mLblRecur').textContent=tr('recurLbl');
-  }
-}
-
 /* ══ THEME ═════════════════════════════════════ */
 function applyTheme(dark){
   document.documentElement.setAttribute('data-theme',dark?'dark':'light');
@@ -1494,33 +1473,6 @@ function setLang(l){
   buildGrid();buildFilterBar();buildHeaderDate();buildModalQuads();buildQuadDots();
   document.title=lang==='fa'?'لیست کارها — هیبانا':'To-do list — Hibana';
 }
-
-/* ══ CALENDAR ══════════════════════════════════
-   No manual toggle (2026-08-29 user request): the calendar system is DERIVED from the
-   language — fa → Jalali/shamsi, en → Gregorian. setLang re-derives `cal` above. */
-function updateDate(){
-  /* Date now lives exclusively in the header pill — delegate to buildHeaderDate */
-  buildHeaderDate();
-}
-function gregWeek(d){
-  /* ISO 8601 week number — weeks start Monday */
-  const jan4=new Date(d.getFullYear(),0,4);
-  const startOfW1=new Date(jan4);startOfW1.setDate(jan4.getDate()-(jan4.getDay()||7)+1);
-  return Math.ceil(((d-startOfW1)/86400000+1)/7);
-}
-
-/* ══ USER MENU ═════════════════════════════════ */
-function toggleUserMenu(e){
-  if(e)e.stopPropagation();
-  const w=document.getElementById('userMenuWrap');
-  if(w)w.classList.toggle('open');
-}
-document.addEventListener('click',function(e){
-  const w=document.getElementById('userMenuWrap');
-  if(w&&w.classList.contains('open')&&!w.contains(e.target))
-    w.classList.remove('open');
-});
-
 
 /* ══ HIBANA: modal quadrant options (server names) ═══════════ */
 function buildModalQuads(){
@@ -1636,11 +1588,6 @@ async function archRecurDelete(taskId){
     if(btn)btn.disabled=false;
     window.hibana?.toast(lang==='fa'?'حذف ناموفق بود':'Delete failed','err');
   }
-}
-
-/* ══ LOGOUT (Hibana session) ══════════════════════════════════ */
-function doLogout(){
-  api('/api/auth/logout',{}).then(()=>{location.href='/login.html';});
 }
 
 /* ══ ESC closes topmost surface ═══════════════════════════════ */

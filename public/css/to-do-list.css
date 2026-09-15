@@ -49,7 +49,6 @@ main.shell-dash {
   position: relative;  /* anchors the Urgent corner ribbon */
   overflow: clip;      /* the ribbon's overhang is cut at the card edge, never bleeding into the gap */
 }
-.sadhana-quadrant.drop-target { outline: 2px dashed var(--accent); outline-offset: 2px; }
 /* 2026-09 user request: quadrant boxes are MINIMAL/neutral — the per-quadrant semantic
    accent vars (.q-success/.q-info/.q-error/.q-warning → --q-accent) are removed so all
    four boxes share one look. A user-PICKED accent (inline --q-accent from the swatch

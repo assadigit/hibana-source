@@ -54,6 +54,11 @@ jobs:
     timeout-minutes: 20
     env:
       DB: pm-app-dev # HARD-LOCKED (see header) — never pm-app-prod
+      # Job-level: every wrangler call (bookmark, export, migrate, digest) reads these
+      # from the environment. Run #1 failed exactly here — the secrets were only written
+      # to .secrets.env (for d1-migrate.mjs) and the bare wrangler steps had no token.
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
     steps:
       - uses: actions/checkout@v4
 
@@ -91,8 +96,16 @@ jobs:
       # ── 1. Recovery point FIRST: if anything later goes wrong, this bookmark restores ──
       - name: Time Travel bookmark (pre-migration recovery point)
         run: |
-          npx wrangler d1 time-travel info "$DB" --json | tee bookmark.json
+          set -euo pipefail
+          npx wrangler d1 time-travel info "$DB" --json > bookmark.json
+          cat bookmark.json
           jq -r '.bookmark' bookmark.json > bookmark-id.txt
+          # A bookmark id is a hex UUID-ish string — refuse to continue on anything else
+          # (run #1's pipe masked a wrangler failure and "succeeded" with an error file).
+          if ! grep -Eq '^[0-9a-fA-F-]{8,}$' bookmark-id.txt; then
+            echo "REFUSED: no real bookmark id was returned — nothing has been written to the DB."
+            exit 1
+          fi
           echo "BOOKMARK_ID=$(cat bookmark-id.txt)" >> "$GITHUB_ENV"
           echo "recovery point: $(cat bookmark-id.txt)"
 
@@ -127,8 +140,10 @@ jobs:
       # ── 7. Deployment health + evidence retention ──
       - name: Health-check the dev deployment
         run: |
+          set -euo pipefail
           sleep 5
-          curl -sSf https://hibana.aliassadi.workers.dev/api/health | tee health.json
+          curl -sSf https://hibana.aliassadi.workers.dev/api/health > health.json
+          cat health.json
           grep -q '"ok":true' health.json
 
       - name: Echo the recovery instructions

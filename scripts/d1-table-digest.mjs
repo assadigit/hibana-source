@@ -85,17 +85,22 @@ const digestRows = (rows) => {
 
 console.log(`digesting ${db} (remote, read-only)…`)
 const tableRows = await query("SELECT name, sql FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite\\_%' ESCAPE '\\' ORDER BY name")
-// FTS5 virtual tables are derived data (rebuild from triggers — the backup-audit
-// classification) and are recorded by name only, not fingerprinted. Their SHADOW
-// tables (x_data, x_idx, …) are real tables and DO get fingerprinted.
+// Classification:
+//   FTS5 virtual tables — derived data (rebuild from triggers); recorded by name only.
+//   _cf_* tables — Cloudflare-internal (e.g. _cf_KV); NOT readable via d1 execute — skipped.
+//   Everything else (incl. FTS shadow tables, which are real tables) — fingerprinted.
 const tables = []
 const virtualTables = []
+const internalTables = []
 for (const r of tableRows) {
-  if (String(r.sql ?? '').toUpperCase().includes('VIRTUAL TABLE')) virtualTables.push(String(r.name))
-  else tables.push(String(r.name))
+  const name = String(r.name)
+  if (String(r.sql ?? '').toUpperCase().includes('VIRTUAL TABLE')) virtualTables.push(name)
+  else if (name.startsWith('_cf_')) internalTables.push(name)
+  else tables.push(name)
 }
 console.log(`real tables (${tables.length}): ${tables.join(', ')}`)
 if (virtualTables.length) console.log(`virtual tables (recorded, not fingerprinted): ${virtualTables.join(', ')}`)
+if (internalTables.length) console.log(`Cloudflare-internal tables (unreadable via d1 execute, skipped): ${internalTables.join(', ')}`)
 
 const outJson = {
   database: db,
@@ -103,6 +108,7 @@ const outJson = {
   wrangler: 'd1 execute --remote --json (read-only)',
   tables: {},
   virtual_tables: virtualTables,
+  internal_tables: internalTables,
   migrations: null, // sorted migration names from whichever bookkeeping table exists
 }
 

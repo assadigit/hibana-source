@@ -38,9 +38,21 @@ const allowNew = (argOf('--allow-new') ?? '')
   .split(',')
   .map((s) => s.trim())
   .filter(Boolean)
+// TRANSIENT tables mutate under NORMAL LIVE TRAFFIC without any user content changing
+// (auth sessions, throttle buckets, delivery/diagnostic logs, bot UI state, backup-system
+// bookkeeping). The dev deploy is a LIVE Worker with crons — a health probe or a stray
+// request can legitimately write these DURING the verification window. They are compared
+// ADVISORILY (reported, never a hard fail); every other table carries the hard byte-proof.
+// Overridable for special cases; the default matches the app's own backup-exclusion lists.
+const TRANSIENT = new Set(
+  (argOf('--transient') ?? 'sessions,password_resets,email_verifications,rate_limits,email_log,error_log,sadhana_reminder_logs,telegram_bot_sessions,planb_backups')
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean),
+)
 
 if (!beforePath || !afterPath || !migration) {
-  console.error('usage: node scripts/d1-verify-migration.mjs --before <json> --after <json> --migration <name> [--allow-new t1,t2] [--report out.md]')
+  console.error('usage: node scripts/d1-verify-migration.mjs --before <json> --after <json> --migration <name> [--allow-new t1,t2] [--transient t1,t2] [--report out.md]')
   process.exit(1)
 }
 
@@ -58,14 +70,19 @@ const afterTables = Object.keys(after.tables).sort()
 const dropped = beforeTables.filter((t) => !(t in after.tables))
 for (const t of dropped) violations.push(`R1 VIOLATION — table "${t}" existed BEFORE and is GONE after (data loss!)`)
 
-// R2 — byte-identical pre-existing tables (except bookkeeping)
+// R2 — byte-identical pre-existing tables (except bookkeeping + the transient class)
 const unchanged = []
+const transientDrift = []
 for (const t of beforeTables) {
   if (!(t in after.tables) || BOOKKEEPING.has(t)) continue
   const b = before.tables[t]
   const a = after.tables[t]
   if (b.count !== a.count || b.sha256 !== a.sha256) {
-    violations.push(`R2 VIOLATION — table "${t}" CHANGED: before ${b.count} rows / sha256 ${b.sha256}, after ${a.count} rows / sha256 ${a.sha256}`)
+    if (TRANSIENT.has(t)) {
+      transientDrift.push(`ADVISORY — transient table "${t}" drifted during the window (before ${b.count} rows, after ${a.count} rows): expected under live traffic — sessions/throttle/log tables mutate with requests and crons, and this migration never touches them.`)
+    } else {
+      violations.push(`R2 VIOLATION — table "${t}" CHANGED: before ${b.count} rows / sha256 ${b.sha256}, after ${a.count} rows / sha256 ${a.sha256}`)
+    }
   } else {
     unchanged.push({ table: t, count: b.count, sha256: b.sha256 })
   }
@@ -121,6 +138,9 @@ const md = [
   ``,
   `## Notes`,
   ...notes.map((n) => `- ${n}`),
+  ...(transientDrift.length
+    ? ['', '## Advisory — transient tables (live-traffic drift, NOT migration damage)', ...transientDrift.map((v) => `- ${v}`)]
+    : []),
   ...(violations.length ? ['', '## VIOLATIONS', ...violations.map((v) => `- ${v}`)] : []),
   ``,
 ].join('\n')

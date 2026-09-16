@@ -67,6 +67,26 @@ describe('snapshot coverage vs the real schema (the drift guard)', () => {
     }
   })
 
+  it('S53 race guard: a not-yet-migrated DB yields a PARTIAL snapshot with missing_tables, not a crash', async () => {
+    // Simulates the deploy-vs-migrate window: the code (SNAPSHOT_TABLES incl. 0057's
+    // note_folders/vault_notes) deployed before the owner applied the migration to a
+    // remote D1. The snapshot must survive, record the gap loudly, and still carry
+    // every table that DOES exist.
+    const { db, close } = makeTestDb()
+    try {
+      await db.execute('DROP TABLE note_folders')
+      await db.execute('DROP TABLE vault_notes')
+      const { buildSnapshot } = await import('../services/backup')
+      const snap = await buildSnapshot(db)
+      expect(snap.missing_tables).toEqual(['note_folders', 'vault_notes'])
+      expect(snap.data.users).toBeDefined()
+      expect(snap.data.projects).toBeDefined()
+      expect(snap.data.note_folders).toBeUndefined()
+    } finally {
+      close()
+    }
+  })
+
   it('no transient table leaked INTO the snapshot list (would bloat backups with throwaway rows)', () => {
     for (const t of SNAPSHOT_TABLES) {
       expect(TRANSIENT_STATE.has(t)).toBe(false)

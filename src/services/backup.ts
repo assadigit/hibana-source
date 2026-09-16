@@ -123,13 +123,27 @@ export const SNAPSHOT_TABLES = [
 interface Snapshot {
   schema_version: number
   exported_at: string
+  missing_tables?: string[] // S53 race guard: tables absent at snapshot time (migration pending)
   data: Record<string, unknown[]>
 }
 
 export async function buildSnapshot(db: Db): Promise<Snapshot> {
   const data: Record<string, unknown[]> = {}
+  // S53 (2026-09-16): deploy-vs-migrate race guard. A migration can land in the repo
+  // (and deploy via CD) BEFORE the owner applies it to a remote D1 — the snapshot then
+  // crashed on its first SELECT against the missing table and the WHOLE daily backup
+  // failed (worse than a partial one). Now: a missing table is skipped and recorded in
+  // `missing_tables` so the gap is loud and visible (never silently absent) — restore
+  // scripts key on tables present in `data`, so an older snapshot restores cleanly.
+  const missing: string[] = []
   for (const table of SNAPSHOT_TABLES) {
-    const rows = await db.query(`SELECT * FROM ${table}`)
+    let rows: Record<string, unknown>[] = []
+    try {
+      rows = await db.query(`SELECT * FROM ${table}`)
+    } catch {
+      missing.push(table)
+      continue
+    }
     if (table === 'users') {
       // Rule 8: never backup password hashes.
       data[table] = rows.map((r) => {
@@ -140,6 +154,11 @@ export async function buildSnapshot(db: Db): Promise<Snapshot> {
       data[table] = rows
     }
   }
+  if (missing.length) {
+    // Loud, not silent: the errorlog row makes the gap visible to the admin panel,
+    // and missing_tables rides in the snapshot itself.
+    console.warn(`[backup] missing tables skipped (migration not applied?): ${missing.join(', ')}`)
+  }
   return {
     schema_version: 20260920,
     // Session 20 (backup-coverage audit): bumped 20260910 → 20260920 (snapshot shape
@@ -147,6 +166,7 @@ export async function buildSnapshot(db: Db): Promise<Snapshot> {
     // Old snapshots stay interpretable — the restore scripts key on table names present
     // in the data, not on the table list.
     exported_at: new Date().toISOString(),
+    missing_tables: missing,
     data,
   }
 }

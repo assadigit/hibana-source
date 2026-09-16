@@ -11,6 +11,7 @@ import { tagsRoutes } from './routes/tags'
 import { searchRoutes } from './routes/search'
 import { dashboardRoutes } from './routes/dashboard'
 import { quickNotesRoutes } from './routes/quicknotes'
+import { vaultRoutes } from './routes/vault'
 import { sadhanaRoutes } from './routes/sadhana'
 import { registrationRoutes } from './routes/registration'
 import { resetRoutes } from './routes/reset'
@@ -296,6 +297,9 @@ export function createApp(cfg: Config) {
   app.route('/api/search', searchRoutes(cfg))
   app.route('/api/dashboard', dashboardRoutes(cfg))
   app.route('/api/notes', quickNotesRoutes(cfg))
+  // Notes Vault (0057, S53): the /notes knowledge base rides /api/vault — /api/notes
+  // is quick_notes' mount (0010) and stays untouched.
+  app.route('/api/vault', vaultRoutes(cfg))
   app.route('/api/sadhana', sadhanaRoutes(cfg))
   app.route('/api/admin', adminRoutes(cfg))
   app.route('/api/dev', devRoutes(cfg))

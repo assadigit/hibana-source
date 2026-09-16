@@ -201,6 +201,47 @@ describe('GET /api/export/obsidian.zip', () => {
     }
   })
 
+
+  it('exports the Notes Vault as per-note files mirroring the folder tree (0057)', async () => {
+    const { db, close } = makeTestDb()
+    try {
+      const a = await makeUser(db, { username: 'noter', email: 'noter@test.dev' })
+      // folder tree: Movies/Sci-fi + a root-level folder
+      await db.execute(
+        "INSERT INTO note_folders (id, user_id, parent_id, name, sort_order, created_at, updated_at) VALUES ('f1', ?, NULL, 'Movies', 0, ?, ?), ('f2', ?, 'f1', 'Sci-fi', 0, ?, ?), ('f3', ?, NULL, 'Games', 0, ?, ?)",
+        [a, iso(), iso(), a, iso(), iso(), a, iso(), iso()],
+      )
+      await db.execute(
+        "INSERT INTO vault_notes (id, user_id, folder_id, title, content, tags, starred, created_at, updated_at) VALUES ('n1', ?, 'f2', 'Dune', 'must watch', 'film, epic', 1, ?, ?), ('n2', ?, NULL, 'Shopping', 'milk', '', 0, ?, ?), ('n3', ?, 'f2', 'Dune', 'the OTHER dune note', '', 0, ?, ?)",
+        [a, iso(), iso(), a, iso(), iso(), a, iso(), iso()],
+      )
+      // soft-deleted note is trash, not content
+      await db.execute(
+        "INSERT INTO vault_notes (id, user_id, folder_id, title, content, tags, starred, deleted_at, created_at, updated_at) VALUES ('n4', ?, NULL, 'Gone', 'x', '', 0, ?, ?, ?)",
+        [a, iso(), iso(), iso()],
+      )
+      const { files, stats } = await buildObsidianVault(db, a, { now: new Date('2026-09-16T10:00:00Z') })
+      expect(stats.vaultNotes).toBe(3)
+      const names = [...files.keys()]
+      // folder path mirrored; same-titled notes in the SAME folder dedupe
+      expect(names).toContain('Hibana-Backup-2026-09-16/Notes/Movies/Sci-fi/Dune.md')
+      expect(names).toContain('Hibana-Backup-2026-09-16/Notes/Movies/Sci-fi/Dune 2.md')
+      expect(names).toContain('Hibana-Backup-2026-09-16/Notes/Shopping.md')
+      expect(names.some((n) => n.includes('Gone'))).toBe(false)
+      const dune = files.get('Hibana-Backup-2026-09-16/Notes/Movies/Sci-fi/Dune.md')!
+      expect(dune).toContain('# Dune')
+      expect(dune).toContain('type: note')
+      expect(dune).toContain('starred: true')
+      expect(dune).toContain('must watch')
+      // Home MOC lists the notes
+      const home = files.get('Hibana-Backup-2026-09-16/Home.md')!
+      expect(home).toContain('| Notes | 3 |')
+      expect(home).toContain('[[Notes/Movies/Sci-fi/Dune]]')
+    } finally {
+      close()
+    }
+  })
+
   it('rides the export rate limit (10/min/IP)', async () => {
     const { db, close } = makeTestDb()
     try {

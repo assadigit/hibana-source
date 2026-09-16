@@ -59,6 +59,7 @@ const ENTRY_POINTS = [
   'sadhana-data.js', 'sprint-page.js',
   'calendar-page.js', 'settings-page.js', 'sparks-page.js', 'projects-page.js', 'board-page.js',
   'reports-page.js', 'signup-page.js', 'clients-page.js', 'clip-page.js', '404-page.js', 'confirm-page.js', 'notifications-page.js',
+  'notes-page.js', // S53: the Notes Vault controller
   // S39: the media library page controller
   'gallery-page.js',
 ]
@@ -78,6 +79,7 @@ const CSS_ENTRY_POINTS = [
   'components.css', 'canvas.css', 'quicknotes.css', 'to-do-list.css', 'polish-ui.css',
   'calendar.css', 'notifications.css', 'polish-batch.css', 'project-header.css',
   'devboard.css', 'misc.css', 'sadhana-board.css', 'themes.css', 'rtl.css', 'task-controls.css',
+  'notes.css', // S53: the Notes Vault (after rtl.css by list position — a feature sheet like the rest; specificity is selector-based, not order-based)
 ]
 
 // In-bundle dynamic-injection literals that get rewritten to hashed URLs during wiring.

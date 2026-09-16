@@ -233,6 +233,34 @@ export interface SprintRow {
   description: string | null // 0052: the sprint's rich doc (markdown + fenced code) — the full-screen editor's subject
 }
 
+// --- Notes Vault (0057 — S53: standalone long-form knowledge base, /notes) --------
+// Obsidian-style: nested folders + starred + soft-delete + tags. Manual tags are a CSV
+// string column; inline #tags are parsed from content. The API namespace is /api/vault
+// (quick_notes already owns /api/notes).
+
+export interface NoteFolderRow {
+  id: string
+  user_id: string
+  parent_id: string | null
+  name: string
+  sort_order: number
+  created_at: string
+  updated_at: string
+}
+
+export interface VaultNoteRow {
+  id: string
+  user_id: string
+  folder_id: string | null
+  title: string
+  content: string
+  tags: string // CSV of manual tag pills
+  starred: 0 | 1
+  deleted_at: string | null
+  created_at: string
+  updated_at: string
+}
+
 // --- Backlog docs (0033 — برنامه آتی «upcoming plan» tab) -----------------------
 export interface BacklogDocRow {
   id: string

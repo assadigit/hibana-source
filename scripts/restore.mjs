@@ -79,6 +79,7 @@ const FK_SAFE_ORDER = [
   'links', 'screenshots', 'tasks', 'payments', 'telegram_captures', 'telegram_links',
   'canvas_elements', 'password_resets',
   'quick_notes',
+  'note_folders', 'vault_notes', // Notes Vault (0057, S53) — folders before notes (folder FK)
   'sadhana_tasks', 'sadhana_tags', 'sadhana_updates', 'sadhana_recur_history',
   'sadhana_quadrant_names',
   'task_categories', 'sprints', 'dev_tasks', 'dev_task_tags', 'project_archives',

@@ -1,5 +1,5 @@
 import type { Db } from '../db/types'
-import type { ProjectRow, TagRow, HurdleRow, LinkRow, ScreenshotRow, PaymentRow, TaskRow, DevTaskRow, TaskCategory, SprintRow, BacklogDocRow } from '../types'
+import type { ProjectRow, TagRow, HurdleRow, LinkRow, ScreenshotRow, PaymentRow, TaskRow, DevTaskRow, TaskCategory, SprintRow, BacklogDocRow, NoteFolderRow, VaultNoteRow } from '../types'
 
 // Obsidian vault EXPORT (session 15, user request): the mirror of the §9 Obsidian import.
 // The import side (src/lib/obsidian.ts + /api/import/obsidian) turns a pack of .md files
@@ -14,6 +14,9 @@ import type { ProjectRow, TagRow, HurdleRow, LinkRow, ScreenshotRow, PaymentRow,
 //                                               history, client tasks, dev board, sprints,
 //                                               backlog docs inlined as sections
 //   Hibana-Backup-<date>/Ideas/<t>.md         — one note per spark (idea) + its history
+//   Hibana-Backup-<date>/Notes/<folder>/<t>.md — one file per vault note, mirroring the
+//                                               folder tree (0057, S53); unfiled notes
+//                                               sit directly under Notes/
 //   Hibana-Backup-<date>/To-Do Board.md       — sadhana tasks grouped by quadrant + updates log
 //   Hibana-Backup-<date>/Canvas.md            — text-bearing canvas/notebook elements
 //   Hibana-Backup-<date>/Telegram Captures.md — the capture inbox
@@ -31,6 +34,7 @@ interface VaultStats {
   projects: number
   ideas: number
   quickNotes: number
+  vaultNotes: number
   todoTasks: number
   canvasElements: number
   telegramCaptures: number
@@ -41,6 +45,18 @@ interface VaultStats {
 // \/:*?"<>|, control chars, leading/trailing dots; and '/' can never appear in a zip
 // path segment. Cap at 80 chars so long Persian titles stay usable; dedupe via the
 // used-set so two projects with the same title never overwrite each other's file.
+/** Zip-path segment hygiene (Notes export, 0057): a FOLDER name becomes a path
+ *  segment, so it gets the same Windows-illegal + control-char scrub as file names —
+ *  minus the dedupe (segments may repeat across different folders) and the .md tail. */
+export function safePathSegment(name: string): string {
+  const seg = name
+    .replace(/[\\/:*?"<>|\x00-\x1f]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .replace(/^[. ]+|[. ]+$/g, '')
+  return [...seg].length > 60 ? [...seg].slice(0, 60).join('').trim() : seg || 'Folder'
+}
+
 export function safeMdName(title: string, used: Set<string>): string {
   let base = title
     .replace(/[\\/:*?"<>|\x00-\x1f]/g, ' ')
@@ -122,7 +138,7 @@ export async function buildObsidianVault(
   const stamp = now.toISOString()
   const root = opts.vaultName ?? `Hibana-Backup-${stamp.slice(0, 10)}`
   const files: VaultFiles = new Map()
-  const stats: VaultStats = { projects: 0, ideas: 0, quickNotes: 0, todoTasks: 0, canvasElements: 0, telegramCaptures: 0 }
+  const stats: VaultStats = { projects: 0, ideas: 0, quickNotes: 0, vaultNotes: 0, todoTasks: 0, canvasElements: 0, telegramCaptures: 0 }
 
   // Sub-select keeps every child-table query valid even for an empty account (no dynamic
   // "IN ()" placeholder building) and re-applies the user scope + live filter.
@@ -154,6 +170,15 @@ export async function buildObsidianVault(
     'SELECT id, kind, title, content, color, note_date, sticky, created_at, updated_at FROM quick_notes WHERE user_id = ? AND deleted_at IS NULL ORDER BY created_at',
     [userId],
   )
+  // Notes Vault (0057, S53): the /notes knowledge base exports as real per-note files
+  // inside the folder tree — the closest thing to an Obsidian vault inside the backup.
+  const [noteFolders, vaultNotes] = await Promise.all([
+    db.query<NoteFolderRow>('SELECT id, parent_id, name FROM note_folders WHERE user_id = ?', [userId]),
+    db.query<VaultNoteRow>(
+      'SELECT id, folder_id, title, content, tags, starred, created_at, updated_at FROM vault_notes WHERE user_id = ? AND deleted_at IS NULL ORDER BY updated_at DESC',
+      [userId],
+    ),
+  ])
   const todoTasks = await db.query<SadhanaRow>(
     'SELECT id, quadrant, title, emoji, fuzzy, due_date, due_time, done, progress, note, recurring, recur_type, created_at, updated_at FROM sadhana_tasks WHERE user_id = ? AND deleted_at IS NULL ORDER BY quadrant, position',
     [userId],
@@ -307,6 +332,46 @@ export async function buildObsidianVault(
     }
   }
 
+  // ---- Notes Vault (0057): one file per note, folder tree mirrored into the path ----
+  const noteLinks: string[] = []
+  if (vaultNotes.length) {
+    stats.vaultNotes = vaultNotes.length
+    // folder path builder (cycle-guarded — moves are cycle-checked at the API, but the
+    // export must never infinite-loop on any historical shape)
+    const folderById = new Map(noteFolders.map((f) => [f.id, f]))
+    const pathOf = (folderId: string | null): string => {
+      const parts: string[] = []
+      const seen = new Set<string>()
+      let cur = folderId ? folderById.get(folderId) : undefined
+      while (cur && !seen.has(cur.id)) {
+        seen.add(cur.id)
+        parts.unshift(safePathSegment(cur.name))
+        cur = cur.parent_id ? folderById.get(cur.parent_id) : undefined
+      }
+      return parts.join('/')
+    }
+    // one dedupe set PER folder path — same-titled notes in different folders coexist
+    const usedByFolder = new Map<string, Set<string>>()
+    for (const n of vaultNotes) {
+      const dir = pathOf(n.folder_id)
+      const key = dir || '.'
+      if (!usedByFolder.has(key)) usedByFolder.set(key, new Set())
+      const fname = safeMdName(n.title.trim() || 'Untitled note', usedByFolder.get(key)!)
+      const rel = dir ? `Notes/${dir}/${fname}` : `Notes/${fname}`
+      const fm = frontmatter([
+        ['type', 'note'],
+        ['folder', dir.replace(/\//g, ' / ')],
+        ['tags', n.tags.split(',').map((t) => t.trim()).filter(Boolean)],
+        ['starred', n.starred === 1],
+        ['created', isoDate(n.created_at)],
+        ['updated', isoDate(n.updated_at)],
+        ['hibana', n.id],
+      ])
+      files.set(`${root}/${rel}`, fm + `# ${n.title.trim() || 'Untitled note'}\n\n${n.content.trim()}\n`)
+      noteLinks.push(`- [[${rel.replace(/\.md$/, '')}]]`)
+    }
+  }
+
   if (quickNotes.length) {
     stats.quickNotes = quickNotes.length
     const blocks = quickNotes.map((n) => {
@@ -364,6 +429,7 @@ export async function buildObsidianVault(
     ['Projects', stats.projects],
     ['Ideas', stats.ideas],
     ['Quick notes', stats.quickNotes],
+    ['Notes', stats.vaultNotes],
     ['To-Do tasks', stats.todoTasks],
     ['Canvas elements', stats.canvasElements],
     ['Telegram captures', stats.telegramCaptures],
@@ -372,6 +438,7 @@ export async function buildObsidianVault(
   homeParts.push(`# Hibana Backup\n\n> Exported ${stamp} — drop this folder into an Obsidian vault.\n\n| Part | Items |\n| --- | --- |\n${table}\n`)
   if (projectLinks.length) homeParts.push(`## Projects\n\n${projectLinks.join('\n')}\n`)
   if (ideaLinks.length) homeParts.push(`## Ideas\n\n${ideaLinks.join('\n')}\n`)
+  if (noteLinks.length) homeParts.push(`## Notes\n\n${noteLinks.join('\n')}\n`)
   homeParts.push(`## About\n\nRe-import into Hibana via Settings → Obsidian import — files whose title already exists are skipped, so this vault is safe to round-trip.\n`)
   files.set(`${root}/Home.md`, homeParts.join('\n'))
 

@@ -19,6 +19,7 @@
     { id: 'qa-dashboard', label: () => _t('nav.dashboard', 'Dashboard'), icon: 'gear', go: '/dashboard.html' },
     { id: 'qa-projects', label: () => _t('nav.projects', 'Projects'), icon: 'folder-plus', go: '/projects.html' },
     { id: 'qa-sparks', label: () => _t('nav.sparks', 'Ideas'), icon: 'idea', go: '/sparks.html' },
+    { id: 'qa-notes', label: () => _t('nav.notes', 'Notes'), icon: 'book', go: '/notes.html' },
     { id: 'qa-sadhana', label: () => _t('nav.sadhana', 'To-do list'), icon: 'target', go: '/to-do-list' },
     { id: 'qa-canvas', label: () => _t('nav.canvas', 'Canvas'), icon: 'pencil', go: '/canvas.html' },
     { id: 'qa-calendar', label: () => _t('nav.calendar', 'Calendar'), icon: 'calendar', go: '/calendar.html' },
@@ -494,7 +495,7 @@
     // rebuilt never (one per page load), which matches every other cmdk surface.
     // Go-to destinations reuse the existing nav.* keys (already translated).
     const GOTO = [
-      ['nav.dashboard', 'd'], ['nav.projects', 'p'], ['nav.sparks', 's'], ['nav.sadhana', 't'],
+      ['nav.dashboard', 'd'], ['nav.projects', 'p'], ['nav.sparks', 's'], ['nav.notes', 'o'], ['nav.sadhana', 't'],
       ['nav.canvas', 'c'], ['nav.whiteboard', 'n'], ['nav.calendar', 'l'],
       ['nav.reports', 'r'], ['nav.archive', 'a'], ['nav.settings', 'e'], ['nav.notifications', 'f'],
     ]

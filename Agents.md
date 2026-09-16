@@ -119,7 +119,7 @@ properties for RTL/LTR.
 ## D1 discipline
 - Remote D1 writes only via real `.mjs` script files (`wrangler d1 execute --file`) — never
   inline `node -e` inside double-quoted bash (`${…}` mangles).
-- Live DBs at schema 55 (0056, S41) — never re-apply migrations blindly (Changelogs §6).
+- Live DBs at schema 56 (0057, S53) — never re-apply migrations blindly (Changelogs §6).
 - Diagnose against prod data before coding ("board broken" was a soft-deleted project).
 
 ## Secrets & credentials

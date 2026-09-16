@@ -100,6 +100,10 @@ export const SNAPSHOT_TABLES = [
   'telegram_captures', 'telegram_links',
   'quick_notes', 'sadhana_tasks', 'sadhana_tags', 'sadhana_updates',
   'sadhana_recur_history', 'sadhana_quadrant_names',
+  // Notes Vault (0057, S53): the /notes knowledge base — folders BEFORE notes
+  // (vault_notes.folder_id is FK'd to note_folders; the list stays restore-safe).
+  // Caught by the backup-audit drift guard the moment the tables materialized.
+  'note_folders', 'vault_notes',
   // Session 20 (backup-coverage audit): task_categories + sprints are FK PARENTS of
   // dev_tasks (category_id, sprint_id) — they now precede it so the list is truly
   // FK-safe for restores that enforce constraints. dev_task_tags (0029) and

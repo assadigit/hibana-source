@@ -1,7 +1,7 @@
 // Vim-style "g then letter" go-to shortcuts (Round 7.1).
 // Press `g`, then within 1s press a letter to jump to a page:
-//   g d → dashboard, g p → projects, g s → sparks (ideas), g t → to-do list,
-//   g c → canvas, g n → notebook, g r → reports, g a → archive,
+//   g d → dashboard, g p → projects, g s → sparks (ideas), g o → notes (vault),
+//   g t → to-do list, g c → canvas, g n → notebook, g r → reports, g a → archive,
 //   g e → settings, g l → calendar, g f → notifications.
 // The `g` keypress shows a brief "g…" hint pill bottom-center; if no follow-up key arrives
 // within 1s, it cancels silently. Never triggers when typing in an input/textarea/select.
@@ -12,6 +12,7 @@
 
   const TARGETS = {
     d: '/dashboard.html', p: '/projects.html', s: '/sparks.html', t: '/to-do-list',
+    o: '/notes.html', // S53: the Notes Vault (n was taken by the notebook)
     c: '/canvas.html', n: '/whiteboard.html', r: '/reports.html', a: '/archive.html',
     e: '/settings.html', l: '/calendar.html', f: '/notifications.html',
   }

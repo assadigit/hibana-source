@@ -92,7 +92,7 @@ hibana/
 ├── Agents.md                     # ⚠️ READ FIRST — canonical agent rules
 ├── Changelogs.md                 # History + current state + ops runbook + open items
 ├── README.md                     # This file
-├── package.json                  # v0.3.13.9
+├── package.json                  # v0.3.14.0
 ├── wrangler.toml                 # Cloudflare Workers config (dev + prod envs)
 ├── tsconfig.json
 ├── vitest.config.ts
@@ -152,7 +152,7 @@ task-controls → magic-wand
 - Persian digit normalization. CSS logical properties for RTL/LTR.
 
 ### Service worker (PWA)
-`public/sw.js` — manifest-driven precache. `VERSION = "hibana-v387"` (bump ONLY on
+`public/sw.js` — manifest-driven precache. `VERSION = "hibana-v395"` (bump ONLY on
 sw.js logic changes — see the header comment in sw.js). Network-first for navigations,
 cache-first for app shell.
 
@@ -239,7 +239,7 @@ Any CSS/JS change bumps `?v=` on EVERY referencing HTML page AND the SW cache na
 Since v0.3.0 `/dist/` is content-hashed; SW version bumps only on `sw.js` logic changes
 or when existing clients need to re-fetch the manifest. `check-cache-bust` is a CI gate.
 
-**Current numbers (v0.3.13.9):** SW `hibana-v394`, 73 manifest entries, schema 55, 408 tests.
+**Current numbers (v0.3.14.0):** SW `hibana-v395`, 75 manifest entries, schema 56, 428 tests.
 
 ---
 
@@ -256,7 +256,7 @@ npm run deploy:prod
 Each deploy runs: `build --prod --wire-html` → `check-dist-wiring` → `wrangler deploy` →
 `build --restore-html` (reverts HTML to canonical form for git).
 
-**Prod D1:** `pm-app-prod`. **Dev D1:** `pm-app-dev`. Both at schema 55.
+**Prod D1:** `pm-app-prod`. **Dev D1:** `pm-app-dev`. Both at schema 56.
 **Custom domain:** hibana.ir (attached via Cloudflare dashboard, not wrangler.toml).
 **Deep links** (cron emails, Telegram reminders, the ICS feed — anything built outside a
 request) read `APP_URL` from `wrangler.toml` `[env.prod.vars]` — the one line to change on

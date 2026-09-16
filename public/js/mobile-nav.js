@@ -18,6 +18,7 @@
     { href: '/to-do-list', i18n: 'nav.sadhana', label: 'To-do', icon: '<circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.5 2.6 3.9 5.7 3.9 9s-1.4 6.4-3.9 9c-2.5-2.6-3.9-5.7-3.9-9S9.5 5.6 12 3Z"/>' },
     { href: '/projects.html', i18n: 'nav.projects', label: 'Projects', icon: '<path d="M3 7a2 2 0 0 1 2-2h4l2 2h7a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7Z"/><path d="M12 11v4M10 13h4"/>' },
     { href: '/sparks.html', i18n: 'nav.sparks', label: 'Ideas', icon: '<path d="M9 18h6M10 22h4"/><path d="M12 2a7 7 0 0 0-4.2 12.6c.9.7 1.2 1.6 1.2 2.4h6c0-.8.3-1.7 1.2-2.4A7 7 0 0 0 12 2Z"/>' },
+    { href: '/notes.html', i18n: 'nav.notes', label: 'Notes', icon: '<path d="M5 5h9l5 5v9a1.5 1.5 0 0 1-1.5 1.5h-12A1.5 1.5 0 0 1 4 19V6.5A1.5 1.5 0 0 1 5.5 5Z"/><path d="M8 12h8M8 15.5h5"/>' },
   ]
 
   // Secondary destinations + account actions — the old topbar user-menu contents.

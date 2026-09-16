@@ -601,6 +601,67 @@ main.shell-dash > section { margin-block-end: 2.9rem; }
 }
 
 /* ==========================================================================
+   S59: Notes Vault onboarding banner — the server renders it ONLY while the user
+   has zero active vault notes (adoption signal, dashboard.ts); the inline fragment
+   script honors a localStorage dismissal (hibana-vault-banner-dismissed). Same
+   visual family as .dash-resume (pinned card + glyph + CTA) so the two never sit
+   together looking alien — but a distinct label voice ("New", not a stage).
+   ========================================================================== */
+.dash-vault-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.9rem;
+  /* inline-end padding clears the absolutely-positioned dismiss button */
+  padding: 1rem 2.6rem 1rem 1.25rem;
+  margin-block-end: 2rem;
+  background: linear-gradient(100deg, var(--accent-soft), var(--card) 70%);
+  border: 1px solid color-mix(in srgb, var(--accent) 30%, var(--line));
+  border-inline-start: 4px solid var(--accent);
+  border-radius: var(--radius);
+  box-shadow: 0 2px 8px -4px rgb(0 0 0 / 0.08);
+  position: relative;
+}
+.dash-vault-glyph {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 2.5rem; height: 2.5rem;
+  border-radius: 50%;
+  background: var(--cta);
+  color: var(--btn-text);
+}
+.dash-vault-glyph .icon { width: 1.25rem; height: 1.25rem; }
+.dash-vault-body { display: flex; flex-direction: column; gap: 0.15rem; min-inline-size: 0; flex: 1; }
+.dash-vault-label { font-size: var(--fs-xs); font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--link); }
+.dash-vault-title { font-size: var(--fs-lg); font-weight: 700; color: var(--text); }
+.dash-vault-copy { font-size: var(--fs-sm); color: var(--muted); margin-block: 0.1rem 0.45rem; }
+.dash-vault-cta { align-self: flex-start; }
+.dash-vault-dismiss {
+  position: absolute;
+  inset-inline-end: 0.55rem;
+  inset-block-start: 0.55rem;
+  display: grid;
+  place-items: center;
+  width: 2rem; height: 2rem;
+  border-radius: 50%;
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+}
+.dash-vault-dismiss:hover { background: var(--bg-soft); color: var(--text); }
+.dash-vault-dismiss .icon { width: 1rem; height: 1rem; }
+@media (max-width: 540px) {
+  .dash-vault-banner { flex-wrap: wrap; gap: 0.6rem; padding: 0.85rem 2.4rem 0.85rem 1rem; }
+  .dash-vault-glyph { width: 2rem; height: 2rem; }
+  .dash-vault-title { font-size: var(--fs-md); }
+  .dash-vault-cta { margin-inline-start: auto; }
+}
+@media (max-width: 720px) {
+  .dash-vault-dismiss { width: 44px; height: 44px; } /* touch floor (WCAG 2.5.5) */
+}
+
+/* ==========================================================================
    S30 batch 3 (user request 2026-09-12): "urgent across projects" — the fire strip
    ==========================================================================
    An ALERT layer right under the resume card: cross-project urgent + high tasks.

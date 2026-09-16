@@ -39,7 +39,7 @@ export function dashboardRoutes(cfg: Config) {
     // at the 03:17 tick; resetDueRecurring is idempotent (only resets tasks past their
     // due date), so daily is frequent enough.
 
-    const [byStatus, recent, activeProjects, solvedThisWeek, notes, todoTasks, todoNameRows, todoNoteRows, urgentTasks, urgentCount] = await Promise.all([
+    const [byStatus, recent, activeProjects, solvedThisWeek, vaultNoteRows, notes, todoTasks, todoNameRows, todoNoteRows, urgentTasks, urgentCount] = await Promise.all([
       cfg.db.query<{ status: string; n: number }>(
         "SELECT status, COUNT(*) AS n FROM projects WHERE user_id = ? AND deleted_at IS NULL AND (archived_state IS NULL OR archived_state != 'offline') GROUP BY status",
         [user.id],
@@ -59,6 +59,12 @@ export function dashboardRoutes(cfg: Config) {
       cfg.db.query<{ n: number }>(
         'SELECT COUNT(*) AS n FROM hurdles WHERE solved_at IS NOT NULL AND solved_at >= ? AND project_id IN (SELECT id FROM projects WHERE user_id = ?)',
         [new Date(Date.now() - 7 * 24 * 3600 * 1000).toISOString(), user.id],
+      ),
+      // S59: Notes Vault adoption signal for the onboarding banner — active notes only
+      // (trashed-only users have seen the vault; a banner for them would be noise).
+      cfg.db.query<{ n: number }>(
+        'SELECT COUNT(*) AS n FROM vault_notes WHERE user_id = ? AND deleted_at IS NULL',
+        [user.id],
       ),
       // P5.1 (F-M1): cap the notebook widget to 20 notes (was unbounded SELECT *). The full
       // notebook lives at /whiteboard.html. ORDER BY sort_order DESC matches P1.2 (newest
@@ -463,6 +469,29 @@ export function dashboardRoutes(cfg: Config) {
           </section>`
         : html``
 
+      // S59 first candidate (owner session list): Notes Vault onboarding banner for
+      // existing users. The Vault is LIVE for everyone (schema 56 everywhere, S58) but
+      // an account with zero notes has no surface pointing at it. Renders ONLY while
+      // the user has zero active vault notes; the inline script honors a localStorage
+      // dismissal ("seen it, not now"), and the server stops rendering the moment the
+      // first note exists. Placed right under the resume card — adoption layer, quiet
+      // once used. The dismiss key is namespaced and never expires: a user who said
+      // not-now gets the banner again only via a new device/browser profile.
+      const vaultCount = vaultNoteRows[0]?.n ?? 0
+      const vaultBanner: SafeHtml = vaultCount > 0
+        ? html``
+        : html`<section class="dash-vault-banner card" data-vault-banner role="region" aria-label="${t('Notes Vault introduction', 'معرفی گاوصندوق یادداشت‌ها')}">
+            <div class="dash-vault-glyph" aria-hidden="true">${raw(icon('pencil'))}</div>
+            <div class="dash-vault-body">
+              <span class="dash-vault-label">${t('New', 'تازه')}</span>
+              <strong class="dash-vault-title">${t('The Notes Vault', 'گاوصندوق یادداشت‌ها')}</strong>
+              <p class="dash-vault-copy">${t('A home for the notes you want to keep — knowledge, reference, curated lists. Folders, tags, star, and full-text search.', 'خانهٔ یادداشت‌هایی که می‌خواهی نگه داری — دانش، مراجع، فهرست‌های منتخب. پوشه‌ها، برچسب‌ها، ستاره و جست‌وجوی کامل متن.')}</p>
+              <a class="btn dash-vault-cta" href="/notes.html?new=1">${t('Create your first note', 'نخستین یادداشتت را بساز')} ${raw(icon('arrow-right', 'icon'))}</a>
+            </div>
+            <button type="button" class="dash-vault-dismiss" data-vault-dismiss aria-label="${t('Dismiss', 'بستن')}">${raw(icon('x'))}</button>
+            <script>(function(){var K='hibana-vault-banner-dismissed',e=document.querySelector('[data-vault-banner]');if(!e)return;try{if(localStorage.getItem(K)==='1'){e.remove();return}}catch(x){}var b=e.querySelector('[data-vault-dismiss]');if(b)b.addEventListener('click',function(){try{localStorage.setItem(K,'1')}catch(x){}e.remove()})})()</${'script'}>
+          </section>`
+
       // S30 batch 3 (user request 2026-09-12): "urgent across projects" — the cross-
       // project urgent+high FIRE STRIP. S46 (user request 2026-09-14): the strip now
       // renders right UNDER the projects section (was above all pref-ordered sections);
@@ -518,7 +547,7 @@ export function dashboardRoutes(cfg: Config) {
       const projectsIdx = renderOrder.indexOf('projects')
       const out: SafeHtml = sectionHtmls.length
         ? (() => {
-            const parts: SafeHtml[] = [resumeCard]
+            const parts: SafeHtml[] = [resumeCard, vaultBanner]
             if (projectsIdx === -1 && urgentTasks.length) parts.push(urgentStrip)
             sectionHtmls.forEach((h, i) => {
               parts.push(h)
@@ -526,7 +555,7 @@ export function dashboardRoutes(cfg: Config) {
             })
             return html`${parts}`
           })()
-        : html`${resumeCard}${urgentStrip}<div class="dash-empty">${t('Nothing on your dashboard — enable a section in Settings → View options.', 'پیشخوان خالی است — یک بخش را در تنظیمات ← گزینه‌های نمایش روشن کن.')} <a href="/settings.html">${t('Open settings', 'باز کردن تنظیمات')}</a></div>`
+        : html`${resumeCard}${vaultBanner}${urgentStrip}<div class="dash-empty">${t('Nothing on your dashboard — enable a section in Settings → View options.', 'پیشخوان خالی است — یک بخش را در تنظیمات ← گزینه‌های نمایش روشن کن.')} <a href="/settings.html">${t('Open settings', 'باز کردن تنظیمات')}</a></div>`
 
       // S51-A: sr-only h1 — the page needs a level-one heading (axe
       // page-has-heading-one) that lives INSIDE <main> (axe region). The dashboard

@@ -314,6 +314,7 @@
               : state.view.type === 'folder' ? _t('notes.emptyFolderHint', 'This folder is empty — create the first note.')
               : _t('notes.emptyListHint', 'The long-form knowledge base: curated lists, reference notes, things worth keeping.'))}</p>
             ${!inTrash && !state.q ? `<button type="button" class="vault-new" data-vault-new style="margin-block-start:0.5rem">${I.plus}<span>${esc(_t('notes.newNote', 'New note'))}</span></button>` : ''}
+            ${!inTrash && !state.q && state.view.type === 'all' && state.counts.all === 0 && state.counts.has_sparks ? `<button type="button" class="vault-meta-add" data-vault-import style="margin-block-start:0.375rem;align-self:center">${I.copy}<span>${esc(_t('notes.importIdeas', 'Import your ideas'))}</span></button>` : ''}
           </div>`
           return
         }
@@ -333,20 +334,21 @@
 
       const crumbsHtml = () => {
         const path = state.active && state.active.folder_id ? folderPath(state.active.folder_id) : []
-        const root = `<button type="button" data-vault-crumb-unfile>${esc(_t('notes.unfiled', 'Unfiled'))}</button>`
-        if (!path.length) return `<span class="vault-crumb-leaf">${esc(_t('notes.unfiled', 'Unfiled'))}</span>`
+        if (!path.length) return `<button type="button" class="vault-crumb-leaf" data-vault-crumb-unfile>${esc(_t('notes.unfiled', 'Unfiled'))}</button>`
+        // S54 fix: the path IS the crumb chain — every folder is clickable (incl. the
+        // leaf), and there is NO trailing "Unfiled" on a filed note (it used to read
+        // "Movies › Sci-fi › Unfiled", implying the note was unfiled).
         return path.map((f, i) =>
           (i ? '<span class="icon-sep">' + I.chevron + '</span>' : '') +
-          (i === path.length - 1
-            ? `<span class="vault-crumb-leaf" dir="auto">${esc(f.name)}</span>`
-            : `<button type="button" data-vault-crumb="${f.id}" dir="auto">${esc(f.name)}</button>`),
-        ).join('') + `<span class="icon-sep">${I.chevron}</span>` + root
+          `<button type="button" data-vault-crumb="${f.id}" dir="auto" class="${i === path.length - 1 ? 'vault-crumb-leaf' : ''}">${esc(f.name)}</button>`,
+        ).join('')
       }
 
       const tagPillsHtml = () => {
         const pills = csvTags(state.draft.tags)
-        return pills.map((t) => `<span class="vault-meta-pill">#${esc(t)}
-            <button type="button" data-vault-tagrm="${esc(t)}" aria-label="${esc(_t('notes.removeTag', 'Remove tag'))} ${esc(t)}">${I.x}</button>
+        const trash = !!state.active?.deleted_at // frozen: the pills stay, the ×-buttons don't
+        return pills.map((t) => `<span class="vault-meta-pill">#${esc(t)}${trash ? '' : `
+            <button type="button" data-vault-tagrm="${esc(t)}" aria-label="${esc(_t('notes.removeTag', 'Remove tag'))} ${esc(t)}">${I.x}</button>`}
           </span>`).join('')
       }
 
@@ -417,7 +419,7 @@
             </div>
           </div>
           <div class="vault-status">
-            <span class="vault-save" data-vault-save data-state="${state.saveState}">${state.saveState === 'saving' || state.saveState === 'error' ? I.pencil : I.check}${saveLabel() && '&nbsp;' + esc(saveLabel())}</span>
+            <span class="vault-save" data-vault-save data-state="${state.saveState}">${esc(saveLabel())}</span>
             <span class="vault-status-words" data-vault-words></span>
           </div>
         </div>`
@@ -434,7 +436,7 @@
         const saveEl = $('[data-vault-save]')
         if (saveEl) {
           saveEl.setAttribute('data-state', state.saveState)
-          saveEl.innerHTML = (state.saveState === 'saving' || state.saveState === 'error' ? I.pencil : I.check) + (saveLabel() ? '&nbsp;' + esc(saveLabel()) : '')
+          saveEl.textContent = saveLabel()
         }
       }
 
@@ -606,6 +608,16 @@
         try {
           await api('/api/vault/notes/' + id + '/restore', { method: 'POST' })
           toast(_t('notes.restored', 'Note restored'), 'ok', 3000)
+          // S54: restoring the OPEN note unfreezes its editor in place (no reload).
+          if (state.active && state.active.id === id) {
+            try {
+              const res = await api('/api/vault/notes/' + id)
+              state.active = res.note
+              state.draft = { title: res.note.title, content: res.note.content, tags: res.note.tags }
+              state.saveState = 'idle'
+              renderEditor()
+            } catch { /* the editor keeps its trashed render; the lists below still refresh */ }
+          }
           loadBootstrap()
           loadNotes()
         } catch { toast(_t('notes.restoreFailed', 'Could not restore.'), 'err') }
@@ -665,6 +677,15 @@
       const noteMenu = (anchor) => {
         if (!state.active) return
         const n = state.active
+        // S54 fix: a trashed note is FROZEN server-side (move/duplicate/re-trash all
+        // 404) — its menu offers exactly the two things that work on it.
+        if (n.deleted_at) {
+          openMenu(anchor, [
+            { icon: I.restore, label: _t('notes.restore', 'Restore'), onClick: () => restoreNote(n.id) },
+            { icon: I.download, label: _t('notes.exportMd', 'Export as .md'), onClick: () => { window.location.href = '/api/vault/notes/' + n.id + '/export.md' } },
+          ])
+          return
+        }
         const items = []
         items.push({ icon: I.move, label: _t('notes.moveTo', 'Move to folder…'), onClick: moveMenu })
         items.push({ icon: I.copy, label: _t('notes.duplicate', 'Duplicate'), onClick: duplicateNote })
@@ -672,6 +693,21 @@
         items.push('-')
         items.push({ icon: I.trash, label: _t('notes.moveToTrash', 'Move to Trash'), danger: true, onClick: () => deleteNote(n.id) })
         openMenu(anchor, items)
+      }
+
+      /* ── S54: sparks → vault import (one-way copy; the sparks stay put) ── */
+      const importIdeas = async () => {
+        try {
+          const res = await api('/api/vault/import/sparks', { method: 'POST' })
+          if (res.created > 0) {
+            toast(_t('notes.importDone', 'Imported {n} idea(s) as notes').split('{n}').join(String(res.created)), 'ok', 4000)
+            await loadBootstrap()
+            await loadNotes()
+            renderTree()
+          } else {
+            toast(_t('notes.importNone', 'All your ideas are already notes here'), 'info', 3500)
+          }
+        } catch { toast(_t('notes.importFailed', 'Import failed.'), 'err') }
       }
 
       /* ── folder actions ── */
@@ -943,6 +979,7 @@
         }
         if (t.closest('[data-vault-tagadd]')) { addTagInline(); return }
         if (t.closest('[data-vault-save]') && state.saveState === 'error' && state.saveTimer === null) { doSave(); return }
+        if (t.closest('[data-vault-import]')) { importIdeas(); return }
 
         // mode toggle
         const mode = t.closest('[data-vault-mode]')
@@ -1067,6 +1104,15 @@
       /* ── boot: restore view pref + hash deep-link ── */
       const boot = async () => {
         await loadBootstrap()
+        // S54: /notes?new=1 (from the FAB / command palette) → start a fresh note
+        // right away. The param is stripped so a reload reopens the normal list.
+        const wantNew = new URLSearchParams(location.search).get('new') === '1'
+        if (wantNew) {
+          try { history.replaceState(null, '', location.pathname) } catch {}
+          await loadNotes()
+          await newNote()
+          return
+        }
         let initial = { type: 'all', id: null }
         try {
           const m = location.hash.match(/^#n=([0-9a-f-]+)$/i)

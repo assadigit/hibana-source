@@ -866,4 +866,11 @@ window.__hibanaDictEN = {
       'notes.noResults': 'No matches', 'notes.noResultsHint': 'Try a different search.',
       'notes.trashEmpty': 'Trash is empty', 'notes.trashEmptyHint': 'Deleted notes rest here before you remove them for good.',
       'notes.emptyEditorTitle': 'Nothing open', 'notes.emptyEditorHint': 'Pick a note from the list, or create a new one.',
+      'notes.importFailed': 'Import failed.',
+      'notes.importIdeas': 'Import your ideas',
+      'notes.importDone': 'Imported {n} idea(s) as notes',
+      'notes.importNone': 'All your ideas are already notes here',
+      'fab.vault': 'New note',
+      'fab.vaultHint': 'Long-form note in your Notes vault',
+      'cmdk.newNote': 'New note',
 }

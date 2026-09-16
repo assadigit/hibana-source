@@ -848,4 +848,145 @@
   .vault-body { display: block; }
   .vault-src { display: none; }
   .vault-preview { border: 0; overflow: visible; }
+}\n
+/* ══════════════ S54 POLISH BATCH ═══════════════════════════════════════════════ */
+
+/* Card hover: a 1px lift + hairline tint — the list reads alive without noise. */
+.vault-card { transition: background 0.14s ease, border-color 0.14s ease, transform 0.14s ease, box-shadow 0.14s ease; }
+.vault-card:not([aria-current='true']):hover {
+  background: var(--bg-soft);
+  border-color: var(--line-strong);
+  transform: translateY(-1px);
+  box-shadow: 0 2px 10px -6px rgba(38, 33, 24, 0.18);
+}
+.vault-card:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+
+/* Star pop — the toggle (and the card star) bounce once when it turns on. */
+@keyframes vault-star-pop {
+  0% { transform: scale(1); }
+  45% { transform: scale(1.45) rotate(-8deg); }
+  100% { transform: scale(1); }
+}
+.vault-iconbtn[data-vault-star][aria-pressed='true'] .icon,
+.vault-card-star .icon { animation: vault-star-pop 0.34s cubic-bezier(0.34, 1.56, 0.64, 1); }
+
+/* Editor title: the focus underline grows from center (a quiet writing signal). */
+.vault-ed-title { position: relative; }
+.vault-ed-title::after {
+  content: '';
+  position: absolute;
+  inset-inline: 0;
+  inset-block-end: 0;
+  block-size: 2px;
+  border-radius: 2px;
+  background: var(--accent);
+  transform: scaleX(0);
+  transform-origin: center;
+  transition: transform 0.22s ease;
+}
+.vault-ed-title:focus::after { transform: scaleX(1); }
+.vault-ed-title:focus { box-shadow: none; }
+
+/* Save-state chip: a live dot with a soft pulse while saving, green settle on saved. */
+/* The chip only exists while there is something to say — idle state is fully quiet. */
+.vault-save:empty { display: none; }
+.vault-save { transition: color 0.2s ease; }
+.vault-save::before { content: ''; display: inline-block; inline-size: 0.4375rem; block-size: 0.4375rem; border-radius: 50%; background: currentColor; margin-inline-end: 0.3125rem; vertical-align: 0.0625rem; }
+.vault-save[data-state='saving']::before { animation: vault-save-pulse 0.9s ease-in-out infinite; }
+@keyframes vault-save-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.45; transform: scale(0.72); }
+}
+
+/* Breadcrumb separators + leaf (S54: all crumbs are buttons now; the leaf keeps its
+   accent weight). The .icon-sep chevrons shrink + dim between crumbs. */
+.vault-crumb .icon-sep { display: inline-flex; align-items: center; }
+.vault-crumb .icon-sep .icon { inline-size: 0.65rem; block-size: 0.65rem; opacity: 0.55; }
+.vault-crumb button.vault-crumb-leaf { color: var(--accent); font-weight: 600; }
+.vault-crumb button.vault-crumb-leaf:hover { background: var(--accent-soft); }
+
+/* Preview typography — the reading pane earns its "Reading" name: styled quotes,
+   code islands with surfaces, calmer heading rhythm, tappable-looking links. */
+.vault-preview .markdown-body { line-height: 1.75; }
+.vault-preview .markdown-body h1, .vault-preview .markdown-body h2, .vault-preview .markdown-body h3 {
+  letter-spacing: -0.01em;
+  margin-block: 1.4em 0.5em;
+  scroll-margin-block-start: 5rem;
+}
+.vault-preview .markdown-body blockquote {
+  margin: 1em 0;
+  padding: 0.55em 1em;
+  border-inline-start: 3px solid var(--accent);
+  border-radius: 0 10px 10px 0;
+  background: var(--accent-soft);
+  color: var(--muted);
+  font-style: italic;
+}
+[dir='rtl'] .vault-preview .markdown-body blockquote { border-radius: 10px 0 0 10px; }
+.vault-preview .markdown-body pre {
+  margin: 1em 0;
+  padding: 0.875rem 1rem;
+  border-radius: 12px;
+  background: var(--bg-soft);
+  border: 1px solid var(--line);
+  overflow-x: auto;
+  direction: ltr;
+  text-align: start;
+  font-size: 0.8125rem;
+  line-height: 1.6;
+}
+.vault-preview .markdown-body code {
+  background: var(--bg-soft);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 0.08em 0.35em;
+  font-size: 0.85em;
+}
+.vault-preview .markdown-body pre code { background: transparent; border: 0; padding: 0; font-size: inherit; }
+.vault-preview .markdown-body a { color: var(--link, var(--accent)); text-decoration-thickness: 1px; text-underline-offset: 3px; }
+.vault-preview .markdown-body a:hover { text-decoration-thickness: 2px; }
+.vault-preview .markdown-body hr { border: 0; border-block-start: 1px solid var(--line-strong); margin-block: 1.75em; }
+.vault-preview .markdown-body li { margin-block: 0.2em; }
+.vault-preview .markdown-body li::marker { color: var(--accent); }
+
+/* Empty states: the icon sits in a soft accent circle (matches .empty-state-icon
+   patterns elsewhere) and the CTA row centers. */
+.vault-empty .empty-state-icon,
+.vault-ed-empty .empty-state-icon {
+  display: grid;
+  place-items: center;
+  inline-size: 3.25rem;
+  block-size: 3.25rem;
+  border-radius: 50%;
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+.vault-empty .empty-state-icon .icon,
+.vault-ed-empty .empty-state-icon .icon { inline-size: 1.5rem; block-size: 1.5rem; color: var(--accent); }
+.vault-empty { align-items: center; }
+.vault-empty [data-vault-import] { justify-content: center; }
+
+/* Tag chips: hover gets the accent ring; pills on cards get a soft fill. */
+.vault-tag-chip { transition: border-color 0.14s ease, color 0.14s ease, background 0.14s ease; }
+.vault-pill { background: color-mix(in srgb, var(--accent) 7%, transparent); border: 1px solid transparent; }
+.vault-pill.is-inline { background: transparent; border-color: var(--line-strong); }
+
+/* Toolbar buttons: pressed feedback + focus ring (they were outline-less). */
+.vault-tb { transition: background 0.12s ease, color 0.12s ease; }
+.vault-tb:active { transform: translateY(0.5px); }
+.vault-tb:focus-visible, .vault-mode:focus-visible, .vault-quick:focus-visible,
+.vault-folder:focus-visible, .vault-tag-chip:focus-visible, .vault-card-trash button:focus-visible,
+.vault-tw:focus-visible, .vault-kebab:focus-visible, .vault-pop-item:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+/* Reduced motion: the pop/pulse/lift animations go flat; transitions stay (they're
+   sub-perceptual), the movement ones don't. */
+@media (prefers-reduced-motion: reduce) {
+  .vault-card { transition: background 0.14s ease, border-color 0.14s ease; transform: none; }
+  .vault-iconbtn[data-vault-star][aria-pressed='true'] .icon,
+  .vault-card-star .icon { animation: none; }
+  .vault-save[data-state='saving']::before { animation: none; }
+  .vault-ed-title::after { transition: none; }
 }

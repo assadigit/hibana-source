@@ -108,3 +108,41 @@ test('notes vault: create → autosave → preview → star → trash → restor
 
   expect(errors, `console errors: ${errors.join(' | ')}`).toEqual([])
 })
+
+test('notes vault: FAB “New note” lands on /notes with a fresh focused note', async ({ page, browserName }) => {
+  test.skip(browserName !== 'chromium', 'Desktop Chromium only for now')
+
+  const errors: string[] = []
+  page.on('console', (msg) => { if (msg.type() === 'error') errors.push(msg.text()) })
+  page.on('pageerror', (err) => errors.push(err.message))
+
+  await page.goto('/login.html')
+  await page.waitForFunction(() => navigator.serviceWorker.controller !== null, null, { timeout: 8_000 }).catch(() => {})
+  await page.waitForLoadState('load')
+  await page.fill('[name="login"]', TEST_EMAIL)
+  await page.fill('[name="password"]', TEST_PASS)
+  await page.click('button[type="submit"]')
+  await page.waitForURL('**/app', { timeout: 10_000 })
+  await page.waitForLoadState('load').catch(() => {})
+
+  // The dashboard FAB carries the vault capture item (S54): idea / project / note / quick note.
+  await page.click('.fab[data-fab-toggle]')
+  const vaultItem = page.locator('.fab-item[data-i18n-title="fab.vault"]')
+  await expect(vaultItem).toBeVisible()
+  await vaultItem.click()
+
+  // Soft-navigation lands on /notes with the ?new=1 param consumed → fresh note open.
+  await page.waitForURL('**/notes.html', { timeout: 10_000 })
+  await expect(page.locator('[data-vault-title]')).toBeVisible({ timeout: 10_000 })
+  await expect(page.locator('[data-vault-title]')).toBeFocused()
+  await expect(page.locator('[data-vault-title]')).toHaveValue('')
+  expect(page.url()).not.toContain('new=1') // stripped so a reload reopens the list
+
+  // Type → autosave persists (the full S53 path re-verified through the FAB entry).
+  await page.fill('[data-vault-title]', 'From the FAB')
+  await page.fill('[data-vault-src]', 'captured from the dashboard +')
+  await expect(page.locator('[data-vault-save][data-state="saved"]')).toBeVisible({ timeout: 6_000 })
+
+  const filtered = errors.filter((e) => !/Failed to load resource.*(401|404)/.test(e))
+  expect(filtered, `console errors: ${filtered.join(' | ')}`).toEqual([])
+})

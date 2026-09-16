@@ -92,7 +92,7 @@ hibana/
 ├── Agents.md                     # ⚠️ READ FIRST — canonical agent rules
 ├── Changelogs.md                 # History + current state + ops runbook + open items
 ├── README.md                     # This file
-├── package.json                  # v0.3.14.0
+├── package.json                  # v0.3.14.1
 ├── wrangler.toml                 # Cloudflare Workers config (dev + prod envs)
 ├── tsconfig.json
 ├── vitest.config.ts
@@ -152,7 +152,7 @@ task-controls → magic-wand
 - Persian digit normalization. CSS logical properties for RTL/LTR.
 
 ### Service worker (PWA)
-`public/sw.js` — manifest-driven precache. `VERSION = "hibana-v395"` (bump ONLY on
+`public/sw.js` — manifest-driven precache. `VERSION = "hibana-v396"` (bump ONLY on
 sw.js logic changes — see the header comment in sw.js). Network-first for navigations,
 cache-first for app shell.
 
@@ -239,7 +239,7 @@ Any CSS/JS change bumps `?v=` on EVERY referencing HTML page AND the SW cache na
 Since v0.3.0 `/dist/` is content-hashed; SW version bumps only on `sw.js` logic changes
 or when existing clients need to re-fetch the manifest. `check-cache-bust` is a CI gate.
 
-**Current numbers (v0.3.14.0):** SW `hibana-v395`, 75 manifest entries, schema 56, 428 tests.
+**Current numbers (v0.3.14.1):** SW `hibana-v396`, 75 manifest entries, schema 56, 430 tests.
 
 ---
 

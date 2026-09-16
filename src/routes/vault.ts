@@ -130,9 +130,11 @@ export function vaultRoutes(cfg: Config) {
 
   // Sidebar bootstrap: folders (flat — the client builds the tree) each with its live
   // note count, the tag index (manual + inline #tags), and the smart-view counts.
+  // has_sparks (S54): powers the empty-state "import your ideas" CTA — shown only
+  // when the vault is empty AND the user actually has sparks to bring over.
   app.get('/bootstrap', async (c) => {
     const user = c.get('user')
-    const [folderRows, countRows, unfiledRow] = await Promise.all([
+    const [folderRows, countRows, unfiledRow, sparkRow] = await Promise.all([
       cfg.db.query<NoteFolderRow>(
         'SELECT * FROM note_folders WHERE user_id = ? ORDER BY sort_order, name COLLATE NOCASE',
         [user.id],
@@ -143,6 +145,10 @@ export function vaultRoutes(cfg: Config) {
       ),
       cfg.db.query<{ n: number }>(
         'SELECT COUNT(*) AS n FROM vault_notes WHERE user_id = ? AND deleted_at IS NULL AND folder_id IS NULL',
+        [user.id],
+      ),
+      cfg.db.query<{ n: number }>(
+        "SELECT COUNT(*) AS n FROM projects WHERE user_id = ? AND status = 'spark' AND deleted_at IS NULL",
         [user.id],
       ),
     ])
@@ -188,7 +194,7 @@ export function vaultRoutes(cfg: Config) {
     return c.json({
       folders,
       tags: [...tagIndex.values()].sort((a, b) => b.count - a.count || a.tag.localeCompare(b.tag)),
-      counts: { all, starred, trash, unfiled: unfiledRow[0]?.n ?? 0 },
+      counts: { all, starred, trash, unfiled: unfiledRow[0]?.n ?? 0, has_sparks: (sparkRow[0]?.n ?? 0) > 0 },
     })
   })
 
@@ -408,6 +414,67 @@ export function vaultRoutes(cfg: Config) {
       'Content-Disposition': `attachment; filename="${slug}.md"; filename*=UTF-8''${encodeURIComponent(slug)}.md`,
       'Cache-Control': 'no-store',
     })
+  })
+
+  // Sparks → Vault one-way import (S54, owner-approved in the S53 spec Q&A: "should
+  // Sparks/Quick Notes be importable into Notes later? — Yes they can"). COPY, never
+  // move: the sparks stay exactly where they are (the promote-to-project flow, the
+  // sparks page, history — all untouched); this materializes a long-form twin of each
+  // idea as a vault note so the knowledge base starts with real content.
+  //  - Destination: a folder named "Ideas" (reused if one exists — exact, case-insensitive).
+  //  - Dedupe: a spark whose title already exists as a LIVE note in that folder (case-insensitive)
+  //    is skipped, so re-running the import is idempotent.
+  //  - Body: description + the spark's "where I left off" note as a markdown quote —
+  //    no new markdown syntax (S53 owner rule), just the subset the renderer already has.
+  //  - Tag "idea" rides every imported note so the tag index groups them.
+  app.post('/import/sparks', async (c) => {
+    const user = c.get('user')
+    const sparks = await cfg.db.query<{ id: string; title: string; description: string; latest_note: string | null }>(
+      "SELECT id, title, description, latest_note FROM projects WHERE user_id = ? AND status = 'spark' AND deleted_at IS NULL ORDER BY updated_at DESC",
+      [user.id],
+    )
+    if (!sparks.length) return c.json({ ok: true, created: 0, skipped: 0 })
+
+    // Find-or-create the "Ideas" folder (user-scoped, case-insensitive name match).
+    const existing = await cfg.db.query<{ id: string }>(
+      "SELECT id FROM note_folders WHERE user_id = ? AND name COLLATE NOCASE = 'Ideas'",
+      [user.id],
+    )
+    let folderId = existing[0]?.id
+    const ts = now()
+    if (!folderId) {
+      folderId = uuid()
+      await cfg.db.execute(
+        'INSERT INTO note_folders (id, user_id, parent_id, name, sort_order, created_at, updated_at) VALUES (?, ?, NULL, \'Ideas\', 0, ?, ?)',
+        [folderId, user.id, ts, ts],
+      )
+    }
+
+    // Titles already present as live notes in the destination folder.
+    const present = await cfg.db.query<{ title: string }>(
+      'SELECT title FROM vault_notes WHERE user_id = ? AND folder_id = ? AND deleted_at IS NULL',
+      [user.id, folderId],
+    )
+    const presentTitles = new Set(present.map((r) => r.title.trim().toLowerCase()))
+
+    let created = 0
+    let skipped = 0
+    for (const s of sparks) {
+      const title = s.title.trim() || 'Untitled idea'
+      if (presentTitles.has(title.toLowerCase())) {
+        skipped++
+        continue
+      }
+      const sections: string[] = []
+      if (s.description?.trim()) sections.push(s.description.trim())
+      if (s.latest_note?.trim()) sections.push(`> ${s.latest_note.trim().replace(/\n/g, '\n> ')}`)
+      await cfg.db.execute(
+        'INSERT INTO vault_notes (id, user_id, folder_id, title, content, tags, starred, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, 0, ?, ?)',
+        [uuid(), user.id, folderId, title.slice(0, NOTE_TITLE_LIMIT), sections.join('\n\n').slice(0, NOTE_BODY_LIMIT), 'idea', ts, ts],
+      )
+      created++
+    }
+    return c.json({ ok: true, created, skipped, folder_id: folderId })
   })
 
   return app

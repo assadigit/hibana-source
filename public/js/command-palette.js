@@ -16,6 +16,7 @@
     // live in the help overlay's General section.
     { id: 'qa-new-idea', label: () => _t('cmdk.newIdea', 'New idea'), icon: 'idea', run: () => window.hibana?.openQuickAdd?.() },
     { id: 'qa-new-project', label: () => _t('cmdk.newProject', 'New project'), icon: 'folder-plus', run: () => window.hibana?.openProjectAdd?.() },
+    { id: 'qa-new-note', label: () => _t('cmdk.newNote', 'New note'), icon: 'book', run: () => { window.location.href = '/notes.html?new=1' } },
     { id: 'qa-dashboard', label: () => _t('nav.dashboard', 'Dashboard'), icon: 'gear', go: '/dashboard.html' },
     { id: 'qa-projects', label: () => _t('nav.projects', 'Projects'), icon: 'folder-plus', go: '/projects.html' },
     { id: 'qa-sparks', label: () => _t('nav.sparks', 'Ideas'), icon: 'idea', go: '/sparks.html' },

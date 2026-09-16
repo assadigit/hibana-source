@@ -863,4 +863,11 @@ window.__hibanaDictFA = {
       'notes.noResults': 'موردی پیدا نشد', 'notes.noResultsHint': 'عبارت دیگری را امتحان کن.',
       'notes.trashEmpty': 'زباله خالی است', 'notes.trashEmptyHint': 'یادداشت‌های حذف‌شده پیش از حذف همیشگی اینجا می‌مانند.',
       'notes.emptyEditorTitle': 'چیزی باز نیست', 'notes.emptyEditorHint': 'از فهرست یک یادداشت را برگزین، یا یکی تازه بساز.',
+      'notes.importFailed': 'واردکردن ممکن نشد.',
+      'notes.importIdeas': 'ایده‌هات را وارد کن',
+      'notes.importDone': '{n} ایده به یادداشت تبدیل شد',
+      'notes.importNone': 'همهٔ ایده‌ها همین‌جا هستند',
+      'fab.vault': 'یادداشت جدید',
+      'fab.vaultHint': 'یادداشت بلند در دانش‌نامه',
+      'cmdk.newNote': 'یادداشت جدید',
 }

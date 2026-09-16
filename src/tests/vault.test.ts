@@ -145,8 +145,8 @@ describe('notes vault (0057)', () => {
 
       const res = await app.fetch(new Request('http://local/api/vault/bootstrap', { headers: auth }))
       expect(res.status).toBe(200)
-      const boot = (await res.json()) as { folders: Folder[]; tags: { tag: string; count: number }[]; counts: { all: number; starred: number; trash: number; unfiled: number } }
-      expect(boot.counts).toEqual({ all: 3, starred: 1, trash: 1, unfiled: 3 }) // all three notes live unfiled
+      const boot = (await res.json()) as { folders: Folder[]; tags: { tag: string; count: number }[]; counts: { all: number; starred: number; trash: number; unfiled: number; has_sparks: boolean } }
+      expect(boot.counts).toEqual({ all: 3, starred: 1, trash: 1, unfiled: 3, has_sparks: false }) // no sparks in this fixture
       // per-folder counts ride the folder rows
       expect(boot.folders.every((f) => typeof f.note_count === 'number')).toBe(true)
       const byTag = new Map(boot.tags.map((t) => [t.tag.toLowerCase(), t.count]))
@@ -319,6 +319,67 @@ describe('notes vault (0057)', () => {
     }
   })
 })
+
+
+  it('S54: sparks → vault import — copies into an Ideas folder, idempotent, sparks untouched', async () => {
+    const { db, close } = makeTestDb()
+    try {
+      const user = await makeUser(db)
+      const { app, auth } = await makeClient(db, user)
+      // two live sparks (one with a "where I left off" note) + one soft-deleted + one non-spark project
+      const iso = () => new Date().toISOString()
+      await db.execute(
+        "INSERT INTO projects (id, user_id, title, description, latest_note, status, created_at, updated_at) VALUES ('sp1', ?, 'Idea one', 'The description.', 'Left off here', 'spark', ?, ?), ('sp2', ?, 'Idea two', '', '', 'spark', ?, ?), ('sp3', ?, 'Deleted idea', 'x', '', 'spark', ?, ?), ('pr1', ?, 'Real project', '', '', 'doing', ?, ?)",
+        [user, iso(), iso(), user, iso(), iso(), user, iso(), iso(), user, iso(), iso()],
+      )
+      await db.execute("UPDATE projects SET deleted_at = ? WHERE id = 'sp3'", [iso()])
+
+      // has_sparks flag is live in bootstrap
+      let res = await app.fetch(new Request('http://local/api/vault/bootstrap', { headers: auth }))
+      expect(((await res.json()) as { counts: { has_sparks: boolean } }).counts.has_sparks).toBe(true)
+
+      res = await app.fetch(new Request('http://local/api/vault/import/sparks', { method: 'POST', headers: auth }))
+      expect(res.status).toBe(200)
+      let body = (await res.json()) as { created: number; skipped: number; folder_id?: string }
+      expect(body.created).toBe(2) // sp1 + sp2 only
+      expect(body.skipped).toBe(0)
+
+      // the Ideas folder carries them, with the quote + tag
+      const cards = await listNotes({ app, auth }, `?view=folder&folder=${body.folder_id}`)
+      expect(cards).toHaveLength(2)
+      const one = cards.find((c) => c.title === 'Idea one')!
+      expect(one.tags).toBe('idea')
+      const full = (await (await app.fetch(new Request(`http://local/api/vault/notes/${one.id}`, { headers: auth }))).json()) as { note: { content: string } }
+      expect(full.note.content).toContain('The description.')
+      expect(full.note.content).toContain('> Left off here')
+
+      // the sparks THEMSELVES are untouched (copy, never move)
+      const sparkCount = await db.query<{ n: number }>("SELECT COUNT(*) AS n FROM projects WHERE user_id = ? AND status = 'spark' AND deleted_at IS NULL", [user])
+      expect(sparkCount[0].n).toBe(2)
+
+      // re-run: idempotent (same titles present → skipped)
+      res = await app.fetch(new Request('http://local/api/vault/import/sparks', { method: 'POST', headers: auth }))
+      body = (await res.json()) as { created: number; skipped: number }
+      expect(body.created).toBe(0)
+      expect(body.skipped).toBe(2)
+
+      // rule 1: another user's sparks are invisible to this import
+      const userB = await makeUser(db)
+      const b = await makeClient(db, userB)
+      await db.execute(
+        "INSERT INTO projects (id, user_id, title, description, status, created_at, updated_at) VALUES ('spb', ?, 'B secret', 'nope', 'spark', ?, ?)",
+        [userB, iso(), iso()],
+      )
+      const bootB = (await (await b.app.fetch(new Request('http://local/api/vault/bootstrap', { headers: b.auth }))).json()) as { counts: { has_sparks: boolean } }
+      expect(bootB.counts.has_sparks).toBe(true)
+      const resB = (await (await b.app.fetch(new Request('http://local/api/vault/import/sparks', { method: 'POST', headers: b.auth }))).json()) as { created: number }
+      expect(resB.created).toBe(1) // only B's own spark
+      const bCards = await listNotes(b)
+      expect(bCards.map((c) => c.title)).toEqual(['B secret'])
+    } finally {
+      close()
+    }
+  })
 
 describe('vault helpers', () => {
   it('excerptOf strips markdown and clamps with an ellipsis', () => {

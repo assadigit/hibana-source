@@ -34,14 +34,14 @@
   <script src="/js/hib-init.js?v=1" defer></script>
   <script src="/js/touch-drag.js?v=1" defer></script>
   <script src="/js/nav.js?v=3" defer></script>
-  <script src="/js/command-palette.js?v=7" defer></script>
+  <script src="/js/command-palette.js?v=8" defer></script>
   <script src="/js/mobile-nav.js?v=6" defer></script>
   <script src="/js/zen-mode.js?v=1" defer></script>
   <script src="/js/micro-interactions.js?v=1" defer></script>
   <script src="/js/go-to.js?v=2" defer></script>
   <script src="/js/install-prompt.js?v=1" defer></script>
-  <script src="/js/i18n-en.js?v=41" defer></script>
-  <script src="/js/i18n.js?v=97" defer></script>
+  <script src="/js/i18n-en.js?v=42" defer></script>
+  <script src="/js/i18n.js?v=98" defer></script>
   <!-- S41: the folder dialog's emoji icon picker (shared /js/emoji-picker.js —
        emoji-data.js lazy-loads on first open; docks as a bottom sheet under 640px). -->
   <script src="/js/emoji-picker.js?v=3" defer></script>
@@ -130,6 +130,12 @@
         <span class="fab-item-icon" aria-hidden="true"><svg class="icon" viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7Z"/><path d="M12 11v4M10 13h4"/></svg></span>
         <span data-i18n="fab.project">New project</span>
       </button>
+      <!-- S54: the vault joins the canonical capture set — idea / project / long note /
+           quick note. Lands on /notes?new=1 (soft-nav), which boots a fresh note. -->
+      <a class="fab-item" href="/notes.html?new=1" role="menuitem" aria-label="New note" data-i18n-title="fab.vault" title="New note">
+        <span class="fab-item-icon" aria-hidden="true"><svg class="icon" viewBox="0 0 24 24"><path d="M5 5h9l5 5v9a1.5 1.5 0 0 1-1.5 1.5h-12A1.5 1.5 0 0 1 4 19V6.5A1.5 1.5 0 0 1 5.5 5Z"/><path d="M8 12h8M8 15.5h5"/></svg></span>
+        <span data-i18n="fab.vault">New note</span>
+      </a>
       <button type="button" class="fab-item" data-notequickadd role="menuitem" aria-label="New quick note" data-i18n-title="fab.note" title="New quick note">
         <span class="fab-item-icon" aria-hidden="true"><svg class="icon" viewBox="0 0 24 24"><path d="M5 5h9l5 5v9a1.5 1.5 0 0 1-1.5 1.5h-12A1.5 1.5 0 0 1 4 19V6.5A1.5 1.5 0 0 1 5.5 5Z"/><path d="M8 12h8M8 15.5h5"/></svg></span>
         <span data-i18n="fab.note">Quick note</span>

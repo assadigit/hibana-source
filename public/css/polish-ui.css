@@ -775,3 +775,21 @@ body.has-mobile-nav { padding-block-end: calc(3.5rem + env(safe-area-inset-botto
    and the board remain direct flex items of <body>. Modern browsers keep the
    element's role/landmark in the a11y tree despite the missing box. */
 .landmark-ghost { display: contents; }
+
+/* ---- S51-B: shortcuts help v2 — section headers ----------------------------------
+   The ? overlay is now grouped (General / Navigate / Notes & to-dos / In the
+   palette) instead of one flat list. Section headers are non-interactive list
+   items: small caps, muted, spaced — they group, they don't compete with rows. */
+.cmdk-help-sec {
+  padding: 0.7rem 0.9rem 0.25rem;
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+  user-select: none;
+}
+.cmdk-help-sec:first-child { padding-top: 0.4rem; }
+/* Help rows are presentation-only (role=presentation) — no pointer cursor, the
+   default .cmdk-item affordance is for the interactive palette list. */
+.cmdk-help-panel .cmdk-item { cursor: default; }

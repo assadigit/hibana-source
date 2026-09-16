@@ -92,7 +92,7 @@ hibana/
 ├── Agents.md                     # ⚠️ READ FIRST — canonical agent rules
 ├── Changelogs.md                 # History + current state + ops runbook + open items
 ├── README.md                     # This file
-├── package.json                  # v0.3.13.5
+├── package.json                  # v0.3.13.6
 ├── wrangler.toml                 # Cloudflare Workers config (dev + prod envs)
 ├── tsconfig.json
 ├── vitest.config.ts
@@ -147,7 +147,7 @@ task-controls → magic-wand
 
 ### i18n (EN + FA)
 - Server-side: `src/lib/i18n.ts` translates htmx fragments.
-- Client-side: `public/js/i18n.js` + `i18n-en.js` + `i18n-fa.js`. Key parity enforced (1137/1137) via
+- Client-side: `public/js/i18n.js` + `i18n-en.js` + `i18n-fa.js`. Key parity enforced (1143/1143) via
   `scripts/check-i18n-parity.mjs` (CI gate).
 - Persian digit normalization. CSS logical properties for RTL/LTR.
 
@@ -239,7 +239,7 @@ Any CSS/JS change bumps `?v=` on EVERY referencing HTML page AND the SW cache na
 Since v0.3.0 `/dist/` is content-hashed; SW version bumps only on `sw.js` logic changes
 or when existing clients need to re-fetch the manifest. `check-cache-bust` is a CI gate.
 
-**Current numbers (v0.3.13.5):** SW `hibana-v390`, 73 manifest entries, schema 55, 404 tests.
+**Current numbers (v0.3.13.6):** SW `hibana-v391`, 73 manifest entries, schema 55, 404 tests.
 
 ---
 

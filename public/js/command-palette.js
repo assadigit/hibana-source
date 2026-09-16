@@ -11,7 +11,10 @@
 
   // ---- Quick actions (always available, shown first) -------------------------
   const ACTIONS = [
-    { id: 'qa-new-idea', label: () => _t('cmdk.newIdea', 'New idea'), hint: 'Ctrl+N', icon: 'idea', run: () => window.hibana?.openQuickAdd?.() },
+    // S51-B: the 'Ctrl N' hint is GONE from New idea — that shortcut opens the New
+    // TASK dialog (app.js openTaskAdd), not quick-add; the hint lied. Its real keys
+    // live in the help overlay's General section.
+    { id: 'qa-new-idea', label: () => _t('cmdk.newIdea', 'New idea'), icon: 'idea', run: () => window.hibana?.openQuickAdd?.() },
     { id: 'qa-new-project', label: () => _t('cmdk.newProject', 'New project'), icon: 'folder-plus', run: () => window.hibana?.openProjectAdd?.() },
     { id: 'qa-dashboard', label: () => _t('nav.dashboard', 'Dashboard'), icon: 'gear', go: '/dashboard.html' },
     { id: 'qa-projects', label: () => _t('nav.projects', 'Projects'), icon: 'folder-plus', go: '/projects.html' },
@@ -26,6 +29,9 @@
     { id: 'qa-settings', label: () => _t('nav.settings', 'Settings'), icon: 'gear', go: '/settings.html' },
     { id: 'qa-theme', label: () => _t('cmdk.toggleTheme', 'Toggle theme'), icon: 'sun', run: () => window.hibana?.toggleTheme?.() },
     { id: 'qa-zen', label: () => _t('cmdk.toggleZen', 'Toggle focus mode'), hint: 'Ctrl .', icon: 'target', run: () => window.hibanaZen?.toggle?.() },
+    // S51-B: discoverability fix — the shortcuts overlay was only reachable via '?',
+    // which nothing advertises. Now it's a first-class palette command (hint '?').
+    { id: 'qa-help', label: () => _t('cmdk.helpTitle', 'Keyboard shortcuts'), hint: '?', icon: 'book', run: () => window.hibanaCmdK?.openHelp?.() },
   ]
 
   // ---- Build the dialog once -------------------------------------------------
@@ -424,25 +430,59 @@
     if (input) input.value = ''
   }
 
-  // ---- Keyboard shortcuts overlay (? key) — B2.2 ----------------------------
+  // ---- Keyboard shortcuts overlay (? key) — B2.2, v2 (S51-B) -----------------
+  // v2: grouped into sections, complete verified inventory, and reachable from the
+  // palette itself (the qa-help action below) — v1 was only discoverable by pressing
+  // ?, which you only know about from… this overlay. Every shortcut listed here was
+  // verified against its keydown handler in the source (app.js / go-to.js / zen-mode.js
+  // / sadhana-page.js); the g-letters mirror go-to.js TARGETS exactly.
   let helpDlg = null
   function buildHelpDialog() {
     if (helpDlg) return
     helpDlg = document.createElement('dialog')
     helpDlg.id = 'cmdk-help-dialog'
     helpDlg.className = 'cmdk'
-    const SHORTCUTS = [
-      [_t('cmdk.shortcutPalette', 'Open command palette'), 'Ctrl K'],
-      [_t('cmdk.shortcutNewIdea', 'New idea'), 'Ctrl N'],
-      [_t('cmdk.shortcutSearch', 'Focus search / palette'), '/'],
-      [_t('cmdk.shortcutHelp', 'Show this help'), '?'],
-      [_t('cmdk.shortcutNavUp', 'Move selection up'), '↑'],
-      [_t('cmdk.shortcutNavDown', 'Move selection down'), '↓'],
-      [_t('cmdk.shortcutActivate', 'Activate selected'), 'Enter'],
-      [_t('cmdk.shortcutClose', 'Close dialog'), 'Esc'],
-      [_t('cmdk.shortcutDrag', 'Reorder / move status'), 'Drag'],
-      [_t('cmdk.shortcutZen', 'Toggle focus mode'), 'Ctrl .'],
-      [_t('cmdk.shortcutGoTo', 'Go to (then a letter: d/p/s/t/c/n/r/a/e/l/f)'), 'g'],
+    // Section rows: [label, keys] — labels localized at BUILD time; the dialog is
+    // rebuilt never (one per page load), which matches every other cmdk surface.
+    // Go-to destinations reuse the existing nav.* keys (already translated).
+    const GOTO = [
+      ['nav.dashboard', 'd'], ['nav.projects', 'p'], ['nav.sparks', 's'], ['nav.sadhana', 't'],
+      ['nav.canvas', 'c'], ['nav.whiteboard', 'n'], ['nav.calendar', 'l'],
+      ['nav.reports', 'r'], ['nav.archive', 'a'], ['nav.settings', 'e'], ['nav.notifications', 'f'],
+    ]
+    const SECTIONS = [
+      {
+        title: ['cmdk.helpGeneral', 'General'],
+        rows: [
+          ['cmdk.shortcutPalette', 'Open command palette', 'Ctrl K'],
+          ['cmdk.shortcutSearch', 'Focus search / palette', '/'],
+          ['cmdk.shortcutHelp', 'Show this help', '?'],
+          ['cmdk.shortcutNewTask', 'New task', 'Ctrl N'],
+          ['cmdk.shortcutZen', 'Toggle focus mode', 'Ctrl .'],
+          ['cmdk.shortcutClose', 'Close dialog', 'Esc'],
+        ],
+      },
+      {
+        title: ['cmdk.helpNavigate', 'Navigate'],
+        rows: GOTO.map(([key, letter]) => [key, _t(key, key), 'g ' + letter]),
+      },
+      {
+        title: ['cmdk.helpNotes', 'Notes & to-dos'],
+        rows: [
+          ['cmdk.shortcutSubmit', 'Save note / task', 'Enter'],
+          ['cmdk.shortcutUndo', 'Undo delete (To-do list)', 'Ctrl Z'],
+          ['cmdk.shortcutGridArrows', 'Move between cards (dashboard)', '← → ↑ ↓'],
+          ['cmdk.shortcutDrag', 'Reorder / move status', 'Drag'],
+        ],
+      },
+      {
+        title: ['cmdk.helpDialogs', 'In the palette'],
+        rows: [
+          ['cmdk.shortcutNavUp', 'Move selection up', '↑'],
+          ['cmdk.shortcutNavDown', 'Move selection down', '↓'],
+          ['cmdk.shortcutActivate', 'Activate selected', 'Enter'],
+        ],
+      },
     ]
     helpDlg.innerHTML = `
       <div class="cmdk-panel cmdk-help-panel">
@@ -451,9 +491,11 @@
           <kbd class="cmdk-esc">Esc</kbd>
         </div>
         <ul class="cmdk-list">
-          ${SHORTCUTS.map(([label, key]) =>
-            `<li class="cmdk-item" role="presentation"><span class="cmdk-label">${esc(label)}</span><kbd class="cmdk-hint">${esc(key)}</kbd></li>`
-          ).join('')}
+          ${SECTIONS.map((sec) => `
+            <li class="cmdk-help-sec" role="presentation">${_t(sec.title[0], sec.title[1])}</li>
+            ${sec.rows.map(([key, fb, k]) =>
+              `<li class="cmdk-item" role="presentation"><span class="cmdk-label">${esc(_t(key, fb))}</span><kbd class="cmdk-hint">${esc(k)}</kbd></li>`
+            ).join('')}`).join('')}
         </ul>
       </div>`
     document.body.appendChild(helpDlg)
@@ -488,6 +530,12 @@
     }
   })
 
-  // Expose for nav.js SPA unmount cleanup (if needed)
-  window.hibanaCmdK = { open, close, openHelp }
+  // Expose for nav.js SPA unmount cleanup (if needed).
+  // S51-B BUG FIX: this used to be a plain replacement assignment — which threw away
+  // the recordRecent method attached earlier in this IIFE (line ~67), so the palette's
+  // "Recent" section (R4.2) has been silently empty since S30: project.html calls
+  // window.hibanaCmdK?.recordRecent?.(…) into a method that no longer existed, the
+  // optional chaining swallowed it, and the recents list never populated. Merge, don't
+  // replace.
+  window.hibanaCmdK = Object.assign(window.hibanaCmdK || {}, { open, close, openHelp })
 })()

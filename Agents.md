@@ -112,7 +112,7 @@ If you edit after a bump, re-bump (stale HTTP cache under the same URL). `check-
 is a CI gate. Current numbers: Changelogs §1.
 
 ## i18n
-EN + FA ship together, always. Programmatic key-parity check (1137/1137) via
+EN + FA ship together, always. Programmatic key-parity check (1143/1143) via
 `scripts/check-i18n-parity.mjs` (CI gate). Persian digit normalization; CSS logical
 properties for RTL/LTR.
 

@@ -110,8 +110,10 @@ jobs:
           echo "recovery point: $(cat bookmark-id.txt)"
 
       # ── 2-3. BEFORE evidence: full dump + per-table digests (read-only) ──
+      # d1-dump-tables.mjs wraps `wrangler d1 export` with per-real-table --table flags:
+      # bare export REFUSES databases with FTS5 virtual tables (run #2's failure).
       - name: Pre-migration full SQL dump
-        run: npx wrangler d1 export "$DB" --remote --output pre-migration.sql -y
+        run: node scripts/d1-dump-tables.mjs --db "$DB" --output pre-migration.sql
 
       - name: Pre-migration per-table digest
         run: node scripts/d1-table-digest.mjs --db "$DB" --out digest-before.json
@@ -122,7 +124,7 @@ jobs:
 
       # ── 5. AFTER evidence ──
       - name: Post-migration full SQL dump
-        run: npx wrangler d1 export "$DB" --remote --output post-migration.sql -y
+        run: node scripts/d1-dump-tables.mjs --db "$DB" --output post-migration.sql
 
       - name: Post-migration per-table digest
         run: node scripts/d1-table-digest.mjs --db "$DB" --out digest-after.json
@@ -161,7 +163,9 @@ jobs:
             bookmark.json
             bookmark-id.txt
             pre-migration.sql
+            pre-migration.sql.manifest.json
             post-migration.sql
+            post-migration.sql.manifest.json
             digest-before.json
             digest-after.json
             integrity-report.md

@@ -84,15 +84,25 @@ const digestRows = (rows) => {
 }
 
 console.log(`digesting ${db} (remote, read-only)…`)
-const tableRows = await query("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite\\_%' ESCAPE '\\' ORDER BY name")
-const tables = tableRows.map((r) => String(r.name))
-console.log(`tables (${tables.length}): ${tables.join(', ')}`)
+const tableRows = await query("SELECT name, sql FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite\\_%' ESCAPE '\\' ORDER BY name")
+// FTS5 virtual tables are derived data (rebuild from triggers — the backup-audit
+// classification) and are recorded by name only, not fingerprinted. Their SHADOW
+// tables (x_data, x_idx, …) are real tables and DO get fingerprinted.
+const tables = []
+const virtualTables = []
+for (const r of tableRows) {
+  if (String(r.sql ?? '').toUpperCase().includes('VIRTUAL TABLE')) virtualTables.push(String(r.name))
+  else tables.push(String(r.name))
+}
+console.log(`real tables (${tables.length}): ${tables.join(', ')}`)
+if (virtualTables.length) console.log(`virtual tables (recorded, not fingerprinted): ${virtualTables.join(', ')}`)
 
 const outJson = {
   database: db,
   taken_at: new Date().toISOString(),
   wrangler: 'd1 execute --remote --json (read-only)',
   tables: {},
+  virtual_tables: virtualTables,
   migrations: null, // sorted migration names from whichever bookkeeping table exists
 }
 

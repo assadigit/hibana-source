@@ -1,0 +1,156 @@
+# Hibana — D1 migration for the DEV database ONLY (S57, owner-requested).
+#
+# WHY THIS EXISTS: the owner's standing rule is "a migration must not harm existing
+# data — not even 1 byte" (a past migration wiped things). Until now the only way to
+# apply a migration to a remote D1 was a local terminal with .secrets.env — and no
+# machine-independent evidence trail. This workflow runs the FULL safety ritual on a
+# GitHub runner, using the repo's existing CD credentials:
+#
+#   1. Time Travel BOOKMARK on pm-app-dev (the minute-granularity recovery point —
+#      restore with `wrangler d1 time-travel restore pm-app-dev --bookmark <id>`).
+#   2. Full SQL dump BEFORE (artifact).
+#   3. Per-table sha256 digest BEFORE (canonical, order-independent).
+#   4. Apply the migration via the same idempotent script the owner uses
+#      (scripts/d1-migrate.mjs — refuses to run twice).
+#   5. Full SQL dump + digest AFTER.
+#   6. PROVE integrity: d1-verify-migration.mjs fails the run if ANY pre-existing
+#      table's count or sha256 changed, if anything was dropped, if the bookkeeping
+#      gained anything other than the one registration row, or if any table appeared
+#      outside the declared allow-list.
+#   7. Health-probe the dev deployment; upload every evidence file as an artifact.
+#
+# HARD SAFETY LOCKS:
+#   - The database is HARD-CODED to pm-app-dev (the second, non-live deploy). A
+#     dedicated refusal step double-guards it. The LIVE site (hibana.ir / pm-app-prod)
+#     is NEVER touched by this workflow.
+#   - The migration file must exist in migrations/ and match the strict name pattern.
+#   - The digest/verify helpers refuse pm-app-prod independently.
+#   - Everything before step 4 is read-only — a credential/permission failure
+#     aborts the run with ZERO writes to the database.
+#
+# Trigger: Actions tab → "D1 migrate (DEV only)" → Run workflow → migration name.
+name: D1 migrate (DEV only)
+
+on:
+  workflow_dispatch:
+    inputs:
+      migration:
+        description: 'Migration name (file in migrations/, e.g. 0057_notes_vault) — applied to pm-app-dev ONLY'
+        required: true
+        default: '0057_notes_vault'
+      allow_new_tables:
+        description: 'Comma-separated NEW tables this migration creates (integrity allow-list, e.g. note_folders,vault_notes)'
+        required: false
+        default: 'note_folders,vault_notes'
+
+# One migration at a time — two concurrent migrations against the same DB would race.
+concurrency:
+  group: d1-migrate-dev
+  cancel-in-progress: false
+
+jobs:
+  migrate-dev:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      DB: pm-app-dev # HARD-LOCKED (see header) — never pm-app-prod
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Refuse anything but the dev database / a valid migration name
+        run: |
+          echo "DB under migration: ${DB}"
+          if [ "$DB" = "pm-app-prod" ]; then echo "REFUSED: prod is owner-only (hibana.ir)."; exit 1; fi
+          MIG="${{ github.event.inputs.migration }}"
+          if ! echo "$MIG" | grep -Eq '^[0-9]{4}_[a-z0-9_]+$'; then echo "REFUSED: migration name must look like 0057_notes_vault"; exit 1; fi
+          if [ ! -f "migrations/${MIG}.sql" ]; then echo "REFUSED: migrations/${MIG}.sql not found"; exit 1; fi
+          echo "sanity: no destructive STATEMENTS in the migration (additive contract):"
+          # Statement-position check: a line STARTING with a destructive keyword. FK
+          # clauses like "REFERENCES users(id) ON DELETE CASCADE" are mid-line DDL inside
+          # CREATE TABLE and must not trip this — comment lines are stripped first.
+          if grep -inE '^\s*(drop|delete|truncate|update|replace|reset)\b' <(grep -vE '^\s*--' "migrations/${MIG}.sql"); then
+            echo "REFUSED: destructive statement found in ${MIG}.sql — this workflow only ships additive migrations."
+            exit 1
+          else
+            echo "  clean — purely additive"
+          fi
+      - name: Write .secrets.env (d1-migrate.mjs reads the file; never printed)
+        run: |
+          umask 077
+          printf 'CLOUDFLARE_API_TOKEN=%s\nCLOUDFLARE_ACCOUNT_ID=%s\n' \
+            "${{ secrets.CLOUDFLARE_API_TOKEN }}" "${{ secrets.CLOUDFLARE_ACCOUNT_ID }}" > .secrets.env
+          echo "secrets staged (token present: ${{ secrets.CLOUDFLARE_API_TOKEN != '' }})"
+
+      # ── 1. Recovery point FIRST: if anything later goes wrong, this bookmark restores ──
+      - name: Time Travel bookmark (pre-migration recovery point)
+        run: |
+          npx wrangler d1 time-travel info "$DB" --json | tee bookmark.json
+          jq -r '.bookmark' bookmark.json > bookmark-id.txt
+          echo "BOOKMARK_ID=$(cat bookmark-id.txt)" >> "$GITHUB_ENV"
+          echo "recovery point: $(cat bookmark-id.txt)"
+
+      # ── 2-3. BEFORE evidence: full dump + per-table digests (read-only) ──
+      - name: Pre-migration full SQL dump
+        run: npx wrangler d1 export "$DB" --remote --output pre-migration.sql -y
+
+      - name: Pre-migration per-table digest
+        run: node scripts/d1-table-digest.mjs --db "$DB" --out digest-before.json
+
+      # ── 4. THE MIGRATION (idempotent — skips if already registered) ──
+      - name: Apply migration to pm-app-dev
+        run: node scripts/d1-migrate.mjs --db "$DB" --name "${{ github.event.inputs.migration }}"
+
+      # ── 5. AFTER evidence ──
+      - name: Post-migration full SQL dump
+        run: npx wrangler d1 export "$DB" --remote --output post-migration.sql -y
+
+      - name: Post-migration per-table digest
+        run: node scripts/d1-table-digest.mjs --db "$DB" --out digest-after.json
+
+      # ── 6. THE PROOF ──
+      - name: Verify byte-level integrity (fails the run on ANY pre-existing change)
+        run: |
+          node scripts/d1-verify-migration.mjs \
+            --before digest-before.json \
+            --after digest-after.json \
+            --migration "${{ github.event.inputs.migration }}" \
+            --allow-new "${{ github.event.inputs.allow_new_tables }}" \
+            --report integrity-report.md
+
+      # ── 7. Deployment health + evidence retention ──
+      - name: Health-check the dev deployment
+        run: |
+          sleep 5
+          curl -sSf https://hibana.aliassadi.workers.dev/api/health | tee health.json
+          grep -q '"ok":true' health.json
+
+      - name: Echo the recovery instructions
+        run: |
+          {
+            echo "If anything is wrong, restore the dev DB to the pre-migration bookmark:"
+            echo "  npx wrangler d1 time-travel restore pm-app-dev --bookmark $BOOKMARK_ID"
+          } | tee recovery.txt
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: migration-${{ github.event.inputs.migration }}-evidence
+          path: |
+            bookmark.json
+            bookmark-id.txt
+            pre-migration.sql
+            post-migration.sql
+            digest-before.json
+            digest-after.json
+            integrity-report.md
+            health.json
+            recovery.txt
+          retention-days: 30
+          if-no-files-found: warn

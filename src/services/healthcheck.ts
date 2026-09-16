@@ -39,8 +39,14 @@ export function normalizePingUrl(raw: string): string | null {
  * Fire one dead-man's-switch ping. `ok=false` pings `<base>/fail` (immediate alert);
  * `ok=true` pings the base URL (timer reset). Never throws — returns true iff a 2xx was
  * received, so the caller can log (and only log) a watchdog outage.
+ *
+ * S59: a `detail` on a FAIL ping is POSTed as the body — healthchecks.io stores ping
+ * bodies and shows them in the check's ping log, so the next failure is
+ * self-diagnosing from the dashboard (the 09-12→09-16 fail storm carried its error
+ * text NOWHERE: empty ping bodies, no email_log rows, console logs evaporate with the
+ * isolate). Success pings stay body-less GETs.
  */
-export async function pingHealthcheck(rawUrl: string, ok: boolean): Promise<boolean> {
+export async function pingHealthcheck(rawUrl: string, ok: boolean, detail?: string): Promise<boolean> {
   const base = normalizePingUrl(rawUrl)
   if (!base) {
     log.warn('healthcheck_skipped', { reason: 'invalid ping URL' })
@@ -48,7 +54,7 @@ export async function pingHealthcheck(rawUrl: string, ok: boolean): Promise<bool
   }
   const target = ok ? base : `${base}/fail`
   try {
-    const res = await fetch(target, {
+    const init: RequestInit = {
       method: 'GET',
       // healthchecks.io treats a body-less GET as a signal; keep it minimal and cache-proof.
       headers: { 'User-Agent': 'hibana-cron/1.0' },
@@ -56,7 +62,13 @@ export async function pingHealthcheck(rawUrl: string, ok: boolean): Promise<bool
       signal: AbortSignal.timeout(PING_TIMEOUT_MS),
       // A dead-man's ping is one packet — redirect-following is unnecessary but harmless.
       redirect: 'follow',
-    })
+    }
+    if (!ok && detail) {
+      init.method = 'POST'
+      init.headers = { 'User-Agent': 'hibana-cron/1.0', 'Content-Type': 'text/plain; charset=utf-8' }
+      init.body = detail.slice(0, 2000) // hc-ping keeps ~100KB; 2KB is plenty for a stack-free reason
+    }
+    const res = await fetch(target, init)
     if (!res.ok) {
       log.warn('healthcheck_ping_rejected', { status: res.status, fail: !ok })
       return false

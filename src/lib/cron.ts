@@ -10,7 +10,19 @@
 // resetting the timer while the real backup cron is dead. Classification now keys on
 // `controller.cron` — the trigger that actually fired — which jitter cannot change.
 
-/** The backup trigger, exactly as configured in wrangler.toml [triggers]. */
+/** The backup triggers, exactly as configured in wrangler.toml.
+ *
+ * S59: prod's backup cron moved :17 → :23 ([env.prod.triggers]) — the dev and prod
+ * workers share the hibana-safe assets repo + GITHUB_TOKEN and used to fire at the
+ * SAME second (both "17 3,9,15,21"): their concurrent Contents-API commits raced on
+ * the repo's branch ref and the bigger (prod, ~600KB snapshot) PUT intermittently
+ * lost — a missing prod snapshot + a /fail watchdog ping on ~40% of ticks
+ * (9 fail pings 09-12→09-16, always with exactly dev's commit landed). Six minutes
+ * apart means no shared window; both expressions stay recognized so old deploys
+ * classify correctly too. */
+export const BACKUP_CRONS = new Set(['17 3,9,15,21 * * *', '23 3,9,15,21 * * *'])
+
+/** Legacy single-expression export (tests + any external pin) — the dev trigger. */
 export const BACKUP_CRON = '17 3,9,15,21 * * *'
 
 /** The minimum a scheduled controller must carry for classification. The real
@@ -27,9 +39,9 @@ export function normalizeCron(raw: string | undefined): string {
 
 /**
  * Which jobs this invocation should run, derived from the trigger (not the clock).
- * `dailyTick` is true only for the 03:17 backup run — keyed on the trigger's SCHEDULED
- * hour (`scheduledTime`), so a late-firing 03:17 event still runs the daily jobs and no
- * other backup slot ever will.
+ * `dailyTick` is true only for the 03:xx backup run — keyed on the trigger's SCHEDULED
+ * hour (`scheduledTime`), so a late-firing 03:17/03:23 event still runs the daily jobs
+ * and no other backup slot ever will.
  */
 export function classifyTick(
   controller: TickController,
@@ -37,7 +49,7 @@ export function classifyTick(
 ): { backupTick: boolean; dailyTick: boolean } {
   const cron = normalizeCron(controller.cron)
   if (cron) {
-    const backupTick = cron === BACKUP_CRON
+    const backupTick = BACKUP_CRONS.has(cron)
     const dailyTick = backupTick && new Date(controller.scheduledTime).getUTCHours() === 3
     return { backupTick, dailyTick }
   }

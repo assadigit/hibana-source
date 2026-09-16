@@ -93,7 +93,15 @@ export default {
         // Manual POST /api/admin/backup deliberately does NOT ping: a heartbeat must
         // only beat for the automated path it guards.
         if (backupResult && cfg.isProd && cfg.healthcheckUrl) {
-          await pingHealthcheck(cfg.healthcheckUrl, backupResult.kind === 'pushed')
+          // S59: the fail ping carries the skip reason / error text as its body —
+          // healthchecks.io stores ping bodies, so the ping log answers "why did it
+          // fail?" without a wrangler tail (which needs to be running at the exact
+          // moment of failure).
+          const detail =
+            backupResult.kind === 'failed' ? backupResult.error
+            : backupResult.kind === 'skipped' ? backupResult.reason
+            : undefined
+          await pingHealthcheck(cfg.healthcheckUrl, backupResult.kind === 'pushed', detail)
         }
         if (dailyTick) await scheduledPurge(cfg)
         // Sadhana weekly sweep (Mondays Asia/Tehran) — idempotent, daily is enough.

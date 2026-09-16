@@ -29,24 +29,41 @@ export function githubClient(cfg: GitHubConfig) {
     // no SHA needed), then include it in the PUT body. Wrap in try/catch so a failed
     // probe (non-JSON response, network error) never blocks the push — the PUT proceeds
     // without SHA (GitHub 404s new files without it, + existing files get a clear 409).
-    let sha: string | undefined
-    try {
-      const probe = await fetch(`${API}/repos/${cfg.owner}/${cfg.repo}/contents/${path}`, {
-        headers: headers({ Accept: 'application/vnd.github+json' }),
+    const attempt = async (): Promise<{ html_url: string }> => {
+      let sha: string | undefined
+      try {
+        const probe = await fetch(`${API}/repos/${cfg.owner}/${cfg.repo}/contents/${path}`, {
+          headers: headers({ Accept: 'application/vnd.github+json' }),
+        })
+        if (probe.ok) {
+          const meta = (await probe.json()) as { sha?: string }
+          sha = meta.sha
+        }
+      } catch { /* probe failed — proceed without SHA */ }
+      const res = await fetch(`${API}/repos/${cfg.owner}/${cfg.repo}/contents/${path}`, {
+        method: 'PUT',
+        headers: headers({ 'Content-Type': 'application/json' }),
+        body: JSON.stringify({ message, content: contentB64, ...(sha ? { sha } : {}) }),
       })
-      if (probe.ok) {
-        const meta = (await probe.json()) as { sha?: string }
-        sha = meta.sha
-      }
-    } catch { /* probe failed — proceed without SHA */ }
-    const res = await fetch(`${API}/repos/${cfg.owner}/${cfg.repo}/contents/${path}`, {
-      method: 'PUT',
-      headers: headers({ 'Content-Type': 'application/json' }),
-      body: JSON.stringify({ message, content: contentB64, ...(sha ? { sha } : {}) }),
-    })
-    if (!res.ok) throw new Error(`GitHub push failed (${res.status}): ${await res.text()}`)
-    const data = (await res.json()) as { content: { html_url: string } }
-    return { html_url: data.content.html_url }
+      if (!res.ok) throw new Error(`GitHub push failed (${res.status}): ${await res.text()}`)
+      const data = (await res.json()) as { content: { html_url: string } }
+      return { html_url: data.content.html_url }
+    }
+    try {
+      return await attempt()
+    } catch (err) {
+      // S59: a concurrent commit to the same repo (dev+prod backup workers shared the
+      // same fire-second before the :17/:23 stagger) makes the Contents API's branch-ref
+      // update fail intermittently with 409, or a secondary rate limit / transient 5xx
+      // rejects the PUT. One retry after a short backoff recovers the whole tick.
+      // Snapshot paths are unique per attempt, so a retried push can never overwrite
+      // another run's file; a stale-SHA 409 (overwrite case) re-probes fresh on retry.
+      const msg = err instanceof Error ? err.message : String(err)
+      const retryable = /GitHub push failed \(409\)|GitHub push failed \(5\d\d\)|secondary rate limit/i.test(msg)
+      if (!retryable) throw err
+      await new Promise((r) => setTimeout(r, 2500))
+      return await attempt()
+    }
   }
 
   /** Read file contents with the raw Accept header (rule 7). */

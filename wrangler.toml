@@ -9,7 +9,8 @@ compatibility_date = "2026-01-01"
 # Only fires on a deployed Worker; locally it's triggered via POST /api/admin/backup.
 # RECOVERED (hotfix window, 2026-08-31): the 03:17 daily backup was widened to
 # 4× daily (03:17 / 09:17 / 15:17 / 21:17 UTC) — matches the live deployment's
-# schedule exactly. Keep both crons.
+# schedule exactly. Keep both crons. Dev (top-level) keeps :17; prod moved to :23
+# (see [env.prod.triggers] — S59 concurrent-commit race fix).
 [triggers]
 crons = ["17 3,9,15,21 * * *", "*/30 * * * *"]
 
@@ -65,6 +66,16 @@ id = "7c6eb81bac1a42c09e2a2d4686d48199"
 # -----------------------------------------------------------------------------------
 # Production environment — only touched by `wrangler deploy --env prod`.
 # -----------------------------------------------------------------------------------
+[env.prod.triggers]
+# S59: prod's backup cron runs at :23, dev stays at :17. Both workers write snapshots
+# to the SAME hibana-safe repo with the same GITHUB_TOKEN — at the same second their
+# Contents-API commits raced on the branch ref and prod's larger PUT (~600KB vs dev's
+# 27KB) intermittently lost (40% of ticks: 9 /fail watchdog pings 09-12→09-16, each
+# fail tick missing exactly prod's snapshot). Six minutes apart closes the window
+# entirely; src/lib/cron.ts recognizes BOTH expressions, and pushFile gained a single
+# 409/5xx retry as belt-and-suspenders. The 30-min reminder cadence is unchanged.
+crons = ["23 3,9,15,21 * * *", "*/30 * * * *"]
+
 [env.prod.vars]
 ENVIRONMENT = "prod"
 GITHUB_OWNER = "assadigit"

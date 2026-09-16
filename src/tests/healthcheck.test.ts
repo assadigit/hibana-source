@@ -13,12 +13,15 @@ import type { Db } from '../db/types'
 
 const originalFetch = globalThis.fetch
 let calls: string[] = []
+let lastInit: RequestInit | undefined
 
 function stubFetch(handler: (url: string) => Response | Promise<Response>) {
   calls = []
-  globalThis.fetch = (async (input: RequestInfo | URL) => {
+  lastInit = undefined
+  globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
     const url = String(input)
     calls.push(url)
+    lastInit = init
     return handler(url)
   }) as typeof fetch
 }
@@ -52,6 +55,28 @@ describe('healthcheck — pingHealthcheck', () => {
     const ok = await pingHealthcheck('https://hc-ping.com/uuid-2/', false)
     expect(ok).toBe(true)
     expect(calls).toEqual(['https://hc-ping.com/uuid-2/fail'])
+  })
+
+  it('S59: a fail ping WITH detail POSTs the error text as the body (self-diagnosing ping log)', async () => {
+    stubFetch(() => new Response('OK'))
+    const ok = await pingHealthcheck('https://hc-ping.com/uuid-5', false, 'GitHub push failed (409): ref moved')
+    expect(ok).toBe(true)
+    expect(calls).toEqual(['https://hc-ping.com/uuid-5/fail'])
+    expect(lastInit?.method).toBe('POST')
+    expect(lastInit?.body).toBe('GitHub push failed (409): ref moved')
+  })
+
+  it('S59: a success ping never carries a body, even if a detail is passed', async () => {
+    stubFetch(() => new Response('OK'))
+    await pingHealthcheck('https://hc-ping.com/uuid-6', true, 'ignored on success')
+    expect(lastInit?.method ?? 'GET').toBe('GET')
+    expect(lastInit?.body).toBeUndefined()
+  })
+
+  it('S59: an oversized fail detail is clamped to 2KB', async () => {
+    stubFetch(() => new Response('OK'))
+    await pingHealthcheck('https://hc-ping.com/uuid-7', false, 'x'.repeat(5000))
+    expect(String(lastInit?.body).length).toBeLessThanOrEqual(2000)
   })
 
   it('network rejection never throws — returns false (watchdog must not break the cron chain)', async () => {

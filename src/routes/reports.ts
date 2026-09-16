@@ -153,16 +153,25 @@ export function reportsRoutes(cfg: Config) {
     return await etag(c, c.json({ granularity: gran.data, rows }))
   })
 
-  // B3.6: calendar heatmap — last 91 days of activity (hurdles solved + projects created).
-  // Same data sources as /activity, just a fixed daily granularity over a 13-week window.
-  // Returns [{ date: 'YYYY-MM-DD', hurdles: n, projects: n }] for the client to render
-  // as a GitHub-style contribution grid. Zero DB cost beyond two indexed aggregations.
+  // B3.6: calendar heatmap — last 91 days of activity. S52 widens the sources from
+  // hurdles-solved + projects-created to the four real daily-work signals: hurdles
+  // solved, projects created, to-dos completed, notes captured. The streak pills on
+  // the reports page (S52) read the same rows, so a "day with activity" now means
+  // ANY of the four — a fairer motivational metric for a personal productivity app.
+  // To-do completion day is exact for both shapes: one-shot tasks stamp cleared_at
+  // at check-off time (the Monday sweep only catches stragglers), recurring tasks
+  // log every completion to sadhana_recur_history.completed_on. Un-completing a
+  // one-shot clears cleared_at (it drops out again); a recurring un-check keeps its
+  // history row — an acceptable over-count edge for a motivational stat.
+  // Returns [{ date, hurdles, projects, todos, notes, total }] for the client to
+  // render as a GitHub-style contribution grid + streak stats. Read-only, user_id-
+  // scoped (rule 1), no schema change.
   app.get('/heatmap', async (c) => {
     const user = c.get('user')
     const days = 91
     const since = new Date(Date.now() - (days - 1) * 24 * 3600 * 1000)
     const sinceStr = since.toISOString().slice(0, 10)
-    const [hurdles, created] = await Promise.all([
+    const [hurdles, created, todosOne, todosRec, notes] = await Promise.all([
       cfg.db.query<{ bucket: string; n: number }>(
         `SELECT substr(solved_at, 1, 10) AS bucket, COUNT(*) AS n FROM hurdles
          WHERE solved_at IS NOT NULL AND solved_at >= ? AND project_id IN (SELECT id FROM projects WHERE user_id = ?)
@@ -175,17 +184,41 @@ export function reportsRoutes(cfg: Config) {
          GROUP BY bucket`,
         [user.id, sinceStr],
       ),
+      cfg.db.query<{ bucket: string; n: number }>(
+        `SELECT cleared_at AS bucket, COUNT(*) AS n FROM sadhana_tasks
+         WHERE user_id = ? AND done = 1 AND cleared_at IS NOT NULL AND deleted_at IS NULL AND cleared_at >= ?
+         GROUP BY cleared_at`,
+        [user.id, sinceStr],
+      ),
+      cfg.db.query<{ bucket: string; n: number }>(
+        `SELECT rh.completed_on AS bucket, COUNT(*) AS n FROM sadhana_recur_history rh
+         JOIN sadhana_tasks st ON st.id = rh.task_id
+         WHERE st.user_id = ? AND rh.completed_on >= ?
+         GROUP BY rh.completed_on`,
+        [user.id, sinceStr],
+      ),
+      cfg.db.query<{ bucket: string; n: number }>(
+        `SELECT substr(created_at, 1, 10) AS bucket, COUNT(*) AS n FROM quick_notes
+         WHERE user_id = ? AND created_at >= ? AND deleted_at IS NULL
+         GROUP BY bucket`,
+        [user.id, sinceStr],
+      ),
     ])
     const byHurdle = new Map(hurdles.map((r) => [r.bucket, r.n]))
     const byCreated = new Map(created.map((r) => [r.bucket, r.n]))
-    const rows: { date: string; hurdles: number; projects: number; total: number }[] = []
+    const byTodo = new Map<string, number>()
+    for (const r of [...todosOne, ...todosRec]) byTodo.set(r.bucket, (byTodo.get(r.bucket) ?? 0) + r.n)
+    const byNote = new Map(notes.map((r) => [r.bucket, r.n]))
+    const rows: { date: string; hurdles: number; projects: number; todos: number; notes: number; total: number }[] = []
     for (let i = 0; i < days; i++) {
       const d = new Date(since)
       d.setUTCDate(since.getUTCDate() + i)
       const date = d.toISOString().slice(0, 10)
       const h = byHurdle.get(date) ?? 0
       const p = byCreated.get(date) ?? 0
-      rows.push({ date, hurdles: h, projects: p, total: h + p })
+      const t = byTodo.get(date) ?? 0
+      const n = byNote.get(date) ?? 0
+      rows.push({ date, hurdles: h, projects: p, todos: t, notes: n, total: h + p + t + n })
     }
     return await etag(c, c.json({ days, rows }))
   })

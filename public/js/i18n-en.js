@@ -388,6 +388,12 @@ window.__hibanaDictEN = {
       'reports.digestTop': 'Top periods',
       'reports.copyFailed': 'Copy failed — your browser blocked clipboard access',
       'reports.nothingToExport': 'Nothing to export yet — data is still loading',
+      // S52: streak trio (cards above the heatmap) + digest/CSV lines
+      'reports.streakCurrent': 'Current streak',
+      'reports.streakLongest': 'Longest streak',
+      'reports.streakActive': 'Active days',
+      'reports.streakDays': 'days',
+      'reports.streakHint': 'A day counts as active when you solve a hurdle, complete a to-do, or create a project or note.',
       // calendar view (Phase B4.1)
       'nav.calendar': 'Calendar',
       'calendar.today': 'Today', 'calendar.close': 'Close',
@@ -663,6 +669,9 @@ window.__hibanaDictEN = {
       'cmdk.toggleZen': 'Toggle focus mode',
       'cmdk.shortcutZen': 'Toggle focus mode',
       'cmdk.recent': 'Recent', 'cmdk.tags': 'Tags',
+      // S52: Trash palette command + recoverable-count sublabel
+      'cmdk.openTrash': 'Trash — recover deleted items',
+      'cmdk.trashCount': '{n} recoverable',
       'cmdk.statusSpark': 'Idea', 'cmdk.statusUnreviewed': 'Unreviewed', 'cmdk.statusInvestigating': 'Investigating',
       'cmdk.statusAwaiting': 'Awaiting Execution', 'cmdk.statusDoing': 'In Progress', 'cmdk.statusHalted': 'Development Stopped',
       'cmdk.statusOperational': 'Operational',

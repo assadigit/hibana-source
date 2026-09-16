@@ -697,8 +697,12 @@ body.has-mobile-nav { padding-block-end: calc(3.5rem + env(safe-area-inset-botto
   white-space: nowrap;
 }
 .trash-meta { margin-block-start: 0.1rem; }
-/* days_left ≤ 1: the next purge run destroys it — amber per the semantic scale. */
-.trash-meta.is-urgent { color: var(--warn); font-weight: 500; }
+/* days_left ≤ 1: the next purge run destroys it — amber per the semantic scale.
+   (S52 fix: this rule originally referenced var(--warn), which is NOT a defined
+   token anywhere — the declaration silently fell back to the inherited muted
+   color and the urgency tint never rendered. --badge-awaiting-fg IS the orange
+   semantic token (variables.css §semantic colors) and is AA in both themes.) */
+.trash-meta.is-urgent { color: var(--badge-awaiting-fg); font-weight: 500; }
 .trash-restore { flex: 0 0 auto; }
 .trash-empty { padding: 0.4rem 0 0.2rem; }
 .trash-item.is-restoring {
@@ -711,6 +715,113 @@ body.has-mobile-nav { padding-block-end: calc(3.5rem + env(safe-area-inset-botto
 @media (max-width: 560px) {
   .trash-item { padding: 0.55rem 0.6rem; gap: 0.5rem; }
   .trash-ico { inline-size: 1.75rem; block-size: 1.75rem; }
+}
+/* --- S52: streak trio (Reports — above the heatmap) -------------------------
+   Three compact cards: current streak (flame, warms up while alive), longest
+   streak (trophy), active days (calendar-check, "n / 91"). Logical properties
+   throughout so RTL mirrors for free; the value + unit sit on one line with the
+   label as a muted suffix that wraps under on narrow screens. */
+.streak-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  margin-block-end: 0.4rem;
+}
+.streak-card {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  padding: 0.5rem 0.85rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  background: var(--accent-soft);
+  min-inline-size: 0;
+  transition: border-color 0.25s ease, background-color 0.25s ease;
+}
+.streak-ico {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  inline-size: 2rem;
+  block-size: 2rem;
+  border-radius: 999px;
+  flex: none;
+  color: var(--muted);
+  background: var(--bg);
+}
+.streak-ico .icon { inline-size: 1.1rem; block-size: 1.1rem; }
+.streak-nums {
+  font-size: var(--fs-md);
+  font-weight: 400;
+  white-space: nowrap;
+}
+.streak-nums b { font-size: 1.2em; font-weight: 700; }
+.streak-unit { color: var(--muted); font-size: var(--fs-xs); }
+.streak-of { color: var(--muted); font-size: 0.9em; font-weight: 400; }
+.streak-label {
+  font-size: var(--fs-xs);
+  color: var(--muted);
+  white-space: nowrap;
+}
+/* Alive flame — the orange semantic hue tints icon + card so the eye finds the
+   streak first. Dormant (current = 0) stays neutral: no false urgency. */
+.streak-fire.is-alive {
+  border-color: color-mix(in srgb, var(--badge-awaiting-fg) 40%, var(--line));
+  background: color-mix(in srgb, var(--badge-awaiting-fg) 9%, var(--accent-soft));
+}
+.streak-fire.is-alive .streak-ico { color: var(--badge-awaiting-fg); }
+.streak-hint { margin-block-end: 0.75rem; }
+@media (max-width: 560px) {
+  .streak-card { padding: 0.45rem 0.7rem; gap: 0.45rem; flex: 1 1 46%; justify-content: center; }
+  .streak-fire { flex-basis: 100%; }
+  .streak-label { display: none; }  /* value + icon carry the meaning at phone width */
+}
+@media (prefers-reduced-motion: reduce) {
+  .streak-card { transition: none; }
+}
+
+
+/* --- S52: whiteboard skeleton (ghost sticky notes on the paper) --------------
+   The notebook page was the last surface booting on a spinner+text pill. Four
+   ghost sticky notes — varied widths, a touch of rotation so they read as notes
+   scattered on a desk rather than a loading grid — shimmer on the same .skeleton
+   base every other list page uses. The wrapper keeps data-board-loading (the
+   whiteboard.js removal + e2e detach contract); the sr-only line keeps the
+   localized "Loading sheet…" for screen readers. */
+.nb-sk {
+  position: absolute;
+  inset: 0;
+  z-index: 40;
+  pointer-events: none;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 1.1rem 1.5rem;
+  padding: 2rem;
+}
+.nb-sk-note {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  inline-size: 168px;
+  padding: 0.85rem 0.95rem;
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  background: var(--accent-soft);
+  box-shadow: 3px 8px 18px rgba(0, 0, 0, 0.09);
+}
+.nb-sk-note:nth-child(2) { inline-size: 138px; rotate: 1.5deg; }
+.nb-sk-note:nth-child(3) { inline-size: 152px; rotate: -2deg; }
+.nb-sk-note:nth-child(4) { inline-size: 126px; rotate: 2.5deg; }
+.nb-sk-line { block-size: 0.7rem; }
+@media (max-width: 560px) {
+  .nb-sk { gap: 0.9rem 1.1rem; padding: 1.25rem; }
+  .nb-sk-note { inline-size: 132px; }
+  .nb-sk-note:nth-child(4) { display: none; } /* 2×2 fits a phone; the 4th wraps alone */
+}
+@media (prefers-reduced-motion: reduce) {
+  .nb-sk-note { rotate: none; } /* the tilt is decoration — flat under reduced motion */
 }
 
 

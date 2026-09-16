@@ -82,6 +82,8 @@
         window.Alpine?.data('report', () => ({
           summary: null, rows: [], gran: 'day', maxH: 0, maxP: 0,
           heatmap: { rows: [], weeks: [] },
+          // S52: streak stats over the heatmap rows — current / longest / active days.
+          streak: { current: 0, longest: 0, activeDays: 0 },
           i18nTick: 0, // bumped once the user's language resolves — see the *Label methods
           t: (k, f) => window.hibanaI18n?.t(k) || f,
           // Labels via methods (not inline x-text ternaries) so they can depend on
@@ -90,6 +92,10 @@
           statusLabel(s) { void this.i18nTick; return window.hibanaI18n?.t('status.' + s) || s },
           viewAllLabel() { void this.i18nTick; return window.hibanaI18n?.t('reports.viewAll') || 'view all →' },
           nothingLabel() { void this.i18nTick; return window.hibanaI18n?.t('dashboard.nothing') || 'Nothing here yet' },
+          // S52: streak labels — same i18nTick pattern as the labels above: plain t()
+          // bindings evaluate once at component init (EN) and never re-render when
+          // the FA dictionary resolves, landing English pills on an FA page.
+          streakLabel(k, f) { void this.i18nTick; return window.hibanaI18n?.t(k) || f },
           // S30 batch 3: task analytics helpers — the priority mix, the backlog share
           // bar, and the label chips' tooltip. i18nTick-dependent like the labels above.
           prioLabel(p) {
@@ -132,6 +138,9 @@
             this.maxH = Math.max(...this.rows.map((r) => r.hurdlesCompleted), 1)
             this.maxP = Math.max(...this.rows.map((r) => r.projectsCreated), 1)
             // B3.6: heatmap — fetch last 91 days, bucket into weeks, assign levels 0-4.
+            // S52: the API now counts four activity sources (hurdles solved, projects
+            // created, to-dos completed, notes captured) — the streak math below runs on
+            // the same rows, so "a day with activity" means any of the four.
             const h = await fetch('/api/reports/heatmap')
             if (h.ok) {
               const data = await h.json()
@@ -147,6 +156,17 @@
               const weeks = []
               for (let i = 0; i < cells.length; i += 7) weeks.push(cells.slice(i, i + 7))
               this.heatmap = { rows, weeks }
+              // Streak math. "Current" stays alive while the last active day is today OR
+              // yesterday (today may still happen); it breaks only after a full quiet day.
+              // "Longest" is the best run anywhere in the 91-day window.
+              const active = rows.map((r) => r.total > 0)
+              let end = active.length - 1
+              if (end >= 0 && !active[end]) end--
+              let current = 0
+              for (let i = end; i >= 0 && active[i]; i--) current++
+              let longest = 0, run = 0
+              for (const a of active) { run = a ? run + 1 : 0; if (run > longest) longest = run }
+              this.streak = { current, longest, activeDays: active.filter(Boolean).length }
             }
             this.$nextTick(() => window.hibanaI18n.apply())
           },
@@ -187,6 +207,9 @@
             lines.push(`## ${this.t('reports.digestLast13', 'Active days (last 13 weeks)')}`)
             lines.push(`- ${activeDays} ${this.t('reports.digestLast13Note', 'of {n} days with activity').replace('{n}', String(this.heatmap.rows.length || 91))}`)
             lines.push(`- ${this.t('reports.events', 'events')}: ${totalEvents}`)
+            // S52: the streak trio rides the digest (same rows as the pills).
+            lines.push(`- ${this.t('reports.streakCurrent', 'Current streak')}: ${this.streak.current} ${this.t('reports.streakDays', 'days')}`)
+            lines.push(`- ${this.t('reports.streakLongest', 'Longest streak')}: ${this.streak.longest} ${this.t('reports.streakDays', 'days')}`)
             // Top 5 activity periods from the current granularity view.
             const top = [...this.rows].sort((a, b) => (b.hurdlesCompleted + b.projectsCreated) - (a.hurdlesCompleted + a.projectsCreated)).slice(0, 5)
               .filter((r) => r.hurdlesCompleted + r.projectsCreated > 0)
@@ -229,6 +252,10 @@
             for (const r of this.heatmap.rows) {
               if (r.total > 0) out.push(['heatmap', r.date, r.total].map(q).join(','))
             }
+            // S52: streak trio rows in the CSV's snapshot section (label,value).
+            out.push(['snapshot', this.t('reports.streakCurrent', 'Current streak'), `${this.streak.current} ${this.t('reports.streakDays', 'days')}`].map(q).join(','))
+            out.push(['snapshot', this.t('reports.streakLongest', 'Longest streak'), `${this.streak.longest} ${this.t('reports.streakDays', 'days')}`].map(q).join(','))
+            out.push(['snapshot', this.t('reports.streakActive', 'Active days'), `${this.streak.activeDays}/${this.heatmap.rows.length || 91}`].map(q).join(','))
             for (const r of this.rows) {
               out.push(['activity', r.label, `${r.hurdlesCompleted}/${r.projectsCreated}`].map(q).join(','))
             }

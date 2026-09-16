@@ -27,6 +27,36 @@
     { id: 'qa-reports', label: () => _t('nav.reports', 'Reports'), icon: 'clipboard', go: '/reports.html' },
     { id: 'qa-archive', label: () => _t('nav.archive', 'Archive'), icon: 'archive', go: '/archive.html' },
     { id: 'qa-settings', label: () => _t('nav.settings', 'Settings'), icon: 'gear', go: '/settings.html' },
+    // S52: Trash discoverability — the 7-day soft-delete window (S50's Settings → Data
+    // panel) had no entry point beyond burrowing into Settings. First-class palette
+    // command now, with the live recoverable count as the sublabel ("3 recoverable"),
+    // fetched once per session alongside the tag cache. run() soft-navigates then
+    // smooth-scrolls to the #settings-trash card.
+    {
+      id: 'qa-trash',
+      label: () => _t('cmdk.openTrash', 'Trash — recover deleted items'),
+      icon: 'trash',
+      // Persian digits when fa is active (the settings Trash panel does the same).
+      sub: () => {
+        if (trashCount <= 0) return ''
+        const n = String(trashCount)
+        const fa = document.documentElement.lang === 'fa'
+        const shown = fa ? n.replace(/\d/g, (d) => '۰۱۲۳۴۵۶۷۸۹'[+d]) : n
+        return _t('cmdk.trashCount', '{n} recoverable').split('{n}').join(shown)
+      },
+      run: () => {
+        const scroll = () => document.getElementById('settings-trash')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+        if (location.pathname === '/settings.html') { scroll(); return }
+        if (window.hibanaNav) window.hibanaNav.go('/settings.html')
+        else window.location.href = '/settings.html'
+        // The soft-nav swap is async — poll briefly for the section to land, then scroll.
+        let tries = 0
+        const t = setInterval(() => {
+          if (document.getElementById('settings-trash')) { clearInterval(t); scroll() }
+          else if (++tries > 40) clearInterval(t)
+        }, 100)
+      },
+    },
     { id: 'qa-theme', label: () => _t('cmdk.toggleTheme', 'Toggle theme'), icon: 'sun', run: () => window.hibana?.toggleTheme?.() },
     { id: 'qa-zen', label: () => _t('cmdk.toggleZen', 'Toggle focus mode'), hint: 'Ctrl .', icon: 'target', run: () => window.hibanaZen?.toggle?.() },
     // S51-B: discoverability fix — the shortcuts overlay was only reachable via '?',
@@ -49,6 +79,21 @@
   let recentProjects = []
   let cachedTags = []
   let tagsFetched = false
+  // S52: Trash count for the palette sublabel — fetched once per session (the same
+  // once-then-cache pattern as tags). -1 = not fetched yet; 0+ = live count.
+  let trashCount = -1
+  async function ensureTrashCount() {
+    if (trashCount >= 0) return
+    try {
+      const res = await fetch('/api/settings/trash')
+      if (res.ok) {
+        const data = await res.json()
+        trashCount = Array.isArray(data.items) ? data.items.length : 0
+        // If this resolved AFTER the list rendered, refresh so the count shows now.
+        if (dlg && dlg.open) refresh(input ? input.value : '')
+      }
+    } catch { /* offline — the sublabel just stays empty */ }
+  }
   function loadRecent() {
     try { recentProjects = JSON.parse(localStorage.getItem(RECENT_KEY) || '[]') } catch { recentProjects = [] }
   }
@@ -213,6 +258,7 @@
       'list-check': '<path d="M3.5 6h2M3.5 12h2M3.5 18h2"/><path d="M9 6h11M9 12h11M9 18h7"/>',
       'note': '<path d="M5 5h9l5 5v9a1.5 1.5 0 0 1-1.5 1.5h-12A1.5 1.5 0 0 1 4 19V6.5A1.5 1.5 0 0 1 5.5 5Z"/><path d="M8 12h8M8 15.5h5"/>',
       'kanban': '<rect x="3.5" y="4.5" width="17" height="15" rx="2"/><path d="M9.2 8v8M14.8 8v5"/>',
+      'trash': '<path d="M4 7h16M9 7V5.5A1.5 1.5 0 0 1 10.5 4h3A1.5 1.5 0 0 1 15 5.5V7M6.5 7l1 12.5A1.5 1.5 0 0 0 9 21h6a1.5 1.5 0 0 0 1.5-1.5L17.5 7"/><path d="M10 11v6M14 11v6"/>',
     }
     const body = ICONS[name] || ICONS.gear
     return `<svg class="icon" viewBox="0 0 24 24" aria-hidden="true">${body}</svg>`
@@ -255,9 +301,10 @@
       for (const a of actions) {
         const idx = items.length
         items.push({ kind: 'action', label: a.label(), action: () => { a.run ? a.run() : (window.hibanaNav ? window.hibanaNav.go(a.go) : (window.location.href = a.go)) } })
+        const sub = a.sub ? a.sub() : ''
         html.push(`<li class="cmdk-item" role="option" data-idx="${idx}" tabindex="-1">
           <span class="cmdk-icon">${iconSvg(a.icon)}</span>
-          <span class="cmdk-label">${esc(a.label())}</span>
+          <span class="cmdk-label">${esc(a.label())}${sub ? `<span class="cmdk-sublabel muted"> · ${esc(sub)}</span>` : ''}</span>
           ${a.hint ? `<kbd class="cmdk-hint">${a.hint}</kbd>` : ''}
         </li>`)
       }
@@ -419,6 +466,7 @@
     if (dlg.open) return
     loadRecent() // R4.2: refresh recent list on every open (in case project.html updated it)
     ensureTags() // R4.2: fetch tags once, cache for subsequent opens
+    ensureTrashCount() // S52: same once-per-session pattern for the Trash count sublabel
     input.value = ''
     refresh('')
     dlg.showModal()

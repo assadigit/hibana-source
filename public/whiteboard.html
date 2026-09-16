@@ -14,7 +14,7 @@
   <link rel="stylesheet" href="/css/canvas.css?v=6">
   <link rel="stylesheet" href="/css/quicknotes.css?v=12">
   <link rel="stylesheet" href="/css/to-do-list.css?v=3">
-  <link rel="stylesheet" href="/css/polish-ui.css?v=10">
+  <link rel="stylesheet" href="/css/polish-ui.css?v=12">
   <link rel="stylesheet" href="/css/calendar.css?v=4">
   <link rel="stylesheet" href="/css/notifications.css?v=4">
   <link rel="stylesheet" href="/css/polish-batch.css?v=13">
@@ -33,14 +33,14 @@
   <script src="/js/app.js?v=183" defer></script>
   <script src="/js/hib-init.js?v=1" defer></script>
   <script src="/js/touch-drag.js?v=1" defer></script>
-  <script src="/js/command-palette.js?v=4" defer></script>
+  <script src="/js/command-palette.js?v=6" defer></script>
   <script src="/js/mobile-nav.js?v=5" defer></script>
   <script src="/js/zen-mode.js?v=1" defer></script>
   <script src="/js/micro-interactions.js?v=1" defer></script>
   <script src="/js/go-to.js?v=1" defer></script>
   <script src="/js/install-prompt.js?v=1" defer></script>
-  <script src="/js/i18n-en.js?v=38" defer></script>
-  <script src="/js/i18n.js?v=94" defer></script>
+  <script src="/js/i18n-en.js?v=40" defer></script>
+  <script src="/js/i18n.js?v=96" defer></script>
   <script src="/js/history.js?v=1" defer></script>
   <script src="/js/sticky.js?v=1" defer></script>
   <script src="/js/whiteboard.js?v=25" defer></script>
@@ -110,7 +110,18 @@
     <!-- Session 28: sticky recolor palette (parity with the Canvas board's
          data-sticky-palette) — floats under a selected sticky note; 7 pastels. -->
     <div class="sticky-palette" data-sticky-palette hidden></div>
-    <div class="board-loading" data-board-loading><span class="hibana-spinner" aria-hidden="true"></span><span data-i18n="wb.loading">Loading sheet…</span></div>
+    <!-- S52: skeleton boot state — ghost sticky notes on the paper while the sheet
+         loads (the same .skeleton shimmer base the other list pages adopted in S50;
+         this page was the last spinner+text pill). data-board-loading is kept verbatim:
+         whiteboard.js removes this node when init resolves, and the notebook e2e waits
+         for exactly that detachment. -->
+    <div class="nb-sk" data-board-loading role="status" aria-label="Loading sheet…" data-i18n-aria-label="wb.loading">
+      <div class="nb-sk-note" aria-hidden="true"><div class="skeleton nb-sk-line"></div><div class="skeleton nb-sk-line w-60"></div><div class="skeleton nb-sk-line w-40"></div></div>
+      <div class="nb-sk-note" aria-hidden="true"><div class="skeleton nb-sk-line w-60"></div><div class="skeleton nb-sk-line"></div><div class="skeleton nb-sk-line w-40"></div></div>
+      <div class="nb-sk-note" aria-hidden="true"><div class="skeleton nb-sk-line"></div><div class="skeleton nb-sk-line w-40"></div></div>
+      <div class="nb-sk-note" aria-hidden="true"><div class="skeleton nb-sk-line w-60"></div><div class="skeleton nb-sk-line"></div></div>
+      <span class="sr-only" data-i18n="wb.loading">Loading sheet…</span>
+    </div>
   </div>
   </main><!-- /.landmark-ghost (S51-A main wrapper) -->
 

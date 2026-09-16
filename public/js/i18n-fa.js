@@ -387,6 +387,12 @@ window.__hibanaDictFA = {
       'reports.digestTop': 'دوره‌های پرکار',
       'reports.copyFailed': 'کپی ناموفق بود — مرورگر دسترسی کلیپ‌بورد را مسدود کرد',
       'reports.nothingToExport': 'هنوز چیزی برای برون‌بری نیست — داده‌ها در حال بارگذاری‌اند',
+      // S52: streak trio (cards above the heatmap) + digest/CSV lines
+      'reports.streakCurrent': 'زنجیرهٔ فعلی',
+      'reports.streakLongest': 'بلندترین زنجیره',
+      'reports.streakActive': 'روزهای فعال',
+      'reports.streakDays': 'روز',
+      'reports.streakHint': 'روزی فعال است که مانعی حل کنی، کاری را تمام کنی، یا پروژه و یادداشتی بسازی.',
       // calendar view (Phase B4.1)
       'nav.calendar': 'تقویم',
       'calendar.today': 'امروز', 'calendar.close': 'بستن',
@@ -662,6 +668,9 @@ window.__hibanaDictFA = {
       'cmdk.toggleZen': 'حالت تمرکز',
       'cmdk.shortcutZen': 'حالت تمرکز',
       'cmdk.recent': 'اخیر', 'cmdk.tags': 'برچسب‌ها',
+      // S52: Trash palette command + recoverable-count sublabel
+      'cmdk.openTrash': 'سطل بازیافت — بازیابی موارد حذف‌شده',
+      'cmdk.trashCount': '{n} مورد قابل بازیابی',
       'cmdk.statusSpark': 'ایده', 'cmdk.statusUnreviewed': 'بررسی نشده', 'cmdk.statusInvestigating': 'در حال تحقیق',
       'cmdk.statusAwaiting': 'در انتظار اقدام', 'cmdk.statusDoing': 'در حال انجام', 'cmdk.statusHalted': 'توقف توسعه',
       'cmdk.statusOperational': 'عملیاتی',

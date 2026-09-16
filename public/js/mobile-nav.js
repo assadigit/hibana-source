@@ -40,6 +40,40 @@
 
   const svg = (icon) => `<svg class="icon" viewBox="0 0 24 24" aria-hidden="true">${icon}</svg>`
 
+  // S59 fix: the bottom bar's active state used to be computed ONCE at build time —
+  // (a) it went STALE after every soft navigation (nav.js swaps <main> without a reload,
+  //      and its markNav() only refreshed the desktop topbar links), and (b) secondary
+  //      pages (the More sheet's destinations) left the bar with NO active tab at all —
+  //      zero position feedback on mobile for reports/calendar/settings/… . mark() is the
+  //      single source of truth now: buildBar() calls it, and nav.js's markNav() calls it
+  //      through window.hibanaMobileNav on every soft navigation.
+  // Path normalization: prod serves pretty URLs (CF assets auto-trailing-slash: /projects
+  // for /projects.html), /app is the dashboard shell, /timeline 301s to /reports.html.
+  const normPath = (p) => (p === '/app' ? '/dashboard' : p.replace(/\.html$/, ''))
+  const isSheetPath = (p) =>
+    p === '/timeline' || SHEET_LINKS.some((row) => normPath(row.href) === p)
+
+  function mark(pathname) {
+    if (!nav) return
+    const p = normPath(pathname)
+    nav.querySelectorAll('a').forEach((a) => {
+      const href = a.getAttribute('href') || ''
+      a.setAttribute('aria-current', normPath(href) === p ? 'page' : 'false')
+    })
+    // A secondary page lights up the More tab (the sheet holds the current destination)
+    // and its own row inside the sheet, so opening More shows where you are.
+    if (moreBtn) {
+      if (isSheetPath(p)) moreBtn.setAttribute('aria-current', 'page')
+      else moreBtn.removeAttribute('aria-current')
+    }
+    sheet?.querySelectorAll('a.mobile-more-row').forEach((a) => {
+      const href = a.getAttribute('href') || ''
+      const hit = href === '/reports.html' ? p === '/reports' || p === '/timeline' : normPath(href) === p
+      if (hit) a.setAttribute('aria-current', 'page')
+      else a.removeAttribute('aria-current')
+    })
+  }
+
   // Owner-only rows (batch r): unhide if app.js already resolved the role (flag), or
   // when it announces it (event) — whichever comes first relative to this build.
   const revealOwnerRows = () => {
@@ -48,35 +82,33 @@
   if (window.__hibanaOwner) revealOwnerRows()
   document.addEventListener('hibana:role', (e) => { if (e.detail?.role === 'owner') revealOwnerRows() })
 
+  let nav = null
   let moreBtn = null
   let sheet = null
   let backdrop = null
 
-  function current(pathname) {
-    return pathname === '/app' ? '/dashboard.html' : pathname
-  }
-
   function buildBar() {
-    const nav = document.createElement('nav')
+    nav = document.createElement('nav')
     nav.className = 'mobile-nav'
     nav.setAttribute('aria-label', 'Main menu')
     nav.setAttribute('data-i18n-aria-label', 'mobilenav.label')
-    const tabs = TABS.map((tab) => {
-      const isActive = current(location.pathname) === tab.href || location.pathname === tab.href.replace('.html', '')
-      return `<a href="${tab.href}" aria-current="${isActive ? 'page' : 'false'}">
-        ${svg(tab.icon)}
-        <span class="mobile-nav-label" data-i18n="${tab.i18n}">${tab.label}</span>
-      </a>`
-    }).join('')
+    const tabs = TABS.map(() => `<a aria-current="false"></a>`).join('')
     nav.innerHTML = `${tabs}
       <button type="button" class="mobile-nav-more" aria-haspopup="dialog" aria-expanded="false" aria-controls="mobile-more-sheet">
         ${svg('<circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.6-6.5 8-6.5s8 2.5 8 6.5"/>')}
         <span class="mobile-nav-label" data-i18n="nav.more">More</span>
       </button>`
+    // Fill the tab anchors from TABS (kept separate so mark() can re-run pure).
+    nav.querySelectorAll('a').forEach((a, i) => {
+      const tab = TABS[i]
+      a.href = tab.href
+      a.innerHTML = `${svg(tab.icon)}\n        <span class="mobile-nav-label" data-i18n="${tab.i18n}">${tab.label}</span>`
+    })
     document.body.appendChild(nav)
     document.body.classList.add('has-mobile-nav')
     moreBtn = nav.querySelector('.mobile-nav-more')
     moreBtn.addEventListener('click', () => toggleSheet())
+    mark(location.pathname)
   }
 
   function buildSheet() {
@@ -185,6 +217,9 @@
     if (document.querySelector('.mobile-nav')) return
     buildBar()
     buildSheet()
+    // buildBar's mark() ran while the sheet was still null — re-mark now that the
+    // sheet rows exist so the current secondary page's row is highlighted too.
+    mark(location.pathname)
   }
 
   // Only build when the page has the nav partial (authed pages inject [data-nav])
@@ -202,4 +237,8 @@
       if (document.querySelector('[data-nav]')) build()
     }, 500)
   }
+
+  // Public handle for nav.js's markNav() — keeps the bottom bar's aria-current in sync
+  // on every soft navigation (S59 fix; see mark() above for the why).
+  window.hibanaMobileNav = { mark }
 })()

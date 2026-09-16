@@ -351,6 +351,10 @@ body.has-mobile-nav { padding-block-end: calc(3.5rem + env(safe-area-inset-botto
 .mobile-nav .mobile-nav-more:active { background: var(--accent-soft); }
 .mobile-nav a[aria-current="page"] { color: var(--link); }
 .mobile-nav .mobile-nav-more[aria-expanded="true"] { color: var(--link); }
+/* S59: on secondary pages (reports/calendar/gallery/…) the current destination lives in
+   the More sheet — light the More tab so the bar always shows WHERE you are, instead of
+   nothing at all. Same teal ink as a primary tab. */
+.mobile-nav .mobile-nav-more[aria-current="page"] { color: var(--link); }
 .mobile-nav a .icon,
 .mobile-nav .mobile-nav-more .icon { width: 1.35em; height: 1.35em; }
 /* Long FA labels (e.g. «لیست کارها») must never blow out the row. */
@@ -365,6 +369,23 @@ body.has-mobile-nav { padding-block-end: calc(3.5rem + env(safe-area-inset-botto
   .ghost, .btn { min-block-size: 44px; min-inline-size: 44px; }
   .btn:not(.fab):not(.fab-item) { padding-block: 0.6rem; }
   .ghost[aria-label] { padding: 0.5rem; }
+}
+
+/* S59 micro-interaction: tactile press feedback — primary controls answer the press
+   with a 3% squeeze so every click/tap has physical confirmation, matching the FAB's
+   existing 0.92 recipe. Guards: reduced-motion users get none of it; the FAB family
+   keeps its own richer scale; inputs/selects/textareas never scale (they aren't
+   momentary actions); large surfaces (cards) squeeze half as much — a big jump reads
+   as layout shift, not feedback. Applies instantly on :active (no transition needed —
+   the snap-back rides the existing background/color transitions). */
+@media (prefers-reduced-motion: no-preference) {
+  button:not(.fab):not(.fab-item):not(.fab-menu):active,
+  a.ghost:active,
+  .vault-quick:active,
+  .mobile-more-row:active {
+    transform: scale(0.97);
+  }
+  .vault-card:active { transform: scale(0.985); }
 }
 
 /* Sticky footer (existing pages already use main.shell; this makes the layout column

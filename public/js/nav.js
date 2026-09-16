@@ -246,6 +246,10 @@
       if (href === pathname) a.setAttribute('aria-current', 'page')
       else a.removeAttribute('aria-current')
     })
+    // S59: the mobile bottom bar goes stale without this — it was built once at page
+    // load and never re-marked on soft navigation (the bug: notes → projects kept
+    // "Notes" lit). Secondary pages also light up the More tab via the same call.
+    window.hibanaMobileNav?.mark(pathname)
   }
 
   // htmx-fetched fragments can contain Alpine components (dashboard notebook, reports, …).

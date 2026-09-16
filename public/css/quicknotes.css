@@ -889,6 +889,12 @@
 }
 .mobile-more-row:hover { background: var(--bg-soft); text-decoration: none; }
 .mobile-more-row .icon { width: 1.4em; height: 1.4em; color: var(--muted); flex-shrink: 0; }
+/* S59: the row for the page you're currently on — soft accent tint + teal ink (the
+   same recipe as the bottom-bar active tab), so opening the More sheet answers
+   "where am I?" for secondary pages instead of showing an undifferentiated list. */
+.mobile-more-row[aria-current="page"] { background: var(--accent-soft); color: var(--link); font-weight: 600; }
+.mobile-more-row[aria-current="page"] .icon { color: var(--link); }
+.mobile-more-row[aria-current="page"]:hover { background: var(--accent-soft); }
 .mobile-more-danger { color: var(--color-error); }
 .mobile-more-danger .icon { color: var(--color-error); }
 .mobile-more-div { block-size: 1px; background: var(--line); margin: 0.3rem 0.5rem; }

@@ -14,6 +14,8 @@
 //
 // Usage:
 //   node scripts/d1-dump-tables.mjs --db pm-app-dev --output pre-migration.sql
+//   node scripts/d1-dump-tables.mjs --db pm-app-prod --output pre-migration.sql --prod-ok
+//     (--prod-ok = the deliberate owner opt-in for prod; accidental prod usage still refuses)
 //
 // Creds: CLOUDFLARE_API_TOKEN + CLOUDFLARE_ACCOUNT_ID from env (values never printed).
 import { execFileSync } from 'node:child_process'
@@ -30,8 +32,9 @@ if (!db || !output) {
   console.error('usage: node scripts/d1-dump-tables.mjs --db <pm-app-dev> --output <dump.sql>')
   process.exit(1)
 }
-if (db === 'pm-app-prod') {
+if (db === 'pm-app-prod' && !args.includes('--prod-ok')) {
   console.error('REFUSED: dev-verify tooling only — the owner runs prod dumps personally.')
+  console.error('Add the deliberate --prod-ok opt-in for prod (S57 owner-instructed round).')
   process.exit(1)
 }
 if (!process.env.CLOUDFLARE_API_TOKEN || !process.env.CLOUDFLARE_ACCOUNT_ID) {

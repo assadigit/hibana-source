@@ -20,6 +20,8 @@
 //
 // Usage:
 //   node scripts/d1-table-digest.mjs --db pm-app-dev --out digest.json
+//   node scripts/d1-table-digest.mjs --db pm-app-prod --out digest.json --prod-ok
+//     (--prod-ok = the deliberate owner opt-in for prod; accidental prod usage still refuses)
 //
 // Creds: CLOUDFLARE_API_TOKEN + CLOUDFLARE_ACCOUNT_ID from env (values never printed).
 import { execFileSync } from 'node:child_process'
@@ -37,10 +39,10 @@ if (!db || !out) {
   console.error('usage: node scripts/d1-table-digest.mjs --db <pm-app-dev> --out <digest.json>')
   process.exit(1)
 }
-if (db === 'pm-app-prod') {
+if (db === 'pm-app-prod' && !args.includes('--prod-ok')) {
   console.error('REFUSED: this digest helper is dev-verify tooling — it is read-only, but the')
-  console.error('operator decided its usage stays on non-prod databases. Prod digests are')
-  console.error('taken by the owner directly (see Changelogs.md §4 migration ritual).')
+  console.error('operator decided its usage stays on non-prod databases. Prod digests need')
+  console.error('the deliberate --prod-ok opt-in (S57 owner-instructed prod migration round).')
   process.exit(1)
 }
 

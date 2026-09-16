@@ -1,6 +1,18 @@
 # Hibana CD — continuous deployment on merge to main.
 #
-# After CI passes on main, this workflow:
+# GATE (S59b): this workflow is triggered by CI COMPLETING on main (workflow_run),
+# not by the push itself. The old push trigger raced CI — CD started deploying the
+# moment the push landed and reached PROD minutes before CI's verdict, so a red CI
+# deployed anyway (the old "Only deploy if CI passed" comment described a check that
+# was never implemented). Now: CI green ⇒ CD runs; CI failed/cancelled ⇒ CD is
+# skipped (visible as a skipped run); CI re-run ⇒ CD redeploys the same SHA.
+# checkout pins the EXACT head_sha CI verified — a racing newer push can never ride
+# an older commit's green CI into prod; it gets its own CI→CD chain. Deploys queue
+# (concurrency, no cancel) so an in-flight deploy is never killed mid-step.
+# Trade-off, deliberate: if ci.yml itself breaks so CI never completes, CD never
+# fires — a broken CI file pausing deploys is the safe direction to fail.
+#
+# Then this workflow:
 # 1. Builds the prod assets (--wire-html)
 # 2. Deploys to Cloudflare Workers DEV (hibana.aliassadi.workers.dev)
 # 3. Live-probes the dev deployment
@@ -11,22 +23,32 @@
 #   CLOUDFLARE_API_TOKEN  — Cloudflare API token with Workers deploy permission
 #   CLOUDFLARE_ACCOUNT_ID — your Cloudflare account ID
 #
-# Once these are set, every merge to main auto-deploys to dev + prod.
-# To disable: comment out the 'on: push: branches: [main]' trigger below.
+# To disable: comment out the workflow_run trigger below.
 name: CD
 
 on:
-  push:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
     branches: [main]
+
+concurrency:
+  group: cd-deploy
+  cancel-in-progress: false
 
 jobs:
   deploy:
+    # Only deploy when the CI run that triggered us SUCCEEDED. pull_request CI runs
+    # never reach here (workflow_run's branches filter matches their head branch, not
+    # main) — only push-to-main CI runs chain into CD.
+    if: github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    # Only deploy if CI passed (this is a separate workflow — GitHub doesn't chain
-    # workflows natively, so this checks the CI status via the commit SHA)
     steps:
       - uses: actions/checkout@v4
+        with:
+          # Deploy EXACTLY what CI verified — never the moving tip of main.
+          ref: ${{ github.event.workflow_run.head_sha }}
 
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2

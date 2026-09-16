@@ -80,9 +80,27 @@ jobs:
           # Statement-position check: a line STARTING with a destructive keyword. FK
           # clauses like "REFERENCES users(id) ON DELETE CASCADE" are mid-line DDL inside
           # CREATE TABLE and must not trip this — comment lines are stripped first.
-          if grep -inE '^\s*(drop|delete|truncate|update|replace|reset)\b' <(grep -vE '^\s*--' "migrations/${MIG}.sql"); then
-            echo "REFUSED: destructive statement found in ${MIG}.sql — this workflow only ships additive migrations."
-            exit 1
+          # S59b exception: the SQLite REBUILD pattern (0041/0058) — SQLite can't ALTER a
+          # CHECK constraint, so widening one is ALTER TABLE x RENAME TO x_old → CREATE
+          # TABLE x → copy → DROP TABLE x_old. A DROP of <x>_old is allowed ONLY when the
+          # same file renames <x> to <x>_old first (the rebuild signature); every other
+          # DROP (0048-style real drops) stays refused.
+          BODY=$(grep -vE '^\s*--' "migrations/${MIG}.sql")
+          VIOLATIONS=$(echo "$BODY" | grep -inE '^\s*(drop|delete|truncate|update|replace|reset)\b' || true)
+          if [ -n "$VIOLATIONS" ]; then
+            while IFS= read -r line; do
+              TBL=$(echo "$line" | grep -ioE '^\s*[0-9]+:\s*drop\s+table\s+if\s+exists\s+[a-z0-9_]+|^\s*[0-9]+:\s*drop\s+table\s+[a-z0-9_]+' | grep -oE '[a-z0-9_]+$' || true)
+              if [ -z "$TBL" ]; then
+                echo "REFUSED: destructive statement found — $line"
+                exit 1
+              fi
+              if ! echo "$BODY" | grep -qiE "^\s*alter\s+table\s+${TBL%_old}\s+rename\s+to\s+${TBL}\s*;?\s*$"; then
+                echo "REFUSED: DROP TABLE ${TBL} without a matching 'ALTER TABLE ${TBL%_old} RENAME TO ${TBL}' rebuild — $line"
+                exit 1
+              fi
+              echo "  allowed: rebuild-pattern DROP TABLE ${TBL} (preceded by rename)"
+            done <<< "$VIOLATIONS"
+            echo "  clean — additive + rebuild patterns only"
           else
             echo "  clean — purely additive"
           fi

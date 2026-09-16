@@ -4,6 +4,7 @@
 // sender only permits the account owner as recipient (403 for anyone else, which
 // broke the signup confirmation codes).
 
+import { log } from '../lib/log'
 import type { Db } from '../db/types'
 
 /** Structural subset of Config the mail paths touch — keeps this module app-agnostic. */
@@ -111,14 +112,21 @@ interface EmailLogEntry {
   error?: string
 }
 
-/** Best-effort email_log insert — a logging failure must never break the send path. */
+/** Best-effort email_log insert — a logging failure must never break the send path.
+ * S59b: the failure is now at least WARNED. The pre-0058 CHECK constraint silently
+ * rejected kinds outside its list (backup_failed, test) and the bare catch{} made the
+ * loss invisible — the 09-12→09-16 backup fail storm sent alert emails that left ZERO
+ * rows, which read as "the alert path is dead" in the S59 forensics. Still never
+ * throws; a dead log row is never worth a dead send. */
 async function logEmail(db: Db, e: EmailLogEntry): Promise<void> {
   try {
     await db.execute(
       'INSERT INTO email_log (id, to_email, kind, subject, status, error, sent_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
       [crypto.randomUUID(), e.to, e.kind, e.subject ?? null, e.status, e.error ?? null, new Date().toISOString()],
     )
-  } catch {}
+  } catch (err) {
+    log.warn('email_log_write_failed', { kind: e.kind, to: e.to, err: err instanceof Error ? err.message : String(err) })
+  }
 }
 
 /** Sent-count since UTC midnight — the quota numerator for the admin console. */

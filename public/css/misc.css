@@ -994,3 +994,14 @@ body:has(.dash-skeleton) .fab-stack .fab:hover { background: color-mix(in srgb, 
    /api/tags route — an unbreakable ~497px token that overflowed the whole page.
    anywhere-wrapping keeps ANY unbreakable token from ever blowing the page again. */
 #taglist { overflow-wrap: anywhere; }
+
+/* ══ S56: admin boot skeletons — ghost KPI cards + user cards ════════════════
+   The .skeleton shimmer base lives in polish-ui.css; these size the ghosts to
+   the real things so the swap doesn't jump (KPI number ~1.35rem line + label). */
+.adm-kpi.is-skel { place-items: stretch; }
+.adm-kpi.is-skel .skeleton { display: block; }
+.skeleton-kpi-num { height: 1.35rem; width: 55%; margin-block: 0.1rem; border-radius: 6px; }
+.skeleton-line.w-20 { width: 20%; }
+.adm-user.is-skel { display: grid; gap: 0.55rem; }
+.adm-user.is-skel .skeleton { display: block; }
+.adm-userlist[role='status'] { min-height: 12rem; }

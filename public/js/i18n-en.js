@@ -884,6 +884,7 @@ window.__hibanaDictEN = {
       'notes.importQuick': 'Import your quick notes',
       'notes.importQuickDone': 'Imported {n} quick note(s)',
       'notes.importQuickNone': 'All your quick notes are already notes here',
+      'notes.outline': 'On this page',
       'fab.vault': 'New note',
       'fab.vaultHint': 'Long-form note in your Notes vault',
       'cmdk.newNote': 'New note',

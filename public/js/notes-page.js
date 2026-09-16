@@ -432,6 +432,7 @@
           </div>
         </div>`
         updateStatus()
+        wirePreview()
       }
 
       const updateStatus = () => {
@@ -451,6 +452,117 @@
       const renderPreview = () => {
         const body = $('[data-vault-preview-body]')
         if (body) body.innerHTML = renderMarkdown(state.draft.content)
+        wirePreview()
+      }
+
+      /* ── S56: heading outline — Obsidian's "On this page" nav for the preview pane.
+         Headings h1–h3 are parsed OUTSIDE fenced code blocks (a # inside ``` is code,
+         not a heading); the outline shows when there are ≥ 2 headings (one heading is
+         just the title, not a structure worth navigating). Clicking an item scrolls the
+         preview pane to its heading; the pane's scroll position highlights the section
+         you're reading. Lives INSIDE the preview pane so edit-mode hides it for free. ── */
+      const outlineOf = (content) => {
+        const out = []
+        let inFence = false
+        for (const line of String(content || '').split('\n')) {
+          if (/^\s*(```|~~~)/.test(line)) { inFence = !inFence; continue }
+          if (inFence) continue
+          const m = /^(#{1,3})\s+(\S.*)$/.exec(line)
+          if (m) out.push({ level: m[1].length, text: m[2].trim().replace(/[*_`~]*/, '').slice(0, 80) })
+        }
+        return out
+      }
+
+      const outlineCollapsed = () => prefs.outline === false
+
+      const wirePreview = () => {
+        const pane = $('[data-vault-preview]')
+        const body = $('[data-vault-preview-body]')
+        if (!pane || !body) return
+        // tag the rendered headings sequentially (data-vh mirrors the outline index)
+        const heads = [...body.querySelectorAll('h1, h2, h3')]
+        heads.forEach((h, i) => { h.dataset.vh = String(i) })
+        // (re)build the outline box above the rendered content
+        let nav = pane.querySelector('[data-vault-outline]')
+        const items = outlineOf(state.draft.content)
+        if (items.length < 2) { if (nav) nav.remove(); return }
+        if (!nav) {
+          nav = document.createElement('nav')
+          nav.className = 'vault-outline'
+          nav.setAttribute('data-vault-outline', '')
+          nav.setAttribute('aria-label', _t('notes.outline', 'On this page'))
+          pane.insertBefore(nav, pane.firstChild)
+        }
+        nav.dataset.open = outlineCollapsed() ? 'false' : 'true'
+        nav.innerHTML = `<button type="button" class="vault-outline-head" data-vault-outline-toggle aria-expanded="${!outlineCollapsed()}">
+          <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h10M4 18h13"/></svg>
+          <span>${esc(_t('notes.outline', 'On this page'))}</span>
+          <svg class="icon vault-outline-caret" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+        </button>
+        <ol class="vault-outline-list">
+          ${items.map((it, i) => `<li class="vault-outline-item is-l${it.level}" data-vault-outline-item="${i}"><button type="button" data-vault-goto="${i}" tabindex="${outlineCollapsed() ? -1 : 0}"><span>${esc(it.text)}</span></button></li>`).join('')}
+        </ol>`
+        // active-heading tracking on pane scroll (passive — never blocks scrolling).
+        // Rule: the last heading above the fold line (48px) is "where you're reading".
+        // At the pane's BOTTOM (short notes can't scroll a late heading to the top),
+        // the last heading still VISIBLE wins instead — so clicking an outline item
+        // always highlights the section you jumped to.
+        pane.onscroll = () => {
+          if (outlineCollapsed() || !heads.length) return
+          const prect = pane.getBoundingClientRect()
+          let active = 0
+          for (const h of heads) {
+            if (h.getBoundingClientRect().top - prect.top <= 48) active = Number(h.dataset.vh || 0)
+          }
+          if (pane.scrollTop + pane.clientHeight >= pane.scrollHeight - 2) {
+            for (const h of heads) {
+              if (h.getBoundingClientRect().top - prect.top < prect.height - 8) active = Number(h.dataset.vh || 0)
+            }
+          }
+          let activeEl = null
+          nav.querySelectorAll('.vault-outline-item').forEach((li) => {
+            const on = Number(li.getAttribute('data-vault-outline-item')) === active
+            li.classList.toggle('is-active', on)
+            if (on) activeEl = li
+          })
+          // keep the ACTIVE item visible inside the (scrollable) outline list itself —
+          // manual scroll so the page/pane never moves, only the list
+          const list = nav.querySelector('.vault-outline-list')
+          if (activeEl && list && list.scrollHeight > list.clientHeight) {
+            const lt = activeEl.getBoundingClientRect().top - list.getBoundingClientRect().top
+            if (lt < 0) list.scrollTop += lt - 4
+            else if (lt > list.clientHeight - activeEl.offsetHeight) list.scrollTop += lt - list.clientHeight + activeEl.offsetHeight + 4
+          }
+        }
+        pane.onscroll() // initial state: highlight where the pane starts (heading 0)
+      }
+
+      const onOutlineClick = (e) => {
+        const t = e.target instanceof Element ? e.target : null
+        if (!t) return
+        const nav = t.closest('[data-vault-outline]')
+        if (!nav) return
+        const toggle = t.closest('[data-vault-outline-toggle]')
+        if (toggle) {
+          const open = nav.dataset.open !== 'true'
+          nav.dataset.open = String(open)
+          toggle.setAttribute('aria-expanded', String(open))
+          nav.querySelectorAll('.vault-outline-item button').forEach((b) => { b.tabIndex = open ? 0 : -1 })
+          prefs.outline = open
+          savePrefs()
+          return
+        }
+        const item = t.closest('[data-vault-outline-item] button')
+        if (item) {
+          const pane = $('[data-vault-preview]')
+          // resolve the HEADING inside the preview body (data-vh lives on rendered
+          // h1–h3 only — the outline buttons ride data-vault-goto, so no collision)
+          const head = pane?.querySelector(`[data-vault-preview-body] [data-vh="${item.getAttribute('data-vault-goto')}"]`)
+          if (pane && head) {
+            const delta = head.getBoundingClientRect().top - pane.getBoundingClientRect().top
+            pane.scrollTo({ top: pane.scrollTop + delta - 10, behavior: 'smooth' })
+          }
+        }
       }
 
       /* ══════════════ data flows ══════════════ */
@@ -928,6 +1040,7 @@
         if (t.closest('[data-vault-burger]')) { openDrawer(); return }
         if (t.closest('[data-vault-scrim]')) { closeDrawer(); return }
         if (t.closest('[data-vault-back]')) { closeMobileEditor(); return }
+        if (t.closest('[data-vault-outline]')) { onOutlineClick(e); return }
 
         // view switches
         const viewBtn = t.closest('[data-vault-view]')

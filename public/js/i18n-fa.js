@@ -881,6 +881,7 @@ window.__hibanaDictFA = {
       'notes.importQuick': 'یادداشت‌های سریع را وارد کن',
       'notes.importQuickDone': '{n} یادداشت سریع وارد شد',
       'notes.importQuickNone': 'همهٔ یادداشت‌های سریع همین‌جا هستند',
+      'notes.outline': 'در این صفحه',
       'fab.vault': 'یادداشت جدید',
       'fab.vaultHint': 'یادداشت بلند در دانش‌نامه',
       'cmdk.newNote': 'یادداشت جدید',

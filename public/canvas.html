@@ -20,7 +20,7 @@
   <link rel="stylesheet" href="/css/polish-batch.css?v=13">
   <link rel="stylesheet" href="/css/project-header.css?v=25">
   <link rel="stylesheet" href="/css/devboard.css?v=18">
-  <link rel="stylesheet" href="/css/misc.css?v=9">
+  <link rel="stylesheet" href="/css/misc.css?v=10">
   <link rel="stylesheet" href="/css/themes.css?v=2">
   <link rel="stylesheet" href="/css/rtl.css?v=2">
   <link rel="stylesheet" href="/vendor/manrope/font-face.css">
@@ -39,8 +39,8 @@
   <script src="/js/micro-interactions.js?v=1" defer></script>
   <script src="/js/go-to.js?v=2" defer></script>
   <script src="/js/install-prompt.js?v=1" defer></script>
-  <script src="/js/i18n-en.js?v=43" defer></script>
-  <script src="/js/i18n.js?v=99" defer></script>
+  <script src="/js/i18n-en.js?v=44" defer></script>
+  <script src="/js/i18n.js?v=100" defer></script>
   <script src="/js/history.js?v=1" defer></script>
   <script src="/js/sticky.js?v=1" defer></script>
   <script src="/js/canvas.js?v=32" defer></script>
@@ -59,20 +59,20 @@
        [tools] · [text props] · [stroke width] · [color] · [history] · [object actions] · [more] -->
   <div class="canvas-toolbar" id="canvas-toolbar">
     <div class="tb-group">
-      <button data-tool="select" class="active" title="Select / move / pan (space or middle-drag)" data-i18n-title="canvas.select"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M5.5 3.5l13.5 7.6-6 1.6a1 1 0 0 0-.7.7L10.7 19z"/></svg></button>
-      <button data-tool="pen" class="pen-only" title="Draw freehand (desktop)" data-i18n-title="canvas.pen"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20l4.5-1L19.5 8a2 2 0 0 0-2.8-2.8L6.5 15.5 4 20Z"/><path d="M13.5 6.5l3.5 3.5"/></svg></button>
-      <button data-tool="note" title="Add a sticky note" data-i18n-title="canvas.note"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5.5A1.5 1.5 0 0 1 5.5 4h13A1.5 1.5 0 0 1 20 5.5V14l-6 6H5.5A1.5 1.5 0 0 1 4 18.5Z"/><path d="M14 20v-4.5A1.5 1.5 0 0 1 15.5 14H20"/></svg></button>
-      <button data-tool="text" title="Text — drag a box, or click to type" data-i18n-title="canvas.text"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6V4h16v2M12 4v16M9 20h6"/></svg></button>
-      <button data-tool="eraser" title="Eraser" data-i18n-title="canvas.eraser"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9l7-7 9 9-7 7-3-3M4 9l6 6M20 21H10"/></svg></button>
-      <button data-tool="arrow" class="pen-only" title="Arrow — drag from start to end" data-i18n-title="canvas.arrow"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12h14M13.5 6l6 6-6 6"/></svg></button>
-      <button data-tool="frame" title="Frame — drag to draw one; its content moves with it" data-i18n-title="canvas.frame"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 3H4.5A1.5 1.5 0 0 0 3 4.5V7M17 3h2.5A1.5 1.5 0 0 1 21 4.5V7M7 21H4.5A1.5 1.5 0 0 1 3 19.5V17M17 21h2.5a1.5 1.5 0 0 0 1.5-1.5V17M3 12h18"/></svg></button>
+      <button data-tool="select" class="active" title="Select / move / pan (space or middle-drag)" data-i18n-title="canvas.select" aria-label="Select / move / pan (space or middle-drag)" data-i18n-aria-label="canvas.select"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M5.5 3.5l13.5 7.6-6 1.6a1 1 0 0 0-.7.7L10.7 19z"/></svg></button>
+      <button data-tool="pen" class="pen-only" title="Draw freehand (desktop)" data-i18n-title="canvas.pen" aria-label="Draw freehand (desktop)" data-i18n-aria-label="canvas.pen"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20l4.5-1L19.5 8a2 2 0 0 0-2.8-2.8L6.5 15.5 4 20Z"/><path d="M13.5 6.5l3.5 3.5"/></svg></button>
+      <button data-tool="note" title="Add a sticky note" data-i18n-title="canvas.note" aria-label="Add a sticky note" data-i18n-aria-label="canvas.note"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5.5A1.5 1.5 0 0 1 5.5 4h13A1.5 1.5 0 0 1 20 5.5V14l-6 6H5.5A1.5 1.5 0 0 1 4 18.5Z"/><path d="M14 20v-4.5A1.5 1.5 0 0 1 15.5 14H20"/></svg></button>
+      <button data-tool="text" title="Text — drag a box, or click to type" data-i18n-title="canvas.text" aria-label="Text — drag a box, or click to type" data-i18n-aria-label="canvas.text"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6V4h16v2M12 4v16M9 20h6"/></svg></button>
+      <button data-tool="eraser" title="Eraser" data-i18n-title="canvas.eraser" aria-label="Eraser" data-i18n-aria-label="canvas.eraser"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9l7-7 9 9-7 7-3-3M4 9l6 6M20 21H10"/></svg></button>
+      <button data-tool="arrow" class="pen-only" title="Arrow — drag from start to end" data-i18n-title="canvas.arrow" aria-label="Arrow — drag from start to end" data-i18n-aria-label="canvas.arrow"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12h14M13.5 6l6 6-6 6"/></svg></button>
+      <button data-tool="frame" title="Frame — drag to draw one; its content moves with it" data-i18n-title="canvas.frame" aria-label="Frame — drag to draw one; its content moves with it" data-i18n-aria-label="canvas.frame"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 3H4.5A1.5 1.5 0 0 0 3 4.5V7M17 3h2.5A1.5 1.5 0 0 1 21 4.5V7M7 21H4.5A1.5 1.5 0 0 1 3 19.5V17M17 21h2.5a1.5 1.5 0 0 0 1.5-1.5V17M3 12h18"/></svg></button>
       <!-- squig batch (2026-08-31), (s) merge: clean shape primitives — rect / oval.
            Drag draws; Shift constrains (rect→square, oval→perfect circle); a plain
            click drops a default size. Legacy saved circles keep rendering as circles. -->
-      <button data-tool="rect" title="Rectangle — drag to draw (Shift = square)" data-i18n-title="canvas.rect"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="7" width="14" height="10" rx="1.5"/></svg></button>
-      <button data-tool="oval" title="Oval — drag to draw (hold Shift for a perfect circle)" data-i18n-title="canvas.oval"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><ellipse cx="12" cy="12" rx="8" ry="5.5"/></svg></button>
+      <button data-tool="rect" title="Rectangle — drag to draw (Shift = square)" data-i18n-title="canvas.rect" aria-label="Rectangle — drag to draw (Shift = square)" data-i18n-aria-label="canvas.rect"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="7" width="14" height="10" rx="1.5"/></svg></button>
+      <button data-tool="oval" title="Oval — drag to draw (hold Shift for a perfect circle)" data-i18n-title="canvas.oval" aria-label="Oval — drag to draw (hold Shift for a perfect circle)" data-i18n-aria-label="canvas.oval"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><ellipse cx="12" cy="12" rx="8" ry="5.5"/></svg></button>
       <!-- Comment pins (Figma-style): click the canvas to pin a note where you stand. -->
-      <button data-tool="comment" title="Comment — click the canvas to pin a note" data-i18n-title="canvas.comment"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6.5A2.5 2.5 0 0 1 6.5 4h11A2.5 2.5 0 0 1 20 6.5v6a2.5 2.5 0 0 1-2.5 2.5H10l-4.5 4v-4h-1A2.5 2.5 0 0 1 4 12.5z"/></svg></button>
+      <button data-tool="comment" title="Comment — click the canvas to pin a note" data-i18n-title="canvas.comment" aria-label="Comment — click the canvas to pin a note" data-i18n-aria-label="canvas.comment"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6.5A2.5 2.5 0 0 1 6.5 4h11A2.5 2.5 0 0 1 20 6.5v6a2.5 2.5 0 0 1-2.5 2.5H10l-4.5 4v-4h-1A2.5 2.5 0 0 1 4 12.5z"/></svg></button>
     </div>
     <span class="tb-sep"></span>
     <div class="tb-group tb-text-props">
@@ -92,9 +92,9 @@
       </select>
       <!-- S40 (user request): text alignment — default for new text boxes, live on the
            selected one. Mirrors the size control's semantics; persisted (0055). -->
-      <button data-text-align="left" class="active" title="Align left" data-i18n-title="canvas.alignLeft"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 10h10M4 14h16M4 18h10"/></svg></button>
-      <button data-text-align="center" title="Align center" data-i18n-title="canvas.alignCenter"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M7 10h10M4 14h16M7 18h10"/></svg></button>
-      <button data-text-align="right" title="Align right" data-i18n-title="canvas.alignRight"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M10 10h10M4 14h16M10 18h10"/></svg></button>
+      <button data-text-align="left" class="active" title="Align left" data-i18n-title="canvas.alignLeft" aria-label="Align left" data-i18n-aria-label="canvas.alignLeft"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 10h10M4 14h16M4 18h10"/></svg></button>
+      <button data-text-align="center" title="Align center" data-i18n-title="canvas.alignCenter" aria-label="Align center" data-i18n-aria-label="canvas.alignCenter"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M7 10h10M4 14h16M7 18h10"/></svg></button>
+      <button data-text-align="right" title="Align right" data-i18n-title="canvas.alignRight" aria-label="Align right" data-i18n-aria-label="canvas.alignRight"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M10 10h10M4 14h16M10 18h10"/></svg></button>
     </div>
     <span class="tb-sep tb-text-props"></span>
     <details class="tb-group width-pick pen-only tb-popover" id="pen-widths">
@@ -121,12 +121,12 @@
     </details>
     <span class="tb-sep"></span>
     <div class="tb-group">
-      <button data-action="undo" title="Undo" data-i18n-title="canvas.undo"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 14L4 9l5-5M4 9h10a6 6 0 0 1 0 12h-4"/></svg></button>
-      <button data-action="redo" title="Redo" data-i18n-title="canvas.redo"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 14l5-5-5-5M20 9H10a6 6 0 0 0 0 12h4"/></svg></button>
+      <button data-action="undo" title="Undo" data-i18n-title="canvas.undo" aria-label="Undo" data-i18n-aria-label="canvas.undo"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 14L4 9l5-5M4 9h10a6 6 0 0 1 0 12h-4"/></svg></button>
+      <button data-action="redo" title="Redo" data-i18n-title="canvas.redo" aria-label="Redo" data-i18n-aria-label="canvas.redo"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 14l5-5-5-5M20 9H10a6 6 0 0 0 0 12h4"/></svg></button>
     </div>
     <span class="tb-sep"></span>
     <div class="tb-group">
-      <button data-action="lock" title="Lock / unlock selection" data-i18n-title="canvas.lock"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg></button>
+      <button data-action="lock" title="Lock / unlock selection" data-i18n-title="canvas.lock" aria-label="Lock / unlock selection" data-i18n-aria-label="canvas.lock"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg></button>
       <button data-action="promote" title="Promote selected note to an Idea (keep the note)" data-i18n-title="canvas.promote"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 19V5m0 0l-5 5m5-5l5 5"/></svg> <span data-i18n="canvas.promoteBtn">Promote</span></button>
       <!-- Phase 7 item 9: sibling of «تبدیل به ایده» — the selected sticky note lands in the
            Quick Notebook on the dashboard (sticky stays on the board, promote-style). -->
@@ -140,10 +140,10 @@
            (k) 2026-09-06: image-from-link promoted here from the ⋯ overflow — it was
            invisible AND dead (CSP img-src blocked every external picture; fixed in
            app.ts/_headers this batch). Opens the image popover (URL input + Add). -->
-      <button data-action="addimage" title="Add an image from a link (URL)" data-i18n-title="canvas.addImage"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="8.5" cy="10" r="1.5"/><path d="M5 19l5-6 3 3 4-4 3 3"/></svg></button>
-      <button data-action="blocks" title="Wireframe blocks — place lo-fi UI building blocks" data-i18n-title="canvas.blocks"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="7" height="7" rx="1.5"/><rect x="13" y="4" width="7" height="7" rx="1.5"/><rect x="4" y="13" width="7" height="7" rx="1.5"/><rect x="13" y="13" width="7" height="7" rx="1.5"/></svg></button>
-      <button data-action="paper" title="Paper &amp; grid" data-i18n-title="canvas.paper"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 3 8l9 5 9-5-9-5Z"/><path d="m3 13 9 5 9-5"/></svg></button>
-      <button data-action="export" title="Export as PNG" data-i18n-title="canvas.exportPng"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v10m0 0-4-4m4 4 4-4"/><path d="M4 17v1.5A1.5 1.5 0 0 0 5.5 20h13a1.5 1.5 0 0 0 1.5-1.5V17"/></svg></button>
+      <button data-action="addimage" title="Add an image from a link (URL)" data-i18n-title="canvas.addImage" aria-label="Add an image from a link (URL)" data-i18n-aria-label="canvas.addImage"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="8.5" cy="10" r="1.5"/><path d="M5 19l5-6 3 3 4-4 3 3"/></svg></button>
+      <button data-action="blocks" title="Wireframe blocks — place lo-fi UI building blocks" data-i18n-title="canvas.blocks" aria-label="Wireframe blocks — place lo-fi UI building blocks" data-i18n-aria-label="canvas.blocks"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="7" height="7" rx="1.5"/><rect x="13" y="4" width="7" height="7" rx="1.5"/><rect x="4" y="13" width="7" height="7" rx="1.5"/><rect x="13" y="13" width="7" height="7" rx="1.5"/></svg></button>
+      <button data-action="paper" title="Paper &amp; grid" data-i18n-title="canvas.paper" aria-label="Paper &amp; grid" data-i18n-aria-label="canvas.paper"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 3 8l9 5 9-5-9-5Z"/><path d="m3 13 9 5 9-5"/></svg></button>
+      <button data-action="export" title="Export as PNG" data-i18n-title="canvas.exportPng" aria-label="Export as PNG" data-i18n-aria-label="canvas.exportPng"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v10m0 0-4-4m4 4 4-4"/><path d="M4 17v1.5A1.5 1.5 0 0 0 5.5 20h13a1.5 1.5 0 0 0 1.5-1.5V17"/></svg></button>
     </div>
     <span class="tb-sep"></span>
     <details class="tb-more">

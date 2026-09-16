@@ -114,7 +114,9 @@
   }
   function renderOverview() {
     const el = $('#adm-kpis')
-    if (!el || !state.summary) return
+    // S56: a failed fetch clears the boot skeletons (empty beats a stale shimmer)
+    if (!el) return
+    if (!state.summary) { el.innerHTML = ''; const rec = $('#adm-recent'); if (rec) rec.innerHTML = ''; return }
     const s = state.summary
     const q = state.quota
     const b = state.backup

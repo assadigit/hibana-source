@@ -20,7 +20,7 @@
   <link rel="stylesheet" href="/css/polish-batch.css?v=13">
   <link rel="stylesheet" href="/css/project-header.css?v=25">
   <link rel="stylesheet" href="/css/devboard.css?v=18">
-  <link rel="stylesheet" href="/css/misc.css?v=9">
+  <link rel="stylesheet" href="/css/misc.css?v=10">
   <link rel="stylesheet" href="/css/themes.css?v=2">
   <link rel="stylesheet" href="/css/rtl.css?v=2">
   <link rel="stylesheet" href="/vendor/manrope/font-face.css">
@@ -39,8 +39,8 @@
   <script src="/js/micro-interactions.js?v=1" defer></script>
   <script src="/js/go-to.js?v=2" defer></script>
   <script src="/js/install-prompt.js?v=1" defer></script>
-  <script src="/js/i18n-en.js?v=43" defer></script>
-  <script src="/js/i18n.js?v=99" defer></script>
+  <script src="/js/i18n-en.js?v=44" defer></script>
+  <script src="/js/i18n.js?v=100" defer></script>
   <script src="/js/history.js?v=1" defer></script>
   <script src="/js/sticky.js?v=1" defer></script>
   <script src="/js/whiteboard.js?v=25" defer></script>
@@ -56,12 +56,12 @@
   <main class="landmark-ghost">
   <!-- A notebook sheet, not a boundless board: pale grid, black/blue pens, eraser, text. -->
   <div class="canvas-toolbar" id="nb-toolbar">
-    <button data-tool="move" class="active" title="Move / select" data-i18n-title="wb.move"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v18M3 12h18M12 3l-3 3m3-3l3 3M12 21l-3-3m3 3l3-3M3 12l3-3m-3 3l3 3M21 12l-3-3m3 3l-3 3"/></svg></button>
-    <button data-tool="black" title="Black pen" data-i18n-title="wb.black"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20l7-7 2.5 2.5-7 7-2.5-.5-.5-2.5zM14 14l-9 9-2.5-.5-.5-2.5 9-9 3 3z"/></svg></button>
-    <button data-tool="blue" class="pen-blue" title="Blue pen" data-i18n-title="wb.blue"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20l7-7 2.5 2.5-7 7-2.5-.5-.5-2.5zM14 14l-9 9-2.5-.5-.5-2.5 9-9 3 3z"/></svg></button>
-    <button data-tool="eraser" title="Eraser" data-i18n-title="wb.eraser"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9l7-7 9 9-7 7-3-3M4 9l6 6M20 21H10"/></svg></button>
-    <button data-tool="text" title="Text — click anywhere and type" data-i18n-title="wb.text"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6V4h16v2M12 4v16M9 20h6"/></svg></button>
-    <button data-tool="note" title="Sticky note — drag to size (click for default)" data-i18n-title="wb.sticky"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5.5A1.5 1.5 0 0 1 5.5 4h13A1.5 1.5 0 0 1 20 5.5V14l-6 6H5.5A1.5 1.5 0 0 1 4 18.5Z"/><path d="M14 20v-4.5A1.5 1.5 0 0 1 15.5 14H20"/></svg></button>
+    <button data-tool="move" class="active" title="Move / select" data-i18n-title="wb.move" aria-label="Move / select" data-i18n-aria-label="wb.move"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v18M3 12h18M12 3l-3 3m3-3l3 3M12 21l-3-3m3 3l3-3M3 12l3-3m-3 3l3 3M21 12l-3-3m3 3l-3 3"/></svg></button>
+    <button data-tool="black" title="Black pen" data-i18n-title="wb.black" aria-label="Black pen" data-i18n-aria-label="wb.black"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20l7-7 2.5 2.5-7 7-2.5-.5-.5-2.5zM14 14l-9 9-2.5-.5-.5-2.5 9-9 3 3z"/></svg></button>
+    <button data-tool="blue" class="pen-blue" title="Blue pen" data-i18n-title="wb.blue" aria-label="Blue pen" data-i18n-aria-label="wb.blue"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20l7-7 2.5 2.5-7 7-2.5-.5-.5-2.5zM14 14l-9 9-2.5-.5-.5-2.5 9-9 3 3z"/></svg></button>
+    <button data-tool="eraser" title="Eraser" data-i18n-title="wb.eraser" aria-label="Eraser" data-i18n-aria-label="wb.eraser"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9l7-7 9 9-7 7-3-3M4 9l6 6M20 21H10"/></svg></button>
+    <button data-tool="text" title="Text — click anywhere and type" data-i18n-title="wb.text" aria-label="Text — click anywhere and type" data-i18n-aria-label="wb.text"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6V4h16v2M12 4v16M9 20h6"/></svg></button>
+    <button data-tool="note" title="Sticky note — drag to size (click for default)" data-i18n-title="wb.sticky" aria-label="Sticky note — drag to size (click for default)" data-i18n-aria-label="wb.sticky"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5.5A1.5 1.5 0 0 1 5.5 4h13A1.5 1.5 0 0 1 20 5.5V14l-6 6H5.5A1.5 1.5 0 0 1 4 18.5Z"/><path d="M14 20v-4.5A1.5 1.5 0 0 1 15.5 14H20"/></svg></button>
     <span class="font-pick">
       <label class="small muted" for="nb-font" data-i18n="canvas.fontLabel">Font</label>
       <select id="nb-font" data-font-pick>
@@ -71,15 +71,15 @@
     </span>
     <!-- S40 (user request): text alignment — default for new text, live on the selected
          one. Mirrors the canvas toolbar; persisted (0055). -->
-    <button data-text-align="left" class="active" title="Align left" data-i18n-title="canvas.alignLeft"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 10h10M4 14h16M4 18h10"/></svg></button>
-    <button data-text-align="center" title="Align center" data-i18n-title="canvas.alignCenter"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M7 10h10M4 14h16M7 18h10"/></svg></button>
-    <button data-text-align="right" title="Align right" data-i18n-title="canvas.alignRight"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M10 10h10M4 14h16M10 18h10"/></svg></button>
-    <button data-action="addimage" title="Add an image from a link (URL)" data-i18n-title="canvas.addImage"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="8.5" cy="10" r="1.5"/><path d="M5 19l5-6 3 3 4-4 3 3"/></svg></button>
-    <button data-action="export" title="Export as PNG" data-i18n-title="canvas.exportPng"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v10m0 0-4-4m4 4 4-4"/><path d="M4 17v1.5A1.5 1.5 0 0 0 5.5 20h13a1.5 1.5 0 0 0 1.5-1.5V17"/></svg></button>
+    <button data-text-align="left" class="active" title="Align left" data-i18n-title="canvas.alignLeft" aria-label="Align left" data-i18n-aria-label="canvas.alignLeft"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 10h10M4 14h16M4 18h10"/></svg></button>
+    <button data-text-align="center" title="Align center" data-i18n-title="canvas.alignCenter" aria-label="Align center" data-i18n-aria-label="canvas.alignCenter"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M7 10h10M4 14h16M7 18h10"/></svg></button>
+    <button data-text-align="right" title="Align right" data-i18n-title="canvas.alignRight" aria-label="Align right" data-i18n-aria-label="canvas.alignRight"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M10 10h10M4 14h16M10 18h10"/></svg></button>
+    <button data-action="addimage" title="Add an image from a link (URL)" data-i18n-title="canvas.addImage" aria-label="Add an image from a link (URL)" data-i18n-aria-label="canvas.addImage"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="8.5" cy="10" r="1.5"/><path d="M5 19l5-6 3 3 4-4 3 3"/></svg></button>
+    <button data-action="export" title="Export as PNG" data-i18n-title="canvas.exportPng" aria-label="Export as PNG" data-i18n-aria-label="canvas.exportPng"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v10m0 0-4-4m4 4 4-4"/><path d="M4 17v1.5A1.5 1.5 0 0 0 5.5 20h13a1.5 1.5 0 0 0 1.5-1.5V17"/></svg></button>
     <span class="td"></span>
-    <button data-action="delete" class="danger" title="Delete selected" data-i18n-title="canvas.deleteSel"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg></button>
-    <button data-action="undo" title="Undo" data-i18n-title="wb.undo"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 14L4 9l5-5M4 9h10a6 6 0 0 1 0 12h-4"/></svg></button>
-    <button data-action="redo" title="Redo" data-i18n-title="wb.redo"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 14l5-5-5-5M20 9H10a6 6 0 0 0 0 12h4"/></svg></button>
+    <button data-action="delete" class="danger" title="Delete selected" data-i18n-title="canvas.deleteSel" aria-label="Delete selected" data-i18n-aria-label="canvas.deleteSel"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg></button>
+    <button data-action="undo" title="Undo" data-i18n-title="wb.undo" aria-label="Undo" data-i18n-aria-label="wb.undo"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 14L4 9l5-5M4 9h10a6 6 0 0 1 0 12h-4"/></svg></button>
+    <button data-action="redo" title="Redo" data-i18n-title="wb.redo" aria-label="Redo" data-i18n-aria-label="wb.redo"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 14l5-5-5-5M20 9H10a6 6 0 0 0 0 12h4"/></svg></button>
     <span class="grow"></span>
   </div>
 

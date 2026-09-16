@@ -4,6 +4,20 @@
       mount(ctx) {
         // ---- Recent activity (merged from the former /timeline page, 2026-08-29) ----
         const _t = (k, f) => window.hibanaI18n?.t(k) || f
+        // S56: heatmap tooltip touch support — a tap focuses the cell (:focus shows
+        // the card, same as keyboard); this dismisses it when the tap lands anywhere
+        // else (touch has no blur-on-tap-elsewhere for non-focusable targets) and on
+        // Escape. Passive listener — never delays scrolling.
+        document.addEventListener('touchstart', (e) => {
+          if (e.target instanceof Element && e.target.closest('.heatmap-cell')) return
+          const focused = document.querySelector('.heatmap-cell:focus')
+          if (focused) focused.blur()
+        }, { passive: true })
+        document.addEventListener('keydown', (e) => {
+          if (e.key !== 'Escape') return
+          const focused = document.querySelector('.heatmap-cell:focus')
+          if (focused) focused.blur()
+        })
         const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))
         const faNum = (s) => String(s).replace(/\d/g, (d) => '۰۱۲۳۴۵۶۷۸۹'[+d])
         const timeAgo = (iso) => {

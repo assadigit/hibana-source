@@ -78,9 +78,10 @@ test('notes vault: create → autosave → preview → star → trash → restor
   // the card list shows the new note with its title
   await expect(page.locator('.vault-card-title').first()).toContainText('E2E vault note')
 
-  // the live preview renders markdown (single <ul> wrap — the S53 renderer fix)
+  // the live preview renders markdown (single <ul> wrap — the S53 renderer fix).
+  // S56: h1–h3 carry data-vh=N (the heading-outline targets them) — match any attrs.
   const previewHtml = await page.locator('[data-vault-preview-body]').innerHTML()
-  expect(previewHtml).toContain('<h2>Heading</h2>')
+  expect(previewHtml).toMatch(/<h2[^>]*>Heading<\/h2>/)
   expect(previewHtml).toContain('<ul><li>one</li>')
   expect(previewHtml).toContain('<strong>bold</strong>')
   expect(previewHtml).not.toContain('<ul><ol>')

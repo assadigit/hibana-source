@@ -990,3 +990,64 @@
   .vault-save[data-state='saving']::before { animation: none; }
   .vault-ed-title::after { transition: none; }
 }
+
+/* ════════════════ S55 polish batch ═════════════════════════════════════════ */
+
+/* Count pills: a touch more presence — the pill reads as a chip, not bare text,
+   and on row hover it warms toward the accent so the eye tracks counts while
+   scanning the tree. */
+.vault-n {
+  border: 1px solid color-mix(in srgb, var(--line) 55%, transparent);
+  transition: background-color 0.14s ease, color 0.14s ease, border-color 0.14s ease;
+}
+.vault-quick:hover .vault-n,
+.vault-folder:hover .vault-n {
+  background: color-mix(in srgb, var(--accent) 10%, var(--bg-soft));
+  border-color: color-mix(in srgb, var(--accent) 28%, transparent);
+}
+
+/* Editor source pane: accent caret + soft accent selection — typing in a long
+   note should feel deliberate. */
+.vault-src { caret-color: var(--accent); }
+.vault-src::selection { background: color-mix(in srgb, var(--accent) 22%, transparent); }
+
+/* Preview selection matches the editor's tint so copy highlights agree. */
+.vault-preview ::selection, .markdown-body[data-vault-preview-body] ::selection {
+  background: color-mix(in srgb, var(--accent) 22%, transparent);
+}
+
+/* List header: the hard border becomes a two-stop fade so cards sliding under
+   the sticky head dissolve instead of clipping against a rule. */
+.vault-list-head {
+  border-block-end: 0;
+  box-shadow: 0 1px 0 var(--line), 0 0.5rem 0.75rem -0.5rem color-mix(in srgb, var(--bg-soft) 92%, transparent);
+}
+
+/* Card date row: the star rides inline-end with a warm amber fill on hover of
+   the card (it was flat gold on both states — a hovered card warms it up). */
+.vault-card:hover .vault-card-star { color: #e0a92e; }
+.vault-card-star .icon { filter: drop-shadow(0 1px 1px rgba(212, 167, 44, 0.25)); }
+
+/* Word-count chip: subtle separator dot rhythm in the meta row. */
+.vault-card-words { color: var(--muted); font-variant-numeric: tabular-nums; }
+.vault-card-words::before { content: '·'; margin-inline-end: 0.3125rem; opacity: 0.6; }
+
+/* Tree toggle chevron: rotates with the open state instead of just flipping
+   color — the affordance reads at a glance. RTL collapsed points left (scaleX
+   flip); open is "down" in both directions (rotate 90 of the right-pointing
+   glyph — and of the flipped one the transform fully replaces, not composes). */
+.vault-tw .icon { transition: transform 0.16s ease; }
+.vault-tw[aria-expanded='true'] .icon { transform: rotate(90deg); }
+[dir='rtl'] .vault-tw .icon { transform: scaleX(-1); }
+[dir='rtl'] .vault-tw[aria-expanded='true'] .icon { transform: rotate(90deg); }
+
+/* Empty-state: the icon circles get a faint ring so they hold their shape on
+   soft backgrounds (matches the import CTA buttons' ghost outline). */
+.empty-state-icon {
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 18%, transparent) inset,
+              0 6px 14px -8px color-mix(in srgb, var(--accent) 40%, transparent);
+}
+
+/* Import CTAs: lift on hover like the primary vault-new button. */
+.vault-meta-add { transition: transform 0.14s ease, background-color 0.14s ease, border-color 0.14s ease; }
+.vault-meta-add:hover { transform: translateY(-1px); }

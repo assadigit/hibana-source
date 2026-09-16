@@ -602,6 +602,23 @@ body.has-mobile-nav { padding-block-end: calc(3.5rem + env(safe-area-inset-botto
   display: grid;
   grid-template-rows: repeat(7, 1fr);
   gap: 3px;
+  position: relative;
+}
+/* S55: month label above a column (GitHub-style) — a week that starts a month gets
+   its name; FA shows the Jalali month. Sits in the row of padding the .heatmap
+   container now reserves above the grid. */
+.heatmap { padding-block-start: 1.05rem; }
+.hm-month {
+  position: absolute;
+  inset-block-start: -1.05rem;
+  inset-inline-start: 0;
+  font-size: 0.62rem;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  color: var(--muted);
+  white-space: nowrap;
+  line-height: 1;
+  pointer-events: none;
 }
 .heatmap-cell {
   width: 13px;
@@ -617,6 +634,115 @@ body.has-mobile-nav { padding-block-end: calc(3.5rem + env(safe-area-inset-botto
 .heatmap-l2 { background: color-mix(in srgb, var(--color-success) 60%, var(--accent-soft)); }
 .heatmap-l3 { background: color-mix(in srgb, var(--color-success) 85%, transparent); }
 .heatmap-l4 { background: var(--color-success); }
+
+/* S55: rich heatmap tooltip — the 4-source breakdown card, shown on hover and
+   :focus-visible (tabindex rides every real cell). Anchored above the cell and
+   horizontally centered; edge columns clamp so the card never leaves the card
+   body. RTL needs no flip — centered is symmetric — but the rows' icon/count
+   order follows direction automatically via flex + logical gap. */
+.heatmap-cell { position: relative; outline: none; }
+.heatmap-cell:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.hm-tip {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%) translateY(3px);
+  min-width: 11.5rem;
+  padding: 0.55rem 0.7rem 0.5rem;
+  border-radius: 10px;
+  background: var(--card);
+  border: 1px solid var(--line-strong);
+  box-shadow: 0 10px 28px rgba(38, 33, 24, 0.16), 0 2px 6px rgba(38, 33, 24, 0.08);
+  font-size: 0.72rem;
+  line-height: 1.35;
+  color: var(--ink);
+  text-align: start;
+  white-space: nowrap;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition: opacity 0.14s ease, transform 0.14s ease;
+  z-index: 40;
+}
+.heatmap-cell:hover .hm-tip,
+.heatmap-cell:focus-visible .hm-tip,
+.heatmap-cell:focus .hm-tip {
+  opacity: 1;
+  visibility: visible;
+  transform: translateX(-50%) translateY(0);
+}
+/* caret pointing back at the cell */
+.hm-tip::after {
+  content: '';
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  border: 5px solid transparent;
+  border-top-color: var(--line-strong);
+}
+.hm-tip-date {
+  display: block;
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: var(--muted);
+  letter-spacing: 0.02em;
+  margin-bottom: 0.35rem;
+  padding-bottom: 0.3rem;
+  border-bottom: 1px dashed var(--line);
+}
+.hm-tip-row {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding-block: 1.5px;
+  color: var(--ink);
+}
+.hm-tip-row b { margin-inline-start: auto; font-variant-numeric: tabular-nums; }
+.hm-tip-row.is-zero { color: var(--muted); opacity: 0.62; }
+.hm-tip-row.is-zero b { color: var(--muted); }
+.hm-tip-ico {
+  display: inline-flex;
+  width: 0.95rem;
+  height: 0.95rem;
+  flex: none;
+  color: var(--accent);
+}
+.hm-tip-ico svg { width: 100%; height: 100%; }
+.hm-tip-total {
+  display: block;
+  margin-top: 0.35rem;
+  padding-top: 0.3rem;
+  border-top: 1px solid var(--line);
+  font-size: 0.72rem;
+  color: var(--color-success);
+}
+/* edge columns: pull the card inward so it never overflows the card body */
+.heatmap-col:first-child .hm-tip { left: 0; transform: translateX(0) translateY(3px); }
+.heatmap-col:first-child .heatmap-cell:hover .hm-tip,
+.heatmap-col:first-child .heatmap-cell:focus-visible .hm-tip,
+.heatmap-col:first-child .heatmap-cell:focus .hm-tip { transform: translateX(0) translateY(0); }
+.heatmap-col:first-child .hm-tip::after { left: 10px; }
+.heatmap-col:last-child .hm-tip { left: auto; right: 0; transform: translateX(0) translateY(3px); }
+.heatmap-col:last-child .heatmap-cell:hover .hm-tip,
+.heatmap-col:last-child .heatmap-cell:focus-visible .hm-tip,
+.heatmap-col:last-child .heatmap-cell:focus .hm-tip { transform: translateX(0) translateY(0); }
+.heatmap-col:last-child .hm-tip::after { left: auto; right: 10px; }
+/* top row of a column: the card has no room above on the first weeks — flip below */
+.heatmap-col .heatmap-cell:nth-child(-n+2) .hm-tip {
+  bottom: auto;
+  top: calc(100% + 8px);
+}
+.heatmap-col .heatmap-cell:nth-child(-n+2) .hm-tip::after {
+  top: auto;
+  bottom: 100%;
+  border-top-color: transparent;
+  border-bottom-color: var(--line-strong);
+}
+@media (prefers-reduced-motion: reduce) {
+  .hm-tip { transition: none; }
+}
+
 .heatmap-legend {
   display: inline-flex;
   align-items: center;
@@ -770,6 +896,47 @@ body.has-mobile-nav { padding-block-end: calc(3.5rem + env(safe-area-inset-botto
   background: color-mix(in srgb, var(--badge-awaiting-fg) 9%, var(--accent-soft));
 }
 .streak-fire.is-alive .streak-ico { color: var(--badge-awaiting-fg); }
+/* S55: milestone micro-celebration — the flame flickers and a chip pops in.
+   Milestone days are 3/7/14/30/60/100/365; a milestone streak earns a warm halo
+   (soft radial glow behind the card), the flame gets a subtle 3-step flicker,
+   and the chip scales in with a spring-y overshoot. Reduced-motion flattens. */
+.streak-fire.is-milestone {
+  border-color: color-mix(in srgb, var(--badge-awaiting-fg) 62%, var(--line));
+  background:
+    radial-gradient(120% 140% at 18% 0%,
+      color-mix(in srgb, var(--badge-awaiting-fg) 16%, transparent) 0%,
+      transparent 62%),
+    color-mix(in srgb, var(--badge-awaiting-fg) 9%, var(--accent-soft));
+  box-shadow: 0 4px 18px color-mix(in srgb, var(--badge-awaiting-fg) 18%, transparent);
+}
+.streak-fire.is-milestone .streak-ico {
+  background: color-mix(in srgb, var(--badge-awaiting-fg) 14%, var(--bg));
+  animation: hm-flame 1.6s ease-in-out infinite;
+}
+.streak-fire.is-milestone .streak-nums b { color: var(--badge-awaiting-fg); }
+.streak-mile {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.16rem 0.5rem;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--badge-awaiting-fg) 45%, transparent);
+  background: color-mix(in srgb, var(--badge-awaiting-fg) 14%, transparent);
+  color: var(--badge-awaiting-fg);
+  font-size: var(--fs-xs);
+  font-weight: 700;
+  white-space: nowrap;
+  animation: hm-chip-pop 0.45s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+@keyframes hm-flame {
+  0%, 100% { transform: scale(1) rotate(0deg); }
+  30% { transform: scale(1.12) rotate(-3deg); }
+  60% { transform: scale(0.96) rotate(2deg); }
+  80% { transform: scale(1.06) rotate(-1deg); }
+}
+@keyframes hm-chip-pop {
+  0% { transform: scale(0.4); opacity: 0; }
+  100% { transform: scale(1); opacity: 1; }
+}
 .streak-hint { margin-block-end: 0.75rem; }
 @media (max-width: 560px) {
   .streak-card { padding: 0.45rem 0.7rem; gap: 0.45rem; flex: 1 1 46%; justify-content: center; }
@@ -778,6 +945,8 @@ body.has-mobile-nav { padding-block-end: calc(3.5rem + env(safe-area-inset-botto
 }
 @media (prefers-reduced-motion: reduce) {
   .streak-card { transition: none; }
+  .streak-fire.is-milestone .streak-ico { animation: none; }
+  .streak-mile { animation: none; }
 }
 
 

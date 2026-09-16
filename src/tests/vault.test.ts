@@ -146,7 +146,7 @@ describe('notes vault (0057)', () => {
       const res = await app.fetch(new Request('http://local/api/vault/bootstrap', { headers: auth }))
       expect(res.status).toBe(200)
       const boot = (await res.json()) as { folders: Folder[]; tags: { tag: string; count: number }[]; counts: { all: number; starred: number; trash: number; unfiled: number; has_sparks: boolean } }
-      expect(boot.counts).toEqual({ all: 3, starred: 1, trash: 1, unfiled: 3, has_sparks: false }) // no sparks in this fixture
+      expect(boot.counts).toEqual({ all: 3, starred: 1, trash: 1, unfiled: 3, has_sparks: false, has_quicknotes: false }) // no sparks/quick notes in this fixture
       // per-folder counts ride the folder rows
       expect(boot.folders.every((f) => typeof f.note_count === 'number')).toBe(true)
       const byTag = new Map(boot.tags.map((t) => [t.tag.toLowerCase(), t.count]))
@@ -376,6 +376,70 @@ describe('notes vault (0057)', () => {
       expect(resB.created).toBe(1) // only B's own spark
       const bCards = await listNotes(b)
       expect(bCards.map((c) => c.title)).toEqual(['B secret'])
+    } finally {
+      close()
+    }
+  })
+
+  it('S55: quick notes → vault import — copies into a Notebook folder, lists render as bullets, idempotent, quick notes untouched', async () => {
+    const { db, close } = makeTestDb()
+    try {
+      const user = await makeUser(db)
+      const { app, auth } = await makeClient(db, user)
+      const iso = () => new Date().toISOString()
+      // one plain note, one list (2 open + 1 done item), one soft-deleted, one EMPTY note
+      await db.execute(
+        "INSERT INTO quick_notes (id, user_id, kind, title, content, deleted_at, created_at, updated_at) VALUES ('qn1', ?, 'note', '', 'Fix the porch light\nbuy bulbs first', NULL, ?, ?), ('qn2', ?, 'list', 'Launch checklist', ?, NULL, ?, ?), ('qn3', ?, 'note', '', 'deleted capture', ?, ?, ?), ('qn4', ?, 'note', '', '', NULL, ?, ?)",
+        [user, iso(), iso(), user, JSON.stringify([{ id: 'a', t: 'Renew domain', d: 0 }, { id: 'b', t: 'Email the accountant', d: 1 }, { id: 'c', t: 'Backup keys', d: 0 }]), iso(), iso(), user, iso(), iso(), iso(), user, iso(), iso()],
+      )
+
+      // has_quicknotes flag is live in bootstrap
+      let res = await app.fetch(new Request('http://local/api/vault/bootstrap', { headers: auth }))
+      expect(((await res.json()) as { counts: { has_quicknotes: boolean } }).counts.has_quicknotes).toBe(true)
+
+      res = await app.fetch(new Request('http://local/api/vault/import/quicknotes', { method: 'POST', headers: auth }))
+      expect(res.status).toBe(200)
+      let body = (await res.json()) as { created: number; skipped: number; folder_id?: string }
+      expect(body.created).toBe(2) // qn1 + qn2; qn3 is soft-deleted
+      expect(body.skipped).toBe(1) // qn4 is empty — not importable, counted as skipped
+
+      // the Notebook folder carries them, with the quicknote tag
+      const cards = await listNotes({ app, auth }, `?view=folder&folder=${body.folder_id}`)
+      expect(cards).toHaveLength(2)
+      const plain = cards.find((c) => c.title === 'Fix the porch light')!
+      expect(plain.tags).toBe('quicknote')
+      const full = (await (await app.fetch(new Request(`http://local/api/vault/notes/${plain.id}`, { headers: auth }))).json()) as { note: { content: string } }
+      expect(full.note.content).toContain('buy bulbs first')
+
+      const list = cards.find((c) => c.title === 'Launch checklist')!
+      const listFull = (await (await app.fetch(new Request(`http://local/api/vault/notes/${list.id}`, { headers: auth }))).json()) as { note: { content: string } }
+      expect(listFull.note.content).toContain('- Renew domain')
+      expect(listFull.note.content).toContain('- ~~Email the accountant~~') // done item struck through
+      expect(listFull.note.content).not.toContain('[ ]') // no task-list syntax (S53 owner rule)
+
+      // the quick notes THEMSELVES are untouched (copy, never move)
+      const qnCount = await db.query<{ n: number }>('SELECT COUNT(*) AS n FROM quick_notes WHERE user_id = ? AND deleted_at IS NULL', [user])
+      expect(qnCount[0].n).toBe(3)
+
+      // re-run: idempotent
+      res = await app.fetch(new Request('http://local/api/vault/import/quicknotes', { method: 'POST', headers: auth }))
+      body = (await res.json()) as { created: number; skipped: number }
+      expect(body.created).toBe(0)
+      expect(body.skipped).toBe(3) // qn1 + qn2 present (idempotent) + qn4 empty again
+
+      // rule 1: another user's quick notes are invisible to this import
+      const userB = await makeUser(db)
+      const b = await makeClient(db, userB)
+      await db.execute(
+        "INSERT INTO quick_notes (id, user_id, kind, title, content, created_at, updated_at) VALUES ('qnb', ?, 'note', '', 'B secret note', ?, ?)",
+        [userB, iso(), iso()],
+      )
+      const bootB = (await (await b.app.fetch(new Request('http://local/api/vault/bootstrap', { headers: b.auth }))).json()) as { counts: { has_quicknotes: boolean } }
+      expect(bootB.counts.has_quicknotes).toBe(true)
+      const resB = (await (await b.app.fetch(new Request('http://local/api/vault/import/quicknotes', { method: 'POST', headers: b.auth }))).json()) as { created: number }
+      expect(resB.created).toBe(1) // only B's own quick note
+      const bCards = await listNotes(b)
+      expect(bCards.map((c) => c.title)).toEqual(['B secret note'])
     } finally {
       close()
     }

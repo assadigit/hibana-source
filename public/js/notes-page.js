@@ -144,9 +144,16 @@
       }
       // live note count per folder — carried by bootstrap (note_count on every row);
       // stale by one action at most until the next bootstrap refetch.
+      // S55: counts are CUMULATIVE (the folder's own notes + every descendant's) —
+      // a collapsed "Movies" reading 0 while its subfolders hold 3 notes looks
+      // broken; Obsidian's convention is the subtree total. Moves are cycle-guarded
+      // server-side, so the walk is acyclic by construction.
       const noteCountIn = (folderId) => {
         const f = state.folders.find((x) => x.id === folderId)
-        return f && typeof f.note_count === 'number' ? f.note_count : null
+        const own = f && typeof f.note_count === 'number' ? f.note_count : 0
+        let sub = 0
+        for (const k of childrenOf(folderId)) sub += noteCountIn(k.id) ?? 0
+        return own + sub
       }
 
       /* ── floating menu (folder kebabs + editor kebab) ── */
@@ -315,6 +322,7 @@
               : _t('notes.emptyListHint', 'The long-form knowledge base: curated lists, reference notes, things worth keeping.'))}</p>
             ${!inTrash && !state.q ? `<button type="button" class="vault-new" data-vault-new style="margin-block-start:0.5rem">${I.plus}<span>${esc(_t('notes.newNote', 'New note'))}</span></button>` : ''}
             ${!inTrash && !state.q && state.view.type === 'all' && state.counts.all === 0 && state.counts.has_sparks ? `<button type="button" class="vault-meta-add" data-vault-import style="margin-block-start:0.375rem;align-self:center">${I.copy}<span>${esc(_t('notes.importIdeas', 'Import your ideas'))}</span></button>` : ''}
+            ${!inTrash && !state.q && state.view.type === 'all' && state.counts.all === 0 && state.counts.has_quicknotes ? `<button type="button" class="vault-meta-add" data-vault-import-qn style="margin-block-start:0.375rem;align-self:center">${I.copy}<span>${esc(_t('notes.importQuick', 'Import your quick notes'))}</span></button>` : ''}
           </div>`
           return
         }
@@ -710,6 +718,21 @@
         } catch { toast(_t('notes.importFailed', 'Import failed.'), 'err') }
       }
 
+      /* ── S55: quick notes → vault import (the sparks twin — copy, never move) ── */
+      const importQuicknotes = async () => {
+        try {
+          const res = await api('/api/vault/import/quicknotes', { method: 'POST' })
+          if (res.created > 0) {
+            toast(_t('notes.importQuickDone', 'Imported {n} quick note(s)').split('{n}').join(String(res.created)), 'ok', 4000)
+            await loadBootstrap()
+            await loadNotes()
+            renderTree()
+          } else {
+            toast(_t('notes.importQuickNone', 'All your quick notes are already notes here'), 'info', 3500)
+          }
+        } catch { toast(_t('notes.importFailed', 'Import failed.'), 'err') }
+      }
+
       /* ── folder actions ── */
       const newFolderInline = (parentId, anchorRow) => {
         const box = $('[data-vault-newfolder]')
@@ -980,6 +1003,7 @@
         if (t.closest('[data-vault-tagadd]')) { addTagInline(); return }
         if (t.closest('[data-vault-save]') && state.saveState === 'error' && state.saveTimer === null) { doSave(); return }
         if (t.closest('[data-vault-import]')) { importIdeas(); return }
+        if (t.closest('[data-vault-import-qn]')) { importQuicknotes(); return }
 
         // mode toggle
         const mode = t.closest('[data-vault-mode]')

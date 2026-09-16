@@ -83,7 +83,7 @@
           summary: null, rows: [], gran: 'day', maxH: 0, maxP: 0,
           heatmap: { rows: [], weeks: [] },
           // S52: streak stats over the heatmap rows — current / longest / active days.
-          streak: { current: 0, longest: 0, activeDays: 0 },
+          streak: { current: 0, longest: 0, activeDays: 0, milestone: null },
           i18nTick: 0, // bumped once the user's language resolves — see the *Label methods
           t: (k, f) => window.hibanaI18n?.t(k) || f,
           // Labels via methods (not inline x-text ternaries) so they can depend on
@@ -96,6 +96,63 @@
           // bindings evaluate once at component init (EN) and never re-render when
           // the FA dictionary resolves, landing English pills on an FA page.
           streakLabel(k, f) { void this.i18nTick; return window.hibanaI18n?.t(k) || f },
+          // S55: milestone chip label (i18nTick-pattern like the other streak labels).
+          milestoneLabel() {
+            void this.i18nTick
+            const m = this.streak?.milestone
+            if (!m) return ''
+            return window.hibanaI18n?.t('reports.' + m.key) || ''
+          },
+          // S55: heatmap cell tooltip — the 4-source breakdown + a localized date. Built
+          // as HTML (x-html) with the i18nTick dependency so Alpine re-renders the whole
+          // tooltip once the FA dictionary resolves. Jalali conversion rides the shared
+          // /js/jalali.js helpers (loaded by reports.html since this batch).
+          hmTip(d) {
+            void this.i18nTick
+            const J = window.__hibJalali
+            const isFA = window.hibanaI18n?.lang?.() === 'fa'
+            const num = (n) => isFA ? J?.toFa(String(n)) ?? faNum(String(n)) : String(n)
+            const [y, m, day] = (d.date || '').split('-').map(Number)
+            let dateLabel = d.date ?? ''
+            if (y && m && day) {
+              const dt = new Date(Date.UTC(y, m - 1, day))
+              if (isFA && J) {
+                const [jy, jm, jd] = J.g2j(y, m, day)
+                dateLabel = `${J.WEEKDAY_FA[dt.getUTCDay()]} ${J.toFa(String(jd))} ${J.J_MONTHS[jm - 1]} ${J.toFa(String(jy))}`
+              } else {
+                dateLabel = dt.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' })
+              }
+            }
+            const row = (icon, key, fallback, n) =>
+              `<span class="hm-tip-row${n ? '' : ' is-zero'}"><span class="hm-tip-ico" aria-hidden="true">${icon}</span>${esc(_t(key, fallback))}<b>${num(n)}</b></span>`
+            return `<b class="hm-tip-date">${esc(dateLabel)}</b>` +
+              row('<svg viewBox="0 0 24 24"><path d="M13 2 4 14h6l-1 8 9-12h-6l1-8Z"/></svg>', 'reports.hmHurdles', 'hurdles solved', d.hurdles) +
+              row('<svg viewBox="0 0 24 24"><path d="M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM13 13h7v7h-7z"/></svg>', 'reports.hmProjects', 'projects created', d.projects) +
+              row('<svg viewBox="0 0 24 24"><path d="m5 13 4 4L19 7"/></svg>', 'reports.hmTodos', 'to-dos completed', d.todos) +
+              row('<svg viewBox="0 0 24 24"><path d="M5 3h14v18l-7-4-7 4Z"/></svg>', 'reports.hmNotes', 'notes captured', d.notes) +
+              `<b class="hm-tip-total">${num(d.total)} ${esc(_t('reports.events', 'events'))}</b>`
+          },
+          // The screen-reader label for a cell (replaces the old title attr).
+          hmAria(d) {
+            void this.i18nTick
+            const isFA = window.hibanaI18n?.lang?.() === 'fa'
+            const n = isFA ? faNum(String(d.total)) : String(d.total)
+            return (isFA ? faNum(d.date) : d.date) + ': ' + n + ' ' + (_t('reports.events', 'events') || '')
+          },
+          // S55: the month label above a heatmap column (Jalali for FA users).
+          hmMonthLabel(w) {
+            void this.i18nTick
+            const iso = w?.monthISO
+            if (!iso) return ''
+            const [y, m] = iso.split('-').map(Number)
+            const isFA = window.hibanaI18n?.lang?.() === 'fa'
+            const J = window.__hibJalali
+            if (isFA && J) {
+              const [, jm] = J.g2j(y, m, 1)
+              return J.J_MONTHS[jm - 1]
+            }
+            return new Date(Date.UTC(y, m - 1, 1)).toLocaleDateString('en-GB', { month: 'short', timeZone: 'UTC' })
+          },
           // S30 batch 3: task analytics helpers — the priority mix, the backlog share
           // bar, and the label chips' tooltip. i18nTick-dependent like the labels above.
           prioLabel(p) {
@@ -152,9 +209,18 @@
               const firstDow = first.getUTCDay() // 0=Sun
               const cells = []
               for (let i = 0; i < firstDow; i++) cells.push(null) // pad to Sunday
-              for (const r of rows) cells.push({ date: r.date, total: r.total, level: level(r.total) })
+              // S55: cells carry the 4-source breakdown so the tooltip can itemize them
+              // (the API has sent hurdles/projects/todos/notes per row since S52).
+              for (const r of rows) cells.push({ date: r.date, total: r.total, level: level(r.total), hurdles: r.hurdles || 0, projects: r.projects || 0, todos: r.todos || 0, notes: r.notes || 0 })
               const weeks = []
               for (let i = 0; i < cells.length; i += 7) weeks.push(cells.slice(i, i + 7))
+              // S55: month markers (GitHub-style) — a week whose first real day is
+              // within the 1st–7th of a month carries that month's ISO, rendered as a
+              // small label above the column (Gregorian short / Jalali for FA).
+              for (const wk of weeks) {
+                const first = wk.find(Boolean)
+                if (first && Number(first.date.slice(8, 10)) <= 7) wk.monthISO = first.date.slice(0, 8) + '01'
+              }
               this.heatmap = { rows, weeks }
               // Streak math. "Current" stays alive while the last active day is today OR
               // yesterday (today may still happen); it breaks only after a full quiet day.
@@ -166,7 +232,12 @@
               for (let i = end; i >= 0 && active[i]; i--) current++
               let longest = 0, run = 0
               for (const a of active) { run = a ? run + 1 : 0; if (run > longest) longest = run }
-              this.streak = { current, longest, activeDays: active.filter(Boolean).length }
+              // S55: milestone micro-celebration — 3/7/14/30/60/100/365-day streaks get
+              // a chip + a flickering flame. Fixed set (not every multiple of 7) so the
+              // celebration stays special; only while the streak is ALIVE.
+              const MS = { 3: 'streakM3', 7: 'streakM7', 14: 'streakM14', 30: 'streakM30', 60: 'streakM60', 100: 'streakM100', 365: 'streakM365' }
+              const milestone = current > 0 && MS[current] ? { key: MS[current], n: current } : null
+              this.streak = { current, longest, activeDays: active.filter(Boolean).length, milestone }
             }
             this.$nextTick(() => window.hibanaI18n.apply())
           },

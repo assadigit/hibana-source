@@ -1,4 +1,4 @@
-import { mkdtempSync, rmSync } from 'node:fs'
+import { mkdtempSync, rmSync, readdirSync, mkdirSync, copyFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { createSqliteDb } from '../db/sqlite'
@@ -20,6 +20,32 @@ export function makeTestDb(): { db: Db; close(): void } {
   // both connections must close before the temp dir can be removed on Windows.
   applyMigrations(path, join(process.cwd(), 'migrations'))
 
+  const adapter = createSqliteDb(path)
+  return {
+    db: adapter,
+    close: () => {
+      adapter.close()
+      rmSync(dir, { recursive: true, force: true })
+    },
+  }
+}
+
+/** S57: a test DB at an OLDER schema — what a remote D1 that hasn't applied the newest
+ * migrations looks like to freshly deployed code (the deploy-ahead-of-D1 race). Copies
+ * only migrations numbered ≤ upto into a temp dir and runs the real Node runner on it,
+ * so the schema is byte-identical to a real lagging database (not a hand-rolled lookalike). */
+export function makeTestDbUpto(upto: number): { db: Db; close(): void } {
+  const dir = mkdtempSync(join(tmpdir(), 'hibana-test-upto-'))
+  const path = join(dir, 'test.db')
+  const src = join(process.cwd(), 'migrations')
+  const subset = join(dir, 'migrations')
+  mkdirSync(subset)
+  for (const f of readdirSync(src)) {
+    if (!f.endsWith('.sql')) continue
+    const n = Number.parseInt(f.slice(0, 4), 10)
+    if (Number.isFinite(n) && n <= upto) copyFileSync(join(src, f), join(subset, f))
+  }
+  applyMigrations(path, subset)
   const adapter = createSqliteDb(path)
   return {
     db: adapter,

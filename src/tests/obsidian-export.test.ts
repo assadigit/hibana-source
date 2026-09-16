@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { unzipSync, strFromU8 } from 'fflate'
-import { makeTestDb, makeUser } from './helpers'
+import { makeTestDb, makeTestDbUpto, makeUser } from './helpers'
 import { createSession } from '../auth/sessions'
 import { createApp } from '../app'
 import { safeMdName, buildObsidianVault } from '../services/obsidian-export'
@@ -254,6 +254,50 @@ describe('GET /api/export/obsidian.zip', () => {
         if (i < 9) expect(res.status).toBe(200)
       }
       expect(last).toBe(429)
+    } finally {
+      close()
+    }
+  })
+
+  // S57 regression: the live incident behind the "why can't I download my backup" report —
+  // the Worker (schema 56 code) ran against a D1 still on schema 55, the vault SELECTs
+  // threw "no such table", and /api/export/obsidian.zip died with a 500 + NO file. The
+  // export must degrade to a valid zip WITHOUT the Notes section and say what's missing.
+  it('still serves a valid zip when the vault tables are not migrated yet (deploy-ahead-of-D1 race)', async () => {
+    const { db, close } = makeTestDbUpto(56) // schema 55: everything except 0057
+    try {
+      expect(await db.query("SELECT name FROM sqlite_master WHERE name = 'vault_notes'")).toEqual([])
+      const a = await makeUser(db, { username: 'lagged', email: 'lagged@test.dev' })
+      const { app, cookie } = await makeAuthedApp(db, a)
+      await db.execute(
+        "INSERT INTO projects (id, user_id, title, status, created_at, updated_at) VALUES (?, ?, 'Real project', 'doing', ?, ?)",
+        ['p1', a, iso(2), iso()],
+      )
+      await db.execute(
+        "INSERT INTO quick_notes (id, user_id, kind, title, content, created_at, updated_at) VALUES (?, ?, 'note', 'N', 'body', ?, ?)",
+        ['qn1', a, iso(), iso()],
+      )
+
+      const res = await app.fetch(get(cookie, '/api/export/obsidian.zip'))
+      expect(res.status).toBe(200) // the fix: NOT a 500
+      expect(res.headers.get('Content-Type')).toBe('application/zip')
+      // The gap is announced, not silent
+      expect(res.headers.get('X-Hibana-Vault-Missing-Tables')).toBe('note_folders,vault_notes')
+
+      const zip = unzipSync(new Uint8Array(await res.arrayBuffer()))
+      const names = Object.keys(zip)
+      const allText = names.map((n) => strFromU8(zip[n])).join('\n')
+      expect(names.some((n) => /\/Home\.md$/.test(n))).toBe(true)
+      expect(allText).toContain('Real project') // the rest of the account DID export
+      expect(names.some((n) => /\/Notes\//.test(n))).toBe(false) // no Notes section possible
+      expect(allText).not.toContain('## Notes') // Home MOC omits the section link list
+
+      // Service-level shape: the lagging DB reports BOTH vault tables as missing
+      const direct = await buildObsidianVault(db, a)
+      expect(direct.missing).toEqual(['note_folders', 'vault_notes'])
+      expect(direct.stats.vaultNotes).toBe(0)
+      const statsHeader = res.headers.get('X-Hibana-Vault-Stats')
+      expect(statsHeader && JSON.parse(statsHeader).vaultNotes).toBe(0)
     } finally {
       close()
     }

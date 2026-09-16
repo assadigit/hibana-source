@@ -185,9 +185,15 @@ export async function buildSnapshot(db: Db): Promise<Snapshot> {
 // telegram_note_sessions/sadhana_reminder_logs (transient server state).
 // ---------------------------------------------------------------------------------
 
-/** Tables scoped directly by user_id. */
+/** Tables scoped directly by user_id. S57: note_folders BEFORE vault_notes (the
+ * folder is the FK parent — the restore order stays constraint-safe), and NO
+ * deleted_at filter: a personal backup carries the Trash too (the whole-DB
+ * buildSnapshot has never filtered soft-deleted rows; "trash is not content" applies
+ * to the Obsidian READ export, not to backups). */
 const USER_SCOPED_EXPORT_TABLES = [
-  'projects', 'spark_folders', 'tags', 'quick_notes', 'canvas_elements',
+  'projects', 'spark_folders', 'tags', 'quick_notes',
+  'note_folders', 'vault_notes',
+  'canvas_elements',
   'telegram_captures', 'telegram_links', 'sadhana_tasks', 'sadhana_quadrant_names',
 ] as const
 /** Tables that scope through projects.project_id (the user's projects, incl. soft-deleted). */
@@ -210,6 +216,27 @@ const SADHANA_CHILD_EXPORT_TABLES = [
 
 export async function buildUserSnapshot(db: Db, userId: string): Promise<Snapshot> {
   const data: Record<string, unknown[]> = {}
+  const missing: string[] = []
+
+  // S57 schema-race guard (the same window buildSnapshot guards): a remote D1 can lag
+  // the deployed code by migrations — the first SELECT against a not-yet-migrated
+  // table then took the WHOLE personal JSON export down with a 500 (the user's
+  // "download my data" button). A missing table is skipped + recorded in
+  // missing_tables; only "no such table" counts as missing — real errors propagate.
+  const guardedQuery = async (
+    table: string,
+    sql: string,
+    params: unknown[] = [],
+  ): Promise<Record<string, unknown>[] | null> => {
+    try {
+      return (await db.query(sql, params)) as Record<string, unknown>[]
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err)
+      if (!/no such table/i.test(msg)) throw err
+      missing.push(table)
+      return null
+    }
+  }
 
   // Own profile row, rule 8 applied.
   const users = await db.query('SELECT * FROM users WHERE id = ?', [userId])
@@ -219,39 +246,52 @@ export async function buildUserSnapshot(db: Db, userId: string): Promise<Snapsho
   })
 
   for (const table of USER_SCOPED_EXPORT_TABLES) {
-    data[table] = await db.query(`SELECT * FROM ${table} WHERE user_id = ?`, [userId])
+    const rows = await guardedQuery(table, `SELECT * FROM ${table} WHERE user_id = ?`, [userId])
+    if (rows) data[table] = rows
   }
   for (const table of PROJECT_SCOPED_EXPORT_TABLES) {
-    data[table] = await db.query(
+    const rows = await guardedQuery(
+      table,
       `SELECT * FROM ${table} WHERE project_id IN (SELECT id FROM projects WHERE user_id = ?)`,
       [userId],
     )
+    if (rows) data[table] = rows
   }
   for (const table of SADHANA_CHILD_EXPORT_TABLES) {
-    data[table] = await db.query(
+    const rows = await guardedQuery(
+      table,
       `SELECT * FROM ${table} WHERE task_id IN (SELECT id FROM sadhana_tasks WHERE user_id = ?)`,
       [userId],
     )
+    if (rows) data[table] = rows
   }
   for (const table of DEV_TASK_CHILD_EXPORT_TABLES) {
-    data[table] = await db.query(
+    const rows = await guardedQuery(
+      table,
       `SELECT * FROM ${table} WHERE task_id IN (SELECT id FROM dev_tasks WHERE project_id IN (SELECT id FROM projects WHERE user_id = ?))`,
       [userId],
     )
+    if (rows) data[table] = rows
   }
   for (const table of BACKLOG_CHILD_EXPORT_TABLES) {
-    data[table] = await db.query(
+    const rows = await guardedQuery(
+      table,
       `SELECT * FROM ${table} WHERE doc_id IN (SELECT id FROM backlog_docs WHERE project_id IN (SELECT id FROM projects WHERE user_id = ?))`,
       [userId],
     )
+    if (rows) data[table] = rows
   }
 
   return {
     // Session 20: bumped 20260828 → 20260920 (shape changed: +project_archives, dev_tasks,
     // dev_task_tags, task_categories, sprints, backlog_docs, backlog_doc_revisions —
     // the personal export now covers the whole dev-board cluster + archives).
-    schema_version: 20260920,
+    // S57: shape changed again (+note_folders, +vault_notes — the Notes Vault joins the
+    // personal export; soft-deleted notes included). Restore scripts key on table
+    // names present in `data`, so older readers simply don't see the new keys.
+    schema_version: 20260921,
     exported_at: new Date().toISOString(),
+    missing_tables: missing,
     data,
   }
 }

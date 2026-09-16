@@ -133,7 +133,7 @@ export async function buildObsidianVault(
   db: Db,
   userId: string,
   opts: { now?: Date; vaultName?: string } = {},
-): Promise<{ files: VaultFiles; stats: VaultStats }> {
+): Promise<{ files: VaultFiles; stats: VaultStats; missing: string[] }> {
   const now = opts.now ?? new Date()
   const stamp = now.toISOString()
   const root = opts.vaultName ?? `Hibana-Backup-${stamp.slice(0, 10)}`
@@ -172,13 +172,30 @@ export async function buildObsidianVault(
   )
   // Notes Vault (0057, S53): the /notes knowledge base exports as real per-note files
   // inside the folder tree — the closest thing to an Obsidian vault inside the backup.
-  const [noteFolders, vaultNotes] = await Promise.all([
-    db.query<NoteFolderRow>('SELECT id, parent_id, name FROM note_folders WHERE user_id = ?', [userId]),
-    db.query<VaultNoteRow>(
-      'SELECT id, folder_id, title, content, tags, starred, created_at, updated_at FROM vault_notes WHERE user_id = ? AND deleted_at IS NULL ORDER BY updated_at DESC',
-      [userId],
-    ),
-  ])
+  // S57 schema-race guard (mirrors buildSnapshot's missing_tables discipline): a deployed
+  // Worker can be AHEAD of a remote D1's applied migrations (this exact window — code
+  // schema 56 shipped while prod/dev D1 sat on 55 — made /api/export/obsidian.zip throw
+  // "no such table: note_folders" and the user's backup button returned a 500 with NO
+  // file). When the vault tables aren't there yet, the export degrades to "no Notes
+  // section" instead of dying: a backup minus one future feature beats no backup at all.
+  // Only "no such table" is swallowed — every other error still propagates.
+  let noteFolders: NoteFolderRow[] = []
+  let vaultNotes: VaultNoteRow[] = []
+  const missing: string[] = []
+  try {
+    ;[noteFolders, vaultNotes] = await Promise.all([
+      db.query<NoteFolderRow>('SELECT id, parent_id, name FROM note_folders WHERE user_id = ?', [userId]),
+      db.query<VaultNoteRow>(
+        'SELECT id, folder_id, title, content, tags, starred, created_at, updated_at FROM vault_notes WHERE user_id = ? AND deleted_at IS NULL ORDER BY updated_at DESC',
+        [userId],
+      ),
+    ])
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err)
+    if (!/no such table/i.test(msg)) throw err
+    missing.push('note_folders', 'vault_notes')
+    console.warn(`[obsidian-export] vault tables not migrated yet — exporting without the Notes section (${msg})`)
+  }
   const todoTasks = await db.query<SadhanaRow>(
     'SELECT id, quadrant, title, emoji, fuzzy, due_date, due_time, done, progress, note, recurring, recur_type, created_at, updated_at FROM sadhana_tasks WHERE user_id = ? AND deleted_at IS NULL ORDER BY quadrant, position',
     [userId],
@@ -442,5 +459,5 @@ export async function buildObsidianVault(
   homeParts.push(`## About\n\nRe-import into Hibana via Settings → Obsidian import — files whose title already exists are skipped, so this vault is safe to round-trip.\n`)
   files.set(`${root}/Home.md`, homeParts.join('\n'))
 
-  return { files, stats }
+  return { files, stats, missing }
 }

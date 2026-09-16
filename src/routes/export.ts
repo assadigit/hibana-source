@@ -77,19 +77,22 @@ export function exportRoutes(cfg: Config) {
     if (await hitRateLimit(cfg.db, RATE_RULES.export, clientIp(c))) {
       return c.json({ error: 'rate_limited' }, 429)
     }
-    const { files, stats } = await buildObsidianVault(cfg.db, user.id)
+    const { files, stats, missing } = await buildObsidianVault(cfg.db, user.id)
     const zipped: Record<string, Uint8Array> = {}
     for (const [path, md] of files) zipped[path] = strToU8(md)
     const zip = zipSync(zipped) // fflate: pure-JS, Worker + Node safe
     const day = new Date().toISOString().slice(0, 10)
-    return new Response(zip, {
-      headers: {
-        'Content-Type': 'application/zip',
-        'Content-Disposition': `attachment; filename="hibana-vault-${day}.zip"`,
-        'X-Hibana-Vault-Files': String(files.size),
-        'X-Hibana-Vault-Stats': JSON.stringify(stats),
-      },
-    })
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/zip',
+      'Content-Disposition': `attachment; filename="hibana-vault-${day}.zip"`,
+      'X-Hibana-Vault-Files': String(files.size),
+      'X-Hibana-Vault-Stats': JSON.stringify(stats),
+    }
+    // S57: when the vault tables aren't migrated yet (deploy-ahead-of-D1 race), say so
+    // on the response — a backup that silently omitted the Notes section would look
+    // complete. The header makes the gap debuggable from the devtools network tab.
+    if (missing.length) headers['X-Hibana-Vault-Missing-Tables'] = missing.join(',')
+    return new Response(zip, { headers })
   })
 
   app.get('/', async (c) => {

@@ -8,7 +8,7 @@ import { promisify } from 'node:util'
 import { createHash } from 'node:crypto'
 import { SNAPSHOT_TABLES, buildSnapshot, buildUserSnapshot, enforceRetention, importAesKey, encryptBackup, bytesToBase64 } from '../services/backup'
 import { githubClient } from '../services/github'
-import { makeTestDb, makeUser } from './helpers'
+import { makeTestDb, makeTestDbUpto, makeUser } from './helpers'
 
 // Session 27 (Focus 4): backup-system AUDIT tests — the drift guards and isolation
 // checks that keep "never lose an idea" true as the schema grows:
@@ -140,6 +140,54 @@ describe('personal export isolation (buildUserSnapshot)', () => {
       // isolation above is meaningful only because the other user's data exists).
       const bobs = await db.query('SELECT COUNT(*) AS n FROM projects WHERE user_id = ?', [bob])
       expect(bobs[0].n).toBe(1)
+    } finally {
+      close()
+    }
+  })
+
+  // S57: the personal JSON export (Settings → JSON export) must CARRY the Notes Vault —
+  // folders before notes (FK-safe restore order) and soft-deleted notes too (a backup
+  // carries the Trash; "trash is not content" is the Obsidian READ rule, not the backup rule).
+  it('includes the Notes Vault (folders + notes, trash included) in the user scope', async () => {
+    const { db, close } = makeTestDb()
+    try {
+      const alice = await makeUser(db, { username: 'al-va', email: 'al-va@test.dev' })
+      const bob = await makeUser(db, { username: 'bo-va', email: 'bo-va@test.dev' })
+      const now = new Date().toISOString()
+      await db.execute("INSERT INTO note_folders (id, user_id, parent_id, name, sort_order, created_at, updated_at) VALUES ('nf-a', ?, NULL, 'Alice folder', 0, ?, ?)", [alice, now, now])
+      await db.execute("INSERT INTO vault_notes (id, user_id, folder_id, title, content, tags, starred, created_at, updated_at) VALUES ('vn-a1', ?, 'nf-a', 'Live note', 'body', 't1', 1, ?, ?)", [alice, now, now])
+      await db.execute("INSERT INTO vault_notes (id, user_id, folder_id, title, content, tags, starred, deleted_at, created_at, updated_at) VALUES ('vn-a2', ?, NULL, 'Trashed note', 'gone', '', 0, ?, ?, ?)", [alice, now, now, now])
+      await db.execute("INSERT INTO vault_notes (id, user_id, folder_id, title, content, tags, starred, created_at, updated_at) VALUES ('vn-b1', ?, NULL, 'Bob note', 'b', '', 0, ?, ?)", [bob, now, now])
+
+      const export_ = await buildUserSnapshot(db, alice)
+      expect(export_.missing_tables).toEqual([])
+      expect((export_.data.note_folders as { id: string }[]).map((r) => r.id)).toEqual(['nf-a'])
+      const notes = export_.data.vault_notes as { id: string }[]
+      expect(notes.map((r) => r.id).sort()).toEqual(['vn-a1', 'vn-a2']) // trash rides along
+      expect(notes.some((r) => r.id === 'vn-b1')).toBe(false) // bob's never leaks
+
+      // FK-safe restore order: folders serialize BEFORE notes in the JSON key order
+      const keys = Object.keys(export_.data)
+      expect(keys.indexOf('note_folders')).toBeLessThan(keys.indexOf('vault_notes'))
+    } finally {
+      close()
+    }
+  })
+
+  // S57: same deploy-ahead-of-D1 window as the obsidian export — a lagging D1 must yield
+  // a PARTIAL personal export with missing_tables, not a 500 on "download my data".
+  it('S57 race guard: a not-yet-migrated DB yields a PARTIAL personal export, not a crash', async () => {
+    const { db, close } = makeTestDbUpto(56)
+    try {
+      const alice = await makeUser(db, { username: 'al-race', email: 'al-race@test.dev' })
+      const now = new Date().toISOString()
+      await db.execute("INSERT INTO projects (id, user_id, title, status, created_at, updated_at) VALUES ('p-race', ?, 'P', 'doing', ?, ?)", [alice, now, now])
+
+      const export_ = await buildUserSnapshot(db, alice)
+      expect(export_.missing_tables).toEqual(['note_folders', 'vault_notes'])
+      expect(export_.data.projects).toHaveLength(1) // everything else still exports
+      expect(export_.data.note_folders).toBeUndefined()
+      expect(export_.data.vault_notes).toBeUndefined()
     } finally {
       close()
     }

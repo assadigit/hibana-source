@@ -768,3 +768,10 @@ body.has-mobile-nav { padding-block-end: calc(3.5rem + env(safe-area-inset-botto
 .sk-feed-ico { inline-size: 2rem; block-size: 2rem; border-radius: 999px; flex: none; }
 .sk-feed-lines { flex: 1 1 auto; min-inline-size: 0; }
 .sk-feed-lines .skeleton-line { margin-block-end: 0.45rem; }
+
+/* landmark-ghost (S51-A): a <main> wrapper that exists ONLY as an accessibility
+   landmark. display:contents removes its box entirely, so the flex-column layout
+   of body.canvas-page (canvas + notebook pages) is byte-identical — the toolbar
+   and the board remain direct flex items of <body>. Modern browsers keep the
+   element's role/landmark in the a11y tree despite the missing box. */
+.landmark-ghost { display: contents; }

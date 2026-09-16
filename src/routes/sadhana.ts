@@ -256,7 +256,10 @@ export function sadhanaRoutes(cfg: Config) {
             <button type="button" class="ghost" data-view-archive aria-pressed="false">${icon('archive')} <span>${t(lang, 'Archive', 'بایگانی')}</span></button>
           </div>
         </div>
-        <div class="chip-row" role="tablist" aria-label="${t(lang, 'Filter', 'فیلتر')}">
+        <!-- a11y (S51-A): role=group, not tablist — the filter chips are plain toggle
+             buttons (the JS toggles .active), and a tablist REQUIRES role="tab"
+             children (axe aria-required-children). A labelled group is correct. -->
+        <div class="chip-row" role="group" aria-label="${t(lang, 'Filter', 'فیلتر')}">
           <button type="button" class="chip filter-chip active" data-filter="all">${t(lang, 'All tasks', 'همه کارها')}</button>
           ${chips}
         </div>

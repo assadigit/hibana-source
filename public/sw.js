@@ -13,7 +13,7 @@
 // changelog until S49 trimmed it — every prior entry is recoverable verbatim:
 // `git show <sha>:public/sw.js`).
 
-const VERSION = "hibana-v389" // bump on sw.js logic changes — see Changelogs.md §1 (current state) + git log (full history)
+const VERSION = "hibana-v390" // bump on sw.js logic changes — see Changelogs.md §1 (current state) + git log (full history)
 
 // Static shell: unhashed pages/partials/icons/vendor/fonts (SWR or network-first at
 // runtime; precached here for offline). The hashed app bundles come from the manifest

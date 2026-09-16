@@ -408,3 +408,52 @@ button.active { background: var(--accent-soft); }
    and .theme-floater above) → ≥44px tap target. .pw-toggle is already position:absolute,
    so the ::after inset resolves against the button itself. */
 .pw-toggle::after { content: ""; position: absolute; inset: -0.45rem; }
+
+/* ---- S51-A: a11y skip-to-content + landmark ghost --------------------------------
+   Reintroduced per axe "bypass" (pages must offer a way past the repeated topbar).
+   The Session-21 removal was a VISUAL complaint: the old top-anchored pill covered
+   the header avatar in RTL when focused. This one parks BOTTOM-CENTER — never near
+   the avatar/brand — and is fully invisible (clipped + zero opacity) until
+   keyboard-focused; it hides again on blur. Mouse users never see it; screen
+   readers announce it as the page's first link; the first Tab press reveals it.
+   Lives in base.css (not polish-ui.css) because EVERY page that loads app.js must
+   style it — login.html loads app.js but not polish-ui.css (verified: the unstyled
+   link broke the login visual e2e baseline). */
+.skip-link {
+  position: fixed;
+  bottom: 1rem;
+  inset-inline: 0;               /* LTR+RTL safe horizontal centering */
+  margin-inline: auto;
+  width: max-content;
+  z-index: 1200;                 /* above the FAB stack + toasts */
+  display: block;
+  padding: 0.55rem 1.1rem;
+  border-radius: 999px;
+  background: var(--card);
+  color: var(--accent);
+  border: 1px solid var(--accent);
+  box-shadow: var(--shadow);
+  font-weight: 600;
+  font-size: 0.9rem;
+  text-decoration: none;
+  /* Resting state: fully CLIPPED (not transformed — a translateY-parked fixed element
+     contributes ~25px of scrollable overflow to the document, which broke the login
+     visual baseline: 745px vs 720px). clip-path hides the paint but keeps the box
+     INSIDE the viewport (zero overflow) and keeps the element focusable/tab-reachable
+     (unlike visibility:hidden). */
+  clip-path: inset(0 0 100% 0);
+  opacity: 0;
+  transition: opacity 0.16s ease;
+}
+.skip-link:focus {
+  clip-path: none;
+  opacity: 1;
+}
+/* Phones: keep the pill clear of the mobile bottom tab bar (740px = mobile-nav bp) */
+@media (max-width: 740px) {
+  .skip-link { bottom: 4.75rem; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .skip-link { transition: none; }
+}
+

@@ -528,7 +528,15 @@ export function dashboardRoutes(cfg: Config) {
           })()
         : html`${resumeCard}${urgentStrip}<div class="dash-empty">${t('Nothing on your dashboard — enable a section in Settings → View options.', 'پیشخوان خالی است — یک بخش را در تنظیمات ← گزینه‌های نمایش روشن کن.')} <a href="/settings.html">${t('Open settings', 'باز کردن تنظیمات')}</a></div>`
 
-      return await etag(c, c.html(toString(out)))
+      // S51-A: sr-only h1 — the page needs a level-one heading (axe
+      // page-has-heading-one) that lives INSIDE <main> (axe region). The dashboard
+      // content is swapped into main#main with hx-swap="innerHTML", so a static h1
+      // in the page shell is wiped on the first refresh — the heading renders HERE
+      // (server-side, localized) as the first node of every response and therefore
+      // survives every swap. The static pre-swap copy in dashboard.html covers the
+      // skeleton state; the swap replaces it with this one.
+      const pageH1: SafeHtml = html`<h1 class="sr-only">${t('Dashboard', 'پیشخوان')}</h1>`
+      return await etag(c, c.html(toString(html`${pageH1}${out}`)))
     }
 
     return await etag(c, c.json(data))

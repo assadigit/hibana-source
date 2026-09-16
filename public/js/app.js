@@ -47,6 +47,41 @@ try {
   if (savedTheme) document.documentElement.dataset.theme = savedTheme
 } catch {}
 
+// a11y (S51-A): skip-to-content link — reintroduced the standard way. Session 21 removed
+// the old one because the focused pill sat at the top and COVERED the header avatar in
+// RTL. This implementation cannot: it parks bottom-center (never near the avatar/brand),
+// fully invisible until keyboard-focused, and hides again on blur. Injected from ONE
+// place (here) so every page that loads app.js gets it — no per-page markup to drift.
+// Target precedence: a rendered <main> (the .landmark-ghost display:contents wrappers on
+// canvas/notebook can't take focus), then the board wrappers. Auth pages have their own
+// <main class="auth-split"> and get the link too (consistent first Tab stop everywhere).
+;(() => {
+  try {
+    const target = document.querySelector('main:not(.landmark-ghost), .sadhana-wrap, .shell, #canvas-wrap, #nb-page')
+    if (!target || target.closest('[aria-hidden="true"]')) return
+    if (!target.id) target.id = 'hibana-skip-target'
+    // tabindex=-1 lets the anchor navigation MOVE FOCUS to the landmark (not just scroll)
+    if (!target.hasAttribute('tabindex')) target.setAttribute('tabindex', '-1')
+    const skip = document.createElement('a')
+    skip.href = '#' + target.id
+    skip.className = 'skip-link'
+    skip.setAttribute('data-i18n', 'a11y.skipToMain') // localized by i18n.js apply()
+    skip.textContent = 'Skip to content'
+    // Browsers (Chromium included) reset DOM focus to <body> when an anchor's DEFAULT
+    // fragment-navigation action completes — any focus() issued during the click is
+    // blurred ~10ms later (verified: focusin MAIN → focusout MAIN relatedTarget=null;
+    // a plain programmatic location.hash assignment does NOT do this). So the skip
+    // link manages the whole thing: preventDefault, focus the landmark directly, and
+    // mirror the hash via pushState (URL semantics + back button, zero navigation).
+    skip.addEventListener('click', (e) => {
+      e.preventDefault()
+      target.focus()
+      try { if (location.hash !== '#' + target.id) history.pushState(null, '', '#' + target.id) } catch {}
+    })
+    document.body.insertBefore(skip, document.body.firstChild)
+  } catch { /* progressive enhancement — never block boot */ }
+})()
+
 // Ensure the shared offline queue (window.hibanaQueue) is always loaded — it lives in
 // js/queue.js and powers the quick-add + canvas sync. Guard against pages that forgot the tag.
 if (!window.hibanaQueue) {

@@ -14,7 +14,7 @@
   <meta name="theme-color" content="#EDE8DF">
   <link rel="preload" as="font" type="font/woff2" href="/vendor/manrope/Manrope-400.woff2" crossorigin>
   <link rel="stylesheet" href="/css/variables.css?v=5">
-  <link rel="stylesheet" href="/css/base.css?v=4">
+  <link rel="stylesheet" href="/css/base.css?v=5">
   <link rel="stylesheet" href="/css/layout.css?v=10">
   <link rel="stylesheet" href="/css/dashboard.css?v=11">
   <link rel="stylesheet" href="/css/dashboard-todo.css?v=5">
@@ -22,7 +22,7 @@
   <link rel="stylesheet" href="/css/canvas.css?v=6">
   <link rel="stylesheet" href="/css/quicknotes.css?v=12">
   <link rel="stylesheet" href="/css/to-do-list.css?v=3">
-  <link rel="stylesheet" href="/css/polish-ui.css?v=7">
+  <link rel="stylesheet" href="/css/polish-ui.css?v=9">
   <link rel="stylesheet" href="/css/calendar.css?v=4">
   <link rel="stylesheet" href="/css/notifications.css?v=4">
   <link rel="stylesheet" href="/css/polish-batch.css?v=13">
@@ -44,13 +44,13 @@
   <!-- Phase 6 item 2: the full emoji library + the shared picker dialog -->
   <!-- M7: emoji-data.js lazy-loaded by emoji-picker.js on first open (saves 49KB on every page load) -->
   <script src="/js/emoji-picker.js?v=3" defer></script>
-  <script src="/js/app.js?v=179" defer></script>
+  <script src="/js/app.js?v=183" defer></script>
   <script src="/js/hib-init.js?v=1" defer></script>
   <script src="/js/touch-drag.js?v=1" defer></script>
-  <script src="/js/i18n-en.js?v=36" defer></script>
-  <script src="/js/i18n.js?v=92" defer></script>
+  <script src="/js/i18n-en.js?v=37" defer></script>
+  <script src="/js/i18n.js?v=93" defer></script>
   <script src="/js/nav.js?v=3" defer></script>
-  <script src="/js/command-palette.js?v=2" defer></script>
+  <script src="/js/command-palette.js?v=3" defer></script>
   <script src="/js/mobile-nav.js?v=5" defer></script>
   <script src="/js/go-to.js?v=1" defer></script>
   <script src="/js/install-prompt.js?v=1" defer></script>
@@ -63,7 +63,13 @@
      mobile-nav.js builds the bottom tab bar instead. -->
 <div data-nav></div>
 
-<div class="sadhana-wrap">
+<!-- a11y (S51-A): main landmark — was a plain div; every class-based selector in
+     sadhana-board.css / dashboard-todo.css / sadhana-page.js keeps matching (element
+     name only changed). Fixes axe landmark-one-main + gives the skip link a target.
+     The sr-only h1 (first real heading was an h2 in the quadrants — axe
+     page-has-heading-one) lives INSIDE main so it sits in a landmark (axe region). -->
+<main class="sadhana-wrap">
+<h1 class="sr-only" data-i18n="nav.sadhana">To-do list</h1>
 <div class="page-shell">
 
 <div class="subbar-wrap">
@@ -231,7 +237,7 @@
   </div>
 </div>
 
-</div><!-- /.sadhana-wrap — everything the board styles lives in here; the Hibana
+</main><!-- /.sadhana-wrap — everything the board styles lives in here; the Hibana
           chrome (topbar + bottom bar + cmdk + toasts) sits outside and keeps app.css -->
 
   <!-- S46.2: the unified + chooser (new note / new idea / new project) — same markup

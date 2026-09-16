@@ -1,6 +1,6 @@
 {
   "name": "hibana",
-  "version": "0.3.13.4",
+  "version": "0.3.13.5",
   "private": true,
   "type": "module",
   "description": "Personal project & idea manager \u2014 Cloudflare Workers (D1) or plain Node (SQLite)",

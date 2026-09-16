@@ -286,20 +286,27 @@ export function notebookHtml(notes: QuickNote[], lang: Locale, composerMode: 'no
   const dashboardVal = dashboard ? '<input type="hidden" name="dashboard" value="1">' : ''
   return `<section class="card notebook${dashboard ? ' notebook-dashboard' : ''}" id="notebook">
     <!-- View toggle is PURE CSS (radios + sibling selectors, 2026-08-25): works even if the
-         cached app.js predates the feature — no JS needed to switch list ⇄ carousel ⇄ grid. -->
-    <input type="radio" class="note-view-radio" name="note-view" id="nv-list" value="list" checked>
-    <input type="radio" class="note-view-radio" name="note-view" id="nv-sticky" value="sticky">
-    <input type="radio" class="note-view-radio" name="note-view" id="nv-grid" value="grid">
-    <input type="radio" class="note-size-radio" name="note-size" id="ns-s" value="s">
-    <input type="radio" class="note-size-radio" name="note-size" id="ns-m" value="m" checked>
-    <input type="radio" class="note-size-radio" name="note-size" id="ns-l" value="l">
+         cached app.js predates the feature — no JS needed to switch list ⇄ carousel ⇄ grid.
+         a11y (S51-A): the radios are visually hidden and their <label for> twins live inside
+         the CLOSED <details> toggle — the accessible-name computation finds nothing
+         perceivable there (axe: "form elements must have labels"), so each radio carries its
+         own localized aria-label. The labels stay for the mouse path (:checked CSS). -->
+    <input type="radio" class="note-view-radio" name="note-view" id="nv-list" value="list" aria-label="${t('List', 'فهرست')}" checked>
+    <input type="radio" class="note-view-radio" name="note-view" id="nv-sticky" value="sticky" aria-label="${t('Sticky', 'چسبان')}">
+    <input type="radio" class="note-view-radio" name="note-view" id="nv-grid" value="grid" aria-label="${t('Grid', 'شبکه')}">
+    <input type="radio" class="note-size-radio" name="note-size" id="ns-s" value="s" aria-label="${t('Small', 'کوچک')}">
+    <input type="radio" class="note-size-radio" name="note-size" id="ns-m" value="m" aria-label="${t('Medium', 'متوسط')}" checked>
+    <input type="radio" class="note-size-radio" name="note-size" id="ns-l" value="l" aria-label="${t('Large', 'بزرگ')}">
     <div class="row note-head">
       ${controlsHtml}
       <h3 class="note-heading">${t('Quick Notebook', 'یادداشت سریع')}</h3>
     </div>
     <form class="row note-compose" hx-post="/api/notes${dashboard ? '?dashboard=1' : ''}" hx-target="#notebook" hx-swap="morph" data-note-compose>
       <label class="note-compose-label" for="note-compose-box">${t('Quick note', 'یادداشت جدید')}</label>
-      <div class="seg" role="tablist" aria-label="${t('Note mode', 'حالت یادداشت')}">
+      <!-- a11y (S51-A): role=group, not tablist — these buttons use the toggle-button
+           pattern (aria-pressed) and a tablist REQUIRES role="tab" children (axe
+           aria-required-children). A labelled group is the correct container. -->
+      <div class="seg" role="group" aria-label="${t('Note mode', 'حالت یادداشت')}">
         <button type="button" class="seg-btn ${composerMode === 'note' ? 'active' : ''}" data-note-mode="note" aria-pressed="${composerMode === 'note'}">${t('Note', 'یادداشت')}</button>
         <button type="button" class="seg-btn ${composerMode === 'list' ? 'active' : ''}" data-note-mode="list" aria-pressed="${composerMode === 'list'}">${t('List', 'فهرست')}</button>
       </div>

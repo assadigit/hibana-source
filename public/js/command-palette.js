@@ -442,7 +442,7 @@
       [_t('cmdk.shortcutClose', 'Close dialog'), 'Esc'],
       [_t('cmdk.shortcutDrag', 'Reorder / move status'), 'Drag'],
       [_t('cmdk.shortcutZen', 'Toggle focus mode'), 'Ctrl .'],
-      [_t('cmdk.shortcutGoTo', 'Go to (then a letter: d/p/s/t/c/n/r/a/e/l/v/f)'), 'g'],
+      [_t('cmdk.shortcutGoTo', 'Go to (then a letter: d/p/s/t/c/n/r/a/e/l/f)'), 'g'],
     ]
     helpDlg.innerHTML = `
       <div class="cmdk-panel cmdk-help-panel">

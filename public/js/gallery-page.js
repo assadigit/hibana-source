@@ -69,7 +69,7 @@
         }
         // S59b: the lightbox is a BROWSER now — prev/next walk the filtered set (wrap-around),
         // the counter + caption ride the dialog, arrows follow the reading direction, and
-        // focus returns to the trigger on close. Scoped styles: [data-gal-lb] (the project
+        // focus returns to the trigger on close. Scoped styles: [data-lb] (the project
         // page's lightbox shares .shot-lightbox and stays untouched).
         const lbStep = (delta) => {
           if (!lightbox) return
@@ -93,7 +93,7 @@
           el.className = 'shot-lightbox'
           el.setAttribute('role', 'dialog')
           el.setAttribute('aria-modal', 'true')
-          el.setAttribute('data-gal-lb', '')
+          el.setAttribute('data-lb', '')
           el.setAttribute('aria-label', _t('project.shotZoom', 'Screenshot'))
           el.innerHTML =
             '<button type="button" class="lb-nav lb-prev" aria-label="' + esc(_t('gallery.lbPrev', 'Previous picture')) + '"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg></button>' +
@@ -175,7 +175,7 @@
                 '<button type="button" class="ghost small danger" data-gal-del="' + esc(r.id) + '" title="' + esc(_t('gallery.delete', 'Delete')) + '" aria-label="' + esc(_t('gallery.delete', 'Delete')) + '"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button>' +
                 '</div></figcaption></figure>'
             }).join('')
-            : '<div class="empty-state empty"><span class="empty-state-icon" aria-hidden="true"><svg class="icon" viewBox="0 0 24 24"><rect x="3.5" y="5" width="17" height="14" rx="2"/><circle cx="8" cy="10" r="1.5"/><path d="M21 16l-5-5L5 19"/></svg></span><p class="empty-state-title">' + esc(_t('gallery.emptyTitle', 'No pictures yet')) + '</p><p class="empty-state-text">' + esc(_t('gallery.emptyText', 'Pictures you upload on a project page (the Screenshots tab) all land here — one safe, permanent library.')) + '</p></div>'
+            : '<div class="empty-state empty"><span class="empty-state-icon" aria-hidden="true"><svg class="icon" viewBox="0 0 24 24"><rect x="3.5" y="5" width="17" height="14" rx="2"/><circle cx="8" cy="10" r="1.5"/><path d="M21 16l-5-5L5 19"/></svg></span><p class="empty-state-title">' + esc(_t('gallery.emptyTitle', 'No pictures yet')) + '</p><p class="empty-state-text">' + esc(_t('gallery.emptyText', 'Pictures you upload on a project page (the Screenshots tab) all land here — one safe, permanent library.')) + '</p><a class="empty-state-cta btn" href="/projects.html">' + esc(_t('gallery.emptyCta', 'Open your projects')) + '</a></div>'
           grid.setAttribute('aria-busy', 'false')
         }
 

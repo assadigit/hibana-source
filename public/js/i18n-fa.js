@@ -487,6 +487,7 @@ window.__hibanaDictFA = {
       'gallery.emptyTitle': 'هنوز تصویری نیست',
       'gallery.emptyText': 'تصویرهایی که در صفحهٔ پروژه (تب اسکرین‌شات) آپلود می‌کنی همه اینجا می‌آیند — یک کتابخانهٔ امن و ماندگار.',
       'gallery.lbPrev': 'تصویر قبلی', 'gallery.lbNext': 'تصویر بعدی', 'gallery.lbClose': 'بستن',
+      'gallery.emptyCta': 'پروژه‌هایت را باز کن',
       // dev-board + sprints (0029)
       'db.backToProject': 'بازگشت به پروژه', 'db.sprints': 'اسپرینت‌ها', 'db.board': 'برد',
       'db.loading': 'در حال بارگذاری…', 'db.loadFailed': 'بارگذاری ناموفق بود — دوباره تلاش کن', 'db.retry': 'تلاش دوباره',

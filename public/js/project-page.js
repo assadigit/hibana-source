@@ -111,7 +111,7 @@
           const zoom = e.target.closest('[data-staged-zoom]')
           if (zoom) {
             const img = zoom.querySelector('img')
-            if (img) openShotLightbox(img.src)
+            if (img) openShotLightbox(img.getAttribute('src'), zoom, zoom.closest('.shot-card')?.parentElement)
             return
           }
           const del = e.target.closest('[data-staged-del]')
@@ -200,20 +200,74 @@
         // overlay), note edit (the caption becomes a textarea + save/cancel), resolve
         // toggle, delete (confirm). Every mutation PATCHes then re-pulls the fragment.
         const shotsRefresh = () => { if (window.htmx) window.htmx.ajax('GET', `/api/projects/${id}/screenshots`, { target: '#shots', swap: 'innerHTML' }) }
-        let shotLightbox = null
-        const closeShotLightbox = () => { if (shotLightbox) { shotLightbox.remove(); shotLightbox = null; document.body.style.overflow = '' } }
-        const openShotLightbox = (src) => {
-          closeShotLightbox()
-          shotLightbox = document.createElement('div')
-          shotLightbox.className = 'shot-lightbox'
-          shotLightbox.setAttribute('role', 'dialog')
-          shotLightbox.setAttribute('aria-label', _t('project.shotZoom', 'Screenshot'))
-          shotLightbox.innerHTML = '<img src="' + src + '" alt="' + _t('project.shotZoom', 'Screenshot') + '">'
-          shotLightbox.addEventListener('click', closeShotLightbox)
-          document.body.appendChild(shotLightbox)
-          document.body.style.overflow = 'hidden'
+        // S60: the project lightbox is a BROWSER now (same pattern as the gallery's,
+        // S59b): prev/next walk the sibling figures of the SAME grid (main shots grid,
+        // pinned-shots dialog, staged grid, task-edit dialog grid — the figure's parent
+        // IS the grid in all four), wrap-around, live counter (Persian digits in FA) +
+        // caption, reading-direction arrows, Esc closes AND focus returns to the trigger.
+        // A zoom from a non-grid source degrades to single-picture mode.
+        let shotLightbox = null // { el, idx, items, lastTrigger }
+        const closeShotLightbox = () => {
+          if (!shotLightbox) return
+          const t = shotLightbox.lastTrigger
+          shotLightbox.el.remove()
+          shotLightbox = null
+          document.body.style.overflow = ''
+          try { t?.focus?.() } catch {} // keyboard users never land in the void
         }
-        ctx.on('keydown', (e) => { if (e.key === 'Escape' && shotLightbox) closeShotLightbox() })
+        const lbShotStep = (delta) => {
+          if (!shotLightbox || !shotLightbox.items.length) return
+          const it = shotLightbox.items
+          shotLightbox.idx = (shotLightbox.idx + delta + it.length) % it.length
+          const r = it[shotLightbox.idx]
+          const img = shotLightbox.el.querySelector('img')
+          if (img) { img.src = r.src; img.alt = r.caption || _t('project.shotZoom', 'Screenshot') }
+          const count = shotLightbox.el.querySelector('.lb-count')
+          if (count) count.textContent = pdBoxDig(shotLightbox.idx + 1) + ' / ' + pdBoxDig(it.length)
+          const cap = shotLightbox.el.querySelector('.lb-cap')
+          if (cap) cap.textContent = r.caption || ''
+        }
+        const openShotLightbox = (src, trigger, scopeGrid) => {
+          closeShotLightbox()
+          const figs = scopeGrid ? [...scopeGrid.querySelectorAll(':scope > .shot-card')] : []
+          const items = figs.map((f) => ({
+            src: f.querySelector('.shot-img-btn img')?.getAttribute('src') || '',
+            caption: (f.querySelector('.shot-note')?.textContent || '').trim(),
+          })).filter((x) => x.src)
+          let idx = items.findIndex((x) => x.src === src)
+          if (idx < 0) { items.push({ src, caption: '' }); idx = items.length - 1 } // non-grid source → single mode
+          const el = document.createElement('div')
+          el.className = 'shot-lightbox'
+          el.setAttribute('role', 'dialog')
+          el.setAttribute('aria-modal', 'true')
+          el.setAttribute('data-lb', '')
+          el.setAttribute('aria-label', _t('project.shotZoom', 'Screenshot'))
+          el.innerHTML =
+            '<button type="button" class="lb-nav lb-prev" aria-label="' + _t('gallery.lbPrev', 'Previous picture') + '"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg></button>' +
+            '<img src="' + src + '" alt="' + _t('project.shotZoom', 'Screenshot') + '">' +
+            '<button type="button" class="lb-nav lb-next" aria-label="' + _t('gallery.lbNext', 'Next picture') + '"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5l7 7-7 7"/></svg></button>' +
+            '<button type="button" class="lb-close" aria-label="' + _t('gallery.lbClose', 'Close') + '"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button>' +
+            '<div class="lb-meta"><span class="lb-count" aria-live="polite"></span><span class="lb-cap" dir="auto"></span></div>'
+          el.addEventListener('click', (ev) => {
+            if (ev.target.closest('.lb-nav')) { lbShotStep(ev.target.closest('.lb-prev') ? -1 : 1); return }
+            if (ev.target.closest('.lb-close')) { closeShotLightbox(); return }
+            if (!ev.target.closest('img')) closeShotLightbox() // backdrop click = zoom-out (same as before)
+          })
+          document.body.appendChild(el)
+          document.body.style.overflow = 'hidden'
+          shotLightbox = { el, idx, items, lastTrigger: trigger }
+          lbShotStep(0) // paint counter + caption for the opening shot
+          el.querySelector('.lb-close')?.focus()
+        }
+        ctx.on('keydown', (e) => {
+          if (!shotLightbox) return
+          if (e.key === 'Escape') { closeShotLightbox(); return }
+          // arrows follow the READING direction (RTL: ArrowLeft = forward) — keys and
+          // the logically-positioned buttons agree
+          const rtl = document.documentElement.dir === 'rtl'
+          if (e.key === (rtl ? 'ArrowLeft' : 'ArrowRight')) lbShotStep(1)
+          else if (e.key === (rtl ? 'ArrowRight' : 'ArrowLeft')) lbShotStep(-1)
+        })
 
         const shotNoteForm = (figure) => {
           const noteEl = figure.querySelector('.shot-note')
@@ -420,7 +474,7 @@
               // z-index, so a lightbox opened behind it would be invisible.
               ev.stopPropagation()
               const img = zoomBtn.querySelector('img')
-              if (img) { dlg.close(); openShotLightbox(img.src) }
+              if (img) { dlg.close(); openShotLightbox(img.getAttribute('src'), zoomBtn, zoomBtn.closest('.shot-card')?.parentElement) }
               return
             }
             const un = ev.target.closest('[data-tshots-unpin]')
@@ -438,7 +492,7 @@
           const zoom = e.target.closest('[data-shot-zoom]')
           if (zoom) {
             const img = zoom.querySelector('img')
-            if (img) openShotLightbox(img.src)
+            if (img) openShotLightbox(img.getAttribute('src'), zoom, zoom.closest('.shot-card')?.parentElement)
             return
           }
           // S39: the note AREA itself is the edit trigger (role=button, tabindex=0 — the
@@ -488,7 +542,7 @@
             } catch { window.hibana?.toast(_t('sparks.saveFailed', "Couldn't save"), 'err') }
             return
           }
-          if (shotLightbox && !e.target.closest('.shot-lightbox img')) closeShotLightbox()
+          if (shotLightbox && !e.target.closest('.shot-lightbox')) closeShotLightbox()
         })
         // keyboard parity for the click-to-edit note (role="button" needs Enter/Space)
         ctx.on('keydown', (e) => {
@@ -2705,7 +2759,7 @@
             pdTaskEditDlg.querySelector('#pde-shots-grid').addEventListener('click', async (e) => {
               const tid = pdTaskEditDlg.dataset.tid
               const zoom = e.target.closest('[data-pde-shot-zoom]')
-              if (zoom) { const img = zoom.querySelector('img'); if (img) openShotLightbox(img.src); return }
+              if (zoom) { const img = zoom.querySelector('img'); if (img) openShotLightbox(img.getAttribute('src'), zoom, zoom.closest('.shot-card')?.parentElement); return }
               const del = e.target.closest('[data-pde-shot-del]')
               if (del) {
                 const sid = del.getAttribute('data-pde-shot-del')

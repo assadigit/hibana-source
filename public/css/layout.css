@@ -518,12 +518,14 @@ input::placeholder, textarea::placeholder { font-size: 0.88em; opacity: 0.7; } /
   max-inline-size: 100%; max-block-size: 100%;
   border-radius: var(--radius-sm); box-shadow: 0 8px 40px rgb(0 0 0 / 0.5);
 }
-/* S59b: the GALLERY lightbox is a browser — prev/next walk the filtered set.
-   Scoped with [data-gal-lb]: the project page's lightbox shares .shot-lightbox
-   and stays click-to-close only. Buttons clear the 44px touch floor; the meta
-   pill is pointer-events:none so backdrop clicks pass through it. */
-.shot-lightbox[data-gal-lb] { padding: 3.5rem 4.5rem 5rem; }
-.shot-lightbox[data-gal-lb] img { max-block-size: calc(100% - 1rem); cursor: default; }
+/* S59b/S60: the BROWSER lightbox — prev/next walk the browse set (the gallery's
+   filtered set; the project page's grid siblings — main grid, pinned-shots dialog,
+   staged grid, task-edit dialog). [data-lb] marks the browser variant; a bare
+   .shot-lightbox without it stays click-to-close (single-shot mode).
+   Buttons clear the 44px touch floor; the meta pill is pointer-events:none so
+   backdrop clicks pass through it. */
+.shot-lightbox[data-lb] { padding: 3.5rem 4.5rem 5rem; }
+.shot-lightbox[data-lb] img { max-block-size: calc(100% - 1rem); cursor: default; }
 .lb-nav, .lb-close {
   position: absolute; z-index: 2;
   display: grid; place-items: center;
@@ -569,7 +571,7 @@ input::placeholder, textarea::placeholder { font-size: 0.88em; opacity: 0.7; } /
 }
 /* phones: nav buttons ride the bottom corners (thumbs), meta above them */
 @media (max-width: 720px) {
-  .shot-lightbox[data-gal-lb] { padding: 2.5rem 0.5rem 6rem; }
+  .shot-lightbox[data-lb] { padding: 2.5rem 0.5rem 6rem; }
   .lb-prev { inset-block-start: auto; inset-block-end: 1.25rem; inset-inline-start: 0.5rem; translate: none; }
   .lb-next { inset-block-start: auto; inset-block-end: 1.25rem; inset-inline-end: 0.5rem; translate: none; }
   .lb-cap { max-inline-size: 82vw; }

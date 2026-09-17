@@ -488,6 +488,7 @@ window.__hibanaDictEN = {
       'gallery.emptyTitle': 'No pictures yet',
       'gallery.emptyText': 'Pictures you upload on a project page (the Screenshots tab) all land here — one safe, permanent library.',
       'gallery.lbPrev': 'Previous picture', 'gallery.lbNext': 'Next picture', 'gallery.lbClose': 'Close',
+      'gallery.emptyCta': 'Open your projects',
       // dev-board + sprints (0029)
       'db.backToProject': 'Back to project', 'db.sprints': 'Sprints', 'db.board': 'Board',
       'db.loading': 'Loading…', 'db.loadFailed': "Couldn't load — try again", 'db.retry': 'Try again',

@@ -916,6 +916,193 @@
   .mobile-more-sheet, .mobile-more-backdrop { display: none !important; }
 }
 
+/* ═══ S65: the quick-note ARCHIVE ═════════════════════════════════════════════════
+   Every note ever captured, browsable at last. The dashboard widget caps at 20 cards;
+   the "Show all N notes" affordance under it opens this full-screen dialog (a centered
+   sheet on desktop). Rows are light — color dot, kind icon, first-line excerpt, weekday
+   stamp — each carrying a hidden full markdown render the note-reader opens on demand. */
+.note-show-all {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  inline-size: 100%;
+  margin-block-start: 0.45rem;
+  padding: 0.45rem 0.6rem;
+  border: 1px dashed var(--line-strong);
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--link);
+  font-size: 0.88rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+.note-show-all .icon { inline-size: 1rem; block-size: 1rem; }
+.note-show-all:hover { background: var(--accent-soft); border-color: var(--brand); border-style: solid; }
+.note-show-all:active { scale: 0.99; }
+.note-show-all:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
+
+/* The dialog — desktop: a tall centered sheet; mobile (≤640px): full-screen. */
+.qa-archive {
+  inline-size: min(56rem, calc(100vw - 2rem));
+  max-block-size: min(82vh, 46rem);
+  padding: 0;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius);
+  background: var(--card);
+  color: var(--text);
+}
+.qa-archive::backdrop { background: rgb(0 0 0 / 0.45); }
+@media (max-width: 640px) {
+  .qa-archive {
+    inline-size: 100vw;
+    max-block-size: 100dvh;
+    block-size: 100dvh;
+    border-radius: 0;
+    border: none;
+  }
+}
+.qa-head {
+  position: sticky;
+  inset-block-start: 0;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.65rem 0.9rem;
+  background: var(--card);
+  border-block-end: 1px solid var(--line);
+}
+/* S65 styling detail: on phones the head wraps — title+count keep the first row, the
+   filter takes the full second row (a 390px-wide single row squeezes all four into
+   crumbs). The body's height budget follows the taller head. */
+@media (max-width: 640px) {
+  .qa-head { flex-wrap: wrap; padding: 0.55rem 0.75rem; }
+  .qa-filter { flex-basis: 100%; order: 5; }
+}
+.qa-title { margin: 0; font-size: 1rem; flex-shrink: 0; }
+.qa-count { flex-shrink: 0; font-variant-numeric: tabular-nums; }
+.qa-filter {
+  flex-grow: 1;
+  min-inline-size: 0;
+  padding: 0.35rem 0.6rem;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-sm);
+  background: var(--bg-soft, var(--card));
+  color: var(--text);
+  font-size: 0.88rem;
+}
+.qa-filter:focus-visible { outline: 2px solid var(--brand); outline-offset: 1px; }
+/* Long list handling: capped height, custom scrollbar (the app's list convention). */
+.qa-body {
+  max-block-size: calc(min(82vh, 46rem) - 3.4rem);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scrollbar-color: var(--line-strong) transparent;
+}
+.qa-body::-webkit-scrollbar { inline-size: 8px; }
+.qa-body::-webkit-scrollbar-thumb { background: var(--line-strong); border-radius: 4px; }
+@media (max-width: 640px) {
+  /* 5.6rem: the wrapped two-row head (title+count, then the full-width filter). */
+  .qa-body { max-block-size: calc(100dvh - 5.6rem); }
+}
+/* Rows: dot · kind · excerpt+meta · done. Hairline separators, hover wash, focus ring.
+   S65 styling detail: the hover adds a leading accent edge (logical inset-inline-start)
+   — the scan surface reads like the palette's selected-row language, not a bare wash. */
+.qa-row {
+  display: grid;
+  grid-template-columns: auto auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.55rem;
+  padding: 0.5rem 0.9rem;
+  border-block-end: 1px solid var(--line);
+  cursor: pointer;
+  transition: background 0.12s ease;
+  position: relative;
+}
+.qa-row::before {
+  content: '';
+  position: absolute;
+  inset-inline-start: 0;
+  inset-block: 0.3rem;
+  inline-size: 2px;
+  border-radius: 2px;
+  background: var(--brand);
+  opacity: 0;
+  transition: opacity 0.12s ease;
+}
+.qa-row:hover::before, .qa-row:focus-visible::before, .qa-row.qa-anchored::before { opacity: 1; }
+.qa-row:hover { background: color-mix(in srgb, var(--accent-soft) 55%, transparent); }
+.qa-row:focus-visible { outline: 2px solid var(--brand); outline-offset: -2px; }
+.qa-row.qa-hidden { display: none; }
+.qa-dot {
+  inline-size: 0.72rem;
+  block-size: 0.72rem;
+  border-radius: 50%;
+  border: 1px solid rgb(0 0 0 / 0.18);
+  flex-shrink: 0;
+}
+.qa-kind { display: inline-flex; color: var(--muted, inherit); flex-shrink: 0; }
+.qa-kind .icon { inline-size: 1rem; block-size: 1rem; }
+.qa-main { display: grid; gap: 0.12rem; min-inline-size: 0; }
+.qa-text {
+  font-size: 0.92rem;
+  line-height: 1.4;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.qa-row.is-done .qa-text { text-decoration: line-through; opacity: 0.6; }
+.qa-meta { display: inline-flex; align-items: center; gap: 0.3rem; flex-wrap: wrap; font-size: 0.78rem; }
+/* S65 fix: the pin glyph next to an attached project's title (was an invisible empty
+   span — the attribute existed, the style never did). Muted so the title reads first. */
+.qa-pin { display: inline-flex; color: var(--muted, inherit); }
+.qa-pin .icon { inline-size: 0.85rem; block-size: 0.85rem; }
+.qa-done { color: var(--link); display: inline-flex; flex-shrink: 0; }
+.qa-done .icon { inline-size: 1rem; block-size: 1rem; }
+/* Empty state: a quiet archive glyph + the line — the "nothing here yet" moment reads
+   as a place, not an error. */
+.qa-empty { text-align: center; padding: 2.4rem 1rem; margin: 0; display: grid; justify-items: center; gap: 0.5rem; }
+.qa-empty .icon { inline-size: 1.8rem; block-size: 1.8rem; color: var(--muted, inherit); opacity: 0.65; }
+.qa-empty p { margin: 0; }
+/* Pagers — full-width ghost rows at the list's edges. */
+.qa-more, .qa-newer {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  inline-size: 100%;
+  padding: 0.55rem;
+  border: none;
+  border-block-end: 1px solid var(--line);
+  background: transparent;
+  color: var(--link);
+  font-size: 0.88rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+.qa-more:hover, .qa-newer:hover { background: var(--accent-soft); }
+.qa-more:focus-visible, .qa-newer:focus-visible { outline: 2px solid var(--brand); outline-offset: -2px; }
+/* S65 fix: the author `display: flex` above would defeat the `hidden` attribute's UA
+   `display: none` — the "last page" pager-hiding relied on it and stayed visible. */
+.qa-more[hidden], .qa-newer[hidden] { display: none; }
+/* Read-only list renders inside the note-reader (archive rows for LIST notes): the
+   check glyph mutes so only the text reads as content; the title reads like a heading. */
+.qa-itemlist { margin: 0.2rem 0; }
+.qa-ro-check { color: var(--muted, inherit); display: inline-flex; }
+.qa-ro-check .icon { inline-size: 1rem; block-size: 1rem; }
+.qa-list-title { margin: 0 0 0.4rem; }
+/* The anchored-row flash reuses the S64 jump language (extended to archive rows). */
+.qa-row.note-jump {
+  background: color-mix(in srgb, var(--accent) 22%, transparent);
+  box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--brand) 45%, transparent);
+  animation: note-jump-settle 0.65s ease 1;
+}
+@media (prefers-reduced-motion: reduce) {
+  .qa-row.note-jump { animation: none; }
+}
+
 /* ═══ S64: jump-to-note flash ═══════════════════════════════════════════════════
    The palette's quick-note deep link (#note-<uuid>&q=<term>) scrolls the dashboard
    card into view and pulses it once — the same accent language as the vault's S63

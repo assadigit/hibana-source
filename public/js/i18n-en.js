@@ -606,6 +606,12 @@ window.__hibanaDictEN = {
       // S64: jump-to-note fallback — the palette deep link targets the dashboard's
       // 20-note recent list; a deeper hit is safe, just not rendered on this page.
       'qn.jumpMissing': 'That note is saved, but older than the recent list shown here.',
+      // S65: the quick-note archive — every note ever captured, browsable at last.
+      'qn.archiveTitle': 'All notes',
+      'qn.filterNotes': 'Filter…',
+      'qn.loadMore': 'Load more',
+      'qn.loadNewer': 'Newer notes',
+      'qn.archiveFailed': 'Could not load the archive — try again.',
       'taskAdd.title': 'New Task', 'taskAdd.taskLabel': 'Task', 'taskAdd.quadrant': 'Quadrant',
       'taskAdd.deadline': 'Deadline (optional)', 'taskAdd.add': 'Add task',
       'taskAdd.added': 'Task added', 'taskAdd.failed': "Couldn't add the task — try again",

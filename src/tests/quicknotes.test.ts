@@ -529,3 +529,185 @@ describe('quick notes ↔ project attachment (user request)', () => {
     }
   })
 })
+// S65: the quick-note ARCHIVE — every note ever captured, browsable at last.
+// The dashboard widget caps at 20 cards and the JSON list at 100; the archive fragment
+// paginates the whole history (offset/limit), centers a page on an optional anchor
+// (the palette's beyond-cap deep link), and the notebook gains a "Show all N notes"
+// affordance when the total exceeds the rendered list. Rule 1 (user isolation) and
+// rule 10 (Zod on the query) are pinned here.
+describe('quick-note archive (S65)', () => {
+  const insertProject = async (db: Db, userId: string, title: string, id = crypto.randomUUID()) => {
+    const now = new Date().toISOString()
+    await db.execute(
+      "INSERT INTO projects (id, user_id, title, description, type, status, sort_order, latest_note, reminders_enabled, created_at, updated_at) VALUES (?, ?, ?, '', 'personal', 'spark', 0, '', 0, ?, ?)",
+      [id, userId, title, now, now],
+    )
+    return id
+  }
+  const createNoteApi = async (app: ReturnType<typeof createApp>, auth: Record<string, string>, content: string, extra: Record<string, unknown> = {}) => {
+    const res = await app.fetch(new Request('http://local/api/notes', {
+      method: 'POST',
+      headers: auth,
+      body: JSON.stringify({ kind: 'note', content, ...extra }),
+    }))
+    expect(res.status).toBe(201)
+    return ((await res.json()) as { id: string }).id
+  }
+  const getArchive = async (app: ReturnType<typeof createApp>, auth: Record<string, string>, qs: string) => {
+    const res = await app.fetch(new Request(`http://local/api/notes/archive${qs}`, { headers: auth }))
+    return { status: res.status, html: await res.text() }
+  }
+
+  it('paginates the fragment; the wrapper carries the window attrs; the JSON list carries total', async () => {
+    const { db, close } = makeTestDb()
+    try {
+      const user = await makeUser(db)
+      const { app, auth } = await makeClient(db, user)
+      for (let i = 0; i < 5; i++) await createNoteApi(app, auth, `archive note ${i}`)
+
+      const page1 = await getArchive(app, auth, '?limit=2&offset=0')
+      expect(page1.status).toBe(200)
+      expect(page1.html).toContain('data-total="5"')
+      expect(page1.html).toContain('data-next-offset="2"')
+      expect(page1.html).not.toContain('data-prev-offset="2"') // no prev on the first page (empty attr value)
+      expect(page1.html.match(/class="qa-row[ "]/g)).toHaveLength(2)
+      // newest first: page 1 carries notes 4 and 3
+      expect(page1.html).toContain('archive note 4')
+      expect(page1.html).toContain('archive note 3')
+      expect(page1.html).not.toContain('archive note 2')
+
+      const page2 = await getArchive(app, auth, '?limit=2&offset=4')
+      expect(page2.html).toContain('data-prev-offset="4"')
+      expect(page2.html).toContain('data-next-offset=""') // last page: nothing older (attr always present, empty)
+
+      // The plain JSON list now tells the truth about scale (the affordance's N).
+      const res = await app.fetch(new Request('http://local/api/notes', { headers: auth }))
+      const body = (await res.json()) as { notes: unknown[]; total: number }
+      expect(body.total).toBe(5)
+    } finally {
+      close()
+    }
+  })
+
+  it('anchors a page centered on the target note and marks it qa-anchored', async () => {
+    const { db, close } = makeTestDb()
+    try {
+      const user = await makeUser(db)
+      const { app, auth } = await makeClient(db, user)
+      const ids: string[] = []
+      for (let i = 0; i < 9; i++) ids.push(await createNoteApi(app, auth, `anchor note ${i}`))
+      // sort_order is COUNT(*) at creation → note 8 is newest (position 1); note 4 sits at
+      // position 5. limit=4 → offset = max(0, 5 − 2) = 3 → page covers positions 4–7
+      // (anchor note 5, TARGET, note 3, note 2) with the target second from the top.
+      const page = await getArchive(app, auth, `?limit=4&anchor=${ids[4]}`)
+      expect(page.status).toBe(200)
+      expect(page.html).toContain(`id="an-${ids[4]}"`)
+      expect(page.html).toContain('qa-anchored')
+      expect(page.html).toContain('anchor note 5')
+      expect(page.html).toContain('anchor note 3')
+      expect(page.html).not.toContain('anchor note 8') // newest stays behind the "newer" pager
+      expect(page.html).toContain('data-prev-offset="3"')
+      // One anchored row only — the class never leaks to its neighbors.
+      expect(page.html.match(/qa-anchored/g)).toHaveLength(1)
+    } finally {
+      close()
+    }
+  })
+
+  it('never renders another user\'s notes; soft-deleted notes drop out of rows AND total', async () => {
+    const { db, close } = makeTestDb()
+    try {
+      const user = await makeUser(db)
+      const other = await makeUser(db)
+      const { app, auth } = await makeClient(db, user)
+      const { auth: oAuth } = await makeClient(db, other)
+      const keep1 = await createNoteApi(app, auth, 'mine one')
+      const keep2 = await createNoteApi(app, auth, 'mine two')
+      await createNoteApi(app, auth, 'doomed')
+      await createNoteApi(app, oAuth, 'someone else secret')
+
+      let page = await getArchive(app, auth, '')
+      expect(page.html).toContain('data-total="3"')
+      expect(page.html).not.toContain('someone else secret')
+
+      // Soft-delete the middle note (the archive honors deleted_at, never hard rows).
+      await db.execute('UPDATE quick_notes SET deleted_at = ? WHERE user_id = ? AND content = ?', [new Date().toISOString(), user, 'doomed'])
+      page = await getArchive(app, auth, '')
+      expect(page.html).toContain('data-total="2"')
+      expect(page.html).not.toContain('doomed')
+      expect(page.html).toContain('mine one')
+      expect(page.html).toContain('mine two')
+      expect(keep1).toBeTruthy()
+      expect(keep2).toBeTruthy()
+    } finally {
+      close()
+    }
+  })
+
+  it('rejects hostile queries (Zod bounds: oversized limit, negative offset, non-uuid anchor)', async () => {
+    const { db, close } = makeTestDb()
+    try {
+      const user = await makeUser(db)
+      const { app, auth } = await makeClient(db, user)
+      await createNoteApi(app, auth, 'one')
+      expect((await getArchive(app, auth, '?limit=101')).status).toBe(400)
+      expect((await getArchive(app, auth, '?offset=-1')).status).toBe(400)
+      expect((await getArchive(app, auth, '?anchor=not-a-uuid')).status).toBe(400)
+      // A deleted/foreign anchor is NOT an error — it falls back to the top page.
+      expect((await getArchive(app, auth, '?anchor=00000000-0000-4000-8000-000000000000')).status).toBe(200)
+    } finally {
+      close()
+    }
+  })
+
+  it('renders kind icons, done state, and a hidden full markdown render per row', async () => {
+    const { db, close } = makeTestDb()
+    try {
+      const user = await makeUser(db)
+      const { app, auth } = await makeClient(db, user)
+      const projectId = await insertProject(db, user, 'Attached project')
+      const noteId = await createNoteApi(app, auth, '# Heading\n\nfull body text', { project_id: projectId })
+      const listRes = await app.fetch(new Request('http://local/api/notes', {
+        method: 'POST',
+        headers: auth,
+        body: JSON.stringify({ kind: 'list', title: 'Chores', content: 'wash dishes' }),
+      }))
+      expect(listRes.status).toBe(201)
+      const listId = ((await listRes.json()) as { id: string }).id
+      await db.execute('UPDATE quick_notes SET done = 1 WHERE id = ?', [listId])
+
+      const page = await getArchive(app, auth, '')
+      // The note row: book icon, hidden render carries the markdown output, project pin.
+      expect(page.html).toContain(`id="an-${noteId}"`)
+      expect(page.html).toMatch(/qa-render note-render markdown-body" hidden[^>]*><h1[^>]*><span[^>]*>Heading/s)
+      expect(page.html).toContain('Attached project')
+      // The done list row: check mark + struck excerpt; the hidden render is a read-only
+      // ITEM list — the raw items JSON must never reach the reader (S65 fix).
+      expect(page.html).toContain(`id="an-${listId}"`)
+      expect(page.html).toContain('is-done')
+      expect(page.html).toContain('qa-done')
+      expect(page.html).toContain('qa-itemlist')
+      expect(page.html).not.toContain('{"id"')
+    } finally {
+      close()
+    }
+  })
+})
+
+// S65: the widget affordance — "Show all N notes" renders only when the true total
+// exceeds the rendered list (the button opens the archive dialog client-side).
+describe('notebook archive affordance (S65)', () => {
+  it('renders "Show all N notes" only when total > rendered; Persian digits in FA', async () => {
+    const { notebookHtml } = await import('../routes/quicknotes-helpers')
+    const notes = [
+      { id: 'a', user_id: 'u', kind: 'note', title: null, content: 'one', color: 'yellow', done: 0, project_id: null, note_date: null, sort_order: 1, created_at: '2026-01-01T00:00:00Z', updated_at: '2026-01-01T00:00:00Z', deleted_at: null },
+      { id: 'b', user_id: 'u', kind: 'note', title: null, content: 'two', color: 'yellow', done: 0, project_id: null, note_date: null, sort_order: 0, created_at: '2026-01-01T00:00:00Z', updated_at: '2026-01-01T00:00:00Z', deleted_at: null },
+    ] as never[]
+    // 10 stored, 2 rendered → the affordance says what's hiding (EN + FA wording).
+    expect(notebookHtml(notes, 'en', 'note', new Map(), false, 10)).toContain('Show all 10 notes')
+    expect(notebookHtml(notes, 'fa', 'note', new Map(), false, 12)).toContain('نمایش همهٔ ۱۲ یادداشت')
+    // Everything fits → no affordance, no dead button.
+    expect(notebookHtml(notes, 'en', 'note', new Map(), false, 2)).not.toContain('Show all')
+    expect(notebookHtml(notes, 'en', 'note', new Map(), false, undefined)).not.toContain('Show all')
+  })
+})

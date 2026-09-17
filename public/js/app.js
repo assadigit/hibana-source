@@ -955,37 +955,298 @@ window.hibana = (() => {
       if (armed && armed.id === parsed.id) return // already watching this target
       disarm()
       armed = { ...parsed, observer: null, timer: null, failTimer: null }
+      // S65: the beyond-cap resolution — the note is real but deeper than the widget's 20
+      // cards, so finish the intent in the ARCHIVE (opens centered on the note, flashed).
+      // The toast stays as the fallback when the archive can't load the anchor at all.
+      const resolveBeyondCap = () => {
+        if (!armed) return
+        const { id, q } = armed
+        disarm()
+        try { history.replaceState(null, '', location.pathname + location.search) } catch { /* history unavailable */ }
+        if (window.hibanaArchive && typeof window.hibanaArchive.openAt === 'function') window.hibanaArchive.openAt(id, q)
+        else toast(_t('qn.jumpMissing', 'That note is saved, but older than the recent list shown here.'), 'info', 6000)
+      }
       const tryNow = () => {
         if (!armed) return false
         const card = document.getElementById('note-' + armed.id)
-        if (!card) return false
-        const { q } = armed
-        disarm()
-        try { history.replaceState(null, '', location.pathname + location.search) } catch { /* history unavailable */ }
-        jump(card, q)
-        return true
+        if (card) {
+          const { q } = armed
+          disarm()
+          try { history.replaceState(null, '', location.pathname + location.search) } catch { /* history unavailable */ }
+          jump(card, q)
+          return true
+        }
+        // S65: the widget section exists in the CURRENT main (it dies with the old main on
+        // soft-nav and returns only with the fresh content swap) — so its presence means
+        // the dashboard landed, and our card isn't among the rendered 20. Don't make the
+        // user wait out the fail timer: the archive has the note.
+        if (document.querySelector('#notebook')) { resolveBeyondCap(); return true }
+        return false
       }
       if (tryNow()) return // hash arrived after the cards were already in the DOM
       // Hard load: main.shell-dash swaps its content via hx-get after app.js boots. Soft
       // nav: nav.js replaces the whole <main> first, THEN the hx-get fires. Either way
       // the card lands via mutation — the observer catches it, the interval is
-      // belt-and-suspenders, and the fail timer converts a hopeless wait into a toast.
+      // belt-and-suspenders, and the fail timer converts a hopeless wait into the archive
+      // (hidden-notebook edge: no #notebook ever lands, so the timer is the only signal).
       armed.observer = new MutationObserver(() => { tryNow() })
       armed.observer.observe(document.body, { childList: true, subtree: true })
       armed.timer = setInterval(() => { tryNow() }, 400)
-      armed.failTimer = setTimeout(() => {
-        if (!armed) return
-        disarm()
-        // Consume the dead fragment on the fail path too — a reload must not re-toast
-        // the same hopeless jump (the success path strips it in tryNow above).
-        try { history.replaceState(null, '', location.pathname + location.search) } catch { /* history unavailable */ }
-        toast(_t('qn.jumpMissing', 'That note is saved, but older than the recent list shown here.'), 'info', 6000)
-      }, 4500)
+      armed.failTimer = setTimeout(() => { resolveBeyondCap() }, 4500)
     }
     arm()
     window.addEventListener('hashchange', arm)
     window.addEventListener('popstate', arm)
     document.addEventListener('htmx:afterSwap', arm)
+  })()
+
+  // ---- S65: the quick-note ARCHIVE — every note ever captured, browsable at last -------
+  // The dashboard widget caps at 20 cards (P5.1 F-M1) and the API at 100; anything older
+  // was stored but rendered NOWHERE. This dialog is the full list: paginated server
+  // fragments (60/page), an optional anchored target (the palette's beyond-cap jump lands
+  // here centered on the note), a client-side filter, and rows that open the existing
+  // note-reader via their hidden full-markdown render (no extra fetch). Read-only by
+  // design — edits belong to the live widget; the archive's job is "never lose an idea".
+  ;(() => {
+    const PAGE = 60
+    let dlg = null
+    let loading = false
+    // Current loaded window [lo, hi) over the archive's total. lo>0 → newer pages exist
+    // above; hi<total → older pages exist below.
+    let lo = 0
+    let hi = 0
+    let total = 0
+
+    const buildDialog = () => {
+      if (dlg) return dlg
+      dlg = document.createElement('dialog')
+      dlg.id = 'quicknote-archive'
+      dlg.className = 'qa-archive'
+      dlg.innerHTML =
+        '<div class="qa-head">' +
+          '<h3 class="qa-title" data-i18n="qn.archiveTitle">All notes</h3>' +
+          '<span class="qa-count small muted" aria-live="polite"></span>' +
+          '<input type="search" class="qa-filter" data-i18n-placeholder="qn.filterNotes" placeholder="Filter…" aria-label="Filter notes" data-i18n-aria-label="qn.filterNotes" autocomplete="off">' +
+          '<button type="button" class="ghost icon-btn" data-qa-close aria-label="Close" data-i18n-aria-label="common.close"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button>' +
+        '</div>' +
+        '<div class="qa-body" role="list" aria-label="All notes"></div>'
+      document.body.appendChild(dlg)
+      // Lazily-built dialogs miss the page-load i18n pass — re-apply so FA users get
+      // the localized title/placeholder/aria labels on first open (idempotent).
+      try { window.hibanaI18n?.apply?.() } catch { /* i18n unavailable */ }
+      dlg.addEventListener('cancel', (e) => { e.preventDefault(); dlg.close() })
+      dlg.addEventListener('click', (e) => { if (e.target === dlg) dlg.close() })
+      dlg.querySelector('[data-qa-close]').addEventListener('click', () => dlg.close())
+      // Client-side filter over the RENDERED rows (title/excerpt + meta text).
+      // Persian digit normalization (the app's i18n rule): a query typed with Persian
+      // digits (۷) must match Latin digits in the content (7) — both sides normalize.
+      const normDigits = (s) => s.replace(/[۰-۹٠-٩]/g, (ch) => {
+        const fa = '۰۱۲۳۴۵۶۷۸۹'.indexOf(ch)
+        if (fa >= 0) return String(fa)
+        const ar = '٠١٢٣٤٥٦٧٨٩'.indexOf(ch)
+        return ar >= 0 ? String(ar) : ch
+      })
+      dlg.querySelector('.qa-filter').addEventListener('input', (e) => {
+        const needle = normDigits(e.target.value.trim().toLowerCase())
+        for (const row of dlg.querySelectorAll('.qa-row')) {
+          const hit = !needle || normDigits(row.textContent.toLowerCase()).includes(needle)
+          row.classList.toggle('qa-hidden', !hit)
+        }
+        updateCount()
+      })
+      // Row activation (click + keyboard — rows are role=button tabindex=0): open the
+      // existing note-reader on the row's hidden full markdown render.
+      const activate = (row) => {
+        const render = row.querySelector('.qa-render')
+        if (!render) return
+        const reader = buildNoteReader()
+        reader.querySelector('.note-reader-body').innerHTML = render.innerHTML
+        // Archive rows aren't the live widget's cards — the reader's Edit path edits
+        // #note-<id> in the widget, which beyond-cap notes don't have. Read-only here.
+        const editBtn = reader.querySelector('[data-note-reader-edit]')
+        if (editBtn) editBtn.hidden = true
+        reader.dataset.noteId = row.dataset.archiveNote || ''
+        // S65: the reader's Copy-as-Markdown source — the row carries the paste-ready
+        // markdown (notes verbatim; lists as title + checkbox lines) in data-raw.
+        reader.dataset.raw = row.dataset.raw || ''
+        reader.showModal()
+      }
+      dlg.querySelector('.qa-body').addEventListener('click', (e) => {
+        const row = e.target.closest('.qa-row')
+        if (row) activate(row)
+      })
+      dlg.querySelector('.qa-body').addEventListener('keydown', (e) => {
+        if (e.key !== 'Enter' && e.key !== ' ') return
+        const row = e.target.closest('.qa-row')
+        if (!row) return
+        e.preventDefault()
+        activate(row)
+      })
+      // S65: arrow-key roving through the rows (the S63 vault-menu language): the list
+      // is a vertical scan surface — ArrowUp/Down walk it, Home/End jump the edges.
+      // Bound on the DIALOG (not .qa-body) so the keys work from the filter too —
+      // ArrowDown enters the list at the top, ArrowUp from outside enters at the bottom
+      // (the cmdk palette convention). Only VISIBLE rows participate (filter-skipped).
+      dlg.addEventListener('keydown', (e) => {
+        if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp' && e.key !== 'Home' && e.key !== 'End') return
+        const rows = Array.from(dlg.querySelectorAll('.qa-row:not(.qa-hidden)'))
+        if (!rows.length) return
+        e.preventDefault()
+        const idx = rows.indexOf(document.activeElement)
+        let next = 0
+        if (e.key === 'ArrowDown') next = idx < 0 ? 0 : Math.min(rows.length - 1, idx + 1)
+        else if (e.key === 'ArrowUp') next = idx < 0 ? rows.length - 1 : Math.max(0, idx - 1)
+        else if (e.key === 'End') next = rows.length - 1
+        rows[next].focus()
+      })
+      return dlg
+    }
+
+    const faDig = (s) => String(s).replace(/\d/g, (d) => '۰۱۲۳۴۵۶۷۸۹'[+d])
+    const dig = (n) => (window.hibanaI18n && window.hibanaI18n.lang && window.hibanaI18n.lang() === 'fa' ? faDig(String(n)) : String(n))
+    const updateCount = () => {
+      if (!dlg) return
+      const shown = dlg.querySelectorAll('.qa-row:not(.qa-hidden)').length
+      const filter = dlg.querySelector('.qa-filter')
+      const filtering = filter && filter.value.trim() !== ''
+      dlg.querySelector('.qa-count').textContent = filtering
+        ? dig(shown) + ' / ' + dig(total)
+        : dig(total)
+    }
+
+    // Renders a fetched fragment into the body. mode: 'replace' (fresh open), 'append'
+    // (load more), 'prepend' (load newer). Wires the pagination buttons from the
+    // wrapper's data attrs.
+    const renderFragment = (htmlText, mode, anchoredId, q) => {
+      const body = dlg.querySelector('.qa-body')
+      const tpl = document.createElement('template')
+      tpl.innerHTML = htmlText.trim()
+      const wrap = tpl.content.querySelector('.qa-rows')
+      if (!wrap) throw new Error('bad fragment')
+      total = Number(wrap.dataset.total) || 0
+      const rows = Array.from(wrap.querySelectorAll('.qa-row'))
+      const newLo = Number(wrap.dataset.prevOffset) || 0
+      const newHi = newLo + rows.length
+      if (mode === 'replace') {
+        body.innerHTML = ''
+        lo = newLo
+        hi = newHi
+        for (const r of rows) body.appendChild(r)
+      } else if (mode === 'append') {
+        hi = newHi
+        const more = body.querySelector('.qa-more')
+        if (more) more.before(...rows) // keep the pager at the bottom
+        else for (const r of rows) body.appendChild(r)
+      } else {
+        // prepend — the newer-notes pager must stay at the very top
+        const newer = body.querySelector('.qa-newer')
+        if (newer) newer.after(...rows)
+        else body.prepend(...rows)
+        lo = newLo
+      }
+      finishPagers(lo, hi)
+      // Anchored open: flash the row + mark the excerpt hit (same language as the S64
+      // jump). The hidden .qa-render's mark would never be seen until the reader opens.
+      if (anchoredId) {
+        const row = body.querySelector('#an-' + CSS.escape(anchoredId))
+        if (row) {
+          row.scrollIntoView({ block: 'center' })
+          row.classList.add('note-jump')
+          setTimeout(() => row.classList.remove('note-jump'), 2600)
+          const needle = String(q || '').toLowerCase()
+          const text = row.querySelector('.qa-text')
+          const v = text ? text.textContent : ''
+          const i = needle ? v.toLowerCase().indexOf(needle) : -1
+          if (i >= 0 && text) {
+            const mark = document.createElement('mark')
+            mark.className = 'note-jump'
+            mark.textContent = v.slice(i, i + needle.length)
+            text.textContent = ''
+            text.append(document.createTextNode(v.slice(0, i)), mark, document.createTextNode(v.slice(i + needle.length)))
+          }
+        }
+      }
+    }
+
+    // (Re)creates the pager buttons from the loaded window [lo, hi).
+    const finishPagers = (l, h) => {
+      const body = dlg.querySelector('.qa-body')
+      let more = body.querySelector('.qa-more')
+      let newer = body.querySelector('.qa-newer')
+      if (h < total) {
+        if (!more) {
+          more = document.createElement('button')
+          more.type = 'button'
+          more.className = 'qa-more ghost'
+          more.setAttribute('data-i18n', 'qn.loadMore')
+          more.textContent = 'Load more'
+          more.addEventListener('click', () => load({ mode: 'append' }))
+          body.appendChild(more)
+        }
+        more.hidden = false
+      } else if (more) more.hidden = true
+      if (l > 0) {
+        if (!newer) {
+          newer = document.createElement('button')
+          newer.type = 'button'
+          newer.className = 'qa-newer ghost'
+          newer.setAttribute('data-i18n', 'qn.loadNewer')
+          newer.textContent = 'Newer notes'
+          newer.addEventListener('click', () => load({ mode: 'prepend' }))
+          body.prepend(newer)
+        }
+        newer.hidden = false
+      } else if (newer) newer.hidden = true
+      updateCount()
+    }
+
+    const load = async ({ mode = 'replace', anchor, q } = {}) => {
+      if (!dlg || loading) return
+      loading = true
+      try {
+        // Prepend fetches EXACTLY the missing window [lo - n, lo) — a full PAGE would
+        // overlap rows already loaded after an anchored open (lo = pos - PAGE/2).
+        const n = mode === 'prepend' ? Math.min(PAGE, lo) : PAGE
+        const offset = mode === 'append' ? hi : mode === 'prepend' ? lo - n : 0
+        const qs = '?offset=' + offset + '&limit=' + n + (anchor ? '&anchor=' + encodeURIComponent(anchor) : '')
+        const res = await fetch('/api/notes/archive' + qs, { headers: { Accept: 'text/html' } })
+        if (!res.ok) throw new Error('archive ' + res.status)
+        renderFragment(await res.text(), mode, anchor, q)
+        return true
+      } catch {
+        toast(_t('qn.archiveFailed', 'Could not load the archive — try again.'), 'err')
+        return false
+      } finally { loading = false }
+    }
+
+    const open = async () => {
+      buildDialog()
+      dlg.querySelector('.qa-filter').value = ''
+      dlg.showModal()
+      // S65: land the keyboard in the filter — the dialog's primary scanning control.
+      try { dlg.querySelector('.qa-filter').focus() } catch { /* focus denied */ }
+      await load({ mode: 'replace' })
+    }
+
+    const openAt = async (id, q) => {
+      buildDialog()
+      dlg.querySelector('.qa-filter').value = ''
+      dlg.showModal()
+      try { dlg.querySelector('.qa-filter').focus() } catch { /* focus denied */ }
+      const ok = await load({ mode: 'replace', anchor: id, q })
+      if (ok && !dlg.querySelector('#an-' + CSS.escape(id))) {
+        // The anchor note no longer exists (deleted since it was searched) — the archive
+        // opened at the top; say what happened instead of a silent no-show.
+        toast(_t('qn.jumpMissing', 'That note is saved, but older than the recent list shown here.'), 'info', 6000)
+      }
+    }
+
+    // The widget's footer affordance (server-rendered only when total > shown).
+    document.addEventListener('click', (e) => {
+      if (e.target.closest('[data-note-archive]')) { e.preventDefault(); open() }
+    })
+
+    window.hibanaArchive = { open, openAt }
   })()
 
   // ---- Notebook list mode: Enter drafts a line, + commits the whole list -----------------
@@ -2629,17 +2890,45 @@ window.hibana = (() => {
       '</div>' +
       '<div class="note-reader-body" dir="auto"></div>' +
       '<div class="note-reader-foot">' +
+        '<button type="button" class="ghost" data-note-reader-copy data-i18n="notes.copyMd">Copy as Markdown</button>' +
         '<button type="button" class="ghost" data-note-reader-edit data-i18n="notes.editNote">Edit note</button>' +
         '<button type="button" data-note-reader-close data-i18n="common.close">Close</button>' +
       '</div>'
     document.body.appendChild(dlg)
     dlg.addEventListener('cancel', (e) => { e.preventDefault(); dlg.close() })
     dlg.addEventListener('click', (e) => { if (e.target === dlg) dlg.close() })
-    dlg.querySelector('[data-note-reader-close]').addEventListener('click', () => dlg.close())
+    // S65 bug fix (pre-existing since Phase 6): BOTH close buttons must be wired —
+    // querySelector only bound the head ✕, leaving the foot "Close" button dead
+    // (the most obvious control in the modal did nothing when clicked).
+    dlg.querySelectorAll('[data-note-reader-close]').forEach((b) => b.addEventListener('click', () => dlg.close()))
     dlg.querySelector('[data-note-reader-edit]').addEventListener('click', () => {
       const card = document.getElementById('note-' + dlg.dataset.noteId)
       dlg.close()
       if (card) enterNoteEdit(card)
+    })
+    // S65: Copy as Markdown — the clipboard twin of the vault's S62 copy, for quick
+    // notes: paste an idea out of the safe (Telegram/email/docs) without a download.
+    // Source = dataset.raw (set by the archive rows AND the widget card opens); the
+    // legacy execCommand fallback covers non-secure contexts (S62 pattern).
+    dlg.querySelector('[data-note-reader-copy]').addEventListener('click', async () => {
+      const raw = dlg.dataset.raw || ''
+      if (!raw) return
+      const ok = await (async () => {
+        try { await navigator.clipboard.writeText(raw); return true } catch {
+          try {
+            const ta = document.createElement('textarea')
+            ta.value = raw
+            ta.setAttribute('readonly', '')
+            ta.style.cssText = 'position:fixed;inset-inline-start:-9999px;opacity:0'
+            document.body.appendChild(ta)
+            ta.select()
+            document.execCommand('copy')
+            ta.remove()
+            return true
+          } catch { return false }
+        }
+      })()
+      toast(_t(ok ? 'notes.copiedMd' : 'notes.copyFail', ok ? 'Copied as Markdown' : 'Could not copy.'), ok ? 'ok' : 'err', 2500)
     })
     noteReaderDlg = dlg
     return dlg
@@ -2654,6 +2943,23 @@ window.hibana = (() => {
     dlg.dataset.noteId = card.id.replace(/^note-/, '')
     const body = dlg.querySelector('.note-reader-body')
     body.innerHTML = render.innerHTML // the full rendered markdown (the clamp is visual only)
+    // S65: the archive path hides this (its rows aren't the live widget's cards) — every
+    // widget open restores it, so the two sources can't leak state into each other.
+    const editBtn = dlg.querySelector('[data-note-reader-edit]')
+    if (editBtn) editBtn.hidden = false
+    // S65 copy source for widget cards: the card IS the live editor — the textarea (note)
+    // or the title+items (list) rebuild the paste-ready markdown on the fly.
+    if (card.dataset.kind === 'list') {
+      const title = (card.querySelector('.note-title') || {}).value || ''
+      const items = Array.from(card.querySelectorAll('.hurdle')).map((li) => {
+        const txt = li.querySelector('span:last-child')
+        return '- [' + (li.classList.contains('done') ? 'x' : ' ') + '] ' + (txt ? txt.textContent : '')
+      })
+      dlg.dataset.raw = ('# ' + title + '\n' + items.join('\n')).trim()
+    } else {
+      const ta = card.querySelector('.note-text')
+      dlg.dataset.raw = ta ? ta.value : ''
+    }
     dlg.showModal()
   }
 

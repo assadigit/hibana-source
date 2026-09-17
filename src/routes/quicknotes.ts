@@ -27,6 +27,7 @@ import {
   addItemSchema,
   toggleItemSchema,
   reorderSchema,
+  archiveQuerySchema,
   type TaskItem,
   parseItems,
   itemsHtml,
@@ -38,9 +39,10 @@ import {
   attachWidget,
   attachedTitles,
   notebookHtml,
+  archiveHtml,
 } from './quicknotes-helpers'
 // Re-export for backward compat (dashboard.ts, projects/helpers.ts, ics-export.ts import these)
-export { notebookHtml, attachedTitles, type QuickNote, type NoteColor, type TaskItem } from './quicknotes-helpers'
+export { notebookHtml, archiveHtml, attachedTitles, type QuickNote, type NoteColor, type TaskItem } from './quicknotes-helpers'
 
 export function quickNotesRoutes(cfg: Config) {
   const app = new Hono<{ Variables: { user: UserRow } }>()
@@ -71,8 +73,12 @@ export function quickNotesRoutes(cfg: Config) {
   // 0040/dashboard: the `dashboard` flag is echoed back via ?dashboard=1 so every htmx
   // re-render (create/patch/toggle/delete/reorder) preserves the collapsed-controls
   // dashboard widget layout. Same pattern as the existing ?mode= for composer mode.
+  // S65: every re-render also carries the true note count so the "Show all N notes"
+  // affordance survives mutations (create/delete change N — the link must track it).
+  const countNotes = async (userId: string): Promise<number> =>
+    (await cfg.db.query<{ n: number }>('SELECT COUNT(*) AS n FROM quick_notes WHERE user_id = ? AND deleted_at IS NULL', [userId]))[0]?.n ?? 0
   const widget = async (c: Ctx, notes: QuickNote[], composerMode?: 'note' | 'list', status?: ContentfulStatusCode) =>
-    c.html(notebookHtml(notes, localeOf(c), composerMode, await attachedTitles(cfg.db, c.get('user').id, notes), c.req.query('dashboard') === '1'), status)
+    c.html(notebookHtml(notes, localeOf(c), composerMode, await attachedTitles(cfg.db, c.get('user').id, notes), c.req.query('dashboard') === '1', await countNotes(c.get('user').id)), status)
   // The composer keeps its Note/List mode across htmx swaps — the client echoes the current
   // mode back as ?mode= so a refresh after an action doesn't silently flip it to Note.
   const composerMode = (c: Ctx): 'note' | 'list' | undefined => {
@@ -95,7 +101,48 @@ export function quickNotesRoutes(cfg: Config) {
   app.get('/', async (c) => {
     const user = c.get('user')
     const notes = await activeNotes(user.id)
-    return await etag(c, c.req.header('HX-Request') ? await widget(c, notes, composerMode(c)) : json(c, { notes }))
+    // S65: the widget's "Show all N notes" affordance needs the true total — the notes
+    // list is capped (100 here, 20 on the dashboard render); without the count the link
+    // can't say how much is hiding beyond the cap. One indexed COUNT, same filter.
+    const total = await countNotes(user.id)
+    return await etag(c, c.req.header('HX-Request') ? await widget(c, notes, composerMode(c)) : json(c, { notes, total }))
+  })
+
+  // S65: the ARCHIVE — every quick note ever captured, paginated, optionally anchored.
+  // HTML fragment (htmx-style) consumed by the dashboard's archive dialog: light rows
+  // carrying hidden full markdown renders (the note-reader modal opens without another
+  // fetch). `anchor=<uuid>` centers the page on a specific note — the S64 beyond-cap
+  // palette jump now lands HERE instead of a dead-end toast. Rule 10: Zod on the query.
+  app.get('/archive', async (c) => {
+    const q = archiveQuerySchema.safeParse(c.req.query())
+    if (!q.success) return c.json({ error: 'invalid_input' }, 400)
+    const user = c.get('user')
+    const { offset: limit_, limit } = q.data
+    const userId = user.id
+    const total = await countNotes(userId)
+    let offset = limit_
+    let anchoredId: string | undefined
+    if (q.data.anchor) {
+      // Window functions are fine on both node:sqlite (3.4x) and D1. Position p (0 =
+      // newest) → page starting max(0, p - half) so the anchor lands mid-list, with
+      // context above and below. A deleted/foreign anchor falls back to offset 0.
+      const pos = await cfg.db.query<{ pos: number }>(
+        `SELECT pos FROM (SELECT id, ROW_NUMBER() OVER (ORDER BY sort_order DESC, updated_at DESC) AS pos FROM quick_notes WHERE user_id = ? AND deleted_at IS NULL) WHERE id = ?`,
+        [userId, q.data.anchor],
+      )
+      if (pos.length) {
+        anchoredId = q.data.anchor
+        offset = Math.max(0, pos[0].pos - Math.floor(limit / 2))
+      } else {
+        offset = 0
+      }
+    }
+    const notes = await cfg.db.query<QuickNote>(
+      'SELECT * FROM quick_notes WHERE user_id = ? AND deleted_at IS NULL ORDER BY sort_order DESC, updated_at DESC LIMIT ? OFFSET ?',
+      [userId, limit, offset],
+    )
+    const titles = await attachedTitles(cfg.db, userId, notes)
+    return c.html(archiveHtml(notes, localeOf(c), titles, total, offset, limit, anchoredId))
   })
 
   // Create a note or a list (accepts an optional client id, like the quick-add flow).

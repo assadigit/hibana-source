@@ -109,18 +109,28 @@ test.describe('S64: quick-note jump-to-match from the palette', () => {
     }
   })
 
-  test('a hit deeper than the dashboard\'s 20-note recent list toasts instead of dead-scrolling', async ({ page }) => {
+  test('a hit deeper than the dashboard\'s 20-note recent list opens the ARCHIVE centered on it (S65)', async ({ page }) => {
     // 21 notes: the FIRST created carries the lowest sort_order → ranks 21st → beyond
-    // the widget's LIMIT 20. The deep link must say so, not scroll nowhere silently.
+    // the widget's LIMIT 20. The deep link now finishes the intent in the archive dialog
+    // (S65) — anchored row flashed + the excerpt hit marked — instead of a dead-end toast.
     const ids: string[] = []
     ids.push(await mkQuickNote(page, 'ancient needle hoard: the oldest note in the drawer'))
     for (let i = 0; i < 20; i++) ids.push(await mkQuickNote(page, `filler note number ${i} — recent window padding`))
     try {
       await page.goto(`/app#note-${ids[0]}&q=needle`)
-      await expect(page.locator('#toast .toast-msg')).toContainText('That note is saved, but older than the recent list shown here.', { timeout: 10_000 })
+      const dlg = page.locator('#quicknote-archive')
+      await expect(dlg).toBeVisible({ timeout: 10_000 })
+      const row = dlg.locator(`#an-${ids[0]}`)
+      await expect(row).toBeVisible()
+      await expect(row).toHaveClass(/note-jump/)
+      await expect(row.locator('mark.note-jump')).toHaveText('needle')
+      // The widget card was never rendered (beyond the cap) — no flash there.
       await expect(page.locator('.note-card.note-jump')).toHaveCount(0)
       // The hash was still consumed — the URL doesn't keep a dead fragment around.
       await expect.poll(() => page.evaluate(() => location.hash), { timeout: 5_000 }).toBe('')
+      // Zero residue: the row flash settles and the mark stays scoped to the excerpt.
+      await page.waitForTimeout(3_200)
+      await expect(row).not.toHaveClass(/note-jump/)
     } finally {
       for (const nid of ids) await rmQuickNote(page, nid)
     }

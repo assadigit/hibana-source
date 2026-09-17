@@ -6,7 +6,7 @@ import { esc, jsonBody } from '../lib/http'
 import { icon } from '../lib/html'
 import { localeOf, trL, type Locale } from '../lib/i18n'
 import { renderMarkdown } from '../lib/markdown'
-import { calendarFor, formatDate, formatNoteDay } from '../lib/jalali'
+import { calendarFor, faDigits, formatDate, formatNoteDay } from '../lib/jalali'
 import { uuid } from '../lib/ids'
 import type { Config, UserRow } from '../types'
 import type { Db } from '../db/types'
@@ -72,6 +72,15 @@ export const toggleItemSchema = z.object({
 })
 export const reorderSchema = z.object({ ids: z.array(z.string().uuid()).max(200) })
 
+// S65: the archive fragment's query — offset/limit pagination + an optional anchored note
+// (the palette's beyond-cap deep link). Coerced ints, hard bounds: a hostile limit can't
+// ask for the whole table in one page (max 100) and a negative offset is rejected.
+export const archiveQuerySchema = z.object({
+  offset: z.coerce.number().int().min(0).max(100_000).default(0),
+  limit: z.coerce.number().int().min(1).max(100).default(60),
+  anchor: z.string().uuid().optional(),
+})
+
 export type TaskItem = { id: string; t: string; d: 0 | 1 }
 
 export function parseItems(content: string): TaskItem[] {
@@ -123,6 +132,63 @@ export function dateChipHtml(n: QuickNote, lang: Locale): string {
   if (!n.note_date) return ''
   const t = (en: string, fa: string) => trL(lang, en, fa)
   return `<span class="note-date-chip" title="${t('Pinned to a day — see it on the calendar', 'سنجاق‌شده به یک روز — در تقویم ببینید')}">🗓 ${esc(formatDate(n.note_date, calendarFor(lang), lang))}</span>`
+}
+
+/** S65: the quick-note ARCHIVE — every note the owner ever captured, browsable at last.
+ *  The dashboard widget caps at 20 cards (P5.1 F-M1) and the API at 100; anything older
+ *  was stored but rendered NOWHERE (the S64 jump-to-note could only toast "older than the
+ *  recent list"). This fragment is the full list: light rows (color dot, kind icon,
+ *  first-line excerpt, weekday+day stamp, done state) each carrying a hidden full markdown
+ *  render so the existing note-reader modal can open it without another fetch. Rows use
+ *  an-<id> ids (NOT note-<id> — the live widget owns that namespace in the same DOM).
+ *  Paginated by the caller (offset/limit) with an optional anchored target; the wrapper
+ *  carries data-total / data-next-offset / data-prev-offset so the client can offer
+ *  "load more" downward and "newer notes" upward. */
+export function archiveHtml(notes: QuickNote[], lang: Locale, titles: Map<string, string>, total: number, offset: number, limit: number, anchoredId?: string): string {
+  const t = (en: string, fa?: string) => trL(lang, en, fa)
+  // S65 fix: a LIST's hidden render must be a read-only item list (title + check rows),
+  // never renderMarkdown of the raw items JSON — the reader would read like garbage.
+  const rowRender = (n: QuickNote): string => {
+    if (n.kind === 'note') return latinRuns(renderMarkdown(decodeEntities(n.content)))
+    const items = parseItems(n.content)
+    const head = n.title ? `<h3 class="qa-list-title" dir="auto">${esc(n.title)}</h3>` : ''
+    const rows = items
+      .map((it) => `<li class="hurdle${it.d ? ' done' : ''}"><span class="qa-ro-check" aria-hidden="true">${icon(it.d ? 'check' : 'unchecked')}</span><span>${esc(it.t)}</span></li>`)
+      .join('')
+    return `${head}<ul class="hurdles qa-itemlist">${rows || `<li class="muted small">${t('Empty list', 'فهرست خالی')}</li>`}</ul>`
+  }
+  const rows = notes.map((n) => {
+    const done = n.done === 1
+    const attached = n.project_id && titles.has(n.project_id) ? titles.get(n.project_id)! : ''
+    const kindIcon = n.kind === 'list' ? 'list-check' : 'book'
+    const kindLabel = t(n.kind === 'list' ? 'List' : 'Note', n.kind === 'list' ? 'فهرست' : 'یادداشت')
+    // First non-empty line is the excerpt (notes: the first markdown line; lists: the title).
+    const plain = decodeEntities(n.kind === 'list' ? n.title : n.content)
+    const firstLine = plain.split('\n').map((l) => l.trim()).find((l) => l && !l.startsWith('#')) ?? plain.slice(0, 80)
+    const stamp = formatNoteDay(n.updated_at, calendarFor(lang), lang)
+    const time = new Date(n.updated_at).toLocaleTimeString(lang === 'fa' ? 'fa-IR' : 'en-GB', { hour: '2-digit', minute: '2-digit', hour12: false })
+    // S65 copy source: the reader's Copy-as-Markdown button reads this (notes: the raw
+    // markdown verbatim; lists: title as H1 + a checkbox list — paste-ready anywhere).
+    const rawMd = n.kind === 'list'
+      ? `# ${decodeEntities(n.title) || kindLabel}\n` + parseItems(n.content).map((it) => `- [${it.d ? 'x' : ' '}] ${it.t}`).join('\n')
+      : decodeEntities(n.content)
+    return `<div class="qa-row${done ? ' is-done' : ''}${n.id === anchoredId ? ' qa-anchored' : ''}" id="an-${n.id}" role="button" tabindex="0" data-archive-note="${n.id}" data-raw="${esc(rawMd)}" aria-label="${t('Open note', 'باز کردن یادداشت')}">
+      <span class="qa-dot" style="background:${NOTE_COLOR_HEX[n.color as NoteColor] ?? NOTE_COLOR_HEX.yellow}" aria-hidden="true"></span>
+      <span class="qa-kind" title="${kindLabel}" aria-label="${kindLabel}">${icon(kindIcon)}</span>
+      <span class="qa-main">
+        <span class="qa-text" dir="auto">${esc(firstLine.slice(0, 140))}</span>
+        <span class="qa-meta small muted">${dateChipHtml(n, lang)}${esc(stamp)} ${esc(time)}${attached ? ' · <span class="qa-pin" title="' + t('Attached project', 'پروژهٔ متصل') + '">' + icon('pin') + '</span>' + esc(attached) : ''}</span>
+      </span>
+      ${done ? '<span class="qa-done" aria-hidden="true">' + icon('check') + '</span>' : ''}
+      <span class="qa-render note-render markdown-body" hidden dir="auto">${rowRender(n)}</span>
+    </div>`
+  }).join('')
+  const nextOffset = offset + notes.length
+  const hasMore = nextOffset < total
+  return `<div class="qa-rows" data-total="${total}" data-next-offset="${hasMore ? nextOffset : ''}" data-prev-offset="${offset > 0 ? offset : ''}" data-limit="${limit}">
+    ${rows}
+    ${notes.length === 0 ? `<div class="qa-empty">${icon('archive')}<p class="muted">${t('No notes yet — the archive fills as you capture.', 'هنوز یادداشتی نیست — با نوشتن پر می‌شود.')}</p></div>` : ''}
+  </div>`
 }
 
 // Defensively un-escape stored note content (some legacy rows were saved escaped) so the
@@ -244,7 +310,7 @@ export async function attachedTitles(db: Db, userId: string, notes: QuickNote[])
 /** The whole notebook widget (card + composer + note list). htmx swaps this on every action.
  *  The view (list / sticky) is a client preference applied via CSS — the server renders both
  *  note layouts from the same cards; sticky adds a carousel nav when there are more than 4. */
-export function notebookHtml(notes: QuickNote[], lang: Locale, composerMode: 'note' | 'list' = 'note', titles: Map<string, string> = new Map(), dashboard = false): string {
+export function notebookHtml(notes: QuickNote[], lang: Locale, composerMode: 'note' | 'list' = 'note', titles: Map<string, string> = new Map(), dashboard = false, total?: number): string {
   const t = (en: string, fa?: string) => trL(lang, en, fa)
   const stickyNav =
     notes.length > 4
@@ -323,6 +389,10 @@ export function notebookHtml(notes: QuickNote[], lang: Locale, composerMode: 'no
       ${notes.map((n) => noteCard(n, lang, titles)).join('')}
     </div>
     ${stickyNav}
+    ${total !== undefined && total > notes.length ? `<button type="button" class="note-show-all" data-note-archive>
+      ${icon('archive')}
+      <span>${t(`Show all ${total} notes`, `نمایش همهٔ ${faDigits(String(total))} یادداشت`)}</span>
+    </button>` : ''}
   </section>`
 }
 

@@ -39,7 +39,7 @@ export function dashboardRoutes(cfg: Config) {
     // at the 03:17 tick; resetDueRecurring is idempotent (only resets tasks past their
     // due date), so daily is frequent enough.
 
-    const [byStatus, recent, activeProjects, solvedThisWeek, vaultNoteRows, notes, todoTasks, todoNameRows, todoNoteRows, urgentTasks, urgentCount] = await Promise.all([
+    const [byStatus, recent, activeProjects, solvedThisWeek, vaultNoteRows, notes, noteTotal, todoTasks, todoNameRows, todoNoteRows, urgentTasks, urgentCount] = await Promise.all([
       cfg.db.query<{ status: string; n: number }>(
         "SELECT status, COUNT(*) AS n FROM projects WHERE user_id = ? AND deleted_at IS NULL AND (archived_state IS NULL OR archived_state != 'offline') GROUP BY status",
         [user.id],
@@ -71,6 +71,12 @@ export function dashboardRoutes(cfg: Config) {
       // at top); was ASC (inconsistent with the notebook page after P1.2).
       cfg.db.query<QuickNote>(
         'SELECT * FROM quick_notes WHERE user_id = ? AND deleted_at IS NULL ORDER BY sort_order DESC, updated_at DESC LIMIT 20',
+        [user.id],
+      ),
+      // S65: the true quick-note count — the widget's "Show all N notes" affordance says
+      // how much lives beyond the 20-card cap (the archive dialog browses all of it).
+      cfg.db.query<{ n: number }>(
+        'SELECT COUNT(*) AS n FROM quick_notes WHERE user_id = ? AND deleted_at IS NULL',
         [user.id],
       ),
       cfg.db.query<SadhanaTask>(
@@ -429,7 +435,7 @@ export function dashboardRoutes(cfg: Config) {
             </div>
           </div>
         </section>`,
-        notebook: (): SafeHtml => raw(notebookHtml(notes, lang, 'note', noteTitles, true)),
+        notebook: (): SafeHtml => raw(notebookHtml(notes, lang, 'note', noteTitles, true, noteTotal[0]?.n)),
         activity: (): SafeHtml => html`<section class="activity-section">
           <h3>${t('Recent activity', 'فعالیت‌های اخیر')}</h3>
           <ul class="activity">${activity}</ul>

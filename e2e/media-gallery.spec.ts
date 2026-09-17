@@ -298,12 +298,13 @@ test('the gallery lightbox: prev/next browse the filtered set, counter + caption
   await page.waitForSelector('.gal-card')
   await expect(page.locator('.gal-card')).toHaveCount(3)
 
-  // open the FIRST card's zoom → dialog with counter + caption + focused close
+  // open the FIRST card's zoom → dialog with counter + caption + state chip + focused close
   await page.locator('.gal-card').first().locator('[data-gal-zoom]').click()
   const lb = page.locator('.shot-lightbox[data-lb]')
   await expect(lb).toBeVisible()
   await expect(lb.locator('.lb-count')).toHaveText('1 / 3')
   await expect(lb.locator('.lb-cap')).toHaveText('Browse shot 1')
+  await expect(lb.locator('.lb-state')).toHaveText('Open problems') // S60 chip: shot 1 is unresolved
   await expect(lb.locator('.lb-close')).toBeFocused()
 
   // next button + ArrowRight walk forward; wrap-around lands on 1 again
@@ -352,12 +353,13 @@ test('project shots lightbox: prev/next browse the grid siblings, counter + capt
   await page.click('[data-detail-tab="media"]')
   await expect(page.locator('#shots .shot-card')).toHaveCount(3)
 
-  // zoom the FIRST card → browser lightbox with counter + caption + focused close
+  // zoom the FIRST card → browser lightbox with counter + caption + state chip + focused close
   await page.locator('#shots .shot-card').first().locator('[data-shot-zoom]').click()
   const lb = page.locator('.shot-lightbox[data-lb]')
   await expect(lb).toBeVisible()
   await expect(lb.locator('.lb-count')).toHaveText('1 / 3')
   await expect(lb.locator('.lb-cap')).toHaveText('Project browse 1')
+  await expect(lb.locator('.lb-state')).toHaveText('open problem') // S60 chip rides the browse
   await expect(lb.locator('.lb-close')).toBeFocused()
 
   // next + ArrowRight walk forward with wrap-around

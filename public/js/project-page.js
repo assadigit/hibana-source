@@ -226,6 +226,12 @@
           if (count) count.textContent = pdBoxDig(shotLightbox.idx + 1) + ' / ' + pdBoxDig(it.length)
           const cap = shotLightbox.el.querySelector('.lb-cap')
           if (cap) cap.textContent = r.caption || ''
+          // S60: the resolved state rides along (the cards show it — browsing must not lose it)
+          const st = shotLightbox.el.querySelector('.lb-state')
+          if (st) {
+            st.textContent = r.resolved ? '✓ ' + _t('project.shotFixedLabel', 'fixed') : _t('project.shotOpenLabel', 'open problem')
+            st.classList.toggle('is-fixed', !!r.resolved)
+          }
         }
         const openShotLightbox = (src, trigger, scopeGrid) => {
           closeShotLightbox()
@@ -233,9 +239,10 @@
           const items = figs.map((f) => ({
             src: f.querySelector('.shot-img-btn img')?.getAttribute('src') || '',
             caption: (f.querySelector('.shot-note')?.textContent || '').trim(),
+            resolved: f.dataset.resolved === '1' || f.classList.contains('is-fixed'),
           })).filter((x) => x.src)
           let idx = items.findIndex((x) => x.src === src)
-          if (idx < 0) { items.push({ src, caption: '' }); idx = items.length - 1 } // non-grid source → single mode
+          if (idx < 0) { items.push({ src, caption: '', resolved: false }); idx = items.length - 1 } // non-grid source → single mode
           const el = document.createElement('div')
           el.className = 'shot-lightbox'
           el.setAttribute('role', 'dialog')
@@ -247,7 +254,7 @@
             '<img src="' + src + '" alt="' + _t('project.shotZoom', 'Screenshot') + '">' +
             '<button type="button" class="lb-nav lb-next" aria-label="' + _t('gallery.lbNext', 'Next picture') + '"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5l7 7-7 7"/></svg></button>' +
             '<button type="button" class="lb-close" aria-label="' + _t('gallery.lbClose', 'Close') + '"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button>' +
-            '<div class="lb-meta"><span class="lb-count" aria-live="polite"></span><span class="lb-cap" dir="auto"></span></div>'
+            '<div class="lb-meta"><span class="lb-count" aria-live="polite"></span><span class="lb-state" dir="auto"></span><span class="lb-cap" dir="auto"></span></div>'
           el.addEventListener('click', (ev) => {
             if (ev.target.closest('.lb-nav')) { lbShotStep(ev.target.closest('.lb-prev') ? -1 : 1); return }
             if (ev.target.closest('.lb-close')) { closeShotLightbox(); return }

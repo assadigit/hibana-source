@@ -83,6 +83,12 @@
           if (count) count.textContent = dig(lightbox.idx + 1) + ' / ' + dig(rows.length)
           const cap = lightbox.el.querySelector('.lb-cap')
           if (cap) cap.textContent = r.caption || _t('gallery.noNote', 'No note')
+          // S60: the resolved state rides along — the cards show it, browsing must not lose it
+          const st = lightbox.el.querySelector('.lb-state')
+          if (st) {
+            st.textContent = r.resolved ? '✓ ' + _t('gallery.fixed', 'Fixed') : _t('gallery.open', 'Open problems')
+            st.classList.toggle('is-fixed', !!r.resolved)
+          }
         }
         const openLightbox = (shotId, trigger) => {
           closeLightbox()
@@ -100,7 +106,7 @@
             '<img src="/api/media/screenshots/' + encodeURIComponent(shotId) + '/file" alt="' + esc(_t('project.shotZoom', 'Screenshot')) + '">' +
             '<button type="button" class="lb-nav lb-next" aria-label="' + esc(_t('gallery.lbNext', 'Next picture')) + '"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5l7 7-7 7"/></svg></button>' +
             '<button type="button" class="lb-close" aria-label="' + esc(_t('gallery.lbClose', 'Close')) + '"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button>' +
-            '<div class="lb-meta"><span class="lb-count" aria-live="polite"></span><span class="lb-cap" dir="auto"></span></div>'
+            '<div class="lb-meta"><span class="lb-count" aria-live="polite"></span><span class="lb-state" dir="auto"></span><span class="lb-cap" dir="auto"></span></div>'
           el.addEventListener('click', (e) => {
             if (e.target.closest('.lb-nav')) {
               lbStep(e.target.closest('.lb-prev') ? -1 : 1)

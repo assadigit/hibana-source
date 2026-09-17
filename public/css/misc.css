@@ -845,6 +845,16 @@ dialog.adm-modal::backdrop { background: rgb(0 0 0 / 0.55); }
   padding: 0.6rem 0.9rem; border-block-end: 1px solid var(--line);
 }
 .note-reader-head h3 { margin: 0; font-size: 1rem; }
+/* S66: reading-time estimate — the S63 vault language in the quick-note reader. Sits
+   after the title (end-aligned in the LTR flow) in muted small caps with tabular
+   digits; hidden for notes under 200 words (an instant read needs no number). */
+.note-reader-meta {
+  margin-inline-start: auto;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+}
+.note-reader-meta[hidden] { display: none; }
 .note-reader-body {
   padding: 0.9rem; overflow-y: auto; max-block-size: calc(80vh - 6rem);
   white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.6;

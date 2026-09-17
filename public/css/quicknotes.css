@@ -976,10 +976,16 @@
 }
 /* S65 styling detail: on phones the head wraps — title+count keep the first row, the
    filter takes the full second row (a 390px-wide single row squeezes all four into
-   crumbs). The body's height budget follows the taller head. */
+   crumbs). The body's height budget follows the taller head. S66: the jump button
+   joins row 1 (title+count+jump+close); the revealed date input shares row 2 with
+   the filter (which now grows instead of spanning 100%, so the head never gains a
+   third row). */
 @media (max-width: 640px) {
   .qa-head { flex-wrap: wrap; padding: 0.55rem 0.75rem; }
-  .qa-filter { flex-basis: 100%; order: 5; }
+  .qa-jumpbtn { order: 3; }
+  .qa-head [data-qa-close] { order: 4; }
+  .qa-filter { flex: 1 1 9rem; order: 5; }
+  .qa-date { order: 6; }
 }
 .qa-title { margin: 0; font-size: 1rem; flex-shrink: 0; }
 .qa-count { flex-shrink: 0; font-variant-numeric: tabular-nums; }
@@ -1005,8 +1011,8 @@
 .qa-body::-webkit-scrollbar { inline-size: 8px; }
 .qa-body::-webkit-scrollbar-thumb { background: var(--line-strong); border-radius: 4px; }
 @media (max-width: 640px) {
-  /* 5.6rem: the wrapped two-row head (title+count, then the full-width filter). */
-  .qa-body { max-block-size: calc(100dvh - 5.6rem); }
+  /* 6rem: the wrapped two-row head (title+count+jump+close, then filter+date). */
+  .qa-body { max-block-size: calc(100dvh - 6rem); }
 }
 /* Rows: dot · kind · excerpt+meta · done. Hairline separators, hover wash, focus ring.
    S65 styling detail: the hover adds a leading accent edge (logical inset-inline-start)
@@ -1087,6 +1093,62 @@
 /* S65 fix: the author `display: flex` above would defeat the `hidden` attribute's UA
    `display: none` — the "last page" pager-hiding relied on it and stayed visible. */
 .qa-more[hidden], .qa-newer[hidden] { display: none; }
+
+/* ═══ S66: date-group headers + jump-to-date + filter dead-ends ════════════════
+   Sticky scannable separators (Today / Yesterday / This week / This month / Earlier)
+   recomputed client-side after every render. They ride the top of the scrolling body
+   with the dialog's own card paint so rows never bleed through; the trailing rule
+   line fills whatever width the label leaves. Hidden while the filter is active — a
+   header over zero visible rows would lie. */
+.qa-group {
+  position: sticky;
+  inset-block-start: 0;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  padding: 0.3rem 0.8rem;
+  background: var(--card);
+  color: var(--muted, inherit);
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  border-block-end: 1px solid var(--line);
+}
+/* Persian labels have no uppercase — the tracking still gives them structure. */
+[dir='rtl'] .qa-group { letter-spacing: 0.02em; }
+.qa-group::after { content: ''; flex: 1; block-size: 1px; background: var(--line); opacity: 0.55; }
+.qa-archive.filtering .qa-group { display: none; }
+
+/* The jump-to-date control: a calendar icon button; the native date input it reveals
+   shares the head's input anatomy (same border/radius/font as the filter). */
+.qa-jumpbtn { flex-shrink: 0; color: var(--muted, inherit); }
+.qa-jumpbtn .icon { inline-size: 1.05rem; block-size: 1.05rem; }
+.qa-jumpbtn:hover { color: var(--brand); background: var(--accent-soft); }
+.qa-jumpbtn:focus-visible { outline: 2px solid var(--brand); outline-offset: 1px; }
+.qa-jumpbtn[aria-pressed='true'] { color: var(--brand); background: var(--accent-soft); }
+.qa-date {
+  flex: 0 0 auto;
+  padding: 0.3rem 0.45rem;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-sm);
+  background: var(--bg-soft, var(--card));
+  color: var(--text);
+  font-size: 0.82rem;
+  font-variant-numeric: tabular-nums;
+}
+.qa-date:focus-visible { outline: 2px solid var(--brand); outline-offset: 1px; }
+.qa-date[hidden] { display: none; }
+
+/* The filter's honest dead end (0 visible rows) — the archive glyph-free quiet twin
+   of .qa-empty, only ever visible while filtering. */
+.qa-nomatch {
+  text-align: center;
+  padding: 1.8rem 1rem;
+  font-size: 0.9rem;
+}
+.qa-nomatch[hidden] { display: none; }
 /* Read-only list renders inside the note-reader (archive rows for LIST notes): the
    check glyph mutes so only the text reads as content; the title reads like a heading. */
 .qa-itemlist { margin: 0.2rem 0; }

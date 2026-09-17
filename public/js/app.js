@@ -1027,6 +1027,8 @@ window.hibana = (() => {
           '<h3 class="qa-title" data-i18n="qn.archiveTitle">All notes</h3>' +
           '<span class="qa-count small muted" aria-live="polite"></span>' +
           '<input type="search" class="qa-filter" data-i18n-placeholder="qn.filterNotes" placeholder="Filter…" aria-label="Filter notes" data-i18n-aria-label="qn.filterNotes" autocomplete="off">' +
+          '<input type="date" class="qa-date" hidden aria-label="Jump to date" data-i18n-aria-label="qn.jumpToDate">' +
+          '<button type="button" class="ghost icon-btn qa-jumpbtn" data-qa-jump aria-label="Jump to date" data-i18n-aria-label="qn.jumpToDate" title="Jump to date"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M8 3v4M16 3v4M3 10h18"/></svg></button>' +
           '<button type="button" class="ghost icon-btn" data-qa-close aria-label="Close" data-i18n-aria-label="common.close"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button>' +
         '</div>' +
         '<div class="qa-body" role="list" aria-label="All notes"></div>'
@@ -1048,12 +1050,36 @@ window.hibana = (() => {
       })
       dlg.querySelector('.qa-filter').addEventListener('input', (e) => {
         const needle = normDigits(e.target.value.trim().toLowerCase())
+        // S66: while filtering, the date-group headers would lie (a "Today" header with
+        // zero visible rows under it) — the filtering class hides them; the count and the
+        // no-match notice below tell the truth instead.
+        dlg.classList.toggle('filtering', !!needle)
         for (const row of dlg.querySelectorAll('.qa-row')) {
           const hit = !needle || normDigits(row.textContent.toLowerCase()).includes(needle)
           row.classList.toggle('qa-hidden', !hit)
         }
         updateCount()
       })
+      // S66 jump-to-date: the calendar button reveals the native date input (same head
+      // slot) and opens its picker on the same user gesture; picking a day re-anchors the
+      // list at the newest note of that local day. Escape inside the input just hides it.
+      const dateInput = dlg.querySelector('.qa-date')
+      dlg.querySelector('[data-qa-jump]').addEventListener('click', (e) => {
+        const show = dateInput.hidden
+        dateInput.hidden = !show
+        e.currentTarget.setAttribute('aria-pressed', String(show))
+        if (show) {
+          try { dateInput.showPicker() } catch { /* older engines: focus instead */ try { dateInput.focus() } catch { /* focus denied */ } }
+        }
+      })
+      dateInput.addEventListener('change', () => {
+        const v = dateInput.value
+        if (!v) return
+        const [y, m, d] = v.split('-').map(Number)
+        const end = new Date(y, m - 1, d, 23, 59, 59, 999) // local end-of-day → UTC ISO
+        load({ mode: 'replace', before: end.toISOString() })
+      })
+      dateInput.addEventListener('keydown', (e) => { if (e.key === 'Escape') { dateInput.hidden = true } })
       // Row activation (click + keyboard — rows are role=button tabindex=0): open the
       // existing note-reader on the row's hidden full markdown render.
       const activate = (row) => {
@@ -1069,6 +1095,7 @@ window.hibana = (() => {
         // S65: the reader's Copy-as-Markdown source — the row carries the paste-ready
         // markdown (notes verbatim; lists as title + checkbox lines) in data-raw.
         reader.dataset.raw = row.dataset.raw || ''
+        setReaderMeta(reader, reader.dataset.raw) // S66: the reading-time estimate
         reader.showModal()
       }
       dlg.querySelector('.qa-body').addEventListener('click', (e) => {
@@ -1112,6 +1139,72 @@ window.hibana = (() => {
       dlg.querySelector('.qa-count').textContent = filtering
         ? dig(shown) + ' / ' + dig(total)
         : dig(total)
+      // S66: an honest dead end — filtering to zero shows "no notes match", not a
+      // silently blank body.
+      const nm = dlg.querySelector('.qa-nomatch')
+      if (nm) nm.hidden = !(filtering && shown === 0)
+    }
+
+    // ---- S66: date-group headers — Today / Yesterday / This week / This month / Earlier.
+    // Computed CLIENT-side from each row's data-ts against the browser's local now: the
+    // user's own calendar day decides "today" (a server UTC boundary would be wrong by
+    // hours for +03:30). Recomputed from scratch after every render (replace/append/
+    // prepend) — idempotent by construction, so pagination can never duplicate a header.
+    // While the filter is active the headers hide (they'd lie about visible rows).
+    const DAY_MS = 86_400_000
+    const sameLocalDay = (a, b) => a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate()
+    const bucketOf = (iso) => {
+      const d = new Date(iso)
+      if (Number.isNaN(d.getTime())) return 'earlier'
+      const now = new Date()
+      const yest = new Date(now.getTime() - DAY_MS)
+      if (sameLocalDay(d, now)) return 'today'
+      if (sameLocalDay(d, yest)) return 'yesterday'
+      if (d.getTime() > now.getTime() - 7 * DAY_MS) return 'week'
+      if (d.getTime() > now.getTime() - 30 * DAY_MS) return 'month'
+      return 'earlier'
+    }
+    const GROUP_FALLBACK = { today: 'Today', yesterday: 'Yesterday', week: 'This week', month: 'This month', earlier: 'Earlier' }
+    const GROUP_KEY = { today: 'qn.today', yesterday: 'qn.yesterday', week: 'qn.thisWeek', month: 'qn.thisMonth', earlier: 'qn.earlier' }
+    const regroup = () => {
+      const body = dlg ? dlg.querySelector('.qa-body') : null
+      if (!body) return
+      for (const g of body.querySelectorAll('.qa-group')) g.remove()
+      let prev = null
+      for (const row of body.querySelectorAll('.qa-row')) {
+        const b = bucketOf(row.dataset.ts || '')
+        if (b !== prev) {
+          const g = document.createElement('div')
+          g.className = 'qa-group'
+          g.setAttribute('data-i18n', GROUP_KEY[b])
+          g.textContent = _t(GROUP_KEY[b], GROUP_FALLBACK[b])
+          row.before(g)
+          prev = b
+        }
+      }
+    }
+    // The flash language shared by the anchored open (S64) and the date jump (S66):
+    // center the row, one accent pulse, self-clearing.
+    const flashRow = (row) => {
+      if (!row) return
+      row.scrollIntoView({ block: 'center' })
+      row.classList.add('note-jump')
+      setTimeout(() => row.classList.remove('note-jump'), 2600)
+    }
+    // S66: the filter's dead-end notice lives at the END of the body (after pagers) —
+    // renderFragment's replace mode wipes the body, so re-create it idempotently.
+    const ensureNomatch = () => {
+      const body = dlg ? dlg.querySelector('.qa-body') : null
+      if (!body) return
+      let nm = body.querySelector('.qa-nomatch')
+      if (!nm) {
+        nm = document.createElement('div')
+        nm.className = 'qa-nomatch muted'
+        nm.setAttribute('data-i18n', 'qn.noMatch')
+        nm.textContent = _t('qn.noMatch', 'No notes match the filter.')
+        body.appendChild(nm)
+      }
+      return nm
     }
 
     // Renders a fetched fragment into the body. mode: 'replace' (fresh open), 'append'
@@ -1144,15 +1237,22 @@ window.hibana = (() => {
         else body.prepend(...rows)
         lo = newLo
       }
+      ensureNomatch()
       finishPagers(lo, hi)
+      regroup()
+      // S66 jump-to-date: the wrapper's data-land says how the server resolved `before`.
+      // A fallback (nothing that old) toasts honestly; either way the landed row flashes.
+      const land = wrap.dataset.land || ''
+      if (land) {
+        if (land === 'before-fallback') toast(_t('qn.noOlder', 'No notes that far back — showing the oldest.'), 'info', 6000)
+        flashRow(body.querySelector('.qa-row.qa-anchored'))
+      }
       // Anchored open: flash the row + mark the excerpt hit (same language as the S64
       // jump). The hidden .qa-render's mark would never be seen until the reader opens.
       if (anchoredId) {
         const row = body.querySelector('#an-' + CSS.escape(anchoredId))
         if (row) {
-          row.scrollIntoView({ block: 'center' })
-          row.classList.add('note-jump')
-          setTimeout(() => row.classList.remove('note-jump'), 2600)
+          flashRow(row)
           const needle = String(q || '').toLowerCase()
           const text = row.querySelector('.qa-text')
           const v = text ? text.textContent : ''
@@ -1200,7 +1300,7 @@ window.hibana = (() => {
       updateCount()
     }
 
-    const load = async ({ mode = 'replace', anchor, q } = {}) => {
+    const load = async ({ mode = 'replace', anchor, q, before } = {}) => {
       if (!dlg || loading) return
       loading = true
       try {
@@ -1208,7 +1308,7 @@ window.hibana = (() => {
         // overlap rows already loaded after an anchored open (lo = pos - PAGE/2).
         const n = mode === 'prepend' ? Math.min(PAGE, lo) : PAGE
         const offset = mode === 'append' ? hi : mode === 'prepend' ? lo - n : 0
-        const qs = '?offset=' + offset + '&limit=' + n + (anchor ? '&anchor=' + encodeURIComponent(anchor) : '')
+        const qs = '?offset=' + offset + '&limit=' + n + (anchor ? '&anchor=' + encodeURIComponent(anchor) : '') + (before ? '&before=' + encodeURIComponent(before) : '')
         const res = await fetch('/api/notes/archive' + qs, { headers: { Accept: 'text/html' } })
         if (!res.ok) throw new Error('archive ' + res.status)
         renderFragment(await res.text(), mode, anchor, q)
@@ -2878,6 +2978,20 @@ window.hibana = (() => {
   // edit shortcut); a short note keeps the classic click-to-edit (Obsidian-style) —
   // blur/change → htmx PATCH → the swap re-renders back to render mode.
   let noteReaderDlg = null
+  // S66: reading-time estimate in the reader head — the S63 vault language applied to
+  // quick notes (both open paths: the widget card and the archive row). ~200 wpm; only
+  // shown once the note is ≥200 words (a 30-word note is "instant" — a number would be
+  // noise). Persian digits in the FA locale, the same dig() the vault uses.
+  function setReaderMeta(dlg, raw) {
+    const meta = dlg.querySelector('.note-reader-meta')
+    if (!meta) return
+    const text = String(raw || '').trim()
+    const words = text ? text.split(/\s+/).length : 0
+    const mins = Math.max(1, Math.round(words / 200))
+    const dig = (n) => (document.documentElement.lang === 'fa' ? String(n).replace(/\d/g, (d) => '۰۱۲۳۴۵۶۷۸۹'[+d]) : String(n))
+    meta.textContent = words >= 200 ? _t('notes.readTime', '~{n} min read').split('{n}').join(dig(mins)) : ''
+    meta.hidden = words < 200
+  }
   function buildNoteReader() {
     if (noteReaderDlg) return noteReaderDlg
     const dlg = document.createElement('dialog')
@@ -2886,6 +3000,7 @@ window.hibana = (() => {
     dlg.innerHTML =
       '<div class="note-reader-head">' +
         '<h3 data-i18n="notes.readerTitle">Note</h3>' +
+        '<span class="note-reader-meta small muted" hidden></span>' +
         '<button type="button" class="ghost icon-btn" data-note-reader-close aria-label="Close" data-i18n-aria-label="common.close"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button>' +
       '</div>' +
       '<div class="note-reader-body" dir="auto"></div>' +
@@ -2960,6 +3075,7 @@ window.hibana = (() => {
       const ta = card.querySelector('.note-text')
       dlg.dataset.raw = ta ? ta.value : ''
     }
+    setReaderMeta(dlg, dlg.dataset.raw || '') // S66: after raw — the estimate reads the source of truth
     dlg.showModal()
   }
 

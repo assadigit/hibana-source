@@ -75,10 +75,13 @@ export const reorderSchema = z.object({ ids: z.array(z.string().uuid()).max(200)
 // S65: the archive fragment's query — offset/limit pagination + an optional anchored note
 // (the palette's beyond-cap deep link). Coerced ints, hard bounds: a hostile limit can't
 // ask for the whole table in one page (max 100) and a negative offset is rejected.
+// S66 `before`: a jump-to-date deep link — an ISO timestamp (client sends the local
+// end-of-day of the picked date); the page centers on the newest note at-or-before it.
 export const archiveQuerySchema = z.object({
   offset: z.coerce.number().int().min(0).max(100_000).default(0),
   limit: z.coerce.number().int().min(1).max(100).default(60),
   anchor: z.string().uuid().optional(),
+  before: z.string().datetime({ offset: true }).optional(),
 })
 
 export type TaskItem = { id: string; t: string; d: 0 | 1 }
@@ -144,7 +147,7 @@ export function dateChipHtml(n: QuickNote, lang: Locale): string {
  *  Paginated by the caller (offset/limit) with an optional anchored target; the wrapper
  *  carries data-total / data-next-offset / data-prev-offset so the client can offer
  *  "load more" downward and "newer notes" upward. */
-export function archiveHtml(notes: QuickNote[], lang: Locale, titles: Map<string, string>, total: number, offset: number, limit: number, anchoredId?: string): string {
+export function archiveHtml(notes: QuickNote[], lang: Locale, titles: Map<string, string>, total: number, offset: number, limit: number, anchoredId?: string, land?: string): string {
   const t = (en: string, fa?: string) => trL(lang, en, fa)
   // S65 fix: a LIST's hidden render must be a read-only item list (title + check rows),
   // never renderMarkdown of the raw items JSON — the reader would read like garbage.
@@ -172,7 +175,7 @@ export function archiveHtml(notes: QuickNote[], lang: Locale, titles: Map<string
     const rawMd = n.kind === 'list'
       ? `# ${decodeEntities(n.title) || kindLabel}\n` + parseItems(n.content).map((it) => `- [${it.d ? 'x' : ' '}] ${it.t}`).join('\n')
       : decodeEntities(n.content)
-    return `<div class="qa-row${done ? ' is-done' : ''}${n.id === anchoredId ? ' qa-anchored' : ''}" id="an-${n.id}" role="button" tabindex="0" data-archive-note="${n.id}" data-raw="${esc(rawMd)}" aria-label="${t('Open note', 'باز کردن یادداشت')}">
+    return `<div class="qa-row${done ? ' is-done' : ''}${n.id === anchoredId ? ' qa-anchored' : ''}" id="an-${n.id}" role="button" tabindex="0" data-archive-note="${n.id}" data-ts="${esc(n.updated_at)}" data-raw="${esc(rawMd)}" aria-label="${t('Open note', 'باز کردن یادداشت')}">
       <span class="qa-dot" style="background:${NOTE_COLOR_HEX[n.color as NoteColor] ?? NOTE_COLOR_HEX.yellow}" aria-hidden="true"></span>
       <span class="qa-kind" title="${kindLabel}" aria-label="${kindLabel}">${icon(kindIcon)}</span>
       <span class="qa-main">
@@ -185,7 +188,7 @@ export function archiveHtml(notes: QuickNote[], lang: Locale, titles: Map<string
   }).join('')
   const nextOffset = offset + notes.length
   const hasMore = nextOffset < total
-  return `<div class="qa-rows" data-total="${total}" data-next-offset="${hasMore ? nextOffset : ''}" data-prev-offset="${offset > 0 ? offset : ''}" data-limit="${limit}">
+  return `<div class="qa-rows" data-total="${total}" data-next-offset="${hasMore ? nextOffset : ''}" data-prev-offset="${offset > 0 ? offset : ''}" data-limit="${limit}"${land ? ` data-land="${land}"` : ''}>
     ${rows}
     ${notes.length === 0 ? `<div class="qa-empty">${icon('archive')}<p class="muted">${t('No notes yet — the archive fills as you capture.', 'هنوز یادداشتی نیست — با نوشتن پر می‌شود.')}</p></div>` : ''}
   </div>`

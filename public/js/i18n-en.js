@@ -612,6 +612,17 @@ window.__hibanaDictEN = {
       'qn.loadMore': 'Load more',
       'qn.loadNewer': 'Newer notes',
       'qn.archiveFailed': 'Could not load the archive — try again.',
+      // S66: date-group headers in the archive (relative labels — calendar-neutral, the
+      // browser's local day decides the buckets), the jump-to-date control, and the
+      // filter's empty + fallback states.
+      'qn.today': 'Today',
+      'qn.yesterday': 'Yesterday',
+      'qn.thisWeek': 'This week',
+      'qn.thisMonth': 'This month',
+      'qn.earlier': 'Earlier',
+      'qn.jumpToDate': 'Jump to date',
+      'qn.noOlder': 'No notes that far back — showing the oldest.',
+      'qn.noMatch': 'No notes match the filter.',
       'taskAdd.title': 'New Task', 'taskAdd.taskLabel': 'Task', 'taskAdd.quadrant': 'Quadrant',
       'taskAdd.deadline': 'Deadline (optional)', 'taskAdd.add': 'Add task',
       'taskAdd.added': 'Task added', 'taskAdd.failed': "Couldn't add the task — try again",

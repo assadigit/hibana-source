@@ -38,6 +38,15 @@ async function seedUser(email: string, username: string, lang: 'en' | 'fa') {
   db.close()
 }
 
+// S66: backdate a quick note's updated_at directly (the API always stamps "now") — the
+// date-group headers and the jump-to-date window key off this timestamp.
+async function backdateNote(id: string, iso: string) {
+  const { DatabaseSync } = await import('node:sqlite')
+  const db = new DatabaseSync('/tmp/hibana-e2e.db')
+  db.prepare('UPDATE quick_notes SET updated_at = ? WHERE id = ?').run(iso, id)
+  db.close()
+}
+
 test.beforeAll(async () => {
   await seedUser(TEST_EMAIL, 'e2e-qn-archive', 'en')
   await seedUser(FA_EMAIL, 'e2e-qn-archive-fa', 'fa')
@@ -239,6 +248,171 @@ test.describe('S65: the archive in FA/RTL', () => {
       // digits in the content (شماره 7) — both sides normalize before comparing.
       await dlg.locator('.qa-filter').fill('شماره ۷')
       await expect(dlg.locator('.qa-count')).toHaveText('۱ / ۲۱', { timeout: 5_000 })
+    } finally {
+      for (const nid of ids) await page.evaluate(async (id) => { await fetch(`/api/notes/${id}`, { method: 'DELETE' }) }, nid)
+    }
+  })
+
+  test('S66 FA: group labels in Persian, reading time with Persian digits, jump aria-label', async ({ page }) => {
+    const ids: string[] = []
+    ids.push(await mkQuickNote(page, 'یادداشت کهن: هدف پرش به تاریخ'))
+    const longBody = Array.from({ length: 500 }, (_, i) => `واژه${i}`).join(' ')
+    ids.push(await mkQuickNote(page, longBody))
+    for (let i = 0; i < 20; i++) ids.push(await mkQuickNote(page, `یادداشت پرکن شماره ${i} — گروه‌بندی`))
+    await backdateNote(ids[0], new Date(Date.now() - 40 * 86400_000).toISOString())
+    try {
+      await page.goto('/app')
+      await page.locator('[data-note-archive]').click()
+      const dlg = page.locator('#quicknote-archive')
+      await expect(dlg).toBeVisible()
+      await expect(dlg.locator('.qa-row')).toHaveCount(22, { timeout: 10_000 })
+
+      // The group labels are Persian: امروز over the fresh rows, قدیمی‌تر over the old.
+      const groups = dlg.locator('.qa-group')
+      await expect(groups).toHaveCount(2)
+      await expect(groups.nth(0)).toHaveText('امروز')
+      await expect(groups.nth(1)).toHaveText('قدیمی‌تر')
+
+      // The jump control is labelled in Persian.
+      await expect(dlg.locator('[data-qa-jump]')).toHaveAttribute('aria-label', 'پرش به تاریخ')
+      await expect(dlg.locator('.qa-date')).toHaveAttribute('aria-label', 'پرش به تاریخ')
+
+      // Reading time localizes: 500 words → حدود ۳ دقیقه مطالعه (Persian digits).
+      await dlg.locator(`#an-${ids[1]}`).click()
+      const reader = page.locator('#note-reader')
+      await expect(reader).toBeVisible()
+      await expect(reader.locator('.note-reader-meta')).toBeVisible()
+      await expect(reader.locator('.note-reader-meta')).toHaveText('حدود ۳ دقیقه مطالعه')
+    } finally {
+      for (const nid of ids) await page.evaluate(async (id) => { await fetch(`/api/notes/${id}`, { method: 'DELETE' }) }, nid)
+    }
+  })
+})
+
+// S66 feature batch: date-group headers (Today/Yesterday/This week/This month/Earlier —
+// sticky, recomputed after every render, hidden while filtering), the reading-time
+// estimate in the note-reader (~200 wpm, ≥200 words only), jump-to-date (a native date
+// input revealed by the calendar button; the page re-anchors on the newest note of that
+// local day, with an honest fallback toast when nothing is that old), and the filter's
+// no-match dead end.
+test.describe('S66: date-group headers + reading time + jump-to-date', () => {
+  test.beforeEach(async ({ page }) => {
+    await login(page, TEST_EMAIL)
+  })
+
+  test('group headers bucket rows (Today + Earlier via backdating) and hide while filtering', async ({ page }) => {
+    const ids: string[] = []
+    ids.push(await mkQuickNote(page, 'ancient: the forty-day-old note in the drawer'))
+    for (let i = 0; i < 20; i++) ids.push(await mkQuickNote(page, `fresh note number ${i} — today padding`))
+    await backdateNote(ids[0], new Date(Date.now() - 40 * 86400_000).toISOString())
+    try {
+      await page.goto('/app')
+      await page.locator('[data-note-archive]').click()
+      const dlg = page.locator('#quicknote-archive')
+      await expect(dlg).toBeVisible()
+      await expect(dlg.locator('.qa-row')).toHaveCount(21, { timeout: 10_000 })
+
+      // Exactly two groups: Today over the 20 fresh rows, Earlier over the backdated one.
+      const groups = dlg.locator('.qa-group')
+      await expect(groups).toHaveCount(2)
+      await expect(groups.nth(0)).toHaveText('Today')
+      await expect(groups.nth(1)).toHaveText('Earlier')
+      // The header rides ABOVE its bucket: body children run [Today, 20 rows, Earlier,
+      // old row] — "Earlier" is child #22, immediately before the old row (child #23).
+      await expect(dlg.locator('.qa-body > :nth-child(22)')).toHaveText('Earlier')
+      await expect(dlg.locator(`#an-${ids[0]}`)).toBeVisible()
+
+      // Sticky: scrolled mid-list, the Today header stays glued to the top of the body.
+      await dlg.locator(`#an-${ids[15]}`).scrollIntoViewIfNeeded()
+      const g = await groups.nth(0).boundingBox()
+      const b = await dlg.locator('.qa-body').boundingBox()
+      if (g && b) expect(Math.abs(g.y - b.y)).toBeLessThan(8) // still at the top edge
+
+      // Filtering hides the groups (a header over zero visible rows would lie) and the
+      // no-match notice shows for a query that hits nothing.
+      await dlg.locator('.qa-filter').fill('zzz-no-such-needle')
+      await expect(groups.nth(0)).toBeHidden()
+      await expect(groups.nth(1)).toBeHidden()
+      await expect(dlg.locator('.qa-nomatch')).toBeVisible()
+      await expect(dlg.locator('.qa-nomatch')).toHaveText('No notes match the filter.')
+      await expect(dlg.locator('.qa-count')).toHaveText('0 / 21')
+      // Clearing the filter brings the groups back.
+      await dlg.locator('.qa-filter').fill('')
+      await expect(groups).toHaveCount(2)
+      await expect(dlg.locator('.qa-nomatch')).toBeHidden()
+    } finally {
+      for (const nid of ids) await page.evaluate(async (id) => { await fetch(`/api/notes/${id}`, { method: 'DELETE' }) }, nid)
+    }
+  })
+
+  test('the reader shows "~3 min read" for a 500-word note; nothing for a short one', async ({ page }) => {
+    const longBody = Array.from({ length: 500 }, (_, i) => `word${i}`).join(' ')
+    const longId = await mkQuickNote(page, longBody)
+    const shortId = await mkQuickNote(page, 'a short note — an instant read')
+    for (let i = 0; i < 20; i++) await mkQuickNote(page, `filler note number ${i} — window padding`)
+    try {
+      await page.goto('/app')
+      await page.locator('[data-note-archive]').click()
+      const dlg = page.locator('#quicknote-archive')
+      await expect(dlg).toBeVisible()
+
+      // The long note: 500 words ÷ 200 wpm → ~3 min (rounds 2.5 up).
+      await dlg.locator(`#an-${longId}`).click()
+      const reader = page.locator('#note-reader')
+      await expect(reader).toBeVisible()
+      await expect(reader.locator('.note-reader-meta')).toBeVisible()
+      await expect(reader.locator('.note-reader-meta')).toHaveText('~3 min read')
+      await reader.locator('[data-note-reader-close]').last().click()
+
+      // The short note: no estimate (an instant read needs no number).
+      await dlg.locator(`#an-${shortId}`).click()
+      await expect(reader).toBeVisible()
+      await expect(reader.locator('.note-reader-meta')).toBeHidden()
+    } finally {
+      await page.evaluate(async () => {
+        const notes = await (await fetch('/api/notes')).json() as { notes: { id: string }[] }
+        for (const n of notes.notes) await fetch(`/api/notes/${n.id}`, { method: 'DELETE' })
+      })
+    }
+  })
+
+  test('jump-to-date re-anchors the window on the newest note of that day; too-old toasts the fallback', async ({ page }) => {
+    test.setTimeout(120_000)
+    const ids: string[] = []
+    ids.push(await mkQuickNote(page, 'the forty-day-old jump target note'))
+    for (let i = 0; i < 60; i++) ids.push(await mkQuickNote(page, `bulk note number ${i} — jump padding`))
+    await backdateNote(ids[0], new Date(Date.now() - 40 * 86400_000).toISOString())
+    try {
+      await page.goto('/app')
+      await page.locator('[data-note-archive]').click()
+      const dlg = page.locator('#quicknote-archive')
+      await expect(dlg).toBeVisible()
+      await expect(dlg.locator('.qa-row')).toHaveCount(60, { timeout: 15_000 })
+      // The old note sits behind the first page (position 61 of 61).
+      await expect(dlg.locator(`#an-${ids[0]}`)).toHaveCount(0)
+
+      // Reveal the date input via the calendar button; pick the 35-days-ago date.
+      // (fill() alone commits the value + fires change — a follow-up Enter would
+      // re-commit the PICKER's selected date (today) and hijack the jump — native
+      // input[type=date] behavior, not ours.)
+      await dlg.locator('[data-qa-jump]').click()
+      const dateInput = dlg.locator('.qa-date')
+      await expect(dateInput).toBeVisible()
+      const target = new Date(Date.now() - 35 * 86400_000)
+      const ymd = `${target.getFullYear()}-${String(target.getMonth() + 1).padStart(2, '0')}-${String(target.getDate()).padStart(2, '0')}`
+      await dateInput.fill(ymd)
+      // The window re-anchors: the old note is visible + marked (flash may have settled;
+      // the server-set qa-anchored class persists for the life of the fragment).
+      await expect(dlg.locator(`#an-${ids[0]}`)).toBeVisible({ timeout: 10_000 })
+      await expect(dlg.locator(`#an-${ids[0]}`)).toHaveClass(/qa-anchored/)
+      // The window started mid-list → the "Newer notes" pager exists.
+      await expect(dlg.locator('.qa-newer')).toBeVisible()
+      await expect(dlg.locator('.qa-count')).toHaveText('61')
+
+      // A date older than every note: the fallback lands on the oldest + says so.
+      await dateInput.fill('2000-01-01')
+      await expect(page.locator('#toast .toast-msg').filter({ hasText: 'No notes that far back' })).toBeVisible({ timeout: 8_000 })
+      await expect(dlg.locator(`#an-${ids[0]}`)).toBeVisible() // the oldest IS the backdated note
     } finally {
       for (const nid of ids) await page.evaluate(async (id) => { await fetch(`/api/notes/${id}`, { method: 'DELETE' }) }, nid)
     }

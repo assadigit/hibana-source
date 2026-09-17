@@ -122,6 +122,13 @@ export function quickNotesRoutes(cfg: Config) {
     const total = await countNotes(userId)
     let offset = limit_
     let anchoredId: string | undefined
+    let land: string | undefined
+    // S66 jump-to-date: `before` resolves to an anchor id — the newest note at-or-before
+    // the timestamp — and reuses the centered-window logic below. Position in the archive
+    // follows sort_order first, so a manual sticky-view reorder can make the landing
+    // approximate; default (creation-order) state lands exactly on the date. No note that
+    // old → fall back to the OLDEST note and say so (data-land="before-fallback" → the
+    // client toasts). An explicit `anchor` (the palette deep link) wins over `before`.
     if (q.data.anchor) {
       // Window functions are fine on both node:sqlite (3.4x) and D1. Position p (0 =
       // newest) → page starting max(0, p - half) so the anchor lands mid-list, with
@@ -136,13 +143,40 @@ export function quickNotesRoutes(cfg: Config) {
       } else {
         offset = 0
       }
+    } else if (q.data.before) {
+      const ts = new Date(q.data.before)
+      if (Number.isNaN(ts.getTime()) || ts.getFullYear() < 2000 || ts.getFullYear() > 2100) {
+        return c.json({ error: 'invalid_input' }, 400)
+      }
+      const at = ts.toISOString()
+      let hit = await cfg.db.query<{ id: string }>(
+        'SELECT id FROM quick_notes WHERE user_id = ? AND deleted_at IS NULL AND updated_at <= ? ORDER BY sort_order DESC, updated_at DESC LIMIT 1',
+        [userId, at],
+      )
+      if (!hit.length) {
+        hit = await cfg.db.query<{ id: string }>(
+          'SELECT id FROM quick_notes WHERE user_id = ? AND deleted_at IS NULL ORDER BY sort_order ASC, updated_at ASC LIMIT 1',
+          [userId],
+        )
+        land = 'before-fallback'
+      } else {
+        land = 'before'
+      }
+      if (hit.length) {
+        anchoredId = hit[0].id
+        const pos = await cfg.db.query<{ pos: number }>(
+          `SELECT pos FROM (SELECT id, ROW_NUMBER() OVER (ORDER BY sort_order DESC, updated_at DESC) AS pos FROM quick_notes WHERE user_id = ? AND deleted_at IS NULL) WHERE id = ?`,
+          [userId, anchoredId],
+        )
+        offset = pos.length ? Math.max(0, pos[0].pos - Math.floor(limit / 2)) : 0
+      }
     }
     const notes = await cfg.db.query<QuickNote>(
       'SELECT * FROM quick_notes WHERE user_id = ? AND deleted_at IS NULL ORDER BY sort_order DESC, updated_at DESC LIMIT ? OFFSET ?',
       [userId, limit, offset],
     )
     const titles = await attachedTitles(cfg.db, userId, notes)
-    return c.html(archiveHtml(notes, localeOf(c), titles, total, offset, limit, anchoredId))
+    return c.html(archiveHtml(notes, localeOf(c), titles, total, offset, limit, anchoredId, land))
   })
 
   // Create a note or a list (accepts an optional client id, like the quick-add flow).

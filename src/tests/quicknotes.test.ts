@@ -660,6 +660,82 @@ describe('quick-note archive (S65)', () => {
     }
   })
 
+  // S66 jump-to-date: `before` resolves to the newest note at-or-before the timestamp
+  // and centers the page on it; rows carry data-ts (the client's date-group headers).
+  it('before-jump centers on the newest note at-or-before the date; rows carry data-ts', async () => {
+    const { db, close } = makeTestDb()
+    try {
+      const user = await makeUser(db)
+      const { app, auth } = await makeClient(db, user)
+      const ids: string[] = []
+      for (let i = 0; i < 7; i++) ids.push(await createNoteApi(app, auth, `dated note ${i}`))
+      // Backdate notes 0–2: 0 → 40 days ago, 1 → 20 days ago, 2 → 2 days ago.
+      await db.execute("UPDATE quick_notes SET updated_at = ? WHERE id = ?", [new Date(Date.now() - 40 * 86400_000).toISOString(), ids[0]])
+      await db.execute("UPDATE quick_notes SET updated_at = ? WHERE id = ?", [new Date(Date.now() - 20 * 86400_000).toISOString(), ids[1]])
+      await db.execute("UPDATE quick_notes SET updated_at = ? WHERE id = ?", [new Date(Date.now() - 2 * 86400_000).toISOString(), ids[2]])
+
+      // Jump to "10 days ago": the newest note ≤ that stamp is the 20-day-old note 1
+      // (note 2, 2 days old, is newer than the stamp — excluded). It sits at position 6
+      // of 7 (sort_order still follows creation) → limit=4 → offset = 6 − 2 = 4 → the
+      // window covers positions 5–7 (notes 2, TARGET 1, 0) — three rows to the end.
+      const page = await getArchive(app, auth, `?limit=4&before=${new Date(Date.now() - 10 * 86400_000).toISOString()}`)
+      expect(page.status).toBe(200)
+      expect(page.html).toContain('data-land="before"')
+      expect(page.html).toContain(`id="an-${ids[1]}"`)
+      expect(page.html).toContain('qa-anchored')
+      expect(page.html).toContain('dated note 1')
+      expect(page.html).toContain('dated note 2') // newer context above the target
+      expect(page.html).toContain('dated note 0') // older context below the target
+      expect(page.html).not.toContain('dated note 6') // the newest stays behind the pager
+      // Every row carries its timestamp — the client buckets date-group headers from it.
+      expect(page.html.match(/data-ts="\d{4}-\d{2}-\d{2}T/g)).toHaveLength(3)
+      const rowTs = new RegExp(`id="an-${ids[1]}"[\\s\\S]{0,200}?data-ts="([^"]+)"`).exec(page.html)
+      expect(rowTs).toBeTruthy()
+      expect(Math.abs(new Date(rowTs![1]).getTime() - (Date.now() - 20 * 86400_000))).toBeLessThan(60_000)
+    } finally {
+      close()
+    }
+  })
+
+  it('before-jump older than everything lands on the OLDEST row and marks the fallback', async () => {
+    const { db, close } = makeTestDb()
+    try {
+      const user = await makeUser(db)
+      const { app, auth } = await makeClient(db, user)
+      const ids: string[] = []
+      for (let i = 0; i < 5; i++) ids.push(await createNoteApi(app, auth, `fallback note ${i}`))
+
+      // Nothing is older than 2001 — the fallback anchors the OLDEST note (creation 0).
+      const page = await getArchive(app, auth, '?limit=2&before=2001-01-01T00:00:00Z')
+      expect(page.status).toBe(200)
+      expect(page.html).toContain('data-land="before-fallback"')
+      expect(page.html).toContain(`id="an-${ids[0]}"`)
+      expect(page.html).toContain('qa-anchored')
+      // A future `before` is NOT an error — it resolves to the newest note (offset 0).
+      const future = await getArchive(app, auth, '?limit=2&before=2099-01-01T00:00:00Z')
+      expect(future.status).toBe(200)
+      expect(future.html).toContain('data-land="before"')
+      expect(future.html).toContain(`id="an-${ids[4]}"`)
+    } finally {
+      close()
+    }
+  })
+
+  it('rejects malformed before values (Zod datetime + year sanity)', async () => {
+    const { db, close } = makeTestDb()
+    try {
+      const user = await makeUser(db)
+      const { app, auth } = await makeClient(db, user)
+      await createNoteApi(app, auth, 'one')
+      expect((await getArchive(app, auth, '?before=not-a-date')).status).toBe(400)
+      expect((await getArchive(app, auth, '?before=2026-13-99T99:99:99Z')).status).toBe(400)
+      // Offset forms are valid ISO datetimes (zod datetime({offset:true})).
+      expect((await getArchive(app, auth, '?before=2026-09-01T10:00:00%2B03:30')).status).toBe(200)
+    } finally {
+      close()
+    }
+  })
+
   it('renders kind icons, done state, and a hidden full markdown render per row', async () => {
     const { db, close } = makeTestDb()
     try {

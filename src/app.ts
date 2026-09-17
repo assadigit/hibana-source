@@ -124,20 +124,26 @@ export function createApp(cfg: Config) {
   // send NO cache header — browsers then apply HEURISTIC caching to cookie-authenticated
   // responses (no CC + no validator usually means uncached, but it is policy-by-accident,
   // and the HTTP cache does not key on cookies: a response cached under one session could
-  // in principle be reused under another). Explicit default: private (never a shared
-  // cache) + no-store (never retained). Endpoints that opt into caching keep their own
-  // header — etag()'s `private, no-cache` (+304) on the hot read paths, and the media
-  // file route's `private, max-age=3600` (content-keyed by screenshot id) are untouched.
+  // in principle be reused under another). Explicit default: `private, no-cache` — the
+  // SAME convention etag() already uses on the hot read paths. (First attempt used
+  // no-store, which turned out to hang unconsumed fetch bodies open in Chromium: the auth
+  // guard in hib-init.js checks me.status without reading the body, and a no-store
+  // response is never buffered → the request stays pending → networkidle never fires —
+  // caught by the vault-banner/viewport e2e networkidle waits. no-cache stores + always
+  // revalidates: identical wire behavior (no validators → full refetch), bodies buffer,
+  // requests complete.) Endpoints that opt into real caching keep their own header —
+  // the media file route's `private, max-age=3600` (content-keyed by screenshot id) is
+  // untouched.
   app.use('/api/*', async (c, next) => {
     await next()
     if (c.req.method !== 'GET') return
     try {
-      if (!c.res.headers.has('Cache-Control')) c.res.headers.set('Cache-Control', 'private, no-store')
+      if (!c.res.headers.has('Cache-Control')) c.res.headers.set('Cache-Control', 'private, no-cache')
     } catch {
       const res = c.res
       if (!res.headers.has('Cache-Control')) {
         const headers = new Headers(res.headers)
-        headers.set('Cache-Control', 'private, no-store')
+        headers.set('Cache-Control', 'private, no-cache')
         c.res = new Response(res.body, { status: res.status, statusText: res.statusText, headers })
       }
     }

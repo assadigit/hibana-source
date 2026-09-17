@@ -325,6 +325,12 @@
       if (!offline && me && me.status === 503) {
         try { offline = (await me.clone().json())?.error === 'offline' } catch { offline = false }
       }
+      // S69 hygiene: consume/release the body on the paths that only read the status.
+      // An unread response body holds the network request open in Chromium when the
+      // response is unbufferable (Cache-Control: no-store) — it kept networkidle from
+      // ever firing on app pages (the vault-banner/viewport e2e timeouts). cancel()
+      // releases the stream; the other /me consumers read .json() and are unaffected.
+      try { await me?.body?.cancel() } catch { /* already consumed or unusable */ }
       if (offline) {
         if (!isPublic) showOfflineBanner()
       } else if (me && me.status === 401 && !isPublic) {

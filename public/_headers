@@ -80,3 +80,10 @@
 
 /dist/*.css
   Cache-Control: public, max-age=31536000, immutable
+
+# S69 (perf §10-B): the SW script itself must revalidate on every fetch — an explicit
+# max-age here would delay update detection (boot.js's reg.update() honors HTTP cache
+# semantics, so a cached sw.js can mask a deployed hibana-vNNN for up to the max-age).
+# no-cache keeps 304 revalidation cheap while guaranteeing freshness.
+/sw.js
+  Cache-Control: no-cache

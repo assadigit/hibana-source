@@ -44,6 +44,13 @@ const staticCache = new Map<string, { mtimeMs: number; raw: Buffer; gz: Buffer |
 
 function cacheControlFor(rel: string): string {
   if (rel.endsWith('.html') || rel === 'index.html') return 'no-store'
+  // S69 (perf §10-B): /dist files are CONTENT-HASHED by scripts/build.mjs — a different
+  // byte is always a different URL. Parity with the prod _headers rule (immutable, 1y):
+  // the old 3600+SWR fallback made local perf runs revalidate hashed bundles every hour
+  // for no possible change. manifest.json stays revalidating (the one mutable dist file).
+  if (rel === 'dist/manifest.json') return 'no-cache'
+  if (rel.startsWith('dist/') && /\.[0-9a-f]{8}\.(?:js|css)$/.test(rel)) return 'public, max-age=31536000, immutable'
+  if (rel === 'sw.js') return 'no-cache' // S69: SW updates must be detectable immediately (reg.update() honors max-age)
   if (rel.startsWith('vendor/') || /\.(?:png|jpe?g|svg|webp|ico|woff2?|webmanifest)$/.test(rel))
     return 'public, max-age=86400, stale-while-revalidate=604800'
   return 'public, max-age=3600, stale-while-revalidate=86400' // app css/js

@@ -120,6 +120,29 @@ export function createApp(cfg: Config) {
     }
   })
 
+  // S69 (perf §10-B): default Cache-Control for /api GETs. Most JSON/fragment endpoints
+  // send NO cache header — browsers then apply HEURISTIC caching to cookie-authenticated
+  // responses (no CC + no validator usually means uncached, but it is policy-by-accident,
+  // and the HTTP cache does not key on cookies: a response cached under one session could
+  // in principle be reused under another). Explicit default: private (never a shared
+  // cache) + no-store (never retained). Endpoints that opt into caching keep their own
+  // header — etag()'s `private, no-cache` (+304) on the hot read paths, and the media
+  // file route's `private, max-age=3600` (content-keyed by screenshot id) are untouched.
+  app.use('/api/*', async (c, next) => {
+    await next()
+    if (c.req.method !== 'GET') return
+    try {
+      if (!c.res.headers.has('Cache-Control')) c.res.headers.set('Cache-Control', 'private, no-store')
+    } catch {
+      const res = c.res
+      if (!res.headers.has('Cache-Control')) {
+        const headers = new Headers(res.headers)
+        headers.set('Cache-Control', 'private, no-store')
+        c.res = new Response(res.body, { status: res.status, statusText: res.statusText, headers })
+      }
+    }
+  })
+
   // CSRF hardening: every state-changing request must originate from the app's own origin
   // — or, since v0.3.2, from an explicitly configured mirror origin (MIRROR_ORIGIN, see
   // docs/edge-mirror.md: a CDN front like ArvanCloud rewrites the Host to the origin at

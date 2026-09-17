@@ -282,6 +282,8 @@
       // S62: the vault group — خزانه, the safe. A padlock: long-form notes are the
       // treasure, quick notes (the 'note' icon above) are the scratchpad.
       'vault': '<rect x="5.5" y="10.5" width="13" height="9" rx="2"/><path d="M8.5 10.5V8a3.5 3.5 0 0 1 7 0v2.5"/><circle cx="12" cy="15" r="1.3"/>',
+      // S67: the folder chip's glyph (same path as the vault sidebar's folder icon).
+      'folder': '<path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7Z"/>',
     }
     const body = ICONS[name] || ICONS.gear
     return `<svg class="icon" viewBox="0 0 24 24" aria-hidden="true">${body}</svg>`
@@ -386,6 +388,12 @@
     // sublabel carries folder + a snippet of WHERE the query hit, so a body match is
     // distinguishable from a title match at a glance. Starred notes carry the amber
     // star chip (same #e0a92e as the vault list).
+    // S67: the folder is now a CLICKABLE chip (not flat sublabel text) — one click
+    // jumps to /notes.html?view=folder&folder=<id> (the vault boots straight into the
+    // folder view). The chip is a span (role=option rows can't nest interactive
+    // elements); the row's click handler checks for it FIRST, so chip clicks never
+    // activate the note. Keyboard users still get Enter = open the note (the chip is
+    // a pointer affordance — the folder is reachable via the vault sidebar + g o).
     if (vault && vault.length) {
       html.push('<li class="cmdk-group" role="presentation"><span class="cmdk-group-label">' + _t('cmdk.vault', 'Vault') + '</span></li>')
       for (const v of vault) {
@@ -395,10 +403,10 @@
         const url = '/notes.html#n=' + v.id + (lastQuery ? '&q=' + encodeURIComponent(lastQuery) : '')
         const label = v.title || _t('cmdk.untitledNote', 'Untitled note')
         items.push({ kind: 'vault', label, action: () => (window.hibanaNav ? window.hibanaNav.go(url) : (window.location.href = url)) })
-        const sub = (v.folder ? esc(v.folder) + ' · ' : '') + esc(v.snippet || '')
+        const sub = esc(v.snippet || '')
         html.push(`<li class="cmdk-item" role="option" data-idx="${idx}" tabindex="-1">
           <span class="cmdk-icon">${iconSvg('vault')}</span>
-          <span class="cmdk-label">${v.starred === 1 ? '<span class="cmdk-star" aria-hidden="true">★</span>' : ''}${hl(label)}<span class="cmdk-sublabel muted"> · ${sub}</span></span>
+          <span class="cmdk-label">${v.starred === 1 ? '<span class="cmdk-star" aria-hidden="true">★</span>' : ''}${hl(label)}${v.folder && v.folder_id ? `<span class="cmdk-folder-chip" data-cmdk-folder="${esc(v.folder_id)}" title="${esc(_t('cmdk.openFolder', 'Open folder'))} — ${esc(v.folder)}" aria-label="${esc(_t('cmdk.openFolder', 'Open folder'))}: ${esc(v.folder)}">${iconSvg('folder')}<span class="cmdk-folder-name" dir="auto">${esc(v.folder)}</span></span>` : ''}${sub ? `<span class="cmdk-sublabel muted"> · ${sub}</span>` : ''}</span>
         </li>`)
       }
     }
@@ -497,9 +505,22 @@
     selected = items.length ? 0 : -1
     paintSelection()
 
-    // Click delegation
+    // Click delegation. The S67 folder chip intercepts FIRST: a click that lands on
+    // .cmdk-folder-chip navigates to the vault's folder view instead of activating
+    // the note row (stopPropagation is implicit — the row's own activation never runs).
     list.querySelectorAll('.cmdk-item').forEach((el) => {
-      el.addEventListener('click', () => {
+      el.addEventListener('click', (e) => {
+        const chip = e.target instanceof Element ? e.target.closest('[data-cmdk-folder]') : null
+        if (chip) {
+          const fid = chip.getAttribute('data-cmdk-folder')
+          if (fid) {
+            const furl = '/notes.html?view=folder&folder=' + encodeURIComponent(fid)
+            close() // same order as activateSelected: close, then navigate
+            if (window.hibanaNav) window.hibanaNav.go(furl)
+            else window.location.href = furl
+            return
+          }
+        }
         const idx = Number(el.dataset.idx)
         if (idx >= 0 && idx < items.length) { selected = idx; activateSelected() }
       })

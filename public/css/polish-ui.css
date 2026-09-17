@@ -202,6 +202,47 @@ dialog.cmdk::backdrop {
   margin-inline-end: 0.25rem;
   text-shadow: 0 0 2px color-mix(in srgb, #e0a92e 35%, transparent);
 }
+/* S67: the vault row's FOLDER CHIP — clickable (→ /notes.html?view=folder&folder=<id>).
+   Reads as a chip, not text: hairline ring, folder glyph, soft bg. Hover/selected
+   states keep AA contrast on both themes (selected rows invert text color, so the
+   chip inherits currentColor and deepens its wash there — same recipe as cmdk-mark).
+   Cursor pointer + a subtle lift tell the mouse user it's a separate affordance. */
+.cmdk-folder-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.22rem;
+  margin-inline-start: 0.45rem;
+  padding: 0.02rem 0.45rem 0.06rem;
+  border: 1px solid color-mix(in srgb, var(--line-strong) 80%, transparent);
+  border-radius: 5px;
+  background: var(--bg-soft);
+  color: inherit;
+  font-size: var(--fs-xs);
+  font-weight: 500;
+  vertical-align: 1px;
+  cursor: pointer;
+  max-inline-size: 9rem;
+  white-space: nowrap;
+  transition: background-color 0.12s ease, border-color 0.12s ease, translate 0.12s ease;
+}
+.cmdk-folder-chip .icon { width: 0.72rem; height: 0.72rem; flex: none; opacity: 0.7; }
+.cmdk-folder-chip .cmdk-folder-name { overflow: hidden; text-overflow: ellipsis; }
+.cmdk-item .cmdk-folder-chip:hover {
+  background: color-mix(in srgb, var(--accent) 18%, var(--bg-soft));
+  border-color: color-mix(in srgb, var(--accent) 45%, var(--line-strong));
+  translate: 0 -1px;
+}
+.cmdk-item.is-selected .cmdk-folder-chip {
+  background: color-mix(in srgb, var(--accent) 24%, transparent);
+  border-color: color-mix(in srgb, var(--accent) 55%, transparent);
+}
+.cmdk-item.is-selected .cmdk-folder-chip:hover {
+  background: color-mix(in srgb, var(--accent) 34%, transparent);
+}
+@media (prefers-reduced-motion: reduce) {
+  .cmdk-folder-chip { transition: none; }
+  .cmdk-item .cmdk-folder-chip:hover { translate: none; }
+}
 @media (prefers-reduced-motion: reduce) {
   .cmdk-item { transition: none; }
   dialog.cmdk::backdrop { backdrop-filter: none; }

@@ -819,7 +819,13 @@ button.pd-task-add {
    project-page.js above #shots (media panel) and above #pd-taskadd-shots-grid (task
    composer). States via [data-state]: queued (flat 8% ghost fill), active (live fill),
    done (full fill, fades out), error (red). The bar fills from the READING side
-   (logical inset-inline-start), so RTL mirrors correctly. */
+   (logical inset-inline-start), so RTL mirrors correctly.
+   S67 refinements: (a) the initial state is READING — a striped indeterminate
+   shimmer (the FileReader base64 pass is real work on big files and used to look
+   like a dead row); (b) the file SIZE rides the row (muted, tabular); (c) a per-row
+   cancel ✕ (visible while there's something to cancel — gone on done/error/canceled);
+   (d) CANCELED drops neutrally (the user cancelled, nothing failed — no red); (e)
+   done shows a ✓ in the success tint. */
 .shots-upload-strip { display: grid; gap: 0.35rem; margin-block: 0.45rem 0.1rem; }
 .shots-upload-row {
   display: flex;
@@ -845,6 +851,14 @@ button.pd-task-add {
   white-space: nowrap;
   color: var(--text);
 }
+/* S67: the size rides after the name — muted, tabular, never truncating the name. */
+.shots-upload-size {
+  flex: none;
+  color: var(--muted);
+  font-size: var(--fs-xs);
+  font-variant-numeric: tabular-nums;
+  opacity: 0.85;
+}
 .shots-upload-bar {
   flex: 1 1 5rem;
   block-size: 0.45rem;
@@ -861,12 +875,59 @@ button.pd-task-add {
   /* A block-level child with a set inline-size naturally hugs the INLINE-START edge —
      RTL mirrors for free. */
 }
+/* S67: READING — indeterminate. A striped sweep (logical direction: inline-start →
+   inline-end) says "working" without lying about a fraction we don't know yet.
+   The keyframe shifts background-position by EXACTLY one stripe period (1.3rem —
+   percentage positions are a no-op on element-sized gradients, fixed lengths loop
+   seamlessly on the infinite repeating tile). */
+@keyframes shots-upload-read {
+  from { background-position: 0 0; }
+  to { background-position: 1.3rem 0; }
+}
+.shots-upload-row[data-state='reading'] .shots-upload-fill {
+  inline-size: 100%;
+  background: repeating-linear-gradient(
+    115deg,
+    color-mix(in srgb, var(--brand) 55%, transparent) 0 0.6rem,
+    color-mix(in srgb, var(--brand) 14%, transparent) 0.6rem 1.3rem
+  );
+  animation: shots-upload-read 0.9s linear infinite;
+}
+[dir='rtl'] .shots-upload-row[data-state='reading'] .shots-upload-fill {
+  animation-direction: reverse;
+}
 .shots-upload-row[data-state='queued'] .shots-upload-fill { inline-size: 8%; opacity: 0.45; }
 .shots-upload-row[data-state='done'] .shots-upload-fill { inline-size: 100%; background: var(--link); }
 .shots-upload-row[data-state='error'] .shots-upload-fill { inline-size: 100%; background: var(--color-error); opacity: 0.55; }
+.shots-upload-row[data-state='canceled'] .shots-upload-fill { inline-size: 100%; background: var(--line-strong); }
 .shots-upload-row[data-state='done'] { border-color: transparent; opacity: 0; transition: opacity 0.5s ease 0.15s, border-color 0.5s ease; }
+.shots-upload-row[data-state='canceled'] { opacity: 0; transition: opacity 0.24s ease; }
 .shots-upload-pct { flex: none; min-inline-size: 2.6rem; text-align: end; font-variant-numeric: tabular-nums; color: var(--muted); font-size: var(--fs-xs); }
 .shots-upload-row[data-state='error'] .shots-upload-pct { color: var(--color-error); }
+.shots-upload-row[data-state='done'] .shots-upload-pct { color: var(--link); }
+/* S67: the per-row cancel ✕ — a quiet ghost icon-button; only meaningful while the
+   upload is in flight (reading/queued/active). */
+.shots-upload-cancel {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  inline-size: 1.55rem;
+  block-size: 1.55rem;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  transition: background-color 0.12s ease, color 0.12s ease;
+}
+.shots-upload-cancel .icon { width: 0.85rem; height: 0.85rem; }
+.shots-upload-cancel:hover { background: var(--bg-soft); color: var(--color-error); }
+.shots-upload-cancel:focus-visible { outline: 2px solid var(--brand); outline-offset: 1px; }
+.shots-upload-row[data-state='done'] .shots-upload-cancel,
+.shots-upload-row[data-state='error'] .shots-upload-cancel,
+.shots-upload-row[data-state='canceled'] .shots-upload-cancel { display: none; }
 /* Mobile: the name can squeeze harder; the bar keeps a floor. */
 @media (max-width: 720px) {
   .shots-upload-name { flex-basis: 38%; }
@@ -875,6 +936,7 @@ button.pd-task-add {
 @media (prefers-reduced-motion: reduce) {
   .shots-upload-row { animation: none; }
   .shots-upload-fill { transition: none; }
+  .shots-upload-row[data-state='reading'] .shots-upload-fill { animation: none; }
   .shots-upload-row[data-state='done'] { transition: none; opacity: 1; }
 }
 .pd-opt input {

@@ -276,6 +276,9 @@ test.describe('S65: the archive in FA/RTL', () => {
       // The jump control is labelled in Persian.
       await expect(dlg.locator('[data-qa-jump]')).toHaveAttribute('aria-label', 'پرش به تاریخ')
       await expect(dlg.locator('.qa-date')).toHaveAttribute('aria-label', 'پرش به تاریخ')
+      // S67: the clear-jump affordance localizes too (hidden until a jump — attribute
+      // assertions work on hidden elements; the button ships with the dialog's DOM).
+      await expect(dlg.locator('[data-qa-clearjump]')).toHaveAttribute('aria-label', 'بازگشت به جدیدترین یادداشت‌ها')
 
       // Reading time localizes: 500 words → حدود ۳ دقیقه مطالعه (Persian digits).
       await dlg.locator(`#an-${ids[1]}`).click()
@@ -413,6 +416,20 @@ test.describe('S66: date-group headers + reading time + jump-to-date', () => {
       await dateInput.fill('2000-01-01')
       await expect(page.locator('#toast .toast-msg').filter({ hasText: 'No notes that far back' })).toBeVisible({ timeout: 8_000 })
       await expect(dlg.locator(`#an-${ids[0]}`)).toBeVisible() // the oldest IS the backdated note
+
+      // S67 clear-jump: the ↩ affordance is live after a jump (the input carries the
+      // jump state) and returns the list to the newest window — input hidden + empty,
+      // affordance gone, no Newer pager, the old note behind the first page again.
+      await expect(dlg.locator('[data-qa-clearjump]')).toBeVisible()
+      await expect(dateInput).toHaveAttribute('data-jump', '1')
+      await dlg.locator('[data-qa-clearjump]').click()
+      await expect(dlg.locator('[data-qa-clearjump]')).toBeHidden()
+      await expect(dateInput).toBeHidden()
+      await expect(dateInput).toHaveValue('')
+      await expect(dateInput).not.toHaveAttribute('data-jump')
+      await expect(dlg.locator('.qa-newer')).toBeHidden()
+      await expect(dlg.locator(`#an-${ids[0]}`)).toHaveCount(0)
+      await expect(dlg.locator('.qa-row')).toHaveCount(60, { timeout: 15_000 })
     } finally {
       for (const nid of ids) await page.evaluate(async (id) => { await fetch(`/api/notes/${id}`, { method: 'DELETE' }) }, nid)
     }

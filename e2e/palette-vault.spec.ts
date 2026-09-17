@@ -244,6 +244,103 @@ test.describe('S63: jump-to-match + reading time + menu arrows', () => {
   })
 })
 
+test.describe('S67: palette folder-chip navigation', () => {
+  test.beforeEach(async ({ page }) => {
+    await login(page)
+  })
+
+  test('the folder chip navigates to the vault folder view; a plain row-click still opens the note', async ({ page }) => {
+    // A folder + a filed note whose body carries the needle.
+    const folderId = await page.evaluate(async () => {
+      const r = await fetch('/api/vault/folders', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: 'S67 chip probe' }),
+      })
+      if (!r.ok) throw new Error('folder create failed: ' + r.status)
+      return ((await r.json()) as { folder: { id: string } }).folder.id
+    })
+    const id = await mkNote(page, 'Chip probe note', 'body with chipneedle inside for the folder chip test', folderId)
+    try {
+      await page.keyboard.press('Control+k')
+      await page.fill('#cmdk-input', 'chipneedle')
+      const dlg = page.locator('#cmdk-dialog')
+      const row = dlg.locator('.cmdk-item', { hasText: 'Chip probe note' })
+      await expect(row).toBeVisible({ timeout: 8_000 })
+
+      // The chip renders with the folder name and carries the folder id (the deep link).
+      const chip = row.locator('.cmdk-folder-chip')
+      await expect(chip).toBeVisible()
+      await expect(chip).toContainText('S67 chip probe')
+      await expect(chip).toHaveAttribute('data-cmdk-folder', folderId)
+      await expect(chip).toHaveAttribute('title', /Open folder/)
+
+      // Chip click → the vault boots straight into the folder view (params consumed
+      // by replaceState — the URL settles on a clean /notes.html).
+      await chip.click()
+      await expect(page.locator('[data-vault-view-title]')).toHaveText('S67 chip probe', { timeout: 10_000 })
+      await expect(page).toHaveURL(/\/notes\.html$/)
+      await expect(page.locator(`[data-vault-card="${id}"]`)).toBeVisible()
+      // The sidebar row for the folder is the current view.
+      await expect(page.locator(`[data-folder-row="${folderId}"] [data-vault-view]`)).toHaveAttribute('aria-current', 'true')
+
+      // Re-search and click the ROW (not the chip) → the note opens (the chip must
+      // not swallow the row's primary action). The title assertion is URL-agnostic —
+      // hash-in-glob matching is quirky (see the S63 spec note).
+      await page.keyboard.press('Control+k')
+      await page.fill('#cmdk-input', 'chipneedle')
+      const row2 = page.locator('#cmdk-dialog .cmdk-item', { hasText: 'Chip probe note' })
+      await expect(row2).toBeVisible({ timeout: 8_000 })
+      await row2.click()
+      await expect(page.locator('[data-vault-title]')).toHaveValue('Chip probe note', { timeout: 10_000 })
+    } finally {
+      await page.evaluate(async ({ fid, nid }) => {
+        await fetch(`/api/vault/notes/${nid}`, { method: 'DELETE' })
+        await fetch(`/api/vault/notes/${nid}/purge`, { method: 'POST' })
+        await fetch(`/api/vault/folders/${fid}`, { method: 'DELETE' })
+      }, { fid: folderId, nid: id })
+    }
+  })
+
+  test('a folder id that no longer exists falls back to All notes (no dead view)', async ({ page }) => {
+    // A hand-typed/stale deep link (e.g. from a bookmark pre-dating a folder delete).
+    await page.goto('/notes.html?view=folder&folder=00000000-0000-4000-8000-000000000000')
+    await expect(page.locator('[data-vault-view-title]')).toHaveText('All notes', { timeout: 10_000 })
+    // The params are consumed — a reload reopens clean (no dead query string).
+    await expect(page).toHaveURL(/\/notes\.html$/)
+  })
+
+  test('reading-time chip on the card: long notes carry ~N min at the meta row', async ({ page }) => {
+    const long = Array.from({ length: 240 }, (_, i) => `w${i}`).join(' ')
+    const id = await mkNote(page, 'Card read chip probe', long)
+    try {
+      await page.goto('/notes.html')
+      const card = page.locator(`[data-vault-card="${id}"]`)
+      await expect(card).toBeVisible({ timeout: 8_000 })
+      // ≥200 words → the chip renders with the short form (~1 min), NOT the reader's
+      // long phrase, and the clock glyph is present.
+      const chip = card.locator('.vault-card-read')
+      await expect(chip).toBeVisible()
+      await expect(chip).toHaveText('~1 min')
+      await expect(chip.locator('.icon')).toBeVisible()
+      // Under 200 words stays silent (an instant read needs no number) — fresh list.
+      const shortId = await mkNote(page, 'Card read chip short probe', 'just a few words')
+      await page.goto('/notes.html')
+      await expect(page.locator(`[data-vault-card="${shortId}"]`)).toBeVisible({ timeout: 8_000 })
+      await expect(page.locator(`[data-vault-card="${shortId}"] .vault-card-read`)).toHaveCount(0)
+      await page.evaluate(async (nid) => {
+        await fetch(`/api/vault/notes/${nid}`, { method: 'DELETE' })
+        await fetch(`/api/vault/notes/${nid}/purge`, { method: 'POST' })
+      }, shortId)
+    } finally {
+      await page.evaluate(async (nid) => {
+        await fetch(`/api/vault/notes/${nid}`, { method: 'DELETE' })
+        await fetch(`/api/vault/notes/${nid}/purge`, { method: 'POST' })
+      }, id)
+    }
+  })
+})
+
 test.describe('S63: print — Ctrl+P prints the note, not the app', () => {
   test('print media hides chrome and shows the rendered markdown', async ({ page }) => {
     await login(page)

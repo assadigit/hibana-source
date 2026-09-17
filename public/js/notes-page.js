@@ -80,6 +80,8 @@
         check: '<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 13l4 4L19 7"/></svg>',
         arrowBack: '<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 12H4m0 0 6-6m-6 6 6 6"/></svg>',
         restore: '<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7M3 4v5h5"/></svg>',
+        // S67: reading-time chip glyph — same clock path as the palette's 'clock'.
+        clock: '<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></svg>',
       }
 
       /* ── state ── */
@@ -124,6 +126,9 @@
 
       /* ── dates ── */
       const isFa = () => document.documentElement.lang === 'fa'
+      // S67: shared Persian-digit helper (updateStatus had a private copy; cards now
+      // need it too). document.documentElement.lang is set by i18n.js on apply().
+      const dig = (n) => (isFa() ? String(n).replace(/\d/g, (d) => '۰۱۲۳۴۵۶۷۸۹'[+d]) : String(n))
       const fmtDay = (iso) => {
         try { return new Date(iso).toLocaleDateString(isFa() ? 'fa-IR' : 'en-US', { month: 'short', day: 'numeric' }) } catch { return '' }
       }
@@ -294,6 +299,14 @@
           + inlineTags(n.content).filter((t) => !csvTags(n.tags).some((m) => m.toLowerCase() === t.toLowerCase())).slice(0, 3 - Math.min(3, csvTags(n.tags).length))
             .map((t) => `<span class="vault-pill is-inline">#${esc(t)}</span>`).join('')
         const title = n.title.trim() || _t('notes.untitled', 'Untitled')
+        // S67: reading-time chip on the CARD — the S63 reader-head estimate, surfaced
+        // where the list is scanned (the S66 next-session candidate). Same rule as the
+        // reader: <200 words stays silent (an instant read needs no number); ~200 wpm;
+        // Persian digits via dig(). Title tooltip carries the full phrase for clarity.
+        const words = Number(n.word_count) || 0
+        const readChip = words >= 200
+          ? `<span class="vault-card-read" title="${esc(_t('notes.readTime', '~{n} min read').split('{n}').join(dig(Math.max(1, Math.round(words / 200)))))}">${I.clock || ''}${esc(_t('notes.minRead', '~{n} min').split('{n}').join(dig(Math.max(1, Math.round(words / 200)))))}</span>`
+          : ''
         return `<article class="vault-card" data-vault-card="${n.id}" aria-current="${active}" tabindex="0">
           <div class="vault-card-date">
             <time datetime="${n.updated_at}">${fmtDay(n.updated_at)}</time>
@@ -308,7 +321,8 @@
                   <button type="button" data-vault-restore="${n.id}">${I.restore}<span>${esc(_t('notes.restore', 'Restore'))}</span></button>
                   <button type="button" class="is-danger" data-vault-purge="${n.id}">${I.trash}<span>${esc(_t('notes.deleteForever', 'Delete forever'))}</span></button>
                 </span>`
-              : `<span class="vault-card-words">${n.word_count} ${esc(_t('notes.words', 'words'))}</span>`}
+              : `<span class="vault-card-words">${dig(n.word_count)} ${esc(_t('notes.words', 'words'))}</span>`}
+            ${readChip}
           </div>
         </article>`
       }
@@ -1368,7 +1382,21 @@
         try {
           const m = location.hash.match(/^#n=([0-9a-f-]+)(?:&q=([^&]+))?$/i)
           if (m) { initial = { type: 'note', id: m[1] }; if (m[2]) jumpQ = decodeURIComponent(m[2]) }
-          else if (prefs.view && prefs.view.type) initial = prefs.view
+          // S67: /notes?view=folder&folder=<id> — the command palette's folder-chip
+          // deep link (also hand-typed/shareable). The hash (a specific note) wins
+          // over the folder: opening the note directly is the more specific intent.
+          // A folder id that no longer exists falls back to All notes (the palette
+          // hit could predate a folder rename/delete); the params are stripped so a
+          // reload reopens the normal saved view.
+          else {
+            const qs = new URLSearchParams(location.search)
+            if (qs.get('view') === 'folder' && qs.get('folder')) {
+              const fid = qs.get('folder')
+              initial = folderById(fid) ? { type: 'folder', id: fid } : { type: 'all', id: null }
+              try { history.replaceState(null, '', location.pathname) } catch {}
+            }
+          }
+          if (initial.type !== 'folder' && prefs.view && prefs.view.type) initial = prefs.view
         } catch {}
         if (initial.type === 'note' && initial.id) {
           await loadNotes()

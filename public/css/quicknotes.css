@@ -1214,3 +1214,32 @@ mark.note-jump {
   }
 }
 
+
+/* ════════════════ S67: clear-jump affordance ════════════════════════════════
+   After a date jump the list is anchored somewhere OLD — a ↩ button appears in
+   the head (visible even when the input itself is Escape-hidden, because the
+   anchor is still live) and returns the list to the newest window. Styled as
+   the jump button's ACTIVE twin: brand-tinted (it undoes a live state, so it
+   reads as "on"), a one-shot slide-in so its appearance is noticed in a busy
+   head, and the picked date input carries data-jump so the input itself states
+   "this filter is shaping the list" (the palette's pressed language). */
+.qa-clearjump { flex-shrink: 0; color: var(--brand); background: var(--accent-soft); }
+.qa-clearjump .icon { inline-size: 1.05rem; block-size: 1.05rem; }
+.qa-clearjump:hover { color: var(--brand); background: color-mix(in srgb, var(--accent-soft) 70%, var(--accent) 12%); }
+.qa-clearjump:focus-visible { outline: 2px solid var(--brand); outline-offset: 1px; }
+.qa-clearjump[hidden] { display: none; }
+@keyframes qa-clearjump-in {
+  from { opacity: 0; translate: 0 -2px; }
+  to { opacity: 1; translate: 0 0; }
+}
+.qa-clearjump:not([hidden]) { animation: qa-clearjump-in 0.18s ease; }
+.qa-date[data-jump] {
+  border-color: color-mix(in srgb, var(--brand) 55%, var(--line-strong));
+  background: color-mix(in srgb, var(--accent-soft) 45%, var(--bg-soft, var(--card)));
+}
+@media (max-width: 640px) {
+  .qa-clearjump { order: 2; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .qa-clearjump:not([hidden]) { animation: none; }
+}

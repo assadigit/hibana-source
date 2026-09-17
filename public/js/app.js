@@ -1028,6 +1028,7 @@ window.hibana = (() => {
           '<span class="qa-count small muted" aria-live="polite"></span>' +
           '<input type="search" class="qa-filter" data-i18n-placeholder="qn.filterNotes" placeholder="Filter…" aria-label="Filter notes" data-i18n-aria-label="qn.filterNotes" autocomplete="off">' +
           '<input type="date" class="qa-date" hidden aria-label="Jump to date" data-i18n-aria-label="qn.jumpToDate">' +
+          '<button type="button" class="ghost icon-btn qa-clearjump" data-qa-clearjump hidden aria-label="Back to the latest notes" data-i18n-aria-label="qn.clearJump" title="Back to the latest notes" data-i18n-title="qn.clearJump"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 12H4m0 0 6-6m-6 6 6 6"/></svg></button>' +
           '<button type="button" class="ghost icon-btn qa-jumpbtn" data-qa-jump aria-label="Jump to date" data-i18n-aria-label="qn.jumpToDate" title="Jump to date"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M8 3v4M16 3v4M3 10h18"/></svg></button>' +
           '<button type="button" class="ghost icon-btn" data-qa-close aria-label="Close" data-i18n-aria-label="common.close"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button>' +
         '</div>' +
@@ -1063,8 +1064,28 @@ window.hibana = (() => {
       // S66 jump-to-date: the calendar button reveals the native date input (same head
       // slot) and opens its picker on the same user gesture; picking a day re-anchors the
       // list at the newest note of that local day. Escape inside the input just hides it.
+      // S67 clear-jump: after a jump the list is anchored somewhere OLD and the input
+      // keeps its value — a ↩ affordance appears in the head (visible even if the input
+      // was hidden with Escape, because the anchor is still active) and returns the list
+      // to the newest window. The picked input also carries data-jump so its border can
+      // state "this filter is shaping the list" (the palette's pressed-button language).
       const dateInput = dlg.querySelector('.qa-date')
-      dlg.querySelector('[data-qa-jump]').addEventListener('click', (e) => {
+      const clearJump = dlg.querySelector('[data-qa-clearjump]')
+      const jumpBtn = dlg.querySelector('[data-qa-jump]')
+      const setJumpActive = (on) => {
+        dateInput.dataset.jump = on ? '1' : ''
+        if (dateInput.dataset.jump === '') delete dateInput.dataset.jump
+        clearJump.hidden = !on
+      }
+      const clearJumpNow = () => {
+        dateInput.value = ''
+        dateInput.hidden = true
+        jumpBtn.setAttribute('aria-pressed', 'false')
+        setJumpActive(false)
+        load({ mode: 'replace' })
+      }
+      clearJump.addEventListener('click', clearJumpNow)
+      jumpBtn.addEventListener('click', (e) => {
         const show = dateInput.hidden
         dateInput.hidden = !show
         e.currentTarget.setAttribute('aria-pressed', String(show))
@@ -1077,6 +1098,7 @@ window.hibana = (() => {
         if (!v) return
         const [y, m, d] = v.split('-').map(Number)
         const end = new Date(y, m - 1, d, 23, 59, 59, 999) // local end-of-day → UTC ISO
+        setJumpActive(true)
         load({ mode: 'replace', before: end.toISOString() })
       })
       dateInput.addEventListener('keydown', (e) => { if (e.key === 'Escape') { dateInput.hidden = true } })
@@ -1322,6 +1344,16 @@ window.hibana = (() => {
     const open = async () => {
       buildDialog()
       dlg.querySelector('.qa-filter').value = ''
+      // A fresh open always lands on the newest window — any prior jump state resets
+      // (S67: the clear-jump affordance belongs to a LIVE jump, not a reopened dialog).
+      try {
+        const di = dlg.querySelector('.qa-date')
+        di.value = ''
+        di.hidden = true
+        dlg.querySelector('[data-qa-jump]').setAttribute('aria-pressed', 'false')
+        dlg.querySelector('[data-qa-clearjump]').hidden = true
+        if ('jump' in di.dataset) delete di.dataset.jump
+      } catch { /* head not built */ }
       dlg.showModal()
       // S65: land the keyboard in the filter — the dialog's primary scanning control.
       try { dlg.querySelector('.qa-filter').focus() } catch { /* focus denied */ }
@@ -1331,6 +1363,14 @@ window.hibana = (() => {
     const openAt = async (id, q) => {
       buildDialog()
       dlg.querySelector('.qa-filter').value = ''
+      try {
+        const di = dlg.querySelector('.qa-date')
+        di.value = ''
+        di.hidden = true
+        dlg.querySelector('[data-qa-jump]').setAttribute('aria-pressed', 'false')
+        dlg.querySelector('[data-qa-clearjump]').hidden = true
+        if ('jump' in di.dataset) delete di.dataset.jump
+      } catch { /* head not built */ }
       dlg.showModal()
       try { dlg.querySelector('.qa-filter').focus() } catch { /* focus denied */ }
       const ok = await load({ mode: 'replace', anchor: id, q })

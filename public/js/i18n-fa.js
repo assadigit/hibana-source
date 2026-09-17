@@ -465,6 +465,10 @@ window.__hibanaDictFA = {
       'project.shotNoteNeedText': 'اول بنویس چه چیزی و کجا',
       'project.shotBugCreated': 'مشکل اضافه شد', 'project.shotIdeaCreated': 'ایده اضافه شد',
       'project.shotsAttached': '{n} تصویر پیوست',
+      // S67: پالایش نوار پیشرفت آپلود — لغو هر ردیف + پیام ترکیبی مترجم‌شده
+      // (قبلاً «N ok, N failed» انگلیسی ثابت با رقم لاتین در فارسی بود).
+      'project.cancelUpload': 'لغو آپلود',
+      'project.shotsMixed': '{ok} آپلود شد، {fail} ناموفق',
       'tags.label': 'برچسب‌ها',
       'project.shotFixed': 'درست‌شده علامت خورد', 'project.shotReopened': 'دوباره باز شد', 'project.shotDelConfirm': 'این اسکرین‌شات حذف شود؟',
       // S39: یادداشت روی کارت + سنجاق تصویر به قلم‌های جعبهٔ پیشرفت + نگارخانهٔ رسانه
@@ -621,6 +625,8 @@ window.__hibanaDictFA = {
       'qn.jumpToDate': 'پرش به تاریخ',
       'qn.noOlder': 'یادداشتی آن‌قدر قدیمی نیست — قدیمی‌ترین‌ها را نشان می‌دهیم.',
       'qn.noMatch': 'یادداشتی با این فیلتر پیدا نشد.',
+      // S67: دکمهٔ پاک‌کردن پرش — بعد از پرش به تاریخ، ↩ به جدیدترین‌ها برمی‌گردد.
+      'qn.clearJump': 'بازگشت به جدیدترین یادداشت‌ها',
       'taskAdd.title': 'کار جدید', 'taskAdd.taskLabel': 'کار', 'taskAdd.quadrant': 'ربع',
       'taskAdd.deadline': 'مهلت (اختیاری)', 'taskAdd.add': 'افزودن کار',
       'taskAdd.added': 'کار اضافه شد', 'taskAdd.failed': 'افزودن کار ناموفق بود — دوباره تلاش کنید',
@@ -672,6 +678,8 @@ window.__hibanaDictFA = {
       'cmdk.sadhana': 'لیست کارها',
       'cmdk.canvas': 'بوم',
       'cmdk.untitledNote': 'یادداشت بی‌نام',
+      // S67: راهنمای چیپ پوشه در ردیف خزانه (کلیک → نمای همان پوشه).
+      'cmdk.openFolder': 'باز کردن پوشه',
       // S64: ردیف یادداشت سریع در پالت، نشان نوع + قطعه‌ی متن نتیجه را هم می‌آورد.
       'cmdk.noteKind': 'یادداشت', 'cmdk.listKind': 'لیست',
       'cmdk.canvas_note': 'یادداشت',
@@ -889,6 +897,8 @@ window.__hibanaDictFA = {
       'notes.copyMd': 'کپی به مارک‌داون', 'notes.copiedMd': 'کپی شد', 'notes.copyFailed': 'کپی نشد.',
       // S63: تخمین زمان مطالعه در نوار وضعیت (فقط برای یادداشت‌های ۲۰۰ واژه به بالا).
       'notes.readTime': 'حدود {n} دقیقه مطالعه',
+      // S67: شکل کوتاه چیپ کارت (خواننده عبارت کامل را نگه می‌دارد).
+      'notes.minRead': 'حدود {n} دقیقه',
       'notes.restore': 'بازیابی', 'notes.deleteForever': 'حذف همیشگی',
       'notes.deletedNote': 'یادداشت به زباله رفت', 'notes.restored': 'یادداشت بازیابی شد', 'notes.purged': 'برای همیشه حذف شد',
       'notes.deleteFailed': 'حذف یادداشت نشد.', 'notes.restoreFailed': 'بازیابی نشد.', 'notes.purgeFailed': 'حذف همیشگی نشد.',

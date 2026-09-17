@@ -13,7 +13,7 @@ import type { Db } from '../db/types'
 // and LIKE-wildcard escaping (a stray % must not match everything).
 
 interface Folder { id: string; name: string }
-interface VaultHit { id: string; title: string; starred: number; folder: string | null; snippet: string }
+interface VaultHit { id: string; title: string; starred: number; folder: string | null; folder_id: string | null; snippet: string }
 
 function makeConfig(db: Db): Config {
   return { db, isProd: false, github: { owner: 'x', repo: 'y', token: '' } }
@@ -72,11 +72,15 @@ describe('S62: vault notes in global search', () => {
       expect(titled).toBeTruthy()
       expect(titled!.starred).toBe(1)
       expect(titled!.folder).toBe('Design notes')
+      // S67: folder_id rides along — the palette's folder chip navigates to
+      // /notes.html?view=folder&folder=<id>, so the hit must carry the id.
+      expect(titled!.folder_id).toBe(folder.id)
       // title hit → snippet falls back to a head-window of the content (no content match)
       expect(titled!.snippet.length).toBeGreaterThan(0)
       const body = hits.find((h) => h.title === 'grocery')
       expect(body).toBeTruthy()
       expect(body!.folder).toBeNull()
+      expect(body!.folder_id).toBeNull()
       // content hit → the snippet centers the match
       expect(body!.snippet.toLowerCase()).toContain('kaveh')
       expect(body!.snippet).toContain('…')

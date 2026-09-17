@@ -42,13 +42,30 @@
         // S61: real upload progress. fetch() fires no upload-progress events, and the
         // base64-JSON bodies are big on mobile — so both upload surfaces (this grid +
         // the task composer's staged shots) share an XHR helper with live per-file bars.
+        // S67 refinement: the helper exposes the live XHR via onXHR so each row's ✕ can
+        // abort mid-flight (a stray giant file stops eating the uplink); an aborted
+        // upload rejects with 'aborted' and drops its row NEUTRALLY (no red, no toast —
+        // the user cancelled it, nothing failed).
         const faDig = (s) => (document.documentElement.lang === 'fa' ? String(s).replace(/\d/g, (d) => '۰۱۲۳۴۵۶۷۸۹'[+d]) : String(s))
-        const uploadShotXHR = (file, onProgress) =>
+        const fmtBytes = (bytes) => {
+          // Compact KB/MB for the progress rows (language-neutral units + Persian digits).
+          const n = Number(bytes) || 0
+          if (n >= 1024 * 1024) return faDig((n / (1024 * 1024)).toFixed(1)) + ' MB'
+          if (n >= 1024) return faDig(Math.round(n / 1024)) + ' KB'
+          return faDig(n) + ' B'
+        }
+        const uploadShotXHR = (file, onProgress, registerAbort) =>
           new Promise((resolve, reject) => {
+            // registerAbort is called once per phase (reader, then xhr) with that
+            // phase's abort function — the row's ✕ aborts whichever is live, so a
+            // cancel during the base64 READ is as effective as one mid-transfer.
             const reader = new FileReader()
+            if (registerAbort) registerAbort(() => { try { reader.abort() } catch { /* already done */ } })
+            reader.onabort = () => reject(new Error('aborted'))
             reader.onload = () => {
               const b64 = String(reader.result).split(',')[1]
               const xhr = new XMLHttpRequest()
+              if (registerAbort) registerAbort(() => { try { xhr.abort() } catch { /* already done */ } })
               xhr.open('POST', `/api/projects/${id}/screenshots`)
               xhr.setRequestHeader('Content-Type', 'application/json')
               xhr.upload.onprogress = (ev) => { if (ev.lengthComputable && onProgress) onProgress(ev.loaded / ev.total) }
@@ -57,17 +74,23 @@
                 else reject(new Error('status ' + xhr.status))
               }
               xhr.onerror = () => reject(new Error('network'))
+              xhr.onabort = () => reject(new Error('aborted'))
               xhr.send(JSON.stringify({ fileName: file.name, mimeType: file.type, dataBase64: b64, caption: '' }))
             }
             reader.onerror = () => reject(new Error('read-failed'))
             reader.readAsDataURL(file)
           })
-        // The strip: a small stack of per-file rows (name + bar + %). Mounted once per
-        // surface; rows go queued → active → done/error. aria-live=polite so SR users
-        // hear completion without the per-file toast spam. done rows fade+remove, error
-        // rows linger 6s in red, and the strip itself drops when the last row leaves.
+        // The strip: a small stack of per-file rows (name + size + bar + % + ✕). Mounted
+        // once per surface; rows go reading → active → done/error/canceled. aria-live=
+        // polite so SR users hear completion without the per-file toast spam. done rows
+        // fade+remove, error rows linger 6s in red, canceled rows drop immediately
+        // (neutral), and the strip itself drops when the last row leaves.
+        // S67 refinement: the initial state is READING (a striped indeterminate bar —
+        // the FileReader base64 pass is real work on big files and used to look like a
+        // dead row); the file SIZE rides the row; a per-row ✕ cancels (abort → neutral
+        // drop); done shows a ✓; aborted uploads never toast (nothing failed).
         const makeUploadStrip = (mount, insertBefore) => {
-          if (!mount) return { addRow: () => ({ setProgress() {}, done() {}, failed() {} }) } // fragment gone — upload still works, just no bar
+          if (!mount) return { addRow: () => ({ setProgress() {}, done() {}, failed() {}, cancel() {} }) } // fragment gone — upload still works, just no bar
           let strip = mount.querySelector(':scope > .shots-upload-strip')
           const ensure = () => {
             if (strip) return strip
@@ -81,39 +104,57 @@
             return strip
           }
           return {
-            addRow(fileName) {
+            addRow(fileName, fileSize) {
               ensure()
               const row = document.createElement('div')
               row.className = 'shots-upload-row'
-              row.dataset.state = 'queued'
+              row.dataset.state = 'reading'
               row.innerHTML =
                 '<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="5" width="17" height="14" rx="2"/><circle cx="8" cy="10" r="1.5"/><path d="M21 16l-5-5L5 19"/></svg>' +
                 '<span class="shots-upload-name"></span>' +
+                (fileSize != null ? '<span class="shots-upload-size"></span>' : '') +
                 '<div class="shots-upload-bar" aria-hidden="true"><div class="shots-upload-fill"></div></div>' +
-                '<span class="shots-upload-pct"></span>'
+                '<span class="shots-upload-pct"></span>' +
+                '<button type="button" class="ghost icon-btn shots-upload-cancel" aria-label="' + _t('project.cancelUpload', 'Cancel upload') + '" title="' + _t('project.cancelUpload', 'Cancel upload') + '"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button>'
               row.querySelector('.shots-upload-name').textContent = fileName // textContent — never innerHTML for names
+              const sizeEl = row.querySelector('.shots-upload-size')
+              if (sizeEl && fileSize != null) sizeEl.textContent = fmtBytes(fileSize)
               strip.appendChild(row)
               const fill = row.querySelector('.shots-upload-fill')
               const pctEl = row.querySelector('.shots-upload-pct')
+              const cancelBtn = row.querySelector('.shots-upload-cancel')
+              let abortFn = null
               const drop = () => {
                 row.remove()
                 if (strip && !strip.querySelector('.shots-upload-row')) { strip.remove(); strip = null }
               }
+              cancelBtn.addEventListener('click', () => {
+                if (row.dataset.state === 'done' || row.dataset.state === 'error' || row.dataset.state === 'canceled') return
+                // Abort the live phase (reader OR xhr) — the pending uploadShotXHR
+                // rejects with 'aborted' and the caller counts it as neither ok nor
+                // failed. The row drops NEUTRALLY: the user cancelled, nothing failed.
+                if (abortFn) abortFn()
+                row.dataset.state = 'canceled'
+                setTimeout(drop, 260)
+              })
               return {
+                onAbortable(fn) { abortFn = fn },
                 setProgress(frac) {
-                  if (row.dataset.state === 'done' || row.dataset.state === 'error') return
+                  if (row.dataset.state === 'done' || row.dataset.state === 'error' || row.dataset.state === 'canceled') return
                   row.dataset.state = 'active'
                   const pct = Math.max(0, Math.min(100, Math.round((frac || 0) * 100)))
                   fill.style.inlineSize = pct + '%'
                   pctEl.textContent = pct > 0 ? faDig(pct + '%') : ''
                 },
                 done() {
+                  if (row.dataset.state === 'canceled') return
                   row.dataset.state = 'done'
                   fill.style.inlineSize = '100%'
-                  pctEl.textContent = ''
+                  pctEl.textContent = '✓'
                   setTimeout(drop, 650)
                 },
                 failed() {
+                  if (row.dataset.state === 'canceled') return
                   row.dataset.state = 'error'
                   pctEl.textContent = '✕'
                   setTimeout(drop, 6000)
@@ -122,25 +163,43 @@
             },
           }
         }
+        // S67: one shared uploader for ALL surfaces — the media grid, the task composer,
+        // AND the task EDIT dialog (the lone fetch()-era holdout). Tri-state result:
+        // { ok: true, shot } landed · { ok: false, canceled: true } user-cancelled
+        // (neutral row drop, no toast) · { ok: false } failed (red row). The row
+        // already told the story — callers only aggregate for toasts/counts.
+        const uploadOne = async (file, strip) => {
+          const row = strip.addRow(file.name, file.size)
+          try {
+            const shot = await uploadShotXHR(file, (f) => row.setProgress(f), (fn) => row.onAbortable(fn))
+            row.done()
+            return { ok: true, shot }
+          } catch (err) {
+            if (err && err.message === 'aborted') return { ok: false, canceled: true }
+            row.failed()
+            return { ok: false }
+          }
+        }
         const upload = async (files) => {
           const grid = document.getElementById('shots')
           const strip = makeUploadStrip(grid ? grid.parentElement : null, grid)
+          let ok = 0, fail = 0
           for (const file of files) {
-            const row = strip.addRow(file.name)
-            try {
-              const res = await uploadShotXHR(file, (f) => row.setProgress(f))
-              row.done()
-              window.hibana?.toast(_t('project.shotUploaded', 'Screenshot uploaded'), 'info')
+            const r = await uploadOne(file, strip)
+            if (r.ok) {
+              ok++
               // 2026-09-05 repair: #shots carries no hx-get, so the old
               // `htmx.trigger('#shots','load')` was a no-op and fresh uploads never
               // showed. Pull the server-rendered grid fragment instead.
               if (window.htmx) window.htmx.ajax('GET', `/api/projects/${id}/screenshots`, { target: '#shots', swap: 'innerHTML' })
-              void res
-            } catch {
-              row.failed()
-              window.hibana?.toast(_t('project.shotFailed', 'Upload failed'), 'err')
-            }
+            } else if (!r.canceled) fail++
           }
+          // S67: one aggregate toast (the aria-live strip carries per-file detail;
+          // per-file toasts were spam on multi-select). Mixed wording is LOCALIZED with
+          // Persian digits (the old 'N ok, N failed' was hardcoded English).
+          if (ok && !fail) window.hibana?.toast(_t('project.shotUploaded', 'Screenshot uploaded'), 'info')
+          else if (fail && !ok) window.hibana?.toast(_t('project.shotFailed', 'Upload failed'), 'err')
+          else if (fail) window.hibana?.toast(_t('project.shotsMixed', '{ok} uploaded, {fail} failed').split('{ok}').join(faDig(ok)).split('{fail}').join(faDig(fail)), 'err')
         }
         // 2026-09-05 repair: #shot-input renders INSIDE the htmx project fragment, so the
         // old mount-time getElementById bound nothing (the fragment hadn't loaded yet) —
@@ -165,21 +224,19 @@
           if (!files.length) return
           // S61: per-file progress rows replace the bare «در حال اپلود تصویر …» text —
           // same strip factory as the media grid, mounted on the composer's shots row.
+          // S67: shared uploadOne (size + reading shimmer + cancel ✕ + tri-state).
           const comp = document.getElementById('pd-taskadd-shots-grid')
           const strip = makeUploadStrip(comp ? comp.parentElement : null, comp)
           let ok = 0, fail = 0
           for (const file of files) {
-            const row = strip.addRow(file.name)
-            try {
-              const shot = await uploadShotXHR(file, (f) => row.setProgress(f))
-              if (shot.id) { stagedShots.push({ id: shot.id, fileName: file.name, caption: '' }); ok++; row.done() }
-              else throw new Error('no id')
-            } catch { fail++; row.failed() }
+            const r = await uploadOne(file, strip)
+            if (r.ok && r.shot && r.shot.id) { stagedShots.push({ id: r.shot.id, fileName: file.name, caption: '' }); ok++ }
+            else if (!r.ok && !r.canceled) fail++
           }
           renderTaskAddShots()
           if (ok && !fail) window.hibana?.toast(_t('project.shotUploaded', 'Screenshot uploaded'), 'info')
           else if (fail && !ok) window.hibana?.toast(_t('project.shotFailed', 'Upload failed'), 'err')
-          else if (fail) window.hibana?.toast(String(ok) + ' ok, ' + String(fail) + ' failed', 'err')
+          else if (fail) window.hibana?.toast(_t('project.shotsMixed', '{ok} uploaded, {fail} failed').split('{ok}').join(faDig(ok)).split('{fail}').join(faDig(fail)), 'err')
         })
         // S46.3: delegated handlers on the staged-shot grid — zoom / delete / edit-note
         ctx.on('click', async (e) => {
@@ -2750,13 +2807,13 @@
                 // hidden behind a button — like the wireframe, with thumbnails"). The
                 // editor now shows pinned shots INLINE (a thumbnail grid with zoom /
                 // edit-note / delete), not behind the «تصاویر سنجاق‌شده» button. The
-                // upload button stays; an «در حال اپلود تصویر ...» indicator shows during
-                // the upload. Same pattern as the #pd-taskadd-shots composer (S46.3).
+                // upload button stays; S67 replaced the old bare «در حال اپلود تصویر ...»
+                // text indicator with the SAME live progress strip as every other
+                // surface (per-file rows: size + bar + % + cancel ✕).
                 '<div class="pd-taskadd-shots" style="margin-top:.5rem">' +
                   '<input type="file" id="pde-shots" accept="image/png,image/jpeg,image/webp,image/gif" multiple hidden>' +
                   '<div class="row" style="gap:.5rem;align-items:center">' +
                     '<button type="button" class="ghost" id="pde-shots-add" onclick="document.getElementById(\'pde-shots\').click()" title="' + _t('pde.shotsAttachTitle', 'Attach a UI/UX screenshot — pinned to this item') + '"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="5" width="17" height="14" rx="2"/><circle cx="8" cy="10" r="1.5"/><path d="M21 16l-5-5L5 19"/></svg> ' + _t('pde.shotsAttach', 'Add image') + '</button>' +
-                    '<span class="muted small" id="pde-shots-uploading" hidden>' + _t('pde.shotsUploading', 'Uploading image…') + '</span>' +
                   '</div>' +
                   '<div class="pd-taskadd-shots-grid" id="pde-shots-grid"></div>' +
                 '</div>' +
@@ -2796,45 +2853,33 @@
               pdTaskEditDlg.classList.toggle('pde-fullscreen')
             })
             // S46.4: screenshot upload + INLINE grid on the task editor. The file input
-            // uploads each picked file + pins to this task (0054), showing the
-            // «در حال اپلود تصویر ...» indicator during the upload. The inline grid
-            // (#pde-shots-grid) shows the task's pinned shots with zoom / edit-note /
-            // delete — no more "تصاویر سنجاق‌شده" button hiding them behind a dialog.
+            // uploads each picked file + pins to this task (0054). S67: the lone
+            // fetch()-era upload surface joins the shared uploader — live per-file
+            // progress rows (size + bar + % + cancel ✕) mounted above the grid, the
+            // bare «در حال اپلود تصویر ...» span is gone. The inline grid (#pde-shots-grid)
+            // shows the task's pinned shots with zoom / edit-note / delete.
             pdTaskEditDlg.querySelector('#pde-shots').addEventListener('change', async (e) => {
               const tid = pdTaskEditDlg.dataset.tid
               if (!tid) return
               const files = [...(e.target.files || [])].filter((f) => f.type.startsWith('image/'))
               e.target.value = ''
               if (!files.length) return
-              const upl = pdTaskEditDlg.querySelector('#pde-shots-uploading')
-              if (upl) upl.hidden = false
+              const pgrid = pdTaskEditDlg.querySelector('#pde-shots-grid')
+              const strip = makeUploadStrip(pgrid ? pgrid.parentElement : null, pgrid)
               let ok = 0, fail = 0
               for (const file of files) {
-                try {
-                  const b64 = await new Promise((resolve, reject) => {
-                    const r = new FileReader()
-                    r.onload = () => resolve(String(r.result).split(',')[1])
-                    r.onerror = reject
-                    r.readAsDataURL(file)
-                  })
-                  const upRes = await fetch('/api/projects/' + id + '/screenshots', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ fileName: file.name, mimeType: file.type, dataBase64: b64, caption: '' }),
-                  })
-                  if (!upRes.ok) throw new Error('status ' + upRes.status)
-                  const shot = await upRes.json().catch(() => ({}))
-                  if (shot.id) { await patchShot(shot.id, { taskId: tid }); ok++ }
-                  else throw new Error('no id')
-                } catch { fail++ }
+                const r = await uploadOne(file, strip)
+                if (r.ok && r.shot && r.shot.id) {
+                  try { await patchShot(r.shot.id, { taskId: tid }); ok++ }
+                  catch { fail++ }
+                } else if (!r.ok && !r.canceled) fail++
               }
-              // S46.6: keep the «در حال اپلود تصویر ...» indicator visible UNTIL the
-              // grid re-renders (await pdeRenderShotsGrid), so the user sees continuous
-              // feedback: indicator → (upload) → indicator → (fetch+render) → thumbnail.
+              // S46.6: keep feedback continuous — the grid re-render IS the completion
+              // signal now (the strip's rows fade on their own).
               await pdeRenderShotsGrid(tid)
-              if (upl) upl.hidden = true
               if (ok && !fail) window.hibana?.toast(_t('project.shotUploaded', 'Screenshot uploaded'), 'info')
-              else if (fail) window.hibana?.toast(_t('project.shotFailed', 'Upload failed'), 'err')
+              else if (fail && !ok) window.hibana?.toast(_t('project.shotFailed', 'Upload failed'), 'err')
+              else if (fail) window.hibana?.toast(_t('project.shotsMixed', '{ok} uploaded, {fail} failed').split('{ok}').join(faDig(ok)).split('{fail}').join(faDig(fail)), 'err')
               bodyRefresh()
             })
             // S46.4: delegated handlers on the editor's inline shot grid — zoom / edit-note / delete

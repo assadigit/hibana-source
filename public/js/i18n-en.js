@@ -466,6 +466,10 @@ window.__hibanaDictEN = {
       'project.shotNoteNeedText': 'Write what & where first',
       'project.shotBugCreated': 'Problem added', 'project.shotIdeaCreated': 'Idea added',
       'project.shotsAttached': '{n} attached',
+      // S67: upload-progress refinements — per-row cancel + the localized mixed toast
+      // (the old 'N ok, N failed' was hardcoded English with Latin digits in FA).
+      'project.cancelUpload': 'Cancel upload',
+      'project.shotsMixed': '{ok} uploaded, {fail} failed',
       'tags.label': 'Tags',
       'project.shotFixed': 'Marked fixed', 'project.shotReopened': 'Back to open', 'project.shotDelConfirm': 'Delete this screenshot?',
       // S39: note-card + pinning to progress-box items + the media gallery
@@ -623,6 +627,8 @@ window.__hibanaDictEN = {
       'qn.jumpToDate': 'Jump to date',
       'qn.noOlder': 'No notes that far back — showing the oldest.',
       'qn.noMatch': 'No notes match the filter.',
+      // S67: the clear-jump affordance — after a date jump, ↩ returns to the newest.
+      'qn.clearJump': 'Back to the latest notes',
       'taskAdd.title': 'New Task', 'taskAdd.taskLabel': 'Task', 'taskAdd.quadrant': 'Quadrant',
       'taskAdd.deadline': 'Deadline (optional)', 'taskAdd.add': 'Add task',
       'taskAdd.added': 'Task added', 'taskAdd.failed': "Couldn't add the task — try again",
@@ -674,6 +680,8 @@ window.__hibanaDictEN = {
       'cmdk.sadhana': 'To-Do',
       'cmdk.canvas': 'Canvas',
       'cmdk.untitledNote': 'Untitled note',
+      // S67: the vault row's folder chip tooltip (click → the vault's folder view).
+      'cmdk.openFolder': 'Open folder',
       // S64: quick-note palette rows carry a kind chip + FTS snippet in the sublabel.
       'cmdk.noteKind': 'Note', 'cmdk.listKind': 'List',
       'cmdk.canvas_note': 'Note',
@@ -893,6 +901,8 @@ window.__hibanaDictEN = {
       'notes.copyMd': 'Copy as Markdown', 'notes.copiedMd': 'Copied as Markdown', 'notes.copyFailed': 'Could not copy.',
       // S63: reading-time estimate in the status row (shown only for 200+ word notes).
       'notes.readTime': '~{n} min read',
+      // S67: the card chip's short form (the reader keeps the full phrase).
+      'notes.minRead': '~{n} min',
       'notes.restore': 'Restore', 'notes.deleteForever': 'Delete forever',
       'notes.deletedNote': 'Note moved to Trash', 'notes.restored': 'Note restored', 'notes.purged': 'Deleted forever',
       'notes.deleteFailed': 'Could not delete the note.', 'notes.restoreFailed': 'Could not restore.', 'notes.purgeFailed': 'Could not delete forever.',

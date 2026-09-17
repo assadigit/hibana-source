@@ -7,6 +7,11 @@
 // specs pin the observable lifecycle: row appears with the file name → bar fills →
 // row drops on success (stays red on failure) + the grid refreshes.
 //
+// S67 refinements pinned here: the initial row state is READING (a striped
+// indeterminate bar — the FileReader base64 pass), the file SIZE rides the row, a
+// per-row ✕ CANCELS (neutral drop — no error toast, no shot card), and the task
+// EDIT dialog (the lone fetch()-era holdout) shows the same rows.
+//
 // The POST response is held via route interception so the "uploading" window is
 // observable despite localhost's instant transfer.
 // Run: npx playwright test e2e/upload-progress.spec.ts
@@ -91,9 +96,14 @@ test('main grid: progress row appears mid-upload, drops on success, grid refresh
   const row = page.locator('.shots-upload-row').first()
   await expect(row).toBeVisible({ timeout: 5_000 })
   await expect(row.locator('.shots-upload-name')).toHaveText('e2e-shot.png')
-  // While held: queued or active (localhost transfers instantly, so the bar is at 100%
+  // S67: the file size rides the row (the tiny PNG is a handful of bytes).
+  await expect(row.locator('.shots-upload-size')).toHaveText(/^\d+ B$/)
+  // While held: reading or active (localhost transfers instantly, so the bar is at 100%
   // of the REQUEST — the state machine is what's pinned, not a mid-transfer fraction).
-  await expect(row).toHaveAttribute('data-state', /^(queued|active)$/)
+  // S67: 'reading' is the new initial state (the striped base64-read phase).
+  await expect(row).toHaveAttribute('data-state', /^(reading|active)$/)
+  // S67: the cancel ✕ is reachable while the upload is in flight.
+  await expect(row.locator('.shots-upload-cancel')).toBeVisible()
 
   // Release: done → fade → the strip drops itself.
   release!()
@@ -102,6 +112,94 @@ test('main grid: progress row appears mid-upload, drops on success, grid refresh
   await expect(page.locator('#shots .shot-card').first()).toBeVisible({ timeout: 5_000 })
 
   // Zero residue: remove the project (shot cascade handled server-side).
+  await page.evaluate(async (pid) => {
+    await fetch(`/api/projects/${pid}`, { method: 'DELETE' })
+  }, id)
+})
+
+test('canceling an in-flight upload drops the row NEUTRALLY — no error toast, no shot card', async ({ page }) => {
+  await login(page)
+  const id = await openProject(page)
+
+  // Hold the POST so the cancel lands mid-flight, deterministically.
+  let release: (() => void) | null = null
+  const held = new Promise<void>((r) => (release = r))
+  await page.route(`**/api/projects/${id}/screenshots`, async (route) => {
+    if (route.request().method() === 'POST') await held
+    await route.continue()
+  })
+
+  await page.click('[data-detail-tab="media"]')
+  await expect(page.locator('#detail-media')).toBeVisible()
+  await page.setInputFiles('#shot-input', { name: 'e2e-cancel.png', mimeType: 'image/png', buffer: PNG })
+
+  const row = page.locator('.shots-upload-row').first()
+  await expect(row).toBeVisible({ timeout: 5_000 })
+
+  // Cancel → the row drops (canceled state: neutral, brief) and the strip goes too.
+  await row.locator('.shots-upload-cancel').click()
+  await expect(page.locator('.shots-upload-strip')).toHaveCount(0, { timeout: 5_000 })
+
+  // A canceled upload is NOT a failure: no red error toast.
+  await expect(page.locator('#toast .toast-msg').filter({ hasText: 'Upload failed' })).toHaveCount(0)
+
+  // Release + settle: the aborted request never produces a visible shot card
+  // (the grid refresh only rides a landed upload).
+  release!()
+  await page.waitForTimeout(400)
+  await expect(page.locator('#shots .shot-card')).toHaveCount(0)
+
+  await page.evaluate(async (pid) => {
+    await fetch(`/api/projects/${pid}`, { method: 'DELETE' })
+  }, id)
+})
+
+test('task EDIT dialog: the same progress rows (the lone fetch()-era surface joins S61/S67)', async ({ page }) => {
+  await login(page)
+  const id = await openProject(page)
+
+  // A task to edit (the API create mirrors the composer's POST) — then RELOAD so
+  // the server-rendered task list includes it (the create doesn't refresh the page).
+  await page.evaluate(async (pid) => {
+    const r = await fetch(`/api/projects/${pid}/devtasks`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ title: 'edit dialog upload probe', status: 'idea' }),
+    })
+    if (!r.ok) throw new Error('task create failed: ' + r.status)
+  }, id)
+  await page.goto(`/project.html?id=${id}`)
+  await expect(page.locator('#pd-title')).toBeVisible({ timeout: 10_000 })
+
+  let release: (() => void) | null = null
+  const held = new Promise<void>((r) => (release = r))
+  await page.route(`**/api/projects/${id}/screenshots`, async (route) => {
+    if (route.request().method() === 'POST') await held
+    await route.continue()
+  })
+
+  // Open the task edit dialog by clicking the task card.
+  const card = page.locator('.pd-task-wrap .pd-task', { hasText: 'edit dialog upload probe' }).first()
+  await expect(card).toBeVisible({ timeout: 10_000 })
+  await card.click()
+  const edit = page.locator('#pd-task-edit-modal')
+  await expect(edit).toBeVisible({ timeout: 5_000 })
+
+  // The old bare «Uploading image…» span is GONE; the shared strip takes over.
+  await expect(edit.locator('#pde-shots-uploading')).toHaveCount(0)
+
+  await page.setInputFiles('#pde-shots', { name: 'e2e-editdlg.png', mimeType: 'image/png', buffer: PNG })
+  const row = page.locator('.shots-upload-row').first()
+  await expect(row).toBeVisible({ timeout: 5_000 })
+  await expect(row.locator('.shots-upload-name')).toHaveText('e2e-editdlg.png')
+  await expect(row.locator('.shots-upload-size')).toHaveText(/^\d+ B$/)
+  await expect(row).toHaveAttribute('data-state', /^(reading|active)$/)
+
+  // Release: done → strip drops; the pinned shot renders in the editor's grid.
+  release!()
+  await expect(page.locator('.shots-upload-strip')).toHaveCount(0, { timeout: 5_000 })
+  await expect(edit.locator('#pde-shots-grid .shot-card').first()).toBeVisible({ timeout: 10_000 })
+
   await page.evaluate(async (pid) => {
     await fetch(`/api/projects/${pid}`, { method: 'DELETE' })
   }, id)

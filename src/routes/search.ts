@@ -20,7 +20,7 @@ import type { Config, ProjectRow, UserRow } from '../types'
 // new groups are returned in the JSON body for the command palette (command-palette.js).
 
 type NoteHit = { id: string; title: string; kind: string; snippet?: string }
-type VaultHit = { id: string; title: string; starred: number; folder: string | null; snippet: string }
+type VaultHit = { id: string; title: string; starred: number; folder: string | null; folder_id: string | null; snippet: string }
 type BacklogHit = { id: string; doc_id: string; project_id: string; project_title: string; title: string }
 type SadhanaHit = { id: string; title: string; quadrant: number }
 type CanvasHit = { id: string; type: string; board: string }
@@ -128,9 +128,13 @@ export function searchRoutes(cfg: Config) {
     // escaped (a stray % must not match everything). The snippet is a ~64-char window
     // around the first match so long notes surface WHERE they hit, not just that they
     // did. Deep link → notes.html#n=<id> (the vault editor's own deep-link format).
+    // S67: folder_id rides along so the palette can render the folder as a CLICKABLE
+    // chip → /notes.html?view=folder&folder=<id> (the vault boots straight into it) —
+    // a body match in a known folder becomes one click from "open the note" to
+    // "open the folder and look around" (the S63 candidate, shipped).
     const vaultPattern = `%${q.data.q.replace(/[\\%_]/g, (ch) => '\\' + ch)}%`
-    const vaultRows = await cfg.db.query<{ id: string; title: string; content: string; starred: number; folder: string | null }>(
-      `SELECT n.id, n.title, n.content, n.starred, f.name AS folder
+    const vaultRows = await cfg.db.query<{ id: string; title: string; content: string; starred: number; folder: string | null; folder_id: string | null }>(
+      `SELECT n.id, n.title, n.content, n.starred, f.name AS folder, n.folder_id
        FROM vault_notes n
        LEFT JOIN note_folders f ON f.id = n.folder_id
        WHERE n.user_id = ? AND n.deleted_at IS NULL
@@ -152,6 +156,7 @@ export function searchRoutes(cfg: Config) {
       title: r.title,
       starred: r.starred,
       folder: r.folder,
+      folder_id: r.folder_id,
       snippet: snippetOf(r.content && r.content.toLowerCase().includes(lowerQ) ? r.content : r.title),
     }))
 

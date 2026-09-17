@@ -1220,3 +1220,32 @@
   .markdown-body { color: #000; }
   .markdown-body a { color: #000; text-decoration: underline; }
 }
+
+/* ════════════════ S67: reading-time chip on the card ════════════════════════
+   The S63 reader-head estimate, surfaced where the list is scanned. Sits AFTER
+   the word count at the meta row's inline end — muted like the words, but with
+   the clock glyph + a hairline ring so it reads as a chip, not more text. The
+   card-hover language warms it slightly (same affordance as the amber star). */
+.vault-card-read {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.22rem;
+  flex: none;
+  padding: 0.05rem 0.45rem;
+  border-radius: 99px;
+  border: 1px solid color-mix(in srgb, var(--line) 70%, transparent);
+  color: var(--muted);
+  font-size: 0.6875rem;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  transition: border-color 0.15s ease, color 0.15s ease;
+}
+.vault-card-read .icon { width: 0.7rem; height: 0.7rem; flex: none; opacity: 0.75; }
+.vault-card:hover .vault-card-read {
+  color: color-mix(in srgb, var(--muted) 72%, var(--accent));
+  border-color: color-mix(in srgb, var(--accent) 32%, var(--line));
+}
+/* In the trash view the words span is REPLACED by the restore/purge buttons —
+   the chip keeps its end-of-row seat via its own margin (words' auto-margin is
+   gone there). */
+.vault-card-trash ~ .vault-card-read { margin-inline-start: auto; }

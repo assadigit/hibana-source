@@ -117,6 +117,13 @@ export const uploadScreenshotSchema = z.object({
   mimeType: z.string().regex(/^image\/(png|jpeg|webp|gif)$/),
   dataBase64: z.string().min(1).max(5_000_000), // P1.1 (F-H1): 5 MB base64 (~3.7 MB binary) — ample for a screenshot. Was 140 MB which EXCEEDED GitHub's 100 MB cap and would OOM the Worker.
   caption: z.string().max(1000).optional().default(''),
+  // S69 (perf §10-F1): optional GRID TILE variant — a ≤320px WebP the client generates
+  // at upload (image-resize canvas pass). Stored next to the original at
+  // `<github_path>.thumb`; the gallery grid requests ?variant=thumb so a 70-tile grid
+  // stops transferring full-size originals (~6.5MB → ~1MB). Always image/webp (the
+  // generator feature-detects; a browser without webp canvas export sends no thumb and
+  // the server falls back to the original bytes).
+  thumbBase64: z.string().min(1).max(120_000).optional(), // ~90KB binary cap — a 320px WebP is 5-25KB
 })
 
 export const registerSchema = z.object({

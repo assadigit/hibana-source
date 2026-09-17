@@ -55,6 +55,25 @@ try {
 // Target precedence: a rendered <main> (the .landmark-ghost display:contents wrappers on
 // canvas/notebook can't take focus), then the board wrappers. Auth pages have their own
 // <main class="auth-split"> and get the link too (consistent first Tab stop everywhere).
+// S69 (perf §10-F1): on-demand loader for the shared image-resize helper (canvas
+// downscale + WebP). The helper is page-specific (~4KB); app.js runs on every page, so
+// instead of shipping it everywhere it is injected the FIRST time a quick-add sketch
+// actually needs resizing (screenshots get bounded to ≤1600px + a gallery tile — the
+// perf §10-F1 fix). Resolves false when the script can't load — callers keep the raw
+// upload path. Idempotent: one <script> tag per document, ever.
+let __imgResizeLoader = null
+function ensureImageResize() {
+  if (window.hibanaImageResize) return Promise.resolve(window.hibanaImageResize)
+  if (__imgResizeLoader) return __imgResizeLoader
+  __imgResizeLoader = new Promise((resolve) => {
+    const s = document.createElement('script')
+    s.src = '/js/image-resize.js?v=1'
+    s.onload = () => resolve(window.hibanaImageResize || null)
+    s.onerror = () => resolve(null)
+    document.head.appendChild(s)
+  })
+  return __imgResizeLoader
+}
 ;(() => {
   try {
     const target = document.querySelector('main:not(.landmark-ghost), .sadhana-wrap, .shell, #canvas-wrap, #nb-page')
@@ -290,16 +309,42 @@ window.hibana = (() => {
         const file = document.getElementById('qa-file').files[0]
         if (file) {
           // Optional sketch attached to the raw idea (spec §2) — uploaded once the project exists.
-          const b64 = await new Promise((resolve, reject) => {
-            const r = new FileReader()
-            r.onload = () => resolve(String(r.result).split(',')[1])
-            r.onerror = reject
-            r.readAsDataURL(file)
-          })
+          // S69 (perf §10-F1): the sketch gets the SAME treatment as every other screenshot —
+          // bounded to ≤1600px WebP + a ≤320px grid tile for the gallery. The resize helper
+          // isn't on every page (it's page-specific), so it's injected ON DEMAND here (one
+          // <script> per session, ~4KB) instead of shipping on all 22 app pages. GIFs and
+          // helper failures fall back to the raw FileReader path (the old behavior).
+          let dataBase64 = null
+          let mimeType = file.type
+          let thumbBase64 = null
+          const R = await ensureImageResize()
+          if (R && file.type !== 'image/gif' && file.type !== 'image/svg+xml') {
+            try {
+              const img = await R.decodeImage(file)
+              if (Math.max(img.width, img.height) > 1600 || file.size > 220 * 1024) {
+                const main = await R.resizeAndEncode(file, { maxDim: 1600, quality: 0.85 })
+                dataBase64 = main.dataBase64
+                mimeType = main.mimeType
+              }
+              try {
+                const t = await R.resizeAndEncode(file, { maxDim: 320, quality: 0.8 })
+                if (t.mimeType === 'image/webp' && t.dataBase64.length <= 120_000) thumbBase64 = t.dataBase64
+              } catch { /* tile optional */ }
+            } catch { /* canvas failed — raw below */ }
+          }
+          if (!dataBase64) {
+            dataBase64 = await new Promise((resolve, reject) => {
+              const r = new FileReader()
+              r.onload = () => resolve(String(r.result).split(',')[1])
+              r.onerror = reject
+              r.readAsDataURL(file)
+            })
+            mimeType = file.type
+          }
           await fetch(`/api/projects/${id}/screenshots`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ fileName: file.name, mimeType: file.type, dataBase64: b64 }),
+            body: JSON.stringify({ fileName: file.name, mimeType, dataBase64, ...(thumbBase64 ? { thumbBase64 } : {}) }),
           }).catch(() => {}) // attachment failure must not block capture
         }
         if (synced && drained && navigator.onLine) {

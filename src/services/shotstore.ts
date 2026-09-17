@@ -35,6 +35,8 @@ export async function purgeShotBytes(cfg: Config, projectIds: string[]): Promise
     )
     if (!rows.length) return
     const store = shotStoreFor(cfg)
-    await Promise.allSettled(rows.map((r) => store.deleteObject(r.github_path)))
+    // S69: each shot's .thumb tile sibling rides along — a purged project must not
+    // leave orphaned grid tiles in the bucket either.
+    await Promise.allSettled(rows.flatMap((r) => [store.deleteObject(r.github_path), store.deleteObject(`${r.github_path}.thumb`)]))
   } catch { /* the row delete must never fail because of byte cleanup */ }
 }

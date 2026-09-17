@@ -141,6 +141,83 @@
           return true
         })
 
+        // S69 (perf §10-F1): TRUE lazy tiles. Native loading="lazy" was ineffective —
+        // Chromium's lazy-prefetch margin (~4 viewports) covered the whole 70-tile grid,
+        // so every full-size original transferred up front (measured 6.5MB / 71–75 API
+        // calls per gallery load). Tiles now hold a shimmering 16:11 frame and fetch
+        // ONLY when they approach the viewport (rootMargin 700px). The fetch requests
+        // the ?variant=thumb tile (≤320px WebP, ~5–25KB) — the server falls back to the
+        // original bytes for legacy shots and says so with X-Hibana-Thumb: miss, which
+        // self-heals below. The lightbox keeps full-size originals (unchanged).
+        const objectUrls = new Set()
+        const healedThisSession = new Set()
+        const thumbUrl = (id) => '/api/media/screenshots/' + encodeURIComponent(id) + '/file?variant=thumb'
+        const lazyIO = new IntersectionObserver((entries) => {
+          for (const en of entries) {
+            if (!en.isIntersecting) continue
+            lazyIO.unobserve(en.target)
+            loadTile(en.target)
+          }
+        }, { rootMargin: '700px 0px' })
+
+        // Generate + PUT a ≤320px WebP tile for a legacy shot (best-effort, once per
+        // session per id): decode the already-loaded original, downscale on canvas,
+        // PATCH it beside the original. Every later visit — this device or any other —
+        // gets the cheap tile. Skips silently when the browser can't export webp or the
+        // result exceeds the server's cap.
+        const selfHealThumb = async (id, objectUrl) => {
+          if (healedThisSession.has(id)) return
+          healedThisSession.add(id)
+          try {
+            const img = new Image()
+            img.src = objectUrl
+            await img.decode()
+            const scale = Math.min(1, 320 / Math.max(img.width, img.height))
+            const w = Math.max(1, Math.round(img.width * scale))
+            const h = Math.max(1, Math.round(img.height * scale))
+            const canvas = document.createElement('canvas')
+            canvas.width = w
+            canvas.height = h
+            canvas.getContext('2d').drawImage(img, 0, 0, w, h)
+            const dataUrl = canvas.toDataURL('image/webp', 0.8)
+            if (!dataUrl.startsWith('data:image/webp')) return // no webp canvas export
+            const b64 = dataUrl.split(',')[1]
+            if (b64.length > 120_000) return // over the server's thumb cap — not worth it
+            await fetch('/api/screenshots/' + encodeURIComponent(id), {
+              method: 'PATCH',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ thumbBase64: b64 }),
+            })
+          } catch { /* best-effort — the next miss retries */ }
+        }
+
+        const loadTile = async (btn) => {
+          const id = btn.getAttribute('data-gal-zoom')
+          if (!id) return
+          const img = btn.querySelector('img')
+          if (!img) return
+          try {
+            const res = await fetch(thumbUrl(id))
+            if (!res.ok) throw new Error('status ' + res.status)
+            const miss = res.headers.get('X-Hibana-Thumb') === 'miss'
+            const blob = await res.blob()
+            const url = URL.createObjectURL(blob)
+            objectUrls.add(url)
+            img.addEventListener('load', () => { img.classList.add('is-in') }, { once: true })
+            img.src = url
+            if (miss) selfHealThumb(id, url) // legacy shot — leave a tile behind for next time
+          } catch {
+            // offline / SW failure — fall back to a direct src (alt text carries the tile)
+            img.addEventListener('load', () => { img.classList.add('is-in') }, { once: true })
+            img.src = thumbUrl(id)
+          }
+        }
+
+        const observeTiles = () => {
+          lazyIO.disconnect() // a re-render rebuilds the grid — start observations fresh
+          grid.querySelectorAll('.shot-img-btn[data-gal-zoom]').forEach((btn) => lazyIO.observe(btn))
+        }
+
         const render = () => {
           // stats + project select (both derive from the CURRENT rows)
           const totalBytes = state.rows.reduce((n, r) => n + (r.bytes || 0), 0)
@@ -168,7 +245,7 @@
                 : ''
               return '<figure class="shot shot-card gal-card' + (r.resolved ? ' is-fixed' : '') + '" data-shot="' + esc(r.id) + '">' +
                 '<button type="button" class="shot-img-btn" data-gal-zoom="' + esc(r.id) + '" aria-label="' + esc(_t('project.shotZoom', 'Screenshot')) + '">' +
-                '<img src="/api/media/screenshots/' + esc(r.id) + '/file" alt="' + esc(r.caption || '') + '" loading="lazy" decoding="async"></button>' +
+                '<img alt="' + esc(r.caption || '') + '" decoding="async"></button>' +
                 '<figcaption class="shot-body">' +
                 '<p class="shot-note muted small" dir="auto">' + (esc(r.caption) || '<span class="shot-note-empty">' + esc(_t('gallery.noNote', 'No note')) + '</span>') + '</p>' +
                 '<div class="row gal-chips" style="gap:0.3rem;flex-wrap:wrap">' +
@@ -182,7 +259,12 @@
                 '</div></figcaption></figure>'
             }).join('')
             : '<div class="empty-state empty"><span class="empty-state-icon" aria-hidden="true"><svg class="icon" viewBox="0 0 24 24"><rect x="3.5" y="5" width="17" height="14" rx="2"/><circle cx="8" cy="10" r="1.5"/><path d="M21 16l-5-5L5 19"/></svg></span><p class="empty-state-title">' + esc(_t('gallery.emptyTitle', 'No pictures yet')) + '</p><p class="empty-state-text">' + esc(_t('gallery.emptyText', 'Pictures you upload on a project page (the Screenshots tab) all land here — one safe, permanent library.')) + '</p><a class="empty-state-cta btn" href="/projects.html">' + esc(_t('gallery.emptyCta', 'Open your projects')) + '</a></div>'
+          // S69: stale object URLs from the previous render go back to the browser
+          // (the grid rebuild drops every reference to them).
+          for (const u of objectUrls) { try { URL.revokeObjectURL(u) } catch {} }
+          objectUrls.clear()
           grid.setAttribute('aria-busy', 'false')
+          observeTiles()
         }
 
         const load = async () => {

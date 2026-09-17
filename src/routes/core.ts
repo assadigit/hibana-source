@@ -396,6 +396,13 @@ export function coreRoutes(cfg: Config) {
     const safeName = body.fileName.replace(/[^\w.\- ]/g, '_')
     const path = assetPath({ user_id: user.id, project_id: p.id }, 'screenshots', `${id}-${safeName}`)
     await shotStore.putObject(path, body.dataBase64, body.mimeType)
+    // S69 (perf §10-F1): the grid-tile variant — a ≤320px WebP stored beside the
+    // original (same key + '.thumb'). Best-effort: a failed thumb write must never
+    // fail the upload itself (the original is the source of truth; the gallery falls
+    // back to full-size + client self-heal).
+    if (body.thumbBase64) {
+      try { await shotStore.putObject(`${path}.thumb`, body.thumbBase64, 'image/webp') } catch { /* tile falls back to the original */ }
+    }
     // S39 (0054): exact decoded size — base64 without padding × 3/4. Never re-encoded,
     // never estimated: the gallery's space meter sums THIS column.
     const byteLen = Math.floor(body.dataBase64.replace(/=+$/, '').length * 3 / 4)
@@ -416,10 +423,14 @@ export function coreRoutes(cfg: Config) {
     caption: z.string().max(1000).optional(),
     resolved: z.union([z.literal(0), z.literal(1)]).optional(),
     taskId: z.union([z.string().uuid(), z.literal(''), z.null()]).optional(),
+    // S69 self-heal: the gallery generates the ≤320px WebP tile for legacy shots (the
+    // ones whose ?variant=thumb fell back with X-Hibana-Thumb: miss) and PUTs it here
+    // once — best-effort, capped, and NEVER over DB state (object-store only).
+    thumbBase64: z.string().min(1).max(120_000).optional(),
   })
   app.patch('/api/screenshots/:id', async (c) => {
     const body = await jsonBody<z.infer<typeof patchScreenshotSchema>>(c, patchScreenshotSchema)
-    if (!body || (body.caption === undefined && body.resolved === undefined && body.taskId === undefined)) return c.json({ error: 'invalid_input' }, 400)
+    if (!body || (body.caption === undefined && body.resolved === undefined && body.taskId === undefined && body.thumbBase64 === undefined)) return c.json({ error: 'invalid_input' }, 400)
     const user = c.get('user')
     const t = trFor(c)
     const projectId = await ownedRecord(user.id, c.req.param('id'), 'screenshots')
@@ -442,6 +453,14 @@ export function coreRoutes(cfg: Config) {
       const target = body.taskId === '' || body.taskId === null ? null : body.taskId
       await cfg.db.execute('UPDATE screenshots SET task_id = ? WHERE id = ? AND project_id = ?', [target, c.req.param('id'), projectId])
     }
+    // S69: the self-heal tile write — after the field updates so a bad thumb can never
+    // mask a real edit. Object-store only; a failure is silent (the next miss retries).
+    if (body.thumbBase64 !== undefined) {
+      const row = await cfg.db.query<{ github_path: string }>('SELECT github_path FROM screenshots WHERE id = ? AND project_id = ?', [c.req.param('id'), projectId])
+      if (row[0]?.github_path) {
+        try { await shotStore.putObject(`${row[0].github_path}.thumb`, body.thumbBase64, 'image/webp') } catch { /* best-effort */ }
+      }
+    }
     await cfg.db.execute('UPDATE projects SET updated_at = ? WHERE id = ?', [now, projectId])
     if (c.req.header('HX-Request')) return c.html(toastHtml(t('Saved', 'ذخیره شد'), localeOf(c)))
     return c.json({ ok: true })
@@ -452,7 +471,26 @@ export function coreRoutes(cfg: Config) {
     const projectId = await ownedRecord(user.id, c.req.param('id'), 'screenshots')
     if (!projectId) return c.json({ error: 'not_found' }, 404)
     const rec = await cfg.db.query<ScreenshotRow>('SELECT * FROM screenshots WHERE id = ? AND project_id = ?', [c.req.param('id'), projectId])
-    const bytes = await shotStore.getObject(rec[0].github_path) // raw bytes — never text-decoded
+    // S69 (perf §10-F1): ?variant=thumb serves the ≤320px WebP tile when one exists —
+    // the gallery grid no longer transfers full-size originals. A miss (legacy shots,
+    // or a failed thumb write) falls back to the original bytes and says so via
+    // X-Hibana-Thumb: miss, which the gallery uses to self-heal (generate + PATCH the
+    // thumb once, best-effort — every later visit on any device gets the cheap tile).
+    const wantThumb = c.req.query('variant') === 'thumb'
+    let bytes: ArrayBuffer
+    let mime = rec[0].mime_type
+    let thumbMiss = false
+    if (wantThumb) {
+      try {
+        bytes = await shotStore.getObject(`${rec[0].github_path}.thumb`)
+        mime = 'image/webp'
+      } catch {
+        bytes = await shotStore.getObject(rec[0].github_path)
+        thumbMiss = true
+      }
+    } else {
+      bytes = await shotStore.getObject(rec[0].github_path) // raw bytes — never text-decoded
+    }
     // S39 self-heal: legacy rows (pre-0054) have bytes=0; the object is ALREADY in
     // hand here, so record its true size once — the gallery's space meter goes honest
     // on the first view. Idempotent (guarded by bytes = 0) + best-effort (a failed
@@ -460,9 +498,9 @@ export function coreRoutes(cfg: Config) {
     if (rec[0].bytes === 0 && bytes.byteLength > 0) {
       try { await cfg.db.execute('UPDATE screenshots SET bytes = ? WHERE id = ? AND bytes = 0', [bytes.byteLength, c.req.param('id')]) } catch { /* meter stays 0 — harmless */ }
     }
-    return new Response(bytes, {
-      headers: { 'Content-Type': rec[0].mime_type, 'Cache-Control': 'private, max-age=3600' },
-    })
+    const headers: Record<string, string> = { 'Content-Type': mime, 'Cache-Control': 'private, max-age=3600' }
+    if (thumbMiss) headers['X-Hibana-Thumb'] = 'miss'
+    return new Response(bytes, { headers })
   })
 
   app.delete('/api/screenshots/:id', async (c) => {
@@ -471,8 +509,14 @@ export function coreRoutes(cfg: Config) {
     const projectId = await ownedRecord(user.id, c.req.param('id'), 'screenshots')
     if (!projectId) return c.json({ error: 'not_found' }, 404)
     // S35: clean the remote bytes too (best-effort — the row is the truth either way).
+    // S69: the .thumb sibling object rides along — a deleted shot leaves no tile orphan.
     const rec = await cfg.db.query<ScreenshotRow>('SELECT github_path FROM screenshots WHERE id = ? AND project_id = ?', [c.req.param('id'), projectId])
-    try { if (rec[0]?.github_path) await shotStore.deleteObject(rec[0].github_path) } catch { /* storage hiccup — the row still goes */ }
+    try {
+      if (rec[0]?.github_path) {
+        await shotStore.deleteObject(rec[0].github_path)
+        await shotStore.deleteObject(`${rec[0].github_path}.thumb`)
+      }
+    } catch { /* storage hiccup — the row still goes */ }
     await cfg.db.execute('DELETE FROM screenshots WHERE id = ? AND project_id = ?', [c.req.param('id'), projectId])
     if (c.req.header('HX-Request')) return c.html(toastHtml(t('Screenshot deleted', 'اسکرین‌شات حذف شد'), localeOf(c)))
     return c.json({ ok: true })

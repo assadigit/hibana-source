@@ -59,6 +59,17 @@
             // registerAbort is called once per phase (reader, then xhr) with that
             // phase's abort function — the row's ✕ aborts whichever is live, so a
             // cancel during the base64 READ is as effective as one mid-transfer.
+            // S69 (perf §10-F1): a PREPARE phase runs first — image-resize.js (loaded
+            // by this page) bounds the screenshot to ≤1600px WebP before upload
+            // (~100–300KB instead of multi-MB phone shots — same treatment logos and
+            // avatars already get) and generates the ≤320px grid TILE the gallery
+            // serves instead of the original. GIFs skip both (a canvas pass would
+            // flatten the animation); tiny files skip the resize (never upscale) but
+            // still get a tile. No helper (older cache) or a canvas failure → the raw
+            // FileReader path, byte-for-byte the old behavior.
+            let prepareAborted = false
+            let pendingThumb = null // S69: tile generated during prepare rides the raw (small-file) path too
+            if (registerAbort) registerAbort(() => { prepareAborted = true })
             const reader = new FileReader()
             if (registerAbort) registerAbort(() => { try { reader.abort() } catch { /* already done */ } })
             reader.onabort = () => reject(new Error('aborted'))
@@ -75,10 +86,43 @@
               }
               xhr.onerror = () => reject(new Error('network'))
               xhr.onabort = () => reject(new Error('aborted'))
-              xhr.send(JSON.stringify({ fileName: file.name, mimeType: file.type, dataBase64: b64, caption: '' }))
+              xhr.send(JSON.stringify({ fileName: file.name, mimeType: file.type, dataBase64: b64, caption: '', ...(pendingThumb ? { thumbBase64: pendingThumb } : {}) }))
             }
             reader.onerror = () => reject(new Error('read-failed'))
-            reader.readAsDataURL(file)
+            const R = window.hibanaImageResize
+            if (!R || file.type === 'image/gif' || file.type === 'image/svg+xml') { reader.readAsDataURL(file); return }
+            // Resize + tile (both canvas passes; failures fall back to the raw path).
+            ;(async () => {
+              try {
+                const img = await R.decodeImage(file)
+                const maxSide = Math.max(img.width, img.height)
+                const tooBig = maxSide > 1600 || file.size > 220 * 1024
+                const main = tooBig ? await R.resizeAndEncode(file, { maxDim: 1600, quality: 0.85 }) : null
+                let thumb = null
+                try {
+                  const t = await R.resizeAndEncode(file, { maxDim: 320, quality: 0.8 })
+                  if (t.mimeType === 'image/webp' && t.dataBase64.length <= 120_000) thumb = t.dataBase64
+                } catch { /* tile is optional */ }
+                if (prepareAborted) return reject(new Error('aborted'))
+                if (!main) { pendingThumb = thumb; reader.readAsDataURL(file); return } // small file — raw bytes + tile
+                if (prepareAborted) return reject(new Error('aborted'))
+                const xhr = new XMLHttpRequest()
+                if (registerAbort) registerAbort(() => { try { xhr.abort() } catch { /* already done */ } })
+                xhr.open('POST', `/api/projects/${id}/screenshots`)
+                xhr.setRequestHeader('Content-Type', 'application/json')
+                xhr.upload.onprogress = (ev) => { if (ev.lengthComputable && onProgress) onProgress(ev.loaded / ev.total) }
+                xhr.onload = () => {
+                  if (xhr.status >= 200 && xhr.status < 300) { try { resolve(JSON.parse(xhr.responseText)) } catch { resolve({}) } }
+                  else reject(new Error('status ' + xhr.status))
+                }
+                xhr.onerror = () => reject(new Error('network'))
+                xhr.onabort = () => reject(new Error('aborted'))
+                xhr.send(JSON.stringify({ fileName: file.name, mimeType: main.mimeType, dataBase64: main.dataBase64, caption: '', ...(thumb ? { thumbBase64: thumb } : {}) }))
+              } catch {
+                if (prepareAborted) return reject(new Error('aborted'))
+                reader.readAsDataURL(file) // canvas failed — the raw path still works
+              }
+            })()
           })
         // The strip: a small stack of per-file rows (name + size + bar + % + ✕). Mounted
         // once per surface; rows go reading → active → done/error/canceled. aria-live=

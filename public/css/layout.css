@@ -706,6 +706,32 @@ input::placeholder, textarea::placeholder { font-size: 0.88em; opacity: 0.7; } /
 .gallery-state.is-on { border-color: var(--brand); color: var(--brand); }
 .gallery-grid { grid-template-columns: repeat(auto-fill, minmax(11rem, 1fr)); }
 .gal-card .shot-body { padding: 0.4rem 0.1rem 0.15rem; }
+/* S69 (perf §10-F1): lazy gallery tiles. The tile frame is FIXED (16:11, cover-crop)
+   so the grid layout is stable before any byte arrives; the button carries a shimmer
+   placeholder while the thumb variant streams in, and the image blur-up-fades once
+   decoded (.is-in). Uniform frames + cover crop also read as a proper media library
+   (the wordpress-style grid the owner asked for) instead of ragged natural heights. */
+.gal-card .shot-img-btn { aspect-ratio: 16 / 11; }
+.gal-card .shot-img-btn img {
+  width: 100%; height: 100%; object-fit: cover;
+  opacity: 0; filter: blur(10px);
+  transition: opacity 0.4s ease, filter 0.4s ease;
+}
+.gal-card .shot-img-btn img.is-in { opacity: 1; filter: blur(0); }
+.gal-card.shot-card.is-fixed .shot-img-btn img.is-in { opacity: 0.75; }
+@keyframes gal-tile-shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+.gal-card .shot-img-btn {
+  background: linear-gradient(100deg, var(--card, #f6f5f1) 42%, rgb(127 127 127 / 0.10) 50%, var(--card, #f6f5f1) 58%);
+  background-size: 200% 100%;
+  animation: gal-tile-shimmer 1.6s linear infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .gal-card .shot-img-btn { animation: none; }
+  .gal-card .shot-img-btn img { transition: none; }
+}
 /* chips row: the chips are inline-flex (nowrap+ellipsis) — without an explicit
    min-inline-size 0 they refuse to shrink under their max-content and the whole
    row overflows its grid track (a 4px page-wide h-scroll at 390px, RTL). */

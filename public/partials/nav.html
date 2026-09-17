@@ -15,6 +15,15 @@
   </div>
   <span class="grow"></span>
   <span class="row nav-actions">
+    <!-- S61: the command palette (Ctrl+K / "/") was keyboard-ONLY — touch users had zero
+         access and desktop users had no visible affordance. A search-style button in the
+         chrome opens it; command-palette.js binds [data-cmdk-open] clicks (delegated, so
+         it survives any re-injection of this partial). The kbd chip hides under 1280px. -->
+    <button type="button" class="topbar-search" data-cmdk-open aria-label="Search and run commands" data-i18n-aria-label="nav.searchCmd">
+      <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
+      <span class="topbar-search-label" data-i18n="nav.search">Search</span>
+      <kbd class="topbar-search-kbd">Ctrl K</kbd>
+    </button>
     <span class="user-menu">
       <button type="button" class="user-chip" data-user aria-haspopup="true" aria-label="Account menu"></button>
       <div class="user-menu-pop">
@@ -66,4 +75,4 @@
   </span>
   <span data-syncbadge class="sync-badge" hidden></span>
 </nav>
-<!-- v158 -->
+<!-- v159 -->

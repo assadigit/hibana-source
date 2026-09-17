@@ -35,25 +35,107 @@
         // Screenshot gallery upload (drag-drop/paste/file-picker — spec §4.6).
         // S35: shots upload IMMEDIATELY (no caption prompt) — each lands as an OPEN
         // problem card; the note ("what & where to work") is written on the card after.
+        // S61: real upload progress. fetch() fires no upload-progress events, and the
+        // base64-JSON bodies are big on mobile — so both upload surfaces (this grid +
+        // the task composer's staged shots) share an XHR helper with live per-file bars.
+        const faDig = (s) => (document.documentElement.lang === 'fa' ? String(s).replace(/\d/g, (d) => '۰۱۲۳۴۵۶۷۸۹'[+d]) : String(s))
+        const uploadShotXHR = (file, onProgress) =>
+          new Promise((resolve, reject) => {
+            const reader = new FileReader()
+            reader.onload = () => {
+              const b64 = String(reader.result).split(',')[1]
+              const xhr = new XMLHttpRequest()
+              xhr.open('POST', `/api/projects/${id}/screenshots`)
+              xhr.setRequestHeader('Content-Type', 'application/json')
+              xhr.upload.onprogress = (ev) => { if (ev.lengthComputable && onProgress) onProgress(ev.loaded / ev.total) }
+              xhr.onload = () => {
+                if (xhr.status >= 200 && xhr.status < 300) { try { resolve(JSON.parse(xhr.responseText)) } catch { resolve({}) } }
+                else reject(new Error('status ' + xhr.status))
+              }
+              xhr.onerror = () => reject(new Error('network'))
+              xhr.send(JSON.stringify({ fileName: file.name, mimeType: file.type, dataBase64: b64, caption: '' }))
+            }
+            reader.onerror = () => reject(new Error('read-failed'))
+            reader.readAsDataURL(file)
+          })
+        // The strip: a small stack of per-file rows (name + bar + %). Mounted once per
+        // surface; rows go queued → active → done/error. aria-live=polite so SR users
+        // hear completion without the per-file toast spam. done rows fade+remove, error
+        // rows linger 6s in red, and the strip itself drops when the last row leaves.
+        const makeUploadStrip = (mount, insertBefore) => {
+          if (!mount) return { addRow: () => ({ setProgress() {}, done() {}, failed() {} }) } // fragment gone — upload still works, just no bar
+          let strip = mount.querySelector(':scope > .shots-upload-strip')
+          const ensure = () => {
+            if (strip) return strip
+            strip = document.createElement('div')
+            strip.className = 'shots-upload-strip'
+            strip.setAttribute('role', 'status')
+            strip.setAttribute('aria-live', 'polite')
+            strip.setAttribute('data-i18n-aria-label', 'project.uploading')
+            strip.setAttribute('aria-label', _t('project.uploading', 'Uploading…'))
+            mount.insertBefore(strip, insertBefore || null)
+            return strip
+          }
+          return {
+            addRow(fileName) {
+              ensure()
+              const row = document.createElement('div')
+              row.className = 'shots-upload-row'
+              row.dataset.state = 'queued'
+              row.innerHTML =
+                '<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="5" width="17" height="14" rx="2"/><circle cx="8" cy="10" r="1.5"/><path d="M21 16l-5-5L5 19"/></svg>' +
+                '<span class="shots-upload-name"></span>' +
+                '<div class="shots-upload-bar" aria-hidden="true"><div class="shots-upload-fill"></div></div>' +
+                '<span class="shots-upload-pct"></span>'
+              row.querySelector('.shots-upload-name').textContent = fileName // textContent — never innerHTML for names
+              strip.appendChild(row)
+              const fill = row.querySelector('.shots-upload-fill')
+              const pctEl = row.querySelector('.shots-upload-pct')
+              const drop = () => {
+                row.remove()
+                if (strip && !strip.querySelector('.shots-upload-row')) { strip.remove(); strip = null }
+              }
+              return {
+                setProgress(frac) {
+                  if (row.dataset.state === 'done' || row.dataset.state === 'error') return
+                  row.dataset.state = 'active'
+                  const pct = Math.max(0, Math.min(100, Math.round((frac || 0) * 100)))
+                  fill.style.inlineSize = pct + '%'
+                  pctEl.textContent = pct > 0 ? faDig(pct + '%') : ''
+                },
+                done() {
+                  row.dataset.state = 'done'
+                  fill.style.inlineSize = '100%'
+                  pctEl.textContent = ''
+                  setTimeout(drop, 650)
+                },
+                failed() {
+                  row.dataset.state = 'error'
+                  pctEl.textContent = '✕'
+                  setTimeout(drop, 6000)
+                },
+              }
+            },
+          }
+        }
         const upload = async (files) => {
+          const grid = document.getElementById('shots')
+          const strip = makeUploadStrip(grid ? grid.parentElement : null, grid)
           for (const file of files) {
-            const b64 = await new Promise((resolve, reject) => {
-              const r = new FileReader()
-              r.onload = () => resolve(String(r.result).split(',')[1])
-              r.onerror = reject
-              r.readAsDataURL(file)
-            })
-            const res = await fetch(`/api/projects/${id}/screenshots`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ fileName: file.name, mimeType: file.type, dataBase64: b64, caption: '' }),
-            })
-            const toastOk = res.ok
-            window.hibana?.toast(toastOk ? _t('project.shotUploaded', 'Screenshot uploaded') : _t('project.shotFailed', 'Upload failed'), toastOk ? 'info' : 'err')
-            // 2026-09-05 repair: #shots carries no hx-get, so the old
-            // `htmx.trigger('#shots','load')` was a no-op and fresh uploads never
-            // showed. Pull the server-rendered grid fragment instead.
-            if (toastOk && window.htmx) window.htmx.ajax('GET', `/api/projects/${id}/screenshots`, { target: '#shots', swap: 'innerHTML' })
+            const row = strip.addRow(file.name)
+            try {
+              const res = await uploadShotXHR(file, (f) => row.setProgress(f))
+              row.done()
+              window.hibana?.toast(_t('project.shotUploaded', 'Screenshot uploaded'), 'info')
+              // 2026-09-05 repair: #shots carries no hx-get, so the old
+              // `htmx.trigger('#shots','load')` was a no-op and fresh uploads never
+              // showed. Pull the server-rendered grid fragment instead.
+              if (window.htmx) window.htmx.ajax('GET', `/api/projects/${id}/screenshots`, { target: '#shots', swap: 'innerHTML' })
+              void res
+            } catch {
+              row.failed()
+              window.hibana?.toast(_t('project.shotFailed', 'Upload failed'), 'err')
+            }
           }
         }
         // 2026-09-05 repair: #shot-input renders INSIDE the htmx project fragment, so the
@@ -77,30 +159,19 @@
           const files = [...(e.target.files || [])].filter((f) => f.type.startsWith('image/'))
           e.target.value = ''
           if (!files.length) return
-          // S46.4: show «در حال اپلود تصویر ...» during the upload
-          const upl = document.getElementById('pd-taskadd-shots-uploading')
-          if (upl) upl.hidden = false
+          // S61: per-file progress rows replace the bare «در حال اپلود تصویر …» text —
+          // same strip factory as the media grid, mounted on the composer's shots row.
+          const comp = document.getElementById('pd-taskadd-shots-grid')
+          const strip = makeUploadStrip(comp ? comp.parentElement : null, comp)
           let ok = 0, fail = 0
           for (const file of files) {
+            const row = strip.addRow(file.name)
             try {
-              const b64 = await new Promise((resolve, reject) => {
-                const r = new FileReader()
-                r.onload = () => resolve(String(r.result).split(',')[1])
-                r.onerror = reject
-                r.readAsDataURL(file)
-              })
-              const upRes = await fetch('/api/projects/' + id + '/screenshots', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ fileName: file.name, mimeType: file.type, dataBase64: b64, caption: '' }),
-              })
-              if (!upRes.ok) throw new Error('status ' + upRes.status)
-              const shot = await upRes.json().catch(() => ({}))
-              if (shot.id) { stagedShots.push({ id: shot.id, fileName: file.name, caption: '' }); ok++ }
+              const shot = await uploadShotXHR(file, (f) => row.setProgress(f))
+              if (shot.id) { stagedShots.push({ id: shot.id, fileName: file.name, caption: '' }); ok++; row.done() }
               else throw new Error('no id')
-            } catch { fail++ }
+            } catch { fail++; row.failed() }
           }
-          if (upl) upl.hidden = true
           renderTaskAddShots()
           if (ok && !fail) window.hibana?.toast(_t('project.shotUploaded', 'Screenshot uploaded'), 'info')
           else if (fail && !ok) window.hibana?.toast(_t('project.shotFailed', 'Upload failed'), 'err')

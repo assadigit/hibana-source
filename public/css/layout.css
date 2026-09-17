@@ -44,6 +44,50 @@
 .topbar .muted { flex: 1; font-size: var(--fs-md); }
 /* header account cluster: avatar + theme + sign out, tight together */
 .nav-actions { gap: 0.5rem; }
+
+/* S61: the command palette's visible entry — a search-style pill in the topbar.
+   Was keyboard-only before (Ctrl+K / "/"): touch users had no way in, desktop users
+   had nothing to discover. Reads as a search field (magnifier + label + kbd chip);
+   44px touch floor; the label + kbd chip collapse to icon-only under 1280px so the
+   eight nav links keep their room. */
+.topbar-search {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  min-height: 2.4rem; /* 38px visual + padding pairs with .ghost's floor: 44px hit area via padding-block */
+  padding: 0.35rem 0.75rem;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--card);
+  color: var(--muted);
+  font-size: var(--fs-md);
+  cursor: pointer;
+  transition: color 0.14s ease, border-color 0.14s ease, box-shadow 0.14s ease;
+}
+.topbar-search:hover { color: var(--text); border-color: var(--brand); }
+.topbar-search .icon { width: 1rem; height: 1rem; flex: none; }
+.topbar-search-kbd {
+  font-family: inherit;
+  font-size: var(--fs-xs);
+  line-height: 1;
+  padding: 0.28rem 0.45rem;
+  border: 1px solid var(--line);
+  border-block-start-width: 2px;
+  border-radius: 0.4rem;
+  background: var(--bg);
+  color: var(--muted);
+  user-select: none;
+}
+.topbar-search:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: 2px;
+  color: var(--text);
+}
+/* Icon-only under 1280px — the nav links own the width there. */
+@media (max-width: 1279px) {
+  .topbar-search-label, .topbar-search-kbd { display: none; }
+  .topbar-search { padding: 0.55rem 0.7rem; }
+}
 .user-chip { display: inline-flex; align-items: center; gap: 0.55rem; }
 .avatar {
   display: inline-grid;

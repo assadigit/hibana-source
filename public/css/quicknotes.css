@@ -713,6 +713,9 @@
   text-align: start;
 }
 .user-menu-item:hover { background: var(--bg-soft); color: var(--text); text-decoration: none; }
+/* S61 a11y: same keyboard-focus ring for the topbar user menu (language rows, links,
+   sign-out) — it was hover-tint only before. */
+.user-menu-item:focus-visible { outline: 2px solid var(--brand); outline-offset: -2px; }
 .user-menu-item .icon-chip { inline-size: 1.8rem; block-size: 1.8rem; }
 /* Active-language row: check mark + highlight (audit 13). */
 .lang-check { margin-inline-start: auto; inline-size: 1rem; block-size: 1rem; color: var(--brand); display: none; }
@@ -897,6 +900,17 @@
 .mobile-more-row[aria-current="page"]:hover { background: var(--accent-soft); }
 .mobile-more-danger { color: var(--color-error); }
 .mobile-more-danger .icon { color: var(--color-error); }
+/* S61 a11y: keyboard focus rings for the sheet's rows — the sheet is a focus-trapped
+   dialog (openSheet focuses the first row), so Tab-only users LIVE here; hover-tint
+   alone gave them no position feedback. */
+.mobile-more-row:focus-visible { outline: 2px solid var(--brand); outline-offset: -2px; }
+/* S61: the palette's touch entry — the sheet's only ACTION row (everything else is
+   navigation), so it gets the accent-soft tint + teal ink to read as "this one does
+   something" rather than another destination. It sits above the first divider. */
+.mobile-more-cmdk { background: var(--accent-soft); color: var(--link); font-weight: 600; }
+.mobile-more-cmdk .icon { color: var(--link); }
+.mobile-more-cmdk:hover { background: var(--accent-soft); }
+.mobile-more-cmdk:active { scale: 0.985; }
 .mobile-more-div { block-size: 1px; background: var(--line); margin: 0.3rem 0.5rem; }
 @media (min-width: 1025px) {
   .mobile-more-sheet, .mobile-more-backdrop { display: none !important; }

@@ -814,6 +814,69 @@ button.pd-task-add {
 .pd-taskadd-shots-grid .shot-body { padding: 0.3rem; }
 .pd-taskadd-shots-grid .shot-actions { gap: 0.2rem; }
 .pd-taskadd-shots-grid .shot-actions .ghost.small { font-size: var(--fs-xs); padding: 0.1rem 0.4rem; min-block-size: 0; }
+
+/* S61: the upload progress strip — per-file rows (icon + name + bar + %) mounted by
+   project-page.js above #shots (media panel) and above #pd-taskadd-shots-grid (task
+   composer). States via [data-state]: queued (flat 8% ghost fill), active (live fill),
+   done (full fill, fades out), error (red). The bar fills from the READING side
+   (logical inset-inline-start), so RTL mirrors correctly. */
+.shots-upload-strip { display: grid; gap: 0.35rem; margin-block: 0.45rem 0.1rem; }
+.shots-upload-row {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  padding: 0.4rem 0.6rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--card);
+  font-size: var(--fs-sm);
+  animation: shots-upload-in 0.18s ease;
+}
+@keyframes shots-upload-in { from { opacity: 0; translate: 0 3px; } to { opacity: 1; translate: 0 0; } }
+.shots-upload-row .icon { width: 1rem; height: 1rem; flex: none; color: var(--muted); }
+.shots-upload-row[data-state='active'] .icon { color: var(--brand); }
+.shots-upload-row[data-state='done'] .icon { color: var(--link); }
+.shots-upload-row[data-state='error'] .icon { color: var(--color-error); }
+.shots-upload-name {
+  flex: 0 1 auto;
+  min-inline-size: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text);
+}
+.shots-upload-bar {
+  flex: 1 1 5rem;
+  block-size: 0.45rem;
+  border-radius: 999px;
+  background: var(--bg-soft);
+  overflow: hidden;
+}
+.shots-upload-fill {
+  block-size: 100%;
+  inline-size: 8%;
+  border-radius: inherit;
+  background: var(--brand);
+  transition: inline-size 0.15s ease;
+  /* A block-level child with a set inline-size naturally hugs the INLINE-START edge —
+     RTL mirrors for free. */
+}
+.shots-upload-row[data-state='queued'] .shots-upload-fill { inline-size: 8%; opacity: 0.45; }
+.shots-upload-row[data-state='done'] .shots-upload-fill { inline-size: 100%; background: var(--link); }
+.shots-upload-row[data-state='error'] .shots-upload-fill { inline-size: 100%; background: var(--color-error); opacity: 0.55; }
+.shots-upload-row[data-state='done'] { border-color: transparent; opacity: 0; transition: opacity 0.5s ease 0.15s, border-color 0.5s ease; }
+.shots-upload-pct { flex: none; min-inline-size: 2.6rem; text-align: end; font-variant-numeric: tabular-nums; color: var(--muted); font-size: var(--fs-xs); }
+.shots-upload-row[data-state='error'] .shots-upload-pct { color: var(--color-error); }
+/* Mobile: the name can squeeze harder; the bar keeps a floor. */
+@media (max-width: 720px) {
+  .shots-upload-name { flex-basis: 38%; }
+  .shots-upload-pct { min-inline-size: 2.2rem; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .shots-upload-row { animation: none; }
+  .shots-upload-fill { transition: none; }
+  .shots-upload-row[data-state='done'] { transition: none; opacity: 1; }
+}
 .pd-opt input {
   font: inherit;
   font-size: var(--fs-md);

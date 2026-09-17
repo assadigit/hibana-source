@@ -12,6 +12,7 @@ window.__hibanaDictFA = {
       'nav.themeHint': 'تغییر پوسته (روشن/تیره)',
       'nav.theme': 'پوسته',
       'nav.more': 'بیشتر', 'mobilenav.label': 'منوی اصلی',
+      'nav.search': 'جست‌وجو', 'nav.searchCmd': 'جست‌وجو و فرمان‌ها',
       // R5.1: onboarding tour
       'tour.cmdk': 'پنل فرمان',
       'tour.cmdkBody': 'Ctrl+K (یا /) را بزن تا پروژه‌ها را جستجو کنی و سریع بپری جای دیگر.',
@@ -453,7 +454,7 @@ window.__hibanaDictFA = {
       'bulk.deletedN': '{n} حذف شد', 'bulk.failedN': '{n} ناموفق',
       // project page
       'project.stageSaved': 'مرحله ذخیره شد', 'project.captionPrompt': 'توضیح (اختیاری):',
-      'project.shotUploaded': 'اسکرین‌شات آپلود شد', 'project.shotFailed': 'آپلود انجام نشد',
+      'project.shotUploaded': 'اسکرین‌شات آپلود شد', 'project.shotFailed': 'آپلود انجام نشد', 'project.uploading': 'در حال بارگذاری…',
       'project.shotDeleted': 'اسکرین‌شات حذف شد',
       // S35: the screenshot problem cards
       'project.shotZoom': 'اسکرین‌شات', 'project.shotNotePh': 'چه چیزی خراب است و کجا — دقیقاً همان‌جا که باید کار کنی…',

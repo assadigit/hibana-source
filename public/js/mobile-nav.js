@@ -125,6 +125,15 @@
     sheet.setAttribute('data-i18n-aria-label', 'nav.more')
     sheet.innerHTML = `
       <div class="mobile-more-head" data-i18n="nav.more">More</div>
+      <!-- S61: the palette's touch entry — keyboard shortcuts don't exist on phones, so
+           the More sheet is the only place a touch user can reach search + commands.
+           Hidden on pages that don't load command-palette.js (window.hibanaCmdK check
+           in the binding below). -->
+      <button type="button" class="mobile-more-row mobile-more-cmdk" data-mobile-cmdk>
+        ${svg('<circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/>')}
+        <span data-i18n="nav.searchCmd">Search &amp; commands</span>
+      </button>
+      <div class="mobile-more-div" role="separator"></div>
       ${SHEET_LINKS.map((row) => `<a class="mobile-more-row"${row.adminOnly ? ' data-admin-link hidden' : ''} href="${row.href}">
         ${svg(row.icon)}
         <span data-i18n="${row.i18n}">${row.label}</span>
@@ -144,6 +153,18 @@
       </button>`
 
     document.body.append(backdrop, sheet)
+
+    // S61: open the command palette from the sheet — and hide the row entirely on pages
+    // that don't load command-palette.js (admin/clip/etc.). command-palette.js itself
+    // also has a delegated [data-cmdk-open] listener, but binding here keeps the sheet's
+    // close-then-open sequencing in one place (open() is idempotent if both fire).
+    const cmdkRow = sheet.querySelector('[data-mobile-cmdk]')
+    if (!window.hibanaCmdK?.open) cmdkRow.hidden = true
+    else
+      cmdkRow.addEventListener('click', () => {
+        closeSheet()
+        window.hibanaCmdK.open()
+      })
 
     // Any link row: close the sheet — soft-nav swaps <main> without a reload, so an
     // open sheet would otherwise linger over the freshly loaded page. This must be a

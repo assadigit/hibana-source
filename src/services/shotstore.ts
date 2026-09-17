@@ -8,6 +8,9 @@ import { r2Storage, type ObjectStore } from './r2'
 import { kvStorage } from './kv'
 
 export function shotStoreFor(cfg: Config): ObjectStore {
+  // S61: an explicitly-wired store (Node disk store via HIBANA_SHOTS_DIR) overrides
+  // the whole chain — local dev + e2e get a real, working shot pipeline off-Workers.
+  if (cfg.objectStore) return cfg.objectStore
   if (cfg.kv) return kvStorage(cfg.kv)
   if (cfg.r2) return r2Storage(cfg.r2)
   return {

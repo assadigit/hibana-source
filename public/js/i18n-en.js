@@ -12,6 +12,7 @@ window.__hibanaDictEN = {
       'nav.themeHint': 'Toggle theme (light/dark)',
       'nav.theme': 'Theme',
       'nav.more': 'More', 'mobilenav.label': 'Main menu',
+      'nav.search': 'Search', 'nav.searchCmd': 'Search & commands',
       // R5.1: onboarding tour
       'tour.cmdk': 'Command palette',
       'tour.cmdkBody': 'Press Ctrl+K (or /) to search projects and jump anywhere instantly.',
@@ -454,7 +455,7 @@ window.__hibanaDictEN = {
       'bulk.deletedN': '{n} deleted', 'bulk.failedN': '{n} failed',
       // project page
       'project.stageSaved': 'Stage saved', 'project.captionPrompt': 'Caption (optional):',
-      'project.shotUploaded': 'Screenshot uploaded', 'project.shotFailed': 'Upload failed',
+      'project.shotUploaded': 'Screenshot uploaded', 'project.shotFailed': 'Upload failed', 'project.uploading': 'Uploading…',
       'project.shotDeleted': 'Screenshot deleted',
       // S35: the screenshot problem cards
       'project.shotZoom': 'Screenshot', 'project.shotNotePh': 'What is broken & where — the exact spot to work on…',

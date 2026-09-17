@@ -667,7 +667,8 @@ export function detailHtml(p: ProjectRow, d: Awaited<ReturnType<typeof loadDetai
         <input type="file" id="pd-taskadd-shots" accept="image/png,image/jpeg,image/webp,image/gif" multiple hidden>
         <div class="row" style="gap:.4rem;align-items:center;margin-top:.5rem">
           <button type="button" class="ghost small" onclick="document.getElementById('pd-taskadd-shots').click()" title="${trL(lang, 'Attach a UI/UX screenshot — pinned to this item', 'افزودن اسکرین‌شات UI/UX — سنجاق شده به این قلم')}">${icon('image')} ${trL(lang, 'Attach screenshot', 'افزودن اسکرین‌شات')}</button>
-          <span class="muted small" id="pd-taskadd-shots-uploading" hidden>${trL(lang, 'Uploading image…', 'در حال اپلود تصویر …')}</span>
+          <!-- S61: the old «در حال اپلود تصویر …» span is gone — project-page.js mounts a
+               .shots-upload-strip with per-file progress bars right above the grid. -->
           <span class="muted small" id="pd-taskadd-shots-count"></span>
         </div>
         <div class="pd-taskadd-shots-grid" id="pd-taskadd-shots-grid"></div>

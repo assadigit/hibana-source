@@ -34,6 +34,9 @@ export default defineConfig({
     env: {
       // Fresh DB for each CI run — migrations auto-run on boot.
       DB_PATH: '/tmp/hibana-e2e.db',
+      // S61: the disk shot store — the whole upload pipeline (put → serve → delete)
+      // works locally now; the dummy GITHUB_TOKEN=x above used to 500 every upload.
+      HIBANA_SHOTS_DIR: '/tmp/hibana-e2e-shots',
     },
   },
 })

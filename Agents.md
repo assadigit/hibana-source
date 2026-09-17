@@ -30,8 +30,10 @@ a whiteboard note.
   (`src/db/`).
 - Storage: screenshots on **Cloudflare Workers KV** (free 1 GB, no card — `HIBANA_SHOTS`
   binding, `src/services/kv.ts`; written WITHOUT expirationTtl → objects NEVER expire,
-  only the app's delete removes them). Storage precedence: kv → r2 (B2/R2/S3 via R2_* env,
-  `src/services/r2.ts`) → GitHub repo `assadigit/hibana-safe` (Contents API — avatars,
+  only the app's delete removes them). Storage precedence: explicit objectStore
+  (Node-only disk store via `HIBANA_SHOTS_DIR`, `src/services/disk-shots.ts` — local
+  dev/e2e) → kv → r2 (B2/R2/S3 via R2_* env, `src/services/r2.ts`) → GitHub repo
+  `assadigit/hibana-safe` (Contents API — avatars,
   logos, backups); ONE shared constructor `src/services/shotstore.ts` (also cleans bytes
   on project hard-delete + the purge cron). `npm run shotcheck:local|:dev|:prod` = live
   round-trip proof. S39: the media GALLERY (/gallery.html + GET /api/media) browses every
@@ -129,10 +131,10 @@ properties for RTL/LTR.
   secrets (`wrangler secret put <NAME> --env prod`).
 - Any token pasted in chat → rotate per runbook policy. **`BACKUP_ENCRYPTION_KEY` is the
   exception: NEVER rotate** (orphans all encrypted backups).
-- Env vars (Node path): `DB_PATH GITHUB_OWNER GITHUB_REPO GITHUB_TOKEN RESEND_KEY
-  OWNER_EMAIL TELEGRAM_BOT_TOKEN TELEGRAM_SECRET CAPTCHA_SECRET_KEY (TURNSTILE_SECRET_KEY
-  legacy fallback) NODE_ENV OPEN_REGISTRATION BACKUP_ENCRYPTION_KEY MIRROR_ORIGIN PORT
-  TRUST_PROXY`.
+- Env vars (Node path): `DB_PATH HIBANA_SHOTS_DIR GITHUB_OWNER GITHUB_REPO GITHUB_TOKEN
+  RESEND_KEY OWNER_EMAIL TELEGRAM_BOT_TOKEN TELEGRAM_SECRET CAPTCHA_SECRET_KEY
+  (TURNSTILE_SECRET_KEY legacy fallback) NODE_ENV OPEN_REGISTRATION
+  BACKUP_ENCRYPTION_KEY MIRROR_ORIGIN PORT TRUST_PROXY`.
 - Deploys need `CLOUDFLARE_API_TOKEN` + `CLOUDFLARE_ACCOUNT_ID` in env (from
   credentials.md).
 

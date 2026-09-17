@@ -37,3 +37,4 @@ hibana.db-wal
 # scratch: agent-session debug artifacts (screenshots, probe SQL, repro seeds)
 tmp-debug/
 scripts/tmp/
+.tmp-s*/

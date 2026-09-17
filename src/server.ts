@@ -7,6 +7,7 @@ import { createSqliteDb } from './db/sqlite'
 import { applyMigrations } from './db/migrate-node'
 import { r2ConfigFromEnv } from './services/r2'
 import { kvRestConfigFromEnv } from './services/kv'
+import { diskShotsFromEnv } from './services/disk-shots'
 import type { Config } from './types'
 
 // Non-Cloudflare deployment path (portability requirement — "deployment must be easily
@@ -99,6 +100,10 @@ const cfg: Config = {
   kv: kvRestConfigFromEnv(process.env) ?? undefined,
   // S35: optional S3/R2 screenshot storage (see services/r2.ts) — unset = GitHub.
   r2: r2ConfigFromEnv(process.env) ?? undefined,
+  // S61: HIBANA_SHOTS_DIR — a local-disk object store that overrides the whole chain
+  // (local dev + e2e had no working shot storage off-Workers: dummy GitHub creds →
+  // every upload 500'd). Node-only module; the Workers entry never sets this field.
+  objectStore: diskShotsFromEnv(process.env) ?? undefined,
   emailKey: process.env.RESEND_KEY,
   ownerEmail: process.env.OWNER_EMAIL ?? '',
   telegramToken: process.env.TELEGRAM_BOT_TOKEN ?? '',

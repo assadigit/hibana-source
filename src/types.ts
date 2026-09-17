@@ -73,6 +73,11 @@ export interface Config {
    *  Binding mode on the Worker, REST mode on the Node self-host path; unset = the
    *  r2/GitHub chain decides. Storage precedence overall: kv → r2 (B2/R2/S3) → GitHub. */
   kv?: import('./services/kv').KvShotsConfig
+  /** S61: an explicitly-constructed object store that overrides the whole kv → r2 →
+   *  github chain. Used by the NODE server only (HIBANA_SHOTS_DIR disk store — local
+   *  dev + e2e had no working shot storage off-Workers; see services/disk-shots.ts).
+   *  The Workers entry never sets it. */
+  objectStore?: import('./services/r2').ObjectStore
   /** S35: S3-compatible object storage (Cloudflare R2 by default — see Env.R2_*).
    *  When set, screenshot bytes go here instead of the GitHub Contents API; the
    *  media route reads through the same adapter. Runtime-agnostic: plain fetch +

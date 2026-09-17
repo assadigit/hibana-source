@@ -580,6 +580,18 @@
     }
   })
 
+  // S61: visible entry points — the palette was keyboard-only (Ctrl+K / "/"), which
+  // meant touch users had NO way in and desktop users had no affordance to discover.
+  // The topbar search button (partials/nav.html) carries [data-cmdk-open]; this
+  // delegated listener survives any re-injection of the nav partial (the mobile More
+  // sheet's palette row binds itself in mobile-nav.js and calls open() directly).
+  document.addEventListener('click', (e) => {
+    const el = e.target instanceof Element ? e.target.closest('[data-cmdk-open]') : null
+    if (!el) return
+    e.preventDefault()
+    open()
+  })
+
   // Expose for nav.js SPA unmount cleanup (if needed).
   // S51-B BUG FIX: this used to be a plain replacement assignment — which threw away
   // the recordRecent method attached earlier in this IIFE (line ~67), so the palette's

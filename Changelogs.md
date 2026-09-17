@@ -1036,6 +1036,123 @@ Node self-host.
 `/append` ✅ · notebook photo inversion ✅ (counter-filter) · FTS depth ✅ (0040) · on-hold
 violet = deliberate owner decision · sparks bulb ✅ · `#shots` auto-refresh ✅.
 
+## 10. Performance baselines (S69, 2026-09-17 — agenda #1 "measure first")
+
+Harnesses (committed): `scripts/perf-seed.mjs` (deterministic local dataset: 90 projects,
+160 quick notes, 7 folders/120 vault notes, 180 sadhana tasks/600 journal rows, 1200 canvas
+elements, 70 real PNG screenshots ≈5.4MB), `scripts/perf-pages.mjs` (playwright, 8 pages ×
+EN/FA × cold/warm × 3 cycles, medians; settle-wait survives the SW self-reload; counts
+framenavigated → selfReloads; captures per-API count/ms/KB), `scripts/perf-baseline.json`
+(raw rows). Run order: `perf-seed.mjs` → server on :3017 → `perf-pages.mjs`. Tour
+suppressed (`hibana-tour-done`), no CPU throttle, headless desktop Chromium. Server TTFBs
+are localhost — the transfer/KB and apiMs columns are the numbers that matter for prod.
+
+### A. Page loads (medians of 3; ms / KB / calls)
+| page | lang | cache | TTFB | load | FCP | KB | res | api | apiMs | dom |
+|---|---|---|---|---|---|---|---|---|---|---|
+| dashboard | en | cold | 8 | 346 | 300 | 1942 | 59 | 5 | 128 | 8043 |
+| dashboard | en | warm | 6 | 66 | 160 | 1942 | 60 | 5 | 98 | 8043 |
+| projects | en | cold | 7 | 309 | 224 | 1273 | 54 | 6 | 108 | 410 |
+| projects | en | warm | 6 | 57 | 128 | 1273 | 55 | 6 | 50 | 410 |
+| project-detail | en | cold | 8 | 325 | 212 | 1595 | 59 | 7 | 114 | 1410 |
+| project-detail | en | warm | 5 | 56 | 168 | 1595 | 60 | 7 | 145 | 1410 |
+| notes-vault | en | cold | 8 | 310 | 244 | 1378 | 55 | 6 | 180 | 1826 |
+| notes-vault | en | warm | 5 | 55 | 160 | 1378 | 56 | 6 | 174 | 1826 |
+| gallery | en | cold | 8 | 306 | 184 | **6576** | 123 | **75** | **13325** | 1197 |
+| gallery | en | warm | 6 | 54 | 224 | 6576 | 124 | 75 | 110 | 1197 |
+| calendar | en | cold | 7 | 343 | 208 | 1447 | 58 | 8 | 58 | 659 |
+| calendar | en | warm | 5 | 51 | 156 | 1447 | 59 | 8 | 97 | 659 |
+| whiteboard | en | cold | 2 | 346 | 244 | 1304 | 55 | 5 | 32 | 326 |
+| whiteboard | en | warm | 5 | 378 | 320 | 3825 | 55 | 5 | 42 | 326 |
+| settings | en | cold | 6 | 387 | 308 | 1296 | 64 | 14 | 995 | 595 |
+| settings | en | warm | 5 | 109 | 176 | 1274 | 64 | 14 | 144 | 595 |
+| dashboard | fa | cold | 8 | 407 | 320 | 2031 | 59 | 5 | 253 | 8045 |
+| dashboard | fa | warm | 5 | 87 | 188 | 2009 | 59 | 5 | 184 | 8045 |
+| projects | fa | cold | 8 | 322 | 224 | 1366 | 54 | 6 | 146 | 412 |
+| projects | fa | warm | 5 | 80 | 152 | 1366 | 55 | 6 | 75 | 412 |
+| project-detail | fa | cold | 7 | 374 | 220 | 1692 | 59 | 7 | 111 | 1412 |
+| project-detail | fa | warm | 5 | 58 | 140 | 1692 | 60 | 7 | 77 | 1412 |
+| notes-vault | fa | cold | 7 | 308 | 220 | 1512 | 56 | 6 | 172 | 1828 |
+| notes-vault | fa | warm | 5 | 62 | 156 | 1512 | 57 | 6 | 126 | 1828 |
+| gallery | fa | cold | 7 | 354 | 224 | **6365** | 118 | **71** | **11247** | 1199 |
+| gallery | fa | warm | 5 | 59 | 88 | 6387 | 120 | 71 | 58 | 1199 |
+| calendar | fa | cold | 6 | 296 | 220 | 1517 | 58 | 8 | 140 | 612 |
+| calendar | fa | warm | 5 | 63 | 116 | 1517 | 59 | 8 | 97 | 612 |
+| whiteboard | fa | cold | 3 | 334 | 236 | 1402 | 58 | 5 | 65 | 328 |
+| whiteboard | fa | warm | 5 | 371 | 296 | 3965 | 57 | 5 | 95 | 328 |
+| settings | fa | cold | 6 | 565 | 344 | 1388 | 64 | 14 | 1381 | 597 |
+| settings | fa | warm | 5 | 126 | 204 | 1388 | 65 | 14 | 188 | 597 |
+
+KB caveat: SW-mediated subresources report transferSize 0 (no Timing-Allow-Origin), so the
+harness falls back to encodedBodySize — post-settle "cold" KB ≈ full content size, warm KB
+≈ cached content size. Comparisons across pages hold; wire-bytes on a true cold first hit
+are lower once the SW owns the cache. apiMs = SUM of per-request durations (parallel
+requests overlap in wall-clock). FA adds ~7-10% bytes (i18n-fa bundle + Vazir font). Zero
+console/page errors on all 32 cells.
+
+### B. HTTP cache headers (audit 2026-09-17)
+- HTML: `no-store` everywhere (Node + `_headers`) — correct.
+- `/dist/*.js|css`: prod `_headers` = `public, max-age=31536000, immutable` (content-hashed — correct); **Node fallback serves 3600+SWR for /dist** (parity gap, local-only).
+- `/api`: NO default Cache-Control on most GETs. `etag()` helper (private,no-cache + 304)
+  covers dashboard, calendar, notifications, quicknotes, reports, devboard only.
+- media files: `private, max-age=3600` ✓ (content-keyed by screenshot id).
+- vendor: 86400+SWR 604800 ✓ (fabric.min.js is build-rewritten but rarely changes).
+- `sw.js`: Node 3600+SWR; **no `_headers` rule on prod** (CF default applies — probe live
+  to confirm; SW update detection can lag up to the max-age under `reg.update()`).
+- Node `/js|css` source: 3600+SWR (local-only surface; deployed HTML is wired to /dist/).
+
+### C. Query plans (EXPLAIN QUERY PLAN + timing, synthetic busy-solo scale)
+All hot paths are indexed SEARCHes — no accidental SCANs: dashboard rollup sub-ms
+(except todo board 4.98ms and journal feed **16.04ms @ 10k updates — UNBOUNDED, grows
+forever**), calendar/notes/hurdles <1ms, FTS search (projects/notes/tasks) 0.08–1.65ms,
+vault LIKE scans bounded by idx_vault_notes_user (0.13–0.45ms @ 2k notes), gallery join
+0.86ms indexed. Heavy-but-expected: canvas viewport bbox 36ms @ 40k elements, backup
+snapshot 113ms. `scripts/explain-hotpaths.mjs` extended (S69) with the search/vault/gallery
+queries + seeded vault/screenshots at scale.
+
+### D. Service worker precache
+SHELL: 49 entries, 880.8KB (fabric.min.js 292KB + htmx 51KB + alpine 45KB + logos/icons/
+fonts). Manifest dist: 67 content-hashed bundles, 1334.4KB (top: i18n-fa 150KB,
+project-page 107KB, app 88KB, sadhana-page 71KB, emoji-data 70KB). **Total ≈ 2.16MB
+fetched at first-visit install** (cache:'reload' — bypasses HTTP cache). Candidates
+(documented, not done): fabric out of SHELL into runtime cache (the P9 Vazir precedent —
+only 3 pages load it) would cut ~292KB.
+
+### E. First-visit DOUBLE LOAD (measured on all 8 pages)
+`boot.js` reloads the page on EVERY `controllerchange` — including the FIRST install's
+`clients.claim()`. Every cold navigation does load#1 (full network) → SW install →
+`location.reload()` → load#2. Measured selfReloads=1 on all 32 cells. First-visit cost ≈
+2× full page load + visible flicker. Fix: skip the reload when no controller existed at
+registration (update-swap reload stays).
+
+### F. Payload heavyweights (the fix targets)
+1. **Gallery: 6.4–6.6MB, 71–75 API calls, apiMs 11–13s per cold load.** Grid tiles fetch
+   full-size originals (`/api/media/screenshots/:id/file`) — no thumbnails anywhere
+   (image-resize.js covers logos/avatars only, screenshot uploads store originals up to
+   the 5MB cap). Native `loading="lazy"` is ineffective: Chromium's lazy-prefetch margin
+   (~4 viewports) covers the whole 70-tile grid.
+2. **Dashboard htmx fragment: 628.6KB** (JSON path: 42.1KB). #dashboard-todo = 491.5KB:
+   ALL open sadhana tasks rendered (~4KB/row: inline SVGs + htmx attrs), rows beyond 5
+   shipped `hidden`. #notebook = 99.6KB (20 notes ≈ 5KB/row).
+3. **BUG (found while measuring): the hidden-row cap is visually dead.**
+   `.dash-todo-task { display: grid }` (dashboard-todo.css) overrides the UA `[hidden]`
+   rule — hidden-attr rows compute display:grid (verified live). Every quadrant renders
+   ALL its tasks visibly; "See More/See Less" toggles a dead attribute (label flips,
+   nothing changes). The designed 5-row cap never visually worked since the board-style
+   rows shipped.
+4. Settings fires a 14-call API shotgun (trash/invites/telegram/ai-models/tags/…) —
+   apiMs ~1s cold, parallel, low priority.
+5. Whiteboard warm-KB anomaly (3.8MB vs 1.3MB cold) = SW encodedBodySize semantics on
+   cached fabric + canvas payloads; wire cost is the cold number. Documented, not a bug.
+
+### S69 fix list (measured offenders, in order)
+1. boot.js first-install reload guard (E — every page, every first visit).
+2. Gallery true lazy-loading + upload-time resize + thumb variant (F1 — the named
+   candidate, confirmed).
+3. Dashboard: `[hidden]` CSS fix + server-side render cap + journal GROUP BY (F2+F3).
+4. `/api` default Cache-Control + Node /dist immutable parity (B).
+5. Re-measure with the same harnesses after; deltas go here.
+
 ## 9. D1 Time-Travel bookmark log (operational — newest last; KEEP THIS SECTION LAST)
 Created by `npm run bookmark:prod` before each prod migration (`scripts/
 pre-migrate-bookmark.mjs` appends rows at the end of this file — that is why this section

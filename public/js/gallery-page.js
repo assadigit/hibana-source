@@ -57,20 +57,75 @@
           } catch { return '' }
         }
 
-        let lightbox = null
-        const closeLightbox = () => { if (lightbox) { lightbox.remove(); lightbox = null; document.body.style.overflow = '' } }
-        const openLightbox = (src) => {
-          closeLightbox()
-          lightbox = document.createElement('div')
-          lightbox.className = 'shot-lightbox'
-          lightbox.setAttribute('role', 'dialog')
-          lightbox.setAttribute('aria-label', _t('project.shotZoom', 'Screenshot'))
-          lightbox.innerHTML = '<img src="' + src + '" alt="' + esc(_t('project.shotZoom', 'Screenshot')) + '">'
-          lightbox.addEventListener('click', closeLightbox)
-          document.body.appendChild(lightbox)
-          document.body.style.overflow = 'hidden'
+        let lightbox = null // { el, idx, lastTrigger }
+        const closeLightbox = () => {
+          if (!lightbox) return
+          const trigger = lightbox.lastTrigger
+          lightbox.el.remove()
+          lightbox = null
+          document.body.style.overflow = ''
+          // focus goes back where it came from — keyboard users never land in the void
+          try { trigger?.focus?.() } catch {}
         }
-        ctx.on('keydown', (e) => { if (e.key === 'Escape' && lightbox) closeLightbox() })
+        // S59b: the lightbox is a BROWSER now — prev/next walk the filtered set (wrap-around),
+        // the counter + caption ride the dialog, arrows follow the reading direction, and
+        // focus returns to the trigger on close. Scoped styles: [data-gal-lb] (the project
+        // page's lightbox shares .shot-lightbox and stays untouched).
+        const lbStep = (delta) => {
+          if (!lightbox) return
+          const rows = visible()
+          if (!rows.length) { closeLightbox(); return }
+          lightbox.idx = (lightbox.idx + delta + rows.length) % rows.length
+          const r = rows[lightbox.idx]
+          const img = lightbox.el.querySelector('img')
+          if (img) { img.src = '/api/media/screenshots/' + encodeURIComponent(r.id) + '/file'; img.alt = r.caption || _t('project.shotZoom', 'Screenshot') }
+          const count = lightbox.el.querySelector('.lb-count')
+          if (count) count.textContent = dig(lightbox.idx + 1) + ' / ' + dig(rows.length)
+          const cap = lightbox.el.querySelector('.lb-cap')
+          if (cap) cap.textContent = r.caption || _t('gallery.noNote', 'No note')
+        }
+        const openLightbox = (shotId, trigger) => {
+          closeLightbox()
+          const rows = visible()
+          const idx = rows.findIndex((r) => r.id === shotId)
+          if (idx < 0) return
+          const el = document.createElement('div')
+          el.className = 'shot-lightbox'
+          el.setAttribute('role', 'dialog')
+          el.setAttribute('aria-modal', 'true')
+          el.setAttribute('data-gal-lb', '')
+          el.setAttribute('aria-label', _t('project.shotZoom', 'Screenshot'))
+          el.innerHTML =
+            '<button type="button" class="lb-nav lb-prev" aria-label="' + esc(_t('gallery.lbPrev', 'Previous picture')) + '"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg></button>' +
+            '<img src="/api/media/screenshots/' + encodeURIComponent(shotId) + '/file" alt="' + esc(_t('project.shotZoom', 'Screenshot')) + '">' +
+            '<button type="button" class="lb-nav lb-next" aria-label="' + esc(_t('gallery.lbNext', 'Next picture')) + '"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5l7 7-7 7"/></svg></button>' +
+            '<button type="button" class="lb-close" aria-label="' + esc(_t('gallery.lbClose', 'Close')) + '"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button>' +
+            '<div class="lb-meta"><span class="lb-count" aria-live="polite"></span><span class="lb-cap" dir="auto"></span></div>'
+          el.addEventListener('click', (e) => {
+            if (e.target.closest('.lb-nav')) {
+              lbStep(e.target.closest('.lb-prev') ? -1 : 1)
+              return
+            }
+            if (e.target.closest('.lb-close')) { closeLightbox(); return }
+            if (!e.target.closest('img')) closeLightbox() // backdrop click = zoom-out (same as before)
+          })
+          document.body.appendChild(el)
+          document.body.style.overflow = 'hidden'
+          lightbox = { el, idx, lastTrigger: trigger }
+          lbStep(0) // paint counter + caption for the opening shot
+          el.querySelector('.lb-close')?.focus()
+        }
+        ctx.on('keydown', (e) => {
+          if (!lightbox) return
+          if (e.key === 'Escape') { closeLightbox(); return }
+          // arrows follow the READING direction — in RTL, forward is ArrowLeft (the
+          // nav buttons sit at the logical edges, so keys and buttons agree)
+          const rtl = document.documentElement.dir === 'rtl'
+          const fwd = rtl ? 'ArrowLeft' : 'ArrowRight'
+          const back = rtl ? 'ArrowRight' : 'ArrowLeft'
+          if (e.key === fwd) lbStep(1)
+          else if (e.key === back) lbStep(-1)
+        })
 
         const visible = () => state.rows.filter((r) => {
           if (state.project && r.project_id !== state.project) return false
@@ -164,7 +219,7 @@
             return
           }
           const zoom = e.target.closest('[data-gal-zoom]')
-          if (zoom) { const img = zoom.querySelector('img'); if (img) openLightbox(img.src); return }
+          if (zoom) { openLightbox(zoom.getAttribute('data-gal-zoom'), zoom); return }
           const del = e.target.closest('[data-gal-del]')
           if (del) {
             if (!window.confirm(_t('gallery.deleteConfirm', 'Delete this picture for good? It also frees the space it uses.'))) return
@@ -176,7 +231,7 @@
             } catch { window.hibana?.toast(_t('sparks.saveFailed', "Couldn't delete"), 'err') }
             return
           }
-          if (lightbox && !e.target.closest('.shot-lightbox img')) closeLightbox()
+          if (lightbox && !e.target.closest('.shot-lightbox')) closeLightbox()
         })
 
         // the dict may still be loading (i18n.js is deferred) — re-render once ready

@@ -275,3 +275,57 @@ test('the gallery: URL params deep-link the filters (S59b — never lose your pl
 
   expect(errors).toEqual([])
 })
+
+test('the gallery lightbox: prev/next browse the filtered set, counter + caption, Esc restores focus (S59b)', async ({ page, browserName }) => {
+  test.skip(browserName !== 'chromium', 'Desktop Chromium only')
+  const errors = trackErrors(page)
+  await login(page)
+
+  // three shots in one project — the browse set
+  const pid = ((await api(page, '/api/projects', 'POST', { title: `e2e s59b lb ${Date.now()}` })) as { json: { id: string } }).json.id
+  const { DatabaseSync } = await import('node:sqlite')
+  const db = new DatabaseSync('/tmp/hibana-e2e.db')
+  db.prepare("DELETE FROM screenshots WHERE project_id IN (SELECT id FROM projects WHERE user_id = (SELECT id FROM users WHERE email = ?))").run(TEST_EMAIL)
+  const ids = [crypto.randomUUID(), crypto.randomUUID(), crypto.randomUUID()]
+  const now = new Date().toISOString()
+  for (let i = 0; i < ids.length; i++) {
+    db.prepare('INSERT INTO screenshots (id, project_id, github_path, mime_type, caption, resolved, bytes, created_at) VALUES (?, ?, ?, ?, ?, 0, 100, ?)')
+      .run(ids[i], pid, `e2e/${ids[i]}.png`, 'image/png', `Browse shot ${i + 1}`, now)
+  }
+  db.close()
+
+  await page.goto('/gallery.html')
+  await page.waitForSelector('.gal-card')
+  await expect(page.locator('.gal-card')).toHaveCount(3)
+
+  // open the FIRST card's zoom → dialog with counter + caption + focused close
+  await page.locator('.gal-card').first().locator('[data-gal-zoom]').click()
+  const lb = page.locator('.shot-lightbox[data-gal-lb]')
+  await expect(lb).toBeVisible()
+  await expect(lb.locator('.lb-count')).toHaveText('1 / 3')
+  await expect(lb.locator('.lb-cap')).toHaveText('Browse shot 1')
+  await expect(lb.locator('.lb-close')).toBeFocused()
+
+  // next button + ArrowRight walk forward; wrap-around lands on 1 again
+  await lb.locator('.lb-next').click()
+  await expect(lb.locator('.lb-count')).toHaveText('2 / 3')
+  await lb.locator('.lb-next').click()
+  await expect(lb.locator('.lb-count')).toHaveText('3 / 3')
+  await page.keyboard.press('ArrowRight')
+  await expect(lb.locator('.lb-count')).toHaveText('1 / 3')
+  // ArrowLeft walks back
+  await page.keyboard.press('ArrowLeft')
+  await expect(lb.locator('.lb-count')).toHaveText('3 / 3')
+  await expect(lb.locator('.lb-cap')).toHaveText('Browse shot 3')
+
+  // Esc closes AND focus returns to the trigger (the zoom button of the opening card)
+  await page.keyboard.press('Escape')
+  await expect(lb).toHaveCount(0)
+  await expect(page.locator('.gal-card').first().locator('[data-gal-zoom]')).toBeFocused()
+
+  // the project page's lightbox (shared .shot-lightbox class) stays click-to-close only —
+  // regression guard for the scoping: no [data-gal-lb], no nav buttons, anywhere else
+  await expect(page.locator('.lb-nav')).toHaveCount(0)
+
+  expect(errors).toEqual([])
+})

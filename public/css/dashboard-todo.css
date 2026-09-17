@@ -159,6 +159,12 @@ section[id^="dashboard-"].is-collapsed > *:not(header) { display: none; }
   position: relative; /* Phase 7 item 3: the ⋯ menu anchors to the row's top-end corner */
   transition: opacity 0.24s ease, max-block-size 0.3s ease, background-color 0.18s ease, border-color 0.18s ease, margin-block 0.3s ease;
 }
+/* S69 (perf §10-F3 — BUG): rows 6+ ship with the `hidden` attribute for the See-More
+   reveal, but the display:grid rule above OVERRODE the UA's [hidden]{display:none} —
+   every quadrant rendered ALL its tasks visibly and the toggle flipped a dead
+   attribute (verified live: computed display of a hidden-attr row was grid). Specificity
+   (0,2,0) beats the plain class — the designed 5-row cap works again. */
+.dash-todo-task[hidden] { display: none; }
 /* 2026-09-09 (v) user request — SUPERSEDES (m)'s "minimal, no borders" rows: Ali saw
    the to-do page's state boards (the «معلق» state container — violet since (x) —, the grey
    not-started container) and wants the SAME on the dashboard's four quadrant boxes:
@@ -251,6 +257,15 @@ section[id^="dashboard-"].is-collapsed > *:not(header) { display: none; }
 .dash-todo-more { justify-self: start; color: var(--muted); font-size: var(--fs-sm); padding-inline: 0.35rem; background: transparent; }
 .dash-todo-more:hover { color: var(--text); background: transparent; }
 .dash-todo-more:active { background: transparent; }
+/* S69: the over-cap affordance — a LINK to the board (rows beyond the widget's render
+   cap live there). Same quiet language as the see-more button, plus the arrow cue +
+   hover lift so it reads as navigation, not a toggle. */
+.dash-todo-more-link { text-decoration: none; display: inline-flex; align-items: center; gap: 0.25rem; border: 1px dashed var(--line); border-radius: 999px; padding-inline: 0.55rem; transition: color 0.15s ease, border-color 0.15s ease, transform 0.15s ease; }
+.dash-todo-more-link::after { content: '→'; font-size: 0.85em; transition: transform 0.15s ease; }
+[dir='rtl'] .dash-todo-more-link::after { content: '←'; }
+.dash-todo-more-link:hover { color: var(--brand); border-color: var(--brand); transform: translateY(-1px); }
+.dash-todo-more-link:hover::after { transform: translateX(2px); }
+[dir='rtl'] .dash-todo-more-link:hover::after { transform: translateX(-2px); }
 /* (k) 2026-09-06: the see-more link reserves the FAB corner (inline-end) so the two
    never overlap when a quadrant shows 6+ tasks. (m) re-tuned for the smaller FAB. */
 .dash-todo-more { padding-inline-end: 2.9rem; }

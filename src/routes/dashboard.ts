@@ -89,11 +89,19 @@ export function dashboardRoutes(cfg: Config) {
         'SELECT quadrant, name, subtitle, icon_id, accent_color FROM sadhana_quadrant_names WHERE user_id = ?',
         [user.id],
       ),
-      cfg.db.query<SadhanaTaskNote>(
-        `SELECT u.id, u.task_id, u.text, u.created_at FROM sadhana_updates u
+      // S69 (perf §10-C/F2): the note-chip feed was UNBOUNDED — every sadhana_updates
+      // row ever written (all journals, forever) fetched on every dashboard load just
+      // to derive each task's LATEST note + count (16ms @ 10k rows synthetic, growing
+      // linearly with use). One row per task now: the latest update (indexed MAX via
+      // the correlated subquery on idx_sadhana_updates) plus COUNT(*) — result size is
+      // O(tasks), flat as the journal grows. legacyTaskNote still merges below.
+      cfg.db.query<SadhanaTaskNote & { cnt: number }>(
+        `SELECT u.id, u.task_id, u.text, u.created_at,
+                (SELECT COUNT(*) FROM sadhana_updates u2 WHERE u2.task_id = u.task_id) AS cnt
+         FROM sadhana_updates u
          JOIN sadhana_tasks t ON t.id = u.task_id
          WHERE t.user_id = ? AND t.deleted_at IS NULL
-         ORDER BY u.created_at DESC`,
+           AND u.created_at = (SELECT MAX(u3.created_at) FROM sadhana_updates u3 WHERE u3.task_id = u.task_id)`,
         [user.id],
       ),
       // S30 batch 3 (user request 2026-09-12): "urgent across projects" — the cross-
@@ -241,23 +249,26 @@ export function dashboardRoutes(cfg: Config) {
       const todoStyles = new Map(todoNameRows.map((row) => [row.quadrant, { icon: row.icon_id, accent: row.accent_color }]))
       const todoNum = (value: number): string => (lang === 'fa' ? faDigits(String(value)) : String(value))
       const todoTasksByQuadrant = (quadrant: number): SadhanaTask[] => todoTasks.filter((task) => task.quadrant === quadrant)
-      const todoNotesByTask = new Map<string, SadhanaTaskNote[]>()
-      for (const note of todoNoteRows) {
-        const list = todoNotesByTask.get(note.task_id) ?? []
-        list.push(note)
-        todoNotesByTask.set(note.task_id, list)
-      }
+      // S69: the query already returns ONE row per task (latest + cnt) — the map holds
+      // the merged latest/count directly; the legacy task.note still joins the count and
+      // wins recency when it is newer than the last journal entry.
+      const todoNotesByTask = new Map<string, { text: string; count: number; created_at: string }>()
+      for (const note of todoNoteRows) todoNotesByTask.set(note.task_id, { text: note.text, count: note.cnt, created_at: note.created_at })
       for (const task of todoTasks) {
         const legacy = legacyTaskNote(task)
-        if (legacy) todoNotesByTask.set(task.id, [...(todoNotesByTask.get(task.id) ?? []), legacy])
+        if (!legacy) continue
+        const cur = todoNotesByTask.get(task.id)
+        if (!cur) todoNotesByTask.set(task.id, { text: legacy.text, count: 1, created_at: legacy.created_at })
+        else {
+          cur.count += 1
+          if (legacy.created_at >= cur.created_at) { cur.text = legacy.text; cur.created_at = legacy.created_at }
+        }
       }
       // Phase 5: the latest task note rides the row as a chip (data-note/count) — the
       // client's note panel opens from it without another fetch.
       const todoLatestNote = (task: SadhanaTask): { text: string; count: number } | null => {
-        const notes = todoNotesByTask.get(task.id) ?? []
-        if (!notes.length) return null
-        const latest = notes.reduce((a, b) => (a.created_at >= b.created_at ? a : b))
-        return { text: latest.text, count: notes.length }
+        const note = todoNotesByTask.get(task.id)
+        return note ? { text: note.text, count: note.count } : null
       }
       const PROG_LABEL: Record<'untouched' | 'in_progress' | 'on_hold', { en: string; fa: string }> = {
         untouched: { en: 'Not started', fa: 'شروع نشده' },
@@ -310,7 +321,16 @@ export function dashboardRoutes(cfg: Config) {
         // The symbol shown in the picker button: the custom value when it's an emoji
         // (outside the SVG glyph set), else the quadrant's default emoji.
         const currentSymbol = iconId && !QUADRANT_GLYPHS.has(iconId) ? iconId : q.icon
-        const taskRows = tasks.map(todoTaskHtml)
+        // S69 (perf §10-F2): RENDER CAP. Every open task used to ship as HTML (~4KB a
+        // row: inline SVGs + htmx attrs — #dashboard-todo was 491.5KB at 120 open tasks,
+        // 115 of them hidden). The widget renders the first 8 per quadrant; rows 6–8 stay
+        // in-DOM hidden for the See-More reveal, and anything beyond the cap becomes a
+        // link to the board page (the full surface, with its own more-on-scroll) instead
+        // of shipped dead weight. Payload is flat no matter how the board grows.
+        const TODO_RENDER_CAP = 8
+        const renderTasks = tasks.slice(0, TODO_RENDER_CAP)
+        const overflow = tasks.length - renderTasks.length
+        const taskRows = renderTasks.map(todoTaskHtml)
         // 2026-09 user request — quadrants are MINIMAL/neutral: no per-quadrant accent is
         // applied by default (the old q-success/q-info/q-error/q-warning accent vars are
         // gone). A user-PICKED accent (accent_color, still settable via the rename API)
@@ -350,7 +370,9 @@ export function dashboardRoutes(cfg: Config) {
           <ul class="dash-todo-list">
             ${taskRows}
           </ul>
-          ${tasks.length > 5 ? html`<button type="button" class="dash-todo-more" data-dash-see-more="${q.id}">${t('See More', 'مشاهده بیشتر')}</button>` : ''}
+          ${overflow > 0
+            ? html`<a class="dash-todo-more dash-todo-more-link" href="/to-do-list" title="${t('Open the full board', 'باز کردن برد کامل')}">${t('+{n} more on the board', '+{n} مورد دیگر در برد', { n: todoNum(overflow) })}</a>`
+            : tasks.length > 5 ? html`<button type="button" class="dash-todo-more" data-dash-see-more="${q.id}">${t('See More', 'مشاهده بیشتر')}</button>` : ''}
           <!-- 2026-09-06 (k) user request: the quick-add moved OUT of the customize
                popover (that button was dead — its form was removed with the old preview
                UI) into a circular + button pinned to the quadrant's bottom corner —

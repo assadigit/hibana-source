@@ -602,6 +602,9 @@ window.__hibanaDictFA = {
       'qn.noProjects': 'هنوز پروژه‌ای برای اتصال نیست — اول یکی بساز.',
       'qn.loadFailed': 'بارگذاری پروژه‌ها ممکن نشد', 'qn.saved': 'یادداشت ذخیره شد',
       'qn.failed': 'ذخیره یادداشت ممکن نشد — دوباره تلاش کن',
+      // S64: fallback پرش به یادداشت — پیوند پالت به فهرست ۲۰ یادداشت تازه پیشخوان
+      // می‌رود؛ هدفِ قدیمی‌تر ذخیره است، فقط در این صفحه رندر نمی‌شود.
+      'qn.jumpMissing': 'آن یادداشت ذخیره است، اما قدیمی‌تر از فهرست تازه‌های این صفحه است.',
       'taskAdd.title': 'کار جدید', 'taskAdd.taskLabel': 'کار', 'taskAdd.quadrant': 'ربع',
       'taskAdd.deadline': 'مهلت (اختیاری)', 'taskAdd.add': 'افزودن کار',
       'taskAdd.added': 'کار اضافه شد', 'taskAdd.failed': 'افزودن کار ناموفق بود — دوباره تلاش کنید',
@@ -653,6 +656,8 @@ window.__hibanaDictFA = {
       'cmdk.sadhana': 'لیست کارها',
       'cmdk.canvas': 'بوم',
       'cmdk.untitledNote': 'یادداشت بی‌نام',
+      // S64: ردیف یادداشت سریع در پالت، نشان نوع + قطعه‌ی متن نتیجه را هم می‌آورد.
+      'cmdk.noteKind': 'یادداشت', 'cmdk.listKind': 'لیست',
       'cmdk.canvas_note': 'یادداشت',
       'cmdk.canvas_comment': 'نظر',
       'cmdk.canvas_block': 'بلوک',

@@ -603,6 +603,9 @@ window.__hibanaDictEN = {
       'qn.noProjects': 'No projects to attach to yet — create one first.',
       'qn.loadFailed': "Couldn't load the projects", 'qn.saved': 'Note saved',
       'qn.failed': "Couldn't save the note — try again",
+      // S64: jump-to-note fallback — the palette deep link targets the dashboard's
+      // 20-note recent list; a deeper hit is safe, just not rendered on this page.
+      'qn.jumpMissing': 'That note is saved, but older than the recent list shown here.',
       'taskAdd.title': 'New Task', 'taskAdd.taskLabel': 'Task', 'taskAdd.quadrant': 'Quadrant',
       'taskAdd.deadline': 'Deadline (optional)', 'taskAdd.add': 'Add task',
       'taskAdd.added': 'Task added', 'taskAdd.failed': "Couldn't add the task — try again",
@@ -654,6 +657,8 @@ window.__hibanaDictEN = {
       'cmdk.sadhana': 'To-Do',
       'cmdk.canvas': 'Canvas',
       'cmdk.untitledNote': 'Untitled note',
+      // S64: quick-note palette rows carry a kind chip + FTS snippet in the sublabel.
+      'cmdk.noteKind': 'Note', 'cmdk.listKind': 'List',
       'cmdk.canvas_note': 'Note',
       'cmdk.canvas_comment': 'Comment',
       'cmdk.canvas_block': 'Block',

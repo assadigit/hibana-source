@@ -74,7 +74,13 @@
     // toggle's reload()) are NOT skipped anymore — the same-page re-entry path below
     // re-mounts the page, so a query change is a real navigation. Only a byte-identical
     // URL is a no-op.
-    if (opts.sameSkip !== false && url.pathname === location.pathname && url.search === location.search) return
+    // S64: hash-only changes count as real navigations too. go() previously compared
+    // pathname+search only, so a palette deep link like /app#note-<id>&q=… fired FROM
+    // /app was silently dropped — the click did nothing at all (the same drop hit the
+    // vault's #n= deep link when the palette opened ON /notes.html, and canvas anchors
+    // from the canvas page). A different hash now re-mounts the page, whose boot reads
+    // the fresh hash — the universal fix, no per-page hashchange listeners needed.
+    if (opts.sameSkip !== false && url.pathname === location.pathname && url.search === location.search && url.hash === location.hash) return
     load(url, opts.push !== false)
   }
 

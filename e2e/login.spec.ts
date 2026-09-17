@@ -81,7 +81,9 @@ test('login → dashboard renders with zero console errors', async ({ page, brow
 
 test('404 page renders correctly', async ({ page }) => {
   await page.goto('/nonexistent-page-xyz')
-  await expect(page).toHaveTitle(/404|پیدا نشد/)
+  // S64: the static head title is EN (like every page); i18n localizes it to Persian
+  // for FA users via the .nf-page body marker — both are valid outcomes here.
+  await expect(page).toHaveTitle(/Page not found|پیدا نشد/)
 })
 
 test('health endpoint responds', async ({ request }) => {

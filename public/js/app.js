@@ -873,6 +873,121 @@ window.hibana = (() => {
     }
   })
 
+  // ---- S64: jump-to-note — the palette's quick-note deep link lands HERE ----------------
+  // /app#note-<uuid>&q=<term>: the dashboard is the one surface that renders note-cards,
+  // so this is where quick notes' "find → open → SEE" ends. The card scrolls into view
+  // with one accent pulse; when a query rides the link, the first matching text node is
+  // wrapped in a temporary <mark class="note-jump"> that unwraps itself after the flash
+  // (the same visual language as the vault's S63 jump-to-match). The hash is consumed
+  // via replaceState so a reload reopens clean. The widget caps at 20 recent cards — a
+  // hit deeper than that toasts instead of dead-scrolling. Re-armed on hashchange,
+  // popstate, and every htmx:afterSwap (the dashboard main swaps async via hx-get, and
+  // soft-nav re-entries re-fire it — pushState itself fires no event to hook).
+  ;(() => {
+    const canHostCards = () =>
+      !!document.querySelector('main.shell-dash') ||
+      location.pathname === '/app' || location.pathname === '/dashboard.html'
+    const parseHash = () => {
+      if (!location.hash || !location.hash.startsWith('#note-')) return null
+      const raw = location.hash.slice(6)
+      const amp = raw.indexOf('&q=')
+      const id = (amp >= 0 ? raw.slice(0, amp) : raw).trim()
+      if (!/^[0-9a-f-]{10,}$/i.test(id)) return null // uuid-ish only — never a stray fragment
+      let q = ''
+      if (amp >= 0) { try { q = decodeURIComponent(raw.slice(amp + 3)) } catch { q = raw.slice(amp + 3) } }
+      return { id, q }
+    }
+    let armed = null
+    const disarm = () => {
+      if (!armed) return
+      if (armed.observer) armed.observer.disconnect()
+      if (armed.timer) clearInterval(armed.timer)
+      if (armed.failTimer) clearTimeout(armed.failTimer)
+      armed = null
+    }
+    // Wrap the card's first text-node hit in <mark class="note-jump">. Form controls are
+    // skipped: a <mark> inside a <textarea> is invalid DOM and the walk would otherwise
+    // match the raw source twin of the rendered markdown before the visible one.
+    const wrapFirstMatch = (card, q) => {
+      const needle = String(q || '').toLowerCase()
+      if (!needle) return null
+      const walker = document.createTreeWalker(card, NodeFilter.SHOW_TEXT, {
+        acceptNode: (n) => {
+          const p = n.parentElement
+          if (!p) return NodeFilter.FILTER_REJECT
+          const tag = p.tagName
+          if (tag === 'TEXTAREA' || tag === 'INPUT' || tag === 'SCRIPT' || tag === 'STYLE') return NodeFilter.FILTER_REJECT
+          return NodeFilter.FILTER_ACCEPT
+        },
+      })
+      let node
+      while ((node = walker.nextNode())) {
+        const v = node.nodeValue || ''
+        const i = v.toLowerCase().indexOf(needle)
+        if (i >= 0) {
+          const range = document.createRange()
+          range.setStart(node, i)
+          range.setEnd(node, i + needle.length)
+          const mark = document.createElement('mark')
+          mark.className = 'note-jump'
+          try { range.surroundContents(mark) } catch { return null }
+          return mark
+        }
+      }
+      return null
+    }
+    const jump = (card, q) => {
+      card.scrollIntoView({ block: 'center' })
+      card.classList.add('note-jump')
+      setTimeout(() => card.classList.remove('note-jump'), 2600)
+      if (q) {
+        const mark = wrapFirstMatch(card, q)
+        if (mark) mark.scrollIntoView({ block: 'center' })
+        setTimeout(() => {
+          if (mark && mark.parentNode) { mark.replaceWith(...Array.from(mark.childNodes)); card.normalize() }
+        }, 2600)
+      }
+    }
+    const arm = () => {
+      if (!canHostCards()) return
+      const parsed = parseHash()
+      if (!parsed) return
+      if (armed && armed.id === parsed.id) return // already watching this target
+      disarm()
+      armed = { ...parsed, observer: null, timer: null, failTimer: null }
+      const tryNow = () => {
+        if (!armed) return false
+        const card = document.getElementById('note-' + armed.id)
+        if (!card) return false
+        const { q } = armed
+        disarm()
+        try { history.replaceState(null, '', location.pathname + location.search) } catch { /* history unavailable */ }
+        jump(card, q)
+        return true
+      }
+      if (tryNow()) return // hash arrived after the cards were already in the DOM
+      // Hard load: main.shell-dash swaps its content via hx-get after app.js boots. Soft
+      // nav: nav.js replaces the whole <main> first, THEN the hx-get fires. Either way
+      // the card lands via mutation — the observer catches it, the interval is
+      // belt-and-suspenders, and the fail timer converts a hopeless wait into a toast.
+      armed.observer = new MutationObserver(() => { tryNow() })
+      armed.observer.observe(document.body, { childList: true, subtree: true })
+      armed.timer = setInterval(() => { tryNow() }, 400)
+      armed.failTimer = setTimeout(() => {
+        if (!armed) return
+        disarm()
+        // Consume the dead fragment on the fail path too — a reload must not re-toast
+        // the same hopeless jump (the success path strips it in tryNow above).
+        try { history.replaceState(null, '', location.pathname + location.search) } catch { /* history unavailable */ }
+        toast(_t('qn.jumpMissing', 'That note is saved, but older than the recent list shown here.'), 'info', 6000)
+      }, 4500)
+    }
+    arm()
+    window.addEventListener('hashchange', arm)
+    window.addEventListener('popstate', arm)
+    document.addEventListener('htmx:afterSwap', arm)
+  })()
+
   // ---- Notebook list mode: Enter drafts a line, + commits the whole list -----------------
   // The composer is a textarea (needed for note mode). In list mode each Enter turns the
   // current line into a draft row in a visible preview (nothing is saved yet — spec: show

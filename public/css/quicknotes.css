@@ -916,6 +916,45 @@
   .mobile-more-sheet, .mobile-more-backdrop { display: none !important; }
 }
 
+/* ═══ S64: jump-to-note flash ═══════════════════════════════════════════════════
+   The palette's quick-note deep link (#note-<uuid>&q=<term>) scrolls the dashboard
+   card into view and pulses it once — the same accent language as the vault's S63
+   jump-to-match, tuned for the card's thin-border anatomy: a brand ring + an
+   accent wash that settles, plus a lift so the eye catches the target moving.
+   With a query, the first matching text node also wears <mark class="note-jump">. */
+.note-card.note-jump {
+  border-color: color-mix(in srgb, var(--brand) 55%, transparent);
+  background: color-mix(in srgb, var(--accent) 22%, transparent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--brand) 28%, transparent);
+  animation: note-jump-settle 0.65s ease 1;
+}
+@keyframes note-jump-settle {
+  0% {
+    background: color-mix(in srgb, var(--accent) 45%, transparent);
+    box-shadow: 0 0 0 5px color-mix(in srgb, var(--brand) 42%, transparent);
+    translate: 0 -2px;
+  }
+  100% {
+    background: color-mix(in srgb, var(--accent) 22%, transparent);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--brand) 28%, transparent);
+    translate: 0 0;
+  }
+}
+mark.note-jump {
+  color: inherit;
+  background: color-mix(in srgb, var(--accent) 30%, transparent);
+  border-radius: 4px;
+  padding: 0 0.08em;
+  animation: note-jump-mark-pulse 0.7s ease 1;
+}
+@keyframes note-jump-mark-pulse {
+  0% { background: color-mix(in srgb, var(--accent) 60%, transparent); }
+  100% { background: color-mix(in srgb, var(--accent) 30%, transparent); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .note-card.note-jump, mark.note-jump { animation: none; translate: 0 0; }
+}
+
 /* Respect reduced-motion (WCAG 2.3.3). */
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {

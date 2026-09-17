@@ -12,7 +12,7 @@
 
 window.hibanaI18n = (() => {
   // P2 (Focus 2): dict.fa is loaded lazily — EN users never download i18n-fa.js (17KB gz).
-  // When apply() resolves to fa, ensureFaDict() injects /js/i18n-fa.js?v=43 dynamically and
+  // When apply() resolves to fa, ensureFaDict() injects /js/i18n-fa.js?v=44 dynamically and
   // awaits it. The build pipeline's fixpoint loop rewrites the path to /dist/i18n-fa.<hash>.js.
   const dict = {
     en: window.__hibanaDictEN,
@@ -43,7 +43,7 @@ window.hibanaI18n = (() => {
   }
 
   // P2 (Focus 2): lazy-load the FA dictionary. Returns immediately if already loaded.
-  // Follows the queue.js injection pattern (app.js:13) — /js/i18n-fa.js?v=43 is rewritten
+  // Follows the queue.js injection pattern (app.js:13) — /js/i18n-fa.js?v=44 is rewritten
   // to /dist/i18n-fa.<hash>.js by the build pipeline's fixpoint loop.
   let faDictPromise = null // guards against double-injection if apply() fires twice
   function ensureFaDict() {
@@ -51,7 +51,7 @@ window.hibanaI18n = (() => {
     if (faDictPromise) return faDictPromise
     faDictPromise = new Promise((resolve) => {
       const s = document.createElement('script')
-      s.src = '/js/i18n-fa.js?v=43'
+      s.src = '/js/i18n-fa.js?v=44'
       s.onload = () => { dict.fa = window.__hibanaDictFA || {}; resolve() }
       s.onerror = () => { dict.fa = {}; resolve() } // graceful: t() falls back to EN
       document.head.appendChild(s)
@@ -92,6 +92,8 @@ window.hibanaI18n = (() => {
 
     // Localized document title (visible in browser chrome / PWA / history — user request
     // 2026-08-29 "every item translated"). Only mapped app pages; login/signup stay EN.
+    // S64 additions: /notes.html (the 0057 Vault, S53) and /gallery.html (S39) shipped
+    // after this map was last touched — FA users kept seeing English tab titles for them.
     const TITLE_PAGES = {
       '/app': 'nav.dashboard', '/dashboard.html': 'nav.dashboard',
       '/to-do-list': 'nav.sadhana', '/sadhana.html': 'nav.sadhana',
@@ -100,10 +102,17 @@ window.hibanaI18n = (() => {
       '/whiteboard.html': 'nav.whiteboard',
       '/notifications.html': 'nav.notifications', '/reports.html': 'nav.reports',
       '/archive.html': 'nav.archive', '/settings.html': 'nav.settings',
-      '/clients.html': 'nav.clients',
+      '/clients.html': 'nav.clients', '/gallery.html': 'nav.gallery',
+      '/notes.html': 'nav.notes',
       '/admin.html': 'nav.admin', '/404.html': 'nf.title',
     }
-    const titleKey = TITLE_PAGES[location.pathname]
+    // S64 bug fix: the branded 404 is served AT the miss URL (app.ts notFoundPage
+    // re-serves /404.html's bytes for ANY unknown path), so the '/404.html' key above
+    // almost never matches — an EN user landing on /no-such-page kept the static
+    // Persian <title> from 404.html's head. The page itself carries .nf-page on
+    // <body>; that marker is the reliable signal, whatever the URL is.
+    const is404Page = document.body.classList.contains('nf-page')
+    const titleKey = TITLE_PAGES[location.pathname] || (is404Page ? 'nf.title' : null)
     if (titleKey) document.title = `${t(titleKey)} — Hibana`
 
     document.querySelectorAll('[data-i18n]').forEach((el) => {

@@ -18,6 +18,10 @@
             const status = document.querySelector('#project-body [data-status]')?.dataset.status
             if (h1 && h1.textContent) {
               window.hibanaCmdK?.recordRecent?.(id, h1.textContent.trim(), status || '')
+              // S64: the tab title carries the project's OWN name (language-neutral user
+              // content — the name is whatever the owner typed), not a generic "Project".
+              // FA users previously kept the static English title for the whole visit.
+              document.title = h1.textContent.trim() + ' — Hibana'
             }
           })
           // A deleted/missing project 404s — htmx would just leave the skeleton spinning

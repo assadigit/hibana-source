@@ -403,17 +403,25 @@
       }
     }
 
-    // 0040: Quick notes — deep link → notebook page (the dashboard widget is a preview).
+    // 0040: Quick notes — deep link → the dashboard (the one surface that renders
+    // note-cards; /whiteboard.html is the Fabric notebook SHEET and never had a
+    // #note-<id> element — S64 fixed the dead target). S63's jump-to-match now rides
+    // the link too: #note-<id>&q=<term> scrolls the card, flashes it, and marks the
+    // first body hit. The sublabel carries the kind (note vs checklist) + the FTS5
+    // content snippet, so an untitled hit says WHERE the query landed.
     if (notes.length) {
       html.push('<li class="cmdk-group" role="presentation"><span class="cmdk-group-label">' + _t('cmdk.notes', 'Notes') + '</span></li>')
       for (const n of notes) {
         const idx = items.length
-        const url = '/whiteboard.html#note-' + n.id
+        const url = '/app#note-' + n.id + (lastQuery ? '&q=' + encodeURIComponent(lastQuery) : '')
         const label = n.title || _t('cmdk.untitledNote', 'Untitled note')
         items.push({ kind: 'note', label, action: () => (window.hibanaNav ? window.hibanaNav.go(url) : (window.location.href = url)) })
+        const kindLabel = _t('cmdk.' + (n.kind === 'list' ? 'listKind' : 'noteKind'), n.kind === 'list' ? 'List' : 'Note')
+        // hl() escapes internally — pass raw text, never pre-escaped strings.
+        const sub = kindLabel + (n.snippet ? ' · ' + n.snippet : '')
         html.push(`<li class="cmdk-item" role="option" data-idx="${idx}" tabindex="-1">
           <span class="cmdk-icon">${iconSvg('note')}</span>
-          <span class="cmdk-label">${hl(label)}</span>
+          <span class="cmdk-label">${hl(label)}${sub ? `<span class="cmdk-sublabel muted"> · ${hl(sub)}</span>` : ''}</span>
         </li>`)
       }
     }

@@ -19,7 +19,7 @@ import type { Config, ProjectRow, UserRow } from '../types'
 // surfaces deleted content. The htmx branch is unchanged (still a project list); the
 // new groups are returned in the JSON body for the command palette (command-palette.js).
 
-type NoteHit = { id: string; title: string; kind: string }
+type NoteHit = { id: string; title: string; kind: string; snippet?: string }
 type VaultHit = { id: string; title: string; starred: number; folder: string | null; snippet: string }
 type BacklogHit = { id: string; doc_id: string; project_id: string; project_title: string; title: string }
 type SadhanaHit = { id: string; title: string; quadrant: number }
@@ -48,8 +48,12 @@ export function searchRoutes(cfg: Config) {
     // store their items as JSON; the content column is matched as plain text so the JSON
     // brackets/punctuation are part of the index, but FTS5 tokenizes on them so task text
     // still matches cleanly. The dashboard/notebook page is the deep link target.
+    // S64: snippet() — the same information scent the vault group (S62) has: a ~12-token
+    // window around the first CONTENT hit (column 1), so an untitled note's palette row
+    // says WHERE the query hit instead of a bare "Untitled note". Empty markers: the
+    // palette highlights the query itself (hl()), so FTS markup would only fight it.
     const notes = await cfg.db.query<NoteHit>(
-      `SELECT n.id, n.title, n.kind FROM quick_notes_fts f
+      `SELECT n.id, n.title, n.kind, snippet(quick_notes_fts, 1, '', '', '…', 12) AS snippet FROM quick_notes_fts f
        JOIN quick_notes n ON n.rowid = f.rowid
        WHERE n.user_id = ? AND n.deleted_at IS NULL AND quick_notes_fts MATCH ?
        ORDER BY n.updated_at DESC LIMIT 20`,

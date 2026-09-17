@@ -36,6 +36,16 @@ on:
     types: [completed]
     branches: [main]
 
+# S60: the guard's `gh api actions/runs` query needs actions:read — the default
+# token on workflow_run-triggered workflows does NOT carry it (observed live:
+# HTTP 403 "Resource not accessible by integration" → guard crashed → deploy
+# skipped — safe direction, but a red X and no deploy). Declared explicitly;
+# contents:read covers both checkouts. The deploy steps authenticate to
+# Cloudflare with repo secrets, never with this token.
+permissions:
+  actions: read
+  contents: read
+
 concurrency:
   group: cd-deploy
   cancel-in-progress: false

@@ -1149,9 +1149,35 @@ registration (update-swap reload stays).
 1. boot.js first-install reload guard (E — every page, every first visit).
 2. Gallery true lazy-loading + upload-time resize + thumb variant (F1 — the named
    candidate, confirmed).
-3. Dashboard: `[hidden]` CSS fix + server-side render cap + journal GROUP BY (F2+F3).
-4. `/api` default Cache-Control + Node /dist immutable parity (B).
-5. Re-measure with the same harnesses after; deltas go here.
+3. Dashboard: [hidden] CSS fix + server-side render cap + journal GROUP BY (F2+F3).
+4. /api default Cache-Control + Node /dist immutable parity (B).
+5. Re-measure with the same harness; deltas go here — ALL SHIPPED THIS SESSION (below).
+
+### S69 AFTER (same harness, same seed, post-fix — medians of 3)
+| page | lang | cache | TTFB | load | FCP | KB | res | api | apiMs | dom |
+|---|---|---|---|---|---|---|---|---|---|---|
+| dashboard | en | cold | 4 | 351 | 348 | **861** | 57 | 4 | 277 | **4083** |
+| dashboard | fa | cold | 2 | 349 | 460 | **867** | 56 | 4 | 77 | **4070** |
+| projects | en | cold | 3 | 275 | 216 | **519** | 52 | 5 | 133 | 410 |
+| project-detail | en | cold | 2 | 291 | 212 | **654** | 57 | 6 | 347 | 1410 |
+| notes-vault | en | cold | 2 | 380 | 276 | **551** | 53 | 5 | 160 | 1826 |
+| gallery | en | cold | 2 | 280 | 212 | **635** | 99 | **52** | **2656** | 1197 |
+| gallery | fa | cold | 2 | 293 | 216 | **660** | 98 | **52** | **5046** | 1199 |
+| calendar | en | cold | 2 | 372 | 256 | **560** | 56 | 7 | 279 | 659 |
+| whiteboard | en | cold | 2 | 303 | 268 | **734** | 54 | 4 | 71 | 326 |
+| settings | en | cold | 2 | 448 | 356 | **528** | 62 | 13 | 562 | 595 |
+
+DELTAS vs §10-A (cold): gallery 6576→635KB (−90%), apiMs 13325→2656 (−80%), calls 75→52
+(the 52 = in-viewport + 700px prefetch margin; legacy-shot self-heal tiles generated on
+first view make later loads cheaper still). Dashboard 1942→861KB (−56%), DOM 8043→4083
+nodes (−49%; the htmx fragment's #dashboard-todo 491→~130KB via the 8-row cap + board
+link + the [hidden] CSS fix). Every other page −44…−61% KB. **selfReloads 48/48 cold
+cells → 0/48** — the first-visit double-load is gone (the pre-fix "cold" column was
+actually measuring the SECOND load, post-forced-reload; the honest first-visit cost is
+now a single 241–465ms load). Steady warm state (3rd reload): DCL 71ms / load 74ms —
+the transitional warm#1 (DCL ~350ms) is the SW runtime cache populating once per browser
+profile, previously hidden inside the forced reload. Zero console/page errors across all
+cells, before AND after. Raw rows: scripts/perf-after.json.
 
 ## 9. D1 Time-Travel bookmark log (operational — newest last; KEEP THIS SECTION LAST)
 Created by `npm run bookmark:prod` before each prod migration (`scripts/

@@ -9,6 +9,10 @@
 # checkout pins the EXACT head_sha CI verified — a racing newer push can never ride
 # an older commit's green CI into prod; it gets its own CI→CD chain. Deploys queue
 # (concurrency, no cancel) so an in-flight deploy is never killed mid-step.
+# STALE-CI GUARD (S59b, observed live): CI runs complete out of push order, so the
+# queue can serialize an OLDER verified sha's deploy AFTER a newer one's — the guard
+# job steps aside when a newer commit's CI owns the queue (green or in flight), and
+# deploys on last-green-wins when the newer CI failed.
 # Trade-off, deliberate: if ci.yml itself breaks so CI never completes, CD never
 # fires — a broken CI file pausing deploys is the safe direction to fail.
 #
@@ -37,11 +41,59 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  # S59b stale-CI guard: CI runs complete out of PUSH order (observed live: an older
+  # commit's slower CI finished 2s after a newer one's), and the concurrency queue
+  # serializes deploys in CI-COMPLETION order — so an older verified sha could deploy
+  # AFTER a newer one and become the final prod state. The guard steps aside whenever
+  # a NEWER commit's CI already owns the queue (completed green, or still in flight —
+  # its chain WILL fire and its CD queues behind ours either way). Deploy only when
+  # we're the newest commit on main, or the newer CI failed (last-green wins).
+  guard:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    outputs:
+      deploy: ${{ steps.check.outputs.deploy }}
+    env:
+      TRIGGER_SHA: ${{ github.event.workflow_run.head_sha }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+      - name: Should this CI→CD chain still deploy?
+        id: check
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -eu
+          TIP=$(git ls-remote origin main | cut -f1)
+          if [ "$TIP" = "$TRIGGER_SHA" ]; then
+            echo "deploy=true" >> "$GITHUB_OUTPUT"
+            echo "triggering sha IS main's tip — deploy"
+            exit 0
+          fi
+          # the tip is newer — does its CI own the queue? (CI is the only push-event workflow)
+          STATE=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs?event=push&head_sha=$TIP&per_page=1" --jq '.workflow_runs[0].status // "none"')
+          CONCL=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs?event=push&head_sha=$TIP&per_page=1" --jq '.workflow_runs[0].conclusion // "none"')
+          echo "tip=$TIP tip-ci: state=$STATE conclusion=$CONCL (trigger=$TRIGGER_SHA)"
+          if [ "$STATE" = "completed" ] && [ "$CONCL" = "success" ]; then
+            echo "deploy=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::a newer green commit owns the deploy — this chain steps aside"
+          elif [ "$STATE" = "none" ] || [ "$STATE" = "completed" ]; then
+            # no CI for the tip, or the tip's CI failed/cancelled — deploy this verified sha
+            echo "deploy=true" >> "$GITHUB_OUTPUT"
+            echo "tip CI $STATE/$CONCL — last-green wins, deploy"
+          else
+            # tip CI queued/in_progress — its chain will fire and queue behind us; ours is redundant
+            echo "deploy=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::tip CI is $STATE — the newer chain owns the deploy, stepping aside"
+          fi
+
   deploy:
-    # Only deploy when the CI run that triggered us SUCCEEDED. pull_request CI runs
-    # never reach here (workflow_run's branches filter matches their head branch, not
-    # main) — only push-to-main CI runs chain into CD.
-    if: github.event.workflow_run.conclusion == 'success'
+    needs: guard
+    # Only deploy when the CI run that triggered us SUCCEEDED and the guard says this
+    # chain still owns the queue. pull_request CI runs never reach here (workflow_run's
+    # branches filter matches their head branch, not main).
+    if: github.event.workflow_run.conclusion == 'success' && needs.guard.outputs.deploy == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:

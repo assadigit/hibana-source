@@ -866,6 +866,8 @@ window.__hibanaDictFA = {
       'notes.exportMd': 'خروجی با پسوند md',
       // S62: دوقلوی کلیپ‌بوردیِ خروجی.
       'notes.copyMd': 'کپی به مارک‌داون', 'notes.copiedMd': 'کپی شد', 'notes.copyFailed': 'کپی نشد.',
+      // S63: تخمین زمان مطالعه در نوار وضعیت (فقط برای یادداشت‌های ۲۰۰ واژه به بالا).
+      'notes.readTime': 'حدود {n} دقیقه مطالعه',
       'notes.restore': 'بازیابی', 'notes.deleteForever': 'حذف همیشگی',
       'notes.deletedNote': 'یادداشت به زباله رفت', 'notes.restored': 'یادداشت بازیابی شد', 'notes.purged': 'برای همیشه حذف شد',
       'notes.deleteFailed': 'حذف یادداشت نشد.', 'notes.restoreFailed': 'بازیابی نشد.', 'notes.purgeFailed': 'حذف همیشگی نشد.',

@@ -160,3 +160,111 @@ test.describe('S62: vault notes in the command palette', () => {
     })
   })
 })
+
+test.describe('S63: jump-to-match + reading time + menu arrows', () => {
+  test.beforeEach(async ({ page }) => {
+    await login(page)
+  })
+
+  test('palette hit deep-links with the query and flashes the body match', async ({ page }) => {
+    // 240 filler words then the needle at the end — the jump must find it IN the body,
+    // not just open the note. Desktop default mode is split (preview visible).
+    const filler = Array.from({ length: 240 }, (_, i) => `word${i}`).join(' ')
+    const content = filler + ' zanzibarneedle'
+    const id = await mkNote(page, 'Jump probe', content)
+    try {
+      await page.keyboard.press('Control+k')
+      await page.fill('#cmdk-input', 'zanzibarneedle')
+      const dlg = page.locator('#cmdk-dialog')
+      const row = dlg.locator('.cmdk-item', { hasText: 'Jump probe' })
+      await expect(row).toBeVisible({ timeout: 8_000 })
+      await row.click()
+
+      // The deep link carries &q=; the vault page consumes it: the first body hit is
+      // wrapped in the temporary flash mark.
+      await page.waitForURL(`**/notes.html#n=${id}&q=zanzibarneedle`, { timeout: 10_000 })
+      await expect(page.locator('[data-vault-title]')).toHaveValue('Jump probe')
+      const mark = page.locator('mark.vault-jump')
+      await expect(mark).toBeVisible({ timeout: 5_000 })
+      await expect(mark).toHaveText('zanzibarneedle')
+
+      // openNote's replaceState strips &q once consumed — a reload reopens clean.
+      // (regex, not a glob: the glob `**/notes.html#n=<id>` inexplicably fails to match
+      // the identical-looking URL — hash-in-glob matching quirk; the &q= waitForURL
+      // above matched, this shape didn't. Regex is unambiguous.)
+      await expect(page).toHaveURL(new RegExp('/notes\\.html#n=' + id + '$'))
+    } finally {
+      await page.evaluate(async (nid) => {
+        await fetch(`/api/vault/notes/${nid}`, { method: 'DELETE' })
+        await fetch(`/api/vault/notes/${nid}/purge`, { method: 'POST' })
+      }, id)
+    }
+  })
+
+  test('long notes gain a reading-time estimate in the status row', async ({ page }) => {
+    const content = Array.from({ length: 240 }, (_, i) => `w${i}`).join(' ')
+    const id = await mkNote(page, 'Reading time probe', content)
+    try {
+      await page.goto(`/notes.html#n=${id}`)
+      await expect(page.locator('[data-vault-words]')).toContainText('240 words')
+      await expect(page.locator('[data-vault-words]')).toContainText('~1 min read')
+    } finally {
+      await page.evaluate(async (nid) => {
+        await fetch(`/api/vault/notes/${nid}`, { method: 'DELETE' })
+        await fetch(`/api/vault/notes/${nid}/purge`, { method: 'POST' })
+      }, id)
+    }
+  })
+
+  test('the vault kebab menu walks with arrow keys', async ({ page }) => {
+    const id = await mkNote(page, 'Menu arrows probe', 'x')
+    try {
+      await page.goto(`/notes.html#n=${id}`)
+      await expect(page.locator('[data-vault-title]')).toHaveValue('Menu arrows probe')
+
+      await page.click('[data-vault-kebab]')
+      const items = page.locator('.vault-pop-item')
+      await expect(items.nth(0)).toBeFocused() // openMenu focuses the first item
+
+      await page.keyboard.press('ArrowDown')
+      await expect(items.nth(1)).toBeFocused()
+      await page.keyboard.press('End')
+      await expect(items.last()).toBeFocused()
+      const n = await items.count()
+      await page.keyboard.press('ArrowUp')
+      await expect(items.nth(n - 2)).toBeFocused()
+      await page.keyboard.press('Home')
+      await expect(items.nth(0)).toBeFocused()
+    } finally {
+      await page.evaluate(async (nid) => {
+        await fetch(`/api/vault/notes/${nid}`, { method: 'DELETE' })
+        await fetch(`/api/vault/notes/${nid}/purge`, { method: 'POST' })
+      }, id)
+    }
+  })
+})
+
+test.describe('S63: print — Ctrl+P prints the note, not the app', () => {
+  test('print media hides chrome and shows the rendered markdown', async ({ page }) => {
+    await login(page)
+    const id = await mkNote(page, 'Print probe', '# Heading\n\nprintable body text')
+    try {
+      await page.goto(`/notes.html#n=${id}`)
+      await expect(page.locator('[data-vault-title]')).toHaveValue('Print probe')
+      await page.emulateMedia({ media: 'print' })
+      // The app chrome and the vault's own navigation surfaces drop out…
+      await expect(page.locator('.vault-tree')).toBeHidden()
+      await expect(page.locator('.vault-list')).toBeHidden()
+      await expect(page.locator('.vault-toolbar')).toBeHidden()
+      await expect(page.locator('.topbar')).toBeHidden()
+      // …and the printed form is the rendered markdown.
+      await expect(page.locator('.vault-preview')).toBeVisible()
+      await expect(page.locator('.vault-preview .markdown-body')).toContainText('printable body text')
+    } finally {
+      await page.evaluate(async (nid) => {
+        await fetch(`/api/vault/notes/${nid}`, { method: 'DELETE' })
+        await fetch(`/api/vault/notes/${nid}/purge`, { method: 'POST' })
+      }, id)
+    }
+  })
+})

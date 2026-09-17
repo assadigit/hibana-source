@@ -175,6 +175,23 @@
           pop.appendChild(btn)
         }
         document.body.appendChild(pop)
+        // S63: menu keyboard navigation — the pop is role=menu with menuitems, but
+        // arrow keys did nothing (Tab-only). ArrowUp/Down cycle, Home/End jump;
+        // Escape stays with the global onDocKey closer. Roving focus, no selection
+        // state to desync (focus IS the selection).
+        pop.addEventListener('keydown', (e) => {
+          if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp' && e.key !== 'Home' && e.key !== 'End') return
+          const btns = Array.from(pop.querySelectorAll('button'))
+          if (!btns.length) return
+          e.preventDefault()
+          const cur = btns.indexOf(document.activeElement)
+          let next = 0
+          if (e.key === 'ArrowDown') next = cur < 0 ? 0 : (cur + 1) % btns.length
+          else if (e.key === 'ArrowUp') next = cur < 0 ? btns.length - 1 : (cur - 1 + btns.length) % btns.length
+          else if (e.key === 'Home') next = 0
+          else next = btns.length - 1
+          btns[next].focus()
+        })
         const r = anchor.getBoundingClientRect()
         const pw = pop.offsetWidth, ph = pop.offsetHeight
         let x = isFa() ? r.left : r.right - pw
@@ -444,7 +461,12 @@
           // lightboxes) localizes numerals; the word count was the lone Latin-digit
           // holdout. document.documentElement.lang is set by i18n.js on apply().
           const dig = (n) => (document.documentElement.lang === 'fa' ? String(n).replace(/\d/g, (d) => '۰۱۲۳۴۵۶۷۸۹'[+d]) : String(n))
-          wordsEl.textContent = dig(words) + ' ' + _t('notes.words', 'words') + ' · ' + dig(chars) + ' ' + _t('notes.chars', 'chars')
+          // S63: reading-time estimate — only once the note is long enough for the
+          // number to mean something (a 30-word note is "instant"). ~200 wpm; the
+          // reading speed is the same order in FA. Persian digits via dig().
+          const mins = Math.max(1, Math.round(words / 200))
+          const readTime = words >= 200 ? ' · ' + _t('notes.readTime', '~{n} min read').split('{n}').join(dig(mins)) : ''
+          wordsEl.textContent = dig(words) + ' ' + _t('notes.words', 'words') + ' · ' + dig(chars) + ' ' + _t('notes.chars', 'chars') + readTime
         }
         const saveEl = $('[data-vault-save]')
         if (saveEl) {
@@ -697,6 +719,48 @@
         renderEditor()
         renderCards()
         try { history.replaceState(null, '', location.pathname) } catch {}
+      }
+
+      /* ── S63: jump-to-match — arriving from the palette's vault search, scroll the
+         note to WHERE the query hit and flash it: split/read → the preview's first
+         matching text node wrapped in a temporary <mark class="vault-jump"> that
+         unwraps itself after the flash; edit mode → the textarea's native selection
+         (focusing without preventScroll makes the browser scroll the caret into
+         view — the selection IS the jump). A title-only match (body miss) is a
+         graceful no-op. The query rides the deep link's hash (#n=<id>&q=<term>) and
+         is stripped by openNote's replaceState, so a reload reopens clean. ── */
+      const jumpToMatch = (term) => {
+        const needle = String(term || '').toLowerCase()
+        if (!needle) return
+        if (state.mode === 'edit') {
+          const ta = $('[data-vault-src]')
+          if (!ta) return
+          const idx = ta.value.toLowerCase().indexOf(needle)
+          if (idx < 0) return
+          try { ta.setSelectionRange(idx, idx + needle.length) } catch { /* detached */ }
+          ta.focus()
+          return
+        }
+        const body = $('[data-vault-preview-body]')
+        if (!body) return
+        const walker = document.createTreeWalker(body, NodeFilter.SHOW_TEXT)
+        let node
+        while ((node = walker.nextNode())) {
+          const i = node.nodeValue ? node.nodeValue.toLowerCase().indexOf(needle) : -1
+          if (i >= 0 && node.nodeValue) {
+            const range = document.createRange()
+            range.setStart(node, i)
+            range.setEnd(node, i + needle.length)
+            const mark = document.createElement('mark')
+            mark.className = 'vault-jump'
+            try { range.surroundContents(mark) } catch { return }
+            mark.scrollIntoView({ block: 'center' })
+            setTimeout(() => {
+              if (mark.parentNode) { mark.replaceWith(...Array.from(mark.childNodes)); body.normalize() }
+            }, 2600)
+            return
+          }
+        }
       }
 
       const newNote = async () => {
@@ -1300,14 +1364,16 @@
           return
         }
         let initial = { type: 'all', id: null }
+        let jumpQ = null
         try {
-          const m = location.hash.match(/^#n=([0-9a-f-]+)$/i)
-          if (m) initial = { type: 'note', id: m[1] }
+          const m = location.hash.match(/^#n=([0-9a-f-]+)(?:&q=([^&]+))?$/i)
+          if (m) { initial = { type: 'note', id: m[1] }; if (m[2]) jumpQ = decodeURIComponent(m[2]) }
           else if (prefs.view && prefs.view.type) initial = prefs.view
         } catch {}
         if (initial.type === 'note' && initial.id) {
           await loadNotes()
           await openNote(initial.id, { focusBody: false })
+          if (jumpQ) jumpToMatch(jumpQ)
         } else {
           if (initial.type === 'folder' && !folderById(initial.id)) initial = { type: 'all', id: null }
           if (initial.type === 'tag' && !state.tags.some((x) => x.tag.toLowerCase() === initial.id.toLowerCase())) initial = { type: 'all', id: null }

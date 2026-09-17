@@ -869,6 +869,8 @@ window.__hibanaDictEN = {
       'notes.exportMd': 'Export as .md',
       // S62: clipboard twin of the export.
       'notes.copyMd': 'Copy as Markdown', 'notes.copiedMd': 'Copied as Markdown', 'notes.copyFailed': 'Could not copy.',
+      // S63: reading-time estimate in the status row (shown only for 200+ word notes).
+      'notes.readTime': '~{n} min read',
       'notes.restore': 'Restore', 'notes.deleteForever': 'Delete forever',
       'notes.deletedNote': 'Note moved to Trash', 'notes.restored': 'Note restored', 'notes.purged': 'Deleted forever',
       'notes.deleteFailed': 'Could not delete the note.', 'notes.restoreFailed': 'Could not restore.', 'notes.purgeFailed': 'Could not delete forever.',

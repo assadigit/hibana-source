@@ -390,7 +390,9 @@
       html.push('<li class="cmdk-group" role="presentation"><span class="cmdk-group-label">' + _t('cmdk.vault', 'Vault') + '</span></li>')
       for (const v of vault) {
         const idx = items.length
-        const url = '/notes.html#n=' + v.id
+        // S63: the deep link carries the query — the vault page jumps to + flashes the
+        // first body match ("never lose your place": find → open → SEE the hit).
+        const url = '/notes.html#n=' + v.id + (lastQuery ? '&q=' + encodeURIComponent(lastQuery) : '')
         const label = v.title || _t('cmdk.untitledNote', 'Untitled note')
         items.push({ kind: 'vault', label, action: () => (window.hibanaNav ? window.hibanaNav.go(url) : (window.location.href = url)) })
         const sub = (v.folder ? esc(v.folder) + ' · ' : '') + esc(v.snippet || '')

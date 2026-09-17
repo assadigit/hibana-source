@@ -1174,3 +1174,49 @@
   margin-inline: calc(clamp(1.25rem, 5vw, 4rem) * -1);
   padding-inline: clamp(1.25rem, 5vw, 4rem);
 }
+
+/* ═══ S63: jump-to-match flash ═════════════════════════════════════════════════
+   The palette's vault deep link (#n=<id>&q=<term>) opens the note and wraps the
+   first body hit in a temporary <mark class="vault-jump"> that scrolls into view,
+   pulses once, then unwraps itself — find → open → SEE where it hit. */
+.vault-jump {
+  color: inherit;
+  background: color-mix(in srgb, var(--accent) 30%, transparent);
+  border-radius: 4px;
+  padding: 0 0.08em;
+  animation: vault-jump-pulse 0.7s ease 1;
+}
+@keyframes vault-jump-pulse {
+  0% { background: color-mix(in srgb, var(--accent) 60%, transparent); }
+  100% { background: color-mix(in srgb, var(--accent) 30%, transparent); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .vault-jump { animation: none; }
+}
+
+/* ═══ S63: print — Ctrl+P on an open note prints the NOTE, not the app ═════════
+   The tree, list, toolbar, status row, actions, and page chrome drop out; the
+   printed form is always the rendered markdown (a textarea prints clamped to its
+   box, so edit/split collapse to the preview). Scoped here: notes.css loads only
+   on the vault page. */
+@media print {
+  .topbar, .mobile-nav, .vault-tree, .vault-list, .vault-scrim,
+  .vault-toolbar, .vault-status, .vault-ed-actions, .vault-ed-back,
+  .vault-ed-meta, .vault-modes, .vault-outline { display: none !important; }
+  .vault, .vault-editor, .vault-body { display: block !important; height: auto !important; overflow: visible !important; }
+  .vault-editor[data-open] { display: block !important; }
+  .vault-src { display: none !important; }
+  .vault-preview { display: block !important; block-size: auto !important; }
+  .vault-ed { block-size: auto; }
+  .vault-ed-titlewrap { border: 0; padding: 0; }
+  .vault-ed-title {
+    font-size: 1.6rem;
+    font-weight: 700;
+    border: 0;
+    padding: 0;
+    color: #000;
+    -webkit-text-fill-color: #000;
+  }
+  .markdown-body { color: #000; }
+  .markdown-body a { color: #000; text-decoration: underline; }
+}

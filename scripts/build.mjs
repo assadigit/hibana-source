@@ -111,7 +111,11 @@ async function buildAssets() {
         entryPoints: [srcPath],
         bundle: false, // don't bundle imports — these are classic-script globals, not ESM
         minify: PROD,
-        sourcemap: PROD ? false : 'linked',
+        // S69: esbuild 0.28 rejects sourcemap:'linked' with write:false ("external
+        // source map without an output path") — build:dev/build:watch were silently
+        // broken (CI only exercises --prod). 'inline' embeds the map in the one
+        // output file we write, which is all this script ever persisted anyway.
+        sourcemap: PROD ? false : 'inline',
         write: false,
         target: ['es2020'],
         // S48 (owner: "More button not showing other tasks"): DO NOT set format:'iife'.
@@ -213,7 +217,7 @@ async function buildAssets() {
       target: ['es2020'],
       format: 'iife', // immediately-invoked function expression — sets window.fabric
       globalName: 'fabricShim',
-      sourcemap: PROD ? false : 'linked',
+      sourcemap: PROD ? false : 'inline', // S69: same esbuild 0.28 write:false constraint
       loader: { '.ts': 'ts' },
     })
     const shimCode = shimResult.outputFiles[0].text

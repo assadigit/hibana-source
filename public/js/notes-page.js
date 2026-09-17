@@ -473,7 +473,16 @@
         return out
       }
 
-      const outlineCollapsed = () => prefs.outline === false
+      const outlineCollapsed = () => {
+        // S59b mobile dropdown variant: an EXPLICIT user pref always wins (the toggle
+        // persists prefs.outline true/false). With no pref yet, phones/tablet-portrait
+        // (≤940px — same breakpoint where the vault tree becomes a drawer) start
+        // COLLAPSED: an open 38vh list over a 390px reading pane is space the note
+        // itself needs. The collapsed head carries the live current-section label
+        // (dropdown-style "current value"), so the row still answers "where am I?".
+        if (prefs.outline === true || prefs.outline === false) return prefs.outline === false
+        return typeof window.matchMedia === 'function' && window.matchMedia('(max-width: 940px)').matches
+      }
 
       const wirePreview = () => {
         const pane = $('[data-vault-preview]')
@@ -497,6 +506,7 @@
         nav.innerHTML = `<button type="button" class="vault-outline-head" data-vault-outline-toggle aria-expanded="${!outlineCollapsed()}">
           <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h10M4 18h13"/></svg>
           <span>${esc(_t('notes.outline', 'On this page'))}</span>
+          <span class="vault-outline-now" aria-hidden="true"></span>
           <svg class="icon vault-outline-caret" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
         </button>
         <ol class="vault-outline-list">
@@ -507,8 +517,10 @@
         // At the pane's BOTTOM (short notes can't scroll a late heading to the top),
         // the last heading still VISIBLE wins instead — so clicking an outline item
         // always highlights the section you jumped to.
+        // S59b: tracking runs in BOTH states — collapsed updates the head's live
+        // section label (dropdown "current value"); open updates the item highlights.
         pane.onscroll = () => {
-          if (outlineCollapsed() || !heads.length) return
+          if (!heads.length) return
           const prect = pane.getBoundingClientRect()
           let active = 0
           for (const h of heads) {
@@ -519,6 +531,9 @@
               if (h.getBoundingClientRect().top - prect.top < prect.height - 8) active = Number(h.dataset.vh || 0)
             }
           }
+          const nowEl = nav.querySelector('.vault-outline-now')
+          if (nowEl) nowEl.textContent = items[active]?.text || ''
+          if (outlineCollapsed()) return
           let activeEl = null
           nav.querySelectorAll('.vault-outline-item').forEach((li) => {
             const on = Number(li.getAttribute('data-vault-outline-item')) === active

@@ -17,6 +17,29 @@
         if (!grid) return
 
         const state = { rows: [], project: '', gs: 'all' }
+        // S59b — URL params (deep-linkable filters, "never lose your place"):
+        //   ?project=<id>  preselects the project filter
+        //   ?gs=open|fixed|pinned|all  preselects the state filter
+        // Filter changes replaceState the URL (no history spam); defaults drop their
+        // param so the canonical URL stays clean. On load the project param is
+        // VALIDATED against real rows — a stale/bookmarked id for a now-empty project
+        // falls back to All (an empty grid with a silent filter would read as data loss).
+        const GS_VALUES = new Set(['all', 'open', 'fixed', 'pinned'])
+        const urlParams = () => new URLSearchParams(location.search)
+        const readUrl = () => {
+          const p = urlParams()
+          const proj = p.get('project')
+          const gs = p.get('gs')
+          if (proj && /^[a-f0-9-]{6,64}$/i.test(proj)) state.project = proj
+          if (gs && GS_VALUES.has(gs)) state.gs = gs
+        }
+        const syncUrl = () => {
+          const p = urlParams()
+          if (state.project) p.set('project', state.project); else p.delete('project')
+          if (state.gs !== 'all') p.set('gs', state.gs); else p.delete('gs')
+          const q = p.toString()
+          history.replaceState(null, '', location.pathname + (q ? '?' + q : '') + location.hash)
+        }
         // Box labels: lockstep with the board's COLS map (detail-helpers.ts) — same
         // five boxes, same order, so "where it's categorized" reads identically.
         const BOX = { idea: ['New Ideas', 'ایده‌های جدید'], bug: ['Problems', 'مشکلات'], planned: ['Upcoming Plan', 'برنامه آتی'], in_progress: ['In Progress', 'در حال انجام'], done: ['Done', 'انجام‌شده'] }
@@ -108,6 +131,12 @@
             if (!res.ok) throw new Error('status ' + res.status)
             const data = await res.json()
             state.rows = (data.screenshots) || []
+            // URL-provided project must point at a project that actually has pictures —
+            // otherwise fall back to All and clean the param (feedback over silence).
+            if (state.project && !state.rows.some((r) => r.project_id === state.project)) {
+              state.project = ''
+              syncUrl()
+            }
             render()
           } catch {
             grid.setAttribute('aria-busy', 'false')
@@ -118,6 +147,7 @@
         ctx.on('change', (e) => {
           if (e.target !== projectSel) return
           state.project = projectSel.value
+          syncUrl()
           render()
         })
         ctx.on('click', async (e) => {
@@ -129,6 +159,7 @@
               c.classList.toggle('is-on', on)
               c.setAttribute('aria-pressed', on ? 'true' : 'false')
             })
+            syncUrl()
             render()
             return
           }
@@ -151,6 +182,13 @@
         // the dict may still be loading (i18n.js is deferred) — re-render once ready
         // so FA labels/dates land after the fetch won the race.
         if (window.hibanaI18n?.ready) window.hibanaI18n.ready.then(() => render()).catch(() => {})
+        readUrl()
+        // reflect a URL-provided state filter on its chip BEFORE any render
+        document.querySelectorAll('.gallery-state').forEach((c) => {
+          const on = c.getAttribute('data-gs') === state.gs
+          c.classList.toggle('is-on', on)
+          c.setAttribute('aria-pressed', on ? 'true' : 'false')
+        })
         load()
       },
     })

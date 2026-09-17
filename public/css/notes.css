@@ -1145,9 +1145,29 @@
 @media (prefers-reduced-motion: reduce) {
   .vault-outline-caret { transition: none; }
 }
+/* S59b — live current-section label in the COLLAPSED head (dropdown "current value"):
+   muted, un-truncated-source, ellipsized to whatever space the title leaves; hidden
+   while open (the item highlight already shows position). */
+.vault-outline-now {
+  margin-inline-start: 0.375rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-inline-size: 46%;
+  color: var(--muted);
+  font-weight: 500;
+  font-size: 0.72rem;
+  letter-spacing: 0;
+  text-transform: none;
+}
+.vault-outline[data-open='true'] .vault-outline-now { display: none; }
 /* mobile: the preview pane's padding is slimmer — match the outline stretch */
 @media (max-width: 940px) {
   .vault-outline { margin: -0.875rem -1rem 0.875rem; padding: 0.4375rem 1rem; }
+  /* collapsed-by-default head on phones: give the live label more of the row (the
+     "On this page" title truncates instead — the label is the useful half) */
+  .vault-outline-now { max-inline-size: 56%; }
+  .vault-outline-head > span:first-of-type { flex: 0 1 auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 }
 /* read mode: the pane widens its inline padding (clamp) — the outline stretches to match */
 .vault-body[data-mode='read'] .vault-outline {

@@ -215,3 +215,63 @@ test('the gallery: every picture, project + pin chips, filters, space meter, del
 
   expect(errors).toEqual([])
 })
+
+test('the gallery: URL params deep-link the filters (S59b — never lose your place)', async ({ page, browserName }) => {
+  test.skip(browserName !== 'chromium', 'Desktop Chromium only')
+  const errors = trackErrors(page)
+  await login(page)
+
+  // seed one project with an OPEN (pinned) shot + a second project with a FIXED shot
+  const pid = ((await api(page, '/api/projects', 'POST', { title: `e2e s59b gal ${Date.now()}` })) as { json: { id: string } }).json.id
+  const pid2 = ((await api(page, '/api/projects', 'POST', { title: `e2e s59b gal2 ${Date.now()}` })) as { json: { id: string } }).json.id
+  const task = (await api(page, `/api/projects/${pid}/devtasks`, 'POST', { title: 'URL-param pin target', status: 'bug' })) as { json: { id: string } }
+  const { DatabaseSync } = await import('node:sqlite')
+  const db = new DatabaseSync('/tmp/hibana-e2e.db')
+  db.prepare("DELETE FROM screenshots WHERE project_id IN (SELECT id FROM projects WHERE user_id = (SELECT id FROM users WHERE email = ?))").run(TEST_EMAIL)
+  const s1 = crypto.randomUUID()
+  const s2 = crypto.randomUUID()
+  const now = new Date().toISOString()
+  db.prepare('INSERT INTO screenshots (id, project_id, github_path, mime_type, caption, resolved, task_id, bytes, created_at) VALUES (?, ?, ?, ?, ?, 0, ?, 120, ?)')
+    .run(s1, pid, `e2e/${s1}.png`, 'image/png', 'Open problem shot', task.json.id, now)
+  db.prepare('INSERT INTO screenshots (id, project_id, github_path, mime_type, caption, resolved, bytes, created_at) VALUES (?, ?, ?, ?, ?, 1, 80, ?)')
+    .run(s2, pid2, `e2e/${s2}.png`, 'image/png', 'Fixed shot', now)
+  db.close()
+
+  // ?gs=fixed deep-links the state filter: only the fixed shot, chip pressed, URL kept
+  await page.goto(`/gallery.html?gs=fixed`)
+  await page.waitForSelector('.gal-card')
+  await expect(page.locator('.gal-card')).toHaveCount(1)
+  await expect(page.locator(`.gal-card[data-shot="${s2}"]`)).toHaveCount(1)
+  await expect(page.locator('[data-gs="fixed"]')).toHaveAttribute('aria-pressed', 'true')
+  expect(page.url()).toContain('gs=fixed')
+
+  // ?project=<id> deep-links the project filter: select carries it, URL kept
+  await page.goto(`/gallery.html?project=${pid2}`)
+  await page.waitForSelector('.gal-card')
+  await expect(page.locator('.gal-card')).toHaveCount(1)
+  await expect(page.locator(`.gal-card[data-shot="${s2}"]`)).toHaveCount(1)
+  await expect(page.locator('#gallery-project')).toHaveValue(pid2)
+  expect(page.url()).toContain(`project=${pid2}`)
+
+  // a STALE project id (no pictures) falls back to All AND cleans the param —
+  // an empty grid with a silent filter would read as data loss
+  await page.goto(`/gallery.html?project=00000000-dead-beef-0000-000000000000`)
+  await page.waitForSelector('.gal-card')
+  await expect(page.locator('.gal-card')).toHaveCount(2)
+  await expect(page.locator('#gallery-project')).toHaveValue('')
+  expect(page.url()).not.toContain('project=')
+
+  // filter CHANGES rewrite the URL in place (replaceState): the history stack does
+  // not grow per filter click — back still leaves the page in one hop
+  await page.click('[data-gs="pinned"]')
+  await expect(page.locator('.gal-card')).toHaveCount(1)
+  expect(page.url()).toContain('gs=pinned')
+  const histLen = await page.evaluate(() => history.length)
+  await page.click('[data-gs="all"]')
+  await page.click('[data-gs="open"]')
+  await page.click('[data-gs="all"]')
+  expect(await page.evaluate(() => history.length)).toBe(histLen)
+  expect(page.url()).not.toContain('gs=')
+
+  expect(errors).toEqual([])
+})

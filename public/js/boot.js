@@ -112,9 +112,19 @@ try {
 // This catches the case where the user stays on a long-lived tab and never navigates
 // (the old SW would otherwise stay active until the next hard navigation).
 if ('serviceWorker' in navigator) {
+  // S69 (perf §10-E): a controllerchange fires on the FIRST install too (clients.claim
+  // right after registration) — reloading then was a pure double-load: every cold page
+  // navigation did load#1 → SW install → location.reload() → load#2 (measured
+  // selfReloads=1 on all 8 key pages, first-visit flicker included). The reload is only
+  // needed when an OLD controller was replaced by a NEW one (deploy update) — so capture
+  // whether a controller existed at boot and skip the reload on first install. The page
+  // a first-time visitor is already looking at IS the fresh shell; late fetches simply
+  // start going through the SW once it claims.
+  const hadController = !!navigator.serviceWorker.controller
   let reloading = false
   navigator.serviceWorker.addEventListener('controllerchange', () => {
     if (reloading) return
+    if (!hadController) return // first install — nothing stale to escape
     reloading = true
     try {
       const last = sessionStorage.getItem('hibana-sw-reload')

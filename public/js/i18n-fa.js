@@ -628,6 +628,8 @@ window.__hibanaDictFA = {
       'cmdk.noResults': 'نتیجه‌ای نیست.',
       // 0040 search depth: result-group headers + canvas element type labels + quadrant names.
       'cmdk.notes': 'یادداشت‌ها',
+      // S62: گروه خزانه (یادداشت‌های بلند).
+      'cmdk.vault': 'خزانه',
       // S30 بستهٔ ۴: مدیر برچسب‌ها
       'db.labelsTitle': 'برچسب‌ها', 'db.labelsHint': 'تغییر نام روی نام موجود ادغام می‌کند؛ رنگ با خودت است؛ برچسب بلااستفاده قابل حذف است.',
       'db.labelsName': 'نام برچسب', 'db.labelsColor': 'تغییر رنگ', 'db.labelsMerge': 'ادغام در…', 'db.labelsMergePh': 'ادغام در…',
@@ -862,6 +864,8 @@ window.__hibanaDictFA = {
       'notes.moveTo': 'انتقال به پوشه…', 'notes.moveToUnfiled': 'بدون پوشه', 'notes.moveToTrash': 'انتقال به زباله',
       'notes.duplicate': 'یک نسخهٔ دیگر', 'notes.duplicated': 'نسخه ساخته شد', 'notes.duplicateFailed': 'نسخه‌برداری نشد.',
       'notes.exportMd': 'خروجی با پسوند md',
+      // S62: دوقلوی کلیپ‌بوردیِ خروجی.
+      'notes.copyMd': 'کپی به مارک‌داون', 'notes.copiedMd': 'کپی شد', 'notes.copyFailed': 'کپی نشد.',
       'notes.restore': 'بازیابی', 'notes.deleteForever': 'حذف همیشگی',
       'notes.deletedNote': 'یادداشت به زباله رفت', 'notes.restored': 'یادداشت بازیابی شد', 'notes.purged': 'برای همیشه حذف شد',
       'notes.deleteFailed': 'حذف یادداشت نشد.', 'notes.restoreFailed': 'بازیابی نشد.', 'notes.purgeFailed': 'حذف همیشگی نشد.',

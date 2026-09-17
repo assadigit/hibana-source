@@ -629,6 +629,8 @@ window.__hibanaDictEN = {
       'cmdk.noResults': 'No matches.',
       // 0040 search depth: result-group headers + canvas element type labels + quadrant names.
       'cmdk.notes': 'Notes',
+      // S62: the vault group (long-form notes) — خزانه, the safe.
+      'cmdk.vault': 'Vault',
       // S30 batch 4: the label manager
       'db.labelsTitle': 'Labels', 'db.labelsHint': 'Rename merges onto an existing name; colors are yours to pick; unused labels can be deleted.',
       'db.labelsName': 'Label name', 'db.labelsColor': 'Recolor', 'db.labelsMerge': 'Merge into…', 'db.labelsMergePh': 'merge into…',
@@ -865,6 +867,8 @@ window.__hibanaDictEN = {
       'notes.moveTo': 'Move to folder…', 'notes.moveToUnfiled': 'Unfiled', 'notes.moveToTrash': 'Move to Trash',
       'notes.duplicate': 'Duplicate', 'notes.duplicated': 'Note duplicated', 'notes.duplicateFailed': 'Could not duplicate.',
       'notes.exportMd': 'Export as .md',
+      // S62: clipboard twin of the export.
+      'notes.copyMd': 'Copy as Markdown', 'notes.copiedMd': 'Copied as Markdown', 'notes.copyFailed': 'Could not copy.',
       'notes.restore': 'Restore', 'notes.deleteForever': 'Delete forever',
       'notes.deletedNote': 'Note moved to Trash', 'notes.restored': 'Note restored', 'notes.purged': 'Deleted forever',
       'notes.deleteFailed': 'Could not delete the note.', 'notes.restoreFailed': 'Could not restore.', 'notes.purgeFailed': 'Could not delete forever.',

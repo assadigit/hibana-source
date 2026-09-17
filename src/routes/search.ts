@@ -20,6 +20,7 @@ import type { Config, ProjectRow, UserRow } from '../types'
 // new groups are returned in the JSON body for the command palette (command-palette.js).
 
 type NoteHit = { id: string; title: string; kind: string }
+type VaultHit = { id: string; title: string; starred: number; folder: string | null; snippet: string }
 type BacklogHit = { id: string; doc_id: string; project_id: string; project_title: string; title: string }
 type SadhanaHit = { id: string; title: string; quadrant: number }
 type CanvasHit = { id: string; type: string; board: string }
@@ -114,6 +115,42 @@ export function searchRoutes(cfg: Config) {
       [user.id, match],
     )
 
+    // S62: vault_notes (0057) — the one text surface the 0040 search-depth matrix missed
+    // (it shipped AFTER the matrix was completed). No FTS table exists on vault_notes
+    // (an FTS migration would be owner-gated), so this is a LIKE scan — at personal
+    // scale (a solo user's notes) that is fast, and unlike the FTS groups' exact-phrase
+    // semantics it gives the palette substring matching, which suits type-ahead. Rule 1
+    // via user_id; soft-deleted notes stay hidden; LIKE wildcards in the query are
+    // escaped (a stray % must not match everything). The snippet is a ~64-char window
+    // around the first match so long notes surface WHERE they hit, not just that they
+    // did. Deep link → notes.html#n=<id> (the vault editor's own deep-link format).
+    const vaultPattern = `%${q.data.q.replace(/[\\%_]/g, (ch) => '\\' + ch)}%`
+    const vaultRows = await cfg.db.query<{ id: string; title: string; content: string; starred: number; folder: string | null }>(
+      `SELECT n.id, n.title, n.content, n.starred, f.name AS folder
+       FROM vault_notes n
+       LEFT JOIN note_folders f ON f.id = n.folder_id
+       WHERE n.user_id = ? AND n.deleted_at IS NULL
+         AND (n.title LIKE ? ESCAPE '\\' OR n.content LIKE ? ESCAPE '\\')
+       ORDER BY n.updated_at DESC LIMIT 20`,
+      [user.id, vaultPattern, vaultPattern],
+    )
+    const lowerQ = q.data.q.toLowerCase()
+    const snippetOf = (text: string): string => {
+      const hay = text.toLowerCase()
+      const idx = hay.indexOf(lowerQ)
+      if (idx < 0) return text.slice(0, 64).trim()
+      const start = Math.max(0, idx - 24)
+      const end = Math.min(text.length, start + 64)
+      return (start > 0 ? '…' : '') + text.slice(start, end).trim() + (end < text.length ? '…' : '')
+    }
+    const vault: VaultHit[] = vaultRows.map((r) => ({
+      id: r.id,
+      title: r.title,
+      starred: r.starred,
+      folder: r.folder,
+      snippet: snippetOf(r.content && r.content.toLowerCase().includes(lowerQ) ? r.content : r.title),
+    }))
+
     if (c.req.header('HX-Request')) {
       const t = trFor(c)
       const lang = localeOf(c)
@@ -126,7 +163,7 @@ export function searchRoutes(cfg: Config) {
           : `<div class="empty">${t('No matches.', 'نتیجه‌ای نیست.')}</div>`,
       ))
     }
-    return await etag(c, c.json({ projects, notes, backlog, sadhana, canvas, tasks }))
+    return await etag(c, c.json({ projects, notes, backlog, sadhana, canvas, tasks, vault }))
   })
 
   return app

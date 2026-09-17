@@ -219,9 +219,10 @@
     const actions = scoredActions.map((x) => x.a)
     let projects = []
     // 0040 search depth: the API now returns notes, backlog, sadhana, and canvas hits
-    // alongside projects. Each group is capped at 20 server-side; the palette shows a
-    // smaller slice per group so one keyword surfaces all six surfaces without scroll.
-    let notes = [], backlog = [], sadhana = [], canvas = [], tasks = []
+    // alongside projects. S62 adds vault (the 0057 Notes Vault — the one surface the
+    // 0040 matrix missed). Each group is capped at 20 server-side; the palette shows a
+    // smaller slice per group so one keyword surfaces all seven surfaces without scroll.
+    let notes = [], vault = [], backlog = [], sadhana = [], canvas = [], tasks = []
     if (q.length >= 1) {
       try {
         const res = await fetch('/api/search?q=' + encodeURIComponent(q))
@@ -229,6 +230,7 @@
           const body = await res.json()
           projects = (body.projects || []).slice(0, 6)
           notes = (body.notes || []).slice(0, 5)
+          vault = (body.vault || []).slice(0, 5)
           backlog = (body.backlog || []).slice(0, 5)
           sadhana = (body.sadhana || []).slice(0, 5)
           canvas = (body.canvas || []).slice(0, 5)
@@ -238,7 +240,23 @@
     }
     // If the response is stale (user typed more), ignore it
     if (q !== lastQuery) return
-    render(actions, projects, notes, backlog, sadhana, canvas, tasks)
+    render(actions, projects, notes, vault, backlog, sadhana, canvas, tasks)
+  }
+
+  // S62: highlight the matched substring in result labels — the eye needs to see WHY
+  // each row matched, not just that it did. Case-insensitive; label and query are
+  // HTML-escaped independently so the mark lands on exactly the visible characters
+  // (an escaped entity can never be split). No directional tricks, so RTL/FA labels
+  // highlight exactly like LTR ones; a query that doesn't substring-match (fuzzy
+  // action hits, recents) renders plain. Persian lowercasing is a no-op — matches are
+  // code-point exact, same as every other substring search in the app.
+  function hl(label) {
+    const q = lastQuery
+    const safe = String(label ?? '')
+    if (!q) return esc(safe)
+    const idx = safe.toLowerCase().indexOf(q.toLowerCase())
+    if (idx < 0) return esc(safe)
+    return esc(safe.slice(0, idx)) + '<mark class="cmdk-mark">' + esc(safe.slice(idx, idx + q.length)) + '</mark>' + esc(safe.slice(idx + q.length))
   }
 
   function iconSvg(name) {
@@ -261,6 +279,9 @@
       'note': '<path d="M5 5h9l5 5v9a1.5 1.5 0 0 1-1.5 1.5h-12A1.5 1.5 0 0 1 4 19V6.5A1.5 1.5 0 0 1 5.5 5Z"/><path d="M8 12h8M8 15.5h5"/>',
       'kanban': '<rect x="3.5" y="4.5" width="17" height="15" rx="2"/><path d="M9.2 8v8M14.8 8v5"/>',
       'trash': '<path d="M4 7h16M9 7V5.5A1.5 1.5 0 0 1 10.5 4h3A1.5 1.5 0 0 1 15 5.5V7M6.5 7l1 12.5A1.5 1.5 0 0 0 9 21h6a1.5 1.5 0 0 0 1.5-1.5L17.5 7"/><path d="M10 11v6M14 11v6"/>',
+      // S62: the vault group — خزانه, the safe. A padlock: long-form notes are the
+      // treasure, quick notes (the 'note' icon above) are the scratchpad.
+      'vault': '<rect x="5.5" y="10.5" width="13" height="9" rx="2"/><path d="M8.5 10.5V8a3.5 3.5 0 0 1 7 0v2.5"/><circle cx="12" cy="15" r="1.3"/>',
     }
     const body = ICONS[name] || ICONS.gear
     return `<svg class="icon" viewBox="0 0 24 24" aria-hidden="true">${body}</svg>`
@@ -293,7 +314,7 @@
     return _t(labels[q - 1] || 'cmdk.q1', fallbacks[q - 1] || 'Q1')
   }
 
-  function render(actions, projects, notes, backlog, sadhana, canvas, tasks) {
+  function render(actions, projects, notes, vault, backlog, sadhana, canvas, tasks) {
     items = []
     const html = []
 
@@ -355,7 +376,27 @@
         const badge = statusLabel(p.status)
         html.push(`<li class="cmdk-item" role="option" data-idx="${idx}" tabindex="-1">
           <span class="cmdk-icon"><span class="badge badge-${p.status}">${badge}</span></span>
-          <span class="cmdk-label">${esc(p.title)}</span>
+          <span class="cmdk-label">${hl(p.title)}</span>
+        </li>`)
+      }
+    }
+
+    // S62: Vault notes (خزانه) — long-form notes, searchable at last. Deep link → the
+    // vault editor's own #n=<id> format (opens the note directly, any folder). The
+    // sublabel carries folder + a snippet of WHERE the query hit, so a body match is
+    // distinguishable from a title match at a glance. Starred notes carry the amber
+    // star chip (same #e0a92e as the vault list).
+    if (vault && vault.length) {
+      html.push('<li class="cmdk-group" role="presentation"><span class="cmdk-group-label">' + _t('cmdk.vault', 'Vault') + '</span></li>')
+      for (const v of vault) {
+        const idx = items.length
+        const url = '/notes.html#n=' + v.id
+        const label = v.title || _t('cmdk.untitledNote', 'Untitled note')
+        items.push({ kind: 'vault', label, action: () => (window.hibanaNav ? window.hibanaNav.go(url) : (window.location.href = url)) })
+        const sub = (v.folder ? esc(v.folder) + ' · ' : '') + esc(v.snippet || '')
+        html.push(`<li class="cmdk-item" role="option" data-idx="${idx}" tabindex="-1">
+          <span class="cmdk-icon">${iconSvg('vault')}</span>
+          <span class="cmdk-label">${v.starred === 1 ? '<span class="cmdk-star" aria-hidden="true">★</span>' : ''}${hl(label)}<span class="cmdk-sublabel muted"> · ${sub}</span></span>
         </li>`)
       }
     }
@@ -370,7 +411,7 @@
         items.push({ kind: 'note', label, action: () => (window.hibanaNav ? window.hibanaNav.go(url) : (window.location.href = url)) })
         html.push(`<li class="cmdk-item" role="option" data-idx="${idx}" tabindex="-1">
           <span class="cmdk-icon">${iconSvg('note')}</span>
-          <span class="cmdk-label">${esc(label)}</span>
+          <span class="cmdk-label">${hl(label)}</span>
         </li>`)
       }
     }
@@ -385,7 +426,7 @@
         items.push({ kind: 'backlog', label, action: () => (window.hibanaNav ? window.hibanaNav.go(url) : (window.location.href = url)) })
         html.push(`<li class="cmdk-item" role="option" data-idx="${idx}" tabindex="-1">
           <span class="cmdk-icon">${iconSvg('list-check')}</span>
-          <span class="cmdk-label">${esc(b.title)}<span class="cmdk-sublabel muted"> · ${esc(b.project_title)}</span></span>
+          <span class="cmdk-label">${hl(b.title)}<span class="cmdk-sublabel muted"> · ${hl(b.project_title)}</span></span>
         </li>`)
       }
     }
@@ -400,7 +441,7 @@
         const qLabel = SADHANA_QUADRANT(s.quadrant)
         html.push(`<li class="cmdk-item" role="option" data-idx="${idx}" tabindex="-1">
           <span class="cmdk-icon">${iconSvg('target')}</span>
-          <span class="cmdk-label">${esc(s.title)}<span class="cmdk-sublabel muted"> · ${esc(qLabel)}</span></span>
+          <span class="cmdk-label">${hl(s.title)}<span class="cmdk-sublabel muted"> · ${esc(qLabel)}</span></span>
         </li>`)
       }
     }
@@ -417,7 +458,7 @@
         items.push({ kind: 'canvas', label: typeLabel, action: () => (window.hibanaNav ? window.hibanaNav.go(url) : (window.location.href = url)) })
         html.push(`<li class="cmdk-item" role="option" data-idx="${idx}" tabindex="-1">
           <span class="cmdk-icon">${iconSvg('book')}</span>
-          <span class="cmdk-label">${esc(typeLabel)}</span>
+          <span class="cmdk-label">${hl(typeLabel)}</span>
         </li>`)
       }
     }
@@ -433,7 +474,7 @@
         items.push({ kind: 'task', label: t.title, action: () => (window.hibanaNav ? window.hibanaNav.go(url) : (window.location.href = url)) })
         html.push(`<li class="cmdk-item" role="option" data-idx="${idx}" tabindex="-1">
           <span class="cmdk-icon"><span class="prio-dot prio-${esc(t.priority)}"></span></span>
-          <span class="cmdk-label">${esc(t.title)}<span class="cmdk-sublabel muted"> · ${esc(t.project_title)}</span></span>
+          <span class="cmdk-label">${hl(t.title)}<span class="cmdk-sublabel muted"> · ${hl(t.project_title)}</span></span>
         </li>`)
       }
     }

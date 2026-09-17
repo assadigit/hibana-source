@@ -440,7 +440,11 @@
         if (wordsEl) {
           const words = state.draft.content.trim() ? state.draft.content.trim().split(/\s+/).length : 0
           const chars = state.draft.content.length
-          wordsEl.textContent = words + ' ' + _t('notes.words', 'words') + ' · ' + chars + ' ' + _t('notes.chars', 'chars')
+          // S62: Persian digits in the FA locale — the rest of the vault (counter,
+          // lightboxes) localizes numerals; the word count was the lone Latin-digit
+          // holdout. document.documentElement.lang is set by i18n.js on apply().
+          const dig = (n) => (document.documentElement.lang === 'fa' ? String(n).replace(/\d/g, (d) => '۰۱۲۳۴۵۶۷۸۹'[+d]) : String(n))
+          wordsEl.textContent = dig(words) + ' ' + _t('notes.words', 'words') + ' · ' + dig(chars) + ' ' + _t('notes.chars', 'chars')
         }
         const saveEl = $('[data-vault-save]')
         if (saveEl) {
@@ -779,6 +783,34 @@
         } catch { toast(_t('notes.duplicateFailed', 'Could not duplicate.'), 'err') }
       }
 
+      /* ── S62: Copy as Markdown — the clipboard twin of Export as .md (same body:
+         trimmed title as H1 + content, byte-for-byte what the file export produces).
+         For pasting a note into Telegram/emails/docs without a download round-trip.
+         flushSave() first so an unsaved keystroke lands in the copy too; the legacy
+         execCommand fallback covers non-secure contexts where the async Clipboard
+         API is absent. Works on trashed notes too — the data is already client-side. ── */
+      const copyNoteMd = async () => {
+        if (!state.active) return
+        await flushSave()
+        const body = (state.draft.title.trim() ? `# ${state.draft.title.trim()}\n\n` : '') + state.draft.content
+        try {
+          await navigator.clipboard.writeText(body)
+          toast(_t('notes.copiedMd', 'Copied as Markdown'), 'ok', 2500)
+        } catch {
+          try {
+            const ta = document.createElement('textarea')
+            ta.value = body
+            ta.setAttribute('readonly', '')
+            ta.style.cssText = 'position:fixed;inset-inline-start:-9999px;opacity:0'
+            document.body.appendChild(ta)
+            ta.select()
+            document.execCommand('copy')
+            ta.remove()
+            toast(_t('notes.copiedMd', 'Copied as Markdown'), 'ok', 2500)
+          } catch { toast(_t('notes.copyFailed', 'Could not copy.'), 'err') }
+        }
+      }
+
       const moveNote = async (folderId) => {
         if (!state.active) return
         await flushSave()
@@ -817,6 +849,7 @@
         if (n.deleted_at) {
           openMenu(anchor, [
             { icon: I.restore, label: _t('notes.restore', 'Restore'), onClick: () => restoreNote(n.id) },
+            { icon: I.copy, label: _t('notes.copyMd', 'Copy as Markdown'), onClick: copyNoteMd },
             { icon: I.download, label: _t('notes.exportMd', 'Export as .md'), onClick: () => { window.location.href = '/api/vault/notes/' + n.id + '/export.md' } },
           ])
           return
@@ -824,6 +857,7 @@
         const items = []
         items.push({ icon: I.move, label: _t('notes.moveTo', 'Move to folder…'), onClick: moveMenu })
         items.push({ icon: I.copy, label: _t('notes.duplicate', 'Duplicate'), onClick: duplicateNote })
+        items.push({ icon: I.copy, label: _t('notes.copyMd', 'Copy as Markdown'), onClick: copyNoteMd })
         items.push({ icon: I.download, label: _t('notes.exportMd', 'Export as .md'), onClick: () => { window.location.href = '/api/vault/notes/' + n.id + '/export.md' } })
         items.push('-')
         items.push({ icon: I.trash, label: _t('notes.moveToTrash', 'Move to Trash'), danger: true, onClick: () => deleteNote(n.id) })

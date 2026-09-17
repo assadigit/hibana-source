@@ -177,6 +177,31 @@ dialog.cmdk::backdrop {
 }
 /* Status badges in palette results — reuse existing badge classes, just size down */
 .cmdk-item .badge { font-size: var(--fs-xs); padding: 0.15rem 0.4rem; }
+
+/* S62: search-term highlight — the eye sees WHY a row matched. The mark inherits the
+   row's font (Persian renders identically); a soft brand-tinted underlay keeps AA
+   contrast on BOTH themes (selected rows invert text color, so color: currentColor
+   + a background wash works everywhere). Radius matches the app's chip language. */
+.cmdk-label mark.cmdk-mark {
+  color: inherit;
+  background: color-mix(in srgb, var(--accent) 22%, transparent);
+  border-radius: 4px;
+  padding: 0 0.08em;
+  font-weight: 600;
+}
+/* Selected rows already carry the accent wash — the mark deepens there so it stays
+   visible on the highlight (not washed out by it). */
+.cmdk-item.is-selected .cmdk-label mark.cmdk-mark {
+  background: color-mix(in srgb, var(--accent) 34%, transparent);
+}
+/* S62: starred-note chip in vault results — amber #e0a92e (same as the vault list's
+   hover star) with a hairline ring so it reads on both light and dark. */
+.cmdk-star {
+  color: #e0a92e;
+  font-size: var(--fs-sm);
+  margin-inline-end: 0.25rem;
+  text-shadow: 0 0 2px color-mix(in srgb, #e0a92e 35%, transparent);
+}
 @media (prefers-reduced-motion: reduce) {
   .cmdk-item { transition: none; }
   dialog.cmdk::backdrop { backdrop-filter: none; }

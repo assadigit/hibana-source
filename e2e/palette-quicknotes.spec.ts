@@ -37,6 +37,11 @@ test.beforeAll(async () => {
 })
 
 async function login(page: Page) {
+  // S64: suppress the first-visit onboarding tour (pointer-events wall 1200ms after
+  // DOMContentLoaded — the ae1041a CI flake's root). This spec's palette opens via
+  // keyboard and its clicks land in the top-layer dialog, but on a slow runner the
+  // overlay adds a confound nothing here exercises. Deterministic beats lucky.
+  await page.addInitScript(() => { try { localStorage.setItem('hibana-tour-done', '1') } catch { /* storage blocked */ } })
   await page.goto('/login.html')
   await page.fill('[name="login"]', TEST_EMAIL)
   await page.fill('[name="password"]', TEST_PASS)

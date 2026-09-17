@@ -183,6 +183,11 @@
     if (p !== '/app' && p !== '/dashboard.html' && p !== '/dashboard') return
     // Wait for the nav + FAB to be present (nav loads async via fetch)
     setTimeout(() => {
+      // S64: a soft navigation may have left the dashboard during the 1200ms wait —
+      // the tour is dashboard first-visit coaching, never wrong-page chrome. Re-check
+      // WHERE we are before painting the overlay (the observed failure: a nav to
+      // /projects.html mid-wait left an invisible click-blocking wall behind).
+      if (location.pathname !== p) return
       if (document.querySelector('[data-fab-toggle]') || document.querySelector('.fab-stack')) {
         startTour()
       }

@@ -35,6 +35,11 @@ test.beforeAll(async () => {
 })
 
 async function login(page: Page) {
+  // S64: the first-visit onboarding tour (tour.js — an overlay 1200ms after
+  // DOMContentLoaded) is a pointer-events wall this spec never exercises. On a slow
+  // CI runner it fired mid-test and blocked the pill clicks (the ae1041a CI flake).
+  // Suppress it deterministically before any navigation runs.
+  await page.addInitScript(() => { try { localStorage.setItem('hibana-tour-done', '1') } catch { /* storage blocked */ } })
   await page.goto('/login.html')
   await page.fill('[name="login"]', TEST_EMAIL)
   await page.fill('[name="password"]', TEST_PASS)

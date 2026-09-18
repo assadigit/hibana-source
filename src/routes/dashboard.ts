@@ -459,6 +459,9 @@ export function dashboardRoutes(cfg: Config) {
                 <span class="dash-stale-age">${timeAgo(p.updated_at, lang)}</span>
               </a>`)}
             </span>
+            <!-- S75: the nudge caps at 3 chips — more than three stale projects had no
+                 path to the rest. View all lands on the FULL stale view (S75). -->
+            <a class="dash-stale-more small" href="/projects.html?stale=1">${t('View all', 'مشاهده همه')} ${raw(icon('arrow-right', 'icon arrow'))}</a>
           </div>` : html``}
           <!-- S42 (owner: "this part is too compacted because of right left handles.
                expand this section. make handles over them."): the strip now spans the

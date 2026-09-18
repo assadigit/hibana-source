@@ -201,6 +201,12 @@ export const listProjectsSchema = z.object({
   // sort_order, then recency; 'recent' = updated_at DESC ("never lose your place");
   // 'title' = alphabetical. The kanban view groups by column regardless.
   sort: z.preprocess(emptyToUndef, z.enum(['stage', 'recent', 'title']).optional()),
+  // S75 (the full stale view — the S72 dashboard nudge's "View all" target):
+  // stale=1 lists ONLY in-motion projects (unreviewed/investigating/awaiting/doing)
+  // untouched for 14+ days, oldest first. Anything other than the literal '1'
+  // (including '0'/'') degrades to undefined — a stray value must never fail the
+  // whole query parse (the other params would fall back to defaults too).
+  stale: z.preprocess((v) => (v === '1' ? '1' : undefined), z.literal('1').optional()),
 })
 
 // Spark folders (0036): a named shelf sparks can be filed into.

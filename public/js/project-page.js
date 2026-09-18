@@ -7,6 +7,25 @@
         // Guarded lookup — hibanaI18n.t returns the KEY itself when missing; never leak it.
         const _t = (k, f) => { const s = window.hibanaI18n?.t(k); return s && s !== k ? s : f }
         const body = document.getElementById('project-body')
+        // S75 (QA sweep finding): a BARE /project.html (bookmarked without its ?id=)
+        // used to fire hx-get /api/projects/__ID__ → a real 404 network request + console
+        // error on every visit, handled only by the responseError path below. The mount
+        // runs BEFORE htmx processes the load trigger (body-end page scripts execute via
+        // nav.js's applyDef before DOMContentLoaded on hard loads; before htmx.process on
+        // soft navs) — so stripping the hx-* attributes here prevents the request
+        // outright. If a request ever raced through anyway, the 404 handler below still
+        // catches it with the same message. NOTE: deliberately NOT htmx.remove() — that
+        // removes the ELEMENT from the DOM (verified live), which would delete the
+        // container this empty state renders into.
+        if (body && !id) {
+          body.removeAttribute('hx-get')
+          body.removeAttribute('hx-trigger')
+          body.classList.remove('htmx-request')
+          const escS0 = (s) => String(s).replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' })[c])
+          body.innerHTML = '<div class="card" style="padding:2rem;text-align:center">' +
+            '<p style="margin:0 0 1rem">' + escS0(_t('db.projectGone', "This project doesn't exist or was deleted")) + '</p>' +
+            '<a class="btn small" href="/projects.html">' + escS0(_t('db.backToProjects', 'Back to projects')) + '</a></div>'
+        }
         if (body && id) body.setAttribute('hx-get', `/api/projects/${id}`)
 
         // R4.2: Record this project visit for the command palette's "Recent" section.

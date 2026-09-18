@@ -189,6 +189,9 @@
           body: JSON.stringify({ language_pref: next }),
         })
       } catch { /* still apply the client dictionary so the toggle works offline */ }
+      // S75: force-refresh the memoized /api/auth/me — apply() must read the
+      // just-PATCHed language_pref, not the pre-toggle record.
+      if (window.__hibanaMe) await window.__hibanaMe(true)
       if (window.hibanaI18n) await window.hibanaI18n.apply()
       closeSheet()
       if (window.hibanaNav) window.hibanaNav.reload()

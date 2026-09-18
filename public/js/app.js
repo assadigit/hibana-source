@@ -109,6 +109,32 @@ if (!window.hibanaQueue) {
   document.head.appendChild(qs)
 }
 
+// S75 (§10-F4 tail): ONE /api/auth/me per page load. Four independent consumers fired
+// the same unauthenticated-identical GET on every authenticated page (i18n apply at
+// DOMContentLoaded, hib-init's re-apply after the nav mount, hib-init's nav user info,
+// and the auth guard) — a 4-request shotgun measured live on all key pages. This helper
+// memoizes the response for the page lifetime (hard loads only; soft navs keep the
+// same document, so the memo rides on). force=true refetches — the language toggle
+// PATCHes the user's language_pref and the follow-up apply() must see the NEW value.
+// Envelope shape { ok, status, body } — the auth guard needs raw status semantics
+// (401 vs 503-offline), the other consumers just read body. A network-level failure
+// releases the memo so a later consumer retries (the old code did that per-call).
+window.__hibanaMe = (force) => {
+  if (force) window.__hibanaMeP = null
+  if (window.__hibanaMeP) return window.__hibanaMeP
+  window.__hibanaMeP = fetch('/api/auth/me')
+    .then(async (r) => {
+      let body = null
+      try { body = await r.json() } catch { /* non-JSON (204/5xx html) — body stays null */ }
+      return { ok: r.ok, status: r.status, body }
+    })
+    .catch(() => {
+      window.__hibanaMeP = null // offline / SW-fabricated failure — let the next caller retry
+      return null
+    })
+  return window.__hibanaMeP
+}
+
 window.hibana = (() => {
   window.__hib = {}  // Phase 3: shared namespace for split files
   // Persistent theme control — a deterministic light/dark toggle in the header.

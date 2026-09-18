@@ -808,3 +808,112 @@ input.qe-name,
   .cal-head { flex-wrap: wrap; gap: 0.5rem; }
 }
 .cal-sys button { min-block-size: 40px; }
+
+
+/* ==========================================================================
+   S75 — the FULL stale view (projects.html?stale=1) + the dashboard nudge's
+   "View all" link. The banner rides the dashboard's .dash-stale-row amber language
+   (waiting, not an alarm); the pieces below deepen it into a proper page surface:
+   a hairline gradient, a breathing clock, a tabular count, and a quiet exit hatch.
+   ========================================================================== */
+.pg-stale-banner {
+  margin-block: 0.35rem 0.8rem;
+  padding: 0.55rem 0.8rem;
+  /* The 4px amber start-edge from .dash-stale-row, refined into a soft gradient so
+     the banner reads as a surface, not a highlighter stroke. Gradients take PHYSICAL
+     directions only — the [dir='rtl'] rule below flips it. */
+  border-inline-start: 4px solid var(--badge-awaiting-fg, #85620D);
+  background:
+    linear-gradient(to right, color-mix(in srgb, var(--badge-awaiting-bg, #F6EFCB) 42%, transparent), transparent 62%),
+    color-mix(in srgb, var(--badge-awaiting-bg, #F6EFCB) 55%, var(--card));
+}
+[dir='rtl'] .pg-stale-banner {
+  background:
+    linear-gradient(to left, color-mix(in srgb, var(--badge-awaiting-bg, #F6EFCB) 42%, transparent), transparent 62%),
+    color-mix(in srgb, var(--badge-awaiting-bg, #F6EFCB) 55%, var(--card));
+}
+/* The clock breathes — 2.4s ease, guarded for reduced motion (the S71 icon-motion
+   recipe). Attention without alarm; the dashboard nudge's icon stays static (a nudge
+   is quieter than the full view's flag). */
+.pg-stale-banner .dash-stale-flag svg { animation: pg-stale-breathe 2.4s ease-in-out infinite; transform-origin: 50% 50%; }
+@keyframes pg-stale-breathe {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.72; transform: scale(0.94); }
+}
+.pg-stale-count {
+  font-size: var(--fs-xs, 0.78rem);
+  color: var(--muted);
+  font-variant-numeric: tabular-nums; /* FA digits stay monospaced-stable on count flips */
+  white-space: nowrap;
+}
+/* The exit hatch: a quiet ghost pill — danger-red ONLY on interaction (the S71
+   trash-purge recipe; leaving a view is not a destructive act, but the hover/active
+   states acknowledge the click). Double-ring keyboard focus matches the S72 chip set. */
+.pg-stale-clear {
+  display: inline-flex; align-items: center; gap: 0.35rem;
+  margin-inline-start: auto;
+  padding: 0.3rem 0.7rem;
+  font-size: var(--fs-xs, 0.78rem); font-weight: 600;
+  color: var(--badge-awaiting-fg, #85620D);
+  background: var(--card);
+  border: 1px solid color-mix(in srgb, var(--badge-awaiting-fg, #85620D) 22%, var(--line));
+  border-radius: 999px;
+  cursor: pointer;
+  transition: border-color .16s ease, box-shadow .16s ease, transform .16s ease, color .16s ease;
+}
+.pg-stale-clear svg { inline-size: 0.85rem; block-size: 0.85rem; flex: none; }
+.pg-stale-clear:hover, .pg-stale-clear:focus-visible {
+  border-color: color-mix(in srgb, var(--badge-awaiting-fg, #85620D) 55%, var(--line));
+  box-shadow: 0 2px 8px -3px rgb(0 0 0 / 0.14);
+  transform: translateY(-1px);
+}
+.pg-stale-clear:active { transform: translateY(0); }
+.pg-stale-clear:focus-visible {
+  outline: 2px solid var(--badge-awaiting-fg, #85620D);
+  outline-offset: 2px;
+}
+/* Mobile: the banner stacks; the exit hatch goes full-width (44px touch floor). */
+@media (max-width: 640px) {
+  .pg-stale-banner { flex-direction: column; align-items: stretch; gap: 0.45rem; }
+  .pg-stale-count { white-space: normal; }
+  .pg-stale-clear { margin-inline-start: 0; justify-content: center; min-block-size: 44px; }
+}
+/* The nudge's View-all link (dashboard): sits at the row's end, same quiet-arrow
+   pattern as the stat-box / urgent-strip links it joins. */
+.dash-stale-more {
+  margin-inline-start: auto;
+  display: inline-flex; align-items: center; gap: 0.3rem;
+  font-size: var(--fs-xs, 0.78rem); font-weight: 600;
+  color: var(--badge-awaiting-fg, #85620D);
+  text-decoration: none;
+  white-space: nowrap;
+  padding: 0.25rem 0.4rem;
+  border-radius: var(--radius-sm, 6px);
+  transition: color .16s ease, background .16s ease;
+}
+.dash-stale-more svg { inline-size: 0.85rem; block-size: 0.85rem; }
+.dash-stale-more:hover, .dash-stale-more:focus-visible {
+  color: color-mix(in srgb, var(--badge-awaiting-fg, #85620D) 78%, var(--foreground));
+  background: color-mix(in srgb, var(--badge-awaiting-fg, #85620D) 10%, transparent);
+  outline: none;
+}
+.dash-stale-more:focus-visible {
+  outline: 2px solid var(--badge-awaiting-fg, #85620D);
+  outline-offset: 2px;
+}
+@media (max-width: 640px) {
+  .dash-stale-more { margin-inline-start: 0; }
+}
+/* RTL: the gradient flips (the rule above); the exit hatch and View-all margins
+   follow inline-start automatically via margin-inline. */
+/* Reduced motion: the breathing clock stops; the lifts flatten (the S72 recipe). */
+@media (prefers-reduced-motion: reduce) {
+  .pg-stale-banner .dash-stale-flag svg { animation: none; }
+  .pg-stale-clear, .pg-stale-clear:hover, .pg-stale-clear:focus-visible,
+  .dash-stale-more, .dash-stale-more:hover { transition: none; transform: none; }
+}
+/* High contrast: the ghost pill gains a real border + the count goes foreground. */
+@media (prefers-contrast: more) {
+  .pg-stale-clear { border-color: var(--badge-awaiting-fg, #85620D); color: var(--foreground); }
+  .pg-stale-count { color: var(--foreground); }
+}

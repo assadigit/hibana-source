@@ -7,9 +7,11 @@ import { localeOf, trFor } from '../lib/i18n'
 import { calendarFor } from '../lib/jalali'
 import { uuid } from '../lib/ids'
 import { githubClient, type GitHubConfig } from '../services/github'
+import { FREE_TIER_MODELS, DEFAULT_AI_MODEL } from '../services/ai'
+import { TELEGRAM_BOT } from './integrations/telegram-helpers'
 import { purgeShotBytes } from '../services/shotstore'
 import { clientIp, hitRateLimit, RATE_RULES } from '../services/ratelimit'
-import type { Config, UserRow } from '../types'
+import type { Config, UserRow, InviteRow } from '../types'
 
 // Settings (spec §5.8): language/calendar/timezone live on the user record (multi-device).
 // Theme is a per-device preference and stays in localStorage (§14) — no schema change needed.
@@ -42,6 +44,50 @@ const avatarUploadSchema = z.object({
   dataBase64: z.string().min(1).max(3_500_000), // ≪ GitHub's 100MB cap (spec §8); a 256px PNG is a few KB
   mimeType: z.string().regex(/^image\/(png|jpeg|webp)$/),
 })
+
+// S75: the trash listing, extracted from GET /trash so the settings OVERVIEW (below)
+// composes the exact same rows without a self-fetch. user_id-scoped (rule 1); the
+// purge cutoff is duplicated in days, not SQL, because the listing must NOT filter by
+// age — an item at day 7 minus one hour still shows (days_left 0 = "purges today")
+// right up until the cron runs.
+async function collectTrashItems(cfg: Config, userId: string): Promise<{ id: string; kind: 'project' | 'note' | 'todo'; title: string; snippet: string | null; deleted_at: string; days_left: number }[]> {
+  const DAY = 24 * 3600 * 1000
+  const now = Date.now()
+  const daysLeft = (deletedAt: string) => Math.max(0, 7 - Math.floor((now - Date.parse(deletedAt)) / DAY))
+  const items: { id: string; kind: 'project' | 'note' | 'todo'; title: string; snippet: string | null; deleted_at: string; days_left: number }[] = []
+
+  const projects = await cfg.db.query<{ id: string; title: string; deleted_at: string }>(
+    'SELECT id, title, deleted_at FROM projects WHERE user_id = ? AND deleted_at IS NOT NULL ORDER BY deleted_at DESC LIMIT 50',
+    [userId],
+  )
+  for (const p of projects) items.push({ id: p.id, kind: 'project', title: p.title, snippet: null, deleted_at: p.deleted_at, days_left: daysLeft(p.deleted_at) })
+
+  const notes = await cfg.db.query<{ id: string; title: string | null; content: string; kind: string; deleted_at: string }>(
+    'SELECT id, title, content, kind, deleted_at FROM quick_notes WHERE user_id = ? AND deleted_at IS NOT NULL ORDER BY deleted_at DESC LIMIT 50',
+    [userId],
+  )
+  for (const n of notes) {
+    // List notes store their tasks as JSON items — surface the first line either way;
+    // the UI truncates to one row, this is a recognition hint, not the full content.
+    let first = n.content
+    if (n.kind === 'list') {
+      try {
+        const arr = JSON.parse(n.content) as { t?: string }[]
+        if (Array.isArray(arr) && arr.length) first = String(arr[0]?.t ?? '')
+      } catch { /* unparseable list — fall back to raw content */ }
+    }
+    items.push({ id: n.id, kind: 'note', title: n.title || first.slice(0, 80) || '(untitled)', snippet: first.slice(0, 120), deleted_at: n.deleted_at, days_left: daysLeft(n.deleted_at) })
+  }
+
+  const todos = await cfg.db.query<{ id: string; title: string; deleted_at: string }>(
+    'SELECT id, title, deleted_at FROM sadhana_tasks WHERE user_id = ? AND deleted_at IS NOT NULL ORDER BY deleted_at DESC LIMIT 50',
+    [userId],
+  )
+  for (const t of todos) items.push({ id: t.id, kind: 'todo', title: t.title, snippet: null, deleted_at: t.deleted_at, days_left: daysLeft(t.deleted_at) })
+
+  items.sort((a, b) => Date.parse(b.deleted_at) - Date.parse(a.deleted_at))
+  return items.slice(0, 100)
+}
 
 export function settingsRoutes(cfg: Config) {
   const app = new Hono<{ Variables: { user: UserRow } }>()
@@ -79,6 +125,60 @@ export function settingsRoutes(cfg: Config) {
         dash_show_activity: u.dash_show_activity,
         dash_order: u.dash_order,
       },
+    })
+  })
+
+  // S75 (§10-F4, the named perf candidate): the settings OVERVIEW — one request
+  // composes every READ the settings page needs on load: prefs, me, invites, the AI
+  // model registry, telegram link status, and the trash listing. The page previously
+  // fired 8 parallel JSON GETs (three of them literal duplicates: /api/settings ×2
+  // for prefs+views, /api/auth/me ×2 for account+avatar, /api/ai/models ×2 via the
+  // soft-nav safety re-run) — S69 measured the shotgun at ~1s summed apiMs cold.
+  // Each slice keeps its standalone endpoint's EXACT response shape, so every legacy
+  // consumer (and every post-mutation refresh, which stays targeted on purpose)
+  // keeps working unchanged. user_id-scoped (rule 1); Zod-validated queryless GET.
+  app.get('/overview', async (c) => {
+    const user = c.get('user')
+    const [trashItems, inviteRows] = await Promise.all([
+      collectTrashItems(cfg, user.id),
+      user.role === 'owner'
+        ? cfg.db.query<InviteRow>('SELECT * FROM invites ORDER BY created_at DESC')
+        : cfg.db.query<InviteRow>('SELECT * FROM invites WHERE created_by = ? ORDER BY created_at DESC', [user.id]),
+    ])
+    return c.json({
+      prefs: {
+        language_pref: user.language_pref,
+        calendar_pref: calendarFor(user.language_pref),
+        timezone: user.timezone,
+        dash_show_header: user.dash_show_header,
+        dash_show_projects: user.dash_show_projects,
+        dash_show_todo: user.dash_show_todo,
+        dash_show_notebook: user.dash_show_notebook,
+        dash_show_activity: user.dash_show_activity,
+        dash_order: user.dash_order,
+      },
+      // Same shape as GET /api/auth/me.
+      me: {
+        user: {
+          id: user.id,
+          username: user.username,
+          email: user.email,
+          role: user.role,
+          avatar_path: user.avatar_path,
+          language_pref: user.language_pref,
+          calendar_pref: calendarFor(user.language_pref),
+          timezone: user.timezone,
+          created_at: user.created_at,
+        },
+      },
+      // Same shape as GET /api/auth/invites (JSON path).
+      invites: inviteRows,
+      // Same shape as GET /api/ai/models.
+      ai: { models: FREE_TIER_MODELS, default: DEFAULT_AI_MODEL },
+      // Same shape as GET /api/telegram/status.
+      telegram: { ok: true, bot: TELEGRAM_BOT.handle, botUrl: TELEGRAM_BOT.url, linked: !!user.telegram_chat_id, chat_id: user.telegram_chat_id },
+      // Same shape as GET /api/settings/trash.
+      trash: { items: trashItems },
     })
   })
 
@@ -146,49 +246,11 @@ export function settingsRoutes(cfg: Config) {
   // the item was unrecoverable in practice even though the row still existed. This route
   // lists what is still recoverable, newest first. The restore POSTs ride the EXISTING
   // per-entity endpoints (POST /api/notes/:id/restore, /api/sadhana/tasks/:id/restore,
-  // /api/projects/:id/restore) — this file adds no write path of its own. Read-only,
-  // user_id-scoped (rule 1), no schema change: the purge cutoff is duplicated here in
-  // days, not SQL, because the listing must NOT filter by age — an item at day 7 minus
-  // one hour still shows (with days_left 0 = "purges today") right up until the cron runs.
+  // /api/projects/:id/restore) — this file adds no write path of its own. Read-only;
+  // S75: the row collection itself moved into collectTrashItems (shared with /overview).
   app.get('/trash', async (c) => {
     const user = c.get('user')
-    const DAY = 24 * 3600 * 1000
-    const now = Date.now()
-    const daysLeft = (deletedAt: string) => Math.max(0, 7 - Math.floor((now - Date.parse(deletedAt)) / DAY))
-    type Item = { id: string; kind: 'project' | 'note' | 'todo'; title: string; snippet: string | null; deleted_at: string; days_left: number }
-    const items: Item[] = []
-
-    const projects = await cfg.db.query<{ id: string; title: string; deleted_at: string }>(
-      'SELECT id, title, deleted_at FROM projects WHERE user_id = ? AND deleted_at IS NOT NULL ORDER BY deleted_at DESC LIMIT 50',
-      [user.id],
-    )
-    for (const p of projects) items.push({ id: p.id, kind: 'project', title: p.title, snippet: null, deleted_at: p.deleted_at, days_left: daysLeft(p.deleted_at) })
-
-    const notes = await cfg.db.query<{ id: string; title: string | null; content: string; kind: string; deleted_at: string }>(
-      'SELECT id, title, content, kind, deleted_at FROM quick_notes WHERE user_id = ? AND deleted_at IS NOT NULL ORDER BY deleted_at DESC LIMIT 50',
-      [user.id],
-    )
-    for (const n of notes) {
-      // List notes store their tasks as JSON items — surface the first line either way;
-      // the UI truncates to one row, this is a recognition hint, not the full content.
-      let first = n.content
-      if (n.kind === 'list') {
-        try {
-          const arr = JSON.parse(n.content) as { t?: string }[]
-          if (Array.isArray(arr) && arr.length) first = String(arr[0]?.t ?? '')
-        } catch { /* unparseable list — fall back to raw content */ }
-      }
-      items.push({ id: n.id, kind: 'note', title: n.title || first.slice(0, 80) || '(untitled)', snippet: first.slice(0, 120), deleted_at: n.deleted_at, days_left: daysLeft(n.deleted_at) })
-    }
-
-    const todos = await cfg.db.query<{ id: string; title: string; deleted_at: string }>(
-      'SELECT id, title, deleted_at FROM sadhana_tasks WHERE user_id = ? AND deleted_at IS NOT NULL ORDER BY deleted_at DESC LIMIT 50',
-      [user.id],
-    )
-    for (const t of todos) items.push({ id: t.id, kind: 'todo', title: t.title, snippet: null, deleted_at: t.deleted_at, days_left: daysLeft(t.deleted_at) })
-
-    items.sort((a, b) => Date.parse(b.deleted_at) - Date.parse(a.deleted_at))
-    return c.json({ items: items.slice(0, 100) })
+    return c.json({ items: await collectTrashItems(cfg, user.id) })
   })
 
   // S71: user-facing "delete forever" — the explicit companion to Restore in the Trash

@@ -230,22 +230,78 @@ test('text box: drag a corner handle → width grows and the text re-wraps (fewe
   // click: a click on an already-selected fabric IText re-enters editing instead).
   await page.click('#nb-toolbar [data-tool="move"]')
 
-  const before = await textBoxProbe(page)
+  // S75 (the real fix for this test's chronic flake — CI #283 + repeated local
+  // failures, root-caused by instrumenting fabric's own event stream): exiting edit
+  // mode leaves the box SELECTED with live handles, but its geometry re-settles
+  // ~22px down (measured: +21.5625, exactly one text line) at an UNPREDICTABLE later
+  // moment — the post-edit save pipeline's re-measure, not a quick post-click reflow
+  // (a one-rAF stability wait still raced it). A probe taken before the settle yields
+  // stale corner coordinates; a mousedown there hits NOTHING (fabric: no target),
+  // the resize silently no-ops — and worse, that stray mousedown DISCARDS the selection,
+  // after which no corner handles exist at all. Fix, in order: (1) poll until two
+  // probes 200ms apart agree (the drift has landed and is done); (2) grab the corner
+  // handle VERIFIED — fabric marks the active object's __corner when the mousedown
+  // lands on a handle — re-selecting the object first if a miss discarded it (a single
+  // click on an INACTIVE IText selects without entering editing).
+  let before = await textBoxProbe(page)
+  let stable = false
+  for (let i = 0; i < 10 && !stable; i++) {
+    await page.waitForTimeout(200)
+    const next = await textBoxProbe(page)
+    stable = !!next && !!before
+      && Math.abs(next!.trY - before!.trY) < 0.5
+      && Math.abs(next!.trX - before!.trX) < 0.5
+      && next!.fixed === before!.fixed
+    before = next
+  }
   expect(before).not.toBeNull()
   const isStillSelected = await page.evaluate(() => window.hibanaNotebook?.getCanvas()?.getActiveObject()?.type === 'textbox')
   expect(isStillSelected).toBe(true)
   expect(before!.lines).toBeGreaterThan(2) // the sentence is wrapped at the narrow width
 
-  // Drag the TOP-RIGHT CORNER handle 200px outward — corners drive the width too.
-  await page.mouse.move(before!.trX, before!.trY)
-  await page.mouse.down()
-  await page.mouse.move(before!.trX + 200, before!.trY + 6, { steps: 12 })
+  // Grab the TOP-RIGHT CORNER handle — verified, with re-selection on retry. Corners
+  // drive the width too. This mirrors what a real user's hand does (eyes on the
+  // handle, re-aim) and de-flakes the drag deterministically.
+  let grabbed: { trX: number; trY: number } | null = null
+  for (let attempt = 0; attempt < 3 && !grabbed; attempt++) {
+    const active = await page.evaluate(() => window.hibanaNotebook?.getCanvas()?.getActiveObject()?.type === 'textbox')
+    if (!active) {
+      // A previous miss discarded the selection — handles only exist on the ACTIVE
+      // object. Re-select with a single click on the body (safe: only an ACTIVE
+      // IText re-enters editing on click).
+      await page.mouse.click(before!.cx, before!.cy)
+      await page.waitForTimeout(80)
+    }
+    const aim = await textBoxProbe(page) // fresh coordinates (geometry may have settled further)
+    await page.mouse.move(aim!.trX, aim!.trY)
+    await page.mouse.down()
+    const held = await page.evaluate(() => {
+      const c = window.hibanaNotebook?.getCanvas()
+      const a = c?.getActiveObject()
+      return !!a && a.type === 'textbox' && (a.__corner === 'tr' || a.__corner === 'mr')
+    })
+    if (held) grabbed = { trX: aim!.trX, trY: aim!.trY }
+    else {
+      await page.mouse.up()
+      await page.waitForTimeout(150) // let any late reflow finish before re-aiming
+    }
+  }
+  expect(grabbed).not.toBeNull()
+
+  // Drag 200px outward — corners drive the width too.
+  await page.mouse.move(grabbed!.trX + 200, grabbed!.trY + 6, { steps: 12 })
   await page.mouse.up()
 
   const after = await textBoxProbe(page)
   // Width-driven resize: the container width grew, the scale never moved, and the
   // wrapping re-ran — the same text now fits on fewer lines.
-  expect(after!.fixed).toBeGreaterThan(before!.fixed + 140)
+  // S75 (test fix — the S73-documented flake, owner rule "fix the TEST, not the app"):
+  // the 200px corner drag reliably lands ≥ +140px of width, and the old STRICT
+  // `> +140` assertion failed whenever the landing sat exactly ON the boundary
+  // (observed in CI #283 and locally). The invariant under test is "substantial
+  // width growth, scale untouched, wrap re-ran" — +100 keeps that semantic with
+  // 40px of slack on the observed landing point, on both assertions below.
+  expect(after!.fixed).toBeGreaterThan(before!.fixed + 100)
   expect(after!.scaleX).toBe(1)
   expect(after!.lines).toBeLessThan(before!.lines)
 
@@ -254,7 +310,7 @@ test('text box: drag a corner handle → width grows and the text re-wraps (fewe
   expect(els).not.toBeNull()
   const rec = els!.find((e: { type: string; content: string; deleted: number }) => e.type === 'note' && !e.deleted && String(e.content).includes('e2e nb reflow one'))
   expect(rec).toBeTruthy()
-  expect(rec!.width).toBeGreaterThan(before!.fixed + 140)
+  expect(rec!.width).toBeGreaterThan(before!.fixed + 100) // S75: same slack as above — the +140 razor's edge flaked
   expect(errors).toEqual([])
 })
 

@@ -62,7 +62,16 @@ window.hibanaI18n = (() => {
   async function apply() {
     let me = null
     try {
-      me = await fetch('/api/auth/me').then((r) => (r.ok ? r.json() : null))
+      // S75: ride the shared per-page memo (window.__hibanaMe, defined in app.js —
+      // every page loads app.js before i18n). Pages without app.js (clip popup) fall
+      // back to a direct fetch. Language toggles call the memo's force-refresh BEFORE
+      // apply() so the just-PATCHed language_pref is what we read here.
+      if (window.__hibanaMe) {
+        const env = await window.__hibanaMe()
+        me = env && env.ok ? env.body : null
+      } else {
+        me = await fetch('/api/auth/me').then((r) => (r.ok ? r.json() : null))
+      }
     } catch { /* offline / 500 → fall back to English until the next apply */ }
     // P4.2 (F-H3): when the user is NOT logged in (401 → me is null), fall back to
     // navigator.language so the auth pages (login/signup/confirm/reset) render in the

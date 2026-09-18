@@ -527,3 +527,34 @@ export async function loadProjectProgress(
 // so one visual language reads across the board and the Activity tab.
 export const progressBucket = (pct: number): string =>
   pct >= 100 ? 'is-done' : pct >= 75 ? 'is-high' : pct >= 50 ? 'is-mid' : pct >= 25 ? 'is-low' : 'is-zero'
+
+
+// S75: the FULL stale view (GET /api/projects?stale=1 → /projects.html?stale=1) — the
+// S72 dashboard nudge caps at 3 chips; its "View all" link lands here. The banner rides
+// the SAME visual language as the dashboard's .dash-stale-row (amber = waiting, not an
+// alarm) and states the two facts the user needs: how many, and the order (oldest first
+// = what you left hanging longest). data-stale-clear is the client's exit hatch (the
+// no-JS fallback is the plain /projects.html link below the list — the empty state's
+// CTA and every project card link out regardless).
+export function staleBannerHtml(count: number, lang: Locale): string {
+  const dig = (n: number) => (lang === 'fa' ? faDigits(String(n)) : String(n))
+  return `<div class="dash-stale-row pg-stale-banner" role="status">
+    <span class="dash-stale-flag">${icon('clock', 'icon')} ${trL(lang, 'Untouched for 2+ weeks', 'دو هفته بدون تغییر')}</span>
+    <span class="pg-stale-count">${trL(lang, '{n} projects · oldest first', '{n} پروژه · قدیمی‌ترین اول', { n: dig(count) })}</span>
+    <button type="button" class="pg-stale-clear" data-stale-clear title="${esc(trL(lang, 'Leave this view — back to all projects', 'ترک این نما — بازگشت به همهٔ پروژه‌ها'))}">
+      ${icon('x', 'icon')} ${trL(lang, 'Show all projects', 'همهٔ پروژه‌ها')}
+    </button>
+  </div>`
+}
+
+// The stale view's honest empty state — distinct from "No projects yet" (the user HAS
+// projects; none are hanging). Serves job #2 ("never lose your place"): the absence of
+// stale work is itself information worth saying out loud.
+export function staleEmptyHtml(lang: Locale): string {
+  return `<div class="empty-state empty pg-stale-empty">
+    <span class="empty-state-icon" aria-hidden="true">${icon('clock')}</span>
+    <p class="empty-state-title">${trL(lang, 'Nothing is hanging', 'هیچ چیزی معلق نمانده')}</p>
+    <p class="empty-state-text">${trL(lang, 'Every project in motion was touched within the last two weeks. Whatever you leave hanging shows up here — and on the dashboard.', 'هر پروژهٔ در جریان طی دو هفتهٔ گذشته دست‌کاری شده. هرچه رها کنی اینجا — و روی پیشخوان — دیده می‌شود.')}</p>
+    <a class="empty-state-cta btn ghost" href="/projects.html">${trL(lang, 'See all projects', 'همهٔ پروژه‌ها')}</a>
+  </div>`
+}

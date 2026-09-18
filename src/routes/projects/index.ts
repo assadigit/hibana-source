@@ -24,7 +24,7 @@ import {
   bugBubbleHtml, signalsHtml, backlogMetaHtml,
   cardHtml, listFragment, glanceStrip, recentSectionHtml,
   sparkEmptyHtml, sparkKanbanHtml, sparkFolderBar, sparkFolderGrid, sparkFolderEmptyHtml,
-  archiveShelfHtml,
+  archiveShelfHtml, staleBannerHtml, staleEmptyHtml,
 } from './helpers'
 import { loadDetail, detailHtml } from './detail-helpers'
 export function projectsRoutes(cfg: Config) {
@@ -46,6 +46,17 @@ export function projectsRoutes(cfg: Config) {
       conds.push("archived_state = 'offline'")
     } else {
       conds.push("(archived_state IS NULL OR archived_state != 'offline')")
+    }
+    // S75: the FULL stale view (?stale=1) — the S72 dashboard nudge caps at 3 chips;
+    // its "View all" link lands here. SAME semantics as the dashboard's query (one
+    // source of truth — the 14-day cutoff and the four in-motion stages are duplicated
+    // verbatim from dashboard.ts; change them together): in-motion = unreviewed /
+    // investigating / awaiting / doing; halted = deliberately paused, operational =
+    // done, spark = raw capture — all excluded by design.
+    const staleMode = query.success && query.data.stale === '1'
+    if (staleMode) {
+      conds.push("status IN ('unreviewed','investigating','awaiting','doing')", 'updated_at < ?')
+      params.push(new Date(Date.now() - 14 * 24 * 3600 * 1000).toISOString())
     }
     if (query.success && query.data.status) {
       conds.push('status = ?')
@@ -80,10 +91,13 @@ export function projectsRoutes(cfg: Config) {
       }
     }
     // S45: user-facing sort (see listProjectsSchema). 'stage' (default/absent) keeps the
-    // historical ORDER BY exactly — status groups, sort_order, recency.
+    // historical ORDER BY exactly — status groups, sort_order, recency. The stale view
+    // overrides every sort choice: OLDEST first — the whole point is "what you left
+    // hanging longest" (a stale list sorted by recency would bury the offenders).
     const sort = query.success ? query.data.sort : undefined
-    const orderBy =
-      sort === 'recent'
+    const orderBy = staleMode
+      ? 'updated_at ASC'
+      : sort === 'recent'
         ? 'updated_at DESC'
         : sort === 'title'
           ? 'title COLLATE NOCASE ASC, updated_at DESC'
@@ -94,6 +108,22 @@ export function projectsRoutes(cfg: Config) {
     )
     const tagsMap = await loadTags(cfg, user.id)
     if (c.req.header('HX-Request')) {
+      // S75: the stale view renders FIRST — it is a dedicated landing surface (banner +
+      // the list), not a variation of the grid/glance flows below. The stage glance
+      // rail is deliberately absent: the banner IS the context. view=grid degrades to
+      // cards (the stages home makes no sense for a filtered special view — the page
+      // mount forces cards on arrival too); every other view (list/kanban/sticky)
+      // composes normally with the stale filter.
+      if (staleMode) {
+        const effView = view === 'grid' ? 'cards' : view
+        if (projects.length === 0) return await etag(c, c.html(staleEmptyHtml(lang)))
+        const signalsMap = await loadProjectSignals(cfg, user.id, projects.map((p) => p.id))
+        const progressMap = await loadProjectProgress(cfg, projects)
+        return await etag(c, c.html(
+          staleBannerHtml(projects.length, lang) +
+          listFragment(projects, tagsMap, effView, lang, signalsMap, undefined, progressMap),
+        ))
+      }
       // S35: the ARCHIVE SHELF fragment — one row per parked idea/project with its
       // stage badge, a one-line description, and the restore action (htmx POST that
       // re-renders this same fragment). Distinct from listFragment on purpose: the

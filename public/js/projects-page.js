@@ -7,6 +7,15 @@
         const qs = new URLSearchParams(location.search)
         const urlView = qs.get('view')
         const urlStatus = qs.get('status')
+        // S75: the full stale view — the S72 dashboard nudge's "View all" deep link
+        // (?stale=1). Landing mode: cards view (the stages home is meaningless for a
+        // filtered special view — mirrors the ?status= behavior), and the hidden form
+        // input carries the flag so the initial hx-include request serializes it.
+        const urlStale = qs.get('stale') === '1'
+        if (urlStale) {
+          const staleFlag = document.getElementById('stale-flag')
+          if (staleFlag) staleFlag.value = '1'
+        }
         // Phase 5 item 10 (2026-09-08): the view is a REMEMBERED preference — an explicit
         // ?view= / ?status= link still wins (it carries intent), otherwise the stored
         // choice rides (list stays list, kanban stays kanban). Default remains the grid.
@@ -21,14 +30,14 @@
         }
         let initialView = 'grid'
         if (urlView && VALID_VIEWS.includes(urlView)) initialView = urlView
-        else if (urlStatus) initialView = 'cards' // a status link wants the list of that stage
+        else if (urlStatus || urlStale) initialView = 'cards' // a status/stale link wants the list of that stage
         else {
           const pref = readViewPref()
           if (VALID_VIEWS.includes(pref)) initialView = pref
         }
         document.getElementById('view').value = initialView
         syncViewUi(initialView)
-        if (!urlView && !urlStatus) writeViewPref(initialView)
+        if (!urlView && !urlStatus && !urlStale) writeViewPref(initialView) // a stale link is a landing mode, not a preference change
         // batch q: legacy pre-0034 URLs/filters map onto the new lifecycle vocabulary.
         const LEGACY_STATUS = { pending: 'unreviewed', building: 'doing', working: 'operational', archived: 'halted' }
         const normStatus = (s) => LEGACY_STATUS[s] || s
@@ -77,6 +86,17 @@
         // batch (s): while the GRID view is showing, touching any filter control means
         // the user wants results — flip to cards BEFORE htmx serializes the form (capture
         // phase, so this runs ahead of htmx's own bubble-phase trigger listeners).
+        // S75: the same touch also EXITS the stale view — a filter interaction means
+        // browsing normally again, so the hidden stale flag must not ride the next
+        // request (the server banner disappears with the swap; the URL is cleaned so a
+        // refresh does not re-land in the special view).
+        const exitStaleMode = () => {
+          const f = document.getElementById('stale-flag')
+          if (f && f.value) {
+            f.value = ''
+            try { history.replaceState({}, '', '/projects.html') } catch { /* history unavailable */ }
+          }
+        }
         const flipOutOfGrid = () => {
           const viewInput = document.getElementById('view')
           if (viewInput && viewInput.value === 'grid') {
@@ -84,6 +104,7 @@
             syncViewUi('cards')
             writeViewPref('cards')
           }
+          exitStaleMode()
         }
         const filterForm = document.querySelector('form.filters')
         if (filterForm) {
@@ -175,6 +196,19 @@
           }
         })
         renderSavedFilters()
+
+        // S75: the banner's exit hatch (server-rendered inside the fragment, so the
+        // handler is document-delegated — htmx swaps never need re-binding, same as
+        // the DnD listeners). Clear the flag, clean the URL, re-request through the
+        // form so every OTHER active filter still applies.
+        ctx.on('click', (e) => {
+          const btn = e.target?.closest?.('[data-stale-clear]')
+          if (!btn) return
+          e.preventDefault()
+          exitStaleMode()
+          const form = document.querySelector('form.filters')
+          if (form && window.htmx) window.htmx.ajax('GET', '/api/projects', { source: form, target: '#project-list', swap: 'innerHTML' })
+        })
 
         // Drag & drop (spec §5.3): a kanban cross-column drop changes status; dropping a card onto a
         // same-status sibling reorders it (cards/list) or within its kanban column. Native HTML5 DnD,

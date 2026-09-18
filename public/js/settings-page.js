@@ -1,3 +1,13 @@
+// S75 (bug fix, pre-existing — surfaced by this round's QA): nav.js's S44 same-page
+// re-entry RE-EXECUTES every *-page.js on soft navigation (language toggle →
+// nav.reload()). This file's top-level lexical declarations (historically `const
+// invitesComponent`, now also the overview cache) collided on the second execution —
+// SyntaxError: "Identifier has already been declared" — which killed the ENTIRE
+// re-execution, so the fresh settings shell never mounted (dead components after a
+// language toggle; verified reproducing on clean HEAD too). The IIFE gives every
+// execution a fresh scope: re-entry re-registers cleanly, and the overview cache
+// resetting per execution is CORRECT (a fresh shell means fresh data anyway).
+(() => {
     // Item 6 fix (2026-09-09), re-deduped 2026-09-12: ONE factory, registered on BOTH
     // paths - alpine:init covers the hard load (settings-page.js loads before
     // alpine.min.js since the 5550991 script-order fix, so the listener fires before
@@ -5,11 +15,36 @@
     // fired long ago on the dashboard - removing the mount registration broke
     // invites on soft-nav, caught by e2e/alpine-hard-load.spec.ts #6). Alpine.data
     // last-wins makes the double call safe; the DEFINITION exists exactly once.
+    //
+    // S75 (§10-F4): the settings OVERVIEW — ONE request composes every read this page
+    // needs (prefs / me / invites / ai models / telegram / trash). The page used to
+    // fire 8 parallel JSON GETs on load, three of them literal duplicates
+    // (/api/settings ×2, /api/auth/me ×2, /api/ai/models ×2 via the soft-nav safety
+    // re-run). Module-scope cache: one network hit per hard load; soft-nav re-mounts
+    // re-populate the fresh DOM from cache. Every consumer falls back to its legacy
+    // single-slice endpoint when the overview is unavailable (offline / old shell),
+    // and every post-mutation refresh stays targeted on its own endpoint on purpose.
+    let __hibanaOverview = null
+    function settingsOverview() {
+      if (__hibanaOverview) return __hibanaOverview
+      __hibanaOverview = fetch('/api/settings/overview')
+        .then((r) => (r.ok ? r.json() : null))
+        .catch(() => null)
+        .then((b) => { if (!b) __hibanaOverview = null /* retry on next mount */; return b })
+      return __hibanaOverview
+    }
     const invitesComponent = () => ({
         inviteEmail: '', sending: false, invites: [], loaded: false,
         async init() { await this.loadInvites() },
         async loadInvites() {
           try {
+            const ov = await settingsOverview()
+            if (ov && Array.isArray(ov.invites)) {
+              this.invites = ov.invites
+              this.loaded = true
+              return
+            }
+            // Legacy path (overview unavailable): the single-slice fetch.
             const r = await fetch('/api/auth/invites')
             if (!r.ok) { this.loaded = true; return }
             const data = await r.json()
@@ -118,16 +153,27 @@
         async function loadAiModels() {
           const sel = document.getElementById('ai-model-sel')
           if (!sel) return
+          // S75: the soft-nav safety re-run (setTimeout below) targets a FRESH element
+          // after a re-mount — populate it from the overview CACHE (zero network). On a
+          // hard load the same element is already populated → no-op guard. This kills
+          // the duplicate /api/ai/models fetch that fired on EVERY settings visit.
+          if (sel.dataset.hibanaLoaded === '1' && sel.options.length) return
           let registry = null, def = null
           try {
-            const r = await fetch('/api/ai/models')
-            if (r.ok) { const b = await r.json(); registry = b.models; def = b.default }
+            const ov = await settingsOverview()
+            if (ov && ov.ai) { registry = ov.ai.models; def = ov.ai.default }
+            else {
+              const r = await fetch('/api/ai/models')
+              if (r.ok) { const b = await r.json(); registry = b.models; def = b.default }
+            }
           } catch { /* offline / Node path — leave the select empty, the wand still works (server default) */ }
           if (!registry || registry.length === 0) {
             // Workers-only path: show a single disabled option so the field isn’t blank.
             sel.innerHTML = '<option value="" disabled selected>Cloudflare Workers only</option>'
             return
           }
+          sel.dataset.hibanaLoaded = '1'
+          __hibanaAiRegistry = registry
           let saved = null
           try { saved = localStorage.getItem(AI_MODEL_KEY) } catch { /* private mode */ }
           const current = (saved && registry.some((m) => m.model === saved)) ? saved : def
@@ -136,15 +182,16 @@
           ).join('')
           paintAiModelNote(registry.find((m) => m.model === current) || registry[0])
         }
+        // S75: the registry rides the overview cache — the change handler repaints
+        // the model note from it instead of re-fetching /api/ai/models.
+        let __hibanaAiRegistry = null
         document.addEventListener('change', (e) => {
           const sel = e.target?.closest?.('#ai-model-sel')
           if (!sel) return
           try { localStorage.setItem(AI_MODEL_KEY, sel.value) } catch { /* private mode */ }
           window.hibana?.toast(window.hibanaI18n?.t('settings.aiSaved') || 'AI model saved')
-          // Re-fetch to repaint the note (fa flag + cost) for the new selection.
-          fetch('/api/ai/models').then((r) => r.ok ? r.json() : null).then((b) => {
-            if (b?.models) paintAiModelNote(b.models.find((m) => m.model === sel.value))
-          }).catch(() => {})
+          // Repaint the note (fa flag + cost) for the new selection — cached registry.
+          if (__hibanaAiRegistry) paintAiModelNote(__hibanaAiRegistry.find((m) => m.model === sel.value))
         })
         loadAiModels()
         setTimeout(loadAiModels, 800) // soft-nav re-mount safety, same as page-width
@@ -190,13 +237,17 @@
         window.Alpine?.data('prefs', () => ({
           language_pref: 'en', timezone: 'UTC', calendar_pref: 'gregorian',
           async load() {
-            const r = await fetch('/api/settings')
-            const { prefs } = await r.json()
-            Object.assign(this, prefs)
+            // S75: overview first (one request for the whole page), legacy slice second.
+            const ov = await settingsOverview().catch(() => null)
+            const prefs = ov?.prefs || (await fetch('/api/settings').then((r) => r.json()).then((b) => b.prefs).catch(() => null))
+            if (prefs) Object.assign(this, prefs)
           },
           async save() {
             // calendar_pref is derived from language on the server (fa→shamsi, en→gregorian)
             await fetch('/api/settings', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ language_pref: this.language_pref, timezone: this.timezone }) })
+            // S75: force-refresh the memoized /api/auth/me — apply() must read the
+            // just-PATCHed language_pref, not the pre-save record.
+            if (window.__hibanaMe) { try { await window.__hibanaMe(true) } catch { /* offline */ } }
             window.hibana?.toast(window.hibanaI18n?.t('settings.prefsSaved') || 'Preferences saved')
             window.hibanaI18n?.apply()
           },
@@ -241,8 +292,16 @@
             return this.t(isShown ? 'settings.hide' : 'settings.show', isShown ? 'Hide' : 'Show')
           },
           async load() {
-            const r = await fetch('/api/settings')
-            const { prefs } = await r.json()
+            // S75: overview first — same payload as the old /api/settings fetch.
+            const ov = await settingsOverview().catch(() => null)
+            let prefs = ov?.prefs || null
+            if (!prefs) {
+              try {
+                const r = await fetch('/api/settings')
+                prefs = (await r.json()).prefs
+              } catch { prefs = null }
+            }
+            if (!prefs) return
             this.shownMap = {
               header: !!prefs.dash_show_header,
               todo: prefs.dash_show_todo !== 0,
@@ -323,9 +382,16 @@
               : this.t('settings.telegramNotLinked', 'Not linked yet')
           },
           async load() {
-            const r = await fetch('/api/telegram/status')
-            if (!r.ok) return
-            const body = await r.json()
+            // S75: overview first (one request for the whole page), legacy slice second.
+            const ov = await settingsOverview().catch(() => null)
+            let body = ov?.telegram || null
+            if (!body) {
+              try {
+                const r = await fetch('/api/telegram/status')
+                body = r.ok ? await r.json() : null
+              } catch { body = null }
+            }
+            if (!body) return
             this.bot = body.bot || this.bot
             this.botUrl = body.botUrl || this.botUrl
             this.connectUrl = body.botUrl || this.botUrl
@@ -370,11 +436,16 @@
           currentPassword: '', newPassword: '', confirmPassword: '',
           busy: false,
           async load() {
-            const r = await fetch('/api/auth/me')
-            if (r.ok) {
-              const { user } = await r.json()
-              this.email = user.email || (window.hibanaI18n?.t('settings.emailMissing') || '(no email — username login)')
+            // S75: overview first — the me slice (same shape as /api/auth/me).
+            const ov = await settingsOverview().catch(() => null)
+            let user = ov?.me?.user || null
+            if (!user) {
+              try {
+                const r = await fetch('/api/auth/me')
+                if (r.ok) user = (await r.json()).user
+              } catch { user = null }
             }
+            if (user) this.email = user.email || (window.hibanaI18n?.t('settings.emailMissing') || '(no email — username login)')
           },
           async changePassword() {
             if (this.newPassword !== this.confirmPassword) return window.hibana?.toast(window.hibanaI18n?.t('settings.passwordsNoMatch') || 'New passwords do not match', 'err')
@@ -411,9 +482,16 @@
           url: '',
           initial: '?',
           async load() {
-            const r = await fetch('/api/auth/me')
-            if (!r.ok) return
-            const { user } = await r.json()
+            // S75: overview first — the me slice (avatar fields included).
+            const ov = await settingsOverview().catch(() => null)
+            let user = ov?.me?.user || null
+            if (!user) {
+              try {
+                const r = await fetch('/api/auth/me')
+                if (r.ok) user = (await r.json()).user
+              } catch { user = null }
+            }
+            if (!user) return
             const name = user.username || user.email || '?'
             this.initial = (name[0] || '?').toUpperCase()
             this.pic = !!user.avatar_path
@@ -556,7 +634,13 @@
             if (btn.dataset.origLabel) btn.textContent = btn.dataset.origLabel
           }
 
+          // S75: the i18n re-render repaints from cache — no refetch. The cache is
+          // maintained INSIDE renderTrash so every mutation path (restore / purge /
+          // empty) keeps it in lockstep with the DOM — a language flip can never
+          // resurrect a row the user just removed.
+          let lastTrashItems = null
           const renderTrash = (items) => {
+            lastTrashItems = items
             trashList.textContent = ''
             const emptyBtn = document.getElementById('trash-empty-btn')
             if (!items.length) {
@@ -598,7 +682,7 @@
                   if (!r.ok) throw new Error('restore failed')
                   window.hibana?.toast(tT('trash.restored', 'Restored'))
                   li.classList.add('is-restoring')
-                  setTimeout(() => { li.remove(); if (!trashList.children.length) renderTrash([]) }, 260)
+                  setTimeout(() => { li.remove(); if (!trashList.children.length) renderTrash([]); else if (lastTrashItems) lastTrashItems = lastTrashItems.filter((x) => x.id !== it.id) }, 260)
                 } catch {
                   btn.disabled = false
                   window.hibana?.toast(tT('trash.restoreFailed', "Couldn't restore — try again"), 'err')
@@ -621,7 +705,8 @@
                   setTimeout(() => {
                     li.remove()
                     if (!trashList.children.length) renderTrash([])
-                    else { // one fewer item — refresh the Empty button count
+                    else { // one fewer item — refresh the Empty button count + the cache
+                      if (lastTrashItems) lastTrashItems = lastTrashItems.filter((x) => x.id !== it.id)
                       const n = trashList.querySelectorAll('.trash-item').length
                       const eb = document.getElementById('trash-empty-btn')
                       if (eb && n) eb.textContent = tT('trash.emptyBtn', 'Empty trash') + ' (' + dig(n) + ')'
@@ -640,10 +725,15 @@
 
           const loadTrash = async () => {
             try {
-              const r = await fetch('/api/settings/trash')
-              if (!r.ok) throw new Error('trash failed')
-              const body = await r.json()
-              renderTrash(body.items || [])
+              // S75: overview first (one request for the whole page), legacy slice second.
+              const ov = await settingsOverview().catch(() => null)
+              let items = ov?.trash?.items || null
+              if (!items) {
+                const r = await fetch('/api/settings/trash')
+                if (!r.ok) throw new Error('trash failed')
+                items = (await r.json()).items || []
+              }
+              renderTrash(items)
             } catch {
               trashList.textContent = ''
               const li = document.createElement('li')
@@ -656,8 +746,9 @@
           // S71: loadTrash() races i18n.apply() on first paint — the FA dictionary may
           // land AFTER the list rendered, leaving JS-built labels (Delete forever /
           // Restore / Empty) in EN while data-i18n nodes flip to FA. Re-render when
-          // i18n applies; idempotent (same list, retranslated).
-          document.addEventListener('hibana:i18n', () => { if (!document.getElementById('trash-list')?.children.length || document.querySelectorAll('#trash-list .trash-item').length) loadTrash() })
+          // i18n applies; idempotent (same list, retranslated). S75: repaints from the
+          // cached items — zero network on the language flip.
+          document.addEventListener('hibana:i18n', () => { if (lastTrashItems) renderTrash(lastTrashItems) })
 
           // S71: "Empty trash" — every soft-deleted item of THIS user, right now. Same
           // two-click confirm as the per-row purge (this one frees many items at once).
@@ -682,3 +773,5 @@
         }
       },
     })
+
+})()

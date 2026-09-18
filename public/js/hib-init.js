@@ -289,9 +289,14 @@
         // fetch() itself throw — an unhandled rejection here would abort the rest of the
         // nav wiring (logout/theme/lang listeners below). Treat it as "no info": the auth
         // guard's offline banner explains the state.
+        // S75: rides the shared per-page /api/auth/me memo (window.__hibanaMe) — this
+        // was one of FOUR identical fetches firing on every authenticated page load.
+        // hib-init.js and app.js load on the same 22-page set (verified), so the memo
+        // always exists here.
         let info = null
         try {
-          info = await fetch('/api/auth/me').then((r) => (r.ok ? r.json() : null))
+          const env = await window.__hibanaMe()
+          info = env && env.ok ? env.body : null
         } catch {
           info = null
         }
@@ -345,6 +350,9 @@
                 body: JSON.stringify({ language_pref: next }),
               })
             } catch { /* still apply the client dictionary so the toggle works offline */ }
+            // S75: the memoized /api/auth/me must not serve the PRE-PATCH user record —
+            // force-refresh so apply() reads the new language_pref.
+            if (window.__hibanaMe) await window.__hibanaMe(true)
             if (window.hibanaI18n) await window.hibanaI18n.apply()
             // Re-fetch the current page in place — server-rendered fragments re-render in the
             // new language without a hard reload.
@@ -375,25 +383,25 @@
       // the SW's offline 503 keeps you ON the page with the offline banner; ONLY a
       // deterministic 401 redirects. A bare 503/5xx (origin blip) also stays put —
       // bouncing an authed user during a restart was never right either.
-      let me = null
+      // S75: rides the shared per-page /api/auth/me memo — the guard needs raw STATUS
+      // semantics (401 vs 503-offline), so it reads the memo's envelope { ok, status,
+      // body }. The body is already consumed inside the memo (the S69
+      // hold-the-request-open concern is handled there — json() is always read).
+      // hib-init.js and app.js load on the same 22-page set (verified) — the memo
+      // always exists when this guard runs.
+      let env = null
       let offline = false
       try {
-        me = await fetch('/api/auth/me')
+        env = await window.__hibanaMe()
       } catch {
         offline = true // request never completed: no network, DNS/VPN, or no SW catch
       }
-      if (!offline && me && me.status === 503) {
-        try { offline = (await me.clone().json())?.error === 'offline' } catch { offline = false }
+      if (!offline && env && env.status === 503) {
+        offline = env.body?.error === 'offline'
       }
-      // S69 hygiene: consume/release the body on the paths that only read the status.
-      // An unread response body holds the network request open in Chromium when the
-      // response is unbufferable (Cache-Control: no-store) — it kept networkidle from
-      // ever firing on app pages (the vault-banner/viewport e2e timeouts). cancel()
-      // releases the stream; the other /me consumers read .json() and are unaffected.
-      try { await me?.body?.cancel() } catch { /* already consumed or unusable */ }
       if (offline) {
         if (!isPublic) showOfflineBanner()
-      } else if (me && me.status === 401 && !isPublic) {
+      } else if (env && env.status === 401 && !isPublic) {
         window.location.replace('/login.html')
       }
     }

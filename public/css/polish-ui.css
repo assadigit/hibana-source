@@ -1285,3 +1285,29 @@ body.has-mobile-nav { padding-block-end: calc(3.75rem + env(safe-area-inset-bott
   .resume-chip { transition: none; }
   .resume-chip:hover, .resume-chip:focus-visible { transform: none; }
 }
+
+/* S72 — Resume strip "Clear" button (completes the S71 feature: history was
+   record-only with no way to reset). Quiet ghost pill at the header's far end;
+   danger red only ON INTERACTION (the S71 trash-purge recipe — destructive
+   affordance without painting the resting state). */
+.resume-clear {
+  margin-inline-start: auto;
+  display: inline-flex; align-items: center; gap: 0.35rem;
+  padding: 0.25rem 0.6rem;
+  font-size: 0.75rem; font-weight: 600;
+  color: var(--muted);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: color .16s ease, border-color .16s ease, background-color .16s ease;
+}
+.resume-clear svg { inline-size: 0.85rem; block-size: 0.85rem; flex: none; }
+.resume-clear:hover, .resume-clear:focus-visible {
+  color: var(--err, #c0392b);
+  border-color: color-mix(in srgb, var(--err, #c0392b) 35%, transparent);
+  background: color-mix(in srgb, var(--err, #c0392b) 7%, transparent);
+  outline: none;
+}
+.resume-clear:active { transform: translateY(1px); }
+@media (prefers-reduced-motion: reduce) { .resume-clear { transition: none; } }

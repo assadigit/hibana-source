@@ -788,3 +788,60 @@ main.shell-dash > section { margin-block-end: 2.9rem; }
   .dash-urgent-project { margin-inline-start: 0; }
   .dash-urgent-list { max-block-size: 13rem; overflow-y: auto; }
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   S72 — Stale-projects nudge ("Untouched for 2+ weeks", job #2: what you left
+   hanging). Server-rendered inside the projects section (dashboard.ts); shows
+   only when an in-motion project (unreviewed/investigating/awaiting/doing —
+   NOT halted, NOT operational) went 14+ days without an update. Design: the
+   .dash-urgent neutral-card recipe with an AMBER edge (waiting / attention-
+   needed per variables.css §color law) — quiet, not an alarm.
+   ═══════════════════════════════════════════════════════════════════════════ */
+.dash-stale-row {
+  display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap;
+  margin-block: 0.35rem 0.55rem;
+  padding: 0.45rem 0.65rem;
+  border: 1px solid color-mix(in srgb, var(--badge-awaiting-fg, #85620D) 26%, var(--line));
+  border-inline-start: 4px solid var(--badge-awaiting-fg, #85620D);
+  border-radius: var(--radius);
+  background: color-mix(in srgb, var(--badge-awaiting-bg, #F6EFCB) 55%, var(--card));
+}
+.dash-stale-flag {
+  display: inline-flex; align-items: center; gap: 0.4rem;
+  font-size: var(--fs-xs, 0.78rem); font-weight: 700;
+  color: var(--badge-awaiting-fg, #85620D);
+  white-space: nowrap;
+}
+.dash-stale-flag svg { inline-size: 0.95rem; block-size: 0.95rem; flex: none; }
+.dash-stale-chips { display: flex; gap: 0.45rem; flex-wrap: wrap; min-inline-size: 0; }
+.dash-stale-chip {
+  display: inline-flex; align-items: baseline; gap: 0.45rem;
+  max-inline-size: 17rem;
+  padding: 0.3rem 0.6rem;
+  background: var(--card);
+  border: 1px solid color-mix(in srgb, var(--badge-awaiting-fg, #85620D) 18%, var(--line));
+  border-radius: 999px;
+  text-decoration: none; color: inherit;
+  transition: border-color .16s ease, box-shadow .16s ease, transform .16s ease;
+}
+.dash-stale-chip:hover, .dash-stale-chip:focus-visible {
+  border-color: color-mix(in srgb, var(--badge-awaiting-fg, #85620D) 55%, var(--line));
+  box-shadow: 0 2px 8px -3px rgb(0 0 0 / 0.12);
+  transform: translateY(-1px);
+  outline: none;
+}
+.dash-stale-chip:active { transform: translateY(0); }
+.dash-stale-name {
+  font-size: var(--fs-xs, 0.78rem); font-weight: 600; line-height: 1.3;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.dash-stale-age { font-size: 0.72rem; color: var(--muted); white-space: nowrap; font-variant-numeric: tabular-nums; }
+@media (max-width: 640px) {
+  .dash-stale-row { align-items: flex-start; flex-direction: column; gap: 0.4rem; }
+  .dash-stale-chips { inline-size: 100%; overflow-x: auto; flex-wrap: nowrap; scrollbar-width: thin; }
+  .dash-stale-chip { flex: 0 0 auto; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .dash-stale-chip { transition: none; }
+  .dash-stale-chip:hover, .dash-stale-chip:focus-visible { transform: none; }
+}

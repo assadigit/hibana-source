@@ -724,6 +724,7 @@ window.__hibanaDictEN = {
       'cmdk.recent': 'Recent', 'cmdk.tags': 'Tags',
       'resume.title': 'Pick up where you left off', 'resume.hint': 'Recently opened',
       'resume.project': 'Project', 'resume.note': 'Note', 'resume.openAria': 'Open {k}: {t}',
+      'resume.clear': 'Clear', 'resume.clearAria': 'Clear the resume history',
       // S52: Trash palette command + recoverable-count sublabel
       'cmdk.openTrash': 'Trash — recover deleted items',
       'cmdk.trashCount': '{n} recoverable',

@@ -55,6 +55,13 @@
     const entries = read().slice(0, MAX_RENDER)
     let strip = document.getElementById('resume-strip')
     if (!entries.length) { if (strip) strip.remove(); return }
+    // S72 BUGFIX: the header/hint previously carried data-i18n + hardcoded EN text — but
+    // i18n.js apply() sweeps the STATIC DOM only (its own header note), so dynamically
+    // injected markup never got translated. Like the chips, translate at render time.
+    const headText = () => _t('resume.title', 'Pick up where you left off')
+    const hintText = () => _t('resume.hint', 'Recently opened')
+    const clearLabel = () => _t('resume.clear', 'Clear')
+    const clearAria = () => _t('resume.clearAria', 'Clear the resume history')
     const chips = entries.map((e) => {
       const kind = e.k === 'project' ? _t('resume.project', 'Project') : _t('resume.note', 'Note')
       const label = _t('resume.openAria', 'Open {k}: {t}').split('{k}').join(kind).split('{t}').join(e.t || '')
@@ -68,6 +75,14 @@
     }).join('')
     if (strip) {
       strip.querySelector('.resume-row').innerHTML = chips
+      // Re-render path (i18n race / re-open): refresh the header too, not just the chips.
+      const h = strip.querySelector('#resume-title'); if (h) h.textContent = headText()
+      const hint = strip.querySelector('.resume-hint'); if (hint) hint.textContent = hintText()
+      const clear = strip.querySelector('[data-resume-clear]')
+      if (clear) {
+        clear.setAttribute('aria-label', clearAria()); clear.title = clearAria()
+        const lbl = clear.querySelector('.resume-clear-label'); if (lbl) lbl.textContent = clearLabel()
+      }
       return
     }
     strip = document.createElement('section')
@@ -76,8 +91,12 @@
     strip.setAttribute('aria-labelledby', 'resume-title')
     strip.innerHTML = `
       <header class="resume-head">
-        <h2 id="resume-title" data-i18n="resume.title">Pick up where you left off</h2>
-        <span class="resume-hint muted" data-i18n="resume.hint">Recently opened</span>
+        <h2 id="resume-title">${esc(headText())}</h2>
+        <span class="resume-hint muted">${esc(hintText())}</span>
+        <button type="button" class="resume-clear" data-resume-clear aria-label="${esc(clearAria())}" title="${esc(clearAria())}">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2m3 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6h14Z"/></svg>
+          <span class="resume-clear-label">${esc(clearLabel())}</span>
+        </button>
       </header>
       <div class="resume-row">${chips}</div>`
     // INSIDE <main>: soft-nav replaces the shell element wholesale (nav.js
@@ -88,6 +107,14 @@
     else main.insertBefore(strip, main.firstChild)
     // Soft-nav when the SPA router is present; plain navigation otherwise (palette pattern).
     strip.addEventListener('click', (e) => {
+      // S72: clear-history button — wipes the localStorage record and removes the strip.
+      // Low-stakes by design (history rebuilds itself as you open things) → no confirm.
+      const clearBtn = e.target.closest('[data-resume-clear]')
+      if (clearBtn) {
+        try { localStorage.removeItem(KEY) } catch { /* storage unavailable */ }
+        strip.remove()
+        return
+      }
       const a = e.target.closest('a[data-resume-go]')
       if (!a) return
       const href = a.getAttribute('href') || ''

@@ -39,7 +39,7 @@ export function dashboardRoutes(cfg: Config) {
     // at the 03:17 tick; resetDueRecurring is idempotent (only resets tasks past their
     // due date), so daily is frequent enough.
 
-    const [byStatus, recent, activeProjects, solvedThisWeek, vaultNoteRows, notes, noteTotal, todoTasks, todoNameRows, todoNoteRows, urgentTasks, urgentCount] = await Promise.all([
+    const [byStatus, recent, activeProjects, solvedThisWeek, vaultNoteRows, notes, noteTotal, todoTasks, todoNameRows, todoNoteRows, urgentTasks, urgentCount, staleProjects] = await Promise.all([
       cfg.db.query<{ status: string; n: number }>(
         "SELECT status, COUNT(*) AS n FROM projects WHERE user_id = ? AND deleted_at IS NULL AND (archived_state IS NULL OR archived_state != 'offline') GROUP BY status",
         [user.id],
@@ -119,6 +119,18 @@ export function dashboardRoutes(cfg: Config) {
         `SELECT COUNT(*) AS n FROM dev_tasks t JOIN projects p ON p.id = t.project_id
          WHERE p.user_id = ? AND p.deleted_at IS NULL AND t.status != 'done' AND t.priority IN ('urgent', 'high')`,
         [user.id],
+      ),
+      // S72: "needs attention" nudge — in-motion projects (NOT halted = deliberately
+      // paused, NOT operational = done, NOT spark = raw capture) untouched for 14+ days.
+      // Serves job #2 ("never lose your place" includes "remember what you left hanging").
+      // Renders only when something is actually stale, like the urgent strip; oldest 3.
+      cfg.db.query<ProjectRow>(
+        `SELECT id, title, status, updated_at FROM projects
+         WHERE user_id = ? AND deleted_at IS NULL AND (archived_state IS NULL OR archived_state != 'offline')
+           AND status IN ('unreviewed','investigating','awaiting','doing')
+           AND updated_at < ?
+         ORDER BY updated_at ASC LIMIT 3`,
+        [user.id, new Date(Date.now() - 14 * 24 * 3600 * 1000).toISOString()],
       ),
     ])
 
@@ -436,6 +448,18 @@ export function dashboardRoutes(cfg: Config) {
             <h2>${t('Projects', 'پروژه‌ها')}</h2>
             <a class="small" href="/projects.html">${t('Go to projects', 'رفتن به بخش پروژه‌ها')} ${raw(icon('arrow-right', 'icon arrow'))}</a>
           </div>
+          <!-- S72: stale-projects nudge ("needs attention"). In-motion projects untouched
+               for 14+ days, oldest first, max 3 — a quiet amber row, hidden when nothing
+               is stale (like the urgent strip). Serves job #2: what you left hanging. -->
+          ${staleProjects.length ? html`<div class="dash-stale-row" role="status">
+            <span class="dash-stale-flag">${raw(icon('clock', 'icon'))} ${t('Untouched for 2+ weeks', 'دو هفته بدون تغییر')}</span>
+            <span class="dash-stale-chips">
+              ${staleProjects.map((p) => html`<a class="dash-stale-chip" href="/project.html?id=${p.id}" title="${t('Open project', 'باز کردن پروژه')} — ${p.title}">
+                <strong class="dash-stale-name" dir="auto">${p.title}</strong>
+                <span class="dash-stale-age">${timeAgo(p.updated_at, lang)}</span>
+              </a>`)}
+            </span>
+          </div>` : html``}
           <!-- S42 (owner: "this part is too compacted because of right left handles.
                expand this section. make handles over them."): the strip now spans the
                FULL section width — the paging handles float OVER the strip's edges

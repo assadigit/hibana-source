@@ -722,6 +722,7 @@ window.__hibanaDictFA = {
       'cmdk.recent': 'اخیر', 'cmdk.tags': 'برچسب‌ها',
       'resume.title': 'از جایی که بودی ادامه بده', 'resume.hint': 'آخرین‌هایی که باز کردی',
       'resume.project': 'پروژه', 'resume.note': 'یادداشت', 'resume.openAria': 'بازکردن {k}: {t}',
+      'resume.clear': 'پاک‌کردن', 'resume.clearAria': 'پاک‌کردن تاریخچهٔ ادامه',
       // S52: Trash palette command + recoverable-count sublabel
       'cmdk.openTrash': 'سطل بازیافت — بازیابی موارد حذف‌شده',
       'cmdk.trashCount': '{n} مورد قابل بازیابی',

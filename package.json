@@ -46,7 +46,8 @@
     "probe:tags": "node scripts/live-tags-probe.mjs dev",
     "probe:tags:prod": "node scripts/live-tags-probe.mjs prod",
     "probe:glance": "node scripts/live-glance-probe.mjs dev",
-    "probe:glance:prod": "node scripts/live-glance-probe.mjs prod"
+    "probe:glance:prod": "node scripts/live-glance-probe.mjs prod",
+    "purge": "node scripts/purge-cache.mjs"
   },
   "dependencies": {
     "@hono/node-server": "^1.13.7",

@@ -149,6 +149,46 @@ jobs:
           echo "PROD health: $HEALTH"
           echo "$HEALTH" | grep -q '"ok":true' || (echo "FAIL: prod health probe failed"; exit 1)
 
+      # S73: purge the zone edge cache after every prod deploy. The zone caches HTML
+      # aggressively (Edge-TTL override ignores the origin's max-age=0 — cf-cache-status:
+      # HIT on /login is the steady state), so WITHOUT this a deploy's fresh HTML can sit
+      # behind a stale edge object until its TTL lapses; that exact gap served a stale nav
+      # partial for hours after the S72 deploy (Changelogs §1). Uses the SAME deploy-token
+      # secret — no new GitHub secret needed once the owner grants the token Zone → Cache
+      # Purge (dashboard-only, 60s; runbook in Changelogs §4 + the script's own output).
+      #
+      # Exit-code contract with scripts/purge-cache.mjs:
+      #   0 = purged (or dry)                        → green
+      #   1 = token lacks Cache Purge (pre-grant or  → ::warning:: + GREEN. Deliberate:
+      #       lost permission)                          the deploy above is already live and
+      #                                                  correct; /api/nav is root-fixed
+      #                                                  no-store, purge is defense-in-depth
+      #                                                  for HTML. A red X here would read as
+      #                                                  "deploy failed" when it didn't. The
+      #                                                  warning annotation keeps it visible.
+      #   2 = real failure (network/5xx after retry, → ::error:: + RED — the token HAS the
+      #       bad args)                                  permission but the purge path broke
+      #                                                  mid-deploy; possible stale edge, want
+      #                                                  eyes on it.
+      - name: Purge zone cache (hibana.ir)
+        run: |
+          set +e
+          node scripts/purge-cache.mjs
+          code=$?
+          set -e
+          if [ "$code" -eq 0 ]; then
+            echo "purge: ok"
+            exit 0
+          fi
+          if [ "$code" -eq 1 ]; then
+            echo "::warning::CD purge skipped — deploy token lacks Zone.Cache Purge. Grant it once (Changelogs §4 runbook: My Profile → API Tokens → deploy token → Edit → Zone/Cache Purge/Purge) and every future deploy purges automatically."
+            exit 0
+          fi
+          echo "::error::purge failed unexpectedly (exit $code) — the zone edge cache may be stale after this deploy"
+          exit "$code"
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+
       - name: Restore canonical HTML
         run: node scripts/build.mjs --restore-html
 

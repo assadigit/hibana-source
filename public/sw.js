@@ -13,7 +13,7 @@
 // changelog until S49 trimmed it — every prior entry is recoverable verbatim:
 // `git show <sha>:public/sw.js`).
 
-const VERSION = "hibana-v400" // bump on sw.js logic changes — see Changelogs.md §1 (current state) + git log (full history). v400 (S70): fabric.min.js out of the SHELL precache.
+const VERSION = "hibana-v401" // bump on sw.js logic changes — see Changelogs.md §1 (current state) + git log (full history). v401 (S72): the nav partial's SHELL entry + hib-init's fetch are now versioned (?v=3) — the CF edge cache served a STALE nav.html for hours after deploy (deploy token can't purge the zone), and unversioned URLs made every future nav change nondeterministic. v400 (S70): fabric.min.js out of the SHELL precache.
 
 // Static shell: unhashed pages/partials/icons/vendor/fonts (SWR or network-first at
 // runtime; precached here for offline). The hashed app bundles come from the manifest
@@ -45,7 +45,7 @@ const SHELL = [
   '/admin.html',
   '/404.html',
   '/clip.html', // Session 19 cron round 2: web-clipper popup (offline-safe)
-  '/partials/nav.html',
+  '/partials/nav.html?v=3', // S72: versioned — see VERSION note. Unversioned key held a stale edge copy post-deploy.
   '/manifest.webmanifest',
   '/icon.svg',
   '/icon-192.png',

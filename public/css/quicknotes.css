@@ -7,6 +7,49 @@
 .notebook.card { padding: clamp(0.75rem, 1.5vw, 1rem) clamp(0.75rem, 1.5vw, 1rem) clamp(1rem, 2vw, 1.5rem) clamp(0.75rem, 1.5vw, 1rem); overflow: visible; /* Session 19 (user report): the view/size controls panel floats absolutely + its box-shadow was clipped by the card's implicit overflow. The bottom padding is larger (1–1.5rem) to give the sticky-note shadows (4px 12px 20px) room below — container-type:inline-size on #notebook clips block-axis overflow, so the card itself must reserve the space. */ }
 .notebook .note-heading { margin-block-end: 0; font-size: 1rem; }
 .note-head .note-title { flex: 1; min-inline-size: 0; }
+/* S70 (390px FA/RTL overflow fix): the per-note head row — <span class="row note-head-main">
+   holding the title input + the date chip — is a flex item WITHOUT min-inline-size:0, so
+   its automatic minimum content size (the input's intrinsic size=20 default ≈230px + the
+   ~80px date chip + gap ≈ 324–328px) exceeded the ~316px card interior at 390px, and the
+   overflow propagated up through .note-head (a grid row of .note-card) → document
+   scrollWidth 416 @390. Fixed at EVERY level that carries an automatic minimum: */
+.note-head-main { flex: 1 1 0; min-inline-size: 0; gap: 0.4rem; }
+/* The decisive level: .note-card is display:grid and its ROWS (.note-head, the hurdles
+   list, the composer, the attach row) are grid items with min-width:auto — the .note-head
+   row's min-content (title input intrinsic + date chip ≈ 362px) forced the whole track
+   wider than the 316px card @390px. Letting every direct card child shrink below its
+   content min-content is the same guard the card itself already carries (line ~401,
+   session 19 — long URLs). Text still wraps naturally; only the automatic minimum
+   is lifted. */
+.note-card > * { min-inline-size: 0; }
+/* S70: the day-binding chip gets real styling (it had NONE — a bare span) + it is now a
+   link to the calendar day (quicknotes-helpers.ts renders <a href="/calendar.html?date=…">).
+   Soft chip look: small caps-ish size, muted ink, hover lifts it to the interactive teal.
+   flex:none — it must never be squeezed by the shrinking title input. */
+.note-date-chip {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.15rem;
+  margin-inline-end: 0.25rem; /* inline contexts (the note footer's meta line) — flex parents override via their own gap */
+  padding: 0.05rem 0.4rem;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: color-mix(in srgb, var(--note-color, #FFF59D) 30%, transparent);
+  color: var(--text);
+  font-size: 0.72rem;
+  font-weight: 500;
+  line-height: 1.5;
+  white-space: nowrap;
+  text-decoration: none;
+  cursor: pointer;
+}
+.note-date-chip:hover, .note-date-chip:focus-visible {
+  border-color: var(--link);
+  color: var(--link);
+  background: color-mix(in srgb, var(--note-color, #FFF59D) 18%, transparent);
+}
+.note-date-chip:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 /* User request 2026-09-02: controls FIRST, heading SECOND (near each other, not spread). */
 .note-head { gap: 0.4rem; margin-block-end: 0.4rem; align-items: center; }
 .note-head .note-heading { margin: 0; }

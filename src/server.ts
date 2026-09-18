@@ -58,8 +58,8 @@ function cacheControlFor(rel: string): string {
 
 function serveFile(url: URL, req?: Request): Promise<Response> {
   const pathname = decodeURIComponent(url.pathname)
-  const rel = pathname === '/' ? 'index.html' : pathname.slice(1)
-  const file = join(publicDir, rel)
+  let rel = pathname === '/' ? 'index.html' : pathname.slice(1)
+  let file = join(publicDir, rel)
   if (file !== publicDir && !file.startsWith(publicDir + sep)) {
     return Promise.resolve(new Response('Forbidden', { status: 403 })) // path traversal guard
   }
@@ -67,7 +67,22 @@ function serveFile(url: URL, req?: Request): Promise<Response> {
   try {
     st = statSync(file)
   } catch {
-    return Promise.resolve(new Response('Not Found', { status: 404 }))
+    // S70 (dev/prod parity): Cloudflare's assets binding maps extensionless URLs to
+    // .html files — hibana.ir/gallery serves gallery.html (verified live: 200). The
+    // Node path only ever tried the exact path, so every extensionless page URL 404'd
+    // locally (verified: /login /gallery /notes … all 404 @3017 while 200 on prod).
+    // Mirror the edge: on a miss, when the path has no file extension and isn't an
+    // API call, retry once with `.html`. The retry path derives from the same
+    // already-guard-checked pathname (no separators introduced), and known
+    // WORKER_PAGE_ROUTES (/to-do-list etc.) have no matching file so they still
+    // fall through to their routes. rel/file MUST be reassigned — the cache key and
+    // readFileSync below still point at the served path.
+    if (!rel.startsWith('api/') && !extname(rel)) {
+      rel = rel + '.html'
+      file = join(publicDir, rel)
+      try { st = statSync(file) } catch { /* genuine 404 */ }
+    }
+    if (!st) return Promise.resolve(new Response('Not Found', { status: 404 }))
   }
   if (st.isDirectory()) return Promise.resolve(new Response('Not Found', { status: 404 }))
   let entry = staticCache.get(file)

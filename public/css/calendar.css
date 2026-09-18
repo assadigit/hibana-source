@@ -174,17 +174,11 @@
 }
 .cal-ctx-menu button:hover,
 .cal-ctx-menu button:focus-visible { background: var(--accent-soft); outline: none; }
-/* Day-binding chip on notebook cards (quick notes pinned to a calendar day, 0028). */
-.note-date-chip {
-  font-size: var(--fs-xs);
-  background: var(--accent-soft);
-  color: var(--text);
-  padding: 0.05rem 0.45rem;
-  border-radius: 999px;
-  margin-inline-end: 0.4rem;
-  white-space: nowrap;
-}
-.note-head-main { min-inline-size: 0; flex: 1; gap: 0.4rem; }
+/* Day-binding chip on notebook cards (quick notes pinned to a calendar day, 0028) —
+   S70: the chip's full styling (note-color tint, hover/focus affordances — it is now a
+   LINK to this day) lives in quicknotes.css beside its notebook anatomy; the duplicate
+   rules that used to live here (accent-soft background + .note-head-main sizing) lost
+   the cascade race on every page that loads both sheets and were consolidated. */
 @media (max-width: 560px) {
   .cal-cell { min-block-size: 3.5rem; padding: 0.25rem; }
   .cal-day-num { font-size: var(--fs-xs); }

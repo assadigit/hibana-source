@@ -116,6 +116,24 @@
       // hard-load defer-order bug; only literal x-data="{…}" pages were immune).
       // Pause observation for the whole swap → script-load → initTree window; restart after.
       pauseAlpine()
+      // S70: close any open <dialog> before the swap. Page modals (quick-add, note
+      // reader, task editor, the palette, …) are appended to <body> OUTSIDE <main>, so
+      // the shell swap never touches them — navigating away with one open left it
+      // floating over the new page, blocking clicks (verified live: quick-add open →
+      // topbar Projects → projects page rendered UNDER the still-open dialog).
+      // EXCEPTION — hash-only re-entries (same pathname + search, only the fragment
+      // changed): the S64 design deliberately re-mounts the page so its boot can act on
+      // the fresh hash, and the whole POINT of that flow is the deep-link handler itself
+      // OPENING a dialog (e.g. /app#note-<id> beyond the widget cap → the archive).
+      // The popstate-driven load() races that open — closing dialogs here would kill
+      // the dialog the hash just opened (caught by the S65 archive e2e). A hash-only
+      // re-entry is the SAME page: keep its live modal state, exactly as pre-S70.
+      const samePage = location.pathname === url.pathname && location.search === url.search
+      if (!samePage) {
+        for (const dlg of document.querySelectorAll('dialog[open]')) {
+          try { dlg.close() } catch { /* non-modal open() — remove the attribute directly */ dlg.removeAttribute('open') }
+        }
+      }
       // Replace the <main> element outright instead of reusing it: htmx skips already-processed
       // nodes, so reusing the old element means its hx-trigger="load" never re-fires and the
       // dashboard (hx-get on <main> itself) would strand on its loading state after any soft

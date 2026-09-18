@@ -1,7 +1,9 @@
 // Onboarding tour + dashboard counter animation (Round 5).
-// - Tour: a one-time coachmark overlay for first-time users (localStorage-gated). Highlights
+// - Tour: a one-time coachmark overlay for first-time users. Highlights
 //   the command palette (Ctrl+K), the quick-add FAB, and the theme toggle. 4 steps + done.
-//   Triggered on first dashboard visit unless the user has dismissed it.
+//   Triggered on first dashboard visit unless the user has dismissed it. Gated by
+//   localStorage AND account age (S70): a veteran on a fresh browser profile is never
+//   re-coached (the account is >14 days old via /api/auth/me → silently marked done).
 // - Counter: animates the dashboard stat-box counts from 0 to their final value on load.
 // Zero deps, zero DB, progressive enhancement (pages work fine without it).
 
@@ -181,7 +183,29 @@
     // Only show on the dashboard (pathname /app or /dashboard.html)
     const p = location.pathname
     if (p !== '/app' && p !== '/dashboard.html' && p !== '/dashboard') return
-    // Wait for the nav + FAB to be present (nav loads async via fetch)
+    // S70: the tour used to fire on ANY fresh browser profile (new device, cleared
+    // storage, e2e) — even for a veteran months in (verified live: a 4-month-old test
+    // account got coached on a fresh agent-browser session). The tour is FIRST-visit
+    // coaching, so gate it on the account's age too: /api/auth/me carries created_at;
+    // an account older than 14 days is a veteran on a new profile — mark the tour done
+    // silently and never coach them again. Fetch failure → previous behavior (show);
+    // offline-first users lose nothing (the SW serves /api/auth/me network-first).
+    fetch('/api/auth/me', { credentials: 'same-origin' })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((body) => {
+        if (location.pathname !== p) return // soft-nav raced us — abandon
+        const created = body?.user?.created_at
+        if (created && Date.now() - new Date(created).getTime() > 14 * 24 * 3600 * 1000) {
+          markTourDone()
+          return
+        }
+        armTour(p)
+      })
+      .catch(() => armTour(p))
+  })
+
+  // Wait for the nav + FAB to be present (nav loads async via fetch)
+  function armTour(p) {
     setTimeout(() => {
       // S64: a soft navigation may have left the dashboard during the 1200ms wait —
       // the tour is dashboard first-visit coaching, never wrong-page chrome. Re-check
@@ -192,7 +216,7 @@
         startTour()
       }
     }, 1200)
-  })
+  }
 
   // Expose for programmatic re-trigger (e.g. a "Show tour again" button in settings)
   window.hibanaTour = { start: startTour, reset: () => { try { localStorage.removeItem(TOUR_KEY) } catch {} } }

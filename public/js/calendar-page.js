@@ -96,8 +96,24 @@
           const n = new Date(); return { y: n.getFullYear(), m: n.getMonth() + 1, d: n.getDate() }
         }
         const todayISO = () => { const { y, m, d } = nowInTz(); return `${y}-${pad(m)}-${pad(d)}` }
-        let selISO = todayISO()
-        const bootTodayISO = selISO // F10: still-on-today detector for the post-i18n re-target
+        // F10: still-on-today detector for the post-i18n re-target — ALWAYS the boot-day
+        // GUESS, never the deep link below: a deep-linked non-today day must not equal
+        // bootTodayISO or the tz re-target would clobber it back to "today".
+        const bootTodayISO = todayISO()
+        // S70: ?date=YYYY-MM-DD deep link — the notebook's day-binding chip links here
+        // («سنجاق‌شده به یک روز — در تقویم باز کنید»). Strictly validated (shape AND a
+        // real calendar date; a malformed param silently falls back to today so no link
+        // can ever break the boot).
+        let deepLinkedISO = null
+        try {
+          const qd = new URLSearchParams(location.search).get('date')
+          if (qd && /^\d{4}-\d{2}-\d{2}$/.test(qd)) {
+            const [y, m, d] = qd.split('-').map(Number)
+            const chk = new Date(Date.UTC(y, m - 1, d))
+            if (chk.getUTCFullYear() === y && chk.getUTCMonth() === m - 1 && chk.getUTCDate() === d) deepLinkedISO = qd
+          }
+        } catch { /* location/search unavailable — boot as today */ }
+        let selISO = deepLinkedISO || todayISO()
 
         // ---- Day creators (user request 2026-08-30) ---------------------------------
         // The sticky palette mirrors quicknotes.ts NOTE_COLOR_HEX so calendar chips and
@@ -837,7 +853,10 @@
 
         // RTL the grid when Jalali (the weekday row + cells flow the same, but the page
         // direction is handled by the html[lang="fa"] rule in app.css for the whole tree).
-        loadCurrent()
+        // S70: a deep-linked day (?date=…) opens its day panel right after the first grid
+        // render — the same goToday() contract (ring + panel + scroll into view), so a
+        // notebook chip click lands you ON the pinned day with its items visible.
+        loadCurrent().then(() => { if (deepLinkedISO) openSelPanel() }).catch(() => {})
 
         // Language-race fix (same class as the Alpine label races fixed 2026-08-29):
         // the calendar system default follows the user's language, which resolves from an

@@ -651,6 +651,10 @@ window.__hibanaDictFA = {
       'cmdk.actions': 'فرمان‌ها',
       'cmdk.projects': 'پروژه‌ها',
       'cmdk.noResults': 'نتیجه‌ای نیست.',
+      // S70: the palette foot hints bar (navigate / open / folder modifier).
+      'cmdk.hintNavigate': 'جابه‌جایی',
+      'cmdk.hintOpen': 'باز کردن',
+      'cmdk.hintFolder': 'پوشه',
       // 0040 search depth: result-group headers + canvas element type labels + quadrant names.
       'cmdk.notes': 'یادداشت‌ها',
       // S62: گروه خزانه (یادداشت‌های بلند).

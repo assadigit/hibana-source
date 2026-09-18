@@ -130,11 +130,15 @@ export function colorPickerHtml(n: QuickNote, lang: Locale): string {
 }
 
 /** Day-binding chip (0028): a note pinned to a calendar day shows its date — Jalali
- *  digits for Farsi, Gregorian for English (the calendar always follows the language). */
+ *  digits for Farsi, Gregorian for English (the calendar always follows the language).
+ *  S70: the chip is now a LINK to that day on the calendar (?date=YYYY-MM-DD deep link,
+ *  handled by calendar-page.js) — the tooltip has always promised "see it on the
+ *  calendar", now the click delivers it. Storage stays ISO Gregorian (rule 3); the
+ *  calendar converts to the active system at render time. */
 export function dateChipHtml(n: QuickNote, lang: Locale): string {
   if (!n.note_date) return ''
   const t = (en: string, fa: string) => trL(lang, en, fa)
-  return `<span class="note-date-chip" title="${t('Pinned to a day — see it on the calendar', 'سنجاق‌شده به یک روز — در تقویم ببینید')}">🗓 ${esc(formatDate(n.note_date, calendarFor(lang), lang))}</span>`
+  return `<a class="note-date-chip" href="/calendar.html?date=${esc(n.note_date)}" title="${t('Pinned to a day — open it on the calendar', 'سنجاق‌شده به یک روز — در تقویم باز کنید')}">🗓 ${esc(formatDate(n.note_date, calendarFor(lang), lang))}</a>`
 }
 
 /** S65: the quick-note ARCHIVE — every note the owner ever captured, browsable at last.

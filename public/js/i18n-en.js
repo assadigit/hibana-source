@@ -653,6 +653,10 @@ window.__hibanaDictEN = {
       'cmdk.actions': 'Actions',
       'cmdk.projects': 'Projects',
       'cmdk.noResults': 'No matches.',
+      // S70: the palette foot hints bar (navigate / open / folder modifier).
+      'cmdk.hintNavigate': 'navigate',
+      'cmdk.hintOpen': 'open',
+      'cmdk.hintFolder': 'folder',
       // 0040 search depth: result-group headers + canvas element type labels + quadrant names.
       'cmdk.notes': 'Notes',
       // S62: the vault group (long-form notes) — خزانه, the safe.

@@ -135,6 +135,11 @@
           <kbd class="cmdk-esc">Esc</kbd>
         </div>
         <ul id="cmdk-list" class="cmdk-list" role="listbox" aria-label="${_t('cmdk.results', 'Results')}"></ul>
+        <div class="cmdk-hints" aria-hidden="true">
+          <span><kbd>↑↓</kbd> ${_t('cmdk.hintNavigate', 'navigate')}</span>
+          <span><kbd>↵</kbd> ${_t('cmdk.hintOpen', 'open')}</span>
+          <span><kbd>Ctrl</kbd>+<kbd>↵</kbd> ${_t('cmdk.hintFolder', 'folder')}</span>
+        </div>
       </div>`
     document.body.appendChild(dlg)
     input = dlg.querySelector('#cmdk-input')
@@ -159,8 +164,32 @@
   function onKeydown(e) {
     if (e.key === 'ArrowDown') { e.preventDefault(); moveSelection(1) }
     else if (e.key === 'ArrowUp') { e.preventDefault(); moveSelection(-1) }
-    else if (e.key === 'Enter') { e.preventDefault(); activateSelected() }
+    else if (e.key === 'Enter') {
+      e.preventDefault()
+      // S70: folder chips were mouse-only (a span — role=option rows can't nest
+      // interactive elements, so Enter always opened the note). Ctrl/Cmd+Enter (or
+      // Alt+Enter) now activates the SELECTED row's folder chip when it has one;
+      // plain Enter keeps opening the note. The hints bar (panel foot) teaches it.
+      if ((e.ctrlKey || e.metaKey || e.altKey) && activateSelectedFolder()) return
+      activateSelected()
+    }
     else if (e.key === 'Escape') { e.preventDefault(); close() }
+  }
+
+  // S70: the keyboard twin of the S67 folder-chip click interception — navigate to
+  // the vault folder view for the chip carried by the SELECTED row (only vault note
+  // rows have one). Returns false when there's nothing to activate so Enter falls
+  // through to the normal row activation.
+  function activateSelectedFolder() {
+    const row = list?.querySelectorAll('.cmdk-item')?.[selected]
+    const chip = row?.querySelector('[data-cmdk-folder]')
+    const fid = chip?.getAttribute('data-cmdk-folder')
+    if (!fid) return false
+    const furl = '/notes.html?view=folder&folder=' + encodeURIComponent(fid)
+    close() // same order as activateSelected: close, then navigate
+    if (window.hibanaNav) window.hibanaNav.go(furl)
+    else window.location.href = furl
+    return true
   }
 
   function moveSelection(delta) {

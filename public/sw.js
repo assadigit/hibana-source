@@ -13,7 +13,7 @@
 // changelog until S49 trimmed it — every prior entry is recoverable verbatim:
 // `git show <sha>:public/sw.js`).
 
-const VERSION = "hibana-v399" // bump on sw.js logic changes — see Changelogs.md §1 (current state) + git log (full history)
+const VERSION = "hibana-v400" // bump on sw.js logic changes — see Changelogs.md §1 (current state) + git log (full history). v400 (S70): fabric.min.js out of the SHELL precache.
 
 // Static shell: unhashed pages/partials/icons/vendor/fonts (SWR or network-first at
 // runtime; precached here for offline). The hashed app bundles come from the manifest
@@ -61,7 +61,6 @@ const SHELL = [
   '/vendor/manrope/Manrope-500.woff2',
   '/vendor/manrope/Manrope-600.woff2',
   '/vendor/manrope/Manrope-700.woff2',
-  '/vendor/fabric.min.js',
   '/vendor/htmx.min.js',
   '/vendor/idiomorph-ext.min.js', // P4 (Focus 2): htmx morph swap extension for notebook
   '/vendor/alpine.min.js',
@@ -73,6 +72,11 @@ const SHELL = [
   // first FA page visit. Offline FA users who never visited a FA page online fall back
   // to system-ui (acceptable degradation). font-face.css stays in SHELL (tiny, and the
   // CSS is needed to trigger the woff2 fetch when Vazir activates).
+  // S70: fabric.min.js (292KB) REMOVED from the precache the same way — only canvas +
+  // whiteboard load it (3 of 30+ pages; the dashboard/notebook Fabric surface loads
+  // its own bundle). The runtime SWR cache holds it after the first canvas visit, so
+  // offline-first creators lose nothing they've used before; a fresh install just
+  // stopped paying 292KB (≈13% of the 2.16MB install) up front. SHELL install → ~1.87MB.
   '/Login.jpg',
 ]
 

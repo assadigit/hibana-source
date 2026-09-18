@@ -157,6 +157,14 @@ jobs:
       # secret — no new GitHub secret needed once the owner grants the token Zone → Cache
       # Purge (dashboard-only, 60s; runbook in Changelogs §4 + the script's own output).
       #
+      # S74: the grant is LIVE (purge accepted end-to-end from this box, exit 0). Expect
+      # "purge_everything accepted" + green here on every run. The script's probe lines are
+      # INFORMATIONAL: an assets-layer HIT on / or /login right after the purge is the
+      # NORMAL steady state (Workers Assets serves static paths from a content-addressed
+      # edge layer that re-keys on every deploy — S74 byte-verified /login, / and
+      # /partials/nav?v=3 against the fresh build). The purge's target is the zone cache
+      # (the S72 layer), and the API "success" line is the signal.
+      #
       # Exit-code contract with scripts/purge-cache.mjs:
       #   0 = purged (or dry)                        → green
       #   1 = token lacks Cache Purge (pre-grant or  → ::warning:: + GREEN. Deliberate:

@@ -163,16 +163,24 @@ for (const chunk of chunks) {
 }
 console.log(files.length ? `purged ${files.length} URL(s) — accepted` : 'purge_everything accepted')
 
-// ---------- verification: what does the edge serve RIGHT NOW? ----------
-// This is the check S72 lacked: cf-cache-status on the zone's key surfaces immediately after
-// the purge. Expect MISS/DYNAMIC on / and /login (re-cached on this very fetch), no
-// cf-cache-status on /api/nav (no-store). An immediate HIT means the purge did not take at
-// this colo — say so loudly instead of assuming success.
+// ---------- post-purge diagnostics (informational — NOT pass/fail) ----------
+// S74 CORRECTION of the S73 assumption: on this architecture / and /login
+// legitimately serve cf-cache-status: HIT right after a successful purge.
+// Workers Assets fronts every static path with a content-addressed edge layer
+// that re-keys on EVERY deploy (S74 byte-verified: /login, /, and the S72
+// incident URL /partials/nav?v=3 all served byte-identical-to-build content
+// minutes after deploy, while showing HIT with no age header). The purge's
+// target is the ZONE cache — the S72 stale-nav layer (custom-domain-only,
+// drops query strings, ignores origin max-age) — and the API "success" above
+// is the only reliable signal that it cleared. These probes print what the
+// edge serves RIGHT NOW so an incident investigation has the data in the log;
+// they CANNOT distinguish an always-fresh assets HIT from a zone-cache HIT,
+// so they never fail the run and never emit warnings (S73's MISS/DYNAMIC
+// expectation false-alarmed on every single run — warning fatigue).
 if (!NO_VERIFY) {
   const base = `https://${ZONE_NAME}`
   const probes = ['/', '/login', '/api/nav']
-  let suspicious = false
-  console.log('edge probes (expect MISS/DYNAMIC — an immediate HIT means the purge missed):')
+  console.log('edge probes (informational — an assets-layer HIT is normal and always deploy-fresh):')
   for (const p of probes) {
     try {
       const r = await fetch(base + p, { redirect: 'manual', signal: AbortSignal.timeout(15000) })
@@ -180,14 +188,9 @@ if (!NO_VERIFY) {
       const age = r.headers.get('age') ?? '-'
       const cc = (r.headers.get('cache-control') ?? '-').slice(0, 40)
       console.log(`  ${p.padEnd(10)} HTTP ${r.status}  cf-cache-status=${cs}  age=${age}s  cc=${cc}`)
-      if (cs === 'HIT' && p !== '/api/nav') suspicious = true
     } catch (e) {
       console.log(`  ${p.padEnd(10)} probe failed: ${e instanceof Error ? e.message : String(e)}`)
     }
-  }
-  if (suspicious) {
-    warn('edge still served a HIT right after purge — re-run or investigate before trusting the cache')
-    console.error('NOTE: cf-cache-status HIT immediately after purge — re-run `npm run purge` (colo race) or investigate')
   }
 }
 console.log('done')

@@ -240,6 +240,13 @@ section[id^="dashboard-"].is-collapsed > *:not(header) { display: none; }
    below runs out). z-index 92: above the note bubble (90), below the note
    history panel (95) that opens from the menu's «یادداشت‌ها» item. */
 .dash-todo-menu-pop { position: fixed; z-index: 92; min-inline-size: 10rem; background: var(--card); border: 1px solid var(--line-strong); border-radius: var(--radius-sm); box-shadow: 0 10px 28px rgb(0 0 0 / 0.2); display: grid; gap: 0.15rem; padding: 0.3rem; }
+/* S69 (found while auditing 390px RTL): the pop's author display:grid OVERRODE the UA's
+   closed-details hiding (author rules beat UA rules regardless of specificity — the same
+   class of bug as the [hidden] task rows). Every task's menu pop rendered permanently:
+   position:fixed at its auto/static offset, 160px wide at left:-80 in RTL — inflating the
+   390px document scrollWidth by 26px (a phantom h-scroll). Restoring the closed state
+   with (0,2,1) specificity; opening the details shows the pop as designed. */
+details.dash-todo-menu:not([open]) .dash-todo-menu-pop { display: none; }
 .dash-todo-menu-item { display: flex; align-items: center; gap: 0.45rem; width: 100%; border: 0; border-radius: var(--radius-sm); background: transparent; color: var(--text); padding: 0.45rem 0.55rem; text-align: start; font: inherit; text-decoration: none; }
 .dash-todo-menu-item:hover { background: var(--bg-soft); text-decoration: none; }
 /* (m) the destructive item reads red so a task delete never looks like an edit. */

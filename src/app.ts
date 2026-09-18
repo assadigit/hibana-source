@@ -26,6 +26,7 @@ import { notificationsRoutes } from './routes/notifications'
 import { registerTelegram } from './routes/integrations/telegram'
 import { registerImport } from './routes/integrations/import'
 import { registerHealth } from './routes/health'
+import { registerNavChrome } from './routes/nav-chrome' // S72: nav partial via /api/nav (edge-cache-proof; see its header)
 import { aiRoutes } from './routes/ai'
 import { requireAuth } from './auth/middleware'
 import type { Config, UserRow } from './types'
@@ -232,6 +233,9 @@ export function createApp(cfg: Config) {
   registerTelegram(app, cfg)
   registerImport(app, cfg)
   registerHealth(app, cfg)
+  // S72: public root-level (before coreRoutes' auth wildcard) — the topbar chrome is
+  // static markup, same exposure as the old static /partials/nav.html path.
+  registerNavChrome(app, cfg)
 
   app.route('/api/auth', authRoutes(cfg))
   app.route('/api/auth', registrationRoutes(cfg))

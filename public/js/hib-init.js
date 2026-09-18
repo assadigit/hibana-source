@@ -265,11 +265,12 @@
 
     const mounts = document.querySelectorAll('[data-nav]')
     if (mounts.length > 0) {
-      // S72: versioned URL — the CF edge cache served a STALE unversioned /partials/nav.html
-      // for hours after deploy (zone cache override; the deploy token can't purge). The
-      // ?v= matches sw.js's SHELL entry so the SW precache and the boot fetch agree.
-      // Bump BOTH (sw.js + here) whenever nav.html changes.
-      const res = await fetch('/partials/nav.html?v=3')
+      // S72: the partial comes from /api/nav (a Worker route, no-store) instead of the
+      // static /partials/nav.html — the CF edge cached the static URL under a zone
+      // Edge-TTL override that ignored max-age=0 AND dropped query strings (?v= busting
+      // can't reach the key), so deploys served a stale topbar for hours. The API path
+      // always reaches the Worker; sw.js precaches '/api/nav' for offline boots.
+      const res = await fetch('/api/nav')
       if (res.ok) {
         const html = await res.text()
         for (const m of mounts) m.innerHTML = html

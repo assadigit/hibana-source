@@ -45,7 +45,7 @@ const SHELL = [
   '/admin.html',
   '/404.html',
   '/clip.html', // Session 19 cron round 2: web-clipper popup (offline-safe)
-  '/partials/nav.html?v=3', // S72: versioned — see VERSION note. Unversioned key held a stale edge copy post-deploy.
+  '/api/nav', // S72: the nav partial via the Worker route (no-store) — the static /partials/nav.html URL sat in the CF edge cache for hours post-deploy (zone Edge-TTL override; query strings don't reach that cache key). Precached here for offline boots; Class 3 network-first lands every deploy.
   '/manifest.webmanifest',
   '/icon.svg',
   '/icon-192.png',

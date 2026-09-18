@@ -62,6 +62,7 @@ const ENTRY_POINTS = [
   'notes-page.js', // S53: the Notes Vault controller
   // S39: the media library page controller
   'gallery-page.js',
+  'resume.js', // S71: the dashboard's "Pick up where you left off" strip (project + note recording)
 ]
 
 // Page CSS files (all linked from HTML; all hashed + immutable via manifest).

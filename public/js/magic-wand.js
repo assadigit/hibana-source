@@ -62,6 +62,22 @@
     try { return localStorage.getItem(PROMPT_KEY) || undefined } catch { return undefined }
   }
 
+  // S77 (owner rule, verbatim): “WHEN TEXT IS FARSI > TRANSLATE > ENGLISH WHEN TEXT IS
+  // ENGLISH > TRANSLATE > FARSI”. The model's own language self-detection proved
+  // unreliable (a live FA input came back as a FA paraphrase — “the text stays farsi”),
+  // so the CLIENT detects the input's script and names the TARGET; the server builds a
+  // one-way prompt and verifies the output script. Farsi wins ties: a mixed note with
+  // real Farsi prose counts as Farsi (→ English). Code/URLs are Latin but the prose decides.
+  function detectLang(text) {
+    let fa = 0, en = 0
+    for (const ch of text) {
+      const cp = ch.codePointAt(0) || 0
+      if ((cp >= 0x0600 && cp <= 0x06ff) || (cp >= 0x0750 && cp <= 0x077f) || (cp >= 0xfb50 && cp <= 0xfdff) || (cp >= 0xfe70 && cp <= 0xfeff)) fa++
+      else if ((cp >= 0x41 && cp <= 0x5a) || (cp >= 0x61 && cp <= 0x7a)) en++
+    }
+    return fa > 0 && fa >= en ? 'fa' : 'en'
+  }
+
   const WAND_SVG =
     '<svg class="mw-idle" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">' +
     '<path d="M15 4V2M15 10V8M19 6h2M9 6h2"/>' +
@@ -299,6 +315,7 @@
     let res
     try {
       const payload = { text, action }
+      if (action === 'translate') payload.target_lang = detectLang(text) === 'fa' ? 'en' : 'fa'
       const model = chosenModel()
       if (model) payload.model = model
       const customPrompt = chosenPrompt()
@@ -316,8 +333,13 @@
     if (wand) wand.setAttribute('aria-busy', 'false')
 
     if (!res || !res.ok) {
+      // S77: the server's ApiError body carries a localized, specific `message`
+      // (wrong-language, rate-limit, model-failure…). Prefer it over the old status-code
+      // guesses — a 503 wrong_language used to show the misleading “Workers only” string.
       let msg = t('magic.failed')
-      if (res && res.status === 503) msg = t('magic.workersOnly')
+      const body = res ? await res.json().catch(() => null) : null
+      if (body && typeof body.message === 'string' && body.message.trim()) msg = body.message
+      else if (res && res.status === 503) msg = t('magic.workersOnly')
       else if (res && res.status === 400) msg = t('magic.tooLong')
       toast(msg, 'err')
       renderActionsAgain()

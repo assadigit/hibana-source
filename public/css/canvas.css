@@ -647,15 +647,18 @@
      canvas / notebook papers above: true square (aspect-ratio 1/1), near-sharp 2px
      corners, layered directional shadow (light from the top-left). Fill is the theme's
      paper surface (var(--card)) — these are project cards, not user-colored notes; the
-     shadow stays neutral black regardless. Overflow clips long titles/descriptions at
-     the square's edge, matching the DOM note papers' hard boundary. */
+     shadow stays neutral black regardless.
+     S77 (owner: "the sticky-note settings menu opens into a portion of the note's area
+     — not readable"): overflow is now VISIBLE — the old overflow:hidden clipped the ⋯
+     spark-menu-pop to the small square. The hard square boundary is preserved on the
+     CONTENT instead (line-clamps below). */
   aspect-ratio: 1 / 1;
   padding: 0.9rem;
   border-radius: 2px;
   border: 0;
   background: var(--card);
   box-shadow: 1px 2px 3px rgb(0 0 0 / 0.08), 2px 6px 10px rgb(0 0 0 / 0.10); /* Session 19 (user report): was 1px 3px 4px / 4px 12px 20px — too much spread, clipped hard by container-type containment. Reduced spread + opacity so the shadow stays soft + fits in the card's padding. */
-  overflow: hidden;
+  overflow: visible;
   cursor: pointer;
   display: grid;
   gap: 0.5rem;
@@ -663,6 +666,32 @@
   color: var(--text);
   transition: background-color 0.12s ease;
 }
+/* S77: the square's hard boundary moves onto the CONTENT (title clamp 3, description
+   clamp 3) — long text still stops at the paper's edge, but the ⋯ menu can now render
+   outside the note. overflow-wrap guards unbroken URLs. */
+.sticky-note strong {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+}
+.sticky-note .muted.small {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+}
+/* S77: with overflow visible, the ⋯ menu button's hover pill + the pop must sit ABOVE
+   the note's neighbors — bump the menu's z so the floating pop is never under an
+   adjacent square. The NOTE itself also has to rise while its menu is open: sibling
+   notes are position:relative with z-index auto, so a later-DOM note would otherwise
+   paint OVER this note's floating pop. */
+.sticky-note .spark-menu { z-index: 6; }
+.sticky-note .spark-menu-pop { z-index: 40; }
+.sticky-note:has(.spark-menu [data-menu-open][data-open]),
+.sticky-note:has(.spark-menu [data-menu-open]:focus-visible) { z-index: 10; }
 .sticky-note:hover { background: var(--bg-soft); }
 
 .kanban {

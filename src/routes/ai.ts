@@ -44,6 +44,12 @@ const textBodySchema = z.object({
   action: z.enum(AI_ACTIONS as unknown as [AiAction, ...AiAction[]]),
   model: z.string().optional(),
   customPrompt: z.string().max(MAX_CUSTOM_PROMPT_CHARS).optional(),
+  // S77 (owner rule, verbatim): “WHEN TEXT IS FARSI > TRANSLATE > ENGLISH WHEN TEXT IS
+  // ENGLISH > TRANSLATE > FARSI”. The client detects the input's script and names the
+  // TARGET; the server then builds a one-way prompt and verifies the output script —
+  // the model's own language self-detection proved unreliable live (FA input came back
+  // as a FA paraphrase instead of English).
+  target_lang: z.enum(['fa', 'en']).optional(),
 })
 
 export function aiRoutes(cfg: Config): Hono {
@@ -90,7 +96,7 @@ export function aiRoutes(cfg: Config): Hono {
     // model. The free-tier whitelist (idea §2) is the single source of truth. `customPrompt`
     // (from Settings) replaces the action's default persona — but COMMON_RULES (output
     // discipline) is always appended so the format stays clean regardless.
-    const result = await runAiTransform(ai, body.action, body.text, body.model, body.customPrompt)
+    const result = await runAiTransform(ai, body.action, body.text, body.model, body.customPrompt, body.target_lang)
     if (!result.ok) {
       // Map the service’s coarse error to a visible, user-actionable toast. Never 500:
       // a model hiccup is not a server fault, and the free tier has no retry-safe path.
@@ -100,11 +106,13 @@ export function aiRoutes(cfg: Config): Hono {
           text_too_long: `Text is too long (limit ${MAX_INPUT_CHARS} characters).`,
           empty_response: 'The model returned no text. Try again.',
           ai_failed: 'The AI request failed. Your text was not changed.',
+          wrong_language: 'The model answered in the wrong language — your text was not changed. Try again.',
         },
         fa: {
           text_too_long: `متن خیلی طولانی است (حداکثر ${MAX_INPUT_CHARS} نویسه).`,
           empty_response: 'مدل خروجی نداد. دوباره امتحان کنید.',
           ai_failed: 'درخواست هوش مصنوعی ناموفق بود. متن شما تغییری نکرد.',
+          wrong_language: 'مدل به زبان درست پاسخ نداد — متن شما تغییری نکرد. دوباره امتحان کنید.',
         },
       }
       throw new ApiError(ErrorCode.unavailable, messages[lang][result.error] ?? messages.en[result.error], 503)

@@ -152,9 +152,14 @@
   }
 
   // Re-clamp an existing title element in place (after edits / wand writes).
+  // S77 (owner: "paste code in the editor, save, come back — gone"): data-raw-title
+  // MUST move in lockstep with innerHTML — the task editor reopens from this
+  // attribute. A stale value meant the just-saved content vanished on reopen, and
+  // saving THAT stale view would permanently revert the edit in the DB.
   function applyTitle(el, text) {
     if (!el) return
     el.innerHTML = titleHtml(text)
+    el.setAttribute('data-raw-title', String(text ?? ''))
     if (String(text || '').length > TITLE_CLAMP) el.setAttribute('data-clamped', '')
     else el.removeAttribute('data-clamped')
     const btn = el.parentElement ? el.parentElement.querySelector('[data-task-read-more]') : null
@@ -177,14 +182,64 @@
   // (Chrome: <b>/<u>/<s>; others: <strong>/<span style>) back to the markdown syntax.
   // Pure function — only touches the `document` it runs against, no page state, so it
   // lives here next to its renderTitle twin (same consolidation pattern as S30b5).
+  //
+  // S77 (owner report: "<code> in the text editor — paste code inside, it shows, but
+  // after save + come back it's lost"): Chromium NEVER inserts a raw \n into a
+  // contenteditable. A multi-line paste/typing inside a code block is split into
+  // SIBLING elements — inside a toolbar-inserted block: <pre><code>line1</code>
+  // <code>line2</code>…</pre>; inside a loaded bare .t-code island: consecutive
+  // <code class="t-code">line1</code><code class="t-code">line2</code>… at the
+  // container root. The old converter read el.querySelector('code') (the FIRST
+  // sibling only) → every line after the first was silently DROPPED from the saved
+  // markdown (permanent data loss), and the bare-island run produced one separate
+  // ``` fence per line. Both splits are now rejoined into ONE fence.
   function htmlToMd(html) {
     const tmp = document.createElement('div')
     tmp.innerHTML = html
+    // A code element's CONTENT: text nodes verbatim, <br> → newline, hidden .t-fence
+    // markers skipped (they only exist on islands loaded from rendered markdown).
+    const codeText = (el) => {
+      let out = ''
+      for (const c of el.childNodes) {
+        if (c.nodeType === 3) { out += c.textContent; continue }
+        if (c.nodeType !== 1) continue
+        if (c.classList && c.classList.contains('t-fence')) continue
+        if (c.tagName === 'BR') { out += '\n'; continue }
+        out += codeText(c)
+      }
+      return out
+    }
+    // Merge a RUN of sibling .t-code islands (Chromium's line-split output) into ONE
+    // fenced block: pieces joined with \n, each piece's edge newlines trimmed (the
+    // loaded island carries a trailing \n before its closing fence marker).
+    const isTCode = (el) => el.classList && el.classList.contains('t-code')
+    const fenceFor = (pieces, lang) => {
+      const content = pieces
+        .map((p) => p.replace(/^[\n]+|[\n]+$/g, ''))
+        .join('\n')
+      return '\n```' + (lang || '') + '\n' + content + '\n```\n'
+    }
     const walk = (node) => {
       let out = ''
-      for (const child of node.childNodes) {
+      const children = Array.from(node.childNodes)
+      for (let i = 0; i < children.length; i++) {
+        const child = children[i]
         if (child.nodeType === 3) { out += child.textContent; continue }
         if (child.nodeType !== 1) continue
+        if (isTCode(child) && !child.closest('pre')) {
+          const lang = child.getAttribute('data-lang') || ''
+          const pieces = [codeText(child)]
+          let j = i + 1
+          while (j < children.length) {
+            const nxt = children[j]
+            if (nxt.nodeType === 3 && nxt.textContent.trim() === '') { j++; continue }
+            if (nxt.nodeType === 1 && isTCode(nxt)) { pieces.push(codeText(nxt)); j++; continue }
+            break
+          }
+          out += fenceFor(pieces, lang)
+          i = j - 1
+          continue
+        }
         out += elToMd(child)
       }
       return out
@@ -211,22 +266,22 @@
           return inner + '\n'
         }
         case 'pre': {
-          const code = el.querySelector('code')
-          const text = code ? code.textContent : el.textContent
+          // S77: Chromium splits a multi-line paste inside the toolbar's code block
+          // into SIBLING <code> elements (one per line) inside the <pre>. The old
+          // el.querySelector('code') read the FIRST one only — every line after it
+          // was silently dropped from the saved markdown. Collect them all.
+          const codes = el.querySelectorAll('code')
+          let text
+          if (codes.length > 1) text = Array.from(codes).map((c) => codeText(c)).join('\n')
+          else text = codes.length === 1 ? codeText(codes[0]) : codeText(el)
           return '\n```\n' + text + '\n```\n'
         }
         case 'code': {
-          // Could be <code class="t-code"> (loaded from the rendered card) —
-          // extract the content (skip hidden fence spans) + reconstruct the fence.
+          // A .t-code island that reached elToMd singly (walk already merges sibling
+          // runs) — extract the content (skip hidden fence spans) + reconstruct the fence.
           if (el.classList && el.classList.contains('t-code')) {
             const lang = el.getAttribute('data-lang') || ''
-            let content = ''
-            for (const c of el.childNodes) {
-              if (c.nodeType === 3) content += c.textContent
-              else if (c.nodeType === 1 && c.classList && c.classList.contains('t-fence')) continue
-              else if (c.nodeType === 1) content += c.textContent
-            }
-            return '\n```' + lang + '\n' + content + '\n```\n'
+            return '\n```' + lang + '\n' + codeText(el) + '\n```\n'
           }
           return inner // inline code — just return the text
         }

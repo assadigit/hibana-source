@@ -4,8 +4,11 @@
    the browser scale proportionally (object-fit: contain). The min is 64px so tiny
    logos don't look lost. */
 .pd-logo {
-  max-inline-size: 56px;
-  max-block-size: 56px;
+  /* S77 (owner: "the project logo is too small — make it 100% bigger in PC view"):
+     desktop default is now 112px max (2× the old 56px); ≤768px keeps the compact
+     56px so phone headers stay one line. */
+  max-inline-size: 112px;
+  max-block-size: 112px;
   min-inline-size: 40px;
   min-block-size: 40px;
   width: auto;
@@ -15,6 +18,17 @@
   border: none;
   background: transparent;
   border-radius: 12px; /* Session 24f: compacted header — logo shrunk from 64/128px to 40/56px */
+}
+/* S77: phones/tablets keep the Session-24f compact logo. */
+@media (max-width: 768px) {
+  .pd-logo {
+    max-inline-size: 56px;
+    max-block-size: 56px;
+  }
+  .pd-logo-placeholder {
+    inline-size: 56px;
+    block-size: 56px;
+  }
 }
 /* Session 19 (user request): logo edit/delete. The wrap holds the <img> + a small trash
    button overlaid at the top-end corner. Hovering the logo reveals the button. */
@@ -40,8 +54,8 @@
 .pd-logo-wrap:focus-within .pd-logo-remove { opacity: 1; }
 .pd-logo-wrap .pd-logo-remove:hover { background: var(--danger); color: #fff; border-color: var(--danger); }
 .pd-logo-placeholder {
-  inline-size: 40px; /* Session 24f: compacted — was 64px */
-  block-size: 40px;
+  inline-size: 72px; /* S77: desktop affordance scaled to the 112px logo footprint (was 64px→40px through the 24f compaction) */
+  block-size: 72px;
   border-radius: var(--radius-sm);
   border: 2px dashed var(--line-strong);
   display: inline-grid;

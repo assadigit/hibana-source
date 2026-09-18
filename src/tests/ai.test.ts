@@ -160,6 +160,70 @@ describe('ai service (idea §1)', () => {
     expect(out.ok).toBe(false)
     if (!out.ok) expect(out.error).toBe('empty_response')
   })
+
+  // --- S77: deterministic translate direction (owner rule, verbatim) -----------------
+  // "WHEN TEXT IS FARSI > TRANSLATE > ENGLISH WHEN TEXT IS ENGLISH > TRANSLATE > FARSI"
+  // Live repro (hibana.ir, mistral-small): a FA input came back as a FA PARAPHRASE —
+  // the model's self-detection is unreliable, so the client names the target and the
+  // server builds a ONE-WAY prompt, verifies the output script, retries once, then
+  // fails honestly with wrong_language.
+
+  it('S77: buildMessages with targetLang builds a one-way prompt per direction', () => {
+    const enTarget = buildMessages('translate', 'متن فارسی', undefined, 'en')[0].content
+    expect(enTarget).toContain('INTO English')
+    expect(enTarget).toContain('NEVER output Persian/Farsi prose')
+    const faTarget = buildMessages('translate', 'english text', undefined, 'fa')[0].content
+    expect(faTarget).toContain('INTO Persian')
+    expect(faTarget).toContain('NEVER output English prose')
+    // The bidirectional prompt is NOT used once the direction is known.
+    expect(enTarget).not.toContain('OPPOSITE language')
+  })
+
+  it('S77: the direction rule survives a customPrompt (the owner rule is absolute)', () => {
+    const sys = buildMessages('translate', 'x', 'You are a pirate. Be terse.', 'fa')[0].content
+    expect(sys).toContain('pirate') // custom persona kept
+    expect(sys).toContain('INTO Persian') // direction appended, non-negotiable
+    expect(sys).toContain('Output ONLY the transformed text') // COMMON_RULES still appended
+  })
+
+  it('S77: a same-language answer is retried once, then fails honestly', async () => {
+    // The exact live failure shape: FA input → FA paraphrase.
+    const faParaphrase = 'افزودن قابلیت پردازش سایت و دسته‌بندی آنها'
+    let calls = 0
+    const ai: AiRunner = {
+      async run() {
+        calls++
+        if (calls === 1) return { result: { response: faParaphrase } }
+        return { result: { response: 'Add the ability to process and categorize the website.' } }
+      },
+    }
+    const out = await runAiTransform(ai, 'translate', 'اضافه کردن توانایی پروسس سایت', undefined, undefined, 'en')
+    expect(out.ok).toBe(true)
+    if (out.ok) expect(out.text).toBe('Add the ability to process and categorize the website.')
+    expect(calls).toBe(2) // exactly one retry
+
+    // Persistent wrong direction → wrong_language, never a same-language suggestion.
+    let alwaysCalls = 0
+    const alwaysFa: AiRunner = { async run() { alwaysCalls++; return { result: { response: faParaphrase } } } }
+    const bad = await runAiTransform(alwaysFa, 'translate', 'اضافه کردن توانایی پروسس سایت', undefined, undefined, 'en')
+    expect(bad.ok).toBe(false)
+    if (!bad.ok) expect(bad.error).toBe('wrong_language')
+    expect(alwaysCalls).toBe(2) // first attempt + the one amplified retry, then it gives up
+  })
+
+  it('S77: directionOk / detectLang — the prose decides; code + proper nouns tolerated', async () => {
+    const { directionOk, detectLang } = await import('../services/ai')
+    // Detection: pure EN, pure FA, mixed (Farsi prose + Latin identifiers).
+    expect(detectLang("CLI doesn't Up")).toBe('en')
+    expect(detectLang('اضافه کردن توانایی پروسس سایت')).toBe('fa')
+    expect(detectLang('از API برای پردازش استفاده کن')).toBe('fa')
+    // Direction check: the requested script must dominate the answer.
+    expect(directionOk('CLI به روز نمی‌شود', 'fa')).toBe(true) // FA prose + Latin identifier
+    expect(directionOk('Add the ability to process اسپورت سیگنال', 'en')).toBe(true) // EN prose + FA proper noun
+    expect(directionOk('افزودن قابلیت پردازش سایت', 'en')).toBe(false) // the live failure shape
+    expect(directionOk('still english text', 'fa')).toBe(false)
+    expect(directionOk('12345 !!!', 'fa')).toBe(true) // vacuous — no letters
+  })
 })
 
 // --- route -----------------------------------------------------------------------

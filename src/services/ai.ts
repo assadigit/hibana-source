@@ -111,7 +111,7 @@ export interface AiRunner {
 
 /** Inputs handed to `Ai.run()`. Matches the Workers AI text-generation schema. */
 interface AiRunInputs {
-  messages: { role: 'system' | 'user'; content: string }[]
+  messages: { role: 'system' | 'user' | 'assistant'; content: string }[]
   temperature?: number
   max_tokens?: number
   response_format?: { type: 'text' }
@@ -172,6 +172,62 @@ const SYSTEM_PROMPTS: Record<AiAction, string> = {
   ].join(' '),
 }
 
+// --- S77: deterministic translate direction (owner rule, verbatim) ----------------
+// "WHEN TEXT IS FARSI > TRANSLATE > ENGLISH. WHEN TEXT IS ENGLISH > TRANSLATE > FARSI."
+// Live repro (hibana.ir, mistral-small): a FARSI input got back a FARSI PARAPHRASE
+// (پروسس → پردازش) instead of English — the model is unreliable at self-detecting the
+// input language, so the CLIENT detects the script and sends target_lang; the server
+// then builds a ONE-WAY prompt and VERIFIES the output script (one retry, then an
+// honest wrong_language error instead of a same-language “translation”).
+export type TranslateTarget = 'fa' | 'en'
+
+const DIRECTION_RULES: Record<TranslateTarget, string> = {
+  fa: [
+    'CRITICAL DIRECTION RULE: translate the text INTO Persian (Farsi).',
+    'Your ENTIRE output MUST be written in Persian (Farsi) script. NEVER output English prose.',
+    'English characters are allowed ONLY inside code, URLs, file paths, command names, and brand identifiers that must stay verbatim.',
+    'Produce natural, fluent, idiomatic Persian.',
+  ].join(' '),
+  en: [
+    'CRITICAL DIRECTION RULE: translate the text INTO English.',
+    'Your ENTIRE output MUST be in English. NEVER output Persian/Farsi prose.',
+    'Persian script is allowed ONLY inside quoted proper nouns the user must keep verbatim.',
+    'Produce natural, fluent, idiomatic English.',
+  ].join(' '),
+}
+
+const TRANSLATE_PERSONA: Record<TranslateTarget, string> = {
+  fa: 'You are a professional English→Persian (Farsi) translator for a developer’s personal notes.',
+  en: 'You are a professional Persian (Farsi)→English translator for a developer’s personal notes.',
+}
+
+/** Count script-bearing characters: Arabic/Persian code blocks vs Latin letters. */
+function countScripts(text: string): { fa: number; en: number } {
+  let fa = 0, en = 0
+  for (const ch of text) {
+    const cp = ch.codePointAt(0) ?? 0
+    if ((cp >= 0x0600 && cp <= 0x06ff) || (cp >= 0x0750 && cp <= 0x077f) || (cp >= 0xfb50 && cp <= 0xfdff) || (cp >= 0xfe70 && cp <= 0xfeff)) fa++
+    else if ((cp >= 0x41 && cp <= 0x5a) || (cp >= 0x61 && cp <= 0x7a)) en++
+  }
+  return { fa, en }
+}
+
+/** Did the model answer in the REQUESTED script? (Persian output → predominantly FA
+ *  letters; English output → predominantly Latin.) Proper nouns/identifiers of the other
+ *  script are tolerated — the PROSE decides. Vacuous (no letters at all) passes. */
+export function directionOk(text: string, target: TranslateTarget): boolean {
+  const { fa, en } = countScripts(text)
+  if (fa === 0 && en === 0) return true
+  return target === 'fa' ? fa > en : en > fa
+}
+
+/** Detect the DOMINANT script of the input (the client mirror of the same heuristic —
+ *  exported for tests). Farsi wins ties: a mixed note with real Farsi prose is Farsi. */
+export function detectLang(text: string): 'fa' | 'en' {
+  const { fa, en } = countScripts(text)
+  return fa > 0 && fa >= en ? 'fa' : 'en'
+}
+
 /** Max length of a user-supplied custom system prompt (Settings → AI instructions).
  *  Generous enough for real customization, bounded to prevent abuse. */
 export const MAX_CUSTOM_PROMPT_CHARS = 2000
@@ -180,13 +236,28 @@ export const MAX_CUSTOM_PROMPT_CHARS = 2000
  *
  *  `customPrompt` (optional, from Settings): when provided, it REPLACES the action's
  *  default persona/instructions — but COMMON_RULES (output discipline) is ALWAYS appended
- *  so the format stays clean regardless of what the user writes. Empty → use defaults. */
+ *  so the format stays clean regardless of what the user writes. Empty → use defaults.
+ *
+ *  `targetLang` (S77, translate only): the deterministic direction the client detected
+ *  (FA input → 'en', EN input → 'fa'). When present, the bidirectional prompt is replaced
+ *  by a ONE-WAY prompt, and the DIRECTION RULE is appended even on top of a customPrompt —
+ *  the owner's rule is absolute and no custom persona may weaken it. */
 export function buildMessages(
   action: AiAction,
   text: string,
   customPrompt?: string,
+  targetLang?: TranslateTarget,
 ): AiRunInputs['messages'] {
-  const base = customPrompt && customPrompt.trim() ? customPrompt.trim() : SYSTEM_PROMPTS[action]
+  let base: string
+  if (action === 'translate' && targetLang) {
+    base = customPrompt && customPrompt.trim()
+      ? customPrompt.trim()
+      : [TRANSLATE_PERSONA[targetLang], DIRECTION_RULES[targetLang]].join(' ')
+    if (customPrompt && customPrompt.trim()) base += ' ' + DIRECTION_RULES[targetLang]
+    base += ' Keep all formatting, code, URLs, numbers, and identifiers untouched — translate ONLY the prose around them.'
+  } else {
+    base = customPrompt && customPrompt.trim() ? customPrompt.trim() : SYSTEM_PROMPTS[action]
+  }
   const system = base.includes(COMMON_RULES) ? base : base + ' ' + COMMON_RULES
   return [
     { role: 'system', content: system },
@@ -255,6 +326,11 @@ function extractAnswer(res: AiRunResult): string | null {
  *  `model` is resolved via `resolveModel()` before reaching the binding — an unknown id
  *  silently falls back to the default (the route already validates, this is defense).
  *
+ *  `targetLang` (S77, translate): after the first response, the OUTPUT SCRIPT is verified
+ *  against the requested direction. A same-language answer (the live FA→FA paraphrase
+ *  failure) gets ONE amplified retry; a second failure returns `wrong_language` — an
+ *  honest error beats a “translation” that didn't translate.
+ *
  *  NB: `response_format` is deliberately NOT set. qwen3-30b-a3b-fp8 rejects
  *  `{ type: 'text' }` (it only accepts json_object/json_schema), and the prompt already
  *  enforces plain-text output discipline, so it’s redundant. */
@@ -264,6 +340,7 @@ export async function runAiTransform(
   text: string,
   model: string = DEFAULT_AI_MODEL,
   customPrompt?: string,
+  targetLang?: TranslateTarget,
 ): Promise<{ ok: true; text: string } | { ok: false; error: string }> {
   // Defensive: even though the route guards this, the service is the last line.
   if (!withinCharBudget(text)) {
@@ -272,13 +349,36 @@ export async function runAiTransform(
   const resolved = resolveModel(model)
   try {
     const res = await ai.run(resolved, {
-      messages: buildMessages(action, text, customPrompt),
+      messages: buildMessages(action, text, customPrompt, targetLang),
       temperature: 0.2,
       max_tokens: MAX_OUTPUT_TOKENS,
     })
-    const raw = extractAnswer(res)
+    let raw = extractAnswer(res)
     if (typeof raw !== 'string' || raw.trim() === '') {
       return { ok: false, error: 'empty_response' }
+    }
+    // S77: verify the translate direction. Wrong script → ONE amplified retry; still
+    // wrong → wrong_language (the route shows a clear, localized “did not translate”
+    // toast — never a silent same-language suggestion).
+    if (action === 'translate' && targetLang && !directionOk(raw, targetLang)) {
+      const amplified =
+        targetLang === 'fa'
+          ? 'IMPORTANT: your previous answer was NOT in Persian. Answer AGAIN, entirely in Persian (Farsi) script. This is a translation task — every sentence of prose must be Persian.'
+          : 'IMPORTANT: your previous answer was NOT in English. Answer AGAIN, entirely in English. This is a translation task — every sentence of prose must be English.'
+      const retry = await ai.run(resolved, {
+        messages: [
+          ...buildMessages(action, text, customPrompt, targetLang),
+          { role: 'assistant', content: raw },
+          { role: 'user', content: amplified + '\n\n' + text },
+        ],
+        temperature: 0.2,
+        max_tokens: MAX_OUTPUT_TOKENS,
+      })
+      const retryRaw = extractAnswer(retry)
+      if (typeof retryRaw !== 'string' || retryRaw.trim() === '' || !directionOk(retryRaw, targetLang)) {
+        return { ok: false, error: 'wrong_language' }
+      }
+      raw = retryRaw
     }
     return { ok: true, text: stripAccidentalWrappers(raw) }
   } catch {

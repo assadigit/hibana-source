@@ -7,6 +7,7 @@ import { localeOf, trFor } from '../lib/i18n'
 import { calendarFor } from '../lib/jalali'
 import { uuid } from '../lib/ids'
 import { githubClient, type GitHubConfig } from '../services/github'
+import { purgeShotBytes } from '../services/shotstore'
 import { clientIp, hitRateLimit, RATE_RULES } from '../services/ratelimit'
 import type { Config, UserRow } from '../types'
 
@@ -188,6 +189,63 @@ export function settingsRoutes(cfg: Config) {
 
     items.sort((a, b) => Date.parse(b.deleted_at) - Date.parse(a.deleted_at))
     return c.json({ items: items.slice(0, 100) })
+  })
+
+  // S71: user-facing "delete forever" — the explicit companion to Restore in the Trash
+  // view. The 7-day cron remains the default; this is the user CHOOSING to free an item
+  // now. Mirrors the admin purge's safety order exactly: screenshot BYTES first (best
+  // effort — the row delete proceeds on failure, same as the cron), then the rows via
+  // FK cascade (children of projects and the sadhana journal/tags/logs all cascade).
+  // Only rows already soft-deleted are reachable (a live item must go through its own
+  // delete flow first), everything is user_id-scoped (rule 1), and the vault's OWN
+  // notes keep their dedicated /api/vault/notes/:id/purge (they are not in this panel).
+  const PURGE_TABLES = { project: 'projects', note: 'quick_notes', todo: 'sadhana_tasks' } as const
+  const purgeSchema = z.object({ kind: z.enum(['project', 'note', 'todo']), id: z.string().uuid() })
+
+  app.post('/trash/purge', async (c) => {
+    const user = c.get('user')
+    const body = await jsonBody<z.infer<typeof purgeSchema>>(c, purgeSchema)
+    if (!body) return c.json({ error: 'invalid_input' }, 400)
+    const { kind, id } = body
+    const table = PURGE_TABLES[kind]
+    const row = await cfg.db.query<{ id: string }>(
+      `SELECT id FROM ${table} WHERE id = ? AND user_id = ? AND deleted_at IS NOT NULL`,
+      [id, user.id],
+    )
+    if (!row.length) return c.json({ error: 'not_found' }, 404)
+    if (kind === 'project') await purgeShotBytes(cfg, [id]) // best-effort, same order as the cron
+    await cfg.db.execute(`DELETE FROM ${table} WHERE id = ? AND user_id = ?`, [id, user.id])
+    return c.json({ ok: true, kind, id })
+  })
+
+  // S71: "Empty trash" — the same delete, every soft-deleted row of THIS user at once.
+  // Returns counts so the UI can confirm what was freed. Identical safety order.
+  app.post('/trash/empty', async (c) => {
+    const user = c.get('user')
+    const goneProjects = await cfg.db.query<{ id: string }>(
+      'SELECT id FROM projects WHERE user_id = ? AND deleted_at IS NOT NULL',
+      [user.id],
+    )
+    const goneNotes = await cfg.db.query<{ id: string }>(
+      'SELECT id FROM quick_notes WHERE user_id = ? AND deleted_at IS NOT NULL',
+      [user.id],
+    )
+    const goneTodos = await cfg.db.query<{ id: string }>(
+      'SELECT id FROM sadhana_tasks WHERE user_id = ? AND deleted_at IS NOT NULL',
+      [user.id],
+    )
+    await purgeShotBytes(cfg, goneProjects.map((g) => g.id)) // best-effort; delete proceeds
+    await cfg.db.transaction(async (tx) => {
+      tx.sql('DELETE FROM projects WHERE user_id = ? AND deleted_at IS NOT NULL', [user.id]) // children cascade
+      tx.sql('DELETE FROM quick_notes WHERE user_id = ? AND deleted_at IS NOT NULL', [user.id])
+      tx.sql('DELETE FROM sadhana_tasks WHERE user_id = ? AND deleted_at IS NOT NULL', [user.id]) // journal/tags/logs cascade
+    })
+    return c.json({
+      ok: true,
+      purgedProjects: goneProjects.length,
+      purgedNotes: goneNotes.length,
+      purgedTodos: goneTodos.length,
+    })
   })
 
   return app

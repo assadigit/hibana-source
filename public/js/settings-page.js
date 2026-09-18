@@ -532,14 +532,45 @@
               ? tT('trash.purgeToday', 'purges today')
               : tT('trash.purgeIn', 'purges in {n}d').replace('{n}', dig(daysLeft))
 
+          // S71: two-click confirm for destructive buttons — the first click ARMS the
+          // button (label flips to "Sure?"), the second within 4s fires; anything else
+          // disarms. No modal needed for a row-level action; the arm state is obvious
+          // in place and self-dismisses.
+          const armButton = (btn, armedLabel) => {
+            if (btn.dataset.armed === '1') return true
+            btn.dataset.armed = '1'
+            btn.dataset.origLabel = btn.textContent
+            btn.textContent = armedLabel
+            btn.classList.add('is-armed')
+            btn._disarm = setTimeout(() => {
+              btn.dataset.armed = ''
+              btn.classList.remove('is-armed')
+              btn.textContent = btn.dataset.origLabel
+            }, 6000)
+            return false
+          }
+          const disarmButton = (btn) => {
+            clearTimeout(btn._disarm)
+            btn.dataset.armed = ''
+            btn.classList.remove('is-armed')
+            if (btn.dataset.origLabel) btn.textContent = btn.dataset.origLabel
+          }
+
           const renderTrash = (items) => {
             trashList.textContent = ''
+            const emptyBtn = document.getElementById('trash-empty-btn')
             if (!items.length) {
               const li = document.createElement('li')
               li.className = 'trash-empty muted'
               li.textContent = tT('settings.trashEmpty', 'Nothing here — deleted items wait for 7 days, then purge forever.')
               trashList.appendChild(li)
+              if (emptyBtn) emptyBtn.hidden = true
               return
+            }
+            if (emptyBtn) {
+              emptyBtn.hidden = false
+              emptyBtn.textContent = tT('trash.emptyBtn', 'Empty trash') + ' (' + dig(items.length) + ')'
+              disarmButton(emptyBtn)
             }
             for (const it of items) {
               const meta = KIND_META[it.kind] || KIND_META.note
@@ -552,7 +583,10 @@
                   `<div class="trash-title" dir="auto">${escHtml(it.title)}</div>` +
                   `<div class="trash-meta muted small${it.days_left <= 1 ? ' is-urgent' : ''}"><span>${escHtml(meta.label())} · ${escHtml(purgeLabel(it.days_left))}</span></div>` +
                 `</div>` +
-                `<button type="button" class="btn ghost small trash-restore">${escHtml(tT('trash.restore', 'Restore'))}</button>`
+                `<span class="trash-actions">` +
+                  `<button type="button" class="btn ghost small trash-restore">${escHtml(tT('trash.restore', 'Restore'))}</button>` +
+                  `<button type="button" class="btn ghost small trash-purge" title="${escHtml(tT('trash.deleteForever', 'Delete forever'))}">${escHtml(tT('trash.deleteForever', 'Delete forever'))}</button>` +
+                `</span>`
               if (it.snippet && it.snippet !== it.title) {
                 li.querySelector('.trash-title')?.setAttribute('title', it.snippet)
               }
@@ -568,6 +602,36 @@
                 } catch {
                   btn.disabled = false
                   window.hibana?.toast(tT('trash.restoreFailed', "Couldn't restore — try again"), 'err')
+                }
+              })
+              // S71: "delete forever" — bypasses the 7-day wait for THIS row only.
+              li.querySelector('.trash-purge')?.addEventListener('click', async (ev) => {
+                const btn = ev.currentTarget
+                if (!armButton(btn, tT('trash.confirmPurge', 'Sure?'))) return
+                btn.disabled = true
+                try {
+                  const r = await fetch('/api/settings/trash/purge', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ kind: it.kind, id: it.id }),
+                  })
+                  if (!r.ok) throw new Error('purge failed')
+                  window.hibana?.toast(tT('trash.purged', 'Deleted forever'))
+                  li.classList.add('is-restoring')
+                  setTimeout(() => {
+                    li.remove()
+                    if (!trashList.children.length) renderTrash([])
+                    else { // one fewer item — refresh the Empty button count
+                      const n = trashList.querySelectorAll('.trash-item').length
+                      const eb = document.getElementById('trash-empty-btn')
+                      if (eb && n) eb.textContent = tT('trash.emptyBtn', 'Empty trash') + ' (' + dig(n) + ')'
+                      else if (eb) eb.hidden = true
+                    }
+                  }, 260)
+                } catch {
+                  btn.disabled = false
+                  disarmButton(btn)
+                  window.hibana?.toast(tT('trash.purgeFailed', "Couldn't delete — try again"), 'err')
                 }
               })
               trashList.appendChild(li)
@@ -589,6 +653,32 @@
             }
           }
           loadTrash()
+          // S71: loadTrash() races i18n.apply() on first paint — the FA dictionary may
+          // land AFTER the list rendered, leaving JS-built labels (Delete forever /
+          // Restore / Empty) in EN while data-i18n nodes flip to FA. Re-render when
+          // i18n applies; idempotent (same list, retranslated).
+          document.addEventListener('hibana:i18n', () => { if (!document.getElementById('trash-list')?.children.length || document.querySelectorAll('#trash-list .trash-item').length) loadTrash() })
+
+          // S71: "Empty trash" — every soft-deleted item of THIS user, right now. Same
+          // two-click confirm as the per-row purge (this one frees many items at once).
+          const emptyBtnEl = document.getElementById('trash-empty-btn')
+          emptyBtnEl?.addEventListener('click', async (ev) => {
+            const btn = ev.currentTarget
+            if (!armButton(btn, tT('trash.confirmPurge', 'Sure?'))) return
+            btn.disabled = true
+            try {
+              const r = await fetch('/api/settings/trash/empty', { method: 'POST' })
+              if (!r.ok) throw new Error('empty failed')
+              const body = await r.json().catch(() => ({}))
+              const n = (body.purgedProjects ?? 0) + (body.purgedNotes ?? 0) + (body.purgedTodos ?? 0)
+              window.hibana?.toast(tT('trash.emptied', 'Trash emptied — {n} item(s) freed').replace('{n}', dig(n)))
+              renderTrash([])
+            } catch {
+              btn.disabled = false
+              disarmButton(btn)
+              window.hibana?.toast(tT('trash.purgeFailed', "Couldn't delete — try again"), 'err')
+            }
+          })
         }
       },
     })

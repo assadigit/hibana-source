@@ -83,10 +83,29 @@ body {
 #hibana-page-loader .hibana-page-loader-spinner {
   inline-size: 2.5rem;
   block-size: 2.5rem;
-  border: 3px solid color-mix(in srgb, var(--brand, #4A9FA3) 25%, transparent);
+  border: 3px solid color-mix(in srgb, var(--brand, #4A9FA3) 30%, transparent);
   border-block-start-color: var(--brand, #4A9FA3);
   border-radius: 50%;
   animation: hibana-page-loader-spin 0.8s linear infinite;
+}
+/* S71: the wait carries the brand — a spinner alone on a white sheet read as "broken?" at
+   the VLM audit (faint teal on white). The wordmark names the wait; the pulse says alive. */
+#hibana-page-loader .hibana-page-loader-inner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.8rem;
+}
+#hibana-page-loader .hibana-page-loader-brand {
+  font-size: 0.95rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: var(--brand, #4A9FA3);
+  animation: hibana-page-loader-pulse 1.6s ease-in-out infinite;
+}
+@keyframes hibana-page-loader-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.45; }
 }
 @keyframes hibana-page-loader-spin {
   to { transform: rotate(360deg); }
@@ -97,6 +116,7 @@ body {
     content: '⏳'; font-size: 1.5rem;
   }
   #hibana-page-loader .hibana-page-loader-spinner { border: 0; }
+  #hibana-page-loader .hibana-page-loader-brand { animation: none; opacity: 0.8; }
 }
 
 /* Subtle film grain over the whole app (trendy texture, 2026-08-26): an feTurbulence SVG

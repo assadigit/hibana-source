@@ -203,6 +203,9 @@ window.__hibanaDictFA = {
       'settings.trashHint': 'یادداشت‌ها، کارها و پروژه‌های حذف‌شده تا ۷ روز این‌جا می‌مانند و بعد برای همیشه پاک می‌شوند. بازگردانی، هر چیز را دقیقاً سر جای قبلی‌اش برمی‌گرداند.',
       'settings.trashEmpty': 'این‌جا خالی است — چیزهای حذف‌شده ۷ روز می‌مانند و بعد برای همیشه پاک می‌شوند.',
       'trash.restore': 'بازگردانی',
+      'trash.deleteForever': 'حذف برای همیشه', 'trash.confirmPurge': 'مطمئنی؟',
+      'trash.purged': 'برای همیشه حذف شد', 'trash.purgeFailed': 'حذف ممکن نشد — دوباره امتحان کن',
+      'trash.emptyBtn': 'خالی‌کردن زباله', 'trash.emptied': 'زباله خالی شد — {n} مورد آزاد شد',
       'trash.restored': 'بازگردانی شد',
       'trash.restoreFailed': 'بازگردانی نشد — دوباره تلاش کنید',
       'trash.loadFailed': 'بارگذاری سطل بازیافت ممکن نشد',
@@ -717,6 +720,8 @@ window.__hibanaDictFA = {
       'cmdk.toggleZen': 'حالت تمرکز',
       'cmdk.shortcutZen': 'حالت تمرکز',
       'cmdk.recent': 'اخیر', 'cmdk.tags': 'برچسب‌ها',
+      'resume.title': 'از جایی که بودی ادامه بده', 'resume.hint': 'آخرین‌هایی که باز کردی',
+      'resume.project': 'پروژه', 'resume.note': 'یادداشت', 'resume.openAria': 'بازکردن {k}: {t}',
       // S52: Trash palette command + recoverable-count sublabel
       'cmdk.openTrash': 'سطل بازیافت — بازیابی موارد حذف‌شده',
       'cmdk.trashCount': '{n} مورد قابل بازیابی',

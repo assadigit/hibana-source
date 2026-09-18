@@ -409,7 +409,7 @@ body.has-mobile-nav .mobile-nav { display: flex; }
 /* Room for the bar itself (3.5rem) + its safe-area inset, so page content can
    never be trapped underneath (the old flat 3.5rem left the last row hidden on
    inset screens — the other half of the "not fully fit" bug). */
-body.has-mobile-nav { padding-block-end: calc(3.5rem + env(safe-area-inset-bottom, 0px)); }
+body.has-mobile-nav { padding-block-end: calc(3.75rem + env(safe-area-inset-bottom, 0px)); }
 @media (min-width: 1025px) {
   .mobile-nav { display: none !important; }
   body.has-mobile-nav { padding-block-end: 0; }
@@ -423,8 +423,8 @@ body.has-mobile-nav { padding-block-end: calc(3.5rem + env(safe-area-inset-botto
   align-items: center;
   justify-content: center;
   gap: 0.15rem;
-  min-block-size: 44px; /* touch target (WCAG 2.5.5) */
-  padding: 0.3rem 0.1rem;
+  min-block-size: 48px; /* touch target — S71: 44→48 (Material bottom-bar standard; WCAG floor was met, comfort wasn't) */
+  padding: 0.35rem 0.15rem;
   color: var(--muted);
   text-decoration: none;
   font-size: var(--fs-xs);
@@ -955,6 +955,31 @@ body.has-mobile-nav { padding-block-end: calc(3.5rem + env(safe-area-inset-botto
   .trash-item { padding: 0.55rem 0.6rem; gap: 0.5rem; }
   .trash-ico { inline-size: 1.75rem; block-size: 1.75rem; }
 }
+
+/* S71: trash purge actions — "Delete forever" per row + "Empty trash" in the header.
+   The danger recipe follows the app's semantic scale (a red tint the moment the
+   button is ARMED — the two-click confirm makes the state change unmistakable). */
+.trash-head-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+.trash-head-row h3 { margin: 0; }
+.trash-actions { display: inline-flex; align-items: center; gap: 0.4rem; flex: 0 0 auto; flex-wrap: wrap; }
+.trash-purge { color: var(--badge-halted-fg, #A33B3B); }
+.trash-purge:hover, .trash-purge:focus-visible { border-color: var(--badge-halted-fg, #A33B3B); }
+.trash-purge.is-armed, .trash-empty-btn.is-armed {
+  background: #A33B3B;
+  border-color: #8A2F2F;
+  color: #fff;
+}
+.trash-empty-btn { color: var(--muted); }
+.trash-empty-btn:hover:not(:disabled) { border-color: var(--badge-halted-fg, #A33B3B); color: var(--badge-halted-fg, #A33B3B); }
+@media (max-width: 560px) {
+  .trash-actions { flex-direction: column; align-items: stretch; }
+}
 /* --- S52: streak trio (Reports — above the heatmap) -------------------------
    Three compact cards: current streak (flame, warms up while alive), longest
    streak (trophy), active days (calendar-check, "n / 91"). Logical properties
@@ -1186,3 +1211,77 @@ body.has-mobile-nav { padding-block-end: calc(3.5rem + env(safe-area-inset-botto
 /* Help rows are presentation-only (role=presentation) — no pointer cursor, the
    default .cmdk-item affordance is for the interactive palette list. */
 .cmdk-help-panel .cmdk-item { cursor: default; }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   S71 — Resume strip ("Pick up where you left off", job #2: never lose your place)
+   Renders above main.shell-dash on the dashboard only; entries come from
+   localStorage (js/resume.js). Horizontal chip row — desktop 4-up, phone scrolls.
+   ═══════════════════════════════════════════════════════════════════════════ */
+.resume-strip {
+  padding: 0.9rem 1.1rem 1rem;
+  display: flex; flex-direction: column; gap: 0.7rem;
+  background: linear-gradient(180deg, color-mix(in srgb, var(--accent) 5%, var(--card)) 0%, var(--card) 55%);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg, 14px);
+  box-shadow: 0 1px 2px rgba(38, 33, 24, 0.04);
+}
+.resume-head { display: flex; align-items: baseline; gap: 0.6rem; flex-wrap: wrap; }
+.resume-head h2 { font-size: 0.95rem; font-weight: 700; letter-spacing: 0.01em; margin: 0; color: var(--text); display: flex; align-items: center; gap: 0.45rem; }
+.resume-head h2::before {
+  content: ''; inline-size: 0.55rem; block-size: 0.55rem; border-radius: 999px;
+  background: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 18%, transparent);
+  flex: none;
+}
+.resume-hint { font-size: 0.78rem; }
+
+.resume-row { display: flex; gap: 0.65rem; overflow-x: auto; scrollbar-width: thin; padding-block-end: 0.15rem; }
+
+.resume-chip {
+  flex: 0 1 15rem; min-inline-size: 11.5rem; max-inline-size: 16.5rem;
+  display: flex; align-items: center; gap: 0.7rem;
+  padding: 0.6rem 0.75rem;
+  background: var(--bg, #fff);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  text-decoration: none; color: inherit;
+  transition: border-color .16s ease, box-shadow .16s ease, transform .16s ease, background-color .16s ease;
+}
+.resume-chip:hover, .resume-chip:focus-visible {
+  border-color: color-mix(in srgb, var(--accent) 45%, var(--line));
+  box-shadow: 0 3px 10px rgba(38, 33, 24, 0.08);
+  transform: translateY(-1px);
+  background: var(--card);
+  outline: none;
+}
+.resume-chip:active { transform: translateY(0); box-shadow: 0 1px 3px rgba(38, 33, 24, 0.07); }
+
+.resume-chip-ico {
+  inline-size: 2.3rem; block-size: 2.3rem; flex: none;
+  display: grid; place-items: center;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  color: var(--accent);
+}
+.resume-chip-ico svg { inline-size: 1.2rem; block-size: 1.2rem; }
+.resume-chip-ico.is-note { background: color-mix(in srgb, #8B5CF6 10%, transparent); color: #7C4DD8; }
+[data-theme="dark"] .resume-chip-ico.is-note, html.dark .resume-chip-ico.is-note { color: #B39AEB; }
+
+.resume-chip-body { flex: 1 1 auto; min-inline-size: 0; display: flex; flex-direction: column; gap: 0.15rem; }
+.resume-chip-title {
+  font-size: 0.88rem; font-weight: 600; line-height: 1.25;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.resume-chip-meta { font-size: 0.73rem; color: var(--muted); white-space: nowrap; }
+
+/* Phone: full-width chips, snap scroll, no squeeze */
+@media (max-width: 720px) {
+  .resume-strip { padding: 0.75rem 0.85rem 0.85rem; }
+  .resume-row { scroll-snap-type: x proximity; gap: 0.55rem; }
+  .resume-chip { flex: 0 0 78%; scroll-snap-align: start; }
+  .resume-chip-title { font-size: 0.85rem; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .resume-chip { transition: none; }
+  .resume-chip:hover, .resume-chip:focus-visible { transform: none; }
+}

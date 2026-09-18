@@ -203,6 +203,9 @@ window.__hibanaDictEN = {
       'settings.trashHint': 'Deleted notes, to-dos and projects wait here for 7 days before they are purged forever. Restore puts them right back where they were.',
       'settings.trashEmpty': 'Nothing here — deleted items wait for 7 days, then purge forever.',
       'trash.restore': 'Restore',
+      'trash.deleteForever': 'Delete forever', 'trash.confirmPurge': 'Sure?',
+      'trash.purged': 'Deleted forever', 'trash.purgeFailed': "Couldn't delete — try again",
+      'trash.emptyBtn': 'Empty trash', 'trash.emptied': 'Trash emptied — {n} item(s) freed',
       'trash.restored': 'Restored',
       'trash.restoreFailed': "Couldn't restore — try again",
       'trash.loadFailed': "Couldn't load the trash",
@@ -719,6 +722,8 @@ window.__hibanaDictEN = {
       'cmdk.toggleZen': 'Toggle focus mode',
       'cmdk.shortcutZen': 'Toggle focus mode',
       'cmdk.recent': 'Recent', 'cmdk.tags': 'Tags',
+      'resume.title': 'Pick up where you left off', 'resume.hint': 'Recently opened',
+      'resume.project': 'Project', 'resume.note': 'Note', 'resume.openAria': 'Open {k}: {t}',
       // S52: Trash palette command + recoverable-count sublabel
       'cmdk.openTrash': 'Trash — recover deleted items',
       'cmdk.trashCount': '{n} recoverable',

@@ -717,6 +717,8 @@
           state.draft = { title: res.note.title, content: res.note.content, tags: res.note.tags }
           state.saveState = 'idle'
           state.saveTimer = null
+          // S71: the resume strip — record the opened note (title may be empty → «—»).
+          window.hibanaResume?.record?.('note', res.note.id, res.note.title)
           renderEditor()
           renderCards() // refresh the aria-current highlight
           if (isMobile()) $('[data-vault-editor]')?.setAttribute('data-open', 'true')

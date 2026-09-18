@@ -762,3 +762,42 @@ input::placeholder, textarea::placeholder { font-size: 0.88em; opacity: 0.7; } /
 /* Dashboard/reports stat boxes: count + label header, the project kanban below. */
 .stat-boxes { grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr)); } /* batch q: six lifecycle boxes */
 .stat-box { text-align: start; padding: 0.9rem 1rem; }
+
+/* S72 — topbar pending-sync badge ([data-sync-badge], injected with the nav partial).
+   Mirrors .topbar-search's pill recipe but carries the AMBER waiting identity
+   (variables.css color law: orange = waiting / attention-needed). hidden while the
+   offline queue is empty; hib-init.js paints it. The strikethrough cloud icon reads
+   as "not synced yet" without a full offline banner. */
+.topbar-sync {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  min-height: 2.4rem;
+  padding: 0.35rem 0.7rem;
+  border: 1px solid color-mix(in srgb, var(--badge-awaiting-fg, #85620D) 35%, var(--line));
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--badge-awaiting-bg, #F6EFCB) 60%, var(--card));
+  color: var(--badge-awaiting-fg, #85620D);
+  font-size: var(--fs-sm, 0.85rem);
+  font-weight: 600;
+  cursor: pointer;
+  transition: border-color 0.14s ease, box-shadow 0.14s ease;
+}
+.topbar-sync:hover, .topbar-sync:focus-visible {
+  border-color: var(--badge-awaiting-fg, #85620D);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--badge-awaiting-fg, #85620D) 18%, transparent);
+  outline: none;
+}
+.topbar-sync .icon { width: 1rem; height: 1rem; flex: none; }
+/* Subtle breathing while items wait — calmer than the urgent flame (this is a state,
+   not an alarm). Guarded by prefers-reduced-motion like every animation. */
+@media (prefers-reduced-motion: no-preference) {
+  .topbar-sync .icon { animation: topbar-sync-breathe 2.4s ease-in-out infinite; }
+}
+@keyframes topbar-sync-breathe {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.55; }
+}
+@media (prefers-contrast: more) {
+  .topbar-sync { border-color: var(--badge-awaiting-fg, #85620D); background: var(--card); }
+}

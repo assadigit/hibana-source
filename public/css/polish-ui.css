@@ -1311,3 +1311,62 @@ body.has-mobile-nav { padding-block-end: calc(3.75rem + env(safe-area-inset-bott
 }
 .resume-clear:active { transform: translateY(1px); }
 @media (prefers-reduced-motion: reduce) { .resume-clear { transition: none; } }
+
+/* S72 styling batch — keyboard focus + scroll affordance + forced-contrast. */
+
+/* Keyboard focus ring on resume chips: the S71 hover-lift alone was hard to SEE as
+   a focus indicator (lift + border only). Double-ring: card-colored gap + accent
+   ring — visible on any background, WCAG 2.2 focus-appearance friendly. */
+.resume-chip:focus-visible {
+  box-shadow:
+    0 0 0 2px var(--card),
+    0 0 0 4px color-mix(in srgb, var(--accent) 55%, transparent),
+    0 3px 10px rgba(38, 33, 24, 0.08);
+}
+.resume-clear:focus-visible {
+  box-shadow: 0 0 0 2px var(--card), 0 0 0 4px color-mix(in srgb, var(--err, #c0392b) 40%, transparent);
+}
+
+/* Scroll-edge fades for the horizontal chip rows (resume strip on phones). Pure
+   CSS scroll-driven animation — the fade appears ONLY on the side that actually
+   has more content. @supports-guarded: browsers without animation-timeline get
+   the plain row (no fade, no harm). The keyframes sweep a two-stop mask from
+   "left edge faded" (scroll start) through "no fade" (middle) to "right edge
+   faded" (scroll end). */
+@supports (animation-timeline: scroll()) {
+  @media (prefers-reduced-motion: no-preference) {
+    .resume-row.is-scrollable, .dash-stale-chips.is-scrollable {
+      animation: resume-edge-fade linear both;
+      animation-timeline: scroll(inline nearest);
+    }
+  }
+}
+@keyframes resume-edge-fade {
+  0%   { -webkit-mask-image: linear-gradient(to right, transparent, #000 7%); mask-image: linear-gradient(to right, transparent, #000 7%); }
+  15%  { -webkit-mask-image: linear-gradient(to right, #000, #000); mask-image: linear-gradient(to right, #000, #000); }
+  85%  { -webkit-mask-image: linear-gradient(to right, #000, #000); mask-image: linear-gradient(to right, #000, #000); }
+  100% { -webkit-mask-image: linear-gradient(to right, #000, transparent 93%); mask-image: linear-gradient(to right, #000, transparent 93%); }
+}
+/* RTL: "to right" flips meaning — the SAME keyframes are direction-correct because
+   the mask is geometric (right edge = inline-end in LTR, but inline-START in RTL).
+   Flip explicitly for [dir="rtl"] so the fade follows the reading direction. */
+[dir="rtl"] .resume-row.is-scrollable, [dir="rtl"] .dash-stale-chips.is-scrollable {
+  animation-name: resume-edge-fade-rtl;
+}
+@keyframes resume-edge-fade-rtl {
+  0%   { -webkit-mask-image: linear-gradient(to left, transparent, #000 7%); mask-image: linear-gradient(to left, transparent, #000 7%); }
+  15%  { -webkit-mask-image: linear-gradient(to left, #000, #000); mask-image: linear-gradient(to left, #000, #000); }
+  85%  { -webkit-mask-image: linear-gradient(to left, #000, #000); mask-image: linear-gradient(to left, #000, #000); }
+  100% { -webkit-mask-image: linear-gradient(to left, #000, transparent 93%); mask-image: linear-gradient(to left, #000, transparent 93%); }
+}
+
+/* Multi-line headings wrap evenly (Chromium 114+; harmless no-op elsewhere). */
+.resume-head h2, .dash-stale-flag, .dash-projects-head h2 { text-wrap: balance; }
+
+/* Forced-contrast mode: hairline borders become solid ink so the chip rows stay
+   perceivable without the soft shadows. */
+@media (prefers-contrast: more) {
+  .resume-chip, .dash-stale-chip { border-color: var(--text); box-shadow: none; }
+  .dash-stale-row { border-color: var(--badge-awaiting-fg, #85620D); background: var(--card); }
+  .resume-clear { border-color: currentColor; }
+}

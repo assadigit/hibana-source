@@ -125,19 +125,35 @@
     })
   }
 
+  // S72: mark horizontal scrollers (.is-scrollable) for the CSS scroll-edge fades
+  // (polish-ui.css). A scroll-driven animation on a NON-overflowing row would sit at
+  // 0% progress = permanent left fade — so the class is only set when the row really
+  // overflows. Covers the stale-chips row too (same page, same swap). Re-runs after
+  // every render (fonts/labels land late and change widths) + on resize.
+  const markScrollables = () => {
+    document.querySelectorAll('.resume-row, .dash-stale-chips').forEach((el) => {
+      if (el.scrollWidth > el.clientWidth + 1) el.classList.add('is-scrollable')
+      else el.classList.remove('is-scrollable')
+    })
+  }
+  window.addEventListener('resize', markScrollables, { passive: true })
+
   window.hibanaResume = { record, read }
 
   if (document.querySelector('main.shell-dash')) {
     // Render after the dashboard's htmx swap (hx-get on <main> itself replaces the
     // skeleton — an immediate render would live one frame before that swap wipes it).
     document.addEventListener('htmx:afterSwap', (e) => {
-      if (e.target?.matches?.('main.shell-dash')) setTimeout(render, 0)
+      if (e.target?.matches?.('main.shell-dash')) setTimeout(() => { render(); markScrollables() }, 0)
     })
     // Hard-load onto an already-swapped dashboard (e.g. browser back): no afterSwap fires.
-    if (!document.querySelector('#dash-skeleton')) setTimeout(render, 60)
+    if (!document.querySelector('#dash-skeleton')) setTimeout(() => { render(); markScrollables() }, 60)
     // i18n races the htmx swap: the first render may land before the FA dictionary
     // finished loading (labels fall back to EN, timeAgo already knows lang from <html>).
     // hibana:i18n fires on every apply() — re-render then; render() is idempotent.
-    document.addEventListener('hibana:i18n', () => render())
+    document.addEventListener('hibana:i18n', () => { render(); markScrollables() })
+    // Late font/label settles (FA dict, webfonts) shift chip widths after the first
+    // mark — one more pass once the page is fully quiet.
+    window.addEventListener('load', () => setTimeout(markScrollables, 400))
   }
 })()

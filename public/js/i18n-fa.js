@@ -723,6 +723,7 @@ window.__hibanaDictFA = {
       'resume.title': 'از جایی که بودی ادامه بده', 'resume.hint': 'آخرین‌هایی که باز کردی',
       'resume.project': 'پروژه', 'resume.note': 'یادداشت', 'resume.openAria': 'بازکردن {k}: {t}',
       'resume.clear': 'پاک‌کردن', 'resume.clearAria': 'پاک‌کردن تاریخچهٔ ادامه',
+      'nav.syncPending': '{n} در انتظار', 'nav.syncHint': 'در انتظار همگام‌سازی — برای ارسال کلیک کن', 'nav.syncSent': 'تغییرات آفلاین ارسال شد',
       // S52: Trash palette command + recoverable-count sublabel
       'cmdk.openTrash': 'سطل بازیافت — بازیابی موارد حذف‌شده',
       'cmdk.trashCount': '{n} مورد قابل بازیابی',

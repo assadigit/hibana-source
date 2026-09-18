@@ -102,6 +102,55 @@
     window.addEventListener('online', () => banner.remove(), { once: true })
   }
 
+  // S72: the topbar pending-sync badge — js/queue.js's onCount listener existed since
+  // spec §3.4 with no shell consumer; queued captures (offline quick-adds, canvas
+  // batches) were invisible outside canvas/whiteboard's own save badge. The badge is
+  // a quiet amber chip that appears whenever the queue holds items and disappears when
+  // it drains; click retries the flush immediately. JS-rendered labels follow the S71
+  // i18n-race rule: paint with _t() and re-render on hibana:i18n.
+  function wireSyncBadge() {
+    const wire = () => {
+      const btn = document.querySelector('[data-sync-badge]')
+      const q = window.hibanaQueue
+      if (!btn || !q || btn.dataset.wired === '1') return
+      btn.dataset.wired = '1'
+      const _t = (k, fb) => { const s = window.hibanaI18n?.t(k); return s && s !== k ? s : fb }
+      const isFA = () => window.hibanaI18n?.lang?.() === 'fa' || document.documentElement.lang === 'fa'
+      const faNum = (v) => String(v).replace(/[0-9]/g, (d) => '۰۱۲۳۴۵۶۷۸۹'[+d])
+      const paint = (n) => {
+        n = Number(n) || 0
+        if (n > 0) {
+          btn.hidden = false
+          const label = _t('nav.syncPending', '{n} pending').split('{n}').join(isFA() ? faNum(n) : String(n))
+          btn.querySelector('.topbar-sync-label').textContent = label
+          btn.setAttribute('aria-label', _t('nav.syncHint', 'Waiting to sync — click to try now'))
+          btn.title = btn.getAttribute('aria-label')
+        } else {
+          btn.hidden = true
+        }
+      }
+      paint(q.pendingCount || 0)
+      q.onCount(paint)
+      btn.addEventListener('click', async () => {
+        try {
+          await q.flush()
+          // onCount repaints; a success toast confirms the drain even if the badge
+          // was already hidden (flush also fires from 'online' events elsewhere).
+          if ((q.pendingCount || 0) === 0) window.hibana?.toast(_t('nav.syncSent', 'Synced your offline changes'), 'ok', 4000)
+        } catch { /* flush failures keep the badge; retry on next click/online */ }
+      })
+      // Language switch while items are queued: re-localize the label.
+      document.addEventListener('hibana:i18n', () => paint(q.pendingCount || 0))
+    }
+    if (window.hibanaQueue) { wire(); return }
+    // app.js injects queue.js async on pages without a direct <script> — poll briefly.
+    const t0 = Date.now()
+    const iv = setInterval(() => {
+      if (window.hibanaQueue) { clearInterval(iv); wire() }
+      else if (Date.now() - t0 > 5000) clearInterval(iv)
+    }, 150)
+  }
+
   // F8 (session 9): GLOBAL htmx error surface. Only project.html registered an
   // htmx:responseError handler — every other page left failed swaps SILENT (audit
   // finding: offline/500 fragments leave the zone stale with no cue). Policy:
@@ -224,6 +273,12 @@
         for (const m of mounts) m.removeAttribute('aria-busy')
         // Re-run i18n now that nav chrome is in the DOM (data-i18n elements).
         window.hibanaI18n?.apply()
+        // S72: wire the pending-sync badge (the queue's onCount API finally has a shell
+        // consumer). The topbar survives soft-navs (nav.js swaps only main.shell), so a
+        // one-time wire per hard load is enough. queue.js loads BEFORE us on the 10
+        // pages that carry it directly; on the rest, app.js injects it async — poll
+        // briefly rather than race (progressive enhancement, never blocking boot).
+        wireSyncBadge()
         const userEl = document.querySelector('[data-user]')
         // F2 (session 9): offline boot with the SW not yet controlling this page makes
         // fetch() itself throw — an unhandled rejection here would abort the rest of the

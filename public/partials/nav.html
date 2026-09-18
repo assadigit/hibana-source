@@ -15,6 +15,16 @@
   </div>
   <span class="grow"></span>
   <span class="row nav-actions">
+    <!-- S72: pending-sync badge — the offline queue (js/queue.js) had onCount listeners
+         since spec §3.4 but NOTHING surfaced queued captures outside canvas/whiteboard's
+         own save badge. When a quick-add/canvas change lands in the queue while offline,
+         this amber chip appears in EVERY page's topbar (the topbar survives soft-navs —
+         nav.js only swaps main.shell). hib-init.js paints it; click = retry flush now.
+         hidden by default: quiet when the queue is empty. -->
+    <button type="button" class="topbar-sync" data-sync-badge hidden>
+      <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M17.5 18.5a4 4 0 0 0-.3-7.99A5.5 5.5 0 0 0 6.9 9.6 3.5 3.5 0 0 0 7 18.5Z"/><path d="M4 4l16 16"/></svg>
+      <span class="topbar-sync-label"></span>
+    </button>
     <!-- S61: the command palette (Ctrl+K / "/") was keyboard-ONLY — touch users had zero
          access and desktop users had no visible affordance. A search-style button in the
          chrome opens it; command-palette.js binds [data-cmdk-open] clicks (delegated, so

@@ -725,6 +725,7 @@ window.__hibanaDictEN = {
       'resume.title': 'Pick up where you left off', 'resume.hint': 'Recently opened',
       'resume.project': 'Project', 'resume.note': 'Note', 'resume.openAria': 'Open {k}: {t}',
       'resume.clear': 'Clear', 'resume.clearAria': 'Clear the resume history',
+      'nav.syncPending': '{n} pending', 'nav.syncHint': 'Waiting to sync — click to try now', 'nav.syncSent': 'Synced your offline changes',
       // S52: Trash palette command + recoverable-count sublabel
       'cmdk.openTrash': 'Trash — recover deleted items',
       'cmdk.trashCount': '{n} recoverable',

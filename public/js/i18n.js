@@ -12,7 +12,7 @@
 
 window.hibanaI18n = (() => {
   // P2 (Focus 2): dict.fa is loaded lazily — EN users never download i18n-fa.js (17KB gz).
-  // When apply() resolves to fa, ensureFaDict() injects /js/i18n-fa.js?v=48 dynamically and
+  // When apply() resolves to fa, ensureFaDict() injects /js/i18n-fa.js?v=49 dynamically and
   // awaits it. The build pipeline's fixpoint loop rewrites the path to /dist/i18n-fa.<hash>.js.
   const dict = {
     en: window.__hibanaDictEN,
@@ -43,7 +43,7 @@ window.hibanaI18n = (() => {
   }
 
   // P2 (Focus 2): lazy-load the FA dictionary. Returns immediately if already loaded.
-  // Follows the queue.js injection pattern (app.js:13) — /js/i18n-fa.js?v=48 is rewritten
+  // Follows the queue.js injection pattern (app.js:13) — /js/i18n-fa.js?v=49 is rewritten
   // to /dist/i18n-fa.<hash>.js by the build pipeline's fixpoint loop.
   let faDictPromise = null // guards against double-injection if apply() fires twice
   function ensureFaDict() {
@@ -51,7 +51,7 @@ window.hibanaI18n = (() => {
     if (faDictPromise) return faDictPromise
     faDictPromise = new Promise((resolve) => {
       const s = document.createElement('script')
-      s.src = '/js/i18n-fa.js?v=48'
+      s.src = '/js/i18n-fa.js?v=49'
       s.onload = () => { dict.fa = window.__hibanaDictFA || {}; resolve() }
       s.onerror = () => { dict.fa = {}; resolve() } // graceful: t() falls back to EN
       document.head.appendChild(s)
@@ -94,25 +94,30 @@ window.hibanaI18n = (() => {
     // 2026-08-29 "every item translated"). Only mapped app pages; login/signup stay EN.
     // S64 additions: /notes.html (the 0057 Vault, S53) and /gallery.html (S39) shipped
     // after this map was last touched — FA users kept seeing English tab titles for them.
+    // S71 fix: S70 made extensionless page URLs first-class on BOTH runtimes
+    // (/projects serves projects.html on Node since then — CF assets always did).
+    // The map's .html-only keys meant every extensionless load kept its EN tab title
+    // in FA. Normalize by stripping .html, key the map extensionless only.
     const TITLE_PAGES = {
-      '/app': 'nav.dashboard', '/dashboard.html': 'nav.dashboard',
-      '/to-do-list': 'nav.sadhana', '/sadhana.html': 'nav.sadhana',
-      '/projects.html': 'nav.projects', '/sparks.html': 'nav.sparks',
-      '/canvas.html': 'nav.canvas', '/calendar.html': 'nav.calendar',
-      '/whiteboard.html': 'nav.whiteboard',
-      '/notifications.html': 'nav.notifications', '/reports.html': 'nav.reports',
-      '/archive.html': 'nav.archive', '/settings.html': 'nav.settings',
-      '/clients.html': 'nav.clients', '/gallery.html': 'nav.gallery',
-      '/notes.html': 'nav.notes',
-      '/admin.html': 'nav.admin', '/404.html': 'nf.title',
+      '/app': 'nav.dashboard', '/dashboard': 'nav.dashboard',
+      '/to-do-list': 'nav.sadhana', '/sadhana': 'nav.sadhana',
+      '/projects': 'nav.projects', '/sparks': 'nav.sparks',
+      '/canvas': 'nav.canvas', '/calendar': 'nav.calendar',
+      '/whiteboard': 'nav.whiteboard',
+      '/notifications': 'nav.notifications', '/reports': 'nav.reports',
+      '/archive': 'nav.archive', '/settings': 'nav.settings',
+      '/clients': 'nav.clients', '/gallery': 'nav.gallery',
+      '/notes': 'nav.notes',
+      '/admin': 'nav.admin', '/404': 'nf.title',
     }
     // S64 bug fix: the branded 404 is served AT the miss URL (app.ts notFoundPage
-    // re-serves /404.html's bytes for ANY unknown path), so the '/404.html' key above
+    // re-serves /404.html's bytes for ANY unknown path), so the '/404' key above
     // almost never matches — an EN user landing on /no-such-page kept the static
     // Persian <title> from 404.html's head. The page itself carries .nf-page on
     // <body>; that marker is the reliable signal, whatever the URL is.
     const is404Page = document.body.classList.contains('nf-page')
-    const titleKey = TITLE_PAGES[location.pathname] || (is404Page ? 'nf.title' : null)
+    const normalizedPath = location.pathname.replace(/\.html$/i, '')
+    const titleKey = TITLE_PAGES[normalizedPath] || (is404Page ? 'nf.title' : null)
     if (titleKey) document.title = `${t(titleKey)} — Hibana`
 
     document.querySelectorAll('[data-i18n]').forEach((el) => {

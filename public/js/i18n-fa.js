@@ -679,6 +679,9 @@ window.__hibanaDictFA = {
       'db.filterAria': 'فیلتر کارها', 'db.filterPrio': 'اولویت', 'db.filterLabels': 'برچسب‌ها',
       'db.filterPrioHint': 'فقط کارهای {p}', 'db.filterTagHint': 'برای فیلتر با این برچسب کلیک کن',
       'db.filterClear': 'پاک‌کردن فیلتر', 'db.filterShown': 'نمایش {n} از {m}',
+      // S78: جستجوی کارهای برد + حالت بی‌نتیجه
+      'db.filterSearchPh': 'جستجوی کارها…', 'db.filterEmpty': 'هیچ کاری با فیلترهای تو هم‌خوان نیست',
+      'db.filterEmptyText': 'واژهٔ دیگری را امتحان کن، یا فیلترها را پاک کن تا همهٔ کارها را ببینی.',
       'db.cyclePrio': 'اولویت: {p} — برای تغییر کلیک کن',
       'cmdk.tasks': 'کارها',
       'cmdk.backlog': 'برنامه آتی',

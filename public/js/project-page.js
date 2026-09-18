@@ -1334,6 +1334,11 @@
         const pdFilterPrios = new Set()
         const pdFilterTags = new Set()
         let pdFilterKnown = [] // [{name, color}] — distinct labels across the project
+        // S78: the third filter dimension — free-text search over the task's full raw
+        // markdown (title + content, case-insensitive). Composes AND with priority ×
+        // label (a search inside an active label filter narrows within it).
+        let pdFilterQuery = ''
+        const pdFilterSearchTimer = { t: null }
         const pdTaskTagNames = (wrap) => {
           try {
             return (JSON.parse(wrap.dataset.pdTags || '[]') || []).map((tg) => String((tg && tg.name) || '').toLowerCase()).filter(Boolean)
@@ -1344,6 +1349,11 @@
           if (pdFilterTags.size) {
             const names = pdTaskTagNames(wrap)
             if (!names.some((n) => pdFilterTags.has(n))) return false
+          }
+          if (pdFilterQuery) {
+            const title = wrap.querySelector('.pd-task-title')
+            const hay = String((title && (title.getAttribute('data-raw-title') || title.textContent)) || wrap.textContent || '').toLowerCase()
+            if (!hay.includes(pdFilterQuery)) return false
           }
           return true
         }
@@ -1359,13 +1369,25 @@
             b.setAttribute('aria-pressed', pdFilterTags.has(b.dataset.ft) ? 'true' : 'false')
             b.classList.toggle('is-on', pdFilterTags.has(b.dataset.ft))
           })
-          const any = pdFilterPrios.size > 0 || pdFilterTags.size > 0
+          const any = pdFilterPrios.size > 0 || pdFilterTags.size > 0 || pdFilterQuery !== ''
           const clearBtn = document.querySelector('[data-pd-filter-clear]')
           if (clearBtn) clearBtn.hidden = !any
           const hint = document.querySelector('[data-pd-filter-shown]')
           if (hint) {
             hint.hidden = !any
             hint.textContent = _t('db.filterShown', '{n} of {m} shown').replace('{n}', pdDig(shown)).replace('{m}', pdDig(wraps.length))
+          }
+          // S78: an honest miss state — a filter that matches NOTHING must say so (the
+          // columns would otherwise just look mysteriously empty). Same recipe as the
+          // projects list's .pg-filter-empty: dimmed icon + title + a Clear-filters CTA.
+          const emptyEl = document.querySelector('[data-pd-filter-empty]')
+          if (emptyEl) {
+            const miss = any && shown === 0 && wraps.length > 0
+            emptyEl.hidden = !miss
+            if (miss) {
+              const btn = emptyEl.querySelector('[data-pd-filter-empty-clear]')
+              if (btn) btn.textContent = _t('db.filterClear', 'Clear filter')
+            }
           }
         }
         const pdFilterBuild = async () => {
@@ -1406,6 +1428,7 @@
           } catch { /* offline — the bar still renders with the priority toggles */ }
           const prioBtn = (p) => '<button type="button" class="chip db-filter-prio prio-' + p + '" data-fp="' + p + '" aria-pressed="false" title="' + pdEsc(_t('db.filterPrioHint', 'Show only {p} tasks').replace('{p}', pdPrioLabel(p))) + '"><span class="prio-dot prio-' + p + '"></span>' + pdEsc(pdPrioLabel(p)) + '</button>'
           bar.innerHTML =
+            '<input type="search" class="db-filter-search" data-pd-filter-q placeholder="' + pdEsc(_t('db.filterSearchPh', 'Search tasks…')) + '" aria-label="' + pdEsc(_t('db.filterSearchPh', 'Search tasks…')) + '" autocomplete="off" spellcheck="false" dir="auto" value="' + pdEsc(pdFilterQuery) + '">' +
             '<span class="db-filter-label muted small">' + pdEsc(_t('db.filterPrio', 'Priority')) + '</span>' +
             ['urgent', 'high', 'medium', 'low'].map(prioBtn).join('') +
             (pdFilterKnown.length
@@ -1416,6 +1439,18 @@
               : '') +
             '<button type="button" class="chip db-filter-clear" data-pd-filter-clear hidden>✕ ' + pdEsc(_t('db.filterClear', 'Clear filter')) + '</button>' +
             '<span class="muted small db-filter-shown" data-pd-filter-shown hidden></span>'
+          // S78: the search field's sibling miss state rides right under the bar —
+          // SAME structure + classes as the projects list's S76 .pg-filter-empty
+          // (empty-state skeleton + the scan-drift/hover/focus polish rides along).
+          if (!bar.parentElement.querySelector('[data-pd-filter-empty]')) {
+            bar.insertAdjacentHTML('afterend',
+              '<div class="empty-state empty pg-filter-empty db-filter-empty" data-pd-filter-empty hidden>' +
+                '<span class="empty-state-icon" aria-hidden="true"><svg class="icon" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg></span>' +
+                '<p class="empty-state-title">' + pdEsc(_t('db.filterEmpty', 'No tasks match your filters')) + '</p>' +
+                '<p class="empty-state-text">' + pdEsc(_t('db.filterEmptyText', 'Try another word, or clear the filters to see every task.')) + '</p>' +
+                '<button type="button" class="empty-state-cta btn ghost" data-pd-filter-empty-clear>' + pdEsc(_t('db.filterClear', 'Clear filter')) + '</button>' +
+              '</div>')
+          }
           bar.hidden = false
           // re-sync pressed states + the hidden wraps (a fresh server render came in)
           pdFilterApply()
@@ -1442,6 +1477,20 @@
           if (e.target.closest('[data-pd-filter-clear]')) {
             e.preventDefault()
             pdFilterPrios.clear(); pdFilterTags.clear()
+            pdFilterQuery = ''
+            const q = document.querySelector('[data-pd-filter-q]')
+            if (q) q.value = ''
+            pdFilterApply()
+            return
+          }
+          // S78: the miss state's own CTA clears everything (the bar's ✕ stays for
+          // small refinements — this one is the recovery path from a dead end).
+          if (e.target.closest('[data-pd-filter-empty-clear]')) {
+            e.preventDefault()
+            pdFilterPrios.clear(); pdFilterTags.clear()
+            pdFilterQuery = ''
+            const q = document.querySelector('[data-pd-filter-q]')
+            if (q) { q.value = ''; q.focus() }
             pdFilterApply()
             return
           }
@@ -1495,6 +1544,28 @@
         // and the rebuild restores the toggles from the LIVE filter sets.
         ctx.on('htmx:afterSwap', () => { pdFilterBuild() })
         pdFilterBuild()
+        // S78: the search field — debounced (120ms) free-text filter over the cards'
+        // raw markdown; Esc clears (input-level; the page-level Esc handler stays
+        // untouched). The bar is rebuilt on every swap, so the handler is delegated.
+        ctx.on('input', (e) => {
+          if (!e.target.closest || !e.target.closest('[data-pd-filter-q]')) return
+          clearTimeout(pdFilterSearchTimer.t)
+          pdFilterSearchTimer.t = setTimeout(() => {
+            pdFilterQuery = String(e.target.value || '').trim().toLowerCase()
+            pdFilterApply()
+          }, 120)
+        })
+        ctx.on('keydown', (e) => {
+          if (e.key !== 'Escape') return
+          if (!e.target.closest || !e.target.closest('[data-pd-filter-q]')) return
+          if (String(e.target.value || '') !== '') {
+            e.stopPropagation() // don't bubble into dialog-close handlers
+            e.preventDefault()
+            e.target.value = ''
+            pdFilterQuery = ''
+            pdFilterApply()
+          }
+        })
 
         // --- S33 (user request 2026-09-13): «اسپرینت جدید» → modal → «ورود به اسپرینت»
         //     → the FULL-SCREEN sprint editor with code blocks -------------------------

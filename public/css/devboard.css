@@ -811,6 +811,49 @@ main.shell.sp-shell .sp-wrap { min-block-size: min(64vh, 30rem); }
   background: var(--brand-soft, rgb(42 132 96 / 0.12));
 }
 .db-filter-clear { flex: none; }
+/* S78: the free-text task search — the filter bar's third dimension. A compact
+   search input that matches the S32 chip scale (26px) while keeping a real
+   text-field feel. Bounded below so it never crowds the label chips on narrow
+   boards; flexes to fill leftover row space up to a sane cap. RTL-safe via logical
+   properties; the native ✕ clear (type=search) rides the UA chrome. */
+.db-filter-search {
+  flex: 1 1 10rem;
+  min-inline-size: 7.5rem;
+  max-inline-size: 22rem;
+  min-block-size: 26px;
+  padding: 0.16em 0.6em;
+  font: inherit;
+  font-size: var(--fs-xs);
+  color: var(--text);
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  transition: border-color .14s ease, box-shadow .14s ease;
+}
+.db-filter-search::placeholder { color: var(--muted); }
+.db-filter-search:hover { border-color: var(--line-strong); }
+.db-filter-search:focus {
+  outline: none;
+  border-color: var(--brand);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--brand) 15%, transparent);
+}
+.db-filter-search:focus-visible {
+  outline: 2px solid transparent; /* the box-shadow ring above is the focus signal */
+}
+/* The miss state under the bar (S78) — the S76 .pg-filter-empty polish already
+   applies via shared classes; this tucks it against the bar + compacts the base
+   empty-state padding (3.5rem is list-scale; a filter miss is a strip, not a
+   page) so a miss never pushes the board far down. */
+.db-filter-empty { margin-block: 0.35rem 0.2rem; padding-block: 1.4rem; }
+.db-filter-empty .empty-state-icon { width: 2.4rem; height: 2.4rem; }
+.db-filter-empty[hidden] { display: none !important; }
+@media (max-width: 640px) {
+  .db-filter-search { flex: 1 1 100%; max-inline-size: none; } /* own row on phones */
+}
+@media (prefers-contrast: more) {
+  .db-filter-search { border-color: var(--line-strong); }
+  .db-filter-search:focus-visible { outline: 2px solid var(--accent, currentColor); }
+}
 /* S48j: .chip's display:inline-flex overrides the UA [hidden]{display:none} rule
    (author > UA specificity), so a <button class="chip" hidden> is VISIBLE. This
    forces [hidden] to win for the filter-clear chip (only shows when a filter is on). */

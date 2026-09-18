@@ -17,18 +17,24 @@
 //   - Note textareas (.note-text) — dispatch input (existing autosave)
 //   - Quick-note composer (#quicknote-text) — dispatch input
 //   - Project description (#pd-desc) — dispatch input
+//   - Notes-vault markdown editor (.vault-src) — dispatch input (S78)
 //   - Any [contenteditable][data-magic] or textarea[data-magic] — dispatch input
+// Reveal paths (S78): HOVER (desktop) and FOCUS (touch/keyboard — the wand used to be
+// unreachable on devices without hover).
 (function () {
   'use strict'
 
   // Elements the wand attaches to. [data-magic] is the universal opt-in; the specific
   // selectors below catch the existing surfaces that don't yet have the attribute (injected
   // client-side after every htmx swap so they survive re-renders).
+  // S78: textarea.vault-src joins — the notes-vault markdown editor is a prime polish/
+  // translate surface and notes.html now loads this script.
   const SELECTOR = [
     '[data-magic]',
     'textarea.note-text',
     'textarea#quicknote-text',
     'textarea#pd-desc',
+    'textarea.vault-src',
   ].join(',')
 
   // --- i18n with EN fallbacks (so the wand is usable before hibanaI18n loads) ----
@@ -380,6 +386,32 @@
     if (popover) return // popover open → keep wand until popover closes
     clearHideTimer()
     hideTimer = setTimeout(hideWand, 400)
+  }, true)
+
+  // S78 (touch/keyboard reach): the wand used to appear on HOVER only — on a phone or
+  // tablet there is no hover, so the feature was silently unreachable (and the owner
+  // uses it daily). FOCUS now reveals the wand too: tapping into a qualifying textarea
+  // (mobile) or tabbing to one (keyboard) anchors the wand at its corner. Focus leaving
+  // the surface hides it on the same cancellable delay as the hover path — unless
+  // focus is moving INTO the wand or popover (that's the user reaching for it).
+  document.addEventListener('focusin', (e) => {
+    const el = e.target.closest && e.target.closest(SELECTOR)
+    if (!el) {
+      // Focus moving INTO the wand/popover keeps it mounted (the focusout below
+      // scheduled a hide; this cancels it when the destination is ours).
+      if (wand && (e.target === wand || wand.contains(e.target))) { clearHideTimer(); return }
+      if (popover && popover.contains(e.target)) { clearHideTimer(); return }
+      return
+    }
+    clearHideTimer()
+    showWand(el)
+  }, true)
+  document.addEventListener('focusout', (e) => {
+    if (popover) return // popover open → the wand stays until the popover closes
+    const rt = e.relatedTarget
+    if (rt && ((wand && (rt === wand || wand.contains(rt))) || (popover && popover.contains(rt)))) { clearHideTimer(); return }
+    clearHideTimer()
+    hideTimer = setTimeout(hideWand, 500)
   }, true)
 
   // Re-position on scroll/resize.

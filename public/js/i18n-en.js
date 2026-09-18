@@ -681,6 +681,9 @@ window.__hibanaDictEN = {
       'db.filterAria': 'Filter tasks', 'db.filterPrio': 'Priority', 'db.filterLabels': 'Labels',
       'db.filterPrioHint': 'Show only {p} tasks', 'db.filterTagHint': 'Click to filter by this label',
       'db.filterClear': 'Clear filter', 'db.filterShown': '{n} of {m} shown',
+      // S78: the board task search + its miss state
+      'db.filterSearchPh': 'Search tasks…', 'db.filterEmpty': 'No tasks match your filters',
+      'db.filterEmptyText': 'Try another word, or clear the filters to see every task.',
       'db.cyclePrio': 'Priority: {p} — click to change',
       'cmdk.tasks': 'Tasks',
       'cmdk.backlog': 'Upcoming Plan',

@@ -63,11 +63,16 @@ export function sadhanaTaskControls(
   notes: SadhanaTaskNote[],
   lang: Locale,
   tz: string,
-  opts: { metaHtml?: string; titleBadgesHtml?: string } = {},
+  opts: { metaHtml?: string; titleBadgesHtml?: string; noteTotal?: number } = {},
 ): string {
   const current = STATES.find((state) => state.id === task.progress) ?? STATES[0]
   const done = task.done === 1
   const count = notes.length
+  // S76: the board caps the notes that ride it at the latest 20 per task (the
+  // unbounded-journal fix). noteTotal is the TRUE per-task count (incl. truncated
+  // rows); the badge shows it and the panel says "showing latest k of n" when the
+  // cap actually bit. Absent noteTotal (older callers) → rendered count, as before.
+  const total = typeof opts.noteTotal === 'number' ? opts.noteTotal : count
   const metaHtml = opts.metaHtml ?? ''
   const titleBadgesHtml = opts.titleBadgesHtml ?? ''
 
@@ -93,6 +98,8 @@ export function sadhanaTaskControls(
   // ---- notes list (numbered, click-to-edit) -------------------------------------
   // Each note text is wrapped in a button[data-task-note-edit] so the page JS can
   // swap it into a textarea; the existing data-task-note-delete button stays.
+  // S76: numbering is positional over the RENDERED (latest-k) rows — the truncation
+  // hint above the list is what makes the renumbering honest.
   const noteItems = notes.length
     ? notes
         .map((note, i) => `<li class="task-note-item">
@@ -105,6 +112,10 @@ export function sadhanaTaskControls(
         </li>`)
         .join('')
     : `<li class="task-notes-empty muted">${label(lang, 'No notes yet', 'هنوز یادداشتی نیست')}</li>`
+  const num10 = (n: number) => (lang === 'fa' ? faDigits(String(n)) : String(n))
+  const truncationHint = total > count
+    ? `<p class="task-notes-truncated">${label(lang, 'Showing the latest {k} of {n} notes', 'آخرین {k} یادداشت از {n}', { k: num10(count), n: num10(total) })}</p>`
+    : ''
 
   // ---- actions panel (left column of the expand section) -----------------------
   const editBtn = done ? '' : `<button type="button" class="sadhana-action" data-task-edit-open="${esc(task.id)}" aria-expanded="false" aria-controls="task-edit-${esc(task.id)}" aria-label="${label(lang, 'Edit', 'ویرایش')}" title="${label(lang, 'Edit', 'ویرایش')}">${icon('pencil')}<span>${label(lang, 'Edit', 'ویرایش')}</span></button>`
@@ -163,8 +174,9 @@ export function sadhanaTaskControls(
     <section class="sadhana-notes-panel task-notes-panel" id="task-notes-${esc(task.id)}" data-task-notes-panel="${esc(task.id)}">
       <header class="sadhana-notes-head">
         <span class="sadhana-notes-title">${icon('clipboard', 'icon')}<span>${label(lang, 'Notes', 'یادداشت‌ها')}</span></span>
-        <span class="task-note-badge" data-task-note-badge aria-hidden="true">${count}</span>
+        <span class="task-note-badge" data-task-note-badge aria-hidden="true">${num10(total)}</span>
       </header>
+      ${truncationHint}
       <ol class="task-notes-list">${noteItems}</ol>
       <form class="task-note-add-form" data-task-note-form="${esc(task.id)}">
         <textarea name="text" maxlength="500" rows="2" required placeholder="${label(lang, 'Add a note…', 'افزودن یادداشت…')}" aria-label="${label(lang, 'New note', 'یادداشت جدید')}"></textarea>

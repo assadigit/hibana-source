@@ -46,11 +46,17 @@ export function sadhanaRoutes(cfg: Config) {
     )
     const tagRows = await cfg.db.query<{ task_id: string; tag: TagId }>('SELECT * FROM sadhana_tags WHERE task_id IN (SELECT id FROM sadhana_tasks WHERE user_id = ?)', [userId])
     const nameRows = await cfg.db.query<{ quadrant: number; name: string; subtitle: string | null; icon_id: string | null; accent_color: string | null }>('SELECT quadrant, name, subtitle, icon_id, accent_color FROM sadhana_quadrant_names WHERE user_id = ?', [userId])
-    const noteRows = await cfg.db.query<{ id: string; task_id: string; text: string; created_at: string }>(
-      `SELECT u.id, u.task_id, u.text, u.created_at FROM sadhana_updates u
-       JOIN sadhana_tasks t ON t.id = u.task_id
-       WHERE t.user_id = ? AND t.deleted_at IS NULL
-       ORDER BY u.created_at DESC`,
+    const noteRows = await cfg.db.query<{ id: string; task_id: string; text: string; created_at: string; cnt: number }>(
+      `WITH ranked AS (
+         SELECT u.id, u.task_id, u.text, u.created_at,
+                ROW_NUMBER() OVER (PARTITION BY u.task_id ORDER BY u.created_at DESC, u.id DESC) AS rn,
+                COUNT(*) OVER (PARTITION BY u.task_id) AS cnt
+         FROM sadhana_updates u
+         JOIN sadhana_tasks t ON t.id = u.task_id
+         WHERE t.user_id = ? AND t.deleted_at IS NULL AND t.cleared_at IS NULL
+       )
+       SELECT id, task_id, text, created_at, cnt FROM ranked WHERE rn <= 20
+       ORDER BY task_id, created_at DESC, id DESC`,
       [userId],
     )
     const tags = new Map<string, TagId[]>()
@@ -63,12 +69,28 @@ export function sadhanaRoutes(cfg: Config) {
     const subtitles = new Map<number, string | null>(nameRows.map((r) => [r.quadrant, r.subtitle]))
     const styles = new Map<number, { icon: string | null; accent: string | null }>(nameRows.map((r) => [r.quadrant, { icon: r.icon_id, accent: r.accent_color }]))
     const notes = new Map<string, SadhanaTaskNote[]>()
-    for (const note of noteRows) notes.set(note.task_id, [...(notes.get(note.task_id) ?? []), note])
+    // S76 (§10-C, the OTHER unbounded journal feed — the board's, not the dashboard's
+    // S69 fix): loadAll used to fetch EVERY sadhana_updates row ever written (all
+    // journals, forever) and render them all into the board fragment — measured
+    // 1.43MB / 530 note items on the perf seed (600 rows), growing linearly with use.
+    // The expand panel is a working surface, not an archive: the LATEST 20 notes per
+    // task now ride the board (window-function cap, deterministic tiebreak on id),
+    // with the per-task TOTAL kept (cnt) so the badge stays honest and the panel says
+    // "showing latest k of n" when truncated. Legacy task-note (the pre-0038 note
+    // column) still merges — it is one extra OLDEST entry, and the total counts it.
+    const noteTotals = new Map<string, number>()
+    for (const note of noteRows) {
+      notes.set(note.task_id, [...(notes.get(note.task_id) ?? []), note])
+      noteTotals.set(note.task_id, note.cnt)
+    }
     for (const task of tasks) {
       const legacy = legacyTaskNote(task)
-      if (legacy) notes.set(task.id, [...(notes.get(task.id) ?? []), legacy])
+      if (legacy) {
+        notes.set(task.id, [...(notes.get(task.id) ?? []), legacy])
+        noteTotals.set(task.id, (noteTotals.get(task.id) ?? 0) + 1)
+      }
     }
-    return { tasks, tags, names, subtitles, styles, notes }
+    return { tasks, tags, names, subtitles, styles, notes, noteTotals }
   }
 
   const ordered = (user: UserRow) => orderedQuadrants(QUADRANTS, user.sadhana_quadrant_order)
@@ -165,21 +187,23 @@ export function sadhanaRoutes(cfg: Config) {
       .join('')}<span class="progress-label">${t(lang, current.en, current.fa)}</span></span>`
   }
 
-  const taskCardHtml = (task: SadhanaTask, tags: TagId[], notes: SadhanaTaskNote[], lang: Locale, tz: string, cal: 'gregorian' | 'shamsi'): string => {
+  const taskCardHtml = (task: SadhanaTask, tags: TagId[], notes: SadhanaTaskNote[], lang: Locale, tz: string, cal: 'gregorian' | 'shamsi', noteTotal?: number): string => {
     // R10 redesign — the whole card (collapsed row + expand section) is produced by
     // sadhanaTaskControls. We pass the server-rendered deadline + tag chips as a
     // metaHtml string so the calendar conversion stays in this file (and the meta
     // line keeps living in the collapsed row). Pin + recurrence badges are also
     // passed in so the recurrence weekday labels match the user's language.
+    // S76: noteTotal (per-task TOTAL incl. truncated rows) rides along so the badge
+    // and the "showing latest k of n" hint stay honest under the 20-note cap.
     const titleBadgesHtml = `${task.pinned === 1 ? ` <span class="pin-badge">${icon('pin', 'icon')}</span>` : ''}${recurBadge(task, lang)}`
     const metaHtml = `${deadlineHtml(task, lang, tz, cal)}${tagChips(tags, lang)}`
     return `<li class="sadhana-card ${task.done === 1 ? 'done' : ''} ${task.pinned === 1 ? 'pinned' : ''} p-${task.progress}" data-task-id="${task.id}" data-done="${task.done}" data-tags="${(tags ?? []).join(' ')}" ${task.done === 1 ? '' : 'draggable="true"'}>
-      ${sadhanaTaskControls(task, notes, lang, tz, { metaHtml, titleBadgesHtml })}
+      ${sadhanaTaskControls(task, notes, lang, tz, { metaHtml, titleBadgesHtml, noteTotal })}
     </li>`
   }
 
   const quadrantsHtml = (data: Awaited<ReturnType<typeof loadAll>>, lang: Locale, tz: string, cal: 'gregorian' | 'shamsi', ctxOrder: string): string => {
-    const { tasks, tags, names, subtitles, styles, notes } = data
+    const { tasks, tags, names, subtitles, styles, notes, noteTotals } = data
     const open = (q: number) => tasks.filter((x) => x.quadrant === q && x.done === 0).sort(taskOrder)
     const done = (q: number) => tasks.filter((x) => x.quadrant === q && x.done === 1).sort((a, b) => b.updated_at.localeCompare(a.updated_at))
     return orderedQuadrants(QUADRANTS, ctxOrder).map((q) => {
@@ -219,10 +243,10 @@ export function sadhanaRoutes(cfg: Config) {
           </div>
         </header>
         <ul class="sadhana-list" data-list="${q.id}">
-          ${openList.map((task) => taskCardHtml(task, tags.get(task.id) ?? [], notes.get(task.id) ?? [], lang, tz, cal)).join('') || `<li class="sadhana-empty muted">${t(lang, 'Nothing here yet — add your first task.', 'هنوز چیزی نیست — اولین کار را اضافه کن.')}</li>`}
+          ${openList.map((task) => taskCardHtml(task, tags.get(task.id) ?? [], notes.get(task.id) ?? [], lang, tz, cal, noteTotals.get(task.id))).join('') || `<li class="sadhana-empty muted">${t(lang, 'Nothing here yet — add your first task.', 'هنوز چیزی نیست — اولین کار را اضافه کن.')}</li>`}
         </ul>
         <span class="sadhana-more" hidden>↓ ${t(lang, 'more', 'بیشتر')}</span>
-        ${doneList.length ? `<details class="sadhana-done"><summary>${t(lang, '{n} completed', '{n} انجام شد', { n: lang === 'fa' ? faDigits(String(doneList.length)) : doneList.length })}</summary><ul class="sadhana-donelist">${doneList.map((task) => taskCardHtml(task, tags.get(task.id) ?? [], notes.get(task.id) ?? [], lang, tz, cal)).join('')}</ul></details>` : ''}
+        ${doneList.length ? `<details class="sadhana-done"><summary>${t(lang, '{n} completed', '{n} انجام شد', { n: lang === 'fa' ? faDigits(String(doneList.length)) : doneList.length })}</summary><ul class="sadhana-donelist">${doneList.map((task) => taskCardHtml(task, tags.get(task.id) ?? [], notes.get(task.id) ?? [], lang, tz, cal, noteTotals.get(task.id))).join('')}</ul></details>` : ''}
         <div class="qa-addrow">
           <button type="button" class="qa-btn qa-add-circle" data-qa-open aria-label="${t(lang, 'Add task', 'افزودن کار')}">${icon('plus')}</button>
           <!-- One circular "+" per card (the grey trigger above); the revealed row is just the
@@ -315,6 +339,10 @@ export function sadhanaRoutes(cfg: Config) {
         recur_type: task.recur_type ?? '',
         recur_config: task.recur_config ?? '',
         updates: (data.notes.get(task.id) ?? []).map((u) => ({ id: u.id, text: u.text, ts: u.created_at })),
+        // S76: the TRUE per-task note count (the board caps `updates` at the latest 20;
+        // the client toggle + truncation hint read this so the to-do list page stays
+        // as honest as the server-rendered surfaces).
+        updates_total: data.noteTotals.get(task.id) ?? (data.notes.get(task.id) ?? []).length,
       })
     }
     return await etag(c, c.json({
@@ -870,9 +898,9 @@ export function sadhanaRoutes(cfg: Config) {
         ${datePickerMarkup(ctx, { fuzzy: null, due_date: null, due_time: null })}
       </form>
       <ul class="sadhana-list">
-        ${openList.map((task) => taskCardHtml(task, data.tags.get(task.id) ?? [], data.notes.get(task.id) ?? [], lang, tz, cal)).join('') || `<li class="sadhana-empty muted">${t(lang, 'No tasks yet', 'هنوز کاری نیست')}</li>`}
+        ${openList.map((task) => taskCardHtml(task, data.tags.get(task.id) ?? [], data.notes.get(task.id) ?? [], lang, tz, cal, data.noteTotals.get(task.id))).join('') || `<li class="sadhana-empty muted">${t(lang, 'No tasks yet', 'هنوز کاری نیست')}</li>`}
       </ul>
-      ${doneList.length ? `<details class="sadhana-done"><summary>${t(lang, '{n} completed', '{n} انجام شد', { n: lang === 'fa' ? faDigits(String(doneList.length)) : doneList.length })}</summary><ul class="sadhana-donelist">${doneList.map((task) => taskCardHtml(task, data.tags.get(task.id) ?? [], data.notes.get(task.id) ?? [], lang, tz, cal)).join('')}</ul></details>` : ''}
+      ${doneList.length ? `<details class="sadhana-done"><summary>${t(lang, '{n} completed', '{n} انجام شد', { n: lang === 'fa' ? faDigits(String(doneList.length)) : doneList.length })}</summary><ul class="sadhana-donelist">${doneList.map((task) => taskCardHtml(task, data.tags.get(task.id) ?? [], data.notes.get(task.id) ?? [], lang, tz, cal, data.noteTotals.get(task.id))).join('')}</ul></details>` : ''}
     </section>`)
   }
 

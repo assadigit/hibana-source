@@ -562,12 +562,16 @@ function tcHTML(task,q){
   </div>`:'';
   const notePreview=!task.done&&task.note?`<div class="task-note-preview" onclick="startEdit('${task.id}',${q})" title="${esc(task.note)}">📝 ${esc(task.note.split('\n')[0].slice(0,60))}${task.note.length>60?'…':''}</div>`:'';
   const recurBadge=task.recur&&!task.done?`<span class="recur-badge">${recurLabel(task)}</span>`:'';
-  /* updates toggle */
+  /* updates toggle — S76: shows the TRUE total (updates_total from the server; the
+     board caps the rendered updates at the latest 20), never the capped count. */
+  const updTotal=(task.updates_total!=null)?task.updates_total:(task.updates||[]).length;
   const updCount=(task.updates||[]).length;
-  const updToggle=!task.done?`<button class="upd-toggle${updCount?' has-notes':''}" onclick="toggleUpdates(event,'${task.id}')" title="${tr('addUpdate')}"><span class="upd-ico">📋</span>${updCount||'+'}</button>`:'';
+  const updTrunc=updTotal>updCount?`<div class="upd-truncated">${lang==='fa'?('آخرین '+toFa(String(updCount))+' یادداشت از '+toFa(String(updTotal))):('Showing the latest '+updCount+' of '+updTotal+' notes')}</div>`:'';
+  const updToggle=!task.done?`<button class="upd-toggle${updCount?' has-notes':''}" onclick="toggleUpdates(event,'${task.id}')" title="${tr('addUpdate')}"><span class="upd-ico">📋</span>${updTotal||'+'}</button>`:'';
   /* updates panel — notes are addable, deletable AND editable in place (2026-09-02) */
   const updRows=(task.updates||[]).map(u=>`<div class="upd-row" id="upd-${u.id}">${updRowInner(u,task.id,q)}</div>`).join('');
   const updPanel=!task.done?`<div class="upd-panel" id="upd-panel-${task.id}">
+    ${updTrunc}
     <div class="upd-list">${updRows||`<div class="upd-empty">${tr('noUpdates')}</div>`}</div>
     <div class="upd-add-row">
       <input class="upd-inp" id="upd-inp-${task.id}" placeholder="${tr('updatePlaceholder')}" maxlength="500" onkeydown="if(event.key==='Enter'){event.preventDefault();addUpdate('${task.id}',${q});}">
@@ -814,7 +818,7 @@ function addUpdate(id,q){
     .then(u=>{
       if(!u)return;
       const task=[1,2,3,4].flatMap(qq=>tasks[qq]).find(x=>x.id===id);
-      if(task){if(!task.updates)task.updates=[];task.updates.push({id:u.id,text:u.text||text,ts:u.ts||''});}
+      if(task){if(!task.updates)task.updates=[];task.updates.push({id:u.id,text:u.text||text,ts:u.ts||''});task.updates_total=(task.updates_total!=null?task.updates_total:task.updates.length-1)+1;}
       /* paint the fresh row without a full re-render. (2026-09-02 fix: the API used to
          return only {ok,id} — `u.ts.slice` threw, so the just-added note never showed
          until a page refresh; the response now echoes text+ts.) */
@@ -828,7 +832,7 @@ function addUpdate(id,q){
       }
       /* update toggle count */
       const btn=document.getElementById(`tc-${id}`)?.querySelector('.upd-toggle');
-      if(btn){const cnt=task?.updates?.length||0;btn.innerHTML=`<span class="upd-ico">📋</span>${cnt}`;btn.classList.add('has-notes');}
+      if(btn){const cnt=task?.updates_total!=null?task.updates_total:(task?.updates?.length||0);btn.innerHTML=`<span class="upd-ico">📋</span>${cnt}`;btn.classList.add('has-notes');}
       inp.focus();
     })
     .finally(()=>{

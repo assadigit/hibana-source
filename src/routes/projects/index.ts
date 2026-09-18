@@ -168,7 +168,18 @@ export function projectsRoutes(cfg: Config) {
       const signalsMap = await loadProjectSignals(cfg, user.id, projects.map((p) => p.id))
       // S29 (agenda 5): batched progress per project — powers the kanban color weights.
       const progressMap = await loadProjectProgress(cfg, projects)
-      let fragment = listFragment(projects, tagsMap, view, lang, signalsMap, activeStatus, progressMap)
+      // S76: the honest filtered-miss empty state — WHEN the list is empty AND a
+      // search/tag filter is active, describe the MISS (not "No projects yet"). The
+      // tag NAME needs a lookup only on this cold path (one indexed row).
+      let emptyFilter: { q?: string; tagName?: string } | undefined
+      if (projects.length === 0 && query.success && (query.data.q || query.data.tag)) {
+        emptyFilter = { q: query.data.q }
+        if (!emptyFilter.q && query.data.tag) {
+          const tagRow = await cfg.db.query<{ name: string }>('SELECT name FROM tags WHERE id = ? AND user_id = ?', [query.data.tag, user.id])
+          if (tagRow.length) emptyFilter = { tagName: tagRow[0].name }
+        }
+      }
+      let fragment = listFragment(projects, tagsMap, view, lang, signalsMap, activeStatus, progressMap, emptyFilter)
       if (c.req.query('view') !== undefined && activeStatus !== 'spark') {
         const countRows = await cfg.db.query<{ status: string; n: number }>(
           "SELECT status, COUNT(*) AS n FROM projects WHERE user_id = ? AND deleted_at IS NULL AND status != 'spark' AND (archived_state IS NULL OR archived_state != 'offline') GROUP BY status",

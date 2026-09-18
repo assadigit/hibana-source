@@ -911,3 +911,21 @@ body.rtl .fuz-opt{text-align:right}
   .sadhana-wrap .sadhana-sk .sk-quad ~ .sk-quad{display:none}
   .sadhana-wrap .sadhana-sk .sk-quad{flex:1}
 }
+
+
+/* S76 (the unbounded-journal fix): the to-do list board's truncation hint — the
+   JSON caps `updates` at the latest 20 per task; this line says so at the top of
+   the updates panel. Same quiet-caption language as the server-rendered
+   .task-notes-truncated twin. */
+.upd-truncated {
+  margin: 0 0 0.35rem;
+  padding: 0.3rem 0.45rem;
+  border-block-start: 1px dashed color-mix(in srgb, var(--muted) 32%, transparent);
+  font-size: var(--fs-xs);
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+@media (prefers-contrast: more) {
+  .upd-truncated { color: var(--text); border-block-start-color: var(--muted); }
+}

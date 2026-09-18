@@ -917,3 +917,59 @@ input.qe-name,
   .pg-stale-clear { border-color: var(--badge-awaiting-fg, #85620D); color: var(--foreground); }
   .pg-stale-count { color: var(--foreground); }
 }
+
+
+/* ==========================================================================
+   S76 — the honest filtered-miss empty state (projects search/tag miss). A search
+   that finds nothing is a RECOVERABLE state, not an absence: the icon dims, the
+   title balances, and the Clear-filters CTA carries a hover-lift + double-ring
+   focus so the way back reads as the primary affordance. The search icon itself
+   gets a slow "scan" drift on hover of the card (reduced-motion guarded).
+   ========================================================================== */
+.pg-filter-empty .empty-state-icon {
+  color: var(--muted);
+  opacity: 0.75;
+}
+.pg-filter-empty .empty-state-icon svg {
+  inline-size: 2.4rem;
+  block-size: 2.4rem;
+  stroke-width: 1.5;
+}
+.pg-filter-empty .empty-state-title {
+  text-wrap: balance;
+}
+.pg-filter-empty .empty-state-cta {
+  transition: border-color .16s ease, box-shadow .16s ease, transform .16s ease;
+}
+.pg-filter-empty .empty-state-cta:hover,
+.pg-filter-empty .empty-state-cta:focus-visible {
+  transform: translateY(-1px);
+  box-shadow: 0 2px 10px -4px rgb(0 0 0 / 0.18);
+}
+.pg-filter-empty .empty-state-cta:focus-visible {
+  outline: 2px solid var(--accent, currentColor);
+  outline-offset: 2px;
+}
+.pg-filter-empty:hover .empty-state-icon svg {
+  animation: pg-scan-drift 1.6s ease-in-out infinite;
+}
+@keyframes pg-scan-drift {
+  0%, 100% { transform: translateX(0); }
+  50% { transform: translateX(0.35rem); }
+}
+[dir='rtl'] .pg-filter-empty:hover .empty-state-icon svg {
+  animation-name: pg-scan-drift-rtl;
+}
+@keyframes pg-scan-drift-rtl {
+  0%, 100% { transform: translateX(0); }
+  50% { transform: translateX(-0.35rem); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .pg-filter-empty:hover .empty-state-icon svg { animation: none; }
+  .pg-filter-empty .empty-state-cta,
+  .pg-filter-empty .empty-state-cta:hover,
+  .pg-filter-empty .empty-state-cta:focus-visible { transition: none; transform: none; }
+}
+@media (prefers-contrast: more) {
+  .pg-filter-empty .empty-state-icon { opacity: 1; color: var(--text); }
+}

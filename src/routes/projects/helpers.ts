@@ -212,12 +212,32 @@ export function cardHtml(p: ProjectRow, tags: TagRow[], lang: Locale, signals?: 
   </article>`
 }
 
-export function listFragment(projects: ProjectRow[], tagsMap: Map<string, TagRow[]>, view: string, lang: Locale, signalsMap?: Map<string, ProjectSignals>, statusFilter?: string, progressMap?: Map<string, number>): string {
+export function listFragment(projects: ProjectRow[], tagsMap: Map<string, TagRow[]>, view: string, lang: Locale, signalsMap?: Map<string, ProjectSignals>, statusFilter?: string, progressMap?: Map<string, number>, emptyFilter?: { q?: string; tagName?: string }): string {
   if (projects.length === 0) {
     // B2.5: illustrated empty state — icon + headline + helper + CTA.
     // Status-aware: a specific status filter with no matches gets a contextually
     // correct message instead of the generic "capture your first idea" CTA (which is
     // wrong for an empty stage). Session 19 fix.
+    // S76: SEARCH/TAG-aware too — a filtered MISS used to fall through to the capture
+    // CTA ("No projects yet"), which is wrong twice over when you HAVE projects: it
+    // implies emptiness and nudges capture instead of recovery. The honest answer to
+    // a miss is "nothing matched — here's the way back to everything".
+    if (emptyFilter?.q) {
+      return `<div class="empty-state empty pg-filter-empty">
+        <span class="empty-state-icon" aria-hidden="true"><svg class="icon" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg></span>
+        <p class="empty-state-title">${trL(lang, 'No matches', 'نتیجه‌ای پیدا نشد')}</p>
+        <p class="empty-state-text">${trL(lang, 'Nothing matches your search — try another word, or clear the filters to see everything.', 'چیزی با جست‌وجوی تو مطابقت ندارد — واژهٔ دیگری را امتحان کن، یا فیلترها را پاک کن تا همه را ببینی.')}</p>
+        <a class="empty-state-cta btn ghost" href="/projects.html">${trL(lang, 'Clear filters', 'پاک‌کردن فیلترها')}</a>
+      </div>`
+    }
+    if (emptyFilter?.tagName) {
+      return `<div class="empty-state empty pg-filter-empty">
+        <span class="empty-state-icon" aria-hidden="true"><svg class="icon" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg></span>
+        <p class="empty-state-title">${trL(lang, 'No projects with this label', 'پروژه‌ای با این برچسب نیست')}</p>
+        <p class="empty-state-text">${trL(lang, 'Nothing carries this label right now — clear the filters to see everything.', 'الان چیزی این برچسب را ندارد — فیلترها را پاک کن تا همه را ببینی.')}</p>
+        <a class="empty-state-cta btn ghost" href="/projects.html">${trL(lang, 'Clear filters', 'پاک‌کردن فیلترها')}</a>
+      </div>`
+    }
     if (statusFilter === 'halted') {
       return `<div class="empty-state empty">
         <span class="empty-state-icon" aria-hidden="true"><svg class="icon" viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7Z"/><path d="M12 11v4M10 13h4"/></svg></span>

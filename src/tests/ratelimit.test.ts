@@ -44,17 +44,25 @@ describe('rate limiting (spec §15)', () => {
       await makeUser(db)
       const app = createApp({ db, isProd: false, github: { owner: 'x', repo: 'y', token: '' }, emailKey: undefined, assets: undefined })
       let last: Response | null = null
-      for (let i = 0; i < 32; i++) {
+      let tripped = false
+      // S76 (CI flake fix, 2026-09-18): the limiter buckets on FIXED 60s-aligned
+      // windows (floor(now/60)*60) — if this loop straddles a window boundary the
+      // count resets and the first 32 requests never trip it (~0.4% per run at CI's
+      // ~260ms span; observed on the v0.3.15.1 CI run). Keep sending until the
+      // limiter trips: worst case a boundary split costs one extra full bucket
+      // (30 partial + 31 fresh ≈ 62 requests) — 75 covers it with margin.
+      for (let i = 0; i < 75 && !tripped; i++) {
         last = await app.fetch(new Request('http://local/api/auth/register', {
           method: 'POST',
           headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'HX-Request': 'true', Origin: 'http://local' },
           body: 'username=probe&email=probe@test.dev&password=correcthorsebattery&captcha=tok',
         }))
+        tripped = (await last.text()).includes('Too many attempts')
       }
       // the 31st+ request is rate-limited, but as an htmx FRAGMENT at 200 so the error
       // actually renders — the pre-fix behavior was a 429 JSON htmx silently dropped
       expect(last!.status).toBe(200)
-      expect(await last!.text()).toContain('Too many attempts')
+      expect(tripped).toBe(true)
     } finally {
       close()
     }

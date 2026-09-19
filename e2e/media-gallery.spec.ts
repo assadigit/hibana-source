@@ -380,3 +380,101 @@ test('project shots lightbox: prev/next browse the grid siblings, counter + capt
 
   expect(errors).toEqual([])
 })
+
+test('the gallery manager: click-to-edit note modal (wand rides it) + Select mode bulk-deletes with one confirm (S79)', async ({ page, browserName }) => {
+  test.skip(browserName !== 'chromium', 'Desktop Chromium only')
+  const errors = trackErrors(page)
+  await login(page)
+
+  // four shots in one project: two carry notes to edit, the space story is real
+  const pid = ((await api(page, '/api/projects', 'POST', { title: `e2e s79 manager ${Date.now()}` })) as { json: { id: string } }).json.id
+  const { DatabaseSync } = await import('node:sqlite')
+  const db = new DatabaseSync('/tmp/hibana-e2e.db')
+  db.prepare("DELETE FROM screenshots WHERE project_id IN (SELECT id FROM projects WHERE user_id = (SELECT id FROM users WHERE email = ?))").run(TEST_EMAIL)
+  const ids = [crypto.randomUUID(), crypto.randomUUID(), crypto.randomUUID(), crypto.randomUUID()]
+  const now = new Date().toISOString()
+  const caps = ['Manager note A', '', 'Manager shot C', 'Manager shot D']
+  for (let i = 0; i < ids.length; i++) {
+    db.prepare('INSERT INTO screenshots (id, project_id, github_path, mime_type, caption, resolved, bytes, created_at) VALUES (?, ?, ?, ?, ?, 0, 200, ?)')
+      .run(ids[i], pid, `e2e/${ids[i]}.png`, 'image/png', caps[i], now)
+  }
+  db.close()
+
+  await page.goto('/gallery.html')
+  await page.waitForSelector('.gal-card')
+  await expect(page.locator('.gal-card')).toHaveCount(4)
+
+  // ---- (a) THE NOTE EDITOR: the caption itself is click-to-edit ----------------
+  // the empty caption carries the affordance too ("No note" invites the first one)
+  await expect(page.locator(`.gal-card[data-shot="${ids[1]}"] .shot-note`)).toContainText('No note')
+  await page.locator(`.gal-card[data-shot="${ids[0]}"] .shot-note`).click()
+  const noteDlg = page.locator('dialog.gal-note-modal')
+  await expect(noteDlg).toBeVisible()
+  await expect(noteDlg.locator('h3')).toContainText('Note')
+  // the textarea prefills the current caption and rides the wand (data-magic)
+  const ta = noteDlg.locator('.gal-note-ta')
+  await expect(ta).toHaveValue('Manager note A')
+  await expect(ta).toHaveAttribute('data-magic', '')
+  // focusing the note reveals the wand INSIDE the dialog (top-layer aware)
+  await ta.focus()
+  await expect(noteDlg.locator('.magic-wand')).toBeVisible()
+  await expect(noteDlg.locator('.gal-note-hint')).toContainText('wand')
+  // save the edit → the card updates in place (no grid re-fetch flash)
+  await ta.fill('Manager note A — edited in the gallery')
+  await noteDlg.locator('[data-gal-note-save]').click()
+  await expect(noteDlg).toHaveCount(0)
+  await expect(page.locator(`.gal-card[data-shot="${ids[0]}"] .shot-note`)).toContainText('edited in the gallery')
+  await expect(page.locator(`.gal-card[data-shot="${ids[0]}"] .shot-note`)).toHaveClass(/has-note/)
+  // the edit is real: the API carries the new caption
+  const listed = (await api(page, '/api/media', 'GET')) as { json: { screenshots: { id: string; caption: string }[] } }
+  expect(listed.json.screenshots.find((p) => p.id === ids[0])?.caption).toBe('Manager note A — edited in the gallery')
+
+  // ---- (b) SELECT MODE: bulk space management ----------------------------------
+  // the toggle enters select mode: checks appear, the button flips to "Done"
+  await page.click('#gallery-select-btn')
+  await expect(page.locator('#gallery-select-btn')).toHaveAttribute('aria-pressed', 'true')
+  await expect(page.locator('#gallery-select-btn')).toContainText('Done')
+  await expect(page.locator('#gallery-grid')).toHaveAttribute('data-selecting', '')
+  // no picks yet → the bar invites, Delete disabled (a 0-delete is a misclick trap)
+  await expect(page.locator('.gal-selbar')).toBeVisible()
+  await expect(page.locator('.gal-selbar-count')).toContainText('Tap pictures')
+  await expect(page.locator('.gal-selbar-del')).toBeDisabled()
+
+  // pick via the whole TILE (the big target) and via the CHECK chip — both count
+  await page.locator(`.gal-card[data-shot="${ids[2]}"] .shot-img-btn`).click()
+  await page.locator(`.gal-card[data-shot="${ids[3]}"] .gal-check`).click()
+  await expect(page.locator('.gal-card.is-sel')).toHaveCount(2)
+  await expect(page.locator('.gal-selbar-count')).toContainText('2 selected')
+  await expect(page.locator(`.gal-card[data-shot="${ids[2]}"] .gal-check`)).toHaveAttribute('aria-pressed', 'true')
+  await expect(page.locator('.gal-selbar-del')).toBeEnabled()
+
+  // a filter change exits select mode — the selection would be a stale set
+  await page.click('[data-gs="fixed"]')
+  await expect(page.locator('#gallery-grid')).not.toHaveAttribute('data-selecting', '')
+  await expect(page.locator('.gal-selbar')).toHaveCount(0)
+  await page.click('[data-gs="all"]')
+
+  // re-enter, re-pick the SAME two, delete with ONE confirm (the whole point:
+  // a cleanup pass of N pictures is 1 confirm, not N)
+  await page.click('#gallery-select-btn')
+  await page.locator(`.gal-card[data-shot="${ids[2]}"] .shot-img-btn`).click()
+  await page.locator(`.gal-card[data-shot="${ids[3]}"] .gal-check`).click()
+  await expect(page.locator('.gal-selbar-count')).toContainText('2 selected')
+  page.once('dialog', (d) => d.accept())
+  await page.locator('.gal-selbar-del').click()
+  // the bar is gone before the first DELETE lands (a stale count reads as a lie),
+  // mode exits, the grid + space meter land on the post-cleanup truth
+  await expect(page.locator('.gal-selbar')).toHaveCount(0)
+  await expect(page.locator('.gal-card')).toHaveCount(2)
+  await expect(page.locator(`.gal-card[data-shot="${ids[2]}"]`)).toHaveCount(0)
+  await expect(page.locator(`.gal-card[data-shot="${ids[3]}"]`)).toHaveCount(0)
+  await expect(page.locator('#gallery-stats')).toContainText('2')
+
+  // ---- Esc exits select mode (keyboard parity) ---------------------------------
+  await page.click('#gallery-select-btn')
+  await expect(page.locator('#gallery-grid')).toHaveAttribute('data-selecting', '')
+  await page.keyboard.press('Escape')
+  await expect(page.locator('#gallery-grid')).not.toHaveAttribute('data-selecting', '')
+
+  expect(errors).toEqual([])
+})

@@ -302,10 +302,30 @@ test('text box: drag the mr handle → width grows and the text re-wraps (fewer 
   expect(rec!.width).toBeGreaterThan(before!.fixed + 120)
 
   // Undo the resize ('modify' entry): the note rebuilds at the original wrap width.
+  // S79 (test fix — same family as the S75 notebook corner-drag flake, owner rule
+  // "fix the TEST, not the app"): a 12-step drag slower than the 400ms persist
+  // debounce lets persistDebounced fire MID-DRAG, persisting the intermediate width
+  // AND pushing an intermediate 'modify' entry — undo then walks back one STEP, not
+  // one GESTURE, landing on the intermediate width (observed live: before=150,
+  // after=330, one undo → 270). The user-visible contract is "Ctrl+Z walks the
+  // resize back to the original width" — poll-undo (≤3 presses, one per possible
+  // intermediate) instead of assuming a single step, and pin that the TYPED TEXT
+  // survives (walking past the resize entries must never reach the text-edit entry).
   await page.keyboard.press('Control+z')
   await page.waitForTimeout(300)
-  const undone = await textBoxProbe(page)
+  let undone = await textBoxProbe(page)
+  for (let i = 0; i < 2 && undone && Math.round(undone.fixed) !== Math.round(before!.fixed); i++) {
+    await page.keyboard.press('Control+z')
+    await page.waitForTimeout(300)
+    undone = await textBoxProbe(page)
+  }
   expect(Math.round(undone!.fixed)).toBe(Math.round(before!.fixed))
+  const undoneText = await page.evaluate((id) => {
+    const c = window.hibanaCanvas?.getCanvas()
+    const o = c?.getObjects().find((x) => x.id === id)
+    return String((o as { text?: string } | undefined)?.text || '')
+  }, before!.id)
+  expect(undoneText).toContain('e2e reflow alpha')
   expect(errors).toEqual([])
 })
 

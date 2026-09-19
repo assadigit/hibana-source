@@ -4,6 +4,18 @@
     // project + pin), rendered client-side — filter by project / open / fixed / pinned,
     // zoom lightbox, delete (the ONLY removal path — pictures never expire, S38).
     // Registers through the shared __hibanaPage queue (nav.js mounts/unmounts ctx.on).
+    //
+    // S79 — the gallery graduates from VIEWER to MANAGER:
+    //   (a) NOTE EDITING: the caption on every card is click-to-edit (a modal with the
+    //       same shape as the project page's S46 note editor — a real textarea, not a
+    //       2-row strip), and the textarea carries [data-magic] so the AI wand rides it
+    //       (polish/translate a note right where you see the picture it describes; the
+    //       focus-reveal path anchors the wand at the textarea's corner inside the dialog).
+    //   (b) BULK SPACE MANAGEMENT: a Select mode — tap pictures to pick them, a sticky
+    //       bar counts them (n + the bytes they hold), one confirm deletes them all and
+    //       frees the space in one pass (the owner's original gallery ask was exactly
+    //       "delete the unneeded files to make up more space" — one-by-one confirm
+    //       dialogs made a cleanup pass of 30 pictures 30 confirms deep).
     window.__hibanaPage = window.__hibanaPage || ((d) => (window.__hibanaPageQueue = window.__hibanaPageQueue || []).push(d))
     window.__hibanaPage({
       name: 'gallery',
@@ -14,9 +26,10 @@
         const grid = document.getElementById('gallery-grid')
         const stats = document.getElementById('gallery-stats')
         const projectSel = document.getElementById('gallery-project')
+        const selectBtn = document.getElementById('gallery-select-btn')
         if (!grid) return
 
-        const state = { rows: [], project: '', gs: 'all' }
+        const state = { rows: [], project: '', gs: 'all', selecting: false, sel: new Set() }
         // S59b — URL params (deep-linkable filters, "never lose your place"):
         //   ?project=<id>  preselects the project filter
         //   ?gs=open|fixed|pinned|all  preselects the state filter
@@ -218,6 +231,161 @@
           grid.querySelectorAll('.shot-img-btn[data-gal-zoom]').forEach((btn) => lazyIO.observe(btn))
         }
 
+        // ---- S79 (a): the NOTE EDITOR modal ---------------------------------------
+        // Same shape as the project page's S46 editor (a real textarea + Save/Cancel,
+        // self-cleaning dialog) — but the textarea carries [data-magic] so the AI wand
+        // rides it: focus the note, polish/translate, review, Save. The wand mounts
+        // INSIDE the dialog (its own dialog-aware positioning) so it's never trapped
+        // under the dialog's top layer.
+        let noteDlg = null
+        const galNoteForm = (shotId) => {
+          if (noteDlg) { try { noteDlg.close() } catch {} }
+          const row = state.rows.find((r) => r.id === shotId)
+          if (!row) return
+          const dlg = document.createElement('dialog')
+          dlg.className = 'dialog gal-note-modal'
+          dlg.setAttribute('aria-labelledby', 'gal-note-title')
+          dlg.innerHTML =
+            '<div class="modal gal-note-inner">' +
+              '<div class="row spread gal-note-head"><h3 id="gal-note-title"></h3>' +
+              '<button type="button" class="ghost" data-gal-note-close aria-label="' + esc(_t('common.close', 'Close')) + '">✕</button></div>' +
+              '<div class="gal-note-body">' +
+                '<textarea class="gal-note-ta" rows="6" maxlength="1000" dir="auto" data-magic data-no-fa-digits="" placeholder="' + esc(_t('project.shotNotePh', 'What is broken & where — the exact spot to work on…')) + '"></textarea>' +
+                '<div class="gal-note-actions">' +
+                  '<span class="muted small gal-note-hint">' + esc(_t('gallery.noteWandHint', 'Focus the note — the ✨ wand polishes or translates it')) + '</span>' +
+                  '<span class="gal-note-btns">' +
+                    '<button type="button" class="ghost small" data-gal-note-cancel>' + esc(_t('common.cancel', 'Cancel')) + '</button>' +
+                    '<button type="button" class="btn small" data-gal-note-save>' + esc(_t('common.save', 'Save')) + '</button>' +
+                  '</span>' +
+                '</div>' +
+              '</div>' +
+            '</div>'
+          dlg.querySelector('h3').textContent = _t('project.shotNoteTitle', 'Note — what & where to work')
+          const ta = dlg.querySelector('.gal-note-ta')
+          ta.value = row.caption || ''
+          document.body.appendChild(dlg)
+          noteDlg = dlg
+          const close = () => { try { dlg.close() } catch {} }
+          dlg.querySelector('[data-gal-note-close]').addEventListener('click', close)
+          dlg.querySelector('[data-gal-note-cancel]').addEventListener('click', close)
+          dlg.querySelector('[data-gal-note-save]').addEventListener('click', async () => {
+            const caption = ta.value.trim()
+            try {
+              const res = await fetch('/api/screenshots/' + encodeURIComponent(shotId), {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ caption }),
+              })
+              if (!res.ok) throw new Error('status ' + res.status)
+              // surgical DOM update — a full re-render would re-fetch every thumb tile
+              row.caption = caption
+              const p = grid.querySelector('.gal-card[data-shot="' + shotId + '"] .shot-note')
+              if (p) {
+                p.textContent = caption
+                p.classList.toggle('has-note', !!caption)
+                if (!caption) {
+                  p.innerHTML = '<span class="shot-note-empty">' + esc(_t('gallery.noNote', 'No note')) + '</span>'
+                }
+              }
+              window.hibana?.toast(_t('project.noteSaved', 'saved'), 'info')
+              close()
+            } catch { window.hibana?.toast(_t('sparks.saveFailed', "Couldn't save"), 'err') }
+          })
+          // Esc + Cancel both clean up; Enter inside the textarea is a newline (real notes
+          // are multi-line), so only the buttons save.
+          dlg.addEventListener('close', () => { dlg.remove(); if (noteDlg === dlg) noteDlg = null })
+          dlg.showModal()
+          setTimeout(() => ta.focus(), 0)
+        }
+
+        // ---- S79 (b): SELECT mode — bulk space management --------------------------
+        // One toggle enters selection; tapping a tile (or its check) picks it; the sticky
+        // bar counts picks + the bytes they hold; one confirm deletes them all. Esc /
+        // "Done" / any filter change exits. The check buttons live in the DOM permanently
+        // (CSS gates them on [data-selecting]) so a mode flip never rebuilds the grid.
+        let selBar = null
+        const selBytes = () => state.rows.filter((r) => state.sel.has(r.id)).reduce((n, r) => n + (r.bytes || 0), 0)
+        const ensureSelBar = () => {
+          if (selBar) return selBar
+          selBar = document.createElement('div')
+          selBar.className = 'gal-selbar'
+          selBar.setAttribute('role', 'status')
+          selBar.setAttribute('aria-live', 'polite')
+          selBar.innerHTML =
+            '<span class="gal-selbar-count"></span>' +
+            '<span class="gal-selbar-btns">' +
+              '<button type="button" class="ghost small gal-selbar-clear">' + esc(_t('gallery.clearSelection', 'Clear selection')) + '</button>' +
+              '<button type="button" class="btn small danger gal-selbar-del">' + esc(_t('gallery.deleteSelected', 'Delete selected')) + '</button>' +
+            '</span>'
+          selBar.querySelector('.gal-selbar-clear').addEventListener('click', () => { state.sel.clear(); paintSelection() })
+          selBar.querySelector('.gal-selbar-del').addEventListener('click', deleteSelected)
+          document.body.appendChild(selBar)
+          return selBar
+        }
+        const removeSelBar = () => { if (selBar) { selBar.remove(); selBar = null } }
+        const paintSelection = () => {
+          grid.querySelectorAll('.gal-card').forEach((card) => {
+            const on = state.sel.has(card.getAttribute('data-shot'))
+            card.classList.toggle('is-sel', on)
+            const chk = card.querySelector('.gal-check')
+            if (chk) chk.setAttribute('aria-pressed', on ? 'true' : 'false')
+          })
+          if (!state.selecting) { removeSelBar(); return }
+          const bar = ensureSelBar()
+          const n = state.sel.size
+          const size = fmtSize(selBytes()) || '0 KB'
+          bar.querySelector('.gal-selbar-count').textContent =
+            n === 0
+              ? _t('gallery.selectOn', 'Tap pictures to pick them')
+              : _t('gallery.selectedCount', '{n} selected · ≈{size}').split('{n}').join(dig(n)).split('{size}').join(dig(size))
+          bar.classList.toggle('is-empty', n === 0)
+          bar.querySelector('.gal-selbar-del').disabled = n === 0
+          bar.querySelector('.gal-selbar-clear').disabled = n === 0
+        }
+        const enterSelect = () => {
+          state.selecting = true
+          if (selectBtn) {
+            selectBtn.setAttribute('aria-pressed', 'true')
+            selectBtn.classList.add('is-on')
+            selectBtn.textContent = _t('gallery.exitSelect', 'Done selecting')
+          }
+          grid.setAttribute('data-selecting', '')
+          paintSelection()
+        }
+        const exitSelect = () => {
+          state.selecting = false
+          state.sel.clear()
+          if (selectBtn) {
+            selectBtn.setAttribute('aria-pressed', 'false')
+            selectBtn.classList.remove('is-on')
+            selectBtn.textContent = _t('gallery.select', 'Select')
+          }
+          grid.removeAttribute('data-selecting')
+          paintSelection()
+        }
+        const deleteSelected = async () => {
+          const ids = [...state.sel]
+          if (!ids.length) return
+          const n = ids.length
+          const size = fmtSize(selBytes()) || '0 KB'
+          if (!window.confirm(_t('gallery.deleteSelectedConfirm', 'Delete {n} pictures for good? Frees ≈{size} of space.').split('{n}').join(dig(n)).split('{size}').join(dig(size)))) return
+          // delete bar first (the count is stale the moment the first DELETE lands)
+          removeSelBar()
+          if (selectBtn) selectBtn.disabled = true
+          const results = await Promise.allSettled(ids.map((id) =>
+            fetch('/api/screenshots/' + encodeURIComponent(id), { method: 'DELETE' }).then((r) => { if (!r.ok) throw new Error('status ' + r.status) })
+          ))
+          if (selectBtn) selectBtn.disabled = false
+          const failed = results.filter((r) => r.status === 'rejected').length
+          exitSelect()
+          if (failed === 0) {
+            window.hibana?.toast(_t('gallery.bulkDeleted', '{n} pictures deleted — space freed').split('{n}').join(dig(n)), 'info')
+          } else {
+            window.hibana?.toast(_t('gallery.bulkDeletedPartial', '{n} deleted · {m} failed').split('{n}').join(dig(n - failed)).split('{m}').join(dig(failed)), 'err')
+          }
+          await load() // fresh totals (count + space meter)
+        }
+
         const render = () => {
           // stats + project select (both derive from the CURRENT rows)
           const totalBytes = state.rows.reduce((n, r) => n + (r.bytes || 0), 0)
@@ -243,11 +411,14 @@
               const pin = r.task_id
                 ? '<span class="chip gal-pin" dir="auto" title="' + esc(_t('gallery.pinHint', 'Pinned to a progress-box item')) + '">📌 ' + esc(boxLabel(r.task_status)) + ' · ' + esc(String(r.task_title || '').replace(/\s+/g, ' ').slice(0, 60)) + '</span>'
                 : ''
-              return '<figure class="shot shot-card gal-card' + (r.resolved ? ' is-fixed' : '') + '" data-shot="' + esc(r.id) + '">' +
+              return '<figure class="shot shot-card gal-card' + (r.resolved ? ' is-fixed' : '') + (state.sel.has(r.id) ? ' is-sel' : '') + '" data-shot="' + esc(r.id) + '">' +
+                '<button type="button" class="gal-check" data-gal-check="' + esc(r.id) + '" aria-pressed="' + (state.sel.has(r.id) ? 'true' : 'false') + '" aria-label="' + esc(_t('gallery.selectPicture', 'Select picture')) + '">' +
+                  '<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 6L9 17l-5-5"/></svg>' +
+                '</button>' +
                 '<button type="button" class="shot-img-btn" data-gal-zoom="' + esc(r.id) + '" aria-label="' + esc(_t('project.shotZoom', 'Screenshot')) + '">' +
                 '<img alt="' + esc(r.caption || '') + '" decoding="async"></button>' +
                 '<figcaption class="shot-body">' +
-                '<p class="shot-note muted small" dir="auto">' + (esc(r.caption) || '<span class="shot-note-empty">' + esc(_t('gallery.noNote', 'No note')) + '</span>') + '</p>' +
+                '<p class="shot-note muted small' + (r.caption ? ' has-note' : '') + '" dir="auto" data-gal-note="' + esc(r.id) + '" role="button" tabindex="0" title="' + esc(_t('gallery.editNote', 'Click to edit the note')) + '">' + (esc(r.caption) || '<span class="shot-note-empty">' + esc(_t('gallery.noNote', 'No note')) + '</span>') + '</p>' +
                 '<div class="row gal-chips" style="gap:0.3rem;flex-wrap:wrap">' +
                 '<a class="chip gal-project" dir="auto" href="/project.html?id=' + esc(r.project_id) + '" title="' + esc(_t('gallery.openProject', 'Open the project')) + '">' + esc(r.project_title || '') + (r.project_deleted ? ' <span class="gal-deleted">(' + esc(_t('gallery.deletedProject', 'deleted')) + ')</span>' : '') + '</a>' +
                 pin +
@@ -264,6 +435,7 @@
           for (const u of objectUrls) { try { URL.revokeObjectURL(u) } catch {} }
           objectUrls.clear()
           grid.setAttribute('aria-busy', 'false')
+          if (state.selecting) paintSelection()
           observeTiles()
         }
 
@@ -291,6 +463,7 @@
           if (e.target !== projectSel) return
           state.project = projectSel.value
           syncUrl()
+          if (state.selecting) exitSelect() // filter change = new visible set — selection is stale
           render()
         })
         ctx.on('click', async (e) => {
@@ -303,9 +476,23 @@
               c.setAttribute('aria-pressed', on ? 'true' : 'false')
             })
             syncUrl()
+            if (state.selecting) exitSelect() // same as the project filter — stale set
             render()
             return
           }
+          // S79 (b): select-mode first — while selecting, the tile tap PICKS (the whole
+          // image button is a 100%-width target, far beyond the 40px check chip).
+          if (state.selecting) {
+            const pick = e.target.closest('[data-gal-check], [data-gal-zoom]')
+            if (pick) {
+              const id = pick.getAttribute('data-gal-check') || pick.getAttribute('data-gal-zoom')
+              if (state.sel.has(id)) state.sel.delete(id); else state.sel.add(id)
+              paintSelection()
+              return
+            }
+          }
+          const note = e.target.closest('[data-gal-note]')
+          if (note) { galNoteForm(note.getAttribute('data-gal-note')); return }
           const zoom = e.target.closest('[data-gal-zoom]')
           if (zoom) { openLightbox(zoom.getAttribute('data-gal-zoom'), zoom); return }
           const del = e.target.closest('[data-gal-del]')
@@ -321,6 +508,17 @@
           }
           if (lightbox && !e.target.closest('.shot-lightbox')) closeLightbox()
         })
+        // S79: the Select toggle (toolbar) + keyboard parity for the click-to-edit
+        // note (role="button" needs Enter/Space) + Esc exits select mode.
+        if (selectBtn) {
+          selectBtn.addEventListener('click', () => { if (state.selecting) exitSelect(); else enterSelect() })
+        }
+        ctx.on('keydown', (e) => {
+          if (e.key === 'Escape' && state.selecting && !lightbox && !noteDlg) { exitSelect(); return }
+          if (e.key !== 'Enter' && e.key !== ' ') return
+          const note = e.target instanceof Element ? e.target.closest('[data-gal-note]') : null
+          if (note) { e.preventDefault(); galNoteForm(note.getAttribute('data-gal-note')) }
+        })
 
         // the dict may still be loading (i18n.js is deferred) — re-render once ready
         // so FA labels/dates land after the fetch won the race.
@@ -333,5 +531,15 @@
           c.setAttribute('aria-pressed', on ? 'true' : 'false')
         })
         load()
+
+        // soft-navigation away (nav.js calls this on the NEXT page's mount): never
+        // leave a fixed-position selection bar or an open lightbox on the old page —
+        // they're document.body children the shell swap would otherwise orphan.
+        return () => {
+          removeSelBar()
+          closeLightbox()
+          if (noteDlg) { try { noteDlg.close() } catch {} }
+          lazyIO.disconnect()
+        }
       },
     })

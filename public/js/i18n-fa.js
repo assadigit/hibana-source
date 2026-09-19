@@ -496,6 +496,15 @@ window.__hibanaDictFA = {
       'gallery.emptyText': 'تصویرهایی که در صفحهٔ پروژه (تب اسکرین‌شات) آپلود می‌کنی همه اینجا می‌آیند — یک کتابخانهٔ امن و ماندگار.',
       'gallery.lbPrev': 'تصویر قبلی', 'gallery.lbNext': 'تصویر بعدی', 'gallery.lbClose': 'بستن',
       'gallery.emptyCta': 'پروژه‌هایت را باز کن',
+      // S79: نگارخانه از تماشاگر به مدیر — ویرایش یادداشت + مدیریت گروهی فضا
+      'gallery.select': 'انتخاب', 'gallery.exitSelect': 'پایان انتخاب',
+      'gallery.selectOn': 'روی تصویرها بزن تا انتخاب شوند', 'gallery.selectPicture': 'انتخاب تصویر',
+      'gallery.selectedCount': '{n} انتخاب‌شده · ≈{size}',
+      'gallery.deleteSelected': 'حذف انتخاب‌شده‌ها', 'gallery.clearSelection': 'پاک کردن انتخاب',
+      'gallery.deleteSelectedConfirm': '{n} تصویر برای همیشه حذف شود؟ حدود {size} فضا آزاد می‌شود.',
+      'gallery.bulkDeleted': '{n} تصویر حذف شد — فضا آزاد شد', 'gallery.bulkDeletedPartial': '{n} حذف شد · {m} ناموفق',
+      'gallery.editNote': 'برای ویرایش یادداشت کلیک کن',
+      'gallery.noteWandHint': 'یادداشت را فوکوس کن — ✨ جادو بازنویسی یا ترجمه‌اش می‌کند',
       // dev-board + sprints (0029)
       'db.backToProject': 'بازگشت به پروژه', 'db.sprints': 'اسپرینت‌ها', 'db.board': 'برد',
       'db.loading': 'در حال بارگذاری…', 'db.loadFailed': 'بارگذاری ناموفق بود — دوباره تلاش کن', 'db.retry': 'تلاش دوباره',

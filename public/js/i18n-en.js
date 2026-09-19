@@ -497,6 +497,15 @@ window.__hibanaDictEN = {
       'gallery.emptyText': 'Pictures you upload on a project page (the Screenshots tab) all land here — one safe, permanent library.',
       'gallery.lbPrev': 'Previous picture', 'gallery.lbNext': 'Next picture', 'gallery.lbClose': 'Close',
       'gallery.emptyCta': 'Open your projects',
+      // S79: the gallery graduates to manager — note editing + bulk space management
+      'gallery.select': 'Select', 'gallery.exitSelect': 'Done selecting',
+      'gallery.selectOn': 'Tap pictures to pick them', 'gallery.selectPicture': 'Select picture',
+      'gallery.selectedCount': '{n} selected · ≈{size}',
+      'gallery.deleteSelected': 'Delete selected', 'gallery.clearSelection': 'Clear selection',
+      'gallery.deleteSelectedConfirm': 'Delete {n} pictures for good? Frees ≈{size} of space.',
+      'gallery.bulkDeleted': '{n} pictures deleted — space freed', 'gallery.bulkDeletedPartial': '{n} deleted · {m} failed',
+      'gallery.editNote': 'Click to edit the note',
+      'gallery.noteWandHint': 'Focus the note — the ✨ wand polishes or translates it',
       // dev-board + sprints (0029)
       'db.backToProject': 'Back to project', 'db.sprints': 'Sprints', 'db.board': 'Board',
       'db.loading': 'Loading…', 'db.loadFailed': "Couldn't load — try again", 'db.retry': 'Try again',

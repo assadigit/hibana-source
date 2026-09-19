@@ -743,6 +743,154 @@ input::placeholder, textarea::placeholder { font-size: 0.88em; opacity: 0.7; } /
 .gal-deleted { font-style: italic; opacity: 0.7; }
 :root[data-theme="dark"] .gal-pin { color: #D9A55C; }
 
+/* --- S79: the gallery MANAGER — note editing + select mode + bulk delete -----
+   The gallery graduates from viewer to manager; every control below follows the
+   house rules: logical properties (RTL-safe), 40px touch floor on coarse pointers,
+   reduced-motion + prefers-contrast guards, tabular numerals for live counts. */
+/* the Select toggle rides the filter row at chip scale — its active state matches
+   the .gallery-state chips so "mode" and "filter" read as one family */
+.gallery-select { cursor: pointer; }
+.gallery-select.is-on { border-color: var(--brand); color: var(--brand); }
+
+/* click-to-edit note affordance: editable text announces itself on hover/focus
+   without shouting (dotted underline + cursor), the same family as the project
+   page's shot-note. The empty state carries the affordance too — "no note" is
+   the strongest invitation to write one. */
+.gal-card .shot-note[data-gal-note] { cursor: pointer; border-radius: 4px; }
+.gal-card .shot-note[data-gal-note]:hover {
+  color: var(--text);
+  text-decoration: underline dotted;
+  text-underline-offset: 3px;
+}
+.gal-card .shot-note[data-gal-note]:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: 2px;
+  text-decoration: none;
+}
+
+/* the per-tile check: hidden (display:none — out of the a11y tree + tab order)
+   unless the grid is in select mode; a glassy dark disc that reads on ANY image,
+   brand-filled when picked, checkmark scales in. Coarse pointers grow it to the
+   40px touch floor. */
+.gal-card { position: relative; }
+.gal-check {
+  display: none;
+  position: absolute; top: 0.5rem; inset-inline-end: 0.5rem; z-index: 3;
+  inline-size: 30px; block-size: 30px;
+  align-items: center; justify-content: center;
+  border-radius: 999px;
+  border: 2px solid rgb(255 255 255 / 0.85);
+  background: rgb(0 0 0 / 0.45);
+  color: #fff;
+  cursor: pointer;
+  backdrop-filter: blur(2px);
+  -webkit-backdrop-filter: blur(2px);
+}
+.gallery-grid[data-selecting] .gal-check { display: inline-flex; }
+.gal-check .icon { stroke-width: 2.6; transform: scale(0.55); opacity: 0.55; transition: transform 0.15s ease, opacity 0.15s ease; }
+.gal-check:hover { background: rgb(0 0 0 / 0.6); }
+.gal-check:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
+.gal-card.is-sel .gal-check { background: var(--brand); border-color: var(--brand); }
+.gal-card.is-sel .gal-check .icon { transform: scale(1); opacity: 1; }
+/* the picked tile: a brand ring on the picture frame itself (the check alone is
+   small proof; the ring is visible from across the grid at a glance) */
+.gal-card.is-sel .shot-img-btn { box-shadow: inset 0 0 0 2px var(--brand); }
+.gal-card.is-sel .shot-img-btn img.is-in { opacity: 1; } /* picked beats the fixed-dim */
+/* while selecting, the whole tile is the pick target — the hover cue says so */
+.gallery-grid[data-selecting] .shot-img-btn { cursor: pointer; }
+@media (hover: none) {
+  .gallery-grid[data-selecting] .gal-check { inline-size: 40px; block-size: 40px; }
+}
+
+/* the sticky selection bar: a floating pill pinned to the viewport bottom (safe-
+   area aware), live count with tabular numerals, Clear + a danger Delete. Slides
+   up on entry; wraps center-aligned on narrow screens; Esc / Done / any filter
+   change dismisses it. */
+.gal-selbar {
+  position: fixed; z-index: 40;
+  inset-inline: 0;
+  bottom: calc(0.75rem + env(safe-area-inset-bottom, 0px));
+  margin-inline: auto;
+  max-inline-size: min(44rem, calc(100vw - 1.5rem));
+  display: flex; align-items: center; justify-content: space-between; gap: 0.75rem;
+  padding: 0.5rem 0.5rem 0.5rem 1rem;
+  background: var(--card);
+  border: 1px solid var(--line-strong);
+  border-radius: 999px;
+  box-shadow:
+    0 18px 44px rgb(0 0 0 / 0.22),
+    0 4px 12px rgb(0 0 0 / 0.12);
+  animation: gal-selbar-in 0.22s ease;
+}
+/* MOBILE: the bottom mobile-nav (fixed, z=50 — polish-ui.css) owns the edge; the
+   selection bar sits ABOVE it (nav 3.75rem + safe area + the 0.75rem gap) instead of
+   fighting it for z — both stay reachable while selecting. Desktop keeps the plain
+   bottom position (the nav is display:none there). */
+body.has-mobile-nav .gal-selbar { bottom: calc(4.5rem + env(safe-area-inset-bottom, 0px)); }
+/* FA: the leading padding sits on the LOGICAL start side; RTL mirrors automatically
+   because the padding is physical — swap via the dir selector for symmetric feel */
+[dir="rtl"] .gal-selbar { padding: 0.5rem 1rem 0.5rem 0.5rem; }
+@keyframes gal-selbar-in {
+  from { opacity: 0; transform: translateY(14px); }
+  to { opacity: 1; transform: none; }
+}
+.gal-selbar-count {
+  font-size: var(--fs-sm); font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--text);
+  min-inline-size: 0; flex: 1 1 auto;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.gal-selbar.is-empty .gal-selbar-count { color: var(--muted); font-weight: 500; }
+.gal-selbar-btns { display: flex; gap: 0.5rem; flex-wrap: wrap; flex: 0 0 auto; }
+.gal-selbar-btns .btn, .gal-selbar-btns .ghost { min-block-size: 40px; }
+.gal-selbar-btns .btn:disabled, .gal-selbar-btns .ghost:disabled { opacity: 0.45; cursor: not-allowed; }
+@media (max-width: 640px) {
+  .gal-selbar { flex-wrap: wrap; justify-content: center; border-radius: var(--radius); text-align: center; padding: 0.6rem; }
+  .gal-selbar-count { flex-basis: 100%; white-space: normal; }
+  .gal-selbar-btns { justify-content: center; }
+}
+
+/* the note editor modal: same shape as the project page's S46 editor (a real
+   textarea, compact actions) + the wand hint line. The textarea carries
+   [data-magic] — the wand anchors at its corner inside the dialog. */
+dialog.gal-note-modal {
+  inline-size: min(34rem, 92vw);
+  max-inline-size: min(34rem, 92vw);
+  max-block-size: min(80vh, 40rem);
+}
+.gal-note-inner { padding: 1.1rem; display: grid; gap: 0.6rem; }
+.gal-note-head h3 { margin: 0; }
+.gal-note-body { display: grid; gap: 0.6rem; }
+.gal-note-ta {
+  width: 100%; box-sizing: border-box;
+  min-block-size: 8rem; resize: vertical;
+  font: inherit; font-size: var(--fs-md); line-height: 1.55;
+  padding: 0.6rem; border: 1px solid var(--line); border-radius: var(--radius);
+  background: var(--bg); color: var(--text);
+}
+.gal-note-ta:focus-visible {
+  outline: 2px solid var(--brand); outline-offset: 1px;
+  border-color: var(--brand);
+}
+.gal-note-actions {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 0.75rem; flex-wrap: wrap;
+}
+.gal-note-hint { flex: 1 1 12rem; min-inline-size: 0; line-height: 1.4; }
+.gal-note-btns { display: flex; gap: 0.4rem; flex-wrap: wrap; }
+.gal-note-btns .btn, .gal-note-btns .ghost { font-size: var(--fs-xs); padding: 0.2rem 0.6rem; min-block-size: 0; }
+
+@media (prefers-reduced-motion: reduce) {
+  .gal-selbar { animation: none; }
+  .gal-check .icon { transition: none; }
+}
+@media (prefers-contrast: more) {
+  .gal-check { border-width: 3px; }
+  .gal-card.is-sel .shot-img-btn { box-shadow: inset 0 0 0 3px var(--brand); }
+  .gal-selbar { border-width: 2px; }
+}
+
 /* --- dashboard stats ------------------------------------------------------- */
 .stat-strip {
   display: grid;

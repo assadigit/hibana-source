@@ -891,6 +891,76 @@ dialog.gal-note-modal {
   .gal-selbar { border-width: 2px; }
 }
 
+/* --- S80: the cleanup pass gets its power tools — sort + select-all + ranges --
+   The gallery's tools row gains the display order (newest / oldest / LARGEST /
+   smallest — the space story gets an order), the selection bar gains the master
+   toggle, and the tile footer's size becomes the leading fact when the order IS
+   the size story. Every rule follows the S79 house rules: logical properties
+   (RTL-safe), 40px touch floor on coarse pointers, reduced-motion + contrast
+   guards, tabular numerals for live counts. */
+/* the sort select rides the tools row at CHIP scale — a display control, not a text
+   field: pill radius + accent-soft fill like the state chips beside it, the base
+   select's muted chevron (RTL-flipped by base.css), and the same is-on brand cue
+   the active filter chip carries so "order" and "filter" read as one family. */
+.gallery-sort-select {
+  max-inline-size: 11rem;
+  min-block-size: 2.3rem;
+  padding-block: 0.25rem;
+  padding-inline: 0.7rem 2.1rem;
+  border-radius: 999px;
+  border-color: transparent;
+  background-color: var(--accent-soft);
+  font-size: var(--fs-sm);
+  font-weight: 500;
+  cursor: pointer;
+}
+.gallery-sort-select:hover { border-color: var(--line-strong); }
+.gallery-sort-select.is-on { border-color: var(--brand); color: var(--brand); font-weight: 600; }
+.gallery-sort-select:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
+@media (hover: none) { .gallery-sort-select { min-block-size: 40px; } }
+@media (max-width: 640px) { .gallery-sort-select { max-inline-size: 100%; } }
+
+/* when the display order IS the size story, the per-card size stops being a muted
+   footnote: text color + weight + tabular numerals promote it to the leading fact
+   (the date stays its old muted self — only what the sort is about gets promoted). */
+.gallery-grid[data-sort-size] .shot-size {
+  color: var(--text);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+@media (prefers-contrast: more) {
+  .gallery-grid[data-sort-size] .shot-size { text-decoration: underline; text-underline-offset: 3px; }
+}
+
+/* the master toggle ("Select all (n)" / "Deselect all") leads the bar's actions —
+   brand-tinted when the set is complete so the mirrored state reads at a glance. */
+.gal-selbar-all { font-weight: 600; }
+.gal-selbar.is-all .gal-selbar-all { color: var(--brand); border-color: var(--brand); }
+.gal-selbar.is-empty .gal-selbar-all { color: var(--text); } /* the empty bar's CTA is "Select all", not a disabled dim */
+
+/* the selection bar over ANY content: glassy — the card surface at 86% over a soft
+   blur + saturation lift reads as a floating layer in BOTH themes (the opaque
+   fallback paints automatically where backdrop-filter is unsupported). */
+@supports (backdrop-filter: blur(1px)) {
+  .gal-selbar {
+    background: color-mix(in srgb, var(--card) 86%, transparent);
+    backdrop-filter: blur(10px) saturate(1.2);
+    -webkit-backdrop-filter: blur(10px) saturate(1.2);
+  }
+}
+/* the Shift+click range hint: desktop pointers get the affordance on the bar's
+   empty state (touch can't shift-click — coarse pointers never see the hint). */
+@media (hover: hover) and (pointer: fine) {
+  .gal-selbar.is-empty .gal-selbar-count::after {
+    content: attr(data-range-hint);
+    display: block;
+    color: var(--muted);
+    font-size: var(--fs-xs);
+    font-weight: 500;
+    line-height: 1.35;
+  }
+}
+
 /* --- dashboard stats ------------------------------------------------------- */
 .stat-strip {
   display: grid;

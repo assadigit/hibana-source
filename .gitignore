@@ -38,3 +38,4 @@ hibana.db-wal
 tmp-debug/
 scripts/tmp/
 .tmp-s*/
+.qa-tmp/

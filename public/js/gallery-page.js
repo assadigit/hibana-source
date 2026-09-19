@@ -16,6 +16,15 @@
     //       frees the space in one pass (the owner's original gallery ask was exactly
     //       "delete the unneeded files to make up more space" — one-by-one confirm
     //       dialogs made a cleanup pass of 30 pictures 30 confirms deep).
+    //
+    // S80 — the cleanup pass gets its power tools:
+    //   (c) SORT: newest / oldest / LARGEST / smallest (the space story gets an order —
+    //       biggest offenders first is the natural cleanup view; ?sort= deep-linkable,
+    //       re-ordering never invalidates selections unlike filters).
+    //   (d) SELECT ALL VISIBLE: the master toggle in the selection bar (Gmail/Photos
+    //       semantics — mirrors "Select all (n)" / "Deselect all" against the filtered set).
+    //   (e) SHIFT+CLICK RANGE PICKS: file-manager semantics (ranges ADD; the anchor is
+    //       the last individual pick, reset on re-render/exit so it can never mislead).
     window.__hibanaPage = window.__hibanaPage || ((d) => (window.__hibanaPageQueue = window.__hibanaPageQueue || []).push(d))
     window.__hibanaPage({
       name: 'gallery',
@@ -26,30 +35,39 @@
         const grid = document.getElementById('gallery-grid')
         const stats = document.getElementById('gallery-stats')
         const projectSel = document.getElementById('gallery-project')
+        const sortSel = document.getElementById('gallery-sort')
         const selectBtn = document.getElementById('gallery-select-btn')
         if (!grid) return
+        // S80 — the anchor of Shift+click range picks (index within visible()).
+        let lastPickIdx = null
 
-        const state = { rows: [], project: '', gs: 'all', selecting: false, sel: new Set() }
+        const state = { rows: [], project: '', gs: 'all', sort: 'new', selecting: false, sel: new Set() }
         // S59b — URL params (deep-linkable filters, "never lose your place"):
         //   ?project=<id>  preselects the project filter
         //   ?gs=open|fixed|pinned|all  preselects the state filter
+        // S80 — one more dimension:
+        //   ?sort=new|old|big|small  preselects the display order
         // Filter changes replaceState the URL (no history spam); defaults drop their
         // param so the canonical URL stays clean. On load the project param is
         // VALIDATED against real rows — a stale/bookmarked id for a now-empty project
         // falls back to All (an empty grid with a silent filter would read as data loss).
         const GS_VALUES = new Set(['all', 'open', 'fixed', 'pinned'])
+        const SORT_VALUES = new Set(['new', 'old', 'big', 'small'])
         const urlParams = () => new URLSearchParams(location.search)
         const readUrl = () => {
           const p = urlParams()
           const proj = p.get('project')
           const gs = p.get('gs')
+          const sort = p.get('sort')
           if (proj && /^[a-f0-9-]{6,64}$/i.test(proj)) state.project = proj
           if (gs && GS_VALUES.has(gs)) state.gs = gs
+          if (sort && SORT_VALUES.has(sort)) state.sort = sort
         }
         const syncUrl = () => {
           const p = urlParams()
           if (state.project) p.set('project', state.project); else p.delete('project')
           if (state.gs !== 'all') p.set('gs', state.gs); else p.delete('gs')
+          if (state.sort !== 'new') p.set('sort', state.sort); else p.delete('sort')
           const q = p.toString()
           history.replaceState(null, '', location.pathname + (q ? '?' + q : '') + location.hash)
         }
@@ -146,13 +164,23 @@
           else if (e.key === back) lbStep(-1)
         })
 
-        const visible = () => state.rows.filter((r) => {
-          if (state.project && r.project_id !== state.project) return false
-          if (state.gs === 'open' && r.resolved) return false
-          if (state.gs === 'fixed' && !r.resolved) return false
-          if (state.gs === 'pinned' && !r.task_id) return false
-          return true
-        })
+        const visible = () => {
+          const rows = state.rows.filter((r) => {
+            if (state.project && r.project_id !== state.project) return false
+            if (state.gs === 'open' && r.resolved) return false
+            if (state.gs === 'fixed' && !r.resolved) return false
+            if (state.gs === 'pinned' && !r.task_id) return false
+            return true
+          })
+          // S80 — the display order. 'new' is the API's own order (created_at DESC —
+          // kept byte-identical to the pre-sort behavior, ties included); the other
+          // three are explicit client-side comparators. The lightbox walks THIS order,
+          // so browsing follows whatever the eye currently sees.
+          if (state.sort === 'old') rows.reverse()
+          else if (state.sort === 'big') rows.sort((a, b) => (b.bytes || 0) - (a.bytes || 0))
+          else if (state.sort === 'small') rows.sort((a, b) => (a.bytes || 0) - (b.bytes || 0))
+          return rows
+        }
 
         // S69 (perf §10-F1): TRUE lazy tiles. Native loading="lazy" was ineffective —
         // Chromium's lazy-prefetch margin (~4 viewports) covered the whole 70-tile grid,
@@ -305,6 +333,17 @@
         // (CSS gates them on [data-selecting]) so a mode flip never rebuilds the grid.
         let selBar = null
         const selBytes = () => state.rows.filter((r) => state.sel.has(r.id)).reduce((n, r) => n + (r.bytes || 0), 0)
+        // S80 — every visible row picked (or not — the master toggle). Picking ALL is
+        // the cleanup pass's natural gesture: sort by size → Select all → Delete →
+        // space freed; the label flips to "Deselect all" once the set is complete
+        // (Gmail/Photos semantics — the master control mirrors the state it controls).
+        const selectAllVisible = () => {
+          const rows = visible()
+          const allOn = rows.length > 0 && rows.every((r) => state.sel.has(r.id))
+          if (allOn) state.sel.clear()
+          else rows.forEach((r) => state.sel.add(r.id))
+          paintSelection()
+        }
         const ensureSelBar = () => {
           if (selBar) return selBar
           selBar = document.createElement('div')
@@ -314,9 +353,11 @@
           selBar.innerHTML =
             '<span class="gal-selbar-count"></span>' +
             '<span class="gal-selbar-btns">' +
+              '<button type="button" class="ghost small gal-selbar-all"></button>' +
               '<button type="button" class="ghost small gal-selbar-clear">' + esc(_t('gallery.clearSelection', 'Clear selection')) + '</button>' +
               '<button type="button" class="btn small danger gal-selbar-del">' + esc(_t('gallery.deleteSelected', 'Delete selected')) + '</button>' +
             '</span>'
+          selBar.querySelector('.gal-selbar-all').addEventListener('click', selectAllVisible)
           selBar.querySelector('.gal-selbar-clear').addEventListener('click', () => { state.sel.clear(); paintSelection() })
           selBar.querySelector('.gal-selbar-del').addEventListener('click', deleteSelected)
           document.body.appendChild(selBar)
@@ -332,12 +373,31 @@
           })
           if (!state.selecting) { removeSelBar(); return }
           const bar = ensureSelBar()
+          const vis = visible()
           const n = state.sel.size
           const size = fmtSize(selBytes()) || '0 KB'
-          bar.querySelector('.gal-selbar-count').textContent =
+          const countEl = bar.querySelector('.gal-selbar-count')
+          countEl.textContent =
             n === 0
               ? _t('gallery.selectOn', 'Tap pictures to pick them')
               : _t('gallery.selectedCount', '{n} selected · ≈{size}').split('{n}').join(dig(n)).split('{size}').join(dig(size))
+          // the desktop range affordance rides the empty bar's count (CSS shows it only
+          // for hover+fine pointers — touch can't shift-click and never sees the hint)
+          countEl.setAttribute('data-range-hint', _t('gallery.rangeHint', 'Shift+click picks a range'))
+          // the master toggle mirrors the visible set: "Select all (n)" while anything
+          // is unpicked, "Deselect all" once the set is complete (it clears ALL picks,
+          // including any now-hidden by filters — Clear selection's exact job, but the
+          // mirrored label is what makes the state legible).
+          const allBtn = bar.querySelector('.gal-selbar-all')
+          let allOn = false
+          if (allBtn) {
+            allOn = vis.length > 0 && vis.every((r) => state.sel.has(r.id))
+            allBtn.textContent = allOn
+              ? _t('gallery.deselectAll', 'Deselect all')
+              : _t('gallery.selectAll', 'Select all ({n})').split('{n}').join(dig(vis.length))
+            allBtn.disabled = vis.length === 0
+          }
+          bar.classList.toggle('is-all', allOn)
           bar.classList.toggle('is-empty', n === 0)
           bar.querySelector('.gal-selbar-del').disabled = n === 0
           bar.querySelector('.gal-selbar-clear').disabled = n === 0
@@ -355,6 +415,7 @@
         const exitSelect = () => {
           state.selecting = false
           state.sel.clear()
+          lastPickIdx = null // a fresh session must not shift-range off a stale anchor
           if (selectBtn) {
             selectBtn.setAttribute('aria-pressed', 'false')
             selectBtn.classList.remove('is-on')
@@ -406,6 +467,12 @@
               projects.map((p) => '<option value="' + esc(p.id) + '"' + (p.id === state.project ? ' selected' : '') + '>' + esc(p.title) + '</option>').join('')
           }
           const rows = visible()
+          // S80: the size-emphasis hook — when the display order IS the size story
+          // (largest/smallest first), the per-card size stops being a footnote and
+          // becomes the leading fact; CSS bumps it (layout.css [data-sort-size]).
+          grid.setAttribute('data-sort-size', state.sort === 'big' || state.sort === 'small' ? state.sort : '')
+          if (sortSel) sortSel.classList.toggle('is-on', state.sort !== 'new')
+          lastPickIdx = null // a re-render re-orders tiles — a stale range anchor misleads
           grid.innerHTML = rows.length
             ? rows.map((r) => {
               const pin = r.task_id
@@ -425,7 +492,7 @@
                 '</div>' +
                 '<div class="row spread shot-actions">' +
                 '<span class="shot-state' + (r.resolved ? ' is-fixed' : '') + '">' + (r.resolved ? '✓ ' + esc(_t('gallery.fixed', 'Fixed')) : esc(_t('gallery.open', 'Open'))) + '</span>' +
-                '<span class="muted small">' + esc(fmtDate(r.created_at)) + (r.bytes ? ' · ' + dig(fmtSize(r.bytes)) : '') + '</span>' +
+                '<span class="muted small shot-size">' + esc(fmtDate(r.created_at)) + (r.bytes ? ' · ' + dig(fmtSize(r.bytes)) : '') + '</span>' +
                 '<button type="button" class="ghost small danger" data-gal-del="' + esc(r.id) + '" title="' + esc(_t('gallery.delete', 'Delete')) + '" aria-label="' + esc(_t('gallery.delete', 'Delete')) + '"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button>' +
                 '</div></figcaption></figure>'
             }).join('')
@@ -460,7 +527,15 @@
         }
 
         ctx.on('change', (e) => {
-          if (e.target !== projectSel) return
+          if (e.target !== projectSel && e.target !== sortSel) return
+          if (e.target === sortSel) {
+            // S80 — a sort change only RE-ORDERS the visible set (never changes
+            // membership), so selections stay valid — unlike the filters below.
+            state.sort = SORT_VALUES.has(sortSel.value) ? sortSel.value : 'new'
+            syncUrl()
+            render()
+            return
+          }
           state.project = projectSel.value
           syncUrl()
           if (state.selecting) exitSelect() // filter change = new visible set — selection is stale
@@ -482,11 +557,23 @@
           }
           // S79 (b): select-mode first — while selecting, the tile tap PICKS (the whole
           // image button is a 100%-width target, far beyond the 40px check chip).
+          // S80: Shift+click picks the RANGE from the last individual pick to here
+          // (file-manager semantics: ranges ADD — a mid-range unpick doesn't carve a
+          // hole; unselect stays a deliberate single tap).
           if (state.selecting) {
             const pick = e.target.closest('[data-gal-check], [data-gal-zoom]')
             if (pick) {
               const id = pick.getAttribute('data-gal-check') || pick.getAttribute('data-gal-zoom')
-              if (state.sel.has(id)) state.sel.delete(id); else state.sel.add(id)
+              const rows = visible()
+              const idx = rows.findIndex((r) => r.id === id)
+              if (e.shiftKey && lastPickIdx != null && idx >= 0 && idx !== lastPickIdx) {
+                const a = Math.min(lastPickIdx, idx)
+                const b = Math.max(lastPickIdx, idx)
+                for (let i = a; i <= b; i++) state.sel.add(rows[i].id)
+              } else {
+                if (state.sel.has(id)) state.sel.delete(id); else state.sel.add(id)
+                lastPickIdx = idx
+              }
               paintSelection()
               return
             }
@@ -524,12 +611,13 @@
         // so FA labels/dates land after the fetch won the race.
         if (window.hibanaI18n?.ready) window.hibanaI18n.ready.then(() => render()).catch(() => {})
         readUrl()
-        // reflect a URL-provided state filter on its chip BEFORE any render
+        // reflect a URL-provided state filter on its chip + sort on its select BEFORE any render
         document.querySelectorAll('.gallery-state').forEach((c) => {
           const on = c.getAttribute('data-gs') === state.gs
           c.classList.toggle('is-on', on)
           c.setAttribute('aria-pressed', on ? 'true' : 'false')
         })
+        if (sortSel) sortSel.value = state.sort
         load()
 
         // soft-navigation away (nav.js calls this on the NEXT page's mount): never

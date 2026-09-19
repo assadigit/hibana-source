@@ -13,7 +13,7 @@
 // changelog until S49 trimmed it — every prior entry is recoverable verbatim:
 // `git show <sha>:public/sw.js`).
 
-const VERSION = "hibana-v401" // bump on sw.js logic changes — see Changelogs.md §1 (current state) + git log (full history). v401 (S72): the nav partial's SHELL entry + hib-init's fetch are now versioned (?v=3) — the CF edge cache served a STALE nav.html for hours after deploy (deploy token can't purge the zone), and unversioned URLs made every future nav change nondeterministic. v400 (S70): fabric.min.js out of the SHELL precache.
+const VERSION = "hibana-v402" // bump on sw.js logic changes — see Changelogs.md §1 (current state) + git log (full history). v402 (S80): i18n-fa.js out of the install-time manifest precache (the Vazir/fabric class — FA-only bundle, EN users never inject it; ensureFaDict fetches it on the first FA view where Class 1a caches it for offline). v401 (S72): the nav partial's SHELL entry + hib-init's fetch are now versioned (?v=3) — the CF edge cache served a STALE nav.html for hours after deploy (deploy token can't purge the zone), and unversioned URLs made every future nav change nondeterministic. v400 (S70): fabric.min.js out of the SHELL precache.
 
 // Static shell: unhashed pages/partials/icons/vendor/fonts (SWR or network-first at
 // runtime; precached here for offline). The hashed app bundles come from the manifest
@@ -103,13 +103,21 @@ self.addEventListener('install', (e) => {
       )
       // Manifest-driven precache: the hashed app bundles (app.<hash>.js etc.). Best-effort
       // per file: one missing hash must not kill installation for the whole shell.
+      // S80 (§10-D, the Vazir/fabric precedent class): i18n-fa.js is FA-ONLY — EN users
+      // never inject it (i18n.js:ensureFaDict fires only when lang resolves to fa), so
+      // precaching it billed every EN install 436KB raw / 74KB gz for a bundle only the
+      // FA minority ever fetches. It stays a normal manifest entry: the first FA page
+      // view injects it like any dist bundle and Class 1a (cache-first) holds it for
+      // offline from then on. Offline degradation mirrors the Vazir fonts' accepted
+      // contract: an EN→FA flip while offline, before any online FA load, keeps EN copy
+      // (ensureFaDict's onerror resolves with dict.fa = {} and t() falls back).
       try {
         const res = await fetch('/dist/manifest.json', { cache: 'no-store' })
         if (res.ok) {
           const manifest = await res.json()
-          const hashed = Object.values(manifest || {}).filter(
-            (v) => typeof v === 'string' && v.startsWith('dist/'),
-          )
+          const hashed = Object.entries(manifest || {})
+            .filter(([k, v]) => typeof v === 'string' && v.startsWith('dist/') && k !== 'i18n-fa.js')
+            .map(([, v]) => v)
           await Promise.allSettled(
             hashed.map((rel) =>
               cache.add(`/${rel}`).catch(() => {

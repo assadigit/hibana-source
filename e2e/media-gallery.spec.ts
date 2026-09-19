@@ -478,3 +478,101 @@ test('the gallery manager: click-to-edit note modal (wand rides it) + Select mod
 
   expect(errors).toEqual([])
 })
+
+test('the gallery power tools: sort order + Select all + Shift-click ranges (S80)', async ({ page, browserName }) => {
+  test.skip(browserName !== 'chromium', 'Desktop Chromium only')
+  const errors = trackErrors(page)
+  await login(page)
+
+  // five shots with DISTINCT sizes + dates — the sort story needs real variance
+  const pid = ((await api(page, '/api/projects', 'POST', { title: `e2e s80 tools ${Date.now()}` })) as { json: { id: string } }).json.id
+  const { DatabaseSync } = await import('node:sqlite')
+  const db = new DatabaseSync('/tmp/hibana-e2e.db')
+  db.prepare("DELETE FROM screenshots WHERE project_id IN (SELECT id FROM projects WHERE user_id = (SELECT id FROM users WHERE email = ?))").run(TEST_EMAIL)
+  const ids = [crypto.randomUUID(), crypto.randomUUID(), crypto.randomUUID(), crypto.randomUUID(), crypto.randomUUID()]
+  const bytes = [400_000, 50_000, 900_000, 150_000, 700_000] // alpha bravo charlie delta echo
+  const dates = ['2026-09-01T10:00:00Z', '2026-09-05T10:00:00Z', '2026-09-10T10:00:00Z', '2026-09-15T10:00:00Z', '2026-09-18T10:00:00Z']
+  for (let i = 0; i < ids.length; i++) {
+    db.prepare('INSERT INTO screenshots (id, project_id, github_path, mime_type, caption, resolved, bytes, created_at) VALUES (?, ?, ?, ?, ?, 0, ?, ?)')
+      .run(ids[i], pid, `e2e/${ids[i]}.png`, 'image/png', `S80 ${i}`, bytes[i], dates[i])
+  }
+  db.close()
+
+  await page.goto('/gallery.html')
+  await page.waitForSelector('.gal-card')
+  await expect(page.locator('.gal-card')).toHaveCount(5)
+
+  // ---- default order = API order (newest first: echo…alpha) ---------------------
+  const capOf = (i: number) => page.locator('.gal-card').nth(i).locator('.shot-note')
+  await expect(capOf(0)).toContainText('S80 4') // echo — newest
+  await expect(capOf(4)).toContainText('S80 0') // alpha — oldest
+
+  // ---- SORT: largest first — the space story gets an order ---------------------
+  await page.selectOption('#gallery-sort', 'big')
+  await expect(page.locator('#gallery-grid')).toHaveAttribute('data-sort-size', 'big')
+  await expect(page.locator('#gallery-sort')).toHaveClass(/is-on/)
+  await expect(page.locator('.gal-card').first().locator('.shot-note')).toContainText('S80 2') // charlie 900KB
+  await expect(page.locator('.gal-card').last().locator('.shot-note')).toContainText('S80 1') // bravo 50KB
+  await expect(page.locator('.gal-card').first().locator('.shot-size')).toContainText('879 KB')
+  // the URL carries the deep-linkable param
+  await expect(page).toHaveURL(/sort=big/)
+  // the emphasis hook promoted the size to the leading fact (weight 600, text color)
+  const sizeWeight = await page.locator('.gal-card').first().locator('.shot-size').evaluate((el) => getComputedStyle(el).fontWeight)
+  expect(sizeWeight).toBe('600')
+
+  // a sort change re-renders WITHOUT rebuilding the API call set (client-side order)
+  await page.selectOption('#gallery-sort', 'old')
+  await expect(page.locator('.gal-card').first().locator('.shot-note')).toContainText('S80 0') // alpha first now
+  await expect(page).toHaveURL(/sort=old/)
+  await expect(page.locator('#gallery-grid')).toHaveAttribute('data-sort-size', '')
+
+  // ---- SELECT ALL: the master toggle mirrors the visible set ------------------
+  await page.click('#gallery-select-btn')
+  await expect(page.locator('.gal-selbar')).toBeVisible()
+  await expect(page.locator('.gal-selbar-all')).toContainText('Select all (5)')
+  await page.click('.gal-selbar-all')
+  await expect(page.locator('.gal-card.is-sel')).toHaveCount(5)
+  await expect(page.locator('.gal-selbar-count')).toContainText('5 selected')
+  await expect(page.locator('.gal-selbar-all')).toContainText('Deselect all')
+  await expect(page.locator('.gal-selbar')).toHaveClass(/is-all/)
+  // the master toggle flips back — clearing everything
+  await page.click('.gal-selbar-all')
+  await expect(page.locator('.gal-card.is-sel')).toHaveCount(0)
+  await expect(page.locator('.gal-selbar-all')).toContainText('Select all (5)')
+
+  // ---- SHIFT+CLICK ranges: file-manager semantics (ranges ADD) ----------------
+  // pick the anchor (index 0 = alpha in old-first order), shift-click index 2 → 3 picks
+  await page.locator('.gal-card').nth(0).locator('.shot-img-btn').click()
+  await expect(page.locator('.gal-card.is-sel')).toHaveCount(1)
+  await page.locator('.gal-card').nth(2).locator('.shot-img-btn').click({ modifiers: ['Shift'] })
+  await expect(page.locator('.gal-card.is-sel')).toHaveCount(3)
+  await expect(page.locator('.gal-selbar-count')).toContainText('3 selected')
+  // a SECOND range extends from the new anchor (2 → 4): picks 3,4 ADD, 0..2 stay
+  await page.locator('.gal-card').nth(4).locator('.shot-img-btn').click({ modifiers: ['Shift'] })
+  await expect(page.locator('.gal-card.is-sel')).toHaveCount(5)
+
+  // ---- the master toggle mirrors against the FULL set → Deselect all ----------
+  await expect(page.locator('.gal-selbar-all')).toContainText('Deselect all')
+  await page.click('.gal-selbar-all')
+  await expect(page.locator('.gal-card.is-sel')).toHaveCount(0)
+
+  // ---- sort while selecting: order changes, picks SURVIVE (no stale exit) -----
+  await page.selectOption('#gallery-sort', 'big')
+  await page.locator('.gal-card').nth(0).locator('.shot-img-btn').click()
+  await page.selectOption('#gallery-sort', 'new')
+  await expect(page.locator('#gallery-grid')).toHaveAttribute('data-selecting', '')
+  await expect(page.locator('.gal-card.is-sel')).toHaveCount(1)
+  await expect(page.locator('.gal-selbar-count')).toContainText('1 selected')
+
+  // ---- deep link: ?sort=big lands sorted without touching the control ---------
+  await page.goto('/gallery.html?sort=big')
+  await page.waitForSelector('.gal-card')
+  await expect(page.locator('#gallery-sort')).toHaveValue('big')
+  await expect(page.locator('.gal-card').first().locator('.shot-note')).toContainText('S80 2')
+  // a stray value degrades to the default (no crash, canonical order)
+  await page.goto('/gallery.html?sort=garbage')
+  await page.waitForSelector('.gal-card')
+  await expect(page.locator('#gallery-sort')).toHaveValue('new')
+
+  expect(errors).toEqual([])
+})

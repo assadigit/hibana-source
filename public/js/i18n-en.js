@@ -506,6 +506,12 @@ window.__hibanaDictEN = {
       'gallery.bulkDeleted': '{n} pictures deleted — space freed', 'gallery.bulkDeletedPartial': '{n} deleted · {m} failed',
       'gallery.editNote': 'Click to edit the note',
       'gallery.noteWandHint': 'Focus the note — the ✨ wand polishes or translates it',
+      // S80: sort control + select-all + the range-pick affordance hint
+      'gallery.sortBy': 'Sort by',
+      'gallery.sortNew': 'Newest first', 'gallery.sortOld': 'Oldest first',
+      'gallery.sortBig': 'Largest first', 'gallery.sortSmall': 'Smallest first',
+      'gallery.selectAll': 'Select all ({n})', 'gallery.deselectAll': 'Deselect all',
+      'gallery.rangeHint': 'Shift+click picks a range',
       // dev-board + sprints (0029)
       'db.backToProject': 'Back to project', 'db.sprints': 'Sprints', 'db.board': 'Board',
       'db.loading': 'Loading…', 'db.loadFailed': "Couldn't load — try again", 'db.retry': 'Try again',

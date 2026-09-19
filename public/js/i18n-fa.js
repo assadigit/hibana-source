@@ -505,6 +505,12 @@ window.__hibanaDictFA = {
       'gallery.bulkDeleted': '{n} تصویر حذف شد — فضا آزاد شد', 'gallery.bulkDeletedPartial': '{n} حذف شد · {m} ناموفق',
       'gallery.editNote': 'برای ویرایش یادداشت کلیک کن',
       'gallery.noteWandHint': 'یادداشت را فوکوس کن — ✨ جادو بازنویسی یا ترجمه‌اش می‌کند',
+      // S80: مرتب‌سازی + انتخاب همه
+      'gallery.sortBy': 'مرتب‌سازی',
+      'gallery.sortNew': 'جدیدترین', 'gallery.sortOld': 'قدیمی‌ترین',
+      'gallery.sortBig': 'حجیم‌ترین', 'gallery.sortSmall': 'سبک‌ترین',
+      'gallery.selectAll': 'انتخاب همه ({n})', 'gallery.deselectAll': 'لغو انتخاب همه',
+      'gallery.rangeHint': 'Shift+کلیک یک بازه را انتخاب می‌کند',
       // dev-board + sprints (0029)
       'db.backToProject': 'بازگشت به پروژه', 'db.sprints': 'اسپرینت‌ها', 'db.board': 'برد',
       'db.loading': 'در حال بارگذاری…', 'db.loadFailed': 'بارگذاری ناموفق بود — دوباره تلاش کن', 'db.retry': 'تلاش دوباره',

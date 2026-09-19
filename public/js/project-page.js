@@ -37,8 +37,10 @@
             const status = document.querySelector('#project-body [data-status]')?.dataset.status
             if (h1 && h1.textContent) {
               window.hibanaCmdK?.recordRecent?.(id, h1.textContent.trim(), status || '')
-              // S71: the resume strip ("never lose your place") — record the visit.
-              window.hibanaResume?.record?.('project', id, h1.textContent.trim())
+              // S71/S85: the merged "Continue where you left off" component — record the
+              // visit WITH the project's stage slug so the hero renders its fixed-palette
+              // status badge (the ONE shared last-opened timestamp everywhere).
+              window.hibanaResume?.record?.('project', id, h1.textContent.trim(), status || '')
               // S64: the tab title carries the project's OWN name (language-neutral user
               // content — the name is whatever the owner typed), not a generic "Project".
               // FA users previously kept the static English title for the whole visit.

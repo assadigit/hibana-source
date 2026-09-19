@@ -336,16 +336,26 @@
 .project-signals { display: inline-flex; align-items: center; gap: 0.3rem; flex-wrap: wrap; flex-shrink: 0; }
 .sig-chip { display: inline-flex; align-items: center; gap: 0.25rem; padding: 0.15rem 0.5rem; border-radius: 999px; font-size: 0.8rem; line-height: 1.4; font-weight: 600; white-space: nowrap; }
 .sig-chip .icon { width: 1em; height: 1em; }
-/* UI/UX R5 (2026-09-12): sig-ideas + sig-hurdles were BOTH ORANGE (different shades) —
-   two different colors mapping to the same semantic ("plain sub-item count"), which
-   violates the "one color = one meaning" rule. Both are now NEUTRAL GRAY pills
-   (background: a 10% muted tint over the card surface, color: var(--muted)) — per
-   WCAG 1.4.1 the count text + the small sig-chip icon (which differs per type —
-   lightbulb for ideas, flag for hurdles) carry the meaning, color no longer does.
-   .sig-backlog stays TEAL (it's the brand/primary signal). */
-.sig-ideas { background: color-mix(in srgb, var(--muted) 10%, transparent); color: var(--muted); }
-.sig-backlog { background: rgb(74 159 163 / 0.15); color: var(--accent, #4A9FA3); }
-.sig-hurdles { background: color-mix(in srgb, var(--muted) 10%, transparent); color: var(--muted); }
+/* S85 (owner redesign instruction #3): the sig-chips join the FIXED pastel role
+   palette — the same --badge-*-bg/-fg token pairs the status badges, stat-box
+   icon-chips and the new .board-count pills speak. Ideas = the spark/amber role,
+   hurdles = the halted/red role, backlog stays the brand-teal role (its long-
+   standing "primary signal" meaning). Every chip: pastel fill + DARK ink (light
+   theme; the dark theme flips via the theme token overrides, keeping ≥4.5:1),
+   plus a matching 22% border tint so the pill reads on the card surface.
+   History: R5 (2026-09-12) made ideas+hurdles NEUTRAL GRAY after an orange-on-
+   orange collision; the owner's S85 brief restores distinct color-coding ("faster
+   at-a-glance recognition of project state") WITHOUT the old collision — ideas
+   and hurdles now map to two DIFFERENT fixed roles, and the per-type icons keep
+   carrying the meaning for WCAG 1.4.1 (color is never the only signal). */
+.sig-chip {
+  background: var(--sig-bg, color-mix(in srgb, var(--muted) 10%, transparent));
+  color: var(--sig-fg, var(--muted));
+  border: 1px solid color-mix(in srgb, var(--sig-fg, var(--muted)) 22%, transparent);
+}
+.sig-ideas { --sig-bg: var(--badge-spark-bg); --sig-fg: var(--badge-spark-fg); }
+.sig-backlog { --sig-bg: rgb(74 159 163 / 0.15); --sig-fg: var(--accent, #4A9FA3); }
+.sig-hurdles { --sig-bg: var(--badge-halted-bg); --sig-fg: var(--badge-halted-fg); }
 /* dashboard kanban card: the title row (open-arrow + title + bug bubble) stays on line 1.
    The lighter signal chips (ideas/backlog/hurdles) dropped to their own line 2 (user
    request 2026-09-09) so a 14rem-min card never crowds. Bug stays on the title row —

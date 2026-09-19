@@ -91,10 +91,13 @@ describe('dashboard stat boxes', () => {
       expect(strip).toContain('class="stat stat-box is-empty" data-status="investigating"')
       expect(strip).toContain('class="stat stat-box is-empty" data-status="awaiting"')
       expect(strip).not.toContain('data-status="spark"')
-      expect(strip).toContain('class="icon-chip"')
+      expect(strip).toContain('class="icon-chip board-col-ico"')
       // 2026-09-09: the stat-count now carries a title="N projects" tooltip; the test
       // matches the opening tag prefix so it survives the added attribute.
-      expect(strip).toContain('<b class="stat-count"')
+      // S85: the count is now a shared board pill (stat-count board-count) placed
+      // AFTER the label — the unified icon+label+count header convention.
+      expect(strip).toContain('<b class="stat-count board-count"')
+      expect(strip).toContain('class="stat-label board-col-label"')
       for (const label of ['Investigating', 'Awaiting Execution', 'In Progress', 'Unreviewed', 'Development Stopped', 'Operational']) {
         expect(strip).toContain(`>${label}<`)
       }
@@ -256,7 +259,10 @@ describe('dashboard to-do preview', () => {
       // rides the Phase 7 item 1 picker button's data-current.
       expect(html).not.toContain('data-dash-accent=')
       expect(html).toContain('data-current="🎯"')
-      expect(html).toContain('Active 7')
+      // S85: the "Active N" text counter is the shared board-count PILL now — bare
+      // digits + title/aria meaning, same convention as the stage columns' counts.
+      expect(html).toContain('data-dash-quadrant-count="1"')
+      expect(html).toMatch(/class="dash-todo-counter board-count"[^>]*title="Active count"[^>]*>7</)
       const dashboardQuadrants = [...html.matchAll(/data-dash-quadrant="(\d)"/g)].map((match) => Number(match[1]))
       expect(dashboardQuadrants).toEqual([4, 2, 1, 3])
       expect(html).toContain('data-dash-see-more="1"')
@@ -373,13 +379,20 @@ describe('dashboard view options (2026-08-26)', () => {
     }
   })
 })
-describe('dashboard "Resume work" card (Session 19 cron round 4)', () => {
-  it('shows the resume card with the most recently touched doing project + deep link', async () => {
+describe('dashboard merged "Continue where you left off" component (S85)', () => {
+  // S85 (owner redesign instruction #1): the server "Resume work" card was REMOVED —
+  // it and the client "Pick up where you left off" strip used to both surface the
+  // same project with two different timestamps (updated_at vs open-time) and no
+  // explanation of the difference. The ONE surface left is the client component
+  // (js/resume.js — hero + chips from the hibana-resume localStorage store, the
+  // single "last touched = last OPENED" definition). These tests pin the server
+  // contract: no duplicate resume card renders, whatever the data.
+  it('never renders the old dash-resume card — even with a fresh doing project', async () => {
     const { db, close } = makeTestDb()
     try {
       const user = await makeUser(db)
       const { app, auth } = await makeClient(db, user)
-      const doing1 = await createProject(app, auth, 'Older doing', 'doing')
+      await createProject(app, auth, "Older doing", "doing")
       // a tiny delay so the second one has a newer updated_at (the query orders by updated_at DESC)
       await new Promise((r) => setTimeout(r, 20))
       const doing2 = await createProject(app, auth, 'Latest doing', 'doing')
@@ -389,24 +402,22 @@ describe('dashboard "Resume work" card (Session 19 cron round 4)', () => {
       const res = await app.fetch(new Request('http://local/api/dashboard', { headers: { ...auth, 'HX-Request': 'true' } }))
       expect(res.status).toBe(200)
       const html = await res.text()
-      // The resume card is present...
-      expect(html).toContain('dash-resume')
-      expect(html).toContain('Resume work')
-      // ...and it links to the MOST RECENTLY touched 'doing' project (doing2), not the older one.
+      // The server card is gone — no "Resume work" surface, no updated_at timestamp
+      // competing with the client's last-opened one.
+      expect(html).not.toContain('dash-resume')
+      expect(html).not.toContain('Resume work')
+      // The dashboard shell itself still renders (the doing projects appear in the
+      // stage carousel as before — nothing else regressed with the card's removal).
       expect(html).toContain(`/project.html?id=${doing2}`)
       expect(html).toContain('Latest doing')
-      expect(html).toContain('In progress')
-      // The older doing project is NOT the resume target (its title may appear in the
-      // projects carousel, but the resume card's title link points at doing2).
-      const resumeTitleMatch = html.match(/dash-resume-title[^>]*href="\/project\.html\?id=([^"]+)"[^>]*>([^<]+)/)
-      expect(resumeTitleMatch).not.toBeNull()
-      expect(resumeTitleMatch![2]).toBe('Latest doing')
+      // No other "resume" surface rides the fragment either (the client component
+      // injects itself from localStorage at runtime — never server HTML).
     } finally {
       close()
     }
   })
 
-  it('hides the resume card when no project is in the doing stage', async () => {
+  it('renders no resume card markup at all when there is no doing project', async () => {
     const { db, close } = makeTestDb()
     try {
       const user = await makeUser(db)
@@ -423,7 +434,7 @@ describe('dashboard "Resume work" card (Session 19 cron round 4)', () => {
     }
   })
 
-  it('is user-scoped: another user\'s doing project never appears in the resume card', async () => {
+  it('is user-scoped: another user\'s doing project never appears in the dashboard html', async () => {
     const { db, close } = makeTestDb()
     try {
       const user = await makeUser(db)

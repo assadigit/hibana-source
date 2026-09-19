@@ -241,8 +241,17 @@ export function dashboardRoutes(cfg: Config) {
           </div>`
         })
         return html`<div class="stat stat-box${anyStageHasProjects && counts[s] === 0 ? ' is-empty' : ''}" data-status="${s}">
-          <div class="row spread">
-            <span class="row"><span class="icon-chip" title="${label}">${raw(icon(STATUS_ICON[s]))}</span> <b class="stat-count" title="${t('{n} projects', '{n} پروژه', { n: num(counts[s]) })}">${num(counts[s])}</b> <span class="stat-label">${label}</span></span>
+          <!-- S85 (owner redesign instruction #2): ONE shared board-column header pattern
+               (icon-chip glyph + label + pill count badge) — the same convention the
+               To-Do quadrant columns use, so both boards speak one header language
+               (Consistency & Standards). The count moved AFTER the label and became a
+               tinted pill (.board-count) keyed off the box's data-status role. -->
+          <div class="row spread board-col-head">
+            <span class="row board-col-title">
+              <span class="icon-chip board-col-ico" title="${label}">${raw(icon(STATUS_ICON[s]))}</span>
+              <span class="stat-label board-col-label">${label}</span>
+              <b class="stat-count board-count" title="${t('{n} projects', '{n} پروژه', { n: num(counts[s]) })}">${num(counts[s])}</b>
+            </span>
             <span class="row">
               <a class="small" href="/projects.html?status=${s}&view=cards">${t('View all', 'مشاهده همه')} ${raw(icon('arrow-right', 'icon arrow'))}</a>
             </span>
@@ -355,8 +364,8 @@ export function dashboardRoutes(cfg: Config) {
         // renders so the saved personalization isn't lost.
         const accentAttr = style?.accent ? raw(` style="--dash-q-accent: var(--${style.accent})"`) : ''
         return html`<article class="dash-todo-quadrant" data-dash-quadrant="${q.id}" data-dash-name="${name}" draggable="true"${accentAttr}>
-          <header class="dash-todo-qhead">
-            <div class="dash-todo-qtitle">
+          <header class="dash-todo-qhead board-col-head">
+            <div class="dash-todo-qtitle board-col-title">
               <button type="button" class="dash-todo-style" data-dash-style="${q.id}" aria-label="${t('Customize quadrant', 'شخصی‌سازی بخش')}" title="${t('Customize quadrant', 'شخصی‌سازی بخش')}">${raw(quadrantGlyph(style?.icon ?? null, q.icon))}</button>
               <span class="dash-todo-qcol">
                 <strong data-dash-quadrant-name="${q.id}">${name}</strong>
@@ -383,7 +392,15 @@ export function dashboardRoutes(cfg: Config) {
                 </form>
               </div>
             </div>
-            <span class="row dash-todo-qactions"><span class="dash-todo-counter" title="${t('Active count', 'تعداد فعال')}">${t('Active {n}', 'تعداد فعال {n}', { n: todoNum(tasks.length) })}</span></span>
+            <!-- S85 (owner redesign instruction #2): the quadrant counter joins the shared
+                 board-column header convention — icon + label + PILL COUNT (.board-count),
+                 the exact pattern the projects stage columns use (was "Active N" plain
+                 text — a different convention for the same UI role). The count keeps its
+                 title/aria meaning; app.js's updateDashTaskCounter writes the bare digits
+                 into this node after optimistic task changes. Neutral pill by default
+                 (2026-09 owner decision: quadrants stay minimal); a user-picked accent
+                 tints it via --dash-q-accent. -->
+            <span class="row dash-todo-qactions"><span class="dash-todo-counter board-count" data-dash-quadrant-count="${q.id}" title="${t('Active count', 'تعداد فعال')}">${todoNum(tasks.length)}</span></span>
           </header>
           <ul class="dash-todo-list">
             ${taskRows}
@@ -417,8 +434,11 @@ export function dashboardRoutes(cfg: Config) {
         const num2 = (v: number): string => (lang === 'fa' ? faDigits(String(v)) : String(v))
         const solvedWeek = solvedThisWeek[0]?.n ?? 0
         const chips: SafeHtml[] = []
+        // S85 (instruction #3): each Today chip now wears its fixed pastel role —
+        // overdue = halted red, pinned = unreviewed blue, solved-this-week = the
+        // working-green role (dash-today-done, polish-batch.css) — one palette.
         if (overdue > 0) chips.push(html`<span class="dash-today-chip dash-today-overdue" title="${t('Overdue', 'گذشته')}">${raw(icon('alert'))} ${num2(overdue)} ${t('overdue', 'گذشته')}</span>`)
-        if (pinned > 0) chips.push(html`<span class="dash-today-chip" title="${t('Pinned', 'سنجاق‌شده')}">${raw(icon('pin'))} ${num2(pinned)}</span>`)
+        if (pinned > 0) chips.push(html`<span class="dash-today-chip dash-today-pinned" title="${t('Pinned', 'سنجاق‌شده')}">${raw(icon('pin'))} ${num2(pinned)}</span>`)
         if (solvedWeek > 0) chips.push(html`<span class="dash-today-chip dash-today-done" title="${t('Solved this week', 'حل‌شده این هفته')}">${raw(icon('check'))} ${num2(solvedWeek)} ${t('this week', 'این هفته')}</span>`)
         return html`<section class="dash-todo-section" id="dashboard-todo">
         <header class="dash-todo-head">
@@ -511,24 +531,15 @@ export function dashboardRoutes(cfg: Config) {
         renderOrder.splice(renderOrder.indexOf('projects'), 0, 'todo')
       }
 
-      // Session 19 (cron round 4): "Resume work" pinned card — the most recently touched
-      // in-progress project, with a one-click deep link. Serves Mission #2 ("never lose
-      // your place"). Renders ABOVE the ordered sections so it's the first thing the user
-      // sees. Hidden when no project is in the 'doing' stage (the card would be noise).
-      // The `recent` query (already loaded) is ORDER BY updated_at DESC LIMIT 10, so the
-      // first 'doing' row IS the most-recently-touched in-progress project. No new query.
-      const resumeProject = recent.find((p) => p.status === 'doing')
-      const resumeCard: SafeHtml = resumeProject
-        ? html`<section class="dash-resume card">
-            <div class="dash-resume-glyph" aria-hidden="true">${raw(icon('rocket'))}</div>
-            <div class="dash-resume-body">
-              <span class="dash-resume-label">${t('Resume work', 'از سرگیری کار')}</span>
-              <a class="dash-resume-title" href="/project.html?id=${resumeProject.id}">${resumeProject.title}</a>
-              <span class="dash-resume-meta muted small">${t('In progress', 'در حال انجام')} · ${timeAgo(resumeProject.updated_at, lang)}</span>
-            </div>
-            <a class="btn dash-resume-cta" href="/project.html?id=${resumeProject.id}">${t('Open', 'باز کردن')} ${raw(icon('arrow-right', 'icon'))}</a>
-          </section>`
-        : html``
+      // S85 (owner redesign instruction #1): the server "Resume work" card is GONE. It
+      // and the client "Pick up where you left off" strip used to BOTH surface the same
+      // project with two different timestamps (updated_at vs open-time) and no explanation
+      // of the difference — a Recognition-Rather-Than-Recall break (Nielsen #6). They are
+      // merged into ONE client-rendered "Continue where you left off" component
+      // (js/resume.js — hero entry + chips) sourced from ONE shared "last touched"
+      // timestamp. The single definition, used everywhere: last touched = last OPENED
+      // (the hibana-resume localStorage store; covers projects AND notes, paints before
+      // the htmx swap). Nothing server-side duplicates it anymore.
 
       // S59 first candidate (owner session list): Notes Vault onboarding banner for
       // existing users. The Vault is LIVE for everyone (schema 56 everywhere, S58) but
@@ -556,9 +567,10 @@ export function dashboardRoutes(cfg: Config) {
       // S30 batch 3 (user request 2026-09-12): "urgent across projects" — the cross-
       // project urgent+high FIRE STRIP. S46 (user request 2026-09-14): the strip now
       // renders right UNDER the projects section (was above all pref-ordered sections);
-      // if projects is hidden it falls back to right under the resume card. Still an
-      // alert layer — quiet means invisible (no dash_show_* pref; renders only when
-      // something is actually burning). Each row deep-links to the board (?task=).
+      // if projects is hidden it falls back to the top of the ordered sections (after the
+      // vault banner — the old resume card slot). Still an alert layer — quiet means
+      // invisible (no dash_show_* pref; renders only when something is actually
+      // burning). Each row deep-links to the board (?task=).
       // S31 (user request 2026-09-13): the row <li> no longer carries prio-* — that
       // class fed the (now-scoped) .prio-* background rules and painted the whole row
       // SOLID RED (the "colors and backgrounds aren't very nice" report). The dot span
@@ -601,14 +613,14 @@ export function dashboardRoutes(cfg: Config) {
       const sectionHtmls = renderOrder.map((id) => sections[id]())
       // S46 (user request 2026-09-14): the urgent strip renders right AFTER the
       // projects section (was above all pref-ordered sections). If projects is hidden
-      // (or absent from the user's dash_order), fall back to right after the resume
-      // card so the alert still surfaces when something is burning. The strip stays
+      // (or absent from the user's dash_order), fall back to the top (after the vault
+      // banner) so the alert still surfaces when something is burning. The strip stays
       // an alert layer — it only renders when urgentTasks.length > 0 (urgentStrip is
       // empty-html otherwise, so inserting it is a no-op).
       const projectsIdx = renderOrder.indexOf('projects')
       const out: SafeHtml = sectionHtmls.length
         ? (() => {
-            const parts: SafeHtml[] = [resumeCard, vaultBanner]
+            const parts: SafeHtml[] = [vaultBanner]
             if (projectsIdx === -1 && urgentTasks.length) parts.push(urgentStrip)
             sectionHtmls.forEach((h, i) => {
               parts.push(h)
@@ -616,7 +628,7 @@ export function dashboardRoutes(cfg: Config) {
             })
             return html`${parts}`
           })()
-        : html`${resumeCard}${vaultBanner}${urgentStrip}<div class="dash-empty">${t('Nothing on your dashboard — enable a section in Settings → View options.', 'پیشخوان خالی است — یک بخش را در تنظیمات ← گزینه‌های نمایش روشن کن.')} <a href="/settings.html">${t('Open settings', 'باز کردن تنظیمات')}</a></div>`
+        : html`${vaultBanner}${urgentStrip}<div class="dash-empty">${t('Nothing on your dashboard — enable a section in Settings → View options.', 'پیشخوان خالی است — یک بخش را در تنظیمات ← گزینه‌های نمایش روشن کن.')} <a href="/settings.html">${t('Open settings', 'باز کردن تنظیمات')}</a></div>`
 
       // S51-A: sr-only h1 — the page needs a level-one heading (axe
       // page-has-heading-one) that lives INSIDE <main> (axe region). The dashboard

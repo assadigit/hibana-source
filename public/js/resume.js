@@ -1,17 +1,46 @@
-// S71: hibanaResume — the app's job #2 ("never lose your place"), surfaced.
-// Records the last OPENED projects + vault notes into localStorage (hibana-resume,
-// newest-first, max 8) and renders a "Pick up where you left off" strip at the top of
-// the dashboard — instantly, from localStorage, before/without the htmx dashboard API.
-// Recording happens in project-page.js (htmx afterSwap) + notes-page.js (openNote).
-// The strip lives OUTSIDE main.shell-dash (never wiped by htmx refreshes), renders only
-// when something exists, and navigates via hibanaNav soft-nav when available.
+// S85 (owner redesign instruction #1): hibanaResume — "Continue where you left off".
+//
+// THE MERGE: this used to be TWO components showing the same project with two
+// different timestamps — the server's "Resume work" card (project.updated_at =
+// last EDITED, doing-status only) and this strip's "Pick up where you left off"
+// (open-time, projects + notes) — with no explanation of the difference
+// (Recognition Rather Than Recall, Nielsen #6). The server card is deleted
+// (dashboard.ts); this component is the ONE surface.
+//
+// THE ONE DEFINITION, used everywhere: "last touched" = last OPENED. Rationale:
+// "continue where you left off" is a PLACE you left (reading counts as much as
+// editing), it covers projects AND notes uniformly, and it paints instantly from
+// localStorage before/without the htmx dashboard API. The header hint labels the
+// definition explicitly ("Last opened") so the timestamp is self-explanatory.
+//
+// Structure: header (title + "Last opened" hint + Clear) → HERO entry (the newest —
+// glyph, kind · stage · timeAgo, title, explicit Open CTA; inherits the old banner's
+// affordances from the ONE store) → up to 3 smaller chips for the rest of the history.
+// Records last OPENED projects + vault notes into localStorage (hibana-resume,
+// newest-first, max 8). Recording happens in project-page.js (htmx afterSwap —
+// passes the project's stage slug as the hero badge) + notes-page.js (openNote).
+// The strip lives INSIDE main.shell-dash (dies with the dashboard on soft-nav,
+// never leaks to another page), renders only when something exists, and navigates
+// via hibanaNav soft-nav when available.
 (() => {
   const KEY = 'hibana-resume'
   const MAX_STORE = 8
-  const MAX_RENDER = 4
+  const MAX_RENDER = 4 // hero + 3 chips
   const _t = (k, f) => { const s = window.hibanaI18n?.t(k); return s && s !== k ? s : f }
   const isFA = () => window.hibanaI18n?.lang?.() === 'fa' || document.documentElement.lang === 'fa'
   const faNum = (s) => String(s).replace(/[0-9]/g, (d) => '۰۱۲۳۴۵۶۷۸۹'[+d])
+  // S85: the seven fixed status roles (client dictionary status.* keys — the SAME
+  // fixed pastel palette the server badges/stat-boxes use, see themes.css tokens).
+  const STAGES = ['spark', 'unreviewed', 'investigating', 'awaiting', 'doing', 'halted', 'operational']
+  const STAGE_ICONS = {
+    spark: '<path d="M9 18h6M10 22h4"/><path d="M12 2a7 7 0 0 0-4.2 12.6c.9.7 1.2 1.6 1.2 2.4h6c0-.8.3-1.7 1.2-2.4A7 7 0 0 0 12 2Z"/>',
+    unreviewed: '<circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/>',
+    investigating: '<circle cx="11" cy="11" r="6.5"/><path d="M16 16l4.5 4.5"/>',
+    awaiting: '<rect x="4" y="5" width="16" height="16" rx="2"/><path d="M8 3v4M16 3v4M4 10h16"/>',
+    doing: '<circle cx="12" cy="12" r="9"/><path d="M10 8.5l5 3.5-5 3.5z" fill="currentColor" stroke="none"/>',
+    halted: '<path d="M9 5.5v13M15 5.5v13"/>',
+    operational: '<path d="M4.5 16.5c1.2 2.8 4 4.5 7.5 4.5 4.5 0 7.7-2.6 7.7-6.4 0-4.5-4-5.6-6.9-6.5C10.4 7.3 9 6.2 9 4.3c0-.5.1-1 .3-1.5-3 1.2-5 3.6-5 6.4 0 1.7.7 3.1 1.9 4.1"/>',
+  }
 
   const read = () => {
     try {
@@ -21,11 +50,15 @@
   }
   const write = (list) => { try { localStorage.setItem(KEY, JSON.stringify(list.slice(0, MAX_STORE))) } catch { /* storage unavailable */ } }
 
-  /** record('project'|'note', id, title) — idempotent (re-opening moves it to the top). */
-  const record = (k, id, title) => {
+  /** record('project'|'note', id, title, badge?) — idempotent (re-opening moves it
+   *  to the top). `badge` is the project's stage slug at open time — rendered on the
+   *  hero as the fixed-palette status chip (S85). Old 3-arg call sites keep working. */
+  const record = (k, id, title, badge) => {
     if (!id) return
     const list = read().filter((e) => !(e.k === k && e.id === id))
-    list.unshift({ k, id, t: String(title || '').trim().slice(0, 80) || '—', ts: Date.now() })
+    const stage = STAGES.includes(badge) ? badge : undefined
+    const prev = read().find((e) => e.k === k && e.id === id)
+    list.unshift({ k, id, t: String(title || '').trim().slice(0, 80) || '—', ts: Date.now(), b: stage ?? prev?.b })
     write(list)
   }
 
@@ -49,33 +82,65 @@
   const urlFor = (e) => (e.k === 'project' ? '/project.html?id=' + encodeURIComponent(e.id) : '/notes.html#n=' + encodeURIComponent(e.id))
   const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]))
 
+  // The hero's stage badge: fixed-palette chip (badge-{stage} tokens — the same roles
+  // the activity badges and stat-box pills speak). Projects only; notes get none.
+  const stageBadge = (e) => {
+    if (e.k !== 'project' || !STAGES.includes(e.b)) return ''
+    const label = _t('status.' + e.b, e.b)
+    return `<span class="resume-stage-badge badge-${e.b}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${STAGE_ICONS[e.b]}</svg>${esc(label)}</span>`
+  }
+
   const render = () => {
     const main = document.querySelector('main.shell-dash')
     if (!main) return // only the dashboard renders the strip
     const entries = read().slice(0, MAX_RENDER)
     let strip = document.getElementById('resume-strip')
     if (!entries.length) { if (strip) strip.remove(); return }
-    // S72 BUGFIX: the header/hint previously carried data-i18n + hardcoded EN text — but
-    // i18n.js apply() sweeps the STATIC DOM only (its own header note), so dynamically
-    // injected markup never got translated. Like the chips, translate at render time.
-    const headText = () => _t('resume.title', 'Pick up where you left off')
-    const hintText = () => _t('resume.hint', 'Recently opened')
+    const [hero, ...rest] = entries
+    // S72 BUGFIX lineage: translate at render time (i18n.js apply() sweeps the STATIC
+    // DOM only — dynamically injected markup never got translated).
+    const headText = () => _t('resume.title', 'Continue where you left off')
+    const hintText = () => _t('resume.hint', 'Last opened')
     const clearLabel = () => _t('resume.clear', 'Clear')
     const clearAria = () => _t('resume.clearAria', 'Clear the resume history')
-    const chips = entries.map((e) => {
-      const kind = e.k === 'project' ? _t('resume.project', 'Project') : _t('resume.note', 'Note')
-      const label = _t('resume.openAria', 'Open {k}: {t}').split('{k}').join(kind).split('{t}').join(e.t || '')
+    const ctaText = () => _t('resume.cta', 'Open')
+    const kindOf = (e) => (e.k === 'project' ? _t('resume.project', 'Project') : _t('resume.note', 'Note'))
+    const heroLabel = () => _t('resume.openAria', 'Open {k}: {t}')
+    const chips = rest.map((e) => {
+      const label = heroLabel().split('{k}').join(kindOf(e)).split('{t}').join(e.t || '')
       return `<a class="resume-chip" href="${urlFor(e)}" data-resume-go="${urlFor(e)}" aria-label="${esc(label)}" title="${esc(e.t || '')}">
         <span class="resume-chip-ico ${e.k === 'project' ? 'is-project' : 'is-note'}">${ICONS[e.k] || ICONS.note}</span>
         <span class="resume-chip-body">
           <span class="resume-chip-title" dir="auto">${esc(e.t || '—')}</span>
-          <span class="resume-chip-meta">${esc(kind)} · ${esc(timeAgo(e.ts))}</span>
+          <span class="resume-chip-meta">${esc(kindOf(e))} · ${esc(timeAgo(e.ts))}</span>
         </span>
       </a>`
     }).join('')
+    // The hero: newest entry, banner-grade treatment — glyph + kind·stage·timeAgo +
+    // title + explicit Open CTA (all sourced from the ONE shared last-opened store).
+    const heroAria = heroLabel().split('{k}').join(kindOf(hero)).split('{t}').join(hero.t || '')
+    const heroHtml = (mount) => {
+      const h = mount.querySelector('.resume-hero')
+      const next = `<a class="resume-hero" href="${urlFor(hero)}" data-resume-go="${urlFor(hero)}" aria-label="${esc(heroAria)}">
+        <span class="resume-chip-ico ${hero.k === 'project' ? 'is-project' : 'is-note'}">${ICONS[hero.k] || ICONS.note}</span>
+        <span class="resume-hero-body">
+          <span class="resume-hero-kicker">${esc(kindOf(hero))}${stageBadge(hero) ? ' ' + stageBadge(hero) + ' ' : ' · '}<span class="resume-hero-time">${esc(timeAgo(hero.ts))}</span></span>
+          <span class="resume-hero-title" dir="auto">${esc(hero.t || '—')}</span>
+        </span>
+        <span class="btn resume-hero-cta">${esc(ctaText())}<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" class="icon arrow" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
+      </a>`
+      if (h) { h.outerHTML = next; return }
+      mount.insertAdjacentHTML('afterbegin', next)
+    }
     if (strip) {
-      strip.querySelector('.resume-row').innerHTML = chips
-      // Re-render path (i18n race / re-open): refresh the header too, not just the chips.
+      // Idempotent re-render (i18n settle / re-open / htmx swap): refresh the hero
+      // and the chips row in place. The row may legitimately be ABSENT (the previous
+      // render had a single entry → hero only) — create it when chips now exist.
+      const existingRow = strip.querySelector('.resume-row')
+      if (existingRow) { if (chips) existingRow.innerHTML = chips; else existingRow.remove() }
+      else if (chips) strip.insertAdjacentHTML('beforeend', `<div class="resume-row">${chips}</div>`)
+      heroHtml(strip.querySelector('.resume-body') || strip)
+      // Re-render path (i18n race / re-open): refresh the header too, not just the body.
       const h = strip.querySelector('#resume-title'); if (h) h.textContent = headText()
       const hint = strip.querySelector('.resume-hint'); if (hint) hint.textContent = hintText()
       const clear = strip.querySelector('[data-resume-clear]')
@@ -98,7 +163,9 @@
           <span class="resume-clear-label">${esc(clearLabel())}</span>
         </button>
       </header>
-      <div class="resume-row">${chips}</div>`
+      <div class="resume-body"></div>
+      ${chips ? `<div class="resume-row">${chips}</div>` : ''}`
+    heroHtml(strip.querySelector('.resume-body'))
     // INSIDE <main>: soft-nav replaces the shell element wholesale (nav.js
     // shell.replaceWith) — so the strip dies with the dashboard and can never leak
     // onto another page. After the sr-only h1 (a11y: heading stays main's first child).

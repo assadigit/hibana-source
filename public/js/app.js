@@ -2954,10 +2954,15 @@ window.hibana = (() => {
   }
   const updateDashTaskCounter = (card) => {
     const count = dashTaskList(card)?.querySelectorAll(':scope > .dash-todo-task').length ?? 0
+    // S85: the quadrant counter is the shared board-count PILL (bare number — the
+    // "Active N" text format is gone; its meaning lives in the pill's title/aria).
+    // Old records kept a stale counter alive: the regex waited for a "…: N" shape
+    // that neither "Active 5" nor «تعداد فعال ۵» ever had, so the digit never
+    // refreshed between htmx sweeps. Writing the digits directly fixes that too.
     const counter = card?.querySelector('.dash-todo-counter')
     if (!counter) return
     const digits = window.hibanaI18n?.lang() === 'fa' ? String(count).replace(/\d/g, (d) => '۰۱۲۳۴۵۶۷۸۹'[+d]) : String(count)
-    counter.textContent = (counter.textContent || '').replace(/([:：]\s*)[\d۰-۹]+$/, `$1${digits}`)
+    counter.textContent = digits
   }
   const showDashTaskMoveError = (task) => {
     if (!task) return

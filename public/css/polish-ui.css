@@ -561,12 +561,23 @@ body.has-mobile-nav { padding-block-end: calc(3.75rem + env(safe-area-inset-bott
   border: 1px solid var(--line);
 }
 .dash-today-chip .icon { width: 1em; height: 1em; color: var(--muted); }
+/* S85 (instruction #3): the Today chips join the fixed pastel role palette —
+   overdue = the halted-red role, pinned = the unreviewed-blue role (done chip
+   already speaks the working-green role in polish-batch.css). Pastel fill +
+   role ink + a 26% border tint of the same role — identical recipe to the
+   sig-chips, board-count pills and status badges. */
 .dash-today-overdue {
-  background: var(--danger-soft);
-  color: var(--danger);
-  border-color: color-mix(in srgb, var(--danger) 30%, transparent);
+  background: var(--badge-halted-bg, var(--danger-soft));
+  color: var(--badge-halted-fg, var(--danger));
+  border-color: color-mix(in srgb, var(--badge-halted-fg, var(--danger)) 30%, transparent);
 }
-.dash-today-overdue .icon { color: var(--danger); }
+.dash-today-overdue .icon { color: var(--badge-halted-fg, var(--danger)); }
+.dash-today-pinned {
+  background: var(--badge-unreviewed-bg);
+  color: var(--badge-unreviewed-fg);
+  border-color: color-mix(in srgb, var(--badge-unreviewed-fg) 26%, transparent);
+}
+.dash-today-pinned .icon { color: var(--badge-unreviewed-fg); }
 @media (max-width: 560px) {
   .dash-today-strip { margin-inline-start: 0; width: 100%; }
 }
@@ -1213,9 +1224,14 @@ body.has-mobile-nav { padding-block-end: calc(3.75rem + env(safe-area-inset-bott
 .cmdk-help-panel .cmdk-item { cursor: default; }
 
 /* ═══════════════════════════════════════════════════════════════════════════
-   S71 — Resume strip ("Pick up where you left off", job #2: never lose your place)
-   Renders above main.shell-dash on the dashboard only; entries come from
-   localStorage (js/resume.js). Horizontal chip row — desktop 4-up, phone scrolls.
+   S85 — "Continue where you left off" (merged component, job #2: never lose
+   your place). The ONE resume surface: the server "Resume work" card was removed
+   (two components, one project, two different timestamps, no explanation — a
+   Nielsen #6 break). Renders inside main.shell-dash on the dashboard only;
+   entries come from localStorage (js/resume.js — last OPENED, the single
+   "last touched" definition used everywhere). Structure: header (title +
+   "Last opened" hint + Clear) → HERO entry (the newest, banner-grade: glyph +
+   kind·stage·timeAgo + title + Open CTA) → up to 3 smaller chips.
    ═══════════════════════════════════════════════════════════════════════════ */
 .resume-strip {
   padding: 0.9rem 1.1rem 1rem;
@@ -1233,6 +1249,74 @@ body.has-mobile-nav { padding-block-end: calc(3.75rem + env(safe-area-inset-bott
   flex: none;
 }
 .resume-hint { font-size: 0.78rem; }
+
+/* S85: the HERO entry — the newest item, banner-grade. Inherits the deleted
+   "Resume work" card's visual DNA (accent-edged panel, glyph tile, prominent
+   title, explicit Open CTA) but sourced from the ONE shared last-opened store.
+   Desktop: one full-width row; phone: same, CTA stays reachable (≥44px). */
+.resume-hero {
+  display: flex; align-items: center; gap: 0.85rem;
+  padding: 0.8rem 0.9rem;
+  background: linear-gradient(100deg, var(--accent-soft), var(--card) 72%);
+  border: 1px solid color-mix(in srgb, var(--accent) 30%, var(--line));
+  border-inline-start: 4px solid var(--accent);
+  border-radius: 12px;
+  text-decoration: none; color: inherit;
+  transition: border-color .16s ease, box-shadow .16s ease, transform .16s ease;
+}
+.resume-hero:hover, .resume-hero:focus-visible {
+  border-color: color-mix(in srgb, var(--accent) 55%, var(--line));
+  box-shadow: 0 4px 14px -6px rgba(38, 33, 24, 0.22);
+  transform: translateY(-1px);
+  outline: none;
+}
+.resume-hero:focus-visible {
+  box-shadow:
+    0 0 0 2px var(--card),
+    0 0 0 4px color-mix(in srgb, var(--accent) 55%, transparent),
+    0 4px 14px -6px rgba(38, 33, 24, 0.22);
+}
+.resume-hero-body { flex: 1 1 auto; min-inline-size: 0; display: flex; flex-direction: column; gap: 0.18rem; }
+.resume-hero-kicker { font-size: 0.72rem; color: var(--muted); display: flex; align-items: center; gap: 0.35rem; flex-wrap: wrap; }
+.resume-hero-time { font-variant-numeric: tabular-nums; }
+.resume-hero-title {
+  font-size: 1.02rem; font-weight: 650; line-height: 1.25; color: var(--text);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.resume-hero-cta {
+  flex: none;
+  display: inline-flex; align-items: center; gap: 0.4rem;
+  min-block-size: 2.75rem; /* ≥44px touch target (the 42px computed at 2.4rem missed the bar) */
+  padding: 0.35rem 0.85rem;
+  font-size: 0.85rem; font-weight: 600;
+  background: var(--cta); color: var(--btn-text);
+  border: 1px solid transparent;
+  border-radius: 999px;
+}
+.resume-hero-cta .icon { inline-size: 1rem; block-size: 1rem; transition: translate .15s ease; }
+.resume-hero:hover .resume-hero-cta .icon { translate: 2px 0; }
+[dir='rtl'] .resume-hero:hover .resume-hero-cta .icon { translate: -2px 0; }
+
+/* S85: the hero's stage badge — the fixed pastel role chip (the same
+   --badge-*-bg/-fg contract every badge/board pill speaks; dark text on the
+   pastel fill, light fg in dark theme via the theme token flip). */
+.resume-stage-badge {
+  display: inline-flex; align-items: center; gap: 0.28rem;
+  padding: 0.06rem 0.5rem;
+  border-radius: 999px;
+  font-size: 0.68rem; font-weight: 600; line-height: 1.5;
+  background: var(--badge-bg, var(--bg-soft));
+  color: var(--badge-fg, var(--muted));
+  border: 1px solid color-mix(in srgb, var(--badge-fg, var(--muted)) 24%, transparent);
+}
+.resume-stage-badge svg { inline-size: 0.8rem; block-size: 0.8rem; flex: none; }
+.resume-stage-badge.badge-spark        { --badge-bg: var(--badge-spark-bg);         --badge-fg: var(--badge-spark-fg); }
+.resume-stage-badge.badge-unreviewed    { --badge-bg: var(--badge-unreviewed-bg);    --badge-fg: var(--badge-unreviewed-fg); }
+.resume-stage-badge.badge-investigating { --badge-bg: var(--badge-investigating-bg); --badge-fg: var(--badge-investigating-fg); }
+.resume-stage-badge.badge-awaiting      { --badge-bg: var(--badge-awaiting-bg);      --badge-fg: var(--badge-awaiting-fg); }
+.resume-stage-badge.badge-doing         { --badge-bg: var(--badge-doing-bg);         --badge-fg: var(--badge-doing-fg); }
+.resume-stage-badge.badge-halted        { --badge-bg: var(--badge-halted-bg);        --badge-fg: var(--badge-halted-fg); }
+.resume-stage-badge.badge-operational   { --badge-bg: var(--badge-operational-bg);   --badge-fg: var(--badge-operational-fg); }
 
 .resume-row { display: flex; gap: 0.65rem; overflow-x: auto; scrollbar-width: thin; padding-block-end: 0.15rem; }
 
@@ -1273,17 +1357,22 @@ body.has-mobile-nav { padding-block-end: calc(3.75rem + env(safe-area-inset-bott
 }
 .resume-chip-meta { font-size: 0.73rem; color: var(--muted); white-space: nowrap; }
 
-/* Phone: full-width chips, snap scroll, no squeeze */
+/* Phone: hero wraps its CTA under the text; chips go full-width, snap scroll */
 @media (max-width: 720px) {
   .resume-strip { padding: 0.75rem 0.85rem 0.85rem; }
+  .resume-hero { gap: 0.6rem; padding: 0.7rem 0.75rem; }
+  .resume-hero-title { font-size: 0.95rem; white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .resume-hero-cta { min-block-size: 2.4rem; padding-inline: 0.7rem; }
   .resume-row { scroll-snap-type: x proximity; gap: 0.55rem; }
   .resume-chip { flex: 0 0 78%; scroll-snap-align: start; }
   .resume-chip-title { font-size: 0.85rem; }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .resume-chip { transition: none; }
-  .resume-chip:hover, .resume-chip:focus-visible { transform: none; }
+  .resume-chip, .resume-hero { transition: none; }
+  .resume-chip:hover, .resume-chip:focus-visible,
+  .resume-hero:hover, .resume-hero:focus-visible { transform: none; }
+  .resume-hero-cta .icon, .resume-hero:hover .resume-hero-cta .icon { transition: none; translate: 0 0; }
 }
 
 /* S72 — Resume strip "Clear" button (completes the S71 feature: history was

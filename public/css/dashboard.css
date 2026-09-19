@@ -576,71 +576,70 @@
    matched anything (user report: "sections cramped together with no distance"). The hook
    is now the .shell-dash class on that <main> (see dashboard.html). */
 main.shell-dash > section { margin-block-end: 2.9rem; }
-/* Session 19 (cron round 4): "Resume work" pinned card — the first thing on the dashboard.
-   A compact, accent-tinted card: rocket glyph + label + project title (deep link) + the
-   time since last touch + an "Open" CTA. Pinned above the ordered sections; hidden server-
-   side when no 'doing' project exists. */
-.dash-resume {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-  padding: 1rem 1.25rem;
-  margin-block-end: 2rem;
-  background: linear-gradient(100deg, var(--accent-soft), var(--card) 70%);
-  border: 1px solid color-mix(in srgb, var(--accent) 30%, var(--line));
-  border-inline-start: 4px solid var(--accent);
-  border-radius: var(--radius);
-  box-shadow: 0 2px 8px -4px rgb(0 0 0 / 0.08);
-}
-.dash-resume-glyph {
+
+/* ==========================================================================
+   S85 (owner redesign instruction #2): ONE shared board-column header component.
+   Every board-style column on the dashboard — the To-Do quadrant columns AND the
+   projects stage columns — speaks the SAME header convention:
+     [glyph icon-chip] [label] [pill count badge]
+   (Nielsen: Consistency & Standards; the two boards previously used different
+   header conventions for the same underlying UI role.)
+   The pill count (.board-count) draws its tint from the fixed pastel status roles
+   (the --badge-*-bg/-fg token pairs — the same fixed palette the status badges,
+   stat-box icon-chips and sig-chips use; instruction #3). Light theme = pastel fill
+   + dark text (WCAG-safe); dark theme flips via themes.css token overrides.
+   ========================================================================== */
+.board-col-head { min-inline-size: 0; }
+.board-col-title { align-items: center; gap: 0.5rem; min-inline-size: 0; }
+.board-col-label { color: var(--text); font-weight: 600; line-height: 1.3; }
+.board-count {
   flex: none;
-  display: grid;
+  display: inline-grid;
   place-items: center;
-  width: 2.5rem; height: 2.5rem;
-  border-radius: 50%;
-  /* Session 20 (AA): icon on --accent was 3.1:1 (icons need 3:1, but the whole card
-     reads better at the deeper CTA fill next to the --link label). */
-  background: var(--cta);
-  color: var(--btn-text);
+  min-inline-size: 1.55rem;
+  padding: 0.08rem 0.42rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  line-height: 1.45;
+  font-variant-numeric: tabular-nums;
+  background: var(--badge-bg, color-mix(in srgb, var(--muted) 12%, transparent));
+  color: var(--badge-fg, var(--muted));
+  border: 1px solid color-mix(in srgb, var(--badge-fg, var(--muted)) 24%, transparent);
 }
-.dash-resume-glyph .icon { width: 1.25rem; height: 1.25rem; }
-.dash-resume-body { display: flex; flex-direction: column; gap: 0.1rem; min-inline-size: 0; flex: 1; }
-.dash-resume-label { font-size: var(--fs-xs); font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; color: var(--link); opacity: 0.95; } /* Session 20 (AA): --accent text on white was 3.1:1 — --link is the text-safe teal (4.9:1+) */
-.dash-resume-title { font-size: var(--fs-lg); font-weight: 600; color: var(--text); text-decoration: none; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.dash-resume-title:hover { color: var(--link); } /* Session 20 (AA): hover text must meet the same 4.5:1 bar */
-.dash-resume-meta { font-size: var(--fs-sm); }
-.dash-resume-cta { flex: none; }
-/* S61 styling pass — the resume card is Mission #2's anchor ("never lose your place"),
-   so it gets the tactile layer: hover lift + warm border + glyph micro-bounce, CTA
-   arrow nudge, and focus-visible rings on BOTH interactive elements (title + CTA).
-   All motion is hover/focus-only and flattened under prefers-reduced-motion. */
-.dash-resume { transition: box-shadow 0.18s ease, border-color 0.18s ease, translate 0.18s ease; }
-.dash-resume:hover {
-  border-color: color-mix(in srgb, var(--accent) 55%, var(--line));
-  box-shadow: 0 6px 18px -8px rgb(0 0 0 / 0.16);
-  translate: 0 -1px;
+/* Stage columns: the pill wears the column's status role (data-status is already on
+   the .stat-box — the exact selector shape the icon-chips above use). */
+.stat-box[data-status='spark'] .board-count { --badge-bg: var(--badge-spark-bg); --badge-fg: var(--badge-spark-fg); }
+.stat-box[data-status='unreviewed'] .board-count { --badge-bg: var(--badge-unreviewed-bg); --badge-fg: var(--badge-unreviewed-fg); }
+.stat-box[data-status='investigating'] .board-count { --badge-bg: var(--badge-investigating-bg); --badge-fg: var(--badge-investigating-fg); }
+.stat-box[data-status='awaiting'] .board-count { --badge-bg: var(--badge-awaiting-bg); --badge-fg: var(--badge-awaiting-fg); }
+.stat-box[data-status='doing'] .board-count { --badge-bg: var(--badge-doing-bg); --badge-fg: var(--badge-doing-fg); }
+.stat-box[data-status='halted'] .board-count { --badge-bg: var(--badge-halted-bg); --badge-fg: var(--badge-halted-fg); }
+.stat-box[data-status='operational'] .board-count { --badge-bg: var(--badge-operational-bg); --badge-fg: var(--badge-operational-fg); }
+/* The stat header's label + pill sit in one flex row; keep the label from being
+   squeezed by long translated words (FA) while the pill stays whole. */
+.board-col-title .stat-label { overflow-wrap: anywhere; }
+
+/* Quadrant columns: NEUTRAL pill by default (the 2026-09 owner decision — quadrants
+   stay minimal, no per-quadrant accent) — the neutral --muted role; a user-PICKED
+   quadrant accent (the rename API's accent_color → --dash-q-accent) tints the pill
+   so saved personalization still reads. Same shape/weight as the stage pills. */
+.dash-todo-quadrant .board-count {
+  --badge-bg: color-mix(in srgb, var(--dash-q-accent, var(--muted)) 14%, transparent);
+  --badge-fg: var(--dash-q-accent, var(--muted));
+  border-color: color-mix(in srgb, var(--dash-q-accent, var(--muted)) 26%, transparent);
 }
-.dash-resume:hover .dash-resume-glyph .icon { animation: dash-resume-hop 0.5s ease; }
-@keyframes dash-resume-hop {
-  0%, 100% { translate: 0 0; }
-  40% { translate: 0 -2.5px; }
-}
-.dash-resume-glyph .icon { transition: translate 0.2s ease; }
-.dash-resume-title:focus-visible { outline: 2px solid var(--brand); outline-offset: 3px; border-radius: 0.3rem; }
-.dash-resume-cta .icon { transition: translate 0.15s ease; }
-:root:not([dir='rtl']) .dash-resume:hover .dash-resume-cta .icon { translate: 2px 0; }
-[dir='rtl'] .dash-resume:hover .dash-resume-cta .icon { translate: -2px 0; }
-@media (prefers-reduced-motion: reduce) {
-  .dash-resume, .dash-resume-glyph .icon, .dash-resume-cta .icon { transition: none; }
-  .dash-resume:hover { translate: 0 0; }
-  .dash-resume:hover .dash-resume-glyph .icon { animation: none; }
-}
-@media (max-width: 540px) {
-  .dash-resume { flex-wrap: wrap; gap: 0.6rem; padding: 0.85rem 1rem; }
-  .dash-resume-glyph { width: 2rem; height: 2rem; }
-  .dash-resume-title { font-size: var(--fs-md); white-space: normal; }
-  .dash-resume-cta { margin-inline-start: auto; }
-}
+/* The quadrant count pill rides the header's actions side — baseline-aligned with
+   the title block (subtitle shifts the visual center), nudged like the old counter. */
+.dash-todo-qactions .board-count { padding-block-start: 0.06rem; }
+
+/* ==========================================================================
+   S85 (owner redesign instruction #1): the merged "Continue where you left off"
+   component lives in polish-ui.css (.resume-*) — the server "Resume work" card
+   (.dash-resume*) was REMOVED from dashboard.ts; its affordances (glyph + label +
+   title + timestamp + Open CTA) survive as the strip's HERO entry, sourced from the
+   ONE shared last-opened timestamp.
+   ========================================================================== */
 
 /* ==========================================================================
    S59: Notes Vault onboarding banner — the server renders it ONLY while the user

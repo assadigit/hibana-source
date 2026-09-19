@@ -18,15 +18,11 @@
 
 [dir='rtl'] .icon.arrow.opposite { transform: none; }
 
-/* UI/UX R2 (2026-09-12): the dashboard "Resume work" / «از سرگیری کار» card carries
-   TWO icons in LTR — a circular rocket glyph (.dash-resume-glyph) + a right-arrow inside
-   the "Open" / «باز کردن» CTA (.dash-resume-cta .icon.arrow). The CTA arrow is already
-   flipped by the global [dir="rtl"] .icon.arrow rule above; this explicit selector makes
-   the resume-card intent unambiguous + future-proofs it if the rocket glyph is ever
-   swapped for a directional arrow. The rocket itself is vertically symmetric so the
-   transform is a no-op on the current glyph — the visible flip happens on the CTA. */
-[dir='rtl'] .dash-resume-glyph .icon,
-[dir='rtl'] .dash-resume-cta .icon.arrow { transform: scaleX(-1); }
+/* UI/UX R2 (2026-09-12) — S85: the server "Resume work" card is gone (merged into
+   the client "Continue where you left off" component). Its RTL intent survives on
+   the merge's HERO entry: the Open CTA arrow (.resume-hero-cta .icon.arrow) is
+   flipped by the global [dir="rtl"] .icon.arrow rule above; polish-ui.css carries
+   the explicit [dir='rtl'] hover-nudge mirrors for the hero. Nothing else here. */
 
 [dir='rtl'] .sadhana-ribbon { transform: rotate(-45deg); }
 

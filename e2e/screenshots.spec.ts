@@ -47,6 +47,16 @@ test.describe('visual regression — public pages', () => {
 
 test.describe('visual regression — authed pages', () => {
   test.beforeEach(async ({ page }) => {
+    // S85: suppress the first-visit tour coachmark — it rides ON TOP of the page and
+    // turned the dashboard baseline into a screenshot of the onboarding chrome (any
+    // tour copy tweak would flag the dashboard as "changed"). The baseline should pin
+    // the PAGE. (Same recipe as resume-continue.spec / viewport.spec.)
+    await page.addInitScript(() => {
+      try {
+        localStorage.setItem('hibana-tour-done', '1')
+        localStorage.setItem('hibana-ln-done', '1')
+      } catch { /* storage blocked */ }
+    })
     await page.goto('/login.html')
     await page.fill('[name="login"]', TEST_EMAIL)
     await page.fill('[name="password"]', TEST_PASS)

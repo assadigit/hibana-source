@@ -454,6 +454,14 @@ describe('vault helpers', () => {
     expect(excerptOf(long).length).toBeLessThanOrEqual(160)
   })
 
+  it('S84: excerptOf strips task markers (bulleted AND bare) — no raw "[ ]" on the card', () => {
+    expect(excerptOf('- [ ] milk\n- [x] eggs\n- bread')).toBe('milk eggs bread')
+    expect(excerptOf('[ ] bare first line\nsecond')).toBe('bare first line second')
+    expect(excerptOf('- [ ]')).toBe('')
+    // a link line whose text is x keeps its link text (space-after-] is required)
+    expect(excerptOf('[x](https://a.com) link line stays')).toBe('x link line stays')
+  })
+
   it('wordCount counts whitespace-separated words (Persian included)', () => {
     expect(wordCount('')).toBe(0)
     expect(wordCount('one two three')).toBe(3)

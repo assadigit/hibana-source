@@ -1,12 +1,22 @@
 <!doctype html>
-<html lang="en">
+<!-- S84 (owner: "notes.html still appears pre-emptively and unloaded — elements
+     are not looking proper"): this page declares a REVEAL GATE. DOMContentLoaded
+     only proves the scripts parsed; on the owner's link the vault data lands
+     seconds later, and the full-page loader used to lift at DCL over a skeleton
+     page (or, when a script stalled, the 8s safety lifted it over a half-booted
+     one). With the gate, app.js keeps the veil until this page's controller
+     dispatches hibana:page-ready — its first REAL paint (tree+cards rendered, or
+     the honest load-failed Retry panel). app.js still never traps the user
+     (12s safety) and base.css carries a pure-CSS 20s escape for the dead-JS
+     worst case. -->
+<html lang="en" data-hibana-reveal="gated">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Notes — Hibana</title>
   <link rel="preload" as="font" type="font/woff2" href="/vendor/manrope/Manrope-400.woff2" crossorigin>
   <link rel="stylesheet" href="/css/variables.css?v=6">
-  <link rel="stylesheet" href="/css/base.css?v=6">
+  <link rel="stylesheet" href="/css/base.css?v=7">
   <link rel="stylesheet" href="/css/layout.css?v=21">
   <link rel="stylesheet" href="/css/dashboard.css?v=15">
   <link rel="stylesheet" href="/css/dashboard-todo.css?v=9">
@@ -14,7 +24,7 @@
   <link rel="stylesheet" href="/css/canvas.css?v=7">
   <link rel="stylesheet" href="/css/quicknotes.css?v=22">
   <!-- S53: the Notes Vault — Obsidian-style 3-pane (tree | cards | editor) -->
-  <link rel="stylesheet" href="/css/notes.css?v=10">
+  <link rel="stylesheet" href="/css/notes.css?v=11">
   <link rel="stylesheet" href="/css/to-do-list.css?v=4">
   <link rel="stylesheet" href="/css/polish-ui.css?v=23">
   <link rel="stylesheet" href="/css/calendar.css?v=5">
@@ -39,15 +49,34 @@
        only code guaranteed to run): if notes-page.js never signals boot via
        <html data-hibana-booted>, we auto-retry the whole page (up to 2 reloads per
        session, the exact "refresh 1-2 times" the owner was doing by hand). A
-       script-load error shortens the wait to 3s so the retry feels instant. -->
+       script-load error shortens the wait to 3s so the retry feels instant.
+       S84 (owner follow-up: "appears pre-emptively and unloaded, elements are not
+       looking proper"): (a) a dropped STYLESHEET is now covered too — paint proceeds
+       with whatever styles DID arrive, which is exactly the half-styled "not looking
+       proper" page, so a css-error reloads even on an otherwise-booted page (the
+       2-per-session budget caps loops; a reloading guard collapses error bursts
+       into ONE reload); (b) the bootstrap data fetch now STARTS HERE — at
+       HTML-parse time, seconds before the deferred scripts run on a slow link —
+       stashed on window for notes-page.js to consume once. The veil's total time
+       becomes max(scripts, data) instead of scripts + data. -->
   <script>
   (function () {
+    // S84: the parse-time bootstrap preload — pure fetch, zero deps, same-origin
+    // credentials. notes-page.js consumes it once (loadBootstrapOnce); any
+    // failure (401 logged-out, net reset) falls back to its normal api() path.
+    try {
+      window.__hibanaVaultBoot = fetch('/api/vault/bootstrap', { credentials: 'same-origin' })
+        .then(function (r) { return r.ok ? r.json() : Promise.reject(new Error('boot ' + r.status)) })
+    } catch (e) { /* ancient browser — the controller fetches on its own */ }
     try {
       var retries = Number(sessionStorage.getItem('hibana-boot-retries')) || 0
       if (retries >= 2) return
       var booted = function () { return document.documentElement.hasAttribute('data-hibana-booted') }
-      var retry = function (reason) {
-        if (booted() || retries >= 2) return
+      var reloading = false
+      var retry = function (reason, force) {
+        if (reloading || retries >= 2) return
+        if (!force && booted()) return
+        reloading = true
         retries += 1
         try { sessionStorage.setItem('hibana-boot-retries', String(retries)) } catch (e) {}
         try { sessionStorage.setItem('hibana-boot-retry-reason', reason) } catch (e) {}
@@ -57,18 +86,25 @@
       setTimeout(function () { retry('timeout') }, 12000)
       // Suspenders: a script resource actually ERRORED (net reset / 404) and the
       // page still has not booted 3s later → retry without waiting the full 12s.
+      // S84: a LINK stylesheet error is the visual-integrity failure — it reloads
+      // even when the page booted (force), after a shorter 1.5s beat so a
+      // multi-file reset burst still collapses into one reload.
       window.addEventListener('error', function (e) {
         var t = e && e.target
-        if (!t || t.tagName !== 'SCRIPT' || !t.src) return
-        if (!/\/dist\/|\/js\//.test(t.src)) return
-        setTimeout(function () { if (!booted()) retry('script-error: ' + t.src) }, 3000)
+        if (!t) return
+        var tag = t.tagName
+        var url = t.src || t.href || ''
+        if (tag !== 'SCRIPT' && tag !== 'LINK') return
+        if (!/\/dist\/|\/js\/|\/css\//.test(url)) return
+        if (tag === 'LINK') setTimeout(function () { retry('css-error: ' + url, true) }, 1500)
+        else setTimeout(function () { if (!booted()) retry('script-error: ' + url) }, 3000)
       }, true)
     } catch (e) { /* private mode / storage blocked — the page stays as it was */ }
   })()
   </script>
   <script src="/vendor/alpine.min.js" defer></script>
   <script src="/js/queue.js?v=2" defer></script>
-  <script src="/js/app.js?v=192" defer></script>
+  <script src="/js/app.js?v=193" defer></script>
   <script src="/js/magic-wand.js?v=14" defer></script>
   <script src="/js/hib-init.js?v=6" defer></script>
   <script src="/js/touch-drag.js?v=1" defer></script>
@@ -156,6 +192,6 @@
     </div>
   </main>
 
-  <script src="/js/notes-page.js?v=16" defer></script>
+  <script src="/js/notes-page.js?v=17" defer></script>
 </body>
 </html>

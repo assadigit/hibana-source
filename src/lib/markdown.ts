@@ -26,9 +26,12 @@ export function renderMarkdown(src: string): string {
   // as literal "[ ]" text; rides the same \x01U\x02 UL grouping as plain bullets.
   // Server-side the box is a static span (reading views); the vault's live editor
   // (notes-page.js) renders the same structure with an interactive button instead.
-  s = s.replace(/^[ \t]*[-*] \[([ xX])\] (.*)$/gm, (_m, mark: string, rest: string) => {
+  // S84: the bullet is optional (a bare `[ ] text` line is a task — the exact shape
+  // the owner typed), `+` joins the bullets, and the marker may end the line; a
+  // space before text stays REQUIRED so `[x](url)` keeps parsing as a link.
+  s = s.replace(/^[ \t]*(?:[-*+] )?\[([ xX])\](?:[ \t]+(.*))?$/gm, (_m, mark: string, rest?: string) => {
     const done = mark.toLowerCase() === 'x'
-    return `\x01U\x02<li class="md-task${done ? ' is-done' : ''}"><span class="md-check${done ? ' is-on' : ''}" aria-hidden="true"></span><span class="md-task-txt">${rest}</span></li>`
+    return `\x01U\x02<li class="md-task${done ? ' is-done' : ''}"><span class="md-check${done ? ' is-on' : ''}" aria-hidden="true"></span><span class="md-task-txt">${rest ?? ''}</span></li>`
   })
   // Lists (S53 fix): typed markers first (\x01U\x02 / \x01O\x02), then per-type runs —
   // the old unmarked double pass wrapped unordered lists as <ul><ol><li>… (the second

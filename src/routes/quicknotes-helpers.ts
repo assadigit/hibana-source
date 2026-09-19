@@ -170,8 +170,11 @@ export function archiveHtml(notes: QuickNote[], lang: Locale, titles: Map<string
     const kindIcon = n.kind === 'list' ? 'list-check' : 'book'
     const kindLabel = t(n.kind === 'list' ? 'List' : 'Note', n.kind === 'list' ? 'فهرست' : 'یادداشت')
     // First non-empty line is the excerpt (notes: the first markdown line; lists: the title).
+    // S84: task markers stripped (a `- [ ] milk` first line excerpted as literal `[ ]`
+    // reads like raw markdown — the exact look the owner flagged in the vault).
     const plain = decodeEntities(n.kind === 'list' ? n.title : n.content)
-    const firstLine = plain.split('\n').map((l) => l.trim()).find((l) => l && !l.startsWith('#')) ?? plain.slice(0, 80)
+    const stripTask = (l: string) => l.replace(/^[ \t]*(?:[-*+]|\d+\.)?[ \t]*\[[ xX]\](?:[ \t]+|$)/, '')
+    const firstLine = plain.split('\n').map((l) => stripTask(l).trim()).find((l) => l && !l.startsWith('#')) ?? plain.slice(0, 80)
     const stamp = formatNoteDay(n.updated_at, calendarFor(lang), lang)
     const time = new Date(n.updated_at).toLocaleTimeString(lang === 'fa' ? 'fa-IR' : 'en-GB', { hour: '2-digit', minute: '2-digit', hour12: false })
     // S65 copy source: the reader's Copy-as-Markdown button reads this (notes: the raw

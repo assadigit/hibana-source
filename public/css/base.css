@@ -75,10 +75,23 @@ body {
   opacity: 1;
   transition: opacity 0.3s ease;
   pointer-events: all;
+  /* S84 (owner: "notes.html still appears pre-emptively and unloaded"): the
+     last-resort escape — if EVERY script that could lift the veil failed to
+     arrive (the flaky-link worst case), the loader itself must eventually get
+     out of the way: a pure-CSS fade at 20s, past every JS safety (the gated
+     page's 12s reveal, the inline watchdog's 12s reload, the plain 8s safety).
+     Visibility — not just opacity — so the invisible overlay can never sit on
+     top of the page swallowing every click. Animation fill beats the is-hidden
+     class in the cascade, and on a normally-revealed page it lands on an
+     already-transparent overlay (a no-op). */
+  animation: hibana-page-loader-escape 0.6s ease 20s forwards;
 }
 #hibana-page-loader.is-hidden {
   opacity: 0;
   pointer-events: none;
+}
+@keyframes hibana-page-loader-escape {
+  to { opacity: 0; visibility: hidden; }
 }
 #hibana-page-loader .hibana-page-loader-spinner {
   inline-size: 2.5rem;

@@ -711,6 +711,12 @@
 .vault-body[data-mode='read'] .vault-preview { border-inline-start: 0; padding-inline: clamp(1.25rem, 5vw, 4rem); }
 
 .vault-src {
+  /* S84: the three body surfaces are EXPLICITLY placed (grid-area). With auto
+     placement, the live-overlay (explicit 1/1) claims the cell FIRST and the
+     auto-placement cursor pushes the textarea into a second row — the covers
+     render above the text, disconnected (the misplaced-checkbox bug). Explicit
+     1/1 on BOTH the textarea and the overlay STACKS them in the same cell. */
+  grid-area: 1 / 1;
   border: 0;
   resize: none;
   padding: 1rem 1.25rem 2.5rem;
@@ -726,12 +732,15 @@
 [dir='rtl'] .vault-src { font-family: var(--font-sans); font-size: 0.9375rem; }
 
 .vault-preview {
+  grid-area: 1 / 2; /* S84: split mode's second column (read mode joins 1/1 below) */
   padding: 1rem 1.5rem 2.5rem;
   border-inline-start: 1px solid var(--line);
   background: var(--bg);
   overflow-y: auto;
   min-height: 0;
 }
+/* S84: read mode is single-column — the preview joins cell 1/1 */
+.vault-body[data-mode='read'] .vault-preview { grid-area: 1 / 1; }
 .vault-preview .markdown-body { max-inline-size: 46rem; margin-inline: auto; }
 .vault-preview .markdown-body h1:first-child,
 .vault-preview .markdown-body h2:first-child { margin-block-start: 0; }
@@ -847,6 +856,7 @@
   .vault { display: block; }
   .vault-body { display: block; }
   .vault-src { display: none; }
+  [data-vault-md-live] { display: none !important; } /* S84: the live covers print never */
   .vault-preview { border: 0; overflow: visible; }
 }\n
 /* ══════════════ S54 POLISH BATCH ═══════════════════════════════════════════════ */
@@ -989,6 +999,65 @@ button.md-check:focus-visible { outline: 2px solid var(--accent); outline-offset
 .md-check.is-on::before { content: '';  inline-size: 0.55rem; block-size: 0.3rem; border-inline-start: 2px solid currentColor; border-block-end: 2px solid currentColor; transform: translateY(-1px) rotate(-45deg); }
 .md-task-txt { flex: 1; min-inline-size: 0; }
 li.md-task.is-done .md-task-txt { color: var(--muted); text-decoration: line-through; text-decoration-color: var(--muted); }
+
+/* ══ S84 — LIVE CHECKBOXES IN THE EDITING SURFACE (the owner's "it should be a
+   clickable and nicely checkbox"): the overlay covers the textarea's grid cell
+   (grid-area 1/1 — the SAME cell, zero layout impact) and paints one control
+   EXACTLY over each raw `- [ ]` marker: opaque card background (the syntax is
+   covered, not deleted), the .md-check visual grammar, hover lift, focus ring,
+   done fill + checkmark. pointer-events pass through everywhere except the
+   controls themselves. ══ */
+[data-vault-md-live] {
+  grid-area: 1 / 1;
+  position: relative;
+  overflow: hidden;
+  pointer-events: none;
+  z-index: 2;
+}
+.vault-body[data-mode='read'] [data-vault-md-live],
+[data-vault-md-live][hidden] { display: none; }
+[data-vault-md-live-in] { position: absolute; inset: 0; will-change: transform; }
+.md-live-check {
+  position: absolute;
+  display: block;
+  padding: 0;
+  border: 0;
+  background: var(--card); /* opaque: the raw marker underneath is covered, not deleted */
+  cursor: pointer;
+  pointer-events: auto;
+  font: inherit;
+  color: inherit;
+}
+.md-live-check .md-live-box {
+  position: absolute;
+  top: calc(50% - 0.5625rem);
+  inline-size: 1.125rem;
+  block-size: 1.125rem;
+  border-radius: 5px;
+  border: 1.5px solid var(--line-strong);
+  background: var(--card);
+  display: inline-grid;
+  place-items: center;
+  color: transparent;
+  transition: border-color 0.14s ease, background 0.14s ease, color 0.14s ease, transform 0.1s ease;
+}
+.md-live-check:hover .md-live-box { border-color: var(--accent); transform: scale(1.06); }
+.md-live-check:active .md-live-box { transform: scale(0.94); }
+.md-live-check:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.md-live-check.is-on .md-live-box { border-color: var(--accent); background: var(--accent); color: var(--accent-contrast, #fff); }
+.md-live-check.is-on .md-live-box::before {
+  content: '';
+  inline-size: 0.55rem;
+  block-size: 0.3rem;
+  border-inline-start: 2px solid currentColor;
+  border-block-end: 2px solid currentColor;
+  transform: translateY(-1px) rotate(-45deg);
+}
+/* caret on the line: the cover lifts — the raw syntax you are editing shows */
+.md-live-check.is-raw { display: none; }
+@media (prefers-reduced-motion: reduce) {
+  .md-live-check .md-live-box { transition: none; }
+}
 
 /* Empty states: the icon sits in a soft accent circle (matches .empty-state-icon
    patterns elsewhere) and the CTA row centers. */

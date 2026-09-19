@@ -66,6 +66,10 @@ export function excerptOf(content: string, max = 160): string {
     .replace(/```[\s\S]*?```/g, ' ') // code blocks → nothing useful in an excerpt
     .replace(/^\s{0,3}#{1,6}\s+/gm, '') // heading markers
     .replace(/^\s{0,3}>\s?/gm, '') // quote markers
+    // S84: task markers stripped BEFORE the list strip (a `- [ ] milk` line would
+    // otherwise excerpt as literal `[ ] milk` — the raw-markdown look the owner
+    // flagged). Bullet optional + space-or-EOL after `]` so `[x](url)` stays a link.
+    .replace(/^[ \t]*(?:[-*+]|\d+\.)?[ \t]*\[[ xX]\](?:[ \t]+|$)/gm, '')
     .replace(/^\s{0,3}([-*+]|\d+\.)\s+/gm, '') // list markers
     .replace(/!?\[([^\]]*)\]\([^)]*\)/g, '$1') // links → their text
     .replace(/[*_~`#]+/g, '') // emphasis/code markers

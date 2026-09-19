@@ -47,6 +47,25 @@ describe("renderMarkdown (the app's markdown subset)", () => {
     expect(html).not.toContain('<ul><ul>')
   })
 
+  it('S84 checklist grammar widened: bare `[ ] text` lines, `+` bullets, empty tasks — but link lines stay links', () => {
+    // the exact shape the owner typed by hand (no dash) is a task, not literal text
+    const html = renderMarkdown('[ ] bare task\n* [X] star caps\n+ [ ] plus bullet\n[ ]')
+    expect(html).not.toContain('>[ ]') // never literal bracket text in the output
+    expect(html).not.toContain('[X]')
+    expect(html).toContain('<li class="md-task')
+    expect(html).toContain('<li class="md-task is-done')
+    // empty task (marker ends the line, no trailing space) still renders a row
+    expect((html.match(/<li class="md-task/g) || []).length).toBe(4)
+    // a link whose text is exactly x (a single mark char) is NOT a task (space-after-] is required)
+    const link = renderMarkdown('[x](https://a.com)')
+    expect(link).toContain('<a href="https://a.com"')
+    expect(link).not.toContain('md-task')
+    // a non-task bracket line (multi-char mark) is untouched by the task pass
+    const plain = renderMarkdown('- [ ] ok\n- [ab] not a task')
+    expect(plain).toContain('md-task')
+    expect(plain).toContain('<li>[ab] not a task</li>')
+  })
+
   it('ordered lists wrap in <ol>; a UL run adjacent to an OL run stays two lists', () => {
     const html = renderMarkdown('1. a\n2. b\n- c')
     expect(html).toContain('<ol><li>a</li>\n<li>b</li>\n</ol>')

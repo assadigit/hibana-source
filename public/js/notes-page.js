@@ -32,8 +32,14 @@ document.documentElement.setAttribute('data-hibana-booted', '1')
       // renderMarkdown tags each box with its occurrence index (data-md-task); the
       // click delegation flips that line in the SOURCE textarea — the preview stays
       // a pure function of the source (the autosave/edit pipeline is untouched).
-      const TASK_LINE_RE = /^[ \t]*[-*] \[([ xX])\] (.*)$/gm
-      const TASK_LINE_TEST = /^[ \t]*[-*] \[([ xX])\] /
+      // S84 (owner follow-up — "it shows like a raw markdown [ ]"): the grammar
+      // WIDENED. The bullet is now optional (a bare `[ ] milk` line is a task — the
+      // exact shape the owner typed), `+` joins `-`/`*`, and the marker may END the
+      // line (`- [ ]` with no trailing space is still a task, never a bullet with
+      // literal brackets). A space after `]` before text stays REQUIRED so a link
+      // line like `[x](https://…)` keeps parsing as a link, never a task.
+      const TASK_LINE_RE = /^[ \t]*(?:[-*+] )?\[([ xX])\](?:[ \t]+(.*))?$/gm
+      const TASK_LINE_TEST = /^[ \t]*(?:[-*+] )?\[([ xX])\](?:[ \t]+(.*))?$/
       function renderMarkdown(src) {
         let s = mdEscape(String(src ?? ''))
         const fences = []
@@ -52,7 +58,7 @@ document.documentElement.setAttribute('data-hibana-booted', '1')
         s = s.replace(TASK_LINE_RE, (_m, mark, rest) => {
           const done = mark.toLowerCase() === 'x'
           const i = taskIdx++
-          return '\x01U\x02<li class="md-task' + (done ? ' is-done' : '') + '"><button type="button" class="md-check' + (done ? ' is-on' : '') + '" data-md-task="' + i + '" role="checkbox" aria-checked="' + done + '" aria-label="' + esc(_t('notes.tb.checkToggle', 'Toggle task')) + '"></button><span class="md-task-txt">' + rest + '</span></li>'
+          return '\x01U\x02<li class="md-task' + (done ? ' is-done' : '') + '"><button type="button" class="md-check' + (done ? ' is-on' : '') + '" data-md-task="' + i + '" role="checkbox" aria-checked="' + done + '" aria-label="' + esc(_t('notes.tb.checkToggle', 'Toggle task')) + '"></button><span class="md-task-txt">' + (rest ?? '') + '</span></li>'
         })
         s = s.replace(/^[ \t]*[-*] (.*)$/gm, '\x01U\x02<li>$1</li>')
         s = s.replace(/^[ \t]*\d+\. (.*)$/gm, '\x01O\x02<li>$1</li>')
@@ -508,6 +514,7 @@ document.documentElement.setAttribute('data-hibana-booted', '1')
             <div class="vault-preview" data-vault-preview aria-label="${esc(_t('notes.preview', 'Preview'))}">
               <div class="markdown-body" data-vault-preview-body dir="auto">${renderMarkdown(state.draft.content)}</div>
             </div>
+            <div class="md-live" data-vault-md-live hidden><div class="md-live-in" data-vault-md-live-in></div></div>
           </div>
           <div class="vault-status">
             <span class="vault-save" data-vault-save data-state="${state.saveState}">${esc(saveLabel())}</span>
@@ -516,6 +523,7 @@ document.documentElement.setAttribute('data-hibana-booted', '1')
         </div>`
         updateStatus()
         wirePreview()
+        wireLiveChecks()
       }
 
       const updateStatus = () => {
@@ -544,6 +552,7 @@ document.documentElement.setAttribute('data-hibana-booted', '1')
       const renderPreview = () => {
         const body = $('[data-vault-preview-body]')
         if (body) body.innerHTML = renderMarkdown(state.draft.content)
+        syncLiveChecks()
         wirePreview()
       }
 
@@ -644,6 +653,166 @@ document.documentElement.setAttribute('data-hibana-booted', '1')
         pane.onscroll() // initial state: highlight where the pane starts (heading 0)
       }
 
+      /* ── S84 (owner: "the checkbox shows like a raw markdown [ ] — it should be a
+         clickable and nicely checkbox"): LIVE checkboxes in the EDITING surface
+         itself, not just the preview pane (edit mode is the mobile default — the
+         owner writes into the textarea and never sees the preview boxes at all).
+         The textarea stays the single source of truth; a hidden MIRROR div —
+         identical font, width, padding and wrapping, with unicode-bidi:plaintext to
+         reproduce the textarea's per-line auto direction — measures where each task
+         marker sits, and the overlay paints one pretty control EXACTLY over the raw
+         `- [ ]` text (opaque card background: the syntax is covered, not deleted).
+         The controls carry the same data-md-task delegation as the preview boxes (a
+         click flips the source line); moving the caret onto a line LIFTS its cover
+         so the syntax you are about to edit is the thing you see (Obsidian
+         live-preview semantics). Zero cost for notes without checklists (one regex
+         test); any measurement failure degrades to today's plain textarea. ── */
+      let liveMirrorEl = null
+      let liveRaf = 0
+      let liveResizeT = 0
+
+      const syncLiveChecks = () => {
+        try {
+          const ta = $('[data-vault-src]')
+          const host = $('[data-vault-md-live]')
+          if (!ta || !host) return
+          const inner = host.querySelector('[data-vault-md-live-in]')
+          if (!inner) return
+          // read mode hides the textarea (print does it via CSS) — nothing to cover
+          if (state.mode === 'read' || ta.readOnly) { host.hidden = true; return }
+          const v = String(ta.value)
+          // the common note pays ONE regex test; overlay work starts only when a
+          // checklist exists
+          if (!/^[ \t]*(?:[-*+] )?\[[ xX]\]/m.test(v)) { host.hidden = true; return }
+          host.hidden = false
+          // 1) mirror content: each task line's cover region split into TWO measurable
+          // spans — A = indent+bullet, B = marker+the spaces up to the text — so the
+          // control covers A∪B while the visible box sits exactly where the brackets
+          // sat (and the A→B order reveals the line's direction without heuristics)
+          const lines = v.split('\n')
+          const marks = [] // { done }
+          let html = ''
+          for (const line of lines) {
+            const m = line.match(TASK_LINE_TEST)
+            if (m) {
+              const a = (/^[ \t]*(?:[-*+] )?/.exec(line) || [''])[0]
+              const b = (/^\[[ xX]\][ \t]*/.exec(line.slice(a.length)) || [''])[0]
+              html += '<span data-ma="' + marks.length + '">' + mdEscape(a) + '</span><span data-mk="' + marks.length + '">' + mdEscape(b) + '</span>' + mdEscape(line.slice(a.length + b.length)) + '\n'
+              marks.push({ done: m[1].toLowerCase() === 'x' })
+            } else html += mdEscape(line) + '\n'
+          }
+          if (!liveMirrorEl) {
+            liveMirrorEl = document.createElement('div')
+            liveMirrorEl.setAttribute('data-vault-md-mirror', '')
+            liveMirrorEl.setAttribute('aria-hidden', 'true')
+            document.body.appendChild(liveMirrorEl)
+          }
+          const mir = liveMirrorEl
+          const cs = getComputedStyle(ta)
+          const st = mir.style
+          st.position = 'absolute'; st.visibility = 'hidden'; st.left = '0'; st.top = '0'; st.margin = '0'
+          st.width = ta.getBoundingClientRect().width + 'px'; st.height = 'auto'
+          for (const p of ['fontFamily', 'fontSize', 'fontWeight', 'fontStyle', 'fontStretch', 'fontVariant', 'letterSpacing', 'wordSpacing', 'lineHeight', 'textTransform', 'textIndent', 'tabSize', 'whiteSpace', 'overflowWrap', 'wordBreak', 'direction', 'paddingTop', 'paddingRight', 'paddingBottom', 'paddingLeft', 'borderTopWidth', 'borderRightWidth', 'borderBottomWidth', 'borderLeftWidth', 'boxSizing']) {
+            try { st[p] = cs[p] } catch {}
+          }
+          // a dir=auto textarea resolves direction PER LINE (UA unicode-bidi:
+          // plaintext) — the mirror must too, or mixed-direction notes mis-measure
+          st.unicodeBidi = 'plaintext'
+          st.whiteSpace = 'pre-wrap'
+          mir.innerHTML = html
+          // 2) measure: each span pair's rects, relative to the mirror's border box
+          //    (identical geometry to the textarea's — the offsets transfer 1:1)
+          const mrect = mir.getBoundingClientRect()
+          const label = esc(_t('notes.tb.checkToggle', 'Toggle task'))
+          inner.textContent = ''
+          let k = 0
+          for (const el of mir.querySelectorAll('[data-mk]')) {
+            const i = Number(el.getAttribute('data-mk'))
+            const mk = marks[i]
+            const aEl = mir.querySelector('[data-ma="' + i + '"]')
+            const r = el.getBoundingClientRect()
+            const ar = aEl ? aEl.getBoundingClientRect() : r
+            const left = Math.min(ar.left, r.left)
+            const right = Math.max(ar.right, r.right)
+            const top = Math.min(ar.top, r.top)
+            const h = Math.max(ar.height, r.height, 20)
+            if (right - left <= 0) continue
+            const btn = document.createElement('button')
+            btn.type = 'button'
+            btn.className = 'md-live-check' + (mk.done ? ' is-on' : '')
+            btn.setAttribute('data-md-task', String(k)) // rides the preview's click delegation
+            btn.setAttribute('role', 'checkbox')
+            btn.setAttribute('aria-checked', String(!!mk.done))
+            btn.setAttribute('aria-label', label)
+            btn.style.top = (top - mrect.top) + 'px'
+            btn.style.left = (left - mrect.left) + 'px'
+            btn.style.width = Math.max(right - left, 20) + 'px'
+            btn.style.height = h + 'px'
+            // the visible box sits exactly where the brackets sat (physical coords —
+            // correct in LTR and RTL alike; B sits left of A on an RTL line)
+            btn.innerHTML = '<span class="md-live-box" aria-hidden="true" style="left:' + Math.max(r.left - left, 0) + 'px"></span>'
+            // the cover is a control, not a focus target: keep the caret in the textarea
+            btn.addEventListener('mousedown', (ev) => ev.preventDefault())
+            inner.appendChild(btn)
+            k += 1
+          }
+          // 3) scroll sync: the buttons live in content coordinates; the pane translates
+          inner.style.transform = 'translateY(' + (-ta.scrollTop) + 'px)'
+          updateLiveCaret()
+        } catch { /* any measurement failure degrades to the plain textarea */ }
+      }
+
+      // the caret (or a selection) touching a task line lifts that line's cover —
+      // the raw syntax you are editing is the thing you should see. Only a FOCUSED
+      // caret lifts: an unfocused textarea (a note just opened, or focus moved to
+      // the title/toolbar) shows every pretty box — the reading-while-editing view.
+      const updateLiveCaret = () => {
+        const ta = $('[data-vault-src]')
+        const inner = $('[data-vault-md-live-in]')
+        if (!ta || !inner) return
+        const focused = document.activeElement === ta
+        const s0 = ta.selectionStart ?? 0
+        const s1 = ta.selectionEnd ?? s0
+        let pos = 0
+        let k = 0
+        const hide = new Set()
+        if (focused) for (const line of String(ta.value).split('\n')) {
+          const ls = pos
+          const le = pos + line.length
+          if (TASK_LINE_TEST.test(line)) {
+            if (s0 <= le && ls <= s1) hide.add(k)
+            k += 1
+          }
+          pos = le + 1
+        }
+        for (const btn of inner.querySelectorAll('.md-live-check')) {
+          btn.classList.toggle('is-raw', hide.has(Number(btn.getAttribute('data-md-task'))))
+        }
+      }
+
+      const onLiveScroll = () => {
+        const ta = $('[data-vault-src]')
+        const inner = $('[data-vault-md-live-in]')
+        if (!ta || !inner) return
+        inner.style.transform = 'translateY(' + (-ta.scrollTop) + 'px)'
+      }
+      const onLiveCaret = () => { if (!liveRaf) liveRaf = requestAnimationFrame(() => { liveRaf = 0; updateLiveCaret() }) }
+      const onLiveResize = () => {
+        clearTimeout(liveResizeT)
+        liveResizeT = setTimeout(syncLiveChecks, 180)
+      }
+      const wireLiveChecks = () => {
+        const ta = $('[data-vault-src]')
+        if (!ta) return
+        syncLiveChecks()
+        ta.addEventListener('scroll', onLiveScroll, { passive: true })
+        ta.addEventListener('keyup', onLiveCaret)
+        ta.addEventListener('mouseup', onLiveCaret)
+        ta.addEventListener('focus', onLiveCaret)
+        ta.addEventListener('blur', onLiveCaret) // focus leaves → every cover returns
+        ta.addEventListener('touchend', onLiveCaret)
+      }
+
       const onOutlineClick = (e) => {
         const t = e.target instanceof Element ? e.target : null
         if (!t) return
@@ -674,6 +843,25 @@ document.documentElement.setAttribute('data-hibana-booted', '1')
 
       /* ══════════════ data flows ══════════════ */
       let bootSeq = 0
+      /* ── S84: the reveal contract with #hibana-page-loader ──
+         (owner: "notes.html still appears pre-emptively and unloaded — elements
+         are not looking proper"): app.js gates THIS page's veil on data, not
+         DOMContentLoaded (notes.html declares <html data-hibana-reveal="gated">").
+         revealPage() fires once the vault's first REAL paint happened — the list
+         pane rendered with real cards, or the honest load-failed Retry panel;
+         either way the page is worth looking at. Idempotent (later view switches
+         re-run loadNotes — the second call is a no-op). Belt: hide the loader
+         DIRECTLY too — if app.js itself never arrived (a dropped asset on the
+         flaky link), the veil would otherwise trap this booted page forever
+         (base.css's 20s CSS escape is the last resort behind this). */
+      let pageRevealed = false
+      const revealPage = () => {
+        if (pageRevealed) return
+        pageRevealed = true
+        try { document.documentElement.setAttribute('data-hibana-ready', '1') } catch {}
+        try { window.dispatchEvent(new CustomEvent('hibana:page-ready')) } catch {}
+        try { const veil = document.getElementById('hibana-page-loader'); if (veil) veil.classList.add('is-hidden') } catch {}
+      }
       // S82 (owner: "notes.html first opens broken/unloaded — I have to refresh 1-2
       // times to see the real page"): a failed bootstrap used to leave the tree's
       // skeleton shimmering FOREVER (renderTree only ran on success), and a single
@@ -681,8 +869,14 @@ document.documentElement.setAttribute('data-hibana-booted', '1')
       // template. One quick retry + always rendering the tree on failure makes the
       // first load self-heal instead of demanding a manual refresh.
       const loadBootstrapOnce = async () => {
+        // S84: the inline head script starts this fetch at HTML-parse time (seconds
+        // before the deferred scripts run on a slow link — the veil's total time
+        // becomes max(scripts, data) instead of scripts + data). Consume it once;
+        // any rejection (401 logged-out, net reset) falls through to the api() path.
+        const pre = window.__hibanaVaultBoot
+        if (pre) { window.__hibanaVaultBoot = null }
         try {
-          const boot = await api('/api/vault/bootstrap')
+          const boot = pre ? await pre : await api('/api/vault/bootstrap')
           state.folders = boot.folders || []
           state.tags = boot.tags || []
           state.counts = boot.counts || { all: 0, starred: 0, trash: 0 }
@@ -738,6 +932,10 @@ document.documentElement.setAttribute('data-hibana-booted', '1')
         state.notes = notes
         state.loadingList = false
         renderCards()
+        // S84: the first REAL paint just happened (real cards — or the honest
+        // load-failed Retry panel above) → lift the veil. Later view switches
+        // re-run loadNotes; revealPage is idempotent so this line costs nothing.
+        revealPage()
       }
 
       const setView = (type, id, name) => {
@@ -1210,8 +1408,10 @@ document.documentElement.setAttribute('data-hibana-booted', '1')
         let start = v.lastIndexOf('\n', ta.selectionStart - 1) + 1
         let end = v.indexOf('\n', ta.selectionEnd)
         if (end === -1) end = v.length
-        const stripTask = (l) => l.replace(/^[ \t]*[-*] \[[ xX]\] /, '')
-        const isTask = (l) => /^[ \t]*[-*] \[[ xX]\] /.test(l)
+        // S84: the same widened grammar as the renderer — a bare `[ ] milk` line the
+        // owner typed by hand round-trips the toolbar toggle like a canonical one
+        const stripTask = (l) => l.replace(/^[ \t]*(?:[-*+] )?\[[ xX]\][ \t]*/, '')
+        const isTask = (l) => TASK_LINE_TEST.test(l)
         const lines = v.slice(start, end).split('\n')
         const all = lines.every((l) => isTask(l))
         const out = lines.map((l) => all ? stripTask(l) : '- [ ] ' + stripTask(l)).join('\n')
@@ -1235,8 +1435,13 @@ document.documentElement.setAttribute('data-hibana-booted', '1')
           if (k !== idx) continue
           const open = m[1].toLowerCase() !== 'x'
           lines[i] = lines[i].replace(/\[[ xX]\]/, open ? '[x]' : '[ ]')
+          // S84: `[ ]`↔`[x]` is length-neutral — restoring the caret keeps the writer's
+          // place when the flip comes from a preview/overlay click mid-editing.
+          const s0 = ta.selectionStart, s1 = ta.selectionEnd
           ta.value = lines.join('\n')
+          try { ta.setSelectionRange(s0, s1) } catch {}
           ta.dispatchEvent(new Event('input', { bubbles: true }))
+          syncLiveChecks() // the overlay flips NOW, not 140ms later
           return
         }
         // idx beyond the last task = a stale render index (an edit reshuffled the
@@ -1465,6 +1670,30 @@ document.documentElement.setAttribute('data-hibana-booted', '1')
           return
         }
         if (t.matches('[data-vault-taginput]') && e.key === 'Escape') { renderEditor(); return }
+        // S84 (the checklist flow): Enter at the END of a task line continues the
+        // list (the next line is born `- [ ] ` — the gesture every checklist editor
+        // has); Enter on an EMPTY task unwraps it — the exit. Mid-line Enters stay
+        // native (splitting text must not inherit the marker).
+        if (e.key === 'Enter' && !e.shiftKey && !e.ctrlKey && !e.metaKey && !e.altKey
+          && t.matches('[data-vault-src]') && !t.readOnly && t.selectionStart === t.selectionEnd) {
+          const v = t.value
+          const pos = t.selectionStart
+          const ls = v.lastIndexOf('\n', pos - 1) + 1
+          let le = v.indexOf('\n', pos)
+          if (le === -1) le = v.length
+          if (pos === le && TASK_LINE_TEST.test(v.slice(ls, le))) {
+            e.preventDefault()
+            const line = v.slice(ls, le)
+            const bare = line.replace(/^[ \t]*(?:[-*+] )?\[[ xX]\][ \t]*/, '')
+            if (!bare) t.setRangeText('\n', ls, le, 'end')
+            else {
+              const indent = (/^[ \t]*/.exec(line) || [''])[0]
+              t.setRangeText('\n' + indent + '- [ ] ', le, le, 'end')
+            }
+            t.dispatchEvent(new Event('input', { bubbles: true }))
+            return
+          }
+        }
         // Ctrl/Cmd+S — flush the autosave now (the writer's insurance key)
         if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') {
           if (t.closest && (t.matches('[data-vault-src]') || t.matches('[data-vault-title]') || t.closest('.vault'))) {
@@ -1522,6 +1751,11 @@ document.documentElement.setAttribute('data-hibana-booted', '1')
       document.addEventListener('input', onSearch)
       document.addEventListener('change', onSort)
       document.addEventListener('hibana:i18n', onI18n)
+      // S84: caret tracking for the live checkboxes (selectionchange covers caret
+      // moves in Chromium; the per-textarea keyup/mouseup/focus listeners in
+      // wireLiveChecks are the belt) + pane re-measure on resize/rotation
+      document.addEventListener('selectionchange', onLiveCaret)
+      window.addEventListener('resize', onLiveResize)
 
       // sort select initial value
       const sortSel = $('[data-vault-sort]')
@@ -1620,6 +1854,11 @@ document.documentElement.setAttribute('data-hibana-booted', '1')
         document.removeEventListener('change', onSort)
         document.removeEventListener('hibana:i18n', onI18n)
         document.removeEventListener('click', onPersistView)
+        if (liveRaf) cancelAnimationFrame(liveRaf)
+        clearTimeout(liveResizeT)
+        document.removeEventListener('selectionchange', onLiveCaret)
+        window.removeEventListener('resize', onLiveResize)
+        if (liveMirrorEl) { liveMirrorEl.remove(); liveMirrorEl = null }
       }
     },
   })

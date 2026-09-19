@@ -7,15 +7,38 @@
 // progress bar (#hibana-nav-loader, normally driven by nav.js for soft navigation) to
 // htmx content swaps so the project page's content-load delay has feedback too.
 (function () {
-  // Hide the full-page overlay on DOMContentLoaded (or immediately if already loaded)
+  // Hide the full-page overlay on DOMContentLoaded (or immediately if already loaded).
+  // S84 (owner: "notes.html still appears pre-emptively and unloaded — elements are
+  // not looking proper"): DOMContentLoaded only proves the scripts PARSED. On pages
+  // that render their content from post-DCL API data (the vault), lifting the veil
+  // at DCL shows a skeleton page for seconds — and the old 8s safety could even
+  // lift it over a half-booted page when a script stalled. Pages that own their
+  // data now declare <html data-hibana-reveal="gated"> and reveal themselves via
+  // the hibana:page-ready event (or the data-hibana-ready attribute) once their
+  // first REAL paint happened — real cards, or the honest load-failed Retry panel.
+  // The veil still never traps: a 12s safety (aligned with the inline watchdog's
+  // 12s reload rhythm) and base.css's pure-CSS 20s escape (for the dead-JS case)
+  // both backstop the gate. Non-gated pages keep today's DCL behavior untouched.
   var pageLoader = document.getElementById('hibana-page-loader')
   if (pageLoader) {
-    var hideOverlay = function () { pageLoader.classList.add('is-hidden') }
-    if (document.readyState !== 'loading') hideOverlay()
-    else document.addEventListener('DOMContentLoaded', hideOverlay, { once: true })
-    window.addEventListener('load', hideOverlay, { once: true }) // fallback: all assets loaded
-    // Safety: never let the overlay trap the user — hide after 8s no matter what
-    setTimeout(hideOverlay, 8000)
+    var hideOverlay = function () { if (!pageLoader.classList.contains('is-hidden')) pageLoader.classList.add('is-hidden') }
+    if (document.documentElement.getAttribute('data-hibana-reveal') === 'gated') {
+      // Gated page: reveal on the page controller's signal, not the DOM's.
+      if (document.documentElement.hasAttribute('data-hibana-ready')) hideOverlay()
+      else {
+        window.addEventListener('hibana:page-ready', hideOverlay, { once: true })
+        // Never trap: after 12s the veil lifts no matter what (the inline watchdog
+        // reloads an un-booted page at 12s; a booted-but-slow fetch beats an
+        // eternal veil — whatever state the page reached is worth seeing by then).
+        setTimeout(hideOverlay, 12000)
+      }
+    } else {
+      if (document.readyState !== 'loading') hideOverlay()
+      else document.addEventListener('DOMContentLoaded', hideOverlay, { once: true })
+      window.addEventListener('load', hideOverlay, { once: true }) // fallback: all assets loaded
+      // Safety: never let the overlay trap the user — hide after 8s no matter what
+      setTimeout(hideOverlay, 8000)
+    }
   }
   // Top progress bar for htmx content swaps (the project page's hx-get, etc.)
   var navBar = null

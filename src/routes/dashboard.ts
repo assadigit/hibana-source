@@ -338,7 +338,7 @@ export function dashboardRoutes(cfg: Config) {
         const iconId = style?.icon ?? q.glyph
         // The symbol shown in the picker button: the custom value when it's an emoji
         // (outside the SVG glyph set), else the quadrant's default emoji.
-        const currentSymbol = iconId && !QUADRANT_GLYPHS.has(iconId) ? iconId : q.icon
+        const currentSymbol = iconId === 'none' ? '' : (iconId && !QUADRANT_GLYPHS.has(iconId) ? iconId : q.icon)
         // S69 (perf §10-F2): RENDER CAP. Every open task used to ship as HTML (~4KB a
         // row: inline SVGs + htmx attrs — #dashboard-todo was 491.5KB at 120 open tasks,
         // 115 of them hidden). The widget renders the first 8 per quadrant; rows 6–8 stay
@@ -374,7 +374,7 @@ export function dashboardRoutes(cfg: Config) {
                   <label>${t('Subtitle', 'زیر عنوان')}<input name="subtitle" value="${subtitle}" maxlength="120" aria-label="${t('Quadrant subtitle', 'زیرعنوان بخش')}"></label>
                   <div class="dash-style-emoji-row">
                     <span class="dash-style-lbl">${t('Symbol', 'نماد')}</span>
-                    <div class="dash-style-icons" role="group" aria-label="${t('Choose symbol', 'انتخاب نماد')}"><button type="button" class="dash-style-emoji is-selected dash-icon-open" data-dash-icon-open="${q.id}" data-current="${currentSymbol}" aria-label="${t('Choose symbol — full emoji library', 'انتخاب نماد — کتابخانهٔ کامل ایموجی')}" title="${t('Choose symbol — full emoji library', 'انتخاب نماد — کتابخانهٔ کامل ایموجی')}">${currentSymbol}</button></div>
+                    <div class="dash-style-icons" role="group" aria-label="${t('Choose symbol', 'انتخاب نماد')}"><button type="button" class="dash-style-emoji is-selected dash-icon-open" data-dash-icon-open="${q.id}" data-current="${currentSymbol}" aria-label="${t('Choose symbol — full emoji library', 'انتخاب نماد — کتابخانهٔ کامل ایموجی')}" title="${t('Choose symbol — full emoji library', 'انتخاب نماد — کتابخانهٔ کامل ایموجی')}">${currentSymbol || '—'}</button><button type="button" class="dash-style-emoji dash-style-empty${iconId === 'none' ? ' is-selected' : ''}" data-dash-icon-empty="${q.id}" aria-pressed="${iconId === 'none'}" aria-label="${t('No icon — minimalist', 'بدون نماد — مینیمال')}" title="${t('No icon — minimalist', 'بدون نماد — مینیمال')}">∅</button></div>
                     <div class="dash-style-actions">
                       <button type="button" class="dash-style-cancel" data-dash-style-cancel="${q.id}">${t('Cancel', 'لغو')}</button>
                       <button type="submit" class="dash-style-save-btn">${t('Save', 'ذخیره')}</button>

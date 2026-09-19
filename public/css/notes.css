@@ -927,27 +927,68 @@
   margin: 1em 0;
   padding: 0.875rem 1rem;
   border-radius: 12px;
-  background: var(--bg-soft);
-  border: 1px solid var(--line);
+  background: var(--code-panel-bg);
+  border: 1px solid var(--code-border);
   overflow-x: auto;
   direction: ltr;
   text-align: start;
+  color: var(--code-panel-fg);
+  font-family: var(--font-mono, ui-monospace, 'SF Mono', Menlo, monospace);
   font-size: 0.8125rem;
   line-height: 1.6;
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.04), 0 1px 3px rgb(30 20 10 / 0.06);
 }
+/* S83 (owner request — "code parts must look different: fonts, colors, size, like
+   Notion/Obsidian"): the old inline-code style was a barely-there bg-soft chip in the
+   BODY font — nothing about it said "code". Now: the mono stack, the rust --code-fg
+   (AA on --code-bg), a real size step down, and the fenced panel goes dark-panel —
+   the visual grammar of every code surface the owner knows. */
 .vault-preview .markdown-body code {
-  background: var(--bg-soft);
-  border: 1px solid var(--line);
+  background: var(--code-bg);
+  border: 1px solid var(--code-border);
   border-radius: 6px;
-  padding: 0.08em 0.35em;
-  font-size: 0.85em;
+  padding: 0.12em 0.4em;
+  color: var(--code-fg);
+  font-family: var(--font-mono, ui-monospace, 'SF Mono', Menlo, monospace);
+  font-size: 0.82em;
+  font-weight: 500;
+  line-height: 1.45;
+  white-space: break-spaces;
 }
-.vault-preview .markdown-body pre code { background: transparent; border: 0; padding: 0; font-size: inherit; }
+.vault-preview .markdown-body pre code { background: transparent; border: 0; padding: 0; font-size: inherit; color: inherit; font-weight: 400; white-space: pre; }
 .vault-preview .markdown-body a { color: var(--link, var(--accent)); text-decoration-thickness: 1px; text-underline-offset: 3px; }
 .vault-preview .markdown-body a:hover { text-decoration-thickness: 2px; }
 .vault-preview .markdown-body hr { border: 0; border-block-start: 1px solid var(--line-strong); margin-block: 1.75em; }
 .vault-preview .markdown-body li { margin-block: 0.2em; }
 .vault-preview .markdown-body li::marker { color: var(--accent); }
+
+/* S83 (owner request — the Note Editor's Checklist): task-list rows drop the bullet,
+ * the box is a real 18px control (AA focus ring, hover lift), and a done task's text
+ * fades + strikes — the Notion grammar. The box is a <button> in the live preview
+ * (clicking flips the source line) and a <span> in static server renders. */
+.vault-preview .markdown-body li.md-task { list-style: none; display: flex; align-items: flex-start; gap: 0.55em; margin-block: 0.3em; }
+.vault-preview .markdown-body li.md-task::marker { content: ''; }
+.md-check {
+  flex: none;
+  inline-size: 1.125rem;
+  block-size: 1.125rem;
+  margin-block-start: 0.18em;
+  border-radius: 5px;
+  border: 1.5px solid var(--line-strong);
+  background: var(--card);
+  display: inline-grid;
+  place-items: center;
+  color: transparent;
+  transition: border-color 0.14s ease, background 0.14s ease, color 0.14s ease, transform 0.1s ease;
+}
+button.md-check { cursor: pointer; padding: 0; font: inherit; }
+button.md-check:hover { border-color: var(--accent); transform: scale(1.06); }
+button.md-check:active { transform: scale(0.94); }
+button.md-check:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.md-check.is-on { border-color: var(--accent); background: var(--accent); color: var(--accent-contrast, #fff); }
+.md-check.is-on::before { content: '';  inline-size: 0.55rem; block-size: 0.3rem; border-inline-start: 2px solid currentColor; border-block-end: 2px solid currentColor; transform: translateY(-1px) rotate(-45deg); }
+.md-task-txt { flex: 1; min-inline-size: 0; }
+li.md-task.is-done .md-task-txt { color: var(--muted); text-decoration: line-through; text-decoration-color: var(--muted); }
 
 /* Empty states: the icon sits in a soft accent circle (matches .empty-state-icon
    patterns elsewhere) and the CTA row centers. */
@@ -965,6 +1006,39 @@
 .vault-ed-empty .empty-state-icon .icon { inline-size: 1.5rem; block-size: 1.5rem; color: var(--accent); }
 .vault-empty { align-items: center; }
 .vault-empty [data-vault-import] { justify-content: center; }
+
+/* S83 — the honest load-failed panel (vs. the fake "No notes yet" empty state):
+   warm amber accent instead of the calm accent-teal so the state is instantly
+   distinguishable, the icon circle pulses once to draw the eye to the Retry CTA. */
+.vault-load-failed .empty-state-icon { background: color-mix(in srgb, var(--warn, #b45309) 14%, transparent); color: var(--warn, #b45309); animation: vault-fail-pulse 2.4s ease 0.4s 1; }
+.vault-load-failed .empty-state-icon .icon { color: inherit; }
+.vault-load-failed b { color: var(--warn, #b45309); }
+@keyframes vault-fail-pulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.08); }
+}
+/* S83 — the tree's offline row (bootstrap fetch failed): muted, compact, tappable
+   as a whole (data-vault-retry rides it); hover lifts it like every quick view. */
+.vault-tree-offline {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0.25rem 0 0;
+  padding: 0.35rem 0.55rem;
+  border-radius: 0.5rem;
+  font-size: 0.8rem;
+  color: var(--warn, #b45309);
+  cursor: pointer;
+  border: 1px dashed color-mix(in srgb, var(--warn, #b45309) 45%, transparent);
+  background: color-mix(in srgb, var(--warn, #b45309) 6%, transparent);
+  transition: background 0.14s ease, border-color 0.14s ease;
+}
+.vault-tree-offline .icon { inline-size: 0.95rem; block-size: 0.95rem; flex: none; }
+.vault-tree-offline:hover, .vault-tree-offline:focus-visible {
+  background: color-mix(in srgb, var(--warn, #b45309) 12%, transparent);
+  border-color: var(--warn, #b45309);
+  outline: none;
+}
 
 /* Tag chips: hover gets the accent ring; pills on cards get a soft fill. */
 .vault-tag-chip { transition: border-color 0.14s ease, color 0.14s ease, background 0.14s ease; }

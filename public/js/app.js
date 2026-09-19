@@ -1863,7 +1863,8 @@ window.hibana = (() => {
       if (!card || !quadrant || (!iconChoice && !accentChoice)) return
       if (iconChoice) {
         const trigger = card.querySelector('[data-sadhana-style]')
-        if (trigger) trigger.innerHTML = quadrantChoice.innerHTML
+        // S83: the EMPTY choice clears the trigger (the 'none' sentinel renders nothing)
+        if (trigger) trigger.innerHTML = iconChoice === 'none' ? '' : quadrantChoice.innerHTML
         card.querySelectorAll('[data-sadhana-icon]').forEach((el) => el.classList.toggle('is-selected', el === quadrantChoice))
       }
       if (accentChoice) {
@@ -2076,11 +2077,35 @@ window.hibana = (() => {
           if (trigger) trigger.innerHTML = `<span class="quadrant-emoji">${emoji}</span>`
           styleOpen.dataset.current = emoji
           styleOpen.textContent = emoji
+          // S83: a real emoji pick un-arms the EMPTY option in the same popover
+          card.querySelectorAll('[data-dash-icon-empty]').forEach((el) => { el.classList.remove('is-selected'); el.setAttribute('aria-pressed', 'false') })
           fetch(`/api/sadhana/quadrants/${encodeURIComponent(quadrant)}`, {
             method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name, icon_id: emoji }),
           }).then((res) => { if (!res.ok) { handle401(res); throw new Error('style update failed') } }).catch(() => toast(_t('dashboard.styleFailed', "Couldn't update the quadrant"), 'err'))
         },
       })
+      return
+    }
+
+    // S83 (owner request — "ability to choose EMPTY, no icon and no emoji, for people
+    // who prefer minimalism"): the ∅ button beside the emoji picker arms the 'none'
+    // sentinel — PATCHes icon_id 'none', clears the quadrant's trigger glyph (the
+    // :empty trigger collapses to a hover-ghost), and reflects the armed state.
+    const styleEmpty = e.target.closest('[data-dash-icon-empty]')
+    if (styleEmpty) {
+      const card = styleEmpty.closest('.dash-todo-quadrant')
+      const quadrant = card?.dataset.dashQuadrant
+      const name = card?.dataset.dashName
+      if (!card || !quadrant || !name) return
+      const trigger = card.querySelector('[data-dash-style]')
+      if (trigger) trigger.innerHTML = ''
+      const emoBtn = card.querySelector('[data-dash-icon-open]')
+      if (emoBtn) { emoBtn.dataset.current = ''; emoBtn.textContent = '—' }
+      styleEmpty.classList.add('is-selected')
+      styleEmpty.setAttribute('aria-pressed', 'true')
+      fetch(`/api/sadhana/quadrants/${encodeURIComponent(quadrant)}`, {
+        method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name, icon_id: 'none' }),
+      }).then((res) => { if (!res.ok) { handle401(res); throw new Error('style update failed') } }).catch(() => toast(_t('dashboard.styleFailed', "Couldn't update the quadrant"), 'err'))
       return
     }
 

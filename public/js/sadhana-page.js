@@ -1271,7 +1271,8 @@ function pickE(e){
   if(type==='form')document.getElementById(`ce-${q}`).textContent=e;
   else if(type==='zenform')document.getElementById(`zce-${q}`).textContent=e;
   else if(type==='modal')document.getElementById('mep').textContent=e;
-  else if(type==='quad'){qeEmoji=e;qeEmojiTouched=true;const b=document.getElementById('qeEmo');if(b)b.textContent=e;}
+  else if(type==='quad'){qeEmoji=e;qeEmojiTouched=true;const b=document.getElementById('qeEmo');if(b)b.textContent=e;syncQeEmpty(false); // S83: picking a real emoji un-arms EMPTY
+  }
   else if(type==='task'){const task=tasks[q].find(x=>x.id===tid);if(task){task.emoji=e;renderQ(q);}api(`/api/sadhana/tasks/${tid}`, { emoji: e }, 'PATCH');}
 }
 
@@ -1481,7 +1482,7 @@ function setLang(l){
 /* ══ HIBANA: modal quadrant options (server names) ═══════════ */
 function buildModalQuads(){
   const sel=document.getElementById('mQ');if(!sel)return;
-  sel.innerHTML=QUADS.map(q=>`<option value="${q.id}">${quadEmoji(q)} Q${q.id} — ${lang==='fa'?q.name.fa:q.name.en}</option>`).join('');
+  sel.innerHTML=QUADS.map(q=>{const e=quadEmoji(q);return `<option value="${q.id}">${e?e+' ':''}Q${q.id} — ${lang==='fa'?q.name.fa:q.name.en}</option>`}).join('');
 }
 
 /* ══ ARCHIVE OVERLAY (in-page view) ═══════════════════════════ */
@@ -1636,12 +1637,17 @@ const Q_GLYPHS={
 };
 function quadSym(q){
   const id=q.iconId;
+  if(id==='none')return ''; // S83: EMPTY — the minimalist quadrant (owner request): no glyph, no emoji, no box
   if(id&&Q_GLYPHS[id])return `<svg class="q-big-svg" viewBox="0 0 24 24" aria-hidden="true">${Q_GLYPHS[id]}</svg>`;
   return esc(id||q.icon);
 }
 /* Emoji-only symbol (native <select> options can't render SVG): custom emoji if set,
-   else the quadrant's default emoji. */
-function quadEmoji(q){return (q.iconId&&!Q_GLYPHS[q.iconId])?q.iconId:q.icon;}
+   else the quadrant's default emoji. S83: EMPTY quadrants render nothing (the caller
+   trims the separator space). */
+function quadEmoji(q){
+  if(q.iconId==='none')return '';
+  return (q.iconId&&!Q_GLYPHS[q.iconId])?q.iconId:q.icon;
+}
 function buildQuads(data){
   const order=(data.order&&data.order.length===4)?data.order:[1,3,2,4];
   const byId=Object.fromEntries((data.quads||[]).map(q=>[q.id,q]));
@@ -1673,8 +1679,12 @@ let qeQ=null,qeEmoji='',qeEmojiTouched=false,qeSubInitial=null;
 function openQEdit(q,btn){
   const qDef=QUADS.find(x=>x.id===q);if(!qDef)return;
   qeQ=q;qeEmojiTouched=false;
-  qeEmoji=quadEmoji(qDef);
-  document.getElementById('qeEmo').textContent=qeEmoji;
+  // S83: an EMPTY quadrant arms qeEmoji with the 'none' sentinel (not '') so the ∅
+  // toggle's second click correctly RESTORES the default emoji.
+  qeEmoji=qDef.iconId==='none'?'none':quadEmoji(qDef);
+  document.getElementById('qeEmo').textContent=qeEmoji==='none'?'—':(qeEmoji||'—');
+  // S83: the ∅ button reflects the saved EMPTY state; a saved default/custom icon leaves it off
+  syncQeEmpty(qDef.iconId==='none');
   const pop=document.getElementById('qePop');
   const r=btn.getBoundingClientRect();
   pop.classList.add('open');document.getElementById('qeOv').classList.add('open');
@@ -1698,6 +1708,23 @@ function closeQEdit(){
   document.getElementById('qePop').classList.remove('open');
   document.getElementById('qeOv').classList.remove('open');
   qeQ=null;
+}
+/* S83 (owner request — "EMPTY, no icon and no emoji, for people who prefer minimalism"):
+   the ∅ button arms the 'none' sentinel — icon_id 'none' persists like any custom symbol
+   and quadSym/quadEmoji render nothing for it. Toggling back = just pick any emoji. */
+function syncQeEmpty(on){
+  const b=document.getElementById('qeEmpty');if(!b)return;
+  b.classList.toggle('is-on',!!on);
+  b.setAttribute('aria-pressed',on?'true':'false');
+  b.title=lang==='fa'?'بدون نماد — مینیمال':'No icon — minimalist';
+}
+function clearQEmoji(){
+  if(qeQ===null)return;
+  const nowEmpty=qeEmoji!=='none';
+  qeEmoji=nowEmpty?'none':(QUADS.find(x=>x.id===qeQ)?.icon||'📌');
+  qeEmojiTouched=true;
+  document.getElementById('qeEmo').textContent=qeEmoji==='none'?'—':qeEmoji;
+  syncQeEmpty(qeEmoji==='none');
 }
 async function saveQEdit(){
   if(qeQ===null)return;

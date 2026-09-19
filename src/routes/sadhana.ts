@@ -215,6 +215,9 @@ export function sadhanaRoutes(cfg: Config) {
       const iconId = style?.icon ?? q.glyph
       // Emoji icon values (sadhana.html picker) render as text; glyph ids as SVG — quadrantGlyph handles both.
       const iconButtons = QUADRANT_ICONS.map((id) => `<button type="button" class="dash-style-icon ${id === iconId ? 'is-selected' : ''}" data-sadhana-icon="${id}" aria-label="${id}" title="${id}">${icon(id)}</button>`).join('')
+        // S83 (owner request — the minimalist quadrant): EMPTY rides the same grid and
+        // the same [data-sadhana-icon] PATCH path; icon_id 'none' renders nothing.
+        + `<button type="button" class="dash-style-icon dash-style-empty${iconId === 'none' ? ' is-selected' : ''}" data-sadhana-icon="none" aria-label="${t(lang, 'No icon — minimalist', 'بدون نماد — مینیمال')}" title="${t(lang, 'No icon — minimalist', 'بدون نماد — مینیمال')}">∅</button>`
       const num = (v: number | string) => (lang === 'fa' ? faDigits(String(v)) : String(v))
       // 2026-09 user request — quadrants are MINIMAL/neutral: no per-quadrant accent class,
       // default --q-accent var, or swatch picker anymore (Phase 7 dropped the accent UI;

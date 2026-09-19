@@ -25,7 +25,7 @@ window.__hibanaDictEN = {
       'tour.next': 'Next', 'tour.skip': 'Skip', 'tour.prev': 'Back', 'tour.step': 'Step',
       // R5.2: dashboard counter animation
       // common
-      'common.save': 'Save', 'common.cancel': 'Cancel', 'common.delete': 'Delete',
+      'common.save': 'Save', 'common.cancel': 'Cancel', 'common.delete': 'Delete', 'common.retry': 'Retry',
       // Magic Button (idea §1) — AI polish/rewrite/translate wand
       'magic.tooltip': 'AI: polish, rewrite, or translate',
       'magic.title': 'Magic wand',
@@ -922,7 +922,7 @@ window.__hibanaDictEN = {
       'notes.toolbar': 'Formatting',
       'notes.tb.bold': 'Bold', 'notes.tb.italic': 'Italic', 'notes.tb.strike': 'Strikethrough', 'notes.tb.code': 'Code',
       'notes.tb.h1': 'Heading 1', 'notes.tb.h2': 'Heading 2', 'notes.tb.h3': 'Heading 3',
-      'notes.tb.list': 'Bulleted list', 'notes.tb.olist': 'Numbered list', 'notes.tb.quote': 'Quote', 'notes.tb.link': 'Link', 'notes.tb.hr': 'Divider',
+      'notes.tb.list': 'Bulleted list', 'notes.tb.olist': 'Numbered list', 'notes.tb.quote': 'Quote', 'notes.tb.link': 'Link', 'notes.tb.hr': 'Divider', 'notes.tb.checklist': 'Checklist', 'notes.tb.checkToggle': 'Toggle task',
       'notes.tb.boldText': 'bold', 'notes.tb.italicText': 'italic', 'notes.tb.strikeText': 'strike', 'notes.tb.codeText': 'code', 'notes.tb.linkText': 'link text',
       'notes.toggleStar': 'Star', 'notes.noteMenu': 'Note options',
       'notes.addTag': 'Add tag', 'notes.removeTag': 'Remove tag', 'notes.tagPlaceholder': 'tag name',
@@ -946,6 +946,9 @@ window.__hibanaDictEN = {
       'notes.folderCreateFailed': 'Could not create the folder.', 'notes.folderRenameFailed': 'Could not rename.', 'notes.folderDeleteFailed': 'Could not delete the folder.',
       'notes.tagSaveFailed': 'Could not save the tag.',
       'notes.emptyList': 'No notes yet', 'notes.emptyListHint': 'The long-form knowledge base: curated lists, reference notes, things worth keeping.',
+      // S83: the honest load-failed panel — "the fetch failed" is not "the vault is empty"
+      'notes.loadFailedTitle': 'Couldn’t reach the vault', 'notes.loadFailedHint': 'The connection dropped on the first try. Your notes are safe — one more round usually gets through.',
+      'notes.offlineTree': 'Folders offline — tap to retry',
       'notes.emptyFolderHint': 'This folder is empty — create the first note.',
       'notes.noResults': 'No matches', 'notes.noResultsHint': 'Try a different search.',
       'notes.trashEmpty': 'Trash is empty', 'notes.trashEmptyHint': 'Deleted notes rest here before you remove them for good.',

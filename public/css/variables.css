@@ -73,6 +73,16 @@
   --ok: #1f7a34;              /* AA-verified (roast P1): 5.40 on white, 4.73 on accent-soft */
   --err: #c02626;             /* AA-verified (roast P1): 5.92 on white, 5.19 on accent-soft */
   --danger: #b42318;             /* delete actions: pastel-red chip (icon) */
+  --warn: #b45309;                /* S83: connection-hiccup states (amber — distinct from --err red) */
+  /* S83 (owner request — "code parts must have different fonts, colors, size — like
+     Notion/Obsidian"): inline + fenced code get their own fg/bg pair. Rust/terracotta
+     against the teal accent — the warm side of the quadrant palette, instantly
+     readable as "this is code" at a glance. AA-checked: #A5422B on #F4EDE4 ≈ 5.0:1. */
+  --code-fg: #A5422B;
+  --code-bg: #F4EDE4;
+  --code-border: #E3D5C6;
+  --code-panel-bg: #2D2A26;
+  --code-panel-fg: #E8E3DC;
   --danger-soft: #fdeaea;        /*   …pastel red fill */
   --danger-soft-hover: #fbdddd;
   /* Status badge tints — session 12 (2026-09-15, user: "the phase colors all look
@@ -225,6 +235,12 @@
     --ok: #4fbc64;
     --err: #f06161;
     --danger: #ffb4a8;
+    --warn: #f5b661;                /* S83: amber lifted for the dark base (AA on --card) */
+    --code-fg: #F09B7E;
+    --code-bg: #3A332E;
+    --code-border: #4C423B;
+    --code-panel-bg: #211E1B;
+    --code-panel-fg: #DED7CE;
     --danger-soft: rgb(255 142 128 / 0.16);
     --danger-soft-hover: rgb(255 142 128 / 0.26);
     /* status badges in dark mode — session 12: hues lifted to real chroma so the

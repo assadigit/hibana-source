@@ -120,9 +120,12 @@ export function icon(name: string, cls = 'icon'): string {
 export const QUADRANT_GLYPHS = new Set(['gear', 'target', 'star', 'heart', 'flag', 'folder-plus', 'calendar', 'book', 'idea', 'bell', 'mountain', 'leaf'])
 
 /** Quadrant symbol: the SVG stroke glyph when the stored icon_id is a known glyph id,
-    otherwise the value itself (an emoji chosen in the board's picker) as a text span. */
+    otherwise the value itself (an emoji chosen in the board's picker) as a text span.
+    S83 (owner request — the minimalist quadrant): the 'none' sentinel renders NOTHING —
+    no glyph, no emoji, no empty chrome (the caller's box collapses via :empty). */
 export function quadrantGlyph(iconId: string | null | undefined, fallbackEmoji: string, cls = 'icon'): string {
   const id = iconId ?? ''
+  if (id === 'none') return ''
   if (id && QUADRANT_GLYPHS.has(id)) return icon(id, cls)
   return `<span class="quadrant-emoji">${esc(id || fallbackEmoji)}</span>`
 }

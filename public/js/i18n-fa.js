@@ -25,7 +25,7 @@ window.__hibanaDictFA = {
       'tour.next': 'بعدی', 'tour.skip': 'رد کردن', 'tour.prev': 'قبلی', 'tour.step': 'گام',
       // R5.2: dashboard counter animation
       // common
-      'common.save': 'ذخیره', 'common.cancel': 'انصراف', 'common.delete': 'حذف',
+      'common.save': 'ذخیره', 'common.cancel': 'انصراف', 'common.delete': 'حذف', 'common.retry': 'تلاش دوباره',
       // Magic Button (idea §1) — AI polish/rewrite/translate wand
       'magic.tooltip': 'هوش مصنوعی: اصلاح، بازنویسی یا ترجمه',
       'magic.title': 'چوب جادو',
@@ -918,7 +918,7 @@ window.__hibanaDictFA = {
       'notes.toolbar': 'قالب‌بندی',
       'notes.tb.bold': 'درشت', 'notes.tb.italic': 'کج', 'notes.tb.strike': 'خط‌خورده', 'notes.tb.code': 'کد',
       'notes.tb.h1': 'سرصفحهٔ ۱', 'notes.tb.h2': 'سرصفحهٔ ۲', 'notes.tb.h3': 'سرصفحهٔ ۳',
-      'notes.tb.list': 'فهرست نقطه‌ای', 'notes.tb.olist': 'فهرست شماره‌دار', 'notes.tb.quote': 'نقل‌قول', 'notes.tb.link': 'پیوند', 'notes.tb.hr': 'جداکننده',
+      'notes.tb.list': 'فهرست نقطه‌ای', 'notes.tb.olist': 'فهرست شماره‌دار', 'notes.tb.quote': 'نقل‌قول', 'notes.tb.link': 'پیوند', 'notes.tb.hr': 'جداکننده', 'notes.tb.checklist': 'چک‌لیست', 'notes.tb.checkToggle': 'تغییر وضعیت کار',
       'notes.tb.boldText': 'درشت', 'notes.tb.italicText': 'کج', 'notes.tb.strikeText': 'خط‌خورده', 'notes.tb.codeText': 'کد', 'notes.tb.linkText': 'متن پیوند',
       'notes.toggleStar': 'ستاره', 'notes.noteMenu': 'گزینه‌های یادداشت',
       'notes.addTag': 'افزودن برچسب', 'notes.removeTag': 'برداشتن برچسب', 'notes.tagPlaceholder': 'نام برچسب',
@@ -942,6 +942,9 @@ window.__hibanaDictFA = {
       'notes.folderCreateFailed': 'ساختن پوشه ممکن نشد.', 'notes.folderRenameFailed': 'تغییر نام نشد.', 'notes.folderDeleteFailed': 'حذف پوشه ممکن نشد.',
       'notes.tagSaveFailed': 'ذخیرهٔ برچسب ممکن نشد.',
       'notes.emptyList': 'هنوز یادداشتی نیست', 'notes.emptyListHint': 'دانش‌نامهٔ بلند: فهرست‌های منتخب، یادداشت‌های مرجع، چیزهایی که ارزش نگه‌داشتن دارند.',
+      // S83: the honest load-failed panel — "the fetch failed" is not "the vault is empty"
+      'notes.loadFailedTitle': 'به گاوصندوق یادداشت‌ها دسترسی نشد', 'notes.loadFailedHint': 'اتصال در اولین تلاش قطع شد. یادداشت‌هایت سالم‌اند — معمولاً یک دور دیگر می‌گذرد.',
+      'notes.offlineTree': 'پوشه‌ها آفلاین‌اند — برای تلاش دوباره بزن',
       'notes.emptyFolderHint': 'این پوشه خالی است — اولین یادداشت را بساز.',
       'notes.noResults': 'موردی پیدا نشد', 'notes.noResultsHint': 'عبارت دیگری را امتحان کن.',
       'notes.trashEmpty': 'زباله خالی است', 'notes.trashEmptyHint': 'یادداشت‌های حذف‌شده پیش از حذف همیشگی اینجا می‌مانند.',

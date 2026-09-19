@@ -10,6 +10,13 @@
 // one object; every render is a full re-render of its pane (solo-owner scale — the
 // same discipline as the quick-notebook widget).
 
+// S83: the inline first-load watchdog in notes.html keys on this attribute. Setting
+// it at TOP LEVEL (not inside mount) is deliberate — the signal that matters is
+// "this file arrived at all". If the asset fetch itself was reset on the owner's
+// flaky first-visit link, this line never runs and the watchdog reloads the page
+// (the automated version of the owner's manual "refresh 1-2 times").
+document.documentElement.setAttribute('data-hibana-booted', '1')
+
 ;(() => {
   window.__hibanaPage = window.__hibanaPage || ((d) => (window.__hibanaPageQueue = window.__hibanaPageQueue || []).push(d))
   window.__hibanaPage({
@@ -21,6 +28,12 @@
 
       /* ── markdown port — MIRROR of src/lib/markdown.ts (same subset, same fixes) ── */
       const mdEscape = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c] ?? c))
+      // S83 (owner request — the Checklist): GitHub-style `- [ ]` / `- [x]` lines.
+      // renderMarkdown tags each box with its occurrence index (data-md-task); the
+      // click delegation flips that line in the SOURCE textarea — the preview stays
+      // a pure function of the source (the autosave/edit pipeline is untouched).
+      const TASK_LINE_RE = /^[ \t]*[-*] \[([ xX])\] (.*)$/gm
+      const TASK_LINE_TEST = /^[ \t]*[-*] \[([ xX])\] /
       function renderMarkdown(src) {
         let s = mdEscape(String(src ?? ''))
         const fences = []
@@ -32,10 +45,19 @@
         s = s.replace(/^## (.*)$/gm, '<h2>$1</h2>')
         s = s.replace(/^# (.*)$/gm, '<h1>$1</h1>')
         s = s.replace(/^&gt; (.*)$/gm, '<blockquote>$1</blockquote>')
+        // task-list lines BEFORE the generic bullet (mirror of src/lib/markdown.ts);
+        // interactive button here vs the server's static span — the only divergence,
+        // documented on both sides.
+        let taskIdx = 0
+        s = s.replace(TASK_LINE_RE, (_m, mark, rest) => {
+          const done = mark.toLowerCase() === 'x'
+          const i = taskIdx++
+          return '\x01U\x02<li class="md-task' + (done ? ' is-done' : '') + '"><button type="button" class="md-check' + (done ? ' is-on' : '') + '" data-md-task="' + i + '" role="checkbox" aria-checked="' + done + '" aria-label="' + esc(_t('notes.tb.checkToggle', 'Toggle task')) + '"></button><span class="md-task-txt">' + rest + '</span></li>'
+        })
         s = s.replace(/^[ \t]*[-*] (.*)$/gm, '\x01U\x02<li>$1</li>')
         s = s.replace(/^[ \t]*\d+\. (.*)$/gm, '\x01O\x02<li>$1</li>')
-        s = s.replace(/(?:\x01U\x02<li>[\s\S]*?<\/li>\n?)+/g, '<ul>$&</ul>')
-        s = s.replace(/(?:\x01O\x02<li>[\s\S]*?<\/li>\n?)+/g, '<ol>$&</ol>')
+        s = s.replace(/(?:\x01U\x02<li[^>]*>[\s\S]*?<\/li>\n?)+/g, '<ul>$&</ul>')
+        s = s.replace(/(?:\x01O\x02<li[^>]*>[\s\S]*?<\/li>\n?)+/g, '<ol>$&</ol>')
         s = s.replace(/\x01[OU]\x02/g, '')
         s = s.replace(/^---+$/gm, '<hr>')
         s = s.replace(/\[([^\]]+)\]\((https?:[^)\s]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>')
@@ -80,6 +102,11 @@
         check: '<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 13l4 4L19 7"/></svg>',
         arrowBack: '<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 12H4m0 0 6-6m-6 6 6 6"/></svg>',
         restore: '<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7M3 4v5h5"/></svg>',
+        // S83: the load-failed panel — cloud-off for the icon, the circular arrow
+        // for the Retry button (same visual family as I.restore but distinct path:
+        // two arrows for a full round trip).
+        cloudOff: '<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6.5A2.5 2.5 0 0 1 6.5 4H8"/><path d="M12 4h4.5a3.5 3.5 0 0 1 3.4 4.3A4.5 4.5 0 0 1 19.5 17H9"/><path d="M3 3l18 18"/></svg>',
+        refresh: '<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M21 12a9 9 0 1 1-2.6-6.4M21 3v5h-5"/></svg>',
         // S67: reading-time chip glyph — same clock path as the palette's 'clock'.
         clock: '<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></svg>',
       }
@@ -108,6 +135,13 @@
         mode: prefs.mode || defaultMode(),
         saveState: 'idle', // idle | dirty | saving | saved | error
         loadingList: false,
+        // S83: "the list fetch failed" is NOT "the vault is empty" — the S82 fix
+        // rendered the real chrome on failure but the notes pane still showed the
+        // fake "No notes yet" empty state, which on a flaky link reads as "broken
+        // template". These two flags drive the distinct Couldn't-reach-the-vault
+        // panel (with a Retry button) instead of the lying empty state.
+        loadFailed: false, // last /api/vault/notes fetch exhausted its retries
+        bootFailed: false, // last /api/vault/bootstrap fetch exhausted its retries
         expanded: new Set(prefs.expanded),
       }
 
@@ -252,12 +286,17 @@
         const el = treeEl()
         if (!el) return
         const tagActive = state.view.type === 'tag' ? state.view.id : null
+        // S83: bootstrap exhausted its retries — say so in the tree (a muted row
+        // under the quick views), instead of showing counts that are all zero and
+        // letting the sidebar lie about an empty vault.
+        const bootFailRow = state.bootFailed ? `<p class="vault-tree-offline" data-vault-retry role="button" tabindex="0">${I.cloudOff}<span>${esc(_t('notes.offlineTree', 'Folders offline — tap to retry'))}</span></p>` : ''
         el.innerHTML = `
           <div class="vault-sec">
             ${quickRow('all', '', I.note, 'notes.allNotes', 'All notes', state.counts.all)}
             ${quickRow('starred', '', I.star, 'notes.starred', 'Starred', state.counts.starred)}
             ${quickRow('unfiled', '', I.layers, 'notes.unfiled', 'Unfiled', state.counts.unfiled)}
             ${quickRow('trash', '', I.trash, 'notes.trash', 'Trash', state.counts.trash, true)}
+            ${bootFailRow}
           </div>
           <div class="vault-sec">
             <div class="vault-sec-head">
@@ -340,6 +379,18 @@
             <div class="vault-sk-card"><div class="skeleton vault-sk-line" style="inline-size:48%"></div><div class="skeleton vault-sk-line"></div><div class="skeleton vault-sk-line" style="inline-size:62%"></div></div>
             <div class="vault-sk-card"><div class="skeleton vault-sk-line" style="inline-size:30%"></div><div class="skeleton vault-sk-line"></div><div class="skeleton vault-sk-line" style="inline-size:76%"></div></div>
           </div><span class="sr-only">${esc(_t('common.loading', 'Loading…'))}</span>`
+          return
+        }
+        // S83: the load genuinely failed — the honest panel, not the fake empty
+        // state. The retry button re-runs the fetch pair; it also re-runs bootstrap
+        // so the tree's counts come back in the same click.
+        if (state.loadFailed) {
+          el.innerHTML = `<div class="vault-empty vault-load-failed">
+            <span class="empty-state-icon" aria-hidden="true">${I.cloudOff}</span>
+            <b>${esc(_t('notes.loadFailedTitle', 'Couldn\u2019t reach the vault'))}</b>
+            <p>${esc(_t('notes.loadFailedHint', 'The connection dropped on the first try. Your notes are safe — one more round usually gets through.'))}</p>
+            <button type="button" class="vault-new" data-vault-retry style="margin-block-start:0.5rem">${I.refresh}<span>${esc(_t('common.retry', 'Retry'))}</span></button>
+          </div>`
           return
         }
         if (!state.notes.length) {
@@ -435,6 +486,7 @@
             <button type="button" class="vault-tb" data-vault-tb="h3" title="### ${esc(_t('notes.tb.h3', 'Heading 3'))}" aria-label="${esc(_t('notes.tb.h3', 'Heading 3'))}">H3</button>
             <span class="vault-tb-sep"></span>
             <button type="button" class="vault-tb" data-vault-tb="ul" title="- ${esc(_t('notes.tb.list', 'Bulleted list'))}" aria-label="${esc(_t('notes.tb.list', 'Bulleted list'))}">•≡</button>
+            <button type="button" class="vault-tb" data-vault-tb="check" title="- [ ] ${esc(_t('notes.tb.checklist', 'Checklist'))}" aria-label="${esc(_t('notes.tb.checklist', 'Checklist'))}"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="4"/><path d="m8.5 12.2 2.4 2.4 4.8-4.8"/></svg></button>
             <button type="button" class="vault-tb" data-vault-tb="ol" title="1. ${esc(_t('notes.tb.olist', 'Numbered list'))}" aria-label="${esc(_t('notes.tb.olist', 'Numbered list'))}">1≡</button>
             <button type="button" class="vault-tb" data-vault-tb="quote" title="&gt; ${esc(_t('notes.tb.quote', 'Quote'))}" aria-label="${esc(_t('notes.tb.quote', 'Quote'))}">❝</button>
             <span class="vault-tb-sep"></span>
@@ -634,6 +686,7 @@
           state.folders = boot.folders || []
           state.tags = boot.tags || []
           state.counts = boot.counts || { all: 0, starred: 0, trash: 0 }
+          state.bootFailed = false
           return true
         } catch { return false }
       }
@@ -646,6 +699,7 @@
           ok = await loadBootstrapOnce()
         }
         if (seq !== bootSeq) return
+        state.bootFailed = !ok
         renderTree() // ALWAYS render — even on failure the sidebar shows its real
         // (empty) chrome instead of an eternal skeleton
       }
@@ -669,13 +723,16 @@
         let notes = null
         try {
           notes = await loadNotesOnce(qs)
+          state.loadFailed = false
         } catch {
           // S82: one retry — a single dropped request used to render the fake
           // "No notes yet" template (the refresh-the-page bug)
           try {
             await new Promise((r) => setTimeout(r, 1200))
             notes = await loadNotesOnce(qs)
-          } catch { notes = [] }
+            state.loadFailed = false
+          } catch { notes = []; state.loadFailed = true } // S83: mark it — the empty
+          // state below must NOT claim "No notes yet" when the truth is "offline"
         }
         if (seq !== listSeq) return
         state.notes = notes
@@ -1145,6 +1202,47 @@
         ta.focus()
       }
 
+      // S83 (the Checklist toolbar action): line-prefix toggle for `- [ ] `. Strips
+      // ANY task marker (open or done) first so re-clicking a done task never stacks
+      // a second marker; all-lines-are-tasks → clicking again unwraps to plain text.
+      const linePrefixTask = (ta) => {
+        const v = ta.value
+        let start = v.lastIndexOf('\n', ta.selectionStart - 1) + 1
+        let end = v.indexOf('\n', ta.selectionEnd)
+        if (end === -1) end = v.length
+        const stripTask = (l) => l.replace(/^[ \t]*[-*] \[[ xX]\] /, '')
+        const isTask = (l) => /^[ \t]*[-*] \[[ xX]\] /.test(l)
+        const lines = v.slice(start, end).split('\n')
+        const all = lines.every((l) => isTask(l))
+        const out = lines.map((l) => all ? stripTask(l) : '- [ ] ' + stripTask(l)).join('\n')
+        ta.setRangeText(out, start, end, 'end')
+        ta.dispatchEvent(new Event('input', { bubbles: true }))
+        ta.focus()
+      }
+
+      // S83: a preview checkbox click flips the matching source line (the Nth task in
+      // document order — renderMarkdown tags each box with that index). Riding the
+      // textarea's input event keeps the draft/autosave/re-render pipeline untouched.
+      const toggleMdTask = (idx) => {
+        const ta = $('[data-vault-src]')
+        if (!ta || ta.readOnly) return
+        const lines = String(ta.value).split('\n')
+        let k = -1
+        for (let i = 0; i < lines.length; i++) {
+          const m = lines[i].match(TASK_LINE_TEST)
+          if (!m) continue
+          k += 1
+          if (k !== idx) continue
+          const open = m[1].toLowerCase() !== 'x'
+          lines[i] = lines[i].replace(/\[[ xX]\]/, open ? '[x]' : '[ ]')
+          ta.value = lines.join('\n')
+          ta.dispatchEvent(new Event('input', { bubbles: true }))
+          return
+        }
+        // idx beyond the last task = a stale render index (an edit reshuffled the
+        // lines mid-click); the input-driven re-render heals it — nothing to do.
+      }
+
       const insertAtCursor = (ta, text) => {
         ta.setRangeText(text, ta.selectionStart, ta.selectionEnd, 'end')
         ta.dispatchEvent(new Event('input', { bubbles: true }))
@@ -1156,11 +1254,34 @@
         if (act === 'bold') wrapSel(ta, '**', '**', _t('notes.tb.boldText', 'bold'))
         else if (act === 'italic') wrapSel(ta, '*', '*', _t('notes.tb.italicText', 'italic'))
         else if (act === 'strike') wrapSel(ta, '~~', '~~', _t('notes.tb.strikeText', 'strike'))
-        else if (act === 'code') wrapSel(ta, '`', '`', _t('notes.tb.codeText', 'code'))
+        else if (act === 'code') {
+          wrapSel(ta, '`', '`', _t('notes.tb.codeText', 'code'))
+          // S83 (owner: "when you add code in the middle of a note it must APPEAR
+          // differently"): in edit-only mode the backticks land in a mono source
+          // textarea where nothing reads as styled. Flip to split the moment code is
+          // inserted so the rust mono chip renders beside the cursor — the visual
+          // confirmation the </> button promises. The selection (wrapSel selects the
+          // inserted span) is carried across the re-render so the cursor doesn't
+          // teleport to the end.
+          if (state.mode === 'edit') {
+            const selStart = ta.selectionStart, selEnd = ta.selectionEnd
+            state.mode = 'split'
+            prefs.mode = 'split'
+            savePrefs()
+            renderEditor()
+            const back = $('[data-vault-src]')
+            if (back) {
+              const max = back.value.length
+              back.focus({ preventScroll: true })
+              back.setSelectionRange(Math.min(selStart, max), Math.min(selEnd, max))
+            }
+          }
+        }
         else if (act === 'h1') linePrefix(ta, '# ')
         else if (act === 'h2') linePrefix(ta, '## ')
         else if (act === 'h3') linePrefix(ta, '### ')
         else if (act === 'ul') linePrefix(ta, '- ')
+        else if (act === 'check') linePrefixTask(ta)
         else if (act === 'ol') linePrefix(ta, '1. ', true)
         else if (act === 'quote') linePrefix(ta, '> ')
         else if (act === 'link') wrapSel(ta, '[', '](https://)', _t('notes.tb.linkText', 'link text'))
@@ -1191,6 +1312,19 @@
       const onClick = (e) => {
         const t = e.target instanceof Element ? e.target : null
         if (!t) return
+
+        // S83: the load-failed panel's Retry — re-runs both fetches (the list first
+        // so the panel swaps to skeleton instantly, bootstrap alongside for counts).
+        if (t.closest('[data-vault-retry]')) {
+          state.loadFailed = false
+          loadNotes()
+          loadBootstrap()
+          return
+        }
+
+        // S83: the preview's checklist boxes toggle the source line (edit + split modes)
+        const chk = t.closest('[data-md-task]')
+        if (chk) { toggleMdTask(Number(chk.getAttribute('data-md-task'))); return }
 
         if (t.closest('[data-vault-burger]')) { openDrawer(); return }
         if (t.closest('[data-vault-scrim]')) { closeDrawer(); return }

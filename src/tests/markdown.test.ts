@@ -33,6 +33,20 @@ describe("renderMarkdown (the app's markdown subset)", () => {
     expect(html).not.toContain('<ul><ol>')
   })
 
+  it('S83 checklist: - [ ] / - [x] render as task rows (checkbox element + done state), never literal "[ ]" text', () => {
+    const html = renderMarkdown('- [ ] open task\n- [x] done task\n- plain bullet')
+    expect(html).toContain('<li class="md-task">')
+    expect(html).toContain('<li class="md-task is-done">')
+    expect(html).toContain('md-check is-on')
+    expect(html).not.toContain('[ ]')
+    expect(html).not.toContain('[x]')
+    // the plain bullet in the same list keeps its normal <li>
+    expect(html).toContain('<li>plain bullet</li>')
+    // tasks ride the same <ul> as plain bullets (one list, mixed items)
+    expect(html).toContain('<ul>')
+    expect(html).not.toContain('<ul><ul>')
+  })
+
   it('ordered lists wrap in <ol>; a UL run adjacent to an OL run stays two lists', () => {
     const html = renderMarkdown('1. a\n2. b\n- c')
     expect(html).toContain('<ol><li>a</li>\n<li>b</li>\n</ol>')

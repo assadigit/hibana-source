@@ -106,6 +106,27 @@ section[id^="dashboard-"].is-collapsed > *:not(header) { display: none; }
 .dash-style-emoji-row { display: flex; align-items: center; gap: 0.4rem; flex-wrap: wrap; }
 .dash-style-lbl { font-size: var(--fs-xs); color: var(--muted); flex: none; }
 .dash-style-emoji-row .dash-style-icons { display: flex; grid-template-columns: none; max-block-size: none; overflow: visible; }
+/* S83 (owner request — the minimalist quadrant): the ∅ EMPTY button beside the emoji
+   picker. Dashed ring reads as "removal"; the armed state fills with the quadrant's
+   accent. Same 1.05rem cell as the emoji button so the row stays even. */
+.dash-style-emoji.dash-style-empty { border: 1px dashed var(--line-strong); color: var(--muted); font-size: 0.95rem; }
+.dash-style-emoji.dash-style-empty:hover, .dash-style-emoji.dash-style-empty:focus-visible { border-style: solid; border-color: var(--dash-q-accent, var(--accent)); background: var(--bg-soft); color: var(--text); }
+.dash-style-emoji.dash-style-empty.is-selected { border-style: solid; border-color: var(--dash-q-accent, var(--accent)); background: color-mix(in srgb, var(--dash-q-accent, var(--accent)) 12%, transparent); color: var(--dash-q-accent, var(--accent)); }
+/* S83: the quadrant trigger with the EMPTY symbol — the glyph vanishes but the button
+   keeps its hit area (it's still the customize entry); a faint ∅ ghost appears on
+   hover so an empty quadrant stays discoverable/editable. ::after doesn't break
+   :empty (pseudo-elements aren't children). */
+.dash-todo-style:empty { color: transparent; }
+.dash-todo-style:empty::before { content: '∅'; position: static; inset: auto; opacity: 0; transition: opacity 0.15s ease; font-size: 0.9rem; }
+.dash-todo-style:empty:hover::before, .dash-todo-style:empty:focus-visible::before { opacity: 0.55; }
+/* the sadhana board's server-rendered trigger — same ghost treatment */
+.sadhana-qicon:empty { color: transparent; }
+.sadhana-qicon:empty::before { content: '∅'; opacity: 0; transition: opacity 0.15s ease; font-size: 1.1rem; }
+.sadhana-qicon:empty:hover::before, .sadhana-qicon:empty:focus-visible::before { opacity: 0.55; }
+/* the icon-grid variant of the EMPTY button (sadhana's 12-glyph grid) */
+.dash-style-icon.dash-style-empty { border: 1px dashed var(--line-strong); color: var(--muted); font-size: 0.9rem; }
+.dash-style-icon.dash-style-empty:hover { border-style: solid; border-color: var(--accent); }
+.dash-style-icon.dash-style-empty.is-selected { border-style: solid; border-color: var(--accent); background: color-mix(in srgb, var(--accent) 12%, transparent); color: var(--accent); }
 .dash-style-actions { margin-inline-start: auto; display: flex; gap: 0.35rem; flex: none; }
 .dash-style-cancel, .dash-style-save-btn {
   min-inline-size: 0; padding: 0.32rem 0.9rem; border-radius: var(--radius-sm);

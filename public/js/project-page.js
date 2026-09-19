@@ -403,10 +403,12 @@
         // IS the grid in all four), wrap-around, live counter (Persian digits in FA) +
         // caption, reading-direction arrows, Esc closes AND focus returns to the trigger.
         // A zoom from a non-grid source degrades to single-picture mode.
-        let shotLightbox = null // { el, idx, items, lastTrigger }
+        let shotLightbox = null // { el, idx, items, lastTrigger, host?, onCancel? }
         const closeShotLightbox = () => {
           if (!shotLightbox) return
           const t = shotLightbox.lastTrigger
+          // S83: a dialog-hosted lightbox defused the host's native Esc — restore it
+          if (shotLightbox.host && shotLightbox.onCancel) shotLightbox.host.removeEventListener('cancel', shotLightbox.onCancel)
           shotLightbox.el.remove()
           shotLightbox = null
           document.body.style.overflow = ''
@@ -457,15 +459,42 @@
             if (ev.target.closest('.lb-close')) { closeShotLightbox(); return }
             if (!ev.target.closest('img')) closeShotLightbox() // backdrop click = zoom-out (same as before)
           })
-          document.body.appendChild(el)
-          document.body.style.overflow = 'hidden'
-          shotLightbox = { el, idx, items, lastTrigger: trigger }
+          // S83 (owner: "when clicking to see screenshots in projects they don't enlarge
+          // and open"): when the zoom trigger lives inside an OPEN <dialog> (the task
+          // composer's staged grid, the task editor's shots grid) the lightbox must
+          // join THAT dialog's top layer. Appended to <body> it renders behind the
+          // top layer — the click looked dead. Mounting inside the dialog keeps the
+          // compose/edit state intact (no close-then-reopen dance) and the lightbox
+          // paints above the dialog's content (position:fixed escapes the dialog box;
+          // empirically verified against the top-layer spec).
+          const host = trigger instanceof Element ? trigger.closest('dialog[open]') : null
+          ;(host || document.body).appendChild(el)
+          if (!host) document.body.style.overflow = 'hidden'
+          // Esc while the lightbox rides a dialog closes the LIGHTBOX first — the
+          // host's own Esc-close (native cancel) is defused only while the lightbox
+          // is up, so a second Esc still closes the dialog as before.
+          let onCancel = null
+          if (host) {
+            onCancel = (ev) => { if (shotLightbox) { ev.preventDefault(); closeShotLightbox() } }
+            host.addEventListener('cancel', onCancel)
+          }
+          shotLightbox = { el, idx, items, lastTrigger: trigger, host, onCancel }
           lbShotStep(0) // paint counter + caption for the opening shot
           el.querySelector('.lb-close')?.focus()
         }
         ctx.on('keydown', (e) => {
           if (!shotLightbox) return
-          if (e.key === 'Escape') { closeShotLightbox(); return }
+          if (e.key === 'Escape') {
+            // S83: swallow the key's DEFAULT action too — on a dialog-hosted lightbox the
+            // Esc default is the host's native cancel, which would close the dialog in
+            // the same keystroke that closes the lightbox (the lightbox must eat Esc
+            // first; the host gets the NEXT Esc). e.preventDefault() on keydown cancels
+            // the dialog cancel; the onCancel listener on the host is the belt for the
+            // browsers that fire cancel without a preventDefault-able keydown.
+            try { e.preventDefault() } catch {}
+            closeShotLightbox()
+            return
+          }
           // arrows follow the READING direction (RTL: ArrowLeft = forward) — keys and
           // the logically-positioned buttons agree
           const rtl = document.documentElement.dir === 'rtl'
@@ -673,12 +702,13 @@
             if (zoomBtn) {
               // stopPropagation: without it this click keeps bubbling to the document
               // handler, whose trailing "click outside the lightbox closes it" check
-              // would kill the lightbox in the SAME event that opened it. And the
-              // dialog closes FIRST — a modal <dialog> sits in the top layer ABOVE any
-              // z-index, so a lightbox opened behind it would be invisible.
+              // would kill the lightbox in the SAME event that opened it.
+              // S83: no dlg.close() anymore — openShotLightbox mounts INSIDE the open
+              // dialog (its top layer), so the pinned-pictures viewer stays open
+              // underneath and the lightbox still paints above it.
               ev.stopPropagation()
               const img = zoomBtn.querySelector('img')
-              if (img) { dlg.close(); openShotLightbox(img.getAttribute('src'), zoomBtn, zoomBtn.closest('.shot-card')?.parentElement) }
+              if (img) openShotLightbox(img.getAttribute('src'), zoomBtn, zoomBtn.closest('.shot-card')?.parentElement)
               return
             }
             const un = ev.target.closest('[data-tshots-unpin]')
@@ -746,7 +776,13 @@
             } catch { window.hibana?.toast(_t('sparks.saveFailed', "Couldn't save"), 'err') }
             return
           }
-          if (shotLightbox && !e.target.closest('.shot-lightbox')) closeShotLightbox()
+          // S83 (owner: "clicking to see screenshots in projects doesn't enlarge and
+          // open"): this trailing guard used to fire on ANY click outside the lightbox —
+          // including the click that just OPENED it from a dialog-hosted grid (the
+          // grid's own listener opened it, then the event kept bubbling here and the
+          // guard killed it in the same tick — the lightbox flashed and died). Zoom
+          // triggers are exempt: their click means "open", never "close".
+          if (shotLightbox && !e.target.closest('.shot-lightbox, [data-shot-zoom], [data-staged-zoom], [data-pde-shot-zoom], [data-tshots-zoom]')) closeShotLightbox()
         })
         // keyboard parity for the click-to-edit note (role="button" needs Enter/Space)
         ctx.on('keydown', (e) => {

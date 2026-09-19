@@ -21,6 +21,15 @@ export function renderMarkdown(src: string): string {
   s = s.replace(/^# (.*)$/gm, '<h1>$1</h1>')
   // Blockquotes.
   s = s.replace(/^&gt; (.*)$/gm, '<blockquote>$1</blockquote>')
+  // Task-list items (S83, owner request — the Note Editor's Checklist): GitHub-style
+  // `- [ ]` / `- [x]`. Parsed BEFORE the generic bullet so the checkbox never renders
+  // as literal "[ ]" text; rides the same \x01U\x02 UL grouping as plain bullets.
+  // Server-side the box is a static span (reading views); the vault's live editor
+  // (notes-page.js) renders the same structure with an interactive button instead.
+  s = s.replace(/^[ \t]*[-*] \[([ xX])\] (.*)$/gm, (_m, mark: string, rest: string) => {
+    const done = mark.toLowerCase() === 'x'
+    return `\x01U\x02<li class="md-task${done ? ' is-done' : ''}"><span class="md-check${done ? ' is-on' : ''}" aria-hidden="true"></span><span class="md-task-txt">${rest}</span></li>`
+  })
   // Lists (S53 fix): typed markers first (\x01U\x02 / \x01O\x02), then per-type runs —
   // the old unmarked double pass wrapped unordered lists as <ul><ol><li>… (the second
   // pass re-wrapped the first pass's <li> run), rendering bullets as numbers with a
@@ -28,8 +37,8 @@ export function renderMarkdown(src: string): string {
   // final strip removes them from the output.
   s = s.replace(/^[ \t]*[-*] (.*)$/gm, '\x01U\x02<li>$1</li>')
   s = s.replace(/^[ \t]*\d+\. (.*)$/gm, '\x01O\x02<li>$1</li>')
-  s = s.replace(/(?:\x01U\x02<li>[\s\S]*?<\/li>\n?)+/g, '<ul>$&</ul>')
-  s = s.replace(/(?:\x01O\x02<li>[\s\S]*?<\/li>\n?)+/g, '<ol>$&</ol>')
+  s = s.replace(/(?:\x01U\x02<li[^>]*>[\s\S]*?<\/li>\n?)+/g, '<ul>$&</ul>')
+  s = s.replace(/(?:\x01O\x02<li[^>]*>[\s\S]*?<\/li>\n?)+/g, '<ol>$&</ol>')
   s = s.replace(/\x01[OU]\x02/g, '')
   // Horizontal rule.
   s = s.replace(/^---+$/gm, '<hr>')

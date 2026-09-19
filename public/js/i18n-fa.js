@@ -511,6 +511,9 @@ window.__hibanaDictFA = {
       'gallery.sortBig': 'حجیم‌ترین', 'gallery.sortSmall': 'سبک‌ترین',
       'gallery.selectAll': 'انتخاب همه ({n})', 'gallery.deselectAll': 'لغو انتخاب همه',
       'gallery.rangeHint': 'Shift+کلیک یک بازه را انتخاب می‌کند',
+      // S81 — the touch counterpart of the range affordance (long-press A, tap B)
+      'gallery.rangeTouchHint': 'یک تصویر را نگه دارید، بعد تصویر دیگر را بزنید تا بازه انتخاب شود',
+      'gallery.rangeTouchStart': 'ابتدای بازه — حالا آخرین تصویر را بزنید',
       // dev-board + sprints (0029)
       'db.backToProject': 'بازگشت به پروژه', 'db.sprints': 'اسپرینت‌ها', 'db.board': 'برد',
       'db.loading': 'در حال بارگذاری…', 'db.loadFailed': 'بارگذاری ناموفق بود — دوباره تلاش کن', 'db.retry': 'تلاش دوباره',

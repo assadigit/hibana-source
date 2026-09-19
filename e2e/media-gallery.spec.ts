@@ -576,3 +576,117 @@ test('the gallery power tools: sort order + Select all + Shift-click ranges (S80
 
   expect(errors).toEqual([])
 })
+
+// ---- S81: the touch range counterpart — long-press A, tap B --------------------
+// Phones have no Shift key: a ~480ms touch hold ARMS the range (the anchor picks),
+// the next tile tap completes it (ADD semantics — identical to Shift+click). The
+// pointer events are dispatched with pointerType 'touch' (deterministic — a real
+// hold depends on input timing); the completion tap is a plain click because the
+// handler is input-agnostic once the range is armed.
+test('the gallery touch ranges: long-press arms, tap completes, gestures cancel (S81)', async ({ page, browserName, browser }) => {
+  test.skip(browserName !== 'chromium', 'Desktop Chromium only')
+  const errors = trackErrors(page)
+  await login(page)
+
+  const pid = ((await api(page, '/api/projects', 'POST', { title: `e2e s81 touch ${Date.now()}` })) as { json: { id: string } }).json.id
+  const { DatabaseSync } = await import('node:sqlite')
+  const db = new DatabaseSync('/tmp/hibana-e2e.db')
+  db.prepare("DELETE FROM screenshots WHERE project_id IN (SELECT id FROM projects WHERE user_id = (SELECT id FROM users WHERE email = ?))").run(TEST_EMAIL)
+  const ids = [crypto.randomUUID(), crypto.randomUUID(), crypto.randomUUID(), crypto.randomUUID(), crypto.randomUUID()]
+  for (let i = 0; i < ids.length; i++) {
+    db.prepare('INSERT INTO screenshots (id, project_id, github_path, mime_type, caption, resolved, bytes, created_at) VALUES (?, ?, ?, ?, ?, 0, 120, ?)')
+      .run(ids[i], pid, `e2e/${ids[i]}.png`, 'image/png', `S81 ${i}`, `2026-09-1${i}T10:00:00Z`)
+  }
+  db.close()
+
+  await page.goto('/gallery.html')
+  await page.waitForSelector('.gal-card')
+  await expect(page.locator('.gal-card')).toHaveCount(5)
+
+  // dispatch a touch pointerdown/up pair on a tile (the hold is the TIMER's, not
+  // real input timing — 560ms > the 480ms threshold). A real touch release also
+  // fires a click right after pointerup — dispatching it keeps the swallow-guard
+  // semantics honest (the release click must be consumed by the guard, so the NEXT
+  // interaction is the deliberate one)
+  const holdTile = (i: number, ms = 560) =>
+    page.locator('.gal-card').nth(i).locator('.shot-img-btn').evaluate((el, ms) => new Promise<void>((resolve) => {
+      const init = { bubbles: true, cancelable: true, pointerId: 7, pointerType: 'touch', isPrimary: true, button: 0 }
+      el.dispatchEvent(new PointerEvent('pointerdown', init))
+      setTimeout(() => {
+        el.dispatchEvent(new PointerEvent('pointerup', init))
+        el.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }))
+        resolve()
+      }, ms)
+    }), ms)
+
+  // ---- the hold ARMS: anchor picked + halo'd, selbar says 1 -------------------
+  await page.click('#gallery-select-btn')
+  await expect(page.locator('.gal-selbar')).toBeVisible()
+  await holdTile(0)
+  await expect(page.locator('.gal-card.is-sel')).toHaveCount(1)
+  await expect(page.locator('.gal-card.is-range-anchor')).toHaveCount(1)
+  await expect(page.locator('.gal-card').nth(0)).toHaveClass(/is-range-anchor/)
+  // the halo animation + the ring actually paint on the anchor's frame
+  const anim = await page.locator('.gal-card').nth(0).locator('.shot-img-btn').evaluate((el) => getComputedStyle(el).animationName)
+  expect(anim).toBe('gal-anchor-breathe')
+  // the release click after the hold was swallowed — the anchor STAYS picked
+  await page.waitForTimeout(120)
+  await expect(page.locator('.gal-card.is-sel')).toHaveCount(1)
+
+  // ---- the tap COMPLETES: 0 → 3 picks the four-tile range --------------------
+  await page.locator('.gal-card').nth(3).locator('.shot-img-btn').click()
+  await expect(page.locator('.gal-card.is-sel')).toHaveCount(4)
+  await expect(page.locator('.gal-selbar-count')).toContainText('4 selected')
+  await expect(page.locator('.gal-card.is-range-anchor')).toHaveCount(0) // disarmed
+  // a second range can extend from the new anchor (3 → 4)
+  await holdTile(3)
+  await expect(page.locator('.gal-card.is-range-anchor')).toHaveCount(1)
+  await page.locator('.gal-card').nth(4).locator('.shot-img-btn').click()
+  await expect(page.locator('.gal-card.is-sel')).toHaveCount(5)
+
+  // ---- tapping the anchor CANCELS: the hold's own pick is undone -------------
+  await page.click('.gal-selbar-clear')
+  await expect(page.locator('.gal-card.is-sel')).toHaveCount(0)
+  await holdTile(2)
+  await expect(page.locator('.gal-card.is-sel')).toHaveCount(1)
+  await page.locator('.gal-card').nth(2).locator('.shot-img-btn').click() // tap the anchor itself
+  await expect(page.locator('.gal-card.is-sel')).toHaveCount(0) // "never mind" unpicked it
+  await expect(page.locator('.gal-card.is-range-anchor')).toHaveCount(0)
+
+  // ---- a SCROLL cancels the arm: 20px of travel means "not a hold" ------------
+  await page.locator('.gal-card').nth(1).locator('.shot-img-btn').evaluate((el) => {
+    const init = { bubbles: true, cancelable: true, pointerId: 9, pointerType: 'touch', isPrimary: true, button: 0 }
+    el.dispatchEvent(new PointerEvent('pointerdown', init))
+    el.dispatchEvent(new PointerEvent('pointermove', { ...init, clientX: 30, clientY: 30 }))
+  })
+  await page.waitForTimeout(600) // past the threshold — nothing may arm
+  await expect(page.locator('.gal-card.is-range-anchor')).toHaveCount(0)
+  await expect(page.locator('.gal-card.is-sel')).toHaveCount(0)
+  await page.mouse.click(10, 10) // stray release click on empty space — no toggle either
+  await expect(page.locator('.gal-card.is-sel')).toHaveCount(0)
+
+  // ---- Esc exits select mode with an armed range (nothing leaks) --------------
+  await holdTile(4)
+  await expect(page.locator('.gal-card.is-range-anchor')).toHaveCount(1)
+  await page.keyboard.press('Escape')
+  await expect(page.locator('.gal-selbar')).toHaveCount(0)
+  await expect(page.locator('.gal-card.is-range-anchor')).toHaveCount(0)
+  await expect(page.locator('.gal-card.is-sel')).toHaveCount(0)
+  await expect(page.locator('#gallery-grid')).not.toHaveAttribute('data-selecting', '')
+
+  // ---- the touch hint line: coarse/no-hover pointers see the HOLD phrasing ----
+  const mobile = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true })
+  const mpage = await mobile.newPage()
+  await login(mpage)
+  await mpage.goto('/gallery.html')
+  await mpage.waitForSelector('.gal-card')
+  await mpage.click('#gallery-select-btn')
+  await expect(mpage.locator('.gal-selbar')).toBeVisible()
+  const hint = await mpage.locator('.gal-selbar-count').evaluate((el) => getComputedStyle(el, '::after').content)
+  expect(hint).toContain('Hold a picture')
+  // and the desktop phrasing is NOT the one shown on touch
+  expect(hint).not.toContain('Shift')
+  await mobile.close()
+
+  expect(errors).toEqual([])
+})

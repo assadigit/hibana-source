@@ -25,6 +25,12 @@
     //       semantics — mirrors "Select all (n)" / "Deselect all" against the filtered set).
     //   (e) SHIFT+CLICK RANGE PICKS: file-manager semantics (ranges ADD; the anchor is
     //       the last individual pick, reset on re-render/exit so it can never mislead).
+    //
+    // S81 — the touch counterpart of (e): phones have no Shift key, so a LONG-PRESS
+    //   (~480ms, finger still) sets the range anchor and the NEXT TAP completes the
+    //   range — same ADD semantics, a drag past the slop cancels (the hold must never
+    //   fight a scroll), and the anchor's own release click is swallowed so a hold can
+    //   never un-pick the tile it just picked.
     window.__hibanaPage = window.__hibanaPage || ((d) => (window.__hibanaPageQueue = window.__hibanaPageQueue || []).push(d))
     window.__hibanaPage({
       name: 'gallery',
@@ -40,6 +46,13 @@
         if (!grid) return
         // S80 — the anchor of Shift+click range picks (index within visible()).
         let lastPickIdx = null
+        // S81 — the touch range state: the long-pressed tile's id while a range is
+        // being armed (the NEXT tile tap completes it), + the long-press timer bits.
+        let rangeAnchorId = null
+        let lpFired = false // the release click right after a fired hold must not toggle
+        let lpAdded = false // did the hold's pick ADD the tile (a cancel undoes exactly that)
+        let lpTimer = null
+        let lpStart = null
 
         const state = { rows: [], project: '', gs: 'all', sort: 'new', selecting: false, sel: new Set() }
         // S59b — URL params (deep-linkable filters, "never lose your place"):
@@ -382,8 +395,11 @@
               ? _t('gallery.selectOn', 'Tap pictures to pick them')
               : _t('gallery.selectedCount', '{n} selected · ≈{size}').split('{n}').join(dig(n)).split('{size}').join(dig(size))
           // the desktop range affordance rides the empty bar's count (CSS shows it only
-          // for hover+fine pointers — touch can't shift-click and never sees the hint)
+          // for hover+fine pointers — touch can't shift-click and never sees the hint);
+          // S81 gives touch its own line: the long-press counterpart, shown for
+          // coarse/no-hover pointers by the SAME gating pattern in reverse.
           countEl.setAttribute('data-range-hint', _t('gallery.rangeHint', 'Shift+click picks a range'))
+          countEl.setAttribute('data-range-touch-hint', _t('gallery.rangeTouchHint', 'Hold a picture, then tap another to pick a range'))
           // the master toggle mirrors the visible set: "Select all (n)" while anything
           // is unpicked, "Deselect all" once the set is complete (it clears ALL picks,
           // including any now-hidden by filters — Clear selection's exact job, but the
@@ -416,6 +432,10 @@
           state.selecting = false
           state.sel.clear()
           lastPickIdx = null // a fresh session must not shift-range off a stale anchor
+          lpFired = false
+          lpAdded = false
+          lpCancel()
+          clearRangeAnchor() // and no armed touch range may outlive the mode
           if (selectBtn) {
             selectBtn.setAttribute('aria-pressed', 'false')
             selectBtn.classList.remove('is-on')
@@ -473,6 +493,7 @@
           grid.setAttribute('data-sort-size', state.sort === 'big' || state.sort === 'small' ? state.sort : '')
           if (sortSel) sortSel.classList.toggle('is-on', state.sort !== 'new')
           lastPickIdx = null // a re-render re-orders tiles — a stale range anchor misleads
+          clearRangeAnchor() // S81: ditto the armed touch range (re-render = new indices)
           grid.innerHTML = rows.length
             ? rows.map((r) => {
               const pin = r.task_id
@@ -541,6 +562,62 @@
           if (state.selecting) exitSelect() // filter change = new visible set — selection is stale
           render()
         })
+        // ---- S81: touch range-picks — long-press the start, tap the end -------------
+        // Phones have no Shift key: a ~480ms hold (finger still — 10px of travel means
+        // "this is a scroll, not a hold" and cancels) ARMS the range from the held
+        // tile, and the very next tile TAP completes it (ADD semantics, identical to
+        // Shift+click). The anchor tile carries .is-range-anchor until the range lands
+        // (or is cancelled: tapping the anchor again, Esc, a re-render, exiting select).
+        // Pen pointers ride the same path (no shift key there either); mouse is
+        // excluded — Shift+click already owns that input.
+        const LP_MS = 480
+        const LP_SLOP = 10
+        const clearRangeAnchor = () => {
+          rangeAnchorId = null
+          grid.querySelectorAll('.gal-card.is-range-anchor').forEach((el) => el.classList.remove('is-range-anchor'))
+        }
+        const tileIdOf = (e) => {
+          const t = e.target instanceof Element ? e.target.closest('[data-gal-zoom], [data-gal-check]') : null
+          return t ? (t.getAttribute('data-gal-zoom') || t.getAttribute('data-gal-check')) : null
+        }
+        ctx.on('pointerdown', (e) => {
+          if (!state.selecting || e.pointerType === 'mouse' || (e.button !== undefined && e.button !== 0)) return
+          const id = tileIdOf(e)
+          if (!id) return
+          if (lpTimer) { clearTimeout(lpTimer); lpTimer = null } // a second finger re-arms, never stacks timers
+          lpFired = false
+          lpStart = { x: e.clientX, y: e.clientY, id }
+          lpTimer = window.setTimeout(() => {
+            lpTimer = null
+            lpFired = true
+            // the anchor PICKS (ranges ADD — the held tile is in the range it starts);
+            // a later cancel undoes the pick ONLY if the hold added it (a pre-picked
+            // anchor stays picked — cancel is "never mind the range", not "unpick")
+            lpAdded = !state.sel.has(lpStart.id)
+            state.sel.add(lpStart.id)
+            rangeAnchorId = lpStart.id
+            lastPickIdx = visible().findIndex((r) => r.id === lpStart.id)
+            paintSelection()
+            grid.querySelectorAll('.gal-card').forEach((el) => el.classList.toggle('is-range-anchor', el.getAttribute('data-shot') === rangeAnchorId))
+            try { navigator.vibrate?.(12) } catch { /* no haptics — fine */ }
+            window.hibana?.toast(_t('gallery.rangeTouchStart', 'Range start — now tap the last picture'), 'info')
+          }, LP_MS)
+        })
+        ctx.on('pointermove', (e) => {
+          if (!lpTimer || !lpStart) return
+          if (Math.abs(e.clientX - lpStart.x) > LP_SLOP || Math.abs(e.clientY - lpStart.y) > LP_SLOP) {
+            clearTimeout(lpTimer)
+            lpTimer = null
+          }
+        })
+        const lpCancel = () => { if (lpTimer) { clearTimeout(lpTimer); lpTimer = null } }
+        ctx.on('pointerup', lpCancel)
+        ctx.on('pointercancel', lpCancel)
+        // the hold must never bleed into the OS: no context menu / image drag while a
+        // hold is pending or just fired (long-press on an <img> is the classic trigger)
+        ctx.on('contextmenu', (e) => { if (lpTimer || lpFired) e.preventDefault() })
+        ctx.on('dragstart', (e) => { if (state.selecting) e.preventDefault() })
+
         ctx.on('click', async (e) => {
           const chip = e.target.closest('[data-gs]')
           if (chip) {
@@ -560,12 +637,37 @@
           // S80: Shift+click picks the RANGE from the last individual pick to here
           // (file-manager semantics: ranges ADD — a mid-range unpick doesn't carve a
           // hole; unselect stays a deliberate single tap).
+          // S81: a fired long-press SWALLOWS its own release click (it already picked
+          // the anchor), and an ARMED touch range makes the next tap COMPLETE it.
           if (state.selecting) {
             const pick = e.target.closest('[data-gal-check], [data-gal-zoom]')
             if (pick) {
               const id = pick.getAttribute('data-gal-check') || pick.getAttribute('data-gal-zoom')
+              // the release click that follows a fired hold is the anchor's own — it
+              // must not toggle the tile the hold just picked
+              if (lpFired) { lpFired = false; return }
               const rows = visible()
               const idx = rows.findIndex((r) => r.id === id)
+              // an ARMED touch range completes here: anchor → this tile, ADD semantics
+              // (tapping the anchor itself cancels the armed range — and un-picks the
+              // anchor iff the hold picked it: "never mind" is one gesture, a
+              // pre-existing pick is never collateral)
+              if (rangeAnchorId) {
+                if (rangeAnchorId === id) {
+                  if (lpAdded) state.sel.delete(id)
+                  clearRangeAnchor()
+                  paintSelection()
+                  return
+                }
+                const a = rows.findIndex((r) => r.id === rangeAnchorId)
+                if (a >= 0 && idx >= 0) {
+                  for (let i = Math.min(a, idx); i <= Math.max(a, idx); i++) state.sel.add(rows[i].id)
+                  lastPickIdx = idx
+                }
+                clearRangeAnchor()
+                paintSelection()
+                return
+              }
               if (e.shiftKey && lastPickIdx != null && idx >= 0 && idx !== lastPickIdx) {
                 const a = Math.min(lastPickIdx, idx)
                 const b = Math.max(lastPickIdx, idx)
@@ -627,6 +729,8 @@
           removeSelBar()
           closeLightbox()
           if (noteDlg) { try { noteDlg.close() } catch {} }
+          lpCancel() // a hold pending across a soft-nav must never fire into a dead page
+          clearRangeAnchor()
           lazyIO.disconnect()
         }
       },

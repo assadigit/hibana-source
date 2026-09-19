@@ -798,6 +798,17 @@ input::placeholder, textarea::placeholder { font-size: 0.88em; opacity: 0.7; } /
 .gal-card.is-sel .shot-img-btn img.is-in { opacity: 1; } /* picked beats the fixed-dim */
 /* while selecting, the whole tile is the pick target — the hover cue says so */
 .gallery-grid[data-selecting] .shot-img-btn { cursor: pointer; }
+/* S81 — the hold must stay OURS on touch: no OS callout/drag/text-selection on the
+   tiles while a range could be armed (touch-action: manipulation keeps pan+pinch
+   scroll fully alive — it only kills the double-tap zoom delay) */
+.gallery-grid[data-selecting] .gal-card {
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
+.gallery-grid[data-selecting] {
+  touch-action: manipulation;
+}
 @media (hover: none) {
   .gallery-grid[data-selecting] .gal-check { inline-size: 40px; block-size: 40px; }
 }
@@ -953,6 +964,67 @@ dialog.gal-note-modal {
 @media (hover: hover) and (pointer: fine) {
   .gal-selbar.is-empty .gal-selbar-count::after {
     content: attr(data-range-hint);
+    display: block;
+    color: var(--muted);
+    font-size: var(--fs-xs);
+    font-weight: 500;
+    line-height: 1.35;
+  }
+}
+
+/* --- S81: the touch range counterpart — long-press A, tap B -------------------
+   Phones have no Shift key: a ~480ms hold ARMS the range (the anchor tile picks),
+   the next tap completes it. The anchor needs to read DIFFERENTLY from a plain
+   picked tile — "the range starts HERE" — so it wears a pulsing brand halo ring
+   plus a corner tab with the range glyph; the empty bar's hint swaps to the touch
+   phrasing for coarse/no-hover pointers. House rules: logical properties, 40px
+   floor, reduced-motion + prefers-contrast guards. */
+/* the armed anchor: the picked ring stays (it IS picked) but gains a breathing
+   double halo so the eye finds the range's start across the grid */
+.gal-card.is-range-anchor .shot-img-btn {
+  box-shadow:
+    inset 0 0 0 2px var(--brand),
+    0 0 0 3px color-mix(in srgb, var(--brand) 45%, transparent);
+  animation: gal-anchor-breathe 1.6s ease-in-out infinite;
+}
+@keyframes gal-anchor-breathe {
+  0%, 100% { box-shadow: inset 0 0 0 2px var(--brand), 0 0 0 3px color-mix(in srgb, var(--brand) 45%, transparent); }
+  50%      { box-shadow: inset 0 0 0 2px var(--brand), 0 0 0 6px color-mix(in srgb, var(--brand) 22%, transparent); }
+}
+/* the corner tab: a small brand dot at the image's start-edge bottom corner —
+   text-free (no EN/FA swap needed), readable on ANY image via the card-colored
+   ring; the halo + this mark together say "the range starts HERE". Decorative by
+   design (pointer-events none) — the semantic announcement lives in the toast. */
+.gal-card.is-range-anchor::after {
+  content: '';
+  position: absolute;
+  bottom: 0.55rem;
+  inset-inline-start: 0.55rem;
+  z-index: 3;
+  inline-size: 14px;
+  block-size: 14px;
+  border-radius: 999px;
+  background: var(--brand);
+  border: 2px solid var(--card);
+  box-shadow: 0 2px 8px rgb(0 0 0 / 0.35);
+  pointer-events: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  .gal-card.is-range-anchor .shot-img-btn { animation: none; }
+}
+@media (prefers-contrast: more) {
+  .gal-card.is-range-anchor .shot-img-btn {
+    box-shadow: inset 0 0 0 3px var(--brand), 0 0 0 4px var(--brand);
+    animation: none;
+  }
+  .gal-card.is-range-anchor::after { inline-size: 18px; block-size: 18px; border-width: 3px; }
+}
+/* the touch range hint: the SAME empty-bar affordance, touch phrasing, shown only
+   where hover is absent or the pointer is coarse (the desktop twin above gates the
+   reverse) — the two lines are mutually exclusive by media, never both at once. */
+@media (hover: none), (pointer: coarse) {
+  .gal-selbar.is-empty .gal-selbar-count::after {
+    content: attr(data-range-touch-hint);
     display: block;
     color: var(--muted);
     font-size: var(--fs-xs);

@@ -512,6 +512,9 @@ window.__hibanaDictEN = {
       'gallery.sortBig': 'Largest first', 'gallery.sortSmall': 'Smallest first',
       'gallery.selectAll': 'Select all ({n})', 'gallery.deselectAll': 'Deselect all',
       'gallery.rangeHint': 'Shift+click picks a range',
+      // S81 — the touch counterpart of the range affordance (long-press A, tap B)
+      'gallery.rangeTouchHint': 'Hold a picture, then tap another to pick a range',
+      'gallery.rangeTouchStart': 'Range start — now tap the last picture',
       // dev-board + sprints (0029)
       'db.backToProject': 'Back to project', 'db.sprints': 'Sprints', 'db.board': 'Board',
       'db.loading': 'Loading…', 'db.loadFailed': "Couldn't load — try again", 'db.retry': 'Try again',

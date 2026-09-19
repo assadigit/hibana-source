@@ -622,39 +622,65 @@
 
       /* ══════════════ data flows ══════════════ */
       let bootSeq = 0
-      const loadBootstrap = async () => {
-        const seq = ++bootSeq
+      // S82 (owner: "notes.html first opens broken/unloaded — I have to refresh 1-2
+      // times to see the real page"): a failed bootstrap used to leave the tree's
+      // skeleton shimmering FOREVER (renderTree only ran on success), and a single
+      // transient network failure (Iran + VPN) rendered the fake "No notes yet"
+      // template. One quick retry + always rendering the tree on failure makes the
+      // first load self-heal instead of demanding a manual refresh.
+      const loadBootstrapOnce = async () => {
         try {
           const boot = await api('/api/vault/bootstrap')
-          if (seq !== bootSeq) return
           state.folders = boot.folders || []
           state.tags = boot.tags || []
           state.counts = boot.counts || { all: 0, starred: 0, trash: 0 }
-          renderTree()
-        } catch { /* 401 already handled; transient — the next action refetches */ }
+          return true
+        } catch { return false }
+      }
+      const loadBootstrap = async () => {
+        const seq = ++bootSeq
+        let ok = await loadBootstrapOnce()
+        if (!ok) {
+          // one retry after a beat — the classic cold-connection hiccup
+          await new Promise((r) => setTimeout(r, 1200))
+          ok = await loadBootstrapOnce()
+        }
+        if (seq !== bootSeq) return
+        renderTree() // ALWAYS render — even on failure the sidebar shows its real
+        // (empty) chrome instead of an eternal skeleton
       }
 
       let listSeq = 0
+      const loadNotesOnce = async (qs) => {
+        const res = await api('/api/vault/notes?' + qs.toString())
+        return res.notes || []
+      }
       const loadNotes = async () => {
         const seq = ++listSeq
         state.loadingList = true
         renderCards()
+        const qs = new URLSearchParams()
+        if (state.view.type === 'folder' && state.view.id) { qs.set('view', 'folder'); qs.set('folder', state.view.id) }
+        else if (state.view.type === 'unfiled') { qs.set('view', 'folder'); qs.set('folder', 'none') }
+        else if (state.view.type === 'tag') { qs.set('view', 'all'); qs.set('tag', state.view.id) }
+        else qs.set('view', state.view.type)
+        if (state.q) qs.set('q', state.q)
+        if (state.sort) qs.set('sort', state.sort)
+        let notes = null
         try {
-          const qs = new URLSearchParams()
-          if (state.view.type === 'folder' && state.view.id) { qs.set('view', 'folder'); qs.set('folder', state.view.id) }
-          else if (state.view.type === 'unfiled') { qs.set('view', 'folder'); qs.set('folder', 'none') }
-          else if (state.view.type === 'tag') { qs.set('view', 'all'); qs.set('tag', state.view.id) }
-          else qs.set('view', state.view.type)
-          if (state.q) qs.set('q', state.q)
-          if (state.sort) qs.set('sort', state.sort)
-          const res = await api('/api/vault/notes?' + qs.toString())
-          if (seq !== listSeq) return
-          state.notes = res.notes || []
+          notes = await loadNotesOnce(qs)
         } catch {
-          if (seq === listSeq) state.notes = []
-        } finally {
-          if (seq === listSeq) { state.loadingList = false; renderCards() }
+          // S82: one retry — a single dropped request used to render the fake
+          // "No notes yet" template (the refresh-the-page bug)
+          try {
+            await new Promise((r) => setTimeout(r, 1200))
+            notes = await loadNotesOnce(qs)
+          } catch { notes = [] }
         }
+        if (seq !== listSeq) return
+        state.notes = notes
+        state.loadingList = false
+        renderCards()
       }
 
       const setView = (type, id, name) => {
@@ -1368,49 +1394,71 @@
       if (sortSel) sortSel.value = state.sort
 
       /* ── boot: restore view pref + hash deep-link ── */
+      // S82 (the "first load feels broken, needs 1-2 refreshes" report): bootstrap +
+      // the notes list used to load SEQUENTIALLY — two full round trips (measured
+      // ~1.3s + ~1.1s on a good day, far worse over VPN) before ANY real content
+      // painted. The 99% case (no folder deep-link) now runs BOTH fetches in
+      // parallel; only the folder deep-link path needs bootstrap first (it resolves
+      // the folder id), and even there the notes fetch starts against the hash/pref
+      // view the moment the folder is known.
       const boot = async () => {
-        await loadBootstrap()
-        // S54: /notes?new=1 (from the FAB / command palette) → start a fresh note
-        // right away. The param is stripped so a reload reopens the normal list.
         const wantNew = new URLSearchParams(location.search).get('new') === '1'
-        if (wantNew) {
-          try { history.replaceState(null, '', location.pathname) } catch {}
-          await loadNotes()
-          await newNote()
-          return
-        }
         let initial = { type: 'all', id: null }
         let jumpQ = null
         try {
           const m = location.hash.match(/^#n=([0-9a-f-]+)(?:&q=([^&]+))?$/i)
           if (m) { initial = { type: 'note', id: m[1] }; if (m[2]) jumpQ = decodeURIComponent(m[2]) }
-          // S67: /notes?view=folder&folder=<id> — the command palette's folder-chip
-          // deep link (also hand-typed/shareable). The hash (a specific note) wins
-          // over the folder: opening the note directly is the more specific intent.
-          // A folder id that no longer exists falls back to All notes (the palette
-          // hit could predate a folder rename/delete); the params are stripped so a
-          // reload reopens the normal saved view.
           else {
             const qs = new URLSearchParams(location.search)
             if (qs.get('view') === 'folder' && qs.get('folder')) {
-              const fid = qs.get('folder')
-              initial = folderById(fid) ? { type: 'folder', id: fid } : { type: 'all', id: null }
+              initial = { type: 'folder-pending', id: qs.get('folder') }
               try { history.replaceState(null, '', location.pathname) } catch {}
             }
           }
-          if (initial.type !== 'folder' && prefs.view && prefs.view.type) initial = prefs.view
+          if (initial.type === 'folder-pending' && prefs.view && prefs.view.type) {
+            // the saved view may be a folder too — keep the pending flag only for the
+            // deep-linked id; a plain saved view resolves after bootstrap as before
+            if (prefs.view.type !== 'folder') initial = prefs.view
+          } else if (initial.type !== 'folder-pending' && prefs.view && prefs.view.type) initial = prefs.view
         } catch {}
+        // PARALLEL: the notes fetch rides alongside bootstrap for every view the
+        // URL/prefs already determine (all/starred/trash/unfiled/tag/note/pending-
+        // folder fallback → all). Only a resolved folder deep-link re-fetches.
+        const needFolderResolve = initial.type === 'folder-pending'
+        const notesView = needFolderResolve ? { type: 'all', id: null } : initial
+        const fetchedView = notesView.type === 'note' ? { type: 'all', id: null } : notesView
+        const bootP = loadBootstrap()
+        let notesP = null
+        if (!wantNew) {
+          state.view = fetchedView
+          notesP = loadNotes()
+        }
+        await bootP
+        if (wantNew) {
+          try { history.replaceState(null, '', location.pathname) } catch {}
+          if (!notesP) { state.view = { type: 'all', id: null }; notesP = loadNotes() }
+          await notesP
+          await newNote()
+          return
+        }
+        if (needFolderResolve) {
+          initial = folderById(initial.id) ? { type: 'folder', id: initial.id } : { type: 'all', id: null }
+        }
         if (initial.type === 'note' && initial.id) {
-          await loadNotes()
+          await notesP // the list is what openNote's jumpToMatch scrolls within
           await openNote(initial.id, { focusBody: false })
           if (jumpQ) jumpToMatch(jumpQ)
-        } else {
-          if (initial.type === 'folder' && !folderById(initial.id)) initial = { type: 'all', id: null }
-          if (initial.type === 'tag' && !state.tags.some((x) => x.tag.toLowerCase() === initial.id.toLowerCase())) initial = { type: 'all', id: null }
-          state.view = initial
-          renderTree()
-          await loadNotes()
+          return
         }
+        if (initial.type === 'folder' && !folderById(initial.id)) initial = { type: 'all', id: null }
+        if (initial.type === 'tag' && !state.tags.some((x) => x.tag.toLowerCase() === initial.id.toLowerCase())) initial = { type: 'all', id: null }
+        state.view = initial
+        // The parallel fetch ran against fetchedView; if post-bootstrap validation
+        // landed on a different view (deleted folder/tag, resolved deep-link), the
+        // already-rendered list is stale for it — refetch instead of awaiting it.
+        const sameView = initial.type === fetchedView.type && String(initial.id || '') === String(fetchedView.id || '')
+        if (!sameView) { await loadNotes(); renderTree() }
+        else await notesP
       }
       boot()
 

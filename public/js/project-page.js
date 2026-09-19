@@ -564,7 +564,7 @@
         // Box labels: lockstep with the server COLS map (detail-helpers.ts) — the five
         // boxes in the SAME order the board above shows them.
         const pinBoxLabel = (k) => {
-          const map = { idea: ['New Ideas', 'ایده‌های جدید'], bug: ['Problems', 'مشکلات'], planned: ['Upcoming Plan', 'برنامه آتی'], in_progress: ['In Progress', 'در حال انجام'], done: ['Done', 'انجام‌شده'] }
+          const map = { idea: ['New Ideas', 'ایده‌های جدید'], bug: ['Problems', 'مشکلات'], planned: ['Plans', 'برنامه‌ها'], in_progress: ['In Progress', 'در حال انجام'], done: ['Done', 'انجام‌شده'] }
           const p = map[k] || map.idea
           return document.documentElement.lang === 'fa' ? p[1] : p[0]
         }
@@ -2638,10 +2638,146 @@
         // Enter adds the task — the field is a textarea only so long sentences stay
         // visible; plain Enter must behave like the old composer's input.
         // S48g: also submit on Enter from the Title input (single-line field).
+        // S82 (owner: "click < > to write code, then you can't get OUT of the code
+        // container to type normal words"): plain Enter inside the content editor
+        // SUBMITTED the form — the natural escape from a code block killed the dialog
+        // mid-thought. Enter now behaves contextually inside .pde-edit-area:
+        //   · inside a <pre>/<code.t-code> block → newline (never submits); on an EMPTY
+        //     last line → EXITS the block (caret lands in the paragraph after)
+        //   · ArrowDown at the code block's end / ArrowUp at its start → hops out
+        //   · anywhere else → legacy submit (the quick-capture contract, S48g)
+        const pdCodeHost = (node) => {
+          const el = node && node.nodeType === 3 ? node.parentElement : node
+          if (!el || !(el instanceof Element)) return null
+          const pre = el.closest('pre')
+          if (pre) return pre
+          const island = el.closest('code.t-code')
+          return island || null
+        }
+        const pdCodeBlockAt = (sel, host) => {
+          // sel.anchorNode + a text-offset probe decides "caret is on the block's
+          // first/last line": ranges from the host's start/end to the caret carry the
+          // text before/after it, which also powers the empty-last-line exit test.
+          if (!sel || !sel.rangeCount || !host) return { first: false, last: false, before: '', after: '' }
+          try {
+            const r = sel.getRangeAt(0)
+            const fromStart = document.createRange()
+            fromStart.selectNodeContents(host)
+            fromStart.setEnd(r.startContainer, r.startOffset)
+            const fromEnd = document.createRange()
+            fromEnd.selectNodeContents(host)
+            fromEnd.setStart(r.startContainer, r.startOffset)
+            // a stray "\n" text node at the block edge counts as the same line
+            const strip = (s) => s.replace(/\n/g, '')
+            return {
+              first: strip(fromStart.toString()) === '',
+              last: strip(fromEnd.toString()) === '',
+              before: fromStart.toString(),
+              after: fromEnd.toString(),
+            }
+          } catch { return { first: false, last: false, before: '', after: '' } }
+        }
+        const pdPlaceCaretAfter = (block) => {
+          // Land the caret in the paragraph AFTER the code block; create one when the
+          // block is the last child (the only way to keep typing normal words).
+          const ta = block.closest('.pde-edit-area')
+          if (!ta) return
+          let p = block.nextElementSibling
+          if (!p || p.tagName === 'PRE' || (p.tagName === 'CODE' && p.classList.contains('t-code'))) {
+            p = document.createElement('p')
+            p.innerHTML = '<br>'
+            block.after(p)
+          }
+          const r = document.createRange()
+          r.selectNodeContents(p)
+          r.collapse(false)
+          const s = window.getSelection()
+          s.removeAllRanges()
+          s.addRange(r)
+          savedRange = r.cloneRange()
+        }
+        const pdCaretAfterBreak = (r, host) => {
+          // Is the character/node immediately BEFORE the caret a line break (a <br>,
+          // a '\n' text tail, or pure whitespace)? Chromium's editing inserts <br>
+          // for newlines in contenteditable code blocks (insertText '\n' included),
+          // and <br> is INVISIBLE to Range.toString() — so the text-based empty-line
+          // test alone never fires. This walk makes the "caret sits on an empty line"
+          // check DOM-aware: text node → look at the chars before the offset; element
+          // → the child before the offset; start-of-node → climb until a previous
+          // sibling; host start → true (the first line, empty iff no text precedes).
+          const c = r.startContainer
+          if (c.nodeType === 3) {
+            const before = c.textContent.slice(0, r.startOffset)
+            return before.trim() === '' || before.endsWith('\n')
+          }
+          if (c.nodeType === 1 && r.startOffset > 0) {
+            const kid = c.childNodes[r.startOffset - 1]
+            if (kid) {
+              if (kid.nodeName === 'BR') return true
+              if (kid.nodeType === 3) return kid.textContent.trim() === '' || kid.textContent.endsWith('\n')
+              return false
+            }
+          }
+          let p = c.nodeType === 1 ? c : c.parentElement
+          while (p && p !== host) {
+            const sib = p.previousSibling
+            if (sib) {
+              if (sib.nodeName === 'BR') return true
+              if (sib.nodeType === 3) return sib.textContent.trim() === '' || sib.textContent.endsWith('\n')
+              return false
+            }
+            p = p.parentElement
+          }
+          return true // caret leads the block — the (empty) first line
+        }
+        const pdCodeKeydown = (e) => {
+          const host = pdCodeHost(window.getSelection()?.anchorNode)
+          if (!host) return false
+          if (e.key === 'Enter') {
+            e.preventDefault() // NEVER submit from inside a code block
+            const sel = window.getSelection()
+            const at = pdCodeBlockAt(sel, host)
+            // Enter on an EMPTY last line (or in a still-empty fresh block) = the
+            // slack-style EXIT gesture; otherwise a plain newline. The empty-line
+            // test is <br>-aware (Chromium renders code newlines as <br>, invisible
+            // to Range.toString()).
+            const onEmptyLastLine = at.last && pdCaretAfterBreak(sel.getRangeAt(0), host)
+            if (onEmptyLastLine) pdPlaceCaretAfter(host)
+            else document.execCommand('insertLineBreak')
+            return true
+          }
+          if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+            const at = pdCodeBlockAt(window.getSelection(), host)
+            if ((e.key === 'ArrowDown' && at.last) || (e.key === 'ArrowUp' && at.first)) {
+              e.preventDefault()
+              if (e.key === 'ArrowDown') pdPlaceCaretAfter(host)
+              else {
+                // hop BEFORE the block: into the previous paragraph, or just focus
+                // the editor start when the block leads the content
+                const prev = host.previousElementSibling
+                if (prev) {
+                  const r = document.createRange()
+                  r.selectNodeContents(prev)
+                  r.collapse(false)
+                  const s = window.getSelection()
+                  s.removeAllRanges()
+                  s.addRange(r)
+                  savedRange = r.cloneRange()
+                }
+              }
+            }
+            return true
+          }
+          return false
+        }
         ctx.on('keydown', (e) => {
           const id = e.target?.id
-          if (id !== 'pd-taskadd-textarea' && id !== 'pd-taskadd-title-input') return
-          if (e.key === 'Enter' && !e.shiftKey) {
+          if (id !== 'pd-taskadd-textarea' && id !== 'pd-taskadd-title-input' && id !== 'pde-input') return
+          // S82: code-block navigation first — inside a block, Enter/arrows are the
+          // block's (incl. the escape gestures); the submit contract only applies to
+          // plain-text zones.
+          if (pdCodeKeydown(e)) return
+          if (e.key === 'Enter' && !e.shiftKey && id !== 'pde-input') {
             e.preventDefault()
             document.getElementById('pd-taskadd-form')?.requestSubmit()
           }
@@ -2918,8 +3054,8 @@
                 //   in the single DB title column (no migration needed — backward
                 //   compatible: existing tasks with no \n split load the first line as
                 //   the title, the rest as content).
-                '<label>' + _t('db.title', 'Title') + ' <input type="text" id="pde-title-input" class="pde-title-field" dir="auto" placeholder="' + _t('pd.titlePh', 'e.g. UI/UX Tweaks') + '"></label>' +
-                '<div class="pde-field"><span class="pde-field-label">' + _t('pd.content', 'Content') + '</span><div id="pde-input" contenteditable="true" role="textbox" aria-multiline="true" aria-label="' + _t('pd.content', 'Content') + '" dir="' + (pdLang() === 'fa' ? 'rtl' : 'auto') + '" class="pde-edit-area" data-placeholder="' + _t('pd.writeHere', 'Write here…') + '"></div></div>' +
+                '<label>' + _t('db.title', 'Title') + ' <input type="text" id="pde-title-input" class="pde-title-field" dir="auto" data-magic="" placeholder="' + _t('pd.titlePh', 'e.g. UI/UX Tweaks') + '"></label>' +
+                '<div class="pde-field"><span class="pde-field-label">' + _t('pd.content', 'Content') + '</span><div id="pde-input" contenteditable="true" role="textbox" aria-multiline="true" aria-label="' + _t('pd.content', 'Content') + '" dir="' + (pdLang() === 'fa' ? 'rtl' : 'auto') + '" class="pde-edit-area" data-magic="" data-placeholder="' + _t('pd.writeHere', 'Write here…') + '"></div></div>' +
                 '<div class="row" style="gap:1rem;margin-top:.4rem">' +
                   '<label style="flex:1">' + _t('db.status', 'Status') + ' <select id="pde-status">' +
                     [['idea','db.st.idea'],['planned','db.st.planned'],['in_progress','db.st.inprog'],['done','db.st.done'],['bug','db.st.bug']].map(function(pair){return '<option value="'+pair[0]+'">'+_t(pair[1], pair[0])+'</option>'}).join('') +
@@ -4037,7 +4173,7 @@
               subtitle: titleIn?.value || '',
               maxlen: 50000,
               placeholder: contentIn?.placeholder || '',
-              hint: _t('pd.docHint', 'Write the full plan — it saves as a document in the برنامه آتی tab.'),
+              hint: _t('pd.docHint', 'Write the full plan — it saves as a document in the Plans tab.'),
               docId: form.dataset.blDocid || '',
             })
           }

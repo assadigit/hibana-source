@@ -628,6 +628,25 @@
   box-shadow: 0 8px 30px rgb(0 0 0 / 0.08); /* the ONLY shadow: floating menus (same as .toast) */
 }
 .spark-menu-pop[hidden] { display: none; }
+/* S82: the LIFTED note ⋯ pop (dashboard quick notes) — while open it lives directly on
+   <body> as position:fixed, so the sticky paper's overflow:hidden boundary and the
+   carousel's scrollport can never clip it (the owner's "menu opens inside the note"
+   bug). inset: auto neutralizes the docked .note-card anchoring (inset-block-start /
+   inset-inline-end from the rules above) so the JS-set left/top are the only coords;
+   the rest of the look (bg/border/shadow/buttons) inherits from .spark-menu-pop. */
+body > .spark-menu-pop.is-floating {
+  position: fixed;
+  inset: auto;
+  z-index: 90;
+  animation: note-pop-in 0.14s ease-out;
+}
+@keyframes note-pop-in {
+  from { opacity: 0; transform: translateY(4px) scale(0.98); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+@media (prefers-reduced-motion: reduce) {
+  body > .spark-menu-pop.is-floating { animation: none; }
+}
 .spark-menu-pop button {
   display: flex;
   align-items: center;

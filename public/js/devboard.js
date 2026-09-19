@@ -52,7 +52,7 @@
 
   const statusLabel = (s) => ({
     idea: t('db.st.idea', 'New Ideas'),
-    planned: t('db.st.planned', 'Upcoming Plan'),
+    planned: t('db.st.planned', 'Plans'),
     in_progress: t('db.st.inprog', 'In Progress'),
     done: t('db.st.done', 'Implemented'),
     bug: t('db.st.bug', 'Problems'),

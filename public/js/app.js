@@ -1921,16 +1921,20 @@ window.hibana = (() => {
       return
     }
 
-    const complete = e.target.closest('[data-task-complete]') || e.target.closest('.dash-todo-check')?.querySelector('input[data-task-complete]')
+    // S82: [data-task-complete] now rides on the CHECKBOX INPUT itself (dashboard to-do
+    // rows) — the old <label> wrapper meant ANY click inside the row (title included)
+    // completed the task; a miss-click lost it. The sadhana board's .toggle button
+    // (board.html legacy surface) still carries the attr on the button — both shapes
+    // resolve below. The stale label-forwarding fallback is gone with the label.
+    const complete = e.target.closest('[data-task-complete]')
     if (complete) {
       e.preventDefault()
       const id = complete.dataset.taskComplete
       const row = complete.closest('.dash-todo-task, .sadhana-card')
       if (!id || !row || row.classList.contains('is-completing')) return
       const checkbox = complete instanceof HTMLInputElement ? complete : complete.querySelector('input[type="checkbox"]')
-      const reopening = checkbox?.dataset.taskDone === '1'
-      checkbox.checked = true
-      checkbox.disabled = true
+      const reopening = checkbox?.dataset.taskDone === '1' || complete.dataset.taskDone === '1'
+      if (checkbox) { checkbox.checked = true; checkbox.disabled = true }
       row.classList.add('is-completing')
       fetch(`/api/sadhana/tasks/${encodeURIComponent(id)}/complete`, { method: 'POST' })
         .then((res) => {
@@ -1942,8 +1946,7 @@ window.hibana = (() => {
         })
         .catch(() => {
           row.classList.remove('is-completing')
-          checkbox.checked = false
-          checkbox.disabled = false
+          if (checkbox) { checkbox.checked = false; checkbox.disabled = false }
           toast(_t('dashboard.taskUpdateFailed', "Couldn't update the task"), 'err')
         })
       return
@@ -3195,6 +3198,12 @@ window.hibana = (() => {
   // (CSS opacity), clicking opens a popover with Edit + Delete. Edit opens a modal text
   // editor (not inline) for focused longer editing. Delete reuses the existing path.
   // Injected client-side after every htmx swap so it survives the #notebook re-render.
+  // S82 (owner: "the sticky note's ⋯ settings menu opens INSIDE the note — unusable"):
+  // the note-card paper keeps overflow:hidden as its hard content boundary, and the
+  // sticky carousel's scrollport clips anything that escapes the card anyway — so the
+  // pop now LIFTS to document.body with position:fixed while open (the vault-pop
+  // precedent on the Notes page): it can never be clipped by the note, its siblings,
+  // or the carousel. dockNotePop() returns it to its .spark-menu on close.
   function injectNoteMenus() {
     const nb = document.getElementById('notebook')
     if (!nb) return
@@ -3216,11 +3225,43 @@ window.hibana = (() => {
       card.setAttribute('data-menu-ok', '')
     }
   }
+  // Lift a note ⋯ pop out of the clipped paper: body + fixed, aligned under its button
+  // (inline-end edges match), flipping above when the viewport bottom is near. Stamps
+  // the host menu reference so the dock step can find it again.
+  function floatNotePop(pop, btn, menu) {
+    pop.__menuHost = menu
+    pop.classList.add('is-floating')
+    document.body.appendChild(pop)
+    const r = btn.getBoundingClientRect()
+    const pw = pop.offsetWidth || 170
+    const ph = pop.offsetHeight || 96
+    const rtl = document.documentElement.dir === 'rtl'
+    let x = rtl ? r.left : r.right - pw
+    x = Math.max(8, Math.min(x, window.innerWidth - pw - 8))
+    let y = r.bottom + 6
+    if (y + ph > window.innerHeight - 8) y = Math.max(8, r.top - ph - 6)
+    pop.style.left = Math.round(x) + 'px'
+    pop.style.top = Math.round(y) + 'px'
+  }
+  // Return a lifted pop to its .spark-menu (restore flow + drop inline coords). If the
+  // host already left the DOM (htmx re-rendered the notes), the pop is dropped too.
+  function dockNotePop(pop) {
+    if (!pop) return
+    pop.classList.remove('is-floating')
+    pop.style.left = ''
+    pop.style.top = ''
+    const host = pop.__menuHost
+    if (host && host.isConnected) host.appendChild(pop)
+    else if (pop.parentElement === document.body) pop.remove()
+    pop.__menuHost = null
+  }
   // Close note ⋯ popovers on outside click (the sparks/projects pages have their own
-  // closeMenus; the dashboard notes need one too).
+  // closeMenus; the dashboard notes need one too). Finds BOTH docked pops and the
+  // lifted one (it lives on <body> while open — the #notebook selector alone misses it).
   function closeNoteMenus() {
-    document.querySelectorAll('#notebook .spark-menu-pop:not([hidden])').forEach((pop) => {
+    document.querySelectorAll('#notebook .spark-menu-pop:not([hidden]), body > .spark-menu-pop.is-floating:not([hidden])').forEach((pop) => {
       pop.hidden = true
+      if (pop.classList.contains('is-floating')) dockNotePop(pop)
       const btn = pop.parentElement && pop.parentElement.querySelector('[data-menu-open]')
       if (btn) btn.removeAttribute('data-open')
     })
@@ -3229,18 +3270,22 @@ window.hibana = (() => {
     // Toggle the popover
     const openBtn = e.target.closest('#notebook .spark-menu [data-menu-open]')
     if (openBtn) {
-      const pop = openBtn.parentElement.querySelector('.spark-menu-pop')
+      const menu = openBtn.parentElement
+      const pop = menu.querySelector('.spark-menu-pop')
       if (!pop) return
       const willOpen = pop.hidden
       closeNoteMenus()
       pop.hidden = !willOpen
       openBtn.setAttribute('data-open', '')
       if (!willOpen) openBtn.removeAttribute('data-open')
+      else floatNotePop(pop, openBtn, menu) // S82: lift it past the paper's clip while open
       e.stopPropagation()
       return
     }
-    // Outside click → close
-    if (!e.target.closest('#notebook .spark-menu')) closeNoteMenus()
+    // Outside click → close (a lifted pop's own buttons count as inside: they live on
+    // <body>, so match the .is-floating surface too — the action handlers below run
+    // AFTER this closer, on the captured references)
+    if (!e.target.closest('#notebook .spark-menu, body > .spark-menu-pop.is-floating')) closeNoteMenus()
     // Edit in modal
     const editBtn = e.target.closest('[data-note-menu-edit]')
     if (editBtn) {
@@ -3263,6 +3308,15 @@ window.hibana = (() => {
     }
   })
   document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeNoteMenus() })
+  // S82: the lifted pop is position:fixed — a scrolled carousel (or a resized window)
+  // would visually detach it from its note. Close on any scroll/resize instead of
+  // letting it float stale (capture-phase catches every scrollport, not just window).
+  document.addEventListener('scroll', () => {
+    if (document.querySelector('body > .spark-menu-pop.is-floating:not([hidden])')) closeNoteMenus()
+  }, { capture: true, passive: true })
+  window.addEventListener('resize', () => {
+    if (document.querySelector('body > .spark-menu-pop.is-floating:not([hidden])')) closeNoteMenus()
+  })
 
   // ---- Note modal text editor (user request 2026-09) -------------------------
   // A focused modal for editing a note: title (lists only) + a large content textarea.

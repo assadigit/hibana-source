@@ -465,7 +465,7 @@
 
     // 0040: Backlog docs (برنامه آتی) — deep link → the project page (backlog tab).
     if (backlog.length) {
-      html.push('<li class="cmdk-group" role="presentation"><span class="cmdk-group-label">' + _t('cmdk.backlog', 'Upcoming Plan') + '</span></li>')
+      html.push('<li class="cmdk-group" role="presentation"><span class="cmdk-group-label">' + _t('cmdk.backlog', 'Plans') + '</span></li>')
       for (const b of backlog) {
         const idx = items.length
         const url = '/project.html?id=' + b.project_id + '&tab=backlog'

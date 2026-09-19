@@ -147,7 +147,7 @@ export function signalsHtml(signals: ProjectSignals | undefined, lang: Locale): 
   const dig = (n: number) => (lang === 'fa' ? faDigits(String(n)) : String(n))
   const chips: string[] = []
   if (signals.ideas > 0) chips.push(`<span class="sig-chip sig-ideas" title="${trL(lang, `${signals.ideas} ${signals.ideas === 1 ? 'idea' : 'ideas'}`, `${signals.ideas} ایده`)}">${icon('idea', 'icon')}${dig(signals.ideas)}</span>`)
-  if (signals.backlog > 0) chips.push(`<span class="sig-chip sig-backlog" title="${trL(lang, 'Has upcoming plan', 'برنامه آتی دارد')}">${icon('list-check', 'icon')}${dig(signals.backlog)}</span>`)
+  if (signals.backlog > 0) chips.push(`<span class="sig-chip sig-backlog" title="${trL(lang, 'Has plans', 'برنامه دارد')}">${icon('list-check', 'icon')}${dig(signals.backlog)}</span>`)
   if (signals.hurdles > 0) chips.push(`<span class="sig-chip sig-hurdles" title="${trL(lang, `${signals.hurdles} open ${signals.hurdles === 1 ? 'hurdle' : 'hurdles'}`, `${signals.hurdles} مانده باز`)}">${icon('alert', 'icon')}${dig(signals.hurdles)}</span>`)
   return chips.length ? `<span class="project-signals">${chips.join('')}</span>` : ''
 }

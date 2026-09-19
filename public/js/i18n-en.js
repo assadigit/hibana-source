@@ -533,7 +533,7 @@ window.__hibanaDictEN = {
       // S30 (2026-09-12): the progress-box keys are GONE with the feature (user request).
       'pd.editor': 'Editor', 'pd.noteEditor': 'Note editor', 'pd.docEditor': 'Plan document editor',
       'pd.noteHint': 'Write your progress update — it saves to the Notes tab.',
-      'pd.docHint': 'Write the full plan — it saves as a document in the Upcoming Plan tab.',
+      'pd.docHint': 'Write the full plan — it saves as a document in the Plans tab.',
       'pd.noteSaved': 'Note saved', 'pd.copied': 'Copied to clipboard', 'pd.exported': 'Exported as Markdown',
       'pd.quickCopy': 'Quick copy', 'pd.exportMd': 'Export Markdown',
       // S33: the «اسپرینت جدید» flow — modal → enter → the full-screen sprint editor
@@ -554,7 +554,7 @@ window.__hibanaDictEN = {
       'db.counts': '{n} of {m} done', 'db.addTask': 'Add task', 'db.quickAdd': '+ task',
       'db.newTask': 'New task', 'db.editTask': 'Edit task', 'db.title': 'Title',
       'db.titlePh': 'What needs to be built?', 'db.status': 'Status', 'db.priority': 'Priority',
-      'db.st.idea': 'New Ideas', 'db.st.planned': 'Upcoming Plan', 'db.st.inprog': 'In Progress', 'db.st.done': 'Implemented', 'db.st.bug': 'Problems',
+      'db.st.idea': 'New Ideas', 'db.st.planned': 'Plans', 'db.st.inprog': 'In Progress', 'db.st.done': 'Implemented', 'db.st.bug': 'Problems',
       'db.pr.low': 'Low', 'db.pr.medium': 'Medium', 'db.pr.high': 'High', 'db.pr.urgent': 'Urgent',
       'db.category': 'Category', 'db.uncategorized': 'Uncategorized', 'db.newCategory': 'New category…',
       'db.categoryName': 'Category name (Feature Development…)', 'db.renameCategory': 'Rename category',
@@ -704,7 +704,7 @@ window.__hibanaDictEN = {
       'db.filterEmptyText': 'Try another word, or clear the filters to see every task.',
       'db.cyclePrio': 'Priority: {p} — click to change',
       'cmdk.tasks': 'Tasks',
-      'cmdk.backlog': 'Upcoming Plan',
+      'cmdk.backlog': 'Plans',
       'cmdk.sadhana': 'To-Do',
       'cmdk.canvas': 'Canvas',
       'cmdk.untitledNote': 'Untitled note',

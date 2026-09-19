@@ -86,7 +86,7 @@
         }
         // Box labels: lockstep with the board's COLS map (detail-helpers.ts) — same
         // five boxes, same order, so "where it's categorized" reads identically.
-        const BOX = { idea: ['New Ideas', 'ایده‌های جدید'], bug: ['Problems', 'مشکلات'], planned: ['Upcoming Plan', 'برنامه آتی'], in_progress: ['In Progress', 'در حال انجام'], done: ['Done', 'انجام‌شده'] }
+        const BOX = { idea: ['New Ideas', 'ایده‌های جدید'], bug: ['Problems', 'مشکلات'], planned: ['Plans', 'برنامه‌ها'], in_progress: ['In Progress', 'در حال انجام'], done: ['Done', 'انجام‌شده'] }
         const boxLabel = (k) => { const p = BOX[k] || BOX.idea; return document.documentElement.lang === 'fa' ? p[1] : p[0] }
         const fmtSize = (b) => {
           if (!b) return ''

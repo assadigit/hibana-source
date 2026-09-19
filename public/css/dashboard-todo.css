@@ -191,15 +191,19 @@ section[id^="dashboard-"].is-collapsed > *:not(header) { display: none; }
    UI/UX R6 (2026-09-12): the wrapper's min-block-size is lifted 2.3rem → 2.75rem (~44px)
    per WCAG 2.5.5 (Target Size — minimum 24×24, recommended 44×44). The visible checkbox
    stays at 1.05rem; the wrapper's padding grows the hit zone around the visual so the
-   tap target clears the floor without the icon visibly changing size. The whole row is
-   clickable (cursor: pointer + the label wraps the checkbox), so the 44px target is
-   the row itself, not just the 17px square. */
-.dash-todo-check { grid-column: 1; display: flex; align-items: flex-start; gap: var(--task-row-gap); min-inline-size: 0; min-block-size: 2.75rem; padding-block: 0.45rem; padding-inline-end: 2.5rem; cursor: pointer; }
+   tap target clears the floor without the icon visibly changing size.
+   S82 (owner: "one miss-click on the row completes the task"): the whole row is NO
+   LONGER the completion control — the <label> became a div, so only the checkbox (with
+   its ≥40px ::before hit island) toggles completion. The pointer cursor moves onto
+   the checkbox so the affordance tells the truth; the title stays selectable text. */
+.dash-todo-check { grid-column: 1; display: flex; align-items: flex-start; gap: var(--task-row-gap); min-inline-size: 0; min-block-size: 2.75rem; padding-block: 0.45rem; padding-inline-end: 2.5rem; cursor: default; }
 .dash-todo-check input {
   flex: none;
   inline-size: 1.05rem; block-size: 1.05rem;
   margin-block-start: 0.12rem; margin-inline: 0;
   accent-color: var(--accent);
+  cursor: pointer;
+  position: relative; /* the ::before hit island anchors to the input */
 }
 /* UI/UX R6 (2026-09-12): 44px tap target wrapper for the checkbox (WCAG 2.5.5).
    The checkbox stays 1.05rem visually, but the clickable wrapper grows. */
@@ -542,9 +546,15 @@ details.dash-todo-menu:not([open]) .dash-todo-menu-pop { display: none; }
     content: ''; position: absolute; left: 50%; top: 50%;
     inline-size: 7px; block-size: 7px; margin: -3.5px 0 0 -3.5px; border-radius: 50%;
     background: var(--muted); opacity: 0.55;
-    transition: transform 0.18s ease, background 0.18s ease, opacity 0.18s ease;
+    transition: transform 0.18s ease, background 0.18s ease, opacity 0.18s ease, box-shadow 0.18s ease;
   }
-  .dash-quad-dot.active::before { background: var(--accent); opacity: 1; transform: scale(1.7); }
+  /* S82: the active dot gains the SAME soft glow the projects carousel's .stat-dot
+     .is-active now carries (blurred box-shadow in the dot's own color, low opacity) —
+     one dot language across every carousel. */
+  .dash-quad-dot.active::before {
+    background: var(--accent); opacity: 1; transform: scale(1.7);
+    box-shadow: 0 0 8px 2px color-mix(in srgb, var(--accent) 45%, transparent);
+  }
   .dash-quad-dot:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
   /* One-time swipe hint: a pill at the inline-end edge pulsing toward the next
      quadrant; dies on the first swipe or after 4s (app.js drives the lifecycle). */

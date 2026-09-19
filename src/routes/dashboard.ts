@@ -198,7 +198,7 @@ export function dashboardRoutes(cfg: Config) {
         if (!s || (s.ideas === 0 && s.backlog === 0 && s.hurdles === 0)) return html``
         const chips: SafeHtml[] = []
         if (s.ideas > 0) chips.push(html`<span class="sig-chip sig-ideas" title="${t(`${s.ideas} ${s.ideas === 1 ? 'idea' : 'ideas'}`, `${s.ideas} ایده`)}">${raw(icon('idea', 'icon'))}${num(s.ideas)}</span>`)
-        if (s.backlog > 0) chips.push(html`<span class="sig-chip sig-backlog" title="${t('Has upcoming plan', 'برنامه آتی دارد')}">${raw(icon('list-check', 'icon'))}${num(s.backlog)}</span>`)
+        if (s.backlog > 0) chips.push(html`<span class="sig-chip sig-backlog" title="${t('Has plans', 'برنامه دارد')}">${raw(icon('list-check', 'icon'))}${num(s.backlog)}</span>`)
         if (s.hurdles > 0) chips.push(html`<span class="sig-chip sig-hurdles" title="${t(`${s.hurdles} open ${s.hurdles === 1 ? 'hurdle' : 'hurdles'}`, `${s.hurdles} مانده باز`)}">${raw(icon('alert', 'icon'))}${num(s.hurdles)}</span>`)
         return html`<span class="project-signals">${chips}</span>`
       }
@@ -300,11 +300,17 @@ export function dashboardRoutes(cfg: Config) {
         const stateClass = task.progress === 'in_progress' ? 'st-inprog' : task.progress === 'on_hold' ? 'st-hold' : 'st-untouched'
         const note = todoLatestNote(task)
         const progDots = (['untouched', 'in_progress', 'on_hold'] as const).map((p) => html`<button type="button" class="prog-dot ${PROG_CLS[p]}${task.progress === p ? ' p-active' : ''}" data-prog-state="${p}" title="${t(PROG_LABEL[p].en, PROG_LABEL[p].fa)}" aria-label="${t(PROG_LABEL[p].en, PROG_LABEL[p].fa)}" aria-pressed="${task.progress === p}"></button>`)
+        // S82 (owner: "a single click anywhere on the row marks the task finished —
+        // miss-clicks lose the task"): this used to be a <label> wrapping checkbox +
+        // title, so ANY click inside it toggled completion. It's now a plain div —
+        // only the checkbox (its ≥40px ::before hit area) completes the task. The
+        // completion id rides on the input itself; app.js's delegated handler keys
+        // off [data-task-complete] and only the input can be its own click target.
         return html`<li class="dash-todo-task ${task.pinned === 1 ? 'is-pinned' : ''} ${stateClass}" data-dash-task-id="${task.id}" draggable="true" ${index >= 5 ? 'hidden' : ''}>
-        <label class="dash-todo-check" data-task-complete="${task.id}">
-          <input type="checkbox" ${task.done === 1 ? 'checked' : ''} aria-label="${t('Complete task', 'انجام کار')}">
+        <div class="dash-todo-check" data-task-complete-row="${task.id}">
+          <input type="checkbox" data-task-complete="${task.id}" ${task.done === 1 ? 'checked' : ''} aria-label="${t('Complete task', 'انجام کار')}">
           <span data-task-title="${task.id}">${task.title}</span>
-        </label>
+        </div>
         <div class="prog-track ${stateClass}" data-dash-prog="${task.id}">${progDots}<span class="prog-lbl">${t(PROG_LABEL[task.progress].en, PROG_LABEL[task.progress].fa)}</span></div>
         ${note ? html`<button type="button" class="dash-note-chip" data-dash-note-chip="${task.id}" data-note="${note.text}" data-note-count="${note.count}" aria-label="${t('Task note', 'یادداشت کار')}" title="${t('Task note', 'یادداشت کار')}">${raw(icon('clipboard'))}</button>` : ''}
         <details class="dash-todo-menu">

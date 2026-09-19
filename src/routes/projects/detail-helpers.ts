@@ -168,12 +168,12 @@ export function detailHtml(p: ProjectRow, d: Awaited<ReturnType<typeof loadDetai
   const blHistory =
     d.backlog.history
       .map((ev) => `<li><span class="muted small">${timeAgo(ev.at, lang)}</span> — ${esc(blEventLabel(ev))}</li>`)
-      .join('') || '<li class="muted">' + trL(lang, 'No backlog changes yet.', 'هنوز تغییری در برنامه آتی ثبت نشده.') + '</li>'
+      .join('') || '<li class="muted">' + trL(lang, 'No plan changes yet.', 'هنوز تغییری در برنامه‌ها ثبت نشده.') + '</li>'
   const plannedCount = d.devTasks.filter((t) => t.status === 'planned').length
   const COLS: { key: DevTaskRow['status'] | 'bug'; en: string; fa: string }[] = [
     { key: 'idea', en: 'New Ideas', fa: 'ایده‌های جدید' },
     { key: 'bug', en: 'Problems', fa: 'مشکلات' },
-    { key: 'planned', en: 'Upcoming Plan', fa: 'برنامه آتی' },
+    { key: 'planned', en: 'Plans', fa: 'برنامه‌ها' },
     { key: 'in_progress', en: 'In Progress', fa: 'در حال انجام' },
     { key: 'done', en: 'Done', fa: 'انجام‌شده' },
   ]
@@ -464,7 +464,7 @@ export function detailHtml(p: ProjectRow, d: Awaited<ReturnType<typeof loadDetai
   <div class="detail-tabs" role="tablist" aria-label="${trL(lang, 'Project sections', 'بخش‌های پروژه')}">
     <button type="button" class="detail-tab is-active" role="tab" aria-selected="true" aria-controls="detail-notes" data-detail-tab="notes" tabindex="0">${trL(lang, 'Notes', 'یادداشت‌ها')}</button>
     <button type="button" class="detail-tab" role="tab" aria-selected="false" aria-controls="detail-problems" data-detail-tab="problems" tabindex="-1">${trL(lang, 'Problems', 'مشکل‌ها')} <span class="detail-tab-count" data-tab-count="problems" data-n="${bugTasks.length}">${dig(bugTasks.length)}</span></button>
-    <button type="button" class="detail-tab" role="tab" aria-selected="false" aria-controls="detail-backlog" data-detail-tab="backlog" tabindex="-1">${trL(lang, 'Upcoming Plan', 'برنامه آتی')} <span class="detail-tab-count" data-tab-count="backlog" data-n="${plannedCount}">${dig(plannedCount)}</span></button>
+    <button type="button" class="detail-tab" role="tab" aria-selected="false" aria-controls="detail-backlog" data-detail-tab="backlog" tabindex="-1">${trL(lang, 'Plans', 'برنامه‌ها')} <span class="detail-tab-count" data-tab-count="backlog" data-n="${plannedCount}">${dig(plannedCount)}</span></button>
     <button type="button" class="detail-tab" role="tab" aria-selected="false" aria-controls="detail-links" data-detail-tab="links" tabindex="-1">${trL(lang, 'Links', 'پیوندها')} <span class="detail-tab-count">${dig(d.links.length)}</span></button>
     <button type="button" class="detail-tab" role="tab" aria-selected="false" aria-controls="detail-media" data-detail-tab="media" tabindex="-1">${trL(lang, 'Screenshots', 'اسکرین‌شات')} <span class="detail-tab-count">${dig(d.screenshots.length)}</span></button>
     <button type="button" class="detail-tab" role="tab" aria-selected="false" aria-controls="detail-activity" data-detail-tab="activity" tabindex="-1">${trL(lang, 'Latest Activity', 'آخرین تغییرات')}</button>
@@ -502,14 +502,14 @@ export function detailHtml(p: ProjectRow, d: Awaited<ReturnType<typeof loadDetai
   </section>
 
   <section class="card detail-panel" id="detail-backlog" role="tabpanel" data-detail-panel="backlog" hidden>
-    <h3>${trL(lang, 'Upcoming Plan', 'برنامه آتی')}</h3>
-    <p class="muted small">${trL(lang, 'Two ways to plan: quick items land in the Upcoming Plan box instantly; documents hold the full plan (title + content) with a change history.', 'دو راه برنامه‌ریزی: قلم‌های سریع بلافاصله در جعبهٔ «برنامه آتی» می‌نشینند؛ اسناد، برنامهٔ کامل (عنوان + متن) را با تاریخچهٔ تغییر نگه می‌دارند.')}</p>
+    <h3>${trL(lang, 'Plans', 'برنامه‌ها')}</h3>
+    <p class="muted small">${trL(lang, 'Two ways to plan: quick items land in the Plans box instantly; documents hold the full plan (title + content) with a change history.', 'دو راه برنامه‌ریزی: قلم‌های سریع بلافاصله در جعبهٔ «برنامه‌ها» می‌نشینند؛ اسناد، برنامهٔ کامل (عنوان + متن) را با تاریخچهٔ تغییر نگه می‌دارند.')}</p>
 
     <form class="pd-quick-add bl-item-form" data-bl-item>
-      <input name="title" maxlength="300" dir="auto" autocomplete="off" placeholder="${trL(lang, '− Fix the dashboard CSS problems…', '− رفع مشکلات CSS داشبورد…')}" aria-label="${trL(lang, 'Upcoming plan item', 'قلم برنامه آتی')}">
+      <input name="title" maxlength="300" dir="auto" autocomplete="off" placeholder="${trL(lang, '− Fix the dashboard CSS problems…', '− رفع مشکلات CSS داشبورد…')}" aria-label="${trL(lang, 'Plan item', 'قلم برنامه')}">
       <button type="submit" class="ghost" aria-label="${trL(lang, 'Add item', 'افزودن قلم')}">${icon('plus')}</button>
     </form>
-    <p class="muted small bl-hint">${trL(lang, 'Every item lands in the Upcoming Plan box above — ideas still need a review before they join the plan.', 'هر قلم بلافاصله در جعبهٔ «برنامه آتی» بالا می‌نشیند — ایده‌ها پیش از ورود به برنامه بازبینی و انتخاب می‌شوند.')}</p>
+    <p class="muted small bl-hint">${trL(lang, 'Every item lands in the Plans box above — ideas still need a review before they join the plan.', 'هر قلم بلافاصله در جعبهٔ «برنامه‌ها» بالا می‌نشیند — ایده‌ها پیش از ورود به برنامه بازبینی و انتخاب می‌شوند.')}</p>
 
     <h4 class="bl-sub">${trL(lang, 'Plan documents', 'اسناد برنامه')}</h4>
     <div class="bl-docs" data-bl-docs>${blDocs}</div>
@@ -612,8 +612,8 @@ export function detailHtml(p: ProjectRow, d: Awaited<ReturnType<typeof loadDetai
         <span class="pd-tb-sep" aria-hidden="true"></span>
         <button type="button" class="pd-tb-btn" data-tb="code" title="${trL(lang, 'Code block (```…```)', 'بلوک کد (```…```)')}" aria-label="${trL(lang, 'Code block', 'بلوک کد')}"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m8 6-6 6 6 6M16 6l6 6-6 6"/></svg></button>
       </div>
-      <label>${trL(lang, 'Title', 'عنوان')} <input type="text" id="pd-taskadd-title-input" class="pde-title-field" dir="auto" placeholder="${trL(lang, 'e.g. UI/UX Tweaks', 'مثلاً بهینه‌سازی رابط کاربری')}" /></label>
-      <div class="pde-field"><span class="pde-field-label">${trL(lang, 'Content', 'محتوا')}</span><div id="pd-taskadd-textarea" contenteditable="true" role="textbox" aria-multiline="true" dir="${lang === 'fa' ? 'rtl' : 'auto'}" aria-label="${trL(lang, 'Task content', 'محتوای کار')}" data-placeholder="${trL(lang, 'Write the task — long sentences and code blocks are welcome…', 'کار را بنویس — جمله‌های بلند و بلوک‌های کد جای دارند…')}" class="pde-edit-area"></div></div>
+      <label>${trL(lang, 'Title', 'عنوان')} <input type="text" id="pd-taskadd-title-input" class="pde-title-field" dir="auto" data-magic="" placeholder="${trL(lang, 'e.g. UI/UX Tweaks', 'مثلاً بهینه‌سازی رابط کاربری')}" /></label>
+      <div class="pde-field"><span class="pde-field-label">${trL(lang, 'Content', 'محتوا')}</span><div id="pd-taskadd-textarea" contenteditable="true" role="textbox" aria-multiline="true" dir="${lang === 'fa' ? 'rtl' : 'auto'}" aria-label="${trL(lang, 'Task content', 'محتوای کار')}" data-magic="" data-placeholder="${trL(lang, 'Write the task — long sentences and code blocks are welcome…', 'کار را بنویس — جمله‌های بلند و بلوک‌های کد جای دارند…')}" class="pde-edit-area"></div></div>
       <!-- S31b: the RTL dir stays the FA typing default (caret/empty line), while
            polish-batch.css sets unicode-bidi: plaintext on this textarea — each
            RENDERED line resolves its own direction (English lines LTR, Farsi lines
@@ -629,7 +629,7 @@ export function detailHtml(p: ProjectRow, d: Awaited<ReturnType<typeof loadDetai
           <select id="pd-taskadd-status" class="pd-prio-select">
             <option value="idea">${trL(lang, 'New Ideas', 'ایده‌های جدید')}</option>
             <option value="bug">${trL(lang, 'Problems', 'مشکلات')}</option>
-            <option value="planned">${trL(lang, 'Upcoming Plan', 'برنامه آتی')}</option>
+            <option value="planned">${trL(lang, 'Plans', 'برنامه‌ها')}</option>
             <option value="in_progress">${trL(lang, 'In Progress', 'در حال انجام')}</option>
             <option value="done">${trL(lang, 'Done', 'انجام‌شده')}</option>
           </select>

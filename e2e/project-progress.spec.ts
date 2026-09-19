@@ -221,3 +221,87 @@ test('task composer: priority dropdown + labels; boxes auto-sort by priority', a
 
   expect(errors).toEqual([])
 })
+
+// S82 (owner report: "click < > to write code, then you can't get OUT of the code
+// container to type normal words"): the code-block escape gestures. Inside a
+// toolbar-inserted <pre><code> block, plain Enter used to SUBMIT the composer (the
+// quick-capture contract ran on every Enter) — the natural escape killed the dialog
+// mid-thought, and arrows refused to hop the block boundary. Now:
+//   · Enter inside the block = a newline (the modal must STAY OPEN)
+//   · Enter on an EMPTY last line = exit the block (caret lands after it)
+//   · ArrowDown at the block's end = hop out to the paragraph below
+// This spec pins all three gestures + the saved round-trip keeping the fence.
+test('code block: Enter newlines instead of submitting; empty-line Enter and ArrowDown escape the block', async ({ page, browserName }) => {
+  test.skip(browserName !== 'chromium', 'Desktop Chromium only')
+  const errors = trackErrors(page)
+  await login(page)
+  const id = await openProject(page)
+
+  await page.click('[data-pd-add="idea"]')
+  const dlg = page.locator('#pd-taskadd-modal')
+  await expect(dlg).toBeVisible()
+  await page.fill('#pd-taskadd-title-input', 'e2e code escape')
+
+  // click into the content area, insert a code block, type a line inside it
+  const area = page.locator('#pd-taskadd-textarea')
+  await area.click()
+  await page.click('[data-tb="code"]')
+  await page.waitForTimeout(150) // the caret placement is a setTimeout(0) after insertHTML
+  await page.keyboard.type('const x = 1')
+
+  // (1) Enter inside the block = NEWLINE, never a submit — the old bug: the dialog
+  // closed here (the form submitted) and the typed code was lost mid-thought.
+  await page.keyboard.press('Enter')
+  await page.keyboard.type('const y = 2')
+  await expect(dlg).toBeVisible() // still open — Enter was eaten by the block
+  const codeEl = area.locator('pre code')
+  await expect(codeEl).toHaveCount(1) // one block, not nested/fragmented
+
+  // (2) ArrowDown at the block's end hops OUT — the caret lands in the paragraph
+  // after it, so normal words are typeable again.
+  await page.keyboard.press('ArrowDown')
+  await page.keyboard.type('after the block')
+  // the code block's text is ONLY the code; the escaped words live in a sibling <p>
+  await expect.poll(async () => area.locator('pre code').innerText()).toContain('const x = 1')
+  const codeText = await area.locator('pre code').innerText()
+  expect(codeText).not.toContain('after the block')
+  expect(await area.locator('p', { hasText: 'after the block' }).count()).toBeGreaterThan(0)
+
+  // (3) a SECOND code block + the empty-last-line Enter exit: Enter twice on a fresh
+  // block (first = the empty new line, second = the slack-style exit gesture).
+  await area.locator('p', { hasText: 'after the block' }).click({ position: { x: 2, y: 2 } })
+  await page.keyboard.press('End')
+  await page.click('[data-tb="code"]')
+  await page.waitForTimeout(150)
+  await page.keyboard.type('exit me')
+  await page.keyboard.press('Enter') // newline → now on an empty last line
+  await page.keyboard.press('Enter') // the exit gesture → caret leaves the block
+  await page.keyboard.type('tail words')
+  await expect(area.locator('pre code')).toHaveCount(2)
+  expect(await area.locator('pre code').nth(1).innerText()).toContain('exit me')
+  expect(await area.locator('p', { hasText: 'tail words' }).count()).toBeGreaterThan(0)
+
+  // (4) the SAVE round-trip keeps the code (S77's fence converter + these gestures):
+  // saving with two blocks must persist both fences through htmlToMd → renderTitle.
+  await page.click('#pd-taskadd-save')
+  await expect(dlg).not.toBeVisible()
+  await page.goto(`/project.html?id=${id}`)
+  await expect(page.locator('#pd-title')).toBeVisible({ timeout: 10_000 })
+  // the card shows the TITLE line only (S48j); the full title+content rides in
+  // data-raw-title. Open the edit dialog — its #pde-input prefills via
+  // renderTitle(contentMd), where the fences become .t-code islands.
+  const card = page.locator('.pd-task-wrap', { hasText: 'e2e code escape' })
+  await expect(card).toBeVisible({ timeout: 10_000 })
+  await expect(card.locator('.pd-task-title')).toHaveText(/e2e code escape/)
+  await card.locator('.pd-task').click()
+  const editDlg = page.locator('#pd-task-edit-modal')
+  await expect(editDlg).toBeVisible()
+  const editArea = page.locator('#pde-input')
+  await expect(editArea.locator('.t-code').first()).toContainText('const x = 1')
+  await expect(editArea.locator('.t-code').nth(1)).toContainText('exit me')
+  // the escaped paragraphs survived the round-trip too (not swallowed by the fences)
+  await expect(editArea).toContainText('after the block')
+  await expect(editArea).toContainText('tail words')
+
+  expect(errors).toEqual([])
+})

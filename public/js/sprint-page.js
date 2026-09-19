@@ -630,7 +630,7 @@
           const statusBadge = (s) => {
             if (s.ended_at) return '<span class="sp-list-badge is-done">' + _t('db.st.done', 'Done') + '</span>'
             if (s.started_at && !s.is_draft) return '<span class="sp-list-badge is-running">' + _t('db.st.inprog', 'In Progress') + '</span>'
-            return '<span class="sp-list-badge is-draft">' + _t('db.st.planned', 'Upcoming Plan') + '</span>'
+            return '<span class="sp-list-badge is-draft">' + _t('db.st.planned', 'Plans') + '</span>'
           }
           const fmtDate = (d) => {
             if (!d) return '—'
@@ -1369,7 +1369,7 @@
             if (window.HibanaBoard) return resolve(true)
             if (!injected && waited >= 1200) {
               injected = true
-              inject('/js/devboard.js?v=20') // keep in sync with the <head> tag + sw SHELL
+              inject('/js/devboard.js?v=21') // keep in sync with the <head> tag + sw SHELL
               if (!window.jalaali) inject('/vendor/jalaali.min.js') // Jalali timeline for FA
             }
             if (waited >= 9000) return resolve(false)

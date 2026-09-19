@@ -307,7 +307,7 @@ export async function buildObsidianVault(
     }
     const bl = backlogBy.get(p.id)
     if (bl?.length) {
-      sections.push(`## Backlog notes (برنامه آتی)\n\n${bl.map((x) => `### ${x.title}\n\n${x.content.trim()}\n`).join('')}`)
+      sections.push(`## Backlog notes (برنامه‌ها)\n\n${bl.map((x) => `### ${x.title}\n\n${x.content.trim()}\n`).join('')}`)
     }
     return fm + sections.join('\n')
   }

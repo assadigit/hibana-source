@@ -26,7 +26,7 @@ import type { Config, HurdleRow, LinkRow, ScreenshotRow, UserRow } from '../type
 const SHOT_BOX: Record<string, [string, string]> = {
   idea: ['New Ideas', 'ایده‌های جدید'],
   bug: ['Problems', 'مشکلات'],
-  planned: ['Upcoming Plan', 'برنامه آتی'],
+  planned: ['Plans', 'برنامه‌ها'],
   in_progress: ['In Progress', 'در حال انجام'],
   done: ['Done', 'انجام‌شده'],
 }

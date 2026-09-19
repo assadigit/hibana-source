@@ -700,9 +700,9 @@ body.rtl .fuz-opt{text-align:right}
   .sadhana-wrap .quad-dot::before{
     content:"";position:absolute;inset-inline-start:50%;inset-block-start:50%;
     width:7px;height:7px;margin:-3.5px 0 0 -3.5px;border-radius:50%;
-    background:var(--border2);transition:transform .18s ease,background .18s ease;
+    background:var(--border2);transition:transform .18s ease,background .18s ease,box-shadow .18s ease;
   }
-  .sadhana-wrap .quad-dot.active::before{background:var(--accent);transform:scale(1.7)}
+  .sadhana-wrap .quad-dot.active::before{background:var(--accent);transform:scale(1.7);box-shadow:0 0 8px 2px color-mix(in srgb,var(--accent) 45%,transparent)}
   .sadhana-wrap .quad-dot:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 
   /* ── Swipe hint (visual guidance #2): a one-time pill at the inline-end edge that

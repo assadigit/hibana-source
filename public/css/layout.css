@@ -1032,6 +1032,18 @@ dialog.gal-note-modal {
     line-height: 1.35;
   }
 }
+/* S81 polish — scroll clearance for the floating bar: while the selbar is mounted,
+   the page flow gains bottom clearance so the LAST row of tiles can scroll clear
+   of the fixed bar (Gmail/Photos pattern: the bar floats, but content must be able
+   to escape it — otherwise the row the cleanup pass is reviewing sits under the
+   delete button). Transient by construction: the padding exists only while
+   selecting (:has gates it), and mobile extends past the mobile-nav clearance
+   the body already carries. Engines without :has keep the old behavior (the bar
+   is transient anyway). */
+body:has(.gal-selbar) .shell { padding-block-end: 5rem; }
+body.has-mobile-nav:has(.gal-selbar) {
+  padding-block-end: calc(9.5rem + env(safe-area-inset-bottom, 0px));
+}
 
 /* --- dashboard stats ------------------------------------------------------- */
 .stat-strip {

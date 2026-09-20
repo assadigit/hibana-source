@@ -927,7 +927,7 @@ window.__hibanaDictEN = {
       'notes.sortManual': 'Custom order',
       // S86: note/folder emoji + drag-reorder + the editor's Ask-AI button
       'notes.setEmoji': 'Set emoji…', 'notes.removeEmoji': 'Remove emoji', 'notes.emojiFailed': 'Could not set the emoji.',
-      'notes.reorderFailed': "Couldn't save the order.", 'notes.askAi': 'Ask AI — polish, translate, or your own instruction',
+      'notes.askAi': 'Ask AI — polish, translate, or your own instruction',
       'notes.words': 'words', 'notes.chars': 'chars', 'notes.edited': 'Edited',
       'notes.saving': 'Saving…', 'notes.saved': 'Saved', 'notes.unsaved': 'Unsaved', 'notes.saveFailed': 'Save failed — retry?',
       'notes.modeEdit': 'Edit', 'notes.modeSplit': 'Split', 'notes.modeRead': 'Read', 'notes.editorMode': 'Editor mode',

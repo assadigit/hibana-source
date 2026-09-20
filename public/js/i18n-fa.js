@@ -920,7 +920,7 @@ window.__hibanaDictFA = {
       'notes.sortLabel': 'ترتیب', 'notes.sortUpdated': 'آخرین ویرایش', 'notes.sortCreated': 'آخرین ساخت', 'notes.sortTitle': 'عنوان الف–ی',
       'notes.sortManual': 'ترتیب دستی',
       'notes.setEmoji': 'انتخاب ایموجی…', 'notes.removeEmoji': 'حذف ایموجی', 'notes.emojiFailed': 'ایموجی ذخیره نشد.',
-      'notes.reorderFailed': 'ترتیب ذخیره نشد.', 'notes.askAi': 'هوش مصنوعی — اصلاح، ترجمه یا دستور دلخواه',
+      'notes.askAi': 'هوش مصنوعی — اصلاح، ترجمه یا دستور دلخواه',
       'notes.words': 'واژه', 'notes.chars': 'نویسه', 'notes.edited': 'ویرایش',
       'notes.saving': 'در حال ذخیره…', 'notes.saved': 'ذخیره شد', 'notes.unsaved': 'ذخیره‌نشده', 'notes.saveFailed': 'ذخیره نشد — دوباره؟',
       'notes.modeEdit': 'ویرایش', 'notes.modeSplit': 'دوپنجره', 'notes.modeRead': 'خواندن', 'notes.editorMode': 'حالت ویرایشگر',

@@ -19,6 +19,7 @@
 ## 2. Session index
 | Session | Date | Outcome |
 |---|---|---|
+| 90 | 2026-09-20 | (ops, no bump) MIGRATION 0058 APPLIED to dev+prod (owner round; skipped during S86): email_log's kind CHECK widened to the full vocabulary (+test, +backup_failed) + idx_email_log_status_sent restored (lost since 0041's rebuild). Full safety ritual: Time-Travel bookmarks (§9), datetime-named SQL dumps of BOTH DBs archived to hibana-safe `backups/dumps/pre-0058/` (md5 round-trip-verified from GitHub — new tool scripts/d1-archive-dump.mjs), byte-level digests before/after, R1–R4 verifier. DEV: 67/67 tables byte-identical, 4 email_log rows IDENTICAL. PROD: 65/67 byte-identical; users digest delta = the owner's own live last_seen_at (row-level diff proven, same S86 pattern); 1 email_log row IDENTICAL. /api/health schema 58 both DBs, live probes green |
 | 7 | 2026-08-28→09-05 | Audit hardening, Sadhana replica, mobile/i18n, dev-board+sprints (0029), sprint/calendar v2 (0030); ended `ddb3aa4` |
 | 8 | 09-07→08 | = session 7 file + Tasks 28–32: v0.3.1–v0.3.4 ops era (file is a byte-identical superset; counted once) |
 | 9 | 09-14 | v0.3.5 — 23-page UI/UX audit + critical screenshot-upload fix |
@@ -263,10 +264,16 @@
   dodges rate limits; Workers unaffected — CF-Connecting-IP authoritative).
 
 ## 5. Migrations — live-DB warning
-Live D1s run 0001–0047 (schema 46). The reconstructed 0031–0039 exist for fresh environments;
-their `d1_migrations` bookkeeping rows were never backfilled — **never blindly `wrangler d1
-migrations apply` against live DBs** (it would re-run table rebuilds). Backfill once to make
-future applies a clean no-op:
+Live D1s run 0001–0059 (schema 58 — both dev and prod, 2026-09-20; 0058 was applied OUT OF
+ORDER, after 0059, in the S90 owner round — `d1_migrations` on both DBs lists 0057 then 0059
+then 0058 chronologically; ordering there is bookkeeping only, both schemas are complete).
+The reconstructed 0031–0039 exist for fresh environments; their `d1_migrations` bookkeeping
+rows were never backfilled — **never blindly `wrangler d1 migrations apply` against live DBs**
+(it would re-run table rebuilds; wrangler's own lister also mismatches the tracker's
+no-`.sql`-suffix names, so it shows already-applied migrations as pending). Apply ONE
+migration at a time with `node scripts/d1-migrate.mjs --db <pm-app-dev|pm-app-prod> --name
+<0058_email_log_kinds>` after the bookmark ritual (`npm run bookmark:dev` / `bookmark:prod`).
+Backfill once to make future applies a clean no-op:
 ```sql
 INSERT INTO d1_migrations (name, applied_at) VALUES
   ('0031_project_status_stages.sql', datetime('now')),
@@ -559,3 +566,5 @@ must stay last). Restore is in-place and destructive: `npx wrangler d1 time-trav
 | 2026-09-16T12:09:51.319Z | pm-app-prod | 55 | 000009d8-00000000-000050e8-3d61b19f3f1c0a73a55c47878d71a474 | pre-0057_notes_vault prod migration (owner-instructed S57 round) |
 | 2026-09-20T02:21:44.427Z | pm-app-prod | 56 | 00000b5b-00000000-000050ec-df4b050c8419ce1f5451524e78ab744c | pre-0059 (S86 vault icons/reorder/files) — deployed code requires the columns |
 | 2026-09-20T02:31:35.911Z | pm-app-dev | 56 | 000006a9-00000000-000050ec-da98214a7b04f06b10a384eb0e5fa548 | pre-0059 (S86 vault icons/reorder/files) |
+| 2026-09-20T15:39:35.325Z | pm-app-dev | 57 | 000006ce-00000000-000050ec-621c61230ec7da7d7b7f6ae87bcad456 | pre-0058 email_log rebuild (dev) |
+| 2026-09-20T15:39:43.024Z | pm-app-prod | 57 | 00000ba2-00000004-000050ec-ec7906295b93e0d89c29b5189e2930bc | pre-0058 email_log rebuild (prod) |

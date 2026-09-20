@@ -361,10 +361,27 @@
           },
           init() { this.load() },
         }))
+        // S87: two looks only — light + claude-dark (THE dark mode; legacy 'dark'
+        // migrates). 'system' stays stored but always applies a RESOLVED explicit
+        // theme (the old code wrote data-theme='system', a value with no CSS rules).
         window.Alpine?.data('theme', () => ({
-          t: localStorage.getItem('hibana-theme') || 'system',
-          set(t) { this.t = t; localStorage.setItem('hibana-theme', t); document.documentElement.dataset.theme = t },
-          init() { document.documentElement.dataset.theme = this.t },
+          t: (() => {
+            const v = localStorage.getItem('hibana-theme')
+            if (v === 'dark') { try { localStorage.setItem('hibana-theme', 'claude-dark') } catch {} ; return 'claude-dark' }
+            return v === 'light' || v === 'claude-dark' || v === 'system' ? v : 'system'
+          })(),
+          resolve(t) {
+            if (t === 'light') return 'light'
+            if (t === 'claude-dark' || t === 'dark') return 'claude-dark'
+            return matchMedia('(prefers-color-scheme: dark)').matches ? 'claude-dark' : 'light'
+          },
+          set(t) {
+            this.t = t
+            try { localStorage.setItem('hibana-theme', t) } catch {}
+            document.documentElement.dataset.theme = this.resolve(t)
+            window.hibana?.paintThemeButton?.()
+          },
+          init() { document.documentElement.dataset.theme = this.resolve(this.t) },
         }))
         window.Alpine?.data('telegram', () => ({
           ready: false,

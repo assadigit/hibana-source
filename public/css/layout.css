@@ -666,7 +666,6 @@ input::placeholder, textarea::placeholder { font-size: 0.88em; opacity: 0.7; } /
   .lb-nav, .lb-close { transition: none; }
   .lb-nav:active { transform: none; }
 }
-:root[data-theme="dark"] .shot-state { color: #D9A55C; }
 
 /* S39: the note is CLICK-TO-EDIT — the whole area is the trigger (the tiny pencil
    alone read as "you can't add a note"). Hover shows a soft edit affordance; the
@@ -690,7 +689,6 @@ input::placeholder, textarea::placeholder { font-size: 0.88em; opacity: 0.7; } /
 }
 .shot-pin .shot-pin-task { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .shot-unpin { padding: 0.05rem 0.2rem; }
-:root[data-theme="dark"] .shot-pin { background: rgb(201 151 59 / 0.14); border-color: rgb(201 151 59 / 0.4); }
 /* S39: the 📌 N badge on a progress-box task card / a Problems-tab row */
 .pd-task-shots {
   display: inline-flex; align-items: center; gap: 0.2rem;
@@ -700,7 +698,6 @@ input::placeholder, textarea::placeholder { font-size: 0.88em; opacity: 0.7; } /
 }
 .pd-task-shots:hover { background: rgb(201 151 59 / 0.22); }
 .pd-task-shots .icon { block-size: 0.85em; inline-size: 0.85em; }
-:root[data-theme="dark"] .pd-task-shots { color: #D9A55C; }
 
 /* --- S39: the media GALLERY (gallery.html — the WordPress-style library) ----- */
 .gallery-head { margin-block-end: 0.25rem; }
@@ -751,7 +748,6 @@ input::placeholder, textarea::placeholder { font-size: 0.88em; opacity: 0.7; } /
 .gal-project:hover { color: var(--brand); }
 .gal-pin { max-inline-size: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #B4762E; background: rgb(201 151 59 / 0.1); }
 .gal-deleted { font-style: italic; opacity: 0.7; }
-:root[data-theme="dark"] .gal-pin { color: #D9A55C; }
 
 /* --- S79: the gallery MANAGER — note editing + select mode + bulk delete -----
    The gallery graduates from viewer to manager; every control below follows the

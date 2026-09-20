@@ -67,13 +67,12 @@
 .pd-archive-item .pd-archive-actions { display: flex; gap: 0.25rem; flex: none; }
 /* Session 22 (consistency): was the pre-Session-19 bright set — now the exact muted
    .pd-col dark values (label inks + softened borders). */
-@media (prefers-color-scheme: dark) {
-  html:not([data-theme='light']) .db-col[data-col='idea']        { --db-c: 80 100 128; --db-ink: #7B9AB8; }
-  html:not([data-theme='light']) .db-col[data-col='planned']     { --db-c: 110 115 122; --db-ink: #A0A8B0; }
-  html:not([data-theme='light']) .db-col[data-col='in_progress'] { --db-c: 150 120 85; --db-ink: #C49A6E; }
-  html:not([data-theme='light']) .db-col[data-col='done']        { --db-c: 100 145 115; --db-ink: #7BAA8E; }
-  html:not([data-theme='light']) .db-col[data-col='bug']         { --db-c: 150 110 120; --db-ink: #C098A0; }
-}
+/* S87: the dark column inks — scoped to claude-dark (THE dark mode). */
+html[data-theme='claude-dark'] .db-col[data-col='idea']        { --db-c: 80 100 128; --db-ink: #7B9AB8; }
+html[data-theme='claude-dark'] .db-col[data-col='planned']     { --db-c: 110 115 122; --db-ink: #A0A8B0; }
+html[data-theme='claude-dark'] .db-col[data-col='in_progress'] { --db-c: 150 120 85; --db-ink: #C49A6E; }
+html[data-theme='claude-dark'] .db-col[data-col='done']        { --db-c: 100 145 115; --db-ink: #7BAA8E; }
+html[data-theme='claude-dark'] .db-col[data-col='bug']         { --db-c: 150 110 120; --db-ink: #C098A0; }
 .db-col-body { display: grid; gap: 0.45rem; border-radius: var(--radius-sm); transition: background 0.12s ease, outline 0.12s ease; outline: 2px dashed transparent; }
 .db-col-body.drag-over { outline-color: var(--brand); background: rgb(74 159 163 / 0.06); }
 .db-card {
@@ -653,8 +652,6 @@
   line-height: 1;
 }
 /* Dark mode adjustments */
-:root[data-theme="dark"] .sp-dot { box-shadow: 0 2px 8px rgb(0 0 0 / 0.4); }
-:root[data-theme="dark"] .sp-dot-prio { border-color: var(--card, #242019); }
 
 /* clip trim handles (video-footage edges): invisible rails that reveal on hover */
 .sp-cat.dragging, .sp-task.dragging, .sp-bar.dragging { opacity: 0.4; }
@@ -710,18 +707,7 @@ body.sp-dragging { user-select: none; }
 body.sp-dragging .sp-scroll { cursor: ew-resize; }
 
 /* dark mode: neutralize zebra/bound colors, lift open-sprint tint */
-:root[data-theme="dark"] .sp-band.is-alt { background: rgb(255 255 255 / 0.045); }
-:root[data-theme="dark"] .sp-band.is-open-band { background: rgb(74 159 163 / 0.1); }
-:root[data-theme="dark"] .sp-bound::after { border-inline-start-color: #98a0ac; }
-:root[data-theme="dark"] .sp-bound-grip { color: #98a0ac; }
-:root[data-theme="dark"] .sp-sprint.is-open { background: rgb(74 159 163 / 0.14); }
 /* S35 strip: dark mode keeps the teal system, lifts the tints a notch */
-:root[data-theme="dark"] .sp-clip { background: rgb(74 159 163 / 0.16); border-color: rgb(74 159 163 / 0.4); }
-:root[data-theme="dark"] .sp-clip-fill { background: rgb(74 159 163 / 0.6); }
-:root[data-theme="dark"] .sp-clip-tick { border-inline-start-color: #7CC7C1; }
-:root[data-theme="dark"] .sp-enddot { border-color: #6b7280; }
-:root[data-theme="dark"] .sp-chip-stats { color: var(--muted); }
-:root[data-theme="dark"] .sp-bar.st-idea { background: color-mix(in srgb, var(--bar-c, #C9CDD2) 30%, transparent); }
 
 /* full-bleed sprint board (sprint.html only): spans the viewport width, nav kept;
    every other page keeps the 64rem .shell — this override only matches main.sp-shell */

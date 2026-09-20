@@ -35,11 +35,9 @@
   --tso:#B85A54;--tso-l:rgba(184,90,84,.11);  /* social: rose      */
   --th:#5A9E80;--th-l:rgba(90,158,128,.11);   /* health: mint-sage */
 }
-@media (prefers-color-scheme: dark) {
-  .sadhana-wrap { --text-dim:#B0A79C; --shadow-lg:0 8px 40px rgb(0 0 0 / 0.65); --q-edge:rgba(126,116,98,0.45); }
-}
 html[data-theme='light'] .sadhana-wrap { --text-dim:#524A40; --shadow-lg:0 8px 36px rgb(30 20 10 / 0.12); --q-edge:rgba(50,35,15,.26); }
-html[data-theme='dark'] .sadhana-wrap { --text-dim:#B0A79C; --shadow-lg:0 8px 40px rgb(0 0 0 / 0.65); --q-edge:rgba(126,116,98,0.45); }
+/* S87: claude-dark is THE dark mode — the board's dim text / shadow / edges in its register. */
+html[data-theme='claude-dark'] .sadhana-wrap { --text-dim:#b0aea5; --shadow-lg:0 8px 40px rgb(0 0 0 / 0.5); --q-edge:rgba(69,66,61,0.5); }
 
 /* Board-scoped reset + base type. The global * reset used to live on the document —
    now it must not touch the injected Hibana chrome (topbar / bottom bar / cmdk). */

@@ -151,9 +151,8 @@ window.__hibanaDictFA = {
       'qa.errorPrefix': 'ایجاد ایده ممکن نشد —',
       'qa.duplicate': 'پروژه‌ای با این نام قبلاً وجود دارد',
       'qa.filesInto': 'ثبت در پوشه',
-      // theme
+      // theme — S87: two looks only (light + claude-dark); the toggle is a binary flip
       'theme.toLight': 'حالت روشن', 'theme.toDark': 'حالت تاریک',
-      'theme.darkToClaude': 'رفتن به حالت تیرهٔ کلود', 'theme.claudeToDark': 'تیرهٔ کلود — رفتن به تیرهٔ معمولی',
       // page titles / headings
       'pages.projects': 'پروژه‌ها', 'pages.sparks': 'ایده‌ها',
       'pages.clients': 'مشتری‌ها', 'pages.archive': 'بایگانی',
@@ -176,7 +175,7 @@ window.__hibanaDictFA = {
       'settings.preferences': 'ترجیحات', 'settings.language': 'زبان', 'settings.calendar': 'تقویم',
       'settings.timezone': 'منطقهٔ زمانی', 'settings.reload': 'بارگذاری مجدد از سرور', 'settings.calendarHint': 'همراه با زبان شما — فارسی از تقویم جلالی استفاده میکند.',
       'settings.calGregorian': 'میلادی (Gregorian)', 'settings.calShamsi': 'شمسی (Jalali)',
-      'settings.theme': 'پوسته', 'settings.light': 'روشن', 'settings.dark': 'تاریک', 'settings.system': 'پیروی از سیستم',
+      'settings.theme': 'پوسته', 'settings.light': 'روشن', 'settings.system': 'پیروی از سیستم',
       'settings.claudeDark': 'تیرهٔ کلود',
       'settings.tags': 'برچسب‌ها', 'settings.newTag': 'نام برچسب جدید', 'settings.create': 'ساخت',
       'settings.invites': 'دعوت‌ها', 'settings.generateInvite': 'تولید کد دعوت', 'settings.inviteCopied': 'کد دعوت کپی شد',
@@ -905,7 +904,7 @@ window.__hibanaDictFA = {
       'auth.wrongEmailStartOver': '← ایمیل اشتباه است؟ از نو شروع کنید',
       'auth.backToSignin': '← بازگشت به ورود',
       'auth.toggleTheme': 'تغییر پوسته',
-      'auth.themeHint': 'پوسته: روشن / تاریک / سیستم',
+      'auth.themeHint': 'پوسته: روشن / تاریک',
       // Notes Vault (0057, S53) — the /notes knowledge base
       'nav.notes': 'یادداشت‌ها',
       'nav.notesHint': 'دانش‌نامهٔ بلند — پوشه‌ها، برچسب‌ها، مارک‌داون',

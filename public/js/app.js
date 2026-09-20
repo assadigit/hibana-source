@@ -65,9 +65,21 @@
 })()
 
 // Apply the saved theme site-wide before paint (Settings → Theme store it in localStorage).
+// S87: the app has exactly two looks — light and claude-dark (THE dark mode; the old
+// `dark` theme was retired). A legacy stored 'dark' migrates to 'claude-dark' on sight;
+// 'system' (or nothing) resolves through the OS scheme — dark → claude-dark. So
+// data-theme is ALWAYS an explicit 'light' | 'claude-dark' by first paint (boot.js does
+// the same synchronously in <head> for the pages that load it; this covers the rest).
 try {
-  const savedTheme = localStorage.getItem('hibana-theme')
-  if (savedTheme) document.documentElement.dataset.theme = savedTheme
+  let savedTheme = localStorage.getItem('hibana-theme')
+  if (savedTheme === 'dark') {
+    savedTheme = 'claude-dark'
+    try { localStorage.setItem('hibana-theme', 'claude-dark') } catch {}
+  }
+  if (savedTheme !== 'light' && savedTheme !== 'claude-dark') {
+    savedTheme = matchMedia('(prefers-color-scheme: dark)').matches ? 'claude-dark' : 'light'
+  }
+  document.documentElement.dataset.theme = savedTheme
 } catch {}
 
 // a11y (S51-A): skip-to-content link — reintroduced the standard way. Session 21 removed
@@ -161,52 +173,59 @@ window.__hibanaMe = (force) => {
 window.hibana = (() => {
   window.__hib = {}  // Phase 3: shared namespace for split files
   // Persistent theme control — a deterministic light/dark toggle in the header.
-  // Previously it cycled light→dark→'system', and 'system' has no data-theme rule, so
-  // clicks silently fell back to the OS and appeared to "do nothing". Now the header
-  // button always flips between the two explicit themes; 'system' is still stored when
-  // chosen in Settings and resolved to whichever the OS prefers.
+  // S87 (owner request 2026-09-20): the app ships exactly TWO looks — light and
+  // claude-dark (THE dark mode; the old `dark` theme + OS auto-dark fallback were
+  // retired). The header button flips between the two. 'system' is still stored when
+  // chosen in Settings and resolved to whichever the OS prefers (dark → claude-dark),
+  // live via the matchMedia listener below (parity with the retired CSS media query).
   const SUN = '<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>'
   const MOON = '<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8Z"/></svg>'
-  // S86 (owner request): the Claude-style warm dark theme joins the cycle — the
-  // header button walks light → dark → claude-dark → light. The moon icon serves
-  // both dark variants; the tooltip names which one is live (discoverability —
-  // a second dark look needs to say what it is when you land on it).
+  // A legacy stored 'dark' (pre-S87) reads as 'claude-dark' — returning dark-mode users
+  // land on the surviving dark mode, never a dead value.
   function currentTheme() {
     const saved = localStorage.getItem('hibana-theme') || 'system'
     if (saved === 'light') return 'light'
-    if (saved === 'dark' || saved === 'claude-dark') return saved
-    return matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
+    if (saved === 'claude-dark' || saved === 'dark') return 'claude-dark'
+    return matchMedia('(prefers-color-scheme: dark)').matches ? 'claude-dark' : 'light'
   }
   function setTheme(t) {
-    document.documentElement.dataset.theme = t
+    // Normalize: 'dark' (legacy) → 'claude-dark'; anything else non-dark → 'light'.
+    // 'system' keeps the stored preference but applies the resolved look.
+    const resolved = t === 'claude-dark' || t === 'dark' ? 'claude-dark' : t === 'system' ? (matchMedia('(prefers-color-scheme: dark)').matches ? 'claude-dark' : 'light') : 'light'
+    document.documentElement.dataset.theme = resolved
     try {
-      localStorage.setItem('hibana-theme', t)
+      localStorage.setItem('hibana-theme', t === 'system' ? 'system' : resolved)
     } catch {}
-    // P4.4 (F-M15): update the mobile address-bar color to match the theme. Dark mode bg
-    // is #1E1A15 (the lifted warm dark); light mode bg is #FAF9F6; claude-dark's base
-    // is #141413 (S86).
-    const barColor = t === 'claude-dark' ? '#141413' : t === 'dark' ? '#1E1A15' : '#FAF9F6'
+    // P4.4 (F-M15): update the mobile address-bar color to match the theme. Light
+    // mode bg is #FAF9F6; claude-dark's base is #141413 (S86).
+    const barColor = resolved === 'claude-dark' ? '#141413' : '#FAF9F6'
     document.querySelector('meta[name=theme-color]')?.setAttribute('content', barColor)
   }
   function paintThemeButton() {
     const cur = currentTheme()
-    const dark = cur === 'dark' || cur === 'claude-dark'
     document.querySelectorAll('[data-theme-toggle], .theme-floater').forEach((b) => {
-      b.innerHTML = dark ? MOON : SUN
+      b.innerHTML = cur === 'claude-dark' ? MOON : SUN
       b.title = cur === 'claude-dark'
-        ? _t('theme.claudeToDark', 'Claude dark — switch to standard dark')
-        : dark
-          ? _t('theme.darkToClaude', 'Switch to Claude dark mode')
-          : _t('theme.toDark', 'Switch to dark mode')
+        ? _t('theme.toLight', 'Switch to light mode')
+        : _t('theme.toDark', 'Switch to dark mode')
     })
   }
   function toggleTheme() {
-    const cur = currentTheme()
-    const next = cur === 'light' ? 'dark' : cur === 'dark' ? 'claude-dark' : 'light'
+    const next = currentTheme() === 'light' ? 'claude-dark' : 'light'
     setTheme(next)
     paintThemeButton()
     return next
   }
+  // S87: 'system' users follow the OS live — flipping the OS scheme mid-session
+  // re-resolves the page (parity with the retired CSS media-query behaviour).
+  try {
+    matchMedia('(prefers-color-scheme: dark)').addEventListener?.('change', () => {
+      if ((localStorage.getItem('hibana-theme') || 'system') === 'system') {
+        setTheme('system')
+        paintThemeButton()
+      }
+    })
+  } catch { /* older browsers without matchMedia listeners resolve per-load instead */ }
   // One toast component for all errors and confirmations (spec §7).
   // Phase B2.4: action-button support + persistent errors by default.
   //   toast('Saved', 'info')              → 4s, auto-dismiss

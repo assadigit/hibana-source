@@ -11,8 +11,9 @@ let USERNAME = ''
 const PREFS={
   get lang(){return localStorage.getItem('s-lang')||'en'},
   set lang(v){localStorage.setItem('s-lang',v)},
-  /* Hibana: the app-wide theme key — pre-painted in <head>, shared with every page. */
-  get theme(){const v=localStorage.getItem('hibana-theme');if(v&&v!=='system')return v;return window.matchMedia('(prefers-color-scheme:dark)').matches?'dark':'light'},
+  /* Hibana: the app-wide theme key — pre-painted in <head>, shared with every page.
+     S87: two looks only — light + claude-dark (THE dark mode); legacy 'dark' migrates. */
+  get theme(){const v=localStorage.getItem('hibana-theme');if(v==='light')return 'light';if(v==='claude-dark'||v==='dark')return 'claude-dark';return window.matchMedia('(prefers-color-scheme:dark)').matches?'claude-dark':'light'},
   set theme(v){try{localStorage.setItem('hibana-theme',v)}catch(e){}},
 };
 
@@ -1439,10 +1440,10 @@ function setProgress(e,id,q,state){
 
 /* ══ THEME ═════════════════════════════════════ */
 function applyTheme(dark){
-  document.documentElement.setAttribute('data-theme',dark?'dark':'light');
+  document.documentElement.setAttribute('data-theme',dark?'claude-dark':'light');
 }
 function updateThemeLabel(){
-  const dark=document.documentElement.getAttribute('data-theme')==='dark';
+  const dark=document.documentElement.getAttribute('data-theme')==='claude-dark';
   const ico=document.getElementById('themeIco');
   const lbl=document.getElementById('themeLabel');
   if(ico)ico.textContent=dark?'☀️':'🌙';
@@ -1451,7 +1452,7 @@ function updateThemeLabel(){
     else lbl.textContent=dark?'Light mode':'Dark mode';
   }
 }
-function toggleTheme(){const dark=document.documentElement.getAttribute('data-theme')==='dark';PREFS.theme=dark?'light':'dark';applyTheme(!dark);}
+function toggleTheme(){const dark=document.documentElement.getAttribute('data-theme')==='claude-dark';PREFS.theme=dark?'light':'claude-dark';applyTheme(!dark);}
 
 /* ══ LANG ══════════════════════════════════════ */
 function setLang(l){
@@ -1795,7 +1796,7 @@ async function init(){
   if(!ok)return;
 
   // 4. Paint (mirrors the original's init tail, plus dynamic modal options).
-  applyTheme(PREFS.theme==='dark');
+  applyTheme(PREFS.theme==='claude-dark');
   document.body.classList.toggle('rtl',lang==='fa');
   document.documentElement.lang=lang;
   const _lbEN2=document.getElementById('lbEN');if(_lbEN2)_lbEN2.classList.toggle('active',lang==='en');

@@ -1,4 +1,10 @@
-    try { const t = localStorage.getItem('hibana-theme'); if (t) document.documentElement.dataset.theme = t } catch {}
+    // S87: two looks only — light + claude-dark (THE dark mode). Legacy 'dark' migrates.
+    try {
+      let t = localStorage.getItem('hibana-theme')
+      if (t === 'dark') { try { localStorage.setItem('hibana-theme', 'claude-dark') } catch (e) {} ; t = 'claude-dark' }
+      if (t !== 'light' && t !== 'claude-dark') t = matchMedia('(prefers-color-scheme: dark)').matches ? 'claude-dark' : 'light'
+      document.documentElement.dataset.theme = t
+    } catch (e) {}
 
     // Back button + a standalone theme-floater fallback (login.html keeps no app.js
     // either — this page owns its own minimal runtime).
@@ -16,13 +22,13 @@
         var saved = null
         try { saved = localStorage.getItem('hibana-theme') } catch (e) {}
         if (saved === 'light') return 'light'
-        if (saved === 'dark') return 'dark'
-        return matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
+        if (saved === 'claude-dark' || saved === 'dark') return 'claude-dark'
+        return matchMedia('(prefers-color-scheme: dark)').matches ? 'claude-dark' : 'light'
       }
-      function paint() { if (floater) floater.innerHTML = current() === 'dark' ? MOON : SUN }
+      function paint() { if (floater) floater.innerHTML = current() === 'claude-dark' ? MOON : SUN }
       window.hibana = {
         toggleTheme: function () {
-          var next = current() === 'dark' ? 'light' : 'dark'
+          var next = current() === 'claude-dark' ? 'light' : 'claude-dark'
           document.documentElement.dataset.theme = next
           try { localStorage.setItem('hibana-theme', next) } catch (e) {}
           paint()

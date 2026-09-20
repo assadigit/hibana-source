@@ -1348,7 +1348,6 @@ body.has-mobile-nav { padding-block-end: calc(3.75rem + env(safe-area-inset-bott
 }
 .resume-chip-ico svg { inline-size: 1.2rem; block-size: 1.2rem; }
 .resume-chip-ico.is-note { background: color-mix(in srgb, #8B5CF6 10%, transparent); color: #7C4DD8; }
-[data-theme="dark"] .resume-chip-ico.is-note, html.dark .resume-chip-ico.is-note { color: #B39AEB; }
 
 .resume-chip-body { flex: 1 1 auto; min-inline-size: 0; display: flex; flex-direction: column; gap: 0.15rem; }
 .resume-chip-title {

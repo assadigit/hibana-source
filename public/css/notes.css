@@ -1437,8 +1437,7 @@ li.md-task.is-done .md-task-txt { color: var(--muted); text-decoration: line-thr
 /* The toolbar's Ask-AI button — same vault-tb chassis, accent-tinted so it reads as
    the AI affordance without shouting (the wand's purple family). */
 .vault-tb-ai { color: #8B7AB8; }
-[data-theme='dark'] .vault-tb-ai,
-:root:not([data-theme='light']) .vault-tb-ai { color: #C4B5E0; }
+html[data-theme='claude-dark'] .vault-tb-ai { color: #C4B5E0; }
 .vault-tb-ai:hover { background: rgb(139 122 184 / 0.14); color: inherit; }
 .vault-tb-ai[disabled] { opacity: 0.45; cursor: not-allowed; }
 

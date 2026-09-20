@@ -1,5 +1,11 @@
 /* claude-dark-theme.css — S86 (owner request): the Claude-style dark mode.
    ============================================================
+   S87 (owner request 2026-09-20): this is now THE app's ONLY dark mode. The old
+   `dark` theme and every prefers-color-scheme auto-dark fallback were retired —
+   light lives in themes.css, dark lives HERE. The component rules in the S87
+   section below absorbed themes.css's dark treatments (they previously reached
+   claude-dark through un-gated :not([data-theme='light']) twins), so the claude
+   look is deterministic no matter the OS color scheme.
    Recreates the look and feel of Claude's dark mode: a warm near-black
    background (never pure black), a soft terracotta accent used sparingly,
    generously rounded corners, and warm off-white text instead of stark white.
@@ -101,6 +107,16 @@ html[data-theme='claude-dark'] {
   --shadow-soft: 0 1px 3px rgba(0, 0, 0, 0.35);
   --shadow-card: 0 1px 3px rgba(0, 0, 0, 0.4);
   --shadow-dropdown: 0 8px 24px rgba(0, 0, 0, 0.5);
+
+  /* ---------- S87: tokens the retired auto-dark block used to answer ---------- */
+  --color-primary-strong: #e28f6c;  /* clay text shade of the accent — AA on the base */
+  /* canvas papers — carried over VERBATIM from the retired dark's un-gated twins
+     (claude-dark already rendered on these today; preserving them = zero drift) */
+  --paper-white: #151412;
+  --paper-checkered: #1a1916;
+  --paper-shaded: #1e1b15;
+  --checker-a: rgb(255 240 200 / 0.02);
+  --checker-b: rgb(255 240 200 / 0.045);
 }
 
 /* Elevated layers the base system hardcodes lighter-than-card: step them up the
@@ -141,3 +157,121 @@ html[data-theme='claude-dark'] .note-card { color: #e8e6dc !important; }
 
 /* The header/address-bar tint for mobile browsers (app.js also sets the meta tag). */
 html[data-theme='claude-dark'] { --theme-color: #141413; }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   S87 — THE dark skin (absorbed from the retired themes.css dark rules)
+   These reached claude-dark through the old un-gated :not([data-theme='light'])
+   twins; converting them to explicit claude-dark scope preserves that rendering
+   while making it independent of the OS color scheme.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* Dev bug bubble — the warm red pair reads on the near-black base. */
+html[data-theme='claude-dark'] .bug-bubble { background: rgb(248 113 113 / 0.16); color: #f2a3a3; }
+
+/* Quick-note list-view card border (the light neutral flips to a light-on-dark one). */
+html[data-theme='claude-dark'] .note-card { border-color: rgba(232 230 220 / 0.10); }
+
+/* The dash to-do style pop keeps legibility with a softer shadow on dark. */
+html[data-theme='claude-dark'] .dash-todo-style-pop { box-shadow: 0 6px 22px rgb(0 0 0 / 0.35); }
+
+/* Canvas palette active swatch — light ring on the dark toolbar. */
+html[data-theme='claude-dark'] .palette button.active {
+  border-color: transparent;
+  box-shadow: 0 0 0 1.5px rgb(15 15 14 / 0.9), 0 0 0 3px var(--text);
+}
+
+/* Blue pen toolbar icon (the drawn ink stays #2f6fd1; the icon lifts on dark). */
+html[data-theme='claude-dark'] .pen-blue { color: #7fb5f0; }
+
+/* Quick-note text inks on the dark sticky fills. */
+html[data-theme='claude-dark'] .note-card .note-text,
+html[data-theme='claude-dark'] .note-card .note-render,
+html[data-theme='claude-dark'] .note-card .markdown-body { color: #e8e6dc; }
+html[data-theme='claude-dark'] .note-card button.ghost { color: #b0aea5; }
+html[data-theme='claude-dark'] .note-card .note-meta,
+html[data-theme='claude-dark'] .note-card .note-footer .small,
+html[data-theme='claude-dark'] .note-card .attach-btn,
+html[data-theme='claude-dark'] .note-card .attach-btn .small,
+html[data-theme='claude-dark'] .note-card button.ghost.small.attach-btn,
+html[data-theme='claude-dark'] .note-card button.ghost.small.attach-btn .small { color: #e8e6dc; }
+html[data-theme='claude-dark'] .note-card .attach-btn { border-color: rgb(232 230 220 / 0.35); }
+
+/* Note color picker dots mirror the dark sticky fills above. */
+html[data-theme='claude-dark'] .note-color-picker .dot-yellow { background: #2E2818; }
+html[data-theme='claude-dark'] .note-color-picker .dot-green { background: #232A1D; }
+html[data-theme='claude-dark'] .note-color-picker .dot-pink { background: #2E2226; }
+html[data-theme='claude-dark'] .note-color-picker .dot-blue { background: #22262C; }
+
+/* Auth split brand word — warm off-white on the dark pane. */
+html[data-theme='claude-dark'] .auth-brand { color: #e8e6dc; }
+
+/* Sadhana cards — clay (in-progress) + heather (on-hold) status tints, claude family. */
+html[data-theme='claude-dark'] .sadhana-card.p-in_progress { --sadhana-status-tint: rgb(217 119 87 / 0.14); }
+html[data-theme='claude-dark'] .sadhana-card.p-on_hold { --sadhana-status-tint: rgb(203 202 219 / 0.14); }
+
+/* Cards flatten to the solid surface (no light-mode gradient highlight) and carry
+   the stronger top border. */
+html[data-theme='claude-dark'] .card {
+  background: var(--card);
+  border-block-start-color: var(--line-strong);
+}
+
+/* Kanban chassis — flat card surface, stat cards transparent until hover. */
+html[data-theme='claude-dark'] .kanban-card { background: var(--card); }
+html[data-theme='claude-dark'] .stat-kanban-card { background: transparent; }
+html[data-theme='claude-dark'] .card.kanban-card.stat-kanban-card { background: transparent; }
+
+/* Status-coded kanban lanes — wired to the claude --kanban-* token set. */
+html[data-theme='claude-dark'] .kanban-col .kanban-card[data-status='unreviewed'] {
+  background: var(--kanban-unreviewed-bg); border-color: var(--kanban-unreviewed-line);
+}
+html[data-theme='claude-dark'] .kanban-col .kanban-card[data-status='investigating'] {
+  background: var(--kanban-investigating-bg); border-color: var(--kanban-investigating-line);
+}
+html[data-theme='claude-dark'] .kanban-col .kanban-card[data-status='awaiting'] {
+  background: var(--kanban-awaiting-bg); border-color: var(--kanban-awaiting-line);
+}
+html[data-theme='claude-dark'] .kanban-col .kanban-card[data-status='doing'] {
+  background: var(--kanban-doing-bg); border-color: var(--kanban-doing-line);
+}
+html[data-theme='claude-dark'] .kanban-col .kanban-card[data-status='halted'] {
+  background: var(--kanban-halted-bg); border-color: var(--kanban-halted-line);
+}
+html[data-theme='claude-dark'] .kanban-col .kanban-card[data-status='operational'] {
+  background: var(--kanban-operational-bg); border-color: var(--kanban-operational-line);
+}
+
+/* Dash quadrants + report cards — the one-step-elevated gradient cap. */
+html[data-theme='claude-dark'] .dash-todo-quadrant {
+  background: linear-gradient(160deg, color-mix(in srgb, var(--card) 96%, #fff 4%), var(--card));
+  border-color: var(--line-strong);
+}
+html[data-theme='claude-dark'] .reports .card,
+html[data-theme='claude-dark'] #report-body .card {
+  background: linear-gradient(160deg, color-mix(in srgb, var(--card) 96%, #fff 4%), var(--card));
+  border-color: var(--line-strong);
+}
+
+/* Heatmap peak level — success mixed onto the claude card. */
+html[data-theme='claude-dark'] .heatmap-l4 {
+  background: color-mix(in srgb, var(--color-success) 80%, var(--card));
+}
+
+/* The standalone Sadhana board's own variables — the claude register. */
+html[data-theme='claude-dark'] .sadhana-wrap {
+  --text-dim: #b0aea5; --shadow-lg: 0 8px 40px rgb(0 0 0 / 0.5); --q-edge: rgba(69, 66, 61, 0.5);
+}
+
+/* Project board column inks — the muted dark set (label inks + softened borders). */
+html[data-theme='claude-dark'] .pd-col[data-status='idea']        { --pd-c: 80 100 128; --pd-ink: #7B9AB8; }
+html[data-theme='claude-dark'] .pd-col[data-status='planned']     { --pd-c: 110 115 122; --pd-ink: #A0A8B0; }
+html[data-theme='claude-dark'] .pd-col[data-status='in_progress'] { --pd-c: 150 120 85; --pd-ink: #C49A6E; }
+html[data-theme='claude-dark'] .pd-col[data-status='done']        { --pd-c: 100 145 115; --pd-ink: #7BAA8E; }
+html[data-theme='claude-dark'] .pd-col[data-status='bug']         { --pd-c: 150 110 120; --pd-ink: #C098A0; }
+
+/* Dev board column inks — the same muted set. */
+html[data-theme='claude-dark'] .db-col[data-col='idea']        { --db-c: 80 100 128; --db-ink: #7B9AB8; }
+html[data-theme='claude-dark'] .db-col[data-col='planned']     { --db-c: 110 115 122; --db-ink: #A0A8B0; }
+html[data-theme='claude-dark'] .db-col[data-col='in_progress'] { --db-c: 150 120 85; --db-ink: #C49A6E; }
+html[data-theme='claude-dark'] .db-col[data-col='done']        { --db-c: 100 145 115; --db-ink: #7BAA8E; }
+html[data-theme='claude-dark'] .db-col[data-col='bug']         { --db-c: 150 110 120; --db-ink: #C098A0; }

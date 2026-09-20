@@ -210,75 +210,9 @@
   --select-chevron: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%235A5248' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --bg: #1E1A15;             /* lighter warm dark (was #100E0B — too dark; lifted to ~1% luminance per user request 2026-09-02) */
-    --bg-soft: #28241E;
-    --statcard-bg: #28241E;   /* dark neutral surface — "same color regardless of status" holds per theme */
-    --card: #242019;
-    --text: #EDE8DE;            /* warm off-white — never pure #fff (glare) */
-    --muted: #B0A79C;          /* lifted from #9A9088 — 6.26:1 on card bg (user request 2026-09) */
-    --line: rgba(126, 116, 98, 0.45);  /* visible borders — #7E7462 at 45% opacity, 3.22:1 on card bg */
-    --line-strong: rgba(126, 116, 98, 0.7);
-    --accent: #4A9FA3;        /* the teal carries over — 7:1 on the dark base */
-    --accent-hover: #5FB3B7;
-    --accent-soft: rgba(74, 159, 163, 0.22);
-    --cta: #2E7B7F; /* F6 (session 9): white-on-CTA 4.93:1 */
-    --cta-hover: #276A6D;
-    --link: #6FC3C7;          /* 9.4:1 on the dark base */
-    --shadow: 0 2px 14px rgb(0 0 0 / 0.45);
-    --shadow-soft: 0 2px 14px rgb(0 0 0 / 0.4);
-    --shadow-card: 0 2px 14px rgb(0 0 0 / 0.45);
-    --shadow-dropdown: 0 8px 40px rgb(0 0 0 / 0.6);
-    --pastel-tool: #40391f;
-    --pastel-tool-strong: #5c5127;
-    --ok: #4fbc64;
-    --err: #f06161;
-    --danger: #ffb4a8;
-    --warn: #f5b661;                /* S83: amber lifted for the dark base (AA on --card) */
-    --code-fg: #F09B7E;
-    --code-bg: #3A332E;
-    --code-border: #4C423B;
-    --code-panel-bg: #211E1B;
-    --code-panel-fg: #DED7CE;
-    --danger-soft: rgb(255 142 128 / 0.16);
-    --danger-soft-hover: rgb(255 142 128 / 0.26);
-    /* status badges in dark mode — session 12: hues lifted to real chroma so the
-       phases stay distinguishable on the dark base (muted greys read as one). */
-    --badge-spark-bg: #3B3018;         --badge-spark-fg: #E8CB70;
-    --badge-unreviewed-bg: #24303E;    --badge-unreviewed-fg: #A8C4E8;
-    --badge-investigating-bg: #2C2744; --badge-investigating-fg: #C3B4F5;
-    --badge-awaiting-bg: #3A3110;      --badge-awaiting-fg: #E5C368;
-    --badge-doing-bg: #1B332E;         --badge-doing-fg: #7AD2C4;
-    --badge-halted-bg: #3C231B;        --badge-halted-fg: #E89B85;
-    --badge-operational-bg: #1F3727;  --badge-operational-fg: #90D598;
-    /* kanban card tints — session 12: dark siblings with visible hue + a stronger
-       matching border (the old grey-on-grey fills read as one neutral).
-       Session 19 (user request): MUTED — darker + desaturated so the dark mode board
-       doesn't have too much visual noise. Was brighter tints that were distracting. */
-    --kanban-unreviewed-bg: #1E2832;    --kanban-unreviewed-line: rgba(168, 196, 232, 0.18);
-    --kanban-investigating-bg: #221F38; --kanban-investigating-line: rgba(195, 180, 245, 0.18);
-    --kanban-awaiting-bg: #2D2810;      --kanban-awaiting-line: rgba(229, 195, 104, 0.20);
-    --kanban-doing-bg: #163028;         --kanban-doing-line: rgba(122, 210, 196, 0.20);
-    --kanban-halted-bg: #2E1F18;        --kanban-halted-line: rgba(232, 155, 133, 0.18);
-    --kanban-operational-bg: #182E1F;  --kanban-operational-line: rgba(144, 213, 152, 0.20);
-    /* deeper status dots — the bright pastel foregrounds glare on dark surfaces (user request) */
-  --dot-spark: #7fa3c4; --dot-pending: #e4c17e; --dot-building: #7fc4bc;
-  --color-primary-strong: #7fc4bc;  /* dark-theme text shade of primary: 8.08:1 on #212120 */
-    --nb-paper: #38332E;       /* lifted further (was #322E2A) for clearer canvas distinction (user request 2026-09-09) */
-    --nb-grid: rgb(242 242 241 / 0.06);
-    --nb-ink: invert(1) hue-rotate(180deg) brightness(0.9);  /* brightness tail: inverted black→white lands at ~#e6e6e6, not pure #fff */
-    --btn-text: #ffffff;     /* white on the teal dark CTA (4.93:1 at --cta — F6 session 9) */
-    --brand: #5FB3B7;        /* lighter teal on the warm dark base: ~7.6:1 */
-    --brand-hover: #7CC7CB;
-    --brand-logo: url('/logo-dark.png');
-    --inline-logo: url('/logo-dark.png');
-    --select-chevron: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23B0A79C' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
-  }
-}
-
-/* Explicit theme overrides so the header toggle actually changes colors.
-   The toggle writes html[data-theme] = 'light' | 'dark'; 'system' sets no rule here,
-   so it falls back to the :root baseline + the OS media query above. */
-
-
+/* S87 (owner request 2026-09-20): the prefers-color-scheme auto-dark block that lived
+   here was RETIRED — the app ships exactly two looks now: light (the :root baseline
+   above + themes.css's explicit light block) and claude-dark (claude-dark-theme.css).
+   boot.js resolves the stored preference / OS scheme to an explicit html[data-theme]
+   before first paint, so an OS dark preference renders claude-dark, never this
+   retired palette. */

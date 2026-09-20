@@ -17,7 +17,7 @@ window.hibanaCanvas = (() => {
   // until the user explicitly picks a swatch, which then wins until the next reload.
   const themeDark = () => {
     const t = document.documentElement.dataset.theme
-    if (t === 'dark') return true
+    if (t === 'dark' || t === 'claude-dark') return true // S87: claude-dark is THE dark mode
     if (t === 'light') return false
     return matchMedia('(prefers-color-scheme: dark)').matches
   }

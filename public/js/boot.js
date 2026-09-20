@@ -14,6 +14,28 @@
 // page is handed to nav.js via window.__hibanaBoot so a later soft navigation unmounts it
 // instead of leaking document listeners into the next page.
 //
+// S87 (owner request 2026-09-20) — pre-paint THEME resolution. The app ships exactly
+// two looks: light + claude-dark (THE dark mode — the old `dark` theme and every
+// prefers-color-scheme auto-dark CSS fallback were retired). This runs synchronously
+// in <head> BEFORE first render, so <html data-theme> is always an explicit
+// 'light' | 'claude-dark' by the first paint (no light→dark flash, no OS-dependent
+// leakage). A legacy stored 'dark' migrates to 'claude-dark' once, here; 'system'
+// (or nothing) resolves through the OS scheme — and stays stored as 'system' so it
+// re-resolves on every load (app.js also listens for live OS-scheme flips).
+try {
+  let theme = null
+  try { theme = localStorage.getItem('hibana-theme') } catch {}
+  if (theme === 'dark') {
+    theme = 'claude-dark'
+    try { localStorage.setItem('hibana-theme', 'claude-dark') } catch {}
+  }
+  if (theme !== 'light' && theme !== 'claude-dark') {
+    theme = matchMedia('(prefers-color-scheme: dark)').matches ? 'claude-dark' : 'light'
+  }
+  document.documentElement.dataset.theme = theme
+} catch { /* storage unavailable — the CSS light baseline applies */ }
+
+//
 // Phase 6 item 12 (2026-09-09): paint the user's page-width choice (localStorage
 // 'hibana-page-width' — 'standard' | 'full') on <html> BEFORE first render. Synchronous,
 // runs in every page's <head>, so the width never flashes from the old per-page default.

@@ -9,11 +9,6 @@
   --mw-radius: 10px;
   --mw-shadow: 0 4px 14px rgba(80, 60, 130, .18), 0 1px 3px rgba(80, 60, 130, .10);
 }
-[data-theme="dark"] {
-  --mw-accent: #C4B5E0;        /* lighter pastel purple for dark theme */
-  --mw-accent-ink: #2b2418;
-  --mw-shadow: 0 6px 18px rgba(0, 0, 0, .45), 0 1px 3px rgba(0, 0, 0, .4);
-}
 
 /* The floating wand button — appears at the focused field's top-end corner. */
 .magic-wand {
@@ -78,7 +73,6 @@
   flex-direction: column;
   gap: 8px;
 }
-[data-theme="dark"] .magic-popover { color: #f3ece1; background: #2A2440; }
 .magic-popover h3 {
   margin: 0;
   font-size: .82rem;
@@ -171,7 +165,6 @@
   font-size: .88rem;
   line-height: 1.5;
 }
-[data-theme="dark"] .magic-prompt-ta { background: rgb(0 0 0 / 0.25); }
 .magic-prompt-ta:focus-visible {
   outline: 2px solid var(--mw-accent);
   outline-offset: 1px;

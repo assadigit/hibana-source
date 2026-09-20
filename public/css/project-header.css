@@ -261,13 +261,13 @@
 .pd-col { border-color: rgb(var(--pd-c) / 0.28); border-inline-start: 3px solid rgb(var(--pd-c) / 0.55); }
 /* cross-box drop target: a faint stage tint + stronger edge, only while dragging */
 .pd-col.drag-over { border-color: rgb(var(--pd-c) / 0.7); background: rgb(var(--pd-c) / 0.08); }
-@media (prefers-color-scheme: dark) {
-  html:not([data-theme='light']) .pd-col[data-status='idea']        { --pd-c: 80 100 128; --pd-ink: #7B9AB8; }
-  html:not([data-theme='light']) .pd-col[data-status='planned']     { --pd-c: 110 115 122; --pd-ink: #A0A8B0; }
-  html:not([data-theme='light']) .pd-col[data-status='in_progress'] { --pd-c: 150 120 85; --pd-ink: #C49A6E; }
-  html:not([data-theme='light']) .pd-col[data-status='done']        { --pd-c: 100 145 115; --pd-ink: #7BAA8E; }
-  html:not([data-theme='light']) .pd-col[data-status='bug']         { --pd-c: 150 110 120; --pd-ink: #C098A0; }
-}
+/* S87: the dark column inks — scoped to claude-dark (THE dark mode; the old `dark`
+   theme + the OS auto-dark fallback were retired). */
+html[data-theme='claude-dark'] .pd-col[data-status='idea']        { --pd-c: 80 100 128; --pd-ink: #7B9AB8; }
+html[data-theme='claude-dark'] .pd-col[data-status='planned']     { --pd-c: 110 115 122; --pd-ink: #A0A8B0; }
+html[data-theme='claude-dark'] .pd-col[data-status='in_progress'] { --pd-c: 150 120 85; --pd-ink: #C49A6E; }
+html[data-theme='claude-dark'] .pd-col[data-status='done']        { --pd-c: 100 145 115; --pd-ink: #7BAA8E; }
+html[data-theme='claude-dark'] .pd-col[data-status='bug']         { --pd-c: 150 110 120; --pd-ink: #C098A0; }
 .pd-col-title { font-size: var(--fs-sm); font-weight: 600; color: var(--pd-ink, var(--muted)); display: inline-flex; align-items: center; gap: 0.35rem; }
 .pd-col-title::before {
   content: '';
@@ -1383,7 +1383,6 @@ dialog.pd-sd-full::backdrop { background: rgb(26 20 12 / 0.55); }
 .arc-tags { gap: 0.35rem; flex-wrap: wrap; }
 .arc-actions { gap: 0.5rem; flex-wrap: wrap; }
 .arc-total { margin-block-start: 0.75rem; }
-:root[data-theme="dark"] .pd-archived-banner { background: rgb(201 151 59 / 0.12); }
 
 /* --- S39: the pin picker + the pinned-pictures dialog (dynamically created
    <dialog.pd-pin-modal> — same specificity recipe as dialog.pd-sprintnew-modal:

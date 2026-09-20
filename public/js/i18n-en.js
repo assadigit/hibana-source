@@ -151,10 +151,8 @@ window.__hibanaDictEN = {
       'qa.errorPrefix': "Couldn't create the idea —",
       'qa.duplicate': 'A project with this title already exists',
       'qa.filesInto': 'Files into',
-      // theme
+      // theme — S87: two looks only (light + claude-dark); the toggle is a binary flip
       'theme.toLight': 'Switch to light mode', 'theme.toDark': 'Switch to dark mode',
-      // S86: the Claude-style warm dark theme joins the header cycle
-      'theme.darkToClaude': 'Switch to Claude dark mode', 'theme.claudeToDark': 'Claude dark — switch to standard dark',
       // page titles / headings
       'pages.projects': 'Projects', 'pages.sparks': 'Ideas',
       'pages.clients': 'Clients', 'pages.archive': 'Archive',
@@ -177,7 +175,7 @@ window.__hibanaDictEN = {
       'settings.preferences': 'Preferences', 'settings.language': 'Language', 'settings.calendar': 'Calendar',
       'settings.timezone': 'Timezone', 'settings.reload': 'Reload from server', 'settings.calendarHint': 'Follows your language — Farsi uses the Jalali calendar.',
       'settings.calGregorian': 'Gregorian (Miladi)', 'settings.calShamsi': 'Shamsi (Jalali)',
-      'settings.theme': 'Theme', 'settings.light': 'Light', 'settings.dark': 'Dark', 'settings.system': 'Follow system',
+      'settings.theme': 'Theme', 'settings.light': 'Light', 'settings.system': 'Follow system',
       'settings.claudeDark': 'Claude dark',
       'settings.tags': 'Tags', 'settings.newTag': 'New tag name', 'settings.create': 'Create',
       'settings.invites': 'Invites', 'settings.generateInvite': 'Generate invite code', 'settings.inviteCopied': 'Copied invite code',
@@ -911,7 +909,7 @@ window.__hibanaDictEN = {
       'auth.wrongEmailStartOver': '← Wrong email? Start over',
       'auth.backToSignin': '← Back to sign in',
       'auth.toggleTheme': 'Toggle theme',
-      'auth.themeHint': 'Theme: light / dark / system',
+      'auth.themeHint': 'Theme: light / dark',
       // Notes Vault (0057, S53) — the /notes knowledge base
       'nav.notes': 'Notes',
       'nav.notesHint': 'Long-form knowledge base — folders, tags, markdown',

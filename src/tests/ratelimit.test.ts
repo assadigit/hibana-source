@@ -132,12 +132,39 @@ describe('rate limiting (spec §15)', () => {
         }))
         expect(res.status).toBe(403) // wrong secret → 403, but still counted
       }
-      const blocked = await app.fetch(new Request('http://local/api/telegram/webhook', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'X-Telegram-Bot-Api-Secret-Token': 'wxyz-secret', Origin: 'http://local' },
-        body: JSON.stringify({ message: { chat: { id: 1 }, from: { id: 1 }, text: 'x' } }),
-      }))
-      expect(blocked.status).toBe(429) // the limiter ran BEFORE the secret check
+      // CI-timing flake guard (S91, 2026-09-20): the limiter's 60s windows are FIXED
+      // wall-clock buckets (Math.floor(now/60)*60 — ratelimit.ts). A slow runner can
+      // straddle a minute boundary mid-loop: the requests after the rollover count
+      // into a FRESH bucket, the current bucket sits under 300, and the final
+      // correct-secret request sailed through as 200 (CI run 35524029741 — expected
+      // 429, received 200; locally green twice, purely a bucket-edge race). Top the
+      // CURRENT bucket back up to 300 counted hits (wrong-secret requests are
+      // 403-but-counted — the exact path the loop pins), then the limiter-precedes-
+      // secret assertion is deterministic. A rollover landing in the final request's
+      // few-ms gap is still possible in theory → up to 3 attempts, re-topping-up.
+      const counted = async () =>
+        (await db.query<{ count: number }>("SELECT count FROM rate_limits WHERE key = 'webhook:local'"))[0]?.count ?? 0
+      const topUp = async () => {
+        while (await counted() < 300) {
+          const res = await app.fetch(new Request('http://local/api/telegram/webhook', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-Telegram-Bot-Api-Secret-Token': 'wrong-secret', Origin: 'http://local' },
+            body: JSON.stringify({ message: { chat: { id: 1 }, from: { id: 1 }, text: 'x' } }),
+          }))
+          expect(res.status).toBe(403) // still counted, never blocked under 300
+        }
+      }
+      let blocked: Response | null = null
+      for (let attempt = 0; attempt < 3; attempt++) {
+        await topUp()
+        blocked = await app.fetch(new Request('http://local/api/telegram/webhook', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'X-Telegram-Bot-Api-Secret-Token': 'wxyz-secret', Origin: 'http://local' },
+          body: JSON.stringify({ message: { chat: { id: 1 }, from: { id: 1 }, text: 'x' } }),
+        }))
+        if (blocked.status === 429) break // the limiter ran BEFORE the secret check
+      }
+      expect(blocked!.status).toBe(429)
     } finally {
       close()
     }

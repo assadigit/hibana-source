@@ -430,16 +430,24 @@
     // S89 (owner request): ideas are shown UNDER THEIR FOLDERS — the same shelf
     // anatomy as the Notes panel. Unfiled sparks first, then one group per spark
     // folder (emoji icon when the folder has one), items inside.
+    // S92 (owner report: "clicking an idea item must show the idea itself, not
+    // its folder"): every idea row now deep-links to THE SPARK'S OWN PAGE —
+    // /project.html?id= is the exact destination a spark card click uses on the
+    // Ideas page itself (the grid title's <a href> + the kanban/sticky cards'
+    // data-nav-url, helpers.ts). The old bare /sparks.html landed on the folder
+    // shelf — the row you tapped vanished into the folder grid behind it. Mirrors
+    // the Notes panel's #n=<id> and the Projects panel's ?id= deep links.
     const sparks = d.sparks || []
     const folders = d.sparkFolders || []
     const sparkEmoji = (fid) => {
       const f = folders.find((x) => x.id === fid)
       return f && f.icon ? '<span class="rail-item-emoji" aria-hidden="true">' + escHtml(f.icon) + '</span>' : ''
     }
+    const sparkHref = (sp) => '/project.html?id=' + encodeURIComponent(sp.id)
     const inFolder = (fid) => sparks.filter((sp) => sp.folder_id === fid).map((sp) =>
-      railItem('/sparks.html', sp.title, 'spark', sparkEmoji(fid)))
+      railItem(sparkHref(sp), sp.title, 'spark', sparkEmoji(fid)))
     const unfiled = sparks.filter((sp) => !sp.folder_id).map((sp) =>
-      railItem('/sparks.html', sp.title, 'spark'))
+      railItem(sparkHref(sp), sp.title, 'spark'))
     return [
       railGroup(railT('rail.g.unfiled', 'Unfiled'), unfiled),
       folders.map((f) => railGroup(f.name, inFolder(f.id))).join(''),

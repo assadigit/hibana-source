@@ -278,6 +278,30 @@ test.describe('the secondary panel (VS Code Activity Bar + Side Bar pattern)', (
     await page.waitForURL('**/calendar.html', { timeout: 10_000 })
   })
 
+  test('the Ideas panel: an idea item opens THE IDEA ITSELF — its own page, never the folder shelf (S92)', async ({ page }) => {
+    await login(page)
+    await page.click('.rail .rail-primary a[data-rail-panel="sparks"]')
+    const panel = page.locator('[data-rail-panel-box]')
+    await expect(panel).toBeVisible()
+    await expect(page.locator('.rail-panel-title')).toHaveText('Ideas')
+
+    // The seeded spark ('Rail project 2', status=spark, no folder) rides Unfiled.
+    const item = page.locator('.rail-group', { hasText: 'Unfiled' }).locator('.rail-item', { hasText: 'Rail project 2' })
+    await expect(item).toHaveCount(1)
+
+    // S92 (owner report): the row deep-links to the spark's OWN page — the same
+    // destination a spark card uses on the Ideas page — not the bare /sparks.html
+    // folder shelf the row used to dump you on.
+    await expect(item).toHaveAttribute('href', /^\/project\.html\?id=.+/)
+
+    await item.click()
+    await page.waitForURL(/\/project\.html\?id=.+/, { timeout: 10_000 })
+    // The idea itself is on screen: its title heads its own detail page.
+    await expect(page.locator('#pd-title')).toContainText('Rail project 2')
+    // The S88 contract holds: the panel stays open across the soft navigation.
+    await expect(panel).toBeVisible()
+  })
+
   test('the panel persists across a page reload (localStorage restore)', async ({ page }) => {
     await login(page)
     await page.click('.rail .rail-primary a[data-rail-panel="notes"]')

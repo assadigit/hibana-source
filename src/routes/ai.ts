@@ -72,6 +72,17 @@ export function aiRoutes(cfg: Config): Hono {
     const body = await jsonBody(c, textBodySchema)
     if (!body) throw apiError(ErrorCode.invalid_input, 'text and action are required')
 
+    // S86: the 'custom' action (the wand's Ask-AI panel) REQUIRES a non-empty
+    // instruction — it is the whole persona. 400 with a localized message beats a
+    // silent no-op call into the model.
+    if (body.action === 'custom' && !(body.customPrompt ?? '').trim()) {
+      const lang = localeOf(c)
+      throw apiError(
+        ErrorCode.invalid_input,
+        lang === 'fa' ? 'اول دستور خود را بنویس.' : 'Write your instruction first.',
+      )
+    }
+
     // Precise code-point guard (idea §1: reject text > 4,000 chars, HTTP 400). Zod’s
     // .max() counts UTF-16 units; this counts characters the way a user counts them,
     // so FA combining marks aren’t double-counted against the budget.

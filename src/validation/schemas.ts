@@ -111,12 +111,33 @@ export const updateLinkSchema = z.object({
 })
 
 // Screenshot uploads arrive as base64 JSON (the client reads the File first).
+// S86 (owner request): the bucket takes FILES, not just images — PDF, CSV, XLSX,
+// DOCX, MD, TXT join the four image types. The client maps a file's EXTENSION to
+// this canonical mime when the browser reports a generic type (octet-stream / ''),
+// so the allowlist stays exact; a hand-crafted mime outside the set is still a 400.
+export const UPLOAD_FILE_MIMES = [
+  'image/png',
+  'image/jpeg',
+  'image/webp',
+  'image/gif',
+  'application/pdf',
+  'text/csv',
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', // .xlsx
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document', // .docx
+  'text/markdown',
+  'text/plain',
+] as const
 export const uploadScreenshotSchema = z.object({
   id: z.string().uuid().optional(),
   fileName: z.string().min(1).max(200),
-  mimeType: z.string().regex(/^image\/(png|jpeg|webp|gif)$/),
+  mimeType: z.string().regex(
+    new RegExp('^(?:' + UPLOAD_FILE_MIMES.map((m) => m.replace('/', '\\/')).join('|') + ')$'),
+  ),
   dataBase64: z.string().min(1).max(5_000_000), // P1.1 (F-H1): 5 MB base64 (~3.7 MB binary) — ample for a screenshot. Was 140 MB which EXCEEDED GitHub's 100 MB cap and would OOM the Worker.
   caption: z.string().max(1000).optional().default(''),
+  // S86 (0059): the ORIGINAL file name, stored for doc tiles (image rows can omit —
+  // the caption + lightbox carry them).
+  filename: z.string().min(1).max(200).optional(),
   // S69 (perf §10-F1): optional GRID TILE variant — a ≤320px WebP the client generates
   // at upload (image-resize canvas pass). Stored next to the original at
   // `<github_path>.thumb`; the gallery grid requests ?variant=thumb so a 70-tile grid

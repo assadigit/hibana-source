@@ -22,6 +22,8 @@ interface NoteCard {
   starred: 0 | 1
   folder_id: string | null
   deleted_at: string | null
+  /** S86 (0059): the note's user-picked emoji. */
+  icon?: string | null
   excerpt: string
   word_count: number
   updated_at: string
@@ -472,5 +474,154 @@ describe('vault helpers', () => {
     expect(safePathSegment('a/b\\c:d*e?f"g<h>i|j')).toBe('a b c d e f g h i j')
     expect(safePathSegment('..')).toBe('Folder')
     expect(safePathSegment('   ')).toBe('Folder')
+  })
+})
+
+// ── S86 (0059): note/folder emoji + manual drag-reorder ─────────────────────────
+describe('notes vault S86 — icons + manual reorder', () => {
+  it('note icon: PATCH sets/clears; the value round-trips on cards + the full note; junk sanitizes to null', async () => {
+    const { db, close } = makeTestDb()
+    try {
+      const user = await makeUser(db)
+      const client = await makeClient(db, user)
+      const note = await mkNote(client, { title: 'Wishlist' })
+
+      const set = async (icon: string | null) => {
+        const res = await client.app.fetch(new Request(`http://local/api/vault/notes/${note.id}`, {
+          method: 'PATCH', headers: client.auth, body: JSON.stringify({ icon }),
+        }))
+        expect(res.status).toBe(200)
+        return ((await res.json()) as { note: Note }).note
+      }
+
+      const withIcon = await set('📚')
+      expect(withIcon.icon).toBe('📚')
+      // a ZWJ family emoji survives whole (multi-codepoint)
+      const family = await set('👨‍👩‍👧‍👦')
+      expect(family.icon).toBe('👨‍👩‍👧‍👦')
+      // pasted sentences + control chars sanitize to null (no broken strings stored)
+      expect((await set('hello world this is not an emoji')).icon).toBeNull()
+      expect((await set('a\nb')).icon).toBeNull()
+      // null clears
+      const withIcon2 = await set('🎯')
+      expect(withIcon2.icon).toBe('🎯')
+      expect((await set(null)).icon).toBeNull()
+      // the card list + full note both carry it
+      const listed = await set('🎯')
+      const cards = await listNotes(client)
+      expect(cards.find((c) => c.id === listed.id)?.icon).toBe('🎯')
+      const full = await client.app.fetch(new Request(`http://local/api/vault/notes/${listed.id}`, { headers: client.auth }))
+      expect(((await full.json()) as { note: Note }).note.icon).toBe('🎯')
+    } finally { close() }
+  })
+
+  it('folder icon: PATCH sets/clears and rides the bootstrap payload', async () => {
+    const { db, close } = makeTestDb()
+    try {
+      const user = await makeUser(db)
+      const client = await makeClient(db, user)
+      const folder = await mkFolder(client, 'Books')
+      const res = await client.app.fetch(new Request(`http://local/api/vault/folders/${folder.id}`, {
+        method: 'PATCH', headers: client.auth, body: JSON.stringify({ icon: '📕' }),
+      }))
+      expect(res.status).toBe(200)
+      expect(((await res.json()) as { folder: Folder & { icon?: string | null } }).folder.icon).toBe('📕')
+      const boot = await client.app.fetch(new Request('http://local/api/vault/bootstrap', { headers: client.auth }))
+      const body = (await boot.json()) as { folders: (Folder & { icon?: string | null })[] }
+      expect(body.folders.find((f) => f.id === folder.id)?.icon).toBe('📕')
+      // clear
+      const res2 = await client.app.fetch(new Request(`http://local/api/vault/folders/${folder.id}`, {
+        method: 'PATCH', headers: client.auth, body: JSON.stringify({ icon: null }),
+      }))
+      expect(((await res2.json()) as { folder: Folder & { icon?: string | null } }).folder.icon).toBeNull()
+    } finally { close() }
+  })
+
+  it('manual reorder: the sent ids renumber 0..n-1; others keep their order AFTER; updated_at untouched', async () => {
+    const { db, close } = makeTestDb()
+    try {
+      const user = await makeUser(db)
+      const client = await makeClient(db, user)
+      const a = await mkNote(client, { title: 'A' })
+      const b = await mkNote(client, { title: 'B' })
+      const c = await mkNote(client, { title: 'C' })
+      const d = await mkNote(client, { title: 'D' })
+      const before = new Map((await listNotes(client)).map((n) => [n.id, n.updated_at]))
+
+      // drag C above A → order C, A, B, D
+      const res = await client.app.fetch(new Request('http://local/api/vault/notes/reorder', {
+        method: 'POST', headers: client.auth, body: JSON.stringify({ ids: [c.id, a.id, b.id, d.id] }),
+      }))
+      expect(res.status).toBe(200)
+      expect(((await res.json()) as { ok: boolean; moved: number }).moved).toBe(4)
+
+      const manual = await listNotes(client, '?sort=manual')
+      expect(manual.map((n) => n.title)).toEqual(['C', 'A', 'B', 'D'])
+      // updated sorts are untouched by the drag (reorder ≠ edit)
+      const after = new Map((await listNotes(client)).map((n) => [n.id, n.updated_at]))
+      for (const [id, ts] of before) expect(after.get(id)).toBe(ts)
+
+      // a PARTIAL payload (a filtered view) renumbers the sent block first and pushes
+      // the rest after — the global rank stays coherent
+      const res2 = await client.app.fetch(new Request('http://local/api/vault/notes/reorder', {
+        method: 'POST', headers: client.auth, body: JSON.stringify({ ids: [d.id, b.id] }),
+      }))
+      expect(res2.status).toBe(200)
+      const manual2 = await listNotes(client, '?sort=manual')
+      expect(manual2.map((n) => n.title)).toEqual(['D', 'B', 'C', 'A'])
+    } finally { close() }
+  })
+
+  it('reorder: foreign/unknown ids are dropped silently; empty after filtering is a 400', async () => {
+    const { db, close } = makeTestDb()
+    try {
+      const user = await makeUser(db)
+      const client = await makeClient(db, user)
+      const other = await makeUser(db)
+      const otherClient = await makeClient(db, other)
+      const mine = await mkNote(client, { title: 'mine' })
+      const theirs = await mkNote(otherClient, { title: 'theirs' })
+
+      // my list, with a foreign id smuggled in — the foreign note is untouched, mine reorder
+      const res = await client.app.fetch(new Request('http://local/api/vault/notes/reorder', {
+        method: 'POST', headers: client.auth, body: JSON.stringify({ ids: [theirs.id, mine.id] }),
+      }))
+      expect(res.status).toBe(200)
+      const mineList = await listNotes(client, '?sort=manual')
+      expect(mineList.map((n) => n.title)).toEqual(['mine'])
+      const otherList = await listNotes(otherClient, '?sort=manual')
+      expect(otherList.map((n) => n.title)).toEqual(['theirs'])
+
+      // all-unknown → 400
+      const res2 = await client.app.fetch(new Request('http://local/api/vault/notes/reorder', {
+        method: 'POST', headers: client.auth, body: JSON.stringify({ ids: ['00000000-0000-4000-8000-000000000000'] }),
+      }))
+      expect(res2.status).toBe(400)
+      // invalid shape → 400
+      const res3 = await client.app.fetch(new Request('http://local/api/vault/notes/reorder', {
+        method: 'POST', headers: client.auth, body: JSON.stringify({ ids: 'nope' }),
+      }))
+      expect(res3.status).toBe(400)
+    } finally { close() }
+  })
+
+  it('manual sort is user-scoped: a second user ordering their notes never moves mine', async () => {
+    const { db, close } = makeTestDb()
+    try {
+      const user = await makeUser(db)
+      const client = await makeClient(db, user)
+      const other = await makeUser(db)
+      const otherClient = await makeClient(db, other)
+      const n1 = await mkNote(client, { title: 'x1' })
+      const n2 = await mkNote(client, { title: 'x2' })
+      const o1 = await mkNote(otherClient, { title: 'y1' })
+      await otherClient.app.fetch(new Request('http://local/api/vault/notes/reorder', {
+        method: 'POST', headers: otherClient.auth, body: JSON.stringify({ ids: [o1.id] }),
+      }))
+      const mine = await listNotes(client, '?sort=manual')
+      expect(mine.map((n) => n.title).sort()).toEqual(['x1', 'x2'])
+      expect(mine.find((n) => n.id === n1.id)).toBeTruthy()
+      expect(mine.find((n) => n.id === n2.id)).toBeTruthy()
+    } finally { close() }
   })
 })

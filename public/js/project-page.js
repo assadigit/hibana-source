@@ -77,6 +77,61 @@
           if (n >= 1024) return faDig(Math.round(n / 1024)) + ' KB'
           return faDig(n) + ' B'
         }
+        // S86 (owner request — "Upload files"): the bucket takes PDF, CSV, XLSX, DOCX,
+        // MD, TXT alongside the four image types. Browsers report doc mimes unreliably
+        // (octet-stream, vendor variants), so the EXTENSION maps to the canonical
+        // allowlist mime — the same allowlist the server validates against.
+        const MIME_BY_EXT = {
+          pdf: 'application/pdf',
+          csv: 'text/csv',
+          xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+          docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+          md: 'text/markdown',
+          markdown: 'text/markdown',
+          txt: 'text/plain',
+          png: 'image/png',
+          jpg: 'image/jpeg',
+          jpeg: 'image/jpeg',
+          webp: 'image/webp',
+          gif: 'image/gif',
+        }
+        const fileExt = (f) => String(f && f.name ? f.name.split('.').pop() : '').toLowerCase()
+        const canonicalMime = (f) => {
+          const byExt = MIME_BY_EXT[fileExt(f)]
+          // trust a REAL image type (canvas + server agree); docs take the extension's
+          // word whenever the browser is vague (octet-stream / empty / vendor variants)
+          if (f.type && f.type.startsWith('image/') && ['png', 'jpeg', 'webp', 'gif'].includes(f.type.slice(6))) return f.type
+          if (byExt && (!f.type || f.type === 'application/octet-stream' || f.type === 'text/plain' || f.type.startsWith('text/') || f.type === byExt)) return byExt
+          return f.type || byExt || ''
+        }
+        const isAcceptedFile = (f) => {
+          const mime = canonicalMime(f)
+          if (['image/png', 'image/jpeg', 'image/webp', 'image/gif'].includes(mime)) return true
+          return Object.values(MIME_BY_EXT).includes(mime)
+        }
+        const isImageMime = (m) => String(m || '').startsWith('image/')
+        const fileExtLabel = (name) => {
+          const ext = String(name || '').split('.').pop() || ''
+          return ext.toUpperCase().slice(0, 5) || 'FILE'
+        }
+        // S86: the shared DOC tile for every client-rendered shot grid (the composer's
+        // staged strip, the task editor's inline grid, the pinned-pictures dialog) —
+        // the same .shot-file shape the server's shotsGridHtml renders. An <a download>
+        // (the serving route adds Content-Disposition: attachment for non-images).
+        const escX = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c])
+        const pdShotName = (s) => {
+          const direct = String(s && (s.filename || s.fileName) ? (s.filename || s.fileName) : '').trim()
+          if (direct) return direct
+          return String(s && s.github_path ? s.github_path : '').split('/').pop().replace(/^[0-9a-f-]{36}-/i, '') || 'file'
+        }
+        const pdFileTileHtml = (s) => {
+          const name = pdShotName(s)
+          return '<a class="shot-file" href="/api/media/screenshots/' + encodeURIComponent(s.id) + '/file" download title="' + escX(_t('project.downloadFile', 'Download {f}').replace('{f}', name)) + '" aria-label="' + escX(_t('project.downloadFile', 'Download {f}').replace('{f}', name)) + '">' +
+            '<span class="shot-file-ext" aria-hidden="true">' + escX(fileExtLabel(name)) + '</span>' +
+            '<span class="shot-file-name" dir="auto">' + escX(name) + '</span>' +
+            '<span class="shot-file-dl" aria-hidden="true"><svg class="icon" viewBox="0 0 24 24"><path d="M12 3v12m0 0l-4-4m4 4l4-4M5 21h14"/></svg></span>' +
+          '</a>'
+        }
         const uploadShotXHR = (file, onProgress, registerAbort) =>
           new Promise((resolve, reject) => {
             // registerAbort is called once per phase (reader, then xhr) with that
@@ -92,6 +147,7 @@
             // FileReader path, byte-for-byte the old behavior.
             let prepareAborted = false
             let pendingThumb = null // S69: tile generated during prepare rides the raw (small-file) path too
+            const uploadMime = canonicalMime(file)
             if (registerAbort) registerAbort(() => { prepareAborted = true })
             const reader = new FileReader()
             if (registerAbort) registerAbort(() => { try { reader.abort() } catch { /* already done */ } })
@@ -109,11 +165,13 @@
               }
               xhr.onerror = () => reject(new Error('network'))
               xhr.onabort = () => reject(new Error('aborted'))
-              xhr.send(JSON.stringify({ fileName: file.name, mimeType: file.type, dataBase64: b64, caption: '', ...(pendingThumb ? { thumbBase64: pendingThumb } : {}) }))
+              xhr.send(JSON.stringify({ fileName: file.name, mimeType: uploadMime, dataBase64: b64, caption: '', ...(pendingThumb ? { thumbBase64: pendingThumb } : {}) }))
             }
             reader.onerror = () => reject(new Error('read-failed'))
             const R = window.hibanaImageResize
-            if (!R || file.type === 'image/gif' || file.type === 'image/svg+xml') { reader.readAsDataURL(file); return }
+            // S86: only IMAGE files take the canvas path — a PDF/XLSX has no decodable
+            // image and would fall to the raw catch anyway; skip it up front.
+            if (!R || !isImageMime(uploadMime) || file.type === 'image/gif' || file.type === 'image/svg+xml') { reader.readAsDataURL(file); return }
             // Resize + tile (both canvas passes; failures fall back to the raw path).
             ;(async () => {
               try {
@@ -286,7 +344,7 @@
         // modal is cancelled (then DELETEd for cleanup).
         ctx.on('change', async (e) => {
           if (e.target?.id !== 'pd-taskadd-shots') return
-          const files = [...(e.target.files || [])].filter((f) => f.type.startsWith('image/'))
+          const files = [...(e.target.files || [])].filter(isAcceptedFile)
           e.target.value = ''
           if (!files.length) return
           // S61: per-file progress rows replace the bare «در حال اپلود تصویر …» text —
@@ -294,14 +352,20 @@
           // S67: shared uploadOne (size + reading shimmer + cancel ✕ + tri-state).
           const comp = document.getElementById('pd-taskadd-shots-grid')
           const strip = makeUploadStrip(comp ? comp.parentElement : null, comp)
-          let ok = 0, fail = 0
+          let ok = 0, fail = 0, sawDoc = false
           for (const file of files) {
             const r = await uploadOne(file, strip)
-            if (r.ok && r.shot && r.shot.id) { stagedShots.push({ id: r.shot.id, fileName: file.name, caption: '' }); ok++ }
+            if (r.ok && r.shot && r.shot.id) {
+              const mime = r.shot.mimeType || canonicalMime(file)
+              if (!isImageMime(mime)) sawDoc = true
+              stagedShots.push({ id: r.shot.id, fileName: file.name, caption: '', mime })
+              ok++
+            }
             else if (!r.ok && !r.canceled) fail++
           }
           renderTaskAddShots()
-          if (ok && !fail) window.hibana?.toast(_t('project.shotUploaded', 'Screenshot uploaded'), 'info')
+          // S86: the toast speaks files when a doc landed, screenshots otherwise.
+          if (ok && !fail) window.hibana?.toast(_t(sawDoc ? 'project.fileUploaded' : 'project.shotUploaded', sawDoc ? 'File uploaded' : 'Screenshot uploaded'), 'info')
           else if (fail && !ok) window.hibana?.toast(_t('project.shotFailed', 'Upload failed'), 'err')
           else if (fail) window.hibana?.toast(_t('project.shotsMixed', '{ok} uploaded, {fail} failed').split('{ok}').join(faDig(ok)).split('{fail}').join(faDig(fail)), 'err')
         })
@@ -361,7 +425,7 @@
         ctx.on('drop', (e) => {
           e.preventDefault()
           if (e.target.closest('#project-body')) {
-            const files = [...e.dataTransfer.files].filter((f) => f.type.startsWith('image/'))
+            const files = [...e.dataTransfer.files].filter(isAcceptedFile)
             if (files.length) upload(files)
           }
         })
@@ -692,8 +756,10 @@
             return
           }
           body.innerHTML = '<div class="pd-tshots-grid">' + pinned.map((s) =>
-            '<figure class="shot shot-card' + (s.resolved ? ' is-fixed' : '') + '" data-shot="' + s.id + '">' +
-            '<button type="button" class="shot-img-btn" data-tshots-zoom="' + s.id + '"><img src="/api/media/screenshots/' + s.id + '/file" alt="" loading="lazy"></button>' +
+            '<figure class="shot shot-card' + (s.resolved ? ' is-fixed' : '') + (!isImageMime(s.mime_type) ? ' is-file' : '') + '" data-shot="' + s.id + '">' +
+            (isImageMime(s.mime_type)
+              ? '<button type="button" class="shot-img-btn" data-tshots-zoom="' + s.id + '"><img src="/api/media/screenshots/' + s.id + '/file" alt="" loading="lazy"></button>'
+              : pdFileTileHtml(s)) +
             '<figcaption class="shot-body"><p class="shot-note muted small" dir="auto">' + (s.caption ? String(s.caption).replace(/[&<>]/g, (c2) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' })[c2]) : '') + '</p>' +
             '<div class="row spread shot-actions"><span class="shot-state' + (s.resolved ? ' is-fixed' : '') + '">' + (s.resolved ? '✓ ' + _t('project.shotFixedLabel', 'fixed') : _t('project.shotOpenLabel', 'open problem')) + '</span>' +
             '<button type="button" class="ghost small danger" data-tshots-unpin="' + s.id + '" title="' + _t('project.shotUnpin', 'Unpin') + '">✕</button></div></figcaption></figure>',
@@ -2263,6 +2329,7 @@
         const pdTitleHtml = (title) => window.HibanaChips.titleHtml(title)
         const pdTitleAttrs = (title) => window.HibanaChips.titleAttrs(title)
         const pdReadMoreBtn = (title) => window.HibanaChips.readMoreBtn(title)
+        const pdPreviewHtml = (title) => window.HibanaChips.previewHtml ? window.HibanaChips.previewHtml(title) : ''
         // Re-clamp an existing title element in place (after edits / wand writes) and
         // keep its read-more button in sync — the shared HibanaChips.applyTitle.
         const pdApplyTitle = (el, text) => window.HibanaChips.applyTitle(el, text)
@@ -2325,7 +2392,7 @@
           // opens the inline editor everywhere; the old <a href="/board.html"> made
           // freshly-added tasks navigate instead. Title clamped at 150 chars with the
           // hidden rest + read-more button.
-          wrap.innerHTML = `<div class="pd-task st-${status}" draggable="true" role="button" tabindex="0" aria-label="${pdEsc(task.title)}"><span class="pd-task-body"><span class="pd-task-title-row" dir="auto"><button type="button" class="prio-dot-btn" data-pd-cycle-prio title="${pdEsc(_t('db.cyclePrio', 'Priority: {p} — click to change').replace('{p}', pdPrioLabel(prio)))}" aria-label="${pdEsc(_t('db.cyclePrio', 'Priority: {p} — click to change').replace('{p}', pdPrioLabel(prio)))}"><span class="prio-dot prio-${pdEsc(prio)}"></span></button><span class="pd-task-title"${pdTitleAttrs(task.title)}>${pdTitleHtml(task.title)}</span></span>${pdReadMoreBtn(task.title)}${pdTagChipsHtml(tags)}<span class="pd-task-meta">${pdMetaHtml(prio, wrap.dataset.pdCreated, false)}</span></span></div>`
+          wrap.innerHTML = `<div class="pd-task st-${status}" draggable="true" role="button" tabindex="0" aria-label="${pdEsc(task.title)}"><span class="pd-task-body"><span class="pd-task-title-row" dir="auto"><button type="button" class="prio-dot-btn" data-pd-cycle-prio title="${pdEsc(_t('db.cyclePrio', 'Priority: {p} — click to change').replace('{p}', pdPrioLabel(prio)))}" aria-label="${pdEsc(_t('db.cyclePrio', 'Priority: {p} — click to change').replace('{p}', pdPrioLabel(prio)))}"><span class="prio-dot prio-${pdEsc(prio)}"></span></button><span class="pd-task-title"${pdTitleAttrs(task.title)}>${pdTitleHtml(task.title)}</span></span>${pdPreviewHtml(task.title)}${pdReadMoreBtn(task.title)}${pdTagChipsHtml(tags)}<span class="pd-task-meta">${pdMetaHtml(prio, wrap.dataset.pdCreated, false)}</span></span></div>`
 
           // AUTO-SORT (user request 2026-09-12): the card lands BEFORE the first card
           // whose priority ranks below it — urgent tasks jump to the top of their box.
@@ -2420,8 +2487,10 @@
           // S46.6: IMG onerror retries up to 4× (KV read-after-write propagation delay)
           const retryAttr = ' onerror="(function(i){var n=+(i.dataset.r||0)+1;if(n<4){i.dataset.r=n;var s=i.src;i.onerror=null;setTimeout(function(){i.src=s},800*n)}})(this)"'
           grid.innerHTML = stagedShots.map((s) =>
-            '<figure class="shot-card pd-staged-shot" data-staged="' + esc(s.id) + '">' +
-              '<button type="button" class="shot-img-btn" data-staged-zoom="' + esc(s.id) + '"><img src="/api/media/screenshots/' + esc(s.id) + '/file" alt="" loading="lazy"' + retryAttr + '></button>' +
+            '<figure class="shot-card pd-staged-shot' + (!isImageMime(s.mime) ? ' is-file' : '') + '" data-staged="' + esc(s.id) + '">' +
+              (isImageMime(s.mime)
+                ? '<button type="button" class="shot-img-btn" data-staged-zoom="' + esc(s.id) + '"><img src="/api/media/screenshots/' + esc(s.id) + '/file" alt="" loading="lazy"' + retryAttr + '></button>'
+                : pdFileTileHtml(s)) +
               '<figcaption class="shot-body">' +
                 (s.caption ? '<p class="shot-note muted small" dir="auto">' + esc(s.caption) + '</p>' : '') +
                 '<div class="row spread shot-actions">' +
@@ -2579,7 +2648,7 @@
                 wrap.dataset.pdPriority = tp
                 wrap.dataset.pdTags = JSON.stringify(tt)
                 // Session 22: div + role=button + 150-char clamp — same as insertTaskChip.
-                wrap.innerHTML = `<div class="pd-task st-${status}" draggable="true" role="button" tabindex="0" aria-label="${pdEsc(t.title)}"><span class="pd-task-body"><span class="pd-task-title-row" dir="auto"><button type="button" class="prio-dot-btn" data-pd-cycle-prio title="${pdEsc(_t('db.cyclePrio', 'Priority: {p} — click to change').replace('{p}', pdPrioLabel(tp)))}" aria-label="${pdEsc(_t('db.cyclePrio', 'Priority: {p} — click to change').replace('{p}', pdPrioLabel(tp)))}"><span class="prio-dot prio-${pdEsc(tp)}"></span></button><span class="pd-task-title"${pdTitleAttrs(t.title)}>${pdTitleHtml(t.title)}</span></span>${pdReadMoreBtn(t.title)}${pdTagChipsHtml(tt)}<span class="pd-task-meta">${pdMetaHtml(tp, t.created_at, status === 'done')}</span></span></div>`
+                wrap.innerHTML = `<div class="pd-task st-${status}" draggable="true" role="button" tabindex="0" aria-label="${pdEsc(t.title)}"><span class="pd-task-body"><span class="pd-task-title-row" dir="auto"><button type="button" class="prio-dot-btn" data-pd-cycle-prio title="${pdEsc(_t('db.cyclePrio', 'Priority: {p} — click to change').replace('{p}', pdPrioLabel(tp)))}" aria-label="${pdEsc(_t('db.cyclePrio', 'Priority: {p} — click to change').replace('{p}', pdPrioLabel(tp)))}"><span class="prio-dot prio-${pdEsc(tp)}"></span></button><span class="pd-task-title"${pdTitleAttrs(t.title)}>${pdTitleHtml(t.title)}</span></span>${pdPreviewHtml(t.title)}${pdReadMoreBtn(t.title)}${pdTagChipsHtml(tt)}<span class="pd-task-meta">${pdMetaHtml(tp, t.created_at, status === 'done')}</span></span></div>`
                 tasksEl.insertBefore(wrap, moreBtn)
               }
               // Session 24 (root-cause fix): wire data-magic + ⋯ menu on the newly
@@ -3121,9 +3190,9 @@
                 // text indicator with the SAME live progress strip as every other
                 // surface (per-file rows: size + bar + % + cancel ✕).
                 '<div class="pd-taskadd-shots" style="margin-top:.5rem">' +
-                  '<input type="file" id="pde-shots" accept="image/png,image/jpeg,image/webp,image/gif" multiple hidden>' +
+                  '<input type="file" id="pde-shots" accept=".pdf,.csv,.xlsx,.docx,.md,.txt,image/png,image/jpeg,image/webp,image/gif" multiple hidden>' +
                   '<div class="row" style="gap:.5rem;align-items:center">' +
-                    '<button type="button" class="ghost" id="pde-shots-add" onclick="document.getElementById(\'pde-shots\').click()" title="' + _t('pde.shotsAttachTitle', 'Attach a UI/UX screenshot — pinned to this item') + '"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="5" width="17" height="14" rx="2"/><circle cx="8" cy="10" r="1.5"/><path d="M21 16l-5-5L5 19"/></svg> ' + _t('pde.shotsAttach', 'Add image') + '</button>' +
+                    '<button type="button" class="ghost" id="pde-shots-add" onclick="document.getElementById(\'pde-shots\').click()" title="' + _t('pde.shotsAttachTitle', 'Upload files — images, PDF, Excel, Word, Markdown, text — pinned to this item') + '"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M21.2 11.2 12.6 19.8a5.4 5.4 0 0 1-7.6-7.6l8.5-8.5a3.6 3.6 0 0 1 5.1 5.1l-8.5 8.5a1.8 1.8 0 0 1-2.5-2.5l7.8-7.8"/></svg> ' + _t('pde.shotsAttach', 'Upload files') + '</button>' +
                   '</div>' +
                   '<div class="pd-taskadd-shots-grid" id="pde-shots-grid"></div>' +
                 '</div>' +
@@ -3171,7 +3240,7 @@
             pdTaskEditDlg.querySelector('#pde-shots').addEventListener('change', async (e) => {
               const tid = pdTaskEditDlg.dataset.tid
               if (!tid) return
-              const files = [...(e.target.files || [])].filter((f) => f.type.startsWith('image/'))
+              const files = [...(e.target.files || [])].filter(isAcceptedFile)
               e.target.value = ''
               if (!files.length) return
               const pgrid = pdTaskEditDlg.querySelector('#pde-shots-grid')
@@ -3437,8 +3506,10 @@
             const retryAttr = ' onerror="(function(i){var n=+(i.dataset.r||0)+1;if(n<4){i.dataset.r=n;var s=i.src;i.onerror=null;setTimeout(function(){i.src=s},800*n)}})(this)"'
             if (!pinned.length) { grid.innerHTML = ''; return }
             grid.innerHTML = pinned.map((s) =>
-              '<figure class="shot-card" data-pde-shot="' + esc(s.id) + '">' +
-                '<button type="button" class="shot-img-btn" data-pde-shot-zoom="' + esc(s.id) + '"><img src="/api/media/screenshots/' + esc(s.id) + '/file" alt="" loading="lazy"' + retryAttr + '></button>' +
+              '<figure class="shot-card' + (!isImageMime(s.mime_type) ? ' is-file' : '') + '" data-pde-shot="' + esc(s.id) + '">' +
+                (isImageMime(s.mime_type)
+                  ? '<button type="button" class="shot-img-btn" data-pde-shot-zoom="' + esc(s.id) + '"><img src="/api/media/screenshots/' + esc(s.id) + '/file" alt="" loading="lazy"' + retryAttr + '></button>'
+                  : pdFileTileHtml(s)) +
                 '<figcaption class="shot-body">' +
                   (s.caption ? '<p class="shot-note muted small" dir="auto">' + esc(s.caption) + '</p>' : '') +
                   '<div class="row spread shot-actions">' +

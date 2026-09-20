@@ -30,6 +30,11 @@ window.__hibanaDictEN = {
       'magic.tooltip': 'AI: polish, rewrite, or translate',
       'magic.title': 'Magic wand',
       'magic.polish': 'Polish', 'magic.rewrite': 'Rewrite', 'magic.translate': 'Translate',
+      'magic.custom': 'Ask AI…', 'magic.customTitle': 'Ask the AI',
+      'magic.customPh': 'Tell the AI what to do with this text — e.g. “Classify these books into categories”, “Summarize in 5 bullets”, “Extract the deadlines”…',
+      'magic.customRun': 'Run', 'magic.customBack': 'Back', 'magic.customRequired': 'Write your instruction first.',
+      'magic.customHint': 'The note text is sent with your instruction. Nothing is saved until you Apply the result.',
+      'magic.result': 'Result',
       'magic.working': 'Working…', 'magic.original': 'Original', 'magic.suggestion': 'Suggestion',
       'magic.apply': 'Apply', 'magic.discard': 'Discard',
       'magic.applied': 'Applied — review and save',
@@ -148,6 +153,8 @@ window.__hibanaDictEN = {
       'qa.filesInto': 'Files into',
       // theme
       'theme.toLight': 'Switch to light mode', 'theme.toDark': 'Switch to dark mode',
+      // S86: the Claude-style warm dark theme joins the header cycle
+      'theme.darkToClaude': 'Switch to Claude dark mode', 'theme.claudeToDark': 'Claude dark — switch to standard dark',
       // page titles / headings
       'pages.projects': 'Projects', 'pages.sparks': 'Ideas',
       'pages.clients': 'Clients', 'pages.archive': 'Archive',
@@ -171,6 +178,7 @@ window.__hibanaDictEN = {
       'settings.timezone': 'Timezone', 'settings.reload': 'Reload from server', 'settings.calendarHint': 'Follows your language — Farsi uses the Jalali calendar.',
       'settings.calGregorian': 'Gregorian (Miladi)', 'settings.calShamsi': 'Shamsi (Jalali)',
       'settings.theme': 'Theme', 'settings.light': 'Light', 'settings.dark': 'Dark', 'settings.system': 'Follow system',
+      'settings.claudeDark': 'Claude dark',
       'settings.tags': 'Tags', 'settings.newTag': 'New tag name', 'settings.create': 'Create',
       'settings.invites': 'Invites', 'settings.generateInvite': 'Generate invite code', 'settings.inviteCopied': 'Copied invite code',
       'settings.inviteFailed': 'Invite creation failed',
@@ -460,6 +468,8 @@ window.__hibanaDictEN = {
       'project.stageSaved': 'Stage saved', 'project.captionPrompt': 'Caption (optional):',
       'project.shotUploaded': 'Screenshot uploaded', 'project.shotFailed': 'Upload failed', 'project.uploading': 'Uploading…',
       'project.shotDeleted': 'Screenshot deleted',
+      // S86: file uploads (PDF/CSV/XLSX/DOCX/MD/TXT) ride the screenshots bucket
+      'project.fileUploaded': 'File uploaded', 'project.uploadFiles': 'Upload files', 'project.downloadFile': 'Download {f}',
       // S35: the screenshot problem cards
       'project.shotZoom': 'Screenshot', 'project.shotNotePh': 'What is broken & where — the exact spot to work on…',
       // S46: screenshot-note modal + create-bug/idea-from-screenshot + task-composer shot-attach count
@@ -524,7 +534,7 @@ window.__hibanaDictEN = {
       'pd.pr.urgent': 'Urgent', 'pd.pr.high': 'High Priority', 'pd.pr.medium': 'Medium Priority', 'pd.pr.low': 'Low Priority',
       'pd.labels': 'Labels', 'pd.labelsPh': 'e.g. UI/UX, Security', 'pd.labelsHint': 'Comma-separated — a chip per label',
       // S46.2: screenshots in the task editor (pde-form) — upload + pin to this item + view pinned
-      'pde.shotsAttach': 'Add image', 'pde.shotsAttachTitle': 'Attach a UI/UX screenshot — pinned to this item',
+      'pde.shotsAttach': 'Upload files', 'pde.shotsAttachTitle': 'Upload files — images, PDF, Excel, Word, Markdown, text — pinned to this item',
       'pde.shotsView': 'Pinned pictures', 'pde.shotsViewTitle': 'View pictures pinned to this item',
       'pde.shotsUploading': 'Uploading image…',
       // S46.7: editor title + full-screen writing + add-note button (when no note)
@@ -914,6 +924,10 @@ window.__hibanaDictEN = {
       'notes.newNote': 'New note', 'notes.untitled': 'Untitled',
       'notes.searchPlaceholder': 'Search notes…', 'notes.clearSearch': 'Clear search',
       'notes.sortLabel': 'Sort', 'notes.sortUpdated': 'Recently edited', 'notes.sortCreated': 'Recently created', 'notes.sortTitle': 'Title A–Z',
+      'notes.sortManual': 'Custom order',
+      // S86: note/folder emoji + drag-reorder + the editor's Ask-AI button
+      'notes.setEmoji': 'Set emoji…', 'notes.removeEmoji': 'Remove emoji', 'notes.emojiFailed': 'Could not set the emoji.',
+      'notes.reorderFailed': "Couldn't save the order.", 'notes.askAi': 'Ask AI — polish, translate, or your own instruction',
       'notes.words': 'words', 'notes.chars': 'chars', 'notes.edited': 'Edited',
       'notes.saving': 'Saving…', 'notes.saved': 'Saved', 'notes.unsaved': 'Unsaved', 'notes.saveFailed': 'Save failed — retry?',
       'notes.modeEdit': 'Edit', 'notes.modeSplit': 'Split', 'notes.modeRead': 'Read', 'notes.editorMode': 'Editor mode',

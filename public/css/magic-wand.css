@@ -151,3 +151,72 @@
 .magic-backdrop {
   position: fixed; inset: 0; z-index: 59; background: transparent;
 }
+
+/* S86: the Ask-AI instruction panel — the popover swaps its actions row for a
+   textarea + counter + Run/Back. Wider than the action popover (a real instruction
+   needs room), clamped to the viewport on phones. The magic-ask action button gets
+   a subtle accent emphasis — it is the open-ended path (the other two are fixed). */
+.magic-popover.is-prompt { max-inline-size: min(94vw, 34rem); }
+.magic-actions button.magic-ask { border-style: dashed; }
+.magic-prompt-ta {
+  resize: vertical;
+  min-block-size: 5.2rem;
+  max-block-size: 12rem;
+  padding: 8px 10px;
+  border: 1px solid color-mix(in srgb, var(--mw-accent) 40%, transparent);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--mw-accent) 6%, transparent);
+  color: inherit;
+  font: inherit;
+  font-size: .88rem;
+  line-height: 1.5;
+}
+[data-theme="dark"] .magic-prompt-ta { background: rgb(0 0 0 / 0.25); }
+.magic-prompt-ta:focus-visible {
+  outline: 2px solid var(--mw-accent);
+  outline-offset: 1px;
+  border-color: var(--mw-accent);
+}
+.magic-prompt-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.magic-prompt-count {
+  font-size: .7rem;
+  opacity: .6;
+  font-variant-numeric: tabular-nums;
+}
+.magic-prompt-btns { gap: 6px; }
+.magic-prompt-btns button {
+  padding: 6px 14px;
+  border-radius: 8px;
+  font-size: .85rem;
+  cursor: pointer;
+  border: 1px solid transparent;
+}
+.magic-prompt-btns .magic-run {
+  background: var(--mw-accent);
+  color: var(--mw-accent-ink);
+  min-inline-size: 4.5rem;
+}
+.magic-prompt-btns .magic-back {
+  background: transparent;
+  color: inherit;
+  border-color: color-mix(in srgb, var(--mw-accent) 40%, transparent);
+}
+.magic-prompt-btns button[disabled] { opacity: .5; cursor: not-allowed; }
+.magic-prompt-hint {
+  margin: 0;
+  font-size: .7rem;
+  line-height: 1.5;
+  opacity: .6;
+}
+/* The working indicator when the custom panel (no .magic-actions row) is running —
+   the actions-row variant keeps its inline append; this one sits under the buttons. */
+.is-prompt .magic-working {
+  font-size: .78rem;
+  opacity: .75;
+}

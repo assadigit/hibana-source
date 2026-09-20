@@ -43,6 +43,16 @@
     'magic.title': 'Magic wand',
     'magic.polish': 'Polish',
     'magic.translate': 'Translate',
+    // S86 (owner request): the Ask-AI panel — a FREE-FORM instruction the model applies
+    // to the text ("classify these books into categories", "extract the deadlines"…).
+    'magic.custom': 'Ask AI…',
+    'magic.customTitle': 'Ask the AI',
+    'magic.customPh': 'Tell the AI what to do with this text — e.g. “Classify these books into categories”, “Summarize in 5 bullets”, “Extract the deadlines”…',
+    'magic.customRun': 'Run',
+    'magic.customBack': 'Back',
+    'magic.customRequired': 'Write your instruction first.',
+    'magic.customHint': 'The note text is sent with your instruction. Nothing is saved until you Apply the result.',
+    'magic.result': 'Result',
     'magic.working': 'Working…',
     'magic.original': 'Original',
     'magic.suggestion': 'Suggestion',
@@ -207,12 +217,16 @@
     if (wand) wand.setAttribute('aria-busy', 'false')
   }
 
-  // The hover popover: Polish (default) + Translate. Compact — two actions, no Rewrite
-  // (the user asked for "polish by default, also can translate").
+  // The hover popover: Polish (default) + Translate + Ask AI (S86 — the custom-prompt
+  // panel). Compact — three actions; Ask AI swaps the popover into the instruction form.
   function actionsRow(disabled) {
-    const acts = [['polish', t('magic.polish')], ['translate', t('magic.translate')]]
-    return acts.map(([a, label]) =>
-      `<button type="button" data-action="${a}" ${disabled ? 'disabled' : ''}>${label}</button>`
+    const acts = [
+      ['polish', t('magic.polish')],
+      ['translate', t('magic.translate')],
+      ['custom', t('magic.custom'), 'magic-ask'],
+    ]
+    return acts.map(([a, label, cls]) =>
+      `<button type="button" data-action="${a}"${cls ? ` class="${cls}"` : ''} ${disabled ? 'disabled' : ''}>${label}</button>`
     ).join('')
   }
 
@@ -248,10 +262,60 @@
     ;(dlg || document.body).appendChild(popover)
     positionPopover()
     popover.querySelectorAll('[data-action]').forEach((b) =>
-      b.addEventListener('click', () => runAction(b.getAttribute('data-action')))
+      b.addEventListener('click', () => {
+        const a = b.getAttribute('data-action')
+        // S86: 'custom' opens the instruction panel INSTEAD of firing the request —
+        // the user writes the prompt first, then Run sends it.
+        if (a === 'custom') renderPromptPanel()
+        else runAction(a)
+      })
     )
     popover.addEventListener('keydown', (e) => { if (e.key === 'Escape') closePopover() })
     popover.querySelector('[data-action]')?.focus()
+  }
+
+  // S86: the Ask-AI instruction panel — a textarea (≤2000 chars, the server's
+  // MAX_CUSTOM_PROMPT_CHARS) + char counter + Run/Back. Cmd/Ctrl+Enter runs; Esc
+  // closes the whole popover (the global listener). The panel keeps the same
+  // popover node so positioning/dialog-mounting rules all stay intact.
+  function renderPromptPanel(prefill) {
+    if (!popover) return
+    popover.classList.add('is-prompt')
+    popover.innerHTML =
+      '<h3>' + t('magic.customTitle') + '</h3>' +
+      '<div class="magic-model-badge"><span class="magic-model-label">' + t('magic.modelBadge') + ':</span> <code>' + (chosenModel() || '@cf/mistralai/mistral-small-3.1-24b-instruct').split('/').pop() + '</code></div>' +
+      '<textarea class="magic-prompt-ta" rows="4" maxlength="2000" dir="auto" placeholder="' + t('magic.customPh').replace(/"/g, '&quot;') + '" aria-label="' + t('magic.customTitle') + '"></textarea>' +
+      '<div class="magic-prompt-foot">' +
+        '<span class="magic-prompt-count" aria-live="polite">0/2000</span>' +
+        '<span class="row magic-prompt-btns">' +
+          '<button type="button" class="magic-back" data-prompt-back>' + t('magic.customBack') + '</button>' +
+          '<button type="button" class="magic-run" data-prompt-run>' + t('magic.customRun') + '</button>' +
+        '</span>' +
+      '</div>' +
+      '<p class="magic-prompt-hint">' + t('magic.customHint') + '</p>'
+    const ta = popover.querySelector('.magic-prompt-ta')
+    const count = popover.querySelector('.magic-prompt-count')
+    if (prefill) ta.value = prefill
+    const updateCount = () => { if (count) count.textContent = [...ta.value].length + '/2000' }
+    updateCount()
+    ta.addEventListener('input', updateCount)
+    ta.addEventListener('keydown', (e) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
+        e.preventDefault()
+        popover.querySelector('[data-prompt-run]')?.click()
+      }
+    })
+    popover.querySelector('[data-prompt-back]').addEventListener('click', () => {
+      popover.classList.remove('is-prompt')
+      renderActionsAgain()
+    })
+    popover.querySelector('[data-prompt-run]').addEventListener('click', () => {
+      const instruction = ta.value.trim()
+      if (!instruction) { toast(t('magic.customRequired'), 'info'); ta.focus(); return }
+      runAction('custom', instruction)
+    })
+    positionPopover()
+    setTimeout(() => ta.focus(), 30)
   }
 
   function positionPopover() {
@@ -265,14 +329,15 @@
     popover.style.top = y + 'px'
   }
 
-  function renderPreview(original, suggestion) {
+  function renderPreview(original, suggestion, resultLabel) {
     if (!popover) return
+    popover.classList.remove('is-prompt')
     popover.innerHTML =
       '<h3>' + t('magic.title') + '</h3>' +
       '<div class="magic-preview">' +
         '<div class="magic-pane magic-pane-original"><span class="magic-pane-label">' + t('magic.original') + '</span>' +
           '<div class="magic-pane-body"></div></div>' +
-        '<div class="magic-pane magic-pane-suggestion"><span class="magic-pane-label">' + t('magic.suggestion') + '</span>' +
+        '<div class="magic-pane magic-pane-suggestion"><span class="magic-pane-label">' + (resultLabel || t('magic.suggestion')) + '</span>' +
           '<div class="magic-pane-body"></div></div>' +
       '</div>' +
       '<div class="magic-foot">' +
@@ -293,6 +358,7 @@
 
   function renderActionsAgain() {
     if (!popover) return
+    popover.classList.remove('is-prompt')
     const m = chosenModel() || '@cf/mistralai/mistral-small-3.1-24b-instruct'
     const short = m.split('/').pop() || m
     popover.innerHTML =
@@ -300,12 +366,16 @@
       '<div class="magic-model-badge"><span class="magic-model-label">' + t('magic.modelBadge') + ':</span> <code>' + short + '</code></div>' +
       '<div class="magic-actions">' + actionsRow(false) + '</div>'
     popover.querySelectorAll('[data-action]').forEach((b) =>
-      b.addEventListener('click', () => runAction(b.getAttribute('data-action')))
+      b.addEventListener('click', () => {
+        const a = b.getAttribute('data-action')
+        if (a === 'custom') renderPromptPanel()
+        else runAction(a)
+      })
     )
     positionPopover()
   }
 
-  async function runAction(action) {
+  async function runAction(action, promptOverride) {
     if (running) return
     if (!activeEl) return
     const text = fieldText(activeEl)
@@ -313,9 +383,11 @@
     if ([...text].length > 4000) { toast(t('magic.tooLong')); return }
     running = true
     if (wand) wand.setAttribute('aria-busy', 'true')
-    popover.querySelectorAll('[data-action]').forEach((b) => (b.disabled = true))
+    popover.querySelectorAll('button').forEach((b) => (b.disabled = true))
     const actionsEl = popover.querySelector('.magic-actions')
     if (actionsEl) actionsEl.insertAdjacentHTML('beforeend',
+      '<span class="magic-working" role="status">' + t('magic.working') + '</span>')
+    else popover.insertAdjacentHTML('beforeend',
       '<span class="magic-working" role="status">' + t('magic.working') + '</span>')
 
     let res
@@ -324,8 +396,14 @@
       if (action === 'translate') payload.target_lang = detectLang(text) === 'fa' ? 'en' : 'fa'
       const model = chosenModel()
       if (model) payload.model = model
-      const customPrompt = chosenPrompt()
-      if (customPrompt) payload.customPrompt = customPrompt
+      // S86: the Ask-AI panel's instruction is the customPrompt for the 'custom'
+      // action — and the SETTINGS prompt is deliberately NOT layered on top (the
+      // panel speaks for itself; the server builds the persona from it alone).
+      if (action === 'custom') payload.customPrompt = promptOverride
+      else {
+        const customPrompt = chosenPrompt()
+        if (customPrompt) payload.customPrompt = customPrompt
+      }
       res = await fetch('/api/ai/text', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -348,13 +426,16 @@
       else if (res && res.status === 503) msg = t('magic.workersOnly')
       else if (res && res.status === 400) msg = t('magic.tooLong')
       toast(msg, 'err')
-      renderActionsAgain()
+      // S86: a failed custom run returns to the instruction panel WITH the text
+      // intact — losing a typed instruction on a model hiccup is the worst outcome.
+      if (action === 'custom' && promptOverride) renderPromptPanel(promptOverride)
+      else renderActionsAgain()
       return
     }
     const body = await res.json().catch(() => null)
     const out = body?.text
     if (typeof out !== 'string' || out.trim() === '') { toast(t('magic.empty')); renderActionsAgain(); return }
-    renderPreview(text, out)
+    renderPreview(text, out, action === 'custom' ? t('magic.result') : undefined)
   }
 
   // --- discovery + lifecycle: HOVER-triggered -----------------------------------
@@ -457,4 +538,17 @@
     document.addEventListener(name, injectDevTaskMagic)
   }
   if (document.readyState !== 'loading') injectDevTaskMagic()
+
+  // S86: a PUBLIC handle for toolbars that want an explicit wand trigger (the notes
+  // editor's Ask-AI button) — hover/focus discovery stays as-is; this makes the
+  // feature reachable with ONE click on surfaces that ask for it.
+  window.hibanaMagicWand = {
+    openFor(el) {
+      if (!el || !el.isConnected) return
+      ensureUI()
+      showWand(el)
+      if (popover) closePopover()
+      togglePopover()
+    },
+  }
 })()

@@ -144,3 +144,155 @@ describe('screenshot upload path shape (session-9 F1)', () => {
     }
   })
 })
+
+// ── S86: FILE uploads ride the screenshots bucket (PDF/CSV/XLSX/DOCX/MD/TXT) ────
+describe('file uploads S86 — docs in the shot bucket', () => {
+  const PDF_B64 = Buffer.from('%PDF-1.4\n%% Hibana test doc\n').toString('base64')
+
+  it('a PDF uploads (201), stores its filename + mime, and SERVES with attachment disposition', async () => {
+    const { db, close } = makeTestDb()
+    try {
+      const userId = await makeUser(db)
+      const projectId = await makeProject(db, userId)
+      const app = createApp({
+        db,
+        isProd: false,
+        github: { owner: 'o', repo: 'r', token: 't' },
+        emailKey: undefined,
+        assets: undefined,
+      })
+      const token = await createSession(db, userId)
+
+      vi.stubGlobal('fetch', (async (input: RequestInfo | URL, init?: RequestInit) => {
+        const url = String(input)
+        if (url.includes('/contents/')) {
+          if (init?.method === 'PUT') return new Response(JSON.stringify({ content: { html_url: 'u' } }), { status: 201 })
+          // GET (raw serve / SHA probe) — the PDF bytes back.
+          return new Response(Buffer.from(PDF_B64, 'base64'), { status: 200, headers: { 'Content-Type': 'application/pdf' } })
+        }
+        return new Response('{}', { status: 200 })
+      }) as typeof fetch)
+
+      const res = await app.fetch(
+        new Request(`http://local/api/projects/${projectId}/screenshots`, {
+          method: 'POST',
+          headers: { Cookie: `hibana_session=${token}`, 'Content-Type': 'application/json', Origin: 'http://local' },
+          body: JSON.stringify({ fileName: 'wishlist-books.pdf', mimeType: 'application/pdf', dataBase64: PDF_B64, filename: 'wishlist-books.pdf' }),
+        }),
+      )
+      expect(res.status).toBe(201)
+      const created = (await res.json()) as { ok: boolean; id: string; mimeType: string }
+      expect(created.mimeType).toBe('application/pdf')
+
+      // 0059: the original filename rides the row (doc tiles + the serve header).
+      const rows = await db.query<{ filename: string | null; mime_type: string }>(
+        'SELECT filename, mime_type FROM screenshots WHERE id = ?', [created.id],
+      )
+      expect(rows[0].filename).toBe('wishlist-books.pdf')
+      expect(rows[0].mime_type).toBe('application/pdf')
+
+      // Serving: right Content-Type + Content-Disposition: attachment (a doc
+      // downloads; an image renders — that distinction is the whole tile UX).
+      const served = await app.fetch(new Request(`http://local/api/media/screenshots/${created.id}/file`, {
+        headers: { Cookie: `hibana_session=${token}` },
+      }))
+      expect(served.status).toBe(200)
+      expect(served.headers.get('Content-Type')).toBe('application/pdf')
+      expect(served.headers.get('Content-Disposition')).toContain('attachment')
+      expect(served.headers.get('Content-Disposition')).toContain('wishlist-books.pdf')
+    } finally {
+      close()
+    }
+  })
+
+  it('an image serve keeps NO disposition (inline lightbox flow unchanged)', async () => {
+    const { db, close } = makeTestDb()
+    try {
+      const userId = await makeUser(db)
+      const projectId = await makeProject(db, userId)
+      const app = createApp({
+        db,
+        isProd: false,
+        github: { owner: 'o', repo: 'r', token: 't' },
+        emailKey: undefined,
+        assets: undefined,
+      })
+      const token = await createSession(db, userId)
+      vi.stubGlobal('fetch', (async (input: RequestInfo | URL, init?: RequestInit) => {
+        const url = String(input)
+        if (url.includes('/contents/')) {
+          if (init?.method === 'PUT') return new Response(JSON.stringify({ content: { html_url: 'u' } }), { status: 201 })
+          return new Response(Buffer.from(PNG_B64, 'base64'), { status: 200, headers: { 'Content-Type': 'image/png' } })
+        }
+        return new Response('{}', { status: 200 })
+      }) as typeof fetch)
+      const res = await app.fetch(
+        new Request(`http://local/api/projects/${projectId}/screenshots`, {
+          method: 'POST',
+          headers: { Cookie: `hibana_session=${token}`, 'Content-Type': 'application/json', Origin: 'http://local' },
+          body: JSON.stringify({ fileName: 'shot.png', mimeType: 'image/png', dataBase64: PNG_B64 }),
+        }),
+      )
+      expect(res.status).toBe(201)
+      const created = (await res.json()) as { id: string }
+      const served = await app.fetch(new Request(`http://local/api/media/screenshots/${created.id}/file`, {
+        headers: { Cookie: `hibana_session=${token}` },
+      }))
+      expect(served.headers.get('Content-Type')).toBe('image/png')
+      expect(served.headers.get('Content-Disposition')).toBeNull()
+    } finally {
+      close()
+    }
+  })
+
+  it('every allowed doc mime uploads; a mime outside the allowlist is a 400', async () => {
+    const { db, close } = makeTestDb()
+    try {
+      const userId = await makeUser(db)
+      const projectId = await makeProject(db, userId)
+      const app = createApp({
+        db,
+        isProd: false,
+        github: { owner: 'o', repo: 'r', token: 't' },
+        emailKey: undefined,
+        assets: undefined,
+      })
+      const token = await createSession(db, userId)
+      vi.stubGlobal('fetch', (async (_input: RequestInfo | URL, init?: RequestInit) =>
+        init?.method === 'PUT'
+          ? new Response(JSON.stringify({ content: { html_url: 'u' } }), { status: 201 })
+          : new Response('{}', { status: 200 })) as typeof fetch)
+
+      const okMimes = [
+        'application/pdf',
+        'text/csv',
+        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        'text/markdown',
+        'text/plain',
+        'image/png', 'image/jpeg', 'image/webp', 'image/gif',
+      ]
+      for (const mimeType of okMimes) {
+        const res = await app.fetch(
+          new Request(`http://local/api/projects/${projectId}/screenshots`, {
+            method: 'POST',
+            headers: { Cookie: `hibana_session=${token}`, 'Content-Type': 'application/json', Origin: 'http://local' },
+            body: JSON.stringify({ fileName: 'f.bin', mimeType, dataBase64: PDF_B64 }),
+          }),
+        )
+        expect(`${mimeType} → ${res.status}`).toBe(`${mimeType} → 201`)
+      }
+      // a hand-crafted mime outside the set never reaches the store
+      const bad = await app.fetch(
+        new Request(`http://local/api/projects/${projectId}/screenshots`, {
+          method: 'POST',
+          headers: { Cookie: `hibana_session=${token}`, 'Content-Type': 'application/json', Origin: 'http://local' },
+          body: JSON.stringify({ fileName: 'evil.zip', mimeType: 'application/zip', dataBase64: PDF_B64 }),
+        }),
+      )
+      expect(bad.status).toBe(400)
+    } finally {
+      close()
+    }
+  })
+})

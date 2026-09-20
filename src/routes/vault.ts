@@ -32,6 +32,9 @@ const patchNoteSchema = z.object({
   folderId: z.string().uuid().nullable().optional(), // omitted = untouched; null = unfile
   tags: z.string().max(500).optional(),
   starred: z.boolean().optional(),
+  // S86 (0059): the note's emoji — null or '' clears it. Bounded to one grapheme-ish
+  // cluster (family/ZWJ emojis reach ~25 UTF-16 units); sanitized in sanitizeIcon.
+  icon: z.string().max(32).nullable().optional(),
 })
 const createFolderSchema = z.object({
   name: z.string().min(1).max(FOLDER_NAME_LIMIT),
@@ -40,7 +43,44 @@ const createFolderSchema = z.object({
 const patchFolderSchema = z.object({
   name: z.string().min(1).max(FOLDER_NAME_LIMIT).optional(),
   parentId: z.string().uuid().nullable().optional(), // null = move to root
+  // S86 (0059): the folder's emoji — null or '' clears it (the sparks-shelf twin).
+  icon: z.string().max(32).nullable().optional(),
 })
+
+// S86 (0059): the drag-reorder payload — the ids of the CURRENT view in their new
+// visual order (top → bottom). Every id must be a live note owned by the caller.
+const reorderNotesSchema = z.object({
+  ids: z.array(z.string().uuid()).min(1).max(500),
+})
+
+/** S86: normalize a user-picked emoji. One emoji (any codepoints), no control chars,
+ * * no newlines, capped hard. Returns '' when the input isn't a single-ish cluster —
+ * the route stores NULL for that ("no icon"), never a broken string. */
+function sanitizeIcon(raw: string | null | undefined): string | null {
+  const s = String(raw ?? '')
+    .replace(/[\u0000-\u001f\u007f]/g, '') // control chars (newlines included)
+    // NB: \u200d (ZWJ) is deliberately KEPT — it is structural for family/sequence
+    // emojis (👨‍👩‍👧‍👦). Only the invisible-noise twins go: ZWSP, ZWNJ, LRM, RLM,
+    // line/paragraph separators, BOM.
+    .replace(/[\u200b\u200c\u200e\u200f\u2028\u2029\ufeff]/g, '')
+    .trim()
+  if (!s) return null
+  // Grapheme-ish guard. heavy = the code points that carry visible glyphs (ZWJ,
+  // variation selectors and keycap merges are joiners, not glyphs). A real emoji
+  // cluster — even a four-person family — stays ≤ 4 heavy; pasted prose doesn't.
+  const cps = [...s].map((ch) => ch.codePointAt(0) ?? 0)
+  const joiner = (cp: number) => cp === 0x200d || cp === 0xfe0f || cp === 0x20e3
+  const heavy = cps.filter((cp) => !joiner(cp))
+  if (heavy.length > 4 || cps.length > 24) return null
+  // ASCII letters never appear in an emoji cluster (keycaps are digits + FE0F/20E3,
+  // and they keep their merge code points — a LONE letter/digit is prose, not an icon).
+  const hasMerge = cps.some((cp) => cp === 0xfe0f || cp === 0x20e3)
+  for (const cp of heavy) {
+    if ((cp >= 0x41 && cp <= 0x5a) || (cp >= 0x61 && cp <= 0x7a)) return null
+    if (cp >= 0x30 && cp <= 0x39 && !hasMerge) return null
+  }
+  return s
+}
 
 /** Normalize a manual-tags CSV: trim, drop empties + duplicates (case-insensitive),
  * cap the count, re-join with ", ". The pills are rendered from this. */
@@ -243,6 +283,7 @@ export function vaultRoutes(cfg: Config) {
     const params: unknown[] = []
     if (body.name !== undefined) { sets.push('name = ?'); params.push(body.name.trim()) }
     if (body.parentId !== undefined) { sets.push('parent_id = ?'); params.push(body.parentId) }
+    if (body.icon !== undefined) { sets.push('icon = ?'); params.push(sanitizeIcon(body.icon)) } // S86
     if (sets.length) {
       sets.push('updated_at = ?')
       params.push(now())
@@ -300,8 +341,16 @@ export function vaultRoutes(cfg: Config) {
     const user = c.get('user')
     const { where, params } = noteFilters(c, user.id)
     const sort = c.req.query('sort') ?? 'updated'
+    // S86 (0059): 'manual' = the drag-reorder rank (sort_order ASC, updated_at DESC
+    // tiebreak — a note created after a reorder lands at 0 and ties to the top).
     const orderBy =
-      sort === 'created' ? 'created_at DESC' : sort === 'title' ? 'title COLLATE NOCASE ASC' : 'updated_at DESC'
+      sort === 'created'
+        ? 'created_at DESC'
+        : sort === 'title'
+          ? 'title COLLATE NOCASE ASC'
+          : sort === 'manual'
+            ? 'sort_order ASC, updated_at DESC'
+            : 'updated_at DESC'
     const limit = Math.min(Math.max(Number(c.req.query('limit') ?? 200) || 200, 1), 500)
     const rows = await cfg.db.query<VaultNoteRow>(
       `SELECT * FROM vault_notes WHERE ${where} ORDER BY ${orderBy} LIMIT ${limit}`,
@@ -357,6 +406,7 @@ export function vaultRoutes(cfg: Config) {
     if (body.tags !== undefined) { sets.push('tags = ?'); params.push(normalizeTags(body.tags)) }
     if (body.folderId !== undefined) { sets.push('folder_id = ?'); params.push(body.folderId) }
     if (body.starred !== undefined) { sets.push('starred = ?'); params.push(body.starred ? 1 : 0) }
+    if (body.icon !== undefined) { sets.push('icon = ?'); params.push(sanitizeIcon(body.icon)) } // S86
     if (sets.length) {
       sets.push('updated_at = ?')
       params.push(now())
@@ -378,6 +428,44 @@ export function vaultRoutes(cfg: Config) {
       [id, user.id, n.folder_id, (n.title || 'Untitled').slice(0, NOTE_TITLE_LIMIT - 7) + ' (copy)', n.content, n.tags, n.starred, ts, ts],
     )
     return c.json({ ok: true, note: await ownedNote(user.id, id) }, 201)
+  })
+
+  // S86 (0059): manual drag-reorder. The client ships the CURRENT view's note ids in
+  // their new visual order (top → bottom); the endpoint renumbers those 0..n-1 and
+  // pushes every OTHER live note after them (existing relative order kept) so the
+  // global rank stays coherent — folder/tag views are subsets of one rank, not
+  // per-view orders. updated_at is deliberately NOT touched: reordering must never
+  // masquerade as an edit (the card dates + 'Recently edited' sort stay honest).
+  app.post('/notes/reorder', async (c) => {
+    const body = await jsonBody<z.infer<typeof reorderNotesSchema>>(c, reorderNotesSchema)
+    if (!body) return c.json({ error: 'invalid_input' }, 400)
+    const user = c.get('user')
+    const live = await cfg.db.query<{ id: string; sort_order: number; updated_at: string }>(
+      'SELECT id, sort_order, updated_at FROM vault_notes WHERE user_id = ? AND deleted_at IS NULL',
+      [user.id],
+    )
+    if (!live.length) return c.json({ error: 'not_found' }, 404)
+    const byId = new Map(live.map((r) => [r.id, r]))
+    // Unknown/foreign ids are dropped silently (a stale tab can't reorder what it
+    // can't see); duplicates collapse to their first position.
+    const ordered: string[] = []
+    for (const id of body.ids) {
+      if (byId.has(id) && !ordered.includes(id)) ordered.push(id)
+    }
+    if (!ordered.length) return c.json({ error: 'invalid_input' }, 400)
+    // The rest keep their current relative order, after the renumbered block.
+    const rest = live
+      .filter((r) => !ordered.includes(r.id))
+      .sort((a, b) => a.sort_order - b.sort_order || (a.updated_at < b.updated_at ? 1 : -1))
+      .map((r) => r.id)
+    const finalOrder = [...ordered, ...rest]
+    // One UPDATE per note (≤500) inside no transaction is fine at solo-owner scale —
+    // and each statement is idempotent, so a partial failure leaves a consistent
+    // prefix ordering rather than a broken interleave.
+    for (let i = 0; i < finalOrder.length; i++) {
+      await cfg.db.execute('UPDATE vault_notes SET sort_order = ? WHERE id = ? AND user_id = ?', [i, finalOrder[i], user.id])
+    }
+    return c.json({ ok: true, moved: ordered.length })
   })
 
   // Soft delete → Trash (the only DELETE a live note ever gets).

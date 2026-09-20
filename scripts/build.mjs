@@ -81,6 +81,7 @@ const CSS_ENTRY_POINTS = [
   'calendar.css', 'notifications.css', 'polish-batch.css', 'project-header.css',
   'devboard.css', 'misc.css', 'sadhana-board.css', 'themes.css', 'rtl.css', 'task-controls.css',
   'notes.css', // S53: the Notes Vault (after rtl.css by list position — a feature sheet like the rest; specificity is selector-based, not order-based)
+  'claude-dark-theme.css', // S86: the Claude-style warm dark theme — LAST: its token block must win source-order ties with themes.css's [data-theme='dark'] rules
 ]
 
 // In-bundle dynamic-injection literals that get rewritten to hashed URLs during wiring.

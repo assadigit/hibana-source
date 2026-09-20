@@ -1113,3 +1113,72 @@ body.has-mobile-nav:has(.gal-selbar) {
 @media (prefers-contrast: more) {
   .topbar-sync { border-color: var(--badge-awaiting-fg, #85620D); background: var(--card); }
 }
+
+/* S86: DOC uploads in the shot grids — PDF/CSV/XLSX/DOCX/MD/TXT ride the screenshots
+   bucket and render a FILE tile instead of an image. Same aspect-ratio frame the
+   image buttons keep (4/3 shot grids, 16/11 gallery) so mixed grids stay aligned;
+   the extension badge carries the type, the name carries the identity, and the
+   download glyph appears on hover (the <a download> does the work). */
+.shot-file {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  aspect-ratio: 4 / 3;
+  padding: 0.6rem 0.8rem;
+  border: 1px dashed var(--line-strong);
+  border-radius: var(--radius-sm);
+  background: var(--bg-soft);
+  text-decoration: none;
+  color: var(--text);
+  overflow: hidden;
+}
+.gal-card .shot-file { aspect-ratio: 16 / 11; }
+.shot-file-ext {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-inline-size: 3.1rem;
+  block-size: 2.1rem;
+  padding-inline: 0.35rem;
+  border-radius: 8px;
+  background: var(--accent-soft);
+  color: var(--link);
+  font-size: var(--fs-xs);
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  font-variant-numeric: tabular-nums;
+}
+.shot-file-name {
+  flex: 1;
+  min-inline-size: 0;
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  line-height: 1.3;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.shot-file-dl {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  inline-size: 1.6rem;
+  block-size: 1.6rem;
+  border-radius: 999px;
+  color: var(--muted);
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+.shot-file:hover .shot-file-dl,
+.shot-file:focus-visible .shot-file-dl { opacity: 1; }
+.shot-file:hover { border-color: var(--accent); background: var(--accent-soft); }
+.shot-file:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.shot-card.is-fixed .shot-file { opacity: 0.8; }
+/* Phone-width grids: the badge + name row squeezes gracefully (name ellipsizes,
+   the download glyph drops out entirely below 360px). */
+@media (max-width: 360px) {
+  .shot-file-dl { display: none; }
+  .shot-file { gap: 0.4rem; padding: 0.5rem 0.6rem; }
+}

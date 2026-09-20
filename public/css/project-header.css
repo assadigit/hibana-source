@@ -309,7 +309,12 @@
 .pd-task-title-row { display: flex; align-items: flex-start; gap: 0.45rem; }
 .pd-task-title {
   min-inline-size: 0;
-  font-size: var(--fs-sm);
+  /* S86 (owner request: "headings slightly larger and bold — like 12px normal text
+     with a 14px bold heading"): the task's first line IS the heading of its card —
+     0.875rem ≈ 14px vs the 0.8rem body, weight 700. The rest of the card (preview,
+     meta, chips) keeps --fs-sm, so the hierarchy reads exactly as specified. */
+  font-size: 0.875rem;
+  font-weight: 700;
   overflow-wrap: anywhere;
   line-height: 1.3;
   /* Session 23 (user request): titles may be MULTI-LINE now (code blocks, manual line
@@ -317,6 +322,22 @@
      runs of spaces. Single-line legacy titles render exactly as before. */
   white-space: pre-line;
 }
+/* S86: the content preview — one muted line under the heading (the "little preview
+   of the content" the owner asked for). Single-line clamp; the full content lives
+   behind the card click (the editor splits title\ncontent). */
+.pd-task-preview {
+  display: block;
+  font-size: var(--fs-sm);
+  font-weight: 400;
+  color: var(--muted);
+  line-height: 1.35;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-inline-size: 0;
+  max-inline-size: 100%;
+}
+.pd-task.st-done .pd-task-preview { text-decoration: line-through; opacity: 0.7; }
 /* Session 22 (user request): task titles are UNLIMITED now (server cap 100k). The
    progress boxes + board clamp at 150 CHARACTERS (was a 3-line CSS clamp). The split
    is content-based: the first 150 chars render; the rest lives in a hidden

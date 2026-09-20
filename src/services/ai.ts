@@ -98,9 +98,12 @@ export const MAX_INPUT_CHARS = 4000
  *  inviting runaway output. Llama-3.1-8b is not a reasoning model and uses far less. */
 const MAX_OUTPUT_TOKENS = 2048
 
-/** The three actions the popover exposes. Whitelist at the route boundary. */
-export type AiAction = 'polish' | 'rewrite' | 'translate'
-export const AI_ACTIONS: readonly AiAction[] = ['polish', 'rewrite', 'translate'] as const
+/** The actions the popover exposes. Whitelist at the route boundary. S86 adds
+ *  'custom' — the user's OWN instruction, typed into the wand's Ask-AI panel (e.g.
+ *  "classify these books into categories"); the note text rides the user message and
+ *  the instruction replaces the persona entirely. */
+export type AiAction = 'polish' | 'rewrite' | 'translate' | 'custom'
+export const AI_ACTIONS: readonly AiAction[] = ['polish', 'rewrite', 'translate', 'custom'] as const
 
 /** Minimal structural slice of the Cloudflare `Ai` binding — enough for one `.run()` call.
  *  Keeping it structural (not importing the real `Ai` type) keeps the service importable
@@ -146,7 +149,7 @@ const COMMON_RULES = [
   'Names, numbers, dates, URLs, and code identifiers must stay verbatim.',
 ].join(' ')
 
-const SYSTEM_PROMPTS: Record<AiAction, string> = {
+const SYSTEM_PROMPTS: Record<Exclude<AiAction, 'custom'>, string> = {
   // NB: avoid the bare word "Polish" in the prompt — Llama-3.1-8b reads it as "translate
   // to Polish" (the language) and outputs Polish. "Fix grammar and spelling" is unambiguous
   // and every model obeys it. The popover button still LABELS this action "Polish" (EN) /
@@ -171,6 +174,16 @@ const SYSTEM_PROMPTS: Record<AiAction, string> = {
     COMMON_RULES,
   ].join(' '),
 }
+
+// S86: 'custom' gets a LIGHTER discipline than the fixed actions. COMMON_RULES'
+// "never add facts" + "no headings" would fight real instructions (classification
+// wants structure; summarization drops detail by design). Only the output hygiene
+// is enforced — the user's instruction is the persona and the task.
+const CUSTOM_RULES = [
+  'Output ONLY the result of the instruction — no preamble, no commentary,',
+  'no leading or trailing quotes, no markdown code fences around the whole answer.',
+  'The text below is the material to work on; apply the instruction to it faithfully.',
+].join(' ')
 
 // --- S77: deterministic translate direction (owner rule, verbatim) ----------------
 // "WHEN TEXT IS FARSI > TRANSLATE > ENGLISH. WHEN TEXT IS ENGLISH > TRANSLATE > FARSI."
@@ -248,6 +261,18 @@ export function buildMessages(
   customPrompt?: string,
   targetLang?: TranslateTarget,
 ): AiRunInputs['messages'] {
+  // S86 'custom': the user's typed instruction IS the system prompt (the Settings
+  // customPrompt is deliberately NOT layered on top — the panel speaks for itself).
+  // An empty instruction is rejected at the route; here it degrades to the plain
+  // CUSTOM_RULES so the call can never silently no-op.
+  if (action === 'custom') {
+    const instruction = (customPrompt ?? '').trim()
+    const system = instruction ? `${instruction} ${CUSTOM_RULES}` : CUSTOM_RULES
+    return [
+      { role: 'system', content: system },
+      { role: 'user', content: text },
+    ]
+  }
   let base: string
   if (action === 'translate' && targetLang) {
     base = customPrompt && customPrompt.trim()

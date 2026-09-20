@@ -131,6 +131,21 @@
     ? '<button type="button" class="pd-read-more" data-task-read-more aria-expanded="false">' + esc(t('pd.readMore', 'read more')) + '</button>'
     : '')
 
+  // S86 (owner request): the content PREVIEW under the task heading — the lines after
+  // the first \n, flattened, ~110 chars, single-line ellipsis. Mirrors the server's
+  // previewHtml in projects/detail-helpers.ts so client-inserted tasks render the
+  // same card shape as the server-rendered ones.
+  const PREVIEW_CLAMP = 110
+  function previewHtml(title) {
+    const s = String(title == null ? '' : title)
+    const nl = s.indexOf('\n')
+    if (nl < 0) return ''
+    const rest = s.slice(nl + 1).replace(/\s+/g, ' ').trim()
+    if (!rest) return ''
+    const cut = rest.length > PREVIEW_CLAMP
+    return '<span class="pd-task-preview" dir="auto">' + esc(rest.slice(0, PREVIEW_CLAMP)) + (cut ? '…' : '') + '</span>'
+  }
+
   // Label chips. kind 'pd' (project page — span; the page's delegation makes it a
   // filter toggle) or 'db' (board — button carrying the lowercase filter key).
   function tagChip(name, color, kind) {
@@ -170,6 +185,20 @@
         btn.setAttribute('aria-expanded', 'false')
       } else {
         btn.hidden = true
+      }
+    }
+    // S86: the content preview rides the same write — a wand translation or an edit
+    // changes the content too, and a stale preview would contradict the card above it.
+    const body = el.closest('.pd-task-body')
+    if (body) {
+      const old = body.querySelector('.pd-task-preview')
+      const next = previewHtml(text)
+      if (old && next) old.outerHTML = next
+      else if (old && !next) old.remove()
+      else if (next) {
+        // insert right after the title row (before read-more/chips/meta)
+        const row = body.querySelector('.pd-task-title-row')
+        if (row) row.insertAdjacentHTML('afterend', next)
       }
     }
   }
@@ -303,7 +332,7 @@
 
   window.HibanaChips = {
     esc, t, TITLE_CLAMP,
-    renderTitle, titleHtml, titleAttrs, readMoreBtn, applyTitle, htmlToMd,
+    renderTitle, titleHtml, titleAttrs, readMoreBtn, previewHtml, applyTitle, htmlToMd,
     tagChip, tagChipsRow,
   }
 })()

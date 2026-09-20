@@ -417,3 +417,87 @@ describe('POST /api/ai/text (Magic Button route)', () => {
     }
   })
 })
+
+// ── S86: the 'custom' action — the wand's Ask-AI panel (per-request instruction) ──
+describe('ai service S86 — custom action', () => {
+  it('buildMessages: the instruction IS the system prompt; CUSTOM_RULES rides it, not COMMON_RULES', () => {
+    const msgs = buildMessages('custom', 'book list', 'Classify these books into categories')
+    expect(msgs).toHaveLength(2)
+    expect(msgs[0].role).toBe('system')
+    expect(msgs[1].content).toBe('book list')
+    // the user's instruction leads verbatim
+    expect(msgs[0].content.startsWith('Classify these books into categories')).toBe(true)
+    // the lighter output hygiene — NOT the fixed actions' "never add facts / no headings"
+    expect(msgs[0].content).toContain('Output ONLY the result of the instruction')
+    expect(msgs[0].content).not.toContain('Never add facts and never drop meaning')
+    expect(msgs[0].content).not.toContain('no headings')
+  })
+
+  it('buildMessages: an EMPTY instruction degrades to the bare CUSTOM_RULES (route rejects it first)', () => {
+    const msgs = buildMessages('custom', 'x', '')
+    expect(msgs[0].content).toContain('Output ONLY the result of the instruction')
+    expect(msgs[0].content).not.toContain('undefined')
+  })
+
+  it('runAiTransform threads the custom instruction; the answer round-trips cleaned', async () => {
+    let seen: { model: string; inputs: { messages: unknown[] } } | null = null
+    const ai: AiRunner = {
+      async run(model, inputs) {
+        seen = { model, inputs: inputs as unknown as { messages: unknown[] } }
+        return { result: { response: '```markdown\n## Categories\nFiction: 3\n```' } }
+      },
+    }
+    const out = await runAiTransform(ai, 'custom', 'books', undefined, 'Classify into categories')
+    expect(out.ok).toBe(true)
+    if (out.ok) {
+      // fence wrappers stripped; the structured body kept (classification WANTS headings)
+      expect(out.text).toBe('## Categories\nFiction: 3')
+    }
+    expect(seen && (seen as { inputs: { messages: { role: string; content: string }[] } }).inputs.messages[0].content).toContain('Classify into categories')
+  })
+
+  it('the translate direction check NEVER runs for custom (any language answer is valid)', async () => {
+    const ai: AiRunner = { async run() { return { result: { response: 'دسته‌بندی کتاب‌ها' } } } }
+    const out = await runAiTransform(ai, 'custom', 'books', undefined, 'دسته‌بندی کن')
+    expect(out.ok).toBe(true)
+  })
+})
+
+describe('POST /api/ai/text S86 — custom action route contract', () => {
+  it('400 when action=custom carries no instruction (the panel requirement is server-enforced)', async () => {
+    const { db, close } = makeTestDb()
+    let runCalled = false
+    try {
+      const user = await makeUser(db)
+      const client = await makeClient(db, user, {
+        async run() { runCalled = true; return { result: { response: 'x' } } },
+      })
+      const res = await post(client, { text: 'hi', action: 'custom' })
+      expect(res.status).toBe(400)
+      const body = (await res.json()) as { message?: string }
+      expect(body.message).toContain('instruction')
+      expect(runCalled).toBe(false)
+    } finally {
+      close()
+    }
+  })
+
+  it('200 through a mock binding: the instruction is the system prompt, the note the user message', async () => {
+    const { db, close } = makeTestDb()
+    let seen: unknown = null
+    try {
+      const user = await makeUser(db)
+      const client = await makeClient(db, user, {
+        async run(_model, inputs) { seen = inputs; return { result: { response: 'categorized!' } } },
+      })
+      const res = await post(client, { text: 'my wishlist books', action: 'custom', customPrompt: 'Classify these books into categories' })
+      expect(res.status).toBe(200)
+      expect(((await res.json()) as { text: string }).text).toBe('categorized!')
+      const msgs = (seen as { messages: { role: string; content: string }[] }).messages
+      expect(msgs[0].content).toContain('Classify these books into categories')
+      expect(msgs[1].content).toBe('my wishlist books')
+    } finally {
+      close()
+    }
+  })
+})

@@ -20,11 +20,26 @@ export const esc = (s: string): string =>
 export function extForMime(mime: string): string {
   if (mime === 'image/jpeg') return '.jpg'
   if (mime === 'image/webp') return '.webp'
+  // S86: the doc-upload set rides the same bucket — the extension must round-trip
+  // so the stored path serves with the right Content-Type (mimeForPath below).
+  if (mime === 'application/pdf') return '.pdf'
+  if (mime === 'text/csv') return '.csv'
+  if (mime === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet') return '.xlsx'
+  if (mime === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') return '.docx'
+  if (mime === 'text/markdown') return '.md'
+  if (mime === 'text/plain') return '.txt'
   return '.png'
 }
 export function mimeForPath(path: string): string {
   if (path.endsWith('.webp')) return 'image/webp'
   if (path.endsWith('.jpg') || path.endsWith('.jpeg')) return 'image/jpeg'
+  if (path.endsWith('.gif')) return 'image/gif'
+  if (path.endsWith('.pdf')) return 'application/pdf'
+  if (path.endsWith('.csv')) return 'text/csv'
+  if (path.endsWith('.xlsx')) return 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+  if (path.endsWith('.docx')) return 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+  if (path.endsWith('.md') || path.endsWith('.markdown')) return 'text/markdown'
+  if (path.endsWith('.txt')) return 'text/plain'
   return 'image/png'
 }
 

@@ -331,6 +331,19 @@ export function detailHtml(p: ProjectRow, d: Awaited<ReturnType<typeof loadDetai
       ? renderTitle(titleOnly)
       : renderTitle(titleOnly.slice(0, TITLE_CLAMP)) + `<span class="pd-title-rest" hidden>${renderTitle(titleOnly.slice(TITLE_CLAMP))}</span>`
   }
+  // S86 (owner request): under the (now bolder, larger) heading, a LITTLE PREVIEW of
+  // the task's content — the lines after the first \n, flattened, ~110 chars,
+  // single-line ellipsis. Markup-only change: data-raw-title stays the source of
+  // truth, the editor/clamp/read-more flows are untouched.
+  const previewHtml = (title: string): string => {
+    const nl = title.indexOf('\n')
+    if (nl < 0) return ''
+    const rest = title.slice(nl + 1).replace(/\s+/g, ' ').trim()
+    if (!rest) return ''
+    const PREVIEW_CLAMP = 110
+    const cut = rest.length > PREVIEW_CLAMP
+    return `<span class="pd-task-preview" dir="auto">${esc(rest.slice(0, PREVIEW_CLAMP))}${cut ? '…' : ''}</span>`
+  }
   const titleAttrs = (title: string): string => (title.length > TITLE_CLAMP ? ' data-clamped=""' : '') + ` data-raw-title="${esc(title)}"`
   const readMoreBtn = (title: string): string =>
     title.length > TITLE_CLAMP
@@ -383,6 +396,7 @@ export function detailHtml(p: ProjectRow, d: Awaited<ReturnType<typeof loadDetai
                       <button type="button" class="prio-dot-btn" data-pd-cycle-prio title="${esc(trL(lang, 'Priority: {p} — click to change', 'اولویت: {p} — برای تغییر کلیک کن', { p: prioLabel(t.priority) }))}" aria-label="${esc(trL(lang, 'Priority: {p} — click to change', 'اولویت: {p} — برای تغییر کلیک کن', { p: prioLabel(t.priority) }))}"><span class="prio-dot prio-${t.priority}"></span></button>
                       <span class="pd-task-title"${titleAttrs(t.title)}>${titleHtml(t.title)}</span>
                     </span>
+                    ${previewHtml(t.title)}
                     ${readMoreBtn(t.title)}
                     ${taskTagChips(t.id)}
                     <span class="pd-task-meta"><span class="pd-meta-prio prio-${t.priority}">${esc(prioLabel(t.priority))}</span> · ${taskMetaLabel(t)}${pinsByTask.has(t.id) ? ` · <button type="button" class="pd-task-shots" data-pd-shots="${t.id}" title="${esc(trL(lang, 'Pinned pictures — note + proof stuck to this item', 'تصاویر سنجاق‌شده — یادداشت + مدرکِ سنجاق‌شده به این قلم'))}" aria-label="${esc(trL(lang, 'Pinned pictures ({n})', 'تصاویر سنجاق‌شده ({n})', { n: dig(pinsByTask.get(t.id)!) }))}">${icon('pin')} ${dig(pinsByTask.get(t.id)!)}</button>` : ''}</span>
@@ -543,7 +557,7 @@ export function detailHtml(p: ProjectRow, d: Awaited<ReturnType<typeof loadDetai
   <section class="card detail-panel" id="detail-media" role="tabpanel" data-detail-panel="media" hidden>
     <h3>${trL(lang, 'Screenshots — UI/UX problems', 'اسکرین‌شات‌ها — مشکلات UI/UX')}</h3>
     <p class="muted small">${trL(lang, 'Snap what looks broken (button, file picker, gallery), drop it here or paste it, then write the note on the card — what & where to work. Fix it and check it off.', 'از چیزهای خراب عکس بگیر (دکمه، فایل‌پیکر، گالری)، همین‌جا رها کن یا پیست کن، بعد روی کارت یادداشتش را بنویس — چه چیزی و کجا. درستش که شد تیکش را بزن.')}</p>
-    <input type="file" id="shot-input" accept="image/png,image/jpeg,image/webp,image/gif" multiple hidden>
+    <input type="file" id="shot-input" accept=".pdf,.csv,.xlsx,.docx,.md,.txt,image/png,image/jpeg,image/webp,image/gif" multiple hidden>
     <button class="ghost" onclick="document.getElementById('shot-input').click()">${trL(lang, 'Upload screenshots', 'آپلود اسکرین‌شات‌ها')}</button>
     <div class="shot-grid" id="shots" hx-trigger="load" hx-swap="innerHTML">${shots}</div>
   </section>
@@ -664,9 +678,9 @@ export function detailHtml(p: ProjectRow, d: Awaited<ReturnType<typeof loadDetai
            task (PATCH taskId); on cancel they're deleted (cleanup). project-page.js owns the
            stagedShots[] state + the render/delete/edit-note/pin/cleanup lifecycle. -->
       <div class="pd-taskadd-shots">
-        <input type="file" id="pd-taskadd-shots" accept="image/png,image/jpeg,image/webp,image/gif" multiple hidden>
+        <input type="file" id="pd-taskadd-shots" accept=".pdf,.csv,.xlsx,.docx,.md,.txt,image/png,image/jpeg,image/webp,image/gif" multiple hidden>
         <div class="row" style="gap:.4rem;align-items:center;margin-top:.5rem">
-          <button type="button" class="ghost small" onclick="document.getElementById('pd-taskadd-shots').click()" title="${trL(lang, 'Attach a UI/UX screenshot — pinned to this item', 'افزودن اسکرین‌شات UI/UX — سنجاق شده به این قلم')}">${icon('image')} ${trL(lang, 'Attach screenshot', 'افزودن اسکرین‌شات')}</button>
+          <button type="button" class="ghost small" onclick="document.getElementById('pd-taskadd-shots').click()" title="${trL(lang, 'Upload files — images, PDF, Excel, Word, Markdown, text — pinned to this item', 'آپلود فایل — تصویر، PDF، اکسل، ورد، مارک‌داون، متن — سنجاق‌شده به این قلم')}">${icon('attach')} ${trL(lang, 'Upload files', 'آپلود فایل')}</button>
           <!-- S61: the old «در حال اپلود تصویر …» span is gone — project-page.js mounts a
                .shots-upload-strip with per-file progress bars right above the grid. -->
           <span class="muted small" id="pd-taskadd-shots-count"></span>

@@ -249,6 +249,8 @@ export interface NoteFolderRow {
   parent_id: string | null
   name: string
   sort_order: number
+  /** 0059 (S86): user-picked emoji shown before the folder name (null = default icon). */
+  icon?: string | null
   created_at: string
   updated_at: string
 }
@@ -262,6 +264,10 @@ export interface VaultNoteRow {
   tags: string // CSV of manual tag pills
   starred: 0 | 1
   deleted_at: string | null
+  /** 0059 (S86): user-picked emoji shown on the note card + editor (null = none). */
+  icon?: string | null
+  /** 0059 (S86): manual drag-reorder rank (0 = legacy; sort=manual orders ASC). */
+  sort_order?: number
   created_at: string
   updated_at: string
 }
@@ -290,6 +296,9 @@ export interface ScreenshotRow {
   github_path: string
   mime_type: string
   caption: string
+  /** 0059 (S86): the ORIGINAL file name (doc uploads — PDF/XLSX/…). NULL = legacy image
+   *  rows; the display falls back to parsing the github_path basename. */
+  filename?: string | null
   created_at: string
   /** 0053 (S35): 0 = an OPEN UI/UX problem, 1 = fixed. */
   resolved: number

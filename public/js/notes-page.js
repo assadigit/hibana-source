@@ -115,6 +115,9 @@ document.documentElement.setAttribute('data-hibana-booted', '1')
         refresh: '<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M21 12a9 9 0 1 1-2.6-6.4M21 3v5h-5"/></svg>',
         // S67: reading-time chip glyph — same clock path as the palette's 'clock'.
         clock: '<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></svg>',
+        // S86: the emoji-picker menu glyph + the Ask-AI sparkle (the wand's twin).
+        smile: '<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M8.5 14.5a4.5 4.5 0 0 0 7 0"/><path d="M9 9.7h.01M15 9.7h.01" stroke-linecap="round" stroke-width="2.2"/></svg>',
+        sparkle: '<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l1.7 4.3L18 9l-4.3 1.7L12 15l-1.7-4.3L6 9l4.3-1.7L12 3Z"/><path d="M19 14l.9 2.1L22 17l-2.1.9L19 20l-.9-2.1L16 17l2.1-.9L19 14Z"/></svg>',
       }
 
       /* ── state ── */
@@ -216,7 +219,7 @@ document.documentElement.setAttribute('data-hibana-booted', '1')
           btn.className = 'vault-pop-item' + (it.danger ? ' is-danger' : '')
           btn.setAttribute('role', 'menuitem')
           btn.innerHTML = (it.icon || '') + '<span>' + esc(it.label) + '</span>'
-          btn.addEventListener('click', () => { closeMenu(); it.onClick() })
+          btn.addEventListener('click', () => { closeMenu(); it.onClick(anchor) })
           pop.appendChild(btn)
         }
         document.body.appendChild(pop)
@@ -277,10 +280,16 @@ document.documentElement.setAttribute('data-hibana-booted', '1')
         const isOpen = state.expanded.has(f.id)
         const cur = state.view.type === 'folder' && state.view.id === f.id
         const cnt = noteCountIn(f.id)
+        // S86 (0059): the folder's user-picked emoji replaces the default folder glyph
+        // (the sparks-shelf treatment). A set icon also gets a subtle emphasis so the
+        // pick reads as intentional, not as stray text.
+        const glyph = f.icon
+          ? `<span class="vault-folder-emoji" role="img" aria-label="">${esc(f.icon)}</span>`
+          : I.folder
         return `<div class="vault-folder-row" data-folder-row="${f.id}" style="padding-inline-start:${depth * 0.85}rem">
           <button type="button" class="vault-tw${kids.length ? '' : ' spacer'}" data-vault-tw="${f.id}" aria-expanded="${kids.length ? isOpen : false}" aria-label="${esc(_t('notes.toggleFolder', 'Expand folder'))}" tabindex="${kids.length ? 0 : -1}">${I.chevron}</button>
           <button type="button" class="vault-folder" data-vault-view="folder" data-vault-id="${f.id}" aria-current="${cur}">
-            ${I.folder}<span class="vault-folder-name" dir="auto">${esc(f.name)}</span>
+            ${glyph}<span class="vault-folder-name" dir="auto">${esc(f.name)}</span>
             ${cnt != null ? `<span class="vault-n">${cnt}</span>` : ''}
             <span class="vault-kebab" data-vault-folder-kebab="${f.id}" role="button" tabindex="0" aria-label="${esc(_t('notes.folderMenu', 'Folder options'))}" aria-haspopup="menu">${I.kebab}</span>
           </button>
@@ -344,6 +353,10 @@ document.documentElement.setAttribute('data-hibana-booted', '1')
           + inlineTags(n.content).filter((t) => !csvTags(n.tags).some((m) => m.toLowerCase() === t.toLowerCase())).slice(0, 3 - Math.min(3, csvTags(n.tags).length))
             .map((t) => `<span class="vault-pill is-inline">#${esc(t)}</span>`).join('')
         const title = n.title.trim() || _t('notes.untitled', 'Untitled')
+        // S86: the note's user-picked emoji rides the title (cards + drag affordance:
+        // live notes are draggable to reorder — trash is frozen at its deletion order).
+        const emoji = n.icon ? `<span class="vault-card-emoji" role="img" aria-label="">${esc(n.icon)}</span>` : ''
+        const draggable = state.view.type === 'trash' ? '' : ' draggable="true"'
         // S67: reading-time chip on the CARD — the S63 reader-head estimate, surfaced
         // where the list is scanned (the S66 next-session candidate). Same rule as the
         // reader: <200 words stays silent (an instant read needs no number); ~200 wpm;
@@ -352,12 +365,12 @@ document.documentElement.setAttribute('data-hibana-booted', '1')
         const readChip = words >= 200
           ? `<span class="vault-card-read" title="${esc(_t('notes.readTime', '~{n} min read').split('{n}').join(dig(Math.max(1, Math.round(words / 200)))))}">${I.clock || ''}${esc(_t('notes.minRead', '~{n} min').split('{n}').join(dig(Math.max(1, Math.round(words / 200)))))}</span>`
           : ''
-        return `<article class="vault-card" data-vault-card="${n.id}" aria-current="${active}" tabindex="0">
+        return `<article class="vault-card" data-vault-card="${n.id}" aria-current="${active}" tabindex="0"${draggable}>
           <div class="vault-card-date">
             <time datetime="${n.updated_at}">${fmtDay(n.updated_at)}</time>
             ${n.starred ? `<span class="vault-card-star" aria-label="${esc(_t('notes.starred', 'Starred'))}">${I.star}</span>` : ''}
           </div>
-          <h2 class="vault-card-title${n.title.trim() ? '' : ' is-untitled'}" dir="auto">${esc(n.title.trim() || title)}</h2>
+          <h2 class="vault-card-title${n.title.trim() ? '' : ' is-untitled'}" dir="auto">${emoji}${esc(n.title.trim() || title)}</h2>
           ${n.excerpt ? `<p class="vault-card-excerpt" dir="auto">${esc(n.excerpt)}</p>` : ''}
           <div class="vault-card-meta">
             ${pills}
@@ -471,6 +484,7 @@ document.documentElement.setAttribute('data-hibana-booted', '1')
             </div>
           </div>
           <div class="vault-ed-titlewrap">
+            <button type="button" class="vault-ed-emoji${n.icon ? ' is-set' : ''}" data-vault-emoji ${trash ? 'disabled' : ''} title="${esc(_t('notes.setEmoji', 'Set emoji'))}" aria-label="${esc(_t('notes.setEmoji', 'Set emoji'))}">${n.icon ? esc(n.icon) : I.smile}</button>
             <input class="vault-ed-title" data-vault-title dir="auto" maxlength="300"
               placeholder="${esc(_t('notes.titlePlaceholder', 'Untitled'))}"
               value="${esc(state.draft.title)}"
@@ -500,6 +514,8 @@ document.documentElement.setAttribute('data-hibana-booted', '1')
               <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M10 14a5 5 0 0 0 7 0l3-3a5 5 0 0 0-7-7l-1.5 1.5"/><path d="M14 10a5 5 0 0 0-7 0l-3 3a5 5 0 0 0 7 7L12.5 19"/></svg>
             </button>
             <button type="button" class="vault-tb" data-vault-tb="hr" title="---" aria-label="${esc(_t('notes.tb.hr', 'Divider'))}">—</button>
+            <span class="vault-tb-sep"></span>
+            <button type="button" class="vault-tb vault-tb-ai" data-vault-ai ${trash ? 'disabled' : ''} title="${esc(_t('notes.askAi', 'Ask AI — polish, translate, or your own instruction'))}" aria-label="${esc(_t('notes.askAi', 'Ask AI — polish, translate, or your own instruction'))}">${I.sparkle}</button>
             <div class="vault-modes" role="group" aria-label="${esc(_t('notes.editorMode', 'Editor mode'))}">
               <button type="button" class="vault-mode" data-vault-mode="edit" aria-pressed="${state.mode === 'edit'}">${esc(_t('notes.modeEdit', 'Edit'))}</button>
               <button type="button" class="vault-mode" data-vault-mode="split" aria-pressed="${state.mode === 'split'}">${esc(_t('notes.modeSplit', 'Split'))}</button>
@@ -1089,6 +1105,124 @@ document.documentElement.setAttribute('data-hibana-booted', '1')
         } catch { toast(_t('notes.starFailed', 'Could not star the note.'), 'err') }
       }
 
+      /* ── S86: emoji for notes + folders (the shared full-library picker) ── */
+      const pickNoteEmoji = (anchor) => {
+        if (!state.active || state.active.deleted_at) return
+        window.hibanaEmojiPicker?.open({
+          anchor: anchor instanceof Element ? anchor : undefined,
+          current: state.active.icon || undefined,
+          onPick: async (emoji) => {
+            try {
+              const res = await api('/api/vault/notes/' + state.active.id, { method: 'PATCH', body: JSON.stringify({ icon: emoji }) })
+              if (state.active && res.note) state.active = res.note
+              // the open card + the editor chip update in place (no list refetch —
+              // the icon PATCH must not masquerade as an edit for OTHER sort modes)
+              const card = document.querySelector('[data-vault-card="' + state.active.id + '"] .vault-card-title')
+              if (card) {
+                const old = card.querySelector('.vault-card-emoji')
+                if (old) old.remove()
+                card.insertAdjacentHTML('afterbegin', `<span class="vault-card-emoji" role="img" aria-label="">${esc(emoji)}</span>`)
+              }
+              renderEditor()
+            } catch { toast(_t('notes.emojiFailed', 'Could not set the emoji.'), 'err') }
+          },
+        })
+      }
+
+      const clearNoteEmoji = async () => {
+        if (!state.active || state.active.deleted_at) return
+        try {
+          const res = await api('/api/vault/notes/' + state.active.id, { method: 'PATCH', body: JSON.stringify({ icon: null }) })
+          if (state.active && res.note) state.active = res.note
+          const card = document.querySelector('[data-vault-card="' + state.active.id + '"] .vault-card-emoji')
+          if (card) card.remove()
+          renderEditor()
+        } catch { toast(_t('notes.emojiFailed', 'Could not set the emoji.'), 'err') }
+      }
+
+      const pickFolderEmoji = (f, anchor) => {
+        window.hibanaEmojiPicker?.open({
+          anchor: anchor instanceof Element ? anchor : undefined,
+          current: f.icon || undefined,
+          onPick: async (emoji) => {
+            try {
+              await api('/api/vault/folders/' + f.id, { method: 'PATCH', body: JSON.stringify({ icon: emoji }) })
+              const row = folderById(f.id)
+              if (row) row.icon = emoji
+              renderTree()
+            } catch { toast(_t('notes.emojiFailed', 'Could not set the emoji.'), 'err') }
+          },
+        })
+      }
+
+      const clearFolderEmoji = async (f) => {
+        try {
+          await api('/api/vault/folders/' + f.id, { method: 'PATCH', body: JSON.stringify({ icon: null }) })
+          const row = folderById(f.id)
+          if (row) row.icon = null
+          renderTree()
+        } catch { toast(_t('notes.emojiFailed', 'Could not set the emoji.'), 'err') }
+      }
+
+      /* ── S86 (0059): manual drag-reorder of the note cards ──
+         HTML5 DnD on [draggable] cards; touch-drag.js (already loaded on this page)
+         synthesizes the same events from a 250ms long-press, so phones reorder too.
+         The dragged node moves LIVE (insertBefore on dragover, the quicknotes
+         pattern); drop/dragend persists the whole visible order. A drag flips the
+         sort to 'manual' — the arrangement the user just made becomes THE order. */
+      let dragCard = null
+      const onCardDragStart = (e) => {
+        const card = e.target instanceof Element ? e.target.closest('[data-vault-card][draggable]') : null
+        if (!card) return
+        dragCard = card
+        card.classList.add('vault-card-dragging')
+        e.dataTransfer.effectAllowed = 'move'
+        try { e.dataTransfer.setData('text/plain', card.getAttribute('data-vault-card') || '') } catch {}
+      }
+      const onCardDragOver = (e) => {
+        if (!dragCard) return
+        const over = e.target instanceof Element ? e.target.closest('[data-vault-card]') : null
+        if (!over || over === dragCard || over.parentElement !== dragCard.parentElement) return
+        e.preventDefault()
+        try { e.dataTransfer.dropEffect = 'move' } catch {}
+        const r = over.getBoundingClientRect()
+        const before = e.clientY - r.top < r.height / 2
+        over.parentElement.insertBefore(dragCard, before ? over : over.nextSibling)
+      }
+      const onCardDrop = (e) => {
+        if (!dragCard) return
+        e.preventDefault()
+        persistReorder()
+      }
+      const onCardDragEnd = () => {
+        if (!dragCard) return
+        dragCard.classList.remove('vault-card-dragging')
+        dragCard = null
+      }
+      const persistReorder = async () => {
+        const el = cardsEl()
+        if (!el) return
+        const ids = [...el.querySelectorAll('[data-vault-card]')].map((c) => c.getAttribute('data-vault-card'))
+        if (ids.length < 2) return
+        // The arrangement the user just made IS the order — flip the sort so it STAYS.
+        if (state.sort !== 'manual') {
+          state.sort = 'manual'
+          prefs.sort = 'manual'
+          savePrefs()
+          const sel = $('[data-vault-sort]')
+          if (sel) sel.value = 'manual'
+        }
+        // keep the local model in the DOM's order (no refetch, no flash)
+        const byId = new Map(state.notes.map((n) => [n.id, n]))
+        state.notes = ids.map((id) => byId.get(id)).filter(Boolean)
+        try {
+          await api('/api/vault/notes/reorder', { method: 'POST', body: JSON.stringify({ ids }) })
+        } catch {
+          toast(_t('notes.reorderFailed', "Couldn't save the order."), 'err')
+          loadNotes() // the server truth wins — restore the last saved order
+        }
+      }
+
       const deleteNote = async (id) => {
         try {
           await api('/api/vault/notes/' + id, { method: 'DELETE' })
@@ -1217,6 +1351,9 @@ document.documentElement.setAttribute('data-hibana-booted', '1')
         }
         const items = []
         items.push({ icon: I.move, label: _t('notes.moveTo', 'Move to folder…'), onClick: moveMenu })
+        // S86: emoji set/clear rides the note menu (the editor chip is the quick path)
+        items.push({ icon: I.smile, label: _t('notes.setEmoji', 'Set emoji…'), onClick: (anchor) => pickNoteEmoji(anchor) })
+        if (n.icon) items.push({ icon: I.x, label: _t('notes.removeEmoji', 'Remove emoji'), onClick: clearNoteEmoji })
         items.push({ icon: I.copy, label: _t('notes.duplicate', 'Duplicate'), onClick: duplicateNote })
         items.push({ icon: I.copy, label: _t('notes.copyMd', 'Copy as Markdown'), onClick: copyNoteMd })
         items.push({ icon: I.download, label: _t('notes.exportMd', 'Export as .md'), onClick: () => { window.location.href = '/api/vault/notes/' + n.id + '/export.md' } })
@@ -1285,6 +1422,8 @@ document.documentElement.setAttribute('data-hibana-booted', '1')
         const f = folderById(id)
         if (!f) return
         openMenu(anchor, [
+          { icon: I.smile, label: _t('notes.setEmoji', 'Set emoji…'), onClick: (a) => pickFolderEmoji(f, a) },
+          ...(f.icon ? [{ icon: I.x, label: _t('notes.removeEmoji', 'Remove emoji'), onClick: () => clearFolderEmoji(f) }] : []),
           { icon: I.pencil, label: _t('notes.renameFolder', 'Rename…'), onClick: () => renameFolderDialog(f) },
           { icon: I.folder, label: _t('notes.newSubfolder', 'New subfolder…'), onClick: () => { state.expanded.add(f.id); renderTree(); newFolderInline(f.id) } },
           '-',
@@ -1596,6 +1735,16 @@ document.documentElement.setAttribute('data-hibana-booted', '1')
         // editor actions
         if (t.closest('[data-vault-new]')) { newNote(); return }
         if (t.closest('[data-vault-star]')) { toggleStar(); return }
+        // S86: the editor's emoji chip + the toolbar's Ask-AI button
+        const emojiBtn = t.closest('[data-vault-emoji]')
+        if (emojiBtn) { pickNoteEmoji(emojiBtn); return }
+        const aiBtn = t.closest('[data-vault-ai]')
+        if (aiBtn) {
+          const src = $('[data-vault-src]')
+          if (src && window.hibanaMagicWand) window.hibanaMagicWand.openFor(src)
+          else if (!window.hibanaMagicWand) toast(_t('magic.failed', 'The AI request failed. Your text was not changed.'), 'err')
+          return
+        }
         const kb = t.closest('[data-vault-kebab]')
         if (kb) { noteMenu(kb); return }
         const crumbBtn = t.closest('[data-vault-crumb]')
@@ -1751,6 +1900,11 @@ document.documentElement.setAttribute('data-hibana-booted', '1')
       document.addEventListener('input', onSearch)
       document.addEventListener('change', onSort)
       document.addEventListener('hibana:i18n', onI18n)
+      // S86: the card drag-reorder (HTML5 DnD — touch-drag.js synthesizes these on phones)
+      document.addEventListener('dragstart', onCardDragStart)
+      document.addEventListener('dragover', onCardDragOver)
+      document.addEventListener('drop', onCardDrop)
+      document.addEventListener('dragend', onCardDragEnd)
       // S84: caret tracking for the live checkboxes (selectionchange covers caret
       // moves in Chromium; the per-textarea keyup/mouseup/focus listeners in
       // wireLiveChecks are the belt) + pane re-measure on resize/rotation
@@ -1854,6 +2008,10 @@ document.documentElement.setAttribute('data-hibana-booted', '1')
         document.removeEventListener('change', onSort)
         document.removeEventListener('hibana:i18n', onI18n)
         document.removeEventListener('click', onPersistView)
+        document.removeEventListener('dragstart', onCardDragStart)
+        document.removeEventListener('dragover', onCardDragOver)
+        document.removeEventListener('drop', onCardDrop)
+        document.removeEventListener('dragend', onCardDragEnd)
         if (liveRaf) cancelAnimationFrame(liveRaf)
         clearTimeout(liveResizeT)
         document.removeEventListener('selectionchange', onLiveCaret)

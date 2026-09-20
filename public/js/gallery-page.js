@@ -206,6 +206,24 @@
         const objectUrls = new Set()
         const healedThisSession = new Set()
         const thumbUrl = (id) => '/api/media/screenshots/' + encodeURIComponent(id) + '/file?variant=thumb'
+        // S86: doc uploads (PDF/XLSX/…) render a FILE tile — no lazy thumb fetch, no
+        // lightbox; the <a download> carries the affordance (the serving route adds
+        // Content-Disposition: attachment for non-images).
+        const isDocRow = (r) => !String(r && r.mime_type ? r.mime_type : '').startsWith('image/')
+        const galShotName = (r) => {
+          const direct = String(r && r.filename ? r.filename : '').trim()
+          if (direct) return direct
+          return String(r && r.github_path ? r.github_path : '').split('/').pop().replace(/^[0-9a-f-]{36}-/i, '') || 'file'
+        }
+        const galFileTileHtml = (r) => {
+          const name = galShotName(r)
+          const ext = (name.split('.').pop() || '').toUpperCase().slice(0, 5) || 'FILE'
+          return '<a class="shot-file" href="/api/media/screenshots/' + encodeURIComponent(r.id) + '/file" download aria-label="' + esc(_t('project.downloadFile', 'Download {f}').replace('{f}', name)) + '" title="' + esc(_t('project.downloadFile', 'Download {f}').replace('{f}', name)) + '">' +
+            '<span class="shot-file-ext" aria-hidden="true">' + esc(ext) + '</span>' +
+            '<span class="shot-file-name" dir="auto">' + esc(name) + '</span>' +
+            '<span class="shot-file-dl" aria-hidden="true"><svg class="icon" viewBox="0 0 24 24"><path d="M12 3v12m0 0l-4-4m4 4l4-4M5 21h14"/></svg></span>' +
+            '</a>'
+        }
         const lazyIO = new IntersectionObserver((entries) => {
           for (const en of entries) {
             if (!en.isIntersecting) continue
@@ -499,12 +517,14 @@
               const pin = r.task_id
                 ? '<span class="chip gal-pin" dir="auto" title="' + esc(_t('gallery.pinHint', 'Pinned to a progress-box item')) + '">📌 ' + esc(boxLabel(r.task_status)) + ' · ' + esc(String(r.task_title || '').replace(/\s+/g, ' ').slice(0, 60)) + '</span>'
                 : ''
-              return '<figure class="shot shot-card gal-card' + (r.resolved ? ' is-fixed' : '') + (state.sel.has(r.id) ? ' is-sel' : '') + '" data-shot="' + esc(r.id) + '">' +
+              return '<figure class="shot shot-card gal-card' + (r.resolved ? ' is-fixed' : '') + (state.sel.has(r.id) ? ' is-sel' : '') + (isDocRow(r) ? ' is-file' : '') + '" data-shot="' + esc(r.id) + '">' +
                 '<button type="button" class="gal-check" data-gal-check="' + esc(r.id) + '" aria-pressed="' + (state.sel.has(r.id) ? 'true' : 'false') + '" aria-label="' + esc(_t('gallery.selectPicture', 'Select picture')) + '">' +
                   '<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 6L9 17l-5-5"/></svg>' +
                 '</button>' +
-                '<button type="button" class="shot-img-btn" data-gal-zoom="' + esc(r.id) + '" aria-label="' + esc(_t('project.shotZoom', 'Screenshot')) + '">' +
-                '<img alt="' + esc(r.caption || '') + '" decoding="async"></button>' +
+                (isDocRow(r)
+                  ? galFileTileHtml(r)
+                  : '<button type="button" class="shot-img-btn" data-gal-zoom="' + esc(r.id) + '" aria-label="' + esc(_t('project.shotZoom', 'Screenshot')) + '">' +
+                '<img alt="' + esc(r.caption || '') + '" decoding="async"></button>') +
                 '<figcaption class="shot-body">' +
                 '<p class="shot-note muted small' + (r.caption ? ' has-note' : '') + '" dir="auto" data-gal-note="' + esc(r.id) + '" role="button" tabindex="0" title="' + esc(_t('gallery.editNote', 'Click to edit the note')) + '">' + (esc(r.caption) || '<span class="shot-note-empty">' + esc(_t('gallery.noNote', 'No note')) + '</span>') + '</p>' +
                 '<div class="row gal-chips" style="gap:0.3rem;flex-wrap:wrap">' +

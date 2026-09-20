@@ -93,6 +93,7 @@ export function icon(name: string, cls = 'icon'): string {
       case 'chevron-left': return '<path d="M14.5 5.5 8 12l6.5 6.5"/>'
       case 'chevron-right': return '<path d="M9.5 5.5 16 12l-6.5 6.5"/>'
       case 'image': return '<rect x="3.5" y="5" width="17" height="14" rx="2"/><circle cx="8" cy="10" r="1.5"/><path d="M21 16l-5-5L5 19"/>'
+      case 'attach': return '<path d="M21.2 11.2 12.6 19.8a5.4 5.4 0 0 1-7.6-7.6l8.5-8.5a3.6 3.6 0 0 1 5.1 5.1l-8.5 8.5a1.8 1.8 0 0 1-2.5-2.5l7.8-7.8"/>'
       case 'bell': return '<path d="M18 8.5a6 6 0 0 0-12 0c0 6.5-2.5 7.8-2.5 9h17c0-1.2-2.5-2.5-2.5-9"/><path d="M10 21a2 2 0 0 0 4 0"/>'
       case 'mountain': return '<path d="M3.5 20h17L14 5.5l-3.5 6L8.2 8.3 3.5 20Z"/>'
       case 'leaf': return '<path d="M4.5 19.5C4.5 10 10 4.5 19.5 4.5c0 9.5-5.5 15-15 15Z"/><path d="M4.5 19.5c4.5-7.5 9-12 13.5-13.5"/>'

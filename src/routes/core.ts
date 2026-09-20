@@ -44,6 +44,27 @@ const SHOT_BOX: Record<string, [string, string]> = {
  *  task picker (project-page.js) and the pin line shows WHERE it lives — box + task
  *  title — with a one-click unpin. tasks: the id → {title, status} map of the project's
  *  dev_tasks (only pinned ids are needed; callers may pass a superset). */
+/** S86 (0059): a doc upload's display name — the stored filename column, falling back
+ *  to the stored-path basename (legacy image rows never hit this path). */
+export function shotDisplayName(s: ScreenshotRow): string {
+  if (s.filename && s.filename.trim()) return s.filename.trim()
+  const base = (s.github_path || '').split('/').pop() || ''
+  return base.replace(/^[0-9a-f-]{36}-/i, '') || 'file'
+}
+
+/** S86: doc uploads (PDF/CSV/XLSX/DOCX/MD/TXT) render a FILE tile, not an image —
+ *  an extension badge + the name + a download affordance. Kept next to
+ *  shotsGridHtml so every surface (grid + HX endpoint) speaks the same shape. */
+export function shotFileTileHtml(s: ScreenshotRow, lang: Locale): string {
+  const name = shotDisplayName(s)
+  const ext = (name.split('.').pop() || '').toUpperCase().slice(0, 5) || 'FILE'
+  return `<a class="shot-file" href="/api/media/screenshots/${s.id}/file" download aria-label="${trL(lang, 'Download {f}', 'دانلود {f}', { f: name })}" title="${trL(lang, 'Download {f}', 'دانلود {f}', { f: name })}">
+        <span class="shot-file-ext" aria-hidden="true">${esc(ext)}</span>
+        <span class="shot-file-name" dir="auto">${esc(name)}</span>
+        <span class="shot-file-dl" aria-hidden="true">${icon('download')}</span>
+      </a>`
+}
+
 export function shotsGridHtml(
   shots: ScreenshotRow[],
   lang: Locale,
@@ -51,10 +72,12 @@ export function shotsGridHtml(
 ): string {
   return shots
     .map(
-      (s) => `<figure class="shot shot-card${s.resolved ? ' is-fixed' : ''}" data-shot="${s.id}" data-resolved="${s.resolved ? '1' : '0'}"${s.task_id ? ` data-task="${s.task_id}"` : ''}>
-        <button type="button" class="shot-img-btn" data-shot-zoom="${s.id}" aria-label="${trL(lang, 'View screenshot', 'دیدن اسکرین‌شات')}">
+      (s) => `<figure class="shot shot-card${s.resolved ? ' is-fixed' : ''}${String(s.mime_type || '').startsWith('image/') ? '' : ' is-file'}" data-shot="${s.id}" data-resolved="${s.resolved ? '1' : '0'}"${s.task_id ? ` data-task="${s.task_id}"` : ''}>
+        ${String(s.mime_type || '').startsWith('image/')
+          ? `<button type="button" class="shot-img-btn" data-shot-zoom="${s.id}" aria-label="${trL(lang, 'View screenshot', 'دیدن اسکرین‌شات')}">
           <img src="/api/media/screenshots/${s.id}/file" alt="${esc(s.caption)}" loading="lazy">
-        </button>
+        </button>`
+          : shotFileTileHtml(s, lang)}
         <figcaption class="shot-body">
           ${s.task_id && tasks.get(s.task_id) ? (() => {
             const t = tasks.get(s.task_id)!
@@ -359,7 +382,7 @@ export function coreRoutes(cfg: Config) {
         task_status: string | null
       }
     >(
-      `SELECT s.id, s.project_id, s.github_path, s.mime_type, s.caption, s.created_at, s.resolved, s.task_id, s.bytes,
+      `SELECT s.id, s.project_id, s.github_path, s.mime_type, s.caption, s.created_at, s.resolved, s.task_id, s.bytes, s.filename,
               p.title AS project_title, p.deleted_at AS project_deleted,
               dt.title AS task_title, dt.status AS task_status
        FROM screenshots s
@@ -406,12 +429,17 @@ export function coreRoutes(cfg: Config) {
     // S39 (0054): exact decoded size — base64 without padding × 3/4. Never re-encoded,
     // never estimated: the gallery's space meter sums THIS column.
     const byteLen = Math.floor(body.dataBase64.replace(/=+$/, '').length * 3 / 4)
+    // S86 (0059): the ORIGINAL file name rides the row — doc tiles (PDF/XLSX/…) show
+    // it; image rows keep it too (the lightbox title can use it later). Sanitized to
+    // the same safe-charset as the stored path so it can never smuggle control chars
+    // into the Content-Disposition header on serve.
+    const displayName = (body.filename || body.fileName || '').replace(/[\u0000-\u001f\u007f]/g, '').trim().slice(0, 200) || safeName
     await cfg.db.execute(
-      'INSERT INTO screenshots (id, project_id, github_path, mime_type, caption, resolved, task_id, bytes, created_at) VALUES (?, ?, ?, ?, ?, 0, NULL, ?, ?)',
-      [id, p.id, path, body.mimeType, body.caption, byteLen, new Date().toISOString()],
+      'INSERT INTO screenshots (id, project_id, github_path, mime_type, caption, resolved, task_id, bytes, filename, created_at) VALUES (?, ?, ?, ?, ?, 0, NULL, ?, ?, ?)',
+      [id, p.id, path, body.mimeType, body.caption, byteLen, displayName, new Date().toISOString()],
     )
-    if (c.req.header('HX-Request')) return c.html(toastHtml(t('Screenshot uploaded', 'اسکرین‌شات آپلود شد'), localeOf(c)))
-    return c.json({ ok: true, id }, 201)
+    if (c.req.header('HX-Request')) return c.html(toastHtml(body.mimeType.startsWith('image/') ? t('Screenshot uploaded', 'اسکرین‌شات آپلود شد') : t('File uploaded', 'فایل آپلود شد'), localeOf(c)))
+    return c.json({ ok: true, id, mimeType: body.mimeType }, 201)
   })
 
   // S35: the note + the open/fixed state are editable after upload — the note is the
@@ -500,6 +528,16 @@ export function coreRoutes(cfg: Config) {
     }
     const headers: Record<string, string> = { 'Content-Type': mime, 'Cache-Control': 'private, max-age=3600' }
     if (thumbMiss) headers['X-Hibana-Thumb'] = 'miss'
+    // S86: doc uploads (PDF/XLSX/…) download instead of rendering inline — the
+    // browser has no inline viewer inside an authed XHR-fetched blob flow, and the
+    // display name is the point of a doc tile. Filename falls back to the stored
+    // path's basename (legacy rows pre-0059 have no filename column value).
+    if (!String(mime).startsWith('image/')) {
+      const rec2 = rec[0] as { filename?: string | null; github_path: string }
+      const base = (rec2.github_path || '').split('/').pop() || 'file'
+      const name = rec2.filename || base.replace(/^[0-9a-f-]{36}-/i, '') || 'file'
+      headers['Content-Disposition'] = `attachment; filename="${name.replace(/["\\\r\n]/g, '_')}"; filename*=UTF-8''${encodeURIComponent(name)}`
+    }
     return new Response(bytes, { headers })
   })
 

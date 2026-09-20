@@ -30,6 +30,11 @@ window.__hibanaDictFA = {
       'magic.tooltip': 'هوش مصنوعی: اصلاح، بازنویسی یا ترجمه',
       'magic.title': 'چوب جادو',
       'magic.polish': 'اصلاح', 'magic.rewrite': 'بازنویسی', 'magic.translate': 'ترجمه',
+      'magic.custom': 'هوش مصنوعی…', 'magic.customTitle': 'پرسش از هوش مصنوعی',
+      'magic.customPh': 'به هوش مصنوعی بگو با این متن چه کند — مثلاً «این کتاب‌ها را دسته‌بندی کن»، «در ۵ مورد خلاصه کن»، «موعدی‌ها را استخراج کن»…',
+      'magic.customRun': 'اجرا', 'magic.customBack': 'بازگشت', 'magic.customRequired': 'اول دستور خود را بنویس.',
+      'magic.customHint': 'متن یادداشت همراه دستور تو ارسال می‌شود. تا «اعمال» نکنی چیزی ذخیره نمی‌شود.',
+      'magic.result': 'نتیجه',
       'magic.working': 'در حال انجام…', 'magic.original': 'متن اصلی', 'magic.suggestion': 'پیشنهاد',
       'magic.apply': 'اعمال', 'magic.discard': 'رد کردن',
       'magic.applied': 'اعمال شد — بررسی و ذخیره کنید',
@@ -148,6 +153,7 @@ window.__hibanaDictFA = {
       'qa.filesInto': 'ثبت در پوشه',
       // theme
       'theme.toLight': 'حالت روشن', 'theme.toDark': 'حالت تاریک',
+      'theme.darkToClaude': 'رفتن به حالت تیرهٔ کلود', 'theme.claudeToDark': 'تیرهٔ کلود — رفتن به تیرهٔ معمولی',
       // page titles / headings
       'pages.projects': 'پروژه‌ها', 'pages.sparks': 'ایده‌ها',
       'pages.clients': 'مشتری‌ها', 'pages.archive': 'بایگانی',
@@ -171,6 +177,7 @@ window.__hibanaDictFA = {
       'settings.timezone': 'منطقهٔ زمانی', 'settings.reload': 'بارگذاری مجدد از سرور', 'settings.calendarHint': 'همراه با زبان شما — فارسی از تقویم جلالی استفاده میکند.',
       'settings.calGregorian': 'میلادی (Gregorian)', 'settings.calShamsi': 'شمسی (Jalali)',
       'settings.theme': 'پوسته', 'settings.light': 'روشن', 'settings.dark': 'تاریک', 'settings.system': 'پیروی از سیستم',
+      'settings.claudeDark': 'تیرهٔ کلود',
       'settings.tags': 'برچسب‌ها', 'settings.newTag': 'نام برچسب جدید', 'settings.create': 'ساخت',
       'settings.invites': 'دعوت‌ها', 'settings.generateInvite': 'تولید کد دعوت', 'settings.inviteCopied': 'کد دعوت کپی شد',
       'settings.inviteFailed': 'ساخت کد دعوت ممکن نشد',
@@ -459,6 +466,7 @@ window.__hibanaDictFA = {
       'project.stageSaved': 'مرحله ذخیره شد', 'project.captionPrompt': 'توضیح (اختیاری):',
       'project.shotUploaded': 'اسکرین‌شات آپلود شد', 'project.shotFailed': 'آپلود انجام نشد', 'project.uploading': 'در حال بارگذاری…',
       'project.shotDeleted': 'اسکرین‌شات حذف شد',
+      'project.fileUploaded': 'فایل آپلود شد', 'project.uploadFiles': 'آپلود فایل', 'project.downloadFile': 'دانلود {f}',
       // S35: the screenshot problem cards
       'project.shotZoom': 'اسکرین‌شات', 'project.shotNotePh': 'چه چیزی خراب است و کجا — دقیقاً همان‌جا که باید کار کنی…',
       // S46: screenshot-note modal + create-bug/idea-from-screenshot + task-composer shot-attach count
@@ -523,7 +531,7 @@ window.__hibanaDictFA = {
       'pd.pr.urgent': 'فوری', 'pd.pr.high': 'اولویت بالا', 'pd.pr.medium': 'اولویت متوسط', 'pd.pr.low': 'اولویت کم',
       'pd.labels': 'برچسب‌ها', 'pd.labelsPh': 'مثلاً UI/UX، امنیت', 'pd.labelsHint': 'با کاما جدا کن — یک چیپ برای هر برچسب',
       // S46.2: اسکرین‌شات در ویرایشگر کار (pde-form) — بارگذاری + سنجاق به این قلم + دیدن تصاویر سنجاق‌شده
-      'pde.shotsAttach': 'افزودن تصویر', 'pde.shotsAttachTitle': 'افزودن اسکرین‌شات UI/UX — سنجاق شده به این قلم',
+      'pde.shotsAttach': 'آپلود فایل', 'pde.shotsAttachTitle': 'آپلود فایل — تصویر، PDF، اکسل، ورد، مارک‌داون، متن — سنجاق‌شده به این قلم',
       'pde.shotsView': 'تصاویر سنجاق‌شده', 'pde.shotsViewTitle': 'تصاویر سنجاق‌شده به این قلم را ببین',
       'pde.shotsUploading': 'در حال اپلود تصویر …',
       // S46.7: عنوان ویرایشگر کار + نوشتن تمام‌صفحه + دکمهٔ افزودن یادداشت (وقتی یادداشتی نیست)
@@ -910,6 +918,9 @@ window.__hibanaDictFA = {
       'notes.newNote': 'یادداشت جدید', 'notes.untitled': 'بی‌عنوان',
       'notes.searchPlaceholder': 'جست‌وجوی یادداشت‌ها…', 'notes.clearSearch': 'پاک‌کردن جست‌وجو',
       'notes.sortLabel': 'ترتیب', 'notes.sortUpdated': 'آخرین ویرایش', 'notes.sortCreated': 'آخرین ساخت', 'notes.sortTitle': 'عنوان الف–ی',
+      'notes.sortManual': 'ترتیب دستی',
+      'notes.setEmoji': 'انتخاب ایموجی…', 'notes.removeEmoji': 'حذف ایموجی', 'notes.emojiFailed': 'ایموجی ذخیره نشد.',
+      'notes.reorderFailed': 'ترتیب ذخیره نشد.', 'notes.askAi': 'هوش مصنوعی — اصلاح، ترجمه یا دستور دلخواه',
       'notes.words': 'واژه', 'notes.chars': 'نویسه', 'notes.edited': 'ویرایش',
       'notes.saving': 'در حال ذخیره…', 'notes.saved': 'ذخیره شد', 'notes.unsaved': 'ذخیره‌نشده', 'notes.saveFailed': 'ذخیره نشد — دوباره؟',
       'notes.modeEdit': 'ویرایش', 'notes.modeSplit': 'دوپنجره', 'notes.modeRead': 'خواندن', 'notes.editorMode': 'حالت ویرایشگر',

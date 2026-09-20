@@ -1392,3 +1392,63 @@ li.md-task.is-done .md-task-txt { color: var(--muted); text-decoration: line-thr
    the chip keeps its end-of-row seat via its own margin (words' auto-margin is
    gone there). */
 .vault-card-trash ~ .vault-card-read { margin-inline-start: auto; }
+
+/* ── S86 (0059): emoji on folders + notes, and the drag-reorder affordances ───── */
+/* The folder's picked emoji takes the default glyph's exact seat (flex item before
+   the name) so the row rhythm is untouched; sized between the svg icon and the text. */
+.vault-folder-emoji,
+.vault-card-emoji {
+  font-size: 1rem;
+  line-height: 1;
+  flex: none;
+  /* a hair wider than the svg glyphs so multi-codepoint emojis never clip */
+  min-inline-size: 1.25rem;
+  text-align: center;
+}
+.vault-folder-emoji { font-size: 0.95rem; }
+/* The card title keeps its clamp; the emoji sits inline before the text. */
+.vault-card-emoji { margin-inline-end: 0.25rem; }
+
+/* The editor's emoji chip — a quiet smiley until set, then it IS the emoji. */
+.vault-ed-titlewrap { display: flex; align-items: center; gap: 0.5rem; }
+.vault-ed-titlewrap .vault-ed-title { flex: 1; min-inline-size: 0; }
+.vault-ed-emoji {
+  flex: none;
+  inline-size: 2.1rem;
+  block-size: 2.1rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px dashed var(--line-strong);
+  border-radius: 10px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 0.85rem;
+  cursor: pointer;
+  padding: 0;
+  transition: border-color 0.15s ease, background 0.15s ease, transform 0.1s ease;
+}
+.vault-ed-emoji:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); }
+.vault-ed-emoji:active { transform: scale(0.94); }
+.vault-ed-emoji:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.vault-ed-emoji.is-set { border-style: solid; font-size: 1.15rem; }
+.vault-ed-emoji[disabled] { opacity: 0.45; cursor: not-allowed; }
+
+/* The toolbar's Ask-AI button — same vault-tb chassis, accent-tinted so it reads as
+   the AI affordance without shouting (the wand's purple family). */
+.vault-tb-ai { color: #8B7AB8; }
+[data-theme='dark'] .vault-tb-ai,
+:root:not([data-theme='light']) .vault-tb-ai { color: #C4B5E0; }
+.vault-tb-ai:hover { background: rgb(139 122 184 / 0.14); color: inherit; }
+.vault-tb-ai[disabled] { opacity: 0.45; cursor: not-allowed; }
+
+/* Drag-reorder: the lifted card dims + tilts; a subtle grab cursor advertises the
+   affordance on hover (desktop). touch-drag.js arms the touch path on long-press. */
+.vault-card[draggable] { cursor: grab; }
+.vault-card[draggable]:active { cursor: grabbing; }
+.vault-card-dragging {
+  opacity: 0.55;
+  transform: scale(0.985) rotate(-0.35deg);
+  border-color: var(--accent);
+  box-shadow: 0 6px 18px rgb(0 0 0 / 0.16);
+}

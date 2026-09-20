@@ -167,10 +167,14 @@ window.hibana = (() => {
   // chosen in Settings and resolved to whichever the OS prefers.
   const SUN = '<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>'
   const MOON = '<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8Z"/></svg>'
+  // S86 (owner request): the Claude-style warm dark theme joins the cycle — the
+  // header button walks light → dark → claude-dark → light. The moon icon serves
+  // both dark variants; the tooltip names which one is live (discoverability —
+  // a second dark look needs to say what it is when you land on it).
   function currentTheme() {
     const saved = localStorage.getItem('hibana-theme') || 'system'
     if (saved === 'light') return 'light'
-    if (saved === 'dark') return 'dark'
+    if (saved === 'dark' || saved === 'claude-dark') return saved
     return matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
   }
   function setTheme(t) {
@@ -179,18 +183,26 @@ window.hibana = (() => {
       localStorage.setItem('hibana-theme', t)
     } catch {}
     // P4.4 (F-M15): update the mobile address-bar color to match the theme. Dark mode bg
-    // is #1E1A15 (the lifted warm dark); light mode bg is #FAF9F6.
-    document.querySelector('meta[name=theme-color]')?.setAttribute('content', t === 'dark' ? '#1E1A15' : '#FAF9F6')
+    // is #1E1A15 (the lifted warm dark); light mode bg is #FAF9F6; claude-dark's base
+    // is #141413 (S86).
+    const barColor = t === 'claude-dark' ? '#141413' : t === 'dark' ? '#1E1A15' : '#FAF9F6'
+    document.querySelector('meta[name=theme-color]')?.setAttribute('content', barColor)
   }
   function paintThemeButton() {
-    const dark = currentTheme() === 'dark'
+    const cur = currentTheme()
+    const dark = cur === 'dark' || cur === 'claude-dark'
     document.querySelectorAll('[data-theme-toggle], .theme-floater').forEach((b) => {
       b.innerHTML = dark ? MOON : SUN
-      b.title = dark ? _t('theme.toLight', 'Switch to light mode') : _t('theme.toDark', 'Switch to dark mode')
+      b.title = cur === 'claude-dark'
+        ? _t('theme.claudeToDark', 'Claude dark — switch to standard dark')
+        : dark
+          ? _t('theme.darkToClaude', 'Switch to Claude dark mode')
+          : _t('theme.toDark', 'Switch to dark mode')
     })
   }
   function toggleTheme() {
-    const next = currentTheme() === 'dark' ? 'light' : 'dark'
+    const cur = currentTheme()
+    const next = cur === 'light' ? 'dark' : cur === 'dark' ? 'claude-dark' : 'light'
     setTheme(next)
     paintThemeButton()
     return next

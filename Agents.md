@@ -7,7 +7,14 @@ History/current state/ops/open items: `Changelogs.md`. Live credentials: `creden
 
 **Agent↔owner language: English, always.** All chat, summaries, and explanations to Ali are
 in English — even if his message is Persian. App UI copy stays FA+EN per the i18n rules
-below. (Added at Ali's request, 2026-09-13 — never revert.)
+below. (Added at Ali's request, 2026-09-13 — never revert. Re-confirmed 2026-09-21.)
+
+**Source of truth: https://github.com/assadigit/hibana-source — PUBLIC since 2026-09-21.**
+A fresh agent's FIRST act is to clone it:
+`git clone https://github.com/assadigit/hibana-source.git hibana` (then `bun install` /
+`npm install`). Work there; commit+push when done — CI runs free on public repos and CD
+auto-deploys. `assadigit/hibana-safe` stays PRIVATE (it carries D1 dumps = real user data —
+NEVER make it public, never push user data there beyond the established backup paths).
 
 ## What this is
 Personal project/idea tracker for Ali (solo UI/UX designer; runs Sedanama e-commerce; works
@@ -41,8 +48,9 @@ a whiteboard note.
   (0054 screenshots.task_id → dev_tasks, ON DELETE SET NULL — the pin line shows box +
   item; the task cards carry 📌 badges).
   Email: Resend. Monitoring: healthchecks.io. Telegram: @Hibana_PM_bot.
-- 7-stage taxonomy (0031): `spark → unreviewed → investigating → awaiting → doing → halted →
-  operational` (legacy map in `validation/schemas.ts`).
+- Project taxonomy (0060, S93): `spark → planning → queued → developing → awaiting_dev →
+  operational` (legacy pre-0060 vocabulary maps on input via `validation/schemas.ts`
+  LEGACY_STATUS — old clients/bookmarks survive).
 
 ## Non-negotiable rules
 1. Every user-owned table has `user_id`; every query filters on it (`projects`, `tags`,
@@ -51,7 +59,7 @@ a whiteboard note.
    server accepts as canonical; server-generated otherwise.
 3. All timestamps stored UTC. Calendar (Gregorian/Shamsi via jalaali-js) + TZ conversion only
    at render time — never in storage or query filters.
-4. Schema changes ONLY via numbered files in `migrations/` (0001–0056; `0007` gap is
+4. Schema changes ONLY via numbered files in `migrations/` (0001–0060; `0007` gap is
    original). Never ad-hoc `ALTER TABLE`. Never untested migrations against prod.
    Pre-migration bookmark ritual (Changelogs §4 + §9). Schema changes need Ali's explicit
    written approval.
@@ -100,7 +108,7 @@ a whiteboard note.
   `/home/z/my-project/worklog.md`.
 
 ## Verification ladder (per batch — required before "done")
-`npm run typecheck` (authoritative tsc) → `npm test` (399) → `node --check` on touched JS →
+`npm run typecheck` (authoritative tsc) → `npm test` (506) → `node --check` on touched JS →
 browser E2E on the local Node server (FA/RTL **and** EN/LTR, light **and** dark, desktop
 **and** 390 px; test user `e2e@test.local`) → deploy dev → live probe → deploy prod → live
 probe (console 0 / page errors 0) → **purge probe users** (DELETE cascade verified;
@@ -114,14 +122,14 @@ If you edit after a bump, re-bump (stale HTTP cache under the same URL). `check-
 is a CI gate. Current numbers: Changelogs §1.
 
 ## i18n
-EN + FA ship together, always. Programmatic key-parity check (1150/1150) via
+EN + FA ship together, always. Programmatic key-parity check (1427/1427) via
 `scripts/check-i18n-parity.mjs` (CI gate). Persian digit normalization; CSS logical
 properties for RTL/LTR.
 
 ## D1 discipline
 - Remote D1 writes only via real `.mjs` script files (`wrangler d1 execute --file`) — never
   inline `node -e` inside double-quoted bash (`${…}` mangles).
-- Live DBs at schema 56 (0057, S53) — never re-apply migrations blindly (Changelogs §6).
+- Live DBs at schema 59 (0060, S93) — never re-apply migrations blindly (Changelogs §6).
 - Diagnose against prod data before coding ("board broken" was a soft-deleted project).
 
 ## Secrets & credentials

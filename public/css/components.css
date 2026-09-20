@@ -1,19 +1,24 @@
 /* --- single creation FAB: one circle expands into a two-item labeled menu (2026-08-25).
    The FAB circle means CREATE only; every other circular icon action is ghost/outline. ---
-   Corner rule (user request 2026-08-30): the + lives in the PHYSICAL bottom-right corner
-   on every page and in both directions — no RTL mirroring for a creation affordance. */
+   Corner rule (user request 2026-08-30, AMENDED S90 2026-09-20): the + lived in the
+   PHYSICAL bottom-right corner in both directions — correct while nav was a horizontal
+   topbar, but S88's vertical rail mirrors to the RIGHT edge in RTL and the + collided
+   with it (owner report). In RTL the stack now flips to the PHYSICAL bottom-left corner
+   (see rtl.css — the menu alignment rides the stack's default align-items:flex-end,
+   whose cross-end lands on the left edge under dir=rtl). LTR is unchanged. */
 .fab-stack {
   position: fixed;
   inset-block-end: 1.5rem;
-  right: 1.5rem;               /* physical right corner — never mirrors under dir=rtl */
+  right: 1.5rem;               /* physical right corner — LTR; RTL flips via rtl.css */
   display: flex;
   flex-direction: column;
   align-items: flex-end;       /* LTR: menu grows leftward from the right corner */
   gap: 0.6rem;
   z-index: 40;
 }
-/* RTL: cross-start is the right edge in a column flex, so flex-start keeps the menu
-   anchored to the same physical right corner (flex-end would push it off-screen). */
+/* RTL: the menu anchors to the stack's LEFT edge automatically — column-flex cross-end
+   under dir=rtl IS the left edge, so the default rule above pins the pills to the same
+   physical corner the stack itself moved to (rtl.css). No override needed anymore. */
 .fab-menu {
   display: flex;
   flex-direction: column;

@@ -268,23 +268,40 @@ body.rail-panel-open .rail-panel { visibility: visible; opacity: 1; transition: 
 .rail-panel-close:hover { background: var(--bg-soft); color: var(--text); }
 .rail-panel-close:focus-visible { outline: 2px solid var(--brand); outline-offset: 1px; }
 .rail-panel-body { flex: 1; min-block-size: 0; overflow-y: auto; overscroll-behavior: contain; padding: 0.5rem 0.5rem 1rem; }
-.rail-group { margin-block-end: 0.25rem; }
+.rail-group { margin-block-end: 0.4rem; }
 .rail-group-head {
   display: flex; align-items: center; gap: 0.3rem;
   inline-size: 100%;
   padding: 0.45rem 0.5rem;
   border: 0; border-radius: 0.5rem;
-  background: transparent; color: var(--muted);
+  /* S90 (owner request): the group heads wear a PALE background wash — the panel's
+     heading rows used to be bare text on the panel surface, which read as flat
+     labels rather than the section headings they are. bg-soft is the pale surface
+     token (hover deepens to the brand's accent-soft wash). */
+  background: var(--bg-soft);
+  color: var(--muted);
   font: 600 var(--fs-xs)/1.2 var(--font-sans);
   letter-spacing: 0.02em; text-transform: uppercase;
   cursor: pointer;
 }
-.rail-group-head:hover { color: var(--text); background: var(--bg-soft); }
+.rail-group-head:hover { color: var(--text); background: var(--accent-soft); }
 .rail-group-head .rail-group-count { margin-inline-start: auto; font-variant-numeric: tabular-nums; font-weight: 500; opacity: 0.8; }
 .rail-group-head .icon { inline-size: 0.85rem; block-size: 0.85rem; transition: transform 0.14s ease; }
 .rail-group.is-collapsed .rail-group-head .icon { transform: rotate(-90deg); }
 .rail-group.is-collapsed .rail-group-body { display: none; }
-.rail-group-body { display: flex; flex-direction: column; gap: 1px; padding: 0.125rem 0 0.25rem 0.25rem; }
+/* S90 (owner request, the "A / --B" sketch): items sit INDENTED under their group
+   head so the hierarchy reads at a glance — the body pulls in from the head's edge
+   and a hairline guide carries the eye down the group's extent (a tree rail, the
+   same anatomy the notes vault list uses). Logical properties mirror in RTL. */
+.rail-group-body {
+  display: flex; flex-direction: column; gap: 1px;
+  margin-inline-start: 0.8rem;
+  /* LOGICAL padding (block + inline-start) — a physical 4-value shorthand here put
+     the guide gutter on the LEFT in both directions, halving the indent in RTL. */
+  padding-block: 0.125rem 0.25rem;
+  padding-inline-start: 0.55rem;
+  border-inline-start: 1px solid color-mix(in srgb, var(--muted) 26%, transparent);
+}
 .rail-item {
   display: flex; align-items: center; gap: 0.45rem;
   padding: 0.42rem 0.5rem;
@@ -298,7 +315,11 @@ body.rail-panel-open .rail-panel { visibility: visible; opacity: 1; transition: 
 .rail-item-label { flex: 1; min-inline-size: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .rail-item .prio-dot { flex: none; }
 /* S88: the status dot speaks the --badge-*-fg roles (the same seven the status
-   badges speak) — the panel item's glanceable state cue. */
+   badges speak) — the panel item's glanceable state cue.
+   S90 (owner request: "too saturated"): the dots now render as LOW-KEY washes —
+   each status hue color-mixed to ~40% over transparent instead of the full-badge
+   ink. The glanceable hue survives (a pale amber spark, a pale teal doing…) but
+   the panel stops shouting; the hover row bg stays the strongest signal. */
 .rail-dot {
   inline-size: 0.5rem;
   block-size: 0.5rem;
@@ -306,15 +327,15 @@ body.rail-panel-open .rail-panel { visibility: visible; opacity: 1; transition: 
   flex: none;
   background: var(--muted);
 }
-.rail-dot[data-status='spark']        { background: var(--badge-spark-fg, #8A6714); }
-.rail-dot[data-status='unreviewed']   { background: var(--badge-unreviewed-fg, #46618C); }
-.rail-dot[data-status='investigating'] { background: var(--badge-investigating-fg, #5F51B5); }
-.rail-dot[data-status='awaiting']     { background: var(--badge-awaiting-fg, #85620D); }
-.rail-dot[data-status='doing']        { background: var(--badge-doing-fg, #186F63); }
-.rail-dot[data-status='halted']       { background: var(--badge-halted-fg, #A34A31); }
-.rail-dot[data-status='operational']  { background: var(--badge-operational-fg, #277334); }
-.rail-dot[data-status='done']         { background: var(--badge-operational-fg, #277334); }
-.rail-dot[data-status='todo']         { background: var(--badge-awaiting-fg, #85620D); }
+.rail-dot[data-status='spark']        { background: color-mix(in srgb, var(--badge-spark-fg, #8A6714) 40%, transparent); }
+.rail-dot[data-status='unreviewed']   { background: color-mix(in srgb, var(--badge-unreviewed-fg, #46618C) 40%, transparent); }
+.rail-dot[data-status='investigating'] { background: color-mix(in srgb, var(--badge-investigating-fg, #5F51B5) 40%, transparent); }
+.rail-dot[data-status='awaiting']     { background: color-mix(in srgb, var(--badge-awaiting-fg, #85620D) 40%, transparent); }
+.rail-dot[data-status='doing']        { background: color-mix(in srgb, var(--badge-doing-fg, #186F63) 40%, transparent); }
+.rail-dot[data-status='halted']       { background: color-mix(in srgb, var(--badge-halted-fg, #A34A31) 40%, transparent); }
+.rail-dot[data-status='operational']  { background: color-mix(in srgb, var(--badge-operational-fg, #277334) 40%, transparent); }
+.rail-dot[data-status='done']         { background: color-mix(in srgb, var(--badge-operational-fg, #277334) 40%, transparent); }
+.rail-dot[data-status='todo']         { background: color-mix(in srgb, var(--badge-awaiting-fg, #85620D) 40%, transparent); }
 .rail-item-emoji { flex: none; font-size: 0.9rem; line-height: 1; }
 .rail-panel-empty { padding: 1.25rem 0.75rem; color: var(--muted); font-size: var(--fs-sm); line-height: 1.5; }
 .rail-panel-loading { padding: 1.25rem 0.75rem; color: var(--muted); font-size: var(--fs-sm); }

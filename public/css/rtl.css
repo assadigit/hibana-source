@@ -12,7 +12,17 @@
 
   [dir='rtl'] .dash-swipe-hint { animation-name: dashHintNudgeRtl; }
 
-[dir='rtl'] .fab-stack { align-items: flex-start; }
+/* S90 (owner request): the + creation circle FLIPS to the PHYSICAL bottom-left
+   corner in RTL. History: the 2026-08-30 rule pinned it to physical bottom-right
+   "in both directions" — that was correct while nav was a horizontal topbar, but
+   S88's vertical navigation rail mirrors to the RIGHT edge in RTL, and the +
+   collided with it. Opposite direction from the rail = physical left in RTL;
+   LTR keeps the physical right corner it has always had. The menu alignment
+   comes free: the stack's default align-items:flex-end is cross-end, which in a
+   dir=rtl column flex is the LEFT edge — so the pills anchor to the same physical
+   corner as the circle and grow rightward (the old flex-start override below
+   existed only to pin the menu to the right corner and is now REMOVED). */
+[dir='rtl'] .fab-stack { right: auto; left: 1.5rem; }
 
 [dir="rtl"] .icon.arrow { transform: scaleX(-1); }
 

@@ -303,6 +303,13 @@
   const railBox = () => document.querySelector('[data-rail-panel-box]')
   const railT = (k, fb) => { const v = window.hibanaI18n?.t(k); return v && v !== k ? v : fb }
   const escHtml = (str) => String(str ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c] ?? c))
+  // S90 (owner request): the group-head COUNT digits follow the UI script — Farsi
+  // digits when the interface is fa (the same "digits match the script" rule the
+  // reports page + whiteboard already follow; Latin digits in a Farsi panel read
+  // as noise). Evaluates per render, so a language toggle re-renders honestly.
+  const railFaDig = (s) => ((window.hibanaI18n?.lang?.() || 'en') === 'fa'
+    ? String(s).replace(/\d/g, (x) => '۰۱۲۳۴۵۶۷۸۹'[+x])
+    : String(s))
 
   const RAIL_SECTIONS = {
     dashboard: { href: '/dashboard.html', i18n: 'nav.dashboard', label: 'Dashboard' },
@@ -342,7 +349,7 @@
       '<button type="button" class="rail-group-head" data-rail-group aria-expanded="' + (opts.collapsed ? 'false' : 'true') + '">' +
       '<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg>' +
       '<span>' + escHtml(label) + '</span>' +
-      '<span class="rail-group-count">' + count + '</span>' +
+      '<span class="rail-group-count">' + railFaDig(count) + '</span>' +
       '</button><div class="rail-group-body">' + (Array.isArray(items) ? items.join('') : items) + '</div></div>'
   }
   const railItem = (href, label, dotStatus, extra) =>

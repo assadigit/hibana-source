@@ -104,10 +104,11 @@
         <span class="icon-chip"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="3" width="14" height="18" rx="2"/><path d="M9 8h6M9 12h6M9 16h4"/></svg></span>
         <span data-i18n="nav.whiteboard">Notebook</span>
       </a>
-      <a class="user-menu-item" href="/settings.html">
-        <span class="icon-chip"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h10M18 7h2M4 17h2M10 17h10"/><circle cx="16" cy="7" r="2"/><circle cx="8" cy="17" r="2"/></svg></span>
-        <span data-i18n="nav.settings">Settings</span>
-      </a>
+      <!-- S90 (owner request): the SETTINGS row left the account menu — the rail's
+           dedicated Settings icon (bottom, behind the divider) owns that destination
+           now, and the menu stops duplicating it. Mobile keeps its Settings row in
+           the More sheet (mobile-nav.js): ≤1024px there IS no rail, so the sheet is
+           the one place Settings stays reachable there. -->
       <!-- Super-admin panel (batch r) — hidden until app.js confirms role=owner -->
       <a class="user-menu-item" data-admin-link hidden href="/admin.html">
         <span class="icon-chip"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l8 3v5c0 4.4-3.4 8.4-8 10-4.6-1.6-8-5.6-8-10V6l8-3Z"/><path d="M12 8v4M12 15h.01"/></svg></span>
@@ -136,4 +137,4 @@
   <span class="grow"></span>
   <span data-syncbadge class="sync-badge" hidden></span>
 </nav>
-<!-- v161 -->
+<!-- v162 (S90: the Settings row left the account menu — the rail's dedicated icon owns it) -->

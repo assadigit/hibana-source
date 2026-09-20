@@ -1037,25 +1037,25 @@ describe('telegram /update — move a project to a new stage (Session 19 cron ro
     const { db, close } = makeTestDb()
     try {
       const { app, memberId } = await linkMember(db)
-      // Seed a project at 'unreviewed'
+      // Seed a project at 'planning'
       const pid = crypto.randomUUID()
       const now = new Date().toISOString()
       await db.execute(
         'INSERT INTO projects (id, user_id, title, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)',
-        [pid, memberId, 'Star Map', 'unreviewed', now, now],
+        [pid, memberId, 'Star Map', 'planning', now, now],
       )
       const bot = stubBot()
       try {
-        const res = await webhook(app, '/update star map doing')
+        const res = await webhook(app, '/update star map developing')
         expect(res.status).toBe(200)
         const msg = bot.sent[bot.sent.length - 1]
         expect(msg).toContain('Stage updated')
         expect(msg).toContain('Star Map')
-        expect(msg).toContain('unreviewed')
-        expect(msg).toContain('doing')
+        expect(msg).toContain('planning')
+        expect(msg).toContain('developing')
         expect(msg).toContain('/project.html?id=')
         const after = await db.query<{ status: string }>('SELECT status FROM projects WHERE id = ?', [pid])
-        expect(after[0].status).toBe('doing')
+        expect(after[0].status).toBe('developing')
       } finally {
         bot.restore()
       }
@@ -1072,18 +1072,18 @@ describe('telegram /update — move a project to a new stage (Session 19 cron ro
       const now = new Date().toISOString()
       await db.execute(
         'INSERT INTO projects (id, user_id, title, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)',
-        [pid, memberId, 'Star Map', 'unreviewed', now, now],
+        [pid, memberId, 'Star Map', 'planning', now, now],
       )
       const bot = stubBot()
       try {
         await webhook(app, '/update star map In Progress')
         let after = await db.query<{ status: string }>('SELECT status FROM projects WHERE id = ?', [pid])
-        expect(after[0].status).toBe('doing')
-        // reset and try FA
-        await db.execute('UPDATE projects SET status = ? WHERE id = ?', ['investigating', pid])
+        expect(after[0].status).toBe('developing')
+        // reset and try FA (the NEW FA label; the pre-0060 label stays an alias below)
+        await db.execute('UPDATE projects SET status = ? WHERE id = ?', ['planning', pid])
         await webhook(app, '/update star map در حال انجام')
         after = await db.query<{ status: string }>('SELECT status FROM projects WHERE id = ?', [pid])
-        expect(after[0].status).toBe('doing')
+        expect(after[0].status).toBe('developing')
       } finally {
         bot.restore()
       }
@@ -1116,17 +1116,17 @@ describe('telegram /update — move a project to a new stage (Session 19 cron ro
       const now = new Date().toISOString()
       await db.execute(
         'INSERT INTO projects (id, user_id, title, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)',
-        [pid, memberId, 'Star Map', 'unreviewed', now, now],
+        [pid, memberId, 'Star Map', 'planning', now, now],
       )
       const bot = stubBot()
       try {
         await webhook(app, '/update star map frobnicate')
         const msg = bot.sent[bot.sent.length - 1]
         expect(msg).toContain('Unknown stage')
-        expect(msg).toContain('unreviewed · investigating')
+        expect(msg).toContain('planning · queued · developing · awaiting_dev · operational')
         // status unchanged
         const after = await db.query<{ status: string }>('SELECT status FROM projects WHERE id = ?', [pid])
-        expect(after[0].status).toBe('unreviewed')
+        expect(after[0].status).toBe('planning')
       } finally {
         bot.restore()
       }
@@ -1143,7 +1143,7 @@ describe('telegram /update — move a project to a new stage (Session 19 cron ro
       const now = new Date().toISOString()
       await db.execute(
         'INSERT INTO projects (id, user_id, title, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)',
-        [pid, memberId, 'Star Map', 'doing', now, now],
+        [pid, memberId, 'Star Map', 'developing', now, now],
       )
       const bot = stubBot()
       try {
@@ -1151,7 +1151,7 @@ describe('telegram /update — move a project to a new stage (Session 19 cron ro
         const msg = bot.sent[bot.sent.length - 1]
         expect(msg).toContain("can't be set from here")
         const after = await db.query<{ status: string }>('SELECT status FROM projects WHERE id = ?', [pid])
-        expect(after[0].status).toBe('doing') // unchanged
+        expect(after[0].status).toBe('developing') // unchanged
       } finally {
         bot.restore()
       }
@@ -1168,7 +1168,7 @@ describe('telegram /update — move a project to a new stage (Session 19 cron ro
       const now = new Date().toISOString()
       await db.execute(
         'INSERT INTO projects (id, user_id, title, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)',
-        [pid, memberId, 'Star Map', 'doing', now, now],
+        [pid, memberId, 'Star Map', 'developing', now, now],
       )
       const bot = stubBot()
       try {
@@ -1193,7 +1193,7 @@ describe('telegram /update — move a project to a new stage (Session 19 cron ro
       const now = new Date().toISOString()
       await db.execute(
         'INSERT INTO projects (id, user_id, title, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)',
-        [pid, other, 'Star Map', 'unreviewed', now, now],
+        [pid, other, 'Star Map', 'planning', now, now],
       )
       const bot = stubBot()
       try {
@@ -1202,7 +1202,7 @@ describe('telegram /update — move a project to a new stage (Session 19 cron ro
         expect(msg).toContain('No project found')
         // other user's project untouched (rule 1)
         const after = await db.query<{ status: string; user_id: string }>('SELECT status, user_id FROM projects WHERE id = ?', [pid])
-        expect(after[0].status).toBe('unreviewed')
+        expect(after[0].status).toBe('planning')
         expect(after[0].user_id).toBe(other)
         void memberId
       } finally {

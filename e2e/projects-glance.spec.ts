@@ -1,5 +1,5 @@
 // e2e/projects-glance.spec.ts — S44 regression net for the projects page's glance strip.
-// The owner's report (verbatim): "https://hibana.ir/projects.html?status=doing&view=cards
+// The owner's report (verbatim): "https://hibana.ir/projects.html?status=developing&view=cards
 // here when you click [the در حال انجام box] nothing happens, but it is supposed to
 // show در حال انجام projects." Root cause: nav.js's CAPTURE-phase link interceptor
 // stopPropagation'd the click before the page's in-place filter handler could run, then
@@ -83,8 +83,8 @@ test('glance strip: clicking a box filters IN PLACE (grid flips to cards) — ne
     await api(page, `/api/projects/${p.json.id}`, 'PATCH', { status })
     return p.json.id
   }
-  await mk(`e2e glance doing one ${Date.now()}`, 'doing')
-  await mk(`e2e glance doing two ${Date.now()}`, 'doing')
+  await mk(`e2e glance doing one ${Date.now()}`, 'developing')
+  await mk(`e2e glance doing two ${Date.now()}`, 'developing')
   await mk(`e2e glance operational ${Date.now()}`, 'operational')
 
   // 1) From the default GRID: clicking the doing box applies the stage filter in
@@ -92,18 +92,18 @@ test('glance strip: clicking a box filters IN PLACE (grid flips to cards) — ne
   await page.goto('/projects.html')
   await page.waitForSelector('.pglance-box', { timeout: 10_000 })
   await page.waitForTimeout(400)
-  await page.click('.pglance-box[data-pglance="doing"]')
+  await page.click('.pglance-box[data-pglance="developing"]')
   await page.waitForTimeout(800)
   expect(page.url()).toMatch(/\/projects\.html$/) // no ?status= navigation
-  await expect(page.locator('select[name="status"]')).toHaveValue('doing')
+  await expect(page.locator('select[name="status"]')).toHaveValue('developing')
   await expect(page.locator('#view')).toHaveValue('cards')
   const titles = await page.$$eval('#project-list .project-title', (els) => els.map((e) => e.textContent || ''))
   expect(titles.filter((t) => t.includes('glance doing'))).toHaveLength(2)
   expect(titles.some((t) => t.includes('glance operational'))).toBe(false)
-  await expect(page.locator('.pglance-box.is-active')).toHaveAttribute('data-pglance', 'doing')
+  await expect(page.locator('.pglance-box.is-active')).toHaveAttribute('data-pglance', 'developing')
 
   // 2) Clicking the ACTIVE box clears the filter (toggle) — all statuses visible.
-  await page.click('.pglance-box[data-pglance="doing"]')
+  await page.click('.pglance-box[data-pglance="developing"]')
   await page.waitForTimeout(800)
   await expect(page.locator('select[name="status"]')).toHaveValue('')
   const titlesAll = await page.$$eval('#project-list .project-title', (els) => els.map((e) => e.textContent || ''))
@@ -112,10 +112,10 @@ test('glance strip: clicking a box filters IN PLACE (grid flips to cards) — ne
   // 3) THE OWNER'S EXACT SCENARIO: hard-load the status URL, then click that same
   //    box — before S44 this was a dead click (nav.js same-URL skip). It must toggle
   //    the filter off in place.
-  await page.goto('/projects.html?status=doing&view=cards')
+  await page.goto('/projects.html?status=developing&view=cards')
   await page.waitForSelector('.pglance-box', { timeout: 10_000 })
   await page.waitForTimeout(400)
-  await page.click('.pglance-box[data-pglance="doing"]')
+  await page.click('.pglance-box[data-pglance="developing"]')
   await page.waitForTimeout(800)
   await expect(page.locator('select[name="status"]')).toHaveValue('')
   const titlesAfter = await page.$$eval('#project-list .project-title', (els) => els.map((e) => e.textContent || ''))
@@ -129,20 +129,20 @@ test('glance strip: same-page re-entry re-mounts (language-toggle/popstate path 
   const errors = trackErrors(page)
   await login(page)
   const p = (await api(page, '/api/projects', 'POST', { title: `e2e glance remount ${Date.now()}` })) as { json: { id: string } }
-  await api(page, `/api/projects/${p.json.id}`, 'PATCH', { status: 'doing' })
+  await api(page, `/api/projects/${p.json.id}`, 'PATCH', { status: 'developing' })
 
-  await page.goto('/projects.html?status=doing&view=cards')
+  await page.goto('/projects.html?status=developing&view=cards')
   await page.waitForSelector('.pglance-box', { timeout: 10_000 })
   await page.waitForTimeout(500)
-  await expect(page.locator('select[name="status"]')).toHaveValue('doing') // param adopted on hard load
+  await expect(page.locator('select[name="status"]')).toHaveValue('developing') // param adopted on hard load
 
   // hibanaNav.reload() is the language toggle's path: a same-page soft navigation.
   // Before S44 the fresh shell never re-mounted (the page script was "already
   // present") — the list fell back to the unfiltered default grid.
   await page.evaluate(() => window.hibanaNav?.reload())
   await page.waitForTimeout(1200)
-  expect(page.url()).toMatch(/status=doing/)
-  await expect(page.locator('select[name="status"]')).toHaveValue('doing')
+  expect(page.url()).toMatch(/status=developing/)
+  await expect(page.locator('select[name="status"]')).toHaveValue('developing')
   await expect(page.locator('#view')).toHaveValue('cards')
   const titles = await page.$$eval('#project-list .project-title', (els) => els.map((e) => e.textContent || ''))
   expect(titles.some((t) => t.includes('glance remount'))).toBe(true)

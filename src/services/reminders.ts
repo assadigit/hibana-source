@@ -22,12 +22,12 @@ interface ReminderCandidate {
 
 export async function findBehindProjects(cfg: Config): Promise<ReminderCandidate[]> {
   const now = new Date()
-  // batch (s): the in-progress pool is 'doing'/'operational' under the 7-stage taxonomy
+  // batch (s): the in-progress pool is 'developing'/'operational' under the 0060 taxonomy
   // (LEGACY_STATUS maps building→doing, working→operational) — legacy rows never match.
   const projects = await cfg.db.query<ProjectRow>(
     `SELECT * FROM projects
      WHERE type = 'client' AND reminders_enabled = 1 AND due_date IS NOT NULL
-       AND status IN ('doing', 'operational') AND deleted_at IS NULL`,
+       AND status IN ('developing', 'operational') AND deleted_at IS NULL`,
   )
   if (projects.length === 0) return []
   // P11 (Focus 2): batch-fetch all tasks for all projects in one query (was N+1 — one

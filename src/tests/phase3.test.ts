@@ -66,27 +66,27 @@ describe('Phase 3 — export, duplicate-check, revive, reports', () => {
       const { id } = (await create.json()) as { id: string }
 
       // can't revive a project that isn't halted (the gate is the status, not ownership)
-      const early = await app.fetch(new Request(`http://local/api/projects/${id}/revive`, { method: 'POST', headers: auth, body: JSON.stringify({ status: 'doing' }) }))
+      const early = await app.fetch(new Request(`http://local/api/projects/${id}/revive`, { method: 'POST', headers: auth, body: JSON.stringify({ status: 'developing' }) }))
       expect(early.status).toBe(404)
 
-      // the target must be one of the five live stages: 'halted' itself is not a revive
-      // target (that would be a no-op), and legacy names (0031) are not mapped here —
-      // only the new stages are accepted.
-      const sameStage = await app.fetch(new Request(`http://local/api/projects/${id}/revive`, { method: 'POST', headers: auth, body: JSON.stringify({ status: 'halted' }) }))
+      // the target must be one of the four live stages: 'awaiting_dev' itself is not a
+      // revive target (that would be a no-op), and legacy names (0031/0060) are not
+      // mapped here — only the new stages are accepted.
+      const sameStage = await app.fetch(new Request(`http://local/api/projects/${id}/revive`, { method: 'POST', headers: auth, body: JSON.stringify({ status: 'awaiting_dev' }) }))
       expect(sameStage.status).toBe(400)
       const legacy = await app.fetch(new Request(`http://local/api/projects/${id}/revive`, { method: 'POST', headers: auth, body: JSON.stringify({ status: 'working' }) }))
       expect(legacy.status).toBe(400)
 
-      // halt it (the old "archived" era is the 'halted' stage now)
-      await app.fetch(new Request(`http://local/api/projects/${id}`, { method: 'PATCH', headers: auth, body: JSON.stringify({ status: 'halted', archived_state: 'online' }) }))
-      // revive as In Progress — the choice is always asked (§5.6)
-      const revive = await app.fetch(new Request(`http://local/api/projects/${id}/revive`, { method: 'POST', headers: auth, body: JSON.stringify({ status: 'doing' }) }))
+      // pause it (the old "archived"/'halted' era is the 'awaiting_dev' stage now)
+      await app.fetch(new Request(`http://local/api/projects/${id}`, { method: 'PATCH', headers: auth, body: JSON.stringify({ status: 'awaiting_dev', archived_state: 'online' }) }))
+      // revive as Developing — the choice is always asked (§5.6)
+      const revive = await app.fetch(new Request(`http://local/api/projects/${id}/revive`, { method: 'POST', headers: auth, body: JSON.stringify({ status: 'developing' }) }))
       expect(revive.status).toBe(200)
       const detail = await app.fetch(new Request(`http://local/api/projects/${id}`, { headers: auth }))
       const d = (await detail.json()) as { project: { status: string; archived_state: string | null; history: { note: string }[] } }
-      expect(d.project.status).toBe('doing')
+      expect(d.project.status).toBe('developing')
       expect(d.project.archived_state).toBeNull()
-      expect(d.project.history.map((h) => h.note)).toContain('Revived → In Progress')
+      expect(d.project.history.map((h) => h.note)).toContain('Revived → Developing')
     } finally {
       close()
     }
@@ -107,13 +107,13 @@ describe('Phase 3 — export, duplicate-check, revive, reports', () => {
       const summary = await app.fetch(new Request('http://local/api/reports/summary', { headers: auth }))
       const s = (await summary.json()) as { status: Record<string, number>; totalProjects: number; recents: Record<string, { id: string; title: string }[]> }
       expect(s.status.spark).toBe(1)
-      // the status counters cover the whole 7-stage taxonomy (keys initialized to 0)
-      expect(Object.keys(s.status).sort()).toEqual(['awaiting', 'doing', 'halted', 'investigating', 'operational', 'spark', 'unreviewed'])
+      // the status counters cover the whole 6-stage taxonomy (keys initialized to 0)
+      expect(Object.keys(s.status).sort()).toEqual(['awaiting_dev', 'developing', 'operational', 'planning', 'queued', 'spark'])
       expect(s.totalProjects).toBe(1)
       // The Operational/Halted boxes moved to Reports (user request 2026-08-21): the summary
       // carries up to 4 recents per status so the page can render the links.
       expect(Array.isArray(s.recents.operational)).toBe(true)
-      expect(Array.isArray(s.recents.halted)).toBe(true)
+      expect(Array.isArray(s.recents.awaiting_dev)).toBe(true)
 
       // move the project to Operational → it must appear in recents.operational with a link
       const move = await app.fetch(new Request(`http://local/api/projects/${id}`, { method: 'PATCH', headers: auth, body: JSON.stringify({ status: 'operational' }) }))

@@ -20,14 +20,13 @@ window.__hibanaDictFA = {
       'rail.loading': 'در حال بارگذاری…',
       'rail.failed': 'اتصال به سرور برقرار نشد — پنل را دوباره باز کنید.',
       'rail.empty': 'هنوز چیزی اینجا نیست — چیزی باز کنی همین‌جا ظاهر می‌شود.',
-      'rail.g.recent': 'ادامه', 'rail.g.jump': 'پرش به', 'rail.g.today': 'امروز',
-      'rail.g.all': 'همه', 'rail.g.ongoing': 'در جریان', 'rail.g.done': 'انجام‌شده',
-      'rail.g.unfiled': 'بی‌پوشه', 'rail.g.dueSoon': 'سررسید ۷ روز آینده',
+      'rail.g.unfiled': 'بی‌پوشه', 'rail.g.upcoming': 'پیشِ رو',
       'rail.sparksEmpty': 'هنوز ایده‌ای ثبت نشده — قفسهٔ ایده‌ها با ثبت‌های تو پر می‌شود.',
       'rail.notesEmpty': 'هنوز یادداشتی نیست — گاوصندوق با نوشتن تو پر می‌شود.',
       'rail.canvasHint': 'بوم بی‌حدومرز یک تختهٔ واحد است — بازش کن تا بکشی، یادداشت سنجاق کنی و قاب بسازی.',
       'rail.notebookHint': 'برگه یادداشت تختهٔ سفید توست — بازش کن تا آزادانه بنویسی و بکشی.',
-      'rail.calendarHint': 'سررسیدهای پروژه‌ها و کارهایت هرچه نزدیک‌تر شوند همین‌جا می‌آیند.',
+      'rail.calendarHint': 'هر چیز برنامه‌ریزی‌شده — پروژه، وظیفه یا کارِ لیست — وقتی نزدیک شود همین‌جا می‌آید.',
+      'rail.todoFailed': 'به‌روزرسانی کار ممکن نشد — دوباره تلاش کن',
       // S89: the LABELED rail — a small text label rides under every icon
       'rail.label.search': 'جست‌وجو', 'rail.label.dashboard': 'پیشخوان', 'rail.label.todo': 'کارها',
       'rail.label.projects': 'پروژه‌ها', 'rail.label.ideas': 'ایده‌ها', 'rail.label.notes': 'یادداشت‌ها',
@@ -216,8 +215,8 @@ window.__hibanaDictFA = {
       'sort.label': 'مرتب‌سازی', 'sort.stage': 'به ترتیب مرحله', 'sort.recent': 'به‌روزرسانی اخیر', 'sort.title': 'نام',
       'list.reorderFailed': 'مرتب‌سازی ناموفق بود — دوباره تلاش کن',
       // batch q lifecycle: spark = idea; the six project stages follow Ali's funnel
-      'status.spark': 'ایده', 'status.unreviewed': 'بررسی نشده', 'status.investigating': 'در حال تحقیق',
-      'status.awaiting': 'در انتظار اقدام', 'status.doing': 'در حال انجام', 'status.halted': 'توقف توسعه',
+      'status.spark': 'ایده', 'status.planning': 'برنامه‌ریزی', 'status.queued': 'در صف',
+      'status.developing': 'در حال توسعه', 'status.awaiting_dev': 'در انتظار توسعه',
       'status.operational': 'عملیاتی',
       // settings page
       'settings.tabPreferences': 'ترجیحات', 'settings.tabAppearance': 'ظاهر', 'settings.tabAccount': 'حساب',
@@ -806,8 +805,8 @@ window.__hibanaDictFA = {
       // S52: Trash palette command + recoverable-count sublabel
       'cmdk.openTrash': 'سطل بازیافت — بازیابی موارد حذف‌شده',
       'cmdk.trashCount': '{n} مورد قابل بازیابی',
-      'cmdk.statusSpark': 'ایده', 'cmdk.statusUnreviewed': 'بررسی نشده', 'cmdk.statusInvestigating': 'در حال تحقیق',
-      'cmdk.statusAwaiting': 'در انتظار اقدام', 'cmdk.statusDoing': 'در حال انجام', 'cmdk.statusHalted': 'توقف توسعه',
+      'cmdk.statusSpark': 'ایده', 'cmdk.statusPlanning': 'برنامه‌ریزی', 'cmdk.statusQueued': 'در صف',
+      'cmdk.statusDeveloping': 'در حال توسعه', 'cmdk.statusAwaitingDev': 'در انتظار توسعه',
       'cmdk.statusOperational': 'عملیاتی',
       // R7.2: PWA install prompt
       'install.prompt': 'هیبانا را برای دسترسی آفلاین نصب کنی؟',

@@ -10,22 +10,19 @@ import type { Config, ProjectRow, ProjectStatus } from '../types'
 // history notes are stored data and keep English); fragments translate via statusLabel().
 export const STATUS_LABEL: Record<ProjectStatus, string> = {
   spark: 'Idea',
-  unreviewed: 'Unreviewed',
-  investigating: 'Investigating',
-  awaiting: 'Awaiting Execution',
-  doing: 'In Progress',
-  halted: 'Development Stopped',
+  planning: 'Planning',
+  queued: 'Queued',
+  developing: 'Developing',
+  awaiting_dev: 'Awaiting Development',
   operational: 'Operational',
 }
 
 export const STATUS_LABEL_FA: Record<ProjectStatus, string> = {
   spark: 'ایده',
-  unreviewed: 'بررسی نشده',
-  investigating: 'در حال تحقیق',
-  awaiting: 'در انتظار اقدام',
-  // Phase 6 item 16 — «اقدام» («execution») read like an old label; the user asked for this wording
-  doing: 'در حال انجام',
-  halted: 'توقف توسعه',
+  planning: 'برنامه‌ریزی',
+  queued: 'در صف',
+  developing: 'در حال توسعه',
+  awaiting_dev: 'در انتظار توسعه',
   operational: 'عملیاتی',
 }
 
@@ -42,11 +39,10 @@ export const STATUS_BADGE = (s: ProjectStatus, lang: Locale = 'en'): string =>
 // / "now playing" metaphor. The sun stays reserved for the theme toggle only.
 export const STATUS_ICON: Record<ProjectStatus, string> = {
   spark: 'idea',
-  unreviewed: 'clock',
-  investigating: 'search',
-  awaiting: 'calendar',
-  doing: 'play',
-  halted: 'pause',
+  planning: 'compass',
+  queued: 'hourglass',
+  developing: 'play',
+  awaiting_dev: 'pause',
   operational: 'rocket',
 }
 
@@ -64,6 +60,10 @@ export function icon(name: string, cls = 'icon'): string {
       case 'cloud': return '<path d="M17.5 18.5a4 4 0 0 0-.3-7.99A5.5 5.5 0 0 0 6.9 9.6 3.5 3.5 0 0 0 7 18.5Z"/>'
       case 'link': return '<path d="M10 14a5 5 0 0 0 7 0l3-3a5 5 0 0 0-7-7l-1.2 1.2"/><path d="M14 10a5 5 0 0 0-7 0l-3 3a5 5 0 0 0 7 7l1.2-1.2"/>'
       case 'search': return '<circle cx="11" cy="11" r="6.5"/><path d="M16 16l4.5 4.5"/>'
+      // 0060: Planning's glyph — a compass (course-setting) replaces the old
+      // investigating magnifier; Queued gets the hourglass (waiting its turn).
+      case 'compass': return '<circle cx="12" cy="12" r="9"/><path d="M15.5 8.5l-1.9 5.1-5.1 1.9 1.9-5.1z"/>'
+      case 'hourglass': return '<path d="M7 3.5h10M7 20.5h10M8 3.5v2.6c0 1.9 1.6 3.1 4 5.9 2.4-2.8 4-4 4-5.9V3.5M8 20.5v-2.6c0-1.9 1.6-3.1 4-5.9 2.4 2.8 4 4 4 5.9v2.6"/>'
       case 'pause': return '<path d="M9 5.5v13M15 5.5v13"/>'
       case 'play': return '<circle cx="12" cy="12" r="9"/><path d="M10 8.5l5 3.5-5 3.5z" fill="currentColor" stroke="none"/>'
       case 'idea': return '<path d="M9 18h6M10 22h4"/><path d="M12 2a7 7 0 0 0-4.2 12.6c.9.7 1.2 1.6 1.2 2.4h6c0-.8.3-1.7 1.2-2.4A7 7 0 0 0 12 2Z"/>'

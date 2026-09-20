@@ -830,15 +830,15 @@ input.qe-name,
   /* The 4px amber start-edge from .dash-stale-row, refined into a soft gradient so
      the banner reads as a surface, not a highlighter stroke. Gradients take PHYSICAL
      directions only — the [dir='rtl'] rule below flips it. */
-  border-inline-start: 4px solid var(--badge-awaiting-fg, #85620D);
+  border-inline-start: 4px solid var(--badge-queued-fg, #85620D);
   background:
-    linear-gradient(to right, color-mix(in srgb, var(--badge-awaiting-bg, #F6EFCB) 42%, transparent), transparent 62%),
-    color-mix(in srgb, var(--badge-awaiting-bg, #F6EFCB) 55%, var(--card));
+    linear-gradient(to right, color-mix(in srgb, var(--badge-queued-bg, #F6EFCB) 42%, transparent), transparent 62%),
+    color-mix(in srgb, var(--badge-queued-bg, #F6EFCB) 55%, var(--card));
 }
 [dir='rtl'] .pg-stale-banner {
   background:
-    linear-gradient(to left, color-mix(in srgb, var(--badge-awaiting-bg, #F6EFCB) 42%, transparent), transparent 62%),
-    color-mix(in srgb, var(--badge-awaiting-bg, #F6EFCB) 55%, var(--card));
+    linear-gradient(to left, color-mix(in srgb, var(--badge-queued-bg, #F6EFCB) 42%, transparent), transparent 62%),
+    color-mix(in srgb, var(--badge-queued-bg, #F6EFCB) 55%, var(--card));
 }
 /* The clock breathes — 2.4s ease, guarded for reduced motion (the S71 icon-motion
    recipe). Attention without alarm; the dashboard nudge's icon stays static (a nudge
@@ -862,22 +862,22 @@ input.qe-name,
   margin-inline-start: auto;
   padding: 0.3rem 0.7rem;
   font-size: var(--fs-xs, 0.78rem); font-weight: 600;
-  color: var(--badge-awaiting-fg, #85620D);
+  color: var(--badge-queued-fg, #85620D);
   background: var(--card);
-  border: 1px solid color-mix(in srgb, var(--badge-awaiting-fg, #85620D) 22%, var(--line));
+  border: 1px solid color-mix(in srgb, var(--badge-queued-fg, #85620D) 22%, var(--line));
   border-radius: 999px;
   cursor: pointer;
   transition: border-color .16s ease, box-shadow .16s ease, transform .16s ease, color .16s ease;
 }
 .pg-stale-clear svg { inline-size: 0.85rem; block-size: 0.85rem; flex: none; }
 .pg-stale-clear:hover, .pg-stale-clear:focus-visible {
-  border-color: color-mix(in srgb, var(--badge-awaiting-fg, #85620D) 55%, var(--line));
+  border-color: color-mix(in srgb, var(--badge-queued-fg, #85620D) 55%, var(--line));
   box-shadow: 0 2px 8px -3px rgb(0 0 0 / 0.14);
   transform: translateY(-1px);
 }
 .pg-stale-clear:active { transform: translateY(0); }
 .pg-stale-clear:focus-visible {
-  outline: 2px solid var(--badge-awaiting-fg, #85620D);
+  outline: 2px solid var(--badge-queued-fg, #85620D);
   outline-offset: 2px;
 }
 /* Mobile: the banner stacks; the exit hatch goes full-width (44px touch floor). */
@@ -892,7 +892,7 @@ input.qe-name,
   margin-inline-start: auto;
   display: inline-flex; align-items: center; gap: 0.3rem;
   font-size: var(--fs-xs, 0.78rem); font-weight: 600;
-  color: var(--badge-awaiting-fg, #85620D);
+  color: var(--badge-queued-fg, #85620D);
   text-decoration: none;
   white-space: nowrap;
   padding: 0.25rem 0.4rem;
@@ -901,12 +901,12 @@ input.qe-name,
 }
 .dash-stale-more svg { inline-size: 0.85rem; block-size: 0.85rem; }
 .dash-stale-more:hover, .dash-stale-more:focus-visible {
-  color: color-mix(in srgb, var(--badge-awaiting-fg, #85620D) 78%, var(--foreground));
-  background: color-mix(in srgb, var(--badge-awaiting-fg, #85620D) 10%, transparent);
+  color: color-mix(in srgb, var(--badge-queued-fg, #85620D) 78%, var(--foreground));
+  background: color-mix(in srgb, var(--badge-queued-fg, #85620D) 10%, transparent);
   outline: none;
 }
 .dash-stale-more:focus-visible {
-  outline: 2px solid var(--badge-awaiting-fg, #85620D);
+  outline: 2px solid var(--badge-queued-fg, #85620D);
   outline-offset: 2px;
 }
 @media (max-width: 640px) {
@@ -922,7 +922,7 @@ input.qe-name,
 }
 /* High contrast: the ghost pill gains a real border + the count goes foreground. */
 @media (prefers-contrast: more) {
-  .pg-stale-clear { border-color: var(--badge-awaiting-fg, #85620D); color: var(--foreground); }
+  .pg-stale-clear { border-color: var(--badge-queued-fg, #85620D); color: var(--foreground); }
   .pg-stale-count { color: var(--foreground); }
 }
 

@@ -213,7 +213,7 @@ main.shell.adm-shell { max-inline-size: 56rem; }
 
 /* status badges — the app's --badge-bg/--badge-fg contract */
 .adm-badge-owner      { --badge-bg: var(--badge-spark-bg);   --badge-fg: var(--badge-spark-fg); }
-.adm-badge-verified   { --badge-bg: var(--badge-doing-bg);   --badge-fg: var(--badge-doing-fg); }
+.adm-badge-verified   { --badge-bg: var(--badge-developing-bg);   --badge-fg: var(--badge-developing-fg); }
 .adm-badge-unverified { --badge-bg: var(--badge-unreviewed-bg); --badge-fg: var(--badge-unreviewed-fg); }
 .adm-badge-banned     { --badge-bg: color-mix(in srgb, var(--err) 14%, transparent); --badge-fg: var(--err); }
 

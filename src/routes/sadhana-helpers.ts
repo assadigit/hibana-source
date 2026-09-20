@@ -110,14 +110,25 @@ export const quadrantOrderSchema = z.object({
 export const updateSchema = z.object({ text: z.string().trim().min(1).max(500) })
 export const QUADRANT_ICONS = ['gear', 'target', 'star', 'heart', 'flag', 'folder-plus', 'calendar', 'book', 'idea', 'bell', 'mountain', 'leaf'] as const
 export const GLYPH_IDS = new Set<string>(QUADRANT_ICONS) // glyph ids vs plain-emoji icon values
-export const QUADRANT_ACCENTS = ['accent-1', 'accent-2', 'accent-3', 'accent-4', 'accent-green', 'accent-purple', 'accent-pink', 'accent-teal'] as const
+// S93 (owner round, item 6: "let user assign colors — offer 16 colors — for each
+// quadrant, pastel"): the swatch palette grows 8 → 16 tokens. Every token resolves to a
+// CSS --accent-* custom property (variables.css + themes.css + claude-dark-theme.css);
+// the quadrants render them as low-opacity PASTEL washes, never full inks.
+export const QUADRANT_ACCENTS = [
+  'accent-1', 'accent-2', 'accent-3', 'accent-4',
+  'accent-green', 'accent-purple', 'accent-pink', 'accent-teal',
+  'accent-sky', 'accent-mint', 'accent-lilac', 'accent-coral',
+  'accent-sand', 'accent-sage', 'accent-plum', 'accent-slate',
+] as const
 export const renameSchema = z.object({
   name: z.string().max(60).nullable(),
   subtitle: z.string().max(120).nullable().optional(), // 0025: optional editable subheading (blank = empty line)
   // icon_id is either one of the SVG glyph ids (dashboard picker) or a plain emoji
   // (sadhana.html picker, user request 2026-09-02) — max 8 chars covers every emoji incl. ZWJ sequences.
   icon_id: z.string().max(8).optional(),
-  accent_color: z.enum(QUADRANT_ACCENTS).optional(),
+  // S93: nullish — explicit null CLEARS the picked pastel (the swatch row's ∅ button);
+  // undefined leaves it untouched (the icon-only PATCH path).
+  accent_color: z.enum(QUADRANT_ACCENTS).nullish(),
 })
 
 // Weekday button order per language (spec §5.12: the Persian week starts with Saturday).

@@ -58,17 +58,17 @@ describe('stale view (S75 — projects.html?stale=1)', () => {
     const { db, close } = makeTestDb()
     try {
       const user = await makeUser(db)
-      await seedProject(db, user, 's-old', 'Oldest hanging', 'unreviewed', 40)
-      await seedProject(db, user, 's-mid', 'Mid hanging', 'doing', 20)
-      await seedProject(db, user, 's-edge', 'Exactly at the line (15d)', 'awaiting', 15)
+      await seedProject(db, user, 's-old', 'Oldest hanging', 'planning', 40)
+      await seedProject(db, user, 's-mid', 'Mid hanging', 'developing', 20)
+      await seedProject(db, user, 's-edge', 'Exactly at the line (15d)', 'queued', 15)
       // Excluded by design: deliberately paused, done, raw capture, too fresh.
-      await seedProject(db, user, 'x-halted', 'Halted', 'halted', 40)
+      await seedProject(db, user, 'x-halted', 'Halted', 'awaiting_dev', 40)
       await seedProject(db, user, 'x-op', 'Operational', 'operational', 40)
       await seedProject(db, user, 'x-spark', 'Spark', 'spark', 40)
-      await seedProject(db, user, 'x-fresh', 'Fresh', 'doing', 3)
+      await seedProject(db, user, 'x-fresh', 'Fresh', 'developing', 3)
       // Other users' rows are invisible (rule 1).
       const other = await makeUser(db)
-      await seedProject(db, other, 'o-1', 'Their stale', 'doing', 30)
+      await seedProject(db, other, 'o-1', 'Their stale', 'developing', 30)
 
       const client = await makeClient(db, user)
       const rows = await listJson(client, '?stale=1')
@@ -85,8 +85,8 @@ describe('stale view (S75 — projects.html?stale=1)', () => {
     const { db, close } = makeTestDb()
     try {
       const user = await makeUser(db)
-      await seedProject(db, user, 's-doing', 'Stale doing', 'doing', 20)
-      await seedProject(db, user, 's-unrev', 'Stale unreviewed', 'unreviewed', 20)
+      await seedProject(db, user, 's-doing', 'Stale doing', 'developing', 20)
+      await seedProject(db, user, 's-unrev', 'Stale unreviewed', 'planning', 20)
       const client = await makeClient(db, user)
       const rows = await listJson(client, '?stale=1&status=doing')
       expect(rows.map((p) => p.id)).toEqual(['s-doing'])
@@ -99,7 +99,7 @@ describe('stale view (S75 — projects.html?stale=1)', () => {
     const { db, close } = makeTestDb()
     try {
       const user = await makeUser(db)
-      await seedProject(db, user, 'n-1', 'Normal', 'doing', 1)
+      await seedProject(db, user, 'n-1', 'Normal', 'developing', 1)
       const client = await makeClient(db, user)
       // stale=0 (not '1') → undefined → the plain list; the other params still parse.
       const rows = await listJson(client, '?stale=0&sort=recent')
@@ -113,7 +113,7 @@ describe('stale view (S75 — projects.html?stale=1)', () => {
     const { db, close } = makeTestDb()
     try {
       const user = await makeUser(db)
-      await seedProject(db, user, 's-1', 'Hanging', 'investigating', 21)
+      await seedProject(db, user, 's-1', 'Hanging', 'planning', 21)
       const client = await makeClient(db, user)
 
       const hx = { ...client.auth, 'HX-Request': 'true' }

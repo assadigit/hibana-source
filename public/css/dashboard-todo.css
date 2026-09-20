@@ -112,6 +112,60 @@ section[id^="dashboard-"].is-collapsed > *:not(header) { display: none; }
 .dash-style-emoji.dash-style-empty { border: 1px dashed var(--line-strong); color: var(--muted); font-size: 0.95rem; }
 .dash-style-emoji.dash-style-empty:hover, .dash-style-emoji.dash-style-empty:focus-visible { border-style: solid; border-color: var(--dash-q-accent, var(--accent)); background: var(--bg-soft); color: var(--text); }
 .dash-style-emoji.dash-style-empty.is-selected { border-style: solid; border-color: var(--dash-q-accent, var(--accent)); background: color-mix(in srgb, var(--dash-q-accent, var(--accent)) 12%, transparent); color: var(--dash-q-accent, var(--accent)); }
+
+/* --- S93 (owner round, item 6): the 16 PASTEL swatches (board + dashboard popovers) ---
+   Shared class names (.dash-style-swatches / .dash-style-swatch) — this sheet loads on
+   BOTH surfaces that render them (sadhana.html + dashboard.html). 'none' (∅) clears
+   back to the neutral quadrant. */
+.dash-style-swatches {
+  display: grid;
+  grid-template-columns: repeat(9, 1fr);
+  gap: 5px;
+  padding-block-start: 2px;
+}
+.dash-style-swatch {
+  inline-size: 100%;
+  aspect-ratio: 1;
+  min-inline-size: 22px;
+  min-block-size: 22px;
+  padding: 0;
+  border-radius: 8px;
+  border: 2px solid color-mix(in srgb, var(--sw, #999) 35%, transparent);
+  background: var(--sw, #999);
+  cursor: pointer;
+  transition: transform 0.12s ease, border-color 0.12s ease, box-shadow 0.12s ease;
+}
+.dash-style-swatch:hover { transform: scale(1.12); }
+.dash-style-swatch.is-selected {
+  border-color: var(--text);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--sw, #999) 30%, transparent);
+  transform: scale(1.06);
+}
+.dash-style-swatch-none {
+  background: transparent;
+  border: 2px dashed var(--line-strong);
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.dash-style-swatch-none.is-selected { border-color: var(--text); color: var(--text); }
+
+/* S93 (item 6): the dashboard quadrant wears its picked pastel — a soft wash on the
+   card + tinted header accents (low opacity = pastel, never full ink). */
+.dash-todo-quadrant[style*='--dash-q-accent'] {
+  background: color-mix(in srgb, var(--dash-q-accent) 6%, var(--card));
+  border-color: color-mix(in srgb, var(--dash-q-accent) 28%, var(--line));
+}
+.dash-todo-quadrant[style*='--dash-q-accent'] .dash-todo-qtitle strong {
+  color: color-mix(in srgb, var(--dash-q-accent) 60%, var(--text));
+}
+.dash-todo-quadrant[style*='--dash-q-accent'] .dash-todo-counter {
+  border-color: color-mix(in srgb, var(--dash-q-accent) 40%, var(--line));
+  color: color-mix(in srgb, var(--dash-q-accent) 65%, var(--text));
+}
 /* S83: the quadrant trigger with the EMPTY symbol — the glyph vanishes but the button
    keeps its hit area (it's still the customize entry); a faint ∅ ghost appears on
    hover so an empty quadrant stays discoverable/editable. ::after doesn't break
@@ -655,11 +709,10 @@ body.rail-panel-open .dash-todo-grid { grid-template-columns: repeat(2, minmax(0
 }
 .icon-chip .icon { inline-size: 1rem; block-size: 1rem; }
 .stat-box[data-status='spark'] .icon-chip { background: var(--badge-spark-bg); color: var(--badge-spark-fg); }
-.stat-box[data-status='unreviewed'] .icon-chip { background: var(--badge-unreviewed-bg); color: var(--badge-unreviewed-fg); }
-.stat-box[data-status='investigating'] .icon-chip { background: var(--badge-investigating-bg); color: var(--badge-investigating-fg); }
-.stat-box[data-status='awaiting'] .icon-chip { background: var(--badge-awaiting-bg); color: var(--badge-awaiting-fg); }
-.stat-box[data-status='doing'] .icon-chip { background: var(--badge-doing-bg); color: var(--badge-doing-fg); }
-.stat-box[data-status='halted'] .icon-chip { background: var(--badge-halted-bg); color: var(--badge-halted-fg); }
+.stat-box[data-status='planning'] .icon-chip { background: var(--badge-planning-bg); color: var(--badge-planning-fg); }
+.stat-box[data-status='queued'] .icon-chip { background: var(--badge-queued-bg); color: var(--badge-queued-fg); }
+.stat-box[data-status='developing'] .icon-chip { background: var(--badge-developing-bg); color: var(--badge-developing-fg); }
+.stat-box[data-status='awaiting_dev'] .icon-chip { background: var(--badge-awaiting_dev-bg); color: var(--badge-awaiting_dev-fg); }
 .stat-box[data-status='operational'] .icon-chip { background: var(--badge-operational-bg); color: var(--badge-operational-fg); }
 /* Brand-colored interactive link states (audit 20). */
 .stat-box a.small:hover,

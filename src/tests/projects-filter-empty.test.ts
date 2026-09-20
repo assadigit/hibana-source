@@ -24,7 +24,7 @@ async function seedProject(db: Db, userId: string, id: string, title: string) {
   const now = new Date().toISOString()
   await db.execute(
     'INSERT INTO projects (id, user_id, title, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)',
-    [id, userId, title, 'doing', now, now],
+    [id, userId, title, 'developing', now, now],
   )
 }
 

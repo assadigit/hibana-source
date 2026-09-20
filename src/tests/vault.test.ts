@@ -331,7 +331,7 @@ describe('notes vault (0057)', () => {
       // two live sparks (one with a "where I left off" note) + one soft-deleted + one non-spark project
       const iso = () => new Date().toISOString()
       await db.execute(
-        "INSERT INTO projects (id, user_id, title, description, latest_note, status, created_at, updated_at) VALUES ('sp1', ?, 'Idea one', 'The description.', 'Left off here', 'spark', ?, ?), ('sp2', ?, 'Idea two', '', '', 'spark', ?, ?), ('sp3', ?, 'Deleted idea', 'x', '', 'spark', ?, ?), ('pr1', ?, 'Real project', '', '', 'doing', ?, ?)",
+        "INSERT INTO projects (id, user_id, title, description, latest_note, status, created_at, updated_at) VALUES ('sp1', ?, 'Idea one', 'The description.', 'Left off here', 'spark', ?, ?), ('sp2', ?, 'Idea two', '', '', 'spark', ?, ?), ('sp3', ?, 'Deleted idea', 'x', '', 'spark', ?, ?), ('pr1', ?, 'Real project', '', '', 'developing', ?, ?)",
         [user, iso(), iso(), user, iso(), iso(), user, iso(), iso(), user, iso(), iso()],
       )
       await db.execute("UPDATE projects SET deleted_at = ? WHERE id = 'sp3'", [iso()])

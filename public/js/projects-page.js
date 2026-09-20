@@ -39,7 +39,7 @@
         syncViewUi(initialView)
         if (!urlView && !urlStatus && !urlStale) writeViewPref(initialView) // a stale link is a landing mode, not a preference change
         // batch q: legacy pre-0034 URLs/filters map onto the new lifecycle vocabulary.
-        const LEGACY_STATUS = { pending: 'unreviewed', building: 'doing', working: 'operational', archived: 'halted' }
+        const LEGACY_STATUS = { pending: 'planning', unreviewed: 'planning', investigating: 'planning', awaiting: 'queued', building: 'developing', doing: 'developing', working: 'operational', archived: 'awaiting_dev', halted: 'awaiting_dev' }
         const normStatus = (s) => LEGACY_STATUS[s] || s
         const normUrlStatus = urlStatus ? normStatus(urlStatus) : null
         if (normUrlStatus) {
@@ -368,7 +368,7 @@
               // batch q: spark (idea) + the six project stages — demoting to «ایده» sends
               // the project back to the Ideas shelf.
               '<label>' + _t('calendar.stage', 'Stage') + ' <select id="ce-status">' +
-                ['spark','unreviewed','investigating','awaiting','doing','halted','operational'].map(function (s) { return '<option value="' + s + '">' + _t('status.' + s, s) + '</option>' }).join('') +
+                ['spark','planning','queued','developing','awaiting_dev','operational'].map(function (s) { return '<option value="' + s + '">' + _t('status.' + s, s) + '</option>' }).join('') +
               '</select></label>' +
               '<p class="error" id="ce-error" role="alert"></p>' +
               '<div class="row">' +

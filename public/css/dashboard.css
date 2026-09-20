@@ -16,7 +16,10 @@
    .at-end flags (app.js syncStatCarousel) fade the handle that has nothing to page,
    so a card edge is only covered while the handle is actually usable. */
 .stat-carousel { display: grid; gap: 0.5rem; margin-block-end: 1.25rem; }
-.stat-carousel-nav { display: flex; justify-content: center; }
+/* S93 (owner round, item 12 — "these carousel circles are too close to their section;
+   add some margin with the upper section"): the dots row gets real breathing room below
+   the stage strip (0.5rem grid gap + 0.7rem own margin ≈ 1.2rem total separation). */
+.stat-carousel-nav { display: flex; justify-content: center; margin-block-start: 0.7rem; }
 /* min-inline-size: 0 breaks the grid-item auto-minimum chain (the track's max-content
    ~591px would otherwise size the stage and overflow the section); display stays block —
    the .stat-strip stretches to the stage width as a block-level flex container. */
@@ -610,11 +613,10 @@ main.shell-dash > section { margin-block-end: 2.9rem; }
 /* Stage columns: the pill wears the column's status role (data-status is already on
    the .stat-box — the exact selector shape the icon-chips above use). */
 .stat-box[data-status='spark'] .board-count { --badge-bg: var(--badge-spark-bg); --badge-fg: var(--badge-spark-fg); }
-.stat-box[data-status='unreviewed'] .board-count { --badge-bg: var(--badge-unreviewed-bg); --badge-fg: var(--badge-unreviewed-fg); }
-.stat-box[data-status='investigating'] .board-count { --badge-bg: var(--badge-investigating-bg); --badge-fg: var(--badge-investigating-fg); }
-.stat-box[data-status='awaiting'] .board-count { --badge-bg: var(--badge-awaiting-bg); --badge-fg: var(--badge-awaiting-fg); }
-.stat-box[data-status='doing'] .board-count { --badge-bg: var(--badge-doing-bg); --badge-fg: var(--badge-doing-fg); }
-.stat-box[data-status='halted'] .board-count { --badge-bg: var(--badge-halted-bg); --badge-fg: var(--badge-halted-fg); }
+.stat-box[data-status='planning'] .board-count { --badge-bg: var(--badge-planning-bg); --badge-fg: var(--badge-planning-fg); }
+.stat-box[data-status='queued'] .board-count { --badge-bg: var(--badge-queued-bg); --badge-fg: var(--badge-queued-fg); }
+.stat-box[data-status='developing'] .board-count { --badge-bg: var(--badge-developing-bg); --badge-fg: var(--badge-developing-fg); }
+.stat-box[data-status='awaiting_dev'] .board-count { --badge-bg: var(--badge-awaiting_dev-bg); --badge-fg: var(--badge-awaiting_dev-fg); }
 .stat-box[data-status='operational'] .board-count { --badge-bg: var(--badge-operational-bg); --badge-fg: var(--badge-operational-fg); }
 /* The stat header's label + pill sit in one flex row; keep the label from being
    squeezed by long translated words (FA) while the pill stays whole. */
@@ -817,15 +819,15 @@ main.shell-dash > section { margin-block-end: 2.9rem; }
   display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap;
   margin-block: 0.35rem 0.55rem;
   padding: 0.45rem 0.65rem;
-  border: 1px solid color-mix(in srgb, var(--badge-awaiting-fg, #85620D) 26%, var(--line));
-  border-inline-start: 4px solid var(--badge-awaiting-fg, #85620D);
+  border: 1px solid color-mix(in srgb, var(--badge-queued-fg, #85620D) 26%, var(--line));
+  border-inline-start: 4px solid var(--badge-queued-fg, #85620D);
   border-radius: var(--radius);
-  background: color-mix(in srgb, var(--badge-awaiting-bg, #F6EFCB) 55%, var(--card));
+  background: color-mix(in srgb, var(--badge-queued-bg, #F6EFCB) 55%, var(--card));
 }
 .dash-stale-flag {
   display: inline-flex; align-items: center; gap: 0.4rem;
   font-size: var(--fs-xs, 0.78rem); font-weight: 700;
-  color: var(--badge-awaiting-fg, #85620D);
+  color: var(--badge-queued-fg, #85620D);
   white-space: nowrap;
 }
 .dash-stale-flag svg { inline-size: 0.95rem; block-size: 0.95rem; flex: none; }
@@ -835,13 +837,13 @@ main.shell-dash > section { margin-block-end: 2.9rem; }
   max-inline-size: 17rem;
   padding: 0.3rem 0.6rem;
   background: var(--card);
-  border: 1px solid color-mix(in srgb, var(--badge-awaiting-fg, #85620D) 18%, var(--line));
+  border: 1px solid color-mix(in srgb, var(--badge-queued-fg, #85620D) 18%, var(--line));
   border-radius: 999px;
   text-decoration: none; color: inherit;
   transition: border-color .16s ease, box-shadow .16s ease, transform .16s ease;
 }
 .dash-stale-chip:hover, .dash-stale-chip:focus-visible {
-  border-color: color-mix(in srgb, var(--badge-awaiting-fg, #85620D) 55%, var(--line));
+  border-color: color-mix(in srgb, var(--badge-queued-fg, #85620D) 55%, var(--line));
   box-shadow: 0 2px 8px -3px rgb(0 0 0 / 0.12);
   transform: translateY(-1px);
   outline: none;

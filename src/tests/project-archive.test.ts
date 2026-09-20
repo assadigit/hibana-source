@@ -36,7 +36,7 @@ describe('project/idea archive (S35)', () => {
       const app = createApp({ db, isProd: false, emailKey: undefined } as unknown as Config)
       const token = await createSession(db, userId)
       const idea = await makeProject(db, userId, 'spark', 'Blockchain toaster')
-      const live = await makeProject(db, userId, 'doing', 'Hibana')
+      const live = await makeProject(db, userId, 'developing', 'Hibana')
 
       // archive the idea
       const arch = await app.fetch(new Request(`http://local/api/projects/${idea}/archive`, { method: 'POST', headers: h(token) }))
@@ -100,8 +100,8 @@ describe('project/idea archive (S35)', () => {
       const userId = await makeUser(db)
       const app = createApp({ db, isProd: false, emailKey: undefined } as unknown as Config)
       const token = await createSession(db, userId)
-      const a = await makeProject(db, userId, 'awaiting', 'A')
-      await makeProject(db, userId, 'awaiting', 'B')
+      const a = await makeProject(db, userId, 'queued', 'A')
+      await makeProject(db, userId, 'queued', 'B')
 
       // grid fragment counts BEFORE: awaiting = 2
       const before = await app.fetch(
@@ -116,7 +116,7 @@ describe('project/idea archive (S35)', () => {
       const afterHtml = await (await app.fetch(
         new Request('http://local/api/projects?view=grid', { headers: { Cookie: `hibana_session=${token}`, 'HX-Request': '1' } }),
       )).text()
-      const m = /data-pglance="awaiting"[\s\S]*?pglance-count"[^>]*>(\d+)</.exec(afterHtml)
+      const m = /data-pglance="queued"[\s\S]*?pglance-count"[^>]*>(\d+)</.exec(afterHtml)
       expect(m?.[1]).toBe('1')
 
       // the detail page shows the banner + restore button instead of the archive button
@@ -141,7 +141,7 @@ describe('project/idea archive (S35)', () => {
       const ownerId = await makeUser(db)
       const otherId = await makeUser(db, { email: 'other@test.dev' })
       const app = createApp({ db, isProd: false, emailKey: undefined } as unknown as Config)
-      const mine = await makeProject(db, ownerId, 'doing', 'Mine')
+      const mine = await makeProject(db, ownerId, 'developing', 'Mine')
       const otherToken = await createSession(db, otherId)
       const res = await app.fetch(new Request(`http://local/api/projects/${mine}/archive`, { method: 'POST', headers: h(otherToken) }))
       expect(res.status).toBe(404)

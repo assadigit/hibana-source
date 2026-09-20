@@ -137,7 +137,7 @@
         const DOW_J = ['شنبه','یکشنبه','دوشنبه','سه‌شنبه','چهارشنبه','پنجشنبه','جمعه'] // Sat-first
         const WD_FA = ['یکشنبه','دوشنبه','سه‌شنبه','چهارشنبه','پنجشنبه','جمعه','شنبه'] // by getDay (0=Sun)
         const WD_EN = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday']
-        const PROJECT_STATUSES = ['spark', 'unreviewed', 'investigating', 'awaiting', 'doing', 'halted', 'operational'] // batch q lifecycle
+        const PROJECT_STATUSES = ['spark', 'planning', 'queued', 'developing', 'awaiting_dev', 'operational'] // batch q lifecycle (0060 rename)
 
         // 22-a #1 (display-layer rule): EVERY user-visible date string on this page is
         // formatted through dateLabel — following the ACTIVE calendar system (which the

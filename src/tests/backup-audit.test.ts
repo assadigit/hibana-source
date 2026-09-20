@@ -106,7 +106,7 @@ describe('personal export isolation (buildUserSnapshot)', () => {
       // Both users own a full graph of data.
       for (const [label, uid] of [['a', alice], ['b', bob]] as const) {
         await db.execute('INSERT INTO spark_folders (id, user_id, name, sort_order, created_at) VALUES (?, ?, ?, ?, ?)', [`f-${label}`, uid, 'F', 0, now])
-        await db.execute('INSERT INTO projects (id, user_id, folder_id, title, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)', [`p-${label}`, uid, `f-${label}`, `P ${label}`, 'doing', now, now])
+        await db.execute('INSERT INTO projects (id, user_id, folder_id, title, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)', [`p-${label}`, uid, `f-${label}`, `P ${label}`, 'developing', now, now])
         await db.execute('INSERT INTO hurdles (id, project_id, text, status, sort_order, created_at) VALUES (?, ?, ?, ?, ?, ?)', [`h-${label}`, `p-${label}`, 'H', 'open', 0, now])
         await db.execute('INSERT INTO tags (id, user_id, name, color, created_at) VALUES (?, ?, ?, ?, ?)', [`t-${label}`, uid, 'T', '#123456', now])
         await db.execute('INSERT INTO quick_notes (id, user_id, kind, title, content, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)', [`qn-${label}`, uid, 'note', 'N', 'c', now, now])
@@ -238,7 +238,7 @@ describe('Plan B receive-side round-trip (the Telegram document disaster path)',
     try {
       const userId = await makeUser(db)
       const now = new Date().toISOString()
-      await db.execute('INSERT INTO projects (id, user_id, title, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)', ['p-planb', userId, 'PlanB project', 'doing', now, now])
+      await db.execute('INSERT INTO projects (id, user_id, title, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)', ['p-planb', userId, 'PlanB project', 'developing', now, now])
       await db.execute('INSERT INTO quick_notes (id, user_id, kind, title, content, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)', ['qn-planb', userId, 'note', 'N', 'planb note — تست', now, now])
 
       const snapshot = await buildSnapshot(db)

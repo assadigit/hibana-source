@@ -21,16 +21,15 @@ html[data-theme='light'] {
   --select-chevron: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%235A5248' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E"); /* review-round 2 select affordance — explicit light must win over any OS-dark media twin */
   --badge-spark-bg: #F9F1D7;         --badge-spark-fg: #8A6714;
   --badge-unreviewed-bg: #E8EEF6;    --badge-unreviewed-fg: #46618C;
-  --badge-investigating-bg: #ECE9F9; --badge-investigating-fg: #5F51B5;
-  --badge-awaiting-bg: #F6EFCB;      --badge-awaiting-fg: #85620D;
-  --badge-doing-bg: #DCF0EA;         --badge-doing-fg: #186F63;
-  --badge-halted-bg: #F6E4DE;        --badge-halted-fg: #A34A31;
+  --badge-planning-bg: #ECE9F9; --badge-planning-fg: #5F51B5;
+  --badge-queued-bg: #F6EFCB;      --badge-queued-fg: #85620D;
+  --badge-developing-bg: #DCF0EA;         --badge-developing-fg: #186F63;
+  --badge-awaiting_dev-bg: #F6E4DE;        --badge-awaiting_dev-fg: #A34A31;
   --badge-operational-bg: #E0F0E5;  --badge-operational-fg: #277334;
-  --kanban-unreviewed-bg: #E4EBF4;    --kanban-unreviewed-line: rgba(70, 97, 140, 0.45);
-  --kanban-investigating-bg: #E9E5F8; --kanban-investigating-line: rgba(95, 81, 181, 0.45);
-  --kanban-awaiting-bg: #F5EECB;      --kanban-awaiting-line: rgba(133, 98, 13, 0.50);
-  --kanban-doing-bg: #DBEFE9;         --kanban-doing-line: rgba(24, 111, 99, 0.50);
-  --kanban-halted-bg: #F6E5DE;        --kanban-halted-line: rgba(163, 74, 49, 0.45);
+  --kanban-planning-bg: #E9E5F8; --kanban-planning-line: rgba(95, 81, 181, 0.45);
+  --kanban-queued-bg: #F5EECB;      --kanban-queued-line: rgba(133, 98, 13, 0.50);
+  --kanban-developing-bg: #DBEFE9;         --kanban-developing-line: rgba(24, 111, 99, 0.50);
+  --kanban-awaiting_dev-bg: #F6E5DE;        --kanban-awaiting_dev-line: rgba(163, 74, 49, 0.45);
   --kanban-operational-bg: #E1F0E6;  --kanban-operational-line: rgba(39, 115, 52, 0.50);
   --nb-paper: #fdfdfb;
   --nb-grid: rgb(28 28 26 / 0.05);

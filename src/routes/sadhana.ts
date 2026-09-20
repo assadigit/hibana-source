@@ -28,6 +28,7 @@ import {
   quadrantOrderSchema,
   updateSchema,
   QUADRANT_ICONS,
+  QUADRANT_ACCENTS,
   GLYPH_IDS,
   renameSchema,
   WEEKDAYS,
@@ -218,11 +219,19 @@ export function sadhanaRoutes(cfg: Config) {
         // S83 (owner request — the minimalist quadrant): EMPTY rides the same grid and
         // the same [data-sadhana-icon] PATCH path; icon_id 'none' renders nothing.
         + `<button type="button" class="dash-style-icon dash-style-empty${iconId === 'none' ? ' is-selected' : ''}" data-sadhana-icon="none" aria-label="${t(lang, 'No icon — minimalist', 'بدون نماد — مینیمال')}" title="${t(lang, 'No icon — minimalist', 'بدون نماد — مینیمال')}">∅</button>`
+      // S93 (owner round, item 6 — 16 pastel swatches back in the popover): each button
+      // PATCHes accent_color through the app.js [data-sadhana-accent] delegate; 'none'
+      // clears back to the neutral quadrant.
+      const accent = style?.accent ?? null
+      const swatchButtons = QUADRANT_ACCENTS.map((tok) => `<button type="button" class="dash-style-swatch${accent === tok ? ' is-selected' : ''}" data-sadhana-accent="${tok}" style="--sw: var(--${tok})" aria-label="${tok}" title="${tok}"></button>`).join('')
+        + `<button type="button" class="dash-style-swatch dash-style-swatch-none${!accent ? ' is-selected' : ''}" data-sadhana-accent="none" aria-label="${t(lang, 'No color — neutral', 'بدون رنگ — خنثی')}" title="${t(lang, 'No color — neutral', 'بدون رنگ — خنثی')}">∅</button>`
       const num = (v: number | string) => (lang === 'fa' ? faDigits(String(v)) : String(v))
       // 2026-09 user request — quadrants are MINIMAL/neutral: no per-quadrant accent class,
       // default --q-accent var, or swatch picker anymore (Phase 7 dropped the accent UI;
       // renameSchema still accepts accent_color). A user-PICKED accent still renders so
       // saved personalization isn't lost; consumers fall back to neutral tokens otherwise.
+      // S93 (owner round, item 6): the picker is BACK as 16 pastel swatches (the washes
+      // below stay low-opacity — a tint, never an ink).
       const accentAttr = style?.accent ? ` style="--q-accent: var(--${style.accent})"` : ''
       return `<section class="sadhana-quadrant" data-quadrant="${q.id}" data-sadhana-name="${esc(name)}"${accentAttr}>
         ${q.id === 3 ? `<span class="sadhana-ribbon" aria-hidden="true">${t(lang, 'Urgent', 'فوری')}</span>` : ''}
@@ -238,6 +247,7 @@ export function sadhanaRoutes(cfg: Config) {
                 <label>${t(lang, 'Name', 'نام')}<span class="row"><input name="name" value="${esc(name)}" maxlength="60" required aria-label="${t(lang, 'Quadrant name', 'نام بخش')}"><button type="submit" class="ghost" aria-label="${t(lang, 'Save name', 'ذخیره نام')}">${icon('check')}</button></span></label>
               </form>
               <div class="dash-style-icons" role="grid" aria-label="${t(lang, 'Choose icon', 'انتخاب نماد')}">${iconButtons}</div>
+              <div class="dash-style-swatches" role="group" aria-label="${t(lang, 'Pastel color', 'رنگ پاستلی')}">${swatchButtons}</div>
               <a class="q-style-focus" href="/api/sadhana/focus/${q.id}" hx-get="/api/sadhana/focus/${q.id}" hx-target="#sadhana-focus" hx-swap="innerHTML">${icon('target')} ${t(lang, 'Focus', 'تمرکز')}</a>
             </div>
           </div>
@@ -366,10 +376,13 @@ export function sadhanaRoutes(cfg: Config) {
       }),
       // Bilingual quadrant meta for the standalone board page (client-side lang switching
       // without a refetch): custom names/subtitles apply to both langs, defaults localize.
+      // S93: accent_color rides along (null = no picked pastel) so the board page tints
+      // each quadrant with the user's swatch.
       quads: ordered(ctx.user).map((q) => ({
         id: q.id,
         icon: q.icon,
         icon_id: data.styles.get(q.id)?.icon ?? null,
+        accent: data.styles.get(q.id)?.accent ?? null,
         name_en: qName(q.id, data.names, 'en'),
         name_fa: qName(q.id, data.names, 'fa'),
         sub_en: data.subtitles.get(q.id) ?? q.subtitle.en,
@@ -815,7 +828,8 @@ export function sadhanaRoutes(cfg: Config) {
       const nextSub = body.subtitle !== undefined ? body.subtitle : prevSub
       const currentStyle = current.length ? current[0] : null
       const nextIcon = body.icon_id ?? currentStyle?.icon_id ?? null
-      const nextAccent = body.accent_color ?? currentStyle?.accent_color ?? null
+      // S93: explicit null clears the pastel (the ∅ swatch); undefined keeps the saved one.
+      const nextAccent = body.accent_color === null ? null : (body.accent_color ?? currentStyle?.accent_color ?? null)
       await cfg.db.execute(
         'INSERT INTO sadhana_quadrant_names (user_id, quadrant, name, subtitle, icon_id, accent_color) VALUES (?, ?, ?, ?, ?, ?) ON CONFLICT(user_id, quadrant) DO UPDATE SET name = excluded.name, subtitle = excluded.subtitle, icon_id = excluded.icon_id, accent_color = excluded.accent_color',
         [ctx.user.id, q, nextName, nextSub, nextIcon, nextAccent],

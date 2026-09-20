@@ -271,7 +271,7 @@
             lines.push(`## ${this.t('reports.snapshot', 'Snapshot')}`)
             lines.push(`- ${this.t('reports.personal', 'Personal')}: ${this.summary.type?.personal ?? 0}`)
             lines.push(`- ${this.t('reports.client', 'Client')}: ${this.summary.type?.client ?? 0}`)
-            for (const s of ['spark', 'unreviewed', 'investigating', 'awaiting', 'doing', 'halted', 'operational']) {
+            for (const s of ['spark', 'planning', 'queued', 'developing', 'awaiting_dev', 'operational']) {
               if (st[s]) lines.push(`- ${this.statusLabel(s)}: ${st[s]}`)
             }
             // S30 batch 3: the task analytics ride the digest — priority mix + labels.
@@ -324,7 +324,7 @@
             const st = this.summary.status || {}
             out.push(['snapshot', this.t('reports.personal', 'Personal'), this.summary.type?.personal ?? 0].map(q).join(','))
             out.push(['snapshot', this.t('reports.client', 'Client'), this.summary.type?.client ?? 0].map(q).join(','))
-            for (const s of ['spark', 'unreviewed', 'investigating', 'awaiting', 'doing', 'halted', 'operational']) {
+            for (const s of ['spark', 'planning', 'queued', 'developing', 'awaiting_dev', 'operational']) {
               out.push(['snapshot', this.statusLabel(s), st[s] ?? 0].map(q).join(','))
             }
             for (const p of ['urgent', 'high', 'medium', 'low']) {

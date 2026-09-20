@@ -6,18 +6,22 @@
 // REAL mini month grid (Gregorian EN / Jalali FA, today ring, due dots, ‹ ›
 // stepping). The pending-sync chip is GONE from the chrome (Settings → Preferences
 // owns offline-sync). The spec pins the new anatomy.
+// S93 UPDATE: the to-do panel shows the QUADRANTS with TICKABLE checkbox rows
+// (owner item 1), the Projects icon NAVIGATES to /projects.html AND opens its panel
+// grouped by the 0060 stages (owner items 10 + 14), and the Dashboard icon is pure
+// navigation (owner item 2 — its panel section + Jump-to list are retired).
 //
-// The two patterns under test (unchanged since S88):
+// The two patterns under test:
 //   1. MATERIAL "navigation rail" — a vertical icon rail fixed to the left edge:
 //      icon + label per destination, the active section wears a filled
 //      rounded-square indicator, secondary icons (Settings, Help) sit at the bottom
 //      behind a thin divider.
 //   2. VS CODE Activity Bar + Side Bar — selecting a rail icon opens a secondary
 //      panel DIRECTLY to its right, populated with that section's items under
-//      labeled COLLAPSIBLE group headers (quadrants for the to-do panel, folders
-//      for the Ideas panel). The panel is PERSISTENT (pushes main content via body
-//      padding — never an overlay), survives page reloads, and Escape/the icon/✕
-//      close it.
+//      labeled COLLAPSIBLE group headers (quadrants for the to-do panel, stages for
+//      the Projects panel, folders for the Ideas panel). The panel is PERSISTENT
+//      (pushes main content via body padding — never an overlay), survives page
+//      reloads, and Escape/the icon/✕ close it.
 // Run: npx playwright test e2e/rail-panel.spec.ts
 
 import { test, expect, type Page } from '@playwright/test'
@@ -46,7 +50,7 @@ test.beforeAll(async () => {
   // so the Calendar panel's due dots have something to paint).
   db.exec(`DELETE FROM projects WHERE user_id = '${id}'`)
   const today = now.slice(0, 10)
-  for (const [i, status] of ['doing', 'operational', 'spark'].entries()) {
+  for (const [i, status] of ['developing', 'operational', 'spark'].entries()) {
     db.exec(
       `INSERT INTO projects (id, user_id, title, status, due_date, created_at, updated_at)
        VALUES ('${id}-p${i}', '${id}', 'Rail project ${i}', '${status}', '${i === 0 ? today : null}', '${now}', '${now}')`,
@@ -126,6 +130,9 @@ test.describe('the navigation rail (Material navigation-rail pattern, S89 labele
     await expect(dash).toHaveAttribute('aria-current', 'page')
     const bg = await dash.evaluate((el) => getComputedStyle(el).backgroundColor)
     expect(bg).not.toBe('rgba(0, 0, 0, 0)')
+    // S93 (owner item 2): the Dashboard icon is PURE NAVIGATION — no panel section
+    // behind it (clicking it must SHOW the dashboard, not slide a sidebar).
+    expect(await dash.getAttribute('data-rail-panel')).toBeNull()
 
     // Secondary icons (Settings, Help) live BELOW the divider at the rail's bottom.
     const divider = page.locator('.rail .rail-divider')
@@ -170,18 +177,19 @@ test.describe('the navigation rail (Material navigation-rail pattern, S89 labele
 })
 
 test.describe('the secondary panel (VS Code Activity Bar + Side Bar pattern)', () => {
-  test('selecting an icon opens the panel beside the rail — grouped, collapsible, pushing content', async ({ page }) => {
+  test('the Projects icon navigates to the page AND opens the panel grouped by stage (S93 items 10+14)', async ({ page }) => {
     await login(page)
     // The main content's gutter = the labeled rail width before anything opens.
     const padBefore = await page.evaluate(() => getComputedStyle(document.body).paddingInlineStart)
     expect(padBefore).toBe('88px')
 
-    // Selecting the Projects icon OPENS THE PANEL — it does not navigate.
+    // S93 (owner item 10): clicking the Projects icon NAVIGATES to /projects.html…
     await page.click('.rail .rail-primary a[data-rail-panel="projects"]')
+    await page.waitForURL('**/projects.html', { timeout: 10_000 })
+    // …AND (owner item 14) opens the panel beside the rail, grouped by the 0060 stages.
     const panel = page.locator('[data-rail-panel-box]')
     await expect(panel).toBeVisible()
     await expect(page.locator('.rail-panel-title')).toHaveText('Projects')
-    expect(page.url()).toContain('/app') // no navigation happened
 
     // The panel sits directly beside the rail; the rail stays visible.
     const pBox = await panel.boundingBox()
@@ -192,11 +200,13 @@ test.describe('the secondary panel (VS Code Activity Bar + Side Bar pattern)', (
     // 0.22s padding transition means the computed value must be polled, not read).
     await page.waitForFunction(() => parseInt(getComputedStyle(document.body).paddingInlineStart, 10) > 88, null, { timeout: 3_000 })
 
-    // Grouped under labeled, collapsible section headers — All / Ongoing / Done.
+    // S93 (owner item 14 — the owner's sketch: "-planning / item one / -queued / …"):
+    // groups = the 0060 stages; empty stages stay hidden; operational rides collapsed.
+    // Seeds: one developing + one operational project.
     const groups = page.locator('.rail-group-head')
     const labels = await groups.allTextContents()
-    expect(labels.map((l) => l.replace(/\d+$/, '').trim())).toEqual(['All', 'Ongoing', 'Done'])
-    // Real items with status dots (the seeded projects).
+    expect(labels.map((l) => l.replace(/\d+$/, '').trim())).toEqual(['Developing', 'Operational'])
+    // Real items with status dots (the seeded projects), deep-linking to their pages.
     await expect(page.locator('.rail-item').first()).toBeVisible()
     expect(await page.locator('.rail-item .rail-dot').count()).toBeGreaterThan(0)
 
@@ -219,34 +229,61 @@ test.describe('the secondary panel (VS Code Activity Bar + Side Bar pattern)', (
     await page.waitForFunction(() => getComputedStyle(document.body).paddingInlineStart === '88px', null, { timeout: 3_000 })
   })
 
+  test('the Dashboard icon NAVIGATES — it never opens a panel (S93 item 2)', async ({ page }) => {
+    await login(page)
+    await page.goto('/projects.html')
+    await expect(page.locator('[data-rail-panel-box]')).toBeHidden()
+    await page.click('.rail .rail-primary a[href="/dashboard.html"]')
+    await page.waitForURL('**/dashboard.html', { timeout: 10_000 })
+    // The main area changed (the dashboard renders) and NO sidebar slid out.
+    await expect(page.locator('main.shell')).toBeVisible()
+    await expect(page.locator('[data-rail-panel-box]')).toBeHidden()
+    await page.waitForTimeout(300)
+    await expect(page.locator('[data-rail-panel-box]')).toBeHidden()
+  })
+
   test('clicking the open section\'s icon toggles the panel closed; switching icons swaps sections', async ({ page }) => {
     await login(page)
-    await page.click('.rail .rail-primary a[data-rail-panel="projects"]')
-    await expect(page.locator('.rail-panel-title')).toHaveText('Projects')
+    await page.click('.rail .rail-primary a[data-rail-panel="todo"]')
+    await expect(page.locator('.rail-panel-title')).toHaveText('To-do list')
 
-    // Same icon again → closed.
-    await page.click('.rail .rail-primary a[data-rail-panel="projects"]')
+    // Same icon again → closed (the toggle rides a non-navigating icon — the
+    // Projects icon always re-navigates by design).
+    await page.click('.rail .rail-primary a[data-rail-panel="todo"]')
     await expect(page.locator('[data-rail-panel-box]')).toBeHidden()
 
     // A different icon swaps the panel's section (rail never hides).
-    await page.click('.rail .rail-primary a[data-rail-panel="todo"]')
-    await expect(page.locator('.rail-panel-title')).toHaveText('To-do list')
+    await page.click('.rail .rail-primary a[data-rail-panel="sparks"]')
+    await expect(page.locator('.rail-panel-title')).toHaveText('Ideas')
     await expect(page.locator('nav.rail')).toBeVisible()
   })
 
-  test('the to-do panel groups tasks under their QUADRANT names (the S89 anatomy)', async ({ page }) => {
+  test('the to-do panel shows the QUADRANTS with TICKABLE checkbox rows (S93 item 1)', async ({ page }) => {
     await login(page)
     await page.click('.rail .rail-primary a[data-rail-panel="todo"]')
     await expect(page.locator('.rail-panel-title')).toHaveText('To-do list')
-    // Group heads: Today (the dated task rides it) + the default quadrant labels
-    // in the DASHBOARD order (1 Today, 3 Urgent, 2 Strategic, 4 Personal).
+    // Group heads: the default quadrant labels in the user's order
+    // (1 Today, 3 Urgent, 2 Strategic, 4 Personal) — every item is a CHECKBOX row.
     const labels = (await page.locator('.rail-group-head').allTextContents()).map((l) => l.replace(/\d+$/, '').trim())
     expect(labels).toContain('Today')
     expect(labels).toContain('Urgent & High Value')
-    // The undated quadrant-3 task rides its quadrant group (NOT Today).
-    const q3 = page.locator('.rail-group', { hasText: 'Urgent & High Value' }).locator('.rail-item')
+    // The quadrant-3 task rides its quadrant group.
+    const q3 = page.locator('.rail-group', { hasText: 'Urgent & High Value' }).locator('.rail-todo-item')
     await expect(q3).toHaveCount(1)
     await expect(q3).toContainText('Rail urgent task')
+    // …and it carries a real checkbox (the owner can DIRECTLY tick it).
+    const box = q3.locator('input[data-rail-todo]')
+    await expect(box).toBeVisible()
+    await expect(box).not.toBeChecked()
+    // Ticking completes the task: the row strikes + sinks (is-done), the checkbox
+    // stays checked — the POST hits the real /complete endpoint.
+    await box.check()
+    await expect(q3).toHaveClass(/is-done/)
+    await expect(box).toBeChecked()
+    // Un-ticking reopens it.
+    await box.uncheck()
+    await expect(q3).not.toHaveClass(/is-done/)
+    await expect(box).not.toBeChecked()
   })
 
   test('the calendar panel renders a real month grid — today ring, due dots, ‹ › stepping', async ({ page }) => {
@@ -314,13 +351,13 @@ test.describe('the secondary panel (VS Code Activity Bar + Side Bar pattern)', (
     await expect(page.locator('[data-rail-panel-box]')).toBeHidden()
   })
 
-  test('a stale persisted canvas/notebook panel key is ignored (their sections are retired)', async ({ page }) => {
+  test('a stale persisted canvas/notebook/dashboard panel key is ignored (their sections are retired)', async ({ page }) => {
     await login(page)
-    await page.evaluate(() => { try { localStorage.setItem('hibana-rail-panel', 'canvas') } catch { /* storage blocked */ } })
+    await page.evaluate(() => { try { localStorage.setItem('hibana-rail-panel', 'dashboard') } catch { /* storage blocked */ } })
     await page.reload()
     await page.waitForSelector('nav.rail', { timeout: 10_000 })
     // The retired section never renders its panel — the stale key fails the
-    // RAIL_SECTIONS lookup and is ignored.
+    // RAIL_SECTIONS lookup and is ignored (S93 retired the dashboard section too).
     await page.waitForTimeout(400)
     await expect(page.locator('[data-rail-panel-box]')).toBeHidden()
   })

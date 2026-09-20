@@ -29,16 +29,16 @@
   const _t = (k, f) => { const s = window.hibanaI18n?.t(k); return s && s !== k ? s : f }
   const isFA = () => window.hibanaI18n?.lang?.() === 'fa' || document.documentElement.lang === 'fa'
   const faNum = (s) => String(s).replace(/[0-9]/g, (d) => '۰۱۲۳۴۵۶۷۸۹'[+d])
-  // S85: the seven fixed status roles (client dictionary status.* keys — the SAME
+  // S85: the fixed status roles (client dictionary status.* keys — the SAME
   // fixed pastel palette the server badges/stat-boxes use, see themes.css tokens).
-  const STAGES = ['spark', 'unreviewed', 'investigating', 'awaiting', 'doing', 'halted', 'operational']
+  // 0060: the renamed five stages + spark (compass = planning, hourglass = queued).
+  const STAGES = ['spark', 'planning', 'queued', 'developing', 'awaiting_dev', 'operational']
   const STAGE_ICONS = {
     spark: '<path d="M9 18h6M10 22h4"/><path d="M12 2a7 7 0 0 0-4.2 12.6c.9.7 1.2 1.6 1.2 2.4h6c0-.8.3-1.7 1.2-2.4A7 7 0 0 0 12 2Z"/>',
-    unreviewed: '<circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/>',
-    investigating: '<circle cx="11" cy="11" r="6.5"/><path d="M16 16l4.5 4.5"/>',
-    awaiting: '<rect x="4" y="5" width="16" height="16" rx="2"/><path d="M8 3v4M16 3v4M4 10h16"/>',
-    doing: '<circle cx="12" cy="12" r="9"/><path d="M10 8.5l5 3.5-5 3.5z" fill="currentColor" stroke="none"/>',
-    halted: '<path d="M9 5.5v13M15 5.5v13"/>',
+    planning: '<circle cx="12" cy="12" r="9"/><path d="M15.5 8.5l-1.9 5.1-5.1 1.9 1.9-5.1z"/>',
+    queued: '<path d="M7 3.5h10M7 20.5h10M8 3.5v2.6c0 1.9 1.6 3.1 4 5.9 2.4-2.8 4-4 4-5.9V3.5M8 20.5v-2.6c0-1.9 1.6-3.1 4-5.9 2.4 2.8 4 4 4 5.9v2.6"/>',
+    developing: '<circle cx="12" cy="12" r="9"/><path d="M10 8.5l5 3.5-5 3.5z" fill="currentColor" stroke="none"/>',
+    awaiting_dev: '<path d="M9 5.5v13M15 5.5v13"/>',
     operational: '<path d="M4.5 16.5c1.2 2.8 4 4.5 7.5 4.5 4.5 0 7.7-2.6 7.7-6.4 0-4.5-4-5.6-6.9-6.5C10.4 7.3 9 6.2 9 4.3c0-.5.1-1 .3-1.5-3 1.2-5 3.6-5 6.4 0 1.7.7 3.1 1.9 4.1"/>',
   }
 

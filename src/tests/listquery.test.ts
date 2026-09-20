@@ -13,7 +13,7 @@ import type { Db } from '../db/types'
 
 // The kanban columns + the dashboard carousel speak the 7-stage taxonomy (0031):
 // kanban columns are the 6 pipeline stages — spark is the projects page's shelf.
-const STAGES = ['unreviewed', 'investigating', 'awaiting', 'doing', 'halted', 'operational'] as const
+const STAGES = ['planning', 'queued', 'developing', 'awaiting_dev', 'operational'] as const
 
 async function makeClient(db: Db, userId: string) {
   const app = createApp({ db, isProd: false, github: { owner: 'x', repo: 'y', token: '' }, emailKey: undefined, assets: undefined })
@@ -33,7 +33,7 @@ describe('projects list — empty filter params from the UI (regression)', () =>
     try {
       const u = await makeUser(db)
       const { app, auth } = await makeClient(db, u)
-      const id = await createProject(app, auth, 'Filterable project', 'unreviewed')
+      const id = await createProject(app, auth, 'Filterable project', 'planning')
 
       // Exactly what the filter form submits on every change: empty status/tag/q.
       const res = await app.fetch(
@@ -49,27 +49,27 @@ describe('projects list — empty filter params from the UI (regression)', () =>
     }
   })
 
-  it('real filters still apply: status=unreviewed only (empty params mean no filter, not invalid)', async () => {
+  it('real filters still apply: status=planning only (empty params mean no filter, not invalid)', async () => {
     const { db, close } = makeTestDb()
     try {
       const u = await makeUser(db)
       const { app, auth } = await makeClient(db, u)
       await createProject(app, auth, 'A spark one', 'spark')
-      const unreviewed = await createProject(app, auth, 'An unreviewed one', 'unreviewed')
+      const planning = await createProject(app, auth, 'A planning one', 'planning')
 
       const res = await app.fetch(
-        new Request('http://local/api/projects?view=list&status=unreviewed&tag=&q=', { headers: { ...auth, 'HX-Request': 'true' } }),
+        new Request('http://local/api/projects?view=list&status=planning&tag=&q=', { headers: { ...auth, 'HX-Request': 'true' } }),
       )
       const html = await res.text()
-      expect(html).toContain(unreviewed)
+      expect(html).toContain(planning)
       expect(html).not.toContain('A spark one')
 
       // Search with empty status/tag also works end-to-end (FTS5 phrase match).
       const s = await app.fetch(
-        new Request('http://local/api/projects?view=cards&status=&tag=&q=unreviewed one', { headers: { ...auth, 'HX-Request': 'true' } }),
+        new Request('http://local/api/projects?view=cards&status=&tag=&q=planning one', { headers: { ...auth, 'HX-Request': 'true' } }),
       )
       const searchHtml = await s.text()
-      expect(searchHtml).toContain('An unreviewed one')
+      expect(searchHtml).toContain('A planning one')
       expect(searchHtml).not.toContain('A spark one')
     } finally {
       close()
@@ -97,23 +97,23 @@ describe('projects list — empty filter params from the UI (regression)', () =>
       const u = await makeUser(db)
       const { app, auth } = await makeClient(db, u)
       await createProject(app, auth, 'Spark idea', 'spark') // sparks are NOT kanban citizens
-      await createProject(app, auth, 'In dev', 'doing')
-      await createProject(app, auth, 'On ice', 'halted')
+      await createProject(app, auth, 'In dev', 'developing')
+      await createProject(app, auth, 'On ice', 'awaiting_dev')
 
       const res = await app.fetch(new Request('http://local/api/projects?view=kanban', { headers: { ...auth, 'HX-Request': 'true' } }))
       const html = await res.text()
-      // Columns = the 6 project stages (0031) in PROJECT_STAGES order; spark lives on its
-      // own shelf and is excluded by the query itself. Doing + halted hold cards, the
-      // other four stages get the drop zone.
-      const cols = [...html.matchAll(/class="kanban-col" data-status="([a-z]+)"/g)].map((m) => m[1])
+      // Columns = the 5 project stages (0060) in PROJECT_STAGES order; spark lives on its
+      // own shelf and is excluded by the query itself. Developing + awaiting_dev hold
+      // cards, the other three stages get the drop zone.
+      const cols = [...html.matchAll(/class="kanban-col" data-status="([a-z_]+)"/g)].map((m) => m[1])
       expect(cols).toEqual([...STAGES])
-      expect(html.match(/class="kanban-empty"/g) ?? []).toHaveLength(4)
+      expect(html.match(/class="kanban-empty"/g) ?? []).toHaveLength(3)
       expect(html).toContain('In dev')
       expect(html).toContain('On ice')
       expect(html).not.toContain('Spark idea')
       expect(html).not.toContain('<span class="muted small">—</span>') // bare dash is gone
       // the zone is the column's drop target for status changes (data-status present)
-      expect(html).toMatch(/kanban-col" data-status="unreviewed">[\s\S]*?kanban-empty/)
+      expect(html).toMatch(/kanban-col" data-status="planning">[\s\S]*?kanban-empty/)
     } finally {
       close()
     }
@@ -129,7 +129,7 @@ describe('legacy status vocabulary (0031 — old clients and bookmark URLs keep 
       // An old client (or a stale bookmark) still posts/filters the legacy vocabulary…
       const legacy = await createProject(app, auth, 'Legacy pending', 'pending')
       const row = await db.query<{ status: string }>('SELECT status FROM projects WHERE id = ?', [legacy])
-      expect(row[0].status).toBe('unreviewed') // …and it lands in the new stage
+      expect(row[0].status).toBe('planning') // …and it lands in the new stage
 
       // …and the legacy filter name still finds it (LEGACY_STATUS in listProjectsSchema)
       const res = await app.fetch(
@@ -142,7 +142,7 @@ describe('legacy status vocabulary (0031 — old clients and bookmark URLs keep 
       const patch = await app.fetch(new Request(`http://local/api/projects/${legacy}`, { method: 'PATCH', headers: auth, body: JSON.stringify({ status: 'archived' }) }))
       expect(patch.status).toBe(200)
       const after = await db.query<{ status: string }>('SELECT status FROM projects WHERE id = ?', [legacy])
-      expect(after[0].status).toBe('halted')
+      expect(after[0].status).toBe('awaiting_dev')
     } finally {
       close()
     }

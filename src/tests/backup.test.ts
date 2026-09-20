@@ -180,7 +180,7 @@ describe('backup snapshot coverage', () => {
     const { db, close } = makeTestDb()
     try {
       const userId = await makeUser(db)
-      await db.execute('INSERT INTO projects (id, user_id, title, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)', ['p1', userId, 'X', 'doing', new Date().toISOString(), new Date().toISOString()])
+      await db.execute('INSERT INTO projects (id, user_id, title, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)', ['p1', userId, 'X', 'developing', new Date().toISOString(), new Date().toISOString()])
       await db.execute('INSERT INTO tags (id, user_id, name, color, created_at) VALUES (?, ?, ?, ?, ?)', ['tag1', userId, 'UI', '#123456', new Date().toISOString()])
       await db.execute('INSERT INTO task_categories (id, project_id, name, created_at) VALUES (?, ?, ?, ?)', ['cat1', 'p1', 'C', new Date().toISOString()])
       await db.execute("INSERT INTO dev_tasks (id, project_id, title, status, priority, created_at) VALUES (?, ?, ?, 'done', 'medium', ?)", ['dt1', 'p1', 'T', new Date().toISOString()])
@@ -203,7 +203,7 @@ describe('backup snapshot coverage', () => {
       const otherId = await makeUser(db)
       const rows: [string, string][] = [['mine', userId], ['theirs', otherId]]
       for (const [pid, uid] of rows) {
-        await db.execute('INSERT INTO projects (id, user_id, title, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)', [pid, uid, 'P', 'doing', new Date().toISOString(), new Date().toISOString()])
+        await db.execute('INSERT INTO projects (id, user_id, title, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)', [pid, uid, 'P', 'developing', new Date().toISOString(), new Date().toISOString()])
         await db.execute("INSERT INTO project_archives (id, project_id, title, status, priority, original_created_at, archived_at) VALUES (?, ?, ?, 'done', 'low', ?, ?)", [`ar-${pid}`, pid, 'A', new Date().toISOString(), new Date().toISOString()])
       }
 

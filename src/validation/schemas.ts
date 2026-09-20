@@ -6,13 +6,19 @@ import { STATUS_ORDER } from '../types'
 // The status list is the 7-stage taxonomy from types.ts (STATUS_ORDER); the alias keeps
 // the schema declarations below reading like the original status list.
 const PROJECT_STATUS = STATUS_ORDER
-// Statuses pre-0035 rows may still carry — normalized to the new stage on input, so
-// old clients (and legacy bookmark URLs) keep working with no client release.
+// Statuses pre-0060 rows may still carry — normalized to the new stage on input, so
+// old clients (and legacy bookmark URLs) keep working with no client release. The
+// pre-0035 set (pending/building/working/archived) chains through the same table.
 const LEGACY_STATUS: Record<string, string> = {
-  pending: 'unreviewed',
-  building: 'doing',
+  pending: 'planning',
+  unreviewed: 'planning',
+  investigating: 'planning',
+  awaiting: 'queued',
+  building: 'developing',
+  doing: 'developing',
   working: 'operational',
-  archived: 'halted',
+  archived: 'awaiting_dev',
+  halted: 'awaiting_dev',
 }
 const statusInput = z.preprocess(
   (v: unknown) => (typeof v === 'string' && v in LEGACY_STATUS ? LEGACY_STATUS[v] : v),
@@ -193,7 +199,7 @@ export const searchSchema = z.object({ q: z.string().min(1).max(200) })
 // not an error: empty params mean "no filter" (rule 10: reject bad input, not empty input).
 const emptyToUndef = (v: unknown) => (typeof v === 'string' && v.trim() === '' ? undefined : v)
 
-// Same idea for the status filter, plus legacy values: '' → undefined, 'pending' → 'unreviewed', …
+// Same idea for the status filter, plus legacy values: '' → undefined, 'pending' → 'planning', …
 const emptyOrLegacyStatus = z.preprocess(
   (v: unknown) => {
     if (typeof v !== 'string') return v
@@ -223,8 +229,8 @@ export const listProjectsSchema = z.object({
   // 'title' = alphabetical. The kanban view groups by column regardless.
   sort: z.preprocess(emptyToUndef, z.enum(['stage', 'recent', 'title']).optional()),
   // S75 (the full stale view — the S72 dashboard nudge's "View all" target):
-  // stale=1 lists ONLY in-motion projects (unreviewed/investigating/awaiting/doing)
-  // untouched for 14+ days, oldest first. Anything other than the literal '1'
+  // stale=1 lists ONLY in-motion projects (planning/queued/developing) untouched for
+  // 14+ days, oldest first. Anything other than the literal '1'
   // (including '0'/'') degrades to undefined — a stray value must never fail the
   // whole query parse (the other params would fall back to defaults too).
   stale: z.preprocess((v) => (v === '1' ? '1' : undefined), z.literal('1').optional()),

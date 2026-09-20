@@ -60,7 +60,7 @@ export function reportsRoutes(cfg: Config) {
         [user.id],
       ),
       cfg.db.query<{ id: string; title: string; status: string }>(
-        "SELECT id, title, status FROM projects WHERE user_id = ? AND deleted_at IS NULL AND status IN ('operational', 'halted') ORDER BY updated_at DESC LIMIT 8",
+        "SELECT id, title, status FROM projects WHERE user_id = ? AND deleted_at IS NULL AND status IN ('operational', 'awaiting_dev') ORDER BY updated_at DESC LIMIT 8",
         [user.id],
       ),
       cfg.db.query<{ priority: string; total: number; done: number }>(
@@ -95,13 +95,13 @@ export function reportsRoutes(cfg: Config) {
         [user.id],
       ),
     ])
-    const status = { spark: 0, unreviewed: 0, investigating: 0, awaiting: 0, doing: 0, halted: 0, operational: 0 }
+    const status = { spark: 0, planning: 0, queued: 0, developing: 0, awaiting_dev: 0, operational: 0 }
     for (const r of byStatus) if (r.status in status) status[r.status as keyof typeof status] = r.n
     const type = { personal: 0, client: 0 }
     for (const r of byType) type[r.type as keyof typeof type] = r.n
-    // The Operational/Halted boxes moved here from the dashboard (user request 2026-08-21):
+    // The Operational/Awaiting-Development boxes moved here from the dashboard (user request 2026-08-21):
     // up to 4 recents per status, with links on the page.
-    const recentsByStatus: Record<string, { id: string; title: string }[]> = { operational: [], halted: [] }
+    const recentsByStatus: Record<string, { id: string; title: string }[]> = { operational: [], awaiting_dev: [] }
     for (const r of recents) {
       const list = recentsByStatus[r.status] ?? []
       if (list.length < 4) list.push({ id: r.id, title: r.title })

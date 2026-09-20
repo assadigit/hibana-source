@@ -187,7 +187,7 @@
               // batch q: the spark promotes into the six-stage lifecycle; «بررسی نشده»
               // (unreviewed) is phase 1 of a project — the natural next step for a spark.
               '<label>' + _t('calendar.stage', 'Stage') + ' <select id="se-status">' +
-                ['spark','unreviewed','investigating','awaiting','doing','halted','operational'].map(function (s) { return '<option value="' + s + '">' + _t('status.' + s, s) + '</option>' }).join('') +
+                ['spark','planning','queued','developing','awaiting_dev','operational'].map(function (s) { return '<option value="' + s + '">' + _t('status.' + s, s) + '</option>' }).join('') +
               '</select></label>' +
               '<p class="error" id="se-error" role="alert"></p>' +
               '<div class="row">' +

@@ -328,14 +328,13 @@ body.rail-panel-open .rail-panel { visibility: visible; opacity: 1; transition: 
   background: var(--muted);
 }
 .rail-dot[data-status='spark']        { background: color-mix(in srgb, var(--badge-spark-fg, #8A6714) 40%, transparent); }
-.rail-dot[data-status='unreviewed']   { background: color-mix(in srgb, var(--badge-unreviewed-fg, #46618C) 40%, transparent); }
-.rail-dot[data-status='investigating'] { background: color-mix(in srgb, var(--badge-investigating-fg, #5F51B5) 40%, transparent); }
-.rail-dot[data-status='awaiting']     { background: color-mix(in srgb, var(--badge-awaiting-fg, #85620D) 40%, transparent); }
-.rail-dot[data-status='doing']        { background: color-mix(in srgb, var(--badge-doing-fg, #186F63) 40%, transparent); }
-.rail-dot[data-status='halted']       { background: color-mix(in srgb, var(--badge-halted-fg, #A34A31) 40%, transparent); }
+.rail-dot[data-status='planning'] { background: color-mix(in srgb, var(--badge-planning-fg, #5F51B5) 40%, transparent); }
+.rail-dot[data-status='queued']     { background: color-mix(in srgb, var(--badge-queued-fg, #85620D) 40%, transparent); }
+.rail-dot[data-status='developing']        { background: color-mix(in srgb, var(--badge-developing-fg, #186F63) 40%, transparent); }
+.rail-dot[data-status='awaiting_dev']       { background: color-mix(in srgb, var(--badge-awaiting_dev-fg, #A34A31) 40%, transparent); }
 .rail-dot[data-status='operational']  { background: color-mix(in srgb, var(--badge-operational-fg, #277334) 40%, transparent); }
 .rail-dot[data-status='done']         { background: color-mix(in srgb, var(--badge-operational-fg, #277334) 40%, transparent); }
-.rail-dot[data-status='todo']         { background: color-mix(in srgb, var(--badge-awaiting-fg, #85620D) 40%, transparent); }
+.rail-dot[data-status='todo']         { background: color-mix(in srgb, var(--badge-queued-fg, #85620D) 40%, transparent); }
 .rail-item-emoji { flex: none; font-size: 0.9rem; line-height: 1; }
 .rail-panel-empty { padding: 1.25rem 0.75rem; color: var(--muted); font-size: var(--fs-sm); line-height: 1.5; }
 .rail-panel-loading { padding: 1.25rem 0.75rem; color: var(--muted); font-size: var(--fs-sm); }
@@ -429,10 +428,10 @@ body.rail-panel-open .rail-panel { visibility: visible; opacity: 1; transition: 
   inline-size: 0.22rem;
   block-size: 0.22rem;
   border-radius: 999px;
-  background: var(--badge-awaiting-fg, #85620D);
+  background: var(--badge-queued-fg, #85620D);
 }
 .rail-cal-dots i[data-kind='done'] { background: var(--badge-operational-fg, #277334); }
-.rail-cal-dots i[data-kind='doing'] { background: var(--badge-doing-fg, #186F63); }
+.rail-cal-dots i[data-kind='doing'] { background: var(--badge-developing-fg, #186F63); }
 .rail-cal-legend {
   display: flex;
   align-items: center;
@@ -445,7 +444,7 @@ body.rail-panel-open .rail-panel { visibility: visible; opacity: 1; transition: 
   inline-size: 0.3rem;
   block-size: 0.3rem;
   border-radius: 999px;
-  background: var(--badge-awaiting-fg, #85620D);
+  background: var(--badge-queued-fg, #85620D);
 }
 /* the mobile brandbar's square mark (S89 pair) — sized to the slim bar */
 .brand-logo-sq { inline-size: 1.65rem; block-size: 1.65rem; display: block; border-radius: 0.35rem; }
@@ -539,12 +538,46 @@ body.rail-panel-open .rail-panel { visibility: visible; opacity: 1; transition: 
    Hue mapping follows the shared semantic tokens: Idea→info, Pending→warning,
    Building→primary, Working→success (roast 2026-08-25 — one palette across pages). */
 .badge-spark        { --badge-bg: var(--badge-spark-bg, #FBF4E4);         --badge-fg: var(--badge-spark-fg, #86702F); }
-.badge-unreviewed    { --badge-bg: var(--badge-unreviewed-bg, #F0F2F5);    --badge-fg: var(--badge-unreviewed-fg, #5F6D7A); }
-.badge-investigating { --badge-bg: var(--badge-investigating-bg, #F2F0F8); --badge-fg: var(--badge-investigating-fg, #6F6593); }
-.badge-awaiting      { --badge-bg: var(--badge-awaiting-bg, #F8F4EA);      --badge-fg: var(--badge-awaiting-fg, #7E7357); }
-.badge-doing         { --badge-bg: var(--badge-doing-bg, #EAF4F3);         --badge-fg: var(--badge-doing-fg, #3F7E78); }
-.badge-halted        { --badge-bg: var(--badge-halted-bg, #F4F2EF);        --badge-fg: var(--badge-halted-fg, #6F675A); }
+.badge-planning { --badge-bg: var(--badge-planning-bg, #F2F0F8); --badge-fg: var(--badge-planning-fg, #6F6593); }
+.badge-queued      { --badge-bg: var(--badge-queued-bg, #F8F4EA);      --badge-fg: var(--badge-queued-fg, #7E7357); }
+.badge-developing         { --badge-bg: var(--badge-developing-bg, #EAF4F3);         --badge-fg: var(--badge-developing-fg, #3F7E78); }
+.badge-awaiting_dev        { --badge-bg: var(--badge-awaiting_dev-bg, #F4F2EF);        --badge-fg: var(--badge-awaiting_dev-fg, #6F675A); }
 .badge-operational   { --badge-bg: var(--badge-operational-bg, #EEF5EF);   --badge-fg: var(--badge-operational-fg, #4C7B52); }
+
+/* --- S93 (owner round, item 1): the to-do panel's TICKABLE rows -------------------
+   A quadrant item is a <label> wrapping a real checkbox + the title — the owner can
+   complete/reopen work straight from the sidebar, no page trip. The checkbox is
+   accent-tinted when checked; a done row strikes + dims and rides the group's end. */
+.rail-todo-item { cursor: pointer; }
+.rail-check {
+  inline-size: 1rem;
+  block-size: 1rem;
+  flex: none;
+  margin: 0;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+.rail-todo-item.is-done .rail-item-label {
+  text-decoration: line-through;
+  opacity: 0.55;
+}
+.rail-todo-item:has(.rail-check:checked) { background: var(--bg-soft); }
+/* S93 (item 6): a quadrant group whose quadrant carries a picked pastel wears the tint —
+   a 14% wash on the pale group head + a solid lead dot in the accent. */
+.rail-group[style*='--ga'] .rail-group-head {
+  background: color-mix(in srgb, var(--ga) 14%, var(--bg-soft));
+}
+.rail-group[style*='--ga'] .rail-group-head:hover {
+  background: color-mix(in srgb, var(--ga) 22%, var(--bg-soft));
+}
+.rail-group-dot {
+  inline-size: 0.5rem;
+  block-size: 0.5rem;
+  border-radius: 50%;
+  flex: none;
+  background: var(--sw, var(--muted));
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--sw, var(--muted)) 22%, transparent);
+}
 /* “Linked” state on Settings — the success tint family (--ok) so any theme reads it */
 .badge-ok { --badge-bg: var(--ok); --badge-fg: var(--bg); }
 .badge .icon { width: 0.85em; height: 0.85em; } /* the status glyph inside a small badge */
@@ -725,7 +758,7 @@ body.rail-panel-open .rail-panel { visibility: visible; opacity: 1; transition: 
 }
 .sig-ideas { --sig-bg: var(--badge-spark-bg); --sig-fg: var(--badge-spark-fg); }
 .sig-backlog { --sig-bg: rgb(74 159 163 / 0.15); --sig-fg: var(--accent, #4A9FA3); }
-.sig-hurdles { --sig-bg: var(--badge-halted-bg); --sig-fg: var(--badge-halted-fg); }
+.sig-hurdles { --sig-bg: var(--badge-awaiting_dev-bg); --sig-fg: var(--badge-awaiting_dev-fg); }
 /* dashboard kanban card: the title row (open-arrow + title + bug bubble) stays on line 1.
    The lighter signal chips (ideas/backlog/hurdles) dropped to their own line 2 (user
    request 2026-09-09) so a 14rem-min card never crowds. Bug stays on the title row —
@@ -1452,10 +1485,10 @@ body.has-mobile-nav:has(.gal-selbar) {
   gap: 0.4rem;
   min-height: 2.4rem;
   padding: 0.35rem 0.7rem;
-  border: 1px solid color-mix(in srgb, var(--badge-awaiting-fg, #85620D) 35%, var(--line));
+  border: 1px solid color-mix(in srgb, var(--badge-queued-fg, #85620D) 35%, var(--line));
   border-radius: 999px;
-  background: color-mix(in srgb, var(--badge-awaiting-bg, #F6EFCB) 60%, var(--card));
-  color: var(--badge-awaiting-fg, #85620D);
+  background: color-mix(in srgb, var(--badge-queued-bg, #F6EFCB) 60%, var(--card));
+  color: var(--badge-queued-fg, #85620D);
   font-size: var(--fs-sm, 0.85rem);
   font-weight: 600;
   cursor: pointer;
@@ -1469,8 +1502,8 @@ body.has-mobile-nav:has(.gal-selbar) {
    stay gone while the queue is empty. */
 .topbar-sync[hidden] { display: none; }
 .topbar-sync:hover, .topbar-sync:focus-visible {
-  border-color: var(--badge-awaiting-fg, #85620D);
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--badge-awaiting-fg, #85620D) 18%, transparent);
+  border-color: var(--badge-queued-fg, #85620D);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--badge-queued-fg, #85620D) 18%, transparent);
   outline: none;
 }
 .topbar-sync .icon { width: 1rem; height: 1rem; flex: none; }
@@ -1484,7 +1517,7 @@ body.has-mobile-nav:has(.gal-selbar) {
   50% { opacity: 0.55; }
 }
 @media (prefers-contrast: more) {
-  .topbar-sync { border-color: var(--badge-awaiting-fg, #85620D); background: var(--card); }
+  .topbar-sync { border-color: var(--badge-queued-fg, #85620D); background: var(--card); }
 }
 
 /* S86: DOC uploads in the shot grids — PDF/CSV/XLSX/DOCX/MD/TXT ride the screenshots

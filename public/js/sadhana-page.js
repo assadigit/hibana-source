@@ -126,7 +126,7 @@ function api(url, body, method) {
 function buildGrid(){
   const g=document.getElementById('matGrid');
   g.innerHTML=QUADS.map(q=>`
-    <div class="quadrant q${q.id}" id="Q${q.id}"
+    <div class="quadrant q${q.id}" id="Q${q.id}"${q.accent?` style="--q-accent: var(--${q.accent})"`:''}
       ondragover="onDO(event,${q.id})" ondrop="onDrop(event,${q.id})" ondragleave="onDL()">
       <div class="q-hero">
         <div class="q-big">${quadSym(q)}</div>
@@ -140,7 +140,9 @@ function buildGrid(){
           <div class="q-sub">${esc(q[lang].sub)}</div>
         </div>
         <div class="q-hero-right">
-          <button class="zen-btn" onclick="openZen(${q.id})" title="Focus">🎯</button>
+          <!-- S93 (owner round, item 4): the 🎯 emoji left — the Focus button wears the
+               app's own crosshair-target glyph now (stroke system, currentColor). -->
+          <button class="zen-btn" onclick="openZen(${q.id})" title="${lang==='fa'?'تمرکز':'Focus'}" aria-label="${lang==='fa'?'تمرکز':'Focus'}"><svg class="zen-ico" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3.5"/><circle cx="12" cy="12" r="1"/></svg></button>
           <div class="q-cnt" id="cnt-${q.id}">0</div>
         </div>
       </div>
@@ -1662,6 +1664,7 @@ function buildQuads(data){
       icon:q.icon,                  // default emoji (fallback when iconId is a glyph/null)
       big,
       col:'var(--q'+q.id+')',
+      accent:q.accent||null,        // S93 (item 6): the picked pastel token (null = neutral)
       name:{en:q.name_en,fa:q.name_fa},
       sub:{en:q.sub_en,fa:q.sub_fa},
       badge:Q_BADGES[q.id]||{en:'',fa:''},
@@ -1673,13 +1676,31 @@ function buildQuads(data){
 }
 
 /* ══ QUADRANT RENAME + SYMBOL (2026-09-02) ══════════
-   The ✎ pen (hover over a quadrant name) opens this popover: rename the quadrant and
-   pick a new emoji symbol in one place. Saves via PATCH /api/sadhana/quadrants/:q and
-   repaints the board. */
-let qeQ=null,qeEmoji='',qeEmojiTouched=false,qeSubInitial=null;
+   The ✎ pen (hover over a quadrant name) opens this popover: rename the quadrant,
+   pick a new emoji symbol, and (S93, owner round item 6) pick a PASTEL color — 16
+   swatches + ∅. Saves via PATCH /api/sadhana/quadrants/:q and repaints the board. */
+let qeQ=null,qeEmoji='',qeEmojiTouched=false,qeSubInitial=null,qeAccent=null,qeAccentTouched=false;
+/* S93 (item 6): the 16-token pastel palette — mirrors QUADRANT_ACCENTS
+   (sadhana-helpers.ts); every token resolves to a CSS --accent-* custom property. */
+const Q_ACCENTS=['accent-1','accent-2','accent-3','accent-4','accent-green','accent-purple','accent-pink','accent-teal','accent-sky','accent-mint','accent-lilac','accent-coral','accent-sand','accent-sage','accent-plum','accent-slate'];
+function buildQeSwatches(){
+  const row=document.getElementById('qeSwatches');if(!row)return;
+  row.innerHTML=Q_ACCENTS.map(tok=>
+    `<button type="button" class="qe-swatch${qeAccent===tok?' is-on':''}" style="--sw:var(--${tok})" onclick="pickQAccent('${tok}')" title="${tok}" aria-label="${tok}" aria-pressed="${qeAccent===tok}"></button>`).join('')+
+    `<button type="button" class="qe-swatch qe-swatch-none${!qeAccent?' is-on':''}" onclick="pickQAccent('none')" title="${lang==='fa'?'بدون رنگ — خنثی':'No color — neutral'}" aria-label="${lang==='fa'?'بدون رنگ — خنثی':'No color — neutral'}" aria-pressed="${!qeAccent}">∅</button>`;
+  const lbl=document.getElementById('qeSwatchLbl');
+  if(lbl)lbl.textContent=lang==='fa'?'رنگ پاستلی':'Pastel color';
+}
+function pickQAccent(tok){
+  if(qeQ===null)return;
+  qeAccent=tok==='none'?null:tok;
+  qeAccentTouched=true;
+  buildQeSwatches();
+}
 function openQEdit(q,btn){
   const qDef=QUADS.find(x=>x.id===q);if(!qDef)return;
-  qeQ=q;qeEmojiTouched=false;
+  qeQ=q;qeEmojiTouched=false;qeAccent=qDef.accent||null;qeAccentTouched=false;
+  buildQeSwatches();
   // S83: an EMPTY quadrant arms qeEmoji with the 'none' sentinel (not '') so the ∅
   // toggle's second click correctly RESTORES the default emoji.
   qeEmoji=qDef.iconId==='none'?'none':quadEmoji(qDef);
@@ -1733,6 +1754,7 @@ async function saveQEdit(){
   if(!name){document.getElementById('qeName').focus();return;}
   const body={name};
   if(qeEmojiTouched)body.icon_id=qeEmoji; // only re-symbol when the user actually picked one
+  if(qeAccentTouched)body.accent_color=qeAccent; // S93: null clears (∅), a token tints — only when picked
   const sub=document.getElementById('qeSub').value.trim();
   if(qeSubInitial!==null&&sub!==qeSubInitial)body.subtitle=sub; // subheading only when edited
   try{

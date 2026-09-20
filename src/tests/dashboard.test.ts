@@ -14,8 +14,8 @@ import type { Db } from '../db/types'
 // live on Reports. The to-do quadrants carry prog-dots, note chips, the ⋯ task menu, and
 // the quick-add FAB (2026-09-06 (k)).
 
-// The carousel's stage order (Phase 5): work stages first, then the backlog-ish trio.
-const CAROUSEL = ['investigating', 'awaiting', 'doing', 'unreviewed', 'halted', 'operational'] as const
+// The carousel's stage order (0060 rename): work stages first, then the paused/terminal pair.
+const CAROUSEL = ['planning', 'queued', 'developing', 'awaiting_dev', 'operational'] as const
 
 async function makeClient(db: Db, userId: string) {
   const app = createApp({ db, isProd: false, github: { owner: 'x', repo: 'y', token: '' }, emailKey: undefined, assets: undefined })
@@ -48,9 +48,9 @@ describe('dashboard stat boxes', () => {
       const { app, auth } = await makeClient(db, user)
       const ideaA = await createProject(app, auth, 'Idea A', 'spark')
       await createProject(app, auth, 'Idea B', 'spark')
-      const unreviewed = await createProject(app, auth, 'Unreviewed U', 'unreviewed')
-      const doing = await createProject(app, auth, 'Doing D', 'doing')
-      await createProject(app, auth, 'Halted H', 'halted')
+      const planning = await createProject(app, auth, 'Planning P', 'planning')
+      const developing = await createProject(app, auth, 'Developing D', 'developing')
+      await createProject(app, auth, 'AwaitingDev A', 'awaiting_dev')
       const operational = await createProject(app, auth, 'Operational O', 'operational')
 
       const res = await app.fetch(new Request('http://local/api/dashboard', { headers: { ...auth, 'HX-Request': 'true' } }))
@@ -83,13 +83,12 @@ describe('dashboard stat boxes', () => {
 
       // One box per ACTIVE stage, in carousel order; the boxes carry no status badges
       // (icon-chip + stat-count + stat-label replaced them). Session 14: empty stages
-      // (investigating + awaiting here) carry .is-empty — app.css hides them on phones.
+      // (queued here) carry .is-empty — app.css hides them on phones.
       // Splitting on the tag PREFIX so both plain and is-empty boxes are captured.
       const boxes = strip.split('<div class="stat stat-box').slice(1)
       expect(boxes.map((b) => (b.match(/data-status="(\w+)"/) ?? [])[1])).toEqual([...CAROUSEL])
-      expect((strip.match(/class="stat stat-box is-empty"/g) ?? []).length).toBe(2)
-      expect(strip).toContain('class="stat stat-box is-empty" data-status="investigating"')
-      expect(strip).toContain('class="stat stat-box is-empty" data-status="awaiting"')
+      expect((strip.match(/class="stat stat-box is-empty"/g) ?? []).length).toBe(1)
+      expect(strip).toContain('class="stat stat-box is-empty" data-status="queued"')
       expect(strip).not.toContain('data-status="spark"')
       expect(strip).toContain('class="icon-chip board-col-ico"')
       // 2026-09-09: the stat-count now carries a title="N projects" tooltip; the test
@@ -98,7 +97,7 @@ describe('dashboard stat boxes', () => {
       // AFTER the label — the unified icon+label+count header convention.
       expect(strip).toContain('<b class="stat-count board-count"')
       expect(strip).toContain('class="stat-label board-col-label"')
-      for (const label of ['Investigating', 'Awaiting Execution', 'In Progress', 'Unreviewed', 'Development Stopped', 'Operational']) {
+      for (const label of ['Planning', 'Queued', 'Developing', 'Awaiting Development', 'Operational']) {
         expect(strip).toContain(`>${label}<`)
       }
       expect(strip).not.toContain('badge-')
@@ -109,8 +108,8 @@ describe('dashboard stat boxes', () => {
       expect(strip).toContain('class="skc-open"')
       expect(strip).toContain('class="skc-title"')
       expect(strip).toContain('skc-updated')
-      expect(strip).toContain(`/project.html?id=${unreviewed}`)
-      expect(strip).toContain(`/project.html?id=${doing}`)
+      expect(strip).toContain(`/project.html?id=${planning}`)
+      expect(strip).toContain(`/project.html?id=${developing}`)
       expect(strip).toContain(`/project.html?id=${operational}`)
 
       // Sparks never render here — they live on the projects page's shelf.
@@ -123,7 +122,7 @@ describe('dashboard stat boxes', () => {
       // box carries a create control anymore.
       expect(strip).not.toContain('data-quickadd-open')
       expect(strip).not.toContain('data-projectquickadd')
-      expect((strip.match(/View all </g) ?? []).length).toBe(6)
+      expect((strip.match(/View all </g) ?? []).length).toBe(5)
       for (const s of CAROUSEL) expect(strip).toContain(`/projects.html?status=${s}&view=cards`)
 
       // Order: to-do → stat boxes → notebook → recent activity. The Ideas shelf is gone.
@@ -144,11 +143,11 @@ describe('dashboard stat boxes', () => {
       expect(html).toContain('href="/projects.html"')
       expect(html).toContain('Go to projects')
 
-      // JSON branch: counts cover ALL 7 statuses (spark included), `recents` is the
+      // JSON branch: counts cover ALL 6 statuses (spark included), `recents` is the
       // active-stages query (sparks excluded), solvedThisWeek rides along for API compat.
       const json = await app.fetch(new Request('http://local/api/dashboard', { headers: auth }))
       const data = (await json.json()) as { counts: Record<string, number>; recents: { status: string }[]; solvedThisWeek: number }
-      expect(data.counts).toEqual({ spark: 2, unreviewed: 1, investigating: 0, awaiting: 0, doing: 1, halted: 1, operational: 1 })
+      expect(data.counts).toEqual({ spark: 2, planning: 1, queued: 0, developing: 1, awaiting_dev: 1, operational: 1 })
       expect(data.recents.every((p) => p.status !== 'spark')).toBe(true)
       expect(data.recents).toHaveLength(4)
       expect(data.solvedThisWeek).toBe(0)
@@ -162,22 +161,21 @@ describe('dashboard stat boxes', () => {
     try {
       const user = await makeUser(db)
       const { app, auth } = await makeClient(db, user)
-      for (let i = 0; i < 6; i++) await createProject(app, auth, `Research ${i}`, 'investigating')
-      for (let i = 0; i < 5; i++) await createProject(app, auth, `Build ${i}`, 'doing')
+      for (let i = 0; i < 6; i++) await createProject(app, auth, `Research ${i}`, 'planning')
+      for (let i = 0; i < 5; i++) await createProject(app, auth, `Build ${i}`, 'developing')
 
       const res = await app.fetch(new Request('http://local/api/dashboard', { headers: { ...auth, 'HX-Request': 'true' } }))
       const html = await res.text()
       const strip = html.slice(html.indexOf('stat-strip stat-boxes'), html.indexOf('class="card notebook'))
       // One stage column per carousel stage, in order; each lists ALL its projects.
       const cols = strip.split('<div class="stat-kanban">').slice(1)
-      expect(cols.length).toBe(6)
+      expect(cols.length).toBe(5)
       const cards = (s: string) => (s.match(/class="card kanban-card stat-kanban-card"/g) ?? []).length
-      expect(cards(cols[0])).toBe(6) // Investigating lists all six
-      expect(cards(cols[1])).toBe(0) // Awaiting is empty
-      expect(cards(cols[2])).toBe(5) // In Progress lists them all
+      expect(cards(cols[0])).toBe(6) // Planning lists all six
+      expect(cards(cols[1])).toBe(0) // Queued is empty
+      expect(cards(cols[2])).toBe(5) // Developing lists them all
       expect(cards(cols[3])).toBe(0)
       expect(cards(cols[4])).toBe(0)
-      expect(cards(cols[5])).toBe(0)
       expect(strip).toContain('Research 5') // the 6th item — no cap
       expect(strip).toContain('Build 4')
       // empty stages show the muted empty state, not a drop target
@@ -192,8 +190,8 @@ describe('dashboard stat boxes', () => {
     try {
       const user = await makeUser(db)
       const { app, auth } = await makeClient(db, user)
-      await createProject(app, auth, 'Solo Unreviewed', 'unreviewed')
-      await createProject(app, auth, 'Solo Doing', 'doing')
+      await createProject(app, auth, 'Solo Planning', 'planning')
+      await createProject(app, auth, 'Solo Developing', 'developing')
       await createProject(app, auth, 'Solo Operational', 'operational')
 
       const res = await app.fetch(new Request('http://local/api/dashboard', { headers: { ...auth, 'HX-Request': 'true' } }))
@@ -201,15 +199,15 @@ describe('dashboard stat boxes', () => {
       const strip = html.slice(html.indexOf('stat-strip stat-boxes'), html.indexOf('class="card notebook'))
 
       // Exactly one box per active stage, each with a view-all link and NO create button
-      // (creation lives in the single FAB — user request 2026-08-25). Session 14: the three
-      // stages without projects (investigating/awaiting/halted) are marked .is-empty.
-      expect((strip.match(/class="stat stat-box[^"]*" data-status="/g) ?? []).length).toBe(6)
-      expect((strip.match(/class="stat stat-box is-empty" data-status="/g) ?? []).length).toBe(3)
+      // (creation lives in the single FAB — user request 2026-08-25). Session 14: the two
+      // stages without projects (queued/awaiting_dev) are marked .is-empty.
+      expect((strip.match(/class="stat stat-box[^"]*" data-status="/g) ?? []).length).toBe(5)
+      expect((strip.match(/class="stat stat-box is-empty" data-status="/g) ?? []).length).toBe(2)
       expect(strip).not.toContain('data-quickadd-open')
       expect(strip).not.toContain('data-projectquickadd')
       expect(strip).toContain('View all ')
-      expect(strip).toContain('/projects.html?status=unreviewed&view=cards')
-      expect(strip).toContain('/projects.html?status=doing&view=cards')
+      expect(strip).toContain('/projects.html?status=planning&view=cards')
+      expect(strip).toContain('/projects.html?status=developing&view=cards')
       expect(strip).toContain('/projects.html?status=operational&view=cards')
 
       // Every project appears exactly once — no more stat-box + kanban duplication.
@@ -255,9 +253,10 @@ describe('dashboard to-do preview', () => {
       expect(html).toContain('My focus')
       // 2026-09 neutral quadrants: a user-PICKED accent still renders (the accentAttr)…
       expect(html).toContain('style="--dash-q-accent: var(--accent-purple)"')
-      // …but the data-dash-accent marker attribute is gone, and the emoji symbol now
+      // S93 (owner round, item 6): the 16 pastel swatches are BACK in the dashboard
+      // popover (data-dash-accent rides every swatch button) — the minimalist-era
+      // 'no accent anywhere' assertion retired with them. The emoji symbol
       // rides the Phase 7 item 1 picker button's data-current.
-      expect(html).not.toContain('data-dash-accent=')
       expect(html).toContain('data-current="🎯"')
       // S85: the "Active N" text counter is the shared board-count PILL now — bare
       // digits + title/aria meaning, same convention as the stage columns' counts.
@@ -392,12 +391,12 @@ describe('dashboard merged "Continue where you left off" component (S85)', () =>
     try {
       const user = await makeUser(db)
       const { app, auth } = await makeClient(db, user)
-      await createProject(app, auth, "Older doing", "doing")
+      await createProject(app, auth, "Older developing", "developing")
       // a tiny delay so the second one has a newer updated_at (the query orders by updated_at DESC)
       await new Promise((r) => setTimeout(r, 20))
-      const doing2 = await createProject(app, auth, 'Latest doing', 'doing')
+      const doing2 = await createProject(app, auth, 'Latest developing', 'developing')
       await createProject(app, auth, 'A spark', 'spark')
-      await createProject(app, auth, 'A halted', 'halted')
+      await createProject(app, auth, 'A awaiting_dev', 'awaiting_dev')
 
       const res = await app.fetch(new Request('http://local/api/dashboard', { headers: { ...auth, 'HX-Request': 'true' } }))
       expect(res.status).toBe(200)
@@ -409,7 +408,7 @@ describe('dashboard merged "Continue where you left off" component (S85)', () =>
       // The dashboard shell itself still renders (the doing projects appear in the
       // stage carousel as before — nothing else regressed with the card's removal).
       expect(html).toContain(`/project.html?id=${doing2}`)
-      expect(html).toContain('Latest doing')
+      expect(html).toContain('Latest developing')
       // No other "resume" surface rides the fragment either (the client component
       // injects itself from localStorage at runtime — never server HTML).
     } finally {
@@ -417,14 +416,14 @@ describe('dashboard merged "Continue where you left off" component (S85)', () =>
     }
   })
 
-  it('renders no resume card markup at all when there is no doing project', async () => {
+  it('renders no resume card markup at all when there is no developing project', async () => {
     const { db, close } = makeTestDb()
     try {
       const user = await makeUser(db)
       const { app, auth } = await makeClient(db, user)
       await createProject(app, auth, 'Just an idea', 'spark')
-      await createProject(app, auth, 'Unreviewed', 'unreviewed')
-      await createProject(app, auth, 'Halted', 'halted')
+      await createProject(app, auth, 'Planning', 'planning')
+      await createProject(app, auth, 'AwaitingDev', 'awaiting_dev')
 
       const res = await app.fetch(new Request('http://local/api/dashboard', { headers: { ...auth, 'HX-Request': 'true' } }))
       const html = await res.text()
@@ -434,7 +433,7 @@ describe('dashboard merged "Continue where you left off" component (S85)', () =>
     }
   })
 
-  it('is user-scoped: another user\'s doing project never appears in the dashboard html', async () => {
+  it('is user-scoped: another user\'s developing project never appears in the dashboard html', async () => {
     const { db, close } = makeTestDb()
     try {
       const user = await makeUser(db)
@@ -442,7 +441,7 @@ describe('dashboard merged "Continue where you left off" component (S85)', () =>
       // Another user's doing project (created directly in the DB, never via the authed app)
       const other = await makeUser(db, { email: 'other@x.local', username: 'other' })
       await db.execute(
-        "INSERT INTO projects (id, user_id, title, status, type, sort_order, created_at, updated_at) VALUES (?, ?, 'Other user secret', 'doing', 'personal', 0, ?, ?)",
+        "INSERT INTO projects (id, user_id, title, status, type, sort_order, created_at, updated_at) VALUES (?, ?, 'Other user secret', 'developing', 'personal', 0, ?, ?)",
         [crypto.randomUUID(), other, new Date().toISOString(), new Date().toISOString()],
       )
       // user has no doing project → no resume card

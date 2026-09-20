@@ -72,7 +72,7 @@ describe('GET /api/export/obsidian.zip', () => {
       const { app, cookie } = await makeAuthedApp(db, a)
 
       await db.execute(
-        "INSERT INTO projects (id, user_id, title, description, status, latest_note, created_at, updated_at) VALUES (?, ?, 'هتل آبی', 'توضیح پروژه', 'doing', 'اینجا بودم', ?, ?)",
+        "INSERT INTO projects (id, user_id, title, description, status, latest_note, created_at, updated_at) VALUES (?, ?, 'هتل آبی', 'توضیح پروژه', 'developing', 'اینجا بودم', ?, ?)",
         ['pa', a, iso(5), iso(1)],
       )
       await db.execute(
@@ -81,7 +81,7 @@ describe('GET /api/export/obsidian.zip', () => {
       )
       // B's secret project must never appear in A's vault (rule 1).
       await db.execute(
-        "INSERT INTO projects (id, user_id, title, status, created_at, updated_at) VALUES (?, ?, 'B-secret', 'doing', ?, ?)",
+        "INSERT INTO projects (id, user_id, title, status, created_at, updated_at) VALUES (?, ?, 'B-secret', 'developing', ?, ?)",
         ['pb', b, iso(1), iso()],
       )
       await db.execute(
@@ -130,7 +130,7 @@ describe('GET /api/export/obsidian.zip', () => {
       const pmd = texts.get(projectFile!)!
       expect(pmd).toContain('---\n')
       expect(pmd).toContain('type: project')
-      expect(pmd).toContain('status: doing')
+      expect(pmd).toContain('status: developing')
       expect(pmd).toContain('توضیح پروژه')
       expect(pmd).toContain('Where I left off')
       expect(pmd).toContain('یادداشت تاریخچه')
@@ -152,7 +152,7 @@ describe('GET /api/export/obsidian.zip', () => {
       const a = await makeUser(db, { username: 'alice', email: 'alice@test.dev' })
       const { app, cookie } = await makeAuthedApp(db, a)
       await db.execute(
-        "INSERT INTO projects (id, user_id, title, status, created_at, updated_at) VALUES (?, ?, 'Round Trip Project', 'doing', ?, ?)",
+        "INSERT INTO projects (id, user_id, title, status, created_at, updated_at) VALUES (?, ?, 'Round Trip Project', 'developing', ?, ?)",
         ['p1', a, iso(2), iso()],
       )
 

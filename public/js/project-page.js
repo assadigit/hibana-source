@@ -893,11 +893,10 @@
                 // rebuild the badge span from the project row: same classes the server uses
                 const ICONS = {
                   spark: '<path d="M9 18h6M10 22h4"/><path d="M12 2a7 7 0 0 0-4.2 12.6c.9.7 1.2 1.6 1.2 2.4h6c0-.8.3-1.7 1.2-2.4A7 7 0 0 0 12 2Z"/>',
-                  unreviewed: '<circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/>',
-                  investigating: '<circle cx="11" cy="11" r="6.5"/><path d="M16 16l4.5 4.5"/>',
-                  awaiting: '<rect x="3.5" y="5" width="17" height="16" rx="2"/><path d="M3.5 9.5h17M8 3v4M16 3v4"/>',
-                  doing: '<circle cx="12" cy="12" r="3"/><path d="M12 2.5v2.8M12 18.7v2.8M2.5 12h2.8M18.7 12h2.8M5.3 5.3l2 2M16.7 16.7l2 2M18.7 5.3l-2 2M7.3 16.7l-2 2"/>',
-                  halted: '<path d="M9 5.5v13M15 5.5v13"/>',
+                  planning: '<circle cx="12" cy="12" r="9"/><path d="M15.5 8.5l-1.9 5.1-5.1 1.9 1.9-5.1z"/>',
+                  queued: '<path d="M7 3.5h10M7 20.5h10M8 3.5v2.6c0 1.9 1.6 3.1 4 5.9 2.4-2.8 4-4 4-5.9V3.5M8 20.5v-2.6c0-1.9 1.6-3.1 4-5.9 2.4 2.8 4 4 4 5.9v2.6"/>',
+                  developing: '<circle cx="12" cy="12" r="9"/><path d="M10 8.5l5 3.5-5 3.5z" fill="currentColor" stroke="none"/>',
+                  awaiting_dev: '<path d="M9 5.5v13M15 5.5v13"/>',
                   operational: '<path d="M12 2.5s4.5 3 4.5 8c0 2.6-1.6 4.6-1.6 6.5h-5.8c0-1.9-1.6-3.9-1.6-6.5 0-5 4.5-8 4.5-8Z"/><circle cx="12" cy="9.5" r="1.8"/><path d="M9.5 20.5h5"/>',
                 }
                 const label = sel.querySelector(`option[value="${p.status}"]`)?.textContent || p.status

@@ -20,14 +20,13 @@ window.__hibanaDictEN = {
       'rail.loading': 'Loading…',
       'rail.failed': 'Could not reach the server — reopen the panel to retry.',
       'rail.empty': 'Nothing here yet — open something and it will appear.',
-      'rail.g.recent': 'Continue', 'rail.g.jump': 'Jump to', 'rail.g.today': 'Today',
-      'rail.g.all': 'All', 'rail.g.ongoing': 'Ongoing', 'rail.g.done': 'Done',
-      'rail.g.unfiled': 'Unfiled', 'rail.g.dueSoon': 'Due next 7 days',
+      'rail.g.unfiled': 'Unfiled', 'rail.g.upcoming': 'Coming up',
       'rail.sparksEmpty': 'No ideas captured yet — the Ideas shelf fills as you spark.',
       'rail.notesEmpty': 'No notes yet — the vault fills as you write.',
       'rail.canvasHint': 'The boundless Canvas is a single board — open it to draw, pin notes, and frame regions.',
       'rail.notebookHint': 'The Notebook is your single whiteboard — open it to sketch and write freehand.',
-      'rail.calendarHint': 'Deadlines from your projects and to-dos land here as they approach.',
+      'rail.calendarHint': 'Everything you scheduled — projects, tasks and to-dos — lands here as it approaches.',
+      'rail.todoFailed': "Couldn't update the task — try again",
       // S89: the LABELED rail — a small text label rides under every icon
       'rail.label.search': 'Search', 'rail.label.dashboard': 'Dashboard', 'rail.label.todo': 'To-do',
       'rail.label.projects': 'Projects', 'rail.label.ideas': 'Ideas', 'rail.label.notes': 'Notes',
@@ -216,8 +215,8 @@ window.__hibanaDictEN = {
       'sort.label': 'Sort', 'sort.stage': 'By stage', 'sort.recent': 'Recently updated', 'sort.title': 'Name',
       'list.reorderFailed': 'Reorder failed — try again',
       // batch q lifecycle: spark = idea; the six project stages follow Ali's funnel
-      'status.spark': 'Idea', 'status.unreviewed': 'Unreviewed', 'status.investigating': 'Investigating',
-      'status.awaiting': 'Awaiting Execution', 'status.doing': 'In Progress', 'status.halted': 'Development Stopped',
+      'status.spark': 'Idea', 'status.planning': 'Planning', 'status.queued': 'Queued',
+      'status.developing': 'Developing', 'status.awaiting_dev': 'Awaiting Development',
       'status.operational': 'Operational',
       // settings page
       'settings.tabPreferences': 'Preferences', 'settings.tabAppearance': 'Appearance', 'settings.tabAccount': 'Account',
@@ -809,8 +808,8 @@ window.__hibanaDictEN = {
       // S52: Trash palette command + recoverable-count sublabel
       'cmdk.openTrash': 'Trash — recover deleted items',
       'cmdk.trashCount': '{n} recoverable',
-      'cmdk.statusSpark': 'Idea', 'cmdk.statusUnreviewed': 'Unreviewed', 'cmdk.statusInvestigating': 'Investigating',
-      'cmdk.statusAwaiting': 'Awaiting Execution', 'cmdk.statusDoing': 'In Progress', 'cmdk.statusHalted': 'Development Stopped',
+      'cmdk.statusSpark': 'Idea', 'cmdk.statusPlanning': 'Planning', 'cmdk.statusQueued': 'Queued',
+      'cmdk.statusDeveloping': 'Developing', 'cmdk.statusAwaitingDev': 'Awaiting Development',
       'cmdk.statusOperational': 'Operational',
       // R7.2: PWA install prompt
       'install.prompt': 'Install Hibana for offline access?',

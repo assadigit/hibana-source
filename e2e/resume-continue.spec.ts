@@ -45,7 +45,7 @@ test.beforeAll(async () => {
   // One DOING project (the exact shape that used to summon the server card)…
   db.exec(
     `INSERT INTO projects (id, user_id, title, description, type, status, sort_order, created_at, updated_at)
-     VALUES ('e2e-continue-doing', '${USER_ID}', 'Continue doing project', '', 'personal', 'doing', 0, '${now}', '${now}')`,
+     VALUES ('e2e-continue-doing', '${USER_ID}', 'Continue developing project', '', 'personal', 'developing', 0, '${now}', '${now}')`,
   )
   // …and three open quadrant-1 tasks for the count-pill spec.
   for (let i = 0; i < 3; i++) {
@@ -81,7 +81,7 @@ test('the server "Resume work" card never renders — even with a fresh doing pr
   await expect(page.locator('.dash-resume')).toHaveCount(0)
   await expect(page.locator('main.shell-dash')).toBeVisible()
   // The doing project still surfaces through the stage carousel (nothing else regressed).
-  await expect(page.locator('.skc-title', { hasText: 'Continue doing project' })).toBeVisible()
+  await expect(page.locator('.skc-title', { hasText: 'Continue developing project' })).toBeVisible()
 })
 
 test('seeded history renders the merged component: hero + chips + definition hint', async ({ page }) => {
@@ -90,9 +90,9 @@ test('seeded history renders the merged component: hero + chips + definition hin
   // Seed the ONE store (the exact shape record() writes — last opened, stage badge).
   await page.evaluate(() => {
     localStorage.setItem('hibana-resume', JSON.stringify([
-      { k: 'project', id: 'e2e-continue-doing', t: 'Continue doing project', ts: Date.now() - 60_000, b: 'doing' },
+      { k: 'project', id: 'e2e-continue-doing', t: 'Continue developing project', ts: Date.now() - 60_000, b: 'developing' },
       { k: 'note', id: 'n-1', t: 'Reading list note', ts: Date.now() - 3_600_000 },
-      { k: 'project', id: 'p-old', t: 'An older project', ts: Date.now() - 86_400_000, b: 'investigating' },
+      { k: 'project', id: 'p-old', t: 'An older project', ts: Date.now() - 86_400_000, b: 'planning' },
       { k: 'note', id: 'n-2', t: 'Another note', ts: Date.now() - 172_800_000 },
     ]))
   })
@@ -106,8 +106,8 @@ test('seeded history renders the merged component: hero + chips + definition hin
   await expect(page.locator('#resume-title')).toHaveText('Continue where you left off')
   await expect(page.locator('.resume-hint')).toHaveText('Last opened')
   // HERO = the newest entry (the doing project) with its fixed-palette stage badge + CTA.
-  await expect(page.locator('.resume-hero-title')).toHaveText('Continue doing project')
-  await expect(page.locator('.resume-stage-badge')).toHaveText('In Progress')
+  await expect(page.locator('.resume-hero-title')).toHaveText('Continue developing project')
+  await expect(page.locator('.resume-stage-badge')).toHaveText('Developing')
   await expect(page.locator('.resume-hero-cta')).toContainText('Open')
   // The remaining three ride the chips row — NOT a second hero.
   await expect(page.locator('.resume-chip')).toHaveCount(3)
@@ -119,7 +119,7 @@ test('Clear wipes the store and removes the component', async ({ page }) => {
   await login(page)
   await page.evaluate(() => {
     localStorage.setItem('hibana-resume', JSON.stringify([
-      { k: 'project', id: 'e2e-continue-doing', t: 'Continue doing project', ts: Date.now(), b: 'doing' },
+      { k: 'project', id: 'e2e-continue-doing', t: 'Continue developing project', ts: Date.now(), b: 'developing' },
     ]))
   })
   await page.goto('/app')

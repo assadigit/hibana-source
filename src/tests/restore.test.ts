@@ -90,7 +90,7 @@ async function populatedDb(): Promise<{ db: Db; close(): void; userId: string; p
       [U, 'restore-e2e', 'restore-e2e@test.dev', 'pbkdf2$100000$s$h', 'owner', 'en', 'gregorian', 'UTC', now, now],
     )
     await db.execute('INSERT INTO spark_folders (id, user_id, name, sort_order, created_at) VALUES (?, ?, ?, ?, ?)', [F, U, 'Folder', 0, now])
-    await db.execute('INSERT INTO projects (id, user_id, folder_id, title, description, type, status, sort_order, latest_note, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)', [P, U, F, 'P', 'd', 'personal', 'doing', 0, 'note', now, now])
+    await db.execute('INSERT INTO projects (id, user_id, folder_id, title, description, type, status, sort_order, latest_note, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)', [P, U, F, 'P', 'd', 'personal', 'developing', 0, 'note', now, now])
     await db.execute('INSERT INTO project_history_log (id, project_id, note, created_at) VALUES (?, ?, ?, ?)', ['h1', P, 'status moved spark → doing', now])
     await db.execute('INSERT INTO hurdles (id, project_id, text, status, sort_order, created_at) VALUES (?, ?, ?, ?, ?, ?)', [H, P, 'blocker', 'open', 0, now])
     await db.execute('INSERT INTO tags (id, user_id, name, color, usage_count, created_at) VALUES (?, ?, ?, ?, ?, ?)', [T, U, 'AI', '#f6d365', 1, now])
@@ -307,7 +307,7 @@ describe('restore E2E — the REAL scripts/restore.mjs (the runbook disaster pat
       exported_at: '2026-08-28T00:00:00.000Z',
       data: {
         users: [{ id: 'u1', username: 'old', email: 'old@test.dev' }],
-        projects: [{ id: 'p-old', user_id: 'u1', title: 'Old project', status: 'doing', created_at: '2026-08-01', updated_at: '2026-08-01' }],
+        projects: [{ id: 'p-old', user_id: 'u1', title: 'Old project', status: 'developing', created_at: '2026-08-01', updated_at: '2026-08-01' }],
         hurdles: [{ id: 'h-old', project_id: 'p-old', text: 'old blocker', status: 'open', sort_order: 0, created_at: '2026-08-01' }],
       },
     }
@@ -333,7 +333,7 @@ describe('restore E2E — the REAL scripts/restore.mjs (the runbook disaster pat
       exported_at: '2026-09-05T00:00:00.000Z',
       data: {
         users: [{ id: 'u1', username: 'old', email: 'old@test.dev' }],
-        projects: [{ id: 'p-old', user_id: 'u1', title: 'Old', status: 'doing', created_at: '2026-09-01', updated_at: '2026-09-01' }],
+        projects: [{ id: 'p-old', user_id: 'u1', title: 'Old', status: 'developing', created_at: '2026-09-01', updated_at: '2026-09-01' }],
         changelogs: [{ id: 'c1', project_id: 'p-old', body: 'dead table data', created_at: '2026-09-01' }], // dropped by 0048
       },
     }
@@ -357,7 +357,7 @@ describe('restore E2E — the REAL scripts/restore.mjs (the runbook disaster pat
       exported_at: '2027-01-01T00:00:00.000Z',
       data: {
         users: [{ id: 'u1', username: 'future', email: 'f@test.dev' }],
-        projects: [{ id: 'p-f', user_id: 'u1', title: 'Future', status: 'doing', created_at: '2027-01-01', updated_at: '2027-01-01' }],
+        projects: [{ id: 'p-f', user_id: 'u1', title: 'Future', status: 'developing', created_at: '2027-01-01', updated_at: '2027-01-01' }],
         future_widgets: [{ id: 'w1', project_id: 'p-f', label: 'unknown-to-this-schema' }], // table this schema doesn't have
       },
     }
@@ -387,7 +387,7 @@ describe('restore E2E — the REAL scripts/restore.mjs (the runbook disaster pat
       await db.execute('INSERT INTO users (id, username, email, password_hash, role, language_pref, calendar_pref, timezone, email_verified_at, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)', [U, 'big', 'big@test.dev', 'x', 'owner', 'en', 'gregorian', 'UTC', now, now])
       await db.execute('INSERT INTO spark_folders (id, user_id, name, sort_order, created_at) VALUES (?, ?, ?, ?, ?)', ['f-big', U, 'F', 0, now])
       for (let i = 0; i < N; i++) {
-        await db.execute('INSERT INTO projects (id, user_id, folder_id, title, status, sort_order, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)', [`p-${i}`, U, 'f-big', `Project ${i}`, 'doing', i, now, now])
+        await db.execute('INSERT INTO projects (id, user_id, folder_id, title, status, sort_order, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)', [`p-${i}`, U, 'f-big', `Project ${i}`, 'developing', i, now, now])
       }
       for (let i = 0; i < N; i++) {
         await db.execute('INSERT INTO canvas_elements (id, user_id, type, x, y, width, height, color, content, z_index, deleted, board, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)', [`cv-${i}`, U, 'note', i, i, 10, 10, '#fff', `content ${i} — تست فارسی`, i, 0, 'board', now, now])

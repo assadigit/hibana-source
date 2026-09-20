@@ -5,24 +5,24 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Reports — Hibana</title>
   <link rel="preload" as="font" type="font/woff2" href="/vendor/manrope/Manrope-400.woff2" crossorigin>
-  <link rel="stylesheet" href="/css/variables.css?v=8">
+  <link rel="stylesheet" href="/css/variables.css?v=9">
   <link rel="stylesheet" href="/css/base.css?v=7">
-  <link rel="stylesheet" href="/css/layout.css?v=27">
-  <link rel="stylesheet" href="/css/dashboard.css?v=16">
-  <link rel="stylesheet" href="/css/dashboard-todo.css?v=10">
-  <link rel="stylesheet" href="/css/components.css?v=4">
+  <link rel="stylesheet" href="/css/layout.css?v=28">
+  <link rel="stylesheet" href="/css/dashboard.css?v=17">
+  <link rel="stylesheet" href="/css/dashboard-todo.css?v=11">
+  <link rel="stylesheet" href="/css/components.css?v=7">
   <link rel="stylesheet" href="/css/canvas.css?v=7">
-  <link rel="stylesheet" href="/css/quicknotes.css?v=23">
-  <link rel="stylesheet" href="/css/to-do-list.css?v=4">
-  <link rel="stylesheet" href="/css/polish-ui.css?v=26">
+  <link rel="stylesheet" href="/css/quicknotes.css?v=24">
+  <link rel="stylesheet" href="/css/to-do-list.css?v=5">
+  <link rel="stylesheet" href="/css/polish-ui.css?v=27">
   <link rel="stylesheet" href="/css/calendar.css?v=6">
-  <link rel="stylesheet" href="/css/notifications.css?v=4">
-  <link rel="stylesheet" href="/css/polish-batch.css?v=17">
-  <link rel="stylesheet" href="/css/project-header.css?v=32">
+  <link rel="stylesheet" href="/css/notifications.css?v=5">
+  <link rel="stylesheet" href="/css/polish-batch.css?v=18">
+  <link rel="stylesheet" href="/css/project-header.css?v=33">
   <link rel="stylesheet" href="/css/devboard.css?v=22">
-  <link rel="stylesheet" href="/css/misc.css?v=11">
-  <link rel="stylesheet" href="/css/themes.css?v=3">
-  <link rel="stylesheet" href="/css/claude-dark-theme.css?v=3">
+  <link rel="stylesheet" href="/css/misc.css?v=12">
+  <link rel="stylesheet" href="/css/themes.css?v=4">
+  <link rel="stylesheet" href="/css/claude-dark-theme.css?v=4">
   <link rel="stylesheet" href="/css/rtl.css?v=4">
   <link rel="stylesheet" href="/vendor/manrope/font-face.css">
   <script src="/vendor/htmx.min.js" defer></script>
@@ -36,20 +36,20 @@
        "report is not defined" — Snapshot, heatmap and the activity chart never rendered on
        a hard load (silent since the inline-script extraction, 317724e). -->
   <script src="/js/jalali.js?v=1" defer></script>
-  <script src="/js/reports-page.js?v=9" defer></script>
+  <script src="/js/reports-page.js?v=10" defer></script>
   <script src="/vendor/alpine.min.js" defer></script>
-  <script src="/js/app.js?v=197" defer></script>
+  <script src="/js/app.js?v=199" defer></script>
   <script src="/js/hib-init.js?v=8" defer></script>
   <script src="/js/touch-drag.js?v=1" defer></script>
-  <script src="/js/nav.js?v=13" defer></script>
-  <script src="/js/command-palette.js?v=15" defer></script>
+  <script src="/js/nav.js?v=14" defer></script>
+  <script src="/js/command-palette.js?v=16" defer></script>
   <script src="/js/mobile-nav.js?v=12" defer></script>
   <script src="/js/zen-mode.js?v=1" defer></script>
   <script src="/js/micro-interactions.js?v=1" defer></script>
   <script src="/js/go-to.js?v=2" defer></script>
   <script src="/js/install-prompt.js?v=1" defer></script>
-  <script src="/js/i18n-en.js?v=69" defer></script>
-  <script src="/js/i18n.js?v=124" defer></script>
+  <script src="/js/i18n-en.js?v=70" defer></script>
+  <script src="/js/i18n.js?v=125" defer></script>
 </head>
 <body>
   <div data-nav></div>
@@ -92,18 +92,17 @@
           <div class="stat-strip">
             <!-- batch q: spark + the six project lifecycle stages -->
             <div class="stat"><span class="badge badge-spark" x-text="summary.status?.spark ?? 0"></span> <span data-i18n="status.spark">Idea</span></div>
-            <div class="stat"><span class="badge badge-unreviewed" x-text="summary.status?.unreviewed ?? 0"></span> <span data-i18n="status.unreviewed">Unreviewed</span></div>
-            <div class="stat"><span class="badge badge-investigating" x-text="summary.status?.investigating ?? 0"></span> <span data-i18n="status.investigating">Investigating</span></div>
-            <div class="stat"><span class="badge badge-awaiting" x-text="summary.status?.awaiting ?? 0"></span> <span data-i18n="status.awaiting">Awaiting Execution</span></div>
-            <div class="stat"><span class="badge badge-doing" x-text="summary.status?.doing ?? 0"></span> <span data-i18n="status.doing">In Progress</span></div>
-            <div class="stat"><span class="badge badge-halted" x-text="summary.status?.halted ?? 0"></span> <span data-i18n="status.halted">Development Stopped</span></div>
+            <div class="stat"><span class="badge badge-planning" x-text="summary.status?.planning ?? 0"></span> <span data-i18n="status.planning">Planning</span></div>
+            <div class="stat"><span class="badge badge-queued" x-text="summary.status?.queued ?? 0"></span> <span data-i18n="status.queued">Queued</span></div>
+            <div class="stat"><span class="badge badge-developing" x-text="summary.status?.developing ?? 0"></span> <span data-i18n="status.developing">Developing</span></div>
+            <div class="stat"><span class="badge badge-awaiting_dev" x-text="summary.status?.awaiting_dev ?? 0"></span> <span data-i18n="status.awaiting_dev">Awaiting Development</span></div>
             <div class="stat"><span class="badge badge-operational" x-text="summary.status?.operational ?? 0"></span> <span data-i18n="status.operational">Operational</span></div>
             <div class="stat muted"><span data-i18n="reports.personal">Personal</span>: <b x-text="summary.type?.personal ?? 0"></b></div>
             <div class="stat muted"><span data-i18n="reports.client">Client</span>: <b x-text="summary.type?.client ?? 0"></b></div>
           </div>
-          <!-- Operational + Halted boxes (was Working/Archived; user request 2026-08-21) -->
+          <!-- Operational + Awaiting-Development boxes (was Working/Archived; user request 2026-08-21) -->
           <div class="stat-strip stat-boxes" style="margin-block-start:0.75rem">
-            <template x-for="s in ['operational','halted']" :key="s">
+            <template x-for="s in ['operational','awaiting_dev']" :key="s">
               <div class="stat stat-box">
                 <div class="row spread">
                   <span class="row"><span class="badge" :class="'badge-'+s" x-text="summary.status?.[s] ?? 0"></span> <b x-text="statusLabel(s)"></b></span>

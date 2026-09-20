@@ -339,8 +339,8 @@ export function registerTelegram(app: Hono<{ Variables: { user: UserRow } }>, cf
         return c.json({ ok: true })
       }
       // Resolve the project: id first, then a LIKE prefix match on title (user-scoped,
-      // not deleted). Spark + unreviewed + all active stages are eligible — appending to
-      // an archived/halted project is allowed (the user knows what they're doing).
+      // not deleted). Spark + all active stages are eligible — appending to
+      // an archived/awaiting_dev project is allowed (the user knows what they're doing).
       let project: ProjectRow | null = null
       if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(projectArg)) {
         const rows = await cfg.db.query<ProjectRow>('SELECT * FROM projects WHERE id = ? AND user_id = ? AND deleted_at IS NULL', [projectArg, userId])
@@ -378,30 +378,43 @@ export function registerTelegram(app: Hono<{ Variables: { user: UserRow } }>, cf
     // /update <project> <stage> — move a project to a new stage from Telegram (Changelogs
     // §6 open item, Session 19 cron round 2). Same project resolution as /append (id OR
     // title-prefix, user-scoped, not deleted). The stage accepts: the stage key
-    // (unreviewed/investigating/awaiting/doing/halted/operational — spark is excluded: a
+    // (planning/queued/developing/awaiting_dev/operational — spark is excluded: a
     // spark is an idea, not a stage you move INTO from here), the EN label, or the FA
-    // label. Case-insensitive. Stage labels can be multi-word (FA: «در حال انجام», EN:
-    // "In Progress"), so we match a known stage label at the END of the input; the project
-    // is everything before it. Logs to project_history_log so the activity feed shows it.
+    // label. Case-insensitive. The pre-0060 keys and labels (unreviewed/investigating/
+    // awaiting/doing/halted + their FA labels) stay as accepted aliases — a stage
+    // someone typed last week must keep working. Stage labels can be multi-word (FA:
+    // «در حال توسعه», EN: "Awaiting Development"), so we match a known stage label at
+    // the END of the input; the project is everything before it. Logs to
+    // project_history_log so the activity feed shows it.
     const updateMatch = text.match(/^\/update\b\s+([\s\S]+)/i)
     if (updateMatch) {
       const rest = updateMatch[1].trim()
       // Build a (label → status) map. Multi-word labels first so they win over single-word
-      // stage keys when both could match (e.g. "در حال انجام" before "doing").
+      // stage keys when both could match (e.g. "در حال توسعه" before "developing").
       const STAGE_MAP: [string, ProjectRow['status']][] = [
-        ['awaiting execution', 'awaiting'],
-        ['in progress', 'doing'],
-        ['development stopped', 'halted'],
-        ['در حال انجام', 'doing'],
-        ['در حال تحقیق', 'investigating'],
-        ['در انتظار اقدام', 'awaiting'],
-        ['توقف توسعه', 'halted'],
-        ['بررسی نشده', 'unreviewed'],
-        ['unreviewed', 'unreviewed'],
-        ['investigating', 'investigating'],
-        ['awaiting', 'awaiting'],
-        ['doing', 'doing'],
-        ['halted', 'halted'],
+        ['awaiting development', 'awaiting_dev'],
+        ['awaiting execution', 'queued'],
+        ['in progress', 'developing'],
+        ['development stopped', 'awaiting_dev'],
+        ['در حال توسعه', 'developing'],
+        ['در حال برنامه‌ریزی', 'planning'],
+        ['در انتظار توسعه', 'awaiting_dev'],
+        ['در حال انجام', 'developing'],
+        ['در حال تحقیق', 'planning'],
+        ['در انتظار اجرا', 'queued'],
+        ['در انتظار اقدام', 'queued'],
+        ['توقف توسعه', 'awaiting_dev'],
+        ['بررسی نشده', 'planning'],
+        ['در صف', 'queued'],
+        ['planning', 'planning'],
+        ['queued', 'queued'],
+        ['developing', 'developing'],
+        ['awaiting_dev', 'awaiting_dev'],
+        ['unreviewed', 'planning'],
+        ['investigating', 'planning'],
+        ['awaiting', 'queued'],
+        ['doing', 'developing'],
+        ['halted', 'awaiting_dev'],
         ['operational', 'operational'],
         ['idea', 'spark'],
         ['spark', 'spark'],
@@ -424,9 +437,9 @@ export function registerTelegram(app: Hono<{ Variables: { user: UserRow } }>, cf
       if (!newStatus) {
         // No recognized stage → either no stage at all, or an unknown one.
         if (rest.indexOf(' ') === -1) {
-          await sendTelegramMessage(token, chatId, 'Usage: /update <project-title-or-id> <stage>\n\nStages: unreviewed, investigating, awaiting, doing, halted, operational\n(e.g. /update star map doing)')
+          await sendTelegramMessage(token, chatId, 'Usage: /update <project-title-or-id> <stage>\n\nStages: planning, queued, developing, awaiting_dev, operational\n(e.g. /update star map developing)')
         } else {
-          await sendTelegramMessage(token, chatId, `Unknown stage. Valid stages:\n\nunreviewed · investigating · awaiting · doing · halted · operational\n\n(spark/idea can't be set from here — promote an idea from the Ideas page instead.)`)
+          await sendTelegramMessage(token, chatId, `Unknown stage. Valid stages:\n\nplanning · queued · developing · awaiting_dev · operational\n\n(spark/idea can't be set from here — promote an idea from the Ideas page instead.)`)
         }
         return c.json({ ok: true })
       }
@@ -435,7 +448,7 @@ export function registerTelegram(app: Hono<{ Variables: { user: UserRow } }>, cf
         return c.json({ ok: true })
       }
       if (!projectArg) {
-        await sendTelegramMessage(token, chatId, 'Usage: /update <project-title-or-id> <stage>\n\nStages: unreviewed, investigating, awaiting, doing, halted, operational\n(e.g. /update star map doing)')
+        await sendTelegramMessage(token, chatId, 'Usage: /update <project-title-or-id> <stage>\n\nStages: planning, queued, developing, awaiting_dev, operational\n(e.g. /update star map developing)')
         return c.json({ ok: true })
       }
       // Resolve the project (id first, then title prefix — same as /append).

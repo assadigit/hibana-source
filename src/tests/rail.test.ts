@@ -38,10 +38,10 @@ describe('GET /api/rail (the navigation rail panel payload)', () => {
       // A project per bucket: live (doing), spark, PARKED (archived offline), and
       // another user's row that must never leak (Rule 1).
       for (const [id, user, status, archived] of [
-        ['p1', me, 'doing', null],
+        ['p1', me, 'developing', null],
         ['p2', me, 'spark', null],
-        ['p3', me, 'doing', 'offline'],
-        ['p9', other, 'doing', null],
+        ['p3', me, 'developing', 'offline'],
+        ['p9', other, 'developing', null],
       ] as const) {
         await db.execute(
           'INSERT INTO projects (id, user_id, title, status, archived_state, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
@@ -84,7 +84,7 @@ describe('GET /api/rail (the navigation rail panel payload)', () => {
 
       // Projects: live only (parked + spark excluded, other user's row never leaks).
       expect(body.projects.map((p) => p.id)).toEqual(['p1'])
-      expect(body.projects[0]).toMatchObject({ id: 'p1', title: 'Project p1', status: 'doing' })
+      expect(body.projects[0]).toMatchObject({ id: 'p1', title: 'Project p1', status: 'developing' })
       // Sparks: the Ideas shelf.
       expect(body.sparks.map((p) => p.id)).toEqual(['p2'])
       // Folders: mine only, with LIVE note counts (the deleted note never counts).

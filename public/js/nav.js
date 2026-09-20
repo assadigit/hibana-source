@@ -312,17 +312,30 @@
     : String(s))
 
   const RAIL_SECTIONS = {
-    dashboard: { href: '/dashboard.html', i18n: 'nav.dashboard', label: 'Dashboard' },
     todo: { href: '/to-do-list', i18n: 'nav.sadhana', label: 'To-do list' },
     projects: { href: '/projects.html', i18n: 'nav.projects', label: 'Projects' },
     sparks: { href: '/sparks.html', i18n: 'nav.sparks', label: 'Ideas' },
     notes: { href: '/notes.html', i18n: 'nav.notes', label: 'Notes' },
     calendar: { href: '/calendar.html', i18n: 'nav.calendar', label: 'Calendar' },
+    // S93 (owner round, items 2 + 14): the DASHBOARD panel section is RETIRED — its rail
+    // icon is pure navigation now (clicking Dashboard must SHOW the dashboard), and the
+    // "Jump to" link list the owner rejected went with it. A stale persisted
+    // 'hibana-rail-panel' = 'dashboard' simply fails this lookup and is ignored.
     // S89: canvas + notebook LEFT THE RAIL (redundant beside Notes — the account
-    // menu links them now). Their panel sections are retired; a stale persisted
-    // 'hibana-rail-panel' value simply fails the RAIL_SECTIONS lookup and is ignored.
+    // menu links them now). Their panel sections are retired too.
   }
   const RAIL_DONE = new Set(['operational'])
+  // S93 (owner round, item 14): the projects panel lists projects UNDER THEIR STAGE —
+  // the owner's sketch ("-planning / item one / item two / -queued / …"). The 0060
+  // taxonomy: planning → queued → developing → awaiting_dev, operational collapsed at
+  // the end. Empty stages stay hidden (nothing to show, nothing to tap).
+  const RAIL_STAGE_GROUPS = [
+    { key: 'planning', i18n: 'status.planning', label: 'Planning', collapsed: false },
+    { key: 'queued', i18n: 'status.queued', label: 'Queued', collapsed: false },
+    { key: 'developing', i18n: 'status.developing', label: 'Developing', collapsed: false },
+    { key: 'awaiting_dev', i18n: 'status.awaiting_dev', label: 'Awaiting Development', collapsed: false },
+    { key: 'operational', i18n: 'status.operational', label: 'Operational', collapsed: true },
+  ]
 
   let railSection = null
   let railData = null
@@ -340,14 +353,19 @@
     return railFetch
   }
 
-  // one grouped list section: label + count + collapsible body of .rail-item rows
+  // one grouped list section: label + count + collapsible body of .rail-item rows.
+  // S93 (item 6): opts.accent tints the head with the quadrant's picked pastel (a
+  // 12% wash + a colored lead dot — the same token the board quadrant renders).
   const railGroup = (label, items, opts = {}) => {
     const count = Array.isArray(items) ? items.length : 0
     if (!count && opts.hideWhenEmpty !== false) return ''
     const open = opts.collapsed ? '' : ' open-group'
-    return '<div class="rail-group' + (opts.collapsed ? ' is-collapsed' : '') + '">' +
+    const accentAttr = opts.accent ? ' style="--ga: var(--' + escHtml(opts.accent) + ')"' : ''
+    const dot = opts.accent ? '<span class="rail-group-dot" style="--sw: var(--' + escHtml(opts.accent) + ')" aria-hidden="true"></span>' : ''
+    return '<div class="rail-group' + (opts.collapsed ? ' is-collapsed' : '') + '"' + accentAttr + '>' +
       '<button type="button" class="rail-group-head" data-rail-group aria-expanded="' + (opts.collapsed ? 'false' : 'true') + '">' +
       '<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg>' +
+      dot +
       '<span>' + escHtml(label) + '</span>' +
       '<span class="rail-group-count">' + railFaDig(count) + '</span>' +
       '</button><div class="rail-group-body">' + (Array.isArray(items) ? items.join('') : items) + '</div></div>'
@@ -358,38 +376,24 @@
     (extra || '') +
     '<span class="rail-item-label" dir="auto">' + escHtml(label) + '</span></a>'
 
-  const renderRailDashboard = () => {
-    // "Continue where you left off" — the resume store (last OPENED, the S85 one
-    // definition) is client-side; no server round trip for this section.
-    let recent = []
-    try { recent = JSON.parse(localStorage.getItem('hibana-resume') || '[]') } catch { recent = [] }
-    const items = recent.slice(0, 6).map((r) => {
-      const href = r.k === 'note' ? '/notes.html#n=' + encodeURIComponent(r.id) : '/project.html?id=' + encodeURIComponent(r.id)
-      return railItem(href, r.title || (r.k === 'note' ? 'Untitled' : 'Project'), r.k === 'note' ? null : (r.badge || 'unreviewed'))
-    })
-    const groups = [
-      railGroup(railT('rail.g.recent', 'Continue'), items, { collapsed: false }),
-      railGroup(railT('rail.g.jump', 'Jump to'), [
-        railItem('/to-do-list', railT('nav.sadhana', 'To-do list'), 'todo'),
-        railItem('/projects.html', railT('nav.projects', 'Projects'), 'doing'),
-        railItem('/notes.html', railT('nav.notes', 'Notes'), null),
-        railItem('/calendar.html', railT('nav.calendar', 'Calendar'), 'awaiting'),
-      ]),
-    ].join('')
-    return groups || '<div class="rail-panel-empty">' + escHtml(railT('rail.empty', 'Nothing here yet — open something and it will appear.')) + '</div>'
-  }
+  // S93 (owner round, item 1 — "so user can directly tick them"): a to-do row is a
+  // CHECKBOX + title, not a link. Ticking POSTs /complete (un-ticking /uncomplete) —
+  // the same endpoints the dashboard's rows use — and the row strikes through + sinks
+  // to its group's end without a panel re-render (collapse states survive).
+  const railTodoItem = (t) =>
+    '<label class="rail-item rail-todo-item' + (t.done ? ' is-done' : '') + '">' +
+    '<input type="checkbox" class="rail-check" data-rail-todo="' + escHtml(t.id) + '"' + (t.done ? ' checked' : '') +
+    ' aria-label="' + escHtml(t.title) + '">' +
+    '<span class="rail-item-label" dir="auto">' + escHtml(t.title) + '</span></label>'
 
   const renderRailTodos = (d) => {
-    // S89 (owner request): the to-do panel classifies tasks under their QUADRANT /
-    // box name — "Personal Life / Finance / …" are the user's OWN renamed quadrant
-    // names (sadhana_quadrant_names; the defaults localize per UI language). The
-    // user's saved quadrant ORDER drives the group order (the dashboard's order
-    // mirrored); Today stays on top; done tasks ride their quadrant, open first.
+    // S93 (owner round, item 1): the to-do panel IS the quadrant board in miniature —
+    // each quadrant's name heads its group (the user's renamed sadhana_quadrant_names
+    // or localized defaults, in the user's saved order), and every item carries a
+    // tickable checkbox. The items keep the /api/rail order (open first, dated first,
+    // then manual position) — done items ride their quadrant, dimmed + struck.
     const todos = d.todos || []
-    const today = new Date().toISOString().slice(0, 10)
-    const todayItems = todos.filter((t) => !t.done && t.due_date === today).map((t) =>
-      railItem('/to-do-list', t.title, 'todo'))
-    const custom = new Map((d.todoNames || []).map((r) => [r.quadrant, r.name]))
+    const custom = new Map((d.todoNames || []).map((r) => [r.quadrant, r]))
     const DEF = {
       1: ['rail.q1', 'Today'],
       3: ['rail.q3', 'Urgent & High Value'],
@@ -400,30 +404,27 @@
     if (Array.isArray(d.todoOrder) && d.todoOrder.length) {
       order = d.todoOrder.filter((q) => [1, 2, 3, 4].includes(q))
     }
-    const parts = [railGroup(railT('rail.g.today', 'Today'), todayItems)]
+    const parts = []
     for (const q of order) {
-      const label = custom.get(q) || railT(DEF[q][0], DEF[q][1])
-      const items = todos
-        .filter((t) => t.quadrant === q && !(t.due_date === today && !t.done))
-        .sort((a, b) => (a.done || 0) - (b.done || 0))
-        .map((t) => railItem('/to-do-list', t.title, t.done ? 'done' : 'todo'))
-      parts.push(railGroup(label, items))
+      const meta = custom.get(q)
+      const label = meta && meta.name ? meta.name : railT(DEF[q][0], DEF[q][1])
+      const items = todos.filter((t) => t.quadrant === q).map((t) => railTodoItem(t))
+      parts.push(railGroup(label, items, { accent: meta && meta.accent_color ? meta.accent_color : null }))
     }
     return parts.join('') || '<div class="rail-panel-empty">' + escHtml(railT('rail.empty', 'Nothing here yet — open something and it will appear.')) + '</div>'
   }
 
   const renderRailProjects = (d) => {
+    // S93 (owner round, item 14): the projects panel groups projects under their
+    // STAGE (0060 taxonomy) — the owner's sketch: "-planning / item one / item two /
+    // -queued / …". Rows deep-link to the project's own page (the S89 ?id= contract);
+    // operational rides collapsed at the end.
     const projects = d.projects || []
-    const all = projects.map((p) => railItem('/project.html?id=' + encodeURIComponent(p.id), p.title, p.status))
-    const ongoing = projects.filter((p) => ['unreviewed', 'investigating', 'awaiting', 'doing'].includes(p.status))
+    const rows = (s) => projects.filter((p) => p.status === s)
       .map((p) => railItem('/project.html?id=' + encodeURIComponent(p.id), p.title, p.status))
-    const done = projects.filter((p) => RAIL_DONE.has(p.status))
-      .map((p) => railItem('/project.html?id=' + encodeURIComponent(p.id), p.title, p.status))
-    return [
-      railGroup(railT('rail.g.all', 'All'), all),
-      railGroup(railT('rail.g.ongoing', 'Ongoing'), ongoing),
-      railGroup(railT('rail.g.done', 'Done'), done, { collapsed: true }),
-    ].join('')
+    return RAIL_STAGE_GROUPS.map((g) =>
+      railGroup(railT(g.i18n, g.label), rows(g.key), { collapsed: g.collapsed })).join('') ||
+      '<div class="rail-panel-empty">' + escHtml(railT('rail.empty', 'Nothing here yet — open something and it will appear.')) + '</div>'
   }
 
   const renderRailSparks = (d) => {
@@ -532,6 +533,14 @@
       list.push({ kind: p.status })
       map.set(p.due_date, list)
     }
+    for (const t of d.tasks || []) {
+      // S93 (item 15): project TASKS join the due map — the mini-cal dots now cover
+      // every scheduled thing the upcoming list shows.
+      if (!t.due_date) continue
+      const list = map.get(t.due_date) || []
+      list.push({ kind: 'todo' })
+      map.set(t.due_date, list)
+    }
     for (const t of d.todos || []) {
       if (!t.due_date) continue
       const list = map.get(t.due_date) || []
@@ -592,19 +601,34 @@
       '<span class="rail-cal-title" aria-live="polite">' + escHtml(title) + '</span>' +
       '<button type="button" class="rail-cal-nav" data-rail-cal-nav="1" aria-label="' + escHtml(railT('rail.calNext', 'Next month')) + '"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg></button>' +
       '</div>'
-    // The due-next-7-days list under the grid (the S88 data, kept).
-    const in7 = new Date(Date.now() + 7 * 86400000).toISOString().slice(0, 10)
+    // S93 (owner round, item 15): the UPCOMING list — everything the user scheduled
+    // for the next 14 days (project deadlines, project TASKS, to-do deadlines),
+    // sorted by date, each row labeled with a localized date (Jalali + Farsi digits
+    // when the UI is fa — the same calendar system the mini grid above renders).
+    const in14 = new Date(Date.now() + 14 * 86400000).toISOString().slice(0, 10)
     const dueItems = []
     for (const p of d.projects || []) {
-      if (p.due_date && p.due_date >= todayISO && p.due_date <= in7) dueItems.push(railItem('/project.html?id=' + encodeURIComponent(p.id), p.title + ' · ' + p.due_date, p.status))
+      if (p.due_date && p.due_date >= todayISO && p.due_date <= in14) dueItems.push({ date: p.due_date, href: '/project.html?id=' + encodeURIComponent(p.id), label: p.title, dot: p.status })
+    }
+    for (const t of d.tasks || []) {
+      if (t.due_date && t.due_date >= todayISO && t.due_date <= in14) dueItems.push({ date: t.due_date, href: '/project.html?id=' + encodeURIComponent(t.project_id), label: t.title, dot: 'todo' })
     }
     for (const t of d.todos || []) {
-      if (t.due_date && t.due_date >= todayISO && t.due_date <= in7 && !t.done) dueItems.push(railItem('/to-do-list', t.title + ' · ' + t.due_date, 'todo'))
+      if (!t.done && t.due_date && t.due_date >= todayISO && t.due_date <= in14) dueItems.push({ date: t.due_date, href: '/to-do-list', label: t.title, dot: 'todo' })
     }
-    dueItems.sort()
+    dueItems.sort((a, b) => a.date.localeCompare(b.date) || a.label.localeCompare(b.label))
+    const dateLabel = (iso) => {
+      const parts = iso.split('-').map(Number)
+      if (fa) {
+        const j = jcToJ(parts[0], parts[1], parts[2])
+        return faDig(j.jd) + ' ' + JC_MONTHS_FA[j.jm - 1]
+      }
+      return EN_MONTHS[parts[1] - 1].slice(0, 3) + ' ' + parts[2]
+    }
+    const dueRows = dueItems.slice(0, 18).map((x) => railItem(x.href, x.label + ' · ' + dateLabel(x.date), x.dot))
     return '<div class="rail-cal">' + head + grid + '</div>' +
-      railGroup(railT('rail.g.dueSoon', 'Due next 7 days'), dueItems) +
-      '<div class="rail-panel-empty">' + escHtml(railT('rail.calendarHint', 'Deadlines from your projects and to-dos land here as they approach.')) + '</div>'
+      railGroup(railT('rail.g.upcoming', 'Coming up'), dueRows) +
+      '<div class="rail-panel-empty">' + escHtml(railT('rail.calendarHint', 'Deadlines from your projects, tasks and to-dos land here as they approach.')) + '</div>'
   }
 
   // Month stepping: ± one month of the DISPLAYED system (Jalali when fa) — the
@@ -649,11 +673,8 @@
       '<button type="button" class="rail-panel-close" data-rail-close aria-label="' + escHtml(railT('rail.close', 'Close panel')) + '" data-i18n-aria-label="rail.close">' +
       '<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button>' +
       '</div>'
-    // dashboard reads the client-side resume store; everything else needs /api/rail
-    if (railSection === 'dashboard') {
-      box.innerHTML = head + '<div class="rail-panel-body">' + renderRailDashboard() + '</div>'
-      return
-    }
+    // S93: every panel section reads /api/rail (the dashboard panel is retired —
+    // its icon navigates; see RAIL_SECTIONS).
     box.innerHTML = head + '<div class="rail-panel-body"><div class="rail-panel-loading">' + escHtml(railT('rail.loading', 'Loading…')) + '</div></div>'
     let data
     try { data = await loadRailData() } catch {
@@ -693,8 +714,10 @@
   }
 
   // The rail icons: click OPENS the panel (VS Code semantics — single click never
-  // navigates; the panel's header "Open →" + the item rows do). Registered BEFORE
-  // the generic link interceptor below so stopPropagation keeps the navigator out.
+  // navigates; the panel's header "Open →" + the item rows do). S93 (owner items 2
+  // + 10): an icon carrying data-rail-nav ALSO navigates — Projects shows the page
+  // AND its grouped sidebar together. Registered BEFORE the generic link interceptor
+  // below so stopPropagation keeps the navigator out.
   document.addEventListener('click', (e) => {
     const icon = e.target.closest ? e.target.closest('.rail-btn[data-rail-panel]') : null
     if (!icon) return
@@ -702,9 +725,41 @@
     e.preventDefault()
     e.stopPropagation()
     const section = icon.getAttribute('data-rail-panel') || ''
-    if (railSection === section) closeRailPanel()
-    else openRailPanel(section)
+    const alsoNav = icon.hasAttribute('data-rail-nav')
+    if (!alsoNav && railSection === section) { closeRailPanel(); return }
+    if (RAIL_SECTIONS[section]) openRailPanel(section)
+    if (alsoNav) go(icon.getAttribute('href') || '')
   }, true)
+
+  // S93 (owner round, item 1): the to-do panel's CHECKBOXES — a delegated change
+  // handler POSTs /complete|/uncomplete (the same endpoints the dashboard rows use),
+  // then the row strikes/dims and SINKS to its group's end in place (no panel
+  // re-render — the collapse states + scroll position survive the tick).
+  document.addEventListener('change', (e) => {
+    const input = e.target.closest ? e.target.closest('[data-rail-todo]') : null
+    if (!input || !(input instanceof HTMLInputElement)) return
+    const id = input.getAttribute('data-rail-todo') || ''
+    const row = input.closest('.rail-todo-item')
+    if (!id || !row) return
+    const next = input.checked
+    input.disabled = true
+    fetch('/api/sadhana/tasks/' + encodeURIComponent(id) + (next ? '/complete' : '/uncomplete'), { method: 'POST', credentials: 'same-origin' })
+      .then((r) => {
+        if (!r.ok) { if (r.status === 401) window.hibana?.handle401?.(r); throw new Error('HTTP ' + r.status) }
+        const t = (railData && railData.todos ? railData.todos : []).find((x) => x.id === id)
+        if (t) t.done = next ? 1 : 0
+        input.disabled = false
+        row.classList.toggle('is-done', next)
+        const body = row.closest('.rail-group-body')
+        if (body) (next ? body.appendChild(row) : body.insertBefore(row, body.firstChild))
+      })
+      .catch(() => {
+        input.disabled = false
+        input.checked = !next
+        row.classList.toggle('is-done', !next)
+        window.hibana?.toast?.(railT('rail.todoFailed', "Couldn't update the task — try again"), 'err')
+      })
+  })
 
   // Panel-internal controls (delegated — the panel re-renders constantly):
   // ✕ closes; a group head collapses/expands; the calendar's ‹ › steps the month

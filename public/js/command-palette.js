@@ -322,11 +322,10 @@
   // server-rendered badges (same wording as STATUS_LABEL/STATUS_LABEL_FA in lib/html.ts).
   const STATUS_LABELS = {
     spark: ['cmdk.statusSpark', 'Idea'],
-    unreviewed: ['cmdk.statusUnreviewed', 'Unreviewed'],
-    investigating: ['cmdk.statusInvestigating', 'Investigating'],
-    awaiting: ['cmdk.statusAwaiting', 'Awaiting Execution'],
-    doing: ['cmdk.statusDoing', 'In Progress'],
-    halted: ['cmdk.statusHalted', 'Development Stopped'],
+    planning: ['cmdk.statusPlanning', 'Planning'],
+    queued: ['cmdk.statusQueued', 'Queued'],
+    developing: ['cmdk.statusDeveloping', 'Developing'],
+    awaiting_dev: ['cmdk.statusAwaitingDev', 'Awaiting Development'],
     operational: ['cmdk.statusOperational', 'Operational'],
   }
   const statusLabel = (s) => {

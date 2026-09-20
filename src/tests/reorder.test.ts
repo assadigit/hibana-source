@@ -53,7 +53,7 @@ describe('reorder — projects', () => {
 
       const sparkA = await createProject(app, auth, 'A', 'spark')
       const sparkB = await createProject(app, auth, 'B', 'spark')
-      const doingC = await createProject(app, auth, 'C', 'doing')
+      const doingC = await createProject(app, auth, 'C', 'developing')
       const otherUser = await createProject(app2, auth2, 'X', 'spark')
 
       // Try to drag a doing project and another user's spark into the spark group.
@@ -74,7 +74,7 @@ describe('reorder — projects', () => {
       const list = await app.fetch(new Request('http://local/api/projects', { headers: auth }))
       const { projects } = (await list.json()) as { projects: { id: string; status: string; sort_order: number }[] }
       const doingById = Object.fromEntries(projects.map((p) => [p.id, p]))
-      expect(doingById[doingC].status).toBe('doing')
+      expect(doingById[doingC].status).toBe('developing')
       expect(doingById[doingC].sort_order).toBe(0)
       expect(doingById[otherUser]).toBeUndefined()
 
@@ -115,7 +115,7 @@ describe('reorder — hurdles', () => {
     try {
       const userId = await makeUser(db)
       const { app, auth } = await makeClient(db, userId)
-      const pid = await createProject(app, auth, 'Ship', 'doing')
+      const pid = await createProject(app, auth, 'Ship', 'developing')
 
       const ids: string[] = []
       for (const text of ['one', 'two', 'three']) {
@@ -147,8 +147,8 @@ describe('reorder — hurdles', () => {
       const { app, auth } = await makeClient(db, u1)
       const { app: app2, auth: auth2 } = await makeClient(db, u2)
 
-      const p1 = await createProject(app, auth, 'P1', 'doing')
-      const p2 = await createProject(app, auth, 'P2', 'doing')
+      const p1 = await createProject(app, auth, 'P1', 'developing')
+      const p2 = await createProject(app, auth, 'P2', 'developing')
       const mk = async (pid: string, text: string) => {
         const res = await app.fetch(new Request(`http://local/api/projects/${pid}/hurdles`, { method: 'POST', headers: auth, body: JSON.stringify({ text }) }))
         return ((await res.json()) as { id: string }).id
@@ -185,7 +185,7 @@ describe('hurdles — multiline composer', () => {
     try {
       const userId = await makeUser(db)
       const { app, auth } = await makeClient(db, userId)
-      const pid = await createProject(app, auth, 'Blocks', 'doing')
+      const pid = await createProject(app, auth, 'Blocks', 'developing')
 
       const res = await app.fetch(new Request(`http://local/api/projects/${pid}/hurdles`, {
         method: 'POST',
@@ -210,7 +210,7 @@ describe('hurdles — multiline composer', () => {
     try {
       const userId = await makeUser(db)
       const { app, auth } = await makeClient(db, userId)
-      const pid = await createProject(app, auth, 'Blocks', 'doing')
+      const pid = await createProject(app, auth, 'Blocks', 'developing')
 
       const res = await app.fetch(new Request(`http://local/api/projects/${pid}/hurdles`, {
         method: 'POST',
@@ -232,7 +232,7 @@ describe('project note — autosave dedupe', () => {
     try {
       const userId = await makeUser(db)
       const { app, auth } = await makeClient(db, userId)
-      const pid = await createProject(app, auth, 'Note Me', 'doing')
+      const pid = await createProject(app, auth, 'Note Me', 'developing')
 
       const post = (note: string) =>
         app.fetch(new Request(`http://local/api/projects/${pid}/note`, { method: 'POST', headers: auth, body: JSON.stringify({ note }) }))

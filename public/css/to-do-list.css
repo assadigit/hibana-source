@@ -52,7 +52,16 @@ main.shell-dash {
 /* 2026-09 user request: quadrant boxes are MINIMAL/neutral — the per-quadrant semantic
    accent vars (.q-success/.q-info/.q-error/.q-warning → --q-accent) are removed so all
    four boxes share one look. A user-PICKED accent (inline --q-accent from the swatch
-   picker) still tints the icon/pin accents; fallbacks below keep every consumer legible. */
+   picker) still tints the icon/pin accents; fallbacks below keep every consumer legible.
+   S93 (owner round, item 6): the picker is BACK (16 pastels, sadhana-helpers
+   QUADRANT_ACCENTS) — a picked token washes the whole card at low opacity. */
+.sadhana-quadrant[style*='--q-accent'] {
+  background: color-mix(in srgb, var(--q-accent) 6%, var(--card));
+  border-color: color-mix(in srgb, var(--q-accent) 28%, var(--line-strong));
+}
+.sadhana-quadrant[style*='--q-accent'] .sadhana-qtitle strong {
+  color: color-mix(in srgb, var(--q-accent) 60%, var(--text));
+}
 
 /* Corner ribbon stamping the Urgent quadrant (2026-08-26 user request): a diagonal pastel
    band across the top-end corner (top-right in LTR, top-left in RTL), bold ink on the

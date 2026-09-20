@@ -140,13 +140,16 @@ export interface UserRow {
   created_at: string
 }
 
-// The 7-stage taxonomy (status CHECK rebuild, 0035): spark intake + five pipeline
-// stages + one terminal stage. LEGACY_STATUS (validation/schemas) maps the pre-0035
-// values onto this order on input, so old clients and legacy rows keep working.
-export const PROJECT_STAGES = ['unreviewed', 'investigating', 'awaiting', 'doing', 'halted', 'operational'] as const
+// The 6-stage taxonomy (0060, owner round 2026-09-20: "Planning (formerly
+// investigating) → Queued (formerly awaiting) → Developing (formerly doing) →
+// Awaiting Development (formerly halted) → Operational (untouched)"); 'unreviewed' is
+// retired — its rows folded into planning. LEGACY_STATUS (validation/schemas) maps every
+// pre-0060 value (plus the pre-0035 set) onto this order on input, so old clients and
+// legacy rows keep working.
+export const PROJECT_STAGES = ['planning', 'queued', 'developing', 'awaiting_dev', 'operational'] as const
 export const STATUS_ORDER = ['spark', ...PROJECT_STAGES] as const
 
-export type ProjectStatus = 'spark' | 'unreviewed' | 'investigating' | 'awaiting' | 'doing' | 'halted' | 'operational'
+export type ProjectStatus = 'spark' | 'planning' | 'queued' | 'developing' | 'awaiting_dev' | 'operational'
 
 export interface ProjectRow {
   id: string

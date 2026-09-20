@@ -94,11 +94,11 @@ describe('loadIcsEvents (user-scoped DB loader)', () => {
       const bob = await makeUser(db, { username: 'bob', email: 'b@x.local' })
       await db.execute(
         'INSERT INTO projects (id, user_id, title, status, due_date, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
-        [crypto.randomUUID(), alice, 'Alice project', 'doing', inDays(3), new Date().toISOString(), new Date().toISOString()],
+        [crypto.randomUUID(), alice, 'Alice project', 'developing', inDays(3), new Date().toISOString(), new Date().toISOString()],
       )
       await db.execute(
         'INSERT INTO projects (id, user_id, title, status, due_date, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
-        [crypto.randomUUID(), bob, 'Bob project', 'doing', inDays(3), new Date().toISOString(), new Date().toISOString()],
+        [crypto.randomUUID(), bob, 'Bob project', 'developing', inDays(3), new Date().toISOString(), new Date().toISOString()],
       )
       const aEvents = await loadIcsEvents(db, alice, 'https://hibana.ir', 6)
       const bEvents = await loadIcsEvents(db, bob, 'https://hibana.ir', 6)
@@ -117,11 +117,11 @@ describe('loadIcsEvents (user-scoped DB loader)', () => {
       const user = await makeUser(db)
       await db.execute(
         'INSERT INTO projects (id, user_id, title, status, due_date, created_at, updated_at, deleted_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-        [crypto.randomUUID(), user, 'Deleted', 'doing', inDays(3), new Date().toISOString(), new Date().toISOString(), new Date().toISOString()],
+        [crypto.randomUUID(), user, 'Deleted', 'developing', inDays(3), new Date().toISOString(), new Date().toISOString(), new Date().toISOString()],
       )
       await db.execute(
         'INSERT INTO projects (id, user_id, title, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)',
-        [crypto.randomUUID(), user, 'Undated', 'doing', new Date().toISOString(), new Date().toISOString()],
+        [crypto.randomUUID(), user, 'Undated', 'developing', new Date().toISOString(), new Date().toISOString()],
       )
       const events = await loadIcsEvents(db, user, 'https://hibana.ir', 6)
       expect(events).toHaveLength(0)
@@ -137,12 +137,12 @@ describe('loadIcsEvents (user-scoped DB loader)', () => {
       // 5 months out — inside the 6-month default window
       await db.execute(
         'INSERT INTO projects (id, user_id, title, status, due_date, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
-        [crypto.randomUUID(), user, 'Soon', 'doing', inDays(150), new Date().toISOString(), new Date().toISOString()],
+        [crypto.randomUUID(), user, 'Soon', 'developing', inDays(150), new Date().toISOString(), new Date().toISOString()],
       )
       // 2 years out — outside the 6-month window
       await db.execute(
         'INSERT INTO projects (id, user_id, title, status, due_date, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
-        [crypto.randomUUID(), user, 'Far', 'doing', inDays(730), new Date().toISOString(), new Date().toISOString()],
+        [crypto.randomUUID(), user, 'Far', 'developing', inDays(730), new Date().toISOString(), new Date().toISOString()],
       )
       const events = await loadIcsEvents(db, user, 'https://hibana.ir', 6)
       expect(events.some((e) => e.summary === 'Soon')).toBe(true)
@@ -159,7 +159,7 @@ describe('loadIcsEvents (user-scoped DB loader)', () => {
       const pid = crypto.randomUUID()
       await db.execute(
         'INSERT INTO projects (id, user_id, title, status, due_date, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
-        [pid, user, 'Migrated domain', 'doing', inDays(3), new Date().toISOString(), new Date().toISOString()],
+        [pid, user, 'Migrated domain', 'developing', inDays(3), new Date().toISOString(), new Date().toISOString()],
       )
       const events = await loadIcsEvents(db, user, 'https://newdomain.example', 6)
       const ev = events.find((e) => e.summary === 'Migrated domain')
@@ -195,7 +195,7 @@ describe('GET /api/export/calendar.ics (route)', () => {
       const user = await makeUser(db)
       await db.execute(
         'INSERT INTO projects (id, user_id, title, status, due_date, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
-        [crypto.randomUUID(), user, 'Ship ICS', 'doing', inDays(5), new Date().toISOString(), new Date().toISOString()],
+        [crypto.randomUUID(), user, 'Ship ICS', 'developing', inDays(5), new Date().toISOString(), new Date().toISOString()],
       )
       const { app, cookie } = await makeAuthedApp(db, user)
       const res = await app.request(get(cookie, '/api/export/calendar.ics'))
@@ -219,7 +219,7 @@ describe('GET /api/export/calendar.ics (route)', () => {
       const user = await makeUser(db)
       await db.execute(
         'INSERT INTO projects (id, user_id, title, status, due_date, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
-        [crypto.randomUUID(), user, 'Far', 'doing', inDays(400), new Date().toISOString(), new Date().toISOString()],
+        [crypto.randomUUID(), user, 'Far', 'developing', inDays(400), new Date().toISOString(), new Date().toISOString()],
       )
       const { app, cookie } = await makeAuthedApp(db, user)
       // 6-month default → excluded; 24-month → included

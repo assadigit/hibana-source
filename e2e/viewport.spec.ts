@@ -47,7 +47,7 @@ test.beforeAll(async () => {
   const pid = UUID()
   db.exec(
     `INSERT INTO projects (id, user_id, title, description, type, status, sort_order, latest_note, reminders_enabled, created_at, updated_at)
-     VALUES ('${pid}', '${id}', '${longTitle.replace(/'/g, "''")}', '', 'personal', 'doing', 0, '', 0, '${now}', '${now}')`,
+     VALUES ('${pid}', '${id}', '${longTitle.replace(/'/g, "''")}', '', 'personal', 'developing', 0, '', 0, '${now}', '${now}')`,
   )
   for (const note of ['started the audit sweep', 'fixed the ghost grid track', 'shipped the touch floor']) {
     db.exec(`INSERT INTO project_history_log (id, project_id, note, created_at) VALUES ('${UUID()}', '${pid}', '${note}', '${now}')`)
@@ -216,7 +216,7 @@ test('dashboard @390: stage-carousel strip is full-width; handles overlay + auto
   // Seed ≥2 non-empty stages so the track actually pages (is-empty boxes are hidden
   // ≤640px; one visible box would be a 1-page carousel and both handles would hide).
   const made: string[] = []
-  for (const st of ['investigating', 'awaiting', 'doing']) {
+  for (const st of ['planning', 'queued', 'developing']) {
     const res = await page.evaluate(async ({ st }) => {
       const create = await fetch('/api/projects', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ title: `e2e s42 carousel ${st} ${Date.now()}` }) })
       const { id } = (await create.json()) as { id: string }
@@ -324,7 +324,7 @@ test('project-detail: the progress board never scrolls the document sideways (S3
   test.skip(browserName !== 'chromium', 'Desktop Chromium only')
   await login(page)
   const pid = await page.evaluate(async () => {
-    const r = await fetch('/api/projects?status=doing&limit=1', { headers: { Accept: 'application/json' } })
+    const r = await fetch('/api/projects?status=developing&limit=1', { headers: { Accept: 'application/json' } })
     const j = await r.json()
     return j?.projects?.[0]?.id || ''
   })

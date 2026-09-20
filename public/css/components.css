@@ -178,6 +178,25 @@ dialog.dialog {
   overflow: auto;
 }
 dialog.dialog::backdrop { background: rgb(0 0 0 / 0.55); }
+/* S93 (owner round, item 13 — "enlarge the modals of new idea / new project / new note
+   by at least 100%, they're too small"): the three CAPTURE dialogs (quickadd /
+   projectadd / quicknote) ride a wide variant — the width cap doubles 26rem → 52rem
+   (still clamped by the viewport), the padding breathes, and the textareas get real
+   room. Every other dialog (confirm, task editors, palette…) keeps the compact size. */
+dialog.dialog-wide {
+  /* inline-size (not just the cap): native <dialog> shrink-to-fits its content, so a
+     raised max alone left the capture dialogs NARROWER than before. 46rem = 736px ≈
+     177% of the old 26rem cap — comfortably past the owner's "at least 100%". */
+  inline-size: min(46rem, 94vw);
+  max-inline-size: min(46rem, 94vw); /* the base dialog.dialog cap (26rem) would clamp it back down */
+  max-block-size: min(92vh, 46rem);
+}
+dialog.dialog-wide .modal { padding: 1.9rem 2.1rem; gap: 1.15rem; }
+dialog.dialog-wide .modal textarea { min-block-size: 7.5rem; }
+@media (max-width: 640px) {
+  dialog.dialog-wide .modal { padding: 1.25rem 1.1rem; }
+  dialog.dialog-wide .modal textarea { min-block-size: 5.5rem; }
+}
 .modal {
   background: var(--card);
   border: 1px solid var(--line-strong);

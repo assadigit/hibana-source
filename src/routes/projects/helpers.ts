@@ -238,15 +238,15 @@ export function listFragment(projects: ProjectRow[], tagsMap: Map<string, TagRow
         <a class="empty-state-cta btn ghost" href="/projects.html">${trL(lang, 'Clear filters', 'پاک‌کردن فیلترها')}</a>
       </div>`
     }
-    if (statusFilter === 'halted') {
+    if (statusFilter === 'awaiting_dev') {
       return `<div class="empty-state empty">
         <span class="empty-state-icon" aria-hidden="true"><svg class="icon" viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7Z"/><path d="M12 11v4M10 13h4"/></svg></span>
-        <p class="empty-state-title">${trL(lang, 'Nothing halted right now', 'هیچ پروژه‌ای متوقف نیست')}</p>
+        <p class="empty-state-title">${trL(lang, 'Nothing waiting on development right now', 'هیچ پروژه‌ای در انتظار توسعه نیست')}</p>
         <p class="empty-state-text">${trL(lang, 'Projects paused mid-work live here. Ideas parked for the foreseeable future live under Archive instead.', 'پروژه‌هایی که وسط کار متوقف شده‌اند اینجا هستند. ایده‌هایی که برای آیندهٔ نامشخص کنار گذاشته‌ای در «آرشیو» می‌مانند.')}</p>
         <a class="empty-state-cta btn ghost" href="/projects.html">${trL(lang, 'Go to projects', 'رفتن به پروژه‌ها')}</a>
       </div>`
     }
-    // A specific non-spark status filter with no matches (e.g. only "doing" selected, none doing).
+    // A specific non-spark status filter with no matches (e.g. only "developing" selected, none developing).
     if (statusFilter && statusFilter !== 'spark') {
       const stageLabel = statusLabel(statusFilter as ProjectStatus, lang)
       return `<div class="empty-state empty">

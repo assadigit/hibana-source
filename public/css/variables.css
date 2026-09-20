@@ -51,11 +51,10 @@
      tokens are defined once here and cascade into dark; only --statcard-bg flips. */
   --statcard-bg: #F5F6F7;
   --stage-bar-spark: #E8CFA0;         /* pastel amber — ideas (Session 21: softened) */
-  --stage-bar-unreviewed: #C2CFDD;    /* pastel slate — not yet reviewed */
-  --stage-bar-investigating: #BCD5EF; /* pastel azure (was #9DC7FF — saturated) */
-  --stage-bar-awaiting: #EFDEA5;      /* pastel butter yellow (was #FFD658 — neon) */
-  --stage-bar-doing: #AEE0B8;         /* pastel mint green (was #6FE983 — neon) */
-  --stage-bar-halted: #EFC2B5;        /* pastel peach — stopped */
+  --stage-bar-planning: #BCD5EF; /* pastel azure (was #9DC7FF — saturated) */
+  --stage-bar-queued: #EFDEA5;      /* pastel butter yellow (was #FFD658 — neon) */
+  --stage-bar-developing: #AEE0B8;         /* pastel mint green (was #6FE983 — neon) */
+  --stage-bar-awaiting_dev: #EFC2B5;        /* pastel peach — stopped */
   --stage-bar-operational: #B7DFBC;   /* pastel sage green (Session 21: whole set softened) */
   --text: #262118;             /* warm near-black */
   --muted: #5A5248;            /* warm medium (6.3:1 on --bg) */
@@ -105,10 +104,10 @@
    Each accent color has exactly ONE meaning across the entire dashboard:
 
    • RED (--err, --danger)    → urgent / overdue / error / delete
-   • ORANGE (--warn, --badge-awaiting-fg) → warning / waiting / attention-needed
+   • ORANGE (--warn, --badge-queued-fg) → warning / waiting / attention-needed
    • TEAL (--brand, --accent) → brand / primary action / active state / current page
    • GREEN (--ok, --badge-operational-fg) → success / done / operational
-   • PURPLE (--badge-investigating-fg) → in-progress / investigating
+   • PURPLE (--badge-planning-fg) → in-progress / investigating
    • AMBER/YELLOW (--badge-spark-fg) → idea / spark / new
    • GRAY (--muted, rgba(0,0,0,0.06)) → plain count / neutral pill / no special status
 
@@ -120,30 +119,27 @@
   /* Status badge colors — one per 7-stage taxonomy state (do NOT reuse for other purposes) */
   --badge-spark-bg: #F9F1D7;         --badge-spark-fg: #8A6714;
   --badge-unreviewed-bg: #E8EEF6;    --badge-unreviewed-fg: #46618C;
-  --badge-investigating-bg: #ECE9F9; --badge-investigating-fg: #5F51B5;
-  --badge-awaiting-bg: #F6EFCB;      --badge-awaiting-fg: #85620D;
-  --badge-doing-bg: #DCF0EA;         --badge-doing-fg: #186F63;
-  --badge-halted-bg: #F6E4DE;        --badge-halted-fg: #A34A31;
+  --badge-planning-bg: #ECE9F9; --badge-planning-fg: #5F51B5;
+  --badge-queued-bg: #F6EFCB;      --badge-queued-fg: #85620D;
+  --badge-developing-bg: #DCF0EA;         --badge-developing-fg: #186F63;
+  --badge-awaiting_dev-bg: #F6E4DE;        --badge-awaiting_dev-fg: #A34A31;
   --badge-operational-bg: #E0F0E5;  --badge-operational-fg: #277334;
   /* Status-coded kanban cards — session 12: the lane fills gain the same real chroma
      (~90% lightness, visible hue) + stronger matching borders so each phase reads at
      a glance (user: "currently they all look greyish").
      UI/UX R4 (2026-09-12): audited for a "light-blue #E0E8F2 project-card background" —
      the literal hex does NOT exist in the codebase (rg 'e0e8f2' = 0 matches across
-     src + public + migrations). The closest match is `--kanban-unreviewed-bg: #E4EBF4`
      below, which is the per-status tint for the "unreviewed" lane on the devboard
-     (.kanban-col .kanban-card[data-status='unreviewed'] — see notifications.css +
      themes.css). That tint IS a real info state (signals "not yet reviewed" at a
      glance inside a status-labeled lane), so per the task instruction it is kept
      as-is + documented here. Dashboard project cards (.stat-kanban-card) are already
      transparent with only a border (Session 19 change, dashboard.css:92). The
      projects-page cards inherit var(--card) white. No code change required — only
      this clarification comment. */
-  --kanban-unreviewed-bg: #E4EBF4;    --kanban-unreviewed-line: rgba(70, 97, 140, 0.45);
-  --kanban-investigating-bg: #E9E5F8; --kanban-investigating-line: rgba(95, 81, 181, 0.45);
-  --kanban-awaiting-bg: #F5EECB;      --kanban-awaiting-line: rgba(133, 98, 13, 0.50);
-  --kanban-doing-bg: #DBEFE9;         --kanban-doing-line: rgba(24, 111, 99, 0.50);
-  --kanban-halted-bg: #F6E5DE;        --kanban-halted-line: rgba(163, 74, 49, 0.45);
+  --kanban-planning-bg: #E9E5F8; --kanban-planning-line: rgba(95, 81, 181, 0.45);
+  --kanban-queued-bg: #F5EECB;      --kanban-queued-line: rgba(133, 98, 13, 0.50);
+  --kanban-developing-bg: #DBEFE9;         --kanban-developing-line: rgba(24, 111, 99, 0.50);
+  --kanban-awaiting_dev-bg: #F6E5DE;        --kanban-awaiting_dev-line: rgba(163, 74, 49, 0.45);
   --kanban-operational-bg: #E1F0E6;  --kanban-operational-line: rgba(39, 115, 52, 0.50);
   /* notebook sheet: paper + grid stay theme-aware; ink inverts in dark so black/blue pens stay visible */
   --nb-paper: #fdfdfb;
@@ -192,6 +188,11 @@
      Q1 teal · Q2 amber · Q3 rose · Q4 lavender, plus the board's tag family. */
   --accent-1: #4A9FA3; --accent-2: #C4893A; --accent-3: #B85A54; --accent-4: #8A7CAA;
   --accent-green: #5A9E80; --accent-purple: #7C6FAE; --accent-pink: #C77F86; --accent-teal: #3D8D91;
+  /* S93 (owner round, item 6 — "offer 16 colors, PASTEL"): the swatch palette's second
+     octave. Same mid-tone register as the first eight so the low-opacity washes read in
+     BOTH themes; named tokens (persisted by the API, never user hex). */
+  --accent-sky: #6E9BC5; --accent-mint: #7FB89A; --accent-lilac: #A793C9; --accent-coral: #D08A77;
+  --accent-sand: #C9AE7C; --accent-sage: #93A98B; --accent-plum: #9D7B9B; --accent-slate: #7C93A8;
   /* Dashboard task semantics: one spacing value and one pastel confirmation surface for every card. */
   --task-row-gap: 0.5rem;
   --task-complete-bg: var(--badge-working-bg);

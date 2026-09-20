@@ -204,10 +204,24 @@ window.hibana = (() => {
   function paintThemeButton() {
     const cur = currentTheme()
     document.querySelectorAll('[data-theme-toggle], .theme-floater').forEach((b) => {
-      b.innerHTML = cur === 'claude-dark' ? MOON : SUN
-      b.title = cur === 'claude-dark'
-        ? _t('theme.toLight', 'Switch to light mode')
-        : _t('theme.toDark', 'Switch to dark mode')
+      // S93 (owner round, item 7 — "remove tooltip from darkmode/light mode button"):
+      // no hover tooltip anymore — the rail's own «Theme» label (or the icon itself on
+      // the floater) says what it does. The static data-tooltip/title left the partial
+      // with v163; this KILLS the runtime title the old code re-added on every paint.
+      b.removeAttribute('title')
+      b.removeAttribute('data-tooltip')
+      const svg = cur === 'claude-dark' ? MOON : SUN
+      // S93 fix (found in QA): the naive innerHTML swap WIPED the S89 rail label —
+      // the button painted its icon but silently lost «Theme». Swap ONLY the icon
+      // when a .rail-label rides along; labelless surfaces keep the full swap.
+      const label = b.querySelector('.rail-label')
+      if (label) {
+        const old = b.querySelector('.icon')
+        if (old) old.outerHTML = svg
+        else b.insertAdjacentHTML('afterbegin', svg)
+      } else {
+        b.innerHTML = svg
+      }
     })
   }
   function toggleTheme() {
@@ -293,7 +307,7 @@ window.hibana = (() => {
     if (quickAddEl) return
     const dlg = document.createElement('dialog')
     dlg.id = 'quickadd-dialog'
-    dlg.className = 'dialog'
+    dlg.className = 'dialog dialog-wide'
     dlg.innerHTML = `
       <form class="modal" id="quickadd-form" novalidate>
         <h3>${_t('qa.title', 'New Idea')}</h3>
@@ -302,7 +316,7 @@ window.hibana = (() => {
         </span></label>
         <p class="muted small" id="qa-dup" hidden></p>
         <p class="muted small" id="qa-folder-hint" hidden></p>
-        <label>${_t('qa.oneLiner', 'One-liner')} <textarea id="qa-description" rows="2" maxlength="2000"></textarea></label>
+        <label>${_t('qa.oneLiner', 'One-liner')} <textarea id="qa-description" rows="4" maxlength="2000"></textarea></label>
         <label>${_t('qa.tags', 'Tags (comma-separated, optional)')} <input type="text" id="qa-tags" placeholder="${_t('qa.tagsPlaceholder', 'AI, WordPress, …')}" maxlength="200"></label>
         <label>${_t('qa.sketch', 'Sketch (optional)')} <input type="file" id="qa-file" accept="image/png,image/jpeg,image/webp,image/gif"></label>
         <p class="error" id="qa-error" role="alert"></p>
@@ -487,13 +501,13 @@ window.hibana = (() => {
     if (projectAddEl) return
     const dlg = document.createElement('dialog')
     dlg.id = 'projectadd-dialog'
-    dlg.className = 'dialog'
+    dlg.className = 'dialog dialog-wide'
     dlg.innerHTML = `
       <form class="modal" id="projectadd-form" novalidate>
         <h3>${_t('pa.title', 'New Project')}</h3>
         <label>${_t('qa.name', 'Name')} <input type="text" id="pa-title" required maxlength="200" autocomplete="off"></label>
         <p class="muted small" id="pa-dup" hidden></p>
-        <label>${_t('qa.oneLiner', 'One-liner')} <textarea id="pa-description" rows="2" maxlength="2000"></textarea></label>
+        <label>${_t('qa.oneLiner', 'One-liner')} <textarea id="pa-description" rows="4" maxlength="2000"></textarea></label>
         <label>${_t('qa.tags', 'Tags (comma-separated, optional)')} <input type="text" id="pa-tags" placeholder="${_t('qa.tagsPlaceholder', 'AI, WordPress, …')}" maxlength="200"></label>
         <p class="error" id="pa-error" role="alert"></p>
         <div class="row">
@@ -556,9 +570,9 @@ window.hibana = (() => {
           .filter(Boolean)
           .map((name) => ({ name })) // server assigns the default palette color
         const id = crypto.randomUUID() // rule 2: addressable before the network call
-        // batch q: a NEW project starts at phase 1 of the lifecycle (بررسی نشده) — ideas are
-        // captured with the other FAB as sparks (status 'spark') and live on the Ideas shelf
-        const payload = { id, title, description: document.getElementById('pa-description').value, tags, status: projectAddEl.dataset.startStatus || 'unreviewed', type: 'personal' }
+        // batch q: a NEW project starts at phase 1 of the lifecycle (0060: Planning) — ideas
+        // are captured with the other FAB as sparks (status 'spark') and live on the Ideas shelf
+        const payload = { id, title, description: document.getElementById('pa-description').value, tags, status: projectAddEl.dataset.startStatus || 'planning', type: 'personal' }
         await window.hibanaQueue.enqueue({ kind: 'project', data: payload })
         const synced = await window.hibanaQueue.flush()
         const drained = (await window.hibanaQueue.count()) === 0
@@ -584,8 +598,9 @@ window.hibana = (() => {
     projectAddEl = dlg
   }
 
-  // batch q: default first project stage (legacy 'pending' callers map to unreviewed)
-  function openProjectAdd(startStatus = 'unreviewed') {
+  // batch q: default first project stage (0060: Planning; legacy 'pending'/'unreviewed'
+  // callers normalize to planning server-side)
+  function openProjectAdd(startStatus = 'planning') {
     buildProjectAdd()
     projectAddEl.dataset.startStatus = startStatus
     projectAddEl.showModal()
@@ -739,7 +754,7 @@ window.hibana = (() => {
     if (project) {
       e.preventDefault()
       closeFabMenu()
-      openProjectAdd(project.getAttribute('data-projectquickadd-status') || 'unreviewed')
+      openProjectAdd(project.getAttribute('data-projectquickadd-status') || 'planning')
     }
   })
 
@@ -840,11 +855,11 @@ window.hibana = (() => {
     if (quickNoteEl) return
     const dlg = document.createElement('dialog')
     dlg.id = 'quicknote-dialog'
-    dlg.className = 'dialog'
+    dlg.className = 'dialog dialog-wide'
     dlg.innerHTML = `
       <form class="modal" id="quicknote-form" novalidate>
         <h3 data-i18n="qn.title">Quick note</h3>
-        <textarea id="quicknote-text" rows="5" maxlength="20000" dir="auto"
+        <textarea id="quicknote-text" rows="10" maxlength="20000" dir="auto"
           placeholder="${_t('notes.typeNote', 'Type a note and press Enter…')}" data-i18n-placeholder="notes.typeNote"></textarea>
         <div class="qn-attach">
           <button type="button" class="ghost small" id="quicknote-attach-btn" aria-expanded="false" data-i18n="qn.attach">Attach to project</button>
@@ -1967,12 +1982,14 @@ window.hibana = (() => {
         card.querySelectorAll('[data-sadhana-icon]').forEach((el) => el.classList.toggle('is-selected', el === quadrantChoice))
       }
       if (accentChoice) {
+        // S93: 'none' clears the picked pastel (PATCH accent_color: null); a token sets it.
         card.dataset.sadhanaAccent = accentChoice
-        card.style.setProperty('--q-accent', `var(--${accentChoice})`)
+        if (accentChoice === 'none') card.style.removeProperty('--q-accent')
+        else card.style.setProperty('--q-accent', `var(--${accentChoice})`)
         card.querySelectorAll('[data-sadhana-accent]').forEach((el) => el.classList.toggle('is-selected', el === quadrantChoice))
       }
       const name = card.dataset.sadhanaName || ''
-      const body = iconChoice ? { name, icon_id: iconChoice } : { name, accent_color: accentChoice }
+      const body = iconChoice ? { name, icon_id: iconChoice } : { name, accent_color: accentChoice === 'none' ? null : accentChoice }
       fetch(`/api/sadhana/quadrants/${encodeURIComponent(quadrant)}`, {
         method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body),
       }).then((res) => { if (!res.ok) { handle401(res); throw new Error('style update failed') } }).catch(() => toast(_t('dashboard.styleFailed', "Couldn't update the quadrant"), 'err'))
@@ -2204,6 +2221,26 @@ window.hibana = (() => {
       styleEmpty.setAttribute('aria-pressed', 'true')
       fetch(`/api/sadhana/quadrants/${encodeURIComponent(quadrant)}`, {
         method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name, icon_id: 'none' }),
+      }).then((res) => { if (!res.ok) { handle401(res); throw new Error('style update failed') } }).catch(() => toast(_t('dashboard.styleFailed', "Couldn't update the quadrant"), 'err'))
+      return
+    }
+
+    // S93 (owner round, item 6 — the 16 pastel swatches in the DASHBOARD quadrant
+    // popover): immediate PATCH, exactly like the ∅ icon button above — 'none' clears
+    // (accent_color: null), a token sets it; the card's --dash-q-accent flips in place so
+    // the tint is visible before the htmx refresh lands.
+    const dashAccent = e.target.closest('[data-dash-accent]')
+    if (dashAccent) {
+      const card = dashAccent.closest('.dash-todo-quadrant')
+      const quadrant = card?.dataset.dashQuadrant
+      const token = dashAccent.dataset.dashAccent
+      if (!card || !quadrant || !token) return
+      if (token === 'none') card.style.removeProperty('--dash-q-accent')
+      else card.style.setProperty('--dash-q-accent', `var(--${token})`)
+      card.querySelectorAll('[data-dash-accent]').forEach((el) => el.classList.toggle('is-selected', el === dashAccent))
+      const name = card.dataset.dashName || ''
+      fetch(`/api/sadhana/quadrants/${encodeURIComponent(quadrant)}`, {
+        method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name, accent_color: token === 'none' ? null : token }),
       }).then((res) => { if (!res.ok) { handle401(res); throw new Error('style update failed') } }).catch(() => toast(_t('dashboard.styleFailed', "Couldn't update the quadrant"), 'err'))
       return
     }

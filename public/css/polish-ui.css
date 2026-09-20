@@ -567,11 +567,11 @@ body.has-mobile-nav { padding-block-end: calc(3.75rem + env(safe-area-inset-bott
    role ink + a 26% border tint of the same role — identical recipe to the
    sig-chips, board-count pills and status badges. */
 .dash-today-overdue {
-  background: var(--badge-halted-bg, var(--danger-soft));
-  color: var(--badge-halted-fg, var(--danger));
-  border-color: color-mix(in srgb, var(--badge-halted-fg, var(--danger)) 30%, transparent);
+  background: var(--badge-awaiting_dev-bg, var(--danger-soft));
+  color: var(--badge-awaiting_dev-fg, var(--danger));
+  border-color: color-mix(in srgb, var(--badge-awaiting_dev-fg, var(--danger)) 30%, transparent);
 }
-.dash-today-overdue .icon { color: var(--badge-halted-fg, var(--danger)); }
+.dash-today-overdue .icon { color: var(--badge-awaiting_dev-fg, var(--danger)); }
 .dash-today-pinned {
   background: var(--badge-unreviewed-bg);
   color: var(--badge-unreviewed-fg);
@@ -729,7 +729,7 @@ body.has-mobile-nav { padding-block-end: calc(3.75rem + env(safe-area-inset-bott
 .settings-sync-copy > span:first-child { font-weight: 500; font-size: var(--fs-sm); }
 .settings-sync-copy .muted.small { color: var(--muted); font-size: var(--fs-xs); line-height: 1.4; opacity: 0.9; }
 .settings-sync-copy .muted.small.is-waiting {
-  color: var(--badge-awaiting-fg, #85620D);
+  color: var(--badge-queued-fg, #85620D);
   font-weight: 600;
   opacity: 1;
 }
@@ -974,9 +974,9 @@ body.has-mobile-nav { padding-block-end: calc(3.75rem + env(safe-area-inset-bott
 /* days_left ≤ 1: the next purge run destroys it — amber per the semantic scale.
    (S52 fix: this rule originally referenced var(--warn), which is NOT a defined
    token anywhere — the declaration silently fell back to the inherited muted
-   color and the urgency tint never rendered. --badge-awaiting-fg IS the orange
+   color and the urgency tint never rendered. --badge-queued-fg IS the orange
    semantic token (variables.css §semantic colors) and is AA in both themes.) */
-.trash-meta.is-urgent { color: var(--badge-awaiting-fg); font-weight: 500; }
+.trash-meta.is-urgent { color: var(--badge-queued-fg); font-weight: 500; }
 .trash-restore { flex: 0 0 auto; }
 .trash-empty { padding: 0.4rem 0 0.2rem; }
 .trash-item.is-restoring {
@@ -1003,15 +1003,15 @@ body.has-mobile-nav { padding-block-end: calc(3.75rem + env(safe-area-inset-bott
 }
 .trash-head-row h3 { margin: 0; }
 .trash-actions { display: inline-flex; align-items: center; gap: 0.4rem; flex: 0 0 auto; flex-wrap: wrap; }
-.trash-purge { color: var(--badge-halted-fg, #A33B3B); }
-.trash-purge:hover, .trash-purge:focus-visible { border-color: var(--badge-halted-fg, #A33B3B); }
+.trash-purge { color: var(--badge-awaiting_dev-fg, #A33B3B); }
+.trash-purge:hover, .trash-purge:focus-visible { border-color: var(--badge-awaiting_dev-fg, #A33B3B); }
 .trash-purge.is-armed, .trash-empty-btn.is-armed {
   background: #A33B3B;
   border-color: #8A2F2F;
   color: #fff;
 }
 .trash-empty-btn { color: var(--muted); }
-.trash-empty-btn:hover:not(:disabled) { border-color: var(--badge-halted-fg, #A33B3B); color: var(--badge-halted-fg, #A33B3B); }
+.trash-empty-btn:hover:not(:disabled) { border-color: var(--badge-awaiting_dev-fg, #A33B3B); color: var(--badge-awaiting_dev-fg, #A33B3B); }
 @media (max-width: 560px) {
   .trash-actions { flex-direction: column; align-items: stretch; }
 }
@@ -1065,36 +1065,36 @@ body.has-mobile-nav { padding-block-end: calc(3.75rem + env(safe-area-inset-bott
 /* Alive flame — the orange semantic hue tints icon + card so the eye finds the
    streak first. Dormant (current = 0) stays neutral: no false urgency. */
 .streak-fire.is-alive {
-  border-color: color-mix(in srgb, var(--badge-awaiting-fg) 40%, var(--line));
-  background: color-mix(in srgb, var(--badge-awaiting-fg) 9%, var(--accent-soft));
+  border-color: color-mix(in srgb, var(--badge-queued-fg) 40%, var(--line));
+  background: color-mix(in srgb, var(--badge-queued-fg) 9%, var(--accent-soft));
 }
-.streak-fire.is-alive .streak-ico { color: var(--badge-awaiting-fg); }
+.streak-fire.is-alive .streak-ico { color: var(--badge-queued-fg); }
 /* S55: milestone micro-celebration — the flame flickers and a chip pops in.
    Milestone days are 3/7/14/30/60/100/365; a milestone streak earns a warm halo
    (soft radial glow behind the card), the flame gets a subtle 3-step flicker,
    and the chip scales in with a spring-y overshoot. Reduced-motion flattens. */
 .streak-fire.is-milestone {
-  border-color: color-mix(in srgb, var(--badge-awaiting-fg) 62%, var(--line));
+  border-color: color-mix(in srgb, var(--badge-queued-fg) 62%, var(--line));
   background:
     radial-gradient(120% 140% at 18% 0%,
-      color-mix(in srgb, var(--badge-awaiting-fg) 16%, transparent) 0%,
+      color-mix(in srgb, var(--badge-queued-fg) 16%, transparent) 0%,
       transparent 62%),
-    color-mix(in srgb, var(--badge-awaiting-fg) 9%, var(--accent-soft));
-  box-shadow: 0 4px 18px color-mix(in srgb, var(--badge-awaiting-fg) 18%, transparent);
+    color-mix(in srgb, var(--badge-queued-fg) 9%, var(--accent-soft));
+  box-shadow: 0 4px 18px color-mix(in srgb, var(--badge-queued-fg) 18%, transparent);
 }
 .streak-fire.is-milestone .streak-ico {
-  background: color-mix(in srgb, var(--badge-awaiting-fg) 14%, var(--bg));
+  background: color-mix(in srgb, var(--badge-queued-fg) 14%, var(--bg));
   animation: hm-flame 1.6s ease-in-out infinite;
 }
-.streak-fire.is-milestone .streak-nums b { color: var(--badge-awaiting-fg); }
+.streak-fire.is-milestone .streak-nums b { color: var(--badge-queued-fg); }
 .streak-mile {
   display: inline-flex;
   align-items: center;
   padding: 0.16rem 0.5rem;
   border-radius: 999px;
-  border: 1px solid color-mix(in srgb, var(--badge-awaiting-fg) 45%, transparent);
-  background: color-mix(in srgb, var(--badge-awaiting-fg) 14%, transparent);
-  color: var(--badge-awaiting-fg);
+  border: 1px solid color-mix(in srgb, var(--badge-queued-fg) 45%, transparent);
+  background: color-mix(in srgb, var(--badge-queued-fg) 14%, transparent);
+  color: var(--badge-queued-fg);
   font-size: var(--fs-xs);
   font-weight: 700;
   white-space: nowrap;
@@ -1335,11 +1335,10 @@ body.has-mobile-nav { padding-block-end: calc(3.75rem + env(safe-area-inset-bott
 }
 .resume-stage-badge svg { inline-size: 0.8rem; block-size: 0.8rem; flex: none; }
 .resume-stage-badge.badge-spark        { --badge-bg: var(--badge-spark-bg);         --badge-fg: var(--badge-spark-fg); }
-.resume-stage-badge.badge-unreviewed    { --badge-bg: var(--badge-unreviewed-bg);    --badge-fg: var(--badge-unreviewed-fg); }
-.resume-stage-badge.badge-investigating { --badge-bg: var(--badge-investigating-bg); --badge-fg: var(--badge-investigating-fg); }
-.resume-stage-badge.badge-awaiting      { --badge-bg: var(--badge-awaiting-bg);      --badge-fg: var(--badge-awaiting-fg); }
-.resume-stage-badge.badge-doing         { --badge-bg: var(--badge-doing-bg);         --badge-fg: var(--badge-doing-fg); }
-.resume-stage-badge.badge-halted        { --badge-bg: var(--badge-halted-bg);        --badge-fg: var(--badge-halted-fg); }
+.resume-stage-badge.badge-planning { --badge-bg: var(--badge-planning-bg); --badge-fg: var(--badge-planning-fg); }
+.resume-stage-badge.badge-queued      { --badge-bg: var(--badge-queued-bg);      --badge-fg: var(--badge-queued-fg); }
+.resume-stage-badge.badge-developing         { --badge-bg: var(--badge-developing-bg);         --badge-fg: var(--badge-developing-fg); }
+.resume-stage-badge.badge-awaiting_dev        { --badge-bg: var(--badge-awaiting_dev-bg);        --badge-fg: var(--badge-awaiting_dev-fg); }
 .resume-stage-badge.badge-operational   { --badge-bg: var(--badge-operational-bg);   --badge-fg: var(--badge-operational-fg); }
 
 .resume-row { display: flex; gap: 0.65rem; overflow-x: auto; scrollbar-width: thin; padding-block-end: 0.15rem; }
@@ -1479,6 +1478,6 @@ body.has-mobile-nav { padding-block-end: calc(3.75rem + env(safe-area-inset-bott
    perceivable without the soft shadows. */
 @media (prefers-contrast: more) {
   .resume-chip, .dash-stale-chip { border-color: var(--text); box-shadow: none; }
-  .dash-stale-row { border-color: var(--badge-awaiting-fg, #85620D); background: var(--card); }
+  .dash-stale-row { border-color: var(--badge-queued-fg, #85620D); background: var(--card); }
   .resume-clear { border-color: currentColor; }
 }

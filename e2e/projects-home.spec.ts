@@ -95,8 +95,8 @@ test('S45 home: compact rail + «Recently active» — the home shows real work,
     await api(page, `/api/projects/${p.json.id}`, 'PATCH', { status })
     return p.json.id
   }
-  await mk(`s45 home alpha ${stamp}`, 'doing')
-  await mk(`s45 home beta ${stamp}`, 'unreviewed')
+  await mk(`s45 home alpha ${stamp}`, 'developing')
+  await mk(`s45 home beta ${stamp}`, 'planning')
   await mk(`s45 home gamma ${stamp}`, 'operational')
 
   await page.goto('/projects.html')
@@ -104,9 +104,9 @@ test('S45 home: compact rail + «Recently active» — the home shows real work,
   await page.waitForTimeout(600)
 
   // 1) The rail is COMPACT: every box is a one-line control (≤ 80px tall) — the old
-  //    stacked boxes measured 169px. Six boxes, one rail.
+  //    stacked boxes measured 169px. Five boxes (0060 taxonomy), one rail.
   const boxHeights = await page.$$eval('.pglance-box', (els) => els.map((e) => e.getBoundingClientRect().height))
-  expect(boxHeights).toHaveLength(6)
+  expect(boxHeights).toHaveLength(5)
   for (const h of boxHeights) expect(h).toBeLessThanOrEqual(80)
   expect(Math.max(...boxHeights)).toBeGreaterThanOrEqual(40) // still a 40px+ control
 
@@ -139,7 +139,7 @@ test('S45 sort: recent re-orders the list; ?sort= deep link + select persistence
   // zulu NEWEST (created last).
   const mk = async (title: string) => {
     const p = (await api(page, '/api/projects', 'POST', { title })) as { json: { id: string } }
-    await api(page, `/api/projects/${p.json.id}`, 'PATCH', { status: 'doing' })
+    await api(page, `/api/projects/${p.json.id}`, 'PATCH', { status: 'developing' })
     return p.json.id
   }
   await mk(`s45 sort alpha ${stamp}`)
@@ -223,8 +223,8 @@ test('S45 empty home: a zero-project account gets the capture empty state, not a
   await page.waitForSelector('.pglance-box', { timeout: 10_000 })
   await page.waitForTimeout(600)
 
-  // The rail renders (fresh-account fallback: no .is-empty marks, all six boxes)…
-  expect(await page.locator('.pglance-box').count()).toBe(6)
+  // The rail renders (fresh-account fallback: no .is-empty marks, all five boxes)…
+  expect(await page.locator('.pglance-box').count()).toBe(5)
   // …and the empty state beneath it says "capture your first idea" with a working CTA.
   await expect(page.locator('.empty-state')).toBeVisible()
   await expect(page.locator('.empty-state-title')).toContainText(/no projects yet/i)

@@ -101,18 +101,16 @@
    - DASHBOARD (.stat-kanban-card): neutral transparent card + a small colored LABEL on
      each item — a slim status-colored bar pinned to each card's inline-start edge (the
      "10% label"), matching the tint the box's icon-chip already carries. */
-.kanban-col .kanban-card[data-status='unreviewed'] { background: var(--kanban-unreviewed-bg); }
-.kanban-col .kanban-card[data-status='investigating'] { background: var(--kanban-investigating-bg); }
-.kanban-col .kanban-card[data-status='awaiting'] { background: var(--kanban-awaiting-bg); }
-.kanban-col .kanban-card[data-status='doing'] { background: var(--kanban-doing-bg); }
-.kanban-col .kanban-card[data-status='halted'] { background: var(--kanban-halted-bg); }
+.kanban-col .kanban-card[data-status='planning'] { background: var(--kanban-planning-bg); }
+.kanban-col .kanban-card[data-status='queued'] { background: var(--kanban-queued-bg); }
+.kanban-col .kanban-card[data-status='developing'] { background: var(--kanban-developing-bg); }
+.kanban-col .kanban-card[data-status='awaiting_dev'] { background: var(--kanban-awaiting_dev-bg); }
 .kanban-col .kanban-card[data-status='operational'] { background: var(--kanban-operational-bg); }
 /* Hover deepens the tint slightly instead of snapping back to the neutral gray */
-.kanban-col .kanban-card[data-status='unreviewed']:hover { background: color-mix(in srgb, var(--kanban-unreviewed-bg) 94%, var(--kanban-unreviewed-line) 6%); }
-.kanban-col .kanban-card[data-status='investigating']:hover { background: color-mix(in srgb, var(--kanban-investigating-bg) 94%, var(--kanban-investigating-line) 6%); }
-.kanban-col .kanban-card[data-status='awaiting']:hover { background: color-mix(in srgb, var(--kanban-awaiting-bg) 94%, var(--kanban-awaiting-line) 6%); }
-.kanban-col .kanban-card[data-status='doing']:hover { background: color-mix(in srgb, var(--kanban-doing-bg) 94%, var(--kanban-doing-line) 6%); }
-.kanban-col .kanban-card[data-status='halted']:hover { background: color-mix(in srgb, var(--kanban-halted-bg) 94%, var(--kanban-halted-line) 6%); }
+.kanban-col .kanban-card[data-status='planning']:hover { background: color-mix(in srgb, var(--kanban-planning-bg) 94%, var(--kanban-planning-line) 6%); }
+.kanban-col .kanban-card[data-status='queued']:hover { background: color-mix(in srgb, var(--kanban-queued-bg) 94%, var(--kanban-queued-line) 6%); }
+.kanban-col .kanban-card[data-status='developing']:hover { background: color-mix(in srgb, var(--kanban-developing-bg) 94%, var(--kanban-developing-line) 6%); }
+.kanban-col .kanban-card[data-status='awaiting_dev']:hover { background: color-mix(in srgb, var(--kanban-awaiting_dev-bg) 94%, var(--kanban-awaiting_dev-line) 6%); }
 .kanban-col .kanban-card[data-status='operational']:hover { background: color-mix(in srgb, var(--kanban-operational-bg) 94%, var(--kanban-operational-line) 6%); }
 
 /* Session-11 — the dashboard's status LABEL per card: neutral fill + a slim status-
@@ -140,11 +138,10 @@
   pointer-events: none;
 }
 .stat-kanban-card[data-status='spark']::before { background: var(--stage-bar-spark); }
-.stat-kanban-card[data-status='unreviewed']::before { background: var(--stage-bar-unreviewed); }
-.stat-kanban-card[data-status='investigating']::before { background: var(--stage-bar-investigating); }
-.stat-kanban-card[data-status='awaiting']::before { background: var(--stage-bar-awaiting); }
-.stat-kanban-card[data-status='doing']::before { background: var(--stage-bar-doing); }
-.stat-kanban-card[data-status='halted']::before { background: var(--stage-bar-halted); }
+.stat-kanban-card[data-status='planning']::before { background: var(--stage-bar-planning); }
+.stat-kanban-card[data-status='queued']::before { background: var(--stage-bar-queued); }
+.stat-kanban-card[data-status='developing']::before { background: var(--stage-bar-developing); }
+.stat-kanban-card[data-status='awaiting_dev']::before { background: var(--stage-bar-awaiting_dev); }
 .stat-kanban-card[data-status='operational']::before { background: var(--stage-bar-operational); }
 
 /* UI/UX R8 (2026-09-12): the per-card colored bar (::before above) was the SOLE status

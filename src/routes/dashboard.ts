@@ -7,6 +7,7 @@ import { calendarFor, faDigits, formatDateLong } from '../lib/jalali'
 import { QUADRANT_GLYPHS, STATUS_BADGE, STATUS_ICON, icon, quadrantGlyph, statusLabel, timeAgo } from '../lib/html'
 import { legacyTaskNote, type SadhanaTaskNote } from '../lib/sadhana-task-controls'
 import { QUADRANTS, orderedQuadrants, todayIn, type SadhanaTask } from '../services/sadhana'
+import { QUADRANT_ACCENTS } from './sadhana-helpers'
 import { PROJECT_STAGES } from '../types'
 import type { Config, ProjectRow, ProjectStatus, UserRow } from '../types'
 import { attachedTitles, notebookHtml, type QuickNote } from './quicknotes'
@@ -20,13 +21,13 @@ import { attachedTitles, notebookHtml, type QuickNote } from './quicknotes'
 // Dashboard (spec §5.1): one box per project stage — the full project list per stage,
 // draggable between boxes. Phase 5 (2026-09-08): the boxes ride a horizontal stage
 // carousel (stat-carousel + chevrons + dots) instead of the old 3-column strip; labels
-// come from statusLabel (lib/html) so this page speaks the same 7-stage vocabulary as
+// come from statusLabel (lib/html) so this page speaks the same stage vocabulary as
 // projects/reports. Creation moved to the single FAB (2026-08-25).
 
-// The carousel's stage order (Phase 5): work stages first (investigating → awaiting →
-// doing), then the backlog-ish trio (unreviewed, halted, operational). 'spark' stays a
+// The carousel's stage order (0060 rename): work stages first (planning → queued →
+// developing), then the paused/terminal pair (awaiting_dev, operational). 'spark' stays a
 // projects-page concept only.
-const CAROUSEL: ProjectStatus[] = ['investigating', 'awaiting', 'doing', 'unreviewed', 'halted', 'operational']
+const CAROUSEL: ProjectStatus[] = ['planning', 'queued', 'developing', 'awaiting_dev', 'operational']
 
 export function dashboardRoutes(cfg: Config) {
   const app = new Hono<{ Variables: { user: UserRow } }>()
@@ -120,14 +121,14 @@ export function dashboardRoutes(cfg: Config) {
          WHERE p.user_id = ? AND p.deleted_at IS NULL AND t.status != 'done' AND t.priority IN ('urgent', 'high')`,
         [user.id],
       ),
-      // S72: "needs attention" nudge — in-motion projects (NOT halted = deliberately
+      // S72: "needs attention" nudge — in-motion projects (NOT awaiting_dev = deliberately
       // paused, NOT operational = done, NOT spark = raw capture) untouched for 14+ days.
       // Serves job #2 ("never lose your place" includes "remember what you left hanging").
       // Renders only when something is actually stale, like the urgent strip; oldest 3.
       cfg.db.query<ProjectRow>(
         `SELECT id, title, status, updated_at FROM projects
          WHERE user_id = ? AND deleted_at IS NULL AND (archived_state IS NULL OR archived_state != 'offline')
-           AND status IN ('unreviewed','investigating','awaiting','doing')
+           AND status IN ('planning','queued','developing')
            AND updated_at < ?
          ORDER BY updated_at ASC LIMIT 3`,
         [user.id, new Date(Date.now() - 14 * 24 * 3600 * 1000).toISOString()],
@@ -139,7 +140,7 @@ export function dashboardRoutes(cfg: Config) {
     // S30 batch 3: the urgent strip's totals (computed once, used by both the JSON
     // payload and the HTML branch).
     const urgentTotal = urgentCount[0]?.n ?? urgentTasks.length
-    const counts = { spark: 0, unreviewed: 0, investigating: 0, awaiting: 0, doing: 0, halted: 0, operational: 0 }
+    const counts = { spark: 0, planning: 0, queued: 0, developing: 0, awaiting_dev: 0, operational: 0 }
     for (const row of byStatus) if (row.status in counts) counts[row.status as keyof typeof counts] = row.n
 
     // P-signals: batch-load per-project signal counts for the dashboard kanban cards.
@@ -384,6 +385,10 @@ export function dashboardRoutes(cfg: Config) {
                   <div class="dash-style-emoji-row">
                     <span class="dash-style-lbl">${t('Symbol', 'نماد')}</span>
                     <div class="dash-style-icons" role="group" aria-label="${t('Choose symbol', 'انتخاب نماد')}"><button type="button" class="dash-style-emoji is-selected dash-icon-open" data-dash-icon-open="${q.id}" data-current="${currentSymbol}" aria-label="${t('Choose symbol — full emoji library', 'انتخاب نماد — کتابخانهٔ کامل ایموجی')}" title="${t('Choose symbol — full emoji library', 'انتخاب نماد — کتابخانهٔ کامل ایموجی')}">${currentSymbol || '—'}</button><button type="button" class="dash-style-emoji dash-style-empty${iconId === 'none' ? ' is-selected' : ''}" data-dash-icon-empty="${q.id}" aria-pressed="${iconId === 'none'}" aria-label="${t('No icon — minimalist', 'بدون نماد — مینیمال')}" title="${t('No icon — minimalist', 'بدون نماد — مینیمال')}">∅</button></div>
+                    <!-- S93 (owner round, item 6 — the 16 pastel swatches): immediate PATCH
+                         via app.js [data-dash-accent]; 'none' (∅) clears back to neutral. -->
+                    <span class="dash-style-lbl">${t('Pastel color', 'رنگ پاستلی')}</span>
+                    <div class="dash-style-swatches" role="group" aria-label="${t('Pastel color', 'رنگ پاستلی')}">${QUADRANT_ACCENTS.map((tok) => `<button type="button" class="dash-style-swatch${style?.accent === tok ? ' is-selected' : ''}" data-dash-accent="${tok}" style="--sw: var(--${tok})" aria-label="${tok}" title="${tok}"></button>`).join('')}<button type="button" class="dash-style-swatch dash-style-swatch-none${!style?.accent ? ' is-selected' : ''}" data-dash-accent="none" aria-label="${t('No color — neutral', 'بدون رنگ — خنثی')}" title="${t('No color — neutral', 'بدون رنگ — خنثی')}">∅</button></div>
                     <div class="dash-style-actions">
                       <button type="button" class="dash-style-cancel" data-dash-style-cancel="${q.id}">${t('Cancel', 'لغو')}</button>
                       <button type="submit" class="dash-style-save-btn">${t('Save', 'ذخیره')}</button>

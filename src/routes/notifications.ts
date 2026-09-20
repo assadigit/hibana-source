@@ -49,11 +49,11 @@ export function notificationsRoutes(cfg: Config) {
          ORDER BY due_date ASC LIMIT 20`,
         [user.id, today],
       ),
-      // Client projects past their due_date, not halted.
+      // Client projects past their due_date, not paused (0060: awaiting_dev).
       cfg.db.query<ProjectRow>(
         `SELECT * FROM projects
          WHERE user_id = ? AND deleted_at IS NULL AND type = 'client' AND due_date IS NOT NULL
-         AND due_date < ? AND status != 'halted'
+         AND due_date < ? AND status != 'awaiting_dev'
          ORDER BY due_date ASC LIMIT 20`,
         [user.id, today],
       ),
@@ -68,14 +68,14 @@ export function notificationsRoutes(cfg: Config) {
       cfg.db.query<ProjectRow>(
         `SELECT * FROM projects
          WHERE user_id = ? AND deleted_at IS NULL AND type = 'client' AND due_date IS NOT NULL
-         AND due_date >= ? AND due_date <= ? AND status != 'halted'
+         AND due_date >= ? AND due_date <= ? AND status != 'awaiting_dev'
          ORDER BY due_date ASC LIMIT 20`,
         [user.id, today, weekAhead],
       ),
-      // Doing/Operational projects not touched in 30 days (the "where did I leave off?" nudge).
+      // Developing/Operational projects not touched in 30 days (the "where did I leave off?" nudge).
       cfg.db.query<ProjectRow>(
         `SELECT * FROM projects
-         WHERE user_id = ? AND deleted_at IS NULL AND status IN ('doing','operational') AND updated_at < ?
+         WHERE user_id = ? AND deleted_at IS NULL AND status IN ('developing','operational') AND updated_at < ?
          ORDER BY updated_at ASC LIMIT 10`,
         [user.id, monthAgo],
       ),

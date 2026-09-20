@@ -49,13 +49,13 @@ export function projectsRoutes(cfg: Config) {
     }
     // S75: the FULL stale view (?stale=1) — the S72 dashboard nudge caps at 3 chips;
     // its "View all" link lands here. SAME semantics as the dashboard's query (one
-    // source of truth — the 14-day cutoff and the four in-motion stages are duplicated
-    // verbatim from dashboard.ts; change them together): in-motion = unreviewed /
-    // investigating / awaiting / doing; halted = deliberately paused, operational =
+    // source of truth — the 14-day cutoff and the three in-motion stages are duplicated
+    // verbatim from dashboard.ts; change them together): in-motion = planning /
+    // queued / developing; awaiting_dev = deliberately paused, operational =
     // done, spark = raw capture — all excluded by design.
     const staleMode = query.success && query.data.stale === '1'
     if (staleMode) {
-      conds.push("status IN ('unreviewed','investigating','awaiting','doing')", 'updated_at < ?')
+      conds.push("status IN ('planning','queued','developing')", 'updated_at < ?')
       params.push(new Date(Date.now() - 14 * 24 * 3600 * 1000).toISOString())
     }
     if (query.success && query.data.status) {
@@ -441,10 +441,13 @@ export function projectsRoutes(cfg: Config) {
     const user = c.get('user')
     const p = await getOwnedProject(cfg, user.id, c.req.param('id'))
     if (!p) return c.json({ error: 'not_found' }, 404)
-    const canHardDelete = p.status === 'spark' || p.status === 'unreviewed'
+    // 0060: hard delete stays spark-ONLY — 'unreviewed' (the old second hard-deletable
+    // stage) folded into planning, which can carry real work; the safe direction is
+    // soft-delete + purge for everything that left the Ideas shelf.
+    const canHardDelete = p.status === 'spark'
     const force = c.req.query('force') === '1'
     if (canHardDelete && force) {
-      // Hard delete allowed only for Spark/Unreviewed that were force-confirmed (spec §4.15).
+      // Hard delete allowed only for Sparks that were force-confirmed (spec §4.15 + 0060).
       // S39: the screenshots' remote BYTES go first — the row cascade below would make
       // their storage keys unfindable, orphaning them in KV/GitHub forever (best-effort;
       // the delete proceeds regardless).
@@ -475,11 +478,11 @@ export function projectsRoutes(cfg: Config) {
 
   app.post('/:id/revive', async (c) => {
     // Halted revive (spec §5.6): asks every time which status fits — never assumes.
-    const body = await jsonBody<{ status: 'unreviewed' | 'investigating' | 'awaiting' | 'doing' | 'operational' }>(c, z.object({ status: z.enum(['unreviewed', 'investigating', 'awaiting', 'doing', 'operational']) }))
+    const body = await jsonBody<{ status: 'planning' | 'queued' | 'developing' | 'operational' }>(c, z.object({ status: z.enum(['planning', 'queued', 'developing', 'operational']) }))
     if (!body) return c.json({ error: 'invalid_input' }, 400)
     const user = c.get('user')
     const p = await getOwnedProject(cfg, user.id, c.req.param('id'))
-    if (!p || p.status !== 'halted') return c.json({ error: 'not_found' }, 404)
+    if (!p || p.status !== 'awaiting_dev') return c.json({ error: 'not_found' }, 404)
     const now = new Date().toISOString()
     await cfg.db.execute('UPDATE projects SET status = ?, archived_state = NULL, updated_at = ? WHERE id = ? AND user_id = ?', [
       body.status, now, p.id, user.id,

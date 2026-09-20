@@ -79,18 +79,17 @@ html[data-theme='claude-dark'] {
   /* ---------- Status badges — the Claude secondary palette ---------- */
   --badge-spark-bg: #2E2718;         --badge-spark-fg: #D4A27F;      /* Kraft tan  */
   --badge-unreviewed-bg: #212831;    --badge-unreviewed-fg: #8FB4D9; /* Sky        */
-  --badge-investigating-bg: #2A2A31; --badge-investigating-fg: #CBCADB; /* Heather */
-  --badge-awaiting-bg: #312430;      --badge-awaiting-fg: #D98CA4;   /* Fig pink   */
-  --badge-doing-bg: #38251B;         --badge-doing-fg: #E28F6C;      /* Clay accent */
-  --badge-halted-bg: #33231A;        --badge-halted-fg: #D98A6F;     /* burnt clay */
+  --badge-planning-bg: #2A2A31; --badge-planning-fg: #CBCADB; /* Heather */
+  --badge-queued-bg: #312430;      --badge-queued-fg: #D98CA4;   /* Fig pink   */
+  --badge-developing-bg: #38251B;         --badge-developing-fg: #E28F6C;      /* Clay accent */
+  --badge-awaiting_dev-bg: #33231A;        --badge-awaiting_dev-fg: #D98A6F;     /* burnt clay */
   --badge-operational-bg: #262D1E;   --badge-operational-fg: #A9B785; /* Olive     */
 
   /* ---------- Kanban tints — whisper-quiet warm steps ---------- */
-  --kanban-unreviewed-bg: #1C232B;    --kanban-unreviewed-line: rgba(143, 180, 217, 0.22);
-  --kanban-investigating-bg: #232329; --kanban-investigating-line: rgba(203, 202, 219, 0.20);
-  --kanban-awaiting-bg: #291F27;      --kanban-awaiting-line: rgba(217, 140, 164, 0.22);
-  --kanban-doing-bg: #2E1E16;         --kanban-doing-line: rgba(226, 143, 108, 0.26);
-  --kanban-halted-bg: #2B1D15;        --kanban-halted-line: rgba(217, 138, 111, 0.22);
+  --kanban-planning-bg: #232329; --kanban-planning-line: rgba(203, 202, 219, 0.20);
+  --kanban-queued-bg: #291F27;      --kanban-queued-line: rgba(217, 140, 164, 0.22);
+  --kanban-developing-bg: #2E1E16;         --kanban-developing-line: rgba(226, 143, 108, 0.26);
+  --kanban-awaiting_dev-bg: #2B1D15;        --kanban-awaiting_dev-line: rgba(217, 138, 111, 0.22);
   --kanban-operational-bg: #20261A;   --kanban-operational-line: rgba(169, 183, 133, 0.22);
 
   /* ---------- Dots / paper ---------- */
@@ -229,20 +228,18 @@ html[data-theme='claude-dark'] .stat-kanban-card { background: transparent; }
 html[data-theme='claude-dark'] .card.kanban-card.stat-kanban-card { background: transparent; }
 
 /* Status-coded kanban lanes — wired to the claude --kanban-* token set. */
-html[data-theme='claude-dark'] .kanban-col .kanban-card[data-status='unreviewed'] {
-  background: var(--kanban-unreviewed-bg); border-color: var(--kanban-unreviewed-line);
 }
-html[data-theme='claude-dark'] .kanban-col .kanban-card[data-status='investigating'] {
-  background: var(--kanban-investigating-bg); border-color: var(--kanban-investigating-line);
+html[data-theme='claude-dark'] .kanban-col .kanban-card[data-status='planning'] {
+  background: var(--kanban-planning-bg); border-color: var(--kanban-planning-line);
 }
-html[data-theme='claude-dark'] .kanban-col .kanban-card[data-status='awaiting'] {
-  background: var(--kanban-awaiting-bg); border-color: var(--kanban-awaiting-line);
+html[data-theme='claude-dark'] .kanban-col .kanban-card[data-status='queued'] {
+  background: var(--kanban-queued-bg); border-color: var(--kanban-queued-line);
 }
-html[data-theme='claude-dark'] .kanban-col .kanban-card[data-status='doing'] {
-  background: var(--kanban-doing-bg); border-color: var(--kanban-doing-line);
+html[data-theme='claude-dark'] .kanban-col .kanban-card[data-status='developing'] {
+  background: var(--kanban-developing-bg); border-color: var(--kanban-developing-line);
 }
-html[data-theme='claude-dark'] .kanban-col .kanban-card[data-status='halted'] {
-  background: var(--kanban-halted-bg); border-color: var(--kanban-halted-line);
+html[data-theme='claude-dark'] .kanban-col .kanban-card[data-status='awaiting_dev'] {
+  background: var(--kanban-awaiting_dev-bg); border-color: var(--kanban-awaiting_dev-line);
 }
 html[data-theme='claude-dark'] .kanban-col .kanban-card[data-status='operational'] {
   background: var(--kanban-operational-bg); border-color: var(--kanban-operational-line);

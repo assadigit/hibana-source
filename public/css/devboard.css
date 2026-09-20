@@ -166,17 +166,38 @@ html[data-theme='claude-dark'] .db-col[data-col='bug']         { --db-c: 150 110
      textarea now, so it needs the room. */
   inline-size: min(52rem, 100%);
   max-block-size: 90vh;
-  overflow-y: auto;
+  /* S89 (owner item: the task modal's scroll fix): the card itself NEVER scrolls
+     (was overflow-y auto on the whole card — the title row and the Delete/Save
+     footer scrolled away on long content). It is an overflow:hidden flex column;
+     ONE middle region (.db-modal-body) carries the scroll; header + footer are
+     pinned. Nested isolation: code fences inside the title textarea render with
+     their own horizontal scroll at VIEW time, untouched by this. */
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
   background: var(--card);
   border: 1px solid var(--line);
   border-radius: var(--radius);
   box-shadow: var(--shadow-dropdown);
   padding: 1.1rem 1.2rem;
-  display: grid;
   gap: 0.8rem;
   animation: tab-fade 0.15s ease-out;
 }
 .db-modal-card h3 { margin: 0; }
+/* S89: the pinned chrome — hairline separators so the sticky header/footer read
+   as chrome, not content; the footer keeps the old ~1rem separation rhythm
+   (0.8 gap + 0.2 margin). */
+.db-modal-head { flex: none; padding-block-end: 0.55rem; border-block-end: 1px solid var(--line); }
+.db-modal-body {
+  flex: 1 1 auto;
+  min-block-size: 0;             /* flex may shrink it below its content */
+  overflow-y: auto;
+  overscroll-behavior: contain;  /* the wheel never chains past the modal */
+  display: grid;                 /* the old field rhythm, now inside the region */
+  gap: 0.8rem;
+  scrollbar-gutter: stable;      /* no content shift when the bar appears */
+}
+.db-modal-foot { flex: none; margin-block-start: 0.2rem; padding-block-start: 0.7rem; border-block-start: 1px solid var(--line); }
 .db-field { display: grid; gap: 0.3rem; }
 /* Session 22: the title field is a TEXTAREA (unlimited, multi-line) — give it a real
    writing area + vertical resize, mirroring #pd-taskadd-textarea's rhythm. */

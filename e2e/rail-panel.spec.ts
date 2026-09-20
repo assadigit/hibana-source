@@ -1,15 +1,21 @@
 // e2e/rail-panel.spec.ts — S88: the vertical navigation rail + its secondary panel.
+// S89 REWRITE: the rail grew into its LABELED form — every icon carries a small text
+// label beneath it (the owner request), the new square logo pair rides the brand
+// button (theme-swapped), Canvas + Notebook LEFT the rail (the account menu owns
+// them now — their panel sections are retired), and the Calendar panel renders a
+// REAL mini month grid (Gregorian EN / Jalali FA, today ring, due dots, ‹ ›
+// stepping). The pending-sync chip is GONE from the chrome (Settings → Preferences
+// owns offline-sync). The spec pins the new anatomy.
 //
-// The owner specced two patterns in one round:
-//   1. MATERIAL "navigation rail" — the horizontal topbar is replaced by a vertical
-//      icon rail fixed to the left edge: icons ONLY (no text labels — every icon
-//      carries aria-label + title), equal spacing, the active section wears a filled
+// The two patterns under test (unchanged since S88):
+//   1. MATERIAL "navigation rail" — a vertical icon rail fixed to the left edge:
+//      icon + label per destination, the active section wears a filled
 //      rounded-square indicator, secondary icons (Settings, Help) sit at the bottom
 //      behind a thin divider.
 //   2. VS CODE Activity Bar + Side Bar — selecting a rail icon opens a secondary
 //      panel DIRECTLY to its right, populated with that section's items under
-//      labeled COLLAPSIBLE group headers (All / Ongoing / Done…). The rail stays
-//      visible at all times; the panel is PERSISTENT (pushes main content via body
+//      labeled COLLAPSIBLE group headers (quadrants for the to-do panel, folders
+//      for the Ideas panel). The panel is PERSISTENT (pushes main content via body
 //      padding — never an overlay), survives page reloads, and Escape/the icon/✕
 //      close it.
 // Run: npx playwright test e2e/rail-panel.spec.ts
@@ -36,14 +42,27 @@ test.beforeAll(async () => {
     `INSERT INTO users (id, username, email, password_hash, role, language_pref, calendar_pref, timezone, created_at, email_verified_at)
      VALUES ('${id}', 'e2e-rail', '${TEST_EMAIL}', '${hash.replace(/'/g, "''")}', 'owner', 'en', 'gregorian', 'UTC', '${now}', '${now}')`,
   )
-  // A couple of projects so the Projects panel has real rows to list.
+  // A couple of projects so the Projects panel has real rows to list (one DUE TODAY
+  // so the Calendar panel's due dots have something to paint).
   db.exec(`DELETE FROM projects WHERE user_id = '${id}'`)
+  const today = now.slice(0, 10)
   for (const [i, status] of ['doing', 'operational', 'spark'].entries()) {
     db.exec(
-      `INSERT INTO projects (id, user_id, title, status, created_at, updated_at)
-       VALUES ('${id}-p${i}', '${id}', 'Rail project ${i}', '${status}', '${now}', '${now}')`,
+      `INSERT INTO projects (id, user_id, title, status, due_date, created_at, updated_at)
+       VALUES ('${id}-p${i}', '${id}', 'Rail project ${i}', '${status}', '${i === 0 ? today : null}', '${now}', '${now}')`,
     )
   }
+  // S89: sadhana tasks in two quadrants (one DUE TODAY) so the to-do panel's
+  // quadrant grouping + the calendar's todo dots have real rows to group.
+  db.exec(`DELETE FROM sadhana_tasks WHERE user_id = '${id}'`)
+  db.exec(
+    `INSERT INTO sadhana_tasks (id, user_id, quadrant, title, due_date, done, position, created_at, updated_at)
+     VALUES ('${id}-t1', '${id}', 1, 'Rail today task', '${today}', 0, 1, '${now}', '${now}')`,
+  )
+  db.exec(
+    `INSERT INTO sadhana_tasks (id, user_id, quadrant, title, due_date, done, position, created_at, updated_at)
+     VALUES ('${id}-t3', '${id}', 3, 'Rail urgent task', NULL, 0, 2, '${now}', '${now}')`,
+  )
   db.close()
 })
 
@@ -67,23 +86,39 @@ async function login(page: Page) {
   await page.evaluate(() => { try { localStorage.removeItem('hibana-rail-panel') } catch { /* storage blocked */ } })
 }
 
-test.describe('the navigation rail (Material navigation-rail pattern)', () => {
-  test('icons only, aria-labeled, active = filled rounded square, secondary icons behind a divider', async ({ page }) => {
+test.describe('the navigation rail (Material navigation-rail pattern, S89 labeled form)', () => {
+  test('icon + label per destination, active = filled rounded square, secondary icons behind a divider', async ({ page }) => {
     await login(page)
     const rail = page.locator('nav.rail')
     await expect(rail).toBeVisible()
 
-    // Icon-only: the rail is 4rem wide and NO text labels render (the accessible
-    // name rides aria-label).
+    // S89 LABELED rail: 5.5rem (88px) wide; every primary button renders a small
+    // text label beneath its icon; the accessible name still rides aria-label.
     const railBox = await rail.boundingBox()
-    expect(Math.round(railBox!.width)).toBe(64)
+    expect(Math.round(railBox!.width)).toBe(88)
     const primary = page.locator('.rail .rail-primary a')
-    expect(await primary.count()).toBe(8)
-    for (let i = 0; i < 8; i++) {
+    // S89: canvas + notebook left the rail — 6 destinations (dashboard, to-do,
+    // projects, ideas, notes, calendar).
+    expect(await primary.count()).toBe(6)
+    for (let i = 0; i < 6; i++) {
       const label = await primary.nth(i).getAttribute('aria-label')
       expect(label, `primary icon ${i} has an accessible name`).toBeTruthy()
-      expect(await primary.nth(i).innerText()).toBe('') // no visible text
+      const text = (await primary.nth(i).innerText()).trim()
+      expect(text.length, `primary icon ${i} shows its label`).toBeGreaterThan(0)
     }
+    // The search button is labeled too (it sits above .rail-primary).
+    const searchLabel = await page.locator('.rail .rail-search .rail-label').innerText()
+    expect(searchLabel.trim().length).toBeGreaterThan(0)
+
+    // The brand button wears the SQUARE logo pair (one per theme — CSS keeps one).
+    expect(await page.locator('.rail-brand .themed-logo--light').count()).toBe(1)
+    expect(await page.locator('.rail-brand .themed-logo--dark').count()).toBe(1)
+    const lightVisible = await page.locator('.rail-brand .themed-logo--light').isVisible()
+    const darkVisible = await page.locator('.rail-brand .themed-logo--dark').isVisible()
+    expect(lightVisible !== darkVisible).toBe(true) // exactly one per theme
+
+    // S89: the pending-sync chip is GONE from the chrome (Settings owns it).
+    expect(await page.locator('.rail [data-sync-badge]').count()).toBe(0)
 
     // The active section (/app IS the dashboard) wears the filled indicator: the
     // button paints a background (the filled rounded square) + aria-current.
@@ -105,22 +140,41 @@ test.describe('the navigation rail (Material navigation-rail pattern)', () => {
     expect(sBox!.y).toBeGreaterThan(dBox!.y)
   })
 
-  test('≤1024px the rail hides; the slim brand bar + bottom-tab nav carry the chrome', async ({ page }) => {
+  test('Canvas + Notebook live in the ACCOUNT menu (the rail does not rent them space)', async ({ page }) => {
+    await login(page)
+    // Not RAIL BUTTONS (the account-menu links inside .rail-user don't count —
+    // they're menu items, not rail destinations).
+    expect(await page.locator('.rail .rail-btn[href="/canvas.html"]').count()).toBe(0)
+    expect(await page.locator('.rail .rail-btn[href="/whiteboard.html"]').count()).toBe(0)
+    // Hovering the avatar opens the menu; Canvas + Notebook are items in it.
+    await page.hover('.rail-user-chip')
+    const pop = page.locator('.rail-user .user-menu-pop')
+    await expect(pop).toBeVisible()
+    await expect(pop.locator('a[href="/canvas.html"]')).toBeVisible()
+    await expect(pop.locator('a[href="/whiteboard.html"]')).toBeVisible()
+    // S89: the language quick rows are gone from the account menu too — language
+    // is a Settings → Preferences choice (the one place).
+    expect(await pop.locator('[data-lang-toggle]').count()).toBe(0)
+  })
+
+  test('≤1024px the rail hides; the slim brand bar (square logo) + bottom-tab nav carry the chrome', async ({ page }) => {
     await login(page)
     await page.setViewportSize({ width: 390, height: 844 })
     await expect(page.locator('nav.rail')).toBeHidden()
     await expect(page.locator('.rail-panel')).toBeHidden()
-    await expect(page.locator('.mobile-brandbar .brand-logo')).toBeVisible()
+    await expect(page.locator('.mobile-brandbar .brand-logo-sq').first()).toBeVisible()
     await expect(page.locator('.mobile-nav')).toBeVisible()
+    // S89: no sync button on the mobile brand bar either (Settings owns it).
+    expect(await page.locator('.mobile-brandbar [data-sync-badge]').count()).toBe(0)
   })
 })
 
 test.describe('the secondary panel (VS Code Activity Bar + Side Bar pattern)', () => {
   test('selecting an icon opens the panel beside the rail — grouped, collapsible, pushing content', async ({ page }) => {
     await login(page)
-    // The main content's gutter = the rail width before anything opens.
+    // The main content's gutter = the labeled rail width before anything opens.
     const padBefore = await page.evaluate(() => getComputedStyle(document.body).paddingInlineStart)
-    expect(padBefore).toBe('64px')
+    expect(padBefore).toBe('88px')
 
     // Selecting the Projects icon OPENS THE PANEL — it does not navigate.
     await page.click('.rail .rail-primary a[data-rail-panel="projects"]')
@@ -131,12 +185,12 @@ test.describe('the secondary panel (VS Code Activity Bar + Side Bar pattern)', (
 
     // The panel sits directly beside the rail; the rail stays visible.
     const pBox = await panel.boundingBox()
-    expect(Math.round(pBox!.x)).toBe(64)
+    expect(Math.round(pBox!.x)).toBe(88)
     await expect(page.locator('nav.rail')).toBeVisible()
 
     // The main content is PUSHED (persistent body padding, not an overlay — the
     // 0.22s padding transition means the computed value must be polled, not read).
-    await page.waitForFunction(() => parseInt(getComputedStyle(document.body).paddingInlineStart, 10) > 64, null, { timeout: 3_000 })
+    await page.waitForFunction(() => parseInt(getComputedStyle(document.body).paddingInlineStart, 10) > 88, null, { timeout: 3_000 })
 
     // Grouped under labeled, collapsible section headers — All / Ongoing / Done.
     const groups = page.locator('.rail-group-head')
@@ -162,7 +216,7 @@ test.describe('the secondary panel (VS Code Activity Bar + Side Bar pattern)', (
     // Escape closes (dialogs own their Escape first — none open here).
     await page.keyboard.press('Escape')
     await expect(panel).toBeHidden()
-    await page.waitForFunction(() => getComputedStyle(document.body).paddingInlineStart === '64px', null, { timeout: 3_000 })
+    await page.waitForFunction(() => getComputedStyle(document.body).paddingInlineStart === '88px', null, { timeout: 3_000 })
   })
 
   test('clicking the open section\'s icon toggles the panel closed; switching icons swaps sections', async ({ page }) => {
@@ -180,6 +234,50 @@ test.describe('the secondary panel (VS Code Activity Bar + Side Bar pattern)', (
     await expect(page.locator('nav.rail')).toBeVisible()
   })
 
+  test('the to-do panel groups tasks under their QUADRANT names (the S89 anatomy)', async ({ page }) => {
+    await login(page)
+    await page.click('.rail .rail-primary a[data-rail-panel="todo"]')
+    await expect(page.locator('.rail-panel-title')).toHaveText('To-do list')
+    // Group heads: Today (the dated task rides it) + the default quadrant labels
+    // in the DASHBOARD order (1 Today, 3 Urgent, 2 Strategic, 4 Personal).
+    const labels = (await page.locator('.rail-group-head').allTextContents()).map((l) => l.replace(/\d+$/, '').trim())
+    expect(labels).toContain('Today')
+    expect(labels).toContain('Urgent & High Value')
+    // The undated quadrant-3 task rides its quadrant group (NOT Today).
+    const q3 = page.locator('.rail-group', { hasText: 'Urgent & High Value' }).locator('.rail-item')
+    await expect(q3).toHaveCount(1)
+    await expect(q3).toContainText('Rail urgent task')
+  })
+
+  test('the calendar panel renders a real month grid — today ring, due dots, ‹ › stepping', async ({ page }) => {
+    await login(page)
+    await page.click('.rail .rail-primary a[data-rail-panel="calendar"]')
+    await expect(page.locator('.rail-panel-title')).toHaveText('Calendar')
+
+    // The month grid: weekday header + day cells; the title names the current
+    // Gregorian month (the test user's calendar_pref is gregorian + lang en).
+    const title = await page.locator('.rail-cal-title').innerText()
+    const now = new Date()
+    const monthName = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'][now.getMonth()]
+    expect(title).toContain(monthName)
+    expect(title).toContain(String(now.getFullYear()))
+    expect(await page.locator('.rail-cal-dow').count()).toBe(7)
+
+    // Today wears the ring; the seeded due-today project + task paint dots.
+    await expect(page.locator('.rail-cal-day.is-today')).toBeVisible()
+    expect(await page.locator('.rail-cal-dots i').count()).toBeGreaterThanOrEqual(1)
+
+    // ‹ › steps the month (zero extra requests — the cached payload re-renders).
+    await page.click('[data-rail-cal-nav="1"]')
+    await expect(page.locator('.rail-cal-title')).not.toContainText(monthName)
+    await page.click('[data-rail-cal-nav="-1"]')
+    await expect(page.locator('.rail-cal-title')).toContainText(monthName)
+
+    // A day cell soft-navigates to the full Calendar page.
+    await page.click('.rail-cal-day.is-today')
+    await page.waitForURL('**/calendar.html', { timeout: 10_000 })
+  })
+
   test('the panel persists across a page reload (localStorage restore)', async ({ page }) => {
     await login(page)
     await page.click('.rail .rail-primary a[data-rail-panel="notes"]')
@@ -192,12 +290,27 @@ test.describe('the secondary panel (VS Code Activity Bar + Side Bar pattern)', (
     await expect(page.locator('[data-rail-panel-box]')).toBeHidden()
   })
 
-  test('every section opens a panel (the dashboard reads the resume store client-side)', async ({ page }) => {
+  test('a stale persisted canvas/notebook panel key is ignored (their sections are retired)', async ({ page }) => {
     await login(page)
-    for (const section of ['dashboard', 'sparks', 'canvas', 'notebook', 'calendar']) {
-      await page.click(`.rail .rail-primary a[data-rail-panel="${section}"]`)
-      await expect(page.locator('[data-rail-panel-box]')).toBeVisible()
-      await expect(page.locator('.rail-panel-title')).toBeTruthy()
-    }
+    await page.evaluate(() => { try { localStorage.setItem('hibana-rail-panel', 'canvas') } catch { /* storage blocked */ } })
+    await page.reload()
+    await page.waitForSelector('nav.rail', { timeout: 10_000 })
+    // The retired section never renders its panel — the stale key fails the
+    // RAIL_SECTIONS lookup and is ignored.
+    await page.waitForTimeout(400)
+    await expect(page.locator('[data-rail-panel-box]')).toBeHidden()
+  })
+})
+
+test.describe('offline sync lives in Settings (S89: it left the chrome)', () => {
+  test('Settings → Preferences carries the sync status row + retry chip; the chrome has none', async ({ page }) => {
+    await login(page)
+    await page.goto('/settings.html')
+    await expect(page.locator('.settings-sync-row')).toBeVisible()
+    await expect(page.locator('[data-sync-status]')).toBeVisible()
+    // The always-honest idle line paints from the queue (zero captures → synced).
+    await expect(page.locator('[data-sync-status]')).toContainText(/synced/i)
+    // The retry chip is hidden while the queue is empty.
+    await expect(page.locator('.settings-sync-row [data-sync-badge]')).toBeHidden()
   })
 })

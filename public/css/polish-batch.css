@@ -92,7 +92,7 @@
 }
 .tour-title { margin: 0 0 0.5rem; font-size: var(--fs-xl); font-weight: 700; }
 .tour-body { margin: 0 0 0.85rem; color: var(--text); line-height: 1.55; font-size: var(--fs-md); opacity: 0.92; }
-.tour-progress { display: flex; gap: 0.3rem; margin-block-end: 0.85rem; }
+.tour-progress { display: flex; flex-wrap: wrap; gap: 0.3rem; margin-block-end: 0.85rem; }
 /* 2026-09-12: dots are real buttons now — 8px visual, 24px hit area via padding +
    background-clip (border-box would swallow the padding into the size). Inactive
    dots brighten on hover; focus-visible gets the app-standard accent ring. */
@@ -150,6 +150,13 @@
    overlay whenever it contains the current tour target — the ring + pulse then show. */
 .fab-stack:has(.tour-target) { z-index: 82; }
 .topbar:has(.tour-target) { z-index: 82; }
+/* S89: the RAIL joins the lift — every tour target inside it (the search button,
+   the section icons, the avatar, the theme toggle) lives in the rail's z-38
+   stacking context, UNDER the z-80 overlay: the highlighted icon rendered
+   invisible beneath the 62% black veil. The :has() twin covers targets INSIDE
+   the rail; the .tour-target twin covers the rail itself (step 2 highlights the
+   whole rail). */
+.rail:has(.tour-target), .rail.tour-target { z-index: 82; }
 @media (prefers-reduced-motion: reduce) {
   .tour-overlay, .tour-card, .tour-target { animation: none; }
 }

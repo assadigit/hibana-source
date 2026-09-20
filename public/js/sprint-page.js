@@ -1369,7 +1369,7 @@
             if (window.HibanaBoard) return resolve(true)
             if (!injected && waited >= 1200) {
               injected = true
-              inject('/js/devboard.js?v=21') // keep in sync with the <head> tag + sw SHELL
+              inject('/js/devboard.js?v=22') // keep in sync with the <head> tag + sw SHELL
               if (!window.jalaali) inject('/vendor/jalaali.min.js') // Jalali timeline for FA
             }
             if (waited >= 9000) return resolve(false)

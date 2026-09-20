@@ -3131,11 +3131,18 @@
             pdTaskEditDlg.className = 'dialog pd-taskedit-modal'
             pdTaskEditDlg.innerHTML =
               '<form class="modal" id="pde-form" novalidate>' +
-                '<div class="row spread"><h3 id="pde-title">' + _t('pde.title', 'Create a new task') + '</h3>' +
+                '<div class="row spread pde-head"><h3 id="pde-title">' + _t(tid ? 'db.editTask' : 'pde.title', tid ? 'Edit task' : 'Create a new task') + '</h3>' +
                 '<div class="row" style="gap:.25rem">' +
                   '<button type="button" class="ghost icon-btn" id="pde-fullscreen" aria-label="' + _t('pde.fullscreen', 'Full-screen writing') + '" title="' + _t('pde.fullscreen', 'Full-screen writing') + '"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4h6M4 4v6M14 4h6M20 4v6M4 20v-6M4 20h6M20 20h-6M20 20v-6"/></svg></button>' +
                   '<button type="button" class="ghost icon-btn" id="pde-close" aria-label="' + _t('common.close', 'Close') + '"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button>' +
                 '</div></div>' +
+                // S89 (owner item: the task modal's scroll fix): ONE scroll region
+                // between the sticky header and the sticky footer — the toolbar,
+                // fields, screenshots and error live in .pd-modal-body
+                // (overflow-y auto); header (title/fullscreen/✕) + footer
+                // (Delete/Cancel/Save) never scroll away. The form is an
+                // overflow:hidden flex column capped at the dialog's height.
+                '<div class="pd-modal-body">' +
                 '<div class="pd-tb" role="toolbar" aria-label="' + _t('pd.fmtToolbar', 'Formatting') + '">' +
                   // Format group: Bold, Underline, Strikethrough
                   '<button type="button" class="pd-tb-btn" data-tb="bold" title="' + _t('pd.fmtBold', 'Bold') + '"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 5h6a3.5 3.5 0 1 1 0 7H7zM7 12h7a3.5 3.5 0 1 1 0 7H7z"/></svg></button>' +
@@ -3197,7 +3204,8 @@
                   '<div class="pd-taskadd-shots-grid" id="pde-shots-grid"></div>' +
                 '</div>' +
                 '<p class="error" id="pde-error" role="alert"></p>' +
-                '<div class="row" style="justify-content:space-between;gap:.5rem;margin-top:1rem">' +
+                '</div>' +
+                '<div class="row pde-foot" style="justify-content:space-between;gap:.5rem">' +
                   // Session 24 (user request): delete from inside the edit modal — no
                   // need to close + hunt the card's ⋯ menu. Red ghost on the opposite
                   // end from Cancel/Save; optimistic remove + Undo toast (same recipe

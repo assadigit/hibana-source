@@ -50,7 +50,7 @@
     setTimeout(() => { if (document.querySelector('.stat-count')) animateCounters() }, 800)
   })
 
-  // ---- Onboarding tour (R5.1) ------------------------------------------------
+  // ---- Onboarding tour (R5.1; S89 rewrite) --------------------------------------
   // Only on the dashboard, only once per browser (localStorage). Skips if the user has
   // already dismissed it or if the key elements aren't present.
   function shouldShowTour() {
@@ -60,20 +60,156 @@
     try { localStorage.setItem(TOUR_KEY, '1') } catch {}
   }
 
+  // S89 (owner: "work rigorously on guided-tour, it should show the main abilities and
+  // whereabouts of this app"): the 4-step chrome-only tour grew into a full walk of the
+  // app — the rail and every core section on it, the side panel each icon opens, quick
+  // capture, the account menu (where Canvas/Notebook now live), and the theme. Every
+  // target degrades to null (centered card + still-useful copy) when its element is
+  // absent — mobile hides the rail, and the tour can be replayed from any page.
+  const railIcon = (panel) => () => {
+    const el = document.querySelector('.rail .rail-btn[data-rail-panel="' + panel + '"]')
+    return el && el.getBoundingClientRect().width > 0 ? el : null
+  }
   const STEPS = [
-    { target: () => document.querySelector('.fab[data-fab-toggle]') || document.querySelector('.fab-stack'), title: () => _t('tour.fab', 'Quick capture'), body: () => _t('tour.fabBody', 'Tap the + button to capture a new idea or project in seconds.') },
-    { target: () => {
-      // On mobile the topbar (and its theme toggle) is hidden — the toggle lives in
-      // the bottom-bar More sheet there. No visible anchor → centered card.
-      const t = document.querySelector('[data-theme-toggle]')
-      return t && t.getBoundingClientRect().width > 0 ? t : null
-    }, title: () => _t('tour.theme', 'Light / dark'), body: () => _t('tour.themeBody', 'Toggle the theme here. Farsi users also get the Jalali calendar.') },
-    { target: () => null, title: () => _t('tour.cmdk', 'Command palette'), body: () => _t('tour.cmdkBody', 'Press Ctrl+K (or /) to search projects and jump anywhere instantly.') },
-    { target: () => null, title: () => _t('tour.done', 'You’re all set'), body: () => _t('tour.doneBody', 'Press ? anytime to see all keyboard shortcuts. Happy building!') },
+    {
+      target: () => null,
+      title: () => _t('tour.welcome', 'Welcome to Hibana'),
+      body: () => _t('tour.welcomeBody', 'A two-minute walk through the places you’ll live in — the rail on the left, the panel each icon opens, and capture everywhere. Skip anytime.'),
+    },
+    {
+      target: () => {
+        const el = document.querySelector('nav.rail')
+        return el && el.getBoundingClientRect().width > 0 ? el : null
+      },
+      title: () => _t('tour.rail', 'The navigation rail'),
+      body: () => _t('tour.railBody', 'Every section sits on this rail — one icon and label per destination. The filled square marks where you are; clicking an icon opens its list panel beside the rail.'),
+    },
+    {
+      target: () => {
+        const el = document.querySelector('.rail-search')
+        return el && el.getBoundingClientRect().width > 0 ? el : null
+      },
+      title: () => _t('tour.search', 'Search & commands'),
+      body: () => _t('tour.searchBody', 'Click here — or press Ctrl+K (⌘K) anywhere — to search every project, note and task, and jump straight to it.'),
+    },
+    {
+      target: railIcon('dashboard'),
+      title: () => _t('tour.dash', 'Dashboard'),
+      body: () => _t('tour.dashBody', 'Your day at a glance: continue where you left off, today’s to-dos, and live stats for every active project.'),
+    },
+    {
+      target: railIcon('todo'),
+      title: () => _t('tour.todo', 'To-do list'),
+      body: () => _t('tour.todoBody', 'A four-box board for your life areas — rename the boxes (Personal Life, Finance…). The panel beside this icon lists every task under its box.'),
+    },
+    {
+      target: railIcon('projects'),
+      title: () => _t('tour.projects', 'Projects'),
+      body: () => _t('tour.projectsBody', 'Each project carries a progress board, sprints, files and history. Open one from this icon’s panel.'),
+    },
+    {
+      target: railIcon('sparks'),
+      title: () => _t('tour.ideas', 'Ideas'),
+      body: () => _t('tour.ideasBody', 'The spark shelf: capture first, file into folders later. The panel groups your ideas under their folders.'),
+    },
+    {
+      target: railIcon('notes'),
+      title: () => _t('tour.notes', 'Notes'),
+      body: () => _t('tour.notesBody', 'The long-form vault — folders, markdown, checklists, code blocks and the AI wand.'),
+    },
+    {
+      target: railIcon('calendar'),
+      title: () => _t('tour.calendar', 'Calendar'),
+      body: () => _t('tour.calendarBody', 'Deadlines from projects and to-dos in one month view. Farsi users get the Jalali calendar throughout.'),
+    },
+    {
+      target: () => document.querySelector('.fab[data-fab-toggle]') || document.querySelector('.fab-stack'),
+      title: () => _t('tour.fab', 'Quick capture'),
+      body: () => _t('tour.fabBody', 'The + button captures a new task, idea or note in seconds — from any page. Ctrl+N works too.'),
+    },
+    {
+      target: () => {
+        // the avatar (account menu) — highlight the chip itself; on mobile there is
+        // no avatar in the chrome → centered card still explains the menu.
+        const el = document.querySelector('.rail-user-chip') || document.querySelector('[data-user]')
+        return el && el.getBoundingClientRect().width > 0 ? el : null
+      },
+      title: () => _t('tour.account', 'Your account'),
+      body: () => _t('tour.accountBody', 'Hover your avatar for notifications, reports, the gallery, Canvas & Notebook, and Settings — language and theme live in Settings.'),
+    },
+    {
+      target: () => {
+        const t = document.querySelector('[data-theme-toggle]')
+        return t && t.getBoundingClientRect().width > 0 ? t : null
+      },
+      title: () => _t('tour.theme', 'Light / dark'),
+      body: () => _t('tour.themeBody', 'One click switches between light and Claude dark. On mobile the toggle lives in the More (⋯) menu.'),
+    },
+    {
+      target: () => null,
+      title: () => _t('tour.done', 'You’re all set'),
+      body: () => _t('tour.doneBody', 'Press ? anytime for every keyboard shortcut — and replay this tour from the Help icon at the bottom of the rail.'),
+    },
   ]
 
   let tourEl = null
   let stepIdx = 0
+  let tourRaf = 0
+
+  // S89: POSITIONING, done rigorously. The old placer had two leaks that pushed the
+  // card beyond the viewport (the owner's report): (1) the CENTERED branch set
+  // transform: translate(-50%,-50%) and the ANCHORED branch never reset it — going
+  // Back / dot-jumping from a centered step to an anchored one shifted the card by
+  // half its own size, straight off screen; (2) the vertical clamp assumed a ~200px
+  // card. Now: the transform is always reset when anchoring, the card's REAL
+  // offsetWidth/Height are measured after its content paints, everything is clamped
+  // against 12px viewport margins, and a narrow left-edge target (a rail icon) opens
+  // the card BESIDE itself instead of clamping against the left margin. A resize or
+  // any scroll re-renders the current step (rAF-debounced) so the coachmark follows.
+  const placeCardBeside = (cardEl, target) => {
+    const M = 12
+    const vw = window.innerWidth
+    const vh = window.innerHeight
+    const r = target.getBoundingClientRect()
+    cardEl.style.transform = ''
+    cardEl.style.maxWidth = Math.min(340, vw - 2 * M) + 'px'
+    cardEl.style.maxHeight = (vh - 2 * M) + 'px'
+    cardEl.style.overflowY = 'auto'
+    const cw = cardEl.offsetWidth
+    const ch = cardEl.offsetHeight
+    // horizontal: centered on the target, unless the target is a narrow element
+    // hugging the left edge (the rail + its icons) — then the card opens to its
+    // RIGHT so the rail column stays visible under the veil.
+    let left
+    if (r.width <= 96 && r.right < vw * 0.35 && r.right + 14 + cw <= vw - M) {
+      left = r.right + 14
+    } else {
+      left = Math.min(Math.max(r.left + r.width / 2 - cw / 2, M), Math.max(M, vw - cw - M))
+    }
+    // vertical: below when it fits, else above, else clamped into view.
+    let top
+    if (r.bottom + 12 + ch <= vh - M) top = r.bottom + 12
+    else if (r.top - 12 - ch >= M) top = r.top - 12 - ch
+    else top = Math.max(M, Math.min(r.bottom + 12, vh - ch - M))
+    cardEl.style.left = left + 'px'
+    cardEl.style.top = top + 'px'
+    cardEl.style.bottom = 'auto'
+  }
+
+  const placeCardCentered = (cardEl) => {
+    cardEl.style.left = '50%'
+    cardEl.style.top = '50%'
+    cardEl.style.bottom = 'auto'
+    cardEl.style.transform = 'translate(-50%, -50%)'
+    cardEl.style.maxWidth = Math.min(380, window.innerWidth - 24) + 'px'
+    cardEl.style.maxHeight = (window.innerHeight - 24) + 'px'
+    cardEl.style.overflowY = 'auto'
+  }
+
+  const scheduleTourRender = () => {
+    if (tourRaf || !tourEl) return
+    tourRaf = requestAnimationFrame(() => { tourRaf = 0; if (tourEl) renderStep() })
+  }
 
   function startTour() {
     if (tourEl) return
@@ -108,6 +244,10 @@
       if (Number.isInteger(i) && i >= 0 && i < STEPS.length && i !== stepIdx) { stepIdx = i; renderStep() }
     })
     document.addEventListener('keydown', tourKeyHandler)
+    // S89: the coachmark follows the viewport — a resize or ANY scroll (capture:
+    // inner containers too) re-renders the current step against fresh rects.
+    window.addEventListener('resize', scheduleTourRender)
+    window.addEventListener('scroll', scheduleTourRender, { passive: true, capture: true })
     renderStep()
   }
 
@@ -132,39 +272,25 @@
     next.textContent = stepIdx < STEPS.length - 1 ? _t('tour.next', 'Next') : _t('tour.done', 'Done')
     card.querySelector('.tour-prev').hidden = stepIdx === 0
     // Progress dots — buttons (jump to step). aria-current marks the live step;
-    // the visible label stays dots-only (the count is implicit in the row length).
+    // S89: 13 steps wrap to two rows on a narrow card (flex-wrap in CSS).
     card.querySelector('.tour-progress').innerHTML = STEPS.map((_, i) => `<button type="button" class="tour-dot ${i === stepIdx ? 'active' : ''}" data-step="${i}" ${i === stepIdx ? 'aria-current="step"' : ''} aria-label="${_t('tour.step', 'Step')} ${i + 1}"></button>`).join('')
-    // Position: try to anchor to the target element; fall back to center.
+    // Position: anchor to the target when it is VISIBLE in this viewport; otherwise
+    // a centered card (mobile hides the rail; some pages lack a given target).
     const target = step.target()
-    if (target && target.getBoundingClientRect) {
+    if (target && target.getBoundingClientRect && target.getBoundingClientRect().width > 0 && target.getBoundingClientRect().height > 0) {
       const r = target.getBoundingClientRect()
       // Highlight the target
       tourEl.style.setProperty('--tour-highlight', `inset 0 0 0 9999px rgb(0 0 0 / 0.55)`)
-      // Use box-shadow to "cut a hole" — simpler: position the card near the target.
       const cardEl = tourEl.querySelector('.tour-card')
-      const cardW = Math.min(320, window.innerWidth - 32)
-      cardEl.style.maxWidth = cardW + 'px'
-      // Place above or below the target depending on space
-      const placeBelow = r.top < window.innerHeight / 2
-      cardEl.style.left = Math.max(16, Math.min(r.left + r.width / 2 - cardW / 2, window.innerWidth - cardW - 16)) + 'px'
-      if (placeBelow) {
-        cardEl.style.top = Math.min(r.bottom + 12, window.innerHeight - 220) + 'px'
-        cardEl.style.bottom = 'auto'
-      } else {
-        cardEl.style.bottom = Math.min(window.innerHeight - r.top + 12, window.innerHeight - 220) + 'px'
-        cardEl.style.top = 'auto'
-      }
+      placeCardBeside(cardEl, target)
       target.classList.add('tour-target')
       // Remove highlight from previous targets
       STEPS.forEach((s) => { const t = s.target(); if (t && t !== target) t.classList.remove('tour-target') })
+      void r // (rect read above guards visibility; placeCardBeside re-reads it)
     } else {
-      // No target → center
       const cardEl = tourEl.querySelector('.tour-card')
-      cardEl.style.left = '50%'
-      cardEl.style.top = '50%'
-      cardEl.style.bottom = 'auto'
-      cardEl.style.transform = 'translate(-50%, -50%)'
-      cardEl.style.maxWidth = '380px'
+      placeCardCentered(cardEl)
+      STEPS.forEach((s) => { const t = s.target(); if (t) t.classList.remove('tour-target') })
     }
   }
 
@@ -173,6 +299,9 @@
     markTourDone()
     STEPS.forEach((s) => { const t = s.target(); if (t) t.classList.remove('tour-target') })
     document.removeEventListener('keydown', tourKeyHandler)
+    window.removeEventListener('resize', scheduleTourRender)
+    window.removeEventListener('scroll', scheduleTourRender, true)
+    if (tourRaf) { cancelAnimationFrame(tourRaf); tourRaf = 0 }
     tourEl.remove()
     tourEl = null
   }

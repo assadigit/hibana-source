@@ -221,8 +221,14 @@
     const lang = window.hibanaI18n && window.hibanaI18n.lang ? window.hibanaI18n.lang() : 'en'
     el.innerHTML =
       '<div class="db-modal-card" dir="' + (lang === 'fa' ? 'rtl' : 'auto') + '">' +
-        '<div class="row spread"><h3>' + (isNew ? esc(t('db.newTask', 'New task')) : esc(t('db.editTask', 'Edit task'))) + '</h3>' +
+        '<div class="row spread db-modal-head"><h3>' + (isNew ? esc(t('db.newTask', 'New task')) : esc(t('db.editTask', 'Edit task'))) + '</h3>' +
         '<button type="button" class="ghost" data-db-close aria-label="' + esc(t('common.close', 'Close')) + '">✕</button></div>' +
+        // S89 (owner item: the task modal's scroll fix): ONE scroll region between
+        // the sticky header and the sticky footer — fields live in .db-modal-body
+        // (overflow-y auto); the header (title/✕) + footer (Delete/Cancel/Save)
+        // never scroll away on long content. The card is an overflow:hidden flex
+        // column capped at 90vh (was a whole-card overflow-y auto).
+        '<div class="db-modal-body">' +
         '<label class="db-field"><span>' + esc(t('db.title', 'Title')) + '</span>' +
           // Session 22 (user request): TEXTAREA (was a single-line input with
           // maxlength=300) — unlimited, multi-line, 9rem min + resizable (app.css),
@@ -268,7 +274,8 @@
             d.tags.map((id) => { const tg = tagById(id); return tg ? '<span dir="auto" class="chip db-tag" data-tag="' + esc(id) + '" style="background:' + esc(tg.color) + '33"><span style="color:' + esc(tg.color) + '">●</span> ' + esc(tg.name) + ' <button type="button" class="ghost danger" data-untag="' + esc(id) + '" aria-label="✕">✕</button></span>' : '' }).join('') +
             '<input data-db-tag-in maxlength="60" dir="auto" placeholder="' + esc(t('db.addTag', 'Add tag + Enter')) + '">' +
           '</div></div>') +
-        '<div class="row spread" style="margin-block-start:1rem">' +
+        '</div>' +
+        '<div class="row spread db-modal-foot">' +
           (isNew ? '' : '<button type="button" class="btn ghost danger" data-db-del>' + esc(t('common.delete', 'Delete')) + '</button>') +
           '<div class="row"><button type="button" class="ghost" data-db-close>' + esc(t('common.cancel', 'Cancel')) + '</button>' +
           // Session 23 (user request: "the ذخیره button must be green like other

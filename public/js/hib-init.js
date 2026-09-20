@@ -102,22 +102,25 @@
     window.addEventListener('online', () => banner.remove(), { once: true })
   }
 
-  // S72: the topbar pending-sync badge — js/queue.js's onCount listener existed since
+  // S72: the pending-sync badge — js/queue.js's onCount listener existed since
   // spec §3.4 with no shell consumer; queued captures (offline quick-adds, canvas
   // batches) were invisible outside canvas/whiteboard's own save badge. The badge is
   // a quiet amber chip that appears whenever the queue holds items and disappears when
   // it drains; click retries the flush immediately. JS-rendered labels follow the S71
   // i18n-race rule: paint with _t() and re-render on hibana:i18n.
+  // S89: the badge LEFT the chrome (rail + brand bar) — Settings → Preferences owns
+  // the UX now: the [data-sync-badge] retry chip + the always-honest [data-sync-status]
+  // line (settings.html). Zero badges elsewhere → this no-ops cheaply; the paint loop
+  // serves both contracts (hidden-when-idle button + live status text).
   function wireSyncBadge() {
     const wire = () => {
-      // S88: the sync badge now lives in TWO chrome copies (the rail on desktop +
-      // the slim mobile brand bar) — wire them all; the paint closure below was
-      // rewritten to loop every badge.
       const btns = Array.from(document.querySelectorAll('[data-sync-badge]'))
+      const statusEls = Array.from(document.querySelectorAll('[data-sync-status]'))
       const q = window.hibanaQueue
-      if (!btns.length || !q) return
-      if (btns.every((b) => b.dataset.wired === '1')) return
+      if ((!btns.length && !statusEls.length) || !q) return
+      if (btns.every((b) => b.dataset.wired === '1') && statusEls.every((s) => s.dataset.wired === '1')) return
       for (const b of btns) b.dataset.wired = '1'
+      for (const s of statusEls) s.dataset.wired = '1'
       const _t = (k, fb) => { const s = window.hibanaI18n?.t(k); return s && s !== k ? s : fb }
       const isFA = () => window.hibanaI18n?.lang?.() === 'fa' || document.documentElement.lang === 'fa'
       const faNum = (v) => String(v).replace(/[0-9]/g, (d) => '۰۱۲۳۴۵۶۷۸۹'[+d])
@@ -135,6 +138,18 @@
             b.hidden = true
           }
         }
+        // S89: the Settings status line — the queue count as plain text; idle carries
+        // its own "all synced" copy. paint() owns this element's text (no data-i18n
+        // attr — the translate pass must not race the live count).
+        for (const s of statusEls) {
+          if (n > 0) {
+            s.textContent = _t('nav.syncPending', '{n} pending').split('{n}').join(isFA() ? faNum(n) : String(n))
+            s.classList.add('is-waiting')
+          } else {
+            s.textContent = _t('settings.syncIdle', 'All changes synced')
+            s.classList.remove('is-waiting')
+          }
+        }
       }
       paint(q.pendingCount || 0)
       q.onCount(paint)
@@ -146,7 +161,7 @@
           if ((q.pendingCount || 0) === 0) window.hibana?.toast(_t('nav.syncSent', 'Synced your offline changes'), 'ok', 4000)
         } catch { /* flush failures keep the badge; retry on next click/online */ }
       })
-      // Language switch while items are queued: re-localize the label.
+      // Language switch while items are queued: re-localize the label + status.
       document.addEventListener('hibana:i18n', () => paint(q.pendingCount || 0))
     }
     if (window.hibanaQueue) { wire(); return }

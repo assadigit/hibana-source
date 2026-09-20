@@ -13,7 +13,7 @@
 // changelog until S49 trimmed it — every prior entry is recoverable verbatim:
 // `git show <sha>:public/sw.js`).
 
-const VERSION = "hibana-v402" // bump on sw.js logic changes — see Changelogs.md §1 (current state) + git log (full history). v402 (S80): i18n-fa.js out of the install-time manifest precache (the Vazir/fabric class — FA-only bundle, EN users never inject it; ensureFaDict fetches it on the first FA view where Class 1a caches it for offline). v401 (S72): the nav partial's SHELL entry + hib-init's fetch are now versioned (?v=3) — the CF edge cache served a STALE nav.html for hours after deploy (deploy token can't purge the zone), and unversioned URLs made every future nav change nondeterministic. v400 (S70): fabric.min.js out of the SHELL precache.
+const VERSION = "hibana-v403" // bump on sw.js logic changes — see Changelogs.md §1 (current state) + git log (full history). v403 (S89): the new square logo pair joins the SHELL precache — the rail + mobile brandbar reference them on every page, so offline boots need both theme variants cached. v402 (S80): i18n-fa.js out of the install-time manifest precache (the Vazir/fabric class — FA-only bundle, EN users never inject it; ensureFaDict fetches it on the first FA view where Class 1a caches it for offline). v401 (S72): the nav partial's SHELL entry + hib-init's fetch are now versioned (?v=3) — the CF edge cache served a STALE nav.html for hours after deploy (deploy token can't purge the zone), and unversioned URLs made every future nav change nondeterministic. v400 (S70): fabric.min.js out of the SHELL precache.
 
 // Static shell: unhashed pages/partials/icons/vendor/fonts (SWR or network-first at
 // runtime; precached here for offline). The hashed app bundles come from the manifest
@@ -52,6 +52,8 @@ const SHELL = [
   '/icon-512.png',
   '/logo-light.png',
   '/logo-dark.png',
+  '/logo-square-light.png', // S89: the rail's square brand pair — one per theme
+  '/logo-square-dark.png',
   '/vendor/bebas-note/font-face.css',
   '/vendor/bebas-note/BebasNotes-Regular.woff2',
   '/vendor/bebas-note/BebasNotes-Bold.woff2',

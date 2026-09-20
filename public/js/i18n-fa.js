@@ -28,17 +28,47 @@ window.__hibanaDictFA = {
       'rail.canvasHint': 'بوم بی‌حدومرز یک تختهٔ واحد است — بازش کن تا بکشی، یادداشت سنجاق کنی و قاب بسازی.',
       'rail.notebookHint': 'برگه یادداشت تختهٔ سفید توست — بازش کن تا آزادانه بنویسی و بکشی.',
       'rail.calendarHint': 'سررسیدهای پروژه‌ها و کارهایت هرچه نزدیک‌تر شوند همین‌جا می‌آیند.',
+      // S89: the LABELED rail — a small text label rides under every icon
+      'rail.label.search': 'جست‌وجو', 'rail.label.dashboard': 'پیشخوان', 'rail.label.todo': 'کارها',
+      'rail.label.projects': 'پروژه‌ها', 'rail.label.ideas': 'ایده‌ها', 'rail.label.notes': 'یادداشت‌ها',
+      'rail.label.calendar': 'تقویم', 'rail.label.settings': 'تنظیمات',
+      'rail.label.help': 'راهنما', 'rail.label.theme': 'پوسته',
+      // S89: the to-do panel groups tasks under their QUADRANT (box) name —
+      // the same defaults the sadhana page carries, localized
+      'rail.q1': 'امروز', 'rail.q2': 'استراتژیک', 'rail.q3': 'فوری و باارزش', 'rail.q4': 'شخصی و احساسی',
+      // S89: the calendar panel's real month grid
+      'rail.calPrev': 'ماه قبل', 'rail.calNext': 'ماه بعد', 'rail.calDue': '{n} سررسید',
       // S88: the markdown code-block copy affordance
       'md.copy': 'کپی کد', 'md.copied': 'کپی شد',
-      // R5.1: onboarding tour
+      // R5.1: onboarding tour — S89: the full-app walk (13 steps)
+      'tour.welcome': 'به هیبانا خوش آمدی',
+      'tour.welcomeBody': 'دو دقیقه پیاده‌روی میان جاهایی که قرار است در آن‌ها زندگی کنی — ریل سمت چپ، پنلی که هر آیکن باز می‌کند، و ثبت از هر جا. هر وقت خواستی رد کن.',
       'tour.cmdk': 'پنل فرمان',
-      'tour.cmdkBody': 'Ctrl+K (یا /) را بزن تا پروژه‌ها را جستجو کنی و سریع بپری جای دیگر.',
+      'tour.cmdkBody': 'Ctrl+K (یا /) را بزن تا پروژه‌ها را جست‌وجو کنی و سریع بپری جای دیگر.',
+      'tour.rail': 'ریل ناوبری',
+      'tour.railBody': 'همهٔ بخش‌ها روی همین ریل نشسته‌اند — هر مقصد یک آیکن و یک برچسب. مربعِ پرشده نشان می‌دهد الان کجایی؛ کلیک روی هر آیکن پنل فهرست همان بخش را کنار ریل باز می‌کند.',
+      'tour.search': 'جست‌وجو و فرمان‌ها',
+      'tour.searchBody': 'اینجا کلیک کن — یا همه‌جا Ctrl+K (⌘K) را بزن — تا هر پروژه، یادداشت و کاری را جست‌وجو کنی و مستقیم همان‌جا بپری.',
+      'tour.dash': 'پیشخوان',
+      'tour.dashBody': 'روزت در یک نگاه: ادامهٔ همان‌جا که رها کردی، کارهای امروز، و آمار زندهٔ همهٔ پروژه‌های فعال.',
+      'tour.todo': 'فهرست کارها',
+      'tour.todoBody': 'تخته‌ای چهارخانه برای حوزه‌های زندگی‌ات — نام خانه‌ها را به دلخواه خودت عوض کن (زندگی شخصی، مالی…). پنل کنار همین آیکن هر کار را زیر خانهٔ خودش فهرست می‌کند.',
+      'tour.projects': 'پروژه‌ها',
+      'tour.projectsBody': 'هر پروژه تختهٔ پیشرفت، اسپرینت، فایل و تاریخچهٔ خودش را دارد. یکی را از پنل همین آیکن باز کن.',
+      'tour.ideas': 'ایده‌ها',
+      'tour.ideasBody': 'قفسهٔ جرقه‌ها: اول ثبت کن، بعد سرراست در پوشه‌ها بایبان. پنل، ایده‌هایت را زیر پوشه‌هایشان گروه می‌کند.',
+      'tour.notes': 'یادداشت‌ها',
+      'tour.notesBody': 'گاوصندوق نوشته‌های بلند — پوشه‌ها، مارک‌داون، چک‌لیست، بلوک‌های کد و چوب‌دستی جادویی هوش مصنوعی.',
+      'tour.calendar': 'تقویم',
+      'tour.calendarBody': 'سررسیدهای پروژه‌ها و کارها در یک نمای ماهانه. کاربران فارسی همه‌جا تقویم جلالی می‌گیرند.',
+      'tour.account': 'حساب تو',
+      'tour.accountBody': 'آواتارت را نگه دار تا اعلان‌ها، گزارش‌ها، گالری، بوم و برگه یادداشت و تنظیمات را ببینی — زبان و پوسته در تنظیمات‌اند.',
       'tour.fab': 'ثبت سریع',
-      'tour.fabBody': 'دکمهٔ + را بزن تا در چند ثانیه یک ایده یا پروژه ثبت کنی.',
+      'tour.fabBody': 'دکمهٔ + در چند ثانیه یک کار، ایده یا یادداشت ثبت می‌کند — از هر صفحه‌ای. Ctrl+N هم کار می‌کند.',
       'tour.theme': 'روشن / تیره',
-      'tour.themeBody': 'پوسته را اینجا تغییر بده — در موبایل داخل منوی بیشتر (⋯) است. کاربران فارسی همچنین تقویم جلالی می‌گیرند.',
+      'tour.themeBody': 'با یک کلیک بین روشن و تیرهٔ کلود جابه‌جا شو. در موبایل کلید داخل منوی بیشتر (⋯) است.',
       'tour.done': 'همه چیز آماده است',
-      'tour.doneBody': 'هر وقت خواستی ? را بزن تا همهٔ میان‌برها را ببینی. ساختنِ خوبی!',
+      'tour.doneBody': 'هر وقت خواستی ? را بزن تا همهٔ میان‌برها را ببینی — و این تور را از آیکن راهنمای پایین ریل دوباره پخش کن.',
       'tour.next': 'بعدی', 'tour.skip': 'رد کردن', 'tour.prev': 'قبلی', 'tour.step': 'گام',
       // R5.2: dashboard counter animation
       // common
@@ -132,6 +162,9 @@ window.__hibanaDictFA = {
       'settings.pageWidth': 'عرض صفحه',
       'settings.widthStandard': 'استاندارد (۱۳۶۶ پیکسل)', 'settings.widthFull': 'تمام‌عرض',
       'settings.pageWidthHint': 'همهٔ صفحه‌ها را با یک عرض یکسان نمایش می‌دهد.',
+      // S89: the offline-sync row (the badge's new home — Settings → Preferences)
+      'settings.syncTitle': 'همگام‌سازی آفلاین',
+      'settings.syncIdle': 'همهٔ تغییرات همگام شده',
       'common.edit': 'ویرایش', 'common.add': 'افزودن', 'common.loading': 'در حال بارگذاری…',
       // sadhana page (quadrant task board, spec 2026-08-25)
       'sadhana.title': 'عنوان', 'sadhana.emoji': 'ایموجی',

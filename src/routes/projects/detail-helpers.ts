@@ -610,6 +610,12 @@ export function detailHtml(p: ProjectRow, d: Awaited<ReturnType<typeof loadDetai
         <h3 id="pd-taskadd-title">${trL(lang, 'Create a new task', 'ایجاد یک کار جدید')}</h3>
         <button type="button" class="ghost" id="pd-taskadd-close" aria-label="${trL(lang, 'Close', 'بستن')}">${icon('x')}</button>
       </div>
+      <!-- S89 (owner item: the "Create a new task" modal's scroll fix): everything
+           between the header and the footer lives in ONE scroll region
+           (.pd-modal-body, overflow-y auto) — the header (title + ✕) and the footer
+           (Add/Cancel) never scroll away, however long the content or how many files
+           are staged. The dialog + form are overflow:hidden flex columns. -->
+      <div class="pd-modal-body">
       <div class="pd-taskadd-col muted small">${trL(lang, 'Lands in', 'ثبت در')} <span class="chip" id="pd-taskadd-col-chip"></span></div>
       <div class="pd-tb" role="toolbar" aria-label="${trL(lang, 'Formatting', 'قالب‌بندی')}">
         <button type="button" class="pd-tb-btn" data-tb="bold" title="${trL(lang, 'Bold (**text**)', 'پررنگ (**متن**)')}" aria-label="${trL(lang, 'Bold', 'پررنگ')}"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 5h6a3.5 3.5 0 1 1 0 7H7zM7 12h7a3.5 3.5 0 1 1 0 7H7z"/></svg></button>
@@ -692,6 +698,7 @@ export function detailHtml(p: ProjectRow, d: Awaited<ReturnType<typeof loadDetai
         <span class="muted small">${trL(lang, 'Enter adds · Shift+Enter new line · Esc closes', 'Enter برای افزودن · Shift+Enter خط جدید · Esc برای بستن')}</span>
       </div>
       <p class="error" id="pd-taskadd-error" role="alert" hidden></p>
+      </div>
       <div class="row pd-taskadd-actions">
         <button type="submit" id="pd-taskadd-save">${icon('plus')} ${trL(lang, 'Add', 'افزودن')}</button>
         <button type="button" class="ghost" id="pd-taskadd-cancel">${trL(lang, 'Cancel', 'لغو')}</button>

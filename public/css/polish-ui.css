@@ -710,6 +710,30 @@ body.has-mobile-nav { padding-block-end: calc(3.75rem + env(safe-area-inset-bott
   background: var(--card); color: var(--text); inline-size: 100%;
 }
 .settings-section select:hover, .settings-section input:hover { border-color: var(--line-strong); }
+/* S89: the offline-sync row in Settings → Preferences — the badge's ONE home now
+   (it left the rail + brand bar). Same label/hint rhythm as the section's <label>
+   rows, but a flex row so the amber retry chip (hidden while the queue is empty —
+   hib-init.js paints it) sits opposite the copy. The status line carries an amber
+   tint while captures wait (.is-waiting) so the row reads at a glance. */
+.settings-sync-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.7rem 0.8rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--bg-soft);
+}
+.settings-sync-copy { display: grid; gap: 0.25rem; align-items: start; min-inline-size: 0; }
+.settings-sync-copy > span:first-child { font-weight: 500; font-size: var(--fs-sm); }
+.settings-sync-copy .muted.small { color: var(--muted); font-size: var(--fs-xs); line-height: 1.4; opacity: 0.9; }
+.settings-sync-copy .muted.small.is-waiting {
+  color: var(--badge-awaiting-fg, #85620D);
+  font-weight: 600;
+  opacity: 1;
+}
+.settings-sync-retry { flex: none; } /* keeps the amber pill from squeezing on narrow cards */
 @media (max-width: 560px) {
   .settings-tab { font-size: var(--fs-md); padding: 0.4rem 0.6rem; }
 }

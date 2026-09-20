@@ -595,17 +595,65 @@ dialog.pd-taskedit-modal {
   max-inline-size: min(78rem, 96vw);
   max-block-size: min(88vh, 46rem);
 }
+/* S89 (owner item: the "Create a new task" modal's scroll fix) — the sticky
+   header/footer recipe, applied to BOTH task dialogs (the server-rendered
+   #pd-taskadd-modal composer + the client-built #pd-task-edit-modal editor).
+   The DIALOG never scrolls (overflow hidden — the old dialog.dialog recipe
+   scrolled the WHOLE thing, so the title row and the Add/Save footer scrolled
+   out of view the moment the content or the staged-files grid grew); the FORM
+   is a flex column capped at the SAME height as the dialog (they can never
+   disagree), and ONE middle region (.pd-modal-body) carries the scroll.
+   Nested-scroll isolation: a code block inside the content keeps its own
+   horizontal scroll (overflow-x) — the body's vertical wheel never fights it. */
+dialog.pd-taskadd-modal,
+dialog.pd-taskedit-modal { overflow: hidden; }
+form.pd-taskadd-inner,
+dialog.pd-taskedit-modal .modal {
+  display: flex;
+  flex-direction: column;
+  max-block-size: min(88vh, 46rem);   /* same cap as the dialog */
+  overflow: hidden;
+}
+.pd-modal-body {
+  flex: 1 1 auto;
+  min-block-size: 0;                  /* flex may shrink it below its content */
+  overflow-y: auto;
+  overscroll-behavior: contain;       /* the wheel never chains past the modal */
+  display: grid;                      /* the old field rhythm, now inside the region */
+  gap: 0.8rem;
+  scrollbar-gutter: stable;           /* no content shift when the bar appears */
+}
+dialog.pd-taskedit-modal .pd-modal-body { gap: 0.7rem; } /* matches its form gap */
+/* the sticky chrome: the header keeps its identity with a hairline; the footer
+   reads as the action bar it is — both pinned, never scrolled away. */
+.pd-taskadd-inner .pd-editor-head,
+dialog.pd-taskedit-modal .pde-head {
+  flex: none;
+  padding-block-end: 0.55rem;
+  border-block-end: 1px solid var(--line);
+}
+.pd-taskadd-actions,
+dialog.pd-taskedit-modal .pde-foot {
+  flex: none;
+  margin-block-start: 0.3rem;         /* + the form gap ≈ the old 1rem rhythm */
+  padding-block-start: 0.7rem;
+  border-block-start: 1px solid var(--line);
+}
 /* S48j (owner: "these buttons are too big in mobile, decrease their size both
    in PC and mobile"): the note actions row (Save note / Clear / Expand) gets
    compact buttons — smaller font, tighter padding, no min-height. */
 .pd-note-actions { gap: 0.3rem; }
 .pd-note-actions button { font-size: var(--fs-xs); padding: 0.3rem 0.55rem; min-block-size: auto; gap: 0.2rem; }
 .pd-note-actions .icon { inline-size: 0.9rem; block-size: 0.9rem; }
-  /* S46.2 (owner: "too much distance between it and the project title"): native <dialog>
-     UA style centers the modal vertically in the viewport (margin:auto in the top
-     layer), so on a tall viewport the modal floats mid-screen, far from the project
-     heading at the top. Anchoring it near the top (margin-block-start small,
-     margin-block-end auto) flips the UA flex-centering to start-aligned. */
+/* S46.2 (owner: "too much distance between it and the project title"): native <dialog>
+   UA style centers the modal vertically in the viewport (margin:auto in the top
+   layer), so on a tall viewport the modal floats mid-screen, far from the project
+   heading at the top. Anchoring it near the top (margin-block-start small,
+   margin-block-end auto) flips the UA flex-centering to start-aligned.
+   (S89: this rule had lost its SELECTOR in an earlier edit — the declarations
+   were dead CSS dropped by the parser; the selector is restored.) */
+dialog.pd-taskadd-modal,
+dialog.pd-taskedit-modal {
   margin-block-start: clamp(1rem, 4vh, 3rem);
   margin-block-end: auto;
 }
@@ -657,13 +705,18 @@ dialog.pd-taskedit-modal.pde-fullscreen {
   max-block-size: 100vh; block-size: 100vh;
   margin: 0; border-radius: 0;
 }
-dialog.pd-taskedit-modal.pde-fullscreen .modal { block-size: 100vh; padding: 1.5rem 2rem; gap: 0.8rem; }
+dialog.pd-taskedit-modal.pde-fullscreen .modal { block-size: 100vh; max-block-size: none; padding: 1.5rem 2rem; gap: 0.8rem; }
+/* S89: the fullscreen variant rides the new flex chain — the body stops
+   scrolling (overflow hidden), the content field stretches to fill it, and
+   #pde-input's old calc(100vh - 12rem) guess is replaced by an exact flex: 1. */
+dialog.pd-taskedit-modal.pde-fullscreen .pd-modal-body { display: flex; flex-direction: column; overflow: hidden; gap: 0.8rem; }
+dialog.pd-taskedit-modal.pde-fullscreen .pde-field { display: flex; flex-direction: column; flex: 1 1 auto; min-block-size: 0; gap: 0.3rem; }
+dialog.pd-taskedit-modal.pde-fullscreen #pde-input { min-block-size: 0; flex: 1; }
 /* S48d (owner: "when clicking FULLSCREEN, a full text editor must be opened"):
    the .pd-tb toolbar is now SHOWN in fullscreen (was hidden) so the user has
    the full formatting palette (bold/underline/strike/lists/alignment/code)
    while writing. The textarea fills the remaining space. */
 dialog.pd-taskedit-modal.pde-fullscreen .pd-tb { display: flex; flex-wrap: wrap; gap: 0.25rem; }
-dialog.pd-taskedit-modal.pde-fullscreen #pde-input { min-block-size: calc(100vh - 12rem); flex: 1; }
 dialog.pd-taskedit-modal.pde-fullscreen .pd-taskadd-shots,
 dialog.pd-taskedit-modal.pde-fullscreen .pd-opt,
 dialog.pd-taskedit-modal.pde-fullscreen .error,

@@ -28,17 +28,47 @@ window.__hibanaDictEN = {
       'rail.canvasHint': 'The boundless Canvas is a single board — open it to draw, pin notes, and frame regions.',
       'rail.notebookHint': 'The Notebook is your single whiteboard — open it to sketch and write freehand.',
       'rail.calendarHint': 'Deadlines from your projects and to-dos land here as they approach.',
+      // S89: the LABELED rail — a small text label rides under every icon
+      'rail.label.search': 'Search', 'rail.label.dashboard': 'Dashboard', 'rail.label.todo': 'To-do',
+      'rail.label.projects': 'Projects', 'rail.label.ideas': 'Ideas', 'rail.label.notes': 'Notes',
+      'rail.label.calendar': 'Calendar', 'rail.label.settings': 'Settings',
+      'rail.label.help': 'Help', 'rail.label.theme': 'Theme',
+      // S89: the to-do panel groups tasks under their QUADRANT (box) name —
+      // the same defaults the sadhana page carries, localized
+      'rail.q1': 'Today', 'rail.q2': 'Strategic', 'rail.q3': 'Urgent & High Value', 'rail.q4': 'Personal & Sentimental',
+      // S89: the calendar panel's real month grid
+      'rail.calPrev': 'Previous month', 'rail.calNext': 'Next month', 'rail.calDue': '{n} due',
       // S88: the markdown code-block copy affordance
       'md.copy': 'Copy code', 'md.copied': 'Copied',
-      // R5.1: onboarding tour
+      // R5.1: onboarding tour — S89: the full-app walk (13 steps)
+      'tour.welcome': 'Welcome to Hibana',
+      'tour.welcomeBody': 'A two-minute walk through the places you’ll live in — the rail on the left, the panel each icon opens, and capture everywhere. Skip anytime.',
       'tour.cmdk': 'Command palette',
       'tour.cmdkBody': 'Press Ctrl+K (or /) to search projects and jump anywhere instantly.',
+      'tour.rail': 'The navigation rail',
+      'tour.railBody': 'Every section sits on this rail — one icon and label per destination. The filled square marks where you are; clicking an icon opens its list panel beside the rail.',
+      'tour.search': 'Search & commands',
+      'tour.searchBody': 'Click here — or press Ctrl+K (⌘K) anywhere — to search every project, note and task, and jump straight to it.',
+      'tour.dash': 'Dashboard',
+      'tour.dashBody': 'Your day at a glance: continue where you left off, today’s to-dos, and live stats for every active project.',
+      'tour.todo': 'To-do list',
+      'tour.todoBody': 'A four-box board for your life areas — rename the boxes (Personal Life, Finance…). The panel beside this icon lists every task under its box.',
+      'tour.projects': 'Projects',
+      'tour.projectsBody': 'Each project carries a progress board, sprints, files and history. Open one from this icon’s panel.',
+      'tour.ideas': 'Ideas',
+      'tour.ideasBody': 'The spark shelf: capture first, file into folders later. The panel groups your ideas under their folders.',
+      'tour.notes': 'Notes',
+      'tour.notesBody': 'The long-form vault — folders, markdown, checklists, code blocks and the AI wand.',
+      'tour.calendar': 'Calendar',
+      'tour.calendarBody': 'Deadlines from projects and to-dos in one month view. Farsi users get the Jalali calendar throughout.',
+      'tour.account': 'Your account',
+      'tour.accountBody': 'Hover your avatar for notifications, reports, the gallery, Canvas & Notebook, and Settings — language and theme live in Settings.',
       'tour.fab': 'Quick capture',
-      'tour.fabBody': 'Tap the + button to capture a new idea or project in seconds.',
+      'tour.fabBody': 'The + button captures a new task, idea or note in seconds — from any page. Ctrl+N works too.',
       'tour.theme': 'Light / dark',
-      'tour.themeBody': 'Toggle the theme here — on mobile it lives in the More (⋯) menu. Farsi users also get the Jalali calendar.',
+      'tour.themeBody': 'One click switches between light and Claude dark. On mobile the toggle lives in the More (⋯) menu.',
       'tour.done': 'You’re all set',
-      'tour.doneBody': 'Press ? anytime to see all keyboard shortcuts. Happy building!',
+      'tour.doneBody': 'Press ? anytime for every keyboard shortcut — and replay this tour from the Help icon at the bottom of the rail.',
       'tour.next': 'Next', 'tour.skip': 'Skip', 'tour.prev': 'Back', 'tour.step': 'Step',
       // R5.2: dashboard counter animation
       // common
@@ -132,6 +162,9 @@ window.__hibanaDictEN = {
       'settings.pageWidth': 'Page width',
       'settings.widthStandard': 'Standard (1366 px)', 'settings.widthFull': 'Full-width',
       'settings.pageWidthHint': 'Applies the same content width to every page.',
+      // S89: the offline-sync row (the badge's new home — Settings → Preferences)
+      'settings.syncTitle': 'Offline sync',
+      'settings.syncIdle': 'All changes synced',
       'common.edit': 'Edit', 'common.add': 'Add', 'common.loading': 'Loading…',
       // sadhana page (quadrant task board, spec 2026-08-25)
       'sadhana.title': 'Title', 'sadhana.emoji': 'Emoji',

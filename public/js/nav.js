@@ -310,9 +310,10 @@
     projects: { href: '/projects.html', i18n: 'nav.projects', label: 'Projects' },
     sparks: { href: '/sparks.html', i18n: 'nav.sparks', label: 'Ideas' },
     notes: { href: '/notes.html', i18n: 'nav.notes', label: 'Notes' },
-    canvas: { href: '/canvas.html', i18n: 'nav.canvas', label: 'Canvas' },
-    notebook: { href: '/whiteboard.html', i18n: 'nav.whiteboard', label: 'Notebook' },
     calendar: { href: '/calendar.html', i18n: 'nav.calendar', label: 'Calendar' },
+    // S89: canvas + notebook LEFT THE RAIL (redundant beside Notes — the account
+    // menu links them now). Their panel sections are retired; a stale persisted
+    // 'hibana-rail-panel' value simply fails the RAIL_SECTIONS lookup and is ignored.
   }
   const RAIL_DONE = new Set(['operational'])
 
@@ -372,19 +373,36 @@
   }
 
   const renderRailTodos = (d) => {
-    const today = new Date().toISOString().slice(0, 10)
+    // S89 (owner request): the to-do panel classifies tasks under their QUADRANT /
+    // box name — "Personal Life / Finance / …" are the user's OWN renamed quadrant
+    // names (sadhana_quadrant_names; the defaults localize per UI language). The
+    // user's saved quadrant ORDER drives the group order (the dashboard's order
+    // mirrored); Today stays on top; done tasks ride their quadrant, open first.
     const todos = d.todos || []
-    const todayItems = todos.filter((t) => t.due_date === today).map((t) =>
-      railItem('/to-do-list', t.title, t.done ? 'done' : 'todo'))
-    const openItems = todos.filter((t) => !t.done && t.due_date !== today).map((t) =>
+    const today = new Date().toISOString().slice(0, 10)
+    const todayItems = todos.filter((t) => !t.done && t.due_date === today).map((t) =>
       railItem('/to-do-list', t.title, 'todo'))
-    const doneItems = todos.filter((t) => t.done).map((t) =>
-      railItem('/to-do-list', t.title, 'done'))
-    return [
-      railGroup(railT('rail.g.today', 'Today'), todayItems),
-      railGroup(railT('rail.g.all', 'All'), openItems),
-      railGroup(railT('rail.g.done', 'Done'), doneItems, { collapsed: true }),
-    ].join('') || '<div class="rail-panel-empty">' + escHtml(railT('rail.empty', 'Nothing here yet — open something and it will appear.')) + '</div>'
+    const custom = new Map((d.todoNames || []).map((r) => [r.quadrant, r.name]))
+    const DEF = {
+      1: ['rail.q1', 'Today'],
+      3: ['rail.q3', 'Urgent & High Value'],
+      2: ['rail.q2', 'Strategic'],
+      4: ['rail.q4', 'Personal & Sentimental'],
+    }
+    let order = [1, 3, 2, 4]
+    if (Array.isArray(d.todoOrder) && d.todoOrder.length) {
+      order = d.todoOrder.filter((q) => [1, 2, 3, 4].includes(q))
+    }
+    const parts = [railGroup(railT('rail.g.today', 'Today'), todayItems)]
+    for (const q of order) {
+      const label = custom.get(q) || railT(DEF[q][0], DEF[q][1])
+      const items = todos
+        .filter((t) => t.quadrant === q && !(t.due_date === today && !t.done))
+        .sort((a, b) => (a.done || 0) - (b.done || 0))
+        .map((t) => railItem('/to-do-list', t.title, t.done ? 'done' : 'todo'))
+      parts.push(railGroup(label, items))
+    }
+    return parts.join('') || '<div class="rail-panel-empty">' + escHtml(railT('rail.empty', 'Nothing here yet — open something and it will appear.')) + '</div>'
   }
 
   const renderRailProjects = (d) => {
@@ -402,10 +420,23 @@
   }
 
   const renderRailSparks = (d) => {
+    // S89 (owner request): ideas are shown UNDER THEIR FOLDERS — the same shelf
+    // anatomy as the Notes panel. Unfiled sparks first, then one group per spark
+    // folder (emoji icon when the folder has one), items inside.
     const sparks = d.sparks || []
-    const items = sparks.map((sp) => railItem('/sparks.html', sp.title, 'spark'))
-    return railGroup(railT('rail.g.all', 'All'), items) ||
-      '<div class="rail-panel-empty">' + escHtml(railT('rail.sparksEmpty', 'No ideas captured yet — the Ideas shelf fills as you spark.')) + '</div>'
+    const folders = d.sparkFolders || []
+    const sparkEmoji = (fid) => {
+      const f = folders.find((x) => x.id === fid)
+      return f && f.icon ? '<span class="rail-item-emoji" aria-hidden="true">' + escHtml(f.icon) + '</span>' : ''
+    }
+    const inFolder = (fid) => sparks.filter((sp) => sp.folder_id === fid).map((sp) =>
+      railItem('/sparks.html', sp.title, 'spark', sparkEmoji(fid)))
+    const unfiled = sparks.filter((sp) => !sp.folder_id).map((sp) =>
+      railItem('/sparks.html', sp.title, 'spark'))
+    return [
+      railGroup(railT('rail.g.unfiled', 'Unfiled'), unfiled),
+      folders.map((f) => railGroup(f.name, inFolder(f.id))).join(''),
+    ].join('') || '<div class="rail-panel-empty">' + escHtml(railT('rail.sparksEmpty', 'No ideas captured yet — the Ideas shelf fills as you spark.')) + '</div>'
   }
 
   const renderRailNotes = (d) => {
@@ -425,23 +456,170 @@
     ].join('') || '<div class="rail-panel-empty">' + escHtml(railT('rail.notesEmpty', 'No notes yet — the vault fills as you write.')) + '</div>'
   }
 
-  const renderRailCalendar = (d) => {
-    const today = new Date().toISOString().slice(0, 10)
-    const in7 = new Date(Date.now() + 7 * 86400000).toISOString().slice(0, 10)
-    const due = []
+  // --- S89: the CALENDAR section renders a REAL mini month grid -----------------
+  // The owner's report: clicking the Calendar rail icon opened an EMPTY sidebar.
+  // The panel now carries a compact month — Gregorian when the UI is English,
+  // Jalali when Farsi (the math inlined from calendar-page.js: the standard
+  // jalaali-js algorithm, zero deps, no vendor race), a weekday header, today's
+  // ring, per-day due dots off the SAME /api/rail deadlines, and ‹ › stepping.
+  // Day cells soft-navigate to /calendar.html; the due-next-7-days list follows.
+  const JC_BREAKS = [-61, 9, 38, 199, 426, 686, 756, 818, 1111, 1181, 1210, 1635, 2060, 2097, 2192, 2262, 2324, 2394, 2456, 3178]
+  const jcDiv = (a, b) => ~~(a / b)
+  const jcMod = (a, b) => a - ~~(a / b) * b
+  function jcJalCal(jy) {
+    const bl = JC_BREAKS.length
+    const gy = jy + 621
+    let leapJ = -14, jp = JC_BREAKS[0], jm = 0, jump = 0
+    for (let i = 1; i < bl; i++) { jm = JC_BREAKS[i]; jump = jm - jp; if (jy < jm) break; leapJ += jcDiv(jump, 33) * 8 + jcDiv(jcMod(jump, 33), 4); jp = jm }
+    let n = jy - jp
+    leapJ += jcDiv(n, 33) * 8 + jcDiv(jcMod(n, 33) + 3, 4)
+    if (jcMod(jump, 33) === 4 && jump - n === 4) leapJ += 1
+    const leapG = jcDiv(gy, 4) - jcDiv((jcDiv(gy, 100) + 1) * 3, 4) - 150
+    const march = 20 + leapJ - leapG
+    if (jump - n < 6) n = n - jump + jcDiv(jump + 4, 33) * 33
+    let leap = jcMod(jcMod(n + 1, 33) - 1, 4)
+    if (leap === -1) leap = 4
+    return { leap, gy, march }
+  }
+  function jcG2D(gy, gm, gd) {
+    let d = jcDiv((gy + jcDiv(gm - 8, 6) + 100100) * 1461, 4) + jcDiv(153 * jcMod(gm + 9, 12) + 2, 5) + gd - 34840408
+    d = d - jcDiv(jcDiv(gy + 100100 + jcDiv(gm - 8, 6), 100) * 3, 4) + 752
+    return d
+  }
+  function jcD2G(jdn) {
+    let j = 4 * jdn + 139361631
+    j = j + jcDiv(jcDiv(4 * jdn + 183187720, 146097) * 3, 4) * 4 - 3908
+    const i = jcDiv(jcMod(j, 1461), 4) * 5 + 308
+    return { gy: jcDiv(j, 1461) - 100100 + jcDiv(7 - jcMod(jcDiv(i, 153), 12), 6), gm: jcMod(jcDiv(i, 153), 12) + 1, gd: jcMod(jcDiv(i, 153), 5) + 1 }
+  }
+  function jcD2J(jdn) {
+    let gy = jcD2G(jdn).gy, jy = gy - 621
+    const r = jcJalCal(jy), jdn1f = jcG2D(gy, 3, r.march)
+    let k = jdn - jdn1f
+    if (k >= 0) { if (k <= 185) return { jy, jm: 1 + jcDiv(k, 31), jd: jcMod(k, 31) + 1 }; k -= 186 }
+    else { jy -= 1; k += 179; if (r.leap === 1) k += 1 }
+    return { jy, jm: 7 + jcDiv(k, 30), jd: jcMod(k, 30) + 1 }
+  }
+  function jcJ2D(jy, jm, jd) { const r = jcJalCal(jy); return jcG2D(r.gy, 3, r.march) + (jm - 1) * 31 - jcDiv(jm, 7) * (jm - 7) + jd - 1 }
+  const jcToJ = (gy, gm, gd) => jcD2J(jcG2D(gy, gm, gd))
+  const jcToG = (jy, jm, jd) => jcD2G(jcJ2D(jy, jm, jd))
+  const JC_MONTHS_FA = ['فروردین', 'اردیبهشت', 'خرداد', 'تیر', 'مرداد', 'شهریور', 'مهر', 'آبان', 'آذر', 'دی', 'بهمن', 'اسفند']
+  const EN_MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
+  const DOW_FA = ['ش', 'ی', 'د', 'س', 'چ', 'پ', 'ج'] // Saturday-first
+  const DOW_EN = ['S', 'M', 'T', 'W', 'T', 'F', 'S'] // Sunday-first
+  let railCalMonth = null // Gregorian { y, m } anchor of the displayed month
+
+  const railCalDueMap = (d) => {
+    const map = new Map() // ISO → [{ kind }]
     for (const p of d.projects || []) {
-      if (p.due_date && p.due_date >= today && p.due_date <= in7) due.push(railItem('/project.html?id=' + encodeURIComponent(p.id), p.title + ' · ' + p.due_date, p.status))
+      if (!p.due_date) continue
+      const list = map.get(p.due_date) || []
+      list.push({ kind: p.status })
+      map.set(p.due_date, list)
     }
     for (const t of d.todos || []) {
-      if (t.due_date && t.due_date >= today && t.due_date <= in7 && !t.done) due.push(railItem('/to-do-list', t.title + ' · ' + t.due_date, 'todo'))
+      if (!t.due_date) continue
+      const list = map.get(t.due_date) || []
+      list.push({ kind: t.done ? 'done' : 'todo' })
+      map.set(t.due_date, list)
     }
-    due.sort()
-    const groups = railGroup(railT('rail.g.dueSoon', 'Due next 7 days'), due)
-    return groups + '<div class="rail-panel-empty">' + escHtml(railT('rail.calendarHint', 'Deadlines from your projects and to-dos land here as they approach.')) + '</div>'
+    return map
   }
 
-  const renderRailHint = (hintKey, fallback) =>
-    '<div class="rail-panel-empty">' + escHtml(railT(hintKey, fallback)) + '</div>'
+  const renderRailCalendar = (d) => {
+    const lang = window.hibanaI18n?.lang?.() || 'en'
+    const fa = lang === 'fa'
+    const faDig = (s) => (fa ? String(s).replace(/\d/g, (x) => '۰۱۲۳۴۵۶۷۸۹'[+x]) : String(s))
+    const pad = (n) => String(n).padStart(2, '0')
+    const isoOf = (y, m, dd) => y + '-' + pad(m + 1) + '-' + pad(dd)
+    if (!railCalMonth) {
+      const t = new Date()
+      railCalMonth = { y: t.getFullYear(), m: t.getMonth() }
+    }
+    // The DISPLAYED month. Gregorian anchor {y,m} → the month of that system
+    // containing the anchor's 15th (mid-month keeps conversion off month edges).
+    const mid = new Date(railCalMonth.y, railCalMonth.m, 15)
+    let title, gridStart, days, dayNum
+    if (fa) {
+      const j = jcToJ(mid.getFullYear(), mid.getMonth() + 1, mid.getDate())
+      const start = jcToG(j.jy, j.jm, 1)
+      gridStart = new Date(start.gy, start.gm - 1, start.gd)
+      days = j.jm <= 6 ? 31 : j.jm <= 11 ? 30 : (jcJalCal(j.jy).leap === 0 ? 30 : 29)
+      title = JC_MONTHS_FA[j.jm - 1] + ' ' + faDig(j.jy)
+      dayNum = (i) => faDig(i)
+    } else {
+      gridStart = new Date(railCalMonth.y, railCalMonth.m, 1)
+      days = new Date(railCalMonth.y, railCalMonth.m + 1, 0).getDate()
+      title = EN_MONTHS[railCalMonth.m] + ' ' + railCalMonth.y
+      dayNum = (i) => String(i)
+    }
+    const due = railCalDueMap(d)
+    const todayISO = new Date().toISOString().slice(0, 10)
+    // Weekday offset: fa weeks start Saturday ((getDay()+1)%7), en Sunday.
+    const firstDow = fa ? (gridStart.getDay() + 1) % 7 : gridStart.getDay()
+    const dows = (fa ? DOW_FA : DOW_EN).map((w) => '<span class="rail-cal-dow" aria-hidden="true">' + w + '</span>').join('')
+    const cells = []
+    for (let i = 0; i < firstDow; i++) cells.push('<span class="rail-cal-day" aria-hidden="true"></span>')
+    for (let i = 1; i <= days; i++) {
+      const iso = isoOf(gridStart.getFullYear(), gridStart.getMonth(), i)
+      const list = due.get(iso) || []
+      const dots = list.slice(0, 3).map((x) => '<i data-kind="' + escHtml(x.kind) + '" aria-hidden="true"></i>').join('')
+      const dotsEl = list.length ? '<span class="rail-cal-dots" aria-hidden="true">' + dots + '</span>' : ''
+      const dueTitle = list.length ? ' title="' + escHtml(railT('rail.calDue', '{n} due').split('{n}').join(faDig(list.length))) + '"' : ''
+      cells.push(
+        '<button type="button" class="rail-cal-day' + (iso === todayISO ? ' is-today' : '') + '" data-rail-cal-day="' + iso + '"' + dueTitle + '>' +
+        dayNum(i) + dotsEl + '</button>')
+    }
+    const grid = '<div class="rail-cal-grid" dir="' + (fa ? 'rtl' : 'ltr') + '">' + dows + cells.join('') + '</div>'
+    const head =
+      '<div class="rail-cal-head">' +
+      '<button type="button" class="rail-cal-nav" data-rail-cal-nav="-1" aria-label="' + escHtml(railT('rail.calPrev', 'Previous month')) + '"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m15 6-6 6 6 6"/></svg></button>' +
+      '<span class="rail-cal-title" aria-live="polite">' + escHtml(title) + '</span>' +
+      '<button type="button" class="rail-cal-nav" data-rail-cal-nav="1" aria-label="' + escHtml(railT('rail.calNext', 'Next month')) + '"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg></button>' +
+      '</div>'
+    // The due-next-7-days list under the grid (the S88 data, kept).
+    const in7 = new Date(Date.now() + 7 * 86400000).toISOString().slice(0, 10)
+    const dueItems = []
+    for (const p of d.projects || []) {
+      if (p.due_date && p.due_date >= todayISO && p.due_date <= in7) dueItems.push(railItem('/project.html?id=' + encodeURIComponent(p.id), p.title + ' · ' + p.due_date, p.status))
+    }
+    for (const t of d.todos || []) {
+      if (t.due_date && t.due_date >= todayISO && t.due_date <= in7 && !t.done) dueItems.push(railItem('/to-do-list', t.title + ' · ' + t.due_date, 'todo'))
+    }
+    dueItems.sort()
+    return '<div class="rail-cal">' + head + grid + '</div>' +
+      railGroup(railT('rail.g.dueSoon', 'Due next 7 days'), dueItems) +
+      '<div class="rail-panel-empty">' + escHtml(railT('rail.calendarHint', 'Deadlines from your projects and to-dos land here as they approach.')) + '</div>'
+  }
+
+  // Month stepping: ± one month of the DISPLAYED system (Jalali when fa) — the
+  // anchor moves by that system's month so the title never desyncs from the grid.
+  const railCalStep = (dir) => {
+    const lang = window.hibanaI18n?.lang?.() || 'en'
+    if (!railCalMonth) return null
+    if (lang !== 'fa') {
+      const d = new Date(railCalMonth.y, railCalMonth.m + dir, 1)
+      return { y: d.getFullYear(), m: d.getMonth() }
+    }
+    const mid = new Date(railCalMonth.y, railCalMonth.m, 15)
+    const j = jcToJ(mid.getFullYear(), mid.getMonth() + 1, mid.getDate())
+    let jm = j.jm + dir, jy = j.jy
+    if (jm > 12) { jm = 1; jy++ }
+    if (jm < 1) { jm = 12; jy-- }
+    const g = jcToG(jy, jm, 1)
+    return { y: g.gy, m: g.gm - 1 }
+  }
+
+  // The section→body switch, shared by the async panel render AND the calendar's
+  // in-place month stepping (which re-renders from the CACHED payload).
+  const railBodyFor = (section, data) => {
+    if (section === 'todo') return renderRailTodos(data)
+    if (section === 'projects') return renderRailProjects(data)
+    if (section === 'sparks') return renderRailSparks(data)
+    if (section === 'notes') return renderRailNotes(data)
+    if (section === 'calendar') return renderRailCalendar(data)
+    return ''
+  }
 
   async function renderRailPanel() {
     const box = railBox()
@@ -461,14 +639,6 @@
       box.innerHTML = head + '<div class="rail-panel-body">' + renderRailDashboard() + '</div>'
       return
     }
-    if (railSection === 'canvas') {
-      box.innerHTML = head + '<div class="rail-panel-body">' + renderRailHint('rail.canvasHint', 'The boundless Canvas is a single board — open it to draw, pin notes, and frame regions.') + '</div>'
-      return
-    }
-    if (railSection === 'notebook') {
-      box.innerHTML = head + '<div class="rail-panel-body">' + renderRailHint('rail.notebookHint', 'The Notebook is your single whiteboard — open it to sketch and write freehand.') + '</div>'
-      return
-    }
     box.innerHTML = head + '<div class="rail-panel-body"><div class="rail-panel-loading">' + escHtml(railT('rail.loading', 'Loading…')) + '</div></div>'
     let data
     try { data = await loadRailData() } catch {
@@ -478,13 +648,7 @@
     }
     // a section switch (or close) superseded this render
     if (!railSection || railBox() !== box) return
-    let body = ''
-    if (railSection === 'todo') body = renderRailTodos(data)
-    else if (railSection === 'projects') body = renderRailProjects(data)
-    else if (railSection === 'sparks') body = renderRailSparks(data)
-    else if (railSection === 'notes') body = renderRailNotes(data)
-    else if (railSection === 'calendar') body = renderRailCalendar(data)
-    box.innerHTML = head + '<div class="rail-panel-body">' + body + '</div>'
+    box.innerHTML = head + '<div class="rail-panel-body">' + railBodyFor(railSection, data) + '</div>'
   }
 
   function markRailIcons() {
@@ -528,9 +692,31 @@
   }, true)
 
   // Panel-internal controls (delegated — the panel re-renders constantly):
-  // ✕ closes; a group head collapses/expands; the Help icon replays the tour.
+  // ✕ closes; a group head collapses/expands; the calendar's ‹ › steps the month
+  // (re-rendered from the CACHED /api/rail payload — zero extra requests); a day
+  // cell opens the full Calendar page; the Help icon replays the tour.
   document.addEventListener('click', (e) => {
     if (e.target.closest ? e.target.closest('[data-rail-close]') : null) { closeRailPanel(); return }
+    const calNav = e.target.closest ? e.target.closest('[data-rail-cal-nav]') : null
+    if (calNav) {
+      const next = railCalStep(Number(calNav.getAttribute('data-rail-cal-nav')) || 0)
+      if (next && railData) {
+        railCalMonth = next
+        const box = railBox()
+        if (box && railSection) {
+          const body = box.querySelector('.rail-panel-body')
+          if (body) body.innerHTML = railBodyFor(railSection, railData)
+        }
+      }
+      return
+    }
+    const calDay = e.target.closest ? e.target.closest('[data-rail-cal-day]') : null
+    if (calDay) {
+      e.preventDefault()
+      e.stopPropagation()
+      go('/calendar.html')
+      return
+    }
     const groupHead = e.target.closest ? e.target.closest('[data-rail-group]') : null
     if (groupHead) {
       const group = groupHead.closest('.rail-group')

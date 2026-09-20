@@ -200,12 +200,21 @@ const DIRECTION_RULES: Record<TranslateTarget, string> = {
     'Your ENTIRE output MUST be written in Persian (Farsi) script. NEVER output English prose.',
     'English characters are allowed ONLY inside code, URLs, file paths, command names, and brand identifiers that must stay verbatim.',
     'Produce natural, fluent, idiomatic Persian.',
+    // S88 (owner report: EN input → the model answered with Persian ADVICE about how
+    // to translate instead of the translation — «برای ترجمه متن انگلیسی باید مطمئن
+    // شوید…»). The direction check passes (it IS Persian) so the slop reached the
+    // preview. The prompt now pins the CONTRACT: the user message is material, never
+    // a request for help.
+    'The user message is ONLY the material to translate — it is never a question, never a request for help or advice about translation.',
+    'Never explain how to translate, never give instructions, tips, steps, or examples. Output ONLY the translation itself.',
   ].join(' '),
   en: [
     'CRITICAL DIRECTION RULE: translate the text INTO English.',
     'Your ENTIRE output MUST be in English. NEVER output Persian/Farsi prose.',
     'Persian script is allowed ONLY inside quoted proper nouns the user must keep verbatim.',
     'Produce natural, fluent, idiomatic English.',
+    'The user message is ONLY the material to translate — it is never a question, never a request for help or advice about translation.',
+    'Never explain how to translate, never give instructions, tips, steps, or examples. Output ONLY the translation itself.',
   ].join(' '),
 }
 
@@ -232,6 +241,30 @@ export function directionOk(text: string, target: TranslateTarget): boolean {
   const { fa, en } = countScripts(text)
   if (fa === 0 && en === 0) return true
   return target === 'fa' ? fa > en : en > fa
+}
+
+// --- S88: translation-slop guard -------------------------------------------------
+// The direction check verifies the SCRIPT, not the JOB. The owner's live failure: an
+// English note → the model returned ~1,400 chars of Persian ADVICE about translation
+// («برای ترجمه متن انگلیسی به فارسی باید مطمئن شوید…» + a Google-Translate how-to +
+// a python snippet). Persian script → directionOk passes → slop served as a
+// "translation". Two signals catch it deterministically:
+//   1. RUNAWAY LENGTH — a translation of a note rarely balloons past ~2.5× the input
+//      (EN→FA usually SHRINKS); slop multiplies the input several-fold.
+//   2. META VOCABULARY — the output talks ABOUT translating (words like ترجمه /
+//      "translate" / "make sure" / "Google Translate") while the INPUT never mentioned
+//      the topic. A note that IS about translation keeps its words — the input check
+//      is what keeps legit translations of translation-themed notes passing.
+const SLOP_META_RE =
+  /ترجمه|مترجم|دکمه\s*ترجمه|باید\s*مطمئن\s*شوید|در\s*صورت\s*استفاده\s*از|گوگل\s*ترنسلیت|google\s*translate|how\s+to\s+translate|you\s+(?:must|should|can)\s+(?:make\s+sure|set|use|select|press|click)/i
+
+export function looksLikeSlop(output: string, input: string): boolean {
+  const inN = Math.max(Array.from(input).length, 1)
+  const outN = Array.from(output).length
+  const runaway = outN > inN * 2.5 && outN - inN > 120
+  const metaOut = SLOP_META_RE.test(output)
+  const metaIn = SLOP_META_RE.test(input) || /translate|translation|ترجمه|گوگل|google/i.test(input)
+  return (runaway && metaOut) || (metaOut && !metaIn && outN > inN * 1.5)
 }
 
 /** Detect the DOMINANT script of the input (the client mirror of the same heuristic —
@@ -352,9 +385,10 @@ function extractAnswer(res: AiRunResult): string | null {
  *  silently falls back to the default (the route already validates, this is defense).
  *
  *  `targetLang` (S77, translate): after the first response, the OUTPUT SCRIPT is verified
- *  against the requested direction. A same-language answer (the live FA→FA paraphrase
- *  failure) gets ONE amplified retry; a second failure returns `wrong_language` — an
- *  honest error beats a “translation” that didn't translate.
+ *  against the requested direction, and (S88) the output is checked for translation-SLOP
+ *  — advice about translating instead of a translation. A same-language answer or slop
+ *  gets ONE amplified retry; a second failure returns `wrong_language` /
+ *  `not_a_translation` — an honest error beats a "translation" that didn't translate.
  *
  *  NB: `response_format` is deliberately NOT set. qwen3-30b-a3b-fp8 rejects
  *  `{ type: 'text' }` (it only accepts json_object/json_schema), and the prompt already
@@ -382,28 +416,38 @@ export async function runAiTransform(
     if (typeof raw !== 'string' || raw.trim() === '') {
       return { ok: false, error: 'empty_response' }
     }
-    // S77: verify the translate direction. Wrong script → ONE amplified retry; still
-    // wrong → wrong_language (the route shows a clear, localized “did not translate”
-    // toast — never a silent same-language suggestion).
-    if (action === 'translate' && targetLang && !directionOk(raw, targetLang)) {
-      const amplified =
-        targetLang === 'fa'
-          ? 'IMPORTANT: your previous answer was NOT in Persian. Answer AGAIN, entirely in Persian (Farsi) script. This is a translation task — every sentence of prose must be Persian.'
-          : 'IMPORTANT: your previous answer was NOT in English. Answer AGAIN, entirely in English. This is a translation task — every sentence of prose must be English.'
-      const retry = await ai.run(resolved, {
-        messages: [
-          ...buildMessages(action, text, customPrompt, targetLang),
-          { role: 'assistant', content: raw },
-          { role: 'user', content: amplified + '\n\n' + text },
-        ],
-        temperature: 0.2,
-        max_tokens: MAX_OUTPUT_TOKENS,
-      })
-      const retryRaw = extractAnswer(retry)
-      if (typeof retryRaw !== 'string' || retryRaw.trim() === '' || !directionOk(retryRaw, targetLang)) {
-        return { ok: false, error: 'wrong_language' }
+    // S77 + S88: verify the translate direction AND the job itself. Wrong script OR
+    // slop (advice about translating) → ONE amplified retry; still bad → an honest
+    // error (the route shows a clear, localized toast — never a silent fake
+    // "translation").
+    if (action === 'translate' && targetLang) {
+      const dirBad = !directionOk(raw, targetLang)
+      const slopBad = !dirBad && looksLikeSlop(raw, text)
+      if (dirBad || slopBad) {
+        const amplify = dirBad
+          ? targetLang === 'fa'
+            ? 'IMPORTANT: your previous answer was NOT in Persian. Answer AGAIN, entirely in Persian (Farsi) script. This is a translation task — every sentence of prose must be Persian.'
+            : 'IMPORTANT: your previous answer was NOT in English. Answer AGAIN, entirely in English. This is a translation task — every sentence of prose must be English.'
+          : targetLang === 'fa'
+            ? 'IMPORTANT: your previous answer was NOT the translation — it was advice ABOUT translating. This is not a help request. Do not explain, instruct, or advise. Answer AGAIN with ONLY the Persian (Farsi) translation of the text, nothing else.'
+            : 'IMPORTANT: your previous answer was NOT the translation — it was advice ABOUT translating. This is not a help request. Do not explain, instruct, or advise. Answer AGAIN with ONLY the English translation of the text, nothing else.'
+        const retry = await ai.run(resolved, {
+          messages: [
+            ...buildMessages(action, text, customPrompt, targetLang),
+            { role: 'assistant', content: raw },
+            { role: 'user', content: amplify + '\n\n' + text },
+          ],
+          temperature: 0.2,
+          max_tokens: MAX_OUTPUT_TOKENS,
+        })
+        const retryRaw = extractAnswer(retry)
+        if (typeof retryRaw !== 'string' || retryRaw.trim() === '') {
+          return { ok: false, error: dirBad ? 'wrong_language' : 'not_a_translation' }
+        }
+        if (!directionOk(retryRaw, targetLang)) return { ok: false, error: 'wrong_language' }
+        if (looksLikeSlop(retryRaw, text)) return { ok: false, error: 'not_a_translation' }
+        raw = retryRaw
       }
-      raw = retryRaw
     }
     return { ok: true, text: stripAccidentalWrappers(raw) }
   } catch {

@@ -514,6 +514,11 @@ details.dash-todo-menu:not([open]) .dash-todo-menu-pop { display: none; }
   .dash-todo-menu { opacity: 1; }
 }
 @media (max-width: 900px) { .dash-todo-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+/* S88: the rail's secondary panel pushes the shell by --rail-panel-w — viewport media
+   queries over-measure there (1280px viewport, ~936px content). Step the quadrant
+   grid down to 2 columns while the panel is open so the todo cards keep readable
+   rows (the ≤900px rule's content-equivalent). */
+body.rail-panel-open .dash-todo-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 /* ══ Session-12 (2026-09-15, user request): the phone TO-DO QUADRANTS are a SWIPE
    CAROUSEL ══ — "make the to-do-list quadrant only show 1 in mobile, the rest by
    swipe". The old ≤720px layout showed Q1|Q3 half-width side by side and HID Q2/Q4

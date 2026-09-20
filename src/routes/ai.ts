@@ -118,12 +118,16 @@ export function aiRoutes(cfg: Config): Hono {
           empty_response: 'The model returned no text. Try again.',
           ai_failed: 'The AI request failed. Your text was not changed.',
           wrong_language: 'The model answered in the wrong language — your text was not changed. Try again.',
+          // S88: the model wrote advice ABOUT translating instead of the translation —
+          // surfaced honestly instead of serving the slop as a "translation".
+          not_a_translation: 'The model replied with instructions instead of translating — your text was not changed. Try again.',
         },
         fa: {
           text_too_long: `متن خیلی طولانی است (حداکثر ${MAX_INPUT_CHARS} نویسه).`,
           empty_response: 'مدل خروجی نداد. دوباره امتحان کنید.',
           ai_failed: 'درخواست هوش مصنوعی ناموفق بود. متن شما تغییری نکرد.',
           wrong_language: 'مدل به زبان درست پاسخ نداد — متن شما تغییری نکرد. دوباره امتحان کنید.',
+          not_a_translation: 'مدل به‌جای ترجمه، توضیح و راهنما نوشت — متن شما تغییری نکرد. دوباره امتحان کنید.',
         },
       }
       throw new ApiError(ErrorCode.unavailable, messages[lang][result.error] ?? messages.en[result.error], 503)

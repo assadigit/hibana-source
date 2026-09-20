@@ -40,13 +40,79 @@ document.documentElement.setAttribute('data-hibana-booted', '1')
       // line like `[x](https://…)` keeps parsing as a link, never a task.
       const TASK_LINE_RE = /^[ \t]*(?:[-*+] )?\[([ xX])\](?:[ \t]+(.*))?$/gm
       const TASK_LINE_TEST = /^[ \t]*(?:[-*+] )?\[([ xX])\](?:[ \t]+(.*))?$/
+      /* ── S88 code blocks (owner: "mono font, smaller size, syntax coloring, a Copy
+         button") — the SAME contract as src/lib/markdown.ts (keep them in lockstep):
+         fences are pulled out of the RAW text (pre-escape) so the tokenizer sees real
+         quotes; each fence renders as a .md-code panel — lang chip + copy button
+         (data-md-copy; app.js owns the ONE delegated clipboard handler) + per-token
+         coloring. A BARE fence (no language tag) stays un-tokenized so plain-text
+         snippets never light up English words as keywords. ── */
+      const MD_HASH_LANGS = new Set(['py', 'python', 'sh', 'bash', 'zsh', 'shell', 'console', 'yaml', 'yml', 'toml', 'ini', 'conf', 'cfg', 'ruby', 'rb', 'r', 'perl', 'dockerfile', 'makefile', 'make', 'ps1'])
+      const MD_DASH_LANGS = new Set(['sql', 'lua', 'haskell', 'hs'])
+      const MD_KEYWORDS = new Set(['const', 'let', 'var', 'function', 'return', 'if', 'else', 'for', 'while', 'do', 'switch', 'case', 'default', 'break', 'continue', 'class', 'extends', 'implements', 'new', 'delete', 'typeof', 'instanceof', 'void', 'in', 'of', 'try', 'catch', 'finally', 'throw', 'yield', 'await', 'async', 'import', 'from', 'export', 'this', 'super', 'static', 'get', 'set', 'null', 'true', 'false', 'undefined', 'def', 'elif', 'lambda', 'pass', 'with', 'as', 'not', 'and', 'or', 'is', 'none', 'raise', 'except', 'assert', 'global', 'print', 'echo', 'exit', 'then', 'fi', 'done', 'esac', 'local', 'export', 'source', 'alias', 'unset', 'package', 'struct', 'impl', 'match', 'go', 'defer', 'chan', 'select', 'mut', 'crate', 'pub', 'nil', 'string', 'int', 'bool', 'float', 'select', 'insert', 'update', 'delete', 'where', 'join', 'left', 'right', 'inner', 'outer', 'create', 'table', 'index', 'values', 'group', 'order', 'by', 'having', 'limit'])
+      const MD_COPY_ICON = '<svg viewBox="0 0 24 24" width="13" height="13" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h8"/></svg>'
+      function highlightCode(code, lang) {
+        const langKey = String(lang || '').toLowerCase()
+        const commentAlts = [
+          /\/\*[\s\S]*?\*\//.source,
+          /\/\/[^\n]*/.source,
+          /<!--[\s\S]*?-->/.source,
+          MD_HASH_LANGS.has(langKey) ? /#[^\n]*/.source : '',
+          MD_DASH_LANGS.has(langKey) ? /--[^\n]*/.source : '',
+        ].filter(Boolean).join('|')
+        // string literals via regex-literal .source (avoids quote-escaping soup)
+        const strAlt = [
+          /"(?:\\.|[^"\\\n])*"/.source,
+          /'(?:\\.|[^'\\\n])*'/.source,
+          /`(?:\\.|[^`\\])*`/.source,
+        ].join('|')
+        const tokenRe = new RegExp(
+          '(' + commentAlts + ')' +
+          '|(' + strAlt + ')' +
+          '|(\\b\\d[\\d_]*(?:\\.\\d+)?(?:e[+-]?\\d+)?\\b)' +
+          '|([A-Za-z_$][\\w$]*)' +
+          '|([{}()\\[\\];]|[+\\-*/%=<>!&|^~?:@]+)',
+          'g')
+        let out = ''
+        let last = 0
+        for (const m of code.matchAll(tokenRe)) {
+          const idx = m.index || 0
+          if (idx > last) out += mdEscape(code.slice(last, idx))
+          last = idx + m[0].length
+          const full = m[0], com = m[1], str = m[2], num = m[3], ident = m[4], op = m[5]
+          if (com !== undefined) out += '<span class="md-tok-com">' + mdEscape(full) + '</span>'
+          else if (str !== undefined) out += '<span class="md-tok-str">' + mdEscape(full) + '</span>'
+          else if (num !== undefined) out += '<span class="md-tok-num">' + mdEscape(full) + '</span>'
+          else if (ident !== undefined) {
+            const isKw = MD_KEYWORDS.has(ident.toLowerCase())
+            const isFn = /^\s*[(]/.test(code.slice(last))
+            out += isKw ? '<span class="md-tok-kw">' + mdEscape(full) + '</span>'
+              : isFn ? '<span class="md-tok-fn">' + mdEscape(full) + '</span>'
+              : mdEscape(full)
+          } else if (op !== undefined) out += '<span class="md-tok-op">' + mdEscape(op) + '</span>'
+          else out += mdEscape(full)
+        }
+        if (last < code.length) out += mdEscape(code.slice(last))
+        return out
+      }
+      function renderCodeBlock(info, code) {
+        const lang = (String(info || '').split(/\s+/)[0] || '').toLowerCase()
+        const langLabel = lang ? mdEscape(lang) : 'text'
+        const body = lang ? highlightCode(code, lang) : mdEscape(code)
+        return '<div class="md-code" data-lang="' + langLabel + '" dir="ltr">' +
+          '<div class="md-code-bar"><span class="md-code-lang">' + langLabel + '</span>' +
+          '<button type="button" class="md-code-copy" data-md-copy aria-label="' + esc(_t('md.copy', 'Copy code')) + '">' + MD_COPY_ICON + '</button></div>' +
+          '<pre><code>' + body + '</code></pre>' +
+          '</div>'
+      }
       function renderMarkdown(src) {
-        let s = mdEscape(String(src ?? ''))
+        let s = String(src ?? '')
         const fences = []
-        s = s.replace(/```[^\n]*\n([\s\S]*?)```/g, (_m, code) => {
-          fences.push('<pre><code>' + code + '</code></pre>')
+        s = s.replace(/```([^\n]*)\n([\s\S]*?)```/g, (_m, info, code) => {
+          fences.push(renderCodeBlock(info, code))
           return '\x03' + (fences.length - 1) + '\x03'
         })
+        s = mdEscape(s)
         s = s.replace(/^### (.*)$/gm, '<h3>$1</h3>')
         s = s.replace(/^## (.*)$/gm, '<h2>$1</h2>')
         s = s.replace(/^# (.*)$/gm, '<h1>$1</h1>')
@@ -71,9 +137,9 @@ document.documentElement.setAttribute('data-hibana-booted', '1')
         s = s.replace(/__([^_]+)__/g, '<strong>$1</strong>')
         s = s.replace(/~~([^~]+)~~/g, '<del>$1</del>')
         s = s.replace(/(^|[^*])\*([^*\n]+)\*(?!\*)/g, '$1<em>$2</em>')
-        s = s.replace(/`([^`]+)`/g, '<code>$1</code>')
+        s = s.replace(/`([^`]+)`/g, '<code class="md-ic">$1</code>')
         s = s.split(/\n{2,}/).map((b) => b.trim()).filter(Boolean)
-          .map((b) => (/^<(h[1-6]|ul|ol|pre|blockquote|hr|\x03)/.test(b) ? b : '<p>' + b + '</p>'))
+          .map((b) => (/^<(h[1-6]|ul|ol|pre|blockquote|hr|div|\x03)/.test(b) ? b : '<p>' + b + '</p>'))
           .join('\n')
         s = s.replace(/([^>\n])\n(?=[^<\n])/g, '$1<br>\n')
         s = s.replace(/\x03(\d+)\x03/g, (_m, i) => fences[Number(i)] || '')
@@ -697,25 +763,74 @@ document.documentElement.setAttribute('data-hibana-booted', '1')
           // read mode hides the textarea (print does it via CSS) — nothing to cover
           if (state.mode === 'read' || ta.readOnly) { host.hidden = true; return }
           const v = String(ta.value)
-          // the common note pays ONE regex test; overlay work starts only when a
-          // checklist exists
-          if (!/^[ \t]*(?:[-*+] )?\[[ xX]\]/m.test(v)) { host.hidden = true; return }
-          host.hidden = false
-          // 1) mirror content: each task line's cover region split into TWO measurable
-          // spans — A = indent+bullet, B = marker+the spaces up to the text — so the
-          // control covers A∪B while the visible box sits exactly where the brackets
-          // sat (and the A→B order reveals the line's direction without heuristics)
           const lines = v.split('\n')
-          const marks = [] // { done }
+          // ── S88 parse pass 1: CLOSED fenced blocks (opening ``` … closing ```). An
+          // unclosed fence (mid-typing) shows raw — matching the preview's behavior
+          // (renderMarkdown only fences closed runs), so the editor never shows a
+          // panel the preview contradicts. Block lines (incl. the ``` lines) are
+          // covered whole; their task/inline markdown is CODE, not markup — the
+          // preview's taskIdx counts them the same way (fences leave first).
+          const blocks = [] // { lang, code, start, end } (line indexes, inclusive)
+          {
+            let open = -1
+            for (let i = 0; i < lines.length; i++) {
+              if (/^```/.test(lines[i])) {
+                if (open < 0) open = i
+                else {
+                  blocks.push({ lang: lines[open].slice(3).trim(), code: lines.slice(open + 1, i).join('\n'), start: open, end: i })
+                  open = -1
+                }
+              }
+            }
+          }
+          const blockOf = new Array(lines.length).fill(-1)
+          blocks.forEach((b, bi) => { for (let i = b.start; i <= b.end; i++) blockOf[i] = bi })
+          // ── detection: the common note pays ONE regex test per feature; overlay
+          // work starts only when at least one pretty surface exists
+          const hasTasks = lines.some((l, i) => blockOf[i] < 0 && TASK_LINE_TEST.test(l))
+          const hasInline = lines.some((l, i) => blockOf[i] < 0 && !TASK_LINE_TEST.test(l) && /`[^`\n]+`/.test(l))
+          if (!hasTasks && !hasInline && !blocks.length) { host.hidden = true; return }
+          host.hidden = false
+          // ── 1) mirror content. Task lines split into TWO measurable spans (A =
+          // indent+bullet, B = marker+spaces) so the control covers A∪B while the
+          // visible box sits exactly where the brackets sat. S88 adds: inline-code
+          // spans (data-mic — the chip covers the whole `…` region) and fenced-block
+          // lines (data-mbl — the panel covers the block's union rect). Everything
+          // else escapes verbatim so the mirror measures the textarea's true geometry.
+          const marks = [] // { done, cs, ce } — char range for the caret lift
+          const ics = [] // { text, cs, ce }
           let html = ''
-          for (const line of lines) {
-            const m = line.match(TASK_LINE_TEST)
-            if (m) {
-              const a = (/^[ \t]*(?:[-*+] )?/.exec(line) || [''])[0]
-              const b = (/^\[[ xX]\][ \t]*/.exec(line.slice(a.length)) || [''])[0]
-              html += '<span data-ma="' + marks.length + '">' + mdEscape(a) + '</span><span data-mk="' + marks.length + '">' + mdEscape(b) + '</span>' + mdEscape(line.slice(a.length + b.length)) + '\n'
-              marks.push({ done: m[1].toLowerCase() === 'x' })
-            } else html += mdEscape(line) + '\n'
+          let pos = 0
+          const lineCs = [] // char offset of each line start (for block covers)
+          for (let li = 0; li < lines.length; li++) {
+            const line = lines[li]
+            const ls = pos
+            const le = pos + line.length
+            lineCs.push(ls)
+            if (blockOf[li] >= 0) {
+              html += '<span data-mbl="' + blockOf[li] + '">' + mdEscape(line) + '</span>\n'
+            } else {
+              const m = line.match(TASK_LINE_TEST)
+              const icOnLine = !m && /`[^`\n]+`/.test(line)
+              if (m) {
+                const a = (/^[ \t]*(?:[-*+] )?/.exec(line) || [''])[0]
+                const b = (/^\[[ xX]\][ \t]*/.exec(line.slice(a.length)) || [''])[0]
+                html += '<span data-ma="' + marks.length + '">' + mdEscape(a) + '</span><span data-mk="' + marks.length + '" data-cs="' + ls + '" data-ce="' + le + '">' + mdEscape(b) + '</span>' + mdEscape(line.slice(a.length + b.length)) + '\n'
+                marks.push({ done: m[1].toLowerCase() === 'x', cs: ls, ce: le })
+              } else if (icOnLine) {
+                let out = ''
+                let last = 0
+                for (const mm of line.matchAll(/`([^`\n]+)`/g)) {
+                  const idx = mm.index || 0
+                  out += mdEscape(line.slice(last, idx))
+                  out += '<span data-mic="' + ics.length + '" data-cs="' + (ls + idx) + '" data-ce="' + (ls + idx + mm[0].length) + '">' + mdEscape(mm[0]) + '</span>'
+                  ics.push({ text: mm[1], cs: ls + idx, ce: ls + idx + mm[0].length })
+                  last = idx + mm[0].length
+                }
+                html += out + mdEscape(line.slice(last)) + '\n'
+              } else html += mdEscape(line) + '\n'
+            }
+            pos = le + 1
           }
           if (!liveMirrorEl) {
             liveMirrorEl = document.createElement('div')
@@ -760,6 +875,8 @@ document.documentElement.setAttribute('data-hibana-booted', '1')
             btn.setAttribute('role', 'checkbox')
             btn.setAttribute('aria-checked', String(!!mk.done))
             btn.setAttribute('aria-label', label)
+            btn.setAttribute('data-cs', String(mk.cs))
+            btn.setAttribute('data-ce', String(mk.ce))
             btn.style.top = (top - mrect.top) + 'px'
             btn.style.left = (left - mrect.left) + 'px'
             btn.style.width = Math.max(right - left, 20) + 'px'
@@ -772,16 +889,69 @@ document.documentElement.setAttribute('data-hibana-booted', '1')
             inner.appendChild(btn)
             k += 1
           }
+          // ── S88 inline-code chips: the `…` region becomes an opaque mono chip with
+          // < > tag glyphs at its edges (the owner's "clarify with < > tags") — code
+          // reads as code IN the editing surface, not just in the preview.
+          for (const el of mir.querySelectorAll('[data-mic]')) {
+            const i = Number(el.getAttribute('data-mic'))
+            const r = el.getBoundingClientRect()
+            if (r.width <= 0) continue
+            const chip = document.createElement('span')
+            chip.className = 'md-live-ic'
+            chip.setAttribute('aria-hidden', 'true')
+            chip.setAttribute('data-cs', el.getAttribute('data-cs'))
+            chip.setAttribute('data-ce', el.getAttribute('data-ce'))
+            chip.style.top = (r.top - mrect.top) + 'px'
+            chip.style.left = (r.left - mrect.left) + 'px'
+            chip.style.width = r.width + 'px'
+            chip.style.height = Math.max(r.height, 18) + 'px'
+            chip.innerHTML = '<i class="md-ic-tag" aria-hidden="true">&lt;</i><span class="md-ic-txt">' + mdEscape(ics[i].text) + '</span><i class="md-ic-tag" aria-hidden="true">&gt;</i>'
+            inner.appendChild(chip)
+          }
+          // ── S88 code-block panels: the block's union rect gets the SAME .md-code
+          // panel the preview renders (lang chip + token colors + copy button — the
+          // global [data-md-copy] delegation in app.js serves it). The panel is opaque
+          // over the raw ```…``` region; its own mono 0.85em content fits inside.
+          for (let bi = 0; bi < blocks.length; bi++) {
+            const spans = mir.querySelectorAll('[data-mbl="' + bi + '"]')
+            if (!spans.length) continue
+            let bl = Infinity, br = -Infinity, bt = Infinity, bb = -Infinity
+            for (const el of spans) {
+              const rc = el.getBoundingClientRect()
+              bl = Math.min(bl, rc.left); br = Math.max(br, rc.right)
+              bt = Math.min(bt, rc.top); bb = Math.max(bb, rc.bottom)
+            }
+            if (br - bl <= 0) continue
+            const panel = document.createElement('div')
+            panel.innerHTML = renderCodeBlock(blocks[bi].lang, blocks[bi].code)
+            const pc = panel.firstElementChild
+            if (!pc) continue
+            pc.classList.add('md-live-code')
+            pc.setAttribute('data-cs', String(lineCs[blocks[bi].start]))
+            pc.setAttribute('data-ce', String(lineCs[blocks[bi].end] + lines[blocks[bi].end].length))
+            pc.style.left = (bl - mrect.left) + 'px'
+            pc.style.top = (bt - mrect.top) + 'px'
+            pc.style.width = Math.max(br - bl, 80) + 'px'
+            pc.style.minHeight = Math.max(bb - bt, 48) + 'px'
+            // the copy button must not steal focus from the textarea (blur = every
+            // cover returning while the owner is mid-thought)
+            for (const cbtn of pc.querySelectorAll('.md-code-copy')) {
+              cbtn.addEventListener('mousedown', (ev) => ev.preventDefault())
+            }
+            inner.appendChild(pc)
+          }
           // 3) scroll sync: the buttons live in content coordinates; the pane translates
           inner.style.transform = 'translateY(' + (-ta.scrollTop) + 'px)'
           updateLiveCaret()
         } catch { /* any measurement failure degrades to the plain textarea */ }
       }
 
-      // the caret (or a selection) touching a task line lifts that line's cover —
+      // the caret (or a selection) touching a cover's char range lifts that cover —
       // the raw syntax you are editing is the thing you should see. Only a FOCUSED
       // caret lifts: an unfocused textarea (a note just opened, or focus moved to
-      // the title/toolbar) shows every pretty box — the reading-while-editing view.
+      // the title/toolbar) shows every pretty surface — the reading-while-editing
+      // view. S88: ONE mechanism for ALL covers (checkbox, inline chip, code panel)
+      // via the data-cs/data-ce char range each cover now carries.
       const updateLiveCaret = () => {
         const ta = $('[data-vault-src]')
         const inner = $('[data-vault-md-live-in]')
@@ -789,20 +959,14 @@ document.documentElement.setAttribute('data-hibana-booted', '1')
         const focused = document.activeElement === ta
         const s0 = ta.selectionStart ?? 0
         const s1 = ta.selectionEnd ?? s0
-        let pos = 0
-        let k = 0
-        const hide = new Set()
-        if (focused) for (const line of String(ta.value).split('\n')) {
-          const ls = pos
-          const le = pos + line.length
-          if (TASK_LINE_TEST.test(line)) {
-            if (s0 <= le && ls <= s1) hide.add(k)
-            k += 1
+        for (const cov of inner.querySelectorAll('[data-cs]')) {
+          let lift = false
+          if (focused) {
+            const csAt = Number(cov.getAttribute('data-cs'))
+            const ceAt = Number(cov.getAttribute('data-ce'))
+            lift = s0 <= ceAt && csAt <= s1
           }
-          pos = le + 1
-        }
-        for (const btn of inner.querySelectorAll('.md-live-check')) {
-          btn.classList.toggle('is-raw', hide.has(Number(btn.getAttribute('data-md-task'))))
+          cov.classList.toggle('is-raw', lift)
         }
       }
 
@@ -1741,7 +1905,9 @@ document.documentElement.setAttribute('data-hibana-booted', '1')
         const aiBtn = t.closest('[data-vault-ai]')
         if (aiBtn) {
           const src = $('[data-vault-src]')
-          if (src && window.hibanaMagicWand) window.hibanaMagicWand.openFor(src)
+          // S88: the popover anchors to THIS toolbar icon (below it, wherever the
+          // editor lives) — not to the hover-wand's corner at a fixed page position.
+          if (src && window.hibanaMagicWand) window.hibanaMagicWand.openFor(src, aiBtn)
           else if (!window.hibanaMagicWand) toast(_t('magic.failed', 'The AI request failed. Your text was not changed.'), 'err')
           return
         }

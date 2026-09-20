@@ -28,6 +28,7 @@ import { registerImport } from './routes/integrations/import'
 import { registerHealth } from './routes/health'
 import { registerNavChrome } from './routes/nav-chrome' // S72: nav partial via /api/nav (edge-cache-proof; see its header)
 import { aiRoutes } from './routes/ai'
+import { railRoutes } from './routes/rail'
 import { requireAuth } from './auth/middleware'
 import type { Config, UserRow } from './types'
 
@@ -345,6 +346,9 @@ export function createApp(cfg: Config) {
   // Magic Button (idea §1, green-lit): POST /api/ai/text — polish/rewrite/translate via the
   // Workers AI binding. Auth + CSRF same as every other write route; no schema, no cron.
   app.route('/api/ai', aiRoutes(cfg))
+  // S88: the navigation rail's secondary panel — one compact JSON of every section's
+  // items (projects/sparks/folders/notes/todos), auth-gated + no-store.
+  app.route('/api/rail', railRoutes(cfg))
 
   const assets = cfg.assets
   if (assets) {

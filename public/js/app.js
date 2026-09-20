@@ -743,6 +743,51 @@ window.hibana = (() => {
     }
   })
 
+  // ---- S88: the markdown code-block COPY button — ONE delegated handler --------
+  // renderMarkdown (server + the vault's client mirror) emits .md-code panels with a
+  // [data-md-copy] button on every markdown surface: the vault preview, the quicknote
+  // reader, AND the live editor overlay (the panel painted over the raw ``` block).
+  // Delegated at the document level so htmx swaps + soft-navs never lose it. The copy
+  // source is the panel's <pre><code> textContent — the tokenizer only wraps tokens
+  // in spans, so the concatenated text IS the raw code. Feedback: the icon swaps to a
+  // check + "Copied" chip for 1.4s, then reverts (the Notion/Obsidian affordance).
+  document.addEventListener('click', async (e) => {
+    const btn = e.target.closest ? e.target.closest('[data-md-copy]') : null
+    if (!btn) return
+    const panel = btn.closest('.md-code')
+    const codeEl = panel ? panel.querySelector('pre code') : null
+    const raw = codeEl ? codeEl.textContent : ''
+    if (!raw) return
+    e.preventDefault()
+    let ok = false
+    try {
+      await navigator.clipboard.writeText(raw)
+      ok = true
+    } catch {
+      try {
+        const ta = document.createElement('textarea')
+        ta.value = raw
+        ta.setAttribute('readonly', '')
+        ta.style.cssText = 'position:fixed;inset-inline-start:-9999px;opacity:0'
+        document.body.appendChild(ta)
+        ta.select()
+        document.execCommand('copy')
+        ta.remove()
+        ok = true
+      } catch { ok = false }
+    }
+    if (!ok) { toast(_t('notes.copyFail', 'Could not copy.'), 'err', 2500); return }
+    // swap the affordance: check icon + Copied label, revert after the pause
+    const prev = btn.innerHTML
+    btn.classList.add('is-copied')
+    btn.innerHTML = '<span class="md-copy-done">' + _t('md.copied', 'Copied') + '</span>' +
+      '<svg viewBox="0 0 24 24" width="13" height="13" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 13l4 4L19 7"/></svg>'
+    setTimeout(() => {
+      btn.classList.remove('is-copied')
+      btn.innerHTML = prev
+    }, 1400)
+  })
+
   // ---- Single creation FAB (dashboard): one circle that expands into the two-item
   // menu (New idea / New project). Delegated + document-level so it survives nav.js
   // swaps; closes on outside click, Escape, or after picking an item. The FAB circle

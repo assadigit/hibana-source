@@ -109,6 +109,210 @@
 .avatar-row { gap: 1rem; flex-wrap: wrap; align-items: flex-start; }
 .user-name { color: var(--muted); font-size: var(--fs-md); }
 
+/* ===========================================================================
+   S88 — THE NAVIGATION RAIL (Material "navigation rail") replaces the horizontal
+   topbar on desktop (≥1025px). Icons only — no text labels (every icon carries an
+   aria-label + title); vertical stack with equal spacing; the ACTIVE section wears
+   a filled rounded-square indicator; secondary icons (Settings, Help) sit at the
+   bottom behind a thin divider. Selecting a primary icon opens the SECONDARY PANEL
+   (below) — the VS Code Activity-Bar + Side-Bar pattern.
+   ≤1024px the rail is hidden: the slim brand-only .mobile-brandbar (partial) + the
+   bottom-tab nav (mobile-nav.js) carry everything, exactly as before.
+   =========================================================================== */
+:root { --rail-w: 4rem; --rail-panel-w: 17.5rem; }
+
+.rail {
+  position: fixed;
+  inset-block: 0;
+  inset-inline-start: 0;
+  inline-size: var(--rail-w);
+  z-index: 38; /* above content + the panel; below dialogs (60+) + toasts */
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.375rem;              /* the equal vertical rhythm between icons */
+  padding: 0.625rem 0 0.75rem;
+  background: color-mix(in srgb, var(--bg) 96%, transparent);
+  backdrop-filter: blur(10px);
+  border-inline-end: 1px solid var(--line);
+}
+.rail-brand { display: grid; place-items: center; inline-size: 2.75rem; block-size: 2.75rem; border-radius: 0.75rem; }
+.rail-brand:hover { background: var(--bg-soft); }
+.rail-logo { inline-size: 1.9rem; block-size: auto; display: block; }
+.rail-primary { display: flex; flex-direction: column; align-items: center; gap: 0.375rem; margin-block-start: 0.25rem; }
+.rail-btn {
+  position: relative;
+  inline-size: 2.75rem;       /* 44px touch floor */
+  block-size: 2.75rem;
+  display: grid;
+  place-items: center;
+  border-radius: 0.75rem;     /* the rounded square */
+  color: var(--muted);
+  background: transparent;
+  transition: color 0.14s ease, background 0.14s ease, box-shadow 0.14s ease;
+}
+.rail-btn .icon { inline-size: 1.25rem; block-size: 1.25rem; }
+.rail-btn:hover { color: var(--text); background: var(--bg-soft); text-decoration: none; }
+.rail-btn:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
+/* The ACTIVE section: the filled rounded-square indicator (aria-current='page' is
+   set by nav.js's markNav on every soft navigation + hib-init on hard load). */
+.rail-btn[aria-current='page'] {
+  background: var(--accent-soft);
+  color: var(--brand);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--brand) 22%, transparent);
+}
+/* The icon whose PANEL is open wears a slim rail-facing indicator strip — the VS Code
+   cue that this view is the one mounted beside you. */
+.rail-btn.is-panel-open::after {
+  content: '';
+  position: absolute;
+  inset-inline-start: -0.5rem;
+  inset-block: 22%;
+  inline-size: 3px;
+  border-radius: 3px;
+  background: var(--brand);
+}
+.rail-spacer { flex: 1; }
+.rail-divider { inline-size: 1.75rem; block-size: 1px; background: var(--line); flex: none; }
+.rail-secondary { margin-block-start: 0.125rem; }
+/* the avatar: name hidden — icon-only rail (hover/focus opens the menu pop) */
+.rail-user { display: flex; }
+.rail-user-chip { padding: 0.25rem; border-radius: 999px; }
+.rail-user-chip .user-name { display: none; }
+.rail-user-chip:hover { background: var(--bg-soft); }
+.rail-user .user-menu-pop {
+  inset-block-start: auto;
+  inset-block-end: calc(100% + 0.5rem);
+  inset-inline-end: auto;
+  inset-inline-start: calc(100% + 0.85rem);
+  translate: -6px 0;
+}
+.rail-user .user-menu-pop::before {
+  inset-block-start: auto;
+  inset-block-end: -0.5rem;
+  inset-inline: 0;
+  inset-inline-start: 100%;
+}
+.rail-user:hover .user-menu-pop,
+.rail-user:focus-within .user-menu-pop { translate: 0 0; }
+/* the sync badge rides the rail: a compact icon-only chip (the count rides the
+   aria-label; the text label hides — the rail is 4rem wide) */
+.rail-sync { margin-block-start: 0.125rem; }
+.rail-sync .topbar-sync-label { display: none; }
+.rail-sync { padding: 0.5rem; }
+
+/* ── the SECONDARY PANEL (VS Code side-bar): persistent — PUSHES the main content
+   via body padding (rail-panel-open), never an overlay. nav.js renders its lists. ── */
+.rail-panel {
+  position: fixed;
+  inset-block: 0;
+  inset-inline-start: var(--rail-w);
+  inline-size: var(--rail-panel-w);
+  z-index: 35;
+  display: flex;
+  flex-direction: column;
+  background: var(--card);
+  border-inline-end: 1px solid var(--line);
+  visibility: hidden;
+  opacity: 0;
+  transition: opacity 0.18s ease, visibility 0s linear 0.18s;
+}
+body.rail-panel-open .rail-panel { visibility: visible; opacity: 1; transition: opacity 0.18s ease; }
+.rail-panel-head {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.75rem 0.75rem 0.625rem;
+  border-block-end: 1px solid var(--line);
+  background: var(--bg);
+  flex: none;
+}
+.rail-panel-title { flex: 1; min-inline-size: 0; font-weight: 700; font-size: var(--fs-md); color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rail-panel-open-link {
+  display: inline-flex; align-items: center; gap: 0.2rem;
+  padding: 0.3rem 0.5rem; border-radius: 0.5rem;
+  color: var(--brand); font-size: var(--fs-xs); font-weight: 600;
+}
+.rail-panel-open-link:hover { background: var(--accent-soft); text-decoration: none; }
+.rail-panel-close {
+  display: grid; place-items: center;
+  inline-size: 2rem; block-size: 2rem;
+  border: 0; border-radius: 0.5rem;
+  background: transparent; color: var(--muted); cursor: pointer;
+}
+.rail-panel-close:hover { background: var(--bg-soft); color: var(--text); }
+.rail-panel-close:focus-visible { outline: 2px solid var(--brand); outline-offset: 1px; }
+.rail-panel-body { flex: 1; min-block-size: 0; overflow-y: auto; overscroll-behavior: contain; padding: 0.5rem 0.5rem 1rem; }
+.rail-group { margin-block-end: 0.25rem; }
+.rail-group-head {
+  display: flex; align-items: center; gap: 0.3rem;
+  inline-size: 100%;
+  padding: 0.45rem 0.5rem;
+  border: 0; border-radius: 0.5rem;
+  background: transparent; color: var(--muted);
+  font: 600 var(--fs-xs)/1.2 var(--font-sans);
+  letter-spacing: 0.02em; text-transform: uppercase;
+  cursor: pointer;
+}
+.rail-group-head:hover { color: var(--text); background: var(--bg-soft); }
+.rail-group-head .rail-group-count { margin-inline-start: auto; font-variant-numeric: tabular-nums; font-weight: 500; opacity: 0.8; }
+.rail-group-head .icon { inline-size: 0.85rem; block-size: 0.85rem; transition: transform 0.14s ease; }
+.rail-group.is-collapsed .rail-group-head .icon { transform: rotate(-90deg); }
+.rail-group.is-collapsed .rail-group-body { display: none; }
+.rail-group-body { display: flex; flex-direction: column; gap: 1px; padding: 0.125rem 0 0.25rem 0.25rem; }
+.rail-item {
+  display: flex; align-items: center; gap: 0.45rem;
+  padding: 0.42rem 0.5rem;
+  border-radius: 0.5rem;
+  color: var(--text);
+  font-size: var(--fs-sm);
+  line-height: 1.3;
+}
+.rail-item:hover { background: var(--bg-soft); text-decoration: none; }
+.rail-item:focus-visible { outline: 2px solid var(--brand); outline-offset: -2px; }
+.rail-item-label { flex: 1; min-inline-size: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rail-item .prio-dot { flex: none; }
+/* S88: the status dot speaks the --badge-*-fg roles (the same seven the status
+   badges speak) — the panel item's glanceable state cue. */
+.rail-dot {
+  inline-size: 0.5rem;
+  block-size: 0.5rem;
+  border-radius: 999px;
+  flex: none;
+  background: var(--muted);
+}
+.rail-dot[data-status='spark']        { background: var(--badge-spark-fg, #8A6714); }
+.rail-dot[data-status='unreviewed']   { background: var(--badge-unreviewed-fg, #46618C); }
+.rail-dot[data-status='investigating'] { background: var(--badge-investigating-fg, #5F51B5); }
+.rail-dot[data-status='awaiting']     { background: var(--badge-awaiting-fg, #85620D); }
+.rail-dot[data-status='doing']        { background: var(--badge-doing-fg, #186F63); }
+.rail-dot[data-status='halted']       { background: var(--badge-halted-fg, #A34A31); }
+.rail-dot[data-status='operational']  { background: var(--badge-operational-fg, #277334); }
+.rail-dot[data-status='done']         { background: var(--badge-operational-fg, #277334); }
+.rail-dot[data-status='todo']         { background: var(--badge-awaiting-fg, #85620D); }
+.rail-item-emoji { flex: none; font-size: 0.9rem; line-height: 1; }
+.rail-panel-empty { padding: 1.25rem 0.75rem; color: var(--muted); font-size: var(--fs-sm); line-height: 1.5; }
+.rail-panel-loading { padding: 1.25rem 0.75rem; color: var(--muted); font-size: var(--fs-sm); }
+
+/* The main content's gutter: the RAIL occupies it from first paint (the [data-nav]
+   mount is server-rendered static HTML, so :has() resolves pre-JS — no layout jump
+   when the partial lands). The PANEL widens it (persistent push, not overlay). */
+@media (min-width: 1025px) {
+  body:has([data-nav]) { padding-inline-start: var(--rail-w); }
+  body.rail-panel-open { padding-inline-start: calc(var(--rail-w) + var(--rail-panel-w)); }
+  body:has([data-nav]) { transition: padding-inline-start 0.22s ease; }
+  .mobile-brandbar { display: none; }
+  /* the topbar-shaped skeleton is desktop-dead: the rail pops in over the gutter */
+  .sk-topbar { display: none; }
+}
+@media (max-width: 1024px) {
+  .rail, .rail-panel { display: none !important; }
+}
+@media (prefers-reduced-motion: reduce) {
+  body:has([data-nav]) { transition: none; }
+  .rail-panel { transition: none; }
+}
+
 .shell { padding: clamp(1.5rem, 3.5vw, 3rem); max-inline-size: 64rem; margin-inline: auto; }
 /* batch (p) 2026-09-06: board.html goes FULL-WIDTH (user request) — the five board
    columns take the whole viewport instead of the 64rem reading measure. */

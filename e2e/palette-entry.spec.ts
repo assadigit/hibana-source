@@ -50,15 +50,15 @@ async function login(page: Page) {
   await page.waitForTimeout(400)
 }
 
-test.describe('desktop: the topbar search pill', () => {
+test.describe('desktop: the rail search icon (S88 — was the topbar search pill)', () => {
   test.beforeEach(async ({ page }) => {
     await login(page)
   })
 
   test('renders in the nav chrome and opens the palette with focus', async ({ page }) => {
-    // The nav partial loads async — the pill must appear on every authed page.
-    await page.waitForSelector('.topbar-search', { timeout: 10_000 })
-    const pill = page.locator('.topbar-search')
+    // The nav partial loads async — the rail's search icon must appear on every authed page.
+    await page.waitForSelector('.rail-search', { timeout: 10_000 })
+    const pill = page.locator('.rail-search')
     await expect(pill).toBeVisible()
     await expect(pill).toHaveAttribute('data-cmdk-open', '')
 
@@ -75,13 +75,16 @@ test.describe('desktop: the topbar search pill', () => {
     await expect(dlg).not.toBeVisible()
   })
 
-  test('the pill still works after a soft navigation (delegated binding)', async ({ page }) => {
-    await page.waitForSelector('.topbar-search', { timeout: 10_000 })
-    // Soft-nav to another page (nav.js swaps <main> without a reload).
-    await page.click('.topbar .nav-links a[href="/projects.html"]')
+  test('the search icon still works after a soft navigation (delegated binding)', async ({ page }) => {
+    await page.waitForSelector('.rail-search', { timeout: 10_000 })
+    // Soft-nav to another page: the rail icon opens the PANEL now (S88); the panel's
+    // "Open" link navigates (nav.js swaps <main> without a reload).
+    await page.click('.rail .rail-primary a[href="/projects.html"]')
+    await page.waitForSelector('.rail-panel-open-link', { timeout: 10_000 })
+    await page.click('.rail-panel-open-link')
     await page.waitForURL('**/projects.html', { timeout: 10_000 })
     await page.waitForTimeout(600)
-    await page.click('.topbar-search')
+    await page.click('.rail-search')
     await expect(page.locator('#cmdk-dialog')).toBeVisible()
   })
 })

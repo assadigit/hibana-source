@@ -224,6 +224,48 @@ describe('ai service (idea §1)', () => {
     expect(directionOk('still english text', 'fa')).toBe(false)
     expect(directionOk('12345 !!!', 'fa')).toBe(true) // vacuous — no letters
   })
+
+  it('S88: looksLikeSlop — the Persian advice-about-translating shape the owner hit live', async () => {
+    const { looksLikeSlop } = await import('../services/ai')
+    // THE LIVE FAILURE: short English input → ~1,400 chars of Persian how-to advice.
+    const slop = ('برای ترجمه متن انگلیسی به فارسی، باید مطمئن شوید که ' + 'بلاه '.repeat(60)).trim()
+    expect(looksLikeSlop(slop, 'The quick brown fox jumps over the lazy dog.')).toBe(true)
+    // A REAL translation: comparable length, no meta vocabulary → passes.
+    expect(looksLikeSlop('روباه قهوه‌ای چابک از روی سگ کنالی می‌پرد.', 'The quick brown fox jumps over the lazy dog.')).toBe(false)
+    // A translation of a note that IS about translation keeps its words (input check).
+    expect(looksLikeSlop('قابلیت ترجمه خراب است.', 'The translation feature is broken.')).toBe(false)
+    // Runaway length alone (no meta words) is not slop — verbose translators exist.
+    expect(looksLikeSlop('very long '.repeat(80), 'short input')).toBe(false)
+  })
+
+  it('S88: slop is retried once with the amplified instruction, then fails honestly as not_a_translation', async () => {
+    const enInput = 'Deploy the new cache layer before Friday.'
+    const slop = ('برای ترجمه متن انگلیسی به فارسی باید مطمئن شوید که ' + 'بلاه '.repeat(80)).trim()
+    let calls = 0
+    const seen: string[] = []
+    const ai: AiRunner = {
+      async run(_m, inputs) {
+        calls++
+        seen.push(inputs.messages.map((x) => x.content).join('\n'))
+        if (calls === 1) return { result: { response: slop } }
+        return { result: { response: 'لایه کش جدید را قبل از جمعه منتشر کن.' } }
+      },
+    }
+    const out = await runAiTransform(ai, 'translate', enInput, undefined, undefined, 'fa')
+    expect(out.ok).toBe(true)
+    if (out.ok) expect(out.text).toBe('لایه کش جدید را قبل از جمعه منتشر کن.')
+    expect(calls).toBe(2)
+    // The retry tells the model its previous answer was ADVICE, not the translation.
+    expect(seen[1]).toContain('NOT the translation')
+
+    // Persistent slop → not_a_translation (never served as a "translation").
+    let badCalls = 0
+    const alwaysSlop: AiRunner = { async run() { badCalls++; return { result: { response: slop } } } }
+    const bad = await runAiTransform(alwaysSlop, 'translate', enInput, undefined, undefined, 'fa')
+    expect(bad.ok).toBe(false)
+    if (!bad.ok) expect(bad.error).toBe('not_a_translation')
+    expect(badCalls).toBe(2)
+  })
 })
 
 // --- route -----------------------------------------------------------------------

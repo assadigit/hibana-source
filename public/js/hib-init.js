@@ -110,28 +110,35 @@
   // i18n-race rule: paint with _t() and re-render on hibana:i18n.
   function wireSyncBadge() {
     const wire = () => {
-      const btn = document.querySelector('[data-sync-badge]')
+      // S88: the sync badge now lives in TWO chrome copies (the rail on desktop +
+      // the slim mobile brand bar) — wire them all; the paint closure below was
+      // rewritten to loop every badge.
+      const btns = Array.from(document.querySelectorAll('[data-sync-badge]'))
       const q = window.hibanaQueue
-      if (!btn || !q || btn.dataset.wired === '1') return
-      btn.dataset.wired = '1'
+      if (!btns.length || !q) return
+      if (btns.every((b) => b.dataset.wired === '1')) return
+      for (const b of btns) b.dataset.wired = '1'
       const _t = (k, fb) => { const s = window.hibanaI18n?.t(k); return s && s !== k ? s : fb }
       const isFA = () => window.hibanaI18n?.lang?.() === 'fa' || document.documentElement.lang === 'fa'
       const faNum = (v) => String(v).replace(/[0-9]/g, (d) => '۰۱۲۳۴۵۶۷۸۹'[+d])
       const paint = (n) => {
         n = Number(n) || 0
-        if (n > 0) {
-          btn.hidden = false
-          const label = _t('nav.syncPending', '{n} pending').split('{n}').join(isFA() ? faNum(n) : String(n))
-          btn.querySelector('.topbar-sync-label').textContent = label
-          btn.setAttribute('aria-label', _t('nav.syncHint', 'Waiting to sync — click to try now'))
-          btn.title = btn.getAttribute('aria-label')
-        } else {
-          btn.hidden = true
+        for (const b of btns) {
+          if (n > 0) {
+            b.hidden = false
+            const label = _t('nav.syncPending', '{n} pending').split('{n}').join(isFA() ? faNum(n) : String(n))
+            const labelEl = b.querySelector('.topbar-sync-label')
+            if (labelEl) labelEl.textContent = label
+            b.setAttribute('aria-label', _t('nav.syncHint', 'Waiting to sync — click to try now'))
+            b.title = b.getAttribute('aria-label')
+          } else {
+            b.hidden = true
+          }
         }
       }
       paint(q.pendingCount || 0)
       q.onCount(paint)
-      btn.addEventListener('click', async () => {
+      for (const b of btns) b.addEventListener('click', async () => {
         try {
           await q.flush()
           // onCount repaints; a success toast confirms the drain even if the badge
@@ -360,9 +367,20 @@
             else window.location.reload()
           })
         })
-        // Mark the current page in the nav (aria-current → visible underline + SR cue).
-        // The five links live inside .nav-links (same selector as nav.js's soft-nav marking)
-        // — matching structural parent, not visual, so display:contents doesn't affect it.
+        // Mark the current page in the nav (aria-current → the rail's filled
+        // rounded-square indicator + SR cue). S88: the RAIL's primary icons are the
+        // desktop nav — /app IS the dashboard, a project detail page lights Projects,
+        // sadhana.html lights To-do (the same normalization nav.js's markNav applies
+        // on soft navigations; the old .topbar .nav-links selector stays for safety).
+        const norm = (p) => {
+          if (p === '/app') return '/dashboard.html'
+          if (p === '/project.html' || p === '/project') return '/projects.html'
+          if (p === '/sadhana.html') return '/to-do-list'
+          return p
+        }
+        document.querySelectorAll('.rail .rail-primary a').forEach((a) => {
+          if (norm(a.getAttribute('href') || '') === norm(location.pathname)) a.setAttribute('aria-current', 'page')
+        })
         document.querySelectorAll('.topbar .nav-links a').forEach((a) => {
           if (a.getAttribute('href') === location.pathname) a.setAttribute('aria-current', 'page')
         })

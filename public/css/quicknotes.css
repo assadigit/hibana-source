@@ -456,6 +456,63 @@
 .markdown-body code { background: var(--accent-soft); border-radius: 4px; padding: 0.05em 0.3em; font-size: 0.92em; }
 .markdown-body pre { background: var(--bg-soft); border: 1px solid var(--line); border-radius: var(--radius-sm); padding: 0.5rem 0.6rem; overflow-x: auto; margin: 0.3em 0; }
 .markdown-body pre code { background: transparent; padding: 0; }
+
+/* ══ S88 — THE CODE-BLOCK PANEL (renderMarkdown's fenced output) ════════════════
+   The owner's ask: mono typeface, a size step down, per-token syntax coloring, and
+   a Copy button top-right. One structure serves every markdown surface (quicknote
+   reader, vault preview, the live editor overlay); app.js owns the single delegated
+   clipboard handler ([data-md-copy] → copies the panel's <pre><code> textContent,
+   swaps the icon to a checkmark + "Copied", reverts after 1.4s). Tokens ride the
+   --md-tok-* inks (light + claude-dark both defined). */
+.markdown-body .md-ic,
+.markdown-body code.md-ic {
+  font-family: var(--font-mono);
+  background: var(--code-bg);
+  border: 1px solid var(--code-border);
+  color: var(--code-fg);
+  border-radius: 5px;
+  padding: 0.06em 0.34em;
+  font-size: 0.85em;
+}
+.markdown-body .md-code { margin: 0.45em 0; border: 1px solid var(--code-border); border-radius: 10px; background: var(--code-panel-bg); overflow: hidden; }
+.markdown-body .md-code-bar {
+  display: flex; align-items: center; justify-content: space-between; gap: 0.4rem;
+  padding: 0.32rem 0.4rem 0.32rem 0.65rem;
+  border-block-end: 1px solid rgb(255 255 255 / 0.07);
+}
+.markdown-body .md-code-lang {
+  font: 600 0.62rem/1.2 var(--font-mono);
+  letter-spacing: 0.05em; text-transform: uppercase;
+  color: var(--code-panel-fg); opacity: 0.66;
+}
+.markdown-body .md-code-copy {
+  display: inline-flex; align-items: center; gap: 0.3rem;
+  border: 0; background: transparent; color: var(--code-panel-fg); opacity: 0.66;
+  cursor: pointer; padding: 0.3rem 0.45rem; border-radius: 6px;
+  font: 500 0.68rem/1 var(--font-sans);
+  transition: opacity 0.12s ease, background 0.12s ease;
+}
+.markdown-body .md-code-copy:hover { opacity: 1; background: rgb(255 255 255 / 0.09); }
+.markdown-body .md-code-copy:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; opacity: 1; }
+.markdown-body .md-code-copy .md-copy-done { color: #9DC7A9; font-weight: 600; }
+.markdown-body .md-code pre { margin: 0; background: transparent; border: 0; border-radius: 0; padding: 0.55rem 0.75rem 0.65rem; }
+.markdown-body .md-code pre code {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: 0.85em;               /* the size step down vs body text */
+  line-height: 1.55;
+  color: var(--code-panel-fg);
+  background: transparent; border: 0; padding: 0;
+  white-space: pre; overflow-x: auto;
+  tab-size: 2;
+}
+/* the tokenizer's five token classes */
+.md-tok-kw  { color: var(--md-kw); }
+.md-tok-str { color: var(--md-str); }
+.md-tok-com { color: var(--md-com); font-style: italic; }
+.md-tok-num { color: var(--md-num); }
+.md-tok-fn  { color: var(--md-fn); }
+.md-tok-op  { color: var(--md-op); }
 .markdown-body blockquote { margin: 0.3em 0; padding-inline-start: 0.6rem; border-inline-start: 3px solid var(--line-strong); color: var(--muted); }
 .markdown-body hr { border: 0; border-block-start: 1px solid var(--line-strong); margin: 0.5em 0; }
 .markdown-body a { color: var(--link); text-decoration: underline; }

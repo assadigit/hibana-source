@@ -13,6 +13,23 @@ window.__hibanaDictEN = {
       'nav.theme': 'Theme',
       'nav.more': 'More', 'mobilenav.label': 'Main menu',
       'nav.search': 'Search', 'nav.searchCmd': 'Search & commands',
+      // S88: the navigation rail + its secondary panel
+      'nav.railLabel': 'Primary sections', 'nav.brandHome': 'Hibana — home',
+      'nav.help': 'Help — replay the guided tour',
+      'rail.open': 'Open', 'rail.close': 'Close panel',
+      'rail.loading': 'Loading…',
+      'rail.failed': 'Could not reach the server — reopen the panel to retry.',
+      'rail.empty': 'Nothing here yet — open something and it will appear.',
+      'rail.g.recent': 'Continue', 'rail.g.jump': 'Jump to', 'rail.g.today': 'Today',
+      'rail.g.all': 'All', 'rail.g.ongoing': 'Ongoing', 'rail.g.done': 'Done',
+      'rail.g.unfiled': 'Unfiled', 'rail.g.dueSoon': 'Due next 7 days',
+      'rail.sparksEmpty': 'No ideas captured yet — the Ideas shelf fills as you spark.',
+      'rail.notesEmpty': 'No notes yet — the vault fills as you write.',
+      'rail.canvasHint': 'The boundless Canvas is a single board — open it to draw, pin notes, and frame regions.',
+      'rail.notebookHint': 'The Notebook is your single whiteboard — open it to sketch and write freehand.',
+      'rail.calendarHint': 'Deadlines from your projects and to-dos land here as they approach.',
+      // S88: the markdown code-block copy affordance
+      'md.copy': 'Copy code', 'md.copied': 'Copied',
       // R5.1: onboarding tour
       'tour.cmdk': 'Command palette',
       'tour.cmdkBody': 'Press Ctrl+K (or /) to search projects and jump anywhere instantly.',

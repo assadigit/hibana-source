@@ -354,6 +354,7 @@ test.describe('S63: print — Ctrl+P prints the note, not the app', () => {
       await expect(page.locator('.vault-list')).toBeHidden()
       await expect(page.locator('.vault-toolbar')).toBeHidden()
       await expect(page.locator('.topbar')).toBeHidden()
+      await expect(page.locator('.rail')).toBeHidden()
       // …and the printed form is the rendered markdown.
       await expect(page.locator('.vault-preview')).toBeVisible()
       await expect(page.locator('.vault-preview .markdown-body')).toContainText('printable body text')

@@ -44,7 +44,7 @@
 .db-col[data-col='done']        { --db-c: 182 224 200; --db-ink: #43704f; } /* Session 22: was #5e8f70 — mirrors .pd-col (Session-20 AA, 5.7:1) */
 .db-col[data-col='bug']         { --db-c: 238 185 194; --db-ink: #87555f; } /* Session 22: was #a96b78 — mirrors .pd-col (Session-20 AA, 6.0:1) */
 .db-col { border-color: rgb(var(--db-c) / 0.28); border-inline-start: 3px solid rgb(var(--db-c) / 0.55); }
-.db-col-name { color: var(--db-ink, var(--muted)); display: inline-flex; align-items: center; gap: 0.35rem; }
+.db-col-name { color: var(--db-ink, var(--muted)); display: inline-flex; align-items: center; gap: 0.15rem; /* S88: dot hugs its label — mirrors the pd board tightening */ }
 /* Session 22 (consistency with .pd-col-title::before): dot 0.6rem → 0.55rem, fill
    opacity 0.95 → 0.72 — the exact pd recipe. */
 .db-col-name::before {
@@ -89,7 +89,7 @@ html[data-theme='claude-dark'] .db-col[data-col='bug']         { --db-c: 150 110
 }
 .db-card:hover { border-color: var(--brand); box-shadow: 0 1px 6px rgb(30 20 10 / 0.07); }
 .db-card.dragging { opacity: 0.45; }
-.db-card-main { display: flex; align-items: flex-start; gap: 0.45rem; }
+.db-card-main { display: flex; align-items: flex-start; gap: 0.18rem; /* S88: dot→title tightened — mirrors .pd-task-title-row */ }
 /* Item 3 — REMOVED Session 22: `.db-card-main .prio-dot { background: inherit }` beat the
    `.prio-*` classes (0,2,0 > 0,1,0) so every board prio-dot rendered TRANSPARENT
    (invisible). The !important `.db-card .prio-*` rules near the pd block now carry

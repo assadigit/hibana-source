@@ -105,6 +105,11 @@
   // --- singleton UI -------------------------------------------------------------
   let wand, popover, backdrop, activeEl
   let running = false
+  // S88 (owner: the popover "opens in the wrong position" when triggered from the
+  // editor toolbar's icon): an EXPLICIT trigger element (openFor's 2nd arg) anchors
+  // the popover to that icon — below it, wherever it lives — instead of the floating
+  // hover-wand's corner. Null (the hover/focus path) keeps the wand-anchored layout.
+  let triggerEl = null
 
   function ensureUI() {
     if (wand) return
@@ -212,6 +217,7 @@
     if (!popover) return
     popover.remove()
     popover = null
+    triggerEl = null // S88: the anchor leaves with the popover
     if (backdrop) backdrop.hidden = true
     running = false
     if (wand) wand.setAttribute('aria-busy', 'false')
@@ -320,11 +326,23 @@
 
   function positionPopover() {
     if (!popover || !activeEl) return
-    const wr = wand.getBoundingClientRect()
     const pw = popover.offsetWidth, ph = popover.offsetHeight
-    let x = Math.min(window.innerWidth - pw - 8, Math.max(8, wr.left))
-    let y = wr.bottom + 6
-    if (y + ph > window.innerHeight - 8) y = Math.max(8, wr.top - ph - 6)
+    // S88: an explicit TRIGGER (the toolbar icon that opened the wand) anchors the
+    // popover: directly below the icon, aligned to its inline-start edge, clamped in
+    // the viewport; flip above when the bottom doesn't fit. The wand-corner anchor
+    // stays the default for the hover/focus discovery path.
+    const anchor = triggerEl && triggerEl.isConnected ? triggerEl : wand
+    const wr = anchor.getBoundingClientRect()
+    let x, y
+    if (triggerEl && triggerEl.isConnected) {
+      x = Math.min(window.innerWidth - pw - 8, Math.max(8, wr.left - 8))
+      y = wr.bottom + 6
+      if (y + ph > window.innerHeight - 8) y = Math.max(8, wr.top - ph - 6)
+    } else {
+      x = Math.min(window.innerWidth - pw - 8, Math.max(8, wr.left))
+      y = wr.bottom + 6
+      if (y + ph > window.innerHeight - 8) y = Math.max(8, wr.top - ph - 6)
+    }
     popover.style.left = x + 'px'
     popover.style.top = y + 'px'
   }
@@ -543,11 +561,12 @@
   // editor's Ask-AI button) — hover/focus discovery stays as-is; this makes the
   // feature reachable with ONE click on surfaces that ask for it.
   window.hibanaMagicWand = {
-    openFor(el) {
+    openFor(el, trigger) {
       if (!el || !el.isConnected) return
       ensureUI()
       showWand(el)
       if (popover) closePopover()
+      triggerEl = trigger && trigger.isConnected ? trigger : null // S88: anchor to the icon
       togglePopover()
     },
   }

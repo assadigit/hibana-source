@@ -13,6 +13,23 @@ window.__hibanaDictFA = {
       'nav.theme': 'پوسته',
       'nav.more': 'بیشتر', 'mobilenav.label': 'منوی اصلی',
       'nav.search': 'جست‌وجو', 'nav.searchCmd': 'جست‌وجو و فرمان‌ها',
+      // S88: the navigation rail + its secondary panel
+      'nav.railLabel': 'بخش‌های اصلی', 'nav.brandHome': 'هیبانا — خانه',
+      'nav.help': 'راهنما — پخش دوبارهٔ تور معرفی',
+      'rail.open': 'باز کردن', 'rail.close': 'بستن پنل',
+      'rail.loading': 'در حال بارگذاری…',
+      'rail.failed': 'اتصال به سرور برقرار نشد — پنل را دوباره باز کنید.',
+      'rail.empty': 'هنوز چیزی اینجا نیست — چیزی باز کنی همین‌جا ظاهر می‌شود.',
+      'rail.g.recent': 'ادامه', 'rail.g.jump': 'پرش به', 'rail.g.today': 'امروز',
+      'rail.g.all': 'همه', 'rail.g.ongoing': 'در جریان', 'rail.g.done': 'انجام‌شده',
+      'rail.g.unfiled': 'بی‌پوشه', 'rail.g.dueSoon': 'سررسید ۷ روز آینده',
+      'rail.sparksEmpty': 'هنوز ایده‌ای ثبت نشده — قفسهٔ ایده‌ها با ثبت‌های تو پر می‌شود.',
+      'rail.notesEmpty': 'هنوز یادداشتی نیست — گاوصندوق با نوشتن تو پر می‌شود.',
+      'rail.canvasHint': 'بوم بی‌حدومرز یک تختهٔ واحد است — بازش کن تا بکشی، یادداشت سنجاق کنی و قاب بسازی.',
+      'rail.notebookHint': 'برگه یادداشت تختهٔ سفید توست — بازش کن تا آزادانه بنویسی و بکشی.',
+      'rail.calendarHint': 'سررسیدهای پروژه‌ها و کارهایت هرچه نزدیک‌تر شوند همین‌جا می‌آیند.',
+      // S88: the markdown code-block copy affordance
+      'md.copy': 'کپی کد', 'md.copied': 'کپی شد',
       // R5.1: onboarding tour
       'tour.cmdk': 'پنل فرمان',
       'tour.cmdkBody': 'Ctrl+K (یا /) را بزن تا پروژه‌ها را جستجو کنی و سریع بپری جای دیگر.',

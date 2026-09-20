@@ -262,9 +262,22 @@
   }
 
   function markNav(pathname) {
-    // The five page links live inside .nav-links (a display:contents wrapper on desktop,
-    // its own flex row at ≤720px); the avatar-menu items are also inside .topbar and
-    // their underline style shouldn't apply there.
+    // S88: the RAIL's primary icons are the desktop nav (the old .topbar .nav-links
+    // is retired — the selector stays for any straggler surface). /app IS the
+    // dashboard; a project detail page lights the Projects icon (the section you're
+    // inside), sadhana.html lights To-do. The filled rounded-square indicator rides
+    // aria-current (layout.css).
+    const railNorm = (p) => {
+      if (p === '/app') return '/dashboard.html'
+      if (p === '/project.html' || p === '/project') return '/projects.html'
+      if (p === '/sadhana.html') return '/to-do-list'
+      return p
+    }
+    document.querySelectorAll('.rail .rail-primary a').forEach((a) => {
+      const href = a.getAttribute('href') || ''
+      if (railNorm(href) === railNorm(pathname)) a.setAttribute('aria-current', 'page')
+      else a.removeAttribute('aria-current')
+    })
     document.querySelectorAll('.topbar .nav-links a').forEach((a) => {
       const href = a.getAttribute('href') || ''
       if (href === pathname) a.setAttribute('aria-current', 'page')
@@ -274,6 +287,286 @@
     // load and never re-marked on soft navigation (the bug: notes → projects kept
     // "Notes" lit). Secondary pages also light up the More tab via the same call.
     window.hibanaMobileNav?.mark(pathname)
+  }
+
+  // --- S88: the navigation rail's SECONDARY PANEL (VS Code Activity Bar + Side Bar) --
+  // Selecting a rail icon opens a panel DIRECTLY to its right: a list of that
+  // section's items under labeled, COLLAPSIBLE group headers. The rail stays visible
+  // (switching icons swaps the panel's section, never hiding the rail), and the panel
+  // is PERSISTENT — body padding pushes the main content (rail-panel-open), never an
+  // overlay. Clicking the open section's icon again (or the panel's ✕, or Escape)
+  // closes it. The open section survives page loads (localStorage) — "persistent".
+  // Data: ONE GET /api/rail (projects/sparks/folders/notes/todos, user-scoped,
+  // no-store) feeds every section; the Dashboard section reads the resume store
+  // (hibana-resume, client-side) instead.
+  const RAIL_PANEL_KEY = 'hibana-rail-panel'
+  const railBox = () => document.querySelector('[data-rail-panel-box]')
+  const railT = (k, fb) => { const v = window.hibanaI18n?.t(k); return v && v !== k ? v : fb }
+  const escHtml = (str) => String(str ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c] ?? c))
+
+  const RAIL_SECTIONS = {
+    dashboard: { href: '/dashboard.html', i18n: 'nav.dashboard', label: 'Dashboard' },
+    todo: { href: '/to-do-list', i18n: 'nav.sadhana', label: 'To-do list' },
+    projects: { href: '/projects.html', i18n: 'nav.projects', label: 'Projects' },
+    sparks: { href: '/sparks.html', i18n: 'nav.sparks', label: 'Ideas' },
+    notes: { href: '/notes.html', i18n: 'nav.notes', label: 'Notes' },
+    canvas: { href: '/canvas.html', i18n: 'nav.canvas', label: 'Canvas' },
+    notebook: { href: '/whiteboard.html', i18n: 'nav.whiteboard', label: 'Notebook' },
+    calendar: { href: '/calendar.html', i18n: 'nav.calendar', label: 'Calendar' },
+  }
+  const RAIL_DONE = new Set(['operational'])
+
+  let railSection = null
+  let railData = null
+  let railFetch = null
+
+  const loadRailData = () => {
+    if (railData) return Promise.resolve(railData)
+    if (!railFetch) {
+      railFetch = fetch('/api/rail', { credentials: 'same-origin' }).then((r) => {
+        if (!r.ok) throw new Error('HTTP ' + r.status)
+        return r.json()
+      }).then((d) => { railData = d; railFetch = null; return d })
+        .catch((e) => { railFetch = null; throw e })
+    }
+    return railFetch
+  }
+
+  // one grouped list section: label + count + collapsible body of .rail-item rows
+  const railGroup = (label, items, opts = {}) => {
+    const count = Array.isArray(items) ? items.length : 0
+    if (!count && opts.hideWhenEmpty !== false) return ''
+    const open = opts.collapsed ? '' : ' open-group'
+    return '<div class="rail-group' + (opts.collapsed ? ' is-collapsed' : '') + '">' +
+      '<button type="button" class="rail-group-head" data-rail-group aria-expanded="' + (opts.collapsed ? 'false' : 'true') + '">' +
+      '<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg>' +
+      '<span>' + escHtml(label) + '</span>' +
+      '<span class="rail-group-count">' + count + '</span>' +
+      '</button><div class="rail-group-body">' + (Array.isArray(items) ? items.join('') : items) + '</div></div>'
+  }
+  const railItem = (href, label, dotStatus, extra) =>
+    '<a class="rail-item" href="' + href + '">' +
+    (dotStatus ? '<span class="rail-dot" data-status="' + escHtml(dotStatus) + '"></span>' : '') +
+    (extra || '') +
+    '<span class="rail-item-label" dir="auto">' + escHtml(label) + '</span></a>'
+
+  const renderRailDashboard = () => {
+    // "Continue where you left off" — the resume store (last OPENED, the S85 one
+    // definition) is client-side; no server round trip for this section.
+    let recent = []
+    try { recent = JSON.parse(localStorage.getItem('hibana-resume') || '[]') } catch { recent = [] }
+    const items = recent.slice(0, 6).map((r) => {
+      const href = r.k === 'note' ? '/notes.html#n=' + encodeURIComponent(r.id) : '/project.html?id=' + encodeURIComponent(r.id)
+      return railItem(href, r.title || (r.k === 'note' ? 'Untitled' : 'Project'), r.k === 'note' ? null : (r.badge || 'unreviewed'))
+    })
+    const groups = [
+      railGroup(railT('rail.g.recent', 'Continue'), items, { collapsed: false }),
+      railGroup(railT('rail.g.jump', 'Jump to'), [
+        railItem('/to-do-list', railT('nav.sadhana', 'To-do list'), 'todo'),
+        railItem('/projects.html', railT('nav.projects', 'Projects'), 'doing'),
+        railItem('/notes.html', railT('nav.notes', 'Notes'), null),
+        railItem('/calendar.html', railT('nav.calendar', 'Calendar'), 'awaiting'),
+      ]),
+    ].join('')
+    return groups || '<div class="rail-panel-empty">' + escHtml(railT('rail.empty', 'Nothing here yet — open something and it will appear.')) + '</div>'
+  }
+
+  const renderRailTodos = (d) => {
+    const today = new Date().toISOString().slice(0, 10)
+    const todos = d.todos || []
+    const todayItems = todos.filter((t) => t.due_date === today).map((t) =>
+      railItem('/to-do-list', t.title, t.done ? 'done' : 'todo'))
+    const openItems = todos.filter((t) => !t.done && t.due_date !== today).map((t) =>
+      railItem('/to-do-list', t.title, 'todo'))
+    const doneItems = todos.filter((t) => t.done).map((t) =>
+      railItem('/to-do-list', t.title, 'done'))
+    return [
+      railGroup(railT('rail.g.today', 'Today'), todayItems),
+      railGroup(railT('rail.g.all', 'All'), openItems),
+      railGroup(railT('rail.g.done', 'Done'), doneItems, { collapsed: true }),
+    ].join('') || '<div class="rail-panel-empty">' + escHtml(railT('rail.empty', 'Nothing here yet — open something and it will appear.')) + '</div>'
+  }
+
+  const renderRailProjects = (d) => {
+    const projects = d.projects || []
+    const all = projects.map((p) => railItem('/project.html?id=' + encodeURIComponent(p.id), p.title, p.status))
+    const ongoing = projects.filter((p) => ['unreviewed', 'investigating', 'awaiting', 'doing'].includes(p.status))
+      .map((p) => railItem('/project.html?id=' + encodeURIComponent(p.id), p.title, p.status))
+    const done = projects.filter((p) => RAIL_DONE.has(p.status))
+      .map((p) => railItem('/project.html?id=' + encodeURIComponent(p.id), p.title, p.status))
+    return [
+      railGroup(railT('rail.g.all', 'All'), all),
+      railGroup(railT('rail.g.ongoing', 'Ongoing'), ongoing),
+      railGroup(railT('rail.g.done', 'Done'), done, { collapsed: true }),
+    ].join('')
+  }
+
+  const renderRailSparks = (d) => {
+    const sparks = d.sparks || []
+    const items = sparks.map((sp) => railItem('/sparks.html', sp.title, 'spark'))
+    return railGroup(railT('rail.g.all', 'All'), items) ||
+      '<div class="rail-panel-empty">' + escHtml(railT('rail.sparksEmpty', 'No ideas captured yet — the Ideas shelf fills as you spark.')) + '</div>'
+  }
+
+  const renderRailNotes = (d) => {
+    const folders = d.folders || []
+    const notes = d.notes || []
+    const inFolder = (fid) => notes.filter((n) => n.folder_id === fid).map((n) =>
+      railItem('/notes.html#n=' + encodeURIComponent(n.id), n.title || 'Untitled', null,
+        n.icon ? '<span class="rail-item-emoji" aria-hidden="true">' + escHtml(n.icon) + '</span>' : ''))
+    const folderGroups = folders.map((f) =>
+      railGroup(f.name, inFolder(f.id), { collapsed: false })).join('')
+    const unfiled = notes.filter((n) => !n.folder_id).map((n) =>
+      railItem('/notes.html#n=' + encodeURIComponent(n.id), n.title || 'Untitled', null,
+        n.icon ? '<span class="rail-item-emoji" aria-hidden="true">' + escHtml(n.icon) + '</span>' : ''))
+    return [
+      railGroup(railT('rail.g.unfiled', 'Unfiled'), unfiled),
+      folderGroups,
+    ].join('') || '<div class="rail-panel-empty">' + escHtml(railT('rail.notesEmpty', 'No notes yet — the vault fills as you write.')) + '</div>'
+  }
+
+  const renderRailCalendar = (d) => {
+    const today = new Date().toISOString().slice(0, 10)
+    const in7 = new Date(Date.now() + 7 * 86400000).toISOString().slice(0, 10)
+    const due = []
+    for (const p of d.projects || []) {
+      if (p.due_date && p.due_date >= today && p.due_date <= in7) due.push(railItem('/project.html?id=' + encodeURIComponent(p.id), p.title + ' · ' + p.due_date, p.status))
+    }
+    for (const t of d.todos || []) {
+      if (t.due_date && t.due_date >= today && t.due_date <= in7 && !t.done) due.push(railItem('/to-do-list', t.title + ' · ' + t.due_date, 'todo'))
+    }
+    due.sort()
+    const groups = railGroup(railT('rail.g.dueSoon', 'Due next 7 days'), due)
+    return groups + '<div class="rail-panel-empty">' + escHtml(railT('rail.calendarHint', 'Deadlines from your projects and to-dos land here as they approach.')) + '</div>'
+  }
+
+  const renderRailHint = (hintKey, fallback) =>
+    '<div class="rail-panel-empty">' + escHtml(railT(hintKey, fallback)) + '</div>'
+
+  async function renderRailPanel() {
+    const box = railBox()
+    if (!box || !railSection) return
+    const meta = RAIL_SECTIONS[railSection]
+    if (!meta) { closeRailPanel(); return }
+    const head =
+      '<div class="rail-panel-head">' +
+      '<span class="rail-panel-title">' + escHtml(railT(meta.i18n, meta.label)) + '</span>' +
+      '<a class="rail-panel-open-link" href="' + meta.href + '">' + escHtml(railT('rail.open', 'Open')) +
+      '<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14m0 0-6-6m6 6-6 6"/></svg></a>' +
+      '<button type="button" class="rail-panel-close" data-rail-close aria-label="' + escHtml(railT('rail.close', 'Close panel')) + '" data-i18n-aria-label="rail.close">' +
+      '<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button>' +
+      '</div>'
+    // dashboard reads the client-side resume store; everything else needs /api/rail
+    if (railSection === 'dashboard') {
+      box.innerHTML = head + '<div class="rail-panel-body">' + renderRailDashboard() + '</div>'
+      return
+    }
+    if (railSection === 'canvas') {
+      box.innerHTML = head + '<div class="rail-panel-body">' + renderRailHint('rail.canvasHint', 'The boundless Canvas is a single board — open it to draw, pin notes, and frame regions.') + '</div>'
+      return
+    }
+    if (railSection === 'notebook') {
+      box.innerHTML = head + '<div class="rail-panel-body">' + renderRailHint('rail.notebookHint', 'The Notebook is your single whiteboard — open it to sketch and write freehand.') + '</div>'
+      return
+    }
+    box.innerHTML = head + '<div class="rail-panel-body"><div class="rail-panel-loading">' + escHtml(railT('rail.loading', 'Loading…')) + '</div></div>'
+    let data
+    try { data = await loadRailData() } catch {
+      const box2 = railBox()
+      if (box2 && railSection) box2.innerHTML = head + '<div class="rail-panel-body"><div class="rail-panel-empty">' + escHtml(railT('rail.failed', 'Could not reach the server — reopen the panel to retry.')) + '</div></div>'
+      return
+    }
+    // a section switch (or close) superseded this render
+    if (!railSection || railBox() !== box) return
+    let body = ''
+    if (railSection === 'todo') body = renderRailTodos(data)
+    else if (railSection === 'projects') body = renderRailProjects(data)
+    else if (railSection === 'sparks') body = renderRailSparks(data)
+    else if (railSection === 'notes') body = renderRailNotes(data)
+    else if (railSection === 'calendar') body = renderRailCalendar(data)
+    box.innerHTML = head + '<div class="rail-panel-body">' + body + '</div>'
+  }
+
+  function markRailIcons() {
+    document.querySelectorAll('.rail-btn[data-rail-panel]').forEach((b) => {
+      b.classList.toggle('is-panel-open', !!railSection && b.getAttribute('data-rail-panel') === railSection)
+    })
+  }
+
+  function openRailPanel(section) {
+    const box = railBox()
+    if (!box || !RAIL_SECTIONS[section]) return
+    railSection = section
+    box.hidden = false
+    document.body.classList.add('rail-panel-open')
+    try { localStorage.setItem(RAIL_PANEL_KEY, section) } catch { /* storage unavailable */ }
+    markRailIcons()
+    renderRailPanel()
+  }
+
+  function closeRailPanel() {
+    const box = railBox()
+    railSection = null
+    document.body.classList.remove('rail-panel-open')
+    if (box) box.hidden = true
+    try { localStorage.removeItem(RAIL_PANEL_KEY) } catch { /* storage unavailable */ }
+    markRailIcons()
+  }
+
+  // The rail icons: click OPENS the panel (VS Code semantics — single click never
+  // navigates; the panel's header "Open →" + the item rows do). Registered BEFORE
+  // the generic link interceptor below so stopPropagation keeps the navigator out.
+  document.addEventListener('click', (e) => {
+    const icon = e.target.closest ? e.target.closest('.rail-btn[data-rail-panel]') : null
+    if (!icon) return
+    if (e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return
+    e.preventDefault()
+    e.stopPropagation()
+    const section = icon.getAttribute('data-rail-panel') || ''
+    if (railSection === section) closeRailPanel()
+    else openRailPanel(section)
+  }, true)
+
+  // Panel-internal controls (delegated — the panel re-renders constantly):
+  // ✕ closes; a group head collapses/expands; the Help icon replays the tour.
+  document.addEventListener('click', (e) => {
+    if (e.target.closest ? e.target.closest('[data-rail-close]') : null) { closeRailPanel(); return }
+    const groupHead = e.target.closest ? e.target.closest('[data-rail-group]') : null
+    if (groupHead) {
+      const group = groupHead.closest('.rail-group')
+      if (group) {
+        const collapsed = group.classList.toggle('is-collapsed')
+        groupHead.setAttribute('aria-expanded', String(!collapsed))
+      }
+      return
+    }
+    const help = e.target.closest ? e.target.closest('[data-rail-help]') : null
+    if (help) {
+      e.preventDefault()
+      if (window.hibanaTour?.start) window.hibanaTour.start()
+      else if (window.hibanaCmdK?.open) window.hibanaCmdK.open()
+      return
+    }
+  })
+
+  // Escape closes the panel (dialogs own their Escape first — the open-dialog guard).
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && railSection && !document.querySelector('dialog[open]')) closeRailPanel()
+  })
+
+  // Restore the persisted panel on boot (desktop only — the panel is hidden ≤1024
+  // and the fetch would be wasted). The section re-opens with fresh /api/rail data.
+  if (window.matchMedia('(min-width: 1025px)').matches) {
+    let saved = null
+    try { saved = localStorage.getItem(RAIL_PANEL_KEY) } catch { saved = null }
+    if (saved && RAIL_SECTIONS[saved]) {
+      // wait for the partial to mount the panel host (async /api/nav injection)
+      const t0 = Date.now()
+      const iv = setInterval(() => {
+        if (railBox()) { clearInterval(iv); openRailPanel(saved) }
+        else if (Date.now() - t0 > 4000) clearInterval(iv)
+      }, 120)
+    }
   }
 
   // htmx-fetched fragments can contain Alpine components (dashboard notebook, reports, …).

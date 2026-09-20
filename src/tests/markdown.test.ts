@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { renderMarkdown } from '../lib/markdown'
+import { highlightCode, renderMarkdown } from '../lib/markdown'
 
 // The CommonMark subset used by the quick-notebook render + the Notes Vault preview
 // (S53: the client port in notes-page.js mirrors this file — keep them in lockstep).
@@ -11,7 +11,7 @@ describe("renderMarkdown (the app's markdown subset)", () => {
     expect(html).toContain('<strong>b</strong>')
     expect(html).toContain('<em>i</em>')
     expect(html).toContain('<del>s</del>')
-    expect(html).toContain('<code>c</code>')
+    expect(html).toContain('<code class="md-ic">c</code>')
     expect(html).toContain('<a href="https://x.dev" target="_blank" rel="noopener">l</a>')
   })
 
@@ -24,7 +24,38 @@ describe("renderMarkdown (the app's markdown subset)", () => {
 
   it('renders fenced code verbatim (no further transforms inside)', () => {
     const html = renderMarkdown('```\n# not a heading\n**not bold**\n```')
+    // S88: fences render as the .md-code panel — but the BODY stays verbatim (a bare
+    // fence carries NO tokenization, so prose snippets don't light up as keywords)
+    expect(html).toContain('md-code')
     expect(html).toContain('<pre><code># not a heading\n**not bold**\n</code></pre>')
+    expect(html).not.toContain('<h1>')
+    expect(html).not.toContain('<strong>')
+    // the copy affordance rides every panel
+    expect(html).toContain('data-md-copy')
+  })
+
+  it('S88 code panel: language chip from the info string + escaped, token-colored body', () => {
+    const html = renderMarkdown('```js\nconst x = "hi" // note\n```')
+    expect(html).toContain('data-lang="js"')
+    expect(html).toContain('md-code-lang">js')
+    // keyword + string + comment each get their token class; everything stays escaped
+    expect(html).toContain('<span class="md-tok-kw">const</span>')
+    expect(html).toContain('<span class="md-tok-str">&quot;hi&quot;</span>')
+    expect(html).toContain('<span class="md-tok-com">// note</span>')
+  })
+
+  it('S88 highlightCode: numbers, function calls, operators, hash/dash comment families, and hostile input stays escaped', () => {
+    const py = highlightCode('# comment\nx = 42', 'py')
+    expect(py).toContain('<span class="md-tok-com"># comment</span>')
+    expect(py).toContain('<span class="md-tok-num">42</span>')
+    expect(highlightCode('-- sql note', 'sql')).toContain('md-tok-com')
+    expect(highlightCode('fn(a)', '')).toContain('<span class="md-tok-fn">fn</span>')
+    expect(highlightCode('#fff { color: red }', 'css')).not.toContain('md-tok-com') // # stays literal in CSS
+    const hostile = highlightCode('<script>"a"</script>', 'js')
+    expect(hostile).not.toContain('<script>')
+    expect(hostile).toContain('&lt;')
+    expect(hostile).toContain('script')
+    expect(hostile).toContain('&quot;a&quot;')
   })
 
   it('S53 fix: unordered lists wrap ONCE in <ul> (no nested <ul><ol> double wrap)', () => {

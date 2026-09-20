@@ -83,6 +83,17 @@
   --code-border: #E3D5C6;
   --code-panel-bg: #2D2A26;
   --code-panel-fg: #E8E3DC;
+  /* S88: the code-block grammar — one mono stack + the five syntax token inks the
+     tokenizer emits (keyword rust / string olive / comment taupe / number amber /
+     fn teal / op warm grey). These sit on the DARK panel (--code-panel-bg) in light
+     mode — hence the light values; claude-dark flips them for its own panel. */
+  --font-mono: ui-monospace, 'SF Mono', 'Cascadia Code', Menlo, Consolas, 'Liberation Mono', monospace;
+  --md-kw: #F09B7E;
+  --md-str: #A3B98F;
+  --md-com: #8F8A80;
+  --md-num: #E3B36B;
+  --md-fn: #7FB5B7;
+  --md-op: #A9A296;
   --danger-soft: #fdeaea;        /*   …pastel red fill */
   --danger-soft-hover: #fbdddd;
   /* Status badge tints — session 12 (2026-09-15, user: "the phase colors all look

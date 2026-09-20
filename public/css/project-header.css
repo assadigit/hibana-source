@@ -230,7 +230,7 @@
   border-radius: var(--radius-sm);
   background: transparent; /* pastel stage coding lives on the edge/header, not a fill */
 }
-.pd-col-head { display: flex; align-items: center; justify-content: space-between; gap: 0.4rem; }
+/* .pd-col-head moved below (S88: the tinted header strip) */
 /* Project detail meta line — the user's "all project metadata 50% smaller" pass
    (2026-08-30 checklist) covered the card meta (.pc-updated 0.68rem) but left this
    line at .small; match the task-meta treatment. */
@@ -250,31 +250,49 @@
    2026-08-30: New ideas = blue, Backlog = grey, In progress = orange, Implemented =
    green). Only the border + inline-start edge + header carry the color — the box
    body stays transparent (light AND dark). --pd-ink hues mirror the status-badge
-   palette so the coding stays on-system. */
-.pd-col[data-status='idea']        { --pd-c: 172 199 233; --pd-ink: #5c7796; }
-.pd-col[data-status='planned']     { --pd-c: 209 212 216; --pd-ink: #6b727b; }
-.pd-col[data-status='in_progress'] { --pd-c: 240 197 155; --pd-ink: #7d5a34; } /* Session 20 (AA): was #9c7245 — 4.28:1 on white; darkened to 6.2:1 */
-.pd-col[data-status='done']        { --pd-c: 182 224 200; --pd-ink: #43704f; } /* Session 20 (AA): was #5e8f70 — 3.72:1; darkened to 5.7:1 */
+   palette so the coding stays on-system.
+   S88 (owner pastel round): each column header now wears a barely-there TINT
+   (--pd-h, the owner-supplied off-white-with-a-hint-of-hue values) with the status
+   dot deepened to match (--pd-dot) — the dot + label stay the primary identifiers,
+   the tint is the whisper. Card bodies stay white; claude-dark flips the tint to a
+   low-alpha wash of the stage triplet. */
+.pd-col[data-status='idea']        { --pd-c: 172 199 233; --pd-ink: #5c7796; --pd-h: #EAF2FF; --pd-dot: #5B9BFF; }
+.pd-col[data-status='planned']     { --pd-c: 209 212 216; --pd-ink: #6b727b; --pd-h: #FDF1E7; --pd-dot: #F7A85B; }
+.pd-col[data-status='in_progress'] { --pd-c: 240 197 155; --pd-ink: #7d5a34; --pd-h: #FDF9E3; --pd-dot: #F0C94A; } /* Session 20 (AA): ink was #9c7245 — 4.28:1 on white; darkened to 6.2:1 */
+.pd-col[data-status='done']        { --pd-c: 182 224 200; --pd-ink: #43704f; --pd-h: #EAF7EE; --pd-dot: #5CB176; } /* Session 20 (AA): ink was #5e8f70 — 3.72:1; darkened to 5.7:1 */
 /* 0031 (user approval 2026-09-05): bugs read RED — same pastel treatment as the flow
    stages, so the defect column pops without shouting. */
-.pd-col[data-status='bug']         { --pd-c: 238 185 194; --pd-ink: #87555f; } /* Session 20 (AA): was #a96b78 — 4.15:1 on white; darkened to 6.0:1 */
+.pd-col[data-status='bug']         { --pd-c: 238 185 194; --pd-ink: #87555f; --pd-h: #FDEEF0; --pd-dot: #F26A6A; } /* Session 20 (AA): ink was #a96b78 — 4.15:1 on white; darkened to 6.0:1 */
 .pd-col { border-color: rgb(var(--pd-c) / 0.28); border-inline-start: 3px solid rgb(var(--pd-c) / 0.55); }
 /* cross-box drop target: a faint stage tint + stronger edge, only while dragging */
 .pd-col.drag-over { border-color: rgb(var(--pd-c) / 0.7); background: rgb(var(--pd-c) / 0.08); }
 /* S87: the dark column inks — scoped to claude-dark (THE dark mode; the old `dark`
-   theme + the OS auto-dark fallback were retired). */
-html[data-theme='claude-dark'] .pd-col[data-status='idea']        { --pd-c: 80 100 128; --pd-ink: #7B9AB8; }
-html[data-theme='claude-dark'] .pd-col[data-status='planned']     { --pd-c: 110 115 122; --pd-ink: #A0A8B0; }
-html[data-theme='claude-dark'] .pd-col[data-status='in_progress'] { --pd-c: 150 120 85; --pd-ink: #C49A6E; }
-html[data-theme='claude-dark'] .pd-col[data-status='done']        { --pd-c: 100 145 115; --pd-ink: #7BAA8E; }
-html[data-theme='claude-dark'] .pd-col[data-status='bug']         { --pd-c: 150 110 120; --pd-ink: #C098A0; }
-.pd-col-title { font-size: var(--fs-sm); font-weight: 600; color: var(--pd-ink, var(--muted)); display: inline-flex; align-items: center; gap: 0.35rem; }
+   theme + the OS auto-dark fallback were retired). S88: the header tint flips to a
+   low-alpha wash of the stage triplet (the light-mode pastels would blind on #1f1e1c)
+   and the dot keeps the dark ink. */
+html[data-theme='claude-dark'] .pd-col[data-status='idea']        { --pd-c: 80 100 128; --pd-ink: #7B9AB8; --pd-h: rgb(80 100 128 / 0.14); --pd-dot: #7B9AB8; }
+html[data-theme='claude-dark'] .pd-col[data-status='planned']     { --pd-c: 110 115 122; --pd-ink: #A0A8B0; --pd-h: rgb(110 115 122 / 0.14); --pd-dot: #C49A6E; }
+html[data-theme='claude-dark'] .pd-col[data-status='in_progress'] { --pd-c: 150 120 85; --pd-ink: #C49A6E; --pd-h: rgb(150 120 85 / 0.16); --pd-dot: #C49A6E; }
+html[data-theme='claude-dark'] .pd-col[data-status='done']        { --pd-c: 100 145 115; --pd-ink: #7BAA8E; --pd-h: rgb(100 145 115 / 0.14); --pd-dot: #7BAA8E; }
+html[data-theme='claude-dark'] .pd-col[data-status='bug']         { --pd-c: 150 110 120; --pd-ink: #C098A0; --pd-h: rgb(150 110 120 / 0.16); --pd-dot: #C098A0; }
+/* S88: the tinted header STRIP — full-bleed to the column's edges (the bleed cancels
+   the column's own 0.55rem padding), rounded to the column's top corners, and the
+   body below stays neutral. The count + actions ride the strip. */
+.pd-col-head {
+  display: flex; align-items: center; justify-content: space-between; gap: 0.4rem;
+  background: var(--pd-h, transparent);
+  margin: -0.55rem -0.55rem 0.45rem;
+  padding: 0.45rem 0.6rem;
+  border-radius: calc(var(--radius-sm) - 1px) calc(var(--radius-sm) - 1px) 0 0;
+  min-block-size: 0; /* the strip hugs its content; tall columns grow below it */
+}
+.pd-col-title { font-size: var(--fs-sm); font-weight: 600; color: var(--pd-ink, var(--muted)); display: inline-flex; align-items: center; gap: 0.15rem; /* S88: the dot hugs its label (was 0.35rem — the owner's "bullet sits too far from its title") */ }
 .pd-col-title::before {
   content: '';
   inline-size: 0.55rem;
   block-size: 0.55rem;
   border-radius: 999px;
-  background: rgb(var(--pd-c) / 0.72);
+  background: var(--pd-dot, rgb(var(--pd-c) / 0.72)); /* S88: the deepened dot matches the header tint */
   flex: none;
 }
 .pd-task {
@@ -306,14 +324,13 @@ html[data-theme='claude-dark'] .pd-col[data-status='bug']         { --pd-c: 150 
    RTL→dot on right). The gap is a logical property (respects the row's direction).
    The .pd-task-title keeps unicode-bidi:plaintext so the text itself still flows
    correctly per-paragraph. */
-.pd-task-title-row { display: flex; align-items: flex-start; gap: 0.45rem; }
+.pd-task-title-row { display: flex; align-items: flex-start; gap: 0.18rem; /* S88: dot→title tightened (was 0.45rem) — the owner's "bullet sits too far from its title text" */ }
 .pd-task-title {
   min-inline-size: 0;
-  /* S86 (owner request: "headings slightly larger and bold — like 12px normal text
-     with a 14px bold heading"): the task's first line IS the heading of its card —
-     0.875rem ≈ 14px vs the 0.8rem body, weight 700. The rest of the card (preview,
-     meta, chips) keeps --fs-sm, so the hierarchy reads exactly as specified. */
-  font-size: 0.875rem;
+  /* S88 (owner: "the heading of tasks is too big — if it's 14px, make it 12px"):
+     the S86 bump to 0.875rem/14px is rolled back to a 12px heading. The bold weight
+     + the 11.2px muted preview keep the hierarchy; the meta line stays smaller. */
+  font-size: 0.75rem;
   font-weight: 700;
   overflow-wrap: anywhere;
   line-height: 1.3;
@@ -327,7 +344,7 @@ html[data-theme='claude-dark'] .pd-col[data-status='bug']         { --pd-c: 150 
    behind the card click (the editor splits title\ncontent). */
 .pd-task-preview {
   display: block;
-  font-size: var(--fs-sm);
+  font-size: 0.7rem; /* S88: one step under the 12px heading (was --fs-sm) */
   font-weight: 400;
   color: var(--muted);
   line-height: 1.35;

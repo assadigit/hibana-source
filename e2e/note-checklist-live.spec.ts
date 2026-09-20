@@ -105,7 +105,7 @@ test('live checklist: pretty clickable boxes render OVER the raw markers in edit
     expect(geo).toBeTruthy()
     expect(geo!.t).toBeGreaterThan(10) // below the textarea's top padding edge
     expect(geo!.t).toBeLessThan(50) // on the FIRST content line
-    expect(geo!.l).toBeGreaterThan(10) // at the line's start (past the left padding)
+    expect(geo!.l).toBeGreaterThan(2) // at the line's start (past the tightened 0.375rem padding — S88)
     expect(geo!.l).toBeLessThan(80)
     expect(geo!.w).toBeGreaterThan(18) // covers the whole marker, not just the box
   }).toPass()

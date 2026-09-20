@@ -69,11 +69,13 @@ test('login → dashboard renders with zero console errors', async ({ page, brow
   await page.waitForURL('**/app', { timeout: 10_000 })
   await expect(page).toHaveTitle(/Dashboard/)
 
-  // Verify the dashboard actually rendered content (the topbar nav is present)
+  // Verify the dashboard actually rendered content (the S88 navigation rail is present)
   await page.waitForTimeout(3000) // wait for i18n to settle
-  await expect(page.locator('nav.topbar')).toBeVisible({ timeout: 10_000 })
-  // The "Projects" link appears in both topbar + mobile nav — use first()
-  await expect(page.locator('a[href="/projects.html"]').first()).toBeVisible({ timeout: 10_000 })
+  await expect(page.locator('nav.rail')).toBeVisible({ timeout: 10_000 })
+  // The rail's Projects icon (icon-only — aria-label is its accessible name) + the
+  // dashboard icon is the active section on /app.
+  await expect(page.locator('.rail .rail-primary a[href="/projects.html"]')).toBeVisible({ timeout: 10_000 })
+  await expect(page.locator('.rail .rail-primary a[href="/dashboard.html"]')).toHaveAttribute('aria-current', 'page')
 
   // Assert zero UNEXPECTED console errors (401s from auth-me + SW checks are expected)
   expect(errors).toEqual([])

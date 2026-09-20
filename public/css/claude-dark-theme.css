@@ -68,6 +68,13 @@ html[data-theme='claude-dark'] {
   --code-border: #45423d;
   --code-panel-bg: #1a1917;
   --code-panel-fg: #e8e6dc;
+  /* S88 syntax tokens on the dark panel — the light set dimmed to claude warmth. */
+  --md-kw: #E08A6B;
+  --md-str: #9DB584;
+  --md-com: #6F6A61;
+  --md-num: #D2A258;
+  --md-fn: #6FA6A8;
+  --md-op: #8A857B;
 
   /* ---------- Status badges — the Claude secondary palette ---------- */
   --badge-spark-bg: #2E2718;         --badge-spark-fg: #D4A27F;      /* Kraft tan  */

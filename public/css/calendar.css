@@ -356,13 +356,21 @@ body.zen-mode .mobile-nav,
 body.zen-mode .mobile-more-sheet,
 body.zen-mode .mobile-more-backdrop,
 body.zen-mode .fab-stack,
-body.zen-mode .sync-badge {
+body.zen-mode .sync-badge,
+/* S88: the navigation rail + its secondary panel leave with the rest of the chrome,
+   and the gutter they reserved collapses (content reclaims the full viewport). */
+body.zen-mode .rail,
+body.zen-mode .rail-panel {
   opacity: 0;
   pointer-events: none;
   transform: translateY(-0.5rem);
   transition: opacity 0.25s ease, transform 0.25s ease;
 }
 body.zen-mode .topbar { height: 0; min-height: 0; overflow: hidden; padding: 0; margin: 0; border: 0; }
+/* S88: reclaim the rail gutter + close the panel's push while zen'd. */
+body.zen-mode .rail,
+body.zen-mode .rail-panel { visibility: hidden; }
+body.zen-mode:has([data-nav]) { padding-inline-start: 0; }
 body.zen-mode .shell { max-inline-size: 56rem; margin: 0 auto; padding-block: 2rem; }
 body.zen-mode { padding-block-end: 0; }
 /* A small "exit zen" pill that floats top-right so the user always knows how to get back */

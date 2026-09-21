@@ -143,7 +143,38 @@
       document.title = doc.title || document.title
       if (push) history.pushState({ hibana: url.href }, '', url.href)
       else history.replaceState({ hibana: url.href }, '', url.href)
-      window.scrollTo({ top: 0 })
+      // S95 (the rail tree's deep links): a soft navigation carrying a SECTION
+      // anchor lands ON that section instead of the page top. Targets rendered
+      // in the shell scroll on the next frame; targets swept in later by htmx
+      // (the project page's #pd-board arrives with its #project-body fetch)
+      // are watched for — a short-lived observer scrolls the moment the anchor
+      // appears and is VISIBLE. Hashes naming no element (the S64 dialog
+      // vocabulary #note-<id>, #n=<id> — each page's boot owns those) keep the
+      // top-scroll; hidden targets (the project page's tab panels) are skipped
+      // here — that page's own hash boot un-hides + scrolls them.
+      if (url.hash) {
+        const anchorId = decodeURIComponent(url.hash.slice(1))
+        const el = document.getElementById(anchorId)
+        if (el && !el.hidden) {
+          requestAnimationFrame(() => { if (el.isConnected) el.scrollIntoView() })
+        } else if (!el) {
+          let mo = null
+          const stop = () => { clearTimeout(timer); if (mo) mo.disconnect() }
+          const timer = setTimeout(stop, 4000)
+          mo = new MutationObserver(() => {
+            const found = document.getElementById(anchorId)
+            if (found && !found.hidden && found.isConnected) {
+              stop()
+              requestAnimationFrame(() => { if (found.isConnected) found.scrollIntoView() })
+            }
+          })
+          mo.observe(document.body, { childList: true, subtree: true })
+        } else {
+          window.scrollTo({ top: 0 })
+        }
+      } else {
+        window.scrollTo({ top: 0 })
+      }
 
       window.hibanaI18n?.apply()
 
@@ -287,6 +318,32 @@
     // load and never re-marked on soft navigation (the bug: notes → projects kept
     // "Notes" lit). Secondary pages also light up the More tab via the same call.
     window.hibanaMobileNav?.mark(pathname)
+    markRailRows()
+  }
+
+  // S95 (the "never lose your place" job): rows in the open rail panel carry a
+  // current-location marker. The panel DOM persists across soft navigations (the
+  // e2e contract: a row click navigates and the panel stays open), so this runs
+  // from markNav on EVERY navigation + after each panel render. Rule: a row
+  // WITHOUT a hash (the project/spark/note identity row) lights while you're on
+  // that page; a row WITH a hash (a tree leaf deep-linked to a section) lights
+  // only when the current hash is exactly that section — landing via «Problems»
+  // lights the project row AND its problems leaf, landing at the page top lights
+  // only the project row.
+  function markRailRows() {
+    const box = railBox()
+    if (!box) return
+    let here
+    try { here = new URL(location.href) } catch { return }
+    const idOf = (u) => u.searchParams.get('id')
+    box.querySelectorAll('.rail-item[href]').forEach((a) => {
+      let row
+      try { row = new URL(a.href) } catch { return }
+      const sameDoc = row.pathname === here.pathname &&
+        (idOf(row) || null) === (idOf(here) || null)
+      const active = sameDoc && (!row.hash || row.hash === here.hash)
+      a.classList.toggle('is-row-active', active)
+    })
   }
 
   // --- S88: the navigation rail's SECONDARY PANEL (VS Code Activity Bar + Side Bar) --
@@ -370,11 +427,12 @@
       '<span class="rail-group-count">' + railFaDig(count) + '</span>' +
       '</button><div class="rail-group-body">' + (Array.isArray(items) ? items.join('') : items) + '</div></div>'
   }
-  const railItem = (href, label, dotStatus, extra) =>
+  const railItem = (href, label, dotStatus, extra, badge) =>
     '<a class="rail-item" href="' + href + '">' +
     (dotStatus ? '<span class="rail-dot" data-status="' + escHtml(dotStatus) + '"></span>' : '') +
     (extra || '') +
-    '<span class="rail-item-label" dir="auto">' + escHtml(label) + '</span></a>'
+    '<span class="rail-item-label" dir="auto">' + escHtml(label) + '</span>' +
+    (badge || '') + '</a>'
 
   // S93 (owner round, item 1 — "so user can directly tick them"): a to-do row is a
   // CHECKBOX + title, not a link. Ticking POSTs /complete (un-ticking /uncomplete) —
@@ -437,9 +495,27 @@
     ]
     const projectBranch = (p) => {
       const href = '/project.html?id=' + encodeURIComponent(p.id)
-      const row = railItem(href, p.title, p.status)
       const mine = ptasks.filter((t) => t.project_id === p.id)
+      // S95 (candidate 2 — at-a-glance triage): a project carrying OPEN BUGS wears
+      // a small count badge on its own row — the owner scans which projects carry
+      // problems WITHOUT expanding anything (the problems register: the awaiting_dev
+      // rust, the same ink the Problems dot speaks). aria-label composes from the
+      // existing rail.g.problems key so FA reads «۳ مشکلات».
+      const bugCount = mine.filter((t) => t.status === 'bug').length
+      const bugBadge = bugCount
+        ? '<span class="rail-item-badge rail-bug-badge"' +
+          ' title="' + escHtml(railFaDig(bugCount) + ' ' + railT('rail.g.problems', 'Problems')) + '"' +
+          ' aria-label="' + escHtml(railFaDig(bugCount) + ' ' + railT('rail.g.problems', 'Problems')) + '">' +
+          railFaDig(bugCount) + '</span>'
+        : ''
+      const row = railItem(href, p.title, p.status, null, bugBadge)
       if (!mine.length) return row
+      // S95 (candidate 3 — deep-link to the box itself): the tree's leaf rows land
+      // ON the section where that work lives instead of the page top — ideas at the
+      // project's progress board (#pd-board, where idea tasks render), problems at
+      // the exact problems section (#detail-problems). Native hash scrolling does
+      // the landing (both sections are server-rendered before first paint).
+      const SUB_TARGET = { idea: '#pd-board', bug: '#detail-problems' }
       const subs = SUB_GROUPS.map((g) => {
         const items = mine.filter((t) => t.status === g.key)
         if (!items.length) return ''
@@ -449,7 +525,7 @@
           '<span>' + escHtml(railT(g.i18n, g.label)) + '</span>' +
           '<span class="rail-group-count">' + railFaDig(items.length) + '</span>' +
           '</button><div class="rail-group-body">' +
-          items.map((t) => railItem(href, t.title, null)).join('') +
+          items.map((t) => railItem(href + (SUB_TARGET[g.key] || ''), t.title, null)).join('') +
           '</div></div>'
       }).join('')
       return subs ? row + subs : row
@@ -718,6 +794,7 @@
     // a section switch (or close) superseded this render
     if (!railSection || railBox() !== box) return
     box.innerHTML = head + '<div class="rail-panel-body">' + railBodyFor(railSection, data) + '</div>'
+    markRailRows() // S95: freshly rendered rows get their current-location marks
   }
 
   function markRailIcons() {

@@ -380,6 +380,51 @@ body.rail-panel-open .rail-panel { visibility: visible; opacity: 1; transition: 
 .rail-dot[data-status='done']         { background: color-mix(in srgb, var(--badge-operational-fg, #277334) 40%, transparent); }
 .rail-dot[data-status='todo']         { background: color-mix(in srgb, var(--badge-queued-fg, #85620D) 40%, transparent); }
 .rail-item-emoji { flex: none; font-size: 0.9rem; line-height: 1; }
+/* S95 (at-a-glance triage): a project row carrying open bugs wears a count pill in
+   the problems register — the awaiting_dev rust the Problems dot speaks, on the S94
+   counter-pill recipe (12% wash + ink mixed 68% toward the TEXT ink + a 45% hairline
+   for definition; 6.6:1 light / 7.4:1 claude-dark, numerically checked). The count
+   renders through railFaDig so FA reads Farsi digits. */
+.rail-item-badge {
+  flex: none;
+  margin-inline-start: 0.2rem;
+  min-inline-size: 1.2rem;
+  padding: 0.02rem 0.3rem;
+  border-radius: 999px;
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  line-height: 1.45;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+.rail-bug-badge {
+  color: color-mix(in srgb, var(--badge-awaiting_dev-fg, #A34A31) 68%, var(--text));
+  background: color-mix(in srgb, var(--badge-awaiting_dev-fg, #A34A31) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--badge-awaiting_dev-fg, #A34A31) 45%, transparent);
+}
+/* S95 ("never lose your place" — the app's second job): the panel row of the page
+   you are ON carries a quiet current-location mark — the S94 rail-icon active
+   register in miniature: a brand wash, the text ink, and a 2px brand lead pill on
+   the rail-facing edge (absolutely positioned — zero layout shift, logical inset
+   so RTL mirrors true). Applies to any panel row: the project row while you're on
+   its page, the exact tree leaf when you deep-linked to its section, a note row
+   under notes.html#n=. Hover keeps the wash (source order wins over .rail-item:hover). */
+.rail-item.is-row-active {
+  position: relative;
+  background: var(--accent-soft);
+  color: var(--text);
+}
+.rail-item.is-row-active:hover { background: var(--accent-soft); }
+.rail-item.is-row-active::before {
+  content: '';
+  position: absolute;
+  inset-inline-start: 0;
+  inset-block: 0.18rem;
+  inline-size: 0.18rem;
+  border-radius: 999px;
+  background: var(--brand);
+}
+.rail-item.is-row-active .rail-item-label { color: inherit; }
 .rail-panel-empty { padding: 1.25rem 0.75rem; color: var(--muted); font-size: var(--fs-sm); line-height: 1.5; }
 .rail-panel-loading { padding: 1.25rem 0.75rem; color: var(--muted); font-size: var(--fs-sm); }
 

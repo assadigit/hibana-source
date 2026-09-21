@@ -254,7 +254,12 @@ test.describe('the secondary panel (VS Code Activity Bar + Side Bar pattern)', (
     // The developing project's row is intact and still deep-links to its page…
     const row = page.locator('.rail-item', { hasText: 'Rail project 0' }).first()
     await expect(row).toBeVisible()
-    await expect(row).toHaveAttribute('href', /\/project\.html\?id=.+/)
+    await expect(row).toHaveAttribute('href', /\/project\.html\?id=.+$/)
+    // S95 (at-a-glance triage): the row wears a PROBLEMS count pill (one seeded
+    // bug) — scannable without expanding anything.
+    const bugBadge = row.locator('.rail-item-badge')
+    await expect(bugBadge).toHaveText('1')
+    await expect(bugBadge).toHaveAttribute('aria-label', '1 Problems')
 
     // …and directly under it grows the nested branch: TWO collapsible idea-groups
     // ("New ideas" + "Problems" — the project page's progress-box vocabulary), each
@@ -270,12 +275,18 @@ test.describe('the secondary panel (VS Code Activity Bar + Side Bar pattern)', (
     // The sub-groups ship COLLAPSED (the panel stays a scannable summary) — the
     // same [data-rail-group] toggle contract the stage heads use.
     await expect(subs.nth(0)).toHaveClass(/is-collapsed/)
-    // Expanding reveals the task row, deep-linking to the project's own page.
+    // Expanding reveals the task rows, deep-linking to the project's own page AT
+    // the section where that work lives (S95): ideas → the progress board
+    // (#pd-board), bugs → the exact problems panel (#detail-problems).
     await heads.nth(0).click()
     await expect(subs.nth(0)).not.toHaveClass(/is-collapsed/)
     const taskRow = subs.nth(0).locator('.rail-item')
     await expect(taskRow).toContainText('Rail tree idea')
-    await expect(taskRow).toHaveAttribute('href', /\/project\.html\?id=.+/)
+    await expect(taskRow).toHaveAttribute('href', /\/project\.html\?id=.+#pd-board$/)
+    await heads.nth(1).click()
+    const bugRow = subs.nth(1).locator('.rail-item')
+    await expect(bugRow).toContainText('Rail tree bug')
+    await expect(bugRow).toHaveAttribute('href', /\/project\.html\?id=.+#detail-problems$/)
     // The tree indent compounds: the sub-group body sits deeper than the stage body
     // (the S91 tree-guide anatomy — 0.8rem per NESTED level; the relative margin is
     // the same on both, the absolute depth comes from the nesting, so the x-position
@@ -284,11 +295,29 @@ test.describe('the secondary panel (VS Code Activity Bar + Side Bar pattern)', (
     const subBodyX = await subs.nth(0).locator('.rail-group-body').evaluate((el) => el.getBoundingClientRect().x)
     expect(subBodyX).toBeGreaterThan(stageBodyX + 8)
 
-    // A task-row click navigates to the project page and the panel STAYS OPEN
-    // (the same persistence contract as the stage rows above).
+    // A task-row click navigates to the project page, the panel STAYS OPEN (the
+    // same persistence contract as the stage rows above), the leaf's SECTION
+    // anchor rides the URL, the page LANDS on the board (S95: the htmx-swept
+    // target is watched for + scrolled, scroll-margin clearing the topbar) and
+    // the current-location marks light BOTH the project row and the exact leaf.
     await taskRow.click()
-    await page.waitForURL('**/project.html?id=*', { timeout: 10_000 })
+    await page.waitForURL(/project\.html\?id=.+#pd-board$/, { timeout: 10_000 })
     await expect(panel).toBeVisible()
+    await page.waitForFunction(() => {
+      const b = document.querySelector('#pd-board')
+      return !!b && b.getBoundingClientRect().top < 220
+    }, null, { timeout: 10_000 })
+    await expect(page.locator('.rail-item.is-row-active', { hasText: 'Rail project 0' })).toHaveClass(/is-row-active/)
+    await expect(page.locator('.rail-item.is-row-active', { hasText: 'Rail tree idea' })).toHaveClass(/is-row-active/)
+
+    // The «Problems» leaf (a hash-only soft nav from the same project page):
+    // #detail-problems OPENS the problems tab (the panels ship hidden — the
+    // page's hash boot un-hides + scrolls it) and its row joins the marks.
+    await bugRow.click()
+    await page.waitForURL(/project\.html\?id=.+#detail-problems$/, { timeout: 10_000 })
+    await expect(page.locator('[data-detail-tab="problems"]')).toHaveAttribute('aria-selected', 'true')
+    await expect(page.locator('#detail-problems')).toBeVisible()
+    await expect(page.locator('.rail-item.is-row-active', { hasText: 'Rail tree bug' })).toHaveClass(/is-row-active/)
   })
 
   test('the Dashboard icon NAVIGATES — it never opens a panel (S93 item 2)', async ({ page }) => {

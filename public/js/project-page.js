@@ -1155,9 +1155,36 @@
           ctx.on(evt, (e) => {
             if (e.target?.id === 'project-body' || e.detail?.target?.id === 'project-body') {
               switchTab(pdActiveTab)
+              pdConsumeHash()
             }
           })
         }
+        // S95 (the rail tree's deep links): landing with a #detail-<tab> hash
+        // (the rail's «Problems» leaf → #detail-problems) OPENS that tab — the
+        // detail panels ship HIDDEN (Notes is the default) and arrive via the
+        // #project-body htmx sweep, so the hash is consumed at the FIRST sweep
+        // where the panel exists (pdConsumeHash runs at boot too, for any
+        // future server-rendered body). Hard loads AND soft navigations both
+        // land here (S64: the page's boot reads the fresh hash — the -page.js
+        // reexec re-runs this closure with the fresh hash). ONCE by design: a
+        // later re-render keeps the remembered tab (the contract above), never
+        // re-forcing the hash tab mid-interaction. The progress board
+        // (#pd-board, the «New ideas» leaf) is always visible — nav.js's
+        // generic anchor scroll handles it. A hash naming no real panel is
+        // ignored — never blank the detail area on a bogus fragment.
+        let pdHashPending = /^#detail-([a-z]+)$/.test(location.hash)
+        function pdConsumeHash() {
+          if (!pdHashPending) return
+          const m = /^#detail-([a-z]+)$/.exec(location.hash)
+          const el = m ? document.getElementById('detail-' + m[1]) : null
+          if (!el) return // panels not swept yet — stays pending for the next afterSwap
+          pdHashPending = false
+          switchTab(m[1])
+          // rAF: the sweep's post-swap layout (htmx settling, the tab-fade) needs a
+          // frame to settle — scrolling synchronously landed ~146px short in QA.
+          requestAnimationFrame(() => { if (el.isConnected) el.scrollIntoView() })
+        }
+        pdConsumeHash()
 
         // --- Redesigned header (user sketch 2026-08-29) ---------------------------------
 

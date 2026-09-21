@@ -198,6 +198,9 @@
 
 /* --- inline board preview ------------------------------------------------ */
 .pd-board { display: grid; gap: 0.8rem; }
+/* S95 (the rail tree's deep links): anchor landings clear the sticky topbar —
+   the same scroll-margin contract notes.css (.note) and settings use. */
+.pd-board, .detail-panel { scroll-margin-block-start: 4.5rem; }
 .pd-board-head h3 { display: inline-flex; align-items: center; gap: 0.45rem; margin: 0; }
 .pd-board-head .icon { color: var(--brand); }
 .pd-sprint-count {

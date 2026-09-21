@@ -395,9 +395,14 @@ export function dashboardRoutes(cfg: Config) {
                     <span class="dash-style-lbl">${t('Symbol', 'نماد')}</span>
                     <div class="dash-style-icons" role="group" aria-label="${t('Choose symbol', 'انتخاب نماد')}"><button type="button" class="dash-style-emoji is-selected dash-icon-open" data-dash-icon-open="${q.id}" data-current="${currentSymbol}" aria-label="${t('Choose symbol — full emoji library', 'انتخاب نماد — کتابخانهٔ کامل ایموجی')}" title="${t('Choose symbol — full emoji library', 'انتخاب نماد — کتابخانهٔ کامل ایموجی')}">${currentSymbol || '—'}</button><button type="button" class="dash-style-emoji dash-style-empty${iconId === 'none' ? ' is-selected' : ''}" data-dash-icon-empty="${q.id}" aria-pressed="${iconId === 'none'}" aria-label="${t('No icon — minimalist', 'بدون نماد — مینیمال')}" title="${t('No icon — minimalist', 'بدون نماد — مینیمال')}">∅</button></div>
                     <!-- S93 (owner round, item 6 — the 16 pastel swatches): immediate PATCH
-                         via app.js [data-dash-accent]; 'none' (∅) clears back to neutral. -->
+                         via app.js [data-dash-accent]; 'none' (∅) clears back to neutral.
+                         S101 (QA-found, live since S93): the map once shipped UNwrapped —
+                         the html tag escapes plain-string interpolations, so the popover
+                         rendered a wall of &lt;button&gt; text instead of the 16 swatches
+                         (64 escaped tags in /api/dashboard). raw() restores the real
+                         buttons; the regression pin lives in dashboard.test.ts. -->
                     <span class="dash-style-lbl">${t('Pastel color', 'رنگ پاستلی')}</span>
-                    <div class="dash-style-swatches" role="group" aria-label="${t('Pastel color', 'رنگ پاستلی')}">${QUADRANT_ACCENTS.map((tok) => `<button type="button" class="dash-style-swatch${style?.accent === tok ? ' is-selected' : ''}" data-dash-accent="${tok}" style="--sw: var(--${tok})" aria-label="${tok}" title="${tok}"></button>`).join('')}<button type="button" class="dash-style-swatch dash-style-swatch-none${!style?.accent ? ' is-selected' : ''}" data-dash-accent="none" aria-label="${t('No color — neutral', 'بدون رنگ — خنثی')}" title="${t('No color — neutral', 'بدون رنگ — خنثی')}">∅</button></div>
+                    <div class="dash-style-swatches" role="group" aria-label="${t('Pastel color', 'رنگ پاستلی')}">${raw(QUADRANT_ACCENTS.map((tok) => `<button type="button" class="dash-style-swatch${style?.accent === tok ? ' is-selected' : ''}" data-dash-accent="${tok}" style="--sw: var(--${tok})" aria-label="${tok}" title="${tok}"></button>`).join(''))}<button type="button" class="dash-style-swatch dash-style-swatch-none${!style?.accent ? ' is-selected' : ''}" data-dash-accent="none" aria-label="${t('No color — neutral', 'بدون رنگ — خنثی')}" title="${t('No color — neutral', 'بدون رنگ — خنثی')}">∅</button></div>
                     <div class="dash-style-actions">
                       <button type="button" class="dash-style-cancel" data-dash-style-cancel="${q.id}">${t('Cancel', 'لغو')}</button>
                       <button type="submit" class="dash-style-save-btn">${t('Save', 'ذخیره')}</button>

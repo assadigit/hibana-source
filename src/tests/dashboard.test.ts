@@ -258,6 +258,17 @@ describe('dashboard to-do preview', () => {
       // 'no accent anywhere' assertion retired with them. The emoji symbol
       // rides the Phase 7 item 1 picker button's data-current.
       expect(html).toContain('data-current="🎯"')
+      // S101 (QA-found regression pin): the swatch map once shipped as a PLAIN string
+      // inside html`` — every button escaped, the popover rendered a wall of
+      // &lt;button&gt; text and the dashboard's 16-color picker was UNUSABLE (live
+      // since S93; the sadhana board's client-built picker was the working one).
+      // 17 real swatch buttons per quadrant (16 colors + the ∅ clear) × 4 quadrants,
+      // the picked accent-purple swatch rides ' is-selected', NEVER an escaped tag.
+      expect((html.match(/<button type="button" class="dash-style-swatch[ "]/g) ?? []).length).toBe(68)
+      expect(html).toContain('class="dash-style-swatch is-selected" data-dash-accent="accent-purple"')
+      // The bug signature: the swatch row's own content starting with an ESCAPED tag
+      // (user content elsewhere may legitimately escape — this pin is scoped).
+      expect(html).not.toMatch(/dash-style-swatches"[^>]*>&lt;/)
       // S85: the "Active N" text counter is the shared board-count PILL now — bare
       // digits + title/aria meaning, same convention as the stage columns' counts.
       expect(html).toContain('data-dash-quadrant-count="1"')

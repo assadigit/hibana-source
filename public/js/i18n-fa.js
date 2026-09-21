@@ -21,6 +21,7 @@ window.__hibanaDictFA = {
       'rail.failed': 'اتصال به سرور برقرار نشد — پنل را دوباره باز کنید.',
       'rail.empty': 'هنوز چیزی اینجا نیست — چیزی باز کنی همین‌جا ظاهر می‌شود.',
       'rail.g.unfiled': 'بی‌پوشه', 'rail.g.upcoming': 'پیشِ رو',
+      'rail.g.newIdeas': 'ایده‌های جدید', 'rail.g.problems': 'مشکلات',
       'rail.sparksEmpty': 'هنوز ایده‌ای ثبت نشده — قفسهٔ ایده‌ها با ثبت‌های تو پر می‌شود.',
       'rail.notesEmpty': 'هنوز یادداشتی نیست — گاوصندوق با نوشتن تو پر می‌شود.',
       'rail.canvasHint': 'بوم بی‌حدومرز یک تختهٔ واحد است — بازش کن تا بکشی، یادداشت سنجاق کنی و قاب بسازی.',
@@ -329,6 +330,7 @@ window.__hibanaDictFA = {
       'card.loadFailed': 'دریافت پروژه ممکن نشد', 'card.saving': 'در حال ذخیره…', 'card.deleted': 'پروژه حذف شد',
       // dashboard stat boxes
       'dashboard.nothing': 'هنوز چیزی نیست',
+      'dashboard.quadrantEmpty': 'هنوز کاری اضافه نکرده‌ای',
       'dashboard.moveFailed': 'جابه‌جایی ممکن نشد — دوباره تلاش کن',
       'dashboard.seeMore': 'مشاهده بیشتر', 'dashboard.seeLess': 'مشاهده کمتر',
       'dashboard.taskUpdateFailed': 'به‌روزرسانی کار ممکن نشد',

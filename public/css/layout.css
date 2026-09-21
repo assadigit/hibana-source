@@ -167,7 +167,7 @@ html:not([data-theme='claude-dark']) .themed-logo--dark { display: none; }
   background: transparent;
   transition: color 0.14s ease, background 0.14s ease, box-shadow 0.14s ease;
 }
-.rail-btn .icon { inline-size: 1.25rem; block-size: 1.25rem; }
+.rail-btn .icon { inline-size: 1.25rem; block-size: 1.25rem; transition: transform 0.14s ease; }
 /* S89: the small label under each icon — 10px, muted with the icon, inherits the
    active/hover color flips so icon + label read as one control. Persian renders in
    Vazir via the html[lang='fa'] global family swap. */
@@ -179,15 +179,34 @@ html:not([data-theme='claude-dark']) .themed-logo--dark { display: none; }
   white-space: nowrap;
   text-align: center;
 }
-.rail-btn:hover { color: var(--text); background: var(--bg-soft); text-decoration: none; }
+.rail-btn:hover { color: var(--text); background: color-mix(in srgb, var(--text) 8%, transparent); text-decoration: none; }
 .rail-btn:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
 /* The ACTIVE section: the filled rounded-square indicator (aria-current='page' is
-   set by nav.js's markNav on every soft navigation + hib-init on hard load). */
+   set by nav.js's markNav on every soft navigation + hib-init on hard load).
+   S94 (owner item 11 — "more pronounced active/hover differentiation"): the old wash
+   (accent-soft + a 22% ring) sat one small step from the plain bg-soft hover, so the
+   current page's icon barely read. The active state now owns THREE simultaneous
+   signals — a deeper brand wash (14% mixed onto the rail surface), a 1.5px 45% brand
+   ring, and a solid brand lead bar on the rail-facing edge (::before — inset, so it
+   never collides with .is-panel-open's outer ::after strip) — plus the icon lifts a
+   step (scale 1.12) and the label goes bold. Hover (non-active) stays the quiet
+   neutral tint, so the two states can't be mistaken for each other. */
 .rail-btn[aria-current='page'] {
-  background: var(--accent-soft);
+  background: color-mix(in srgb, var(--brand) 14%, var(--bg));
   color: var(--brand);
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--brand) 22%, transparent);
+  box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--brand) 45%, transparent);
 }
+.rail-btn[aria-current='page']::before {
+  content: '';
+  position: absolute;
+  inset-inline-start: 0;
+  inset-block: 16%;
+  inline-size: 3px;
+  border-radius: 3px;
+  background: var(--brand);
+}
+.rail-btn[aria-current='page'] .icon { transform: scale(1.12); }
+.rail-btn[aria-current='page'] .rail-label { font-weight: 700; }
 /* The icon whose PANEL is open wears a slim rail-facing indicator strip — the VS Code
    cue that this view is the one mounted beside you. */
 .rail-btn.is-panel-open::after {
@@ -276,9 +295,11 @@ body.rail-panel-open .rail-panel { visibility: visible; opacity: 1; transition: 
   border: 0; border-radius: 0.5rem;
   /* S90 (owner request): the group heads wear a PALE background wash — the panel's
      heading rows used to be bare text on the panel surface, which read as flat
-     labels rather than the section headings they are. bg-soft is the pale surface
-     token (hover deepens to the brand's accent-soft wash). */
-  background: var(--bg-soft);
+     labels rather than the section headings they are.
+     S94 (owner item 3): the wash is now the SHARED pale well (--well-bg, a 55%
+     bg-soft veil — paler than S90's solid bg-soft) so the rail group heads and the
+     projects kanban stage columns read as the same system, exact same color/opacity. */
+  background: var(--well-bg);
   color: var(--muted);
   font: 600 var(--fs-xs)/1.2 var(--font-sans);
   letter-spacing: 0.02em; text-transform: uppercase;
@@ -302,6 +323,29 @@ body.rail-panel-open .rail-panel { visibility: visible; opacity: 1; transition: 
   padding-inline-start: 0.55rem;
   border-inline-start: 1px solid color-mix(in srgb, var(--muted) 26%, transparent);
 }
+/* S94 (owner item 6 — the deeper projects tree): a project's idea-groups nest ONE
+   MORE .rail-group level inside the stage body (stage → project → idea-group → item),
+   so the S91 tree-guide indent compounds naturally (0.8rem + 0.8rem). The sub-head
+   reuses the group-head contract (same [data-rail-group] toggle, same chevron/count)
+   but speaks QUIETER: sentence case at fs-xs, no wash (bare text on the panel — the
+   stage heads own the "section chip" look, the sub-heads read as the project's own
+   labels), a touch less padding. Sub-group margin keeps the branch visually owned by
+   its project row (the tree guide carries the eye down). */
+.rail-sub-group { margin-block: 1px 0.2rem; }
+.rail-sub-group .rail-group-head {
+  padding: 0.3rem 0.4rem;
+  background: transparent;
+  color: var(--muted);
+  font-size: var(--fs-xs);
+  font-weight: 500;
+  letter-spacing: 0;
+  text-transform: none;
+}
+.rail-sub-group .rail-group-head:hover { color: var(--text); background: var(--bg-soft); }
+.rail-sub-group .rail-group-head .rail-group-count { opacity: 0.65; }
+.rail-sub-group .rail-item { font-size: var(--fs-xs); color: var(--muted); }
+.rail-sub-group .rail-item:hover { color: var(--text); }
+.rail-sub-group .rail-item .rail-item-label { overflow-wrap: anywhere; white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
 .rail-item {
   display: flex; align-items: center; gap: 0.45rem;
   padding: 0.42rem 0.5rem;
@@ -563,12 +607,14 @@ body.rail-panel-open .rail-panel { visibility: visible; opacity: 1; transition: 
 }
 .rail-todo-item:has(.rail-check:checked) { background: var(--bg-soft); }
 /* S93 (item 6): a quadrant group whose quadrant carries a picked pastel wears the tint —
-   a 14% wash on the pale group head + a solid lead dot in the accent. */
+   a wash on the pale group head + a solid lead dot in the accent. S94 (item 3): the
+   base the accent mixes into is the shared pale well (was solid bg-soft) so a tinted
+   head keeps the same translucency as every other head. */
 .rail-group[style*='--ga'] .rail-group-head {
-  background: color-mix(in srgb, var(--ga) 14%, var(--bg-soft));
+  background: color-mix(in srgb, var(--ga) 14%, var(--well-bg));
 }
 .rail-group[style*='--ga'] .rail-group-head:hover {
-  background: color-mix(in srgb, var(--ga) 22%, var(--bg-soft));
+  background: color-mix(in srgb, var(--ga) 22%, var(--well-bg));
 }
 .rail-group-dot {
   inline-size: 0.5rem;
@@ -679,6 +725,26 @@ body.rail-panel-open .rail-panel { visibility: visible; opacity: 1; transition: 
    filters mirrors the 1.5rem below it. Projects page is the only .filters user. */
 .filters { margin-block-start: 1.25rem; margin-block-end: 1.5rem; }
 .filters input[type='search'] { flex: 1; }
+/* S94 (owner item 5 — "shrink the gigantic filter controls"): the projects toolbar's
+   status/tag/sort selects + search rode the GLOBAL control sizing (1rem font,
+   .55rem/.75rem padding) — visually louder than the row they sit in and taller than
+   the already-compact view-select beside them. The filter bar drops to the compact
+   register: fs-sm type + .4rem/.65rem padding (the exact recipe .view-select select
+   uses), so the whole toolbar reads as one aligned row. Scope is safe: projects.html
+   is the only .filters user (comment above). */
+.filters input,
+.filters select {
+  font-size: var(--fs-sm);
+  padding: 0.4rem 0.65rem;
+}
+/* The header row's "New project" CTA rides the same compact register (the FAB menu's
+   copy of the button keeps the full-size hit target — this selector can't reach it). */
+main.shell .row.spread [data-projectquickadd] {
+  font-size: var(--fs-sm);
+  padding: 0.42rem 0.8rem;
+  gap: 0.35rem;
+}
+main.shell .row.spread [data-projectquickadd] .icon { inline-size: 1rem; block-size: 1rem; }
 /* S45: mobile-first filter reflow. At phone widths the search input used to collapse
    to ~48px beside two 44px selects — an unusable sliver. ≤640px the form becomes a
    grid: the search takes its own full-width line, the three selects (status/tag/sort)

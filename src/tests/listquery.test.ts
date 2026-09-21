@@ -114,6 +114,16 @@ describe('projects list — empty filter params from the UI (regression)', () =>
       expect(html).not.toContain('<span class="muted small">—</span>') // bare dash is gone
       // the zone is the column's drop target for status changes (data-status present)
       expect(html).toMatch(/kanban-col" data-status="planning">[\s\S]*?kanban-empty/)
+      // S94 (owner item 4): the status-glance strip is HIDDEN under view=kanban —
+      // the stage columns already encode the same status+count information, so the
+      // strip read as redundancy. The strip stays in the cards view (asserted below).
+      expect(html).not.toContain('pglance-box')
+      expect(html).not.toContain('class="pglance')
+
+      // The cards view KEEPS the glance strip (one tappable box per stage).
+      const resCards = await app.fetch(new Request('http://local/api/projects?view=cards', { headers: { ...auth, 'HX-Request': 'true' } }))
+      const htmlCards = await resCards.text()
+      expect(htmlCards).toContain('pglance-box')
     } finally {
       close()
     }

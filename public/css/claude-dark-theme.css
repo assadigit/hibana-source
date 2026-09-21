@@ -53,6 +53,12 @@ html[data-theme='claude-dark'] {
   --cta-hover: #b25a37;
   --btn-text: #ffffff;
   --link: #d9997f;          /* warm clay-tinted link, 7:1 on the base */
+  /* S94 (owner items 7+8 — "no khaki anywhere"): the Quick Notebook keeps the TEAL
+     register in the dark theme too. The light-mode deep CTA teal (#2E7B7F) sinks under
+     3:1 on the near-black card, so the dark sheet carries a lightened teal of the same
+     family (#6FA6A8 — already the sheet's syntax-function hue; 5.9:1 on --card). The
+     notebook's washes/borders re-tint through this one token. */
+  --quicknote-accent: #6FA6A8;
 
   /* ---------- Semantic ---------- */
   --ok: #9BA77A;            /* olive */
@@ -249,6 +255,19 @@ html[data-theme='claude-dark'] .kanban-col .kanban-card[data-status='operational
 html[data-theme='claude-dark'] .dash-todo-quadrant {
   background: linear-gradient(160deg, color-mix(in srgb, var(--card) 96%, #fff 4%), var(--card));
   border-color: var(--line-strong);
+}
+/* S94 (owner item 1 — a LATENT S93 BUG fixed with the visibility raise): the elevation
+   cap above (html[data-theme] .dash-todo-quadrant, specificity 0-2-1) outranked
+   dashboard-todo.css's attribute-selector wash (0-2-0), so a quadrant with a PICKED
+   pastel fell back to the plain gradient in claude-dark — the wash only ever rendered
+   in light mode. Same recipe + numbers as the light sheet (12% wash, 55% border,
+   52/48 title mix), scoped one class deeper so it wins the cascade here. */
+html[data-theme='claude-dark'] .dash-todo-quadrant[style*='--dash-q-accent'] {
+  background: color-mix(in srgb, var(--dash-q-accent) 12%, var(--card));
+  border-color: color-mix(in srgb, var(--dash-q-accent) 55%, var(--line));
+}
+html[data-theme='claude-dark'] .dash-todo-quadrant[style*='--dash-q-accent'] .dash-todo-qtitle strong {
+  color: color-mix(in srgb, var(--dash-q-accent) 52%, var(--text));
 }
 html[data-theme='claude-dark'] .reports .card,
 html[data-theme='claude-dark'] #report-body .card {

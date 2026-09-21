@@ -97,4 +97,50 @@ describe('GET /api/rail (the navigation rail panel payload)', () => {
       expect(body.todos[0]).toMatchObject({ id: 't1', done: 0 })
     } finally { close() }
   })
+
+  // S94 (owner item 6): the projects panel's deeper tree — stage → project →
+  // idea-groups → items. The payload carries each live project's IDEA-GROUP dev
+  // tasks ('idea' + 'bug' only — the two groups the tree renders; planned/in_progress/
+  // done stay out so the payload stays a navigation summary).
+  it('returns projectTasks: idea+bug dev tasks of live projects, scoped + bounded', async () => {
+    const { db, close } = makeTestDb()
+    try {
+      const me = await makeUser(db, { username: 'rail-tree' })
+      const other = await makeUser(db, { username: 'rail-tree-o' })
+      const now = new Date().toISOString()
+      for (const [id, user, status, archived] of [
+        ['p1', me, 'developing', null],
+        ['p2', me, 'developing', 'offline'], // parked — its tasks never ride
+        ['p3', me, 'spark', null],           // spark shelf — excluded
+        ['p9', other, 'developing', null],   // Rule 1: another user's row
+      ] as const) {
+        await db.execute(
+          'INSERT INTO projects (id, user_id, title, status, archived_state, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
+          [id, user, `Project ${id}`, status, archived, now, now],
+        )
+      }
+      // p1's idea-group tasks: one idea + one bug ride; a 'planned' task stays out.
+      // p2's idea task must NOT ride (parked project). p9's must not (Rule 1).
+      for (const [id, project, status] of [
+        ['dt1', 'p1', 'idea'],
+        ['dt2', 'p1', 'bug'],
+        ['dt3', 'p1', 'planned'],
+        ['dt4', 'p2', 'idea'],
+        ['dt5', 'p9', 'idea'],
+      ] as const) {
+        await db.execute(
+          'INSERT INTO dev_tasks (id, project_id, title, status, priority, sort_order, created_at) VALUES (?, ?, ?, ?, ?, 0, ?)',
+          [id, project, `Task ${id}`, status, 'medium', now],
+        )
+      }
+
+      const { app, auth } = await makeClient(db, me)
+      const res = await app.fetch(new Request('http://local/api/rail', { headers: auth }))
+      expect(res.status).toBe(200)
+      const body = (await res.json()) as { projectTasks: { id: string; status: string; project_id: string }[] }
+      expect(body.projectTasks.map((t) => t.id).sort()).toEqual(['dt1', 'dt2'])
+      expect(body.projectTasks.find((t) => t.id === 'dt1')).toMatchObject({ status: 'idea', project_id: 'p1' })
+      expect(body.projectTasks.find((t) => t.id === 'dt2')).toMatchObject({ status: 'bug', project_id: 'p1' })
+    } finally { close() }
+  })
 })

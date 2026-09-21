@@ -44,6 +44,13 @@
 :root {
   --bg: #FAF9F6;               /* UX-friendly near-white (not pure white) — warm tint keeps it soft */
   --bg-soft: #F2F0EA;          /* slightly deeper surface (hover / alt rows) */
+  /* S94 (owner item 3): ONE shared "pale well" wash — the rail panel's group heads AND
+     the projects kanban's stage columns wear the EXACT same color/opacity (a 55%
+     bg-soft veil over whatever surface sits underneath), so the two list anatomies
+     read as one system. Referenced by .rail-group-head (layout.css) and .kanban-col
+     (canvas.css); re-resolves automatically per theme (bg-soft is overridden in
+     claude-dark-theme.css — no second declaration needed there). */
+  --well-bg: color-mix(in srgb, var(--bg-soft) 55%, transparent);
   --card: #FFFFFF;             /* white cards float on the near-white base */
   /* Session 15 (user request): the dashboard stage-box task cards get ONE neutral surface
      (#F5F6F7, light mode) regardless of status — status color now lives ONLY in the
@@ -188,6 +195,12 @@
      Q1 teal · Q2 amber · Q3 rose · Q4 lavender, plus the board's tag family. */
   --accent-1: #4A9FA3; --accent-2: #C4893A; --accent-3: #B85A54; --accent-4: #8A7CAA;
   --accent-green: #5A9E80; --accent-purple: #7C6FAE; --accent-pink: #C77F86; --accent-teal: #3D8D91;
+  /* S94 (owner items 7+8 — the Quick Notebook's identity moves OFF the khaki/amber
+     register ONTO the green-teal CTA register, in BOTH themes): light mode keeps the
+     deep CTA teal itself (#2E7B7F — the exact --cta hue; AA on white at 5.5:1);
+     claude-dark-theme.css swaps in a lightened teal of the same family. The amber
+     accent-2 token itself is untouched (it is a user-pickable QUADRANT swatch). */
+  --quicknote-accent: #2E7B7F;
   /* S93 (owner round, item 6 — "offer 16 colors, PASTEL"): the swatch palette's second
      octave. Same mid-tone register as the first eight so the low-opacity washes read in
      BOTH themes; named tokens (persisted by the API, never user hex). */

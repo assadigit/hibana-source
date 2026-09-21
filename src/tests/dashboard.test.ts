@@ -310,6 +310,29 @@ describe('dashboard to-do preview', () => {
       close()
     }
   })
+
+  // S94 (owner item 10): an empty quadrant shows the CENTERED placeholder row — the
+  // server ships it (before, an empty quadrant rendered a literally empty <ul>; the
+  // :empty::before fallback read attr(data-empty-hint), which nothing ever set).
+  it('renders the empty-quadrant placeholder copy for quadrants with zero tasks', async () => {
+    const { db, close } = makeTestDb()
+    try {
+      const user = await makeUser(db)
+      const { app, auth } = await makeClient(db, user)
+      await createSadhanaTask(db, user, { quadrant: 1, title: 'Only task' })
+
+      const res = await app.fetch(new Request('http://local/api/dashboard', { headers: { ...auth, 'HX-Request': 'true' } }))
+      const html = await res.text()
+      // Quadrant 1 has its task; the other three quadrants carry the placeholder.
+      expect((html.match(/class="dash-todo-empty muted"/g) ?? []).length).toBe(3)
+      // (the copy's apostrophe ships HTML-escaped — esc() turns ' into &#39;)
+      expect(html).toContain('You haven&#39;t added any task yet')
+      // The placeholder rides INSIDE the quadrant's list (the :has() centering anchor).
+      expect(html).toMatch(/<ul class="dash-todo-list">\s*<li class="dash-todo-empty muted">/)
+    } finally {
+      close()
+    }
+  })
 })
 
 describe('dashboard view options (2026-08-26)', () => {

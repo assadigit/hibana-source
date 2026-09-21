@@ -180,7 +180,10 @@ export function projectsRoutes(cfg: Config) {
         }
       }
       let fragment = listFragment(projects, tagsMap, view, lang, signalsMap, activeStatus, progressMap, emptyFilter)
-      if (c.req.query('view') !== undefined && activeStatus !== 'spark') {
+      // S94 (owner item 4): the glance strip is SKIPPED under view=kanban — the stage
+      // columns already encode the same status+count information one screen-inch below
+      // it, so the strip read as redundancy (owner report). Cards/list/sticky keep it.
+      if (c.req.query('view') !== undefined && view !== 'kanban' && activeStatus !== 'spark') {
         const countRows = await cfg.db.query<{ status: string; n: number }>(
           "SELECT status, COUNT(*) AS n FROM projects WHERE user_id = ? AND deleted_at IS NULL AND status != 'spark' AND (archived_state IS NULL OR archived_state != 'offline') GROUP BY status",
           [user.id],

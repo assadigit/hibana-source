@@ -67,6 +67,19 @@ test.beforeAll(async () => {
     `INSERT INTO sadhana_tasks (id, user_id, quadrant, title, due_date, done, position, created_at, updated_at)
      VALUES ('${id}-t3', '${id}', 3, 'Rail urgent task', NULL, 0, 2, '${now}', '${now}')`,
   )
+  // S94 (owner item 6): Rail project 0 (developing) carries one 'idea' + one 'bug'
+  // dev task — its rail row grows the nested idea-group TREE branch (the new test
+  // below pins it; the stage-head assertion scopes to non-sub groups so these
+  // seeds don't disturb the S93 grouping pin).
+  db.exec(`DELETE FROM dev_tasks WHERE project_id = '${id}-p0'`)
+  db.exec(
+    `INSERT INTO dev_tasks (id, project_id, title, status, priority, sort_order, created_at)
+     VALUES ('${id}-dt1', '${id}-p0', 'Rail tree idea', 'idea', 'medium', 0, '${now}')`,
+  )
+  db.exec(
+    `INSERT INTO dev_tasks (id, project_id, title, status, priority, sort_order, created_at)
+     VALUES ('${id}-dt2', '${id}-p0', 'Rail tree bug', 'bug', 'high', 0, '${now}')`,
+  )
   db.close()
 })
 
@@ -202,8 +215,10 @@ test.describe('the secondary panel (VS Code Activity Bar + Side Bar pattern)', (
 
     // S93 (owner item 14 — the owner's sketch: "-planning / item one / -queued / …"):
     // groups = the 0060 stages; empty stages stay hidden; operational rides collapsed.
-    // Seeds: one developing + one operational project.
-    const groups = page.locator('.rail-group-head')
+    // Seeds: one developing + one operational project. S94: the Developing project also
+    // carries a nested idea-group branch — the STAGE heads are the non-sub groups
+    // (.rail-sub-group heads are the project-level tree level, pinned by their own test).
+    const groups = page.locator('.rail-group:not(.rail-sub-group) > .rail-group-head')
     const labels = await groups.allTextContents()
     expect(labels.map((l) => l.replace(/\d+$/, '').trim())).toEqual(['Developing', 'Operational'])
     // Real items with status dots (the seeded projects), deep-linking to their pages.
@@ -227,6 +242,53 @@ test.describe('the secondary panel (VS Code Activity Bar + Side Bar pattern)', (
     await page.keyboard.press('Escape')
     await expect(panel).toBeHidden()
     await page.waitForFunction(() => getComputedStyle(document.body).paddingInlineStart === '88px', null, { timeout: 3_000 })
+  })
+
+  test('the projects panel grows the deeper idea-group TREE under each project (S94 item 6)', async ({ page }) => {
+    await login(page)
+    await page.click('.rail .rail-primary a[data-rail-panel="projects"]')
+    await page.waitForURL('**/projects.html', { timeout: 10_000 })
+    const panel = page.locator('[data-rail-panel-box]')
+    await expect(panel).toBeVisible()
+
+    // The developing project's row is intact and still deep-links to its page…
+    const row = page.locator('.rail-item', { hasText: 'Rail project 0' }).first()
+    await expect(row).toBeVisible()
+    await expect(row).toHaveAttribute('href', /\/project\.html\?id=.+/)
+
+    // …and directly under it grows the nested branch: TWO collapsible idea-groups
+    // ("New ideas" + "Problems" — the project page's progress-box vocabulary), each
+    // counting its items, tree-indented one level deeper than the stage rows.
+    const subs = page.locator('.rail-sub-group')
+    await expect(subs).toHaveCount(2)
+    const heads = subs.locator('.rail-group-head')
+    await expect(heads.nth(0)).toContainText('New ideas')
+    await expect(heads.nth(1)).toContainText('Problems')
+    await expect(heads.nth(0).locator('.rail-group-count')).toHaveText('1')
+    await expect(heads.nth(1).locator('.rail-group-count')).toHaveText('1')
+
+    // The sub-groups ship COLLAPSED (the panel stays a scannable summary) — the
+    // same [data-rail-group] toggle contract the stage heads use.
+    await expect(subs.nth(0)).toHaveClass(/is-collapsed/)
+    // Expanding reveals the task row, deep-linking to the project's own page.
+    await heads.nth(0).click()
+    await expect(subs.nth(0)).not.toHaveClass(/is-collapsed/)
+    const taskRow = subs.nth(0).locator('.rail-item')
+    await expect(taskRow).toContainText('Rail tree idea')
+    await expect(taskRow).toHaveAttribute('href', /\/project\.html\?id=.+/)
+    // The tree indent compounds: the sub-group body sits deeper than the stage body
+    // (the S91 tree-guide anatomy — 0.8rem per NESTED level; the relative margin is
+    // the same on both, the absolute depth comes from the nesting, so the x-position
+    // of each body's guide is the honest measurement).
+    const stageBodyX = await page.locator('.rail-group:not(.rail-sub-group) > .rail-group-body').first().evaluate((el) => el.getBoundingClientRect().x)
+    const subBodyX = await subs.nth(0).locator('.rail-group-body').evaluate((el) => el.getBoundingClientRect().x)
+    expect(subBodyX).toBeGreaterThan(stageBodyX + 8)
+
+    // A task-row click navigates to the project page and the panel STAYS OPEN
+    // (the same persistence contract as the stage rows above).
+    await taskRow.click()
+    await page.waitForURL('**/project.html?id=*', { timeout: 10_000 })
+    await expect(panel).toBeVisible()
   })
 
   test('the Dashboard icon NAVIGATES — it never opens a panel (S93 item 2)', async ({ page }) => {

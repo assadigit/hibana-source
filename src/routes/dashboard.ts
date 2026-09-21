@@ -359,6 +359,15 @@ export function dashboardRoutes(cfg: Config) {
         const renderTasks = tasks.slice(0, TODO_RENDER_CAP)
         const overflow = tasks.length - renderTasks.length
         const taskRows = renderTasks.map(todoTaskHtml)
+        // S94 (owner item 10 — "empty quadrant: centered placeholder copy"): a quadrant
+        // with zero tasks used to render a literally EMPTY <ul> (the :empty::before
+        // fallback reads attr(data-empty-hint), which no markup ever set — dead since
+        // Phase 3). The server now ships the placeholder row itself; app.js's
+        // updateDashTaskEmpty keeps it honest across htmx sweeps (same i18n key:
+        // dashboard.quadrantEmpty — EN+FA, the parity gate covers both).
+        if (taskRows.length === 0) {
+          taskRows.push(html`<li class="dash-todo-empty muted">${t("You haven't added any task yet", 'هنوز کاری اضافه نکرده‌ای')}</li>`)
+        }
         // 2026-09 user request — quadrants are MINIMAL/neutral: no per-quadrant accent is
         // applied by default (the old q-success/q-info/q-error/q-warning accent vars are
         // gone). A user-PICKED accent (accent_color, still settable via the rename API)

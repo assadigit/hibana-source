@@ -27,6 +27,11 @@ import type { Config, UserRow } from '../types'
 //                 next 14 days (id/title/due_date/project_id) — the calendar panel's
 //                 "planned work" list draws them beside project deadlines + to-dos
 //                 (the same `tasks` source /api/calendar aggregates).
+//   projectTasks— S94 (owner item 6): each live project's IDEA-GROUP tasks (dev_tasks
+//                 with status 'idea' [New ideas] or 'bug' [Problems]) — the projects
+//                 panel's deeper tree: stage → project → idea-groups → items. Bounded
+//                 (≤120 rows, only statuses the tree renders) so the payload stays a
+//                 navigation summary, never a content dump.
 //
 // Grouping (status groups / quadrants / folders…) happens client-side in
 // nav.js — the same rows feed several sections' views. no-store: this is live
@@ -39,6 +44,7 @@ interface RailNote { id: string; title: string; icon: string | null; folder_id: 
 interface RailTodo { id: string; title: string; done: number; due_date: string | null; quadrant: number }
 interface RailTodoName { quadrant: number; name: string; accent_color: string | null }
 interface RailTask { id: string; title: string; due_date: string; project_id: string }
+interface RailProjectTask { id: string; title: string; status: string; project_id: string }
 
 export function railRoutes(cfg: Config): Hono<{ Variables: { user: UserRow } }> {
   const app = new Hono<{ Variables: { user: UserRow } }>()
@@ -48,7 +54,7 @@ export function railRoutes(cfg: Config): Hono<{ Variables: { user: UserRow } }> 
     const user = c.get('user')
     const in14 = new Date(Date.now() + 14 * 86400000).toISOString().slice(0, 10)
     const today = new Date().toISOString().slice(0, 10)
-    const [projects, sparks, sparkFolders, folders, notes, todos, todoNames, tasks] = await Promise.all([
+    const [projects, sparks, sparkFolders, folders, notes, todos, todoNames, tasks, projectTasks] = await Promise.all([
       cfg.db.query<RailProject>(
         `SELECT id, title, status, due_date FROM projects
          WHERE user_id = ? AND deleted_at IS NULL AND status != 'spark'
@@ -98,6 +104,19 @@ export function railRoutes(cfg: Config): Hono<{ Variables: { user: UserRow } }> 
          ORDER BY t.due_date ASC LIMIT 15`,
         [user.id, today, in14],
       ),
+      // S94 (owner item 6): the projects panel's deeper tree — each live project's
+      // idea-group tasks. Scoped by the JOIN (Rule 1), soft-delete + offline-parked
+      // respected, priority-first like the board (urgent → low), capped at 120.
+      cfg.db.query<RailProjectTask>(
+        `SELECT t.id, t.title, t.status, t.project_id FROM dev_tasks t
+         JOIN projects p ON p.id = t.project_id
+         WHERE p.user_id = ? AND p.deleted_at IS NULL
+           AND p.status != 'spark' AND (p.archived_state IS NULL OR p.archived_state != 'offline')
+           AND t.status IN ('idea','bug')
+         ORDER BY CASE t.priority WHEN 'urgent' THEN 0 WHEN 'high' THEN 1 WHEN 'medium' THEN 2 ELSE 3 END,
+                  t.sort_order, t.created_at DESC LIMIT 120`,
+        [user.id],
+      ),
     ])
     return c.json(
       {
@@ -110,6 +129,7 @@ export function railRoutes(cfg: Config): Hono<{ Variables: { user: UserRow } }> 
         todoNames,
         todoOrder: parseQuadrantOrder(user.sadhana_quadrant_order),
         tasks,
+        projectTasks,
       },
       200,
       { 'Cache-Control': 'no-store' },

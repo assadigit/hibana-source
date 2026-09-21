@@ -27,10 +27,16 @@ section[id^="dashboard-"].is-collapsed > *:not(header) { display: none; }
 .dash-collapse-btn .icon { inline-size: 1rem; block-size: 1rem; transition: transform 0.15s ease; }
 .is-collapsed .dash-collapse-btn .icon { transform: rotate(-90deg); }
 
-/* Smart empty states (Phase 3): when a quadrant has 0 tasks, show a friendly CTA */
-.dash-todo-list:empty::before {
-  content: attr(data-empty-hint);
-  display: grid; place-items: center; min-block-size: 4rem;
+/* Smart empty states (Phase 3 → S94 owner item 10): a quadrant with 0 tasks shows a
+   centered placeholder row (.dash-todo-empty — shipped server-side by dashboard.ts and
+   re-created by app.js's updateDashTaskEmpty after htmx sweeps; the old
+   :empty::before/attr(data-empty-hint) fallback was DEAD — no markup ever set the
+   attribute, so an empty quadrant rendered as blank space). The list centers the
+   placeholder in its free height (the same anatomy .sadhana-list uses on the board
+   page: :has(> .empty) flips the pack). */
+.dash-todo-list:has(> .dash-todo-empty) { align-content: center; }
+.dash-todo-empty {
+  display: grid; place-items: center; min-block-size: 3.5rem;
   color: var(--muted); font-size: var(--fs-sm); text-align: center; padding: 0.5rem;
 }
 .dash-todo-head { display: flex; align-items: baseline; justify-content: space-between; gap: 1rem; flex-wrap: wrap; }
@@ -154,17 +160,20 @@ section[id^="dashboard-"].is-collapsed > *:not(header) { display: none; }
 .dash-style-swatch-none.is-selected { border-color: var(--text); color: var(--text); }
 
 /* S93 (item 6): the dashboard quadrant wears its picked pastel — a soft wash on the
-   card + tinted header accents (low opacity = pastel, never full ink). */
+   card + tinted header accents (low opacity = pastel, never full ink).
+   S94 (owner item 1 — the 6% wash read "almost monochrome"): wash 6%→12%, border
+   28%→55%, and the title mix leans toward the TEXT ink (60%→52% accent) so even the
+   lightest of the 16 pastels (accent-sand) stays AA on the deeper wash — the same
+   recipe to-do-list.css carries (verified there numerically). */
 .dash-todo-quadrant[style*='--dash-q-accent'] {
-  background: color-mix(in srgb, var(--dash-q-accent) 6%, var(--card));
-  border-color: color-mix(in srgb, var(--dash-q-accent) 28%, var(--line));
+  background: color-mix(in srgb, var(--dash-q-accent) 12%, var(--card));
+  border-color: color-mix(in srgb, var(--dash-q-accent) 55%, var(--line));
 }
 .dash-todo-quadrant[style*='--dash-q-accent'] .dash-todo-qtitle strong {
-  color: color-mix(in srgb, var(--dash-q-accent) 60%, var(--text));
+  color: color-mix(in srgb, var(--dash-q-accent) 52%, var(--text));
 }
 .dash-todo-quadrant[style*='--dash-q-accent'] .dash-todo-counter {
-  border-color: color-mix(in srgb, var(--dash-q-accent) 40%, var(--line));
-  color: color-mix(in srgb, var(--dash-q-accent) 65%, var(--text));
+  --badge-fg: color-mix(in srgb, var(--dash-q-accent) 65%, var(--text));
 }
 /* S83: the quadrant trigger with the EMPTY symbol — the glyph vanishes but the button
    keeps its hit area (it's still the customize entry); a faint ∅ ghost appears on
@@ -193,8 +202,13 @@ section[id^="dashboard-"].is-collapsed > *:not(header) { display: none; }
 .dash-style-save-btn:disabled { opacity: 0.55; cursor: wait; }
 .dash-todo-qactions { gap: 0.35rem; flex: none; }
 /* 2026-09-02 user request: «تعداد فعال» — shorter label, smaller type, optically aligned
-   with the first line of the quadrant title (e.g. امروز) instead of the box top edge. */
-.dash-todo-counter { color: var(--muted); font-size: 0.68rem; line-height: 1.35; padding-block-start: 0.45rem; overflow-wrap: anywhere; text-align: end; flex: none; }
+   with the first line of the quadrant title (e.g. امروز) instead of the box top edge.
+   S94 (owner item 9 — "larger digit font, weaker background"): the counter IS the
+   .board-count pill (both classes on one node); this rule used to force it back down
+   to 0.68rem muted type, defeating the shared pill typography AND its --badge-fg ink
+   (this sheet loads after dashboard.css). It now only aligns the pill inside the
+   actions row — size/weight/color come from .board-count above. */
+.dash-todo-counter { line-height: 1.35; padding-block-start: 0.3rem; overflow-wrap: anywhere; text-align: end; flex: none; }
 /* (k) 2026-09-06: the old hover-reveal header + button and its form CSS were removed
    with the popover add button — replaced by .dash-todo-fab + .dash-quickadd below. */
 /* (l) 2026-09-06: grid-auto-rows: max-content — the row-squash fix. With auto rows in

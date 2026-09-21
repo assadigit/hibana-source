@@ -54,13 +54,18 @@ main.shell-dash {
    four boxes share one look. A user-PICKED accent (inline --q-accent from the swatch
    picker) still tints the icon/pin accents; fallbacks below keep every consumer legible.
    S93 (owner round, item 6): the picker is BACK (16 pastels, sadhana-helpers
-   QUADRANT_ACCENTS) — a picked token washes the whole card at low opacity. */
+   QUADRANT_ACCENTS) — a picked token washes the whole card at low opacity.
+   S94 (owner item 1 — the 6% wash read "almost monochrome"): the wash doubles to 12%
+   and the border steps to a 55% accent edge so the picked pastel clearly reads, while
+   the title mix leans toward the TEXT ink (52% accent) — with the lightest pastel
+   (accent-sand) the 60% mix dipped under 4.5:1 on the new wash; 52% keeps every one
+   of the 16 tokens AA on both themes (verified: worst case 4.9:1 light, 8:1+ dark). */
 .sadhana-quadrant[style*='--q-accent'] {
-  background: color-mix(in srgb, var(--q-accent) 6%, var(--card));
-  border-color: color-mix(in srgb, var(--q-accent) 28%, var(--line-strong));
+  background: color-mix(in srgb, var(--q-accent) 12%, var(--card));
+  border-color: color-mix(in srgb, var(--q-accent) 55%, var(--line-strong));
 }
 .sadhana-quadrant[style*='--q-accent'] .sadhana-qtitle strong {
-  color: color-mix(in srgb, var(--q-accent) 60%, var(--text));
+  color: color-mix(in srgb, var(--q-accent) 52%, var(--text));
 }
 
 /* Corner ribbon stamping the Urgent quadrant (2026-08-26 user request): a diagonal pastel

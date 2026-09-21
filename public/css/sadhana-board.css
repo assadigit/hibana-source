@@ -151,10 +151,13 @@ body.sadhana-body{overflow:hidden;display:flex;flex-direction:column}
 .sadhana-wrap .quadrant.drag-over{box-shadow:0 0 0 2px var(--text-dim)!important}
 /* S93 (owner round, item 6 — "quadrants can have PASTEL colors"): a picked accent
    (inline --q-accent, set by buildGrid from the API's accent token) washes the quadrant
-   card at low opacity — a tint, never an ink. The default quadrants stay neutral. */
-.sadhana-wrap .quadrant[style*='--q-accent']{background:color-mix(in srgb,var(--q-accent) 6%,var(--surface));border-color:color-mix(in srgb,var(--q-accent) 26%,var(--q-edge))}
+   card at low opacity — a tint, never an ink. The default quadrants stay neutral.
+   S94 (owner item 1 — the 6% wash read "almost monochrome"): wash 6%→12%, border
+   26%→55%, title 60%→52% (leans toward the text ink so the lightest pastel stays AA
+   on the deeper wash — the same recipe to-do-list.css/dashboard-todo.css carry). */
+.sadhana-wrap .quadrant[style*='--q-accent']{background:color-mix(in srgb,var(--q-accent) 12%,var(--surface));border-color:color-mix(in srgb,var(--q-accent) 55%,var(--q-edge))}
 .sadhana-wrap .quadrant[style*='--q-accent'] .q-big{border-color:color-mix(in srgb,var(--q-accent) 45%,var(--border));background:color-mix(in srgb,var(--q-accent) 12%,var(--surface))}
-.sadhana-wrap .quadrant[style*='--q-accent'] .q-title{color:color-mix(in srgb,var(--q-accent) 60%,var(--text))}
+.sadhana-wrap .quadrant[style*='--q-accent'] .q-title{color:color-mix(in srgb,var(--q-accent) 52%,var(--text))}
 .sadhana-wrap .quadrant[style*='--q-accent'] .q-cnt{border-color:color-mix(in srgb,var(--q-accent) 40%,var(--border));color:color-mix(in srgb,var(--q-accent) 65%,var(--text))}
 /* S93 (item 6): the rename popover's 16 pastel swatches + the ∅ clear button. */
 .qe-swatch-lbl{font-size:10px;color:var(--text-muted);margin:7px 0 4px;font-weight:600;letter-spacing:.02em}

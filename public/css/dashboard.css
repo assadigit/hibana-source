@@ -595,29 +595,37 @@ main.shell-dash > section { margin-block-end: 2.9rem; }
 .board-col-head { min-inline-size: 0; }
 .board-col-title { align-items: center; gap: 0.5rem; min-inline-size: 0; }
 .board-col-label { color: var(--text); font-weight: 600; line-height: 1.3; }
+/* S94 (owner item 9 — "larger digit font, weaker background — currently too much
+   color"): the pill used to fill with the stage's SOLID pastel badge background
+   (--badge-*-bg), which read as the loudest chip on the row. The fill is now a
+   low-opacity WASH keyed on the pill's own ink (--badge-fg at 10% — one recipe for
+   stage pills AND accent-tinted quadrant pills), and the digits step up to fs-md
+   bold so the count reads first. Ink stays the AA-designed --badge-*-fg tokens. */
 .board-count {
   flex: none;
   display: inline-grid;
   place-items: center;
   min-inline-size: 1.55rem;
-  padding: 0.08rem 0.42rem;
+  padding: 0.08rem 0.45rem;
   border-radius: 999px;
-  font-size: 0.75rem;
+  font-size: var(--fs-md);
   font-weight: 700;
   line-height: 1.45;
   font-variant-numeric: tabular-nums;
-  background: var(--badge-bg, color-mix(in srgb, var(--muted) 12%, transparent));
+  background: color-mix(in srgb, var(--badge-fg, var(--muted)) 10%, transparent);
   color: var(--badge-fg, var(--muted));
-  border: 1px solid color-mix(in srgb, var(--badge-fg, var(--muted)) 24%, transparent);
+  border: 1px solid color-mix(in srgb, var(--badge-fg, var(--muted)) 22%, transparent);
 }
 /* Stage columns: the pill wears the column's status role (data-status is already on
-   the .stat-box — the exact selector shape the icon-chips above use). */
-.stat-box[data-status='spark'] .board-count { --badge-bg: var(--badge-spark-bg); --badge-fg: var(--badge-spark-fg); }
-.stat-box[data-status='planning'] .board-count { --badge-bg: var(--badge-planning-bg); --badge-fg: var(--badge-planning-fg); }
-.stat-box[data-status='queued'] .board-count { --badge-bg: var(--badge-queued-bg); --badge-fg: var(--badge-queued-fg); }
-.stat-box[data-status='developing'] .board-count { --badge-bg: var(--badge-developing-bg); --badge-fg: var(--badge-developing-fg); }
-.stat-box[data-status='awaiting_dev'] .board-count { --badge-bg: var(--badge-awaiting_dev-bg); --badge-fg: var(--badge-awaiting_dev-fg); }
-.stat-box[data-status='operational'] .board-count { --badge-bg: var(--badge-operational-bg); --badge-fg: var(--badge-operational-fg); }
+   the .stat-box — the exact selector shape the icon-chips above use). S94: only the
+   INK token is wired now — the old --badge-bg fills are gone (the wash above keys on
+   the fg), so the rules collapse to --badge-fg assignments. */
+.stat-box[data-status='spark'] .board-count { --badge-fg: var(--badge-spark-fg); }
+.stat-box[data-status='planning'] .board-count { --badge-fg: var(--badge-planning-fg); }
+.stat-box[data-status='queued'] .board-count { --badge-fg: var(--badge-queued-fg); }
+.stat-box[data-status='developing'] .board-count { --badge-fg: var(--badge-developing-fg); }
+.stat-box[data-status='awaiting_dev'] .board-count { --badge-fg: var(--badge-awaiting_dev-fg); }
+.stat-box[data-status='operational'] .board-count { --badge-fg: var(--badge-operational-fg); }
 /* The stat header's label + pill sit in one flex row; keep the label from being
    squeezed by long translated words (FA) while the pill stays whole. */
 .board-col-title .stat-label { overflow-wrap: anywhere; }
@@ -625,11 +633,11 @@ main.shell-dash > section { margin-block-end: 2.9rem; }
 /* Quadrant columns: NEUTRAL pill by default (the 2026-09 owner decision — quadrants
    stay minimal, no per-quadrant accent) — the neutral --muted role; a user-PICKED
    quadrant accent (the rename API's accent_color → --dash-q-accent) tints the pill
-   so saved personalization still reads. Same shape/weight as the stage pills. */
+   so saved personalization still reads. Same shape/weight as the stage pills.
+   S94 (item 9): the fg is an accent-into-text mix (65/35) — a bare 100% pastel ink
+   dropped under 3:1 at the small pill size; the mix keeps the hue AA on the wash. */
 .dash-todo-quadrant .board-count {
-  --badge-bg: color-mix(in srgb, var(--dash-q-accent, var(--muted)) 14%, transparent);
-  --badge-fg: var(--dash-q-accent, var(--muted));
-  border-color: color-mix(in srgb, var(--dash-q-accent, var(--muted)) 26%, transparent);
+  --badge-fg: color-mix(in srgb, var(--dash-q-accent, var(--muted)) 65%, var(--text));
 }
 /* The quadrant count pill rides the header's actions side — baseline-aligned with
    the title block (subtitle shifts the visual center), nudged like the old counter. */

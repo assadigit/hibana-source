@@ -8,18 +8,21 @@
 
 /* S93 (owner round, item 5 — "give some color/contrast to the quicknote section so the
    user can easily eye-scan and find it"): the DASHBOARD variant of the Quick Notebook
-   wears the app's amber register — a warm paper tint, an accent border + left rail, and
-   an accent-inked heading with a pen glyph. The board page's notebook keeps the neutral
-   card look (it IS the page there — no scanning problem to solve). */
+   wears an identity tint — a paper gradient, an accent border + left rail, and an
+   accent-inked heading with a pen glyph. The board page's notebook keeps the neutral
+   card look (it IS the page there — no scanning problem to solve).
+   S94 (owner items 7+8): the identity register moved OFF amber/khaki ONTO the GREEN
+   TEAL CTA register (--quicknote-accent: the deep CTA teal in light, a lightened teal
+   of the same family in claude-dark — no khaki anywhere, both themes on teal). */
 .notebook-dashboard {
   background:
-    linear-gradient(to bottom, color-mix(in srgb, var(--accent-2, #C4893A) 7%, var(--card, #fff)), var(--card, #fff) 46%);
-  border: 1px solid color-mix(in srgb, var(--accent-2, #C4893A) 34%, var(--line, rgba(50,35,15,.14)));
-  border-inline-start: 3px solid var(--accent-2, #C4893A);
-  box-shadow: 0 1px 10px color-mix(in srgb, var(--accent-2, #C4893A) 10%, transparent);
+    linear-gradient(to bottom, color-mix(in srgb, var(--quicknote-accent, #2E7B7F) 7%, var(--card, #fff)), var(--card, #fff) 46%);
+  border: 1px solid color-mix(in srgb, var(--quicknote-accent, #2E7B7F) 34%, var(--line, rgba(50,35,15,.14)));
+  border-inline-start: 3px solid var(--quicknote-accent, #2E7B7F);
+  box-shadow: 0 1px 10px color-mix(in srgb, var(--quicknote-accent, #2E7B7F) 10%, transparent);
 }
 .notebook-dashboard .note-heading {
-  color: color-mix(in srgb, var(--accent-2, #C4893A) 72%, var(--text, #262118));
+  color: color-mix(in srgb, var(--quicknote-accent, #2E7B7F) 72%, var(--text, #262118));
   letter-spacing: 0.01em;
 }
 .notebook-dashboard .note-heading::before {
@@ -27,15 +30,15 @@
   display: inline-block;
   margin-inline-end: 0.45rem;
   font-size: 0.95em;
-  color: var(--accent-2, #C4893A);
+  color: var(--quicknote-accent, #2E7B7F);
 }
 .notebook-dashboard .note-compose-text {
-  border-color: color-mix(in srgb, var(--accent-2, #C4893A) 26%, var(--line, rgba(50,35,15,.14)));
-  background: color-mix(in srgb, var(--accent-2, #C4893A) 4%, var(--card, #fff));
+  border-color: color-mix(in srgb, var(--quicknote-accent, #2E7B7F) 26%, var(--line, rgba(50,35,15,.14)));
+  background: color-mix(in srgb, var(--quicknote-accent, #2E7B7F) 4%, var(--card, #fff));
 }
 .notebook-dashboard .note-compose-text:focus-visible {
-  border-color: var(--accent-2, #C4893A);
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent-2, #C4893A) 18%, transparent);
+  border-color: var(--quicknote-accent, #2E7B7F);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--quicknote-accent, #2E7B7F) 18%, transparent);
 }
 .notebook .note-heading { margin-block-end: 0; font-size: 1rem; }
 .note-head .note-title { flex: 1; min-inline-size: 0; }
@@ -863,6 +866,14 @@ body > .spark-menu-pop.is-floating {
   font-size: var(--fs-lg);
   text-align: start;
 }
+/* S94 (owner item 2 — the REAL admin-link leak): .user-menu-item's display:flex BEATS
+   the UA [hidden] sheet (author CSS always wins over UA rules — the Task-17 popover
+   lesson, applied here to the two flex-row surfaces that ship the hidden Admin row):
+   the desktop account menu AND the mobile More sheet showed "Admin" to EVERY user,
+   role-gating in hib-init.js/app.js was correct all along. This explicit guard makes
+   the hidden attribute authoritative again on both. */
+.user-menu-item[hidden],
+.mobile-more-row[hidden] { display: none !important; }
 .user-menu-item:hover { background: var(--bg-soft); color: var(--text); text-decoration: none; }
 /* S61 a11y: same keyboard-focus ring for the topbar user menu (language rows, links,
    sign-out) — it was hover-tint only before. */

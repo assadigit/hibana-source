@@ -419,9 +419,42 @@
     // STAGE (0060 taxonomy) — the owner's sketch: "-planning / item one / item two /
     // -queued / …". Rows deep-link to the project's own page (the S89 ?id= contract);
     // operational rides collapsed at the end.
+    // S94 (owner item 6 — the DEEPER tree): stage → PROJECT → idea-groups → items.
+    // A project carrying idea/bug dev-tasks (/api/rail projectTasks) grows a nested
+    // branch under its row: its "New ideas" + "Problems" groups (the project page's
+    // progress-box vocabulary) as collapsible sub-heads, each counting its items,
+    // items deep-linking to the project page where those boxes live. The sub-groups
+    // are .rail-group markup (class contract: [data-rail-group] toggles the CLOSEST
+    // .rail-group) nested inside the stage body — the S91 tree-guide indent compounds
+    // (0.8rem per level), so the hierarchy reads exactly like the owner's sketch;
+    // sub-groups ship COLLAPSED so the panel stays a scannable summary, drill-down on
+    // demand. Projects without idea/bug tasks stay flat rows.
     const projects = d.projects || []
-    const rows = (s) => projects.filter((p) => p.status === s)
-      .map((p) => railItem('/project.html?id=' + encodeURIComponent(p.id), p.title, p.status))
+    const ptasks = d.projectTasks || []
+    const SUB_GROUPS = [
+      { key: 'idea', i18n: 'rail.g.newIdeas', label: 'New ideas' },
+      { key: 'bug', i18n: 'rail.g.problems', label: 'Problems' },
+    ]
+    const projectBranch = (p) => {
+      const href = '/project.html?id=' + encodeURIComponent(p.id)
+      const row = railItem(href, p.title, p.status)
+      const mine = ptasks.filter((t) => t.project_id === p.id)
+      if (!mine.length) return row
+      const subs = SUB_GROUPS.map((g) => {
+        const items = mine.filter((t) => t.status === g.key)
+        if (!items.length) return ''
+        return '<div class="rail-group rail-sub-group is-collapsed">' +
+          '<button type="button" class="rail-group-head" data-rail-group aria-expanded="false">' +
+          '<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg>' +
+          '<span>' + escHtml(railT(g.i18n, g.label)) + '</span>' +
+          '<span class="rail-group-count">' + railFaDig(items.length) + '</span>' +
+          '</button><div class="rail-group-body">' +
+          items.map((t) => railItem(href, t.title, null)).join('') +
+          '</div></div>'
+      }).join('')
+      return subs ? row + subs : row
+    }
+    const rows = (s) => projects.filter((p) => p.status === s).map(projectBranch)
     return RAIL_STAGE_GROUPS.map((g) =>
       railGroup(railT(g.i18n, g.label), rows(g.key), { collapsed: g.collapsed })).join('') ||
       '<div class="rail-panel-empty">' + escHtml(railT('rail.empty', 'Nothing here yet — open something and it will appear.')) + '</div>'

@@ -701,7 +701,11 @@
   align-items: start;
 }
 .kanban-col {
-  background: var(--bg-soft);
+  /* S94 (owner item 3): the column wrapper wears the SHARED pale well — the exact same
+     color/opacity as the rail panel's group heads (--well-bg, a 55% bg-soft veil over
+     the page background; was solid bg-soft). The CARDS inside keep their own fills —
+     this rule is the lane, not its content. */
+  background: var(--well-bg);
   border: 1px solid var(--line);
   border-radius: var(--radius-sm);
   padding: 0.6rem;

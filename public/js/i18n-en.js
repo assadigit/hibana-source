@@ -21,6 +21,7 @@ window.__hibanaDictEN = {
       'rail.failed': 'Could not reach the server — reopen the panel to retry.',
       'rail.empty': 'Nothing here yet — open something and it will appear.',
       'rail.g.unfiled': 'Unfiled', 'rail.g.upcoming': 'Coming up',
+      'rail.g.newIdeas': 'New ideas', 'rail.g.problems': 'Problems',
       'rail.sparksEmpty': 'No ideas captured yet — the Ideas shelf fills as you spark.',
       'rail.notesEmpty': 'No notes yet — the vault fills as you write.',
       'rail.canvasHint': 'The boundless Canvas is a single board — open it to draw, pin notes, and frame regions.',
@@ -330,6 +331,7 @@ window.__hibanaDictEN = {
       'card.loadFailed': "Couldn't load the project", 'card.saving': 'Saving…', 'card.deleted': 'Project deleted',
       // dashboard stat boxes
       'dashboard.nothing': 'Nothing here yet',
+      'dashboard.quadrantEmpty': "You haven't added any task yet",
       'dashboard.moveFailed': "Couldn't move it — try again",
       'dashboard.seeMore': 'See More', 'dashboard.seeLess': 'See Less',
       'dashboard.taskUpdateFailed': "Couldn't update the task",

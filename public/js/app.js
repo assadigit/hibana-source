@@ -3051,7 +3051,9 @@ window.hibana = (() => {
     else if (!empty) {
       const li = document.createElement('li')
       li.className = 'dash-todo-empty muted'
-      li.textContent = _t('dashboard.nothing', 'Nothing here yet')
+      // S94 (item 10): the SAME placeholder copy the server ships (dashboard.quadrantEmpty) —
+      // the htmx sweep keeps the centered hint instead of reverting to blank space.
+      li.textContent = _t('dashboard.quadrantEmpty', "You haven't added any task yet")
       list.append(li)
     }
   }

@@ -174,25 +174,27 @@ section[id^="dashboard-"].is-collapsed > *:not(header) { display: none; }
    ink and the count badge).
    S102 (owner round — TWO fresh instructions): (1) "the colors are too saturated —
    more pastel, more pale"; (2) "selecting a color doesn't change the quadrant color,
-   but it MUST." The wash is BACK, paler than the S94 one ever was — a 7% fill + a
-   30% border edge — and every small-element mix drops: title 52→38%, the count
-   65→50%, the style icon 100→74%. claude-dark raises the mixes (claude-dark-theme.css
-   outranks the flat cap there — the S94 lesson). Picking a color now visibly
-   recolors THE QUADRANT, in pastel. */
+   but it MUST." The wash came BACK at 7% + a 30% edge, every small-element mix
+   dropped (title 38%, count 50%, icon 74%).
+   S104 (owner round — the calibration): "too pale — like 95% pale, no visual
+   visibility, too low opacity." At 7% the box read as a plain white card. The wash
+   is RE-WEIGHTED to a VISIBLE pastel: 20% fill + 48% edge, title 48%, count 62%,
+   icon 85% — pastel, but unmistakably colored. claude-dark raises the mixes
+   (claude-dark-theme.css outranks the flat cap there — the S94 lesson). */
 .dash-todo-quadrant[style*='--dash-q-accent'] {
-  background: color-mix(in srgb, var(--dash-q-accent) 7%, var(--card));
-  border-color: color-mix(in srgb, var(--dash-q-accent) 30%, var(--line));
+  background: color-mix(in srgb, var(--dash-q-accent) 20%, var(--card));
+  border-color: color-mix(in srgb, var(--dash-q-accent) 48%, var(--line));
 }
 .dash-todo-quadrant[style*='--dash-q-accent'] .dash-todo-qtitle strong {
-  color: color-mix(in srgb, var(--dash-q-accent) 38%, var(--text));
+  color: color-mix(in srgb, var(--dash-q-accent) 48%, var(--text));
 }
 .dash-todo-quadrant[style*='--dash-q-accent'] .dash-todo-counter {
-  --badge-fg: color-mix(in srgb, var(--dash-q-accent) 50%, var(--text));
+  --badge-fg: color-mix(in srgb, var(--dash-q-accent) 62%, var(--text));
 }
-/* S102: the style trigger (the quadrant's glyph button) joins the pale language — 74%
-   toward the text ink; it was the last full-saturation element on the card. */
+/* S104: the style trigger (the quadrant's glyph button) rides at 85% toward the text
+   ink — the loudest cue on the card, a hair shy of the full token. */
 .dash-todo-quadrant[style*='--dash-q-accent'] .dash-todo-style {
-  color: color-mix(in srgb, var(--dash-q-accent) 74%, var(--text));
+  color: color-mix(in srgb, var(--dash-q-accent) 85%, var(--text));
 }
 /* S83: the quadrant trigger with the EMPTY symbol — the glyph vanishes but the button
    keeps its hit area (it's still the customize entry); a faint ∅ ghost appears on

@@ -281,41 +281,42 @@ html[data-theme='claude-dark'] .dash-todo-quadrant {
    dashboard-todo.css's attribute-selector wash (0-2-0) — a quadrant's PICKED pastel
    once fell back to the plain gradient in claude-dark because the wash only lived in
    the light sheet. The dark wash MUST live here (0-3-1) — the lesson, twice-learned.
-   S95 r2 retired the wash app-wide; S102 (owner round — "the colors are too
-   saturated, more pale" + "selecting a color MUST change the quadrant color") brings
-   it BACK pale: pastels need MORE presence on the dark card to read (the S97 banner
-   precedent: 8% light / 13% dark) — an 11% fill + a 32% edge here, and the
-   small-element inks lift 4pts over light (42% title / 54% count / 78% icon). */
+   S95 r2 retired the wash app-wide; S102 brought it BACK pale (11% + 32% edge —
+   pastels need MORE presence on the dark card: the S97 banner precedent 8/13).
+   S104 (owner round — the calibration): "too pale — like 95% pale, no visual
+   visibility." The dark wash is RE-WEIGHTED with the light one to a VISIBLE pastel:
+   25% fill + 52% edge, title 52%, count 66%, icon 88% (dark keeps its +5pt lift
+   over the light 20/48/48/62/85 — the same additive step as the S97 8/13 rule). */
 html[data-theme='claude-dark'] .dash-todo-quadrant[style*='--dash-q-accent'] {
-  background: color-mix(in srgb, var(--dash-q-accent) 11%, var(--card));
-  border-color: color-mix(in srgb, var(--dash-q-accent) 32%, var(--line-strong));
+  background: color-mix(in srgb, var(--dash-q-accent) 25%, var(--card));
+  border-color: color-mix(in srgb, var(--dash-q-accent) 52%, var(--line-strong));
 }
 html[data-theme='claude-dark'] .dash-todo-quadrant[style*='--dash-q-accent'] .dash-todo-qtitle strong {
-  color: color-mix(in srgb, var(--dash-q-accent) 42%, var(--text));
+  color: color-mix(in srgb, var(--dash-q-accent) 52%, var(--text));
 }
 html[data-theme='claude-dark'] .dash-todo-quadrant[style*='--dash-q-accent'] .dash-todo-counter {
-  --badge-fg: color-mix(in srgb, var(--dash-q-accent) 54%, var(--text));
+  --badge-fg: color-mix(in srgb, var(--dash-q-accent) 66%, var(--text));
 }
 html[data-theme='claude-dark'] .dash-todo-quadrant[style*='--dash-q-accent'] .dash-todo-style {
-  color: color-mix(in srgb, var(--dash-q-accent) 78%, var(--text));
+  color: color-mix(in srgb, var(--dash-q-accent) 88%, var(--text));
 }
-/* S102: the standalone board's quadrant box wash, dark-tuned — the light rule
-   (sadhana-board.css) is 7%/30%; 11%/32% keeps the SAME pale fill legible on the
-   dark card, and the small elements lift with the dashboard set above. */
+/* S104: the standalone board's quadrant box wash, dark-tuned — the light rule
+   (sadhana-board.css) is 20%/48%; 25%/52% keeps the SAME visible pastel legible on
+   the dark card, and the small elements lift with the dashboard set above. */
 html[data-theme='claude-dark'] .sadhana-wrap .quadrant[style*='--q-accent'] {
-  background: color-mix(in srgb, var(--q-accent) 11%, var(--surface));
-  border-color: color-mix(in srgb, var(--q-accent) 32%, var(--q-edge));
+  background: color-mix(in srgb, var(--q-accent) 25%, var(--surface));
+  border-color: color-mix(in srgb, var(--q-accent) 52%, var(--q-edge));
 }
 html[data-theme='claude-dark'] .sadhana-wrap .quadrant[style*='--q-accent'] .q-title {
-  color: color-mix(in srgb, var(--q-accent) 42%, var(--text));
+  color: color-mix(in srgb, var(--q-accent) 52%, var(--text));
 }
 html[data-theme='claude-dark'] .sadhana-wrap .quadrant[style*='--q-accent'] .q-cnt {
-  border-color: color-mix(in srgb, var(--q-accent) 32%, var(--border));
-  color: color-mix(in srgb, var(--q-accent) 54%, var(--text));
+  border-color: color-mix(in srgb, var(--q-accent) 46%, var(--border));
+  color: color-mix(in srgb, var(--q-accent) 66%, var(--text));
 }
 html[data-theme='claude-dark'] .sadhana-wrap .quadrant[style*='--q-accent'] .q-big {
-  border-color: color-mix(in srgb, var(--q-accent) 34%, var(--border));
-  background: color-mix(in srgb, var(--q-accent) 12%, var(--surface));
+  border-color: color-mix(in srgb, var(--q-accent) 48%, var(--border));
+  background: color-mix(in srgb, var(--q-accent) 24%, var(--surface));
 }
 html[data-theme='claude-dark'] .reports .card,
 html[data-theme='claude-dark'] #report-body .card {

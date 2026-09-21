@@ -172,16 +172,19 @@ body.sadhana-body{overflow:hidden;display:flex;flex-direction:column}
    accent spoke only in the small elements.
    S102 (owner round — TWO fresh instructions): (1) "the colors are too saturated —
    more pastel, more pale"; (2) "selecting a color doesn't change the quadrant color,
-   but it MUST." The BOX wash is BACK, paler than the S94 one ever was — 7% fill + a
-   30% edge (claude-dark raises both: claude-dark-theme.css) — and every small-element
-   mix drops: title 52→38%, count 65→50%, the q-big tile 12→8%. */
-.sadhana-wrap .quadrant[style*='--q-accent']{background:color-mix(in srgb,var(--q-accent) 7%,var(--surface));border-color:color-mix(in srgb,var(--q-accent) 30%,var(--q-edge))}
-.sadhana-wrap .quadrant[style*='--q-accent'] .q-big{border-color:color-mix(in srgb,var(--q-accent) 30%,var(--border));background:color-mix(in srgb,var(--q-accent) 8%,var(--surface))}
-/* S102: the hover rule below (:hover .q-big → var(--surface2)) would NEUTRALIZE the
-   tinted tile on hover — an accented quadrant keeps a pale tinted tile there too. */
-.sadhana-wrap .quadrant[style*='--q-accent']:hover .q-big{background:color-mix(in srgb,var(--q-accent) 10%,var(--surface2))}
-.sadhana-wrap .quadrant[style*='--q-accent'] .q-title{color:color-mix(in srgb,var(--q-accent) 38%,var(--text))}
-.sadhana-wrap .quadrant[style*='--q-accent'] .q-cnt{border-color:color-mix(in srgb,var(--q-accent) 28%,var(--border));color:color-mix(in srgb,var(--q-accent) 50%,var(--text))}
+   but it MUST." The wash came BACK at 7% + a 30% edge.
+   S104 (owner round — the calibration): "too pale — like 95% pale, no visual
+   visibility, too low opacity." At 7% the box read as a plain white surface. The
+   wash is RE-WEIGHTED to a VISIBLE pastel: 20% fill + a 48% edge, q-big tile 22%,
+   title 48%, q-cnt 62% (claude-dark raises everything: claude-dark-theme.css). */
+.sadhana-wrap .quadrant[style*='--q-accent']{background:color-mix(in srgb,var(--q-accent) 20%,var(--surface));border-color:color-mix(in srgb,var(--q-accent) 48%,var(--q-edge))}
+.sadhana-wrap .quadrant[style*='--q-accent'] .q-big{border-color:color-mix(in srgb,var(--q-accent) 44%,var(--border));background:color-mix(in srgb,var(--q-accent) 22%,var(--surface))}
+/* The hover rule below (:hover .q-big → var(--surface2)) would NEUTRALIZE the
+   tinted tile on hover — an accented quadrant keeps a tinted tile there too (S104:
+   26%, one step above the resting 22%). */
+.sadhana-wrap .quadrant[style*='--q-accent']:hover .q-big{background:color-mix(in srgb,var(--q-accent) 26%,var(--surface2))}
+.sadhana-wrap .quadrant[style*='--q-accent'] .q-title{color:color-mix(in srgb,var(--q-accent) 48%,var(--text))}
+.sadhana-wrap .quadrant[style*='--q-accent'] .q-cnt{border-color:color-mix(in srgb,var(--q-accent) 42%,var(--border));color:color-mix(in srgb,var(--q-accent) 62%,var(--text))}
 /* S93 (item 6): the rename popover's 16 pastel swatches + the ∅ clear button. */
 .qe-swatch-lbl{font-size:10px;color:var(--text-muted);margin:7px 0 4px;font-weight:600;letter-spacing:.02em}
 .qe-swatches{display:grid;grid-template-columns:repeat(9,1fr);gap:5px;padding:2px 0 4px}

@@ -1,21 +1,27 @@
-// e2e/s102-pale-quadrant.spec.ts — the PALE QUADRANT round (owner's two instructions).
+// e2e/s102-pale-quadrant.spec.ts — the PALE QUADRANT round (owner's two instructions)
+// + the S104 VISIBILITY calibration.
 //
 // WHY THIS FILE EXISTS (S102): the owner reported (1) "the colors are too saturated —
 // more pastel, more pale" and (2) "selecting a color doesn't change the quadrant color,
 // but it MUST." Root cause of (2) was NOT a bug but the S95 r2 "restraint rule" — the
 // quadrant BOX wash had been retired app-wide, so a pick only re-inked small elements
 // (title 52% / count 65% / the icon at FULL saturation — the saturation behind (1)).
-// S102 brings the box wash BACK pale (7% fill + 30% edge light; 11%/32% claude-dark)
-// and drops every small-element mix.
+// S102 brought the box wash BACK pale (7% fill + 30% edge light; 11%/32% claude-dark)
+// and dropped every small-element mix.
+//
+// S104 (the calibration): the owner came back — "too pale, like 95% pale, no visual
+// visibility, too low opacity." At 7% the box computed rgb(252,247,245) — a white
+// card to the eye. The wash is re-weighted to a VISIBLE pastel: 20% fill + 48% edge
+// light / 25% + 52% claude-dark. The pins below moved with it, so BOTH failure
+// directions stay caught: the retired 7% (rgb(252,247,245)) reads invisible and a
+// heavier 30% (rgb(241,220,214)) reads saturated — neither may ever compute again.
 //
 // These specs pin the OWNER-VISIBLE contract on BOTH picker surfaces — the dashboard
 // popover (server-rendered swatches; the S101 escaped-swatch bug class survived six
 // sessions because no test ever OPENED that popover) and the /to-do-list board's rename
 // popover — by asserting the QUADRANT'S OWN COMPUTED BACKGROUND flips from the neutral
-// white card to the EXACT pale wash (coral #D08A77 at 7% over #FFFFFF = rgb(252, 247,
-// 245)) and back to neutral on the ∅ clear. The exact rgb pins BOTH requirements: a
-// pick must change the box, and the change must stay pastel (a re-saturated 12% wash
-// would compute rgb(245, 238, 235) and fail).
+// white card to the EXACT visible-pastel wash (coral #D08A77 at 20% over #FFFFFF =
+// rgb(246, 232, 228)) and back to neutral on the ∅ clear.
 // Run: npx playwright test e2e/s102-pale-quadrant.spec.ts
 
 import { test, expect, type Page } from '@playwright/test'
@@ -25,18 +31,18 @@ const TEST_EMAIL = 'e2e-s102@test.local'
 const TEST_PASS = 'e2e-password-123'
 // The picked token + the EXACT computed washes it must produce (light theme, the
 // neutral #FFFFFF card): coral #D08A77 = rgb(208, 138, 119).
-//   fill      7% over card → rgb(252, 247, 245)
-//   title ink 38% over #262118 → rgb(103, 73, 60)
-//   border    30% over #D4D4D4 → rgb(211, 190, 184)
-const CORAL_FILL = '252,247,245'
-const CORAL_TITLE = '103,73,60'
-const CORAL_BORDER = '211,190,184'
+//   fill      20% over card → rgb(246, 232, 228)
+//   title ink 48% over #262118 → rgb(120, 83, 70)
+//   border    48% over #D4D4D4 → rgb(210, 176, 167)
+const CORAL_FILL = '246,232,228'
+const CORAL_TITLE = '120,83,70'
+const CORAL_BORDER = '210,176,167'
 const NEUTRAL_CARD = '255,255,255'
 
 // Chromium serializes computed color-mix() values as `color(srgb r g b)` (0–1 floats)
 // while plain colors come back as `rgb(r, g, b)` — normalize BOTH to a "r,g,b" string
-// of 0–255 ints so the pins below are form-agnostic. (color(srgb 0.987098 0.967882
-// 0.962667) = rgb(252, 247, 245) — the exact 7% coral-over-white wash.)
+// of 0–255 ints so the pins below are form-agnostic. (color(srgb 0.963137 0.908235
+// 0.893333) = rgb(246, 232, 228) — the exact 20% coral-over-white wash.)
 // NEVER throws: transient forms — a mid-TRANSITION oklab() snapshot (Chrome
 // interpolates color transitions in oklab) or '' read off a node detached by the
 // board's buildGrid repaint — pass through raw, never equal an "r,g,b" pin, and
@@ -123,14 +129,15 @@ test.describe('S102 pale quadrant (dashboard popover)', () => {
     await expect(pop.locator('.dash-style-swatch:not(.dash-style-swatch-none)')).toHaveCount(16)
     await expect(pop.locator('.dash-style-swatch-none')).toHaveCount(1)
 
-    // Pick coral → the PATCH must fire AND the box must flip to the EXACT pale wash.
+    // Pick coral → the PATCH must fire AND the box must flip to the EXACT visible
+    // pastel wash.
     const patch = page.waitForResponse((r) => r.url().includes('/api/sadhana/quadrants/1') && r.request().method() === 'PATCH' && r.status() === 200)
     await pop.locator('[data-dash-accent="accent-coral"]').click()
     await patch
     await expect
       .poll(async () => computedRgb(await quad.evaluate((el) => getComputedStyle(el).backgroundColor)), { timeout: 5_000 })
       .toBe(CORAL_FILL)
-    // The border edge + the title ink join the pale language (38% over the text ink).
+    // The border edge + the title ink join the language (48% over the text ink).
     await expect
       .poll(async () => computedRgb(await quad.evaluate((el) => getComputedStyle(el).borderTopColor)), { timeout: 5_000 })
       .toBe(CORAL_BORDER)

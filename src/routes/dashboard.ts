@@ -206,9 +206,11 @@ export function dashboardRoutes(cfg: Config) {
         if (s.hurdles > 0) bits.push(t(`${s.hurdles} ${s.hurdles === 1 ? 'hurdle' : 'hurdles'}`, `${s.hurdles} مانده`))
         return bits.length ? html` · ${bits.join(' · ')}` : html``
       }
-      const backlogMetaD = (id: string): SafeHtml => {
+      // S105: NULL when absent — an empty SafeHtml object is TRUTHY, which made the
+      // meta line render a stray " · · " double separator (timeAgo · <empty> · signals).
+      const backlogMetaD = (id: string): SafeHtml | null => {
         const s = sigMap.get(id)
-        if (!s || !s.backlogUpdated) return html``
+        if (!s || !s.backlogUpdated) return null
         return html`<span class="backlog-meta muted small" title="${s.backlogUpdated}">${t('Backlog', 'برنامه')}: ${timeAgo(s.backlogUpdated, lang)}</span>`
       }
 

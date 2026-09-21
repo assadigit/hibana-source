@@ -151,10 +151,15 @@ export function timeAgo(iso: string, lang: Locale = 'en'): string {
 export const progressBar = (pct: number): string =>
   `<div class="progress"><span style="inline-size:${Math.max(0, Math.min(100, pct))}%"></span></div>`
 
-export const toastHtml = (message: string, lang: Locale = 'en', undoPath?: string): string =>
-  `<div id="toast" class="toast" role="status">${esc(message)}` +
-  (undoPath ? ` <button class="ghost" hx-post="${undoPath}" hx-swap="none">${trL(lang, 'Undo', 'واگرد')}</button>` : '') +
-  `<button class="ghost danger" onclick="this.parentElement.remove()" aria-label="${trL(lang, 'Dismiss', 'بستن')}">${icon('x')}</button></div>`
+export const toastHtml = (message: string, lang: Locale = 'en', undoPath?: string, kind: 'info' | 'ok' = 'info'): string =>
+  // S105: kind 'ok' renders the SUCCESS toast — leading ✓, pastel green, corner ×.
+  kind === 'ok'
+    ? `<div id="toast" class="toast ok" role="status"><span class="toast-msg-row"><span class="toast-check" aria-hidden="true"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4.5 12.5l5 5L19.5 7"/></svg></span><span class="toast-msg">${esc(message)}</span></span>` +
+      (undoPath ? ` <button class="ghost" hx-post="${undoPath}" hx-swap="none">${trL(lang, 'Undo', 'واگرد')}</button>` : '') +
+      `<button class="toast-x" onclick="this.parentElement.remove()" aria-label="${trL(lang, 'Dismiss', 'بستن')}">${icon('x')}</button></div>`
+    : `<div id="toast" class="toast" role="status">${esc(message)}` +
+      (undoPath ? ` <button class="ghost" hx-post="${undoPath}" hx-swap="none">${trL(lang, 'Undo', 'واگرد')}</button>` : '') +
+      `<button class="ghost danger" onclick="this.parentElement.remove()" aria-label="${trL(lang, 'Dismiss', 'بستن')}">${icon('x')}</button></div>`
 
 /** Look up a project scoped to the authenticated user — rule 1 enforced at the join level. */
 export async function getOwnedProject(cfg: Config, userId: string, id: string): Promise<ProjectRow | null> {

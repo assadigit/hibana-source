@@ -812,7 +812,7 @@ export function devboardRoutes(cfg: Config) {
 
   app.all('/api/devboard/ping', (c) => {
     const t = trFor(c)
-    return c.html(toastHtml(t('Saved', 'ذخیره شد'), localeOf(c)))
+    return c.html(toastHtml(t('Saved', 'ذخیره شد'), localeOf(c), undefined, 'ok'))
   })
 
   return app

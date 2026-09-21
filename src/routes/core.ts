@@ -82,8 +82,9 @@ export function shotsGridHtml(
           ${s.task_id && tasks.get(s.task_id) ? (() => {
             const t = tasks.get(s.task_id)!
             const box = SHOT_BOX[t.status] ?? SHOT_BOX.idea
+            const fullTitle = String(t.title || '').split('\n')[0]
             return `<div class="row spread shot-pin" dir="auto">
-              <span class="row shot-pin-text" style="gap:0.25rem">${icon('pin')} <b>${trL(lang, box[0], box[1])}</b> · <span class="shot-pin-task">${esc(t.title)}</span></span>
+              <span class="row shot-pin-text" style="gap:0.25rem" title="${esc(fullTitle)}">${icon('pin')} <b>${trL(lang, box[0], box[1])}</b> · <span class="shot-pin-task">${esc(t.title)}</span></span>
               <button type="button" class="ghost small danger shot-unpin" data-shot-unpin="${s.id}" title="${trL(lang, 'Unpin — keep the picture, just detach it', 'برداشتن سنجاق — تصویر می‌ماند، فقط جدا می‌شود')}" aria-label="${trL(lang, 'Unpin', 'برداشتن سنجاق')}">${icon('x')}</button>
             </div>`
           })() : ''}
@@ -320,7 +321,7 @@ export function coreRoutes(cfg: Config) {
     }
     params.push(c.req.param('id'))
     await cfg.db.execute(`UPDATE links SET ${sets.join(', ')} WHERE id = ?`, params)
-    if (c.req.header('HX-Request')) return c.html(toastHtml(t('Link updated', 'پیوند به‌روزرسانی شد'), localeOf(c)))
+    if (c.req.header('HX-Request')) return c.html(toastHtml(t('Link updated', 'پیوند به‌روزرسانی شد'), localeOf(c), undefined, 'ok'))
     return c.json({ ok: true })
   })
 
@@ -490,7 +491,7 @@ export function coreRoutes(cfg: Config) {
       }
     }
     await cfg.db.execute('UPDATE projects SET updated_at = ? WHERE id = ?', [now, projectId])
-    if (c.req.header('HX-Request')) return c.html(toastHtml(t('Saved', 'ذخیره شد'), localeOf(c)))
+    if (c.req.header('HX-Request')) return c.html(toastHtml(t('Saved', 'ذخیره شد'), localeOf(c), undefined, 'ok'))
     return c.json({ ok: true })
   })
 

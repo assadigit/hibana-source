@@ -95,14 +95,32 @@ html[data-theme='claude-dark'] .db-col[data-col='bug']         { --db-c: 150 110
    (invisible). The !important `.db-card .prio-*` rules near the pd block now carry
    the priority color, same as the project page. */
 /* Session 22 (consistency with .pd-task-title): fs-md/1.35 → fs-sm/1.3 so a task card
-   reads identically in the project progress box and on the full-screen board. */
+   reads identically in the project progress box and on the full-screen board.
+   S105 (owner: "the fullscreen box must inherit ALL design tokens from the
+   projects-page one — the heading is not bold there"): the board title now carries
+   the EXACT .pd-task-title register (project-header.css) — 0.75rem / weight 700
+   (S88) + pre-line. The board also renders the S86 content preview under the
+   heading (chip-render previewHtml) — same muted one-line clamp as .pd-task-preview. */
 .db-card-title {
-  font-size: var(--fs-sm);
+  font-size: 0.75rem;
+  font-weight: 700;
   line-height: 1.3;
   overflow-wrap: anywhere;
   /* Session 23: multi-line titles (code blocks / manual breaks) render their line
      structure — mirrors .pd-task-title; legacy single-line titles unchanged. */
   white-space: pre-line;
+}
+.db-card .pd-task-preview { /* the chip-render preview span inside a board card */
+  display: block;
+  font-size: 0.7rem;
+  font-weight: 400;
+  color: var(--muted);
+  line-height: 1.35;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-inline-size: 0;
+  max-inline-size: 100%;
 }
 .st-done .db-card-title, .st-done .sp-bar-title { text-decoration: line-through; color: var(--muted); }
 .db-card-meta { display: flex; flex-wrap: wrap; gap: 0.3rem; align-items: center; }

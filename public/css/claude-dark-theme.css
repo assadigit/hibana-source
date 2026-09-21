@@ -159,12 +159,31 @@ html[data-theme='claude-dark'] { --mw-accent: #d97757; --mw-accent-ink: #141413;
 html[data-theme='claude-dark'] .magic-popover { background: #262524; color: #e8e6dc; }
 html[data-theme='claude-dark'] .magic-prompt-ta { background: #1a1917; }
 
-/* Sticky quick-notes: warm dark steps of their own hues (the dark theme's treatment,
-   nudged toward the Claude base temperature). */
-html[data-theme='claude-dark'] .note-card[data-note-color='yellow'] { background: #2E2818 !important; }
-html[data-theme='claude-dark'] .note-card[data-note-color='green'] { background: #232A1D !important; }
-html[data-theme='claude-dark'] .note-card[data-note-color='pink'] { background: #2E2226 !important; }
-html[data-theme='claude-dark'] .note-card[data-note-color='blue'] { background: #22262C !important; }
+/* Sticky quick-notes — S105 (owner: “in dark mode the sticky notes are almost
+   black; they must still be seen colored — yellow, green… — but muted, not
+   straining”). The old #2E2818-family steps sat at ~10% lightness — invisible
+   tints, not colors. The new register keeps each hue READABLE at muted
+   saturation (~35%), scoped to the sticky/grid PAPER views only — list view
+   keeps its neutral dark card (light-mode parity: color paints the paper, not
+   the list). Ink flips to a warm dark so text sits comfortably on the fills. */
+html[data-theme='claude-dark'] #notebook :is(#nv-sticky:checked, #nv-grid:checked) ~ .note-list > .note-card[data-note-color='yellow'] { background: #b3975b !important; --note-color: #b3975b; }
+html[data-theme='claude-dark'] #notebook :is(#nv-sticky:checked, #nv-grid:checked) ~ .note-list > .note-card[data-note-color='green']  { background: #5c9973 !important; --note-color: #5c9973; }
+html[data-theme='claude-dark'] #notebook :is(#nv-sticky:checked, #nv-grid:checked) ~ .note-list > .note-card[data-note-color='pink']   { background: #c48aab !important; --note-color: #c48aab; }
+html[data-theme='claude-dark'] #notebook :is(#nv-sticky:checked, #nv-grid:checked) ~ .note-list > .note-card[data-note-color='blue']   { background: #7a95bd !important; --note-color: #7a95bd; }
+/* dark ink + hairline on the colored papers (beats the light-ink rules below by
+   the sticky/grid view prefix); list view keeps #e8e6dc on the neutral card. */
+html[data-theme='claude-dark'] #notebook :is(#nv-sticky:checked, #nv-grid:checked) ~ .note-list > .note-card { color: #292520 !important; }
+html[data-theme='claude-dark'] #notebook :is(#nv-sticky:checked, #nv-grid:checked) ~ .note-list > .note-card .note-text,
+html[data-theme='claude-dark'] #notebook :is(#nv-sticky:checked, #nv-grid:checked) ~ .note-list > .note-card .note-render,
+html[data-theme='claude-dark'] #notebook :is(#nv-sticky:checked, #nv-grid:checked) ~ .note-list > .note-card .markdown-body { color: #292520 !important; }
+html[data-theme='claude-dark'] #notebook :is(#nv-sticky:checked, #nv-grid:checked) ~ .note-list > .note-card button.ghost { color: #4a4238 !important; }
+html[data-theme='claude-dark'] #notebook :is(#nv-sticky:checked, #nv-grid:checked) ~ .note-list > .note-card .note-meta,
+html[data-theme='claude-dark'] #notebook :is(#nv-sticky:checked, #nv-grid:checked) ~ .note-list > .note-card .note-footer .small,
+html[data-theme='claude-dark'] #notebook :is(#nv-sticky:checked, #nv-grid:checked) ~ .note-list > .note-card .attach-btn,
+html[data-theme='claude-dark'] #notebook :is(#nv-sticky:checked, #nv-grid:checked) ~ .note-list > .note-card .attach-btn .small { color: #3a352d !important; }
+html[data-theme='claude-dark'] #notebook :is(#nv-sticky:checked, #nv-grid:checked) ~ .note-list > .note-card .attach-btn { border-color: rgb(0 0 0 / 0.28) !important; }
+html[data-theme='claude-dark'] #notebook :is(#nv-sticky:checked, #nv-grid:checked) ~ .note-list > .note-card { border-color: rgb(0 0 0 / 0.18); }
+/* list-view (neutral dark card) keeps the light ink — unchanged semantics */
 html[data-theme='claude-dark'] .note-card { color: #e8e6dc !important; }
 
 /* The header/address-bar tint for mobile browsers (app.js also sets the meta tag). */
@@ -208,11 +227,12 @@ html[data-theme='claude-dark'] .note-card button.ghost.small.attach-btn,
 html[data-theme='claude-dark'] .note-card button.ghost.small.attach-btn .small { color: #e8e6dc; }
 html[data-theme='claude-dark'] .note-card .attach-btn { border-color: rgb(232 230 220 / 0.35); }
 
-/* Note color picker dots mirror the dark sticky fills above. */
-html[data-theme='claude-dark'] .note-color-picker .dot-yellow { background: #2E2818; }
-html[data-theme='claude-dark'] .note-color-picker .dot-green { background: #232A1D; }
-html[data-theme='claude-dark'] .note-color-picker .dot-pink { background: #2E2226; }
-html[data-theme='claude-dark'] .note-color-picker .dot-blue { background: #22262C; }
+/* Note color picker dots mirror the muted dark sticky fills above (they preview
+   the paper the pick will paint). */
+html[data-theme='claude-dark'] .note-color-picker .dot-yellow { background: #b3975b; }
+html[data-theme='claude-dark'] .note-color-picker .dot-green { background: #5c9973; }
+html[data-theme='claude-dark'] .note-color-picker .dot-pink { background: #c48aab; }
+html[data-theme='claude-dark'] .note-color-picker .dot-blue { background: #7a95bd; }
 
 /* Auth split brand word — warm off-white on the dark pane. */
 html[data-theme='claude-dark'] .auth-brand { color: #e8e6dc; }

@@ -752,12 +752,21 @@ body.rail-panel-open .dash-todo-grid { grid-template-columns: repeat(2, minmax(0
   flex: none;
 }
 .icon-chip .icon { inline-size: 1rem; block-size: 1rem; }
-.stat-box[data-status='spark'] .icon-chip { background: var(--badge-spark-bg); color: var(--badge-spark-fg); }
-.stat-box[data-status='planning'] .icon-chip { background: var(--badge-planning-bg); color: var(--badge-planning-fg); }
-.stat-box[data-status='queued'] .icon-chip { background: var(--badge-queued-bg); color: var(--badge-queued-fg); }
-.stat-box[data-status='developing'] .icon-chip { background: var(--badge-developing-bg); color: var(--badge-developing-fg); }
-.stat-box[data-status='awaiting_dev'] .icon-chip { background: var(--badge-awaiting_dev-bg); color: var(--badge-awaiting_dev-fg); }
-.stat-box[data-status='operational'] .icon-chip { background: var(--badge-operational-bg); color: var(--badge-operational-fg); }
+/* S105 (owner: "the projects boxes are too visually noisy"): the dashboard stage
+   boxes' icon-chips go NEUTRAL — one quiet monochrome glyph per lane header; the
+   colored COUNT pill (.board-count, keyed to the stage role) stays as the single
+   color key. The per-status tinted chips above made a 5-lane row read as a
+   patchwork. Scoped to .stat-box so other .icon-chip surfaces keep their look. */
+.stat-box .icon-chip {
+  background: var(--bg-soft);
+  color: var(--muted);
+}
+.stat-box[data-status='spark'] .icon-chip,
+.stat-box[data-status='planning'] .icon-chip,
+.stat-box[data-status='queued'] .icon-chip,
+.stat-box[data-status='developing'] .icon-chip,
+.stat-box[data-status='awaiting_dev'] .icon-chip,
+.stat-box[data-status='operational'] .icon-chip { background: var(--bg-soft); color: var(--muted); }
 /* Brand-colored interactive link states (audit 20). */
 .stat-box a.small:hover,
 .activity-main a:hover,

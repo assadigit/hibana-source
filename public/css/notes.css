@@ -80,6 +80,22 @@
   text-transform: uppercase;
   color: var(--muted);
 }
+/* S105: the section head is now a COLLAPSIBLE button (Folders / Tags) — chevron
+   rotates open/closed exactly like the folder twisties below it. */
+button.vault-sec-head {
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  font: inherit;
+  text-transform: inherit;
+  letter-spacing: inherit;
+  min-inline-size: 0;
+  flex: 1 1 auto;
+}
+button.vault-sec-head:hover { color: var(--text); }
+.vault-sec-tw { display: inline-grid; place-items: center; inline-size: 0.875rem; flex: none; }
+.vault-sec-tw .icon { inline-size: 0.625rem; transition: transform 0.15s ease; }
+.vault-sec-head[aria-expanded='false'] .vault-sec-tw .icon { transform: rotate(-90deg); }
 .vault-sec-head .vault-sec-count { margin-inline-start: auto; }
 .vault-sec-add {
   margin-inline-start: auto;
@@ -94,6 +110,30 @@
   cursor: pointer;
 }
 .vault-sec-add:hover { background: var(--accent-soft); color: var(--accent); }
+
+/* S105: a NOTE nested under its folder (Obsidian-style tree row). Muted note glyph,
+   one-line ellipsized title, same hover/current language as the folder rows. */
+.vault-note-row { display: flex; min-inline-size: 0; }
+.vault-note {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  min-inline-size: 0;
+  flex: 1 1 auto;
+  padding: 0.25rem 0.5rem 0.25rem 0.375rem;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  font-size: 0.8125rem;
+  text-align: start;
+  cursor: pointer;
+}
+.vault-note .icon { inline-size: 0.8125rem; block-size: 0.8125rem; flex: none; opacity: 0.75; }
+.vault-note-name { min-inline-size: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.vault-note:hover { background: var(--accent-soft); color: var(--text); }
+.vault-note[aria-current='true'] { background: var(--accent-soft); color: var(--accent); font-weight: 600; }
 
 .vault-quick {
   display: flex;

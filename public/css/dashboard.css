@@ -57,9 +57,8 @@
   .stat-carousel .stat-box.is-empty { display: none; }
 }
 /* S42: overlay handles — absolute inside .stat-stage, vertically centered on the
-   strip, slight overhang into the page gutter (inset-inline-start/end: -0.35rem) so
-   most of their footprint covers padding, not card content. Translucent fill + blur
-   keeps the covered edge readable; 2.5rem (40px) hits the coarse-pointer tap law. */
+   strip. S105 (owner: "too visually noisy"): the blur+shadow chrome is gone — a
+   plain card-surface circle with a hairline (still 2.5rem / 40px for the tap law). */
 .stat-arrow {
   position: absolute;
   inset-block-start: 50%;
@@ -73,10 +72,7 @@
   padding: 0;
   border: 1px solid var(--line);
   border-radius: 50%;
-  background: color-mix(in srgb, var(--card) 78%, transparent);
-  -webkit-backdrop-filter: blur(3px);
-  backdrop-filter: blur(3px);
-  box-shadow: 0 1px 8px rgb(0 0 0 / 0.16);
+  background: var(--card);
   color: var(--text);
   cursor: pointer;
   transition: opacity 0.25s ease, background 0.15s ease, border-color 0.15s ease;
@@ -109,16 +105,12 @@
   transition: transform 0.18s ease, background-color 0.18s ease, box-shadow 0.18s ease, opacity 0.18s ease;
 }
 /* S82 (owner: "make the projects carousel's dots match the to-do list carousel's"):
-   the to-do carousel's active dot (.dash-quad-dot.active::before / .quad-dot.active::before)
-   is a 7px dot scaled 1.7× in the accent color. The projects carousel's dot gets the
-   SAME treatment — scale(1.7) ≈ 1.5–2× the 7.2px inactive diameter — plus the soft
-   glow the owner asked for: a blurred box-shadow in the dot's own color at low
-   opacity, matching the to-do carousel's radius (8px) and spread (2px). */
+   the active dot keeps the accent + scale treatment. S105 (owner: "too visually
+   noisy"): the blurred GLOW box-shadow is retired — a clean scaled dot reads calmer. */
 .stat-dot.is-active {
   background: var(--brand);
   opacity: 1;
   transform: scale(1.7);
-  box-shadow: 0 0 8px 2px color-mix(in srgb, var(--brand) 45%, transparent);
 }
 @media (prefers-reduced-motion: reduce) {
   .stat-dot { transition: none; }
@@ -154,24 +146,12 @@
 }
 /* Hover steps toward the text tone — a visible nudge on the now-borderless surface. */
 .card.stat-kanban-card:hover { background: var(--bg-soft); border-color: var(--line-strong); }
-/* Batch (q) 2026-09-07 — COMPACT dashboard cards (user: "they must only carry [project
-   button + project heading], with last-updated below — no wasted white space"): the old
-   latest-note snippet, tag chip, and the «باز کردن →» footer row are gone. One tight row —
-   a small open-button (≥24px hit area via the padded ring) + a single-line ellipsized
-   heading — then the updated meta whispers underneath. */
+/* Batch (q) 2026-09-07 — COMPACT dashboard cards. S105 (owner: "too visually
+   noisy"): the skc-open arrow button is GONE — the whole card navigates via
+   data-nav-url (nav.js) and drag still changes status, so a dedicated arrow circle
+   was pure decoration. One tight row — single-line ellipsized heading + bug bubble —
+   then the quiet meta line (timeAgo · backlog · idea/plan/hurdle counts as text). */
 .skc-row { display: flex; align-items: center; gap: 0.4rem; min-inline-size: 0; }
-.skc-open {
-  display: inline-flex; align-items: center; justify-content: center;
-  inline-size: 1.35rem; block-size: 1.35rem;
-  border-radius: var(--radius-sm);
-  color: var(--muted);
-  background: rgb(74 159 163 / 0.10);
-  position: relative;
-  flex: none;
-}
-.skc-open::after { content: ""; position: absolute; inset: -0.6rem; } /* F13 (session 9): ≥40px hit zone (was -0.35rem ≈ 33px) */
-.skc-open .icon { inline-size: 0.85rem; block-size: 0.85rem; }
-.skc-open:hover { color: var(--brand); background: rgb(74 159 163 / 0.18); }
 .skc-title {
   flex: 1 1 auto; min-inline-size: 0;
   font-size: var(--fs-md); line-height: 1.35; font-weight: 600;

@@ -202,6 +202,14 @@ export function vaultRoutes(cfg: Config) {
     ])
     const countByFolder = new Map(countRows.map((r) => [r.folder_id ?? '', r.n]))
     const folders = folderRows.map((f) => ({ ...f, note_count: countByFolder.get(f.id) ?? 0 }))
+    // S105 (owner: "users cannot collapse the headings — e.g. collapsing the group of
+    // the ‘AI’ folder"): the tree now nests NOTES under their folders Obsidian-style,
+    // so the bootstrap carries a light note index (id + title + folder) for the
+    // sidebar. Capped at 500 — the same limit the list API uses — newest first.
+    const noteIndex = await cfg.db.query<{ id: string; title: string; folder_id: string | null }>(
+      'SELECT id, title, folder_id FROM vault_notes WHERE user_id = ? AND deleted_at IS NULL ORDER BY updated_at DESC LIMIT 500',
+      [user.id],
+    )
     const notes = await cfg.db.query<Pick<VaultNoteRow, 'tags' | 'content' | 'starred' | 'deleted_at'>>(
       'SELECT tags, content, starred, deleted_at FROM vault_notes WHERE user_id = ?',
       [user.id],
@@ -241,6 +249,7 @@ export function vaultRoutes(cfg: Config) {
     }
     return c.json({
       folders,
+      noteIndex,
       tags: [...tagIndex.values()].sort((a, b) => b.count - a.count || a.tag.localeCompare(b.tag)),
       counts: { all, starred, trash, unfiled: unfiledRow[0]?.n ?? 0, has_sparks: (sparkRow[0]?.n ?? 0) > 0, has_quicknotes: (qnRow[0]?.n ?? 0) > 0 },
     })

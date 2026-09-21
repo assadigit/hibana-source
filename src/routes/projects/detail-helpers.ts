@@ -350,6 +350,26 @@ export function detailHtml(p: ProjectRow, d: Awaited<ReturnType<typeof loadDetai
       ? `<button type="button" class="pd-read-more" data-task-read-more aria-expanded="false">${trL(lang, 'read more', 'بیشتر بخوان')}</button>`
       : ''
 
+  // S105 (owner: "the Plans tab — whose count badge shows 5 — doesn't show current
+  //   plans" + the two-concepts ruling: a PLAN is ALWAYS a kanban item in the
+  //   project-progress Plans box; a PLAN DOCUMENT is a consolidated roadmap that can
+  //   contain many tweaks). The tab now renders BOTH, clearly separated: the plan
+  //   ITEMS the badge counts first, then the plan documents.
+  const blPlans = d.devTasks
+    .filter((t) => t.status === 'planned')
+    .sort((a, b) => (a.created_at < b.created_at ? 1 : -1))
+    .map(
+      (t) => `<div class="bl-plan" data-bl-plan="${t.id}" data-raw-title="${esc(t.title)}">
+        <span class="prio-dot prio-${t.priority || 'medium'}" title="${prioLabel(t.priority || 'medium')}"></span>
+        <span class="bl-plan-main">
+          <span class="bl-plan-title" dir="auto">${titleHtml(t.title)}</span>
+          ${previewHtml(t.title)}
+        </span>
+        <span class="muted small bl-plan-date">${timeAgo(t.created_at, lang)}</span>
+      </div>`,
+    )
+    .join('') || `<p class="muted small bl-plans-empty">${trL(lang, 'No plans yet — add one above; it lands in the Plans box of the progress board.', 'هنوز برنامه‌ای نیست — بالا یکی اضافه کن؛ در جعبهٔ «برنامه‌ها» تابلوی پیشرفت می‌نشیند.')}</p>`
+
   const boardPreview = `
   <section class="card pd-board" id="pd-board" data-total="${d.devTasks.length}" data-done="${doneTasks}">
     <div class="row spread pd-board-head">
@@ -517,13 +537,19 @@ export function detailHtml(p: ProjectRow, d: Awaited<ReturnType<typeof loadDetai
 
   <section class="card detail-panel" id="detail-backlog" role="tabpanel" data-detail-panel="backlog" hidden>
     <h3>${trL(lang, 'Plans', 'برنامه‌ها')}</h3>
-    <p class="muted small">${trL(lang, 'Two ways to plan: quick items land in the Plans box instantly; documents hold the full plan (title + content) with a change history.', 'دو راه برنامه‌ریزی: قلم‌های سریع بلافاصله در جعبهٔ «برنامه‌ها» می‌نشینند؛ اسناد، برنامهٔ کامل (عنوان + متن) را با تاریخچهٔ تغییر نگه می‌دارند.')}</p>
+    <p class="muted small">${trL(lang, 'Two kinds: a PLAN is a single task/tweak in the Plans box of the progress board; a PLAN DOCUMENT consolidates many tweaks into one roadmap with a change history.', 'دو جور است: «برنامه» یک قلم تک در جعبهٔ «برنامه‌ها» تابلوی پیشرفت است؛ «سند برنامه» چند ترفع را در یک نقشهٔ راه با تاریخچهٔ تغییر جمع می‌کند.')}</p>
 
     <form class="pd-quick-add bl-item-form" data-bl-item>
       <input name="title" maxlength="300" dir="auto" autocomplete="off" placeholder="${trL(lang, '− Fix the dashboard CSS problems…', '− رفع مشکلات CSS داشبورد…')}" aria-label="${trL(lang, 'Plan item', 'قلم برنامه')}">
       <button type="submit" class="ghost" aria-label="${trL(lang, 'Add item', 'افزودن قلم')}">${icon('plus')}</button>
     </form>
     <p class="muted small bl-hint">${trL(lang, 'Every item lands in the Plans box above — ideas still need a review before they join the plan.', 'هر قلم بلافاصله در جعبهٔ «برنامه‌ها» بالا می‌نشیند — ایده‌ها پیش از ورود به برنامه بازبینی و انتخاب می‌شوند.')}</p>
+
+    <!-- S105: THE PLANS THEMSELVES — the kanban items the tab badge counts. The
+         tab used to show only plan documents, so a “Plans 5” badge over an empty
+         panel read as broken. -->
+    <h4 class="bl-sub" data-bl-plans-head>${trL(lang, 'Plans', 'برنامه‌ها')} <span class="muted small">· ${trL(lang, 'box items', 'قلم‌های جعبه')} <span data-bl-plans-count>${dig(plannedCount)}</span></span></h4>
+    <div class="bl-plans" data-bl-plans>${blPlans}</div>
 
     <h4 class="bl-sub">${trL(lang, 'Plan documents', 'اسناد برنامه')}</h4>
     <div class="bl-docs" data-bl-docs>${blDocs}</div>
@@ -686,7 +712,7 @@ export function detailHtml(p: ProjectRow, d: Awaited<ReturnType<typeof loadDetai
       <div class="pd-taskadd-shots">
         <input type="file" id="pd-taskadd-shots" accept=".pdf,.csv,.xlsx,.docx,.md,.txt,image/png,image/jpeg,image/webp,image/gif" multiple hidden>
         <div class="row" style="gap:.4rem;align-items:center;margin-top:.5rem">
-          <button type="button" class="ghost small" onclick="document.getElementById('pd-taskadd-shots').click()" title="${trL(lang, 'Upload files — images, PDF, Excel, Word, Markdown, text — pinned to this item', 'آپلود فایل — تصویر، PDF، اکسل، ورد، مارک‌داون، متن — سنجاق‌شده به این قلم')}">${icon('attach')} ${trL(lang, 'Upload files', 'آپلود فایل')}</button>
+          <button type="button" class="ghost small" onclick="document.getElementById('pd-taskadd-shots').click()" title="${trL(lang, 'Upload a screenshot or file — images, PDF, Excel, Word, Markdown, text — pinned to this item', 'اسکرین‌شات یا فایل آپلود کن — تصویر، PDF، اکسل، ورد، مارک‌داون، متن — سنجاق‌شده به این قلم')}">${icon('attach')} ${trL(lang, 'Upload screenshot', 'آپلود اسکرین‌شات')}</button>
           <!-- S61: the old «در حال اپلود تصویر …» span is gone — project-page.js mounts a
                .shots-upload-strip with per-file progress bars right above the grid. -->
           <span class="muted small" id="pd-taskadd-shots-count"></span>

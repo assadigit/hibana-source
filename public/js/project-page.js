@@ -37,15 +37,35 @@
             const status = document.querySelector('#project-body [data-status]')?.dataset.status
             if (h1 && h1.textContent) {
               window.hibanaCmdK?.recordRecent?.(id, h1.textContent.trim(), status || '')
-              // S71/S85: the merged "Continue where you left off" component — record the
-              // visit WITH the project's stage slug so the hero renders its fixed-palette
-              // status badge (the ONE shared last-opened timestamp everywhere).
-              window.hibanaResume?.record?.('project', id, h1.textContent.trim(), status || '')
+              // S105 (owner: "'Continue from where you left off' currently shows items
+              // the user only VIEWED — the items must be ones the user actively
+              // interacted with, like updating something; a view is not enough"): the
+              // VIEW-based resume record here is REMOVED — recording now happens only
+              // at mutation success points (resumeTouch below + the htmx hook). The
+              // palette's Recent stays view-based (a different, deliberate feature).
               // S64: the tab title carries the project's OWN name (language-neutral user
               // content — the name is whatever the owner typed), not a generic "Project".
               // FA users previously kept the static English title for the whole visit.
               document.title = h1.textContent.trim() + ' — Hibana'
             }
+          })
+          // S105: the interaction-based recorder — called at every mutation success
+          // point (fetch flows call it explicitly; htmx form posts/patches land in the
+          // afterRequest hook below: notes, links, project PATCH…).
+          const resumeTouch = () => {
+            const h1 = document.querySelector('#project-body header h1')
+            const status = document.querySelector('#project-body [data-status]')?.dataset.status
+            if (h1 && h1.textContent) window.hibanaResume?.record?.('project', id, h1.textContent.trim(), status || '')
+          }
+          window.__hibanaProjectResumeTouch = resumeTouch // the sub-flows below reuse it
+          ctx.on('htmx:afterRequest', (e) => {
+            const xhr = e.detail?.xhr
+            if (!xhr || xhr.status >= 300) return
+            const method = (e.detail?.requestConfig?.method || 'GET').toUpperCase()
+            if (method === 'GET' || method === 'HEAD') return
+            const url = String(e.detail?.requestConfig?.url || '')
+            if (!/\/api\/(projects|devtasks|backlog|screenshots)\//.test(url)) return
+            resumeTouch()
           })
           // A deleted/missing project 404s — htmx would just leave the skeleton spinning
           // forever. Say what happened and offer the way back (same pattern as board/sprint).
@@ -313,6 +333,7 @@
             const r = await uploadOne(file, strip)
             if (r.ok) {
               ok++
+              window.__hibanaProjectResumeTouch?.() // S105: an upload IS an interaction
               // 2026-09-05 repair: #shots carries no hx-get, so the old
               // `htmx.trigger('#shots','load')` was a no-op and fresh uploads never
               // showed. Pull the server-rendered grid fragment instead.
@@ -624,6 +645,7 @@
                 body: JSON.stringify({ title, status, priority: status === 'bug' ? 'high' : 'medium', tags: [] }),
               })
               if (!res.ok) throw new Error('add failed')
+              window.__hibanaProjectResumeTouch?.() // S105: adding a task IS an interaction
               const data = await res.json()
               // 3. pin THIS screenshot to the new task (0054 screenshots.task_id)
               await patchShot(shotId, { taskId: data.id })
@@ -1016,6 +1038,7 @@
               body: JSON.stringify({ note: value }),
             })
             if (!res.ok) throw new Error('save failed')
+            window.__hibanaProjectResumeTouch?.() // S105: a note save IS an interaction
             noteValue = value
             if (noteBase === null) noteBase = value
             noteStatus('✓ ' + _t('project.noteSaved', 'saved'))
@@ -1099,7 +1122,7 @@
                 body: JSON.stringify({ text: value }),
               })
               if (!res.ok) throw new Error('save failed')
-              window.hibana?.toast(_t('sparks.saved', 'Saved'))
+              window.hibana?.toast(_t('sparks.saved', 'Saved'), 'ok')
             } catch {
               window.hibana?.toast(_t('sparks.saveFailed', "Couldn't save"), 'err')
             }
@@ -1242,7 +1265,7 @@
                 body: JSON.stringify({ title: value }),
               })
               if (!res.ok) throw new Error('save failed')
-              window.hibana?.toast(_t('sparks.saved', 'Saved'))
+              window.hibana?.toast(_t('sparks.saved', 'Saved'), 'ok')
             } catch {
               window.hibana?.toast(_t('sparks.saveFailed', "Couldn't save"), 'err')
             }
@@ -1350,7 +1373,7 @@
             const addBtn = holder.querySelector('.pd-tag-add')
             if (addBtn) holder.insertBefore(chip, addBtn)
             else holder.appendChild(chip)
-            window.hibana?.toast(_t('sparks.saved', 'Saved'))
+            window.hibana?.toast(_t('sparks.saved', 'Saved'), 'ok')
           } catch {
             window.hibana?.toast(_t('sparks.saveFailed', "Couldn't save"), 'err')
           }
@@ -3149,6 +3172,7 @@
                 },
               }])
               fetch('/api/devtasks/' + tid, { method: 'DELETE' })
+                .then((r) => { if (r.ok) window.__hibanaProjectResumeTouch?.() }) // S105: a delete IS an interaction
                 .catch(() => window.hibana?.toast(_t('notes.deleteFailed', "Couldn't delete"), 'err'))
             })
           })
@@ -3251,7 +3275,7 @@
                 '<div class="pd-taskadd-shots" style="margin-top:.5rem">' +
                   '<input type="file" id="pde-shots" accept=".pdf,.csv,.xlsx,.docx,.md,.txt,image/png,image/jpeg,image/webp,image/gif" multiple hidden>' +
                   '<div class="row" style="gap:.5rem;align-items:center">' +
-                    '<button type="button" class="ghost" id="pde-shots-add" onclick="document.getElementById(\'pde-shots\').click()" title="' + _t('pde.shotsAttachTitle', 'Upload files — images, PDF, Excel, Word, Markdown, text — pinned to this item') + '"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M21.2 11.2 12.6 19.8a5.4 5.4 0 0 1-7.6-7.6l8.5-8.5a3.6 3.6 0 0 1 5.1 5.1l-8.5 8.5a1.8 1.8 0 0 1-2.5-2.5l7.8-7.8"/></svg> ' + _t('pde.shotsAttach', 'Upload files') + '</button>' +
+                    '<button type="button" class="ghost" id="pde-shots-add" onclick="document.getElementById(\'pde-shots\').click()" title="' + _t('pde.shotsAttachTitle', 'Upload a screenshot or file — images, PDF, Excel, Word, Markdown, text — pinned to this item') + '"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M21.2 11.2 12.6 19.8a5.4 5.4 0 0 1-7.6-7.6l8.5-8.5a3.6 3.6 0 0 1 5.1 5.1l-8.5 8.5a1.8 1.8 0 0 1-2.5-2.5l7.8-7.8"/></svg> ' + _t('pde.shotsAttach', 'Upload screenshot') + '</button>' +
                   '</div>' +
                   '<div class="pd-taskadd-shots-grid" id="pde-shots-grid"></div>' +
                 '</div>' +
@@ -3395,6 +3419,7 @@
                 },
               }])
               fetch('/api/devtasks/' + tid, { method: 'DELETE' })
+                .then((r) => { if (r.ok) window.__hibanaProjectResumeTouch?.() }) // S105: a delete IS an interaction
                 .catch(() => window.hibana?.toast(_t('notes.deleteFailed', "Couldn't delete"), 'err'))
             })
             pdTaskEditDlg.querySelector('#pde-form').addEventListener('submit', async (e) => {
@@ -3431,8 +3456,9 @@
                   body: JSON.stringify({ title, status, priority, tags: tagNames }),
                 })
                 if (!res.ok) throw new Error('save failed')
+                window.__hibanaProjectResumeTouch?.() // S105: a task edit IS an interaction
                 const data = await res.json().catch(() => ({}))
-                window.hibana?.toast(_t('sparks.saved', 'Saved'), 'info')
+                window.hibana?.toast(_t('sparks.saved', 'Saved'), 'ok')
                 pdTaskEditDlg.close()
                 // Update the card in-place (no page reload). Session 22: the OLD
                 // selector `.pd-task[data-pd-task=…]` matched NOTHING (data-pd-task
@@ -3771,6 +3797,7 @@
                 body: JSON.stringify({ title: line, status: 'bug', priority: problemPrio }),
               })
               if (!res.ok) throw new Error('add failed')
+              window.__hibanaProjectResumeTouch?.() // S105: adding a task IS an interaction
               const data = await res.json()
               insertTaskChip('bug', { id: data.id, title: line, priority: problemPrio })
               if (list) {
@@ -3780,6 +3807,7 @@
               }
               setTabCount('problems', 1)
             }
+            window.__hibanaProjectResumeTouch?.() // S105: adding a problem IS an interaction
             window.hibana?.toast(_t('db.taskAdded', 'Task added'))
             ta.value = ''
           } catch {
@@ -3816,6 +3844,7 @@
             try {
               const res = await fetch('/api/devtasks/' + taskId, { method: 'DELETE' })
               if (!res.ok) throw new Error('delete failed')
+              window.__hibanaProjectResumeTouch?.() // S105: a delete IS an interaction
               const li = document.querySelector('[data-problem="' + taskId + '"]')
               if (li) li.remove()
               pdRemoveChip(taskId)
@@ -3927,7 +3956,31 @@
             blDocsCache = data.docs || []
             blRenderDocs(blDocsCache)
             blRenderHistory(data)
+            blRenderPlans(data.plans || [])
           } catch { /* transient — the next action retries */ }
+        }
+        // S105: the plan ITEMS list (planned dev_tasks) — re-rendered from the
+        // backlog payload so the tab's list always matches its badge. Rendering uses
+        // the same HibanaChips renderer as the board cards (bullets, bold, preview).
+        const blPlanRowHtml = (t) =>
+          '<div class="bl-plan" data-bl-plan="' + pdEsc(t.id) + '" data-raw-title="' + pdEsc(t.title) + '">' +
+            '<span class="prio-dot prio-' + (t.priority || 'medium') + '"></span>' +
+            '<span class="bl-plan-main">' +
+              '<span class="bl-plan-title" dir="auto">' + (window.HibanaChips ? window.HibanaChips.titleHtml(t.title) : pdEsc(String(t.title || '').split('\n')[0])) + '</span>' +
+              (window.HibanaChips ? window.HibanaChips.previewHtml(t.title) : '') +
+            '</span>' +
+            '<span class="muted small bl-plan-date">' + pdEsc(pdTimeAgo(t.created_at)) + '</span>' +
+          '</div>'
+        const blRenderPlans = (plans) => {
+          const box = document.querySelector('[data-bl-plans]')
+          if (!box) return
+          const countEl = document.querySelector('[data-bl-plans-count]')
+          if (countEl) countEl.textContent = pdDig(plans.length)
+          if (!plans.length) {
+            box.innerHTML = '<p class="muted small bl-plans-empty">' + pdEsc(_t('bl.noPlans', 'No plans yet — add one above; it lands in the Plans box of the progress board.')) + '</p>'
+            return
+          }
+          box.innerHTML = plans.map(blPlanRowHtml).join('')
         }
         const blForm = () => document.querySelector('[data-bl-docform]')
         const blOpenForm = (doc) => {
@@ -3962,7 +4015,7 @@
             const data = await res.json()
             insertTaskChip('planned', { id: data.id, title, priority: 'medium' })
             setTabCount('backlog', 1)
-            window.hibana?.toast(_t('db.taskAdded', 'Task added'))
+            window.hibana?.toast(_t('db.taskAdded', 'Task added'), 'ok')
             inp.value = ''
             inp.focus()
             blRefresh()
@@ -4146,8 +4199,11 @@
             }
             return
           }
+          window.__hibanaProjectResumeTouch?.() // S105: a status drag IS an interaction
           // cross-box: repaint optimistically, PATCH behind it
           el.dataset.pdStatus = to
+          // S105: a drag into/out of the Plans box updates the Plans tab's item list
+          if (from === 'planned' || to === 'planned') blRefresh()
           // the st-* class is on the <a> inside the wrapper, not on the wrapper itself
           const taskEl = el.querySelector('.pd-task')
           if (taskEl) {
@@ -4270,9 +4326,10 @@
                 body: JSON.stringify({ note: text }),
               })
               if (!res.ok) throw new Error('save failed')
+              window.__hibanaProjectResumeTouch?.() // S105: a note save IS an interaction
               const noteTa = document.getElementById('pd-note-textarea')
               if (noteTa) noteTa.value = text
-              window.hibana?.toast(_t('pd.noteSaved', 'Note saved'))
+              window.hibana?.toast(_t('pd.noteSaved', 'Note saved'), 'ok')
               closeEditor()
             } catch { window.hibana?.toast(_t('sparks.saveFailed', "Couldn't save"), 'err') }
           } else if (editorMode === 'bldoc') {
@@ -4287,7 +4344,8 @@
                 body: JSON.stringify({ title, content }),
               })
               if (!res.ok) throw new Error('save failed')
-              window.hibana?.toast(_t('bl.docSaved', 'Document saved'))
+              window.__hibanaProjectResumeTouch?.() // S105: a doc save IS an interaction
+              window.hibana?.toast(_t('bl.docSaved', 'Document saved'), 'ok')
               closeEditor()
               blRefresh()
             } catch { window.hibana?.toast(_t('sparks.saveFailed', "Couldn't save"), 'err') }

@@ -258,6 +258,44 @@ window.hibana = (() => {
     el.id = 'toast'
     el.className = `toast ${kind}`
     el.setAttribute('role', 'status')
+    // S105 (owner: "success messages such as 'task is saved' show like 'Saved [x]' —
+    // they must show 'Saved [✓]' and the modal must be pastel green with a small [x]
+    // in the top-right corner"): the SUCCESS ('ok') variant carries a leading check
+    // glyph next to the message, pastel-green styling (components.css), and its
+    // dismiss × anchored to the TOP-RIGHT CORNER (the UX convention). Other kinds
+    // keep the classic inline-row layout.
+    if (kind === 'ok') {
+      const row = document.createElement('div')
+      row.className = 'toast-msg-row'
+      const check = document.createElement('span')
+      check.className = 'toast-check'
+      check.setAttribute('aria-hidden', 'true')
+      check.innerHTML = '<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4.5 12.5l5 5L19.5 7"/></svg>'
+      row.appendChild(check)
+      const msg = document.createElement('span')
+      msg.className = 'toast-msg'
+      msg.innerHTML = message
+      row.appendChild(msg)
+      el.appendChild(row)
+      if (Array.isArray(actions)) {
+        for (const a of actions) {
+          const btn = document.createElement('button')
+          btn.className = a.kind === 'primary' ? '' : 'ghost'
+          btn.textContent = a.label
+          btn.addEventListener('click', () => { try { a.onClick?.() } catch {} el.remove() })
+          row.appendChild(btn)
+        }
+      }
+      const dismiss = document.createElement('button')
+      dismiss.className = 'toast-x'
+      dismiss.setAttribute('aria-label', 'Dismiss')
+      dismiss.innerHTML = '<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>'
+      dismiss.addEventListener('click', () => el.remove())
+      el.appendChild(dismiss)
+      document.body.appendChild(el)
+      if (ms > 0) setTimeout(() => { if (el.parentNode) el.remove() }, ms)
+      return
+    }
     // Message (existing behavior: message can contain HTML, e.g. links)
     const msg = document.createElement('span')
     msg.className = 'toast-msg'
@@ -3634,70 +3672,64 @@ window.hibana = (() => {
     d.open = false
     try { localStorage.setItem(NOTE_CONTROLS_OPEN_KEY, '0') } catch { /* storage unavailable */ }
   }
-  // S46.18 (owner: "collision-aware positioning — stays fully inside the viewport on
-  // both mobile and desktop. When the default placement overflows, flip to the opposite
-  // side or shift inward. Use logical properties. Prefer inline-start side first."):
-  // Measures the panel's bounding rect after the <details> opens. If it overflows the
-  // viewport, flips to the opposite side (inset-inline-start:0). If BOTH sides overflow,
-  // shifts inward (anchored to the viewport edge with reduced width).
+  // S105 (owner: "changing the view option of quick note shows buggy — the menu goes
+  // UNDER other elements"): #notebook carries container-type:inline-size (a stacking
+  // context), so the panel's absolute z-index could never paint above later dashboard
+  // siblings. The fix is the repo's established lift pattern (.spark-menu-pop.is-
+  // floating): while the <details> is OPEN, the panel is reparented to <body> as a
+  // position:fixed element under the gear (z-index 90), and returned home on close.
+  // The S46.18 collision-aware flip/shift logic survives as viewport clamping on the
+  // fixed coordinates.
+  const positionFloatingNoteControls = (panel, anchorRect) => {
+    const vw = document.documentElement.clientWidth || window.innerWidth
+    const vh = window.innerHeight
+    panel.style.inlineSize = `min(20rem, ${vw - 16}px)`
+    const pw = panel.offsetWidth
+    const ph = panel.offsetHeight
+    // anchor to the inline-END of the gear (right edge in LTR, left in RTL)
+    let left = document.documentElement.dir === 'rtl' ? anchorRect.left : anchorRect.right - pw
+    left = Math.max(8, Math.min(left, vw - pw - 8))
+    let top = anchorRect.bottom + 6
+    if (top + ph > vh - 8) top = Math.max(8, anchorRect.top - ph - 6)
+    panel.style.left = left + 'px'
+    panel.style.top = top + 'px'
+    panel.style.right = 'auto'
+    panel.style.insetInlineStart = ''
+    panel.style.insetInlineEnd = ''
+  }
+  const liftNoteControlsPanel = (toggle) => {
+    const panel = toggle.querySelector('.note-head-controls')
+    if (!panel || panel.classList.contains('is-floating')) return
+    const r = toggle.getBoundingClientRect()
+    panel.classList.add('is-floating')
+    document.body.appendChild(panel)
+    positionFloatingNoteControls(panel, r)
+  }
+  const unliftNoteControlsPanel = () => {
+    const panel = document.querySelector('body > .note-head-controls.is-floating')
+    if (!panel) return
+    panel.classList.remove('is-floating')
+    panel.style.left = panel.style.top = panel.style.right = panel.style.inlineSize = ''
+    panel.style.insetInlineStart = panel.style.insetInlineEnd = ''
+    const home = document.querySelector('#notebook .note-controls-toggle')
+    if (home && !home.querySelector('.note-head-controls')) home.appendChild(panel)
+    else panel.remove()
+  }
   const positionNoteControlsPanel = () => {
     const toggle = document.querySelector('#notebook .note-controls-toggle')
     if (!toggle || !toggle.open) return
-    const panel = toggle.querySelector('.note-head-controls')
+    const panel = document.querySelector('body > .note-head-controls.is-floating') || toggle.querySelector('.note-head-controls')
     if (!panel) return
-    // Step 1: reset to CSS default (inset-inline-end:0 → extends toward inline-start).
-    // In RTL this is left:0 → panel's left edge at toggle's left edge, extends rightward.
-    panel.style.insetInlineStart = ''
-    panel.style.insetInlineEnd = '0'
-    panel.style.left = ''
-    panel.style.right = ''
-    panel.style.inlineSize = ''
-    // Step 2: after layout settles, measure + flip/shift if overflow.
-    requestAnimationFrame(() => {
-      const pr = panel.getBoundingClientRect()
-      const vw = document.documentElement.clientWidth || window.innerWidth
-      // With the default (extend toward inline-start / rightward in RTL), the likely
-      // overflow is on the inline-END side (right edge past viewport).
-      if (pr.right > vw - 8) {
-        // Overflow on the end (right) side → FLIP: anchor to inline-start instead.
-        // In RTL: inset-inline-start:0 = right:0 → panel's right edge at toggle's right
-        // edge, extends LEFTWARD.
-        panel.style.insetInlineEnd = 'auto'
-        panel.style.insetInlineStart = '0'
-        // Step 3: re-measure after the flip — if the start (left) side now overflows too,
-        // BOTH sides overflow → shift inward (anchor to viewport edge + cap width).
-        requestAnimationFrame(() => {
-          const pr2 = panel.getBoundingClientRect()
-          if (pr2.left < 8) {
-            panel.style.insetInlineStart = ''
-            panel.style.insetInlineEnd = 'auto'
-            panel.style.right = '8px'
-            panel.style.inlineSize = `min(20rem, ${vw - 16}px)`
-          }
-        })
-      } else if (pr.left < 8) {
-        // Overflow on the start (left) side with the default → flip to extend toward end
-        panel.style.insetInlineEnd = 'auto'
-        panel.style.insetInlineStart = '0'
-        requestAnimationFrame(() => {
-          const pr2 = panel.getBoundingClientRect()
-          if (pr2.right > vw - 8) {
-            panel.style.insetInlineStart = ''
-            panel.style.insetInlineEnd = 'auto'
-            panel.style.left = '8px'
-            panel.style.inlineSize = `min(20rem, ${vw - 16}px)`
-          }
-        })
-      }
-    })
+    positionFloatingNoteControls(panel, toggle.getBoundingClientRect())
   }
   // 'toggle' does NOT bubble — the capture phase on document still sees every one.
   document.addEventListener('toggle', (e) => {
     const d = e.target
     if (!(d instanceof Element) || !d.matches?.('#notebook .note-controls-toggle')) return
     try { localStorage.setItem(NOTE_CONTROLS_OPEN_KEY, '0') } catch { /* storage unavailable */ }
-    // S46.18: position the panel collision-aware after it opens
-    if (d.open) positionNoteControlsPanel()
+    // S105: lift the open panel out of the #notebook stacking context (or return it)
+    if (d.open) liftNoteControlsPanel(d)
+    else unliftNoteControlsPanel()
   }, true)
   // S46.18: re-position on viewport resize (the panel might need to flip after resize)
   let resizeTimer = null
@@ -3705,6 +3737,18 @@ window.hibana = (() => {
     clearTimeout(resizeTimer)
     resizeTimer = setTimeout(positionNoteControlsPanel, 100)
   })
+  // S105: the floating panel follows the gear while the page scrolls (fixed coords
+  // are viewport-relative — without this the panel detaches from its anchor).
+  window.addEventListener('scroll', () => {
+    const toggle = document.querySelector('#notebook .note-controls-toggle')
+    if (toggle?.open) positionNoteControlsPanel()
+  }, { passive: true })
+  // S105: an htmx re-render of the notebook replaces the <details> (and
+  // applyNoteControlsOpen force-closes the fresh one); a panel left lifted in
+  // <body> would orphan — drop it. A later open re-lifts the fresh panel.
+  document.addEventListener('htmx:afterSwap', () => {
+    document.querySelector('body > .note-head-controls.is-floating')?.remove()
+  }, true)
   document.addEventListener('change', (e) => {
     if (e.target.matches?.('#notebook .note-view-radio')) {
       try { localStorage.setItem(NOTE_VIEW_KEY, e.target.checked ? e.target.value : 'list') } catch { /* storage unavailable */ }

@@ -405,7 +405,7 @@
         } else {
           const body = { title, status: modalCtx.draft.status, priority: modalCtx.draft.priority, category_id: categoryId || null, sprint_id: sprintId || null }
           await patchTask(modalCtx.taskId, body)
-          window.hibana && window.hibana.toast(t('sparks.saved', 'Saved'))
+          window.hibana && window.hibana.toast(t('sparks.saved', 'Saved'), 'ok')
         }
         closeModal(true)
       } catch { window.hibana && window.hibana.toast(t('sparks.saveFailed', "Couldn't save"), 'err') }
@@ -490,7 +490,7 @@
           if (!res.ok) throw new Error('rename failed')
           const body = await res.json()
           if (body.merged_into) window.hibana && window.hibana.toast(t('db.labelsMerged', 'Merged into the existing label'))
-          else window.hibana && window.hibana.toast(t('sparks.saved', 'Saved'))
+          else window.hibana && window.hibana.toast(t('sparks.saved', 'Saved'), 'ok')
           refresh()
         } catch (e) { window.hibana && window.hibana.toast(t('sparks.saveFailed', "Couldn't save"), 'err') }
       }
@@ -508,7 +508,7 @@
             if (swatch) swatch.style.background = sw.dataset.color
             const pal = row.querySelector('.db-label-palette')
             if (pal) pal.hidden = true
-            window.hibana && window.hibana.toast(t('sparks.saved', 'Saved'))
+            window.hibana && window.hibana.toast(t('sparks.saved', 'Saved'), 'ok')
             refresh() // repaints the list + fires onChanged (the board reloads its chips)
           } catch (e) { window.hibana && window.hibana.toast(t('sparks.saveFailed', "Couldn't save"), 'err') }
         }

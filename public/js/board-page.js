@@ -81,43 +81,23 @@
           // textContent round-trips the RAW title exactly (copy/export/delete/wand all
           // consume textContent). Prose lines get **pair** → <strong>. Unclosed fences
           // render as code till end (self-healing).
-          const renderTitle = (raw) => {
-            const escd = B().esc(raw)
-            const hasFence = /(^|\n)\s*```/.test(escd)
-            const hasBold = /\*\*[^*\n]+\*\*/.test(escd)
-            if (!hasFence && !hasBold) return escd
-            const lines = escd.split('\n')
-            let out = ''
-            let inCode = false
-            for (let i = 0; i < lines.length; i++) {
-              const line = lines[i]
-              const nl = i < lines.length - 1 ? '\n' : ''
-              if (!inCode && /^\s*```/.test(line)) {
-                inCode = true
-                const codeLang = line.trim().slice(3).trim()
-                out += '<code class="t-code"' + (codeLang ? ' data-lang="' + codeLang + '"' : '') + ' dir="ltr"><span hidden class="t-fence">' + line + '</span>'
-              } else if (inCode && line.trim() === '```') {
-                inCode = false
-                out += '<span hidden class="t-fence">' + line + '</span></code>'
-              } else if (inCode) {
-                out += line
-              } else {
-                out += line.replace(/\*\*([^*\n]+)\*\*/g, '<strong>$1</strong>')
-              }
-              out += nl
-            }
-            if (inCode) out += '</code>'
-            return out
-          }
-          const titleHtml = (title) => {
-            const s = String(title == null ? '' : title)
-            if (s.length <= TITLE_CLAMP) return renderTitle(s)
-            return renderTitle(s.slice(0, TITLE_CLAMP)) + '<span class="pd-title-rest" hidden>' + renderTitle(s.slice(TITLE_CLAMP)) + '</span>'
-          }
-          const titleAttrs = (title) => (String(title || '').length > TITLE_CLAMP ? ' data-clamped=""' : '')
-          const readMoreBtn = (title) => (String(title || '').length > TITLE_CLAMP
-            ? '<button type="button" class="pd-read-more" data-task-read-more aria-expanded="false">' + B().esc(_t('pd.readMore', 'read more')) + '</button>'
-            : '')
+          // S105 (owner: "the fullscreen Project Progress box appears different from
+          //   the projects-page one — bullet placement wrong, heading not bold"): the
+          //   board's LOCAL, outdated title renderer is RETIRED. It knew nothing of
+          //   bullets/ordered lists/underline/strike/alignment and never split the
+          //   first line (S48j), so fullscreen cards drifted from the project page's.
+          //   chip-render.js (window.HibanaChips) is ALREADY loaded by board.html —
+          //   the exact same renderer the project page delegates to (project-page.js
+          //   does the same). Fullscreen now inherits EVERY rendering decision:
+          //   bullets, ordered lists, bold/underline/strike, fences, first-line-only
+          //   titles (titleHtml), the read-more clamp, the content PREVIEW line
+          //   (previewHtml — S86), and data-raw-title for the editor round-trip.
+          const CH = () => window.HibanaChips || null
+          const renderTitle = (raw) => (CH() ? CH().renderTitle(raw) : B().esc(raw))
+          const titleHtml = (title) => (CH() ? CH().titleHtml(title) : B().esc(title))
+          const titleAttrs = (title) => (CH() ? CH().titleAttrs(title) : '')
+          const readMoreBtn = (title) => (CH() ? CH().readMoreBtn(title) : '')
+          const previewHtml = (title) => (CH() ? CH().previewHtml(title) : '')
           // Item 8: inline SVG icons for the export/copy buttons (board.html has no P_ICON)
           const I_CLIPBOARD = '<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4V3.5A.5.5 0 0 1 9.5 3h5a.5.5 0 0 1 .5.5V4M9 9.5h6M9 13.5h6M9 17.5h4"/></svg>'
           const I_DOWNLOAD = '<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m0 0l-4-4m4 4l4-4M5 21h14"/></svg>'
@@ -153,6 +133,7 @@
                       '<button type="button" class="prio-dot-btn" data-db-cycle-prio="' + task.id + '" title="' + B().esc(_t('db.cyclePrio', 'Priority: {p} — click to change').replace('{p}', B().prioLabel(task.priority))) + '" aria-label="' + B().esc(_t('db.cyclePrio', 'Priority: {p} — click to change').replace('{p}', B().prioLabel(task.priority))) + '"><span class="prio-dot prio-' + task.priority + '"></span></button>' +
                       '<span class="db-card-title"' + titleAttrs(task.title) + '>' + titleHtml(task.title) + '</span>' +
                     '</div>' +
+                    previewHtml(task.title) +
                     readMoreBtn(task.title) +
                     // ⋯ hover menu (Edit + Delete) — injected client-side after render so
                     // it survives every reload(). Edit opens the existing modal (no refresh);

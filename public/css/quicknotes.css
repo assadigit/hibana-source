@@ -302,12 +302,16 @@
   min-height: 0;
 }
 /* Sticky-note header (2026-08-26): a slim row holding the close × (the "Sticky note"
-   label was removed as redundant 2026-08-26). Sits at inline-start — top-right in RTL.
+   label was removed as redundant 2026-08-26). S105 (owner: "close buttons appear at
+   the top-left; they should be top-right — [x] is always top-right"): the row now
+   packs at the INLINE-END — top-right in LTR, top-left in RTL (the corner the eye
+   goes to for dismiss, matching the fabric sticky + every modal in the app).
    Hidden in list view, which keeps its own delete in the footer/head. */
 #notebook .note-headbar { display: none; }
 #notebook :is(#nv-sticky:checked, #nv-grid:checked) ~ .note-list > .note-card .note-headbar {
   display: flex;
   align-items: center;
+  justify-content: flex-end;
   min-block-size: 1.9rem; /* Session 28 (user: "make the button whitespace less"): was 2.75rem — a 44px strip holding a 14px icon; now a slim 30px strip, hit area preserved by the ::after ring below. */
   padding-inline: 0.15rem;
   flex: none;
@@ -742,12 +746,24 @@ body > .spark-menu-pop.is-floating {
   z-index: 90;
   animation: note-pop-in 0.14s ease-out;
 }
+/* S105 (owner: "changing the view option of quick note — the menu goes under other
+   elements"): the ⚙ view-options panel gets the SAME lift treatment while open —
+   #notebook's container-type stacking context trapped the old absolute z-index:5
+   under later dashboard sections. As a <body> child with fixed coords (set by
+   app.js liftNoteControlsPanel) it paints above everything, like the spark menu. */
+body > .note-head-controls.is-floating {
+  position: fixed;
+  inset: auto;
+  z-index: 90;
+  animation: note-pop-in 0.14s ease-out;
+}
 @keyframes note-pop-in {
   from { opacity: 0; transform: translateY(4px) scale(0.98); }
   to { opacity: 1; transform: translateY(0) scale(1); }
 }
 @media (prefers-reduced-motion: reduce) {
   body > .spark-menu-pop.is-floating { animation: none; }
+  body > .note-head-controls.is-floating { animation: none; }
 }
 .spark-menu-pop button {
   display: flex;

@@ -194,14 +194,17 @@ export function dashboardRoutes(cfg: Config) {
         if (!s || s.bugs === 0) return html``
         return html`<span class="bug-bubble" title="${t(`${s.bugs} open ${s.bugs === 1 ? 'bug' : 'bugs'}`, `${s.bugs} باگ باز`)}">${num(s.bugs)}</span>`
       }
-      const sigHtml = (id: string): SafeHtml => {
+      // S105 (owner: "the projects boxes are too visually noisy — clean, professional"):
+      // the ideas/backlog/hurdles pills became QUIET PLAIN TEXT folded into the
+      // meta line — same information, zero chips/icons/fills competing with the title.
+      const sigTextD = (id: string): SafeHtml => {
         const s = sigMap.get(id)
         if (!s || (s.ideas === 0 && s.backlog === 0 && s.hurdles === 0)) return html``
-        const chips: SafeHtml[] = []
-        if (s.ideas > 0) chips.push(html`<span class="sig-chip sig-ideas" title="${t(`${s.ideas} ${s.ideas === 1 ? 'idea' : 'ideas'}`, `${s.ideas} ایده`)}">${raw(icon('idea', 'icon'))}${num(s.ideas)}</span>`)
-        if (s.backlog > 0) chips.push(html`<span class="sig-chip sig-backlog" title="${t('Has plans', 'برنامه دارد')}">${raw(icon('list-check', 'icon'))}${num(s.backlog)}</span>`)
-        if (s.hurdles > 0) chips.push(html`<span class="sig-chip sig-hurdles" title="${t(`${s.hurdles} open ${s.hurdles === 1 ? 'hurdle' : 'hurdles'}`, `${s.hurdles} مانده باز`)}">${raw(icon('alert', 'icon'))}${num(s.hurdles)}</span>`)
-        return html`<span class="project-signals">${chips}</span>`
+        const bits: string[] = []
+        if (s.ideas > 0) bits.push(t(`${s.ideas} ${s.ideas === 1 ? 'idea' : 'ideas'}`, `${s.ideas} ایده`))
+        if (s.backlog > 0) bits.push(t(`${s.backlog} ${s.backlog === 1 ? 'plan' : 'plans'}`, `${s.backlog} برنامه`))
+        if (s.hurdles > 0) bits.push(t(`${s.hurdles} ${s.hurdles === 1 ? 'hurdle' : 'hurdles'}`, `${s.hurdles} مانده`))
+        return bits.length ? html` · ${bits.join(' · ')}` : html``
       }
       const backlogMetaD = (id: string): SafeHtml => {
         const s = sigMap.get(id)
@@ -220,8 +223,10 @@ export function dashboardRoutes(cfg: Config) {
       const activity: SafeHtml = activityItems.length ? html`${activityItems}` : html`<li class="muted">${t('Nothing here yet — tap the floating ＋ button to capture your first idea.', 'هنوز چیزی نیست — برای ثبت اولین ایده‌ات، دکمهٔ شناور ＋ را بزن.')}</li>`
 
       // One box per stage: icon + count + stage label, "view all" (cards view), then every
-      // project as a draggable kanban card. Phase 5: the card is a compact skc-row (open
-      // arrow + title) with timeAgo only — the tag chip and latest-note preview are gone.
+      // project as a draggable kanban card. Phase 5: the card is a compact skc-row (title +
+      // bug bubble) with a quiet meta line — timeAgo + backlog + idea/hurdle counts as PLAIN
+      // TEXT (S105: the arrow button, chip pills, status word and hover lift are gone;
+      // the whole card navigates via data-nav-url, drag still changes status).
       // Session 14 (user request): empty boxes carry .is-empty — app.css hides them on
       // phones (≤640px, where each box is a full-width carousel slide = a wasted swipe).
       // Only marked when some stage has projects, so a fresh account keeps its boxes.
@@ -233,12 +238,10 @@ export function dashboardRoutes(cfg: Config) {
           return html`<div class="card kanban-card stat-kanban-card" draggable="true" data-project-id="${p.id}" data-status="${p.status}" data-nav-url="/project.html?id=${p.id}" title="${t('Drag to another box to change its status', 'برای تغییر وضعیت به جعبهٔ دیگر بکش')}">
             <span class="sr-only">${statusLabel(p.status, lang)}</span>
             <div class="row skc-row">
-              <a class="skc-open" href="/project.html?id=${p.id}" aria-label="${t('Open project', 'باز کردن پروژه')} — ${p.title}" title="${t('Open project', 'باز کردن پروژه')}">${raw(icon('arrow-right', 'icon arrow'))}</a>
               <strong class="skc-title">${p.title}</strong>
               ${bugBubbleD(p.id)}
             </div>
-            ${sigHtml(p.id) ? html`<div class="skc-signals">${sigHtml(p.id)}</div>` : html``}
-            <div class="muted small skc-updated">${timeAgo(p.updated_at, lang)}${backlogMetaD(p.id) ? html` · ${backlogMetaD(p.id)}` : ''}</div>
+            <div class="muted small skc-updated">${timeAgo(p.updated_at, lang)}${backlogMetaD(p.id) ? html` · ${backlogMetaD(p.id)}` : ''}${sigTextD(p.id)}</div>
           </div>`
         })
         return html`<div class="stat stat-box${anyStageHasProjects && counts[s] === 0 ? ' is-empty' : ''}" data-status="${s}">

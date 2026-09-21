@@ -192,6 +192,9 @@ document.documentElement.setAttribute('data-hibana-booted', '1')
         try { return JSON.parse(localStorage.getItem(PREFS_KEY) || '{}') } catch { return {} }
       })()
       prefs.expanded = Array.isArray(prefs.expanded) ? prefs.expanded : []
+      // S105: section collapse (Folders/Tags headings) — default OPEN, persisted.
+      prefs.secFolders = prefs.secFolders !== false
+      prefs.secTags = prefs.secTags !== false
       const savePrefs = () => { try { localStorage.setItem(PREFS_KEY, JSON.stringify(prefs)) } catch {} }
 
       const isMobile = () => window.matchMedia('(max-width: 940px)').matches
@@ -200,6 +203,9 @@ document.documentElement.setAttribute('data-hibana-booted', '1')
       const state = {
         folders: [],
         tags: [],
+        // S105: the light note index from /bootstrap — powers the Obsidian-style
+        // note rows nested under their folders in the sidebar tree.
+        noteIndex: [],
         counts: { all: 0, starred: 0, trash: 0 },
         view: { type: 'all', id: null, name: '' }, // all | starred | trash | folder | unfiled | tag
         notes: [], // cards of the current view
@@ -343,6 +349,10 @@ document.documentElement.setAttribute('data-hibana-booted', '1')
 
       const folderRow = (f, depth) => {
         const kids = childrenOf(f.id)
+        // S105: the folder's OWN notes join the tree — a folder with notes (even
+        // without subfolders) is a collapsible GROUP now (owner: "collapsing the
+        // group of the ‘AI’ folder"). Obsidian-style: subfolders first, then notes.
+        const ownNotes = notesInFolder(f.id)
         const isOpen = state.expanded.has(f.id)
         const cur = state.view.type === 'folder' && state.view.id === f.id
         const cnt = noteCountIn(f.id)
@@ -352,15 +362,55 @@ document.documentElement.setAttribute('data-hibana-booted', '1')
         const glyph = f.icon
           ? `<span class="vault-folder-emoji" role="img" aria-label="">${esc(f.icon)}</span>`
           : I.folder
+        const hasKids = !!(kids.length || ownNotes.length)
         return `<div class="vault-folder-row" data-folder-row="${f.id}" style="padding-inline-start:${depth * 0.85}rem">
-          <button type="button" class="vault-tw${kids.length ? '' : ' spacer'}" data-vault-tw="${f.id}" aria-expanded="${kids.length ? isOpen : false}" aria-label="${esc(_t('notes.toggleFolder', 'Expand folder'))}" tabindex="${kids.length ? 0 : -1}">${I.chevron}</button>
+          <button type="button" class="vault-tw${hasKids ? '' : ' spacer'}" data-vault-tw="${f.id}" aria-expanded="${hasKids ? isOpen : false}" aria-label="${esc(_t('notes.toggleFolder', 'Expand folder'))}" tabindex="${hasKids ? 0 : -1}">${I.chevron}</button>
           <button type="button" class="vault-folder" data-vault-view="folder" data-vault-id="${f.id}" aria-current="${cur}">
             ${glyph}<span class="vault-folder-name" dir="auto">${esc(f.name)}</span>
             ${cnt != null ? `<span class="vault-n">${cnt}</span>` : ''}
             <span class="vault-kebab" data-vault-folder-kebab="${f.id}" role="button" tabindex="0" aria-label="${esc(_t('notes.folderMenu', 'Folder options'))}" aria-haspopup="menu">${I.kebab}</span>
           </button>
         </div>
-          ${kids.length && isOpen ? kids.map((k) => folderRow(k, depth + 1)).join('') : ''}`
+          ${hasKids && isOpen ? kids.map((k) => folderRow(k, depth + 1)).join('') : ''}
+          ${hasKids && isOpen ? ownNotes.map((n) => noteRow(n, depth + 1)).join('') : ''}`
+      }
+
+      // S105: a note nested under its folder in the tree — the Obsidian row. Click
+      // opens the note in the editor (same as clicking its card in the middle pane).
+      const noteRow = (n, depth) => {
+        const cur = state.active && state.active.id === n.id
+        const title = (n.title || 'Untitled').trim() || 'Untitled'
+        return `<div class="vault-note-row" data-note-row="${n.id}" style="padding-inline-start:${(depth + 0.4) * 0.85}rem">
+          <button type="button" class="vault-note" data-vault-note="${n.id}" aria-current="${cur}" title="${esc(title)}">
+            ${I.note}<span class="vault-note-name" dir="auto">${esc(title)}</span>
+          </button>
+        </div>`
+      }
+
+      const notesInFolder = (folderId) =>
+        state.noteIndex.filter((n) => (n.folder_id || null) === folderId)
+
+      // S105: keep the tree's note index honest across note mutations (create,
+      // save-title, move, delete, restore) so the sidebar never shows ghosts.
+      const upsertNoteIndex = (note) => {
+        if (!note || !note.id) return
+        const i = state.noteIndex.findIndex((n) => n.id === note.id)
+        const row = { id: note.id, title: note.title || '', folder_id: note.folder_id ?? null }
+        if (i >= 0) state.noteIndex[i] = row; else state.noteIndex.unshift(row)
+      }
+      const removeNoteIndex = (id) => {
+        state.noteIndex = state.noteIndex.filter((n) => n.id !== id)
+      }
+
+      // S105: the collapsible section heading (Folders / Tags) — a button with a
+      // chevron; collapsed hides the section body. Persisted in prefs.
+      const secHead = (key, labelKey, labelFallback, extra = '') => {
+        const open = key === 'folders' ? prefs.secFolders : prefs.secTags
+        return `<button type="button" class="vault-sec-head" data-vault-sec="${key}" aria-expanded="${open}">
+          <span class="vault-sec-tw">${I.chevron}</span>
+          <span class="vault-sec-label">${esc(_t(labelKey, labelFallback))}</span>
+          ${extra}
+        </button>`
       }
 
       const renderTree = () => {
@@ -380,11 +430,11 @@ document.documentElement.setAttribute('data-hibana-booted', '1')
             ${bootFailRow}
           </div>
           <div class="vault-sec">
-            <div class="vault-sec-head">
-              <span>${esc(_t('notes.folders', 'Folders'))}</span>
+            <div class="row spread" style="align-items:center;min-inline-size:0">
+              ${secHead('folders', 'notes.folders', 'Folders')}
               <button type="button" class="vault-sec-add" data-vault-newfolder-root aria-label="${esc(_t('notes.newFolder', 'New folder'))}" title="${esc(_t('notes.newFolder', 'New folder'))}">${I.plus}</button>
             </div>
-            <div data-vault-folders>${state.folders.length
+            <div data-vault-folders ${prefs.secFolders ? '' : 'hidden'}>${state.folders.length
               ? childrenOf(null).map((f) => folderRow(f, 0)).join('')
               : `<p class="muted small" style="padding:0.25rem 0.5rem;margin:0">${esc(_t('notes.noFolders', 'No folders yet — create one to organize.'))}</p>`}
             </div>
@@ -394,8 +444,8 @@ document.documentElement.setAttribute('data-hibana-booted', '1')
             </div>
           </div>
           ${state.tags.length ? `<div class="vault-sec">
-            <div class="vault-sec-head"><span>${esc(_t('notes.tags', 'Tags'))}</span><span class="vault-sec-count vault-n">${state.tags.length}</span></div>
-            <div class="vault-tags">
+            ${secHead('tags', 'notes.tags', 'Tags', `<span class="vault-sec-count vault-n">${state.tags.length}</span>`)}
+            <div class="vault-tags" ${prefs.secTags ? '' : 'hidden'}>
               ${state.tags.slice(0, 18).map((t) => `<button type="button" class="vault-tag-chip" data-vault-tag="${esc(t.tag)}" aria-pressed="${tagActive && tagActive.toLowerCase() === t.tag.toLowerCase()}">#${esc(t.tag)} <span class="vault-n">${t.count}</span></button>`).join('')}
             </div>
           </div>` : ''}`
@@ -1059,6 +1109,7 @@ document.documentElement.setAttribute('data-hibana-booted', '1')
           const boot = pre ? await pre : await api('/api/vault/bootstrap')
           state.folders = boot.folders || []
           state.tags = boot.tags || []
+          state.noteIndex = boot.noteIndex || []
           state.counts = boot.counts || { all: 0, starred: 0, trash: 0 }
           state.bootFailed = false
           return true
@@ -1156,6 +1207,13 @@ document.documentElement.setAttribute('data-hibana-booted', '1')
           }
           const stampEl = document.querySelector('.vault-ed-stamp')
           if (stampEl) stampEl.textContent = _t('notes.edited', 'Edited') + ' ' + fmtStamp(state.active.updated_at)
+          // S105: the tree's note index follows the save (title + folder changes
+          // re-render the sidebar rows — no full bootstrap refetch needed).
+          upsertNoteIndex(state.active)
+          renderTree()
+          // S105 (owner: resume lists only ACTIVELY-INTERACTED items): saving a
+          // note IS the interaction that records it — opening/viewing no longer does.
+          window.hibanaResume?.record?.('note', state.active.id, state.active.title)
           setTimeout(() => { if (state.saveState === 'saved') { state.saveState = 'idle'; updateStatus() } }, 2200)
         } catch {
           state.saveState = 'error'
@@ -1178,10 +1236,9 @@ document.documentElement.setAttribute('data-hibana-booted', '1')
           state.draft = { title: res.note.title, content: res.note.content, tags: res.note.tags }
           state.saveState = 'idle'
           state.saveTimer = null
-          // S71: the resume strip — record the opened note (title may be empty → «—»).
-          window.hibanaResume?.record?.('note', res.note.id, res.note.title)
           renderEditor()
           renderCards() // refresh the aria-current highlight
+          renderTree() // S105: the tree's note rows highlight the open note too
           if (isMobile()) $('[data-vault-editor]')?.setAttribute('data-open', 'true')
           try { history.replaceState(null, '', '#n=' + id) } catch {}
           if (focusBody) { const ta = $('[data-vault-src]'); if (ta && state.mode !== 'read') { ta.focus({ preventScroll: true }); ta.setSelectionRange(ta.value.length, ta.value.length) } }
@@ -1248,6 +1305,8 @@ document.documentElement.setAttribute('data-hibana-booted', '1')
           state.active = res.note
           state.draft = { title: '', content: '', tags: '' }
           state.saveState = 'idle'
+          // S105: creating a note is an interaction — it joins the resume strip.
+          window.hibanaResume?.record?.('note', res.note.id, res.note.title)
           renderEditor()
           await loadBootstrap()
           await loadNotes()
@@ -1479,6 +1538,7 @@ document.documentElement.setAttribute('data-hibana-booted', '1')
           renderEditor()
           loadNotes()
           loadBootstrap()
+          window.hibanaResume?.record?.('note', res.note.id, res.note.title) // S105: moving IS interacting
           toast(_t('notes.moved', 'Note moved'), 'ok', 2200)
         } catch { toast(_t('notes.moveFailed', 'Could not move the note.'), 'err') }
       }
@@ -1859,6 +1919,26 @@ document.documentElement.setAttribute('data-hibana-booted', '1')
           prefs.expanded = [...state.expanded]
           savePrefs()
           renderTree()
+          return
+        }
+
+        // S105: section heading collapse (Folders / Tags)
+        const sec = t.closest('[data-vault-sec]')
+        if (sec) {
+          e.stopPropagation()
+          const key = sec.getAttribute('data-vault-sec')
+          if (key === 'folders') prefs.secFolders = !prefs.secFolders
+          else if (key === 'tags') prefs.secTags = !prefs.secTags
+          savePrefs()
+          renderTree()
+          return
+        }
+
+        // S105: a note row in the tree — opens the note (same as its card)
+        const noteBtn = t.closest('[data-vault-note]')
+        if (noteBtn) {
+          e.stopPropagation()
+          openNote(noteBtn.getAttribute('data-vault-note'), { focusBody: false })
           return
         }
 

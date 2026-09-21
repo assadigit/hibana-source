@@ -170,7 +170,7 @@ window.hibanaCanvas = (() => {
     // refetch, and a stale read race would resurrect the item until the 1.5s debounce
     // lands the tombstone server-side (delete bug 2026-08-24 — fixed here + in loadChunk).
     if (op === 'delete') window.hibanaQueue.flush?.()
-    window.hibana?.toast(op === 'delete' ? _t('canvas.deleted', 'Deleted (undo unavailable after sync)') : _t('canvas.saved', 'Saved'), 'info', 1500)
+    window.hibana?.toast(op === 'delete' ? _t('canvas.deleted', 'Deleted (undo unavailable after sync)') : _t('canvas.saved', 'Saved'), 'ok', 1500)
   }
 
   // Unlimited undo/redo: every action records its previous state, so undoing walks all the

@@ -1,18 +1,22 @@
 // e2e/resume-continue.spec.ts — S85: the merged "Continue where you left off"
-// component (owner redesign instruction #1).
+// component (owner redesign instruction #1); S105 re-defined the recording rule.
 //
 // WHY THIS FILE EXISTS: the dashboard used to render TWO resume surfaces — the
 // server "Resume work" card (project.updated_at, doing-status only) AND the client
 // "Pick up where you left off" strip (open-time) — the same project with two
 // different timestamps and no explanation (Nielsen #6). S85 merged them: the ONE
-// client component (hero + chips), ONE store (hibana-resume localStorage), ONE
-// definition (last touched = last OPENED, labeled "Last opened"). These specs pin:
+// client component (hero + chips), ONE store (hibana-resume localStorage). S105
+// (owner: "the items must be ones the user actively interacted with — a view is
+// not enough") re-defined the ONE definition: last touched = last EDITED —
+// recording happens ONLY at mutation success points, labeled "Last edited".
+// These specs pin:
 //   1. the server card NEVER renders (even with a fresh doing project)
 //   2. seeded history renders the merged component — hero (newest, with the
 //      fixed-palette stage badge for projects) + up to 3 chips + the definition hint
 //   3. the Clear button wipes the store and removes the component
 //   4. completing a to-do task updates the quadrant COUNT PILL in place (the S85
 //      fix for the stale-counter regex that never matched "Active N")
+//   5. S105: VIEWING a project records NOTHING; EDITING it records (the new rule)
 // Run: npx playwright test e2e/resume-continue.spec.ts
 
 import { test, expect, type Page } from '@playwright/test'
@@ -102,9 +106,10 @@ test('seeded history renders the merged component: hero + chips + definition hin
 
   const strip = page.locator('#resume-strip')
   await expect(strip).toBeVisible()
-  // The merged component's header speaks the ONE definition explicitly.
+  // The merged component's header speaks the ONE definition explicitly (S105:
+  // "last touched" = last EDITED — a view no longer records anything).
   await expect(page.locator('#resume-title')).toHaveText('Continue where you left off')
-  await expect(page.locator('.resume-hint')).toHaveText('Last opened')
+  await expect(page.locator('.resume-hint')).toHaveText('Last edited')
   // HERO = the newest entry (the doing project) with its fixed-palette stage badge + CTA.
   await expect(page.locator('.resume-hero-title')).toHaveText('Continue developing project')
   await expect(page.locator('.resume-stage-badge')).toHaveText('Developing')
@@ -150,4 +155,36 @@ test('completing a to-do task updates the quadrant count pill in place', async (
   await expect(pill).toHaveText('2')
   await page.waitForTimeout(2500) // let the htmx refresh settle too
   await expect(pill).toHaveText('2')
+})
+
+// S105 (owner: "'Continue from where you left off' currently shows items the user only
+// VIEWED — the items must be ones the user actively interacted with"): the recording
+// rule, pinned from BOTH directions on a real project.
+test('S105: viewing a project records NOTHING — editing it records (last-EDITED rule)', async ({ page }) => {
+  await page.goto('/login.html')
+  await login(page)
+  await page.evaluate(() => localStorage.removeItem('hibana-resume'))
+
+  // 1. A pure VIEW: open the project page, let the fragment land, go back.
+  await page.goto('/project.html?id=e2e-continue-doing')
+  await page.waitForSelector('#project-body header h1', { timeout: 15_000 })
+  await expect(page.locator('#project-body header h1')).toContainText('Continue developing project')
+  await page.waitForTimeout(600) // any trailing record would have fired by now
+  const store = await page.evaluate(() => localStorage.getItem('hibana-resume'))
+  expect(store).toBeNull() // a view is NOT enough — nothing recorded
+
+  // 2. An EDIT: save a quick note (a real mutation — the autosave POSTs on blur).
+  await page.fill('#pd-note-textarea', 'resume spec edit note')
+  await page.locator('#pd-note-textarea').blur()
+  await expect
+    .poll(async () => page.evaluate(() => (JSON.parse(localStorage.getItem('hibana-resume') || '[]')[0] || {}).t), { timeout: 10_000 })
+    .toBe('Continue developing project') // the edit recorded the project
+
+  // 3. The strip on the dashboard carries it (hero + the Last-edited hint).
+  await page.goto('/app')
+  await page.waitForLoadState('networkidle')
+  await page.waitForTimeout(1200)
+  await expect(page.locator('#resume-strip')).toBeVisible()
+  await expect(page.locator('.resume-hero-title')).toHaveText('Continue developing project')
+  await expect(page.locator('.resume-hint')).toHaveText('Last edited')
 })

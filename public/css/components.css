@@ -262,6 +262,56 @@ dialog.dialog-wide .modal textarea { min-block-size: 7.5rem; }
     0 2px 8px rgb(0 0 0 / 0.08);
 }
 .toast.err { border-color: var(--err); color: var(--err); }
+/* S105 (owner: "success messages such as 'task is saved' must show 'Saved [✓]' —
+   pastel green with a small [x] at the top-right corner"): the SUCCESS toast. The
+   message row carries the leading ✓ glyph; the dismiss × is absolutely anchored
+   to the top-right corner (physical — the [x]-always-top-right convention; the
+   owner's rule overrides RTL mirroring here). Pastel green via the operational
+   badge tokens (light: #E0F0E5/#277334; the dark theme overrides the vars). */
+.toast.ok {
+  background: var(--badge-operational-bg, #E0F0E5);
+  border-color: color-mix(in srgb, var(--badge-operational-fg, #277334) 35%, transparent);
+  color: var(--badge-operational-fg, #277334);
+  padding: 0.9rem 2.2rem 0.9rem 1.4rem;
+}
+html[dir='rtl'] .toast.ok { padding: 0.9rem 1.4rem 0.9rem 2.2rem; }
+.toast.ok .toast-msg-row { display: flex; align-items: center; gap: 0.55rem; min-inline-size: 0; }
+.toast.ok .toast-check {
+  flex: none;
+  display: inline-grid;
+  place-items: center;
+  inline-size: 1.5rem;
+  block-size: 1.5rem;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--badge-operational-fg, #277334) 14%, transparent);
+}
+.toast.ok .toast-check .icon { inline-size: 1rem; block-size: 1rem; stroke-width: 2.6; }
+.toast.ok .toast-msg { color: inherit; font-weight: 600; }
+.toast.ok button:not(.toast-x) { color: inherit; border-color: color-mix(in srgb, var(--badge-operational-fg, #277334) 40%, transparent); }
+.toast.ok button:not(.toast-x):hover { background: color-mix(in srgb, var(--badge-operational-fg, #277334) 10%, transparent); }
+.toast-x {
+  position: absolute;
+  inset-block-start: 0.3rem;
+  right: 0.3rem; /* PHYSICAL top-right — the owner's [x]-always-top-right rule overrides RTL mirroring */
+  inline-size: 1.35rem;
+  block-size: 1.35rem;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: inherit;
+  opacity: 0.55;
+  cursor: pointer;
+}
+.toast-x .icon { inline-size: 0.8rem; block-size: 0.8rem; }
+.toast-x:hover { opacity: 1; background: color-mix(in srgb, currentColor 12%, transparent); }
+/* dark theme: the green pastel lifts so the ink keeps AA on the dark card */
+html[data-theme='claude-dark'] .toast.ok {
+  background: color-mix(in srgb, var(--badge-operational-fg, #6fbf8a) 20%, var(--card));
+  color: var(--badge-operational-fg, #8fd0a4);
+}
 
 /* --- ping / status --------------------------------------------------------- */
 .ping-result {

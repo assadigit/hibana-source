@@ -59,7 +59,11 @@
     <!-- S89: Canvas + Notebook REMOVED from the rail (redundant beside Notes — the
          free-doodling concept folds into the account menu below). Their rail-panel
          sections are gone from nav.js too; mobile's More sheet keeps its rows. -->
-    <a class="rail-btn" href="/calendar.html" data-rail-panel="calendar" aria-label="Calendar" data-i18n-aria-label="nav.calendar" data-i18n-title="nav.calendar" title="Calendar">
+    <!-- S105 (owner: "clicking the calendar icon doesn't navigate to the calendar page —
+         it only opens the sidebar and shows the mini calendar"): the button now carries
+         data-rail-nav (the To-do/Projects pattern) — the click opens the rail panel AND
+         soft-navigates to /calendar.html. -->
+    <a class="rail-btn" href="/calendar.html" data-rail-panel="calendar" data-rail-nav aria-label="Calendar" data-i18n-aria-label="nav.calendar" data-i18n-title="nav.calendar" title="Calendar">
       <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="5" width="17" height="16" rx="2"/><path d="M3.5 9.5h17M8 3v4M16 3v4"/></svg>
       <span class="rail-label" data-i18n="rail.label.calendar">Calendar</span>
     </a>

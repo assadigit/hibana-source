@@ -586,7 +586,7 @@ window.__hibanaDictFA = {
       'pd.pr.urgent': 'فوری', 'pd.pr.high': 'اولویت بالا', 'pd.pr.medium': 'اولویت متوسط', 'pd.pr.low': 'اولویت کم',
       'pd.labels': 'برچسب‌ها', 'pd.labelsPh': 'مثلاً UI/UX، امنیت', 'pd.labelsHint': 'با کاما جدا کن — یک چیپ برای هر برچسب',
       // S46.2: اسکرین‌شات در ویرایشگر کار (pde-form) — بارگذاری + سنجاق به این قلم + دیدن تصاویر سنجاق‌شده
-      'pde.shotsAttach': 'آپلود فایل', 'pde.shotsAttachTitle': 'آپلود فایل — تصویر، PDF، اکسل، ورد، مارک‌داون، متن — سنجاق‌شده به این قلم',
+      'pde.shotsAttach': 'آپلود اسکرین‌شات', 'pde.shotsAttachTitle': 'اسکرین‌شات یا فایل آپلود کن — تصویر، PDF، اکسل، ورد، مارک‌داون، متن — سنجاق‌شده به این قلم',
       'pde.shotsView': 'تصاویر سنجاق‌شده', 'pde.shotsViewTitle': 'تصاویر سنجاق‌شده به این قلم را ببین',
       'pde.shotsUploading': 'در حال اپلود تصویر …',
       // S46.7: عنوان ویرایشگر کار + نوشتن تمام‌صفحه + دکمهٔ افزودن یادداشت (وقتی یادداشتی نیست)
@@ -666,6 +666,8 @@ window.__hibanaDictFA = {
       'bl.docCreated': 'سند «{t}» ایجاد شد', 'bl.docUpdatedH': 'سند «{t}» به‌روزرسانی شد',
       'bl.itemAdded': 'قلم جدید: {t}',
       'bl.noDocs': 'هنوز سندی نیست — اولین برنامهٔ کامل را همین‌جا بنویس.',
+      'bl.noPlans': 'هنوز برنامه‌ای نیست — بالا یکی اضافه کن؛ در جعبهٔ «برنامه‌ها» تابلوی پیشرفت می‌نشیند.',
+      'bl.plansHead': 'برنامه‌ها', 'bl.plansHeadSub': 'قلم‌های جعبه',
       'bl.noHistory': 'هنوز تغییری در برنامه‌ها ثبت نشده.',
       'bl.historyTitle': 'آخرین تغییرات برنامه', 'bl.latest': 'آخرین تغییر',
       'bl.docSaved': 'سند ذخیره شد', 'bl.docDeleted': 'سند حذف شد',
@@ -804,7 +806,7 @@ window.__hibanaDictFA = {
       'cmdk.toggleZen': 'حالت تمرکز',
       'cmdk.shortcutZen': 'حالت تمرکز',
       'cmdk.recent': 'اخیر', 'cmdk.tags': 'برچسب‌ها',
-      'resume.title': 'از جایی که بودی ادامه بده', 'resume.hint': 'آخرین بازکردن',
+      'resume.title': 'از جایی که بودی ادامه بده', 'resume.hint': 'آخرین ویرایش',
       'resume.cta': 'باز کردن',
       'resume.project': 'پروژه', 'resume.note': 'یادداشت', 'resume.openAria': 'بازکردن {k}: {t}',
       'resume.clear': 'پاک‌کردن', 'resume.clearAria': 'پاک‌کردن تاریخچهٔ ادامه',

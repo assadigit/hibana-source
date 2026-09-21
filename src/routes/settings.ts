@@ -200,7 +200,7 @@ export function settingsRoutes(cfg: Config) {
     params.push(calendarFor(body.language_pref ?? c.get('user').language_pref))
     params.push(user.id)
     await cfg.db.execute(`UPDATE users SET ${sets.join(', ')} WHERE id = ?`, params)
-    if (c.req.header('HX-Request')) return c.html(toastHtml(t('Preferences saved', 'ترجیحات ذخیره شد'), localeOf(c)))
+    if (c.req.header('HX-Request')) return c.html(toastHtml(t('Preferences saved', 'ترجیحات ذخیره شد'), localeOf(c), undefined, 'ok'))
     return c.json({ ok: true })
   })
 

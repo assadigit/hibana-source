@@ -290,8 +290,14 @@ export type BacklogEvent = { at: string; kind: 'doc_created' | 'doc_updated' | '
 /** The whole backlog payload (0033): docs + the merged change history (revisions and
  *  quick planned items, newest first, top 10) + the latest change timestamp. Shared by
  *  the projects route's «برنامه آتی» tab and this module's JSON route. */
-export async function loadBacklog(cfg: Config, projectId: string): Promise<{ docs: BacklogDocRow[]; history: BacklogEvent[]; latestAt: string | null }> {
-  const [docs, revisions, planned] = await Promise.all([
+export async function loadBacklog(cfg: Config, projectId: string): Promise<{
+  docs: BacklogDocRow[]
+  history: BacklogEvent[]
+  latestAt: string | null
+  /** S105: the plan ITEMS (planned dev_tasks) — the Plans tab renders them live. */
+  plans: { id: string; title: string; priority: string | null; created_at: string }[]
+}> {
+  const [docs, revisions, planned, planRows] = await Promise.all([
     cfg.db.query<BacklogDocRow>('SELECT * FROM backlog_docs WHERE project_id = ? ORDER BY updated_at DESC', [projectId]),
     cfg.db.query<{ title: string; kind: string; created_at: string }>(
       `SELECT r.title, r.kind, r.created_at FROM backlog_doc_revisions r
@@ -304,12 +310,17 @@ export async function loadBacklog(cfg: Config, projectId: string): Promise<{ doc
       `SELECT title, created_at FROM dev_tasks WHERE project_id = ? AND status = 'planned' ORDER BY created_at DESC LIMIT 10`,
       [projectId],
     ),
+    // S105: the full planned list for the Plans tab's live re-render (client blRefresh).
+    cfg.db.query<{ id: string; title: string; priority: string | null; created_at: string }>(
+      `SELECT id, title, priority, created_at FROM dev_tasks WHERE project_id = ? AND status = 'planned' ORDER BY created_at DESC`,
+      [projectId],
+    ),
   ])
   const events: BacklogEvent[] = [
     ...revisions.map((r) => ({ at: r.created_at, kind: r.kind === 'create' ? ('doc_created' as const) : ('doc_updated' as const), label: r.title })),
     ...planned.map((t) => ({ at: t.created_at, kind: 'item_added' as const, label: t.title })),
   ]
   events.sort((a, b) => (a.at < b.at ? 1 : a.at > b.at ? -1 : 0))
-  return { docs, history: events.slice(0, 10), latestAt: events[0]?.at ?? null }
+  return { docs, history: events.slice(0, 10), latestAt: events[0]?.at ?? null, plans: planRows }
 }
 

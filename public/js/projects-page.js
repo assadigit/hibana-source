@@ -399,7 +399,7 @@
               })
               if (!res.ok) throw new Error('update failed')
               close()
-              window.hibana?.toast(_t('sparks.saved', 'Saved'), 'info', 3000)
+              window.hibana?.toast(_t('sparks.saved', 'Saved'), 'ok', 3000)
               // User request: after saving a project, land back on the dashboard.
               if (window.hibanaNav) window.hibanaNav.go('/app')
               else window.location.href = '/app'

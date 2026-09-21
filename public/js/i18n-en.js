@@ -588,7 +588,7 @@ window.__hibanaDictEN = {
       'pd.pr.urgent': 'Urgent', 'pd.pr.high': 'High Priority', 'pd.pr.medium': 'Medium Priority', 'pd.pr.low': 'Low Priority',
       'pd.labels': 'Labels', 'pd.labelsPh': 'e.g. UI/UX, Security', 'pd.labelsHint': 'Comma-separated — a chip per label',
       // S46.2: screenshots in the task editor (pde-form) — upload + pin to this item + view pinned
-      'pde.shotsAttach': 'Upload files', 'pde.shotsAttachTitle': 'Upload files — images, PDF, Excel, Word, Markdown, text — pinned to this item',
+      'pde.shotsAttach': 'Upload screenshot', 'pde.shotsAttachTitle': 'Upload a screenshot or file — images, PDF, Excel, Word, Markdown, text — pinned to this item',
       'pde.shotsView': 'Pinned pictures', 'pde.shotsViewTitle': 'View pictures pinned to this item',
       'pde.shotsUploading': 'Uploading image…',
       // S46.7: editor title + full-screen writing + add-note button (when no note)
@@ -668,6 +668,8 @@ window.__hibanaDictEN = {
       'bl.docCreated': 'Document “{t}” created', 'bl.docUpdatedH': 'Document “{t}” updated',
       'bl.itemAdded': 'New item: {t}',
       'bl.noDocs': 'No plan documents yet — write the first full plan here.',
+      'bl.noPlans': 'No plans yet — add one above; it lands in the Plans box of the progress board.',
+      'bl.plansHead': 'Plans', 'bl.plansHeadSub': 'box items',
       'bl.noHistory': 'No backlog changes yet.',
       'bl.historyTitle': 'Latest changes', 'bl.latest': 'last change',
       'bl.docSaved': 'Document saved', 'bl.docDeleted': 'Document deleted',
@@ -807,7 +809,7 @@ window.__hibanaDictEN = {
       'cmdk.toggleZen': 'Toggle focus mode',
       'cmdk.shortcutZen': 'Toggle focus mode',
       'cmdk.recent': 'Recent', 'cmdk.tags': 'Tags',
-      'resume.title': 'Continue where you left off', 'resume.hint': 'Last opened',
+      'resume.title': 'Continue where you left off', 'resume.hint': 'Last edited',
       'resume.cta': 'Open',
       'resume.project': 'Project', 'resume.note': 'Note', 'resume.openAria': 'Open {k}: {t}',
       'resume.clear': 'Clear', 'resume.clearAria': 'Clear the resume history',

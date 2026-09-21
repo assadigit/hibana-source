@@ -7,18 +7,22 @@
 // (Recognition Rather Than Recall, Nielsen #6). The server card is deleted
 // (dashboard.ts); this component is the ONE surface.
 //
-// THE ONE DEFINITION, used everywhere: "last touched" = last OPENED. Rationale:
-// "continue where you left off" is a PLACE you left (reading counts as much as
-// editing), it covers projects AND notes uniformly, and it paints instantly from
-// localStorage before/without the htmx dashboard API. The header hint labels the
-// definition explicitly ("Last opened") so the timestamp is self-explanatory.
+// THE ONE DEFINITION (S105, owner re-defined it): "last touched" = last ACTIVELY
+// INTERACTED WITH — updating something (a save, an add, a move, a drag, an upload).
+// A mere VIEW no longer records anything (the owner: "the items must be items the
+// user actively interacted with — a view is not enough to appear in this list").
+// It covers projects AND notes uniformly, and paints instantly from localStorage
+// before/without the htmx dashboard API. The header hint labels the definition
+// explicitly ("Last edited") so the timestamp is self-explanatory.
 //
-// Structure: header (title + "Last opened" hint + Clear) → HERO entry (the newest —
+// Structure: header (title + "Last edited" hint + Clear) → HERO entry (the newest —
 // glyph, kind · stage · timeAgo, title, explicit Open CTA; inherits the old banner's
 // affordances from the ONE store) → up to 3 smaller chips for the rest of the history.
-// Records last OPENED projects + vault notes into localStorage (hibana-resume,
-// newest-first, max 8). Recording happens in project-page.js (htmx afterSwap —
-// passes the project's stage slug as the hero badge) + notes-page.js (openNote).
+// Records last-EDITED projects + vault notes into localStorage (hibana-resume,
+// newest-first, max 8). Recording happens at MUTATION SUCCESS points: project-page.js
+// (resumeTouch + the htmx afterRequest hook — task saves/adds/deletes/drags, note
+// saves, uploads, doc saves; passes the project's stage slug as the hero badge) +
+// notes-page.js (doSave/newNote/moveNote).
 // The strip lives INSIDE main.shell-dash (dies with the dashboard on soft-nav,
 // never leaks to another page), renders only when something exists, and navigates
 // via hibanaNav soft-nav when available.
@@ -100,7 +104,7 @@
     // S72 BUGFIX lineage: translate at render time (i18n.js apply() sweeps the STATIC
     // DOM only — dynamically injected markup never got translated).
     const headText = () => _t('resume.title', 'Continue where you left off')
-    const hintText = () => _t('resume.hint', 'Last opened')
+    const hintText = () => _t('resume.hint', 'Last edited')
     const clearLabel = () => _t('resume.clear', 'Clear')
     const clearAria = () => _t('resume.clearAria', 'Clear the resume history')
     const ctaText = () => _t('resume.cta', 'Open')

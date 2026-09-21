@@ -128,13 +128,13 @@
    layout keeps the bar on the true inline-start edge. Accessibility: the stage BOX
    header (icon + count + label) plus a per-card sr-only span carry the status as
    text, so the hue is never the sole carrier (WCAG 1.4.1). */
-.stat-kanban-card[data-status] { position: relative; padding-inline-start: 1rem; }
+.stat-kanban-card[data-status] { position: relative; padding-inline-start: 0.85rem; }
 .stat-kanban-card[data-status]::before {
   content: '';
   position: absolute;
-  inset-block: 0.26rem;
-  inset-inline-start: 0.16rem;
-  inline-size: 0.42rem;
+  inset-block: 0.3rem;
+  inset-inline-start: 0.3rem;
+  inline-size: 0.2rem;
   border-radius: 999px;
   pointer-events: none;
 }
@@ -157,37 +157,12 @@
    is the redundant text fallback. Positioned at the bottom-end corner so it never
    overlaps the title row (which carries the bug-bubble at the top-end) nor the
    meta row (which is inline-start aligned). */
-.stat-kanban-card[data-status] > .sr-only {
-  position: absolute;
-  inset-block-end: 0.3rem;
-  inset-inline-end: 0.5rem;
-  inline-size: auto;
-  block-size: auto;
-  padding: 0;
-  margin: 0;
-  overflow: visible;
-  clip-path: none;
-  white-space: nowrap;
-  font-size: 0.6rem;
-  font-weight: 600;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  color: var(--muted);
-  pointer-events: none;
-  z-index: 1;
-}
-@media (max-width: 640px) {
-  /* On phones the carousel slide is narrower — the chip would crowd the meta row.
-     Hide the visible chip (the colored bar + the parent stat-box label still convey
-     the status) — the sr-only text is still in the DOM for AT users. */
-  .stat-kanban-card[data-status] > .sr-only {
-    clip-path: inset(50%);
-    inline-size: 1px;
-    block-size: 1px;
-    overflow: hidden;
-    margin: -1px;
-  }
-}
+/* UI/UX R8 (2026-09-12) made the sr-only status span a VISIBLE uppercase chip as a
+   non-color status carrier. S105 (owner: "too visually noisy"): the chip is RETIRED —
+   it repeated the lane the card already sits in (the stat-box header carries icon +
+   label + count). The span stays in the DOM as real sr-only text for assistive tech
+   (the base .sr-only class clips it), and the slim inline-start bar remains the
+   at-a-glance hue. No override needed anymore. */
 
 /* Custom scrollbar styling — the existing ::-webkit-scrollbar rule is plain; this adds
    a thinner, rounder, theme-aware rail + thumb that matches the token system. Applies

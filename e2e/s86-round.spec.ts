@@ -267,7 +267,9 @@ test('task composer uploads FILES: a PDF stages as a file tile and pins to the s
   await page.goto(`/project.html?id=${id}`)
   await expect(page.locator('#pd-title')).toBeVisible({ timeout: 10_000 })
 
-  // The picker's accept list carries the doc extensions; the button says "Upload files".
+  // The picker's accept list carries the doc extensions; the button says "Upload
+  // screenshot" (S105: the owner's "turns the screenshot word to Files" — the label
+  // is screenshot-first again; the tooltip keeps the full file-type list).
   await page.click('[data-pd-add="idea"]')
   const accept = await page.locator('#pd-taskadd-shots').getAttribute('accept')
   expect(accept).toContain('.pdf')
@@ -275,7 +277,7 @@ test('task composer uploads FILES: a PDF stages as a file tile and pins to the s
   expect(accept).toContain('.docx')
   const modal = page.locator('#pd-taskadd-modal, dialog[open]').first()
   await expect(modal).toBeVisible()
-  await expect(page.locator('button', { hasText: 'Upload files' }).first()).toBeVisible()
+  await expect(page.locator('button[onclick*="pd-taskadd-shots"]')).toHaveText(/Upload screenshot/)
 
   // A real PDF file through the composer's picker.
   const PDF = Buffer.from('%PDF-1.4\n%% e2e s86 doc\n')

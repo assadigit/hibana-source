@@ -102,12 +102,17 @@ describe('dashboard stat boxes', () => {
       }
       expect(strip).not.toContain('badge-')
 
-      // Cards are compact skc-rows: open arrow + title, timeAgo only (no tag chips, no
-      // latest-note preview) — and they link to the project page.
+      // Cards are compact skc-rows (S105 clean-up): title + bug bubble + a quiet meta
+      // line (timeAgo · backlog · idea/plan/hurdle counts as PLAIN TEXT). The open-arrow
+      // button, the sig-chip pills and the visible status word are RETIRED — the whole
+      // card navigates via data-nav-url, drag still changes status.
       expect(strip).toContain('class="row skc-row"')
-      expect(strip).toContain('class="skc-open"')
+      expect(strip).not.toContain('class="skc-open"')
+      expect(strip).not.toContain('skc-signals')
+      expect(strip).not.toContain('sig-chip')
       expect(strip).toContain('class="skc-title"')
       expect(strip).toContain('skc-updated')
+      expect(strip).toContain('data-nav-url="/project.html?id=')
       expect(strip).toContain(`/project.html?id=${planning}`)
       expect(strip).toContain(`/project.html?id=${developing}`)
       expect(strip).toContain(`/project.html?id=${operational}`)

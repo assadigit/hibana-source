@@ -27,7 +27,10 @@ export default defineConfig({
   ],
   // Start the Node server before tests, stop after.
   webServer: {
-    command: `DB_PATH=/tmp/hibana-e2e.db PORT=${PORT} NODE_ENV=development OPEN_REGISTRATION=true GITHUB_OWNER=x GITHUB_REPO=y GITHUB_TOKEN=x OWNER_EMAIL=test@test.local TELEGRAM_BOT_TOKEN=x TELEGRAM_SECRET=x node --import tsx src/server.ts`,
+    // RATE_LIMIT_DISABLE=1 (S105): the suite's ~180 logins from 127.0.0.1 burst past
+    // the 30/60s auth limiter on fast runners → random waitForURL('**/app') timeouts
+    // ("1 failed" walking between tests). Test-only flag; deploys never set it.
+    command: `DB_PATH=/tmp/hibana-e2e.db PORT=${PORT} NODE_ENV=development RATE_LIMIT_DISABLE=1 OPEN_REGISTRATION=true GITHUB_OWNER=x GITHUB_REPO=y GITHUB_TOKEN=x OWNER_EMAIL=test@test.local TELEGRAM_BOT_TOKEN=x TELEGRAM_SECRET=x node --import tsx src/server.ts`,
     port: PORT,
     timeout: 30_000,
     reuseExistingServer: !process.env.CI,

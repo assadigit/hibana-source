@@ -46,6 +46,19 @@ export const RATE_RULES = {
  * gives the over/under in the same statement.
  */
 export async function hitRateLimit(db: Db, rule: RateRule, ip: string): Promise<boolean> {
+  // S105 (2026-09-21, root cause of the recurring CI login-timeout flakes — S103 saw it
+  // once, S105 twice in a row): the e2e suite logs in ~180 times from ONE client IP
+  // (127.0.0.1 — the playwright server is single-origin by design), and a burst of fast
+  // tests can put >30 logins inside one rolling 60s window. The limiter then answers the
+  // 31st login with a 429/htmx-error-fragment → the shared login() helper's
+  // waitForURL('**/app') times out → "1 failed" that walks to a DIFFERENT test every run
+  // (whichever falls on the 31st+ login of the burst), and its within-run retry fails too
+  // (the window is still saturated seconds later). Playwright's webServer now sets
+  // RATE_LIMIT_DISABLE=1 (playwright.config.ts) so the scripted suite is never limited.
+  // The flag is TEST-ONLY: prod/dev deploys never set it (not in wrangler.toml, not in
+  // .dev.vars), and the vitest pins below run with it unset — the limiter's real
+  // behavior stays fully covered.
+  if (process.env.RATE_LIMIT_DISABLE === '1') return false
   const nowS = Math.floor(Date.now() / 1000)
   const bucket = Math.floor(nowS / rule.windowSec) * rule.windowSec
   const key = `${rule.name}:${ip}`

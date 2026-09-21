@@ -38,6 +38,39 @@ describe('rate limiting (spec §15)', () => {
     }
   })
 
+  it('RATE_LIMIT_DISABLE=1 turns the limiter off (the S105 e2e login-burst root cause)', async () => {
+    // S105 (2026-09-21): the playwright suite logs in ~180× from one IP; >30 inside a
+    // rolling 60s window made the 31st login a 429 → random login() waitForURL
+    // timeouts on CI. playwright.config.ts now boots the e2e server with
+    // RATE_LIMIT_DISABLE=1 — this pin holds that contract: the flag means NEVER block.
+    // (Vitest itself runs with the flag unset, so the other tests above keep the
+    // limiter's real behavior fully covered.)
+    const { db, close } = makeTestDb()
+    const prev = process.env.RATE_LIMIT_DISABLE
+    process.env.RATE_LIMIT_DISABLE = '1'
+    try {
+      await makeUser(db)
+      const app = createApp({ db, isProd: false, github: { owner: 'x', repo: 'y', token: '' }, emailKey: undefined, assets: undefined })
+      const statuses: number[] = []
+      for (let i = 0; i < 60; i++) { // double the 30/60s auth budget — none may 429
+        const res = await app.fetch(new Request('http://local/api/auth/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Origin: 'http://local' },
+          body: JSON.stringify({ login: 'a-user@test.dev', password: 'wrong-password' }),
+        }))
+        statuses.push(res.status)
+      }
+      expect(statuses).not.toContain(429)
+      expect(statuses.every((s) => s === 401)).toBe(true) // still authenticated, just never limited
+      const rows = await db.query<{ n: number }>('SELECT COUNT(*) AS n FROM rate_limits')
+      expect(rows[0].n).toBe(0) // the flag short-circuits BEFORE the DB write
+    } finally {
+      if (prev === undefined) delete process.env.RATE_LIMIT_DISABLE
+      else process.env.RATE_LIMIT_DISABLE = prev
+      close()
+    }
+  })
+
   it('rate-limited htmx clients get a swappable fragment, not a swallowed 4xx JSON', async () => {
     const { db, close } = makeTestDb()
     try {

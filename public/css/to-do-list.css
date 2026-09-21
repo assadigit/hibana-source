@@ -49,18 +49,48 @@ main.shell-dash {
   position: relative;  /* anchors the Urgent corner ribbon */
   overflow: clip;      /* the ribbon's overhang is cut at the card edge, never bleeding into the gap */
 }
-/* 2026-09 user request: quadrant boxes are MINIMAL/neutral — the per-quadrant semantic
-   accent vars (.q-success/.q-info/.q-error/.q-warning → --q-accent) are removed so all
-   four boxes share one look. A user-PICKED accent (inline --q-accent from the swatch
-   picker) still tints the icon/pin accents; fallbacks below keep every consumer legible.
-   S93 (owner round, item 6): the picker is BACK (16 pastels, sadhana-helpers
-   QUADRANT_ACCENTS) — a picked token ONCE washed the whole card at low opacity
-   (S94 raised it to 12%).
-   S95 r2 (owner item 2 — the restraint rule): the wash is RETIRED — the quadrant
-   stays a plain white surface; the picked pastel speaks only in the small stuff
-   (title ink, count pill, icon accents), exactly like dashboard-todo.css. */
+/* 2026-09 user request: quadrant boxes are MINIMAL/neutral by default — the per-quadrant
+   semantic accent vars (.q-success/.q-info/.q-error/.q-warning → --q-accent) are removed
+   so all four boxes share one look; the neutral fallbacks below keep every consumer
+   legible. A user-PICKED accent (inline --q-accent from the swatch picker) is the only
+   thing that colors a box.
+   S93 (owner round, item 6): the picker came BACK (16 pastels, sadhana-helpers
+   QUADRANT_ACCENTS) washing the whole card at low opacity (S94 raised it to 12%).
+   S95 r2 (owner item 2 — the restraint rule): the wash was RETIRED — the quadrant
+   stayed a plain white surface, the pastel speaking only in the small stuff.
+   S102 (owner round — TWO fresh instructions): (1) "the colors are too saturated —
+   more pastel, more pale"; (2) "selecting a color doesn't change the quadrant color,
+   but it MUST." The wash is therefore BACK, paler than it ever was — a 7% fill + a
+   30% border edge (claude-dark raises both: claude-dark-theme.css) — and every
+   small-element mix drops: title 52→38%, the icon/trigger 100→74%, the count pill
+   65→50%. Picking a color now visibly recolors THE QUADRANT, in pastel. */
+.sadhana-quadrant[style*='--q-accent'] {
+  background: color-mix(in srgb, var(--q-accent) 7%, var(--card));
+  border-color: color-mix(in srgb, var(--q-accent) 30%, var(--line-strong));
+}
 .sadhana-quadrant[style*='--q-accent'] .sadhana-qtitle strong {
-  color: color-mix(in srgb, var(--q-accent) 52%, var(--text));
+  color: color-mix(in srgb, var(--q-accent) 38%, var(--text));
+}
+/* S102: the icon + the customize trigger ride at 74% toward the text ink — still the
+   loudest cue on the card, but a pale ink, never the full-saturation token. */
+.sadhana-quadrant[style*='--q-accent'] .sadhana-qicon,
+.sadhana-quadrant[style*='--q-accent'] .sadhana-style-trigger {
+  color: color-mix(in srgb, var(--q-accent) 74%, var(--text));
+}
+/* S102: the count pill joins the language (it was neutral here) — the dashboard's own
+   pale-pill recipe: tinted ink + tinted hairline + a 6% fill. */
+.sadhana-quadrant[style*='--q-accent'] .q-counter {
+  color: color-mix(in srgb, var(--q-accent) 50%, var(--text));
+  border-color: color-mix(in srgb, var(--q-accent) 28%, var(--line));
+  background: color-mix(in srgb, var(--q-accent) 6%, var(--card));
+}
+/* S102: the pin accents pale with everything else (the badge ink 60%, the pinned
+   row's lead edge 55% over the line color — edges carry more hue than fills). */
+.sadhana-quadrant[style*='--q-accent'] .pin-badge {
+  color: color-mix(in srgb, var(--q-accent) 60%, var(--text));
+}
+.sadhana-quadrant[style*='--q-accent'] .sadhana-card.pinned {
+  border-block-start-color: color-mix(in srgb, var(--q-accent) 55%, var(--line-strong));
 }
 
 /* Corner ribbon stamping the Urgent quadrant (2026-08-26 user request): a diagonal pastel

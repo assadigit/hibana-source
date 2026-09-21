@@ -168,16 +168,27 @@ body.sadhana-body{overflow:hidden;display:flex;flex-direction:column}
 /* S93 (owner round, item 6 — "quadrants can have PASTEL colors"): a picked accent
    (inline --q-accent, set by buildGrid from the API's accent token) ONCE washed the
    quadrant card at low opacity (S94 raised it 6%→12%).
-   S95 r2 (owner item 2 — the restraint rule): the quadrant FILL stays white; the
-   accent speaks only in the small elements — the title ink, the count pill, the
-   add button. The surface never fills with color. */
-.sadhana-wrap .quadrant[style*='--q-accent'] .q-big{border-color:color-mix(in srgb,var(--q-accent) 45%,var(--border));background:color-mix(in srgb,var(--q-accent) 12%,var(--surface))}
-.sadhana-wrap .quadrant[style*='--q-accent'] .q-title{color:color-mix(in srgb,var(--q-accent) 52%,var(--text))}
-.sadhana-wrap .quadrant[style*='--q-accent'] .q-cnt{border-color:color-mix(in srgb,var(--q-accent) 40%,var(--border));color:color-mix(in srgb,var(--q-accent) 65%,var(--text))}
+   S95 r2 (owner item 2 — the restraint rule): the quadrant FILL stayed white; the
+   accent spoke only in the small elements.
+   S102 (owner round — TWO fresh instructions): (1) "the colors are too saturated —
+   more pastel, more pale"; (2) "selecting a color doesn't change the quadrant color,
+   but it MUST." The BOX wash is BACK, paler than the S94 one ever was — 7% fill + a
+   30% edge (claude-dark raises both: claude-dark-theme.css) — and every small-element
+   mix drops: title 52→38%, count 65→50%, the q-big tile 12→8%. */
+.sadhana-wrap .quadrant[style*='--q-accent']{background:color-mix(in srgb,var(--q-accent) 7%,var(--surface));border-color:color-mix(in srgb,var(--q-accent) 30%,var(--q-edge))}
+.sadhana-wrap .quadrant[style*='--q-accent'] .q-big{border-color:color-mix(in srgb,var(--q-accent) 30%,var(--border));background:color-mix(in srgb,var(--q-accent) 8%,var(--surface))}
+/* S102: the hover rule below (:hover .q-big → var(--surface2)) would NEUTRALIZE the
+   tinted tile on hover — an accented quadrant keeps a pale tinted tile there too. */
+.sadhana-wrap .quadrant[style*='--q-accent']:hover .q-big{background:color-mix(in srgb,var(--q-accent) 10%,var(--surface2))}
+.sadhana-wrap .quadrant[style*='--q-accent'] .q-title{color:color-mix(in srgb,var(--q-accent) 38%,var(--text))}
+.sadhana-wrap .quadrant[style*='--q-accent'] .q-cnt{border-color:color-mix(in srgb,var(--q-accent) 28%,var(--border));color:color-mix(in srgb,var(--q-accent) 50%,var(--text))}
 /* S93 (item 6): the rename popover's 16 pastel swatches + the ∅ clear button. */
 .qe-swatch-lbl{font-size:10px;color:var(--text-muted);margin:7px 0 4px;font-weight:600;letter-spacing:.02em}
 .qe-swatches{display:grid;grid-template-columns:repeat(9,1fr);gap:5px;padding:2px 0 4px}
-.qe-swatch{width:100%;aspect-ratio:1;border-radius:8px;border:2px solid color-mix(in srgb,var(--sw,#999) 35%,transparent);background:var(--sw,#999);cursor:pointer;padding:0;transition:transform .12s,border-color .12s,box-shadow .12s;min-inline-size:22px;min-block-size:22px}
+/* S102 (owner — "more pastel, more pale"): the chips preview the PALE quadrant (50%
+   over the surface, both themes via color-mix), not the full-saturation ink — the
+   same recipe as the dashboard popover's .dash-style-swatch. */
+.qe-swatch{width:100%;aspect-ratio:1;border-radius:8px;border:2px solid color-mix(in srgb,var(--sw,#999) 45%,transparent);background:color-mix(in srgb,var(--sw,#999) 50%,var(--surface));cursor:pointer;padding:0;transition:transform .12s,border-color .12s,box-shadow .12s;min-inline-size:22px;min-block-size:22px}
 .qe-swatch:hover{transform:scale(1.12)}
 .qe-swatch.is-on{border-color:var(--text);box-shadow:0 0 0 2px color-mix(in srgb,var(--sw,#999) 30%,transparent);transform:scale(1.06)}
 .qe-swatch-none{background:transparent;border:2px dashed var(--border2);color:var(--text-muted);font-size:11px;line-height:1;display:flex;align-items:center;justify-content:center}

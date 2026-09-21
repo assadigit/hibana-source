@@ -8,18 +8,25 @@
 
 /* S93 (owner round, item 5 — "give some color/contrast to the quicknote section so the
    user can easily eye-scan and find it"): the DASHBOARD variant of the Quick Notebook
-   wears an identity tint — a paper gradient, an accent border + left rail, and an
-   accent-inked heading with a pen glyph. The board page's notebook keeps the neutral
-   card look (it IS the page there — no scanning problem to solve).
+   wears an identity tint.
    S94 (owner items 7+8): the identity register moved OFF amber/khaki ONTO the GREEN
    TEAL CTA register (--quicknote-accent: the deep CTA teal in light, a lightened teal
-   of the same family in claude-dark — no khaki anywhere, both themes on teal). */
-.notebook-dashboard {
-  background:
-    linear-gradient(to bottom, color-mix(in srgb, var(--quicknote-accent, #2E7B7F) 7%, var(--card, #fff)), var(--card, #fff) 46%);
-  border: 1px solid color-mix(in srgb, var(--quicknote-accent, #2E7B7F) 34%, var(--line, rgba(50,35,15,.14)));
-  border-inline-start: 3px solid var(--quicknote-accent, #2E7B7F);
-  box-shadow: 0 1px 10px color-mix(in srgb, var(--quicknote-accent, #2E7B7F) 10%, transparent);
+   of the same family in claude-dark — no khaki anywhere, both themes on teal).
+   S95 r2 (owner item 7): the emphasis METHOD changed — the reference's confirmed
+   priority pattern is a FULL SOLID MUTED PASTEL FILL, never a colored outline. The
+   old recipe (7% paper gradient + 34% accent border + a 3px teal lead rail + a teal
+   shadow — a hybrid) is replaced by ONE flat 11% teal fill + the uniform neutral
+   hairline: the panel reads as prioritized by its SURFACE, the way the reference's
+   one priority element does. The heading keeps its teal ink (a text-level accent);
+   the composer + note cards ride white content surfaces on the tint. */
+.card.notebook-dashboard {
+  /* .card-qualified (0,2,0): notifications.css's GLOBAL .card depth gradient (later
+     sheet, same 0,1,0) used to swallow this fill — the panel's identity only ever
+     showed through its border (the "outline treatment" the owner saw, S93–S94).
+     Outranking it is what lets the solid pastel priority fill actually render. */
+  background: color-mix(in srgb, var(--quicknote-accent, #2E7B7F) 11%, var(--card, #fff));
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
 }
 .notebook-dashboard .note-heading {
   color: color-mix(in srgb, var(--quicknote-accent, #2E7B7F) 72%, var(--text, #262118));
@@ -33,13 +40,16 @@
   color: var(--quicknote-accent, #2E7B7F);
 }
 .notebook-dashboard .note-compose-text {
-  border-color: color-mix(in srgb, var(--quicknote-accent, #2E7B7F) 26%, var(--line, rgba(50,35,15,.14)));
-  background: color-mix(in srgb, var(--quicknote-accent, #2E7B7F) 4%, var(--card, #fff));
+  background: var(--card, #fff);
+  border-color: var(--line);
 }
 .notebook-dashboard .note-compose-text:focus-visible {
   border-color: var(--quicknote-accent, #2E7B7F);
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--quicknote-accent, #2E7B7F) 18%, transparent);
 }
+/* S95 r2: on the tinted panel the note cards are WHITE content surfaces (the
+   reference's priority anatomy: colored panel, white cards). */
+.notebook-dashboard .note-card { background: var(--card, #fff); }
 .notebook .note-heading { margin-block-end: 0; font-size: 1rem; }
 .note-head .note-title { flex: 1; min-inline-size: 0; }
 /* S70 (390px FA/RTL overflow fix): the per-note head row — <span class="row note-head-main">

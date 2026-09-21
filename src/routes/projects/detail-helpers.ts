@@ -380,7 +380,7 @@ export function detailHtml(p: ProjectRow, d: Awaited<ReturnType<typeof loadDetai
           const MAX_VISIBLE = 5 // Session 19 (user request): was 3 — show up to 5 per column
           const top = items.slice(0, MAX_VISIBLE)
           const hiddenCount = items.length - MAX_VISIBLE
-          return `<div class="pd-col" data-status="${col.key}">
+          return `<div class="pd-col" id="pd-col-${col.key}" data-status="${col.key}">
             <div class="pd-col-head"><span class="pd-col-title">${trL(lang, col.en, col.fa)}</span><span class="detail-tab-count" data-pd-count="${col.key}" data-n="${items.length}">${dig(items.length)}</span>
               <span class="pd-col-actions">
                 ${col.key === 'done' ? `<button type="button" class="ghost small" data-pd-archive-done title="${trL(lang, 'Archive done tasks', 'بایگانی کارهای انجام‌شده')}" aria-label="${trL(lang, 'Archive done tasks', 'بایگانی کارهای انجام‌شده')}">${icon('archive')}</button>` : ''}

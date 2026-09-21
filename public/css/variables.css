@@ -42,8 +42,14 @@
    content via normal Tab order; the a11y.skipToMain key and per-page anchors are gone. */
 
 :root {
-  --bg: #FAF9F6;               /* UX-friendly near-white (not pure white) — warm tint keeps it soft */
-  --bg-soft: #F2F0EA;          /* slightly deeper surface (hover / alt rows) */
+  /* S95 r2 (owner item 1 — the reference's "restrained" neutral canvas): the page
+     background left the warm off-white register for a TRUE neutral light gray —
+     every other color now pops against gray, not against cream. Panels/cards stay
+     pure white (--card), so the card-on-canvas step reads clean in both themes. */
+  --bg: #E7E7E7;
+  /* "slightly deeper surface" must stay DEEPER than the new gray canvas (the old
+     #F2F0EA was WARMER and LIGHTER — a hover wash that vanished on #E7E7E7). */
+  --bg-soft: #DEDEDE;
   /* S94 (owner item 3): ONE shared "pale well" wash — the rail panel's group heads AND
      the projects kanban's stage columns wear the EXACT same color/opacity (a 55%
      bg-soft veil over whatever surface sits underneath), so the two list anatomies
@@ -63,10 +69,13 @@
   --stage-bar-developing: #AEE0B8;         /* pastel mint green (was #6FE983 — neon) */
   --stage-bar-awaiting_dev: #EFC2B5;        /* pastel peach — stopped */
   --stage-bar-operational: #B7DFBC;   /* pastel sage green (Session 21: whole set softened) */
-  --text: #262118;             /* warm near-black */
-  --muted: #5A5248;            /* warm medium (6.3:1 on --bg) */
-  --line: rgba(50, 35, 15, 0.07);   /* quiet warm hairlines */
-  --line-strong: rgba(50, 35, 15, 0.14);
+  --text: #262118;             /* warm near-black (kept: the ink stays warm — only surfaces went neutral) */
+  --muted: #5A5248;            /* warm medium (≈6.2:1 on the #E7E7E7 canvas — AA holds) */
+  /* S95 r2 (owner item 8): ONE consistent hairline weight + color across the app —
+     a light neutral gray (no warm cast) at a uniform 1px. --line-strong stays one
+     step deeper for the few surfaces that need a firmer edge (menus, inputs). */
+  --line: #D4D4D4;
+  --line-strong: #BFBFBF;
   --accent: #4A9FA3;           /* medium teal — the Sadhana interactive accent */
   --accent-hover: #3D8D91;
   --accent-soft: rgba(74, 159, 163, 0.13);
@@ -152,9 +161,13 @@
   --nb-paper: #fdfdfb;
   --nb-grid: rgb(28 28 26 / 0.05);
   --nb-ink: none;
-  /* More rounded boxes/sections (user request 2026-09-02): softer, modern, minimal. */
+  /* More rounded boxes/sections (user request 2026-09-02): softer, modern, minimal.
+     S95 r2 (owner item 5): --radius-lg joins the ramp for the DASHBOARD's large
+     category surfaces (the to-do quadrant panels + the Quick Notebook) — the
+     reference's big-radius signature (cards stay --radius, rows --radius-sm). */
   --radius: 20px;
   --radius-sm: 14px;
+  --radius-lg: 24px;
   --shadow: 0 2px 14px rgb(30 20 10 / 0.07);          /* soft warm shadows (Sadhana) */
   --shadow-soft: 0 2px 14px rgb(30 20 10 / 0.06);
   --shadow-card: 0 2px 14px rgb(30 20 10 / 0.07);

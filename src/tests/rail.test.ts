@@ -99,10 +99,10 @@ describe('GET /api/rail (the navigation rail panel payload)', () => {
   })
 
   // S94 (owner item 6): the projects panel's deeper tree — stage → project →
-  // idea-groups → items. The payload carries each live project's IDEA-GROUP dev
-  // tasks ('idea' + 'bug' only — the two groups the tree renders; planned/in_progress/
-  // done stay out so the payload stays a navigation summary).
-  it('returns projectTasks: idea+bug dev tasks of live projects, scoped + bounded', async () => {
+  // boxes → items. S95 r2 (owner item 1): EVERY box the board renders rides —
+  // idea/bug/planned/in_progress/done (a box with ≥1 item grows its branch);
+  // only non-board statuses stay out so the payload stays a navigation summary.
+  it('returns projectTasks: every board box of live projects, scoped + bounded', async () => {
     const { db, close } = makeTestDb()
     try {
       const me = await makeUser(db, { username: 'rail-tree' })
@@ -119,12 +119,15 @@ describe('GET /api/rail (the navigation rail panel payload)', () => {
           [id, user, `Project ${id}`, status, archived, now, now],
         )
       }
-      // p1's idea-group tasks: one idea + one bug ride; a 'planned' task stays out.
-      // p2's idea task must NOT ride (parked project). p9's must not (Rule 1).
+      // p1's board boxes: one task in EACH of the five statuses rides (the
+      // schema's CHECK allows exactly these). p2's idea task must NOT ride
+      // (parked project). p9's must not (Rule 1).
       for (const [id, project, status] of [
         ['dt1', 'p1', 'idea'],
         ['dt2', 'p1', 'bug'],
         ['dt3', 'p1', 'planned'],
+        ['dt6', 'p1', 'in_progress'],
+        ['dt7', 'p1', 'done'],
         ['dt4', 'p2', 'idea'],
         ['dt5', 'p9', 'idea'],
       ] as const) {
@@ -138,9 +141,11 @@ describe('GET /api/rail (the navigation rail panel payload)', () => {
       const res = await app.fetch(new Request('http://local/api/rail', { headers: auth }))
       expect(res.status).toBe(200)
       const body = (await res.json()) as { projectTasks: { id: string; status: string; project_id: string }[] }
-      expect(body.projectTasks.map((t) => t.id).sort()).toEqual(['dt1', 'dt2'])
+      expect(body.projectTasks.map((t) => t.id).sort()).toEqual(['dt1', 'dt2', 'dt3', 'dt6', 'dt7'])
       expect(body.projectTasks.find((t) => t.id === 'dt1')).toMatchObject({ status: 'idea', project_id: 'p1' })
-      expect(body.projectTasks.find((t) => t.id === 'dt2')).toMatchObject({ status: 'bug', project_id: 'p1' })
+      expect(body.projectTasks.find((t) => t.id === 'dt3')).toMatchObject({ status: 'planned', project_id: 'p1' })
+      expect(body.projectTasks.find((t) => t.id === 'dt6')).toMatchObject({ status: 'in_progress', project_id: 'p1' })
+      expect(body.projectTasks.find((t) => t.id === 'dt7')).toMatchObject({ status: 'done', project_id: 'p1' })
     } finally { close() }
   })
 })

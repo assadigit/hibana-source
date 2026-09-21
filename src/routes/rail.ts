@@ -27,11 +27,12 @@ import type { Config, UserRow } from '../types'
 //                 next 14 days (id/title/due_date/project_id) — the calendar panel's
 //                 "planned work" list draws them beside project deadlines + to-dos
 //                 (the same `tasks` source /api/calendar aggregates).
-//   projectTasks— S94 (owner item 6): each live project's IDEA-GROUP tasks (dev_tasks
-//                 with status 'idea' [New ideas] or 'bug' [Problems]) — the projects
-//                 panel's deeper tree: stage → project → idea-groups → items. Bounded
-//                 (≤120 rows, only statuses the tree renders) so the payload stays a
-//                 navigation summary, never a content dump.
+//   projectTasks— S94 (owner item 6): each live project's progress-BOX tasks — the
+//                 projects panel's deeper tree: stage → project → box → items.
+//                 S95 r2 (owner item 1): EVERY box the board renders rides now
+//                 (idea/bug/planned/in_progress/done — a box with ≥1 item shows),
+//                 not just the idea/bug pair. Bounded (≤200 rows) so the payload
+//                 stays a navigation summary, never a content dump.
 //
 // Grouping (status groups / quadrants / folders…) happens client-side in
 // nav.js — the same rows feed several sections' views. no-store: this is live
@@ -104,17 +105,19 @@ export function railRoutes(cfg: Config): Hono<{ Variables: { user: UserRow } }> 
          ORDER BY t.due_date ASC LIMIT 15`,
         [user.id, today, in14],
       ),
-      // S94 (owner item 6): the projects panel's deeper tree — each live project's
-      // idea-group tasks. Scoped by the JOIN (Rule 1), soft-delete + offline-parked
-      // respected, priority-first like the board (urgent → low), capped at 120.
+      // S94 (owner item 6) + S95 r2 (owner item 1): the projects panel's deeper tree —
+      // each live project's progress-BOX tasks, EVERY box the board renders (a box
+      // with ≥1 item grows its branch). Scoped by the JOIN (Rule 1), soft-delete +
+      // offline-parked respected, priority-first like the board (urgent → low),
+      // capped at 200 so solo-user boards never truncate a project's boxes.
       cfg.db.query<RailProjectTask>(
         `SELECT t.id, t.title, t.status, t.project_id FROM dev_tasks t
          JOIN projects p ON p.id = t.project_id
          WHERE p.user_id = ? AND p.deleted_at IS NULL
            AND p.status != 'spark' AND (p.archived_state IS NULL OR p.archived_state != 'offline')
-           AND t.status IN ('idea','bug')
+           AND t.status IN ('idea','bug','planned','in_progress','done')
          ORDER BY CASE t.priority WHEN 'urgent' THEN 0 WHEN 'high' THEN 1 WHEN 'medium' THEN 2 ELSE 3 END,
-                  t.sort_order, t.created_at DESC LIMIT 120`,
+                  t.sort_order, t.created_at DESC LIMIT 200`,
         [user.id],
       ),
     ])

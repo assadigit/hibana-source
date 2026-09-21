@@ -22,6 +22,7 @@ window.__hibanaDictEN = {
       'rail.empty': 'Nothing here yet — open something and it will appear.',
       'rail.g.unfiled': 'Unfiled', 'rail.g.upcoming': 'Coming up',
       'rail.g.newIdeas': 'New ideas', 'rail.g.problems': 'Problems',
+      'rail.g.plans': 'Plans', 'rail.g.inProgress': 'In Progress', 'rail.g.done': 'Done',
       'rail.sparksEmpty': 'No ideas captured yet — the Ideas shelf fills as you spark.',
       'rail.notesEmpty': 'No notes yet — the vault fills as you write.',
       'rail.canvasHint': 'The boundless Canvas is a single board — open it to draw, pin notes, and frame regions.',

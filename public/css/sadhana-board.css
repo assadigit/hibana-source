@@ -146,16 +146,18 @@ body.sadhana-body{overflow:hidden;display:flex;flex-direction:column}
 /* ─── Quadrant ─────────────────────────────────── */
 /* 2026-08-29 (user request): quadrants are MINIMAL — no per-quadrant color coding
    anywhere (borders, badges, checkboxes, add buttons all neutral). Progress-state
-   coloring moved onto the TASK CARDS (see the status tokens below). */
+   coloring moved onto the TASK CARDS (see the status tokens below).
+   S95 r2 (owner item 2): the picked-accent WASH left the quadrant fill too — the
+   board's four columns are plain white surfaces; the accent speaks only in the
+   small stuff (title ink, count pill, the big add button). */
 .sadhana-wrap .quadrant{border-radius:var(--radius);border:1px solid var(--q-edge);background:var(--surface);display:flex;flex-direction:column;overflow:hidden;transition:border-color .2s;min-height:0}
 .sadhana-wrap .quadrant.drag-over{box-shadow:0 0 0 2px var(--text-dim)!important}
 /* S93 (owner round, item 6 — "quadrants can have PASTEL colors"): a picked accent
-   (inline --q-accent, set by buildGrid from the API's accent token) washes the quadrant
-   card at low opacity — a tint, never an ink. The default quadrants stay neutral.
-   S94 (owner item 1 — the 6% wash read "almost monochrome"): wash 6%→12%, border
-   26%→55%, title 60%→52% (leans toward the text ink so the lightest pastel stays AA
-   on the deeper wash — the same recipe to-do-list.css/dashboard-todo.css carry). */
-.sadhana-wrap .quadrant[style*='--q-accent']{background:color-mix(in srgb,var(--q-accent) 12%,var(--surface));border-color:color-mix(in srgb,var(--q-accent) 55%,var(--q-edge))}
+   (inline --q-accent, set by buildGrid from the API's accent token) ONCE washed the
+   quadrant card at low opacity (S94 raised it 6%→12%).
+   S95 r2 (owner item 2 — the restraint rule): the quadrant FILL stays white; the
+   accent speaks only in the small elements — the title ink, the count pill, the
+   add button. The surface never fills with color. */
 .sadhana-wrap .quadrant[style*='--q-accent'] .q-big{border-color:color-mix(in srgb,var(--q-accent) 45%,var(--border));background:color-mix(in srgb,var(--q-accent) 12%,var(--surface))}
 .sadhana-wrap .quadrant[style*='--q-accent'] .q-title{color:color-mix(in srgb,var(--q-accent) 52%,var(--text))}
 .sadhana-wrap .quadrant[style*='--q-accent'] .q-cnt{border-color:color-mix(in srgb,var(--q-accent) 40%,var(--border));color:color-mix(in srgb,var(--q-accent) 65%,var(--text))}
@@ -261,9 +263,12 @@ body.rtl .mat-grid{direction:rtl}
    Ali: "orange and yellow are not different enough" — معلق moves to a cool
    violet #A78BFA so the two active-ish states never read as one). */
 .sadhana-wrap{--st-none:#9CA3AF;--st-none-bg:rgba(156,163,175,.10);--st-none-bd:rgba(156,163,175,.38);--st-inprog:#F59A4E;--st-inprog-bg:rgba(245,154,78,.14);--st-inprog-bd:rgba(245,154,78,.55);--st-hold:#A78BFA;--st-hold-bg:rgba(167,139,250,.14);--st-hold-bd:rgba(167,139,250,.5)}
-.sadhana-wrap .task-card.st-untouched{background:var(--st-none-bg);border-color:var(--st-none-bd)}
-.sadhana-wrap .task-card.st-inprog{background:var(--st-inprog-bg);border-color:var(--st-inprog-bd);border-inline-start:3px solid var(--st-inprog)}
-.sadhana-wrap .task-card.st-hold{background:var(--st-hold-bg);border-color:var(--st-hold-bd);border-inline-start:3px solid var(--st-hold)}
+/* S95 r2 (owner item 2 — the restraint rule): the state washes left the card fills —
+   every task card rides the SAME neutral surface2; the state speaks only through
+   its 3px inline-start crescent (dashboard-todo.css carries the same recipe now). */
+.sadhana-wrap .task-card.st-untouched{background:var(--surface2)}
+.sadhana-wrap .task-card.st-inprog{background:var(--surface2);border-inline-start:3px solid var(--st-inprog)}
+.sadhana-wrap .task-card.st-hold{background:var(--surface2);border-inline-start:3px solid var(--st-hold)}
 .sadhana-wrap .t-content{flex:1;min-width:0}
 .sadhana-wrap .task-txt{font-size:12.5px;line-height:1.45;word-break:break-word;display:inline;color:var(--text-muted)}
 /* Title + icon tags on same line */

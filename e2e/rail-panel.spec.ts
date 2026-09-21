@@ -67,10 +67,11 @@ test.beforeAll(async () => {
     `INSERT INTO sadhana_tasks (id, user_id, quadrant, title, due_date, done, position, created_at, updated_at)
      VALUES ('${id}-t3', '${id}', 3, 'Rail urgent task', NULL, 0, 2, '${now}', '${now}')`,
   )
-  // S94 (owner item 6): Rail project 0 (developing) carries one 'idea' + one 'bug'
-  // dev task — its rail row grows the nested idea-group TREE branch (the new test
-  // below pins it; the stage-head assertion scopes to non-sub groups so these
-  // seeds don't disturb the S93 grouping pin).
+  // S94 (owner item 6) + S95 r2 (owner item 1): Rail project 0 (developing) carries
+  // one 'idea' + one 'bug' + one 'planned' dev task — its rail row grows the nested
+  // box TREE branch (every board box with ≥1 item shows; the new test below pins
+  // it; the stage-head assertion scopes to non-sub groups so these seeds don't
+  // disturb the S93 grouping pin).
   db.exec(`DELETE FROM dev_tasks WHERE project_id = '${id}-p0'`)
   db.exec(
     `INSERT INTO dev_tasks (id, project_id, title, status, priority, sort_order, created_at)
@@ -79,6 +80,10 @@ test.beforeAll(async () => {
   db.exec(
     `INSERT INTO dev_tasks (id, project_id, title, status, priority, sort_order, created_at)
      VALUES ('${id}-dt2', '${id}-p0', 'Rail tree bug', 'bug', 'high', 0, '${now}')`,
+  )
+  db.exec(
+    `INSERT INTO dev_tasks (id, project_id, title, status, priority, sort_order, created_at)
+     VALUES ('${id}-dt3', '${id}-p0', 'Rail tree plan', 'planned', 'low', 0, '${now}')`,
   )
   db.close()
 })
@@ -141,8 +146,13 @@ test.describe('the navigation rail (Material navigation-rail pattern, S89 labele
     // button paints a background (the filled rounded square) + aria-current.
     const dash = page.locator('.rail .rail-primary a[href="/dashboard.html"]')
     await expect(dash).toHaveAttribute('aria-current', 'page')
-    const bg = await dash.evaluate((el) => getComputedStyle(el).backgroundColor)
-    expect(bg).not.toBe('rgba(0, 0, 0, 0)')
+    // S95 r2 (owner item 4): the ONE active pattern is the SOLID --cta pill —
+    // #2E7B7F (rgb 46 123 127) with white icon+label ink, and NO lead bar on the
+    // rail-facing edge (the ::before geometry is gone entirely). toHaveCSS /
+    // expect.poll RETRY (a plain read raced the cold server's sheet load once).
+    await expect(dash).toHaveCSS('background-color', 'rgb(46, 123, 127)')
+    await expect(dash).toHaveCSS('color', 'rgb(255, 255, 255)')
+    await expect.poll(async () => dash.evaluate((el) => getComputedStyle(el, '::before').content)).toBe('none')
     // S93 (owner item 2): the Dashboard icon is PURE NAVIGATION — no panel section
     // behind it (clicking it must SHOW the dashboard, not slide a sidebar).
     expect(await dash.getAttribute('data-rail-panel')).toBeNull()
@@ -244,7 +254,7 @@ test.describe('the secondary panel (VS Code Activity Bar + Side Bar pattern)', (
     await page.waitForFunction(() => getComputedStyle(document.body).paddingInlineStart === '88px', null, { timeout: 3_000 })
   })
 
-  test('the projects panel grows the deeper idea-group TREE under each project (S94 item 6)', async ({ page }) => {
+  test('the projects panel grows the deeper BOX TREE under each project (S94 item 6 + S95 r2 item 1)', async ({ page }) => {
     await login(page)
     await page.click('.rail .rail-primary a[data-rail-panel="projects"]')
     await page.waitForURL('**/projects.html', { timeout: 10_000 })
@@ -261,32 +271,46 @@ test.describe('the secondary panel (VS Code Activity Bar + Side Bar pattern)', (
     await expect(bugBadge).toHaveText('1')
     await expect(bugBadge).toHaveAttribute('aria-label', '1 Problems')
 
-    // …and directly under it grows the nested branch: TWO collapsible idea-groups
-    // ("New ideas" + "Problems" — the project page's progress-box vocabulary), each
-    // counting its items, tree-indented one level deeper than the stage rows.
+    // …and directly under it grows the nested branch: THREE collapsible boxes in
+    // the BOARD's column order ("New ideas" + "Problems" + "Plans" — every box
+    // with ≥1 item shows, the S95 r2 rule; the seeded project carries one task in
+    // each), each counting its items, tree-indented one level deeper than the
+    // stage rows.
     const subs = page.locator('.rail-sub-group')
-    await expect(subs).toHaveCount(2)
+    await expect(subs).toHaveCount(3)
     const heads = subs.locator('.rail-group-head')
     await expect(heads.nth(0)).toContainText('New ideas')
     await expect(heads.nth(1)).toContainText('Problems')
+    await expect(heads.nth(2)).toContainText('Plans')
     await expect(heads.nth(0).locator('.rail-group-count')).toHaveText('1')
     await expect(heads.nth(1).locator('.rail-group-count')).toHaveText('1')
+    await expect(heads.nth(2).locator('.rail-group-count')).toHaveText('1')
 
     // The sub-groups ship COLLAPSED (the panel stays a scannable summary) — the
-    // same [data-rail-group] toggle contract the stage heads use.
+    // same [data-rail-group] toggle contract the stage heads use. The COLLAPSED
+    // chevron points DOWN (S95 r2 item 2 — the glyph itself is a down-chevron;
+    // expanding rotates it 180° upright).
     await expect(subs.nth(0)).toHaveClass(/is-collapsed/)
+    const chevDown = await heads.nth(0).locator('.icon path').evaluate((el) => el.getAttribute('d'))
+    expect(chevDown).toBe('m6 9 6 6 6-6')
+
     // Expanding reveals the task rows, deep-linking to the project's own page AT
-    // the section where that work lives (S95): ideas → the progress board
-    // (#pd-board), bugs → the exact problems panel (#detail-problems).
+    // the exact BOX where that work lives (S95 r2): ideas → the board's idea
+    // COLUMN (#pd-col-idea), bugs → the exact problems panel (#detail-problems),
+    // plans → the plans column (#pd-col-planned).
     await heads.nth(0).click()
     await expect(subs.nth(0)).not.toHaveClass(/is-collapsed/)
     const taskRow = subs.nth(0).locator('.rail-item')
     await expect(taskRow).toContainText('Rail tree idea')
-    await expect(taskRow).toHaveAttribute('href', /\/project\.html\?id=.+#pd-board$/)
+    await expect(taskRow).toHaveAttribute('href', /\/project\.html\?id=.+#pd-col-idea$/)
     await heads.nth(1).click()
     const bugRow = subs.nth(1).locator('.rail-item')
     await expect(bugRow).toContainText('Rail tree bug')
     await expect(bugRow).toHaveAttribute('href', /\/project\.html\?id=.+#detail-problems$/)
+    await heads.nth(2).click()
+    const planRow = subs.nth(2).locator('.rail-item')
+    await expect(planRow).toContainText('Rail tree plan')
+    await expect(planRow).toHaveAttribute('href', /\/project\.html\?id=.+#pd-col-planned$/)
     // The tree indent compounds: the sub-group body sits deeper than the stage body
     // (the S91 tree-guide anatomy — 0.8rem per NESTED level; the relative margin is
     // the same on both, the absolute depth comes from the nesting, so the x-position
@@ -297,14 +321,15 @@ test.describe('the secondary panel (VS Code Activity Bar + Side Bar pattern)', (
 
     // A task-row click navigates to the project page, the panel STAYS OPEN (the
     // same persistence contract as the stage rows above), the leaf's SECTION
-    // anchor rides the URL, the page LANDS on the board (S95: the htmx-swept
-    // target is watched for + scrolled, scroll-margin clearing the topbar) and
-    // the current-location marks light BOTH the project row and the exact leaf.
+    // anchor rides the URL, the page LANDS on the exact idea column (S95 r2: the
+    // htmx-swept target is watched for + scrolled, scroll-margin clearing the
+    // topbar) and the current-location marks light BOTH the project row and the
+    // exact leaf.
     await taskRow.click()
-    await page.waitForURL(/project\.html\?id=.+#pd-board$/, { timeout: 10_000 })
+    await page.waitForURL(/project\.html\?id=.+#pd-col-idea$/, { timeout: 10_000 })
     await expect(panel).toBeVisible()
     await page.waitForFunction(() => {
-      const b = document.querySelector('#pd-board')
+      const b = document.querySelector('#pd-col-idea')
       return !!b && b.getBoundingClientRect().top < 220
     }, null, { timeout: 10_000 })
     await expect(page.locator('.rail-item.is-row-active', { hasText: 'Rail project 0' })).toHaveClass(/is-row-active/)
@@ -333,19 +358,83 @@ test.describe('the secondary panel (VS Code Activity Bar + Side Bar pattern)', (
     await expect(page.locator('[data-rail-panel-box]')).toBeHidden()
   })
 
+  test('the To-do icon NAVIGATES to /to-do-list (S95 r2 item 3) — its tickable panel rides along', async ({ page }) => {
+    await login(page)
+    await page.goto('/projects.html')
+    // To-do carries data-rail-nav now (the Projects pattern): the click opens the
+    // panel AND lands on the to-do-list page (a hard page — the panel restores
+    // from localStorage on its boot, beside the board).
+    await page.click('.rail .rail-primary a[data-rail-panel="todo"]')
+    await page.waitForURL('**/to-do-list', { timeout: 15_000 })
+    await page.waitForSelector('nav.rail', { timeout: 10_000 })
+    // The To-do icon is the current page's pill, and the panel restored beside it.
+    const todoIcon = page.locator('.rail .rail-primary a[data-rail-panel="todo"]')
+    await expect(todoIcon).toHaveAttribute('aria-current', 'page')
+    await expect(page.locator('[data-rail-panel-box]')).toBeVisible()
+    await expect(page.locator('.rail-panel-title')).toHaveText('To-do list')
+    // One active pattern: the Dashboard icon carries NO pill while To-do is current.
+    const dash = page.locator('.rail .rail-primary a[href="/dashboard.html"]')
+    await expect(dash).not.toHaveAttribute('aria-current', 'page')
+    await expect(dash).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)')
+  })
+
+  test('the Notes module collapses the rail to an ICON RAIL (S95 r2 item 9)', async ({ page }) => {
+    await login(page)
+    // Open the projects panel first — entering the Notes module must close it
+    // (the module's own 3-pane sidebar owns the space beside the rail).
+    await page.click('.rail .rail-primary a[data-rail-panel="projects"]')
+    await page.waitForURL('**/projects.html', { timeout: 10_000 })
+    await expect(page.locator('[data-rail-panel-box]')).toBeVisible()
+
+    // Enter the Notes module directly (the Notes ICON opens its panel from other
+    // pages — VS Code semantics; the module page itself is the icon-rail state).
+    await page.goto('/notes.html')
+    await page.waitForSelector('.vault-tree', { timeout: 10_000 })
+    await expect(page.locator('body')).toHaveClass(/rail-icons-only/)
+    const labelDisplay = await page.locator('.rail .rail-label').first().evaluate((el) => getComputedStyle(el).display)
+    expect(labelDisplay).toBe('none')
+    await page.waitForFunction(() => getComputedStyle(document.body).paddingInlineStart === '64px', null, { timeout: 5_000 })
+    // The panel closed with the entry (nothing doubles the module's own sidebar).
+    await expect(page.locator('[data-rail-panel-box]')).toBeHidden()
+    // The module's own sidebar still carries full labels.
+    await expect(page.locator('.vault-tree')).toBeVisible()
+
+    // Leaving the module restores the labeled rail (Dashboard icon is a plain
+    // navigation link — no panel semantics to suppress).
+    await page.click('.rail .rail-primary a[href="/dashboard.html"]')
+    await page.waitForURL('**/dashboard.html', { timeout: 10_000 })
+    await expect(page.locator('body')).not.toHaveClass(/rail-icons-only/)
+    const labelBack = await page.locator('.rail .rail-label').first().evaluate((el) => getComputedStyle(el).display)
+    expect(labelBack).not.toBe('none')
+    await page.waitForFunction(() => getComputedStyle(document.body).paddingInlineStart === '88px', null, { timeout: 5_000 })
+
+    // Projects clicked FROM a module page still arrives with its tree: on the icon
+    // rail the nav icons remember their panel for the destination.
+    await page.goto('/notes.html')
+    await page.waitForSelector('.vault-tree', { timeout: 10_000 })
+    await expect(page.locator('body')).toHaveClass(/rail-icons-only/)
+    await page.click('.rail .rail-primary a[data-rail-panel="projects"]')
+    await page.waitForURL('**/projects.html', { timeout: 10_000 })
+    await expect(page.locator('body')).not.toHaveClass(/rail-icons-only/)
+    await expect(page.locator('[data-rail-panel-box]')).toBeVisible()
+    await expect(page.locator('.rail-panel-title')).toHaveText('Projects')
+  })
+
   test('clicking the open section\'s icon toggles the panel closed; switching icons swaps sections', async ({ page }) => {
     await login(page)
-    await page.click('.rail .rail-primary a[data-rail-panel="todo"]')
-    await expect(page.locator('.rail-panel-title')).toHaveText('To-do list')
+    // S95 r2: To-do NAVIGATES now — the toggle contract rides a non-navigating
+    // icon (Ideas), exactly as before.
+    await page.click('.rail .rail-primary a[data-rail-panel="sparks"]')
+    await expect(page.locator('.rail-panel-title')).toHaveText('Ideas')
 
     // Same icon again → closed (the toggle rides a non-navigating icon — the
     // Projects icon always re-navigates by design).
-    await page.click('.rail .rail-primary a[data-rail-panel="todo"]')
+    await page.click('.rail .rail-primary a[data-rail-panel="sparks"]')
     await expect(page.locator('[data-rail-panel-box]')).toBeHidden()
 
     // A different icon swaps the panel's section (rail never hides).
-    await page.click('.rail .rail-primary a[data-rail-panel="sparks"]')
-    await expect(page.locator('.rail-panel-title')).toHaveText('Ideas')
+    await page.click('.rail .rail-primary a[data-rail-panel="notes"]')
+    await expect(page.locator('.rail-panel-title')).toHaveText('Notes')
     await expect(page.locator('nav.rail')).toBeVisible()
   })
 

@@ -228,6 +228,16 @@ html[data-theme='claude-dark'] .card {
   border-block-start-color: var(--line-strong);
 }
 
+/* S95 r2 (owner item 7): the Quick Notebook's SOLID pastel priority fill — the
+   dark twin of quicknotes.css's .card.notebook-dashboard (this sheet's .card rule
+   is (0,2,1) and would flatten the tint back to the plain card). 13% of the
+   lightened dark teal (#6FA6A8) over the near-black card — one notch stronger
+   than light's 11% so the priority read survives on dark surfaces (the S94
+   lightened-for-dark lesson). */
+html[data-theme='claude-dark'] .card.notebook-dashboard {
+  background: color-mix(in srgb, var(--quicknote-accent) 13%, var(--card));
+}
+
 /* Kanban chassis — flat card surface, stat cards transparent until hover. */
 html[data-theme='claude-dark'] .kanban-card { background: var(--card); }
 html[data-theme='claude-dark'] .stat-kanban-card { background: transparent; }
@@ -260,12 +270,9 @@ html[data-theme='claude-dark'] .dash-todo-quadrant {
    cap above (html[data-theme] .dash-todo-quadrant, specificity 0-2-1) outranked
    dashboard-todo.css's attribute-selector wash (0-2-0), so a quadrant with a PICKED
    pastel fell back to the plain gradient in claude-dark — the wash only ever rendered
-   in light mode. Same recipe + numbers as the light sheet (12% wash, 55% border,
-   52/48 title mix), scoped one class deeper so it wins the cascade here. */
-html[data-theme='claude-dark'] .dash-todo-quadrant[style*='--dash-q-accent'] {
-  background: color-mix(in srgb, var(--dash-q-accent) 12%, var(--card));
-  border-color: color-mix(in srgb, var(--dash-q-accent) 55%, var(--line));
-}
+   in light mode.
+   S95 r2 (owner item 2): the wash itself is retired app-wide (panels stay white,
+   color on small elements only) — only the dark title-ink rule survives it. */
 html[data-theme='claude-dark'] .dash-todo-quadrant[style*='--dash-q-accent'] .dash-todo-qtitle strong {
   color: color-mix(in srgb, var(--dash-q-accent) 52%, var(--text));
 }

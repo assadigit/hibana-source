@@ -201,6 +201,10 @@
 /* S95 (the rail tree's deep links): anchor landings clear the sticky topbar —
    the same scroll-margin contract notes.css (.note) and settings use. */
 .pd-board, .detail-panel { scroll-margin-block-start: 4.5rem; }
+/* S95 r2 (owner item 1 — the tree deep-links every box): each board COLUMN carries
+   its own anchor (#pd-col-<status> — the rail tree's leaf rows land on the exact
+   box); same 4.5rem topbar-clearing scroll-margin contract as the board itself. */
+.pd-col { scroll-margin-block-start: 4.5rem; }
 .pd-board-head h3 { display: inline-flex; align-items: center; gap: 0.45rem; margin: 0; }
 .pd-board-head .icon { color: var(--brand); }
 .pd-sprint-count {

@@ -49,8 +49,12 @@ section[id^="dashboard-"].is-collapsed > *:not(header) { display: none; }
 .dash-todo-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0.75rem; align-items: stretch; }
 .dash-todo-quadrant {
   inline-size: 100%; min-inline-size: 0; min-block-size: 0;
-  background: var(--card); border: 1px solid var(--line-strong);
-  border-radius: var(--radius-sm); padding: 0.85rem; display: flex;
+  /* S95 r2 (owner items 2+5+8): plain WHITE surface + the one uniform neutral
+     hairline + the big panel radius (--radius-lg 24px — the reference's radius
+     signature). Color left the panel fill entirely; it lives on the count badge
+     + title ink only. */
+  background: var(--card); border: 1px solid var(--line);
+  border-radius: var(--radius-lg); padding: 0.85rem; display: flex;
   flex-direction: column; gap: 0.65rem; position: relative;
   transition: border-color 0.12s ease, opacity 0.12s ease;
 }
@@ -159,16 +163,12 @@ section[id^="dashboard-"].is-collapsed > *:not(header) { display: none; }
 }
 .dash-style-swatch-none.is-selected { border-color: var(--text); color: var(--text); }
 
-/* S93 (item 6): the dashboard quadrant wears its picked pastel — a soft wash on the
-   card + tinted header accents (low opacity = pastel, never full ink).
-   S94 (owner item 1 — the 6% wash read "almost monochrome"): wash 6%→12%, border
-   28%→55%, and the title mix leans toward the TEXT ink (60%→52% accent) so even the
-   lightest of the 16 pastels (accent-sand) stays AA on the deeper wash — the same
-   recipe to-do-list.css carries (verified there numerically). */
-.dash-todo-quadrant[style*='--dash-q-accent'] {
-  background: color-mix(in srgb, var(--dash-q-accent) 12%, var(--card));
-  border-color: color-mix(in srgb, var(--dash-q-accent) 55%, var(--line));
-}
+/* S93 (item 6): the dashboard quadrant's picked pastel — ONCE a 12% wash on the
+   card + tinted border (S94 made it more visible).
+   S95 r2 (owner item 2 — the restraint rule): the panel fill stays PLAIN WHITE;
+   the picked pastel lives ONLY on the small stuff — the header's title ink and
+   the count badge. The card surface itself never fills with color (the target
+   system reserves color for small badge/icon elements). */
 .dash-todo-quadrant[style*='--dash-q-accent'] .dash-todo-qtitle strong {
   color: color-mix(in srgb, var(--dash-q-accent) 52%, var(--text));
 }
@@ -243,6 +243,10 @@ section[id^="dashboard-"].is-collapsed > *:not(header) { display: none; }
 .dash-todo-task {
   display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: 0.25rem;
   align-items: start; min-inline-size: 0; max-block-size: 100vh; overflow: hidden;
+  /* S95 r2 (owner items 2+3): every task row sits on ONE neutral off-white
+     (--statcard-bg) with the uniform neutral hairline — no shadow, no state wash
+     (the row never "floats"; state speaks through the 3px lead crescent below). */
+  background: var(--statcard-bg);
   border: 1px solid var(--line); border-radius: var(--radius-sm);
   padding: 0.1rem 0.4rem 0.08rem;
   position: relative; /* Phase 7 item 3: the ⋯ menu anchors to the row's top-end corner */
@@ -260,10 +264,13 @@ section[id^="dashboard-"].is-collapsed > *:not(header) { display: none; }
    every task row is a BOARD (border + state tint + a 3px start crescent for the
    active/hold states — sadhana.html's .task-card recipe). The st-* class names are
    live again; only momentary FEEDBACK states still override (.is-completing flash,
-   .move-error drag failure). */
-.dash-todo-task.st-untouched { background: var(--st-none-bg); border-color: var(--st-none-bd); }
-.dash-todo-task.st-inprog { background: var(--st-inprog-bg); border-color: var(--st-inprog-bd); border-inline-start: 3px solid var(--st-inprog); }
-.dash-todo-task.st-hold { background: var(--st-hold-bg); border-color: var(--st-hold-bd); border-inline-start: 3px solid var(--st-hold); }
+   .move-error drag failure).
+   S95 r2 (owner item 2 — the restraint rule): the state WASHES left the row fills —
+   every row sits on the same neutral off-white; the state speaks ONLY through its
+   small 3px inline-start crescent (the reference keeps color for accents, never
+   whole surfaces). untouched keeps the neutral base row as-is. */
+.dash-todo-task.st-inprog { border-inline-start: 3px solid var(--st-inprog); }
+.dash-todo-task.st-hold { border-inline-start: 3px solid var(--st-hold); }
 /* the drag-failure red ring must win over the state tints (same specificity — later
    in source order); the old .move-error rule near the drag rules lost the race once
    rows grew real borders. */

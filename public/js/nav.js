@@ -254,6 +254,14 @@
       if (window.Alpine?.initTree) window.Alpine.initTree(fresh)
       resumeAlpine()
       markNav(url.pathname)
+      // S95 r2 (owner item 9): a panel remembered by an icon-rail navigation (e.g.
+      // Projects clicked from the Notes module) opens now that the destination has
+      // landed — unless the destination is itself a module-sidebar page.
+      if (pendingPanelOnNav) {
+        const section = pendingPanelOnNav
+        pendingPanelOnNav = null
+        if (!MODULE_SIDEBAR_PAGES.has(url.pathname)) openRailPanel(section)
+      }
       hideNavLoader()
     } catch (err) {
       // Any parse/fetch failure → standard full navigation. The observer restart is
@@ -292,6 +300,21 @@
     navLoaderTimer = setTimeout(() => { if (navLoaderEl) navLoaderEl.className = '' }, 400)
   }
 
+  // S95 r2 (owner item 9): MODULE-SIDEBAR pages — a page that carries its own
+  // list-sidebar (the Notes vault's 3-pane tree|list|editor) collapses the PRIMARY
+  // rail to an icon-only rail, so the same navigation hierarchy is never rendered
+  // twice at full width (the Notion/Obsidian/VS Code pattern: exactly ONE sidebar
+  // shows labels at a time). Navigating to a page without its own sidebar restores
+  // the labeled rail. The class drives layout.css (labels hidden, --rail-w 4rem —
+  // the same anatomy the short-viewport collapse uses) and suppresses the rail
+  // PANEL on these pages (no second column beside the module's own sidebars).
+  const MODULE_SIDEBAR_PAGES = new Set(['/notes.html', '/notes'])
+  function syncRailIconMode(pathname) {
+    const on = MODULE_SIDEBAR_PAGES.has(pathname)
+    document.body.classList.toggle('rail-icons-only', on)
+    if (on && railSection) closeRailPanel()
+  }
+
   function markNav(pathname) {
     // S88: the RAIL's primary icons are the desktop nav (the old .topbar .nav-links
     // is retired — the selector stays for any straggler surface). /app IS the
@@ -318,6 +341,7 @@
     // load and never re-marked on soft navigation (the bug: notes → projects kept
     // "Notes" lit). Secondary pages also light up the More tab via the same call.
     window.hibanaMobileNav?.mark(pathname)
+    syncRailIconMode(pathname) // S95 r2 item 9: the icon-rail follows the page
     markRailRows()
   }
 
@@ -413,6 +437,10 @@
   // one grouped list section: label + count + collapsible body of .rail-item rows.
   // S93 (item 6): opts.accent tints the head with the quadrant's picked pastel (a
   // 12% wash + a colored lead dot — the same token the board quadrant renders).
+  // S95 r2 (owner item 2): the disclosure chevron points DOWN in its collapsed
+  // state ("open me — the content lives below"); the expanded state rotates it
+  // upright via layout.css. The old right-pointing glyph read as pointing "top"
+  // when the collapsed rotation tipped it up.
   const railGroup = (label, items, opts = {}) => {
     const count = Array.isArray(items) ? items.length : 0
     if (!count && opts.hideWhenEmpty !== false) return ''
@@ -421,7 +449,7 @@
     const dot = opts.accent ? '<span class="rail-group-dot" style="--sw: var(--' + escHtml(opts.accent) + ')" aria-hidden="true"></span>' : ''
     return '<div class="rail-group' + (opts.collapsed ? ' is-collapsed' : '') + '"' + accentAttr + '>' +
       '<button type="button" class="rail-group-head" data-rail-group aria-expanded="' + (opts.collapsed ? 'false' : 'true') + '">' +
-      '<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg>' +
+      '<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>' +
       dot +
       '<span>' + escHtml(label) + '</span>' +
       '<span class="rail-group-count">' + railFaDig(count) + '</span>' +
@@ -477,21 +505,29 @@
     // STAGE (0060 taxonomy) — the owner's sketch: "-planning / item one / item two /
     // -queued / …". Rows deep-link to the project's own page (the S89 ?id= contract);
     // operational rides collapsed at the end.
-    // S94 (owner item 6 — the DEEPER tree): stage → PROJECT → idea-groups → items.
-    // A project carrying idea/bug dev-tasks (/api/rail projectTasks) grows a nested
-    // branch under its row: its "New ideas" + "Problems" groups (the project page's
-    // progress-box vocabulary) as collapsible sub-heads, each counting its items,
-    // items deep-linking to the project page where those boxes live. The sub-groups
-    // are .rail-group markup (class contract: [data-rail-group] toggles the CLOSEST
-    // .rail-group) nested inside the stage body — the S91 tree-guide indent compounds
-    // (0.8rem per level), so the hierarchy reads exactly like the owner's sketch;
-    // sub-groups ship COLLAPSED so the panel stays a scannable summary, drill-down on
-    // demand. Projects without idea/bug tasks stay flat rows.
+    // S94 (owner item 6 — the DEEPER tree): stage → PROJECT → boxes → items.
+    // A project carrying board dev-tasks (/api/rail projectTasks) grows a nested
+    // branch under its row: its progress boxes as collapsible sub-heads, each
+    // counting its items, items deep-linking to the project page where those boxes
+    // live. The sub-groups are .rail-group markup (class contract: [data-rail-group]
+    // toggles the CLOSEST .rail-group) nested inside the stage body — the S91
+    // tree-guide indent compounds (0.8rem per level), so the hierarchy reads exactly
+    // like the owner's sketch; sub-groups ship COLLAPSED so the panel stays a
+    // scannable summary, drill-down on demand. Projects without board tasks stay
+    // flat rows.
+    // S95 r2 (owner item 1): EVERY box the board renders rides — a box with ≥1 item
+    // grows its group (idea/bug/planned/in_progress/done, the board's column order),
+    // not just New ideas + Problems.
     const projects = d.projects || []
     const ptasks = d.projectTasks || []
+    // The board's column order + vocabulary (detail-helpers COLS) — one source of
+    // truth mirrored here for the tree heads.
     const SUB_GROUPS = [
       { key: 'idea', i18n: 'rail.g.newIdeas', label: 'New ideas' },
       { key: 'bug', i18n: 'rail.g.problems', label: 'Problems' },
+      { key: 'planned', i18n: 'rail.g.plans', label: 'Plans' },
+      { key: 'in_progress', i18n: 'rail.g.inProgress', label: 'In Progress' },
+      { key: 'done', i18n: 'rail.g.done', label: 'Done' },
     ]
     const projectBranch = (p) => {
       const href = '/project.html?id=' + encodeURIComponent(p.id)
@@ -510,18 +546,24 @@
         : ''
       const row = railItem(href, p.title, p.status, null, bugBadge)
       if (!mine.length) return row
-      // S95 (candidate 3 — deep-link to the box itself): the tree's leaf rows land
-      // ON the section where that work lives instead of the page top — ideas at the
-      // project's progress board (#pd-board, where idea tasks render), problems at
-      // the exact problems section (#detail-problems). Native hash scrolling does
-      // the landing (both sections are server-rendered before first paint).
-      const SUB_TARGET = { idea: '#pd-board', bug: '#detail-problems' }
+      // S95 (candidate 3 + r2): the tree's leaf rows land ON the exact BOX where
+      // that work lives — every board column now carries its own anchor
+      // (#pd-col-<status>), so a box's items deep-link to the column itself;
+      // problems keep their dedicated tab panel (#detail-problems — the page's
+      // hash boot opens that tab). Native hash scrolling does the landing.
+      const SUB_TARGET = {
+        idea: '#pd-col-idea',
+        bug: '#detail-problems',
+        planned: '#pd-col-planned',
+        in_progress: '#pd-col-in_progress',
+        done: '#pd-col-done',
+      }
       const subs = SUB_GROUPS.map((g) => {
         const items = mine.filter((t) => t.status === g.key)
         if (!items.length) return ''
         return '<div class="rail-group rail-sub-group is-collapsed">' +
           '<button type="button" class="rail-group-head" data-rail-group aria-expanded="false">' +
-          '<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg>' +
+          '<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>' +
           '<span>' + escHtml(railT(g.i18n, g.label)) + '</span>' +
           '<span class="rail-group-count">' + railFaDig(items.length) + '</span>' +
           '</button><div class="rail-group-body">' +
@@ -806,6 +848,9 @@
   function openRailPanel(section) {
     const box = railBox()
     if (!box || !RAIL_SECTIONS[section]) return
+    // S95 r2 (owner item 9): the panel never mounts on a module-sidebar page —
+    // the module's own sidebars own the real estate beside the icon rail.
+    if (document.body.classList.contains('rail-icons-only')) return
     railSection = section
     box.hidden = false
     document.body.classList.add('rail-panel-open')
@@ -826,12 +871,34 @@
   // The rail icons: click OPENS the panel (VS Code semantics — single click never
   // navigates; the panel's header "Open →" + the item rows do). S93 (owner items 2
   // + 10): an icon carrying data-rail-nav ALSO navigates — Projects shows the page
-  // AND its grouped sidebar together. Registered BEFORE the generic link interceptor
-  // below so stopPropagation keeps the navigator out.
+  // AND its grouped sidebar together. S95 r2 (owner items 3 + 9): To-do joins the
+  // navigators (a click lands on /to-do-list), and on a MODULE-SIDEBAR page (the
+  // icon rail) every icon is a plain link — the panel never opens there; a
+  // navigating icon remembers its panel for the destination (it opens once the
+  // module class lifts, so Projects-from-Notes still arrives with its tree).
+  // Registered BEFORE the generic link interceptor below so stopPropagation keeps
+  // the navigator out.
+  let pendingPanelOnNav = null // a panel section to open after the NEXT load() lands
   document.addEventListener('click', (e) => {
     const icon = e.target.closest ? e.target.closest('.rail-btn[data-rail-panel]') : null
     if (!icon) return
     if (e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return
+    // S95 r2 item 9 — the icon rail: no panel HERE. Nav icons navigate and remember
+    // their panel for the destination; the rest navigate as plain links (the module
+    // page is where their panel would live — the destination owns it).
+    if (document.body.classList.contains('rail-icons-only')) {
+      const section = icon.getAttribute('data-rail-panel') || ''
+      if (icon.hasAttribute('data-rail-nav') && RAIL_SECTIONS[section]) {
+        e.preventDefault()
+        e.stopPropagation()
+        pendingPanelOnNav = section
+        // A HARD destination (e.g. To-do → /to-do-list) full-reloads — the persisted
+        // key is what its boot restore reads (soft destinations use the pending flag).
+        try { localStorage.setItem(RAIL_PANEL_KEY, section) } catch { /* storage unavailable */ }
+        go(icon.getAttribute('href') || '')
+      }
+      return // no data-rail-nav → the plain anchor navigates via the generic interceptor
+    }
     e.preventDefault()
     e.stopPropagation()
     const section = icon.getAttribute('data-rail-panel') || ''
@@ -922,10 +989,14 @@
 
   // Restore the persisted panel on boot (desktop only — the panel is hidden ≤1024
   // and the fetch would be wasted). The section re-opens with fresh /api/rail data.
+  // S95 r2 (owner item 9): boot sets the icon-rail class FIRST (a module-sidebar
+  // page collapses the rail + never restores its panel — the module's own sidebar
+  // owns the space beside the rail).
+  syncRailIconMode(location.pathname)
   if (window.matchMedia('(min-width: 1025px)').matches) {
     let saved = null
     try { saved = localStorage.getItem(RAIL_PANEL_KEY) } catch { saved = null }
-    if (saved && RAIL_SECTIONS[saved]) {
+    if (saved && RAIL_SECTIONS[saved] && !document.body.classList.contains('rail-icons-only')) {
       // wait for the partial to mount the panel host (async /api/nav injection)
       const t0 = Date.now()
       const iv = setInterval(() => {

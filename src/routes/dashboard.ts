@@ -420,7 +420,7 @@ export function dashboardRoutes(cfg: Config) {
             ${taskRows}
           </ul>
           ${overflow > 0
-            ? html`<a class="dash-todo-more dash-todo-more-link" href="/to-do-list" title="${t('Open the full board', 'باز کردن برد کامل')}">${t('+{n} more on the board', '+{n} مورد دیگر در برد', { n: todoNum(overflow) })}</a>`
+            ? html`<a class="dash-todo-more dash-todo-more-link" href="/to-do-list#Q${q.id}" title="${t('Open this box on the board', 'این جعبه را در برد باز کن')}">${t('+{n} more on the board', '+{n} مورد دیگر در برد', { n: todoNum(overflow) })} ${raw(icon('arrow-up-right', 'icon'))}</a>`
             : tasks.length > 5 ? html`<button type="button" class="dash-todo-more" data-dash-see-more="${q.id}">${t('See More', 'مشاهده بیشتر')}</button>` : ''}
           <!-- 2026-09-06 (k) user request: the quick-add moved OUT of the customize
                popover (that button was dead — its form was removed with the old preview

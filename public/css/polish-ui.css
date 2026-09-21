@@ -1257,13 +1257,17 @@ body.has-mobile-nav { padding-block-end: calc(3.75rem + env(safe-area-inset-bott
    "Last opened" hint + Clear) → HERO entry (the newest, banner-grade: glyph +
    kind·stage·timeAgo + title + Open CTA) → up to 3 smaller chips.
    ═══════════════════════════════════════════════════════════════════════════ */
+/* S97 (the flat-card system, B): the strip is a PLAIN card — the old 5%-accent
+   gradient top veil + the soft drop shadow retired with the app-wide flat round
+   (the gradient was already cascade-dead in light: notifications.css's .card
+   painted over it at equal specificity from a later sheet; now it's honestly
+   solid). Hover feedback lives on the hero rows (border-deepening only). */
 .resume-strip {
   padding: 0.9rem 1.1rem 1rem;
   display: flex; flex-direction: column; gap: 0.7rem;
-  background: linear-gradient(180deg, color-mix(in srgb, var(--accent) 5%, var(--card)) 0%, var(--card) 55%);
+  background: var(--card);
   border: 1px solid var(--line);
   border-radius: var(--radius-lg, 14px);
-  box-shadow: 0 1px 2px rgba(38, 33, 24, 0.04);
 }
 .resume-head { display: flex; align-items: baseline; gap: 0.6rem; flex-wrap: wrap; }
 .resume-head h2 { font-size: 0.95rem; font-weight: 700; letter-spacing: 0.01em; margin: 0; color: var(--text); display: flex; align-items: center; gap: 0.45rem; }
@@ -1278,27 +1282,28 @@ body.has-mobile-nav { padding-block-end: calc(3.75rem + env(safe-area-inset-bott
    "Resume work" card's visual DNA (accent-edged panel, glyph tile, prominent
    title, explicit Open CTA) but sourced from the ONE shared last-opened store.
    Desktop: one full-width row; phone: same, CTA stays reachable (≥44px). */
+/* S85: the HERO entry — the newest item, banner-grade. S97 (the flat-card system,
+   B): the hero's priority fill is a SOLID 8% accent veil (the 100deg gradient
+   retired) + the 4px lead bar; hover deepens the border ONLY (the elevation
+   shadow + the -1px lift retired with the flat round); the focus ring stays. */
 .resume-hero {
   display: flex; align-items: center; gap: 0.85rem;
   padding: 0.8rem 0.9rem;
-  background: linear-gradient(100deg, var(--accent-soft), var(--card) 72%);
+  background: color-mix(in srgb, var(--accent) 8%, var(--card));
   border: 1px solid color-mix(in srgb, var(--accent) 30%, var(--line));
   border-inline-start: 4px solid var(--accent);
   border-radius: 12px;
   text-decoration: none; color: inherit;
-  transition: border-color .16s ease, box-shadow .16s ease, transform .16s ease;
+  transition: border-color .16s ease;
 }
 .resume-hero:hover, .resume-hero:focus-visible {
   border-color: color-mix(in srgb, var(--accent) 55%, var(--line));
-  box-shadow: 0 4px 14px -6px rgba(38, 33, 24, 0.22);
-  transform: translateY(-1px);
   outline: none;
 }
 .resume-hero:focus-visible {
   box-shadow:
     0 0 0 2px var(--card),
-    0 0 0 4px color-mix(in srgb, var(--accent) 55%, transparent),
-    0 4px 14px -6px rgba(38, 33, 24, 0.22);
+    0 0 0 4px color-mix(in srgb, var(--accent) 55%, transparent);
 }
 .resume-hero-body { flex: 1 1 auto; min-inline-size: 0; display: flex; flex-direction: column; gap: 0.18rem; }
 .resume-hero-kicker { font-size: 0.72rem; color: var(--muted); display: flex; align-items: center; gap: 0.35rem; flex-wrap: wrap; }

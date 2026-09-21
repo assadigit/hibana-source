@@ -26,7 +26,9 @@ import type { Config, UserRow } from '../types'
 //   tasks       — S93 (owner round, item 15): project tasks carrying a due_date in the
 //                 next 14 days (id/title/due_date/project_id) — the calendar panel's
 //                 "planned work" list draws them beside project deadlines + to-dos
-//                 (the same `tasks` source /api/calendar aggregates).
+//                 (the same `tasks` source /api/calendar aggregates). S100: scoped to
+//                 CLIENT projects (the tasks table's only writer is the clients UI —
+//                 the rows deep-link to /clients.html#task-<id>).
 //   projectTasks— S94 (owner item 6): each live project's progress-BOX tasks — the
 //                 projects panel's deeper tree: stage → project → box → items.
 //                 S95 r2 (owner item 1): EVERY box the board renders rides now
@@ -46,6 +48,12 @@ interface RailTodo { id: string; title: string; done: number; due_date: string |
 interface RailTodoName { quadrant: number; name: string; accent_color: string | null }
 interface RailTask { id: string; title: string; due_date: string; project_id: string }
 interface RailProjectTask { id: string; title: string; status: string; project_id: string }
+// S100: the client-checklist task rows — the tasks table's ONLY writer is the
+// clients UI (POST /api/projects/:id/tasks from the client checklist form), so
+// the Coming-up rows deep-link to /clients.html#task-<id>. The query is scoped
+// to p.type='client' (a non-client row would be a dead link the UI cannot even
+// produce — the checklist lives on /clients.html only, module.ts; the old
+// project-page href pointed at a page that NEVER renders these rows).
 
 export function railRoutes(cfg: Config): Hono<{ Variables: { user: UserRow } }> {
   const app = new Hono<{ Variables: { user: UserRow } }>()
@@ -100,7 +108,7 @@ export function railRoutes(cfg: Config): Hono<{ Variables: { user: UserRow } }> 
       cfg.db.query<RailTask>(
         `SELECT t.id, t.title, t.due_date, t.project_id FROM tasks t
          JOIN projects p ON p.id = t.project_id
-         WHERE p.user_id = ? AND p.deleted_at IS NULL
+         WHERE p.user_id = ? AND p.deleted_at IS NULL AND p.type = 'client'
            AND t.due_date IS NOT NULL AND t.due_date >= ? AND t.due_date <= ?
          ORDER BY t.due_date ASC LIMIT 15`,
         [user.id, today, in14],

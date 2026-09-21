@@ -73,6 +73,32 @@
           if (b) { e.preventDefault(); buildClientDialog().showModal() }
         }
         document.addEventListener('click', onQuickAdd)
+        // S100 (the deep-link system): a #task-<id> hash opens THE checklist row —
+        // the rail's Coming-up list + the calendar page link here. The checklist
+        // rides inside a COLLAPSED <details> whose body arrives via the
+        // #client-body htmx sweep, so the hash stays PENDING until the first
+        // afterSwap that lands the row (the project-page pdConsumeHash recipe);
+        // ONCE per navigation — later htmx re-renders (a tick) never re-flash the
+        // mark. The row opens its <details>, wears the .q-arrived mark (accent
+        // frame + 1.6s ring flash, layout.css .hurdle.q-arrived) and scrolls in
+        // (the 4.5rem scroll-margin clears the topbar).
+        let taskHashPending = /^#task-/.test(location.hash)
+        const consumeTaskHash = () => {
+          if (!taskHashPending) return
+          const el = document.getElementById(decodeURIComponent(location.hash.slice(1)))
+          if (!el || !el.isConnected) return // the sweep hasn't landed this row yet
+          taskHashPending = false
+          const details = el.closest('details')
+          if (details) details.open = true
+          el.classList.add('q-arrived')
+          requestAnimationFrame(() => { if (el.isConnected) el.scrollIntoView() })
+        }
+        for (const evt of ['htmx:afterSwap', 'afterSwap']) {
+          ctx.on(evt, (e) => {
+            if (e.target?.id === 'client-body' || e.detail?.target?.id === 'client-body') consumeTaskHash()
+          })
+        }
+        consumeTaskHash()
         // Drop the lazily-built dialog from the body on unmount.
         return () => { document.removeEventListener('click', onQuickAdd); if (dialog) dialog.remove(); dialog = null }
       },

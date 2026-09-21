@@ -237,6 +237,36 @@
   border-radius: var(--radius-sm);
   background: transparent; /* pastel stage coding lives on the edge/header, not a fill */
 }
+/* S99 (the column arrival cue): a #pd-col-<status> landing (the rail tree's leaf
+   rows) marks the EXACT column — the accent frame + the 3px inline-start lead
+   edge joining the accent + a 1.6s ring flash (the same treatment the S97 board
+   quadrants get); reduced-motion collapses to the frame alone. Once per
+   navigation (project-page.js's pdConsumeColHash). */
+.pd-col.q-arrived {
+  border-color: var(--accent);
+  border-inline-start-color: var(--accent);
+  animation: pdArrived 1.6s ease;
+}
+@keyframes pdArrived {
+  0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent) 55%, transparent); }
+  100% { box-shadow: 0 0 0 14px color-mix(in srgb, var(--accent) 0%, transparent); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .pd-col.q-arrived { animation: none; }
+}
+/* S100 (the tab arrival flash): landing #detail-<tab> (the rail tree's Problems
+   leaf) pins the TAB BUTTON itself — inset 1px accent ring + accent-soft fill +
+   the shared pdArrived flash; the tab strip answers "which section is this?" the
+   same way the column mark answers "which box?". The is-active styles stay
+   untouched (the mark layers on top, once per navigation). */
+.detail-tab.q-arrived {
+  box-shadow: inset 0 0 0 1px var(--accent);
+  background: var(--accent-soft);
+  animation: pdArrived 1.6s ease;
+}
+@media (prefers-reduced-motion: reduce) {
+  .detail-tab.q-arrived { animation: none; }
+}
 /* .pd-col-head moved below (S88: the tinted header strip) */
 /* Project detail meta line — the user's "all project metadata 50% smaller" pass
    (2026-08-30 checklist) covered the card meta (.pc-updated 0.68rem) but left this

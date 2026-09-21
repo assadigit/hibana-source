@@ -59,12 +59,13 @@
    R2.4 — Styling polish: card depth, scrollbar, mobile spacing
    =========================================================================== */
 
-/* Card depth refinement — a hair-thin top highlight + the existing flat border, giving
-   cards a subtle "lifted from the page" feel without bringing back heavy shadows.
-   Theme-aware: light gets a white highlight, dark gets a lighter-edge highlight. */
+/* Card depth refinement — RETIRED by the S97 flat-card system: cards are SOLID
+   var(--card) surfaces now; depth comes from the hairline border alone (the owner's
+   restraint round — every gradient "lift" in the app went with it; position:relative
+   stays, the kanban ::before status bars anchor to it). */
 .card {
   position: relative;
-  background: linear-gradient(to bottom, color-mix(in srgb, var(--card) 96%, var(--text) 4%), var(--card)) var(--card);
+  background: var(--card);
 }
 @media (prefers-color-scheme: dark) {
 }

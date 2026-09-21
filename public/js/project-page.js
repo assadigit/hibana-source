@@ -1156,6 +1156,7 @@
             if (e.target?.id === 'project-body' || e.detail?.target?.id === 'project-body') {
               switchTab(pdActiveTab)
               pdConsumeHash()
+              pdConsumeColHash()
             }
           })
         }
@@ -1180,11 +1181,36 @@
           if (!el) return // panels not swept yet — stays pending for the next afterSwap
           pdHashPending = false
           switchTab(m[1])
+          // S100 (the tab arrival flash): the tab STRIP pins WHICH section you
+          // landed on — the button itself wears the mark (inset accent ring +
+          // soft fill + the shared pdArrived flash, project-header.css), the
+          // same arrival language the S99 board columns speak.
+          const tabBtn = document.querySelector('[data-detail-tab="' + m[1] + '"]')
+          if (tabBtn) tabBtn.classList.add('q-arrived')
           // rAF: the sweep's post-swap layout (htmx settling, the tab-fade) needs a
           // frame to settle — scrolling synchronously landed ~146px short in QA.
           requestAnimationFrame(() => { if (el.isConnected) el.scrollIntoView() })
         }
         pdConsumeHash()
+        // S99 (the column arrival cue): a #pd-col-<status> landing (the rail tree's
+        // leaf rows deep-link to the EXACT board column) marks THAT column — the
+        // accent frame + the 3px inline-start lead edge joining the accent + a
+        // 1.6s ring flash (.pd-col.q-arrived, project-header.css), the same
+        // treatment the S97 board quadrants get. The columns arrive via the
+        // #project-body htmx sweep, so the hash stays pending until the first
+        // sweep that lands it (the pdConsumeHash cadence); ONCE per navigation.
+        // A hash naming no real column stays quietly pending — never mark on a
+        // bogus fragment. The SCROLL is nav.js's S95 section-anchor system.
+        let pdColHashPending = /^#pd-col-([a-z_]+)$/.test(location.hash)
+        function pdConsumeColHash() {
+          if (!pdColHashPending) return
+          const m = /^#pd-col-([a-z_]+)$/.exec(location.hash)
+          const col = m ? document.getElementById('pd-col-' + m[1]) : null
+          if (!col) return // the board hasn't been swept yet — stays pending
+          pdColHashPending = false
+          col.classList.add('q-arrived')
+        }
+        pdConsumeColHash()
 
         // --- Redesigned header (user sketch 2026-08-29) ---------------------------------
 

@@ -266,15 +266,28 @@ body.rail-panel-open .rail-panel { visibility: visible; opacity: 1; transition: 
   color: var(--brand); font-size: var(--fs-xs); font-weight: 600;
 }
 .rail-panel-open-link:hover { background: var(--accent-soft); text-decoration: none; }
-.rail-panel-close {
+/* S97 (the tree fold): the panel head's fold button rides the .rail-panel-close
+   recipe — a quiet 2rem icon button, muted ink, bg-soft hover, brand focus ring. */
+.rail-panel-close,
+.rail-panel-tree {
   display: grid; place-items: center;
   inline-size: 2rem; block-size: 2rem;
   border: 0; border-radius: 0.5rem;
   background: transparent; color: var(--muted); cursor: pointer;
+  flex: none;
 }
-.rail-panel-close:hover { background: var(--bg-soft); color: var(--text); }
-.rail-panel-close:focus-visible { outline: 2px solid var(--brand); outline-offset: 1px; }
-.rail-panel-body { flex: 1; min-block-size: 0; overflow-y: auto; overscroll-behavior: contain; padding: 0.5rem 0.5rem 1rem; }
+.rail-panel-close:hover,
+.rail-panel-tree:hover { background: var(--bg-soft); color: var(--text); }
+.rail-panel-close:focus-visible,
+.rail-panel-tree:focus-visible { outline: 2px solid var(--brand); outline-offset: 1px; }
+/* S98 (styling): the panel body's thin quiet scrollbar — the projects TREE scrolls
+   daily; the platform-default bar read heavy on the quiet white panel (the
+   project-header.css recipe: thin + muted-45% scrollbar-color). */
+.rail-panel-body {
+  flex: 1; min-block-size: 0; overflow-y: auto; overscroll-behavior: contain; padding: 0.5rem 0.5rem 1rem;
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in srgb, var(--muted) 45%, transparent) transparent;
+}
 .rail-group { margin-block-end: 0.4rem; }
 .rail-group-head {
   display: flex; align-items: center; gap: 0.3rem;
@@ -300,11 +313,30 @@ body.rail-panel-open .rail-panel { visibility: visible; opacity: 1; transition: 
    live below — open me"); expanding flips it upright (▴). The old glyph pointed
    right and the collapsed rotation (-90deg) tipped it toward the TOP — the owner
    flagged it. Both states are vertical glyphs, so RTL mirrors honestly.
-   NOTE the > child combinator: a bare descendant selector also matched through
+   NOTE the > child combinators: a bare descendant selector also matched through
    the EXPANDED stage group an expanded sub-tree sits inside (the stage → project
-   → box nesting) — every sub-chevron rode the ancestor's rotation. */
-.rail-group:not(.is-collapsed) > .rail-group-head .icon { transform: rotate(180deg); }
+   → box nesting) — every sub-chevron rode the ancestor's rotation.
+   S98 (the goto chips): chip-carrying heads sit one level DEEPER (group >
+   headrow > head), so the rotation rule covers both paths. */
+.rail-group:not(.is-collapsed) > .rail-group-head .icon,
+.rail-group:not(.is-collapsed) > .rail-group-headrow > .rail-group-head .icon { transform: rotate(180deg); }
 .rail-group.is-collapsed .rail-group-body { display: none; }
+/* S98 (the goto chips): a group carrying a deep link rides its head inside a flex
+   row — the toggle button keeps flex:1 (its width contract is untouched) and the
+   chip sits as its SIBLING on the inline END (an <a> can never nest in a <button>).
+   The chip is the .rail-panel-close recipe: quiet 2rem icon, muted ink, bg-soft
+   hover, brand focus ring. */
+.rail-group-headrow { display: flex; align-items: center; gap: 0.25rem; }
+.rail-group-headrow .rail-group-head { flex: 1; min-inline-size: 0; }
+.rail-group-goto {
+  display: grid; place-items: center;
+  inline-size: 2rem; block-size: 2rem;
+  flex: none;
+  border: 0; border-radius: 0.5rem;
+  background: transparent; color: var(--muted); cursor: pointer;
+}
+.rail-group-goto:hover { background: var(--bg-soft); color: var(--text); text-decoration: none; }
+.rail-group-goto:focus-visible { outline: 2px solid var(--brand); outline-offset: 1px; }
 /* S90 (owner request, the "A / --B" sketch): items sit INDENTED under their group
    head so the hierarchy reads at a glance — the body pulls in from the head's edge
    and a hairline guide carries the eye down the group's extent (a tree rail, the
@@ -1011,7 +1043,13 @@ input::placeholder, textarea::placeholder { font-size: 0.88em; opacity: 0.7; } /
 
 /* --- hurdles / lists -------------------------------------------------------- */
 .hurdles { list-style: none; padding: 0; margin: 0 0 1rem; display: grid; gap: 0.35rem; }
+/* S100 (the deep-link system): a client-checklist row landed on via #task-<id>
+   (the rail's Coming-up list + the calendar page) wears the ARRIVAL MARK — the
+   accent frame + a 1.6s ring flash, the same treatment the board quadrants
+   (S97) and columns (S99) get; reduced-motion collapses to the frame alone.
+   The 4.5rem scroll-margin clears the sticky topbar on anchor landings. */
 .hurdle {
+  scroll-margin-block-start: 4.5rem;
   display: flex;
   align-items: center;
   gap: 0.75rem;
@@ -1022,6 +1060,16 @@ input::placeholder, textarea::placeholder { font-size: 0.88em; opacity: 0.7; } /
 }
 .hurdle:hover { background: var(--bg-soft); }
 .hurdle.done span { text-decoration: line-through; color: var(--muted); }
+/* S100 (the deep-link arrival mark) — the accent frame + ring flash, reduced-motion
+   collapses to the frame alone (the .pd-col/.quadrant/.detail-tab siblings). */
+.hurdle.q-arrived { border-color: var(--accent); animation: hurdleArrived 1.6s ease; }
+@keyframes hurdleArrived {
+  0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent) 55%, transparent); }
+  100% { box-shadow: 0 0 0 14px color-mix(in srgb, var(--accent) 0%, transparent); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .hurdle.q-arrived { animation: none; }
+}
 /* pre-line: legacy list items that stored multiple lines as one task render as real line breaks */
 .hurdle span { white-space: pre-line; }
 .hurdle .toggle { border: 0; background: transparent; color: var(--muted); }

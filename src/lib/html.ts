@@ -90,6 +90,9 @@ export function icon(name: string, cls = 'icon'): string {
       case 'folder-plus': return '<path d="M3.5 7a2 2 0 0 1 2-2h4l2 2h7a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-13a2 2 0 0 1-2-2V7Z"/><path d="M12 11v4M10 13h4"/>'
       case 'repeat': return '<path d="M17 2.5 21 6.5l-4 4M3.5 11V9a4 4 0 0 1 4-4h13.5M7 21.5 3 17.5l4-4M20.5 13v2a4 4 0 0 1-4 4H3"/>'
       case 'arrow-right': return '<path d="M4.5 12h15M13.5 6l6 6-6 6"/>'
+      // S100 (the deep-link language): the goto-chip glyph — the rail panel's
+      // quadrant chips + the dashboard's "+N more" link speak the same ↗ cue.
+      case 'arrow-up-right': return '<path d="M7 7h10v10M7 17 17 7"/>'
       case 'chevron-left': return '<path d="M14.5 5.5 8 12l6.5 6.5"/>'
       case 'chevron-right': return '<path d="M9.5 5.5 16 12l-6.5 6.5"/>'
       case 'image': return '<rect x="3.5" y="5" width="17" height="14" rx="2"/><circle cx="8" cy="10" r="1.5"/><path d="M21 16l-5-5L5 19"/>'

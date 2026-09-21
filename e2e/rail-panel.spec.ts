@@ -67,6 +67,14 @@ test.beforeAll(async () => {
     `INSERT INTO sadhana_tasks (id, user_id, quadrant, title, due_date, done, position, created_at, updated_at)
      VALUES ('${id}-t3', '${id}', 3, 'Rail urgent task', NULL, 0, 2, '${now}', '${now}')`,
   )
+  // S99: a second dated to-do (Q2, due TOMORROW) — the Coming-up rows land on
+  // their quadrant, and the to-do panel grows its THIRD quadrant group (the
+  // goto-chip test pins three chips on it).
+  const tomorrow = new Date(Date.now() + 86400000).toISOString().slice(0, 10)
+  db.exec(
+    `INSERT INTO sadhana_tasks (id, user_id, quadrant, title, due_date, done, position, created_at, updated_at)
+     VALUES ('${id}-t2', '${id}', 2, 'Rail strategic task', '${tomorrow}', 0, 3, '${now}', '${now}')`,
+  )
   // S94 (owner item 6) + S95 r2 (owner item 1): Rail project 0 (developing) carries
   // one 'idea' + one 'bug' + one 'planned' dev task — its rail row grows the nested
   // box TREE branch (every board box with ≥1 item shows; the new test below pins
@@ -84,6 +92,16 @@ test.beforeAll(async () => {
   db.exec(
     `INSERT INTO dev_tasks (id, project_id, title, status, priority, sort_order, created_at)
      VALUES ('${id}-dt3', '${id}-p0', 'Rail tree plan', 'planned', 'low', 0, '${now}')`,
+  )
+  // S100: Rail project 1 becomes a CLIENT project carrying one dated checklist
+  // task (the tasks table's only writer is the clients UI) — the Coming-up
+  // list's client rows deep-link to /clients.html#task-<id> (the projects query
+  // doesn't filter type, so no pinned count moves).
+  db.exec(`UPDATE projects SET type = 'client' WHERE id = '${id}-p1'`)
+  db.exec(`DELETE FROM tasks WHERE project_id = '${id}-p1'`)
+  db.exec(
+    `INSERT INTO tasks (id, project_id, title, done, due_date, created_at)
+     VALUES ('${id}-ct1', '${id}-p1', 'Rail client task', 0, '${today}', '${now}')`,
   )
   db.close()
 })
@@ -335,6 +353,18 @@ test.describe('the secondary panel (VS Code Activity Bar + Side Bar pattern)', (
     await expect(page.locator('.rail-item.is-row-active', { hasText: 'Rail project 0' })).toHaveClass(/is-row-active/)
     await expect(page.locator('.rail-item.is-row-active', { hasText: 'Rail tree idea' })).toHaveClass(/is-row-active/)
 
+    // S99 (the column arrival cue): the landed column wears the mark — the
+    // accent frame pins WHICH box you arrived on; its sibling columns stay
+    // neutral. (The border-color TRANSITION means the computed style lags one
+    // beat — waitForFunction on the DIVERGENCE, never a one-shot read.)
+    await expect(page.locator('#pd-col-idea')).toHaveClass(/q-arrived/)
+    await expect(page.locator('#pd-col-planned')).not.toHaveClass(/q-arrived/)
+    await page.waitForFunction(() => {
+      const a = document.querySelector('#pd-col-idea.q-arrived')
+      const n = document.querySelector('#pd-col-planned')
+      return !!a && !!n && getComputedStyle(a).borderColor !== getComputedStyle(n).borderColor
+    }, null, { timeout: 10_000 })
+
     // The «Problems» leaf (a hash-only soft nav from the same project page):
     // #detail-problems OPENS the problems tab (the panels ship hidden — the
     // page's hash boot un-hides + scrolls it) and its row joins the marks.
@@ -343,6 +373,168 @@ test.describe('the secondary panel (VS Code Activity Bar + Side Bar pattern)', (
     await expect(page.locator('[data-detail-tab="problems"]')).toHaveAttribute('aria-selected', 'true')
     await expect(page.locator('#detail-problems')).toBeVisible()
     await expect(page.locator('.rail-item.is-row-active', { hasText: 'Rail tree bug' })).toHaveClass(/is-row-active/)
+    // S100 (the tab arrival flash): the problems TAB BUTTON wears the mark — the
+    // inset accent ring + soft fill pin WHICH section the strip landed on; the
+    // notes tab (the default) stays clean.
+    await expect(page.locator('[data-detail-tab="problems"]')).toHaveClass(/q-arrived/)
+    await expect(page.locator('[data-detail-tab="notes"]')).not.toHaveClass(/q-arrived/)
+  })
+
+  // S97 (the tree fold): one button in the panel head collapses/expands EVERY
+  // group — the seeded projects tree (2 stage groups + 3 nested sub-groups) folds
+  // and unfolds in one tap, the button's label/icon/aria flipping with the state.
+  test('the panel head\'s TREE FOLD collapses/expands every group (S97)', async ({ page }) => {
+    await login(page)
+    await page.click('.rail .rail-primary a[data-rail-panel="projects"]')
+    await page.waitForURL('**/projects.html', { timeout: 10_000 })
+    await expect(page.locator('.rail-panel-title')).toHaveText('Projects')
+
+    // The seeded tree: Developing (open) + Operational (collapsed by design) +
+    // three nested sub-groups (collapsed by design) = 5 groups, 4 already folded.
+    await expect(page.locator('.rail-group')).toHaveCount(5)
+    await expect(page.locator('.rail-group.is-collapsed')).toHaveCount(4)
+
+    // The button mirrors the state: not everything folded → it offers Collapse
+    // all (a DOWN chevron — the same "the content lives below" glyph the group
+    // heads speak).
+    const btn = page.locator('[data-rail-tree]')
+    await expect(btn).toHaveAttribute('aria-label', 'Collapse all')
+    await expect(btn).toHaveAttribute('title', 'Collapse all')
+    expect(await btn.locator('.icon path').evaluate((el) => el.getAttribute('d'))).toBe('m6 15 6 6 6-6')
+
+    // One tap folds the lot — every group collapsed, every head's aria follows.
+    await btn.click()
+    await expect(page.locator('.rail-group.is-collapsed')).toHaveCount(5)
+    await expect(page.locator('.rail-group-head[aria-expanded="false"]')).toHaveCount(5)
+
+    // The button flipped: Expand all — label + title + the i18n key + the UP icon.
+    await expect(btn).toHaveAttribute('aria-label', 'Expand all')
+    await expect(btn).toHaveAttribute('data-i18n-aria-label', 'rail.expandAll')
+    expect(await btn.locator('.icon path').evaluate((el) => el.getAttribute('d'))).toBe('m6 9 6-6 6 6')
+
+    // The other direction: everything back open (the operational stage's default
+    // collapsed state loses to the explicit expand — the button is the boss).
+    await btn.click()
+    await expect(page.locator('.rail-group:not(.is-collapsed)')).toHaveCount(5)
+    await expect(page.locator('.rail-group-head[aria-expanded="true"]')).toHaveCount(5)
+    await expect(btn).toHaveAttribute('aria-label', 'Collapse all')
+  })
+
+  // S98 (the goto chips): every quadrant group head in the to-do panel carries an
+  // "open on the board ↗" chip landing ON that exact quadrant — the head rides a
+  // flex row (the toggle contract untouched), and the chip navigates with the
+  // arrival mark on the exact quadrant only.
+  test('the to-do panel\'s quadrant groups carry GOTO CHIPS landing on the board (S98)', async ({ page }) => {
+    await login(page)
+    await page.goto('/projects.html')
+    await page.click('.rail .rail-primary a[data-rail-panel="todo"]')
+    await expect(page.locator('.rail-panel-title')).toHaveText('To-do list')
+
+    // THREE quadrant groups carry tasks (Q1 today, Q3 urgent, Q2 strategic — Q4
+    // empty stays hidden) → exactly three chips, in the panel's quadrant order.
+    const chips = page.locator('.rail-group-goto')
+    await expect(chips).toHaveCount(3)
+    await expect(chips.nth(0)).toHaveAttribute('href', '/to-do-list#Q1')
+    await expect(chips.nth(1)).toHaveAttribute('href', '/to-do-list#Q3')
+    await expect(chips.nth(2)).toHaveAttribute('href', '/to-do-list#Q2')
+    // The chip speaks: aria-label + title (EN here; FA under the fa locale).
+    await expect(chips.nth(0)).toHaveAttribute('aria-label', 'Open on the board')
+    await expect(chips.nth(0)).toHaveAttribute('title', 'Open on the board')
+
+    // The toggle contract SURVIVES the headrow: the head still collapses its
+    // group (an <a> can never nest in a <button> — the row keeps them siblings),
+    // and the chevron rotation works through the headrow path. The quadrant
+    // groups ship EXPANDED — the first click folds, the second reopens.
+    const head = page.locator('.rail-group-headrow .rail-group-head').first()
+    await head.click()
+    await expect(page.locator('.rail-group').first()).toHaveClass(/is-collapsed/)
+    await head.click()
+    await expect(page.locator('.rail-group').first()).not.toHaveClass(/is-collapsed/)
+
+    // The chip's navigation lands ON its quadrant with the arrival mark — and
+    // ONLY that quadrant (the sibling boxes stay clean).
+    await chips.nth(2).click()
+    await page.waitForURL(/to-do-list#Q2$/, { timeout: 15_000 })
+    await expect(page.locator('#Q2')).toHaveClass(/q-arrived/)
+    await expect(page.locator('#Q1')).not.toHaveClass(/q-arrived/)
+    await expect(page.locator('#Q3')).not.toHaveClass(/q-arrived/)
+  })
+
+  // S97 (the deep-link arrival): a #Q<id> landing marks THAT quadrant — the
+  // accent frame + ring flash pin which box you arrived on; the sibling
+  // quadrants stay neutral, the target scrolls into view.
+  test('a #Q<id> deep link lands ON the quadrant with the arrival mark (S97)', async ({ page }) => {
+    await login(page)
+    await page.goto('/to-do-list#Q3')
+    await page.waitForSelector('#Q3', { timeout: 15_000 })
+    // The mark rides the exact target only.
+    await expect(page.locator('#Q3')).toHaveClass(/q-arrived/)
+    await expect(page.locator('#Q1')).not.toHaveClass(/q-arrived/)
+    await expect(page.locator('#Q3')).toBeInViewport()
+    // Accent vs neutral computed borders — the border-color TRANSITION means the
+    // computed style lags one beat (the documented race): wait for the DIVERGENCE.
+    await page.waitForFunction(() => {
+      const a = document.querySelector('#Q3.q-arrived')
+      const n = document.querySelector('#Q1')
+      return !!a && !!n && getComputedStyle(a).borderColor !== getComputedStyle(n).borderColor
+    }, null, { timeout: 10_000 })
+  })
+
+  // S99 (the Coming-up deep links): the calendar panel's dated to-do rows land
+  // ON their quadrant instead of the board top; project deadlines keep their
+  // project-page hrefs (the project top IS the work's home).
+  test('the calendar panel\'s Coming-up rows land on their QUADRANT (S99)', async ({ page }) => {
+    await login(page)
+    await page.click('.rail .rail-primary a[data-rail-panel="calendar"]')
+    await expect(page.locator('.rail-panel-title')).toHaveText('Calendar')
+
+    // The seeded dated to-dos deep-link to their own quadrants…
+    const today = page.locator('.rail-item', { hasText: 'Rail today task' }).first()
+    await expect(today).toBeVisible()
+    await expect(today).toHaveAttribute('href', /\/to-do-list#Q1$/)
+    const strategic = page.locator('.rail-item', { hasText: 'Rail strategic task' }).first()
+    await expect(strategic).toBeVisible()
+    await expect(strategic).toHaveAttribute('href', /\/to-do-list#Q2$/)
+    // …while the seeded project deadline keeps its project-page href.
+    const deadline = page.locator('.rail-item', { hasText: 'Rail project 0' }).first()
+    await expect(deadline).toBeVisible()
+    await expect(deadline).toHaveAttribute('href', /\/project\.html\?id=.+$/)
+
+    // The landing flow: the Q2 row lands the board ON its quadrant, marked.
+    await strategic.click()
+    await page.waitForURL(/to-do-list#Q2$/, { timeout: 15_000 })
+    await expect(page.locator('#Q2')).toHaveClass(/q-arrived/)
+    await expect(page.locator('#Q1')).not.toHaveClass(/q-arrived/)
+  })
+
+  // S100 (the client-task deep links): the Coming-up CLIENT-CHECKLIST rows land
+  // ON their own checklist item (the old project-page href pointed at a page
+  // that never renders those rows — a genuine never-lose-your-place violation).
+  test('the Coming-up client-task rows land ON their own checklist item (S100)', async ({ page }) => {
+    await login(page)
+    await page.click('.rail .rail-primary a[data-rail-panel="calendar"]')
+    await expect(page.locator('.rail-panel-title')).toHaveText('Calendar')
+
+    // The seeded client task rides with its own checklist anchor.
+    const row = page.locator('.rail-item', { hasText: 'Rail client task' }).first()
+    await expect(row).toBeVisible()
+    await expect(row).toHaveAttribute('href', /\/clients\.html#task-.+$/)
+
+    // The landing flow: a SOFT navigation to /clients.html#task-<id> — the
+    // checklist ships inside a COLLAPSED <details> whose body arrives via the
+    // #client-body htmx sweep; the hash consumer opens the details, marks the
+    // exact row (.q-arrived), and scrolls it into view.
+    await row.click()
+    await page.waitForURL(/clients\.html#task-.+$/, { timeout: 10_000 })
+    await expect.poll(async () => page.evaluate(() => {
+      const el = document.querySelector('.hurdle.q-arrived')
+      const details = el ? el.closest('details') : null
+      return !!(el && details && details.open)
+    }), { timeout: 10_000 }).toBe(true)
+    const marked = page.locator('.hurdle.q-arrived')
+    await expect(marked).toHaveCount(1)
+    await expect(marked).toContainText('Rail client task')
+    await expect(marked).toBeInViewport()
   })
 
   test('the Dashboard icon NAVIGATES — it never opens a panel (S93 item 2)', async ({ page }) => {
@@ -444,9 +636,11 @@ test.describe('the secondary panel (VS Code Activity Bar + Side Bar pattern)', (
     await expect(page.locator('.rail-panel-title')).toHaveText('To-do list')
     // Group heads: the default quadrant labels in the user's order
     // (1 Today, 3 Urgent, 2 Strategic, 4 Personal) — every item is a CHECKBOX row.
-    const labels = (await page.locator('.rail-group-head').allTextContents()).map((l) => l.replace(/\d+$/, '').trim())
-    expect(labels).toContain('Today')
-    expect(labels).toContain('Urgent & High Value')
+    // (S99 flake hardening: these were one-shot allTextContents reads that raced
+    // the async /api/rail fetch in warm full-suite runs — auto-retrying
+    // visibility assertions now, the documented S94 "flaky-pass on retry" class.)
+    await expect(page.locator('.rail-group-head', { hasText: 'Today' })).toBeVisible()
+    await expect(page.locator('.rail-group-head', { hasText: 'Urgent & High Value' })).toBeVisible()
     // The quadrant-3 task rides its quadrant group.
     const q3 = page.locator('.rail-group', { hasText: 'Urgent & High Value' }).locator('.rail-todo-item')
     await expect(q3).toHaveCount(1)

@@ -52,13 +52,20 @@ export function calendarRoutes(cfg: Config) {
         [user.id, start, end],
       ),
       cfg.db.query<{ id: string; project_id: string; title: string; done: 0 | 1; due_date: string }>(
+        // S100: scoped to CLIENT projects — the tasks table's only writer is the
+        // clients UI (the checklist lives on /clients.html only, module.ts); every
+        // row deep-links to its own checklist item, and a non-client row would be
+        // a dead link the UI cannot even produce.
         `SELECT t.id, t.project_id, t.title, t.done, t.due_date FROM tasks t
          JOIN projects p ON p.id = t.project_id
-         WHERE p.user_id = ? AND p.deleted_at IS NULL AND t.due_date IS NOT NULL AND t.due_date >= ? AND t.due_date <= ?`,
+         WHERE p.user_id = ? AND p.deleted_at IS NULL AND p.type = 'client' AND t.due_date IS NOT NULL AND t.due_date >= ? AND t.due_date <= ?`,
         [user.id, start, end],
       ),
-      cfg.db.query<SadhanaTask>(
-        `SELECT id, title, done, due_date FROM sadhana_tasks
+      cfg.db.query<SadhanaTask & { quadrant: number }>(
+        // S100: quadrant joins the SELECT — a to-do row lands ON ITS OWN board
+        // quadrant (/to-do-list#Q<id>, the S97 arrival system) instead of the
+        // board top; every calendar-page row is a deep link now.
+        `SELECT id, title, done, due_date, quadrant FROM sadhana_tasks
          WHERE user_id = ? AND deleted_at IS NULL AND due_date IS NOT NULL AND due_date >= ? AND due_date <= ?`,
         [user.id, start, end],
       ),
@@ -77,11 +84,11 @@ export function calendarRoutes(cfg: Config) {
       })),
       ...tasks.map((t) => ({
         date: t.due_date, kind: 'task' as const, id: t.id, title: t.title, done: t.done === 1,
-        href: `/project.html?id=${t.project_id}`,
+        href: `/clients.html#task-${t.id}`,
       })),
       ...sadhana.map((s) => ({
         date: s.due_date!, kind: 'sadhana' as const, id: s.id, title: s.title, done: s.done === 1,
-        href: '/to-do-list',
+        href: `/to-do-list#Q${s.quadrant}`,
       })),
       ...notes.map((n) => ({
         date: n.note_date!, kind: 'note' as const, id: n.id,

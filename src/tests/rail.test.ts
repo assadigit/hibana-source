@@ -148,4 +148,54 @@ describe('GET /api/rail (the navigation rail panel payload)', () => {
       expect(body.projectTasks.find((t) => t.id === 'dt7')).toMatchObject({ status: 'done', project_id: 'p1' })
     } finally { close() }
   })
+
+  // S100 (the client-task deep links): the `tasks` list (the calendar panel's
+  // Coming-up rows, deep-linking to /clients.html#task-<id>) is scoped to CLIENT
+  // projects — the tasks table's ONLY writer is the clients UI (the checklist
+  // lives on /clients.html only), so a personal-project row would be a dead link
+  // the UI cannot even produce. Personal / out-of-window / other-user rows never
+  // ride (the window + Rule 1 contracts).
+  it('returns tasks: client-checklist rows only, in the 14-day window, user-scoped', async () => {
+    const { db, close } = makeTestDb()
+    try {
+      const me = await makeUser(db, { username: 'rail-client' })
+      const other = await makeUser(db, { username: 'rail-client-o' })
+      const now = new Date().toISOString()
+      const today = now.slice(0, 10)
+      const far = new Date(Date.now() + 30 * 86400000).toISOString().slice(0, 10)
+      // p1 = a CLIENT project (its dated task rides); p2 = personal (never rides);
+      // p9 = another user's client project (Rule 1: never leaks).
+      for (const [id, user, type] of [
+        ['p1', me, 'client'],
+        ['p2', me, 'personal'],
+        ['p9', other, 'client'],
+      ] as const) {
+        await db.execute(
+          'INSERT INTO projects (id, user_id, title, status, type, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
+          [id, user, `Project ${id}`, 'developing', type, now, now],
+        )
+      }
+      // t1 = client, due today (RIDES). t2 = personal, due today (never). t3 =
+      // client, due +30d — outside the 14-day window (never). t4 = the other
+      // user's (never).
+      for (const [id, project, due] of [
+        ['t1', 'p1', today],
+        ['t2', 'p2', today],
+        ['t3', 'p1', far],
+        ['t4', 'p9', today],
+      ] as const) {
+        await db.execute(
+          'INSERT INTO tasks (id, project_id, title, done, due_date, created_at) VALUES (?, ?, ?, 0, ?, ?)',
+          [id, project, `Client task ${id}`, due, now],
+        )
+      }
+
+      const { app, auth } = await makeClient(db, me)
+      const res = await app.fetch(new Request('http://local/api/rail', { headers: auth }))
+      expect(res.status).toBe(200)
+      const body = (await res.json()) as { tasks: { id: string; due_date: string; project_id: string }[] }
+      expect(body.tasks.map((t) => t.id)).toEqual(['t1'])
+      expect(body.tasks[0]).toMatchObject({ id: 't1', project_id: 'p1', due_date: today })
+    } finally { close() }
+  })
 })

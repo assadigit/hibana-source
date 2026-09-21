@@ -150,8 +150,21 @@ body.sadhana-body{overflow:hidden;display:flex;flex-direction:column}
    S95 r2 (owner item 2): the picked-accent WASH left the quadrant fill too — the
    board's four columns are plain white surfaces; the accent speaks only in the
    small stuff (title ink, count pill, the big add button). */
-.sadhana-wrap .quadrant{border-radius:var(--radius);border:1px solid var(--q-edge);background:var(--surface);display:flex;flex-direction:column;overflow:hidden;transition:border-color .2s;min-height:0}
+.sadhana-wrap .quadrant{border-radius:var(--radius);border:1px solid var(--q-edge);background:var(--surface);display:flex;flex-direction:column;overflow:hidden;transition:border-color .2s;min-height:0;scroll-margin-block-start:4.5rem}
 .sadhana-wrap .quadrant.drag-over{box-shadow:0 0 0 2px var(--text-dim)!important}
+/* S97 (the deep-link arrival cue): a #Q<id> landing (the dashboard's "+N more"
+   overflow link + the rail panel's goto chips) marks THAT quadrant — the accent
+   frame + a 1.6s ring flash pins which box you arrived on; reduced-motion
+   collapses to the frame alone. The 4.5rem scroll-margin above clears the topbar
+   on native anchor scrolls. */
+.sadhana-wrap .quadrant.q-arrived{border-color:var(--accent)!important;animation:qArrived 1.6s ease}
+@keyframes qArrived{
+  0%{box-shadow:0 0 0 0 color-mix(in srgb,var(--accent) 55%,transparent)}
+  100%{box-shadow:0 0 0 14px color-mix(in srgb,var(--accent) 0%,transparent)}
+}
+@media (prefers-reduced-motion: reduce){
+  .sadhana-wrap .quadrant.q-arrived{animation:none!important}
+}
 /* S93 (owner round, item 6 — "quadrants can have PASTEL colors"): a picked accent
    (inline --q-accent, set by buildGrid from the API's accent token) ONCE washed the
    quadrant card at low opacity (S94 raised it 6%→12%).
@@ -298,9 +311,14 @@ body.rtl .task-tags{margin-left:0;margin-right:1px}
   60%{transform:translateX(3px)}
   80%{transform:translateX(-1px)}
 }
+/* S97 (RTL bug fix, the flat-card round): the overdue bar + tint must sit on the
+   READING-START edge in both directions — border-LEFT was a physical edge (wrong
+   side in fa) and the to-right gradient leaned the wrong way under dir=rtl. Now:
+   border-inline-start (mirrors honestly) + a DIRECTION-FREE solid 8% red veil
+   color-mixed into --surface2. */
 .sadhana-wrap .task-card.overdue-dl{
-  border-left:3px solid var(--q3)!important;
-  background:linear-gradient(to right,rgba(229,57,53,.08),var(--surface2))!important;
+  border-inline-start:3px solid var(--q3)!important;
+  background:color-mix(in srgb,#E53935 8%,var(--surface2))!important;
   animation:sIn .2s ease,overdueShake .5s ease .2s;
 }
 
@@ -574,8 +592,10 @@ body.rtl .fuz-opt{text-align:right}
 /* ─── Pin button ────────────────────────────────────── */
 .sadhana-wrap .t-act.pin{color:var(--text-dim);font-size:13px}
 .sadhana-wrap .t-act.pin.pinned{color:#f59e0b}
-.sadhana-wrap .task-card.is-pinned{border-left:3px solid #f59e0b!important}
-.sadhana-wrap .pin-badge{font-size:10px;color:#f59e0b;margin-left:3px;vertical-align:middle}
+/* S97 (RTL bug fix): the pin bar + badge offset mirror honestly — border-LEFT /
+   margin-LEFT were physical (the pin bar sat on the trailing edge in fa). */
+.sadhana-wrap .task-card.is-pinned{border-inline-start:3px solid #f59e0b!important}
+.sadhana-wrap .pin-badge{font-size:10px;color:#f59e0b;margin-inline-start:3px;vertical-align:middle}
 
 /* ─── Within-quadrant drag-over-card indicator ──────── */
 .sadhana-wrap .task-card.drag-target-above{border-top:2.5px solid var(--accent)!important;margin-top:-2px}

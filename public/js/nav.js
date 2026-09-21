@@ -447,13 +447,29 @@
     const open = opts.collapsed ? '' : ' open-group'
     const accentAttr = opts.accent ? ' style="--ga: var(--' + escHtml(opts.accent) + ')"' : ''
     const dot = opts.accent ? '<span class="rail-group-dot" style="--sw: var(--' + escHtml(opts.accent) + ')" aria-hidden="true"></span>' : ''
-    return '<div class="rail-group' + (opts.collapsed ? ' is-collapsed' : '') + '"' + accentAttr + '>' +
+    const head =
       '<button type="button" class="rail-group-head" data-rail-group aria-expanded="' + (opts.collapsed ? 'false' : 'true') + '">' +
       '<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>' +
       dot +
       '<span>' + escHtml(label) + '</span>' +
       '<span class="rail-group-count">' + railFaDig(count) + '</span>' +
-      '</button><div class="rail-group-body">' + (Array.isArray(items) ? items.join('') : items) + '</div></div>'
+      '</button>'
+    // S98 (the goto chips): a group carrying opts.href rides its head inside a
+    // FLEX ROW — the toggle button (flex:1, its contract untouched) + the chip
+    // as its SIBLING <a> (an anchor can never nest inside a <button>). The chip
+    // is the .rail-panel-close recipe (quiet 2rem icon, muted ink, bg-soft
+    // hover, brand focus ring) and lands the deep link on the exact target via
+    // the S97 arrival system. href-less groups keep the exact FLAT markup —
+    // the other panels' DOM is untouched (zero churn).
+    const inner = opts.href
+      ? '<div class="rail-group-headrow">' + head +
+        '<a class="rail-group-goto" href="' + escHtml(opts.href) + '"' +
+        ' aria-label="' + escHtml(railT('rail.openOnBoard', 'Open on the board')) + '"' +
+        ' title="' + escHtml(railT('rail.openOnBoard', 'Open on the board')) + '">' +
+        '<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 17 17 7M7 7h10v10"/></svg></a></div>'
+      : head
+    return '<div class="rail-group' + (opts.collapsed ? ' is-collapsed' : '') + '"' + accentAttr + '>' +
+      inner + '<div class="rail-group-body">' + (Array.isArray(items) ? items.join('') : items) + '</div></div>'
   }
   const railItem = (href, label, dotStatus, extra, badge) =>
     '<a class="rail-item" href="' + href + '">' +
@@ -495,7 +511,10 @@
       const meta = custom.get(q)
       const label = meta && meta.name ? meta.name : railT(DEF[q][0], DEF[q][1])
       const items = todos.filter((t) => t.quadrant === q).map((t) => railTodoItem(t))
-      parts.push(railGroup(label, items, { accent: meta && meta.accent_color ? meta.accent_color : null }))
+      // S98: every quadrant group head carries a goto chip → its own board
+      // quadrant (/to-do-list#Q<id>), landing ON that exact box via the S97
+      // arrival system (.q-arrived + scroll/carousel).
+      parts.push(railGroup(label, items, { accent: meta && meta.accent_color ? meta.accent_color : null, href: '/to-do-list#Q' + q }))
     }
     return parts.join('') || '<div class="rail-panel-empty">' + escHtml(railT('rail.empty', 'Nothing here yet — open something and it will appear.')) + '</div>'
   }
@@ -762,10 +781,20 @@
       if (p.due_date && p.due_date >= todayISO && p.due_date <= in14) dueItems.push({ date: p.due_date, href: '/project.html?id=' + encodeURIComponent(p.id), label: p.title, dot: p.status })
     }
     for (const t of d.tasks || []) {
-      if (t.due_date && t.due_date >= todayISO && t.due_date <= in14) dueItems.push({ date: t.due_date, href: '/project.html?id=' + encodeURIComponent(t.project_id), label: t.title, dot: 'todo' })
+      // S100 (the client-task deep links): a dated CLIENT-CHECKLIST task (the
+      // tasks table's only writer is the clients UI — rail.ts scopes the query
+      // to type='client') lands ON its own checklist item. The old project-page
+      // href pointed at a page that NEVER renders these rows — the checklist
+      // lives on /clients.html only (module.ts); a genuine never-lose-your-place
+      // violation, now closed.
+      if (t.due_date && t.due_date >= todayISO && t.due_date <= in14) dueItems.push({ date: t.due_date, href: '/clients.html#task-' + encodeURIComponent(t.id), label: t.title, dot: 'todo' })
     }
     for (const t of d.todos || []) {
-      if (!t.done && t.due_date && t.due_date >= todayISO && t.due_date <= in14) dueItems.push({ date: t.due_date, href: '/to-do-list', label: t.title, dot: 'todo' })
+      // S99 (the Coming-up deep links): a dated to-do lands ON ITS QUADRANT
+      // (/to-do-list#Q<id>, the S97 arrival system) instead of the board top —
+      // a pure client-side join (quadrant already rides the /api/rail todos
+      // payload, schema-CHECKed 1–4).
+      if (!t.done && t.due_date && t.due_date >= todayISO && t.due_date <= in14) dueItems.push({ date: t.due_date, href: '/to-do-list#Q' + t.quadrant, label: t.title, dot: 'todo' })
     }
     dueItems.sort((a, b) => a.date.localeCompare(b.date) || a.label.localeCompare(b.label))
     const dateLabel = (iso) => {
@@ -821,6 +850,13 @@
       '<span class="rail-panel-title">' + escHtml(railT(meta.i18n, meta.label)) + '</span>' +
       '<a class="rail-panel-open-link" href="' + meta.href + '">' + escHtml(railT('rail.open', 'Open')) +
       '<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14m0 0-6-6m6 6-6 6"/></svg></a>' +
+      // S97 (the tree fold): one button collapses/expands EVERY group in the
+      // panel (incl. nested sub-groups) — the .rail-panel-close recipe (quiet
+      // 2rem icon, muted ink, bg-soft hover, brand focus ring). syncRailTreeBtn
+      // mirrors the tree's state (label/icon/aria/title flip together).
+      '<button type="button" class="rail-panel-tree" data-rail-tree' +
+      ' aria-label="' + escHtml(railT('rail.collapseAll', 'Collapse all')) + '" data-i18n-aria-label="rail.collapseAll">' +
+      '<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></button>' +
       '<button type="button" class="rail-panel-close" data-rail-close aria-label="' + escHtml(railT('rail.close', 'Close panel')) + '" data-i18n-aria-label="rail.close">' +
       '<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button>' +
       '</div>'
@@ -837,12 +873,35 @@
     if (!railSection || railBox() !== box) return
     box.innerHTML = head + '<div class="rail-panel-body">' + railBodyFor(railSection, data) + '</div>'
     markRailRows() // S95: freshly rendered rows get their current-location marks
+    syncRailTreeBtn() // S97: the fold button mirrors the freshly rendered tree
   }
 
   function markRailIcons() {
     document.querySelectorAll('.rail-btn[data-rail-panel]').forEach((b) => {
       b.classList.toggle('is-panel-open', !!railSection && b.getAttribute('data-rail-panel') === railSection)
     })
+  }
+
+  // S97 (the tree fold): the button mirrors the tree's state — every group
+  // collapsed → offers Expand all (chevron-up); anything open → offers
+  // Collapse all (chevron-down). Label/icon/aria/title flip together so EN,
+  // FA and screen readers all read the CURRENT offer.
+  function railTreeAllCollapsed(box) {
+    if (!box) return false
+    const groups = box.querySelectorAll('.rail-group')
+    return groups.length > 0 && box.querySelectorAll('.rail-group:not(.is-collapsed)').length === 0
+  }
+  function syncRailTreeBtn() {
+    const box = railBox()
+    const btn = box ? box.querySelector('[data-rail-tree]') : null
+    if (!btn) return
+    const expand = railTreeAllCollapsed(box)
+    const key = expand ? 'rail.expandAll' : 'rail.collapseAll'
+    const label = railT(key, expand ? 'Expand all' : 'Collapse all')
+    btn.setAttribute('aria-label', label)
+    btn.setAttribute('title', label)
+    btn.setAttribute('data-i18n-aria-label', key)
+    btn.innerHTML = '<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="' + (expand ? 'm6 9 6-6 6 6' : 'm6 15 6 6 6-6') + '"/></svg>'
   }
 
   function openRailPanel(section) {
@@ -944,6 +1003,24 @@
   // cell opens the full Calendar page; the Help icon replays the tour.
   document.addEventListener('click', (e) => {
     if (e.target.closest ? e.target.closest('[data-rail-close]') : null) { closeRailPanel(); return }
+    // S97 (the tree fold): collapse/expand EVERY group in one tap (incl. the
+    // nested project → box sub-groups). When the whole tree sits collapsed the
+    // button expands it; otherwise it collapses everything. Each group head's
+    // aria-expanded follows, and the button re-syncs to the new state.
+    const treeBtn = e.target.closest ? e.target.closest('[data-rail-tree]') : null
+    if (treeBtn) {
+      const box = railBox()
+      if (box) {
+        const expand = railTreeAllCollapsed(box)
+        box.querySelectorAll('.rail-group').forEach((g) => {
+          g.classList.toggle('is-collapsed', !expand)
+          const h = g.querySelector('.rail-group-head')
+          if (h) h.setAttribute('aria-expanded', String(expand))
+        })
+        syncRailTreeBtn()
+      }
+      return
+    }
     const calNav = e.target.closest ? e.target.closest('[data-rail-cal-nav]') : null
     if (calNav) {
       const next = railCalStep(Number(calNav.getAttribute('data-rail-cal-nav')) || 0)
@@ -954,6 +1031,7 @@
           const body = box.querySelector('.rail-panel-body')
           if (body) body.innerHTML = railBodyFor(railSection, railData)
         }
+        syncRailTreeBtn() // S97: the month step re-rendered the tree (Coming up rides a group)
       }
       return
     }
@@ -970,6 +1048,7 @@
       if (group) {
         const collapsed = group.classList.toggle('is-collapsed')
         groupHead.setAttribute('aria-expanded', String(!collapsed))
+        syncRailTreeBtn() // S97: a manual toggle can complete/clear a full fold — the button stays honest
       }
       return
     }

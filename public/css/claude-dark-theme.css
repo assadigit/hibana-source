@@ -233,9 +233,17 @@ html[data-theme='claude-dark'] .card {
    is (0,2,1) and would flatten the tint back to the plain card). 13% of the
    lightened dark teal (#6FA6A8) over the near-black card — one notch stronger
    than light's 11% so the priority read survives on dark surfaces (the S94
-   lightened-for-dark lesson). */
+   lightened-for-dark lesson).
+   S97 (the flat-card system, B): the Notes Vault onboarding banner joins the
+   notebook precedent — its SOLID accent fill (dashboard.css, (0,2,0)) would be
+   flattened by this sheet's .card at (0,2,1), so it carries its own dark twin.
+   13% over the near-black card (light ships 8%) — the same one-notch-stronger
+   lesson so the accent read survives on dark surfaces. */
 html[data-theme='claude-dark'] .card.notebook-dashboard {
   background: color-mix(in srgb, var(--quicknote-accent) 13%, var(--card));
+}
+html[data-theme='claude-dark'] .dash-vault-banner.card {
+  background: color-mix(in srgb, var(--accent) 13%, var(--card));
 }
 
 /* Kanban chassis — flat card surface, stat cards transparent until hover. */
@@ -261,9 +269,11 @@ html[data-theme='claude-dark'] .kanban-col .kanban-card[data-status='operational
   background: var(--kanban-operational-bg); border-color: var(--kanban-operational-line);
 }
 
-/* Dash quadrants + report cards — the one-step-elevated gradient cap. */
+/* Dash quadrants + report cards — FLAT solid surfaces (the S97 flat-card system
+   retired the one-step-elevated gradient cap app-wide); the stronger top border
+   (line-strong) keeps them one quiet step above the plain cards. */
 html[data-theme='claude-dark'] .dash-todo-quadrant {
-  background: linear-gradient(160deg, color-mix(in srgb, var(--card) 96%, #fff 4%), var(--card));
+  background: var(--card);
   border-color: var(--line-strong);
 }
 /* S94 (owner item 1 — a LATENT S93 BUG fixed with the visibility raise): the elevation
@@ -278,7 +288,7 @@ html[data-theme='claude-dark'] .dash-todo-quadrant[style*='--dash-q-accent'] .da
 }
 html[data-theme='claude-dark'] .reports .card,
 html[data-theme='claude-dark'] #report-body .card {
-  background: linear-gradient(160deg, color-mix(in srgb, var(--card) 96%, #fff 4%), var(--card));
+  background: var(--card);
   border-color: var(--line-strong);
 }
 

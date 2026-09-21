@@ -368,11 +368,13 @@ details.dash-todo-menu:not([open]) .dash-todo-menu-pop { display: none; }
    cap live there). Same quiet language as the see-more button, plus the arrow cue +
    hover lift so it reads as navigation, not a toggle. */
 .dash-todo-more-link { text-decoration: none; display: inline-flex; align-items: center; gap: 0.25rem; border: 1px dashed var(--line); border-radius: 999px; padding-inline: 0.55rem; transition: color 0.15s ease, border-color 0.15s ease, transform 0.15s ease; }
-.dash-todo-more-link::after { content: '→'; font-size: 0.85em; transition: transform 0.15s ease; }
-[dir='rtl'] .dash-todo-more-link::after { content: '←'; }
+/* S100 (the goto-chip language): the →/← text-arrow ::after PAIR retired — one
+   ↗ SVG cue instead, direction-neutral by construction (the old RTL pair also
+   leaned the wrong way under hover's physical translate). The icon rides at
+   0.85em and lifts ↗-diagonally on hover. */
+.dash-todo-more-link .icon { inline-size: 0.85em; block-size: 0.85em; transition: translate 0.15s ease; }
 .dash-todo-more-link:hover { color: var(--brand); border-color: var(--brand); transform: translateY(-1px); }
-.dash-todo-more-link:hover::after { transform: translateX(2px); }
-[dir='rtl'] .dash-todo-more-link:hover::after { transform: translateX(-2px); }
+.dash-todo-more-link:hover .icon { translate: 1px -1px; }
 /* (k) 2026-09-06: the see-more link reserves the FAB corner (inline-end) so the two
    never overlap when a quadrant shows 6+ tasks. (m) re-tuned for the smaller FAB. */
 .dash-todo-more { padding-inline-end: 2.9rem; }

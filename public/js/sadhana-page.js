@@ -1838,6 +1838,21 @@ async function init(){
   buildQuadDots();
   document.title=lang==='fa'?'لیست کارها — هیبانا':'To-do list — Hibana';
 
+  // 5. S97 (the deep-link arrival): a #Q<id> hash lands ON that quadrant — the
+  // dashboard's "+N more" overflow link + the rail panel's goto chips point here.
+  // The phone carousel advances to the quadrant's slide; desktop scrolls it into
+  // view (.quadrant's 4.5rem scroll-margin clears the topbar). The .q-arrived mark
+  // (accent border + 1.6s ring flash, sadhana-board.css) pins WHICH box you landed
+  // on. A hash naming no quadrant is ignored (the board loads normally). /to-do-list
+  // is a HARD page — every arrival runs this init fresh.
+  const qm=/^#Q([1-4])$/.exec(location.hash);
+  if(qm){
+    const qel=document.getElementById('Q'+qm[1]);
+    if(qel){
+      if(isPhone())goToQuad(Number(qm[1]));else qel.scrollIntoView();
+      qel.classList.add('q-arrived');
+    }
+  }
 }
 init();
 

@@ -311,6 +311,33 @@ describe('dashboard to-do preview', () => {
     }
   })
 
+  // S97 (the quadrant deep links): the over-cap "+N more" link lands ON THE
+  // QUADRANT it overflows (/to-do-list#Q<id>, the board's arrival system) instead
+  // of the board top. 10 quadrant-2 tasks → 8 rendered + 2 over → the link pins
+  // its href + tooltip + copy; exactly ONE link rides (the other quadrants are
+  // empty → placeholder rows, never the link).
+  // S100 (the goto-chip language): the link carries the ↗ chip glyph inline (the
+  // →/← text-arrow ::after pair retired) — the same SVG path the rail panel's
+  // goto chips speak.
+  it('renders the over-cap link deep-linked to its quadrant, with the ↗ chip glyph', async () => {
+    const { db, close } = makeTestDb()
+    try {
+      const user = await makeUser(db)
+      const { app, auth } = await makeClient(db, user)
+      for (let i = 1; i <= 10; i++) await createSadhanaTask(db, user, { quadrant: 2, title: `Strategic ${i}` })
+
+      const res = await app.fetch(new Request('http://local/api/dashboard', { headers: { ...auth, 'HX-Request': 'true' } }))
+      const html = await res.text()
+      expect(html).toContain('href="/to-do-list#Q2"')
+      expect(html).toContain('title="Open this box on the board"')
+      expect(html).toContain('+2 more on the board')
+      expect((html.match(/class="dash-todo-more dash-todo-more-link"/g) ?? []).length).toBe(1)
+      expect(html).toContain('<path d="M7 7h10v10M7 17 17 7"/>')
+    } finally {
+      close()
+    }
+  })
+
   // S94 (owner item 10): an empty quadrant shows the CENTERED placeholder row — the
   // server ships it (before, an empty quadrant rendered a literally empty <ul>; the
   // :empty::before fallback read attr(data-empty-hint), which nothing ever set).

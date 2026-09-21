@@ -29,6 +29,10 @@ window.__hibanaDictEN = {
       'rail.notebookHint': 'The Notebook is your single whiteboard — open it to sketch and write freehand.',
       'rail.calendarHint': 'Everything you scheduled — projects, tasks and to-dos — lands here as it approaches.',
       'rail.todoFailed': "Couldn't update the task — try again",
+      // S97: the panel head's tree fold — one button collapses/expands every group
+      'rail.expandAll': 'Expand all', 'rail.collapseAll': 'Collapse all',
+      // S98: the quadrant groups' goto chip — lands the deep link on the board
+      'rail.openOnBoard': 'Open on the board',
       // S89: the LABELED rail — a small text label rides under every icon
       'rail.label.search': 'Search', 'rail.label.dashboard': 'Dashboard', 'rail.label.todo': 'To-do',
       'rail.label.projects': 'Projects', 'rail.label.ideas': 'Ideas', 'rail.label.notes': 'Notes',

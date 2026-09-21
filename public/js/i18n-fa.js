@@ -29,6 +29,10 @@ window.__hibanaDictFA = {
       'rail.notebookHint': 'برگه یادداشت تختهٔ سفید توست — بازش کن تا آزادانه بنویسی و بکشی.',
       'rail.calendarHint': 'هر چیز برنامه‌ریزی‌شده — پروژه، وظیفه یا کارِ لیست — وقتی نزدیک شود همین‌جا می‌آید.',
       'rail.todoFailed': 'به‌روزرسانی کار ممکن نشد — دوباره تلاش کن',
+      // S97: the panel head's tree fold — one button collapses/expands every group
+      'rail.expandAll': 'باز کردن همه', 'rail.collapseAll': 'بستن همه',
+      // S98: the quadrant groups' goto chip — lands the deep link on the board
+      'rail.openOnBoard': 'باز کردن در برد',
       // S89: the LABELED rail — a small text label rides under every icon
       'rail.label.search': 'جست‌وجو', 'rail.label.dashboard': 'پیشخوان', 'rail.label.todo': 'کارها',
       'rail.label.projects': 'پروژه‌ها', 'rail.label.ideas': 'ایده‌ها', 'rail.label.notes': 'یادداشت‌ها',

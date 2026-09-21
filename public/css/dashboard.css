@@ -658,18 +658,30 @@ main.shell-dash > section { margin-block-end: 2.9rem; }
    visual family as .dash-resume (pinned card + glyph + CTA) so the two never sit
    together looking alien — but a distinct label voice ("New", not a stage).
    ========================================================================== */
-.dash-vault-banner {
+/* S97 (the flat-card system, B): the banner's PRIORITY fill is a SOLID 8% accent
+   veil over the card (the 100deg gradient + the drop shadow retired with the
+   app-wide flat round). The compound .dash-vault-banner.card selector (0,2,0) is
+   LOAD-BEARING: the banner markup carries class="card" and notifications.css's
+   flattened .card (0,1,0, later in source order) would otherwise swallow the fill
+   back to the plain card — the same cascade trap the Quick Notebook hit in S95 r2.
+   The compound also outranks main.shell-dash > section (0,1,1), which is why the
+   banner's OWN margin-block-end had to be REMOVED: that 2rem margin sat dead
+   (overridden by the section rhythm) until the specificity raise activated it —
+   it shrank the section gap from the shared 2.9rem rhythm to 2rem (-14.4px) and
+   the dashboard visual baseline caught it. The 2.9rem section rhythm owns the
+   banner's spacing now. Dark theme: the claude-dark .card rule (0,2,1) would
+   flatten the fill — the dark twin rides claude-dark-theme.css (the notebook
+   precedent). */
+.dash-vault-banner.card {
   display: flex;
   align-items: flex-start;
   gap: 0.9rem;
   /* inline-end padding clears the absolutely-positioned dismiss button */
   padding: 1rem 2.6rem 1rem 1.25rem;
-  margin-block-end: 2rem;
-  background: linear-gradient(100deg, var(--accent-soft), var(--card) 70%);
+  background: color-mix(in srgb, var(--accent) 8%, var(--card));
   border: 1px solid color-mix(in srgb, var(--accent) 30%, var(--line));
   border-inline-start: 4px solid var(--accent);
   border-radius: var(--radius);
-  box-shadow: 0 2px 8px -4px rgb(0 0 0 / 0.08);
   position: relative;
 }
 .dash-vault-glyph {

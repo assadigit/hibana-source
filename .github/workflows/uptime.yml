@@ -10,9 +10,14 @@
 # existing alert channel.
 #
 # PREREQUISITE (repo secret, already set via the GitHub API):
-#   HIBANA_UPTIME_PING_URL — https://hc-ping.com/<ping-key>/hibana-uptime
-# The healthchecks.io check "hibana-uptime" (6h timeout + 1h grace) shares the
-# backup check's alert channel.
+#   HIBANA_UPTIME_PING_URL — https://hc-ping.com/<ping-key>/<check-slug>
+#   (slug RANDOMIZED 2026-09-21 to unguessable hex — the 93-ops leaked-pair
+#   mitigation; the check's NAME stays "Hibana uptime", its slug is
+#   secret-adjacent. NEVER re-point this secret at a guessable slug: the ping
+#   key is public git history, only the random slug keeps the URL unguessable.)
+# The healthchecks.io check "Hibana uptime" (6h timeout + 1h grace) shares the
+# backup check's alert channel. GitHub cron throttling stretches the nominal
+# 30-min schedule to ~1-7h gaps — the 6h+1h window is sized for that.
 #
 # Cost: ~2 runs/hour × ~5s curl ≈ 190 min/month — inside the private-repo free tier.
 name: Uptime

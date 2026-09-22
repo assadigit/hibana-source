@@ -328,7 +328,10 @@ window.hibana = (() => {
   // (queue.js flush) must NEVER redirect; it keeps its items and retries (see queue.js).
   function handle401(res) {
     if (res && res.status === 401 && location.pathname !== '/login.html') {
-      window.location.href = '/login.html'
+      // S111: carry WHERE the user was — login.html now bounces back to ?next= after a
+      // successful sign-in, so an expired session no longer costs the user their place
+      // (and a PWA share-target capture riding the query survives the bounce intact).
+      window.location.href = '/login.html?next=' + encodeURIComponent(location.pathname + location.search)
       return true
     }
     return false
@@ -511,7 +514,7 @@ window.hibana = (() => {
     quickAddEl = dlg
   }
 
-  function openQuickAdd() {
+  function openQuickAdd(prefill) {
     buildQuickAdd()
     // Session 28: surface where the capture will land — when a specific folder is open on
     // the Ideas page, its name rides the hidden input's data attribute (sparks-page.js
@@ -527,7 +530,24 @@ window.hibana = (() => {
         hint.hidden = true
       }
     }
+    // S111 (PWA share_target): an optional { title, description } prefill — the share
+    // sheet's composed values land straight in the form. Setting .value (never markup)
+    // keeps shared text inert; the synthetic input event wakes the debounced
+    // duplicate-title soft warning so a re-shared page nudges like typed input.
+    if (prefill && (prefill.title || prefill.description)) {
+      const titleInput = quickAddEl.querySelector('#qa-title')
+      const descInput = quickAddEl.querySelector('#qa-description')
+      if (titleInput && prefill.title) titleInput.value = prefill.title
+      if (descInput && prefill.description) descInput.value = prefill.description
+    }
     quickAddEl.showModal()
+    if (prefill && (prefill.title || prefill.description)) {
+      const titleInput = quickAddEl.querySelector('#qa-title')
+      if (titleInput) {
+        titleInput.dispatchEvent(new Event('input', { bubbles: true }))
+        titleInput.focus()
+      }
+    }
   }
 
   // ---- New Project dialog (personal, lands in Pending — the vetted step of the pipeline,
@@ -3871,6 +3891,47 @@ window.hibana = (() => {
   // ALWAYS closed on page load, even if localStorage has stale '1' from the old code.
   if (document.readyState !== 'loading') applyNoteControlsOpen()
   else document.addEventListener('DOMContentLoaded', () => applyNoteControlsOpen(), { once: true })
+  // ---- S111: PWA share_target landing — "share into Hibana" ----
+  // The manifest's share_target points GET title/text/url at /dashboard.html; when the
+  // app boots with those params present (the OS share sheet on Android/iOS, or a
+  // hand-typed URL), the quick-add modal opens PREFILLED so a captured idea is one Save
+  // away — the app's first job (never lose an idea) extended to the share sheet.
+  // Runs once per params: the query is stripped when the dialog closes, so a reload
+  // never re-triggers. Skipped on public pages (login/signup carry app.js too). If the
+  // session is expired, handle401/the SW bounce carries the FULL query inside ?next=,
+  // so the share survives the login round-trip and lands here after sign-in.
+  function consumeShareTarget() {
+    const q = new URLSearchParams(location.search)
+    const title = q.get('title') || ''
+    const text = q.get('text') || ''
+    const url = q.get('url') || ''
+    if (!title && !text && !url) return
+    if (document.body?.classList.contains('public-page')) return
+    const PUBLIC_PATHS = ['/login.html', '/signup.html', '/confirm.html', '/reset.html', '/clip.html', '/404.html']
+    if (PUBLIC_PATHS.includes(location.pathname)) return
+    let description = text
+    if (url && !description.includes(url)) description = description ? description + '\n\n' + url : url
+    if (description.length > 2000) description = description.slice(0, 2000)
+    let t = title.trim()
+    if (!t && url) {
+      try { t = new URL(url).hostname.replace(/^www\./, '') } catch { /* keep empty */ }
+    }
+    if (!t && text) t = text.split('\n')[0].trim()
+    if (t.length > 200) t = t.slice(0, 200)
+    if (!t && !description) return
+    const stripShareParams = () => {
+      try { history.replaceState(null, '', location.pathname) } catch { /* history unavailable */ }
+    }
+    try {
+      openQuickAdd({ title: t, description })
+    } catch {
+      stripShareParams()
+      return
+    }
+    quickAddEl?.addEventListener('close', stripShareParams, { once: true })
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', consumeShareTarget, { once: true })
+  else consumeShareTarget()
   Object.assign(window.__hib, { _t, esc, escHtml, toast, handle401, currentTheme, setTheme, paintThemeButton, toggleTheme, buildQuickAdd, openQuickAdd, buildProjectAdd, openProjectAdd, buildTaskAdd, openTaskAdd, buildQuickNoteAdd, openQuickNoteAdd, draftLines, DRAFT_X, renderDraft, syncStatCarousel, initStatCarousel, getCollapsed, setCollapsed, initCollapseButtons, dashQuadPhone, dashQuadGrid, dashQuadIndex, syncDashQuadDots, goToDashQuad, hideDashSwipeHint, wireDashSwipeHint, buildDashQuadDots, refreshDashboard, closeDashMenu, dashTaskRequest, refreshTaskSurface, setDashQuickaddReady, closeDashNoteBubble, closeDashNotePanel, openDashNoteBubble, dashNoteFmt, dashNoteEditStart, dashNoteEditRestore, dashNoteDelete, dashNoteRow, dashNoteAnchorRect, placeDashNotePanel, openDashNotePanel, closeOpenDashMenus, placeDashMenu, clearDashTaskDropTargets, dashTaskList, updateDashTaskEmpty, persistDashOrder, updateDashTaskCounter, showDashTaskMoveError, autosizeNote, buildNoteReader, enterNoteEdit, openNoteReader, injectNoteMenus, closeNoteMenus, buildNoteEditor, applyNoteView, applyNoteSize, applyNoteControlsOpen, markClampedNotes, fabEl, setFabOpen })
   return { toast, handle401, openQuickAdd, openProjectAdd, openTaskAdd, setTheme, toggleTheme, paintThemeButton, currentTheme, esc }
 })()

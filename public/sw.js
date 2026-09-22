@@ -13,7 +13,7 @@
 // changelog until S49 trimmed it — every prior entry is recoverable verbatim:
 // `git show <sha>:public/sw.js`).
 
-const VERSION = "hibana-v404" // bump on sw.js logic changes — see Changelogs.md §1 (current state) + git log (full history). v404 (S108): the navigate handler caches res.ok responses ONLY — a transient 5xx during a deploy window used to be put() verbatim and then served as the offline/stale navigation fallback, making the failure page itself the shell. v403 (S89): the new square logo pair joins the SHELL precache — the rail + mobile brandbar reference them on every page, so offline boots need both theme variants cached. v402 (S80): i18n-fa.js out of the install-time manifest precache (the Vazir/fabric class — FA-only bundle, EN users never inject it; ensureFaDict fetches it on the first FA view where Class 1a caches it for offline). v401 (S72): the nav partial's SHELL entry + hib-init's fetch are now versioned (?v=3) — the CF edge cache served a STALE nav.html for hours after deploy (deploy token can't purge the zone), and unversioned URLs made every future nav change nondeterministic. v400 (S70): fabric.min.js out of the SHELL precache.
+const VERSION = "hibana-v405" // bump on sw.js logic changes — see Changelogs.md §1 (current state) + git log (full history). v405 (S111): the navigate 401 bounce now carries ?next=<path+query> — login.html returns the user to the exact place (and a PWA share-target capture's query survives the login round-trip). v404 (S108): the navigate handler caches res.ok responses ONLY — a transient 5xx during a deploy window used to be put() verbatim and then served as the offline/stale navigation fallback, making the failure page itself the shell. v403 (S89): the new square logo pair joins the SHELL precache — the rail + mobile brandbar reference them on every page, so offline boots need both theme variants cached. v402 (S80): i18n-fa.js out of the install-time manifest precache (the Vazir/fabric class — FA-only bundle, EN users never inject it; ensureFaDict fetches it on the first FA view where Class 1a caches it for offline). v401 (S72): the nav partial's SHELL entry + hib-init's fetch are now versioned (?v=3) — the CF edge cache served a STALE nav.html for hours after deploy (deploy token can't purge the zone), and unversioned URLs made every future nav change nondeterministic. v400 (S70): fabric.min.js out of the SHELL precache.
 
 // Static shell: unhashed pages/partials/icons/vendor/fonts (SWR or network-first at
 // runtime; precached here for offline). The hashed app bundles come from the manifest
@@ -179,7 +179,14 @@ self.addEventListener('fetch', (e) => {
           // login bounce). The Worker now also keys on Accept: text/html (middleware.ts),
           // and this redirect is the client-side belt-and-suspenders: a 401 on a real
           // navigation is never a renderable document — bounce to login.
-          if (res.status === 401) return Response.redirect('/login.html', 302)
+          if (res.status === 401) {
+            // S111 (v405): the bounce preserves the destination — login.html returns the
+            // user to ?next= after sign-in, so an expired session on a PWA share-target
+            // navigation no longer drops the captured idea (the query rides inside the
+            // encoded next and consumeShareTarget in app.js lands it after login).
+            const dest = new URL(req.url)
+            return Response.redirect('/login.html?next=' + encodeURIComponent(dest.pathname + dest.search), 302)
+          }
           // S108 (v404): only GOOD navigations enter the offline cache. A transient 5xx
           // (deploy window, Worker error) used to be cached verbatim and then served as
           // the offline/stale fallback on the next network failure — the failure page

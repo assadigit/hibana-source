@@ -5,6 +5,21 @@
 (() => {
   const { toast, toggleTheme, paintThemeButton, applyNoteView, applyNoteSize, applyNoteControlsOpen, autosizeNote, markClampedNotes, buildQuickNoteAdd, injectNoteMenus, closeNoteMenus, buildNoteReader } = window.__hib
 
+  // S111: the login round-trip preserves WHERE the user was. Every 401 bounce (app.js
+  // handle401, the htmx error path below, the boot guard below, sw.js's navigate
+  // handler) now lands on /login.html?next=<path+query>; after a successful sign-in the
+  // validated next wins over the server's default dashboard redirect. Same-origin only:
+  // must start with a single '/' (no protocol-relative '//', no off-site URLs) and must
+  // not loop back into the login page itself.
+  const safeNext = () => {
+    const n = new URLSearchParams(location.search).get('next')
+    if (!n) return null
+    if (!n.startsWith('/') || n.startsWith('//')) return null
+    if (n.startsWith('/login')) return null
+    return n
+  }
+  const nextOr = (fallback) => safeNext() || fallback
+
   document.addEventListener('DOMContentLoaded', () => {
     applyNoteView()
     applyNoteSize()
@@ -63,7 +78,10 @@
         clearTimeout(timer)
         const redirect = res.headers.get('HX-Redirect')
         if (redirect) {
-          window.location.href = redirect
+          // S111: an honored ?next= returns the user to the exact place the 401 bounce
+          // came from (including a PWA share-target capture's query — the idea is not
+          // lost to an expired session).
+          window.location.href = nextOr(redirect)
           return
         }
         // Server errors for htmx requests come back as 200 with an HTML <p class="error">
@@ -186,7 +204,8 @@
   document.addEventListener('htmx:responseError', (e) => {
     const status = e.detail?.xhr?.status
     if (status === 401) {
-      if (location.pathname !== '/login.html') window.location.replace('/login.html')
+      // S111: preserve the destination for the post-login bounce (see safeNext above).
+      if (location.pathname !== '/login.html') window.location.replace('/login.html?next=' + encodeURIComponent(location.pathname + location.search))
       return
     }
     if (status === 404) return
@@ -435,7 +454,8 @@
       if (offline) {
         if (!isPublic) showOfflineBanner()
       } else if (env && env.status === 401 && !isPublic) {
-        window.location.replace('/login.html')
+        // S111: preserve the destination for the post-login bounce (see safeNext above).
+        window.location.replace('/login.html?next=' + encodeURIComponent(location.pathname + location.search))
       }
     }
   })

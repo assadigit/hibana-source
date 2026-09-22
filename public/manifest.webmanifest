@@ -4,6 +4,12 @@
   "description": "Your ideas, safe. Projects, sparks, and the canvas.",
   "start_url": "/dashboard.html",
   "display": "standalone",
+  "share_target": {
+    "action": "/dashboard.html",
+    "method": "GET",
+    "enctype": "application/x-www-form-urlencoded",
+    "params": { "title": "title", "text": "text", "url": "url" }
+  },
   "background_color": "#fafaf8",
   "theme_color": "#1E1A15",
   "icons": [

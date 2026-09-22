@@ -65,6 +65,14 @@ test.beforeAll(async () => {
     `INSERT INTO projects (id, user_id, title, description, type, status, sort_order, created_at, updated_at)
      VALUES ('s106-project', '${USER_ID}', 'S106 Bold Register Project', '', 'personal', 'developing', 0, '${now}', '${now}')`,
   )
+  // S106 r2: one board IDEA under that project — grows the rail tree's sub-group
+  // so the spec can pin BOTH directions of the register: the PROJECT row bold
+  // (700) AND its idea leaf staying regular (400 — content, the S106 contract).
+  db.exec(`DELETE FROM dev_tasks WHERE project_id = 's106-project'`)
+  db.exec(
+    `INSERT INTO dev_tasks (id, project_id, title, status, priority, sort_order, created_at)
+     VALUES ('s106-dt1', 's106-project', 'S106 rail tree idea', 'idea', 'medium', 0, '${now}')`,
+  )
   // A vault folder + note (the notes-page folder-name surface).
   db.exec(
     `INSERT INTO note_folders (id, user_id, parent_id, name, sort_order, created_at, updated_at)
@@ -145,6 +153,25 @@ test('S106-1: project names, folders and head groups compute the 700 bold regist
   await page.waitForSelector('.rail-group-head', { timeout: 10_000 })
   const headWeight = await page.locator('.rail-group-head').first().evaluate((el) => getComputedStyle(el).fontWeight)
   expect(headWeight).toBe('700')
+
+  // (b2) S106 r2 (owner: "it's not deployed yet, I still see regular font for
+  // project names in sidebar"): the rail tree's PROJECT rows — the surface the
+  // six-surface register MISSED (S106 bolded the STAGE heads; the project names
+  // beneath stayed 400, so the sidebar read as unchanged even though the deploy
+  // was live — byte-verified before the fix). The tree's full weight ladder,
+  // pinned level by level: stage head 700 (b above) → PROJECT name 700 →
+  // sub-group head 500 → idea leaf 400 (content stays regular). The sub-group
+  // ships collapsed; computed styles resolve on display:none rows, so no
+  // expand is needed to pin the leaf.
+  const projRow = page.locator('.rail-item.rail-project-row').first()
+  await expect(projRow).toContainText('S106 Bold Register Project')
+  expect(await projRow.evaluate((el) => getComputedStyle(el).fontWeight)).toBe('700')
+
+  const subHead = page.locator('.rail-sub-group .rail-group-head').first()
+  expect(await subHead.evaluate((el) => getComputedStyle(el).fontWeight)).toBe('500')
+
+  const leaf = page.locator('.rail-sub-group .rail-item', { hasText: 'S106 rail tree idea' })
+  expect(await leaf.evaluate((el) => getComputedStyle(el).fontWeight)).toBe('400')
 
   // (c) The projects home — the recently-active row title (the project NAME).
   await page.waitForSelector('.precent-title', { timeout: 10_000 })

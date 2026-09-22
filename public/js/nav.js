@@ -471,8 +471,14 @@
     return '<div class="rail-group' + (opts.collapsed ? ' is-collapsed' : '') + '"' + accentAttr + '>' +
       inner + '<div class="rail-group-body">' + (Array.isArray(items) ? items.join('') : items) + '</div></div>'
   }
-  const railItem = (href, label, dotStatus, extra, badge) =>
-    '<a class="rail-item" href="' + href + '">' +
+  // S106 r2 (owner: "I still see regular font for project names in sidebar"): the
+  // optional cls param lets a caller tag its rows — projectBranch marks the
+  // tree's PROJECT rows .rail-project-row so layout.css can give them the 700
+  // bold register WITHOUT touching the other panels' items (sparks, notes,
+  // calendar, todos) or the sub-group's idea/bug leaves (content stays 400,
+  // the S106 hierarchy contract).
+  const railItem = (href, label, dotStatus, extra, badge, cls) =>
+    '<a class="rail-item' + (cls ? ' ' + cls : '') + '" href="' + href + '">' +
     (dotStatus ? '<span class="rail-dot" data-status="' + escHtml(dotStatus) + '"></span>' : '') +
     (extra || '') +
     '<span class="rail-item-label" dir="auto">' + escHtml(label) + '</span>' +
@@ -563,7 +569,11 @@
           ' aria-label="' + escHtml(railFaDig(bugCount) + ' ' + railT('rail.g.problems', 'Problems')) + '">' +
           railFaDig(bugCount) + '</span>'
         : ''
-      const row = railItem(href, p.title, p.status, null, bugBadge)
+      // S106 r2: the project's own row carries .rail-project-row (the 700 bold
+      // register in layout.css) — the owner's "Bold Project Names" reaches the
+      // sidebar tree's second hierarchy level: stage head (700 uppercase wash) →
+      // PROJECT name (700) → sub-group head (500) → items (400).
+      const row = railItem(href, p.title, p.status, null, bugBadge, 'rail-project-row')
       if (!mine.length) return row
       // S95 (candidate 3 + r2): the tree's leaf rows land ON the exact BOX where
       // that work lives — every board column now carries its own anchor

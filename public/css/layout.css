@@ -390,6 +390,17 @@ body.rail-panel-open .rail-panel { visibility: visible; opacity: 1; transition: 
 .rail-item:focus-visible { outline: 2px solid var(--brand); outline-offset: -2px; }
 .rail-item-label { flex: 1; min-inline-size: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .rail-item .prio-dot { flex: none; }
+/* S106 r2 (owner: "it's not deployed yet, I still see regular font for project names
+   in sidebar"): the rail tree's PROJECT rows join the 700 bold register. S106's six
+   surfaces covered the rail's STAGE heads but the project names beneath them stayed
+   400 — the owner read the sidebar as unchanged (the deploy WAS live; the surface
+   was missing). The tree's full hierarchy now reads by weight AND size AND case:
+   stage head (700, fs-xs, uppercase, wash) → PROJECT name (700, fs-sm) → sub-group
+   head (500, fs-xs) → items (400, fs-xs, content). ONLY the project rows bold:
+   the class rides projectBranch's rows alone (nav.js), so sparks, notes, calendar,
+   to-do items and the sub-group's idea/bug leaves all keep their 400 — content
+   stays regular, the S106 hierarchy contract. */
+.rail-item.rail-project-row { font-weight: 700; }
 /* S88: the status dot speaks the --badge-*-fg roles (the same seven the status
    badges speak) — the panel item's glanceable state cue.
    S90 (owner request: "too saturated"): the dots now render as LOW-KEY washes —

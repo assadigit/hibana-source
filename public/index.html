@@ -6,11 +6,11 @@
   <title>Hibana</title>
   <link rel="preload" as="font" type="font/woff2" href="/vendor/manrope/Manrope-400.woff2" crossorigin>
   <link rel="stylesheet" href="/css/variables.css?v=11">
-  <link rel="stylesheet" href="/css/base.css?v=7">
+  <link rel="stylesheet" href="/css/base.css?v=8">
   <link rel="stylesheet" href="/vendor/manrope/font-face.css">
 </head>
 <body>
-  <div id="hibana-page-loader" aria-hidden="true"><div class="hibana-page-loader-inner"><div class="hibana-page-loader-spinner"></div><span class="hibana-page-loader-brand">Hibana</span></div></div>
+  <div id="hibana-page-loader" aria-hidden="true"><div class="hibana-page-loader-inner"><div class="hibana-loader-mark" aria-hidden="true"><span class="hibana-loader-glyph">H</span><span class="hibana-loader-orbit"><span class="hibana-loader-spark"></span></span></div><span class="hibana-page-loader-brand">Hibana</span><div class="hibana-loader-track" aria-hidden="true"><span class="hibana-loader-fill"></span></div></div></div>
   <script>
     // Entry point: already logged in? → app. Otherwise → login.
     fetch('/api/auth/me').then((r) => window.location.replace(r.ok ? '/app' : '/login.html'))

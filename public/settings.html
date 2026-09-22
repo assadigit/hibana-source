@@ -6,7 +6,7 @@
   <title>Settings — Hibana</title>
   <link rel="preload" as="font" type="font/woff2" href="/vendor/manrope/Manrope-400.woff2" crossorigin>
   <link rel="stylesheet" href="/css/variables.css?v=11">
-  <link rel="stylesheet" href="/css/base.css?v=7">
+  <link rel="stylesheet" href="/css/base.css?v=8">
   <link rel="stylesheet" href="/css/layout.css?v=41">
   <link rel="stylesheet" href="/css/dashboard.css?v=23">
   <link rel="stylesheet" href="/css/dashboard-todo.css?v=18">
@@ -32,7 +32,7 @@
        eight Settings Alpine components (prefs, views, account, avatar, theme, telegram,
        invites + the account/telegram wiring) register via __hibanaPage → boot.js drains the
        queue at alpine:init; when the tag sat at the end of <body>
-  <div id="hibana-page-loader" aria-hidden="true"><div class="hibana-page-loader-inner"><div class="hibana-page-loader-spinner"></div><span class="hibana-page-loader-brand">Hibana</span></div></div> (deferred scripts run in
+  <div id="hibana-page-loader" aria-hidden="true"><div class="hibana-page-loader-inner"><div class="hibana-loader-mark" aria-hidden="true"><span class="hibana-loader-glyph">H</span><span class="hibana-loader-orbit"><span class="hibana-loader-spark"></span></span></div><span class="hibana-page-loader-brand">Hibana</span><div class="hibana-loader-track" aria-hidden="true"><span class="hibana-loader-fill"></span></div></div></div> (deferred scripts run in
        document order) Alpine had already walked the tree — every x-data expression died
        with "prefs is not defined" etc. (~80 expression errors) and ALL settings interactivity
        was dead on a hard load (silent since the inline-script extraction, 317724e). The

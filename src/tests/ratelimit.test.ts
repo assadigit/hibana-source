@@ -203,3 +203,64 @@ describe('rate limiting (spec §15)', () => {
     }
   })
 })
+
+// S108 (2026-09-22, the P0 hotfix pin): the S105 kill-switch read bare `process.env`
+// inside src/services/ratelimit.ts — shared code that ALSO runs on Cloudflare Workers,
+// where `process` does not exist. Every rate-limited endpoint (login, signup, reset,
+// uploads, AI, exports…) 500'd in prod with `ReferenceError: process is not defined`
+// (three login 500s in the live error_log, 2026-09-22). This static pin guards the
+// whole CLASS: shared src/ code (everything except the Node-only entry server.ts and
+// the Node-only disk-shots/migrate scripts) must reference `process` ONLY behind a
+// `typeof process` guard. A bare reference here would compile fine in vitest (Node)
+// and only explode after the next deploy — exactly the S105r3 failure shape.
+describe('Workers runtime safety (S108 pin)', () => {
+  const NODE_ONLY = new Set([
+    'src/server.ts', // the Node entry — process is its native env
+    'src/services/disk-shots.ts', // Node-only object store (HIBANA_SHOTS_DIR)
+    'src/db/migrate-node.ts', // the Node migration runner
+  ])
+  const ROOT = new URL('../..', import.meta.url).pathname
+  const SHARED = [
+    'src/services/ratelimit.ts',
+  ]
+  it('shared runtime code never touches a bare `process` global (Workers has none)', async () => {
+    const { readFileSync } = await import('node:fs')
+    for (const rel of SHARED) {
+      const src = readFileSync(ROOT + rel, 'utf-8')
+      const bare = src.match(/(^|[^.\w])process\./g)
+      const guarded = src.match(/typeof process\s*!==\s*['"]undefined['"]\s*&&\s*process\./g) ?? []
+      // every `process.` occurrence must be preceded by the typeof guard on the same line
+      const lines = src.split('\n').filter((l) => /(^|[^.\w])process\./.test(l))
+      const unguarded = lines.filter((l) => !/typeof process\s*!==\s*['"]undefined['"]/.test(l) && !/^\s*\/\//.test(l))
+      expect(unguarded, `${rel} must guard every process ref (bare hits: ${bare?.length ?? 0}, guarded: ${guarded.length})`).toEqual([])
+    }
+    // and the S108 fix itself is present in the limiter
+    const limiter = readFileSync(ROOT + 'src/services/ratelimit.ts', 'utf-8')
+    expect(limiter).toContain("typeof process !== 'undefined' && process.env.RATE_LIMIT_DISABLE")
+  })
+  it('the Node-only allowlist stays honest (no new shared file silently gains process)', async () => {
+    const { readdirSync, readFileSync, statSync } = await import('node:fs')
+    const walk = (dir: string): string[] => {
+      const out: string[] = []
+      for (const name of readdirSync(dir)) {
+        const p = dir + '/' + name
+        if (statSync(p).isDirectory()) {
+          if (p.endsWith('/src/tests')) continue // test code never ships to Workers
+          out.push(...walk(p))
+        } else if (p.endsWith('.ts') && !p.endsWith('.test.ts')) out.push(p)
+      }
+      return out
+    }
+    const files = walk(ROOT + 'src')
+    const offenders: string[] = []
+    for (const f of files) {
+      const rel = f.replace(ROOT, '')
+      if (NODE_ONLY.has(rel)) continue
+      const src = readFileSync(f, 'utf-8')
+      const lines = src.split('\n').filter((l) => /(^|[^.\w])process\./.test(l) && !/^\s*\/\//.test(l) && !/^\s*\*/.test(l))
+      const unguarded = lines.filter((l) => !/typeof process\s*!==\s*['"]undefined['"]/.test(l))
+      if (unguarded.length) offenders.push(`${rel}: ${unguarded.length} bare process ref(s)`)
+    }
+    expect(offenders, 'shared code must not reference bare `process` — Workers throws ReferenceError').toEqual([])
+  })
+})

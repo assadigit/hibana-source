@@ -58,7 +58,16 @@ export async function hitRateLimit(db: Db, rule: RateRule, ip: string): Promise<
   // The flag is TEST-ONLY: prod/dev deploys never set it (not in wrangler.toml, not in
   // .dev.vars), and the vitest pins below run with it unset — the limiter's real
   // behavior stays fully covered.
-  if (process.env.RATE_LIMIT_DISABLE === '1') return false
+  // S108 (2026-09-22, P0 hotfix — caught live): the S105 guard read bare
+  // `process.env.RATE_LIMIT_DISABLE`, and Cloudflare Workers HAS NO `process` global —
+  // every hitRateLimit caller (login, signup, password reset, uploads, AI, exports,
+  // import, telegram webhook) threw `ReferenceError: process is not defined` and
+  // app.onError turned it into a 500 on EVERY rate-limited request in prod (three
+  // login 500s sat in the live error_log; the owner's own sign-in attempt included).
+  // The `typeof` guard keeps the Node/test contract EXACTLY (vitest + playwright still
+  // set RATE_LIMIT_DISABLE=1 through process.env) and never throws on the Workers
+  // runtime, where the flag is simply absent — the limiter runs for real, as designed.
+  if (typeof process !== 'undefined' && process.env.RATE_LIMIT_DISABLE === '1') return false
   const nowS = Math.floor(Date.now() / 1000)
   const bucket = Math.floor(nowS / rule.windowSec) * rule.windowSec
   const key = `${rule.name}:${ip}`

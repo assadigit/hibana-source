@@ -172,6 +172,9 @@
     const vh = window.innerHeight
     const r = target.getBoundingClientRect()
     cardEl.style.transform = ''
+    // S112: the centered branch forces an explicit width (see placeCardCentered) —
+    // anchored steps must reset it or the card stays at the forced width instead of
+    // shrink-wrapping beside its target (same class as the old transform leak).
     cardEl.style.maxWidth = Math.min(340, vw - 2 * M) + 'px'
     cardEl.style.maxHeight = (vh - 2 * M) + 'px'
     cardEl.style.overflowY = 'auto'
@@ -194,6 +197,7 @@
     cardEl.style.left = left + 'px'
     cardEl.style.top = top + 'px'
     cardEl.style.bottom = 'auto'
+    cardEl.style.width = ''
   }
 
   const placeCardCentered = (cardEl) => {
@@ -201,6 +205,13 @@
     cardEl.style.top = '50%'
     cardEl.style.bottom = 'auto'
     cardEl.style.transform = 'translate(-50%, -50%)'
+    // S112 (mobile QA, agent-browser 390px): the card is position:absolute WITHOUT an
+    // explicit width, so the browser's shrink-to-fit computes its available space as
+    // "containing block minus left offset" — left:50% leaves exactly HALF the viewport
+    // (195px on a 390px phone; the CSS max-inline-size:320px only masks it on desktop).
+    // The welcome card wrapped every 3–4 words. Force the full comfortable width;
+    // placeCardBeside resets it so anchored steps shrink-wrap again.
+    cardEl.style.width = Math.min(360, window.innerWidth - 24) + 'px'
     cardEl.style.maxWidth = Math.min(380, window.innerWidth - 24) + 'px'
     cardEl.style.maxHeight = (window.innerHeight - 24) + 'px'
     cardEl.style.overflowY = 'auto'

@@ -343,6 +343,14 @@ window.hibana = (() => {
   // Built once into <body> so every page shares one implementation (spec §5.5 quick-add modal).
   let quickAddEl = null
   let quickAddForm = null
+  // S112 (the S111 carry-forward): a share-sheet capture that SAVES announces itself —
+  // "Idea captured from the share sheet". The save handler toasts IN PLACE and drops a
+  // sessionStorage token; announceShareCapture() at boot consumes the token once — if the
+  // token still matches the window's copy, the document survived (soft nav, toast already
+  // shown); if it doesn't (hard reload tore the window down), the landing page toasts.
+  // A reload never re-toasts; a cancel never arms (see the close listener below).
+  let shareCaptureArmed = false
+  const SHARE_CAPTURED_KEY = 'hibana-share-captured'
 
   function buildQuickAdd() {
     if (quickAddEl) return
@@ -359,7 +367,13 @@ window.hibana = (() => {
         <p class="muted small" id="qa-folder-hint" hidden></p>
         <label>${_t('qa.oneLiner', 'One-liner')} <textarea id="qa-description" rows="4" maxlength="2000"></textarea></label>
         <label>${_t('qa.tags', 'Tags (comma-separated, optional)')} <input type="text" id="qa-tags" placeholder="${_t('qa.tagsPlaceholder', 'AI, WordPress, …')}" maxlength="200"></label>
-        <label>${_t('qa.sketch', 'Sketch (optional)')} <input type="file" id="qa-file" accept="image/png,image/jpeg,image/webp,image/gif"></label>
+        <span class="qa-sketch-label">${_t('qa.sketch', 'Sketch (optional)')}</span>
+        <label class="qa-sketch" for="qa-file">
+          <svg class="qa-sketch-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
+          <span class="qa-sketch-text" data-idle>${_t('qa.sketchHint', 'Attach a sketch — a photo or drawing')}</span>
+          <span class="qa-sketch-name" hidden></span>
+          <input type="file" id="qa-file" accept="image/png,image/jpeg,image/webp,image/gif">
+        </label>
         <p class="error" id="qa-error" role="alert"></p>
         <div class="row">
           <button type="submit" id="qa-save">${_t('common.save', 'Save')}</button>
@@ -388,10 +402,33 @@ window.hibana = (() => {
       }, 350)
     })
 
+    // S112: the branded sketch chip mirrors the file input's state — filename on
+    // pick, back to the idle hint on reset (the offline path calls reset() too).
+    const sketchChip = dlg.querySelector('.qa-sketch')
+    const sketchText = dlg.querySelector('.qa-sketch-text')
+    const sketchName = dlg.querySelector('.qa-sketch-name')
+    dlg.querySelector('#qa-file').addEventListener('change', () => {
+      const f = dlg.querySelector('#qa-file').files[0]
+      if (!sketchChip || !sketchText || !sketchName) return
+      if (f) {
+        sketchName.textContent = f.name
+        sketchName.hidden = false
+        sketchText.hidden = true
+        sketchChip.classList.add('has-file')
+      } else {
+        sketchName.hidden = true
+        sketchText.hidden = false
+        sketchChip.classList.remove('has-file')
+      }
+    })
+
     const close = () => dlg.close()
     const reset = () => {
       quickAddForm.reset()
       document.getElementById('qa-error').textContent = ''
+      sketchName && (sketchName.hidden = true)
+      sketchText && (sketchText.hidden = false)
+      sketchChip && sketchChip.classList.remove('has-file')
       dupEl.hidden = true
       dupEl.textContent = ''
     }
@@ -410,6 +447,7 @@ window.hibana = (() => {
       const save = dlg.querySelector('#qa-save')
       save.disabled = false
       save.textContent = _t('common.save', 'Save')
+      shareCaptureArmed = false // S112: cancel/Esc/backdrop close never toasts
     })
 
     quickAddForm.addEventListener('submit', async (e) => {
@@ -483,6 +521,13 @@ window.hibana = (() => {
           }).catch(() => {}) // attachment failure must not block capture
         }
         if (synced && drained && navigator.onLine) {
+          if (shareCaptureArmed) {
+            shareCaptureArmed = false
+            const tok = crypto.randomUUID ? crypto.randomUUID() : String(Date.now())
+            try { sessionStorage.setItem(SHARE_CAPTURED_KEY, tok) } catch { /* private mode */ }
+            window.__hibShareSavedToken = tok // same-document marker for announceShareCapture
+            window.hibana?.toast(_t('qa.shareCaptured', 'Idea captured from the share sheet'), 'ok', 4200)
+          }
           close()
           reset()
           // User request (2026-08-25): capturing from the Ideas page lands back there with a
@@ -3928,8 +3973,25 @@ window.hibana = (() => {
       stripShareParams()
       return
     }
+    shareCaptureArmed = true // S112: a successful save announces itself on the landing page
     quickAddEl?.addEventListener('close', stripShareParams, { once: true })
   }
+
+  // S112: consume-and-clear the share-captured token — only a document that was REBUILT
+  // by a hard reload (window copy of the token gone) announces; the surviving-document
+  // case already toasted in the save handler (see above).
+  function announceShareCapture() {
+    let tok = null
+    try {
+      tok = sessionStorage.getItem(SHARE_CAPTURED_KEY)
+      if (!tok) return
+      sessionStorage.removeItem(SHARE_CAPTURED_KEY)
+    } catch { return }
+    if (window.__hibShareSavedToken === tok) return // same document — already toasted
+    window.hibana?.toast(_t('qa.shareCaptured', 'Idea captured from the share sheet'), 'ok', 4200)
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', announceShareCapture, { once: true })
+  else announceShareCapture()
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', consumeShareTarget, { once: true })
   else consumeShareTarget()
   Object.assign(window.__hib, { _t, esc, escHtml, toast, handle401, currentTheme, setTheme, paintThemeButton, toggleTheme, buildQuickAdd, openQuickAdd, buildProjectAdd, openProjectAdd, buildTaskAdd, openTaskAdd, buildQuickNoteAdd, openQuickNoteAdd, draftLines, DRAFT_X, renderDraft, syncStatCarousel, initStatCarousel, getCollapsed, setCollapsed, initCollapseButtons, dashQuadPhone, dashQuadGrid, dashQuadIndex, syncDashQuadDots, goToDashQuad, hideDashSwipeHint, wireDashSwipeHint, buildDashQuadDots, refreshDashboard, closeDashMenu, dashTaskRequest, refreshTaskSurface, setDashQuickaddReady, closeDashNoteBubble, closeDashNotePanel, openDashNoteBubble, dashNoteFmt, dashNoteEditStart, dashNoteEditRestore, dashNoteDelete, dashNoteRow, dashNoteAnchorRect, placeDashNotePanel, openDashNotePanel, closeOpenDashMenus, placeDashMenu, clearDashTaskDropTargets, dashTaskList, updateDashTaskEmpty, persistDashOrder, updateDashTaskCounter, showDashTaskMoveError, autosizeNote, buildNoteReader, enterNoteEdit, openNoteReader, injectNoteMenus, closeNoteMenus, buildNoteEditor, applyNoteView, applyNoteSize, applyNoteControlsOpen, markClampedNotes, fabEl, setFabOpen })

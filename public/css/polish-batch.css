@@ -981,3 +981,54 @@ input.qe-name,
 @media (prefers-contrast: more) {
   .pg-filter-empty .empty-state-icon { opacity: 1; color: var(--text); }
 }
+
+/* --- S112: branded sketch-attach chip (quick-add) -----------------------------
+   The native <input type="file"> rendered as a bare UA "Choose File" button — the one
+   unstyled control in the capture sheet (mobile share-sheet QA, S112). The input is
+   now visually hidden inside a full-width chip label: paperclip glyph, idle hint,
+   filename once picked (has-file). The input STAYS in the layout (opacity 0, full
+   chip hit area) so clicks, keyboard focus and screen readers all reach it natively. */
+.qa-sketch-label { display: block; font-size: var(--fs-md); color: var(--muted); }
+.modal .qa-sketch {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.7rem 0.85rem;
+  border: 1.5px dashed var(--line-strong, var(--line));
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--card) 88%, var(--bg));
+  color: var(--muted);
+  cursor: pointer;
+  transition: border-color 0.15s ease, background-color 0.15s ease, color 0.15s ease;
+}
+.modal .qa-sketch:hover { border-color: var(--accent); color: var(--accent); background: color-mix(in srgb, var(--accent) 6%, var(--card)); }
+.modal .qa-sketch:focus-within {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-style: solid;
+}
+.qa-sketch-icon { inline-size: 1.15rem; block-size: 1.15rem; flex: 0 0 auto; color: var(--accent); }
+.qa-sketch-text { font-size: var(--fs-md); color: inherit; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.qa-sketch-name {
+  font-size: var(--fs-md);
+  font-weight: 600;
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.modal .qa-sketch.has-file { border-style: solid; border-color: color-mix(in srgb, var(--accent) 55%, var(--line)); background: color-mix(in srgb, var(--accent) 7%, var(--card)); }
+.qa-sketch.has-file .qa-sketch-icon { color: var(--text); }
+.qa-sketch input[type="file"] {
+  position: absolute;
+  inset: 0;
+  inline-size: 100%;
+  block-size: 100%;
+  opacity: 0;
+  cursor: pointer;
+  font-size: 0; /* kills the UA control's intrinsic size */
+}
+@media (prefers-reduced-motion: reduce) {
+  .qa-sketch { transition: none; }
+}

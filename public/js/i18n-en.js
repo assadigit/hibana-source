@@ -200,7 +200,7 @@ window.__hibanaDictEN = {
       // quick-add modal (app.js)
       'qa.title': 'New Idea', 'qa.name': 'Name', 'qa.oneLiner': 'One-liner',
       'qa.tags': 'Tags (comma-separated, optional)', 'qa.tagsPlaceholder': 'AI, WordPress, …',
-      'qa.sketch': 'Sketch (optional)', 'qa.saving': 'Saving…',
+      'qa.sketch': 'Sketch (optional)', 'qa.sketchHint': 'Attach a sketch — a photo or drawing', 'qa.shareCaptured': 'Idea captured from the share sheet', 'qa.saving': 'Saving…',
       'qa.voiceError': 'Voice input failed: ',
       'qa.savedOffline': 'Saved offline — it will sync when you reconnect',
       'qa.errorPrefix': "Couldn't create the idea —",

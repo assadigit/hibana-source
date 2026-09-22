@@ -200,7 +200,7 @@ window.__hibanaDictFA = {
       // quick-add modal (app.js)
       'qa.title': 'ایده جدید', 'qa.name': 'نام', 'qa.oneLiner': 'توضیح کوتاه',
       'qa.tags': 'برچسب‌ها (با کاما جدا کنید، اختیاری)', 'qa.tagsPlaceholder': 'AI، WordPress، …',
-      'qa.sketch': 'طرح (اختیاری)', 'qa.saving': 'در حال ذخیره…',
+      'qa.sketch': 'طرح (اختیاری)', 'qa.sketchHint': 'چسباندن یک طرح — عکس یا نقاشی', 'qa.shareCaptured': 'ایده از صفحهٔ اشتراک‌گذاری ثبت شد', 'qa.saving': 'در حال ذخیره…',
       'qa.voiceError': 'ورودی صوتی ناموفق: ',
       'qa.savedOffline': 'آفلاین ذخیره شد — به محض اتصال همگام می‌شود',
       'qa.errorPrefix': 'ایجاد ایده ممکن نشد —',

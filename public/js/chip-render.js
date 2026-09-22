@@ -330,9 +330,59 @@
     return walk(tmp).replace(/\n{3,}/g, '\n\n').trim()
   }
 
+  // --- S110 (v0.3.43.0): the SHARED card meta line ---------------------------------
+  // The fullscreen board's meta was a bare date ("22 Sep 2026") while the project
+  // page's progress box rendered "<priority label> · date · clock" — the last
+  // remaining token drift of the [MEDIUM] "fullscreen box must inherit the exact
+  // design tokens" item. chip-render is loaded by BOTH surfaces, so the meta
+  // composition lives here ONCE; the e2e parity pin asserts the two surfaces render
+  // byte-identical meta for the same task. Twin of project-page.js's pdMetaLine /
+  // pdPrioLabel (lang passed explicitly — this module has no page context).
+  const PRIO_LABEL = {
+    urgent: { en: 'Urgent', fa: 'فوری' },
+    high: { en: 'High Priority', fa: 'اولویت بالا' },
+    medium: { en: 'Medium Priority', fa: 'اولویت متوسط' },
+    low: { en: 'Low Priority', fa: 'اولویت کم' },
+  }
+  const faDig = (s) => String(s).replace(/\d/g, (d) => '۰۱۲۳۴۵۶۷۸۹'[+d])
+  const G_MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+  function prioLabel(p, lang) {
+    const e = PRIO_LABEL[p] || PRIO_LABEL.medium
+    return lang === 'fa' ? e.fa : e.en
+  }
+  // Meta line under a task title: date + CLOCK — Jalali + FA digits when fa (Intl
+  // persian calendar; the pages never load the jalaali vendor for this), Gregorian +
+  // 12h clock when en. UTC edge — twin of the server-side taskMetaLabel() in
+  // routes/projects.ts and of project-page.js's pdMetaLine (pinned equal by e2e).
+  function metaLine(iso, done, lang) {
+    const fa = lang === 'fa'
+    const d = new Date(iso)
+    if (isNaN(d.getTime())) return ''
+    const hh = d.getUTCHours()
+    const mm = String(d.getUTCMinutes()).padStart(2, '0')
+    const clock = fa
+      ? faDig(String(hh).padStart(2, '0')) + ':' + faDig(mm)
+      : ((hh % 12) || 12) + ':' + mm + ' ' + (hh < 12 ? 'AM' : 'PM')
+    let date
+    if (fa) {
+      try {
+        date = new Intl.DateTimeFormat('fa-IR-u-ca-persian', { timeZone: 'UTC', day: 'numeric', month: 'long', year: 'numeric' }).format(d)
+      } catch {
+        date = d.toISOString().slice(0, 10)
+      }
+    } else {
+      date = d.getUTCDate() + ' ' + G_MONTHS[d.getUTCMonth()] + ' ' + d.getUTCFullYear()
+    }
+    return (done ? '✓ ' : '') + date + ' · ' + clock
+  }
+  function metaHtml(prio, iso, done, lang) {
+    return '<span class="pd-meta-prio prio-' + esc(prio || 'medium') + '">' + esc(prioLabel(prio || 'medium', lang)) + '</span> · ' + esc(metaLine(iso, done, lang))
+  }
+
   window.HibanaChips = {
     esc, t, TITLE_CLAMP,
     renderTitle, titleHtml, titleAttrs, readMoreBtn, previewHtml, applyTitle, htmlToMd,
     tagChip, tagChipsRow,
+    prioLabel, metaLine, metaHtml,
   }
 })()

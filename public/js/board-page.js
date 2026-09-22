@@ -148,9 +148,14 @@
                         (sprint ? '<span class="db-sprint-badge">◆ ' + B().esc(sprint.name) + '</span>' : '') +
                       '</div>'
                       : '') +
-                    '<span class="db-card-date muted small">' + (task.status === 'done' && task.done_at
-                      ? '✓ ' + B().fullLabel(B().dayIdx(task.done_at), lang)
-                      : B().fullLabel(B().dayIdx(task.created_at), lang)) + '</span>' +
+                    // S110 (v0.3.43.0): the meta line becomes the EXACT composition the
+                    // project page's progress box renders — "<priority label> · date ·
+                    // clock" (✓ prefix when done) via the SHARED chip-render renderer
+                    // (HibanaChips.metaHtml). The old board-only bare date span was the
+                    // last token drift of the "fullscreen box must inherit the projects-
+                    // page design tokens" item; the e2e parity pin now asserts both
+                    // surfaces render byte-identical meta for the same task.
+                    '<span class="pd-task-meta">' + (CH() ? CH().metaHtml(task.priority || 'medium', task.created_at, task.status === 'done', lang) : '<span class="pd-meta-prio prio-' + B().esc(task.priority || 'medium') + '">' + B().esc(task.priority || 'medium') + '</span> · ' + B().esc(task.status === 'done' && task.done_at ? '✓ ' : '') + B().esc(B().fullLabel(B().dayIdx(task.created_at), lang))) + '</span>' +
                   '</article>'
                 }).join('') +
                 '<button type="button" class="db-add" data-add="' + st + '">＋ <span>' + B().esc(_t('db.addTask', 'Add task')) + '</span></button>' +
@@ -528,7 +533,7 @@
             if (!injected && waited >= 1200) {
               injected = true
               inject('/js/devboard.js?v=22') // keep in sync with the <head> tag + sw SHELL
-              if (!window.HibanaChips) inject('/js/chip-render.js?v=8') // S36: was ?v=1 while the HTML tags say v=2 — two cache entries for one file (the cache-bust gate caught it under the sandbox's mode-bit noise). Aligned; local-dev + SW caches now share ONE url per version. S86: v8 — kept in sync with the <head> tag (previewHtml moved in).
+              if (!window.HibanaChips) inject('/js/chip-render.js?v=9') // S36: was ?v=1 while the HTML tags say v=2 — two cache entries for one file (the cache-bust gate caught it under the sandbox's mode-bit noise). Aligned; local-dev + SW caches now share ONE url per version. S86: v8 — kept in sync with the <head> tag (previewHtml moved in).
               if (!window.jalaali) inject('/vendor/jalaali.min.js') // Jalali dates for FA
             }
             if (waited >= 9000) return resolve(false)

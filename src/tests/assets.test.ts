@@ -87,4 +87,58 @@ describe('static assets (portability path)', () => {
       close()
     }
   })
+
+  // S108 (v0.3.41.1): HTML served through the assets middleware is stamped no-store.
+  // The Workers assets layer serves page HTML cacheable (extensionless pretty URLs never
+  // matched the _headers /*.html rule) and revalidates lazily — a stale page references
+  // dist hashes a newer build has purged → 404 stylesheets → "first opens render
+  // unloaded". Worker-served + no-store closes the class at both legs (edge + browser).
+  it('stamps no-store on HTML from the assets middleware (S108 stale-edge defense)', async () => {
+    const { db, close } = makeTestDb()
+    try {
+      // A fake fetcher that mirrors the real binding: HTML pages carry the assets
+      // default cache policy, css carries the versioned policy, and the binding itself
+      // resolves the extensionless pretty URL to the page (html_handling=auto-trailing-
+      // slash — verified live: /to-do-list serves sadhana.html bytes with _headers).
+      const typedAssets =
+        (files: string[]) =>
+        (url: URL): Promise<Response> => {
+          const p = url.pathname === '/notes' ? '/notes.html' : url.pathname
+          if (!files.includes(p)) return Promise.resolve(new Response('Not Found', { status: 404 }))
+          const type = p.endsWith('.html') ? 'text/html; charset=utf-8' : p.endsWith('.css') ? 'text/css' : 'application/javascript'
+          return Promise.resolve(
+            new Response('<html><body>x</body></html>', {
+              status: 200,
+              headers: { 'content-type': type, 'cache-control': 'public, max-age=0, must-revalidate' },
+            }),
+          )
+        }
+      const app = createApp({
+        db,
+        isProd: false,
+        github: { owner: 'x', repo: 'y', token: '' },
+        emailKey: undefined,
+        assets: typedAssets(['/notes.html', '/css/notes.css']),
+      })
+
+      const page = await app.fetch(new Request('http://local/notes.html'))
+      expect(page.status).toBe(200)
+      expect(page.headers.get('content-type')).toContain('text/html')
+      expect(page.headers.get('cache-control')).toBe('no-store')
+
+      // The extensionless pretty URL serves the same file via the .html retry (Node path)
+      // and gets the same stamp.
+      const pretty = await app.fetch(new Request('http://local/notes'))
+      expect(pretty.status).toBe(200)
+      expect(pretty.headers.get('cache-control')).toBe('no-store')
+
+      // Non-HTML keeps its own policy — the stamp must never touch css/js/vendor.
+      const css = await app.fetch(new Request('http://local/css/notes.css'))
+      expect(css.status).toBe(200)
+      expect(css.headers.get('content-type')).toContain('text/css')
+      expect(css.headers.get('cache-control')).toBe('public, max-age=0, must-revalidate')
+    } finally {
+      close()
+    }
+  })
 })

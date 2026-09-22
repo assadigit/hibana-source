@@ -10,6 +10,81 @@
 /to-do-list*
   Cache-Control: no-store
 
+# S108 (v0.3.41.1): every extensionless pretty URL gets no-store too. These rules match
+# the REQUEST path, and /notes-style paths never matched /*.html — they served the
+# assets default (max-age=0, must-revalidate) and sat in the assets/edge cache across
+# deploys (the stale-HTML class behind "first 1–2 opens render unloaded"). The Worker
+# path now also stamps this header (run_worker_first + app.ts) — this file is the
+# belt-and-suspenders for any path variant the negation list could miss.
+/login*
+  Cache-Control: no-store
+
+/signup*
+  Cache-Control: no-store
+
+/confirm*
+  Cache-Control: no-store
+
+/reset*
+  Cache-Control: no-store
+
+/dashboard*
+  Cache-Control: no-store
+
+/project*
+  Cache-Control: no-store
+
+/sparks*
+  Cache-Control: no-store
+
+/notes*
+  Cache-Control: no-store
+
+/board*
+  Cache-Control: no-store
+
+/sprint*
+  Cache-Control: no-store
+
+/canvas*
+  Cache-Control: no-store
+
+/whiteboard*
+  Cache-Control: no-store
+
+/gallery*
+  Cache-Control: no-store
+
+/reports*
+  Cache-Control: no-store
+
+/calendar*
+  Cache-Control: no-store
+
+/notifications*
+  Cache-Control: no-store
+
+/settings*
+  Cache-Control: no-store
+
+/clients*
+  Cache-Control: no-store
+
+/archive*
+  Cache-Control: no-store
+
+/admin*
+  Cache-Control: no-store
+
+/clip*
+  Cache-Control: no-store
+
+/404*
+  Cache-Control: no-store
+
+/index*
+  Cache-Control: no-store
+
 # Security headers (hardening 2026-08-28) — mirror of the Worker middleware in src/app.ts
 # (static assets serve before the Worker runs, so they need their own copy here).
 # CSP: 'unsafe-inline' + 'unsafe-eval' are required by the no-build frontend (inline scripts,

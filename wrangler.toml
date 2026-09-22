@@ -33,6 +33,35 @@ directory = "./public"
 binding = "ASSETS"
 html_handling = "auto-trailing-slash"
 not_found_handling = "none"
+# S108 (v0.3.41.1): page navigations must NEVER be answered from the assets edge cache.
+# That cache revalidates lazily (cf-cache-status: HIT persisted across a zone
+# purge_cache — verified live), so during a post-deploy stale window a page HTML could
+# reference dist hashes the new build already purged → 404 stylesheets → the Note-page
+# "unloaded styling until 1–2 refreshes" class of bug. Negation globs run the Worker
+# FIRST for every path EXCEPT the hot static set (hashed /dist, versioned /css+/js,
+# /vendor libs, sw.js, webmanifest, root media) — those keep the fast zero-Worker edge
+# path and are versioned/immutable by contract. Everything else (pages, /api, future
+# pages) runs the Worker: app.ts's assets middleware serves HTML through the binding and
+# stamps `no-store`, mirroring the S72 /api/nav pattern (Worker-served = the edge never
+# caches it — zero stale incidents since it shipped).
+run_worker_first = [
+  "/!dist/*",
+  "/!css/*",
+  "/!js/*",
+  "/!vendor/*",
+  "/!sw.js",
+  "/!manifest.webmanifest",
+  "/!robots.txt",
+  "/!favicon.ico",
+  "/!icon.svg",
+  "/!icon-192.png",
+  "/!icon-512.png",
+  "/!logo-light.png",
+  "/!logo-dark.png",
+  "/!logo-square-light.png",
+  "/!logo-square-dark.png",
+  "/!Login.jpg",
+]
 
 [vars]
 ENVIRONMENT = "dev"

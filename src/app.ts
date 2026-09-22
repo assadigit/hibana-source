@@ -283,13 +283,37 @@ export function createApp(cfg: Config) {
   // registered before coreRoutes' global requireAuth wildcard; the final app.get('*')
   // fallback stays last so specific routes keep priority. Missing files serve the branded
   // /404.html (2026-09-06 (k)); /api/* and the Worker-served page routes fall through.
+  //
+  // S108 (v0.3.41.1): HTML responses leaving this middleware are stamped no-store.
+  // WHY (the whole chain, verified live): the Workers assets layer serves page HTML from
+  // an internal edge cache that revalidates lazily (cf-cache-status: HIT persisted across
+  // a zone purge_cache — the zone purge does not touch the assets layer), and the
+  // _headers /*.html rule only matches .html REQUEST paths, never the extensionless
+  // /notes-style pretty URLs — those served `public, max-age=0, must-revalidate`. During
+  // any stale window the page references dist hashes a newer build has already purged →
+  // 404 stylesheets → the "first 1–2 opens render unloaded" class of report (this
+  // project's own history: S72 nav.html stale for hours; the /register+/verify corrupted
+  // variants; the /sadhana blank page). run_worker_first (wrangler.toml) now routes page
+  // paths through this Worker — Worker-served HTML bypasses the assets cache entirely
+  // (the S72 /api/nav pattern, zero stale incidents since) — and no-store guarantees
+  // every open fetches fresh HTML carrying the current hashes. Non-HTML assets keep
+  // whatever policy the assets layer gave them (dist is immutable; css/js are ?v=
+  // versioned and CI's check-cache-bust guards the bumps).
+  const stampHtmlNoStore = (res: Response): Response => {
+    if (!res.ok) return res
+    const type = res.headers.get('content-type') ?? ''
+    if (!type.includes('text/html')) return res
+    const headers = new Headers(res.headers)
+    headers.set('cache-control', 'no-store')
+    return new Response(res.body, { status: res.status, statusText: res.statusText, headers })
+  }
   if (assetsFirst) {
     app.use('*', async (c, next) => {
       if (c.req.method !== 'GET' && c.req.method !== 'HEAD') return next()
       const url = new URL(c.req.url)
       if (url.pathname === '/app') return next() // authenticated shell, handled below
       const res = await assetsFirst(url, c.req.raw)
-      if (res.status !== 404) return res
+      if (res.status !== 404) return stampHtmlNoStore(res)
       if (url.pathname.startsWith('/api/') || WORKER_PAGE_ROUTES.has(url.pathname)) return next()
       const nf = await notFoundPage(c.req.url)
       if (nf) return nf

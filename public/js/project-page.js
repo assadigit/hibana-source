@@ -409,7 +409,7 @@
               if (!r.ok) throw new Error('status ' + r.status)
               stagedShots = stagedShots.filter((s) => s.id !== sid)
               renderTaskAddShots()
-              window.hibana?.toast(_t('project.shotDeleted', 'Screenshot deleted'), 'info')
+              window.hibana?.toast(_t('project.shotDeleted', 'File deleted'), 'info')
             } catch {
               window.hibana?.toast(_t('sparks.saveFailed', "Couldn't delete"), 'err')
             }
@@ -484,6 +484,16 @@
         // overlay), note edit (the caption becomes a textarea + save/cancel), resolve
         // toggle, delete (confirm). Every mutation PATCHes then re-pulls the fragment.
         const shotsRefresh = () => { if (window.htmx) window.htmx.ajax('GET', `/api/projects/${id}/screenshots`, { target: '#shots', swap: 'innerHTML' }) }
+        // S107: the per-card ⋮ kebab (the four inline action buttons folded into the
+        // standard spark-menu popover). One open menu at a time; the button's
+        // [data-open] mirrors the pop's visibility (the CSS hover-reveal convention).
+        const closeShotMenus = () => {
+          document.querySelectorAll('.shot-card .spark-menu-pop:not([hidden])').forEach((pop) => {
+            pop.hidden = true
+            const btn = pop.parentElement && pop.parentElement.querySelector('[data-menu-open]')
+            if (btn) btn.removeAttribute('data-open')
+          })
+        }
         // S60: the project lightbox is a BROWSER now (same pattern as the gallery's,
         // S59b): prev/next walk the sibling figures of the SAME grid (main shots grid,
         // pinned-shots dialog, staged grid, task-edit dialog grid — the figure's parent
@@ -813,6 +823,23 @@
         }
 
         ctx.on('click', async (e) => {
+          // S107: the ⋯ kebab toggle — open/close the per-card actions popover. Runs
+          // FIRST so the toggle click never leaks into the action handlers below.
+          const menuBtn = e.target.closest('[data-shot-menu]')
+          if (menuBtn) {
+            const pop = menuBtn.parentElement ? menuBtn.parentElement.querySelector('.spark-menu-pop') : null
+            if (!pop) return
+            const willOpen = pop.hidden
+            closeShotMenus()
+            pop.hidden = !willOpen
+            if (willOpen) menuBtn.setAttribute('data-open', '')
+            else menuBtn.removeAttribute('data-open')
+            return
+          }
+          // A click on any popover ITEM is an action — the pop must be closed before
+          // the action handlers run (the pin/note dialogs open above a dead pop
+          // otherwise; toggle/delete refresh the grid and reset anyway).
+          if (e.target.closest('.shot-card .spark-menu-pop')) closeShotMenus()
           const zoom = e.target.closest('[data-shot-zoom]')
           if (zoom) {
             const img = zoom.querySelector('img')
@@ -858,7 +885,7 @@
           }
           const del = e.target.closest('[data-shot-del]')
           if (del) {
-            if (!window.confirm(_t('project.shotDelConfirm', 'Delete this screenshot?'))) return
+            if (!window.confirm(_t('project.shotDelConfirm', 'Delete this file?'))) return
             try {
               const res = await fetch('/api/screenshots/' + del.getAttribute('data-shot-del'), { method: 'DELETE' })
               if (!res.ok) throw new Error('status ' + res.status)
@@ -873,7 +900,12 @@
           // guard killed it in the same tick — the lightbox flashed and died). Zoom
           // triggers are exempt: their click means "open", never "close".
           if (shotLightbox && !e.target.closest('.shot-lightbox, [data-shot-zoom], [data-staged-zoom], [data-pde-shot-zoom], [data-tshots-zoom]')) closeShotLightbox()
+          // S107: outside click closes any open ⋯ popover (the kebab itself and the
+          // items are exempt — handled above).
+          if (!e.target.closest('.shot-card .spark-menu')) closeShotMenus()
         })
+        // S107: Esc closes the ⋯ popovers too (keyboard parity with the pd-task menus).
+        ctx.on('keydown', (e) => { if (e.key === 'Escape') closeShotMenus() })
         // keyboard parity for the click-to-edit note (role="button" needs Enter/Space)
         ctx.on('keydown', (e) => {
           if (e.key !== 'Enter' && e.key !== ' ') return
@@ -3358,7 +3390,7 @@
                 try {
                   const r = await fetch('/api/screenshots/' + sid, { method: 'DELETE' })
                   if (!r.ok) throw new Error('status ' + r.status)
-                  window.hibana?.toast(_t('project.shotDeleted', 'Screenshot deleted'), 'info')
+                  window.hibana?.toast(_t('project.shotDeleted', 'File deleted'), 'info')
                 } catch {
                   window.hibana?.toast(_t('sparks.saveFailed', "Couldn't delete"), 'err')
                 }

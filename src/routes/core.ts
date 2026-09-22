@@ -91,17 +91,29 @@ export function shotsGridHtml(
           <p class="shot-note muted small" dir="auto" data-shot-note-edit title="${trL(lang, 'Click to write the note — what & where to work', 'برای نوشتن یادداشت کلیک کن — چه چیزی و کجا')}" role="button" tabindex="0">${esc(s.caption) || '<span class="shot-note-empty">' + trL(lang, 'Add a note — what & where to work…', 'یادداشت اضافه کن — چه چیزی و کجا…') + '</span>'}</p>
           <div class="row spread shot-actions">
             <span class="shot-state${s.resolved ? ' is-fixed' : ''}" data-shot-state>${s.resolved ? '✓ ' + trL(lang, 'fixed', 'درست شد') : trL(lang, 'open problem', 'باز')}${''}</span>
-            <span class="row" style="gap:0.2rem">
-              <button type="button" class="ghost small" data-shot-pin="${s.id}" title="${trL(lang, 'Stick this picture to a progress-box item (e.g. the Problems box)', 'این تصویر را به یک قلم جعبهٔ پیشرفت سنجاق کن (مثلاً جعبهٔ مشکلات)')}" aria-label="${trL(lang, 'Pin to a task', 'سنجاق به یک کار')}">${icon('pin')}</button>
-              <button type="button" class="ghost small" data-shot-note="${s.id}" title="${trL(lang, 'Edit note', 'ویرایش یادداشت')}" aria-label="${trL(lang, 'Edit note', 'ویرایش یادداشت')}">${icon('pencil')}</button>
-              <button type="button" class="ghost small" data-shot-toggle="${s.id}" title="${s.resolved ? trL(lang, 'Mark as open again', 'بازگشتی به باز') : trL(lang, 'Mark as fixed', 'علامت درست‌شد')}" aria-label="${s.resolved ? trL(lang, 'Mark as open again', 'بازگشتی به باز') : trL(lang, 'Mark as fixed', 'علامت درست‌شد')}">${s.resolved ? '↺' : '✓'}</button>
-              <button type="button" class="ghost small danger" data-shot-del="${s.id}" title="${trL(lang, 'Delete', 'حذف')}" aria-label="${trL(lang, 'Delete', 'حذف')}">${icon('x')}</button>
-            </span>
+            <!-- S107 (owner: "the settings like delete edit etc can be hidden under a
+                 setting '...' menu for each uploaded picture"): the four inline icon
+                 buttons (pin / note / toggle / delete) cluttered every tile — they now
+                 live in the app's standard .spark-menu kebab popover (same pattern as
+                 pd-task / kanban / note cards). The menu items keep the EXACT data-*
+                 attributes the delegated project-page.js handler already speaks, so
+                 the wiring is unchanged — only the affordance moved. -->
+            <div class="spark-menu shot-menu">
+              <button type="button" data-shot-menu data-menu-open aria-haspopup="true" aria-label="${trL(lang, 'More actions', 'کارهای بیشتر')}" title="${trL(lang, 'More actions', 'کارهای بیشتر')}"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="5" cy="12" r="1.7" fill="currentColor"/><circle cx="12" cy="12" r="1.7" fill="currentColor"/><circle cx="19" cy="12" r="1.7" fill="currentColor"/></svg></button>
+              <div class="spark-menu-pop" role="menu" hidden>
+                <button type="button" role="menuitem" data-shot-pin="${s.id}" title="${trL(lang, 'Stick this picture to a progress-box item (e.g. the Problems box)', 'این تصویر را به یک قلم جعبهٔ پیشرفت سنجاق کن (مثلاً جعبهٔ مشکلات)')}">${icon('pin')} <span>${trL(lang, 'Pin to a task', 'سنجاق به یک کار')}</span></button>
+                <button type="button" role="menuitem" data-shot-note="${s.id}" title="${trL(lang, 'Edit note', 'ویرایش یادداشت')}">${icon('pencil')} <span>${trL(lang, 'Edit note', 'ویرایش یادداشت')}</span></button>
+                <button type="button" role="menuitem" data-shot-toggle="${s.id}" title="${s.resolved ? trL(lang, 'Mark as open again', 'بازگشتی به باز') : trL(lang, 'Mark as fixed', 'علامت درست‌شد')}">${s.resolved
+                  ? '<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 3v6h6"/></svg>'
+                  : icon('check')} <span>${s.resolved ? trL(lang, 'Mark as open again', 'بازگشتی به باز') : trL(lang, 'Mark as fixed', 'علامت درست‌شد')}</span></button>
+                <button type="button" role="menuitem" class="danger" data-shot-del="${s.id}" title="${trL(lang, 'Delete', 'حذف')}">${icon('trash')} <span>${trL(lang, 'Delete', 'حذف')}</span></button>
+              </div>
+            </div>
           </div>
         </figcaption>
       </figure>`,
     )
-    .join('') || `<div class="empty-state empty"><span class="empty-state-icon" aria-hidden="true">${icon('image')}</span><p class="empty-state-title">${trL(lang, 'No screenshots yet', 'هنوز اسکرین‌شاتی نیست')}</p><p class="empty-state-text">${trL(lang, 'Snap the broken UI/UX, drop it here, write what & where — so you know exactly what to work on.', 'از UI/UX خراب عکس بگیر، همین‌جا رها کن و بنویس چه چیزی و کجاست — تا دقیقاً بدانی روی چه کار کنی.')}</p></div>`
+    .join('') || `<div class="empty-state empty"><span class="empty-state-icon" aria-hidden="true">${icon('image')}</span><p class="empty-state-title">${trL(lang, 'No files yet', 'هنوز فایلی نیست')}</p><p class="empty-state-text">${trL(lang, 'Snap the broken UI/UX, drop it here, write what & where — so you know exactly what to work on.', 'از UI/UX خراب عکس بگیر، همین‌جا رها کن و بنویس چه چیزی و کجاست — تا دقیقاً بدانی روی چه کار کنی.')}</p></div>`
 }
 
 /** The task map for pinned shots in ONE project (S39): id → {title, status} for every

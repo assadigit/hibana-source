@@ -1298,6 +1298,17 @@ input::placeholder, textarea::placeholder { font-size: 0.88em; opacity: 0.7; } /
    bled ~32px into the NEIGHBOR card and swallowed its clicks. Wrap it. */
 .shot-actions { flex-wrap: wrap; row-gap: 0.25rem; }
 .shot-actions > .muted { min-inline-size: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* S107 (owner: "the settings like delete edit etc can be hidden under a setting
+   '...' menu for each uploaded picture"): the four inline icon buttons collapsed
+   into ONE ⋯ kebab — the app's standard .spark-menu popover (base styles live in
+   quicknotes.css: button shell, pop, hover-reveal, touch floor). The actions row
+   now reads [state chip] … [⋯]; every action is one deliberate click deeper and
+   the tiles rest clean. */
+.shot-actions .spark-menu { flex: none; }
+.shot-actions .spark-menu .spark-menu-pop { inset-block-start: calc(100% + 0.25rem); }
+.shot-card:hover .shot-actions .spark-menu > button[data-menu-open],
+.shot-card:focus-within .shot-actions .spark-menu > button[data-menu-open],
+.shot-actions .spark-menu > button[data-menu-open][data-open] { opacity: 1; }
 /* S39: the pin line — WHICH box + item the picture is stuck to (note + picture
    proof + how it's categorized). Amber family like the shot-state, quieter.
    S105 (owner: "they're into each other and messed up"): a long task title made

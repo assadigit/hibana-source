@@ -522,7 +522,7 @@ window.__hibanaDictFA = {
       // project page
       'project.stageSaved': 'مرحله ذخیره شد', 'project.captionPrompt': 'توضیح (اختیاری):',
       'project.shotUploaded': 'اسکرین‌شات آپلود شد', 'project.shotFailed': 'آپلود انجام نشد', 'project.uploading': 'در حال بارگذاری…',
-      'project.shotDeleted': 'اسکرین‌شات حذف شد',
+      'project.shotDeleted': 'فایل حذف شد',
       'project.fileUploaded': 'فایل آپلود شد', 'project.uploadFiles': 'آپلود فایل', 'project.downloadFile': 'دانلود {f}',
       // S35: the screenshot problem cards
       'project.shotZoom': 'اسکرین‌شات', 'project.shotNotePh': 'چه چیزی خراب است و کجا — دقیقاً همان‌جا که باید کار کنی…',
@@ -538,7 +538,7 @@ window.__hibanaDictFA = {
       'project.cancelUpload': 'لغو آپلود',
       'project.shotsMixed': '{ok} آپلود شد، {fail} ناموفق',
       'tags.label': 'برچسب‌ها',
-      'project.shotFixed': 'درست‌شده علامت خورد', 'project.shotReopened': 'دوباره باز شد', 'project.shotDelConfirm': 'این اسکرین‌شات حذف شود؟',
+      'project.shotFixed': 'درست‌شده علامت خورد', 'project.shotReopened': 'دوباره باز شد', 'project.shotDelConfirm': 'این فایل حذف شود؟',
       // S39: یادداشت روی کارت + سنجاق تصویر به قلم‌های جعبهٔ پیشرفت + نگارخانهٔ رسانه
       'project.shotPinPickerTitle': 'این تصویر را به یک قلم جعبهٔ پیشرفت سنجاق کن',
       'project.shotPinNone': 'هنوز کاری نیست — اول در جعبه‌های پیشرفت کار اضافه کن.',
@@ -558,7 +558,7 @@ window.__hibanaDictFA = {
       'gallery.delete': 'حذف', 'gallery.deleteConfirm': 'این تصویر برای همیشه حذف شود؟ فضایی که گرفته هم آزاد می‌شود.',
       'gallery.deleted': 'تصویر حذف شد', 'gallery.loadFailed': 'بارگذاری نگارخانه نشد — دوباره تلاش کن.',
       'gallery.emptyTitle': 'هنوز تصویری نیست',
-      'gallery.emptyText': 'تصویرهایی که در صفحهٔ پروژه (تب اسکرین‌شات) آپلود می‌کنی همه اینجا می‌آیند — یک کتابخانهٔ امن و ماندگار.',
+      'gallery.emptyText': 'تصویرها و فایل‌هایی که در صفحهٔ پروژه (تب فایل‌های آپلودشده) آپلود می‌کنی همه اینجا می‌آیند — یک کتابخانهٔ امن و ماندگار.',
       'gallery.lbPrev': 'تصویر قبلی', 'gallery.lbNext': 'تصویر بعدی', 'gallery.lbClose': 'بستن',
       'gallery.emptyCta': 'پروژه‌هایت را باز کن',
       // S79: نگارخانه از تماشاگر به مدیر — ویرایش یادداشت + مدیریت گروهی فضا

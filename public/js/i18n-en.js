@@ -523,7 +523,7 @@ window.__hibanaDictEN = {
       // project page
       'project.stageSaved': 'Stage saved', 'project.captionPrompt': 'Caption (optional):',
       'project.shotUploaded': 'Screenshot uploaded', 'project.shotFailed': 'Upload failed', 'project.uploading': 'Uploading…',
-      'project.shotDeleted': 'Screenshot deleted',
+      'project.shotDeleted': 'File deleted',
       // S86: file uploads (PDF/CSV/XLSX/DOCX/MD/TXT) ride the screenshots bucket
       'project.fileUploaded': 'File uploaded', 'project.uploadFiles': 'Upload files', 'project.downloadFile': 'Download {f}',
       // S35: the screenshot problem cards
@@ -540,7 +540,7 @@ window.__hibanaDictEN = {
       'project.cancelUpload': 'Cancel upload',
       'project.shotsMixed': '{ok} uploaded, {fail} failed',
       'tags.label': 'Tags',
-      'project.shotFixed': 'Marked fixed', 'project.shotReopened': 'Back to open', 'project.shotDelConfirm': 'Delete this screenshot?',
+      'project.shotFixed': 'Marked fixed', 'project.shotReopened': 'Back to open', 'project.shotDelConfirm': 'Delete this file?',
       // S39: note-card + pinning to progress-box items + the media gallery
       'project.shotPinPickerTitle': 'Stick this picture to a progress-box item',
       'project.shotPinNone': 'No tasks yet — add tasks in the progress boxes first.',
@@ -560,7 +560,7 @@ window.__hibanaDictEN = {
       'gallery.delete': 'Delete', 'gallery.deleteConfirm': 'Delete this picture for good? It also frees the space it uses.',
       'gallery.deleted': 'Picture deleted', 'gallery.loadFailed': "Couldn't load the gallery — try again.",
       'gallery.emptyTitle': 'No pictures yet',
-      'gallery.emptyText': 'Pictures you upload on a project page (the Screenshots tab) all land here — one safe, permanent library.',
+      'gallery.emptyText': 'Pictures and files you upload on a project page (the Uploaded Files tab) all land here — one safe, permanent library.',
       'gallery.lbPrev': 'Previous picture', 'gallery.lbNext': 'Next picture', 'gallery.lbClose': 'Close',
       'gallery.emptyCta': 'Open your projects',
       // S79: the gallery graduates to manager — note editing + bulk space management

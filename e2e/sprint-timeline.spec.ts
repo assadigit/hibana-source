@@ -192,7 +192,8 @@ test('screenshot problem cards: note edit, resolve toggle, delete', async ({ pag
   await expect(card.locator('[data-shot-state]')).not.toContainText('fixed')
   await expect(card.locator('.shot-note')).toContainText('Buttons overlap')
 
-  // edit the note inline
+  // edit the note via the ⋯ menu's item (S107: the pencil lives in the popover now)
+  await card.locator('[data-shot-menu]').click()
   await card.locator('[data-shot-note]').click()
   // S46: the note editor is now a MODAL (was the inline .shot-note-form). The modal
   // reuses makeDialog → dialog.pd-pin-modal, distinguished by its aria-labelledby.
@@ -203,13 +204,15 @@ test('screenshot problem cards: note edit, resolve toggle, delete', async ({ pag
   await expect(noteDlg).not.toBeVisible()
   await expect(page.locator(`.shot-card[data-shot="${shotId}"] .shot-note`)).toContainText('toolbar wraps')
 
-  // resolve it → the card flips
+  // resolve it → the card flips (S107: the actions live behind the ⋯ kebab now)
+  await page.locator(`.shot-card[data-shot="${shotId}"] [data-shot-menu]`).click()
   await page.locator(`.shot-card[data-shot="${shotId}"] [data-shot-toggle]`).click()
   await expect(page.locator(`.shot-card[data-shot="${shotId}"]`)).toHaveClass(/is-fixed/)
   await expect(page.locator(`.shot-card[data-shot="${shotId}"] [data-shot-state]`)).toContainText('fixed')
 
-  // delete it (confirm auto-accepted)
+  // delete it (confirm auto-accepted; the grid re-render closed the menu — reopen)
   page.once('dialog', (d) => d.accept())
+  await page.locator(`.shot-card[data-shot="${shotId}"] [data-shot-menu]`).click()
   await page.locator(`.shot-card[data-shot="${shotId}"] [data-shot-del]`).click()
   await expect(page.locator(`.shot-card[data-shot="${shotId}"]`)).toHaveCount(0)
 

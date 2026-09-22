@@ -116,7 +116,9 @@ test('note card + pin flow: click-to-edit, stick to the Problems box, badge, unp
   await expect(noteDlg).not.toBeVisible()
   await expect(page.locator(`.shot-card[data-shot="${shotId}"] .shot-note`)).toContainText('Cards overlap')
 
-  // 2. THE PIN: the pin button opens the picker, grouped by box, bug task listed
+  // 2. THE PIN (S107: the per-card actions live in the ⋯ popover now) — open the
+  // kebab first; the pin item opens the picker, grouped by box, bug task listed
+  await page.locator(`.shot-card[data-shot="${shotId}"] [data-shot-menu]`).click()
   await page.locator(`.shot-card[data-shot="${shotId}"] [data-shot-pin]`).click()
   const dlg = page.locator('.pd-pin-modal')
   await expect(dlg).toBeVisible()
@@ -152,6 +154,100 @@ test('note card + pin flow: click-to-edit, stick to the Problems box, badge, unp
   await expect(page.locator(`.shot-card[data-shot="${shotId}"]`)).toHaveCount(1) // still there
   await expect(page.locator(`.shot-card[data-shot="${shotId}"] .shot-pin`)).toHaveCount(0)
   await expect(page.locator(`[data-pd-shots="${tid}"]`)).toHaveCount(0)
+
+  expect(errors).toEqual([])
+})
+
+// S107 (owner: "the settings like delete edit etc can be hidden under a setting '...'
+// menu for each uploaded picture" + "change the term screenshot from the TAB name, call
+// it Uploaded Files"): the media tab is renamed, and each tile's four inline action
+// buttons collapsed into ONE standard ⋯ kebab popover.
+test('S107: the media tab reads "Uploaded Files" + the per-card ⋯ settings menu', async ({ page, browserName }) => {
+  test.skip(browserName !== 'chromium', 'Desktop Chromium only')
+  const errors = trackErrors(page)
+  await login(page)
+
+  const pid = ((await api(page, '/api/projects', 'POST', { title: `e2e s107 kebab ${Date.now()}` })) as { json: { id: string } }).json.id
+  const { DatabaseSync } = await import('node:sqlite')
+  const db = new DatabaseSync('/tmp/hibana-e2e.db')
+  const imgId = crypto.randomUUID()
+  const docId = crypto.randomUUID()
+  const now = new Date().toISOString()
+  // one IMAGE tile + one DOC tile (the S86 file tile) — both ride the same grid
+  db.prepare('INSERT INTO screenshots (id, project_id, github_path, mime_type, caption, resolved, bytes, created_at) VALUES (?, ?, ?, ?, ?, 0, 70, ?)')
+    .run(imgId, pid, `e2e/${imgId}.png`, 'image/png', 'Dashboard overlap', now)
+  db.prepare('INSERT INTO screenshots (id, project_id, filename, github_path, mime_type, caption, resolved, bytes, created_at) VALUES (?, ?, ?, ?, ?, ?, 0, 90, ?)')
+    .run(docId, pid, 'spec.pdf', `e2e/${docId}.pdf`, 'application/pdf', 'The PDF spec', now)
+  db.close()
+
+  await page.goto(`/project.html?id=${pid}`)
+  await page.waitForSelector('#pd-board')
+
+  // THE SERVER MARKUP carries hidden outright on every popover (a missing attr
+  // renders ALL menus open at load until some click's outside-guard closes them —
+  // the exact bug the first S107 build shipped; computed-style checks after a tab
+  // click can MASK it, so pin the raw attribute before any click happens)
+  const rawHidden = await page.evaluate(() => {
+    const pops = document.querySelectorAll('.shot-card .spark-menu-pop')
+    return { n: pops.length, allHidden: [...pops].every((p) => p.hasAttribute('hidden')) }
+  })
+  expect(rawHidden.n).toBe(2)
+  expect(rawHidden.allHidden).toBe(true)
+
+  // THE RENAME: the tab (with its count) — no "Screenshot" anywhere in the tab strip
+  const tab = page.locator('[data-detail-tab="media"]')
+  await expect(tab).toContainText('Uploaded Files')
+  await expect(tab).toContainText('2')
+  await expect(page.locator('.detail-tabs')).not.toContainText('Screenshot')
+
+  await page.click('[data-detail-tab="media"]')
+  // the panel heading + the upload button speak the same vocabulary
+  await expect(page.locator('#detail-media h3')).toContainText('Uploaded Files')
+  await expect(page.locator('#detail-media button.ghost')).toContainText('Upload files')
+  // both tiles render: the image card + the doc file tile
+  await expect(page.locator('#shots .shot-card')).toHaveCount(2)
+  await expect(page.locator('#shots .shot-card.is-file .shot-file-name')).toContainText('spec.pdf')
+
+  // THE KEBAB: exactly one per card; at rest the popover is hidden and the actions
+  // row carries NO inline ghost buttons anymore (the S107 declutter)
+  const imgCard = page.locator(`.shot-card[data-shot="${imgId}"]`)
+  await expect(page.locator('#shots .shot-card [data-shot-menu]')).toHaveCount(2)
+  await expect(imgCard.locator('.spark-menu-pop')).toBeHidden()
+  await expect(imgCard.locator('.shot-actions > span.row, .shot-actions > .ghost')).toHaveCount(0)
+
+  // open → visible, aria-expanded mirror, four labeled items
+  await imgCard.locator('[data-shot-menu]').click()
+  const pop = imgCard.locator('.spark-menu-pop')
+  await expect(pop).toBeVisible()
+  await expect(imgCard.locator('[data-shot-menu]')).toHaveAttribute('data-open', '')
+  await expect(pop.locator('[data-shot-pin]')).toContainText('Pin to a task')
+  await expect(pop.locator('[data-shot-note]')).toContainText('Edit note')
+  await expect(pop.locator('[data-shot-toggle]')).toContainText('Mark as fixed')
+  await expect(pop.locator('[data-shot-del]')).toContainText('Delete')
+  await expect(pop.locator('button')).toHaveCount(4)
+
+  // Esc closes (keyboard parity)
+  await page.keyboard.press('Escape')
+  await expect(pop).toBeHidden()
+  await expect(imgCard.locator('[data-shot-menu]')).not.toHaveAttribute('data-open', '')
+
+  // outside click closes; a second kebab's open closes the first (one at a time)
+  await imgCard.locator('[data-shot-menu]').click()
+  await expect(pop).toBeVisible()
+  const docCard = page.locator(`.shot-card[data-shot="${docId}"]`)
+  await docCard.locator('[data-shot-menu]').click()
+  await expect(pop).toBeHidden()
+  await expect(docCard.locator('.spark-menu-pop')).toBeVisible()
+  await page.mouse.click(10, 10) // outside any card
+  await expect(docCard.locator('.spark-menu-pop')).toBeHidden()
+
+  // the menu's NOTE item still opens the editor modal (the wiring survived the move)
+  await imgCard.locator('[data-shot-menu]').click()
+  await imgCard.locator('[data-shot-note]').click()
+  const noteDlg = page.locator('dialog:has(#pd-shotnote-title)')
+  await expect(noteDlg).toBeVisible()
+  await noteDlg.locator('[data-shot-note-cancel]').click()
+  await expect(noteDlg).not.toBeVisible()
 
   expect(errors).toEqual([])
 })

@@ -500,7 +500,7 @@ export function detailHtml(p: ProjectRow, d: Awaited<ReturnType<typeof loadDetai
     <button type="button" class="detail-tab" role="tab" aria-selected="false" aria-controls="detail-problems" data-detail-tab="problems" tabindex="-1">${trL(lang, 'Problems', 'مشکل‌ها')} <span class="detail-tab-count" data-tab-count="problems" data-n="${bugTasks.length}">${dig(bugTasks.length)}</span></button>
     <button type="button" class="detail-tab" role="tab" aria-selected="false" aria-controls="detail-backlog" data-detail-tab="backlog" tabindex="-1">${trL(lang, 'Plans', 'برنامه‌ها')} <span class="detail-tab-count" data-tab-count="backlog" data-n="${plannedCount}">${dig(plannedCount)}</span></button>
     <button type="button" class="detail-tab" role="tab" aria-selected="false" aria-controls="detail-links" data-detail-tab="links" tabindex="-1">${trL(lang, 'Links', 'پیوندها')} <span class="detail-tab-count">${dig(d.links.length)}</span></button>
-    <button type="button" class="detail-tab" role="tab" aria-selected="false" aria-controls="detail-media" data-detail-tab="media" tabindex="-1">${trL(lang, 'Screenshots', 'اسکرین‌شات')} <span class="detail-tab-count">${dig(d.screenshots.length)}</span></button>
+    <button type="button" class="detail-tab" role="tab" aria-selected="false" aria-controls="detail-media" data-detail-tab="media" tabindex="-1">${trL(lang, 'Uploaded Files', 'فایل‌های آپلودشده')} <span class="detail-tab-count">${dig(d.screenshots.length)}</span></button>
     <button type="button" class="detail-tab" role="tab" aria-selected="false" aria-controls="detail-activity" data-detail-tab="activity" tabindex="-1">${trL(lang, 'Latest Activity', 'آخرین تغییرات')}</button>
   </div>
 
@@ -581,10 +581,13 @@ export function detailHtml(p: ProjectRow, d: Awaited<ReturnType<typeof loadDetai
   </section>
 
   <section class="card detail-panel" id="detail-media" role="tabpanel" data-detail-panel="media" hidden>
-    <h3>${trL(lang, 'Screenshots — UI/UX problems', 'اسکرین‌شات‌ها — مشکلات UI/UX')}</h3>
-    <p class="muted small">${trL(lang, 'Snap what looks broken (button, file picker, gallery), drop it here or paste it, then write the note on the card — what & where to work. Fix it and check it off.', 'از چیزهای خراب عکس بگیر (دکمه، فایل‌پیکر، گالری)، همین‌جا رها کن یا پیست کن، بعد روی کارت یادداشتش را بنویس — چه چیزی و کجا. درستش که شد تیکش را بزن.')}</p>
+    <!-- S107 (owner request): the tab + panel are called "Uploaded Files" — screenshots
+         were always only part of the story (PDF/CSV/XLSX/DOCX/MD/TXT ride the same grid
+         via the S86 file tiles); "Screenshots" was a misnomer for every non-image row. -->
+    <h3>${trL(lang, 'Uploaded Files — pictures & documents of the UI/UX problems', 'فایل‌های آپلودشده — تصویرها و سندهای مشکلات UI/UX')}</h3>
+    <p class="muted small">${trL(lang, 'Snap what looks broken (button, file picker, gallery) or attach the file, drop it here or paste it, then write the note on the card — what & where to work. Fix it and check it off.', 'از چیزهای خراب عکس بگیر (دکمه، فایل‌پیکر، گالری) یا فایل را پیوست کن، همین‌جا رها کن یا پیست کن، بعد روی کارت یادداشتش را بنویس — چه چیزی و کجا. درستش که شد تیکش را بزن.')}</p>
     <input type="file" id="shot-input" accept=".pdf,.csv,.xlsx,.docx,.md,.txt,image/png,image/jpeg,image/webp,image/gif" multiple hidden>
-    <button class="ghost" onclick="document.getElementById('shot-input').click()">${trL(lang, 'Upload screenshots', 'آپلود اسکرین‌شات‌ها')}</button>
+    <button class="ghost" onclick="document.getElementById('shot-input').click()">${trL(lang, 'Upload files', 'آپلود فایل‌ها')}</button>
     <div class="shot-grid" id="shots" hx-trigger="load" hx-swap="innerHTML">${shots}</div>
   </section>
 

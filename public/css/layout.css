@@ -362,8 +362,33 @@ body.rail-panel-open .rail-panel { visibility: visible; opacity: 1; transition: 
    but speaks QUIETER: sentence case at fs-xs, no wash (bare text on the panel — the
    stage heads own the "section chip" look, the sub-heads read as the project's own
    labels), a touch less padding. Sub-group margin keeps the branch visually owned by
-   its project row (the tree guide carries the eye down). */
-.rail-sub-group { margin-block: 1px 0.2rem; }
+   its project row (the tree guide carries the eye down).
+   S106 r3 (owner: "add some hierarchical space — Project Name (bold) / ---Ideas;
+   currently Project name / ideas"): the branch now hangs measurably UNDER its project
+   row — the sub-group gains margin-inline-start (0.75rem of hierarchy space past the
+   row above it) and an ELBOW connector (the owner's '---'): a hairline riser + tick
+   branching off the stage body's guide into the sub-head, the same 26%-muted ink
+   every guide speaks, rounded at the turn. The branch's own body nests TIGHTER than
+   the shared 0.8+0.55 recipe so the leaves (one level deeper again) keep their label
+   room in the 17.5rem panel. Logical properties only — the elbow mirrors in RTL. */
+.rail-sub-group { margin-block: 1px 0.2rem; margin-inline-start: 0.75rem; position: relative; }
+.rail-sub-group::before {
+  content: '';
+  position: absolute;
+  /* back to the stage body's own guide: its 0.55rem padding + the 0.75rem branch
+     margin — the tick lands on the guide and points into the sub-head's chevron */
+  inset-inline-start: -1.3rem;
+  inset-block-start: 0;
+  inline-size: 1.3rem;
+  /* down to the head's optical center (margin 1px + 0.3rem pad + half the ~0.85rem
+     icon row) — rem-based, so it tracks the head at any user font size */
+  block-size: 0.78rem;
+  border-inline-start: 1px solid color-mix(in srgb, var(--muted) 26%, transparent);
+  border-block-end: 1px solid color-mix(in srgb, var(--muted) 26%, transparent);
+  border-end-start-radius: 0.35rem;
+  pointer-events: none;
+}
+.rail-sub-group .rail-group-body { margin-inline-start: 0.55rem; padding-inline-start: 0.4rem; }
 .rail-sub-group .rail-group-head {
   padding: 0.3rem 0.4rem;
   background: transparent;

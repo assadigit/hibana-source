@@ -73,6 +73,12 @@ test.beforeAll(async () => {
     `INSERT INTO dev_tasks (id, project_id, title, status, priority, sort_order, created_at)
      VALUES ('s106-dt1', 's106-project', 'S106 rail tree idea', 'idea', 'medium', 0, '${now}')`,
   )
+  // r3: a second branch (Problems) — the hierarchy pins below must hold for every
+  // sub-group, and the visual QA gets a realistic multi-branch tree.
+  db.exec(
+    `INSERT INTO dev_tasks (id, project_id, title, status, priority, sort_order, created_at)
+     VALUES ('s106-dt2', 's106-project', 'S106 rail tree bug', 'bug', 'high', 0, '${now}')`,
+  )
   // A vault folder + note (the notes-page folder-name surface).
   db.exec(
     `INSERT INTO note_folders (id, user_id, parent_id, name, sort_order, created_at, updated_at)
@@ -172,6 +178,29 @@ test('S106-1: project names, folders and head groups compute the 700 bold regist
 
   const leaf = page.locator('.rail-sub-group .rail-item', { hasText: 'S106 rail tree idea' })
   expect(await leaf.evaluate((el) => getComputedStyle(el).fontWeight)).toBe('400')
+
+  // (b3) S106 r3 (owner: "add some hierarchical space — Project Name (bold) / ---Ideas;
+  // currently Project name / ideas"): the branch hangs measurably UNDER its project
+  // row — the sub-head sits ≥0.75rem deeper, the leaves deeper still — and the
+  // ELBOW connector (the owner's '---') actually computes: a riser + tick branching
+  // off the stage guide into the sub-head. Geometry pins, not just weights, so a
+  // later margin/positioning clobber can't silently re-flatten the tree. The branch
+  // ships collapsed (weights pin fine on display:none) but geometry needs a box —
+  // expand first, which also pins that the toggle still works under the new CSS.
+  await subHead.click()
+  const projBox = await projRow.boundingBox()
+  const subHeadBox = await subHead.boundingBox()
+  const leafBox = await leaf.boundingBox()
+  expect(subHeadBox!.x).toBeGreaterThan(projBox!.x + 10) // 0.75rem = 12px of hierarchy space
+  expect(leafBox!.x).toBeGreaterThan(subHeadBox!.x + 10) // the leaf nests under its head
+  const elbow = await subHead.evaluate((el) => {
+    const cs = getComputedStyle(el.parentElement, '::before')
+    return { content: cs.content, w: Number.parseFloat(cs.width), tick: cs.borderBottomStyle, riser: cs.borderLeftStyle }
+  })
+  expect(elbow.content).not.toBe('none') // the pseudo renders
+  expect(elbow.w).toBeGreaterThan(15) // spans the full guide→branch gap (1.3rem ≈ 21px)
+  expect(elbow.tick).toBe('solid')
+  expect(elbow.riser).toBe('solid')
 
   // (c) The projects home — the recently-active row title (the project NAME).
   await page.waitForSelector('.precent-title', { timeout: 10_000 })

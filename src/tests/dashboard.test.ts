@@ -229,7 +229,7 @@ describe('dashboard stat boxes', () => {
 })
 
 describe('dashboard to-do preview', () => {
-  it('renders shared active tasks with custom names, pinned/recent ordering, prog-dots, note chips, and the per-card preview limit', async () => {
+  it('renders shared active tasks with custom names, pinned-first + newest-created ordering (S106), prog-dots, note chips, and the per-card 4-visible cap', async () => {
     const { db, close } = makeTestDb()
     try {
       const user = await makeUser(db)
@@ -249,6 +249,13 @@ describe('dashboard to-do preview', () => {
       const styleRes = await app.fetch(new Request('http://local/api/sadhana/quadrants/1', { method: 'PATCH', headers: auth, body: JSON.stringify({ name: 'My focus', icon_id: '🎯', accent_color: 'accent-purple' }) }))
       expect(styleRes.status).toBe(200)
       await app.fetch(new Request('http://local/api/sadhana/quadrants/reorder', { method: 'POST', headers: auth, body: JSON.stringify({ ids: [4, 2, 1, 3] }) }))
+      // S106 (owner: "the newest come on top"): the reorder above writes manual
+      // POSITIONS — the dashboard must IGNORE them now (the board's own order). The
+      // display order is pinned-first, then NEWEST CREATED (all seeds share one
+      // created_at, so the updated_at tiebreak decides): Pinned old → Newest open →
+      // Older open → Fourth open visible; Fifth preview, Sixth hidden, Task with note
+      // ship hidden behind the frost pill. If position ever leaks back into the
+      // dashboard sort, this exact-sequence pin breaks.
 
       const res = await app.fetch(new Request('http://local/api/dashboard', { headers: { ...auth, 'HX-Request': 'true' } }))
       const html = await res.text()
@@ -281,14 +288,26 @@ describe('dashboard to-do preview', () => {
       const dashboardQuadrants = [...html.matchAll(/data-dash-quadrant="(\d)"/g)].map((match) => Number(match[1]))
       expect(dashboardQuadrants).toEqual([4, 2, 1, 3])
       expect(html).toContain('data-dash-see-more="1"')
+      // S106: the overflow affordance is the FROST PILL — 4 visible, the rest hidden
+      // behind "+3 more" (7 open − 4 visible), dashed pill + the data attr app.js
+      // toggles (aria-expanded ships false).
+      expect(html).toContain('class="dash-todo-more dash-todo-more-pill"')
+      expect(html).toMatch(/data-dash-see-more="1" aria-expanded="false">\+3 more<\/button>/)
       // 2026-09-06 (k): the quick-add moved out of the customize popover into a circular
       // + FAB on the quadrant's corner + its hidden inline form.
       expect(html).toContain('data-dash-quickadd-fab="1"')
       expect(html).toContain('data-dash-quickadd-form="1"')
       expect((html.match(/<li class="dash-todo-task[^>]*draggable="true"/g) ?? []).length).toBe(7)
-      expect((html.match(/<li class="dash-todo-task[^>]*hidden>/g) ?? []).length).toBe(2)
+      // S106: 4 VISIBLE + 3 hidden (was 5 + 2 — the owner's 4-item glance cap).
+      expect((html.match(/<li class="dash-todo-task[^>]*hidden>/g) ?? []).length).toBe(3)
       expect(html).toContain('Fifth preview')
       expect(html).toContain('Sixth hidden')
+      // The exact S106 display order (position-agnostic): titles in DOCUMENT order —
+      // the 4 visible first (pinned, then newest-updated via the shared created_at
+      // tiebreak), the hidden 3 after them.
+      const titleOrder = [...html.matchAll(/data-task-title="[^"]*">([^<]*)<\/span>/g)].map((m) => m[1])
+      expect(titleOrder.slice(0, 4)).toEqual(['Pinned old', 'Newest open', 'Older open', 'Fourth open'])
+      expect(titleOrder.slice(4)).toEqual(['Fifth preview', 'Sixth hidden', 'Task with note'])
 
       // Phase 5: the progress control is the same 3-dot prog-track as the board page —
       // one dot per state (current one p-active) + the state label; 'Task with note'

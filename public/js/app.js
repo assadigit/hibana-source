@@ -2173,8 +2173,27 @@ window.hibana = (() => {
       const card = seeMore.closest('.dash-todo-quadrant')
       if (!card) return
       const expanded = card.classList.toggle('is-expanded')
-      card.querySelectorAll('.dash-todo-task[hidden]').forEach((task) => { task.hidden = !expanded })
-      seeMore.textContent = expanded ? _t('dashboard.seeLess', 'See Less') : _t('dashboard.seeMore', 'See More')
+      // S106: the 4-visible glance cap. EXPAND unhides every row; COLLAPSE re-hides
+      // every row from index 4 onward (the rows the server ships hidden — the DOM
+      // order IS the display order). The old handler queried '.dash-todo-task[hidden]'
+      // — at collapse time NOTHING has the attribute (all rows were unhidden), so the
+      // forEach was a silent NO-OP and the collapse never actually folded the list
+      // (a latent S69 bug, never pinned until the S106 spec exercised both clicks).
+      card.querySelectorAll('.dash-todo-task').forEach((task, index) => {
+        task.hidden = expanded ? false : index >= 4
+      })
+      if (expanded) {
+        seeMore.textContent = _t('dashboard.seeLess', 'Show less')
+      } else {
+        const hidden = card.querySelectorAll('.dash-todo-task[hidden]').length
+        // _t is a plain lookup (no params) — the {n} substitution happens here, the
+        // same template shape the server renders ('+{n} more' / '+{n} بیشتر').
+        // Farsi digits follow the UI script (the rail's railFaDig precedent).
+        const fa = (window.hibanaI18n?.lang?.() || 'en') === 'fa'
+        const n = fa ? String(hidden).replace(/\d/g, (x) => '۰۱۲۳۴۵۶۷۸۹'[+x]) : String(hidden)
+        seeMore.textContent = _t('dashboard.moreCount', '+{n} more').replace('{n}', n)
+      }
+      seeMore.setAttribute('aria-expanded', expanded ? 'true' : 'false')
       return
     }
 

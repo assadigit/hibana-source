@@ -338,7 +338,9 @@ window.__hibanaDictEN = {
       'dashboard.nothing': 'Nothing here yet',
       'dashboard.quadrantEmpty': "You haven't added any task yet",
       'dashboard.moveFailed': "Couldn't move it — try again",
-      'dashboard.seeMore': 'See More', 'dashboard.seeLess': 'See Less',
+      'dashboard.seeMore': 'See More', 'dashboard.seeLess': 'Show less',
+      /* S106: the quadrant overflow pill (4 visible, extras behind the faded +N more). */
+      'dashboard.moreCount': '+{n} more',
       'dashboard.taskUpdateFailed': "Couldn't update the task",
       'dashboard.renameFailed': "Couldn't rename the quadrant",
       'dashboard.reorderFailed': "Couldn't reorder the quadrants",

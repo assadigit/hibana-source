@@ -337,7 +337,9 @@ window.__hibanaDictFA = {
       'dashboard.nothing': 'هنوز چیزی نیست',
       'dashboard.quadrantEmpty': 'هنوز کاری اضافه نکرده‌ای',
       'dashboard.moveFailed': 'جابه‌جایی ممکن نشد — دوباره تلاش کن',
-      'dashboard.seeMore': 'مشاهده بیشتر', 'dashboard.seeLess': 'مشاهده کمتر',
+      'dashboard.seeMore': 'مشاهده بیشتر', 'dashboard.seeLess': 'نمایش کمتر',
+      /* S106: the quadrant overflow pill (۴ مرئی، مازاد پشت دکمهٔ محو +N بیشتر). */
+      'dashboard.moreCount': '+{n} بیشتر',
       'dashboard.taskUpdateFailed': 'به‌روزرسانی کار ممکن نشد',
       'dashboard.renameFailed': 'تغییر نام بخش ممکن نشد',
       'dashboard.reorderFailed': 'مرتب‌سازی بخش‌ها ممکن نشد',

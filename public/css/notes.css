@@ -86,9 +86,13 @@ button.vault-sec-head {
   border: 0;
   background: transparent;
   cursor: pointer;
-  font: inherit;
-  text-transform: inherit;
-  letter-spacing: inherit;
+  /* S106 fix (caught in live QA): this rule used `font: inherit` + explicit
+     text-transform/letter-spacing inherits — a shorthand RESET that clobbered
+     every typographic longhand of the base .vault-sec-head rule above (the
+     heads rendered 16px/400/no-uppercase since S105 instead of the designed
+     0.6875rem/700/uppercase/0.08em label). Buttons only need the FAMILY — the
+     size/weight/transform/spacing must flow from the base rule. */
+  font-family: inherit;
   min-inline-size: 0;
   flex: 1 1 auto;
 }
@@ -206,6 +210,10 @@ button.vault-sec-head:hover { color: var(--text); }
   text-overflow: ellipsis;
   white-space: nowrap;
   unicode-bidi: plaintext;
+  /* S106 (owner: "Idea's Folders … must appear in Bold text"): the vault's folder
+     names had NO weight (400 — literally regular next to their note children). 700
+     = the shared bold register for names/heads across the app. */
+  font-weight: 700;
 }
 .vault-folder .icon { flex: none; color: var(--muted); }
 .vault-folder[aria-current='true'] .icon { color: var(--accent); }

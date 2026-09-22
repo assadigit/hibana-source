@@ -83,7 +83,12 @@ export function dashboardRoutes(cfg: Config) {
       cfg.db.query<SadhanaTask>(
         `SELECT * FROM sadhana_tasks
          WHERE user_id = ? AND done = 0 AND deleted_at IS NULL AND cleared_at IS NULL
-         ORDER BY pinned DESC, position ASC, updated_at DESC, created_at DESC`,
+         /* S106 (owner: "this tasks must be sorted, the newest come on top"): the
+            dashboard is the TIME view — pinned keeps its app-wide keep-on-top meaning,
+            then NEWEST CREATED first. position (the manual drag order) drops out HERE
+            ONLY: it remains the board page's own order, and the dashboard's drag
+            handlers still PATCH it — the dashboard just no longer DISPLAYS it. */
+         ORDER BY pinned DESC, created_at DESC, updated_at DESC`,
         [user.id],
       ),
       cfg.db.query<{ quadrant: number; name: string; subtitle: string | null; icon_id: string | null; accent_color: string | null }>(
@@ -321,7 +326,7 @@ export function dashboardRoutes(cfg: Config) {
         // only the checkbox (its ≥40px ::before hit area) completes the task. The
         // completion id rides on the input itself; app.js's delegated handler keys
         // off [data-task-complete] and only the input can be its own click target.
-        return html`<li class="dash-todo-task ${task.pinned === 1 ? 'is-pinned' : ''} ${stateClass}" data-dash-task-id="${task.id}" draggable="true" ${index >= 5 ? 'hidden' : ''}>
+        return html`<li class="dash-todo-task ${task.pinned === 1 ? 'is-pinned' : ''} ${stateClass}" data-dash-task-id="${task.id}" draggable="true" ${index >= 4 ? 'hidden' : ''}>
         <div class="dash-todo-check" data-task-complete-row="${task.id}">
           <input type="checkbox" data-task-complete="${task.id}" ${task.done === 1 ? 'checked' : ''} aria-label="${t('Complete task', 'انجام کار')}">
           <span data-task-title="${task.id}">${task.title}</span>
@@ -356,10 +361,14 @@ export function dashboardRoutes(cfg: Config) {
         const currentSymbol = iconId === 'none' ? '' : (iconId && !QUADRANT_GLYPHS.has(iconId) ? iconId : q.icon)
         // S69 (perf §10-F2): RENDER CAP. Every open task used to ship as HTML (~4KB a
         // row: inline SVGs + htmx attrs — #dashboard-todo was 491.5KB at 120 open tasks,
-        // 115 of them hidden). The widget renders the first 8 per quadrant; rows 6–8 stay
-        // in-DOM hidden for the See-More reveal, and anything beyond the cap becomes a
-        // link to the board page (the full surface, with its own more-on-scroll) instead
-        // of shipped dead weight. Payload is flat no matter how the board grows.
+        // 115 of them hidden). The widget renders the first 8 per quadrant, and anything
+        // beyond the cap becomes a link to the board page (the full surface, with its own
+        // more-on-scroll) instead of shipped dead weight. Payload is flat no matter how
+        // the board grows.
+        // S106 (owner: "Quadrants maximum items in dashboard, must be 4"): of those 8,
+        // the first 4 are VISIBLE and rows 5–8 stay in-DOM hidden behind the faded
+        // "+N more" FROST PILL (was: 5 visible + a plain See-More text button); the
+        // reveal toggle itself is app.js's data-dash-see-more handler, unchanged.
         const TODO_RENDER_CAP = 8
         const renderTasks = tasks.slice(0, TODO_RENDER_CAP)
         const overflow = tasks.length - renderTasks.length
@@ -429,9 +438,8 @@ export function dashboardRoutes(cfg: Config) {
           <ul class="dash-todo-list">
             ${taskRows}
           </ul>
-          ${overflow > 0
-            ? html`<a class="dash-todo-more dash-todo-more-link" href="/to-do-list#Q${q.id}" title="${t('Open this box on the board', 'این جعبه را در برد باز کن')}">${t('+{n} more on the board', '+{n} مورد دیگر در برد', { n: todoNum(overflow) })} ${raw(icon('arrow-up-right', 'icon'))}</a>`
-            : tasks.length > 5 ? html`<button type="button" class="dash-todo-more" data-dash-see-more="${q.id}">${t('See More', 'مشاهده بیشتر')}</button>` : ''}
+          ${tasks.length > 4 ? html`<button type="button" class="dash-todo-more dash-todo-more-pill" data-dash-see-more="${q.id}" aria-expanded="false">${t('+{n} more', '+{n} بیشتر', { n: todoNum(renderTasks.length - 4) })}</button>` : ''}
+          ${overflow > 0 ? html`<a class="dash-todo-more dash-todo-more-link" href="/to-do-list#Q${q.id}" title="${t('Open this box on the board', 'این جعبه را در برد باز کن')}">${t('+{n} more on the board', '+{n} مورد دیگر در برد', { n: todoNum(overflow) })} ${raw(icon('arrow-up-right', 'icon'))}</a>` : ''}
           <!-- 2026-09-06 (k) user request: the quick-add moved OUT of the customize
                popover (that button was dead — its form was removed with the old preview
                UI) into a circular + button pinned to the quadrant's bottom corner —

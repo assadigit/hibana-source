@@ -385,6 +385,27 @@ details.dash-todo-menu:not([open]) .dash-todo-menu-pop { display: none; }
 .dash-todo-more { justify-self: start; color: var(--muted); font-size: var(--fs-sm); padding-inline: 0.35rem; background: transparent; }
 .dash-todo-more:hover { color: var(--text); background: transparent; }
 .dash-todo-more:active { background: transparent; }
+/* S106 (owner: "if there are more items, it must be hidden behind a faded (blur)
+   … button, so user can click and see the rest"): the in-quadrant overflow pill is
+   now a FROST affordance — a translucent wash + backdrop blur over the spot where
+   the hidden 5th row would sit, the visual language of "there is content behind
+   this" (a veil, not a label). Same dashed-pill border as the board more-link so
+   the two overflow affordances read as one family; base stays a quiet ghost (the
+   global button{} rule must not paint it solid --cta — hover/active re-assert). */
+.dash-todo-more-pill {
+  display: inline-flex; align-items: center; gap: 0.3rem;
+  font-weight: 600;
+  padding: 0.32rem 0.75rem;
+  border: 1px dashed var(--line);
+  border-radius: 999px;
+  color: var(--muted);
+  background: color-mix(in srgb, var(--card) 55%, transparent);
+  -webkit-backdrop-filter: blur(5px);
+  backdrop-filter: blur(5px);
+  transition: color 0.15s ease, border-color 0.15s ease, background 0.15s ease;
+}
+.dash-todo-more-pill:hover { color: var(--text); border-color: var(--brand); background: color-mix(in srgb, var(--card) 78%, transparent); }
+.dash-todo-more-pill:active { background: color-mix(in srgb, var(--card) 88%, transparent); }
 /* S69: the over-cap affordance — a LINK to the board (rows beyond the widget's render
    cap live there). Same quiet language as the see-more button, plus the arrow cue +
    hover lift so it reads as navigation, not a toggle. */
@@ -396,9 +417,11 @@ details.dash-todo-menu:not([open]) .dash-todo-menu-pop { display: none; }
 .dash-todo-more-link .icon { inline-size: 0.85em; block-size: 0.85em; transition: translate 0.15s ease; }
 .dash-todo-more-link:hover { color: var(--brand); border-color: var(--brand); transform: translateY(-1px); }
 .dash-todo-more-link:hover .icon { translate: 1px -1px; }
-/* (k) 2026-09-06: the see-more link reserves the FAB corner (inline-end) so the two
-   never overlap when a quadrant shows 6+ tasks. (m) re-tuned for the smaller FAB. */
-.dash-todo-more { padding-inline-end: 2.9rem; }
+/* (k) 2026-09-06: the see-more LINK reserves the FAB corner (inline-end) so the two
+   never overlap when a quadrant shows 6+ tasks. (m) re-tuned for the smaller FAB.
+   S106: scoped to the LINK — the pill variant is a short rounded affordance pinned
+   to inline-start; a 2.9rem end-pad would leave it visibly lopsided. */
+.dash-todo-more-link { padding-inline-end: 2.9rem; }
 .dash-todo-edit[hidden], .dash-todo-rename-form[hidden] { display: none; }
 
 /* ── (k) Per-quadrant quick-add FAB ─ 2026-09-06 user request ─────────────────────

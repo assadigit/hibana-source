@@ -307,7 +307,9 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-weight: 500;
+  /* S106 (owner: project names must read BOLD): 500 → 700 — the name is the anchor
+     of the recently-active row; the ago/meta text stays regular (the hierarchy). */
+  font-weight: 700;
   unicode-bidi: plaintext; /* the bidi GENERAL LAW (S32) */
 }
 .precent-ago { flex: none; white-space: nowrap; }
@@ -353,7 +355,9 @@
 .spark-folder-icon { color: var(--muted); }
 .spark-folder-icon .icon { inline-size: 2rem; block-size: 2rem; }
 .spark-folder-card:hover .spark-folder-icon { color: var(--brand); }
-.spark-folder-name { font-weight: 600; font-size: var(--fs-sm); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-inline-size: 100%; }
+/* S106 (owner: "Idea's Folders … must appear in Bold text"): 600 → 700, the shared
+   bold register for every name/head (project names, folders, group heads). */
+.spark-folder-name { font-weight: 700; font-size: var(--fs-sm); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-inline-size: 100%; }
 .spark-folder-count { font-size: var(--fs-xs); color: var(--muted); }
 .spark-folder-menu { position: absolute; inset-block-start: 0.3rem; inset-inline-end: 0.3rem; opacity: 0; transition: opacity 0.12s ease; }
 .spark-folder-card:hover .spark-folder-menu { opacity: 1; }
@@ -574,7 +578,8 @@ main.shell-dash > section { margin-block-end: 2.9rem; }
    ========================================================================== */
 .board-col-head { min-inline-size: 0; }
 .board-col-title { align-items: center; gap: 0.5rem; min-inline-size: 0; }
-.board-col-label { color: var(--text); font-weight: 600; line-height: 1.3; }
+/* S106 (owner: head groups must read BOLD): 600 → 700 — the shared bold register. */
+.board-col-label { color: var(--text); font-weight: 700; line-height: 1.3; }
 /* S94 (owner item 9 — "larger digit font, weaker background — currently too much
    color"): the pill used to fill with the stage's SOLID pastel badge background
    (--badge-*-bg), which read as the loudest chip on the row. The fill is now a

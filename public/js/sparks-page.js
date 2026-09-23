@@ -172,6 +172,16 @@
 
         // ---- Edit dialog (built lazily on first edit; native <dialog> like quick-add) ----
         let editDlg = null
+        // S120 (two jobs #1 — never lose an idea; the S118 quick-add pattern lands on
+        // the edit dialog): a half-edited spark rides a reload/soft-nav — sessionStorage
+        // per keystroke, restored into the SAME spark's dialog when it reopens (the
+        // restore happens after the prefill fetch, before showModal — the fetch races
+        // nothing). A draft for a DIFFERENT spark is dropped — the prefill is the truth
+        // for the spark at hand. Dismissal retires the store SYNCHRONOUSLY inside
+        // close(): the 'close' event is a QUEUED TASK, and a fast Escape→reload tore
+        // the document down before the listener ran (the S118 race, guarded at birth).
+        const SE_DRAFT_KEY = 'hibana-se-draft'
+        const seClearDraft = () => { try { sessionStorage.removeItem(SE_DRAFT_KEY) } catch { /* private mode */ } }
         function buildEditDialog() {
           if (editDlg) return
           const dlg = document.createElement('dialog')
@@ -196,7 +206,10 @@
               '</div>' +
             '</form>'
           document.body.appendChild(dlg)
-          const close = () => dlg.close()
+          // S120: dismissal retires the draft BEFORE dlg.close() — close()'s 'close'
+          // event only fires as a queued task (the S118 race), so the sync clear here
+          // is the guarantee; the 'close' listener below stays as the belt.
+          const close = () => { seClearDraft(); dlg.close() }
           dlg.addEventListener('cancel', (e) => { e.preventDefault(); close() })
           dlg.addEventListener('click', (e) => { if (e.target === dlg) close() })
           dlg.querySelector('#se-cancel').addEventListener('click', close)
@@ -235,6 +248,20 @@
               save.textContent = _t('common.save', 'Save')
             }
           })
+          // S120: the draft store — every keystroke persists {id,t,d,s}; reverting all
+          // three fields back to the prefill retires the store (pristine = nothing to
+          // keep). The stage select joins on 'change' (selects don't fire input).
+          const seFields = () => [dlg.querySelector('#se-title'), dlg.querySelector('#se-description'), dlg.querySelector('#se-status')]
+          const seSaveDraft = () => {
+            try {
+              const [t, d, s] = seFields().map((el) => el.value)
+              const orig = dlg.dataset.orig ? JSON.parse(dlg.dataset.orig) : null
+              if (orig && t === orig[0] && d === orig[1] && s === orig[2]) { seClearDraft(); return }
+              sessionStorage.setItem(SE_DRAFT_KEY, JSON.stringify({ id: dlg.dataset.editId, t, d, s }))
+            } catch { /* private mode */ }
+          }
+          seFields().forEach((el, i) => el && el.addEventListener(i === 2 ? 'change' : 'input', seSaveDraft))
+          dlg.addEventListener('close', seClearDraft) // belt — the sync clear lives in close()
           editDlg = dlg
         }
 
@@ -250,6 +277,23 @@
               dlg.querySelector('#se-title').value = p.title ?? ''
               dlg.querySelector('#se-description').value = p.description ?? ''
               if (p.status) dlg.querySelector('#se-status').value = p.status
+              // S120: the pristine baseline is the ACTUAL prefill — the stage select keeps
+              // its previous value when the row carries no status, so read the live
+              // fields, not the row.
+              const orig = [dlg.querySelector('#se-title').value, dlg.querySelector('#se-description').value, dlg.querySelector('#se-status').value]
+              dlg.dataset.orig = JSON.stringify(orig)
+              // a draft for THIS spark returns (newer intent wins, sliced to the fields'
+              // own maxima); a stale draft for a DIFFERENT spark is dropped
+              try {
+                const dr = JSON.parse(sessionStorage.getItem(SE_DRAFT_KEY) || 'null')
+                if (dr && dr.id === id) {
+                  dlg.querySelector('#se-title').value = String(dr.t ?? '').slice(0, 200)
+                  dlg.querySelector('#se-description').value = String(dr.d ?? '').slice(0, 2000)
+                  if (dr.s) dlg.querySelector('#se-status').value = String(dr.s)
+                } else if (dr) {
+                  seClearDraft()
+                }
+              } catch { /* malformed draft — the prefill stands */ }
               dlg.showModal()
             })
             .catch(() => window.hibana?.toast(_t('sparks.loadFailed', "Couldn't load the spark"), 'err'))

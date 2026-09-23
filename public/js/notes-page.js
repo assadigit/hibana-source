@@ -1191,16 +1191,35 @@ document.documentElement.setAttribute('data-hibana-booted', '1')
         state.saveTimer = null
         await doSave()
       }
+      /* ── S120: the interrupted-session draft store — sync local writes survive any
+         teardown (tab close, crash, navigation); see openNote for the restore. ── */
+      const VAULT_DRAFT_KEY = 'hibana-vault-draft'
+      const saveVaultDraft = () => {
+        try {
+          if (!state.active) return
+          localStorage.setItem(VAULT_DRAFT_KEY, JSON.stringify({ id: state.active.id, t: state.draft.title, c: state.draft.content, at: Date.now() }))
+        } catch { /* storage full / private mode — the autosave still runs */ }
+      }
+      const clearVaultDraft = () => { try { localStorage.removeItem(VAULT_DRAFT_KEY) } catch { /* private mode */ } }
 
       const doSave = async () => {
         if (!state.active || state.active.deleted_at) return
         const payload = { title: state.draft.title, content: state.draft.content }
+        const sentTitle = payload.title
+        const sentContent = payload.content
         state.saveState = 'saving'
         updateStatus()
         try {
           const res = await api('/api/vault/notes/' + state.active.id, { method: 'PATCH', body: JSON.stringify(payload) })
           state.active = res.note
           state.saveState = 'saved'
+          // S120: the server now holds exactly what was sent — the interrupted-session
+          // draft has served its purpose (unless newer keystrokes landed mid-save; the
+          // re-arm below handles those, and the draft stays until THEY save).
+          try {
+            const dr = JSON.parse(localStorage.getItem(VAULT_DRAFT_KEY) || 'null')
+            if (dr && dr.id === state.active.id && dr.t === sentTitle && dr.c === sentContent) localStorage.removeItem(VAULT_DRAFT_KEY)
+          } catch { /* draft unreadable — nothing to retire */ }
           // patch the card in place (no list refetch — keeps scroll + feels instant)
           const idx = state.notes.findIndex((c) => c.id === state.active.id)
           if (idx >= 0) {
@@ -1217,6 +1236,11 @@ document.documentElement.setAttribute('data-hibana-booted', '1')
           // S105 (owner: resume lists only ACTIVELY-INTERACTED items): saving a
           // note IS the interaction that records it — opening/viewing no longer does.
           window.hibanaResume?.record?.('note', state.active.id, state.active.title)
+          // S120 (two jobs #1 — never lose an idea): keystrokes typed while this PATCH
+          // was in flight had no timer (markDirty skips the 'saving' state) and would
+          // never re-save once it landed — if the draft moved past what was sent,
+          // re-arm the autosave so it converges on the next beat.
+          if (state.draft.title !== sentTitle || state.draft.content !== sentContent) markDirty()
           setTimeout(() => { if (state.saveState === 'saved') { state.saveState = 'idle'; updateStatus() } }, 2200)
         } catch {
           state.saveState = 'error'
@@ -1239,11 +1263,29 @@ document.documentElement.setAttribute('data-hibana-booted', '1')
           state.draft = { title: res.note.title, content: res.note.content, tags: res.note.tags }
           state.saveState = 'idle'
           state.saveTimer = null
+          // S120 (two jobs #1 — never lose an idea): the 900ms autosave debounce is a
+          // LOSS WINDOW — a tab closed (or crashed) inside it dropped the tail
+          // keystrokes. The belt is a LOCAL draft (sync writes survive any teardown —
+          // no network involved): if the stored draft for THIS note is newer than the
+          // server copy, an interrupted session left keystrokes behind — restore them
+          // and let the autosave converge. (The pagehide keepalive PATCH below stays
+          // as the network belt — real browsers usually deliver it; this draft is the
+          // guarantee.)
+          try {
+            const dr = JSON.parse(localStorage.getItem(VAULT_DRAFT_KEY) || 'null')
+            const serverAt = Date.parse(res.note.updated_at || '') || 0
+            if (dr && dr.id === id && typeof dr.at === 'number' && dr.at > serverAt) {
+              state.draft.title = String(dr.t ?? '').slice(0, 300)
+              state.draft.content = String(dr.c ?? '')
+              state.saveState = 'dirty'
+            }
+          } catch { /* corrupt draft — the server copy stands */ }
           renderEditor()
           renderCards() // refresh the aria-current highlight
           renderTree() // S105: the tree's note rows highlight the open note too
           if (isMobile()) $('[data-vault-editor]')?.setAttribute('data-open', 'true')
           try { history.replaceState(null, '', '#n=' + id) } catch {}
+          if (state.saveState === 'dirty') markDirty() // restored draft → converge on the next beat
           if (focusBody) { const ta = $('[data-vault-src]'); if (ta && state.mode !== 'read') { ta.focus({ preventScroll: true }); ta.setSelectionRange(ta.value.length, ta.value.length) } }
         } catch { toast(_t('notes.openFailed', 'Could not open that note.'), 'err') }
       }
@@ -1253,6 +1295,7 @@ document.documentElement.setAttribute('data-hibana-booted', '1')
         state.active = null
         state.draft = { title: '', content: '', tags: '' }
         state.saveState = 'idle'
+        clearVaultDraft() // S120: a deliberately closed note has no orphan draft
         renderEditor()
         renderCards()
         try { history.replaceState(null, '', location.pathname) } catch {}
@@ -2046,17 +2089,49 @@ document.documentElement.setAttribute('data-hibana-booted', '1')
         if (t.matches('[data-vault-src]')) {
           state.draft.content = t.value
           markDirty()
+          saveVaultDraft() // S120: the keystroke survives even a mid-debounce teardown
           clearTimeout(previewTimer)
           previewTimer = setTimeout(renderPreview, 140)
           updateStatus()
         } else if (t.matches('[data-vault-title]')) {
           state.draft.title = t.value
           markDirty()
+          saveVaultDraft() // S120: ditto
           updateStatus()
         } else if (t.matches('[data-vault-newfolder-input]')) {
           // Enter commits (keydown below)
         }
       }
+
+      // S120 (two jobs #1 — never lose an idea): the pagehide keepalive PATCH is the
+      // NETWORK BELT for the debounce window — real headed browsers usually deliver
+      // it, but some engines (and CDP-driven teardowns) drop unload-time requests
+      // entirely, so the GUARANTEE is the local draft (see openNote: restore +
+      // converge). 'saving' is included: the in-flight request dies with the page,
+      // so the belt carries the full current draft (both PATCHes are full snapshots
+      // — last write wins, and the belt holds the newest).
+      window.addEventListener('pagehide', () => {
+        if (!state.active || state.active.deleted_at) return
+        if (!state.saveTimer && state.saveState !== 'dirty' && state.saveState !== 'saving') return
+        if (state.saveTimer) { clearTimeout(state.saveTimer); state.saveTimer = null }
+        try {
+          fetch('/api/vault/notes/' + state.active.id, {
+            method: 'PATCH',
+            credentials: 'same-origin',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ title: state.draft.title, content: state.draft.content }),
+            keepalive: true,
+          }).catch(() => {})
+        } catch { /* keepalive quota exhausted — the next edit re-saves */ }
+      })
+      // bfcache restore: if the keepalive didn't land (quota/race), the strip is
+      // still marked dirty — re-arm the autosave so the server converges (an
+      // idempotent full-snapshot PATCH).
+      window.addEventListener('pageshow', () => {
+        if (state.active && !state.active.deleted_at && state.saveState === 'dirty' && !state.saveTimer) {
+          state.saveTimer = setTimeout(() => { state.saveTimer = null; doSave() }, 250)
+        }
+      })
 
       const onKeyDown = (e) => {
         const t = e.target

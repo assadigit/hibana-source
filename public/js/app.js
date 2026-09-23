@@ -665,6 +665,23 @@ window.hibana = (() => {
     }
   }
 
+  // S120 (S119 candidate 6 — the blank-tile polish): preload="metadata" leaves the
+  // first frame UNPAINTED in some engines — the tile sits as a black box until play
+  // even though its bytes are fetched. A 1ms seek after metadata forces the
+  // poster-style frame paint (the standard no-ffmpeg poster substitute; the server
+  // can't render one). Delegated at document CAPTURE — 'loadedmetadata' does NOT
+  // bubble, and the tiles render from four different bundles (the server grid,
+  // the project page's three grids, the gallery) — one listener owns them all.
+  // Idempotent per element (the lightbox builds a fresh <video> each open): a real
+  // user seek is never touched (only a still-at-zero player is nudged).
+  document.addEventListener('loadedmetadata', (e) => {
+    const v = e.target
+    if (!(v instanceof HTMLVideoElement) || !v.classList.contains('shot-video')) return
+    if (v.dataset.framed) return
+    v.dataset.framed = '1'
+    try { if (v.currentTime < 0.01) v.currentTime = 0.001 } catch { /* not seekable yet */ }
+  }, true)
+
   // ---- New Project dialog (personal, lands in Pending — the vetted step of the pipeline,
   // spec §2). Same offline-safe queue flow as quick-add; only the starting status differs.
   let projectAddEl = null

@@ -506,6 +506,10 @@
         const closeShotLightbox = () => {
           if (!shotLightbox) return
           const t = shotLightbox.lastTrigger
+          // S118: a recording left playing must not keep playing (or its audio keep
+          // talking) after the lightbox is gone.
+          const vid = shotLightbox.el.querySelector('video.lb-video')
+          if (vid) { try { vid.pause() } catch {} }
           // S83: a dialog-hosted lightbox defused the host's native Esc — restore it
           if (shotLightbox.host && shotLightbox.onCancel) shotLightbox.host.removeEventListener('cancel', shotLightbox.onCancel)
           shotLightbox.el.remove()
@@ -518,8 +522,16 @@
           const it = shotLightbox.items
           shotLightbox.idx = (shotLightbox.idx + delta + it.length) % it.length
           const r = it[shotLightbox.idx]
+          // S118: the browser speaks video — the current item picks the element;
+          // the one walked AWAY from pauses (a hidden video keeps playing audio).
           const img = shotLightbox.el.querySelector('img')
-          if (img) { img.src = r.src; img.alt = r.caption || _t('project.shotZoom', 'Screenshot') }
+          const vid = shotLightbox.el.querySelector('video.lb-video')
+          if (vid && !vid.hidden && !r.video) { try { vid.pause() } catch {} }
+          if (img) { img.hidden = !!r.video; if (!r.video) { img.src = r.src; img.alt = r.caption || _t('project.shotZoom', 'Screenshot') } }
+          if (vid) {
+            vid.hidden = !r.video
+            if (r.video && vid.getAttribute('src') !== r.src) vid.setAttribute('src', r.src)
+          }
           const count = shotLightbox.el.querySelector('.lb-count')
           if (count) count.textContent = pdBoxDig(shotLightbox.idx + 1) + ' / ' + pdBoxDig(it.length)
           const cap = shotLightbox.el.querySelector('.lb-cap')
@@ -531,16 +543,22 @@
             st.classList.toggle('is-fixed', !!r.resolved)
           }
         }
-        const openShotLightbox = (src, trigger, scopeGrid) => {
+        // S118: the third openShotLightbox arg stays the scope grid; `video` marks a
+        // video-sourced entry point (the dblclick path) so the opening paint shows the
+        // player, not a broken <img> fed a webm.
+        const openShotLightbox = (src, trigger, scopeGrid, video) => {
           closeShotLightbox()
           const figs = scopeGrid ? [...scopeGrid.querySelectorAll(':scope > .shot-card')] : []
-          const items = figs.map((f) => ({
-            src: f.querySelector('.shot-img-btn img')?.getAttribute('src') || '',
-            caption: (f.querySelector('.shot-note')?.textContent || '').trim(),
-            resolved: f.dataset.resolved === '1' || f.classList.contains('is-fixed'),
-          })).filter((x) => x.src)
+          // S118: recordings join the browser — a figure whose tile is a <video> enters
+          // the walk with video:true (previously only .shot-img-btn img existed, so the
+          // walk silently SKIPPED every webm). Docs keep their download tile (no src).
+          const items = figs.map((f) => {
+            const vid = f.querySelector('video.shot-video')
+            if (vid) return { src: vid.getAttribute('src') || '', caption: (f.querySelector('.shot-note')?.textContent || '').trim(), resolved: f.dataset.resolved === '1' || f.classList.contains('is-fixed'), video: true }
+            return { src: f.querySelector('.shot-img-btn img')?.getAttribute('src') || '', caption: (f.querySelector('.shot-note')?.textContent || '').trim(), resolved: f.dataset.resolved === '1' || f.classList.contains('is-fixed'), video: false }
+          }).filter((x) => x.src)
           let idx = items.findIndex((x) => x.src === src)
-          if (idx < 0) { items.push({ src, caption: '', resolved: false }); idx = items.length - 1 } // non-grid source → single mode
+          if (idx < 0) { items.push({ src, caption: '', resolved: false, video: !!video }); idx = items.length - 1 } // non-grid source → single mode
           const el = document.createElement('div')
           el.className = 'shot-lightbox'
           el.setAttribute('role', 'dialog')
@@ -549,14 +567,17 @@
           el.setAttribute('aria-label', _t('project.shotZoom', 'Screenshot'))
           el.innerHTML =
             '<button type="button" class="lb-nav lb-prev" aria-label="' + _t('gallery.lbPrev', 'Previous picture') + '"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg></button>' +
-            '<img src="' + src + '" alt="' + _t('project.shotZoom', 'Screenshot') + '">' +
+            '<img src="' + src + '" alt="' + _t('project.shotZoom', 'Screenshot') + '"' + (video ? ' hidden' : '') + '>' +
+            '<video class="shot-video lb-video" controls playsinline preload="metadata"' + (video ? ' src="' + src + '"' : ' hidden') + '></video>' +
             '<button type="button" class="lb-nav lb-next" aria-label="' + _t('gallery.lbNext', 'Next picture') + '"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5l7 7-7 7"/></svg></button>' +
             '<button type="button" class="lb-close" aria-label="' + _t('gallery.lbClose', 'Close') + '"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button>' +
             '<div class="lb-meta"><span class="lb-count" aria-live="polite"></span><span class="lb-state" dir="auto"></span><span class="lb-cap" dir="auto"></span></div>'
           el.addEventListener('click', (ev) => {
             if (ev.target.closest('.lb-nav')) { lbShotStep(ev.target.closest('.lb-prev') ? -1 : 1); return }
             if (ev.target.closest('.lb-close')) { closeShotLightbox(); return }
-            if (!ev.target.closest('img')) closeShotLightbox() // backdrop click = zoom-out (same as before)
+            // S118: clicks on the recording (its surface OR its native controls) belong
+            // to the player — only a true backdrop click zooms out (same as before).
+            if (!ev.target.closest('img, video')) closeShotLightbox()
           })
           // S83 (owner: "when clicking to see screenshots in projects they don't enlarge
           // and open"): when the zoom trigger lives inside an OPEN <dialog> (the task
@@ -599,6 +620,20 @@
           const rtl = document.documentElement.dir === 'rtl'
           if (e.key === (rtl ? 'ArrowLeft' : 'ArrowRight')) lbShotStep(1)
           else if (e.key === (rtl ? 'ArrowRight' : 'ArrowLeft')) lbShotStep(-1)
+        })
+        // S118: a recording tile zooms on DOUBLE-click — the single click stays the
+        // video's native inline playback (S115), the double-click is the big view (the
+        // same walk the pictures speak: scoped to the tile's grid, prev/next included,
+        // Esc returns focus). Document-level via ctx so every surface rides it — the
+        // detail grid, the staged strip, the pinned-pictures dialog, the task editor.
+        ctx.on('dblclick', (e) => {
+          const vid = e.target.closest && e.target.closest('video.shot-video')
+          if (!vid) return
+          const fig = vid.closest('.shot-card')
+          if (!fig) return
+          e.preventDefault()
+          try { vid.pause() } catch {} // the tile player stops when the big one opens
+          openShotLightbox(vid.getAttribute('src') || '', vid, fig.parentElement, true)
         })
 
         const shotNoteForm = (figure) => {
@@ -790,9 +825,11 @@
             return
           }
           body.innerHTML = '<div class="pd-tshots-grid">' + pinned.map((s) =>
-            '<figure class="shot shot-card' + (s.resolved ? ' is-fixed' : '') + (!isImageMime(s.mime_type) ? ' is-file' : '') + '" data-shot="' + s.id + '">' +
+            '<figure class="shot shot-card' + (s.resolved ? ' is-fixed' : '') + (String(s.mime_type || '').startsWith('video/') ? ' is-video' : !isImageMime(s.mime_type) ? ' is-file' : '') + '" data-shot="' + s.id + '">' +
             (isImageMime(s.mime_type)
               ? '<button type="button" class="shot-img-btn" data-tshots-zoom="' + s.id + '"><img src="/api/media/screenshots/' + s.id + '/file" alt="" loading="lazy"></button>'
+              : String(s.mime_type || '').startsWith('video/')
+              ? '<video class="shot-video" src="/api/media/screenshots/' + s.id + '/file" controls preload="metadata" playsinline></video>'
               : pdFileTileHtml(s)) +
             '<figcaption class="shot-body"><p class="shot-note muted small" dir="auto">' + (s.caption ? String(s.caption).replace(/[&<>]/g, (c2) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' })[c2]) : '') + '</p>' +
             '<div class="row spread shot-actions"><span class="shot-state' + (s.resolved ? ' is-fixed' : '') + '">' + (s.resolved ? '✓ ' + _t('project.shotFixedLabel', 'fixed') : _t('project.shotOpenLabel', 'open problem')) + '</span>' +
@@ -3629,9 +3666,11 @@
             const retryAttr = ' onerror="(function(i){var n=+(i.dataset.r||0)+1;if(n<4){i.dataset.r=n;var s=i.src;i.onerror=null;setTimeout(function(){i.src=s},800*n)}})(this)"'
             if (!pinned.length) { grid.innerHTML = ''; return }
             grid.innerHTML = pinned.map((s) =>
-              '<figure class="shot-card' + (!isImageMime(s.mime_type) ? ' is-file' : '') + '" data-pde-shot="' + esc(s.id) + '">' +
+              '<figure class="shot-card' + (String(s.mime_type || '').startsWith('video/') ? ' is-video' : !isImageMime(s.mime_type) ? ' is-file' : '') + '" data-pde-shot="' + esc(s.id) + '">' +
                 (isImageMime(s.mime_type)
                   ? '<button type="button" class="shot-img-btn" data-pde-shot-zoom="' + esc(s.id) + '"><img src="/api/media/screenshots/' + esc(s.id) + '/file" alt="" loading="lazy"' + retryAttr + '></button>'
+                  : String(s.mime_type || '').startsWith('video/')
+                  ? '<video class="shot-video" src="/api/media/screenshots/' + esc(s.id) + '/file" controls preload="metadata" playsinline></video>'
                   : pdFileTileHtml(s)) +
                 '<figcaption class="shot-body">' +
                   (s.caption ? '<p class="shot-note muted small" dir="auto">' + esc(s.caption) + '</p>' : '') +

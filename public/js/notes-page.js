@@ -379,7 +379,10 @@ document.documentElement.setAttribute('data-hibana-booted', '1')
       // opens the note in the editor (same as clicking its card in the middle pane).
       const noteRow = (n, depth) => {
         const cur = state.active && state.active.id === n.id
-        const title = (n.title || 'Untitled').trim() || 'Untitled'
+        // S118: the tree rows hardcoded English 'Untitled' — the vault cards one
+        // function down already speak the localized key; the tree now agrees.
+        const untitled = _t('notes.untitled', 'Untitled')
+        const title = (n.title || untitled).trim() || untitled
         return `<div class="vault-note-row" data-note-row="${n.id}" style="padding-inline-start:${(depth + 0.4) * 0.85}rem">
           <button type="button" class="vault-note" data-vault-note="${n.id}" aria-current="${cur}" title="${esc(title)}">
             ${I.note}<span class="vault-note-name" dir="auto">${esc(title)}</span>

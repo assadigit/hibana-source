@@ -107,6 +107,9 @@
         const closeLightbox = () => {
           if (!lightbox) return
           const trigger = lightbox.lastTrigger
+          // S118: a recording left playing must not keep playing after the lightbox is gone.
+          const vid = lightbox.el.querySelector('video.lb-video')
+          if (vid) { try { vid.pause() } catch {} }
           lightbox.el.remove()
           lightbox = null
           document.body.style.overflow = ''
@@ -117,14 +120,34 @@
         // the counter + caption ride the dialog, arrows follow the reading direction, and
         // focus returns to the trigger on close. Scoped styles: [data-lb] (the project
         // page's lightbox shares .shot-lightbox and stays untouched).
+        // S118: the walk set = pictures + RECORDINGS (videos render a real player); docs
+        // stay OUT of the walk (S86: a doc tile is a download affordance, never a zoom —
+        // a walk that landed on one used to paint a broken <img> fed a PDF). NOTE: the
+        // isDocRow predicate is "not an image" (pre-dates video rows) — the walk must
+        // test media POSITIVELY, not "not a doc".
+        const lbRows = () =>
+          visible().filter((r) => {
+            const m = String(r && r.mime_type ? r.mime_type : '')
+            return m.startsWith('image/') || m.startsWith('video/')
+          })
         const lbStep = (delta) => {
           if (!lightbox) return
-          const rows = visible()
+          const rows = lbRows()
           if (!rows.length) { closeLightbox(); return }
           lightbox.idx = (lightbox.idx + delta + rows.length) % rows.length
           const r = rows[lightbox.idx]
+          // S118: the browser speaks video — the current row picks the element; the one
+          // walked AWAY from pauses (a hidden video keeps playing audio).
           const img = lightbox.el.querySelector('img')
-          if (img) { img.src = '/api/media/screenshots/' + encodeURIComponent(r.id) + '/file'; img.alt = r.caption || _t('project.shotZoom', 'Screenshot') }
+          const vid = lightbox.el.querySelector('video.lb-video')
+          const isVid = isVideoRow(r)
+          if (vid && !vid.hidden && !isVid) { try { vid.pause() } catch {} }
+          const fileUrl = '/api/media/screenshots/' + encodeURIComponent(r.id) + '/file'
+          if (img) { img.hidden = isVid; if (!isVid) { img.src = fileUrl; img.alt = r.caption || _t('project.shotZoom', 'Screenshot') } }
+          if (vid) {
+            vid.hidden = !isVid
+            if (isVid && vid.getAttribute('src') !== fileUrl) vid.setAttribute('src', fileUrl)
+          }
           const count = lightbox.el.querySelector('.lb-count')
           if (count) count.textContent = dig(lightbox.idx + 1) + ' / ' + dig(rows.length)
           const cap = lightbox.el.querySelector('.lb-cap')
@@ -138,9 +161,10 @@
         }
         const openLightbox = (shotId, trigger) => {
           closeLightbox()
-          const rows = visible()
+          const rows = lbRows()
           const idx = rows.findIndex((r) => r.id === shotId)
           if (idx < 0) return
+          const opening = rows[idx]
           const el = document.createElement('div')
           el.className = 'shot-lightbox'
           el.setAttribute('role', 'dialog')
@@ -149,7 +173,8 @@
           el.setAttribute('aria-label', _t('project.shotZoom', 'Screenshot'))
           el.innerHTML =
             '<button type="button" class="lb-nav lb-prev" aria-label="' + esc(_t('gallery.lbPrev', 'Previous picture')) + '"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg></button>' +
-            '<img src="/api/media/screenshots/' + encodeURIComponent(shotId) + '/file" alt="' + esc(_t('project.shotZoom', 'Screenshot')) + '">' +
+            '<img src="/api/media/screenshots/' + encodeURIComponent(shotId) + '/file" alt="' + esc(_t('project.shotZoom', 'Screenshot')) + '"' + (isVideoRow(opening) ? ' hidden' : '') + '>' +
+            '<video class="shot-video lb-video" controls playsinline preload="metadata"' + (isVideoRow(opening) ? ' src="/api/media/screenshots/' + encodeURIComponent(shotId) + '/file"' : ' hidden') + '></video>' +
             '<button type="button" class="lb-nav lb-next" aria-label="' + esc(_t('gallery.lbNext', 'Next picture')) + '"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5l7 7-7 7"/></svg></button>' +
             '<button type="button" class="lb-close" aria-label="' + esc(_t('gallery.lbClose', 'Close')) + '"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button>' +
             '<div class="lb-meta"><span class="lb-count" aria-live="polite"></span><span class="lb-state" dir="auto"></span><span class="lb-cap" dir="auto"></span></div>'
@@ -159,7 +184,9 @@
               return
             }
             if (e.target.closest('.lb-close')) { closeLightbox(); return }
-            if (!e.target.closest('img')) closeLightbox() // backdrop click = zoom-out (same as before)
+            // S118: clicks on the recording (its surface OR its native controls) belong
+            // to the player — only a true backdrop click zooms out (same as before).
+            if (!e.target.closest('img, video')) closeLightbox()
           })
           document.body.appendChild(el)
           document.body.style.overflow = 'hidden'
@@ -177,6 +204,18 @@
           const back = rtl ? 'ArrowRight' : 'ArrowLeft'
           if (e.key === fwd) lbStep(1)
           else if (e.key === back) lbStep(-1)
+        })
+        // S118: a recording tile zooms on DOUBLE-click — the single click stays the
+        // video's native inline playback (S115), the double-click opens the SAME
+        // browser the pictures speak (walk includes videos, Esc returns focus).
+        ctx.on('dblclick', (e) => {
+          const vid = e.target.closest && e.target.closest('video.shot-video')
+          if (!vid) return
+          const fig = vid.closest('.gal-card')
+          if (!fig) return
+          e.preventDefault()
+          try { vid.pause() } catch {} // the tile player stops when the big one opens
+          openLightbox(fig.dataset.shot || '', vid)
         })
 
         const visible = () => {

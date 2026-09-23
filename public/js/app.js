@@ -358,6 +358,33 @@ window.hibana = (() => {
   let shareCaptureArmed = false
   const SHARE_CAPTURED_KEY = 'hibana-share-captured'
 
+  // S118 (the S117 rail-draft pattern completing job #1 across ALL capture surfaces):
+  // the quick-add draft persists {t, d, g} to sessionStorage per keystroke — a reload,
+  // a soft-nav landing, or the 401 login-bounce round-trip brings the half-typed idea
+  // BACK when the dialog reopens. The S117 semantics carry over: Escape/Cancel/backdrop
+  // is the deliberate discard and retires the store; a landed capture retires it (reset());
+  // a failed save keeps it (the dialog never closed). The SKETCH FILE cannot ride
+  // sessionStorage (binary) — it stays attach-per-document (documented limitation).
+  // Silent restore — no toast noise, no new i18n keys (the S117 precedent).
+  const QA_DRAFT_KEY = 'hibana-qa-draft'
+  const qaDraftFields = () =>
+    quickAddEl ? ['#qa-title', '#qa-description', '#qa-tags'].map((s) => quickAddEl.querySelector(s)) : []
+  const qaSaveDraft = () => {
+    try {
+      const [t, d, g] = qaDraftFields().map((el) => (el ? el.value : ''))
+      if (!t.trim() && !d.trim() && !g.trim()) {
+        sessionStorage.removeItem(QA_DRAFT_KEY)
+        return
+      }
+      sessionStorage.setItem(QA_DRAFT_KEY, JSON.stringify({ t, d, g }))
+    } catch { /* private mode / storage unavailable */ }
+  }
+  const qaClearDraft = () => {
+    try { sessionStorage.removeItem(QA_DRAFT_KEY) } catch { /* private mode */ }
+  }
+  const qaDraftEmpty = (d) =>
+    !d || (!String(d.t || '').trim() && !String(d.d || '').trim() && !String(d.g || '').trim())
+
   function buildQuickAdd() {
     if (quickAddEl) return
     const dlg = document.createElement('dialog')
@@ -428,7 +455,16 @@ window.hibana = (() => {
       }
     })
 
-    const close = () => dlg.close()
+    // S118: EVERY deliberate dismissal funnels through close() — the store clears
+    // SYNCHRONOUSLY here, because the 'close' event fires as a QUEUED TASK: a dismiss
+    // followed immediately by a navigation (the owner's own fast hand) can tear the
+    // document down before the task runs, silently resurrecting a dismissed idea.
+    // The 'close' listener below keeps its qaClearDraft as the belt for closes that
+    // bypass this helper.
+    const close = () => {
+      qaClearDraft()
+      dlg.close()
+    }
     const reset = () => {
       quickAddForm.reset()
       document.getElementById('qa-error').textContent = ''
@@ -437,6 +473,7 @@ window.hibana = (() => {
       sketchChip && sketchChip.classList.remove('has-file')
       dupEl.hidden = true
       dupEl.textContent = ''
+      qaClearDraft() // S118: a landed capture (online or queued offline) retires the draft
     }
 
     // Esc (native cancel) + backdrop click + explicit Cancel all dismiss cleanly.
@@ -454,6 +491,12 @@ window.hibana = (() => {
       save.disabled = false
       save.textContent = _t('common.save', 'Save')
       shareCaptureArmed = false // S112: cancel/Esc/backdrop close never toasts
+      // S118: a close WITHOUT a landed save is the deliberate discard (Cancel/Esc/
+      // backdrop) — the store retires so a later reload can't resurrect a dismissed
+      // idea. The in-document fields keep their text (pre-existing close/reopen
+      // behavior — untouched); only the cross-document layer is discarded. A failure
+      // close never reaches here (the catch path leaves the dialog open).
+      qaClearDraft()
     })
 
     quickAddForm.addEventListener('submit', async (e) => {
@@ -563,6 +606,10 @@ window.hibana = (() => {
     })
 
     quickAddEl = dlg
+    // S118: per-keystroke draft persistence on the three text fields (the sketch
+    // input's change event deliberately does NOT feed the store — binary, see above).
+    // Attached AFTER quickAddEl is assigned — qaDraftFields() reads through it.
+    qaDraftFields().forEach((el) => el && el.addEventListener('input', qaSaveDraft))
   }
 
   function openQuickAdd(prefill) {
@@ -590,6 +637,23 @@ window.hibana = (() => {
       const descInput = quickAddEl.querySelector('#qa-description')
       if (titleInput && prefill.title) titleInput.value = prefill.title
       if (descInput && prefill.description) descInput.value = prefill.description
+    }
+    // S118: restore a half-typed draft — only when the form is PRISTINE and no share
+    // prefill came in (a prefill or in-document values are newer intent and win; the
+    // store is per-TAB sessionStorage, so two tabs never cross-contaminate).
+    if (!(prefill && (prefill.title || prefill.description))) {
+      const [tEl, dEl, gEl] = qaDraftFields()
+      const pristine = tEl && dEl && gEl && !tEl.value.trim() && !dEl.value.trim() && !gEl.value.trim()
+      if (pristine) {
+        try {
+          const stored = JSON.parse(sessionStorage.getItem(QA_DRAFT_KEY) || 'null')
+          if (!qaDraftEmpty(stored)) {
+            if (stored.t) tEl.value = String(stored.t).slice(0, 200)
+            if (stored.d) dEl.value = String(stored.d).slice(0, 2000)
+            if (stored.g) gEl.value = String(stored.g).slice(0, 200)
+          }
+        } catch { /* corrupt store — start clean */ }
+      }
     }
     quickAddEl.showModal()
     if (prefill && (prefill.title || prefill.description)) {

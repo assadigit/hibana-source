@@ -49,20 +49,27 @@
   const read = () => {
     try {
       const v = JSON.parse(localStorage.getItem(KEY) || '[]')
-      return Array.isArray(v) ? v.filter((e) => e && e.k && e.id) : []
+      // S118: legacy entries stored the '—' placeholder for untitled notes — normalize
+      // to empty so the render layer speaks the CURRENT language's Untitled label.
+      return (Array.isArray(v) ? v : [])
+        .filter((e) => e && e.k && e.id)
+        .map((e) => (e.t === '—' ? { ...e, t: '' } : e))
     } catch { return [] }
   }
   const write = (list) => { try { localStorage.setItem(KEY, JSON.stringify(list.slice(0, MAX_STORE))) } catch { /* storage unavailable */ } }
 
   /** record('project'|'note', id, title, badge?) — idempotent (re-opening moves it
    *  to the top). `badge` is the project's stage slug at open time — rendered on the
-   *  hero as the fixed-palette status chip (S85). Old 3-arg call sites keep working. */
+   *  hero as the fixed-palette status chip (S85). Old 3-arg call sites keep working.
+   *  S118: an UNTITLED note records an empty title (never the '—' placeholder — the
+   *  render layer speaks the localized Untitled label at VIEW time, so a language
+   *  switch re-labels honestly instead of freezing the recording language). */
   const record = (k, id, title, badge) => {
     if (!id) return
     const list = read().filter((e) => !(e.k === k && e.id === id))
     const stage = STAGES.includes(badge) ? badge : undefined
     const prev = read().find((e) => e.k === k && e.id === id)
-    list.unshift({ k, id, t: String(title || '').trim().slice(0, 80) || '—', ts: Date.now(), b: stage ?? prev?.b })
+    list.unshift({ k, id, t: String(title || '').trim().slice(0, 80), ts: Date.now(), b: stage ?? prev?.b })
     write(list)
   }
 
@@ -109,27 +116,32 @@
     const clearAria = () => _t('resume.clearAria', 'Clear the resume history')
     const ctaText = () => _t('resume.cta', 'Open')
     const kindOf = (e) => (e.k === 'project' ? _t('resume.project', 'Project') : _t('resume.note', 'Note'))
+    // S118 (S117 candidate 5): an untitled note rendered as a bare '—' — every other
+    // surface (the vault cards, the command palette) speaks a localized Untitled label.
+    // Reuse the EXISTING keys (no new parity surface): notes → cmdk.untitledNote,
+    // projects (nameless can't really happen — name is required at creation) → sp.untitled.
+    const titleOf = (e) => e.t || (e.k === 'note' ? _t('cmdk.untitledNote', 'Untitled note') : _t('sp.untitled', 'Untitled'))
     const heroLabel = () => _t('resume.openAria', 'Open {k}: {t}')
     const chips = rest.map((e) => {
-      const label = heroLabel().split('{k}').join(kindOf(e)).split('{t}').join(e.t || '')
-      return `<a class="resume-chip" href="${urlFor(e)}" data-resume-go="${urlFor(e)}" aria-label="${esc(label)}" title="${esc(e.t || '')}">
+      const label = heroLabel().split('{k}').join(kindOf(e)).split('{t}').join(titleOf(e))
+      return `<a class="resume-chip" href="${urlFor(e)}" data-resume-go="${urlFor(e)}" aria-label="${esc(label)}" title="${esc(titleOf(e))}">
         <span class="resume-chip-ico ${e.k === 'project' ? 'is-project' : 'is-note'}">${ICONS[e.k] || ICONS.note}</span>
         <span class="resume-chip-body">
-          <span class="resume-chip-title" dir="auto">${esc(e.t || '—')}</span>
+          <span class="resume-chip-title" dir="auto">${esc(titleOf(e))}</span>
           <span class="resume-chip-meta">${esc(kindOf(e))} · ${esc(timeAgo(e.ts))}</span>
         </span>
       </a>`
     }).join('')
     // The hero: newest entry, banner-grade treatment — glyph + kind·stage·timeAgo +
     // title + explicit Open CTA (all sourced from the ONE shared last-opened store).
-    const heroAria = heroLabel().split('{k}').join(kindOf(hero)).split('{t}').join(hero.t || '')
+    const heroAria = heroLabel().split('{k}').join(kindOf(hero)).split('{t}').join(titleOf(hero))
     const heroHtml = (mount) => {
       const h = mount.querySelector('.resume-hero')
       const next = `<a class="resume-hero" href="${urlFor(hero)}" data-resume-go="${urlFor(hero)}" aria-label="${esc(heroAria)}">
         <span class="resume-chip-ico ${hero.k === 'project' ? 'is-project' : 'is-note'}">${ICONS[hero.k] || ICONS.note}</span>
         <span class="resume-hero-body">
           <span class="resume-hero-kicker">${esc(kindOf(hero))}${stageBadge(hero) ? ' ' + stageBadge(hero) + ' ' : ' · '}<span class="resume-hero-time">${esc(timeAgo(hero.ts))}</span></span>
-          <span class="resume-hero-title" dir="auto">${esc(hero.t || '—')}</span>
+          <span class="resume-hero-title" dir="auto">${esc(titleOf(hero))}</span>
         </span>
         <span class="btn resume-hero-cta">${esc(ctaText())}<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" class="icon arrow" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
       </a>`

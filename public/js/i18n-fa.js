@@ -33,6 +33,13 @@ window.__hibanaDictFA = {
       // announces itself and the emptied panel reads as a finish line, not an error
       'rail.todoDone': 'کار انجام شد',
       'rail.todoAllDone': 'همه انجام شد — کاری در این فهرست نمانده است.',
+      // S114: the panel's quick-add — capture a task into any quadrant from the
+      // sidebar itself (never lose an idea)
+      'rail.todoAdd': 'افزودن کار',
+      'rail.todoAddPlaceholder': 'کار جدید…',
+      'rail.todoAddList': 'کدام فهرست',
+      'rail.todoAdded': 'کار اضافه شد',
+      'rail.todoAddFailed': 'کار اضافه نشد — دوباره تلاش کن',
       // S97: the panel head's tree fold — one button collapses/expands every group
       'rail.expandAll': 'باز کردن همه', 'rail.collapseAll': 'بستن همه',
       // S98: the quadrant groups' goto chip — lands the deep link on the board

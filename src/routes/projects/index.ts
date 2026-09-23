@@ -133,6 +133,20 @@ export function projectsRoutes(cfg: Config) {
         return await etag(c, c.html(archiveShelfHtml(projects, tagsMap, lang)))
       }
       const activeStatus = query.success ? query.data.status : undefined
+      // S122: the overview sections (project-states carousel + overall-tasks donut and
+      // the four recent boxes) extracted so the pure home can open with them in EVERY
+      // view. S121 rendered them only under view=grid — but the client remembers the
+      // view preference (hibana-projects-view: "list stays list, kanban stays kanban"),
+      // so an owner whose browser had stored cards/kanban landed on their view and the
+      // wireframe's overview was nowhere in sight (the report: "I don't see the new
+      // consolidated projects section"). One closure, two call sites — grid keeps its
+      // rail-then-overview order, the other views prepend it above their body.
+      const ovHomeHtml = async (progress: Awaited<ReturnType<typeof loadProjectProgress>>) => {
+        const recent = [...projects].sort((a, b) => (a.updated_at < b.updated_at ? 1 : a.updated_at > b.updated_at ? -1 : 0))
+        const ovProjects = recent.slice(0, 36) // a swipe range, not an infinite scroll — 36 cards ≈ 12 pages of 3
+        const ov = await loadOverviewData(cfg, user.id, ovProjects.map((p) => p.id))
+        return projectStatesCarouselHtml(ovProjects, ov.perProject, progress, lang) + overallTasksHtml(ov.counts, ov.recent, lang)
+      }
       if (view === 'grid') {
         const countRows = await cfg.db.query<{ status: string; n: number }>(
           "SELECT status, COUNT(*) AS n FROM projects WHERE user_id = ? AND deleted_at IS NULL AND status != 'spark' AND (archived_state IS NULL OR archived_state != 'offline') GROUP BY status",
@@ -163,20 +177,16 @@ export function projectsRoutes(cfg: Config) {
         // the project-states carousel (every project, newest first), then the overall
         // tasks donut + the four recent boxes. Retires the S45 «Recently active» list:
         // the carousel IS that list upgraded (full range, state + weight per card).
-        const recent = [...projects].sort((a, b) => (a.updated_at < b.updated_at ? 1 : a.updated_at > b.updated_at ? -1 : 0))
-        if (recent.length === 0) {
+        if (projects.length === 0) {
           return await etag(c, c.html(
             glanceStrip(counts, activeStatus, lang, true) +
             listFragment([], tagsMap, 'cards', lang),
           ))
         }
-        const ovProjects = recent.slice(0, 36) // a swipe range, not an infinite scroll — 36 cards ≈ 12 pages of 3
         const progressMap = await loadProjectProgress(cfg, projects)
-        const ov = await loadOverviewData(cfg, user.id, ovProjects.map((p) => p.id))
         return await etag(c, c.html(
           glanceStrip(counts, activeStatus, lang, true) +
-          projectStatesCarouselHtml(ovProjects, ov.perProject, progressMap, lang) +
-          overallTasksHtml(ov.counts, ov.recent, lang),
+          await ovHomeHtml(progressMap),
         ))
       }
       // P-signals: batch-load per-project signal counts (bugs, ideas, backlog, hurdles)
@@ -205,6 +215,17 @@ export function projectsRoutes(cfg: Config) {
         )
         const counts = new Map<string, number>(countRows.map((r) => [r.status, r.n]))
         if (countRows.some((r) => r.n > 0)) fragment = glanceStrip(counts, activeStatus, lang) + fragment
+      }
+      // S122 (owner report: "I don't see the new consolidated projects section"): the
+      // overview IS the projects home — a remembered non-grid view preference rode the
+      // pure home to cards/list/kanban/sticky and S121's grid-only overview never
+      // showed. The unfiltered home now OPENS with the overview in every view, the
+      // chosen view's body below it; filtered/special homes (status/q/tag/stale/
+      // archive/spark) keep their focused render, and the empty home keeps its capture
+      // state (the S121 empty contract, mirrored here).
+      const pureHome = !staleMode && !archivedOnly && !activeStatus && !(query.success && !!(query.data.q || query.data.tag))
+      if (pureHome && projects.length > 0) {
+        fragment = await ovHomeHtml(progressMap) + fragment
       }
       if (activeStatus === 'spark') {
         const folderRows = await cfg.db.query<SparkFolderRow & { n: number }>(

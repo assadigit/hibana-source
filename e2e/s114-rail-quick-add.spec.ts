@@ -216,3 +216,71 @@ test.describe('the to-do panel quick-add (S114 — never lose an idea)', () => {
     await expect(page.locator('.rail-group', { hasText: 'Urgent & High Value' })).toHaveClass(/is-collapsed/)
   })
 })
+
+// S117 (never lose an idea, the draft edition): the quick-add DRAFT survives the
+// panel's re-renders AND a full page navigation — a half-typed idea no longer
+// dies because the user moved (a navigator icon, a reload, a login-bounce
+// round-trip). sessionStorage holds {q, text}; Escape stays the deliberate
+// discard; a successful submit retires the draft with the task it became.
+test.describe('the quick-add draft survival (S117)', () => {
+  test('a half-typed draft SURVIVES a page navigation and reclaims its quadrant', async ({ page }) => {
+    await login(page)
+    await openTodoPanel(page)
+
+    // Type half an idea into Strategic (quadrant 2)…
+    const form = page.locator('[data-rail-add]')
+    await form.locator('[data-rail-add-picker]').selectOption('2')
+    const input = form.locator('[data-rail-add-input]')
+    await input.pressSequentially('Half-typed nav draft idea')
+    await expect(input).toHaveValue('Half-typed nav draft idea')
+
+    // …then NAVIGATE away and back (the navigator icons' own go() — the exact
+    // path that used to cost the draft). The panel key rides the destination.
+    await page.evaluate(() => { try { localStorage.setItem('hibana-rail-panel', 'todo') } catch { /* storage blocked */ } })
+    await page.goto('/projects.html')
+    await page.waitForSelector('nav.rail', { timeout: 10_000 })
+    await page.goto('/app')
+    await page.waitForSelector('nav.rail', { timeout: 10_000 })
+
+    // The panel reopens (the persisted key) and the input comes back with the
+    // draft TEXT and the PICKED quadrant — the capture loop resumes mid-word.
+    await openTodoPanel(page)
+    const restored = page.locator('[data-rail-add]')
+    await expect(restored.locator('[data-rail-add-input]')).toHaveValue('Half-typed nav draft idea')
+    await expect(restored.locator('[data-rail-add-picker]')).toHaveValue('2')
+
+    // Submitting the restored idea LANDS it and retires the stored draft —
+    // sessionStorage is empty, the input is empty + focused.
+    await restored.locator('[data-rail-add-input]').press('Enter')
+    await expect(page.locator('#toast')).toContainText('Task added')
+    await expect(page.locator('.rail-todo-item', { hasText: 'Half-typed nav draft idea' })).toBeVisible()
+    await expect(page.locator('[data-rail-add] [data-rail-add-input]')).toHaveValue('')
+    const stored = await page.evaluate(() => sessionStorage.getItem('hibana-rail-add-draft'))
+    expect(stored).toBeNull()
+    // Clean up the capture (this file runs serially through one server).
+    await page.evaluate(async () => {
+      const r = await fetch('/api/rail', { credentials: 'same-origin' })
+      const d = await r.json()
+      const row = (d.todos || []).find((t: { title: string }) => t.title === 'Half-typed nav draft idea')
+      if (row) await fetch(`/api/sadhana/tasks/${row.id}/complete`, { method: 'POST', credentials: 'same-origin' })
+    })
+  })
+
+  test('Escape stays the DELIBERATE discard — the stored draft does not survive it', async ({ page }) => {
+    await login(page)
+    await openTodoPanel(page)
+    const input = page.locator('[data-rail-add] [data-rail-add-input]')
+    await input.pressSequentially('Escape must truly discard')
+    await expect(input).toHaveValue('Escape must truly discard')
+    // The draft is stored as it's typed…
+    expect(await page.evaluate(() => sessionStorage.getItem('hibana-rail-add-draft'))).toContain('Escape must truly discard')
+    // …Escape clears BOTH the input and the store (the S114 contract, now honest)…
+    await input.press('Escape')
+    await expect(input).toHaveValue('')
+    expect(await page.evaluate(() => sessionStorage.getItem('hibana-rail-add-draft'))).toBeNull()
+    // …and a re-render does not resurrect it.
+    await page.locator('.rail-group-head', { hasText: 'Today' }).click()
+    await page.waitForTimeout(300)
+    await expect(page.locator('[data-rail-add] [data-rail-add-input]')).toHaveValue('')
+  })
+})

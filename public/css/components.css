@@ -176,7 +176,17 @@ dialog.dialog {
   max-inline-size: min(26rem, 92vw);
   max-block-size: min(90vh, 40rem);
   overflow: auto;
+  /* S117 (styling): every scroll surface speaks the quiet-scrollbar dialect —
+     the capture modals scrolled on the platform-default bar, which read heavy
+     against the dialog's own rounding (the layout.css S98 / dashboard-todo.css
+     recipe: thin + muted-45% token color, WebKit mirrors it). */
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in srgb, var(--muted) 45%, transparent) transparent;
 }
+dialog.dialog::-webkit-scrollbar { inline-size: 5px; block-size: 5px; }
+dialog.dialog::-webkit-scrollbar-track { background: transparent; }
+dialog.dialog::-webkit-scrollbar-thumb { background: color-mix(in srgb, var(--muted) 45%, transparent); border-radius: 999px; }
+dialog.dialog::-webkit-scrollbar-thumb:hover { background: color-mix(in srgb, var(--muted) 70%, transparent); }
 dialog.dialog::backdrop { background: rgb(0 0 0 / 0.55); }
 /* S93 (owner round, item 13 — "enlarge the modals of new idea / new project / new note
    by at least 100%, they're too small"): the three CAPTURE dialogs (quickadd /

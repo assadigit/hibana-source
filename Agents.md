@@ -115,6 +115,16 @@ probe (console 0 / page errors 0) → **purge probe users** (DELETE cascade veri
 row-count parity: users 4). Auto-deploy dev after green verify; prod after a live dev probe,
 unless held.
 
+**E2E server contract (S115/S116 ops notes, canonical here)**: the Playwright webServer
+boots its own Node instance from the config env — `DB_PATH`, `HIBANA_SHOTS_DIR` (WITHOUT it
+uploads go to GitHub with a stub token → phantom 401 test failures), `PORT 3017`. When
+pre-booting a shared server manually (the two-shard race: boot the shared server FIRST,
+then run both shards concurrently — shard 1's own spawn EADDRINUSE-dies otherwise), it MUST
+carry the same env. Never leave an orphaned server squatting on the QA port across sessions
+(wrong-DB symptom: `invalid_credentials` for a user your DB file contains). Canonical-tree
+runs are the contract: `npm run build -- --restore-html` before e2e (the wired tree serves
+`/dist/*.<hash>.css`, which breaks the S105-1 heal pin by design).
+
 ## Cache-bust discipline (load-bearing — stale caches caused ~4 user bug reports)
 Any CSS/JS change bumps `?v=` on EVERY referencing HTML page AND the SW cache name + SHELL
 list. Since v0.3.0 `/dist/` is content-hashed; SW version bumps only on sw.js logic changes.

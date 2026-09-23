@@ -131,8 +131,16 @@
   word-break: break-word;
   max-block-size: 180px;
   overflow-y: auto;
+  /* S117 (styling): the quiet-scrollbar dialect (layout.css S98 recipe) — the
+     AI polish panes scrolled on the platform-default bar. */
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in srgb, var(--muted) 45%, transparent) transparent;
   background: color-mix(in srgb, var(--mw-accent) 6%, transparent);
 }
+.magic-pane .magic-pane-body::-webkit-scrollbar { inline-size: 5px; }
+.magic-pane .magic-pane-body::-webkit-scrollbar-track { background: transparent; }
+.magic-pane .magic-pane-body::-webkit-scrollbar-thumb { background: color-mix(in srgb, var(--muted) 45%, transparent); border-radius: 999px; }
+.magic-pane .magic-pane-body::-webkit-scrollbar-thumb:hover { background: color-mix(in srgb, var(--muted) 70%, transparent); }
 .magic-pane-suggestion .magic-pane-body { border-color: color-mix(in srgb, var(--mw-accent) 55%, transparent); }
 
 .magic-foot { display: flex; justify-content: flex-end; gap: 8px; }

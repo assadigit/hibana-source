@@ -193,7 +193,13 @@
    used to lay out the old 12-SVG-glyph set as a 4-column grid.
    2026-09-05: the accent-swatch row was REMOVED (user — "color is for icons, now we
    use emojis"); only the icon grid remains. */
-.dash-style-icons { display: grid; grid-template-columns: repeat(8, 1fr); gap: 2px; margin-block-start: 0.45rem; max-block-size: 9.6rem; overflow-y: auto; overscroll-behavior: contain; }
+/* S117 (styling): the quiet-scrollbar dialect (layout.css S98 recipe) — the emoji
+   grid scrolled on the platform-default bar; tokens keep it dark-theme honest. */
+.dash-style-icons { display: grid; grid-template-columns: repeat(8, 1fr); gap: 2px; margin-block-start: 0.45rem; max-block-size: 9.6rem; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; scrollbar-color: color-mix(in srgb, var(--muted) 45%, transparent) transparent; }
+.dash-style-icons::-webkit-scrollbar { inline-size: 5px; }
+.dash-style-icons::-webkit-scrollbar-track { background: transparent; }
+.dash-style-icons::-webkit-scrollbar-thumb { background: color-mix(in srgb, var(--muted) 45%, transparent); border-radius: 999px; }
+.dash-style-icons::-webkit-scrollbar-thumb:hover { background: color-mix(in srgb, var(--muted) 70%, transparent); }
 .dash-style-icon { min-inline-size: 2.75rem; min-block-size: 2.75rem; padding: 0.45rem; border: 1px solid transparent; border-radius: var(--radius-sm); background: transparent; color: var(--text); }
 .dash-style-icon:hover,
 .dash-style-icon:focus-visible { background: var(--bg-soft); }

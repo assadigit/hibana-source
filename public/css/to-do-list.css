@@ -136,7 +136,13 @@ main.shell-dash {
 }
 
 /* Quadrant overflow menu (⋯) — rename / focus / add-task dialog, one trigger (audit §3-4). */
-.sadhana-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.35rem; max-block-size: 18rem; overflow: auto; flex: 1; }
+/* S117 (styling): the quiet-scrollbar dialect (layout.css S98 recipe) — the menu's
+   task list scrolled on the platform-default bar. */
+.sadhana-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.35rem; max-block-size: 18rem; overflow: auto; flex: 1; scrollbar-width: thin; scrollbar-color: color-mix(in srgb, var(--muted) 45%, transparent) transparent; }
+.sadhana-list::-webkit-scrollbar { inline-size: 5px; block-size: 5px; }
+.sadhana-list::-webkit-scrollbar-track { background: transparent; }
+.sadhana-list::-webkit-scrollbar-thumb { background: color-mix(in srgb, var(--muted) 45%, transparent); border-radius: 999px; }
+.sadhana-list::-webkit-scrollbar-thumb:hover { background: color-mix(in srgb, var(--muted) 70%, transparent); }
 /* Empty state: quiet, centered in the free space (roast 2026-08-25) — not a heavy
    headline pinned to the top of a two-thirds-empty card. */
 .sadhana-list:has(> .sadhana-empty) { display: flex; }

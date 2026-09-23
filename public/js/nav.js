@@ -393,6 +393,32 @@
   // no-store) feeds every section; the Dashboard section reads the resume store
   // (hibana-resume, client-side) instead.
   const RAIL_PANEL_KEY = 'hibana-rail-panel'
+  // S117 (two jobs, #1 — never lose an idea): the quick-add DRAFT survives the
+  // panel's constant re-renders AND a full page navigation — including the
+  // navigator icons' own go() (To-do/Projects/Ideas/Calendar all navigate with
+  // the panel open) and the 401 login bounce with its ?next round-trip. A
+  // half-typed idea no longer dies because the user moved. sessionStorage
+  // (per-tab, like the draft itself) holds {q, text}; Escape stays the DELIBERATE
+  // discard, a successful submit clears it, a failed POST keeps it.
+  const RAIL_ADD_DRAFT_KEY = 'hibana-rail-add-draft'
+  const railAddDraftRead = () => {
+    try {
+      const raw = sessionStorage.getItem(RAIL_ADD_DRAFT_KEY)
+      if (!raw) return null
+      const v = JSON.parse(raw)
+      return v && typeof v === 'object' && typeof v.text === 'string' ? v : null
+    } catch { return null }
+  }
+  const railAddDraftWrite = (q, text) => {
+    try {
+      const t = String(text || '')
+      if (!t.trim()) sessionStorage.removeItem(RAIL_ADD_DRAFT_KEY)
+      else sessionStorage.setItem(RAIL_ADD_DRAFT_KEY, JSON.stringify({ q: Number(q) || 0, text: t }))
+    } catch { /* storage unavailable — the draft just lives in the input */ }
+  }
+  const railAddDraftClear = () => {
+    try { sessionStorage.removeItem(RAIL_ADD_DRAFT_KEY) } catch { /* storage unavailable */ }
+  }
   const railBox = () => document.querySelector('[data-rail-panel-box]')
   const railT = (k, fb) => { const v = window.hibanaI18n?.t(k); return v && v !== k ? v : fb }
   const escHtml = (str) => String(str ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c] ?? c))
@@ -583,6 +609,12 @@
     // submit both keep railTodoCtx.picked honest; the dot follows via the same
     // --rail-add-accent style the change handler sets).
     if (!railTodoCtx.order.includes(railTodoCtx.picked)) railTodoCtx.picked = railTodoCtx.order[0]
+    // S117: a surviving draft RECLAIMS its quadrant — the picker lands back on
+    // the list the idea was being typed into, even across a page navigation
+    // (railTodoCtx.picked alone only lives in memory).
+    const draft = railAddDraftRead()
+    if (draft && draft.q && railTodoCtx.order.includes(draft.q)) railTodoCtx.picked = draft.q
+    const draftText = draft ? draft.text : ''
     const opts = railTodoCtx.order.map((q) => {
       const meta = railTodoCtx.custom.get(q)
       const accent = meta && meta.accent_color ? ' data-accent="' + escHtml(meta.accent_color) + '"' : ''
@@ -596,6 +628,7 @@
       '<span class="rail-add-dot" aria-hidden="true"></span>' +
       '<select class="rail-add-picker" data-rail-add-picker aria-label="' + escHtml(railT('rail.todoAddList', 'Which list')) + '">' + opts + '</select>' +
       '<input class="rail-add-input" data-rail-add-input type="text" maxlength="255" enterkeyhint="done" autocomplete="off" spellcheck="false"' +
+      (draftText ? ' value="' + escHtml(draftText) + '"' : '') +
       ' placeholder="' + escHtml(ph) + '" aria-label="' + escHtml(ph) + '">' +
       '<button class="rail-add-btn" type="submit" data-rail-add-btn aria-label="' + escHtml(railT('rail.todoAdd', 'Add task')) + '">' +
       '<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></button>' +
@@ -1217,6 +1250,22 @@
     const acc = opt ? opt.getAttribute('data-accent') : ''
     form.style.setProperty('--rail-add-accent', acc ? 'var(--' + acc + ')' : 'var(--accent)')
     railTodoCtx.picked = Number(sel.value) || railTodoCtx.picked // S114 r2: even a draft-less switch holds
+    // S117: a draft already being typed FOLLOWS its list switch — the stored
+    // quadrant updates so the navigation/re-render restore lands both.
+    const input = form.querySelector('[data-rail-add-input]')
+    if (input && input.value.trim()) railAddDraftWrite(Number(sel.value), input.value)
+  })
+
+  // S117: the draft PERSISTS as it's typed — every keystroke updates the
+  // sessionStorage draft, so a navigator-icon click (which navigates), a panel
+  // re-render, or a 401 login bounce round-trip all bring the half-typed idea
+  // back. Clearing the input (manually) clears the stored draft too.
+  document.addEventListener('input', (e) => {
+    const input = e.target.closest ? e.target.closest('[data-rail-add-input]') : null
+    if (!input || !(input instanceof HTMLInputElement)) return
+    const form = input.closest('[data-rail-add]')
+    const picker = form ? form.querySelector('[data-rail-add-picker]') : null
+    railAddDraftWrite(picker ? Number(picker.value) : railTodoCtx.picked, input.value)
   })
 
   // S114: capture a task from the sidebar. Submit POSTs /api/sadhana/tasks (the
@@ -1252,6 +1301,7 @@
       })
       .then((data) => {
         form.removeAttribute('data-busy')
+        railAddDraftClear() // S117: the idea LANDED — the stored draft retires with it
         if (railData) {
           railData.todos.push({ id: (data && data.id) || '', title, done: 0, due_date: null, quadrant })
         }
@@ -1288,6 +1338,7 @@
       e.preventDefault()
       e.stopPropagation()
       input.value = ''
+      railAddDraftClear() // S117: Escape stays the DELIBERATE discard — nothing stored survives it
       input.focus()
     }
   }, true)

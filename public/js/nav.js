@@ -494,13 +494,29 @@
     ' aria-label="' + escHtml(t.title) + '">' +
     '<span class="rail-item-label" dir="auto">' + escHtml(t.title) + '</span></label>'
 
+  // S113 (owner, URGENT): the all-clear state — the panel's finish line when every
+  // task on the list is done. A quiet brand-accent check in a soft ring + one line
+  // of muted copy (role=status so screen readers announce the milestone; the
+  // generic rail.empty stays for a list that has no tasks at all).
+  const railTodoAllClear = () =>
+    '<div class="rail-todo-clear" role="status">' +
+    '<span class="rail-todo-clear-badge" aria-hidden="true">' +
+    '<svg class="icon" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg></span>' +
+    '<p>' + escHtml(railT('rail.todoAllDone', 'All clear — every task here is done.')) + '</p>' +
+    '</div>'
+
   const renderRailTodos = (d) => {
     // S93 (owner round, item 1): the to-do panel IS the quadrant board in miniature —
     // each quadrant's name heads its group (the user's renamed sadhana_quadrant_names
     // or localized defaults, in the user's saved order), and every item carries a
-    // tickable checkbox. The items keep the /api/rail order (open first, dated first,
-    // then manual position) — done items ride their quadrant, dimmed + struck.
+    // tickable checkbox.
+    // S113 (owner, URGENT): the sidebar is the OPEN-WORK glance — DONE tasks never
+    // show here. The board page keeps its full done-sinking history; this panel only
+    // ever lists what's left to do. A quadrant whose tasks are all done folds away
+    // with them (the group contract hides empty groups), and the last group out
+    // flips the panel to the all-clear state.
     const todos = d.todos || []
+    const open = todos.filter((t) => !t.done)
     const custom = new Map((d.todoNames || []).map((r) => [r.quadrant, r]))
     const DEF = {
       1: ['rail.q1', 'Today'],
@@ -516,13 +532,17 @@
     for (const q of order) {
       const meta = custom.get(q)
       const label = meta && meta.name ? meta.name : railT(DEF[q][0], DEF[q][1])
-      const items = todos.filter((t) => t.quadrant === q).map((t) => railTodoItem(t))
+      const items = open.filter((t) => t.quadrant === q).map((t) => railTodoItem(t))
       // S98: every quadrant group head carries a goto chip → its own board
       // quadrant (/to-do-list#Q<id>), landing ON that exact box via the S97
       // arrival system (.q-arrived + scroll/carousel).
       parts.push(railGroup(label, items, { accent: meta && meta.accent_color ? meta.accent_color : null, href: '/to-do-list#Q' + q }))
     }
-    return parts.join('') || '<div class="rail-panel-empty">' + escHtml(railT('rail.empty', 'Nothing here yet — open something and it will appear.')) + '</div>'
+    const html = parts.join('')
+    if (html) return html
+    // nothing open — distinguish "the list has no tasks yet" from "every task is done"
+    if (todos.length) return railTodoAllClear()
+    return '<div class="rail-panel-empty">' + escHtml(railT('rail.empty', 'Nothing here yet — open something and it will appear.')) + '</div>'
   }
 
   const renderRailProjects = (d) => {
@@ -977,10 +997,44 @@
     if (alsoNav) go(icon.getAttribute('href') || '')
   }, true)
 
+  // S113 (owner, URGENT): a ticked task LEAVES the sidebar — done work never shows
+  // here (the S93 strike-and-sink register lives on on the board page only). The row
+  // folds itself away (a measured max-height collapse + fade, pinned from JS so the
+  // transition has a real start value), the group's count follows, an emptied group
+  // folds with its last row, and the last group out flips the panel to the all-clear
+  // state. Reduced motion skips the fold entirely.
+  const retireRailTodoRow = (row) => {
+    const body = row.closest('.rail-group-body')
+    const group = row.closest('.rail-group')
+    const finish = () => {
+      row.remove()
+      const box = railBox()
+      const panel = box ? box.querySelector('.rail-panel-body') : null
+      if (!panel) return
+      if (group) {
+        const left = body ? body.querySelectorAll('.rail-todo-item').length : 0
+        const count = group.querySelector('.rail-group-count')
+        if (count) count.textContent = railFaDig(left)
+        if (!left) group.remove()
+      }
+      if (!panel.querySelector('.rail-group')) {
+        panel.innerHTML = railTodoAllClear()
+      } else {
+        syncRailTreeBtn() // S97: the removal can complete/clear a full fold — keep the button honest
+      }
+    }
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) { finish(); return }
+    row.style.maxHeight = row.scrollHeight + 'px'
+    requestAnimationFrame(() => row.classList.add('is-leaving'))
+    window.setTimeout(finish, 360)
+  }
+
   // S93 (owner round, item 1): the to-do panel's CHECKBOXES — a delegated change
-  // handler POSTs /complete|/uncomplete (the same endpoints the dashboard rows use),
-  // then the row strikes/dims and SINKS to its group's end in place (no panel
-  // re-render — the collapse states + scroll position survive the tick).
+  // handler POSTs /complete|/uncomplete (the same endpoints the dashboard rows use).
+  // S113 (owner, URGENT): completing a task now REMOVES the row from the panel (done
+  // work never shows in the sidebar). The toast's UNDO reopens the task and
+  // re-renders the panel from the updated cache — an accidental tick is one tap
+  // from recovery, no board trip (never lose your place).
   document.addEventListener('change', (e) => {
     const input = e.target.closest ? e.target.closest('[data-rail-todo]') : null
     if (!input || !(input instanceof HTMLInputElement)) return
@@ -996,8 +1050,34 @@
         if (t) t.done = next ? 1 : 0
         input.disabled = false
         row.classList.toggle('is-done', next)
-        const body = row.closest('.rail-group-body')
-        if (body) (next ? body.appendChild(row) : body.insertBefore(row, body.firstChild))
+        if (next) {
+          retireRailTodoRow(row)
+          window.hibana?.toast?.(railT('rail.todoDone', 'Task completed'), 'ok', 6000, [
+            {
+              label: railT('common.undo', 'Undo'),
+              onClick: () => {
+                fetch('/api/sadhana/tasks/' + encodeURIComponent(id) + '/uncomplete', { method: 'POST', credentials: 'same-origin' })
+                  .then((r2) => {
+                    if (!r2.ok) { if (r2.status === 401) window.hibana?.handle401?.(r2); throw new Error('HTTP ' + r2.status) }
+                    if (t) t.done = 0
+                    const box = railBox()
+                    if (box && railSection === 'todo') {
+                      const body = box.querySelector('.rail-panel-body')
+                      if (body) body.innerHTML = railBodyFor('todo', railData)
+                      markRailRows() // S95: fresh rows re-mark their current location
+                      syncRailTreeBtn() // S97: the re-render rebuilt the tree
+                    }
+                  })
+                  .catch(() => window.hibana?.toast?.(railT('rail.todoFailed', "Couldn't update the task — try again"), 'err'))
+              },
+            },
+          ])
+        } else {
+          // stale-panel un-tick: reopen at the group's top (near-dead path — done
+          // rows no longer render, but the panel can outlive a fast double toggle).
+          const body = row.closest('.rail-group-body')
+          if (body) body.insertBefore(row, body.firstChild)
+        }
       })
       .catch(() => {
         input.disabled = false

@@ -29,6 +29,10 @@ window.__hibanaDictFA = {
       'rail.notebookHint': 'برگه یادداشت تختهٔ سفید توست — بازش کن تا آزادانه بنویسی و بکشی.',
       'rail.calendarHint': 'هر چیز برنامه‌ریزی‌شده — پروژه، وظیفه یا کارِ لیست — وقتی نزدیک شود همین‌جا می‌آید.',
       'rail.todoFailed': 'به‌روزرسانی کار ممکن نشد — دوباره تلاش کن',
+      // S113 (owner, urgent): the sidebar to-do panel shows OPEN work only — a tick
+      // announces itself and the emptied panel reads as a finish line, not an error
+      'rail.todoDone': 'کار انجام شد',
+      'rail.todoAllDone': 'همه انجام شد — کاری در این فهرست نمانده است.',
       // S97: the panel head's tree fold — one button collapses/expands every group
       'rail.expandAll': 'باز کردن همه', 'rail.collapseAll': 'بستن همه',
       // S98: the quadrant groups' goto chip — lands the deep link on the board

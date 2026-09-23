@@ -733,6 +733,46 @@ body.rail-panel-open .rail-panel { visibility: visible; opacity: 1; transition: 
   opacity: 0.55;
 }
 .rail-todo-item:has(.rail-check:checked) { background: var(--bg-soft); }
+/* S113 (owner, URGENT): the sidebar shows OPEN work only — a ticked task FOLDS
+   itself away instead of striking+sinking (the board page keeps that register).
+   The collapse is a measured max-height + fade: JS pins the row's current height
+   inline, then .is-leaving drops it to 0 so the transition has a real start value.
+   The checked wash above stays as the tick's first beat before the fold. */
+.rail-todo-item { transition: opacity 0.3s ease, max-height 0.34s ease, padding-block 0.34s ease; }
+.rail-todo-item.is-leaving {
+  opacity: 0;
+  max-height: 0 !important;
+  padding-block: 0 !important;
+  overflow: hidden;
+  pointer-events: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  .rail-todo-item { transition: none; }
+}
+/* The finish line: when the last open task leaves, the panel flips to a quiet
+   all-clear state — a brand-accent check in a soft ring + one muted line.
+   (The generic rail.empty stays for a list with no tasks at all.) */
+.rail-todo-clear {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 2.25rem 1rem 2rem;
+  text-align: center;
+  color: var(--muted);
+}
+.rail-todo-clear-badge {
+  display: grid;
+  place-items: center;
+  inline-size: 2.75rem;
+  block-size: 2.75rem;
+  border-radius: 999px;
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+  border: 1px solid color-mix(in srgb, var(--accent) 30%, transparent);
+}
+.rail-todo-clear-badge .icon { inline-size: 1.25rem; block-size: 1.25rem; }
+.rail-todo-clear p { margin: 0; font-size: var(--fs-sm); line-height: 1.5; max-inline-size: 26ch; }
 /* S93 (item 6): a quadrant group whose quadrant carries a picked pastel once wore
    the tint as a full-width wash on its head.
    S95 r2 (owner item 6 — the restraint rule): the head fill is GONE — the

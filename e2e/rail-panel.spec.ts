@@ -29,6 +29,9 @@ import { randomBytes } from 'node:crypto'
 
 const TEST_EMAIL = 'e2e-rail@test.local'
 const TEST_PASS = 'e2e-password-123'
+// S113: the seeded user's id (set in beforeAll) — the all-clear test restores the
+// tasks it ticks via the same /uncomplete API the panel's Undo speaks.
+let seedUserId = ''
 
 test.beforeAll(async () => {
   const { DatabaseSync } = await import('node:sqlite')
@@ -41,6 +44,7 @@ test.beforeAll(async () => {
   const hash = `pbkdf2$${ITERATIONS}$${toB64(salt)}$${toB64(Buffer.from(bits))}`
   const now = new Date().toISOString()
   const id = randomBytes(16).toString('hex')
+  seedUserId = id
   try { db.exec(`DELETE FROM users WHERE email = '${TEST_EMAIL}'`) } catch { /* may not exist yet */ }
   db.exec(
     `INSERT INTO users (id, username, email, password_hash, role, language_pref, calendar_pref, timezone, created_at, email_verified_at)
@@ -74,6 +78,13 @@ test.beforeAll(async () => {
   db.exec(
     `INSERT INTO sadhana_tasks (id, user_id, quadrant, title, due_date, done, position, created_at, updated_at)
      VALUES ('${id}-t2', '${id}', 2, 'Rail strategic task', '${tomorrow}', 0, 3, '${now}', '${now}')`,
+  )
+  // S113 (owner, URGENT): a DONE task in Q4 — the sidebar shows OPEN work only, so
+  // this row must NEVER ride the panel and the Q4-only-done group folds away
+  // entirely (the goto-chip count stays three).
+  db.exec(
+    `INSERT INTO sadhana_tasks (id, user_id, quadrant, title, due_date, done, position, created_at, updated_at)
+     VALUES ('${id}-t4', '${id}', 4, 'Rail finished task', NULL, 1, 4, '${now}', '${now}')`,
   )
   // S94 (owner item 6) + S95 r2 (owner item 1): Rail project 0 (developing) carries
   // one 'idea' + one 'bug' + one 'planned' dev task — its rail row grows the nested
@@ -430,8 +441,9 @@ test.describe('the secondary panel (VS Code Activity Bar + Side Bar pattern)', (
     await page.click('.rail .rail-primary a[data-rail-panel="todo"]')
     await expect(page.locator('.rail-panel-title')).toHaveText('To-do list')
 
-    // THREE quadrant groups carry tasks (Q1 today, Q3 urgent, Q2 strategic — Q4
-    // empty stays hidden) → exactly three chips, in the panel's quadrant order.
+    // THREE quadrant groups carry tasks (Q1 today, Q3 urgent, Q2 strategic — Q4's
+    // only task is DONE so the group stays hidden, S113 open-work-only) → exactly
+    // three chips, in the panel's quadrant order.
     const chips = page.locator('.rail-group-goto')
     await expect(chips).toHaveCount(3)
     await expect(chips.nth(0)).toHaveAttribute('href', '/to-do-list#Q1')
@@ -630,7 +642,7 @@ test.describe('the secondary panel (VS Code Activity Bar + Side Bar pattern)', (
     await expect(page.locator('nav.rail')).toBeVisible()
   })
 
-  test('the to-do panel shows the QUADRANTS with TICKABLE checkbox rows (S93 item 1)', async ({ page }) => {
+  test('the to-do panel shows the QUADRANTS with TICKABLE checkbox rows (S93 item 1) — and a tick REMOVES the row (S113, owner urgent)', async ({ page }) => {
     await login(page)
     await page.click('.rail .rail-primary a[data-rail-panel="todo"]')
     await expect(page.locator('.rail-panel-title')).toHaveText('To-do list')
@@ -641,6 +653,10 @@ test.describe('the secondary panel (VS Code Activity Bar + Side Bar pattern)', (
     // visibility assertions now, the documented S94 "flaky-pass on retry" class.)
     await expect(page.locator('.rail-group-head', { hasText: 'Today' })).toBeVisible()
     await expect(page.locator('.rail-group-head', { hasText: 'Urgent & High Value' })).toBeVisible()
+    // S113: the sidebar shows OPEN work only — the done task never rides the panel
+    // and the Q4-only-done group folds away entirely.
+    await expect(page.locator('.rail-group-head', { hasText: 'Personal & Sentimental' })).toHaveCount(0)
+    await expect(page.locator('.rail-todo-item', { hasText: 'Rail finished task' })).toHaveCount(0)
     // The quadrant-3 task rides its quadrant group.
     const q3 = page.locator('.rail-group', { hasText: 'Urgent & High Value' }).locator('.rail-todo-item')
     await expect(q3).toHaveCount(1)
@@ -649,15 +665,52 @@ test.describe('the secondary panel (VS Code Activity Bar + Side Bar pattern)', (
     const box = q3.locator('input[data-rail-todo]')
     await expect(box).toBeVisible()
     await expect(box).not.toBeChecked()
-    // Ticking completes the task: the row strikes + sinks (is-done), the checkbox
-    // stays checked — the POST hits the real /complete endpoint.
+    // Ticking completes the task AND REMOVES the row — done work leaves the
+    // sidebar (the POST hits the real /complete endpoint; the fold is ~360ms).
     await box.check()
-    await expect(q3).toHaveClass(/is-done/)
-    await expect(box).toBeChecked()
-    // Un-ticking reopens it.
-    await box.uncheck()
-    await expect(q3).not.toHaveClass(/is-done/)
-    await expect(box).not.toBeChecked()
+    await expect(page.locator('.rail-todo-item', { hasText: 'Rail urgent task' })).toHaveCount(0)
+    // The emptied group folds away with its last row…
+    await expect(page.locator('.rail-group-head', { hasText: 'Urgent & High Value' })).toHaveCount(0)
+    // …while the OTHER groups' counts keep tracking their open rows (Today: 1).
+    await expect(page.locator('.rail-group', { hasText: 'Today' }).locator('.rail-group-count')).toHaveText('1')
+    // The toast announces the completion and its UNDO brings the task back (an
+    // accidental tick is one tap from recovery — never lose your place).
+    const undo = page.locator('#toast button', { hasText: 'Undo' })
+    await expect(undo).toBeVisible()
+    await undo.click()
+    await expect(page.locator('.rail-group', { hasText: 'Urgent & High Value' }).locator('.rail-todo-item')).toHaveCount(1)
+    await expect(page.locator('.rail-todo-item', { hasText: 'Rail urgent task' })).toContainText('Rail urgent task')
+  })
+
+  test('ticking the LAST open task flips the panel to the all-clear state (S113, owner urgent)', async ({ page }) => {
+    await login(page)
+    await page.click('.rail .rail-primary a[data-rail-panel="todo"]')
+    await expect(page.locator('.rail-panel-title')).toHaveText('To-do list')
+    // Tick every open task (Q1 today, Q3 urgent, Q2 strategic — the list mutates as
+    // rows fold away, so always re-resolve the FIRST remaining checkbox; the fold
+    // settles in ~360ms, a hair more here keeps the loop deterministic).
+    await expect(page.locator('.rail-todo-item input[data-rail-todo]').first()).toBeVisible()
+    for (let guard = 0; guard < 6; guard++) {
+      const remaining = page.locator('.rail-todo-item input[data-rail-todo]')
+      if ((await remaining.count()) === 0) break
+      await remaining.first().check()
+      await page.waitForTimeout(480)
+    }
+    // The last group out flips the panel to the finish line — the all-clear state.
+    const clear = page.locator('.rail-todo-clear')
+    await expect(clear).toBeVisible()
+    await expect(clear).toContainText('All clear — every task here is done.')
+    await expect(clear).toHaveAttribute('role', 'status')
+    await expect(page.locator('.rail-group')).toHaveCount(0)
+    // Restore the seeded state for the tests that follow (this file runs serially
+    // through one server) — the same /uncomplete endpoint the panel's Undo speaks,
+    // via the page's own fetch (the API's origin guard 403s the out-of-page
+    // request context; the in-page path is the one the panel itself uses).
+    await page.evaluate(async (uid) => {
+      for (const suffix of ['t1', 't2', 't3']) {
+        await fetch(`/api/sadhana/tasks/${uid}-${suffix}/uncomplete`, { method: 'POST', credentials: 'same-origin' })
+      }
+    }, seedUserId)
   })
 
   test('the calendar panel renders a real month grid — today ring, due dots, ‹ › stepping', async ({ page }) => {

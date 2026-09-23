@@ -29,6 +29,10 @@ window.__hibanaDictEN = {
       'rail.notebookHint': 'The Notebook is your single whiteboard — open it to sketch and write freehand.',
       'rail.calendarHint': 'Everything you scheduled — projects, tasks and to-dos — lands here as it approaches.',
       'rail.todoFailed': "Couldn't update the task — try again",
+      // S113 (owner, urgent): the sidebar to-do panel shows OPEN work only — a tick
+      // announces itself and the emptied panel reads as a finish line, not an error
+      'rail.todoDone': 'Task completed',
+      'rail.todoAllDone': 'All clear — every task here is done.',
       // S97: the panel head's tree fold — one button collapses/expands every group
       'rail.expandAll': 'Expand all', 'rail.collapseAll': 'Collapse all',
       // S98: the quadrant groups' goto chip — lands the deep link on the board

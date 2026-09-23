@@ -119,16 +119,15 @@ test('remembered KANBAN preference still opens with the overview, board below', 
   await storeViewPref(page, 'kanban')
   await page.goto('/projects.html')
 
-  // the overview sections are present …
-  await expect(page.locator('.ov-states')).toBeVisible({ timeout: 15_000 })
-  await expect(page.locator('.ov-tasks')).toBeVisible()
-  const cards = page.locator('.ov-card')
-  await expect(cards).toHaveCount(3)
+  // the overview is present (S123: the carousel section is retired — the donut +
+  // boxes ARE the overview; .ov-states must NOT render) …
+  await expect(page.locator('.ov-tasks')).toBeVisible({ timeout: 15_000 })
+  await expect(page.locator('.ov-states')).toHaveCount(0)
   await expect(page.locator('.ov-donut')).toHaveAttribute('aria-label', '4 open tasks across all projects')
   // … AND the remembered view's body renders below it (prepend, not replace)
   await expect(page.locator('.kanban')).toBeVisible()
   await expect(page.locator('.kanban-col')).toHaveCount(5) // the five board stages (sparks live on the Ideas shelf)
-  const ovY = (await page.locator('.ov-states').boundingBox())?.y ?? -1
+  const ovY = (await page.locator('.ov-tasks').boundingBox())?.y ?? -1
   const kbY = (await page.locator('.kanban').boundingBox())?.y ?? -1
   expect(ovY).toBeGreaterThan(0)
   expect(kbY).toBeGreaterThan(ovY) // the overview literally sits above the board
@@ -142,11 +141,10 @@ test('remembered CARDS preference ditto: overview above .card-grid', async ({ pa
   await login(page, U_EN.email)
   await storeViewPref(page, 'cards')
   await page.goto('/projects.html')
-  await expect(page.locator('.ov-states')).toBeVisible({ timeout: 15_000 })
-  await expect(page.locator('.ov-tasks')).toBeVisible()
+  await expect(page.locator('.ov-tasks')).toBeVisible({ timeout: 15_000 })
   await expect(page.locator('.card-grid')).toBeVisible()
   await expect(page.locator('.card-grid .project-card')).toHaveCount(3)
-  const ovY = (await page.locator('.ov-states').boundingBox())?.y ?? -1
+  const ovY = (await page.locator('.ov-tasks').boundingBox())?.y ?? -1
   const gridY = (await page.locator('.card-grid').boundingBox())?.y ?? -1
   expect(gridY).toBeGreaterThan(ovY)
   expect(errors, 'console/page errors: ' + errors.join(' | ')).toEqual([])
@@ -160,7 +158,6 @@ test('a FILTERED home keeps its focused render — no overview under ?status=', 
   await page.goto('/projects.html?status=developing')
   await expect(page.locator('.card-grid')).toBeVisible({ timeout: 15_000 })
   await expect(page.locator('.card-grid .project-card')).toHaveCount(1) // only S122 Alpha
-  await expect(page.locator('.ov-states')).toHaveCount(0)
   await expect(page.locator('.ov-tasks')).toHaveCount(0)
   expect(errors, 'console/page errors: ' + errors.join(' | ')).toEqual([])
 })
@@ -174,7 +171,6 @@ test('zero-projects account on a non-grid view: still no overview', async ({ pag
   await page.goto('/projects.html')
   // zero projects → the capture empty state renders (not .card-grid) and still NO overview
   await expect(page.locator('.empty-state')).toBeVisible({ timeout: 15_000 })
-  await expect(page.locator('.ov-states')).toHaveCount(0)
   await expect(page.locator('.ov-tasks')).toHaveCount(0)
   expect(errors, 'console/page errors: ' + errors.join(' | ')).toEqual([])
 })

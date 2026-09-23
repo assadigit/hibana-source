@@ -85,7 +85,7 @@ const trackErrors = (page: Page) => {
   return errors
 }
 
-test('S45 home (S121 overview): compact rail + states carousel — the home shows real work, cards navigate', async ({ page, browserName }) => {
+test('S45 home (S121 overview): compact rail + overview — the home shows real work, cards navigate', async ({ page, browserName }) => {
   test.skip(browserName !== 'chromium', 'Desktop Chromium only')
   const errors = trackErrors(page)
   await login(page)
@@ -112,17 +112,22 @@ test('S45 home (S121 overview): compact rail + states carousel — the home show
   for (const h of boxHeights) expect(h).toBeLessThanOrEqual(80)
   expect(Math.max(...boxHeights)).toBeGreaterThanOrEqual(40) // still a 40px+ control
 
-  // 2) The project-states carousel rides under the rail (S121): EVERY project is a
-  //    card (the S45 list capped at 6 — the carousel is the whole range), each links
-  //    to its project page, and the NEWEST project is the FIRST card (recency = the
-  //    "never lose your place" job).
-  await expect(page.locator('.ov-card')).toHaveCount(3)
-  const firstCard = page.locator('.ov-card').first()
+  // 2) The overview opens the home (S121, owner wireframe): the donut + four recent
+  //    boxes render above the view body. (S123: the S121 project-states CAROUSEL was
+  //    retired at the owner's request — .ov-states must stay gone; the boxes are the
+  //    home's "where was I" surface now.)
+  await expect(page.locator('.ov-tasks')).toBeVisible()
+  expect(await page.locator('.ov-states').count()).toBe(0)
+  await expect(page.locator('.ov-box')).toHaveCount(4)
+
+  // 3) Clicking through to a project still works from the home's own surfaces: with
+  //    the S45 «recent» sort the cards view is newest-first (gamma, created last),
+  //    and the card's title link opens its project page (soft nav via nav.js).
+  await page.goto('/projects.html?view=cards&sort=recent')
+  const firstCard = page.locator('.card-grid .project-card .pc-title').first()
   await expect(firstCard).toContainText('gamma')
   const href = await firstCard.getAttribute('href')
   expect(href).toMatch(/^\/project\.html\?id=/)
-
-  // 3) Clicking a carousel card opens the project page (soft nav via nav.js).
   await firstCard.click()
   await page.waitForTimeout(1_200)
   expect(page.url()).toMatch(/\/project\.html\?id=/)
@@ -230,8 +235,8 @@ test('S45 empty home: a zero-project account gets the capture empty state, not a
   await expect(page.locator('.empty-state')).toBeVisible()
   await expect(page.locator('.empty-state-title')).toContainText(/no projects yet/i)
   await expect(page.locator('.empty-state-cta')).toBeVisible()
-  // No overview sections on an empty account (S121: the carousel replaces the old
-  // «Recently active» guard — same contract, new surface).
+  // No overview sections on an empty account (S121: the overview replaces the old
+  // «Recently active» guard — same contract, new surface; S123: no carousel either).
   expect(await page.locator('.ov-states').count()).toBe(0)
   expect(await page.locator('.ov-tasks').count()).toBe(0)
 

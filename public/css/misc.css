@@ -1016,9 +1016,11 @@ body:has(.dash-skeleton) .fab-stack .fab:hover { background: color-mix(in srgb, 
 .adm-user.is-skel .skeleton { display: block; }
 .adm-userlist[role='status'] { min-height: 12rem; }
 
-/* ══ S121: the projects-home OVERVIEW — project-states carousel + overall-tasks donut ══
-   The owner's wireframe (2026-09-24): an overall view of all projects — a states
-   carousel, an open-tasks pie, and four recent boxes. The task-status colors ride the
+/* ══ S121: the projects-home OVERVIEW — overall-tasks donut + four recent boxes ══
+   The owner's wireframe (2026-09-24): an overall view of all projects — an open-tasks
+   pie and four recent boxes. (S123: the S121 project-states carousel card strip is
+   RETIRED at the owner's request — the donut + boxes ARE the overview; the .ov-card/
+   .ov-chip/.ov-track carousel rules went with it.) The task-status colors ride the
    BOARD's S48p palette (idea blue / planned yellow / in-progress orange / bug red) via
    data-st hooks; the dark theme swaps to the db-col dark inks. Every rule uses logical
    properties, so RTL is the same geometry mirrored. */
@@ -1042,42 +1044,6 @@ html[data-theme='claude-dark'] .ov {
   margin-block-end: 0.55rem;
 }
 .ov-head h2 { margin: 0; font-size: 1.05rem; }
-/* The states track reuses the dashboard's carousel chrome (stat-* classes + the
-   app.js delegated driver); only the card geometry differs here. */
-.stat-carousel .stat-strip.ov-track {
-  display: flex;
-  gap: 0.75rem;
-  overflow-x: auto;
-  scroll-snap-type: x mandatory;
-  scrollbar-width: none;
-  overscroll-behavior-x: contain;
-  -webkit-overflow-scrolling: touch;
-  min-inline-size: 0;
-}
-.ov-card {
-  flex: 0 0 15rem;
-  scroll-snap-align: start;
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-  padding: 0.8rem 0.9rem;
-}
-.ov-card-top { align-items: baseline; gap: 0.5rem; }
-.ov-card-title {
-  font-size: 0.95rem;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.ov-card-title + .badge { flex: 0 0 auto; }
-.ov-chips {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.35rem;
-  align-items: center;
-  min-block-size: 1.45rem;
-}
-.ov-chip { display: inline-flex; align-items: center; gap: 0.3rem; font-variant-numeric: tabular-nums; }
 .ov-dot {
   inline-size: 0.6rem;
   block-size: 0.6rem;
@@ -1179,11 +1145,4 @@ html[data-theme='claude-dark'] .ov-ring { stroke: var(--line-strong, #4a463f); }
 }
 @media (max-width: 560px) {
   .ov-boxes { grid-template-columns: 1fr; }
-  /* the phone carousel: one project card per slide (the dashboard's phone pattern) */
-  .ov-card { flex-basis: calc(100% - 2.5rem); }
-}
-/* Reduced motion: the app.js driver already scrolls 'auto' under the media query —
-   this belt keeps native/JS scrolls from gliding if the media check ever misses. */
-@media (prefers-reduced-motion: reduce) {
-  .stat-carousel .stat-strip.ov-track { scroll-behavior: auto; }
 }

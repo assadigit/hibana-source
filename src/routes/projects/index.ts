@@ -23,7 +23,7 @@ import {
   loadTags, loadProjectSignals, projectProgress,
   bugBubbleHtml, signalsHtml, backlogMetaHtml,
   cardHtml, listFragment, glanceStrip,
-  loadOverviewData, projectStatesCarouselHtml, overallTasksHtml,
+  loadOverviewData, overallTasksHtml,
   sparkEmptyHtml, sparkKanbanHtml, sparkFolderBar, sparkFolderGrid, sparkFolderEmptyHtml,
   archiveShelfHtml, staleBannerHtml, staleEmptyHtml,
 } from './helpers'
@@ -133,19 +133,19 @@ export function projectsRoutes(cfg: Config) {
         return await etag(c, c.html(archiveShelfHtml(projects, tagsMap, lang)))
       }
       const activeStatus = query.success ? query.data.status : undefined
-      // S122: the overview sections (project-states carousel + overall-tasks donut and
-      // the four recent boxes) extracted so the pure home can open with them in EVERY
-      // view. S121 rendered them only under view=grid — but the client remembers the
-      // view preference (hibana-projects-view: "list stays list, kanban stays kanban"),
-      // so an owner whose browser had stored cards/kanban landed on their view and the
-      // wireframe's overview was nowhere in sight (the report: "I don't see the new
-      // consolidated projects section"). One closure, two call sites — grid keeps its
+      // S122: the overview sections (overall-tasks donut and the four recent boxes)
+      // extracted so the pure home can open with them in EVERY view. S121 rendered
+      // them only under view=grid — but the client remembers the view preference
+      // (hibana-projects-view: "list stays list, kanban stays kanban"), so an owner
+      // whose browser had stored cards/kanban landed on their view and the wireframe's
+      // overview was nowhere in sight (the report: "I don't see the new consolidated
+      // projects section"). One closure, two call sites — grid keeps its
       // rail-then-overview order, the other views prepend it above their body.
-      const ovHomeHtml = async (progress: Awaited<ReturnType<typeof loadProjectProgress>>) => {
-        const recent = [...projects].sort((a, b) => (a.updated_at < b.updated_at ? 1 : a.updated_at > b.updated_at ? -1 : 0))
-        const ovProjects = recent.slice(0, 36) // a swipe range, not an infinite scroll — 36 cards ≈ 12 pages of 3
-        const ov = await loadOverviewData(cfg, user.id, ovProjects.map((p) => p.id))
-        return projectStatesCarouselHtml(ovProjects, ov.perProject, progress, lang) + overallTasksHtml(ov.counts, ov.recent, lang)
+      // S123 (owner report): the project-states CAROUSEL is retired — the donut +
+      // boxes ARE the overview; the per-project cards duplicated the views below.
+      const ovHomeHtml = async () => {
+        const ov = await loadOverviewData(cfg, user.id)
+        return overallTasksHtml(ov.counts, ov.recent, lang)
       }
       if (view === 'grid') {
         const countRows = await cfg.db.query<{ status: string; n: number }>(
@@ -173,20 +173,19 @@ export function projectsRoutes(cfg: Config) {
         if (query.success && (query.data.q || query.data.tag)) {
           return await etag(c, c.html(glanceStrip(counts, activeStatus, lang, true)))
         }
-        // S121 (owner wireframe): the pure home is now the OVERVIEW — glance rail, then
-        // the project-states carousel (every project, newest first), then the overall
-        // tasks donut + the four recent boxes. Retires the S45 «Recently active» list:
-        // the carousel IS that list upgraded (full range, state + weight per card).
+        // S121 (owner wireframe): the pure home is now the OVERVIEW — glance rail,
+        // then the overall tasks donut + the four recent boxes (S123: the carousel
+        // card strip is retired at the owner's request). Retires the S45 «Recently
+        // active» list: the boxes keep the "where was I" job at portfolio scale.
         if (projects.length === 0) {
           return await etag(c, c.html(
             glanceStrip(counts, activeStatus, lang, true) +
             listFragment([], tagsMap, 'cards', lang),
           ))
         }
-        const progressMap = await loadProjectProgress(cfg, projects)
         return await etag(c, c.html(
           glanceStrip(counts, activeStatus, lang, true) +
-          await ovHomeHtml(progressMap),
+          await ovHomeHtml(),
         ))
       }
       // P-signals: batch-load per-project signal counts (bugs, ideas, backlog, hurdles)
@@ -225,7 +224,7 @@ export function projectsRoutes(cfg: Config) {
       // state (the S121 empty contract, mirrored here).
       const pureHome = !staleMode && !archivedOnly && !activeStatus && !(query.success && !!(query.data.q || query.data.tag))
       if (pureHome && projects.length > 0) {
-        fragment = await ovHomeHtml(progressMap) + fragment
+        fragment = await ovHomeHtml() + fragment
       }
       if (activeStatus === 'spark') {
         const folderRows = await cfg.db.query<SparkFolderRow & { n: number }>(

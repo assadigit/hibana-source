@@ -208,12 +208,12 @@ test('S106-1: project names, folders and head groups compute the 700 bold regist
   expect(elbow.tick).toBe('solid')
   expect(elbow.riser).toBe('solid')
 
-  // (c) The projects home — the states-carousel card title (the project NAME;
-  // S121 renamed the S45 recently-active row into the overview carousel — the
-  // bold-name contract carries over to .ov-card-title).
-  await page.waitForSelector('.ov-card-title', { timeout: 10_000 })
-  const precentWeight = await page.locator('.ov-card-title').first().evaluate((el) => getComputedStyle(el).fontWeight)
-  expect(precentWeight).toBe('700')
+  // (c) The projects home — the overview box labels (the status NAMES the owner
+  // reads: Problems / In Progress / Ideas / Plans; the S121 carousel card title this
+  // pin used to ride was retired in S123 — the 600-weight contract carries over).
+  await page.waitForSelector('.ov-box-label', { timeout: 10_000 })
+  const precentWeight = await page.locator('.ov-box-label').first().evaluate((el) => getComputedStyle(el).fontWeight)
+  expect(precentWeight).toBe('600')
 
   // (d) The projects cards view — the project card title.
   await page.goto('/projects.html?view=cards')

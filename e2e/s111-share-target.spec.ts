@@ -75,7 +75,12 @@ test('a share landing opens quick-add prefilled; closing strips the params', asy
   // Cancel → the share params are stripped so a reload never re-triggers the sheet.
   await page.click('#qa-cancel')
   await page.waitForSelector('#quickadd-dialog[open]', { state: 'hidden' })
-  expect(page.url()).not.toContain('title=')
+  // The strip is a synchronous history.replaceState on the dialog's close event, but
+  // Playwright's tracked page.url() propagates same-document URL changes ASYNC — under
+  // full-suite load that propagation has raced the plain read (S115 r3, twice in CI
+  // shards; 9× green focused). Poll: absorbs the read latency, still fails on a
+  // genuinely unstripped URL.
+  await expect.poll(() => page.url(), { timeout: 5_000 }).not.toContain('title=')
   expect(page.url()).not.toContain('url=')
 })
 

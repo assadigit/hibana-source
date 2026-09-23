@@ -740,7 +740,9 @@ window.__hibanaDictEN = {
       // notebook widget
       'notes.firstTask': 'Type a task and press Enter…', 'notes.typeNote': 'Type a note and press Enter…',
       'notes.draftHint': 'Draft — press + to save', 'notes.removeDraft': 'Remove',
-      'notes.deleteFailed': "Couldn't delete the note", 'notes.deleted': 'Note deleted', 'notes.undo': 'Undo',
+      /* 'notes.deleteFailed' lives in the Trash block below (S115 r2: the duplicate —
+         esbuild's duplicate-object-key warning — is retired; the later value wins). */
+      'notes.deleted': 'Note deleted', 'notes.undo': 'Undo',
       'notes.updateFailed': "Couldn't update the note", 'notes.doneMarked': 'Marked done', 'notes.unmarked': 'Marked undone',
       'notes.emptyHint': 'Write a note first',
       'notes.reorderFailed': "Couldn't reorder the notes",

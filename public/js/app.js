@@ -331,7 +331,13 @@ window.hibana = (() => {
       // S111: carry WHERE the user was — login.html now bounces back to ?next= after a
       // successful sign-in, so an expired session no longer costs the user their place
       // (and a PWA share-target capture riding the query survives the bounce intact).
-      window.location.href = '/login.html?next=' + encodeURIComponent(location.pathname + location.search)
+      // S115 r3: ONE-SHOT — hib-init's boot guard / htmx handler can bounce for the
+      // same 401 on the same page; a second location change would supersede (abort)
+      // the first navigation. window.__hibanaLoginBounce is the shared one-shot flag.
+      if (!window.__hibanaLoginBounce) {
+        window.__hibanaLoginBounce = true
+        window.location.href = '/login.html?next=' + encodeURIComponent(location.pathname + location.search)
+      }
       return true
     }
     return false

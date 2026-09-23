@@ -19,6 +19,19 @@
     return n
   }
   const nextOr = (fallback) => safeNext() || fallback
+  // S115 r3 (CI e2e evidence): the boot guard AND the htmx:responseError handler (and
+  // app.js's handle401) can all fire on the SAME anon page load — notes.html fires an
+  // htmx fragment 401 while /api/auth/me is still in flight. Two location.replace()
+  // calls to the same URL on one page = the second SUPERSEDES the first navigation
+  // (the browser aborts it), which surfaced in CI as a flaky ERR_ABORTED on the
+  // bounce wait even though the login page landed fine. The bounce is ONE-SHOT per
+  // page now: the first caller wins, the rest stand down — same destination, same
+  // ?next, one navigation instead of two.
+  const loginBounce = () => {
+    if (window.__hibanaLoginBounce || location.pathname === '/login.html') return
+    window.__hibanaLoginBounce = true
+    window.location.replace('/login.html?next=' + encodeURIComponent(location.pathname + location.search))
+  }
 
   document.addEventListener('DOMContentLoaded', () => {
     applyNoteView()
@@ -205,7 +218,7 @@
     const status = e.detail?.xhr?.status
     if (status === 401) {
       // S111: preserve the destination for the post-login bounce (see safeNext above).
-      if (location.pathname !== '/login.html') window.location.replace('/login.html?next=' + encodeURIComponent(location.pathname + location.search))
+      loginBounce()
       return
     }
     if (status === 404) return
@@ -455,7 +468,7 @@
         if (!isPublic) showOfflineBanner()
       } else if (env && env.status === 401 && !isPublic) {
         // S111: preserve the destination for the post-login bounce (see safeNext above).
-        window.location.replace('/login.html?next=' + encodeURIComponent(location.pathname + location.search))
+        loginBounce()
       }
     }
   })

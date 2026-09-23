@@ -737,7 +737,9 @@ window.__hibanaDictFA = {
       // notebook widget
       'notes.firstTask': 'وظیفه را تایپ کن و اینتر را بزن', 'notes.typeNote': 'یادداشت را تایپ کن و اینتر را بزن',
       'notes.draftHint': 'پیش‌نویس — برای ذخیره روی + بزن', 'notes.removeDraft': 'حذف',
-      'notes.deleteFailed': 'حذف یادداشت ممکن نشد', 'notes.deleted': 'یادداشت حذف شد', 'notes.undo': 'برگردان',
+      /* 'notes.deleteFailed' lives in the Trash block below (S115 r2: the duplicate —
+         esbuild's duplicate-object-key warning — is retired; the later value wins). */
+      'notes.deleted': 'یادداشت حذف شد', 'notes.undo': 'برگردان',
       'notes.updateFailed': 'به‌روزرسانی یادداشت ممکن نشد', 'notes.doneMarked': 'انجام‌شده علامت خورد', 'notes.unmarked': 'علامت انجام‌شدگی برداشته شد',
       'notes.emptyHint': 'اول یک یادداشت بنویس',
       'notes.reorderFailed': 'ترتیب‌دهی ناموفق بود.',

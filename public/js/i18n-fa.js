@@ -44,6 +44,8 @@ window.__hibanaDictFA = {
       'rail.expandAll': 'باز کردن همه', 'rail.collapseAll': 'بستن همه',
       // S98: the quadrant groups' goto chip — lands the deep link on the board
       'rail.openOnBoard': 'باز کردن در برد',
+      // S115 r2: the projects tree's per-project goto chip — opens the project page
+      'rail.openProject': 'باز کردن پروژه',
       // S89: the LABELED rail — a small text label rides under every icon
       'rail.label.search': 'جست‌وجو', 'rail.label.dashboard': 'پیشخوان', 'rail.label.todo': 'کارها',
       'rail.label.projects': 'پروژه‌ها', 'rail.label.ideas': 'ایده‌ها', 'rail.label.notes': 'یادداشت‌ها',
@@ -578,7 +580,7 @@ window.__hibanaDictFA = {
       'gallery.selectedCount': '{n} انتخاب‌شده · ≈{size}',
       'gallery.deleteSelected': 'حذف انتخاب‌شده‌ها', 'gallery.clearSelection': 'پاک کردن انتخاب',
       'gallery.deleteSelectedConfirm': '{n} تصویر برای همیشه حذف شود؟ حدود {size} فضا آزاد می‌شود.',
-      'gallery.bulkDeleted': '{n} تصویر حذف شد — فضا آزاد شد', 'gallery.bulkDeletedPartial': '{n} حذف شد · {m} ناموفق',
+      'gallery.bulkDeleted': '{n} فایل حذف شد — فضا آزاد شد', 'gallery.bulkDeletedPartial': '{n} حذف شد · {m} ناموفق',
       'gallery.editNote': 'برای ویرایش یادداشت کلیک کن',
       'gallery.noteWandHint': 'یادداشت را فوکوس کن — ✨ جادو بازنویسی یا ترجمه‌اش می‌کند',
       // S80: مرتب‌سازی + انتخاب همه
@@ -586,6 +588,7 @@ window.__hibanaDictFA = {
       'gallery.sortNew': 'جدیدترین', 'gallery.sortOld': 'قدیمی‌ترین',
       'gallery.sortBig': 'حجیم‌ترین', 'gallery.sortSmall': 'سبک‌ترین',
       'gallery.selectAll': 'انتخاب همه ({n})', 'gallery.deselectAll': 'لغو انتخاب همه',
+      'gallery.deleteAll': 'حذف همه', 'gallery.deleteAllConfirm': 'همهٔ {n} تصویر/فایل برای همیشه حذف شود؟ حدود {size} فضا آزاد می‌شود و بازگشتی ندارد.',
       'gallery.rangeHint': 'Shift+کلیک یک بازه را انتخاب می‌کند',
       // S81 — the touch counterpart of the range affordance (long-press A, tap B)
       'gallery.rangeTouchHint': 'یک تصویر را نگه دارید، بعد تصویر دیگر را بزنید تا بازه انتخاب شود',
@@ -599,7 +602,7 @@ window.__hibanaDictFA = {
       'pd.pr.urgent': 'فوری', 'pd.pr.high': 'اولویت بالا', 'pd.pr.medium': 'اولویت متوسط', 'pd.pr.low': 'اولویت کم',
       'pd.labels': 'برچسب‌ها', 'pd.labelsPh': 'مثلاً UI/UX، امنیت', 'pd.labelsHint': 'با کاما جدا کن — یک چیپ برای هر برچسب',
       // S46.2: اسکرین‌شات در ویرایشگر کار (pde-form) — بارگذاری + سنجاق به این قلم + دیدن تصاویر سنجاق‌شده
-      'pde.shotsAttach': 'آپلود اسکرین‌شات', 'pde.shotsAttachTitle': 'اسکرین‌شات یا فایل آپلود کن — تصویر، PDF، اکسل، ورد، مارک‌داون، متن — سنجاق‌شده به این قلم',
+      'pde.shotsAttach': 'آپلود فایل', 'pde.shotsAttachTitle': 'فایل آپلود کن — تصویر، ویدیو (وب‌ام)، PDF، اکسل، ورد، مارک‌داون، متن — سنجاق‌شده به این قلم',
       'pde.shotsView': 'تصاویر سنجاق‌شده', 'pde.shotsViewTitle': 'تصاویر سنجاق‌شده به این قلم را ببین',
       'pde.shotsUploading': 'در حال اپلود تصویر …',
       // S46.7: عنوان ویرایشگر کار + نوشتن تمام‌صفحه + دکمهٔ افزودن یادداشت (وقتی یادداشتی نیست)

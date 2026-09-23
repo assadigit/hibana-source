@@ -749,7 +749,7 @@
               body: JSON.stringify({ kind: 'note', content: text, color: stickyColor, note_date: curDay.date, sticky: true }),
             })
             if (!res.ok) throw new Error(String(res.status))
-            window.hibana?.toast(_t('calendar.stickyAdded', 'Sticky note added'), 'info')
+            window.hibana?.toast(_t('calendar.stickyAdded', 'Sticky note added'), 'ok')
             await dayRefresh()
           } catch { calErr(_t('calendar.addFailed', "Couldn't save — try again.")) }
         })
@@ -766,7 +766,7 @@
               body: JSON.stringify({ quadrant: quad, title, due_date: curDay.date }),
             })
             if (!res.ok) throw new Error(String(res.status))
-            window.hibana?.toast(_t('calendar.taskAdded', 'Task added'), 'info')
+            window.hibana?.toast(_t('calendar.taskAdded', 'Task added'), 'ok')
             await dayRefresh()
           } catch { calErr(_t('calendar.addFailed', "Couldn't save — try again.")) }
         })
@@ -782,7 +782,7 @@
               body: JSON.stringify({ kind: 'note', content: text, note_date: curDay.date, sticky: false }),
             })
             if (!res.ok) throw new Error(String(res.status))
-            window.hibana?.toast(_t('calendar.noteAdded', 'Note added'), 'info')
+            window.hibana?.toast(_t('calendar.noteAdded', 'Note added'), 'ok')
             await dayRefresh()
           } catch { calErr(_t('calendar.addFailed', "Couldn't save — try again.")) }
         })
@@ -801,7 +801,7 @@
               body: JSON.stringify({ title, status, due_date: curDay.date }),
             })
             if (!res.ok) throw new Error(String(res.status))
-            window.hibana?.toast(_t('calendar.projectAdded', 'Project added'), 'info')
+            window.hibana?.toast(_t('calendar.projectAdded', 'Project added'), 'ok')
             await dayRefresh()
           } catch { calErr(_t('calendar.addFailed', "Couldn't save — try again.")) }
         })
@@ -818,7 +818,7 @@
               body: JSON.stringify({ title, due_date: curDay.date }),
             })
             if (!res.ok) throw new Error(String(res.status))
-            window.hibana?.toast(_t('calendar.taskAdded', 'Task added'), 'info')
+            window.hibana?.toast(_t('calendar.taskAdded', 'Task added'), 'ok')
             await dayRefresh()
           } catch { calErr(_t('calendar.addFailed', "Couldn't save — try again.")) }
         })
@@ -830,7 +830,7 @@
             try {
               const res = await fetch(`/api/notes/${noteBtn.dataset.noteDel}`, { method: 'DELETE' })
               if (!res.ok) throw new Error(String(res.status))
-              window.hibana?.toast(_t('calendar.deleted', 'Deleted'), 'info')
+              window.hibana?.toast(_t('calendar.deleted', 'Deleted'), 'ok')
               await dayRefresh()
             } catch { calErr(_t('calendar.addFailed', "Couldn't save — try again.")) }
             return
@@ -845,7 +845,7 @@
             try {
               const res = await fetch(delUrl, { method: 'DELETE' })
               if (!res.ok) throw new Error(String(res.status))
-              window.hibana?.toast(_t('calendar.deleted', 'Deleted'), 'info')
+              window.hibana?.toast(_t('calendar.deleted', 'Deleted'), 'ok')
               await dayRefresh()
             } catch { calErr(_t('calendar.addFailed', "Couldn't save — try again.")) }
           }

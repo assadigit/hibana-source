@@ -1245,7 +1245,7 @@ window.hibanaCanvas = (() => {
       document.body.appendChild(a)
       a.click()
       a.remove()
-      window.hibana?.toast(_t('canvas.exported', 'PNG downloaded'), 'info', 2200)
+      window.hibana?.toast(_t('canvas.exported', 'PNG downloaded'), 'ok', 2200)
     } catch (err) {
       exportTaintError(err)
     }
@@ -1268,7 +1268,7 @@ window.hibanaCanvas = (() => {
     try {
       const blob = await (await fetch(url)).blob()
       await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })])
-      window.hibana?.toast(_t('canvas.copiedPng', 'Copied to clipboard'), 'info', 2200)
+      window.hibana?.toast(_t('canvas.copiedPng', 'Copied to clipboard'), 'ok', 2200)
     } catch {
       // Permission denied / focus loss / transient clipboard lock — not a taint problem.
       window.hibana?.toast(_t('canvas.copyFail', 'Clipboard copy failed'), 'err')
@@ -3059,7 +3059,7 @@ window.hibanaCanvas = (() => {
     const sel = canvas.getActiveObjects()
     if (sel.length === 0) return
     clipboard = sel.map((o) => objectToData(o))
-    window.hibana?.toast(_t('canvas.copied', 'Copied'), 'info', 1200)
+    window.hibana?.toast(_t('canvas.copied', 'Copied'), 'ok', 1200)
   }
   function pasteClipboard() {
     if (!clipboard || clipboard.length === 0) return

@@ -154,10 +154,17 @@ const SYSTEM_PROMPTS: Record<Exclude<AiAction, 'custom'>, string> = {
   // to Polish" (the language) and outputs Polish. "Fix grammar and spelling" is unambiguous
   // and every model obeys it. The popover button still LABELS this action "Polish" (EN) /
   // "اصلاح" (FA) — only the system prompt is reworded.
+  // S115 (owner, sharper contract): polish is a COPY-EDIT — spelling, punctuation,
+  // symbols, capitalization, grammar — and NOTHING else. The meaning must survive
+  // UNTOUCHED: no rephrasing, no style moves, no sentence reordering, no length drift
+  // beyond what the corrections themselves require. (The previous prompt's "clarity"
+  // invited paraphrase; a polish that quietly rewrites is a betrayal of "Saved [✓]"
+  // trust — the user's words are their ideas, Mission #1.)
   polish: [
     'You are a meticulous copy editor for a developer’s personal notes.',
-    'Fix grammar, spelling, punctuation, and clarity. Keep the SAME language as the input.',
-    'Preserve the meaning and the approximate length. Do not rewrite for style — only correctness and readability.',
+    'Correct ONLY spelling, punctuation, symbols, capitalization, and grammar — nothing else.',
+    'Turn the text into a standard, correctly written piece. Keep the SAME language as the input.',
+    'Do NOT rephrase, do NOT change the wording or style, do NOT reorder sentences, do NOT add or remove any information. The meaning must stay EXACTLY the same — leave every already-correct word untouched.',
     COMMON_RULES,
   ].join(' '),
   rewrite: [

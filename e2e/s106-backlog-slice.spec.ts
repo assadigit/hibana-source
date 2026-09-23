@@ -166,12 +166,18 @@ test('S106-1: project names, folders and head groups compute the 700 bold regist
   // beneath stayed 400, so the sidebar read as unchanged even though the deploy
   // was live — byte-verified before the fix). The tree's full weight ladder,
   // pinned level by level: stage head 700 (b above) → PROJECT name 700 →
-  // sub-group head 500 → idea leaf 400 (content stays regular). The sub-group
-  // ships collapsed; computed styles resolve on display:none rows, so no
-  // expand is needed to pin the leaf.
-  const projRow = page.locator('.rail-item.rail-project-row').first()
-  await expect(projRow).toContainText('S106 Bold Register Project')
-  expect(await projRow.evaluate((el) => getComputedStyle(el).fontWeight)).toBe('700')
+  // sub-group head 500 → idea leaf 400 (content stays regular).
+  // S115 r2: the project name lives in the BRANCH HEAD now (a toggle, not a link
+  // — the owner's "collapsed until the title is clicked" sketch) and the branch
+  // ships COLLAPSED, so it is expanded here before the geometry pins below.
+  const projRow = page.locator('.rail-project-head').first()
+  const projName = projRow.locator('.rail-project-row')
+  await expect(projName).toContainText('S106 Bold Register Project')
+  expect(await projName.evaluate((el) => getComputedStyle(el).fontWeight)).toBe('700')
+  const branch = page.locator('.rail-project-group').first()
+  await expect(branch).toHaveClass(/is-collapsed/)
+  await projRow.click()
+  await expect(branch).not.toHaveClass(/is-collapsed/)
 
   const subHead = page.locator('.rail-sub-group .rail-group-head').first()
   expect(await subHead.evaluate((el) => getComputedStyle(el).fontWeight)).toBe('500')

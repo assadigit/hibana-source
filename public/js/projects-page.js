@@ -440,7 +440,7 @@
                 return
               }
               card.remove()
-              window.hibana?.toast(_t('card.deleted', 'Project deleted'), 'info', 6000)
+              window.hibana?.toast(_t('card.deleted', 'Project deleted'), 'ok', 6000)
               const toastEl = document.getElementById('toast')
               if (toastEl) {
                 const undo = document.createElement('button')

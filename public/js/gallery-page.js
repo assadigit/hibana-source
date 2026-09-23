@@ -43,6 +43,8 @@
         const projectSel = document.getElementById('gallery-project')
         const sortSel = document.getElementById('gallery-sort')
         const selectBtn = document.getElementById('gallery-select-btn')
+        // S115: the ONE-tap cleanup — "Delete all" (enabled only while rows exist).
+        const deleteAllBtn = document.getElementById('gallery-delete-all-btn')
         if (!grid) return
         // S80 — the anchor of Shift+click range picks (index within visible()).
         let lastPickIdx = null
@@ -210,6 +212,10 @@
         // lightbox; the <a download> carries the affordance (the serving route adds
         // Content-Disposition: attachment for non-images).
         const isDocRow = (r) => !String(r && r.mime_type ? r.mime_type : '').startsWith('image/')
+        // S115: webm screen recordings are MEDIA, not file tiles — an inline <video>
+        // with native controls; preload="metadata" keeps a big grid cheap (no thumb
+        // fetch, no lightbox — the video IS the preview).
+        const isVideoRow = (r) => String(r && r.mime_type ? r.mime_type : '').startsWith('video/')
         const galShotName = (r) => {
           const direct = String(r && r.filename ? r.filename : '').trim()
           if (direct) return direct
@@ -346,7 +352,7 @@
                   p.innerHTML = '<span class="shot-note-empty">' + esc(_t('gallery.noNote', 'No note')) + '</span>'
                 }
               }
-              window.hibana?.toast(_t('project.noteSaved', 'saved'), 'info')
+              window.hibana?.toast(_t('project.noteSaved', 'saved'), 'ok')
               close()
             } catch { window.hibana?.toast(_t('sparks.saveFailed', "Couldn't save"), 'err') }
           })
@@ -478,16 +484,47 @@
           const failed = results.filter((r) => r.status === 'rejected').length
           exitSelect()
           if (failed === 0) {
-            window.hibana?.toast(_t('gallery.bulkDeleted', '{n} pictures deleted — space freed').split('{n}').join(dig(n)), 'info')
+            window.hibana?.toast(_t('gallery.bulkDeleted', '{n} files deleted — space freed').split('{n}').join(dig(n)), 'ok')
           } else {
             window.hibana?.toast(_t('gallery.bulkDeletedPartial', '{n} deleted · {m} failed').split('{n}').join(dig(n - failed)).split('{m}').join(dig(failed)), 'err')
           }
           await load() // fresh totals (count + space meter)
         }
 
+        // ---- S115: DELETE ALL — the free-tier cleanup valve ------------------------
+        // The owner's ask: temporary bug screenshots pile up on Cloudflare's free
+        // storage; Select mode covers "keep some", this covers "purge everything".
+        // ONE server call (the per-id loop would be hundreds of requests), the same
+        // confirm→toast→refresh shape as deleteSelected, and the confirm states the
+        // count + the freed size so the destruction is never a surprise.
+        const deleteAll = async () => {
+          if (!state.rows.length) return
+          const n = state.rows.length
+          const size = fmtSize(state.rows.reduce((a, r) => a + (r.bytes || 0), 0)) || '0 KB'
+          if (!window.confirm(_t('gallery.deleteAllConfirm', 'Delete ALL {n} pictures/files for good? This frees ≈{size} and cannot be undone.').split('{n}').join(dig(n)).split('{size}').join(dig(size)))) return
+          if (deleteAllBtn) deleteAllBtn.disabled = true
+          if (selectBtn) selectBtn.disabled = true
+          try {
+            const res = await fetch('/api/media/screenshots', { method: 'DELETE' })
+            if (!res.ok) throw new Error('status ' + res.status)
+            const body = await res.json().catch(() => ({}))
+            exitSelect()
+            window.hibana?.toast(_t('gallery.bulkDeleted', '{n} files deleted — space freed').split('{n}').join(dig(body.deleted ?? n)), 'ok')
+          } catch {
+            window.hibana?.toast(_t('sparks.saveFailed', "Couldn't delete"), 'err')
+          } finally {
+            if (selectBtn) selectBtn.disabled = false
+            await load() // fresh totals — the button re-enables via render() when rows remain
+          }
+        }
+        if (deleteAllBtn) deleteAllBtn.addEventListener('click', deleteAll)
+
         const render = () => {
           // stats + project select (both derive from the CURRENT rows)
           const totalBytes = state.rows.reduce((n, r) => n + (r.bytes || 0), 0)
+          // S115: the Delete-all affordance mirrors the data — nothing to purge, nothing
+          // to press (an empty gallery never offers a destructive action).
+          if (deleteAllBtn) deleteAllBtn.disabled = state.rows.length === 0
           if (stats) {
             stats.hidden = !state.rows.length
             const mb = totalBytes >= 1024 * 1024 ? (totalBytes / (1024 * 1024)).toFixed(1) + ' MB' : Math.max(0, Math.round(totalBytes / 1024)) + ' KB'
@@ -517,11 +554,13 @@
               const pin = r.task_id
                 ? '<span class="chip gal-pin" dir="auto" title="' + esc(_t('gallery.pinHint', 'Pinned to a progress-box item')) + '">📌 ' + esc(boxLabel(r.task_status)) + ' · ' + esc(String(r.task_title || '').replace(/\s+/g, ' ').slice(0, 60)) + '</span>'
                 : ''
-              return '<figure class="shot shot-card gal-card' + (r.resolved ? ' is-fixed' : '') + (state.sel.has(r.id) ? ' is-sel' : '') + (isDocRow(r) ? ' is-file' : '') + '" data-shot="' + esc(r.id) + '">' +
+              return '<figure class="shot shot-card gal-card' + (r.resolved ? ' is-fixed' : '') + (state.sel.has(r.id) ? ' is-sel' : '') + (isVideoRow(r) ? ' is-video' : isDocRow(r) ? ' is-file' : '') + '" data-shot="' + esc(r.id) + '">' +
                 '<button type="button" class="gal-check" data-gal-check="' + esc(r.id) + '" aria-pressed="' + (state.sel.has(r.id) ? 'true' : 'false') + '" aria-label="' + esc(_t('gallery.selectPicture', 'Select picture')) + '">' +
                   '<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 6L9 17l-5-5"/></svg>' +
                 '</button>' +
-                (isDocRow(r)
+                (isVideoRow(r)
+                  ? '<video class="shot-video" src="/api/media/screenshots/' + encodeURIComponent(r.id) + '/file" controls preload="metadata" playsinline></video>'
+                  : isDocRow(r)
                   ? galFileTileHtml(r)
                   : '<button type="button" class="shot-img-btn" data-gal-zoom="' + esc(r.id) + '" aria-label="' + esc(_t('project.shotZoom', 'Screenshot')) + '">' +
                 '<img alt="' + esc(r.caption || '') + '" decoding="async"></button>') +
@@ -710,7 +749,7 @@
             try {
               const res = await fetch('/api/screenshots/' + del.getAttribute('data-gal-del'), { method: 'DELETE' })
               if (!res.ok) throw new Error('status ' + res.status)
-              window.hibana?.toast(_t('gallery.deleted', 'Picture deleted'), 'info')
+              window.hibana?.toast(_t('gallery.deleted', 'Picture deleted'), 'ok')
               await load() // fresh totals (count + space meter)
             } catch { window.hibana?.toast(_t('sparks.saveFailed', "Couldn't delete"), 'err') }
             return

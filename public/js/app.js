@@ -1044,7 +1044,7 @@ window.hibana = (() => {
         form.reset()
         attachProject = null
         paintChip()
-        toast(_t('qn.saved', 'Note saved'), 'info')
+        toast(_t('qn.saved', 'Note saved'), 'ok')
         // The dashboard's notebook widget swaps in the fresh list; on other pages the
         // note is already saved server-side and shows on the next dashboard visit.
         if (document.querySelector('#notebook') && window.htmx) {

@@ -373,7 +373,7 @@
         if (!window.confirm(t('db.delConfirm', 'Delete this task?'))) return
         try {
           await deleteTask(modalCtx.taskId)
-          window.hibana && window.hibana.toast(t('db.taskDeleted', 'Task deleted'))
+          window.hibana && window.hibana.toast(t('db.taskDeleted', 'Task deleted'), 'ok')
           closeModal(true)
         } catch { window.hibana && window.hibana.toast(t('sparks.saveFailed', "Couldn't save"), 'err') }
       }
@@ -401,7 +401,7 @@
         }
         if (isNew) {
           await createTask({ title, status: modalCtx.draft.status, priority: modalCtx.draft.priority, category_id: categoryId || undefined, sprint_id: sprintId || undefined })
-          window.hibana && window.hibana.toast(t('db.taskAdded', 'Task added'))
+          window.hibana && window.hibana.toast(t('db.taskAdded', 'Task added'), 'ok')
         } else {
           const body = { title, status: modalCtx.draft.status, priority: modalCtx.draft.priority, category_id: categoryId || null, sprint_id: sprintId || null }
           await patchTask(modalCtx.taskId, body)
@@ -534,7 +534,7 @@
         try {
           const res = await fetch('/api/tags/' + id, { method: 'DELETE' })
           if (!res.ok) throw new Error('delete failed')
-          window.hibana && window.hibana.toast(t('db.labelsDeleted', 'Label deleted'))
+          window.hibana && window.hibana.toast(t('db.labelsDeleted', 'Label deleted'), 'ok')
           refresh()
         } catch (e) { window.hibana && window.hibana.toast(t('sparks.saveFailed', "Couldn't save"), 'err') }
       }

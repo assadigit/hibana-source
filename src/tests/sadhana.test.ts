@@ -37,6 +37,47 @@ const insert = async (db: Db, uid: string, over: Partial<{ quadrant: number; tit
 }
 
 describe('sadhana — quadrant task board (spec 2026-08-25)', () => {
+  // S115 (owner): PURGE ALL archived tasks — one confirmed DELETE empties the
+  // archive (tasks + satellites: tags, updates journal, recurring history), the
+  // board's OPEN tasks and another user's archive survive untouched.
+  it('DELETE /archive purges every archived task + satellites; open + foreign rows survive', async () => {
+    const { db, close } = makeTestDb()
+    try {
+      const uid = await makeUser(db)
+      const other = await makeUser(db)
+      const { app, auth } = await makeClient(db, uid)
+      const otherClient = await makeClient(db, other)
+      // two archived (cleared) tasks — one with a tag + a journal note — one OPEN task
+      const a1 = await insert(db, uid, { title: 'archived one', cleared_at: new Date().toISOString() })
+      const a2 = await insert(db, uid, { title: 'archived two', cleared_at: new Date().toISOString() })
+      const open1 = await insert(db, uid, { title: 'still open' })
+      const fa1 = await insert(db, other, { title: 'foreign archived', cleared_at: new Date().toISOString() })
+      await db.execute('INSERT INTO sadhana_tags (task_id, tag) VALUES (?, ?)', [a1, 'w'])
+      await db.execute('INSERT INTO sadhana_updates (id, task_id, text, created_at) VALUES (?, ?, ?, ?)', [crypto.randomUUID(), a1, 'journal entry', new Date().toISOString()])
+      await db.execute('INSERT INTO sadhana_recur_history (id, task_id, completed_on, created_at) VALUES (?, ?, ?, ?)', [crypto.randomUUID(), a2, '2026-09-01', new Date().toISOString()])
+
+      const res = await app.fetch(new Request('http://local/api/sadhana/archive', { method: 'DELETE', headers: auth }))
+      expect(res.status).toBe(200)
+      const body = (await res.json()) as { ok: boolean; purged: number }
+      expect(body.ok).toBe(true)
+      expect(body.purged).toBe(2)
+
+      const left = await db.query<{ id: string }>('SELECT id FROM sadhana_tasks WHERE user_id = ?', [uid])
+      expect(left.map((r) => r.id)).toEqual([open1])
+      // satellites went with the archived tasks
+      const tags = await db.query<{ n: number }>('SELECT COUNT(*) AS n FROM sadhana_tags WHERE task_id = ?', [a1])
+      expect(tags[0].n).toBe(0)
+      const notes = await db.query<{ n: number }>('SELECT COUNT(*) AS n FROM sadhana_updates WHERE task_id = ?', [a1])
+      expect(notes[0].n).toBe(0)
+      const recur = await db.query<{ n: number }>('SELECT COUNT(*) AS n FROM sadhana_recur_history WHERE task_id = ?', [a2])
+      expect(recur[0].n).toBe(0)
+      // the other user's archive is untouched
+      const foreign = await otherClient.app.fetch(new Request('http://local/api/sadhana/archive', { headers: otherClient.auth }))
+      expect(((await foreign.json()) as { total: number }).total).toBe(1)
+      expect(fa1).toBeTruthy()
+    } finally { close() }
+  })
+
   it('quick-add lands in the quadrant; board fragment shows the card with counter', async () => {
     const { db, close } = makeTestDb()
     try {

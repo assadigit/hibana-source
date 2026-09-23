@@ -271,6 +271,7 @@ describe('file uploads S86 — docs in the shot bucket', () => {
         'text/markdown',
         'text/plain',
         'image/png', 'image/jpeg', 'image/webp', 'image/gif',
+        'video/webm', // S115: screen recordings ride the same bucket
       ]
       for (const mimeType of okMimes) {
         const res = await app.fetch(

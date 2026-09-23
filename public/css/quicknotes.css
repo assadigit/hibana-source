@@ -326,6 +326,18 @@
 }
 #notebook :is(#nv-sticky:checked, #nv-grid:checked) ~ .note-list > .note-card .note-headbar [data-note-delete]:hover { background: rgb(0 0 0 / 0.14); }
 #notebook :is(#nv-sticky:checked, #nv-grid:checked) ~ .note-list > .note-card .note-headbar [data-note-delete] .icon { inline-size: 0.85rem; block-size: 0.85rem; }
+/* S115 (owner, the collision fix): the headbar's two controls shared the inline-END
+   corner — [✕][⋯] side by side, one mis-tap from deleting what the owner meant to
+   configure. The sketch separates them to opposite corners: ⋯ at the inline-START
+   (top-left LTR / top-right RTL), ✕ alone at the inline-END dismiss seat. DOM order
+   is doneBtn → ✕ → menu, so `order: -1` moves the menu first and its auto margin
+   absorbs the run between the corners — flex-end keeps ✕ pinned to the far seat.
+   Logical properties mirror both corners in RTL for free. */
+#notebook :is(#nv-sticky:checked, #nv-grid:checked) ~ .note-list > .note-card .note-headbar .spark-menu {
+  order: -1;
+  margin-inline-start: 0;
+  margin-inline-end: auto;
+}
 #notebook :is(#nv-sticky:checked, #nv-grid:checked) ~ .note-list > .note-card .note-footer-right [data-note-delete],
 #notebook :is(#nv-sticky:checked, #nv-grid:checked) ~ .note-list > .note-card .note-head-right [data-note-delete] { display: none; }
 #notebook :is(#nv-sticky:checked, #nv-grid:checked) ~ .note-list .note-text { background: transparent; border-color: transparent; }

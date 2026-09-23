@@ -218,7 +218,7 @@
               })
               if (!res.ok) throw new Error('update failed')
               close()
-              window.hibana?.toast(_t('sparks.saved', 'Saved'), 'info', 3000)
+              window.hibana?.toast(_t('sparks.saved', 'Saved'), 'ok', 3000)
               reloadShelf()
             } catch (err2) {
               err.textContent = _t('sparks.saveFailed', "Couldn't save the spark")
@@ -259,7 +259,7 @@
               card.remove()
               // P4.11 (F-L24): use the toast() actions API (canonical pattern) instead of
               // post-hoc appending a button to the toast element.
-              window.hibana?.toast(_t('sparks.deleted', 'Spark deleted'), 'info', 6000, [{
+              window.hibana?.toast(_t('sparks.deleted', 'Spark deleted'), 'ok', 6000, [{
                 label: _t('common.undo', 'Undo'),
                 onClick: () => {
                   fetch('/api/projects/' + id + '/restore', { method: 'POST' })
@@ -351,7 +351,7 @@
               })
               if (!res.ok) throw new Error('folder save failed')
               close()
-              window.hibana?.toast(_t(id ? 'sparks.folderRenamed' : 'sparks.folderCreated', id ? 'Folder renamed' : 'Folder created'), 'info', 3000)
+              window.hibana?.toast(_t(id ? 'sparks.folderRenamed' : 'sparks.folderCreated', id ? 'Folder renamed' : 'Folder created'), 'ok', 3000)
               reloadShelf()
             } catch {
               err.textContent = _t('sparks.folderFailed', "Couldn't update the folder — try again")
@@ -391,7 +391,7 @@
               // S40: the persisted context died with the folder — clear it so the next
               // boot lands on the folder grid instead of a ghost selection.
               if (readFolderPref()?.id === id) writeFolderPref('', '')
-              window.hibana?.toast(_t('sparks.folderDeleted', 'Folder deleted'), 'info', 3000)
+              window.hibana?.toast(_t('sparks.folderDeleted', 'Folder deleted'), 'ok', 3000)
               reloadShelf()
             })
             .catch(() => window.hibana?.toast(_t('sparks.folderFailed', "Couldn't update the folder — try again"), 'err'))

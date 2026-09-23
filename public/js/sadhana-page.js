@@ -924,10 +924,13 @@ function togDone(id,q){
     // recurring tasks stay in the quadrant's "completed" section until they reopen.
     if(!task.recur){
       tasks[q]=tasks[q].filter(x=>x.id!==id);
+      /* S115: the toast's own check glyph carries the success register now — the
+         ✅ emoji prefix is redundant next to it (and the 'ok' pastel-green toast is
+         the app-wide success shape). */
       const t=lang==='fa'
-        ?'✅ '+esc(task.title)+' — به آرشیو رفت'
-        :'✅ '+esc(task.title)+' — moved to Archive';
-      window.hibana?.toast(t,'info',4000);
+        ?esc(task.title)+' — به آرشیو رفت'
+        :esc(task.title)+' — moved to Archive';
+      window.hibana?.toast(t,'ok',4000);
     }
     renderQ(q);if(zenQ===q)renderZen();
     api(`/api/sadhana/tasks/${id}/complete`, {});
@@ -1489,6 +1492,7 @@ function buildModalQuads(){
 }
 
 /* ══ ARCHIVE OVERLAY (in-page view) ═══════════════════════════ */
+let archTotal=0; // S115: the fetched archive size — drives the Purge-all button + confirm
 async function openArchive(){
   const ov=document.getElementById('archOv');
   ov.classList.add('open');
@@ -1499,6 +1503,14 @@ async function openArchive(){
   body.innerHTML='<div class="arch-empty">'+(isFA?'بارگذاری…':'Loading…')+'</div>';
   const data=await fetch('/api/sadhana/archive').then(r=>r.ok?r.json():null).catch(()=>null);
   if(!data){body.innerHTML='<div class="arch-empty">'+(isFA?'خطا در بارگذاری':'Failed to load')+'</div>';return;}
+  /* S115: the header's Purge-all rides the fetched total — hidden while the archive
+     is empty, and the confirm can quote the EXACT count it is about to erase. */
+  archTotal=data.total||0;
+  const purgeBtn=document.getElementById('archPurgeAll');
+  if(purgeBtn){
+    purgeBtn.hidden=!archTotal;
+    purgeBtn.textContent=isFA?('🗑 حذف همه ('+toFa(archTotal)+')'):('🗑 Purge all ('+archTotal+')');
+  }
   let h='<div class="arch-stats">';
   for(const q of data.byQuadrant){
     /* Phase 6 item 11: the Q1–Q4 prefixes are gone — the quadrant concept changed. */
@@ -1549,7 +1561,7 @@ async function archRestore(id){
   try{
     const res=await fetch('/api/sadhana/tasks/'+id+'/uncomplete',{method:'POST'});
     if(!res.ok)throw new Error('restore failed');
-    window.hibana?.toast(lang==='fa'?'↩ به تابلو برگشت':'↩ Back on the board','info',3000);
+    window.hibana?.toast(lang==='fa'?'↩ به تابلو برگشت':'↩ Back on the board','ok',3000);
     reloadTasks(); // repaint the board underneath the overlay
     await openArchive();
   }catch{
@@ -1569,7 +1581,7 @@ async function archDelete(id){
   try{
     const res=await fetch('/api/sadhana/tasks/'+id+'/hard',{method:'DELETE'});
     if(!res.ok)throw new Error('hard delete failed');
-    window.hibana?.toast(lang==='fa'?'🗑 برای همیشه حذف شد':'🗑 Deleted for good','info',3000);
+    window.hibana?.toast(lang==='fa'?'برای همیشه حذف شد':'Deleted for good','ok',3000);
     reloadTasks(); // repaint the board underneath the overlay
     await openArchive(); // refetch — stats, groups + total all refresh
   }catch{
@@ -1590,8 +1602,33 @@ async function archRecurDelete(taskId){
   try{
     const res=await fetch('/api/sadhana/recur-history/'+taskId,{method:'DELETE'});
     if(!res.ok)throw new Error('recur history delete failed');
-    window.hibana?.toast(lang==='fa'?'🗑 تاریخچهٔ تکرارشونده حذف شد':'🗑 Recurring history deleted','info',3000);
+    window.hibana?.toast(lang==='fa'?'تاریخچهٔ تکرارشونده حذف شد':'Recurring history deleted','ok',3000);
     await openArchive();
+  }catch{
+    if(btn)btn.disabled=false;
+    window.hibana?.toast(lang==='fa'?'حذف ناموفق بود':'Delete failed','err');
+  }
+}
+
+/* 🗑 PURGE ALL (S115): hard-deletes EVERY archived task in one confirmed call —
+   the owner's free-tier cleanup valve ("delete archived tasks, all of them").
+   The server clears the tasks + their satellites (tags, journal, recurring
+   history) in one transaction; the confirm quotes the count, no undo by design.
+   Same refresh pattern as archDelete: board repaint + archive refetch. */
+async function archPurgeAll(){
+  if(!archTotal)return;
+  if(!confirm(lang==='fa'
+    ?'همهٔ '+toFa(archTotal)+' کار بایگانی‌شده برای همیشه حذف شود؟ بازگشتی ندارد.'
+    :'Permanently delete ALL '+archTotal+' archived tasks? This cannot be undone.'))return;
+  const btn=document.getElementById('archPurgeAll');
+  if(btn)btn.disabled=true;
+  try{
+    const res=await fetch('/api/sadhana/archive',{method:'DELETE'});
+    if(!res.ok)throw new Error('purge failed');
+    archTotal=0;
+    window.hibana?.toast(lang==='fa'?'آرشیو خالی شد':'Archive emptied','ok',3000);
+    reloadTasks(); // repaint the board underneath the overlay
+    await openArchive(); // refetch — the overlay drops to its empty state
   }catch{
     if(btn)btn.disabled=false;
     window.hibana?.toast(lang==='fa'?'حذف ناموفق بود':'Delete failed','err');
@@ -1761,7 +1798,7 @@ async function saveQEdit(){
     const res=await fetch(`/api/sadhana/quadrants/${qeQ}`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
     if(!res.ok)throw new Error('save failed');
     closeQEdit();
-    window.hibana?.toast(lang==='fa'?'✅ بخش به‌روز شد':'✅ Quadrant updated','info');
+    window.hibana?.toast(lang==='fa'?'بخش به‌روز شد':'Quadrant updated','ok');
     await reloadTasks();
     buildGrid();buildFilterBar();buildHeaderDate();buildModalQuads();buildQuadDots();
   }catch{

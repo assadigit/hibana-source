@@ -28,10 +28,14 @@ export function extForMime(mime: string): string {
   if (mime === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') return '.docx'
   if (mime === 'text/markdown') return '.md'
   if (mime === 'text/plain') return '.txt'
+  // S115: webm screen recordings ride the same bucket — .webm must NOT fall into
+  // the image/png default (the stored path would serve with the wrong Content-Type).
+  if (mime === 'video/webm') return '.webm'
   return '.png'
 }
 export function mimeForPath(path: string): string {
   if (path.endsWith('.webp')) return 'image/webp'
+  if (path.endsWith('.webm')) return 'video/webm'
   if (path.endsWith('.jpg') || path.endsWith('.jpeg')) return 'image/jpeg'
   if (path.endsWith('.gif')) return 'image/gif'
   if (path.endsWith('.pdf')) return 'application/pdf'

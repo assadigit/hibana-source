@@ -230,3 +230,52 @@ describe('S39: the media gallery (GET /api/media)', () => {
     }
   })
 })
+
+// S115 (owner: "the gallery must have a Delete All — Cloudflare's free host can't
+// pile up hundreds or thousands of documents"): DELETE /api/media/screenshots purges
+// EVERY media row the caller owns (rule 1 via the projects join — the same scope as
+// GET /api/media), other users' rows survive, and the response reports the count.
+describe('S115: gallery DELETE-ALL', () => {
+  it('deletes every owned screenshot in one call; other users keep theirs', async () => {
+    const { db, close } = makeTestDb()
+    try {
+      const ownerId = await makeUser(db)
+      const otherId = await makeUser(db, { email: 'other-s115@test.dev' })
+      const projectA = await makeProject(db, ownerId, 'owner project A')
+      const projectB = await makeProject(db, ownerId, 'owner project B')
+      const foreignProject = await makeProject(db, otherId, 'foreign project')
+      const app = testApp(db)
+      const ownerToken = await createSession(db, ownerId)
+      const otherToken = await createSession(db, otherId)
+      vi.stubGlobal('fetch', async () => new Response(JSON.stringify({ content: { html_url: 'u' } }), { status: 201, headers: { 'Content-Type': 'application/json' } }))
+
+      const a1 = await uploadShot(app, ownerToken, projectA)
+      const a2 = await uploadShot(app, ownerToken, projectB)
+      const f1 = await uploadShot(app, otherToken, foreignProject)
+
+      const del = await app.fetch(new Request('http://local/api/media/screenshots', { method: 'DELETE', headers: { Cookie: `hibana_session=${ownerToken}`, Origin: 'http://local' } }))
+      expect(del.status).toBe(200)
+      const body = (await del.json()) as { ok: boolean; deleted: number }
+      expect(body.ok).toBe(true)
+      expect(body.deleted).toBe(2)
+
+      const gone = await db.query<{ id: string }>('SELECT id FROM screenshots WHERE id IN (?, ?)', [a1, a2])
+      expect(gone.length).toBe(0)
+      const survivor = await db.query<{ id: string }>('SELECT id FROM screenshots WHERE id = ?', [f1])
+      expect(survivor.length).toBe(1)
+
+      // the caller's gallery is empty now; the other user's is untouched
+      const mine = await app.fetch(new Request('http://local/api/media', { headers: { Cookie: `hibana_session=${ownerToken}` } }))
+      expect(((await mine.json()) as { count: number }).count).toBe(0)
+      const theirs = await app.fetch(new Request('http://local/api/media', { headers: { Cookie: `hibana_session=${otherToken}` } }))
+      expect(((await theirs.json()) as { count: number }).count).toBe(1)
+
+      // a second call on an empty gallery is a cheap ok (no rows, no work)
+      const again = await app.fetch(new Request('http://local/api/media/screenshots', { method: 'DELETE', headers: { Cookie: `hibana_session=${ownerToken}`, Origin: 'http://local' } }))
+      expect(again.status).toBe(200)
+      expect(((await again.json()) as { deleted: number }).deleted).toBe(0)
+    } finally {
+      close()
+    }
+  })
+})

@@ -199,25 +199,9 @@ export function dashboardRoutes(cfg: Config) {
         if (!s || s.bugs === 0) return html``
         return html`<span class="bug-bubble" title="${t(`${s.bugs} open ${s.bugs === 1 ? 'bug' : 'bugs'}`, `${s.bugs} باگ باز`)}">${num(s.bugs)}</span>`
       }
-      // S105 (owner: "the projects boxes are too visually noisy — clean, professional"):
-      // the ideas/backlog/hurdles pills became QUIET PLAIN TEXT folded into the
-      // meta line — same information, zero chips/icons/fills competing with the title.
-      const sigTextD = (id: string): SafeHtml => {
-        const s = sigMap.get(id)
-        if (!s || (s.ideas === 0 && s.backlog === 0 && s.hurdles === 0)) return html``
-        const bits: string[] = []
-        if (s.ideas > 0) bits.push(t(`${s.ideas} ${s.ideas === 1 ? 'idea' : 'ideas'}`, `${s.ideas} ایده`))
-        if (s.backlog > 0) bits.push(t(`${s.backlog} ${s.backlog === 1 ? 'plan' : 'plans'}`, `${s.backlog} برنامه`))
-        if (s.hurdles > 0) bits.push(t(`${s.hurdles} ${s.hurdles === 1 ? 'hurdle' : 'hurdles'}`, `${s.hurdles} مانده`))
-        return bits.length ? html` · ${bits.join(' · ')}` : html``
-      }
-      // S105: NULL when absent — an empty SafeHtml object is TRUTHY, which made the
-      // meta line render a stray " · · " double separator (timeAgo · <empty> · signals).
-      const backlogMetaD = (id: string): SafeHtml | null => {
-        const s = sigMap.get(id)
-        if (!s || !s.backlogUpdated) return null
-        return html`<span class="backlog-meta muted small" title="${s.backlogUpdated}">${t('Backlog', 'برنامه')}: ${timeAgo(s.backlogUpdated, lang)}</span>`
-      }
+      // S115: the S105 ideas/backlog/hurdles plain-text helpers (sigTextD/backlogMetaD)
+      // are RETIRED with the meta line they fed — the card face is the title alone.
+      // The signal counts still exist server-side (sigMap feeds the bug bubble).
 
       const activityItemHtml = (p: ProjectRow): SafeHtml => html`<li class="activity-item">
         <span class="activity-main">
@@ -231,9 +215,11 @@ export function dashboardRoutes(cfg: Config) {
 
       // One box per stage: icon + count + stage label, "view all" (cards view), then every
       // project as a draggable kanban card. Phase 5: the card is a compact skc-row (title +
-      // bug bubble) with a quiet meta line — timeAgo + backlog + idea/hurdle counts as PLAIN
-      // TEXT (S105: the arrow button, chip pills, status word and hover lift are gone;
-      // the whole card navigates via data-nav-url, drag still changes status).
+      // bug bubble) — S115 (owner, "still noisy — clean, professional"): the card face is
+      // now the TITLE alone. The timeAgo · backlog · signals meta line is RETIRED from the
+      // face (a column of projects reading "4m ago · 2 plans · 1 hurdle" on every row was
+      // the remaining noise); the freshness rides the hover title beside the drag hint.
+      // The S105 quiet-plain-text register, one step further: zero secondary lines.
       // Session 14 (user request): empty boxes carry .is-empty — app.css hides them on
       // phones (≤640px, where each box is a full-width carousel slide = a wasted swipe).
       // Only marked when some stage has projects, so a fresh account keeps its boxes.
@@ -242,13 +228,12 @@ export function dashboardRoutes(cfg: Config) {
         const list = recentBox(s)
         const label = statusLabel(s, lang)
         const cards = list.map((p) => {
-          return html`<div class="card kanban-card stat-kanban-card" draggable="true" data-project-id="${p.id}" data-status="${p.status}" data-nav-url="/project.html?id=${p.id}" title="${t('Drag to another box to change its status', 'برای تغییر وضعیت به جعبهٔ دیگر بکش')}">
+          return html`<div class="card kanban-card stat-kanban-card" draggable="true" data-project-id="${p.id}" data-status="${p.status}" data-nav-url="/project.html?id=${p.id}" title="${t('Drag to another box to change its status', 'برای تغییر وضعیت به جعبهٔ دیگر بکش')} · ${t('Updated', 'به‌روزرسانی')} ${timeAgo(p.updated_at, lang)}">
             <span class="sr-only">${statusLabel(p.status, lang)}</span>
             <div class="row skc-row">
               <strong class="skc-title">${p.title}</strong>
               ${bugBubbleD(p.id)}
             </div>
-            <div class="muted small skc-updated">${timeAgo(p.updated_at, lang)}${backlogMetaD(p.id) ? html` · ${backlogMetaD(p.id)}` : ''}${sigTextD(p.id)}</div>
           </div>`
         })
         return html`<div class="stat stat-box${anyStageHasProjects && counts[s] === 0 ? ' is-empty' : ''}" data-status="${s}">
@@ -256,16 +241,17 @@ export function dashboardRoutes(cfg: Config) {
                (icon-chip glyph + label + pill count badge) — the same convention the
                To-Do quadrant columns use, so both boards speak one header language
                (Consistency & Standards). The count moved AFTER the label and became a
-               tinted pill (.board-count) keyed off the box's data-status role. -->
+               tinted pill (.board-count) keyed off the box's data-status role.
+               S115: the repeated teal "View all →" arrow on EVERY box was its own noise —
+               the link stays (it is the cards-view hop) but demoted to a quiet muted
+               affordance; the eye reads icon → label → count again. -->
           <div class="row spread board-col-head">
             <span class="row board-col-title">
               <span class="icon-chip board-col-ico" title="${label}">${raw(icon(STATUS_ICON[s]))}</span>
               <span class="stat-label board-col-label">${label}</span>
               <b class="stat-count board-count" title="${t('{n} projects', '{n} پروژه', { n: num(counts[s]) })}">${num(counts[s])}</b>
             </span>
-            <span class="row">
-              <a class="small" href="/projects.html?status=${s}&view=cards">${t('View all', 'مشاهده همه')} ${raw(icon('arrow-right', 'icon arrow'))}</a>
-            </span>
+            <a class="muted small stat-viewall" href="/projects.html?status=${s}&view=cards">${t('View all', 'مشاهده همه')}</a>
           </div>
           <div class="stat-kanban">
             ${cards.length ? cards : html`<div class="kanban-empty muted">${t('Nothing here yet', 'هنوز چیزی نیست')}</div>`}

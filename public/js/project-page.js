@@ -114,6 +114,7 @@
           jpeg: 'image/jpeg',
           webp: 'image/webp',
           gif: 'image/gif',
+          webm: 'video/webm',
         }
         const fileExt = (f) => String(f && f.name ? f.name.split('.').pop() : '').toLowerCase()
         const canonicalMime = (f) => {
@@ -121,6 +122,7 @@
           // trust a REAL image type (canvas + server agree); docs take the extension's
           // word whenever the browser is vague (octet-stream / empty / vendor variants)
           if (f.type && f.type.startsWith('image/') && ['png', 'jpeg', 'webp', 'gif'].includes(f.type.slice(6))) return f.type
+          if (f.type === 'video/webm') return f.type
           if (byExt && (!f.type || f.type === 'application/octet-stream' || f.type === 'text/plain' || f.type.startsWith('text/') || f.type === byExt)) return byExt
           return f.type || byExt || ''
         }
@@ -2593,11 +2595,14 @@
           const esc = (s) => String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
           // S46.6: IMG onerror retries up to 4× (KV read-after-write propagation delay)
           const retryAttr = ' onerror="(function(i){var n=+(i.dataset.r||0)+1;if(n<4){i.dataset.r=n;var s=i.src;i.onerror=null;setTimeout(function(){i.src=s},800*n)}})(this)"'
-          grid.innerHTML = stagedShots.map((s) =>
-            '<figure class="shot-card pd-staged-shot' + (!isImageMime(s.mime) ? ' is-file' : '') + '" data-staged="' + esc(s.id) + '">' +
+          grid.innerHTML = stagedShots.map((s) => {
+            const isVideo = String(s.mime || '').startsWith('video/')
+            return '<figure class="shot-card pd-staged-shot' + (isVideo ? ' is-video' : !isImageMime(s.mime) ? ' is-file' : '') + '" data-staged="' + esc(s.id) + '">' +
               (isImageMime(s.mime)
                 ? '<button type="button" class="shot-img-btn" data-staged-zoom="' + esc(s.id) + '"><img src="/api/media/screenshots/' + esc(s.id) + '/file" alt="" loading="lazy"' + retryAttr + '></button>'
-                : pdFileTileHtml(s)) +
+                : isVideo
+                  ? '<video class="shot-video" src="/api/media/screenshots/' + esc(s.id) + '/file" controls preload="metadata" playsinline></video>'
+                  : pdFileTileHtml(s)) +
               '<figcaption class="shot-body">' +
                 (s.caption ? '<p class="shot-note muted small" dir="auto">' + esc(s.caption) + '</p>' : '') +
                 '<div class="row spread shot-actions">' +
@@ -2606,7 +2611,7 @@
                 '</div>' +
               '</figcaption>' +
             '</figure>'
-          ).join('')
+          }).join('')
         }
         const cleanupStagedShots = async () => {
           // S46.3: on cancel/close, delete every staged (unattached) screenshot so they
@@ -3305,9 +3310,9 @@
                 // text indicator with the SAME live progress strip as every other
                 // surface (per-file rows: size + bar + % + cancel ✕).
                 '<div class="pd-taskadd-shots" style="margin-top:.5rem">' +
-                  '<input type="file" id="pde-shots" accept=".pdf,.csv,.xlsx,.docx,.md,.txt,image/png,image/jpeg,image/webp,image/gif" multiple hidden>' +
+                  '<input type="file" id="pde-shots" accept=".pdf,.csv,.xlsx,.docx,.md,.txt,image/png,image/jpeg,image/webp,image/gif,video/webm" multiple hidden>' +
                   '<div class="row" style="gap:.5rem;align-items:center">' +
-                    '<button type="button" class="ghost" id="pde-shots-add" onclick="document.getElementById(\'pde-shots\').click()" title="' + _t('pde.shotsAttachTitle', 'Upload a screenshot or file — images, PDF, Excel, Word, Markdown, text — pinned to this item') + '"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M21.2 11.2 12.6 19.8a5.4 5.4 0 0 1-7.6-7.6l8.5-8.5a3.6 3.6 0 0 1 5.1 5.1l-8.5 8.5a1.8 1.8 0 0 1-2.5-2.5l7.8-7.8"/></svg> ' + _t('pde.shotsAttach', 'Upload screenshot') + '</button>' +
+                    '<button type="button" class="ghost" id="pde-shots-add" onclick="document.getElementById(\'pde-shots\').click()" title="' + _t('pde.shotsAttachTitle', 'Upload a file — images, video (webm), PDF, Excel, Word, Markdown, text — pinned to this item') + '"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M21.2 11.2 12.6 19.8a5.4 5.4 0 0 1-7.6-7.6l8.5-8.5a3.6 3.6 0 0 1 5.1 5.1l-8.5 8.5a1.8 1.8 0 0 1-2.5-2.5l7.8-7.8"/></svg> ' + _t('pde.shotsAttach', 'Upload File') + '</button>' +
                   '</div>' +
                   '<div class="pd-taskadd-shots-grid" id="pde-shots-grid"></div>' +
                 '</div>' +

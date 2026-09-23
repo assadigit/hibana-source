@@ -127,7 +127,7 @@
           const v = sel.value === 'full' ? 'full' : 'standard'
           try { localStorage.setItem('hibana-page-width', v) } catch { /* private mode */ }
           document.documentElement.dataset.pageWidth = v
-          window.hibana?.toast(window.hibanaI18n?.t('settings.prefsSaved') || 'Preferences saved')
+          window.hibana?.toast(window.hibanaI18n?.t('settings.prefsSaved') || 'Preferences saved', 'ok')
         })
         const pwInit = () => {
           const sel = document.getElementById('page-width-sel')
@@ -189,7 +189,7 @@
           const sel = e.target?.closest?.('#ai-model-sel')
           if (!sel) return
           try { localStorage.setItem(AI_MODEL_KEY, sel.value) } catch { /* private mode */ }
-          window.hibana?.toast(window.hibanaI18n?.t('settings.aiSaved') || 'AI model saved')
+          window.hibana?.toast(window.hibanaI18n?.t('settings.aiSaved') || 'AI model saved', 'ok')
           // Repaint the note (fa flag + cost) for the new selection — cached registry.
           if (__hibanaAiRegistry) paintAiModelNote(__hibanaAiRegistry.find((m) => m.model === sel.value))
         })
@@ -223,7 +223,7 @@
             clearTimeout(promptTimer)
             promptTimer = setTimeout(() => {
               try { localStorage.setItem(PROMPT_KEY, ta.value) } catch { /* private mode */ }
-              window.hibana?.toast(window.hibanaI18n?.t('settings.aiCustomPromptSaved') || 'AI instructions saved')
+              window.hibana?.toast(window.hibanaI18n?.t('settings.aiCustomPromptSaved') || 'AI instructions saved', 'ok')
             }, 600)
           })
         }
@@ -248,7 +248,7 @@
             // S75: force-refresh the memoized /api/auth/me — apply() must read the
             // just-PATCHed language_pref, not the pre-save record.
             if (window.__hibanaMe) { try { await window.__hibanaMe(true) } catch { /* offline */ } }
-            window.hibana?.toast(window.hibanaI18n?.t('settings.prefsSaved') || 'Preferences saved')
+            window.hibana?.toast(window.hibanaI18n?.t('settings.prefsSaved') || 'Preferences saved', 'ok')
             window.hibanaI18n?.apply()
           },
           init() { this.load() },
@@ -357,7 +357,7 @@
                 dash_order: this.order.join(','),
               }),
             })
-            window.hibana?.toast(this.t('settings.viewsSaved', 'Dashboard view saved'))
+            window.hibana?.toast(this.t('settings.viewsSaved', 'Dashboard view saved'), 'ok')
           },
           init() { this.load() },
         }))
@@ -530,7 +530,7 @@
               })
               if (!r.ok) throw new Error('upload failed')
               await this.load()
-              window.hibana?.toast(window.hibanaI18n?.t('settings.avatarSaved') || 'Profile picture saved')
+              window.hibana?.toast(window.hibanaI18n?.t('settings.avatarSaved') || 'Profile picture saved', 'ok')
             } catch {
               window.hibana?.toast(window.hibanaI18n?.t('settings.avatarFailed') || 'Upload failed', 'err')
             } finally {
@@ -717,7 +717,7 @@
                     body: JSON.stringify({ kind: it.kind, id: it.id }),
                   })
                   if (!r.ok) throw new Error('purge failed')
-                  window.hibana?.toast(tT('trash.purged', 'Deleted forever'))
+                  window.hibana?.toast(tT('trash.purged', 'Deleted forever'), 'ok')
                   li.classList.add('is-restoring')
                   setTimeout(() => {
                     li.remove()

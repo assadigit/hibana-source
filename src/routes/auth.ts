@@ -199,7 +199,7 @@ export function authRoutes(cfg: Config) {
       else tx.sql('DELETE FROM sessions WHERE user_id = ?', [user.id])
     })
 
-    if (isHtmx(c)) return c.html(toastHtml('Password changed — other devices signed out', localeOf(c)))
+    if (isHtmx(c)) return c.html(toastHtml('Password changed — other devices signed out', localeOf(c), undefined, 'ok'))
     return c.json({ ok: true })
   })
 

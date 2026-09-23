@@ -263,7 +263,7 @@
               try {
                 const r = await fetch('/api/devtasks/' + id, { method: 'DELETE' })
                 if (!r.ok) throw new Error('delete failed')
-                window.hibana?.toast(B().esc(_t('db.taskDeleted', 'Task deleted')), 'info')
+                window.hibana?.toast(B().esc(_t('db.taskDeleted', 'Task deleted')), 'ok')
                 delConfirmDlg.close()
                 reload()
               } catch {
@@ -382,7 +382,7 @@
             const st = copy.dataset.dbCopy
             const text = colLines(st).join('\n')
             navigator.clipboard?.writeText(text).then(
-              () => window.hibana?.toast(_t('pd.copied', 'Copied to clipboard')),
+              () => window.hibana?.toast(_t('pd.copied', 'Copied to clipboard'), 'ok'),
               () => { const ta = document.createElement('textarea'); ta.value = text; document.body.appendChild(ta); ta.select(); try { document.execCommand('copy') } catch {}; ta.remove() }
             )
             return
@@ -401,7 +401,7 @@
             a.download = label.replace(/[^a-zA-Z0-9\u0600-\u06FF_-]+/g, '_') + '.md'
             document.body.appendChild(a); a.click(); a.remove()
             URL.revokeObjectURL(url)
-            window.hibana?.toast(_t('pd.exported', 'Exported as Markdown'))
+            window.hibana?.toast(_t('pd.exported', 'Exported as Markdown'), 'ok')
             return
           }
           // "Archive Done" button — moves done tasks to project_archives (permanent,
@@ -417,7 +417,7 @@
               .then((r) => r.ok ? r.json() : null)
               .then((body) => {
                 const n = body && typeof body.archived === 'number' ? body.archived : count
-                window.hibana?.toast(_t('pd.archivedDone', '{n} tasks archived').replace('{n}', B().faDig(n)), 'info')
+                window.hibana?.toast(_t('pd.archivedDone', '{n} tasks archived').replace('{n}', B().faDig(n)), 'ok')
                 reload()
               })
               .catch(() => window.hibana?.toast(_t('notes.deleteFailed', "Couldn't archive"), 'err'))
@@ -435,7 +435,7 @@
             const ids = Array.from(col.querySelectorAll('.db-card')).map((c) => c.dataset.taskCard)
             Promise.all(ids.map((id) => fetch('/api/devtasks/' + id, { method: 'DELETE' })))
               .then(() => {
-                window.hibana?.toast(_t('pd.clearedDone', '{n} tasks deleted').replace('{n}', B().faDig(count)), 'info')
+                window.hibana?.toast(_t('pd.clearedDone', '{n} tasks deleted').replace('{n}', B().faDig(count)), 'ok')
                 reload()
               })
               .catch(() => window.hibana?.toast(_t('notes.deleteFailed', "Couldn't clear"), 'err'))
@@ -532,7 +532,7 @@
             if (window.HibanaBoard) return resolve(true)
             if (!injected && waited >= 1200) {
               injected = true
-              inject('/js/devboard.js?v=22') // keep in sync with the <head> tag + sw SHELL
+              inject('/js/devboard.js?v=23') // keep in sync with the <head> tag + sw SHELL
               if (!window.HibanaChips) inject('/js/chip-render.js?v=9') // S36: was ?v=1 while the HTML tags say v=2 — two cache entries for one file (the cache-bust gate caught it under the sandbox's mode-bit noise). Aligned; local-dev + SW caches now share ONE url per version. S86: v8 — kept in sync with the <head> tag (previewHtml moved in).
               if (!window.jalaali) inject('/vendor/jalaali.min.js') // Jalali dates for FA
             }

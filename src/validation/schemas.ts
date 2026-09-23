@@ -126,6 +126,7 @@ export const UPLOAD_FILE_MIMES = [
   'image/jpeg',
   'image/webp',
   'image/gif',
+  'video/webm',
   'application/pdf',
   'text/csv',
   'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', // .xlsx

@@ -71,12 +71,19 @@ export function shotsGridHtml(
   tasks: Map<string, { title: string; status: string }> = new Map(),
 ): string {
   return shots
-    .map(
-      (s) => `<figure class="shot shot-card${s.resolved ? ' is-fixed' : ''}${String(s.mime_type || '').startsWith('image/') ? '' : ' is-file'}" data-shot="${s.id}" data-resolved="${s.resolved ? '1' : '0'}"${s.task_id ? ` data-task="${s.task_id}"` : ''}>
-        ${String(s.mime_type || '').startsWith('image/')
+    .map((s) => {
+      // S115: a video (webm screen recording) is MEDIA, not a file tile — it renders
+      // an inline <video> with native controls; preload="metadata" keeps a big grid
+      // cheap (frames fetch on demand, bytes stay in KV until deleted).
+      const isImage = String(s.mime_type || '').startsWith('image/')
+      const isVideo = String(s.mime_type || '').startsWith('video/')
+      return `<figure class="shot shot-card${s.resolved ? ' is-fixed' : ''}${isVideo ? ' is-video' : isImage ? '' : ' is-file'}" data-shot="${s.id}" data-resolved="${s.resolved ? '1' : '0'}"${s.task_id ? ` data-task="${s.task_id}"` : ''}>
+        ${isImage
           ? `<button type="button" class="shot-img-btn" data-shot-zoom="${s.id}" aria-label="${trL(lang, 'View screenshot', 'دیدن اسکرین‌شات')}">
           <img src="/api/media/screenshots/${s.id}/file" alt="${esc(s.caption)}" loading="lazy">
         </button>`
+          : isVideo
+          ? `<video class="shot-video" src="/api/media/screenshots/${s.id}/file" controls preload="metadata" playsinline></video>`
           : shotFileTileHtml(s, lang)}
         <figcaption class="shot-body">
           ${s.task_id && tasks.get(s.task_id) ? (() => {
@@ -111,8 +118,8 @@ export function shotsGridHtml(
             </div>
           </div>
         </figcaption>
-      </figure>`,
-    )
+      </figure>`
+    })
     .join('') || `<div class="empty-state empty"><span class="empty-state-icon" aria-hidden="true">${icon('image')}</span><p class="empty-state-title">${trL(lang, 'No files yet', 'هنوز فایلی نیست')}</p><p class="empty-state-text">${trL(lang, 'Snap the broken UI/UX, drop it here, write what & where — so you know exactly what to work on.', 'از UI/UX خراب عکس بگیر، همین‌جا رها کن و بنویس چه چیزی و کجاست — تا دقیقاً بدانی روی چه کار کنی.')}</p></div>`
 }
 
@@ -409,6 +416,33 @@ export function coreRoutes(cfg: Config) {
     return c.json({ screenshots: rows, count: rows.length, totalBytes })
   })
 
+  // S115 (owner: "we cannot afford to pile up hundreds or thousands of documents on
+  // Cloudflare's free host — the gallery must have a Delete All"): ONE call purges
+  // EVERY media row the user owns. The scope is EXACTLY the gallery's own listing
+  // (the same JOIN as GET /api/media above — including shots of soft-deleted
+  // projects, whose bytes are still real until purged); rule 1 honored through the
+  // projects join. Byte-cleanup first (best-effort, the per-shot delete's order —
+  // the row is the truth either way), then the rows in one statement.
+  app.delete('/api/media/screenshots', async (c) => {
+    const user = c.get('user')
+    const rows = await cfg.db.query<{ id: string; github_path: string; bytes: number }>(
+      'SELECT s.id, s.github_path, s.bytes FROM screenshots s JOIN projects p ON p.id = s.project_id WHERE p.user_id = ?',
+      [user.id],
+    )
+    if (rows.length) {
+      for (const r of rows) {
+        try {
+          if (r.github_path) {
+            await shotStore.deleteObject(r.github_path)
+            await shotStore.deleteObject(`${r.github_path}.thumb`) // the S69 tile rides along — no orphan
+          }
+        } catch { /* storage hiccup — the row still goes */ }
+      }
+      await cfg.db.execute('DELETE FROM screenshots WHERE project_id IN (SELECT id FROM projects WHERE user_id = ?)', [user.id])
+    }
+    return c.json({ ok: true, deleted: rows.length, bytes: rows.reduce((n, r) => n + (r.bytes || 0), 0) })
+  })
+
   app.post('/api/projects/:projectId/screenshots', async (c) => {
     // M8 fix (2026-09-10): wire the upload rate limiter — screenshots push bytes into the
     // storage backend (GitHub repo or R2 bucket), and under open registration (now
@@ -451,7 +485,7 @@ export function coreRoutes(cfg: Config) {
       'INSERT INTO screenshots (id, project_id, github_path, mime_type, caption, resolved, task_id, bytes, filename, created_at) VALUES (?, ?, ?, ?, ?, 0, NULL, ?, ?, ?)',
       [id, p.id, path, body.mimeType, body.caption, byteLen, displayName, new Date().toISOString()],
     )
-    if (c.req.header('HX-Request')) return c.html(toastHtml(body.mimeType.startsWith('image/') ? t('Screenshot uploaded', 'اسکرین‌شات آپلود شد') : t('File uploaded', 'فایل آپلود شد'), localeOf(c)))
+    if (c.req.header('HX-Request')) return c.html(toastHtml(body.mimeType.startsWith('image/') ? t('Screenshot uploaded', 'اسکرین‌شات آپلود شد') : t('File uploaded', 'فایل آپلود شد'), localeOf(c), undefined, 'ok'))
     return c.json({ ok: true, id, mimeType: body.mimeType }, 201)
   })
 
@@ -569,7 +603,7 @@ export function coreRoutes(cfg: Config) {
       }
     } catch { /* storage hiccup — the row still goes */ }
     await cfg.db.execute('DELETE FROM screenshots WHERE id = ? AND project_id = ?', [c.req.param('id'), projectId])
-    if (c.req.header('HX-Request')) return c.html(toastHtml(t('Screenshot deleted', 'اسکرین‌شات حذف شد'), localeOf(c)))
+    if (c.req.header('HX-Request')) return c.html(toastHtml(t('Screenshot deleted', 'اسکرین‌شات حذف شد'), localeOf(c), undefined, 'ok'))
     return c.json({ ok: true })
   })
 
@@ -678,7 +712,7 @@ export function coreRoutes(cfg: Config) {
     await cfg.db.execute('DELETE FROM canvas_elements WHERE user_id = ? AND deleted = 1 AND updated_at < ?', [user.id, cutoff])
 
     const [maxRow] = await cfg.db.query<{ m: string | null }>('SELECT MAX(updated_at) AS m FROM canvas_elements WHERE user_id = ?', [user.id])
-    if (c.req.header('HX-Request')) return c.html(toastHtml(t('Synced {n} element(s)', '{n} مورد همگام شد', { n: applied.length }), localeOf(c)))
+    if (c.req.header('HX-Request')) return c.html(toastHtml(t('Synced {n} element(s)', '{n} مورد همگام شد', { n: applied.length }), localeOf(c), undefined, 'ok'))
     return c.json({ ok: true, applied, serverUpdatedAt: maxRow?.m ?? null })
   })
 
@@ -707,7 +741,7 @@ export function coreRoutes(cfg: Config) {
         ])
       }
     })
-    if (c.req.header('HX-Request')) return c.html(toastHtml(t('Promoted to Idea — <a href="/project.html?id={id}">open it</a>', 'به ایده تبدیل شد — <a href="/project.html?id={id}">باز کردن آن</a>', { id: projectId }), localeOf(c)))
+    if (c.req.header('HX-Request')) return c.html(toastHtml(t('Promoted to Idea — <a href="/project.html?id={id}">open it</a>', 'به ایده تبدیل شد — <a href="/project.html?id={id}">باز کردن آن</a>', { id: projectId }), localeOf(c), undefined, 'ok'))
     return c.json({ ok: true, projectId }, 201)
   })
 

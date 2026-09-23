@@ -922,6 +922,29 @@ export function sadhanaRoutes(cfg: Config) {
   }
 
   // ---- archive (§5.15) ----------------------------------------------------------------
+  // S115 (owner): PURGE ALL — the Archive overlay's "Purge all" empties the archive in
+  // one tap (free-tier storage discipline: archived bug screenshots / done chores pile
+  // up forever otherwise). Same scope as the GET below (user-owned, cleared, not
+  // soft-deleted) and the same satellite cleanup as /tasks/:id/hard — tags, updates
+  // journal AND recurring history go with the tasks, in one transaction. No undo by
+  // design; the confirm lives client-side with the exact count.
+  app.delete('/archive', async (c) => {
+    const ctx = ctxOf(c)
+    const rows = await cfg.db.query<{ id: string }>(
+      'SELECT id FROM sadhana_tasks WHERE user_id = ? AND deleted_at IS NULL AND cleared_at IS NOT NULL',
+      [ctx.user.id],
+    )
+    if (rows.length) {
+      await cfg.db.transaction(async (tx) => {
+        tx.sql('DELETE FROM sadhana_tags WHERE task_id IN (SELECT id FROM sadhana_tasks WHERE user_id = ? AND deleted_at IS NULL AND cleared_at IS NOT NULL)', [ctx.user.id])
+        tx.sql('DELETE FROM sadhana_updates WHERE task_id IN (SELECT id FROM sadhana_tasks WHERE user_id = ? AND deleted_at IS NULL AND cleared_at IS NOT NULL)', [ctx.user.id])
+        tx.sql('DELETE FROM sadhana_recur_history WHERE task_id IN (SELECT id FROM sadhana_tasks WHERE user_id = ? AND deleted_at IS NULL AND cleared_at IS NOT NULL)', [ctx.user.id])
+        tx.sql('DELETE FROM sadhana_tasks WHERE user_id = ? AND deleted_at IS NULL AND cleared_at IS NOT NULL', [ctx.user.id])
+      })
+    }
+    return c.json({ ok: true, purged: rows.length })
+  })
+
   app.get('/archive', async (c) => {
     const ctx = ctxOf(c)
     const rows = await cfg.db.query<SadhanaTask>(

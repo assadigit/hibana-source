@@ -104,6 +104,19 @@ test.beforeAll(async () => {
     `INSERT INTO dev_tasks (id, project_id, title, status, priority, sort_order, created_at)
      VALUES ('${id}-dt3', '${id}-p0', 'Rail tree plan', 'planned', 'low', 0, '${now}')`,
   )
+  // S115 r2 (owner, the sidebar sketch): a spark FOLDER carrying one filed idea —
+  // the Ideas panel ships folders COLLAPSED until clicked (the Unfiled inbox stays
+  // open — it is the capture surface, not a folder). The S92 pin (the unfiled spark
+  // rides Unfiled) stays intact beside it.
+  db.exec(`DELETE FROM spark_folders WHERE user_id = '${id}'`)
+  db.exec(
+    `INSERT INTO spark_folders (id, user_id, name, sort_order, created_at)
+     VALUES ('${id}-f1', '${id}', 'Rail idea folder', 0, '${now}')`,
+  )
+  db.exec(
+    `INSERT INTO projects (id, user_id, title, status, folder_id, created_at, updated_at)
+     VALUES ('${id}-p3', '${id}', 'Rail filed idea', 'spark', '${id}-f1', '${now}', '${now}')`,
+  )
   // S100: Rail project 1 becomes a CLIENT project carrying one dated checklist
   // task (the tasks table's only writer is the clients UI) — the Coming-up
   // list's client rows deep-link to /clients.html#task-<id> (the projects query
@@ -254,14 +267,17 @@ test.describe('the secondary panel (VS Code Activity Bar + Side Bar pattern)', (
 
     // S93 (owner item 14 — the owner's sketch: "-planning / item one / -queued / …"):
     // groups = the 0060 stages; empty stages stay hidden; operational rides collapsed.
-    // Seeds: one developing + one operational project. S94: the Developing project also
-    // carries a nested idea-group branch — the STAGE heads are the non-sub groups
-    // (.rail-sub-group heads are the project-level tree level, pinned by their own test).
-    const groups = page.locator('.rail-group:not(.rail-sub-group) > .rail-group-head')
+    // Seeds: one developing + one operational project. S115 r2: the Developing project
+    // also carries a per-project collapsible BRANCH — the STAGE heads are the non-sub,
+    // non-project groups (each tree level is pinned by its own test below).
+    const groups = page.locator('.rail-group:not(.rail-sub-group):not(.rail-project-group) > .rail-group-head')
     const labels = await groups.allTextContents()
     expect(labels.map((l) => l.replace(/\d+$/, '').trim())).toEqual(['Developing', 'Operational'])
     // Real items with status dots (the seeded projects), deep-linking to their pages.
-    await expect(page.locator('.rail-item').first()).toBeVisible()
+    // S115 r2: the Developing project is a collapsed BRANCH (its leaves stay hidden
+    // until the title is clicked) — the visible plain row is the task-less
+    // Operational project.
+    await expect(page.locator('.rail-item.rail-project-row', { hasText: 'Rail project 1' })).toHaveCount(1)
     expect(await page.locator('.rail-item .rail-dot').count()).toBeGreaterThan(0)
 
     // Collapsible: collapsing a group hides its items.
@@ -271,8 +287,11 @@ test.describe('the secondary panel (VS Code Activity Bar + Side Bar pattern)', (
     await expect(page.locator('.rail-group').first()).not.toHaveClass(/is-collapsed/)
 
     // An item click navigates (to the project page) and the panel STAYS OPEN with
-    // the rail's active icon following the new page.
-    await page.click('.rail-item >> nth=0')
+    // the rail's active icon following the new page. S115 r2: the Developing project
+    // is a collapsed BRANCH now, so the clicked row is the task-less Operational
+    // project (a plain link) — expand its stage first (it ships collapsed).
+    await page.locator('.rail-group:not(.rail-sub-group):not(.rail-project-group) > .rail-group-head', { hasText: 'Operational' }).click()
+    await page.locator('.rail-item.rail-project-row', { hasText: 'Rail project 1' }).click()
     await page.waitForURL('**/project.html?id=*', { timeout: 10_000 })
     await expect(panel).toBeVisible()
     await expect(page.locator('.rail .rail-primary a[data-rail-panel="projects"]')).toHaveAttribute('aria-current', 'page')
@@ -283,127 +302,93 @@ test.describe('the secondary panel (VS Code Activity Bar + Side Bar pattern)', (
     await page.waitForFunction(() => getComputedStyle(document.body).paddingInlineStart === '88px', null, { timeout: 3_000 })
   })
 
-  test('the projects panel grows the deeper BOX TREE under each project (S94 item 6 + S95 r2 item 1)', async ({ page }) => {
+  test('the projects panel: each project COLLAPSES its aspects until its title is clicked (S115 r2, owner)', async ({ page }) => {
     await login(page)
     await page.click('.rail .rail-primary a[data-rail-panel="projects"]')
     await page.waitForURL('**/projects.html', { timeout: 10_000 })
     const panel = page.locator('[data-rail-panel-box]')
     await expect(panel).toBeVisible()
 
-    // The developing project's row is intact and still deep-links to its page…
-    const row = page.locator('.rail-item', { hasText: 'Rail project 0' }).first()
-    await expect(row).toBeVisible()
-    await expect(row).toHaveAttribute('href', /\/project\.html\?id=.+$/)
-    // S95 (at-a-glance triage): the row wears a PROBLEMS count pill (one seeded
-    // bug) — scannable without expanding anything.
-    const bugBadge = row.locator('.rail-item-badge')
+    // Rail project 0 (developing, carries 3 board tasks) renders a per-project
+    // BRANCH — a toggle HEAD, not a link — wearing the bold name, the status dot
+    // and the problems badge, and shipping COLLAPSED: the owner's sketch is
+    // "collapsed, and only shown when user clicks on the project title".
+    const branch = page.locator('.rail-project-group').first()
+    await expect(branch).toHaveClass(/is-collapsed/)
+    const head = branch.locator('.rail-project-head')
+    await expect(head).toContainText('Rail project 0')
+    await expect(head.locator('.rail-dot')).toHaveAttribute('data-status', 'developing')
+    // S95 (at-a-glance triage): the problems pill rides the HEAD (one seeded bug).
+    const bugBadge = head.locator('.rail-item-badge')
     await expect(bugBadge).toHaveText('1')
     await expect(bugBadge).toHaveAttribute('aria-label', '1 Problems')
+    await expect(head).toHaveAttribute('aria-expanded', 'false')
+    // The aspect sub-groups exist but sit hidden behind the fold — the panel reads
+    // stage → PROJECT NAME and nothing else until the title is clicked.
+    await expect(branch.locator('.rail-sub-group')).toHaveCount(3)
+    await expect(branch.locator('.rail-sub-group').first()).toBeHidden()
+    await expect(page.locator('.rail-item', { hasText: 'Rail tree idea' })).toBeHidden()
 
-    // …and directly under it grows the nested branch: THREE collapsible boxes in
-    // the BOARD's column order ("New ideas" + "Problems" + "Plans" — every box
-    // with ≥1 item shows, the S95 r2 rule; the seeded project carries one task in
-    // each), each counting its items, tree-indented one level deeper than the
-    // stage rows.
-    const subs = page.locator('.rail-sub-group')
-    await expect(subs).toHaveCount(3)
-    const heads = subs.locator('.rail-group-head')
-    await expect(heads.nth(0)).toContainText('New ideas')
-    await expect(heads.nth(1)).toContainText('Problems')
-    await expect(heads.nth(2)).toContainText('Plans')
-    await expect(heads.nth(0).locator('.rail-group-count')).toHaveText('1')
-    await expect(heads.nth(1).locator('.rail-group-count')).toHaveText('1')
-    await expect(heads.nth(2).locator('.rail-group-count')).toHaveText('1')
-
-    // The sub-groups ship COLLAPSED (the panel stays a scannable summary) — the
-    // same [data-rail-group] toggle contract the stage heads use. The COLLAPSED
-    // chevron points DOWN (S95 r2 item 2 — the glyph itself is a down-chevron;
-    // expanding rotates it 180° upright).
+    // …a click on the TITLE expands the collapsible menu…
+    await head.click()
+    await expect(branch).not.toHaveClass(/is-collapsed/)
+    await expect(head).toHaveAttribute('aria-expanded', 'true')
+    // …revealing the three aspect groups in the BOARD's column order, each FOLDED
+    // in turn, counting its items.
+    const subs = branch.locator('.rail-sub-group')
+    await expect(subs.first()).toBeVisible()
+    const subLabels = await subs.locator('.rail-group-head').allTextContents()
+    expect(subLabels.map((l) => l.replace(/\d+$/, '').trim())).toEqual(['New ideas', 'Problems', 'Plans'])
     await expect(subs.nth(0)).toHaveClass(/is-collapsed/)
-    const chevDown = await heads.nth(0).locator('.icon path').evaluate((el) => el.getAttribute('d'))
-    expect(chevDown).toBe('m6 9 6 6 6-6')
 
-    // Expanding reveals the task rows, deep-linking to the project's own page AT
-    // the exact BOX where that work lives (S95 r2): ideas → the board's idea
-    // COLUMN (#pd-col-idea), bugs → the exact problems panel (#detail-problems),
-    // plans → the plans column (#pd-col-planned).
-    await heads.nth(0).click()
-    await expect(subs.nth(0)).not.toHaveClass(/is-collapsed/)
-    const taskRow = subs.nth(0).locator('.rail-item')
-    await expect(taskRow).toContainText('Rail tree idea')
-    await expect(taskRow).toHaveAttribute('href', /\/project\.html\?id=.+#pd-col-idea$/)
-    await heads.nth(1).click()
+    // A second click folds the branch back; a third re-opens for the leaf test.
+    await head.click()
+    await expect(branch).toHaveClass(/is-collapsed/)
+    await head.click()
+    await expect(branch).not.toHaveClass(/is-collapsed/)
+
+    // A leaf deep-links to the EXACT box where the work lives (the S95 contract
+    // survives inside the branch): Problems → the problems panel.
+    await subs.nth(1).locator('.rail-group-head').click()
     const bugRow = subs.nth(1).locator('.rail-item')
     await expect(bugRow).toContainText('Rail tree bug')
     await expect(bugRow).toHaveAttribute('href', /\/project\.html\?id=.+#detail-problems$/)
-    await heads.nth(2).click()
-    const planRow = subs.nth(2).locator('.rail-item')
-    await expect(planRow).toContainText('Rail tree plan')
-    await expect(planRow).toHaveAttribute('href', /\/project\.html\?id=.+#pd-col-planned$/)
-    // The tree indent compounds: the sub-group body sits deeper than the stage body
-    // (the S91 tree-guide anatomy — 0.8rem per NESTED level; the relative margin is
-    // the same on both, the absolute depth comes from the nesting, so the x-position
-    // of each body's guide is the honest measurement).
-    const stageBodyX = await page.locator('.rail-group:not(.rail-sub-group) > .rail-group-body').first().evaluate((el) => el.getBoundingClientRect().x)
-    const subBodyX = await subs.nth(0).locator('.rail-group-body').evaluate((el) => el.getBoundingClientRect().x)
-    expect(subBodyX).toBeGreaterThan(stageBodyX + 8)
 
-    // A task-row click navigates to the project page, the panel STAYS OPEN (the
-    // same persistence contract as the stage rows above), the leaf's SECTION
-    // anchor rides the URL, the page LANDS on the exact idea column (S95 r2: the
-    // htmx-swept target is watched for + scrolled, scroll-margin clearing the
-    // topbar) and the current-location marks light BOTH the project row and the
-    // exact leaf.
-    await taskRow.click()
-    await page.waitForURL(/project\.html\?id=.+#pd-col-idea$/, { timeout: 10_000 })
+    // The ↗ goto chip (the head's sibling — expansion and navigation don't fight
+    // over one click) keeps the S89 deep link: it opens the project's page with
+    // the panel staying open, and the branch you are ON wears the current-location
+    // mark (.is-here).
+    await branch.locator('.rail-group-goto').click()
+    await page.waitForURL(/project\.html\?id=.+$/, { timeout: 10_000 })
     await expect(panel).toBeVisible()
-    await page.waitForFunction(() => {
-      const b = document.querySelector('#pd-col-idea')
-      return !!b && b.getBoundingClientRect().top < 220
-    }, null, { timeout: 10_000 })
-    await expect(page.locator('.rail-item.is-row-active', { hasText: 'Rail project 0' })).toHaveClass(/is-row-active/)
-    await expect(page.locator('.rail-item.is-row-active', { hasText: 'Rail tree idea' })).toHaveClass(/is-row-active/)
+    await expect(page.locator('.rail-project-group.is-here').first()).toBeVisible()
 
-    // S99 (the column arrival cue): the landed column wears the mark — the
-    // accent frame pins WHICH box you arrived on; its sibling columns stay
-    // neutral. (The border-color TRANSITION means the computed style lags one
-    // beat — waitForFunction on the DIVERGENCE, never a one-shot read.)
-    await expect(page.locator('#pd-col-idea')).toHaveClass(/q-arrived/)
-    await expect(page.locator('#pd-col-planned')).not.toHaveClass(/q-arrived/)
-    await page.waitForFunction(() => {
-      const a = document.querySelector('#pd-col-idea.q-arrived')
-      const n = document.querySelector('#pd-col-planned')
-      return !!a && !!n && getComputedStyle(a).borderColor !== getComputedStyle(n).borderColor
-    }, null, { timeout: 10_000 })
-
-    // The «Problems» leaf (a hash-only soft nav from the same project page):
-    // #detail-problems OPENS the problems tab (the panels ship hidden — the
-    // page's hash boot un-hides + scrolls it) and its row joins the marks.
-    await bugRow.click()
-    await page.waitForURL(/project\.html\?id=.+#detail-problems$/, { timeout: 10_000 })
-    await expect(page.locator('[data-detail-tab="problems"]')).toHaveAttribute('aria-selected', 'true')
-    await expect(page.locator('#detail-problems')).toBeVisible()
-    await expect(page.locator('.rail-item.is-row-active', { hasText: 'Rail tree bug' })).toHaveClass(/is-row-active/)
-    // S100 (the tab arrival flash): the problems TAB BUTTON wears the mark — the
-    // inset accent ring + soft fill pin WHICH section the strip landed on; the
-    // notes tab (the default) stays clean.
-    await expect(page.locator('[data-detail-tab="problems"]')).toHaveClass(/q-arrived/)
-    await expect(page.locator('[data-detail-tab="notes"]')).not.toHaveClass(/q-arrived/)
+    // A project with NO board tasks (Rail project 1) stays a plain LINK row —
+    // nothing to expand, so the click opens the project itself. The Operational
+    // stage ships folded (S93), so expand it first to reveal the plain row.
+    await page.locator('.rail-group:not(.rail-sub-group):not(.rail-project-group) > .rail-group-head', { hasText: 'Operational' }).click()
+    const plain = page.locator('.rail-item.rail-project-row', { hasText: 'Rail project 1' })
+    await expect(plain).toBeVisible()
+    await expect(plain).toHaveAttribute('href', /\/project\.html\?id=.+$/)
+    await page.keyboard.press('Escape')
+    await expect(panel).toBeHidden()
   })
 
   // S97 (the tree fold): one button in the panel head collapses/expands EVERY
-  // group — the seeded projects tree (2 stage groups + 3 nested sub-groups) folds
-  // and unfolds in one tap, the button's label/icon/aria flipping with the state.
+  // group — the seeded projects tree (S115 r2: two stage groups + one project
+  // branch + its three aspect sub-groups) folds and unfolds in one tap, the
+  // button's label/icon/aria flipping with the state.
   test('the panel head\'s TREE FOLD collapses/expands every group (S97)', async ({ page }) => {
     await login(page)
     await page.click('.rail .rail-primary a[data-rail-panel="projects"]')
     await page.waitForURL('**/projects.html', { timeout: 10_000 })
     await expect(page.locator('.rail-panel-title')).toHaveText('Projects')
 
-    // The seeded tree: Developing (open) + Operational (collapsed by design) +
-    // three nested sub-groups (collapsed by design) = 5 groups, 4 already folded.
-    await expect(page.locator('.rail-group')).toHaveCount(5)
-    await expect(page.locator('.rail-group.is-collapsed')).toHaveCount(4)
+    // The seeded tree: Developing (open) + Operational (collapsed by design) at the
+    // stage level; the Developing project's BRANCH ships collapsed (S115 r2) with
+    // its three aspect sub-groups folded inside → 6 groups, 5 folded.
+    await expect(page.locator('.rail-group')).toHaveCount(6)
+    await expect(page.locator('.rail-group.is-collapsed')).toHaveCount(5)
 
     // The button mirrors the state: not everything folded → it offers Collapse
     // all (a DOWN chevron — the same "the content lives below" glyph the group
@@ -415,8 +400,8 @@ test.describe('the secondary panel (VS Code Activity Bar + Side Bar pattern)', (
 
     // One tap folds the lot — every group collapsed, every head's aria follows.
     await btn.click()
-    await expect(page.locator('.rail-group.is-collapsed')).toHaveCount(5)
-    await expect(page.locator('.rail-group-head[aria-expanded="false"]')).toHaveCount(5)
+    await expect(page.locator('.rail-group.is-collapsed')).toHaveCount(6)
+    await expect(page.locator('.rail-group-head[aria-expanded="false"]')).toHaveCount(6)
 
     // The button flipped: Expand all — label + title + the i18n key + the UP icon.
     await expect(btn).toHaveAttribute('aria-label', 'Expand all')
@@ -426,8 +411,8 @@ test.describe('the secondary panel (VS Code Activity Bar + Side Bar pattern)', (
     // The other direction: everything back open (the operational stage's default
     // collapsed state loses to the explicit expand — the button is the boss).
     await btn.click()
-    await expect(page.locator('.rail-group:not(.is-collapsed)')).toHaveCount(5)
-    await expect(page.locator('.rail-group-head[aria-expanded="true"]')).toHaveCount(5)
+    await expect(page.locator('.rail-group:not(.is-collapsed)')).toHaveCount(6)
+    await expect(page.locator('.rail-group-head[aria-expanded="true"]')).toHaveCount(6)
     await expect(btn).toHaveAttribute('aria-label', 'Collapse all')
   })
 
@@ -626,19 +611,22 @@ test.describe('the secondary panel (VS Code Activity Bar + Side Bar pattern)', (
 
   test('clicking the open section\'s icon toggles the panel closed; switching icons swaps sections', async ({ page }) => {
     await login(page)
-    // S95 r2: To-do NAVIGATES now — the toggle contract rides a non-navigating
-    // icon (Ideas), exactly as before.
-    await page.click('.rail .rail-primary a[data-rail-panel="sparks"]')
-    await expect(page.locator('.rail-panel-title')).toHaveText('Ideas')
-
-    // Same icon again → closed (the toggle rides a non-navigating icon — the
-    // Projects icon always re-navigates by design).
-    await page.click('.rail .rail-primary a[data-rail-panel="sparks"]')
-    await expect(page.locator('[data-rail-panel-box]')).toBeHidden()
-
-    // A different icon swaps the panel's section (rail never hides).
+    // S115 r2: Ideas NAVIGATES now too (the owner's "/sparks as well" ask) — the
+    // toggle contract rides the remaining NON-navigating icon (Notes), exactly as
+    // before.
     await page.click('.rail .rail-primary a[data-rail-panel="notes"]')
     await expect(page.locator('.rail-panel-title')).toHaveText('Notes')
+
+    // Same icon again → closed (the toggle rides a non-navigating icon — the
+    // navigating icons re-navigate by design).
+    await page.click('.rail .rail-primary a[data-rail-panel="notes"]')
+    await expect(page.locator('[data-rail-panel-box]')).toBeHidden()
+
+    // A navigating icon swaps the panel's section on its destination (the rail
+    // itself never hides).
+    await page.click('.rail .rail-primary a[data-rail-panel="sparks"]')
+    await page.waitForURL('**/sparks.html', { timeout: 10_000 })
+    await expect(page.locator('.rail-panel-title')).toHaveText('Ideas')
     await expect(page.locator('nav.rail')).toBeVisible()
   })
 
@@ -745,6 +733,10 @@ test.describe('the secondary panel (VS Code Activity Bar + Side Bar pattern)', (
   test('the Ideas panel: an idea item opens THE IDEA ITSELF — its own page, never the folder shelf (S92)', async ({ page }) => {
     await login(page)
     await page.click('.rail .rail-primary a[data-rail-panel="sparks"]')
+    // S115 r2 (owner, "clicking on idea icon must open https://hibana.ir/sparks as
+    // well"): the Ideas icon joins the NAVIGATORS — the click lands on the Ideas
+    // page with the panel riding along (the To-do/Projects/Calendar pattern).
+    await page.waitForURL('**/sparks.html', { timeout: 10_000 })
     const panel = page.locator('[data-rail-panel-box]')
     await expect(panel).toBeVisible()
     await expect(page.locator('.rail-panel-title')).toHaveText('Ideas')
@@ -752,6 +744,19 @@ test.describe('the secondary panel (VS Code Activity Bar + Side Bar pattern)', (
     // The seeded spark ('Rail project 2', status=spark, no folder) rides Unfiled.
     const item = page.locator('.rail-group', { hasText: 'Unfiled' }).locator('.rail-item', { hasText: 'Rail project 2' })
     await expect(item).toHaveCount(1)
+
+    // S115 r2 (owner, "the folders must be collapsed until user clicks on them"):
+    // the seeded folder ships FOLDED — its idea is hidden until the folder head is
+    // clicked, then the row reveals with its deep link (the Unfiled inbox stays
+    // open — it is the capture surface, not a folder).
+    const folder = page.locator('.rail-group', { hasText: 'Rail idea folder' })
+    await expect(folder).toHaveClass(/is-collapsed/)
+    const filed = folder.locator('.rail-item', { hasText: 'Rail filed idea' })
+    await expect(filed).toBeHidden()
+    await folder.locator('.rail-group-head').click()
+    await expect(folder).not.toHaveClass(/is-collapsed/)
+    await expect(filed).toBeVisible()
+    await expect(filed).toHaveAttribute('href', /^\/project\.html\?id=.+/)
 
     // S92 (owner report): the row deep-links to the spark's OWN page — the same
     // destination a spark card uses on the Ideas page — not the bare /sparks.html

@@ -308,7 +308,7 @@
             const md = lines.join('\n') + '\n'
             try {
               await navigator.clipboard.writeText(md)
-              window.hibana?.toast(this.t('reports.digestCopied', 'Summary copied as Markdown'))
+              window.hibana?.toast(this.t('reports.digestCopied', 'Summary copied as Markdown'), 'ok')
             } catch {
               window.hibana?.toast(this.t('reports.copyFailed', 'Copy failed — your browser blocked clipboard access'), 'err')
             }
@@ -354,7 +354,7 @@
             a.click()
             a.remove()
             setTimeout(() => URL.revokeObjectURL(url), 4000)
-            window.hibana?.toast(this.t('reports.csvSaved', 'CSV downloaded'))
+            window.hibana?.toast(this.t('reports.csvSaved', 'CSV downloaded'), 'ok')
           },
         }))
       },

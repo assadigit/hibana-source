@@ -149,15 +149,22 @@
 /* Batch (q) 2026-09-07 — COMPACT dashboard cards. S105 (owner: "too visually
    noisy"): the skc-open arrow button is GONE — the whole card navigates via
    data-nav-url (nav.js) and drag still changes status, so a dedicated arrow circle
-   was pure decoration. One tight row — single-line ellipsized heading + bug bubble —
-   then the quiet meta line (timeAgo · backlog · idea/plan/hurdle counts as text). */
+   was pure decoration. S115 (owner, "still noisy — clean, professional"): the
+   meta line (timeAgo · backlog · idea/plan/hurdle counts) is RETIRED too — the
+   card face is ONE row: single-line ellipsized heading + bug bubble, nothing
+   else (freshness lives in the hover title). Vertical rhythm retuned for the
+   single-line anatomy: symmetric padding, no inter-row gap to pay for. */
+.card.stat-kanban-card { padding-block: 0.5rem; gap: 0; }
 .skc-row { display: flex; align-items: center; gap: 0.4rem; min-inline-size: 0; }
 .skc-title {
   flex: 1 1 auto; min-inline-size: 0;
   font-size: var(--fs-md); line-height: 1.35; font-weight: 600;
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
-.skc-updated { font-size: var(--fs-xs); line-height: 1.3; }
+/* S115: the demoted cards-view hop — a quiet muted affordance, no arrow icon
+   competing with the count pill (the eye reads icon → label → count again). */
+.stat-viewall { text-decoration: none; flex: none; }
+.stat-viewall:hover { color: var(--fg); text-decoration: underline; }
 /* Reports Working/Archived boxes keep a plain list of project links (2026-08-25). */
 .stat-recent {
   margin: 0.65rem 0 0;

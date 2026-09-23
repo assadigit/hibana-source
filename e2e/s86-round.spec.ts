@@ -277,7 +277,8 @@ test('task composer uploads FILES: a PDF stages as a file tile and pins to the s
   expect(accept).toContain('.docx')
   const modal = page.locator('#pd-taskadd-modal, dialog[open]').first()
   await expect(modal).toBeVisible()
-  await expect(page.locator('button[onclick*="pd-taskadd-shots"]')).toHaveText(/Upload screenshot/)
+  // S115 (owner): the button says "Upload File" now — images AND documents/video.
+  await expect(page.locator('button[onclick*="pd-taskadd-shots"]')).toHaveText(/Upload File/)
 
   // A real PDF file through the composer's picker.
   const PDF = Buffer.from('%PDF-1.4\n%% e2e s86 doc\n')

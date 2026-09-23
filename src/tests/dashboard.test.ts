@@ -102,16 +102,17 @@ describe('dashboard stat boxes', () => {
       }
       expect(strip).not.toContain('badge-')
 
-      // Cards are compact skc-rows (S105 clean-up): title + bug bubble + a quiet meta
-      // line (timeAgo · backlog · idea/plan/hurdle counts as PLAIN TEXT). The open-arrow
-      // button, the sig-chip pills and the visible status word are RETIRED — the whole
-      // card navigates via data-nav-url, drag still changes status.
+      // Cards are compact skc-rows (S105 clean-up, one step further in S115): title +
+      // bug bubble ONLY. The open-arrow button, the sig-chip pills, the visible status
+      // word AND the meta line (timeAgo · backlog · counts) are RETIRED — the whole
+      // card navigates via data-nav-url, drag still changes status, freshness rides
+      // the hover title ("Drag … · Updated <timeAgo>").
       expect(strip).toContain('class="row skc-row"')
       expect(strip).not.toContain('class="skc-open"')
       expect(strip).not.toContain('skc-signals')
       expect(strip).not.toContain('sig-chip')
-      expect(strip).toContain('class="skc-title"')
-      expect(strip).toContain('skc-updated')
+      expect(strip).not.toContain('skc-updated')
+      expect(strip).toContain('· Updated ')
       expect(strip).toContain('data-nav-url="/project.html?id=')
       expect(strip).toContain(`/project.html?id=${planning}`)
       expect(strip).toContain(`/project.html?id=${developing}`)
@@ -127,7 +128,9 @@ describe('dashboard stat boxes', () => {
       // box carries a create control anymore.
       expect(strip).not.toContain('data-quickadd-open')
       expect(strip).not.toContain('data-projectquickadd')
-      expect((strip.match(/View all </g) ?? []).length).toBe(5)
+      // S115: the demoted cards-view hop — muted text, the arrow icon is gone.
+      expect((strip.match(/class="muted small stat-viewall"/g) ?? []).length).toBe(5)
+      expect(strip).not.toContain('icon arrow')
       for (const s of CAROUSEL) expect(strip).toContain(`/projects.html?status=${s}&view=cards`)
 
       // Order: to-do → stat boxes → notebook → recent activity. The Ideas shelf is gone.
@@ -210,7 +213,7 @@ describe('dashboard stat boxes', () => {
       expect((strip.match(/class="stat stat-box is-empty" data-status="/g) ?? []).length).toBe(2)
       expect(strip).not.toContain('data-quickadd-open')
       expect(strip).not.toContain('data-projectquickadd')
-      expect(strip).toContain('View all ')
+      expect(strip).toContain('>View all</a>')
       expect(strip).toContain('/projects.html?status=planning&view=cards')
       expect(strip).toContain('/projects.html?status=developing&view=cards')
       expect(strip).toContain('/projects.html?status=operational&view=cards')
@@ -220,8 +223,8 @@ describe('dashboard stat boxes', () => {
       expect(html).not.toContain('mini-kanban')
       expect(html).not.toContain('kanban-col')
 
-      // The row keeps its place-marker — the compact Phase 5 card shows time ago only.
-      expect(strip).toContain('class="muted small skc-updated"')
+      // S115: zero secondary lines — the skc-updated meta line is retired everywhere.
+      expect(strip).not.toContain('skc-updated')
     } finally {
       close()
     }

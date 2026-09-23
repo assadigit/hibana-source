@@ -586,7 +586,7 @@ export function detailHtml(p: ProjectRow, d: Awaited<ReturnType<typeof loadDetai
          via the S86 file tiles); "Screenshots" was a misnomer for every non-image row. -->
     <h3>${trL(lang, 'Uploaded Files — pictures & documents of the UI/UX problems', 'فایل‌های آپلودشده — تصویرها و سندهای مشکلات UI/UX')}</h3>
     <p class="muted small">${trL(lang, 'Snap what looks broken (button, file picker, gallery) or attach the file, drop it here or paste it, then write the note on the card — what & where to work. Fix it and check it off.', 'از چیزهای خراب عکس بگیر (دکمه، فایل‌پیکر، گالری) یا فایل را پیوست کن، همین‌جا رها کن یا پیست کن، بعد روی کارت یادداشتش را بنویس — چه چیزی و کجا. درستش که شد تیکش را بزن.')}</p>
-    <input type="file" id="shot-input" accept=".pdf,.csv,.xlsx,.docx,.md,.txt,image/png,image/jpeg,image/webp,image/gif" multiple hidden>
+    <input type="file" id="shot-input" accept=".pdf,.csv,.xlsx,.docx,.md,.txt,image/png,image/jpeg,image/webp,image/gif,video/webm" multiple hidden>
     <button class="ghost" onclick="document.getElementById('shot-input').click()">${trL(lang, 'Upload files', 'آپلود فایل‌ها')}</button>
     <div class="shot-grid" id="shots" hx-trigger="load" hx-swap="innerHTML">${shots}</div>
   </section>
@@ -713,9 +713,9 @@ export function detailHtml(p: ProjectRow, d: Awaited<ReturnType<typeof loadDetai
            task (PATCH taskId); on cancel they're deleted (cleanup). project-page.js owns the
            stagedShots[] state + the render/delete/edit-note/pin/cleanup lifecycle. -->
       <div class="pd-taskadd-shots">
-        <input type="file" id="pd-taskadd-shots" accept=".pdf,.csv,.xlsx,.docx,.md,.txt,image/png,image/jpeg,image/webp,image/gif" multiple hidden>
+        <input type="file" id="pd-taskadd-shots" accept=".pdf,.csv,.xlsx,.docx,.md,.txt,image/png,image/jpeg,image/webp,image/gif,video/webm" multiple hidden>
         <div class="row" style="gap:.4rem;align-items:center;margin-top:.5rem">
-          <button type="button" class="ghost small" onclick="document.getElementById('pd-taskadd-shots').click()" title="${trL(lang, 'Upload a screenshot or file — images, PDF, Excel, Word, Markdown, text — pinned to this item', 'اسکرین‌شات یا فایل آپلود کن — تصویر، PDF، اکسل، ورد، مارک‌داون، متن — سنجاق‌شده به این قلم')}">${icon('attach')} ${trL(lang, 'Upload screenshot', 'آپلود اسکرین‌شات')}</button>
+          <button type="button" class="ghost small" onclick="document.getElementById('pd-taskadd-shots').click()" title="${trL(lang, 'Upload a file — images, video (webm), PDF, Excel, Word, Markdown, text — pinned to this item', 'فایل آپلود کن — تصویر، ویدیو (وب‌ام)، PDF، اکسل، ورد، مارک‌داون، متن — سنجاق‌شده به این قلم')}">${icon('attach')} ${trL(lang, 'Upload File', 'آپلود فایل')}</button>
           <!-- S61: the old «در حال اپلود تصویر …» span is gone — project-page.js mounts a
                .shots-upload-strip with per-file progress bars right above the grid. -->
           <span class="muted small" id="pd-taskadd-shots-count"></span>

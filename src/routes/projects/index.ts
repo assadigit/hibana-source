@@ -434,7 +434,7 @@ export function projectsRoutes(cfg: Config) {
         [uuid(), p.id, body.latest_note, now],
       )
     }
-    if (c.req.header('HX-Request')) return c.html(toastHtml(t('Saved', 'ذخیره شد'), lang))
+    if (c.req.header('HX-Request')) return c.html(toastHtml(t('Saved', 'ذخیره شد'), lang, undefined, 'ok'))
     return c.json({ ok: true })
   })
 
@@ -463,7 +463,7 @@ export function projectsRoutes(cfg: Config) {
       ])
     }
     if (c.req.header('HX-Request')) {
-      return c.html(toastHtml(t('Deleted "{title}".', '«{title}» حذف شد', { title: p.title }), lang, canHardDelete && force ? undefined : `/api/projects/${p.id}/restore`))
+      return c.html(toastHtml(t('Deleted "{title}".', '«{title}» حذف شد', { title: p.title }), lang, canHardDelete && force ? undefined : `/api/projects/${p.id}/restore`, 'ok'))
     }
     return c.json({ ok: true, soft: !(canHardDelete && force) })
   })
@@ -475,7 +475,7 @@ export function projectsRoutes(cfg: Config) {
     await cfg.db.execute('UPDATE projects SET deleted_at = NULL, updated_at = ? WHERE id = ? AND user_id = ?', [
       new Date().toISOString(), c.req.param('id'), user.id,
     ])
-    if (c.req.header('HX-Request')) return c.html(toastHtml(t('Restored', 'بازگردانی شد'), lang))
+    if (c.req.header('HX-Request')) return c.html(toastHtml(t('Restored', 'بازگردانی شد'), lang, undefined, 'ok'))
     return c.json({ ok: true })
   })
 
@@ -519,7 +519,7 @@ export function projectsRoutes(cfg: Config) {
     await cfg.db.execute('INSERT INTO project_history_log (id, project_id, note, created_at) VALUES (?, ?, ?, ?)', [
       uuid(), p.id, t('Archived — parked, not deleted', 'بایگانی شد — کنار گذاشته، نه حذف'), now,
     ])
-    if (c.req.header('HX-Request')) return c.html(toastHtml(t('Archived "{title}". Find it under Archive.', '«{title}» بایگانی شد. در «آرشیو» پیدایش می‌کنی.', { title: p.title }), lang, `/api/projects/${p.id}/unarchive`))
+    if (c.req.header('HX-Request')) return c.html(toastHtml(t('Archived "{title}". Find it under Archive.', '«{title}» بایگانی شد. در «آرشیو» پیدایش می‌کنی.', { title: p.title }), lang, `/api/projects/${p.id}/unarchive`, 'ok'))
     return c.json({ ok: true, archived: true })
   })
 
@@ -544,7 +544,7 @@ export function projectsRoutes(cfg: Config) {
       const tagsMap = await loadTags(cfg, user.id)
       return c.html(archiveShelfHtml(rest, tagsMap, lang))
     }
-    if (c.req.header('HX-Request')) return c.html(toastHtml(t('Restored "{title}"', '«{title}» بازگردانی شد', { title: p.title }), lang))
+    if (c.req.header('HX-Request')) return c.html(toastHtml(t('Restored "{title}"', '«{title}» بازگردانی شد', { title: p.title }), lang, undefined, 'ok'))
     return c.json({ ok: true, archived: false })
   })
 
@@ -568,7 +568,7 @@ export function projectsRoutes(cfg: Config) {
         uuid(), p.id, body.note, now,
       ])
     }
-    if (c.req.header('HX-Request')) return c.html(toastHtml(t('Note saved', 'یادداشت ذخیره شد'), lang))
+    if (c.req.header('HX-Request')) return c.html(toastHtml(t('Note saved', 'یادداشت ذخیره شد'), lang, undefined, 'ok'))
     return c.json({ ok: true })
   })
 

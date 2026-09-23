@@ -368,6 +368,18 @@
       const active = sameDoc && (!row.hash || row.hash === here.hash)
       a.classList.toggle('is-row-active', active)
     })
+    // S115 r2: a project BRANCH carries the current-location mark too — its identity
+    // is the goto chip's href (the head is a toggle, not a link), so markRailRows
+    // walks the branch's chip and tints the headrow (.is-here in layout.css) while
+    // the owner sits on that project's page.
+    box.querySelectorAll('.rail-project-group[data-project-branch]').forEach((g) => {
+      const chip = g.querySelector('.rail-group-goto')
+      if (!chip) return
+      let row
+      try { row = new URL(chip.href) } catch { return }
+      g.classList.toggle('is-here', row.pathname === here.pathname &&
+        (idOf(row) || null) === (idOf(here) || null))
+    })
   }
 
   // --- S88: the navigation rail's SECONDARY PANEL (VS Code Activity Bar + Side Bar) --
@@ -592,21 +604,20 @@
   const renderRailProjects = (d) => {
     // S93 (owner round, item 14): the projects panel groups projects under their
     // STAGE (0060 taxonomy) — the owner's sketch: "-planning / item one / item two /
-    // -queued / …". Rows deep-link to the project's own page (the S89 ?id= contract);
-    // operational rides collapsed at the end.
-    // S94 (owner item 6 — the DEEPER tree): stage → PROJECT → boxes → items.
-    // A project carrying board dev-tasks (/api/rail projectTasks) grows a nested
-    // branch under its row: its progress boxes as collapsible sub-heads, each
-    // counting its items, items deep-linking to the project page where those boxes
-    // live. The sub-groups are .rail-group markup (class contract: [data-rail-group]
-    // toggles the CLOSEST .rail-group) nested inside the stage body — the S91
-    // tree-guide indent compounds (0.8rem per level), so the hierarchy reads exactly
-    // like the owner's sketch; sub-groups ship COLLAPSED so the panel stays a
-    // scannable summary, drill-down on demand. Projects without board tasks stay
-    // flat rows.
-    // S95 r2 (owner item 1): EVERY box the board renders rides — a box with ≥1 item
-    // grows its group (idea/bug/planned/in_progress/done, the board's column order),
-    // not just New ideas + Problems.
+    // -queued / …". Operational rides collapsed at the end.
+    // S115 r2 (owner, the sidebar sketch): every project's ASPECT groups (New ideas /
+    // Problems / Plans / In Progress / Done — the board's column order) used to ride
+    // under its row permanently visible; the owner wants them COLLAPSED until the
+    // project title itself is clicked — "then the collapsible menu expands to show
+    // different aspects of project". So a project carrying board dev-tasks grows a
+    // per-project collapsible branch (the .rail-group contract — [data-rail-group]
+    // toggles the CLOSEST group, so the nesting toggles honestly): the branch ships
+    // .is-collapsed, the TITLE is the toggle, and a quiet ↗ goto chip (the S98
+    // recipe) keeps the S89 deep-link to the project's page — expansion and
+    // navigation no longer fight over one click. The branch's body holds the S95
+    // sub-groups (each collapsed in turn; their leaves deep-link to the EXACT box —
+    // #pd-col-<status> / #detail-problems). A project with no board tasks stays a
+    // plain link row — nothing to expand, so the click opens the project itself.
     const projects = d.projects || []
     const ptasks = d.projectTasks || []
     // The board's column order + vocabulary (detail-helpers COLS) — one source of
@@ -618,39 +629,50 @@
       { key: 'in_progress', i18n: 'rail.g.inProgress', label: 'In Progress' },
       { key: 'done', i18n: 'rail.g.done', label: 'Done' },
     ]
+    // S95 (candidate 3 + r2): the tree's leaf rows land ON the exact BOX where that
+    // work lives — every board column carries its own anchor (#pd-col-<status>), so a
+    // box's items deep-link to the column itself; problems keep their dedicated tab
+    // panel (#detail-problems — the page's hash boot opens that tab).
+    const SUB_TARGET = {
+      idea: '#pd-col-idea',
+      bug: '#detail-problems',
+      planned: '#pd-col-planned',
+      in_progress: '#pd-col-in_progress',
+      done: '#pd-col-done',
+    }
+    const bugBadgeFor = (pid) => {
+      const bugCount = ptasks.filter((t) => t.project_id === pid && t.status === 'bug').length
+      if (!bugCount) return ''
+      // S95 (at-a-glance triage): a project carrying OPEN BUGS wears a small count
+      // badge — the owner scans which projects carry problems WITHOUT expanding
+      // anything (the awaiting_dev rust, the ink the Problems dot speaks). aria-label
+      // composes from the existing rail.g.problems key so FA reads «۳ مشکلات».
+      return '<span class="rail-item-badge rail-bug-badge"' +
+        ' title="' + escHtml(railFaDig(bugCount) + ' ' + railT('rail.g.problems', 'Problems')) + '"' +
+        ' aria-label="' + escHtml(railFaDig(bugCount) + ' ' + railT('rail.g.problems', 'Problems')) + '">' +
+        railFaDig(bugCount) + '</span>'
+    }
     const projectBranch = (p) => {
       const href = '/project.html?id=' + encodeURIComponent(p.id)
       const mine = ptasks.filter((t) => t.project_id === p.id)
-      // S95 (candidate 2 — at-a-glance triage): a project carrying OPEN BUGS wears
-      // a small count badge on its own row — the owner scans which projects carry
-      // problems WITHOUT expanding anything (the problems register: the awaiting_dev
-      // rust, the same ink the Problems dot speaks). aria-label composes from the
-      // existing rail.g.problems key so FA reads «۳ مشکلات».
-      const bugCount = mine.filter((t) => t.status === 'bug').length
-      const bugBadge = bugCount
-        ? '<span class="rail-item-badge rail-bug-badge"' +
-          ' title="' + escHtml(railFaDig(bugCount) + ' ' + railT('rail.g.problems', 'Problems')) + '"' +
-          ' aria-label="' + escHtml(railFaDig(bugCount) + ' ' + railT('rail.g.problems', 'Problems')) + '">' +
-          railFaDig(bugCount) + '</span>'
-        : ''
-      // S106 r2: the project's own row carries .rail-project-row (the 700 bold
-      // register in layout.css) — the owner's "Bold Project Names" reaches the
-      // sidebar tree's second hierarchy level: stage head (700 uppercase wash) →
-      // PROJECT name (700) → sub-group head (500) → items (400).
-      const row = railItem(href, p.title, p.status, null, bugBadge, 'rail-project-row')
-      if (!mine.length) return row
-      // S95 (candidate 3 + r2): the tree's leaf rows land ON the exact BOX where
-      // that work lives — every board column now carries its own anchor
-      // (#pd-col-<status>), so a box's items deep-link to the column itself;
-      // problems keep their dedicated tab panel (#detail-problems — the page's
-      // hash boot opens that tab). Native hash scrolling does the landing.
-      const SUB_TARGET = {
-        idea: '#pd-col-idea',
-        bug: '#detail-problems',
-        planned: '#pd-col-planned',
-        in_progress: '#pd-col-in_progress',
-        done: '#pd-col-done',
+      if (!mine.length) {
+        // No board tasks → no aspects to reveal: a plain bold row, click = open.
+        return railItem(href, p.title, p.status, null, bugBadgeFor(p.id), 'rail-project-row')
       }
+      // The branch head is a TOGGLE (not a link): chevron + the project's status dot
+      // + the bold name (.rail-project-row, the S106 700 register) + the bug badge.
+      const head =
+        '<button type="button" class="rail-group-head rail-project-head" data-rail-group aria-expanded="false">' +
+        '<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>' +
+        '<span class="rail-dot" data-status="' + escHtml(p.status) + '" aria-hidden="true"></span>' +
+        '<span class="rail-project-row" dir="auto">' + escHtml(p.title) + '</span>' +
+        bugBadgeFor(p.id) +
+        '</button>'
+      const goto =
+        '<a class="rail-group-goto" href="' + escHtml(href) + '"' +
+        ' aria-label="' + escHtml(railT('rail.openProject', 'Open project')) + '"' +
+        ' title="' + escHtml(railT('rail.openProject', 'Open project')) + '">' +
+        '<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 17 17 7M7 7h10v10"/></svg></a>'
       const subs = SUB_GROUPS.map((g) => {
         const items = mine.filter((t) => t.status === g.key)
         if (!items.length) return ''
@@ -663,7 +685,10 @@
           items.map((t) => railItem(href + (SUB_TARGET[g.key] || ''), t.title, null)).join('') +
           '</div></div>'
       }).join('')
-      return subs ? row + subs : row
+      return '<div class="rail-group rail-project-group is-collapsed" data-project-branch="' + escHtml(p.id) + '">' +
+        '<div class="rail-group-headrow">' + head + goto + '</div>' +
+        '<div class="rail-group-body">' + subs + '</div>' +
+        '</div>'
     }
     const rows = (s) => projects.filter((p) => p.status === s).map(projectBranch)
     return RAIL_STAGE_GROUPS.map((g) =>
@@ -693,9 +718,14 @@
       railItem(sparkHref(sp), sp.title, 'spark', sparkEmoji(fid)))
     const unfiled = sparks.filter((sp) => !sp.folder_id).map((sp) =>
       railItem(sparkHref(sp), sp.title, 'spark'))
+    // S115 r2 (owner, "the folders must be collapsed until user clicks on them"):
+    // each spark folder ships FOLDED — the panel opens as a quiet shelf of folder
+    // names (+ the unfiled inbox, which stays open: it is the capture surface, not
+    // a folder); a click on the folder head reveals its ideas. The [data-rail-group]
+    // toggle + the S97 tree-fold button keep working unchanged.
     return [
       railGroup(railT('rail.g.unfiled', 'Unfiled'), unfiled),
-      folders.map((f) => railGroup(f.name, inFolder(f.id))).join(''),
+      folders.map((f) => railGroup(f.name, inFolder(f.id), { collapsed: true })).join(''),
     ].join('') || '<div class="rail-panel-empty">' + escHtml(railT('rail.sparksEmpty', 'No ideas captured yet — the Ideas shelf fills as you spark.')) + '</div>'
   }
 

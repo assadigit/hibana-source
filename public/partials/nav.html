@@ -32,8 +32,13 @@
     <!-- S93 (owner round, items 2 + 10): Dashboard and Projects are NAVIGATION now —
          a click shows the page (the panel never opens for Dashboard; Projects ALSO opens
          its sidebar panel alongside via data-rail-nav, because item 14 wants the grouped
-         project list there). Ideas / Notes / Calendar keep the S88 VS Code semantics
+         project list there). Notes keeps the S88 VS Code semantics
          (click opens the panel; the panel header's "Open →" navigates).
+         S105: Calendar joins them too (the owner's "the calendar icon only opens
+         the sidebar" report).
+         S115 r2 (owner, "clicking on idea icon must open https://hibana.ir/sparks as
+         well"): Ideas joins the navigators — the click opens the panel AND lands
+         on /sparks.html (the Calendar pattern, one line).
          S95 r2 (owner item 3): To-do joins the navigators — a click lands on
          /to-do-list (its tickable panel rides along, the Projects pattern). -->
     <a class="rail-btn" href="/dashboard.html" aria-label="Dashboard" data-i18n-aria-label="nav.dashboard" data-i18n-title="nav.dashboard" title="Dashboard">
@@ -48,7 +53,7 @@
       <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h7a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7Z"/><path d="M12 11v4M10 13h4"/></svg>
       <span class="rail-label" data-i18n="rail.label.projects">Projects</span>
     </a>
-    <a class="rail-btn" href="/sparks.html" data-rail-panel="sparks" aria-label="Ideas" data-i18n-aria-label="nav.sparks" data-i18n-title="nav.sparks" title="Ideas">
+    <a class="rail-btn" href="/sparks.html" data-rail-panel="sparks" data-rail-nav aria-label="Ideas" data-i18n-aria-label="nav.sparks" data-i18n-title="nav.sparks" title="Ideas">
       <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 18h6M10 22h4"/><path d="M12 2a7 7 0 0 0-4.2 12.6c.9.7 1.2 1.6 1.2 2.4h6c0-.8.3-1.7 1.2-2.4A7 7 0 0 0 12 2Z"/></svg>
       <span class="rail-label" data-i18n="rail.label.ideas">Ideas</span>
     </a>

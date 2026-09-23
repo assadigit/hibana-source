@@ -989,6 +989,9 @@ button.pd-task-add {
 .pd-taskadd-shots-grid .shot-card { margin: 0; overflow: hidden; border: 1px solid var(--line); border-radius: var(--radius); background: var(--card); }
 .pd-taskadd-shots-grid .shot-img-btn { display: block; aspect-ratio: 1 / 1; overflow: hidden; padding: 0; border-radius: var(--radius-sm); }
 .pd-taskadd-shots-grid .shot-img-btn img { inline-size: 100%; block-size: 100%; object-fit: cover; object-position: center; display: block; }
+/* S115: staged webm recordings preview as a real <video> — the same square frame
+   the staged images speak, native controls inside it. */
+.pd-taskadd-shots-grid .shot-video { inline-size: 100%; block-size: 100%; aspect-ratio: 1 / 1; object-fit: cover; border: 0; border-radius: var(--radius-sm); display: block; }
 .pd-taskadd-shots-grid .shot-body { padding: 0.3rem; }
 .pd-taskadd-shots-grid .shot-actions { gap: 0.2rem; }
 .pd-taskadd-shots-grid .shot-actions .ghost.small { font-size: var(--fs-xs); padding: 0.1rem 0.4rem; min-block-size: 0; }

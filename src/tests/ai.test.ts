@@ -78,6 +78,10 @@ describe('ai service (idea §1)', () => {
     const sys = msgs[0].content
     // The default polish prompt mentions "copy editor"
     expect(sys).toContain('copy editor')
+    // S115 (owner): polish is a strict copy-edit — the prompt names the allowed
+    // fixes AND forbids the meaning drift the previous "clarity" line invited.
+    expect(sys).toContain('Correct ONLY spelling, punctuation, symbols, capitalization, and grammar')
+    expect(sys).toContain('The meaning must stay EXACTLY the same')
     // COMMON_RULES are always appended
     expect(sys).toContain('Output ONLY the transformed text')
   })

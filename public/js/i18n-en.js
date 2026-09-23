@@ -44,6 +44,8 @@ window.__hibanaDictEN = {
       'rail.expandAll': 'Expand all', 'rail.collapseAll': 'Collapse all',
       // S98: the quadrant groups' goto chip — lands the deep link on the board
       'rail.openOnBoard': 'Open on the board',
+      // S115 r2: the projects tree's per-project goto chip — opens the project page
+      'rail.openProject': 'Open project',
       // S89: the LABELED rail — a small text label rides under every icon
       'rail.label.search': 'Search', 'rail.label.dashboard': 'Dashboard', 'rail.label.todo': 'To-do',
       'rail.label.projects': 'Projects', 'rail.label.ideas': 'Ideas', 'rail.label.notes': 'Notes',
@@ -580,7 +582,7 @@ window.__hibanaDictEN = {
       'gallery.selectedCount': '{n} selected · ≈{size}',
       'gallery.deleteSelected': 'Delete selected', 'gallery.clearSelection': 'Clear selection',
       'gallery.deleteSelectedConfirm': 'Delete {n} pictures for good? Frees ≈{size} of space.',
-      'gallery.bulkDeleted': '{n} pictures deleted — space freed', 'gallery.bulkDeletedPartial': '{n} deleted · {m} failed',
+      'gallery.bulkDeleted': '{n} files deleted — space freed', 'gallery.bulkDeletedPartial': '{n} deleted · {m} failed',
       'gallery.editNote': 'Click to edit the note',
       'gallery.noteWandHint': 'Focus the note — the ✨ wand polishes or translates it',
       // S80: sort control + select-all + the range-pick affordance hint
@@ -588,6 +590,7 @@ window.__hibanaDictEN = {
       'gallery.sortNew': 'Newest first', 'gallery.sortOld': 'Oldest first',
       'gallery.sortBig': 'Largest first', 'gallery.sortSmall': 'Smallest first',
       'gallery.selectAll': 'Select all ({n})', 'gallery.deselectAll': 'Deselect all',
+      'gallery.deleteAll': 'Delete all', 'gallery.deleteAllConfirm': 'Delete ALL {n} pictures/files for good? This frees ≈{size} and cannot be undone.',
       'gallery.rangeHint': 'Shift+click picks a range',
       // S81 — the touch counterpart of the range affordance (long-press A, tap B)
       'gallery.rangeTouchHint': 'Hold a picture, then tap another to pick a range',
@@ -601,7 +604,7 @@ window.__hibanaDictEN = {
       'pd.pr.urgent': 'Urgent', 'pd.pr.high': 'High Priority', 'pd.pr.medium': 'Medium Priority', 'pd.pr.low': 'Low Priority',
       'pd.labels': 'Labels', 'pd.labelsPh': 'e.g. UI/UX, Security', 'pd.labelsHint': 'Comma-separated — a chip per label',
       // S46.2: screenshots in the task editor (pde-form) — upload + pin to this item + view pinned
-      'pde.shotsAttach': 'Upload screenshot', 'pde.shotsAttachTitle': 'Upload a screenshot or file — images, PDF, Excel, Word, Markdown, text — pinned to this item',
+      'pde.shotsAttach': 'Upload File', 'pde.shotsAttachTitle': 'Upload a file — images, video (webm), PDF, Excel, Word, Markdown, text — pinned to this item',
       'pde.shotsView': 'Pinned pictures', 'pde.shotsViewTitle': 'View pictures pinned to this item',
       'pde.shotsUploading': 'Uploading image…',
       // S46.7: editor title + full-screen writing + add-note button (when no note)

@@ -83,7 +83,7 @@ export function shotsGridHtml(
           <img src="/api/media/screenshots/${s.id}/file" alt="${esc(s.caption)}" loading="lazy">
         </button>`
           : isVideo
-          ? `<video class="shot-video" src="/api/media/screenshots/${s.id}/file" controls preload="metadata" playsinline></video>`
+          ? `<video class="shot-video" src="/api/media/screenshots/${s.id}/file" controls preload="metadata" playsinline tabindex="0" aria-label="${trL(lang, 'Recording — press Enter to view full screen', 'ضبط‌شده — برای دیدن تمام‌صفحه اینتر را بزنید')}"></video>`
           : shotFileTileHtml(s, lang)}
         <figcaption class="shot-body">
           ${s.task_id && tasks.get(s.task_id) ? (() => {

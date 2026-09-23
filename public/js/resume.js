@@ -89,8 +89,10 @@
   const ICONS = {
     project: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h7a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7Z"/></svg>',
     note: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 5h9l5 5v9a1.5 1.5 0 0 1-1.5 1.5h-12A1.5 1.5 0 0 1 4 19V6.5A1.5 1.5 0 0 1 5.5 5Z"/><path d="M8 12h8M8 15.5h5"/></svg>',
+    // S119: the spark bulb — the SAME glyph the stage badges already speak.
+    spark: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 18h6M10 22h4"/><path d="M12 2a7 7 0 0 0-4.2 12.6c.9.7 1.2 1.6 1.2 2.4h6c0-.8.3-1.7 1.2-2.4A7 7 0 0 0 12 2Z"/></svg>',
   }
-  const urlFor = (e) => (e.k === 'project' ? '/project.html?id=' + encodeURIComponent(e.id) : '/notes.html#n=' + encodeURIComponent(e.id))
+  const urlFor = (e) => (e.k === 'project' ? '/project.html?id=' + encodeURIComponent(e.id) : e.k === 'spark' ? '/sparks.html' : '/notes.html#n=' + encodeURIComponent(e.id))
   const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]))
 
   // The hero's stage badge: fixed-palette chip (badge-{stage} tokens — the same roles
@@ -115,7 +117,7 @@
     const clearLabel = () => _t('resume.clear', 'Clear')
     const clearAria = () => _t('resume.clearAria', 'Clear the resume history')
     const ctaText = () => _t('resume.cta', 'Open')
-    const kindOf = (e) => (e.k === 'project' ? _t('resume.project', 'Project') : _t('resume.note', 'Note'))
+    const kindOf = (e) => (e.k === 'project' ? _t('resume.project', 'Project') : e.k === 'spark' ? _t('resume.spark', 'Idea') : _t('resume.note', 'Note'))
     // S118 (S117 candidate 5): an untitled note rendered as a bare '—' — every other
     // surface (the vault cards, the command palette) speaks a localized Untitled label.
     // Reuse the EXISTING keys (no new parity surface): notes → cmdk.untitledNote,
@@ -125,7 +127,7 @@
     const chips = rest.map((e) => {
       const label = heroLabel().split('{k}').join(kindOf(e)).split('{t}').join(titleOf(e))
       return `<a class="resume-chip" href="${urlFor(e)}" data-resume-go="${urlFor(e)}" aria-label="${esc(label)}" title="${esc(titleOf(e))}">
-        <span class="resume-chip-ico ${e.k === 'project' ? 'is-project' : 'is-note'}">${ICONS[e.k] || ICONS.note}</span>
+        <span class="resume-chip-ico ${e.k === 'project' ? 'is-project' : e.k === 'spark' ? 'is-spark' : 'is-note'}">${ICONS[e.k] || ICONS.note}</span>
         <span class="resume-chip-body">
           <span class="resume-chip-title" dir="auto">${esc(titleOf(e))}</span>
           <span class="resume-chip-meta">${esc(kindOf(e))} · ${esc(timeAgo(e.ts))}</span>
@@ -138,7 +140,7 @@
     const heroHtml = (mount) => {
       const h = mount.querySelector('.resume-hero')
       const next = `<a class="resume-hero" href="${urlFor(hero)}" data-resume-go="${urlFor(hero)}" aria-label="${esc(heroAria)}">
-        <span class="resume-chip-ico ${hero.k === 'project' ? 'is-project' : 'is-note'}">${ICONS[hero.k] || ICONS.note}</span>
+        <span class="resume-chip-ico ${hero.k === 'project' ? 'is-project' : hero.k === 'spark' ? 'is-spark' : 'is-note'}">${ICONS[hero.k] || ICONS.note}</span>
         <span class="resume-hero-body">
           <span class="resume-hero-kicker">${esc(kindOf(hero))}${stageBadge(hero) ? ' ' + stageBadge(hero) + ' ' : ' · '}<span class="resume-hero-time">${esc(timeAgo(hero.ts))}</span></span>
           <span class="resume-hero-title" dir="auto">${esc(titleOf(hero))}</span>

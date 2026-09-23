@@ -217,6 +217,19 @@
           try { vid.pause() } catch {} // the tile player stops when the big one opens
           openLightbox(fig.dataset.shot || '', vid)
         })
+        // S119 (keyboard parity with the dblclick): the tiles are focusable
+        // (tabindex="0" + an aria-label in the markup) — Enter opens the big view;
+        // Space stays the video's native play/pause. Same walk, Esc returns focus.
+        ctx.on('keydown', (e) => {
+          if (e.key !== 'Enter') return
+          const vid = e.target instanceof Element && e.target.matches('video.shot-video') ? e.target : null
+          if (!vid) return
+          const fig = vid.closest('.gal-card')
+          if (!fig) return
+          e.preventDefault()
+          try { vid.pause() } catch {}
+          openLightbox(fig.dataset.shot || '', vid)
+        })
 
         const visible = () => {
           const rows = state.rows.filter((r) => {
@@ -598,7 +611,7 @@
                   '<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 6L9 17l-5-5"/></svg>' +
                 '</button>' +
                 (isVideoRow(r)
-                  ? '<video class="shot-video" src="/api/media/screenshots/' + encodeURIComponent(r.id) + '/file" controls preload="metadata" playsinline></video>'
+                  ? '<video class="shot-video" src="/api/media/screenshots/' + encodeURIComponent(r.id) + '/file" controls preload="metadata" playsinline tabindex="0" aria-label="' + esc(_t('project.videoTileAria', 'Recording — press Enter to view full screen')) + '"></video>'
                   : isDocRow(r)
                   ? galFileTileHtml(r)
                   : '<button type="button" class="shot-img-btn" data-gal-zoom="' + esc(r.id) + '" aria-label="' + esc(_t('project.shotZoom', 'Screenshot')) + '">' +

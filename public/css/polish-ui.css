@@ -1384,6 +1384,9 @@ body.has-mobile-nav { padding-block-end: calc(3.75rem + env(safe-area-inset-bott
 }
 .resume-chip-ico svg { inline-size: 1.2rem; block-size: 1.2rem; }
 .resume-chip-ico.is-note { background: color-mix(in srgb, #8B5CF6 10%, transparent); color: #7C4DD8; }
+/* S119: the spark kind — the brand spark dot's yellow family (amber ink for
+   contrast on light; the 16% mix keeps the dark ground honest, the is-note pattern). */
+.resume-chip-ico.is-spark { background: color-mix(in srgb, #FDE047 16%, transparent); color: #D97706; }
 
 .resume-chip-body { flex: 1 1 auto; min-inline-size: 0; display: flex; flex-direction: column; gap: 0.15rem; }
 .resume-chip-title {

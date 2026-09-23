@@ -538,7 +538,7 @@ window.__hibanaDictFA = {
       'project.shotDeleted': 'فایل حذف شد',
       'project.fileUploaded': 'فایل آپلود شد', 'project.uploadFiles': 'آپلود فایل', 'project.downloadFile': 'دانلود {f}',
       // S35: the screenshot problem cards
-      'project.shotZoom': 'اسکرین‌شات', 'project.shotNotePh': 'چه چیزی خراب است و کجا — دقیقاً همان‌جا که باید کار کنی…',
+      'project.shotZoom': 'اسکرین‌شات', 'project.videoTileAria': 'ضبط‌شده — برای دیدن تمام‌صفحه اینتر را بزنید', 'project.shotNotePh': 'چه چیزی خراب است و کجا — دقیقاً همان‌جا که باید کار کنی…',
       // S46: screenshot-note modal + create-bug/idea-from-screenshot + task-composer shot-attach count
       'project.shotNoteTitle': 'یادداشت — چه چیزی و کجا',
       'project.shotNoteCreateHint': 'از این اسکرین‌شات یک قلم بساز:',
@@ -826,7 +826,7 @@ window.__hibanaDictFA = {
       'cmdk.recent': 'اخیر', 'cmdk.tags': 'برچسب‌ها',
       'resume.title': 'از جایی که بودی ادامه بده', 'resume.hint': 'آخرین ویرایش',
       'resume.cta': 'باز کردن',
-      'resume.project': 'پروژه', 'resume.note': 'یادداشت', 'resume.openAria': 'بازکردن {k}: {t}',
+      'resume.project': 'پروژه', 'resume.note': 'یادداشت', 'resume.spark': 'ایده', 'resume.openAria': 'بازکردن {k}: {t}',
       'resume.clear': 'پاک‌کردن', 'resume.clearAria': 'پاک‌کردن تاریخچهٔ ادامه',
       'nav.syncPending': '{n} در انتظار', 'nav.syncHint': 'در انتظار همگام‌سازی — برای ارسال کلیک کن', 'nav.syncSent': 'تغییرات آفلاین ارسال شد',
       // S52: Trash palette command + recoverable-count sublabel

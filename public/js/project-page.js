@@ -635,6 +635,19 @@
           try { vid.pause() } catch {} // the tile player stops when the big one opens
           openShotLightbox(vid.getAttribute('src') || '', vid, fig.parentElement, true)
         })
+        // S119 (keyboard parity with the dblclick): the tiles are focusable
+        // (tabindex="0" + an aria-label in the markup) — Enter opens the big view;
+        // Space stays the video's native play/pause. Same walk, Esc returns focus.
+        ctx.on('keydown', (e) => {
+          if (e.key !== 'Enter') return
+          const vid = e.target instanceof Element && e.target.matches('video.shot-video') ? e.target : null
+          if (!vid) return
+          const fig = vid.closest('.shot-card')
+          if (!fig) return
+          e.preventDefault()
+          try { vid.pause() } catch {}
+          openShotLightbox(vid.getAttribute('src') || '', vid, fig.parentElement, true)
+        })
 
         const shotNoteForm = (figure) => {
           const noteEl = figure.querySelector('.shot-note')
@@ -829,7 +842,7 @@
             (isImageMime(s.mime_type)
               ? '<button type="button" class="shot-img-btn" data-tshots-zoom="' + s.id + '"><img src="/api/media/screenshots/' + s.id + '/file" alt="" loading="lazy"></button>'
               : String(s.mime_type || '').startsWith('video/')
-              ? '<video class="shot-video" src="/api/media/screenshots/' + s.id + '/file" controls preload="metadata" playsinline></video>'
+              ? '<video class="shot-video" src="/api/media/screenshots/' + s.id + '/file" controls preload="metadata" playsinline tabindex="0" aria-label="' + esc(_t('project.videoTileAria', 'Recording — press Enter to view full screen')) + '"></video>'
               : pdFileTileHtml(s)) +
             '<figcaption class="shot-body"><p class="shot-note muted small" dir="auto">' + (s.caption ? String(s.caption).replace(/[&<>]/g, (c2) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' })[c2]) : '') + '</p>' +
             '<div class="row spread shot-actions"><span class="shot-state' + (s.resolved ? ' is-fixed' : '') + '">' + (s.resolved ? '✓ ' + _t('project.shotFixedLabel', 'fixed') : _t('project.shotOpenLabel', 'open problem')) + '</span>' +
@@ -2638,7 +2651,7 @@
               (isImageMime(s.mime)
                 ? '<button type="button" class="shot-img-btn" data-staged-zoom="' + esc(s.id) + '"><img src="/api/media/screenshots/' + esc(s.id) + '/file" alt="" loading="lazy"' + retryAttr + '></button>'
                 : isVideo
-                  ? '<video class="shot-video" src="/api/media/screenshots/' + esc(s.id) + '/file" controls preload="metadata" playsinline></video>'
+                  ? '<video class="shot-video" src="/api/media/screenshots/' + esc(s.id) + '/file" controls preload="metadata" playsinline tabindex="0" aria-label="' + esc(_t('project.videoTileAria', 'Recording — press Enter to view full screen')) + '"></video>'
                   : pdFileTileHtml(s)) +
               '<figcaption class="shot-body">' +
                 (s.caption ? '<p class="shot-note muted small" dir="auto">' + esc(s.caption) + '</p>' : '') +
@@ -3670,7 +3683,7 @@
                 (isImageMime(s.mime_type)
                   ? '<button type="button" class="shot-img-btn" data-pde-shot-zoom="' + esc(s.id) + '"><img src="/api/media/screenshots/' + esc(s.id) + '/file" alt="" loading="lazy"' + retryAttr + '></button>'
                   : String(s.mime_type || '').startsWith('video/')
-                  ? '<video class="shot-video" src="/api/media/screenshots/' + esc(s.id) + '/file" controls preload="metadata" playsinline></video>'
+                  ? '<video class="shot-video" src="/api/media/screenshots/' + esc(s.id) + '/file" controls preload="metadata" playsinline tabindex="0" aria-label="' + esc(_t('project.videoTileAria', 'Recording — press Enter to view full screen')) + '"></video>'
                   : pdFileTileHtml(s)) +
                 '<figcaption class="shot-body">' +
                   (s.caption ? '<p class="shot-note muted small" dir="auto">' + esc(s.caption) + '</p>' : '') +

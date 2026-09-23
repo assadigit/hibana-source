@@ -540,7 +540,7 @@ window.__hibanaDictEN = {
       // S86: file uploads (PDF/CSV/XLSX/DOCX/MD/TXT) ride the screenshots bucket
       'project.fileUploaded': 'File uploaded', 'project.uploadFiles': 'Upload files', 'project.downloadFile': 'Download {f}',
       // S35: the screenshot problem cards
-      'project.shotZoom': 'Screenshot', 'project.shotNotePh': 'What is broken & where — the exact spot to work on…',
+      'project.shotZoom': 'Screenshot', 'project.videoTileAria': 'Recording — press Enter to view full screen', 'project.shotNotePh': 'What is broken & where — the exact spot to work on…',
       // S46: screenshot-note modal + create-bug/idea-from-screenshot + task-composer shot-attach count
       'project.shotNoteTitle': 'Note — what & where to work',
       'project.shotNoteCreateHint': 'Turn this into a tracked item:',
@@ -829,7 +829,7 @@ window.__hibanaDictEN = {
       'cmdk.recent': 'Recent', 'cmdk.tags': 'Tags',
       'resume.title': 'Continue where you left off', 'resume.hint': 'Last edited',
       'resume.cta': 'Open',
-      'resume.project': 'Project', 'resume.note': 'Note', 'resume.openAria': 'Open {k}: {t}',
+      'resume.project': 'Project', 'resume.note': 'Note', 'resume.spark': 'Idea', 'resume.openAria': 'Open {k}: {t}',
       'resume.clear': 'Clear', 'resume.clearAria': 'Clear the resume history',
       'nav.syncPending': '{n} pending', 'nav.syncHint': 'Waiting to sync — click to try now', 'nav.syncSent': 'Synced your offline changes',
       // S52: Trash palette command + recoverable-count sublabel

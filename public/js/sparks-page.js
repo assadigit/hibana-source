@@ -217,6 +217,14 @@
                 body: JSON.stringify({ title, description: dlg.querySelector('#se-description').value, status: dlg.querySelector('#se-status').value || undefined }),
               })
               if (!res.ok) throw new Error('update failed')
+              // S119 (two jobs #2 — never lose your place, the ideas edition): an EDIT is
+              // the S105 "actively interacted" mutation — the resume strip remembers the
+              // spark ("Continue where you left off" now covers ideas too; the strip links
+              // back to /sparks.html). A PROMOTED spark (the stage select moved it out of
+              // «ایده») records as a PROJECT with its new stage — it left the shelf for the
+              // pipeline, so the entry deep-links to the project page instead.
+              const st = dlg.querySelector('#se-status').value || 'spark'
+              window.hibanaResume?.record?.(st === 'spark' ? 'spark' : 'project', id, title, st)
               close()
               window.hibana?.toast(_t('sparks.saved', 'Saved'), 'ok', 3000)
               reloadShelf()

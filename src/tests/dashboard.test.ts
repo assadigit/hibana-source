@@ -125,9 +125,12 @@ describe('dashboard stat boxes', () => {
 
       // Each merged box keeps only its “view all” link — the per-status quick-add buttons
       // were removed in favour of the single creation FAB (user request 2026-08-25), so no
-      // box carries a create control anymore.
+      // box carries a create control anymore. S124 (owner wireframe): the unified
+      // container re-introduces ONE creation affordance — the container's own
+      // floating "New project" button (bottom corner) — so the slice now carries
+      // exactly one data-projectquickadd (the boxes themselves still carry none).
       expect(strip).not.toContain('data-quickadd-open')
-      expect(strip).not.toContain('data-projectquickadd')
+      expect((strip.match(/data-projectquickadd/g) ?? []).length).toBe(1)
       // S115: the demoted cards-view hop — muted text, the arrow icon is gone.
       expect((strip.match(/class="muted small stat-viewall"/g) ?? []).length).toBe(5)
       expect(strip).not.toContain('icon arrow')
@@ -208,11 +211,13 @@ describe('dashboard stat boxes', () => {
 
       // Exactly one box per active stage, each with a view-all link and NO create button
       // (creation lives in the single FAB — user request 2026-08-25). Session 14: the two
-      // stages without projects (queued/awaiting_dev) are marked .is-empty.
+      // stages without projects (queued/awaiting_dev) are marked .is-empty. S124: the
+      // slice spans the unified container, whose floating New-project FAB is the ONE
+      // data-projectquickadd inside it (the boxes stay create-free).
       expect((strip.match(/class="stat stat-box[^"]*" data-status="/g) ?? []).length).toBe(5)
       expect((strip.match(/class="stat stat-box is-empty" data-status="/g) ?? []).length).toBe(2)
       expect(strip).not.toContain('data-quickadd-open')
-      expect(strip).not.toContain('data-projectquickadd')
+      expect((strip.match(/data-projectquickadd/g) ?? []).length).toBe(1)
       expect(strip).toContain('>View all</a>')
       expect(strip).toContain('/projects.html?status=planning&view=cards')
       expect(strip).toContain('/projects.html?status=developing&view=cards')

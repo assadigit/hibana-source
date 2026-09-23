@@ -10,6 +10,7 @@ import { QUADRANTS, orderedQuadrants, todayIn, type SadhanaTask } from '../servi
 import { QUADRANT_ACCENTS } from './sadhana-helpers'
 import { PROJECT_STAGES } from '../types'
 import type { Config, ProjectRow, ProjectStatus, UserRow } from '../types'
+import { dashboardOverviewRowHtml, loadOverviewData } from './projects/helpers'
 import { attachedTitles, notebookHtml, type QuickNote } from './quicknotes'
 
 // Phase 0: this route is the proof-of-concept for the typed htmlx builder. Every user value
@@ -40,7 +41,7 @@ export function dashboardRoutes(cfg: Config) {
     // at the 03:17 tick; resetDueRecurring is idempotent (only resets tasks past their
     // due date), so daily is frequent enough.
 
-    const [byStatus, recent, activeProjects, solvedThisWeek, vaultNoteRows, notes, noteTotal, todoTasks, todoNameRows, todoNoteRows, urgentTasks, urgentCount, staleProjects] = await Promise.all([
+    const [byStatus, recent, activeProjects, solvedThisWeek, vaultNoteRows, notes, noteTotal, todoTasks, todoNameRows, todoNoteRows, urgentTasks, urgentCount, staleProjects, ovData] = await Promise.all([
       cfg.db.query<{ status: string; n: number }>(
         "SELECT status, COUNT(*) AS n FROM projects WHERE user_id = ? AND deleted_at IS NULL AND (archived_state IS NULL OR archived_state != 'offline') GROUP BY status",
         [user.id],
@@ -111,9 +112,10 @@ export function dashboardRoutes(cfg: Config) {
         [user.id],
       ),
       // S30 batch 3 (user request 2026-09-12): "urgent across projects" — the cross-
-      // project urgent + high strip. The dashboard had ZERO task visibility; this is
-      // the alert layer (not a pref-gated section — it renders only when something is
-      // actually burning, like the overdue chips, and stays hidden when quiet).
+      // project urgent + high tasks. S124 (owner wireframe): the HTML fire strip is
+      // RETIRED (the unified projects container's Problems box took over the alert
+      // role) — the query STAYS so the JSON payload's data.urgent / data.urgentTotal
+      // contract survives for API consumers (the S30 unit tests pin it).
       cfg.db.query<{ id: string; title: string; priority: string; status: string; project_id: string; project_title: string }>(
         `SELECT t.id, t.title, t.priority, t.status, t.project_id, p.title AS project_title
          FROM dev_tasks t JOIN projects p ON p.id = t.project_id
@@ -138,6 +140,11 @@ export function dashboardRoutes(cfg: Config) {
          ORDER BY updated_at ASC LIMIT 3`,
         [user.id, new Date(Date.now() - 14 * 24 * 3600 * 1000).toISOString()],
       ),
+      // S124 (owner wireframe): the dashboard's projects section gets the SAME overview
+      // the projects home wears — the open-tasks donut + recent boxes ride the new
+      // unified container's lower panel. One shared loader (projects/helpers), one
+      // vocabulary: the dashboard and the projects home can never drift apart.
+      loadOverviewData(cfg, user.id),
     ])
 
     // Project titles for the notebook's attach chips (0038 done buttons key off these too).
@@ -507,25 +514,38 @@ export function dashboardRoutes(cfg: Config) {
                  path to the rest. View all lands on the FULL stale view (S75). -->
             <a class="dash-stale-more small" href="/projects.html?stale=1">${t('View all', 'مشاهده همه')} ${raw(icon('arrow-right', 'icon arrow'))}</a>
           </div>` : html``}
-          <!-- S42 (owner: "this part is too compacted because of right left handles.
-               expand this section. make handles over them."): the strip now spans the
-               FULL section width — the paging handles float OVER the strip's edges
-               (.stat-stage is the position:relative anchor; .stat-arrow is absolute +
-               translucent) instead of flanking it as flex columns that stole ~5rem of
-               card width on phones. At the ends the driver's .at-start/.at-end flags
-               fade the handle that has nothing left to page (so a card edge is only
-               ever covered when the handle is actually usable). -->
-          <div class="stat-carousel" data-stat-carousel>
-            <div class="stat-stage">
-              <div class="stat-strip stat-boxes" data-stat-track role="group" aria-label="${t('Projects by stage', 'پروژه‌ها بر اساس مرحله')}">
-              ${CAROUSEL.map(statBox)}
+          <!-- S124 (owner wireframe): ONE unified container — the stage row (the
+               stat-carousel) and the panel below it now live inside a single card
+               (one background, one border-radius), no longer two separate cards.
+               Inside it, top-to-bottom: the stage carousel, its pagination dots
+               (kept right below the top row), then the overview lower panel, with
+               a floating "New project" button anchored to the container's
+               bottom-inline-end corner (logical property: right in EN, left in FA). -->
+          <div class="dash-proj-unified ov">
+            <!-- S42: overlay handles — absolute inside .stat-stage, translucent; the
+                 driver's .at-start/.at-end flags fade the handle with nothing left
+                 to page. The carousel internals are UNCHANGED by the S124 merge. -->
+            <div class="stat-carousel" data-stat-carousel>
+              <div class="stat-stage">
+                <div class="stat-strip stat-boxes" data-stat-track role="group" aria-label="${t('Projects by stage', 'پروژه‌ها بر اساس مرحله')}">
+                ${CAROUSEL.map(statBox)}
+                </div>
+                <button type="button" class="stat-arrow" data-stat-prev aria-label="${t('Previous stages', 'مراحل قبلی')}">${raw(icon('chevron-left'))}</button>
+                <button type="button" class="stat-arrow" data-stat-next aria-label="${t('Next stages', 'مراحل بعدی')}">${raw(icon('chevron-right'))}</button>
               </div>
-              <button type="button" class="stat-arrow" data-stat-prev aria-label="${t('Previous stages', 'مراحل قبلی')}">${raw(icon('chevron-left'))}</button>
-              <button type="button" class="stat-arrow" data-stat-next aria-label="${t('Next stages', 'مراحل بعدی')}">${raw(icon('chevron-right'))}</button>
+              <div class="stat-carousel-nav">
+                <div class="stat-dots" data-stat-dots aria-hidden="true"></div>
+              </div>
             </div>
-            <div class="stat-carousel-nav">
-              <div class="stat-dots" data-stat-dots aria-hidden="true"></div>
+            <!-- S124: the lower panel — the projects-home overview cards (donut +
+                 Plans/Problems/In Progress) as a HORIZONTAL row; scrolls sideways when
+                 the four cards outrun the container, while the dots above keep
+                 announcing that more content exists off-screen. raw(): the helper
+                 returns a pre-escaped plain string (same contract as the projects home). -->
+            <div class="dash-proj-lower" role="group" aria-label="${t('Overall project tasks', 'کارهای همهٔ پروژه‌ها')}">
+              ${raw(dashboardOverviewRowHtml(ovData.counts, ovData.recent, lang))}
             </div>
+            <button type="button" class="dash-proj-fab" data-projectquickadd aria-label="${t('New project', 'پروژه جدید')}" title="${t('New project', 'پروژه جدید')}">${raw(icon('plus'))}</button>
           </div>
         </section>`,
         notebook: (): SafeHtml => raw(notebookHtml(notes, lang, 'note', noteTitles, true, noteTotal[0]?.n)),
@@ -582,71 +602,17 @@ export function dashboardRoutes(cfg: Config) {
             <script>(function(){var K='hibana-vault-banner-dismissed',e=document.querySelector('[data-vault-banner]');if(!e)return;try{if(localStorage.getItem(K)==='1'){e.remove();return}}catch(x){}var b=e.querySelector('[data-vault-dismiss]');if(b)b.addEventListener('click',function(){try{localStorage.setItem(K,'1')}catch(x){}e.remove()})})()</${'script'}>
           </section>`
 
-      // S30 batch 3 (user request 2026-09-12): "urgent across projects" — the cross-
-      // project urgent+high FIRE STRIP. S46 (user request 2026-09-14): the strip now
-      // renders right UNDER the projects section (was above all pref-ordered sections);
-      // if projects is hidden it falls back to the top of the ordered sections (after the
-      // vault banner — the old resume card slot). Still an alert layer — quiet means
-      // invisible (no dash_show_* pref; renders only when something is actually
-      // burning). Each row deep-links to the board (?task=).
-      // S31 (user request 2026-09-13): the row <li> no longer carries prio-* — that
-      // class fed the (now-scoped) .prio-* background rules and painted the whole row
-      // SOLID RED (the "colors and backgrounds aren't very nice" report). The dot span
-      // keeps the tier class + now gets a translated title (was the raw English word).
-      // S46 (user request 2026-09-14): dir="auto" on the title + project anchors so
-      // each row isolates its own direction — Latin titles read LTR, Farsi titles read
-      // RTL, per row (the S31b plaintext-paragraph fix handled the dot, but two Latin
-      // rows still split LTR/RTL because the row container inherited the page dir).
-      const PRIO_TITLES: Record<string, [string, string]> = {
-        urgent: ['Urgent', 'فوری'],
-        high: ['High Priority', 'اولویت بالا'],
-        medium: ['Medium Priority', 'اولویت متوسط'],
-        low: ['Low Priority', 'اولویت کم'],
-      }
-      const stripTasks: SafeHtml[] = urgentTasks.map((u) => {
-        const pair = PRIO_TITLES[u.priority] ?? PRIO_TITLES.medium
-        // S31b: dot + title flow INLINE inside .dash-urgent-main (unicode-bidi:
-        // plaintext, dashboard.css) — the paragraph's direction comes from the title's
-        // first strong character, so the dot LEADS the text on BOTH sides: English
-        // titles render LTR with the dot at the line start (left), Farsi titles stay
-        // RTL with the dot at the right. Before, the dot was the row's first flex item
-        // (always the right edge) — for LTR text it landed at the END of the sentence
-        // and read as a stray trailing bullet.
-        return html`<li class="dash-urgent-row">
-              <span class="dash-urgent-main"><span class="prio-dot prio-${u.priority}" title="${t(pair[0], pair[1])}"></span> <a href="/board.html?project=${u.project_id}&task=${u.id}" class="dash-urgent-title">${u.title}</a></span>
-              <a href="/project.html?id=${u.project_id}" class="muted small dash-urgent-project">${u.project_title}</a>
-            </li>`
-      })
-      const urgentStrip: SafeHtml = urgentTasks.length
-        ? html`<section class="dash-urgent" id="dash-urgent" role="region" aria-label="${t('Urgent across projects', 'فوری در همهٔ پروژه‌ها')}">
-          <div class="row spread dash-urgent-head">
-            <h2><span class="dash-urgent-flame" aria-hidden="true">${raw(icon('flame'))}</span> ${t('Urgent across projects', 'فوری در همهٔ پروژه‌ها')} <span class="dash-urgent-count">${num(urgentTotal)}</span></h2>
-          </div>
-          <ul class="dash-urgent-list">
-            ${stripTasks}
-          </ul>
-        </section>`
-        : html``
-
+      // S124 (owner wireframe): the "Urgent across projects" fire strip is RETIRED —
+      // the wireframe's unified projects container replaces it with the Problems box
+      // (recent bug-status tasks across all projects) inside the lower overview row.
+      // The urgentTasks/urgentCount queries STAY: the JSON payload keeps its
+      // data.urgent / data.urgentTotal fields for API compatibility (the same contract
+      // the S30 unit tests pin). If a priority-based alert layer is ever wanted back,
+      // this is a one-render restore — the data is already fetched every load.
       const sectionHtmls = renderOrder.map((id) => sections[id]())
-      // S46 (user request 2026-09-14): the urgent strip renders right AFTER the
-      // projects section (was above all pref-ordered sections). If projects is hidden
-      // (or absent from the user's dash_order), fall back to the top (after the vault
-      // banner) so the alert still surfaces when something is burning. The strip stays
-      // an alert layer — it only renders when urgentTasks.length > 0 (urgentStrip is
-      // empty-html otherwise, so inserting it is a no-op).
-      const projectsIdx = renderOrder.indexOf('projects')
       const out: SafeHtml = sectionHtmls.length
-        ? (() => {
-            const parts: SafeHtml[] = [vaultBanner]
-            if (projectsIdx === -1 && urgentTasks.length) parts.push(urgentStrip)
-            sectionHtmls.forEach((h, i) => {
-              parts.push(h)
-              if (i === projectsIdx && urgentTasks.length) parts.push(urgentStrip)
-            })
-            return html`${parts}`
-          })()
-        : html`${vaultBanner}${urgentStrip}<div class="dash-empty">${t('Nothing on your dashboard — enable a section in Settings → View options.', 'پیشخوان خالی است — یک بخش را در تنظیمات ← گزینه‌های نمایش روشن کن.')} <a href="/settings.html">${t('Open settings', 'باز کردن تنظیمات')}</a></div>`
+        ? html`${[vaultBanner, ...sectionHtmls]}`
+        : html`${vaultBanner}<div class="dash-empty">${t('Nothing on your dashboard — enable a section in Settings → View options.', 'پیشخوان خالی است — یک بخش را در تنظیمات ← گزینه‌های نمایش روشن کن.')} <a href="/settings.html">${t('Open settings', 'باز کردن تنظیمات')}</a></div>`
 
       // S51-A: sr-only h1 — the page needs a level-one heading (axe
       // page-has-heading-one) that lives INSIDE <main> (axe region). The dashboard

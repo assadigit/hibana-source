@@ -78,50 +78,55 @@ test('reports: task analytics card (priority mix + labels + velocity)', async ({
   await expect(velRow).toContainText('1')
 })
 
-test('dashboard: the urgent fire strip renders + deep-links, quiet projects hide it', async ({ page, browserName }) => {
+test('dashboard: the unified projects container carries the overview row; the fire strip is retired (S124)', async ({ page, browserName }) => {
   test.skip(browserName !== 'chromium', 'Desktop Chromium only')
   await login(page)
   const pid = await page.evaluate(async () => {
-    const res = await fetch('/api/projects', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ title: `e2e fire ${Date.now()}` }) })
+    const res = await fetch('/api/projects', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ title: `e2e unified ${Date.now()}` }) })
     const p = ((await res.json()) as { id: string }).id
-    await fetch(`/api/projects/${p}/devtasks`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ title: 'e2e fire task', status: 'in_progress', priority: 'urgent' }) })
-    // S31b: a FARSI-first urgent row in the same strip — pins the mirror side of the
-    // plaintext fix (its dot must stay on the RIGHT, leading the RTL text).
-    await fetch(`/api/projects/${p}/devtasks`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ title: 'کارِ فارسیِ سنجش', status: 'in_progress', priority: 'urgent' }) })
+    // a bug-status task — the Problems box is the retired fire strip's replacement
+    await fetch(`/api/projects/${p}/devtasks`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ title: 'e2e fire task', status: 'bug', priority: 'urgent' }) })
+    // a planned task — the Plans box (the wireframe's first box after the pie)
+    await fetch(`/api/projects/${p}/devtasks`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ title: 'e2e plan task', status: 'planned' }) })
     return p
   })
   await page.goto('/app')
-  const strip = page.locator('#dash-urgent')
-  await expect(strip).toBeVisible({ timeout: 10_000 })
-  await expect(strip.locator('h2')).toContainText(/urgent across projects/i)
-  const row = strip.locator('.dash-urgent-row', { hasText: 'e2e fire task' })
-  await expect(row).toBeVisible()
-  await expect(row.locator('.dash-urgent-title')).toHaveAttribute('href', new RegExp(`/board\\.html\\?project=${pid}&task=`))
-  // the row carries the project name link
-  await expect(row.locator('.dash-urgent-project')).toHaveAttribute('href', `/project.html?id=${pid}`)
-  // S31 (user request: "no red background — instead a beeping pulsating red light"):
-  // the row itself stays TRANSPARENT (the old unscoped .prio-* rule painted the whole
-  // <li> solid red), the title reads at weight 400, and the urgent dot runs the
-  // double-beat prio-beep keyframes; the flame flickers on the same rhythm.
-  await expect(row).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)')
-  await expect(row.locator('.dash-urgent-title')).toHaveCSS('font-weight', '400')
-  await expect(row.locator('.prio-dot')).toHaveCSS('animation-name', 'prio-beep')
-  await expect(page.locator('.dash-urgent-flame')).toHaveCSS('animation-name', 'dash-flame-flicker')
-  // S31b (user report: "the text is latin but showing RTL" + the stray trailing
-  // bullet): the dot + title flow INLINE inside one .dash-urgent-main paragraph with
-  // unicode-bidi: plaintext — the paragraph direction follows the title's first
-  // strong character (an English row renders LTR with the dot LEADING at the line
-  // start; a Farsi row stays RTL with the dot on the right). Before, the dot was the
-  // row's first flex item (always the right edge) — an English sentence's END landed
-  // right next to it and read as a stray bullet.
-  await expect(row.locator('.dash-urgent-main .prio-dot')).toHaveCount(1)
-  await expect(row.locator('.dash-urgent-main')).toHaveCSS('unicode-bidi', 'plaintext')
-  // a Farsi-first row keeps its dot on the RIGHT (RTL lead) — the mirror of the fix
-  const faRow = strip.locator('.dash-urgent-row', { hasText: 'کارِ فارسیِ سنجش' })
-  await expect(faRow).toBeVisible()
-  const dotSide = await faRow.locator('.dash-urgent-main').evaluate((main) => {
-    const dot = main.querySelector('.prio-dot')!
-    return dot.getBoundingClientRect().left - main.getBoundingClientRect().left > 30 ? 'right' : 'left'
-  })
-  expect(dotSide).toBe('right')
+  const container = page.locator('.dash-proj-unified')
+  await expect(container).toBeVisible({ timeout: 10_000 })
+  // ONE container: the stage carousel AND the overview row live inside the same card
+  await expect(container.locator('[data-stat-track]')).toBeVisible()
+  await expect(container.locator('[data-stat-dots]')).toBeVisible() // dots stay below the top row
+  await expect(container.locator('.dash-proj-lower')).toBeVisible()
+  // S124: the retired fire strip is gone — no section, no rows, even with urgent tasks burning
+  await expect(page.locator('#dash-urgent')).toHaveCount(0)
+  await expect(page.locator('.dash-urgent-row')).toHaveCount(0)
+  // the lower row's order: pie card first, then Plans → Problems → In Progress
+  const kids = container.locator('.dash-proj-lower > .card')
+  await expect(kids).toHaveCount(4)
+  await expect(kids.nth(0)).toHaveClass(/ov-pie-card/)
+  await expect(kids.nth(1)).toHaveAttribute('data-ov-box', 'planned')
+  await expect(kids.nth(2)).toHaveAttribute('data-ov-box', 'bug')
+  await expect(kids.nth(3)).toHaveAttribute('data-ov-box', 'in_progress')
+  // the donut speaks the shared overview vocabulary
+  await expect(container.locator('.ov-donut')).toBeVisible()
+  await expect(container.locator('.ov-box[data-ov-box="bug"] .ov-item-title', { hasText: 'e2e fire task' })).toBeVisible()
+  await expect(container.locator('.ov-box[data-ov-box="bug"] .ov-item').first()).toHaveAttribute('href', `/project.html?id=${pid}`)
+  await expect(container.locator('.ov-box[data-ov-box="planned"] .ov-item-title', { hasText: 'e2e plan task' })).toBeVisible()
+  // the lower panel is a HORIZONTAL scroller (overflow-x) with snap points
+  const overflowX = await container.locator('.dash-proj-lower').evaluate((el) => getComputedStyle(el).overflowX)
+  expect(['auto', 'scroll']).toContain(overflowX)
+  const snapType = await container.locator('.dash-proj-lower').evaluate((el) => getComputedStyle(el).scrollSnapType)
+  expect(snapType).not.toBe('none')
+  // the floating action button anchors to the container's bottom corner and opens
+  // the same New Project dialog as the projects page's quick-add
+  const fab = container.locator('.dash-proj-fab')
+  await expect(fab).toBeVisible()
+  await expect(fab).toHaveAttribute('data-projectquickadd', '')
+  const fabBox = await fab.boundingBox()
+  const boxBox = await container.boundingBox()
+  expect(fabBox!.y + fabBox!.height).toBeGreaterThan(boxBox!.y + boxBox!.height * 0.6) // bottom-anchored
+  await fab.click()
+  await expect(page.locator('#projectadd-dialog')).toBeVisible()
+  await page.keyboard.press('Escape')
+  await expect(page.locator('#projectadd-dialog')).not.toBeVisible()
 })

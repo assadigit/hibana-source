@@ -414,7 +414,11 @@ export async function loadOverviewData(
   return { counts, recent }
 }
 
-export function overallTasksHtml(counts: OvCounts, recent: Record<OvStatus, OvTask[]>, lang: Locale): string {
+// S124: the pie card and the recent-box card are EXTRACTED builders — overallTasksHtml
+// (the projects home) and dashboardOverviewRowHtml (the dashboard's unified projects
+// container) compose the SAME cards from them, so both pages speak one overview
+// vocabulary (same classes, same palette, same i18n pairs — one definition).
+const ovPieHtml = (counts: OvCounts, lang: Locale): string => {
   const dig = (n: number) => (lang === 'fa' ? faDigits(String(n)) : String(n))
   const total = OV_STATUSES.reduce((s, st) => s + counts[st], 0)
   // Donut geometry: r=15.9155 → circumference EXACTLY 100, so every slice's
@@ -431,7 +435,7 @@ export function overallTasksHtml(counts: OvCounts, recent: Record<OvStatus, OvTa
       return seg
     })
     .join('')
-  const pie = `<div class="card ov-pie-card">
+  return `<div class="card ov-pie-card">
       <svg class="ov-donut" viewBox="0 0 42 42" role="img" aria-label="${esc(trL(lang, '{n} open tasks across all projects', '{n} کار باز در همهٔ پروژه‌ها', { n: dig(total) }))}">
         <g transform="rotate(-90 21 21)">
           <circle class="ov-ring" r="15.9155" cx="21" cy="21"></circle>
@@ -444,28 +448,42 @@ export function overallTasksHtml(counts: OvCounts, recent: Record<OvStatus, OvTa
         ${OV_STATUSES.map((st) => `<li class="ov-leg" data-st="${st}"><span class="ov-dot" data-st="${st}" aria-hidden="true"></span><span class="ov-leg-label">${ovLabel(st, lang)}</span><b class="ov-leg-n">${dig(counts[st])}</b></li>`).join('')}
       </ul>
     </div>`
-  const box = (st: OvStatus): string => {
-    const items = recent[st]
-      .map((t) => `<li><a class="ov-item" href="/project.html?id=${t.project_id}">
+}
+
+const ovBoxHtml = (st: OvStatus, counts: OvCounts, recent: Record<OvStatus, OvTask[]>, lang: Locale): string => {
+  const dig = (n: number) => (lang === 'fa' ? faDigits(String(n)) : String(n))
+  const items = recent[st]
+    .map((t) => `<li><a class="ov-item" href="/project.html?id=${t.project_id}">
           <span class="ov-item-title" dir="auto">${esc(t.title)}</span>
           <span class="ov-item-proj muted small" dir="auto">${esc(t.project_title)}</span>
         </a></li>`)
-      .join('')
-    return `<div class="card ov-box" data-ov-box="${st}">
+    .join('')
+  return `<div class="card ov-box" data-ov-box="${st}">
       <div class="row spread ov-box-head">
         <span class="row ov-box-title"><span class="ov-dot" data-st="${st}" aria-hidden="true"></span><span class="ov-box-label">${ovLabel(st, lang)}</span></span>
         <b class="board-count ov-box-n">${dig(counts[st])}</b>
       </div>
       ${items ? `<ul class="ov-items">${items}</ul>` : `<p class="muted small ov-empty">${trL(lang, 'Nothing here', 'چیزی نیست')}</p>`}
     </div>`
-  }
+}
+
+export function overallTasksHtml(counts: OvCounts, recent: Record<OvStatus, OvTask[]>, lang: Locale): string {
   // Box order = the wireframe's reading order (what's burning first): Problems,
   // In Progress, then the capture lanes Ideas / Plans.
-  const boxes = `<div class="ov-boxes">${box('bug')}${box('in_progress')}${box('idea')}${box('planned')}</div>`
+  const boxes = `<div class="ov-boxes">${ovBoxHtml('bug', counts, recent, lang)}${ovBoxHtml('in_progress', counts, recent, lang)}${ovBoxHtml('idea', counts, recent, lang)}${ovBoxHtml('planned', counts, recent, lang)}</div>`
   return `<section class="ov ov-tasks" aria-labelledby="ov-tasks-h">
     <div class="ov-head"><h2 id="ov-tasks-h">${trL(lang, 'Overall project tasks', 'کارهای همهٔ پروژه‌ها')}</h2></div>
-    <div class="ov-grid">${pie}${boxes}</div>
+    <div class="ov-grid">${ovPieHtml(counts, lang)}${boxes}</div>
   </section>`
+}
+
+// S124 (owner wireframe): the DASHBOARD's unified projects container — the same
+// overview cards, but the lower panel is a horizontal row (the wireframe order:
+// PIECHART, Plans, Problems, In Progress — ideas live in the pie's slice + legend,
+// so the separate Ideas box drops out here). No section wrapper/heading: the
+// container (dashboard.ts) already carries the context and the carousel above.
+export function dashboardOverviewRowHtml(counts: OvCounts, recent: Record<OvStatus, OvTask[]>, lang: Locale): string {
+  return `${ovPieHtml(counts, lang)}${ovBoxHtml('planned', counts, recent, lang)}${ovBoxHtml('bug', counts, recent, lang)}${ovBoxHtml('in_progress', counts, recent, lang)}`
 }
 
 export function sparkEmptyHtml(lang: Locale): string {

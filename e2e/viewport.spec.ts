@@ -233,12 +233,17 @@ test('dashboard @390: stage-carousel strip is full-width; handles overlay + auto
   const geo = await page.evaluate(() => {
     const track = document.querySelector('[data-stat-track]') as HTMLElement
     const section = document.querySelector('.dash-projects-section') as HTMLElement
+    const container = document.querySelector('.dash-proj-unified') as HTMLElement
     const stage = document.querySelector('.stat-stage') as HTMLElement
     const prev = document.querySelector('[data-stat-prev]') as HTMLElement
     const next = document.querySelector('[data-stat-next]') as HTMLElement
     const r = (el: Element) => el.getBoundingClientRect()
+    const cs = getComputedStyle(container)
     return {
       sectionW: r(section).width,
+      // S124: the strip lives INSIDE the unified container now — the honest full-width
+      // measure is the card's CONTENT box (its own padding AND border excluded).
+      containerInner: r(container).width - parseFloat(cs.paddingInlineStart || '0') - parseFloat(cs.paddingInlineEnd || '0') - parseFloat(cs.borderInlineStartWidth || '0') - parseFloat(cs.borderInlineEndWidth || '0'),
       trackW: r(track).width,
       stageW: r(stage).width,
       pages: Math.round(track.scrollWidth / Math.max(1, track.clientWidth)),
@@ -246,14 +251,19 @@ test('dashboard @390: stage-carousel strip is full-width; handles overlay + auto
       next: { position: getComputedStyle(next).position, opacity: getComputedStyle(next).opacity, x: r(next).x, cy: r(next).y + r(next).height / 2 },
       trackCY: r(track).y + r(track).height / 2,
       handleSize: r(next).width,
+      // S124: the handles' viewport-edge constant moved with the card — anchor them to
+      // the unified container's edges (the strip's new visual boundary) instead.
+      containerX: r(container).left,
+      containerR: r(container).right,
       docScroll: document.documentElement.scrollWidth,
     }
   })
 
-  // 1) The section EXPANDED: the strip (and its anchor) spans ≥94% of the section —
-  //    the old flank layout measured ~77% (262/342) on this exact viewport.
-  expect(geo.trackW).toBeGreaterThanOrEqual(geo.sectionW * 0.94)
-  expect(geo.stageW).toBeGreaterThanOrEqual(geo.sectionW * 0.94)
+  // 1) The strip spans the unified container's INNER width (S124: the card carries
+  //    its own ~0.85rem padding; the old flank layout measured ~77% on this viewport —
+  //    the S42 overlay win is preserved inside the card).
+  expect(geo.trackW).toBeGreaterThanOrEqual(geo.containerInner - 1)
+  expect(geo.stageW).toBeGreaterThanOrEqual(geo.containerInner - 1)
   expect(geo.pages).toBeGreaterThanOrEqual(2)
   // No sideways document scroll introduced by the overlay overhang.
   expect(geo.docScroll).toBeLessThanOrEqual(390)
@@ -266,11 +276,12 @@ test('dashboard @390: stage-carousel strip is full-width; handles overlay + auto
   expect(Math.abs(geo.prev.cy - geo.trackCY)).toBeLessThanOrEqual(8)
   expect(Math.abs(geo.next.cy - geo.trackCY)).toBeLessThanOrEqual(8)
   // They sit at the outer edges flanking the strip (direction-agnostic: one handle's
-  // CENTER near the left edge, the other's near the right edge) — over the strip's
-  // edge region, inside the viewport.
+  // CENTER near the container's inline-start edge, the other's near its inline-end
+  // edge — over the strip's edge region, inside the card. S124 moved the boundary
+  // from the viewport edge to the card edge, so the measure rides the card box).
   const centers = [geo.prev.x + geo.handleSize / 2, geo.next.x + geo.handleSize / 2]
-  expect(Math.min(...centers)).toBeLessThanOrEqual(52)
-  expect(Math.max(...centers)).toBeGreaterThanOrEqual(390 - 52)
+  expect(Math.min(...centers)).toBeLessThanOrEqual(geo.containerX + 52)
+  expect(Math.max(...centers)).toBeGreaterThanOrEqual(geo.containerR - 52)
 
   // 3) At the start the useless prev handle steps aside; after one page it returns.
   //    (Tolerance-based: the 0.25s fade means "invisible" < 0.1, "visible" > 0.9.)

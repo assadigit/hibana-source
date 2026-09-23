@@ -124,25 +124,44 @@ describe('dashboard urgent strip payload (S30 batch 3)', () => {
     }
   })
 
-  it('HTML branch renders the fire strip only when something is burning', async () => {
+  it('HTML branch: the unified projects container renders the overview row; the fire strip is retired (S124)', async () => {
     const { db, close } = makeTestDb()
     try {
+      // quiet account: the overview row ALWAYS renders (it is content, not an alert
+      // layer) — donut at zero + "Nothing here" boxes; the retired strip nowhere.
       const quietId = await makeUser(db)
       const quiet = await makeApp(db, quietId)
       const hx = { ...quiet.headers, 'HX-Request': 'true' }
       const quietRes = await quiet.app.fetch(new Request('http://local/api/dashboard', { headers: hx }))
       const quietHtml = await quietRes.text()
       expect(quietHtml).not.toContain('dash-urgent')
+      expect(quietHtml).toContain('dash-proj-unified')
+      expect(quietHtml).toContain('dash-proj-lower')
+      expect(quietHtml).toContain('ov-donut')
 
       const busyId = await makeUser(db)
       const busy = await makeApp(db, busyId)
       const pid = await createProject(busy.app, busy.headers, 'busy')
-      await mkTask(busy.app, busy.headers, pid, { title: 'fire drill', status: 'in_progress', priority: 'urgent' })
+      await mkTask(busy.app, busy.headers, pid, { title: 'fire drill', status: 'bug', priority: 'urgent' })
       const busyRes = await busy.app.fetch(new Request('http://local/api/dashboard', { headers: { ...busy.headers, 'HX-Request': 'true' } }))
       const busyHtml = await busyRes.text()
-      expect(busyHtml).toContain('dash-urgent')
+      // the unified container: ONE card wrapping the stage carousel + the overview row
+      expect(busyHtml).toContain('dash-proj-unified')
+      expect(busyHtml).toContain('data-stat-track')
+      expect(busyHtml).toContain('dash-proj-lower')
+      expect(busyHtml).toContain('dash-proj-fab')
+      // the wireframe order: the pie first, then Plans → Problems → In Progress
+      const lower = busyHtml.indexOf('dash-proj-lower')
+      expect(busyHtml.indexOf('ov-pie-card', lower)).toBeGreaterThan(-1)
+      expect(busyHtml.indexOf('data-ov-box="planned"', lower)).toBeGreaterThan(busyHtml.indexOf('ov-pie-card', lower))
+      expect(busyHtml.indexOf('data-ov-box="bug"', lower)).toBeGreaterThan(busyHtml.indexOf('data-ov-box="planned"', lower))
+      expect(busyHtml.indexOf('data-ov-box="in_progress"', lower)).toBeGreaterThan(busyHtml.indexOf('data-ov-box="bug"', lower))
+      // the recent Problems item deep-links to its project
       expect(busyHtml).toContain('fire drill')
-      expect(busyHtml).toContain('/board.html?project=')
+      expect(busyHtml).toContain(`/project.html?id=${pid}`)
+      // S124: the retired fire strip stays retired — even with urgent-priority tasks burning
+      expect(busyHtml).not.toContain('dash-urgent')
+      expect(busyHtml).not.toContain('/board.html?project=')
     } finally {
       close()
     }

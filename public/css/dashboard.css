@@ -717,106 +717,98 @@ main.shell-dash > section { margin-block-end: 2.9rem; }
 }
 
 /* ==========================================================================
-   S30 batch 3 (user request 2026-09-12): "urgent across projects" — the fire strip
+   S124 (owner wireframe) — the UNIFIED projects container
    ==========================================================================
-   An ALERT layer right under the resume card: cross-project urgent + high tasks.
-   Renders only when something is burning; quiet means invisible. Rows deep-link to
-   the board with the task editor open; the project name links to the project page. */
+   The stage row (the stat-carousel) and the panel below it are ONE card now
+   (one background, one border-radius) instead of two separate cards. Inside
+   it, top-to-bottom: the stage carousel -> its pagination dots (kept right
+   below the top row) -> the overview lower panel (donut + Plans / Problems /
+   In Progress) -> a floating "New project" FAB anchored to the container's
+   bottom-inline-end corner. The old "Urgent across projects" fire strip is
+   RETIRED — the Problems box carries the cross-project alert role now; the
+   .dash-urgent* rules left with it. */
 
-.dash-urgent {
-  position: relative;
-  /* S31 (user request 2026-09-13 — "colors and backgrounds aren't very nice… without
-     red background"): the old rest was a red-tinted gradient that NEVER rendered —
-     `linear-gradient(to inline-end, …)` is not a valid gradient direction (logical
-     keywords don't exist in gradients), so the whole declaration was dropped at
-     parse time and the strip sat transparent while its rows leaked solid red
-     (the unscoped .prio-* bug, polish-batch.css). Now: a NEUTRAL card surface that
-     mirrors the resume card's structure (soft border + 4px edge) — the alert
-     identity is carried by the flame, the count badge, the red EDGE, and the
-     beeping urgent dots, not by painted backgrounds. */
-  border: 1px solid color-mix(in srgb, var(--err, #c0392b) 30%, var(--line));
-  border-inline-start: 4px solid var(--err, #c0392b);
-  border-radius: var(--radius);
+.dash-proj-unified {
+  /* NOT the generic .card: that one carries a list reset (`.card ul/li`) that
+     would leak into the overview's legend/item lists — the container paints
+     its own card chrome here. The `ov` class (helpers' palette scope) rides
+     along so every .ov-* descendant resolves --ov-c-*, including the
+     claude-dark inks (misc.css overrides html[data-theme='claude-dark'] .ov). */
+  position: relative; /* anchors .dash-proj-fab */
   background: var(--card);
-  box-shadow: 0 2px 8px -4px rgb(0 0 0 / 0.08);
-  padding: 0.75rem 0.9rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 0.85rem 0.85rem 1.05rem;
+  margin-block-end: clamp(1.25rem, 2.5vw, 2rem);
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.04);
 }
-.dash-urgent-head h2 {
-  display: flex;
-  align-items: center;
-  gap: 0.45rem;
-  margin: 0;
-  font-size: var(--fs-md, 1.05rem);
+/* the carousel's own inter-card margin was tuned for the section rhythm — inside
+   the unified card the lower panel provides the next beat instead */
+.dash-proj-unified .stat-carousel { margin-block-end: 0.85rem; }
+
+/* The lower panel: a HORIZONTAL row of overview cards. Overflow scrolls
+   sideways (snap + thin scrollbar) while the dots above the divider keep
+   signalling that more content sits off-screen. Logical properties only —
+   RTL is the same geometry mirrored. */
+.dash-proj-lower {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(15.5rem, 19.5rem);
+  gap: 0.75rem;
+  align-items: stretch;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scroll-snap-type: x proximity;
+  padding: 0.75rem 0.15rem 0.35rem;
+  margin-block-start: 0.6rem;
+  border-block-start: 1px solid var(--line); /* the divider under the dots row */
+  scrollbar-width: thin;
+  scrollbar-color: var(--line-strong) transparent;
 }
-.dash-urgent-flame { color: var(--err, #c0392b); display: inline-flex; }
-/* S31 (user request 2026-09-13): "a beeping pulsating red light" — the flame
-   flickers in the SAME double-beat rhythm as the urgent dots (prio-beep,
-   polish-batch.css), so the whole strip pulses as one alarm. Guarded by
-   prefers-reduced-motion like every animation in the app. */
-@keyframes dash-flame-flicker {
-  0%, 100% { opacity: 1; transform: scale(1); }
-  6% { opacity: 0.5; transform: scale(1.14); }
-  14% { opacity: 1; transform: scale(1); }
-  22% { opacity: 0.5; transform: scale(1.14); }
-  32% { opacity: 1; transform: scale(1); }
+.dash-proj-lower::-webkit-scrollbar { block-size: 6px; }
+.dash-proj-lower::-webkit-scrollbar-thumb { background: var(--line-strong); border-radius: 999px; }
+.dash-proj-lower > .card { scroll-snap-align: start; margin-block-end: 0; }
+/* the donut card hugs its content (it is a row in a scroller now, not a 2-col
+   grid's flexible lead column) and the boxes fill the row's height evenly */
+.dash-proj-lower .ov-pie-card { flex: 1 1 auto; }
+.dash-proj-lower .ov-box { min-block-size: 100%; }
+/* phone: a comfortable swipe-step — wide enough to read, still snapping */
+@media (max-width: 640px) {
+  .dash-proj-lower { grid-auto-columns: minmax(13.5rem, 85%); }
 }
-@media (prefers-reduced-motion: no-preference) {
-  .dash-urgent-flame { animation: dash-flame-flicker 1.6s ease-in-out infinite; }
-}
-.dash-urgent-count {
+
+/* The container FAB — filled accent (the wireframe's teal +), bottom-INLINE-END
+   (right in EN, left in FA — one rule, zero per-direction overrides). Opens the
+   same New Project dialog as the projects page's quick-add (app.js's delegated
+   [data-projectquickadd] handler; >=44px touch target per the app's touch law). */
+.dash-proj-fab {
+  position: absolute;
+  inset-block-end: 0.85rem;
+  inset-inline-end: 0.85rem;
+  z-index: 20;
   display: inline-grid;
   place-items: center;
-  min-inline-size: 1.6rem;
-  padding-inline: 0.3rem;
-  block-size: 1.6rem;
-  border-radius: 999px;
-  background: var(--err, #c0392b);
-  color: #fff;
-  font-size: var(--fs-xs);
-  font-variant-numeric: tabular-nums;
+  inline-size: 2.75rem;
+  block-size: 2.75rem;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: var(--accent);
+  color: var(--accent-contrast, #fff);
+  box-shadow: 0 4px 14px -6px color-mix(in srgb, var(--accent) 65%, transparent);
+  transition: transform 0.18s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.18s ease, filter 0.15s ease;
 }
-.dash-urgent-list { list-style: none; margin: 0.55rem 0 0; padding: 0; display: grid; gap: 0.25rem; }
-.dash-urgent-row {
-  display: flex;
-  align-items: baseline;
-  gap: 0.45rem;
-  flex-wrap: wrap;
-  padding: 0.3rem 0.4rem;
-  border-radius: var(--radius-sm);
-  /* S46.2 (owner report: "two Latin items, one RTL one LTR on PC — both must be LTR"):
-     force the ROW to LTR layout so .dash-urgent-main sits at the LEFT (consistent
-     start edge for every title, regardless of length — was shrink-wrapping at the
-     right edge in the FA page's RTL flex, so short titles sat further right than
-     long ones) AND so text-align: start (= my S46 fix for wrapped titles) resolves
-     to LEFT for Latin content. Farsi titles still flow RTL via the S31b plaintext
-     on .dash-urgent-main — plaintext overrides this direction for bidi resolution,
-     + the Farsi dot still leads on the right (e2e-pinned by analytics.spec.ts).
-     The h2 header lives in .dash-urgent-head (untouched) so it stays RTL. */
-  direction: ltr;
+.dash-proj-fab:hover { filter: brightness(1.06); box-shadow: 0 6px 18px -6px color-mix(in srgb, var(--accent) 75%, transparent); }
+.dash-proj-fab:active { transform: scale(0.92); }
+.dash-proj-fab:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.dash-proj-fab .icon { inline-size: 1.25rem; block-size: 1.25rem; }
+@media (prefers-reduced-motion: reduce) {
+  .dash-proj-fab { transition: none; }
 }
-.dash-urgent-row:hover { background: var(--bg-soft); } /* S31: neutral hover — was a 5% red wash */
-/* S31b (user report 2026-09-13): the dot + title flow INLINE here — unicode-bidi:
-   plaintext takes the paragraph's base direction from the TITLE's first strong
-   character, so the dot LEADS the text on both sides (English: dot at the line's
-   left start; Farsi: dot at the right start). The old layout had the dot as the
-   row's first flex item (always the right edge) — an English sentence's END landed
-   right next to it and read as a stray trailing bullet. The flex/min-width props
-   moved here from .dash-urgent-title (now a plain inline anchor). */
-.dash-urgent-main {
-  unicode-bidi: plaintext;
-  text-align: start; /* S46: follow the plaintext paragraph direction so a WRAPPED Latin title's lines align LEFT (start of the LTR paragraph) instead of inheriting the page's RTL alignment — the user's "one Latin item reads RTL" report. The dot position is unchanged (it's a flex sibling, not text). */
-  flex: 0 1 auto;
-  min-inline-size: 0;
-  overflow-wrap: anywhere;
-}
-.dash-urgent-row .prio-dot { margin-inline-end: 0.1rem; }
-.dash-urgent-title {
-  font-weight: 400; /* S31 (user request): row titles read like every other task title */
-}
-.dash-urgent-project { flex: none; margin-inline-start: auto; }
+/* the FAB floats over the lower row's end card on narrow screens — keep the
+   row's content readable above it by reserving its corner */
 @media (max-width: 640px) {
-  .dash-urgent-project { margin-inline-start: 0; }
-  .dash-urgent-list { max-block-size: 13rem; overflow-y: auto; }
+  .dash-proj-lower { padding-block-end: 2.6rem; }
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
@@ -824,7 +816,7 @@ main.shell-dash > section { margin-block-end: 2.9rem; }
    hanging). Server-rendered inside the projects section (dashboard.ts); shows
    only when an in-motion project (unreviewed/investigating/awaiting/doing —
    NOT halted, NOT operational) went 14+ days without an update. Design: the
-   .dash-urgent neutral-card recipe with an AMBER edge (waiting / attention-
+   the S124 unified-container card chrome with an AMBER edge (waiting / attention-
    needed per variables.css §color law) — quiet, not an alarm.
    ═══════════════════════════════════════════════════════════════════════════ */
 .dash-stale-row {

@@ -8,7 +8,7 @@
   <link rel="stylesheet" href="/css/variables.css?v=11">
   <link rel="stylesheet" href="/css/base.css?v=8">
   <link rel="stylesheet" href="/css/layout.css?v=48">
-  <link rel="stylesheet" href="/css/dashboard.css?v=24">
+  <link rel="stylesheet" href="/css/dashboard.css?v=25">
   <link rel="stylesheet" href="/css/dashboard-todo.css?v=18">
   <link rel="stylesheet" href="/css/components.css?v=9">
   <link rel="stylesheet" href="/css/canvas.css?v=8">
@@ -167,36 +167,48 @@
         <div class="row spread dash-projects-head">
           <span class="sk sk-heading"></span>
         </div>
-        <div class="stat-carousel">
-          <div class="stat-strip stat-boxes">
-            <div class="stat stat-box sk-stat" aria-hidden="true">
-              <div class="row spread">
-                <span class="row"><span class="sk sk-stat-ico"></span><span class="sk sk-stat-count"></span><span class="sk sk-stat-label"></span></span>
+        <!-- S124: the skeleton mirrors the unified container's shape — the stage
+             carousel + the overview lower row inside ONE card (the FAB included;
+             it stays inert until the swap replaces the whole section). -->
+        <div class="dash-proj-unified ov">
+          <div class="stat-carousel">
+            <div class="stat-strip stat-boxes">
+              <div class="stat stat-box sk-stat" aria-hidden="true">
+                <div class="row spread">
+                  <span class="row"><span class="sk sk-stat-ico"></span><span class="sk sk-stat-count"></span><span class="sk sk-stat-label"></span></span>
+                </div>
+                <div class="stat-kanban">
+                  <div class="card kanban-card stat-kanban-card"><span class="sk sk-proj"></span></div>
+                  <div class="card kanban-card stat-kanban-card"><span class="sk sk-proj"></span></div>
+                </div>
               </div>
-              <div class="stat-kanban">
-                <div class="card kanban-card stat-kanban-card"><span class="sk sk-proj"></span></div>
-                <div class="card kanban-card stat-kanban-card"><span class="sk sk-proj"></span></div>
+              <div class="stat stat-box sk-stat" aria-hidden="true">
+                <div class="row spread">
+                  <span class="row"><span class="sk sk-stat-ico"></span><span class="sk sk-stat-count"></span><span class="sk sk-stat-label"></span></span>
+                </div>
+                <div class="stat-kanban">
+                  <div class="card kanban-card stat-kanban-card"><span class="sk sk-proj"></span></div>
+                  <div class="card kanban-card stat-kanban-card"><span class="sk sk-proj"></span></div>
+                </div>
               </div>
-            </div>
-            <div class="stat stat-box sk-stat" aria-hidden="true">
-              <div class="row spread">
-                <span class="row"><span class="sk sk-stat-ico"></span><span class="sk sk-stat-count"></span><span class="sk sk-stat-label"></span></span>
-              </div>
-              <div class="stat-kanban">
-                <div class="card kanban-card stat-kanban-card"><span class="sk sk-proj"></span></div>
-                <div class="card kanban-card stat-kanban-card"><span class="sk sk-proj"></span></div>
-              </div>
-            </div>
-            <div class="stat stat-box sk-stat" aria-hidden="true">
-              <div class="row spread">
-                <span class="row"><span class="sk sk-stat-ico"></span><span class="sk sk-stat-count"></span><span class="sk sk-stat-label"></span></span>
-              </div>
-              <div class="stat-kanban">
-                <div class="card kanban-card stat-kanban-card"><span class="sk sk-proj"></span></div>
-                <div class="card kanban-card stat-kanban-card"><span class="sk sk-proj"></span></div>
+              <div class="stat stat-box sk-stat" aria-hidden="true">
+                <div class="row spread">
+                  <span class="row"><span class="sk sk-stat-ico"></span><span class="sk sk-stat-count"></span><span class="sk sk-stat-label"></span></span>
+                </div>
+                <div class="stat-kanban">
+                  <div class="card kanban-card stat-kanban-card"><span class="sk sk-proj"></span></div>
+                  <div class="card kanban-card stat-kanban-card"><span class="sk sk-proj"></span></div>
+                </div>
               </div>
             </div>
           </div>
+          <div class="dash-proj-lower" aria-hidden="true">
+            <div class="card ov-pie-card sk-stat"><span class="sk sk-proj"></span></div>
+            <div class="card ov-box sk-stat"><span class="sk sk-proj"></span></div>
+            <div class="card ov-box sk-stat"><span class="sk sk-proj"></span></div>
+            <div class="card ov-box sk-stat"><span class="sk sk-proj"></span></div>
+          </div>
+          <span class="dash-proj-fab" aria-hidden="true"><svg class="icon" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></span>
         </div>
       </section>
     </div>

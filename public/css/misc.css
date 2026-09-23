@@ -1015,3 +1015,175 @@ body:has(.dash-skeleton) .fab-stack .fab:hover { background: color-mix(in srgb, 
 .adm-user.is-skel { display: grid; gap: 0.55rem; }
 .adm-user.is-skel .skeleton { display: block; }
 .adm-userlist[role='status'] { min-height: 12rem; }
+
+/* ══ S121: the projects-home OVERVIEW — project-states carousel + overall-tasks donut ══
+   The owner's wireframe (2026-09-24): an overall view of all projects — a states
+   carousel, an open-tasks pie, and four recent boxes. The task-status colors ride the
+   BOARD's S48p palette (idea blue / planned yellow / in-progress orange / bug red) via
+   data-st hooks; the dark theme swaps to the db-col dark inks. Every rule uses logical
+   properties, so RTL is the same geometry mirrored. */
+.ov {
+  --ov-c-idea: #5B8DEF;
+  --ov-c-planned: #F0C040;
+  --ov-c-in_progress: #E8A27D;
+  --ov-c-bug: #E54D4D;
+}
+html[data-theme='claude-dark'] .ov {
+  --ov-c-idea: #7B9AB8;
+  --ov-c-planned: #A0A8B0;
+  --ov-c-in_progress: #C49A6E;
+  --ov-c-bug: #C098A0;
+}
+.ov-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-block-end: 0.55rem;
+}
+.ov-head h2 { margin: 0; font-size: 1.05rem; }
+/* The states track reuses the dashboard's carousel chrome (stat-* classes + the
+   app.js delegated driver); only the card geometry differs here. */
+.stat-carousel .stat-strip.ov-track {
+  display: flex;
+  gap: 0.75rem;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  scrollbar-width: none;
+  overscroll-behavior-x: contain;
+  -webkit-overflow-scrolling: touch;
+  min-inline-size: 0;
+}
+.ov-card {
+  flex: 0 0 15rem;
+  scroll-snap-align: start;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0.8rem 0.9rem;
+}
+.ov-card-top { align-items: baseline; gap: 0.5rem; }
+.ov-card-title {
+  font-size: 0.95rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ov-card-title + .badge { flex: 0 0 auto; }
+.ov-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  align-items: center;
+  min-block-size: 1.45rem;
+}
+.ov-chip { display: inline-flex; align-items: center; gap: 0.3rem; font-variant-numeric: tabular-nums; }
+.ov-dot {
+  inline-size: 0.6rem;
+  block-size: 0.6rem;
+  border-radius: 50%;
+  flex: 0 0 auto;
+  display: inline-block;
+}
+.ov-dot[data-st='idea'] { background: var(--ov-c-idea); }
+.ov-dot[data-st='planned'] { background: var(--ov-c-planned); }
+.ov-dot[data-st='in_progress'] { background: var(--ov-c-in_progress); }
+.ov-dot[data-st='bug'] { background: var(--ov-c-bug); }
+/* The overview grid: donut card on the reading start edge, the 2×2 boxes fill the rest.
+   ≤860px stacks (the donut card goes full-width, boxes stay 2-up until 560px). */
+.ov-grid {
+  display: grid;
+  grid-template-columns: minmax(15.5rem, 21rem) 1fr;
+  gap: 1rem;
+  align-items: stretch;
+}
+.ov-pie-card {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 1.1rem;
+  padding: 1rem 1.1rem;
+}
+.ov-donut { inline-size: 9.5rem; block-size: 9.5rem; flex: 0 0 auto; }
+.ov-ring { fill: none; stroke: var(--line); stroke-width: 5.5; }
+html[data-theme='claude-dark'] .ov-ring { stroke: var(--line-strong, #4a463f); }
+.ov-seg { fill: none; stroke-width: 5.5; }
+.ov-seg[data-st='idea'] { stroke: var(--ov-c-idea); }
+.ov-seg[data-st='planned'] { stroke: var(--ov-c-planned); }
+.ov-seg[data-st='in_progress'] { stroke: var(--ov-c-in_progress); }
+.ov-seg[data-st='bug'] { stroke: var(--ov-c-bug); }
+.ov-total { font-size: 7.2px; font-weight: 700; fill: var(--text); }
+.ov-total-label { font-size: 3.1px; fill: var(--muted); }
+.ov-legend {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.45rem;
+  flex: 1 1 7.5rem;
+  min-inline-size: 7.5rem;
+}
+.ov-leg { display: flex; align-items: center; gap: 0.5rem; }
+.ov-leg-label { font-size: 0.85rem; }
+.ov-leg-n { margin-inline-start: auto; font-variant-numeric: tabular-nums; }
+.ov-boxes {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+  min-inline-size: 0;
+}
+.ov-box {
+  padding: 0.85rem 0.95rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  min-inline-size: 0;
+  min-block-size: 0;
+}
+.ov-box-title { align-items: center; gap: 0.5rem; }
+.ov-box-label { font-size: 0.85rem; font-weight: 600; }
+/* Long feeds scroll inside their box (custom thin scrollbar) — the card never grows
+   past the donut's height, so the 2×2 grid stays a grid. */
+.ov-items {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.1rem;
+  overflow-y: auto;
+  max-block-size: 9.5rem;
+  scrollbar-width: thin;
+  scrollbar-color: var(--line-strong) transparent;
+}
+.ov-items::-webkit-scrollbar { inline-size: 6px; }
+.ov-items::-webkit-scrollbar-thumb { background: var(--line-strong); border-radius: 999px; }
+.ov-item {
+  display: grid;
+  gap: 0.05rem;
+  padding: 0.32rem 0.4rem;
+  border-radius: 8px;
+}
+.ov-item:hover { background: color-mix(in srgb, var(--line) 34%, transparent); }
+.ov-item-title {
+  font-size: 0.85rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ov-item-proj { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ov-empty { margin: 0; }
+.ov-box-n { font-variant-numeric: tabular-nums; }
+@media (max-width: 860px) {
+  .ov-grid { grid-template-columns: 1fr; }
+  .ov-pie-card { justify-content: center; }
+}
+@media (max-width: 560px) {
+  .ov-boxes { grid-template-columns: 1fr; }
+  /* the phone carousel: one project card per slide (the dashboard's phone pattern) */
+  .ov-card { flex-basis: calc(100% - 2.5rem); }
+}
+/* Reduced motion: the app.js driver already scrolls 'auto' under the media query —
+   this belt keeps native/JS scrolls from gliding if the media check ever misses. */
+@media (prefers-reduced-motion: reduce) {
+  .stat-carousel .stat-strip.ov-track { scroll-behavior: auto; }
+}

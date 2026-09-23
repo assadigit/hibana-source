@@ -1,9 +1,11 @@
 // e2e/projects-home.spec.ts — S45 regression net for the projects page's redesigned home.
 // Owner directive (verbatim): "improving UI/UX of sprints and projects page and
 // functionality, as the most important aspect of hibana for me."
-// The S45 contract, pinned:
-//   1. The stages home = COMPACT glance rail + «Recently active» section (the home used
-//      to render six 169px count-boxes and NOTHING else — zero actual work visible).
+// The S45 contract, pinned (S121 update: the home is now the OVERVIEW — the
+// «Recently active» list grew into the project-states carousel; the rail, the sort
+// and the empty states keep their S45 geometry):
+//   1. The stages home = COMPACT glance rail + the project-states carousel (the home
+//      used to render six 169px count-boxes and NOTHING else — zero actual work visible).
 //   2. The rail stays a CONTROLLER: box height ≤ 80px, click-to-filter untouched
 //      (covered by projects-glance.spec.ts — this spec pins the new geometry).
 //   3. Sort: ?sort= recent/title/stage — server ORDER BY switch + select wiring.
@@ -83,7 +85,7 @@ const trackErrors = (page: Page) => {
   return errors
 }
 
-test('S45 home: compact rail + «Recently active» — the home shows real work, rows navigate', async ({ page, browserName }) => {
+test('S45 home (S121 overview): compact rail + states carousel — the home shows real work, cards navigate', async ({ page, browserName }) => {
   test.skip(browserName !== 'chromium', 'Desktop Chromium only')
   const errors = trackErrors(page)
   await login(page)
@@ -110,19 +112,18 @@ test('S45 home: compact rail + «Recently active» — the home shows real work,
   for (const h of boxHeights) expect(h).toBeLessThanOrEqual(80)
   expect(Math.max(...boxHeights)).toBeGreaterThanOrEqual(40) // still a 40px+ control
 
-  // 2) «Recently active» rides under the rail: rows exist, link to project pages,
-  //    and the NEWEST project is the FIRST row (recency = the "never lose your
-  //    place" job).
-  await expect(page.locator('.precent-row')).not.toHaveCount(0)
-  const rowCount = await page.locator('.precent-row').count()
-  expect(rowCount).toBeLessThanOrEqual(6)
-  const firstRow = page.locator('.precent-row').first()
-  await expect(firstRow.locator('.precent-title')).toContainText('gamma')
-  const href = await firstRow.getAttribute('href')
+  // 2) The project-states carousel rides under the rail (S121): EVERY project is a
+  //    card (the S45 list capped at 6 — the carousel is the whole range), each links
+  //    to its project page, and the NEWEST project is the FIRST card (recency = the
+  //    "never lose your place" job).
+  await expect(page.locator('.ov-card')).toHaveCount(3)
+  const firstCard = page.locator('.ov-card').first()
+  await expect(firstCard).toContainText('gamma')
+  const href = await firstCard.getAttribute('href')
   expect(href).toMatch(/^\/project\.html\?id=/)
 
-  // 3) Clicking a recent row opens the project page (soft nav via nav.js).
-  await firstRow.click()
+  // 3) Clicking a carousel card opens the project page (soft nav via nav.js).
+  await firstCard.click()
   await page.waitForTimeout(1_200)
   expect(page.url()).toMatch(/\/project\.html\?id=/)
 
@@ -229,8 +230,10 @@ test('S45 empty home: a zero-project account gets the capture empty state, not a
   await expect(page.locator('.empty-state')).toBeVisible()
   await expect(page.locator('.empty-state-title')).toContainText(/no projects yet/i)
   await expect(page.locator('.empty-state-cta')).toBeVisible()
-  // No «Recently active» section on an empty account.
-  expect(await page.locator('.precent').count()).toBe(0)
+  // No overview sections on an empty account (S121: the carousel replaces the old
+  // «Recently active» guard — same contract, new surface).
+  expect(await page.locator('.ov-states').count()).toBe(0)
+  expect(await page.locator('.ov-tasks').count()).toBe(0)
 
   expect(errors).toEqual([])
 })

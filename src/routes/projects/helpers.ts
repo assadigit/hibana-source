@@ -349,29 +349,186 @@ export function glanceStrip(counts: Map<string, number>, activeStatus: ProjectSt
   return `<div class="pglance${asMain ? ' pglance-grid' : ''}" role="group" aria-label="${trL(lang, 'Projects by type', 'پروژه‌ها بر اساس نوع')}">${boxes}</div>`
 }
 
-// S45 (owner directive: "improving UI/UX of sprints and projects page"): the stages
-// home used to be the six glance boxes and NOTHING else — zero actual work visible on
-// the projects page's home. «فعالیت اخیر / Recently active» rides under the compact
-// rail: the six most recently touched projects (stage badge + title + updated-ago),
-// one flat hairline row each — the "never lose your place" job, answered at a glance.
-// Plain href anchors: nav.js's capture-phase link interceptor already soft-navigates
-// every relative <a> through go() (same-page re-entry re-mounts per S44).
-export function recentSectionHtml(projects: ProjectRow[], lang: Locale): string {
-  const rows = projects
+// S121 (owner wireframe, 2026-09-24): the projects home becomes a true OVERVIEW —
+// "an overall view of all projects". Three server-rendered parts, all speaking the
+// EXISTING status vocabulary (the wireframe's labels were draft placeholders — the
+// owner confirmed: use idea / planned / in_progress / bug and the six stage labels):
+//   1. Project states — a scroll-snap carousel (the dashboard's stat-carousel chrome,
+//      driven by the document-delegated driver in app.js — ZERO new page JS) with one
+//      card per project: stage badge + open-task chips + progress + last-touch age,
+//      newest first. Retires the S45 «Recently active» list (the carousel IS that
+//      list, upgraded: every project, its state, and its weight in one swipe range).
+//   2. Overall project tasks — an SVG donut of every OPEN dev task across all active
+//      projects by status, center = the open total, ring segments in the BOARD's
+//      status palette (devboard.css S48p: idea blue, planned yellow, in-progress
+//      orange, bug red — one visual language for task statuses everywhere).
+//   3. Four recent boxes — the newest items of each open status (Problems / In
+//      Progress / Ideas / Plans), each linking to its project (two jobs: never lose
+//      your place — the overview answers "where was I" before the first click).
+// Data: one grouped-count query + one per-project group + four 5-row recent queries,
+// all user_id-scoped (rule 1). Renders server-side — 0 new client i18n keys (the
+// S118 silent-restore pattern; parity count unchanged).
+export interface OvCounts { idea: number; planned: number; in_progress: number; bug: number }
+export interface OvTask { id: string; title: string; project_id: string; project_title: string }
+
+// The donut slice order = the lifecycle order (an idea becomes a plan becomes work;
+// bugs live in the exception lane at the end) — matches the board column order.
+const OV_STATUSES = ['idea', 'planned', 'in_progress', 'bug'] as const
+type OvStatus = (typeof OV_STATUSES)[number]
+// The rail's group labels (i18n-en/fa 'rail.g.*') are the owner's OWN words for these
+// four buckets — the overview borrows them verbatim (server-side inline pairs).
+const ovLabel = (st: OvStatus, lang: Locale): string =>
+  st === 'idea' ? trL(lang, 'Ideas', 'ایده‌ها')
+  : st === 'planned' ? trL(lang, 'Plans', 'برنامه‌ها')
+  : st === 'in_progress' ? trL(lang, 'In Progress', 'در حال انجام')
+  : trL(lang, 'Problems', 'مشکلات')
+
+export async function loadOverviewData(
+  cfg: Config,
+  userId: string,
+  projectIds: string[],
+): Promise<{ counts: OvCounts; perProject: Map<string, OvCounts>; recent: Record<OvStatus, OvTask[]> }> {
+  const scope = "p.user_id = ? AND p.deleted_at IS NULL AND (p.archived_state IS NULL OR p.archived_state != 'offline')"
+  const statusPh = OV_STATUSES.map(() => '?').join(',')
+  const counts: OvCounts = { idea: 0, planned: 0, in_progress: 0, bug: 0 }
+  const perProject = new Map<string, OvCounts>()
+  for (const id of projectIds) perProject.set(id, { idea: 0, planned: 0, in_progress: 0, bug: 0 })
+  const [statusRows, perRows, ...recentLists] = await Promise.all([
+    // the pie: open tasks across ALL the user's active projects (the home's scope —
+    // deleted + parked-offline excluded, exactly like the glance rail above it)
+    cfg.db.query<{ status: string; n: number }>(
+      `SELECT t.status, COUNT(*) AS n FROM dev_tasks t JOIN projects p ON p.id = t.project_id
+       WHERE ${scope} AND t.status IN (${statusPh}) GROUP BY t.status`,
+      [userId, ...OV_STATUSES],
+    ),
+    // per-project chips: only the projects the carousel actually shows
+    projectIds.length
+      ? cfg.db.query<{ project_id: string; status: string; n: number }>(
+          `SELECT t.project_id, t.status, COUNT(*) AS n FROM dev_tasks t JOIN projects p ON p.id = t.project_id
+           WHERE ${scope} AND t.project_id IN (${projectIds.map(() => '?').join(',')}) AND t.status IN (${statusPh})
+           GROUP BY t.project_id, t.status`,
+          [userId, ...projectIds, ...OV_STATUSES],
+        )
+      : Promise.resolve([] as { project_id: string; status: string; n: number }[]),
+    // the four recent feeds — newest-born first, 5 rows each (the box links on)
+    ...OV_STATUSES.map((st) =>
+      cfg.db.query<OvTask>(
+        `SELECT t.id, t.title, t.project_id, p.title AS project_title
+         FROM dev_tasks t JOIN projects p ON p.id = t.project_id
+         WHERE ${scope} AND t.status = ?
+         ORDER BY t.created_at DESC LIMIT 5`,
+        [userId, st],
+      ),
+    ),
+  ])
+  const isOv = (s: string): s is OvStatus => (OV_STATUSES as readonly string[]).includes(s)
+  for (const r of statusRows) if (isOv(r.status)) counts[r.status] = r.n
+  for (const r of perRows) {
+    const s = perProject.get(r.project_id)
+    if (s && isOv(r.status)) s[r.status] = r.n
+  }
+  const recent = {} as Record<OvStatus, OvTask[]>
+  OV_STATUSES.forEach((st, i) => { recent[st] = recentLists[i] })
+  return { counts, perProject, recent }
+}
+
+export function projectStatesCarouselHtml(
+  projects: ProjectRow[],
+  perProject: Map<string, OvCounts>,
+  progressMap: Map<string, number>,
+  lang: Locale,
+): string {
+  const dig = (n: number) => (lang === 'fa' ? faDigits(String(n)) : String(n))
+  const cards = projects
     .map((p) => {
-      return `<a class="precent-row" href="/project.html?id=${p.id}">
-        ${STATUS_BADGE(p.status, lang)}
-        <span class="precent-title" dir="auto">${esc(p.title)}</span>
-        <span class="precent-ago muted small">${timeAgo(p.updated_at, lang)}</span>
+      const c = perProject.get(p.id) ?? { idea: 0, planned: 0, in_progress: 0, bug: 0 }
+      const chips = OV_STATUSES
+        .map((st) => ({ st, n: c[st] }))
+        .filter((x) => x.n > 0)
+        .map((x) => `<span class="chip ov-chip" data-st="${x.st}"><span class="ov-dot" data-st="${x.st}" aria-hidden="true"></span>${dig(x.n)}<span class="sr-only">${ovLabel(x.st, lang)}</span></span>`)
+        .join('')
+      const pct = progressMap.get(p.id) ?? 0
+      return `<a class="card ov-card" href="/project.html?id=${p.id}">
+        <span class="row spread ov-card-top">
+          <strong class="ov-card-title" dir="auto">${esc(p.title)}</strong>
+          ${STATUS_BADGE(p.status, lang)}
+        </span>
+        <span class="ov-chips">${chips || `<span class="chip ov-chip-none muted">${trL(lang, 'No open tasks', 'کاری باز نیست')}</span>`}</span>
+        <div class="kanban-progress ${progressBucket(pct)}" role="progressbar" aria-valuenow="${pct}" aria-valuemin="0" aria-valuemax="100" aria-label="${esc(trL(lang, 'Progress', 'پیشرفت'))}"><span style="inline-size:${pct}%"></span></div>
+        <span class="muted small ov-card-ago">${timeAgo(p.updated_at, lang)}</span>
       </a>`
     })
     .join('')
-  return `<section class="precent" aria-labelledby="precent-heading">
-    <div class="precent-head">
-      <h2 id="precent-heading">${trL(lang, 'Recently active', 'فعالیت اخیر')}</h2>
+  // The carousel chrome (stat-carousel/stat-stage/stat-strip/stat-arrow/stat-dots) is
+  // the dashboard's — app.js's document-delegated driver pages it, RTL-aware, with no
+  // per-page wiring. The .ov-track class only swaps the card width (misc.css).
+  return `<section class="ov ov-states" aria-labelledby="ov-states-h">
+    <div class="ov-head">
+      <h2 id="ov-states-h">${trL(lang, 'Project states', 'وضعیت پروژه‌ها')}</h2>
       <a class="small muted precent-all" href="/projects.html?view=cards">${trL(lang, 'All projects', 'همهٔ پروژه‌ها')} ${lang === 'fa' ? '←' : '→'}</a>
     </div>
-    <div class="precent-list">${rows}</div>
+    <div class="stat-carousel" data-stat-carousel>
+      <div class="stat-stage">
+        <div class="stat-strip ov-track" data-stat-track role="group" aria-label="${trL(lang, 'Projects by state', 'پروژه‌ها بر اساس وضعیت')}">${cards}</div>
+        <button type="button" class="stat-arrow" data-stat-prev aria-label="${trL(lang, 'Previous projects', 'پروژه‌های قبلی')}">${icon('chevron-left')}</button>
+        <button type="button" class="stat-arrow" data-stat-next aria-label="${trL(lang, 'Next projects', 'پروژه‌های بعدی')}">${icon('chevron-right')}</button>
+      </div>
+      <div class="stat-carousel-nav"><div class="stat-dots" data-stat-dots aria-hidden="true"></div></div>
+    </div>
+  </section>`
+}
+
+export function overallTasksHtml(counts: OvCounts, recent: Record<OvStatus, OvTask[]>, lang: Locale): string {
+  const dig = (n: number) => (lang === 'fa' ? faDigits(String(n)) : String(n))
+  const total = OV_STATUSES.reduce((s, st) => s + counts[st], 0)
+  // Donut geometry: r=15.9155 → circumference EXACTLY 100, so every slice's
+  // dasharray is its percentage. The <g> (ring + segments) rotates -90° so the
+  // accumulation starts at 12 o'clock; the center <text> stays upright outside it.
+  let acc = 0
+  const segs = OV_STATUSES
+    .map((st) => {
+      const f = total ? (counts[st] / total) * 100 : 0
+      const seg = f > 0
+        ? `<circle class="ov-seg" data-st="${st}" r="15.9155" cx="21" cy="21" stroke-dasharray="${f.toFixed(3)} ${(100 - f).toFixed(3)}" stroke-dashoffset="${(25 - acc).toFixed(3)}"></circle>`
+        : ''
+      acc += f
+      return seg
+    })
+    .join('')
+  const pie = `<div class="card ov-pie-card">
+      <svg class="ov-donut" viewBox="0 0 42 42" role="img" aria-label="${esc(trL(lang, '{n} open tasks across all projects', '{n} کار باز در همهٔ پروژه‌ها', { n: dig(total) }))}">
+        <g transform="rotate(-90 21 21)">
+          <circle class="ov-ring" r="15.9155" cx="21" cy="21"></circle>
+          ${segs}
+        </g>
+        <text class="ov-total" x="21" y="21" text-anchor="middle" dominant-baseline="central">${dig(total)}</text>
+        <text class="ov-total-label" x="21" y="28.2" text-anchor="middle">${trL(lang, 'open', 'باز')}</text>
+      </svg>
+      <ul class="ov-legend">
+        ${OV_STATUSES.map((st) => `<li class="ov-leg" data-st="${st}"><span class="ov-dot" data-st="${st}" aria-hidden="true"></span><span class="ov-leg-label">${ovLabel(st, lang)}</span><b class="ov-leg-n">${dig(counts[st])}</b></li>`).join('')}
+      </ul>
+    </div>`
+  const box = (st: OvStatus): string => {
+    const items = recent[st]
+      .map((t) => `<li><a class="ov-item" href="/project.html?id=${t.project_id}">
+          <span class="ov-item-title" dir="auto">${esc(t.title)}</span>
+          <span class="ov-item-proj muted small" dir="auto">${esc(t.project_title)}</span>
+        </a></li>`)
+      .join('')
+    return `<div class="card ov-box" data-ov-box="${st}">
+      <div class="row spread ov-box-head">
+        <span class="row ov-box-title"><span class="ov-dot" data-st="${st}" aria-hidden="true"></span><span class="ov-box-label">${ovLabel(st, lang)}</span></span>
+        <b class="board-count ov-box-n">${dig(counts[st])}</b>
+      </div>
+      ${items ? `<ul class="ov-items">${items}</ul>` : `<p class="muted small ov-empty">${trL(lang, 'Nothing here', 'چیزی نیست')}</p>`}
+    </div>`
+  }
+  // Box order = the wireframe's reading order (what's burning first): Problems,
+  // In Progress, then the capture lanes Ideas / Plans.
+  const boxes = `<div class="ov-boxes">${box('bug')}${box('in_progress')}${box('idea')}${box('planned')}</div>`
+  return `<section class="ov ov-tasks" aria-labelledby="ov-tasks-h">
+    <div class="ov-head"><h2 id="ov-tasks-h">${trL(lang, 'Overall project tasks', 'کارهای همهٔ پروژه‌ها')}</h2></div>
+    <div class="ov-grid">${pie}${boxes}</div>
   </section>`
 }
 

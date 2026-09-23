@@ -1973,7 +1973,10 @@ window.hibana = (() => {
     // scrollBy's left is direction-relative: positive moves toward later content in LTR,
     // toward the START in RTL — so flip for RTL (later boxes live at lower scrollLeft).
     const rtl = getComputedStyle(track).direction === 'rtl'
-    track.scrollBy({ left: (rtl ? -dir : dir) * track.clientWidth, behavior: 'smooth' })
+    // S121: reduced-motion users get the instant scroll (the smooth glide is motion
+    // for motion's sake — the paging itself is unaffected; same snap endpoint lands).
+    const smooth = !(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches)
+    track.scrollBy({ left: (rtl ? -dir : dir) * track.clientWidth, behavior: smooth ? 'smooth' : 'auto' })
   })
   document.addEventListener('scroll', (e) => {
     if (e.target && e.target.matches && e.target.matches('[data-stat-track]')) syncStatCarousel(e.target)

@@ -22,7 +22,8 @@ import type { ProjectSignals } from './helpers'
 import {
   loadTags, loadProjectSignals, projectProgress,
   bugBubbleHtml, signalsHtml, backlogMetaHtml,
-  cardHtml, listFragment, glanceStrip, recentSectionHtml,
+  cardHtml, listFragment, glanceStrip,
+  loadOverviewData, projectStatesCarouselHtml, overallTasksHtml,
   sparkEmptyHtml, sparkKanbanHtml, sparkFolderBar, sparkFolderGrid, sparkFolderEmptyHtml,
   archiveShelfHtml, staleBannerHtml, staleEmptyHtml,
 } from './helpers'
@@ -158,10 +159,24 @@ export function projectsRoutes(cfg: Config) {
         if (query.success && (query.data.q || query.data.tag)) {
           return await etag(c, c.html(glanceStrip(counts, activeStatus, lang, true)))
         }
-        const recent = [...projects].sort((a, b) => (a.updated_at < b.updated_at ? 1 : a.updated_at > b.updated_at ? -1 : 0)).slice(0, 6)
+        // S121 (owner wireframe): the pure home is now the OVERVIEW — glance rail, then
+        // the project-states carousel (every project, newest first), then the overall
+        // tasks donut + the four recent boxes. Retires the S45 «Recently active» list:
+        // the carousel IS that list upgraded (full range, state + weight per card).
+        const recent = [...projects].sort((a, b) => (a.updated_at < b.updated_at ? 1 : a.updated_at > b.updated_at ? -1 : 0))
+        if (recent.length === 0) {
+          return await etag(c, c.html(
+            glanceStrip(counts, activeStatus, lang, true) +
+            listFragment([], tagsMap, 'cards', lang),
+          ))
+        }
+        const ovProjects = recent.slice(0, 36) // a swipe range, not an infinite scroll — 36 cards ≈ 12 pages of 3
+        const progressMap = await loadProjectProgress(cfg, projects)
+        const ov = await loadOverviewData(cfg, user.id, ovProjects.map((p) => p.id))
         return await etag(c, c.html(
           glanceStrip(counts, activeStatus, lang, true) +
-          (recent.length > 0 ? recentSectionHtml(recent, lang) : listFragment([], tagsMap, 'cards', lang)),
+          projectStatesCarouselHtml(ovProjects, ov.perProject, progressMap, lang) +
+          overallTasksHtml(ov.counts, ov.recent, lang),
         ))
       }
       // P-signals: batch-load per-project signal counts (bugs, ideas, backlog, hurdles)

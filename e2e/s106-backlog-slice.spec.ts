@@ -208,9 +208,11 @@ test('S106-1: project names, folders and head groups compute the 700 bold regist
   expect(elbow.tick).toBe('solid')
   expect(elbow.riser).toBe('solid')
 
-  // (c) The projects home — the recently-active row title (the project NAME).
-  await page.waitForSelector('.precent-title', { timeout: 10_000 })
-  const precentWeight = await page.locator('.precent-title').first().evaluate((el) => getComputedStyle(el).fontWeight)
+  // (c) The projects home — the states-carousel card title (the project NAME;
+  // S121 renamed the S45 recently-active row into the overview carousel — the
+  // bold-name contract carries over to .ov-card-title).
+  await page.waitForSelector('.ov-card-title', { timeout: 10_000 })
+  const precentWeight = await page.locator('.ov-card-title').first().evaluate((el) => getComputedStyle(el).fontWeight)
   expect(precentWeight).toBe('700')
 
   // (d) The projects cards view — the project card title.

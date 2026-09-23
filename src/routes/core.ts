@@ -546,26 +546,42 @@ export function coreRoutes(cfg: Config) {
     const projectId = await ownedRecord(user.id, c.req.param('id'), 'screenshots')
     if (!projectId) return c.json({ error: 'not_found' }, 404)
     const rec = await cfg.db.query<ScreenshotRow>('SELECT * FROM screenshots WHERE id = ? AND project_id = ?', [c.req.param('id'), projectId])
+    // S116 (CI evidence): a row whose STORED OBJECT is gone (a purged KV entry, an
+    // expired storage backend, a stale local-e2e DB) used to surface as an unhandled
+    // ENOENT / storage-HTTP-error 500 via app.onError — the gallery tile got a
+    // console error and nothing else. The row is the truth (it 404s above); a missing
+    // OBJECT is the same fact one layer deeper, so it degrades to the SAME 404 and
+    // the tile renders its alt/empty state instead of blaming the server.
+    const getObjectOrNull = async (key: string): Promise<ArrayBuffer | null> => {
+      try {
+        return await shotStore.getObject(key)
+      } catch {
+        return null
+      }
+    }
     // S69 (perf §10-F1): ?variant=thumb serves the ≤320px WebP tile when one exists —
     // the gallery grid no longer transfers full-size originals. A miss (legacy shots,
     // or a failed thumb write) falls back to the original bytes and says so via
     // X-Hibana-Thumb: miss, which the gallery uses to self-heal (generate + PATCH the
     // thumb once, best-effort — every later visit on any device gets the cheap tile).
     const wantThumb = c.req.query('variant') === 'thumb'
-    let bytes: ArrayBuffer
+    let bytes: ArrayBuffer | null
     let mime = rec[0].mime_type
     let thumbMiss = false
     if (wantThumb) {
-      try {
-        bytes = await shotStore.getObject(`${rec[0].github_path}.thumb`)
+      bytes = await getObjectOrNull(`${rec[0].github_path}.thumb`)
+      if (bytes) {
         mime = 'image/webp'
-      } catch {
-        bytes = await shotStore.getObject(rec[0].github_path)
+      } else {
+        bytes = await getObjectOrNull(rec[0].github_path)
+        if (!bytes) return c.json({ error: 'not_found' }, 404)
         thumbMiss = true
       }
     } else {
-      bytes = await shotStore.getObject(rec[0].github_path) // raw bytes — never text-decoded
+      bytes = await getObjectOrNull(rec[0].github_path) // raw bytes — never text-decoded
+      if (!bytes) return c.json({ error: 'not_found' }, 404)
     }
+    if (!bytes) return c.json({ error: 'not_found' }, 404) // unreachable — narrows the type
     // S39 self-heal: legacy rows (pre-0054) have bytes=0; the object is ALREADY in
     // hand here, so record its true size once — the gallery's space meter goes honest
     // on the first view. Idempotent (guarded by bytes = 0) + best-effort (a failed

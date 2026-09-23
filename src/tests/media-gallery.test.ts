@@ -279,3 +279,40 @@ describe('S115: gallery DELETE-ALL', () => {
     }
   })
 })
+
+// S116 (CI evidence): a screenshot row whose STORED OBJECT is gone (a purged KV
+// entry, an expired storage backend, a stale local-e2e DB) used to surface as an
+// unhandled storage-error 500 via app.onError — the gallery tile got a console
+// error and nothing else. The route now degrades to the SAME 404 a missing row
+// speaks, for both the original and the ?variant=thumb path (a missing thumb still
+// falls back to the original; a missing ORIGINAL is the honest 404).
+describe('S116: a missing stored object degrades to 404, never 500', () => {
+  it('GET file → 404 when the object read throws (original + thumb variant)', async () => {
+    const { db, close } = makeTestDb()
+    try {
+      const userId = await makeUser(db)
+      const projectId = await makeProject(db, userId)
+      const app = testApp(db)
+      const token = await createSession(db, userId)
+      // The upload succeeds (the write path is stubbed ok)…
+      vi.stubGlobal('fetch', async () => new Response(JSON.stringify({ content: { html_url: 'u' } }), { status: 201, headers: { 'Content-Type': 'application/json' } }))
+      const shotId = await uploadShot(app, token, projectId)
+
+      // …then the storage backend goes away (every read throws — the ENOENT class).
+      vi.stubGlobal('fetch', async () => { throw new Error('ENOENT: no such file or directory') })
+
+      const orig = await app.fetch(new Request(`http://local/api/media/screenshots/${shotId}/file`, { headers: { Cookie: `hibana_session=${token}` } }))
+      expect(orig.status).toBe(404)
+      expect(((await orig.json()) as { error: string }).error).toBe('not_found')
+
+      const thumb = await app.fetch(new Request(`http://local/api/media/screenshots/${shotId}/file?variant=thumb`, { headers: { Cookie: `hibana_session=${token}` } }))
+      expect(thumb.status).toBe(404)
+
+      // the row SURVIVES (the gallery still lists it; cleanup is the owner's job)
+      const list = await app.fetch(new Request('http://local/api/media', { headers: { Cookie: `hibana_session=${token}` } }))
+      expect(((await list.json()) as { count: number }).count).toBe(1)
+    } finally {
+      close()
+    }
+  })
+})

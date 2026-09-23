@@ -446,6 +446,44 @@
     return railFetch
   }
 
+  // --- S116: the re-render keeps your place --------------------------------------
+  // Every panel RE-RENDER (a fresh /api/rail read, the Undo path, a quick-add
+  // landing, the calendar's month step) rebuilds the body — and used to fold every
+  // group back to its shipped default, so an expanded project branch collapsed
+  // under the owner's cursor. The collapse states are now HARVESTED before each
+  // body swap and RE-APPLIED after (keyed by the branch's project id for project
+  // groups, the head's label text for stages/aspects/folders). Groups that are NEW
+  // since the last render (a first In-Progress task grows its aspect group) render
+  // at their defaults; the S97 fold button re-syncs after each restore. The states
+  // live as long as the document does — reopening the panel keeps the tree the
+  // owner left (the box only hides), while a hard reload starts fresh (they are
+  // interaction state, not a preference — the S97 button stays the explicit boss).
+  const railGroupKey = (g) =>
+    g.getAttribute('data-project-branch') ||
+    g.querySelector('.rail-group-head span:not(.rail-group-count)')?.textContent?.trim() ||
+    ''
+  const railHarvestGroups = () => {
+    const box = railBox()
+    const m = new Map()
+    if (box) box.querySelectorAll('.rail-group').forEach((g) => {
+      const k = railGroupKey(g)
+      if (k) m.set(k, g.classList.contains('is-collapsed'))
+    })
+    return m
+  }
+  const railRestoreGroups = (prev) => {
+    const box = railBox()
+    if (!box || !prev || !prev.size) return
+    box.querySelectorAll('.rail-group').forEach((g) => {
+      const was = prev.get(railGroupKey(g))
+      if (was === undefined) return
+      g.classList.toggle('is-collapsed', was)
+      const head = g.querySelector('.rail-group-head')
+      if (head) head.setAttribute('aria-expanded', String(!was))
+    })
+    syncRailTreeBtn() // S97: the restored tree may complete/clear a full fold
+  }
+
   // one grouped list section: label + count + collapsible body of .rail-item rows.
   // S93 (item 6): opts.accent tints the head with the quadrant's picked pastel (a
   // 12% wash + a colored lead dot — the same token the board quadrant renders).
@@ -966,6 +1004,9 @@
       '</div>'
     // S93: every panel section reads /api/rail (the dashboard panel is retired —
     // its icon navigates; see RAIL_SECTIONS).
+    // S116: harvest BEFORE the loading swap — the fresh render re-applies the
+    // owner's expanded branches (the language switch / a data refresh keeps the tree).
+    const prevGroups = railHarvestGroups()
     box.innerHTML = head + '<div class="rail-panel-body"><div class="rail-panel-loading">' + escHtml(railT('rail.loading', 'Loading…')) + '</div></div>'
     let data
     try { data = await loadRailData() } catch {
@@ -976,6 +1017,7 @@
     // a section switch (or close) superseded this render
     if (!railSection || railBox() !== box) return
     box.innerHTML = head + '<div class="rail-panel-body">' + railBodyFor(railSection, data) + '</div>'
+    railRestoreGroups(prevGroups) // S116: the owner's folded/expanded tree survives
     markRailRows() // S95: freshly rendered rows get their current-location marks
     syncRailTreeBtn() // S97: the fold button mirrors the freshly rendered tree
   }
@@ -1136,8 +1178,10 @@
                     if (t) t.done = 0
                     const box = railBox()
                     if (box && railSection === 'todo') {
+                      const prevGroups = railHarvestGroups() // S116: keep the tree as the owner left it
                       const body = box.querySelector('.rail-panel-body')
                       if (body) body.innerHTML = railBodyFor('todo', railData)
+                      railRestoreGroups(prevGroups) // S116: re-apply
                       markRailRows() // S95: fresh rows re-mark their current location
                       syncRailTreeBtn() // S97: the re-render rebuilt the tree
                     }
@@ -1214,8 +1258,10 @@
         railTodoCtx.picked = quadrant // S114 r2: the capture loop stays on the list you're filling
         const box = railBox()
         if (box && railSection === 'todo') {
+          const prevGroups = railHarvestGroups() // S116: keep the tree as the owner left it
           const body = box.querySelector('.rail-panel-body')
           if (body) body.innerHTML = railBodyFor('todo', railData)
+          railRestoreGroups(prevGroups) // S116: re-apply
           markRailRows() // S95: fresh rows re-mark their current location
           syncRailTreeBtn() // S97: the re-render rebuilt the tree
           const fresh = box.querySelector('[data-rail-add-input]')
@@ -1277,8 +1323,10 @@
         railCalMonth = next
         const box = railBox()
         if (box && railSection) {
+          const prevGroups = railHarvestGroups() // S116: keep the tree as the owner left it
           const body = box.querySelector('.rail-panel-body')
           if (body) body.innerHTML = railBodyFor(railSection, railData)
+          railRestoreGroups(prevGroups) // S116: re-apply
         }
         syncRailTreeBtn() // S97: the month step re-rendered the tree (Coming up rides a group)
       }

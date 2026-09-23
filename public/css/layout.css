@@ -312,6 +312,12 @@ body.rail-panel-open .rail-panel { visibility: visible; opacity: 1; transition: 
   cursor: pointer;
 }
 .rail-group-head:hover { color: var(--text); background: var(--accent-soft); }
+/* S116: the group heads join the panel's brand focus-ring convention — keyboard
+   users tabbing the tree (stage → project branch → aspect sub-groups) get the same
+   2px brand ring every other rail control speaks; the UA default outline read as
+   foreign ink in the panel. Inset (-2px, the .rail-item recipe) so a ringed head
+   can never spill outside the headrow/panel gutter. */
+.rail-group-head:focus-visible { outline: 2px solid var(--brand); outline-offset: -2px; }
 .rail-group-head .rail-group-count { margin-inline-start: auto; font-variant-numeric: tabular-nums; font-weight: 500; opacity: 0.8; }
 .rail-group-head .icon { inline-size: 0.85rem; block-size: 0.85rem; transition: transform 0.14s ease; }
 /* S95 r2 (owner item 2): the COLLAPSED disclosure chevron points DOWN ("the items

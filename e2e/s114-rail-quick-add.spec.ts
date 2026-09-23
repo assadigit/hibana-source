@@ -183,4 +183,36 @@ test.describe('the to-do panel quick-add (S114 — never lose an idea)', () => {
       }
     }, seedUserId)
   })
+
+  // S116 (never lose your place, the sidebar edition): the quick-add re-render
+  // REBUILDS the panel body — and used to unfold every group back to its shipped
+  // default, so a quadrant the owner had folded popped open under their cursor.
+  // The harvest-and-restore now carries the owner's collapse states across the swap.
+  test('a re-render KEEPS the owner\u2019s folded groups (S116 place-keeping)', async ({ page }) => {
+    await login(page)
+    await openTodoPanel(page)
+
+    // Fold the Urgent quadrant (ships open)…
+    const urgent = page.locator('.rail-group', { hasText: 'Urgent & High Value' })
+    await urgent.locator('.rail-group-head').first().click()
+    await expect(urgent).toHaveClass(/is-collapsed/)
+
+    // …capture a task into Strategic (the S114 re-render rebuilds the body)…
+    const form = page.locator('[data-rail-add]')
+    await form.locator('[data-rail-add-picker]').selectOption('2')
+    const input = form.locator('[data-rail-add-input]')
+    await input.fill('Rail place-keeping task')
+    await input.press('Enter')
+    await expect(page.locator('.rail-todo-item', { hasText: 'Rail place-keeping task' })).toBeVisible()
+
+    // …the folded quadrant STAYS folded (it used to pop back open)…
+    await expect(page.locator('.rail-group', { hasText: 'Urgent & High Value' })).toHaveClass(/is-collapsed/)
+
+    // …and the Undo path preserves it too: complete + undo a row, the fold holds.
+    const strategicRow = page.locator('.rail-group', { hasText: 'Strategic' }).locator('.rail-todo-item input[data-rail-todo]').first()
+    await strategicRow.check()
+    await page.waitForTimeout(480)
+    await page.locator('#toast').getByText('Undo').click()
+    await expect(page.locator('.rail-group', { hasText: 'Urgent & High Value' })).toHaveClass(/is-collapsed/)
+  })
 })

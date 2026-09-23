@@ -610,7 +610,15 @@ export function projectsRoutes(cfg: Config) {
     if (!p?.logo_path) return c.json({ error: 'not_found' }, 404)
     if (!cfg.github.token) return c.json({ error: 'github_not_configured' }, 503)
     const gh = githubClient(cfg.github as GitHubConfig)
-    const bytes = await gh.readBinary(p.logo_path)
+    // S116 (the media-route 404 contract): a logo row whose GitHub object is gone
+    // (deleted upstream, a token hiccup) degrades to the same 404 the missing row
+    // speaks — readBinary throws on storage errors; the unhandled throw used to 500.
+    let bytes: Awaited<ReturnType<typeof gh.readBinary>> | null = null
+    try {
+      bytes = await gh.readBinary(p.logo_path)
+    } catch {
+      bytes = null
+    }
     if (!bytes) return c.json({ error: 'not_found' }, 404)
     return new Response(bytes, { headers: { 'Content-Type': mimeForPath(p.logo_path), 'Cache-Control': 'public, max-age=3600, stale-while-revalidate=604800' } })
   })

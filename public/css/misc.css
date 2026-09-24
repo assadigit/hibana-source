@@ -1108,26 +1108,28 @@ html[data-theme='claude-dark'] .ov-ring { stroke: var(--line-strong, #4a463f); }
 }
 .ov-box-title { align-items: center; gap: 0.5rem; }
 .ov-box-label { font-size: 0.85rem; font-weight: 600; }
-/* Long feeds scroll inside their box (custom thin scrollbar) — the card never grows
-   past the donut's height, so the 2×2 grid stays a grid. */
+/* S126: the header's View all — the same affordance the stage cards carry. Quiet
+   muted register (the count pill beside the label is the loud part); darkens on
+   hover/focus. Logical properties only — flips cleanly in FA/RTL. */
+.ov-viewall { font-size: 0.78rem; white-space: nowrap; flex: none; }
+.ov-viewall:hover, .ov-viewall:focus-visible { color: var(--text); }
+/* S126: NO internal scroller — the feeds are capped at 3 (last-updated first), so
+   the card shows its whole list and the dead vertical space below it is gone.
+   Everything past the 3 lives one click away on the header's View all link. */
 .ov-items {
   list-style: none;
   margin: 0;
   padding: 0;
   display: grid;
   gap: 0.1rem;
-  overflow-y: auto;
-  max-block-size: 9.5rem;
-  scrollbar-width: thin;
-  scrollbar-color: var(--line-strong) transparent;
 }
-.ov-items::-webkit-scrollbar { inline-size: 6px; }
-.ov-items::-webkit-scrollbar-thumb { background: var(--line-strong); border-radius: 999px; }
 .ov-item {
+  position: relative;
   display: grid;
   gap: 0.05rem;
   padding: 0.32rem 0.4rem;
   border-radius: 8px;
+  text-align: start;
 }
 .ov-item:hover { background: color-mix(in srgb, var(--line) 34%, transparent); }
 .ov-item-title {
@@ -1135,10 +1137,80 @@ html[data-theme='claude-dark'] .ov-ring { stroke: var(--line-strong, #4a463f); }
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  text-align: start; /* S126: logical — mirrors cleanly in RTL (no text-align: left) */
 }
-.ov-item-proj { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* S126: keyboard path for the truncated titles — the native title attribute covers
+   mouse hover, but screen readers don't reliably read it, so :focus-visible raises
+   the same text as a real tooltip (data-full on the anchor). Logical properties
+   (inset-inline-start + text-align: start) keep it correct in RTL; z-index rides
+   above the sibling cards. */
+.ov-item:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.ov-item:focus-visible::after {
+  content: attr(data-full);
+  position: absolute;
+  inset-inline-start: 0.25rem;
+  inset-block-end: calc(100% + 0.2rem);
+  z-index: 40;
+  max-inline-size: min(22rem, 72vw);
+  padding: 0.3rem 0.55rem;
+  border-radius: 8px;
+  background: var(--text);
+  color: var(--bg, #fff);
+  font-size: 0.75rem;
+  line-height: 1.45;
+  white-space: normal;
+  text-align: start;
+  overflow-wrap: anywhere;
+  box-shadow: 0 6px 18px -8px rgb(0 0 0 / 0.35);
+  pointer-events: none;
+}
+/* S126: the project-name metadata line steps DOWN from its title (smaller, muted —
+   the eye separates "what it is" from "which project it's from") and carries the
+   owning project's stage accent dot (the --stage-bar-* system the Planning/
+   Queued/Developing rows wear). */
+.ov-item-proj {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: 0.72rem;
+  color: var(--muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-align: start;
+}
+.ov-proj-dot { inline-size: 0.5rem; block-size: 0.5rem; border-radius: 50%; flex: none; background: var(--line-strong); }
+.ov-proj-dot[data-stage='spark'] { background: var(--stage-bar-spark); }
+.ov-proj-dot[data-stage='planning'] { background: var(--stage-bar-planning); }
+.ov-proj-dot[data-stage='queued'] { background: var(--stage-bar-queued); }
+.ov-proj-dot[data-stage='developing'] { background: var(--stage-bar-developing); }
+.ov-proj-dot[data-stage='awaiting_dev'] { background: var(--stage-bar-awaiting_dev); }
+.ov-proj-dot[data-stage='operational'] { background: var(--stage-bar-operational); }
 .ov-empty { margin: 0; }
 .ov-box-n { font-variant-numeric: tabular-nums; }
+
+/* ═══ S126: the ov-tasks page (tasks.html) — the overview cards' "View all"
+   destination. Reuses the ov-item anatomy (title + project dot-line) at full
+   text width (no truncation: this page IS the full list). Logical properties
+   only — the page mirrors cleanly in FA/RTL. ═══ */
+.ovt-head { align-items: center; gap: 0.6rem; margin-block-end: 0.2rem; }
+.ovt-h {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 700;
+}
+.ovt-sub { margin: 0 0 0.65rem; }
+.ovt-switch { gap: 0.35rem; margin-block-end: 0.85rem; }
+.ovt-switch-chip { text-decoration: none; color: var(--muted); }
+.ovt-switch-chip:hover, .ovt-switch-chip:focus-visible { color: var(--text); }
+.ovt-switch-chip.is-active { color: var(--text); border-color: var(--accent); font-weight: 600; }
+.ovt-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.15rem; }
+.ovt-row { padding-block: 0.45rem; }
+.ovt-row-title { font-size: 0.9rem; white-space: normal; overflow-wrap: anywhere; }
+.ovt-when { color: var(--muted); font-size: 0.68rem; }
 @media (max-width: 860px) {
   .ov-grid { grid-template-columns: 1fr; }
   .ov-pie-card { justify-content: center; }

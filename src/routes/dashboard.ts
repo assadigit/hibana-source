@@ -200,11 +200,13 @@ export function dashboardRoutes(cfg: Config) {
       const lang = localeOf(c)
       const num = (v: number | string): string => (lang === 'fa' ? faDigits(String(v)) : String(v))
 
-      // P-signals: bug bubble (solid red, next to title) + lighter chips (ideas/backlog/hurdles).
+      // P-signals: bug bubble (red rounded-square chip: glyph + count, next to title)
+      // + lighter chips (ideas/backlog/hurdles). S126: the bug glyph NAMES the count
+      // (the owner's badge-collision note) and aria-label mirrors the tooltip.
       const bugBubbleD = (id: string): SafeHtml => {
         const s = sigMap.get(id)
         if (!s || s.bugs === 0) return html``
-        return html`<span class="bug-bubble" title="${t(`${s.bugs} open ${s.bugs === 1 ? 'bug' : 'bugs'}`, `${s.bugs} باگ باز`)}">${num(s.bugs)}</span>`
+        return html`<span class="bug-bubble" title="${t(`${s.bugs} open ${s.bugs === 1 ? 'bug' : 'bugs'}`, `${s.bugs} باگ باز`)}" aria-label="${t(`${s.bugs} open ${s.bugs === 1 ? 'bug' : 'bugs'}`, `${s.bugs} باگ باز`)}">${raw(icon('bug'))}${num(s.bugs)}</span>`
       }
       // S115: the S105 ideas/backlog/hurdles plain-text helpers (sigTextD/backlogMetaD)
       // are RETIRED with the meta line they fed — the card face is the title alone.
@@ -545,7 +547,12 @@ export function dashboardRoutes(cfg: Config) {
             <div class="dash-proj-lower" role="group" aria-label="${t('Overall project tasks', 'کارهای همهٔ پروژه‌ها')}">
               ${raw(dashboardOverviewRowHtml(ovData.counts, ovData.recent, lang))}
             </div>
-            <button type="button" class="dash-proj-fab" data-projectquickadd aria-label="${t('New project', 'پروژه جدید')}" title="${t('New project', 'پروژه جدید')}">${raw(icon('plus'))}</button>
+            <!-- S126 (owner: two near-identical teal + FABs): the container button now
+                 wears its OWN identity — folder-plus glyph + the caramel accent-2 fill
+                 (the global capture FAB keeps the teal +). The actions were always
+                 different (this opens the New-project dialog; the global one opens the
+                 idea/project/note menu) so both stay, visually unmistakable. -->
+            <button type="button" class="dash-proj-fab" data-projectquickadd aria-label="${t('New project', 'پروژه جدید')}" title="${t('New project', 'پروژه جدید')}">${raw(icon('folder-plus'))}</button>
           </div>
         </section>`,
         notebook: (): SafeHtml => raw(notebookHtml(notes, lang, 'note', noteTitles, true, noteTotal[0]?.n)),

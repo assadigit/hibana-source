@@ -202,9 +202,9 @@ export function devboardRoutes(cfg: Config) {
     const now = new Date().toISOString()
     const status = body.status ?? 'idea'
     await cfg.db.execute(
-      `INSERT INTO dev_tasks (id, project_id, title, status, priority, category_id, sprint_id, sort_order, created_at, done_at, start_at, end_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?, ?)`,
-      [id, p.id, body.title, status, body.priority ?? 'medium', body.category_id ?? null, sprintId, now, status === 'done' ? now : null, body.start_at ?? null, body.end_at ?? null],
+      `INSERT INTO dev_tasks (id, project_id, title, status, priority, category_id, sprint_id, sort_order, created_at, done_at, start_at, end_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?, ?, ?)`,
+      [id, p.id, body.title, status, body.priority ?? 'medium', body.category_id ?? null, sprintId, now, status === 'done' ? now : null, body.start_at ?? null, body.end_at ?? null, now],
     )
     // Labels ride the create (user request 2026-09-12): find-or-create + link, so a
     // fresh "UI/UX, Security" task is fully labeled in ONE round-trip.
@@ -266,6 +266,11 @@ export function devboardRoutes(cfg: Config) {
     }
     if (!sets.length && tagNames === undefined) return c.json({ ok: true })
     if (sets.length) {
+      // 0061 (S126): every column edit stamps the task's own updated_at — the
+      // overview's "recent = last-updated" sort reads this (the PROJECT stamp below
+      // is project-level and can't tell two tasks in one project apart).
+      sets.push('updated_at = ?')
+      params.push(now)
       params.push(task.id)
       await cfg.db.execute(`UPDATE dev_tasks SET ${sets.join(', ')} WHERE id = ?`, params)
     }
@@ -381,8 +386,8 @@ export function devboardRoutes(cfg: Config) {
     const maxOrder = await cfg.db.query<{ m: number | null }>(`SELECT MAX(sort_order) AS m FROM dev_tasks WHERE project_id = ?`, [p.id])
     const nextOrder = (maxOrder[0]?.m ?? -1) + 1
     await cfg.db.execute(
-      `INSERT INTO dev_tasks (id, project_id, title, status, priority, category_id, sprint_id, sort_order, created_at, done_at) VALUES (?, ?, ?, 'done', ?, ?, ?, ?, ?, ?)`,
-      [a.id, p.id, a.title, a.priority, a.category_id, a.sprint_id, nextOrder, a.original_created_at, a.done_at ?? now],
+      `INSERT INTO dev_tasks (id, project_id, title, status, priority, category_id, sprint_id, sort_order, created_at, done_at, updated_at) VALUES (?, ?, ?, 'done', ?, ?, ?, ?, ?, ?, ?)`,
+      [a.id, p.id, a.title, a.priority, a.category_id, a.sprint_id, nextOrder, a.original_created_at, a.done_at ?? now, now],
     )
     // B1 relink: parse the snapshot (tolerating pre-0051 '[]') and set the link set —
     // setTaskTags also refreshes usage + search_tags for the restored task.

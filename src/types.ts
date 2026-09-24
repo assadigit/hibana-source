@@ -227,6 +227,10 @@ export interface DevTaskRow {
   done_at: string | null
   start_at: string | null // 0030: manual clip start override (NULL = automatic created_at)
   end_at: string | null // 0030: manual clip end override (NULL = automatic done_at|today)
+  // 0061 (S126): stamped on every create + column edit — the "recent = last-updated"
+  // contract for the overview cards. NULL on rows a pre-0061 writer touched (the
+  // migration backfills COALESCE(done_at, created_at); the readers COALESCE again).
+  updated_at: string | null
 }
 
 export interface SprintRow {

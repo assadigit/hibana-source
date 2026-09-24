@@ -22,6 +22,7 @@ import { moduleRoutes } from './routes/module'
 import { exportRoutes } from './routes/export'
 import { calendarRoutes } from './routes/calendar'
 import { timelineRoutes } from './routes/timeline'
+import { ovTasksRoutes } from './routes/tasks'
 import { notificationsRoutes } from './routes/notifications'
 import { registerTelegram } from './routes/integrations/telegram'
 import { registerImport } from './routes/integrations/import'
@@ -366,6 +367,8 @@ export function createApp(cfg: Config) {
   app.route('/api/export', exportRoutes(cfg))
   app.route('/api/calendar', calendarRoutes(cfg))
   app.route('/api/timeline', timelineRoutes(cfg))
+  // S126: the overview status cards' "View all" destination (tasks.html fragment)
+  app.route('/api/ov-tasks', ovTasksRoutes(cfg))
   app.route('/api/notifications', notificationsRoutes(cfg))
   // Magic Button (idea §1, green-lit): POST /api/ai/text — polish/rewrite/translate via the
   // Workers AI binding. Auth + CSRF same as every other write route; no schema, no cron.

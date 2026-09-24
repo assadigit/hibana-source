@@ -130,14 +130,17 @@ export async function loadProjectSignals(cfg: Config, userId: string, projectIds
   return map
 }
 
-/** The standalone BUG notification bubble — solid red circle with strong visual weight.
- *  Placed right next to the project name so the user gets an instant visual signal that
- *  [x] things are problematic. Only renders when bugs > 0. (User request 2026-09-02.) */
+/** The standalone BUG notification bubble — red, rounded-square chip with the bug
+ *  glyph + count (S126: the glyph NAMES what the number counts, and the rounded-
+ *  square shape + red ink deliberately differ from the circular .board-count pills
+ *  so the two badge roles can't be confused — the owner's badge-collision note).
+ *  Placed right next to the project name so the user gets an instant visual signal
+ *  that [x] things are problematic. Only renders when bugs > 0. (User request 2026-09-02.) */
 export function bugBubbleHtml(signals: ProjectSignals | undefined, lang: Locale): string {
   if (!signals || signals.bugs === 0) return ''
   const dig = (n: number) => (lang === 'fa' ? faDigits(String(n)) : String(n))
   const title = trL(lang, `${signals.bugs} open ${signals.bugs === 1 ? 'bug' : 'bugs'}`, `${signals.bugs} باگ باز`)
-  return `<span class="bug-bubble" title="${title}" aria-label="${title}">${dig(signals.bugs)}</span>`
+  return `<span class="bug-bubble" title="${title}" aria-label="${title}">${icon('bug', 'icon')}${dig(signals.bugs)}</span>`
 }
 
 /** Render the signals strip (lighter chips — ideas, backlog, hurdles). Bugs are NOT here;
@@ -367,15 +370,20 @@ export function glanceStrip(counts: Map<string, number>, activeStatus: ProjectSt
 // (rule 1). Renders server-side — 0 new client i18n keys (the S118 silent-restore
 // pattern; parity count unchanged).
 export interface OvCounts { idea: number; planned: number; in_progress: number; bug: number }
-export interface OvTask { id: string; title: string; project_id: string; project_title: string }
+// S126: project_status (the owning project's stage) feeds the metadata dot's accent
+// color (the --stage-bar-* system the Planning/Queued/Developing rows wear);
+// updated_at is the last-updated stamp the recent feeds sort by (0061).
+export interface OvTask { id: string; title: string; project_id: string; project_title: string; project_status: string; updated_at: string | null }
 
 // The donut slice order = the lifecycle order (an idea becomes a plan becomes work;
 // bugs live in the exception lane at the end) — matches the board column order.
-const OV_STATUSES = ['idea', 'planned', 'in_progress', 'bug'] as const
-type OvStatus = (typeof OV_STATUSES)[number]
+// S126: exported — the ov-tasks page (tasks.ts) speaks the same four buckets.
+export const OV_STATUSES = ['idea', 'planned', 'in_progress', 'bug'] as const
+export type OvStatus = (typeof OV_STATUSES)[number]
 // The rail's group labels (i18n-en/fa 'rail.g.*') are the owner's OWN words for these
 // four buckets — the overview borrows them verbatim (server-side inline pairs).
-const ovLabel = (st: OvStatus, lang: Locale): string =>
+// S126: exported for the ov-tasks page's heading + status switcher.
+export const ovLabel = (st: OvStatus, lang: Locale): string =>
   st === 'idea' ? trL(lang, 'Ideas', 'ایده‌ها')
   : st === 'planned' ? trL(lang, 'Plans', 'برنامه‌ها')
   : st === 'in_progress' ? trL(lang, 'In Progress', 'در حال انجام')
@@ -396,15 +404,31 @@ export async function loadOverviewData(
        WHERE ${scope} AND t.status IN (${statusPh}) GROUP BY t.status`,
       [userId, ...OV_STATUSES],
     ),
-    // the four recent feeds — newest-born first, 5 rows each (the box links on)
+    // S126 (owner): the four recent feeds — the 3 most recently UPDATED items each
+    // ("recent" = last-updated, NOT last-born: an old item edited today outranks a
+    // newer untouched one), capped at 3 so the box never needs an internal scroller
+    // (the header's View all link carries the rest → /tasks.html?status=…).
+    // S57 deploy-ahead-of-D1 belt: a D1 that hasn't applied 0061 yet has no
+    // dev_tasks.updated_at — the catch falls back to the pre-S126 born-order query
+    // (same shape minus project_status/updated_at ordering) until the column lands.
     ...OV_STATUSES.map((st) =>
-      cfg.db.query<OvTask>(
-        `SELECT t.id, t.title, t.project_id, p.title AS project_title
+      cfg.db
+        .query<OvTask>(
+          `SELECT t.id, t.title, t.project_id, p.title AS project_title, p.status AS project_status, t.updated_at
          FROM dev_tasks t JOIN projects p ON p.id = t.project_id
          WHERE ${scope} AND t.status = ?
-         ORDER BY t.created_at DESC LIMIT 5`,
-        [userId, st],
-      ),
+         ORDER BY COALESCE(t.updated_at, t.created_at) DESC LIMIT 3`,
+          [userId, st],
+        )
+        .catch(() =>
+          cfg.db.query<OvTask>(
+            `SELECT t.id, t.title, t.project_id, p.title AS project_title, p.status AS project_status, NULL AS updated_at
+         FROM dev_tasks t JOIN projects p ON p.id = t.project_id
+         WHERE ${scope} AND t.status = ?
+         ORDER BY t.created_at DESC LIMIT 3`,
+            [userId, st],
+          ),
+        ),
     ),
   ])
   const isOv = (s: string): s is OvStatus => (OV_STATUSES as readonly string[]).includes(s)
@@ -452,16 +476,24 @@ const ovPieHtml = (counts: OvCounts, lang: Locale): string => {
 
 const ovBoxHtml = (st: OvStatus, counts: OvCounts, recent: Record<OvStatus, OvTask[]>, lang: Locale): string => {
   const dig = (n: number) => (lang === 'fa' ? faDigits(String(n)) : String(n))
+  // S126: each item's full text rides BOTH the native title (mouse hover — the
+  // truncation stays) and data-full, which the CSS :focus-visible tooltip reads
+  // (title attrs are not reliably announced to keyboard users). The metadata line
+  // wears the owning project's stage accent (ov-proj-dot ← --stage-bar-*).
   const items = recent[st]
-    .map((t) => `<li><a class="ov-item" href="/project.html?id=${t.project_id}">
-          <span class="ov-item-title" dir="auto">${esc(t.title)}</span>
-          <span class="ov-item-proj muted small" dir="auto">${esc(t.project_title)}</span>
+    .map((t) => `<li><a class="ov-item" href="/project.html?id=${t.project_id}" data-full="${esc(t.title)}">
+          <span class="ov-item-title" dir="auto" title="${esc(t.title)}">${esc(t.title)}</span>
+          <span class="ov-item-proj muted small" dir="auto"><span class="ov-proj-dot" data-stage="${esc(t.project_status)}" aria-hidden="true"></span>${esc(t.project_title)}</span>
         </a></li>`)
     .join('')
+  // S126: the header joins the stage cards' convention — [dot] [label] [count pill]
+  // on the reading-start edge, View all on the inline-end edge. The link lands on
+  // the ov-tasks page (ALL items of this status across projects — the cap-3 cards'
+  // reachable path for everything past the 3 shown).
   return `<div class="card ov-box" data-ov-box="${st}">
       <div class="row spread ov-box-head">
-        <span class="row ov-box-title"><span class="ov-dot" data-st="${st}" aria-hidden="true"></span><span class="ov-box-label">${ovLabel(st, lang)}</span></span>
-        <b class="board-count ov-box-n">${dig(counts[st])}</b>
+        <span class="row ov-box-title"><span class="ov-dot" data-st="${st}" aria-hidden="true"></span><span class="ov-box-label">${ovLabel(st, lang)}</span><b class="board-count ov-box-n">${dig(counts[st])}</b></span>
+        <a class="ov-viewall small muted" href="/tasks.html?status=${st}">${trL(lang, 'View all', 'مشاهده همه')}</a>
       </div>
       ${items ? `<ul class="ov-items">${items}</ul>` : `<p class="muted small ov-empty">${trL(lang, 'Nothing here', 'چیزی نیست')}</p>`}
     </div>`

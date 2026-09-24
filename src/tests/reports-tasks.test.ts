@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { makeTestDb, makeUser } from './helpers'
+import { makeTestDb, makeUser, makeTestDbUpto } from './helpers'
 import { createSession } from '../auth/sessions'
 import { createApp } from '../app'
 import type { Db } from '../db/types'
@@ -142,6 +142,9 @@ describe('dashboard urgent strip payload (S30 batch 3)', () => {
       const busyId = await makeUser(db)
       const busy = await makeApp(db, busyId)
       const pid = await createProject(busy.app, busy.headers, 'busy')
+      // the bug bubble rides the stage-box kanban cards — a spark-stage project never
+      // reaches the dashboard's signal map (PROJECT_STAGES only), so move it in-stage
+      await busy.app.fetch(new Request(`http://local/api/projects/${pid}`, { method: 'PATCH', headers: busy.headers, body: JSON.stringify({ status: 'developing' }) }))
       await mkTask(busy.app, busy.headers, pid, { title: 'fire drill', status: 'bug', priority: 'urgent' })
       const busyRes = await busy.app.fetch(new Request('http://local/api/dashboard', { headers: { ...busy.headers, 'HX-Request': 'true' } }))
       const busyHtml = await busyRes.text()
@@ -159,9 +162,111 @@ describe('dashboard urgent strip payload (S30 batch 3)', () => {
       // the recent Problems item deep-links to its project
       expect(busyHtml).toContain('fire drill')
       expect(busyHtml).toContain(`/project.html?id=${pid}`)
+      // S126: the bug bubble NAMES its count — the glyph rides the chip
+      expect(busyHtml).toContain('bug-bubble')
+      expect(busyHtml).toMatch(/class="bug-bubble"[^>]*><svg/)
       // S124: the retired fire strip stays retired — even with urgent-priority tasks burning
       expect(busyHtml).not.toContain('dash-urgent')
       expect(busyHtml).not.toContain('/board.html?project=')
+    } finally {
+      close()
+    }
+  })
+})
+
+describe('overview status cards — S126 contract (cap 3, last-updated, View all)', () => {
+  it('caps the box at 3 items sorted by last-updated — an edited old task outranks newer untouched ones', async () => {
+    const { db, close } = makeTestDb()
+    try {
+      const userId = await makeUser(db)
+      const { app, headers } = await makeApp(db, userId)
+      const pid = await createProject(app, headers, 'ov proj')
+      for (const name of ['p1', 'p2', 'p3', 'p4', 'p5']) {
+        await mkTask(app, headers, pid, { title: name, status: 'planned' })
+      }
+      // EDIT the OLDEST task (p1) — its fresh updated_at must lift it above p4/p5
+      // (the owner's note: "recent" means last-updated, NOT last-created)
+      const board = (await (await app.fetch(new Request(`http://local/api/projects/${pid}/devboard`, { headers }))).json()) as { tasks: { id: string; title: string }[] }
+      const p1 = board.tasks.find((t) => t.title === 'p1')!
+      await app.fetch(new Request(`http://local/api/devtasks/${p1.id}`, { method: 'PATCH', headers, body: JSON.stringify({ title: 'p1 edited' }) }))
+
+      const hx = { ...headers, 'HX-Request': 'true' }
+      const html = await (await app.fetch(new Request('http://local/api/dashboard', { headers: hx }))).text()
+      const from = html.indexOf('data-ov-box="planned"')
+      const to = html.indexOf('data-ov-box="bug"', from)
+      const seg = html.slice(from, to)
+      // cap: exactly 3 rows despite 5 planned tasks
+      expect(seg.match(/class="ov-item"/g)?.length).toBe(3)
+      // last-updated order: the edited p1 first, then the newest-born untouched p5
+      expect(seg.indexOf('p1 edited')).toBeGreaterThan(-1)
+      expect(seg.indexOf('p1 edited')).toBeLessThan(seg.indexOf('p5'))
+      // the header carries the View all affordance (the cap's reachable path)
+      expect(seg).toContain('href="/tasks.html?status=planned"')
+      expect(seg).toContain('View all')
+      // truncated-title recovery: full text on BOTH the native title and data-full
+      expect(seg).toContain('title="p1 edited"')
+      expect(seg).toContain('data-full="p1 edited"')
+      // the project-name metadata line wears the owning project's stage dot
+      expect(seg).toMatch(/ov-proj-dot" data-stage="[a-z_]+"/)
+    } finally {
+      close()
+    }
+  })
+
+  it('S57 belt: a D1 that has not applied 0061 yet still renders the boxes (born-order fallback)', async () => {
+    const { db, close } = makeTestDbUpto(60)
+    try {
+      const userId = await makeUser(db)
+      const { app, headers } = await makeApp(db, userId)
+      const pid = await createProject(app, headers, 'lagging')
+      await db.execute(
+        "INSERT INTO dev_tasks (id, project_id, title, status, priority, sort_order, created_at) VALUES (?, ?, 'legacy one', 'planned', 'medium', 0, '2026-01-01T00:00:00.000Z')",
+        [crypto.randomUUID(), pid],
+      )
+      const hx = { ...headers, 'HX-Request': 'true' }
+      const res = await app.fetch(new Request('http://local/api/dashboard', { headers: hx }))
+      expect(res.status).toBe(200)
+      const html = await res.text()
+      expect(html).toContain('data-ov-box="planned"')
+      expect(html).toContain('legacy one')
+    } finally {
+      close()
+    }
+  })
+
+  it('ov-tasks route: the full status list, the switcher, rule 1, and the status allowlist', async () => {
+    const { db, close } = makeTestDb()
+    try {
+      const ownerId = await makeUser(db)
+      const strangerId = await makeUser(db)
+      const { app, headers } = await makeApp(db, ownerId)
+      const pid = await createProject(app, headers, 'listing')
+      for (const name of ['b1', 'b2', 'b3', 'b4']) {
+        await mkTask(app, headers, pid, { title: name, status: 'bug' })
+      }
+      await mkTask(app, headers, pid, { title: 'not a problem', status: 'planned' })
+
+      const hx = { ...headers, 'HX-Request': 'true' }
+      const res = await app.fetch(new Request('http://local/api/ov-tasks?status=bug', { headers: hx }))
+      expect(res.status).toBe(200)
+      const html = await res.text()
+      expect(html).toContain('data-ovt-status="bug"')
+      // ALL FOUR bug tasks (the cards cap at 3 — this page does not)
+      for (const name of ['b1', 'b2', 'b3', 'b4']) expect(html).toContain(name)
+      expect(html).not.toContain('not a problem')
+      // the status switcher + aria-current on the active chip
+      expect(html).toContain('href="/tasks.html?status=planned"')
+      expect(html).toMatch(/aria-current="page"/)
+
+      // rule 1: a stranger's list is empty, not the owner's
+      const stranger = await makeApp(db, strangerId)
+      const strangerRes = await stranger.app.fetch(new Request('http://local/api/ov-tasks?status=bug', { headers: { ...stranger.headers, 'HX-Request': 'true' } }))
+      const strangerHtml = await strangerRes.text()
+      expect(strangerHtml).not.toContain('b1')
+
+      // rule 10: only the four known statuses pass the allowlist
+      const bad = await app.fetch(new Request('http://local/api/ov-tasks?status=done', { headers }))
+      expect(bad.status).toBe(400)
     } finally {
       close()
     }

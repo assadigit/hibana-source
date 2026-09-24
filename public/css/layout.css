@@ -1071,15 +1071,23 @@ main.shell .row.spread [data-projectquickadd] .icon { inline-size: 1rem; block-s
    badge read as too harsh next to the muted card surface. Same recipe as the sig-chip
    family (translucent tint + deep-red ink): light 12% red tint + #b91c1c ink is
    ≥5.1:1 everywhere it renders; dark 16% red tint + #f2a3a3 ink is ≥6.2:1. */
+/* S126 (owner: the row badge and the header count badge "share one visual style"):
+   the bug bubble is now a rounded-SQUARE chip carrying the bug GLYPH + the count —
+   shape (square vs the circular .board-count pills), content (glyph + number vs a
+   bare number), and ink (deep red vs the stage pastels) all differ, so the two
+   badge roles can't be confused. Same recipe as the sig-chip family (translucent
+   tint + deep-red ink): light 12% red tint + #b91c1c ink is ≥5.1:1 everywhere it
+   renders; dark 16% red tint + #f2a3a3 ink is ≥6.2:1. */
 .bug-bubble {
-  display: inline-flex; align-items: center; justify-content: center;
+  display: inline-flex; align-items: center; justify-content: center; gap: 0.14rem;
   min-inline-size: 1.4rem; height: 1.4rem; padding: 0 0.35rem;
-  border-radius: 999px;
+  border-radius: 0.45rem;
   background: rgb(220 38 38 / 0.12); color: #b91c1c;
   font-size: 0.72rem; font-weight: 700; line-height: 1;
   vertical-align: middle; margin-inline-start: 0.35rem;
   flex-shrink: 0;
 }
+.bug-bubble .icon { inline-size: 0.9em; block-size: 0.9em; flex: none; }
 @media (prefers-color-scheme: dark) {
 }
 

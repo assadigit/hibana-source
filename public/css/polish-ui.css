@@ -1360,8 +1360,14 @@ body.has-mobile-nav { padding-block-end: calc(3.75rem + env(safe-area-inset-bott
   flex: 0 1 15rem; min-inline-size: 11.5rem; max-inline-size: 16.5rem;
   display: flex; align-items: center; gap: 0.7rem;
   padding: 0.6rem 0.75rem;
-  background: var(--bg, #fff);
-  border: 1px solid var(--line);
+  /* S127 (owner): the chip fill was var(--bg) — the PAGE gray (#E7E7E7) — which
+     on the white strip card read heavier than the hero veil right above it.
+     Now the hero's own recipe at HALF strength: 4% accent over card (hero rests
+     at 8%), border in the same family at 14% (hero 30%) — the resting ladder
+     chip < hero holds in BOTH themes (in dark the old var(--bg) rendered the
+     chips DARKER than the card they sat on; the mix lifts them onto it). */
+  background: color-mix(in srgb, var(--accent) 4%, var(--card));
+  border: 1px solid color-mix(in srgb, var(--accent) 14%, var(--line));
   border-radius: 12px;
   text-decoration: none; color: inherit;
   transition: border-color .16s ease, box-shadow .16s ease, transform .16s ease, background-color .16s ease;
@@ -1370,7 +1376,7 @@ body.has-mobile-nav { padding-block-end: calc(3.75rem + env(safe-area-inset-bott
   border-color: color-mix(in srgb, var(--accent) 45%, var(--line));
   box-shadow: 0 3px 10px rgba(38, 33, 24, 0.08);
   transform: translateY(-1px);
-  background: var(--card);
+  background: color-mix(in srgb, var(--accent) 6%, var(--card)); /* deepen the tint, never whiten — the resting base is tinted now */
   outline: none;
 }
 .resume-chip:active { transform: translateY(0); box-shadow: 0 1px 3px rgba(38, 33, 24, 0.07); }

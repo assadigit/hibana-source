@@ -795,7 +795,15 @@ button.vault-sec-head:hover { color: var(--text); }
 }
 /* S84: read mode is single-column — the preview joins cell 1/1 */
 .vault-body[data-mode='read'] .vault-preview { grid-area: 1 / 1; }
-.vault-preview .markdown-body { max-inline-size: 46rem; margin-inline: auto; }
+/* S135: the content measure rides 46rem → min(62rem, 90%) — owner report: the
+   rendered note sat as a 736px column centered inside a ~1255px pane (~260px of
+   dead gutter per side). 62rem (992px) lands in the requested 900–1000px band;
+   the 90% arm keeps a proportional breathing inset on medium panes (split mode's
+   ~600px preview column never reaches the cap, so split is unchanged in
+   practice). The cap still bounds line length on ultrawide panes instead of
+   running edge-to-edge; the md-live overlay tracks the TEXTAREA geometry and
+   the outline is a full-width sticky bar, so neither moves with this measure. */
+.vault-preview .markdown-body { max-inline-size: min(62rem, 90%); margin-inline: auto; }
 .vault-preview .markdown-body h1:first-child,
 .vault-preview .markdown-body h2:first-child { margin-block-start: 0; }
 

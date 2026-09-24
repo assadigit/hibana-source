@@ -42,7 +42,7 @@ window.__hibanaDictFA = {
       // S89: the LABELED rail — a small text label rides under every icon
       'rail.label.search': 'جست‌وجو', 'rail.label.dashboard': 'پیشخوان', 'rail.label.todo': 'کارها',
       'rail.label.projects': 'پروژه‌ها', 'rail.label.ideas': 'ایده‌ها', 'rail.label.notes': 'یادداشت‌ها',
-      'rail.label.calendar': 'تقویم', 'rail.label.settings': 'تنظیمات',
+      'rail.label.calendar': 'تقویم', 'rail.label.canvas': 'بوم', 'rail.label.settings': 'تنظیمات',
       'rail.label.help': 'راهنما', 'rail.label.theme': 'پوسته',
       // S89: the to-do panel groups tasks under their QUADRANT (box) name —
       // the same defaults the sadhana page carries, localized
@@ -73,7 +73,7 @@ window.__hibanaDictFA = {
       'tour.calendar': 'تقویم',
       'tour.calendarBody': 'سررسیدهای پروژه‌ها و کارها در یک نمای ماهانه. کاربران فارسی همه‌جا تقویم جلالی می‌گیرند.',
       'tour.account': 'حساب تو',
-      'tour.accountBody': 'آواتارت را نگه دار تا اعلان‌ها، گزارش‌ها، گالری، بوم و برگه یادداشت و تنظیمات را ببینی — زبان و پوسته در تنظیمات‌اند.',
+      'tour.accountBody': 'آواتارت را نگه دار تا اعلان‌ها، گزارش‌ها، گالری، برگه یادداشت و تنظیمات را ببینی — زبان و پوسته در تنظیمات‌اند.',
       'tour.fab': 'ثبت سریع',
       'tour.fabBody': 'دکمهٔ + در چند ثانیه یک کار، ایده یا یادداشت ثبت می‌کند — از هر صفحه‌ای. Ctrl+N هم کار می‌کند.',
       'tour.theme': 'روشن / تیره',

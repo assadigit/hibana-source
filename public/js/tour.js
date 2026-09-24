@@ -63,7 +63,8 @@
   // S89 (owner: "work rigorously on guided-tour, it should show the main abilities and
   // whereabouts of this app"): the 4-step chrome-only tour grew into a full walk of the
   // app — the rail and every core section on it, the side panel each icon opens, quick
-  // capture, the account menu (where Canvas/Notebook now live), and the theme. Every
+  // capture, the account menu (Notebook lives there; S132 returned Canvas to the
+  // rail), and the theme. Every
   // target degrades to null (centered card + still-useful copy) when its element is
   // absent — mobile hides the rail, and the tour can be replayed from any page.
   const railIcon = (panel) => () => {
@@ -135,7 +136,7 @@
         return el && el.getBoundingClientRect().width > 0 ? el : null
       },
       title: () => _t('tour.account', 'Your account'),
-      body: () => _t('tour.accountBody', 'Hover your avatar for notifications, reports, the gallery, Canvas & Notebook, and Settings — language and theme live in Settings.'),
+      body: () => _t('tour.accountBody', 'Hover your avatar for notifications, reports, the gallery, Notebook, and Settings — language and theme live in Settings.'),
     },
     {
       target: () => {

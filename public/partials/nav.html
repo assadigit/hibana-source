@@ -3,9 +3,11 @@
      (S89 owner request) — the icon stays the affordance, the label makes the rail
      self-documenting for first-time users. The rail brand wears the NEW square
      logos (hibana-logo-square-light/dark), theme-swapped via the html[data-theme]
-     token pair. Canvas + Notebook left the rail (S89: redundant next to Notes —
-     they live in the ACCOUNT MENU now). The pending-sync chip left the navbar
-     entirely (S89): the offline-sync status + retry moved to Settings →
+     token pair. Canvas + Notebook left the rail at S89 (redundant next to Notes —
+     they lived in the ACCOUNT MENU); S132 (owner request) brings Canvas BACK below
+     Calendar as pure navigation, and the account menu stops duplicating it (the S90
+     one-home rule) — Notebook keeps its menu row. The pending-sync chip left the
+     navbar entirely (S89): the offline-sync status + retry moved to Settings →
      Preferences. The Farsi/English quick rows left the account menu too — language
      is a Settings→Preferences choice (the one place).
      Wiring contract with hib-init.js (unchanged): [data-user], [data-logout],
@@ -61,9 +63,6 @@
       <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 5h9l5 5v9a1.5 1.5 0 0 1-1.5 1.5h-12A1.5 1.5 0 0 1 4 19V6.5A1.5 1.5 0 0 1 5.5 5Z"/><path d="M8 12h8M8 15.5h5"/></svg>
       <span class="rail-label" data-i18n="rail.label.notes">Notes</span>
     </a>
-    <!-- S89: Canvas + Notebook REMOVED from the rail (redundant beside Notes — the
-         free-doodling concept folds into the account menu below). Their rail-panel
-         sections are gone from nav.js too; mobile's More sheet keeps its rows. -->
     <!-- S105 (owner: "clicking the calendar icon doesn't navigate to the calendar page —
          it only opens the sidebar and shows the mini calendar"): the button now carries
          data-rail-nav (the To-do/Projects pattern) — the click opens the rail panel AND
@@ -71,6 +70,17 @@
     <a class="rail-btn" href="/calendar.html" data-rail-panel="calendar" data-rail-nav aria-label="Calendar" data-i18n-aria-label="nav.calendar" data-i18n-title="nav.calendar" title="Calendar">
       <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="5" width="17" height="16" rx="2"/><path d="M3.5 9.5h17M8 3v4M16 3v4"/></svg>
       <span class="rail-label" data-i18n="rail.label.calendar">Calendar</span>
+    </a>
+    <!-- S89: Canvas + Notebook were REMOVED from the rail (redundant beside Notes —
+         the free-doodling concept folded into the account menu). Their rail-panel
+         sections are gone from nav.js too; mobile's More sheet keeps its rows.
+         S132 (owner: "Add https://hibana.ir/canvas to the vertical navigation icons.
+         below calender"): Canvas RETURNS to the rail, directly below Calendar — PURE
+         NAVIGATION (the Dashboard pattern: clicking it shows the page; the S89/S90
+         panel section stays retired, so no data-rail-panel attribute). -->
+    <a class="rail-btn" href="/canvas.html" aria-label="Canvas" data-i18n-aria-label="nav.canvas" data-i18n-title="nav.canvas" title="Canvas">
+      <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20l4.5-1L19.5 8a2 2 0 0 0-2.8-2.8L6.5 15.5 4 20Z"/><path d="M13.5 6.5l3.5 3.5"/></svg>
+      <span class="rail-label" data-i18n="rail.label.canvas">Canvas</span>
     </a>
   </div>
   <span class="rail-spacer" aria-hidden="true"></span>
@@ -111,13 +121,9 @@
         <span class="icon-chip"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="5" width="17" height="14" rx="2"/><circle cx="8" cy="10" r="1.5"/><path d="M21 16l-5-5L5 19"/></svg></span>
         <span data-i18n="nav.gallery">Gallery</span>
       </a>
-      <!-- S89 (owner request): Canvas + Notebook moved HERE from the rail — the
-           free-drawing surfaces stay reachable, one hover away, without renting
-           rail space the core sections need. -->
-      <a class="user-menu-item" href="/canvas.html">
-        <span class="icon-chip"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20l4.5-1L19.5 8a2 2 0 0 0-2.8-2.8L6.5 15.5 4 20Z"/><path d="M13.5 6.5l3.5 3.5"/></svg></span>
-        <span data-i18n="nav.canvas">Canvas</span>
-      </a>
+      <!-- S89 moved Canvas + Notebook HERE from the rail; S132 (owner) returns Canvas
+           to the rail (below Calendar) and the menu stops duplicating it — the S90
+           Settings rule: one destination, one home. Notebook keeps this row. -->
       <a class="user-menu-item" href="/whiteboard.html">
         <span class="icon-chip"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="3" width="14" height="18" rx="2"/><path d="M9 8h6M9 12h6M9 16h4"/></svg></span>
         <span data-i18n="nav.whiteboard">Notebook</span>

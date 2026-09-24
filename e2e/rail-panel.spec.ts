@@ -169,15 +169,23 @@ test.describe('the navigation rail (Material navigation-rail pattern, S89 labele
     const railBox = await rail.boundingBox()
     expect(Math.round(railBox!.width)).toBe(88)
     const primary = page.locator('.rail .rail-primary a')
-    // S89: canvas + notebook left the rail — 6 destinations (dashboard, to-do,
-    // projects, ideas, notes, calendar).
-    expect(await primary.count()).toBe(6)
-    for (let i = 0; i < 6; i++) {
+    // S132: Canvas returned to the rail — 7 destinations (dashboard, to-do,
+    // projects, ideas, notes, calendar, canvas — canvas directly BELOW calendar).
+    expect(await primary.count()).toBe(7)
+    for (let i = 0; i < 7; i++) {
       const label = await primary.nth(i).getAttribute('aria-label')
       expect(label, `primary icon ${i} has an accessible name`).toBeTruthy()
       const text = (await primary.nth(i).innerText()).trim()
       expect(text.length, `primary icon ${i} shows its label`).toBeGreaterThan(0)
     }
+    // S132 (owner placement): the Canvas button sits directly BELOW Calendar and is
+    // PURE NAVIGATION — no data-rail-panel (the S89/S90 panel section stays retired).
+    const calBtn = page.locator('.rail .rail-primary a[href="/calendar.html"]')
+    const canvasBtn = page.locator('.rail .rail-primary a[href="/canvas.html"]')
+    const calBox = await calBtn.boundingBox()
+    const canvasBox = await canvasBtn.boundingBox()
+    expect(canvasBox!.y).toBeGreaterThan(calBox!.y)
+    expect(await canvasBtn.getAttribute('data-rail-panel')).toBeNull()
     // The search button is labeled too (it sits above .rail-primary).
     const searchLabel = await page.locator('.rail .rail-search .rail-label').innerText()
     expect(searchLabel.trim().length).toBeGreaterThan(0)
@@ -220,17 +228,18 @@ test.describe('the navigation rail (Material navigation-rail pattern, S89 labele
     expect(sBox!.y).toBeGreaterThan(dBox!.y)
   })
 
-  test('Canvas + Notebook live in the ACCOUNT menu (the rail does not rent them space)', async ({ page }) => {
+  test('Canvas is a rail destination again; only Notebook stays an ACCOUNT-menu item (S132)', async ({ page }) => {
     await login(page)
-    // Not RAIL BUTTONS (the account-menu links inside .rail-user don't count —
-    // they're menu items, not rail destinations).
-    expect(await page.locator('.rail .rail-btn[href="/canvas.html"]').count()).toBe(0)
+    // S132 (owner): Canvas is a rail button (below Calendar) — and the account menu
+    // stops duplicating it (the S90 one-home rule). Notebook is NOT a rail button —
+    // the account menu keeps its row (menu items inside .rail-user don't count as
+    // rail destinations).
     expect(await page.locator('.rail .rail-btn[href="/whiteboard.html"]').count()).toBe(0)
-    // Hovering the avatar opens the menu; Canvas + Notebook are items in it.
+    // Hovering the avatar opens the menu; Notebook is a row in it, Canvas is not.
     await page.hover('.rail-user-chip')
     const pop = page.locator('.rail-user .user-menu-pop')
     await expect(pop).toBeVisible()
-    await expect(pop.locator('a[href="/canvas.html"]')).toBeVisible()
+    expect(await pop.locator('a[href="/canvas.html"]').count()).toBe(0)
     await expect(pop.locator('a[href="/whiteboard.html"]')).toBeVisible()
     // S89: the language quick rows are gone from the account menu too — language
     // is a Settings → Preferences choice (the one place).

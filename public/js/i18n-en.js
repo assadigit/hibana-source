@@ -42,7 +42,7 @@ window.__hibanaDictEN = {
       // S89: the LABELED rail — a small text label rides under every icon
       'rail.label.search': 'Search', 'rail.label.dashboard': 'Dashboard', 'rail.label.todo': 'To-do',
       'rail.label.projects': 'Projects', 'rail.label.ideas': 'Ideas', 'rail.label.notes': 'Notes',
-      'rail.label.calendar': 'Calendar', 'rail.label.settings': 'Settings',
+      'rail.label.calendar': 'Calendar', 'rail.label.canvas': 'Canvas', 'rail.label.settings': 'Settings',
       'rail.label.help': 'Help', 'rail.label.theme': 'Theme',
       // S89: the to-do panel groups tasks under their QUADRANT (box) name —
       // the same defaults the sadhana page carries, localized
@@ -73,7 +73,7 @@ window.__hibanaDictEN = {
       'tour.calendar': 'Calendar',
       'tour.calendarBody': 'Deadlines from projects and to-dos in one month view. Farsi users get the Jalali calendar throughout.',
       'tour.account': 'Your account',
-      'tour.accountBody': 'Hover your avatar for notifications, reports, the gallery, Canvas & Notebook, and Settings — language and theme live in Settings.',
+      'tour.accountBody': 'Hover your avatar for notifications, reports, the gallery, Notebook, and Settings — language and theme live in Settings.',
       'tour.fab': 'Quick capture',
       'tour.fabBody': 'The + button captures a new task, idea or note in seconds — from any page. Ctrl+N works too.',
       'tour.theme': 'Light / dark',

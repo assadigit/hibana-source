@@ -117,6 +117,14 @@ test.beforeAll(async () => {
     `INSERT INTO projects (id, user_id, title, status, folder_id, created_at, updated_at)
      VALUES ('${id}-p3', '${id}', 'Rail filed idea', 'spark', '${id}-f1', '${now}', '${now}')`,
   )
+  // S131 (owner: "clicking the Ideas icon must show all ideas folders"): an EMPTY
+  // folder rides beside the filed one — the panel must list EVERY folder, the
+  // zero-item groups included (the old render silently dropped empty folders,
+  // so a brand-new folder never showed until it held its first idea).
+  db.exec(
+    `INSERT INTO spark_folders (id, user_id, name, sort_order, created_at)
+     VALUES ('${id}-f2', '${id}', 'Rail empty folder', 1, '${now}')`,
+  )
   // S100: Rail project 1 becomes a CLIENT project carrying one dated checklist
   // task (the tasks table's only writer is the clients UI) — the Coming-up
   // list's client rows deep-link to /clients.html#task-<id> (the projects query
@@ -757,6 +765,18 @@ test.describe('the secondary panel (VS Code Activity Bar + Side Bar pattern)', (
     await expect(folder).not.toHaveClass(/is-collapsed/)
     await expect(filed).toBeVisible()
     await expect(filed).toHaveAttribute('href', /^\/project\.html\?id=.+/)
+
+    // S131 (owner: "clicking the Ideas icon must show all ideas folders"): the
+    // EMPTY folder rides the panel too — visible, collapsed, its count pill
+    // honestly 0 — and expanding it reveals nothing (no ideas yet). The old
+    // render dropped it silently for having zero ideas.
+    const emptyFolder = page.locator('.rail-group', { hasText: 'Rail empty folder' })
+    await expect(emptyFolder).toBeVisible()
+    await expect(emptyFolder).toHaveClass(/is-collapsed/)
+    await expect(emptyFolder.locator('.rail-group-count')).toHaveText('0')
+    await emptyFolder.locator('.rail-group-head').click()
+    await expect(emptyFolder).not.toHaveClass(/is-collapsed/)
+    await expect(emptyFolder.locator('.rail-item')).toHaveCount(0)
 
     // S92 (owner report): the row deep-links to the spark's OWN page — the same
     // destination a spark card uses on the Ideas page — not the bare /sparks.html

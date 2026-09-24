@@ -13,7 +13,10 @@ import type { Config, UserRow } from '../types'
 // Shape (all lists user-scoped, soft-delete respected — Rule 1):
 //   projects    — live (non-spark, non-parked) rows: id/title/status/due_date
 //   sparks      — the Ideas shelf: id/title/folder_id (S89: grouped under folders
-//                 client-side, mirroring the Notes panel's shelf anatomy)
+//                 client-side, mirroring the Notes panel's shelf anatomy). S131:
+//                 window 60 → 400 — the Ideas panel must list EVERY folder's ideas,
+//                 so a folder whose ideas aged past the old top-60 window must not
+//                 render empty (the rows are tiny: id/title/folder_id).
 //   sparkFolders— the Ideas shelves themselves: id/name/icon (S89)
 //   folders     — note_folders + live note counts
 //   notes       — vault note cards: id/title/icon/folder_id/starred/updated_at
@@ -71,10 +74,16 @@ export function railRoutes(cfg: Config): Hono<{ Variables: { user: UserRow } }> 
          ORDER BY updated_at DESC LIMIT 40`,
         [user.id],
       ),
+      // S131 (owner: "clicking the Ideas icon must show all ideas folders"): the
+      // window rides at 400 so the client's per-folder grouping stays HONEST — the
+      // old 60-row window silently emptied folders whose ideas aged out of it, and
+      // those folders then vanished from the panel outright (nav.js drops empty
+      // groups by default). Idea rows are ~100 bytes; 400 keeps the payload a
+      // navigation summary, not a content dump.
       cfg.db.query<RailSpark>(
         `SELECT id, title, folder_id FROM projects
          WHERE user_id = ? AND deleted_at IS NULL AND status = 'spark'
-         ORDER BY updated_at DESC LIMIT 60`,
+         ORDER BY updated_at DESC LIMIT 400`,
         [user.id],
       ),
       cfg.db.query<RailSparkFolder>(

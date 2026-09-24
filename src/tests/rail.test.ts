@@ -98,6 +98,30 @@ describe('GET /api/rail (the navigation rail panel payload)', () => {
     } finally { close() }
   })
 
+  // S131 (owner: "clicking the Ideas icon must show all ideas folders"): the
+  // sparks window rides at 400 — the Ideas panel groups ideas per folder
+  // client-side, so a folder whose ideas aged past the old top-60 window used to
+  // render EMPTY and then vanish from the panel outright. 70 rows prove the
+  // window no longer bites at 60.
+  it('returns sparks beyond the old 60-row window (every folder\'s ideas fit)', async () => {
+    const { db, close } = makeTestDb()
+    try {
+      const me = await makeUser(db, { username: 'rail-window' })
+      const now = new Date().toISOString()
+      for (let i = 0; i < 70; i++) {
+        await db.execute(
+          'INSERT INTO projects (id, user_id, title, status, created_at, updated_at) VALUES (?, ?, ?, \'spark\', ?, ?)',
+          [`sp${i}`, me, `Spark ${i}`, now, now],
+        )
+      }
+      const { app, auth } = await makeClient(db, me)
+      const res = await app.fetch(new Request('http://local/api/rail', { headers: auth }))
+      expect(res.status).toBe(200)
+      const body = (await res.json()) as { sparks: { id: string }[] }
+      expect(body.sparks.length).toBe(70)
+    } finally { close() }
+  })
+
   // S94 (owner item 6): the projects panel's deeper tree — stage → project →
   // boxes → items. S95 r2 (owner item 1): EVERY box the board renders rides —
   // idea/bug/planned/in_progress/done (a box with ≥1 item grows its branch);

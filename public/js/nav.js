@@ -713,9 +713,15 @@
     // names (+ the unfiled inbox, which stays open: it is the capture surface, not
     // a folder); a click on the folder head reveals its ideas. The [data-rail-group]
     // toggle + the S97 tree-fold button keep working unchanged.
+    // S131 (owner: "clicking the Ideas icon must show all ideas folders"): EVERY
+    // folder rides now — hideWhenEmpty:false — so a fresh (or emptied) folder can no
+    // longer vanish from the shelf the way it did while the group default dropped
+    // zero-item groups silently (the Ideas PAGE lists every folder with its count;
+    // the panel now matches, the count pill honest at 0). The /api/rail window
+    // raise (60 → 400, same round) keeps the folders' CONTENTS honest too.
     return [
       railGroup(railT('rail.g.unfiled', 'Unfiled'), unfiled),
-      folders.map((f) => railGroup(f.name, inFolder(f.id), { collapsed: true })).join(''),
+      folders.map((f) => railGroup(f.name, inFolder(f.id), { collapsed: true, hideWhenEmpty: false })).join(''),
     ].join('') || '<div class="rail-panel-empty">' + escHtml(railT('rail.sparksEmpty', 'No ideas captured yet — the Ideas shelf fills as you spark.')) + '</div>'
   }
 

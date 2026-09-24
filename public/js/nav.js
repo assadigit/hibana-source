@@ -393,32 +393,6 @@
   // no-store) feeds every section; the Dashboard section reads the resume store
   // (hibana-resume, client-side) instead.
   const RAIL_PANEL_KEY = 'hibana-rail-panel'
-  // S117 (two jobs, #1 — never lose an idea): the quick-add DRAFT survives the
-  // panel's constant re-renders AND a full page navigation — including the
-  // navigator icons' own go() (To-do/Projects/Ideas/Calendar all navigate with
-  // the panel open) and the 401 login bounce with its ?next round-trip. A
-  // half-typed idea no longer dies because the user moved. sessionStorage
-  // (per-tab, like the draft itself) holds {q, text}; Escape stays the DELIBERATE
-  // discard, a successful submit clears it, a failed POST keeps it.
-  const RAIL_ADD_DRAFT_KEY = 'hibana-rail-add-draft'
-  const railAddDraftRead = () => {
-    try {
-      const raw = sessionStorage.getItem(RAIL_ADD_DRAFT_KEY)
-      if (!raw) return null
-      const v = JSON.parse(raw)
-      return v && typeof v === 'object' && typeof v.text === 'string' ? v : null
-    } catch { return null }
-  }
-  const railAddDraftWrite = (q, text) => {
-    try {
-      const t = String(text || '')
-      if (!t.trim()) sessionStorage.removeItem(RAIL_ADD_DRAFT_KEY)
-      else sessionStorage.setItem(RAIL_ADD_DRAFT_KEY, JSON.stringify({ q: Number(q) || 0, text: t }))
-    } catch { /* storage unavailable — the draft just lives in the input */ }
-  }
-  const railAddDraftClear = () => {
-    try { sessionStorage.removeItem(RAIL_ADD_DRAFT_KEY) } catch { /* storage unavailable */ }
-  }
   const railBox = () => document.querySelector('[data-rail-panel-box]')
   const railT = (k, fb) => { const v = window.hibanaI18n?.t(k); return v && v !== k ? v : fb }
   const escHtml = (str) => String(str ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c] ?? c))
@@ -581,60 +555,19 @@
     '<p>' + escHtml(railT('rail.todoAllDone', 'All clear — every task here is done.')) + '</p>' +
     '</div>'
 
-  // S114 (the two-jobs rule, job #1 — "never lose an idea"): the to-do panel grows
-  // a QUICK-ADD row — capture a task into any quadrant straight from the sidebar,
-  // no board trip. One form: quadrant picker (its dot wears the quadrant's picked
-  // pastel via --rail-add-accent, the same token the group heads tint with) + a
-  // borderless input + a round + submit. Submit POSTs /api/sadhana/tasks (the
-  // board's own create endpoint, {title, quadrant}), then lands the row by
-  // re-rendering the panel from the updated cache (the Undo path's proven recipe:
-  // markRailRows + syncRailTreeBtn keep the tree honest) and refocuses the input
-  // EMPTY so ideas keep flowing. The row rides EVERY panel state — groups,
-  // all-clear, and the nothing-yet empty — because capture is exactly what an
-  // empty list is for.
+  // S130 (owner request): the S114 quick-add row (picker + input + submit) is
+  // RETIRED from the to-do panel — capture happens on the board itself.
   const RAIL_TODO_DEF = {
     1: ['rail.q1', 'Today'],
     3: ['rail.q3', 'Urgent & High Value'],
     2: ['rail.q2', 'Strategic'],
     4: ['rail.q4', 'Personal & Sentimental'],
   }
-  let railTodoCtx = { order: [1, 3, 2, 4], custom: new Map(), picked: 0 }
+  let railTodoCtx = { order: [1, 3, 2, 4], custom: new Map() }
   const railTodoLabel = (q) => {
     const meta = railTodoCtx.custom.get(q)
     return meta && meta.name ? meta.name : railT(RAIL_TODO_DEF[q][0], RAIL_TODO_DEF[q][1])
   }
-  const railTodoAddHtml = () => {
-    // S114 r2: the picker HOLDS the last-picked quadrant across re-renders — a
-    // capture loop stays on the list you're filling (the change handler and the
-    // submit both keep railTodoCtx.picked honest; the dot follows via the same
-    // --rail-add-accent style the change handler sets).
-    if (!railTodoCtx.order.includes(railTodoCtx.picked)) railTodoCtx.picked = railTodoCtx.order[0]
-    // S117: a surviving draft RECLAIMS its quadrant — the picker lands back on
-    // the list the idea was being typed into, even across a page navigation
-    // (railTodoCtx.picked alone only lives in memory).
-    const draft = railAddDraftRead()
-    if (draft && draft.q && railTodoCtx.order.includes(draft.q)) railTodoCtx.picked = draft.q
-    const draftText = draft ? draft.text : ''
-    const opts = railTodoCtx.order.map((q) => {
-      const meta = railTodoCtx.custom.get(q)
-      const accent = meta && meta.accent_color ? ' data-accent="' + escHtml(meta.accent_color) + '"' : ''
-      const sel = q === railTodoCtx.picked ? ' selected' : ''
-      return '<option value="' + q + '"' + accent + sel + '>' + escHtml(railTodoLabel(q)) + '</option>'
-    }).join('')
-    const picked = railTodoCtx.custom.get(railTodoCtx.picked)
-    const accentStyle = picked && picked.accent_color ? ' style="--rail-add-accent: var(--' + escHtml(picked.accent_color) + ')"' : ''
-    const ph = railT('rail.todoAddPlaceholder', 'New task…')
-    return '<form class="rail-todo-add" data-rail-add' + accentStyle + '>' +
-      '<span class="rail-add-dot" aria-hidden="true"></span>' +
-      '<select class="rail-add-picker" data-rail-add-picker aria-label="' + escHtml(railT('rail.todoAddList', 'Which list')) + '">' + opts + '</select>' +
-      '<input class="rail-add-input" data-rail-add-input type="text" maxlength="255" enterkeyhint="done" autocomplete="off" spellcheck="false"' +
-      (draftText ? ' value="' + escHtml(draftText) + '"' : '') +
-      ' placeholder="' + escHtml(ph) + '" aria-label="' + escHtml(ph) + '">' +
-      '<button class="rail-add-btn" type="submit" data-rail-add-btn aria-label="' + escHtml(railT('rail.todoAdd', 'Add task')) + '">' +
-      '<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></button>' +
-      '</form>'
-  }
-
   const renderRailTodos = (d) => {
     // S93 (owner round, item 1): the to-do panel IS the quadrant board in miniature —
     // each quadrant's name heads its group (the user's renamed sadhana_quadrant_names
@@ -662,14 +595,11 @@
       // arrival system (.q-arrived + scroll/carousel).
       parts.push(railGroup(railTodoLabel(q), items, { accent: meta && meta.accent_color ? meta.accent_color : null, href: '/to-do-list#Q' + q }))
     }
-    // S114: the quick-add row rides EVERY state — groups, all-clear, empty —
-    // because capture is exactly what an empty list is for.
-    const add = railTodoAddHtml()
     const html = parts.join('')
-    if (html) return html + add
+    if (html) return html
     // nothing open — distinguish "the list has no tasks yet" from "every task is done"
-    if (todos.length) return railTodoAllClear() + add
-    return '<div class="rail-panel-empty">' + escHtml(railT('rail.empty', 'Nothing here yet — open something and it will appear.')) + '</div>' + add
+    if (todos.length) return railTodoAllClear()
+    return '<div class="rail-panel-empty">' + escHtml(railT('rail.empty', 'Nothing here yet — open something and it will appear.')) + '</div>'
   }
 
   const renderRailProjects = (d) => {
@@ -1156,7 +1086,7 @@
         if (!left) group.remove()
       }
       if (!panel.querySelector('.rail-group')) {
-        panel.innerHTML = railTodoAllClear() + railTodoAddHtml() // S114: the finish line keeps the capture row
+        panel.innerHTML = railTodoAllClear() // S130: the finish line no longer carries a capture row
       } else {
         syncRailTreeBtn() // S97: the removal can complete/clear a full fold — keep the button honest
       }
@@ -1227,110 +1157,6 @@
       })
   })
 
-  // S114: the quick-add picker's DOT follows the picked quadrant's pastel — the
-  // selected option carries data-accent (the same token the group heads tint
-  // with); a quadrant without a picked pastel falls back to the brand accent.
-  document.addEventListener('change', (e) => {
-    const sel = e.target.closest ? e.target.closest('[data-rail-add-picker]') : null
-    if (!sel || !(sel instanceof HTMLSelectElement)) return
-    const form = sel.closest('[data-rail-add]')
-    if (!form) return
-    const opt = sel.selectedOptions && sel.selectedOptions[0]
-    const acc = opt ? opt.getAttribute('data-accent') : ''
-    form.style.setProperty('--rail-add-accent', acc ? 'var(--' + acc + ')' : 'var(--accent)')
-    railTodoCtx.picked = Number(sel.value) || railTodoCtx.picked // S114 r2: even a draft-less switch holds
-    // S117: a draft already being typed FOLLOWS its list switch — the stored
-    // quadrant updates so the navigation/re-render restore lands both.
-    const input = form.querySelector('[data-rail-add-input]')
-    if (input && input.value.trim()) railAddDraftWrite(Number(sel.value), input.value)
-  })
-
-  // S117: the draft PERSISTS as it's typed — every keystroke updates the
-  // sessionStorage draft, so a navigator-icon click (which navigates), a panel
-  // re-render, or a 401 login bounce round-trip all bring the half-typed idea
-  // back. Clearing the input (manually) clears the stored draft too.
-  document.addEventListener('input', (e) => {
-    const input = e.target.closest ? e.target.closest('[data-rail-add-input]') : null
-    if (!input || !(input instanceof HTMLInputElement)) return
-    const form = input.closest('[data-rail-add]')
-    const picker = form ? form.querySelector('[data-rail-add-picker]') : null
-    railAddDraftWrite(picker ? Number(picker.value) : railTodoCtx.picked, input.value)
-  })
-
-  // S114: capture a task from the sidebar. Submit POSTs /api/sadhana/tasks (the
-  // board's own create endpoint — {title, quadrant}), then lands the row by
-  // re-rendering the panel from the updated cache (the Undo path's proven
-  // recipe: markRailRows + syncRailTreeBtn) and refocuses the input EMPTY so
-  // ideas keep flowing. A failed POST keeps the draft in place for a retry;
-  // an empty submit is a quiet no-op (focus back, nothing sent).
-  document.addEventListener('submit', (e) => {
-    const form = e.target.closest ? e.target.closest('[data-rail-add]') : null
-    if (!form || !(form instanceof HTMLFormElement)) return
-    e.preventDefault()
-    const input = form.querySelector('[data-rail-add-input]')
-    const picker = form.querySelector('[data-rail-add-picker]')
-    if (!input || !picker) return
-    const title = input.value.trim()
-    if (!title) { input.focus(); return }
-    if (form.getAttribute('data-busy') === '1') return
-    form.setAttribute('data-busy', '1')
-    const btn = form.querySelector('[data-rail-add-btn]')
-    if (btn) btn.disabled = true
-    const quadrant = Number(picker.value) || 1
-    fetch('/api/sadhana/tasks', {
-      method: 'POST',
-      credentials: 'same-origin',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ title, quadrant }),
-    })
-      .then((r) => {
-        if (r.status === 401) { window.hibana?.handle401?.(r); throw new Error('HTTP 401') }
-        if (!r.ok) throw new Error('HTTP ' + r.status)
-        return r.json()
-      })
-      .then((data) => {
-        form.removeAttribute('data-busy')
-        railAddDraftClear() // S117: the idea LANDED — the stored draft retires with it
-        if (railData) {
-          railData.todos.push({ id: (data && data.id) || '', title, done: 0, due_date: null, quadrant })
-        }
-        railTodoCtx.picked = quadrant // S114 r2: the capture loop stays on the list you're filling
-        const box = railBox()
-        if (box && railSection === 'todo') {
-          const prevGroups = railHarvestGroups() // S116: keep the tree as the owner left it
-          const body = box.querySelector('.rail-panel-body')
-          if (body) body.innerHTML = railBodyFor('todo', railData)
-          railRestoreGroups(prevGroups) // S116: re-apply
-          markRailRows() // S95: fresh rows re-mark their current location
-          syncRailTreeBtn() // S97: the re-render rebuilt the tree
-          const fresh = box.querySelector('[data-rail-add-input]')
-          if (fresh) fresh.focus()
-        }
-        window.hibana?.toast?.(railT('rail.todoAdded', 'Task added'), 'ok', 3000)
-      })
-      .catch(() => {
-        form.removeAttribute('data-busy')
-        if (btn) btn.disabled = false
-        input.focus()
-        window.hibana?.toast?.(railT('rail.todoAddFailed', "Couldn't add the task — try again"), 'err')
-      })
-  })
-
-  // S114: Escape clears the DRAFT first — a capture-phase listener runs before
-  // the panel's own Escape handler, so a half-typed idea never costs the panel;
-  // an empty input lets the panel-close Escape through untouched.
-  document.addEventListener('keydown', (e) => {
-    if (e.key !== 'Escape') return
-    const t = e.target
-    const input = t && t.closest ? t.closest('[data-rail-add-input]') : null
-    if (input && input.value) {
-      e.preventDefault()
-      e.stopPropagation()
-      input.value = ''
-      railAddDraftClear() // S117: Escape stays the DELIBERATE discard — nothing stored survives it
-      input.focus()
-    }
-  }, true)
 
   // Panel-internal controls (delegated — the panel re-renders constantly):
   // ✕ closes; a group head collapses/expands; the calendar's ‹ › steps the month

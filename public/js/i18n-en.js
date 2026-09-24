@@ -33,13 +33,6 @@ window.__hibanaDictEN = {
       // announces itself and the emptied panel reads as a finish line, not an error
       'rail.todoDone': 'Task completed',
       'rail.todoAllDone': 'All clear — every task here is done.',
-      // S114: the panel's quick-add — capture a task into any quadrant from the
-      // sidebar itself (never lose an idea)
-      'rail.todoAdd': 'Add task',
-      'rail.todoAddPlaceholder': 'New task…',
-      'rail.todoAddList': 'Which list',
-      'rail.todoAdded': 'Task added',
-      'rail.todoAddFailed': "Couldn't add the task — try again",
       // S97: the panel head's tree fold — one button collapses/expands every group
       'rail.expandAll': 'Expand all', 'rail.collapseAll': 'Collapse all',
       // S98: the quadrant groups' goto chip — lands the deep link on the board

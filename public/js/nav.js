@@ -104,6 +104,53 @@
       const shell = document.querySelector('main.shell')
       if (!nextShell || !shell) throw new Error('no main.shell')
 
+      // S134 (owner, 2026-09-24: "the page renders as an unstyled single column with
+      // no detail pane … only becomes the correct three-column layout after a manual
+      // refresh"): bridge missing STYLESHEETS. The script twin of this diff has
+      // existed below since day one, but a page's <link rel=stylesheet> set was
+      // assumed universal — it is not: notes.css ships only in notes.html's head
+      // (clip.css and dashboard's task-controls.css the same shape), so the S133
+      // Notes-icon soft-nav swapped the three-pane vault in with NO layout CSS:
+      // .vault computed display:block, every pane full-width stacked, the editor
+      // pane present but collapsed flat below the fold. Diff the fetched head
+      // against this document's and append every missing sheet BEFORE the swap —
+      // awaited, so the fresh shell's first client-side paint already has its
+      // layout rules (the nav loader covers the wait, exactly as it covers the
+      // fetch). Exact-href dedupe: shared sheets match by URL (same deploy = same
+      // name, hashed or ?v=); one this document never loaded is genuinely missing,
+      // and a mid-session deploy's NEW hash lands too. Appending at the tail is
+      // cascade-safe: everything that must beat a page sheet (theme/rtl/polish
+      // overrides) wins on specificity, not order — verified against
+      // notes.css vs claude-dark-theme/themes/rtl/polish-ui before shipping.
+      const sheetHaves = new Set(
+        Array.from(document.querySelectorAll('link[rel="stylesheet"]')).map((l) =>
+          new URL(l.getAttribute('href') || '', location.href).href),
+      )
+      const missingSheets = []
+      for (const l of doc.querySelectorAll('link[rel="stylesheet"]')) {
+        const raw = l.getAttribute('href')
+        if (!raw) continue
+        const href = new URL(raw, location.href).href
+        if (sheetHaves.has(href)) continue
+        sheetHaves.add(href)
+        missingSheets.push({ href, media: l.getAttribute('media') || '' })
+      }
+      if (missingSheets.length) {
+        await Promise.all(missingSheets.map((sheet) => new Promise((resolve) => {
+          const el = document.createElement('link')
+          let settled = false
+          const done = () => { if (!settled) { settled = true; resolve() } }
+          el.rel = 'stylesheet'
+          el.href = sheet.href
+          if (sheet.media) el.media = sheet.media
+          el.onload = done
+          el.onerror = () => { console.warn('hibana nav: stylesheet failed:', sheet.href); done() }
+          setTimeout(done, 5000) // stall guard — a hanging sheet must not hold the swap
+          document.head.appendChild(el)
+        })))
+        if (seq !== navSeq) return // a newer navigation superseded this one
+      }
+
       if (active) { active.unmount(); active = null }
       // P0 fix (2026-09-12, review round 2) — Alpine auto-init race on the swapped shell:
       // Alpine's own MutationObserver initializes any x-data element the moment it lands in

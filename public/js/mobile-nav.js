@@ -175,7 +175,14 @@
     document.addEventListener('click', (e) => {
       if (!sheet.classList.contains('open')) return
       const a = e.target instanceof Element ? e.target.closest('a') : null
-      if (a && sheet.contains(a)) closeSheet()
+      // S134: ANY anchor closes the sheet now, not only sheet-internal rows — a
+      // bottom-bar TAB tapped while the sheet is open soft-navigates too, and the
+      // old sheet.contains(a) guard left the sheet open over the freshly swapped
+      // page (surfaced by the S134 mobile QA: Notes tab → vault renders UNDER the
+      // still-open sheet). Page anchors are unreachable while the backdrop is up,
+      // sheet rows behave exactly as before, and non-link controls (language /
+      // theme / logout / More itself) keep their own handlers.
+      if (a) closeSheet()
     }, true)
 
     // Language: mirror the topbar quick-toggle (persist → re-apply dictionary →

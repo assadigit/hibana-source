@@ -635,6 +635,27 @@ test.describe('the secondary panel (VS Code Activity Bar + Side Bar pattern)', (
     // ✕ + Escape own the close contract (pinned in the reload test below).
     await page.click('.rail .rail-primary a[data-rail-panel="notes"]')
     await page.waitForURL('**/notes.html', { timeout: 10_000 })
+    // S134 (owner, "the page renders as an unstyled single column with no detail
+    // pane … only becomes the correct three-column layout after a manual refresh"):
+    // the soft-nav bridge brought over missing SCRIPTS but never missing
+    // STYLESHEETS — notes.css ships only in notes.html's head, so the vault used
+    // to swap in with .vault computing display:block (one full-width column; the
+    // editor pane was present in the DOM but collapsed flat below the fold). The
+    // bridge now appends the destination's missing sheets BEFORE the swap, so the
+    // FIRST client-side render is already the three-pane grid — no reload needed.
+    await expect(page.locator('.vault')).toHaveCSS('display', 'grid', { timeout: 10_000 })
+    await expect(page.locator('.vault-editor')).toBeVisible()
+    const panes = await page.evaluate(() => {
+      const w = (sel: string) => Math.round(document.querySelector(sel)!.getBoundingClientRect().width)
+      return { tree: w('.vault-tree'), list: w('.vault-list'), ed: w('.vault-editor') }
+    })
+    expect(panes.tree).toBeLessThan(panes.list)
+    expect(panes.list).toBeLessThan(panes.ed)
+    // The layout sheet itself rides the document (the wired build rehashes the
+    // name — match the stem, not the literal /css/ href).
+    const hasNotesSheet = await page.evaluate(() =>
+      [...document.styleSheets].some((s) => /\/notes(\.[0-9a-f]+)?\.css/.test(s.href || '')))
+    expect(hasNotesSheet).toBe(true)
     // The Notes MODULE page owns the sidebar space there (S95 r2 item 9): the
     // rail collapses to icons and the panel box stays hidden — the vault tree
     // IS the notes sidebar.

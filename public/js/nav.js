@@ -711,33 +711,22 @@
       in_progress: '#pd-col-in_progress',
       done: '#pd-col-done',
     }
-    const bugBadgeFor = (pid) => {
-      const bugCount = ptasks.filter((t) => t.project_id === pid && t.status === 'bug').length
-      if (!bugCount) return ''
-      // S95 (at-a-glance triage): a project carrying OPEN BUGS wears a small count
-      // badge — the owner scans which projects carry problems WITHOUT expanding
-      // anything (the awaiting_dev rust, the ink the Problems dot speaks). aria-label
-      // composes from the existing rail.g.problems key so FA reads «۳ مشکلات».
-      return '<span class="rail-item-badge rail-bug-badge"' +
-        ' title="' + escHtml(railFaDig(bugCount) + ' ' + railT('rail.g.problems', 'Problems')) + '"' +
-        ' aria-label="' + escHtml(railFaDig(bugCount) + ' ' + railT('rail.g.problems', 'Problems')) + '">' +
-        railFaDig(bugCount) + '</span>'
-    }
     const projectBranch = (p) => {
       const href = '/project.html?id=' + encodeURIComponent(p.id)
       const mine = ptasks.filter((t) => t.project_id === p.id)
       if (!mine.length) {
         // No board tasks → no aspects to reveal: a plain bold row, click = open.
-        return railItem(href, p.title, p.status, null, bugBadgeFor(p.id), 'rail-project-row')
+        return railItem(href, p.title, p.status, null, null, 'rail-project-row')
       }
       // The branch head is a TOGGLE (not a link): chevron + the project's status dot
-      // + the bold name (.rail-project-row, the S106 700 register) + the bug badge.
+      // + the bold name (.rail-project-row, the S106 700 register). S125 (owner):
+      // the problems count pill left the rows — the glance reads names only; the
+      // branch's own Problems sub-group still lists the work.
       const head =
         '<button type="button" class="rail-group-head rail-project-head" data-rail-group aria-expanded="false">' +
         '<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>' +
         '<span class="rail-dot" data-status="' + escHtml(p.status) + '" aria-hidden="true"></span>' +
         '<span class="rail-project-row" dir="auto">' + escHtml(p.title) + '</span>' +
-        bugBadgeFor(p.id) +
         '</button>'
       const goto =
         '<a class="rail-group-goto" href="' + escHtml(href) + '"' +

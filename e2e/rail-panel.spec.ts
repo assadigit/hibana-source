@@ -310,18 +310,18 @@ test.describe('the secondary panel (VS Code Activity Bar + Side Bar pattern)', (
     await expect(panel).toBeVisible()
 
     // Rail project 0 (developing, carries 3 board tasks) renders a per-project
-    // BRANCH — a toggle HEAD, not a link — wearing the bold name, the status dot
-    // and the problems badge, and shipping COLLAPSED: the owner's sketch is
-    // "collapsed, and only shown when user clicks on the project title".
+    // BRANCH — a toggle HEAD, not a link — wearing the bold name and the status
+    // dot, and shipping COLLAPSED: the owner's sketch is "collapsed, and only
+    // shown when user clicks on the project title".
     const branch = page.locator('.rail-project-group').first()
     await expect(branch).toHaveClass(/is-collapsed/)
     const head = branch.locator('.rail-project-head')
     await expect(head).toContainText('Rail project 0')
     await expect(head.locator('.rail-dot')).toHaveAttribute('data-status', 'developing')
-    // S95 (at-a-glance triage): the problems pill rides the HEAD (one seeded bug).
-    const bugBadge = head.locator('.rail-item-badge')
-    await expect(bugBadge).toHaveText('1')
-    await expect(bugBadge).toHaveAttribute('aria-label', '1 Problems')
+    // S125 (owner): the problems COUNT pill is retired from the rail rows — the
+    // glance reads names only; problems live in the dashboard's Problems box and
+    // the branch's own Problems sub-group below.
+    await expect(head.locator('.rail-item-badge')).toHaveCount(0)
     await expect(head).toHaveAttribute('aria-expanded', 'false')
     // The aspect sub-groups exist but sit hidden behind the fold — the panel reads
     // stage → PROJECT NAME and nothing else until the title is clicked.

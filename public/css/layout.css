@@ -454,34 +454,13 @@ body.rail-panel-open .rail-panel { visibility: visible; opacity: 1; transition: 
 .rail-dot[data-status='done']         { background: color-mix(in srgb, var(--badge-operational-fg, #277334) 40%, transparent); }
 .rail-dot[data-status='todo']         { background: color-mix(in srgb, var(--badge-queued-fg, #85620D) 40%, transparent); }
 .rail-item-emoji { flex: none; font-size: 0.9rem; line-height: 1; }
-/* S95 (at-a-glance triage): a project row carrying open bugs wears a count pill in
-   the problems register — the awaiting_dev rust the Problems dot speaks, on the S94
-   counter-pill recipe (12% wash + ink mixed 68% toward the TEXT ink + a 45% hairline
-   for definition; 6.6:1 light / 7.4:1 claude-dark, numerically checked). The count
-   renders through railFaDig so FA reads Farsi digits. */
-.rail-item-badge {
-  flex: none;
-  margin-inline-start: 0.2rem;
-  min-inline-size: 1.2rem;
-  padding: 0.02rem 0.3rem;
-  border-radius: 999px;
-  font-size: var(--fs-xs);
-  font-weight: 600;
-  line-height: 1.45;
-  font-variant-numeric: tabular-nums;
-  text-align: center;
-}
-.rail-bug-badge {
-  color: color-mix(in srgb, var(--badge-awaiting_dev-fg, #A34A31) 68%, var(--text));
-  background: color-mix(in srgb, var(--badge-awaiting_dev-fg, #A34A31) 12%, transparent);
-  border: 1px solid color-mix(in srgb, var(--badge-awaiting_dev-fg, #A34A31) 45%, transparent);
-}
 /* ── S115 r2 (owner, the sidebar sketch): the per-project COLLAPSIBLE branch ────
    Stage head → PROJECT branch (collapsed until its title is clicked) → aspect
    sub-groups (New ideas / Problems / Plans / In Progress / Done) → items. The
    branch head reuses the group-head TOGGLE contract but speaks the ROW register,
    not the section register: sentence case, no wash (the stage heads own the
-   section-chip look), the bold project name + its status dot + the bug badge.
+   section-chip look), the bold project name + its status dot (S125: the problems
+   count pill left the rows — the glance reads names only).
    The ↗ goto chip (the S98 recipe) sits beside the head inside the headrow and
    keeps the S89 deep link — expanding and opening stop fighting over one click.
    A project with no board tasks renders as a plain .rail-item row (nothing to

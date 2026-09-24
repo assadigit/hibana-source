@@ -626,21 +626,23 @@ test.describe('the secondary panel (VS Code Activity Bar + Side Bar pattern)', (
     await expect(page.locator('.rail-panel-title')).toHaveText('Projects')
   })
 
-  test('clicking the open section\'s icon toggles the panel closed; switching icons swaps sections', async ({ page }) => {
+  test('every panel icon NAVIGATES now — Notes joins (S133); switching icons swaps sections', async ({ page }) => {
     await login(page)
-    // S115 r2: Ideas NAVIGATES now too (the owner's "/sparks as well" ask) — the
-    // toggle contract rides the remaining NON-navigating icon (Notes), exactly as
-    // before.
+    // S133 (owner, "It must open the notebooks, currently it only opens the
+    // sidebar"): the Notes icon joins the navigators — the click lands on
+    // /notes.html (the S105 Calendar / S115 Ideas one-attribute pattern). With
+    // every section navigating, the re-click toggle path retires: the panel's
+    // ✕ + Escape own the close contract (pinned in the reload test below).
     await page.click('.rail .rail-primary a[data-rail-panel="notes"]')
-    await expect(page.locator('.rail-panel-title')).toHaveText('Notes')
-
-    // Same icon again → closed (the toggle rides a non-navigating icon — the
-    // navigating icons re-navigate by design).
-    await page.click('.rail .rail-primary a[data-rail-panel="notes"]')
+    await page.waitForURL('**/notes.html', { timeout: 10_000 })
+    // The Notes MODULE page owns the sidebar space there (S95 r2 item 9): the
+    // rail collapses to icons and the panel box stays hidden — the vault tree
+    // IS the notes sidebar.
+    await expect(page.locator('body')).toHaveClass(/rail-icons-only/)
     await expect(page.locator('[data-rail-panel-box]')).toBeHidden()
 
     // A navigating icon swaps the panel's section on its destination (the rail
-    // itself never hides).
+    // itself never hides) — from the module page, the remembered panel restores.
     await page.click('.rail .rail-primary a[data-rail-panel="sparks"]')
     await page.waitForURL('**/sparks.html', { timeout: 10_000 })
     await expect(page.locator('.rail-panel-title')).toHaveText('Ideas')
@@ -802,13 +804,17 @@ test.describe('the secondary panel (VS Code Activity Bar + Side Bar pattern)', (
 
   test('the panel persists across a page reload (localStorage restore)', async ({ page }) => {
     await login(page)
-    await page.click('.rail .rail-primary a[data-rail-panel="notes"]')
-    await expect(page.locator('.rail-panel-title')).toHaveText('Notes')
+    // S133: every icon navigates now — the reload ride uses a non-module
+    // destination (sparks), whose panel restores from the persisted key.
+    await page.click('.rail .rail-primary a[data-rail-panel="sparks"]')
+    await page.waitForURL('**/sparks.html', { timeout: 10_000 })
+    await expect(page.locator('.rail-panel-title')).toHaveText('Ideas')
     await page.reload()
     await page.waitForSelector('[data-rail-panel-box]:not([hidden])', { timeout: 10_000 })
-    await expect(page.locator('.rail-panel-title')).toHaveText('Notes')
-    // …and closes cleanly after the restore.
-    await page.click('.rail .rail-primary a[data-rail-panel="notes"]')
+    await expect(page.locator('.rail-panel-title')).toHaveText('Ideas')
+    // …and closes cleanly via the ✕ — with every icon navigating, the ✕ + Escape
+    // own the close contract (S133).
+    await page.click('[data-rail-close]')
     await expect(page.locator('[data-rail-panel-box]')).toBeHidden()
   })
 

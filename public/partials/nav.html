@@ -42,7 +42,13 @@
          well"): Ideas joins the navigators — the click opens the panel AND lands
          on /sparks.html (the Calendar pattern, one line).
          S95 r2 (owner item 3): To-do joins the navigators — a click lands on
-         /to-do-list (its tickable panel rides along, the Projects pattern). -->
+         /to-do-list (its tickable panel rides along, the Projects pattern).
+         S133 (owner: "It must open the notebooks, currently it only opens the
+         sidebar"): Notes — the LAST panel-only icon — joins the navigators too
+         (the same one-attribute move: the click opens the panel AND lands on
+         /notes.html; the module page's own sidebar owns the space there per S95
+         r2 item 9, and the panel rides again once the module class lifts). With
+         every section navigating, the panel's ✕ + Escape own the close contract. -->
     <a class="rail-btn" href="/dashboard.html" aria-label="Dashboard" data-i18n-aria-label="nav.dashboard" data-i18n-title="nav.dashboard" title="Dashboard">
       <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20V14M10 20V10M16 20V4"/></svg>
       <span class="rail-label" data-i18n="rail.label.dashboard">Dashboard</span>
@@ -59,7 +65,11 @@
       <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 18h6M10 22h4"/><path d="M12 2a7 7 0 0 0-4.2 12.6c.9.7 1.2 1.6 1.2 2.4h6c0-.8.3-1.7 1.2-2.4A7 7 0 0 0 12 2Z"/></svg>
       <span class="rail-label" data-i18n="rail.label.ideas">Ideas</span>
     </a>
-    <a class="rail-btn" href="/notes.html" data-rail-panel="notes" aria-label="Notes" data-i18n-aria-label="nav.notes" data-i18n-title="nav.notesHint" title="Notes">
+    <!-- S88 originally: Notes kept VS Code semantics (click opened the panel; the
+         panel header's "Open →" navigated). S133 (owner: "It must open the
+         notebooks, currently it only opens the sidebar") brings Notes into the
+         navigator fold — data-rail-nav, the S105/S115 one-liner. -->
+    <a class="rail-btn" href="/notes.html" data-rail-panel="notes" data-rail-nav aria-label="Notes" data-i18n-aria-label="nav.notes" data-i18n-title="nav.notesHint" title="Notes">
       <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 5h9l5 5v9a1.5 1.5 0 0 1-1.5 1.5h-12A1.5 1.5 0 0 1 4 19V6.5A1.5 1.5 0 0 1 5.5 5Z"/><path d="M8 12h8M8 15.5h5"/></svg>
       <span class="rail-label" data-i18n="rail.label.notes">Notes</span>
     </a>

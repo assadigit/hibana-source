@@ -1031,14 +1031,16 @@
     markRailIcons()
   }
 
-  // The rail icons: click OPENS the panel (VS Code semantics — single click never
-  // navigates; the panel's header "Open →" + the item rows do). S93 (owner items 2
-  // + 10): an icon carrying data-rail-nav ALSO navigates — Projects shows the page
-  // AND its grouped sidebar together. S95 r2 (owner items 3 + 9): To-do joins the
-  // navigators (a click lands on /to-do-list), and on a MODULE-SIDEBAR page (the
-  // icon rail) every icon is a plain link — the panel never opens there; a
-  // navigating icon remembers its panel for the destination (it opens once the
-  // module class lifts, so Projects-from-Notes still arrives with its tree).
+  // The rail icons: click OPENS the panel — and since S93/S95/S105/S115/S133 EVERY
+  // section ALSO NAVIGATES (data-rail-nav: Projects, To-do, Calendar, Ideas, and
+  // now Notes — the owner's "It must open the notebooks, currently it only opens
+  // the sidebar"; the click lands on the icon's own page with the panel riding
+  // along, so the ✕ + Escape own the close contract — the re-click toggle below
+  // keeps no remaining non-nav rider). S95 r2 (owner items 3 + 9): on a
+  // MODULE-SIDEBAR page (the icon rail) every icon is a plain link — the panel
+  // never opens there; a navigating icon remembers its panel for the destination
+  // (it opens once the module class lifts, so Projects-from-Notes still arrives
+  // with its tree).
   // Registered BEFORE the generic link interceptor below so stopPropagation keeps
   // the navigator out.
   let pendingPanelOnNav = null // a panel section to open after the NEXT load() lands
@@ -1066,7 +1068,7 @@
     e.stopPropagation()
     const section = icon.getAttribute('data-rail-panel') || ''
     const alsoNav = icon.hasAttribute('data-rail-nav')
-    if (!alsoNav && railSection === section) { closeRailPanel(); return }
+    if (!alsoNav && railSection === section) { closeRailPanel(); return } // S133: no non-nav section remains — defensive
     if (RAIL_SECTIONS[section]) openRailPanel(section)
     if (alsoNav) go(icon.getAttribute('href') || '')
   }, true)

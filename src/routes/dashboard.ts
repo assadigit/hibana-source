@@ -520,9 +520,10 @@ export function dashboardRoutes(cfg: Config) {
                stat-carousel) and the panel below it now live inside a single card
                (one background, one border-radius), no longer two separate cards.
                Inside it, top-to-bottom: the stage carousel, its pagination dots
-               (kept right below the top row), then the overview lower panel, with
-               a floating "New project" button anchored to the container's
-               bottom-inline-end corner (logical property: right in EN, left in FA). -->
+               (kept right below the top row), then the overview lower panel.
+               S129 (owner request): the container's floating "New project" button
+               is retired — the global capture FAB (+ menu) stays the dashboard's
+               New-project path. -->
           <div class="dash-proj-unified ov">
             <!-- S42: overlay handles — absolute inside .stat-stage, translucent; the
                  driver's .at-start/.at-end flags fade the handle with nothing left
@@ -547,12 +548,9 @@ export function dashboardRoutes(cfg: Config) {
             <div class="dash-proj-lower" role="group" aria-label="${t('Overall project tasks', 'کارهای همهٔ پروژه‌ها')}">
               ${raw(dashboardOverviewRowHtml(ovData.counts, ovData.recent, lang))}
             </div>
-            <!-- S126 (owner: two near-identical teal + FABs): the container button now
-                 wears its OWN identity — folder-plus glyph + the caramel accent-2 fill
-                 (the global capture FAB keeps the teal +). The actions were always
-                 different (this opens the New-project dialog; the global one opens the
-                 idea/project/note menu) so both stay, visually unmistakable. -->
-            <button type="button" class="dash-proj-fab" data-projectquickadd aria-label="${t('New project', 'پروژه جدید')}" title="${t('New project', 'پروژه جدید')}">${raw(icon('folder-plus'))}</button>
+            <!-- S129 (owner request): the container's floating "New project" FAB is
+                 retired (was S126's caramel folder-plus). Creation stays reachable
+                 through the global capture FAB's "New project" item. -->
           </div>
         </section>`,
         notebook: (): SafeHtml => raw(notebookHtml(notes, lang, 'note', noteTitles, true, noteTotal[0]?.n)),

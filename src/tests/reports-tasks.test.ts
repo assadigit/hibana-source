@@ -152,7 +152,9 @@ describe('dashboard urgent strip payload (S30 batch 3)', () => {
       expect(busyHtml).toContain('dash-proj-unified')
       expect(busyHtml).toContain('data-stat-track')
       expect(busyHtml).toContain('dash-proj-lower')
-      expect(busyHtml).toContain('dash-proj-fab')
+      // S129 (owner request): the container FAB is retired — even busy dashboards
+      // carry none (the global capture FAB is the creation path).
+      expect(busyHtml).not.toContain('dash-proj-fab')
       // the wireframe order: the pie first, then Plans → Problems → In Progress
       const lower = busyHtml.indexOf('dash-proj-lower')
       expect(busyHtml.indexOf('ov-pie-card', lower)).toBeGreaterThan(-1)

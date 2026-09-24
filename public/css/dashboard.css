@@ -723,10 +723,10 @@ main.shell-dash > section { margin-block-end: 2.9rem; }
    (one background, one border-radius) instead of two separate cards. Inside
    it, top-to-bottom: the stage carousel -> its pagination dots (kept right
    below the top row) -> the overview lower panel (donut + Plans / Problems /
-   In Progress) -> a floating "New project" FAB anchored to the container's
-   bottom-inline-end corner. The old "Urgent across projects" fire strip is
-   RETIRED — the Problems box carries the cross-project alert role now; the
-   .dash-urgent* rules left with it. */
+   In Progress). S129 (owner request): the container's floating "New project"
+   FAB left — the global capture FAB (+ menu) is the creation path. The old
+   "Urgent across projects" fire strip is RETIRED — the Problems box carries
+   the cross-project alert role now; the .dash-urgent* rules left with it. */
 
 .dash-proj-unified {
   /* NOT the generic .card: that one carries a list reset (`.card ul/li`) that
@@ -734,7 +734,6 @@ main.shell-dash > section { margin-block-end: 2.9rem; }
      its own card chrome here. The `ov` class (helpers' palette scope) rides
      along so every .ov-* descendant resolves --ov-c-*, including the
      claude-dark inks (misc.css overrides html[data-theme='claude-dark'] .ov). */
-  position: relative; /* anchors .dash-proj-fab */
   background: var(--card);
   border: 1px solid var(--line);
   border-radius: var(--radius);
@@ -787,42 +786,12 @@ main.shell-dash > section { margin-block-end: 2.9rem; }
   .dash-proj-lower { grid-auto-columns: minmax(13.5rem, 85%); }
 }
 
-/* The container FAB — S126 (owner: two near-identical teal + circles): the
-   container button wears its OWN identity so its function is recognizable at a
-   glance — folder-plus glyph (it creates a PROJECT) + the caramel --accent-2 fill,
-   while the global capture FAB keeps the teal + menu. Bottom-INLINE-END (right in
-   EN, left in FA — one rule, zero per-direction overrides). Opens the same New
-   Project dialog as the projects page's quick-add (app.js's delegated
-   [data-projectquickadd] handler; >=44px touch target per the app's touch law). */
-.dash-proj-fab {
-  position: absolute;
-  inset-block-end: 0.85rem;
-  inset-inline-end: 0.85rem;
-  z-index: 20;
-  display: inline-grid;
-  place-items: center;
-  inline-size: 2.75rem;
-  block-size: 2.75rem;
-  padding: 0;
-  border: none;
-  border-radius: 50%;
-  background: var(--accent-2, #C4893A);
-  color: var(--accent-contrast, #fff);
-  box-shadow: 0 4px 14px -6px color-mix(in srgb, var(--accent-2, #C4893A) 65%, transparent);
-  transition: transform 0.18s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.18s ease, filter 0.15s ease;
-}
-.dash-proj-fab:hover { filter: brightness(1.06); box-shadow: 0 6px 18px -6px color-mix(in srgb, var(--accent-2, #C4893A) 75%, transparent); }
-.dash-proj-fab:active { transform: scale(0.92); }
-.dash-proj-fab:focus-visible { outline: 2px solid var(--accent-2, #C4893A); outline-offset: 2px; }
-.dash-proj-fab .icon { inline-size: 1.25rem; block-size: 1.25rem; }
-@media (prefers-reduced-motion: reduce) {
-  .dash-proj-fab { transition: none; }
-}
-/* the FAB floats over the lower row's end card on narrow screens — keep the
-   row's content readable above it by reserving its corner */
-@media (max-width: 640px) {
-  .dash-proj-lower { padding-block-end: 2.6rem; }
-}
+/* S129 (owner request): the container's floating "New project" FAB is RETIRED
+   (was S126's caramel folder-plus anchored bottom-inline-end; it also carried
+   the mobile corner-reservation padding on .dash-proj-lower and the container's
+   position:relative anchor). The global capture FAB's "New project" menu item
+   (data-projectquickadd, app.js-delegated) remains the dashboard's creation
+   path, so no behavior is lost — the container's corner is simply quiet now. */
 
 /* ═══════════════════════════════════════════════════════════════════════════
    S72 — Stale-projects nudge ("Untouched for 2+ weeks", job #2: what you left

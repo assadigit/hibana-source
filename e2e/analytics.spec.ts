@@ -117,16 +117,7 @@ test('dashboard: the unified projects container carries the overview row; the fi
   expect(['auto', 'scroll']).toContain(overflowX)
   const snapType = await container.locator('.dash-proj-lower').evaluate((el) => getComputedStyle(el).scrollSnapType)
   expect(snapType).not.toBe('none')
-  // the floating action button anchors to the container's bottom corner and opens
-  // the same New Project dialog as the projects page's quick-add
-  const fab = container.locator('.dash-proj-fab')
-  await expect(fab).toBeVisible()
-  await expect(fab).toHaveAttribute('data-projectquickadd', '')
-  const fabBox = await fab.boundingBox()
-  const boxBox = await container.boundingBox()
-  expect(fabBox!.y + fabBox!.height).toBeGreaterThan(boxBox!.y + boxBox!.height * 0.6) // bottom-anchored
-  await fab.click()
-  await expect(page.locator('#projectadd-dialog')).toBeVisible()
-  await page.keyboard.press('Escape')
-  await expect(page.locator('#projectadd-dialog')).not.toBeVisible()
+  // S129 (owner request): the container's floating New-project button is retired —
+  // the global capture FAB (+ menu, unchanged below) is the dashboard's creation path.
+  await expect(container.locator('.dash-proj-fab')).toHaveCount(0)
 })

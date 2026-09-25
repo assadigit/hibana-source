@@ -322,15 +322,15 @@ test('S105-6 [MED]: the fullscreen board renders bullets + a BOLD title (the sha
   // becomes a real <ul><li> bullet (the retired local renderer left "- bullet one"
   // as literal text), and the second line rides the S86 PREVIEW (S48j title-only —
   // the exact projects-page card shape the board must inherit).
-  const card = page.locator('.db-card', { hasText: 'bullet one' }).first()
+  const card = page.locator('.pd-task-wrap', { hasText: 'bullet one' }).first()
   await expect(card).toBeVisible({ timeout: 15_000 })
-  await expect(card.locator('.db-card-title ul > li')).toHaveCount(1)
-  await expect(card.locator('.db-card-title ul > li')).toHaveText('bullet one')
+  await expect(card.locator('.pd-task-title ul > li')).toHaveCount(1)
+  await expect(card.locator('.pd-task-title ul > li')).toHaveText('bullet one')
   // The preview flattens the remaining raw line (marker included — the exact
   // projects-page preview behavior).
   await expect(card.locator('.pd-task-preview')).toHaveText('- bullet two')
   // The title carries the projects-page register: 0.75rem / weight 700.
-  const typography = await card.locator('.db-card-title').evaluate((el) => {
+  const typography = await card.locator('.pd-task-title').evaluate((el) => {
     const cs = getComputedStyle(el)
     return { weight: cs.fontWeight, size: cs.fontSize }
   })

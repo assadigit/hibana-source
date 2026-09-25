@@ -53,7 +53,7 @@ test('label manager: usage list, rename-merge, recolor, delete-unused', async ({
     return p
   })
   await page.goto(`/board.html?project=${pid}`)
-  await expect(page.locator('.db-card')).toHaveCount(3)
+  await expect(page.locator('.pd-task-wrap')).toHaveCount(3)
 
   // open the manager from the toolbar
   await page.click('#db-labels-btn')
@@ -74,7 +74,7 @@ test('label manager: usage list, rename-merge, recolor, delete-unused', async ({
   await expect(dlg.locator('.db-label-usage')).toContainText('3')
   await page.keyboard.press('Escape')
   // the board reloaded through onChanged: every card now shows the Beta chip
-  await expect(page.locator('.db-card .db-mini-chip', { hasText: 'Beta' })).toHaveCount(3)
+  await expect(page.locator('.pd-task .pd-tag', { hasText: 'Beta' })).toHaveCount(3)
 
   // recolor via the palette. The reopen's async refresh() re-renders the rows (and
   // resets every palette to hidden) — wait for its GET /api/tags to land BEFORE
@@ -87,7 +87,9 @@ test('label manager: usage list, rename-merge, recolor, delete-unused', async ({
   await dlg.locator('.db-label-row [data-lbl-color]').click()
   await dlg.locator('.db-label-palette [data-color="#8FD3A9"]').click()
   await page.keyboard.press('Escape')
-  await expect(page.locator('.db-card .db-mini-chip').first()).toHaveAttribute('style', /8FD3A9/i)
+  // S136: the chip is the project page's .pd-tag span now — the color rides the
+  // inner .pd-tag-dot (the old .db-mini-chip carried it on the chip itself).
+  await expect(page.locator('.pd-task .pd-tag').first().locator('.pd-tag-dot')).toHaveAttribute('style', /8FD3A9/i)
 
   // delete-unused: unlink Beta from one task (PATCH tags []), then… the tag is still
   // used → the manager hides the delete button; unlink everywhere then delete works.

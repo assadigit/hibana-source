@@ -775,32 +775,9 @@ input.qe-name,
    background tint and the 600-weight title are gone ("keep the texts themselves
    like other texts, without red background"); the pulsing urgent dot is the alarm. */
 .pd-task-wrap:has(.prio-urgent) { border-inline-start-color: #D96C63; }
-/* Same for db-card (board.html) — Session 22 (user request): the board now uses the
-   EXACT pd recipe. The comment here previously claimed parity while the rules
-   diverged: .db-card:has(.prio-medium) hard-coded an ORANGE left border (most tasks
-   are medium → every board column read orange), and the prio-dot was broken twice
-   over — `.db-card .prio-dot { background: var(--prio-color…) }` referenced a token
-   that exists NOWHERE, and the later `.db-card-main .prio-dot { background: inherit }`
-   (0,2,0) beat the `.prio-medium` class (0,1,0) → TRANSPARENT, invisible dots on the
-   board. Now: the dot carries its priority color (pd !important recipe), the card's
-   left border inherits the COLUMN's color via --db-c, and only low/high/urgent flag
-   their own color — prio-medium keeps the column color, exactly like .pd-task-wrap. */
-.db-card .prio-dot { margin-block-start: 0.24rem; }
-/* S31 (2026-09-13): .prio-dot added here too — same descendant-leak fix as the .pd-task
-   set above (any prio-* carrying non-dot inside a card caught the !important). */
-.db-card .prio-dot.prio-low { background: #C9CDD2 !important; }
-.db-card .prio-dot.prio-medium { background: #E8B27D !important; }
-/* UI/UX R5 (2026-09-12): prio-high pink→red — same rationale as the .pd-task rule above. */
-.db-card .prio-dot.prio-high { background: #D96C63 !important; }
-.db-card .prio-dot.prio-urgent { background: #D96C63 !important; }
-.db-col .db-card { border-inline-start: 3px solid rgb(var(--db-c, 200 200 200) / 0.55); }
-.db-card:has(.prio-low) { border-inline-start-color: #C9CDD2; }
-/* prio-medium: no override — keeps the column color (was #E8B27D which made every board column read orange). */
-/* UI/UX R5 (2026-09-12): prio-high border pink→red. Was #E59AA5. */
-.db-card:has(.prio-high) { border-inline-start-color: #D96C63; }
-/* S31 (user request 2026-09-13): same de-tint on the board — border only + the
-   beeping dot; title weight matches every other card. */
-.db-card:has(.prio-urgent) { border-inline-start-color: #D96C63; }
+/* S136: the .db-card mirror of this block is RETIRED — board.html renders the exact
+   .pd-task-wrap / .pd-task anatomy now, so the recipes above style BOTH boards and
+   the duplicate (which had already drifted once — see its Session 22 note) is gone. */
 
 
 /* ==========================================================================

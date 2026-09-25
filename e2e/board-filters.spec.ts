@@ -91,7 +91,7 @@ test('board: filter bar (priority × label), dot cycles priority, exports carry 
   ])
   await page.goto(`/board.html?project=${pid}`)
   await expect(page.locator('[data-db-filter]')).toBeVisible({ timeout: 10_000 })
-  await expect(page.locator('.db-card')).toHaveCount(3)
+  await expect(page.locator('.pd-task-wrap')).toHaveCount(3)
 
   // the bar: 4 priority toggles + the label toggle(s) from the seeded tags
   await expect(page.locator('[data-db-filter] [data-fp]')).toHaveCount(4)
@@ -111,7 +111,7 @@ test('board: filter bar (priority × label), dot cycles priority, exports carry 
   // per-paragraph direction from their own first strong character — the English
   // seeded titles read LTR inside the FA/RTL page instead of a right-aligned
   // ragged-left RTL paragraph with flipped punctuation.
-  await expect(page.locator('.db-card-title').first()).toHaveCSS('unicode-bidi', 'plaintext')
+  await expect(page.locator('.pd-task-title').first()).toHaveCSS('unicode-bidi', 'plaintext')
 
   // S32 (user request: "decrease the size of this chips — a little too big"): the
   // filter toggles read compact — 26px min-block-size (was the 40px touch floor)
@@ -122,37 +122,53 @@ test('board: filter bar (priority × label), dot cycles priority, exports carry 
   await expect(urgentToggle).toHaveCSS('min-height', '26px')
   await expect(labelToggles.first()).toHaveCSS('unicode-bidi', 'plaintext')
   // the card's label chips follow the law too (S32)
-  await expect(page.locator('.db-card .db-mini-chip').first()).toHaveCSS('unicode-bidi', 'plaintext')
+  await expect(page.locator('.pd-task .pd-tag').first()).toHaveCSS('unicode-bidi', 'plaintext')
 
   // priority filter: urgent only → one card; the column counts follow
   await page.click('[data-db-filter] [data-fp="urgent"]')
-  await expect(page.locator('.db-card')).toHaveCount(1)
-  await expect(page.locator('.db-card-title')).toContainText('urgent auth leak')
+  await expect(page.locator('.pd-task-wrap')).toHaveCount(1)
+  await expect(page.locator('.pd-task-title')).toContainText('urgent auth leak')
   await expect(page.locator('.db-filter-shown')).toContainText('1 of 3')
 
   // label filter ANDs with the priority filter → zero cards (the medium task has no label)
   await page.click('[data-db-filter] [data-ft]')
-  await expect(page.locator('.db-card')).toHaveCount(1) // urgent auth leak IS labeled Security
+  await expect(page.locator('.pd-task-wrap')).toHaveCount(1) // urgent auth leak IS labeled Security
 
   // clear → all three back
   await page.click('[data-db-filter-clear]')
-  await expect(page.locator('.db-card')).toHaveCount(3)
+  await expect(page.locator('.pd-task-wrap')).toHaveCount(3)
 
   // the dot: TRANSLATED tooltip + click cycles (low → medium), persisted
-  const chore = page.locator('.db-card', { hasText: 'low chore' })
+  const chore = page.locator('.pd-task-wrap', { hasText: 'low chore' })
   const choreDot = chore.locator('[data-db-cycle-prio]')
   await expect(choreDot).toHaveAttribute('title', /Priority: Low — click to change/i)
   await choreDot.click()
   await expect(chore.locator('.prio-dot')).toHaveClass(/prio-medium/)
   await page.reload()
   await expect(page.locator('[data-db-filter]')).toBeVisible({ timeout: 10_000 })
-  const choreReloaded = page.locator('.db-card', { hasText: 'low chore' })
+  const choreReloaded = page.locator('.pd-task-wrap', { hasText: 'low chore' })
   await expect(choreReloaded.locator('.prio-dot')).toHaveClass(/prio-medium/)
 
   // the card's label chip is a filter toggle (GitHub behavior)
-  await page.locator('.db-card .db-mini-chip').first().click()
-  await expect(page.locator('.db-card')).toHaveCount(1)
+  await page.locator('.pd-task .pd-tag').first().click()
+  await expect(page.locator('.pd-task-wrap')).toHaveCount(1)
   await page.click('[data-db-filter-clear]')
+
+  // S136 (owner: the fullscreen filter bar must match the project page's — search
+  // input FIRST): typing narrows the board; the miss state appears on zero matches;
+  // clear (the empty-state CTA) restores everything.
+  const search = page.locator('[data-db-filter-q]')
+  await expect(search).toBeVisible()
+  await search.fill('chore')
+  await expect(page.locator('.pd-task-wrap')).toHaveCount(1)
+  await expect(page.locator('.pd-task-title')).toContainText('low chore')
+  await expect(page.locator('.db-filter-shown')).toContainText('1 of 3')
+  await search.fill('zzz-no-match')
+  await expect(page.locator('[data-db-filter-empty]')).toBeVisible()
+  await expect(page.locator('[data-db-filter-empty]').locator('[data-db-filter-empty-clear]')).toBeVisible()
+  await page.click('[data-db-filter-empty-clear]')
+  await expect(page.locator('.pd-task-wrap')).toHaveCount(3)
+  await expect(page.locator('[data-db-filter-empty]')).toBeHidden()
 
   // MD copy carries priority + labels — stub the clipboard, click Quick Copy on the
   // in_progress column, read the written text

@@ -303,11 +303,11 @@
       markNav(url.pathname)
       // S95 r2 (owner item 9): a panel remembered by an icon-rail navigation (e.g.
       // Projects clicked from the Notes module) opens now that the destination has
-      // landed — unless the destination is itself a module-sidebar page.
+      // landed — unless the destination is itself an icon-rail page.
       if (pendingPanelOnNav) {
         const section = pendingPanelOnNav
         pendingPanelOnNav = null
-        if (!MODULE_SIDEBAR_PAGES.has(url.pathname)) openRailPanel(section)
+        if (!RAIL_ICON_PAGES.has(url.pathname)) openRailPanel(section)
       }
       hideNavLoader()
     } catch (err) {
@@ -347,19 +347,36 @@
     navLoaderTimer = setTimeout(() => { if (navLoaderEl) navLoaderEl.className = '' }, 400)
   }
 
-  // S95 r2 (owner item 9): MODULE-SIDEBAR pages — a page that carries its own
-  // list-sidebar (the Notes vault's 3-pane tree|list|editor) collapses the PRIMARY
-  // rail to an icon-only rail, so the same navigation hierarchy is never rendered
-  // twice at full width (the Notion/Obsidian/VS Code pattern: exactly ONE sidebar
-  // shows labels at a time). Navigating to a page without its own sidebar restores
-  // the labeled rail. The class drives layout.css (labels hidden, --rail-w 4rem —
-  // the same anatomy the short-viewport collapse uses) and suppresses the rail
-  // PANEL on these pages (no second column beside the module's own sidebars).
-  const MODULE_SIDEBAR_PAGES = new Set(['/notes.html', '/notes'])
+  // S95 r2 (owner item 9): ICON-RAIL pages — a page that either carries its own
+  // list-sidebar (the Notes vault's 3-pane tree|list|editor) or owns the FULL viewport
+  // width (the fullscreen Kanban board, board.html — S136 owner request: the labeled
+  // rail ate width the five board columns need) collapses the PRIMARY rail to an
+  // icon-only rail, so the same navigation hierarchy is never rendered at full width
+  // beside content that needs the room (the Notion/Obsidian/VS Code pattern: exactly
+  // ONE sidebar shows labels at a time). Navigating to a page without its own
+  // sidebar/full-width board restores the labeled rail. The class drives layout.css
+  // (labels hidden, --rail-w 4rem — the same anatomy the short-viewport collapse uses)
+  // and suppresses the rail PANEL on these pages (no second column beside the module's
+  // own sidebars or the flush board).
+  // S136: the [data-rail-collapse-toggle] button (partials/nav.html) stays reachable
+  // in BOTH states — a manual toggle flips the class for the current page visit; the
+  // next navigation re-syncs to the page default (auto-collapsed on the board, labels
+  // restored everywhere else).
+  const RAIL_ICON_PAGES = new Set(['/notes.html', '/notes', '/board.html'])
   function syncRailIconMode(pathname) {
-    const on = MODULE_SIDEBAR_PAGES.has(pathname)
+    const on = RAIL_ICON_PAGES.has(pathname)
     document.body.classList.toggle('rail-icons-only', on)
     if (on && railSection) closeRailPanel()
+    syncRailCollapseToggles()
+  }
+
+  // S136: keep every collapse toggle's aria-expanded honest with the body class
+  // (the button controls the rail's EXPANDED state: true = labeled rail visible).
+  function syncRailCollapseToggles() {
+    const expanded = !document.body.classList.contains('rail-icons-only')
+    document.querySelectorAll('[data-rail-collapse-toggle]').forEach((b) => {
+      b.setAttribute('aria-expanded', String(expanded))
+    })
   }
 
   function markNav(pathname) {
@@ -1219,6 +1236,20 @@
   // cell opens the full Calendar page; the Help icon replays the tour.
   document.addEventListener('click', (e) => {
     if (e.target.closest ? e.target.closest('[data-rail-close]') : null) { closeRailPanel(); return }
+    // S136: the rail collapse toggle — the re-expand control while the rail sits
+    // collapsed (board.html auto-collapses via RAIL_ICON_PAGES; the button renders
+    // ONLY in the collapsed state — layout.css — so it costs the labeled rail zero
+    // height). Clicking expands the rail for the visit; the next navigation
+    // re-syncs to the page default (auto-collapsed on the board, labels restored
+    // everywhere else).
+    const collapseBtn = e.target.closest ? e.target.closest('[data-rail-collapse-toggle]') : null
+    if (collapseBtn) {
+      const willCollapse = !document.body.classList.contains('rail-icons-only')
+      document.body.classList.toggle('rail-icons-only', willCollapse)
+      if (willCollapse && railSection) closeRailPanel()
+      syncRailCollapseToggles()
+      return
+    }
     // S97 (the tree fold): collapse/expand EVERY group in one tap (incl. the
     // nested project → box sub-groups). When the whole tree sits collapsed the
     // button expands it; otherwise it collapses everything. Each group head's

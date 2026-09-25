@@ -43,7 +43,7 @@ window.__hibanaDictEN = {
       'rail.label.search': 'Search', 'rail.label.dashboard': 'Dashboard', 'rail.label.todo': 'To-do',
       'rail.label.projects': 'Projects', 'rail.label.ideas': 'Ideas', 'rail.label.notes': 'Notes',
       'rail.label.calendar': 'Calendar', 'rail.label.canvas': 'Canvas', 'rail.label.settings': 'Settings',
-      'rail.label.help': 'Help', 'rail.label.theme': 'Theme',
+      'rail.label.help': 'Help', 'rail.label.theme': 'Theme', 'rail.label.sidebar': 'Sidebar', 'rail.collapseHint': 'Collapse or expand the sidebar',
       // S89: the to-do panel groups tasks under their QUADRANT (box) name —
       // the same defaults the sadhana page carries, localized
       'rail.q1': 'Today', 'rail.q2': 'Strategic', 'rail.q3': 'Urgent & High Value', 'rail.q4': 'Personal & Sentimental',

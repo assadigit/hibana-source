@@ -13,7 +13,7 @@
 //
 // Supported surfaces (marked [data-magic] in server templates + injected client-side):
 //   - Project/spark card titles (.pc-title) — PATCH /api/projects/:id { title }
-//   - Dev task titles (.db-card-title) — PATCH /api/dev/tasks/:id { title } (injected)
+//   - Dev task titles (.pd-task-title) — PATCH /api/dev/tasks/:id { title } (injected)
 //   - Note textareas (.note-text) — dispatch input (existing autosave)
 //   - Quick-note composer (#quicknote-text) — dispatch input
 //   - Project description (#pd-desc) — dispatch input
@@ -525,11 +525,13 @@
   // Esc closes the popover.
   document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && popover) closePopover() })
 
-  // Inject [data-magic] onto dev task titles (.db-card-title) client-side — they're
+  // Inject [data-magic] onto dev task titles (.pd-task-title) client-side — they're
   // rendered in board.html/sprint.html JS, so the attribute can't go in the server template.
-  // Each task card has [data-task-card="id"]; the title is .db-card-title inside it.
+  // Each task card has [data-task-card="id"]; the title is .pd-task-title inside it
+  // (S136: the board renders the project page's .pd-task anatomy — the old
+  // .db-card-title selector retired with it).
   function injectDevTaskMagic() {
-    document.querySelectorAll('[data-task-card] .db-card-title:not([data-magic])').forEach((title) => {
+    document.querySelectorAll('[data-task-card] .pd-task-title:not([data-magic])').forEach((title) => {
       const card = title.closest('[data-task-card]')
       const id = card?.getAttribute('data-task-card')
       if (!id) return

@@ -110,7 +110,7 @@ test('FA locale: every S30 surface renders Farsi (composer, filter bar, tooltips
   // ---- the board page ----
   await page.goto(`/board.html?project=${pid}`)
   await expect(page.locator('[data-db-filter]')).toBeVisible({ timeout: 10_000 })
-  await expect(page.locator('.db-card')).toHaveCount(1)
+  await expect(page.locator('.pd-task-wrap')).toHaveCount(1)
   await expect(page.locator('[data-db-filter]')).toContainText('اولویت')
   await expect(page.locator('[data-db-filter] [data-fp="urgent"]')).toContainText('فوری')
   await expect(page.locator('[data-db-filter] [data-ft]')).toContainText('امنیت')

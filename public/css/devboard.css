@@ -12,119 +12,31 @@
 }
 @media (max-width: 1100px) { .db-cols { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (max-width: 640px) { .db-cols { grid-template-columns: 1fr; } }
-.db-col {
-  display: grid;
-  gap: 0.35rem;
-  border: 1px solid var(--line);
-  border-radius: var(--radius-sm);
-  /* Batch (s) ⑬ 2026-09-08 (Ali's 13-item list): the fullscreen board's columns drop the
-     grey/green fill — same minimal recipe as the project page's pd-col ("pastel stage
-     coding lives on the edge/header, not a fill"). Background transparent, padding + gap
-     + radius match .pd-col so the two boards read as one system. */
-  background: transparent;
-  padding: 0.55rem;
-  min-block-size: 8rem;
-}
-/* Session 22 (consistency with .pd-col-title): fs-md → fs-sm, gap 0.4 → 0.35 — the
-   column label now reads identically on both boards. */
-.db-col-head { display: flex; align-items: center; justify-content: space-between; gap: 0.4rem; }
-.db-col-name { font-weight: 600; font-size: var(--fs-sm); color: var(--muted); }
-/* batch (p) 2026-09-06 (user request): the fullscreen board's columns now carry the
-   SAME stage color coding as the project page's pd-board boxes — idea blue, planned
-   (برنامه آتی) grey, in-progress orange, done green, bug (مشکلات) red — border +
-   inline-start edge + colored name + dot, light and dark. The old bug-only rules are
-   superseded by the full set.
-   Session 22 (user request — consistency): the --db-ink values now MIRROR .pd-col
-   exactly — the light in_progress/done/bug inks were the pre-Session-20 values
-   (#9c7245 / #5e8f70 / #a96b78, 3.7–4.3:1) while pd had the AA-darkened set; the
-   dark block below was the pre-Session-19 bright set while pd used the muted set. */
-.db-col[data-col='idea']        { --db-c: 172 199 233; --db-ink: #5c7796; }
-.db-col[data-col='planned']     { --db-c: 209 212 216; --db-ink: #6b727b; }
-.db-col[data-col='in_progress'] { --db-c: 240 197 155; --db-ink: #7d5a34; } /* Session 22: was #9c7245 — mirrors .pd-col (Session-20 AA, 6.2:1) */
-.db-col[data-col='done']        { --db-c: 182 224 200; --db-ink: #43704f; } /* Session 22: was #5e8f70 — mirrors .pd-col (Session-20 AA, 5.7:1) */
-.db-col[data-col='bug']         { --db-c: 238 185 194; --db-ink: #87555f; } /* Session 22: was #a96b78 — mirrors .pd-col (Session-20 AA, 6.0:1) */
-.db-col { border-color: rgb(var(--db-c) / 0.28); border-inline-start: 3px solid rgb(var(--db-c) / 0.55); }
-.db-col-name { color: var(--db-ink, var(--muted)); display: inline-flex; align-items: center; gap: 0.15rem; /* S88: dot hugs its label — mirrors the pd board tightening */ }
-/* Session 22 (consistency with .pd-col-title::before): dot 0.6rem → 0.55rem, fill
-   opacity 0.95 → 0.72 — the exact pd recipe. */
-.db-col-name::before {
-  content: '';
-  inline-size: 0.55rem;
-  block-size: 0.55rem;
-  border-radius: 999px;
-  background: rgb(var(--db-c) / 0.72);
-  flex: none;
-}
-/* Done column: visually distinct — a subtle tinted background so the Archive/Clear buttons
-   are obviously tied to it, not the other columns. */
-.db-col-done { background: rgb(var(--db-c) / 0.12); }
-.db-col-done .db-col-head { border-bottom-color: rgb(var(--db-c) / 0.3); }
+/* S136 (owner report: the fullscreen board drifted from the project page's .pd-board):
+   the board renders the EXACT server anatomy of the project page's kanban now —
+   .pd-col[data-status] columns (tinted .pd-col-head strip, colored dot, dark count
+   badge) + .pd-task-wrap > .pd-task cards — so ALL column/card styling lives in
+   project-header.css + polish-batch.css and every duplicate .db-col / .db-card /
+   .db-add rule that used to mirror (and drift from) the pd recipes is RETIRED from
+   this sheet. What remains here is genuinely board-specific: the full-width .db-cols
+   grid, the toolbar/loading chrome, the editor modal, the filter bar (SHARED with the
+   project page's twin — project.html loads this sheet too), the ⋯ menu hook, and the
+   cat/sprint chips that have no pd counterpart. */
 /* Archives section (project.html) — list of archived done tasks with restore/delete */
 .pd-archives-list { display: flex; flex-direction: column; gap: 0.4rem; }
 .pd-archive-item { display: flex; align-items: center; gap: 0.6rem; padding: 0.5rem 0.7rem; border: 1px solid var(--line); border-radius: var(--radius-sm); background: var(--bg-soft); }
 .pd-archive-item .pd-archive-title { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .pd-archive-item .pd-archive-date { font-size: var(--fs-sm); color: var(--muted); flex: none; }
 .pd-archive-item .pd-archive-actions { display: flex; gap: 0.25rem; flex: none; }
-/* Session 22 (consistency): was the pre-Session-19 bright set — now the exact muted
-   .pd-col dark values (label inks + softened borders). */
-/* S87: the dark column inks — scoped to claude-dark (THE dark mode). */
-html[data-theme='claude-dark'] .db-col[data-col='idea']        { --db-c: 80 100 128; --db-ink: #7B9AB8; }
-html[data-theme='claude-dark'] .db-col[data-col='planned']     { --db-c: 110 115 122; --db-ink: #A0A8B0; }
-html[data-theme='claude-dark'] .db-col[data-col='in_progress'] { --db-c: 150 120 85; --db-ink: #C49A6E; }
-html[data-theme='claude-dark'] .db-col[data-col='done']        { --db-c: 100 145 115; --db-ink: #7BAA8E; }
-html[data-theme='claude-dark'] .db-col[data-col='bug']         { --db-c: 150 110 120; --db-ink: #C098A0; }
-.db-col-body { display: grid; gap: 0.45rem; border-radius: var(--radius-sm); transition: background 0.12s ease, outline 0.12s ease; outline: 2px dashed transparent; }
-.db-col-body.drag-over { outline-color: var(--brand); background: rgb(74 159 163 / 0.06); }
-.db-card {
-  display: grid;
-  gap: 0.3rem;
-  /* Session 22 (user request — consistency with .pd-task): was 0.55rem 0.6rem; the
-     progress-box card uses 0.4rem 0.5rem and the two boards must read as one system. */
-  padding: 0.4rem 0.5rem;
-  background: var(--card);
-  border: 1px solid var(--line);
-  border-radius: var(--radius-sm);
-  cursor: grab;
-  transition: border-color 0.12s ease, box-shadow 0.12s ease, opacity 0.12s ease;
-}
-.db-card:hover { border-color: var(--brand); box-shadow: 0 1px 6px rgb(30 20 10 / 0.07); }
-.db-card.dragging { opacity: 0.45; }
-.db-card-main { display: flex; align-items: flex-start; gap: 0.18rem; /* S88: dot→title tightened — mirrors .pd-task-title-row */ }
-/* Item 3 — REMOVED Session 22: `.db-card-main .prio-dot { background: inherit }` beat the
-   `.prio-*` classes (0,2,0 > 0,1,0) so every board prio-dot rendered TRANSPARENT
-   (invisible). The !important `.db-card .prio-*` rules near the pd block now carry
-   the priority color, same as the project page. */
-/* Session 22 (consistency with .pd-task-title): fs-md/1.35 → fs-sm/1.3 so a task card
-   reads identically in the project progress box and on the full-screen board.
-   S105 (owner: "the fullscreen box must inherit ALL design tokens from the
-   projects-page one — the heading is not bold there"): the board title now carries
-   the EXACT .pd-task-title register (project-header.css) — 0.75rem / weight 700
-   (S88) + pre-line. The board also renders the S86 content preview under the
-   heading (chip-render previewHtml) — same muted one-line clamp as .pd-task-preview. */
-.db-card-title {
-  font-size: 0.75rem;
-  font-weight: 700;
-  line-height: 1.3;
-  overflow-wrap: anywhere;
-  /* Session 23: multi-line titles (code blocks / manual breaks) render their line
-     structure — mirrors .pd-task-title; legacy single-line titles unchanged. */
-  white-space: pre-line;
-}
-.db-card .pd-task-preview { /* the chip-render preview span inside a board card */
-  display: block;
-  font-size: 0.7rem;
-  font-weight: 400;
-  color: var(--muted);
-  line-height: 1.35;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  min-inline-size: 0;
-  max-inline-size: 100%;
-}
-.st-done .db-card-title, .st-done .sp-bar-title { text-decoration: line-through; color: var(--muted); }
-.db-card-meta { display: flex; flex-wrap: wrap; gap: 0.3rem; align-items: center; }
-.db-cat-chip, .db-mini-chip {
+/* S136: the drag-over CUE rides the column (.pd-col.drag-over, project-header.css —
+   the pd recipe) and the dragged card dims via its wrap. The dashed .db-col-body
+   outline is retired with the db column styles. */
+.pd-task-wrap.dragging { opacity: 0.45; }
+/* S136: the old .db-card family (card box, main row, title, preview override, meta
+   row, add button) is RETIRED — the .pd-task / .pd-task-wrap / .pd-task-title /
+   .pd-task-preview / .pd-task-tags / .pd-task-add rules in project-header.css style
+   BOTH boards from one place. */
+.db-cat-chip, .db-sprint-badge {
   font-size: var(--fs-xs);
   padding: 0.05rem 0.45rem;
   border-radius: 999px;
@@ -143,28 +55,6 @@ html[data-theme='claude-dark'] .db-col[data-col='bug']         { --db-c: 150 110
   border-radius: 999px;
   padding: 0.05rem 0.45rem;
   white-space: nowrap;
-}
-.db-card-date { font-size: var(--fs-xs); }
-.db-add {
-  display: flex;
-  align-items: center;
-  gap: 0.4rem;
-  justify-content: center;
-  padding: 0.4rem;
-  border-radius: var(--radius-sm);
-  border: 1px dashed var(--line);
-  background: none;
-  color: var(--muted);
-  font: inherit;
-  font-size: var(--fs-sm);
-  cursor: pointer;
-  transition: color 0.12s ease, border-color 0.12s ease;
-}
-.db-add:hover {
-  /* Session 23: green fill + light text (owner hover spec; was a green-bg/teal-text mix) */
-  background: var(--cta-hover, var(--accent-hover));
-  border-color: var(--cta-hover, var(--accent-hover));
-  color: var(--btn-text, #fff);
 }
 
 /* --- task editor modal ----------------------------------------------------- */
@@ -919,8 +809,9 @@ main.shell.sp-shell .sp-wrap { min-block-size: min(64vh, 30rem); }
    nudge lives on the button now). */
 .pd-task .prio-dot-btn { margin-block-start: 0.1rem; }
 
-/* Label chips are FILTER toggles now (GitHub behavior) — keep the pointer honest. */
-.db-mini-chip, .pd-task .pd-tag { cursor: pointer; }
+/* Label chips are FILTER toggles now (GitHub behavior) — keep the pointer honest.
+   S136: the chips are the project page's .pd-tag spans on BOTH surfaces. */
+.pd-task .pd-tag { cursor: pointer; }
 
 /* ---- S30 batch 4: the label-manager dialog (board toolbar → Labels) ------------ */
 .db-labels-card { max-inline-size: 46rem; }

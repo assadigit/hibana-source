@@ -804,8 +804,6 @@ body > .note-head-controls.is-floating {
 .note-card:focus-within .spark-menu > button[data-menu-open],
 .pd-task:hover .spark-menu > button[data-menu-open],
 .pd-task:focus-within .spark-menu > button[data-menu-open],
-.db-card:hover .spark-menu > button[data-menu-open],
-.db-card:focus-within .spark-menu > button[data-menu-open],
 .kanban-card:hover .spark-menu > button[data-menu-open],
 .kanban-card:focus-within .spark-menu > button[data-menu-open],
 .sticky-note:hover .spark-menu > button[data-menu-open],
@@ -836,11 +834,9 @@ body > .note-head-controls.is-floating {
 .pd-task-wrap .pd-task { display: block; }
 .pd-task-wrap .spark-menu { position: absolute; inset-block-start: 0.25rem; inset-inline-end: 0.25rem; margin: 0; z-index: 5; }
 .pd-task-wrap .spark-menu-pop { inset-block-start: calc(100% + 0.25rem); inset-inline-end: 0; }
-/* .db-card ⋯ menu (board.html): the card is an <article>; pin the menu to the top-end
-   corner so it floats above the card content on hover. */
-.db-card { position: relative; }
-.db-card .db-card-menu { position: absolute; inset-block-start: 0.25rem; inset-inline-end: 0.25rem; margin: 0; z-index: 5; }
-.db-card .spark-menu-pop { inset-block-start: calc(100% + 0.25rem); inset-inline-end: 0; }
+/* S136: the .db-card menu block is RETIRED — board.html renders .pd-task cards with
+   the menu INSIDE the card (the project-page.js recipe), styled by the base
+   .spark-menu rules + the .pd-task:hover reveal above. */
 
 /* --- user profile menu (topbar avatar hover) --------------------------------- */
 .user-menu { position: relative; display: inline-flex; }

@@ -672,6 +672,19 @@ body.rail-panel-open .rail-panel { visibility: visible; opacity: 1; transition: 
   body.rail-icons-only .rail-btn { inline-size: 2.75rem; min-block-size: 2.75rem; gap: 0; }
   body.rail-icons-only .rail-brand { inline-size: 2.75rem; block-size: 2.75rem; border-radius: 0.75rem; }
 }
+/* S136: the rail's collapse toggle (partials/nav.html) — board.html auto-collapses
+   the rail (nav.js RAIL_ICON_PAGES) and this button is the always-reachable control
+   back. It shows ONLY while the rail is COLLAPSED: the page contract owns the
+   labeled state (auto-collapse on board.html, labels restored on exit), so the
+   control exists exactly where the job needs it — the re-expand path. Hiding it on
+   the labeled rail also costs zero height there: the 720p labeled column measured
+   EXACTLY full (773px content vs 720px viewport with a visible toggle; the S88
+   short-viewport contract stays intact). The double-chevron points outward while
+   collapsed (the expand affordance). RTL mirrors the horizontal pair. */
+.rail-collapse { display: none; }
+body.rail-icons-only .rail-collapse { display: flex; }
+body.rail-icons-only .rail-collapse .icon { transform: rotate(180deg); }
+[dir='rtl'] body.rail-icons-only .rail-collapse .icon { transform: scaleX(-1) rotate(180deg); }
 @media (prefers-reduced-motion: reduce) {
   body:has([data-nav]) { transition: none; }
   .rail-panel { transition: none; }

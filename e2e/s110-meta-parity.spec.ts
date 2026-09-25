@@ -62,7 +62,7 @@ const login = async (page: import('@playwright/test').Page) => {
 const readCard = (page: import('@playwright/test').Page, title: string, cardSel: string) =>
   page.evaluate(({ title, cardSel }) => {
     const cards = [...document.querySelectorAll(cardSel)]
-    const card = cards.find((c) => (c.querySelector('.pd-task-title, .db-card-title')?.textContent ?? '').includes(title))
+    const card = cards.find((c) => (c.querySelector('.pd-task-title')?.textContent ?? '').includes(title))
     if (!card) return { found: false }
     const meta = card.querySelector('.pd-task-meta')
     return {
@@ -90,9 +90,9 @@ test('the fullscreen board renders the EXACT meta the project page renders (shar
   expect(pdDone.metaText).toBe('Low Priority · ✓ 22 Sep 2026 · 2:41 PM')
 
   await page.goto('/board.html?project=' + PROJECT_ID)
-  await page.waitForSelector('.db-card-title')
-  const dbOpen = await readCard(page, 'Parity task alpha', '.db-card')
-  const dbDone = await readCard(page, 'Parity task beta', '.db-card')
+  await page.waitForSelector('.pd-task-title')
+  const dbOpen = await readCard(page, 'Parity task alpha', '.pd-task-wrap')
+  const dbDone = await readCard(page, 'Parity task beta', '.pd-task-wrap')
   expect(dbOpen.found, 'open task visible on the fullscreen board').toBe(true)
   // THE PARITY PINS — byte-identical meta on both surfaces:
   expect(dbOpen.metaText).toBe(pdOpen.metaText)

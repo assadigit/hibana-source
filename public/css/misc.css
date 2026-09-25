@@ -977,8 +977,8 @@ body:has(.dash-skeleton) .fab-stack .fab:hover { background: color-mix(in srgb, 
   /* board.html + project.html task cards */
   .prio-dot-btn { min-inline-size: 40px; min-block-size: 40px; }
   button[data-menu-open] { min-inline-size: 40px; min-block-size: 40px; }
-  .db-mini-chip { min-block-size: 40px; }
-  .db-add, .pd-task-add { min-block-size: 40px; }
+  /* S136: .db-mini-chip/.db-add retired — the board renders .pd-tag + .pd-task-add now */
+  .pd-task-add { min-block-size: 40px; }
   .pd-tag-add { min-block-size: 40px; }
   /* S45: the projects home's «All projects →» row link (flex-blockified inside the
      precent-head — the audit's inline-link exemption does not apply to it). */

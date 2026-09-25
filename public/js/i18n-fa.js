@@ -43,7 +43,7 @@ window.__hibanaDictFA = {
       'rail.label.search': 'جست‌وجو', 'rail.label.dashboard': 'پیشخوان', 'rail.label.todo': 'کارها',
       'rail.label.projects': 'پروژه‌ها', 'rail.label.ideas': 'ایده‌ها', 'rail.label.notes': 'یادداشت‌ها',
       'rail.label.calendar': 'تقویم', 'rail.label.canvas': 'بوم', 'rail.label.settings': 'تنظیمات',
-      'rail.label.help': 'راهنما', 'rail.label.theme': 'پوسته',
+      'rail.label.help': 'راهنما', 'rail.label.theme': 'پوسته', 'rail.label.sidebar': 'نوار کناری', 'rail.collapseHint': 'جمع‌کردن یا بازکردن نوار کناری',
       // S89: the to-do panel groups tasks under their QUADRANT (box) name —
       // the same defaults the sadhana page carries, localized
       'rail.q1': 'امروز', 'rail.q2': 'استراتژیک', 'rail.q3': 'فوری و باارزش', 'rail.q4': 'شخصی و احساسی',

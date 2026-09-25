@@ -100,8 +100,12 @@ html[data-theme='claude-dark'] {
   --badge-awaiting_dev-bg: #2C2F31;        --badge-awaiting_dev-fg: #A8B2B9;     /* gray */
   --badge-operational-bg: #22301F;   --badge-operational-fg: #94C9A2; /* green     */
 
-  /* S137: the per-status kanban card tints are retired in dark too — the card wears
-     var(--card) like every other card, status lives on the head dot/count/badge. */
+  /* S138 (owner correction on the S137 redesign): the per-status kanban card tints
+     are BACK — the card mixes the (muted-chroma dark) --st-* token over the dark
+     --card via the shared color-mix rules (notifications.css). Dark needs the same
+     one-notch-stronger strength the S88 lesson established for dark tints (light
+     ships 12%) so the hue still reads on the near-black card. */
+  --kanban-tint: 18%;
 
   /* ---------- Dots / paper ---------- */
   --dot-spark: #d4a27f;
@@ -271,14 +275,14 @@ html[data-theme='claude-dark'] .dash-vault-banner.card {
   background: color-mix(in srgb, var(--accent) 13%, var(--card));
 }
 
-/* Kanban chassis — flat card surface, stat cards transparent until hover. */
+/* Kanban chassis — flat card surface for the NO-STATUS cards (the sparks folder
+   board); stat cards transparent until hover. S138: the status cards' tinted fills
+   are the LIGHT sheet's --kanban-tint color-mix rules (0-3-0) — they outrank this
+   fallback (0-2-1) and auto-derive the dark tint by mixing the dark --st-* token
+   over the dark --card at --kanban-tint 18% (raised above, one-notch-stronger). */
 html[data-theme='claude-dark'] .kanban-card { background: var(--card); }
 html[data-theme='claude-dark'] .stat-kanban-card { background: transparent; }
 html[data-theme='claude-dark'] .card.kanban-card.stat-kanban-card { background: transparent; }
-
-/* S137: the status-coded lane tints are retired in dark — every kanban card wears
-   var(--card) (the rule above); status signaling moved to the column head dot +
-   count pill and the shared --st-*/badge tokens. */
 
 /* Dash quadrants + report cards — FLAT solid surfaces (the S97 flat-card system
    retired the one-step-elevated gradient cap app-wide); the stronger top border

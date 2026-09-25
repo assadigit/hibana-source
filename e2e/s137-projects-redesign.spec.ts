@@ -8,11 +8,12 @@
 //      identically by the kanban column head dots, the status badges and the
 //      overview donut segments/legend swatches — the chart no longer hardcodes
 //      its own shade of a status,
-//   4. the kanban card surface is the page's WHITE card (var(--card), the exact
-//      surface the summary cards wear) — the per-status tinted fills are gone,
-//      status signaling lives on the head dot + count pill and the badges.
+//   4. S138 (owner correction on this redesign): the kanban COLUMN wears the page's
+//      white (var(--card)) and the CARD inside is the status's color-coded box —
+//      the ONE --st-* token mixed over var(--card) at --kanban-tint (never a second
+//      hardcoded shade): [white lane [tinted card]].
 // These pins guard the parts a regression would silently break: the section
-// order, the dot+count head anatomy, the card surface, the renames (EN + FA),
+// order, the dot+count head anatomy, the lane/card stacking, the renames (EN + FA),
 // and the cross-surface token EQUALITY (board dot == chart swatch for the same
 // status — computed styles, so a re-hardcoded shade fails the pin).
 // Run: npx playwright test e2e/s137-projects-redesign.spec.ts
@@ -111,7 +112,7 @@ function watchErrors(page: import('@playwright/test').Page, errors: string[]): v
 
 test.use({ viewport: { width: 1280, height: 800 } })
 
-test('EN kanban home: board first, dot+count heads, white cards, renamed labels', async ({ page, browserName }) => {
+test('EN kanban home: board first, dot+count heads, white lanes + tinted cards, renamed labels', async ({ page, browserName }) => {
   test.skip(browserName !== 'chromium', 'Desktop Chromium only for now')
   const errors: string[] = []
   watchErrors(page, errors)
@@ -134,10 +135,24 @@ test('EN kanban home: board first, dot+count heads, white cards, renamed labels'
   await expect(page.locator('.kanban-col[data-status="queued"] .board-count')).toHaveText('1')
   await expect(page.locator('.kanban-col .kanban-col-head .badge')).toHaveCount(0)
 
-  // 3. the card surface is the page WHITE — every card, no per-status tint
-  const cardBgs = await page.$$eval('.kanban-col .kanban-card', (els) => els.map((el) => getComputedStyle(el).backgroundColor))
-  expect(cardBgs.length).toBeGreaterThan(0)
-  for (const bg of cardBgs) expect(bg, 'kanban card must be white').toBe('rgb(255, 255, 255)')
+  // 3. S138 stacking: the LANE is the page's white (var(--card)); each CARD inside is
+  //    the status's color-coded tint (the --st-* token mixed over var(--card)) — never
+  //    white itself, and distinct statuses tint distinctly (one color per status)
+  const stacks = await page.$$eval('.kanban-col[data-status]', (cols) =>
+    cols.map((col) => ({
+      status: col.getAttribute('data-status') ?? '',
+      lane: getComputedStyle(col).backgroundColor,
+      cards: [...col.querySelectorAll('.kanban-card')].map((c) => getComputedStyle(c).backgroundColor),
+    })),
+  )
+  const withCards = stacks.filter((s) => s.cards.length > 0)
+  expect(withCards.length, 'the seeded stages all have a live lane').toBeGreaterThanOrEqual(4)
+  for (const s of withCards) {
+    expect(s.lane, `lane ${s.status} must be the page's white`).toBe('rgb(255, 255, 255)')
+    for (const bg of s.cards) expect(bg, `card in ${s.status} must be status-tinted, not white`).not.toBe('rgb(255, 255, 255)')
+  }
+  const distinctTints = new Set(withCards.map((s) => s.cards[0]))
+  expect(distinctTints.size, 'one color per status — distinct statuses tint distinctly').toBe(withCards.length)
 
   // 4. one token per status ACROSS surfaces: the board dot and the donut legend
   //    swatch of the same status resolve to the SAME computed color (both reference

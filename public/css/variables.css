@@ -151,6 +151,15 @@
   --st-operational: #3D9A55;     /* Operational — green */
   --st-bug: #E54D4D;             /* Problems — red (the ov donut's bug red) */
 
+  /* S138 (owner correction on the S137 redesign): the tinted kanban CARD is back —
+     the owner's stacking is [white lane [color-coded card]]. The tint is NOT a
+     separate hardcoded shade: every card background mixes the ONE canonical
+     --st-<status> token over var(--card) at --kanban-tint strength (12% light;
+     claude-dark raises it one notch, the S88 one-notch-stronger lesson), so the
+     tint can never drift from the token the head dot, the badge and the donut
+     segment all reference. */
+  --kanban-tint: 12%;
+
   /* Status badge colors — pastel wash + AA ink of the SAME hue as --st-<status>.
      (unreviewed stays the devboard lane tint it always was — not a project stage.) */
   --badge-spark-bg: #E8EFFB;         --badge-spark-fg: #2E5FA3;
@@ -160,11 +169,9 @@
   --badge-developing-bg: #FBE9DA;         --badge-developing-fg: #96511A;
   --badge-awaiting_dev-bg: #EAECEE;        --badge-awaiting_dev-fg: #545B60;
   --badge-operational-bg: #E2F1E6;  --badge-operational-fg: #277334;
-  /* S137: the per-status kanban CARD tints are retired — the card surface is the
-     page's white card (var(--card), exactly the summary cards' white) and status
-     signaling moves to the column head dot + count pill, the badges and the donut.
-     The old --kanban-*-bg/-line tokens are deleted; any straggler rule would now
-     fail loudly in review instead of quietly re-tinting a card. */
+  /* S138 supersedes the S137 retirement: the old per-status --kanban-*-bg/-line
+     hex tokens stay deleted — the card tint now DERIVES from --st-* via color-mix
+     (notifications.css), so a re-hardcoded shade is still impossible. */
   /* notebook sheet: paper + grid stay theme-aware; ink inverts in dark so black/blue pens stay visible */
   --nb-paper: #fdfdfb;
   --nb-grid: rgb(28 28 26 / 0.05);

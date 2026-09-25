@@ -1531,9 +1531,31 @@
         }
         const PD_PRIO_RANK = { urgent: 0, high: 1, medium: 2, low: 3 }
         const pdPrioRank = (p) => PD_PRIO_RANK[p] ?? 2
-        // Meta line HTML with the leading priority label (twin of the server's render).
-        const pdMetaHtml = (prio, iso, done) =>
-          '<span class="pd-meta-prio prio-' + pdEsc(prio || 'medium') + '">' + pdEsc(pdPrioLabel(prio || 'medium')) + '</span> · ' + pdEsc(pdMetaLine(iso, done))
+        // S144 (the priority banner): the meta line WITHOUT the leading priority label —
+        // the PRIORITY BANNER fused across the card's top carries the label now; the
+        // footer keeps the date + clock (twin of the server's date-only meta).
+        const pdMetaDateHtml = (iso, done) => pdEsc(pdMetaLine(iso, done))
+        // S144: keep the PRIORITY BANNER honest after any in-place priority change
+        // (cycle, editor save, drop-adoption) — class swap + label + hint. Twin of the
+        // banner markup in the card re-renderers.
+        const pdSyncBanner = (wrap, prio) => {
+          const banner = wrap && wrap.querySelector('.prio-banner')
+          if (!banner) return
+          const p = prio || 'medium'
+          banner.className = 'prio-banner prio-' + p
+          const lbl = banner.querySelector('.prio-banner-label')
+          if (lbl) lbl.textContent = pdPrioLabel(p)
+          const hint = _t('db.cyclePrio', 'Priority: {p} — click to change').replace('{p}', pdPrioLabel(p))
+          banner.setAttribute('title', hint)
+          banner.setAttribute('aria-label', hint)
+        }
+        // The banner button that PRECEDES the .pd-task inside every wrap (the old
+        // prio-dot-btn lived INSIDE the title row; the banner fuses across the top).
+        const pdBannerHtml = (prio) => {
+          const p = prio || 'medium'
+          const hint = pdEsc(_t('db.cyclePrio', 'Priority: {p} — click to change').replace('{p}', pdPrioLabel(p)))
+          return `<button type="button" class="prio-banner prio-${pdEsc(p)}" data-pd-cycle-prio title="${hint}" aria-label="${hint}"><span class="prio-banner-label">${pdEsc(pdPrioLabel(p))}</span></button>`
+        }
         // Label chips on a card — list = [{name, color}] (mirror of the server's
         // taskTagChips; the chip color is the tag's palette color).
         // S30 batch 5: the chip markup is the shared HibanaChips.tagChipsRow.
@@ -1779,16 +1801,10 @@
             const next = order[(order.indexOf(cur) + 1 + order.length) % order.length] || 'medium'
             wrap.dataset.pdPriority = next
             pdTierTrack(tid, next)
-            const dot = wrap.querySelector('.prio-dot')
-            if (dot) dot.className = 'prio-dot prio-' + next
-            const btn = wrap.querySelector('[data-pd-cycle-prio]')
-            if (btn) {
-              const hint = _t('db.cyclePrio', 'Priority: {p} — click to change').replace('{p}', pdPrioLabel(next))
-              btn.setAttribute('title', hint)
-              btn.setAttribute('aria-label', hint)
-            }
-            const meta = wrap.querySelector('.pd-meta-prio')
-            if (meta) { meta.className = 'pd-meta-prio prio-' + next; meta.textContent = pdPrioLabel(next) }
+            // S144 (the priority banner): the BANNER is the indicator + the cycle button
+            // now — pdSyncBanner swaps its class + label + hint in place. The old dot /
+            // .pd-meta-prio updates are gone with those elements.
+            pdSyncBanner(wrap, next)
             const col = wrap.closest('[data-pd-tasks]')
             if (col) pdSortWrap(col, wrap)
             fetch('/api/devtasks/' + tid, {
@@ -2551,7 +2567,7 @@
           // opens the inline editor everywhere; the old <a href="/board.html"> made
           // freshly-added tasks navigate instead. Title clamped at 150 chars with the
           // hidden rest + read-more button.
-          wrap.innerHTML = `<div class="pd-task st-${status}" draggable="true" role="button" tabindex="0" aria-label="${pdEsc(task.title)}"><span class="pd-task-body"><span class="pd-task-title-row" dir="auto"><button type="button" class="prio-dot-btn" data-pd-cycle-prio title="${pdEsc(_t('db.cyclePrio', 'Priority: {p} — click to change').replace('{p}', pdPrioLabel(prio)))}" aria-label="${pdEsc(_t('db.cyclePrio', 'Priority: {p} — click to change').replace('{p}', pdPrioLabel(prio)))}"><span class="prio-dot prio-${pdEsc(prio)}"></span></button><span class="pd-task-title"${pdTitleAttrs(task.title)}>${pdTitleHtml(task.title)}</span></span>${pdPreviewHtml(task.title)}${pdReadMoreBtn(task.title)}${pdTagChipsHtml(tags)}<span class="pd-task-meta">${pdMetaHtml(prio, wrap.dataset.pdCreated, false)}</span></span></div>`
+          wrap.innerHTML = pdBannerHtml(prio) + `<div class="pd-task st-${status}" draggable="true" role="button" tabindex="0" aria-label="${pdEsc(task.title)}"><span class="pd-task-body"><span class="pd-task-title-row" dir="auto"><span class="pd-task-title"${pdTitleAttrs(task.title)}>${pdTitleHtml(task.title)}</span></span>${pdPreviewHtml(task.title)}${pdReadMoreBtn(task.title)}${pdTagChipsHtml(tags)}<span class="pd-task-meta">${pdMetaDateHtml(wrap.dataset.pdCreated, false)}</span></span></div>`
 
           // AUTO-SORT (user request 2026-09-12): the card lands BEFORE the first card
           // whose priority ranks below it — urgent tasks jump to the top of their box.
@@ -2810,7 +2826,7 @@
                 wrap.dataset.pdPriority = tp
                 wrap.dataset.pdTags = JSON.stringify(tt)
                 // Session 22: div + role=button + 150-char clamp — same as insertTaskChip.
-                wrap.innerHTML = `<div class="pd-task st-${status}" draggable="true" role="button" tabindex="0" aria-label="${pdEsc(t.title)}"><span class="pd-task-body"><span class="pd-task-title-row" dir="auto"><button type="button" class="prio-dot-btn" data-pd-cycle-prio title="${pdEsc(_t('db.cyclePrio', 'Priority: {p} — click to change').replace('{p}', pdPrioLabel(tp)))}" aria-label="${pdEsc(_t('db.cyclePrio', 'Priority: {p} — click to change').replace('{p}', pdPrioLabel(tp)))}"><span class="prio-dot prio-${pdEsc(tp)}"></span></button><span class="pd-task-title"${pdTitleAttrs(t.title)}>${pdTitleHtml(t.title)}</span></span>${pdPreviewHtml(t.title)}${pdReadMoreBtn(t.title)}${pdTagChipsHtml(tt)}<span class="pd-task-meta">${pdMetaHtml(tp, t.created_at, status === 'done')}</span></span></div>`
+                wrap.innerHTML = pdBannerHtml(tp) + `<div class="pd-task st-${status}" draggable="true" role="button" tabindex="0" aria-label="${pdEsc(t.title)}"><span class="pd-task-body"><span class="pd-task-title-row" dir="auto"><span class="pd-task-title"${pdTitleAttrs(t.title)}>${pdTitleHtml(t.title)}</span></span>${pdPreviewHtml(t.title)}${pdReadMoreBtn(t.title)}${pdTagChipsHtml(tt)}<span class="pd-task-meta">${pdMetaDateHtml(t.created_at, status === 'done')}</span></span></div>`
                 tasksEl.insertBefore(wrap, moreBtn)
               }
               // Session 24 (root-cause fix): wire data-magic + ⋯ menu on the newly
@@ -3565,20 +3581,15 @@
                     card.className = 'pd-task st-' + status
                     card.setAttribute('aria-label', title)
                   }
-                  const dot = wrap.querySelector('.prio-dot')
-                  if (dot) { dot.className = 'prio-dot prio-' + priority; dot.title = pdPrioLabel(priority) }
+                  pdSyncBanner(wrap, priority)
                   const titleSpan = wrap.querySelector('.pd-task-title')
                   if (titleSpan) pdApplyTitle(titleSpan, title)
-                  // Rebuild the label chips + the priority half of the meta line.
+                  // Rebuild the label chips (the priority label lives on the banner).
                   const oldTags = wrap.querySelector('.pd-task-tags')
                   if (oldTags) oldTags.remove()
                   const chips = pdTagChipsHtml(serverTags)
                   const metaEl = wrap.querySelector('.pd-task-meta')
                   if (chips && metaEl) metaEl.insertAdjacentHTML('beforebegin', chips)
-                  if (metaEl) {
-                    const prioSpan = metaEl.querySelector('.pd-meta-prio')
-                    if (prioSpan) { prioSpan.className = 'pd-meta-prio prio-' + priority; prioSpan.textContent = pdPrioLabel(priority) }
-                  }
                   // Status change = the card moves to the new box (counts + progress
                   // repaint, same contract as the drop handler); then AUTO-SORT snaps
                   // it into its priority slot.
@@ -4261,10 +4272,7 @@
             }
             if (pdAdopted) {
               el.dataset.pdPriority = pdAdopted
-              const dot = el.querySelector('.prio-dot')
-              if (dot) dot.className = 'prio-dot prio-' + pdAdopted
-              const metaPrio = el.querySelector('.pd-meta-prio')
-              if (metaPrio) { metaPrio.className = 'pd-meta-prio prio-' + pdAdopted; metaPrio.textContent = pdPrioLabel(pdAdopted) }
+              pdSyncBanner(el, pdAdopted)
               fetch('/api/devtasks/' + el.dataset.pdTask, {
                 method: 'PATCH',
                 headers: { 'Content-Type': 'application/json' },

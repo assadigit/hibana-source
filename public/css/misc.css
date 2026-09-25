@@ -976,8 +976,8 @@ body:has(.dash-skeleton) .fab-stack .fab:hover { background: color-mix(in srgb, 
    are deliberately left alone.
    =========================================================================== */
 @media (pointer: coarse) {
-  /* board.html + project.html task cards */
-  .prio-dot-btn { min-inline-size: 40px; min-block-size: 40px; }
+  /* board.html + project.html task cards — S144: the prio-dot-btn touch floor is
+     retired with the button (the PRIORITY BANNER is a full-width strip ≥ 40px anyway) */
   button[data-menu-open] { min-inline-size: 40px; min-block-size: 40px; }
   /* S136: .db-mini-chip/.db-add retired — the board renders .pd-tag + .pd-task-add now */
   .pd-task-add { min-block-size: 40px; }

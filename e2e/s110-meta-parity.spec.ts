@@ -65,12 +65,17 @@ const readCard = (page: import('@playwright/test').Page, title: string, cardSel:
     const card = cards.find((c) => (c.querySelector('.pd-task-title')?.textContent ?? '').includes(title))
     if (!card) return { found: false }
     const meta = card.querySelector('.pd-task-meta')
+    // S144: the PRIORITY BANNER lives on the WRAP (a sibling ABOVE .pd-task) — search
+    // from the wrap so both card selectors (.pd-task on the project page, .pd-task-wrap
+    // on the board) find it.
+    const wrap = card.closest('.pd-task-wrap') ?? card
+    const banner = wrap.querySelector('.prio-banner')
     return {
       found: true,
       metaText: meta?.textContent?.trim() ?? null,
       hasPrioChip: !!meta?.querySelector('.pd-meta-prio'),
-      prioClass: meta?.querySelector('.pd-meta-prio')?.className ?? null,
-      prioLabel: meta?.querySelector('.pd-meta-prio')?.textContent?.trim() ?? null,
+      bannerClass: banner?.className ?? null,
+      bannerLabel: banner?.querySelector('.prio-banner-label')?.textContent?.trim() ?? null,
       metaFont: meta ? getComputedStyle(meta).fontSize : null,
       usesOldDateSpan: !!card.querySelector('.db-card-date'),
     }
@@ -84,23 +89,27 @@ test('the fullscreen board renders the EXACT meta the project page renders (shar
   const pdOpen = await readCard(page, 'Parity task alpha', '.pd-task')
   const pdDone = await readCard(page, 'Parity task beta', '.pd-task')
   expect(pdOpen.found, 'open task visible on the project page').toBe(true)
-  expect(pdOpen.hasPrioChip).toBe(true)
-  expect(pdOpen.prioLabel).toBe('High Priority')
-  expect(pdOpen.metaText).toBe('High Priority · 22 Sep 2026 · 2:41 PM')
-  expect(pdDone.metaText).toBe('Low Priority · ✓ 22 Sep 2026 · 2:41 PM')
+  // S144: the priority lives on the BANNER (class + label); the meta line keeps just
+  // the date + clock — no more .pd-meta-prio span inside it.
+  expect(pdOpen.bannerClass).toContain('prio-high')
+  expect(pdOpen.bannerLabel).toBe('High Priority')
+  expect(pdOpen.hasPrioChip).toBe(false)
+  expect(pdOpen.metaText).toBe('22 Sep 2026 · 2:41 PM')
+  expect(pdDone.metaText).toBe('✓ 22 Sep 2026 · 2:41 PM')
 
   await page.goto('/board.html?project=' + PROJECT_ID)
   await page.waitForSelector('.pd-task-title')
   const dbOpen = await readCard(page, 'Parity task alpha', '.pd-task-wrap')
   const dbDone = await readCard(page, 'Parity task beta', '.pd-task-wrap')
   expect(dbOpen.found, 'open task visible on the fullscreen board').toBe(true)
-  // THE PARITY PINS — byte-identical meta on both surfaces:
+  // THE PARITY PINS — byte-identical meta + banner on both surfaces:
   expect(dbOpen.metaText).toBe(pdOpen.metaText)
   expect(dbDone.metaText).toBe(pdDone.metaText)
-  expect(dbOpen.prioLabel).toBe('High Priority')
-  expect(dbOpen.prioClass).toContain('prio-high')
+  expect(dbOpen.bannerClass).toContain('prio-high')
+  expect(dbOpen.bannerLabel).toBe('High Priority')
+  expect(dbOpen.hasPrioChip).toBe(false)
   expect(dbOpen.usesOldDateSpan).toBe(false)
-  expect(dbDone.metaText.startsWith('Low Priority · ✓')).toBe(true)
+  expect(dbDone.metaText.startsWith('✓')).toBe(true)
   // the .pd-task-meta token (font parity — project-header.css loads on board.html)
   expect(dbOpen.metaFont).toBe(pdOpen.metaFont)
 })

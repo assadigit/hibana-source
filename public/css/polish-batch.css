@@ -739,42 +739,47 @@ input.qe-name,
   .db-card.st-done .prio-dot.prio-urgent { animation: none; }
 }
 
-/* Priority visual weight (user request 2026-09): the prio-dot on .pd-task + .db-card
-   was OVERRIDDEN to use the column color — priority was invisible. Now: the prio-dot
-   keeps its priority color (not the column color), AND the card gets a left-border
-   accent + background tint matching its priority. Urgent items get the strongest
-   treatment (red border + tint + bold title) so they stand out at the top of the list.
-   The column color is still visible via the column's left border (the card's own border
-   is now priority-colored). */
-.pd-task .prio-dot { margin-block-start: 0.24rem; }
-/* The prio-* class on the dot wins over the st-* status override (higher specificity via
-   the .pd-task prefix on st-* — we match it with .pd-task prefix on prio-* too).
-   S31 (2026-09-13): .prio-dot added to these selectors — they matched ANY descendant
-   carrying prio-*, so the meta text chip (span.pd-meta-prio.prio-*) caught the
-   !important too and rendered as a solid red pill. The color targets the dot only. */
-.pd-task .prio-dot.prio-low { background: #C9CDD2 !important; }
-.pd-task .prio-dot.prio-medium { background: #E8B27D !important; }
-/* UI/UX R5 (2026-09-12): prio-high was pink #E59AA5 — now RED #D96C63 (shares the
-   prio-urgent hue). See polish-batch.css top-of-file comment for the semantic rationale. */
-.pd-task .prio-dot.prio-high { background: #D96C63 !important; }
-.pd-task .prio-dot.prio-urgent { background: #D96C63 !important; }
-/* Priority left-border + tint on the wrapper */
+/* S144 (owner: "I want the priority of the tasks to be shown like the given
+   screenshot"): the left-border priority accents + the in-card cycling dot + the meta
+   priority label are RETIRED — the priority now lives on a PRIORITY BANNER, a colored
+   strip fused across the card's top carrying the label (the banner is the cycle
+   affordance, keeping the old dot's data-db-cycle-prio / data-pd-cycle-prio contract).
+   The wrap border returns to the column color for EVERY card (the banner carries the
+   priority hue now), and the card-scoped .pd-task .prio-dot rules are gone with the
+   dot. The .prio-dot base colors above STAY — filter chips, the dashboard fire strip,
+   sprint circles and the reports segments still speak dot. */
 .pd-task-wrap { border-inline-start: 3px solid transparent; }
-/* Session 19 (user request): the task card's left border now inherits the COLUMN's color
-   by default (via the --pd-c token set on .pd-col[data-status]). Was: transparent default +
-   priority colors on every card (most cards are prio-medium = orange, so every column
-   looked orange). Now the border matches the column; only high/urgent override to red/pink
-   to flag urgency. */
 .pd-col .pd-task-wrap { border-inline-start-color: rgb(var(--pd-c, 200 200 200) / 0.55); }
-.pd-task-wrap:has(.prio-low) { border-inline-start-color: #C9CDD2; }
-/* prio-medium: no override — keeps the column color (the default .pd-col .pd-task-wrap rule above). Was orange #E8B27D which made every column look orange. */
-/* UI/UX R5 (2026-09-12): prio-high border flipped pink→red so it matches the prio-high
-   dot. Was #E59AA5. */
-.pd-task-wrap:has(.prio-high) { border-inline-start-color: #D96C63; }
-/* S31 (user request 2026-09-13): urgent cards keep ONLY the red edge — the 6% red
-   background tint and the 600-weight title are gone ("keep the texts themselves
-   like other texts, without red background"); the pulsing urgent dot is the alarm. */
-.pd-task-wrap:has(.prio-urgent) { border-inline-start-color: #D96C63; }
+
+/* ─── S144: the PRIORITY BANNER ─────────────────────────────────────────────
+   A colored strip across the card's top with the UPPERCASE label centered — the
+   owner's screenshot anatomy. Colors from the ONE --prio-banner-* token set
+   (variables.css; white-label pairs, AA-verified, hue-separated, self-contained so
+   dark needs no mirrors). The banner IS the priority cycle button (the old dot's
+   contract: title/aria hint + click = low → medium → high → urgent). The wrap goes
+   column-flex so banner + card stack; the ⋯ hover menu is absolutely positioned and
+   unaffected. Radii are logical (border-start-*) — RTL-safe; the banner's own top
+   radii are symmetric physicals. */
+.pd-task-wrap:has(> .prio-banner):not([hidden]) { display: flex; flex-direction: column; } /* :not([hidden]) — the filter bar hides wraps via the hidden attribute; an author display would defeat it */
+.prio-banner {
+  display: flex; align-items: center; justify-content: center; gap: 0.3rem;
+  inline-size: 100%; border: none; cursor: pointer;
+  padding: 0.28rem 0.6rem;
+  border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+  font-family: inherit; font-size: 10px; font-weight: 700;
+  letter-spacing: 0.09em; text-transform: uppercase; line-height: 1.25;
+  color: #fff; background: var(--prio-banner-medium);
+  transition: filter 0.12s ease;
+}
+.prio-banner:hover { filter: brightness(1.1); }
+.prio-banner:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
+.prio-banner .prio-banner-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-inline-size: 100%; }
+.prio-banner.prio-urgent { background: var(--prio-banner-urgent); }
+.prio-banner.prio-high { background: var(--prio-banner-high); }
+.prio-banner.prio-medium { background: var(--prio-banner-medium); }
+.prio-banner.prio-low { background: var(--prio-banner-low); }
+/* the card under a banner loses its START corners so the strip reads fused (the screenshot) */
+.prio-banner + .pd-task { border-start-start-radius: 0; border-start-end-radius: 0; }
 /* S136: the .db-card mirror of this block is RETIRED — board.html renders the exact
    .pd-task-wrap / .pd-task anatomy now, so the recipes above style BOTH boards and
    the duplicate (which had already drifted once — see its Session 22 note) is gone. */

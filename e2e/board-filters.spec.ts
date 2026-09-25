@@ -138,16 +138,17 @@ test('board: filter bar (priority × label), dot cycles priority, exports carry 
   await page.click('[data-db-filter-clear]')
   await expect(page.locator('.pd-task-wrap')).toHaveCount(3)
 
-  // the dot: TRANSLATED tooltip + click cycles (low → medium), persisted
+  // the banner: TRANSLATED tooltip + click cycles (low → medium), persisted —
+  // S144: the PRIORITY BANNER replaced the dot (same data-db-cycle-prio contract)
   const chore = page.locator('.pd-task-wrap', { hasText: 'low chore' })
-  const choreDot = chore.locator('[data-db-cycle-prio]')
-  await expect(choreDot).toHaveAttribute('title', /Priority: Low — click to change/i)
-  await choreDot.click()
-  await expect(chore.locator('.prio-dot')).toHaveClass(/prio-medium/)
+  const choreBanner = chore.locator('.prio-banner')
+  await expect(choreBanner).toHaveAttribute('title', /Priority: Low — click to change/i)
+  await choreBanner.click()
+  await expect(chore.locator('.prio-banner')).toHaveClass(/prio-medium/)
   await page.reload()
   await expect(page.locator('[data-db-filter]')).toBeVisible({ timeout: 10_000 })
   const choreReloaded = page.locator('.pd-task-wrap', { hasText: 'low chore' })
-  await expect(choreReloaded.locator('.prio-dot')).toHaveClass(/prio-medium/)
+  await expect(choreReloaded.locator('.prio-banner')).toHaveClass(/prio-medium/)
 
   // the card's label chip is a filter toggle (GitHub behavior)
   await page.locator('.pd-task .pd-tag').first().click()

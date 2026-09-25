@@ -345,10 +345,8 @@ html[data-theme='claude-dark'] .pd-col[data-status='bug']         { --pd-c: 150 
   transition: border-color 0.12s ease, box-shadow 0.12s ease;
   cursor: grab;
 }
-/* the dot rides the title's first line now that a meta line lives under it */
-.pd-task .prio-dot { margin-block-start: 0.24rem; }
-/* Priority color is now shown on the dot (see prio-dot rules above). The column color
-   is still visible via the column's own left border (set on .pd-col, not the card). */
+/* S144: the in-card priority dot is retired — the PRIORITY BANNER (polish-batch.css)
+   carries the priority across the card's top now. */
 .pd-task:hover { border-color: var(--brand); box-shadow: 0 1px 6px rgb(30 20 10 / 0.06); }
 .pd-task-body { flex: 1; min-inline-size: 0; display: grid; gap: 0.12rem; }
 /* S48 (owner: "the priority dot doesn't stick to its item — strays when text is

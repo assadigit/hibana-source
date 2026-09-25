@@ -166,7 +166,7 @@ test('task composer: priority dropdown + labels; boxes auto-sort by priority', a
   await addTask('low one', 'low')
   await expect(ideaTasks.locator('.pd-task-wrap')).toHaveCount(1)
   await expect(ideaTasks.locator('.pd-task-wrap').first()).toHaveAttribute('data-pd-priority', 'low')
-  await expect(ideaTasks.locator('.pd-meta-prio').first()).toHaveText(/Low Priority/i)
+  await expect(ideaTasks.locator('.prio-banner-label').first()).toHaveText(/Low Priority/i)
 
   // 2. a MEDIUM task (the dropdown's default) lands AFTER the low card? No — it
   // OUTRANKS low, so it auto-sorts ABOVE it.
@@ -183,7 +183,7 @@ test('task composer: priority dropdown + labels; boxes auto-sort by priority', a
   await expect(urgentCard.locator('.pd-tag[data-pd-tag-name="UI/UX"]')).toBeVisible()
   await expect(urgentCard.locator('.pd-tag[data-pd-tag-name="Security"]')).toBeVisible()
   // the urgent card's meta leads with the (red) Urgent label + tinted dot
-  await expect(urgentCard.locator('.pd-meta-prio')).toHaveText(/Urgent/i)
+  await expect(urgentCard.locator('.prio-banner-label')).toHaveText(/Urgent/i)
 
   // 4. RELOAD: the server renders the same priority-first order + the same chips
   await page.goto(`/project.html?id=${id}`)

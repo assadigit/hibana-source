@@ -170,6 +170,22 @@
      hue is unmistakable while the 24% mixes stay pastel. */
   --kanban-tint: 24%;
 
+  /* S144 (owner: "I want the priority of the tasks to be shown like the given
+     screenshot"): the task cards wear a PRIORITY BANNER — a colored strip across the
+     card's top carrying the label (URGENT / HIGH / MEDIUM / LOW PRIORITY), instead of
+     the old left-border accent + tiny dot. One token per priority, consumed by the
+     banner on every surface (board.html, project.html's server fragments) so no
+     surface can hardcode its own shade. Each pair is AA-verified with the white label
+     (urgent 5.92 · high 5.02 · medium 4.92 · low 5.45) and hue-separated per the S141
+     distinct-hue lesson: red = the house alarm (--err), orange = the house attention
+     (--warn), deep amber + quiet slate for medium/low (the established dot family,
+     deepened just enough to carry white text). The pair is self-contained (label sits
+     ON the fill), so the same tokens read in dark without mirrors. */
+  --prio-banner-urgent: #c02626;
+  --prio-banner-high: #b45309;
+  --prio-banner-medium: #a16207;
+  --prio-banner-low: #5f6b76;
+
   /* Status badge colors — pastel wash + AA ink of the SAME hue as --st-<status>.
      (unreviewed stays the devboard lane tint it always was — not a project stage.) */
   --badge-spark-bg: #E8EFFB;         --badge-spark-fg: #2E5FA3;

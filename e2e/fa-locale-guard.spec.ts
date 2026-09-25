@@ -96,7 +96,7 @@ test('FA locale: every S30 surface renders Farsi (composer, filter bar, tooltips
   // the dot-cycle tooltip + the meta priority label
   const dot = page.locator('[data-pd-cycle-prio]').first()
   await expect(dot).toHaveAttribute('title', 'اولویت: فوری — برای تغییر کلیک کن')
-  await expect(page.locator('.pd-meta-prio').first()).toHaveText('فوری')
+  await expect(page.locator('.prio-banner-label').first()).toHaveText('فوری')
 
   // the bar's tier tooltip (FA digits + Farsi tier names)
   await expect(page.locator('[data-pd-bar]')).toHaveAttribute('title', '۱ فوری')

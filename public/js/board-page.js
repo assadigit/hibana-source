@@ -167,10 +167,19 @@
                   const cat = task.category_id ? B().findCategory(task.category_id) : null
                   const sprint = task.sprint_id ? B().findSprint(task.sprint_id) : null
                   const tags = (task.tags || []).map((id) => B().tagById(id)).filter(Boolean)
-                  const prioBtn =
-                    // S30 batch 2: the dot's tooltip is the TRANSLATED label (was the raw
-                    // 'urgent' string) + the cycle hint; clicking it cycles the priority.
-                    '<button type="button" class="prio-dot-btn" data-db-cycle-prio="' + task.id + '" title="' + B().esc(_t('db.cyclePrio', 'Priority: {p} — click to change').replace('{p}', B().prioLabel(task.priority))) + '" aria-label="' + B().esc(_t('db.cyclePrio', 'Priority: {p} — click to change').replace('{p}', B().prioLabel(task.priority))) + '"><span class="prio-dot prio-' + task.priority + '"></span></button>'
+                  // S144 (owner: the priority banner): the colored strip fused across the
+                  // card's TOP carries the label — and IS the cycle affordance (the old
+                  // dot's data-db-cycle-prio contract: title/aria hint + click cycles
+                  // low → medium → high → urgent via the delegated handler below).
+                  // The LABEL uses the LONG priority names (chip-render's prioLabel —
+                  // "High Priority", the server twin's wording) so the banner reads
+                  // identically on both surfaces; the HINT keeps the board's short
+                  // B().prioLabel ("Priority: Low — click to change"). Screenshot style:
+                  // "MODERATE PRIORITY".
+                  const prioLong = (p) => (CH() ? CH().prioLabel(p, lang) : B().prioLabel(p))
+                  const prioHint = B().esc(_t('db.cyclePrio', 'Priority: {p} — click to change').replace('{p}', B().prioLabel(task.priority || 'medium')))
+                  const prioBanner =
+                    '<button type="button" class="prio-banner prio-' + (task.priority || 'medium') + '" data-db-cycle-prio="' + task.id + '" title="' + prioHint + '" aria-label="' + prioHint + '"><span class="prio-banner-label">' + B().esc(prioLong(task.priority || 'medium')) + '</span></button>'
                   const chipsHtml = (cat || tags.length || sprint
                     ? '<span class="pd-task-tags">' +
                       (cat ? '<span class="db-cat-chip" style="background:' + cat.color + '2E;color:' + cat.color + '">' + B().esc(cat.name) + '</span>' : '') +
@@ -181,15 +190,15 @@
                       (sprint ? '<span class="db-sprint-badge">◆ ' + B().esc(sprint.name) + '</span>' : '') +
                     '</span>'
                     : '')
-                  // S110 (v0.3.43.0): the meta line is the EXACT composition the project
-                  // page's progress box renders — "<priority label> · date · clock"
-                  // (✓ prefix when done) via the SHARED chip-render renderer
-                  // (HibanaChips.metaHtml) — byte-identical on both surfaces.
-                  const metaHtml = '<span class="pd-task-meta">' + (CH() ? CH().metaHtml(task.priority || 'medium', task.created_at, task.status === 'done', lang) : '<span class="pd-meta-prio prio-' + B().esc(task.priority || 'medium') + '">' + B().esc(task.priority || 'medium') + '</span> · ' + B().esc(task.status === 'done' && task.done_at ? '✓ ' : '') + B().esc(B().fullLabel(B().dayIdx(task.created_at), lang))) + '</span>'
-                  return '<div class="pd-task-wrap" data-task-card="' + task.id + '" data-priority="' + (task.priority || 'medium') + '">' +
+                  // S110 (v0.3.43.0): the meta line mirrors the project page's progress
+                  // box — S144: the priority LABEL moved to the banner, so the footer
+                  // keeps the shared date + clock (metaDateHtml — both surfaces changed
+                  // together, the s110 parity pin holds).
+                  const metaHtml = '<span class="pd-task-meta">' + (CH() ? CH().metaDateHtml(task.created_at, task.status === 'done', lang) : B().esc((task.status === 'done' && task.done_at ? '✓ ' : '') + B().fullLabel(B().dayIdx(task.created_at), lang))) + '</span>'
+                  return '<div class="pd-task-wrap" data-task-card="' + task.id + '" data-priority="' + (task.priority || 'medium') + '">' + prioBanner +
                     '<div class="pd-task st-' + task.status + '" draggable="true" role="button" tabindex="0" aria-label="' + B().esc(task.title) + '">' +
                       '<span class="pd-task-body">' +
-                        '<span class="pd-task-title-row" dir="auto">' + prioBtn +
+                        '<span class="pd-task-title-row" dir="auto">' +
                           '<span class="pd-task-title"' + titleAttrs(task.title) + '>' + titleHtml(task.title) + '</span>' +
                         '</span>' +
                         previewHtml(task.title) +
@@ -623,7 +632,7 @@
             if (!injected && waited >= 1200) {
               injected = true
               inject('/js/devboard.js?v=23') // keep in sync with the <head> tag + sw SHELL
-              if (!window.HibanaChips) inject('/js/chip-render.js?v=9') // S36: was ?v=1 while the HTML tags say v=2 — two cache entries for one file (the cache-bust gate caught it under the sandbox's mode-bit noise). Aligned; local-dev + SW caches now share ONE url per version. S86: v8 — kept in sync with the <head> tag (previewHtml moved in).
+              if (!window.HibanaChips) inject('/js/chip-render.js?v=10') // S36: was ?v=1 while the HTML tags say v=2 — two cache entries for one file (the cache-bust gate caught it under the sandbox's mode-bit noise). Aligned; local-dev + SW caches now share ONE url per version. S86: v8 — kept in sync with the <head> tag (previewHtml moved in).
               if (!window.jalaali) inject('/vendor/jalaali.min.js') // Jalali dates for FA
             }
             if (waited >= 9000) return resolve(false)

@@ -378,11 +378,18 @@
   function metaHtml(prio, iso, done, lang) {
     return '<span class="pd-meta-prio prio-' + esc(prio || 'medium') + '">' + esc(prioLabel(prio || 'medium', lang)) + '</span> · ' + esc(metaLine(iso, done, lang))
   }
+  // S144 (owner: the priority banner): the meta line WITHOUT the priority label — the
+  // PRIORITY BANNER fused across the card's top carries the label now, so the card's
+  // footer keeps just the date + clock. metaHtml stays exported for any surface that
+  // still wants the label inline.
+  function metaDateHtml(iso, done, lang) {
+    return esc(metaLine(iso, done, lang))
+  }
 
   window.HibanaChips = {
     esc, t, TITLE_CLAMP,
     renderTitle, titleHtml, titleAttrs, readMoreBtn, previewHtml, applyTitle, htmlToMd,
     tagChip, tagChipsRow,
-    prioLabel, metaLine, metaHtml,
+    prioLabel, metaLine, metaHtml, metaDateHtml,
   }
 })()

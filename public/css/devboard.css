@@ -778,36 +778,9 @@ main.shell.sp-shell .sp-wrap { min-block-size: min(64vh, 30rem); }
   .db-filter-shown { margin-inline-start: 0; }
 }
 
-/* The clickable prio-dot: a TRANSPARENT 24px hit-area button wrapping the unchanged
-   9px .prio-dot span (the span keeps every existing color rule — including the
-   !important .pd-task/.db-card overrides — so the button never fights them). Click =
-   cycle low → medium → high → urgent (board.html + the project page). */
-.prio-dot-btn {
-  border: 0;
-  background: transparent;
-  padding: 0;
-  margin: 0;
-  cursor: pointer;
-  inline-size: 24px;
-  block-size: 24px;
-  flex: none;
-  align-self: flex-start;
-  display: inline-grid;
-  /* S48j: align the dot to the TOP of the 24px button so it sits at the first line of
-     text (was: place-items: center → the dot sat at 12px = below the first line's
-     visual center, reading as "aligned with the middle of the text body"). */
-  justify-items: center;
-  align-items: start;
-  border-radius: 999px;
-}
-.prio-dot-btn .prio-dot { margin: 0; }
-.prio-dot-btn:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
-.prio-dot-btn:active { transform: scale(0.88); }
-
-/* The project page's preview dot aligned with the title's first line (the old bare
-   span used margin-block-start: 0.24rem; the button centers its 24px box, so the
-   nudge lives on the button now). */
-.pd-task .prio-dot-btn { margin-block-start: 0.1rem; }
+/* S144: the prio-dot-btn (the 24px click-to-cycle hit area around the card dot) is
+   RETIRED with the dot itself — the PRIORITY BANNER (polish-batch.css) is the cycle
+   affordance now. Filter chips keep their plain .prio-dot spans (no button). */
 
 /* Label chips are FILTER toggles now (GitHub behavior) — keep the pointer honest.
    S136: the chips are the project page's .pd-tag spans on BOTH surfaces. */

@@ -87,18 +87,18 @@ html[data-theme='claude-dark'] {
      badge pair is that hue's dark wash + light AA ink. */
   --st-idea: #6FA3E8;
   --st-planning: #D9AC3F;
-  --st-queued: #5FA0B5;
+  --st-queued: #55AED2;      /* S141: chroma raise (was #5FA0B5) — keeps pace with the light cyan-blue */
   --st-developing: #DE9260;
-  --st-awaiting_dev: #8D979E;
-  --st-operational: #63B377;
+  --st-awaiting_dev: #9189B8; /* S141: violet-slate (was #8D979E gray) — the on-hold violet, dark register */
+  --st-operational: #5ABB78;  /* S141: chroma raise (was #63B377) */
   --st-bug: #E06A6A;
   --badge-spark-bg: #22304A;         --badge-spark-fg: #8FB4E8;      /* blue */
   --badge-unreviewed-bg: #212831;    --badge-unreviewed-fg: #8FB4D9; /* Sky        */
   --badge-planning-bg: #332E18; --badge-planning-fg: #D9C07A; /* yellow */
-  --badge-queued-bg: #1E2F36;      --badge-queued-fg: #7FB5C7;   /* muted teal */
+  --badge-queued-bg: #16333F;      --badge-queued-fg: #7FC4DE;   /* S141: cyan family, AA 6.9 */
   --badge-developing-bg: #3A2718;         --badge-developing-fg: #E09A6A;      /* orange */
-  --badge-awaiting_dev-bg: #2C2F31;        --badge-awaiting_dev-fg: #A8B2B9;     /* gray */
-  --badge-operational-bg: #22301F;   --badge-operational-fg: #94C9A2; /* green     */
+  --badge-awaiting_dev-bg: #2D2B3D;        --badge-awaiting_dev-fg: #ABA5CC;     /* S141: violet family, AA 5.9 */
+  --badge-operational-bg: #1F3222;   --badge-operational-fg: #94C9A2; /* green     */
 
   /* S138 (owner correction on the S137 redesign): the per-status kanban card tints
      are BACK — the card mixes the (muted-chroma dark) --st-* token over the dark

@@ -145,10 +145,10 @@
   /* One canonical hue per status — dots, donut segments, legend swatches, pglance. */
   --st-idea: #5B8DEF;            /* Ideas — blue (the overview donut's idea blue) */
   --st-planning: #E9B93B;        /* Planning — yellow */
-  --st-queued: #3D7A8A;          /* Up Next — muted teal/slate-blue */
+  --st-queued: #17799E;          /* Up Next — clear cyan-blue (S141 chroma raise) */
   --st-developing: #E08A54;      /* Developing — orange */
-  --st-awaiting_dev: #859098;    /* On Hold — gray */
-  --st-operational: #3D9A55;     /* Operational — green */
+  --st-awaiting_dev: #75689E;    /* On Hold — muted violet-slate (S141: the gray read too close to Up Next) */
+  --st-operational: #279E49;     /* Operational — green (S141 chroma raise) */
   --st-bug: #E54D4D;             /* Problems — red (the ov donut's bug red) */
 
   /* S138 (owner correction on the S137 redesign): the tinted kanban CARD is back —
@@ -160,7 +160,14 @@
      segment all reference. S139 (owner round 2): 12% read washed-out — the five
      tints looked alike at a glance; the dial rides to 24% (compared 20/24/28 live
      with the owner's seeded board: 24% is the pastel band where every hue is
-     clearly distinguishable without going saturated). */
+     clearly distinguishable without going saturated). S141 (owner round 3 —
+     'increase the saturation… up next and on hold are too similar'): the dial was
+     never the whole story — the QUEUED and AWAITING_DEV tokens themselves carried
+     almost no chroma (38%/8%), so no tint strength could separate them. The tokens
+     ride up instead (queued #3D7A8A → #17799E cyan-blue; awaiting_dev #859098 →
+     #75689E violet-slate — the on-hold violet the owner chose long ago; operational
+     → #279E49), so dots, badges, the donut and the cards sharpen together and every
+     hue is unmistakable while the 24% mixes stay pastel. */
   --kanban-tint: 24%;
 
   /* Status badge colors — pastel wash + AA ink of the SAME hue as --st-<status>.
@@ -168,10 +175,10 @@
   --badge-spark-bg: #E8EFFB;         --badge-spark-fg: #2E5FA3;
   --badge-unreviewed-bg: #E8EEF6;    --badge-unreviewed-fg: #46618C;
   --badge-planning-bg: #FAF1CF; --badge-planning-fg: #77590A;
-  --badge-queued-bg: #E1EEF1;      --badge-queued-fg: #22566A;
+  --badge-queued-bg: #D6ECF3;      --badge-queued-fg: #14536C;   /* S141: cyan family, AA 6.9 */
   --badge-developing-bg: #FBE9DA;         --badge-developing-fg: #96511A;
-  --badge-awaiting_dev-bg: #EAECEE;        --badge-awaiting_dev-fg: #545B60;
-  --badge-operational-bg: #E2F1E6;  --badge-operational-fg: #277334;
+  --badge-awaiting_dev-bg: #E9E5F2;        --badge-awaiting_dev-fg: #4C4370;  /* S141: violet family, AA 7.2 */
+  --badge-operational-bg: #DFF2E4;  --badge-operational-fg: #277334; /* S141: AA 5.0 */
   /* S138 supersedes the S137 retirement: the old per-status --kanban-*-bg/-line
      hex tokens stay deleted — the card tint now DERIVES from --st-* via color-mix
      (notifications.css), so a re-hardcoded shade is still impossible. */

@@ -27,18 +27,18 @@ html[data-theme='light'] {
      card tints are retired (cards wear var(--card)). */
   --st-idea: #5B8DEF;
   --st-planning: #E9B93B;
-  --st-queued: #3D7A8A;
+  --st-queued: #17799E;   /* S141: clear cyan-blue (was #3D7A8A — too little chroma) */
   --st-developing: #E08A54;
-  --st-awaiting_dev: #859098;
-  --st-operational: #3D9A55;
+  --st-awaiting_dev: #75689E; /* S141: violet-slate (was #859098 gray — read too close to Up Next) */
+  --st-operational: #279E49;  /* S141: chroma raise (was #3D9A55) */
   --st-bug: #E54D4D;
   --badge-spark-bg: #E8EFFB;         --badge-spark-fg: #2E5FA3;
   --badge-unreviewed-bg: #E8EEF6;    --badge-unreviewed-fg: #46618C;
   --badge-planning-bg: #FAF1CF; --badge-planning-fg: #77590A;
-  --badge-queued-bg: #E1EEF1;      --badge-queued-fg: #22566A;
+  --badge-queued-bg: #D6ECF3;      --badge-queued-fg: #14536C;   /* S141: cyan family, AA 6.9 */
   --badge-developing-bg: #FBE9DA;         --badge-developing-fg: #96511A;
-  --badge-awaiting_dev-bg: #EAECEE;        --badge-awaiting_dev-fg: #545B60;
-  --badge-operational-bg: #E2F1E6;  --badge-operational-fg: #277334;
+  --badge-awaiting_dev-bg: #E9E5F2;        --badge-awaiting_dev-fg: #4C4370;  /* S141: violet family, AA 7.2 */
+  --badge-operational-bg: #DFF2E4;  --badge-operational-fg: #277334; /* S141: AA 5.0 */
   --nb-paper: #fdfdfb;
   --nb-grid: rgb(28 28 26 / 0.05);
   --nb-ink: none;

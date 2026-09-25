@@ -244,7 +244,7 @@ export function listFragment(projects: ProjectRow[], tagsMap: Map<string, TagRow
     if (statusFilter === 'awaiting_dev') {
       return `<div class="empty-state empty">
         <span class="empty-state-icon" aria-hidden="true"><svg class="icon" viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7Z"/><path d="M12 11v4M10 13h4"/></svg></span>
-        <p class="empty-state-title">${trL(lang, 'Nothing waiting on development right now', 'هیچ پروژه‌ای در انتظار توسعه نیست')}</p>
+        <p class="empty-state-title">${trL(lang, 'Nothing on hold right now', 'هیچ پروژه‌ای متوقف نیست')}</p>
         <p class="empty-state-text">${trL(lang, 'Projects paused mid-work live here. Ideas parked for the foreseeable future live under Archive instead.', 'پروژه‌هایی که وسط کار متوقف شده‌اند اینجا هستند. ایده‌هایی که برای آیندهٔ نامشخص کنار گذاشته‌ای در «آرشیو» می‌مانند.')}</p>
         <a class="empty-state-cta btn ghost" href="/projects.html">${trL(lang, 'Go to projects', 'رفتن به پروژه‌ها')}</a>
       </div>`
@@ -302,8 +302,13 @@ export function listFragment(projects: ProjectRow[], tagsMap: Map<string, TagRow
     const cols = PROJECT_STAGES
     return `<div class="kanban">${cols.map((s) => {
       const inCol = projects.filter((p) => p.status === s)
+      // S137 (owner redesign): the column head joins the ov-box head pattern (misc.css) —
+      // [status dot] [label] [count pill] — one colored dot per status referenced by the
+      // SAME --st-* token the badges and the overview donut wear, so the board, the
+      // badges and the chart can never drift into two shades of one status. The count
+      // rides the shared dark .board-count pill (the summary cards' count badge).
       return `<div class="kanban-col" data-status="${s}">
-        <h4><span class="badge badge-${s}">${statusLabel(s, lang)}</span> <span class="muted small">${dig(inCol.length)}</span></h4>
+        <h4 class="kanban-col-head"><span class="kanban-dot" data-status="${s}" aria-hidden="true"></span><span class="kanban-col-label">${statusLabel(s, lang)}</span><b class="board-count">${dig(inCol.length)}</b></h4>
         ${inCol.map((p) => {
           const sigObj = signalsMap?.get(p.id)
           const sigs = signalsHtml(sigObj, lang)

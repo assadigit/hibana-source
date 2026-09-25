@@ -111,7 +111,7 @@ function watchErrors(page: import('@playwright/test').Page, errors: string[]): v
 
 test.use({ viewport: { width: 1280, height: 800 } })
 
-test('remembered KANBAN preference still opens with the overview, board below', async ({ page, browserName }) => {
+test('remembered KANBAN preference: the BOARD leads, overview summary below it', async ({ page, browserName }) => {
   test.skip(browserName !== 'chromium', 'Desktop Chromium only for now')
   const errors: string[] = []
   watchErrors(page, errors)
@@ -124,13 +124,14 @@ test('remembered KANBAN preference still opens with the overview, board below', 
   await expect(page.locator('.ov-tasks')).toBeVisible({ timeout: 15_000 })
   await expect(page.locator('.ov-states')).toHaveCount(0)
   await expect(page.locator('.ov-donut')).toHaveAttribute('aria-label', '4 open tasks across all projects')
-  // … AND the remembered view's body renders below it (prepend, not replace)
+  // … AND the remembered view's body renders too (S137: the BOARD is the first
+  // section on the page — the overview follows BELOW it as the summary)
   await expect(page.locator('.kanban')).toBeVisible()
   await expect(page.locator('.kanban-col')).toHaveCount(5) // the five board stages (sparks live on the Ideas shelf)
   const ovY = (await page.locator('.ov-tasks').boundingBox())?.y ?? -1
   const kbY = (await page.locator('.kanban').boundingBox())?.y ?? -1
-  expect(ovY).toBeGreaterThan(0)
-  expect(kbY).toBeGreaterThan(ovY) // the overview literally sits above the board
+  expect(kbY).toBeGreaterThan(0)
+  expect(ovY).toBeGreaterThan(kbY) // the board literally sits above the overview (S137 flip)
   expect(errors, 'console/page errors: ' + errors.join(' | ')).toEqual([])
 })
 

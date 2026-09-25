@@ -82,21 +82,26 @@ html[data-theme='claude-dark'] {
   --md-fn: #6FA6A8;
   --md-op: #8A857B;
 
-  /* ---------- Status badges — the Claude secondary palette ---------- */
-  --badge-spark-bg: #2E2718;         --badge-spark-fg: #D4A27F;      /* Kraft tan  */
+  /* ---------- Status badges — the Claude secondary palette (S137 hues) ----------
+     One --st-* hue per status (muted chroma that reads on the dark ground); each
+     badge pair is that hue's dark wash + light AA ink. */
+  --st-idea: #6FA3E8;
+  --st-planning: #D9AC3F;
+  --st-queued: #5FA0B5;
+  --st-developing: #DE9260;
+  --st-awaiting_dev: #8D979E;
+  --st-operational: #63B377;
+  --st-bug: #E06A6A;
+  --badge-spark-bg: #22304A;         --badge-spark-fg: #8FB4E8;      /* blue */
   --badge-unreviewed-bg: #212831;    --badge-unreviewed-fg: #8FB4D9; /* Sky        */
-  --badge-planning-bg: #2A2A31; --badge-planning-fg: #CBCADB; /* Heather */
-  --badge-queued-bg: #312430;      --badge-queued-fg: #D98CA4;   /* Fig pink   */
-  --badge-developing-bg: #38251B;         --badge-developing-fg: #E28F6C;      /* Clay accent */
-  --badge-awaiting_dev-bg: #33231A;        --badge-awaiting_dev-fg: #D98A6F;     /* burnt clay */
-  --badge-operational-bg: #262D1E;   --badge-operational-fg: #A9B785; /* Olive     */
+  --badge-planning-bg: #332E18; --badge-planning-fg: #D9C07A; /* yellow */
+  --badge-queued-bg: #1E2F36;      --badge-queued-fg: #7FB5C7;   /* muted teal */
+  --badge-developing-bg: #3A2718;         --badge-developing-fg: #E09A6A;      /* orange */
+  --badge-awaiting_dev-bg: #2C2F31;        --badge-awaiting_dev-fg: #A8B2B9;     /* gray */
+  --badge-operational-bg: #22301F;   --badge-operational-fg: #94C9A2; /* green     */
 
-  /* ---------- Kanban tints — whisper-quiet warm steps ---------- */
-  --kanban-planning-bg: #232329; --kanban-planning-line: rgba(203, 202, 219, 0.20);
-  --kanban-queued-bg: #291F27;      --kanban-queued-line: rgba(217, 140, 164, 0.22);
-  --kanban-developing-bg: #2E1E16;         --kanban-developing-line: rgba(226, 143, 108, 0.26);
-  --kanban-awaiting_dev-bg: #2B1D15;        --kanban-awaiting_dev-line: rgba(217, 138, 111, 0.22);
-  --kanban-operational-bg: #20261A;   --kanban-operational-line: rgba(169, 183, 133, 0.22);
+  /* S137: the per-status kanban card tints are retired in dark too — the card wears
+     var(--card) like every other card, status lives on the head dot/count/badge. */
 
   /* ---------- Dots / paper ---------- */
   --dot-spark: #d4a27f;
@@ -271,23 +276,9 @@ html[data-theme='claude-dark'] .kanban-card { background: var(--card); }
 html[data-theme='claude-dark'] .stat-kanban-card { background: transparent; }
 html[data-theme='claude-dark'] .card.kanban-card.stat-kanban-card { background: transparent; }
 
-/* Status-coded kanban lanes — wired to the claude --kanban-* token set. */
-}
-html[data-theme='claude-dark'] .kanban-col .kanban-card[data-status='planning'] {
-  background: var(--kanban-planning-bg); border-color: var(--kanban-planning-line);
-}
-html[data-theme='claude-dark'] .kanban-col .kanban-card[data-status='queued'] {
-  background: var(--kanban-queued-bg); border-color: var(--kanban-queued-line);
-}
-html[data-theme='claude-dark'] .kanban-col .kanban-card[data-status='developing'] {
-  background: var(--kanban-developing-bg); border-color: var(--kanban-developing-line);
-}
-html[data-theme='claude-dark'] .kanban-col .kanban-card[data-status='awaiting_dev'] {
-  background: var(--kanban-awaiting_dev-bg); border-color: var(--kanban-awaiting_dev-line);
-}
-html[data-theme='claude-dark'] .kanban-col .kanban-card[data-status='operational'] {
-  background: var(--kanban-operational-bg); border-color: var(--kanban-operational-line);
-}
+/* S137: the status-coded lane tints are retired in dark — every kanban card wears
+   var(--card) (the rule above); status signaling moved to the column head dot +
+   count pill and the shared --st-*/badge tokens. */
 
 /* Dash quadrants + report cards — FLAT solid surfaces (the S97 flat-card system
    retired the one-step-elevated gradient cap app-wide); the stronger top border

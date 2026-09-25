@@ -91,28 +91,11 @@
    reach the dashboard's stat cards. */
 .kanban-col .kanban-card { background: var(--card); }
 
-/* Status-coded kanban cards (2026-08-30 (g), Ali's request) — SPLIT in session-11
-   (user report 2026-09-14): the dashboard's stage boxes read as "all box colored pale
-   orange" because EVERY .kanban-card[data-status] took the full pastel fill. Now the two
-   surfaces diverge:
-   - PROJECTS board (.kanban-col): keeps the full tint — the fill encodes the stage at a
-     glance inside a lane that is itself status-labeled (the original 2026-08-30 design).
-     Selectors are scoped to .kanban-col .kanban-card[...] so they can no longer reach the
-     dashboard cards.
-   - DASHBOARD (.stat-kanban-card): neutral transparent card + a small colored LABEL on
-     each item — a slim status-colored bar pinned to each card's inline-start edge (the
-     "10% label"), matching the tint the box's icon-chip already carries. */
-.kanban-col .kanban-card[data-status='planning'] { background: var(--kanban-planning-bg); }
-.kanban-col .kanban-card[data-status='queued'] { background: var(--kanban-queued-bg); }
-.kanban-col .kanban-card[data-status='developing'] { background: var(--kanban-developing-bg); }
-.kanban-col .kanban-card[data-status='awaiting_dev'] { background: var(--kanban-awaiting_dev-bg); }
-.kanban-col .kanban-card[data-status='operational'] { background: var(--kanban-operational-bg); }
-/* Hover deepens the tint slightly instead of snapping back to the neutral gray */
-.kanban-col .kanban-card[data-status='planning']:hover { background: color-mix(in srgb, var(--kanban-planning-bg) 94%, var(--kanban-planning-line) 6%); }
-.kanban-col .kanban-card[data-status='queued']:hover { background: color-mix(in srgb, var(--kanban-queued-bg) 94%, var(--kanban-queued-line) 6%); }
-.kanban-col .kanban-card[data-status='developing']:hover { background: color-mix(in srgb, var(--kanban-developing-bg) 94%, var(--kanban-developing-line) 6%); }
-.kanban-col .kanban-card[data-status='awaiting_dev']:hover { background: color-mix(in srgb, var(--kanban-awaiting_dev-bg) 94%, var(--kanban-awaiting_dev-line) 6%); }
-.kanban-col .kanban-card[data-status='operational']:hover { background: color-mix(in srgb, var(--kanban-operational-bg) 94%, var(--kanban-operational-line) 6%); }
+/* S137 (owner redesign): the status-coded card TINTS are retired — the card surface
+   matches the page's white summary cards exactly (var(--card) above), and status
+   signaling moved to the column head dot + count pill, the status badges and the
+   overview donut, all speaking the one --st-* token per status (variables.css).
+   The dashboard's per-card 10% status bar (below) keeps its own --stage-bar chroma. */
 
 /* Session-11 — the dashboard's status LABEL per card: neutral fill + a slim status-
    colored bar on each item's inline-start edge (the "10% label"). padding-inline-start
@@ -138,12 +121,12 @@
   border-radius: 999px;
   pointer-events: none;
 }
-.stat-kanban-card[data-status='spark']::before { background: var(--stage-bar-spark); }
-.stat-kanban-card[data-status='planning']::before { background: var(--stage-bar-planning); }
-.stat-kanban-card[data-status='queued']::before { background: var(--stage-bar-queued); }
-.stat-kanban-card[data-status='developing']::before { background: var(--stage-bar-developing); }
-.stat-kanban-card[data-status='awaiting_dev']::before { background: var(--stage-bar-awaiting_dev); }
-.stat-kanban-card[data-status='operational']::before { background: var(--stage-bar-operational); }
+.stat-kanban-card[data-status='spark']::before { background: var(--st-idea); }
+.stat-kanban-card[data-status='planning']::before { background: var(--st-planning); }
+.stat-kanban-card[data-status='queued']::before { background: var(--st-queued); }
+.stat-kanban-card[data-status='developing']::before { background: var(--st-developing); }
+.stat-kanban-card[data-status='awaiting_dev']::before { background: var(--st-awaiting_dev); }
+.stat-kanban-card[data-status='operational']::before { background: var(--st-operational); }
 
 /* UI/UX R8 (2026-09-12): the per-card colored bar (::before above) was the SOLE status
    carrier on the dashboard's project cards — the parent stat-box header (icon + count +

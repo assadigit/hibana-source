@@ -418,6 +418,12 @@ export function registerTelegram(app: Hono<{ Variables: { user: UserRow } }>, cf
         ['operational', 'operational'],
         ['idea', 'spark'],
         ['spark', 'spark'],
+        // S137 renames — the new display labels parse like the old ones did (the old
+        // labels stay accepted above: a stage someone typed last week keeps working).
+        ['up next', 'queued'],
+        ['on hold', 'awaiting_dev'],
+        ['بعدی', 'queued'],
+        ['متوقف', 'awaiting_dev'],
         ['عملیاتی', 'operational'],
         ['ایده', 'spark'],
       ]

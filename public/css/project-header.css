@@ -933,7 +933,7 @@ button.pd-task-add {
    The owner's ask: a Priority dropdown in the modals (Urgent / High Priority /
    Medium Priority / Low Priority, color-coded), boxes that AUTO-SORT by priority,
    and label/meta tags (UI/UX, Security…) on every task. Colors ride the theme-aware
-   tokens (--err red, --badge-queued-fg amber, --muted grey) so both themes stay
+   tokens (--err red, --warn amber, --muted grey) so both themes stay
    AA; the pastel dot hues match the existing .prio-* dots in polish-batch.css. */
 
 /* The modals' priority row: <select> + live color preview chip side by side. */
@@ -944,7 +944,7 @@ button.pd-task-add {
    beside the select is the guaranteed color signal on every engine/platform. */
 .pd-prio-select option.prio-urgent { background: #fde3e0; color: var(--err); font-weight: 600; }
 .pd-prio-select option.prio-high { background: #fbe9e7; color: var(--err); }
-.pd-prio-select option.prio-medium { background: #F6EFCB; color: var(--badge-queued-fg); }
+.pd-prio-select option.prio-medium { background: #F6EFCB; color: var(--warn); }
 .pd-prio-select option.prio-low { background: #eceef0; color: var(--muted); }
 
 /* Live preview chip — dot + label, tinted per priority (its class is swapped by
@@ -964,7 +964,7 @@ button.pd-task-add {
 .pd-prio-chip .prio-dot { inline-size: 9px; block-size: 9px; margin-block-start: 0; }
 .pd-prio-chip.prio-urgent { border-color: #D96C63; background: rgb(217 108 99 / 0.12); color: var(--err); }
 .pd-prio-chip.prio-high { border-color: #D96C63; background: rgb(217 108 99 / 0.08); color: var(--err); }
-.pd-prio-chip.prio-medium { border-color: #E8B27D; background: #F6EFCB; color: var(--badge-queued-fg); }
+.pd-prio-chip.prio-medium { border-color: #E8B27D; background: #F6EFCB; color: var(--warn); }
 .pd-prio-chip.prio-low { border-color: #C9CDD2; background: rgb(201 205 210 / 0.14); color: var(--muted); }
 
 /* The composer's options row (priority + labels side by side, wrapping on mobile). */

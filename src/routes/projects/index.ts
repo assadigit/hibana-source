@@ -224,7 +224,13 @@ export function projectsRoutes(cfg: Config) {
       // state (the S121 empty contract, mirrored here).
       const pureHome = !staleMode && !archivedOnly && !activeStatus && !(query.success && !!(query.data.q || query.data.tag))
       if (pureHome && projects.length > 0) {
-        fragment = await ovHomeHtml() + fragment
+        // S137 (owner redesign): the KANBAN home leads with the BOARD — the overview
+        // (donut + four status cards) follows below it as the summary section. Every
+        // other view keeps the S122 order (overview first: it IS the wireframe's home
+        // header); the board is the working surface the owner reads first on kanban.
+        fragment = view === 'kanban'
+          ? fragment + await ovHomeHtml()
+          : await ovHomeHtml() + fragment
       }
       if (activeStatus === 'spark') {
         const folderRows = await cfg.db.query<SparkFolderRow & { n: number }>(

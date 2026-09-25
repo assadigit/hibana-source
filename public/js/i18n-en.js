@@ -227,8 +227,8 @@ window.__hibanaDictEN = {
       'sort.label': 'Sort', 'sort.stage': 'By stage', 'sort.recent': 'Recently updated', 'sort.title': 'Name',
       'list.reorderFailed': 'Reorder failed — try again',
       // batch q lifecycle: spark = idea; the six project stages follow Ali's funnel
-      'status.spark': 'Idea', 'status.planning': 'Planning', 'status.queued': 'Queued',
-      'status.developing': 'Developing', 'status.awaiting_dev': 'Awaiting Development',
+      'status.spark': 'Idea', 'status.planning': 'Planning', 'status.queued': 'Up Next',
+      'status.developing': 'Developing', 'status.awaiting_dev': 'On Hold',
       'status.operational': 'Operational',
       // settings page
       'settings.tabPreferences': 'Preferences', 'settings.tabAppearance': 'Appearance', 'settings.tabAccount': 'Account',
@@ -828,8 +828,8 @@ window.__hibanaDictEN = {
       // S52: Trash palette command + recoverable-count sublabel
       'cmdk.openTrash': 'Trash — recover deleted items',
       'cmdk.trashCount': '{n} recoverable',
-      'cmdk.statusSpark': 'Idea', 'cmdk.statusPlanning': 'Planning', 'cmdk.statusQueued': 'Queued',
-      'cmdk.statusDeveloping': 'Developing', 'cmdk.statusAwaitingDev': 'Awaiting Development',
+      'cmdk.statusSpark': 'Idea', 'cmdk.statusPlanning': 'Planning', 'cmdk.statusQueued': 'Up Next',
+      'cmdk.statusDeveloping': 'Developing', 'cmdk.statusAwaitingDev': 'On Hold',
       'cmdk.statusOperational': 'Operational',
       // R7.2: PWA install prompt
       'install.prompt': 'Install Hibana for offline access?',

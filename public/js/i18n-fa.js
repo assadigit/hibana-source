@@ -227,8 +227,8 @@ window.__hibanaDictFA = {
       'sort.label': 'مرتب‌سازی', 'sort.stage': 'به ترتیب مرحله', 'sort.recent': 'به‌روزرسانی اخیر', 'sort.title': 'نام',
       'list.reorderFailed': 'مرتب‌سازی ناموفق بود — دوباره تلاش کن',
       // batch q lifecycle: spark = idea; the six project stages follow Ali's funnel
-      'status.spark': 'ایده', 'status.planning': 'برنامه‌ریزی', 'status.queued': 'در صف',
-      'status.developing': 'در حال توسعه', 'status.awaiting_dev': 'در انتظار توسعه',
+      'status.spark': 'ایده', 'status.planning': 'برنامه‌ریزی', 'status.queued': 'بعدی',
+      'status.developing': 'در حال توسعه', 'status.awaiting_dev': 'متوقف',
       'status.operational': 'عملیاتی',
       // settings page
       'settings.tabPreferences': 'ترجیحات', 'settings.tabAppearance': 'ظاهر', 'settings.tabAccount': 'حساب',
@@ -825,8 +825,8 @@ window.__hibanaDictFA = {
       // S52: Trash palette command + recoverable-count sublabel
       'cmdk.openTrash': 'سطل بازیافت — بازیابی موارد حذف‌شده',
       'cmdk.trashCount': '{n} مورد قابل بازیابی',
-      'cmdk.statusSpark': 'ایده', 'cmdk.statusPlanning': 'برنامه‌ریزی', 'cmdk.statusQueued': 'در صف',
-      'cmdk.statusDeveloping': 'در حال توسعه', 'cmdk.statusAwaitingDev': 'در انتظار توسعه',
+      'cmdk.statusSpark': 'ایده', 'cmdk.statusPlanning': 'برنامه‌ریزی', 'cmdk.statusQueued': 'بعدی',
+      'cmdk.statusDeveloping': 'در حال توسعه', 'cmdk.statusAwaitingDev': 'متوقف',
       'cmdk.statusOperational': 'عملیاتی',
       // R7.2: PWA install prompt
       'install.prompt': 'هیبانا را برای دسترسی آفلاین نصب کنی؟',

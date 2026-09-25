@@ -250,12 +250,15 @@
   overflow-wrap: anywhere;
   unicode-bidi: plaintext;
 }
-.pglance-box[data-pglance='unreviewed']    { --pg-c: 95 109 122; }
-.pglance-box[data-pglance='investigating'] { --pg-c: 111 101 147; }
-.pglance-box[data-pglance='awaiting']      { --pg-c: 126 115 87; }
-.pglance-box[data-pglance='doing']         { --pg-c: 63 126 120; }
-.pglance-box[data-pglance='halted']        { --pg-c: 111 103 90; }
-.pglance-box[data-pglance='operational']   { --pg-c: 76 123 82; }
+/* S137: the stage keys renamed twice since these rules were written (unreviewed →
+   investigating → planning …) — the selectors had drifted off the emitted data-pglance
+   values entirely. Re-keyed to the REAL stage keys, and the tint rides the canonical
+   --st-* hue per status (rgb triplets mirror variables.css). */
+.pglance-box[data-pglance='planning']      { --pg-c: 233 185 59; }
+.pglance-box[data-pglance='queued']        { --pg-c: 61 122 138; }
+.pglance-box[data-pglance='developing']    { --pg-c: 224 138 84; }
+.pglance-box[data-pglance='awaiting_dev']  { --pg-c: 133 144 152; }
+.pglance-box[data-pglance='operational']   { --pg-c: 61 154 85; }
 
 /* S45: the home (pglance-grid) rides the SAME compact rail — its old big-card era
    (3×2 stacked boxes with 3.8rem icons, the density complaint) is retired. One rule
@@ -805,15 +808,18 @@ main.shell-dash > section { margin-block-end: 2.9rem; }
   display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap;
   margin-block: 0.35rem 0.55rem;
   padding: 0.45rem 0.65rem;
-  border: 1px solid color-mix(in srgb, var(--badge-queued-fg, #85620D) 26%, var(--line));
-  border-inline-start: 4px solid var(--badge-queued-fg, #85620D);
+  /* S137: the stale strip's amber is the SEMANTIC warning token (--warn) — it rode the
+     queued badge pair when that WAS the app's amber; the Up Next status is slate-teal
+     now, and "waiting" amber must not follow it. */
+  border: 1px solid color-mix(in srgb, var(--warn, #b45309) 26%, var(--line));
+  border-inline-start: 4px solid var(--warn, #b45309);
   border-radius: var(--radius);
-  background: color-mix(in srgb, var(--badge-queued-bg, #F6EFCB) 55%, var(--card));
+  background: color-mix(in srgb, var(--warn, #b45309) 10%, var(--card));
 }
 .dash-stale-flag {
   display: inline-flex; align-items: center; gap: 0.4rem;
   font-size: var(--fs-xs, 0.78rem); font-weight: 700;
-  color: var(--badge-queued-fg, #85620D);
+  color: var(--warn, #b45309);
   white-space: nowrap;
 }
 .dash-stale-flag svg { inline-size: 0.95rem; block-size: 0.95rem; flex: none; }
@@ -823,13 +829,13 @@ main.shell-dash > section { margin-block-end: 2.9rem; }
   max-inline-size: 17rem;
   padding: 0.3rem 0.6rem;
   background: var(--card);
-  border: 1px solid color-mix(in srgb, var(--badge-queued-fg, #85620D) 18%, var(--line));
+  border: 1px solid color-mix(in srgb, var(--warn, #b45309) 18%, var(--line));
   border-radius: 999px;
   text-decoration: none; color: inherit;
   transition: border-color .16s ease, box-shadow .16s ease, transform .16s ease;
 }
 .dash-stale-chip:hover, .dash-stale-chip:focus-visible {
-  border-color: color-mix(in srgb, var(--badge-queued-fg, #85620D) 55%, var(--line));
+  border-color: color-mix(in srgb, var(--warn, #b45309) 55%, var(--line));
   box-shadow: 0 2px 8px -3px rgb(0 0 0 / 0.12);
   transform: translateY(-1px);
   outline: none;

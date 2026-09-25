@@ -97,7 +97,8 @@ describe('dashboard stat boxes', () => {
       // AFTER the label — the unified icon+label+count header convention.
       expect(strip).toContain('<b class="stat-count board-count"')
       expect(strip).toContain('class="stat-label board-col-label"')
-      for (const label of ['Planning', 'Queued', 'Developing', 'Awaiting Development', 'Operational']) {
+      // S137 renames: Queued → Up Next, Awaiting Development → On Hold.
+      for (const label of ['Planning', 'Up Next', 'Developing', 'On Hold', 'Operational']) {
         expect(strip).toContain(`>${label}<`)
       }
       expect(strip).not.toContain('badge-')

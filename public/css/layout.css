@@ -445,14 +445,14 @@ body.rail-panel-open .rail-panel { visibility: visible; opacity: 1; transition: 
   flex: none;
   background: var(--muted);
 }
-.rail-dot[data-status='spark']        { background: color-mix(in srgb, var(--badge-spark-fg, #8A6714) 40%, transparent); }
+.rail-dot[data-status='spark']        { background: color-mix(in srgb, var(--badge-spark-fg, #2E5FA3) 40%, transparent); }
 .rail-dot[data-status='planning'] { background: color-mix(in srgb, var(--badge-planning-fg, #5F51B5) 40%, transparent); }
-.rail-dot[data-status='queued']     { background: color-mix(in srgb, var(--badge-queued-fg, #85620D) 40%, transparent); }
-.rail-dot[data-status='developing']        { background: color-mix(in srgb, var(--badge-developing-fg, #186F63) 40%, transparent); }
-.rail-dot[data-status='awaiting_dev']       { background: color-mix(in srgb, var(--badge-awaiting_dev-fg, #A34A31) 40%, transparent); }
+.rail-dot[data-status='queued']     { background: color-mix(in srgb, var(--warn, #b45309) 40%, transparent); }
+.rail-dot[data-status='developing']        { background: color-mix(in srgb, var(--badge-developing-fg, #96511A) 40%, transparent); }
+.rail-dot[data-status='awaiting_dev']       { background: color-mix(in srgb, var(--badge-awaiting_dev-fg, #545B60) 40%, transparent); }
 .rail-dot[data-status='operational']  { background: color-mix(in srgb, var(--badge-operational-fg, #277334) 40%, transparent); }
 .rail-dot[data-status='done']         { background: color-mix(in srgb, var(--badge-operational-fg, #277334) 40%, transparent); }
-.rail-dot[data-status='todo']         { background: color-mix(in srgb, var(--badge-queued-fg, #85620D) 40%, transparent); }
+.rail-dot[data-status='todo']         { background: color-mix(in srgb, var(--warn, #b45309) 40%, transparent); }
 .rail-item-emoji { flex: none; font-size: 0.9rem; line-height: 1; }
 /* ── S115 r2 (owner, the sidebar sketch): the per-project COLLAPSIBLE branch ────
    Stage head → PROJECT branch (collapsed until its title is clicked) → aspect
@@ -613,10 +613,10 @@ body.rail-panel-open .rail-panel { visibility: visible; opacity: 1; transition: 
   inline-size: 0.22rem;
   block-size: 0.22rem;
   border-radius: 999px;
-  background: var(--badge-queued-fg, #85620D);
+  background: var(--warn, #b45309);
 }
 .rail-cal-dots i[data-kind='done'] { background: var(--badge-operational-fg, #277334); }
-.rail-cal-dots i[data-kind='doing'] { background: var(--badge-developing-fg, #186F63); }
+.rail-cal-dots i[data-kind='doing'] { background: var(--badge-developing-fg, #96511A); }
 .rail-cal-legend {
   display: flex;
   align-items: center;
@@ -629,7 +629,7 @@ body.rail-panel-open .rail-panel { visibility: visible; opacity: 1; transition: 
   inline-size: 0.3rem;
   block-size: 0.3rem;
   border-radius: 999px;
-  background: var(--badge-queued-fg, #85620D);
+  background: var(--warn, #b45309);
 }
 /* the mobile brandbar's square mark (S89 pair) — sized to the slim bar */
 .brand-logo-sq { inline-size: 1.65rem; block-size: 1.65rem; display: block; border-radius: 0.35rem; }
@@ -747,14 +747,15 @@ body.rail-icons-only .rail-collapse .icon { transform: rotate(180deg); }
 
 /* One quiet pastel tint per stage (spec §7 — status via a small badge, minimal color).
    Tints are theme variables (light pastels / muted dark fills) so dark mode can't glare.
-   Hue mapping follows the shared semantic tokens: Idea→info, Pending→warning,
-   Building→primary, Working→success (roast 2026-08-25 — one palette across pages). */
-.badge-spark        { --badge-bg: var(--badge-spark-bg, #FBF4E4);         --badge-fg: var(--badge-spark-fg, #86702F); }
-.badge-planning { --badge-bg: var(--badge-planning-bg, #F2F0F8); --badge-fg: var(--badge-planning-fg, #6F6593); }
-.badge-queued      { --badge-bg: var(--badge-queued-bg, #F8F4EA);      --badge-fg: var(--badge-queued-fg, #7E7357); }
-.badge-developing         { --badge-bg: var(--badge-developing-bg, #EAF4F3);         --badge-fg: var(--badge-developing-fg, #3F7E78); }
-.badge-awaiting_dev        { --badge-bg: var(--badge-awaiting_dev-bg, #F4F2EF);        --badge-fg: var(--badge-awaiting_dev-fg, #6F675A); }
-.badge-operational   { --badge-bg: var(--badge-operational-bg, #EEF5EF);   --badge-fg: var(--badge-operational-fg, #4C7B52); }
+   Hue mapping follows the shared semantic tokens (S137: one --st-* hue per status —
+   Ideas blue · Planning yellow · Up Next slate-teal · Developing orange · On Hold
+   gray · Operational green; the fallback literals mirror variables.css). */
+.badge-spark        { --badge-bg: var(--badge-spark-bg, #E8EFFB);         --badge-fg: var(--badge-spark-fg, #2E5FA3); }
+.badge-planning { --badge-bg: var(--badge-planning-bg, #FAF1CF); --badge-fg: var(--badge-planning-fg, #77590A); }
+.badge-queued      { --badge-bg: var(--badge-queued-bg, #E1EEF1);      --badge-fg: var(--badge-queued-fg, #22566A); }
+.badge-developing         { --badge-bg: var(--badge-developing-bg, #FBE9DA);         --badge-fg: var(--badge-developing-fg, #96511A); }
+.badge-awaiting_dev        { --badge-bg: var(--badge-awaiting_dev-bg, #EAECEE);        --badge-fg: var(--badge-awaiting_dev-fg, #545B60); }
+.badge-operational   { --badge-bg: var(--badge-operational-bg, #E2F1E6);   --badge-fg: var(--badge-operational-fg, #277334); }
 
 /* --- S93 (owner round, item 1): the to-do panel's TICKABLE rows -------------------
    A quadrant item is a <label> wrapping a real checkbox + the title — the owner can
@@ -1847,10 +1848,10 @@ body.has-mobile-nav:has(.gal-selbar) {
   gap: 0.4rem;
   min-height: 2.4rem;
   padding: 0.35rem 0.7rem;
-  border: 1px solid color-mix(in srgb, var(--badge-queued-fg, #85620D) 35%, var(--line));
+  border: 1px solid color-mix(in srgb, var(--warn, #b45309) 35%, var(--line));
   border-radius: 999px;
-  background: color-mix(in srgb, var(--badge-queued-bg, #F6EFCB) 60%, var(--card));
-  color: var(--badge-queued-fg, #85620D);
+  background: color-mix(in srgb, color-mix(in srgb, var(--warn, #b45309) 14%, var(--card)) 60%, var(--card));
+  color: var(--warn, #b45309);
   font-size: var(--fs-sm, 0.85rem);
   font-weight: 600;
   cursor: pointer;
@@ -1864,8 +1865,8 @@ body.has-mobile-nav:has(.gal-selbar) {
    stay gone while the queue is empty. */
 .topbar-sync[hidden] { display: none; }
 .topbar-sync:hover, .topbar-sync:focus-visible {
-  border-color: var(--badge-queued-fg, #85620D);
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--badge-queued-fg, #85620D) 18%, transparent);
+  border-color: var(--warn, #b45309);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--warn, #b45309) 18%, transparent);
   outline: none;
 }
 .topbar-sync .icon { width: 1rem; height: 1rem; flex: none; }
@@ -1879,7 +1880,7 @@ body.has-mobile-nav:has(.gal-selbar) {
   50% { opacity: 0.55; }
 }
 @media (prefers-contrast: more) {
-  .topbar-sync { border-color: var(--badge-queued-fg, #85620D); background: var(--card); }
+  .topbar-sync { border-color: var(--warn, #b45309); background: var(--card); }
 }
 
 /* S86: DOC uploads in the shot grids — PDF/CSV/XLSX/DOCX/MD/TXT ride the screenshots

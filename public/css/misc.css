@@ -9,7 +9,7 @@
      Chrome zoomed-to-fit the whole card). clip (not hidden — no scroll container). */
   overflow: clip;
 }
-/* Spark-amber halo — --badge-spark-bg is cream in light, deep amber in dark. */
+/* Ideas-blue halo — --badge-spark-bg is the light-blue wash in light, its dark pair in dark (S137). */
 .nf-stage::before {
   content: '';
   position: absolute;
@@ -213,7 +213,9 @@ main.shell.adm-shell { max-inline-size: 56rem; }
 
 /* status badges — the app's --badge-bg/--badge-fg contract */
 .adm-badge-owner      { --badge-bg: var(--badge-spark-bg);   --badge-fg: var(--badge-spark-fg); }
-.adm-badge-verified   { --badge-bg: var(--badge-developing-bg);   --badge-fg: var(--badge-developing-fg); }
+/* S137: «verified» is a success state — it rode the developing pair when that was
+   teal; developing is orange now, so the badge moves to the --ok green explicitly. */
+.adm-badge-verified   { --badge-bg: color-mix(in srgb, var(--ok) 14%, transparent);   --badge-fg: var(--ok); }
 .adm-badge-unverified { --badge-bg: var(--badge-unreviewed-bg); --badge-fg: var(--badge-unreviewed-fg); }
 .adm-badge-banned     { --badge-bg: color-mix(in srgb, var(--err) 14%, transparent); --badge-fg: var(--err); }
 
@@ -1024,18 +1026,9 @@ body:has(.dash-skeleton) .fab-stack .fab:hover { background: color-mix(in srgb, 
    BOARD's S48p palette (idea blue / planned yellow / in-progress orange / bug red) via
    data-st hooks; the dark theme swaps to the db-col dark inks. Every rule uses logical
    properties, so RTL is the same geometry mirrored. */
-.ov {
-  --ov-c-idea: #5B8DEF;
-  --ov-c-planned: #F0C040;
-  --ov-c-in_progress: #E8A27D;
-  --ov-c-bug: #E54D4D;
-}
-html[data-theme='claude-dark'] .ov {
-  --ov-c-idea: #7B9AB8;
-  --ov-c-planned: #A0A8B0;
-  --ov-c-in_progress: #C49A6E;
-  --ov-c-bug: #C098A0;
-}
+/* S137: the donut segments, legend swatches and project dots reference the ONE
+   canonical --st-* token per status (variables.css) — the chart can no longer
+   hardcode its own shade of a status the badges and the kanban dots speak. */
 .ov-head {
   display: flex;
   align-items: baseline;
@@ -1051,10 +1044,10 @@ html[data-theme='claude-dark'] .ov {
   flex: 0 0 auto;
   display: inline-block;
 }
-.ov-dot[data-st='idea'] { background: var(--ov-c-idea); }
-.ov-dot[data-st='planned'] { background: var(--ov-c-planned); }
-.ov-dot[data-st='in_progress'] { background: var(--ov-c-in_progress); }
-.ov-dot[data-st='bug'] { background: var(--ov-c-bug); }
+.ov-dot[data-st='idea'] { background: var(--st-idea); }
+.ov-dot[data-st='planned'] { background: var(--st-planning); }
+.ov-dot[data-st='in_progress'] { background: var(--st-developing); }
+.ov-dot[data-st='bug'] { background: var(--st-bug); }
 /* The overview grid: donut card on the reading start edge, the 2×2 boxes fill the rest.
    ≤860px stacks (the donut card goes full-width, boxes stay 2-up until 560px). */
 .ov-grid {
@@ -1074,10 +1067,10 @@ html[data-theme='claude-dark'] .ov {
 .ov-ring { fill: none; stroke: var(--line); stroke-width: 5.5; }
 html[data-theme='claude-dark'] .ov-ring { stroke: var(--line-strong, #4a463f); }
 .ov-seg { fill: none; stroke-width: 5.5; }
-.ov-seg[data-st='idea'] { stroke: var(--ov-c-idea); }
-.ov-seg[data-st='planned'] { stroke: var(--ov-c-planned); }
-.ov-seg[data-st='in_progress'] { stroke: var(--ov-c-in_progress); }
-.ov-seg[data-st='bug'] { stroke: var(--ov-c-bug); }
+.ov-seg[data-st='idea'] { stroke: var(--st-idea); }
+.ov-seg[data-st='planned'] { stroke: var(--st-planning); }
+.ov-seg[data-st='in_progress'] { stroke: var(--st-developing); }
+.ov-seg[data-st='bug'] { stroke: var(--st-bug); }
 .ov-total { font-size: 7.2px; font-weight: 700; fill: var(--text); }
 .ov-total-label { font-size: 3.1px; fill: var(--muted); }
 .ov-legend {
@@ -1166,7 +1159,7 @@ html[data-theme='claude-dark'] .ov-ring { stroke: var(--line-strong, #4a463f); }
 }
 /* S126: the project-name metadata line steps DOWN from its title (smaller, muted —
    the eye separates "what it is" from "which project it's from") and carries the
-   owning project's stage accent dot (the --stage-bar-* system the Planning/
+   owning project's stage accent dot (the canonical --st-* hue per stage — S137:
    Queued/Developing rows wear). */
 .ov-item-proj {
   display: inline-flex;
@@ -1180,12 +1173,14 @@ html[data-theme='claude-dark'] .ov-ring { stroke: var(--line-strong, #4a463f); }
   text-align: start;
 }
 .ov-proj-dot { inline-size: 0.5rem; block-size: 0.5rem; border-radius: 50%; flex: none; background: var(--line-strong); }
-.ov-proj-dot[data-stage='spark'] { background: var(--stage-bar-spark); }
-.ov-proj-dot[data-stage='planning'] { background: var(--stage-bar-planning); }
-.ov-proj-dot[data-stage='queued'] { background: var(--stage-bar-queued); }
-.ov-proj-dot[data-stage='developing'] { background: var(--stage-bar-developing); }
-.ov-proj-dot[data-stage='awaiting_dev'] { background: var(--stage-bar-awaiting_dev); }
-.ov-proj-dot[data-stage='operational'] { background: var(--stage-bar-operational); }
+/* S137: the owning project's stage dot wears the canonical --st-* hue (was the pastel
+   --stage-bar-* set — a second per-status palette the page no longer speaks). */
+.ov-proj-dot[data-stage='spark'] { background: var(--st-idea); }
+.ov-proj-dot[data-stage='planning'] { background: var(--st-planning); }
+.ov-proj-dot[data-stage='queued'] { background: var(--st-queued); }
+.ov-proj-dot[data-stage='developing'] { background: var(--st-developing); }
+.ov-proj-dot[data-stage='awaiting_dev'] { background: var(--st-awaiting_dev); }
+.ov-proj-dot[data-stage='operational'] { background: var(--st-operational); }
 .ov-empty { margin: 0; }
 .ov-box-n { font-variant-numeric: tabular-nums; }
 

@@ -8,21 +8,25 @@ import type { Config, ProjectRow, ProjectStatus } from '../types'
 
 // English record stays the canonical export/backward-compat lookup (spec §5.3 status
 // history notes are stored data and keep English); fragments translate via statusLabel().
+// S137 (owner redesign): «Queued» → «Up Next» and «Awaiting Development» → «On Hold» —
+// the two "waiting" names overlapped (waiting-to-start vs paused-with-no-active-plan);
+// the distinct names carry the distinct meanings. History rows recorded before this
+// change keep their stored (old) labels — stored data is history.
 export const STATUS_LABEL: Record<ProjectStatus, string> = {
   spark: 'Idea',
   planning: 'Planning',
-  queued: 'Queued',
+  queued: 'Up Next',
   developing: 'Developing',
-  awaiting_dev: 'Awaiting Development',
+  awaiting_dev: 'On Hold',
   operational: 'Operational',
 }
 
 export const STATUS_LABEL_FA: Record<ProjectStatus, string> = {
   spark: 'ایده',
   planning: 'برنامه‌ریزی',
-  queued: 'در صف',
+  queued: 'بعدی',
   developing: 'در حال توسعه',
-  awaiting_dev: 'در انتظار توسعه',
+  awaiting_dev: 'متوقف',
   operational: 'عملیاتی',
 }
 

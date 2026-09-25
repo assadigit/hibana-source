@@ -116,47 +116,55 @@
      (the old ~95%-lightness pastels read as grey). Each fg stays AA (≥4.5:1) on its bg:
        spark amber · unreviewed blue-slate · investigating violet · awaiting gold ·
        doing teal · halted brick · operational green. */
-/* ══ SEMANTIC COLOR SYSTEM (UI/UX R5, 2026-09-12) ═══════════════════════════════
+/* ══ SEMANTIC COLOR SYSTEM (UI/UX R5, 2026-09-12 · S137 revision) ═══════════════
    Each accent color has exactly ONE meaning across the entire dashboard:
 
-   • RED (--err, --danger)    → urgent / overdue / error / delete
-   • ORANGE (--warn, --badge-queued-fg) → warning / waiting / attention-needed
+   • RED (--err, --danger, --st-bug) → urgent / overdue / error / delete / bug
+   • ORANGE (--warn) → warning / waiting / attention-needed
+   • ORANGE (--st-developing) → Developing status
    • TEAL (--brand, --accent) → brand / primary action / active state / current page
-   • GREEN (--ok, --badge-operational-fg) → success / done / operational
-   • PURPLE (--badge-planning-fg) → in-progress / investigating
-   • AMBER/YELLOW (--badge-spark-fg) → idea / spark / new
-   • GRAY (--muted, rgba(0,0,0,0.06)) → plain count / neutral pill / no special status
+   • SLATE-TEAL (--st-queued) → Up Next status (muted, distinct from the brand teal)
+   • GREEN (--ok, --st-operational) → success / done / Operational
+   • YELLOW (--st-planning) → Planning status
+   • BLUE (--st-idea) → Ideas status
+   • GRAY (--st-awaiting_dev, --muted) → On Hold / plain count / neutral pill
 
    Rule: a badge that is just a plain sub-item count (not a status) MUST use the gray
    neutral pill (background: rgba(0,0,0,0.06); color: var(--muted)). Only a genuinely
-   urgent/status signal gets a "loud" color. The --badge-*-bg/-fg pairs below are the
-   canonical status colors — each maps to exactly one 7-stage taxonomy state. ════ */
+   urgent/status signal gets a "loud" color.
 
-  /* Status badge colors — one per 7-stage taxonomy state (do NOT reuse for other purposes) */
-  --badge-spark-bg: #F9F1D7;         --badge-spark-fg: #8A6714;
+   S137 (owner redesign — one token per status): the --st-* hues below are THE
+   canonical status colors. The status badges (--badge-*-bg/-fg pastel/ink pairs),
+   the kanban column dots (.kanban-dot), the overview donut segments + legend
+   swatches (.ov-seg/.ov-dot) and the overview's project dots (.ov-proj-dot) all
+   reference the SAME token per status, so no surface can hardcode its own shade of
+   a status the chart already speaks. Warning-amber consumers (stale banners, sync
+   pill, streak fire, trash purge, medium priority) use --warn/--err — NOT the
+   status tokens. ════ */
+
+  /* One canonical hue per status — dots, donut segments, legend swatches, pglance. */
+  --st-idea: #5B8DEF;            /* Ideas — blue (the overview donut's idea blue) */
+  --st-planning: #E9B93B;        /* Planning — yellow */
+  --st-queued: #3D7A8A;          /* Up Next — muted teal/slate-blue */
+  --st-developing: #E08A54;      /* Developing — orange */
+  --st-awaiting_dev: #859098;    /* On Hold — gray */
+  --st-operational: #3D9A55;     /* Operational — green */
+  --st-bug: #E54D4D;             /* Problems — red (the ov donut's bug red) */
+
+  /* Status badge colors — pastel wash + AA ink of the SAME hue as --st-<status>.
+     (unreviewed stays the devboard lane tint it always was — not a project stage.) */
+  --badge-spark-bg: #E8EFFB;         --badge-spark-fg: #2E5FA3;
   --badge-unreviewed-bg: #E8EEF6;    --badge-unreviewed-fg: #46618C;
-  --badge-planning-bg: #ECE9F9; --badge-planning-fg: #5F51B5;
-  --badge-queued-bg: #F6EFCB;      --badge-queued-fg: #85620D;
-  --badge-developing-bg: #DCF0EA;         --badge-developing-fg: #186F63;
-  --badge-awaiting_dev-bg: #F6E4DE;        --badge-awaiting_dev-fg: #A34A31;
-  --badge-operational-bg: #E0F0E5;  --badge-operational-fg: #277334;
-  /* Status-coded kanban cards — session 12: the lane fills gain the same real chroma
-     (~90% lightness, visible hue) + stronger matching borders so each phase reads at
-     a glance (user: "currently they all look greyish").
-     UI/UX R4 (2026-09-12): audited for a "light-blue #E0E8F2 project-card background" —
-     the literal hex does NOT exist in the codebase (rg 'e0e8f2' = 0 matches across
-     below, which is the per-status tint for the "unreviewed" lane on the devboard
-     themes.css). That tint IS a real info state (signals "not yet reviewed" at a
-     glance inside a status-labeled lane), so per the task instruction it is kept
-     as-is + documented here. Dashboard project cards (.stat-kanban-card) are already
-     transparent with only a border (Session 19 change, dashboard.css:92). The
-     projects-page cards inherit var(--card) white. No code change required — only
-     this clarification comment. */
-  --kanban-planning-bg: #E9E5F8; --kanban-planning-line: rgba(95, 81, 181, 0.45);
-  --kanban-queued-bg: #F5EECB;      --kanban-queued-line: rgba(133, 98, 13, 0.50);
-  --kanban-developing-bg: #DBEFE9;         --kanban-developing-line: rgba(24, 111, 99, 0.50);
-  --kanban-awaiting_dev-bg: #F6E5DE;        --kanban-awaiting_dev-line: rgba(163, 74, 49, 0.45);
-  --kanban-operational-bg: #E1F0E6;  --kanban-operational-line: rgba(39, 115, 52, 0.50);
+  --badge-planning-bg: #FAF1CF; --badge-planning-fg: #77590A;
+  --badge-queued-bg: #E1EEF1;      --badge-queued-fg: #22566A;
+  --badge-developing-bg: #FBE9DA;         --badge-developing-fg: #96511A;
+  --badge-awaiting_dev-bg: #EAECEE;        --badge-awaiting_dev-fg: #545B60;
+  --badge-operational-bg: #E2F1E6;  --badge-operational-fg: #277334;
+  /* S137: the per-status kanban CARD tints are retired — the card surface is the
+     page's white card (var(--card), exactly the summary cards' white) and status
+     signaling moves to the column head dot + count pill, the badges and the donut.
+     The old --kanban-*-bg/-line tokens are deleted; any straggler rule would now
+     fail loudly in review instead of quietly re-tinting a card. */
   /* notebook sheet: paper + grid stay theme-aware; ink inverts in dark so black/blue pens stay visible */
   --nb-paper: #fdfdfb;
   --nb-grid: rgb(28 28 26 / 0.05);

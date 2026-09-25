@@ -119,7 +119,17 @@ function api(url, body, method) {
   const m = method || (body ? 'POST' : 'GET')
   const opts = { method: m, headers: {} }
   if (body !== undefined) { opts.headers['Content-Type'] = 'application/json'; opts.body = JSON.stringify(body) }
-  return fetch(url, opts).then((r) => r.json()).catch(() => {})
+  return fetch(url, opts).then((r) => {
+    /* S143 (owner: "currently the sidebar data is not updated when the page data changes
+       … can't we make it same-time no refresh update?"): every successful task mutation
+       announces itself — the rail panel's 'hibana:tasks-changed' listener invalidates its
+       cache and re-renders the open section, so the sidebar follows the board in the same
+       beat (no physical refresh). GETs and non-sadhana URLs stay silent. */
+    if (r.ok && m !== 'GET' && url.indexOf('/api/sadhana') === 0) {
+      try { document.dispatchEvent(new CustomEvent('hibana:tasks-changed', { detail: { source: 'board', url } })) } catch (err) { /* older engines */ }
+    }
+    return r.json();
+  }).catch(() => {})
 }
 
 /* ══ BUILD GRID ════════════════════════════════ */
@@ -1561,6 +1571,7 @@ async function archRestore(id){
   try{
     const res=await fetch('/api/sadhana/tasks/'+id+'/uncomplete',{method:'POST'});
     if(!res.ok)throw new Error('restore failed');
+    try{document.dispatchEvent(new CustomEvent('hibana:tasks-changed',{detail:{source:'board',url:'/api/sadhana/tasks/'+id+'/uncomplete'}}))}catch(err){/* S143: the rail panel follows the restore */}
     window.hibana?.toast(lang==='fa'?'↩ به تابلو برگشت':'↩ Back on the board','ok',3000);
     reloadTasks(); // repaint the board underneath the overlay
     await openArchive();
@@ -1835,6 +1846,30 @@ async function reloadTasks(){
    POSTs straight to the API; without this the board only picked the new task up
    after a manual page refresh. app.js calls it after a successful add. */
 window.hibanaSadhanaRefresh=()=>reloadTasks();
+/* S143 (owner: "same-time, no refresh"): the rail panel's checkboxes announce
+   themselves (detail.source='rail-panel') — the board follows in the same beat, the
+   exact mirror of api()'s board→rail announcement. TARGETED on purpose: only the
+   touched card moves, so an open quick-add form (or a half-typed draft) in another
+   quadrant survives. Mirrors togDone's semantics: a non-recurring complete leaves the
+   board (the server archived it), a recurring one re-renders into the quadrant's
+   completed section, an un-tick re-shows the card. */
+document.addEventListener('hibana:tasks-changed',(e)=>{
+  if(!e.detail||e.detail.source!=='rail-panel')return;
+  const id=e.detail.id,done=!!e.detail.done;
+  for(const q of [1,2,3,4]){
+    const t=(tasks[q]||[]).find(x=>x.id===id);
+    if(!t)continue;
+    t.done=done;
+    if(done&&!t.recur&&!t.deleted){
+      const el=document.getElementById(`tc-${id}`);
+      if(el){el.classList.add('removing');setTimeout(()=>{t.deleted=true;renderQ(q);if(zenQ===q)renderZen();},350);}
+      else{t.deleted=true;renderQ(q);if(zenQ===q)renderZen();}
+    }else{
+      renderQ(q);if(zenQ===q)renderZen();
+    }
+    break;
+  }
+});
 async function init(){
   // 1. Session (redirect anonymous visitors to login — same guard as the app shell).
   const me=await fetch('/api/auth/me').then(r=>r.ok?r.json():null).catch(()=>null);

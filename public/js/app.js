@@ -874,6 +874,9 @@ window.hibana = (() => {
         close()
         taskAddForm.reset()
         toast(_t('taskAdd.added', 'Task added'), 'info')
+        // S143: the rail panel follows the add in the same beat (its 'hibana:tasks-changed'
+        // listener re-reads /api/rail) — the board refresh hooks below cover the page itself.
+        try { document.dispatchEvent(new CustomEvent('hibana:tasks-changed', { detail: { source: 'board' } })) } catch { /* older engines */ }
         // Realtime pickup everywhere (2026-09-02 user request): the dashboard to-do
         // section + calendar dots refresh via htmx; when the FAB was used ON the
         // to-do board page itself, the board re-fetches its payload — no manual
@@ -2249,6 +2252,8 @@ window.hibana = (() => {
       fetch(`/api/sadhana/tasks/${encodeURIComponent(id)}/complete`, { method: 'POST' })
         .then((res) => {
           if (!res.ok) { handle401(res); throw new Error('complete failed') }
+          // S143: the rail panel follows the complete in the same beat (no physical refresh).
+          try { document.dispatchEvent(new CustomEvent('hibana:tasks-changed', { detail: { source: 'board' } })) } catch { /* older engines */ }
           window.setTimeout(() => {
             row.classList.add('is-removing')
             window.setTimeout(() => refreshTaskSurface(row), 320)
@@ -2599,6 +2604,8 @@ window.hibana = (() => {
       fetch(`/api/sadhana/tasks/${encodeURIComponent(id)}/complete`, { method: 'POST' })
         .then((res) => {
           if (!res.ok) { handle401(res); throw new Error('complete failed') }
+          // S143: the rail panel follows the complete in the same beat (no physical refresh).
+          try { document.dispatchEvent(new CustomEvent('hibana:tasks-changed', { detail: { source: 'board' } })) } catch { /* older engines */ }
           // Let the completed state register before the row fades and collapses.
           setTimeout(() => {
             row?.classList.add('is-removing')

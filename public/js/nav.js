@@ -497,18 +497,59 @@
   let railSection = null
   let railData = null
   let railFetch = null
+  let railGen = 0 // S143: bumped on every invalidation — an in-flight read from an older generation never poisons the cache
 
   const loadRailData = () => {
     if (railData) return Promise.resolve(railData)
     if (!railFetch) {
+      const gen = railGen
       railFetch = fetch('/api/rail', { credentials: 'same-origin' }).then((r) => {
         if (!r.ok) throw new Error('HTTP ' + r.status)
         return r.json()
-      }).then((d) => { railData = d; railFetch = null; return d })
+      }).then((d) => { if (gen === railGen) railData = d; railFetch = null; return d })
         .catch((e) => { railFetch = null; throw e })
     }
     return railFetch
   }
+
+  // --- S143 (owner: "currently the sidebar data is not updated when the page data
+  // changes … can't we make it same-time no refresh update?"): railData was a
+  // boot-time snapshot — completing a task on the board page (or the dashboard rows,
+  // or the FAB quick-add) left the panel stale until a physical reload. Page modules
+  // now ANNOUNCE mutations via the 'hibana:tasks-changed' event (detail.source:
+  // 'board' = a page surface; 'rail-panel' = this file's own checkbox handler, which
+  // syncs itself and is ignored here). The cache invalidates and the OPEN section
+  // re-renders in place — the S116 harvest/restore keeps the owner's folded tree,
+  // markRailRows keeps the location marks. A CLOSED panel only invalidates: its next
+  // open re-fetches anyway. Debounced so a burst (drag-reorder fires one reorder POST
+  // per quadrant) coalesces into ONE /api/rail read.
+  let railRefreshTimer = 0
+  const refreshRailData = () => {
+    railGen++
+    railData = null
+    if (railRefreshTimer) window.clearTimeout(railRefreshTimer)
+    railRefreshTimer = window.setTimeout(async () => {
+      railRefreshTimer = 0
+      const box = railBox()
+      if (!railSection || !box || box.hidden) return // closed — the next open re-fetches
+      const prevGroups = railHarvestGroups()
+      try { await loadRailData() } catch { return } // offline — keep the stale panel quietly
+      if (!railSection || railBox() !== box) return // superseded meanwhile
+      const body = box.querySelector('.rail-panel-body')
+      if (body) body.innerHTML = railBodyFor(railSection, railData)
+      railRestoreGroups(prevGroups)
+      markRailRows() // S95: the re-render re-marks current-location rows
+      syncRailTreeBtn() // S97: the fold button mirrors the fresh tree
+    }, 250)
+  }
+  document.addEventListener('hibana:tasks-changed', (e) => {
+    if (e.detail && e.detail.source === 'rail-panel') return // our own checkbox handler already synced itself
+    refreshRailData()
+  })
+  // The direct hook for modules that prefer a call over the event (the
+  // window.hibanaSadhanaRefresh pattern, 2026-09-02).
+  window.hibana = window.hibana || {}
+  window.hibana.rail = { refresh: refreshRailData }
 
   // --- S116: the re-render keeps your place --------------------------------------
   // Every panel RE-RENDER (a fresh /api/rail read, the Undo path, a quick-add
@@ -1190,6 +1231,10 @@
         if (t) t.done = next ? 1 : 0
         input.disabled = false
         row.classList.toggle('is-done', next)
+        // S143: announce to the PAGE surfaces — the to-do board (and any other
+        // listener) follows the panel tick in the same beat. Our own refresh
+        // listener skips 'rail-panel' events: the retirement below already synced us.
+        try { document.dispatchEvent(new CustomEvent('hibana:tasks-changed', { detail: { source: 'rail-panel', id, done: next } })) } catch { /* older engines */ }
         if (next) {
           retireRailTodoRow(row)
           window.hibana?.toast?.(railT('rail.todoDone', 'Task completed'), 'ok', 6000, [
@@ -1200,6 +1245,8 @@
                   .then((r2) => {
                     if (!r2.ok) { if (r2.status === 401) window.hibana?.handle401?.(r2); throw new Error('HTTP ' + r2.status) }
                     if (t) t.done = 0
+                    // S143: the Undo reopens the task — the board re-shows its card too.
+                    try { document.dispatchEvent(new CustomEvent('hibana:tasks-changed', { detail: { source: 'rail-panel', id, done: false } })) } catch { /* older engines */ }
                     const box = railBox()
                     if (box && railSection === 'todo') {
                       const prevGroups = railHarvestGroups() // S116: keep the tree as the owner left it

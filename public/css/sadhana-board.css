@@ -99,11 +99,26 @@ body.sadhana-body{overflow:hidden;display:flex;flex-direction:column}
 @media (max-width:740px){.sadhana-wrap .subbar-inner{--subbar-item-h:34px}}
 @media (pointer:coarse){.sadhana-wrap .subbar-inner{--subbar-item-h:40px}}
 .sadhana-wrap .subbar-inner > *{min-block-size:var(--subbar-item-h)}
+/* S142 (owner: "Align these buttons"): the emoji glyph line-box inflated the
+   .btn pair to 33px while the date and the pill sat at 32 — every interactive
+   control now gets the EXACT same block size (--subbar-item-h); inline-flex
+   centering absorbs the glyph overflow, so Archive / Tags / Add Task share one
+   centerline at every breakpoint (34px mobile, 40px touch still honored). */
+.sadhana-wrap .subbar-inner .btn,
+.sadhana-wrap .subbar-inner .filter-tags-summary{block-size:var(--subbar-item-h)}
 .sadhana-wrap .subbar-inner #filterCount{display:inline-flex;align-items:center}
+.sadhana-wrap .subbar-inner #filterCount:empty{display:none} /* S142: an empty count must not spend its 8px margin-inline-start — it read as a wider gap before Add Task */
 /* S46 (user request 2026-09-14): the filter tags live behind a toggle so the subbar
    doesn't crowd. The toggle is a chip-like summary; the count badge (#filterCount,
    outside the toggle) still announces the active filter when closed. */
-.sadhana-wrap .filter-tags-toggle{display:inline-flex;flex-direction:column;gap:6px;justify-content:center}
+/* S142 (owner: "Align these buttons"): the CLOSED toggle carried a phantom 6px
+   flex slot — .filter-tags (display:flex) stays a flex item even when <details>
+   hides it, so the column gap:6px inflated the toggle to 38px and pushed the
+   summary pill ~3px ABOVE the buttons' shared centerline (the exact skew in the
+   owner's screenshot). The gap now belongs to the OPEN state only: closed, the
+   toggle is exactly the summary's height and centers with the rest. */
+.sadhana-wrap .filter-tags-toggle{display:inline-flex;flex-direction:column;gap:0;justify-content:center;align-items:flex-start} /* S142: flex-start — the default stretch made the summary pill balloon to the tags row's width when open */
+.sadhana-wrap .filter-tags-toggle[open]{gap:6px}
 .sadhana-wrap .filter-tags-summary{display:inline-flex;align-items:center;gap:6px;padding:4px 12px;border-radius:20px;font-size:11px;font-weight:600;cursor:pointer;border:1.5px solid var(--line);background:var(--bg-soft);color:var(--text);list-style:none;user-select:none;font-family:inherit;transition:all .2s;min-block-size:var(--subbar-item-h)}
 .sadhana-wrap .filter-tags-summary::-webkit-details-marker{display:none}
 .sadhana-wrap .filter-tags-summary:hover{border-color:var(--accent);color:var(--accent)}

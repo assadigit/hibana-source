@@ -154,11 +154,14 @@
   /* S138 (owner correction on the S137 redesign): the tinted kanban CARD is back —
      the owner's stacking is [white lane [color-coded card]]. The tint is NOT a
      separate hardcoded shade: every card background mixes the ONE canonical
-     --st-<status> token over var(--card) at --kanban-tint strength (12% light;
+     --st-<status> token over var(--card) at --kanban-tint strength (24% light;
      claude-dark raises it one notch, the S88 one-notch-stronger lesson), so the
      tint can never drift from the token the head dot, the badge and the donut
-     segment all reference. */
-  --kanban-tint: 12%;
+     segment all reference. S139 (owner round 2): 12% read washed-out — the five
+     tints looked alike at a glance; the dial rides to 24% (compared 20/24/28 live
+     with the owner's seeded board: 24% is the pastel band where every hue is
+     clearly distinguishable without going saturated). */
+  --kanban-tint: 24%;
 
   /* Status badge colors — pastel wash + AA ink of the SAME hue as --st-<status>.
      (unreviewed stays the devboard lane tint it always was — not a project stage.) */

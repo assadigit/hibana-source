@@ -96,15 +96,17 @@
    (canvas.css, .kanban-col[data-status]) and each card inside is its status's
    color-coded box. The tint is NOT a new hardcoded shade: it mixes the ONE canonical
    --st-* token (the same token the head dot, the status badge and the overview donut
-   segment reference) over var(--card) at --kanban-tint strength (12% light;
-   claude-dark raises it one notch), so tint and token can never drift apart. The
+   segment reference) over var(--card) at --kanban-tint strength (24% light;
+   claude-dark raises it one notch, the S139 round raised both dials — 12% read
+   washed-out, the five tints looked alike at a glance), so tint and token can
+   never drift apart. The
    dashboard's per-card 10% status bar (below) keeps its own --stage-bar chroma. */
-.kanban-col .kanban-card[data-status='spark']        { background: color-mix(in srgb, var(--st-idea) var(--kanban-tint, 12%), var(--card)); }
-.kanban-col .kanban-card[data-status='planning']     { background: color-mix(in srgb, var(--st-planning) var(--kanban-tint, 12%), var(--card)); }
-.kanban-col .kanban-card[data-status='queued']       { background: color-mix(in srgb, var(--st-queued) var(--kanban-tint, 12%), var(--card)); }
-.kanban-col .kanban-card[data-status='developing']   { background: color-mix(in srgb, var(--st-developing) var(--kanban-tint, 12%), var(--card)); }
-.kanban-col .kanban-card[data-status='awaiting_dev'] { background: color-mix(in srgb, var(--st-awaiting_dev) var(--kanban-tint, 12%), var(--card)); }
-.kanban-col .kanban-card[data-status='operational']  { background: color-mix(in srgb, var(--st-operational) var(--kanban-tint, 12%), var(--card)); }
+.kanban-col .kanban-card[data-status='spark']        { background: color-mix(in srgb, var(--st-idea) var(--kanban-tint, 24%), var(--card)); }
+.kanban-col .kanban-card[data-status='planning']     { background: color-mix(in srgb, var(--st-planning) var(--kanban-tint, 24%), var(--card)); }
+.kanban-col .kanban-card[data-status='queued']       { background: color-mix(in srgb, var(--st-queued) var(--kanban-tint, 24%), var(--card)); }
+.kanban-col .kanban-card[data-status='developing']   { background: color-mix(in srgb, var(--st-developing) var(--kanban-tint, 24%), var(--card)); }
+.kanban-col .kanban-card[data-status='awaiting_dev'] { background: color-mix(in srgb, var(--st-awaiting_dev) var(--kanban-tint, 24%), var(--card)); }
+.kanban-col .kanban-card[data-status='operational']  { background: color-mix(in srgb, var(--st-operational) var(--kanban-tint, 24%), var(--card)); }
 
 /* Session-11 — the dashboard's status LABEL per card: neutral fill + a slim status-
    colored bar on each item's inline-start edge (the "10% label"). padding-inline-start

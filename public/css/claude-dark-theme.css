@@ -102,10 +102,11 @@ html[data-theme='claude-dark'] {
 
   /* S138 (owner correction on the S137 redesign): the per-status kanban card tints
      are BACK — the card mixes the (muted-chroma dark) --st-* token over the dark
-     --card via the shared color-mix rules (notifications.css). Dark needs the same
+     --card via the shared color-mix rules (notifications.css). Dark keeps the same
      one-notch-stronger strength the S88 lesson established for dark tints (light
-     ships 12%) so the hue still reads on the near-black card. */
-  --kanban-tint: 18%;
+     ships 24%) so the hue still reads on the near-black card. S139 raised both
+     dials together — 12%/18% read washed-out, the five tints looked alike. */
+  --kanban-tint: 32%;
 
   /* ---------- Dots / paper ---------- */
   --dot-spark: #d4a27f;
@@ -279,7 +280,7 @@ html[data-theme='claude-dark'] .dash-vault-banner.card {
    board); stat cards transparent until hover. S138: the status cards' tinted fills
    are the LIGHT sheet's --kanban-tint color-mix rules (0-3-0) — they outrank this
    fallback (0-2-1) and auto-derive the dark tint by mixing the dark --st-* token
-   over the dark --card at --kanban-tint 18% (raised above, one-notch-stronger). */
+   over the dark --card at --kanban-tint 32% (raised above, one-notch-stronger). */
 html[data-theme='claude-dark'] .kanban-card { background: var(--card); }
 html[data-theme='claude-dark'] .stat-kanban-card { background: transparent; }
 html[data-theme='claude-dark'] .card.kanban-card.stat-kanban-card { background: transparent; }

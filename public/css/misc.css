@@ -1037,6 +1037,39 @@ body:has(.dash-skeleton) .fab-stack .fab:hover { background: color-mix(in srgb, 
   margin-block-end: 0.55rem;
 }
 .ov-head h2 { margin: 0; font-size: 1.05rem; }
+/* S140 (owner request): the overview head is a COLLAPSE toggle — the dashboard-todo
+   house recipe ([data-dash-collapse] → .is-collapsed on the section, the shared
+   'hibana-dash-collapsed' store via app.js initCollapseButtons, re-applied after every
+   htmx swap). The id 'ov-tasks' is the same on the projects/sparks section and the
+   dashboard's panel, so one store entry collapses both. misc.css owns these rules
+   because the button renders on pages that never load dashboard-todo.css (projects,
+   sparks) — the values mirror the house button exactly. */
+.ov-tasks .dash-collapse-btn,
+.dash-ov .dash-collapse-btn {
+  background: none; border: none; padding: 0.2rem; cursor: pointer;
+  color: var(--muted); display: inline-flex; align-items: center;
+  transition: transform 0.15s ease, color 0.12s ease;
+  position: relative; /* the ::after tap-target floor below */
+}
+.ov-tasks .dash-collapse-btn:hover,
+.dash-ov .dash-collapse-btn:hover { color: var(--brand); background: none; }
+.ov-tasks .dash-collapse-btn .icon,
+.dash-ov .dash-collapse-btn .icon { inline-size: 1rem; block-size: 1rem; transition: transform 0.15s ease; }
+/* The generous touch floor (the todo head's ::after recipe) — the chevron is small. */
+.ov-tasks .dash-collapse-btn::after,
+.dash-ov .dash-collapse-btn::after { content: ""; position: absolute; inset: -0.65rem; }
+.ov-tasks.is-collapsed > *:not(.ov-head),
+.dash-ov.is-collapsed > *:not(.ov-head) { display: none; }
+.ov-tasks.is-collapsed .dash-collapse-btn .icon,
+.dash-ov.is-collapsed .dash-collapse-btn .icon { transform: rotate(-90deg); }
+/* S140: the Settings → Views HIDE — boot.js paints html[data-ov-tasks-mode='hidden']
+   pre-render from 'hibana-ov-tasks'; the section never flashes open. */
+html[data-ov-tasks-mode='hidden'] .ov-tasks,
+html[data-ov-tasks-mode='hidden'] .dash-ov { display: none; }
+@media (prefers-reduced-motion: reduce) {
+  .ov-tasks .dash-collapse-btn .icon,
+  .dash-ov .dash-collapse-btn .icon { transition: none; }
+}
 .ov-dot {
   inline-size: 0.6rem;
   block-size: 0.6rem;

@@ -137,6 +137,28 @@
         pwInit()
         setTimeout(pwInit, 800) // soft-nav into settings re-mounts the section after this script ran
 
+        // S140 (owner request): the "Overall project tasks" visibility — a PURE client
+        // preference (the page-width pattern): localStorage 'hibana-ov-tasks' = 'shown' |
+        // 'hidden', painted pre-render by boot.js as html[data-ov-tasks-mode]; misc.css
+        // drops .ov-tasks (projects/sparks) and .dash-ov (dashboard) when hidden.
+        // Delegated so it survives htmx/soft-nav re-mounts, like the page-width handler.
+        document.addEventListener('change', (e) => {
+          const sel = e.target?.closest?.('#ov-tasks-vis-sel')
+          if (!sel) return
+          const v = sel.value === 'hidden' ? 'hidden' : 'shown'
+          try { localStorage.setItem('hibana-ov-tasks', v) } catch { /* private mode */ }
+          if (v === 'hidden') document.documentElement.dataset.ovTasksMode = 'hidden'
+          else delete document.documentElement.dataset.ovTasksMode
+          window.hibana?.toast(window.hibanaI18n?.t('settings.prefsSaved') || 'Preferences saved', 'ok')
+        })
+        const ovVisInit = () => {
+          const sel = document.getElementById('ov-tasks-vis-sel')
+          if (!sel) return
+          try { sel.value = localStorage.getItem('hibana-ov-tasks') === 'hidden' ? 'hidden' : 'shown' } catch { sel.value = 'shown' }
+        }
+        ovVisInit()
+        setTimeout(ovVisInit, 800) // soft-nav into settings re-mounts the section after this script ran
+
         // Magic Button (idea §1) — free-tier model selector. Pure client pref like page-width:
         // localStorage 'hibana-ai-model', read fresh by magic-wand.js on every request. The
         // option list is fetched from GET /api/ai/models (auth-gated) so it stays in sync

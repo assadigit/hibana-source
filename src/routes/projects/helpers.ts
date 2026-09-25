@@ -508,8 +508,15 @@ export function overallTasksHtml(counts: OvCounts, recent: Record<OvStatus, OvTa
   // Box order = the wireframe's reading order (what's burning first): Problems,
   // In Progress, then the capture lanes Ideas / Plans.
   const boxes = `<div class="ov-boxes">${ovBoxHtml('bug', counts, recent, lang)}${ovBoxHtml('in_progress', counts, recent, lang)}${ovBoxHtml('idea', counts, recent, lang)}${ovBoxHtml('planned', counts, recent, lang)}</div>`
-  return `<section class="ov ov-tasks" aria-labelledby="ov-tasks-h">
-    <div class="ov-head"><h2 id="ov-tasks-h">${trL(lang, 'Overall project tasks', 'کارهای همهٔ پروژه‌ها')}</h2></div>
+  // S140 (owner request): the head is a COLLAPSE toggle — the dashboard-todo house
+  // recipe ([data-dash-collapse] → .is-collapsed on the section, app.js
+  // initCollapseButtons wires + re-applies it after every htmx swap, the shared
+  // 'hibana-dash-collapsed' store persists it). The id 'ov-tasks' is the SAME on the
+  // dashboard's panel (dashboard.ts) — one store entry collapses both surfaces. The
+  // chevron is the todo head's inline house path; misc.css owns the ov-context button
+  // styles + the .is-collapsed hides (these pages never load dashboard-todo.css).
+  return `<section class="ov ov-tasks" id="ov-tasks" aria-labelledby="ov-tasks-h">
+    <div class="ov-head"><h2 id="ov-tasks-h"><button type="button" class="dash-collapse-btn" data-dash-collapse="ov-tasks" aria-label="${trL(lang, 'Collapse section', 'جمع کردن بخش')}"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></button> ${trL(lang, 'Overall project tasks', 'کارهای همهٔ پروژه‌ها')}</h2></div>
     <div class="ov-grid">${ovPieHtml(counts, lang)}${boxes}</div>
   </section>`
 }

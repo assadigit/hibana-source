@@ -545,8 +545,18 @@ export function dashboardRoutes(cfg: Config) {
                  the four cards outrun the container, while the dots above keep
                  announcing that more content exists off-screen. raw(): the helper
                  returns a pre-escaped plain string (same contract as the projects home). -->
-            <div class="dash-proj-lower" role="group" aria-label="${t('Overall project tasks', 'کارهای همهٔ پروژه‌ها')}">
-              ${raw(dashboardOverviewRowHtml(ovData.counts, ovData.recent, lang))}
+            <!-- S140 (owner request): the overview lower panel joins the projects
+                 home's collapsible anatomy — the same [data-dash-collapse] head (the
+                 dashboard-todo house recipe), the SAME 'ov-tasks' id in the shared
+                 'hibana-dash-collapsed' store, so collapsing on one page collapses
+                 both. The heading is new here (the S124 panel was headless; the
+                 collapse affordance needs a head to live on). Settings → Views can
+                 hide the whole block (misc.css, html[data-ov-tasks-mode='hidden']). -->
+            <div class="dash-ov" id="ov-tasks">
+              <div class="ov-head"><h2 id="ov-tasks-h"><button type="button" class="dash-collapse-btn" data-dash-collapse="ov-tasks" aria-label="${t('Collapse section', 'جمع کردن بخش')}"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></button> ${t('Overall project tasks', 'کارهای همهٔ پروژه‌ها')}</h2></div>
+              <div class="dash-proj-lower" role="group" aria-label="${t('Overall project tasks', 'کارهای همهٔ پروژه‌ها')}">
+                ${raw(dashboardOverviewRowHtml(ovData.counts, ovData.recent, lang))}
+              </div>
             </div>
             <!-- S129 (owner request): the container's floating "New project" FAB is
                  retired (was S126's caramel folder-plus). Creation stays reachable

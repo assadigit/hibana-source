@@ -51,6 +51,20 @@ try {
   document.documentElement.dataset.pageWidth = w === 'full' ? 'full' : 'standard'
 } catch { /* storage unavailable — the CSS default (standard) applies */ }
 
+// S140 (owner request): the "Overall project tasks" section (the projects home's
+// summary + the dashboard's lower overview panel — the same 'ov-tasks' anatomy) can
+// be hidden entirely from Settings → Views. PURE client preference (the page-width
+// pattern): 'hibana-ov-tasks' = 'hidden' paints html[data-ov-tasks-mode] BEFORE first
+// render so the section never flashes open. misc.css drops .ov-tasks (projects/sparks)
+// and .dash-ov (dashboard) off that attribute. The COLLAPSE state deliberately does
+// NOT ride here — it uses the existing house store ('hibana-dash-collapsed' via app.js
+// initCollapseButtons), which re-applies after every htmx swap on its own.
+try {
+  if (localStorage.getItem('hibana-ov-tasks') === 'hidden') {
+    document.documentElement.dataset.ovTasksMode = 'hidden'
+  }
+} catch { /* storage unavailable — the section shows (the default) */ }
+
 try {
   const cachedLang = localStorage.getItem('hibana-lang')
   if (cachedLang === 'fa' || cachedLang === 'en') {

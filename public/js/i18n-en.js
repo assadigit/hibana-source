@@ -173,6 +173,10 @@ window.__hibanaDictEN = {
       'settings.pageWidth': 'Page width',
       'settings.widthStandard': 'Standard (1366 px)', 'settings.widthFull': 'Full-width',
       'settings.pageWidthHint': 'Applies the same content width to every page.',
+      // S140: the "Overall project tasks" section visibility (dashboard + projects; the sparks shelf shares the renderer)
+      'settings.ovTasks': '"Overall project tasks" section',
+      'settings.ovTasksShown': 'Visible', 'settings.ovTasksHidden': 'Hidden',
+      'settings.ovTasksHint': 'Hides the donut + status-boxes summary on the dashboard and the projects page.',
       // S89: the offline-sync row (the badge's new home — Settings → Preferences)
       'settings.syncTitle': 'Offline sync',
       'settings.syncIdle': 'All changes synced',

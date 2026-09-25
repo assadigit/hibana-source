@@ -173,6 +173,10 @@ window.__hibanaDictFA = {
       'settings.pageWidth': 'عرض صفحه',
       'settings.widthStandard': 'استاندارد (۱۳۶۶ پیکسل)', 'settings.widthFull': 'تمام‌عرض',
       'settings.pageWidthHint': 'همهٔ صفحه‌ها را با یک عرض یکسان نمایش می‌دهد.',
+      // S140: رؤیت بخش «کارهای همهٔ پروژه‌ها» (پیشخوان + پروژه‌ها؛ قفسهٔ ایده‌ها همان رندرکننده را دارد)
+      'settings.ovTasks': 'بخش «کارهای همهٔ پروژه‌ها»',
+      'settings.ovTasksShown': 'نمایش', 'settings.ovTasksHidden': 'مخفی',
+      'settings.ovTasksHint': 'نمودار دونات و جعبه‌های وضعیت را در پیشخوان و صفحهٔ پروژه‌ها پنهان می‌کند.',
       // S89: the offline-sync row (the badge's new home — Settings → Preferences)
       'settings.syncTitle': 'همگام‌سازی آفلاین',
       'settings.syncIdle': 'همهٔ تغییرات همگام شده',

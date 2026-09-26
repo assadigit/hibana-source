@@ -969,10 +969,15 @@ button.pd-task-add {
    derive from the canonical --color-* tokens via color-mix now — the four hardcoded
    hex/rgb pairs are gone (design-token law); the text tokens stay theme-adaptive
    (the S149 fills are dark, and dark-on-dark fails in the dark theme). */
+/* S150: the low/medium fills are PALE now (pale slate / pale gold) — their old 14/16%
+   tints would vanish, so the dial rides up for them and the border mixes the pair's
+   INK (the strong half) into the line token. high/urgent keep the S149 recipe
+   (saturated fills carry their own border). Text stays theme-adaptive — these chips
+   are tints over the surface, not the self-contained fill. */
 .pd-prio-chip.prio-urgent { border-color: var(--color-urgent); background: color-mix(in srgb, var(--color-urgent) 12%, transparent); color: var(--err); }
 .pd-prio-chip.prio-high { border-color: var(--color-high); background: color-mix(in srgb, var(--color-high) 12%, transparent); color: var(--err); }
-.pd-prio-chip.prio-medium { border-color: var(--color-medium); background: color-mix(in srgb, var(--color-medium) 16%, transparent); color: var(--warn); }
-.pd-prio-chip.prio-low { border-color: var(--color-low); background: color-mix(in srgb, var(--color-low) 14%, transparent); color: var(--muted); }
+.pd-prio-chip.prio-medium { border-color: color-mix(in srgb, var(--color-medium-ink) 45%, var(--line)); background: color-mix(in srgb, var(--color-medium) 38%, transparent); color: var(--warn); }
+.pd-prio-chip.prio-low { border-color: color-mix(in srgb, var(--color-low-ink) 45%, var(--line)); background: color-mix(in srgb, var(--color-low) 38%, transparent); color: var(--muted); }
 
 /* The composer's options row (priority + labels side by side, wrapping on mobile). */
 .pd-taskadd-opts { display: flex; gap: 1rem; flex-wrap: wrap; align-items: flex-start; }

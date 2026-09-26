@@ -513,6 +513,12 @@
 .prio-dot.prio-medium { background: var(--color-medium); }
 .prio-dot.prio-high { background: var(--color-high); }
 .prio-dot.prio-urgent { background: var(--color-urgent); }
+/* S150: the low/medium fills are PALE now (pale slate / pale gold) — as bare 9px
+   dots on a light card they would wash out to ghosts. A hairline inset ring in the
+   pair's ink keeps the at-a-glance presence; the saturated high/urgent fills need
+   no ring. Token-driven, so dark rides free. */
+.prio-dot.prio-low { box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--color-low-ink) 55%, transparent); }
+.prio-dot.prio-medium { box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--color-medium-ink) 55%, transparent); }
 
 /* S32 (user request 2026-09-13 — "GENERAL LAW: show RTL text RTL (when typing
    Farsi), show LTR text LTR (when writing Latin or AI translates it to Latin)").
@@ -766,11 +772,14 @@ input.qe-name,
    (variables.css). S145 (owner: "use this colors"): the fills were the owner's exact
    pastel legend and the INK flipped per priority (the three light pastels carried a
    dark self-contained ink; white failed AA there).
-   S149 (owner: "Use this new colors for priority color-coding"): the fills are the
-   AA-with-white set (steel / bronze / rust / brick — 5.3 / 4.6 / 5.5 / 5.9 vs white),
-   so the ink is WHITE on every priority — the per-priority color flip is gone and
-   the base rule's var(--prio-banner-ink) (#ffffff) covers all four. Still
-   self-contained (label sits ON the fill), so dark needs no mirrors. The banner IS
+   S149 (owner: "Use this new colors for priority color-coding"): the fills were the
+   AA-with-white set (steel / bronze / rust / brick), so the ink was WHITE on every
+   priority and the base rule's var(--prio-banner-ink) (#ffffff) covered all four.
+   S150 (owner: "Use this for color-coding priorities"): the fills are the FILL+INK
+   PAIR set (pale slate / pale gold / burnt orange / saturated red) — the two PALE
+   fills carry a DARK ink again (the S145 flip returns for low/medium), high/urgent
+   keep white. Still self-contained (label sits ON the fill), so dark needs no
+   mirrors. The banner IS
    the priority cycle button (the old dot's contract: title/aria hint + click =
    low → medium → high → urgent). The wrap goes column-flex so banner + card stack;
    the ⋯ hover menu is absolutely positioned and unaffected. Radii are logical
@@ -789,10 +798,12 @@ input.qe-name,
 .prio-banner:hover { filter: brightness(1.1); }
 .prio-banner:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
 .prio-banner .prio-banner-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-inline-size: 100%; }
-.prio-banner.prio-urgent { background: var(--prio-banner-urgent); } /* S149: white ink is the base now — every fill clears AA with it */
-.prio-banner.prio-high { background: var(--prio-banner-high); }
-.prio-banner.prio-medium { background: var(--prio-banner-medium); }
-.prio-banner.prio-low { background: var(--prio-banner-low); }
+/* S150: per-priority ink rides the fill — white stays the base (urgent/high),
+   the pale slate/gold fills carry their dark ink (AA against the fill, owner-checked). */
+.prio-banner.prio-urgent { background: var(--prio-banner-urgent); color: var(--prio-banner-ink-urgent); }
+.prio-banner.prio-high { background: var(--prio-banner-high); color: var(--prio-banner-ink-high); }
+.prio-banner.prio-medium { background: var(--prio-banner-medium); color: var(--prio-banner-ink-medium); }
+.prio-banner.prio-low { background: var(--prio-banner-low); color: var(--prio-banner-ink-low); }
 /* the card under a banner loses its START corners so the strip reads fused (the screenshot) */
 .prio-banner + .pd-task { border-start-start-radius: 0; border-start-end-radius: 0; }
 /* S136: the .db-card mirror of this block is RETIRED — board.html renders the exact

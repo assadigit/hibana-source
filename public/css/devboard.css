@@ -152,11 +152,15 @@
    (sage / gold / coral / crimson) — each border is a darkened sibling of its fill so
    the selected pill reads on light AND dark.
    S149 (owner: "Use this new colors for priority color-coding"): the tints DERIVE
-   from the canonical --color-* tokens via color-mix now (steel / bronze / rust /
-   brick) — the old per-priority hex pairs are gone (design-token law). The mix
-   ratios keep the S145 read: ~16-18% fill, ~55% border over --line. */
-.db-seg button.prio-low.is-on { background: color-mix(in srgb, var(--color-low) 18%, transparent); border-color: color-mix(in srgb, var(--color-low) 55%, var(--line)); }
-.db-seg button.prio-medium.is-on { background: color-mix(in srgb, var(--color-medium) 27%, transparent); border-color: color-mix(in srgb, var(--color-medium) 55%, var(--line)); }
+   from the canonical --color-* tokens via color-mix now — the old per-priority hex
+   pairs are gone (design-token law). The mix ratios keep the S145 read: ~16-18%
+   fill, ~55% border over --line.
+   S150 (owner: "Use this for color-coding priorities"): the FILL+INK PAIR set —
+   the pale low/medium fills ride up to 38% (their 18/27% would vanish) and their
+   borders mix the pair's INK into --line; high/urgent keep the S149 recipe
+   (saturated fills carry their own border). */
+.db-seg button.prio-low.is-on { background: color-mix(in srgb, var(--color-low) 38%, transparent); border-color: color-mix(in srgb, var(--color-low-ink) 45%, var(--line)); }
+.db-seg button.prio-medium.is-on { background: color-mix(in srgb, var(--color-medium) 38%, transparent); border-color: color-mix(in srgb, var(--color-medium-ink) 45%, var(--line)); }
 /* UI/UX R5 (2026-09-12): prio-high's tint once matched prio-urgent's — S145 gives
    every priority its own hue again; S149 keeps the four hues distinct on the new
    palette (steel / bronze / rust / brick). */
@@ -580,6 +584,10 @@
    hexes — the last of the old pastel family). */
 .sp-dot-prio.prio-low { background: var(--color-low); }
 .sp-dot-prio.prio-medium { background: var(--color-medium); }
+/* S150: the pale low/medium fills get the same ink hairline as the 9px prio-dots
+   (the sp-dot's --card cutout ring alone would ghost them on light tiles). */
+.sp-dot-prio.prio-low { box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--color-low-ink) 55%, transparent); }
+.sp-dot-prio.prio-medium { box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--color-medium-ink) 55%, transparent); }
 /* UI/UX R5 (2026-09-12): prio-high pink #E59AA5 → red (shared the prio-urgent hue).
    S145 (owner: "use this colors"): the dots ride the owner's banner palette — high
    and urgent are distinct hues again. */

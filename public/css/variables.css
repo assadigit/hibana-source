@@ -181,23 +181,43 @@
      #D9365B (crimson) — where three fills were light enough that the banner ink had
      to flip to a dark self-contained color per priority.
      S149 (owner: "Use this new colors for priority color-coding" + the exact
-     legend): the fills are now the AA-WITH-WHITE set — Low #4F6E8C (steel) ·
-     Medium #9C6B1F (bronze) · High #A85023 (rust) · Urgent #B23A34 (brick).
-     All four clear AA normal-text with a WHITE label (5.3 / 4.6 / 5.5 / 5.9 vs
-     white), so the banner ink is WHITE on every priority — the per-priority ink
-     flip is gone. The CANONICAL tokens are the owner's --color-* names; the
-     --prio-banner-* aliases keep every existing consumer humming, and the whole
-     priority family (banner, dots, filter segments, composer chips) now reads
-     these four tokens — no priority hue is hardcoded anywhere else. */
-  --color-low: #4f6e8c;
-  --color-medium: #9c6b1f;
-  --color-high: #a85023;
-  --color-urgent: #b23a34;
+     legend): the fills were the AA-WITH-WHITE set — Low #4F6E8C (steel) ·
+     Medium #9C6B1F (bronze) · High #A85023 (rust) · Urgent #B23A34 (brick) —
+     all four clearing AA normal-text with a WHITE label, so the banner ink was
+     WHITE on every priority.
+     S150 (owner: "Use this for color-coding priorities" + the exact bg/ink
+     table): each priority is now a FILL+INK PAIR — the fill carries the label,
+     the ink is the color the label is set in, and the pair is self-contained
+     (AA-checked by the owner against the fill, theme-independent):
+       Low    fill #D3D9DF (pale slate-blue) · ink #45525E (dark — 210°, 25% sat, 89→38% light)
+       Medium fill #F4E5BD (pale gold)       · ink #604910 (dark — 44°, 69% sat, 87→28% light)
+       High   fill #C14E1B (burnt orange)    · ink #FFFFFF (4.8:1 AA)
+       Urgent fill #BF2A1E (saturated red)   · ink #FFFFFF (5.9:1 AA)
+     The canonical tokens are the owner's --color-* names (fill) plus the new
+     --color-*-ink companions; --prio-banner-ink stays #ffffff as the default
+     while --prio-banner-ink-<p> aliases carry the per-priority ink to the
+     banner/dot/chip consumers. The whole priority family (banner, dots, filter
+     segments, composer chips, detail chip) reads these tokens — no priority hue
+     is hardcoded anywhere else. The two PALE fills (low/medium) gain a hairline
+     ring in their ink where they render as bare dots, so the dots keep their
+     at-a-glance presence on light cards (the ring is token-driven, dark rides free). */
+  --color-low: #d3d9df;
+  --color-low-ink: #45525e;
+  --color-medium: #f4e5bd;
+  --color-medium-ink: #604910;
+  --color-high: #c14e1b;
+  --color-high-ink: #ffffff;
+  --color-urgent: #bf2a1e;
+  --color-urgent-ink: #ffffff;
   --prio-banner-urgent: var(--color-urgent);
   --prio-banner-high: var(--color-high);
   --prio-banner-medium: var(--color-medium);
   --prio-banner-low: var(--color-low);
   --prio-banner-ink: #ffffff;
+  --prio-banner-ink-urgent: var(--color-urgent-ink);
+  --prio-banner-ink-high: var(--color-high-ink);
+  --prio-banner-ink-medium: var(--color-medium-ink);
+  --prio-banner-ink-low: var(--color-low-ink);
 
   /* Status badge colors — pastel wash + AA ink of the SAME hue as --st-<status>.
      (unreviewed stays the devboard lane tint it always was — not a project stage.) */

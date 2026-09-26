@@ -1488,11 +1488,13 @@ mark.note-jump {
 }
 .pd-detail-prio {
   font-size: 10px; font-weight: 700; letter-spacing: 0.09em; text-transform: uppercase;
-  line-height: 1.25; color: #fff; /* every S149 fill clears AA with white (5.3/4.6/5.5/5.9) */
+  line-height: 1.25; color: #fff; /* S150: white stays the base — the saturated high/urgent fills */
   padding: 0.24rem 0.6rem; border-radius: 999px; white-space: nowrap;
 }
-.pd-detail-prio.prio-low { background: var(--color-low); }
-.pd-detail-prio.prio-medium { background: var(--color-medium); }
+/* S150 fill+ink pairs: the pale slate/gold fills carry their dark ink (owner AA table);
+   the pill is self-contained so dark rides free. */
+.pd-detail-prio.prio-low { background: var(--color-low); color: var(--color-low-ink); }
+.pd-detail-prio.prio-medium { background: var(--color-medium); color: var(--color-medium-ink); }
 .pd-detail-prio.prio-high { background: var(--color-high); }
 .pd-detail-prio.prio-urgent { background: var(--color-urgent); }
 .pd-detail-status {

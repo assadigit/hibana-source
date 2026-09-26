@@ -1,8 +1,11 @@
 // e2e/s149-priority-detail.spec.ts — S149 (owner rounds, three asks in one):
-//   (1) "Use this new colors for priority color-coding" — the banner palette is the
-//       AA-with-white set (Low #4F6E8C steel · Medium #9C6B1F bronze · High #A85023
-//       rust · Urgent #B23A34 brick) — the banner's computed fill must be the new
-//       token (white ink on all four now).
+//   (1) "Use this new colors for priority color-coding" — the banner palette.
+//       S150 RE-PIN (owner: "Use this for color-coding priorities"): the fills are
+//       the FILL+INK PAIR set (Low #D3D9DF pale slate + #45525E dark ink · Medium
+//       #F4E5BD pale gold + #604910 dark ink · High #C14E1B burnt orange + white ·
+//       Urgent #BF2A1E saturated red + white) — the tokens are byte-checked off
+//       :root, the urgent banner keeps WHITE ink, and the visible medium banner
+//       proves the PALE pair's dark ink.
 //   (2) "I want the Kanban To work like ajax … when a user drags a plan item from
 //       its box to done, the other one, which was hidden behind a 'See More' button
 //       … becomes visible without refresh" — a cross-box drag PATCHes, then BOTH
@@ -90,15 +93,34 @@ async function login(page: Page) {
   await page.waitForURL('**/app')
 }
 
-test('S149 palette: the priority banner fills are the new AA-with-white tokens', async ({ page }) => {
+test('S150 palette: the priority banner fills are the owner\'s fill+ink pairs', async ({ page }) => {
   await login(page)
   await page.goto(`/project.html?id=${PROJ_ID}`)
+  // The canonical token block (the owner's exact hexes) off :root.
+  const tokens = await page.evaluate(() => {
+    const cs = getComputedStyle(document.documentElement)
+    const v = (n: string) => cs.getPropertyValue(n).trim()
+    return {
+      low: v('--color-low'), lowInk: v('--color-low-ink'),
+      medium: v('--color-medium'), mediumInk: v('--color-medium-ink'),
+      high: v('--color-high'), urgent: v('--color-urgent'),
+    }
+  })
+  expect(tokens.low).toBe('#d3d9df')
+  expect(tokens.lowInk).toBe('#45525e')
+  expect(tokens.medium).toBe('#f4e5bd')
+  expect(tokens.mediumInk).toBe('#604910')
+  expect(tokens.high).toBe('#c14e1b')
+  expect(tokens.urgent).toBe('#bf2a1e')
+  // urgent → --color-urgent #BF2A1E = rgb(191, 42, 30) — the saturated pair, WHITE ink.
   const banner = page.locator(`.pd-task-wrap[data-pd-task="${DETAIL_TASK.id}"] .prio-banner`)
   await expect(banner).toBeVisible()
-  // urgent → --color-urgent #B23A34 = rgb(178, 58, 52) (was crimson #D9365B)
-  await expect(banner).toHaveCSS('background-color', 'rgb(178, 58, 52)')
-  // and the ink is WHITE on every priority now (the S145 dark-ink flip is gone)
+  await expect(banner).toHaveCSS('background-color', 'rgb(191, 42, 30)')
   await expect(banner).toHaveCSS('color', 'rgb(255, 255, 255)')
+  // t1 is a visible MEDIUM card: the pale-gold pair carries its DARK ink (#604910).
+  const med = page.locator(`.pd-task-wrap[data-pd-task="${TASKS[0].id}"] .prio-banner`)
+  await expect(med).toHaveCSS('background-color', 'rgb(244, 229, 189)')
+  await expect(med).toHaveCSS('color', 'rgb(96, 73, 16)')
 })
 
 test('S149 AJAX kanban: a cross-box drag repaints both boxes — the hidden item surfaces without refresh', async ({ page }) => {
@@ -154,8 +176,8 @@ test('S149 detail slide-over: card click opens it (full title + content), ⋯ Ed
   await expect(panel.locator('.pd-detail-content')).toContainText('step one')
   await expect(panel.locator('.pd-detail-content')).toContainText('step two')
   await expect(panel.locator('.pd-detail-content')).toContainText('s149-content-marker')
-  // Priority chip rides the new palette + white ink.
-  await expect(panel.locator('.pd-detail-prio')).toHaveCSS('background-color', 'rgb(178, 58, 52)')
+  // Priority chip rides the S150 fill+ink pairs (urgent = saturated red + white ink).
+  await expect(panel.locator('.pd-detail-prio')).toHaveCSS('background-color', 'rgb(191, 42, 30)')
   // LTR: the panel anchors INLINE-END (right edge) when open.
   const box = await aside.boundingBox()
   const vw = await page.evaluate(() => window.innerWidth)

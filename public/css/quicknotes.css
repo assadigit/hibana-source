@@ -827,11 +827,20 @@ body > .note-head-controls.is-floating {
 /* Note-card ⋯ menu positioning (the note headbar is flex — pin the menu to the end). */
 .note-card .note-headbar .spark-menu { margin-inline-start: 0; }
 .note-card .spark-menu-pop { inset-block-start: calc(100% + 0.25rem); }
-/* .pd-task-wrap: a wrapper around the <a.pd-task> + the ⋯ menu. The menu must be OUTSIDE
-   the <a> so its clicks don't trigger navigation. The wrapper is position:relative so
-   the absolute-positioned menu anchors to it. */
+/* .pd-task-wrap: a wrapper around the .pd-task card (+ banner, since S144). The wrapper
+   stays position:relative for its own descendants; the ⋯ menu is NOT anchored here —
+   see S146 below. */
 .pd-task-wrap { position: relative; }
-.pd-task-wrap .pd-task { display: block; }
+/* S146 (owner: "the ... setting button is hidden behind the label of priority — it
+   needs to be placed a little lower", sketched at the title row's end): the ⋯ anchored
+   to the WRAP at top 0.25rem — since S144 the priority BANNER is the wrap's top strip,
+   so the button rendered ON the label. The menu lives INSIDE .pd-task on both surfaces
+   (S136 board recipe = project-page.js appendChild), so the CARD is the containing
+   block now: the button sits at the card's top-right — beside the title row, one
+   banner below the wrap's top, exactly the owner's sketched placement. Logical
+   properties keep it mirrored in RTL; the wand + its popover are position:fixed so
+   the containing-block change can't trap them. */
+.pd-task-wrap .pd-task { display: block; position: relative; }
 .pd-task-wrap .spark-menu { position: absolute; inset-block-start: 0.25rem; inset-inline-end: 0.25rem; margin: 0; z-index: 5; }
 .pd-task-wrap .spark-menu-pop { inset-block-start: calc(100% + 0.25rem); inset-inline-end: 0; }
 /* S136: the .db-card menu block is RETIRED — board.html renders .pd-task cards with

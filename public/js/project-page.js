@@ -3212,7 +3212,19 @@
                 '<button type="button" data-pd-task-copy="' + tid + '"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg><span>' + _t('common.copy', 'Copy') + '</span></button>' +
                 '<button type="button" class="danger" data-pd-task-delete="' + tid + '"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg><span>' + _t('common.delete', 'Delete') + '</span></button>' +
               '</div>'
-            task.appendChild(menu)
+            // S146: the menu lives INSIDE the .pd-task card (the board's S136 recipe) —
+            // it used to be a WRAP child, which (a) anchored it ON the S144 priority
+            // banner (owner: "the ... setting button is hidden behind the label of
+            // priority"), (b) escaped .pd-task:hover so the hover-reveal never fired
+            // (the ⋯ was permanently invisible on this page), and (c) dodged
+            // closePdTaskMenus' '.pd-task .spark-menu-pop' selector (Escape/outside
+            // click couldn't close it). The quicknotes.css S146 rule makes the CARD the
+            // positioning anchor: the ⋯ docks at the card's top-right, one banner lower
+            // — the owner's sketched placement. The wrap keeps data-menu-ok as the
+            // idempotency mark; the card's click handler already skips .spark-menu, so
+            // menu clicks never open the editor.
+            const menuHost = task.querySelector('.pd-task') || task
+            menuHost.appendChild(menu)
             task.setAttribute('data-menu-ok', '')
             // Direct click handlers on the menu buttons — preventDefault stops the parent <a>
             // from navigating. Document-level delegation was too late (the <a> navigated first).

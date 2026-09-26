@@ -82,7 +82,9 @@ const FK_SAFE_ORDER = [
   'note_folders', 'vault_notes', // Notes Vault (0057, S53) — folders before notes (folder FK)
   'sadhana_tasks', 'sadhana_tags', 'sadhana_updates', 'sadhana_recur_history',
   'sadhana_quadrant_names',
-  'task_categories', 'sprints', 'dev_tasks', 'dev_task_tags', 'project_archives',
+  // S152 (0062): the global category library + the join are FK parents of
+  // dev_tasks.category_id — categories BEFORE project_categories BEFORE dev_tasks.
+  'categories', 'project_categories', 'task_categories', 'sprints', 'dev_tasks', 'dev_task_tags', 'project_archives',
   'backlog_docs', 'backlog_doc_revisions',
 ] // FK-safe order (parents before children; FTS virtual tables rebuild via triggers)
 const snapshotTables = Object.keys(snapshot.data ?? {}).filter((t) => t !== 'users' && !t.endsWith('_fts'))

@@ -159,7 +159,7 @@ describe('backup retention', () => {
 describe('backup snapshot coverage', () => {
   it('SNAPSHOT_TABLES covers the archive + dev-board tables added since Phase 5', () => {
     const tables = [...SNAPSHOT_TABLES]
-    for (const required of ['project_archives', 'dev_task_tags', 'dev_tasks', 'task_categories', 'sprints', 'backlog_docs', 'backlog_doc_revisions', 'spark_folders', 'quick_notes', 'sadhana_tasks']) {
+    for (const required of ['project_archives', 'dev_task_tags', 'dev_tasks', 'task_categories', 'categories', 'project_categories', 'sprints', 'backlog_docs', 'backlog_doc_revisions', 'spark_folders', 'quick_notes', 'sadhana_tasks']) {
       expect(tables).toContain(required)
     }
     expect(new Set(tables).size).toBe(tables.length) // no accidental duplicates
@@ -169,6 +169,8 @@ describe('backup snapshot coverage', () => {
     const idx = (t: string) => (SNAPSHOT_TABLES as readonly string[]).indexOf(t)
     expect(idx('spark_folders')).toBeLessThan(idx('projects'))            // projects.folder_id
     expect(idx('projects')).toBeLessThan(idx('project_archives'))        // project_archives.project_id
+    expect(idx('categories')).toBeLessThan(idx('project_categories'))    // project_categories.category_id (S152)
+    expect(idx('project_categories')).toBeLessThan(idx('dev_tasks'))     // dev_tasks.category_id (S152)
     expect(idx('task_categories')).toBeLessThan(idx('dev_tasks'))        // dev_tasks.category_id
     expect(idx('sprints')).toBeLessThan(idx('dev_tasks'))                // dev_tasks.sprint_id
     expect(idx('dev_tasks')).toBeLessThan(idx('dev_task_tags'))          // dev_task_tags.task_id
@@ -182,13 +184,14 @@ describe('backup snapshot coverage', () => {
       const userId = await makeUser(db)
       await db.execute('INSERT INTO projects (id, user_id, title, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)', ['p1', userId, 'X', 'developing', new Date().toISOString(), new Date().toISOString()])
       await db.execute('INSERT INTO tags (id, user_id, name, color, created_at) VALUES (?, ?, ?, ?, ?)', ['tag1', userId, 'UI', '#123456', new Date().toISOString()])
-      await db.execute('INSERT INTO task_categories (id, project_id, name, created_at) VALUES (?, ?, ?, ?)', ['cat1', 'p1', 'C', new Date().toISOString()])
+      await db.execute('INSERT INTO categories (id, name, color_fill, color_text, is_archived, created_at) VALUES (?, ?, ?, ?, 0, ?)', ['cat1', 'C', '#CCD5F0', '#273768', new Date().toISOString()])
+      await db.execute('INSERT INTO project_categories (project_id, category_id) VALUES (?, ?)', ['p1', 'cat1'])
       await db.execute("INSERT INTO dev_tasks (id, project_id, title, status, priority, created_at) VALUES (?, ?, ?, 'done', 'medium', ?)", ['dt1', 'p1', 'T', new Date().toISOString()])
       await db.execute('INSERT INTO dev_task_tags (task_id, tag_id) VALUES (?, ?)', ['dt1', 'tag1'])
       await db.execute("INSERT INTO project_archives (id, project_id, title, status, priority, original_created_at, archived_at) VALUES (?, ?, ?, 'done', 'low', ?, ?)", ['ar1', 'p1', 'T', new Date().toISOString(), new Date().toISOString()])
 
       const snap = await buildSnapshot(db)
-      expect(snap.schema_version).toBe(20260920)
+      expect(snap.schema_version).toBe(20260926) // S152: +categories (the used slice) +project_categories
       expect(snap.data.project_archives).toHaveLength(1)
       expect(snap.data.dev_task_tags).toHaveLength(1)
     } finally {

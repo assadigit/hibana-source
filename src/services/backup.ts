@@ -162,7 +162,7 @@ export async function buildSnapshot(db: Db): Promise<Snapshot> {
     console.warn(`[backup] missing tables skipped (migration not applied?): ${missing.join(', ')}`)
   }
   return {
-    schema_version: 20260920,
+    schema_version: 20260926,
     // Session 20 (backup-coverage audit): bumped 20260910 → 20260920 (snapshot shape
     // changed: +project_archives, +dev_task_tags; dev-board cluster reordered FK-safe).
     // Old snapshots stay interpretable — the restore scripts key on table names present

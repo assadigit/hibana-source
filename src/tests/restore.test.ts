@@ -102,7 +102,10 @@ async function populatedDb(): Promise<{ db: Db; close(): void; userId: string; p
     await db.execute('INSERT INTO quick_notes (id, user_id, kind, title, content, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)', [QN, U, 'note', 'qn', 'quick note content', now, now])
     await db.execute('INSERT INTO sadhana_tasks (id, user_id, quadrant, title, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)', [ST, U, 1, 'ST', now, now])
     await db.execute('INSERT INTO sadhana_tags (task_id, tag) VALUES (?, ?)', [ST, 'w'])
-    await db.execute('INSERT INTO task_categories (id, project_id, name, created_at) VALUES (?, ?, ?, ?)', ['cat1', P, 'C', now])
+    // S152 (0062): dev_tasks.category_id now FK-references the GLOBAL library — seed
+    // a categories row (+ the project join) instead of a legacy task_categories row.
+    await db.execute('INSERT INTO categories (id, name, color_fill, color_text, is_archived, created_at) VALUES (?, ?, ?, ?, 0, ?)', ['cat1', 'C', '#CCD5F0', '#273768', now])
+    await db.execute('INSERT INTO project_categories (project_id, category_id) VALUES (?, ?)', [P, 'cat1'])
     await db.execute('INSERT INTO sprints (id, project_id, name, started_at, created_at) VALUES (?, ?, ?, ?, ?)', ['sp1', P, 'S', now, now])
     await db.execute('INSERT INTO dev_tasks (id, project_id, title, status, priority, category_id, sprint_id, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)', [DT, P, 'DT', 'done', 'medium', 'cat1', 'sp1', now])
     await db.execute('INSERT INTO dev_task_tags (task_id, tag_id) VALUES (?, ?)', [DT, T])

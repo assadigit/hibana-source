@@ -56,6 +56,7 @@
               const res = await fetch('/api/projects', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
               if (!res.ok) throw new Error('create failed')
               const { id } = await res.json()
+              window.hibana?.rail?.refresh?.() // S148: the rail's projects section follows the client-project create
               dlg.close()
               if (window.hibanaNav) window.hibanaNav.go(`/project.html?id=${id}`)
               else window.location.href = `/project.html?id=${id}`

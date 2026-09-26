@@ -244,6 +244,7 @@
             body: JSON.stringify({ status, ids }),
           })
           if (!res.ok) throw new Error('reorder failed')
+          window.hibana?.rail?.refresh?.() // S148: the rail's projects section follows the reorder in the same beat
         }
 
         function cleanup() {
@@ -291,6 +292,7 @@
                   body: JSON.stringify({ status: col.dataset.status }),
                 })
                 if (!res.ok) throw new Error('status change failed')
+                window.hibana?.rail?.refresh?.() // S148: the rail's projects section follows the stage move (no reload)
               }
             } else if (container.classList.contains('card-grid') || container.tagName === 'TBODY') {
               if (container.contains(e.target)) await postOrder(container, status) // in-status reorder
@@ -398,6 +400,7 @@
                 body: JSON.stringify({ title, description: dlg.querySelector('#ce-description').value, status: dlg.querySelector('#ce-status').value || undefined }),
               })
               if (!res.ok) throw new Error('update failed')
+              window.hibana?.rail?.refresh?.() // S148: the rail follows the edit (title/stage) even across the /app hop
               close()
               window.hibana?.toast(_t('sparks.saved', 'Saved'), 'ok', 3000)
               // User request: after saving a project, land back on the dashboard.
@@ -440,6 +443,7 @@
                 return
               }
               card.remove()
+              window.hibana?.rail?.refresh?.() // S148: the rail's projects section drops the deleted row in the same beat
               window.hibana?.toast(_t('card.deleted', 'Project deleted'), 'ok', 6000)
               const toastEl = document.getElementById('toast')
               if (toastEl) {
@@ -448,7 +452,7 @@
                 undo.textContent = _t('common.undo', 'Undo')
                 undo.addEventListener('click', () => {
                   fetch('/api/projects/' + id + '/restore', { method: 'POST' })
-                    .then((r2) => { if (r2.ok) reloadList() })
+                    .then((r2) => { if (r2.ok) { window.hibana?.rail?.refresh?.(); reloadList() } }) // S148: the rail restores the row too
                     .catch(() => {})
                 })
                 toastEl.appendChild(undo)

@@ -98,6 +98,7 @@
               body: JSON.stringify({ folder_id: folderKey || null }),
             })
             if (!res.ok) throw new Error('move failed')
+            window.hibana?.rail?.refresh?.() // S148: the rail's sparks section follows the folder drop in the same beat
             reloadShelf()
           } catch {
             window.hibana?.toast(_t('sparks.moveFailed', "Couldn't move the idea"), 'err')
@@ -230,6 +231,7 @@
                 body: JSON.stringify({ title, description: dlg.querySelector('#se-description').value, status: dlg.querySelector('#se-status').value || undefined }),
               })
               if (!res.ok) throw new Error('update failed')
+              window.hibana?.rail?.refresh?.() // S148: the rail follows the edit — a promoted spark leaves the shelf for the projects section
               // S119 (two jobs #2 — never lose your place, the ideas edition): an EDIT is
               // the S105 "actively interacted" mutation — the resume strip remembers the
               // spark ("Continue where you left off" now covers ideas too; the strip links
@@ -309,13 +311,14 @@
                 return
               }
               card.remove()
+              window.hibana?.rail?.refresh?.() // S148: the rail's sparks section drops the deleted row in the same beat
               // P4.11 (F-L24): use the toast() actions API (canonical pattern) instead of
               // post-hoc appending a button to the toast element.
               window.hibana?.toast(_t('sparks.deleted', 'Spark deleted'), 'ok', 6000, [{
                 label: _t('common.undo', 'Undo'),
                 onClick: () => {
                   fetch('/api/projects/' + id + '/restore', { method: 'POST' })
-                    .then((r2) => { if (r2.ok) reloadShelf() })
+                    .then((r2) => { if (r2.ok) { window.hibana?.rail?.refresh?.(); reloadShelf() } }) // S148: the rail restores the spark too
                     .catch(() => {})
                 },
               }])
@@ -402,6 +405,7 @@
                 body: JSON.stringify(payload),
               })
               if (!res.ok) throw new Error('folder save failed')
+              window.hibana?.rail?.refresh?.() // S148: the rail's sparks shelf mirrors the folder create/rename
               close()
               window.hibana?.toast(_t(id ? 'sparks.folderRenamed' : 'sparks.folderCreated', id ? 'Folder renamed' : 'Folder created'), 'ok', 3000)
               reloadShelf()
@@ -438,6 +442,7 @@
           fetch('/api/projects/sparks/folders/' + id, { method: 'DELETE' })
             .then((r) => {
               if (!r.ok) throw new Error('folder delete failed')
+              window.hibana?.rail?.refresh?.() // S148: the rail's sparks shelf drops the deleted folder in the same beat
               // Viewing the deleted folder? Fall back to «All» before reloading.
               if (currentFolder() === id && document.getElementById('spark-folder')) document.getElementById('spark-folder').value = ''
               // S40: the persisted context died with the folder — clear it so the next
@@ -530,6 +535,7 @@
                     body: JSON.stringify({ folder_id: picked.value || null }),
                   })
                   if (!res.ok) throw new Error('move failed')
+                  window.hibana?.rail?.refresh?.() // S148: the rail's sparks section follows the move-dialog re-filing
                   close()
                   reloadShelf()
                 } catch {
@@ -645,6 +651,7 @@
                   body: JSON.stringify({ status: 'spark', ids }),
                 })
                 if (!res.ok) throw new Error('reorder failed')
+                window.hibana?.rail?.refresh?.() // S148: the rail's sparks section follows the reorder in the same beat
               }
             }
             reloadShelf() // server reassigns sort_order — refetch authoritative order

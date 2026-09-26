@@ -140,7 +140,7 @@ function ensureImageResize() {
 // js/queue.js and powers the quick-add + canvas sync. Guard against pages that forgot the tag.
 if (!window.hibanaQueue) {
   const qs = document.createElement('script')
-  qs.src = '/js/queue.js?v=1' // F7 (session 9): versioned like the HTML refs — cache-bust discipline
+  qs.src = '/js/queue.js?v=3' // F7 (session 9): versioned like the HTML refs — cache-bust discipline
   document.head.appendChild(qs)
 }
 

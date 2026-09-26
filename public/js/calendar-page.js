@@ -801,6 +801,7 @@
               body: JSON.stringify({ title, status, due_date: curDay.date }),
             })
             if (!res.ok) throw new Error(String(res.status))
+            window.hibana?.rail?.refresh?.() // S148: the rail's projects section follows the legend-drop create in the same beat
             window.hibana?.toast(_t('calendar.projectAdded', 'Project added'), 'ok')
             await dayRefresh()
           } catch { calErr(_t('calendar.addFailed', "Couldn't save — try again.")) }

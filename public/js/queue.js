@@ -163,7 +163,10 @@ window.hibanaQueue = (() => {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(item.data),
         })
-        if (res.ok) await remove([item.id])
+        if (res.ok) {
+          await remove([item.id])
+          window.hibana?.rail?.refresh?.() // S148: the rail's sparks/projects sections follow the (offline-queued) create
+        }
         else if (authBlocked(res)) { state = 'auth'; emit(); return false } // keep the idea — re-auth and retry
         else if (invalidInput(res)) await remove([item.id]) // permanently invalid — stop retrying
         else if (res.status >= 500) {

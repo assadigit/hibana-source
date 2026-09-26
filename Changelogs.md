@@ -323,6 +323,21 @@
   nothing about staleness — only a byte-compare against a fresh `build --prod --wire-html` does.
   cd.yml runs the purge after every prod deploy (exit 1 = permission lost → ::warning:: + green;
   exit 2 = red).
+- **Credential rotation (2026-09-26)**: owner re-issued the automation set; every value
+  verified BEFORE install — GitHub PAT (admin on `hibana-source` + `hibana-safe`), CF deploy
+  token (Workers secrets read/write + Zone Cache Purge re-proven via the S74 runbook: purge
+  accepted, exit 0), CF Workers-AI token (`/user/tokens/verify` active; the `[ai]` binding
+  itself needs no token), Telegram bot token (`getMe` → @Hibana_PM_bot), healthchecks.io
+  write + readonly API keys (both checks `up`). INSTALLED: repo secrets
+  `CLOUDFLARE_API_TOKEN` + `CLOUDFLARE_ACCOUNT_ID` (sealed-box via the Actions API), Worker
+  secrets `GITHUB_TOKEN` + `TELEGRAM_BOT_TOKEN` (dev `hibana` + prod `hibana-prod`,
+  `wrangler secret put`), local `~/.hibana/secrets.env` (full set + the owner's prod test
+  account; login verified via `POST /api/auth/login` — the T6 origin gate requires an
+  explicit `Origin` header for server-side callers). DELIBERATELY UNCHANGED:
+  `HEALTHCHECK_PING_URL` + `HIBANA_UPTIME_PING_URL` keep their randomized slugs (never
+  re-point at a guessable slug — the owner's re-shared `/hibana` slug URL stays unused);
+  `RESEND_KEY` / `TELEGRAM_SECRET` / `TURNSTILE_SECRET_KEY` untouched (not in scope);
+  `BACKUP_ENCRYPTION_KEY` NEVER rotates.
 - **Deploy**: `npm run deploy[:prod]` = build `--prod --wire-html` → `check-dist-wiring`
   gate → `wrangler deploy [--env prod]` → `--restore-html`. Committed HTML keeps human `?v=`
   refs; `.build-backup/` canonical-only invariant. Rollback: `git checkout <good> && npm run

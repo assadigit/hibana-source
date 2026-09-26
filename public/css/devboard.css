@@ -150,13 +150,18 @@
 .db-seg button.is-on { background: var(--bg-soft); color: var(--text); font-weight: 600; border-color: var(--brand); }
 /* S145 (owner: "use this colors"): the is-on tints ride the owner's banner palette
    (sage / gold / coral / crimson) — each border is a darkened sibling of its fill so
-   the selected pill reads on light AND dark. */
-.db-seg button.prio-low.is-on { background: #A8C9952E; border-color: #7c9e63; }
-.db-seg button.prio-medium.is-on { background: #E8C15A45; border-color: #c39a2e; }
+   the selected pill reads on light AND dark.
+   S149 (owner: "Use this new colors for priority color-coding"): the tints DERIVE
+   from the canonical --color-* tokens via color-mix now (steel / bronze / rust /
+   brick) — the old per-priority hex pairs are gone (design-token law). The mix
+   ratios keep the S145 read: ~16-18% fill, ~55% border over --line. */
+.db-seg button.prio-low.is-on { background: color-mix(in srgb, var(--color-low) 18%, transparent); border-color: color-mix(in srgb, var(--color-low) 55%, var(--line)); }
+.db-seg button.prio-medium.is-on { background: color-mix(in srgb, var(--color-medium) 27%, transparent); border-color: color-mix(in srgb, var(--color-medium) 55%, var(--line)); }
 /* UI/UX R5 (2026-09-12): prio-high's tint once matched prio-urgent's — S145 gives
-   every priority its own hue again (coral vs crimson). */
-.db-seg button.prio-high.is-on { background: #E9916952; border-color: #c4653a; }
-.db-seg button.prio-urgent.is-on { background: #D9365B59; border-color: #b02446; }
+   every priority its own hue again; S149 keeps the four hues distinct on the new
+   palette (steel / bronze / rust / brick). */
+.db-seg button.prio-high.is-on { background: color-mix(in srgb, var(--color-high) 32%, transparent); border-color: color-mix(in srgb, var(--color-high) 55%, var(--line)); }
+.db-seg button.prio-urgent.is-on { background: color-mix(in srgb, var(--color-urgent) 35%, transparent); border-color: color-mix(in srgb, var(--color-urgent) 55%, var(--line)); }
 .db-tags-row { display: flex; flex-wrap: wrap; gap: 0.4rem; align-items: center; }
 .db-tags-row input {
   min-inline-size: 9rem;
@@ -571,13 +576,15 @@
   inset-inline-end: -3px;
   border: 1.5px solid var(--card, #fff);
 }
-.sp-dot-prio.prio-low { background: #A8C995; }
-.sp-dot-prio.prio-medium { background: #E8C15A; }
+/* S149: the sprint dots ride the canonical --color-* tokens (were hardcoded S145
+   hexes — the last of the old pastel family). */
+.sp-dot-prio.prio-low { background: var(--color-low); }
+.sp-dot-prio.prio-medium { background: var(--color-medium); }
 /* UI/UX R5 (2026-09-12): prio-high pink #E59AA5 → red (shared the prio-urgent hue).
    S145 (owner: "use this colors"): the dots ride the owner's banner palette — high
-   (coral) and urgent (crimson) are distinct hues again. */
-.sp-dot-prio.prio-high { background: #E99169; }
-.sp-dot-prio.prio-urgent { background: #D9365B; }
+   and urgent are distinct hues again. */
+.sp-dot-prio.prio-high { background: var(--color-high); }
+.sp-dot-prio.prio-urgent { background: var(--color-urgent); }
 .sp-dot-check {
   font-size: 11px;
   font-weight: 700;

@@ -2754,27 +2754,118 @@
         ctx.on('change', (e) => {
           if (e.target?.id === 'pd-taskadd-priority') pdSyncPrioChip('pd-taskadd-prio-chip', e.target.value)
         })
-        // Session 19 (user request): clicking a task card opens the inline edit modal
-        // (no more redirect to board.html). The ⋯ menu's Edit button already does this;
-        // now the whole card is clickable. Skips if the click was on the ⋯ menu, the
-        // prio-dot, or the read-more toggle (Session 22 — that expands the title).
+        // S149 (owner): clicking a task card opens the DETAIL SLIDE-OVER — a panel
+        // slides in from the inline end (right on LTR, LEFT on RTL) showing the FULL
+        // title + full content, read-only (the owner: "I want a sliding sidebar to
+        // appear from right on LTR, and LEFT on RTL, showing the title (full) and
+        // content in full of that item"). The EDITOR is no longer the card-click
+        // destination — the owner moved it behind the ⋯ menu: "the editing menu
+        // (current only view that shows full content) will only be available by
+        // clicking on '...' and selecting 'edit'". Skips if the click was on the ⋯
+        // menu, the read-more toggle, the priority banner, the label chips, or the
+        // pinned-shots button (that last guard is a free latent-defect fix — a pin
+        // click used to open the editor ALONGSIDE the shots dialog, both listeners
+        // ran).
         ctx.on('click', (e) => {
           const task = e.target.closest('.pd-task[role="button"]')
           if (!task) return
           // Don't hijack clicks on the ⋯ menu or its popover
           if (e.target.closest('.spark-menu, .spark-menu-pop, [data-menu-open]')) return
-          // Don't open the editor when the read-more button was clicked
+          // Don't hijack the read-more button (it expands the clamped title)
           if (e.target.closest('[data-task-read-more]')) return
-          // S30 batch 2: the prio-dot (cycle priority) + label chips (filter) are their
-          // own actions — never open the editor from them.
+          // The prio banner (cycle priority) + label chips (filter) are their own
+          // actions — never open the detail panel from them.
           if (e.target.closest('[data-pd-cycle-prio], .pd-tag')) return
+          // The pinned-shots button opens its own dialog (S46) — not the panel.
+          if (e.target.closest('[data-pd-shots]')) return
           const wrap = task.closest('.pd-task-wrap')
           if (!wrap) return
           const tid = wrap.dataset.pdTask
           if (!tid) return
           e.preventDefault()
-          openPdTaskEditor(tid, wrap)
+          openPdTaskDetail(wrap)
         })
+        // S149: keyboard parity with board.html's cards (S136 recipe — Enter/Space
+        // activate the role="button" card) — they open the same detail slide-over.
+        ctx.on('keydown', (e) => {
+          if (e.key !== 'Enter' && e.key !== ' ') return
+          if (!(e.target instanceof Element) || !e.target.classList.contains('pd-task')) return
+          const wrap = e.target.closest('.pd-task-wrap')
+          if (!wrap || !wrap.dataset.pdTask) return
+          e.preventDefault()
+          openPdTaskDetail(wrap)
+        })
+        // --- S149: the ONE truth-sourced wrap builder -------------------------------
+        // The ⋯-more expand and the post-mutation column repaint both render cards
+        // from /api/projects/:id payloads with the EXACT server card anatomy (banner +
+        // clamped title + preview + chips + meta), so a repainted column is the same
+        // render a reload produces.
+        const pdTruthWrap = (t, status, tt) => {
+          const wrap = document.createElement('div')
+          wrap.className = 'pd-task-wrap'
+          wrap.dataset.pdTask = String(t.id)
+          wrap.dataset.pdStatus = status
+          wrap.dataset.pdCreated = t.created_at || ''
+          if (t.done_at) wrap.dataset.pdDone = t.done_at
+          const tp = t.priority || 'medium'
+          wrap.dataset.pdPriority = tp
+          wrap.dataset.pdTags = JSON.stringify(tt || [])
+          wrap.innerHTML = pdBannerHtml(tp) + `<div class="pd-task st-${status}" draggable="true" role="button" tabindex="0" aria-label="${pdEsc(t.title)}"><span class="pd-task-body"><span class="pd-task-title-row" dir="auto"><span class="pd-task-title"${pdTitleAttrs(t.title)}>${pdTitleHtml(t.title)}</span></span>${pdPreviewHtml(t.title)}${pdReadMoreBtn(t.title)}${pdTagChipsHtml(tt)}<span class="pd-task-meta">${pdMetaDateHtml(t.created_at, status === 'done')}</span></span></div>`
+          return wrap
+        }
+        // S149 (owner: "I want the Kanban To work like ajax ... when a user drags a
+        // plan item from its box to done, the other one, which was hidden behind a
+        // 'See More' button due to the limit of maximum visibility of items shown in
+        // the box, becomes visible without refresh. Currently the new items relocate
+        // from read more, to main view only after refresh"): after a membership
+        // mutation (cross-box drop, ⋯/editor delete, undo-restore) the TOUCHED columns
+        // re-render from server truth — the server's priority-first ORDER BY, the
+        // MAX_VISIBLE=5 window, the +N more link — exactly what a reload renders,
+        // minus the reload. Expanded columns (the ⋯-more toggle) stay expanded. A seq
+        // guard drops superseded repaints when two mutations land in the same beat.
+        let pdRepaintSeq = 0
+        async function pdRepaintColumns(statuses) {
+          const seq = ++pdRepaintSeq
+          let data
+          try {
+            const res = await fetch('/api/projects/' + id)
+            if (!res.ok) return
+            data = await res.json()
+          } catch { return } // network hiccup — the optimistic DOM stands
+          if (seq !== pdRepaintSeq) return
+          const all = (data.project ? data.project.devTasks : data.devTasks) || []
+          const tagRows = (data.project ? data.project.devTaskTags : data.devTaskTags) || []
+          const tagsBy = {}
+          for (const r of tagRows) (tagsBy[r.task_id] = tagsBy[r.task_id] || []).push({ name: r.name, color: r.color })
+          // The filter bar's tier counts ride pdTaskTruth — reconcile (track the
+          // newcomers, forget the deletes).
+          const seen = new Set()
+          for (const t of all) { pdTierTrack(String(t.id), t.priority || 'medium'); seen.add(String(t.id)) }
+          for (const row of [...pdTaskTruth]) if (!seen.has(row.id)) pdTierForget(row.id)
+          for (const status of statuses) {
+            const tasksEl = document.querySelector(`[data-pd-tasks="${status}"]`)
+            if (!tasksEl) continue
+            const expanded = tasksEl.dataset.expanded === '1'
+            const colTasks = all.filter((t) => t.status === status)
+            const countEl = document.querySelector(`[data-pd-count="${status}"]`)
+            if (countEl) { countEl.dataset.n = String(colTasks.length); countEl.textContent = pdDig(colTasks.length) }
+            tasksEl.dataset.pdTotal = String(colTasks.length)
+            tasksEl.textContent = ''
+            const shown = expanded ? colTasks : colTasks.slice(0, 5) // MAX_VISIBLE — Session 19
+            for (const t of shown) tasksEl.appendChild(pdTruthWrap(t, status, tagsBy[t.id] || []))
+            const hidden = colTasks.length - shown.length
+            if (hidden > 0 || (expanded && colTasks.length > 0)) {
+              const btn = document.createElement('button')
+              btn.type = 'button'
+              btn.className = 'pd-more-link'
+              btn.dataset.pdMore = status
+              btn.textContent = hidden > 0 ? '+' + pdDig(hidden) + ' ' + _t('pd.more', 'more') : _t('pd.showLess', 'show less')
+              tasksEl.appendChild(btn)
+            }
+          }
+          injectPdTaskMenus()
+          pdFilterApply()
+        }
         // Session 19 (user request): the "بیشتر" (more) button expands the full list inline
         // instead of navigating to board.html. Fetches all devtasks for the project,
         // renders the hidden ones (beyond the 5 visible), and toggles to "show less".
@@ -2814,21 +2905,9 @@
               for (const r of tagRows) (tagsBy[r.task_id] = tagsBy[r.task_id] || []).push({ name: r.name, color: r.color })
               const shownIds = new Set([...tasksEl.querySelectorAll('.pd-task-wrap')].map((w) => w.dataset.pdTask))
               const hiddenTasks = allTasks.filter((t) => !shownIds.has(t.id))
-              for (const t of hiddenTasks) {
-                const wrap = document.createElement('div')
-                wrap.className = 'pd-task-wrap'
-                wrap.dataset.pdTask = t.id
-                wrap.dataset.pdStatus = status
-                wrap.dataset.pdCreated = t.created_at
-                if (t.done_at) wrap.dataset.pdDone = t.done_at
-                const tp = t.priority || 'medium'
-                const tt = tagsBy[t.id] || []
-                wrap.dataset.pdPriority = tp
-                wrap.dataset.pdTags = JSON.stringify(tt)
-                // Session 22: div + role=button + 150-char clamp — same as insertTaskChip.
-                wrap.innerHTML = pdBannerHtml(tp) + `<div class="pd-task st-${status}" draggable="true" role="button" tabindex="0" aria-label="${pdEsc(t.title)}"><span class="pd-task-body"><span class="pd-task-title-row" dir="auto"><span class="pd-task-title"${pdTitleAttrs(t.title)}>${pdTitleHtml(t.title)}</span></span>${pdPreviewHtml(t.title)}${pdReadMoreBtn(t.title)}${pdTagChipsHtml(tt)}<span class="pd-task-meta">${pdMetaDateHtml(t.created_at, status === 'done')}</span></span></div>`
-                tasksEl.insertBefore(wrap, moreBtn)
-              }
+              // S149: the wraps come from the ONE truth builder (pdTruthWrap) — the
+              // expand and the post-mutation repaint render byte-identical cards.
+              for (const t of hiddenTasks) tasksEl.insertBefore(pdTruthWrap(t, status, tagsBy[t.id] || []), moreBtn)
               // Session 24 (root-cause fix): wire data-magic + ⋯ menu on the newly
               // inserted items (6+) so the magic wand + edit/delete actions work on
               // ALL items, not just the first 5 the server rendered. Idempotent —
@@ -3266,7 +3345,11 @@
               closePdTaskMenus()
               const card = task
               const status = card.dataset.pdStatus || 'idea'
-              const titleText = card.querySelector('.pd-task-title')?.textContent || ''
+              // S149: the undo toast restores the FULL raw string (title + \n +
+              // content) — the old textContent read only the first line, so an undone
+              // task came back with its content silently dropped.
+              const titleEl = card.querySelector('.pd-task-title')
+              const titleText = (titleEl && titleEl.getAttribute('data-raw-title')) || (titleEl ? titleEl.textContent : '') || ''
               // Optimistic removal
               card.remove()
               // Decrement the column count
@@ -3283,11 +3366,15 @@
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ title: titleText, status: status }),
-                  }).then((r) => r.ok ? window.location.reload() : null).catch(() => {})
+                  }).then((r) => { if (r.ok) pdRepaintColumns([status]) }).catch(() => {}) // S149: the restore repaints — no reload
                 },
               }])
               fetch('/api/devtasks/' + tid, { method: 'DELETE' })
-                .then((r) => { if (r.ok) window.__hibanaProjectResumeTouch?.() }) // S105: a delete IS an interaction
+                .then((r) => {
+                  if (!r.ok) return
+                  window.__hibanaProjectResumeTouch?.() // S105: a delete IS an interaction
+                  pdRepaintColumns([status]) // S149: a hidden item surfaces in the same beat
+                })
                 .catch(() => window.hibana?.toast(_t('notes.deleteFailed', "Couldn't delete"), 'err'))
             })
           })
@@ -3305,6 +3392,95 @@
           document.addEventListener(evt, injectPdTaskMenus)
         }
         if (document.readyState !== 'loading') injectPdTaskMenus()
+
+        // --- S149 (owner): the task DETAIL slide-over — click a card and a panel
+        // slides in from the INLINE END (right on LTR, LEFT on RTL — logical props +
+        // the one [dir='rtl'] transform flip) showing the FULL title + full content.
+        // ZERO fetch: data-raw-title on the card's title element carries the full raw
+        // string (title + '\n' + content — the S48g split), so the panel renders from
+        // the DOM the instant it opens; HibanaChips.renderTitle renders both blocks
+        // exactly like the card/editor do (fences, bold, lists). READ-ONLY by
+        // contract — editing stays behind the ⋯ → Edit (the owner's split: the card
+        // click is the VIEW, the menu is the EDIT).
+        let pdDetailRoot = null
+        let pdDetailLastFocus = null
+        const PD_DETAIL_STATUS = {
+          idea: ['db.st.idea', 'New Ideas'],
+          planned: ['db.st.planned', 'Plans'],
+          in_progress: ['db.st.inprog', 'In Progress'],
+          done: ['db.st.done', 'Implemented'],
+          bug: ['db.st.bug', 'Problems'],
+        }
+        function closePdTaskDetail() {
+          if (!pdDetailRoot || !pdDetailRoot.classList.contains('open')) return
+          pdDetailRoot.classList.remove('open')
+          document.body.classList.remove('pd-detail-lock')
+          if (pdDetailLastFocus && document.contains(pdDetailLastFocus) && pdDetailLastFocus.focus) pdDetailLastFocus.focus()
+          pdDetailLastFocus = null
+        }
+        function openPdTaskDetail(wrap) {
+          const titleEl = wrap.querySelector('.pd-task-title')
+          const raw = (titleEl && titleEl.getAttribute('data-raw-title')) || (titleEl ? titleEl.textContent : '') || ''
+          const nl = raw.indexOf('\n')
+          const head = nl >= 0 ? raw.slice(0, nl) : raw
+          const content = nl >= 0 ? raw.slice(nl + 1).replace(/^\n+/, '').trim() : ''
+          const prio = wrap.dataset.pdPriority || 'medium'
+          const status = wrap.dataset.pdStatus || 'planned'
+          const created = wrap.dataset.pdCreated || ''
+          let tags = []
+          try { tags = JSON.parse(wrap.dataset.pdTags || '[]') } catch { tags = [] }
+          if (!pdDetailRoot) {
+            pdDetailRoot = document.createElement('div')
+            pdDetailRoot.id = 'pd-detail-root'
+            pdDetailRoot.innerHTML =
+              '<div class="pd-detail-scrim" data-pd-detail-close></div>' +
+              '<aside class="pd-detail" role="dialog" aria-modal="true" aria-labelledby="pd-detail-title-el">' +
+                '<div class="pd-detail-head">' +
+                  '<span class="pd-detail-prio" data-pd-detail-prio></span>' +
+                  '<span class="pd-detail-status" data-pd-detail-status></span>' +
+                  '<button type="button" class="ghost icon-btn pd-detail-x" data-pd-detail-close aria-label="' + pdEsc(_t('common.close', 'Close')) + '">' +
+                    '<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>' +
+                  '</button>' +
+                '</div>' +
+                '<div class="pd-detail-body">' +
+                  '<h2 class="pd-detail-title" id="pd-detail-title-el" data-pd-detail-title dir="auto"></h2>' +
+                  '<div class="pd-detail-content" data-pd-detail-content dir="auto" hidden></div>' +
+                '</div>' +
+                '<div class="pd-detail-meta" data-pd-detail-meta></div>' +
+              '</aside>'
+            document.body.appendChild(pdDetailRoot)
+            pdDetailRoot.addEventListener('click', (ev) => {
+              if (ev.target.closest('[data-pd-detail-close]')) { ev.preventDefault(); closePdTaskDetail() }
+            })
+            document.addEventListener('keydown', (ev) => {
+              if (ev.key !== 'Escape' || !pdDetailRoot.classList.contains('open')) return
+              ev.preventDefault()
+              closePdTaskDetail()
+            })
+          }
+          const chips = window.HibanaChips
+          const prioEl = pdDetailRoot.querySelector('[data-pd-detail-prio]')
+          prioEl.className = 'pd-detail-prio prio-' + prio
+          prioEl.textContent = chips.prioLabel(prio, pdLang())
+          const statusEl = pdDetailRoot.querySelector('[data-pd-detail-status]')
+          const stPair = PD_DETAIL_STATUS[status] || PD_DETAIL_STATUS.planned
+          statusEl.textContent = _t(stPair[0], stPair[1])
+          pdDetailRoot.querySelector('[data-pd-detail-title]').innerHTML = chips.renderTitle(head)
+          const contentEl = pdDetailRoot.querySelector('[data-pd-detail-content]')
+          if (content) { contentEl.hidden = false; contentEl.innerHTML = chips.renderTitle(content) }
+          else contentEl.hidden = true
+          const meta = pdDetailRoot.querySelector('[data-pd-detail-meta]')
+          const dateTxt = created ? chips.metaLine(created, status === 'done', pdLang()) : ''
+          meta.innerHTML =
+            (dateTxt ? '<span class="pd-detail-date">' + pdEsc(dateTxt) + '</span>' : '') +
+            tags.map((tg) => '<span class="pd-tag"><i class="pd-tag-dot" style="background:' + pdEsc(tg.color || '#8AB8F0') + '"></i>' + pdEsc(tg.name) + '</span>').join('')
+          meta.hidden = !dateTxt && !tags.length
+          pdDetailLastFocus = document.activeElement
+          pdDetailRoot.classList.add('open')
+          document.body.classList.add('pd-detail-lock')
+          const x = pdDetailRoot.querySelector('.pd-detail-x')
+          if (x) x.focus()
+        }
 
         // --- Inline task editor modal (user request 2026-09) — no navigation, opens in-place ---
         // The Edit button on .pd-task cards opens this modal directly (no board.html redirect).
@@ -3506,7 +3682,10 @@
               if (!tid) return
               const card = document.querySelector('.pd-task-wrap[data-pd-task="' + tid + '"]')
               const status = card?.dataset.pdStatus || 'idea'
-              const titleText = card?.querySelector('.pd-task-title')?.textContent || ''
+              // S149: undo restores the FULL raw string (title + \n + content), not
+              // just the first line — same fix as the ⋯ menu delete path.
+              const editorTitleEl = card?.querySelector('.pd-task-title')
+              const titleText = (editorTitleEl && editorTitleEl.getAttribute('data-raw-title')) || (editorTitleEl ? editorTitleEl.textContent : '') || ''
               pdTaskEditDlg.close()
               if (card) {
                 card.remove()
@@ -3530,11 +3709,15 @@
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ title: titleText, status: status }),
-                  }).then((r) => r.ok ? window.location.reload() : null).catch(() => {})
+                  }).then((r) => { if (r.ok) pdRepaintColumns([status]) }).catch(() => {}) // S149: the restore repaints — no reload
                 },
               }])
               fetch('/api/devtasks/' + tid, { method: 'DELETE' })
-                .then((r) => { if (r.ok) window.__hibanaProjectResumeTouch?.() }) // S105: a delete IS an interaction
+                .then((r) => {
+                  if (!r.ok) return
+                  window.__hibanaProjectResumeTouch?.() // S105: a delete IS an interaction
+                  pdRepaintColumns([status]) // S149: a hidden item surfaces in the same beat
+                })
                 .catch(() => window.hibana?.toast(_t('notes.deleteFailed', "Couldn't delete"), 'err'))
             })
             pdTaskEditDlg.querySelector('#pde-form').addEventListener('submit', async (e) => {
@@ -3833,7 +4016,11 @@
             cardEl.classList.add('st-' + to)
           }
           const meta = chip.querySelector('.pd-task-meta')
-          if (meta) meta.innerHTML = pdMetaHtml(chip.dataset.pdPriority || 'medium', to === 'done' ? new Date().toISOString() : (chip.dataset.pdCreated || new Date().toISOString()), to === 'done')
+          // S149 FIX (latent defect, broken since S144): this line still called the
+          // RETIRED pdMetaHtml (the label-bearing meta) — ReferenceError on every
+          // status change through this path. The S144 contract: the PRIORITY BANNER
+          // carries the label; the meta line is the date only (pdMetaDateHtml).
+          if (meta) meta.innerHTML = pdMetaDateHtml(to === 'done' ? new Date().toISOString() : (chip.dataset.pdCreated || new Date().toISOString()), to === 'done')
           if (dest) pdSortWrap(dest, chip)
           pdSetCount(from, Number(pdCountEl(from)?.dataset.n || '0') - 1)
           pdSetCount(to, Number(pdCountEl(to)?.dataset.n || '0') + 1)
@@ -4321,8 +4508,14 @@
           }
           const meta = el.querySelector('.pd-task-meta')
           if (meta) {
-            // S29 follow-up: rebuild with the priority label (textContent would wipe it)
-            meta.innerHTML = pdMetaHtml(el.dataset.pdPriority || 'medium', to === 'done' ? new Date().toISOString() : (el.dataset.pdCreated || new Date().toISOString()), to === 'done')
+            // S29 follow-up + S149 FIX (latent defect, broken since S144): this was
+            // the meta rebuild with the priority label — but the label-bearing
+            // pdMetaHtml was RETIRED in S144, so EVERY cross-box drop threw
+            // ReferenceError right here — the optimistic move rendered, then the
+            // handler died BEFORE the PATCH (the move never saved) and before any
+            // count/more-link update. Rebuilt on the S144 contract: date-only meta
+            // (the banner carries the priority label now).
+            meta.innerHTML = pdMetaDateHtml(to === 'done' ? new Date().toISOString() : (el.dataset.pdCreated || new Date().toISOString()), to === 'done')
           }
           // S29 follow-up: cross-box drop lands in its priority slot, not the pointer's.
           const destList = document.querySelector('[data-pd-tasks="' + to + '"]')
@@ -4363,6 +4556,11 @@
               body: JSON.stringify({ status: to }),
             })
             if (!res.ok) throw new Error('move failed')
+            // S149 (owner's AJAX ask): both boxes repaint from truth — the origin's
+            // hidden item surfaces behind the moved card, the destination's overflow
+            // re-windows, all without a refresh (the optimistic block above gave the
+            // instant feedback; this reconciles it with the server's render).
+            pdRepaintColumns([from, to])
           } catch {
             window.hibana?.toast(_t('pd.moveFailed', "Couldn't move the task"), 'err')
             refreshBody() // restore server truth

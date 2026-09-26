@@ -198,7 +198,16 @@ test('task composer: priority dropdown + labels; boxes auto-sort by priority', a
   // 5. EDIT round-trip: the low card's editor pre-fills its REAL priority (the old
   // editor always defaulted to medium and silently reset it on save) — then promote
   // it to Urgent and watch it jump above the medium card.
-  await reloaded.locator('.pd-task-wrap').nth(2).locator('.pd-task').click()
+  // S149 contract: the card click opens the DETAIL SLIDE-OVER (the owner moved the
+  // editor behind the ⋯ menu) — so the editor opens via ⋯ → Edit now.
+  const lowWrap = reloaded.locator('.pd-task-wrap').nth(2)
+  await lowWrap.locator('.pd-task').click()
+  await expect(page.locator('#pd-detail-root')).toHaveClass(/open/) // the panel, not the editor
+  await expect(page.locator('#pd-task-edit-modal')).toHaveCount(0)
+  await page.keyboard.press('Escape')
+  await lowWrap.hover()
+  await lowWrap.locator('[data-menu-open]').click()
+  await lowWrap.locator('[data-pd-task-edit]').click()
   const edit = page.locator('#pd-task-edit-modal')
   await expect(edit).toBeVisible()
   await expect(page.locator('#pde-priority')).toHaveValue('low') // the REAL pre-fill
@@ -293,7 +302,17 @@ test('code block: Enter newlines instead of submitting; empty-line Enter and Arr
   const card = page.locator('.pd-task-wrap', { hasText: 'e2e code escape' })
   await expect(card).toBeVisible({ timeout: 10_000 })
   await expect(card.locator('.pd-task-title')).toHaveText(/e2e code escape/)
+  // S149 contract: the card click opens the DETAIL SLIDE-OVER (and the panel itself
+  // proves the renderTitle round-trip — the fence bodies render as .t-code islands
+  // in the read-only content block); the EDITOR opens via ⋯ → Edit.
   await card.locator('.pd-task').click()
+  await expect(page.locator('#pd-detail-root')).toHaveClass(/open/)
+  await expect(page.locator('[data-pd-detail-content] .t-code').first()).toContainText('const x = 1')
+  await page.keyboard.press('Escape')
+  await expect(page.locator('#pd-detail-root')).not.toHaveClass(/open/)
+  await card.hover()
+  await card.locator('[data-menu-open]').click()
+  await card.locator('[data-pd-task-edit]').click()
   const editDlg = page.locator('#pd-task-edit-modal')
   await expect(editDlg).toBeVisible()
   const editArea = page.locator('#pde-input')

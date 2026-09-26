@@ -176,19 +176,28 @@
      the old left-border accent + tiny dot. One token per priority, consumed by the
      banner on every surface (board.html, project.html's server fragments) so no
      surface can hardcode its own shade.
-     S145 (owner: "use this colors" + the exact legend): the fills are now the OWNER'S
-     palette verbatim — Low #A8C995 (sage) · Medium #E8C15A (gold) · High #E99169
-     (coral) · Urgent #D9365B (crimson). Three fills are LIGHT pastels, where a white
-     label fails AA (1.7-2.4:1) — so the banner ink flips per priority: the
-     self-contained dark --prio-banner-ink on low/medium/high (verified 8.32 / 8.87 /
-     6.33 vs their fills) and the white label stays on urgent only (4.54, AA normal
-     text). The pair remains self-contained (label sits ON the fill), so dark needs no
-     mirrors. The whole priority family (dots, chips, segments) rides this palette. */
-  --prio-banner-urgent: #d9365b;
-  --prio-banner-high: #e99169;
-  --prio-banner-medium: #e8c15a;
-  --prio-banner-low: #a8c995;
-  --prio-banner-ink: #21262b;
+     S145 (owner: "use this colors"): the fills were the owner's pastel legend —
+     Low #A8C995 (sage) · Medium #E8C15A (gold) · High #E99169 (coral) · Urgent
+     #D9365B (crimson) — where three fills were light enough that the banner ink had
+     to flip to a dark self-contained color per priority.
+     S149 (owner: "Use this new colors for priority color-coding" + the exact
+     legend): the fills are now the AA-WITH-WHITE set — Low #4F6E8C (steel) ·
+     Medium #9C6B1F (bronze) · High #A85023 (rust) · Urgent #B23A34 (brick).
+     All four clear AA normal-text with a WHITE label (5.3 / 4.6 / 5.5 / 5.9 vs
+     white), so the banner ink is WHITE on every priority — the per-priority ink
+     flip is gone. The CANONICAL tokens are the owner's --color-* names; the
+     --prio-banner-* aliases keep every existing consumer humming, and the whole
+     priority family (banner, dots, filter segments, composer chips) now reads
+     these four tokens — no priority hue is hardcoded anywhere else. */
+  --color-low: #4f6e8c;
+  --color-medium: #9c6b1f;
+  --color-high: #a85023;
+  --color-urgent: #b23a34;
+  --prio-banner-urgent: var(--color-urgent);
+  --prio-banner-high: var(--color-high);
+  --prio-banner-medium: var(--color-medium);
+  --prio-banner-low: var(--color-low);
+  --prio-banner-ink: #ffffff;
 
   /* Status badge colors — pastel wash + AA ink of the SAME hue as --st-<status>.
      (unreviewed stays the devboard lane tint it always was — not a project stage.) */

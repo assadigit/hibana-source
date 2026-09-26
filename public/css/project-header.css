@@ -964,11 +964,15 @@ button.pd-task-add {
 }
 .pd-prio-chip .prio-dot { inline-size: 9px; block-size: 9px; margin-block-start: 0; }
 /* S145 (owner: "use this colors"): borders + tints from the owner's banner palette
-   (rgba tints over the card stay dark-safe); the text tokens stay theme-adaptive. */
-.pd-prio-chip.prio-urgent { border-color: #d9365b; background: rgb(217 54 91 / 0.12); color: var(--err); }
-.pd-prio-chip.prio-high { border-color: #e99169; background: rgb(233 145 105 / 0.12); color: var(--err); }
-.pd-prio-chip.prio-medium { border-color: #e8c15a; background: rgb(232 193 90 / 0.16); color: var(--warn); }
-.pd-prio-chip.prio-low { border-color: #a8c995; background: rgb(168 201 149 / 0.14); color: var(--muted); }
+   (rgba tints over the card stay dark-safe); the text tokens stay theme-adaptive.
+   S149 (owner: "Use this new colors for priority color-coding"): the border + tint
+   derive from the canonical --color-* tokens via color-mix now — the four hardcoded
+   hex/rgb pairs are gone (design-token law); the text tokens stay theme-adaptive
+   (the S149 fills are dark, and dark-on-dark fails in the dark theme). */
+.pd-prio-chip.prio-urgent { border-color: var(--color-urgent); background: color-mix(in srgb, var(--color-urgent) 12%, transparent); color: var(--err); }
+.pd-prio-chip.prio-high { border-color: var(--color-high); background: color-mix(in srgb, var(--color-high) 12%, transparent); color: var(--err); }
+.pd-prio-chip.prio-medium { border-color: var(--color-medium); background: color-mix(in srgb, var(--color-medium) 16%, transparent); color: var(--warn); }
+.pd-prio-chip.prio-low { border-color: var(--color-low); background: color-mix(in srgb, var(--color-low) 14%, transparent); color: var(--muted); }
 
 /* The composer's options row (priority + labels side by side, wrapping on mobile). */
 .pd-taskadd-opts { display: flex; gap: 1rem; flex-wrap: wrap; align-items: flex-start; }

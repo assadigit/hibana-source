@@ -1488,15 +1488,17 @@ mark.note-jump {
 }
 .pd-detail-prio {
   font-size: 10px; font-weight: 700; letter-spacing: 0.09em; text-transform: uppercase;
-  line-height: 1.25; color: #fff; /* S150: white stays the base — the saturated high/urgent fills */
+  line-height: 1.25; color: var(--prio-banner-ink); /* S154: was a hardcoded #fff — the badge family's base-ink token (white in light) */
   padding: 0.24rem 0.6rem; border-radius: 999px; white-space: nowrap;
 }
 /* S150 fill+ink pairs: the pale slate/gold fills carry their dark ink (owner AA table);
-   the pill is self-contained so dark rides free. */
-.pd-detail-prio.prio-low { background: var(--color-low); color: var(--color-low-ink); }
-.pd-detail-prio.prio-medium { background: var(--color-medium); color: var(--color-medium-ink); }
-.pd-detail-prio.prio-high { background: var(--color-high); }
-.pd-detail-prio.prio-urgent { background: var(--color-urgent); }
+   the pill is self-contained. S154: the chip reads the BANNER tokens (the ONE badge
+   family) instead of --color-* — light is unchanged (they alias --color-* there) and
+   the dark overrides in claude-dark-theme.css flow to the slide-over too. */
+.pd-detail-prio.prio-low { background: var(--prio-banner-low); color: var(--prio-banner-ink-low); }
+.pd-detail-prio.prio-medium { background: var(--prio-banner-medium); color: var(--prio-banner-ink-medium); }
+.pd-detail-prio.prio-high { background: var(--prio-banner-high); color: var(--prio-banner-ink-high); }
+.pd-detail-prio.prio-urgent { background: var(--prio-banner-urgent); color: var(--prio-banner-ink-urgent); }
 .pd-detail-status {
   font-size: var(--fs-xs, 0.8rem); color: var(--muted);
   padding: 0.2rem 0.55rem; border: 1px solid var(--line);

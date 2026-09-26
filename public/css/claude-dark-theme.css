@@ -100,6 +100,26 @@ html[data-theme='claude-dark'] {
   --badge-awaiting_dev-bg: #2D2B3D;        --badge-awaiting_dev-fg: #ABA5CC;     /* S141: violet family, AA 5.9 */
   --badge-operational-bg: #1F3222;   --badge-operational-fg: #94C9A2; /* green     */
 
+  /* ---------- Priority badges — the owner's S154 dark pairs ----------
+     Light keeps the S150 fill+ink pairs untouched; in dark the full-opacity
+     light fills read as a luminance jump on the near-black canvas, so each
+     badge becomes a low-opacity tint of its own hue blended into the dark
+     surface with a lightened same-hue ink (the owner's rationale). The exact
+     values below are the owner's — do NOT shift a channel: High (4.68:1) and
+     Urgent (4.54:1) sit just above the AA floor and any drift drops them
+     under 4.5:1. Owner-verified + independently re-checked here:
+       Low    ink #83A3C3 on fill #292F36  (5.14:1)
+       Medium ink #E2BE5A on fill #383325  (7.04:1)
+       High   ink #E97949 on fill #3E2A23  (4.68:1)
+       Urgent ink #EC6E65 on fill #3E2828  (4.54:1)
+     The kanban banner, the detail slide-over chip and the reports share-bar
+     all read the ONE --prio-banner-* family, so this block re-colors every
+     TEXT badge surface at once; the dots (no text) keep their light fills. */
+  --prio-banner-low: #292F36;      --prio-banner-ink-low: #83A3C3;
+  --prio-banner-medium: #383325;   --prio-banner-ink-medium: #E2BE5A;
+  --prio-banner-high: #3E2A23;     --prio-banner-ink-high: #E97949;
+  --prio-banner-urgent: #3E2828;   --prio-banner-ink-urgent: #EC6E65;
+
   /* S138 (owner correction on the S137 redesign): the per-status kanban card tints
      are BACK — the card mixes the (muted-chroma dark) --st-* token over the dark
      --card via the shared color-mix rules (notifications.css). Dark keeps the same

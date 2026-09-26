@@ -435,12 +435,16 @@ body.zen-mode .zen-exit { display: inline-flex; animation: zen-exit-in 0.3s ease
   background: var(--bg-inset, var(--bg));
 }
 .rep-share-seg { block-size: 100%; min-inline-size: 0; }
-.rep-share-seg.prio-low { background: rgb(168 201 149 / 0.75); }
-.rep-share-seg.prio-medium { background: rgb(232 193 90 / 0.75); }
-.rep-share-seg.prio-high { background: rgb(233 145 105 / 0.75); }
-/* S145: urgent keeps its full-strength pop, now from the owner's banner token. */
-.rep-share-seg.prio-urgent { background: var(--prio-banner-urgent, #d9365b); }
-.rep-share-seg.bg.prio-urgent { background: var(--prio-banner-urgent, #d9365b); }
+/* S154: the four share-bar segments read the ONE --prio-banner-* family — the retired
+   S143 rgb literals (low/medium/high) and the stale #d9365b fallback (urgent) leave.
+   Light now matches the S150 fills (the S145 "every priority indicator shares one hue
+   family" intent finally reaches this file; no e2e pins the segment colors) and dark
+   inherits the owner's S154 badge tints from claude-dark-theme.css. */
+.rep-share-seg.prio-low { background: var(--prio-banner-low); }
+.rep-share-seg.prio-medium { background: var(--prio-banner-medium); }
+.rep-share-seg.prio-high { background: var(--prio-banner-high); }
+.rep-share-seg.prio-urgent { background: var(--prio-banner-urgent); }
+.rep-share-seg.bg.prio-urgent { background: var(--prio-banner-urgent); }
 .rep-share-note { margin-block: 0 0.4rem; }
 
 /* label chips — dot + name + count + done/fresh riders */

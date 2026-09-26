@@ -2766,9 +2766,13 @@
         // pinned-shots button (that last guard is a free latent-defect fix — a pin
         // click used to open the editor ALONGSIDE the shots dialog, both listeners
         // ran).
+        // S151: set by the touch-drag release — the synthetic click that follows an
+        // active drag must not ALSO open the detail slide-over.
+        let pdSuppressClickUntil = 0
         ctx.on('click', (e) => {
           const task = e.target.closest('.pd-task[role="button"]')
           if (!task) return
+          if (Date.now() < pdSuppressClickUntil) return
           // Don't hijack clicks on the ⋯ menu or its popover
           if (e.target.closest('.spark-menu, .spark-menu-pop, [data-menu-open]')) return
           // Don't hijack the read-more button (it expands the clamped title)
@@ -3261,6 +3265,46 @@
         // existing task editor); Delete calls DELETE /api/devtasks/:id + removes the card
         // with an Undo toast. Also marks .pd-task-title with [data-magic] so the magic wand
         // can polish/translate it. Re-runs on every htmx swap (cards are re-rendered).
+        // S151: the delete flow is ONE function shared by the card's ⋯ menu and the
+        // detail slide-over's Delete action (was inline in the menu wiring — two
+        // implementations waiting to drift). Optimistic removal + count decrement +
+        // the undo toast (full raw string) + the DELETE fetch + the same-beat repaint.
+        function pdDeleteTaskFlow(card) {
+          const tid = card.dataset.pdTask
+          if (!tid) return
+          const status = card.dataset.pdStatus || 'idea'
+          // S149: the undo toast restores the FULL raw string (title + \n +
+          // content) — the old textContent read only the first line, so an undone
+          // task came back with its content silently dropped.
+          const titleEl = card.querySelector('.pd-task-title')
+          const titleText = (titleEl && titleEl.getAttribute('data-raw-title')) || (titleEl ? titleEl.textContent : '') || ''
+          // Optimistic removal
+          card.remove()
+          // Decrement the column count
+          const countEl = document.querySelector('[data-pd-count="' + status + '"]')
+          if (countEl) {
+            const n = Math.max(0, Number(countEl.dataset.n || '0') - 1)
+            countEl.dataset.n = String(n)
+            countEl.textContent = pdDig(n)
+          }
+          window.hibana?.toast(_t('db.taskDeleted', 'Task deleted'), 'info', 6000, [{
+            label: _t('common.undo', 'Undo'),
+            onClick: () => {
+              fetch('/api/projects/' + id + '/devtasks', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ title: titleText, status: status }),
+              }).then((r) => { if (r.ok) pdRepaintColumns([status]) }).catch(() => {}) // S149: the restore repaints — no reload
+            },
+          }])
+          fetch('/api/devtasks/' + tid, { method: 'DELETE' })
+            .then((r) => {
+              if (!r.ok) return
+              window.__hibanaProjectResumeTouch?.() // S105: a delete IS an interaction
+              pdRepaintColumns([status]) // S149: a hidden item surfaces in the same beat
+            })
+            .catch(() => window.hibana?.toast(_t('notes.deleteFailed', "Couldn't delete"), 'err'))
+        }
         function injectPdTaskMenus() {
           // Target .pd-task-wrap (the wrapper OUTSIDE the <a>) so menu clicks don't
           // bubble into the <a>'s navigation. Falls back to .pd-task for back-compat.
@@ -3343,39 +3387,7 @@
               ev.preventDefault()
               ev.stopPropagation()
               closePdTaskMenus()
-              const card = task
-              const status = card.dataset.pdStatus || 'idea'
-              // S149: the undo toast restores the FULL raw string (title + \n +
-              // content) — the old textContent read only the first line, so an undone
-              // task came back with its content silently dropped.
-              const titleEl = card.querySelector('.pd-task-title')
-              const titleText = (titleEl && titleEl.getAttribute('data-raw-title')) || (titleEl ? titleEl.textContent : '') || ''
-              // Optimistic removal
-              card.remove()
-              // Decrement the column count
-              const countEl = document.querySelector('[data-pd-count="' + status + '"]')
-              if (countEl) {
-                const n = Math.max(0, Number(countEl.dataset.n || '0') - 1)
-                countEl.dataset.n = String(n)
-                countEl.textContent = pdDig(n)
-              }
-              window.hibana?.toast(_t('db.taskDeleted', 'Task deleted'), 'info', 6000, [{
-                label: _t('common.undo', 'Undo'),
-                onClick: () => {
-                  fetch('/api/projects/' + id + '/devtasks', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ title: titleText, status: status }),
-                  }).then((r) => { if (r.ok) pdRepaintColumns([status]) }).catch(() => {}) // S149: the restore repaints — no reload
-                },
-              }])
-              fetch('/api/devtasks/' + tid, { method: 'DELETE' })
-                .then((r) => {
-                  if (!r.ok) return
-                  window.__hibanaProjectResumeTouch?.() // S105: a delete IS an interaction
-                  pdRepaintColumns([status]) // S149: a hidden item surfaces in the same beat
-                })
-                .catch(() => window.hibana?.toast(_t('notes.deleteFailed', "Couldn't delete"), 'err'))
+              pdDeleteTaskFlow(task) // S151: one shared delete flow (the slide-over uses it too)
             })
           })
         }
@@ -3404,6 +3416,10 @@
         // click is the VIEW, the menu is the EDIT).
         let pdDetailRoot = null
         let pdDetailLastFocus = null
+        // S151: the panel's own actions ride the CURRENT wrap (Edit/Delete need the
+        // task id + the live card element; Copy needs the raw title+content string).
+        let pdDetailCurrentWrap = null
+        let pdDetailCurrentRaw = ''
         const PD_DETAIL_STATUS = {
           idea: ['db.st.idea', 'New Ideas'],
           planned: ['db.st.planned', 'Plans'],
@@ -3415,6 +3431,8 @@
           if (!pdDetailRoot || !pdDetailRoot.classList.contains('open')) return
           pdDetailRoot.classList.remove('open')
           document.body.classList.remove('pd-detail-lock')
+          const pop = pdDetailRoot.querySelector('.pd-detail-menu .spark-menu-pop')
+          if (pop) pop.hidden = true
           if (pdDetailLastFocus && document.contains(pdDetailLastFocus) && pdDetailLastFocus.focus) pdDetailLastFocus.focus()
           pdDetailLastFocus = null
         }
@@ -3424,6 +3442,8 @@
           const nl = raw.indexOf('\n')
           const head = nl >= 0 ? raw.slice(0, nl) : raw
           const content = nl >= 0 ? raw.slice(nl + 1).replace(/^\n+/, '').trim() : ''
+          pdDetailCurrentWrap = wrap
+          pdDetailCurrentRaw = raw
           const prio = wrap.dataset.pdPriority || 'medium'
           const status = wrap.dataset.pdStatus || 'planned'
           const created = wrap.dataset.pdCreated || ''
@@ -3438,6 +3458,23 @@
                 '<div class="pd-detail-head">' +
                   '<span class="pd-detail-prio" data-pd-detail-prio></span>' +
                   '<span class="pd-detail-status" data-pd-detail-status></span>' +
+                  // S151 (owner): the slide-over carries its own actions — an INSTANT
+                  // copy button (title + content → clipboard, one tap) and the ⋯ menu
+                  // (Edit / Delete) so the read view needs no detour back to the card.
+                  '<div class="pd-detail-actions">' +
+                    '<button type="button" class="ghost icon-btn" data-pd-detail-copy aria-label="' + pdEsc(_t('common.copy', 'Copy')) + '" title="' + pdEsc(_t('common.copy', 'Copy')) + '">' +
+                      '<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>' +
+                    '</button>' +
+                    '<div class="spark-menu pd-detail-menu">' +
+                      '<button type="button" data-menu-open aria-haspopup="true" aria-label="' + pdEsc(_t('sparks.more', 'More actions')) + '">' +
+                        '<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="5" cy="12" r="1.7" fill="currentColor"/><circle cx="12" cy="12" r="1.7" fill="currentColor"/><circle cx="19" cy="12" r="1.7" fill="currentColor"/></svg>' +
+                      '</button>' +
+                      '<div class="spark-menu-pop" hidden>' +
+                        '<button type="button" data-pd-detail-edit><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg><span>' + _t('common.edit', 'Edit') + '</span></button>' +
+                        '<button type="button" class="danger" data-pd-detail-delete><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg><span>' + _t('common.delete', 'Delete') + '</span></button>' +
+                      '</div>' +
+                    '</div>' +
+                  '</div>' +
                   '<button type="button" class="ghost icon-btn pd-detail-x" data-pd-detail-close aria-label="' + pdEsc(_t('common.close', 'Close')) + '">' +
                     '<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>' +
                   '</button>' +
@@ -3450,10 +3487,59 @@
               '</aside>'
             document.body.appendChild(pdDetailRoot)
             pdDetailRoot.addEventListener('click', (ev) => {
-              if (ev.target.closest('[data-pd-detail-close]')) { ev.preventDefault(); closePdTaskDetail() }
+              if (ev.target.closest('[data-pd-detail-close]')) { ev.preventDefault(); closePdTaskDetail(); return }
+              // S151: the panel's own action wiring (copy / ⋯ toggle / Edit / Delete)
+              const copyBtn = ev.target.closest('[data-pd-detail-copy]')
+              if (copyBtn) {
+                ev.preventDefault()
+                navigator.clipboard.writeText(pdDetailCurrentRaw || '').then(() => {
+                  window.hibana?.toast(_t('common.copied', 'Copied to clipboard'))
+                }).catch(() => {
+                  window.hibana?.toast(_t('sparks.saveFailed', "Couldn't copy"), 'err')
+                })
+                return
+              }
+              if (ev.target.closest('[data-menu-open]')) {
+                ev.preventDefault()
+                ev.stopPropagation()
+                const menu = ev.target.closest('.spark-menu')
+                const pop = menu && menu.querySelector('.spark-menu-pop')
+                if (!pop) return
+                const willOpen = pop.hidden
+                if (!willOpen) pop.hidden = true
+                else {
+                  pop.hidden = false
+                  const b = menu.querySelector('[data-menu-open]')
+                  if (b) b.setAttribute('data-open', '')
+                }
+                return
+              }
+              if (ev.target.closest('[data-pd-detail-edit]')) {
+                ev.preventDefault()
+                const wrap = pdDetailCurrentWrap
+                const tid = wrap && wrap.dataset.pdTask
+                closePdTaskDetail()
+                if (tid && wrap && document.contains(wrap)) openPdTaskEditor(tid, wrap)
+                return
+              }
+              if (ev.target.closest('[data-pd-detail-delete]')) {
+                ev.preventDefault()
+                const wrap = pdDetailCurrentWrap
+                closePdTaskDetail()
+                if (wrap && document.contains(wrap)) pdDeleteTaskFlow(wrap)
+                return
+              }
+              // a click anywhere else in the panel closes the ⋯ pop (outside-click rule)
+              if (!ev.target.closest('.pd-detail-menu')) {
+                const pop = pdDetailRoot.querySelector('.pd-detail-menu .spark-menu-pop')
+                if (pop && !pop.hidden) pop.hidden = true
+              }
             })
             document.addEventListener('keydown', (ev) => {
               if (ev.key !== 'Escape' || !pdDetailRoot.classList.contains('open')) return
+              // Escape closes the ⋯ pop FIRST (one layer per press, like the cards)
+              const pop = pdDetailRoot.querySelector('.pd-detail-menu .spark-menu-pop')
+              if (pop && !pop.hidden) { ev.preventDefault(); pop.hidden = true; return }
               ev.preventDefault()
               closePdTaskDetail()
             })
@@ -4420,37 +4506,42 @@
           try { e.dataTransfer.setData('text/plain', wrap.dataset.pdTask || '') } catch {}
           wrap.classList.add('dragging')
         })
+        // S151: the live column-placement shared by the mouse dragover and the touch
+        // drag — the wrap physically repositions (the pointer never loses the card),
+        // landing before the +N more link like the server render would.
+        const pdPlaceInList = (col, wrap, x, y) => {
+          const list = col.querySelector('.pd-tasks')
+          if (!list) return
+          // targets are .pd-task-wrap elements (the wrapper, not the <a> inside)
+          const under = document.elementFromPoint(x, y)
+          const target = under && under.closest ? under.closest('.pd-task-wrap') : null
+          const more = list.querySelector('[data-pd-more]')
+          if (target && target !== wrap) {
+            const r = target.getBoundingClientRect()
+            list.insertBefore(wrap, y > r.top + r.height / 2 ? target.nextSibling : target)
+          } else if (!target && more && more !== wrap) {
+            list.insertBefore(wrap, more)
+          } else if (!target && !more) {
+            list.appendChild(wrap)
+          }
+        }
         ctx.on('dragover', (e) => {
           if (!pdDrag) return
           const col = e.target.closest ? e.target.closest('#pd-board .pd-col') : null
           if (!col) return
           e.preventDefault()
           if (pdOver !== col) { pdClearOver(); pdOver = col; col.classList.add('drag-over') }
-          // live position feedback inside the hovered column (lands before the +N more link)
-          const list = col.querySelector('.pd-tasks')
-          if (!list) return
-          // targets are .pd-task-wrap elements (the wrapper, not the <a> inside)
-          const target = e.target.closest ? e.target.closest('.pd-task-wrap') : null
-          const more = list.querySelector('[data-pd-more]')
-          if (target && target !== pdDrag) {
-            const r = target.getBoundingClientRect()
-            list.insertBefore(pdDrag, e.clientY > r.top + r.height / 2 ? target.nextSibling : target)
-          } else if (!target && more && more !== pdDrag) {
-            list.insertBefore(pdDrag, more)
-          } else if (!target && !more) {
-            list.appendChild(pdDrag)
-          }
+          pdPlaceInList(col, pdDrag, e.clientX, e.clientY)
         })
-        ctx.on('drop', async (e) => {
-          if (!pdDrag) return
-          e.preventDefault()
-          const el = pdDrag
+        // S151: the drop CONTRACT is a named function so the touch path (below) can
+        // land through the exact same PATCH + same-beat repaint flow — one drop
+        // implementation for the mouse and the finger, nothing to drift.
+        async function pdCompleteDrop(el) {
           const col = el.closest('.pd-col')
           const from = el.dataset.pdStatus
           const to = col ? col.dataset.status : from
           pdClearOver()
-          el.classList.remove('dragging')
-          pdDrag = null
+          el.classList.remove('dragging', 'touch-lift')
           if (!col || !el.dataset.pdTask) return
           if (from === to) {
             // same box — only the order changed (board.html contract). S29 follow-up:
@@ -4565,11 +4656,95 @@
             window.hibana?.toast(_t('pd.moveFailed', "Couldn't move the task"), 'err')
             refreshBody() // restore server truth
           }
+        }
+        ctx.on('drop', (e) => {
+          if (!pdDrag) return
+          e.preventDefault()
+          const el = pdDrag
+          pdDrag = null
+          return pdCompleteDrop(el)
         })
         ctx.on('dragend', () => {
           pdClearOver()
           if (pdDrag) { pdDrag.classList.remove('dragging'); pdDrag = null }
         })
+
+        // --- S151: TOUCH DRAG for the board -----------------------------------------
+        // The kanban's drag-and-drop rode HTML5 DnD alone (draggable + dragstart) —
+        // which NEVER fires on touch devices (iOS Safari, Android, the PWA): the
+        // owner's "the drag and drop ajax ability of kanban is gone fix it". This
+        // pointer path gives touch the SAME contract: long-press (~260ms) lifts the
+        // card, moving repositions it through the shared pdPlaceInList, releasing
+        // drops through the SAME pdCompleteDrop (PATCH + the same-beat See More
+        // reveal). A >12px early move cancels the press (the finger meant to scroll,
+        // not drag); the synthetic click after an active drag is suppressed so the
+        // release tap doesn't ALSO open the detail slide-over. The listeners live on
+        // DOCUMENT with #pd-board filtering — the board is server-rendered inside
+        // #project-body, which htmx swaps in AFTER mount (getElementById at mount
+        // time is null; the ctx.on delegation the mouse path uses is document-level
+        // for the same reason).
+        if (typeof document.elementFromPoint === 'function') {
+          let pdTouch = null
+          const pdTouchReset = () => {
+            if (!pdTouch) return
+            if (pdTouch.timer) clearTimeout(pdTouch.timer)
+            if (pdTouch.active) {
+              pdTouch.wrap.classList.remove('dragging', 'touch-lift')
+              pdClearOver()
+              if (pdDrag === pdTouch.wrap) pdDrag = null
+            }
+            pdTouch = null
+          }
+          document.addEventListener('touchstart', (e) => {
+            if (pdTouch || !e.touches || e.touches.length !== 1) return
+            if (!(e.target instanceof Element) || !e.target.closest('#pd-board')) return
+            // the ⋯ menu, banner cycle, read-more, tags and pins carry their own actions
+            if (e.target.closest('.spark-menu, .spark-menu-pop, [data-menu-open], [data-pd-cycle-prio], [data-task-read-more], .pd-tag, [data-pd-shots], a, button')) return
+            const card = e.target.closest('#pd-board .pd-task')
+            if (!card || !card.hasAttribute('draggable')) return
+            const wrap = card.closest('.pd-task-wrap')
+            if (!wrap || !wrap.dataset.pdTask) return
+            const t0 = e.touches[0]
+            pdTouch = { wrap, x0: t0.clientX, y0: t0.clientY, active: false, timer: 0 }
+            pdTouch.timer = setTimeout(() => {
+              if (!pdTouch || pdTouch.wrap !== wrap) return
+              pdTouch.active = true
+              pdDrag = wrap // the shared drag state stays coherent for both paths
+              wrap.classList.add('dragging', 'touch-lift')
+              try { if (navigator.vibrate) navigator.vibrate(12) } catch { /* no haptics — fine */ }
+            }, 260)
+          }, { passive: true })
+          document.addEventListener('touchmove', (e) => {
+            if (!pdTouch) return
+            const t = e.touches && e.touches[0]
+            if (!t) return
+            const dx = t.clientX - pdTouch.x0
+            const dy = t.clientY - pdTouch.y0
+            if (!pdTouch.active) {
+              if (dx * dx + dy * dy > 144) pdTouchReset() // the finger meant to scroll
+              return
+            }
+            e.preventDefault() // the active drag owns the gesture (non-passive listener)
+            const under = document.elementFromPoint(t.clientX, t.clientY)
+            const colEl = under && under.closest ? under.closest('#pd-board .pd-col') : null
+            if (colEl && pdOver !== colEl) { pdClearOver(); pdOver = colEl; colEl.classList.add('drag-over') }
+            if (colEl) pdPlaceInList(colEl, pdTouch.wrap, t.clientX, t.clientY)
+          }, { passive: false })
+          document.addEventListener('touchend', () => {
+            if (!pdTouch) return
+            const wasActive = pdTouch.active
+            const wrap = pdTouch.wrap
+            pdTouchReset()
+            if (!wasActive) return
+            pdSuppressClickUntil = Date.now() + 450
+            pdCompleteDrop(wrap)
+          })
+          document.addEventListener('touchcancel', () => pdTouchReset())
+          // an active drag must not pop the OS context menu (Android long-press)
+          document.addEventListener('contextmenu', (e) => {
+            if (pdTouch && pdTouch.active && e.target instanceof Element && e.target.closest('#pd-board')) e.preventDefault()
+          })
+        }
 
         // --- Item 5 + 7 (user request 2026-09-09): shared full-screen modal editor -------
         // The note textarea (Expand) and the backlog-doc editor (Full screen) both open

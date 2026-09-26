@@ -180,9 +180,11 @@
                   const prioHint = B().esc(_t('db.cyclePrio', 'Priority: {p} — click to change').replace('{p}', B().prioLabel(task.priority || 'medium')))
                   const prioBanner =
                     '<button type="button" class="prio-banner prio-' + (task.priority || 'medium') + '" data-db-cycle-prio="' + task.id + '" title="' + prioHint + '" aria-label="' + prioHint + '"><span class="prio-banner-label">' + B().esc(prioLong(task.priority || 'medium')) + '</span></button>'
-                  const chipsHtml = (cat || tags.length || sprint
+                  // S152 (block 6): the category chip moved ABOVE the title row (the
+                  // owner's placement spec) and wears the curated fill+ink pair.
+                  const catChipHtml = cat ? '<span class="cat-chip" style="background:' + B().esc(cat.color_fill) + ';color:' + B().esc(cat.color_text) + '">' + B().esc(cat.name) + '</span>' : ''
+                  const chipsHtml = (tags.length || sprint
                     ? '<span class="pd-task-tags">' +
-                      (cat ? '<span class="db-cat-chip" style="background:' + cat.color + '2E;color:' + cat.color + '">' + B().esc(cat.name) + '</span>' : '') +
                       // S30 batch 2: label chips are FILTER toggles (GitHub behavior) —
                       // S136: rendered as the project page's .pd-tag spans (data-pd-tag-name
                       // carries the match key; the colored .pd-tag-dot replaces the ● text).
@@ -198,6 +200,7 @@
                   return '<div class="pd-task-wrap" data-task-card="' + task.id + '" data-priority="' + (task.priority || 'medium') + '">' + prioBanner +
                     '<div class="pd-task st-' + task.status + '" draggable="true" role="button" tabindex="0" aria-label="' + B().esc(task.title) + '">' +
                       '<span class="pd-task-body">' +
+                        catChipHtml +
                         '<span class="pd-task-title-row" dir="auto">' +
                           '<span class="pd-task-title"' + titleAttrs(task.title) + '>' + titleHtml(task.title) + '</span>' +
                         '</span>' +

@@ -8,6 +8,7 @@ import { projectsRoutes } from './routes/projects/index'
 import { coreRoutes } from './routes/core'
 import { devboardRoutes } from './routes/devboard'
 import { tagsRoutes } from './routes/tags'
+import { categoriesRoutes } from './routes/categories'
 import { searchRoutes } from './routes/search'
 import { dashboardRoutes } from './routes/dashboard'
 import { quickNotesRoutes } from './routes/quicknotes'
@@ -353,6 +354,7 @@ export function createApp(cfg: Config) {
   // never see static file paths).
   app.route('/', devboardRoutes(cfg))
   app.route('/api/tags', tagsRoutes(cfg))
+  app.route('/', categoriesRoutes(cfg)) // S152: the global task-category library
   app.route('/api/search', searchRoutes(cfg))
   app.route('/api/dashboard', dashboardRoutes(cfg))
   app.route('/api/notes', quickNotesRoutes(cfg))

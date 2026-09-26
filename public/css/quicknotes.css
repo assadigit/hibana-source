@@ -1537,3 +1537,111 @@ body.pd-detail-lock { overflow: hidden; }
 @media (prefers-reduced-motion: reduce) {
   .pd-detail, .pd-detail-scrim { transition: none; }
 }
+
+/* ===== S152: the global task-category system ==================================== */
+/* (block 6) The category chip — a small colored pill wearing the category's own
+   fill+ink pair (stored per row; the 16 CURATED tiles themselves live in
+   variables.css as --cat-sw-*). Board cards render it DIRECTLY ABOVE the title
+   row; list rows and the slide-over reuse the same element. */
+.cat-chip {
+  display: inline-flex; align-items: center;
+  max-inline-size: 100%;
+  padding: 0.14rem 0.55rem;
+  border-radius: 999px;
+  font-size: 0.72rem; font-weight: 700; line-height: 1.35;
+  letter-spacing: 0.01em;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  /* the pale pastels keep an edge on any surface — a hairline in the chip's own
+     ink via color-mix (token-driven, no hardcoded hue) */
+  box-shadow: inset 0 0 0 1px rgb(0 0 0 / 0.06);
+}
+.cat-chip-sm { font-size: 0.66rem; padding: 0.08rem 0.45rem; }
+.pd-task-body > .cat-chip { margin-block-end: 0.2rem; }
+.pd-detail-cat { align-self: flex-start; margin-block-end: 0.35rem; }
+.pd-cat-setup .cat-chip, .pd-cat-toggle .cat-chip, .pd-cat-row .cat-chip { cursor: pointer; }
+
+/* (blocks 3+4) The picker popover: suggestion rows + the Create-'name' option +
+   the 16-tile swatch grid for the quick-add. Anchored to the field (logical props). */
+.pd-cat-field { position: relative; display: flex; flex-direction: column; gap: 0.3rem; }
+.pd-cat-row { display: flex; align-items: center; gap: 0.3rem; }
+.pd-cat-row input { flex: 1; min-inline-size: 0; }
+.pd-cat-pop {
+  position: absolute; inset-block-start: calc(100% + 0.3rem); inset-inline-start: 0;
+  z-index: 60; min-inline-size: min(20rem, 100%);
+  background: var(--card); color: var(--text);
+  border: 1px solid var(--line); border-radius: var(--radius-sm);
+  box-shadow: 0 8px 30px rgb(0 0 0 / 0.08);
+  padding: 0.3rem; display: grid; gap: 2px;
+  max-block-size: 60vh; overflow-y: auto;
+}
+.pd-cat-pop-head { font-size: 0.78rem; font-weight: 700; padding: 0.3rem 0.4rem; color: var(--muted); }
+.pd-cat-pop-row {
+  display: flex; align-items: center; gap: 0.4rem;
+  padding: 0.42rem 0.5rem; border-radius: var(--radius-sm);
+  background: none; border: 0; color: inherit; text-align: start;
+  font-size: 0.85rem; cursor: pointer; inline-size: 100%;
+}
+.pd-cat-pop-row:hover, .pd-cat-pop-row.is-hi, .pd-cat-pop-row.is-exact { background: color-mix(in srgb, var(--text) 7%, transparent); }
+.pd-cat-create { font-weight: 700; color: var(--brand, var(--text)); }
+.pd-cat-pop-back { color: var(--muted); }
+
+/* (block 5) The swatch grid — 16 fixed tiles, no free-form color anywhere. */
+.pd-cat-swatches {
+  display: grid; grid-template-columns: repeat(8, 1fr); gap: 0.3rem;
+  margin-block: 0.35rem;
+}
+.pd-cat-swatch-tile {
+  aspect-ratio: 1.6; border: 0; border-radius: 0.45rem; cursor: pointer;
+  font-size: 0.68rem; font-weight: 800; line-height: 1;
+  display: inline-flex; align-items: center; justify-content: center;
+  box-shadow: inset 0 0 0 1px rgb(0 0 0 / 0.08);
+  transition: transform 0.12s ease;
+}
+.pd-cat-swatch-tile:hover { transform: scale(1.06); }
+.pd-cat-swatch-tile.is-sel { outline: 2px solid var(--text); outline-offset: 1px; }
+@media (max-width: 480px) { .pd-cat-swatches { grid-template-columns: repeat(4, 1fr); } }
+
+/* (block 7) The zero-enabled setup prompt + the per-project toggle rows. */
+.pd-cat-setup {
+  border: 1px dashed var(--line); border-radius: var(--radius-sm);
+  padding: 0.7rem 0.85rem; margin-block-end: 0.7rem;
+  display: grid; gap: 0.4rem;
+}
+.pd-cat-setup-title { margin: 0; font-weight: 700; display: flex; align-items: center; gap: 0.4rem; }
+.pd-cat-setup-title .icon { inline-size: 1rem; block-size: 1rem; }
+.pd-cat-setup-list { display: grid; gap: 0.25rem; }
+.pd-cat-toggle {
+  display: flex; align-items: center; gap: 0.5rem;
+  padding: 0.32rem 0.45rem; border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+.pd-cat-toggle:hover { background: color-mix(in srgb, var(--text) 6%, transparent); }
+.pd-cat-toggle input { accent-color: var(--brand, currentColor); }
+.pd-cat-toggle-state { margin-inline-start: auto; font-size: 0.72rem; color: var(--muted); }
+.pd-cat-empty { margin: 0; }
+
+/* The per-project dialog + the Settings library list. */
+.pd-cats-inner { display: flex; flex-direction: column; overflow: hidden; }
+.pd-cat-toggle-list { display: grid; gap: 0.25rem; max-block-size: 40vh; overflow-y: auto; }
+.pd-cat-qa { display: flex; flex-wrap: wrap; align-items: center; gap: 0.4rem; margin-block-start: 0.6rem; }
+.pd-cat-qa input { flex: 1; min-inline-size: 8rem; }
+.pd-cat-qa .pd-cat-swatches { inline-size: 100%; }
+.pd-cat-settings-list { display: grid; gap: 0.3rem; margin-block-start: 0.5rem; }
+.pd-cat-row {
+  display: flex; align-items: center; gap: 0.6rem;
+  padding: 0.35rem 0.2rem;
+  border-block-end: 1px solid color-mix(in srgb, var(--line) 60%, transparent);
+}
+.pd-cat-row:last-child { border-block-end: 0; }
+.pd-cat-usage { margin-inline-start: auto; }
+.pd-cat-row-actions { display: flex; gap: 0.3rem; }
+.pd-cat-edit {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 0.4rem;
+  padding: 0.4rem 0.2rem;
+  border-block-end: 1px solid color-mix(in srgb, var(--line) 60%, transparent);
+}
+.pd-cat-edit [data-cat-name-in] { flex: 1; min-inline-size: 8rem; }
+.pd-cat-swatches-edit { inline-size: 100%; }
+/* The hidden attribute must always win over the component's display value
+   (the setup panel + the slide-over chip + the dialog's swatch drawer toggle). */
+.pd-cat-setup[hidden], .cat-chip[hidden], .pd-cat-qa [hidden], .pd-cat-pop[hidden] { display: none; }

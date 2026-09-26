@@ -219,6 +219,28 @@
   --prio-banner-ink-medium: var(--color-medium-ink);
   --prio-banner-ink-low: var(--color-low-ink);
 
+  /* S152: the 16 curated CATEGORY swatch pairs (the owner's table — every pair
+     pre-verified WCAG AA). This is the design-token home for the picker tiles;
+     the server's validation constant (src/lib/categories.ts) carries the same 16
+     and a unit test pins the two lists together (no drift). Categories store their
+     pair in DB rows; these tokens feed the swatch GRID + the quick-add UI. */
+  --cat-sw-1-fill: #F0CCCC;  --cat-sw-1-ink: #682727;
+  --cat-sw-2-fill: #F0D9CC;  --cat-sw-2-ink: #683F27;
+  --cat-sw-3-fill: #F0E7CC;  --cat-sw-3-ink: #685727;
+  --cat-sw-4-fill: #ECF0CC;  --cat-sw-4-ink: #5F6827;
+  --cat-sw-5-fill: #DEF0CC;  --cat-sw-5-ink: #476827;
+  --cat-sw-6-fill: #D0F0CC;  --cat-sw-6-ink: #2F6827;
+  --cat-sw-7-fill: #CCF0D5;  --cat-sw-7-ink: #276837;
+  --cat-sw-8-fill: #CCF0E2;  --cat-sw-8-ink: #27684F;
+  --cat-sw-9-fill: #CCF0F0;  --cat-sw-9-ink: #276868;
+  --cat-sw-10-fill: #CCE2F0; --cat-sw-10-ink: #274F68;
+  --cat-sw-11-fill: #CCD5F0; --cat-sw-11-ink: #273768;
+  --cat-sw-12-fill: #D0CCF0; --cat-sw-12-ink: #2F2768;
+  --cat-sw-13-fill: #DECCF0; --cat-sw-13-ink: #472768;
+  --cat-sw-14-fill: #ECCCF0; --cat-sw-14-ink: #5F2768;
+  --cat-sw-15-fill: #F0CCE7; --cat-sw-15-ink: #682757;
+  --cat-sw-16-fill: #F0CCD9; --cat-sw-16-ink: #68273F;
+
   /* Status badge colors — pastel wash + AA ink of the SAME hue as --st-<status>.
      (unreviewed stays the devboard lane tint it always was — not a project stage.) */
   --badge-spark-bg: #E8EFFB;         --badge-spark-fg: #2E5FA3;

@@ -184,10 +184,13 @@ describe('personal export isolation (buildUserSnapshot)', () => {
       await db.execute("INSERT INTO projects (id, user_id, title, status, created_at, updated_at) VALUES ('p-race', ?, 'P', 'doing', ?, ?)", [alice, now, now])
 
       const export_ = await buildUserSnapshot(db, alice)
-      expect(export_.missing_tables).toEqual(['note_folders', 'vault_notes'])
+      // S152 re-pin: the categories slice (guardedQuery on 'categories') + the
+      // project_categories join join the missing list in the pre-0062 window.
+      expect(export_.missing_tables).toEqual(['note_folders', 'vault_notes', 'project_categories', 'categories'])
       expect(export_.data.projects).toHaveLength(1) // everything else still exports
       expect(export_.data.note_folders).toBeUndefined()
       expect(export_.data.vault_notes).toBeUndefined()
+      expect(export_.data.categories).toBeUndefined()
     } finally {
       close()
     }

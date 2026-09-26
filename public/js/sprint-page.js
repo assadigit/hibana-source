@@ -46,7 +46,10 @@
         // horizontal scroll; the 2026-08-30 (e) “never show passed dates” rule keeps its
         // real meaning — no past DATA renders by default, the pad is bare grid context.
         let todayPad = 0
-        const PALETTE = ['#8AB8F0', '#E8B27D', '#E59AA5', '#8FD3A9', '#B3A5D6', '#7CC7C1', '#F2D58A', '#C9CDD2']
+        // S152: the 16 curated fill+ink pairs (radio values carry "fill/ink" — the
+        // submit splits them). The tiles' colors come from the --cat-sw-* tokens' same
+        // table (src/lib/categories.ts on the server; variables.css on the client).
+        const PALETTE = ['#F0CCCC/#682727', '#F0D9CC/#683F27', '#F0E7CC/#685727', '#ECF0CC/#5F6827', '#DEF0CC/#476827', '#D0F0CC/#2F6827', '#CCF0D5/#276837', '#CCF0E2/#27684F', '#CCF0F0/#276868', '#CCE2F0/#274F68', '#CCD5F0/#273768', '#D0CCF0/#2F2768', '#DECCF0/#472768', '#ECCCF0/#5F2768', '#F0CCE7/#682757', '#F0CCD9/#68273F']
 
         const lang = () => (window.hibanaI18n && window.hibanaI18n.lang ? window.hibanaI18n.lang() : 'en')
 
@@ -177,7 +180,7 @@
         // sidebar ----------------------------------------------------------------
         function renderSide() {
           const S = B().state
-          const groups = S.categories.map((c) => ({ cat: c, tasks: S.tasks.filter((x) => x.category_id === c.id) }))
+          const groups = S.categories.filter((c) => !c.is_archived).map((c) => ({ cat: c, tasks: S.tasks.filter((x) => x.category_id === c.id) })) // S152: archived leaves the grouping
           const uncategorized = S.tasks.filter((x) => !x.category_id || !B().findCategory(x.category_id))
           groups.push({ cat: null, tasks: uncategorized })
           sideEl.innerHTML =
@@ -186,14 +189,15 @@
             // hibanaI18n.ready, so the FA dictionary has landed by now).
             '<div class="sp-side-head">' + B().esc(_t('db.categories', 'Categories')) + '</div>' +
             groups.map((g) => {
-              const color = g.cat ? g.cat.color : '#C9CDD2'
+              const color = g.cat ? g.cat.color_fill : '#CCD5F0'
+              const ink = g.cat ? g.cat.color_text : '#273768'
               const name = g.cat ? g.cat.name : _t('db.uncategorized', 'Uncategorized')
               const gid = g.cat ? g.cat.id : 'none'
               const hid = g.cat ? laneHidden(g.cat.id) : false
               return '<div class="sp-cat' + (hid ? ' is-lane-hidden' : '') + '" data-spcat="' + gid + '">' +
-                '<div class="sp-cat-head" data-cat-toggle="' + gid + '" data-open="0" draggable="true">' +
+                '<div class="sp-cat-head" data-cat-toggle="' + gid + '" data-open="0">' +
                   '<button type="button" class="sp-cat-chevron" tabindex="-1" aria-hidden="true" style="transform:rotate(-90deg)">▾</button>' +
-                  '<span class="sp-cat-badge" style="background:' + color + '2E;color:' + color + '">' + B().esc(name) + '</span>' +
+                  '<span class="sp-cat-badge" style="background:' + color + '2E;color:' + ink + '">' + B().esc(name) + '</span>' +
                   '<span class="detail-tab-count">' + B().faDig(g.tasks.length) + '</span>' +
                   (g.cat
                     ? '<span class="sp-cat-tools">' +
@@ -217,8 +221,10 @@
             '<div class="sp-side-foot"><button type="button" class="db-add" data-new-category>＋ ' + B().esc(_t('db.newCategory', 'New category…')) + '</button>' +
             '<form class="pd-tag-pop sp-cat-pop" data-cat-form hidden>' +
               '<input name="name" maxlength="80" dir="auto" placeholder="' + B().esc(_t('db.categoryName', 'Category name (Feature Development…)')) + '" required>' +
-              '<div class="pd-tag-colors">' + PALETTE.map((c, i) =>
-                '<label class="pd-swatch"><input type="radio" name="catcolor" value="' + c + '" ' + (i === 0 ? 'checked' : '') + '><span style="background:' + c + '"></span></label>').join('') + '</div>' +
+              '<div class="pd-tag-colors">' + PALETTE.map((c, i) => {
+                const pr = c.split('/')
+                return '<label class="pd-swatch"><input type="radio" name="catcolor" value="' + c + '" ' + (i === 0 ? 'checked' : '') + '><span style="background:' + pr[0] + ';color:' + pr[1] + '"><b aria-hidden="true">Aa</b></span></label>'
+              }).join('') + '</div>' +
               '<div class="row"><button type="submit" class="btn small">' + B().esc(_t('common.add', 'Add')) + '</button><button type="button" class="ghost small" data-cat-cancel>' + B().esc(_t('common.cancel', 'Cancel')) + '</button></div>' +
             '</form></div>'
         }
@@ -419,11 +425,11 @@
           // While BROWSING THE PAST a bar that starts after the window end (future work)
           // is dropped too — the window is the focus, not the future.
           const hide = hiddenLanes()
-          const groups = S.categories.filter((c) => hide.indexOf(c.id) < 0)
+          const groups = S.categories.filter((c) => hide.indexOf(c.id) < 0 && !c.is_archived) // S152: archived leaves the lanes
             .map((c) => ({ cat: c, tasks: S.tasks.filter((x) => x.category_id === c.id) }))
           groups.push({ cat: null, tasks: S.tasks.filter((x) => !x.category_id || !B().findCategory(x.category_id)) })
           const lanesHtml = groups.map((g) => {
-            const color = g.cat ? g.cat.color : '#C9CDD2'
+            const color = g.cat ? g.cat.color_fill : '#CCD5F0'
             const visTasks = g.tasks.filter((task) => {
               const b = tEndFixed(task)
               if (b != null && b < range.start) return false // ended before the window
@@ -968,13 +974,15 @@
           catPop = document.createElement('div')
           catPop.className = 'sp-sprint-pop sp-cat-edit-pop'
           catPop.dataset.catId = cat.id
-          const cur = String(cat.color || '').toUpperCase()
+          const cur = String(cat.color_fill || '').toUpperCase() + '/' + String(cat.color_text || '').toUpperCase()
           catPop.innerHTML =
             '<div class="sp-pop-lab">' + B().esc(_t('db.renameCategory', 'Rename category')) + '</div>' +
             '<input value="' + B().esc(cat.name) + '" maxlength="80" dir="auto" data-ce-name>' +
             '<div class="sp-pop-lab">' + B().esc(_t('db.categoryColor', 'Color')) + '</div>' +
-            '<div class="pd-tag-colors">' + PALETTE.map((c) =>
-              '<label class="pd-swatch"><input type="radio" name="cecolor" value="' + c + '" ' + (c.toUpperCase() === cur ? 'checked' : '') + '><span style="background:' + c + '"></span></label>').join('') + '</div>' +
+            '<div class="pd-tag-colors">' + PALETTE.map((c) => {
+              const pr = c.split('/')
+              return '<label class="pd-swatch"><input type="radio" name="cecolor" value="' + c + '" ' + (c.toUpperCase() === cur ? 'checked' : '') + '><span style="background:' + pr[0] + ';color:' + pr[1] + '"><b aria-hidden="true">Aa</b></span></label>'
+            }).join('') + '</div>' +
             '<div class="row">' +
               '<button type="button" class="btn small" data-ce-save>' + B().esc(_t('common.save', 'Save')) + '</button>' +
               '<button type="button" class="ghost small" data-ce-cancel>' + B().esc(_t('common.cancel', 'Cancel')) + '</button>' +
@@ -992,11 +1000,14 @@
             const live = B().findCategory(catPop.dataset.catId)
             if (!live) return closeCatPop()
             const name = nameIn.value.trim()
-            const color = (catPop.querySelector('input[name=cecolor]:checked') || {}).value
+            const pair = ((catPop.querySelector('input[name=cecolor]:checked') || {}).value || '').split('/')
             const body = {}
             if (name && name !== live.name) body.name = name
-            if (color && color.toUpperCase() !== String(live.color || '').toUpperCase()) body.color = color
-            if (!body.name && !body.color) return closeCatPop()
+            if (pair.length === 2 && (pair[0].toUpperCase() !== String(live.color_fill || '').toUpperCase() || pair[1].toUpperCase() !== String(live.color_text || '').toUpperCase())) {
+              body.color_fill = pair[0]
+              body.color_text = pair[1]
+            }
+            if (!body.name && !body.color_fill) return closeCatPop()
             try {
               await B().patchCategory(live.id, body)
               closeCatPop()
@@ -1024,7 +1035,8 @@
           if (del) {
             const cat = B().findCategory(del.dataset.catDel)
             if (!cat) return
-            if (!window.confirm(_t('db.delCatConfirm', 'Delete this category? Its tasks move to Uncategorized.'))) return
+            // S152 (block 8): archive, not hard delete — rows stay, tasks keep the category.
+            if (!window.confirm(_t('db.archiveCatConfirm', 'Archive this category? Its tasks keep it — it just leaves the pickers and toggles.'))) return
             B().deleteCategory(cat.id).then(reload).catch(() => window.hibana && window.hibana.toast(_t('sparks.saveFailed', "Couldn't save"), 'err'))
             return
           }
@@ -1055,10 +1067,10 @@
           if (!form) return
           e.preventDefault()
           const name = form.querySelector('input[name=name]').value.trim()
-          const color = form.querySelector('input[name=catcolor]:checked')?.value
-          if (!name) return
+          const pair = (form.querySelector('input[name=catcolor]:checked')?.value || '').split('/')
+          if (!name || pair.length !== 2) return
           try {
-            await B().createCategory(name, color)
+            await B().createCategory(name, pair[0], pair[1])
             await reload()
           } catch { window.hibana && window.hibana.toast(_t('sparks.saveFailed', "Couldn't save"), 'err') }
         })
@@ -1299,8 +1311,8 @@
           clearDropUi()
           try {
             if (kind === 'cat') {
-              const ids = [...sideEl.querySelectorAll('.sp-cat')].map((x) => x.dataset.spcat).filter((x) => x !== 'none')
-              await B().reorderCategories(ids)
+              // S152: the library reads name-ordered — the per-project reorder retired
+              // with the global category system.
               await reload()
             } else if (kind === 'side-task') {
               const task = taskId ? B().findTask(taskId) : null

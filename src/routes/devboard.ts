@@ -24,7 +24,8 @@ import { jsonBody, etag } from '../lib/http'
 import { getOwnedProject, toastHtml } from '../lib/html'
 import { localeOf, trFor } from '../lib/i18n'
 import { uuid } from '../lib/ids'
-import type { Config, UserRow, DevTaskRow, DevTaskStatus, TaskCategory, SprintRow, TagRow, BacklogDocRow } from '../types'
+import type { Config, UserRow, DevTaskRow, DevTaskStatus, SprintRow, TagRow, BacklogDocRow } from '../types'
+import { isValidCatPair, normCatName, type CategoryRow } from '../lib/categories'
 
 const taskStatusSchema = z.enum(['idea', 'planned', 'in_progress', 'done', 'bug'])
 const prioritySchema = z.enum(['low', 'medium', 'high', 'urgent'])
@@ -71,12 +72,11 @@ const updateDevTaskSchema = z.object({
 }).refine(clipRangeOk, { message: 'bad_range' })
 const createCategorySchema = z.object({
   name: z.string().trim().min(1).max(80),
-  color: hexColor.optional(),
+  color_fill: z.string().max(7),
+  color_text: z.string().max(7),
 })
-const updateCategorySchema = z.object({
-  name: z.string().trim().min(1).max(80).optional(),
-  color: hexColor.optional(),
-})
+// S152: rename/recolor/archive moved to routes/categories.ts (the global library is
+// the ONE system after 0062 — the devboard's per-project CRUD retired).
 // 0052 (Session 33 — user request: «اسپرینت جدید» CTA → name/version/description modal →
 // full-screen rich editor): a sprint carries a version label + a rich markdown doc.
 // The description IS the editor's subject — seeded by the modal box, edited in the
@@ -119,7 +119,7 @@ const dayIdx = (x: string) => Math.floor(Date.parse(x) / 86400000)
 import {
   logHistory,
   ownedTask,
-  ownedCategory,
+  categoryEnabledOnProject,
   ownedSprint,
   ownedBacklogDoc,
   loadBacklog,
@@ -140,7 +140,7 @@ export function devboardRoutes(cfg: Config) {
     const user = c.get('user')
     const p = await getOwnedProject(cfg, user.id, c.req.param('projectId'))
     if (!p) return c.json({ error: 'not_found' }, 404)
-    const [tasks, categories, sprints, tags, taskTags] = await Promise.all([
+    const [tasks, sprints, tags, taskTags, categories] = await Promise.all([
       cfg.db.query<DevTaskRow & { tags: string }>(
         // S29 follow-up: PRIORITY-FIRST ordering — tasks auto-sort urgent → high →
         // medium → low inside every column (sort_order = manual drag still orders
@@ -149,10 +149,24 @@ export function devboardRoutes(cfg: Config) {
          FROM dev_tasks t WHERE t.project_id = ? ORDER BY ${PRIO_ORDER_SQL}, t.sort_order, t.created_at`,
         [p.id],
       ),
-      cfg.db.query<TaskCategory>('SELECT * FROM task_categories WHERE project_id = ? ORDER BY sort_order, created_at', [p.id]),
       cfg.db.query<SprintRow>('SELECT * FROM sprints WHERE project_id = ? ORDER BY started_at', [p.id]),
       cfg.db.query<TagRow>('SELECT t.* FROM tags t WHERE t.user_id = ? ORDER BY t.name', [user.id]),
       taskTagsForProject(cfg, p.id),
+      // S152: the GLOBAL library's rows this project can see — every ENABLED
+      // category (the picker/toggle set) UNION every category its tasks already
+      // reference (disabled later → the chip still resolves; history intact).
+      // `enabled` lets the client split the picker set from the chip set.
+      cfg.db.query<CategoryRow & { enabled: number }>(
+        `SELECT c.*, CASE WHEN c.is_archived = 1 THEN 0 ELSE COALESCE((SELECT 1 FROM project_categories pc WHERE pc.category_id = c.id AND pc.project_id = ?), 0) END AS enabled
+         FROM categories c
+         -- S152/block 8: archived rows STAY in the payload when a task still references
+         -- them (the chip keeps rendering — history visible); they carry enabled = 0
+         -- so the pickers and toggles exclude them from NEW selections.
+         WHERE c.id IN (SELECT category_id FROM dev_tasks WHERE project_id = ? AND category_id IS NOT NULL)
+            OR (c.is_archived = 0 AND c.id IN (SELECT category_id FROM project_categories WHERE project_id = ?))
+         ORDER BY c.name COLLATE NOCASE, c.created_at`,
+        [p.id, p.id, p.id],
+      ).catch(() => []), // 0062 belt: a D1 pre-migration has no categories table — chip-less, not broken
     ])
     return await etag(c, c.json({
       project: { id: p.id, title: p.title, status: p.status, type: p.type },
@@ -175,8 +189,10 @@ export function devboardRoutes(cfg: Config) {
     const t = trFor(c)
     const p = await getOwnedProject(cfg, user.id, c.req.param('projectId'))
     if (!p) return c.json({ error: 'not_found' }, 404)
-    // category/sprint ids must belong to THIS project — a foreign id is ignored, not 500.
-    const categoryOk = body.category_id ? await ownedCategory(cfg, user.id, body.category_id) : true
+    // category/sprint ids must be valid — a foreign id is a 400, not a 500. The
+    // category (S152) must be a LIVE global category ENABLED on this project (the
+    // single-select source is the project's picker set, block 3).
+    const categoryOk = body.category_id ? await categoryEnabledOnProject(cfg, p.id, body.category_id) : true
     const sprintOk = body.sprint_id ? await ownedSprint(cfg, user.id, body.sprint_id) : true
     if ((body.category_id && !categoryOk) || (body.sprint_id && !sprintOk)) return c.json({ error: 'invalid_input' }, 400)
     // "Everything happens inside the active sprint": with no sprint_id in the body
@@ -235,7 +251,7 @@ export function devboardRoutes(cfg: Config) {
     const t = trFor(c)
     const task = await ownedTask(cfg, user.id, c.req.param('id'))
     if (!task) return c.json({ error: 'not_found' }, 404)
-    if (body.category_id && !(await ownedCategory(cfg, user.id, body.category_id))) return c.json({ error: 'invalid_input' }, 400)
+    if (body.category_id && !(await categoryEnabledOnProject(cfg, task.project_id, body.category_id))) return c.json({ error: 'invalid_input' }, 400)
     if (body.sprint_id && !(await ownedSprint(cfg, user.id, body.sprint_id))) return c.json({ error: 'invalid_input' }, 400)
     const now = new Date().toISOString()
     // tags is NOT a dev_tasks column (replace-set semantics on dev_task_tags) — pull it
@@ -445,69 +461,42 @@ export function devboardRoutes(cfg: Config) {
     return c.json({ ok: true })
   })
 
-  // ---- categories (sidebar rows on the sprint page) ----------------------------
-
+  // ---- categories (S152: the GLOBAL library — create + enable in one beat) ----
+  // The inline quick-add path (block 4): creates the category in the global library
+  // (16-tile pair validated) AND enables it on this project in the same request, so
+  // the composer never detours to Settings. A live case/trim-insensitive name match
+  // is REUSED (enabled on this project + returned) instead of forking a duplicate.
   app.post('/api/projects/:projectId/categories', async (c) => {
     const body = await jsonBody<z.infer<typeof createCategorySchema>>(c, createCategorySchema)
     if (!body) return c.json({ error: 'invalid_input' }, 400)
+    if (!isValidCatPair(body.color_fill, body.color_text)) return c.json({ error: 'invalid_input' }, 400)
     const user = c.get('user')
     const p = await getOwnedProject(cfg, user.id, c.req.param('projectId'))
     if (!p) return c.json({ error: 'not_found' }, 404)
+    const name = body.name.trim()
+    if (!name) return c.json({ error: 'invalid_input' }, 400)
+    const existing = await cfg.db.query<{ id: string }>(
+      'SELECT id FROM categories WHERE lower(trim(name)) = ? AND is_archived = 0 LIMIT 1',
+      [normCatName(name)],
+    )
+    if (existing[0]) {
+      await cfg.db.execute('INSERT OR IGNORE INTO project_categories (project_id, category_id) VALUES (?, ?)', [p.id, existing[0].id])
+      return c.json({ ok: true, id: existing[0].id, existing: true }, 200)
+    }
     const id = uuid()
-    const max = await cfg.db.query<{ m: number }>('SELECT COALESCE(MAX(sort_order), -1) AS m FROM task_categories WHERE project_id = ?', [p.id])
-    await cfg.db.execute('INSERT INTO task_categories (id, project_id, name, color, sort_order, created_at) VALUES (?, ?, ?, ?, ?, ?)', [
-      id, p.id, body.name, body.color ?? '#8AB8F0', (max[0]?.m ?? -1) + 1, new Date().toISOString(),
-    ])
+    await cfg.db.execute(
+      'INSERT INTO categories (id, name, color_fill, color_text, is_archived, created_at) VALUES (?, ?, ?, ?, 0, ?)',
+      [id, name, body.color_fill.toUpperCase(), body.color_text.toUpperCase(), new Date().toISOString()],
+    )
+    await cfg.db.execute('INSERT INTO project_categories (project_id, category_id) VALUES (?, ?)', [p.id, id])
     return c.json({ ok: true, id }, 201)
   })
 
-  app.patch('/api/categories/:id', async (c) => {
-    const body = await jsonBody<z.infer<typeof updateCategorySchema>>(c, updateCategorySchema)
-    if (!body) return c.json({ error: 'invalid_input' }, 400)
-    const user = c.get('user')
-    const cat = await ownedCategory(cfg, user.id, c.req.param('id'))
-    if (!cat) return c.json({ error: 'not_found' }, 404)
-    const sets: string[] = []
-    const params: unknown[] = []
-    for (const [k, v] of Object.entries(body)) {
-      if (v === undefined) continue
-      sets.push(`${k} = ?`)
-      params.push(v)
-    }
-    if (!sets.length) return c.json({ ok: true })
-    params.push(cat.id)
-    await cfg.db.execute(`UPDATE task_categories SET ${sets.join(', ')} WHERE id = ?`, params)
-    return c.json({ ok: true })
-  })
-
-  app.delete('/api/categories/:id', async (c) => {
-    const user = c.get('user')
-    const cat = await ownedCategory(cfg, user.id, c.req.param('id'))
-    if (!cat) return c.json({ error: 'not_found' }, 404)
-    // ON DELETE SET NULL moves the tasks to Uncategorized; the tag rows go with the tasks.
-    await cfg.db.execute('DELETE FROM task_categories WHERE id = ?', [cat.id])
-    return c.json({ ok: true })
-  })
-
-  // Sidebar row order on the sprint page (same contract as the devtasks reorder above).
-  app.post('/api/projects/:projectId/categories/reorder', async (c) => {
-    const body = await jsonBody<z.infer<typeof reorderSchema>>(c, reorderSchema)
-    if (!body) return c.json({ error: 'invalid_input' }, 400)
-    const user = c.get('user')
-    const p = await getOwnedProject(cfg, user.id, c.req.param('projectId'))
-    if (!p) return c.json({ error: 'not_found' }, 404)
-    // Every id must be one of THIS project's categories — a foreign/unknown id is a 400,
-    // not a silently half-applied order.
-    const rows = await cfg.db.query<{ id: string }>('SELECT id FROM task_categories WHERE project_id = ?', [p.id])
-    const known = new Set(rows.map((r) => r.id))
-    if (!body.ids.every((id) => known.has(id))) return c.json({ error: 'invalid_input' }, 400)
-    await cfg.db.transaction(async (tx) => {
-      body.ids.forEach((id, i) => {
-        tx.sql('UPDATE task_categories SET sort_order = ? WHERE id = ? AND project_id = ?', [i, id, p.id])
-      })
-    })
-    return c.json({ ok: true })
-  })
+  // S152: PATCH/DELETE /api/categories/:id + POST /api/projects/:projectId/categories/reorder
+  // are RETIRED from this module — the global library serves rename/recolor/archive
+  // (routes/categories.ts) and the library reads name-ordered (no reorder). The
+  // legacy per-project rows folded into the library in 0062; two systems writing one
+  // dev_tasks.category_id column would corrupt each other's UX.
 
   // ---- sprints (open-ended: start = creation day, end = whenever the user says) --
 

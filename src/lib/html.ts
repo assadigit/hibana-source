@@ -58,6 +58,7 @@ export function icon(name: string, cls = 'icon'): string {
       case 'check': return '<rect x="4.5" y="4.5" width="15" height="15" rx="3"/><path d="M7.4 12.4l3 3 6.2-6.2"/>'
       case 'unchecked': return '<rect x="4.5" y="4.5" width="15" height="15" rx="3"/>'
       case 'x': return '<path d="M6 6l12 12M18 6L6 18"/>'
+      case 'tag': return '<path d="M3 11V4a1 1 0 0 1 1-1h7l10 10-8 8L3 11Z"/><circle cx="7.5" cy="7.5" r="1.5"/>' // S152: the category system
       case 'plus': return '<path d="M12 5v14M5 12h14"/>'
       case 'sun': return '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>'
       case 'download': return '<path d="M12 3v12m0 0l-4-4m4 4l4-4M5 21h14"/>'

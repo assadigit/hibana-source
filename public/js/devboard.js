@@ -140,13 +140,15 @@
   })
   const removeTaskTag = (id, tagId) => api('/api/devtasks/' + id + '/tags/' + tagId, { method: 'DELETE' })
 
-  const createCategory = (name, color) => api('/api/projects/' + state.projectId + '/categories', {
-    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name, color }),
+  // S152: the category colors are the curated fill+ink PAIRS now — create sends the
+  // pair, delete archives (soft — block 8: rows stay, task references stay).
+  const createCategory = (name, colorFill, colorInk) => api('/api/projects/' + state.projectId + '/categories', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name, color_fill: colorFill, color_text: colorInk }),
   })
   const patchCategory = (id, body) => api('/api/categories/' + id, {
     method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body),
   })
-  const deleteCategory = (id) => api('/api/categories/' + id, { method: 'DELETE' })
+  const deleteCategory = (id) => api('/api/categories/' + id + '/archive', { method: 'POST' })
 
   // S48n: createSprint now accepts optional started_at/ended_at. If both provided,
   // the sprint is created as STARTED (skips the draft step). Presets compute the dates.
@@ -197,6 +199,10 @@
   function openEditor(taskId, opts) {
     modalCtx = { taskId: taskId || null, onSaved: (opts && opts.onSaved) || null, defaults: (opts && opts.defaults) || {} }
     const task = taskId ? findTask(taskId) : null
+    // S152: stash the task's CURRENT category row (resolves for enabled AND
+    // referenced-later-disabled rows; an archived one falls back to the raw id so
+    // an edit round-trips instead of silently clearing the value).
+    modalCtx.editCat = task && task.category_id ? (findCategory(task.category_id) || { id: task.category_id, name: null }) : null
     modalCtx.draft = task
       ? { title: task.title, status: task.status, priority: task.priority, category_id: task.category_id, sprint_id: task.sprint_id, tags: (task.tags || []).slice() }
       : { title: '', status: modalCtx.defaults.status || 'idea', priority: 'medium', category_id: null, sprint_id: null, tags: [] }
@@ -255,6 +261,9 @@
           '<label class="db-field"><span>' + esc(t('db.category', 'Category')) + '</span>' +
             '<select data-db-cat><option value="">' + esc(t('db.uncategorized', 'Uncategorized')) + '</option>' +
               cats.map((c) => '<option value="' + esc(c.id) + '" ' + (d.category_id === c.id ? 'selected' : '') + '>' + esc(c.name) + '</option>').join('') +
+              // S152: a task carrying a DISABLED-later category keeps its option so an
+              // edit round-trips instead of silently clearing the value.
+              (d.category_id && !cats.some((c) => c.id === d.category_id) && modalCtx.editCat ? '<option value="' + esc(d.category_id) + '" selected>' + esc(modalCtx.editCat.name || t('cat.current', '(current category)')) + '</option>' : '') +
               '<option value="__new">' + '＋ ' + esc(t('db.newCategory', 'New category…')) + '</option>' +
             '</select></label>' +
           '<label class="db-field"><span>' + esc(t('db.sprint', 'Sprint')) + '</span>' +
@@ -265,8 +274,9 @@
         '</div>' +
         '<div class="db-cat-new" data-db-cat-new hidden>' +
           '<input data-db-cat-name maxlength="80" dir="auto" placeholder="' + esc(t('db.categoryName', 'Category name (Feature Development…)')) + '">' +
-          '<div class="pd-tag-colors">' + ['#8AB8F0', '#E8B27D', '#E59AA5', '#8FD3A9', '#B3A5D6', '#7CC7C1', '#F2D58A', '#C9CDD2'].map((c, i) =>
-            '<label class="pd-swatch"><input type="radio" name="dbcatcolor" value="' + c + '" ' + (i === 0 ? 'checked' : '') + '><span style="background:' + c + '"></span></label>').join('') + '</div>' +
+          // S152 (block 5): the 16 curated fill+ink pairs — read from the --cat-sw-*
+          // tokens (no free-form color picker anywhere).
+          '<div class="pd-tag-colors pd-cat-swatches" data-db-cat-swatches></div>' +
         '</div>' +
         (isNew ? '' :
         '<div class="db-field"><span>' + esc(t('db.tags', 'Tags')) + '</span>' +
@@ -288,6 +298,26 @@
     // in ``` fences (or drops an empty block at the caret), Bold wraps in **pairs**,
     // Bullet prefixes the selected lines with "- ". Fences land on their OWN lines so
     // the renderers (board.html / projects.ts / project.html) recognize them.
+    // S152 (block 5): the inline quick-add's swatch grid — the 16 curated fill+ink
+    // pairs read from the --cat-sw-* tokens; the first tile starts selected.
+    const swWrap = el.querySelector('[data-db-cat-swatches]')
+    if (swWrap && !swWrap.childElementCount) {
+      const cs = getComputedStyle(document.documentElement)
+      let tiles = ''
+      for (let i = 1; i <= 16; i++) {
+        const fill = cs.getPropertyValue('--cat-sw-' + i + '-fill').trim()
+        const ink = cs.getPropertyValue('--cat-sw-' + i + '-ink').trim()
+        if (!fill || !ink) continue
+        tiles += '<button type="button" class="pd-cat-swatch-tile' + (i === 1 ? ' is-sel' : '') + '" data-db-cat-fill="' + fill + '" data-db-cat-ink="' + ink + '" style="background:' + fill + ';color:' + ink + '" aria-label="' + fill + '"><span aria-hidden="true">Aa</span></button>'
+      }
+      swWrap.innerHTML = tiles
+      swWrap.onclick = (ev) => {
+        const tile = ev.target.closest('.pd-cat-swatch-tile')
+        if (!tile) return
+        swWrap.querySelectorAll('.pd-cat-swatch-tile').forEach((x) => x.classList.remove('is-sel'))
+        tile.classList.add('is-sel')
+      }
+    }
     el.querySelectorAll('.pd-tb [data-tb]').forEach((b) => {
       b.onclick = () => {
         const ta = el.querySelector('[name=title]')
@@ -390,8 +420,9 @@
         if (categoryId === '__pending') {
           const cname = el.querySelector('[data-db-cat-name]').value.trim()
           if (!cname) { el.querySelector('[data-db-cat-name]').focus(); return }
-          const ccolor = el.querySelector('input[name=dbcatcolor]:checked')?.value
-          const r = await createCategory(cname, ccolor)
+          const tile = el.querySelector('[data-db-cat-swatches] .pd-cat-swatch-tile.is-sel')
+          if (!tile) { el.querySelector('[data-db-cat-name]').focus(); return }
+          const r = await createCategory(cname, tile.dataset.dbCatFill, tile.dataset.dbCatInk)
           categoryId = r.id
         }
         let sprintId = modalCtx.draft.sprint_id

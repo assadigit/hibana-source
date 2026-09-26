@@ -2563,11 +2563,12 @@
           wrap.dataset.pdPriority = prio
           pdTierTrack(String(task.id), prio)
           wrap.dataset.pdTags = JSON.stringify(tags)
+          wrap.dataset.pdCat = task.category_id || ''
           // Session 22: div + role=button (matches the server-rendered cards) — click
           // opens the inline editor everywhere; the old <a href="/board.html"> made
           // freshly-added tasks navigate instead. Title clamped at 150 chars with the
           // hidden rest + read-more button.
-          wrap.innerHTML = pdBannerHtml(prio) + `<div class="pd-task st-${status}" draggable="true" role="button" tabindex="0" aria-label="${pdEsc(task.title)}"><span class="pd-task-body"><span class="pd-task-title-row" dir="auto"><span class="pd-task-title"${pdTitleAttrs(task.title)}>${pdTitleHtml(task.title)}</span></span>${pdPreviewHtml(task.title)}${pdReadMoreBtn(task.title)}${pdTagChipsHtml(tags)}<span class="pd-task-meta">${pdMetaDateHtml(wrap.dataset.pdCreated, false)}</span></span></div>`
+          wrap.innerHTML = pdBannerHtml(prio) + `<div class="pd-task st-${status}" draggable="true" role="button" tabindex="0" aria-label="${pdEsc(task.title)}"><span class="pd-task-body">${pdCatChipHtml(task.category_id)}<span class="pd-task-title-row" dir="auto"><span class="pd-task-title"${pdTitleAttrs(task.title)}>${pdTitleHtml(task.title)}</span></span>${pdPreviewHtml(task.title)}${pdReadMoreBtn(task.title)}${pdTagChipsHtml(tags)}<span class="pd-task-meta">${pdMetaDateHtml(wrap.dataset.pdCreated, false)}</span></span></div>`
 
           // AUTO-SORT (user request 2026-09-12): the card lands BEFORE the first card
           // whose priority ranks below it — urgent tasks jump to the top of their box.
@@ -2707,6 +2708,11 @@
           if (prioSel) { prioSel.value = 'medium'; pdSyncPrioChip('pd-taskadd-prio-chip', 'medium') }
           const tagsIn = document.getElementById('pd-taskadd-tags')
           if (tagsIn) tagsIn.value = ''
+          // S152: reset the category picker + refresh the library, then the setup
+          // prompt shows ONLY while the project has zero enabled categories (block 7).
+          const composerPicker = pdEnsureComposerPicker()
+          if (composerPicker) composerPicker.paint(null)
+          pdEnsureCats().then(() => pdRefreshSetupList())
           // S46.3: the Status dropdown defaults to the clicked column (taskAddStatus) +
           // the "Lands in" chip mirrors it. The user can change the dropdown to land the
           // task in a different column than the one whose + they clicked.
@@ -2799,6 +2805,264 @@
           e.preventDefault()
           openPdTaskDetail(wrap)
         })
+        // --- S152: the GLOBAL category system (client side) -------------------------
+        // One infra for the chips (every wrap builder), the composer/editor picker
+        // (autocomplete + inline quick-add over the 16 curated swatches), the
+        // zero-enabled setup prompt (block 7) and the per-project toggle dialog.
+        let pdCats = [] // the payload rows: {id, name, color_fill, color_text, enabled}
+        let pdCatsLoaded = false
+        function pdCatRow(id) { return pdCats.find((x) => x.id === id) || null }
+        function pdCatChipHtml(catId) {
+          const cRow = catId ? pdCatRow(catId) : null
+          if (!cRow) return ''
+          return '<span class="cat-chip" style="background:' + pdEsc(cRow.color_fill) + ';color:' + pdEsc(cRow.color_text) + '" dir="auto">' + pdEsc(cRow.name) + '</span>'
+        }
+        const pdNormCat = (s) => (s || '').trim().toLowerCase()
+        // The 16 curated pairs read from the CSS custom properties — the tokens' only
+        // other home is src/lib/categories.ts (a unit test pins the two lists).
+        function pdSwatches() {
+          const cs = getComputedStyle(document.documentElement)
+          const out = []
+          for (let i = 1; i <= 16; i++) {
+            const fill = cs.getPropertyValue('--cat-sw-' + i + '-fill').trim()
+            const ink = cs.getPropertyValue('--cat-sw-' + i + '-ink').trim()
+            if (fill && ink) out.push({ fill, ink })
+          }
+          return out
+        }
+        async function pdEnsureCats(force) {
+          if (pdCatsLoaded && !force) return pdCats
+          try {
+            const res = await fetch('/api/projects/' + id + '/categories')
+            if (res.ok) {
+              const j = await res.json()
+              pdCats = (j.categories || []).map((cRow) => ({ ...cRow, enabled: cRow.enabled ? 1 : 0 }))
+              pdCatsLoaded = true
+            }
+          } catch { /* offline — the picker renders with whatever it has */ }
+          return pdCats
+        }
+        // The swatch grid — the 16 tiles, values from the tokens (block 5: a curated
+        // set, never a free-form picker).
+        function pdSwatchGridHtml() {
+          return '<div class="pd-cat-swatches">' + pdSwatches().map((p, i) =>
+            '<button type="button" data-cat-swatch="' + i + '" style="background:' + p.fill + ';color:' + p.ink + '" aria-label="' + p.fill + '"><span aria-hidden="true">Aa</span></button>').join('') + '</div>'
+        }
+        // One picker for the composer AND the editor. cfg: { input, pop, clearBtn,
+        // getCats, initial (row|null), onChange(row|null) } — selection lives with the
+        // caller (it owns the hidden input + the save body).
+        function pdWireCatPicker(cfg) {
+          const st = { row: cfg.initial || null, swatchName: null }
+          const close = () => { cfg.pop.hidden = true; cfg.input.setAttribute('aria-expanded', 'false') }
+          const paint = (row) => {
+            st.row = row
+            cfg.input.value = row ? row.name : ''
+            if (cfg.clearBtn) cfg.clearBtn.hidden = !row
+            if (cfg.onChange) cfg.onChange(row)
+          }
+          const render = () => {
+            const raw = cfg.input.value
+            const q = pdNormCat(raw)
+            const cats = cfg.getCats().filter((cRow) => cRow.enabled && !cRow.is_archived)
+            if (st.swatchName !== null) {
+              cfg.pop.innerHTML = '<div class="pd-cat-pop-head">' + pdEsc(_t('cat.pickColor', 'Pick a color for “{n}”').replace('{n}', st.swatchName)) + '</div>' + pdSwatchGridHtml() +
+                '<button type="button" class="pd-cat-pop-row pd-cat-pop-back" data-cat-back>‹ ' + pdEsc(_t('common.back', 'Back')) + '</button>'
+            } else {
+              const exact = q ? cats.find((cRow) => pdNormCat(cRow.name) === q) : null
+              const matches = q ? cats.filter((cRow) => pdNormCat(cRow.name).includes(q) && cRow !== exact) : cats
+              const rows = []
+              if (!raw.trim()) rows.push('<button type="button" class="pd-cat-pop-row" data-cat-none>' + pdEsc(_t('cat.none', 'No category')) + '</button>')
+              if (exact) rows.push('<button type="button" class="pd-cat-pop-row is-exact" data-cat-pick="' + pdEsc(exact.id) + '"><span class="cat-chip cat-chip-sm" style="background:' + pdEsc(exact.color_fill) + ';color:' + pdEsc(exact.color_text) + '">' + pdEsc(exact.name) + '</span></button>')
+              for (const cRow of matches.slice(0, 7)) {
+                rows.push('<button type="button" class="pd-cat-pop-row" data-cat-pick="' + pdEsc(cRow.id) + '"><span class="cat-chip cat-chip-sm" style="background:' + pdEsc(cRow.color_fill) + ';color:' + pdEsc(cRow.color_text) + '">' + pdEsc(cRow.name) + '</span></button>')
+              }
+              if (raw.trim() && !exact) rows.push('<button type="button" class="pd-cat-pop-row pd-cat-create" data-cat-create>＋ ' + pdEsc(_t('cat.create', 'Create “{n}”').replace('{n}', raw.trim())) + '</button>')
+              cfg.pop.innerHTML = rows.join('')
+            }
+            cfg.pop.hidden = false
+            cfg.input.setAttribute('aria-expanded', 'true')
+          }
+          const createWith = async (pair) => {
+            const name = (st.swatchName ?? cfg.input.value).trim()
+            if (!name || !pair) return
+            try {
+              const res = await fetch('/api/projects/' + id + '/categories', {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name, color_fill: pair.fill, color_text: pair.ink }),
+              })
+              if (!res.ok && res.status !== 200) throw new Error('create failed')
+              const j = await res.json()
+              await pdEnsureCats(true)
+              st.swatchName = null
+              paint(pdCatRow(j.id))
+              close()
+            } catch { window.hibana?.toast(_t('sparks.saveFailed', "Couldn't save"), 'err') }
+          }
+          cfg.input.addEventListener('focus', () => { st.swatchName = null; render() })
+          cfg.input.addEventListener('input', () => { if (st.row && cfg.input.value !== st.row.name) paint(null); st.swatchName = null; render() })
+          cfg.pop.addEventListener('click', async (e) => {
+            const sw = e.target.closest('[data-cat-swatch]')
+            if (sw) { const p = pdSwatches()[Number(sw.dataset.catSwatch)] || null; await createWith(p); return }
+            if (e.target.closest('[data-cat-back]')) { st.swatchName = null; render(); return }
+            const pick = e.target.closest('[data-cat-pick]')
+            if (pick) { e.preventDefault(); paint(pdCatRow(pick.dataset.catPick)); close(); return }
+            if (e.target.closest('[data-cat-none]')) { e.preventDefault(); paint(null); close(); return }
+            const cr = e.target.closest('[data-cat-create]')
+            if (cr) { e.preventDefault(); st.swatchName = cfg.input.value.trim(); render() }
+          })
+          if (cfg.clearBtn) cfg.clearBtn.addEventListener('click', (e) => { e.preventDefault(); paint(null); close() })
+          // keyboard: ArrowDown/Up walk the rows, Enter takes the highlight, Escape closes
+          let hi = -1
+          cfg.input.addEventListener('keydown', (e) => {
+            if (cfg.pop.hidden) return
+            const rows = [...cfg.pop.querySelectorAll('.pd-cat-pop-row, [data-cat-swatch]')]
+            if (e.key === 'Escape') { close(); return }
+            if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+              e.preventDefault()
+              hi = e.key === 'ArrowDown' ? Math.min(rows.length - 1, hi + 1) : Math.max(0, hi - 1)
+              rows.forEach((r, i) => r.classList.toggle('is-hi', i === hi))
+              return
+            }
+            if (e.key === 'Enter' && hi >= 0 && rows[hi]) { e.preventDefault(); rows[hi].click(); hi = -1 }
+          })
+          document.addEventListener('click', (e) => {
+            if (cfg.pop.hidden) return
+            if (!e.target.closest(cfg.pop) && e.target !== cfg.input) close()
+          })
+          return { paint, close, get row() { return st.row } }
+        }
+        // --- S152 (block 7): the per-project toggle dialog + the composer setup prompt
+        // share one row renderer + one save path (PUT the enable-set).
+        let pdCatsDlg = null
+        async function pdSaveEnabledCats(ids) {
+          const res = await fetch('/api/projects/' + id + '/categories', {
+            method: 'PUT', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ ids }),
+          })
+          if (!res.ok) throw new Error('toggle failed')
+          await pdEnsureCats(true)
+        }
+        function pdCatToggleRowsHtml(rows) {
+          rows = rows.filter((cRow) => !cRow.is_archived) // block 8: archived leaves the toggles
+          if (!rows.length) return '<p class="muted small pd-cat-empty">' + pdEsc(_t('cat.libraryEmpty', 'No categories in your library yet — create the first one below.')) + '</p>'
+          return rows.map((cRow) =>
+            '<label class="pd-cat-toggle"><input type="checkbox" data-cat-toggle-id="' + pdEsc(cRow.id) + '"' + (cRow.enabled ? ' checked' : '') + '>' +
+            '<span class="cat-chip" style="background:' + pdEsc(cRow.color_fill) + ';color:' + pdEsc(cRow.color_text) + '" dir="auto">' + pdEsc(cRow.name) + '</span>' +
+            '<span class="pd-cat-toggle-state">' + (cRow.enabled ? pdEsc(_t('cat.on', 'On')) : pdEsc(_t('cat.off', 'Off'))) + '</span></label>').join('')
+        }
+        async function pdOpenCatsDialog() {
+          await pdEnsureCats()
+          if (!pdCatsDlg) {
+            pdCatsDlg = document.createElement('dialog')
+            pdCatsDlg.id = 'pd-cats-dialog'
+            pdCatsDlg.className = 'dialog pd-cats-modal'
+            pdCatsDlg.innerHTML =
+              '<div class="modal pd-cats-inner">' +
+                '<div class="row spread pd-editor-head"><h3>' + pdEsc(_t('cat.dialogTitle', 'Categories for this project')) + '</h3>' +
+                  '<button type="button" class="ghost" data-pd-cats-close aria-label="' + pdEsc(_t('common.close', 'Close')) + '"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>' +
+                '<div class="pd-modal-body">' +
+                  '<p class="muted small">' + pdEsc(_t('cat.dialogHint', 'Toggle which library categories this project uses — they appear in the task picker and as chips on the cards.')) + '</p>' +
+                  '<div class="pd-cat-toggle-list" data-pd-cats-list></div>' +
+                  '<div class="pd-cat-qa"><input data-pd-cats-qa maxlength="80" dir="auto" placeholder="' + pdEsc(_t('cat.newName', 'New category name (Feature Development…)')) + '">' +
+                    '<button type="button" class="ghost small" data-pd-cats-qa-create>' + pdEsc(_t('cat.quickAdd', 'Create')) + '</button>' +
+                    '<div data-pd-cats-qa-swatches hidden></div></div>' +
+                '</div>' +
+                '<div class="row spread pd-taskadd-actions"><a class="ghost small" href="/settings.html#settings-categories">' + pdEsc(_t('cat.manage', 'Manage in Settings')) + '</a>' +
+                  '<button type="button" class="ghost" data-pd-cats-done>' + pdEsc(_t('common.done', 'Done')) + '</button></div>' +
+              '</div>'
+            document.body.appendChild(pdCatsDlg)
+            pdCatsDlg.addEventListener('click', async (e) => {
+              if (e.target.closest('[data-pd-cats-close]') || e.target.closest('[data-pd-cats-done]')) { pdCatsDlg.close(); return }
+              const toggle = e.target.closest('[data-cat-toggle-id]')
+              if (toggle) {
+                const ids = [...pdCatsDlg.querySelectorAll('[data-cat-toggle-id]:checked')].map((x) => x.dataset.catToggleId)
+                try { await pdSaveEnabledCats(ids); pdRefreshSetupList() } catch { window.hibana?.toast(_t('sparks.saveFailed', "Couldn't save"), 'err') }
+                return
+              }
+              const sw = e.target.closest('[data-cat-swatch]')
+              if (sw) {
+                const p = pdSwatches()[Number(sw.dataset.catSwatch)] || null
+                const name = (pdCatsDlg.querySelector('[data-pd-cats-qa]') || {}).value || ''
+                if (!p || !name.trim()) return
+                try {
+                  const res = await fetch('/api/projects/' + id + '/categories', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: name.trim(), color_fill: p.fill, color_text: p.ink }) })
+                  if (!res.ok && res.status !== 200) throw new Error('create failed')
+                  await pdEnsureCats(true)
+                  pdCatsDlg.querySelector('[data-pd-cats-qa]').value = ''
+                  const swWrap = pdCatsDlg.querySelector('[data-pd-cats-qa-swatches]')
+                  if (swWrap) swWrap.hidden = true
+                  await pdPaintCatsList()
+                  pdRefreshSetupList()
+                } catch { window.hibana?.toast(_t('sparks.saveFailed', "Couldn't save"), 'err') }
+              }
+            })
+            pdCatsDlg.addEventListener('click', (e) => {
+              if (e.target.closest('[data-pd-cats-qa-create]')) {
+                const swWrap = pdCatsDlg.querySelector('[data-pd-cats-qa-swatches]')
+                if (swWrap) { swWrap.innerHTML = pdSwatchGridHtml(); swWrap.hidden = false }
+              }
+            })
+          }
+          await pdPaintCatsList()
+          pdCatsDlg.showModal()
+        }
+        async function pdPaintCatsList() {
+          if (!pdCatsDlg) return
+          const list = pdCatsDlg.querySelector('[data-pd-cats-list]')
+          if (list) list.innerHTML = pdCatToggleRowsHtml(pdCats)
+        }
+        // The composer's zero-enabled setup prompt (block 7): shows ONLY when the
+        // project has zero enabled categories — the first task creation is the moment
+        // it's actually needed. Offers the toggle list + quick-add together.
+        async function pdRefreshSetupList() {
+          const wrap = document.getElementById('pd-taskadd-cat-setup')
+          if (!wrap) return
+          const list = wrap.querySelector('#pd-taskadd-cat-setup-list')
+          if (!list) return
+          const enabledN = pdCats.filter((cRow) => cRow.enabled).length
+          wrap.hidden = enabledN > 0
+          list.innerHTML = pdCatToggleRowsHtml(pdCats)
+        }
+        // The composer's picker — created lazily on first open (the composer markup is
+        // htmx-swapped in with the page body; the elements exist by open time).
+        let pdComposerPicker = null
+        function pdEnsureComposerPicker() {
+          if (pdComposerPicker) return pdComposerPicker
+          const input = document.getElementById('pd-taskadd-cat')
+          const pop = document.getElementById('pd-taskadd-cat-pop')
+          if (!input || !pop) return null
+          pdComposerPicker = pdWireCatPicker({
+            input, pop,
+            clearBtn: document.getElementById('pd-taskadd-cat-clear'),
+            getCats: () => pdCats,
+            initial: null,
+            onChange: (row) => { const hid = document.getElementById('pd-taskadd-cat-id'); if (hid) hid.value = row ? row.id : '' },
+          })
+          return pdComposerPicker
+        }
+        ctx.on('click', async (e) => {
+          if (e.target.closest('[data-pd-taskadd-cat-setup-skip], #pd-taskadd-cat-setup-skip')) {
+            const wrap = document.getElementById('pd-taskadd-cat-setup')
+            if (wrap) wrap.hidden = true
+            return
+          }
+          if (e.target.closest('#pd-taskadd-cat-setup-list [data-cat-toggle-id]')) {
+            const box = e.target.closest('[data-cat-toggle-id]')
+            const wrap = document.getElementById('pd-taskadd-cat-setup')
+            const ids = wrap ? [...wrap.querySelectorAll('[data-cat-toggle-id]:checked')].map((x) => x.dataset.catToggleId) : []
+            try {
+              await pdSaveEnabledCats(ids)
+              pdRefreshSetupList()
+              if (box.checked) window.hibana?.toast(_t('cat.enabledToast', 'Category enabled'))
+            } catch { window.hibana?.toast(_t('sparks.saveFailed', "Couldn't save"), 'err') }
+          }
+        })
+        ctx.on('click', (e) => {
+          if (!e.target.closest('[data-pd-cats]')) return
+          e.preventDefault()
+          pdOpenCatsDialog()
+        })
+
         // --- S149: the ONE truth-sourced wrap builder -------------------------------
         // The ⋯-more expand and the post-mutation column repaint both render cards
         // from /api/projects/:id payloads with the EXACT server card anatomy (banner +
@@ -2810,11 +3074,12 @@
           wrap.dataset.pdTask = String(t.id)
           wrap.dataset.pdStatus = status
           wrap.dataset.pdCreated = t.created_at || ''
+          wrap.dataset.pdCat = t.category_id || ''
           if (t.done_at) wrap.dataset.pdDone = t.done_at
           const tp = t.priority || 'medium'
           wrap.dataset.pdPriority = tp
           wrap.dataset.pdTags = JSON.stringify(tt || [])
-          wrap.innerHTML = pdBannerHtml(tp) + `<div class="pd-task st-${status}" draggable="true" role="button" tabindex="0" aria-label="${pdEsc(t.title)}"><span class="pd-task-body"><span class="pd-task-title-row" dir="auto"><span class="pd-task-title"${pdTitleAttrs(t.title)}>${pdTitleHtml(t.title)}</span></span>${pdPreviewHtml(t.title)}${pdReadMoreBtn(t.title)}${pdTagChipsHtml(tt)}<span class="pd-task-meta">${pdMetaDateHtml(t.created_at, status === 'done')}</span></span></div>`
+          wrap.innerHTML = pdBannerHtml(tp) + `<div class="pd-task st-${status}" draggable="true" role="button" tabindex="0" aria-label="${pdEsc(t.title)}"><span class="pd-task-body">${pdCatChipHtml(t.category_id)}<span class="pd-task-title-row" dir="auto"><span class="pd-task-title"${pdTitleAttrs(t.title)}>${pdTitleHtml(t.title)}</span></span>${pdPreviewHtml(t.title)}${pdReadMoreBtn(t.title)}${pdTagChipsHtml(tt)}<span class="pd-task-meta">${pdMetaDateHtml(t.created_at, status === 'done')}</span></span></div>`
           return wrap
         }
         // S149 (owner: "I want the Kanban To work like ajax ... when a user drags a
@@ -2839,6 +3104,10 @@
           if (seq !== pdRepaintSeq) return
           const all = (data.project ? data.project.devTasks : data.devTasks) || []
           const tagRows = (data.project ? data.project.devTaskTags : data.devTaskTags) || []
+          // S152: the payload now carries the project's category rows (enabled ∪
+          // referenced) — the chip lookups + the picker read from here.
+          const catRows = (data.project ? data.project.categories : data.categories) || []
+          if (catRows.length) pdCats = catRows
           const tagsBy = {}
           for (const r of tagRows) (tagsBy[r.task_id] = tagsBy[r.task_id] || []).push({ name: r.name, color: r.color })
           // The filter bar's tier counts ride pdTaskTruth — reconcile (track the
@@ -2961,6 +3230,9 @@
             const statusSel = document.getElementById('pd-taskadd-status')
             const finalStatus = (statusSel && statusSel.value) || taskAddStatus
             const tagNames = pdParseTags((document.getElementById('pd-taskadd-tags') || {}).value || '')
+            // S152: the picked category rides the create (nullable single-select)
+            const catIdVal = (document.getElementById('pd-taskadd-cat-id') || {}).value || ''
+            const catId = catIdVal || null
             // S48n: read the sprint selector. '' = auto (server picks draft/open), 'none' = no sprint, otherwise the sprint ID.
             const sprintSel = document.getElementById('pd-taskadd-sprint')
             const sprintVal = sprintSel ? sprintSel.value : ''
@@ -2968,7 +3240,7 @@
             const res = await fetch(`/api/projects/${id}/devtasks`, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ title, status: finalStatus, priority, tags: tagNames, sprint_id: sprintId }),
+              body: JSON.stringify({ title, status: finalStatus, priority, tags: tagNames, sprint_id: sprintId, category_id: catId }),
             })
             if (!res.ok) throw new Error('add failed')
             const data = await res.json()
@@ -2983,7 +3255,7 @@
               renderTaskAddShots()
               bodyRefresh()
             } else {
-              insertTaskChip(finalStatus, { id: data.id, title, priority, tags: (data.tags || []).map((tg) => ({ name: tg.name, color: tg.color })) })
+              insertTaskChip(finalStatus, { id: data.id, title, priority, category_id: catId, tags: (data.tags || []).map((tg) => ({ name: tg.name, color: tg.color })) })
             }
             ta.innerHTML = ''
             const taskTitleClear = document.getElementById('pd-taskadd-title-input')
@@ -3480,6 +3752,9 @@
                   '</button>' +
                 '</div>' +
                 '<div class="pd-detail-body">' +
+                  // S152 (block 6): the task's category chip rides the slide-over too
+                  // — recognition at a glance without opening anything.
+                  '<span class="cat-chip pd-detail-cat" data-pd-detail-cat hidden dir="auto"></span>' +
                   '<h2 class="pd-detail-title" id="pd-detail-title-el" data-pd-detail-title dir="auto"></h2>' +
                   '<div class="pd-detail-content" data-pd-detail-content dir="auto" hidden></div>' +
                 '</div>' +
@@ -3545,6 +3820,30 @@
             })
           }
           const chips = window.HibanaChips
+          // S152: the slide-over's category chip — from the wrap's dataset (the client
+          // builders) or the card's own server-rendered chip (unknown rows resolve
+          // from it so a disabled-later category still reads correctly).
+          const catEl = pdDetailRoot.querySelector('[data-pd-detail-cat]')
+          if (catEl) {
+            const catId = wrap.dataset.pdCat || ''
+            let cRow = catId ? pdCatRow(catId) : null
+            if (!cRow && catId) {
+              const chipEl = wrap.querySelector('.pd-task-body > .cat-chip')
+              if (chipEl) {
+                const cs = getComputedStyle(chipEl)
+                cRow = { id: catId, name: chipEl.textContent || '', color_fill: cs.backgroundColor, color_text: cs.color }
+              }
+            }
+            if (cRow) {
+              catEl.hidden = false
+              catEl.textContent = cRow.name
+              catEl.style.background = cRow.color_fill
+              catEl.style.color = cRow.color_text
+            } else {
+              catEl.hidden = true
+              catEl.textContent = ''
+            }
+          }
           const prioEl = pdDetailRoot.querySelector('[data-pd-detail-prio]')
           prioEl.className = 'pd-detail-prio prio-' + prio
           prioEl.textContent = chips.prioLabel(prio, pdLang())
@@ -3575,6 +3874,7 @@
         // The card's data-pd-status + the title text are the initial values (no fetch needed
         // for those); priority isn't on the card, so we default to 'medium' if unknown.
         let pdTaskEditDlg = null
+        let pdeCatPicker = null // S152: the editor's category picker (wired once)
         function openPdTaskEditor(tid, cardEl) {
           if (!pdTaskEditDlg) {
             pdTaskEditDlg = document.createElement('dialog')
@@ -3638,6 +3938,15 @@
                   ' <input id="pde-tags" dir="' + (pdLang() === 'fa' ? 'rtl' : 'auto') + '" autocomplete="off" maxlength="480" placeholder="' + _t('pd.labelsPh', 'e.g. UI/UX, Security') + '" aria-label="' + _t('pd.labels', 'Labels') + '" />' +
                   '<span class="muted small">' + _t('pd.labelsHint', 'Comma-separated — a chip per label') + '</span>' +
                 '</label>' +
+                // S152 (block 3): the editor carries the SAME single-select category
+                // picker as the composer — one wired implementation (pdWireCatPicker).
+                '<div class="pd-opt pd-cat-field" id="pde-cat-field">' +
+                  '<span class="pde-field-label">' + _t('cat.field', 'Category') + '</span>' +
+                  '<span class="pd-cat-row"><input id="pde-cat" dir="' + (pdLang() === 'fa' ? 'rtl' : 'auto') + '" autocomplete="off" maxlength="80" role="combobox" aria-expanded="false" aria-controls="pde-cat-pop" aria-autocomplete="list" placeholder="' + _t('cat.ph', 'None — type to pick or create') + '">' +
+                  '<button type="button" class="ghost small pd-cat-clear" id="pde-cat-clear" hidden aria-label="' + _t('cat.clear', 'Clear category') + '">✕</button></span>' +
+                  '<div class="pd-cat-pop" id="pde-cat-pop" hidden></div>' +
+                  '<input type="hidden" id="pde-cat-id" value="" />' +
+                '</div>' +
                 // S46.2 (owner: "add ability to upload a screenshot directly in this page,
                 // and ability to see previously uploaded and attached screenshots"):
                 // a screenshot row on the task editor — upload + pin to THIS task (reuses
@@ -3828,6 +4137,9 @@
               // S29 follow-up: labels — replace-set semantics (the input was pre-filled
               // with the task's labels; editing it re-sets them exactly).
               const tagNames = pdParseTags((pdTaskEditDlg.querySelector('#pde-tags') || {}).value || '')
+              // S152: the editor's category rides the save (the server validates
+              // enabled-on-project; null clears the selection).
+              const catIdVal = (pdTaskEditDlg.querySelector('#pde-cat-id') || {}).value || ''
               const err = pdTaskEditDlg.querySelector('#pde-error')
               const save = pdTaskEditDlg.querySelector('#pde-save')
               err.textContent = ''
@@ -3837,7 +4149,7 @@
                 const res = await fetch('/api/devtasks/' + id, {
                   method: 'PATCH',
                   headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({ title, status, priority, tags: tagNames }),
+                  body: JSON.stringify({ title, status, priority, tags: tagNames, category_id: catIdVal || null }),
                 })
                 if (!res.ok) throw new Error('save failed')
                 window.__hibanaProjectResumeTouch?.() // S105: a task edit IS an interaction
@@ -3855,6 +4167,16 @@
                   const from = src ? src.dataset.pdTasks : status
                   wrap.dataset.pdStatus = status
                   wrap.dataset.pdPriority = priority
+                  // S152: the category changed in the editor — sync the wrap's dataset
+                  // + the chip above the title (add / update / remove in place).
+                  wrap.dataset.pdCat = catIdVal || ''
+                  const oldChip = wrap.querySelector('.pd-task-body > .cat-chip')
+                  if (oldChip) oldChip.remove()
+                  if (catIdVal) {
+                    const body = wrap.querySelector('.pd-task-body')
+                    const titleRow = wrap.querySelector('.pd-task-title-row')
+                    if (body && titleRow) titleRow.insertAdjacentHTML('beforebegin', pdCatChipHtml(catIdVal))
+                  }
                   const serverTags = (data && Array.isArray(data.tags)) ? data.tags.map((tg) => ({ name: tg.name, color: tg.color })) : tagNames.map((name) => ({ name, color: null }))
                   wrap.dataset.pdTags = JSON.stringify(serverTags)
                   const card = wrap.querySelector('.pd-task')
@@ -3936,6 +4258,40 @@
           } catch { /* corrupt dataset — fall back to empty */ }
           const tagsInput = pdTaskEditDlg.querySelector('#pde-tags')
           if (tagsInput) tagsInput.value = tagsVal
+          // S152: the editor's picker (created once with the dialog; the library is
+          // refreshed so the suggestions carry the project's current enabled set).
+          if (!pdeCatPicker) {
+            const pdeInput = pdTaskEditDlg.querySelector('#pde-cat')
+            const pdePop = pdTaskEditDlg.querySelector('#pde-cat-pop')
+            if (pdeInput && pdePop) {
+              pdeCatPicker = pdWireCatPicker({
+                input: pdeInput, pop: pdePop,
+                clearBtn: pdTaskEditDlg.querySelector('#pde-cat-clear'),
+                getCats: () => pdCats,
+                initial: null,
+                onChange: (row) => { const hid = pdTaskEditDlg.querySelector('#pde-cat-id'); if (hid) hid.value = row ? row.id : '' },
+              })
+            }
+            pdEnsureCats()
+          }
+          // S152: pre-fill the category picker from the card's data-pd-cat (+ the chip
+          // the server may have rendered — the picker resolves unknown rows from it so
+          // a DISABLED-later category still round-trips instead of being cleared).
+          const catId = cardEl.dataset.pdCat || ''
+          const pdeHid = pdTaskEditDlg.querySelector('#pde-cat-id')
+          if (pdeHid) pdeHid.value = catId
+          if (pdeCatPicker) {
+            let row = pdCatRow(catId)
+            if (!row && catId) {
+              const chipEl = cardEl.querySelector('.cat-chip')
+              if (chipEl) {
+                const cs = getComputedStyle(chipEl)
+                row = { id: catId, name: chipEl.textContent || '', color_fill: cs.backgroundColor, color_text: cs.color, enabled: 1 }
+                if (!pdCats.some((x) => x.id === catId)) pdCats.push(row)
+              }
+            }
+            pdeCatPicker.paint(row)
+          }
           pdTaskEditDlg.querySelector('#pde-save').disabled = false
           pdTaskEditDlg.querySelector('#pde-save').textContent = _t('common.save', 'Save')
           pdTaskEditDlg.querySelector('#pde-error').textContent = ''

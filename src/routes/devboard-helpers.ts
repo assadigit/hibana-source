@@ -24,7 +24,7 @@ import { jsonBody } from '../lib/http'
 import { getOwnedProject, toastHtml } from '../lib/html'
 import { localeOf, trFor } from '../lib/i18n'
 import { uuid } from '../lib/ids'
-import type { Config, UserRow, DevTaskRow, DevTaskStatus, TaskCategory, SprintRow, TagRow, BacklogDocRow } from '../types'
+import type { Config, UserRow, DevTaskRow, DevTaskStatus, SprintRow, TagRow, BacklogDocRow } from '../types'
 
 const taskStatusSchema = z.enum(['idea', 'planned', 'in_progress', 'done', 'bug'])
 const prioritySchema = z.enum(['low', 'medium', 'high', 'urgent'])
@@ -63,14 +63,6 @@ const updateDevTaskSchema = z.object({
   start_at: isoDate.nullable().optional(),
   end_at: isoDate.nullable().optional(),
 }).refine(clipRangeOk, { message: 'bad_range' })
-const createCategorySchema = z.object({
-  name: z.string().trim().min(1).max(80),
-  color: hexColor.optional(),
-})
-const updateCategorySchema = z.object({
-  name: z.string().trim().min(1).max(80).optional(),
-  color: hexColor.optional(),
-})
 const createSprintSchema = z.object({
   name: z.string().trim().min(1).max(80).optional(),
 })
@@ -110,12 +102,15 @@ export async function ownedTask(cfg: Config, userId: string, id: string): Promis
   return rows[0] ?? null
 }
 
-export async function ownedCategory(cfg: Config, userId: string, id: string): Promise<TaskCategory | null> {
-  const rows = await cfg.db.query<TaskCategory>(
-    'SELECT c.* FROM task_categories c JOIN projects p ON p.id = c.project_id WHERE c.id = ? AND p.user_id = ? AND p.deleted_at IS NULL',
-    [id, userId],
+// S152: the task-create/edit validation — a category_id must reference a LIVE
+// global category that is ENABLED on the task's project (the picker set is the
+// single-select source; block 3 + block 7).
+export async function categoryEnabledOnProject(cfg: Config, projectId: string, id: string): Promise<boolean> {
+  const rows = await cfg.db.query<{ id: string }>(
+    'SELECT c.id FROM categories c JOIN project_categories pc ON pc.category_id = c.id WHERE c.id = ? AND pc.project_id = ? AND c.is_archived = 0',
+    [id, projectId],
   )
-  return rows[0] ?? null
+  return Boolean(rows[0])
 }
 
 export async function ownedSprint(cfg: Config, userId: string, id: string): Promise<SprintRow | null> {

@@ -810,6 +810,148 @@
             }
           })
         }
+
+        // ---- S152 (block 2): Settings → Categories — the library's source of truth ---
+        ;(() => {
+          const list = document.getElementById('catlist')
+          if (!list) return
+          const tC = (k, fb) => (window.hibanaI18n ? window.hibanaI18n.t(k, fb) : fb)
+          const escH = (s) => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
+          // The 16 curated tiles from the --cat-sw-* tokens (the token law's home).
+          const swatches = () => {
+            const cs = getComputedStyle(document.documentElement)
+            const out = []
+            for (let i = 1; i <= 16; i++) {
+              const fill = cs.getPropertyValue('--cat-sw-' + i + '-fill').trim()
+              const ink = cs.getPropertyValue('--cat-sw-' + i + '-ink').trim()
+              if (fill && ink) out.push({ fill, ink })
+            }
+            return out
+          }
+          let selPair = null // the add-form's chosen tile
+          const paintSwatches = () => {
+            const wrap = document.getElementById('cat-add-swatches')
+            if (!wrap) return
+            wrap.innerHTML = swatches().map((p, i) =>
+              '<button type="button" class="pd-cat-swatch-tile' + ((selPair && selPair.fill === p.fill) || (!selPair && i === 0) ? ' is-sel' : '') + '" data-fill="' + p.fill + '" data-ink="' + p.ink + '" style="background:' + p.fill + ';color:' + p.ink + '" aria-label="' + p.fill + '"><span aria-hidden="true">Aa</span></button>').join('')
+          }
+          const addWrap = document.getElementById('cat-add-swatches')
+          if (addWrap && !addWrap.childElementCount) {
+            paintSwatches()
+            addWrap.addEventListener('click', (ev) => {
+              const tile = ev.target.closest('.pd-cat-swatch-tile')
+              if (!tile) return
+              selPair = { fill: tile.dataset.fill, ink: tile.dataset.ink }
+              paintSwatches()
+            })
+          }
+          const paintRows = (cats) => {
+            if (!cats.length) { list.innerHTML = '<p class="muted small">' + escH(tC('cat.libraryEmpty', 'No categories yet — create the first one above.')) + '</p>'; return }
+            list.innerHTML = cats.map((cRow) =>
+              '<div class="pd-cat-row" data-cat-row="' + escH(cRow.id) + '">' +
+                '<span class="cat-chip" style="background:' + escH(cRow.color_fill) + ';color:' + escH(cRow.color_text) + '" dir="auto">' + escH(cRow.name) + '</span>' +
+                '<span class="muted small pd-cat-usage">' + escH(tC('cat.usedBy', '{n} project(s)').replace('{n}', String(cRow.projects ?? 0))) + '</span>' +
+                '<span class="pd-cat-row-actions">' +
+                  '<button type="button" class="ghost small" data-cat-rename="' + escH(cRow.id) + '">' + escH(tC('common.edit', 'Edit')) + '</button>' +
+                  '<button type="button" class="ghost small danger" data-cat-archive="' + escH(cRow.id) + '">' + escH(tC('cat.archive', 'Archive')) + '</button>' +
+                '</span>' +
+              '</div>').join('')
+          }
+          let lastCats = null
+          const load = async () => {
+            try {
+              const r = await fetch('/api/categories')
+              if (!r.ok) throw new Error('load failed')
+              lastCats = (await r.json()).categories || []
+              paintRows(lastCats)
+            } catch {
+              list.innerHTML = '<p class="muted small">' + escH(tC('sparks.saveFailed', "Couldn't save")) + '</p>'
+            }
+          }
+          load()
+          // i18n flip: repaint the rows from a cached fetch (the S75 pattern).
+          list.addEventListener('click', async (ev) => {
+            const renameBtn = ev.target.closest('[data-cat-rename]')
+            if (renameBtn) {
+              const row = renameBtn.closest('[data-cat-row]')
+              if (!row || row.querySelector('[data-cat-name-in]')) return
+              const chip = row.querySelector('.cat-chip')
+              const id = row.dataset.catRow
+              const cur = { name: chip.textContent, fill: chip.style.background, ink: chip.style.color }
+              const tiles = swatches()
+              // The chip's computed colors are rgb() — match them against the tiles
+              // (parse via a probe element; hex pairs win).
+              const probe = document.createElement('span')
+              const norm = (c) => { probe.style.color = ''; probe.style.color = c; return probe.style.color }
+              const matchIdx = tiles.findIndex((p) => norm(p.fill) === norm(cur.fill) && norm(p.ink) === norm(cur.ink))
+              const tilesHtml = tiles.map((p, i) =>
+                '<button type="button" class="pd-cat-swatch-tile' + (i === matchIdx ? ' is-sel' : '') + '" data-fill="' + p.fill + '" data-ink="' + p.ink + '" style="background:' + p.fill + ';color:' + p.ink + '" aria-label="' + p.fill + '"><span aria-hidden="true">Aa</span></button>').join('')
+              const editHtml =
+                '<div class="pd-cat-edit">' +
+                  '<input data-cat-name-in maxlength="80" dir="auto" value="' + escH(cur.name) + '">' +
+                  '<div class="pd-cat-swatches pd-cat-swatches-edit">' + tilesHtml + '</div>' +
+                  '<span class="pd-cat-row-actions">' +
+                    '<button type="button" class="small" data-cat-save="' + escH(id) + '">' + escH(tC('common.save', 'Save')) + '</button>' +
+                    '<button type="button" class="ghost small" data-cat-cancel>' + escH(tC('common.cancel', 'Cancel')) + '</button>' +
+                  '</span>' +
+                '</div>'
+              row.insertAdjacentHTML('afterend', editHtml)
+              const editRow = row.nextElementSibling
+              editRow.querySelector('[data-cat-name-in]').focus()
+              editRow.addEventListener('click', (ev2) => {
+                const tile = ev2.target.closest('.pd-cat-swatch-tile')
+                if (tile) { editRow.querySelectorAll('.pd-cat-swatch-tile').forEach((x) => x.classList.remove('is-sel')); tile.classList.add('is-sel') }
+              })
+              return
+            }
+            if (ev.target.closest('[data-cat-cancel]')) { ev.target.closest('.pd-cat-edit')?.remove(); return }
+            const saveBtn = ev.target.closest('[data-cat-save]')
+            if (saveBtn) {
+              const editRow = saveBtn.closest('.pd-cat-edit')
+              const name = editRow.querySelector('[data-cat-name-in]').value.trim()
+              const tile = editRow.querySelector('.pd-cat-swatch-tile.is-sel')
+              const body = {}
+              if (name) body.name = name
+              if (tile) { body.color_fill = tile.dataset.fill; body.color_text = tile.dataset.ink }
+              if (!Object.keys(body).length) { editRow.remove(); return }
+              try {
+                const r = await fetch('/api/categories/' + saveBtn.dataset.catSave, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
+                if (!r.ok) throw new Error('save failed')
+                window.hibana?.toast(tC('sparks.saved', 'Saved'), 'ok')
+                load()
+              } catch { window.hibana?.toast(tC('sparks.saveFailed', "Couldn't save"), 'err') }
+              return
+            }
+            const archiveBtn = ev.target.closest('[data-cat-archive]')
+            if (archiveBtn) {
+              if (!window.confirm(tC('db.archiveCatConfirm', 'Archive this category? Its tasks keep it — it just leaves the pickers and toggles.'))) return
+              try {
+                const r = await fetch('/api/categories/' + archiveBtn.dataset.catArchive + '/archive', { method: 'POST' })
+                if (!r.ok) throw new Error('archive failed')
+                window.hibana?.toast(tC('cat.archived', 'Category archived'))
+                load()
+              } catch { window.hibana?.toast(tC('sparks.saveFailed', "Couldn't save"), 'err') }
+            }
+          })
+          const addForm = document.getElementById('cat-add-form')
+          addForm?.addEventListener('submit', async (ev) => {
+            ev.preventDefault()
+            const nameIn = document.getElementById('cat-add-name')
+            const name = (nameIn?.value || '').trim()
+            if (!name) return
+            const pair = selPair || (paintSwatches(), { fill: addWrap.querySelector('.pd-cat-swatch-tile')?.dataset.fill, ink: addWrap.querySelector('.pd-cat-swatch-tile')?.dataset.ink })
+            if (!pair.fill) return
+            try {
+              const r = await fetch('/api/categories', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name, color_fill: pair.fill, color_text: pair.ink }) })
+              if (r.status === 409) { window.hibana?.toast(tC('cat.duplicate', 'A category with that name already exists'), 'err'); return }
+              if (!r.ok) throw new Error('create failed')
+              nameIn.value = ''
+              window.hibana?.toast(tC('cat.created', 'Category created'), 'ok')
+              load()
+            } catch { window.hibana?.toast(tC('sparks.saveFailed', "Couldn't save"), 'err') }
+          })
+          document.addEventListener('hibana:i18n', () => { paintSwatches(); if (lastCats) paintRows(lastCats) })
+        })()
       },
     })
 

@@ -10,6 +10,7 @@ import {
 import { trL, type Locale } from '../../lib/i18n'
 import { faDigits, toJalali } from '../../lib/jalali'
 import { loadBacklog, taskTagsForProject, PRIO_ORDER_SQL, type BacklogEvent, type TaskTagJoin } from '../devboard-helpers'
+import type { CategoryRow } from '../../lib/categories'
 import { shotsGridHtml } from '../core'
 import { STATUS_ORDER } from '../../types'
 import type {
@@ -60,7 +61,21 @@ export async function loadDetail(cfg: Config, p: ProjectRow) {
     cfg.db.query<DevTaskRow>(`SELECT t.* FROM dev_tasks t WHERE t.project_id = ? ORDER BY ${PRIO_ORDER_SQL}, t.sort_order, t.created_at`, [p.id]),
     // S29 follow-up: per-task labels ({task_id, id, name, color}) — chips on the cards.
     taskTagsForProject(cfg, p.id),
-    cfg.db.query<TaskCategory>('SELECT * FROM task_categories WHERE project_id = ? ORDER BY sort_order, created_at', [p.id]),
+    // S152: the GLOBAL library's rows this project can see — every ENABLED category
+    // (the picker/toggle set) UNION every category its tasks reference (a category
+    // disabled later keeps rendering its chip — history intact, block 8). `enabled`
+    // lets the client split the picker set from the chip set; archived never returns.
+    cfg.db.query<CategoryRow & { enabled: number }>(
+      `SELECT c.*, CASE WHEN c.is_archived = 1 THEN 0 ELSE COALESCE((SELECT 1 FROM project_categories pc WHERE pc.category_id = c.id AND pc.project_id = ?), 0) END AS enabled
+       FROM categories c
+       -- S152/block 8: archived rows STAY in the payload when a task still references
+       -- them (the chip keeps rendering — history visible); they carry enabled = 0
+       -- so the pickers and toggles exclude them from NEW selections.
+       WHERE c.id IN (SELECT category_id FROM dev_tasks WHERE project_id = ? AND category_id IS NOT NULL)
+          OR (c.is_archived = 0 AND c.id IN (SELECT category_id FROM project_categories WHERE project_id = ?))
+       ORDER BY c.name COLLATE NOCASE, c.created_at`,
+      [p.id, p.id, p.id],
+    ).catch(() => []), // 0062 belt: a D1 pre-migration has no categories table — chip-less, not broken
     cfg.db.query<SprintRow>('SELECT * FROM sprints WHERE project_id = ? ORDER BY started_at', [p.id]),
     // برنامه آتی tab payload (0033): documents + merged history feed.
     loadBacklog(cfg, p.id),
@@ -237,6 +252,19 @@ export function detailHtml(p: ProjectRow, d: Awaited<ReturnType<typeof loadDetai
     const list = tagsByTask.get(taskId) ?? []
     return esc(JSON.stringify(list.map((tg) => ({ name: tg.name, color: tg.color }))))
   }
+  // S152 (block 6): the task's category as a small colored chip DIRECTLY ABOVE the
+  // task title, wearing the category's own fill+ink pair. The map covers every row
+  // the payload carries (enabled ∪ referenced — a category disabled later keeps its
+  // chip; archived rows never arrive, but those tasks simply render chip-less —
+  // history stays in the DB either way).
+  const catBy = new Map<string, CategoryRow>()
+  for (const cRow of d.categories) catBy.set(cRow.id, cRow)
+  const catChipHtml = (categoryId: string | null): string => {
+    if (!categoryId) return ''
+    const cRow = catBy.get(categoryId)
+    if (!cRow) return ''
+    return `<span class="cat-chip" style="background:${esc(cRow.color_fill)};color:${esc(cRow.color_text)}" dir="auto">${esc(cRow.name)}</span>`
+  }
   // Inline "Project Progress" board preview (user sketch 2026-08-29): the five columns
   // with their top cards — adding happens RIGHT HERE through the per-column inline
   // composer (user request 2026-08-29: "add tasks directly in project's page into boxes");
@@ -380,6 +408,10 @@ export function detailHtml(p: ProjectRow, d: Awaited<ReturnType<typeof loadDetai
              (name + version + description → create → «ورود به اسپرینت» → the full-screen
              rich sprint editor). project-page.js wires [data-pd-new-sprint]. -->
         <button type="button" class="small pd-new-sprint" data-pd-new-sprint title="${trL(lang, 'Define the next sprint — name, version and plan', 'اسپرینت بعدی را تعریف کن — نام، نسخه و برنامه')}">${icon('diamond')} ${trL(lang, 'New sprint', 'اسپرینت جدید')}</button>
+        <!-- S152 (block 7): the per-project category toggle screen — the dialog lists
+             every live global category with an on/off switch for THIS project (+ a
+             link to Settings for the library itself). project-page.js wires it. -->
+        <button type="button" class="btn ghost small" data-pd-cats title="${trL(lang, 'Categories for this project', 'دسته‌های این پروژه')}">${icon('tag')} ${trL(lang, 'Categories', 'دسته‌ها')}</button>
         <a class="btn ghost small" href="/board.html?project=${p.id}">${icon('expand')} ${trL(lang, 'Full screen board', 'برد تمام‌صفحه')}</a>
         <a class="btn ghost small" href="/sprint.html?project=${p.id}">${icon('diamond')} ${trL(lang, 'Sprints', 'اسپرینت‌ها')}${d.sprints.length ? ` <span class="pd-sprint-count">${dig(d.sprints.length)}</span>` : ''}</a>
       </div>
@@ -409,10 +441,11 @@ export function detailHtml(p: ProjectRow, d: Awaited<ReturnType<typeof loadDetai
               </span>
             </div>
             <div class="pd-tasks" data-pd-tasks="${col.key}" data-pd-total="${items.length}">
-              ${top.map((t) => `<div class="pd-task-wrap" data-pd-task="${t.id}" data-pd-status="${t.status}" data-pd-created="${t.created_at}" data-pd-priority="${t.priority}" data-pd-tags="${taskTagsAttr(t.id)}"${t.done_at ? ` data-pd-done="${t.done_at}"` : ''}>
+              ${top.map((t) => `<div class="pd-task-wrap" data-pd-task="${t.id}" data-pd-status="${t.status}" data-pd-created="${t.created_at}" data-pd-priority="${t.priority}" data-pd-tags="${taskTagsAttr(t.id)}" data-pd-cat="${t.category_id ?? ''}"${t.done_at ? ` data-pd-done="${t.done_at}"` : ''}>
                 <button type="button" class="prio-banner prio-${t.priority || 'medium'}" data-pd-cycle-prio title="${esc(trL(lang, 'Priority: {p} — click to change', 'اولویت: {p} — برای تغییر کلیک کن', { p: prioLabel(t.priority || 'medium') }))}" aria-label="${esc(trL(lang, 'Priority: {p} — click to change', 'اولویت: {p} — برای تغییر کلیک کن', { p: prioLabel(t.priority || 'medium') }))}"><span class="prio-banner-label">${esc(prioLabel(t.priority || 'medium'))}</span></button>
                 <div class="pd-task st-${t.status}" draggable="true" role="button" tabindex="0" aria-label="${esc(t.title)}">
                   <span class="pd-task-body">
+                    ${catChipHtml(t.category_id)}
                     <span class="pd-task-title-row" dir="auto">
                       <span class="pd-task-title"${titleAttrs(t.title)}>${titleHtml(t.title)}</span>
                     </span>
@@ -645,6 +678,18 @@ export function detailHtml(p: ProjectRow, d: Awaited<ReturnType<typeof loadDetai
            (Add/Cancel) never scroll away, however long the content or how many files
            are staged. The dialog + form are overflow:hidden flex columns. -->
       <div class="pd-modal-body">
+      <!-- S152 (block 7): the zero-enabled setup prompt — the ONLY interruption a
+           project without categories ever sees. Offers the toggle list + quick-add
+           together; project-page.js fills + shows it exactly when the project has
+           zero enabled categories (first task creation). -->
+      <div class="pd-cat-setup" id="pd-taskadd-cat-setup" hidden>
+        <p class="pd-cat-setup-title">${icon('tag')} ${trL(lang, 'Set up categories for this project', 'دسته‌های این پروژه را بساز')}</p>
+        <p class="muted small pd-cat-setup-sub">${trL(lang, 'Pick from your library or create one — categories label tasks across every project.', 'از کتابخانه‌ات انتخاب کن یا یکی بساز — دسته‌ها کارها را در همهٔ پروژه‌ها برچسب می‌زنند.')}</p>
+        <div class="pd-cat-setup-list" id="pd-taskadd-cat-setup-list"></div>
+        <div class="pd-cat-setup-actions row">
+          <button type="button" class="ghost small" id="pd-taskadd-cat-setup-skip">${trL(lang, 'Not now', 'فعلاً نه')}</button>
+        </div>
+      </div>
       <div class="pd-taskadd-col muted small">${trL(lang, 'Lands in', 'ثبت در')} <span class="chip" id="pd-taskadd-col-chip"></span></div>
       <div class="pd-tb" role="toolbar" aria-label="${trL(lang, 'Formatting', 'قالب‌بندی')}">
         <button type="button" class="pd-tb-btn" data-tb="bold" title="${trL(lang, 'Bold (**text**)', 'پررنگ (**متن**)')}" aria-label="${trL(lang, 'Bold', 'پررنگ')}"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 5h6a3.5 3.5 0 1 1 0 7H7zM7 12h7a3.5 3.5 0 1 1 0 7H7z"/></svg></button>
@@ -705,6 +750,20 @@ export function detailHtml(p: ProjectRow, d: Awaited<ReturnType<typeof loadDetai
             <option value="none">${trL(lang, 'No sprint', 'بدون اسپرینت')}</option>
           </select>
         </label>
+        <!-- S152 (block 3+4): the single-select CATEGORY field — an autocomplete over
+             the project's enabled categories (case/whitespace-insensitive matching),
+             with an inline Create-'name' quick-add that opens the 16-tile swatch grid
+             and saves to the global library without leaving the composer. The hidden
+             input carries the selected id; project-page.js owns the picker. -->
+        <div class="pd-opt pd-cat-field" id="pd-taskadd-cat-field">
+          <span class="pde-field-label">${trL(lang, 'Category', 'دسته')}</span>
+          <span class="pd-cat-row">
+            <input id="pd-taskadd-cat" dir="${lang === 'fa' ? 'rtl' : 'auto'}" autocomplete="off" maxlength="80" role="combobox" aria-expanded="false" aria-controls="pd-taskadd-cat-pop" aria-autocomplete="list" placeholder="${trL(lang, 'None — type to pick or create', 'بدون — برای انتخاب یا ساخت بنویس')}" />
+            <button type="button" class="ghost small pd-cat-clear" id="pd-taskadd-cat-clear" hidden aria-label="${trL(lang, 'Clear category', 'پاک کردن دسته')}">✕</button>
+          </span>
+          <div class="pd-cat-pop" id="pd-taskadd-cat-pop" hidden></div>
+          <input type="hidden" id="pd-taskadd-cat-id" value="" />
+        </div>
       </div>
       <!-- S46.3 (owner mockup: "Screenshots Uploaded and shown in the same page. ability to
            delete screenshot, or edit it's note"): screenshots now upload IMMEDIATELY on

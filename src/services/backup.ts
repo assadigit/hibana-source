@@ -110,7 +110,9 @@ export const SNAPSHOT_TABLES = [
   // project_archives (0046) were missing from the snapshot entirely — archived dev
   // tasks and task-tag links would have been silently lost on restore ("never lose an
   // idea" tables). Both are project-scoped children, so they sit after their parents.
-  'task_categories', 'sprints', 'dev_tasks', 'dev_task_tags',
+  // S152 (0062): the GLOBAL category library + the per-project join are FK parents of
+  // dev_tasks.category_id too — categories BEFORE project_categories BEFORE dev_tasks.
+  'categories', 'project_categories', 'task_categories', 'sprints', 'dev_tasks', 'dev_task_tags',
   'project_archives',
   'backlog_docs', 'backlog_doc_revisions',
   // S30 (2026-09-12): project_progress_log REMOVED — 0051 dropped the table with the
@@ -203,7 +205,7 @@ const PROJECT_SCOPED_EXPORT_TABLES = [
   // Session 20: archived dev tasks + the dev-board cluster are user content too — a
   // personal export without them loses archived work ("never lose an idea").
   'project_archives', 'dev_tasks',
-  'task_categories', 'sprints', 'backlog_docs',
+  'project_categories', 'task_categories', 'sprints', 'backlog_docs',
 ] as const
 /** Tables that scope through dev_tasks.task_id (no project_id column of their own). */
 const DEV_TASK_CHILD_EXPORT_TABLES = ['dev_task_tags'] as const
@@ -281,6 +283,18 @@ export async function buildUserSnapshot(db: Db, userId: string): Promise<Snapsho
     )
     if (rows) data[table] = rows
   }
+  // S152: the GLOBAL category library has no owner column — a personal export carries
+  // the slice the user's projects actually USE (enabled on them or referenced by their
+  // tasks), so a restore re-creates exactly what the account needs without leaking
+  // another account's unrelated library rows.
+  const catRows = await guardedQuery(
+    'categories',
+    `SELECT DISTINCT c.* FROM categories c
+     WHERE c.id IN (SELECT category_id FROM project_categories WHERE project_id IN (SELECT id FROM projects WHERE user_id = ?))
+        OR c.id IN (SELECT category_id FROM dev_tasks WHERE project_id IN (SELECT id FROM projects WHERE user_id = ?))`,
+    [userId, userId],
+  )
+  if (catRows) data.categories = catRows
 
   return {
     // Session 20: bumped 20260828 → 20260920 (shape changed: +project_archives, dev_tasks,
@@ -289,7 +303,8 @@ export async function buildUserSnapshot(db: Db, userId: string): Promise<Snapsho
     // S57: shape changed again (+note_folders, +vault_notes — the Notes Vault joins the
     // personal export; soft-deleted notes included). Restore scripts key on table
     // names present in `data`, so older readers simply don't see the new keys.
-    schema_version: 20260921,
+    // S152: +categories (the used slice) +project_categories → 20260926.
+    schema_version: 20260926,
     exported_at: new Date().toISOString(),
     missing_tables: missing,
     data,

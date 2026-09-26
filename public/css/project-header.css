@@ -939,11 +939,14 @@ button.pd-task-add {
 .pd-prio-select { min-inline-size: 11rem; }
 
 /* Color-coded <option>s — honored by Chromium/Firefox in the open list; the chip
-   beside the select is the guaranteed color signal on every engine/platform. */
-.pd-prio-select option.prio-urgent { background: #fde3e0; color: var(--err); font-weight: 600; }
-.pd-prio-select option.prio-high { background: #fbe9e7; color: var(--err); }
-.pd-prio-select option.prio-medium { background: #F6EFCB; color: var(--warn); }
-.pd-prio-select option.prio-low { background: #eceef0; color: var(--muted); }
+   beside the select is the guaranteed color signal on every engine/platform.
+   S145 (owner: "use this colors"): the pastels + inks are self-contained pairs of
+   the owner's banner palette (native dropdowns don't reliably inherit theme vars,
+   so dark literals on light pastels are the SAFE pair on every engine). */
+.pd-prio-select option.prio-urgent { background: #f9dfe6; color: #a81f42; font-weight: 600; }
+.pd-prio-select option.prio-high { background: #fbe5da; color: #a34a26; }
+.pd-prio-select option.prio-medium { background: #faf0d3; color: #7a611c; }
+.pd-prio-select option.prio-low { background: #eaf1e4; color: #55703f; }
 
 /* Live preview chip — dot + label, tinted per priority (its class is swapped by
    pdSyncPrioChip on every select change). */
@@ -960,10 +963,12 @@ button.pd-task-add {
   white-space: nowrap;
 }
 .pd-prio-chip .prio-dot { inline-size: 9px; block-size: 9px; margin-block-start: 0; }
-.pd-prio-chip.prio-urgent { border-color: #D96C63; background: rgb(217 108 99 / 0.12); color: var(--err); }
-.pd-prio-chip.prio-high { border-color: #D96C63; background: rgb(217 108 99 / 0.08); color: var(--err); }
-.pd-prio-chip.prio-medium { border-color: #E8B27D; background: #F6EFCB; color: var(--warn); }
-.pd-prio-chip.prio-low { border-color: #C9CDD2; background: rgb(201 205 210 / 0.14); color: var(--muted); }
+/* S145 (owner: "use this colors"): borders + tints from the owner's banner palette
+   (rgba tints over the card stay dark-safe); the text tokens stay theme-adaptive. */
+.pd-prio-chip.prio-urgent { border-color: #d9365b; background: rgb(217 54 91 / 0.12); color: var(--err); }
+.pd-prio-chip.prio-high { border-color: #e99169; background: rgb(233 145 105 / 0.12); color: var(--err); }
+.pd-prio-chip.prio-medium { border-color: #e8c15a; background: rgb(232 193 90 / 0.16); color: var(--warn); }
+.pd-prio-chip.prio-low { border-color: #a8c995; background: rgb(168 201 149 / 0.14); color: var(--muted); }
 
 /* The composer's options row (priority + labels side by side, wrapping on mobile). */
 .pd-taskadd-opts { display: flex; gap: 1rem; flex-wrap: wrap; align-items: flex-start; }

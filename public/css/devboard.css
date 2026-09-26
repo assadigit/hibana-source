@@ -148,13 +148,15 @@
   color: var(--btn-text, #fff);
 }
 .db-seg button.is-on { background: var(--bg-soft); color: var(--text); font-weight: 600; border-color: var(--brand); }
-.db-seg button.prio-low.is-on { background: #C9CDD22E; border-color: #9aa0a8; }
-.db-seg button.prio-medium.is-on { background: #E8B27D45; border-color: #d99a55; }
-/* UI/UX R5 (2026-09-12): prio-high button pink #E59AA54D → red #D96C6352 (matches prio-urgent
-   tint). The prio-urgent's stronger background (same hue, slightly different opacity) + the
-   prio-urgent's red-border on the card itself (polish-batch.css) still distinguish them. */
-.db-seg button.prio-high.is-on { background: #D96C6352; border-color: #bd544c; }
-.db-seg button.prio-urgent.is-on { background: #D96C6352; border-color: #bd544c; }
+/* S145 (owner: "use this colors"): the is-on tints ride the owner's banner palette
+   (sage / gold / coral / crimson) — each border is a darkened sibling of its fill so
+   the selected pill reads on light AND dark. */
+.db-seg button.prio-low.is-on { background: #A8C9952E; border-color: #7c9e63; }
+.db-seg button.prio-medium.is-on { background: #E8C15A45; border-color: #c39a2e; }
+/* UI/UX R5 (2026-09-12): prio-high's tint once matched prio-urgent's — S145 gives
+   every priority its own hue again (coral vs crimson). */
+.db-seg button.prio-high.is-on { background: #E9916952; border-color: #c4653a; }
+.db-seg button.prio-urgent.is-on { background: #D9365B59; border-color: #b02446; }
 .db-tags-row { display: flex; flex-wrap: wrap; gap: 0.4rem; align-items: center; }
 .db-tags-row input {
   min-inline-size: 9rem;
@@ -569,11 +571,13 @@
   inset-inline-end: -3px;
   border: 1.5px solid var(--card, #fff);
 }
-.sp-dot-prio.prio-low { background: #C9CDD2; }
-.sp-dot-prio.prio-medium { background: #E8B27D; }
-/* UI/UX R5 (2026-09-12): prio-high pink #E59AA5 → red #D96C63 (shares the prio-urgent hue). */
-.sp-dot-prio.prio-high { background: #D96C63; }
-.sp-dot-prio.prio-urgent { background: #D96C63; }
+.sp-dot-prio.prio-low { background: #A8C995; }
+.sp-dot-prio.prio-medium { background: #E8C15A; }
+/* UI/UX R5 (2026-09-12): prio-high pink #E59AA5 → red (shared the prio-urgent hue).
+   S145 (owner: "use this colors"): the dots ride the owner's banner palette — high
+   (coral) and urgent (crimson) are distinct hues again. */
+.sp-dot-prio.prio-high { background: #E99169; }
+.sp-dot-prio.prio-urgent { background: #D9365B; }
 .sp-dot-check {
   font-size: 11px;
   font-weight: 700;

@@ -500,11 +500,15 @@
    (li.dash-urgent-row.prio-urgent → SOLID RED blocks) and the task-card meta text chips
    (span.pd-meta-prio.prio-* → solid red/orange pills behind the text). Scoped to
    .prio-dot now: the color lives on the 9px dots only. Urgent distinguishes itself
-   from high via the beep pulse below, not via painted backgrounds. */
-.prio-dot.prio-low { background: #C9CDD2; }
-.prio-dot.prio-medium { background: #E8B27D; }
-.prio-dot.prio-high { background: #D96C63; }
-.prio-dot.prio-urgent { background: #D96C63; }
+   from high via the beep pulse below, not via painted backgrounds.
+   S145 (owner: "use this colors"): the dots ride the owner's banner palette — sage /
+   gold / coral / crimson — so every priority indicator (banner, dot, chip, segment)
+   speaks the SAME hue; high + urgent are distinct colors again (the beep pulse stays
+   as the motion cue on top). */
+.prio-dot.prio-low { background: #A8C995; }
+.prio-dot.prio-medium { background: #E8C15A; }
+.prio-dot.prio-high { background: #E99169; }
+.prio-dot.prio-urgent { background: #D9365B; }
 
 /* S32 (user request 2026-09-13 — "GENERAL LAW: show RTL text RTL (when typing
    Farsi), show LTR text LTR (when writing Latin or AI translates it to Latin)").
@@ -747,15 +751,19 @@ input.qe-name,
    The wrap border returns to the column color for EVERY card (the banner carries the
    priority hue now), and the card-scoped .pd-task .prio-dot rules are gone with the
    dot. The .prio-dot base colors above STAY — filter chips, the dashboard fire strip,
-   sprint circles and the reports segments still speak dot. */
+   sprint circles and the reports segments still speak dot (S145: now in the owner's
+   banner palette, so every priority indicator shares one hue family). */
 .pd-task-wrap { border-inline-start: 3px solid transparent; }
 .pd-col .pd-task-wrap { border-inline-start-color: rgb(var(--pd-c, 200 200 200) / 0.55); }
 
 /* ─── S144: the PRIORITY BANNER ─────────────────────────────────────────────
    A colored strip across the card's top with the UPPERCASE label centered — the
    owner's screenshot anatomy. Colors from the ONE --prio-banner-* token set
-   (variables.css; white-label pairs, AA-verified, hue-separated, self-contained so
-   dark needs no mirrors). The banner IS the priority cycle button (the old dot's
+   (variables.css). S145 (owner: "use this colors"): the fills are the owner's exact
+   legend (sage / gold / coral / crimson) and the INK flips per priority — the three
+   light pastels carry the dark --prio-banner-ink (white fails AA there), urgent's
+   crimson keeps the white label (4.54 AA). Still self-contained (label sits ON the
+   fill), so dark needs no mirrors. The banner IS the priority cycle button (the old dot's
    contract: title/aria hint + click = low → medium → high → urgent). The wrap goes
    column-flex so banner + card stack; the ⋯ hover menu is absolutely positioned and
    unaffected. Radii are logical (border-start-*) — RTL-safe; the banner's own top
@@ -768,13 +776,13 @@ input.qe-name,
   border-radius: var(--radius-sm) var(--radius-sm) 0 0;
   font-family: inherit; font-size: 10px; font-weight: 700;
   letter-spacing: 0.09em; text-transform: uppercase; line-height: 1.25;
-  color: #fff; background: var(--prio-banner-medium);
+  color: var(--prio-banner-ink); background: var(--prio-banner-medium);
   transition: filter 0.12s ease;
 }
 .prio-banner:hover { filter: brightness(1.1); }
 .prio-banner:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
 .prio-banner .prio-banner-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-inline-size: 100%; }
-.prio-banner.prio-urgent { background: var(--prio-banner-urgent); }
+.prio-banner.prio-urgent { background: var(--prio-banner-urgent); color: #fff; }
 .prio-banner.prio-high { background: var(--prio-banner-high); }
 .prio-banner.prio-medium { background: var(--prio-banner-medium); }
 .prio-banner.prio-low { background: var(--prio-banner-low); }

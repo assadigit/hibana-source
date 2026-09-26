@@ -175,16 +175,20 @@
      card's top carrying the label (URGENT / HIGH / MEDIUM / LOW PRIORITY), instead of
      the old left-border accent + tiny dot. One token per priority, consumed by the
      banner on every surface (board.html, project.html's server fragments) so no
-     surface can hardcode its own shade. Each pair is AA-verified with the white label
-     (urgent 5.92 · high 5.02 · medium 4.92 · low 5.45) and hue-separated per the S141
-     distinct-hue lesson: red = the house alarm (--err), orange = the house attention
-     (--warn), deep amber + quiet slate for medium/low (the established dot family,
-     deepened just enough to carry white text). The pair is self-contained (label sits
-     ON the fill), so the same tokens read in dark without mirrors. */
-  --prio-banner-urgent: #c02626;
-  --prio-banner-high: #b45309;
-  --prio-banner-medium: #a16207;
-  --prio-banner-low: #5f6b76;
+     surface can hardcode its own shade.
+     S145 (owner: "use this colors" + the exact legend): the fills are now the OWNER'S
+     palette verbatim — Low #A8C995 (sage) · Medium #E8C15A (gold) · High #E99169
+     (coral) · Urgent #D9365B (crimson). Three fills are LIGHT pastels, where a white
+     label fails AA (1.7-2.4:1) — so the banner ink flips per priority: the
+     self-contained dark --prio-banner-ink on low/medium/high (verified 8.32 / 8.87 /
+     6.33 vs their fills) and the white label stays on urgent only (4.54, AA normal
+     text). The pair remains self-contained (label sits ON the fill), so dark needs no
+     mirrors. The whole priority family (dots, chips, segments) rides this palette. */
+  --prio-banner-urgent: #d9365b;
+  --prio-banner-high: #e99169;
+  --prio-banner-medium: #e8c15a;
+  --prio-banner-low: #a8c995;
+  --prio-banner-ink: #21262b;
 
   /* Status badge colors — pastel wash + AA ink of the SAME hue as --st-<status>.
      (unreviewed stays the devboard lane tint it always was — not a project stage.) */

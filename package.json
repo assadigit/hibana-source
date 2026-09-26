@@ -50,7 +50,7 @@
     "purge": "node scripts/purge-cache.mjs"
   },
   "dependencies": {
-    "@hono/node-server": "^1.13.7",
+    "@hono/node-server": "^2.1.1",
     "fabric": "^7.4.0",
     "fflate": "^0.8.3",
     "hono": "^4.13.7",

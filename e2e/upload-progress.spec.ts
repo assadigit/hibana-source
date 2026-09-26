@@ -178,10 +178,18 @@ test('task EDIT dialog: the same progress rows (the lone fetch()-era surface joi
     await route.continue()
   })
 
-  // Open the task edit dialog by clicking the task card.
-  const card = page.locator('.pd-task-wrap .pd-task', { hasText: 'edit dialog upload probe' }).first()
+  // Open the task edit dialog via the ⋯ menu's Edit (the S149 contract: the card
+  // click opens the read-only DETAIL SLIDE-OVER — the editor lives behind the menu).
+  const wrap = page.locator('.pd-task-wrap', { hasText: 'edit dialog upload probe' }).first()
+  const card = wrap.locator('.pd-task')
   await expect(card).toBeVisible({ timeout: 10_000 })
   await card.click()
+  await expect(page.locator('#pd-detail-root')).toHaveClass(/open/) // the panel, not the editor
+  await page.keyboard.press('Escape')
+  await expect(page.locator('#pd-detail-root')).not.toHaveClass(/open/)
+  await card.hover()
+  await wrap.locator('[data-menu-open]').click()
+  await wrap.locator('[data-pd-task-edit]').click()
   const edit = page.locator('#pd-task-edit-modal')
   await expect(edit).toBeVisible({ timeout: 5_000 })
 

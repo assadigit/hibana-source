@@ -758,13 +758,18 @@ input.qe-name,
    priority label are RETIRED — the priority now lives on a PRIORITY BANNER, a colored
    strip fused across the card's top carrying the label (the banner is the cycle
    affordance, keeping the old dot's data-db-cycle-prio / data-pd-cycle-prio contract).
-   The wrap border returns to the column color for EVERY card (the banner carries the
-   priority hue now), and the card-scoped .pd-task .prio-dot rules are gone with the
-   dot. The .prio-dot base colors above STAY — filter chips, the dashboard fire strip,
-   sprint circles and the reports segments still speak dot (S145: now in the owner's
-   banner palette, so every priority indicator shares one hue family). */
-.pd-task-wrap { border-inline-start: 3px solid transparent; }
-.pd-col .pd-task-wrap { border-inline-start-color: rgb(var(--pd-c, 200 200 200) / 0.55); }
+   The card-scoped .pd-task .prio-dot rules are gone with the dot. The .prio-dot base
+   colors above STAY — filter chips, the dashboard fire strip, sprint circles and the
+   reports segments still speak dot (S145: now in the owner's banner palette, so every
+   priority indicator shares one hue family).
+   S153 (owner report: "a stray vertical border on the left edge of the card, near the
+   LOW PRIORITY card"): the wrap's 3px inline-start border — a Session 19 leftover that
+   S144 had returned to the COLUMN color for EVERY card — is REMOVED entirely. It was
+   the only rule painting a line at the card's own edge (the card itself carries just
+   the symmetric 1px --line border), and because it sat on the WRAPPER it rendered just
+   outside the card's rounded edge. The column's own identity strip (.pd-col
+   border-inline-start in project-header.css) is deliberately untouched — that line
+   belongs to the column at the column's edge, not to the cards. */
 
 /* ─── S144: the PRIORITY BANNER ─────────────────────────────────────────────
    A colored strip across the card's top with the UPPERCASE label centered — the

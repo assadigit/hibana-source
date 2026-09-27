@@ -116,7 +116,7 @@ window.hibanaCanvas = (() => {
   // previous font. The choice persists per board in localStorage and applies live to text.
   const FONT_KEY = 'hibana-font-canvas'
   let fontMode = localStorage.getItem(FONT_KEY) || 'bebas'
-  const textFont = () => (fontMode === 'classic' ? "'Manrope', 'VazirFA', system-ui, sans-serif" : "'Bebas Notes', 'VazirFA', 'Manrope', system-ui, sans-serif")
+  const textFont = () => (fontMode === 'classic' ? "'General Sans', 'VazirFA', system-ui, sans-serif" : "'Bebas Notes', 'VazirFA', 'General Sans', system-ui, sans-serif")
   // Bebas renders too heavy at the regular weight (user request) — the family includes a
   // Light face (300) that reads like a marker; Classic keeps the normal weight.
   const textWeight = () => (fontMode === 'bebas' ? 300 : 400)

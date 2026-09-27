@@ -256,10 +256,22 @@ select:focus-visible {
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 15%, transparent);
 }
 
-h1, h2, h3, h4 { line-height: 1.25; margin-block: 0 0.5em; font-weight: 600; }
-h1 { font-size: 1.5rem; letter-spacing: -0.01em; }
-h2 { font-size: 1.35rem; }
-h3 { font-size: var(--fs-xl); }
+/* S155 TYPE SCALE — the element ladder resolves onto the owner's spec tokens
+   (variables.css): H1 24px/600/1.2/-0.01em · H2 18px/600/1.3/-0.005em · H3
+   14px/500/1.4 (the "minor heading / nav item" rung — demoted from the old
+   600/1.12rem card-title register, which is H2's job now). H4 keeps the shared
+   fallback (the spec defines no h4). Mobile (<768px): ONLY H1/H2 shrink —
+   working text never does. RTL: negative tracking is a Latin-optical device and
+   damages Arabic-script shaping — the [dir='rtl'] guard lives in rtl.css. */
+h1, h2, h3, h4 { margin-block: 0 0.5em; }
+h1 { font-size: var(--text-h1-size); font-weight: var(--text-h1-weight); line-height: var(--text-h1-line-height); letter-spacing: var(--text-h1-tracking); }
+h2 { font-size: var(--text-h2-size); font-weight: var(--text-h2-weight); line-height: var(--text-h2-line-height); letter-spacing: var(--text-h2-tracking); }
+h3 { font-size: var(--text-h3-size); font-weight: var(--text-h3-weight); line-height: var(--text-h3-line-height); }
+h4 { line-height: 1.25; font-weight: 600; }
+@media (max-width: 767.98px) {
+  h1 { font-size: var(--text-h1-size-mobile); }
+  h2 { font-size: var(--text-h2-size-mobile); }
+}
 
 a { color: var(--link); text-decoration: none; }  /* --link = the text-safe teal; --accent stays for fills/borders */
 a:hover { text-decoration: underline; }
@@ -411,7 +423,9 @@ button {
   padding: 0.55rem 1rem;
   background: var(--cta, var(--accent));
   color: var(--btn-text);
-  font-weight: 600;
+  /* S155 Label register: control labels weigh 500 (was 600) — hierarchy moves
+     onto the ink/size rungs; 600 is reserved for H1/H2 titles. */
+  font-weight: var(--text-label-weight);
   transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
 }
 button:hover { background: var(--cta-hover, var(--accent-hover)); color: var(--btn-text, #fff); /* Session 19 (user report): primary buttons turn teal on hover; text must be white, not the resting --text (dark). Ghost/btn overrides below reset for their light-bg hovers. */ }

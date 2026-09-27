@@ -15,7 +15,13 @@ html[data-theme='light'] {
   /* S95 r2: the light block mirrors variables.css's neutral-gray canvas + hairlines
      (this explicit block must never drift from the :root baseline — it exists so an
      OS-dark scheme can never bleed through, not to carry different values). */
-  --bg: #E7E7E7; --bg-soft: #DEDEDE; --card: #FFFFFF; --text: #262118; --muted: #5A5248;
+  --bg: #E7E7E7; --bg-soft: #DEDEDE; --card: #FFFFFF;
+  /* S155: the inks join the rung system — the explicit light block mirrors
+     variables.css (the rungs + their OPAQUE flattened forms that --text/--muted
+     consume; see the mixing note there). Same contract as above: this block
+     exists so an OS-dark scheme can never bleed through, not to carry new values. */
+  --ink-primary: rgba(0, 0, 0, 0.92); --ink-secondary: rgba(0, 0, 0, 0.64); --ink-tertiary: rgba(0, 0, 0, 0.56);
+  --text: #141414; --muted: #5C5C5C;
   --statcard-bg: #F5F6F7;
   --line: #D4D4D4; --line-strong: #BFBFBF; --accent: #4A9FA3; --accent-hover: #3D8D91;
   --accent-soft: rgba(74,159,163,.13); --cta: #2E7B7F; --cta-hover: #276A6D; --link: #297073; --ok: #1f7a34; --err: #c02626; --btn-text: #ffffff;

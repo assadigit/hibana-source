@@ -42,8 +42,8 @@ html[data-theme='claude-dark'] .sadhana-wrap { --text-dim:#b0aea5; --shadow-lg:0
 /* Board-scoped reset + base type. The global * reset used to live on the document —
    now it must not touch the injected Hibana chrome (topbar / bottom bar / cmdk). */
 .sadhana-wrap,.sadhana-wrap *{box-sizing:border-box;margin:0;padding:0}
-.sadhana-wrap{font-family:'Manrope','Vazir',sans-serif;color:var(--text);transition:background .3s,color .3s}
-body.rtl .sadhana-wrap{direction:rtl;font-family:'Vazir','Manrope',sans-serif}
+.sadhana-wrap{font-family:var(--font-sans);color:var(--text);transition:background .3s,color .3s} /* S155: the board rides the app family stack (General Sans + Vazir coverage) — no second typeface */
+body.rtl .sadhana-wrap{direction:rtl;font-family:'Vazir','General Sans',sans-serif}
 ::-webkit-scrollbar{width:4px}::-webkit-scrollbar-thumb{background:var(--line-strong);border-radius:4px}
 
 /* ─── Shell layout: Hibana topbar above, board fills the rest ──

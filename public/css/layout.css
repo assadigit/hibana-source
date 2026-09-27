@@ -306,9 +306,14 @@ body.rail-panel-open .rail-panel { visibility: visible; opacity: 1; transition: 
      projects kanban stage columns read as the same system, exact same color/opacity. */
   background: var(--well-bg);
   color: var(--muted);
-  /* S106: the 600 in this shorthand is now 700 (see the comment above). */
-  font: 700 var(--fs-xs)/1.2 var(--font-sans);
-  letter-spacing: 0.02em; text-transform: uppercase;
+  /* S155: the group head is the EYEBROW rung (section group label): 12px/500,
+     +0.03em, secondary ink, SENTENCE CASE — the S106 700/uppercase bold register
+     is superseded by the spec's weight/ink hierarchy: the 400 items beneath read
+     as content through the ink rungs + this label's 12px secondary register, not
+     through weight. (The sub-group head at :398 keeps its own 500/no-transform
+     override — same rung, quieter surface.) */
+  font: var(--text-eyebrow-weight) var(--text-eyebrow-size)/var(--text-eyebrow-line-height) var(--font-sans);
+  letter-spacing: var(--text-eyebrow-tracking); text-transform: none;
   cursor: pointer;
 }
 .rail-group-head:hover { color: var(--text); background: var(--accent-soft); }
@@ -431,7 +436,7 @@ body.rail-panel-open .rail-panel { visibility: visible; opacity: 1; transition: 
    the class rides projectBranch's rows alone (nav.js), so sparks, notes, calendar,
    to-do items and the sub-group's idea/bug leaves all keep their 400 — content
    stays regular, the S106 hierarchy contract. */
-.rail-item.rail-project-row { font-weight: 700; }
+.rail-item.rail-project-row { /* S155: the H3 register — sidebar project names weigh 500 (the spec's "Minor heading / nav item" rung; the S106 700 bold register is superseded — hierarchy now rides the ink rungs: names primary, group labels secondary) */ font-weight: var(--text-h3-weight); }
 /* S88: the status dot speaks the --badge-*-fg roles (the same seven the status
    badges speak) — the panel item's glanceable state cue.
    S90 (owner request: "too saturated"): the dots now render as LOW-KEY washes —
@@ -477,7 +482,10 @@ body.rail-panel-open .rail-panel { visibility: visible; opacity: 1; transition: 
 }
 .rail-project-group > .rail-group-headrow > .rail-project-head:hover { background: var(--bg-soft); }
 .rail-project-head .rail-project-row {
-  font-weight: 700;
+  /* S155: the H3 register (500) — the branch-head name is the same "sidebar project
+     name" surface as .rail-item.rail-project-row above; the S106 700 here wins the
+     cascade on position, so it moves to the token too (hierarchy rides the inks). */
+  font-weight: var(--text-h3-weight);
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 /* The branch you are ON (markRailRows walks the goto chip's href) carries the same
@@ -1104,13 +1112,12 @@ input::placeholder, textarea::placeholder { font-size: 0.88em; opacity: 0.7; } /
 .pc-wire .pc-title {
   justify-self: start;
   text-align: start;
-  font-size: 1rem;
-  /* S106 (owner: "Project Names … must appear in Bold text, so eyes can see them
-     faster"): the project NAME is the anchor of every hierarchy it sits in — the
-     600 mid-weight read as regular next to 400 content. 700 = the one bold register
-     every name/head now shares (cards, recently-active rows, folders, rail heads). */
-  font-weight: 700;
-  line-height: 1.3;
+  /* S155: the project card title is the H2 rung — 18px/600 ("Section/card title";
+     the spec's "Projects" example row). The S106 700 bold register is superseded:
+     600 is the title weight, hierarchy below rides the ink rungs. */
+  font-size: var(--text-h2-size);
+  font-weight: var(--text-h2-weight);
+  line-height: var(--text-h2-line-height);
   padding-inline: 0;
   transition: color 0.15s ease;
 }

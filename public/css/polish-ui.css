@@ -136,11 +136,13 @@ dialog.cmdk::backdrop {
   padding: 0.35rem 0.6rem 0.15rem;
   pointer-events: none;
 }
+/* S155: the command palette's group labels join the EYEBROW rung — 12px/500,
+   +0.03em, sentence case (was fs-xs/600/uppercase/0.04em). */
 .cmdk-group-label {
-  font-size: var(--fs-xs);
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
+  font-size: var(--text-eyebrow-size);
+  font-weight: var(--text-eyebrow-weight);
+  text-transform: none;
+  letter-spacing: var(--text-eyebrow-tracking);
   color: var(--muted);
 }
 .cmdk-item {

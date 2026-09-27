@@ -1309,16 +1309,19 @@ body > .note-head-controls.is-floating {
   position: sticky;
   inset-block-start: 0;
   z-index: 2;
+  /* S155: the notebook's date-group labels join the EYEBROW rung — 12px/500,
+     +0.03em, sentence case (was 0.68rem/700/0.07em/uppercase — the S105-era
+     micro-label register is superseded by the spec's group-label row). */
   display: flex;
   align-items: center;
   gap: 0.55rem;
   padding: 0.3rem 0.8rem;
   background: var(--card);
   color: var(--muted, inherit);
-  font-size: 0.68rem;
-  font-weight: 700;
-  letter-spacing: 0.07em;
-  text-transform: uppercase;
+  font-size: var(--text-eyebrow-size);
+  font-weight: var(--text-eyebrow-weight);
+  letter-spacing: var(--text-eyebrow-tracking);
+  text-transform: none;
   border-block-end: 1px solid var(--line);
 }
 /* Persian labels have no uppercase — the tracking still gives them structure. */

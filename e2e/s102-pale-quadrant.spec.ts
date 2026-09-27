@@ -32,10 +32,10 @@ const TEST_PASS = 'e2e-password-123'
 // The picked token + the EXACT computed washes it must produce (light theme, the
 // neutral #FFFFFF card): coral #D08A77 = rgb(208, 138, 119).
 //   fill      20% over card → rgb(246, 232, 228)
-//   title ink 48% over #262118 → rgb(120, 83, 70)
+//   title ink 48% over the S155 neutral #141414 → rgb(110, 77, 68) (was 120,83,70 on the warm ink)
 //   border    48% over #D4D4D4 → rgb(210, 176, 167)
 const CORAL_FILL = '246,232,228'
-const CORAL_TITLE = '120,83,70'
+const CORAL_TITLE = '110,77,68' // S155: the mix anchor --text went neutral (#262118 → #141414) — 48% #D08A77 over it recomputes (was 120,83,70)
 const CORAL_BORDER = '210,176,167'
 const NEUTRAL_CARD = '255,255,255'
 

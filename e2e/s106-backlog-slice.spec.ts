@@ -141,15 +141,26 @@ async function login(page: Page) {
   await page.waitForTimeout(400)
 }
 
-/* ── 1. THE BOLD REGISTER: names + folders + group heads compute 700 ──────────── */
+/* 1. THE WEIGHT LADDER — S155 typography spec supersedes the S106 bold register:
+   group labels = EYEBROW (12px/500/sentence case/secondary ink), project + folder
+   names = H3 (500, primary ink), card titles = H2 (600/18px). Hierarchy rides the
+   ink rungs + size now, not weight; leaves stay 400; geometry pins untouched. */
 
-test('S106-1: project names, folders and head groups compute the 700 bold register', async ({ page }) => {
+test('S155-1: project names, folders and head groups compute the spec weight ladder (was S106-1: the 700 bold register)', async ({ page }) => {
   await login(page)
 
-  // (a) The dashboard's stage-column head (the shared board-col language).
+  // (a) The dashboard's stage-column head (the shared board-col language) —
+  // the EYEBROW rung: 500 at 12px, sentence case, +0.03em tracking.
   await page.waitForSelector('.board-col-label', { timeout: 10_000 })
   const labelWeight = await page.locator('.board-col-label').first().evaluate((el) => getComputedStyle(el).fontWeight)
-  expect(labelWeight).toBe('700')
+  expect(labelWeight).toBe('500')
+  const labelCss = await page.locator('.board-col-label').first().evaluate((el) => {
+    const cs = getComputedStyle(el)
+    return { size: cs.fontSize, transform: cs.textTransform, spacing: cs.letterSpacing }
+  })
+  expect(labelCss.size).toBe('12px')
+  expect(labelCss.transform).toBe('none')
+  expect(labelCss.spacing).toBe('0.36px') // 0.03em at 12px
 
   // (b) The rail tree's stage group head (the "head group" of the owner's words) —
   // the S93 pattern: the Projects rail icon NAVIGATES to /projects.html AND opens
@@ -158,14 +169,12 @@ test('S106-1: project names, folders and head groups compute the 700 bold regist
   await page.waitForURL('**/projects.html', { timeout: 10_000 })
   await page.waitForSelector('.rail-group-head', { timeout: 10_000 })
   const headWeight = await page.locator('.rail-group-head').first().evaluate((el) => getComputedStyle(el).fontWeight)
-  expect(headWeight).toBe('700')
+  expect(headWeight).toBe('500')
 
-  // (b2) S106 r2 (owner: "it's not deployed yet, I still see regular font for
-  // project names in sidebar"): the rail tree's PROJECT rows — the surface the
-  // six-surface register MISSED (S106 bolded the STAGE heads; the project names
-  // beneath stayed 400, so the sidebar read as unchanged even though the deploy
-  // was live — byte-verified before the fix). The tree's full weight ladder,
-  // pinned level by level: stage head 700 (b above) → PROJECT name 700 →
+  // (b2) S106 r2 → S155: the rail tree's PROJECT rows — the spec's H3 rung
+  // ("Minor heading / nav item — Sidebar project names") weighs 500 (was the S106
+  // 700; hierarchy rides the ink rungs now). The tree's full weight ladder,
+  // pinned level by level: stage head 500 (b above) → PROJECT name 500 →
   // sub-group head 500 → idea leaf 400 (content stays regular).
   // S115 r2: the project name lives in the BRANCH HEAD now (a toggle, not a link
   // — the owner's "collapsed until the title is clicked" sketch) and the branch
@@ -173,7 +182,7 @@ test('S106-1: project names, folders and head groups compute the 700 bold regist
   const projRow = page.locator('.rail-project-head').first()
   const projName = projRow.locator('.rail-project-row')
   await expect(projName).toContainText('S106 Bold Register Project')
-  expect(await projName.evaluate((el) => getComputedStyle(el).fontWeight)).toBe('700')
+  expect(await projName.evaluate((el) => getComputedStyle(el).fontWeight)).toBe('500')
   const branch = page.locator('.rail-project-group').first()
   await expect(branch).toHaveClass(/is-collapsed/)
   await projRow.click()
@@ -215,39 +224,43 @@ test('S106-1: project names, folders and head groups compute the 700 bold regist
   const precentWeight = await page.locator('.ov-box-label').first().evaluate((el) => getComputedStyle(el).fontWeight)
   expect(precentWeight).toBe('600')
 
-  // (d) The projects cards view — the project card title.
+  // (d) The projects cards view — the project card title — the H2 rung: 600 at 18px
+  // (the spec's "Section/card title"; was the S106 700 at 1rem).
   await page.goto('/projects.html?view=cards')
   await page.waitForSelector('.pc-wire .pc-title', { timeout: 10_000 })
   const cardWeight = await page.locator('.pc-wire .pc-title').first().evaluate((el) => getComputedStyle(el).fontWeight)
-  expect(cardWeight).toBe('700')
+  expect(cardWeight).toBe('600')
+  const cardSize = await page.locator('.pc-wire .pc-title').first().evaluate((el) => getComputedStyle(el).fontSize)
+  expect(cardSize).toBe('18px')
 
   // (e) The notes vault folder name ("Idea's Folders" — the vault surface; the
-  // sparks folder grid shares the .spark-folder-name rule, pinned by (f) CSS parity).
+  // sparks folder grid shares the H3 register, pinned by (f) CSS parity).
   await page.goto('/notes.html')
   await page.waitForSelector('.vault-folder-name', { timeout: 10_000 })
   const vaultWeight = await page.locator('.vault-folder-name').first().evaluate((el) => getComputedStyle(el).fontWeight)
-  expect(vaultWeight).toBe('700')
+  expect(vaultWeight).toBe('500')
 
   // (e2) The vault's SECTION heads (Folders / Tags) — a bug class the live QA caught:
   // button.vault-sec-head's `font: inherit` shorthand + explicit text-transform/
   // letter-spacing inherits CLOBBERED every typographic longhand of the base
   // .vault-sec-head rule (the heads rendered 16px/400/no-uppercase since S105,
   // the exact "head group reads regular" complaint). The button must compute the
-  // full designed label treatment: 700 weight AND the 0.6875rem uppercase size.
+  // full designed label treatment — now the S155 EYEBROW rung: 500 weight AND
+  // the 12px sentence-case size AND the +0.03em tracking.
   const secHead = page.locator('button.vault-sec-head').first()
   const secCss = await secHead.evaluate((el) => {
     const cs = getComputedStyle(el)
     return { weight: cs.fontWeight, size: cs.fontSize, transform: cs.textTransform }
   })
-  expect(secCss.weight).toBe('700')
-  expect(secCss.size).toBe('11px')
-  expect(secCss.transform).toBe('uppercase')
+  expect(secCss.weight).toBe('500')
+  expect(secCss.size).toBe('12px')
+  expect(secCss.transform).toBe('none')
 
-  // (f) The sparks folder name (the Ideas page).
+  // (f) The sparks folder name (the Ideas page) — the H3 register.
   await page.goto('/sparks.html')
   await page.waitForSelector('.spark-folder-name', { timeout: 10_000 })
   const sparkWeight = await page.locator('.spark-folder-name').first().evaluate((el) => getComputedStyle(el).fontWeight)
-  expect(sparkWeight).toBe('700')
+  expect(sparkWeight).toBe('500')
 })
 
 /* ── 2. THE QUADRANT GLANCE: 4 visible, frost pill, newest first ──────────────── */

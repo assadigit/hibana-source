@@ -183,9 +183,10 @@
   transition: box-shadow 0.15s ease, border-color 0.15s ease;
 }
 
-/* Consistent letter-spacing on uppercase labels (badges, group labels, kind labels) for
-   a more refined typographic rhythm. */
-.badge, .cmdk-group-label, .notif-kind, .cal-dow, .dash-today-chip {
+/* Consistent letter-spacing on uppercase labels (badges, kind labels) for
+   a more refined typographic rhythm. (S155: .cmdk-group-label left the list —
+   group labels are the EYEBROW rung now: sentence case, +0.03em, in polish-ui.) */
+.badge, .notif-kind, .cal-dow, .dash-today-chip {
   letter-spacing: 0.02em;
 }
 
@@ -221,10 +222,13 @@
    Stubs removed to stop implying dark coverage that never applied. */
 
 /* --- R6.3: Settings "Help" subsection visual rhythm ------------------------ */
+/* S155: the subsection head joins the EYEBROW rung — 12px/500/0.03em, sentence
+   case (was fs-md/uppercase/0.04em — group labels are eyebrows per the spec). */
 #settings-account h4 {
-  font-size: var(--fs-md);
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
+  font-size: var(--text-eyebrow-size);
+  font-weight: var(--text-eyebrow-weight);
+  text-transform: none;
+  letter-spacing: var(--text-eyebrow-tracking);
   color: var(--muted);
   margin-block-end: 0.5rem;
 }

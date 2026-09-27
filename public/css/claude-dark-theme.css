@@ -37,8 +37,22 @@ html[data-theme='claude-dark'] {
   --statcard-bg: #1f1e1c;
   --card: #1f1e1c;          /* cards, list rows */
   --card-hover: #2a2927;
-  --text: #e8e6dc;          /* warm off-white — never stark #fff */
-  --muted: #b0aea5;         /* muted labels, captions */
+  /* S155 INK RUNGS — dark per the owner's spec ("invert per the Scandinavian
+     system's dark-canvas rules — don't reuse the light percentages unchanged"):
+     secondary ≈ white 0.56, tertiary from the spec's 0.40–0.50 band — pinned at
+     the TOP of the band (0.50) because the canvas is a warm near-black, not pure
+     black: 0.45 white computes ≈4.2:1 on the #1f1e1c CARD surface (below AA for
+     the 12px captions that wear this rung); 0.50 computes ≈5.1:1 there and ≈5.6:1
+     on the #141413 page. --text/--muted are the primary/secondary rungs FLATTENED
+     ON THE CARD (0.92→#EDEDEC, 0.56→#9C9C9B) and deliberately OPAQUE — same
+     mixing contract as the light block (the ink-anchored color-mix recipes and
+     their e2e pins need an opaque anchor; see variables.css). The warm off-white
+     #e8e6dc retires — the neutrality arc S95 started on surfaces completes on ink. */
+  --ink-primary: rgba(255, 255, 255, 0.92);
+  --ink-secondary: rgba(255, 255, 255, 0.56);
+  --ink-tertiary: rgba(255, 255, 255, 0.50);
+  --text: #EDEDEC;  /* was #e8e6dc — warm off-white */
+  --muted: #9C9C9B; /* was #b0aea5 — 6.06:1 on the card, 6.38:1 on the page — AA holds */
   --faint: #7a7870;
 
   /* ---------- Borders ---------- */

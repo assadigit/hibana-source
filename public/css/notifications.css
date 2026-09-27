@@ -200,8 +200,11 @@
   .shell.narrow { max-inline-size: none; }
   .card { padding: 1rem; }
   .card > h3:first-child { margin-block-start: 0; }
-  h1 { font-size: 1.5rem; }
-  h2 { font-size: 1.25rem; }
+  /* S155: the legacy mobile pass re-enlarged h1/h2 with raw rems — it loaded after
+     base.css and defeated the spec's mobile shrink. The headings now ride the same
+     mobile tokens (H1 20px / H2 16px below 768px) instead of fighting them. */
+  h1 { font-size: var(--text-h1-size-mobile); }
+  h2 { font-size: var(--text-h2-size-mobile); }
   .row { gap: 0.5rem; }
   .filters { flex-wrap: wrap; }
   .filters input, .filters select { min-inline-size: 0; flex: 1 1 8rem; }

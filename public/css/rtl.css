@@ -7,6 +7,12 @@
    (Task 4-F-impl: removed [dir='rtl'] .pc-corner rule — .pc-corner HTML element
    deleted in Session 24h, audit confirmed zero references.) */
 
+/* S155: negative tracking is a Latin-optical device — on Arabic-script text it
+   fights the cursive joining. H1/H2's -0.01em/-0.005em resets to 0 in RTL; the
+   small POSITIVE eyebrow tracking (+0.03em) stays (the app precedent —
+   .qa-group's reduced 0.02em for Persian labels — kept in its own rules). */
+[dir='rtl'] h1, [dir='rtl'] h2 { letter-spacing: 0; }
+
 /* RTL: the track starts at the right edge, so «next» points LEFT — flip both glyphs. */
 [dir='rtl'] .stat-arrow svg { transform: scaleX(-1); }
 

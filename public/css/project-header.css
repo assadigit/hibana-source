@@ -323,7 +323,7 @@ html[data-theme='claude-dark'] .pd-col[data-status='bug']         { --pd-c: 150 
   border-radius: calc(var(--radius-sm) - 1px) calc(var(--radius-sm) - 1px) 0 0;
   min-block-size: 0; /* the strip hugs its content; tall columns grow below it */
 }
-.pd-col-title { font-size: var(--fs-sm); font-weight: 600; color: var(--pd-ink, var(--muted)); display: inline-flex; align-items: center; gap: 0.15rem; /* S88: the dot hugs its label (was 0.35rem — the owner's "bullet sits too far from its title") */ }
+.pd-col-title { /* S155: the kanban stage title joins the EYEBROW rung (12px/500/0.03em, sentence case already, secondary ink via --pd-ink/--muted) */ font-size: var(--text-eyebrow-size); font-weight: var(--text-eyebrow-weight); letter-spacing: var(--text-eyebrow-tracking); color: var(--pd-ink, var(--muted)); display: inline-flex; align-items: center; gap: 0.15rem; /* S88: the dot hugs its label (was 0.35rem — the owner's "bullet sits too far from its title") */ }
 .pd-col-title::before {
   content: '';
   inline-size: 0.55rem;

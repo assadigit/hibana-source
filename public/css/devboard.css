@@ -367,6 +367,10 @@
   max-inline-size: 100%; overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
   border: 1px solid var(--line); border-radius: 4px; background: var(--card);
   color: var(--text); font: inherit; font-size: var(--fs-sm); font-weight: 600;
+  /* S155: the chip's box was purely font-derived — the type-scale repoint (0.8rem
+     → 0.75rem caption register) shaved it to 26.97px, under the 27px tappable pin.
+     The floor pins the box against future type changes instead of the glyphs. */
+  min-block-size: 1.7rem;
   padding: 0.2rem 0.55rem; cursor: pointer; box-shadow: none;
 }
 .sp-sprint-chip:hover {

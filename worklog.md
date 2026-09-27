@@ -51,3 +51,25 @@ Stage Summary:
 - Live: hibana.ir serves v0.3.90.0 — the S28 folder-capture, the stay-on-page capture, the Files-into hint, and the desktop rail's current-page indicator all WORK on the extensionless live URLs now.
 - Sweep residue catalogued but NOT fixed this round (candidates for S159+): the sparks KANBAN home view omits the sf-bar folder chips entirely (deliberate? code comment absent — worth an owner ask); FAB + "Capture an idea" dual CTA on sparks is S45-intentional; VLM noted folder-card border-style variance (all-card accent vs dashed new-folder is by design).
 - Next session: continue the owner's sparks-pages directive — the kanban sf-bar question above; then the remaining sweep residue.
+
+---
+
+Task ID: S159
+Agent: Z.ai (session 159 — the sparks folder-Kanban round, via the 15-min review loop)
+Task: the loop's second round — QA the live sparks surfaces, then advance the owner's sparks-pages directive (S158 sweep residue item (a)).
+
+Work Log:
+- Live QA (agent-browser, hibana.ir): sparks clean post-v0.3.90.0 (0 console errors); confirmed the residue — kanban home renders .kanban WITHOUT the sf-bar (New-folder/rename/delete/filter/counts unreachable in that state; the bar only appeared once a folder was selected).
+- FEATURE: index.ts kanban branch — sparkFolderBar now rides sparkKanbanHtml unconditionally; kanban home carries no active chip (honest: no filter applied).
+- STYLING: sparkKanbanHtml's col head joins the S85/S137 shared board-column convention — h4.kanban-col-head + .spark-kb-glyph (1.45rem centered slot, BOTH faces: folder emoji + muted folder-plus fallback) + .kanban-col-label + .board-count pill with the NEUTRAL muted ink (no --badge-fg assignment — folders carry no status role). Was: bare h4 + .chip pill + plain muted count (the pre-S85 look; the LAST surface speaking it).
+- CACHE-BUST: canvas.css v10→v11 (22 pages), gate PASS. 0 JS changes, 0 new i18n keys (parity 1480/1480).
+- LADDER: typecheck 0 · vitest 526/526 · eslint 0 errors (touched TS + the new spec) · wire 26/26 + canonical restored.
+- TESTS: new e2e/s159-sparks-kanban-bar.spec.ts 5/5 — bar affordances in kanban home ([data-sf-new], [data-sf-menu], no-active-chip), head recipe pins (class structure + both glyph faces + pill shape/ink/count + honest label), FA/RTL, 390px wrap+containment, folder-selected flow (is-active chip + #spark-folder UUID + filed present/unfiled filtered). SPEC BUG fixed: Node constants must ride page.evaluate ARGUMENTS. TEETH LESSON (banked): the first stash-revert check passed INVALIDLY — the shared :3017 server process held the NEW code in memory (node --import tsx does not hot-reload); the real teeth check killed+rebooted the server on the stashed code → fail → restored+rebooted → 5/5.
+- FULL regression 268/268 (141 + 122, zero flakes first-try — sparks.spec's kanban section green with the bar present; no visual baseline re-shoot needed — the pinned pages don't carry the sparks board).
+- QA: local computed probes exact (glyph ✒️/label/pill 999px rgb(92,92,92) light, rgb(156,156,155) dark); VLM light+dark review: clean, consistent, nothing cramped; console 0 errors.
+- CHAIN: feature fa77f35 → CI 36351436737 + CD 36352165564 green → live byte-verify canvas.a4fc3923.css sha-identical + /api/health ok (prod, schema 60, kv) → live functional check (bar + recipe on prod) → tag v0.3.91.0 → zip hibana.0.3.91.0.zip (541 files, wired form, integrity OK) → §1 rotated (S155 dropped; exactly 4 blocks: S159→S158→S157→S156) + §2 row 159. package.json 0.3.90.0→0.3.91.0. Healthcheck pinged.
+
+Stage Summary:
+- Live: hibana.ir serves v0.3.91.0 — the sparks Kanban home is a complete folder workspace (create/rename/delete/filter/counts + the shared board-column header convention on all three boards now).
+- Residue for next rounds: (b) soft-nav pushState pushes the .html form on live (cosmetic URL-bar inconsistency); sticky-notes have draggable=true with NO drop targets (dead affordance — either wire drag-to-file like kanban or drop the attribute); the folder-card icon→title rhythm (VLM's "top-heavy" note — marginal, likely fine).
+- The 15-min review loop continues; the next round should pick from the residue or a fresh sweep.

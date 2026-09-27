@@ -738,6 +738,23 @@
   min-inline-size: 0;
 }
 .kanban-col-label { overflow-wrap: anywhere; }
+/* S159: the sparks FOLDER board's head joins the shared board-column convention
+   (S85/S137 — [glyph] [label] [count pill]; it was a bare <h4> with a .chip pill
+   glyph and a plain muted count, the pre-S85 convention). The glyph slot sizes BOTH
+   faces: the folder's EMOJI (the user-chosen identity, the .sf-emoji register) and
+   the muted folder-plus fallback icon. The count rides the shared .board-count pill
+   with its NEUTRAL muted ink (the --badge-fg fallback) — folders carry no status
+   role, so no --badge-fg assignment: same shape as every board pill, honest tint. */
+.spark-kb-glyph {
+  flex: none;
+  display: inline-grid;
+  place-items: center;
+  inline-size: 1.45rem;
+  block-size: 1.45rem;
+  font-size: 1.05rem;
+  line-height: 1;
+}
+.spark-kb-glyph .icon { inline-size: 1rem; block-size: 1rem; color: var(--muted); }
 .kanban-dot {
   inline-size: 0.65rem;
   block-size: 0.65rem;

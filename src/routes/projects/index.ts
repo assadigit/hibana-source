@@ -252,7 +252,13 @@ export function projectsRoutes(cfg: Config) {
         // the folder grid as the Ideas page's home view.
         const unfiled = unfiledRows[0]?.n ?? 0
         if (view === 'kanban') {
-          fragment = (folderParam ? sparkFolderBar(folderRows, unfiled, folderParam, lang) : '') + sparkKanbanHtml(projects, folderRows, lang)
+          // S159: the bar rides the folder board ALWAYS. The kanban home used to drop
+          // it (bar only with a folder selected) — so in kanban home the New-folder
+          // (+), rename/delete (⋯), the All/No-folder filters and the folder counts
+          // were ALL unreachable; the affordances appeared and vanished with the
+          // folder state. Kanban home carries NO active chip (no filter is applied —
+          // the columns already show every folder's ideas).
+          fragment = sparkFolderBar(folderRows, unfiled, folderParam, lang) + sparkKanbanHtml(projects, folderRows, lang)
         } else if (!folderParam) {
           // Initial load, nothing selected — the folder grid (file-manager home),
           // exactly as before (sparkFolderGrid itself degrades to the capture empty

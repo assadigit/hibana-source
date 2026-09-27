@@ -552,7 +552,7 @@ export function sparkKanbanHtml(projects: ProjectRow[], folders: (SparkFolderRow
   const dig = (n: number) => (lang === 'fa' ? faDigits(String(n)) : String(n))
   // S41: a folder with an emoji leads its column with the emoji (not folder-plus)
   const col = (key: string, label: string, rows: ProjectRow[], glyph: string) => `<div class="kanban-col" data-spark-folder="${key}">
-    <h4><span class="chip">${glyph}</span> <span>${esc(label)}</span> <span class="muted small">${dig(rows.length)}</span></h4>
+    <h4 class="kanban-col-head"><span class="spark-kb-glyph" aria-hidden="true">${glyph}</span><span class="kanban-col-label">${esc(label)}</span><b class="board-count">${dig(rows.length)}</b></h4>
     ${rows.map((p) => `<div class="card kanban-card" draggable="true" data-project-id="${p.id}" data-nav-url="/project.html?id=${p.id}">
       <strong>${esc(p.title)}</strong>
       <div class="muted small">${timeAgo(p.updated_at, lang)}</div>

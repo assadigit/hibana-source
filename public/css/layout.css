@@ -984,6 +984,10 @@ main.shell .row.spread [data-projectquickadd] .icon { inline-size: 1rem; block-s
   grid-template-columns: repeat(auto-fill, minmax(15rem, 1fr));
   gap: 1rem;
 }
+/* S156 (owner report): a grid item's min-width:auto floors its track at min-content —
+   one long unbreakable token (a URL) widened the whole 1fr column past the container.
+   Zero minimum lets the item shrink; .clip-2 below does the rest. */
+.card-grid > * { min-inline-size: 0; }
 .project-card { display: grid; gap: 0.5rem; margin: 0; transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease; }
 /* Redesign 2026-09 (Ali, UI/UX): flatter, more professional card. Hover lifts with a
    soft warm shadow + a hair-stronger border instead of a flat background flip. The warm
@@ -1167,7 +1171,17 @@ input::placeholder, textarea::placeholder { font-size: 0.88em; opacity: 0.7; } /
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
+  /* S156 (owner report): the clamp hides extra LINES but never fixes the BOX — an
+     unbreakable token kept the desc's min-content width and the box painted past
+     the card's edge. overflow-wrap:anywhere (NOT break-word — anywhere also
+     collapses the token's min-content contribution) + min-inline-size:0 let the
+     box shrink inside its grid item. Serves .arc-desc identically. */
+  overflow-wrap: anywhere;
+  min-inline-size: 0;
 }
+/* S156: same disease, sibling face — sparkKanbanHtml's bare <strong> title is a grid
+   item (canvas.css .kanban-card is display:grid); a long token overflowed the card. */
+.kanban-card strong { overflow-wrap: anywhere; min-inline-size: 0; }
 
 .projects-table { width: 100%; border-collapse: collapse; }
 .projects-table th,

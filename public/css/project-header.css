@@ -214,7 +214,10 @@
   padding: 0.05rem 0.45rem;
   border-radius: 999px;
 }
-.pd-board-empty { display: grid; gap: 0.6rem; justify-items: start; padding: 0.5rem 0.6rem; }
+/* S156 (owner report): the empty board's contents sat hard-start and could escape
+   their column. justify-items:center + text-align:center center the icon/title/text
+   as a block — direction-neutral, no RTL mirror needed. */
+.pd-board-empty { display: grid; gap: 0.6rem; justify-items: center; text-align: center; padding: 0.5rem 0.6rem; }
 /* Session 19 (cron round 6): the empty-board hint was a faint muted <p> that read as
    placeholder/broken (VLM-flagged). Style it as an intentional empty-state: an icon +
    the hint, with a quiet dashed border so the column reads as "intentionally empty". */

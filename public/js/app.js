@@ -322,12 +322,22 @@ window.hibana = (() => {
     if (ms > 0) setTimeout(() => { if (el.parentNode) el.remove() }, ms)
   }
 
+  // S158: page identity must match BOTH URL forms. Cloudflare's assets binding
+  // (html_handling auto-trailing-slash) 307s every /page.html to /page on live, so a
+  // hard load always runs extensionless (/sparks — verified: curl /sparks.html → 307
+  // /sparks); Node serves both forms and a soft-nav pushState can carry either. Every
+  // location.pathname page-identity check compares against BOTH from now on — the
+  // sparks quick-add triple below silently misfiled captures (folder_id never attached),
+  // bounced the user to the dashboard, and hid the "Files into" hint on live for exactly
+  // this reason. mobile-nav.js's normPath (S59) is the in-repo precedent.
+  var pageIs = function (p) { return location.pathname === p || location.pathname === p + '.html' }
+
   // Minimal 401 handling (2026-08-29): an expired session on a user-initiated action
   // bounces to login instead of dead-ending behind a generic error toast. Called only
   // with the Response of a direct user action (drag/edit/submit) — background sync
   // (queue.js flush) must NEVER redirect; it keeps its items and retries (see queue.js).
   function handle401(res) {
-    if (res && res.status === 401 && location.pathname !== '/login.html') {
+    if (res && res.status === 401 && !pageIs('/login')) {
       // S111: carry WHERE the user was — login.html now bounces back to ?next= after a
       // successful sign-in, so an expired session no longer costs the user their place
       // (and a PWA share-target capture riding the query survives the bounce intact).
@@ -521,7 +531,10 @@ window.hibana = (() => {
         // quick-add opens ON the Ideas page with a specific folder open, the capture files
         // itself into that folder (the server re-validates ownership). 'all'/''/'none' and
         // every other page capture as unfiled — same behavior as before.
-        if (location.pathname === '/sparks.html') {
+        // S158: pageIs matches the extensionless live form too — on hibana.ir this check
+        // never fired (/sparks ≠ /sparks.html), so captures made with a folder open
+        // silently filed as unfiled (verified live, folder_id:null).
+        if (pageIs('/sparks')) {
           const f = (document.getElementById('spark-folder') || {}).value || ''
           if (/^[0-9a-f-]{36}$/i.test(f)) payload.folder_id = f
         }
@@ -587,7 +600,7 @@ window.hibana = (() => {
           // in a folder the page silently forgot). sparks-page.js now installs a soft
           // refresh hook that refetches the shelf with the folder intact — no reload
           // flash, no context loss. Fallback keeps the old reload for page drift.
-          if (location.pathname === '/sparks.html') {
+          if (pageIs('/sparks')) {
             if (typeof window.__hibanaShelfReload === 'function') window.__hibanaShelfReload()
             else window.location.href = '/sparks.html'
           }
@@ -621,7 +634,7 @@ window.hibana = (() => {
     if (hint) {
       const f = (document.getElementById('spark-folder') || {}).value || ''
       const name = (document.getElementById('spark-folder') || {}).dataset?.folderName || ''
-      if (location.pathname === '/sparks.html' && /^[0-9a-f-]{36}$/i.test(f) && name) {
+      if (pageIs('/sparks') && /^[0-9a-f-]{36}$/i.test(f) && name) {
         hint.textContent = _t('qa.filesInto', 'Files into') + ': ' + name
         hint.hidden = false
       } else {
@@ -1264,7 +1277,7 @@ window.hibana = (() => {
   ;(() => {
     const canHostCards = () =>
       !!document.querySelector('main.shell-dash') ||
-      location.pathname === '/app' || location.pathname === '/dashboard.html'
+      location.pathname === '/app' || pageIs('/dashboard')
     const parseHash = () => {
       if (!location.hash || !location.hash.startsWith('#note-')) return null
       const raw = location.hash.slice(6)
@@ -4049,7 +4062,9 @@ window.hibana = (() => {
     const url = q.get('url') || ''
     if (!title && !text && !url) return
     if (document.body?.classList.contains('public-page')) return
-    const PUBLIC_PATHS = ['/login.html', '/signup.html', '/confirm.html', '/reset.html', '/clip.html', '/404.html']
+    // S158: both URL forms — live serves these extensionless too (the body-class check
+    // above is the belt; the URL list is the suspenders).
+    var PUBLIC_PATHS = ['/login.html', '/login', '/signup.html', '/signup', '/confirm.html', '/confirm', '/reset.html', '/reset', '/clip.html', '/clip', '/404.html']
     if (PUBLIC_PATHS.includes(location.pathname)) return
     let description = text
     if (url && !description.includes(url)) description = description ? description + '\n\n' + url : url

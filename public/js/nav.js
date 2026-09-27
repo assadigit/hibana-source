@@ -7,7 +7,10 @@
 // (auth pages) keep full-page loads.
 (() => {
   const QUEUE_KEY = '__hibanaPageQueue'
-  const HARD_PAGES = new Set(['/canvas.html', '/whiteboard.html', '/login.html', '/reset.html', '/sadhana.html', '/to-do-list'])
+  // S158: HARD_PAGES compares raw pathnames — normalize by stripping a trailing .html so
+  // the extensionless live form (Workers 307s /canvas.html → /canvas) still takes the
+  // full-load path instead of a doomed soft-nav that falls back via reload.
+  const HARD_PAGES = new Set(['/canvas.html', '/canvas', '/whiteboard.html', '/whiteboard', '/login.html', '/login', '/reset.html', '/reset', '/sadhana.html', '/sadhana', '/to-do-list'])
 
   let active = null // { name, unmount } — the page currently mounted
   let navSeq = 0 // monotonically increasing — lets a newer nav win an in-flight one
@@ -362,7 +365,7 @@
   // in BOTH states — a manual toggle flips the class for the current page visit; the
   // next navigation re-syncs to the page default (auto-collapsed on the board, labels
   // restored everywhere else).
-  const RAIL_ICON_PAGES = new Set(['/notes.html', '/notes', '/board.html'])
+  const RAIL_ICON_PAGES = new Set(['/notes.html', '/notes', '/board.html', '/board']) // S158: '/board' — live serves it extensionless (307), the icons-only rail never engaged there
   function syncRailIconMode(pathname) {
     const on = RAIL_ICON_PAGES.has(pathname)
     document.body.classList.toggle('rail-icons-only', on)
@@ -386,10 +389,14 @@
     // inside), sadhana.html lights To-do. The filled rounded-square indicator rides
     // aria-current (layout.css).
     const railNorm = (p) => {
-      if (p === '/app') return '/dashboard.html'
-      if (p === '/project.html' || p === '/project') return '/projects.html'
-      if (p === '/sadhana.html') return '/to-do-list'
-      return p
+      // S158: strip .html on BOTH sides — live serves pages extensionless, so href
+      // '/sparks.html' vs pathname '/sparks' never matched and no rail icon lit after
+      // a hard load (verified live). hib-init's norm is the lockstep twin.
+      const b = p.endsWith('.html') ? p.slice(0, -5) : p
+      if (b === '/app' || b === '/dashboard') return '/dashboard'
+      if (b === '/project') return '/projects'
+      if (b === '/sadhana') return '/to-do-list'
+      return b
     }
     document.querySelectorAll('.rail .rail-primary a').forEach((a) => {
       const href = a.getAttribute('href') || ''
@@ -424,10 +431,15 @@
     let here
     try { here = new URL(location.href) } catch { return }
     const idOf = (u) => u.searchParams.get('id')
+    // S158: rail rows carry /project.html?id=… hrefs while live runs the page at
+    // /project (extensionless — the assets binding 307s every .html) — strip a
+    // trailing .html from both sides or the current-location row/branch markers
+    // never light after a hard load. Function scope: BOTH loops below use it.
+    const pageOf = (u) => (u.pathname.endsWith('.html') ? u.pathname.slice(0, -5) : u.pathname)
     box.querySelectorAll('.rail-item[href]').forEach((a) => {
       let row
       try { row = new URL(a.href) } catch { return }
-      const sameDoc = row.pathname === here.pathname &&
+      const sameDoc = pageOf(row) === pageOf(here) &&
         (idOf(row) || null) === (idOf(here) || null)
       const active = sameDoc && (!row.hash || row.hash === here.hash)
       a.classList.toggle('is-row-active', active)
@@ -441,7 +453,7 @@
       if (!chip) return
       let row
       try { row = new URL(chip.href) } catch { return }
-      g.classList.toggle('is-here', row.pathname === here.pathname &&
+      g.classList.toggle('is-here', pageOf(row) === pageOf(here) &&
         (idOf(row) || null) === (idOf(here) || null))
     })
   }

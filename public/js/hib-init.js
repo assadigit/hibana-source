@@ -28,7 +28,10 @@
   // page now: the first caller wins, the rest stand down — same destination, same
   // ?next, one navigation instead of two.
   const loginBounce = () => {
-    if (window.__hibanaLoginBounce || location.pathname === '/login.html') return
+    // S158: both URL forms — live serves /login extensionless (the assets binding 307s
+    // /login.html → /login), so the guard must recognize both or it re-bounces ON the
+    // login page.
+    if (window.__hibanaLoginBounce || location.pathname === '/login.html' || location.pathname === '/login') return
     window.__hibanaLoginBounce = true
     window.location.replace('/login.html?next=' + encodeURIComponent(location.pathname + location.search))
   }
@@ -419,11 +422,16 @@
         // desktop nav — /app IS the dashboard, a project detail page lights Projects,
         // sadhana.html lights To-do (the same normalization nav.js's markNav applies
         // on soft navigations; the old .topbar .nav-links selector stays for safety).
+        // S158: strip a trailing .html before the special cases — live serves pages
+        // extensionless (/sparks), so href '/sparks.html' vs pathname '/sparks' never
+        // matched and NO rail item lit after a hard load (mobile-nav.js's normPath is
+        // the precedent). Both sides normalize: every form pair meets in the middle.
         const norm = (p) => {
-          if (p === '/app') return '/dashboard.html'
-          if (p === '/project.html' || p === '/project') return '/projects.html'
-          if (p === '/sadhana.html') return '/to-do-list'
-          return p
+          const b = p.endsWith('.html') ? p.slice(0, -5) : p
+          if (b === '/app' || b === '/dashboard') return '/dashboard'
+          if (b === '/project') return '/projects'
+          if (b === '/sadhana') return '/to-do-list'
+          return b
         }
         document.querySelectorAll('.rail .rail-primary a').forEach((a) => {
           if (norm(a.getAttribute('href') || '') === norm(location.pathname)) a.setAttribute('aria-current', 'page')

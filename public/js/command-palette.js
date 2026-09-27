@@ -48,7 +48,10 @@
       },
       run: () => {
         const scroll = () => document.getElementById('settings-trash')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-        if (location.pathname === '/settings.html') { scroll(); return }
+        // S158: both URL forms — live serves /settings extensionless (the assets
+        // binding 307s /settings.html → /settings); without the second form the
+        // command took the re-navigate branch even when the panel was already open.
+        if (location.pathname === '/settings.html' || location.pathname === '/settings') { scroll(); return }
         if (window.hibanaNav) window.hibanaNav.go('/settings.html')
         else window.location.href = '/settings.html'
         // The soft-nav swap is async — poll briefly for the section to land, then scroll.

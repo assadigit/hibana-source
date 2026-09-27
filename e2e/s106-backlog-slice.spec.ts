@@ -224,12 +224,13 @@ test('S155-1: project names, folders and head groups compute the spec weight lad
   const precentWeight = await page.locator('.ov-box-label').first().evaluate((el) => getComputedStyle(el).fontWeight)
   expect(precentWeight).toBe('600')
 
-  // (d) The projects cards view — the project card title — the H2 rung: 600 at 18px
-  // (the spec's "Section/card title"; was the S106 700 at 1rem).
+  // (d) The projects cards view — the project card title — the H2 rung: 500 at 18px
+  // (the spec's "Section/card title"; S155 put it at 600, S157 dropped the heading
+  // rungs to 500 per the owner's lighter-heading ladder).
   await page.goto('/projects.html?view=cards')
   await page.waitForSelector('.pc-wire .pc-title', { timeout: 10_000 })
   const cardWeight = await page.locator('.pc-wire .pc-title').first().evaluate((el) => getComputedStyle(el).fontWeight)
-  expect(cardWeight).toBe('600')
+  expect(cardWeight).toBe('500')
   const cardSize = await page.locator('.pc-wire .pc-title').first().evaluate((el) => getComputedStyle(el).fontSize)
   expect(cardSize).toBe('18px')
 

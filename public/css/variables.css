@@ -367,12 +367,16 @@
      absent — reserved, unused, so a genuine fourth level stays available. */
   --text-h1-size: 1.5rem;             /* 24px desktop — page title */
   --text-h1-size-mobile: 1.25rem;     /* 20px mobile */
-  --text-h1-weight: 600;
+  /* S157 (owner report: "use lesser weight for headings, they're too bold"): the
+     heading rungs drop one weight rung, 600 → 500 — headings lead by size + ink,
+     not weight; 500 is the app's label register so the ladder stays coherent and
+     700 remains in reserve. Card titles (.pc-title) ride this rung and follow. */
+  --text-h1-weight: 500;
   --text-h1-line-height: 1.2;
   --text-h1-tracking: -0.01em;
   --text-h2-size: 1.125rem;           /* 18px desktop — section/card title */
   --text-h2-size-mobile: 1rem;        /* 16px mobile */
-  --text-h2-weight: 600;
+  --text-h2-weight: 500; /* S157: 600 → 500, the owner's lighter-heading ladder */
   --text-h2-line-height: 1.3;
   --text-h2-tracking: -0.005em;
   --text-h3-size: 0.875rem;           /* 14px, both breakpoints — minor heading/nav item */

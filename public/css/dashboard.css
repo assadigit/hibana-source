@@ -283,7 +283,10 @@
 .precent-head h2 {
   margin: 0;
   font-size: var(--fs-md);
-  font-weight: 700;
+  /* S157: was a hardcoded 700 — General Sans 700 isn't shipped (400/500/600 only,
+     S155), so it rendered SYNTHETIC bold; it now rides the heading token like
+     every other h2. */
+  font-weight: var(--text-h2-weight);
 }
 .precent-all { text-decoration: none; white-space: nowrap; }
 .precent-all:hover { color: var(--text); text-decoration: underline; }

@@ -128,7 +128,8 @@ test('the element ladder: H1/H2 compute the tokens on a real page, and shrink on
   const h1 = page.locator('h1').first()
   await expect(h1).toBeVisible()
   expect(await h1.evaluate((el) => getComputedStyle(el).fontSize)).toBe('24px')
-  expect(await h1.evaluate((el) => getComputedStyle(el).fontWeight)).toBe('600')
+  // S157: the heading rungs dropped 600 → 500 (the owner's lighter-heading ladder)
+  expect(await h1.evaluate((el) => getComputedStyle(el).fontWeight)).toBe('500')
   expect(await h1.evaluate((el) => getComputedStyle(el).lineHeight)).toBe('28.8px') // 1.2 × 24
   // mobile: ONLY H1/H2 shrink (the spec's "headings have room to give; working text doesn't")
   await page.setViewportSize({ width: 375, height: 667 })

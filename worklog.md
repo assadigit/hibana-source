@@ -91,3 +91,44 @@ Stage Summary:
 - Live: hibana.ir serves v0.4.0.0 — the Ideas section is its own lean surface (lean /spark.html, pins, folder headers + banners + 16 pastels, cross-field search, honest list icon column, cover thumbs, drag-to-file, promote dialog, mobile condensed cards) and the global categories system is finally ACTIVE on live.
 - Ops lessons: (a) health schema_version counts rows incl. the skipped 0007 — always query d1_migrations for ground truth before deriving what's pending; (b) FTS shadow tables belong in the transient class for any table-rebuild migration; (c) the bracket-eater strikes tool-WRITTEN bytes — python reads/writes + assembled literals are the countermeasure, sweep before shipping; (d) chained wrangler rituals can exceed a 300s bash window — run the after-digest as its own command.
 - Residue for next rounds: the S162–S166 polish not rebuilt (search highlight, match-reason badges, tag-click-to-search + ?q= deep-link, palette Ideas group + Folders quick-jump, lean-page meta lines, the a11y i18n sweep, avatar stale-cache) · the promote dialog keyboard test · folder-pref dead-id self-heal · lean-page unsaved-changes beforeunload · soft-nav pushes the .html form on live (S159 residue, cosmetic).
+
+## S169 — THE WAND PATCH (v0.4.0.1, deployed)
+
+- Owner's live report on the fresh v0.4.0.0 redesign: "The AI-assist icon doesnt
+  appear for this new ideas page and each fields but it must." Root cause: THREE gaps
+  the S161 lean-surface rebuild opened — (1) spark.html loaded magic-wand.css but
+  NEVER magic-wand.js (no icon could ever appear on the lean idea page); (2) none of
+  its fields carried [data-magic]; (3) the redesigned Ideas list lost the wand the
+  old .pc-title cards had.
+- FIX 1 (205454b): spark.html loads /js/magic-wand.js?v=17 + [data-magic] on the
+  title input, description textarea, the client-rendered tag-add input, and the
+  link-LABEL input (Apply rides the page's own save semantics: input dispatch feeds
+  the S120 draft store + dirty state, then the explicit Save). The link-URL input
+  and the folder select stay wand-free BY DESIGN (AI polish on a URL/select corrupts
+  data). The list restored: data-magic + data-magic-save + data-magic-field on
+  titles in ALL FOUR views (cards/list/sticky/kanban — the .pc-title PATCH
+  contract). sw v407; spark-page v2→v3.
+- FIX 2 (48265ed, the live-QA bonus catch): the S166 hibana:i18n repaint's
+  unguarded renderPin threw "Cannot read properties of null (reading 'pinned_at')"
+  as a REAL prod console error (i18n's async apply() can settle before the idea
+  fetch resolves; the local QA timing never hit it). The repaint now guards its
+  renders on a LOADED idea. spark-page v3→v4.
+- Ladder: typecheck 0 · vitest 539/539 · eslint 0 errors (163-warn baseline) ·
+  build 78 · wiring · cache-bust PASS · parity 1536/1536 (0 new keys) · targeted
+  e2e 28/28 + 14/14 after fix 2 (s161/sparks/s119/s120 — no blast radius).
+- QA: local (:3017) EN+FA/RTL — wand on hover for all four fields + list titles,
+  popover, the full Polish→Apply→Unsaved→Save→reload-PERSISTED flow via a mocked
+  /api/ai/text, Ask-AI panel, RTL inline-start anchoring, Persian popover. LIVE
+  (hibana.ir, the owner's account): 19/19 real titles stamped; a TEST idea drove
+  the REAL Workers AI Polish end-to-end (suggestion returned, applied, saved,
+  persisted across reload) then was deleted; fresh-session error check on the
+  guarded v4 build: 0 page errors.
+- Chain: both fixes pushed → CI (double-delivered: ×2 each) + CD (×2 each) ALL
+  GREEN → live verified → §1 rotated + row 169 → tag v0.4.0.1 → zip → ping.
+  package.json 0.4.0.0→0.4.0.1.
+- Ops notes: (a) the first post-deploy curl hit a pre-purge edge node serving the
+  OLD page — re-fetch before declaring a deploy state; (b) agent-browser's
+  `errors --clear` doesn't actually empty the JSON store — verify with a FRESH
+  browser session, not a cleared list; (c) dependabot opened a dev-deps PR whose
+  CI FAILS on its own branch — irrelevant to main, ignore; (d) GitHub
+  double-delivered the push events (2×CI + 2×CD per commit) — both copies green.

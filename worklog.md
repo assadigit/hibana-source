@@ -132,3 +132,47 @@ Stage Summary:
   browser session, not a cleared list; (c) dependabot opened a dev-deps PR whose
   CI FAILS on its own branch — irrelevant to main, ignore; (d) GitHub
   double-delivered the push events (2×CI + 2×CD per commit) — both copies green.
+
+## S170 — SESSION WRAP (v0.4.0.1 verified live; the review-loop agenda handed off)
+
+Task ID: S170
+Agent: main (Z.ai Code)
+Task: Owner directive — "Wrap up this session, commit to github, deploy the
+latest version in the cloudflare" + write the next-session prompt (a review
+loop: UI/UX quirks, every function works, mobile responsive fixes — e.g.
+unnecessarily large buttons in mobile view — and continuous review/testing of
+the new Ideas page).
+
+Work Log:
+- Repo state verified: main @ c016d0e = origin/main, tree clean; tags v0.4.0.0
+  (f05faab) + v0.4.0.1 (c016d0e) live on the remote; package.json 0.4.0.1. The
+  S169 chain (wand fix + renderPin guard + rotation + tag + zip + healthcheck
+  ping) was already complete at session start — nothing code-side left to ship.
+- LIVE re-verified independently this session (not from S169's record alone):
+  /api/health ok · prod · schema 62 · kv; /spark serves magic-wand.js?v=17 +
+  spark-page.js?v=4 (the wand wiring + the guard); /js/magic-wand.js 200
+  (28,491B); CI + CD on c016d0e both conclusion=success. v0.4.0.1 IS the
+  deployed latest — confirmed, no redeploy needed.
+- Session delta = the close-out only: this worklog entry (both copies), the
+  next-session prompt at /home/z/next-session-prompt.md (the review-loop
+  charter: 1. UI/UX quirks · 2. every function works · 3. mobile responsive
+  problems — oversized buttons called out by the owner · 4. keep
+  reviewing/testing the Ideas page), and ONE fresh 15-min webDevReview cron
+  (the four stale/duplicate loop jobs — two exec-limit-disabled, one stopped,
+  one carrying pre-v0.4.0.0 context — deleted first; NOTE: the two disabled
+  ones hit "exec limits exceeded", so a 15-min cadence can outrun the agent
+  quota — if the new job disables itself, that is why).
+- Docs-only commit (no code, no version bump, no tag): worklog S170.
+
+Stage Summary:
+- LIVE: hibana.ir @ v0.4.0.1 — the AI-assist wand on every prose field of the
+  lean idea page + idea titles in all four list views; the renderPin error
+  gone; schema 62.
+- Next rounds: the review-loop agenda — start from
+  /home/z/next-session-prompt.md + the residue lists in S168/S169 (the
+  S162–S166 polish rebuild backlog is the mine: search highlight,
+  match-reason badges, tag-click-to-search + ?q= deep-link, palette Ideas
+  group + Folders quick-jump, lean-page Created/Updated meta, a11y i18n
+  sweep, avatar stale-cache, promote-dialog keyboard test, folder-pref
+  dead-id self-heal, lean-page beforeunload guard, mobile oversized-button
+  audit).

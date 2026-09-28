@@ -331,7 +331,11 @@ window.__hibanaPage({
     // fires last, so the idea's OWN name wins the tab (the S64 doctrine: the item's
     // name, not the generic page label).
     ctx.on('hibana:i18n', () => {
-      renderPin(); renderTags(); renderFolderSelect()
+      // S169b (live QA catch): i18n's async apply() can settle BEFORE the idea fetch
+      // resolves (or after not-found) — project is still null and the unguarded
+      // renderPin threw "Cannot read properties of null (reading 'pinned_at')" as a
+      // LIVE console error. The repaint is only for a LOADED idea.
+      if (project) { renderPin(); renderTags(); renderFolderSelect() }
       if (!dirty && !saving) $('spark-status').textContent = ''
       if (project) document.title = (project.title || 'Idea') + ' — Hibana'
     })

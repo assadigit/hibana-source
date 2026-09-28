@@ -89,7 +89,7 @@ test('sprint strip: start-dot + growing clip with progress → finish freezes it
   const errors = trackErrors(page)
   await login(page)
 
-  const pid = ((await api(page, '/api/projects', 'POST', { title: `e2e s35 sprint ${Date.now()}` })) as { json: { id: string } }).json.id
+  const pid = ((await api(page, '/api/projects', 'POST', { title: `e2e s35 sprint ${Date.now()}`, status: 'developing' })) as { json: { id: string } }).json.id
   // define → start a sprint
   const created = (await api(page, `/api/projects/${pid}/sprints`, 'POST', { name: 'Auth module' })) as { json: { id: string } }
   await api(page, `/api/sprints/${created.json.id}/start`, 'POST')
@@ -174,7 +174,7 @@ test('screenshot problem cards: note edit, resolve toggle, delete', async ({ pag
   const errors = trackErrors(page)
   await login(page)
 
-  const pid = ((await api(page, '/api/projects', 'POST', { title: `e2e s35 shots ${Date.now()}` })) as { json: { id: string } }).json.id
+  const pid = ((await api(page, '/api/projects', 'POST', { title: `e2e s35 shots ${Date.now()}`, status: 'developing' })) as { json: { id: string } }).json.id
 
   // seed a shot row directly (no real storage creds in e2e — the card is the story)
   const { DatabaseSync } = await import('node:sqlite')
@@ -229,7 +229,7 @@ test('sprint timeline: the today line has breathing room + the flag (S44)', asyn
   const errors = trackErrors(page)
   await login(page)
 
-  const pid = ((await api(page, '/api/projects', 'POST', { title: `e2e s44 today-pad ${Date.now()}` })) as { json: { id: string } }).json.id
+  const pid = ((await api(page, '/api/projects', 'POST', { title: `e2e s44 today-pad ${Date.now()}`, status: 'developing' })) as { json: { id: string } }).json.id
   const created = (await api(page, `/api/projects/${pid}/sprints`, 'POST', { name: 'Today sprint' })) as { json: { id: string } }
   await api(page, `/api/sprints/${created.json.id}/start`, 'POST')
 

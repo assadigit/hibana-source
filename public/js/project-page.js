@@ -452,6 +452,15 @@
             if (files.length) upload(files)
           }
         })
+        // S161: PASTE-to-upload — the Uploaded Files hint has PROMISED "paste it"
+        // since S36 while the page only ever wired drop + picker (the hint that
+        // lied). Files on the clipboard now ride the same pipeline; text pastes
+        // land wherever the caret is (untouched).
+        ctx.on('paste', (e) => {
+          if (e.target.closest('input, textarea, [contenteditable="true"]')) return
+          const files = [...(e.clipboardData?.files || [])].filter(isAcceptedFile)
+          if (files.length) { e.preventDefault(); upload(files) }
+        })
 
         // --- S35: the ARCHIVE — park an idea/project (not delete, not halted) ------
         // POST /:id/archive sets archived_state='offline': the row leaves the projects

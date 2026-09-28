@@ -81,7 +81,9 @@ async function login(page: Page, section: 'projects' | 'sparks') {
 }
 
 async function openCardMenu(page: Page, id: string) {
-  const card = page.locator(`.project-card[data-project-id="${id}"]`)
+  // S161: the Ideas shelf's cards wear .spark-card now (the projects page keeps
+  // .project-card) — the helper serves both surfaces.
+  const card = page.locator(`.project-card[data-project-id="${id}"], .spark-card[data-project-id="${id}"]`)
   await expect(card).toBeVisible()
   // The ⋯ rides a hover-reveal — hover the card first, then click the toggle.
   await card.hover()

@@ -13,7 +13,7 @@
 // changelog until S49 trimmed it — every prior entry is recoverable verbatim:
 // `git show <sha>:public/sw.js`).
 
-const VERSION = "hibana-v405" // bump on sw.js logic changes — see Changelogs.md §1 (current state) + git log (full history). v405 (S111): the navigate 401 bounce now carries ?next=<path+query> — login.html returns the user to the exact place (and a PWA share-target capture's query survives the login round-trip). v404 (S108): the navigate handler caches res.ok responses ONLY — a transient 5xx during a deploy window used to be put() verbatim and then served as the offline/stale navigation fallback, making the failure page itself the shell. v403 (S89): the new square logo pair joins the SHELL precache — the rail + mobile brandbar reference them on every page, so offline boots need both theme variants cached. v402 (S80): i18n-fa.js out of the install-time manifest precache (the Vazir/fabric class — FA-only bundle, EN users never inject it; ensureFaDict fetches it on the first FA view where Class 1a caches it for offline). v401 (S72): the nav partial's SHELL entry + hib-init's fetch are now versioned (?v=3) — the CF edge cache served a STALE nav.html for hours after deploy (deploy token can't purge the zone), and unversioned URLs made every future nav change nondeterministic. v400 (S70): fabric.min.js out of the SHELL precache.
+const VERSION = "hibana-v406" // bump on sw.js logic changes — see Changelogs.md §1 (current state) + git log (full history). v406 (S161): the LEAN idea page /spark.html joins the SHELL precache — sparks open on their own surface now (the heavy project template renders projects only), so offline boots need it cached. v405 (S111): the navigate 401 bounce now carries ?next=<path+query> — login.html returns the user to the exact place (and a PWA share-target capture's query survives the login round-trip). v404 (S108): the navigate handler caches res.ok responses ONLY — a transient 5xx during a deploy window used to be put() verbatim and then served as the offline/stale navigation fallback, making the failure page itself the shell.
 
 // Static shell: unhashed pages/partials/icons/vendor/fonts (SWR or network-first at
 // runtime; precached here for offline). The hashed app bundles come from the manifest
@@ -26,6 +26,7 @@ const SHELL = [
   '/dashboard.html',
   '/projects.html',
   '/sparks.html',
+  '/spark.html', // S161: the LEAN idea detail page — offline-safe like its shelf
   '/notes.html', // S53: the Notes Vault — offline-safe like every shell page
   '/project.html',
   '/canvas.html',

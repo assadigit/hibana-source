@@ -108,18 +108,25 @@ async function openFlatShelf(page: Page) {
   const all = page.locator('[data-sf="all"]').first()
   await all.waitFor({ state: 'visible', timeout: 10_000 })
   await all.click()
-  await page.locator('.project-card').first().waitFor({ state: 'visible', timeout: 10_000 })
+  await page.locator('.spark-card').first().waitFor({ state: 'visible', timeout: 10_000 })
 }
 
 // the geometric pins: desc box inside card box on BOTH edges, card inside its
 // grid track, no page horizontal scroll. Bounding-box containment is
 // direction-neutral (works identically in RTL).
 async function pinContainment(page: Page) {
+  // S161: mobile (≤640px) CONDENSES cards — the desc is display:none until the
+  // first tap expands it. Measure AFTER expanding (the S167 lesson: expand-before-
+  // measuring), or the bounding boxes lie.
+  if ((await page.evaluate(() => window.innerWidth)) <= 640) {
+    await page.locator('.spark-card [data-spark-expand]').first().click()
+    await page.waitForTimeout(150)
+  }
   const r = await page.evaluate(() => {
-    const card = document.querySelector('.project-card') as HTMLElement
+    const card = document.querySelector('.spark-card') as HTMLElement
     // ONLY the clamp-carrying desc — the empty placeholder has no .clip-2 and
     // would compute overflow-wrap:normal and lie (the S156 lesson)
-    const desc = card.querySelector('.pc-desc.clip-2') as HTMLElement
+    const desc = card.querySelector('.spark-card-desc.clip-2') as HTMLElement
     const grid = document.querySelector('.card-grid') as HTMLElement
     const c = card.getBoundingClientRect()
     const d = desc.getBoundingClientRect()

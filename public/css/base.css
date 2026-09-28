@@ -1,5 +1,14 @@
 * { box-sizing: border-box; }
 
+/* S164 (the ghost card): a component's own display (grid/flex) beats the UA's
+   [hidden]{display:none} — a hidden element with display:grid renders anyway
+   (the #spark-notfound ghost rendered above every loaded idea since S161's
+   birth; the notes vault's new-folder row + settings' empty-trash button were
+   the same class). THIS reset is systemic: hidden WINS over every component's
+   display, everywhere, one rule. hidden="until-found" is unused in this app
+   (verified) so the blanket !important is safe. */
+[hidden] { display: none !important; }
+
 body {
   margin: 0;
   background: var(--bg);

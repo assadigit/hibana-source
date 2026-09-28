@@ -20,7 +20,7 @@ afterEach(() => {
   vi.unstubAllGlobals()
 })
 
-async function makeProject(db: Db, userId: string, title = 'S39 test project', status = 'spark'): Promise<string> {
+async function makeProject(db: Db, userId: string, title = 'S39 test project', status = 'developing'): Promise<string> {
   const id = crypto.randomUUID()
   await db.execute(
     'INSERT INTO projects (id, user_id, title, description, type, status, sort_order, latest_note, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, 0, ?, ?, ?)',

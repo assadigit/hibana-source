@@ -27,15 +27,15 @@ describe('reorder — projects', () => {
       const userId = await makeUser(db)
       const { app, auth } = await makeClient(db, userId)
       const [a, b, c] = await Promise.all([
-        createProject(app, auth, 'A', 'spark'),
-        createProject(app, auth, 'B', 'spark'),
-        createProject(app, auth, 'C', 'spark'),
+        createProject(app, auth, 'A', 'planning'),
+        createProject(app, auth, 'B', 'planning'),
+        createProject(app, auth, 'C', 'planning'),
       ])
 
-      const reorder = await app.fetch(new Request('http://local/api/projects/reorder', { method: 'POST', headers: auth, body: JSON.stringify({ status: 'spark', ids: [b, a, c] }) }))
+      const reorder = await app.fetch(new Request('http://local/api/projects/reorder', { method: 'POST', headers: auth, body: JSON.stringify({ status: 'planning', ids: [b, a, c] }) }))
       expect(reorder.status).toBe(200)
 
-      const list = await app.fetch(new Request('http://local/api/projects?status=spark', { headers: auth }))
+      const list = await app.fetch(new Request('http://local/api/projects?status=planning', { headers: auth }))
       const { projects } = (await list.json()) as { projects: { id: string }[] }
       expect(projects.map((p) => p.id)).toEqual([b, a, c])
     } finally {

@@ -792,6 +792,8 @@ export function devboardRoutes(cfg: Config) {
     await cfg.db.execute('INSERT OR IGNORE INTO project_tags (project_id, tag_id) VALUES (?, ?)', [p.id, tagId])
     // S30 (B2): project chips count toward usage too — the label manager totals both.
     await refreshTagUsage(cfg, [tagId])
+    // S161 (spec #3): a tag add is a field edit — the idea's updated_at bumps.
+    await cfg.db.execute('UPDATE projects SET updated_at = ? WHERE id = ?', [new Date().toISOString(), p.id])
     return c.json({ ok: true, id: tagId }, 201)
   })
 
@@ -801,6 +803,8 @@ export function devboardRoutes(cfg: Config) {
     if (!p) return c.json({ error: 'not_found' }, 404)
     await cfg.db.execute('DELETE FROM project_tags WHERE project_id = ? AND tag_id = ?', [p.id, c.req.param('tagId')])
     await refreshTagUsage(cfg, [c.req.param('tagId')])
+    // S161 (spec #3): a tag remove bumps the idea's updated_at too.
+    await cfg.db.execute('UPDATE projects SET updated_at = ? WHERE id = ?', [new Date().toISOString(), p.id])
     return c.json({ ok: true })
   })
 

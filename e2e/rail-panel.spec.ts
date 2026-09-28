@@ -796,7 +796,7 @@ test.describe('the secondary panel (VS Code Activity Bar + Side Bar pattern)', (
     await folder.locator('.rail-group-head').click()
     await expect(folder).not.toHaveClass(/is-collapsed/)
     await expect(filed).toBeVisible()
-    await expect(filed).toHaveAttribute('href', /^\/project\.html\?id=.+/)
+    await expect(filed).toHaveAttribute('href', /^\/spark\.html\?id=.+/)
 
     // S131 (owner: "clicking the Ideas icon must show all ideas folders"): the
     // EMPTY folder rides the panel too — visible, collapsed, its count pill
@@ -813,12 +813,12 @@ test.describe('the secondary panel (VS Code Activity Bar + Side Bar pattern)', (
     // S92 (owner report): the row deep-links to the spark's OWN page — the same
     // destination a spark card uses on the Ideas page — not the bare /sparks.html
     // folder shelf the row used to dump you on.
-    await expect(item).toHaveAttribute('href', /^\/project\.html\?id=.+/)
+    await expect(item).toHaveAttribute('href', /^\/spark\.html\?id=.+/)
 
     await item.click()
-    await page.waitForURL(/\/project\.html\?id=.+/, { timeout: 10_000 })
-    // The idea itself is on screen: its title heads its own detail page.
-    await expect(page.locator('#pd-title')).toContainText('Rail project 2')
+    await page.waitForURL(/\/spark\.html\?id=.+/, { timeout: 10_000 })
+    // The idea itself is on screen: its title heads the LEAN page's title field.
+    await expect(page.locator('#spark-title')).toHaveValue(/Rail project 2/, { timeout: 10_000 })
     // The S88 contract holds: the panel stays open across the soft navigation.
     await expect(panel).toBeVisible()
   })

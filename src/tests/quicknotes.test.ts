@@ -346,11 +346,11 @@ describe('quick notes (dashboard notebook)', () => {
 })
 
 describe('quick notes ↔ project attachment (user request)', () => {
-  const insertProject = async (db: Db, userId: string, title: string, id = crypto.randomUUID()) => {
+  const insertProject = async (db: Db, userId: string, title: string, id = crypto.randomUUID(), status = 'spark') => {
     const now = new Date().toISOString()
     await db.execute(
-      "INSERT INTO projects (id, user_id, title, description, type, status, sort_order, latest_note, reminders_enabled, created_at, updated_at) VALUES (?, ?, ?, '', 'personal', 'spark', 0, '', 0, ?, ?)",
-      [id, userId, title, now, now],
+      "INSERT INTO projects (id, user_id, title, description, type, status, sort_order, latest_note, reminders_enabled, created_at, updated_at) VALUES (?, ?, ?, '', 'personal', ?, 0, '', 0, ?, ?)",
+      [id, userId, title, status, now, now],
     )
     return id
   }
@@ -508,10 +508,10 @@ describe('quick notes ↔ project attachment (user request)', () => {
       const user = await makeUser(db)
       const other = await makeUser(db)
       const { app, auth } = await makeClient(db, user)
-      const projectId = await insertProject(db, user, 'Idea XX')
+      const projectId = await insertProject(db, user, 'Idea XX', crypto.randomUUID(), 'developing')
       await createNote(app, auth, 'follow-up thought', { project_id: projectId })
 
-      const otherProject = await insertProject(db, other, 'Other project')
+      const otherProject = await insertProject(db, other, 'Other project', crypto.randomUUID(), 'developing')
       const { app: oApp, auth: oAuth } = await makeClient(db, other)
       await createNote(oApp, oAuth, 'secret', { project_id: otherProject })
 
@@ -536,10 +536,10 @@ describe('quick notes ↔ project attachment (user request)', () => {
 // affordance when the total exceeds the rendered list. Rule 1 (user isolation) and
 // rule 10 (Zod on the query) are pinned here.
 describe('quick-note archive (S65)', () => {
-  const insertProject = async (db: Db, userId: string, title: string, id = crypto.randomUUID()) => {
+  const insertProject = async (db: Db, userId: string, title: string, id = crypto.randomUUID(), status = 'spark') => {
     const now = new Date().toISOString()
     await db.execute(
-      "INSERT INTO projects (id, user_id, title, description, type, status, sort_order, latest_note, reminders_enabled, created_at, updated_at) VALUES (?, ?, ?, '', 'personal', 'spark', 0, '', 0, ?, ?)",
+      "INSERT INTO projects (id, user_id, title, description, type, status, sort_order, latest_note, reminders_enabled, created_at, updated_at) VALUES (?, ?, ?, '', 'personal', 'developing', 0, '', 0, ?, ?)",
       [id, userId, title, now, now],
     )
     return id

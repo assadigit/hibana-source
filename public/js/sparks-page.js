@@ -3,6 +3,8 @@
       name: 'sparks',
       mount(ctx) {
         const _t = (k, f) => (window.hibanaI18n && window.hibanaI18n.t(k)) || f
+        const isFA = () => window.hibanaI18n?.lang?.() === 'fa'
+        const faNum = (s) => (isFA() ? String(s).replace(/\d/g, (d) => '۰۱۲۳۴۵۶۷۸۹'[+d]) : String(s))
         const shelf = () => document.getElementById('spark-shelf')
         // Task 24 fix: htmx 2.0.4 fires the 'load' trigger exactly once at init —
         // htmx.trigger('#spark-shelf','load') was a silent no-op afterwards, so the
@@ -56,41 +58,114 @@
           if (viewInput) viewInput.value = v
           reloadShelf()
         })
+
+        // ---- S161 (spec #12): the SEARCH — one query spans title/description/links/
+        // tags/folder name (server-side LIKE+EXISTS), and OVERRIDES the open folder.
+        // Debounced 250ms; the ✕ + Escape clear; the match count follows every swap
+        // and poll. An ACTIVE search also de-activates every folder chip (the server
+        // renders no active chip while q rides the request).
+        const searchInput = document.getElementById('sparks-q')
+        const searchClear = document.getElementById('sparks-q-clear')
+        const searchCount = document.getElementById('sparks-q-count')
+        const currentQuery = () => (searchInput ? searchInput.value.trim() : '')
+        let searchTimer = 0
+        const paintSearchChrome = () => {
+          if (searchClear) searchClear.hidden = !searchInput.value
+        }
+        const updateMatchCount = () => {
+          if (!searchCount) return
+          const q = currentQuery()
+          if (!q) { searchCount.textContent = ''; return }
+          const root = shelf()
+          const n = root ? root.querySelectorAll('[data-project-id]').length : 0
+          searchCount.textContent = n === 1
+            ? _t('sparks.nMatchesOne', '1 match')
+            : _t('sparks.nMatches', '{n} matches').split('{n}').join(faNum(n))
+        }
+        const clearSearch = (refocus) => {
+          if (!searchInput) return
+          if (!searchInput.value) { paintSearchChrome(); return }
+          searchInput.value = ''
+          paintSearchChrome()
+          if (refocus) searchInput.focus()
+          reloadShelf()
+        }
+        if (searchInput) {
+          searchInput.addEventListener('input', () => {
+            paintSearchChrome()
+            clearTimeout(searchTimer)
+            searchTimer = setTimeout(reloadShelf, 250)
+          })
+          searchInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') { e.preventDefault(); clearSearch(false) }
+          })
+        }
+        searchClear?.addEventListener('click', () => clearSearch(true))
+
         const reloadShelf = () => {
           if (!window.htmx) return
           const f = currentFolder()
           const v = currentView()
-          // Pass folder param only when a folder is explicitly selected (f is non-empty).
-          // When f is '' (initial state, no folder clicked), don't send folder param →
-          // server shows the folder grid.
-          const folderParam = f ? '&folder=' + encodeURIComponent(f) : ''
-          window.htmx.ajax('GET', '/api/projects?status=spark&view=' + encodeURIComponent(v) + folderParam, { target: '#spark-shelf', swap: 'innerHTML' })
+          const q = currentQuery()
+          // Folder param only when a folder is explicitly selected AND no search rides
+          // the request (a search overrides the folder scope — spec #12). When both are
+          // empty the server renders the folder grid home.
+          const params = new URLSearchParams()
+          params.set('status', 'spark')
+          params.set('view', v)
+          if (q) params.set('q', q)
+          else if (f) params.set('folder', f)
+          window.htmx.ajax('GET', '/api/projects?' + params.toString(), { target: '#spark-shelf', swap: 'innerHTML' })
         }
 
-        // ---- Phase 6 item 3: KANBAN DnD — drop a spark-card on a folder column to
-        // FILE it (PATCH folder_id, the batch (s) API). Delegated + capture-free: the
-        // cards are htmx-swapped constantly, so per-card binding would die on the first
-        // poll. A same-folder drop is a no-op (the server PATCH is idempotent anyway).
-        let kbDragId = null
+        // ---- S160 + S161 (spec #13): DRAG-TO-FILE. Manual drag-REORDER of the idea
+        // list is RETIRED (spec #13's deliberate exception) — dragging an idea now
+        // means FILING it: drop on a folder chip (every view) or a kanban column.
+        // ONE dragstart feeds both target families; the view chips ('' home / 'all')
+        // are never droppable; 'none' + the No-folder column mean folder_id=null.
+        let sparkDragId = null
+        const droppableChip = (el) => {
+          const chip = el.closest?.('.sf-bar .sf-chip[data-sf]')
+          if (!chip) return null
+          const key = chip.getAttribute('data-sf') || ''
+          // '' = the home/Folders chip (the grid home), 'all' = every idea — neither is
+          // a folder; a drop there must not file anywhere (spec #11's virtual folders
+          // are 'none' only).
+          return key === '' || key === 'all' ? null : chip
+        }
+        const clearDragHints = () => {
+          document.querySelectorAll('#spark-shelf .drag-over').forEach((el) => el.classList.remove('drag-over'))
+        }
         ctx.on('dragstart', (e) => {
-          const card = e.target.closest?.('.kanban-col[data-spark-folder] .kanban-card')
+          const card = e.target.closest?.('#spark-shelf [data-project-id]')
           if (!card) return
-          kbDragId = card.dataset.projectId || null
-          if (e.dataTransfer) { e.dataTransfer.effectAllowed = 'move'; try { e.dataTransfer.setData('text/plain', kbDragId || '') } catch {} }
+          if (e.target.closest('.spark-menu, .spark-pin, button, a, input, select, textarea')) { e.preventDefault(); return }
+          sparkDragId = card.dataset.projectId || null
+          if (e.dataTransfer) {
+            e.dataTransfer.effectAllowed = 'move'
+            try { e.dataTransfer.setData('text/plain', sparkDragId || '') } catch {}
+          }
         })
         ctx.on('dragover', (e) => {
+          if (!sparkDragId) return
           const col = e.target.closest?.('.kanban-col[data-spark-folder]')
-          if (!col || !kbDragId) return
+          const chip = droppableChip(e.target)
+          if (!col && !chip) return
           e.preventDefault()
           if (e.dataTransfer) e.dataTransfer.dropEffect = 'move'
+          clearDragHints()
+          ;(col || chip).classList.add('drag-over')
         })
         ctx.on('drop', async (e) => {
+          if (!sparkDragId) return
           const col = e.target.closest?.('.kanban-col[data-spark-folder]')
-          if (!col || !kbDragId) return
+          const chip = droppableChip(e.target)
+          if (!col && !chip) return
           e.preventDefault()
-          const id = kbDragId
-          kbDragId = null
-          const folderKey = col.dataset.sparkFolder // '' = بدون پوشه → null
+          const id = sparkDragId
+          sparkDragId = null
+          clearDragHints()
+          const folderKey = col ? col.dataset.sparkFolder : chip.getAttribute('data-sf')
           try {
             const res = await fetch('/api/projects/' + id, {
               method: 'PATCH',
@@ -104,15 +179,44 @@
             window.hibana?.toast(_t('sparks.moveFailed', "Couldn't move the idea"), 'err')
           }
         })
+        ctx.on('dragend', () => { sparkDragId = null; clearDragHints() })
 
-        // ---- ⋯ menu injection — client-side only (cardHtml is shared with the
-        // projects page, where a server-rendered menu would render dead buttons) ----
-        // S44 (owner: "there must be a way to delete/edit the folder ideas"): the ⋯
-        // used to inject into CARDS only — the list/kanban/sticky views of the SAME
-        // ideas had no edit/delete at all. Every view's row/card/note now gets the
-        // same menu; all clicks run through the delegation below. The injected host
-        // carries data-nav-local so nav.js's [data-nav-url] interceptor (kanban +
-        // sticky cards are navigable) lets the ⋯ open the menu instead of navigating.
+        // ---- S161 (spec #5): the PIN TOGGLE — one tap, no confirm, optimistic
+        // fill/unfill + an authoritative refetch (pins float to the top).
+        ctx.on('click', async (e) => {
+          const pinBtn = e.target.closest('[data-spark-pin]')
+          if (!pinBtn || !pinBtn.closest('#spark-shelf')) return
+          e.preventDefault()
+          e.stopPropagation()
+          const id = pinBtn.getAttribute('data-spark-pin')
+          const on = !pinBtn.classList.contains('is-on')
+          // optimistic
+          pinBtn.classList.toggle('is-on', on)
+          pinBtn.setAttribute('aria-pressed', on ? 'true' : 'false')
+          const svg = pinBtn.querySelector('svg')
+          if (svg) { if (on) svg.setAttribute('fill', 'currentColor'); else svg.removeAttribute('fill') }
+          try {
+            const res = await fetch('/api/projects/' + id, {
+              method: 'PATCH',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ pinned: on }),
+            })
+            if (!res.ok) throw new Error('pin failed')
+            reloadShelf()
+          } catch {
+            pinBtn.classList.toggle('is-on', !on)
+            pinBtn.setAttribute('aria-pressed', on ? 'false' : 'true')
+            if (svg) { if (!on) svg.setAttribute('fill', 'currentColor'); else svg.removeAttribute('fill') }
+            window.hibana?.toast(_t('sparks.saveFailed', "Couldn't save the idea"), 'err')
+          }
+        })
+
+        // ---- ⋯ menu injection — client-side only (the renderers are shared server
+        // fragments; a server-rendered menu would render dead buttons elsewhere) ----
+        // S44: every view's row/card/note gets the same menu. S161: the EDIT dialog is
+        // RETIRED (the lean page IS the edit surface — the card click opens it) and the
+        // menu learns PROMOTE (spec #17: the stage select as its own dialog; the status
+        // behavior stays).
         function sparkMenuHtml(id) {
           return '<button type="button" data-menu-open aria-haspopup="true" aria-label="' + _t('sparks.more', 'More actions') + '">' +
               '<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="5" cy="12" r="1.7" fill="currentColor"/><circle cx="12" cy="12" r="1.7" fill="currentColor"/><circle cx="19" cy="12" r="1.7" fill="currentColor"/></svg>' +
@@ -120,29 +224,26 @@
             '<div class="spark-menu-pop" hidden>' +
               // batch (s): file the idea into a folder right from its card.
               '<button type="button" data-spark-move="' + id + '"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M3.5 7a2 2 0 0 1 2-2h4l2 2h7a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-13a2 2 0 0 1-2-2V7Z"/></svg><span>' + _t('sparks.moveToFolder', 'Move to folder') + '</span></button>' +
-              '<button type="button" data-spark-edit="' + id + '"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg><span>' + _t('sparks.edit', 'Edit spark') + '</span></button>' +
+              // S161 (spec #17): promote — the old edit dialog's stage select, its own dialog.
+              '<button type="button" data-spark-promote="' + id + '"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 19V5M5 12l7-7 7 7"/></svg><span>' + _t('sparks.promote', 'Promote to project') + '</span></button>' +
               '<button type="button" class="danger" data-spark-delete="' + id + '"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg><span>' + _t('common.delete', 'Delete') + '</span></button>' +
             '</div>'
         }
-        const MENU_HOST = '.project-card, .projects-table tr, .kanban-card, .sticky-note'
+        const MENU_HOST = '.spark-card, .projects-table tr, .kanban-card, .sticky-note'
         function injectSparksMenus() {
           const root = shelf()
           if (!root) return
-          for (const card of root.querySelectorAll('.project-card:not([data-menu-ok])')) {
-            const meta = card.querySelector('.title-meta')
-            if (!meta) continue
+          // CARDS — the ⋯ docks the top-inline-end corner beside the pin.
+          for (const card of root.querySelectorAll('.spark-card[data-project-id]:not([data-menu-ok])')) {
             const id = card.dataset.projectId
             const menu = document.createElement('div')
             menu.className = 'spark-menu'
             menu.setAttribute('data-nav-local', '')
             menu.innerHTML = sparkMenuHtml(id)
-            meta.appendChild(menu)
+            card.appendChild(menu)
             card.setAttribute('data-menu-ok', '')
           }
-          // S44: the other three views. LIST — the ⋯ rides the title cell next to the
-          // project link (rows are not navigable; the link itself is an anchor the
-          // interceptor ignores for buttons). KANBAN + STICKY — the ⋯ docks the top-end
-          // corner (quicknotes.css hosts); the card stays click-to-open otherwise.
+          // LIST rows — the ⋯ rides the title cell next to the project link.
           for (const row of root.querySelectorAll('.projects-table tr[data-project-id]:not([data-menu-ok])')) {
             const td = row.querySelector('td')
             if (!td) continue
@@ -153,6 +254,7 @@
             td.appendChild(menu)
             row.setAttribute('data-menu-ok', '')
           }
+          // KANBAN + STICKY — the ⋯ docks the top-end corner (quicknotes.css hosts).
           for (const card of root.querySelectorAll('.kanban-card[data-project-id]:not([data-menu-ok]), .sticky-note[data-project-id]:not([data-menu-ok])')) {
             const menu = document.createElement('div')
             menu.className = 'spark-menu'
@@ -171,134 +273,67 @@
           })
         }
 
-        // ---- Edit dialog (built lazily on first edit; native <dialog> like quick-add) ----
-        let editDlg = null
-        // S120 (two jobs #1 — never lose an idea; the S118 quick-add pattern lands on
-        // the edit dialog): a half-edited spark rides a reload/soft-nav — sessionStorage
-        // per keystroke, restored into the SAME spark's dialog when it reopens (the
-        // restore happens after the prefill fetch, before showModal — the fetch races
-        // nothing). A draft for a DIFFERENT spark is dropped — the prefill is the truth
-        // for the spark at hand. Dismissal retires the store SYNCHRONOUSLY inside
-        // close(): the 'close' event is a QUEUED TASK, and a fast Escape→reload tore
-        // the document down before the listener ran (the S118 race, guarded at birth).
-        const SE_DRAFT_KEY = 'hibana-se-draft'
-        const seClearDraft = () => { try { sessionStorage.removeItem(SE_DRAFT_KEY) } catch { /* private mode */ } }
-        function buildEditDialog() {
-          if (editDlg) return
+        // ---- S161 (spec #17): the PROMOTE dialog — pick the stage, the idea becomes
+        // a project (the status field's existing behavior; the S120 edit dialog's
+        // stage select reborn as its own focused flow).
+        let promoteDlg = null
+        const PROMOTE_STAGES = ['planning', 'queued', 'developing', 'awaiting_dev', 'operational']
+        function openPromote(id) {
+          if (promoteDlg) promoteDlg.remove()
           const dlg = document.createElement('dialog')
-          dlg.id = 'spark-edit-dialog'
+          dlg.id = 'spark-promote-dialog'
           dlg.className = 'dialog'
           dlg.innerHTML =
-            '<form class="modal" id="se-form" novalidate>' +
-              '<h3>' + _t('sparks.edit', 'Edit spark') + '</h3>' +
-              '<label>' + _t('sparks.title', 'Title') + ' <input id="se-title" required maxlength="200" autocomplete="off"></label>' +
-              '<label>' + _t('sparks.description', 'Description') + ' <textarea id="se-description" rows="4" maxlength="2000"></textarea></label>' +
-              // Task 24 (#6): stage select — moving a spark out of «ایده» promotes it into
-              // a real project stage right from the shelf (it leaves the shelf naturally).
-              // batch q: the spark promotes into the six-stage lifecycle; «بررسی نشده»
-              // (unreviewed) is phase 1 of a project — the natural next step for a spark.
-              '<label>' + _t('calendar.stage', 'Stage') + ' <select id="se-status">' +
-                ['spark','planning','queued','developing','awaiting_dev','operational'].map(function (s) { return '<option value="' + s + '">' + _t('status.' + s, s) + '</option>' }).join('') +
+            '<form class="modal" id="sp-form" novalidate>' +
+              '<h3>' + _t('sparks.promote', 'Promote to project') + '</h3>' +
+              '<p class="muted small">' + _t('sparks.promoteHint', 'Choose the stage — the idea becomes a project and leaves the shelf.') + '</p>' +
+              '<label>' + _t('calendar.stage', 'Stage') + ' <select id="sp-status">' +
+                PROMOTE_STAGES.map(function (s) { return '<option value="' + s + '">' + _t('status.' + s, s) + '</option>' }).join('') +
               '</select></label>' +
-              '<p class="error" id="se-error" role="alert"></p>' +
+              '<p class="error" id="sp-error" role="alert"></p>' +
               '<div class="row">' +
-                '<button type="submit" id="se-save">' + _t('common.save', 'Save') + '</button>' +
-                '<button type="button" class="ghost" id="se-cancel">' + _t('common.cancel', 'Cancel') + '</button>' +
+                '<button type="submit" id="sp-save">' + _t('common.save', 'Save') + '</button>' +
+                '<button type="button" class="ghost" id="sp-cancel">' + _t('common.cancel', 'Cancel') + '</button>' +
               '</div>' +
             '</form>'
           document.body.appendChild(dlg)
-          // S120: dismissal retires the draft BEFORE dlg.close() — close()'s 'close'
-          // event only fires as a queued task (the S118 race), so the sync clear here
-          // is the guarantee; the 'close' listener below stays as the belt.
-          const close = () => { seClearDraft(); dlg.close() }
+          const close = () => { dlg.close(); dlg.remove(); promoteDlg = null }
           dlg.addEventListener('cancel', (e) => { e.preventDefault(); close() })
           dlg.addEventListener('click', (e) => { if (e.target === dlg) close() })
-          dlg.querySelector('#se-cancel').addEventListener('click', close)
-          dlg.querySelector('#se-form').addEventListener('submit', async (e) => {
+          dlg.querySelector('#sp-cancel').addEventListener('click', close)
+          dlg.querySelector('#sp-form').addEventListener('submit', async (e) => {
             e.preventDefault()
-            const id = dlg.dataset.editId
-            const title = dlg.querySelector('#se-title').value.trim()
-            if (!id || !title) return
-            const err = dlg.querySelector('#se-error')
-            const save = dlg.querySelector('#se-save')
+            const status = dlg.querySelector('#sp-status').value
+            const save = dlg.querySelector('#sp-save')
+            const err = dlg.querySelector('#sp-error')
             err.textContent = ''
             save.disabled = true
-            save.textContent = _t('sparks.saving', 'Saving…')
             try {
               const res = await fetch('/api/projects/' + id, {
                 method: 'PATCH',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ title, description: dlg.querySelector('#se-description').value, status: dlg.querySelector('#se-status').value || undefined }),
+                body: JSON.stringify({ status }),
               })
-              if (!res.ok) throw new Error('update failed')
-              window.hibana?.rail?.refresh?.() // S148: the rail follows the edit — a promoted spark leaves the shelf for the projects section
-              // S119 (two jobs #2 — never lose your place, the ideas edition): an EDIT is
-              // the S105 "actively interacted" mutation — the resume strip remembers the
-              // spark ("Continue where you left off" now covers ideas too; the strip links
-              // back to /sparks.html). A PROMOTED spark (the stage select moved it out of
-              // «ایده») records as a PROJECT with its new stage — it left the shelf for the
-              // pipeline, so the entry deep-links to the project page instead.
-              const st = dlg.querySelector('#se-status').value || 'spark'
-              window.hibanaResume?.record?.(st === 'spark' ? 'spark' : 'project', id, title, st)
+              if (!res.ok) throw new Error('promote failed')
+              window.hibana?.rail?.refresh?.() // the rail follows the promotion — the idea leaves its sparks section
+              // S119: a PROMOTED spark records as a PROJECT with its new stage (the
+              // resume strip deep-links the project page).
+              // the title, not the whole card link: comma querySelectors resolve in
+              // DOCUMENT order, so the card's <a> would outrank .spark-card-title and
+              // drag the description into the resume record.
+              const _row = shelf()?.querySelector('[data-project-id="' + id + '"]')
+              const _title = (_row?.querySelector('.spark-card-title') || _row?.querySelector('strong') || _row?.querySelector('a') || {}).textContent
+              window.hibanaResume?.record?.('project', id, (_title || '').trim(), status)
               close()
-              window.hibana?.toast(_t('sparks.saved', 'Saved'), 'ok', 3000)
+              window.hibana?.toast(_t('sparks.promoted', 'Promoted — it now lives under Projects'), 'ok', 4000)
               reloadShelf()
-            } catch (err2) {
-              err.textContent = _t('sparks.saveFailed', "Couldn't save the spark")
-            } finally {
+            } catch {
+              err.textContent = _t('sparks.saveFailed', "Couldn't save the idea")
               save.disabled = false
-              save.textContent = _t('common.save', 'Save')
             }
           })
-          // S120: the draft store — every keystroke persists {id,t,d,s}; reverting all
-          // three fields back to the prefill retires the store (pristine = nothing to
-          // keep). The stage select joins on 'change' (selects don't fire input).
-          const seFields = () => [dlg.querySelector('#se-title'), dlg.querySelector('#se-description'), dlg.querySelector('#se-status')]
-          const seSaveDraft = () => {
-            try {
-              const [t, d, s] = seFields().map((el) => el.value)
-              const orig = dlg.dataset.orig ? JSON.parse(dlg.dataset.orig) : null
-              if (orig && t === orig[0] && d === orig[1] && s === orig[2]) { seClearDraft(); return }
-              sessionStorage.setItem(SE_DRAFT_KEY, JSON.stringify({ id: dlg.dataset.editId, t, d, s }))
-            } catch { /* private mode */ }
-          }
-          seFields().forEach((el, i) => el && el.addEventListener(i === 2 ? 'change' : 'input', seSaveDraft))
-          dlg.addEventListener('close', seClearDraft) // belt — the sync clear lives in close()
-          editDlg = dlg
-        }
-
-        function openEdit(id) {
-          buildEditDialog()
-          const dlg = editDlg
-          dlg.querySelector('#se-error').textContent = ''
-          fetch('/api/projects/' + id)
-            .then((r) => (r.ok ? r.json() : Promise.reject(new Error('fetch failed'))))
-            .then((body) => {
-              const p = body.project || {}
-              dlg.dataset.editId = id
-              dlg.querySelector('#se-title').value = p.title ?? ''
-              dlg.querySelector('#se-description').value = p.description ?? ''
-              if (p.status) dlg.querySelector('#se-status').value = p.status
-              // S120: the pristine baseline is the ACTUAL prefill — the stage select keeps
-              // its previous value when the row carries no status, so read the live
-              // fields, not the row.
-              const orig = [dlg.querySelector('#se-title').value, dlg.querySelector('#se-description').value, dlg.querySelector('#se-status').value]
-              dlg.dataset.orig = JSON.stringify(orig)
-              // a draft for THIS spark returns (newer intent wins, sliced to the fields'
-              // own maxima); a stale draft for a DIFFERENT spark is dropped
-              try {
-                const dr = JSON.parse(sessionStorage.getItem(SE_DRAFT_KEY) || 'null')
-                if (dr && dr.id === id) {
-                  dlg.querySelector('#se-title').value = String(dr.t ?? '').slice(0, 200)
-                  dlg.querySelector('#se-description').value = String(dr.d ?? '').slice(0, 2000)
-                  if (dr.s) dlg.querySelector('#se-status').value = String(dr.s)
-                } else if (dr) {
-                  seClearDraft()
-                }
-              } catch { /* malformed draft — the prefill stands */ }
-              dlg.showModal()
-            })
-            .catch(() => window.hibana?.toast(_t('sparks.loadFailed', "Couldn't load the spark"), 'err'))
+          promoteDlg = dlg
+          dlg.showModal()
         }
 
         // ---- Delete (soft) + Undo toast — mirrors the quick-notebook pattern in app.js ----
@@ -307,14 +342,14 @@
           fetch('/api/projects/' + id, { method: 'DELETE' })
             .then(async (r) => {
               if (!r.ok) {
-                window.hibana?.toast(_t('sparks.deleteFailed', "Couldn't delete the spark"), 'err')
+                window.hibana?.toast(_t('sparks.deleteFailed', "Couldn't delete the idea"), 'err')
                 return
               }
               card.remove()
               window.hibana?.rail?.refresh?.() // S148: the rail's sparks section drops the deleted row in the same beat
               // P4.11 (F-L24): use the toast() actions API (canonical pattern) instead of
               // post-hoc appending a button to the toast element.
-              window.hibana?.toast(_t('sparks.deleted', 'Spark deleted'), 'ok', 6000, [{
+              window.hibana?.toast(_t('sparks.deleted', 'Idea deleted'), 'ok', 6000, [{
                 label: _t('common.undo', 'Undo'),
                 onClick: () => {
                   fetch('/api/projects/' + id + '/restore', { method: 'POST' })
@@ -324,26 +359,40 @@
               }])
               reloadShelf() // fresh server order (also renders the empty state after the last card)
             })
-            .catch(() => window.hibana?.toast(_t('sparks.deleteFailed', "Couldn't delete the spark"), 'err'))
+            .catch(() => window.hibana?.toast(_t('sparks.deleteFailed', "Couldn't delete the idea"), 'err'))
         }
 
         // ---- Folders (batch s) — create / rename / delete / move-to-folder -----------
         // The folder BAR is server-rendered inside the shelf fragment (fresh counts on
-        // every swap); these dialogs are lazily-built natives like the spark edit dialog.
-        // S41: the create/rename dialog carries the folder's EMOJI icon — a preview
-        // button that opens the shared emoji picker (window.hibanaEmojiPicker, which
-        // docks as a bottom sheet under 640px — mobile-first by design). Icon PATCH
-        // semantics mirror the server: only send `icon` when the user touched it
-        // (dirty flag); null = clear back to the folder-plus glyph.
+        // every swap); these dialogs are lazily-built natives.
+        // S41: the create/rename dialog carries the folder's EMOJI icon (the shared
+        // picker). S161 (spec #3): it also carries the 16-swatch PASTEL picker — the
+        // curated CAT_PAIRS tiles read from the --cat-sw-* CSS tokens (the design-token
+        // law's only other home); a toggle-OFF returns the folder to the hash-of-id
+        // default (color_fill/color_text NULL).
         const DEFAULT_FOLDER_ICON = '📁'
         let folderDlg = null
         let moveDlg = null
+
+        function swatchData() {
+          // the 16 curated pairs, read from the live CSS tokens (variables.css) — the
+          // SAME list the categories system + a unit test pin (they can never drift)
+          const cs = getComputedStyle(document.documentElement)
+          const out = []
+          for (let i = 1; i <= 16; i++) {
+            const fill = cs.getPropertyValue('--cat-sw-' + i + '-fill').trim()
+            const ink = cs.getPropertyValue('--cat-sw-' + i + '-ink').trim()
+            if (fill && ink) out.push({ fill, ink })
+          }
+          return out
+        }
 
         function buildFolderDialog() {
           if (folderDlg) return
           const dlg = document.createElement('dialog')
           dlg.id = 'spark-folder-dialog'
           dlg.className = 'dialog'
+          const swatches = swatchData()
           dlg.innerHTML =
             '<form class="modal" id="sf-form" novalidate>' +
               '<h3 id="sf-title"></h3>' +
@@ -351,6 +400,14 @@
                 '<button type="button" id="sf-icon-btn" class="sf-icon-btn" aria-label="' + _t('sparks.folderIcon', 'Folder icon') + '" title="' + _t('sparks.folderIcon', 'Folder icon') + '"><span id="sf-icon-preview" aria-hidden="true">' + DEFAULT_FOLDER_ICON + '</span></button>' +
                 '<button type="button" class="ghost small" id="sf-icon-clear" hidden>✕ <span>' + _t('sparks.clearIcon', 'Remove icon') + '</span></button>' +
               '</div>' +
+              (swatches.length
+                ? '<div class="sf-color-row"><span class="small muted">' + _t('sparks.folderColor', 'Folder color') + '</span>' +
+                    '<div class="sf-swatches" role="group" aria-label="' + _t('sparks.folderColor', 'Folder color') + '" id="sf-swatches">' +
+                      swatches.map((sw, i) => '<button type="button" class="sf-swatch" data-sw="' + i + '" style="--sw-fill:' + sw.fill + ';--sw-ink:' + sw.ink + '" aria-label="' + _t('sparks.swatchAria', 'Swatch {n}').split('{n}').join(String(i + 1)) + '" aria-pressed="false"></button>').join('') +
+                    '</div>' +
+                    '<button type="button" class="ghost small" id="sf-swatch-default" hidden>' + _t('sparks.defaultColor', 'Default color') + '</button>' +
+                  '</div>'
+                : '') +
               '<label>' + _t('sparks.folderName', 'Folder name') + ' <input id="sf-name" required maxlength="50" autocomplete="off"></label>' +
               '<p class="error" id="sf-error" role="alert"></p>' +
               '<div class="row">' +
@@ -368,6 +425,32 @@
             preview().textContent = icon || DEFAULT_FOLDER_ICON
             clearBtn().hidden = !icon
           }
+          // the swatch state: '' = the hash-of-id DEFAULT (color_fill NULL), else 'fill|ink'
+          const paintSwatches = () => {
+            const active = dlg.dataset.pair || ''
+            for (const b of dlg.querySelectorAll('.sf-swatch')) {
+              const pair = b.style.getPropertyValue('--sw-fill') + '|' + b.style.getPropertyValue('--sw-ink')
+              const on = active === pair
+              b.classList.toggle('is-on', on)
+              b.setAttribute('aria-pressed', on ? 'true' : 'false')
+            }
+            const defBtn = dlg.querySelector('#sf-swatch-default')
+            if (defBtn) defBtn.hidden = !active
+          }
+          dlg.querySelector('#sf-swatches')?.addEventListener('click', (e) => {
+            const b = e.target.closest('.sf-swatch')
+            if (!b) return
+            const pair = b.style.getPropertyValue('--sw-fill') + '|' + b.style.getPropertyValue('--sw-ink')
+            // toggle-off: clicking the active swatch returns the folder to the default
+            dlg.dataset.pair = (dlg.dataset.pair === pair) ? '' : pair
+            dlg.dataset.pairDirty = '1'
+            paintSwatches()
+          })
+          dlg.querySelector('#sf-swatch-default')?.addEventListener('click', () => {
+            dlg.dataset.pair = ''
+            dlg.dataset.pairDirty = '1'
+            paintSwatches()
+          })
           dlg.querySelector('#sf-icon-btn').addEventListener('click', () => {
             const picker = window.hibanaEmojiPicker
             if (!picker) {
@@ -395,10 +478,18 @@
             save.disabled = true
             save.textContent = _t('sparks.saving', 'Saving…')
             try {
-              // icon rides along ONLY when the user touched it (rename without opening
-              // the picker never clears the stored emoji; null = explicit clear).
+              // icon + pair ride along ONLY when the user touched them (rename without
+              // touching the pickers never clears the stored values; null = explicit
+              // clear / back to the hash-of-id default).
               const iconDirty = dlg.dataset.iconDirty === '1'
-              const payload = iconDirty ? { name, icon: dlg.dataset.icon || null } : { name }
+              const pairDirty = dlg.dataset.pairDirty === '1'
+              const pair = dlg.dataset.pair || ''
+              const payload = { name }
+              if (iconDirty) payload.icon = dlg.dataset.icon || null
+              if (pairDirty) {
+                if (pair) { const [fill, ink] = pair.split('|'); payload.color_fill = fill; payload.color_text = ink }
+                else { payload.color_fill = null; payload.color_text = null }
+              }
               const res = await fetch(id ? '/api/projects/sparks/folders/' + id : '/api/projects/sparks/folders', {
                 method: id ? 'PATCH' : 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -419,7 +510,7 @@
           folderDlg = dlg
         }
 
-        function openFolderDialog(id, name, icon) {
+        function openFolderDialog(id, name, icon, pair) {
           buildFolderDialog()
           const dlg = folderDlg
           dlg.dataset.folderId = id || ''
@@ -427,9 +518,21 @@
           dlg.querySelector('#sf-error').textContent = ''
           dlg.querySelector('#sf-name').value = name || ''
           dlg.dataset.icon = icon || ''
+          dlg.dataset.iconDirty = ''
+          dlg.dataset.pair = pair || ''
+          dlg.dataset.pairDirty = ''
           dlg.querySelector('#sf-icon-preview').textContent = icon || DEFAULT_FOLDER_ICON
           dlg.querySelector('#sf-icon-clear').hidden = !icon
-          dlg.dataset.iconDirty = ''
+          // paint the swatch state (the active tile, or none = the default)
+          const swatches = dlg.querySelectorAll('.sf-swatch')
+          swatches.forEach((b) => {
+            const p = b.style.getPropertyValue('--sw-fill') + '|' + b.style.getPropertyValue('--sw-ink')
+            const on = !!pair && p === pair
+            b.classList.toggle('is-on', on)
+            b.setAttribute('aria-pressed', on ? 'true' : 'false')
+          })
+          const defBtn = dlg.querySelector('#sf-swatch-default')
+          if (defBtn) defBtn.hidden = !pair
           dlg.showModal()
           dlg.querySelector('#sf-name').focus()
         }
@@ -455,9 +558,6 @@
         }
 
         // The ⋯ pop next to each folder chip — a tiny inline menu (rename / delete).
-        // S40: hosts are BOTH shapes — the bar's .sf-item chips AND the file-manager
-        // grid's .spark-folder-card (whose ⋯ button previously only ever entered the
-        // folder, see the click-order note below).
         function closeSfMenus() {
           document.querySelectorAll('#spark-shelf .sf-menu').forEach((m) => m.remove())
         }
@@ -472,8 +572,9 @@
             const label = item.querySelector('.sf-label, .spark-folder-name')
             const name = (label || {}).textContent || ''
             // S41: the host chip/card carries data-sf-icon — the rename dialog prefills
-            // the folder's current emoji from it.
+            // the folder's current emoji from it. S161: data-sf-pair prefills the swatch.
             const folderIcon = item.getAttribute('data-sf-icon') || ''
+            const folderPair = item.getAttribute('data-sf-pair') || ''
             menu.innerHTML =
               '<button type="button" data-sf-rename="' + id + '">' +
                 '<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>' +
@@ -483,6 +584,7 @@
                 '<span>' + _t('sparks.deleteFolder', 'Delete folder') + '</span></button>'
             menu.dataset.folderName = name
             menu.dataset.folderIcon = folderIcon
+            menu.dataset.folderPair = folderPair
             item.appendChild(menu)
           }
         }
@@ -549,21 +651,74 @@
             .catch(() => window.hibana?.toast(_t('sparks.folderFailed', "Couldn't update the folder — try again"), 'err'))
         }
 
-        // ---- Delegated clicks: menu toggle / outside-close / edit / delete / folders ----
+        // ---- S161 (spec #1): the folder BANNER flow — the prompt/Change buttons open
+        // the picker, the pick runs the fixed 2.5:1 CROP (image-crop.js), Apply PUTs
+        // the WebP bytes through the shared object-store chain, the shelf reloads.
+        const bannerInput = document.createElement('input')
+        bannerInput.type = 'file'
+        bannerInput.accept = 'image/png,image/jpeg,image/webp'
+        bannerInput.hidden = true
+        document.body.appendChild(bannerInput)
+        bannerInput.addEventListener('change', async () => {
+          const file = bannerInput.files && bannerInput.files[0]
+          bannerInput.value = ''
+          const folderId = bannerInput.dataset.folderId
+          if (!file || !folderId) return
+          if (!window.hibanaImageCrop?.openCrop) {
+            window.hibana?.toast(_t('sparks.bannerFailed', "Couldn't update the banner — try again"), 'err')
+            return
+          }
+          try {
+            const cropped = await window.hibanaImageCrop.openCrop(file, { aspect: 2.5 })
+            if (!cropped) return // cancelled — the placeholder stays
+            const res = await fetch('/api/projects/sparks/folders/' + folderId + '/banner', {
+              method: 'PUT',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ dataBase64: cropped.dataBase64, mimeType: cropped.mimeType }),
+            })
+            if (!res.ok) throw new Error('banner failed')
+            reloadShelf()
+          } catch {
+            window.hibana?.toast(_t('sparks.bannerFailed', "Couldn't update the banner — try again"), 'err')
+          }
+        })
+        const pickBanner = (folderId) => {
+          bannerInput.dataset.folderId = folderId
+          bannerInput.click()
+        }
+
+        // ---- Delegated clicks: banner / menus / pin / expand / folders ----------------
         ctx.on('click', (e) => {
+          // ---- the BANNER first (it lives inside the shelf fragment) ----
+          const sfhUpload = e.target.closest('[data-sfh-upload], [data-sfh-change], [data-sfh-img]')
+          if (sfhUpload) {
+            const host = sfhUpload.closest('.sfh')
+            if (host) { e.preventDefault(); pickBanner(host.getAttribute('data-sfh-folder') || ''); return }
+          }
+          const sfhRemove = e.target.closest('[data-sfh-remove]')
+          if (sfhRemove) {
+            const host = sfhRemove.closest('.sfh')
+            e.preventDefault()
+            if (!host) return
+            fetch('/api/projects/sparks/folders/' + host.getAttribute('data-sfh-folder') + '/banner', { method: 'DELETE' })
+              .then((r) => { if (!r.ok) throw new Error('banner remove failed'); reloadShelf() })
+              .catch(() => window.hibana?.toast(_t('sparks.bannerFailed', "Couldn't update the banner — try again"), 'err'))
+            return
+          }
+
           // ---- Folder bar / folder GRID first (they live inside the shelf but must not
           // fall through to the card-menu branch). S40 ORDER FIX: [data-sf-new] and
           // [data-sf-menu] are checked BEFORE [data-sf] — in the folder GRID the ⋯ menu
           // button sits INSIDE the [data-sf] card, so the old order turned every menu
           // click into a folder entry (rename/delete were unreachable there).
           const sfNew = e.target.closest('[data-sf-new]')
-          if (sfNew) { e.preventDefault(); openFolderDialog('', '', ''); return }
+          if (sfNew) { e.preventDefault(); openFolderDialog('', '', '', ''); return }
           const sfMenuBtn = e.target.closest('[data-sf-menu]')
           if (sfMenuBtn) { e.preventDefault(); toggleSfMenu(sfMenuBtn); return }
           const sfRename = e.target.closest('[data-sf-rename]')
           if (sfRename) {
             const host = sfRename.closest('.sf-menu')
-            openFolderDialog(sfRename.getAttribute('data-sf-rename'), host?.dataset.folderName || '', host?.dataset.folderIcon || '')
+            openFolderDialog(sfRename.getAttribute('data-sf-rename'), host?.dataset.folderName || '', host?.dataset.folderIcon || '', host?.dataset.folderPair || '')
             closeSfMenus()
             return
           }
@@ -590,6 +745,13 @@
               // S40: persist the working folder so reloads/captures keep the context.
               writeFolderPref(input.value, name)
             }
+            // S162 (folded): a chip click during an active search CLEARS the query —
+            // the folder the user asked for must actually open (the server's search
+            // overrides the folder scope; without this the click did nothing).
+            if (searchInput && searchInput.value) {
+              searchInput.value = ''
+              paintSearchChrome()
+            }
             reloadShelf()
             return
           }
@@ -608,71 +770,35 @@
           }
           const moveBtn = e.target.closest('[data-spark-move]')
           if (moveBtn) { closeMenus(); openMoveDialog(moveBtn.getAttribute('data-spark-move')); return }
-          const editBtn = e.target.closest('[data-spark-edit]')
-          if (editBtn) { closeMenus(); openEdit(editBtn.getAttribute('data-spark-edit')); return }
+          const promoteBtn = e.target.closest('[data-spark-promote]')
+          if (promoteBtn) { closeMenus(); openPromote(promoteBtn.getAttribute('data-spark-promote')); return }
           const delBtn = e.target.closest('[data-spark-delete]')
           if (delBtn) { closeMenus(); deleteSpark(delBtn.getAttribute('data-spark-delete'), delBtn.closest(MENU_HOST)); return }
           if (!e.target.closest('#spark-shelf .spark-menu')) closeMenus()
+
+          // ---- S161 (spec #14): MOBILE tap-to-expand. At ≤640px cards render condensed
+          // (title + thumb); the FIRST tap expands (desc/meta/links revealed), later
+          // taps navigate to the lean page (the anchor's plain default — a full load,
+          // honest on a rare open). The RACE with nav.js's capture-phase interceptor
+          // is won by the data-nav-local paint below (nav stands down for it; the
+          // attribute exists ONLY at ≤640px so desktop soft-nav stays untouched).
+          const expandLink = e.target.closest('[data-spark-expand]')
+          if (expandLink && window.matchMedia('(max-width: 640px)').matches) {
+            const card = expandLink.closest('.spark-card')
+            if (card && !card.classList.contains('is-expanded')) {
+              e.preventDefault()
+              card.classList.add('is-expanded')
+            }
+          }
         })
         ctx.on('keydown', (e) => { if (e.key === 'Escape') { closeMenus(); closeSfMenus() } })
 
-        // ---- Drag-to-reorder (native HTML5 DnD, delegated so htmx swaps never need re-binding).
-        // Mirrors projects.html but scoped to the sparks shelf (all cards share status=spark). ----
-        let dragEl = null
-        ctx.on('dragstart', (e) => {
-          const card = e.target.closest('#spark-shelf [data-project-id]')
-          if (!card) return
-          if (e.target.closest('.spark-menu')) { e.preventDefault(); return } // menu clicks must not drag
-          dragEl = card
-          e.dataTransfer.effectAllowed = 'move'
-          e.dataTransfer.setData('text/plain', card.dataset.projectId)
-          card.classList.add('dragging')
-        })
-        ctx.on('dragover', (e) => {
-          if (!dragEl) return
-          e.preventDefault()
-          const node = e.target.closest('#spark-shelf [data-project-id]')
-          if (!node || node === dragEl || node.parentElement !== dragEl.parentElement) return
-          const r = node.getBoundingClientRect()
-          const after = r.width >= r.height ? e.clientX > r.left + r.width / 2 : e.clientY > r.top + r.height / 2
-          node.parentElement.insertBefore(dragEl, after ? node.nextSibling : node)
-        })
-        ctx.on('drop', async (e) => {
-          if (!dragEl) return
-          e.preventDefault()
-          try {
-            const container = dragEl.parentElement
-            if (container && container.contains(e.target)) {
-              const ids = [...container.querySelectorAll('[data-project-id]')].map((el) => el.dataset.projectId)
-              if (ids.length >= 2) {
-                const res = await fetch('/api/projects/reorder', {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({ status: 'spark', ids }),
-                })
-                if (!res.ok) throw new Error('reorder failed')
-                window.hibana?.rail?.refresh?.() // S148: the rail's sparks section follows the reorder in the same beat
-              }
-            }
-            reloadShelf() // server reassigns sort_order — refetch authoritative order
-          } catch (err) {
-            window.hibana?.toast(_t('sparks.reorderFailed', 'Reorder failed — try again'), 'err')
-          } finally {
-            if (dragEl) dragEl.classList.remove('dragging')
-            dragEl = null
-          }
-        })
-        ctx.on('dragend', () => {
-          if (dragEl) dragEl.classList.remove('dragging')
-          dragEl = null
-        })
-
-        // Re-inject menus on every shelf render (initial load, 30s refresh, manual reload).
-        // htmx 2.x dispatches both the legacy `htmx:`-prefixed and the new unprefixed event
-        // names — register both so the injection never misses a swap.
-        // S44: open menus used to DIE with the 30s poll's innerHTML swap — a ⋯ popped,
-        // then vanished mid-read before the tap landed ("clicking does nothing").
-        // beforeSwap captures what was open; afterSwap re-opens it on the fresh DOM.
+        // Re-inject menus + repaint the count on every shelf render (initial load, 30s
+        // refresh, manual reload). htmx 2.x dispatches both the legacy `htmx:`-prefixed
+        // and the new unprefixed event names — register both so the injection never
+        // misses a swap.
+        // S44: open menus used to DIE with the 30s poll's innerHTML swap — beforeSwap
+        // captures what was open; afterSwap re-opens it on the fresh DOM.
         let reopenSparkId = null
         let reopenFolderId = null
         const captureOpenMenus = () => {
@@ -686,6 +812,7 @@
         for (const name of ['htmx:beforeSwap', 'beforeSwap']) ctx.on(name, captureOpenMenus)
         const reinject = () => {
           injectSparksMenus()
+          updateMatchCount()
           const root = shelf()
           if (!root) return
           if (reopenSparkId) {
@@ -707,6 +834,37 @@
           ctx.on(name, reinject)
         }
         injectSparksMenus()
+
+        // spec #14's paint: data-nav-local rides the card links ONLY at ≤640px —
+        // nav.js's CAPTURE-phase anchor interceptor stands down for it, so the first
+        // tap's expand (preventDefault) wins the race. Above 640px the attribute is
+        // gone and the desktop soft-nav flow is untouched.
+        const paintExpandability = () => {
+          const mobile = window.matchMedia('(max-width: 640px)').matches
+          document.querySelectorAll('#spark-shelf [data-spark-expand]').forEach((a) => {
+            if (mobile) a.setAttribute('data-nav-local', '')
+            else a.removeAttribute('data-nav-local')
+          })
+        }
+        const expandMq = window.matchMedia('(max-width: 640px)')
+        expandMq.addEventListener?.('change', paintExpandability)
+        const reinjectWithPaint = () => { reinject(); paintExpandability() }
+        for (const name of ['htmx:afterSwap', 'afterSwap', 'htmx:load', 'load']) {
+          ctx.on(name, reinjectWithPaint)
+        }
+        paintExpandability()
+
+        // S166 (the baked-EN race): a FA hard-load where htmx beats the dict leaves the
+        // injected menus' aria-labels EN forever — the menus rebuild in place on every
+        // hibana:i18n (the labels re-read the live dict).
+        ctx.on('hibana:i18n', () => {
+          const root = shelf()
+          if (!root) return
+          root.querySelectorAll('[data-menu-ok]').forEach((el) => el.removeAttribute('data-menu-ok'))
+          root.querySelectorAll('.spark-menu').forEach((m) => m.remove())
+          injectSparksMenus()
+          updateMatchCount()
+        })
 
         // ---- S40: belt-and-suspenders restore of the remembered folder. sparks.html's
         // inline stamp covers hard loads (before htmx's first fetch); THIS covers soft
@@ -731,12 +889,13 @@
         return () => {
           closeMenus()
           closeSfMenus()
-          if (editDlg) editDlg.remove()
-          editDlg = null
           if (folderDlg) folderDlg.remove()
           folderDlg = null
           if (moveDlg) moveDlg.remove()
           moveDlg = null
+          if (promoteDlg) promoteDlg.remove()
+          promoteDlg = null
+          if (bannerInput) bannerInput.remove()
           delete window.__hibanaShelfReload
         }
       },

@@ -215,7 +215,7 @@ test('progress box: the heading computes bold + larger, and the content preview 
     const res = await fetch('/api/projects', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ title: `s86 progress ${Date.now()}` }),
+      body: JSON.stringify({ title: `s86 progress ${Date.now()}`, status: 'developing' }),
     })
     return ((await res.json()) as { id: string }).id
   })
@@ -260,7 +260,7 @@ test('task composer uploads FILES: a PDF stages as a file tile and pins to the s
     const res = await fetch('/api/projects', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ title: `s86 files ${Date.now()}` }),
+      body: JSON.stringify({ title: `s86 files ${Date.now()}`, status: 'developing' }),
     })
     return ((await res.json()) as { id: string }).id
   })

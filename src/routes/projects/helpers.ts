@@ -10,6 +10,7 @@ import { trL, type Locale } from '../../lib/i18n'
 import { faDigits } from '../../lib/jalali'
 import { personalProgress, clientProgress } from '../../services/progress'
 import { PROJECT_STAGES } from '../../types'
+import { CAT_PAIRS, type CatPair } from '../../lib/categories'
 import type {
   Config,
   ProjectRow,
@@ -548,18 +549,215 @@ export function sparkEmptyHtml(lang: Locale): string {
   </div>`
 }
 
+// ---- S161 (0063): the Ideas redesign renderers ----------------------------------
+
+/** Spec #3: a folder's pastel pair — the stored curated tile, or the hash-of-id
+ *  DEFAULT when none was ever picked (a stable pseudo-random member of CAT_PAIRS:
+ *  every folder gets a distinct, deterministic identity color from birth). */
+export function folderPair(f: Pick<SparkFolderRow, 'id' | 'color_fill' | 'color_text'>): CatPair {
+  if (f.color_fill && f.color_text) return { fill: f.color_fill, ink: f.color_text }
+  let h = 0
+  for (let i = 0; i < f.id.length; i++) h = (h * 31 + f.id.charCodeAt(i)) >>> 0
+  return CAT_PAIRS[h % CAT_PAIRS.length]
+}
+
+export interface SparkThumbMeta { shotId: string | null; isManual: boolean }
+/** Spec #4 (batched): each idea's card thumb — the MANUAL cover when one is set (and
+ *  its row still lives), else the most-recent image upload. One query for all rows,
+ *  newest-first; the first row per project is its latest. */
+export async function loadSparkThumbs(cfg: Config, projects: ProjectRow[]): Promise<Map<string, SparkThumbMeta>> {
+  const map = new Map<string, SparkThumbMeta>(projects.map((p) => [p.id, { shotId: null, isManual: false }]))
+  const ids = projects.map((p) => p.id)
+  if (!ids.length) return map
+  const ph = ids.map(() => '?').join(',')
+  const rows = await cfg.db.query<{ id: string; project_id: string }>(
+    `SELECT id, project_id FROM screenshots WHERE project_id IN (${ph}) AND mime_type LIKE 'image/%' ORDER BY created_at DESC, id DESC`,
+    ids,
+  )
+  const latest = new Map<string, string>()
+  for (const r of rows) if (!latest.has(r.project_id)) latest.set(r.project_id, r.id)
+  const coverIds = [...new Set(projects.filter((p) => p.cover_shot_id).map((p) => p.cover_shot_id!))]
+  const liveCovers = new Set(
+    coverIds.length
+      ? (await cfg.db.query<{ id: string }>(`SELECT id FROM screenshots WHERE id IN (${coverIds.map(() => '?').join(',')})`, coverIds)).map((r) => r.id)
+      : [],
+  )
+  for (const p of projects) {
+    if (p.cover_shot_id && liveCovers.has(p.cover_shot_id)) map.set(p.id, { shotId: p.cover_shot_id, isManual: true })
+    else if (latest.has(p.id)) map.set(p.id, { shotId: latest.get(p.id)!, isManual: false })
+  }
+  return map
+}
+
+export interface SparkPresence { links: number; images: number }
+/** Spec #9's icon column (batched): per-idea link + image counts — the glyphs that
+ *  replace the dead Signals column and the always-empty Tags column. */
+export async function loadSparkLinkPresence(cfg: Config, projectIds: string[]): Promise<Map<string, SparkPresence>> {
+  const map = new Map<string, SparkPresence>(projectIds.map((id) => [id, { links: 0, images: 0 }]))
+  if (!projectIds.length) return map
+  const ph = projectIds.map(() => '?').join(',')
+  const linkRows = await cfg.db.query<{ project_id: string; n: number }>(
+    `SELECT project_id, COUNT(*) AS n FROM links WHERE project_id IN (${ph}) GROUP BY project_id`,
+    projectIds,
+  )
+  const imgRows = await cfg.db.query<{ project_id: string; n: number }>(
+    `SELECT project_id, COUNT(*) AS n FROM screenshots WHERE project_id IN (${ph}) AND mime_type LIKE 'image/%' GROUP BY project_id`,
+    projectIds,
+  )
+  for (const r of linkRows) { const e = map.get(r.project_id); if (e) e.links = r.n }
+  for (const r of imgRows) { const e = map.get(r.project_id); if (e) e.images = r.n }
+  return map
+}
+
+/** Spec #1/#2/#3: the folder header — banner (uploaded image or the folder's own pastel
+ *  as a solid placeholder) + the centered upload prompt, then the name + count +
+ *  "Updated {t} ago" metrics. The banner is capped (CSS: min(240px, 32vh) — a wide
+ *  image must never dominate a laptop viewport); the prompt pill mixes the banner's
+ *  OWN fill so the curated AA pair holds in BOTH themes (the S163 dark-mode lesson,
+ *  folded at birth). data-sfh-* hooks ride the client's upload/crop/remove flow. */
+export function sparkFolderHeaderHtml(
+  folder: SparkFolderRow,
+  count: number,
+  lastUpdated: string | null,
+  lang: Locale,
+): string {
+  const dig = (n: number) => (lang === 'fa' ? faDigits(String(n)) : String(n))
+  const pair = folderPair(folder)
+  const banner = folder.banner_path
+    ? `<img class="sfh-banner-img" src="/api/projects/sparks/folders/${folder.id}/banner/file" alt="" data-sfh-img loading="lazy">`
+    : ''
+  const prompt = folder.banner_path
+    ? `<div class="sfh-actions" data-sfh-actions>
+        <button type="button" class="sfh-act" data-sfh-change>${icon('image', 'icon')} <span>${trL(lang, 'Change banner', 'تعویض بنر')}</span></button>
+        <button type="button" class="sfh-act sfh-act-x" data-sfh-remove aria-label="${trL(lang, 'Remove banner', 'حذف بنر')}" title="${trL(lang, 'Remove banner', 'حذف بنر')}">${icon('x')}</button>
+      </div>`
+    : `<button type="button" class="sfh-prompt" data-sfh-upload>${icon('image', 'icon')} <span>${trL(lang, 'Upload a banner', 'بارگذاری بنر')}</span></button>`
+  const metrics = trL(lang, '{n} ideas', '{n} ایده', { n: dig(count) })
+    + (lastUpdated ? ` · ${trL(lang, 'Updated {t}', 'به‌روزرسانی {t}', { t: timeAgo(lastUpdated, lang) })}` : '')
+  return `<header class="sfh" data-sfh-folder="${folder.id}" style="--folder-fill:${pair.fill};--folder-ink:${pair.ink}">
+    <div class="sfh-banner${folder.banner_path ? ' has-banner' : ''}">${banner}${prompt}</div>
+    <div class="sfh-meta">
+      <h2 class="sfh-name">${folder.icon ? `<span class="sfh-emoji" aria-hidden="true">${esc(folder.icon)} </span>` : ''}<span dir="auto">${esc(folder.name)}</span></h2>
+      <p class="sfh-metrics muted small">${metrics}</p>
+    </div>
+  </header>`
+}
+
+/** Spec #12's honest miss — a search that matched nothing says so (and points at the
+ *  ✕ — the client owns the escape hatch; no hard-nav CTA here). */
+export function sparkSearchEmptyHtml(lang: Locale): string {
+  return `<div class="empty-state empty spark-search-empty">
+    <span class="empty-state-icon" aria-hidden="true">${icon('search')}</span>
+    <p class="empty-state-title">${trL(lang, 'No matches', 'نتیجه‌ای پیدا نشد')}</p>
+    <p class="empty-state-text">${trL(lang, 'Nothing matches your search — try another word, or clear it with the ✕ to see every idea.', 'چیزی با جست‌وجوی تو مطابقت ندارد — واژهٔ دیگری را امتحان کن، یا با ✕ جست‌وجو را پاک کن تا همهٔ ایده‌ها را ببینی.')}</p>
+  </div>`
+}
+
+const sparkThumbHtml = (shotId: string, isManual: boolean, cls: string, lang: Locale): string =>
+  `<span class="${cls}"><img src="/api/media/screenshots/${shotId}/file?variant=thumb" alt="" loading="lazy" data-fallback>${isManual ? `<span class="spark-cover-mark" role="img" aria-label="${trL(lang, 'Cover image', 'تصویر جلد')}">${icon('star')}</span>` : ''}</span>`
+
+const sparkPinBtn = (p: ProjectRow, lang: Locale): string =>
+  `<button type="button" class="spark-pin${p.pinned_at ? ' is-on' : ''}" data-spark-pin="${p.id}" data-nav-local aria-pressed="${p.pinned_at ? 'true' : 'false'}" aria-label="${p.pinned_at ? trL(lang, 'Unpin idea', 'برداشتن سنجاق ایده') : trL(lang, 'Pin idea', 'سنجاق‌کردن ایده')}" title="${p.pinned_at ? trL(lang, 'Unpin idea', 'برداشتن سنجاق ایده') : trL(lang, 'Pin idea', 'سنجاق‌کردن ایده')}"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"${p.pinned_at ? ' fill="currentColor"' : ''}><path d="M12 17v4M8.5 3.5h7l-.8 7.2 2.8 2.8v1.5H6.5v-1.5l2.8-2.8-.8-7.2Z"/></svg></button>`
+
+const sparkPresenceGlyphs = (presence: SparkPresence | undefined, lang: Locale): string => {
+  if (!presence || (!presence.links && !presence.images)) return ''
+  const out: string[] = []
+  if (presence.links) out.push(`<span class="spark-glyph" title="${trL(lang, '{n} links', '{n} پیوند', { n: String(presence.links) })}">${icon('link')}</span>`)
+  if (presence.images) out.push(`<span class="spark-glyph" title="${trL(lang, '{n} images', '{n} تصویر', { n: String(presence.images) })}">${icon('image')}</span>`)
+  return `<span class="spark-glyphs">${out.join('')}</span>`
+}
+
+/** Spec #4/#5/#14: the spark CARD — cover-or-latest thumb (star-marked when a manual
+ *  cover), title + description + Updated meta, the pin toggle, and the whole body is
+ *  the open link to the LEAN page. Mobile (≤640px) condenses to title + thumb and
+ *  tap-expands (the client). */
+export function sparkCardHtml(
+  p: ProjectRow,
+  thumb: SparkThumbMeta | undefined,
+  presence: SparkPresence | undefined,
+  lang: Locale,
+): string {
+  const th = thumb?.shotId
+    ? sparkThumbHtml(thumb.shotId, thumb.isManual, 'spark-card-thumb', lang)
+    : `<span class="spark-card-thumb is-empty" aria-hidden="true">${icon('image')}</span>`
+  const desc = p.description
+    ? `<span class="spark-card-desc muted small clip-2" dir="auto">${esc(p.description)}</span>`
+    : ''
+  return `<article class="card spark-card${p.pinned_at ? ' is-pinned' : ''}" draggable="true" data-project-id="${p.id}" data-pinned="${p.pinned_at ? '1' : '0'}">
+    <a class="spark-card-link" href="/spark.html?id=${p.id}" data-spark-expand>
+      ${th}
+      <span class="spark-card-body">
+        <span class="spark-card-title" dir="auto">${esc(p.title)}</span>
+        ${desc}
+        <span class="spark-card-meta muted small">${sparkPresenceGlyphs(presence, lang)}<span>${trL(lang, 'Updated {t}', 'به‌روزرسانی {t}', { t: timeAgo(p.updated_at, lang) })}</span></span>
+      </span>
+    </a>
+    ${sparkPinBtn(p, lang)}
+  </article>`
+}
+
+/** The spark shelf's CARDS / LIST / STICKY bodies (kanban composes its own columns).
+ *  Spec #9: the list drops the dead Signals + always-empty Tags columns for an icon
+ *  column (pin toggle + link/image glyphs + row thumbs). Spec #5: >5 pins collapses
+ *  the pinned rows' height (pins-compact). */
+export function sparkListFragment(
+  projects: ProjectRow[],
+  view: string,
+  lang: Locale,
+  thumbs: Map<string, SparkThumbMeta>,
+  presence: Map<string, SparkPresence>,
+): string {
+  const pinnedCount = projects.filter((p) => p.pinned_at).length
+  if (view === 'list') {
+    if (!projects.length) return ''
+    return `<table class="projects-table spark-table${pinnedCount > 5 ? ' pins-compact' : ''}"><thead><tr>
+      <th>${trL(lang, 'Title', 'عنوان')}</th>
+      <th class="spark-ico-h" aria-label="${trL(lang, 'Pin, links, images', 'سنجاق، پیوند، تصویر')}"></th>
+      <th>${trL(lang, 'Updated', 'به‌روزرسانی')}</th>
+    </tr></thead><tbody>${projects.map((p) => {
+      const t = thumbs.get(p.id)
+      const th = t?.shotId ? sparkThumbHtml(t.shotId, t.isManual, 'spark-row-thumb', lang) : ''
+      return `<tr draggable="true" data-project-id="${p.id}" data-pinned="${p.pinned_at ? '1' : '0'}">
+        <td class="spark-row-title">${th}<a href="/spark.html?id=${p.id}" dir="auto">${esc(p.title)}</a></td>
+        <td class="spark-row-ico">${sparkPinBtn(p, lang)}${sparkPresenceGlyphs(presence.get(p.id), lang)}</td>
+        <td class="muted small">${timeAgo(p.updated_at, lang)}</td>
+      </tr>`
+    }).join('')}</tbody></table>`
+  }
+  if (view === 'sticky') {
+    if (!projects.length) return ''
+    return `<div class="sticky-board${pinnedCount > 5 ? ' pins-compact' : ''}">${projects.map((p) => {
+      const t = thumbs.get(p.id)
+      const th = t?.shotId ? sparkThumbHtml(t.shotId, t.isManual, 'spark-sticky-thumb', lang) : ''
+      const desc = p.description ? `<span class="muted small">${esc(p.description.slice(0, 80))}…</span>` : ''
+      return `<article class="sticky-note${p.pinned_at ? ' is-pinned' : ''}" draggable="true" data-project-id="${p.id}" data-nav-url="/spark.html?id=${p.id}">
+        ${th}<strong dir="auto">${esc(p.title)}</strong>${desc}
+        ${sparkPinBtn(p, lang)}
+      </article>`
+    }).join('') || '<div class="empty">' + trL(lang, 'No ideas here yet.', 'هنوز ایده‌ای اینجا نیست.') + '</div>'}</div>`
+  }
+  // cards (the default)
+  if (!projects.length) return ''
+  return `<div class="card-grid spark-grid${pinnedCount > 5 ? ' pins-compact' : ''}">${projects
+    .map((p) => sparkCardHtml(p, thumbs.get(p.id), presence.get(p.id), lang))
+    .join('')}</div>`
+}
+
 export function sparkKanbanHtml(projects: ProjectRow[], folders: (SparkFolderRow & { n: number })[], lang: Locale): string {
   const dig = (n: number) => (lang === 'fa' ? faDigits(String(n)) : String(n))
-  // S41: a folder with an emoji leads its column with the emoji (not folder-plus)
-  const col = (key: string, label: string, rows: ProjectRow[], glyph: string) => `<div class="kanban-col" data-spark-folder="${key}">
-    <h4 class="kanban-col-head"><span class="spark-kb-glyph" aria-hidden="true">${glyph}</span><span class="kanban-col-label">${esc(label)}</span><b class="board-count">${dig(rows.length)}</b></h4>
-    ${rows.map((p) => `<div class="card kanban-card" draggable="true" data-project-id="${p.id}" data-nav-url="/project.html?id=${p.id}">
-      <strong>${esc(p.title)}</strong>
+  // S41: a folder with an emoji leads its column with the emoji (not folder-plus).
+  // S161: every column head carries the folder's PASTEL DOT (its identity color —
+  // the same pair the banner/chips/grid tiles wear; one color per folder everywhere),
+  // and every card deep-links the LEAN page (spec #6).
+  const col = (key: string, label: string, rows: ProjectRow[], glyph: string, fill: string) => `<div class="kanban-col" data-spark-folder="${key}">
+    <h4 class="kanban-col-head"><span class="spark-kb-glyph" aria-hidden="true">${glyph}</span><span class="kanban-col-label">${esc(label)}</span><span class="sf-dot" style="background:${fill}" aria-hidden="true"></span><b class="board-count">${dig(rows.length)}</b></h4>
+    ${rows.map((p) => `<div class="card kanban-card" draggable="true" data-project-id="${p.id}" data-nav-url="/spark.html?id=${p.id}">
+      <strong dir="auto">${esc(p.title)}</strong>
       <div class="muted small">${timeAgo(p.updated_at, lang)}</div>
     </div>`).join('') || `<div class="kanban-empty">${trL(lang, 'Drop here', 'اینجا رها کن')}</div>`}
   </div>`
   const byFolder = (fid: string | null) => projects.filter((p) => (p.folder_id ?? null) === fid)
-  return `<div class="kanban">${folders.map((f) => col(f.id, f.name, byFolder(f.id), f.icon ? esc(f.icon) : icon('folder-plus', 'icon'))).join('')}${col('', trL(lang, 'No folder', 'بدون پوشه'), byFolder(null), icon('folder-plus', 'icon'))}</div>`
+  return `<div class="kanban">${folders.map((f) => col(f.id, f.name, byFolder(f.id), f.icon ? esc(f.icon) : icon('folder-plus', 'icon'), folderPair(f).fill)).join('')}${col('', trL(lang, 'No folder', 'بدون پوشه'), byFolder(null), icon('folder-plus', 'icon'), 'transparent')}</div>`
 }
 
 export function sparkFolderBar(folders: (SparkFolderRow & { n: number })[], unfiled: number, activeFolder: string | undefined, lang: Locale): string {
@@ -576,9 +774,12 @@ export function sparkFolderBar(folders: (SparkFolderRow & { n: number })[], unfi
   const parts = [homeChip, `<button type="button" class="sf-chip${allActive}" data-sf="all"><span class="sf-label">${trL(lang, 'All', 'همه')}</span> <span class="sf-n">${dig(unfiled + folders.reduce((a, f) => a + f.n, 0))}</span></button>`]
   for (const f of folders) {
     // S41: the folder's emoji rides inline-start of the chip label (data-sf-icon feeds
-    // the rename dialog's prefill — same pattern as the grid card).
+    // the rename dialog's prefill — same pattern as the grid card). S161: folders
+    // without an emoji carry their PASTEL DOT instead (the sf-item wrapper keeps the ⋯
+    // menu; data-sf-pair feeds the folder dialog's swatch prefill).
+    const pair = folderPair(f)
     parts.push(
-      `<span class="sf-item" data-sf-icon="${esc(f.icon ?? '')}"><button type="button" class="sf-chip${activeFolder === f.id ? ' is-active' : ''}" data-sf="${f.id}" title="${esc(f.name)}">${f.icon ? `<span class="sf-emoji" aria-hidden="true">${esc(f.icon)}</span>` : ''}<span class="sf-label">${esc(f.name)}</span> <span class="sf-n">${dig(f.n)}</span></button><button type="button" class="sf-more" data-sf-menu="${f.id}" aria-label="${trL(lang, 'Folder actions', 'کارهای پوشه')}" title="${trL(lang, 'Folder actions', 'کارهای پوشه')}">${icon('more-h')}</button></span>`,
+      `<span class="sf-item" data-sf-icon="${esc(f.icon ?? '')}" data-sf-pair="${pair.fill}|${pair.ink}"><button type="button" class="sf-chip${activeFolder === f.id ? ' is-active' : ''}" data-sf="${f.id}" title="${esc(f.name)}">${f.icon ? `<span class="sf-emoji" aria-hidden="true">${esc(f.icon)}</span>` : `<span class="sf-dot" style="background:${pair.fill}" aria-hidden="true"></span>`}<span class="sf-label">${esc(f.name)}</span> <span class="sf-n">${dig(f.n)}</span></button><button type="button" class="sf-more" data-sf-menu="${f.id}" aria-label="${trL(lang, 'Folder actions', 'کارهای پوشه')}" title="${trL(lang, 'Folder actions', 'کارهای پوشه')}">${icon('more-h')}</button></span>`,
     )
   }
   if (folders.length > 0) parts.push(chip('none', trL(lang, 'No folder', 'بدون پوشه'), unfiled))
@@ -598,14 +799,16 @@ export function sparkFolderGrid(folders: (SparkFolderRow & { n: number })[], unf
     // No folders + no ideas — show the empty state with a "create folder" hint
     return sparkEmptyHtml(lang)
   }
-  const cards = folders.map((f) =>
-    `<div class="spark-folder-card" data-sf="${f.id}" data-sf-icon="${esc(f.icon ?? '')}" draggable="false">
-      <div class="spark-folder-icon">${f.icon ? `<span class="spark-folder-emoji" role="img" aria-label="${esc(f.name)}">${esc(f.icon)}</span>` : icon('folder-plus')}</div>
-      <div class="spark-folder-name">${esc(f.name)}</div>
+  const cards = folders.map((f) => {
+    const pair = folderPair(f)
+    return `<div class="spark-folder-card" data-sf="${f.id}" data-sf-icon="${esc(f.icon ?? '')}" data-sf-pair="${pair.fill}|${pair.ink}" style="--folder-fill:${pair.fill};--folder-ink:${pair.ink}" draggable="false">
+      <span class="spark-folder-bar" aria-hidden="true"></span>
+      <div class="spark-folder-icon"${f.icon ? ` style="background:${pair.fill};color:${pair.ink}"` : ''}>${f.icon ? `<span class="spark-folder-emoji" role="img" aria-label="${esc(f.name)}">${esc(f.icon)}</span>` : icon('folder-plus')}</div>
+      <div class="spark-folder-name" dir="auto">${esc(f.name)}</div>
       <div class="spark-folder-count">${dig(f.n)} ${trL(lang, f.n === 1 ? 'idea' : 'ideas', f.n === 1 ? 'ایده' : 'ایده')}</div>
       <button type="button" class="ghost small spark-folder-menu" data-sf-menu="${f.id}" aria-label="${trL(lang, 'Folder actions', 'کارهای پوشه')}" title="${trL(lang, 'Folder actions', 'کارهای پوشه')}">${icon('more-h')}</button>
     </div>`
-  ).join('')
+  }).join('')
   const unfiledCard = unfiled > 0
     ? `<div class="spark-folder-card spark-folder-unfiled" data-sf="none">
       <div class="spark-folder-icon">${icon('folder-plus')}</div>
@@ -631,28 +834,28 @@ export function sparkFolderGrid(folders: (SparkFolderRow & { n: number })[], unf
 // state. The capture CTA keeps working because the page's #spark-folder hidden input
 // still carries the selection; a capture from here files straight into the folder.
 // kind: 'folder' (a named folder), 'none' (unfiled), 'all' (everything, nothing yet).
+// S161 (spec #16): the folder-kind copy is the owner's VERBATIM neutral line — and
+// NO "Folder: X" title (the S161 header above already speaks the name; a third
+// repetition was noise — the S163 polish, folded at birth; the folderName param
+// retired with it).
 export function sparkFolderEmptyHtml(
   kind: 'folder' | 'none' | 'all',
-  folderName: string | null,
   folderIcon: string | null,
   folders: (SparkFolderRow & { n: number })[],
   lang: Locale,
 ): string {
   const where =
     kind === 'folder'
-      ? trL(lang, `This folder is empty`, `این پوشه خالی است`)
+      ? trL(lang, 'No ideas yet in this folder.', 'هنوز ایده‌ای در این پوشه نیست.')
       : kind === 'none'
         ? trL(lang, 'No unfiled ideas — everything lives in a folder.', 'ایدهٔ بدون پوشه‌ای نیست — همه در پوشه‌ها هستند.')
         : folders.length > 0
           ? trL(lang, 'No ideas yet — folders are ready and waiting.', 'هنوز ایده‌ای نیست — پوشه‌ها آماده‌اند.')
           : trL(lang, 'No ideas yet!', 'هنوز ایده‌ای نیست!')
   const iconHtml = kind === 'folder' ? (folderIcon ? `<span aria-hidden="true">${esc(folderIcon)}</span>` : icon('folder-plus')) : icon('idea')
-  const nameLine = kind === 'folder' && folderName ? `<p class="empty-state-title">${folderIcon ? `<span aria-hidden="true">${esc(folderIcon)} </span>` : ''}${trL(lang, 'Folder', 'پوشه')}: ${esc(folderName)}</p>` : ''
   return `<div class="empty-state empty spark-folder-empty" data-spark-empty="${kind}">
     <span class="empty-state-icon" aria-hidden="true">${iconHtml}</span>
-    ${nameLine}
     <p class="empty-state-text">${where}</p>
-    <p class="empty-state-text">${trL(lang, 'Capture an idea — it files into the open view and stays safe here.', 'یک ایده ثبت کن — در همین نمای باز ثبت می‌شود و اینجا امن می‌ماند.')}</p>
     <div class="empty-state-actions">
       <button type="button" class="empty-state-cta btn" data-quickadd-open>${icon('idea', 'icon')} ${trL(lang, 'Capture a new idea', 'ثبت ایده جدید')}</button>
     </div>

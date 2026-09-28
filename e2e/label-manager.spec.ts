@@ -44,7 +44,7 @@ test('label manager: usage list, rename-merge, recolor, delete-unused', async ({
   test.skip(browserName !== 'chromium', 'Desktop Chromium only')
   await login(page)
   const pid = await page.evaluate(async () => {
-    const res = await fetch('/api/projects', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ title: `e2e lm ${Date.now()}` }) })
+    const res = await fetch('/api/projects', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ title: `e2e lm ${Date.now()}`, status: 'developing' }) })
     const p = ((await res.json()) as { id: string }).id
     const post = (body: unknown) => fetch(`/api/projects/${p}/devtasks`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
     await post({ title: 'lm one', status: 'idea', priority: 'medium', tags: ['Alpha'] })
@@ -108,7 +108,7 @@ test('project page: drag into the urgent zone adopts urgent; the bar tooltip bre
   test.skip(browserName !== 'chromium', 'Desktop Chromium only')
   await login(page)
   const pid = await page.evaluate(async () => {
-    const res = await fetch('/api/projects', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ title: `e2e zone ${Date.now()}` }) })
+    const res = await fetch('/api/projects', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ title: `e2e zone ${Date.now()}`, status: 'developing' }) })
     const p = ((await res.json()) as { id: string }).id
     const post = (body: unknown) => fetch(`/api/projects/${p}/devtasks`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
     await post({ title: 'zone urgent', status: 'idea', priority: 'urgent' })

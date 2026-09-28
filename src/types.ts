@@ -170,6 +170,8 @@ export interface ProjectRow {
   deleted_at: string | null
   folder_id: string | null // batch (s) — spark folders (NULL = «All», see SparkFolderRow)
   logo_path: string | null // 0047 — project logo (GitHub assets repo path; NULL = no logo)
+  pinned_at: string | null // 0063 (S161) — spec #5: pinned-at stamp (NULL = unpinned); pinned ideas float to their folder's top
+  cover_shot_id: string | null // 0063 (S161) — spec #4: the manually-marked cover screenshot id (NULL = latest upload is the thumb)
 }
 
 // --- Spark folders (0036, batch s — idea shelves) --------------------------------
@@ -180,6 +182,9 @@ export interface SparkFolderRow {
   icon: string | null // 0056 (S41) — user-picked emoji (NULL = folder-plus glyph)
   sort_order: number
   created_at: string
+  color_fill: string | null // 0063 (S161) — spec #3: the folder's pastel fill (one of the 16 CAT_PAIRS tiles; NULL = hash-of-id default)
+  color_text: string | null // 0063 (S161) — the pastel pair's ink half
+  banner_path: string | null // 0063 (S161) — spec #1/#2: the banner's object-store key (NULL = pastel placeholder + upload prompt)
 }
 
 export interface HurdleRow {

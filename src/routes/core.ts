@@ -318,6 +318,9 @@ export function coreRoutes(cfg: Config) {
     await cfg.db.execute('INSERT INTO links (id, project_id, label, url, created_at) VALUES (?, ?, ?, ?, ?)', [
       id, p.id, body.label, body.url, new Date().toISOString(),
     ])
+    // S161 (spec #3): every field edit bumps the idea's updated_at — a link add is a
+    // field edit; the folder's "Updated" metric + the shelf's recency order ride it.
+    await cfg.db.execute('UPDATE projects SET updated_at = ? WHERE id = ?', [new Date().toISOString(), p.id])
     if (c.req.header('HX-Request')) {
       const links = await cfg.db.query<LinkRow>('SELECT * FROM links WHERE project_id = ? ORDER BY created_at', [p.id])
       return c.html(linksHtml(links, localeOf(c)), 201)
@@ -353,6 +356,10 @@ export function coreRoutes(cfg: Config) {
     await cfg.db.execute('DELETE FROM links WHERE id = ? AND project_id IN (SELECT id FROM projects WHERE user_id = ?)', [
       c.req.param('id'), user.id,
     ])
+    // S161 (spec #3): a link remove bumps the owning idea/project's updated_at too.
+    if (owned.length) {
+      await cfg.db.execute('UPDATE projects SET updated_at = ? WHERE id = ?', [new Date().toISOString(), owned[0].project_id])
+    }
     if (c.req.header('HX-Request')) {
       const links = owned.length
         ? await cfg.db.query<LinkRow>('SELECT * FROM links WHERE project_id = ? ORDER BY created_at', [owned[0].project_id])
@@ -485,6 +492,10 @@ export function coreRoutes(cfg: Config) {
       'INSERT INTO screenshots (id, project_id, github_path, mime_type, caption, resolved, task_id, bytes, filename, created_at) VALUES (?, ?, ?, ?, ?, 0, NULL, ?, ?, ?)',
       [id, p.id, path, body.mimeType, body.caption, byteLen, displayName, new Date().toISOString()],
     )
+    // S161 (spec #3): an image add is a field edit — the idea's updated_at bumps (the
+    // newest-upload-is-the-thumb default follows created_at, but the folder's Updated
+    // metric + shelf recency ride updated_at).
+    await cfg.db.execute('UPDATE projects SET updated_at = ? WHERE id = ?', [new Date().toISOString(), p.id])
     if (c.req.header('HX-Request')) return c.html(toastHtml(body.mimeType.startsWith('image/') ? t('Screenshot uploaded', 'اسکرین‌شات آپلود شد') : t('File uploaded', 'فایل آپلود شد'), localeOf(c), undefined, 'ok'))
     return c.json({ ok: true, id, mimeType: body.mimeType }, 201)
   })
@@ -619,6 +630,12 @@ export function coreRoutes(cfg: Config) {
       }
     } catch { /* storage hiccup — the row still goes */ }
     await cfg.db.execute('DELETE FROM screenshots WHERE id = ? AND project_id = ?', [c.req.param('id'), projectId])
+    // S161 (spec #4): a deleted image can no longer be anybody's cover — the projects
+    // whose cover_shot_id pointed here fall back to their latest upload (NULL clear).
+    // And spec #3: the delete itself is a field edit — updated_at bumps.
+    const now = new Date().toISOString()
+    await cfg.db.execute('UPDATE projects SET cover_shot_id = NULL WHERE cover_shot_id = ?', [c.req.param('id')])
+    await cfg.db.execute('UPDATE projects SET updated_at = ? WHERE id = ?', [now, projectId])
     if (c.req.header('HX-Request')) return c.html(toastHtml(t('Screenshot deleted', 'اسکرین‌شات حذف شد'), localeOf(c), undefined, 'ok'))
     return c.json({ ok: true })
   })

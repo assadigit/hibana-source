@@ -9,9 +9,10 @@ import { trFor, localeOf, trL, type Locale } from '../../lib/i18n'
 import { faDigits, toJalali } from '../../lib/jalali'
 import { personalProgress, clientProgress } from '../../services/progress'
 import { githubClient, type GitHubConfig } from '../../services/github'
-import { purgeShotBytes } from '../../services/shotstore'
+import { purgeShotBytes, shotStoreFor } from '../../services/shotstore'
 import { hitRateLimit, RATE_RULES, clientIp } from '../../services/ratelimit'
 import { uuid } from '../../lib/ids'
+import { isValidCatPair } from '../../lib/categories'
 import { PROJECT_STAGES, STATUS_ORDER } from '../../types'
 import type { Config, ProjectRow, UserRow } from '../../types'
 import { toastHtml, getOwnedProject, STATUS_LABEL, icon, STATUS_BADGE } from '../../lib/html'
@@ -25,6 +26,8 @@ import {
   cardHtml, listFragment, glanceStrip,
   loadOverviewData, overallTasksHtml,
   sparkEmptyHtml, sparkKanbanHtml, sparkFolderBar, sparkFolderGrid, sparkFolderEmptyHtml,
+  sparkFolderHeaderHtml, sparkSearchEmptyHtml, sparkListFragment,
+  loadSparkThumbs, loadSparkLinkPresence,
   archiveShelfHtml, staleBannerHtml, staleEmptyHtml,
 } from './helpers'
 import { loadDetail, detailHtml } from './detail-helpers'
@@ -75,12 +78,36 @@ export function projectsRoutes(cfg: Config) {
       params.push(query.data.tag, user.id)
     }
     if (query.success && query.data.q) {
-      const match = `"${query.data.q.replace(/"/g, '""')}"`
-      conds.push('rowid IN (SELECT rowid FROM projects_fts WHERE projects_fts MATCH ?)')
-      params.push(match)
+      const q = query.data.q
+      // S161 (spec #12): the SPARK shelf's search spans title/description/links/tags/
+      // folder-name — a fragment of ANY of them must find the idea. The projects FTS
+      // index covers title/desc/note only, so sparks get their own LIKE+EXISTS match
+      // (user-scoped subqueries — rule 1 rides inside every EXISTS). A search also
+      // OVERRIDES the folder scope below: the results own the view.
+      if (query.data.status === 'spark') {
+        const like = `%${q.replace(/[\%_\\]/g, (m) => '\\' + m)}%`
+        conds.push(
+          `(title LIKE ? ESCAPE '\\' OR description LIKE ? ESCAPE '\\' OR id IN (
+             SELECT l.project_id FROM links l WHERE l.label LIKE ? ESCAPE '\\' OR l.url LIKE ? ESCAPE '\\'
+           ) OR id IN (
+             SELECT pt.project_id FROM project_tags pt JOIN tags t ON t.id = pt.tag_id WHERE t.name LIKE ? ESCAPE '\\' AND t.user_id = ?
+           ) OR folder_id IN (
+             SELECT sf.id FROM spark_folders sf WHERE sf.user_id = ? AND sf.name LIKE ? ESCAPE '\\'
+           ))`,
+        )
+        params.push(like, like, like, like, like, user.id, user.id, like)
+      } else {
+        const match = `"${q.replace(/"/g, '""')}"`
+        conds.push('rowid IN (SELECT rowid FROM projects_fts WHERE projects_fts MATCH ?)')
+        params.push(match)
+      }
     }
     const folderParam = query.success ? query.data.folder : undefined
-    if (folderParam && folderParam !== 'all' && query.success && query.data.status === 'spark') {
+    // S161: a search overrides the folder scope — the matched results own the view,
+    // whatever folder was open when the user typed (spec #12: a folder-name fragment
+    // must be findable from ANYWHERE on the shelf).
+    const searching = !!(query.success && query.data.q && query.data.status === 'spark')
+    if (!searching && folderParam && folderParam !== 'all' && query.success && query.data.status === 'spark') {
       // Session 28 (user report: "نمایش همه ایده‌ها — the ideas don't appear"): 'all'
       // used to fall into the else branch and filter `folder_id = 'all'` — a literal
       // that matches nothing (ids are UUIDs) — so the shelf came back EMPTY and the
@@ -96,13 +123,19 @@ export function projectsRoutes(cfg: Config) {
     // overrides every sort choice: OLDEST first — the whole point is "what you left
     // hanging longest" (a stale list sorted by recency would bury the offenders).
     const sort = query.success ? query.data.sort : undefined
+    const sparkMode = query.success && query.data.status === 'spark' && !archivedOnly && !staleMode
+    // S161 (spec #5/#13): the spark shelf's order — pins float (most-recently-pinned
+    // first), the rest by most-recently-updated. Manual drag-reorder is RETIRED for
+    // ideas (spec #13's deliberate exception), so sort_order is dead here.
     const orderBy = staleMode
       ? 'updated_at ASC'
-      : sort === 'recent'
-        ? 'updated_at DESC'
-        : sort === 'title'
-          ? 'title COLLATE NOCASE ASC, updated_at DESC'
-          : 'status, sort_order, updated_at DESC'
+      : sparkMode
+        ? '(pinned_at IS NULL), pinned_at DESC, updated_at DESC'
+        : sort === 'recent'
+          ? 'updated_at DESC'
+          : sort === 'title'
+            ? 'title COLLATE NOCASE ASC, updated_at DESC'
+            : 'status, sort_order, updated_at DESC'
     const projects = await cfg.db.query<ProjectRow>(
       `SELECT * FROM projects WHERE ${conds.join(' AND ')} ORDER BY ${orderBy}`,
       params,
@@ -188,10 +221,12 @@ export function projectsRoutes(cfg: Config) {
           await ovHomeHtml(),
         ))
       }
-      // P-signals: batch-load per-project signal counts (bugs, ideas, backlog, hurdles)
-      const signalsMap = await loadProjectSignals(cfg, user.id, projects.map((p) => p.id))
+      // P-signals: batch-load per-project signal counts (bugs, ideas, backlog, hurdles).
+      // S161: the SPARK shelf skips these — its own renderers (thumbs, pin/icon columns)
+      // speak sparkListFragment's data, not the project fragments' signals/progress.
+      const signalsMap = sparkMode ? undefined : await loadProjectSignals(cfg, user.id, projects.map((p) => p.id))
       // S29 (agenda 5): batched progress per project — powers the kanban color weights.
-      const progressMap = await loadProjectProgress(cfg, projects)
+      const progressMap = sparkMode ? undefined : await loadProjectProgress(cfg, projects)
       // S76: the honest filtered-miss empty state — WHEN the list is empty AND a
       // search/tag filter is active, describe the MISS (not "No projects yet"). The
       // tag NAME needs a lookup only on this cold path (one indexed row).
@@ -203,7 +238,19 @@ export function projectsRoutes(cfg: Config) {
           if (tagRow.length) emptyFilter = { tagName: tagRow[0].name }
         }
       }
-      let fragment = listFragment(projects, tagsMap, view, lang, signalsMap, activeStatus, progressMap, emptyFilter)
+      // S161 (spec #9): the Ideas shelf's cards/list/sticky are SPARK renderers now —
+      // thumbnail cards (cover-or-latest), the icon-column list (pin/link/image glyphs
+      // replace the dead Signals + always-empty Tags columns), sticky notes with thumbs.
+      // kanban is composed in the spark branch below (columns = folders).
+      let fragment = sparkMode
+        ? sparkListFragment(
+            projects,
+            view === 'kanban' ? 'cards' : view,
+            lang,
+            await loadSparkThumbs(cfg, projects),
+            await loadSparkLinkPresence(cfg, projects.map((p) => p.id)),
+          )
+        : listFragment(projects, tagsMap, view, lang, signalsMap, activeStatus, progressMap, emptyFilter)
       // S94 (owner item 4): the glance strip is SKIPPED under view=kanban — the stage
       // columns already encode the same status+count information one screen-inch below
       // it, so the strip read as redundancy (owner report). Cards/list/sticky keep it.
@@ -234,7 +281,7 @@ export function projectsRoutes(cfg: Config) {
       }
       if (activeStatus === 'spark') {
         const folderRows = await cfg.db.query<SparkFolderRow & { n: number }>(
-          `SELECT f.id, f.name, f.icon, (SELECT COUNT(*) FROM projects p WHERE p.folder_id = f.id AND p.user_id = ? AND p.deleted_at IS NULL AND p.status = 'spark' AND (p.archived_state IS NULL OR p.archived_state != 'offline')) AS n
+          `SELECT f.id, f.name, f.icon, f.color_fill, f.color_text, f.banner_path, (SELECT COUNT(*) FROM projects p WHERE p.folder_id = f.id AND p.user_id = ? AND p.deleted_at IS NULL AND p.status = 'spark' AND (p.archived_state IS NULL OR p.archived_state != 'offline')) AS n
            FROM spark_folders f WHERE f.user_id = ? ORDER BY f.sort_order, f.created_at`,
           [user.id, user.id],
         )
@@ -245,36 +292,51 @@ export function projectsRoutes(cfg: Config) {
         // S40 (user report: "I can't enter a folder which I made and add an idea there"
         // + "نمایش همه ایده‌ها shows nothing"): a request that CARRIES a folder param
         // (uuid / 'none' / 'all') is a deliberate folder view — the user clicked
-        // something and must SEE the result, even when it matches zero sparks. The old
-        // `projects.length === 0 → grid` fallback re-rendered the file-manager grid for
-        // every empty folder, so clicking a fresh folder "did nothing" and its capture
-        // context never visibly opened. Only the NO-param request (initial load) keeps
-        // the folder grid as the Ideas page's home view.
+        // something and must SEE the result, even when it matches zero sparks. Only the
+        // NO-param request (initial load, no search) keeps the folder grid as the Ideas
+        // page's home view.
+        //
+        // S161: a folder view opens with the FOLDER HEADER (banner/pastel placeholder +
+        // upload prompt + name + count + Updated metrics — spec #1/#2/#3); an ACTIVE
+        // SEARCH overrides the folder scope (spec #12) so no chip is marked active and
+        // no header renders — the matches own the view.
         const unfiled = unfiledRows[0]?.n ?? 0
+        const barFolder = searching ? undefined : folderParam
         if (view === 'kanban') {
-          // S159: the bar rides the folder board ALWAYS. The kanban home used to drop
-          // it (bar only with a folder selected) — so in kanban home the New-folder
-          // (+), rename/delete (⋯), the All/No-folder filters and the folder counts
-          // were ALL unreachable; the affordances appeared and vanished with the
-          // folder state. Kanban home carries NO active chip (no filter is applied —
-          // the columns already show every folder's ideas).
-          fragment = sparkFolderBar(folderRows, unfiled, folderParam, lang) + sparkKanbanHtml(projects, folderRows, lang)
-        } else if (!folderParam) {
+          // S159: the bar rides the folder board ALWAYS. Kanban home carries NO active
+          // chip (no filter is applied — the columns already show every folder's ideas).
+          fragment = sparkFolderBar(folderRows, unfiled, barFolder, lang) + sparkKanbanHtml(projects, folderRows, lang)
+        } else if (!folderParam && !searching) {
           // Initial load, nothing selected — the folder grid (file-manager home),
           // exactly as before (sparkFolderGrid itself degrades to the capture empty
           // state when there are no folders AND no ideas at all).
           fragment = sparkFolderGrid(folderRows, unfiled, lang)
-        } else if (folderParam === 'all') {
-          // "All ideas" explicitly — the flat list + the breadcrumb bar, and an honest
-          // empty state when there are no sparks at all (never silently back to the grid).
-          fragment = sparkFolderBar(folderRows, unfiled, 'all', lang) + (projects.length === 0 ? sparkFolderEmptyHtml('all', null, null, folderRows, lang) : fragment)
-        } else if (folderParam === 'none') {
-          fragment = sparkFolderBar(folderRows, unfiled, 'none', lang) + (projects.length === 0 ? sparkFolderEmptyHtml('none', null, null, folderRows, lang) : fragment)
         } else {
-          // A specific folder IS selected — the breadcrumb bar + the filtered list; an
-          // empty folder gets its own capture-into-me empty state instead of the grid.
-          const folder = folderRows.find((f) => f.id === folderParam)
-          fragment = sparkFolderBar(folderRows, unfiled, folderParam, lang) + (projects.length === 0 ? sparkFolderEmptyHtml('folder', folder?.name ?? '', folder?.icon ?? null, folderRows, lang) : fragment)
+          const bar = sparkFolderBar(folderRows, unfiled, barFolder, lang)
+          let head = ''
+          if (!searching && folderParam && folderParam !== 'all' && folderParam !== 'none') {
+            const folder = folderRows.find((f) => f.id === folderParam)
+            if (folder) {
+              // spec #3: "last updated" = the newest updated_at among the FOLDER's ideas
+              // (any field edit bumps it — links/tags/screenshot adds ride the same
+              // column now), not just the visible window.
+              const maxRow = await cfg.db.query<{ m: string | null }>(
+                "SELECT MAX(updated_at) AS m FROM projects WHERE user_id = ? AND folder_id = ? AND deleted_at IS NULL AND status = 'spark' AND (archived_state IS NULL OR archived_state != 'offline')",
+                [user.id, folder.id],
+              )
+              head = sparkFolderHeaderHtml(folder, projects.length, maxRow[0]?.m ?? null, lang)
+            }
+          }
+          const body = projects.length === 0
+            ? (searching
+                ? sparkSearchEmptyHtml(lang)
+                : folderParam === 'none'
+                  ? sparkFolderEmptyHtml('none', null, folderRows, lang)
+                  : folderParam === 'all'
+                    ? sparkFolderEmptyHtml('all', null, folderRows, lang)
+                    : sparkFolderEmptyHtml('folder', folderRows.find((f) => f.id === folderParam)?.icon ?? null, folderRows, lang))
+            : fragment
+          fragment = bar + head + body
         }
       }
       return await etag(c, c.html(fragment))
@@ -339,7 +401,9 @@ export function projectsRoutes(cfg: Config) {
       })
     }
     if (c.req.header('HX-Request')) {
-      c.header('HX-Redirect', `/project.html?id=${id}`)
+      // S161 (spec #6): a captured spark lands on the LEAN detail page — /spark.html —
+      // not the heavy project template (the whole point of the redesign).
+      c.header('HX-Redirect', body.status === 'spark' ? `/spark.html?id=${id}` : `/project.html?id=${id}`)
       return c.html('')
     }
     return c.json({ ok: true, id }, 201)
@@ -365,7 +429,7 @@ export function projectsRoutes(cfg: Config) {
   app.get('/sparks/folders', async (c) => {
     const user = c.get('user')
     const folders = await cfg.db.query<SparkFolderRow & { n: number }>(
-      `SELECT f.id, f.name, f.icon, f.sort_order, f.created_at,
+      `SELECT f.id, f.name, f.icon, f.color_fill, f.color_text, f.sort_order, f.created_at,
               (SELECT COUNT(*) FROM projects p WHERE p.folder_id = f.id AND p.user_id = ? AND p.deleted_at IS NULL AND p.status = 'spark') AS n
        FROM spark_folders f WHERE f.user_id = ? ORDER BY f.sort_order, f.created_at`,
       [user.id, user.id],
@@ -376,14 +440,25 @@ export function projectsRoutes(cfg: Config) {
   app.post('/sparks/folders', async (c) => {
     const body = await jsonBody<z.infer<typeof sparkFolderSchema>>(c, sparkFolderSchema)
     if (!body) return c.json({ error: 'invalid_input' }, 400)
+    // S161 (spec #3): the pastel pair must arrive WHOLE — both halves of the SAME
+    // curated tile — or not at all (absent = the hash-of-id default, an explicit
+    // null pair = back to that default).
+    const pairGiven = body.color_fill !== undefined || body.color_text !== undefined
+    if (pairGiven && !(body.color_fill && body.color_text) && !(body.color_fill === null && body.color_text === null)) {
+      return c.json({ error: 'invalid_pair' }, 400)
+    }
+    if (body.color_fill && body.color_text && !isValidCatPair(body.color_fill, body.color_text)) {
+      return c.json({ error: 'invalid_pair' }, 400)
+    }
     const user = c.get('user')
     const now = new Date().toISOString()
     const id = uuid()
     const max = await cfg.db.query<{ m: number }>('SELECT COALESCE(MAX(sort_order), -1) AS m FROM spark_folders WHERE user_id = ?', [user.id])
-    // S41: icon rides the insert (emoji-only, schema-validated; NULL = folder-plus glyph)
+    // S41: icon rides the insert (emoji-only, schema-validated; NULL = folder-plus glyph).
+    // S161: the curated pair rides too (NULLs = the hash-of-id default at render time).
     await cfg.db.execute(
-      'INSERT INTO spark_folders (id, user_id, name, icon, sort_order, created_at) VALUES (?, ?, ?, ?, ?, ?)',
-      [id, user.id, body.name, body.icon ?? null, (max[0]?.m ?? -1) + 1, now],
+      'INSERT INTO spark_folders (id, user_id, name, icon, color_fill, color_text, sort_order, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+      [id, user.id, body.name, body.icon ?? null, body.color_fill ?? null, body.color_text ?? null, (max[0]?.m ?? -1) + 1, now],
     )
     return c.json({ folder: { id, name: body.name, icon: body.icon ?? null, n: 0 } }, 201)
   })
@@ -391,14 +466,29 @@ export function projectsRoutes(cfg: Config) {
   app.patch('/sparks/folders/:id', async (c) => {
     const body = await jsonBody<z.infer<typeof sparkFolderSchema>>(c, sparkFolderSchema)
     if (!body) return c.json({ error: 'invalid_input' }, 400)
+    // S161: same whole-tile pair contract as POST (null pair = back to the default).
+    const pairGiven = body.color_fill !== undefined || body.color_text !== undefined
+    if (pairGiven && !(body.color_fill && body.color_text) && !(body.color_fill === null && body.color_text === null)) {
+      return c.json({ error: 'invalid_pair' }, 400)
+    }
+    if (body.color_fill && body.color_text && !isValidCatPair(body.color_fill, body.color_text)) {
+      return c.json({ error: 'invalid_pair' }, 400)
+    }
     const user = c.get('user')
     // S41 icon PATCH semantics: undefined = keep the current icon, null = clear it,
     // string = set it. The column list is built from `icon`'s presence so a
-    // rename-only PATCH never touches the emoji.
+    // rename-only PATCH never touches the emoji. S161: the pair follows the same
+    // presence discipline.
     const setIcon = body.icon !== undefined
+    const setPair = pairGiven
+    const sets = ['name = ?']
+    const vals: unknown[] = [body.name]
+    if (setIcon) { sets.push('icon = ?'); vals.push(body.icon) }
+    if (setPair) { sets.push('color_fill = ?'); vals.push(body.color_fill ?? null); sets.push('color_text = ?'); vals.push(body.color_text ?? null) }
+    vals.push(c.req.param('id'), user.id)
     const res = await cfg.db.execute(
-      `UPDATE spark_folders SET name = ?${setIcon ? ', icon = ?' : ''} WHERE id = ? AND user_id = ?`,
-      setIcon ? [body.name, body.icon, c.req.param('id'), user.id] : [body.name, c.req.param('id'), user.id],
+      `UPDATE spark_folders SET ${sets.join(', ')} WHERE id = ? AND user_id = ?`,
+      vals,
     )
     if (!res.changes) return c.json({ error: 'not_found' }, 404)
     return c.json({ ok: true })
@@ -406,11 +496,79 @@ export function projectsRoutes(cfg: Config) {
 
   app.delete('/sparks/folders/:id', async (c) => {
     const user = c.get('user')
-    const folder = await cfg.db.query<{ id: string; name: string }>('SELECT id, name FROM spark_folders WHERE id = ? AND user_id = ?', [
+    const folder = await cfg.db.query<{ id: string; name: string; banner_path: string | null }>('SELECT id, name, banner_path FROM spark_folders WHERE id = ? AND user_id = ?', [
       c.req.param('id'), user.id,
     ])
     if (!folder.length) return c.json({ error: 'not_found' }, 404)
+    // S161 (0063's dangling-FK fix — 0060's table rebuild dropped the FK): the
+    // folder's ideas sweep back to UNFILED instead of keeping a dead folder_id.
+    await cfg.db.execute('UPDATE projects SET folder_id = NULL WHERE folder_id = ? AND user_id = ?', [folder[0].id, user.id])
+    // The banner's bytes go with the folder (best-effort — the row delete proceeds
+    // regardless; an orphaned object is a space leak, never a data-loss risk).
+    if (folder[0].banner_path) {
+      try { await shotStoreFor(cfg).deleteObject(folder[0].banner_path) } catch { /* already gone */ }
+    }
     await cfg.db.execute('DELETE FROM spark_folders WHERE id = ? AND user_id = ?', [folder[0].id, user.id])
+    return c.json({ ok: true })
+  })
+
+  // ---- S161 (spec #1/#2): the folder BANNER — the project-logo upload pattern, on
+  // the SHARED object-store chain (kv → r2 → github; the disk store locally — the
+  // same store screenshots ride, no second byte pipeline). Path root: folder-banners/.
+  const bannerUploadSchema = z.object({
+    dataBase64: z.string().min(1).max(3_500_000),
+    mimeType: z.string().regex(/^image\/(png|jpeg|webp)$/),
+  })
+  app.put('/sparks/folders/:id/banner', async (c) => {
+    if (await hitRateLimit(cfg.db, RATE_RULES.upload, clientIp(c))) {
+      return c.json({ error: 'rate_limited', message: 'Too many uploads — wait a minute and try again.' }, 429)
+    }
+    const body = await jsonBody<z.infer<typeof bannerUploadSchema>>(c, bannerUploadSchema)
+    if (!body) return c.json({ error: 'invalid_input' }, 400)
+    const user = c.get('user')
+    const folder = await cfg.db.query<{ id: string; banner_path: string | null }>(
+      'SELECT id, banner_path FROM spark_folders WHERE id = ? AND user_id = ?',
+      [c.req.param('id'), user.id],
+    )
+    if (!folder.length) return c.json({ error: 'not_found' }, 404)
+    const store = shotStoreFor(cfg)
+    const path = `folder-banners/${folder[0].id}/banner-${Date.now()}-${uuid().slice(0, 8)}${extForMime(body.mimeType)}`
+    if (folder[0].banner_path) {
+      try { await store.deleteObject(folder[0].banner_path) } catch { /* the old banner may be gone */ }
+    }
+    await store.putObject(path, body.dataBase64, body.mimeType)
+    await cfg.db.execute('UPDATE spark_folders SET banner_path = ? WHERE id = ?', [path, folder[0].id])
+    return c.json({ ok: true, path })
+  })
+
+  app.get('/sparks/folders/:id/banner/file', async (c) => {
+    const user = c.get('user')
+    const folder = await cfg.db.query<{ banner_path: string | null }>(
+      'SELECT banner_path FROM spark_folders WHERE id = ? AND user_id = ?',
+      [c.req.param('id'), user.id],
+    )
+    if (!folder.length || !folder[0].banner_path) return c.json({ error: 'not_found' }, 404)
+    let bytes: ArrayBuffer | null = null
+    try {
+      bytes = await shotStoreFor(cfg).getObject(folder[0].banner_path)
+    } catch {
+      bytes = null
+    }
+    if (!bytes) return c.json({ error: 'not_found' }, 404)
+    return new Response(bytes, { headers: { 'Content-Type': mimeForPath(folder[0].banner_path), 'Cache-Control': 'private, max-age=3600' } })
+  })
+
+  app.delete('/sparks/folders/:id/banner', async (c) => {
+    const user = c.get('user')
+    const folder = await cfg.db.query<{ id: string; banner_path: string | null }>(
+      'SELECT id, banner_path FROM spark_folders WHERE id = ? AND user_id = ?',
+      [c.req.param('id'), user.id],
+    )
+    if (!folder.length) return c.json({ error: 'not_found' }, 404)
+    if (folder[0].banner_path) {
+      try { await shotStoreFor(cfg).deleteObject(folder[0].banner_path) } catch { /* may be gone */ }
+    }
+    await cfg.db.execute('UPDATE spark_folders SET banner_path = NULL WHERE id = ?', [folder[0].id])
     return c.json({ ok: true })
   })
 
@@ -433,7 +591,16 @@ export function projectsRoutes(cfg: Config) {
     const p = await getOwnedProject(cfg, user.id, c.req.param('id'))
     if (!p) return c.json({ error: 'not_found' }, 404)
     const d = await loadDetail(cfg, p)
-    if (c.req.header('HX-Request')) return await etag(c, c.html(detailHtml(p, d, lang)))
+    // S161 (spec #6): a spark's HX detail request hands off to the LEAN page — the
+    // heavy template renders projects only. The JSON path is unaffected (the rail
+    // + quick-add still read sparks as rows).
+    if (c.req.header('HX-Request')) {
+      if (p.status === 'spark') {
+        c.header('HX-Redirect', `/spark.html?id=${p.id}`)
+        return c.html('')
+      }
+      return await etag(c, c.html(detailHtml(p, d, lang)))
+    }
     return await etag(c, c.json({ project: { ...p, ...d } }))
   })
 
@@ -458,7 +625,23 @@ export function projectsRoutes(cfg: Config) {
         if (!own.length) return c.json({ error: 'folder_not_found' }, 404)
       }
     }
+    // S161 (spec #4): a non-null cover must be one of the idea's OWN image shots —
+    // ownership + existence + image-ness (a doc/video tile can't be a cover).
+    if (body.cover_shot_id) {
+      const shotRow = await cfg.db.query<{ id: string }>(
+        "SELECT id FROM screenshots WHERE id = ? AND project_id = ? AND mime_type LIKE 'image/%'",
+        [body.cover_shot_id, p.id],
+      )
+      if (!shotRow.length) return c.json({ error: 'shot_not_found' }, 404)
+    }
     const now = new Date().toISOString()
+    // S161 (spec #5): pinned is a SERVER-stamped boolean — true stamps pinned_at now,
+    // false clears it. The raw column never rides a client body (ordering integrity).
+    if (body.pinned !== undefined) {
+      const stamped = body.pinned ? now : null
+      ;(body as Record<string, unknown>).pinned_at = stamped
+      delete (body as Record<string, unknown>).pinned
+    }
     const sets: string[] = []
     const params: unknown[] = []
     for (const [k, v] of Object.entries(body)) {

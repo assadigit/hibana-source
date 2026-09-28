@@ -100,60 +100,42 @@ function watchErrors(page: import('@playwright/test').Page, errors: string[]): v
 
 test.use({ viewport: { width: 1280, height: 800 } })
 
-test('a half-edited spark rides a reload; a different spark drops the stale draft; Escape discards', async ({ page, browserName }) => {
+test('a half-edited idea rides a reload on the LEAN page; a different idea drops the stale draft; save retires it', async ({ page, browserName }) => {
   test.skip(browserName !== 'chromium', 'Desktop Chromium only for now')
   const errors: string[] = []
   watchErrors(page, errors)
   await login(page)
-  await page.goto('/sparks.html')
-  // the initial shelf state is the FOLDER GRID — open «All ideas» to reveal the cards
-  // (after a reload the shelf may or may not restore the cards view — handle both)
-  const ensureCards = async () => {
-    try {
-      await page.click('.spark-folder-card[data-sf="all"]', { timeout: 4_000 })
-    } catch { /* already in the cards view */ }
-  }
-  await ensureCards()
-
-  const openEdit = async (id: string) => {
-    const card = page.locator(`.project-card:has([data-spark-edit="${id}"])`)
-    await expect(card).toBeVisible({ timeout: 15_000 })
-    await card.locator('[data-menu-open]').first().click()
-    await page.locator(`[data-spark-edit="${id}"]`).click()
-    await expect(page.locator('#spark-edit-dialog')).toBeVisible()
+  // S161: the edit dialog is RETIRED — the draft store (S120) lives on the LEAN page
+  // now (sessionStorage per keystroke, same-id restore, stale drop, save retires).
+  const open = async (id: string) => {
+    await page.goto(`/spark.html?id=${id}`)
+    await expect(page.locator('#spark-title')).toBeVisible({ timeout: 15_000 })
   }
 
-  // ── a stale draft for spark A must NOT leak into spark B's dialog ──
-  await openEdit(SPARK_ID)
-  const dlg = page.locator('#spark-edit-dialog')
-  await dlg.locator('#se-title').fill('S120 half-typed draft')
-  await page.reload() // the edit dialog dies with the document — the draft must not
-  await ensureCards()
-  await openEdit(OTHER_ID)
-  await expect(page.locator('#se-title')).toHaveValue('S120 other spark') // prefill stands
-  await page.keyboard.press('Escape')
-  await expect(page.locator('#spark-edit-dialog')).not.toBeVisible()
+  // ── a draft for idea A rides the reload (newer intent wins over the server truth) ──
+  await open(SPARK_ID)
+  await expect(page.locator('#spark-title')).toHaveValue('S120 draft spark', { timeout: 5_000 })
+  await page.fill('#spark-title', 'S120 half-typed draft')
+  await page.reload() // the draft must survive the document's death
+  await expect(page.locator('#spark-title')).toHaveValue('S120 half-typed draft', { timeout: 10_000 })
+  await expect(page.locator('#spark-status')).toHaveText('Unsaved changes')
 
-  // the mismatched draft was dropped on B's open — A's dialog shows the row truth
-  await openEdit(SPARK_ID)
-  await expect(page.locator('#se-title')).toHaveValue('S120 draft spark')
-  await page.keyboard.press('Escape')
-  await expect(page.locator('#spark-edit-dialog')).not.toBeVisible()
+  // ── the stale draft never leaks into a DIFFERENT idea's page ──
+  await open(OTHER_ID)
+  await expect(page.locator('#spark-title')).toHaveValue('S120 other spark', { timeout: 5_000 }) // the row truth stands
+  await expect(page.locator('#spark-status')).toHaveText('')
 
-  // ── a draft for THIS spark rides the reload (newer intent wins) ──
-  await openEdit(SPARK_ID)
-  await page.locator('#se-title').fill('S120 half-typed draft')
+  // ── back on A: the stale draft was DROPPED on B's open — the row truth stands ──
+  await open(SPARK_ID)
+  await expect(page.locator('#spark-title')).toHaveValue('S120 draft spark', { timeout: 5_000 })
+
+  // ── SAVE retires the store: type a draft, Save, reload → the saved truth + a clean status ──
+  await page.fill('#spark-title', 'S120 half-typed draft')
+  await page.click('#spark-save')
+  await expect(page.locator('#spark-status')).toHaveText('\u2713 Saved', { timeout: 5_000 })
   await page.reload()
-  await ensureCards()
-  await openEdit(SPARK_ID)
-  await expect(page.locator('#se-title')).toHaveValue('S120 half-typed draft')
-
-  // ── Escape TRULY discards (the sync clear inside close(); no resurrection) ──
-  await page.keyboard.press('Escape')
-  await expect(page.locator('#spark-edit-dialog')).not.toBeVisible()
-  await openEdit(SPARK_ID)
-  await expect(page.locator('#se-title')).toHaveValue('S120 draft spark')
-  await page.keyboard.press('Escape')
+  await expect(page.locator('#spark-title')).toHaveValue('S120 half-typed draft', { timeout: 5_000 }) // saved = the truth now
+  await expect(page.locator('#spark-status')).toHaveText('') // and the draft store is retired
   expect(errors).toEqual([])
 })
 

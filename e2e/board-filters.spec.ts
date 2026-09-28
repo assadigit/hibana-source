@@ -65,7 +65,7 @@ async function seedProject(page: Page, tasks: TaskBody[]): Promise<string> {
   const id = await page.evaluate(async () => {
     const res = await fetch('/api/projects', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ title: `e2e filters ${Date.now()}` }),
+      body: JSON.stringify({ title: `e2e filters ${Date.now()}`, status: 'developing' }), // S161: a real project (sparks redirect to the lean page)
     })
     return ((await res.json()) as { id: string }).id
   })

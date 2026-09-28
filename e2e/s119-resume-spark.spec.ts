@@ -88,7 +88,7 @@ function watchErrors(page: import('@playwright/test').Page, errors: string[]): v
 
 test.use({ viewport: { width: 1280, height: 800 } })
 
-test('an edited spark joins the resume strip and the hero lands on /sparks.html', async ({ page, browserName }) => {
+test('an edited spark joins the resume strip and the hero deep-links the idea (S161 lean page)', async ({ page, browserName }) => {
   test.skip(browserName !== 'chromium', 'Desktop Chromium only for now')
   const errors: string[] = []
   watchErrors(page, errors)
@@ -96,16 +96,15 @@ test('an edited spark joins the resume strip and the hero lands on /sparks.html'
   await page.goto('/sparks.html')
   // the initial shelf state is the FOLDER GRID — open «All ideas» to reveal the cards
   await page.click('.spark-folder-card[data-sf="all"]')
-  // the shelf card's ⋯ kebab → Edit spark → change the title → Save
-  const card = page.locator(`.project-card:has([data-spark-edit="${SPARK_ID}"])`)
+  // S161: the edit dialog is RETIRED — the card opens the LEAN page, the edit + Save
+  // happen there (spec #6/#8).
+  const card = page.locator(`.spark-card[data-project-id="${SPARK_ID}"]`)
   await expect(card).toBeVisible({ timeout: 15_000 })
-  await card.locator('[data-menu-open]').first().click()
-  await page.locator(`[data-spark-edit="${SPARK_ID}"]`).click()
-  const dlg = page.locator('#spark-edit-dialog')
-  await expect(dlg).toBeVisible()
-  await dlg.locator('#se-title').fill('S119 edited spark — reworked')
-  await dlg.locator('#se-save').click()
-  await expect(dlg).not.toBeVisible()
+  await card.locator('a[href="/spark.html?id=' + SPARK_ID + '"]').click()
+  await page.waitForURL('**/spark.html?id=' + SPARK_ID, { timeout: 10_000 })
+  await page.fill('#spark-title', 'S119 edited spark — reworked')
+  await page.click('#spark-save')
+  await expect(page.locator('#spark-status')).toHaveText('✓ Saved', { timeout: 5_000 })
 
   // the record rode the save success — verify the store, then the strip
   const stored = await page.evaluate(() => localStorage.getItem('hibana-resume'))
@@ -118,9 +117,9 @@ test('an edited spark joins the resume strip and the hero lands on /sparks.html'
   const hero = strip.locator('.resume-hero')
   await expect(hero.locator('.resume-hero-title')).toHaveText('S119 edited spark — reworked')
   await expect(hero.locator('.resume-hero-kicker')).toContainText('Idea')
-  // the hero link lands on the Ideas page
+  // S161: the hero deep-links THE IDEA (the lean page), not the folder shelf
   await hero.click()
-  await page.waitForURL('**/sparks.html', { timeout: 10_000 })
+  await page.waitForURL('**/spark.html?id=' + SPARK_ID, { timeout: 10_000 })
   expect(errors).toEqual([])
 })
 
@@ -131,15 +130,16 @@ test('a PROMOTED spark records as a project (stage badge, project-page link)', a
   await login(page)
   await page.goto('/sparks.html')
   await page.click('.spark-folder-card[data-sf="all"]')
-  const card = page.locator(`.project-card:has([data-spark-edit="${PROMOTE_ID}"])`)
+  // S161: promotion rides the ⋯ menu's own Promote dialog (spec #17)
+  const card = page.locator(`.spark-card[data-project-id="${PROMOTE_ID}"]`)
   await expect(card).toBeVisible({ timeout: 15_000 })
   await card.locator('[data-menu-open]').first().click()
-  await page.locator(`[data-spark-edit="${PROMOTE_ID}"]`).click()
-  const dlg = page.locator('#spark-edit-dialog')
+  await page.locator(`[data-project-id="${PROMOTE_ID}"] [data-spark-promote]`).click()
+  const dlg = page.locator('#spark-promote-dialog')
   await expect(dlg).toBeVisible()
-  await dlg.locator('#se-status').selectOption('planning')
-  await dlg.locator('#se-save').click()
-  await expect(dlg).not.toBeVisible()
+  await dlg.locator('#sp-status').selectOption('planning')
+  await dlg.locator('#sp-save').click()
+  await expect(dlg).toBeHidden({ timeout: 8_000 })
 
   const stored = await page.evaluate(() => localStorage.getItem('hibana-resume'))
   expect(stored).toContain(PROMOTE_ID)

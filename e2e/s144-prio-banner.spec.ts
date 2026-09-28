@@ -54,7 +54,7 @@ async function seedProject(page: Page): Promise<string> {
   const pid = await page.evaluate(async () => {
     const res = await fetch('/api/projects', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ title: `e2e banners ${Date.now()}` }),
+      body: JSON.stringify({ title: `e2e banners ${Date.now()}`, status: 'developing' }),
     })
     return ((await res.json()) as { id: string }).id
   })

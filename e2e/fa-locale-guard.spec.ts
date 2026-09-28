@@ -51,7 +51,9 @@ async function seedProject(page: Page): Promise<string> {
   return await page.evaluate(async () => {
     const res = await fetch('/api/projects', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ title: `e2e fa ${Date.now()}` }),
+      // S161: a real project — a status-less create is a SPARK now, and sparks
+      // redirect to the lean page (no composer/filter-bar surfaces there).
+      body: JSON.stringify({ title: `e2e fa ${Date.now()}`, status: 'developing' }),
     })
     const pid = ((await res.json()) as { id: string }).id
     await fetch(`/api/projects/${pid}/devtasks`, {

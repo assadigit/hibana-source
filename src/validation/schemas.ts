@@ -68,6 +68,13 @@ export const updateProjectSchema = z
     // batch (s) 2026-09-08 — idea folders: a spark may live in one named folder
     // (NULL = «All»). Ownership is re-validated in the route (FK alone can't scope users).
     folder_id: z.string().uuid().nullable().optional(),
+    // 0063 (S161, spec #5): pin toggle — the SERVER stamps pinned_at (now on true,
+    // NULL on false) so ordering stays deterministic; the raw column never rides a body.
+    pinned: z.boolean().optional(),
+    // 0063 (S161, spec #4): the manually-marked cover screenshot. Ownership-checked in
+    // the route (404 shot_not_found) — it must be one of the idea's OWN images; NULL
+    // returns the card thumb to the latest-upload default.
+    cover_shot_id: z.string().uuid().nullable().optional(),
   })
   .refine((o) => Object.keys(o).length > 0, { message: 'empty update' })
 
@@ -253,6 +260,11 @@ const EMOJI_TOKEN_RE = /^[\p{Extended_Pictographic}\u{1F1E6}-\u{1F1FF}\u{1F3FB}-
 export const sparkFolderSchema = z.object({
   name: z.string().trim().min(1).max(50),
   icon: z.string().trim().max(16).regex(EMOJI_TOKEN_RE).nullish(),
+  // 0063 (S161, spec #3): the folder's pastel pair — one of the 16 curated CAT_PAIRS
+  // tiles. The pair arrives WHOLE (both halves) or not at all; whole-tile validation
+  // (isValidCatPair) happens in the route, which also owns the hash-of-id default.
+  color_fill: z.string().regex(/^#[0-9A-Fa-f]{6}$/).nullish(),
+  color_text: z.string().regex(/^#[0-9A-Fa-f]{6}$/).nullish(),
 })
 
 // Admin console (batch e) — ban presets and the user-management payloads.

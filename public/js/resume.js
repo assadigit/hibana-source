@@ -92,7 +92,9 @@
     // S119: the spark bulb — the SAME glyph the stage badges already speak.
     spark: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 18h6M10 22h4"/><path d="M12 2a7 7 0 0 0-4.2 12.6c.9.7 1.2 1.6 1.2 2.4h6c0-.8.3-1.7 1.2-2.4A7 7 0 0 0 12 2Z"/></svg>',
   }
-  const urlFor = (e) => (e.k === 'project' ? '/project.html?id=' + encodeURIComponent(e.id) : e.k === 'spark' ? '/sparks.html' : '/notes.html#n=' + encodeURIComponent(e.id))
+  // S161: a spark's resume chip deep-links the LEAN page (never lose your place —
+  // the shelf's folder grid lost the row you tapped; the idea itself is the place).
+  const urlFor = (e) => (e.k === 'project' ? '/project.html?id=' + encodeURIComponent(e.id) : e.k === 'spark' ? '/spark.html?id=' + encodeURIComponent(e.id) : '/notes.html#n=' + encodeURIComponent(e.id))
   const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]))
 
   // The hero's stage badge: fixed-palette chip (badge-{stage} tokens — the same roles

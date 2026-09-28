@@ -110,13 +110,16 @@ async function captureInsideFolder(page: Page, url: string, title: string) {
   await page.fill('#qa-title', title)
   await page.click('#qa-save')
 
-  // (2) the page STAYS on the ideas surface — the pre-fix bounce went to /app
+  // (2) the page STAYS on the ideas surface — the pre-fix bounce went to /app. The
+  // quick-add is a FETCH caller (the S161 HX-Redirect serves HTMX callers); on the
+  // Ideas page the S40 soft-refresh contract holds — capture stays in the open folder.
   await page.waitForTimeout(1_500) // the queue flush + close + shelf reload
   expect(page.url()).not.toContain('/app')
   expect(page.url()).toContain('/sparks')
 
   // the shelf soft-refreshed: the new card is visible IN the open folder's shelf
-  await page.locator('.project-card', { hasText: title }).first().waitFor({ state: 'visible', timeout: 10_000 })
+  // (S161: the shelf's cards wear .spark-card now)
+  await page.locator('.spark-card', { hasText: title }).first().waitFor({ state: 'visible', timeout: 10_000 })
 
   // (1) the capture FILED into the folder — the API is the source of truth
   const filed = await page.evaluate(async (t) => {

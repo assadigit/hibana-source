@@ -87,7 +87,7 @@ test.describe('S64: localized tab titles', () => {
       const r = await fetch('/api/projects', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ title: 'Aurora Drone Maps', status: 'spark' }),
+        body: JSON.stringify({ title: 'Aurora Drone Maps', status: 'developing' }), // S161: sparks redirect to the lean page; this pin rides the heavy template
       })
       if (!r.ok) throw new Error('project create failed: ' + r.status)
       return ((await r.json()) as { ok: boolean; id: string }).id

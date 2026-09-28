@@ -65,7 +65,7 @@ async function openProject(page: Page): Promise<string> {
     const res = await fetch('/api/projects', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ title: `e2e upload ${Date.now()}` }),
+      body: JSON.stringify({ title: `e2e upload ${Date.now()}`, status: 'developing' }),
     })
     return ((await res.json()) as { id: string }).id
   })

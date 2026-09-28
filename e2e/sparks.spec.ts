@@ -163,7 +163,7 @@ test('sparks: capture into the open folder — soft refresh keeps the context (S
   // lost the folder). The shelf refetches in place and the new idea appears INSIDE the
   // folder view.
   await page.waitForFunction(() => {
-    const cards = document.querySelectorAll('#spark-shelf .project-card')
+    const cards = document.querySelectorAll('#spark-shelf .spark-card')
     return cards.length === 1 && (cards[0].textContent || '').includes('e2e spark born in folder')
   }, null, { timeout: 10_000 })
   await expect(page).toHaveURL(/\/sparks\.html/) // still on the page — no reload happened
@@ -188,7 +188,7 @@ test('sparks: «All ideas» lists every spark (filed + unfiled) — never silent
   await page.click('.spark-folder-all')
   await page.waitForSelector('#spark-shelf .sf-bar', { timeout: 10_000 })
   // The flat list renders every spark: 1 filed + 2 loose + 1 born-in-folder (prior test) = 4.
-  await expect(page.locator('#spark-shelf .project-card')).toHaveCount(4, { timeout: 10_000 })
+  await expect(page.locator('#spark-shelf .spark-card')).toHaveCount(4, { timeout: 10_000 })
   // The grid is gone — the click visibly went somewhere.
   await expect(page.locator('#spark-shelf .spark-folder-grid')).toHaveCount(0)
   const folderVal = await page.inputValue('#spark-folder')
@@ -209,7 +209,7 @@ test('sparks: the open folder survives a reload (S40 inline stamp + persisted pr
   await page.waitForSelector('#spark-shelf .sf-bar', { timeout: 10_000 })
   // Still INSIDE the folder — the inline stamp restored #spark-folder before htmx's
   // first fetch (no grid→folder flash, no context loss).
-  await expect(page.locator('#spark-shelf .project-card')).toHaveCount(1, { timeout: 10_000 })
+  await expect(page.locator('#spark-shelf .spark-card')).toHaveCount(1, { timeout: 10_000 })
   const folderVal = await page.inputValue('#spark-folder')
   expect(folderVal).toBe(FOLDER_FILLED.id)
   expect(errors).toEqual([])
@@ -346,7 +346,7 @@ test('sparks: every view offers the ⋯ — list/kanban/sticky edit + delete + p
 
   // Enter «All ideas» so a flat view (not the folder grid) is showing.
   await page.click('.spark-folder-card[data-sf="all"]')
-  await page.waitForSelector('#spark-shelf .project-card', { timeout: 10_000 })
+  await page.waitForSelector('#spark-shelf .spark-card', { timeout: 10_000 })
   await page.waitForTimeout(400)
 
   // ---- LIST view: every row carries the ⋯ --------------------------------------
@@ -384,15 +384,16 @@ test('sparks: every view offers the ⋯ — list/kanban/sticky edit + delete + p
   const pop = page.locator('#spark-shelf .kanban-card .spark-menu-pop').first()
   await expect(pop).not.toBeHidden()
   expect(page.url()).toContain('/sparks.html')
-  // The menu offers the real actions (Move / Edit / Delete).
+  // The menu offers the real actions (Move / Promote / Delete — S161 retired the
+  // edit dialog; the lean page IS the edit surface now).
   const popText = (await pop.textContent()) || ''
   expect(popText).toMatch(/delete/i)
-  expect(popText).toMatch(/edit/i)
+  expect(popText).toMatch(/promote/i)
   // Close the menu (Escape), then click the card BODY (the title) → navigates as before.
   await page.keyboard.press('Escape')
   await page.waitForTimeout(200)
   await page.click('#spark-shelf .kanban-card[data-project-id] strong')
-  await page.waitForURL(/\/project\.html\?id=/, { timeout: 10_000 })
+  await page.waitForURL(/\/spark\.html\?id=/, { timeout: 10_000 })
 
   // ---- STICKY view + POLL SURVIVAL ----------------------------------------------
   // (The goto re-enters with the persisted kanban view — the folder grid only boots

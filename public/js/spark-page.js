@@ -64,7 +64,7 @@ window.__hibanaPage({
           '<span class="chip pd-tag-chip spark-tag" dir="auto">' + escS(tg.name) +
             '<button type="button" class="spark-tag-x" data-tag-del="' + escS(tg.id) + '" aria-label="' + escS(_t('spark.removeTag', 'Remove tag')) + ' ✕ ' + escS(tg.name) + '" title="' + escS(_t('spark.removeTag', 'Remove tag')) + '">✕</button></span>'
         ).join('') +
-        '<input id="spark-tag-in" class="spark-tag-in" maxlength="50" autocomplete="off" placeholder="' + escS(_t('spark.addTagPh', 'Add tag…')) + '" aria-label="' + escS(_t('spark.tagAria', 'Add a tag')) + '">'
+        '<input id="spark-tag-in" class="spark-tag-in" maxlength="50" autocomplete="off" data-magic="" placeholder="' + escS(_t('spark.addTagPh', 'Add tag…')) + '" aria-label="' + escS(_t('spark.tagAria', 'Add a tag')) + '">'
       const input = host.querySelector('#spark-tag-in')
       input.addEventListener('keydown', (e) => {
         if (e.key !== 'Enter') return

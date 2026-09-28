@@ -45,6 +45,10 @@
   <script src="/js/install-prompt.js?v=1" defer></script>
   <script src="/js/i18n-en.js?v=85" defer></script>
   <script src="/js/i18n.js?v=139" defer></script>
+  <!-- S169 (owner report): the AI-assist wand rides the lean page's fields — the CSS
+       was loaded but the JS never was, so no icon could ever appear. Same head slot
+       as every other wand surface (sparks.html). -->
+  <script src="/js/magic-wand.js?v=17" defer></script>
 </head>
 <body>
   <div id="hibana-page-loader" aria-hidden="true"><div class="hibana-page-loader-inner"><div class="hibana-loader-mark" aria-hidden="true"><span class="hibana-loader-glyph">H</span><span class="hibana-loader-orbit"><span class="hibana-loader-spark"></span></span></div><span class="hibana-page-loader-brand">Hibana</span><div class="hibana-loader-track" aria-hidden="true"><span class="hibana-loader-fill"></span></div></div></div>
@@ -77,11 +81,11 @@
         <div class="spark-main card">
           <label class="spark-field">
             <span class="spark-lbl" data-i18n="spark.title">Title</span>
-            <input id="spark-title" maxlength="200" autocomplete="off" data-i18n-aria-label="spark.titleAria" aria-label="Idea title">
+            <input id="spark-title" maxlength="200" autocomplete="off" data-magic="" data-i18n-aria-label="spark.titleAria" aria-label="Idea title">
           </label>
           <label class="spark-field">
             <span class="spark-lbl" data-i18n="spark.description">Description</span>
-            <textarea id="spark-desc" rows="4" maxlength="2000" data-i18n-aria-label="spark.descAria" aria-label="Idea description"></textarea>
+            <textarea id="spark-desc" rows="4" maxlength="2000" data-magic="" data-i18n-aria-label="spark.descAria" aria-label="Idea description"></textarea>
           </label>
           <div class="spark-field">
             <span class="spark-lbl" data-i18n="spark.tags">Tags</span>
@@ -95,7 +99,7 @@
             <span class="spark-lbl" data-i18n="spark.links">Links</span>
             <ul id="links" class="links spark-links" aria-live="polite"></ul>
             <form class="row spark-link-form" id="spark-link-form">
-              <input name="label" placeholder="Label (Repo, Live…)" data-i18n-placeholder="spark.linkLabelPh" maxlength="100" data-i18n-aria-label="spark.linkLabelAria" aria-label="Link label">
+              <input name="label" placeholder="Label (Repo, Live…)" data-magic="" data-i18n-placeholder="spark.linkLabelPh" maxlength="100" data-i18n-aria-label="spark.linkLabelAria" aria-label="Link label">
               <input name="url" placeholder="https://…" required data-i18n-aria-label="spark.urlAria" aria-label="Link URL">
               <button type="submit" data-i18n="spark.addLink">Add link</button>
             </form>
@@ -129,6 +133,6 @@
   <script src="/js/resume.js?v=11" defer></script>
   <script src="/js/image-resize.js?v=1" defer></script>
   <script src="/js/image-crop.js?v=2" defer></script>
-  <script src="/js/spark-page.js?v=2" defer></script>
+  <script src="/js/spark-page.js?v=3" defer></script>
 </body>
 </html>

@@ -687,7 +687,7 @@ export function sparkCardHtml(
     <a class="spark-card-link" href="/spark.html?id=${p.id}" data-spark-expand>
       ${th}
       <span class="spark-card-body">
-        <span class="spark-card-title" dir="auto">${esc(p.title)}</span>
+        <span class="spark-card-title" dir="auto" data-magic data-magic-save="/api/projects/${p.id}" data-magic-field="title">${esc(p.title)}</span>
         ${desc}
         <span class="spark-card-meta muted small">${sparkPresenceGlyphs(presence, lang)}<span>${trL(lang, 'Updated {t}', 'به‌روزرسانی {t}', { t: timeAgo(p.updated_at, lang) })}</span></span>
       </span>
@@ -718,7 +718,7 @@ export function sparkListFragment(
       const t = thumbs.get(p.id)
       const th = t?.shotId ? sparkThumbHtml(t.shotId, t.isManual, 'spark-row-thumb', lang) : ''
       return `<tr draggable="true" data-project-id="${p.id}" data-pinned="${p.pinned_at ? '1' : '0'}">
-        <td class="spark-row-title">${th}<a href="/spark.html?id=${p.id}" dir="auto">${esc(p.title)}</a></td>
+        <td class="spark-row-title">${th}<a href="/spark.html?id=${p.id}" dir="auto" data-magic data-magic-save="/api/projects/${p.id}" data-magic-field="title">${esc(p.title)}</a></td>
         <td class="spark-row-ico">${sparkPinBtn(p, lang)}${sparkPresenceGlyphs(presence.get(p.id), lang)}</td>
         <td class="muted small">${timeAgo(p.updated_at, lang)}</td>
       </tr>`
@@ -731,7 +731,7 @@ export function sparkListFragment(
       const th = t?.shotId ? sparkThumbHtml(t.shotId, t.isManual, 'spark-sticky-thumb', lang) : ''
       const desc = p.description ? `<span class="muted small">${esc(p.description.slice(0, 80))}…</span>` : ''
       return `<article class="sticky-note${p.pinned_at ? ' is-pinned' : ''}" draggable="true" data-project-id="${p.id}" data-nav-url="/spark.html?id=${p.id}">
-        ${th}<strong dir="auto">${esc(p.title)}</strong>${desc}
+        ${th}<strong dir="auto" data-magic data-magic-save="/api/projects/${p.id}" data-magic-field="title">${esc(p.title)}</strong>${desc}
         ${sparkPinBtn(p, lang)}
       </article>`
     }).join('') || '<div class="empty">' + trL(lang, 'No ideas here yet.', 'هنوز ایده‌ای اینجا نیست.') + '</div>'}</div>`
@@ -752,7 +752,7 @@ export function sparkKanbanHtml(projects: ProjectRow[], folders: (SparkFolderRow
   const col = (key: string, label: string, rows: ProjectRow[], glyph: string, fill: string) => `<div class="kanban-col" data-spark-folder="${key}">
     <h4 class="kanban-col-head"><span class="spark-kb-glyph" aria-hidden="true">${glyph}</span><span class="kanban-col-label">${esc(label)}</span><span class="sf-dot" style="background:${fill}" aria-hidden="true"></span><b class="board-count">${dig(rows.length)}</b></h4>
     ${rows.map((p) => `<div class="card kanban-card" draggable="true" data-project-id="${p.id}" data-nav-url="/spark.html?id=${p.id}">
-      <strong dir="auto">${esc(p.title)}</strong>
+      <strong dir="auto" data-magic data-magic-save="/api/projects/${p.id}" data-magic-field="title">${esc(p.title)}</strong>
       <div class="muted small">${timeAgo(p.updated_at, lang)}</div>
     </div>`).join('') || `<div class="kanban-empty">${trL(lang, 'Drop here', 'اینجا رها کن')}</div>`}
   </div>`

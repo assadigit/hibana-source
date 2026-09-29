@@ -414,3 +414,152 @@ Stage Summary:
   shells) — rebuild before byte-verify; (e) the TDZ-order hazard in page-JS
   closures: consts consumed by hoisted function declarations that run at
   mount must be declared ABOVE the first call site.
+
+---
+Task ID: S176
+Agent: main (Z.ai Code)
+Task: Hibana (at /home/z/hibana) — owner round, two items: (1) from the sketch — "it is collapsed, but it still takes a little too much space, use 50% of current space, and make the collapsed like this: [button to de-collapse] [Ideas written vertically to save space]"; (2) the five-request code-block spec for the "Create a new task" modal's Content field (single <pre><code> container, typography+contrast, header bar + copy button, plain-text paste + Tab + toolbar disable, syntax highlighting with a limited palette + auto-detect + plain-text storage). Released as v0.4.1.3.
+
+Work Log:
+- (A) THE RAIL — the folded box's CSS redesigned per the sketch (project-header.css,
+  scoped @media min-width 541px): inline-size 2.5rem (~40px, under half the owner's
+  "50% of current space" ask — the old fit-content chip was ~150-180px), the col
+  becomes a flex column with padding 0, the tinted .pd-col-head fills the rail
+  (flex 1 1 auto, column layout, full radius), the chevron docks at the top, the
+  title gets writing-mode: vertical-rl + rotate(180deg) (bottom→top reading —
+  direction-neutral, FA titles rotate identically; the rail lands at the
+  reading-start edge in RTL — browser-verified), the count badge pins to the foot
+  via the title's margin-block: auto, the stage dot HIDES (the sketch's minimal
+  rail — the colored border edge carries the coding), min-block-size 9rem so short
+  rows still read as rails. Coarse pointers widen the rail to 3.25rem (the 44px
+  chevron law). ≤540px keeps the S175 compact horizontal chip (phones save VERTICAL
+  space — a tall rail would waste it). ZERO JS/HTML changes: the data-collapsed
+  mechanism, the store, the deep-link + drop auto-unfolds and every S175 pin are
+  untouched (s175 spec 12/12 green, incl. the ≥10px width-growth + 44px touch pins).
+- (B) THE CODE BLOCK — project-page.js gained the code-block runtime (~250 lines,
+  inserted before pdCodeHost): pdCodeBlockHtml/pdCodeBuild (ONE <pre
+  class="t-code-pre" dir=ltr data-lang> wrapping a non-editable .t-code-bar span —
+  a <select data-code-lang> with the curated 21-language list + a <button
+  data-code-copy> — and the editable <code class="t-code">), pdCodeText (plain-text
+  extraction — spans transparent, <br>→\n, .t-fence/.t-code-bar skipped),
+  pdCodeNormalize (upgrades BOTH the renderTitle-loaded bare .t-code islands —
+  sibling runs merged — AND legacy pre>code shapes; wakes the highlighter — the
+  first version FORGOT the schedule on the island branch, caught live in
+  agent-browser QA), pdHljsLoad (LAZY /vendor/highlight.min.js — highlight.js
+  11.11.1 common bundle, 127KB, progressive enhancement), pdCodeHighlight (explicit
+  lang via hljs.highlight; else highlightAuto restricted to the curated ids with a
+  relevance floor — CALIBRATED to ≥2: prose scores 0, real short code ≥2; the first
+  draft's floor of 4 never fired on one-liners, caught by the e2e), caret
+  save/restore by PLAIN-TEXT OFFSET across the innerHTML swap, pdCodeSchedule
+  (300ms WeakMap debounce).
+- THE KEYBOARD (pdCodeKeydown): Tab inserts 2 spaces (execCommand + Range
+  fallback); Backspace at the block's start can never eat the contenteditable=false
+  bar (an EMPTY block dies outright — Chromium deletes non-editable islands when
+  backspacing into them); the S82 Enter/Arrow exits preserved — pdCodeBlockAt now
+  anchors its line-geometry probes on the CODE element (the bar's own text would
+  have broken the first/last-line tests).
+- THE BEHAVIORS: paste inside a block = PLAIN TEXT ONLY — MEASURED: Chromium's
+  execCommand('insertText') DROPS embedded \n ('A\nB' → 'AB'), so multi-line paste
+  is inserted LINE BY LINE with insertLineBreak between (undo survives; the Range
+  fallback inserts a raw '\n' text node — white-space:pre renders it); the copy
+  button copies pdCodeText (never the span markup) with the clipboard API + the
+  house textarea fallback, swaps the icon (i-copy → green i-check via .copied) and
+  shows the ::after tooltip (data-tip = md.copied) ~2s; the language dropdown
+  re-highlights immediately, '' = Auto (re-detect on the next input; a successful
+  detection WRITES data-lang so the fence saves it); the format toolbar disables
+  while the caret is inside (selectionchange-driven, '<>' stays active, reset on
+  every dialog open).
+- STORAGE — chip-render.js htmlToMd: the pre case reads data-lang into the fence
+  (```python) + the codeText walker skips .t-code-bar; the hljs spans are
+  transparent (recursion) so the saved markdown NEVER carries markup (e2e-pinned:
+  data-raw-title contains ```javascript + the code, not hljs-/span).
+- CSS (project-header.css): .t-code-pre = the ONE container (var(--code-panel-bg),
+  1px --code-border, 8px radius, margin-block .85rem, overflow hidden, dir ltr);
+  the bar (flex space-between, hairline bottom border, user-select none); the
+  select (mono uppercase 0.62rem, transparent) + the copy button (2rem/44px
+  coarse, ::after tooltip, i-check color var(--ok)); > code.t-code = typography
+  ONLY (the house --font-mono, 0.8125rem, lh 1.5, white-space pre, overflow-x
+  auto, tab-size 2, padding .75rem .9rem, --code-panel-fg) — the .pde-edit-area
+  pre rule now scopes to :not(.t-code-pre) (rich-pasted bare <pre> fallback). The
+  FA font override RESTATED for the new selector (html[lang='fa'] .t-code-pre >
+  code.t-code — equal specificity with html[lang='fa'] .t-code, source order wins,
+  Vazir stays last in the stack for Farsi comments).
+- THE PALETTE — five .hljs-* groups mapped onto the S88 grammar (--md-kw keywords
+  +built_in +doctag +type — +type so C-family const/static read keywordish;
+  --md-str strings+regexp; --md-com comments (the most muted) — ALONE it sat at
+  ~4.15:1 on the light panel / ~3.1:1 dark, UNDER the owner's 4.5:1 AA demand:
+  color-mix 70/30 toward --code-panel-fg clears 5.4:1+ on BOTH panels while the
+  notes surfaces keep their approved --md-com; --md-num numbers+literal; --md-fn
+  titles/function names). One set of light inks works on both themes' dark panels;
+  claude-dark flips its own --md-* values.
+- i18n: +3 keys ×2 (pd.codeAuto/pd.codePlain/pd.codeLangLabel; md.copy/md.copied
+  reused) — parity 1552/1552.
+- Cache-bust: project-header v47→v48 ×2, chip-render v10→v11 ×2 + board-page.js's
+  lazy literal (v10→v11 — the gate caught the stale lazy URL), project-page
+  v72→v74 (the mid-round normalize fix re-bumped — the S171 stale-cache lesson),
+  i18n-en v87→v88 ×26, i18n.js v141→v142 ×26 + the i18n-fa loader literals v81→v82;
+  sw.js v410→v411 (EVERY shell page changed markup via the global ?v= busts);
+  package.json 0.4.1.2→0.4.1.3; /vendor/highlight.min.js NEW (SWR runtime-cached,
+  no ?v= — the house vendor pattern).
+- LADDER: typecheck 0 · vitest 539/539 · eslint 0 err (163-warn baseline) ·
+  build 79 (+the vendor bundle) · wiring canonical · cache-bust PASS (7 files) ·
+  parity 1552/1552 · FULL e2e GREEN in 5 file-batches: 45+72+52+54+74 with ONE
+  sprint-doc failure in batch 5 (the spec's OWN documented SW-race class — flaked
+  only under full-suite load; solo green, pre-change-code batch green, then green
+  in every re-run combination incl. the exact batch-5 prefix — 4 consecutive
+  green runs; the version chip empties when pdFilterBuild's slow page-load fetch
+  resolves late — a pre-existing race, not this round's diff).
+- NEW SPEC e2e/s176-codeblock.spec.ts (2 tests): the code-block contract
+  end-to-end (ONE container + the bar + the panel-vs-editor contrast + the code's
+  transparent/no-border geometry + mono + white-space + ltr; Tab=2 spaces; the
+  synthetic rich-clipboard paste landing plain with indentation; the toolbar
+  disable set + the ArrowDown re-enable; the copy button's icon swap + tooltip
+  + clipboard round-trip + the 2s restore; the dropdown change + data-lang; the
+  save round-trip — data-raw-title carries ```python + the code, NEVER hljs-/span
+  — and the edit re-open normalizing + re-highlighting) + the rail (40px inline
+  size, ≥144px height, vertical-rl + the 180° matrix, contents hidden, count
+  visible, ≥30px width growth for the others, the unfold restoring the exact flex
+  share ±2px).
+- AGENT-BROWSER QA (:3017): EN (the rail + the code block driven end-to-end —
+  python auto-detect on typing, comment spans after Tab+#, dropdown flip to js,
+  ArrowDown exit + paragraph + toolbar re-enable, save + reload + normalize);
+  FA/RTL (the rail at the reading-start edge with the rotated Farsi title; the
+  editor RTL while the code block stays ltr/left/horizontal-tb; ruby auto-detect
+  on a def-snippet — the user overrides via the dropdown); claude-dark (the
+  #1a1917 panel on the #141413 editor + the token flips); 390px (the folded box =
+  the compact 157×60 chip, zero page h-overflow); touch emulation via a playwright
+  iPhone context (the copy button 44×44 + opacity 1, the select 40px); 0 console
+  errors on every pass.
+- CHAIN: feature 69fa7c4 pushed → CI 36632958154 + CD 36634350608 ALL GREEN →
+  live byte-verified (project-header.7c305c9c + project-page.7509eb05 +
+  chip-render.3bd3e764 + i18n-en.85b27556 + i18n.de03e0fa all IDENTICAL +
+  /vendor/highlight.min.js IDENTICAL, sw.js v411, /api/health ok prod schema 62)
+  → live functional pass as the owner's account (login → probe project → the
+  40px rail with 278px neighbors → the composer's code block with the live
+  lazy-load over HTTPS + auto-detect + the copy icon swap → probe deleted; 0
+  console errors) → tag v0.4.1.3 → zip hibana.0.4.1.3.zip (558 files, integrity
+  OK, 0 real secrets) → Changelogs §1 rotated (S169 dropped; exactly 4 blocks) +
+  §2 row 176 → healthcheck pinged.
+
+Stage Summary:
+- LIVE: hibana.ir @ v0.4.1.3 — the folded boxes are vertical rails (the owner's
+  sketch honored: chevron on top, the title reading bottom→top, ~40px wide) and
+  the composer's "<>" code block is ONE dark-panel container with a language
+  dropdown, a plain-text copy button, plain-text paste, Tab indentation, disabled
+  formatting inside, and highlight.js five-token coloring with auto-detect — the
+  saved markdown stays plain text forever.
+- Ops lessons: (a) Chromium's execCommand('insertText') DROPS embedded newlines —
+  multi-line programmatic paste must insert line-by-line (insertLineBreak between);
+  (b) highlightAuto relevance floors: prose 0, real short code ≥2 — a floor of 4
+  silently never fires on one-liners (calibrate with REAL inputs before shipping
+  thresholds); (c) a custom property may not re-define ITSELF with color-mix
+  (cyclic → invalid) — mix directly in the consumer rule instead; (d) the
+  e2e-spec beforeAll user DELETE cascades other sessions' QA projects — keep QA
+  projects on a separate user from the spec users; (e) the sprint-doc version-chip
+  flake is the spec's own documented SW-race class — it fires under full-suite
+  load on this sandbox (2×), never deterministically, and every re-run
+  combination went green.
+- Deliberate scope notes: the read-only card/board .t-code rendering is UNCHANGED
+  (the five requests were editor-scoped — card-side highlighting is a follow-up
+  round if the owner wants it); the notes surfaces keep their original --md-com
+  (the AA mix is scoped to the editor block's own rule).

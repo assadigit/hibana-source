@@ -176,3 +176,86 @@ Stage Summary:
   sweep, avatar stale-cache, promote-dialog keyboard test, folder-pref
   dead-id self-heal, lean-page beforeunload guard, mobile oversized-button
   audit).
+
+## S173 — THE REVIEW ROUND + BACKLOG SWEEP (v0.4.1.0, deployed)
+
+Task ID: S173
+Agent: main (Z.ai Code)
+Task: Owner directive — "commit and push and deploy everything; empty your
+backlog and finalize." A THIRD sandbox reset had eaten the S171+S172 local
+(unpushed) commits, so this round rebuilt both from the worklog records and
+folded the S162–S166 residue into the same release.
+
+Work Log:
+- Recovery: cloned main @ 511d448 (v0.4.0.1 live), restored the gitignored
+  credential files, bun install frozen-lockfile.
+- S172 REBUILT: the composer's block-7 «SET UP CATEGORIES» prompt retired
+  (markup + JS + CSS — it interrupted the first task creation with a 639px
+  block inside a 508px modal); setup = the board-header Categories dialog +
+  the picker's auto-enabling inline Create; `.modal .pd-cat-toggle` specificity
+  restore (the `.modal label{display:grid}` rule broke every row into a
+  1.1kpx grid slab); in-place On/Off label sync + 'ok' toasts; 44px touch
+  rows; the Settings `.pd-cat-row` wraps at 360px. POST-sweep catch: an orphan
+  `pdRefreshSetupList()` call in the [data-pd-add] handler threw an async
+  ReferenceError the e2e console-pins caught (2 full-suite failures on the
+  stale in-memory server; fixed + both green on reboot).
+- S171 REBUILT: the lean page's Created·Updated meta line (+8 i18n keys, FA
+  digits, the server timeAgo units mirrored client-side); the beforeunload
+  guard (dirty fields never silently vanish; disarms after Save + the
+  confirmed delete hop); pin aria-label sync; mobile empty-thumb hiding at
+  ≤640px; 44px coarse-pointer chips; eslint ignores aligned with the linted
+  surface (a bare `eslint .` used to drag in 4.4k phantom errors).
+- BACKLOG EMPTIED: search highlight (`mark.spark-hit`, token-built brand wash)
+  + match-reason badges (Title/Description/Tag: x/Link: y/Folder: z — the
+  server computes per-row reasons via the same LIKE over matched rows'
+  children); ?q= + ?folder= deep-links (hard-load inline stamp + the soft-nav
+  mount stamp — the S40 pattern); the 30s poll no longer wipes an active
+  search (#sparks-q joins hx-include); dead folder-pref self-heal; the
+  palette's Idea-folders quick-jump; the avatar stale-cache re-stamp; the
+  promote-dialog keyboard path pinned.
+- GATES: typecheck 0 · vitest 539/539 · eslint 0 errors (163-warn baseline;
+  bare `eslint .` now equals src/'s truth) · build 78 · wiring (canonical
+  restored) · cache-bust PASS (10 files, 126 bumps: quicknotes v38 ×25,
+  dashboard v32 ×23, project-page v70, sparks-page v12, spark-page v5,
+  settings-page v15, command-palette v18 ×19, i18n-en v86 ×26, i18n.js v140
+  ×26 + fa loader v80) · parity 1546/1546 (+10 keys) · FULL SUITE 288+2
+  (the 2 = the orphan-call console pins, green after the fix) · NEW
+  e2e/s173-review-round.spec.ts 9/9 + s152's block-7 test REWRITTEN to the
+  S172 contract (4/4) · blast radius 57/57.
+- sw.js VERSION v407→v408 (spark.html + sparks.html + project.html +
+  settings.html are SHELL-precached and changed).
+- QA (agent-browser, :3017): EN + FA/RTL + dark + 390px on every touched
+  surface; the tag-click→deep-link→badge flow driven end-to-end; fresh-session
+  console + page errors 0. (VLM skipped this round — the S171 lesson stands:
+  computed-style probes are the arbiter.)
+- CHAIN: feature c90f82d pushed → CI 36573897854 + CD 36575255660 ALL GREEN →
+  live byte-verified (all 10 changed assets IDENTICAL: 9 dist bundles +
+  spark-page.js) + /api/health ok (prod, schema 62, kv) → live functional
+  verify as the owner's account (login → lean meta line "Created 15d ago ·
+  Updated 21h ago" on real data → search "YouTube": 9 matches + 9 marks +
+  Title badges → the Categories dialog: flex rows, 44px, the On/Off flip
+  in place, the PUT persisted, the owner's original state RESTORED) → tag
+  v0.4.1.0 → zip hibana.0.4.1.0.zip (551 files, integrity OK, 0 real
+  secrets) → §1 rotated (S158 dropped; exactly 4 blocks) + §2 row 173 →
+  healthcheck pinged. package.json 0.4.0.1→0.4.1.0.
+
+Stage Summary:
+- LIVE: hibana.ir serves v0.4.1.0 — the categories setup is finally where it
+  belongs, the lean idea page says WHEN, the search says WHY, and the
+  S162–S166 residue list is EMPTY.
+- Backlog status: search highlight ✓, match badges ✓, tag-click-to-search +
+  ?q= deep-link ✓, palette Ideas group + Folders quick-jump ✓, lean-page
+  Created/Updated ✓, avatar stale-cache ✓, folder-pref dead-id self-heal ✓,
+  promote-dialog keyboard test ✓, beforeunload ✓. Remaining known items
+  (documented, deliberately not this round): the a11y i18n sweep (a large
+  surface audit, deserves its own round), the categories table remains
+  install-global (no user_id — cross-account visibility on shared installs;
+  a future migration candidate, needs the owner's written approval per rule 4).
+- Ops lessons: (a) a deleted function's call sites must be swept BEFORE any
+  suite run — an async .then() callback ReferenceError fails only the
+  console-pinning specs and hides elsewhere; (b) a backgrounded full suite
+  holds the OLD code in memory (node --import tsx, no hot reload — the S159
+  lesson again): kill + reboot before re-verifying a mid-run fix; (c) the
+  esbuild filename skew from S168 did NOT recur (all 9 dist hashes matched
+  the runner's); (d) live probe timing: give the dialog's async paint a beat
+  before declaring "no rows".

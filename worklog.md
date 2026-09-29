@@ -327,3 +327,90 @@ Stage Summary:
   batches are the workaround); (c) the edit-after-bump re-bump discipline
   caught a REAL stale-cache serving mid-round (v39 served from HTTP cache
   after the file changed under the same URL).
+
+---
+Task ID: S175
+Agent: main (Z.ai Code)
+Task: Hibana (at /home/z/hibana) — owner round: "add this: ability to collapse the ideas section in project progress part (which has ideas, problems, plans etc) — when user collapse that part, there is more space for others to expands, also it must remain collapsed until the user de-collapse them. more over when items are in done box, their priority color label must be turned to a pale and lower opacity color (because they're done and no point showing the priority color coding)". Released as v0.4.1.2.
+
+Work Log:
+- (A) FOLD — every Project Progress box (New Ideas / Problems / Plans / In
+  Progress / Done) gains a leading chevron button in its header strip
+  (detail-helpers.ts: [data-pd-col-collapse], aria-expanded synced, aria-controls
+  → the new #pd-tasks-<status> ids, inline ▼ svg like the dashboard's collapse
+  button). Folding sets [data-collapsed] on the column: contents + Add + the
+  action cluster hide (project-header.css) and the box shrinks to
+  inline-size: fit-content.
+- THE WIDTH MECHANIC: .pd-board-grid converted grid→flex (flex: 1 1 0 + grow
+  keeps the all-open 5-equal-share layout pixel-identical at 204px/box; 2-up
+  ≤900px via basis calc(50% - 0.3rem); stack ≤540px) — a folded box (flex: 0 1
+  auto, fit-content) frees its share to the REMAINING boxes (measured: 240px
+  per working box with Ideas+Done folded; the source-order rule keeps the
+  folded box a narrow chip on phones too, where folding saves vertical scroll).
+- PERSISTENCE (the owner's "must remain collapsed until de-collapse"): the
+  folded set lives in the 'hibana-pd-cols-collapsed' localStorage store — the
+  dashboard's collapse contract (app.js 'hibana-dash-collapsed'), GLOBAL by
+  column key (the fold is a property of the board UI); re-applied on every
+  #project-body htmx sweep beside the remembered tab (project-page.js joins
+  pdApplyCollapsed to the afterSwap re-apply loop).
+- NEVER A WALL: pdConsumeColHash auto-unfolds a #pd-col-<status> deep-link
+  target; a card DROPPED onto a folded box unfolds it and lands (mouse: the
+  drop event's pointer column rides as pdCompleteDrop's new hintCol param;
+  touch: the tracked pdOver captured before pdTouchReset clears it; the
+  dragover/touchmove placement preview SKIPS folded boxes so the card stays
+  visible in its source list while the chip highlights).
+- Declared the S175 helpers BEFORE pdConsumeColHash — a const in a TDZ would
+  ReferenceError on the initial call if the board is already swept (soft-nav
+  re-exec); caught at review time, never shipped.
+- (B) DONE PALE — ONE container-scoped rule (polish-batch.css):
+  .pd-tasks[data-pd-tasks='done'] .prio-banner { color-mix 18% of the medium
+  token into card; muted ink; opacity .7 } + hover restores 1 (the banner is
+  still the cycle button); specificity (0,3,0) beats the per-priority fills
+  (0,2,0). Covers the project page AND board.html (same container attr) and
+  FOLLOWS cards across boxes with zero per-card state (every move path
+  re-parents the wrap). Both themes keep their own tokens.
+- Cache-bust: project-header v46→v47 ×23 pages, polish-batch v28→v29 ×23,
+  project-page v71→v72; sw.js VERSION v409→v410 (project.html is
+  SHELL-precached and changed); package.json 0.4.1.1→0.4.1.2.
+- GATES: typecheck 0 · vitest 539/539 · eslint 0 errors (163-warn baseline)
+  · build 78 · wiring (canonical) · cache-bust PASS (3 files) · parity
+  1549/1549 (0 new keys — the server strings are inline trL EN/FA pairs,
+  paired by construction) · FULL e2e 294/294 in 5 foreground file-batches
+  (45 + 76 + 44 + 57 + 47 + the 25 targeted first).
+- NEW e2e/s175-board-fold.spec.ts (5 pins): fold/persist/freed-width (≥10px
+  growth measured), the deep-link auto-unfold + q-arrived, pale on BOTH
+  surfaces + follow-the-card (synthetic drag into done), the drop-onto-folded
+  landing (box unfolds, card visible, store cleared), the 44px touch floor
+  via a hasTouch context.
+- AGENT-BROWSER QA (:3017, the e2e-s175 owner): EN + FA/RTL + claude-dark +
+  390px — fold round-trips with the store verified at every step; RTL flow
+  (the chip lands reading-start, 979-1138px on the right in FA); dark token
+  flips; the phone stack with zero h-overflow (chip 159×60 at 390px); the
+  fullscreen board pale; console + page errors 0. VLM hallucinated "all
+  boxes expanded" on a screenshot of a folded board — the computed-style
+  probes (the arbiter) prove the fold; a pixel-diff between the open/folded
+  shots confirms the layout change.
+- CHAIN: feature 3d33ed2 pushed → CI 36615608995 + CD 36617281336 ALL GREEN
+  → live byte-verified (project-header.2493c243.css + polish-batch.dbd8387d.css
+  + project-page.51cfea12.js IDENTICAL vs local dist; sw.js hibana-v410;
+  health ok/prod/schema 62) → live functional pass as the owner's account
+  (fold + freed width on the real Hibana board; the pale banner observed on a
+  fully-reversible probe project — created, verified, soft-deleted; the
+  owner's library + client prefs left exactly as found) → tag v0.4.1.2 → zip
+  hibana.0.4.1.2.zip (568 entries, 0 real secrets, in upload/ + download/) →
+  Changelogs §1 rotated (S168 dropped; exactly 4 blocks) + §2 row 175 →
+  healthcheck pinged.
+
+Stage Summary:
+- LIVE: hibana.ir @ v0.4.1.2 — every progress box folds (chevron chip, freed
+  width, persisted until unfolded) and done items wear the pale faded banner.
+- Ops lessons: (a) the live project page route is /project (S158 extensionless
+  form — /project.html 307s; live byte-verify reads the wired /dist/ hrefs
+  from the FOLLOWED page); (b) an eval-stored window var does not survive
+  agent-browser navigation — the live-cleanup DELETE silently hit
+  /api/projects/undefined (404) until re-issued with the literal id; (c) a
+  bare `ls dist/` misled the byte-verify — the build's DIST_DIR is
+  public/dist; (d) dist/ vanished between rounds (reaped with the tool-call
+  shells) — rebuild before byte-verify; (e) the TDZ-order hazard in page-JS
+  closures: consts consumed by hoisted function declarations that run at
+  mount must be declared ABOVE the first call site.

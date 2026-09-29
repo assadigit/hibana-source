@@ -1,0 +1,39 @@
+#!/usr/bin/env node
+// S175 Changelogs rotation — §1 gets the new block (S175) + retitle/drop per the
+// 4-block discipline (S168's block drops to git history); §2 gains row 175.
+import { readFileSync, writeFileSync } from 'node:fs'
+
+const path = 'Changelogs.md'
+const lines = readFileSync(path, 'utf8').split('\n')
+
+// locate the four §1 blocks (they are single physical lines)
+const blockIdx = []
+for (let i = 0; i < lines.length; i++) {
+  if (/^## 1(-prev)*\. Current state/.test(lines[i])) blockIdx.push(i)
+  if (blockIdx.length === 4) break
+}
+if (blockIdx.length !== 4) { console.error('expected 4 §1 blocks, found', blockIdx.length); process.exit(1) }
+
+const [cur, prev, prev2, prev3] = blockIdx
+const s174 = lines[cur].replace(/^## 1\. /, '## 1-prev. ')
+const s173 = lines[prev].replace(/^## 1-prev\. /, '## 1-prev-prev. ')
+const s169 = lines[prev2].replace(/^## 1-prev-prev\. /, '## 1-prev-prev-prev. ')
+// S168 (prev3) drops to git history
+
+const s175 = `## 1. Current state (v0.4.1.2 — Session 175 (the progress board FOLDS + done items lose their priority coding), 2026-09-29. THE ROUND (the owner's two-item directive: "ability to collapse the ideas section in project progress part (which has ideas, problems, plans etc) — when user collapse that part, there is more space for others to expand, also it must remain collapsed until the user de-collapse them. moreover when items are in done box, their priority color label must be turned to a pale and lower opacity color (because they're done and no point showing the priority color coding)"): (A) FOLD — every Project Progress box (New Ideas / Problems / Plans / In Progress / Done) gains a leading chevron in its header strip that folds it to a fit-content chip: the card list, the Add button and the action cluster hide ([data-collapsed] on the column), and the board row — a FLEX track now (was a fixed 5×1fr grid; flex: 1 1 0 + grow keeps the all-open layout pixel-identical at 204px/box, 2-up ≤900px, stack ≤540px, source-order beats the phone media query so a folded box stays a narrow chip on phones too, where folding saves vertical scroll) — hands the freed width to the REMAINING boxes (measured live: 204px → 240px per working box with Ideas+Done folded). PERSISTENCE is the owner's exact ask: the folded set lives in the 'hibana-pd-cols-collapsed' localStorage store (the dashboard's collapse contract — one pattern users already know), GLOBAL by column key (the fold is a property of the board UI, not one project), re-applied on every #project-body htmx sweep beside the remembered tab, so a box STAYS folded across reloads and re-renders until the owner unfolds it. NEVER A WALL: a #pd-col-<status> deep-link (the rail tree's leaves) auto-unfolds its target, and a card DROPPED onto a folded box (mouse: the drop event's pointer column rides as the hint; touch: the tracked pdOver captured before the reset) unfolds it and lands the card — the dragover/touchmove placement preview simply skips folded boxes (the card stays visible in its source list while the chip highlights). ▼/▲ chevron (180° rotate, direction-neutral — zero RTL branches), 44px floor on coarse pointers, aria-expanded synced in place, aria-controls → the new #pd-tasks-<status> ids. (B) DONE PALE — items in the Done box lose their priority color coding via ONE container-scoped rule (.pd-tasks[data-pd-tasks='done'] .prio-banner: color-mix 18% of the medium token into the card surface, muted ink, opacity .7; hover restores 1 — the banner is still the priority-cycle button; specificity (0,3,0) out-ranks the per-priority fills so no !important): covers the project page AND the fullscreen board (the same container attr), FOLLOWS cards across boxes with zero per-card state (every move path re-parents the wrap — drag-into-done fades on arrival, drag-out restores), and both themes keep their own tokens (light: pale cream; dark: the muted dark mix). Cache-bust: project-header v46→v47 ×23, polish-batch v28→v29 ×23, project-page v71→v72; sw.js v409→v410 (project.html is SHELL-precached and changed). LADDER: typecheck 0 · vitest 539/539 · eslint 0 errors (163-warn baseline) · build 78 · wiring (canonical) · cache-bust PASS (3 files) · parity 1549/1549 (0 new keys — the server strings are inline trL pairs, paired by construction) · FULL e2e 294/290+5 in 5 file-batches (+5 new s175 pins: fold/persist/freed-width, the deep-link auto-unfold, pale on both surfaces + follow-the-card, the drop-onto-folded landing, the 44px touch floor via a hasTouch context). AGENT-BROWSER QA (:3017): EN + FA/RTL + claude-dark + 390px — the fold round-trip, the store verified after every step, the RTL flow (the chip lands reading-start), the dark token flips, the phone stack with zero h-overflow, the fullscreen board pale, 0 console errors. CHAIN: feature 3d33ed2 pushed → CI 36615608995 + CD 36617281336 ALL GREEN → live byte-verified (project-header.2493c243 + polish-batch.dbd8387d + project-page.51cfea12 IDENTICAL, sw v410, health ok/prod/schema 62) → live functional pass as the owner's account (fold + freed width on the real Hibana board, the pale banner observed on a fully-reversible probe project — created, verified, deleted; the owner's library + client prefs left exactly as found) → tag v0.4.1.2 → zip hibana.0.4.1.2.zip (568 entries, 0 real secrets) → §1 rotated (S168 dropped; exactly 4 blocks) + §2 row 175 → healthcheck pinged. package.json 0.4.1.1→0.4.1.2. OPS NOTES: (a) the live project fragment route is /project (the S158 extensionless form — a /project.html fetch 307s; the byte-verify script reads the wired /dist/ hrefs from the followed page), (b) an eval-stored window var does not survive agent-browser navigation — the live-cleanup DELETE silently hit /api/projects/undefined (404) until re-issued with the literal id (soft-delete + the 7-day purge is the app's own lifecycle).`
+
+// rebuild the block region: new S175 + retitled S174/S173/S169, drop S168
+const replacement = [s175, s174, s173, s169]
+lines.splice(prev3, 1) // remove S168 first (it is the last of the four)
+// after removal the indices of cur/prev/prev2 are unchanged (they precede prev3)
+lines.splice(cur, 4, ...replacement)
+
+// §2 row 175 after row 174
+const out = lines.join('\n')
+const row174 = out.split('\n').findIndex((l) => l.startsWith('| 174 |'))
+if (row174 === -1) { console.error('row 174 not found'); process.exit(1) }
+const row175 = `| 175 | 2026-09-29 | v0.4.1.2 — THE PROGRESS BOARD FOLDS + DONE ITEMS LOSE THEIR PRIORITY CODING (the owner's two-item round): every Project Progress box gains a fold chevron — the box collapses to a fit-content header chip (contents/Add/actions hidden) and the board row (a flex track now; all-open stays pixel-identical) hands the freed width to the remaining boxes (204→240px with two folded); the fold PERSISTS in the 'hibana-pd-cols-collapsed' localStorage store (global by column key, re-applied on every body sweep) until the owner unfolds it, with rail-tree deep-links and card drops auto-unfolding the target (never a wall); ▼/▲ direction-neutral, 44px coarse-pointer floor, aria synced. Done-box banners turn pale + faded (color-mix 18% + muted ink + opacity .7, hover restores) via ONE container-scoped rule covering both board surfaces and following cards across boxes with zero per-card state. sw v410; project-header v47 ×23 + polish-batch v29 ×23 + project-page v72; parity 1549/1549 (0 new keys); +5 e2e pins (s175), FULL 294/294 in 5 batches. Deployed 3d33ed2 (CI 36615608995 + CD 36617281336 green), live byte-verified (3/3 IDENTICAL), live functional pass as the owner (probe project created→verified→deleted, library + prefs restored), tag v0.4.1.2, zip 568 entries. |`
+const final = out.split('\n')
+final.splice(row174 + 1, 0, row175)
+writeFileSync(path, final.join('\n'))
+console.log('rotated: §1 = S175/S174/S173/S169 (S168 dropped), row 175 inserted')

@@ -678,18 +678,14 @@ export function detailHtml(p: ProjectRow, d: Awaited<ReturnType<typeof loadDetai
            (Add/Cancel) never scroll away, however long the content or how many files
            are staged. The dialog + form are overflow:hidden flex columns. -->
       <div class="pd-modal-body">
-      <!-- S152 (block 7): the zero-enabled setup prompt — the ONLY interruption a
-           project without categories ever sees. Offers the toggle list + quick-add
-           together; project-page.js fills + shows it exactly when the project has
-           zero enabled categories (first task creation). -->
-      <div class="pd-cat-setup" id="pd-taskadd-cat-setup" hidden>
-        <p class="pd-cat-setup-title">${icon('tag')} ${trL(lang, 'Set up categories for this project', 'دسته‌های این پروژه را بساز')}</p>
-        <p class="muted small pd-cat-setup-sub">${trL(lang, 'Pick from your library or create one — categories label tasks across every project.', 'از کتابخانه‌ات انتخاب کن یا یکی بساز — دسته‌ها کارها را در همهٔ پروژه‌ها برچسب می‌زنند.')}</p>
-        <div class="pd-cat-setup-list" id="pd-taskadd-cat-setup-list"></div>
-        <div class="pd-cat-setup-actions row">
-          <button type="button" class="ghost small" id="pd-taskadd-cat-setup-skip">${trL(lang, 'Not now', 'فعلاً نه')}</button>
-        </div>
-      </div>
+      <!-- S172 (owner round): the block-7 zero-enabled setup prompt is RETIRED from the
+           composer — it interrupted the FIRST task creation with a 639px-tall block
+           inside a 508px modal (no scroll cap, a skip that never persisted). Setup now
+           lives exactly where it's managed: the board-header Categories dialog
+           ([data-pd-cats]) + the picker's own inline Create (which auto-enables the new
+           category server-side — POST /api/projects/:id/categories writes the
+           project_categories row too). A zero-enabled project simply shows the picker's
+           "No category" state like any other pick. -->
       <div class="pd-taskadd-col muted small">${trL(lang, 'Lands in', 'ثبت در')} <span class="chip" id="pd-taskadd-col-chip"></span></div>
       <div class="pd-tb" role="toolbar" aria-label="${trL(lang, 'Formatting', 'قالب‌بندی')}">
         <button type="button" class="pd-tb-btn" data-tb="bold" title="${trL(lang, 'Bold (**text**)', 'پررنگ (**متن**)')}" aria-label="${trL(lang, 'Bold', 'پررنگ')}"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 5h6a3.5 3.5 0 1 1 0 7H7zM7 12h7a3.5 3.5 0 1 1 0 7H7z"/></svg></button>

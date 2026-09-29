@@ -56,12 +56,50 @@ window.__hibanaPage({
       if (status && !saving) status.textContent = on ? _t('spark.unsaved', 'Unsaved changes') : ''
     }
 
+    // ---- S171: the meta line (Created · Updated) — the lean page finally says WHEN ----
+    // Mirrors the server timeAgo() units exactly (src/lib/html.ts): just now / {n}m/h/d/
+    // mo/y — one 8-key i18n set (metaCreated + metaUpdated + the six units), Persian
+    // digits included. Rendered on load, on every surgical reload, after Save (the
+    // updated_at just moved), and on the hibana:i18n repaint (FA units).
+    const langFA = () => window.hibanaI18n?.lang?.() === 'fa'
+    const faDig = (s) => (langFA() ? String(s).replace(/\d/g, (d) => '۰۱۲۳۴۵۶۷۸۹'[+d]) : String(s))
+    const relTime = (iso) => {
+      const m = Math.floor((Date.now() - new Date(iso).getTime()) / 60000)
+      if (m < 1) return _t('spark.relNow', 'just now')
+      const unit = m < 60 ? 'relMin' : m < 1440 ? 'relHour' : m < 43200 ? 'relDay' : m < 525600 ? 'relMonth' : 'relYear'
+      const n = unit === 'relMin' ? m : unit === 'relHour' ? Math.floor(m / 60) : unit === 'relDay' ? Math.floor(m / 1440) : unit === 'relMonth' ? Math.floor(m / 43200) : Math.floor(m / 525600)
+      return _t('spark.' + unit, '{n} ago').split('{n}').join(faDig(n))
+    }
+    function renderMeta() {
+      const el = $('spark-meta')
+      if (!el || !project) return
+      const parts = []
+      if (project.created_at) parts.push(_t('spark.metaCreated', 'Created {t}').split('{t}').join(relTime(project.created_at)))
+      if (project.updated_at) parts.push(_t('spark.metaUpdated', 'Updated {t}').split('{t}').join(relTime(project.updated_at)))
+      el.textContent = parts.join(' · ')
+      el.hidden = !parts.length
+    }
+
+    // ---- S171: the beforeunload guard — a dirty idea never silently vanishes. ---------
+    // Soft-nav is already covered by the S120 draft store (sessionStorage restore);
+    // this catches the LAST hole: a hard reload / tab close / external link with
+    // unsaved title/description. The native dialog stays out of the way when the
+    // fields are pristine or a save is in flight.
+    const beforeUnload = (e) => {
+      if (dirty && !saving) { e.preventDefault(); e.returnValue = '' }
+    }
+    window.addEventListener('beforeunload', beforeUnload)
+
     function renderTags() {
       const host = $('spark-tags')
       const tags = (project.tags || []).slice().sort((a, b) => a.name.localeCompare(b.name))
       host.innerHTML =
         tags.map((tg) =>
-          '<span class="chip pd-tag-chip spark-tag" dir="auto">' + escS(tg.name) +
+          // S171: the tag NAME is now a button — one tap jumps to the Ideas shelf
+          // searched by that tag (?q= deep-link). Two siblings inside the chip (the
+          // name + the ✕ delete), never a nested interactive.
+          '<span class="chip pd-tag-chip spark-tag" dir="auto">' +
+            '<button type="button" class="spark-tag-name" data-tag-search="' + escS(tg.name) + '" title="' + escS(_t('spark.tagSearch', 'Search ideas with this tag')) + '" aria-label="' + escS(_t('spark.tagSearch', 'Search ideas with this tag')) + '">' + escS(tg.name) + '</button>' +
             '<button type="button" class="spark-tag-x" data-tag-del="' + escS(tg.id) + '" aria-label="' + escS(_t('spark.removeTag', 'Remove tag')) + ' ✕ ' + escS(tg.name) + '" title="' + escS(_t('spark.removeTag', 'Remove tag')) + '">✕</button></span>'
         ).join('') +
         '<input id="spark-tag-in" class="spark-tag-in" maxlength="50" autocomplete="off" data-magic="" placeholder="' + escS(_t('spark.addTagPh', 'Add tag…')) + '" aria-label="' + escS(_t('spark.tagAria', 'Add a tag')) + '">'
@@ -117,7 +155,11 @@ window.__hibanaPage({
       const on = !!project.pinned_at
       btn.classList.toggle('is-on', on)
       btn.setAttribute('aria-pressed', on ? 'true' : 'false')
-      btn.title = on ? _t('sparks.unpin', 'Unpin idea') : _t('sparks.pin', 'Pin idea')
+      // S171: aria-label rides WITH the title — a title-only flip leaves screen
+      // readers announcing the stale "Pin idea" on a pinned card.
+      const label = on ? _t('sparks.unpin', 'Unpin idea') : _t('sparks.pin', 'Pin idea')
+      btn.title = label
+      btn.setAttribute('aria-label', label)
       const svg = btn.querySelector('svg')
       if (svg) { if (on) svg.setAttribute('fill', 'currentColor'); else svg.removeAttribute('fill') }
     }
@@ -133,6 +175,7 @@ window.__hibanaPage({
         if (parts?.includes('folders')) renderFolderSelect()
         if (parts?.includes('gallery')) renderGallery()
         if (parts?.includes('pin')) renderPin()
+        renderMeta() // S171: fresh Created/Updated on every surgical reload
       } catch { /* transient — the current render stands */ }
     }
 
@@ -151,6 +194,7 @@ window.__hibanaPage({
         if (!res.ok) throw new Error('save failed')
         project.title = $('spark-title').value.trim() || project.title
         project.description = $('spark-desc').value
+        project.updated_at = new Date().toISOString() // S171: the meta line follows the save
         draftClear()
         markDirty(false)
         status.textContent = _t('spark.saved', '✓ Saved')
@@ -204,6 +248,18 @@ window.__hibanaPage({
 
     // ---- delegated events (htmx swaps + dynamic renders never need re-binding) ----
     ctx.on('click', async (e) => {
+      // S171: tag-click-to-search — the tag name jumps to the Ideas shelf with the
+      // ?q= deep-link (soft-nav when the shell router is present, honest load otherwise).
+      const tagSearch = e.target.closest('[data-tag-search]')
+      if (tagSearch) {
+        const name = tagSearch.getAttribute('data-tag-search') || ''
+        if (name) {
+          const url = '/sparks.html?q=' + encodeURIComponent(name)
+          if (window.hibanaNav) window.hibanaNav.go(url)
+          else window.location.assign(url)
+        }
+        return
+      }
       const tagDel = e.target.closest('[data-tag-del]')
       if (tagDel) {
         tagDel.disabled = true
@@ -296,6 +352,7 @@ window.__hibanaPage({
     })
     $('spark-delete').addEventListener('click', () => {
       if (!window.confirm(_t('spark.deleteConfirm', 'Delete this idea?'))) return
+      dirty = false // S171: the guard must not fire on the deliberate, confirmed delete hop
       draftClear()
       fetch('/api/projects/' + id, { method: 'DELETE' })
         .then((r) => {
@@ -335,7 +392,7 @@ window.__hibanaPage({
       // resolves (or after not-found) — project is still null and the unguarded
       // renderPin threw "Cannot read properties of null (reading 'pinned_at')" as a
       // LIVE console error. The repaint is only for a LOADED idea.
-      if (project) { renderPin(); renderTags(); renderFolderSelect() }
+      if (project) { renderPin(); renderTags(); renderFolderSelect(); renderMeta() }
       if (!dirty && !saving) $('spark-status').textContent = ''
       if (project) document.title = (project.title || 'Idea') + ' — Hibana'
     })
@@ -364,6 +421,7 @@ window.__hibanaPage({
         renderFolderSelect()
         renderGallery()
         renderPin()
+        renderMeta()
         draftRestore()
         if (window.htmx) { window.htmx.process(linksUl); window.htmx.process(linkForm) }
         loading.hidden = true
@@ -376,6 +434,7 @@ window.__hibanaPage({
     return () => {
       // teardown: the draft survives (that's its point) — nothing else leaks
       closeLightbox()
+      window.removeEventListener('beforeunload', beforeUnload) // S171: the guard dies with the page
     }
   },
 })

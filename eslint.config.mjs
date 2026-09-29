@@ -41,10 +41,23 @@ export default tseslint.config(
     },
   },
   {
+    // S171 (ignore alignment): CI lints `npx eslint src/` — but a bare `eslint .`
+    // dragged in 4.4k phantom errors from surfaces that have their OWN gates
+    // (public/js → node --check + the browser e2e suite; e2e/ + qa/ → Playwright's
+    // own compiler; scripts/*.mjs + rotate-*.mjs + make-zip.mjs → executed on every
+    // build/release, failures self-evident). Aligning the ignores with the real
+    // linted surface (src/) keeps the local command as honest as CI's.
     ignores: [
       'node_modules/',
       'public/dist/',
       'public/vendor/',
+      'public/js/',
+      'public/sw.js', // service-worker context (self/caches/fetch globals) — Playwright + the live deploy are its gate
+      'e2e/',
+      'qa/',
+      'scripts/',
+      'make-zip.mjs',
+      'rotate-*.mjs',
       '.wrangler/',
       '.build-backup/',
     ],

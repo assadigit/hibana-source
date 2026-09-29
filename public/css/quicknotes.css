@@ -1569,7 +1569,7 @@ body.pd-detail-lock { overflow: hidden; }
 .cat-chip-sm { font-size: 0.66rem; padding: 0.08rem 0.45rem; }
 .pd-task-body > .cat-chip { margin-block-end: 0.2rem; }
 .pd-detail-cat { align-self: flex-start; margin-block-end: 0.35rem; }
-.pd-cat-setup .cat-chip, .pd-cat-toggle .cat-chip, .pd-cat-row .cat-chip { cursor: pointer; }
+.pd-cat-toggle .cat-chip, .pd-cat-row .cat-chip { cursor: pointer; }
 
 /* (blocks 3+4) The picker popover: suggestion rows + the Create-'name' option +
    the 16-tile swatch grid for the quick-add. Anchored to the field (logical props). */
@@ -1613,21 +1613,24 @@ body.pd-detail-lock { overflow: hidden; }
 @media (max-width: 480px) { .pd-cat-swatches { grid-template-columns: repeat(4, 1fr); } }
 
 /* (block 7) The zero-enabled setup prompt + the per-project toggle rows. */
-.pd-cat-setup {
-  border: 1px dashed var(--line); border-radius: var(--radius-sm);
-  padding: 0.7rem 0.85rem; margin-block-end: 0.7rem;
-  display: grid; gap: 0.4rem;
-}
-.pd-cat-setup-title { margin: 0; font-weight: 700; display: flex; align-items: center; gap: 0.4rem; }
-.pd-cat-setup-title .icon { inline-size: 1rem; block-size: 1rem; }
-.pd-cat-setup-list { display: grid; gap: 0.25rem; }
+/* S172: the composer's block-7 setup prompt is RETIRED — its styles went with it.
+   The per-project dialog's toggle rows stay, now with real touch targets. */
 .pd-cat-toggle {
   display: flex; align-items: center; gap: 0.5rem;
   padding: 0.32rem 0.45rem; border-radius: var(--radius-sm);
   cursor: pointer;
+  min-block-size: 2.75rem; /* S172: 44px touch rows (the modal label grid used to
+    stack these into 1.1kpx-wide slabs; the specificity restore below + this floor
+    make every row a comfortable one-line target) */
 }
+/* S172 specificity restore: components.css's `.modal label { display:grid }`
+   (0,1,1) out-ranked `.pd-cat-toggle` (0,1,0) inside every modal and broke each row
+   into a stacked grid with a full-width checkbox. Two classes (0,2,0) win — the row
+   renders as the flex line it is, in the Categories dialog AND anywhere else a
+   `.modal` wraps a toggle. */
+.modal .pd-cat-toggle { display: flex; align-items: center; gap: 0.5rem; }
 .pd-cat-toggle:hover { background: color-mix(in srgb, var(--text) 6%, transparent); }
-.pd-cat-toggle input { accent-color: var(--brand, currentColor); }
+.pd-cat-toggle input { accent-color: var(--brand, currentColor); flex: 0 0 auto; }
 .pd-cat-toggle-state { margin-inline-start: auto; font-size: 0.72rem; color: var(--muted); }
 .pd-cat-empty { margin: 0; }
 
@@ -1639,9 +1642,13 @@ body.pd-detail-lock { overflow: hidden; }
 .pd-cat-qa .pd-cat-swatches { inline-size: 100%; }
 .pd-cat-settings-list { display: grid; gap: 0.3rem; margin-block-start: 0.5rem; }
 .pd-cat-row {
-  display: flex; align-items: center; gap: 0.6rem;
+  display: flex; flex-wrap: wrap; align-items: center; gap: 0.6rem;
   padding: 0.35rem 0.2rem;
   border-block-end: 1px solid color-mix(in srgb, var(--line) 60%, transparent);
+  /* S172: wrap, don't h-scroll — at 360px the chip + usage + actions used to
+     overflow into a horizontal scroll slab; the actions now fold to a second
+     line instead of sliding off-screen. */
+  row-gap: 0.35rem;
 }
 .pd-cat-row:last-child { border-block-end: 0; }
 .pd-cat-usage { margin-inline-start: auto; }
@@ -1654,5 +1661,5 @@ body.pd-detail-lock { overflow: hidden; }
 .pd-cat-edit [data-cat-name-in] { flex: 1; min-inline-size: 8rem; }
 .pd-cat-swatches-edit { inline-size: 100%; }
 /* The hidden attribute must always win over the component's display value
-   (the setup panel + the slide-over chip + the dialog's swatch drawer toggle). */
-.pd-cat-setup[hidden], .cat-chip[hidden], .pd-cat-qa [hidden], .pd-cat-pop[hidden] { display: none; }
+   (the slide-over chip + the dialog's swatch drawer toggle). */
+.cat-chip[hidden], .pd-cat-qa [hidden], .pd-cat-pop[hidden] { display: none; }

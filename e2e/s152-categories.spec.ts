@@ -110,8 +110,9 @@ test('blocks 3+4: the composer picker suggests enabled categories, quick-creates
   await page.goto(`/project.html?id=${PROJ_ID}`)
   await page.click('[data-pd-add="planned"]')
   const input = page.locator('#pd-taskadd-cat')
-  // block 7 first: this project HAS an enabled category → the setup prompt stays hidden
-  await expect(page.locator('#pd-taskadd-cat-setup')).toBeHidden()
+  // S172: the block-7 setup prompt is RETIRED from the composer — the element
+  // itself is gone (a zero-category project opens the composer clean too)
+  await expect(page.locator('#pd-taskadd-cat-setup')).toHaveCount(0)
   await input.click()
   const pop = page.locator('#pd-taskadd-cat-pop')
   await expect(pop.locator('.pd-cat-pop-row', { hasText: CAT_NAME })).toBeVisible()
@@ -129,17 +130,30 @@ test('blocks 3+4: the composer picker suggests enabled categories, quick-creates
   await page.keyboard.press('Escape')
 })
 
-test('block 7: a zero-category project gets the setup prompt, and enabling one dismisses it', async ({ page }) => {
+test('block 7 (S172 rewrite): a zero-category project opens the composer CLEAN — setup lives in the board-header dialog', async ({ page }) => {
   await login(page)
   await page.goto(`/project.html?id=${EMPTY_PROJ_ID}`)
   await page.click('[data-pd-add="planned"]')
-  const setup = page.locator('#pd-taskadd-cat-setup')
-  await expect(setup).toBeVisible()
-  // the toggle list offers the LIBRARY rows (the UI/UX category exists globally)
-  await expect(setup.locator('.pd-cat-toggle', { hasText: CAT_NAME })).toBeVisible()
-  await setup.locator('.pd-cat-toggle input').first().check()
-  // one enabled → the prompt retreats (it only interrupts when actually needed)
-  await expect(setup).toBeHidden()
+  // THE S172 CONTRACT: no setup interruption in the composer — the 639px block is
+  // gone; the picker's own "No category" state stands in its place
+  await expect(page.locator('#pd-taskadd-cat-setup')).toHaveCount(0)
+  await expect(page.locator('.pd-cat-setup')).toHaveCount(0)
+  await expect(page.locator('#pd-taskadd-cat-field')).toHaveCount(1)
+  await page.keyboard.press('Escape')
+  // the setup surface is the board header's Categories dialog: toggle one ON there
+  // (in-place label flip + ok toast), then the composer's picker offers it
+  await page.click('[data-pd-cats]')
+  const dlg = page.locator('#pd-cats-dialog')
+  await expect(dlg).toBeVisible()
+  const row = dlg.locator('.pd-cat-toggle', { hasText: CAT_NAME })
+  await expect(row.locator('.pd-cat-toggle-state')).toHaveText('Off')
+  await row.locator('input[type="checkbox"]').click()
+  await expect(row.locator('.pd-cat-toggle-state')).toHaveText('On')
+  await expect(page.locator('#toast')).toContainText('Category enabled')
+  await page.keyboard.press('Escape') // the native dialog's cancel path
+  await page.click('[data-pd-add="planned"]')
+  await page.click('#pd-taskadd-cat')
+  await expect(page.locator('#pd-taskadd-cat-pop .pd-cat-pop-row', { hasText: CAT_NAME })).toBeVisible()
   await page.keyboard.press('Escape')
 })
 

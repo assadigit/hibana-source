@@ -19,7 +19,7 @@ import { toastHtml, getOwnedProject, STATUS_LABEL, icon, STATUS_BADGE } from '..
 import { noteSchema, reorderSchema, sparkFolderSchema, updateProjectSchema, createProjectSchema, listProjectsSchema } from '../../validation/schemas'
 import type { HurdleRow, TagRow, ProjectStatus, SparkFolderRow } from '../../types'
 import { loadProjectProgress } from './helpers'
-import type { ProjectSignals } from './helpers'
+import type { ProjectSignals, SparkHit } from './helpers'
 import {
   loadTags, loadProjectSignals, projectProgress,
   bugBubbleHtml, signalsHtml, backlogMetaHtml,
@@ -242,6 +242,52 @@ export function projectsRoutes(cfg: Config) {
       // thumbnail cards (cover-or-latest), the icon-column list (pin/link/image glyphs
       // replace the dead Signals + always-empty Tags columns), sticky notes with thumbs.
       // kanban is composed in the spark branch below (columns = folders).
+      // S171 (backlog): an ACTIVE search also computes the per-row match REASONS —
+      // title/desc in-process (indexOf mirrors SQLite LIKE's ASCII-only case fold),
+      // tags/links/folder-names via the same LIKE over the matched rows' children —
+      // so the shelf renders the highlight (<mark>) + the honest match badges.
+      let sparkHits: Map<string, SparkHit> | undefined
+      let sparkQ: string | undefined
+      if (sparkMode && searching && projects.length) {
+        sparkQ = String(query.data.q)
+        sparkHits = new Map()
+        const lowerQ = sparkQ.toLowerCase()
+        for (const p of projects) {
+          const h: SparkHit = {}
+          if (p.title && p.title.toLowerCase().includes(lowerQ)) h.title = true
+          if (p.description && p.description.toLowerCase().includes(lowerQ)) h.desc = true
+          sparkHits.set(p.id, h)
+        }
+        const likeS = `%${sparkQ.replace(/[\%_\\]/g, (m) => '\\' + m)}%`
+        const idList = projects.map(() => '?').join(',')
+        const tagRows = await cfg.db.query<{ project_id: string; name: string }>(
+          `SELECT pt.project_id, t.name FROM project_tags pt JOIN tags t ON t.id = pt.tag_id WHERE pt.project_id IN (${idList}) AND t.user_id = ? AND t.name LIKE ? ESCAPE '\\' ORDER BY t.name COLLATE NOCASE LIMIT 48`,
+          [...projects.map((p) => p.id), user.id, likeS],
+        ).catch(() => [] as { project_id: string; name: string }[])
+        for (const r of tagRows) {
+          const h = sparkHits.get(r.project_id)
+          if (h) (h.tags ||= []).push(r.name)
+        }
+        const linkRows = await cfg.db.query<{ project_id: string; label: string | null }>(
+          `SELECT project_id, label FROM links WHERE project_id IN (${idList}) AND (label LIKE ? ESCAPE '\\' OR url LIKE ? ESCAPE '\\') LIMIT 48`,
+          [...projects.map((p) => p.id), likeS, likeS],
+        ).catch(() => [] as { project_id: string; label: string | null }[])
+        for (const r of linkRows) {
+          const h = sparkHits.get(r.project_id)
+          if (h) (h.links ||= []).push(String(r.label ?? ''))
+        }
+        const folderRows = await cfg.db.query<{ id: string; name: string }>(
+          `SELECT id, name FROM spark_folders WHERE user_id = ? AND name LIKE ? ESCAPE '\\'`,
+          [user.id, likeS],
+        ).catch(() => [] as { id: string; name: string }[])
+        const folderNames = new Map(folderRows.map((f) => [f.id, f.name]))
+        for (const p of projects) {
+          if (p.folder_id && folderNames.has(p.folder_id)) {
+            const h = sparkHits.get(p.id)
+            if (h) h.folder = folderNames.get(p.folder_id)!
+          }
+        }
+      }
       let fragment = sparkMode
         ? sparkListFragment(
             projects,
@@ -249,6 +295,8 @@ export function projectsRoutes(cfg: Config) {
             lang,
             await loadSparkThumbs(cfg, projects),
             await loadSparkLinkPresence(cfg, projects.map((p) => p.id)),
+            sparkHits,
+            sparkQ,
           )
         : listFragment(projects, tagsMap, view, lang, signalsMap, activeStatus, progressMap, emptyFilter)
       // S94 (owner item 4): the glance strip is SKIPPED under view=kanban — the stage
@@ -305,7 +353,7 @@ export function projectsRoutes(cfg: Config) {
         if (view === 'kanban') {
           // S159: the bar rides the folder board ALWAYS. Kanban home carries NO active
           // chip (no filter is applied — the columns already show every folder's ideas).
-          fragment = sparkFolderBar(folderRows, unfiled, barFolder, lang) + sparkKanbanHtml(projects, folderRows, lang)
+          fragment = sparkFolderBar(folderRows, unfiled, barFolder, lang) + sparkKanbanHtml(projects, folderRows, lang, sparkHits, sparkQ)
         } else if (!folderParam && !searching) {
           // Initial load, nothing selected — the folder grid (file-manager home),
           // exactly as before (sparkFolderGrid itself degrades to the capture empty

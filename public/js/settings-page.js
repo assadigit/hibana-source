@@ -537,6 +537,29 @@
             this.url = user.avatar_path ? '/api/settings/avatar/file?v=' + Date.now() : ''
           },
           onErr() { this.pic = false },
+          // S171 (avatar stale-cache): the NAV avatar (hib-init.js) renders with a
+          // Date.now() URL stamped at page-load time — after an upload/delete here,
+          // the browser's 1h private cache keeps serving the OLD bytes for that exact
+          // URL until a reload. Re-stamp every OTHER avatar img on the page (the
+          // settings preview is Alpine-owned and skipped) so the change lands live.
+          syncAvatarChrome(present) {
+            try {
+              document.querySelectorAll('.avatar img').forEach((img) => {
+                if (img.classList.contains('avatar-lg')) return
+                if (present) {
+                  img.src = '/api/settings/avatar/file?v=' + Date.now()
+                } else {
+                  const host = img.closest('.avatar')
+                  if (host) {
+                    img.remove()
+                    const initial = document.createElement('span')
+                    initial.textContent = this.initial || '?'
+                    host.appendChild(initial)
+                  }
+                }
+              })
+            } catch { /* chrome sync is best-effort */ }
+          },
           async upload(ev) {
             const file = ev.target.files && ev.target.files[0]
             if (!file) return
@@ -552,6 +575,7 @@
               })
               if (!r.ok) throw new Error('upload failed')
               await this.load()
+              this.syncAvatarChrome(true)
               window.hibana?.toast(window.hibanaI18n?.t('settings.avatarSaved') || 'Profile picture saved', 'ok')
             } catch {
               window.hibana?.toast(window.hibanaI18n?.t('settings.avatarFailed') || 'Upload failed', 'err')
@@ -562,6 +586,7 @@
           async remove() {
             await fetch('/api/settings/avatar', { method: 'DELETE' })
             await this.load()
+            this.syncAvatarChrome(false)
             window.hibana?.toast(window.hibanaI18n?.t('settings.avatarRemoved') || 'Profile picture removed')
           },
           init() { this.load() },

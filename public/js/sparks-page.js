@@ -101,6 +101,11 @@
           })
         }
         searchClear?.addEventListener('click', () => clearSearch(true))
+        // S171: a ?q= deep-link pre-fills the input via sparks.html's inline stamp —
+        // the clear button must be VISIBLE from the first frame (paintSearchChrome
+        // reads the input's value, so this is the only boot-time call it ever gets;
+        // every later frame rides the input event).
+        paintSearchChrome()
 
         const reloadShelf = () => {
           if (!window.htmx) return
@@ -116,6 +121,33 @@
           if (q) params.set('q', q)
           else if (f) params.set('folder', f)
           window.htmx.ajax('GET', '/api/projects?' + params.toString(), { target: '#spark-shelf', swap: 'innerHTML' })
+        }
+
+        // ---- S171 (deep-link, the SOFT-NAV half): sparks.html's inline stamp only runs
+        // during a hard parse; a palette quick-jump / a lean-page tag-click arrives via
+        // nav.js's soft swap with the ?folder=/?q= on the URL but FRESH, empty
+        // #spark-folder + #sparks-q inputs. Stamp them here — the S40 pattern: set the
+        // input, then an explicit reloadShelf so the state lands regardless of whether
+        // the load trigger already fired on the empty inputs. Hard loads skip the
+        // reload (the inline stamp beat us to it and the input is already set).
+        {
+          const u = new URLSearchParams(location.search)
+          const fq = u.get('folder')
+          if (fq === 'none' || fq === 'all' || /^[0-9a-f-]{36}$/i.test(fq || '')) {
+            const input = document.getElementById('spark-folder')
+            if (input && !input.value) {
+              input.value = fq
+              if (input.dataset) input.dataset.folderName = ''
+              if (fq !== 'all') writeFolderPref(fq, '')
+              reloadShelf()
+            }
+          }
+          const qq = u.get('q')
+          if (qq && searchInput && !searchInput.value) {
+            searchInput.value = qq.slice(0, 200)
+            paintSearchChrome()
+            reloadShelf()
+          }
         }
 
         // ---- S160 + S161 (spec #13): DRAG-TO-FILE. Manual drag-REORDER of the idea
@@ -834,6 +866,56 @@
           ctx.on(name, reinject)
         }
         injectSparksMenus()
+
+        // ---- S171: folder-pref DEAD-ID self-heal --------------------------------------
+        // A remembered folder that was deleted (another device, a prior session) used
+        // to wedge the shelf into its empty folder view forever — the pref pointed at a
+        // uuid no chip would ever carry again. After a swap that rendered the folder BAR
+        // (the server's folder truth is present), a current id with NO matching chip is
+        // provably dead: clear the pref, reset the input, refetch ONCE (the flag makes
+        // the refetch's own swap incapable of looping).
+        let folderHealed = false
+        const selfHealFolderPref = () => {
+          if (folderHealed) return
+          const f = currentFolder()
+          if (!f || f === 'all') return
+          const root = shelf()
+          if (!root || !root.querySelector('.sf-bar')) return // no bar rendered — can't judge yet
+          if (root.querySelector('.sf-chip[data-sf="' + (window.CSS && CSS.escape ? CSS.escape(f) : f) + '"]')) return
+          folderHealed = true
+          const input = document.getElementById('spark-folder')
+          if (input) { input.value = ''; if (input.dataset) input.dataset.folderName = '' }
+          writeFolderPref('', '')
+          reloadShelf()
+        }
+        for (const name of ['htmx:afterSwap', 'afterSwap', 'htmx:load', 'load']) {
+          ctx.on(name, selfHealFolderPref)
+        }
+        selfHealFolderPref()
+
+        // S171: resolve a ?folder= deep-link's NAME once the bar renders — the inline
+        // stamp boots the id with an empty name (the quick-add hint deserves the real
+        // one). Chip clicks stamp it themselves; this covers only the URL entry path.
+        let deepFolderNamed = false
+        const nameDeepFolder = () => {
+          if (deepFolderNamed) return
+          const f = currentFolder()
+          if (!f || f === 'all' || f === 'none') return
+          const root = shelf()
+          if (!root || !root.querySelector('.sf-bar')) return
+          const chip = root.querySelector('.sf-chip[data-sf="' + (window.CSS && CSS.escape ? CSS.escape(f) : f) + '"]')
+          if (!chip) return
+          deepFolderNamed = true
+          const label = chip.querySelector('.sf-label')
+          const name = label ? label.textContent.trim() : ''
+          const input = document.getElementById('spark-folder')
+          if (input && input.dataset && !input.dataset.folderName) input.dataset.folderName = name
+          if (name) writeFolderPref(f, name)
+        }
+        for (const name of ['htmx:afterSwap', 'afterSwap', 'htmx:load', 'load']) {
+          ctx.on(name, nameDeepFolder)
+        }
+        nameDeepFolder()
 
         // spec #14's paint: data-nav-local rides the card links ONLY at ≤640px —
         // nav.js's CAPTURE-phase anchor interceptor stands down for it, so the first

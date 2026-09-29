@@ -2717,11 +2717,12 @@
           if (prioSel) { prioSel.value = 'medium'; pdSyncPrioChip('pd-taskadd-prio-chip', 'medium') }
           const tagsIn = document.getElementById('pd-taskadd-tags')
           if (tagsIn) tagsIn.value = ''
-          // S152: reset the category picker + refresh the library, then the setup
-          // prompt shows ONLY while the project has zero enabled categories (block 7).
+          // S152/S172: reset the category picker + refresh the library (the picker
+          // list + the card chips read from it). The block-7 setup prompt is retired —
+          // zero-enabled projects simply open the composer clean.
           const composerPicker = pdEnsureComposerPicker()
           if (composerPicker) composerPicker.paint(null)
-          pdEnsureCats().then(() => pdRefreshSetupList())
+          pdEnsureCats()
           // S46.3: the Status dropdown defaults to the clicked column (taskAddStatus) +
           // the "Lands in" chip mirrors it. The user can change the dropdown to land the
           // task in a different column than the one whose + they clicked.
@@ -2940,8 +2941,9 @@
           })
           return { paint, close, get row() { return st.row } }
         }
-        // --- S152 (block 7): the per-project toggle dialog + the composer setup prompt
-        // share one row renderer + one save path (PUT the enable-set).
+        // --- S152 (block 7): the per-project toggle dialog — one row renderer + one
+        // save path (PUT the enable-set). S172: the composer's setup prompt is retired;
+        // this dialog + the picker's inline Create ARE the setup surfaces now.
         let pdCatsDlg = null
         async function pdSaveEnabledCats(ids) {
           const res = await fetch('/api/projects/' + id + '/categories', {
@@ -2985,7 +2987,15 @@
               const toggle = e.target.closest('[data-cat-toggle-id]')
               if (toggle) {
                 const ids = [...pdCatsDlg.querySelectorAll('[data-cat-toggle-id]:checked')].map((x) => x.dataset.catToggleId)
-                try { await pdSaveEnabledCats(ids); pdRefreshSetupList() } catch { window.hibana?.toast(_t('sparks.saveFailed', "Couldn't save"), 'err') }
+                try {
+                  await pdSaveEnabledCats(ids)
+                  // S172: the row's On/Off label syncs IN PLACE (a full list repaint
+                  // snapped the 40vh scroll back to the top — mid-list toggles felt
+                  // broken); the 'ok' toast confirms the save landed.
+                  const state = toggle.closest('.pd-cat-toggle')?.querySelector('.pd-cat-toggle-state')
+                  if (state) state.textContent = toggle.checked ? pdEsc(_t('cat.on', 'On')) : pdEsc(_t('cat.off', 'Off'))
+                  if (toggle.checked) window.hibana?.toast(_t('cat.enabledToast', 'Category enabled'), 'ok')
+                } catch { window.hibana?.toast(_t('sparks.saveFailed', "Couldn't save"), 'err') }
                 return
               }
               const sw = e.target.closest('[data-cat-swatch]')
@@ -3001,7 +3011,10 @@
                   const swWrap = pdCatsDlg.querySelector('[data-pd-cats-qa-swatches]')
                   if (swWrap) swWrap.hidden = true
                   await pdPaintCatsList()
-                  pdRefreshSetupList()
+                  // S172: the quick-add's 'ok' toast — the server auto-enables the new
+                  // category for THIS project (POST writes project_categories too), so
+                  // the picker + the task chips pick it up immediately.
+                  window.hibana?.toast(_t('cat.created', 'Category created'), 'ok')
                 } catch { window.hibana?.toast(_t('sparks.saveFailed', "Couldn't save"), 'err') }
               }
             })
@@ -3020,18 +3033,6 @@
           const list = pdCatsDlg.querySelector('[data-pd-cats-list]')
           if (list) list.innerHTML = pdCatToggleRowsHtml(pdCats)
         }
-        // The composer's zero-enabled setup prompt (block 7): shows ONLY when the
-        // project has zero enabled categories — the first task creation is the moment
-        // it's actually needed. Offers the toggle list + quick-add together.
-        async function pdRefreshSetupList() {
-          const wrap = document.getElementById('pd-taskadd-cat-setup')
-          if (!wrap) return
-          const list = wrap.querySelector('#pd-taskadd-cat-setup-list')
-          if (!list) return
-          const enabledN = pdCats.filter((cRow) => cRow.enabled).length
-          wrap.hidden = enabledN > 0
-          list.innerHTML = pdCatToggleRowsHtml(pdCats)
-        }
         // The composer's picker — created lazily on first open (the composer markup is
         // htmx-swapped in with the page body; the elements exist by open time).
         let pdComposerPicker = null
@@ -3049,23 +3050,6 @@
           })
           return pdComposerPicker
         }
-        ctx.on('click', async (e) => {
-          if (e.target.closest('[data-pd-taskadd-cat-setup-skip], #pd-taskadd-cat-setup-skip')) {
-            const wrap = document.getElementById('pd-taskadd-cat-setup')
-            if (wrap) wrap.hidden = true
-            return
-          }
-          if (e.target.closest('#pd-taskadd-cat-setup-list [data-cat-toggle-id]')) {
-            const box = e.target.closest('[data-cat-toggle-id]')
-            const wrap = document.getElementById('pd-taskadd-cat-setup')
-            const ids = wrap ? [...wrap.querySelectorAll('[data-cat-toggle-id]:checked')].map((x) => x.dataset.catToggleId) : []
-            try {
-              await pdSaveEnabledCats(ids)
-              pdRefreshSetupList()
-              if (box.checked) window.hibana?.toast(_t('cat.enabledToast', 'Category enabled'))
-            } catch { window.hibana?.toast(_t('sparks.saveFailed', "Couldn't save"), 'err') }
-          }
-        })
         ctx.on('click', (e) => {
           if (!e.target.closest('[data-pd-cats]')) return
           e.preventDefault()

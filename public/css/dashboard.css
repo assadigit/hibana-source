@@ -542,10 +542,10 @@
 }
 
 /* Coarse pointers: chips get real tap targets (were 29px tall — under the 44px law;
-   2.5rem ≈ 40px + the browser's slop area makes comfortable taps). */
+   S171: 2.5rem ≈ 40px was still a stretch — the full 2.75rem = 44px now). */
 @media (pointer: coarse) {
-  .sf-chip { padding-block: 0.45rem; min-block-size: 2.5rem; }
-  .sf-more { padding: 0.4rem 0.45rem; }
+  .sf-chip { padding-block: 0.45rem; min-block-size: 2.75rem; }
+  .sf-more { padding: 0.4rem 0.45rem; min-block-size: 2.75rem; }
 }
 
 /* Mobile ≤640px header: the h1/controls row stacks — h1 alone, then the capture
@@ -1042,6 +1042,22 @@ main.shell-dash > section { margin-block-end: 2.9rem; }
 .spark-card-title { font-weight: 600; font-size: var(--fs-sm); line-height: 1.35; }
 .spark-card-desc { margin: 0; }
 .spark-card-meta { display: flex; align-items: center; gap: 0.55rem; flex-wrap: wrap; margin-block-start: 0.15rem; }
+/* S171 (backlog): the search's WHY — the matched substring lights up in place
+   (<mark class="spark-hit">) and one small pill per match reason rides the meta
+   (Title / Description / Tag: x / Link: y / Folder: z). Token-built: the mark is a
+   brand-tinted wash, never the browser's default yellow. */
+.spark-hit {
+  background: color-mix(in srgb, var(--brand) 24%, transparent);
+  color: inherit; border-radius: 3px; padding: 0 0.06em;
+}
+.spark-hit-badges { display: inline-flex; flex-wrap: wrap; gap: 0.25rem; }
+.spark-hit-badge {
+  display: inline-flex; align-items: center;
+  font-size: var(--fs-xs); color: var(--muted);
+  border: 1px solid color-mix(in srgb, var(--line) 80%, transparent);
+  border-radius: 999px; padding: 0.02rem 0.45rem;
+  max-inline-size: 14rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
 .spark-glyphs { display: inline-flex; gap: 0.3rem; align-items: center; }
 .spark-glyph { display: inline-flex; color: var(--muted); }
 .spark-glyph .icon { inline-size: 0.9rem; block-size: 0.9rem; }
@@ -1062,11 +1078,14 @@ main.shell-dash > section { margin-block-end: 2.9rem; }
 .spark-pin:focus-visible { outline: 2px solid var(--brand); outline-offset: 1px; }
 .spark-pin.is-on { color: var(--brand); background: color-mix(in srgb, var(--brand) 14%, var(--bg-soft)); }
 .spark-card .spark-menu { position: absolute; inset-block-start: 0.5rem; inset-inline-end: 2.4rem; }
-/* spec #14: MOBILE — condensed cards (title + thumb); the first tap expands */
+/* spec #14: MOBILE — condensed cards (title + thumb); the first tap expands.
+   S171: an idea with NO image hides its empty placeholder on mobile — a grey slab
+   under every text-only card was pure noise; the thumb slot stays for real covers. */
 @media (max-width: 640px) {
   .spark-card-desc, .spark-card-meta { display: none; }
   .spark-card.is-expanded .spark-card-desc, .spark-card.is-expanded .spark-card-meta { display: block; }
   .spark-card.is-expanded .spark-card-meta { display: flex; }
+  .spark-card-thumb.is-empty { display: none; }
 }
 
 /* ---- the spark LIST (spec #9: the icon column replaces Tags/Signals) ---- */
@@ -1143,6 +1162,8 @@ main.shell-dash > section { margin-block-end: 2.9rem; }
 
 /* ---- the LEAN idea page (/spark.html) ---- */
 .spark-top { margin-block-end: 0.9rem; }
+/* S171: the WHEN line — sits right under the top row, above the layout grid. */
+.spark-meta-line { margin: 0 0 0.9rem; font-variant-numeric: tabular-nums; }
 .spark-back { display: inline-flex; align-items: center; gap: 0.3rem; }
 .spark-top-actions { gap: 0.5rem; align-items: center; }
 .spark-top-actions .spark-pin { position: static; background: var(--bg-soft); }
@@ -1159,6 +1180,15 @@ main.shell-dash > section { margin-block-end: 2.9rem; }
 .spark-field input, .spark-field textarea, .spark-field select { font: inherit; }
 .spark-tags { gap: 0.4rem; }
 .spark-tag { display: inline-flex; align-items: center; gap: 0.35rem; }
+/* S171: the tag NAME is a button (tap → the Ideas shelf searched by that tag) —
+   it must read as chip text, not as a form control: inherit the chip's type, no
+   chrome, underline only on hover/focus so the affordance is discoverable. */
+.spark-tag-name {
+  border: 0; background: transparent; color: inherit;
+  font: inherit; padding: 0; cursor: pointer; border-radius: 4px;
+}
+.spark-tag-name:hover { text-decoration: underline; text-underline-offset: 2px; }
+.spark-tag-name:focus-visible { outline: 2px solid var(--brand); outline-offset: 1px; }
 .spark-tag-x {
   border: 0; background: transparent; color: var(--muted);
   cursor: pointer; font-size: 0.72rem; padding: 0 0.1rem; border-radius: 4px;

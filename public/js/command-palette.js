@@ -113,6 +113,24 @@
       }
     } catch { /* best-effort */ }
   }
+  // S171: the Ideas shelf's folders — the palette's quick-jump into /sparks.html?folder=
+  // (the deep-link lands the folder view on the first fetch). Same once-per-session
+  // cache pattern as tags; capped at 8 rows so the empty-query palette stays scannable.
+  let cachedIdeaFolders = []
+  let ideaFoldersFetched = false
+  async function ensureIdeaFolders() {
+    if (ideaFoldersFetched) return
+    ideaFoldersFetched = true
+    try {
+      const res = await fetch('/api/projects/sparks/folders')
+      if (res.ok) {
+        const body = await res.json()
+        cachedIdeaFolders = (body.folders || []).slice(0, 8)
+        // If this resolved AFTER the list rendered, refresh so the group shows now.
+        if (dlg && dlg.open) refresh(input ? input.value : '')
+      }
+    } catch { /* best-effort */ }
+  }
   // Expose recordRecent so project.html can push to it.
   window.hibanaCmdK = window.hibanaCmdK || {}
   window.hibanaCmdK.recordRecent = (id, title, status) => {
@@ -399,6 +417,23 @@
       }
     }
 
+    // S171: Idea folders — quick-jump INTO the Ideas shelf's folder view. The ?folder=
+    // deep-link rides the first shelf fetch (sparks.html's inline stamp), so this is a
+    // true one-keypress jump, not a flash-then-land. The folder's emoji leads the row
+    // when it has one (its identity on the shelf); the plain folder glyph otherwise.
+    if (!lastQuery && cachedIdeaFolders.length) {
+      html.push('<li class="cmdk-group" role="presentation"><span class="cmdk-group-label">' + _t('cmdk.ideaFolders', 'Idea folders') + '</span></li>')
+      for (const f of cachedIdeaFolders) {
+        const idx = items.length
+        const url = '/sparks.html?folder=' + f.id
+        items.push({ kind: 'ideafolder', label: f.name, action: () => (window.hibanaNav ? window.hibanaNav.go(url) : (window.location.href = url)) })
+        html.push(`<li class="cmdk-item" role="option" data-idx="${idx}" tabindex="-1">
+          <span class="cmdk-icon">${f.icon ? '<span class="sf-emoji" aria-hidden="true">' + esc(f.icon) + '</span>' : iconSvg('folder')}</span>
+          <span class="cmdk-label">${esc(f.name)}</span>
+        </li>`)
+      }
+    }
+
     // Search results — Projects
     if (projects.length) {
       html.push('<li class="cmdk-group" role="presentation"><span class="cmdk-group-label">' + _t('cmdk.projects', 'Projects') + '</span></li>')
@@ -572,6 +607,7 @@
     loadRecent() // R4.2: refresh recent list on every open (in case project.html updated it)
     ensureTags() // R4.2: fetch tags once, cache for subsequent opens
     ensureTrashCount() // S52: same once-per-session pattern for the Trash count sublabel
+    ensureIdeaFolders() // S171: the Ideas shelf's folders, same once-per-session pattern
     input.value = ''
     refresh('')
     dlg.showModal()

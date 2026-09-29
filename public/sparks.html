@@ -10,11 +10,11 @@
   <link rel="stylesheet" href="/css/variables.css?v=21">
   <link rel="stylesheet" href="/css/base.css?v=11">
   <link rel="stylesheet" href="/css/layout.css?v=56">
-  <link rel="stylesheet" href="/css/dashboard.css?v=31">
+  <link rel="stylesheet" href="/css/dashboard.css?v=32">
   <link rel="stylesheet" href="/css/dashboard-todo.css?v=18">
   <link rel="stylesheet" href="/css/components.css?v=9">
   <link rel="stylesheet" href="/css/canvas.css?v=11">
-  <link rel="stylesheet" href="/css/quicknotes.css?v=37">
+  <link rel="stylesheet" href="/css/quicknotes.css?v=38">
   <link rel="stylesheet" href="/css/to-do-list.css?v=10">
   <link rel="stylesheet" href="/css/polish-ui.css?v=33">
   <link rel="stylesheet" href="/css/calendar.css?v=8">
@@ -37,14 +37,14 @@
   <script src="/js/hib-init.js?v=11" defer></script>
   <script src="/js/touch-drag.js?v=1" defer></script>
   <script src="/js/nav.js?v=37" defer></script>
-  <script src="/js/command-palette.js?v=17" defer></script>
+  <script src="/js/command-palette.js?v=18" defer></script>
   <script src="/js/mobile-nav.js?v=13" defer></script>
   <script src="/js/zen-mode.js?v=1" defer></script>
   <script src="/js/micro-interactions.js?v=1" defer></script>
   <script src="/js/go-to.js?v=2" defer></script>
   <script src="/js/install-prompt.js?v=1" defer></script>
-  <script src="/js/i18n-en.js?v=85" defer></script>
-  <script src="/js/i18n.js?v=139" defer></script>
+  <script src="/js/i18n-en.js?v=86" defer></script>
+  <script src="/js/i18n.js?v=140" defer></script>
   <!-- S41: the folder dialog's emoji icon picker (shared /js/emoji-picker.js —
        emoji-data.js lazy-loads on first open; docks as a bottom sheet under 640px). -->
   <script src="/js/emoji-picker.js?v=3" defer></script>
@@ -85,7 +85,7 @@
     <div class="spark-search-row" role="search">
       <div class="spark-search">
         <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l4.5 4.5"/></svg>
-        <input id="sparks-q" type="search" placeholder="Search ideas…" data-i18n-placeholder="sparks.search" data-i18n-aria-label="sparks.searchAria" aria-label="Search ideas — title, description, links, tags, folder" autocomplete="off" maxlength="200">
+        <input id="sparks-q" type="search" name="q" placeholder="Search ideas…" data-i18n-placeholder="sparks.search" data-i18n-aria-label="sparks.searchAria" aria-label="Search ideas — title, description, links, tags, folder" autocomplete="off" maxlength="200">
         <button type="button" id="sparks-q-clear" hidden data-i18n-title="sparks.searchClear" title="Clear search" aria-label="Clear search" data-i18n-aria-label="sparks.searchClear"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
       </div>
       <span id="sparks-q-count" class="muted small" aria-live="polite"></span>
@@ -125,13 +125,32 @@
             __inp.dataset.folderName = __sf.name || ''
           }
         }
+        // S171: URL deep-links WIN over the stored pref — they run during parse, before
+        // htmx's load trigger, so the FIRST fetch already carries them (no flash):
+        //   ?folder=<uuid>|none  — the palette's idea-folder quick-jump target
+        //   ?q=<text>            — the lean page's tag-click search target
+        var __u = new URLSearchParams(location.search)
+        var __df = __u.get('folder')
+        if (__df === 'none' || /^[0-9a-f-]{36}$/i.test(__df || '')) {
+          var __inp2 = document.getElementById('spark-folder')
+          if (__inp2) { __inp2.value = __df; __inp2.dataset.folderName = '' }
+          try { localStorage.setItem('hibana-sparks-folder', JSON.stringify({ id: __df, name: '' })) } catch (e2) { /* storage unavailable */ }
+        }
+        var __dq = __u.get('q')
+        if (__dq) {
+          var __si = document.getElementById('sparks-q')
+          if (__si) __si.value = __dq.slice(0, 200)
+        }
       } catch (e) { /* storage unavailable — boot folder-less, the grid home */ }
     </script>
     <!-- Phase 6 item 3: the view rides the poll exactly like the folder selection —
          hx-include serializes BOTH hidden inputs (outside the swap target) so the 30s
-         poll never resets the view or the folder filter. -->
+         poll never resets the view or the folder filter. S171: #sparks-q (name="q")
+         joins them — an ACTIVE search now survives the 30s poll (it used to be
+         silently wiped: the poll refetched with folder+view only) and the ?q=
+         deep-link rides the initial load natively. -->
     <input type="hidden" id="spark-view" name="view" value="cards">
-    <div id="spark-shelf" hx-get="/api/projects?status=spark" hx-trigger="load, every 30s" hx-include="#spark-folder,#spark-view" hx-swap="innerHTML" hx-indicator="#shelf-loading"></div>
+    <div id="spark-shelf" hx-get="/api/projects?status=spark" hx-trigger="load, every 30s" hx-include="#spark-folder,#spark-view,#sparks-q" hx-swap="innerHTML" hx-indicator="#shelf-loading"></div>
   </main>
 
   <!-- S46.2: the unified + chooser (new note / new idea / new project) — same markup
@@ -164,7 +183,7 @@
   </div>
 
   <script src="/js/resume.js?v=11" defer></script>
-  <script src="/js/sparks-page.js?v=11" defer></script>
+  <script src="/js/sparks-page.js?v=12" defer></script>
   <script src="/js/image-crop.js?v=2" defer></script>
 </body>
 </html>

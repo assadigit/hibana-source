@@ -590,6 +590,53 @@ export async function loadSparkThumbs(cfg: Config, projects: ProjectRow[]): Prom
 }
 
 export interface SparkPresence { links: number; images: number }
+
+/** S171 (backlog): the search's per-row match reasons — WHY this row is in the
+ *  result set. title/desc are matched in-process (indexOf on the lowercased text —
+ *  SQLite LIKE folds ASCII case only, and toLowerCase() reproduces exactly that for
+ *  ASCII; Persian has no case); tags/links/folder come from the server's matched-name
+ *  queries in index.ts. Rendered as the honest badges on every spark view. */
+export interface SparkHit {
+  title?: boolean
+  desc?: boolean
+  tags?: string[]
+  links?: string[]
+  folder?: string
+}
+
+/** S171: the search highlight — wrap the query's substring in a <mark> so the eye
+ *  sees WHERE the query landed. Each slice is HTML-escaped independently (an
+ *  escaped entity can never be split — the palette hl()'s contract). A query that
+ *  doesn't substring-match the text (matched via another field) renders plain. */
+export function hlSpark(text: string | null | undefined, q: string | undefined): string {
+  const safe = String(text ?? '')
+  if (!q) return esc(safe)
+  const idx = safe.toLowerCase().indexOf(q.toLowerCase())
+  if (idx < 0) return esc(safe)
+  return esc(safe.slice(0, idx)) + '<mark class="spark-hit">' + esc(safe.slice(idx, idx + q.length)) + '</mark>' + esc(safe.slice(idx + q.length))
+}
+
+/** S171: the match badges — one small pill per reason (Title/Description/Tag: x/
+ *  Link: y/Folder: z), capped at 4 + a “+N” overflow so a broad query can't bury the
+ *  card under its own badges. Empty hit → no badges (a title match alone stays clean). */
+export function sparkHitBadgesHtml(hit: SparkHit | undefined, lang: Locale): string {
+  if (!hit) return ''
+  const badges: string[] = []
+  if (hit.title) badges.push(trL(lang, 'Title', 'عنوان'))
+  if (hit.desc) badges.push(trL(lang, 'Description', 'توضیح'))
+  const extra = (hit.tags?.length || 0) + (hit.links?.length || 0) + (hit.folder ? 1 : 0)
+  if (extra > 4) {
+    badges.push(trL(lang, '{n} more fields', '{n} زمینهٔ دیگر', { n: faDigitsIf(lang, extra) }))
+    return `<span class="spark-hit-badges" dir="auto">${badges.map((b) => `<span class="spark-hit-badge">${esc(b)}</span>`).join('')}</span>`
+  }
+  for (const t of hit.tags || []) badges.push(trL(lang, 'Tag: {n}', 'برچسب: {n}', { n: t }))
+  for (const l of hit.links || []) badges.push(trL(lang, 'Link: {n}', 'پیوند: {n}', { n: l }))
+  if (hit.folder) badges.push(trL(lang, 'Folder: {n}', 'پوشه: {n}', { n: hit.folder }))
+  if (!badges.length) return ''
+  return `<span class="spark-hit-badges" dir="auto">${badges.map((b) => `<span class="spark-hit-badge">${esc(b)}</span>`).join('')}</span>`
+}
+
+const faDigitsIf = (lang: Locale, n: number): string => (lang === 'fa' ? faDigits(String(n)) : String(n))
 /** Spec #9's icon column (batched): per-idea link + image counts — the glyphs that
  *  replace the dead Signals column and the always-empty Tags column. */
 export async function loadSparkLinkPresence(cfg: Config, projectIds: string[]): Promise<Map<string, SparkPresence>> {
@@ -676,20 +723,22 @@ export function sparkCardHtml(
   thumb: SparkThumbMeta | undefined,
   presence: SparkPresence | undefined,
   lang: Locale,
+  hit?: SparkHit,
+  q?: string,
 ): string {
   const th = thumb?.shotId
     ? sparkThumbHtml(thumb.shotId, thumb.isManual, 'spark-card-thumb', lang)
     : `<span class="spark-card-thumb is-empty" aria-hidden="true">${icon('image')}</span>`
   const desc = p.description
-    ? `<span class="spark-card-desc muted small clip-2" dir="auto">${esc(p.description)}</span>`
+    ? `<span class="spark-card-desc muted small clip-2" dir="auto">${hlSpark(p.description, q)}</span>`
     : ''
   return `<article class="card spark-card${p.pinned_at ? ' is-pinned' : ''}" draggable="true" data-project-id="${p.id}" data-pinned="${p.pinned_at ? '1' : '0'}">
     <a class="spark-card-link" href="/spark.html?id=${p.id}" data-spark-expand>
       ${th}
       <span class="spark-card-body">
-        <span class="spark-card-title" dir="auto" data-magic data-magic-save="/api/projects/${p.id}" data-magic-field="title">${esc(p.title)}</span>
+        <span class="spark-card-title" dir="auto" data-magic data-magic-save="/api/projects/${p.id}" data-magic-field="title">${hlSpark(p.title, q)}</span>
         ${desc}
-        <span class="spark-card-meta muted small">${sparkPresenceGlyphs(presence, lang)}<span>${trL(lang, 'Updated {t}', 'به‌روزرسانی {t}', { t: timeAgo(p.updated_at, lang) })}</span></span>
+        <span class="spark-card-meta muted small">${sparkPresenceGlyphs(presence, lang)}<span>${trL(lang, 'Updated {t}', 'به‌روزرسانی {t}', { t: timeAgo(p.updated_at, lang) })}</span>${sparkHitBadgesHtml(hit, lang)}</span>
       </span>
     </a>
     ${sparkPinBtn(p, lang)}
@@ -706,6 +755,8 @@ export function sparkListFragment(
   lang: Locale,
   thumbs: Map<string, SparkThumbMeta>,
   presence: Map<string, SparkPresence>,
+  hits?: Map<string, SparkHit>,
+  q?: string,
 ): string {
   const pinnedCount = projects.filter((p) => p.pinned_at).length
   if (view === 'list') {
@@ -718,7 +769,7 @@ export function sparkListFragment(
       const t = thumbs.get(p.id)
       const th = t?.shotId ? sparkThumbHtml(t.shotId, t.isManual, 'spark-row-thumb', lang) : ''
       return `<tr draggable="true" data-project-id="${p.id}" data-pinned="${p.pinned_at ? '1' : '0'}">
-        <td class="spark-row-title">${th}<a href="/spark.html?id=${p.id}" dir="auto" data-magic data-magic-save="/api/projects/${p.id}" data-magic-field="title">${esc(p.title)}</a></td>
+        <td class="spark-row-title">${th}<a href="/spark.html?id=${p.id}" dir="auto" data-magic data-magic-save="/api/projects/${p.id}" data-magic-field="title">${hlSpark(p.title, q)}</a>${sparkHitBadgesHtml(hits?.get(p.id), lang)}</td>
         <td class="spark-row-ico">${sparkPinBtn(p, lang)}${sparkPresenceGlyphs(presence.get(p.id), lang)}</td>
         <td class="muted small">${timeAgo(p.updated_at, lang)}</td>
       </tr>`
@@ -729,9 +780,9 @@ export function sparkListFragment(
     return `<div class="sticky-board${pinnedCount > 5 ? ' pins-compact' : ''}">${projects.map((p) => {
       const t = thumbs.get(p.id)
       const th = t?.shotId ? sparkThumbHtml(t.shotId, t.isManual, 'spark-sticky-thumb', lang) : ''
-      const desc = p.description ? `<span class="muted small">${esc(p.description.slice(0, 80))}…</span>` : ''
+      const desc = p.description ? `<span class="muted small">${hlSpark(p.description.slice(0, 80), q)}…</span>` : ''
       return `<article class="sticky-note${p.pinned_at ? ' is-pinned' : ''}" draggable="true" data-project-id="${p.id}" data-nav-url="/spark.html?id=${p.id}">
-        ${th}<strong dir="auto" data-magic data-magic-save="/api/projects/${p.id}" data-magic-field="title">${esc(p.title)}</strong>${desc}
+        ${th}<strong dir="auto" data-magic data-magic-save="/api/projects/${p.id}" data-magic-field="title">${hlSpark(p.title, q)}</strong>${desc}${sparkHitBadgesHtml(hits?.get(p.id), lang)}
         ${sparkPinBtn(p, lang)}
       </article>`
     }).join('') || '<div class="empty">' + trL(lang, 'No ideas here yet.', 'هنوز ایده‌ای اینجا نیست.') + '</div>'}</div>`
@@ -739,11 +790,11 @@ export function sparkListFragment(
   // cards (the default)
   if (!projects.length) return ''
   return `<div class="card-grid spark-grid${pinnedCount > 5 ? ' pins-compact' : ''}">${projects
-    .map((p) => sparkCardHtml(p, thumbs.get(p.id), presence.get(p.id), lang))
+    .map((p) => sparkCardHtml(p, thumbs.get(p.id), presence.get(p.id), lang, hits?.get(p.id), q))
     .join('')}</div>`
 }
 
-export function sparkKanbanHtml(projects: ProjectRow[], folders: (SparkFolderRow & { n: number })[], lang: Locale): string {
+export function sparkKanbanHtml(projects: ProjectRow[], folders: (SparkFolderRow & { n: number })[], lang: Locale, hits?: Map<string, SparkHit>, q?: string): string {
   const dig = (n: number) => (lang === 'fa' ? faDigits(String(n)) : String(n))
   // S41: a folder with an emoji leads its column with the emoji (not folder-plus).
   // S161: every column head carries the folder's PASTEL DOT (its identity color —
@@ -752,8 +803,8 @@ export function sparkKanbanHtml(projects: ProjectRow[], folders: (SparkFolderRow
   const col = (key: string, label: string, rows: ProjectRow[], glyph: string, fill: string) => `<div class="kanban-col" data-spark-folder="${key}">
     <h4 class="kanban-col-head"><span class="spark-kb-glyph" aria-hidden="true">${glyph}</span><span class="kanban-col-label">${esc(label)}</span><span class="sf-dot" style="background:${fill}" aria-hidden="true"></span><b class="board-count">${dig(rows.length)}</b></h4>
     ${rows.map((p) => `<div class="card kanban-card" draggable="true" data-project-id="${p.id}" data-nav-url="/spark.html?id=${p.id}">
-      <strong dir="auto" data-magic data-magic-save="/api/projects/${p.id}" data-magic-field="title">${esc(p.title)}</strong>
-      <div class="muted small">${timeAgo(p.updated_at, lang)}</div>
+      <strong dir="auto" data-magic data-magic-save="/api/projects/${p.id}" data-magic-field="title">${hlSpark(p.title, q)}</strong>
+      <div class="muted small">${timeAgo(p.updated_at, lang)}</div>${sparkHitBadgesHtml(hits?.get(p.id), lang)}
     </div>`).join('') || `<div class="kanban-empty">${trL(lang, 'Drop here', 'اینجا رها کن')}</div>`}
   </div>`
   const byFolder = (fid: string | null) => projects.filter((p) => (p.folder_id ?? null) === fid)

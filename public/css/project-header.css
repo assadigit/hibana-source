@@ -223,14 +223,21 @@
    the hint, with a quiet dashed border so the column reads as "intentionally empty". */
 .pd-board-empty p { color: var(--muted); font-size: var(--fs-sm); line-height: 1.5; margin: 0; }
 .pd-board-grid {
-  display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr)); /* 0031: red Problems column; batch (s) ⑩: second slot */
+  /* S175 (owner round): the board row is a FLEX track now (was a fixed 5×1fr grid)
+     — a folded box shrinks to fit-content and the remaining boxes GROW into the
+     freed width (flex-basis 0 + grow 1 keeps the equal-share default the grid had,
+     so an all-open board renders pixel-identical to the old layout). 0031: the red
+     Problems column keeps its second slot. */
+  display: flex;
+  flex-wrap: wrap;
   gap: 0.6rem;
+  align-items: stretch; /* grid lines stretched — flex lines stretch too (equal-height boxes) */
 }
-@media (max-width: 900px) { .pd-board-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
-/* minmax(0,…) — a bare 1fr track takes min-content of long FA titles and overflows
+.pd-board-grid > .pd-col { flex: 1 1 0; min-inline-size: 0; } /* S175: the 1fr twin — zero basis, equal share */
+@media (max-width: 900px) { .pd-board-grid > .pd-col { flex: 1 1 calc(50% - 0.3rem); } } /* S175: the 2-up row (was repeat(2, …)) */
+/* min-inline-size: 0 — a bare 1fr track took min-content of long FA titles and overflowed
    the card on 390px (RTL bleeds left); zero minimum lets the title wrap instead */
-@media (max-width: 540px) { .pd-board-grid { grid-template-columns: minmax(0, 1fr); } }
+@media (max-width: 540px) { .pd-board-grid > .pd-col { flex: 1 1 100%; } } /* S175: the phone stack (was minmax(0,1fr)) */
 .pd-col {
   display: grid;
   gap: 0.35rem;
@@ -240,6 +247,49 @@
   border-radius: var(--radius-sm);
   background: transparent; /* pastel stage coding lives on the edge/header, not a fill */
 }
+/* S175 (owner round): the FOLDED box — collapses to its header chip (chevron + title
+   + count). The card list and the Add button hide entirely; the action cluster folds
+   away too (nothing to copy/export while folded). inline-size: fit-content lets the
+   flex row shrink the box below its equal share and hand the freed width to the
+   remaining boxes — the whole point of folding. Deliberately AFTER the phone-stack
+   media query above: equal specificity, source order wins — a folded box stays a
+   narrow chip on phones too (folding saves vertical scroll there, not width). */
+.pd-col[data-collapsed] {
+  flex: 0 1 auto;
+  inline-size: -moz-fit-content;
+  inline-size: fit-content;
+  max-inline-size: 100%;
+}
+.pd-col[data-collapsed] > .pd-tasks,
+.pd-col[data-collapsed] > .pd-task-add { display: none; }
+.pd-col[data-collapsed] .pd-col-actions { display: none; }
+/* S175: the collapse chevron — a quiet icon button leading the header strip; ▼ marks
+   the open box, the 180° flip (▲) the folded one (direction-neutral — no RTL branch).
+   padding:0 — the global button padding would inflate the fixed square (the S174
+   ellipse lesson); the hover spell carries BOTH background + color because global
+   button:hover (0,1,1) leaks its green fill + white ink under quiet icon buttons. */
+.pd-col-collapse {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  inline-size: 1.75rem;
+  block-size: 1.75rem;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--pd-ink, var(--muted));
+  cursor: pointer;
+  transition: background-color 0.12s ease;
+}
+.pd-col-collapse .icon { inline-size: 1rem; block-size: 1rem; transition: transform 0.15s ease; }
+.pd-col-collapse:hover { background: rgb(var(--pd-c) / 0.2); color: var(--pd-ink, var(--muted)); }
+.pd-col-collapse:focus-visible { outline: 2px solid var(--brand); outline-offset: 1px; }
+.pd-col[data-collapsed] .pd-col-collapse .icon { transform: rotate(180deg); }
+@media (prefers-reduced-motion: reduce) { .pd-col-collapse .icon { transition: none; } }
+/* the house touch contract — 44px on coarse pointers (the header strip grows to host it) */
+@media (pointer: coarse) { .pd-col-collapse { inline-size: 44px; min-block-size: 44px; } }
 /* S99 (the column arrival cue): a #pd-col-<status> landing (the rail tree's leaf
    rows) marks the EXACT column — the accent frame + the 3px inline-start lead
    edge joining the accent + a 1.6s ring flash (the same treatment the S97 board

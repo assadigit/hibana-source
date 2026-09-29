@@ -433,14 +433,24 @@ export function detailHtml(p: ProjectRow, d: Awaited<ReturnType<typeof loadDetai
           const top = items.slice(0, MAX_VISIBLE)
           const hiddenCount = items.length - MAX_VISIBLE
           return `<div class="pd-col" id="pd-col-${col.key}" data-status="${col.key}">
-            <div class="pd-col-head"><span class="pd-col-title">${trL(lang, col.en, col.fa)}</span><span class="detail-tab-count" data-pd-count="${col.key}" data-n="${items.length}">${dig(items.length)}</span>
+            <div class="pd-col-head">
+              <!-- S175 (owner round): the COLLAPSE chevron — every progress box can fold
+                   down to its header chip (folding frees width for the remaining boxes:
+                   the grid is a flex row now, a collapsed box shrinks to fit-content).
+                   State is client-owned: project-page.js toggles [data-collapsed] on the
+                   column + persists to the 'hibana-pd-cols-collapsed' localStorage store
+                   (the dashboard's collapse contract), so a box STAYS folded across
+                   visits until the owner unfolds it. ▼ expanded / ▲ folded (180° flip —
+                   direction-neutral, no RTL branch). -->
+              <button type="button" class="pd-col-collapse" data-pd-col-collapse aria-expanded="true" aria-controls="pd-tasks-${col.key}" title="${trL(lang, 'Collapse / expand this box', 'جمع / باز کردن این جعبه')}" aria-label="${trL(lang, 'Collapse / expand this box', 'جمع / باز کردن این جعبه')}"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></button>
+              <span class="pd-col-title">${trL(lang, col.en, col.fa)}</span><span class="detail-tab-count" data-pd-count="${col.key}" data-n="${items.length}">${dig(items.length)}</span>
               <span class="pd-col-actions">
                 ${col.key === 'done' ? `<button type="button" class="ghost small" data-pd-archive-done title="${trL(lang, 'Archive done tasks', 'بایگانی کارهای انجام‌شده')}" aria-label="${trL(lang, 'Archive done tasks', 'بایگانی کارهای انجام‌شده')}">${icon('archive')}</button>` : ''}
                 <button type="button" class="ghost small" data-pd-copy="${col.key}" title="${trL(lang, 'Copy items as bullet points', 'کپی موارد به صورت بولت')}" aria-label="${trL(lang, 'Quick copy', 'کپی سریع')}">${icon('clipboard')}</button>
                 <button type="button" class="ghost small" data-pd-export="${col.key}" title="${trL(lang, 'Export as Markdown', 'خروجی مارک‌داون')}" aria-label="${trL(lang, 'Export Markdown', 'خروجی مارک‌داون')}">${icon('download')}</button>
               </span>
             </div>
-            <div class="pd-tasks" data-pd-tasks="${col.key}" data-pd-total="${items.length}">
+            <div class="pd-tasks" id="pd-tasks-${col.key}" data-pd-tasks="${col.key}" data-pd-total="${items.length}">
               ${top.map((t) => `<div class="pd-task-wrap" data-pd-task="${t.id}" data-pd-status="${t.status}" data-pd-created="${t.created_at}" data-pd-priority="${t.priority}" data-pd-tags="${taskTagsAttr(t.id)}" data-pd-cat="${t.category_id ?? ''}"${t.done_at ? ` data-pd-done="${t.done_at}"` : ''}>
                 <button type="button" class="prio-banner prio-${t.priority || 'medium'}" data-pd-cycle-prio title="${esc(trL(lang, 'Priority: {p} — click to change', 'اولویت: {p} — برای تغییر کلیک کن', { p: prioLabel(t.priority || 'medium') }))}" aria-label="${esc(trL(lang, 'Priority: {p} — click to change', 'اولویت: {p} — برای تغییر کلیک کن', { p: prioLabel(t.priority || 'medium') }))}"><span class="prio-banner-label">${esc(prioLabel(t.priority || 'medium'))}</span></button>
                 <div class="pd-task st-${t.status}" draggable="true" role="button" tabindex="0" aria-label="${esc(t.title)}">

@@ -815,6 +815,22 @@ input.qe-name,
 .prio-banner.prio-low { background: var(--prio-banner-low); color: var(--prio-banner-ink-low); }
 /* the card under a banner loses its START corners so the strip reads fused (the screenshot) */
 .prio-banner + .pd-task { border-start-start-radius: 0; border-start-end-radius: 0; }
+/* S175 (owner round): DONE items lose their priority coding — the banner turns pale
+   and faded ("they're done — no point showing the priority color coding"). Scope:
+   the DONE box's own list container (.pd-tasks[data-pd-tasks="done"]) — covers the
+   project page's board AND the fullscreen board (same container attr, one rule), and
+   stays correct as cards MOVE without any per-card state to sync (every move path
+   re-parents the wrap; drag-into-done fades on arrival, drag-out restores). The pale
+   fill is a color-mix of the medium token into the card surface — priority-agnostic
+   by design, both themes keep their own tokens. Hover restores full presence: the
+   banner is still the priority-cycle button. Specificity (0,3,0) out-ranks the
+   per-priority fills (0,2,0) — no !important needed. */
+.pd-tasks[data-pd-tasks='done'] .prio-banner {
+  background: color-mix(in srgb, var(--prio-banner-medium) 18%, var(--card));
+  color: var(--muted);
+  opacity: 0.7;
+}
+.pd-tasks[data-pd-tasks='done'] .prio-banner:hover { opacity: 1; }
 /* S136: the .db-card mirror of this block is RETIRED — board.html renders the exact
    .pd-task-wrap / .pd-task anatomy now, so the recipes above style BOTH boards and
    the duplicate (which had already drifted once — see its Session 22 note) is gone. */

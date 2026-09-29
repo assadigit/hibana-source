@@ -1267,12 +1267,16 @@
         // Re-select the tab that was OPEN before htmx swaps #project-body (status change
         // re-renders). The old code always forced Notes — a save from any other tab yanked
         // the user's view back. Default stays Notes (first tab in the (p) order).
+        // S175: the board re-render also RE-FOLDS the collapsed boxes — the server always
+        // ships them open, so the folded set is re-applied on every sweep (the same
+        // remember-the-user's-place contract as pdActiveTab).
         for (const evt of ['htmx:afterSwap', 'afterSwap']) {
           ctx.on(evt, (e) => {
             if (e.target?.id === 'project-body' || e.detail?.target?.id === 'project-body') {
               switchTab(pdActiveTab)
               pdConsumeHash()
               pdConsumeColHash()
+              pdApplyCollapsed()
             }
           })
         }
@@ -1318,6 +1322,48 @@
         // A hash naming no real column stays quietly pending — never mark on a
         // bogus fragment. The SCROLL is nav.js's S95 section-anchor system.
         let pdColHashPending = /^#pd-col-([a-z_]+)$/.test(location.hash)
+        // --- S175 (owner round): collapsible progress-board boxes -------------------
+        // Every box header carries a [data-pd-col-collapse] chevron. Folding hides the
+        // box's card list + Add button + action cluster (CSS via [data-collapsed] on the
+        // column) and — the point — shrinks the box to fit-content so the REMAINING
+        // boxes grow into the freed width (the board row is a flex track now).
+        // PERSISTENCE (the owner's ask: "it must remain collapsed until the user
+        // de-collapse them"): the folded set lives in the 'hibana-pd-cols-collapsed'
+        // localStorage store — the dashboard's collapse contract (app.js
+        // 'hibana-dash-collapsed'), so the pattern is one users already know. GLOBAL by
+        // column key (not per project): the fold is a property of the BOARD UI ("I keep
+        // Ideas folded"), and the phrase was about the section, not one project.
+        // Re-applied on every #project-body sweep (the tab-remember contract above) and
+        // unfolded by a #pd-col-<status> deep-link (pdConsumeColHash below). Declared
+        // BEFORE pdConsumeColHash — the const must not sit in its TDZ when the initial
+        // pdConsumeColHash() call runs against an already-swept board (soft-nav re-exec).
+        const PD_COLLAPSE_KEY = 'hibana-pd-cols-collapsed'
+        function pdCollapsedGet() { try { return JSON.parse(localStorage.getItem(PD_COLLAPSE_KEY) || '[]') } catch { return [] } }
+        function pdCollapsedSet(arr) { try { localStorage.setItem(PD_COLLAPSE_KEY, JSON.stringify(arr)) } catch { /* storage blocked — session-only folding */ } }
+        function pdApplyCollapsed() {
+          const folded = pdCollapsedGet()
+          document.querySelectorAll('#pd-board .pd-col[data-status]').forEach((col) => {
+            const on = folded.includes(col.dataset.status)
+            if (on) col.setAttribute('data-collapsed', '')
+            else col.removeAttribute('data-collapsed')
+            const btn = col.querySelector('[data-pd-col-collapse]')
+            if (btn) btn.setAttribute('aria-expanded', on ? 'false' : 'true')
+          })
+        }
+        ctx.on('click', (e) => {
+          const btn = e.target.closest('[data-pd-col-collapse]')
+          if (!btn || !btn.closest('#pd-board')) return
+          e.preventDefault()
+          const col = btn.closest('.pd-col')
+          if (!col || !col.dataset.status) return
+          const folded = pdCollapsedGet()
+          const idx = folded.indexOf(col.dataset.status)
+          if (idx === -1) folded.push(col.dataset.status)
+          else folded.splice(idx, 1)
+          pdCollapsedSet(folded)
+          pdApplyCollapsed()
+        })
+        pdApplyCollapsed()
         function pdConsumeColHash() {
           if (!pdColHashPending) return
           const m = /^#pd-col-([a-z_]+)$/.exec(location.hash)
@@ -1325,6 +1371,17 @@
           if (!col) return // the board hasn't been swept yet — stays pending
           pdColHashPending = false
           col.classList.add('q-arrived')
+          // S175: a deep-link to a box means "show me its contents" — if that box was
+          // left folded, unfold it (the fold is a layout preference, never a wall
+          // between the rail tree and its leaf).
+          const foldKey = col.dataset.status
+          const folded = pdCollapsedGet()
+          const fi = folded.indexOf(foldKey)
+          if (foldKey && fi >= 0) {
+            folded.splice(fi, 1)
+            pdCollapsedSet(folded)
+            pdApplyCollapsed()
+          }
         }
         pdConsumeColHash()
 
@@ -4882,13 +4939,33 @@
           if (!col) return
           e.preventDefault()
           if (pdOver !== col) { pdClearOver(); pdOver = col; col.classList.add('drag-over') }
+          // S175: a FOLDED box is a drop TARGET but not a placement preview — the card
+          // stays visible in its source list while the narrow chip highlights; the DROP
+          // itself unfolds the box and lands the card (pdCompleteDrop's hint).
+          if (col.hasAttribute('data-collapsed')) return
           pdPlaceInList(col, pdDrag, e.clientX, e.clientY)
         })
         // S151: the drop CONTRACT is a named function so the touch path (below) can
         // land through the exact same PATCH + same-beat repaint flow — one drop
         // implementation for the mouse and the finger, nothing to drift.
-        async function pdCompleteDrop(el) {
-          const col = el.closest('.pd-col')
+        async function pdCompleteDrop(el, hintCol) {
+          // S175: the pointer names the destination FIRST — a drop onto a FOLDED box
+          // unfolds it (the fold is a layout preference, not a wall) and pre-parents
+          // the card into its list so the destination read below finds the fold's
+          // column, not the card's source. Mouse drops pass e.target's column; touch
+          // drops pass the tracked pdOver. Null/gone hints fall back to the card's
+          // current parent (the unchanged pre-S175 contract).
+          const hint = hintCol && hintCol.isConnected && hintCol.dataset.status ? hintCol : null
+          if (hint && hint !== el.closest('.pd-col') && hint.hasAttribute('data-collapsed')) {
+            const foldKey = hint.dataset.status
+            const folded = pdCollapsedGet()
+            const fi = folded.indexOf(foldKey)
+            if (fi >= 0) { folded.splice(fi, 1); pdCollapsedSet(folded) }
+            pdApplyCollapsed()
+            const hintList = hint.querySelector('.pd-tasks')
+            if (hintList) hintList.appendChild(el)
+          }
+          const col = (hint && hint.contains(el)) ? hint : el.closest('.pd-col')
           const from = el.dataset.pdStatus
           const to = col ? col.dataset.status : from
           pdClearOver()
@@ -5013,7 +5090,10 @@
           e.preventDefault()
           const el = pdDrag
           pdDrag = null
-          return pdCompleteDrop(el)
+          // S175: the pointer's column rides along as the drop hint (a folded box can
+          // be the destination without ever having hosted the placement preview).
+          const hint = e.target instanceof Element ? e.target.closest('#pd-board .pd-col') : null
+          return pdCompleteDrop(el, hint)
         })
         ctx.on('dragend', () => {
           pdClearOver()
@@ -5079,16 +5159,21 @@
             const under = document.elementFromPoint(t.clientX, t.clientY)
             const colEl = under && under.closest ? under.closest('#pd-board .pd-col') : null
             if (colEl && pdOver !== colEl) { pdClearOver(); pdOver = colEl; colEl.classList.add('drag-over') }
-            if (colEl) pdPlaceInList(colEl, pdTouch.wrap, t.clientX, t.clientY)
+            // S175: a FOLDED box highlights as a target but takes no placement preview
+            // (same contract as the mouse dragover above — the drop unfolds + lands).
+            if (colEl && !colEl.hasAttribute('data-collapsed')) pdPlaceInList(colEl, pdTouch.wrap, t.clientX, t.clientY)
           }, { passive: false })
           document.addEventListener('touchend', () => {
             if (!pdTouch) return
             const wasActive = pdTouch.active
             const wrap = pdTouch.wrap
+            // S175: capture the highlighted column BEFORE the reset clears pdOver —
+            // the finger's release point names the destination (folded-box unfolds).
+            const hint = wasActive ? pdOver : null
             pdTouchReset()
             if (!wasActive) return
             pdSuppressClickUntil = Date.now() + 450
-            pdCompleteDrop(wrap)
+            pdCompleteDrop(wrap, hint)
           })
           document.addEventListener('touchcancel', () => pdTouchReset())
           // an active drag must not pop the OS context menu (Android long-press)

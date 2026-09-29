@@ -259,3 +259,71 @@ Stage Summary:
   esbuild filename skew from S168 did NOT recur (all 9 dist hashes matched
   the runner's); (d) live probe timing: give the dialog's async paint a beat
   before declaring "no rows".
+
+## S174 — THE CATEGORIES DELETE + THE CIRCLE PALETTE (v0.4.1.1)
+
+Task ID: S174
+Agent: main (Z.ai Code)
+Task: Owner directive — "Add option to delete category in setting, currently
+it's only 'archive mode'; also the color pallete to choose for that category
+is too big, make them circles."
+
+Work Log:
+- Backend: DELETE /api/categories/:id added next to the archive POST in
+  src/routes/categories.ts — ONE transaction (dev_tasks.category_id → NULL,
+  project_categories rows dropped, the category row deleted), mirroring the
+  0062 FK declarations (SET NULL + CASCADE) explicitly so the outcome never
+  depends on the engine's foreign_keys mode; works on archived ids too.
+- Frontend (settings-page.js): the row actions become Edit / Archive /
+  Delete (danger ghost, title hint); the confirm spells out the difference
+  ("tasks stay but lose their category chip — archive instead to keep it");
+  toast "Category deleted"; the handler rides the existing delegated click
+  listener (data-cat-delete), reload via the same load().
+- Circles (quicknotes.css): .pd-cat-swatches becomes a wrapping flex row;
+  .pd-cat-swatch-tile becomes a fixed 1.9rem circle (2.05rem ≤480px),
+  border-radius 50%, "Aa" ink preview kept, the selection ring rebuilt as
+  box-shadow (inset hairline + 2px var(--card) gap + 4px var(--text) ring —
+  round on every engine, unlike outline). QA caught the global button
+  padding (0.55rem 1rem) inflating the fixed-size flex item into a 32×30
+  ellipse (min-width:auto floors at content+padding; the old 1fr grid masked
+  it) → padding: 0 on the tile.
+- project-page.js: pdSwatchGridHtml's buttons now carry the
+  .pd-cat-swatch-tile class — the composer/editor quick-add swatches were
+  UNSTYLED bare buttons since S152 (no class, no CSS match); one class now,
+  circles everywhere.
+- i18n: +3 keys ×2 (cat.deleteConfirm / cat.deleted / cat.deleteHint) —
+  parity 1549/1549.
+- Cache-bust: quicknotes v38→v40 ×25 (the padding fix landed under v39 and
+  the QA browser served the STALE v39 from HTTP cache — the edit-after-bump
+  re-bump rule caught live), settings-page v15→v16, project-page v70→v71,
+  i18n-en v86→v87 ×26, i18n.js v140→v141 ×26 + fa loader v80→v81; sw.js
+  VERSION v408→v409 (settings.html + project.html are SHELL-precached).
+- package.json 0.4.1.0→0.4.1.1.
+- GATES: typecheck 0 · vitest 539/539 · eslint 0 errors (163-warn baseline)
+  · node --check on all touched JS · build 78 · wiring (canonical) ·
+  cache-bust PASS (6 files) · parity 1549/1549 · FULL e2e 290/290 in 5
+  sequential file-batches (the sandbox reaps detached processes between
+  agent tool calls — a single 15-min playwright run cannot survive; each
+  batch ran inside one call: 70 + 84 + 51 + 79 + 6).
+- AGENT-BROWSER QA (:3017, fresh seeded owner via qa/seed-s174-qa.mjs):
+  EN + FA/RTL + claude-dark + 390px; the delete flow driven END-TO-END in
+  both languages (create → confirm copy verified verbatim EN+FA → row gone
+  → toast); THE SEMANTIC PIN: a task wearing the deleted category SURVIVES
+  chipless (DB checked: category_id NULL, enables 0, categories 0); circles
+  verified by computed style on all three surfaces (add form, edit row,
+  picker: 30.39×30.39, ratio 1.000, radius 50%, padding 0; ring shadow chain
+  read in dark); recolor-via-circle PATCH round-trip; 44px action buttons at
+  390px, zero h-overflow; 0 console errors.
+
+Stage Summary:
+- LIVE: hibana.ir @ v0.4.1.1 (after push + CI/CD) — Settings → Categories
+  rows carry Delete; every swatch palette is 16 small circles.
+- Ops lessons: (a) node -e inside double-quoted bash mangles `${…}` — the
+  PBKDF2 seed hash got corrupted and the QA login failed until a real .mjs
+  seed file ran (the D1-discipline rule generalizes to ALL node -e);
+  (b) the sandbox reaper kills backgrounded processes when the agent's
+  tool-call shell exits unless they ride a subshell+nohup — the QA server
+  survived that way, the detached playwright run did not (5 foreground
+  batches are the workaround); (c) the edit-after-bump re-bump discipline
+  caught a REAL stale-cache serving mid-round (v39 served from HTTP cache
+  after the file changed under the same URL).

@@ -879,6 +879,7 @@
                 '<span class="pd-cat-row-actions">' +
                   '<button type="button" class="ghost small" data-cat-rename="' + escH(cRow.id) + '">' + escH(tC('common.edit', 'Edit')) + '</button>' +
                   '<button type="button" class="ghost small danger" data-cat-archive="' + escH(cRow.id) + '">' + escH(tC('cat.archive', 'Archive')) + '</button>' +
+                  '<button type="button" class="ghost small danger" data-cat-delete="' + escH(cRow.id) + '" title="' + escH(tC('cat.deleteHint', 'Deletes for good — tasks lose their chip')) + '">' + escH(tC('common.delete', 'Delete')) + '</button>' +
                 '</span>' +
               '</div>').join('')
           }
@@ -954,6 +955,20 @@
                 const r = await fetch('/api/categories/' + archiveBtn.dataset.catArchive + '/archive', { method: 'POST' })
                 if (!r.ok) throw new Error('archive failed')
                 window.hibana?.toast(tC('cat.archived', 'Category archived'))
+                load()
+              } catch { window.hibana?.toast(tC('sparks.saveFailed', "Couldn't save"), 'err') }
+              return
+            }
+            // S174 (owner round): HARD DELETE — the destructive sibling of the archive
+            // above. The confirm spells out the difference: archive keeps the chip on
+            // every task; delete takes the row away AND the chips with it.
+            const deleteBtn = ev.target.closest('[data-cat-delete]')
+            if (deleteBtn) {
+              if (!window.confirm(tC('cat.deleteConfirm', 'Delete this category for good? Its tasks stay but lose their category chip — archive instead to keep it.'))) return
+              try {
+                const r = await fetch('/api/categories/' + deleteBtn.dataset.catDelete, { method: 'DELETE' })
+                if (!r.ok) throw new Error('delete failed')
+                window.hibana?.toast(tC('cat.deleted', 'Category deleted'), 'ok')
                 load()
               } catch { window.hibana?.toast(tC('sparks.saveFailed', "Couldn't save"), 'err') }
             }

@@ -1122,6 +1122,11 @@ window.__hibanaDictEN = {
       'cat.current': '(current category)',
       'cat.archive': 'Archive',
       'cat.archived': 'Category archived',
+      // S174 (owner round: "add option to delete category") — the hard-delete trio.
+      // The confirm deliberately spells out the difference from the archive above.
+      'cat.deleteConfirm': 'Delete this category for good? Its tasks stay but lose their category chip — archive instead to keep it.',
+      'cat.deleted': 'Category deleted',
+      'cat.deleteHint': 'Deletes for good — tasks lose their chip',
       'cat.created': 'Category created',
       'cat.duplicate': 'A category with that name already exists',
       'cat.usedBy': '{n} project(s)',

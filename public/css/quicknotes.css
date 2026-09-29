@@ -1596,21 +1596,35 @@ body.pd-detail-lock { overflow: hidden; }
 .pd-cat-create { font-weight: 700; color: var(--brand, var(--text)); }
 .pd-cat-pop-back { color: var(--muted); }
 
-/* (block 5) The swatch grid — 16 fixed tiles, no free-form color anywhere. */
+/* (block 5, S174) The swatch row — 16 fixed CIRCLES, no free-form color anywhere.
+   The owner's round: the old 1.6-aspect grid tiles read as oversized slabs; the
+   tiles are now small fixed circles in a wrapping flex row — the classic picker
+   idiom — sized for a comfortable ~37px pitch (30px dot + gap) and bumped on
+   coarse pointers. The "Aa" ink preview stays (a circle still shows the pair). */
 .pd-cat-swatches {
-  display: grid; grid-template-columns: repeat(8, 1fr); gap: 0.3rem;
+  display: flex; flex-wrap: wrap; gap: 0.45rem;
   margin-block: 0.35rem;
 }
 .pd-cat-swatch-tile {
-  aspect-ratio: 1.6; border: 0; border-radius: 0.45rem; cursor: pointer;
-  font-size: 0.68rem; font-weight: 800; line-height: 1;
+  flex: 0 0 auto;
+  inline-size: 1.9rem; block-size: 1.9rem; aspect-ratio: 1;
+  padding: 0; /* the global button padding (0.55rem 1rem) inflates a fixed-size flex
+    item past its box (min-width:auto floors at content+padding) — the old 1fr grid
+    masked it; a 30px circle must carry nothing */
+  border: 0; border-radius: 50%; cursor: pointer;
+  font-size: 0.55rem; font-weight: 800; line-height: 1;
   display: inline-flex; align-items: center; justify-content: center;
   box-shadow: inset 0 0 0 1px rgb(0 0 0 / 0.08);
   transition: transform 0.12s ease;
 }
-.pd-cat-swatch-tile:hover { transform: scale(1.06); }
-.pd-cat-swatch-tile.is-sel { outline: 2px solid var(--text); outline-offset: 1px; }
-@media (max-width: 480px) { .pd-cat-swatches { grid-template-columns: repeat(4, 1fr); } }
+.pd-cat-swatch-tile:hover { transform: scale(1.12); }
+/* The selection ring follows the circle (box-shadow, not outline — guaranteed
+   round on every engine; the --card gap keeps the ring readable against the
+   row below). */
+.pd-cat-swatch-tile.is-sel {
+  box-shadow: inset 0 0 0 1px rgb(0 0 0 / 0.08), 0 0 0 2px var(--card), 0 0 0 4px var(--text);
+}
+@media (max-width: 480px) { .pd-cat-swatch-tile { inline-size: 2.05rem; block-size: 2.05rem; } }
 
 /* (block 7) The zero-enabled setup prompt + the per-project toggle rows. */
 /* S172: the composer's block-7 setup prompt is RETIRED — its styles went with it.

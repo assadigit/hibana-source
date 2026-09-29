@@ -126,6 +126,27 @@ export function categoriesRoutes(cfg: Config) {
     return c.json({ ok: true })
   })
 
+  // S174 (owner round: "add option to delete category — currently it's only
+  // archive"): HARD DELETE, the archive's destructive sibling. Semantics mirror the
+  // FK declarations in 0062 exactly — dev_tasks.category_id is ON DELETE SET NULL
+  // (the tasks themselves stay, they just lose their chip) and project_categories
+  // is ON DELETE CASCADE (the per-project enables go). The explicit statements run
+  // inside ONE transaction so the outcome never depends on the engine's
+  // foreign_keys enforcement mode (the Node path and D1 differ there). Works on
+  // archived rows too — the id is the only contract.
+  app.delete('/api/categories/:id', async (c) => {
+    const user = c.get('user')
+    void user
+    const rows = await cfg.db.query<CategoryRow>('SELECT id FROM categories WHERE id = ?', [c.req.param('id')])
+    if (!rows[0]) return c.json({ error: 'not_found' }, 404)
+    await cfg.db.transaction(async (tx) => {
+      tx.sql('UPDATE dev_tasks SET category_id = NULL WHERE category_id = ?', [rows[0].id])
+      tx.sql('DELETE FROM project_categories WHERE category_id = ?', [rows[0].id])
+      tx.sql('DELETE FROM categories WHERE id = ?', [rows[0].id])
+    })
+    return c.json({ ok: true })
+  })
+
   // Block 7 — the per-project toggle list (read) and the enable-set write. The PUT
   // replaces the whole set (the client sends the post-toggle ids): every id must be
   // a live global category, so a foreign/unknown id is a 400, not a half-applied set.

@@ -2852,11 +2852,13 @@
           } catch { /* offline — the picker renders with whatever it has */ }
           return pdCats
         }
-        // The swatch grid — the 16 tiles, values from the tokens (block 5: a curated
-        // set, never a free-form picker).
+        // The swatch row — the 16 tiles, values from the tokens (block 5: a curated
+        // set, never a free-form picker). S174: the buttons now wear the
+        // .pd-cat-swatch-tile class too — the picker's grid used to render them
+        // classless (no circle styling at all); one class, one look everywhere.
         function pdSwatchGridHtml() {
           return '<div class="pd-cat-swatches">' + pdSwatches().map((p, i) =>
-            '<button type="button" data-cat-swatch="' + i + '" style="background:' + p.fill + ';color:' + p.ink + '" aria-label="' + p.fill + '"><span aria-hidden="true">Aa</span></button>').join('') + '</div>'
+            '<button type="button" class="pd-cat-swatch-tile" data-cat-swatch="' + i + '" style="background:' + p.fill + ';color:' + p.ink + '" aria-label="' + p.fill + '"><span aria-hidden="true">Aa</span></button>').join('') + '</div>'
         }
         // One picker for the composer AND the editor. cfg: { input, pop, clearBtn,
         // getCats, initial (row|null), onChange(row|null) } — selection lives with the

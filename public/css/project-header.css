@@ -263,6 +263,48 @@
 .pd-col[data-collapsed] > .pd-tasks,
 .pd-col[data-collapsed] > .pd-task-add { display: none; }
 .pd-col[data-collapsed] .pd-col-actions { display: none; }
+/* S176 (owner round, from the owner's sketch): the folded box is a VERTICAL RAIL on
+   wide screens — the de-collapse chevron docks at the top, the title ROTATES to read
+   bottom→top (writing-mode vertical-rl + the 180° flip), and the count pins to the
+   rail's foot. The rail is 2.5rem (~40px) wide — less than a QUARTER of the old
+   fit-content chip (~150-180px), so the owner's "use 50% of current space" is beaten:
+   the remaining boxes get nearly the whole freed track back. The stage coding rides
+   the colored border edge (the dot hides — the sketch's minimal rail). Scoped to
+   >540px: on the phone stack the folded box keeps the S175 horizontal chip (there
+   folding saves VERTICAL space, and a 9rem-tall rail would waste it). */
+@media (min-width: 541px) {
+  .pd-col[data-collapsed] {
+    inline-size: 2.5rem;
+    min-block-size: 9rem;
+    display: flex;
+    flex-direction: column;
+    padding: 0; /* the tinted head IS the rail face — cancel the column's ring */
+  }
+  .pd-col[data-collapsed] .pd-col-head {
+    flex: 1 1 auto; /* fill the stretched rail (the row's align-items:stretch) */
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.4rem;
+    margin: 0;
+    padding: 0.4rem 0 0.45rem;
+    border-radius: calc(var(--radius-sm) - 1px); /* hugs the column's own box */
+  }
+  .pd-col[data-collapsed] .pd-col-title {
+    writing-mode: vertical-rl;
+    transform: rotate(180deg); /* bottom→top reading — the owner's sketch */
+    white-space: nowrap;
+    margin-block: auto; /* centers the title in the rail's leftover space */
+    overflow: hidden;
+    max-block-size: 100%;
+    letter-spacing: 0.04em;
+  }
+  .pd-col[data-collapsed] .pd-col-title::before { display: none; }
+}
+/* the coarse-pointer rail widens to host the 44px chevron (the house touch contract) */
+@media (min-width: 541px) and (pointer: coarse) {
+  .pd-col[data-collapsed] { inline-size: 3.25rem; }
+}
 /* S175: the collapse chevron — a quiet icon button leading the header strip; ▼ marks
    the open box, the 180° flip (▲) the folded one (direction-neutral — no RTL branch).
    padding:0 — the global button padding would inflate the fixed square (the S174
@@ -775,8 +817,160 @@ dialog.pd-taskedit-modal {
 .pde-edit-area:empty::before { content: attr(data-placeholder); color: var(--muted); pointer-events: none; }
 .pde-edit-area ul, .pde-edit-area ol { margin: 0.3rem 0; padding-inline-start: 1.5rem; }
 .pde-edit-area li { margin: 0.15rem 0; }
-.pde-edit-area pre { background: color-mix(in srgb, var(--muted) 8%, transparent); padding: 0.5rem 0.75rem; border-radius: var(--radius-sm); overflow-x: auto; margin: 0.4rem 0; }
+/* ── S176 (owner round): the composer's CODE BLOCK — one container, no box-in-a-box ──
+   The "<>" toolbar button used to nest <pre> (its own inset box) around code.t-code
+   (ANOTHER box: border + background + padding) — a box inside a box. The block is now
+   ONE <pre class="t-code-pre"> container that wraps a <code class="t-code">: the pre
+   carries the surface (dark code panel — the S83/S88 Notion-style token set), the code
+   carries ONLY the typography. Full width of the text column, its own line, ~14px
+   breathing room above/below. The header bar (language dropdown + copy button) is a
+   non-editable strip inside the pre, above the code. */
+.pde-edit-area pre { margin: 0.4rem 0; } /* legacy bare <pre> (rich pastes) — keep a quiet block rhythm */
+.pde-edit-area pre:not(.t-code-pre) { background: color-mix(in srgb, var(--muted) 8%, transparent); padding: 0.5rem 0.75rem; border-radius: var(--radius-sm); overflow-x: auto; }
 .pde-edit-area code { font-family: var(--mono, ui-monospace, monospace); font-size: 0.9em; }
+.t-code-pre {
+  /* the ONE container: the dark panel that clearly contrasts with the editor surface
+     (.pde-edit-area background: var(--bg)) in BOTH themes — light mode: #2D2A26 panel
+     vs the light editor; claude-dark: #1a1917 panel vs the warm card. */
+  background: var(--code-panel-bg);
+  border: 1px solid var(--code-border);
+  border-radius: 8px;
+  margin-block: 0.85rem; /* the owner's ~12-16px vertical margin ask (0.85rem ≈ 13.6px) */
+  margin-inline: 0;      /* full width of the text column */
+  max-inline-size: 100%;
+  overflow: hidden;      /* the rounded frame clips the bar's edges; the code scrolls its own */
+  direction: ltr;        /* code ALWAYS reads left-to-right — the app flips to RTL, code must not */
+  text-align: left;
+  unicode-bidi: isolate;
+}
+/* the header bar: language dropdown on the left, icon-only copy button on the right */
+.t-code-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.4rem;
+  padding: 0.25rem 0.3rem 0.25rem 0.6rem;
+  border-block-end: 1px solid color-mix(in srgb, var(--code-panel-fg) 14%, transparent);
+  user-select: none; /* chrome, not content — the copy/export paths must never pick it up */
+}
+.t-code-langsel {
+  font: 600 0.62rem/1.2 var(--font-mono);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--code-panel-fg);
+  opacity: 0.78;
+  background: transparent;
+  border: 0;
+  padding: 0.28rem 0.35rem;
+  border-radius: 6px;
+  cursor: pointer;
+  max-inline-size: 12rem;
+}
+.t-code-langsel:hover { opacity: 1; background: color-mix(in srgb, var(--code-panel-fg) 10%, transparent); }
+.t-code-langsel:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; opacity: 1; }
+.t-code-copy {
+  position: relative; /* the "Copied" tooltip anchors here */
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  inline-size: 2rem;    /* ~32px desktop tap target */
+  block-size: 2rem;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--code-panel-fg);
+  opacity: 0.78;        /* always visible; full ink on hover/focus (touch keeps it lit) */
+  cursor: pointer;
+  transition: opacity 0.12s ease, background-color 0.12s ease;
+}
+.t-code-copy:hover, .t-code-copy:focus-visible { opacity: 1; background: color-mix(in srgb, var(--code-panel-fg) 12%, transparent); }
+.t-code-copy:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.t-code-copy .icon { inline-size: 0.95rem; block-size: 0.95rem; }
+.t-code-copy .i-check { display: none; color: var(--ok); }
+.t-code-copy.copied .i-copy { display: none; }
+.t-code-copy.copied .i-check { display: inline-flex; }
+/* the "Copied" tooltip — ~2s, then the icon restores (JS toggles .copied) */
+.t-code-copy::after {
+  content: attr(data-tip);
+  position: absolute;
+  inset-block-end: calc(100% + 6px);
+  inset-inline-end: 0;
+  padding: 0.18rem 0.5rem;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--card);
+  color: var(--text);
+  font: 500 0.68rem/1.2 var(--font-sans, sans-serif);
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s ease;
+  z-index: 2;
+}
+.t-code-copy.copied::after { opacity: 1; }
+@media (pointer: coarse) {
+  /* the house touch contract — 44px tap target; the bar grows to host it and the
+     button stays lit (no hover to reveal it on touch) */
+  .t-code-copy { inline-size: 44px; min-block-size: 44px; opacity: 1; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .t-code-copy, .t-code-copy::after { transition: none; }
+}
+/* the CODE element — typography only (the pre is the box; no second border/bg) */
+.t-code-pre > code.t-code {
+  display: block;
+  direction: ltr;
+  text-align: left;
+  unicode-bidi: isolate;
+  font-family: var(--font-mono, ui-monospace, 'SF Mono', Consolas, 'JetBrains Mono', monospace);
+  font-size: 0.8125rem; /* ~13px — a step under the 14px body text */
+  line-height: 1.5;
+  white-space: pre;         /* indentation + line structure preserved exactly */
+  overflow-x: auto;         /* long lines scroll, never wrap */
+  scrollbar-width: thin;
+  tab-size: 2;
+  color: var(--code-panel-fg); /* 11.2:1 on the light panel — AA-large well cleared */
+  background: transparent;
+  border: 0;
+  padding: 0.75rem 0.9rem;
+  min-block-size: 2.1rem;
+  overflow-wrap: normal;
+}
+/* the FA font override (html[lang='fa'] .t-code above) keeps Latin glyphs mono while
+   letting Farsi comments render — the new > code.t-code rule matches that selector's
+   specificity, so the SAME override is restated for the editor's code element (equal
+   specificity, later in the file wins — Vazir stays LAST in the stack). */
+html[lang='fa'] .t-code-pre > code.t-code {
+  font-family: var(--font-mono, ui-monospace, 'SF Mono', Consolas, 'JetBrains Mono', 'Vazir', monospace);
+}
+/* ── S176 R5: the syntax palette — FIVE token colors on the dark panel ──
+   highlight.js wraps tokens in .hljs-* spans; the app's own five-ink grammar
+   (--md-kw/-str/-com/-num/-fn, S88) maps onto them: keywords rust, strings olive,
+   comments the most-muted mixed ink, numbers amber, function names teal. Everything
+   else stays the panel's default ink. Muted hues on BOTH themes' panels (light mode's
+   panel is itself dark — one set of lights works for both, the dark theme flips its
+   own --md-* values in claude-dark-theme.css). */
+.t-code-pre .hljs-keyword,
+.t-code-pre .hljs-built_in,
+.t-code-pre .hljs-doctag,
+.t-code-pre .hljs-type { color: var(--md-kw); } /* +type: C-family storage words (const/static) + primitive types read keyword-ish in a 5-color palette */
+.t-code-pre .hljs-string,
+.t-code-pre .hljs-regexp { color: var(--md-str); }
+.t-code-pre .hljs-comment,
+.t-code-pre .hljs-quote {
+  /* S176 AA: the S88 comment ink (--md-com) alone sits at ~4.15:1 on the light panel
+     / ~3.1:1 on the dark one — under the 4.5:1 the owner demanded for THIS block.
+     Mixed 70/30 toward the panel ink it clears 5.4:1+ on BOTH panels, stays the most
+     muted token of the five, and the notes surfaces (the token's original home)
+     keep their approved look untouched. */
+  color: color-mix(in srgb, var(--md-com) 70%, var(--code-panel-fg));
+  font-style: italic;
+}
+.t-code-pre .hljs-number,
+.t-code-pre .hljs-literal { color: var(--md-num); }
+.t-code-pre .hljs-title { color: var(--md-fn); }
 .pde-edit-area b, .pde-edit-area strong { font-weight: 700; }
 .pde-edit-area div[style*="text-align"] { margin: 0.2rem 0; }
 #pde-input { min-block-size: 8rem; }

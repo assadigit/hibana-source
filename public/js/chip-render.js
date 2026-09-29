@@ -226,13 +226,14 @@
     const tmp = document.createElement('div')
     tmp.innerHTML = html
     // A code element's CONTENT: text nodes verbatim, <br> → newline, hidden .t-fence
-    // markers skipped (they only exist on islands loaded from rendered markdown).
+    // markers + the S176 non-editable header bar (dropdown + copy button) skipped —
+    // neither the fence markers nor the bar's chrome are ever code content.
     const codeText = (el) => {
       let out = ''
       for (const c of el.childNodes) {
         if (c.nodeType === 3) { out += c.textContent; continue }
         if (c.nodeType !== 1) continue
-        if (c.classList && c.classList.contains('t-fence')) continue
+        if (c.classList && (c.classList.contains('t-fence') || c.classList.contains('t-code-bar'))) continue
         if (c.tagName === 'BR') { out += '\n'; continue }
         out += codeText(c)
       }
@@ -299,11 +300,19 @@
           // into SIBLING <code> elements (one per line) inside the <pre>. The old
           // el.querySelector('code') read the FIRST one only — every line after it
           // was silently dropped from the saved markdown. Collect them all.
+          // S176: the container is <pre class="t-code-pre" data-lang> now — the fence
+          // keeps the block's language (```python), and the non-editable header bar
+          // (a direct <pre> child, never a <code>) is excluded by construction: only
+          // the CODE elements are the content. The hljs token SPANS are transparent —
+          // codeText recurses through them and the saved fence stays PLAIN TEXT.
+          const lang = (el.getAttribute('data-lang')
+            || (el.querySelector('code') ? el.querySelector('code').getAttribute('data-lang') : '') || ''
+          ).toLowerCase()
           const codes = el.querySelectorAll('code')
           let text
           if (codes.length > 1) text = Array.from(codes).map((c) => codeText(c)).join('\n')
           else text = codes.length === 1 ? codeText(codes[0]) : codeText(el)
-          return '\n```\n' + text + '\n```\n'
+          return '\n```' + lang + '\n' + text + '\n```\n'
         }
         case 'code': {
           // A .t-code island that reached elToMd singly (walk already merges sibling

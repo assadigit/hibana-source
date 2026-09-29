@@ -139,6 +139,10 @@ window.__hibanaDictEN = {
       'pd.readLess': 'read less',
       // Session 23 (user request): the task-composer toolbar — Code block / Bold / Bullet.
       'pd.fmtCode': 'Code block',
+      // S176: the code block's header bar — language dropdown + copy affordances.
+      'pd.codeAuto': 'Auto',
+      'pd.codePlain': 'Plain text',
+      'pd.codeLangLabel': 'Code language',
       'pd.fmtBold': 'Bold',
       'pd.fmtList': 'Bullet list',
       'pd.fmtUnderline': 'Underline',

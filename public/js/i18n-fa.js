@@ -139,6 +139,10 @@ window.__hibanaDictFA = {
       'pd.readLess': 'کمتر',
       // Session 23 (user request): دکمه‌های قالب‌بندی ادیتور کار — بلوک کد / پررنگ / بولت.
       'pd.fmtCode': 'بلوک کد',
+      // S176: نوار بالای بلوک کد — انتخاب زبان + دکمهٔ کپی.
+      'pd.codeAuto': 'خودکار',
+      'pd.codePlain': 'متن ساده',
+      'pd.codeLangLabel': 'زبان کد',
       'pd.fmtBold': 'پررنگ',
       'pd.fmtList': 'بولت',
       'pd.fmtUnderline': 'زیرخط',

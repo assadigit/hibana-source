@@ -2764,6 +2764,7 @@
           if (!m || !ta) return
           taskAddStatus = btn.dataset.pdAdd || null
           ta.innerHTML = ''
+          pdResetToolbarCode() // S176: the format toolbar starts clean every open
           const taskTitleInput = document.getElementById('pd-taskadd-title-input')
           if (taskTitleInput) taskTitleInput.value = ''
           stagedShots = []
@@ -3327,6 +3328,336 @@
             if (save) save.disabled = false
           }
         })
+        // ── S176 (owner round): the composer's CODE BLOCK runtime ────────────────────
+        // The "<>" button's block is ONE container now — <pre class="t-code-pre">
+        // wrapping a non-editable header bar (language dropdown + copy button) and the
+        // editable <code class="t-code">. Requests covered: single container (no
+        // box-in-a-box), the dark-panel surface + mono typography, the copy button with
+        // icon-swap + "Copied" tooltip, plain-text paste + Tab=2-spaces + the format
+        // toolbar disabling while the caret is inside, and highlight.js syntax
+        // highlighting (5-token palette, auto-detect + dropdown, ~300ms debounce,
+        // PLAIN-TEXT storage — the saved markdown fence never carries the span markup).
+        const PD_CODE_COPY_ICON = '<svg class="icon i-copy" viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h8"/></svg>'
+        const PD_CODE_CHECK_ICON = '<svg class="icon i-check" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>'
+        // The dropdown's curated set (highlight.js "common" bundle ids). '' = Auto —
+        // re-detect on the next paste/keystroke; the detected language WRITES itself
+        // into data-lang so the fence saves it and the reload keeps it.
+        const PD_CODE_LANGS = [
+          ['', 'pd.codeAuto', 'Auto'],
+          ['plaintext', 'pd.codePlain', 'Plain text'],
+          ['javascript', null, 'JavaScript'], ['typescript', null, 'TypeScript'], ['python', null, 'Python'],
+          ['java', null, 'Java'], ['c', null, 'C'], ['cpp', null, 'C++'], ['csharp', null, 'C#'],
+          ['go', null, 'Go'], ['rust', null, 'Rust'], ['php', null, 'PHP'], ['ruby', null, 'Ruby'],
+          ['bash', null, 'Bash / Shell'], ['sql', null, 'SQL'], ['json', null, 'JSON'],
+          ['yaml', null, 'YAML'], ['xml', null, 'HTML / XML'], ['css', null, 'CSS'],
+          ['markdown', null, 'Markdown'], ['ini', null, 'INI / TOML'], ['diff', null, 'Diff'],
+        ]
+        const PD_CODE_LANG_IDS = PD_CODE_LANGS.map((l) => l[0]).filter(Boolean)
+        const pdCodeEsc = (s) => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+        const pdCodeAttr = (s) => pdCodeEsc(s).replace(/"/g, '&quot;').replace(/'/g, '&#39;')
+        function pdCodeBarHtml(lang) {
+          let opts = ''
+          for (const [v, key, fb] of PD_CODE_LANGS) {
+            opts += '<option value="' + v + '"' + (v === lang ? ' selected' : '') + '>' + (key ? pdCodeEsc(_t(key, fb)) : fb) + '</option>'
+          }
+          if (lang && !PD_CODE_LANG_IDS.includes(lang)) opts += '<option value="' + pdCodeAttr(lang) + '" selected>' + pdCodeEsc(lang) + '</option>'
+          return '<span class="t-code-bar" contenteditable="false">' +
+            '<select class="t-code-langsel" data-code-lang contenteditable="false" aria-label="' + pdCodeAttr(_t('pd.codeLangLabel', 'Code language')) + '" title="' + pdCodeAttr(_t('pd.codeLangLabel', 'Code language')) + '">' + opts + '</select>' +
+            '<button type="button" class="t-code-copy" data-code-copy contenteditable="false" aria-label="' + pdCodeAttr(_t('md.copy', 'Copy code')) + '" title="' + pdCodeAttr(_t('md.copy', 'Copy code')) + '" data-tip="' + pdCodeAttr(_t('md.copied', 'Copied')) + '">' + PD_CODE_COPY_ICON + PD_CODE_CHECK_ICON + '</button>' +
+            '</span>'
+        }
+        function pdCodeBlockHtml(text, lang) {
+          return '<pre class="t-code-pre" dir="ltr" data-lang="' + pdCodeAttr(lang || '') + '">' + pdCodeBarHtml(lang || '') + '<code class="t-code" dir="ltr">' + pdCodeEsc(text) + '</code></pre>'
+        }
+        function pdCodeBuild(text, lang) {
+          const tpl = document.createElement('div')
+          tpl.innerHTML = pdCodeBlockHtml(text, lang)
+          return tpl.firstElementChild
+        }
+        // The block's PLAIN TEXT — hljs spans are transparent, <br> is a newline, the
+        // hidden fence markers + the non-editable bar never leak in. This is the copy
+        // source AND the normalize source.
+        function pdCodeText(el) {
+          let out = ''
+          for (const c of el.childNodes) {
+            if (c.nodeType === 3) { out += c.textContent; continue }
+            if (c.nodeType !== 1) continue
+            if (c.classList && (c.classList.contains('t-fence') || c.classList.contains('t-code-bar'))) continue
+            if (c.tagName === 'BR') { out += '\n'; continue }
+            out += pdCodeText(c)
+          }
+          return out
+        }
+        // highlight.js — LAZY-loaded from /vendor on the first block that needs it
+        // (pastes/typing in a block, or an edited task with fences). Progressive
+        // enhancement: if the fetch fails (offline, first visit), the block stays a
+        // fully-working plain-text container.
+        let pdHljsPromise = null
+        function pdHljsLoad() {
+          if (window.hljs) return Promise.resolve(window.hljs)
+          if (!pdHljsPromise) {
+            pdHljsPromise = new Promise((resolve) => {
+              const s = document.createElement('script')
+              s.src = '/vendor/highlight.min.js'
+              s.onload = () => resolve(window.hljs || null)
+              s.onerror = () => { pdHljsPromise = null; resolve(null) }
+              document.head.appendChild(s)
+            })
+          }
+          return pdHljsPromise
+        }
+        // caret-as-plain-text-offset save/restore — survives the innerHTML swap the
+        // re-highlight performs (typed characters never lose their place)
+        function pdCaretTextOffset(el) {
+          const sel = window.getSelection()
+          if (!sel || !sel.rangeCount) return -1
+          const r = sel.getRangeAt(0)
+          if (!el.contains(r.startContainer)) return -1
+          const probe = document.createRange()
+          probe.selectNodeContents(el)
+          probe.setEnd(r.startContainer, r.startOffset)
+          return probe.toString().length
+        }
+        function pdCaretToOffset(el, off) {
+          if (off < 0) return false
+          let remaining = off
+          let last = null
+          const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT)
+          let node
+          while ((node = walker.nextNode())) {
+            last = node
+            const len = node.textContent.length
+            if (remaining <= len) {
+              const r = document.createRange()
+              r.setStart(node, remaining)
+              r.collapse(true)
+              const sel = window.getSelection()
+              sel.removeAllRanges()
+              sel.addRange(r)
+              savedRange = r.cloneRange()
+              return true
+            }
+            remaining -= len
+          }
+          const r = document.createRange()
+          if (last) { r.setStart(last, last.textContent.length) } else { r.selectNodeContents(el); r.collapse(false) }
+          r.collapse(true)
+          const sel = window.getSelection()
+          sel.removeAllRanges()
+          sel.addRange(r)
+          savedRange = r.cloneRange()
+          return true
+        }
+        function pdCodePaintLang(pre, lang) {
+          const selEl = pre.querySelector('[data-code-lang]')
+          if (!selEl) return
+          const v = lang || ''
+          if (v && !PD_CODE_LANG_IDS.includes(v) && !Array.from(selEl.options).some((o) => o.value === v)) {
+            const o = document.createElement('option')
+            o.value = v
+            o.textContent = v
+            selEl.appendChild(o)
+          }
+          selEl.value = v
+        }
+        function pdCodeHighlight(pre) {
+          const codeEl = pre.querySelector(':scope > code')
+          if (!codeEl || !pre.isConnected) return
+          const text = pdCodeText(codeEl)
+          if (!text.trim()) return // an empty fresh block: nothing to detect or paint
+          const wanted = (pre.getAttribute('data-lang') || '').toLowerCase()
+          pdHljsLoad().then((hljs) => {
+            if (!hljs || !pre.isConnected) return
+            let html = null
+            let lang = ''
+            if (wanted && hljs.getLanguage(wanted)) {
+              try { html = hljs.highlight(text, { language: wanted, ignoreIllegals: true }).value; lang = wanted } catch { html = null }
+            }
+            if (html == null) {
+              // auto-detect, restricted to the curated set for sane guesses; the
+              // relevance floor (calibrated: prose = 0, real short code ≥ 2) keeps
+              // prose snippets plain instead of guessing wrong — an explicit code
+              // block just hasn't typed enough context yet
+              const auto = hljs.highlightAuto(text, PD_CODE_LANG_IDS)
+              if (auto.language && (auto.relevance || 0) >= 2) { html = auto.value; lang = auto.language }
+            }
+            if (html != null) {
+              const off = pdCaretTextOffset(codeEl)
+              codeEl.innerHTML = html // the SPANs are editor-only chrome — never saved (htmlToMd reads text)
+              if (off >= 0) pdCaretToOffset(codeEl, off)
+            }
+            if (lang !== (pre.getAttribute('data-lang') || '')) pre.setAttribute('data-lang', lang)
+            pdCodePaintLang(pre, pre.getAttribute('data-lang') || '')
+          }).catch(() => { /* highlighting is optional — plain text stays functional */ })
+        }
+        // the debounce: re-run ~300ms after typing stops; immediately after paste,
+        // after an explicit dropdown change, and after a block is inserted/normalized
+        const pdCodeTimers = new WeakMap()
+        function pdCodeSchedule(pre, immediate) {
+          const t = pdCodeTimers.get(pre)
+          if (t) clearTimeout(t)
+          if (immediate) pdCodeHighlight(pre)
+          else pdCodeTimers.set(pre, setTimeout(() => { pdCodeTimers.delete(pre); pdCodeHighlight(pre) }, 300))
+        }
+        // Upgrade whatever shape the editor holds into the ONE container:
+        // (a) legacy toolbar blocks (<pre><code class="t-code">, possibly split into
+        //     sibling code elements by Chromium's line handling),
+        // (b) renderTitle-loaded bare .t-code islands (the stored-markdown prefill) —
+        //     each sibling RUN merges into ONE container.
+        function pdCodeNormalize(root) {
+          if (!root) return
+          root.querySelectorAll('pre').forEach((pre) => {
+            if (pre.classList.contains('t-code-pre')) return
+            const codes = pre.querySelectorAll('code')
+            if (!codes.length) return // a rich-pasted bare <pre> — the fallback style covers it
+            const text = Array.from(codes).map((c) => pdCodeText(c)).join('\n')
+            const lang = (codes[0].getAttribute('data-lang') || '').toLowerCase()
+            const fresh = pdCodeBuild(text, lang)
+            pre.replaceWith(fresh)
+            pdCodeSchedule(fresh)
+          })
+          const hosts = [root, ...root.querySelectorAll('div, p')]
+          for (const host of hosts) {
+            if (!host.isConnected) continue
+            const kids = Array.from(host.childNodes)
+            let i = 0
+            while (i < kids.length) {
+              const el = kids[i]
+              if (!(el.nodeType === 1 && el.classList && el.classList.contains('t-code') && !el.closest('.t-code-pre'))) { i++; continue }
+              let lang = (el.getAttribute('data-lang') || '').toLowerCase()
+              const pieces = [pdCodeText(el)]
+              let j = i + 1
+              while (j < kids.length) {
+                const nxt = kids[j]
+                if (nxt.nodeType === 3 && nxt.textContent.trim() === '') { j++; continue }
+                if (nxt.nodeType === 1 && nxt.classList && nxt.classList.contains('t-code')) {
+                  const l2 = (nxt.getAttribute('data-lang') || '').toLowerCase()
+                  if (l2 && !lang) lang = l2
+                  pieces.push(pdCodeText(nxt))
+                  j++
+                  continue
+                }
+                break
+              }
+              const text = pieces.map((p) => p.replace(/^[\n]+|[\n]+$/g, '')).join('\n')
+              const fresh = pdCodeBuild(text, lang)
+              host.insertBefore(fresh, el)
+              for (let k = i; k < j; k++) {
+                const n = kids[k]
+                if (n.nodeType === 1 || (n.nodeType === 3 && !n.textContent.trim())) n.remove()
+              }
+              i = j
+              pdCodeSchedule(fresh) // wake the highlighter on the upgraded block
+            }
+          }
+        }
+        // R4: the formatting toolbar disables while the caret lives inside a code
+        // block (bold/underline/strike/lists/alignment have no meaning there and
+        // execCommand would break the block's plain-text contract). The "<>" toggle
+        // itself stays active (it is the block's own control; a click inside a block
+        // is the S48l no-nest no-op).
+        let pdTbInCode = false
+        function pdSyncToolbarCode() {
+          const sel = window.getSelection()
+          const node = sel && sel.anchorNode ? (sel.anchorNode.nodeType === 3 ? sel.anchorNode.parentElement : sel.anchorNode) : null
+          const inCode = !!(node && node.closest && node.closest('.t-code-pre'))
+          if (inCode === pdTbInCode) return
+          pdTbInCode = inCode
+          document.querySelectorAll('.pd-tb [data-tb]').forEach((b) => {
+            if (b.dataset.tb === 'code') return
+            const form = b.closest('form')
+            b.disabled = inCode && !!(form && node && form.contains(node))
+          })
+        }
+        function pdResetToolbarCode() {
+          pdTbInCode = false
+          document.querySelectorAll('.pd-tb [data-tb]').forEach((b) => { if (b.dataset.tb !== 'code') b.disabled = false })
+        }
+        ctx.on('selectionchange', pdSyncToolbarCode)
+        // typing inside a block → the debounced re-highlight
+        ctx.on('input', () => {
+          const host = pdCodeHost(window.getSelection()?.anchorNode)
+          if (host) pdCodeSchedule(host)
+        })
+        // R4: paste inside a block = PLAIN TEXT ONLY — every incoming font/color/bold
+        // is stripped, line breaks + indentation survive exactly (the S77 data-loss
+        // lesson's final form: nothing but text ever enters the block).
+        // NB: Chromium's execCommand('insertText') DROPS embedded '\n' (measured:
+        // 'A\nB' → 'AB') — multi-line text is inserted LINE BY LINE with
+        // insertLineBreak between (the undo stack survives, <br> round-trips to '\n'
+        // in the converter).
+        ctx.on('paste', (e) => {
+          const host = pdCodeHost(window.getSelection()?.anchorNode)
+          if (!host) return
+          e.preventDefault()
+          const text = (e.clipboardData || window.clipboardData)?.getData('text/plain') || ''
+          if (!text) return
+          let ok = false
+          try {
+            const lines = text.split('\n')
+            for (let i = 0; i < lines.length; i++) {
+              if (i > 0) document.execCommand('insertLineBreak')
+              if (lines[i]) document.execCommand('insertText', false, lines[i])
+            }
+            ok = true
+          } catch { ok = false }
+          if (!ok) {
+            const sel = window.getSelection()
+            if (sel && sel.rangeCount) {
+              const r = sel.getRangeAt(0)
+              r.deleteContents()
+              // white-space:pre renders raw '\n' text nodes as real line breaks
+              const tn = document.createTextNode(text)
+              r.insertNode(tn)
+              r.setStartAfter(tn)
+              r.collapse(true)
+              sel.removeAllRanges()
+              sel.addRange(r)
+            }
+          }
+          pdCodeSchedule(host, true) // R5: re-run right after the paste
+        })
+        // R3: the copy button — plain text only (the hljs spans never ride along),
+        // icon swaps to the check + the "Copied" tooltip for ~2s
+        ctx.on('click', async (e) => {
+          const btn = e.target.closest('[data-code-copy]')
+          if (!btn) return
+          e.preventDefault()
+          const pre = btn.closest('.t-code-pre')
+          const codeEl = pre ? pre.querySelector(':scope > code') : null
+          const raw = codeEl ? pdCodeText(codeEl) : ''
+          if (!raw) return
+          let ok = false
+          try { await navigator.clipboard.writeText(raw); ok = true } catch { ok = false }
+          if (!ok) {
+            try {
+              const ta = document.createElement('textarea')
+              ta.value = raw
+              ta.setAttribute('readonly', '')
+              ta.style.cssText = 'position:fixed;inset-inline-start:-9999px;opacity:0'
+              document.body.appendChild(ta)
+              ta.select()
+              document.execCommand('copy')
+              ta.remove()
+              ok = true
+            } catch { ok = false }
+          }
+          if (!ok) { window.hibana?.toast(_t('sparks.saveFailed', "Couldn't copy"), 'err'); return }
+          btn.classList.add('copied')
+          clearTimeout(btn._copyT)
+          btn._copyT = setTimeout(() => { btn.classList.remove('copied') }, 2000)
+        })
+        // R5: the language dropdown — an explicit choice re-highlights immediately
+        // ('' = Auto: the next paste/keystroke re-detects)
+        ctx.on('change', (e) => {
+          const selEl = e.target.closest('[data-code-lang]')
+          if (!selEl) return
+          const pre = selEl.closest('.t-code-pre')
+          if (!pre) return
+          pre.setAttribute('data-lang', selEl.value || '')
+          pdCodeSchedule(pre, true)
+        })
+
         // Enter adds the task — the field is a textarea only so long sentences stay
         // visible; plain Enter must behave like the old composer's input.
         // S48g: also submit on Enter from the Title input (single-line field).
@@ -3350,14 +3681,18 @@
           // sel.anchorNode + a text-offset probe decides "caret is on the block's
           // first/last line": ranges from the host's start/end to the caret carry the
           // text before/after it, which also powers the empty-last-line exit test.
+          // S176: the GEOMETRY anchors on the CODE element — the pre also carries the
+          // non-editable header bar (dropdown + copy button) whose own text would
+          // pollute the before/after probes and break the first/last-line exit tests.
+          const surface = (host.querySelector && host.querySelector(':scope > code')) || host
           if (!sel || !sel.rangeCount || !host) return { first: false, last: false, before: '', after: '' }
           try {
             const r = sel.getRangeAt(0)
             const fromStart = document.createRange()
-            fromStart.selectNodeContents(host)
+            fromStart.selectNodeContents(surface)
             fromStart.setEnd(r.startContainer, r.startOffset)
             const fromEnd = document.createRange()
-            fromEnd.selectNodeContents(host)
+            fromEnd.selectNodeContents(surface)
             fromEnd.setStart(r.startContainer, r.startOffset)
             // a stray "\n" text node at the block edge counts as the same line
             const strip = (s) => s.replace(/\n/g, '')
@@ -3425,6 +3760,54 @@
         const pdCodeKeydown = (e) => {
           const host = pdCodeHost(window.getSelection()?.anchorNode)
           if (!host) return false
+          // S176 R4: Tab inserts a 2-space indentation (white-space:pre keeps both
+          // spaces) instead of moving focus — the code-editor contract.
+          if (e.key === 'Tab') {
+            e.preventDefault()
+            let ok = false
+            try { ok = document.execCommand('insertText', false, '  ') } catch { ok = false }
+            if (!ok) {
+              const sel = window.getSelection()
+              if (sel && sel.rangeCount) {
+                const r = sel.getRangeAt(0)
+                r.deleteContents()
+                const tn = document.createTextNode('  ')
+                r.insertNode(tn)
+                r.setStartAfter(tn)
+                r.collapse(true)
+                sel.removeAllRanges()
+                sel.addRange(r)
+              }
+            }
+            pdCodeSchedule(host)
+            return true
+          }
+          // S176: Backspace at the block's START must never eat the non-editable
+          // header bar (Chromium deletes contenteditable=false islands when
+          // backspacing into them). An EMPTY block dies outright (the user's intent);
+          // a block with text just sits there — the bar is chrome, not content.
+          if (e.key === 'Backspace') {
+            const at = pdCodeBlockAt(window.getSelection(), host)
+            if (at.first) {
+              e.preventDefault()
+              const codeEl = host.querySelector(':scope > code')
+              const text = codeEl ? pdCodeText(codeEl) : pdCodeText(host)
+              if (!text.trim()) {
+                const next = host.nextElementSibling
+                host.remove()
+                if (next && next.tagName === 'P') {
+                  const r = document.createRange()
+                  r.selectNodeContents(next)
+                  r.collapse(true)
+                  const s = window.getSelection()
+                  s.removeAllRanges()
+                  s.addRange(r)
+                  savedRange = r.cloneRange()
+                }
+              }
+              return true
+            }
+          }
           if (e.key === 'Enter') {
             e.preventDefault() // NEVER submit from inside a code block
             const sel = window.getSelection()
@@ -3541,7 +3924,10 @@
             }
             return
           }
-          // Code block: wrap the selection in <pre><code class="t-code" dir="ltr">
+          // Code block: S176 — ONE <pre class="t-code-pre"> container (the dark panel)
+          // wrapping the non-editable header bar (language dropdown + copy button) and
+          // the editable <code class="t-code">. The trailing <p><br> stays the cursor's
+          // escape hatch (the S48l lesson).
           if (kind === 'code') {
             const sel = window.getSelection()
             // S48l: check if already inside a <pre> — don't nest code blocks
@@ -3558,13 +3944,16 @@
             // insertion more gracefully + the trailing <p> gives the cursor a place
             // to escape to after the code block (was: insertNode created a mess + the
             // cursor got stuck inside the <pre> → clicking Code again nested boxes).
-            const html = '<pre><code class="t-code" dir="ltr">' + String(text || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;') + '</code></pre><p><br></p>'
+            const html = pdCodeBlockHtml(String(text || ''), '') + '<p><br></p>'
             document.execCommand('insertHTML', false, html)
-            // Place caret inside the code element
+            // Place caret inside the code element (collapse to the END — after any
+            // selection text that rode along) + wake the highlight pipeline
             setTimeout(() => {
-              const codeEl = ta.querySelector('pre:last-of-type > code')
+              const pres = ta.querySelectorAll('pre.t-code-pre')
+              const pre = pres[pres.length - 1]
+              if (!pre) return
+              const codeEl = pre.querySelector(':scope > code')
               if (codeEl) {
-                codeEl.focus()
                 const r = document.createRange()
                 r.selectNodeContents(codeEl)
                 r.collapse(false)
@@ -3573,6 +3962,7 @@
                 s.addRange(r)
                 savedRange = r.cloneRange()
               }
+              pdCodeSchedule(pre) // empty block → no-op paint; hljs warms up on first text
             }, 0)
           }
         }
@@ -4296,6 +4686,11 @@
             if (editArea) editArea.innerHTML = ''
             if (titleInput) titleInput.value = ''
           }
+          // S176: the prefilled fences (renderTitle's bare .t-code islands) upgrade
+          // into the ONE-container code blocks — bar + dropdown + copy + highlighting;
+          // the toolbar's disabled state starts clean every open.
+          if (editArea) pdCodeNormalize(editArea)
+          pdResetToolbarCode()
           const status = cardEl.dataset.pdStatus || 'idea'
           pdTaskEditDlg.querySelector('#pde-status').value = status
           // S29 follow-up: pre-fill the task's REAL priority + labels from the card's

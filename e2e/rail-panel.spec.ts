@@ -290,12 +290,14 @@ test.describe('the secondary panel (VS Code Activity Bar + Side Bar pattern)', (
     const groups = page.locator('.rail-group:not(.rail-sub-group):not(.rail-project-group) > .rail-group-head')
     const labels = await groups.allTextContents()
     expect(labels.map((l) => l.replace(/\d+$/, '').trim())).toEqual(['Developing', 'Operational'])
-    // Real items with status dots (the seeded projects), deep-linking to their pages.
-    // S115 r2: the Developing project is a collapsed BRANCH (its leaves stay hidden
-    // until the title is clicked) — the visible plain row is the task-less
-    // Operational project.
+    // Real items (the seeded projects), deep-linking to their pages. S115 r2: the
+    // Developing project is a collapsed BRANCH (its leaves stay hidden until the
+    // title is clicked) — the visible plain row is the task-less Operational
+    // project. S177 (owner, block 4): the projects panel carries NO status dots —
+    // the stage grouping already encodes the status, so the dot was noise; the
+    // project NAME starts at the row's inline-start edge.
     await expect(page.locator('.rail-item.rail-project-row', { hasText: 'Rail project 1' })).toHaveCount(1)
-    expect(await page.locator('.rail-item .rail-dot').count()).toBeGreaterThan(0)
+    expect(await page.locator('.rail-item .rail-dot').count()).toBe(0)
 
     // Collapsible: collapsing a group hides its items.
     await page.click('.rail-group-head >> nth=0')
@@ -327,14 +329,15 @@ test.describe('the secondary panel (VS Code Activity Bar + Side Bar pattern)', (
     await expect(panel).toBeVisible()
 
     // Rail project 0 (developing, carries 3 board tasks) renders a per-project
-    // BRANCH — a toggle HEAD, not a link — wearing the bold name and the status
-    // dot, and shipping COLLAPSED: the owner's sketch is "collapsed, and only
-    // shown when user clicks on the project title".
+    // BRANCH — a toggle HEAD, not a link — wearing the bold name and shipping
+    // COLLAPSED: the owner's sketch is "collapsed, and only shown when user clicks
+    // on the project title". S177 (owner, block 4): NO status dot before the name
+    // (the stage grouping already encodes it).
     const branch = page.locator('.rail-project-group').first()
     await expect(branch).toHaveClass(/is-collapsed/)
     const head = branch.locator('.rail-project-head')
     await expect(head).toContainText('Rail project 0')
-    await expect(head.locator('.rail-dot')).toHaveAttribute('data-status', 'developing')
+    await expect(head.locator('.rail-dot')).toHaveCount(0)
     // S125 (owner): the problems COUNT pill is retired from the rail rows — the
     // glance reads names only; problems live in the dashboard's Problems box and
     // the branch's own Problems sub-group below.

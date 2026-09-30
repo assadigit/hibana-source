@@ -425,6 +425,9 @@
   // only when the current hash is exactly that section — landing via «Problems»
   // lights the project row AND its problems leaf, landing at the page top lights
   // only the project row.
+  // S177 (owner, block 2): the active row also carries aria-current="true" —
+  // the programmatic twin of the accent wash, so the selection never rides on
+  // color alone (the head's accent bar + the attribute both speak "you are here").
   function markRailRows() {
     const box = railBox()
     if (!box) return
@@ -443,6 +446,8 @@
         (idOf(row) || null) === (idOf(here) || null)
       const active = sameDoc && (!row.hash || row.hash === here.hash)
       a.classList.toggle('is-row-active', active)
+      if (active) a.setAttribute('aria-current', 'true')
+      else a.removeAttribute('aria-current') // S177: no stale marks on soft navigation
     })
     // S115 r2: a project BRANCH carries the current-location mark too — its identity
     // is the goto chip's href (the head is a toggle, not a link), so markRailRows
@@ -453,8 +458,14 @@
       if (!chip) return
       let row
       try { row = new URL(chip.href) } catch { return }
-      g.classList.toggle('is-here', pageOf(row) === pageOf(here) &&
-        (idOf(row) || null) === (idOf(here) || null))
+      const onIt = pageOf(row) === pageOf(here) &&
+        (idOf(row) || null) === (idOf(here) || null)
+      g.classList.toggle('is-here', onIt)
+      // S177 (owner, block 2): the branch's OWN link (the goto chip — the head is
+      // a toggle, not a link) carries aria-current while the owner sits on that
+      // project's page.
+      if (onIt) chip.setAttribute('aria-current', 'true')
+      else chip.removeAttribute('aria-current')
     })
   }
 
@@ -604,10 +615,14 @@
   // one grouped list section: label + count + collapsible body of .rail-item rows.
   // S93 (item 6): opts.accent tints the head with the quadrant's picked pastel (a
   // 12% wash + a colored lead dot — the same token the board quadrant renders).
-  // S95 r2 (owner item 2): the disclosure chevron points DOWN in its collapsed
-  // state ("open me — the content lives below"); the expanded state rotates it
-  // upright via layout.css. The old right-pointing glyph read as pointing "top"
-  // when the collapsed rotation tipped it up.
+  // S95 r2 (owner item 2) — SUPERSEDED by S177 (the owner's design round): the
+  // disclosure chevron now follows the PLATFORM convention — it points toward the
+  // INLINE-END when the row is collapsed (the content lives "over there"), and
+  // rotates DOWNWARD when expanded ("the content lives below" — Jakob's Law: right
+  // = collapsed, down = expanded). The glyph itself is a right-pointing chevron;
+  // layout.css rotates the SAME icon 90° on expand (a short transition) and mirrors
+  // it with scaleX(-1) under [dir='rtl'] so the collapsed tip always points at the
+  // inline-end in BOTH directions (the expanded down is direction-neutral).
   const railGroup = (label, items, opts = {}) => {
     const count = Array.isArray(items) ? items.length : 0
     if (!count && opts.hideWhenEmpty !== false) return ''
@@ -616,7 +631,7 @@
     const dot = opts.accent ? '<span class="rail-group-dot" style="--sw: var(--' + escHtml(opts.accent) + ')" aria-hidden="true"></span>' : ''
     const head =
       '<button type="button" class="rail-group-head" data-rail-group aria-expanded="' + (opts.collapsed ? 'false' : 'true') + '">' +
-      '<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>' +
+      '<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg>' +
       dot +
       '<span>' + escHtml(label) + '</span>' +
       '<span class="rail-group-count">' + railFaDig(count) + '</span>' +
@@ -763,16 +778,20 @@
       const mine = ptasks.filter((t) => t.project_id === p.id)
       if (!mine.length) {
         // No board tasks → no aspects to reveal: a plain bold row, click = open.
-        return railItem(href, p.title, p.status, null, null, 'rail-project-row')
+        // S177 (owner, block 4): no status dot before the name — the STAGE group
+        // already encodes the status, so the dot carried no extra information;
+        // the name starts at the row's inline-start edge now.
+        return railItem(href, p.title, null, null, null, 'rail-project-row')
       }
-      // The branch head is a TOGGLE (not a link): chevron + the project's status dot
-      // + the bold name (.rail-project-row, the S106 700 register). S125 (owner):
-      // the problems count pill left the rows — the glance reads names only; the
-      // branch's own Problems sub-group still lists the work.
+      // The branch head is a TOGGLE (not a link): chevron + the bold name
+      // (.rail-project-row). S125 (owner): the problems count pill left the rows —
+      // the glance reads names only; the branch's own Problems sub-group still
+      // lists the work. S177 (owner, block 4): the status DOT left the row too —
+      // the stage grouping already carries the status, so the dot was noise; the
+      // name sits at the head's inline-start edge.
       const head =
         '<button type="button" class="rail-group-head rail-project-head" data-rail-group aria-expanded="false">' +
-        '<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>' +
-        '<span class="rail-dot" data-status="' + escHtml(p.status) + '" aria-hidden="true"></span>' +
+        '<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg>' +
         '<span class="rail-project-row" dir="auto">' + escHtml(p.title) + '</span>' +
         '</button>'
       const goto =
@@ -785,7 +804,7 @@
         if (!items.length) return ''
         return '<div class="rail-group rail-sub-group is-collapsed">' +
           '<button type="button" class="rail-group-head" data-rail-group aria-expanded="false">' +
-          '<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>' +
+          '<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg>' +
           '<span>' + escHtml(railT(g.i18n, g.label)) + '</span>' +
           '<span class="rail-group-count">' + railFaDig(items.length) + '</span>' +
           '</button><div class="rail-group-body">' +

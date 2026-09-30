@@ -289,34 +289,44 @@ body.rail-panel-open .rail-panel { visibility: visible; opacity: 1; transition: 
   scrollbar-color: color-mix(in srgb, var(--muted) 45%, transparent) transparent;
 }
 .rail-group { margin-block-end: 0.4rem; }
+/* S177 (owner, block 1 — text-only section headers): the groups separate by
+   VERTICAL SPACE, not boxes — a sibling group gains breathing room above it so
+   the stage bands read as typographic sections (works at every nesting level:
+   stages, project branches inside a stage, aspect sub-groups inside a branch). */
+.rail-group + .rail-group { margin-block-start: 0.7rem; }
 .rail-group-head {
   display: flex; align-items: center; gap: 0.3rem;
   inline-size: 100%;
   padding: 0.45rem 0.5rem;
-  border: 0; border-radius: 0.5rem;
-  /* S106 (owner: head groups must read BOLD — "the head group and its content are
-     both regular font, which damages the hierarchy"): the font shorthand below moves
-     600 → 700, the shared bold register; the 400 items beneath now read as content,
-     not siblings. */
-  /* S90 (owner request): the group heads wear a PALE background wash — the panel's
-     heading rows used to be bare text on the panel surface, which read as flat
-     labels rather than the section headings they are.
-     S94 (owner item 3): the wash is now the SHARED pale well (--well-bg, a 55%
-     bg-soft veil — paler than S90's solid bg-soft) so the rail group heads and the
-     projects kanban stage columns read as the same system, exact same color/opacity. */
-  background: var(--well-bg);
+  border: 0;
+  /* S177 (owner, block 1): the group heads are TEXT-ONLY now — no background
+     fill, no rounded corners. The section header relies on typographic hierarchy
+     (the eyebrow register below: 12px / 500 / muted ink) instead of a filled
+     region, so the panel carries ONE filled element (the selected row — block 2).
+     The S90 wash → S94 well-bg → S177 bare-text lineage. The muted ink is the
+     --muted token: 6.7:1 on the white card / 6.06:1 on the dark card — AA holds
+     on both themes (the 4.5:1 floor).
+     NOTE the two explicit resets: the GLOBAL button{} rule in base.css paints
+     radius --radius-sm + a teal CTA hover on every <button> — a bare override-less
+     head would leak both (measured: 14px corners + --cta-hover fill on hover), so
+     the radius and the hover background are pinned OFF here, not just omitted. */
+  border-radius: 0;
+  background: transparent;
   color: var(--muted);
   /* S155: the group head is the EYEBROW rung (section group label): 12px/500,
-     +0.03em, secondary ink, SENTENCE CASE — the S106 700/uppercase bold register
-     is superseded by the spec's weight/ink hierarchy: the 400 items beneath read
-     as content through the ink rungs + this label's 12px secondary register, not
-     through weight. (The sub-group head at :398 keeps its own 500/no-transform
-     override — same rung, quieter surface.) */
+     +0.03em, secondary ink, SENTENCE CASE — the hierarchy reads through the ink
+     rungs + this label's 12px secondary register, not through weight or fills.
+     (The sub-group head at :398 keeps its own 500/no-transform override — same
+     rung, quieter surface.) */
   font: var(--text-eyebrow-weight) var(--text-eyebrow-size)/var(--text-eyebrow-line-height) var(--font-sans);
   letter-spacing: var(--text-eyebrow-tracking); text-transform: none;
   cursor: pointer;
 }
-.rail-group-head:hover { color: var(--text); background: var(--accent-soft); }
+/* S177 (block 1): the hover is an INK change only — no fill, so the resting
+   text-only contract survives interaction (the panel keeps zero boxes until the
+   pointer meets a row). The explicit transparent background KILLS the global
+   button:hover teal (base.css) — an omitted declaration would let it leak. */
+.rail-group-head:hover { color: var(--text); background: transparent; }
 /* S116: the group heads join the panel's brand focus-ring convention — keyboard
    users tabbing the tree (stage → project branch → aspect sub-groups) get the same
    2px brand ring every other rail control speaks; the UA default outline read as
@@ -325,23 +335,38 @@ body.rail-panel-open .rail-panel { visibility: visible; opacity: 1; transition: 
 .rail-group-head:focus-visible { outline: 2px solid var(--brand); outline-offset: -2px; }
 .rail-group-head .rail-group-count { margin-inline-start: auto; font-variant-numeric: tabular-nums; font-weight: 500; opacity: 0.8; }
 .rail-group-head .icon { inline-size: 0.85rem; block-size: 0.85rem; transition: transform 0.14s ease; }
-/* S95 r2 (owner item 2): the COLLAPSED disclosure chevron points DOWN ("the items
-   live below — open me"); expanding flips it upright (▴). The old glyph pointed
-   right and the collapsed rotation (-90deg) tipped it toward the TOP — the owner
-   flagged it. Both states are vertical glyphs, so RTL mirrors honestly.
+/* S177 (owner, block 5 — the platform chevron convention): the COLLAPSED chevron
+   points toward the INLINE-END ("there's more here"), the EXPANDED one points
+   DOWN ("the content lives below") — right = collapsed, down = expanded, Jakob's
+   Law. The glyph ships right-pointing (nav.js), layout.css rotates the SAME icon
+   90° on expand (one short transition, no glyph swap). The S95 r2 down-when-
+   collapsed convention is superseded.
+   RTL: the collapsed tip must point at the inline-end (LEFT under [dir='rtl']) —
+   scaleX(-1) mirrors the resting glyph; the expanded rotate(90deg) REPLACES the
+   transform (specificity (0,4,0) beats (0,3,0)), and a down-tip is direction-
+   neutral, so no composed-state branch is needed.
    NOTE the > child combinators: a bare descendant selector also matched through
    the EXPANDED stage group an expanded sub-tree sits inside (the stage → project
    → box nesting) — every sub-chevron rode the ancestor's rotation.
    S98 (the goto chips): chip-carrying heads sit one level DEEPER (group >
    headrow > head), so the rotation rule covers both paths. */
-.rail-group:not(.is-collapsed) > .rail-group-head .icon,
-.rail-group:not(.is-collapsed) > .rail-group-headrow > .rail-group-head .icon { transform: rotate(180deg); }
+[dir='rtl'] .rail-group-head > .icon { transform: scaleX(-1); }
+.rail-group:not(.is-collapsed) > .rail-group-head > .icon,
+.rail-group:not(.is-collapsed) > .rail-group-headrow > .rail-group-head > .icon { transform: rotate(90deg); }
 .rail-group.is-collapsed .rail-group-body { display: none; }
 /* S98 (the goto chips): a group carrying a deep link rides its head inside a flex
    row — the toggle button keeps flex:1 (its width contract is untouched) and the
    chip sits as its SIBLING on the inline END (an <a> can never nest in a <button>).
    The chip is the .rail-panel-close recipe: quiet 2rem icon, muted ink, bg-soft
-   hover, brand focus ring. */
+   hover, brand focus ring.
+   S177 (owner, block 6 — the reveal): the ↗ chip HIDES by default and shows on
+   hover over the row, on :focus-within (the chip itself is tabbable — it lights
+   the moment it takes focus, so the invisible-focusable smell is covered), and
+   ALWAYS on the SELECTED branch (.is-here — the row you are on keeps its afford-
+   ance lit). Coarse pointers have no hover — @media (hover: none) keeps every
+   chip visible (the tap target stays discoverable). Opacity (never display:none)
+   keeps the chip in the tab order and clickable for Playwright's real-pointer
+   taps. */
 .rail-group-headrow { display: flex; align-items: center; gap: 0.25rem; }
 .rail-group-headrow .rail-group-head { flex: 1; min-inline-size: 0; }
 .rail-group-goto {
@@ -350,66 +375,51 @@ body.rail-panel-open .rail-panel { visibility: visible; opacity: 1; transition: 
   flex: none;
   border: 0; border-radius: 0.5rem;
   background: transparent; color: var(--muted); cursor: pointer;
+  opacity: 0; /* S177: hidden until the row is hovered / focused / selected */
+  transition: opacity 0.14s ease;
+}
+.rail-group-headrow:hover .rail-group-goto,
+.rail-group-headrow:focus-within .rail-group-goto,
+.rail-project-group.is-here > .rail-group-headrow .rail-group-goto { opacity: 1; }
+@media (hover: none) {
+  /* S177 (block 6 note): touch screens have no hover — the chip stays visible */
+  .rail-group-goto { opacity: 1; }
 }
 .rail-group-goto:hover { background: var(--bg-soft); color: var(--text); text-decoration: none; }
 .rail-group-goto:focus-visible { outline: 2px solid var(--brand); outline-offset: 1px; }
-/* S90 (owner request, the "A / --B" sketch): items sit INDENTED under their group
-   head so the hierarchy reads at a glance — the body pulls in from the head's edge
-   and a hairline guide carries the eye down the group's extent (a tree rail, the
-   same anatomy the notes vault list uses). Logical properties mirror in RTL. */
+/* S177 (owner, block 3 — the connectors are GONE): the tree's vertical guide
+   lines and horizontal branch elbows are removed — with two nesting levels,
+   INDENTATION + proximity already carry the parent-child relationship, so the
+   lines only added clutter. Every level indents a moderate ~16px from its parent
+   via LOGICAL padding-inline-start (mirrors in RTL); the child rows read lighter
+   + smaller than their parents (the sub-group's fs-xs/muted register, the S106
+   ink ladder). */
 .rail-group-body {
   display: flex; flex-direction: column; gap: 1px;
-  margin-inline-start: 0.8rem;
-  /* LOGICAL padding (block + inline-start) — a physical 4-value shorthand here put
-     the guide gutter on the LEFT in both directions, halving the indent in RTL. */
+  /* ONE indent per nesting level — ~16px, logical, RTL-true */
   padding-block: 0.125rem 0.25rem;
-  padding-inline-start: 0.55rem;
-  border-inline-start: 1px solid color-mix(in srgb, var(--muted) 26%, transparent);
+  padding-inline-start: 1rem;
 }
 /* S94 (owner item 6 — the deeper projects tree): a project's idea-groups nest ONE
-   MORE .rail-group level inside the stage body (stage → project → idea-group → item),
-   so the S91 tree-guide indent compounds naturally (0.8rem + 0.8rem). The sub-head
-   reuses the group-head contract (same [data-rail-group] toggle, same chevron/count)
-   but speaks QUIETER: sentence case at fs-xs, no wash (bare text on the panel — the
-   stage heads own the "section chip" look, the sub-heads read as the project's own
-   labels), a touch less padding. Sub-group margin keeps the branch visually owned by
-   its project row (the tree guide carries the eye down).
-   S106 r3 (owner: "add some hierarchical space — Project Name (bold) / ---Ideas;
-   currently Project name / ideas"): the branch now hangs measurably UNDER its project
-   row — the sub-group gains margin-inline-start (0.75rem of hierarchy space past the
-   row above it) and an ELBOW connector (the owner's '---'): a hairline riser + tick
-   branching off the stage body's guide into the sub-head, the same 26%-muted ink
-   every guide speaks, rounded at the turn. The branch's own body nests TIGHTER than
-   the shared 0.8+0.55 recipe so the leaves (one level deeper again) keep their label
-   room in the 17.5rem panel. Logical properties only — the elbow mirrors in RTL. */
-.rail-sub-group { margin-block: 1px 0.2rem; margin-inline-start: 0.75rem; position: relative; }
-.rail-sub-group::before {
-  content: '';
-  position: absolute;
-  /* back to the stage body's own guide: its 0.55rem padding + the 0.75rem branch
-     margin — the tick lands on the guide and points into the sub-head's chevron */
-  inset-inline-start: -1.3rem;
-  inset-block-start: 0;
-  inline-size: 1.3rem;
-  /* down to the head's optical center (margin 1px + 0.3rem pad + half the ~0.85rem
-     icon row) — rem-based, so it tracks the head at any user font size */
-  block-size: 0.78rem;
-  border-inline-start: 1px solid color-mix(in srgb, var(--muted) 26%, transparent);
-  border-block-end: 1px solid color-mix(in srgb, var(--muted) 26%, transparent);
-  border-end-start-radius: 0.35rem;
-  pointer-events: none;
-}
-.rail-sub-group .rail-group-body { margin-inline-start: 0.55rem; padding-inline-start: 0.4rem; }
+   MORE .rail-group level inside the stage body (stage → project → idea-group → item);
+   each level compounds the same 1rem indent (16px → 32px → 48px), so the branch
+   stays visually owned by its project row through indentation + the S106 ink
+   ladder alone (no connectors — S177). The sub-head reuses the group-head contract
+   (same [data-rail-group] toggle, same chevron/count) and speaks QUIETER: sentence
+   case at fs-xs, bare text on the panel (the stage heads own the section register,
+   the sub-heads read as the project's own labels), a touch less padding. */
+.rail-sub-group { margin-block: 1px 0.2rem; }
 .rail-sub-group .rail-group-head {
   padding: 0.3rem 0.4rem;
   background: transparent;
+  border-radius: 0; /* S177: the global button radius stays dead here too */
   color: var(--muted);
   font-size: var(--fs-xs);
   font-weight: 500;
   letter-spacing: 0;
   text-transform: none;
 }
-.rail-sub-group .rail-group-head:hover { color: var(--text); background: var(--bg-soft); }
+.rail-sub-group .rail-group-head:hover { color: var(--text); background: transparent; } /* S177: ink-only — heads carry no fills (global teal killed) */
 .rail-sub-group .rail-group-head .rail-group-count { opacity: 0.65; }
 .rail-sub-group .rail-item { font-size: var(--fs-xs); color: var(--muted); }
 .rail-sub-group .rail-item:hover { color: var(--text); }
@@ -463,9 +473,9 @@ body.rail-panel-open .rail-panel { visibility: visible; opacity: 1; transition: 
    Stage head → PROJECT branch (collapsed until its title is clicked) → aspect
    sub-groups (New ideas / Problems / Plans / In Progress / Done) → items. The
    branch head reuses the group-head TOGGLE contract but speaks the ROW register,
-   not the section register: sentence case, no wash (the stage heads own the
-   section-chip look), the bold project name + its status dot (S125: the problems
-   count pill left the rows — the glance reads names only).
+   not the section register: sentence case, no wash, the project name at the row's
+   inline-start edge (S125: the problems count pill left; S177 block 4: the status
+   dot left too — the stage grouping already encodes the status, so it was noise).
    The ↗ goto chip (the S98 recipe) sits beside the head inside the headrow and
    keeps the S89 deep link — expanding and opening stop fighting over one click.
    A project with no board tasks renders as a plain .rail-item row (nothing to
@@ -828,9 +838,9 @@ body.rail-icons-only .rail-collapse .icon { transform: rotate(180deg); }
    the tint as a full-width wash on its head.
    S95 r2 (owner item 6 — the restraint rule): the head fill is GONE — the
    category's color lives ONLY on its small leading dot + its count badge (color
-   marks a small accent, never paints a whole strip). The neutral pale well stays
-   the head's quiet base (every head identical); hover quiets to the generic
-   accent-soft rule above. */
+   marks a small accent, never paints a whole strip). S177 (block 1): the head's
+   base is bare TEXT now (no well, no fill — the S94 well lineage ended); hover
+   is the ink-only rule above. */
 .rail-group[style*='--ga'] .rail-group-count {
   color: color-mix(in srgb, var(--ga) 68%, var(--text));
   font-weight: 600;

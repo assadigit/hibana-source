@@ -194,28 +194,35 @@ test('S155-1: project names, folders and head groups compute the spec weight lad
   const leaf = page.locator('.rail-sub-group .rail-item', { hasText: 'S106 rail tree idea' })
   expect(await leaf.evaluate((el) => getComputedStyle(el).fontWeight)).toBe('400')
 
-  // (b3) S106 r3 (owner: "add some hierarchical space — Project Name (bold) / ---Ideas;
-  // currently Project name / ideas"): the branch hangs measurably UNDER its project
-  // row — the sub-head sits ≥0.75rem deeper, the leaves deeper still — and the
-  // ELBOW connector (the owner's '---') actually computes: a riser + tick branching
-  // off the stage guide into the sub-head. Geometry pins, not just weights, so a
-  // later margin/positioning clobber can't silently re-flatten the tree. The branch
-  // ships collapsed (weights pin fine on display:none) but geometry needs a box —
-  // expand first, which also pins that the toggle still works under the new CSS.
+  // (b3) S106 r3 → S177 (owner, block 3): the branch hangs measurably UNDER its
+  // project row through INDENTATION ALONE — the tree's connector lines (the stage
+  // bodies' vertical guides + the sub-group elbows) are GONE, so the hierarchy
+  // rides ~16px of logical indent per level + the ink ladder. Geometry pins, not
+  // just weights, so a later margin/positioning clobber can't silently re-flatten
+  // the tree — and connector pins so a stray ::before can't quietly re-add the
+  // lines. The branch ships collapsed (weights pin fine on display:none) but
+  // geometry needs a box — expand first, which also pins that the toggle still
+  // works under the new CSS.
   await subHead.click()
   const projBox = await projRow.boundingBox()
   const subHeadBox = await subHead.boundingBox()
   const leafBox = await leaf.boundingBox()
-  expect(subHeadBox!.x).toBeGreaterThan(projBox!.x + 10) // 0.75rem = 12px of hierarchy space
-  expect(leafBox!.x).toBeGreaterThan(subHeadBox!.x + 10) // the leaf nests under its head
-  const elbow = await subHead.evaluate((el) => {
-    const cs = getComputedStyle(el.parentElement, '::before')
-    return { content: cs.content, w: Number.parseFloat(cs.width), tick: cs.borderBottomStyle, riser: cs.borderLeftStyle }
+  expect(subHeadBox!.x).toBeGreaterThan(projBox!.x + 14) // ~16px (1rem) of hierarchy indent
+  expect(leafBox!.x).toBeGreaterThan(subHeadBox!.x + 14) // the leaf nests under its head
+  const connectors = await page.evaluate(() => {
+    const sub = document.querySelector('.rail-sub-group') as HTMLElement | null
+    const body = document.querySelector('.rail-group-body') as HTMLElement | null
+    return {
+      elbow: sub ? getComputedStyle(sub, '::before').content : 'missing',
+      guide: body ? getComputedStyle(body).borderInlineStartStyle : 'missing',
+      guideW: body ? getComputedStyle(body).borderInlineStartWidth : 'missing',
+    }
   })
-  expect(elbow.content).not.toBe('none') // the pseudo renders
-  expect(elbow.w).toBeGreaterThan(15) // spans the full guide→branch gap (1.3rem ≈ 21px)
-  expect(elbow.tick).toBe('solid')
-  expect(elbow.riser).toBe('solid')
+  // 'none' per spec, 'normal' is Chrome's computed string when no content rule
+  // rides the pseudo — both mean "no connector box" (any REAL content fails).
+  expect(['none', 'normal']).toContain(connectors.elbow) // S177: no elbow connector on the sub-group
+  expect(connectors.guide).toBe('none') // S177: no vertical guide under any group
+  expect(connectors.guideW).toBe('0px')
 
   // (c) The projects home — the overview box labels (the status NAMES the owner
   // reads: Problems / In Progress / Ideas / Plans; the S121 carousel card title this

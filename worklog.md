@@ -685,3 +685,80 @@ Stage Summary:
   chevron is the S97 fold-all toggle (reported to the owner); the color step +
   the advisor's mockup remain open on the owner's side (the current tint values
   kept, per the advisor's "the shade of the tint is a separate color decision").
+
+---
+Task ID: S178
+Agent: main (Z.ai Code)
+Task: Owner round — the advisor's ELEVEN-block refinement of the quiet Projects
+sidebar (the S177 follow-up): panel header surface, inline counts, type
+hierarchy, row heights, group spacing, collapsed-gap, chevron slots, and the
+selected row's inset bar.
+
+Work Log:
+- Sandbox had reset AGAIN (5th time): re-cloned assadigit/hibana-source to
+  /home/z/hibana (main @ f7f5f57 = v0.4.1.4, tree clean), restored .secrets.env
+  + credentials.md (check-ignore verified), bun install --frozen-lockfile.
+- Implemented in public/css/layout.css + public/js/nav.js:
+  (1) .rail-panel-head: --well-bg → var(--card) (the sidebar's own surface;
+  the thin bottom divider stays, Open→/fold/✕ untouched);
+  (2) the count rides INLINE: .rail-group-count loses margin-inline-start:auto
+  + opacity .8 → flex:none, 0.6875rem (11px), color var(--muted), weight 500;
+  the label becomes .rail-group-label (flex 0 1 auto, nowrap, ellipsis); the
+  head gap → 0.375rem (6px); markup gains the label class in railGroup + the
+  sub-group heads (the JS label query span:not(.rail-group-count) still works);
+  (3) type hierarchy: the branch head 600/fs-sm → font: var(--text-h3-weight)
+  var(--text-h3-size)/var(--text-h3-line-height) (14px/500/1.4); the plain
+  .rail-item.rail-project-row gains the same size/lh + min-block-size 2rem +
+  0.3rem block padding; the sub-heads 500 → 400; the sub leaves gain
+  padding-block .375rem (~27.6px);
+  (4) coarse floors: @media (pointer: coarse) min-block-size 2.5rem on the four
+  tree-row selectors — TRAP: media blocks add NO specificity, the bare
+  .rail-project-head (0,1,0) lost to the desktop (0,3,0) compound (measured
+  32px under isMobile+hasTouch; fixed by restating the full compound);
+  (5) spacing: .rail-group margin-block-end 0.4rem → 0; .rail-group + .rail-group
+  → .rail-panel-body > .rail-group + .rail-group @ 1.125rem (18px — never
+  reaches the nested sub-groups now); .rail-group-body gap 1px → 0.125rem,
+  padding-block → 0.25rem (the 4px head→first-item space);
+  (6) .rail-project-group margin-block 0 (a branch is a row among rows; the
+  folded body is display:none → a collapsed project row is box-equal to any
+  project row);
+  (9) the chevron slot: .rail-chev-slot (inline-size .85rem, flex:none) on the
+  childless plain rows (nav.js extra span), the branch head gap 0.4 → 0.45rem
+  (matches .rail-item) — every project name starts at ONE inline-start edge;
+  (11) the selected bar on BOTH shapes: inset-inline-start 0 → 0.25rem (4px in),
+  inline-size 0.18 → 0.1875rem (3px), inset-block 0.18rem → 20% (~60% tall),
+  radius 999px kept; the accent-soft pill + corners untouched;
+  (7)(8)(10) S177's connectors-gone/dots-gone/chevron-convention/↗-reveal kept.
+- Cache-bust: nav.js v38→v39 (×18 HTML refs), layout.css v57→v58 (×26);
+  sw.js VERSION v412→v413 + history note; package.json 0.4.1.4→0.4.1.5.
+- e2e: REWROTE s177-sidebar-quiet (7→8 tests: the new panel-header contract;
+  the inline-count geometry + 11px rung + 18px bands + the group-vs-row gap
+  ratio ≥4×; the type hierarchy + 30–32px project rows + 26–28px child rows +
+  the folded-equal pin + the slot alignment (names at one edge, ±0px); the
+  single-fill selection + the INSET bar geometry (4px/3px/~60%/999px) on both
+  row shapes + aria-current; the chevron convention + slot-not-glyph; the RTL
+  mirror + indent ladder; the ↗ reveal; the coarse ≥40px floors + chip
+  always-lit) + UPDATED s106's weight ladder (sub-head 500 → 400).
+- Ladder: typecheck 0 · vitest 539/539 · eslint 0 err (163-warn baseline) ·
+  build 79 · wiring canonical · cache-bust PASS (nav.js + layout.css) · parity
+  1552/1552 (0 new keys) · rail regressions (rail-panel/s106/s148/s143/s115)
+  31/31 · FULL e2e (background batch) — see Stage Summary.
+- Agent-browser QA on :3017: EN + FA/RTL + claude-dark + 390px + touch context;
+  computed-style probes for the AA muted ink, the inline counts, the row
+  heights, the inset bar; console sweep clean.
+
+Stage Summary:
+- LOCAL main @ <commit>: v0.4.1.5 staged — the quiet sidebar refined per the
+  advisor's eleven blocks. LIVE hibana.ir untouched @ v0.4.1.4: the release is
+  OWNER-GATED (push/deploy/tag/zip/healthcheck only on the owner's explicit go).
+- Ops lessons: (a) media queries add NO specificity — a media-scoped override
+  of a compound selector must restate ≥ the compound's own weight or the
+  base rule wins silently (measured under Playwright's isMobile+hasTouch);
+  (b) Playwright's isMobile+hasTouch emulation DOES match (pointer: coarse)
+  on Desktop Chrome — pin the media itself, then the geometry it should drive;
+  (c) the far-edge→inline count move touches EVERY panel (the shared railGroup
+  contract) — that is the point (one register), and the other panels' pins
+  (todo/sparks/notes counts are text-content pins) survived untouched.
+- Still open on the owner's side: the advisor's color block (exact shades),
+  the finished-sidebar mockup, and the panel-header block now that the fold
+  chevron's job is documented (it collapses/expands EVERY group — S97).

@@ -633,7 +633,7 @@
       '<button type="button" class="rail-group-head" data-rail-group aria-expanded="' + (opts.collapsed ? 'false' : 'true') + '">' +
       '<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg>' +
       dot +
-      '<span>' + escHtml(label) + '</span>' +
+      '<span class="rail-group-label">' + escHtml(label) + '</span>' +
       '<span class="rail-group-count">' + railFaDig(count) + '</span>' +
       '</button>'
     // S98 (the goto chips): a group carrying opts.href rides its head inside a
@@ -779,9 +779,12 @@
       if (!mine.length) {
         // No board tasks → no aspects to reveal: a plain bold row, click = open.
         // S177 (owner, block 4): no status dot before the name — the STAGE group
-        // already encodes the status, so the dot carried no extra information;
-        // the name starts at the row's inline-start edge now.
-        return railItem(href, p.title, null, null, null, 'rail-project-row')
+        // already encodes the status, so the dot carried no extra information.
+        // S178 (owner, block 9): the row reserves the CHEVRON'S FIXED-WIDTH SLOT
+        // (an empty span, .rail-chev-slot) so this childless name sits at the
+        // exact inline-start edge the expandable branch heads put theirs at —
+        // every project name in the tree starts on one line.
+        return railItem(href, p.title, null, '<span class="rail-chev-slot" aria-hidden="true"></span>', null, 'rail-project-row')
       }
       // The branch head is a TOGGLE (not a link): chevron + the bold name
       // (.rail-project-row). S125 (owner): the problems count pill left the rows —
@@ -805,7 +808,7 @@
         return '<div class="rail-group rail-sub-group is-collapsed">' +
           '<button type="button" class="rail-group-head" data-rail-group aria-expanded="false">' +
           '<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg>' +
-          '<span>' + escHtml(railT(g.i18n, g.label)) + '</span>' +
+          '<span class="rail-group-label">' + escHtml(railT(g.i18n, g.label)) + '</span>' +
           '<span class="rail-group-count">' + railFaDig(items.length) + '</span>' +
           '</button><div class="rail-group-body">' +
           items.map((t) => railItem(href + (SUB_TARGET[g.key] || ''), t.title, null)).join('') +

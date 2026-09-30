@@ -175,7 +175,8 @@ test('S155-1: project names, folders and head groups compute the spec weight lad
   // ("Minor heading / nav item — Sidebar project names") weighs 500 (was the S106
   // 700; hierarchy rides the ink rungs now). The tree's full weight ladder,
   // pinned level by level: stage head 500 (b above) → PROJECT name 500 →
-  // sub-group head 500 → idea leaf 400 (content stays regular).
+  // sub-group head 400 → idea leaf 400 (S178: the sub-heads are CHILD ROWS —
+  // regular weight; the hierarchy rides size + ink, not weight).
   // S115 r2: the project name lives in the BRANCH HEAD now (a toggle, not a link
   // — the owner's "collapsed until the title is clicked" sketch) and the branch
   // ships COLLAPSED, so it is expanded here before the geometry pins below.
@@ -189,7 +190,7 @@ test('S155-1: project names, folders and head groups compute the spec weight lad
   await expect(branch).not.toHaveClass(/is-collapsed/)
 
   const subHead = page.locator('.rail-sub-group .rail-group-head').first()
-  expect(await subHead.evaluate((el) => getComputedStyle(el).fontWeight)).toBe('500')
+  expect(await subHead.evaluate((el) => getComputedStyle(el).fontWeight)).toBe('400')
 
   const leaf = page.locator('.rail-sub-group .rail-item', { hasText: 'S106 rail tree idea' })
   expect(await leaf.evaluate((el) => getComputedStyle(el).fontWeight)).toBe('400')

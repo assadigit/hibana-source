@@ -563,3 +563,125 @@ Stage Summary:
   (the five requests were editor-scoped — card-side highlighting is a follow-up
   round if the owner wants it); the notes surfaces keep their original --md-com
   (the AA mix is scoped to the editor block's own rule).
+
+---
+Task ID: S177
+Agent: main (Z.ai Code)
+Task: Hibana (at /home/z/hibana) — owner round: the design advisor's SIX BLOCKS for the Projects sidebar panel (the "quiet sidebar"), pasted verbatim by the owner: (1) text-only group headers, (2) the selected row as the only filled element + aria-current, (3) remove the tree connector lines + ~16px indents, (4) remove the meaningless status dots before project names, (5) the platform chevron convention (inline-end = collapsed, down = expanded), (6) hover/focus/selected-reveal for the ↗ open-link chips (+ coarse-pointer always-visible). Released as v0.4.1.4.
+
+Work Log:
+- Sandbox had reset AGAIN (4th time) — re-cloned assadigit/hibana-source to
+  /home/z/hibana (main @ ee6cfb0 = v0.4.1.3), restored .secrets.env +
+  credentials.md (check-ignore verified), bun install --frozen-lockfile. The repo
+  worklog through S176 was the source of truth; the S176 round (vertical rail +
+  code block) was already LIVE at v0.4.1.3 — this round is purely the sidebar.
+- Located the surface: the rail panel's projects section is renderRailProjects in
+  public/js/nav.js (stage groups via railGroup(), the per-project branch via
+  projectBranch(), markRailRows() for the current-location marks) + the rail CSS
+  block in public/css/layout.css (.rail-group-head / .rail-group-body /
+  .rail-sub-group with its S106 elbow ::before / .rail-group-goto /
+  .rail-project-head / the S95 r2 chevron rotation).
+- BLOCK 1 (text-only heads): removed background: var(--well-bg) + border-radius
+  from .rail-group-head (kept the eyebrow register — 12px/500 muted, which IS the
+  advisor's "small size, medium weight, muted color"); .rail-group +
+  .rail-group-group sibling margin-block-start 0.7rem (vertical space, no
+  divider); hover = ink-only. CONTRAST: the muted token is 6.7:1 on the white
+  card / 6.06:1 on the dark card — AA holds (e2e-probed both).
+- THE LEAK (caught by the new spec): the GLOBAL button{} rule in base.css paints
+  border-radius: var(--radius-sm) (14px) + a teal --cta-hover background on
+  EVERY <button> — the old head rule had overridden both implicitly; OMITTING the
+  declarations let them leak (measured: 14px corners, teal hover). Fix:
+  explicit border-radius: 0 + background: transparent on the head, its :hover,
+  and the sub-group head twin. Lesson: "remove a style" on an element that
+  matches a global element selector means OVERRIDE TO NEUTRAL, never omit.
+- BLOCK 2 (single fill): the is-row-active accent wash + inline-start brand pill
+  and the is-here headrow register kept EXACTLY (figure-ground); other rows keep
+  only the bg-soft hover. markRailRows now stamps aria-current="true" on active
+  .rail-item rows AND on the branch's goto chip (its identity link — the head is
+  a toggle), swept with removeAttribute on soft navigation.
+- BLOCK 3 (connectors gone): .rail-group-body's border-inline-start guide removed
+  + the S106 elbow ::before on .rail-sub-group deleted + the sub-group's tighter
+  indent override retired — ONE uniform ~16px logical indent per nesting level
+  (padding-inline-start: 1rem; 16 → 32 → 48px cumulative), RTL-true via logical
+  properties; the child ink ladder (fs-xs muted leaves vs 500 rows) carries the
+  hierarchy.
+- BLOCK 4 (no dots): railItem's dotStatus → null for the plain project row; the
+  branch head's .rail-dot span removed from the markup — the stage grouping
+  already encodes the status, so the dot was noise; names start at the row's
+  inline-start edge. (The sparks panel's spark dots + the to-do quadrants'
+  accent dots stay — those carry real information.)
+- BLOCK 5 (chevron convention): the glyph path flips to the right-pointing
+  chevron (m9 6 6 6-6 6) in railGroup/projectBranch/sub-group heads; expanded =
+  rotate(90deg) on the SAME icon (down = "content lives below"), collapsed =
+  identity (right = inline-end); [dir='rtl'] .rail-group-head > .icon { scaleX(-1) }
+  mirrors the collapsed tip LEFT (RTL's inline-end) while the expanded rotate(90)
+  replaces the transform (specificity (0,4,0) > (0,3,0)) — the down-tip is
+  direction-neutral. The S95 r2 down-when-collapsed convention superseded.
+- BLOCK 6 (chip reveal): .rail-group-goto opacity 0 + 0.14s fade; revealed by
+  .rail-group-headrow:hover / :focus-within / .is-here > .rail-group-headrow;
+  @media (hover: none) keeps every chip visible (touch). Opacity (not
+  display:none) keeps the chip tabbable + clickable. Applies to the S98 to-do
+  quadrant chips too — one pattern across every headrow.
+- THE PANEL HEADER was deliberately left untouched per the advisor's own note —
+  its chevron is the S97 TREE FOLD (one tap collapses/expands EVERY group; label/
+  aria/title flip between "Collapse all"/"Expand all"). Reported back to the
+  owner so the advisor can write a block for it if wanted.
+- TESTS: rail-panel.spec.ts's two dot pins inverted (0 dots in the projects
+  panel; the branch head has none); s106's elbow pins replaced by
+  connectors-are-GONE pins (guide border none/0px; ::before content none —
+  'normal' accepted too, Chrome's no-rule string) while the indent geometry pins
+  survive at ≥14px; NEW e2e/s177-sidebar-quiet.spec.ts — 7 tests pinning all six
+  blocks (text-only head computed contract + the AA ratio probe + count
+  same-row/end-aligned + sibling spacing; connectors + indent ladder + no dots +
+  name-at-edge; single-fill + aria-current on both row shapes + the
+  exactly-one-filled-element panel count; chevron glyph/transform states +
+  chevron-only-on-expandable-rows; the RTL mirror matrix + end-edge indent
+  pins — full-width flex children keep their left edge in RTL, the indent reads
+  on the x+width edge; chip default-0/hover/focus/is-here-1; coarse-pointer
+  always-1 via an isMobile+hasTouch desktop-width context with the (hover:none)
+  media pinned).
+- TWO TRANSITION TRAPS in the spec (both fixed with expect.poll): (a) every <a>
+  in the app transitions background-color 0.15s (base.css's global
+  button/.chip/.seg-btn/a/input/textarea/select rule) — an instant read after
+  is-row-active lands catches the oklab mid-flight color (measured
+  rgba(84,163,167,.13) between transparent and rgba(74,159,163,.13)); (b) the
+  chevron's own transform transition (0.14s) catches mid-rotation matrices. Poll
+  the animated properties; pin static ones instantly.
+- LADDER: typecheck 0 · vitest 539/539 · eslint 0 err (163-warn baseline) ·
+  build 79 · wiring canonical · cache-bust PASS (nav.js v37→v38 ×20 pages,
+  layout.css v56→v57 ×26 pages) · parity 1552/1552 (0 new keys) · FULL e2e
+  304/304 (~15 min, one run — the sandbox's old reaping problem did not recur).
+- AGENT-BROWSER QA (:3017): EN — all six blocks probed live, the leaf deep-link
+  lights the exact row + branch with aria-current + the accent wash, tree-fold
+  still collapses all 5 groups; FA/RTL — dir=rtl, Farsi stage labels + digits,
+  the collapsed branch chevron mirrored (matrix(-1,0,0,1,0,0)), the expanded
+  stage rotated down, the indent logical; claude-dark — the muted head 6.06:1 on
+  #1f1e1c; 390px — no h-overflow, the rail-panel display:none ≤1024px (the
+  mobile-nav owns the phone); agent-browser's own context reports (hover:none)
+  so the touch branch is what its session exercises (the e2e Desktop-Chrome
+  project pins the hover branch). 0 console errors, 0 page errors.
+- CHAIN: feature commit 2518d43 + docs commit → pushed → CI/CD (workflow_run:
+  CI green gates CD; CD builds --wire-html, deploys dev, probes, deploys prod) →
+  live byte-verify + functional pass → tag v0.4.1.4 → zip → healthcheck pinged.
+
+Stage Summary:
+- LIVE: hibana.ir @ v0.4.1.4 — the Projects sidebar is quiet: text-only stage
+  headers with vertical space between groups, one filled element (the selected
+  row, speaking aria-current), no connector lines (indent + ink only), no status
+  dots, the platform chevron (right=collapsed/down=expanded, RTL-mirrored), and
+  hover/focus/selected-revealed ↗ chips (always visible on touch).
+- Ops lessons: (a) OMITTING a declaration on an element that matches a GLOBAL
+  element selector (base.css button{}) = the global leaks back — override to
+  neutral explicitly; (b) the app-wide 0.15s background transition on every <a>
+  (+ my new 0.14s chevron/chip transitions) means e2e color/transform pins must
+  expect.poll, never instant-read; (c) in RTL, full-width flex children keep
+  their LEFT edge — indent geometry pins must read the END edge (x+width);
+  (d) Chrome's computed ::before content for a rule-less pseudo returns 'normal'
+  in some states and 'none' in others — accept both when pinning ABSENCE.
+- Deliberate scope notes: the to-do quadrant accent dots/counts, the sparks
+  panel dots, and the calendar's due dots are untouched (they carry real
+  information); the panel header (Open →/tree-fold/✕) untouched per the
+  advisor's "I left out the panel header… tell me and I'll add a block" — its
+  chevron is the S97 fold-all toggle (reported to the owner); the color step +
+  the advisor's mockup remain open on the owner's side (the current tint values
+  kept, per the advisor's "the shade of the tint is a separate color decision").

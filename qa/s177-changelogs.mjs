@@ -1,0 +1,36 @@
+#!/usr/bin/env node
+// S177 Changelogs rotation — §1 gets the new block (S177) + retitle/drop per the
+// 4-block discipline (S173's block drops to git history); §2 gains row 177.
+import { readFileSync, writeFileSync } from 'node:fs'
+
+const path = 'Changelogs.md'
+const lines = readFileSync(path, 'utf8').split('\n')
+const FENCE = '`'.repeat(3)
+
+const blockIdx = []
+for (let i = 0; i < lines.length; i++) {
+  if (/^## 1(-prev)*\. Current state/.test(lines[i])) blockIdx.push(i)
+  if (blockIdx.length === 4) break
+}
+if (blockIdx.length !== 4) { console.error('expected 4 §1 blocks, found', blockIdx.length); process.exit(1) }
+
+const [cur, prev, prev2, prev3] = blockIdx
+const s176 = lines[cur].replace(/^## 1\. /, '## 1-prev. ')
+const s175 = lines[prev].replace(/^## 1-prev\. /, '## 1-prev-prev. ')
+const s174 = lines[prev2].replace(/^## 1-prev-prev\. /, '## 1-prev-prev-prev. ')
+// S173 (prev3) drops to git history
+
+const s177 = '## 1. Current state (v0.4.1.4 — Session 177 (the Projects sidebar goes QUIET — the owner\'s six-block design round), 2026-10-01. THE ROUND (the owner\'s six blocks, pasted from the design advisor, for the Projects sidebar panel — the "quiet sidebar"): (1) TEXT-ONLY GROUP HEADS — the stage headers (Planning / Up Next / Developing / On Hold / Operational) lose the S94 pale-well fill AND their rounded corners; the section register is pure typography (the 12px/500 muted eyebrow ink — 6.7:1 on the white card, 6.06:1 on the dark card, AA holds on both themes), the item count stays on the same row at the inline end, and consecutive groups separate by 0.7rem of VERTICAL SPACE instead of boxes (the head hover is an ink change only; the GLOBAL button{} rule\'s 14px radius + teal CTA hover are explicitly killed — an omitted declaration would leak both, measured live: 14px corners + --cta-hover fill). (2) THE SELECTED ROW IS THE ONLY FILLED ELEMENT — the accent wash + the inline-start brand pill stay exactly as they were (figure-ground: one filled element in the panel; every other row keeps only the subtle bg-soft hover), and markRailRows now stamps aria-current="true" on the active row AND on the branch\'s goto chip, removed on soft navigation (the selection never rides on color alone). (3) THE TREE CONNECTOR LINES ARE GONE — the vertical guide under every group body + the S106 elbow connector on the sub-groups are removed; with two nesting levels the ~16px LOGICAL indent per level (padding-inline-start: 1rem, RTL-true) + the ink ladder (child rows lighter/smaller) carry the hierarchy alone; the sub-group\'s tighter-nesting override is retired (uniform 1rem per level). (4) NO STATUS DOT BEFORE PROJECT NAMES — the stage grouping already encodes the status, so the dot carried no information; it leaves both the plain rows and the branch heads, and the names start at the row\'s inline-start edge (a cleaner scanning edge). (5) THE PLATFORM CHEVRON CONVENTION — right/inline-end = collapsed, DOWN = expanded (Jakob\'s Law; the S95 r2 down-when-collapsed glyph is superseded): one right-pointing glyph rotated 90° on expand (a short transition, no glyph swap), mirrored with scaleX(-1) under [dir=\'rtl\'] so the collapsed tip always points at the INLINE-END in both directions while the expanded down-tip stays direction-neutral; every .rail-group-head expands something so every head keeps its chevron; "New ideas"/"Problems" ARE collapsible sub-groups, so their chevrons stay. (6) THE ↗ GOTO CHIP REVEALS — hidden by default (opacity 0, still tabbable), revealed on row hover + :focus-within (it lights the moment it takes focus), ALWAYS lit on the selected branch (.is-here), always visible on coarse pointers (@media (hover: none)); applies to the S98 to-do quadrant chips too — one reveal pattern across every headrow. The PANEL HEADER (Open →, the tree-fold chevron, ✕) was deliberately LEFT OUT per the advisor (its chevron = the S97 tree fold: one tap collapses/expands EVERY group in the panel, label/aria flipping between "Collapse all"/"Expand all"). Cache-bust: nav.js v37→v38 (×20 pages), layout.css v56→v57 (×26 pages); sw.js v411→v412 (EVERY shell page changed markup via the global ?v= busts); package.json 0.4.1.3→0.4.1.4. LADDER: typecheck 0 · vitest 539/539 · eslint 0 err (163-warn baseline) · build 79 · wiring canonical · cache-bust PASS (2 files) · parity 1552/1552 (0 new keys) · FULL e2e 304/304 incl. the NEW s177-sidebar-quiet spec (7 tests pinning all six blocks end-to-end — the text-only head contract with an AA contrast probe, the connectors-gone + indent ladder + name-at-edge, the single-fill selection + aria-current on both row shapes + the exactly-one-filled-element count, the chevron glyph/rotation RTL-true with the collapsed mirror matrix pinned + chevron-only-on-expandable-rows, the chip default-hidden/hover/focus/is-here reveal, the coarse-pointer always-visible) and the UPDATED rail-panel dot pins + s106 elbow pins (the connectors\' absence is now pinned, not assumed). AGENT-BROWSER QA (:3017): EN (all six blocks probed live; the leaf deep-link lights the exact row + branch with aria-current) + FA/RTL (the collapsed chevron mirrored LEFT, Farsi stage labels + digits, the indent logical) + claude-dark (the muted head 6.06:1 on #1f1e1c) + 390px (no h-overflow; the panel display:none ≤1024px) + touch-context chip always-lit, 0 console errors.'
+
+const replacement = [s177, s176, s175, s174]
+lines.splice(prev3, 1) // remove S173 first (it is the last of the four)
+lines.splice(cur, 4, ...replacement)
+
+const out = lines.join('\n')
+const row176 = out.split('\n').findIndex((l) => l.startsWith('| 176 |'))
+if (row176 === -1) { console.error('row 176 not found'); process.exit(1) }
+const row177 = '| 177 | 2026-10-01 | v0.4.1.4 — THE PROJECTS SIDEBAR GOES QUIET (the owner\'s six-block design round): text-only group headers (no fill, no corners — the 12px/500 muted eyebrow register, count at the inline end, 0.7rem vertical space between groups, AA 6.7:1/6.06:1 on both themes; the global button rule\'s 14px radius + teal hover explicitly killed); the selected row is the ONLY fill (accent wash + inline-start pill kept; aria-current="true" on the active row + the branch\'s chip, swept on soft navigation); the tree connectors are GONE (no vertical guides, no elbows — ~16px logical indent per level + the ink ladder carry the hierarchy, RTL-true); no status dot before project names (the stage grouping already encodes it — names start at the row edge); the PLATFORM chevron convention (right = collapsed, down = expanded, one rotating glyph, scaleX(-1) mirror under RTL, chevrons only on expandable rows); the ↗ goto chip hides by default and reveals on hover/focus/is-here, always visible on coarse pointers (the S98 quadrant chips too). The panel header (Open → / tree-fold chevron / ✕) left out per the advisor. nav.js v38 ×20 + layout.css v57 ×26; sw v412; parity 1552/1552; FULL e2e 304/304 incl. the new s177 spec (7 pins) + updated rail-panel/s106 pins. Deployed <SHA> (CI + CD green), live byte-verified, live functional pass, tag v0.4.1.4, zip. |'
+const final = out.split('\n')
+final.splice(row176 + 1, 0, row177)
+writeFileSync(path, final.join('\n'))
+console.log('rotated: §1 = S177/S176/S175/S174 (S173 dropped), row 177 inserted')

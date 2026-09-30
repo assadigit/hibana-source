@@ -1060,3 +1060,46 @@ the owner's side (unchanged): the advisor's dashboard blocks 1–4, the
 /color-palette-advisor hex pass, the finished-dashboard mockup, the S178
 leftovers; plus their promised "where I left off summary line + progress
 bar" additions.
+
+Release (S180 — the owner's explicit "Proceed do all of them. commit push
+deploy.", 2026-09-30):
+- Pre-state verified: local main ahead 1 (bf71a10, tree clean), .secrets.env
+  (GITHUB_TOKEN + TELEGRAM_BOT_TOKEN byte-matched) + credentials.md (all ten
+  fresh prompt tokens byte-matched: GitHub classic, CF deploy + Workers AI,
+  account id, Telegram bot, the real test account, healthcheck write/readonly
+  keys + old ping key + the live UUID ping URL) — both gitignored.
+- Pushed bf71a10 → CI 36738526126 green (~19m) → CD 36740082480 green (DEV
+  probe + PROD deploy + zone purge, the workflow_run chain) — LIVE hibana.ir
+  @ v0.4.1.7.
+- Byte-verify (qa/s180-live-verify.mjs, tracked in the docs commit): SIX wired
+  assets IDENTICAL live vs local wired build — nav.4a305618.js 29129 B +
+  layout.a8f7cef8.css 45677 B + app.278abe06.js 104152 B +
+  quicknotes.164ae780.css 48781 B + resume.d8bbb3b4.js 8965 B +
+  claude-dark-theme.45e3bc05.css 11344 B (the four S180-changed assets + the
+  two shell twins); sw.js v414→v415; /api/health ok/prod/db up/schema 62 (no
+  migration this round).
+- Live functional pass as the owner (agent-browser, /dashboard, REAL data, 0
+  console/page errors): the STICKY RESTORE — the two real stickies as papers
+  (fill rgb(255,245,157) = the #FFF59D yellow, ink rgb(77,68,10) = the
+  #4D440A brown, radius 4px, the soft two-layer shadow, 180px×2 equal papers
+  in the wrapping flex row at 9.6px gap), the creation stamp "Monday 28 Sep
+  20:58" on the meta line; the Move-to cluster (Idea / To-do / Project note)
+  + "View all"; block 7 — the resume strip SERVER-SEEDED display-only: the
+  browser's hibana-resume store EMPTY and the strip nonetheless rendering
+  "Continue where you left off" with the account's 4 real most-recently-
+  edited items (Elixir Open · 1h ago, GitCurator · 10h, Hibana · 19h,
+  SportSignal · 1d) + "Clear recents" — exactly the cold-store fallback
+  S180 built (the store stays null; a real store still wins).
+- Tag v0.4.1.7 on remote (lightweight, on bf71a10); zip hibana.0.4.1.7.zip
+  (566 files = 472 tracked + 70 dist − the excludes; integrity OK; 4.8MB) →
+  /home/z/upload/ + the sandbox download folder; --restore-html applied
+  before the docs commit (the canonical ?v= tree form).
+- Healthcheck: the management API resolved the "Hibana" check (slug
+  e24cc4eb80bf95c1ec36ae14 — the re-slugged live form; the prompt's old slug
+  URL 404s by design) → pinged the live UUID URL HTTP 200 → check up, last
+  ping 15:57:18Z.
+- Ops lessons: (a) /home/z/upload does NOT survive a sandbox reset — make-zip
+  dies with zip exit 15 (cannot write output) on a fresh box; mkdir -p it
+  first; (b) the GitHub Actions runs API keys off head_sha = the FULL commit
+  SHA (bf71a10…40 chars), not the short form; (c) nothing new otherwise —
+  the S178/S179 chain recipe replayed clean end-to-end.

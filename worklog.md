@@ -1242,3 +1242,55 @@ Stage Summary (S181 — staged, release owner-gated):
   lands (s152 + s173 caught in the chunked run); (e) the Bash display
   pipeline STILL mangles source text (the '[h' in PROJECT_HUE_TOKENS[h % …]
   showed as '%') — always Read the file before editing.
+
+## S181 RELEASE ADDENDUM — v0.4.1.8 LIVE (2026-10-01)
+
+Released on the owner's explicit go ("Proceed. push, commit, deploy." — the
+hand-off re-supplied every token; the fresh clone had LOST the gitignored
+.secrets.env + credentials.md, so both files were recreated from the hand-off
+and byte-verified live: GitHub repo API 200, CF token verify active, account
+OK — both files stay gitignored, values never printed).
+
+The chain, as run:
+- Precheck: local main ahead 1 (43784aa, tree clean) → pushed → CI
+  36788560634 green → CD 36789930248 green (workflow_run chain: DEV probe →
+  PROD deploy → zone purge) — the deploy-ahead window covered by
+  categoriesUserScoped()'s memoized probe (pinned by makeTestDbUpto(63)).
+- §5 d1-migrate ritual for 0064, ONE DB at a time: §9 Time Travel bookmarks
+  (dev …e6002da0ee031b2f2b8f4c7acb70572e + prod …1b8e06d1e8196b47e7176464a10727ff,
+  both @ schema 62) + full SQL dumps (data/pre-0064-{dev,prod}.sql,
+  gitignored) + d1-migrate.mjs + the NEW qa/s181-verify-0064.mjs machine
+  proofs (R1–R4 + the B1–B6 backfill-exactness lattice; FTS virtual + _cf_*
+  classification mirrors d1-table-digest.mjs; the dev_tasks_fts_* shadow
+  tables classified derived-advisory — the dev_tasks_fts_au AFTER UPDATE
+  trigger fires on the remap): dev PASS (0 categories — trivial) · prod PASS
+  (2 SHARED categories forked exactly: 2 originals kept by their first owner
+  + 2 '-u1' copies for the second owner, all 4 enables + all 41 task refs
+  remapped exactly, 66 untouched tables byte-identical, zero
+  dangling/cross-owner) — schema 62→63 on BOTH D1s.
+- Byte-verify (the NEW qa/s181-live-verify.mjs): NINE wired assets IDENTICAL
+  on hibana.ir (variables.7995ffa6 + layout.40c6df83 + claude-dark-theme.c484a120
+  + polish-ui.1bccd165 + dashboard.5dffb0e3 + resume.590241cb + i18n-en.5d2f30a0
+  + i18n.2d7d0e8d + the lazy i18n-fa.aa6ad2ca twin discovered inside i18n.js's
+  body); sw v416; health ok/prod/db up/schema 63.
+- Live functional pass as the real account (agent-browser): EN (the visible
+  h1 "Dashboard" 24px; the 18px/600 head ABOVE the card with "Continue where
+  you left off · Last edited · Clear recents"; "0 of 5 tasks done" + the
+  6px/999px progressbar aria 0/5; the rail bar rgb(61,141,145) on
+  aria-current — the --brand-hover rung pin live; 11 identity dots sampled
+  ON the audited ladder — orchid #B679C8 / jade #31775E / mulberry #A7449D /
+  iris #8055B9; the EMPTY-store server-seeded strip rendering 4 real chips)
+  + FA/RTL («پیشخوان» + «از ۵ کار، ۰ انجام‌شده» + dir rtl) + /api/categories
+  200 with user_id on every row (the owner's 2 real rows scoped) — 0
+  console/page errors; the account's language preference restored to English
+  after the FA probe; screenshot download/s181-live-dashboard-fa.png.
+- Tag v0.4.1.8 (lightweight, on 43784aa) → pushed, ls-remote-verified.
+- Zip: hibana.0.4.1.8.zip (571 files = 477 tracked + 70 dist, integrity OK,
+  4.8MB) → /home/z/upload/ + the sandbox download folder → --restore-html
+  (the tree back to the dev ?v= form before this docs commit).
+- Healthcheck: management API resolved the "Hibana" check (slug
+  e24cc4eb80bf95c1ec36ae14) → pinged the live UUID URL → HTTP 200, check up.
+- Docs (this commit): Changelogs §1 + §2 row 181 flipped to RELEASED + the
+  full chain record; §5 rewritten (0001–0064, both schema 63, the machine
+  proof + recovery path); §9 bookmark lines from the ritual;
+  qa/s181-live-verify.mjs + qa/s181-verify-0064.mjs tracked.

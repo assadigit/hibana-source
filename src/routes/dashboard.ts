@@ -240,7 +240,7 @@ export function dashboardRoutes(cfg: Config) {
           return html`<div class="card kanban-card stat-kanban-card" draggable="true" data-project-id="${p.id}" data-status="${p.status}" data-nav-url="/project.html?id=${p.id}" title="${t('Drag to another box to change its status', 'برای تغییر وضعیت به جعبهٔ دیگر بکش')} · ${t('Updated', 'به‌روزرسانی')} ${timeAgo(p.updated_at, lang)}">
             <span class="sr-only">${statusLabel(p.status, lang)}</span>
             <div class="row skc-row">
-              <strong class="skc-title">${p.title}</strong>
+              <strong class="skc-title" dir="auto">${p.title}</strong>
               ${bugBubbleD(p.id)}
             </div>
           </div>`
@@ -368,26 +368,27 @@ export function dashboardRoutes(cfg: Config) {
         const renderTasks = tasks.slice(0, TODO_RENDER_CAP)
         const overflow = tasks.length - renderTasks.length
         const taskRows = renderTasks.map(todoTaskHtml)
-        // S94 (owner item 10 — "empty quadrant: centered placeholder copy"): a quadrant
-        // with zero tasks used to render a literally EMPTY <ul> (the :empty::before
-        // fallback reads attr(data-empty-hint), which no markup ever set — dead since
-        // Phase 3). The server now ships the placeholder row itself; app.js's
-        // updateDashTaskEmpty keeps it honest across htmx sweeps (same i18n key:
-        // dashboard.quadrantEmpty — EN+FA, the parity gate covers both).
+        // S179 (advisor blocks 7+8 — the EMPTY QUADRANT collapses to a short strip):
+        // a card with zero tasks is no longer a full-height box with a centered
+        // placeholder — it renders ONE quiet row ("No tasks yet.") with the next
+        // action inline ("Add a task" opens the same quick-add the header ＋ carries;
+        // app.js's delegated [data-dash-quickadd-fab] handler serves both buttons).
+        // The strip markup is EXACTLY what app.js's updateDashTaskEmpty re-creates
+        // after htmx sweeps, so server and client can never drift apart.
         if (taskRows.length === 0) {
-          taskRows.push(html`<li class="dash-todo-empty muted">${t("You haven't added any task yet", 'هنوز کاری اضافه نکرده‌ای')}</li>`)
+          taskRows.push(html`<li class="dash-todo-empty"><span class="dash-todo-empty-text">${t('No tasks yet.', 'هنوز کاری نیست.')}</span><button type="button" class="dash-todo-add-text" data-dash-quickadd-fab="${q.id}">${t('Add a task', 'افزودن کار')}</button></li>`)
         }
         // 2026-09 user request — quadrants are MINIMAL/neutral: no per-quadrant accent is
         // applied by default (the old q-success/q-info/q-error/q-warning accent vars are
         // gone). A user-PICKED accent (accent_color, still settable via the rename API)
         // renders so the saved personalization isn't lost.
         const accentAttr = style?.accent ? raw(` style="--dash-q-accent: var(--${style.accent})"`) : ''
-        return html`<article class="dash-todo-quadrant" data-dash-quadrant="${q.id}" data-dash-name="${name}" draggable="true"${accentAttr}>
+        return html`<article class="dash-todo-quadrant${tasks.length === 0 ? ' is-quadrant-empty' : ''}" data-dash-quadrant="${q.id}" data-dash-name="${name}" draggable="true"${accentAttr}>
           <header class="dash-todo-qhead board-col-head">
             <div class="dash-todo-qtitle board-col-title">
               <button type="button" class="dash-todo-style" data-dash-style="${q.id}" aria-label="${t('Customize quadrant', 'شخصی‌سازی بخش')}" title="${t('Customize quadrant', 'شخصی‌سازی بخش')}">${raw(quadrantGlyph(style?.icon ?? null, q.icon))}</button>
               <span class="dash-todo-qcol">
-                <strong data-dash-quadrant-name="${q.id}">${name}</strong>
+                <strong data-dash-quadrant-name="${q.id}" dir="auto">${name}</strong>
                 ${subtitle ? html`<span class="dash-todo-qsub" data-dash-quadrant-sub="${q.id}">${subtitle}</span>` : ''}
               </span>
               <!-- Pen (user request 2026-09-02): appears on hover over the quadrant name,
@@ -422,13 +423,17 @@ export function dashboardRoutes(cfg: Config) {
             </div>
             <!-- S85 (owner redesign instruction #2): the quadrant counter joins the shared
                  board-column header convention — icon + label + PILL COUNT (.board-count),
-                 the exact pattern the projects stage columns use (was "Active N" plain
-                 text — a different convention for the same UI role). The count keeps its
+                 the exact pattern the projects stage columns use. The count keeps its
                  title/aria meaning; app.js's updateDashTaskCounter writes the bare digits
                  into this node after optimistic task changes. Neutral pill by default
                  (2026-09 owner decision: quadrants stay minimal); a user-picked accent
-                 tints it via --dash-q-accent. -->
-            <span class="row dash-todo-qactions"><span class="dash-todo-counter board-count" data-dash-quadrant-count="${q.id}" title="${t('Active count', 'تعداد فعال')}">${todoNum(tasks.length)}</span></span>
+                 tints it via --dash-q-accent.
+                 S179 (advisor block 7): the quick-add control MOVES INTO the header's
+                 inline-end, beside the count — the corner circle FAB retires (the add
+                 control rides where the list's context already sits; same wiring:
+                 app.js's delegated [data-dash-quickadd-fab] finds the form via the
+                 quadrant ancestor). -->
+            <span class="row dash-todo-qactions"><span class="dash-todo-counter board-count" data-dash-quadrant-count="${q.id}" title="${t('Active count', 'تعداد فعال')}">${todoNum(tasks.length)}</span><button type="button" class="dash-todo-fab" data-dash-quickadd-fab="${q.id}" aria-label="${t('Add task', 'افزودن کار')}" title="${t('Add task', 'افزودن کار')}">${raw(icon('plus'))}</button></span>
           </header>
           <ul class="dash-todo-list">
             ${taskRows}
@@ -436,12 +441,9 @@ export function dashboardRoutes(cfg: Config) {
           ${tasks.length > 4 ? html`<button type="button" class="dash-todo-more dash-todo-more-pill" data-dash-see-more="${q.id}" aria-expanded="false">${t('+{n} more', '+{n} بیشتر', { n: todoNum(renderTasks.length - 4) })}</button>` : ''}
           ${overflow > 0 ? html`<a class="dash-todo-more dash-todo-more-link" href="/to-do-list#Q${q.id}" title="${t('Open this box on the board', 'این جعبه را در برد باز کن')}">${t('+{n} more on the board', '+{n} مورد دیگر در برد', { n: todoNum(overflow) })} ${raw(icon('arrow-up-right', 'icon'))}</a>` : ''}
           <!-- 2026-09-06 (k) user request: the quick-add moved OUT of the customize
-               popover (that button was dead — its form was removed with the old preview
-               UI) into a circular + button pinned to the quadrant's bottom corner —
-               inline-end: LEFT in RTL, RIGHT in LTR (logical property, flips with the
-               language automatically). The revealed row is the input alone; Enter adds
-               (submit handler posts to the sadhana quadrant API + refreshes the dashboard main). -->
-          <button type="button" class="dash-todo-fab" data-dash-quickadd-fab="${q.id}" aria-label="${t('Add task', 'افزودن کار')}" title="${t('Add task', 'افزودن کار')}">${raw(icon('plus'))}</button>
+               popover into its own revealed row (S179: the trigger now lives in the
+               card header — this form reveals under the header, Enter adds via the
+               sadhana quadrant API + refreshes the dashboard main). -->
           <form class="dash-quickadd" data-dash-quickadd-form="${q.id}" hidden>
             <label class="sr-only" for="dash-qa-${q.id}">${t('Add task…', 'افزودن کار…')}</label>
             <input id="dash-qa-${q.id}" name="title" required maxlength="255" autocomplete="off" placeholder="${t('Add task…', 'افزودن کار…')}">
@@ -468,10 +470,20 @@ export function dashboardRoutes(cfg: Config) {
         if (pinned > 0) chips.push(html`<span class="dash-today-chip dash-today-pinned" title="${t('Pinned', 'سنجاق‌شده')}">${raw(icon('pin'))} ${num2(pinned)}</span>`)
         if (solvedWeek > 0) chips.push(html`<span class="dash-today-chip dash-today-done" title="${t('Solved this week', 'حل‌شده این هفته')}">${raw(icon('check'))} ${num2(solvedWeek)} ${t('this week', 'این هفته')}</span>`)
         return html`<section class="dash-todo-section" id="dashboard-todo">
-        <header class="dash-todo-head">
-          <h2><button type="button" class="dash-collapse-btn" data-dash-collapse="dashboard-todo" aria-label="${t('Collapse section', 'جمع کردن بخش')}"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></button> ${t('To-Do List', 'لیست کارها')} <time class="dash-todo-date" datetime="${todayIso}">${dateLabel}</time></h2>
+        <!-- S179 (advisor block 5 — ONE section pattern): every dashboard section head
+             is the SAME row — the title (~18px/600) on the reading-start edge, the
+             secondary actions ("View all"-style link + the collapse chevron) at the
+             INLINE-END. The collapse button moved out of the h2 (it was the first
+             glyph inside the title — a third placement pattern); app.js's
+             initCollapseButtons wiring keys off [data-dash-collapse] + the section id,
+             so the reposition rides the existing recipe untouched. -->
+        <header class="dash-todo-head dash-sec-head">
+          <h2 class="dash-sec-title">${t('To-Do List', 'لیست کارها')} <time class="dash-todo-date" datetime="${todayIso}">${dateLabel}</time></h2>
           ${chips.length ? html`<div class="dash-today-strip" role="status">${chips}</div>` : ''}
-          <a class="small" href="/to-do-list">${t('Go to to-do list', 'رفتن به لیست کارها')} ${raw(icon('arrow-right', 'icon arrow'))}</a>
+          <span class="dash-sec-actions">
+            <a class="small" href="/to-do-list">${t('Go to to-do list', 'رفتن به لیست کارها')} ${raw(icon('arrow-right', 'icon arrow'))}</a>
+            <button type="button" class="dash-collapse-btn" data-dash-collapse="dashboard-todo" aria-label="${t('Collapse section', 'جمع کردن بخش')}"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></button>
+          </span>
         </header>
         <!-- Session-12 (2026-09-15, user request): ≤720px the grid is a SWIPE CAROUSEL —
              one full-width quadrant per slide. .dash-quad-wrap anchors the one-time swipe
@@ -494,11 +506,13 @@ export function dashboardRoutes(cfg: Config) {
         todo: todoSection,
 
         projects: (): SafeHtml => html`<section class="dash-projects-section">
-          <!-- Phase 5 items 1+2 (2026-09-08): the old heading is now plain «پروژه‌ها»
-               (the user's wording) and carries the same go-to link pattern as
-               «لیست کارها» above — «رفتن به بخش پروژه‌ها» → projects.html. -->
-          <div class="row spread dash-projects-head">
-            <h2>${t('Projects', 'پروژه‌ها')}</h2>
+          <!-- S179 (advisor block 5): the section head joins the ONE pattern (title +
+               go-to link at the inline-end); the OUTER unified container around the
+               Projects board RETIRES — the stage boxes and the overview cards sit
+               directly in the section, grouped by spacing, not by a border card
+               (each .stat-box paints its own card chrome now, dashboard.css). -->
+          <div class="row spread dash-projects-head dash-sec-head">
+            <h2 class="dash-sec-title">${t('Projects', 'پروژه‌ها')}</h2>
             <a class="small" href="/projects.html">${t('Go to projects', 'رفتن به بخش پروژه‌ها')} ${raw(icon('arrow-right', 'icon arrow'))}</a>
           </div>
           <!-- S72: stale-projects nudge ("needs attention"). In-motion projects untouched
@@ -516,58 +530,54 @@ export function dashboardRoutes(cfg: Config) {
                  path to the rest. View all lands on the FULL stale view (S75). -->
             <a class="dash-stale-more small" href="/projects.html?stale=1">${t('View all', 'مشاهده همه')} ${raw(icon('arrow-right', 'icon arrow'))}</a>
           </div>` : html``}
-          <!-- S124 (owner wireframe): ONE unified container — the stage row (the
-               stat-carousel) and the panel below it now live inside a single card
-               (one background, one border-radius), no longer two separate cards.
-               Inside it, top-to-bottom: the stage carousel, its pagination dots
-               (kept right below the top row), then the overview lower panel.
-               S129 (owner request): the container's floating "New project" button
-               is retired — the global capture FAB (+ menu) stays the dashboard's
-               New-project path. -->
-          <div class="dash-proj-unified ov">
-            <!-- S42: overlay handles — absolute inside .stat-stage, translucent; the
-                 driver's .at-start/.at-end flags fade the handle with nothing left
-                 to page. The carousel internals are UNCHANGED by the S124 merge. -->
-            <div class="stat-carousel" data-stat-carousel>
-              <div class="stat-stage">
-                <div class="stat-strip stat-boxes" data-stat-track role="group" aria-label="${t('Projects by stage', 'پروژه‌ها بر اساس مرحله')}">
-                ${CAROUSEL.map(statBox)}
-                </div>
-                <button type="button" class="stat-arrow" data-stat-prev aria-label="${t('Previous stages', 'مراحل قبلی')}">${raw(icon('chevron-left'))}</button>
-                <button type="button" class="stat-arrow" data-stat-next aria-label="${t('Next stages', 'مراحل بعدی')}">${raw(icon('chevron-right'))}</button>
+          <!-- S42: overlay handles — absolute inside .stat-stage, translucent; the
+               driver's .at-start/.at-end flags fade the handle with nothing left
+               to page. (S124's unified wrapper is gone; the carousel is a direct
+               child of the section — its own cards group themselves.) -->
+          <div class="stat-carousel" data-stat-carousel>
+            <div class="stat-stage">
+              <div class="stat-strip stat-boxes" data-stat-track role="group" aria-label="${t('Projects by stage', 'پروژه‌ها بر اساس مرحله')}">
+              ${CAROUSEL.map(statBox)}
               </div>
-              <div class="stat-carousel-nav">
-                <div class="stat-dots" data-stat-dots aria-hidden="true"></div>
-              </div>
+              <button type="button" class="stat-arrow" data-stat-prev aria-label="${t('Previous stages', 'مراحل قبلی')}">${raw(icon('chevron-left'))}</button>
+              <button type="button" class="stat-arrow" data-stat-next aria-label="${t('Next stages', 'مراحل بعدی')}">${raw(icon('chevron-right'))}</button>
             </div>
-            <!-- S124: the lower panel — the projects-home overview cards (donut +
-                 Plans/Problems/In Progress) as a HORIZONTAL row; scrolls sideways when
-                 the four cards outrun the container, while the dots above keep
-                 announcing that more content exists off-screen. raw(): the helper
-                 returns a pre-escaped plain string (same contract as the projects home). -->
-            <!-- S140 (owner request): the overview lower panel joins the projects
-                 home's collapsible anatomy — the same [data-dash-collapse] head (the
-                 dashboard-todo house recipe), the SAME 'ov-tasks' id in the shared
-                 'hibana-dash-collapsed' store, so collapsing on one page collapses
-                 both. The heading is new here (the S124 panel was headless; the
-                 collapse affordance needs a head to live on). Settings → Views can
-                 hide the whole block (misc.css, html[data-ov-tasks-mode='hidden']). -->
-            <div class="dash-ov" id="ov-tasks">
-              <div class="ov-head"><h2 id="ov-tasks-h"><button type="button" class="dash-collapse-btn" data-dash-collapse="ov-tasks" aria-label="${t('Collapse section', 'جمع کردن بخش')}"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></button> ${t('Overall project tasks', 'کارهای همهٔ پروژه‌ها')}</h2></div>
-              <div class="dash-proj-lower" role="group" aria-label="${t('Overall project tasks', 'کارهای همهٔ پروژه‌ها')}">
-                ${raw(dashboardOverviewRowHtml(ovData.counts, ovData.recent, lang))}
-              </div>
+            <div class="stat-carousel-nav">
+              <div class="stat-dots" data-stat-dots aria-hidden="true"></div>
             </div>
-            <!-- S129 (owner request): the container's floating "New project" FAB is
-                 retired (was S126's caramel folder-plus). Creation stays reachable
-                 through the global capture FAB's "New project" item. -->
           </div>
+          <!-- S179 (advisor blocks 5+12 — the NESTED "Overall project tasks" container
+               retires): the overview is now a section-level block with the SAME head
+               pattern every section speaks — the title, the TOTAL ("{n} open" — the
+               donut's job, moved to text) beside it, the collapse chevron at the
+               inline-end — and its four cards (Ideas · Problems · Plans · In Progress,
+               ONE fixed order) directly below, separated by spacing (the
+               border-top divider is gone). The .dash-ov class + ov-tasks id STAY
+               (the shared collapse store + the Settings hide key off them); only the
+               nested card chrome left. -->
+          <section class="dash-ov ov" id="ov-tasks" aria-labelledby="ov-tasks-h">
+            <div class="ov-head dash-sec-head">
+              <h2 id="ov-tasks-h" class="dash-sec-title">${t('Overall project tasks', 'کارهای همهٔ پروژه‌ها')} <span class="ov-open-total">${t('{n} open', '{n} باز', { n: num(ovData.counts.idea + ovData.counts.planned + ovData.counts.in_progress + ovData.counts.bug) })}</span></h2>
+              <span class="dash-sec-actions">
+                <button type="button" class="dash-collapse-btn" data-dash-collapse="ov-tasks" aria-label="${t('Collapse section', 'جمع کردن بخش')}"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></button>
+              </span>
+            </div>
+            <div class="dash-proj-lower" role="group" aria-label="${t('Overall project tasks', 'کارهای همهٔ پروژه‌ها')}">
+              ${raw(dashboardOverviewRowHtml(ovData.counts, ovData.recent, lang))}
+            </div>
+          </section>
         </section>`,
         notebook: (): SafeHtml => raw(notebookHtml(notes, lang, 'note', noteTitles, true, noteTotal[0]?.n)),
         activity: (): SafeHtml => html`<section class="activity-section">
-          <h3>${t('Recent activity', 'فعالیت‌های اخیر')}</h3>
+          <!-- S179 (advisor block 5): the last holdout joins the ONE head pattern —
+               the h3 (a second size register) becomes the shared section title, and
+               the "View all" link moves from BELOW the list up into the heading row's
+               inline-end where every other section keeps its secondary action. -->
+          <div class="activity-head dash-sec-head">
+            <h2 class="dash-sec-title">${t('Recent activity', 'فعالیت‌های اخیر')}</h2>
+            <a class="small" href="/projects.html">${t('View all', 'مشاهده همه')} ${raw(icon('arrow-right', 'icon arrow'))}</a>
+          </div>
           <ul class="activity">${activity}</ul>
-          <a class="small activity-more" href="/projects.html">${t('View all', 'مشاهده همه')} ${raw(icon('arrow-right', 'icon arrow'))}</a>
         </section>`,
       }
       const ALL = ['todo', 'projects', 'notebook', 'activity']

@@ -8,6 +8,7 @@ import { localeOf, trL, type Locale } from '../lib/i18n'
 import { renderMarkdown } from '../lib/markdown'
 import { calendarFor, formatDate } from '../lib/jalali'
 import { uuid } from '../lib/ids'
+import { todayIn } from '../services/sadhana'
 import type { Config, UserRow } from '../types'
 import type { Db } from '../db/types'
 
@@ -27,6 +28,7 @@ import {
   addItemSchema,
   toggleItemSchema,
   reorderSchema,
+  moveNoteSchema,
   archiveQuerySchema,
   type TaskItem,
   parseItems,
@@ -358,6 +360,40 @@ export function quickNotesRoutes(cfg: Config) {
       now, now, n.id, user.id,
     ])
     return c.json({ ok: true, id: n.id, soft: true })
+  })
+
+  // S179 (advisor block 9 — "Move to…"): a dashboard sticky's MOVE. Idea → a new
+  // spark project carrying the note's content (title = first line); To-do → a new
+  // task in the first quadrant (title = first line). Both paths then SOFT-DELETE
+  // the note (the capture leaves the notebook — it found its home) and return the
+  // fresh widget. "Project note" is NOT here: it rides the existing attach flow
+  // (the picker's hx-patch links the note to a project — the note STAYS, linked).
+  app.post('/:id/move', async (c) => {
+    const body = await jsonBody<z.infer<typeof moveNoteSchema>>(c, moveNoteSchema)
+    if (!body || (body.target !== 'idea' && body.target !== 'todo')) return c.json({ error: 'invalid_input' }, 400)
+    const user = c.get('user')
+    const n = await owned(user.id, c.req.param('id'))
+    if (!n) return c.json({ error: 'not_found' }, 404)
+    const now = new Date().toISOString()
+    // The destination title: the note's TITLE if it has one, else the first line of
+    // its content (lists: the stored title) — capped like the surfaces' own inputs.
+    const rawText = (n.kind === 'list' ? n.title : n.title || decodeEntities(n.content)).trim()
+    const firstLine = (rawText.split(/\r?\n+/)[0] || '').trim()
+    if (body.target === 'idea') {
+      const pos = (await cfg.db.query<{ n: number }>('SELECT COUNT(*) AS n FROM projects WHERE user_id = ? AND deleted_at IS NULL', [user.id]))[0]?.n ?? 0
+      await cfg.db.execute(
+        'INSERT INTO projects (id, user_id, title, description, type, status, sort_order, latest_note, reminders_enabled, client_name, due_date, folder_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+        [uuid(), user.id, firstLine.slice(0, 120) || 'Idea', n.kind === 'note' ? n.content.slice(0, 2000) : '', 'personal', 'spark', pos, '', 0, null, null, null, now, now],
+      )
+    } else {
+      await cfg.db.execute(
+        'INSERT INTO sadhana_tasks (id, user_id, quadrant, title, emoji, recur_last, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+        [uuid(), user.id, 1, firstLine.slice(0, 255) || 'Task', '', todayIn(user.timezone), now, now],
+      )
+    }
+    await cfg.db.execute('UPDATE quick_notes SET deleted_at = ?, updated_at = ? WHERE id = ? AND user_id = ?', [now, now, n.id, user.id])
+    const notes = await activeNotes(user.id)
+    return c.req.header('HX-Request') ? await widget(c, notes, composerMode(c)) : json(c, { ok: true, id: n.id, target: body.target })
   })
 
   // Undo delete (restores within the 7-day window).

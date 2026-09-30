@@ -204,13 +204,22 @@ test.describe('the navigation rail (Material navigation-rail pattern, S89 labele
     // button paints a background (the filled rounded square) + aria-current.
     const dash = page.locator('.rail .rail-primary a[href="/dashboard.html"]')
     await expect(dash).toHaveAttribute('aria-current', 'page')
-    // S95 r2 (owner item 4): the ONE active pattern is the SOLID --cta pill —
-    // #2E7B7F (rgb 46 123 127) with white icon+label ink, and NO lead bar on the
-    // rail-facing edge (the ::before geometry is gone entirely). toHaveCSS /
-    // expect.poll RETRY (a plain read raced the cold server's sheet load once).
-    await expect(dash).toHaveCSS('background-color', 'rgb(46, 123, 127)')
-    await expect(dash).toHaveCSS('color', 'rgb(255, 255, 255)')
-    await expect.poll(async () => dash.evaluate((el) => getComputedStyle(el, '::before').content)).toBe('none')
+    // S179 (advisor block 11): the ONE active pattern is the INSET ROUNDED ACCENT
+    // BAR the selected sidebar row speaks — the solid teal tile is retired. The
+    // button stays TRANSPARENT on the rail surface with the PRIMARY ink (no more
+    // white-on-teal label), and ::before IS the bar (~3px wide, brand ink, rounded
+    // ends, set in from the inline-start edge). toHaveCSS / expect.poll RETRY (a
+    // plain read raced the cold server's sheet load once).
+    await expect(dash).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)')
+    await expect(dash).toHaveCSS('color', 'rgb(20, 20, 20)')
+    await expect.poll(async () => dash.evaluate((el) => getComputedStyle(el, '::before').content)).toBe('""')
+    await expect.poll(async () => dash.evaluate((el) => getComputedStyle(el, '::before').backgroundColor)).toBe('rgb(74, 159, 163)')
+    await expect.poll(async () => dash.evaluate((el) => getComputedStyle(el, '::before').width)).toBe('3px')
+    await expect.poll(async () => dash.evaluate((el) => getComputedStyle(el, '::before').borderRadius)).toBe('999px')
+    // Block 11's semantics: the PANEL toggles carry aria-expanded (a panel-open
+    // state is announced, distinct from the page state's aria-current).
+    const todoToggle = page.locator('.rail .rail-primary a[data-rail-panel="todo"]')
+    await expect(todoToggle).toHaveAttribute('aria-expanded', 'false')
     // S93 (owner item 2): the Dashboard icon is PURE NAVIGATION — no panel section
     // behind it (clicking it must SHOW the dashboard, not slide a sidebar).
     expect(await dash.getAttribute('data-rail-panel')).toBeNull()

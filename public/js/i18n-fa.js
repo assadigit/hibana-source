@@ -403,7 +403,7 @@ window.__hibanaDictFA = {
       'card.loadFailed': 'دریافت پروژه ممکن نشد', 'card.saving': 'در حال ذخیره…', 'card.deleted': 'پروژه حذف شد',
       // dashboard stat boxes
       'dashboard.nothing': 'هنوز چیزی نیست',
-      'dashboard.quadrantEmpty': 'هنوز کاری اضافه نکرده‌ای',
+      'dashboard.quadrantEmpty': 'هنوز کاری نیست.', 'dashboard.addTask': 'افزودن کار',
       'dashboard.moveFailed': 'جابه‌جایی ممکن نشد — دوباره تلاش کن',
       'dashboard.seeMore': 'مشاهده بیشتر', 'dashboard.seeLess': 'نمایش کمتر',
       /* S106: the quadrant overflow pill (۴ مرئی، مازاد پشت دکمهٔ محو +N بیشتر). */
@@ -883,7 +883,7 @@ window.__hibanaDictFA = {
       'resume.title': 'از جایی که بودی ادامه بده', 'resume.hint': 'آخرین ویرایش',
       'resume.cta': 'باز کردن',
       'resume.project': 'پروژه', 'resume.note': 'یادداشت', 'resume.spark': 'ایده', 'resume.openAria': 'بازکردن {k}: {t}',
-      'resume.clear': 'پاک‌کردن', 'resume.clearAria': 'پاک‌کردن تاریخچهٔ ادامه',
+      'resume.clear': 'پاک‌کردن اخیرها', 'resume.clearAria': 'پاک‌کردن فهرست موارد اخیر', 'resume.cleared': 'اخیرها پاک شد',
       'nav.syncPending': '{n} در انتظار', 'nav.syncHint': 'در انتظار همگام‌سازی — برای ارسال کلیک کن', 'nav.syncSent': 'تغییرات آفلاین ارسال شد',
       // S52: Trash palette command + recoverable-count sublabel
       'cmdk.openTrash': 'سطل بازیافت — بازیابی موارد حذف‌شده',
@@ -1078,6 +1078,7 @@ window.__hibanaDictFA = {
       'notes.deletedNote': 'یادداشت به زباله رفت', 'notes.restored': 'یادداشت بازیابی شد', 'notes.purged': 'برای همیشه حذف شد',
       'notes.deleteFailed': 'حذف یادداشت نشد.', 'notes.restoreFailed': 'بازیابی نشد.', 'notes.purgeFailed': 'حذف همیشگی نشد.',
       'notes.moved': 'یادداشت جابه‌جا شد', 'notes.moveFailed': 'جابه‌جایی نشد.',
+      'notes.movedIdea': 'به ایده‌هایت رفت', 'notes.movedTodo': 'به لیست کارهایت رفت',
       'notes.openFailed': 'بازکردن یادداشت ممکن نشد.', 'notes.createFailed': 'ساختن یادداشت ممکن نشد.', 'notes.starFailed': 'ستاره‌دادن ممکن نشد.',
       'notes.renameFolder': 'تغییر نام…', 'notes.newSubfolder': 'زیرپوشهٔ جدید…', 'notes.deleteFolder': 'حذف پوشه',
       'notes.deleteFolderConfirm': 'پوشه حذف شود؟', 'notes.deleteFolderHint': 'یادداشت‌هایش به «بدون پوشه» می‌روند — چیزی از دست نمی‌رود.',

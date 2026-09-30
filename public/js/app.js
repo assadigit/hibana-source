@@ -1151,7 +1151,7 @@ window.hibana = (() => {
         // The dashboard's notebook widget swaps in the fresh list; on other pages the
         // note is already saved server-side and shows on the next dashboard visit.
         if (document.querySelector('#notebook') && window.htmx) {
-          window.htmx.ajax('GET', '/api/notes', { target: '#notebook', swap: 'outerHTML' })
+          window.htmx.ajax('GET', notesWidgetUrl(), { target: '#notebook', swap: 'outerHTML' })
         }
       } catch {
         errEl.textContent = _t('qn.failed', "Couldn't save the note — try again")
@@ -1187,7 +1187,52 @@ window.hibana = (() => {
   // + placeholder), the per-card done toggle (Phase 5 item 3 — ✓ marks a project-linked
   // note done/undone; it STAYS on the project's record, unlike the delete below), and
   // the per-card delete (fetch DELETE → toast + Undo → restore + refresh).
+  // S179 (advisor block 9): the notebook has TWO faces now — the dashboard's compact
+  // wrapper (#notebook.notebook-dash-wrap) and the whiteboard's full card. Every
+  // client-side re-GET of the widget must ask for the face it's inside or the swap
+  // renders the wrong variant into #notebook.
+  const notesWidgetUrl = () => {
+    const mode = document.querySelector('form[data-note-compose] input[name="kind"]')?.value
+    const params = new URLSearchParams()
+    if (mode === 'list' || mode === 'note') params.set('mode', mode)
+    if (document.querySelector('#notebook.notebook-dash-wrap')) params.set('dashboard', '1')
+    const qs = params.toString()
+    return `/api/notes${qs ? '?' + qs : ''}`
+  }
   document.addEventListener('click', (e) => {
+    // S179 (advisor block 9 — "Move to…"): the compact sticky's move menu. Idea/To-do
+    // POST to the move endpoint (the server creates the destination + soft-deletes
+    // the note + returns the fresh widget — the htmx-less fetch path re-renders via
+    // the same notesWidgetUrl); "Project note" rides the attach picker (hx-get), so
+    // it never lands here.
+    const moveBtn = e.target.closest('[data-note-move]')
+    if (moveBtn && moveBtn.dataset.moveId) {
+      const id = moveBtn.dataset.moveId
+      const target = moveBtn.dataset.noteMove
+      const menu = moveBtn.closest('details')
+      if (menu) menu.open = false
+      fetch(`/api/notes/${id}/move`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ target }),
+      })
+        .then(async (r) => {
+          if (!r.ok) { handle401(r); throw new Error('move failed') }
+          if (window.htmx) window.htmx.ajax('GET', notesWidgetUrl(), { target: '#notebook', swap: 'outerHTML' })
+          toast(_t(target === 'idea' ? 'notes.movedIdea' : 'notes.movedTodo', target === 'idea' ? 'Moved to your ideas' : 'Moved to your to-do list'), 'info', 6000, [{
+            label: _t('common.undo', 'Undo'),
+            onClick: () => {
+              fetch(`/api/notes/${id}/restore`, { method: 'POST' })
+                .then((r2) => {
+                  if (r2.ok && window.htmx) window.htmx.ajax('GET', notesWidgetUrl(), { target: '#notebook', swap: 'outerHTML' })
+                })
+                .catch(() => {})
+            },
+          }])
+        })
+        .catch(() => toast(_t('notes.moveFailed', "Couldn't move the note"), 'err'))
+      return
+    }
     // Phase 5 item 3: ✓ done toggle — PATCH {done} then re-render the notebook (the
     // server repaints the card with the done styling + swapped icon). Distinct from
     // delete: nothing is removed, the note keeps its place everywhere.
@@ -1204,9 +1249,7 @@ window.hibana = (() => {
       })
         .then(async (r) => {
           if (!r.ok) { handle401(r); throw new Error('done failed') }
-          const mode = document.querySelector('form[data-note-compose] input[name="kind"]')?.value
-          const qs = mode === 'list' || mode === 'note' ? `?mode=${mode}` : ''
-          if (window.htmx) window.htmx.ajax('GET', `/api/notes${qs}`, { target: '#notebook', swap: 'outerHTML' })
+          if (window.htmx) window.htmx.ajax('GET', notesWidgetUrl(), { target: '#notebook', swap: 'outerHTML' })
         })
         .catch(() => toast(_t('notes.updateFailed', "Couldn't update the note"), 'err'))
       return
@@ -1248,12 +1291,10 @@ window.hibana = (() => {
           toast(_t('notes.deleted', 'Note deleted'), 'info', 6000, [{
             label: _t('common.undo', 'Undo'),
             onClick: () => {
-              const mode = document.querySelector('form[data-note-compose] input[name="kind"]')?.value
-              const qs = mode === 'list' || mode === 'note' ? `?mode=${mode}` : ''
               fetch(`/api/notes/${id}/restore`, { method: 'POST' })
                 .then((r2) => {
                   if (r2.ok && window.htmx) {
-                    window.htmx.ajax('GET', `/api/notes${qs}`, { target: '#notebook', swap: 'outerHTML' })
+                    window.htmx.ajax('GET', notesWidgetUrl(), { target: '#notebook', swap: 'outerHTML' })
                   }
                 })
                 .catch(() => {})
@@ -3281,13 +3322,23 @@ window.hibana = (() => {
     const empty = list.querySelector(':scope > .dash-todo-empty')
     if (tasks.length) empty?.remove()
     else if (!empty) {
+      // S179 (advisor blocks 7+8): the SAME short-strip markup the server ships —
+      // "No tasks yet." + the "Add a task" text button (the delegated
+      // [data-dash-quickadd-fab] handler serves it exactly like the header ＋).
+      // The quadrant card also carries .is-quadrant-empty so the collapsed-height
+      // rules follow the content, not the sweep.
+      const card = list.closest('.dash-todo-quadrant')
+      card?.classList.add('is-quadrant-empty')
       const li = document.createElement('li')
-      li.className = 'dash-todo-empty muted'
-      // S94 (item 10): the SAME placeholder copy the server ships (dashboard.quadrantEmpty) —
-      // the htmx sweep keeps the centered hint instead of reverting to blank space.
-      li.textContent = _t('dashboard.quadrantEmpty', "You haven't added any task yet")
+      li.className = 'dash-todo-empty'
+      const qid = card?.dataset.dashQuadrant || ''
+      li.innerHTML = '<span class="dash-todo-empty-text">' + _t('dashboard.quadrantEmpty', 'No tasks yet.') + '</span>' +
+        '<button type="button" class="dash-todo-add-text" data-dash-quickadd-fab="' + qid + '">' + _t('dashboard.addTask', 'Add a task') + '</button>'
       list.append(li)
     }
+    // The collapsed-card flag also LIFTS when tasks return (an un-collapsed card
+    // must grow back to the working height).
+    if (tasks.length) list.closest('.dash-todo-quadrant')?.classList.remove('is-quadrant-empty')
   }
   const persistDashOrder = async (card) => {
     const list = dashTaskList(card)
@@ -3769,7 +3820,7 @@ window.hibana = (() => {
         })
         if (!res.ok) throw new Error('save failed')
         // Re-render the notebook via htmx so the card reflects the saved content
-        if (window.htmx) window.htmx.ajax('GET', '/api/notes', { target: '#notebook', swap: 'outerHTML' })
+        if (window.htmx) window.htmx.ajax('GET', notesWidgetUrl(), { target: '#notebook', swap: 'outerHTML' })
         dlg.close()
         toast(_t('notes.savedInModal', 'Note saved'), 'info')
       } catch {
@@ -3997,7 +4048,7 @@ window.hibana = (() => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ids }),
       })
-      if (res.ok) window.htmx.ajax('GET', '/api/notes', { target: '#notebook', swap: 'outerHTML' })
+      if (res.ok) window.htmx.ajax('GET', notesWidgetUrl(), { target: '#notebook', swap: 'outerHTML' })
       else toast(_t('notes.reorderFailed', "Couldn't reorder the notes"), 'err')
     } catch {
       toast(_t('notes.reorderFailed', "Couldn't reorder the notes"), 'err')

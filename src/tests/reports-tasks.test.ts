@@ -124,20 +124,27 @@ describe('dashboard urgent strip payload (S30 batch 3)', () => {
     }
   })
 
-  it('HTML branch: the unified projects container renders the overview row; the fire strip is retired (S124)', async () => {
+  it('HTML branch: the chromeless projects section renders the overview row; the fire strip is retired (S124/S179)', async () => {
     const { db, close } = makeTestDb()
     try {
       // quiet account: the overview row ALWAYS renders (it is content, not an alert
-      // layer) — donut at zero + "Nothing here" boxes; the retired strip nowhere.
+      // layer) — "0 open" in the head + "Nothing here" boxes; the retired strip nowhere.
       const quietId = await makeUser(db)
       const quiet = await makeApp(db, quietId)
       const hx = { ...quiet.headers, 'HX-Request': 'true' }
       const quietRes = await quiet.app.fetch(new Request('http://local/api/dashboard', { headers: hx }))
       const quietHtml = await quietRes.text()
       expect(quietHtml).not.toContain('dash-urgent')
-      expect(quietHtml).toContain('dash-proj-unified')
+      // S179 (advisor block 5): the unified container is RETIRED — the section is
+      // chromeless (each .stat-box paints its own card) and the ov block carries
+      // the shared collapse/hide class .dash-ov + the "N open" head text.
+      expect(quietHtml).not.toContain('dash-proj-unified')
+      expect(quietHtml).toContain('dash-ov')
       expect(quietHtml).toContain('dash-proj-lower')
-      expect(quietHtml).toContain('ov-donut')
+      // S179 (advisor block 12): the donut is GONE from the dashboard — the total
+      // rides the head as text.
+      expect(quietHtml).not.toContain('ov-donut')
+      expect(quietHtml).toContain('ov-open-total')
 
       const busyId = await makeUser(db)
       const busy = await makeApp(db, busyId)
@@ -148,19 +155,21 @@ describe('dashboard urgent strip payload (S30 batch 3)', () => {
       await mkTask(busy.app, busy.headers, pid, { title: 'fire drill', status: 'bug', priority: 'urgent' })
       const busyRes = await busy.app.fetch(new Request('http://local/api/dashboard', { headers: { ...busy.headers, 'HX-Request': 'true' } }))
       const busyHtml = await busyRes.text()
-      // the unified container: ONE card wrapping the stage carousel + the overview row
-      expect(busyHtml).toContain('dash-proj-unified')
+      // the chromeless section: the stage carousel + the overview row as siblings
+      expect(busyHtml).not.toContain('dash-proj-unified')
       expect(busyHtml).toContain('data-stat-track')
       expect(busyHtml).toContain('dash-proj-lower')
       // S129 (owner request): the container FAB is retired — even busy dashboards
       // carry none (the global capture FAB is the creation path).
       expect(busyHtml).not.toContain('dash-proj-fab')
-      // the wireframe order: the pie first, then Plans → Problems → In Progress
+      // S179 (advisor block 12): NO donut; the fixed four-card order — Ideas →
+      // Problems → Plans → In Progress (the progress board's own column order).
       const lower = busyHtml.indexOf('dash-proj-lower')
-      expect(busyHtml.indexOf('ov-pie-card', lower)).toBeGreaterThan(-1)
-      expect(busyHtml.indexOf('data-ov-box="planned"', lower)).toBeGreaterThan(busyHtml.indexOf('ov-pie-card', lower))
-      expect(busyHtml.indexOf('data-ov-box="bug"', lower)).toBeGreaterThan(busyHtml.indexOf('data-ov-box="planned"', lower))
-      expect(busyHtml.indexOf('data-ov-box="in_progress"', lower)).toBeGreaterThan(busyHtml.indexOf('data-ov-box="bug"', lower))
+      expect(busyHtml.indexOf('ov-pie-card', lower)).toBe(-1)
+      expect(busyHtml.indexOf('data-ov-box="idea"', lower)).toBeGreaterThan(-1)
+      expect(busyHtml.indexOf('data-ov-box="bug"', lower)).toBeGreaterThan(busyHtml.indexOf('data-ov-box="idea"', lower))
+      expect(busyHtml.indexOf('data-ov-box="planned"', lower)).toBeGreaterThan(busyHtml.indexOf('data-ov-box="bug"', lower))
+      expect(busyHtml.indexOf('data-ov-box="in_progress"', lower)).toBeGreaterThan(busyHtml.indexOf('data-ov-box="planned"', lower))
       // the recent Problems item deep-links to its project
       expect(busyHtml).toContain('fire drill')
       expect(busyHtml).toContain(`/project.html?id=${pid}`)
@@ -208,8 +217,10 @@ describe('overview status cards — S126 contract (cap 3, last-updated, View all
       // truncated-title recovery: full text on BOTH the native title and data-full
       expect(seg).toContain('title="p1 edited"')
       expect(seg).toContain('data-full="p1 edited"')
-      // the project-name metadata line wears the owning project's stage dot
-      expect(seg).toMatch(/ov-proj-dot" data-stage="[a-z_]+"/)
+      // the project-name metadata line wears the owning project's IDENTITY hue dot
+      // (S179 block 13: --proj-hue inline var — the stable hash accent; the old
+      // stage-keyed data-stage dot gave the same dot two meanings)
+      expect(seg).toMatch(/ov-proj-dot" style="--proj-hue: var\(--accent-[a-z0-9-]+\)"/)
     } finally {
       close()
     }

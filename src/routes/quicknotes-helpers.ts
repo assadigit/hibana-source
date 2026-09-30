@@ -71,6 +71,9 @@ export const toggleItemSchema = z.object({
   done: z.preprocess((v) => (typeof v === 'string' ? Number(v) : v), z.union([z.literal(0), z.literal(1)])),
 })
 export const reorderSchema = z.object({ ids: z.array(z.string().uuid()).max(200) })
+// S179 (advisor block 9): the dashboard sticky's move target — 'project' rides the
+// existing attach flow instead (hx-patch), so only the two creation targets validate here.
+export const moveNoteSchema = z.object({ target: z.enum(['idea', 'todo']) })
 
 // S65: the archive fragment's query — offset/limit pagination + an optional anchored note
 // (the palette's beyond-cap deep link). Coerced ints, hard bounds: a hostile limit can't
@@ -233,7 +236,10 @@ export function latinRuns(html: string): string {
 }
 
 /** One note card: free-text notes get an inline textarea; lists get a title line + checkable items.
- *  Every card carries an attach widget (paperclip) linking it to an Idea/project (user request). */
+ *  Every card carries an attach widget (paperclip) linking it to an Idea/project (user request).
+ *  S179 (advisor block 9): the DASHBOARD variant renders the COMPACT sticky — no inline
+ *  editors (the whiteboard owns editing), a clamped render, the hover-revealed controls
+ *  (delete + Move to…), and the reader-modal hop on click. */
 export function noteCard(n: QuickNote, lang: Locale, titles: Map<string, string>): string {
   const t = (en: string, fa?: string) => trL(lang, en, fa)
   const attach = attachWidget(n, titles, lang)
@@ -293,6 +299,50 @@ export function noteCard(n: QuickNote, lang: Locale, titles: Map<string, string>
   </div>`
 }
 
+/** S179 (advisor block 9): the dashboard's COMPACT sticky — the wrapping row's member.
+ *  A clamped render (click → the reader modal), the timestamp line, the attach chip
+ *  when linked, and the hover/focus-revealed controls (Move to… + delete; always
+ *  visible on touch). Lists render their title + item count and hop to the
+ *  whiteboard (the full editor). */
+export function dashNoteCard(n: QuickNote, lang: Locale, titles: Map<string, string>): string {
+  const t = (en: string, fa?: string) => trL(lang, en, fa)
+  const color = `--note-color:${esc(NOTE_COLOR_HEX[n.color as NoteColor] ?? NOTE_COLOR_HEX.yellow)}`
+  const colorAttr = `data-note-color="${esc(n.color ?? 'yellow')}"`
+  const attached = n.project_id && titles.has(n.project_id)
+  const time = new Date(n.updated_at).toLocaleTimeString(lang === 'fa' ? 'fa-IR' : 'en-GB', { hour: '2-digit', minute: '2-digit', hour12: false })
+  const acts = `<div class="dash-note-acts">
+      <details class="dash-note-move">
+        <summary aria-label="${t('Move to…', 'انتقال به…')}" title="${t('Move to…', 'انتقال به…')}">${icon('arrow-up-right')}</summary>
+        <div class="dash-note-move-pop">
+          <button type="button" data-note-move="idea" data-move-id="${n.id}">${icon('idea')}<span>${t('Idea', 'ایده')}</span></button>
+          <button type="button" data-note-move="todo" data-move-id="${n.id}">${icon('list-check')}<span>${t('To-do', 'کار')}</span></button>
+          <button type="button" class="dash-note-move-project" hx-get="/api/notes/attach-picker?note_id=${n.id}" hx-target="#attach-${n.id}" hx-swap="innerHTML">${icon('link')}<span>${t('Project note', 'یادداشت پروژه')}</span></button>
+        </div>
+      </details>
+      <button class="dash-note-x" data-note-delete="${n.id}" aria-label="${t('Delete', 'حذف')}" title="${t('Delete', 'حذف')}">${icon('x')}</button>
+    </div>`
+  if (n.kind === 'note') {
+    const content = decodeEntities(n.content)
+    return `<div class="note-card note-card-dash${n.done === 1 ? ' is-note-done' : ''}" id="note-${n.id}" data-kind="note" ${colorAttr} style="${color}">
+      ${acts}
+      <div class="note-render markdown-body" dir="auto" data-note-open="${n.id}" title="${t('Read the full note', 'خواندن کامل یادداشت')}" role="button" tabindex="0">${latinRuns(renderMarkdown(content))}</div>
+      <div class="note-footer"><span class="small note-meta">${dateChipHtml(n, lang)}${time}</span>${attached ? `<a class="dash-note-link" href="/project.html?id=${n.project_id}" title="${esc(titles.get(n.project_id!) || '')}">${icon('link')}</a>` : ''}</div>
+      <div class="note-attach" id="attach-${n.id}">${attached ? attachWidget(n, titles, lang) : ''}</div>
+    </div>`
+  }
+  const items = parseItems(n.content)
+  const openN = items.filter((it) => !it.d).length
+  return `<div class="note-card note-card-dash${n.done === 1 ? ' is-note-done' : ''}" id="note-${n.id}" data-kind="list" ${colorAttr} style="${color}">
+    ${acts}
+    <a class="dash-note-listlink" href="/whiteboard.html" title="${t('Open the notebook', 'باز کردن دفترچه')}">
+      <strong class="dash-note-title" dir="auto">${esc(n.title || t('List', 'فهرست'))}</strong>
+      <span class="note-render">${items.slice(0, 2).map((it) => esc(it.t)).join('<br>')}</span>
+    </a>
+    <div class="note-footer"><span class="small note-meta">${trL(lang, '{n} tasks', '{n} کار', { n: lang === 'fa' ? faDigits(String(openN)) : String(openN) })} · ${dateChipHtml(n, lang)}${time}</span>${attached ? `<a class="dash-note-link" href="/project.html?id=${n.project_id}" title="${esc(titles.get(n.project_id!) || '')}">${icon('link')}</a>` : ''}</div>
+    <div class="note-attach" id="attach-${n.id}">${attached ? attachWidget(n, titles, lang) : ''}</div>
+  </div>`
+}
+
 /** Attach widget: a paperclip button when free, a chip (linking to the project) when attached. */
 export function attachWidget(n: QuickNote, titles: Map<string, string>, lang: Locale): string {
   const t = (en: string, fa: string) => trL(lang, en, fa)
@@ -319,9 +369,48 @@ export async function attachedTitles(db: Db, userId: string, notes: QuickNote[])
 
 /** The whole notebook widget (card + composer + note list). htmx swaps this on every action.
  *  The view (list / sticky) is a client preference applied via CSS — the server renders both
- *  note layouts from the same cards; sticky adds a carousel nav when there are more than 4. */
+ *  note layouts from the same cards; sticky adds a carousel nav when there are more than 4.
+ *  S179 (advisor blocks 5+9 — the DASHBOARD variant is a whole different, COMPACT animal):
+ *  the heading moves ABOVE the card (the one section pattern; the ⚙ view controls stay on
+ *  the whiteboard — the dashboard panel has ONE fixed layout), the composer stays, and the
+ *  notes become a WRAPPING ROW of the 5 most recent compact stickies with the "View all (N)"
+ *  archive link at the heading row's inline-end. #notebook wraps heading + card together so
+ *  every htmx swap (outerHTML) keeps the count fresh. */
 export function notebookHtml(notes: QuickNote[], lang: Locale, composerMode: 'note' | 'list' = 'note', titles: Map<string, string> = new Map(), dashboard = false, total?: number): string {
   const t = (en: string, fa?: string) => trL(lang, en, fa)
+  if (dashboard) {
+    // block 9: the 5 MOST RECENT — the row is a glance, not the archive (N rides the
+    // View all link; the archive dialog browses everything).
+    const DASH_RENDER_CAP = 5
+    const recent = notes.slice(0, DASH_RENDER_CAP)
+    const n5 = (v: number) => (lang === 'fa' ? faDigits(String(v)) : String(v))
+    const viewAll = total !== undefined && total > recent.length
+      ? `<button type="button" class="note-view-all small" data-note-archive title="${t('Show all notes', 'نمایش همهٔ یادداشت‌ها')}">${trL(lang, 'View all ({n})', 'مشاهده همه ({n})', { n: n5(total) })}</button>`
+      : (total === undefined || total === 0 ? '' : `<button type="button" class="note-view-all small" data-note-archive title="${t('Show all notes', 'نمایش همهٔ یادداشت‌ها')}">${t('View all', 'مشاهده همه')}</button>`)
+    return `<section class="notebook-dash-wrap" id="notebook" aria-labelledby="notebook-dash-h">
+      <div class="dash-notebook-head dash-sec-head">
+        <h2 class="dash-sec-title" id="notebook-dash-h">${t('Quick Notebook', 'یادداشت سریع')}</h2>
+        <span class="dash-sec-actions">${viewAll}</span>
+      </div>
+      <section class="card notebook notebook-dashboard">
+        <form class="row note-compose" hx-post="/api/notes?dashboard=1" hx-target="#notebook" hx-swap="morph" data-note-compose>
+          <label class="note-compose-label" for="note-compose-box">${t('Quick note', 'یادداشت جدید')}</label>
+          <div class="seg" role="group" aria-label="${t('Note mode', 'حالت یادداشت')}">
+            <button type="button" class="seg-btn ${composerMode === 'note' ? 'active' : ''}" data-note-mode="note" aria-pressed="${composerMode === 'note'}">${t('Note', 'یادداشت')}</button>
+            <button type="button" class="seg-btn ${composerMode === 'list' ? 'active' : ''}" data-note-mode="list" aria-pressed="${composerMode === 'list'}">${t('List', 'فهرست')}</button>
+          </div>
+          <input type="hidden" name="kind" value="${composerMode}">
+          <input type="hidden" name="dashboard" value="1">
+          <textarea class="note-compose-text" id="note-compose-box" name="content" rows="1" dir="${lang === 'fa' ? 'rtl' : 'auto'}" placeholder="${t(composerMode === 'note' ? 'Type a note and press Enter…' : 'Type a task and press Enter…', composerMode === 'note' ? 'یادداشت را تایپ کن و اینتر را بزن' : 'وظیفه را تایپ کن و اینتر را بزن')}" maxlength="20000" autocomplete="off"></textarea>
+          <button type="submit" class="qa-btn" aria-label="${t('Add', 'افزودن')}" title="${t('Add', 'افزودن')}">${icon('plus')}</button>
+          <ul class="note-draft" hidden></ul>
+        </form>
+        <div class="note-list dash-note-row">
+          ${recent.map((n) => dashNoteCard(n, lang, titles)).join('')}
+        </div>
+      </section>
+    </section>`
+  }
   const stickyNav =
     notes.length > 4
       ? `<div class="note-sticky-nav">
@@ -358,9 +447,9 @@ export function notebookHtml(notes: QuickNote[], lang: Locale, composerMode: 'no
         </span>
       </span>
     </details>`
-  const composeRows = dashboard ? 1 : 2
-  const dashboardVal = dashboard ? '<input type="hidden" name="dashboard" value="1">' : ''
-  return `<section class="card notebook${dashboard ? ' notebook-dashboard' : ''}" id="notebook">
+  const composeRows = 2
+  const dashboardVal = ''
+  return `<section class="card notebook" id="notebook">
     <!-- View toggle is PURE CSS (radios + sibling selectors, 2026-08-25): works even if the
          cached app.js predates the feature — no JS needed to switch list ⇄ carousel ⇄ grid.
          a11y (S51-A): the radios are visually hidden and their <label for> twins live inside
@@ -377,7 +466,7 @@ export function notebookHtml(notes: QuickNote[], lang: Locale, composerMode: 'no
       ${controlsHtml}
       <h3 class="note-heading">${t('Quick Notebook', 'یادداشت سریع')}</h3>
     </div>
-    <form class="row note-compose" hx-post="/api/notes${dashboard ? '?dashboard=1' : ''}" hx-target="#notebook" hx-swap="morph" data-note-compose>
+    <form class="row note-compose" hx-post="/api/notes" hx-target="#notebook" hx-swap="morph" data-note-compose>
       <label class="note-compose-label" for="note-compose-box">${t('Quick note', 'یادداشت جدید')}</label>
       <!-- a11y (S51-A): role=group, not tablist — these buttons use the toggle-button
            pattern (aria-pressed) and a tablist REQUIRES role="tab" children (axe

@@ -68,7 +68,7 @@ test('projects: the head collapses the overview and persists across reloads', as
   const section = page.locator('#ov-tasks')
   await expect(section).toBeVisible({ timeout: 15_000 })
   // the head anatomy: a real toggle button inside the h2 (the house dash-collapse recipe)
-  const btn = page.locator('#ov-tasks-h [data-dash-collapse="ov-tasks"]')
+  const btn = page.locator('#ov-tasks [data-dash-collapse="ov-tasks"]')
   await expect(btn).toHaveCount(1)
   // collapse → the body hides, the head stays (the toggle lives there)
   await btn.click()
@@ -83,7 +83,7 @@ test('projects: the head collapses the overview and persists across reloads', as
   await expect(page.locator('#ov-tasks')).toHaveClass(/is-collapsed/, { timeout: 15_000 })
   await expect(page.locator('#ov-tasks .ov-grid')).toBeHidden()
   // expand again
-  await page.locator('#ov-tasks-h [data-dash-collapse="ov-tasks"]').click()
+  await page.locator('#ov-tasks [data-dash-collapse="ov-tasks"]').click()
   await expect(page.locator('#ov-tasks .ov-grid')).toBeVisible()
 })
 
@@ -96,7 +96,7 @@ test('dashboard: the same head exists and the collapse state is SHARED across su
   await expect(page.locator('#ov-tasks-h')).toContainText('Overall project tasks')
   await expect(page.locator('.dash-proj-lower')).toBeVisible()
   // collapse HERE…
-  await page.locator('#ov-tasks-h [data-dash-collapse="ov-tasks"]').click()
+  await page.locator('#ov-tasks [data-dash-collapse="ov-tasks"]').click()
   await expect(page.locator('.dash-proj-lower')).toBeHidden()
   await expect(page.locator('#ov-tasks-h')).toBeVisible()
   // …and the projects page inherits the SAME state (one store id)
@@ -104,7 +104,7 @@ test('dashboard: the same head exists and the collapse state is SHARED across su
   await expect(page.locator('#ov-tasks')).toHaveClass(/is-collapsed/, { timeout: 15_000 })
   await expect(page.locator('#ov-tasks .ov-grid')).toBeHidden()
   // clean up: expand again so later tests start open
-  await page.locator('#ov-tasks-h [data-dash-collapse="ov-tasks"]').click()
+  await page.locator('#ov-tasks [data-dash-collapse="ov-tasks"]').click()
   await expect(page.locator('#ov-tasks .ov-grid')).toBeVisible()
 })
 

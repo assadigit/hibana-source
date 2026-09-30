@@ -1192,8 +1192,9 @@ html[data-theme='claude-dark'] .ov-ring { stroke: var(--line-strong, #4a463f); }
 }
 /* S126: the project-name metadata line steps DOWN from its title (smaller, muted —
    the eye separates "what it is" from "which project it's from") and carries the
-   owning project's stage accent dot (the canonical --st-* hue per stage — S137:
-   Queued/Developing rows wear). */
+   owning project's identity hue dot (S179 block 13: --proj-hue — the project's
+   stable hash accent, set inline by the builders; stage dots speak status
+   elsewhere, this one says WHICH project). */
 .ov-item-proj {
   display: inline-flex;
   align-items: center;
@@ -1205,15 +1206,17 @@ html[data-theme='claude-dark'] .ov-ring { stroke: var(--line-strong, #4a463f); }
   white-space: nowrap;
   text-align: start;
 }
-.ov-proj-dot { inline-size: 0.5rem; block-size: 0.5rem; border-radius: 50%; flex: none; background: var(--line-strong); }
-/* S137: the owning project's stage dot wears the canonical --st-* hue (was the pastel
-   --stage-bar-* set — a second per-status palette the page no longer speaks). */
-.ov-proj-dot[data-stage='spark'] { background: var(--st-idea); }
-.ov-proj-dot[data-stage='planning'] { background: var(--st-planning); }
-.ov-proj-dot[data-stage='queued'] { background: var(--st-queued); }
-.ov-proj-dot[data-stage='developing'] { background: var(--st-developing); }
-.ov-proj-dot[data-stage='awaiting_dev'] { background: var(--st-awaiting_dev); }
-.ov-proj-dot[data-stage='operational'] { background: var(--st-operational); }
+.ov-proj-dot { inline-size: 0.5rem; block-size: 0.5rem; border-radius: 50%; flex: none; background: var(--proj-hue, var(--line-strong)); }
+/* S179 (advisor block 12): the total the donut used to carry, now text in the
+   section head — "{n} open" rides beside the title in the muted caption register
+   (the loud counts live in the four cards' own pills). */
+.ov-open-total {
+  font-size: var(--fs-xs);
+  font-weight: 500;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
 .ov-empty { margin: 0; }
 .ov-box-n { font-variant-numeric: tabular-nums; }
 

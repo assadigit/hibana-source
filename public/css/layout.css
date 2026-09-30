@@ -170,40 +170,61 @@ html:not([data-theme='claude-dark']) .themed-logo--dark { display: none; }
   transition: color 0.14s ease, background 0.14s ease, box-shadow 0.14s ease;
 }
 .rail-btn .icon { inline-size: 1.25rem; block-size: 1.25rem; transition: transform 0.14s ease; }
-/* S89: the small label under each icon — 10px, muted with the icon, inherits the
+/* S89: the small label under each icon — muted with the icon, inherits the
    active/hover color flips so icon + label read as one control. Persian renders in
-   Vazir via the html[lang='fa'] global family swap. */
+   Vazir via the html[lang='fa'] global family swap.
+   S179 (advisor block 10): the label steps UP to 11px (was 10px — under the
+   advisor's 11–12px legibility band; the FA labels were the smallest text in the
+   app) and the line-height breathes with it. The ink stays the sidebar's existing
+   gray (--muted — 6.7:1 on the white rail, 5.4:1 on the canvas: the 5.06:1 gray
+   the advisor measured, AA holds everywhere it sits). */
 .rail-label {
-  font-size: 0.625rem;
-  line-height: 1.25;
+  font-size: 0.6875rem;
+  line-height: 1.3;
   letter-spacing: 0.01em;
   color: inherit;
   white-space: nowrap;
   text-align: center;
 }
 .rail-btn:hover { color: var(--text); background: color-mix(in srgb, var(--text) 8%, transparent); text-decoration: none; }
-.rail-btn:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
+.rail-btn:focus-visible { outline: 2px solid var(--focus-ring, var(--brand)); outline-offset: 2px; }
 /* The ACTIVE section (aria-current='page' is set by nav.js's markNav on every soft
    navigation + hib-init on hard load).
-   S95 r2 (owner item 4): ONE active-state pattern, on exactly one item at a time —
-   a SOLID accent-colored rounded rectangle (the pill) behind the current page's
-   icon + label. --cta is the app's white-ink AA fill (4.93:1 light / 4.6:1 dark),
-   so icon + label read white on teal. The S94 trio (brand wash + 1.5px ring + the
-   3px lead bar on the rail-facing edge) is RETIRED — the bar especially: it sat
-   beside .is-panel-open's own accent strip and the two read as two different
-   "active" treatments shown at once. Hover on the pill just deepens the fill. */
+   S179 (advisor block 11 — active-state language): the SOLID teal tile RETIRES —
+   the current page now speaks the SAME cue the selected sidebar row speaks (S178):
+   a short rounded accent bar set slightly INSIDE the button's inline-start edge
+   (~4px in, ~3px wide, ~55% of the button's height, rounded ends), the icon + label
+   back on the rail's own surface in the primary ink. One active-state grammar
+   across the rail and the panel; the ink (var(--text), 16.7:1) leaves the old
+   white-on-teal label far behind the 4.5:1 floor — the "re-check on the lighter
+   background" note is answered by construction. The bar is logical-inset, so RTL
+   mirrors true. */
 .rail-btn[aria-current='page'] {
-  background: var(--cta);
-  color: var(--btn-text);
+  position: relative;
+  background: transparent;
+  color: var(--text);
 }
-.rail-btn[aria-current='page']:hover { background: var(--cta-hover); color: var(--btn-text); }
-.rail-btn[aria-current='page'] .rail-label { font-weight: 700; }
-/* The icon whose PANEL is open speaks QUIETLY — brand ink only, no geometry: a
-   panel can be open while you sit on ANY page, so it must never read as a second
-   active state competing with the pill (the VS Code cue, quieted for the one-
-   active-pattern rule). */
+.rail-btn[aria-current='page']:hover { background: color-mix(in srgb, var(--text) 8%, transparent); color: var(--text); }
+.rail-btn[aria-current='page']::before {
+  content: '';
+  position: absolute;
+  inset-inline-start: 0.3rem;   /* ~5px in from the button's inline-start edge */
+  inset-block: 22%;             /* ~55% of the button's height, rounded ends */
+  inline-size: 0.1875rem;       /* ~3px wide — the sidebar row bar's own width */
+  border-radius: 999px;
+  background: var(--brand);
+}
+.rail-btn[aria-current='page'] .rail-label { font-weight: 600; }
+/* The icon whose PANEL is open speaks QUIETLY — a panel can be open while you sit
+   on ANY page, so it must never read as a second active state competing with the
+   current-page bar. S179 (advisor block 10): the panel-open LABEL steps up to the
+   primary ink (the old brand-teal label rode ~3.2:1 — lighter than the inactive
+   labels' gray, an active state WEAKER than the resting state); the ICON keeps the
+   brand hue as its quiet indicator (a graphic, 3:1 — it passes as a non-text cue). */
 .rail-btn.is-panel-open { color: var(--brand); }
-.rail-btn.is-panel-open[aria-current='page'] { color: var(--btn-text); }
+.rail-btn.is-panel-open .rail-label { color: var(--text); font-weight: 500; }
+.rail-btn.is-panel-open[aria-current='page'] { color: var(--text); }
+.rail-btn.is-panel-open[aria-current='page']::before { background: var(--brand); }
 .rail-spacer { flex: 1; }
 .rail-divider { inline-size: 1.75rem; block-size: 1px; background: var(--line); flex: none; }
 .rail-secondary { margin-block-start: 0.125rem; }

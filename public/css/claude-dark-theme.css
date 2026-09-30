@@ -214,6 +214,20 @@ html[data-theme='claude-dark'] #notebook :is(#nv-sticky:checked, #nv-grid:checke
 html[data-theme='claude-dark'] #notebook :is(#nv-sticky:checked, #nv-grid:checked) ~ .note-list > .note-card[data-note-color='green']  { background: #5c9973 !important; --note-color: #5c9973; }
 html[data-theme='claude-dark'] #notebook :is(#nv-sticky:checked, #nv-grid:checked) ~ .note-list > .note-card[data-note-color='pink']   { background: #c48aab !important; --note-color: #c48aab; }
 html[data-theme='claude-dark'] #notebook :is(#nv-sticky:checked, #nv-grid:checked) ~ .note-list > .note-card[data-note-color='blue']   { background: #7a95bd !important; --note-color: #7a95bd; }
+/* S179 (advisor block 9): the DASHBOARD's compact stickies (.note-card-dash) ride
+   the same muted dark register — they render WITHOUT the view radios, so the
+   radio-chain selectors above can't reach them; the .note-card-dash scope is the
+   dashboard's own equivalent. Ink + meta + controls follow the paper. */
+html[data-theme='claude-dark'] #notebook .note-card-dash[data-note-color='yellow'] { background: #b3975b !important; --note-color: #b3975b; }
+html[data-theme='claude-dark'] #notebook .note-card-dash[data-note-color='green']  { background: #5c9973 !important; --note-color: #5c9973; }
+html[data-theme='claude-dark'] #notebook .note-card-dash[data-note-color='pink']   { background: #c48aab !important; --note-color: #c48aab; }
+html[data-theme='claude-dark'] #notebook .note-card-dash[data-note-color='blue']   { background: #7a95bd !important; --note-color: #7a95bd; }
+html[data-theme='claude-dark'] #notebook .note-card-dash { color: #292520 !important; }
+html[data-theme='claude-dark'] #notebook .note-card-dash .note-render,
+html[data-theme='claude-dark'] #notebook .note-card-dash .markdown-body,
+html[data-theme='claude-dark'] #notebook .note-card-dash .dash-note-title { color: #292520 !important; }
+html[data-theme='claude-dark'] #notebook .note-card-dash .note-meta,
+html[data-theme='claude-dark'] #notebook .note-card-dash .note-footer .small { color: #3a352d !important; }
 /* dark ink + hairline on the colored papers (beats the light-ink rules below by
    the sticky/grid view prefix); list view keeps #e8e6dc on the neutral card. */
 html[data-theme='claude-dark'] #notebook :is(#nv-sticky:checked, #nv-grid:checked) ~ .note-list > .note-card { color: #292520 !important; }

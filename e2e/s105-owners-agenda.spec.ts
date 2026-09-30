@@ -369,24 +369,35 @@ test('S105-7 [MED]: the Plans tab lists the planned box items — count matches 
 
 /* ── 8. The ⚙ view-options panel lifts above everything while open ───────────── */
 
-test('S105-8 [MED]: the quick-note view menu lifts to <body> — no more painting under sections', async ({ page }) => {
+test('S179: the compact sticky Move-to popover — the three destinations, lifted and unclipped', async ({ page }) => {
   await login(page)
-  await page.waitForSelector('#notebook', { timeout: 15_000 })
-  await page.click('#notebook .note-controls-toggle summary')
-  // The panel is now a DIRECT <body> child with fixed positioning (the spark-menu
-  // lift pattern) — the #notebook container-type stacking context can't trap it.
-  const floating = page.locator('body > .note-head-controls.is-floating')
-  await expect(floating).toBeVisible({ timeout: 5_000 })
-  const style = await floating.evaluate((el) => {
-    const cs = getComputedStyle(el)
-    return { position: cs.position, z: cs.zIndex, parent: el.parentElement?.tagName }
-  })
-  expect(style.position).toBe('fixed')
-  expect(Number(style.z)).toBeGreaterThanOrEqual(90)
-  expect(style.parent).toBe('BODY')
+  // S179 (advisor block 9): the view-options menu is retired with the dashboard's
+  // full notebook — its lift contract lives on in the compact sticky's Move-to
+  // popover (a native <details> menu: Idea / To-do / Project note). The popover is
+  // position:absolute at the cluster's foot with z-index 30 — above the wrap row,
+  // NOT clipped by the card (no overflow:hidden on .note-card-dash).
+  const card = page.locator('#notebook .note-card-dash').first()
+  await expect(card).toBeVisible({ timeout: 15_000 })
+  const menu = card.locator('.dash-note-move')
+  await menu.locator('summary').click()
+  const pop = card.locator('.dash-note-move-pop')
+  await expect(pop).toBeVisible()
+  // the three destinations, in the advisor's order
+  const options = pop.locator('button')
+  await expect(options).toHaveCount(3)
+  await expect(options.nth(0)).toContainText('Idea')
+  await expect(options.nth(1)).toContainText('To-do')
+  await expect(options.nth(2)).toContainText('Project note')
+  // the lift: absolute + z ≥ 30 + positioned below the trigger
+  const style = await pop.evaluate((el) => { const cs = getComputedStyle(el); return { position: cs.position, z: cs.zIndex } })
+  expect(style.position).toBe('absolute')
+  expect(Number(style.z)).toBeGreaterThanOrEqual(30)
+  const triggerBox = await menu.locator('summary').boundingBox()
+  const popBox = await pop.boundingBox()
+  expect(popBox!.y).toBeGreaterThan(triggerBox!.y)
   // Closing returns it home (no orphans).
-  await page.click('#notebook .note-controls-toggle summary')
-  await expect(page.locator('body > .note-head-controls.is-floating')).toHaveCount(0)
+  await menu.locator('summary').click()
+  await expect(pop).toBeHidden()
 })
 
 /* ── 9. The success toast: "Saved ✓" on pastel green, × at the top-right ──────── */

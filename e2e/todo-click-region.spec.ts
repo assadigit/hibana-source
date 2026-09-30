@@ -156,10 +156,12 @@ test('the ::before hit island extends the checkbox target (Chromium pseudo-eleme
   const box = await row.locator('input[data-task-complete]').boundingBox()
   expect(box).not.toBeNull()
 
-  // ~9px diagonally off the checkbox center: OUTSIDE the 16.8px visual box,
-  // INSIDE the -0.85rem (13.6px) ::before island. If the pseudo-element renders,
-  // hit-testing lands on the input and the delegated handler fires.
-  await page.mouse.click(box!.x + box!.width / 2 + 9, box!.y + box!.height / 2 + 9)
+  // S179 (advisor block 7): the visual box is 20px (1.25rem) with a ±9.6px
+  // (-0.6rem) ::before island → a ~39px hit zone. +12px diagonally off the
+  // checkbox center: OUTSIDE the 20px visual box, INSIDE the island. If the
+  // pseudo-element renders, hit-testing lands on the input and the delegated
+  // handler fires (≥24×24 floor holds with room to spare).
+  await page.mouse.click(box!.x + box!.width / 2 + 12, box!.y + box!.height / 2 + 12)
 
   await expect(row).toHaveClass(/is-completing/, { timeout: 3_000 })
   expect(errors).toEqual([])

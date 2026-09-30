@@ -150,7 +150,9 @@ describe('dashboard stat boxes', () => {
       expect(html).not.toContain('this week')
 
       // The section heading carries the same go-to pattern as the to-do list (Phase 5).
-      expect(html).toContain('<h2>Projects</h2>')
+      // S179 (advisor block 5): the heading joined the ONE section pattern — the
+      // title wears .dash-sec-title (18px/600) with the go-to link at the inline-end.
+      expect(html).toContain('<h2 class="dash-sec-title">Projects</h2>')
       expect(html).toContain('href="/projects.html"')
       expect(html).toContain('Go to projects')
 
@@ -395,11 +397,17 @@ describe('dashboard to-do preview', () => {
       const res = await app.fetch(new Request('http://local/api/dashboard', { headers: { ...auth, 'HX-Request': 'true' } }))
       const html = await res.text()
       // Quadrant 1 has its task; the other three quadrants carry the placeholder.
-      expect((html.match(/class="dash-todo-empty muted"/g) ?? []).length).toBe(3)
-      // (the copy's apostrophe ships HTML-escaped — esc() turns ' into &#39;)
-      expect(html).toContain('You haven&#39;t added any task yet')
-      // The placeholder rides INSIDE the quadrant's list (the :has() centering anchor).
-      expect(html).toMatch(/<ul class="dash-todo-list">\s*<li class="dash-todo-empty muted">/)
+      // S179 (advisor block 8): the placeholder is the SHORT STRIP — "No tasks yet."
+      // + the "Add a task" text button (same data-dash-quickadd-fab wiring as the
+      // header ＋), on the .dash-todo-empty row (no longer the muted centered li).
+      expect((html.match(/class="dash-todo-empty"/g) ?? []).length).toBe(3)
+      expect(html).toContain('No tasks yet.')
+      expect((html.match(/class="dash-todo-add-text"/g) ?? []).length).toBe(3)
+      // The strip rides INSIDE the quadrant's list.
+      expect(html).toMatch(/<ul class="dash-todo-list">\s*<li class="dash-todo-empty">/)
+      // The empty card also carries the collapse hook (.is-quadrant-empty — the
+      // short-strip height rules key off it).
+      expect((html.match(/dash-todo-quadrant is-quadrant-empty/g) ?? []).length).toBe(3)
     } finally {
       close()
     }

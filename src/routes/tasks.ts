@@ -19,7 +19,7 @@ import { etag, esc } from '../lib/http'
 import { localeOf, trL, type Locale } from '../lib/i18n'
 import { faDigits } from '../lib/jalali'
 import { timeAgo } from '../lib/html'
-import { OV_STATUSES, ovLabel, type OvStatus } from './projects/helpers'
+import { OV_STATUSES, ovLabel, projectHueVar, type OvStatus } from './projects/helpers'
 import type { Config, UserRow } from '../types'
 
 interface OvTaskListRow {
@@ -47,7 +47,7 @@ const rowHtml = (t: OvTaskListRow, lang: Locale): string => {
     : ''
   return `<li><a class="ov-item ovt-row" href="/project.html?id=${t.project_id}">
           ${chip}<span class="ov-item-title ovt-row-title" dir="auto">${esc(t.title)}</span>
-          <span class="ov-item-proj" dir="auto"><span class="ov-proj-dot" data-stage="${esc(t.project_status)}" aria-hidden="true"></span>${esc(t.project_title)}<span class="ovt-when" title="${trL(lang, 'Last updated', 'آخرین به‌روزرسانی')}"> · ${timeAgo(when, lang)}</span></span>
+          <span class="ov-item-proj" dir="auto"><span class="ov-proj-dot" style="--proj-hue: ${projectHueVar(t.project_id)}" aria-hidden="true"></span>${esc(t.project_title)}<span class="ovt-when" title="${trL(lang, 'Last updated', 'آخرین به‌روزرسانی')}"> · ${timeAgo(when, lang)}</span></span>
         </a></li>`
 }
 

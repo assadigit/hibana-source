@@ -81,17 +81,21 @@ test.describe('S65: the quick-note archive dialog', () => {
     await login(page, TEST_EMAIL)
   })
 
-  test('"Show all N notes" appears only beyond the 20-card cap; opens the archive; the reader opens read-only', async ({ page }) => {
+  test('"View all (N)" appears beyond the 5-card cap; opens the archive; the reader opens read-only', async ({ page }) => {
     const ids: string[] = []
     ids.push(await mkQuickNote(page, 'hoard: the one searchable old-timer in the drawer'))
     for (let i = 0; i < 20; i++) ids.push(await mkQuickNote(page, `filler note number ${i} — window padding`))
     try {
       await page.goto('/app') // fresh dashboard render — the widget carries the new total
-      // The affordance tells the truth about scale (21 stored, 20 rendered).
+      // S179 (advisor block 9): the dashboard row shows the 5 MOST RECENT; the
+      // affordance is "View all (N)" (the S65 "Show all N notes" wording retired
+      // with the compact panel) and still opens the SAME archive dialog.
       const btn = page.locator('[data-note-archive]')
       await expect(btn).toBeVisible({ timeout: 10_000 })
-      await expect(btn).toContainText('Show all 21 notes')
-      // The oldest note is NOT among the 20 rendered cards…
+      await expect(btn).toContainText('View all (21)')
+      // The dashboard renders exactly the 5 most recent compact stickies — the
+      // oldest note is NOT among them…
+      await expect(page.locator('.note-card-dash')).toHaveCount(5)
       await expect(page.locator(`#note-${ids[0]}`)).toHaveCount(0)
 
       await btn.click()
@@ -228,7 +232,8 @@ test.describe('S65: the archive in FA/RTL', () => {
       await page.goto('/app') // fresh dashboard render — the widget carries the new total
       const btn = page.locator('[data-note-archive]')
       await expect(btn).toBeVisible({ timeout: 10_000 })
-      await expect(btn).toContainText('نمایش همهٔ ۲۱ یادداشت')
+      // S179: the compact panel's FA wording — «مشاهده همه (۲۱)» (Persian digits).
+      await expect(btn).toContainText('مشاهده همه (۲۱)')
 
       await btn.click()
       const dlg = page.locator('#quicknote-archive')

@@ -60,13 +60,15 @@ async function login(page: Page, opts?: { theme?: 'claude-dark' }) {
   await page.waitForURL('**/app')
 }
 
-test("the owner's example: the dashboard 'To-Do List' h2 computes 500 and its date stays 400", async ({ page }) => {
+test("S179: the dashboard 'To-Do List' h2 computes the advisor's SEMI-BOLD 600 (supersedes S157's 500) and its date stays 400", async ({ page }) => {
   await login(page)
   await page.goto('/dashboard.html')
   const h2 = page.locator('#dashboard-todo h2').first()
   await expect(h2).toBeVisible()
   const weight = await h2.evaluate((el) => getComputedStyle(el).fontWeight)
-  expect(weight, 'the To-Do List h2 must ride the 500 heading rung (was 600)').toBe('500')
+  // S179 (advisor block 5): ONE section-heading pattern — ~18px SEMI-BOLD (600)
+  expect(weight, 'the To-Do List h2 rides the 600 semi-bold rung (S179 supersedes S157)').toBe('600')
+
   const date = page.locator('#dashboard-todo h2 .dash-todo-date').first()
   await expect(date).toBeVisible()
   expect(await date.evaluate((el) => getComputedStyle(el).fontWeight), 'the date is a caption, not a heading — stays 400').toBe('400')

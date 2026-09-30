@@ -70,6 +70,21 @@
      per-card indicator bar (--stage-bar-*). Same register in both themes, so the bar
      tokens are defined once here and cascade into dark; only --statcard-bg flips. */
   --statcard-bg: #F5F6F7;
+  /* S179 (advisor block 6 — surface tokens): THREE named surfaces, no more. Every
+     dashboard fill resolves through these aliases so the panel/notebook/hero tint
+     experiments can never reintroduce a fourth near-neutral: page = the canvas the
+     sections float on, card = the white content surface, row = the quiet in-card
+     row fill the task rows sit on. Values are the EXISTING tokens — no new hex; the
+     aliases are the contract (the sticky-note yellows stay the ONLY tinted surfaces). */
+  --surface-page: var(--bg);      /* the page canvas */
+  --surface-card: var(--card);    /* cards / panels */
+  --surface-row: var(--statcard-bg); /* row fill inside a card */
+  /* S179 (advisor block 15 — focus visibility): the one focus-ring ink, mixed toward
+     the theme's own text so it clears 3:1 against BOTH the card and the row fill in
+     BOTH themes (the bare --accent rides ~3.1:1 on white and ~2.9:1 on the row fill —
+     under the WCAG 2.4.11 non-text floor). Direction-safe: light theme mixes toward
+     the dark text (darker ring), claude-dark toward its light text (lighter ring). */
+  --focus-ring: color-mix(in srgb, var(--accent) 72%, var(--text));
   --stage-bar-spark: #E8CFA0;         /* pastel amber — ideas (Session 21: softened) */
   --stage-bar-planning: #BCD5EF; /* pastel azure (was #9DC7FF — saturated) */
   --stage-bar-queued: #EFDEA5;      /* pastel butter yellow (was #FFD658 — neon) */
@@ -142,7 +157,7 @@
 /* ══ SEMANTIC COLOR SYSTEM (UI/UX R5, 2026-09-12 · S137 revision) ═══════════════
    Each accent color has exactly ONE meaning across the entire dashboard:
 
-   • RED (--err, --danger, --st-bug) → urgent / overdue / error / delete / bug
+   • RED (--err, --danger, --st-bug) → DESTRUCTIVE actions + problem status ONLY (S179 block 13: overdue/attention left red — it never means time)
    • ORANGE (--warn) → warning / waiting / attention-needed
    • ORANGE (--st-developing) → Developing status
    • TEAL (--brand, --accent) → brand / primary action / active state / current page

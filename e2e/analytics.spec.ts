@@ -91,24 +91,28 @@ test('dashboard: the unified projects container carries the overview row; the fi
     return p
   })
   await page.goto('/app')
-  const container = page.locator('.dash-proj-unified')
+  // S179 (advisor block 5): the unified container is RETIRED — the projects SECTION
+  // is chromeless (each stage box paints its own card). The carousel + the overview
+  // row are section children; .dash-ov carries the ov block.
+  const container = page.locator('.dash-projects-section')
   await expect(container).toBeVisible({ timeout: 10_000 })
-  // ONE container: the stage carousel AND the overview row live inside the same card
+  // The stage carousel AND the overview row live in the same section
   await expect(container.locator('[data-stat-track]')).toBeVisible()
   await expect(container.locator('[data-stat-dots]')).toBeVisible() // dots stay below the top row
   await expect(container.locator('.dash-proj-lower')).toBeVisible()
   // S124: the retired fire strip is gone — no section, no rows, even with urgent tasks burning
   await expect(page.locator('#dash-urgent')).toHaveCount(0)
   await expect(page.locator('.dash-urgent-row')).toHaveCount(0)
-  // the lower row's order: pie card first, then Plans → Problems → In Progress
+  // S179 (advisor block 12): NO donut — the total rides the head as text ("N open"),
+  // and the four cards ride ONE fixed order: Ideas → Problems → Plans → In Progress.
+  await expect(page.locator('.ov-donut')).toHaveCount(0)
+  await expect(page.locator('#ov-tasks-h .ov-open-total')).toBeVisible()
   const kids = container.locator('.dash-proj-lower > .card')
   await expect(kids).toHaveCount(4)
-  await expect(kids.nth(0)).toHaveClass(/ov-pie-card/)
-  await expect(kids.nth(1)).toHaveAttribute('data-ov-box', 'planned')
-  await expect(kids.nth(2)).toHaveAttribute('data-ov-box', 'bug')
+  await expect(kids.nth(0)).toHaveAttribute('data-ov-box', 'idea')
+  await expect(kids.nth(1)).toHaveAttribute('data-ov-box', 'bug')
+  await expect(kids.nth(2)).toHaveAttribute('data-ov-box', 'planned')
   await expect(kids.nth(3)).toHaveAttribute('data-ov-box', 'in_progress')
-  // the donut speaks the shared overview vocabulary
-  await expect(container.locator('.ov-donut')).toBeVisible()
   await expect(container.locator('.ov-box[data-ov-box="bug"] .ov-item-title', { hasText: 'e2e fire task' })).toBeVisible()
   await expect(container.locator('.ov-box[data-ov-box="bug"] .ov-item').first()).toHaveAttribute('href', `/project.html?id=${pid}`)
   await expect(container.locator('.ov-box[data-ov-box="planned"] .ov-item-title', { hasText: 'e2e plan task' })).toBeVisible()

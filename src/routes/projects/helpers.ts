@@ -480,16 +480,35 @@ const ovPieHtml = (counts: OvCounts, lang: Locale): string => {
     </div>`
 }
 
+// S179 (advisor block 13 — one color, one meaning): the PROJECT IDENTITY HUE set —
+// the house accent tokens MINUS the red/orange/yellow family (red stays reserved
+// for destructive actions + problem status, orange/yellow for status only, so a
+// project's identity can never wear a hue that also reads as a state). A project's
+// hue is its id's stable hash → one of twelve curated accents: every project reads
+// as its own color, on every surface that shows the identity dot. (The exact hex
+// tuning is the /color-palette-advisor follow-up; these are the EXISTING tokens.)
+const PROJECT_HUE_TOKENS = [
+  'accent-1', 'accent-4', 'accent-green', 'accent-purple', 'accent-pink', 'accent-teal',
+  'accent-sky', 'accent-mint', 'accent-lilac', 'accent-sage', 'accent-plum', 'accent-slate',
+] as const
+export function projectHueVar(id: string): string {
+  let h = 0
+  for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) >>> 0
+  return `var(--${PROJECT_HUE_TOKENS[h % PROJECT_HUE_TOKENS.length]})`
+}
+
 const ovBoxHtml = (st: OvStatus, counts: OvCounts, recent: Record<OvStatus, OvTask[]>, lang: Locale): string => {
   const dig = (n: number) => (lang === 'fa' ? faDigits(String(n)) : String(n))
   // S126: each item's full text rides BOTH the native title (mouse hover — the
   // truncation stays) and data-full, which the CSS :focus-visible tooltip reads
   // (title attrs are not reliably announced to keyboard users). The metadata line
-  // wears the owning project's stage accent (ov-proj-dot ← --stage-bar-*).
+  // carries the OWNING PROJECT'S IDENTITY HUE (S179 block 13: --proj-hue — the
+  // project's stable hash accent; the old stage-keyed dot gave the same dot two
+  // meanings, stage dots speak status everywhere else).
   const items = recent[st]
     .map((t) => `<li><a class="ov-item" href="/project.html?id=${t.project_id}" data-full="${esc(t.title)}">
           <span class="ov-item-title" dir="auto" title="${esc(t.title)}">${esc(t.title)}</span>
-          <span class="ov-item-proj muted small" dir="auto"><span class="ov-proj-dot" data-stage="${esc(t.project_status)}" aria-hidden="true"></span>${esc(t.project_title)}</span>
+          <span class="ov-item-proj muted small" dir="auto"><span class="ov-proj-dot" style="--proj-hue: ${projectHueVar(t.project_id)}" aria-hidden="true"></span>${esc(t.project_title)}</span>
         </a></li>`)
     .join('')
   // S126: the header joins the stage cards' convention — [dot] [label] [count pill]
@@ -523,12 +542,13 @@ export function overallTasksHtml(counts: OvCounts, recent: Record<OvStatus, OvTa
 }
 
 // S124 (owner wireframe): the DASHBOARD's unified projects container — the same
-// overview cards, but the lower panel is a horizontal row (the wireframe order:
-// PIECHART, Plans, Problems, In Progress — ideas live in the pie's slice + legend,
-// so the separate Ideas box drops out here). No section wrapper/heading: the
-// container (dashboard.ts) already carries the context and the carousel above.
+// overview cards. S179 (advisor block 12): the dashboard's row DROPS THE DONUT —
+// the total moved to text in the section head ("{n} open", dashboard.ts), an IDEAS
+// card joins the set (built exactly like Plans/Problems/In Progress), and the FOUR
+// cards ride ONE fixed order — the progress board's own column order
+// (Ideas → Problems → Plans → In Progress) — on every render.
 export function dashboardOverviewRowHtml(counts: OvCounts, recent: Record<OvStatus, OvTask[]>, lang: Locale): string {
-  return `${ovPieHtml(counts, lang)}${ovBoxHtml('planned', counts, recent, lang)}${ovBoxHtml('bug', counts, recent, lang)}${ovBoxHtml('in_progress', counts, recent, lang)}`
+  return `${ovBoxHtml('idea', counts, recent, lang)}${ovBoxHtml('bug', counts, recent, lang)}${ovBoxHtml('planned', counts, recent, lang)}${ovBoxHtml('in_progress', counts, recent, lang)}`
 }
 
 export function sparkEmptyHtml(lang: Locale): string {

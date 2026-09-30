@@ -116,8 +116,12 @@
     // DOM only — dynamically injected markup never got translated).
     const headText = () => _t('resume.title', 'Continue where you left off')
     const hintText = () => _t('resume.hint', 'Last edited')
-    const clearLabel = () => _t('resume.clear', 'Clear')
-    const clearAria = () => _t('resume.clearAria', 'Clear the resume history')
+    // S179 (advisor block 14): the label NAMES ITS SCOPE — "Clear recents" (the old
+    // bare "Clear" read as if it might delete real projects) and the action gets an
+    // Undo toast (~6s, the house pattern): clearing only wipes the HISTORY LIST, so
+    // undoing is just writing the snapshot back.
+    const clearLabel = () => _t('resume.clear', 'Clear recents')
+    const clearAria = () => _t('resume.clearAria', 'Clear the recent-items list')
     const ctaText = () => _t('resume.cta', 'Open')
     const kindOf = (e) => (e.k === 'project' ? _t('resume.project', 'Project') : e.k === 'spark' ? _t('resume.spark', 'Idea') : _t('resume.note', 'Note'))
     // S118 (S117 candidate 5): an untitled note rendered as a bare '—' — every other
@@ -194,12 +198,25 @@
     else main.insertBefore(strip, main.firstChild)
     // Soft-nav when the SPA router is present; plain navigation otherwise (palette pattern).
     strip.addEventListener('click', (e) => {
-      // S72: clear-history button — wipes the localStorage record and removes the strip.
-      // Low-stakes by design (history rebuilds itself as you open things) → no confirm.
+      // S72 + S179 (advisor block 14): clear-history button — wipes the localStorage
+      // record and removes the strip. The label says "Clear recents" (scope-named);
+      // the toast offers Undo for ~6s (write the snapshot back + re-render) so a
+      // reflexive clear is survivable. No confirm modal — history rebuilds itself.
       const clearBtn = e.target.closest('[data-resume-clear]')
       if (clearBtn) {
+        const snapshot = read()
         try { localStorage.removeItem(KEY) } catch { /* storage unavailable */ }
         strip.remove()
+        if (snapshot.length && window.hibana?.toast) {
+          window.hibana.toast(_t('resume.cleared', 'Recents cleared'), 'info', 6000, [{
+            label: _t('common.undo', 'Undo'),
+            onClick: () => {
+              write(snapshot)
+              render()
+              markScrollables()
+            },
+          }])
+        }
         return
       }
       const a = e.target.closest('a[data-resume-go]')

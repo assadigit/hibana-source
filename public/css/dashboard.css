@@ -1,4 +1,41 @@
 
+/* ═══ S179 (advisor blocks 5+6 — ONE section pattern + surface tokens) ═════════
+   Every dashboard section head is the SAME row: the title on the reading-start
+   edge (~18px / semibold 600 — one size, one weight, after years of h2-h3 mixes
+   and in-card headings), the secondary actions (View-all link, collapse chevron)
+   at the INLINE-END. The heading sits ABOVE its card, never inside it; sections
+   group by spacing (the unified/nested card wrappers retired this round). */
+.dash-sec-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+/* (0,2,0) — must OUTRANK the legacy per-section h2/h3 rules that still ride
+   descendant selectors (.ov-head h2 in misc.css is (0,1,1)) or the old mixed
+   sizes leak back onto the new pattern. */
+.dash-sec-head .dash-sec-title {
+  margin: 0;
+  font-size: var(--text-h2-size);      /* 18px desktop / 16px mobile — the ladder's own section rung */
+  font-weight: 600;                    /* the advisor's semi-bold */
+  line-height: 1.3;
+  letter-spacing: -0.005em;
+  color: var(--text);
+  min-inline-size: 0;
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+.dash-sec-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-inline-start: auto;          /* the inline-end shore, even when the title wraps */
+  white-space: nowrap;
+}
+
 /* --- batch (s) 2026-09-08 — the dashboard projects strip is a CAROUSEL ----------------
    (user request: "only three boxes by default, the rest behind carousel clicks").
    The three MAIN working stages (در حال تحقیق · در انتظار اجرا · در حال انجام) render
@@ -725,38 +762,36 @@ main.shell-dash > section { margin-block-end: 2.9rem; }
 }
 
 /* ==========================================================================
-   S124 (owner wireframe) — the UNIFIED projects container
+   S179 (advisor block 5) — the UNIFIED projects container RETIRES
    ==========================================================================
-   The stage row (the stat-carousel) and the panel below it are ONE card now
-   (one background, one border-radius) instead of two separate cards. Inside
-   it, top-to-bottom: the stage carousel -> its pagination dots (kept right
-   below the top row) -> the overview lower panel (donut + Plans / Problems /
-   In Progress). S129 (owner request): the container's floating "New project"
-   FAB left — the global capture FAB (+ menu) is the creation path. The old
-   "Urgent across projects" fire strip is RETIRED — the Problems box carries
-   the cross-project alert role now; the .dash-urgent* rules left with it. */
+   The S124 wrapper (one card around the stage carousel + the overview row) is
+   gone: boxes-in-a-box read as a container around a board. Each .stat-box paints
+   its OWN card chrome now (the exact surface/border/radius/shadow recipe the
+   wrapper carried — the eye sees the same cards, one nesting level shallower),
+   and the overview cards below were already their own .cards. Sections group by
+   SPACING (the section's grid gap), not by borders — the wrapper's divider and
+   padding left with it. S129's note stands: the global capture FAB owns creation. */
 
-.dash-proj-unified {
-  /* NOT the generic .card: that one carries a list reset (`.card ul/li`) that
-     would leak into the overview's legend/item lists — the container paints
-     its own card chrome here. The `ov` class (helpers' palette scope) rides
-     along so every .ov-* descendant resolves --ov-c-*, including the
-     claude-dark inks (misc.css overrides html[data-theme='claude-dark'] .ov). */
-  background: var(--card);
+.dash-projects-section { display: grid; gap: 1rem; }
+/* the S93 head-row margin (misc.css) retires — the section's grid gap is the beat now */
+.dash-projects-section .dash-projects-head { margin-block-end: 0; }
+/* the stage boxes' own card chrome — the S124 wrapper's exact recipe, one level down */
+.stat-carousel .stat-box {
+  background: var(--surface-card);
   border: 1px solid var(--line);
   border-radius: var(--radius);
-  padding: 0.85rem 0.85rem 1.05rem;
-  margin-block-end: clamp(1.25rem, 2.5vw, 2rem);
+  padding: 0.85rem 0.85rem 0.95rem;
   box-shadow: 0 1px 2px rgb(0 0 0 / 0.04);
 }
-/* the carousel's own inter-card margin was tuned for the section rhythm — inside
-   the unified card the lower panel provides the next beat instead */
-.dash-proj-unified .stat-carousel { margin-block-end: 0.85rem; }
+/* the carousel's own beat inside the (now chromeless) section */
+.dash-projects-section .stat-carousel { margin-block-end: 0.35rem; }
 
-/* The lower panel: a HORIZONTAL row of overview cards. Overflow scrolls
-   sideways (snap + thin scrollbar) while the dots above the divider keep
-   signalling that more content sits off-screen. Logical properties only —
-   RTL is the same geometry mirrored. */
+/* The overview row: a HORIZONTAL row of the four cards (Ideas · Problems ·
+   Plans · In Progress — one fixed order). Overflow scrolls sideways (snap + thin
+   scrollbar). S179: the border-block-start DIVIDER is retired — the section's
+   spacing groups the row, never a rule line; the row's own margin carries the
+   separation the divider used to paint. Logical properties only — RTL is the
+   same geometry mirrored. */
 .dash-proj-lower {
   display: grid;
   grid-auto-flow: column;
@@ -766,26 +801,21 @@ main.shell-dash > section { margin-block-end: 2.9rem; }
   overflow-x: auto;
   overscroll-behavior-x: contain;
   scroll-snap-type: x proximity;
-  padding: 0.75rem 0.15rem 0.35rem;
-  margin-block-start: 0.6rem;
-  border-block-start: 1px solid var(--line); /* the divider under the dots row */
+  padding: 0.15rem 0.15rem 0.35rem;
+  margin-block-start: 0.35rem;
   scrollbar-width: thin;
   scrollbar-color: var(--line-strong) transparent;
 }
 .dash-proj-lower::-webkit-scrollbar { block-size: 6px; }
 .dash-proj-lower::-webkit-scrollbar-thumb { background: var(--line-strong); border-radius: 999px; }
 .dash-proj-lower > .card { scroll-snap-align: start; margin-block-end: 0; }
-/* the donut card hugs its content (it is a row in a scroller now, not a 2-col
-   grid's flexible lead column) and the boxes fill the row's height evenly */
-.dash-proj-lower .ov-pie-card { flex: 1 1 auto; }
 .dash-proj-lower .ov-box { min-block-size: 100%; }
 /* S126 (owner: the grid leaves unused space after the last column): at ≥900px the
    four cards STOP being fixed-width scroller columns and instead share the row
    evenly — minmax(0, 1fr) tracks consume the container's full width (the old
    minmax(15.5rem, 19.5rem) capped the row at ~78rem and let the rest sit empty).
-   Below 900px the horizontal swipe stays (a 4-up squeeze at phone widths would
-   crush the donut), and the snap/scrollbar rules stay harmless when nothing
-   overflows. */
+   Below 900px the horizontal swipe stays, and the snap/scrollbar rules stay
+   harmless when nothing overflows. */
 @media (min-width: 900px) {
   .dash-proj-lower { grid-auto-columns: minmax(0, 1fr); }
 }
@@ -793,6 +823,12 @@ main.shell-dash > section { margin-block-end: 2.9rem; }
 @media (max-width: 640px) {
   .dash-proj-lower { grid-auto-columns: minmax(13.5rem, 85%); }
 }
+/* S179 (advisor block 5): the dashboard's ov block is a CHROMELESS section — the
+   shared .dash-ov class keeps the collapse store + the Settings hide working, but
+   the nested-card look (own background/border) is gone; only the head row + the
+   cards' own surfaces remain. Spacing groups; nothing boxes. */
+.dash-ov { display: grid; gap: 0.55rem; }
+.dash-ov .ov-head { margin-block-end: 0; }
 
 /* S129 (owner request): the container's floating "New project" FAB is RETIRED
    (was S126's caramel folder-plus anchored bottom-inline-end; it also carried

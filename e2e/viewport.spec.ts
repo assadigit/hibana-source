@@ -233,7 +233,10 @@ test('dashboard @390: stage-carousel strip is full-width; handles overlay + auto
   const geo = await page.evaluate(() => {
     const track = document.querySelector('[data-stat-track]') as HTMLElement
     const section = document.querySelector('.dash-projects-section') as HTMLElement
-    const container = document.querySelector('.dash-proj-unified') as HTMLElement
+    // S179: the unified container RETIRED — the strip is a direct child of the
+    // chromeless section; the honest full-width measure is the SECTION box (each
+    // .stat-box paints its own card now, the section carries no padding of its own).
+    const container = section
     const stage = document.querySelector('.stat-stage') as HTMLElement
     const prev = document.querySelector('[data-stat-prev]') as HTMLElement
     const next = document.querySelector('[data-stat-next]') as HTMLElement
@@ -241,8 +244,6 @@ test('dashboard @390: stage-carousel strip is full-width; handles overlay + auto
     const cs = getComputedStyle(container)
     return {
       sectionW: r(section).width,
-      // S124: the strip lives INSIDE the unified container now — the honest full-width
-      // measure is the card's CONTENT box (its own padding AND border excluded).
       containerInner: r(container).width - parseFloat(cs.paddingInlineStart || '0') - parseFloat(cs.paddingInlineEnd || '0') - parseFloat(cs.borderInlineStartWidth || '0') - parseFloat(cs.borderInlineEndWidth || '0'),
       trackW: r(track).width,
       stageW: r(stage).width,
@@ -251,17 +252,16 @@ test('dashboard @390: stage-carousel strip is full-width; handles overlay + auto
       next: { position: getComputedStyle(next).position, opacity: getComputedStyle(next).opacity, x: r(next).x, cy: r(next).y + r(next).height / 2 },
       trackCY: r(track).y + r(track).height / 2,
       handleSize: r(next).width,
-      // S124: the handles' viewport-edge constant moved with the card — anchor them to
-      // the unified container's edges (the strip's new visual boundary) instead.
+      // S179: the handles' viewport-edge constant anchors to the SECTION's edges
+      // (the strip's visual boundary now that the card wrapper is gone).
       containerX: r(container).left,
       containerR: r(container).right,
       docScroll: document.documentElement.scrollWidth,
     }
   })
 
-  // 1) The strip spans the unified container's INNER width (S124: the card carries
-  //    its own ~0.85rem padding; the old flank layout measured ~77% on this viewport —
-  //    the S42 overlay win is preserved inside the card).
+  // 1) The strip spans the section's full width (S179: chromeless — no card padding
+  //    to subtract; the S42 overlay win is preserved at the section level).
   expect(geo.trackW).toBeGreaterThanOrEqual(geo.containerInner - 1)
   expect(geo.stageW).toBeGreaterThanOrEqual(geo.containerInner - 1)
   expect(geo.pages).toBeGreaterThanOrEqual(2)
@@ -276,9 +276,9 @@ test('dashboard @390: stage-carousel strip is full-width; handles overlay + auto
   expect(Math.abs(geo.prev.cy - geo.trackCY)).toBeLessThanOrEqual(8)
   expect(Math.abs(geo.next.cy - geo.trackCY)).toBeLessThanOrEqual(8)
   // They sit at the outer edges flanking the strip (direction-agnostic: one handle's
-  // CENTER near the container's inline-start edge, the other's near its inline-end
-  // edge — over the strip's edge region, inside the card. S124 moved the boundary
-  // from the viewport edge to the card edge, so the measure rides the card box).
+  // CENTER near the section's inline-start edge, the other's near its inline-end
+  // edge — over the strip's edge region. S179 moved the boundary from the retired
+  // card edge to the SECTION edge; the measure rides the section box).
   const centers = [geo.prev.x + geo.handleSize / 2, geo.next.x + geo.handleSize / 2]
   expect(Math.min(...centers)).toBeLessThanOrEqual(geo.containerX + 52)
   expect(Math.max(...centers)).toBeGreaterThanOrEqual(geo.containerR - 52)
@@ -310,6 +310,9 @@ test('dashboard @390: stage-carousel strip is full-width; handles overlay + auto
     })
     await page.waitForTimeout(180)
   }
+  // S179: the restructured strip pages differently — let the .at-end fade (0.15s)
+  // fully settle before the opacity read (a mid-transition 0.11 read failed the <0.1 pin).
+  await page.waitForTimeout(400)
   const atEnd = await page.evaluate(() => {
     const car = document.querySelector('.stat-carousel') as HTMLElement
     const next = document.querySelector('[data-stat-next]') as HTMLElement

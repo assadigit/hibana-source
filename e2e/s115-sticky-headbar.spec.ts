@@ -62,32 +62,38 @@ async function login(page: Page) {
   await page.waitForSelector('#notebook', { timeout: 10_000 })
 }
 
-test('the sticky note headbar: ⋯ at the inline-start corner, ✕ alone at the inline-end (S115 r2)', async ({ page }) => {
+test('S179: the compact sticky cluster — Move-to… beside ✕ at the inline-end corner, hover-revealed', async ({ page }) => {
   await login(page)
-  const card = page.locator('#notebook .note-card').first()
-  await expect(card).toBeVisible()
-  // The headbar rides the STICKY/GRID views only (list keeps its own footer
-  // delete) — switch to the sticky view the way the owner does: open the
-  // notebook's view-options <details>, then pick Sticky from its segment.
-  await page.click('#notebook .note-controls-toggle summary')
-  await page.click('label[for="nv-sticky"]')
-  const menu = card.locator('.spark-menu > [data-menu-open]')
-  const del = card.locator('[data-note-delete]').first() // the headbar's ✕ (DOM-first)
-  await expect(menu).toBeVisible()
-  await expect(del).toBeVisible()
+  // S179 (advisor block 9): the dashboard notebook is the COMPACT panel now — the
+  // retired sticky headbar's corner contract lives on in the compact card's own
+  // hover-revealed cluster (.dash-note-acts: Move-to… + delete at the inline-end
+  // corner). The seeded account has one note; the dashboard renders it compact.
+  const card = page.locator('#notebook .note-card-dash').first()
+  await expect(card).toBeVisible({ timeout: 10_000 })
+  const move = card.locator('.dash-note-move summary')
+  const del = card.locator('[data-note-delete]')
+  await expect(move).toBeAttached()
+  await expect(del).toBeAttached()
 
-  const mBox = await menu.boundingBox()
+  // The cluster is HOVER-REVEALED on pointer devices: hidden (opacity 0) at rest,
+  // lit on card hover, and the two controls sit together at the card's inline-END
+  // corner (Move-to… first, ✕ beside it — the delete keeps the far-end seat).
+  await expect.poll(async () => card.locator('.dash-note-acts').evaluate((el) => getComputedStyle(el).opacity), { timeout: 3_000 }).toBe('0')
+  await card.hover()
+  // the 0.15s reveal transition — poll until it settles fully lit
+  await expect.poll(async () => parseFloat(await card.locator('.dash-note-acts').evaluate((el) => getComputedStyle(el).opacity)), { timeout: 3_000 }).toBe(1)
+
+  const mBox = await move.boundingBox()
   const dBox = await del.boundingBox()
-  expect(mBox, 'the ⋯ menu renders in the sticky view').toBeTruthy()
-  expect(dBox, 'the ✕ close renders in the sticky view').toBeTruthy()
-  // LTR: the ⋯ sits at the LEFT corner, the ✕ at the RIGHT — and a real run of
-  // card lies between them, so the two controls can no longer be mis-tapped for
-  // each other.
-  expect(mBox!.x).toBeLessThan(dBox!.x)
-  expect(dBox!.x - (mBox!.x + mBox!.width)).toBeGreaterThan(24)
-  // The ✕ keeps the dismiss seat: within a card-padding of the card's inline-END
-  // edge (the corner the eye goes to for dismiss — the S105 contract).
   const cBox = await card.boundingBox()
+  expect(mBox, 'the Move-to trigger renders').toBeTruthy()
+  expect(dBox, 'the delete renders').toBeTruthy()
   expect(cBox).toBeTruthy()
+  // LTR: Move-to… sits INLINE-START of the ✕, both inside the card's end corner.
+  expect(mBox!.x).toBeLessThan(dBox!.x)
+  expect(dBox!.x - (mBox!.x + mBox!.width)).toBeLessThanOrEqual(4) // the pair sits together
   expect(cBox!.x + cBox!.width - (dBox!.x + dBox!.width)).toBeLessThan(32)
+  // Keyboard focus reveals the cluster too (:focus-within — the block-9 contract).
+  await card.locator('.note-render').focus()
+  await expect.poll(async () => parseFloat(await card.locator('.dash-note-acts').evaluate((el) => getComputedStyle(el).opacity)), { timeout: 3_000 }).toBe(1)
 })

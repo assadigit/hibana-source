@@ -1118,7 +1118,13 @@
 
   function markRailIcons() {
     document.querySelectorAll('.rail-btn[data-rail-panel]').forEach((b) => {
-      b.classList.toggle('is-panel-open', !!railSection && b.getAttribute('data-rail-panel') === railSection)
+      const open = !!railSection && b.getAttribute('data-rail-panel') === railSection
+      b.classList.toggle('is-panel-open', open)
+      // S179 (advisor block 11 — active-state language): the panel toggle carries
+      // aria-expanded so "my panel is open" is ANNOUNCED, not just tinted — the
+      // page state (aria-current) and the panel-open state now differ in both
+      // visuals (bar vs brand icon) and semantics.
+      b.setAttribute('aria-expanded', String(open))
     })
   }
 

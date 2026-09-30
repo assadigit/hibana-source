@@ -787,3 +787,100 @@ Release (S178 — the owner's explicit "push, commit and deploy", 2026-09-30):
 - Still open on the owner's side: the advisor's color block (exact shades),
   the finished-sidebar mockup, and the panel-header block now that the fold
   chevron's job is documented (it collapses/expands EVERY group — S97).
+
+---
+Task ID: S179
+Agent: main (Z.ai Code)
+Task: The advisor's DASHBOARD blocks 5–16 — the dashboard's system pass: one
+section pattern, surface tokens, the to-do rows, the empty strip, the compact
+Quick Notebook with Move-to, contrast floors, the rail's inset active bar, the
+donutless four-card overview, color meaning, Clear recents, focus visibility,
+RTL audit. Full ladder + local commit (release owner-gated).
+
+Work Log:
+- Implemented all twelve blocks:
+  (5) .dash-sec-head/.dash-sec-title (18px/600, (0,2,0) to beat the legacy
+      .ov-head h2 descendant rules) + secondary actions + the collapse chevron
+      MOVED to the inline-end; the unified container retired (each .stat-box
+      paints the S124 chrome recipe one level down); the nested .dash-ov goes
+      chromeless (keeps the shared collapse id + Settings hide).
+  (6) --surface-page/card/row aliases (no new hex); the notebook's teal tint +
+      the resume hero's accent veil retire; sticky yellows stay the only tint.
+  (7) rows centered + ~40px (coarse 44px), 20px checkbox + ±9.6px island,
+      the ＋ into the header beside the count, empty icon slot collapses to 0.
+  (8) the empty quadrant = "No tasks yet." + "Add a task" strip
+      (.is-quadrant-empty + grid align-items:start), server + updateDashTaskEmpty
+      ship the identical markup.
+  (9) the compact notebook: heading above the card (one pattern), composer, the
+      5-most-recent wrapping row (.note-card-dash), "View all (N)", per-sticky
+      hover-revealed Move-to… (idea/todo → POST /api/notes/:id/move + soft-delete
+      + Undo; Project note → the attach-picker), delete keeps its 6s Undo;
+      notesWidgetUrl() makes every client re-GET face-aware (?dashboard=1);
+      the card dropped overflow:hidden so the popover can't be clipped.
+  (10) rail labels 11px; panel-open label → primary ink (the icon keeps brand
+      as a 3:1 graphic); sticky timestamp → the paper's #3f3f46 (~9:1 on yellow).
+  (11) the solid teal tile RETIRED → the S178 inset rounded bar (::before, 3px,
+      brand, 999px, inset-inline-start .3rem, inset-block 22%) + primary ink;
+      aria-expanded on the panel toggles (server default + markRailIcons).
+  (12) the dashboard's donut GONE (the projects home keeps its own): "{n} open"
+      text in the head, an Ideas card, ONE fixed order (idea → bug → planned →
+      in_progress — the progress board's column order).
+  (13) red reserved for destructive+problem (the overdue chip → the orange
+      --warn register); the ov-proj-dot drops stage for the stable hash-of-id
+      IDENTITY hue from a 12-token set excluding red/orange/yellow (the exact
+      hex tuning = the /color-palette-advisor follow-up, owner-side).
+  (14) "Clear recents" + a 6s Undo toast (the snapshot writes back + re-renders).
+  (15) --focus-ring (accent 72% toward the theme text) on every outline — ≥3:1
+      on the card AND the row fill in both themes; the compact cluster + the
+      move popover + view-all all carry rings.
+  (16) logical properties throughout the new rules; .icon.arrow mirrors kept;
+      dir=auto added to skc-title + the quadrant name.
+- Cache-bust: 15 files (variables v22, base v12, layout v59, dashboard v33,
+  dashboard-todo v19, quicknotes v41, misc v20, polish-ui v34, claude-dark v21,
+  app.js v213, nav.js v40, resume.js v12, i18n-en v89, i18n.js v143 + i18n-fa
+  v83 ref) — check-cache-bust PASS; sw v413→v414; package 0.4.1.5→0.4.1.6;
+  +4 i18n keys ×2 (quadrantEmpty reworded, addTask, movedIdea/movedTodo,
+  resume.clear/cleared) — parity 1556/1556.
+- LADDER: typecheck 0 · vitest 539/539 (dashboard + reports-tasks pins
+  rewritten) · eslint 0 err (162-warn) · build 79 · wiring canonical · FULL e2e
+  305/305 (9 spec files re-pinned: rail-panel's bar+aria-expanded, viewport +
+  analytics re-anchored to the chromeless section, qn-archive's View all (N) +
+  the 5-cap, s121's identity-hue dot, todo-click's +12px island probe, s140's
+  relocated chevron, s157's 600 supersession, s115→the compact-cluster
+  contract, s105-8→the Move-to popover contract) + screenshots re-baselined.
+- AGENT-BROWSER QA (:3017, the s178 seed + notes/tasks): EN — all twelve
+  blocks probed by computed style (5×18px/600 heads, unified=0, stat-box own
+  chrome, divider=0, donut=0, boxes idea,bug,planned,in_progress + "4 open",
+  identity hues, notebook card white, 5 compact + View all (7), controls=0,
+  row 40px single-line + centered + 20px checkbox, fab in the header, the empty
+  strip, labels 11px, the active bar 3px/brand/999px + aria-current +
+  aria-expanded, --focus-ring resolved); Move-to round-trips VERIFIED (the
+  dentist note → a real spark project; the landlord note → a real quadrant-1
+  task; both with Undo toasts) + delete + Undo; FA/RTL — the actions at the
+  inline-end (left), the bar at right:4.8px (mirrored true), «۴ باز» Farsi
+  digits, the FA empty strip, fab left of count; claude-dark — the labels
+  6.2:1, the bar in the dark brand, the notebook card on the dark surface
+  (the dark sticky fills e2e-pinned by s105-2); 390px FA — zero h-overflow;
+  keyboard focus — 2px solid rings on the rail item + the ＋ button in the
+  resolved ring ink; 0 console/page errors everywhere.
+
+Stage Summary:
+- LOCAL main staged at v0.4.1.6 — the dashboard's system pass, fully gated +
+  QA'd. LIVE hibana.ir untouched @ v0.4.1.5: the release is OWNER-GATED
+  (push/deploy/tag/zip/healthcheck only on the owner's explicit go).
+- Ops lessons: (a) the Bash output pipeline eats '[h' from '[hidden]' AND
+  mangles '[href=' in displayed locators — ALWAYS re-read via the Read tool
+  before building an Edit old_str from Bash output; (b) the full quick-notes
+  notebook (view radios/sticky/headbar) lived ONLY on the dashboard — block 9's
+  compact panel retired it from the product (the non-dashboard notebookHtml
+  branch is now unreachable from any page; keep for a future full surface);
+  (c) a <details> popover inside a card with overflow:hidden is CLIPPED — the
+  card must drop overflow:hidden when the text clamps carry their own; (d)
+  every client-side re-GET of a dual-variant widget must be FACE-AWARE
+  (notesWidgetUrl) or the swap renders the wrong variant; (e) ::before
+  geometry in RTL reads on the RIGHT property (inset-inline-start resolves to
+  right — parseFloat(left) is NaN/'auto'); (f) hover/opacity probes need
+  expect.poll — a post-hover() immediate read catches the transition mid-flight.
+- Open on the owner's side: the /color-palette-advisor hex pass (block 13's
+  exact palette), the finished-dashboard mockup, and the S178 leftovers (the
+  sidebar color block + mockup).

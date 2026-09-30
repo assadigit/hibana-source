@@ -247,12 +247,16 @@ html[lang="fa"] body * {
   border: 0;
 }
 
-/* One visible focus ring for every interactive control — neutral, never removed. */
+/* One visible focus ring for every interactive control — neutral, never removed.
+   S179 (advisor block 15): the ring ink is --focus-ring (variables.css) — the accent
+   mixed toward the theme's text so it clears the 3:1 non-text floor against BOTH
+   the card and the row-fill surfaces in both themes (the bare accent sat ~2.9:1 on
+   the row fill). Same 2px/2px geometry — only the ink is calibrated. */
 a:focus-visible,
 button:focus-visible,
 summary:focus-visible,
 .chip:focus-visible {
-  outline: 2px solid var(--accent);
+  outline: 2px solid var(--focus-ring, var(--accent));
   outline-offset: 2px;
 }
 /* Text fields get the shadcn treatment instead of an outline: accent border + a soft

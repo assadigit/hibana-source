@@ -404,7 +404,7 @@ window.__hibanaDictEN = {
       'card.loadFailed': "Couldn't load the project", 'card.saving': 'Saving…', 'card.deleted': 'Project deleted',
       // dashboard stat boxes
       'dashboard.nothing': 'Nothing here yet',
-      'dashboard.quadrantEmpty': "You haven't added any task yet",
+      'dashboard.quadrantEmpty': 'No tasks yet.', 'dashboard.addTask': 'Add a task',
       'dashboard.moveFailed': "Couldn't move it — try again",
       'dashboard.seeMore': 'See More', 'dashboard.seeLess': 'Show less',
       /* S106: the quadrant overflow pill (4 visible, extras behind the faded +N more). */
@@ -886,7 +886,7 @@ window.__hibanaDictEN = {
       'resume.title': 'Continue where you left off', 'resume.hint': 'Last edited',
       'resume.cta': 'Open',
       'resume.project': 'Project', 'resume.note': 'Note', 'resume.spark': 'Idea', 'resume.openAria': 'Open {k}: {t}',
-      'resume.clear': 'Clear', 'resume.clearAria': 'Clear the resume history',
+      'resume.clear': 'Clear recents', 'resume.clearAria': 'Clear the recent-items list', 'resume.cleared': 'Recents cleared',
       'nav.syncPending': '{n} pending', 'nav.syncHint': 'Waiting to sync — click to try now', 'nav.syncSent': 'Synced your offline changes',
       // S52: Trash palette command + recoverable-count sublabel
       'cmdk.openTrash': 'Trash — recover deleted items',
@@ -1084,6 +1084,7 @@ window.__hibanaDictEN = {
       'notes.deletedNote': 'Note moved to Trash', 'notes.restored': 'Note restored', 'notes.purged': 'Deleted forever',
       'notes.deleteFailed': 'Could not delete the note.', 'notes.restoreFailed': 'Could not restore.', 'notes.purgeFailed': 'Could not delete forever.',
       'notes.moved': 'Note moved', 'notes.moveFailed': 'Could not move the note.',
+      'notes.movedIdea': 'Moved to your ideas', 'notes.movedTodo': 'Moved to your to-do list',
       'notes.openFailed': 'Could not open that note.', 'notes.createFailed': 'Could not create the note.', 'notes.starFailed': 'Could not star the note.',
       'notes.renameFolder': 'Rename…', 'notes.newSubfolder': 'New subfolder…', 'notes.deleteFolder': 'Delete folder',
       'notes.deleteFolderConfirm': 'Delete folder', 'notes.deleteFolderHint': 'Its notes move to Unfiled — nothing is lost.',

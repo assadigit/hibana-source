@@ -653,5 +653,34 @@ export function dashboardRoutes(cfg: Config) {
     return await etag(c, c.json(data))
   })
 
+  // S180 (owner block 7): the resume SEED — the "Continue where you left off"
+  // strip's server fallback for a browser whose hibana-resume store is empty (a
+  // new device, cleared storage, or a cleared history that never rebuilt — the
+  // owner's own report: the section "was removed" because nothing rendered).
+  // Returns the 4 most recently EDITED items — projects (sparks included, mapped
+  // to k='spark') + vault notes, updated_at DESC — in the exact entry shape the
+  // client store records, so resume.js can render the strip display-only. The
+  // S105 recording rule stands: this seed is NEVER written to the store — only
+  // real interactions record; the seed just answers "where did I stop?" until a
+  // real edit lands in THIS browser.
+  app.get('/resume-seed', async (c) => {
+    const user = c.get('user')
+    const rows = await cfg.db.query<{ k: string; id: string; t: string; b: string | null; ts: string }>(
+      `SELECT 'project' AS k, id, title AS t, status AS b, updated_at AS ts FROM projects WHERE user_id = ? AND deleted_at IS NULL AND (archived_state IS NULL OR archived_state != 'offline')
+       UNION ALL
+       SELECT 'note' AS k, id, title, NULL, updated_at FROM vault_notes WHERE user_id = ? AND deleted_at IS NULL
+       ORDER BY ts DESC LIMIT 4`,
+      [user.id, user.id],
+    )
+    const entries = rows.map((r) => ({
+      k: r.k === 'project' && r.b === 'spark' ? 'spark' : r.k,
+      id: r.id,
+      t: r.t,
+      ts: new Date(r.ts).getTime() || 0,
+      b: r.k === 'project' ? (r.b ?? undefined) : undefined,
+    }))
+    return c.json({ entries })
+  })
+
   return app
 }

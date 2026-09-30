@@ -11,168 +11,11 @@
    dash-sec-title register). */
 .notebook.card { padding: clamp(0.75rem, 1.5vw, 1rem) clamp(0.75rem, 1.5vw, 1rem) clamp(1rem, 2vw, 1.5rem) clamp(0.75rem, 1.5vw, 1rem); overflow: visible; /* Session 19 (user report): the view/size controls panel floats absolutely + its box-shadow was clipped by the card's implicit overflow. The bottom padding is larger (1–1.5rem) to give the sticky-note shadows (4px 12px 20px) room below — container-type:inline-size on #notebook clips block-axis overflow, so the card itself must reserve the space. */ }
 
-.card.notebook-dashboard {
-  background: var(--surface-card, var(--card, #fff));
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-}
-.notebook-dashboard .note-compose-text {
-  background: var(--card, #fff);
-  border-color: var(--line);
-}
+/* ═══ S180 (owner blocks 1–6): the DASHBOARD compact panel's rules MOVED to the END of
+   this sheet (see "S180 — the sticky restore") — the S179 placement at the TOP lost the
+   cascade to the shared .note-card/.note-list base rules below (equal specificity,
+   later position wins): the stickies rendered as white chips in a stacked grid. ═══ */
 
-/* ═══ S179 (advisor blocks 5+9): the DASHBOARD notebook — the compact panel ═══
-   #notebook wraps the heading row (above the card, the one section pattern) + the
-   card (composer + the wrapping row of 5 recent stickies). The panel is SHORT by
-   design: one composer line + one wrap row of memo-sized stickies; everything
-   else lives behind "View all (N)" (the archive dialog) or the whiteboard. */
-.notebook-dash-wrap { display: grid; gap: 0.55rem; }
-.notebook-dash-wrap .card.notebook-dashboard { display: grid; gap: 0.6rem; }
-.dash-notebook-head { min-inline-size: 0; }
-.note-view-all {
-  border: 0;
-  background: transparent;
-  padding: 0.25rem 0.35rem;
-  border-radius: var(--radius-sm);
-  color: var(--link, var(--brand));
-  font: inherit;
-  cursor: pointer;
-  text-decoration: none;
-  white-space: nowrap;
-}
-.note-view-all:hover { text-decoration: underline; text-underline-offset: 3px; color: var(--text); }
-.note-view-all:focus-visible { outline: 2px solid var(--focus-ring, var(--accent)); outline-offset: 1px; }
-
-/* The wrapping row of compact stickies */
-.dash-note-row { display: flex; flex-wrap: wrap; gap: 0.6rem; align-items: stretch; }
-.note-card-dash {
-  flex: 1 1 10rem;
-  min-inline-size: 9.5rem;
-  max-inline-size: 13rem;
-  display: grid;
-  grid-template-rows: minmax(0, 1fr) auto;
-  gap: 0.15rem;
-  padding: 0.5rem 0.55rem 0.4rem;
-  border-radius: 4px; /* the sticky paper's near-sharp corner */
-  background: var(--note-color, #FFF59D); /* the PAPER — the sticky yellows stay the only tinted surfaces */
-  box-shadow: 1px 2px 3px rgb(0 0 0 / 0.08), 2px 6px 10px rgb(0 0 0 / 0.10);
-  color: #3f3f46;
-  /* NO overflow:hidden — the Move-to popover (absolute, below the cluster) must
-     escape the card; the text clamps carry their own overflow on .note-render. */
-  position: relative;
-}
-.note-card-dash .note-render { font-size: var(--fs-sm); line-height: 1.5; }
-/* the compact sticky's clamp: 3 lines of text, then the fold */
-.note-card-dash .note-render.markdown-body {
-  display: -webkit-box;
-  -webkit-line-clamp: 3;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-}
-.note-card-dash .note-render p { margin: 0; }
-.note-card-dash .note-footer {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.35rem;
-  margin: 0;
-}
-.note-card-dash .note-meta { font-size: 0.65rem; color: #3f3f46; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.dash-note-link { color: inherit; opacity: 0.75; display: inline-flex; flex: none; }
-.dash-note-link:hover { opacity: 1; }
-.dash-note-link .icon { inline-size: 0.8rem; block-size: 0.8rem; }
-.dash-note-listlink { text-decoration: none; color: inherit; display: grid; gap: 0.1rem; min-inline-size: 0; }
-.dash-note-listlink:hover .dash-note-title { text-decoration: underline; text-underline-offset: 2px; }
-.dash-note-listlink:focus-visible { outline: 2px solid var(--focus-ring, var(--accent)); outline-offset: 2px; }
-.dash-note-title { font-size: var(--fs-sm); font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.dash-note-listlink .note-render {
-  font-size: var(--fs-xs);
-  line-height: 1.45;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-}
-/* The hover-revealed control cluster (Move to… + delete) — hidden on pointer
-   devices until hover/focus, ALWAYS visible on touch (no hover to reveal with).
-   Keyboard focus reaches them through the card's own focusable children
-   (:focus-within lights the cluster). */
-.dash-note-acts {
-  position: absolute;
-  inset-block-start: 0.3rem;
-  inset-inline-end: 0.3rem;
-  display: inline-flex;
-  gap: 0.2rem;
-  opacity: 0;
-  transition: opacity 0.15s ease;
-  z-index: 2;
-}
-.note-card-dash:hover .dash-note-acts,
-.note-card-dash:focus-within .dash-note-acts,
-.dash-note-acts:focus-within { opacity: 1; }
-@media (hover: none) { .dash-note-acts { opacity: 1; } }
-.dash-note-acts button,
-.dash-note-acts summary {
-  display: inline-grid;
-  place-items: center;
-  inline-size: 1.6rem;
-  block-size: 1.6rem;
-  padding: 0;
-  border: 0;
-  border-radius: var(--radius-sm);
-  background: color-mix(in srgb, var(--card, #fff) 82%, transparent);
-  color: #3f3f46;
-  cursor: pointer;
-  list-style: none;
-}
-.dash-note-acts summary::-webkit-details-marker { display: none; }
-.dash-note-acts button:hover,
-.dash-note-acts summary:hover { background: var(--card, #fff); color: var(--text); }
-.dash-note-acts button:focus-visible,
-.dash-note-acts summary:focus-visible { outline: 2px solid var(--focus-ring, var(--accent)); outline-offset: 1px; }
-.dash-note-acts .icon { inline-size: 0.85rem; block-size: 0.85rem; }
-.dash-note-x:hover { color: var(--err); }
-@media (pointer: coarse) {
-  .dash-note-acts button, .dash-note-acts summary { inline-size: 2.5rem; block-size: 2.5rem; }
-}
-/* The Move-to… popover (a native <details> menu) */
-.dash-note-move { position: relative; }
-.dash-note-move-pop {
-  position: absolute;
-  inset-block-start: calc(100% + 0.25rem);
-  inset-inline-end: 0;
-  z-index: 30;
-  min-inline-size: 11rem;
-  padding: 0.3rem;
-  display: grid;
-  gap: 2px;
-  background: var(--card);
-  border: 1px solid var(--line-strong);
-  border-radius: var(--radius-sm);
-  box-shadow: 0 6px 20px rgb(30 20 10 / 0.12), 0 2px 6px rgb(30 20 10 / 0.06);
-}
-.dash-note-move-pop button {
-  display: flex;
-  align-items: center;
-  gap: 0.45rem;
-  inline-size: 100%;
-  inline-size: -webkit-fill-available;
-  padding: 0.45rem 0.55rem;
-  border: 0;
-  border-radius: var(--radius-sm);
-  background: transparent;
-  color: var(--text);
-  font: inherit;
-  font-size: var(--fs-sm);
-  text-align: start;
-  cursor: pointer;
-}
-.dash-note-move-pop button:hover { background: var(--bg-soft); }
-.dash-note-move-pop button:focus-visible { outline: 2px solid var(--focus-ring, var(--accent)); outline-offset: -1px; }
-.dash-note-move-pop .icon { inline-size: 0.95rem; block-size: 0.95rem; color: var(--muted); flex: none; }
-/* the compact card's attach slot (the picker lands here; attached chips show) */
-.note-card-dash .note-attach { grid-column: 1 / -1; }
-.note-card-dash .note-attach:empty { display: none; }
 .notebook .note-heading { margin-block-end: 0; font-size: 1rem; }
 .note-head .note-title { flex: 1; min-inline-size: 0; }
 /* S70 (390px FA/RTL overflow fix): the per-note head row — <span class="row note-head-main">
@@ -1807,3 +1650,225 @@ body.pd-detail-lock { overflow: hidden; }
 /* The hidden attribute must always win over the component's display value
    (the slide-over chip + the dialog's swatch drawer toggle). */
 .cat-chip[hidden], .pd-cat-qa [hidden], .pd-cat-pop[hidden] { display: none; }
+
+/* ═══════════════════════════════════════════════════════════════════════════════
+   S180 (owner blocks 1–6) — THE STICKY RESTORE: the dashboard's compact notebook
+   ═══════════════════════════════════════════════════════════════════════════════
+   The S179 compact panel's rules originally lived ABOVE the shared .note-card /
+   .note-list base rules in this sheet — at EQUAL specificity the LATER base rules
+   silently won every conflicting declaration (background: transparent, the 14px
+   --radius-sm corners, the chip padding, the .note-list single-column grid): the
+   yellow stickies regressed into small WHITE CHIPS stacked vertically inside a
+   tall, mostly empty panel. This section now lives at the END of the sheet AND
+   scopes every rule under .notebook-dashboard, so the compact card can never lose
+   the cascade again (the S178 lesson restated: don't rely on order — win the
+   compound).
+
+   The restored contract (owner's spec):
+   - block 1: the sticky look — the note's own paper surface (var(--note-color),
+     the owner's fallback #FFF59D = NOTE_COLOR_HEX.yellow), dark-brown ink
+     #4D440A (8.76:1 on the yellow), a soft two-layer drop shadow, a small 4px
+     corner radius, and the creation DATE + TIME back on every note (server-side).
+   - block 2: readable text — the note body at --fs-md (14px, inside the suggested
+     13–14px band; the old 12px chip text read like a tag); the timestamp at 12px
+     in the paper's own brown family #6B5B10 (6.01:1 on the yellow — the ≥4.5:1
+     WCAG AA floor with margin, passing on every paper of the palette).
+   - block 3: compact layout — a WRAPPING row of equal-width (~180px) stickies
+     under the composer, starting at the inline-start edge, with a moderate gap;
+     the panel height follows its content; the vertical padding trimmed.
+   - blocks 4–6: the 5-most-recent cap + "View all (N)" (server-side, unchanged),
+     the Move-to… menu (keyboard wiring in app.js), the hover-revealed delete
+     (always visible on touch, ≥24×24 hit at the same visual size, 6s Undo). */
+
+/* The panel: plain card surface (S179 block 6 kept — three surfaces; the sticky
+   papers are the only tinted ones), padding trimmed moderately (S180 block 3:
+   one composer row + one wrap row — the panel shrinks to fit its content). */
+.notebook-dash-wrap { display: grid; gap: 0.55rem; }
+.notebook-dash-wrap .card.notebook-dashboard { display: grid; gap: 0.55rem; }
+.card.notebook-dashboard {
+  background: var(--surface-card, var(--card, #fff));
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 0.6rem 0.7rem 0.9rem; /* S180 block 3 — was clamp(0.75rem…1rem) / clamp(1rem…1.5rem); the smaller block padding still buys the paper shadows room below (overflow stays visible) */
+  overflow: visible; /* the Move-to popover (z-30, absolute) must escape the card */
+}
+.notebook-dashboard .note-compose-text {
+  background: var(--card, #fff);
+  border-color: var(--line);
+}
+.dash-notebook-head { min-inline-size: 0; }
+.note-view-all {
+  border: 0;
+  background: transparent;
+  padding: 0.25rem 0.35rem;
+  border-radius: var(--radius-sm);
+  color: var(--link, var(--brand));
+  font: inherit;
+  cursor: pointer;
+  text-decoration: none;
+  white-space: nowrap;
+}
+.note-view-all:hover { text-decoration: underline; text-underline-offset: 3px; color: var(--text); }
+.note-view-all:focus-visible { outline: 2px solid var(--focus-ring, var(--accent)); outline-offset: 1px; }
+
+/* The wrapping row of stickies (S180 block 3): display:flex + flex-wrap + a
+   moderate gap; every paper rides at the same ~180px inline size; the row starts
+   at the INLINE-START edge (block 4: newest first from the start). Scoped under
+   .notebook-dashboard so the shared .note-list single-column grid later in this
+   sheet can never override it again (the S179 defect). */
+.notebook-dashboard .dash-note-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  align-items: flex-start; /* ragged rows are the sticky idiom; the panel height follows the tallest paper in each row */
+  margin-block-start: 0.35rem;
+}
+
+/* The sticky paper (S180 block 1 — restored from the pre-S179 look):
+   paper surface = the note's own color (inline --note-color from the server);
+   ink = the owner's dark brown; soft layered shadow; small 4px radius;
+   fixed 11.25rem (180px) — every paper the same width (block 3). */
+.notebook-dashboard .note-card-dash {
+  flex: 0 0 11.25rem;
+  max-inline-size: 11.25rem;
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) auto;
+  gap: 0.2rem;
+  padding: 0.55rem 0.6rem 0.5rem;
+  background: var(--note-color, #FFF59D); /* the PAPER — the sticky yellows stay the only tinted surfaces */
+  color: #4D440A; /* S180 block 1: the paper's own dark-brown ink (8.76:1 on #FFF59D) */
+  border: 1px solid rgb(0 0 0 / 0.10);
+  border-radius: 4px; /* the sticky paper's near-sharp corner */
+  box-shadow: 1px 2px 3px rgb(0 0 0 / 0.08), 2px 6px 10px rgb(0 0 0 / 0.10); /* the soft paper shadow (the sticky-view recipe) */
+  /* NO overflow:hidden — the Move-to popover must escape; the text clamps own theirs */
+  position: relative;
+}
+
+/* Readable text (S180 block 2): the note body at --fs-md (14px — the ≥13px floor;
+   the old --fs-sm 12px chip text read like a tag), and the timestamp at 12px in
+   the brown family — #6B5B10 measures 6.01:1 on the yellow, ≥4.5:1 on every
+   paper of the palette (green 5.54 / pink 4.86 / blue 4.72). */
+.notebook-dashboard .note-card-dash[data-kind='note'] .note-render { font-size: var(--fs-md); line-height: 1.5; }
+/* the compact sticky's clamp: 3 lines of text, then the fold */
+.notebook-dashboard .note-card-dash .note-render.markdown-body {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.notebook-dashboard .note-card-dash .note-render p { margin: 0; }
+/* re-pin the brown over misc.css's generic .note-render:hover → var(--text) flip */
+.notebook-dashboard .note-card-dash[data-kind='note'] .note-render:hover { color: #4D440A; }
+/* the paper's focusables speak the paper's own ring ink (the shared --focus-ring
+   was tuned against the card/row fills, not the yellow paper) */
+.notebook-dashboard .note-card-dash .note-render:focus-visible,
+.notebook-dashboard .dash-note-listlink:focus-visible { outline: 2px solid #4D440A; outline-offset: 2px; }
+.notebook-dashboard .note-card-dash .note-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.35rem;
+  margin: 0;
+}
+/* the creation stamp: date + time, 12px, #6B5B10 (6.01:1 on the yellow). The
+   #notebook.notebook-dash-wrap compound (1,3,0) beats the shared sticky-view
+   meta rule's bare #notebook .note-card scope (1,2,0) without touching it. */
+#notebook.notebook-dash-wrap .note-card-dash .note-meta { font-size: 0.75rem; color: #6B5B10; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.notebook-dashboard .dash-note-link { color: inherit; opacity: 0.75; display: inline-flex; flex: none; }
+.notebook-dashboard .dash-note-link:hover { opacity: 1; }
+.notebook-dashboard .dash-note-link .icon { inline-size: 0.8rem; block-size: 0.8rem; }
+.notebook-dashboard .dash-note-listlink { text-decoration: none; color: inherit; display: grid; gap: 0.12rem; min-inline-size: 0; }
+.notebook-dashboard .dash-note-listlink:hover .dash-note-title { text-decoration: underline; text-underline-offset: 2px; }
+.notebook-dashboard .dash-note-title { font-size: var(--fs-md); font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.notebook-dashboard .dash-note-listlink .note-render {
+  font-size: var(--fs-sm);
+  line-height: 1.45;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* The hover-revealed control cluster (Move to… + delete) — S180 block 6: hidden on
+   pointer devices until the paper is hovered or keyboard-focused (:focus-within),
+   ALWAYS visible on touch (no hover to reveal with). Both controls keep their
+   1.6rem (25.6px ≥ 24px) hit box at the same visual size; coarse pointers ride
+   2.5rem (40px). */
+.notebook-dashboard .dash-note-acts {
+  position: absolute;
+  inset-block-start: 0.3rem;
+  inset-inline-end: 0.3rem;
+  display: inline-flex;
+  gap: 0.2rem;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+  z-index: 2;
+}
+.notebook-dashboard .note-card-dash:hover .dash-note-acts,
+.notebook-dashboard .note-card-dash:focus-within .dash-note-acts,
+.notebook-dashboard .dash-note-acts:focus-within { opacity: 1; }
+@media (hover: none) { .notebook-dashboard .dash-note-acts { opacity: 1; } }
+.notebook-dashboard .dash-note-acts button,
+.notebook-dashboard .dash-note-acts summary {
+  display: inline-grid;
+  place-items: center;
+  inline-size: 1.6rem;
+  block-size: 1.6rem;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--card, #fff) 82%, transparent);
+  color: #4D440A;
+  cursor: pointer;
+  list-style: none;
+}
+.notebook-dashboard .dash-note-acts summary::-webkit-details-marker { display: none; }
+.notebook-dashboard .dash-note-acts button:hover,
+.notebook-dashboard .dash-note-acts summary:hover { background: var(--card, #fff); color: #4D440A; }
+.notebook-dashboard .dash-note-acts button:focus-visible,
+.notebook-dashboard .dash-note-acts summary:focus-visible { outline: 2px solid #4D440A; outline-offset: 1px; }
+.notebook-dashboard .dash-note-acts .icon { inline-size: 0.85rem; block-size: 0.85rem; }
+.notebook-dashboard .dash-note-x:hover { color: var(--err); }
+@media (pointer: coarse) {
+  .notebook-dashboard .dash-note-acts button, .notebook-dashboard .dash-note-acts summary { inline-size: 2.5rem; block-size: 2.5rem; }
+}
+
+/* The Move-to… popover (a native <details> menu; keyboard wiring in app.js —
+   S180 block 5: Enter opens, ArrowDown/ArrowUp cycle, Escape closes). */
+.notebook-dashboard .dash-note-move { position: relative; }
+.notebook-dashboard .dash-note-move-pop {
+  position: absolute;
+  inset-block-start: calc(100% + 0.25rem);
+  inset-inline-end: 0;
+  z-index: 30;
+  min-inline-size: 11rem;
+  padding: 0.3rem;
+  display: grid;
+  gap: 2px;
+  background: var(--card);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-sm);
+  box-shadow: 0 6px 20px rgb(30 20 10 / 0.12), 0 2px 6px rgb(30 20 10 / 0.06);
+}
+.notebook-dashboard .dash-note-move-pop button {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  inline-size: 100%;
+  inline-size: -webkit-fill-available;
+  padding: 0.45rem 0.55rem;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-size: var(--fs-sm);
+  text-align: start;
+  cursor: pointer;
+}
+.notebook-dashboard .dash-note-move-pop button:hover { background: var(--bg-soft); }
+.notebook-dashboard .dash-note-move-pop button:focus-visible { outline: 2px solid var(--focus-ring, var(--accent)); outline-offset: -1px; }
+.notebook-dashboard .dash-note-move-pop .icon { inline-size: 0.95rem; block-size: 0.95rem; color: var(--muted); flex: none; }
+/* the compact card's attach slot (the picker lands here; attached chips show) */
+.notebook-dashboard .note-card-dash .note-attach { grid-column: 1 / -1; }
+.notebook-dashboard .note-card-dash .note-attach:empty { display: none; }

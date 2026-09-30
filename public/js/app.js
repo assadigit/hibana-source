@@ -1286,6 +1286,12 @@ window.hibana = (() => {
             return
           }
           card.remove()
+          // S180 (owner block 4): the local removal keeps the UX snappy, but the
+          // widget must re-GET right after — the "View all (N)" count (and the
+          // 5-cap row's refill from beyond the cap) ride every OTHER mutation
+          // path already; a plain delete used to leave the count stale until the
+          // next unrelated re-render.
+          if (window.htmx) window.htmx.ajax('GET', notesWidgetUrl(), { target: '#notebook', swap: 'outerHTML' })
           // P4.11 (F-L24): use the toast() actions API (the canonical pattern) instead of
           // post-hoc appending a button to the toast element.
           toast(_t('notes.deleted', 'Note deleted'), 'info', 6000, [{
@@ -1303,6 +1309,36 @@ window.hibana = (() => {
         })
         .catch(() => toast(_t('notes.deleteFailed', "Couldn't delete the note"), 'err'))
     }
+  })
+
+  // S180 (owner block 5): the Move-to… menu is KEYBOARD-OPERABLE — open with Enter
+  // (the native <details> summary behavior), move between the three destinations
+  // with ArrowDown/ArrowUp (focus rides the popover's buttons, wrapping both ways;
+  // from the closed-then-opened summary the first arrow lands on the first/last
+  // option), close with Escape (the menu folds AND focus returns to the summary,
+  // so Tab continues from the trigger, not from behind the popover).
+  document.addEventListener('keydown', (e) => {
+    const menu = e.target && e.target.closest ? e.target.closest('.dash-note-move') : null
+    if (!menu) return
+    if (e.key === 'Escape') {
+      if (menu.open) {
+        menu.open = false
+        e.preventDefault()
+        const summary = menu.querySelector('summary')
+        if (summary) summary.focus()
+      }
+      return
+    }
+    if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp') return
+    if (!menu.open) return
+    e.preventDefault()
+    const buttons = Array.from(menu.querySelectorAll('.dash-note-move-pop button'))
+    if (!buttons.length) return
+    const idx = buttons.indexOf(document.activeElement)
+    const next = idx === -1
+      ? buttons[e.key === 'ArrowDown' ? 0 : buttons.length - 1]
+      : buttons[(idx + (e.key === 'ArrowDown' ? 1 : -1) + buttons.length) % buttons.length]
+    if (next) next.focus()
   })
 
   // ---- S64: jump-to-note — the palette's quick-note deep link lands HERE ----------------

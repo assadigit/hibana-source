@@ -556,3 +556,77 @@ describe('dashboard merged "Continue where you left off" component (S85)', () =>
     }
   })
 })
+
+// S180 (owner block 7): the resume SEED — the strip's server fallback for a
+// browser whose hibana-resume store is empty. Contract: the 4 most recently
+// EDITED items (projects — sparks mapped to k='spark' — + vault notes, by
+// updated_at DESC), user-scoped, in the exact entry shape the client store
+// records. The seed is display-only on the client (never written to the store —
+// the S105 recording rule stands).
+describe('resume seed (S180) — GET /api/dashboard/resume-seed', () => {
+  it('returns the 4 most recently edited projects + vault notes, newest first, sparks mapped', async () => {
+    const { db, close } = makeTestDb()
+    try {
+      const user = await makeUser(db)
+      const { app, auth } = await makeClient(db, user)
+      const now = Date.now()
+      const iso = (msAgo: number) => new Date(now - msAgo).toISOString()
+      // Two projects via the API (created ~now)…
+      const sparkId = await createProject(app, auth, 'A spark idea', 'spark')
+      const projId = await createProject(app, auth, 'Website rebuild', 'developing')
+      // …then backdate their updated_at + add vault notes with a known ladder:
+      // noteNew (1h) > project (8h) > spark (20h) > noteOld (2d) > beyond-cap (5d).
+      await db.execute('UPDATE projects SET updated_at = ? WHERE id = ?', [iso(8 * 3600_000), projId])
+      await db.execute('UPDATE projects SET updated_at = ? WHERE id = ?', [iso(20 * 3600_000), sparkId])
+      const ins = (id: string, title: string, msAgo: number) =>
+        db.execute(
+          'INSERT INTO vault_notes (id, user_id, title, content, tags, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
+          [id, user, title, 'x', '', iso(msAgo), iso(msAgo)],
+        )
+      await ins('vn-new', 'Reading list', 3600_000)
+      await ins('vn-old', 'Old scratch', 2 * 86400_000)
+      await ins('vn-cap', 'Beyond the cap', 5 * 86400_000)
+
+      const res = await app.fetch(new Request('http://local/api/dashboard/resume-seed', { headers: auth }))
+      expect(res.status).toBe(200)
+      const { entries } = (await res.json()) as { entries: Array<{ k: string; id: string; t: string; ts: number; b?: string }> }
+      expect(entries).toHaveLength(4)
+      // Newest first, cross-table, the beyond-cap note dropped.
+      expect(entries.map((e) => e.id)).toEqual(['vn-new', projId, sparkId, 'vn-old'])
+      // The spark rides k='spark' (the client's urlFor → /spark.html); the project
+      // keeps its stage badge; notes carry no badge.
+      expect(entries[1]).toMatchObject({ k: 'project', t: 'Website rebuild', b: 'developing' })
+      expect(entries[2]).toMatchObject({ k: 'spark', t: 'A spark idea', b: 'spark' })
+      expect(entries[0]).toMatchObject({ k: 'note', t: 'Reading list' })
+      expect(entries[0].b).toBeUndefined()
+      // ts = epoch millis of updated_at (the client's timeAgo contract).
+      expect(Math.abs(entries[0].ts - (now - 3600_000))).toBeLessThan(2000)
+    } finally {
+      close()
+    }
+  })
+
+  it('is user-scoped — another user’s items never seed the strip', async () => {
+    const { db, close } = makeTestDb()
+    try {
+      const user = await makeUser(db)
+      const { app, auth } = await makeClient(db, user)
+      const other = await makeUser(db, { email: 'seed-other@x.local', username: 'seed-other' })
+      const ts = new Date().toISOString()
+      await db.execute(
+        "INSERT INTO projects (id, user_id, title, status, type, sort_order, created_at, updated_at) VALUES (?, ?, 'Other secret project', 'developing', 'personal', 0, ?, ?)",
+        [crypto.randomUUID(), other, ts, ts],
+      )
+      await db.execute(
+        "INSERT INTO vault_notes (id, user_id, title, content, tags, created_at, updated_at) VALUES (?, ?, 'Other secret note', 'x', '', ?, ?)",
+        [crypto.randomUUID(), other, ts, ts],
+      )
+      const res = await app.fetch(new Request('http://local/api/dashboard/resume-seed', { headers: auth }))
+      expect(res.status).toBe(200)
+      const { entries } = (await res.json()) as { entries: unknown[] }
+      expect(entries).toEqual([]) // the user has nothing — the seed says nothing
+    } finally {
+      close()
+    }
+  })
+})

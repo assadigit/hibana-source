@@ -58,6 +58,35 @@
   }
   const write = (list) => { try { localStorage.setItem(KEY, JSON.stringify(list.slice(0, MAX_STORE))) } catch { /* storage unavailable */ } }
 
+  // S180 (owner block 7): the SERVER SEED — a browser with an empty store (new
+  // device, cleared storage, a cleared history that never rebuilt) used to show NO
+  // section at all, which reads as "the feature was removed" (the owner's own
+  // report after v0.4.1.6). The strip now falls back to the server's
+  // most-recently-EDITED items (GET /api/dashboard/resume-seed): display-only —
+  // NOTHING is written to the store, so the S105 recording rule stands (only real
+  // interactions record). "Clear recents" dismisses the seed for the SESSION
+  // (sessionStorage — a fresh visit legitimately re-answers "where did I stop?"),
+  // and the 6s Undo restores it.
+  const SEED_DISMISS_KEY = 'hibana-resume-seed-dismissed'
+  let seedEntries = null // null = not loaded yet; [] = loaded, nothing to show
+  let seedFetching = false
+  const seedDismissed = () => { try { return sessionStorage.getItem(SEED_DISMISS_KEY) === '1' } catch { return false } }
+  const fetchSeed = () => {
+    if (seedFetching || seedEntries !== null) return
+    seedFetching = true
+    fetch('/api/dashboard/resume-seed', { headers: { Accept: 'application/json' } })
+      .then((r) => (r.ok ? r.json() : { entries: [] }))
+      .then((data) => {
+        seedEntries = Array.isArray(data?.entries)
+          ? data.entries
+              .filter((e) => e && (e.k === 'project' || e.k === 'spark' || e.k === 'note') && e.id)
+              .map((e) => ({ k: e.k, id: String(e.id), t: String(e.t || '').slice(0, 80), ts: Number(e.ts) || Date.now(), b: STAGES.includes(e.b) ? e.b : undefined }))
+          : []
+      })
+      .catch(() => { seedEntries = [] })
+      .finally(() => { seedFetching = false; render() })
+  }
+
   /** record('project'|'note', id, title, badge?) — idempotent (re-opening moves it
    *  to the top). `badge` is the project's stage slug at open time — rendered on the
    *  hero as the fixed-palette status chip (S85). Old 3-arg call sites keep working.
@@ -108,9 +137,15 @@
   const render = () => {
     const main = document.querySelector('main.shell-dash')
     if (!main) return // only the dashboard renders the strip
-    const entries = read().slice(0, MAX_RENDER)
+    // S180: the store is the source of truth; the server seed only feeds a
+    // browser with an EMPTY store (display-only, dismissible for the session).
+    let entries = read().slice(0, MAX_RENDER)
     let strip = document.getElementById('resume-strip')
-    if (!entries.length) { if (strip) strip.remove(); return }
+    if (!entries.length) {
+      if (seedEntries === null) { if (strip) strip.remove(); fetchSeed(); return }
+      if (seedDismissed() || !seedEntries.length) { if (strip) strip.remove(); return }
+      entries = seedEntries.slice(0, MAX_RENDER)
+    }
     const [hero, ...rest] = entries
     // S72 BUGFIX lineage: translate at render time (i18n.js apply() sweeps the STATIC
     // DOM only — dynamically injected markup never got translated).
@@ -198,20 +233,24 @@
     else main.insertBefore(strip, main.firstChild)
     // Soft-nav when the SPA router is present; plain navigation otherwise (palette pattern).
     strip.addEventListener('click', (e) => {
-      // S72 + S179 (advisor block 14): clear-history button — wipes the localStorage
-      // record and removes the strip. The label says "Clear recents" (scope-named);
-      // the toast offers Undo for ~6s (write the snapshot back + re-render) so a
-      // reflexive clear is survivable. No confirm modal — history rebuilds itself.
+      // S72 + S179 (advisor block 14) + S180 (owner block 7): the clear-history
+      // button. Store mode: wipes the localStorage record. Seed mode (empty
+      // store, server fallback): dismisses the fallback for the SESSION. Both
+      // remove the strip and offer Undo for ~6s; no confirm modal — history
+      // rebuilds itself, and the label names its scope ("Clear recents").
       const clearBtn = e.target.closest('[data-resume-clear]')
       if (clearBtn) {
         const snapshot = read()
-        try { localStorage.removeItem(KEY) } catch { /* storage unavailable */ }
+        const wasSeeded = !snapshot.length
+        try { sessionStorage.setItem(SEED_DISMISS_KEY, '1') } catch { /* storage unavailable */ }
+        if (!wasSeeded) { try { localStorage.removeItem(KEY) } catch { /* storage unavailable */ } }
         strip.remove()
-        if (snapshot.length && window.hibana?.toast) {
+        if (window.hibana?.toast) {
           window.hibana.toast(_t('resume.cleared', 'Recents cleared'), 'info', 6000, [{
             label: _t('common.undo', 'Undo'),
             onClick: () => {
-              write(snapshot)
+              try { sessionStorage.removeItem(SEED_DISMISS_KEY) } catch { /* storage unavailable */ }
+              if (!wasSeeded) write(snapshot)
               render()
               markScrollables()
             },

@@ -227,7 +227,7 @@ html[data-theme='claude-dark'] #notebook .note-card-dash .note-render,
 html[data-theme='claude-dark'] #notebook .note-card-dash .markdown-body,
 html[data-theme='claude-dark'] #notebook .note-card-dash .dash-note-title { color: #292520 !important; }
 html[data-theme='claude-dark'] #notebook .note-card-dash .note-meta,
-html[data-theme='claude-dark'] #notebook .note-card-dash .note-footer .small { color: #3a352d !important; }
+html[data-theme='claude-dark'] #notebook .note-card-dash .note-footer .small { color: #292520 !important; } /* S180 (owner block 2): was #3a352d — 4.34:1 on the muted #b3975b paper, under the 4.5:1 floor; the paper's own body ink #292520 measures 5.43:1 */
 /* dark ink + hairline on the colored papers (beats the light-ink rules below by
    the sticky/grid view prefix); list view keeps #e8e6dc on the neutral card. */
 html[data-theme='claude-dark'] #notebook :is(#nv-sticky:checked, #nv-grid:checked) ~ .note-list > .note-card { color: #292520 !important; }

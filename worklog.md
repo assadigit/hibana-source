@@ -944,3 +944,119 @@ we're wrapping up this session", 2026-09-30):
   13's exact palette), the finished-dashboard mockup, the S178 leftovers
   (the sidebar color block + mockup), and the advisor's dashboard blocks
   1–4 (never delivered to any session so far — request them next session).
+
+---
+## S180 — the owner's STICKY RESTORE round (blocks 1–7), 2026-10-01
+
+Task: The owner's seven-block feedback after reviewing v0.4.1.6: restore the
+Quick Notebook's yellow stickies (blocks 1–6, "my option B: the old look, with
+the box fixed") and the "Continue where you left off" card (block 7, "skip it
+if removing it was on purpose"). Full gate ladder + LOCAL commit (release
+owner-gated — this round's message carries no push/deploy instruction).
+
+ROOT CAUSE (blocks 1–3, found by computed-style probes on the cloned tree):
+the S179 compact panel's CSS rules were PREPENDED to the TOP of
+quicknotes.css, but the shared .note-card base rule (line ~571: background
+transparent, --radius-sm, 0.18rem padding — the UI/UX R1 fill removal) and
+the .note-list grid rule (line ~307) sit BELOW them at EQUAL specificity —
+later position wins, so the compact stickies silently lost every conflicting
+declaration: transparent fill, 14px corners, chip padding, and a
+single-column GRID ("notes stack vertically inside a tall, mostly empty
+panel" — the owner's exact words, measured 349px of stacked row). The S179
+QA missed it because the NON-conflicting properties (width caps, shadow,
+cluster reveal) all probed green.
+
+The fix (quicknotes.css): the whole dashboard compact section MOVED to the
+END of the sheet + every rule re-scoped under .notebook-dashboard (the meta
+rule rides #notebook.notebook-dash-wrap at (1,3,0) to beat the shared
+sticky-view meta's bare #notebook .note-card ID scope — the ID beat any
+class compound). The S178 lesson generalized: never rely on order; win the
+compound.
+
+Block contracts shipped:
+- (1) sticky look: --note-color paper (owner fallback #FFF59D), ink #4D440A
+  (8.76:1), soft shadow + 4px radius + 1px hairline, CREATION day+time
+  (formatNoteDay + HH:MM from created_at; EN "Wednesday 30 Sep 12:36", FA
+  "چهارشنبه ۸ مهر ۱۳:۱۰" — dashNoteCard stamps created_at, both kinds).
+- (2) readable: body --fs-md (14px), meta 12px #6B5B10 (6.01:1 on yellow;
+  ≥4.72:1 on every palette paper); dark meta lifted #3a352d→#292520
+  (4.34→5.43:1 on the #b3975b papers).
+- (3) layout: wrapping flex row, equal 11.25rem (180px) papers,
+  inline-start edge, ragged rows (align-items:flex-start), panel padding
+  0.6rem/0.9rem, min-height:auto (verified).
+- (4) cap: 5 newest (server, unchanged) + View all (N) with the count
+  hidden at ≤5 (unchanged logic, now pinned) + DELETE-PATH FIX the new pin
+  exposed: the [data-note-delete] handler removed the card locally and
+  NEVER re-GETted the widget — the count went stale after deletions; it
+  now re-GETs via notesWidgetUrl() like every other mutation (the row
+  refills from beyond the cap immediately).
+- (5) Move-to… menu: the S179 flow kept (3 options + POST move + 6s Undo);
+  NEW keyboard wiring in app.js (delegated keydown): Enter opens (native),
+  ArrowDown/ArrowUp cycle (summary → first/last; wrap both ways), Escape
+  closes + refocuses the summary. Verified by hand + pinned in e2e.
+- (6) delete control: hover/:focus-within reveal + (hover:none) always-on +
+  6s Undo + 25.6px hit at the same visual size (2.5rem coarse) — verified,
+  geometry unchanged from S179.
+- (7) "Continue where you left off": the strip's JS+CSS were INTACT in
+  v0.4.1.6 (verified by seeding the store — hero/chips/Clear recents/Undo
+  all rendered). It vanished for the owner because the strip renders ONLY
+  from the hibana-resume localStorage store, and an EMPTY store renders
+  NOTHING (an empty store happens after Clear recents with no subsequent
+  edits — the owner's review sessions are read-only — or a fresh
+  browser/origin). THE FIX: GET /api/dashboard/resume-seed (dashboard.ts)
+  returns the 4 most recently EDITED items — projects (status='spark' →
+  k='spark') + vault_notes, updated_at DESC, user-scoped,
+  archived-offline excluded — in the exact entry shape record() writes;
+  resume.js fetches it ONLY when the store is empty and renders the strip
+  DISPLAY-ONLY (the store stays null — S105's "only real interactions
+  record" rule pinned from both sides); Clear in seed mode sets a
+  sessionStorage dismissal (a fresh visit re-answers "where did I
+  stop?") + the same 6s Undo; a real store always wins over the seed.
+
+Gates: typecheck 0 · vitest 539/539 (NEW: the resume-seed endpoint pins —
+cross-table newest-first + spark mapping + ts epochs + user-scoping; the
+compact-card pins — the creation stamp + the inline paper color + the 5-cap
+id ladder + the count-hidden-at-≤5) · eslint 0 err (162-warn baseline) ·
+build 79 · wiring canonical · cache-bust PASS (quicknotes v41→v42 ×25,
+claude-dark v21→v22 ×26, app.js v213→v214 ×24, resume.js v12→v13 ×5; the
+?v= busts changed every referencing shell page's markup → sw.js v414→v415)
+· parity 1556/1556 (0 new
+keys — the stamps are date formats) · FULL e2e 314/314 (305 prior + the 9 new) incl.
+the NEW 9-test e2e/s180-sticky-restore.spec.ts + the dashboard screenshot
+re-baselined (only dashboard.png changed) · agent-browser QA on :3017: EN +
+FA/RTL (shamsi stamp + Farsi digits + FA kicker "پروژه در حال توسعه ۸ ساعت
+پیش", row from the RIGHT edge, cluster + popover at the LEFT, mirrored) +
+claude-dark (the #b3975b papers, 5.43:1 meta) + 390px (zero h-overflow,
+180px papers wrap, the touch cluster always lit) + keyboard (the brown 2px
+focus ring; Enter→Idea→To-do→Project note→To-do→Escape→summary focus; the
+Move-to Idea round-trip creating a REAL spark + the note leaving the row +
+the toast) — 0 console/page errors everywhere.
+
+Ops lessons:
+- (a) EQUAL-SPECIFICITY ORDER BUGS are invisible to property-by-property
+  probes that only check the properties you KNOW about — probe the ones the
+  bug STEALS (background/radius/padding/display) plus a screenshot; the
+  S179 QA probed the additive properties and they were all green.
+- (b) A DATA-DEPENDENT SECTION ("renders only when localStorage has
+  entries") reads as REMOVED to a user whose store is empty — a section
+  whose whole job is "where did I stop?" must render from server truth when
+  the client store is cold, or it silently disappears exactly when the user
+  needs it.
+- (c) The delete-then-no-re-GET staleness was caught ONLY by an e2e pin
+  that asserted the count AFTER real deletions — write pins that follow
+  the USER'S sequence (delete → look at the count), not the component's
+  happy path.
+- (d) agent-browser's a11y tree does not name the toast's dynamically
+  created action buttons for `find role button --name` — click them via
+  DOM selectors; the buttons ARE real <button>s with text (keyboard/SR
+  users reach them fine — it's the CLI's name matching).
+- (e) The QA daemon must be started BEFORE seeding (migrations run on
+  boot; seeding a deleted DB file hits "no such table").
+
+Stage summary: v0.4.1.7 staged on local main (OWNER-GATED — push → CI/CD →
+live verify → tag v0.4.1.7 → zip → healthcheck await the owner's explicit
+"commit and push and deploy"). Live hibana.ir untouched @ v0.4.1.6. Open on
+the owner's side (unchanged): the advisor's dashboard blocks 1–4, the
+/color-palette-advisor hex pass, the finished-dashboard mockup, the S178
+leftovers; plus their promised "where I left off summary line + progress
+bar" additions.

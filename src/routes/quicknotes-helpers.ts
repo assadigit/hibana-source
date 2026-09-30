@@ -309,7 +309,11 @@ export function dashNoteCard(n: QuickNote, lang: Locale, titles: Map<string, str
   const color = `--note-color:${esc(NOTE_COLOR_HEX[n.color as NoteColor] ?? NOTE_COLOR_HEX.yellow)}`
   const colorAttr = `data-note-color="${esc(n.color ?? 'yellow')}"`
   const attached = n.project_id && titles.has(n.project_id)
-  const time = new Date(n.updated_at).toLocaleTimeString(lang === 'fa' ? 'fa-IR' : 'en-GB', { hour: '2-digit', minute: '2-digit', hour12: false })
+  // S180 (owner block 1): the sticky's stamp speaks the CREATION moment again — the
+  // day + the clock (the S179 compact card kept only the time, and from updated_at).
+  // Same recipe the full notebook's card line uses (formatNoteDay + HH:MM).
+  const day = formatNoteDay(n.created_at, calendarFor(lang), lang)
+  const time = new Date(n.created_at).toLocaleTimeString(lang === 'fa' ? 'fa-IR' : 'en-GB', { hour: '2-digit', minute: '2-digit', hour12: false })
   const acts = `<div class="dash-note-acts">
       <details class="dash-note-move">
         <summary aria-label="${t('Move to…', 'انتقال به…')}" title="${t('Move to…', 'انتقال به…')}">${icon('arrow-up-right')}</summary>
@@ -326,7 +330,7 @@ export function dashNoteCard(n: QuickNote, lang: Locale, titles: Map<string, str
     return `<div class="note-card note-card-dash${n.done === 1 ? ' is-note-done' : ''}" id="note-${n.id}" data-kind="note" ${colorAttr} style="${color}">
       ${acts}
       <div class="note-render markdown-body" dir="auto" data-note-open="${n.id}" title="${t('Read the full note', 'خواندن کامل یادداشت')}" role="button" tabindex="0">${latinRuns(renderMarkdown(content))}</div>
-      <div class="note-footer"><span class="small note-meta">${dateChipHtml(n, lang)}${time}</span>${attached ? `<a class="dash-note-link" href="/project.html?id=${n.project_id}" title="${esc(titles.get(n.project_id!) || '')}">${icon('link')}</a>` : ''}</div>
+      <div class="note-footer"><span class="small note-meta">${dateChipHtml(n, lang)}${day} ${time}</span>${attached ? `<a class="dash-note-link" href="/project.html?id=${n.project_id}" title="${esc(titles.get(n.project_id!) || '')}">${icon('link')}</a>` : ''}</div>
       <div class="note-attach" id="attach-${n.id}">${attached ? attachWidget(n, titles, lang) : ''}</div>
     </div>`
   }
@@ -338,7 +342,7 @@ export function dashNoteCard(n: QuickNote, lang: Locale, titles: Map<string, str
       <strong class="dash-note-title" dir="auto">${esc(n.title || t('List', 'فهرست'))}</strong>
       <span class="note-render">${items.slice(0, 2).map((it) => esc(it.t)).join('<br>')}</span>
     </a>
-    <div class="note-footer"><span class="small note-meta">${trL(lang, '{n} tasks', '{n} کار', { n: lang === 'fa' ? faDigits(String(openN)) : String(openN) })} · ${dateChipHtml(n, lang)}${time}</span>${attached ? `<a class="dash-note-link" href="/project.html?id=${n.project_id}" title="${esc(titles.get(n.project_id!) || '')}">${icon('link')}</a>` : ''}</div>
+    <div class="note-footer"><span class="small note-meta">${trL(lang, '{n} tasks', '{n} کار', { n: lang === 'fa' ? faDigits(String(openN)) : String(openN) })} · ${dateChipHtml(n, lang)}${day} ${time}</span>${attached ? `<a class="dash-note-link" href="/project.html?id=${n.project_id}" title="${esc(titles.get(n.project_id!) || '')}">${icon('link')}</a>` : ''}</div>
     <div class="note-attach" id="attach-${n.id}">${attached ? attachWidget(n, titles, lang) : ''}</div>
   </div>`
 }

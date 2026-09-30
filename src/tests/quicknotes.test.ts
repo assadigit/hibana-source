@@ -787,3 +787,41 @@ describe('notebook archive affordance (S65)', () => {
     expect(notebookHtml(notes, 'en', 'note', new Map(), false, undefined)).not.toContain('Show all')
   })
 })
+
+// S180 (owner blocks 1–4): the dashboard compact card — the sticky restore contract.
+// The paper carries its color inline (--note-color), the stamp speaks the CREATION
+// moment (day + HH:MM, from created_at — the S179 compact card kept only the clock
+// from updated_at), the row caps at the 5 most recent, and "View all (N)" shows the
+// count only beyond the cap.
+describe('dashboard compact sticky (S180)', () => {
+  const note = (id: string, sort: number, created: string) =>
+    ({ id, user_id: 'u', kind: 'note', title: null, content: `note ${id}`, color: 'yellow', done: 0, project_id: null, note_date: null, sticky: 0, sort_order: sort, created_at: created, updated_at: created, deleted_at: null }) as never
+
+  it('stamps every sticky with the creation day + time and carries the paper color inline', async () => {
+    const { notebookHtml } = await import('../routes/quicknotes-helpers')
+    const created = '2026-09-28T14:05:00.000Z'
+    const html = notebookHtml([note('n1', 9, created)], 'en', 'note', new Map(), true, 1)
+    expect(html).toContain('note-card-dash')
+    // the paper: the note's own color rides inline (the owner's #FFF59D fallback)
+    expect(html).toContain('--note-color:#FFF59D')
+    // the stamp: the creation DAY + month + the clock (14:05) — not a bare time
+    expect(html).toContain('Monday 28 Sep 14:05')
+  })
+
+  it('caps the wrap row at the 5 most recent; "View all (N)" only beyond the cap', async () => {
+    const { notebookHtml } = await import('../routes/quicknotes-helpers')
+    const day = (i: number) => new Date(Date.UTC(2026, 8, 20 + i, 9, 0)).toISOString()
+    const notes = [8, 7, 6, 5, 4, 3, 2, 1].map((i) => note(`n${i}`, i, day(i)))
+    const html = notebookHtml(notes, 'en', 'note', new Map(), true, 8)
+    // 8 stored, 5 rendered — the newest five (latinRuns wraps the text; pin the
+    // card ids), the oldest three dropped from the row.
+    const ids = [...html.matchAll(/id="note-(n\d)"/g)].map((m) => m[1])
+    expect(ids).toEqual(['n8', 'n7', 'n6', 'n5', 'n4'])
+    // the count rides the link (the archive dialog owns the rest)
+    expect(html).toContain('View all (8)')
+    // at/below the cap the count hides (the plain form stays)
+    const five = notebookHtml(notes.slice(0, 5), 'en', 'note', new Map(), true, 5)
+    expect(five).toContain('>View all</button>')
+    expect(five).not.toContain('View all (')
+  })
+})

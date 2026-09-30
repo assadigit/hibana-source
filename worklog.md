@@ -748,9 +748,34 @@ Work Log:
   heights, the inset bar; console sweep clean.
 
 Stage Summary:
-- LOCAL main @ <commit>: v0.4.1.5 staged — the quiet sidebar refined per the
+- main @ 97d14a4: v0.4.1.5 staged — the quiet sidebar refined per the
   advisor's eleven blocks. LIVE hibana.ir untouched @ v0.4.1.4: the release is
   OWNER-GATED (push/deploy/tag/zip/healthcheck only on the owner's explicit go).
+
+Release (S178 — the owner's explicit "push, commit and deploy", 2026-09-30):
+- Pushed 97d14a4 → CI 36666363274 green → CD 36667415961 green (DEV probe +
+  PROD deploy + zone purge, the workflow_run chain) — LIVE hibana.ir @ v0.4.1.5.
+- Byte-verify (qa/s178-live-verify.mjs): nav.554f3af8.js 29077 B + layout.778705a7.css
+  45307 B IDENTICAL live vs local wired build; shell HTML wired refs match; sw.js
+  v412→v413; /api/health ok/prod/db up/schema 62 (no migration this round).
+- Live functional pass as the owner (agent-browser, real data): the real five-stage
+  tree (Planning 1 / Up Next 1 / Developing 2 / On Hold 1 / Operational 2; Scribo
+  childless with its chevron slot) renders all eleven blocks by computed style —
+  panel head on the card surface + 1px divider; the count INLINE at 6.00px gap,
+  11px/500; names 14px/500 primary on BOTH shapes; rows 32.00px, sub-heads 27.59px;
+  group gap 18.00px; branch margins 0; connectors ::before none; dots 0; name edge
+  PIXEL-EQUAL (116.78 === 116.78, branch vs plain); chevron rotate(90°) down on
+  expand; the is-here pill (accent-soft, 8px radius) carrying the INSET bar 3px ×
+  19.22px @ left 4px, radius 999px; the chip aria-current='true' (the branch's own
+  link — the head is a toggle, by design) + always-lit; the panel-header fold
+  chevron collapses every group (4 open → 0). Real long idea titles wrap to the
+  2-line clamp (43.2px leaves) — by design, single-line rows pin at ~27.6px.
+  0 console errors, 0 page errors, EN pass (FA/RTL + dark + 390px are e2e-pinned).
+- Tag v0.4.1.5 on remote (lightweight, on 97d14a4); zip hibana.0.4.1.5.zip
+  (469 tracked + 70 dist = 563 files, integrity OK) → /home/z/upload/ + the
+  sandbox download folder; healthcheck pinged via the live UUID URL
+  (hc-ping.com/9cb70b04-…, HTTP 200, registered 04:16:38Z — the old slug URL
+  from the owner's credentials 404s by design, the check was re-slugged).
 - Ops lessons: (a) media queries add NO specificity — a media-scoped override
   of a compound selector must restate ≥ the compound's own weight or the
   base rule wins silently (measured under Playwright's isMobile+hasTouch);

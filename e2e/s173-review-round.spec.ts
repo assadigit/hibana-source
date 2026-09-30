@@ -70,8 +70,8 @@ test.beforeAll(async () => {
      VALUES ('${PROJECT_ID}', '${USER_ID}', 's173 project', '', 'personal', 'planning', 0, NULL, '${past}', '${past}')`,
   )
   db.exec(
-    `INSERT INTO categories (id, name, color_fill, color_text, is_archived, created_at)
-     VALUES ('${CAT_ID}', 's173 category', '#F0CCCC', '#682727', 0, '${now}')`,
+    `INSERT INTO categories (id, user_id, name, color_fill, color_text, is_archived, created_at)
+     VALUES ('${CAT_ID}', '${USER_ID}', 's173 category', '#F0CCCC', '#682727', 0, '${now}')`,
   )
   // the search matrix: title / description / tag / folder-name matches for 'needle'
   db.exec(

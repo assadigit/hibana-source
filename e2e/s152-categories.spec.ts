@@ -56,8 +56,8 @@ test.beforeAll(async () => {
      VALUES ('${USER_ID}', 'e2e-s152', '${TEST_EMAIL}', '${hash.replace(/'/g, "''")}', 'owner', 'en', 'gregorian', 'UTC', '${now}', '${now}')`,
   )
   db.exec(
-    `INSERT OR IGNORE INTO categories (id, name, color_fill, color_text, is_archived, created_at)
-     VALUES ('${CAT_ID}', '${CAT_NAME}', '${CAT_FILL}', '${CAT_INK}', 0, '${now}')`,
+    `INSERT OR IGNORE INTO categories (id, user_id, name, color_fill, color_text, is_archived, created_at)
+     VALUES ('${CAT_ID}', '${USER_ID}', '${CAT_NAME}', '${CAT_FILL}', '${CAT_INK}', 0, '${now}')`,
   )
   for (const pid of [PROJ_ID, EMPTY_PROJ_ID]) {
     db.exec(

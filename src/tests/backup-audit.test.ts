@@ -112,8 +112,10 @@ describe('personal export isolation (buildUserSnapshot)', () => {
         await db.execute('INSERT INTO quick_notes (id, user_id, kind, title, content, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)', [`qn-${label}`, uid, 'note', 'N', 'c', now, now])
         await db.execute('INSERT INTO canvas_elements (id, user_id, type, x, y, width, height, color, content, z_index, deleted, board, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)', [`cv-${label}`, uid, 'note', 1, 2, 3, 4, '#fff', 'x', 0, 0, 'board', now, now])
         await db.execute('INSERT INTO sadhana_tasks (id, user_id, quadrant, title, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)', [`st-${label}`, uid, 1, 'S', now, now])
-        // S152 (0062): the global library carries the category; the dev task references it.
-        await db.execute('INSERT INTO categories (id, name, color_fill, color_text, is_archived, created_at) VALUES (?, ?, ?, ?, 0, ?)', [`cat-${label}`, `C-${label}`, '#CCD5F0', '#273768', now]) // S152: the GLOBAL library dedupes same-name rows — the two users' categories must differ
+        // S152 (0062) → S181 (0064): the library is USER-SCOPED — each user owns
+        // their category row (same names would be legal now; distinct ones keep
+        // the audit's ownership sweep unambiguous).
+        await db.execute('INSERT INTO categories (id, user_id, name, color_fill, color_text, is_archived, created_at) VALUES (?, ?, ?, ?, ?, 0, ?)', [`cat-${label}`, uid, `C-${label}`, '#CCD5F0', '#273768', now])
         await db.execute('INSERT INTO project_categories (project_id, category_id) VALUES (?, ?)', [`p-${label}`, `cat-${label}`])
         await db.execute('INSERT INTO dev_tasks (id, project_id, title, status, priority, category_id, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)', [`dt-${label}`, `p-${label}`, 'D', 'done', 'low', `cat-${label}`, now])
         await db.execute('INSERT INTO backlog_docs (id, project_id, title, created_at, updated_at) VALUES (?, ?, ?, ?, ?)', [`bd-${label}`, `p-${label}`, 'B', now, now])

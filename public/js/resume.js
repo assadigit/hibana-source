@@ -67,8 +67,14 @@
   // interactions record). "Clear recents" dismisses the seed for the SESSION
   // (sessionStorage — a fresh visit legitimately re-answers "where did I stop?"),
   // and the 6s Undo restores it.
+  // S181 (the owner's promised additions): the seed is fetched on EVERY dashboard
+  // load now — beyond the empty-store fallback it carries the per-project PROGRESS
+  // map (done vs total dev_tasks) that feeds the hero's summary line + progress bar
+  // ("where did I stop, and how far along was it?"). Still display-only; a real
+  // store always wins for the entries themselves.
   const SEED_DISMISS_KEY = 'hibana-resume-seed-dismissed'
   let seedEntries = null // null = not loaded yet; [] = loaded, nothing to show
+  let seedProgress = {} // id -> { done, total } (the seed's per-project task progress)
   let seedFetching = false
   const seedDismissed = () => { try { return sessionStorage.getItem(SEED_DISMISS_KEY) === '1' } catch { return false } }
   const fetchSeed = () => {
@@ -82,8 +88,9 @@
               .filter((e) => e && (e.k === 'project' || e.k === 'spark' || e.k === 'note') && e.id)
               .map((e) => ({ k: e.k, id: String(e.id), t: String(e.t || '').slice(0, 80), ts: Number(e.ts) || Date.now(), b: STAGES.includes(e.b) ? e.b : undefined }))
           : []
+        seedProgress = data?.progress && typeof data.progress === 'object' ? data.progress : {}
       })
-      .catch(() => { seedEntries = [] })
+      .catch(() => { seedEntries = []; seedProgress = {} })
       .finally(() => { seedFetching = false; render() })
   }
 
@@ -139,10 +146,13 @@
     if (!main) return // only the dashboard renders the strip
     // S180: the store is the source of truth; the server seed only feeds a
     // browser with an EMPTY store (display-only, dismissible for the session).
+    // S181: the seed is ALSO the progress source — fetch it on every load so the
+    // hero's summary line + progress bar can land (fetchSeed self-guards).
+    fetchSeed()
     let entries = read().slice(0, MAX_RENDER)
     let strip = document.getElementById('resume-strip')
     if (!entries.length) {
-      if (seedEntries === null) { if (strip) strip.remove(); fetchSeed(); return }
+      if (seedEntries === null) { if (strip) strip.remove(); return }
       if (seedDismissed() || !seedEntries.length) { if (strip) strip.remove(); return }
       entries = seedEntries.slice(0, MAX_RENDER)
     }
@@ -178,6 +188,40 @@
     // The hero: newest entry, banner-grade treatment — glyph + kind·stage·timeAgo +
     // title + explicit Open CTA (all sourced from the ONE shared last-opened store).
     const heroAria = heroLabel().split('{k}').join(kindOf(hero)).split('{t}').join(titleOf(hero))
+    // S181 (the owner's promised "where I left off" additions): the hero's
+    // summary line + progress bar — "where did I stop, and how far along was it?"
+    // Rendered when the hero is a project-kind row whose dev-task progress is
+    // known (the seed's progress map): "{n} of {m} tasks done" + a thin meter
+    // (role=progressbar, filled by percent, reading-start edge in RTL).
+    const progressOf = (e) => {
+      const p = seedProgress[e.id]
+      if (!p || e.k === 'note') return null
+      const total = Number(p.total) || 0
+      if (total <= 0) return null
+      return { done: Math.min(Number(p.done) || 0, total), total }
+    }
+    const progressText = (pr) => {
+      const fa = isFA()
+      const n = (v) => (fa ? faNum(String(v)) : String(v))
+      return _t('resume.progress', '{n} of {m} tasks done').split('{n}').join(n(pr.done)).split('{m}').join(n(pr.total))
+    }
+    const progressHtml = (mount) => {
+      const pr = progressOf(hero)
+      const existing = mount.querySelector('[data-resume-progress]')
+      if (!pr) { if (existing) existing.remove(); return '' }
+      const pct = Math.round((pr.done / pr.total) * 100)
+      const next = `<div class="resume-progress" data-resume-progress>
+        <p class="resume-progress-line">${esc(progressText(pr))}</p>
+        <div class="resume-progress-track" role="progressbar" aria-valuemin="0" aria-valuemax="${pr.total}" aria-valuenow="${pr.done}" aria-label="${esc(progressText(pr))}">
+          <div class="resume-progress-fill" style="inline-size: ${pct}%"></div>
+        </div>
+      </div>`
+      if (existing) { existing.outerHTML = next; return next }
+      const body = mount.querySelector('.resume-hero')
+      if (body && body.nextSibling) mount.insertBefore(document.createRange().createContextualFragment(next), body.nextSibling)
+      else if (body) body.insertAdjacentHTML('afterend', next)
+      return next
+    }
     const heroHtml = (mount) => {
       const h = mount.querySelector('.resume-hero')
       const next = `<a class="resume-hero" href="${urlFor(hero)}" data-resume-go="${urlFor(hero)}" aria-label="${esc(heroAria)}">
@@ -193,12 +237,17 @@
     }
     if (strip) {
       // Idempotent re-render (i18n settle / re-open / htmx swap): refresh the hero
-      // and the chips row in place. The row may legitimately be ABSENT (the previous
-      // render had a single entry → hero only) — create it when chips now exist.
-      const existingRow = strip.querySelector('.resume-row')
+      // and the chips row in place. S181: the strip is a SECTION (head above the
+      // card) — the hero/chips/progress all live inside the inner .resume-strip
+      // card. The row may legitimately be ABSENT (the previous render had a single
+      // entry → hero only) — create it when chips now exist.
+      const card = strip.querySelector('.resume-strip') || strip
+      const existingRow = card.querySelector('.resume-row')
       if (existingRow) { if (chips) existingRow.innerHTML = chips; else existingRow.remove() }
-      else if (chips) strip.insertAdjacentHTML('beforeend', `<div class="resume-row">${chips}</div>`)
-      heroHtml(strip.querySelector('.resume-body') || strip)
+      else if (chips) card.insertAdjacentHTML('beforeend', `<div class="resume-row">${chips}</div>`)
+      const body = card.querySelector('.resume-body') || card
+      heroHtml(body)
+      progressHtml(body)
       // Re-render path (i18n race / re-open): refresh the header too, not just the body.
       const h = strip.querySelector('#resume-title'); if (h) h.textContent = headText()
       const hint = strip.querySelector('.resume-hint'); if (hint) hint.textContent = hintText()
@@ -209,26 +258,39 @@
       }
       return
     }
+    // S181 (opening block 2 — the FIRST section speaks the one grammar): the head
+    // moves ABOVE the card — the SAME .dash-sec-head/.dash-sec-title row every
+    // dashboard section speaks since S179 block 5 (18px/600 title at the reading
+    // start, the secondary actions at the inline end). The old in-card head
+    // (0.95rem/700 + the glowing accent dot — a pre-S179 pattern the system pass
+    // never reached) retires: first section to last, ONE head grammar.
     strip = document.createElement('section')
     strip.id = 'resume-strip'
-    strip.className = 'resume-strip card'
+    strip.className = 'resume-dash'
     strip.setAttribute('aria-labelledby', 'resume-title')
     strip.innerHTML = `
-      <header class="resume-head">
-        <h2 id="resume-title">${esc(headText())}</h2>
-        <span class="resume-hint muted">${esc(hintText())}</span>
-        <button type="button" class="resume-clear" data-resume-clear aria-label="${esc(clearAria())}" title="${esc(clearAria())}">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2m3 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6h14Z"/></svg>
-          <span class="resume-clear-label">${esc(clearLabel())}</span>
-        </button>
-      </header>
-      <div class="resume-body"></div>
-      ${chips ? `<div class="resume-row">${chips}</div>` : ''}`
-    heroHtml(strip.querySelector('.resume-body'))
+      <div class="dash-sec-head resume-dash-head">
+        <h2 id="resume-title" class="dash-sec-title">${esc(headText())}</h2>
+        <span class="dash-sec-actions">
+          <span class="resume-hint muted">${esc(hintText())}</span>
+          <button type="button" class="resume-clear" data-resume-clear aria-label="${esc(clearAria())}" title="${esc(clearAria())}">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2m3 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6h14Z"/></svg>
+            <span class="resume-clear-label">${esc(clearLabel())}</span>
+          </button>
+        </span>
+      </div>
+      <div class="resume-strip card">
+        <div class="resume-body"></div>
+        ${chips ? `<div class="resume-row">${chips}</div>` : ''}
+      </div>`
+    const card = strip.querySelector('.resume-strip')
+    heroHtml(card.querySelector('.resume-body'))
+    progressHtml(card.querySelector('.resume-body'))
     // INSIDE <main>: soft-nav replaces the shell element wholesale (nav.js
     // shell.replaceWith) — so the strip dies with the dashboard and can never leak
-    // onto another page. After the sr-only h1 (a11y: heading stays main's first child).
-    const h1 = main.querySelector('h1.sr-only')
+    // onto another page. After the page h1 (a11y: the heading stays main's first
+    // child — S181 made it the visible page opening).
+    const h1 = main.querySelector('h1')
     if (h1 && h1.nextSibling) main.insertBefore(strip, h1.nextSibling)
     else main.insertBefore(strip, main.firstChild)
     // Soft-nav when the SPA router is present; plain navigation otherwise (palette pattern).

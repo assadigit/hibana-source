@@ -174,9 +174,10 @@ test('EN overview: donut totals + box order and links', async ({ page, browserNa
   // + a View all link on every box header
   await expect(firstBug.locator('.ov-item-title')).toHaveAttribute('title', 'Fix login loop')
   await expect(firstBug).toHaveAttribute('data-full', 'Fix login loop')
-  // S179 (advisor block 13): the dot wears the project's IDENTITY hue — the stable
-  // hash accent (--proj-hue inline var) — no longer the stage-keyed data-stage.
-  await expect(firstBug.locator('.ov-proj-dot')).toHaveAttribute('style', /--proj-hue: var\(--accent-[a-z0-9-]+\)/)
+  // S179 (advisor block 13) → S181 (the hex pass): the dot wears the project's
+  // IDENTITY hue — the stable hash accent from the DEDICATED --ident-* family
+  // (no longer the stage-keyed data-stage, nor the borrowed accent-* swatches).
+  await expect(firstBug.locator('.ov-proj-dot')).toHaveAttribute('style', /--proj-hue: var\(--ident-[a-z0-9-]+\)/)
   for (let i = 0; i < 4; i++) {
     await expect(boxes.nth(i).locator('.ov-viewall')).toHaveAttribute('href', new RegExp(`/tasks.html\\?status=(bug|in_progress|idea|planned)$`))
   }

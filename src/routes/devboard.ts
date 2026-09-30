@@ -25,7 +25,7 @@ import { getOwnedProject, toastHtml } from '../lib/html'
 import { localeOf, trFor } from '../lib/i18n'
 import { uuid } from '../lib/ids'
 import type { Config, UserRow, DevTaskRow, DevTaskStatus, SprintRow, TagRow, BacklogDocRow } from '../types'
-import { isValidCatPair, normCatName, type CategoryRow } from '../lib/categories'
+import { categoriesUserScoped, isValidCatPair, normCatName, type CategoryRow } from '../lib/categories'
 
 const taskStatusSchema = z.enum(['idea', 'planned', 'in_progress', 'done', 'bug'])
 const prioritySchema = z.enum(['low', 'medium', 'high', 'urgent'])
@@ -461,11 +461,13 @@ export function devboardRoutes(cfg: Config) {
     return c.json({ ok: true })
   })
 
-  // ---- categories (S152: the GLOBAL library — create + enable in one beat) ----
-  // The inline quick-add path (block 4): creates the category in the global library
-  // (16-tile pair validated) AND enables it on this project in the same request, so
-  // the composer never detours to Settings. A live case/trim-insensitive name match
-  // is REUSED (enabled on this project + returned) instead of forking a duplicate.
+  // ---- categories (S152: the library — create + enable in one beat) ----
+  // The inline quick-add path (block 4): creates the category in the caller's
+  // library (16-tile pair validated) AND enables it on this project in the same
+  // request, so the composer never detours to Settings. A live case/trim-
+  // insensitive name match IN THE CALLER'S OWN library (S181: user-scoped —
+  // another user's same-named row must NOT be attached to this project) is
+  // REUSED (enabled on this project + returned) instead of forking a duplicate.
   app.post('/api/projects/:projectId/categories', async (c) => {
     const body = await jsonBody<z.infer<typeof createCategorySchema>>(c, createCategorySchema)
     if (!body) return c.json({ error: 'invalid_input' }, 400)
@@ -475,19 +477,32 @@ export function devboardRoutes(cfg: Config) {
     if (!p) return c.json({ error: 'not_found' }, 404)
     const name = body.name.trim()
     if (!name) return c.json({ error: 'invalid_input' }, 400)
-    const existing = await cfg.db.query<{ id: string }>(
-      'SELECT id FROM categories WHERE lower(trim(name)) = ? AND is_archived = 0 LIMIT 1',
-      [normCatName(name)],
-    )
+    const scoped = await categoriesUserScoped(cfg.db)
+    const existing = scoped
+      ? await cfg.db.query<{ id: string }>(
+          'SELECT id FROM categories WHERE user_id = ? AND lower(trim(name)) = ? AND is_archived = 0 LIMIT 1',
+          [user.id, normCatName(name)],
+        )
+      : await cfg.db.query<{ id: string }>(
+          'SELECT id FROM categories WHERE lower(trim(name)) = ? AND is_archived = 0 LIMIT 1',
+          [normCatName(name)],
+        )
     if (existing[0]) {
       await cfg.db.execute('INSERT OR IGNORE INTO project_categories (project_id, category_id) VALUES (?, ?)', [p.id, existing[0].id])
       return c.json({ ok: true, id: existing[0].id, existing: true }, 200)
     }
     const id = uuid()
-    await cfg.db.execute(
-      'INSERT INTO categories (id, name, color_fill, color_text, is_archived, created_at) VALUES (?, ?, ?, ?, 0, ?)',
-      [id, name, body.color_fill.toUpperCase(), body.color_text.toUpperCase(), new Date().toISOString()],
-    )
+    if (scoped) {
+      await cfg.db.execute(
+        'INSERT INTO categories (id, user_id, name, color_fill, color_text, is_archived, created_at) VALUES (?, ?, ?, ?, ?, 0, ?)',
+        [id, user.id, name, body.color_fill.toUpperCase(), body.color_text.toUpperCase(), new Date().toISOString()],
+      )
+    } else {
+      await cfg.db.execute(
+        'INSERT INTO categories (id, name, color_fill, color_text, is_archived, created_at) VALUES (?, ?, ?, ?, 0, ?)',
+        [id, name, body.color_fill.toUpperCase(), body.color_text.toUpperCase(), new Date().toISOString()],
+      )
+    }
     await cfg.db.execute('INSERT INTO project_categories (project_id, category_id) VALUES (?, ?)', [p.id, id])
     return c.json({ ok: true, id }, 201)
   })

@@ -614,6 +614,50 @@
    is now the .shell-dash class on that <main> (see dashboard.html). */
 main.shell-dash > section { margin-block-end: 2.9rem; }
 
+/* S181 (opening block 1 — the page opens with its name): the dashboard's h1 is
+   VISIBLE (the same opening every page of the app speaks; it was sr-only since
+   S51-A while Projects/Settings/… all opened with their name). The house h1
+   tokens paint it; the dashboard only tunes the space under it so the first
+   section's head (the resume strip) breathes like a section, not a caption. */
+main.shell-dash > h1 { margin-block-end: 1.1rem; }
+
+/* S181 (opening block 2 — the FIRST section speaks the one grammar): the resume
+   strip's head row sits ABOVE its card now (.dash-sec-head from the S179 block 5
+   pattern — 18px/600 title, secondary actions at the inline-end). The head keeps
+   the notebook-wrap's 0.55rem head→card gap, and the Clear button loses its old
+   far-edge auto margin (the .dash-sec-actions group owns that shore now — hint +
+   Clear ride together as one actions cluster). */
+.resume-dash-head { margin-block-end: 0.55rem; }
+.resume-dash-head .resume-clear { margin-inline-start: 0; }
+
+/* S181 (opening block 4 — the zero page joins the empty register): the cold
+   dashboard (every section hidden) speaks the SAME quiet strip the empty
+   quadrants speak (S179 block 8) — a muted line + a text action on one row,
+   natural height, no card chrome. The action is the .dash-todo-add-text
+   register: transparent ground, brand ink, fs-sm/500. */
+.dash-empty {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  min-block-size: 2.5rem;
+  color: var(--muted);
+  font-size: var(--fs-sm);
+  padding: 0.3rem 0.4rem;
+}
+.dash-empty-text { margin: 0; overflow-wrap: anywhere; }
+.dash-empty-action {
+  flex: none;
+  padding: 0.35rem 0.6rem;
+  border-radius: var(--radius-sm);
+  color: var(--brand);
+  font-weight: 500;
+  text-decoration: none;
+}
+.dash-empty-action:hover, .dash-empty-action:focus-visible { text-decoration: underline; outline: none; }
+.dash-empty-action .icon { inline-size: 0.9rem; block-size: 0.9rem; }
+
 /* ==========================================================================
    S85 (owner redesign instruction #2): ONE shared board-column header component.
    Every board-style column on the dashboard — the To-Do quadrant columns AND the
@@ -691,32 +735,33 @@ main.shell-dash > section { margin-block-end: 2.9rem; }
 /* ==========================================================================
    S59: Notes Vault onboarding banner — the server renders it ONLY while the user
    has zero active vault notes (adoption signal, dashboard.ts); the inline fragment
-   script honors a localStorage dismissal (hibana-vault-banner-dismissed). Same
-   visual family as .dash-resume (pinned card + glyph + CTA) so the two never sit
-   together looking alien — but a distinct label voice ("New", not a stage).
+   script honors a localStorage dismissal (hibana-vault-banner-dismissed).
+   S181 (opening block 3 — the nudges speak ONE quiet register): the banner joins
+   the stale-row grammar — {semantic 4px lead bar + light tint + small bold flag +
+   content row} — the accent register's answer to "Untouched for 2+ weeks"'s warn.
+   An introduction nudge is the same KIND of thing as a staleness nudge; the old
+   loud recipe (the solid CTA glyph tile, the 30% accent border, the uppercase
+   link-inked label, the fs-lg/700 title, the .btn CTA) retires. The glyph keeps
+   its PLACE but speaks the quiet tile language the resume chip icons speak (a
+   12% accent tint + accent ink); the CTA is the section-actions text link.
    ========================================================================== */
-/* S97 (the flat-card system, B): the banner's PRIORITY fill is a SOLID 8% accent
-   veil over the card (the 100deg gradient + the drop shadow retired with the
-   app-wide flat round). The compound .dash-vault-banner.card selector (0,2,0) is
-   LOAD-BEARING: the banner markup carries class="card" and notifications.css's
-   flattened .card (0,1,0, later in source order) would otherwise swallow the fill
-   back to the plain card — the same cascade trap the Quick Notebook hit in S95 r2.
-   The compound also outranks main.shell-dash > section (0,1,1), which is why the
-   banner's OWN margin-block-end had to be REMOVED: that 2rem margin sat dead
-   (overridden by the section rhythm) until the specificity raise activated it —
-   it shrank the section gap from the shared 2.9rem rhythm to 2rem (-14.4px) and
-   the dashboard visual baseline caught it. The 2.9rem section rhythm owns the
-   banner's spacing now. Dark theme: the claude-dark .card rule (0,2,1) would
+/* S97 (the flat-card system, B) lineage + S181: the compound .dash-vault-banner.card
+   selector (0,2,0) stays LOAD-BEARING: the banner markup carries class="card" and
+   notifications.css's flattened .card (0,1,0, later in source order) would
+   otherwise swallow the fill back to the plain card — the same cascade trap the
+   Quick Notebook hit in S95 r2. The compound also outranks main.shell-dash >
+   section (0,1,1), so the banner carries no own margin — the 2.9rem section
+   rhythm owns the spacing. Dark theme: the claude-dark .card rule (0,2,1) would
    flatten the fill — the dark twin rides claude-dark-theme.css (the notebook
    precedent). */
 .dash-vault-banner.card {
   display: flex;
   align-items: flex-start;
-  gap: 0.9rem;
+  gap: 0.75rem;
   /* inline-end padding clears the absolutely-positioned dismiss button */
-  padding: 1rem 2.6rem 1rem 1.25rem;
-  background: color-mix(in srgb, var(--accent) 8%, var(--card));
-  border: 1px solid color-mix(in srgb, var(--accent) 30%, var(--line));
+  padding: 0.7rem 2.6rem 0.7rem 1rem;
+  background: color-mix(in srgb, var(--accent) 7%, var(--card));
+  border: 1px solid color-mix(in srgb, var(--accent) 22%, var(--line));
   border-inline-start: 4px solid var(--accent);
   border-radius: var(--radius);
   position: relative;
@@ -725,17 +770,22 @@ main.shell-dash > section { margin-block-end: 2.9rem; }
   flex: none;
   display: grid;
   place-items: center;
-  width: 2.5rem; height: 2.5rem;
+  width: 2rem; height: 2rem;
   border-radius: 50%;
-  background: var(--cta);
-  color: var(--btn-text);
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  color: var(--accent);
 }
-.dash-vault-glyph .icon { width: 1.25rem; height: 1.25rem; }
+.dash-vault-glyph .icon { width: 1.05rem; height: 1.05rem; }
 .dash-vault-body { display: flex; flex-direction: column; gap: 0.15rem; min-inline-size: 0; flex: 1; }
-.dash-vault-label { font-size: var(--fs-xs); font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--link); }
-.dash-vault-title { font-size: var(--fs-lg); font-weight: 700; color: var(--text); }
-.dash-vault-copy { font-size: var(--fs-sm); color: var(--muted); margin-block: 0.1rem 0.45rem; }
-.dash-vault-cta { align-self: flex-start; }
+/* the stale-flag register: fs-xs/700 in the SEMANTIC ink, no uppercase/letter
+   spacing (the "NEW" shout retires; the accent flag whispers like the warn one) */
+.dash-vault-label { font-size: var(--fs-xs); font-weight: 700; color: var(--accent); }
+.dash-vault-title { font-size: var(--fs-md); font-weight: 600; color: var(--text); }
+.dash-vault-copy { font-size: var(--fs-sm); color: var(--muted); margin-block: 0.1rem 0.4rem; }
+/* the CTA speaks the section-actions link register (a.small + the arrow) — an
+   adoption nudge answers with a quiet go-to, not a filled button */
+.dash-vault-cta { align-self: flex-start; padding-block: 4px; text-underline-offset: 3px; }
+.dash-vault-banner:hover .dash-vault-cta { text-decoration: underline; }
 .dash-vault-dismiss {
   position: absolute;
   inset-inline-end: 0.55rem;
@@ -752,9 +802,7 @@ main.shell-dash > section { margin-block-end: 2.9rem; }
 .dash-vault-dismiss:hover { background: var(--bg-soft); color: var(--text); }
 .dash-vault-dismiss .icon { width: 1rem; height: 1rem; }
 @media (max-width: 540px) {
-  .dash-vault-banner { flex-wrap: wrap; gap: 0.6rem; padding: 0.85rem 2.4rem 0.85rem 1rem; }
-  .dash-vault-glyph { width: 2rem; height: 2rem; }
-  .dash-vault-title { font-size: var(--fs-md); }
+  .dash-vault-banner { flex-wrap: wrap; gap: 0.6rem; padding: 0.7rem 2.4rem 0.7rem 0.9rem; }
   .dash-vault-cta { margin-inline-start: auto; }
 }
 @media (max-width: 720px) {

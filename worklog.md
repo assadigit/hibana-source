@@ -1103,3 +1103,142 @@ deploy.", 2026-09-30):
   first; (b) the GitHub Actions runs API keys off head_sha = the FULL commit
   SHA (bf71a10…40 chars), not the short form; (c) nothing new otherwise —
   the S178/S179 chain recipe replayed clean end-to-end.
+
+---
+Task ID: S181
+Agent: main (Z.ai Code)
+Task: The owner's five approved items ("I approve this." — the round's message
+reassigning the owner-side leftovers + the written categories-migration
+approval): (1) the advisor's dashboard blocks 1–4 (my own design in the
+advisor's register), (2) the /color-palette-advisor hex pass, (3) the sidebar
+color block + the finished mockups, (4) the owner's promised "where I left off"
+summary line + progress bar, (5) the categories-table user_id migration.
+
+Work Log:
+- RECOVERY (context handoff): the previous agent's in-flight work was found
+  uncommitted on a clean clone at 66136a9 — the 0064 migration SQL, the
+  user-scoped route changes (categories/devboard/backup), the --ident-*
+  palette in variables.css + PROJECT_HUE_TOKENS, qa/s181-ident-palette.mjs
+  (PASS on run). Completed its gaps: backup.ts's missing
+  categoriesUserScoped import (tsc catch), the seed user_id in 4 test files
+  (restore/backup/backup-audit via direct inserts; reports-tasks's identity
+  pin re-targeted --ident-*), restore.test's FK-violation allowlist +
+  'categories' (a users-less restore dangles categories.user_id like every
+  other owned table now).
+- MIGRATION TESTS (new src/tests/categories-scoping.test.ts, 5 tests): two
+  users may hold the SAME live name (both 201, distinct ids, per-user 409 on
+  the true duplicate); cross-user rename/archive/delete = 404 with A's
+  ownership intact after the attacks; the enable-set PUT rejects a foreign id
+  (400) and the toggle list never offers it; the devboard quick-add forks a
+  NEW row instead of attaching a foreign same-named one; the deploy-ahead
+  belt (makeTestDbUpto(63)): create/list/PUT all work on a 0064-less D1 (the
+  probe's un-scoped fallback).
+- BUGFIX the scoping tests surfaced (pre-existing since S152): liveNameOwner's
+  `id != COALESCE(?, ?)` passed (null, null) on the CREATE path — `id != NULL`
+  is NULL, the whole WHERE went NULL, the duplicate 409 was UNREACHABLE (the
+  INSERT died on the unique index as a 500). Fixed to (? IS NULL OR id != ?);
+  e2e-pinned as the honest 409 (s181-5).
+- HEX PASS COMPLETED (new src/tests/identity-palette.test.ts, 14 tests): the
+  five laws in-suite (contrast both cards / family hue window / pairwise
+  ΔE2000 ≥10 / brand ≥10 / status ≥8, the --st-* tokens PARSED from
+  variables.css so a token change re-audits), the 16 CAT_PAIRS swatch audit
+  (≥4.5:1 ink-on-fill; claude-dark carries no --cat-sw-* overrides — pinned),
+  the CSS/TS/qa-table drift pins, and the SIDEBAR COLOR BLOCK pins.
+- SIDEBAR COLOR BLOCK (the S178 leftover, delivered): measured the current
+  shades — the light current-location bar (bare --brand on the accent-soft
+  wash) sat 2.73:1, UNDER the app's own 3:1 non-text floor (S179 block 15).
+  Decision: the bar ink steps to the --brand-hover RUNG (light #3D8D91 /
+  dark #e28f6c — the rung already points away from the surface per theme;
+  zero new hex, no dark-sheet overrides needed): light 3.88 card / 3.42 wash,
+  dark 6.65 / 5.47. All four bar rules (rail aria-current + its is-panel-open
+  twin + the branch headrow + the row-active pill) repainted; the WASH
+  untouched (the S178 quiet-pill recipe stands); the two e2e computed-color
+  pins re-pinned to rgb(61,141,145); the measured floors + the rule shapes
+  pinned in identity-palette.test.ts.
+- THE OPENING QUARTET (dashboard blocks 1–4, my design in the advisor's
+  register — the advisor's 5–16 were the system pass; 1–4 are the page's
+  opening): (1) the page OPENS WITH ITS NAME — the h1 visible ("Dashboard" /
+  «پیشخوان», the 24px house register, 1.1rem of air; server render +
+  dashboard.html static + resume.js's insert query all updated; still the
+  first node of every htmx response); (2) the FIRST SECTION SPEAKS THE ONE
+  GRAMMAR — the resume strip restructured as a section (head ABOVE the card
+  in the shared .dash-sec-head row: 18px/600 title, the "Last edited" hint +
+  Clear recents in the inline-end actions cluster; the 0.95rem/700 in-card
+  head + the glowing accent-dot ::before retired; the .resume-strip class
+  now names the inner card); (3) THE NUDGES SPEAK ONE QUIET REGISTER — the
+  vault banner joins the stale-row grammar (4px accent lead bar + 7% tint +
+  22% border + the tinted glyph tile + the small accent flag (no uppercase)
+  + fs-md/600 title + the a.small text CTA; the solid CTA badge, 30% border,
+  uppercase link-inked label, fs-lg/700 title, .btn CTA retired; dark twin
+  13%→11%); (4) THE ZERO PAGE JOINS THE EMPTY REGISTER — .dash-empty (which
+  had NO styles at all) becomes the quiet strip (muted line + brand-ink text
+  action, the block-8 register).
+- THE RESUME ADDITIONS (the owner's promised "where I left off summary line
+  + progress bar"): the seed endpoint now ALSO returns a per-project
+  progress map (done vs total dev_tasks, one grouped query over the ≤4 ids;
+  vitest-pinned); resume.js fetches the seed on EVERY dashboard load (it
+  self-guards) and renders, under the hero, the summary line ("{n} of {m}
+  tasks done" / «از {m} کار، {n} انجام‌شده» — new resume.progress key ×2,
+  parity 1557/1557) + a 6px 999px meter (role=progressbar + valuenow/min/max;
+  --bg-soft track + --accent fill; inline-size % fills from the
+  reading-start edge — RTL-true; note heroes and task-less projects render
+  NO bar; the store still wins for entries, the seed only feeds progress).
+- CACHE-BUST + VERSIONS: variables v23, layout v60, claude-dark v23,
+  polish-ui v35, dashboard v34, resume.js v14, i18n-en v90, i18n.js v144
+  (+i18n-fa v84 ref) — 9 files; check-cache-bust PASS; sw.js v415→v416 with
+  the history note; package.json 0.4.1.7→0.4.1.8.
+- NEW E2E (e2e/s181-opening-quartet.spec.ts, 8 tests): the visible h1 EN +
+  FA; the head-above-card contract (DOM order, 18px/600, the dot retired,
+  the actions cluster); the progress line + meter + the 50% fill; the
+  store-wins note-hero with NO bar; the quieted banner by computed style;
+  the honest 409 round-trip; the zero page's quiet strip + text action; the
+  FA/RTL pass (Farsi digits + the fill flush to the RIGHT edge). Plus the
+  s177/rail-panel bar-ink pins updated to the rung.
+- LADDER (so far): typecheck 0 · vitest 563/563 (+24) · eslint 0 err
+  (162-warn baseline) · build 79 · wiring canonical · cache-bust PASS ·
+  parity 1557/1557 · FULL e2e + agent-browser QA + mockups + docs + the
+  local commit — see the addendum below.
+
+Stage Summary (S181 — staged, release owner-gated):
+- LADDER complete: typecheck 0 · vitest 563/563 (+24: 5 categories-scoping incl.
+  the deploy-ahead belt, 14 identity-palette incl. the sidebar color-block pins,
+  1 seed-progress) · eslint 0 err (162-warn baseline) · build 79 · wiring
+  canonical · cache-bust PASS (9 files) · parity 1557/1557 · FULL e2e 322/322
+  (the NEW 8-test s181-opening-quartet spec + the s121/s177/rail-panel identity
+  + bar-ink pins updated + the s152/s173 seeds user_id-fixed + the dashboard
+  screenshot re-baselined).
+- AGENT-BROWSER QA on :3017 (the s181 + s180 e2e users, schema 63 — the Node
+  runner applied 0064 on boot): EN — all four opening blocks + the progress
+  bar probed by computed style (the h1 "Dashboard" 24px/500 with 17.6px of
+  air; the strip second child, head above card, 18px/600 title, the dot
+  retired; "2 of 4 tasks done" + the progressbar aria 2/4 + the 50% fill; the
+  banner's tinted glyph + no-uppercase flag + 14px title + a.small CTA + the
+  4px lead) — FA/RTL («پیشخوان» + «از ۲ کار، ۱ انجام‌شده» + the fill flush
+  to the RIGHT edge, 0 h-overflow) — claude-dark (the title ink #EDEDEC, the
+  #d97757 fill, the 11% banner tint, the rail bar #e28f6c — the rung live)
+  — 390px (zero h-overflow, the head wraps, 18px title) — keyboard (the
+  --focus-ring token resolving, Clear focusable) — 0 console/page errors
+  everywhere.
+- MOCKUPS (the finished-sidebar + finished-dashboard deliverables):
+  download/s181-dashboard-light.png + s181-dashboard-dark.png (the s180
+  user's real data — the full opening quartet + the sticky papers + the
+  progress bar) + s181-sidebar-light.png + s181-sidebar-dark.png (the
+  project page with the rail panel open, the SELECTED row live-probed at
+  bar rgb(61,141,145) on the rgba(74,159,163,0.13) wash — the color block
+  delivered in both themes).
+- v0.4.1.8 STAGED on local main (the commit follows). LIVE hibana.ir
+  untouched @ v0.4.1.7. The release chain (push → CI/CD → the §5 d1-migrate
+  ritual for 0064 on BOTH D1s, schema 62→63 → byte-verify → live functional
+  pass → tag v0.4.1.8 → zip → healthcheck) awaits the owner's explicit go.
+- Ops lessons: (a) the sandbox kills detached background processes at
+  tool-call boundaries — run long suites in FOREGROUND CHUNKS (each under the
+  10-min tool timeout) instead of nohup/setsid; (b) a resumed session's
+  uncommitted tree is the cheapest context recovery there is — the previous
+  agent's in-flight work (the migration SQL + the ident palette) was 80% of
+  this round's diff; (c) `id != COALESCE(?, ?)` with (null, null) is a
+  WHERE-annihilator — SQL NULL semantics ate the S152 create-path 409 for
+  four sessions and only a two-user test surfaced it; (d) e2e seeds that
+  INSERT INTO owned tables directly must grow user_id the moment a migration
+  lands (s152 + s173 caught in the chunked run); (e) the Bash display
+  pipeline STILL mangles source text (the '[h' in PROJECT_HUE_TOKENS[h % …]
+  showed as '%') — always Read the file before editing.

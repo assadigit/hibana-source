@@ -184,7 +184,7 @@ describe('backup snapshot coverage', () => {
       const userId = await makeUser(db)
       await db.execute('INSERT INTO projects (id, user_id, title, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)', ['p1', userId, 'X', 'developing', new Date().toISOString(), new Date().toISOString()])
       await db.execute('INSERT INTO tags (id, user_id, name, color, created_at) VALUES (?, ?, ?, ?, ?)', ['tag1', userId, 'UI', '#123456', new Date().toISOString()])
-      await db.execute('INSERT INTO categories (id, name, color_fill, color_text, is_archived, created_at) VALUES (?, ?, ?, ?, 0, ?)', ['cat1', 'C', '#CCD5F0', '#273768', new Date().toISOString()])
+      await db.execute('INSERT INTO categories (id, user_id, name, color_fill, color_text, is_archived, created_at) VALUES (?, ?, ?, ?, ?, 0, ?)', ['cat1', userId, 'C', '#CCD5F0', '#273768', new Date().toISOString()])
       await db.execute('INSERT INTO project_categories (project_id, category_id) VALUES (?, ?)', ['p1', 'cat1'])
       await db.execute("INSERT INTO dev_tasks (id, project_id, title, status, priority, created_at) VALUES (?, ?, ?, 'done', 'medium', ?)", ['dt1', 'p1', 'T', new Date().toISOString()])
       await db.execute('INSERT INTO dev_task_tags (task_id, tag_id) VALUES (?, ?)', ['dt1', 'tag1'])

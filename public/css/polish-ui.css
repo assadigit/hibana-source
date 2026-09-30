@@ -1266,9 +1266,10 @@ body.has-mobile-nav { padding-block-end: calc(3.75rem + env(safe-area-inset-bott
    (two components, one project, two different timestamps, no explanation — a
    Nielsen #6 break). Renders inside main.shell-dash on the dashboard only;
    entries come from localStorage (js/resume.js — last OPENED, the single
-   "last touched" definition used everywhere). Structure: header (title +
-   "Last opened" hint + Clear) → HERO entry (the newest, banner-grade: glyph +
-   kind·stage·timeAgo + title + Open CTA) → up to 3 smaller chips.
+   "last touched" definition used everywhere). Structure: SECTION (the head row
+   ABOVE the card) → CARD (hero entry — the newest, banner-grade: glyph +
+   kind·stage·timeAgo + title + Open CTA → the S181 summary line + progress bar →
+   up to 3 smaller chips).
    ═══════════════════════════════════════════════════════════════════════════ */
 /* S97 (the flat-card system, B): the strip is a PLAIN card — the old 5%-accent
    gradient top veil + the soft drop shadow retired with the app-wide flat round
@@ -1282,14 +1283,40 @@ body.has-mobile-nav { padding-block-end: calc(3.75rem + env(safe-area-inset-bott
   border: 1px solid var(--line);
   border-radius: var(--radius-lg, 14px);
 }
-.resume-head { display: flex; align-items: baseline; gap: 0.6rem; flex-wrap: wrap; }
-.resume-head h2 { font-size: 0.95rem; font-weight: 700; letter-spacing: 0.01em; margin: 0; color: var(--text); display: flex; align-items: center; gap: 0.45rem; }
-.resume-head h2::before {
-  content: ''; inline-size: 0.55rem; block-size: 0.55rem; border-radius: 999px;
-  background: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 18%, transparent);
-  flex: none;
-}
+/* S181 (opening block 2 — the FIRST section speaks the one grammar): the head
+   moved ABOVE the card into the shared .dash-sec-head row every dashboard
+   section speaks (dashboard.css — 18px/600 title, secondary actions at the
+   inline-end). The old in-card header (0.95rem/700 + the glowing accent-dot
+   ::before — a pre-S179 register the system pass never reached) RETIRES; this
+   sheet now styles only the card + the hint riding the head's actions row. */
 .resume-hint { font-size: 0.78rem; }
+
+/* S181 (the owner's promised "where I left off" additions): the hero's summary
+   line + progress bar — "where did I stop, and how far along was it?" A muted
+   one-line sentence ("{n} of {m} tasks done", tabular so the count settles) over
+   a thin 6px meter: the --bg-soft track + the --accent fill (the hero's own lead
+   bar ink — one accent family for the whole card; a bar, not a surface). The
+   fill rides inline-size % — it grows from the READING-START edge in both
+   directions (RTL-true by construction). Non-interactive: no hit target, the
+   aria contract lives on the track (role=progressbar + valuenow/min/max). */
+.resume-progress { display: flex; flex-direction: column; gap: 0.3rem; }
+.resume-progress-line {
+  margin: 0;
+  font-size: 0.75rem;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.resume-progress-track {
+  block-size: 0.375rem;
+  border-radius: 999px;
+  background: var(--bg-soft);
+  overflow: hidden;
+}
+.resume-progress-fill {
+  block-size: 100%;
+  border-radius: 999px;
+  background: var(--accent);
+}
 
 /* S85: the HERO entry — the newest item, banner-grade. Inherits the deleted
    "Resume work" card's visual DNA (accent-edged panel, glyph tile, prominent
@@ -1501,8 +1528,10 @@ body.has-mobile-nav { padding-block-end: calc(3.75rem + env(safe-area-inset-bott
   100% { -webkit-mask-image: linear-gradient(to left, #000, transparent 93%); mask-image: linear-gradient(to left, #000, transparent 93%); }
 }
 
-/* Multi-line headings wrap evenly (Chromium 114+; harmless no-op elsewhere). */
-.resume-head h2, .dash-stale-flag, .dash-projects-head h2 { text-wrap: balance; }
+/* Multi-line headings wrap evenly (Chromium 114+; harmless no-op elsewhere).
+   S181: the resume head joined the one-section pattern — its title rides the
+   shared .dash-sec-title now (the S179 selector family below covers it). */
+.dash-stale-flag, .dash-projects-head h2, .dash-sec-title { text-wrap: balance; }
 
 /* Forced-contrast mode: hairline borders become solid ink so the chip rows stay
    perceivable without the soft shadows. */

@@ -1,4 +1,5 @@
 import { githubClient, type GitHubClient, type GitHubConfig } from './github'
+import { categoriesUserScoped } from '../lib/categories'
 import type { Db } from '../db/types'
 
 // Database protection (user priority). Full snapshot of every user-owned table, committed
@@ -283,17 +284,20 @@ export async function buildUserSnapshot(db: Db, userId: string): Promise<Snapsho
     )
     if (rows) data[table] = rows
   }
-  // S152: the GLOBAL category library has no owner column — a personal export carries
-  // the slice the user's projects actually USE (enabled on them or referenced by their
-  // tasks), so a restore re-creates exactly what the account needs without leaking
-  // another account's unrelated library rows.
-  const catRows = await guardedQuery(
-    'categories',
-    `SELECT DISTINCT c.* FROM categories c
-     WHERE c.id IN (SELECT category_id FROM project_categories WHERE project_id IN (SELECT id FROM projects WHERE user_id = ?))
-        OR c.id IN (SELECT category_id FROM dev_tasks WHERE project_id IN (SELECT id FROM projects WHERE user_id = ?))`,
-    [userId, userId],
-  )
+  // S152 → S181 (0064): the category library is USER-SCOPED — a personal export is
+  // simply the caller's own rows (user_id). The legacy slice query (used-projects
+  // subselects) still serves a not-yet-migrated D1 so exports never break in the
+  // deploy-ahead window.
+  const catScoped = await categoriesUserScoped(db)
+  const catRows = catScoped
+    ? await guardedQuery('categories', 'SELECT * FROM categories WHERE user_id = ?', [userId])
+    : await guardedQuery(
+        'categories',
+        `SELECT DISTINCT c.* FROM categories c
+         WHERE c.id IN (SELECT category_id FROM project_categories WHERE project_id IN (SELECT id FROM projects WHERE user_id = ?))
+            OR c.id IN (SELECT category_id FROM dev_tasks WHERE project_id IN (SELECT id FROM projects WHERE user_id = ?))`,
+        [userId, userId],
+      )
   if (catRows) data.categories = catRows
 
   return {

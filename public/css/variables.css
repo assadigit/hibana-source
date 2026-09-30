@@ -361,6 +361,38 @@
      BOTH themes; named tokens (persisted by the API, never user hex). */
   --accent-sky: #6E9BC5; --accent-mint: #7FB89A; --accent-lilac: #A793C9; --accent-coral: #D08A77;
   --accent-sand: #C9AE7C; --accent-sage: #93A98B; --accent-plum: #9D7B9B; --accent-slate: #7C93A8;
+  /* S181 (the /color-palette-advisor hex pass — block 13's exact palette, delivered):
+     the PROJECT IDENTITY family — twelve curated hues, ONE register per project id
+     (hash-of-id → token, src/routes/projects/helpers.ts PROJECT_HUE_TOKENS). A DEDICATED
+     family, deliberately NOT the quadrant accent-* swatches above (those are user-picked
+     surface washes; identity is system-assigned and must obey laws the swatches never
+     needed). Five laws, all machine-verified by qa/s181-ident-palette.mjs + the vitest
+     pin (identity-palette.test.ts):
+       1. CONTRAST — every hue ≥3:1 on the light card (#FFFFFF) AND the claude-dark card
+          (#1f1e1c) — the WCAG 1.4.11 non-text floor for a meaningful 8px dot.
+       2. FAMILY — no red/orange/yellow hues (70°–355° only) — identity never reads as
+          destructive/problem/warning/status color.
+       3. DISTINCT — pairwise CIEDE2000 ≥10 across the whole set (the OLD borrowed set's
+          minimum was 6.0 — accent-1 vs accent-teal, two projects reading as one).
+       4. BRAND — every hue ≥10 ΔE from the brand teal #4A9FA3 — a dot may never read as
+          "selected/current page".
+       5. STATUS — every hue ≥8 ΔE from every --st-* token — a dot may never read as a
+          task state (the old set sat 3.8 from On Hold, 6.3 from Ideas).
+     Structure: an alternating DEEP/LIFTED lightness ladder down the hue wheel (deep
+     ~4.5:1 on white, lifted ~3.2:1) so same-register neighbors sit ≥40° apart and
+     adjacent-register neighbors ≥18° — categorical-palette spacing at dot size. */
+  --ident-leaf: #61702E;       /* deep olive-leaf, h74 */
+  --ident-fern: #709E51;       /* lifted fern green, h96 */
+  --ident-moss: #337731;       /* deep moss green, h118 */
+  --ident-jade: #31775E;       /* deep jade teal-green, h159 */
+  --ident-ocean: #5C96BC;      /* lifted ocean blue, h204 */
+  --ident-azure: #4E66B7;      /* deep azure, h226 */
+  --ident-cornflower: #8C88CE; /* lifted dusty cornflower, h243 */
+  --ident-iris: #8055B9;       /* deep iris violet, h266 */
+  --ident-orchid: #B679C8;     /* lifted orchid mauve, h286 */
+  --ident-mulberry: #A7449D;   /* deep mulberry magenta, h306 */
+  --ident-rose: #C775A4;       /* lifted dusty rose, h326 */
+  --ident-blush: #AE475F;      /* deep blush berry, h346 */
   /* Dashboard task semantics: one spacing value and one pastel confirmation surface for every card. */
   --task-row-gap: 0.5rem;
   --task-complete-bg: var(--badge-working-bg);

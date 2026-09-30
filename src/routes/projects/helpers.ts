@@ -480,16 +480,20 @@ const ovPieHtml = (counts: OvCounts, lang: Locale): string => {
     </div>`
 }
 
-// S179 (advisor block 13 — one color, one meaning): the PROJECT IDENTITY HUE set —
-// the house accent tokens MINUS the red/orange/yellow family (red stays reserved
-// for destructive actions + problem status, orange/yellow for status only, so a
-// project's identity can never wear a hue that also reads as a state). A project's
-// hue is its id's stable hash → one of twelve curated accents: every project reads
-// as its own color, on every surface that shows the identity dot. (The exact hex
-// tuning is the /color-palette-advisor follow-up; these are the EXISTING tokens.)
+// S179 (advisor block 13 — one color, one meaning) → S181 (the /color-palette-advisor
+// hex pass DELIVERED): the PROJECT IDENTITY HUE set is now a DEDICATED twelve-token
+// family — the --ident-* tokens in variables.css — no longer the borrowed quadrant
+// accent swatches. The borrowed set carried three defects this pass retires (all
+// machine-measured, see qa/s181-ident-palette.mjs + identity-palette.test.ts):
+// accent-1 wore the BRAND teal (a dot reading as "selected/current"), accent-teal sat
+// ΔE2000 6.0 from accent-1 (two projects reading as one identity), and accent-purple
+// sat ΔE 3.8 from the On Hold status violet (identity reading as a state). The
+// dedicated family obeys five laws: ≥3:1 on BOTH theme cards (1.4.11 non-text), no
+// red/orange/yellow family, pairwise ΔE2000 ≥10, ≥10 from the brand, ≥8 from every
+// --st-* status token. A project's hue stays its id's stable hash → one of the twelve.
 const PROJECT_HUE_TOKENS = [
-  'accent-1', 'accent-4', 'accent-green', 'accent-purple', 'accent-pink', 'accent-teal',
-  'accent-sky', 'accent-mint', 'accent-lilac', 'accent-sage', 'accent-plum', 'accent-slate',
+  'ident-leaf', 'ident-fern', 'ident-moss', 'ident-jade', 'ident-ocean', 'ident-azure',
+  'ident-cornflower', 'ident-iris', 'ident-orchid', 'ident-mulberry', 'ident-rose', 'ident-blush',
 ] as const
 export function projectHueVar(id: string): string {
   let h = 0

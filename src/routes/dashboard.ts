@@ -616,12 +616,20 @@ export function dashboardRoutes(cfg: Config) {
       const vaultBanner: SafeHtml = vaultCount > 0
         ? html``
         : html`<section class="dash-vault-banner card" data-vault-banner role="region" aria-label="${t('Notes Vault introduction', 'معرفی گاوصندوق یادداشت‌ها')}">
+            <!-- S181 (opening block 3 — the nudges speak ONE quiet register): the
+                 banner joins the stale-row grammar — a semantic 4px lead bar + a
+                 light tint + a small bold flag + the quiet glyph language (the
+                 resume chip icons' tinted tile, not a solid CTA badge). The solid
+                 teal tile / the 30% accent border / the uppercase link label / the
+                 fs-lg title / the .btn CTA all retire: an introduction nudge is the
+                 same kind of thing as "Untouched for 2+ weeks", only in the accent
+                 register instead of the warn one. -->
             <div class="dash-vault-glyph" aria-hidden="true">${raw(icon('pencil'))}</div>
             <div class="dash-vault-body">
               <span class="dash-vault-label">${t('New', 'تازه')}</span>
               <strong class="dash-vault-title">${t('The Notes Vault', 'گاوصندوق یادداشت‌ها')}</strong>
               <p class="dash-vault-copy">${t('A home for the notes you want to keep — knowledge, reference, curated lists. Folders, tags, star, and full-text search.', 'خانهٔ یادداشت‌هایی که می‌خواهی نگه داری — دانش، مراجع، فهرست‌های منتخب. پوشه‌ها، برچسب‌ها، ستاره و جست‌وجوی کامل متن.')}</p>
-              <a class="btn dash-vault-cta" href="/notes.html?new=1">${t('Create your first note', 'نخستین یادداشتت را بساز')} ${raw(icon('arrow-right', 'icon'))}</a>
+              <a class="dash-vault-cta small" href="/notes.html?new=1">${t('Create your first note', 'نخستین یادداشتت را بساز')} ${raw(icon('arrow-right', 'icon arrow'))}</a>
             </div>
             <button type="button" class="dash-vault-dismiss" data-vault-dismiss aria-label="${t('Dismiss', 'بستن')}">${raw(icon('x'))}</button>
             <script>(function(){var K='hibana-vault-banner-dismissed',e=document.querySelector('[data-vault-banner]');if(!e)return;try{if(localStorage.getItem(K)==='1'){e.remove();return}}catch(x){}var b=e.querySelector('[data-vault-dismiss]');if(b)b.addEventListener('click',function(){try{localStorage.setItem(K,'1')}catch(x){}e.remove()})})()</${'script'}>
@@ -637,16 +645,24 @@ export function dashboardRoutes(cfg: Config) {
       const sectionHtmls = renderOrder.map((id) => sections[id]())
       const out: SafeHtml = sectionHtmls.length
         ? html`${[vaultBanner, ...sectionHtmls]}`
-        : html`${vaultBanner}<div class="dash-empty">${t('Nothing on your dashboard — enable a section in Settings → View options.', 'پیشخوان خالی است — یک بخش را در تنظیمات ← گزینه‌های نمایش روشن کن.')} <a href="/settings.html">${t('Open settings', 'باز کردن تنظیمات')}</a></div>`
+        : html`${vaultBanner}<section class="dash-empty" role="status">
+            <!-- S181 (opening block 4 — the zero page joins the empty register): the
+                 cold dashboard speaks the SAME quiet strip the empty quadrants speak
+                 (S179 block 8) — a muted line + a text action, natural height, no
+                 card chrome. The old form was an unstyled div whose bare inline link
+                 read as body text. -->
+            <p class="dash-empty-text">${t('Nothing on your dashboard — enable a section in Settings → View options.', 'پیشخوان خالی است — یک بخش را در تنظیمات ← گزینه‌های نمایش روشن کن.')}</p>
+            <a class="dash-empty-action" href="/settings.html">${t('Open settings', 'باز کردن تنظیمات')} ${raw(icon('arrow-right', 'icon arrow'))}</a>
+          </section>`
 
-      // S51-A: sr-only h1 — the page needs a level-one heading (axe
-      // page-has-heading-one) that lives INSIDE <main> (axe region). The dashboard
-      // content is swapped into main#main with hx-swap="innerHTML", so a static h1
-      // in the page shell is wiped on the first refresh — the heading renders HERE
-      // (server-side, localized) as the first node of every response and therefore
-      // survives every swap. The static pre-swap copy in dashboard.html covers the
-      // skeleton state; the swap replaces it with this one.
-      const pageH1: SafeHtml = html`<h1 class="sr-only">${t('Dashboard', 'پیشخوان')}</h1>`
+      // S51-A → S181 (opening block 1 — the page opens with its name): the h1 is
+      // VISIBLE now, the same opening every page of the app speaks (Projects,
+      // Settings, … all open with their name at the house h1 tokens — the app's home
+      // diving straight into sections with an sr-only heading was the one holdout).
+      // It still renders as the first node of every htmx response so the swap can
+      // never orphan it; the static pre-swap copy in dashboard.html covers the
+      // skeleton state.
+      const pageH1: SafeHtml = html`<h1>${t('Dashboard', 'پیشخوان')}</h1>`
       return await etag(c, c.html(toString(html`${pageH1}${out}`)))
     }
 
@@ -679,7 +695,25 @@ export function dashboardRoutes(cfg: Config) {
       ts: new Date(r.ts).getTime() || 0,
       b: r.k === 'project' ? (r.b ?? undefined) : undefined,
     }))
-    return c.json({ entries })
+    // S181 (the owner's promised "where I left off" additions): every PROJECT-kind
+    // entry carries its task progress (done vs all dev_tasks of that project) so the
+    // strip can answer "how far along was it?" under the hero — the summary line +
+    // the progress bar. One grouped query over the (≤4) ids; sparks ride the same
+    // table so they report honestly if they ever carry tasks; notes never do.
+    const projectIds = entries.filter((e) => e.k === 'project' || e.k === 'spark').map((e) => e.id)
+    const progress: Record<string, { done: number; total: number }> = {}
+    if (projectIds.length) {
+      const progRows = await cfg.db
+        .query<{ project_id: string; done: number; total: number }>(
+          `SELECT project_id, SUM(CASE WHEN status = 'done' THEN 1 ELSE 0 END) AS done, COUNT(*) AS total
+           FROM dev_tasks WHERE project_id IN (${projectIds.map(() => '?').join(',')})
+           GROUP BY project_id`,
+          projectIds,
+        )
+        .catch(() => [] as { project_id: string; done: number; total: number }[])
+      for (const pr of progRows) progress[pr.project_id] = { done: pr.done, total: pr.total }
+    }
+    return c.json({ entries, progress })
   })
 
   return app

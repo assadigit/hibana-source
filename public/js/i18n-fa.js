@@ -884,6 +884,8 @@ window.__hibanaDictFA = {
       'resume.cta': 'باز کردن',
       'resume.project': 'پروژه', 'resume.note': 'یادداشت', 'resume.spark': 'ایده', 'resume.openAria': 'بازکردن {k}: {t}',
       'resume.clear': 'پاک‌کردن اخیرها', 'resume.clearAria': 'پاک‌کردن فهرست موارد اخیر', 'resume.cleared': 'اخیرها پاک شد',
+      // S181 (the owner's promised additions): the resume hero's summary line + progress-bar sentence
+      'resume.progress': 'از {m} کار، {n} انجام‌شده',
       'nav.syncPending': '{n} در انتظار', 'nav.syncHint': 'در انتظار همگام‌سازی — برای ارسال کلیک کن', 'nav.syncSent': 'تغییرات آفلاین ارسال شد',
       // S52: Trash palette command + recoverable-count sublabel
       'cmdk.openTrash': 'سطل بازیافت — بازیابی موارد حذف‌شده',

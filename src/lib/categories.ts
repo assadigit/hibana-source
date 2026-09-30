@@ -48,9 +48,32 @@ export function normCatName(name: unknown): string {
 
 export interface CategoryRow {
   id: string
+  /** S181 (0064): the library is USER-SCOPED — every row belongs to exactly one
+   *  account; absent only on a D1 that has not applied 0064 yet (the deploy-ahead
+   *  window the categoriesUserScoped() probe below exists for). */
+  user_id: string
   name: string
   color_fill: string
   color_text: string
   is_archived: number
   created_at: string
+}
+
+// S181 (0064): does THIS database's categories table carry user_id yet? The Node
+// runner migrates on boot, but a deployed Worker can land minutes before the
+// owner's d1-migrate step (the S126 pre-push ritual orders it the safe way —
+// still, the 0062 belt lesson applies). Memoized per Db instance: one probe per
+// process, branch once, never per request.
+const scopedMemo = new WeakMap<object, boolean>()
+export async function categoriesUserScoped(db: { query: <T>(sql: string, params?: unknown[]) => Promise<T[]> }): Promise<boolean> {
+  const hit = scopedMemo.get(db)
+  if (hit !== undefined) return hit
+  try {
+    await db.query('SELECT user_id FROM categories LIMIT 1')
+    scopedMemo.set(db, true)
+    return true
+  } catch {
+    scopedMemo.set(db, false)
+    return false
+  }
 }

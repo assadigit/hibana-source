@@ -218,9 +218,10 @@ describe('overview status cards — S126 contract (cap 3, last-updated, View all
       expect(seg).toContain('title="p1 edited"')
       expect(seg).toContain('data-full="p1 edited"')
       // the project-name metadata line wears the owning project's IDENTITY hue dot
-      // (S179 block 13: --proj-hue inline var — the stable hash accent; the old
-      // stage-keyed data-stage dot gave the same dot two meanings)
-      expect(seg).toMatch(/ov-proj-dot" style="--proj-hue: var\(--accent-[a-z0-9-]+\)"/)
+      // (S179 block 13 → S181: --proj-hue inline var — the stable hash accent from the
+      // DEDICATED --ident-* family; the old stage-keyed data-stage dot gave the same
+      // dot two meanings, and the borrowed accent-* set read as brand/status)
+      expect(seg).toMatch(/ov-proj-dot" style="--proj-hue: var\(--ident-[a-z0-9-]+\)"/)
     } finally {
       close()
     }

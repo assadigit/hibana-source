@@ -305,7 +305,7 @@ test.describe('S177/S178 — the quiet sidebar (the design advisor\'s blocks)', 
     expect(await plain.evaluate((el) => getComputedStyle(el).borderRadius)).toBe('8px')
     const pill = await plain.evaluate((el) => getComputedStyle(el, '::before'))
     expect(pill.content).not.toBe('none') // the inset accent bar renders
-    expect(pill.backgroundColor).toBe('rgb(74, 159, 163)') // the brand bar ink
+    expect(pill.backgroundColor).toBe('rgb(61, 141, 145)') // the S181 color-block bar ink (--brand-hover rung: 3.42:1 on the wash)
     // S178 block 11 — the INSET bar: ~4px in from the pill's inline-start edge,
     // ~3px wide, ~60% of the row's height, ROUNDED ends.
     expect(pill.left).toBe('4px')
@@ -341,7 +341,7 @@ test.describe('S177/S178 — the quiet sidebar (the design advisor\'s blocks)', 
     await expect.poll(() => headrow.evaluate((el) => getComputedStyle(el).backgroundColor), { timeout: 2_000 }).toBe('rgba(74, 159, 163, 0.13)')
     const branchBar = await headrow.evaluate((el) => getComputedStyle(el, '::before'))
     expect(branchBar.content).not.toBe('none')
-    expect(branchBar.backgroundColor).toBe('rgb(74, 159, 163)')
+    expect(branchBar.backgroundColor).toBe('rgb(61, 141, 145)')
     expect(branchBar.left).toBe('4px')   // inset from the pill's inline-start edge
     expect(branchBar.width).toBe('3px')  // ~3px wide
     expect(branchBar.borderRadius).toBe('999px')

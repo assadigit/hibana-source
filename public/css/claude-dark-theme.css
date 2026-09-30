@@ -321,7 +321,10 @@ html[data-theme='claude-dark'] .card.notebook-dashboard {
   background: color-mix(in srgb, var(--quicknote-accent) 13%, var(--card));
 }
 html[data-theme='claude-dark'] .dash-vault-banner.card {
-  background: color-mix(in srgb, var(--accent) 13%, var(--card));
+  /* S181 (opening block 3 — the quieted nudge): the dark twin follows the light
+     sheet's 7% accent tint one notch stronger (11%) so the accent read survives
+     the near-black card — the banner is a tinted nudge card, not a plain one. */
+  background: color-mix(in srgb, var(--accent) 11%, var(--card));
 }
 
 /* Kanban chassis — flat card surface for the NO-STATUS cards (the sparks folder

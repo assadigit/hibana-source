@@ -629,4 +629,43 @@ describe('resume seed (S180) — GET /api/dashboard/resume-seed', () => {
       close()
     }
   })
+
+  // S181 (the owner's promised additions): the seed carries each project-kind
+  // entry's task progress (done vs all dev_tasks) for the hero's summary line +
+  // progress bar. Notes never appear in the map; task-less projects stay absent
+  // (the client renders no bar when there is nothing to measure).
+  it('carries per-project progress (done vs total dev_tasks) — notes and task-less rows stay out of the map', async () => {
+    const { db, close } = makeTestDb()
+    try {
+      const user = await makeUser(db)
+      const { app, auth } = await makeClient(db, user)
+      const projId = await createProject(app, auth, 'Progress project', 'developing')
+      const now = new Date().toISOString()
+      const insTask = (status: string) =>
+        db.execute(
+          "INSERT INTO dev_tasks (id, project_id, title, status, priority, created_at, updated_at) VALUES (?, ?, 'T', ?, 'medium', ?, ?)",
+          [crypto.randomUUID(), projId, status, now, now],
+        )
+      await insTask('done')
+      await insTask('done')
+      await insTask('in_progress')
+      await db.execute(
+        'INSERT INTO vault_notes (id, user_id, title, content, tags, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
+        ['vn-prog', user, 'A note', 'x', '', now, now],
+      )
+
+      const res = await app.fetch(new Request('http://local/api/dashboard/resume-seed', { headers: auth }))
+      expect(res.status).toBe(200)
+      const { entries, progress } = (await res.json()) as {
+        entries: Array<{ id: string; k: string }>
+        progress: Record<string, { done: number; total: number }>
+      }
+      // The project (1 task-touched) rides the map at 2 of 3 done; the note never does.
+      expect(progress[projId]).toEqual({ done: 2, total: 3 })
+      expect(Object.keys(progress)).toEqual([projId])
+      expect(entries.some((e) => e.id === 'vn-prog')).toBe(true)
+    } finally {
+      close()
+    }
+  })
 })

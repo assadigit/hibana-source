@@ -887,6 +887,8 @@ window.__hibanaDictEN = {
       'resume.cta': 'Open',
       'resume.project': 'Project', 'resume.note': 'Note', 'resume.spark': 'Idea', 'resume.openAria': 'Open {k}: {t}',
       'resume.clear': 'Clear recents', 'resume.clearAria': 'Clear the recent-items list', 'resume.cleared': 'Recents cleared',
+      // S181 (the owner's promised additions): the resume hero's summary line + progress-bar sentence
+      'resume.progress': '{n} of {m} tasks done',
       'nav.syncPending': '{n} pending', 'nav.syncHint': 'Waiting to sync — click to try now', 'nav.syncSent': 'Synced your offline changes',
       // S52: Trash palette command + recoverable-count sublabel
       'cmdk.openTrash': 'Trash — recover deleted items',

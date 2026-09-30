@@ -212,7 +212,14 @@ html:not([data-theme='claude-dark']) .themed-logo--dark { display: none; }
   inset-block: 22%;             /* ~55% of the button's height, rounded ends */
   inline-size: 0.1875rem;       /* ~3px wide — the sidebar row bar's own width */
   border-radius: 999px;
-  background: var(--brand);
+  /* S181 (the sidebar color block, delivered): the bar ink steps to the
+     --brand-hover rung — one step further from the surface than --brand, the
+     SAME direction the rung already points per theme (light #3D8D91 darker,
+     dark #e28f6c lighter). The bare brand missed the app's own 3:1 non-text
+     floor (S179 block 15's law) on the sidebar's tinted selected-row wash
+     (2.73:1); the hover rung clears it on BOTH surfaces in BOTH themes
+     (light: 3.88 on the card / 3.42 on the wash; dark: 6.65 / 5.47). */
+  background: var(--brand-hover);
 }
 .rail-btn[aria-current='page'] .rail-label { font-weight: 600; }
 /* The icon whose PANEL is open speaks QUIETLY — a panel can be open while you sit
@@ -224,7 +231,7 @@ html:not([data-theme='claude-dark']) .themed-logo--dark { display: none; }
 .rail-btn.is-panel-open { color: var(--brand); }
 .rail-btn.is-panel-open .rail-label { color: var(--text); font-weight: 500; }
 .rail-btn.is-panel-open[aria-current='page'] { color: var(--text); }
-.rail-btn.is-panel-open[aria-current='page']::before { background: var(--brand); }
+.rail-btn.is-panel-open[aria-current='page']::before { background: var(--brand-hover); }
 .rail-spacer { flex: 1; }
 .rail-divider { inline-size: 1.75rem; block-size: 1px; background: var(--line); flex: none; }
 .rail-secondary { margin-block-start: 0.125rem; }
@@ -594,7 +601,9 @@ body.rail-panel-open .rail-panel { visibility: visible; opacity: 1; transition: 
   inset-block: 20%;            /* ~60% of the row height, rounded ends */
   inline-size: 0.1875rem;      /* ~3px wide */
   border-radius: 999px;
-  background: var(--brand);
+  /* S181 (the sidebar color block): the --brand-hover rung — the wash-tinted
+     selected pill is the bar's REAL ground (2.73:1 was a miss; 3.42 clears). */
+  background: var(--brand-hover);
 }
 /* S95 ("never lose your place" — the app's second job): the panel row of the page
    you are ON carries the current-location mark: the accent-soft PILL + the same
@@ -618,7 +627,9 @@ body.rail-panel-open .rail-panel { visibility: visible; opacity: 1; transition: 
   inset-block: 20%;            /* ~60% of the row height, rounded ends */
   inline-size: 0.1875rem;      /* ~3px wide */
   border-radius: 999px;
-  background: var(--brand);
+  /* S181 (the sidebar color block): the --brand-hover rung (3.42:1 on the
+     accent-soft wash in light; 5.47 in dark — the 3:1 graphic floor holds). */
+  background: var(--brand-hover);
 }
 .rail-item.is-row-active .rail-item-label { color: inherit; }
 .rail-panel-empty { padding: 1.25rem 0.75rem; color: var(--muted); font-size: var(--fs-sm); line-height: 1.5; }

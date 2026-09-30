@@ -213,7 +213,7 @@ test.describe('the navigation rail (Material navigation-rail pattern, S89 labele
     await expect(dash).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)')
     await expect(dash).toHaveCSS('color', 'rgb(20, 20, 20)')
     await expect.poll(async () => dash.evaluate((el) => getComputedStyle(el, '::before').content)).toBe('""')
-    await expect.poll(async () => dash.evaluate((el) => getComputedStyle(el, '::before').backgroundColor)).toBe('rgb(74, 159, 163)')
+    await expect.poll(async () => dash.evaluate((el) => getComputedStyle(el, '::before').backgroundColor)).toBe('rgb(61, 141, 145)')
     await expect.poll(async () => dash.evaluate((el) => getComputedStyle(el, '::before').width)).toBe('3px')
     await expect.poll(async () => dash.evaluate((el) => getComputedStyle(el, '::before').borderRadius)).toBe('999px')
     // Block 11's semantics: the PANEL toggles carry aria-expanded (a panel-open

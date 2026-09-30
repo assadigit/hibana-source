@@ -884,3 +884,63 @@ Stage Summary:
 - Open on the owner's side: the /color-palette-advisor hex pass (block 13's
   exact palette), the finished-dashboard mockup, and the S178 leftovers (the
   sidebar color block + mockup).
+
+Release (S179 — the owner's explicit "Commit, Push, deploy the latest version,
+we're wrapping up this session", 2026-09-30):
+- Pushed 442b840 → CI 36683063708 green (~14m) → CD 36684190321 green (DEV
+  probe + PROD deploy + zone purge, the workflow_run chain) — LIVE hibana.ir
+  @ v0.4.1.6.
+- Byte-verify (qa/s179-live-verify.mjs): SIX wired assets IDENTICAL live vs
+  local wired build — nav.4a305618.js 29129 B + layout.a8f7cef8.css 45677 B
+  + app.01b60583.js 103507 B + variables.4c896ce6.css 6236 B +
+  dashboard.946d7753.css 31478 B + quicknotes.ebaff11d.css 47817 B; sw.js
+  v413→v414; /api/health ok/prod/db up/schema 62 (no migration this round).
+- Live functional pass as the owner (agent-browser, REAL data — all twelve
+  blocks by computed style, 0 console/page errors): the four section heads
+  (Quick Notebook / To-Do List / Projects / Overall project tasks — Recent
+  activity absent for this user's data/visibility, by design) at 18px/600
+  ABOVE their cards; the chromeless .dash-ov (0px borders, transparent bg)
+  + the stat-boxes painting their own white 20px-radius chrome; the notebook
+  + every generic card on the plain rgb(255,255,255) card surface (the teal
+  tints gone); the check-lines align-items:center with 20px×20px checkboxes
+  + the ＋ quick-add in all four quadrant heads; the AI quadrant's empty
+  strip ("No tasks yet. Add a task" with the wired add button); the compact
+  notebook (2 real stickies — the account's total — + composer + the
+  Move-to cluster + "View all" in its plain ≤5 form, by design); rail labels
+  11px + the panel-open label at the primary ink rgb(20,20,20) + the current
+  item's inset bar 3px wide / 999px radius @ left 4.8px, inset-block 9.67px
+  each end + aria-current=page + 8 aria-expanded; the donut 0 on the
+  dashboard + the four ov boxes in the fixed idea→bug→planned→in_progress
+  order + "31 open" in the head; four identity hues (none in the
+  red/orange/yellow family); --focus-ring resolving
+  (color(srgb .231 .471 .482)); 36 dir=auto titles. The Clear-recents→Undo
+  ROUND-TRIP verified live end-to-end (the hibana-resume store seeded in the
+  browser session → the strip renders → Clear → strip removed + "Recents
+  cleared" toast → Undo → strip restored + the snapshot written back →
+  store cleaned; zero footprint on server data). Real long task titles wrap
+  3 lines (49.97px of title text — rows grow past the 40px single-line floor
+  by design; the single-line floor is e2e-pinned).
+- Tag v0.4.1.6 on remote (lightweight, on 442b840); zip hibana.0.4.1.6.zip
+  (581 files, integrity OK) → /home/z/upload/ + the sandbox download folder;
+  healthcheck pinged via the live UUID URL (HTTP 200 — the "Hibana" check
+  up, last ping 07:46:51Z; the old slug URL from the owner's credentials
+  404s by design, the check was re-slugged after the git-history leak).
+- Ops lessons: (a) the byte-verify's first exit code rode a wrong health
+  payload field (status vs ok) — the CONTRACT was green, the script's exit
+  was wrong; fixed BEFORE tracking the script (a release artifact must not
+  ship a self-inflicted red); (b) the s177-poll setsid daemon DIED mid-run
+  (parent-shell reaping) — query the GitHub Actions API directly for the
+  workflow conclusions instead of trusting the detached poller; (c) a
+  "mere view" records NOTHING in the resume store (the owner's own design:
+  recents are EDITED items only — resume.js record() fires on real edit/save
+  flows) — a live block-14 test seeds the localStorage store instead of
+  navigating around; (d) guessed selectors manufacture false failures (the
+  ".ov-head svg" donut "hit" was the collapse chevron; the "missing" View
+  all was the ≤5 plain form) — pull the real markup contracts from source
+  BEFORE probing; (e) the 59.56px check-line height was a 3-line REAL title
+  — rows grow by design; probe the single-line floor only against
+  known-short titles.
+- Still open on the owner's side: the /color-palette-advisor hex pass (block
+  13's exact palette), the finished-dashboard mockup, the S178 leftovers
+  (the sidebar color block + mockup), and the advisor's dashboard blocks
+  1–4 (never delivered to any session so far — request them next session).

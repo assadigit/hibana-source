@@ -25,10 +25,10 @@
 }
 /* S183: the head strip's inline padding aligns the title with the quadrant
    board's body (0.7rem sides — the panel's own register). */
-.dash-todo-panel > .dash-sec-head { padding-inline: 0.7rem; }
+.dash-todo-panel > .dash-sec-head { padding-inline: 1rem; }
 /* The body: the quadrant board + swipe hint pad themselves (the S182 panel
    padding, moved onto the wrap). */
-.dash-todo-panel > .dash-quad-wrap { padding: 0.7rem; }
+.dash-todo-panel > .dash-quad-wrap { padding: 1rem; }
 
 /* Collapsible dashboard sections (Phase 3): a [data-dash-collapse] button on each
    section header toggles a .is-collapsed class on the section. The body (everything
@@ -94,13 +94,12 @@ section[id^="dashboard-"].is-collapsed .dash-quad-wrap { display: none; }
 .dash-todo-add-text:hover { background: var(--accent-soft); color: var(--text); }
 .dash-todo-add-text:focus-visible { outline: 2px solid var(--focus-ring, var(--accent)); outline-offset: 1px; }
 @media (pointer: coarse) { .dash-todo-add-text { min-block-size: 2.5rem; } }
-.dash-todo-head { display: flex; align-items: baseline; justify-content: space-between; gap: 1rem; flex-wrap: wrap; }
+/* S184: the todo head joins the ONE head-strip geometry (align-items: center,
+   the shared 0.75rem gap — the S179-era baseline + 1rem duplicate retires; the
+   link's 4px block padding + section-hover underline rules below retire with
+   the .dash-sec-link grammar). */
+.dash-todo-head { display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; flex-wrap: wrap; }
 .dash-todo-head h2 { margin: 0; }
-/* S179 (advisor block 5): the go-to link is a visible member of the ONE head
-   pattern now (it sat hover-hidden at the far edge before — the pattern's
-   inline-end shore is where secondary actions live, visible like the chevron). */
-.dash-todo-head a { position: relative; padding-block: 4px; text-underline-offset: 3px; }
-.dash-todo-section:hover .dash-todo-head a { text-decoration: underline; }
 /* S179 (advisor block 8) → S182 (owner: "the boxes need aligment and same size,
    make them same height (not variable height)"): every quadrant card renders at
    ONE fixed height — the grid stretches (align-items: start retired with the

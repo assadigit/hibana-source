@@ -208,7 +208,19 @@ html:not([data-theme='claude-dark']) .themed-logo--dark { display: none; }
 .rail-btn[aria-current='page']::before {
   content: '';
   position: absolute;
-  inset-inline-start: 0.3rem;   /* ~5px in from the button's inline-start edge */
+  inset-inline-start: -0.55rem;   /* S184 (the layout audit): was 0.3rem INSIDE the button —
+                                     the bar sat ON centered labels. The rail buttons CENTER
+                                     their labels in the 68px hit column, so a wide label
+                                     ("Dashboard" measures 58px) reaches ~4.9px from the
+                                     button's start edge and the bar at 4.8px collided with
+                                     its first glyphs (the owner's report, measured:
+                                     label.left 14.3 == bar.left 14.3; an edge-flush first
+                                     fix still only cleared ~1.8px — optically "touching").
+                                     The bar now rides the RAIL's own start edge (the
+                                     button is centered with ~9.5px shoulders; -0.55rem
+                                     lands ~1px inside the rail) — the classic edge
+                                     indicator, ~10px clear of every label, mirrored true
+                                     in RTL. */
   inset-block: 22%;             /* ~55% of the button's height, rounded ends */
   inline-size: 0.1875rem;       /* ~3px wide — the sidebar row bar's own width */
   border-radius: 999px;

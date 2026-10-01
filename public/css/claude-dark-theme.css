@@ -326,6 +326,17 @@ html[data-theme='claude-dark'] .card {
 html[data-theme='claude-dark'] .card.notebook-dashboard {
   background: color-mix(in srgb, var(--quicknote-accent) 13%, var(--card));
 }
+/* S184 (the layout audit, item 6 — the dark composer twin): light moved the
+   composer onto the CARD surface with a visible border (gray-on-gray read as
+   disabled there); dark keeps the RECESSED well — --bg sits a rung BELOW the
+   tinted card (#141413 under #1f1e1c+13% teal), and on a dark canvas a lower,
+   bordered well is the native input register. Without this twin the light rule
+   would paint the field the card's own tone — the dark inversion of the very
+   white-on-white bug S183 fixed. */
+html[data-theme='claude-dark'] .notebook-dashboard .note-compose-text {
+  background: var(--bg);
+  border-color: var(--line-strong);
+}
 /* S182: the To-Do section panel joins the notebook's dark card grammar — the same
    13% quicknote-accent tint (one section-card language on the dark dashboard; the
    light sheet's .dash-todo-panel is the plain surface twin of .card.notebook-

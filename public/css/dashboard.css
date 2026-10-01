@@ -8,7 +8,7 @@
    placement and the unified-wrapper retirement both reverse). */
 .dash-sec-head {
   display: flex;
-  align-items: baseline;
+  align-items: center;   /* S184 (the layout audit, item 3): one head strip — the title + link center vertically in the shared 3rem min-height row */
   justify-content: space-between;
   gap: 0.75rem;
   flex-wrap: wrap;
@@ -36,6 +36,24 @@
   margin-inline-start: auto;          /* the inline-end shore, even when the title wraps */
   white-space: nowrap;
 }
+/* S184 (the layout audit, item 4): ONE card-level header link grammar. Every
+   section head link wears .dash-sec-link — one color (the app's link ink), one
+   size (fs-sm), one weight (500), one trailing arrow, "Go to [page]" wording.
+   "View all" stays reserved for the COLUMN-level links inside cards (the stat
+   boxes' stat-viewall, the stale row's more link, the notebook foot's archive
+   button) — the same level of action looks and reads the same everywhere. */
+.dash-sec-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: var(--fs-sm);
+  font-weight: 500;
+  color: var(--link);
+  white-space: nowrap;
+}
+.dash-sec-link:hover { text-decoration: underline; text-underline-offset: 3px; }
+.dash-sec-link:focus-visible { outline: 2px solid var(--focus-ring, var(--accent)); outline-offset: 1px; }
+.dash-sec-link .icon { inline-size: 0.9rem; block-size: 0.9rem; flex: none; }
 
 /* ═══ S183 (the depth audit — the owner's 4-layer model, L2 realized) ═══
    The section head rides INSIDE its section panel card as a header strip —
@@ -44,7 +62,12 @@
    on the deepest layer and called it; the S179 above-card placement retires).
    The weight fix above (600 → the S157 ladder's 500) is the same audit's item 4. */
 .card > .dash-sec-head {
-  padding-block: 0.65rem 0.55rem;
+  /* S184 (the layout audit, item 3): ONE head-strip geometry on every panel —
+     0.75rem block padding + a 3rem (48px) min height + vertically centered
+     content. The audit measured header heights drifting 42–52px between cards;
+     one min-height + one padding closes it. */
+  padding-block: 0.75rem;
+  min-block-size: 3rem;
   border-block-end: 1px solid var(--line);
 }
 /* The panels carry the ONE elevation token (--shadow-card — the dark twin is
@@ -78,18 +101,26 @@
 .dash-ov, .card.notebook-dashboard, .resume-strip {
   min-inline-size: 0;
 }
+/* S184 (the layout audit, item 3): ONE panel inset — every head strip and body
+   block pads 1rem (16px) inline on every panel, so the title's start edge, the
+   stale row, the carousel, the overview row and the activity list all sit on
+   ONE inset line (the audit measured 12–18px drift between cards). */
 .dash-projects-panel > .dash-sec-head,
 .dash-ov-panel > .dash-sec-head,
-.dash-activity-panel > .dash-sec-head { padding-inline: 0.85rem; }
+.dash-activity-panel > .dash-sec-head { padding-inline: 1rem; }
 .dash-projects-panel > *:not(.dash-sec-head),
 .dash-ov-panel > *:not(.dash-sec-head),
-.dash-activity-panel > *:not(.dash-sec-head) { padding-inline: 0.85rem; }
+.dash-activity-panel > *:not(.dash-sec-head) { padding-inline: 1rem; }
 .dash-projects-panel > .dash-stale-row { margin-block-start: 0.6rem; }
-.dash-projects-panel > .stat-carousel { padding-block-start: 0.75rem; }
-.dash-ov-panel > .dash-proj-lower { padding-block: 0.75rem 0.9rem; }
-.dash-activity-panel > .activity { margin-block: 0; padding-block: 0.6rem 0.8rem; }
-/* The projects section's two sibling panels keep the section grid's 1rem beat
-   (the old head→carousel gap became panel→panel). */
+.dash-projects-panel > .stat-carousel { padding-block: 0.75rem 1rem; }
+.dash-ov-panel > .dash-proj-lower { padding-block: 0.75rem 1rem; }
+/* S184: the ov-head's own 0.55rem margin (misc.css — still load-bearing on the
+   projects/sparks pages where the head is NOT inside a panel) retires INSIDE the
+   dashboard panel: the head strip's own padding owns the hairline→body beat. */
+.dash-ov-panel > .ov-head { margin-block-end: 0; }
+.dash-activity-panel > .activity { margin-block: 0; padding-block: 0.75rem 1rem; }
+/* The projects section's two sibling panels: the S184 1.5rem beat above owns
+   the panel→panel spacing (one gap value everywhere). */
 
 /* --- batch (s) 2026-09-08 — the dashboard projects strip is a CAROUSEL ----------------
    (user request: "only three boxes by default, the rest behind carousel clicks").
@@ -111,7 +142,14 @@
 /* S93 (owner round, item 12 — "these carousel circles are too close to their section;
    add some margin with the upper section"): the dots row gets real breathing room below
    the stage strip (0.5rem grid gap + 0.7rem own margin ≈ 1.2rem total separation). */
-.stat-carousel-nav { display: flex; justify-content: center; margin-block-start: 0.7rem; }
+/* S184 (the layout audit, item 5): the prev/next handles JOIN the dots row —
+   static siblings flanking the dots, below the stage. The S42 overlay circles
+   sat ON the last visible column (covering its rows and badges — the "arrow
+   overlaps the red badge" + "Developing column cut off" reports were the same
+   handle); a control that pages a row of cards must never sit on one. The
+   at-start/at-end step-aside, the 40px tap law and the snap rail (x mandatory +
+   start — a column is never half-cut) are unchanged. */
+.stat-carousel-nav { display: flex; align-items: center; justify-content: center; gap: 0.75rem; margin-block-start: 0.7rem; }
 /* min-inline-size: 0 breaks the grid-item auto-minimum chain (the track's max-content
    ~591px would otherwise size the stage and overflow the section); display stays block —
    the .stat-strip stretches to the stage width as a block-level flex container. */
@@ -148,14 +186,12 @@
 @media (max-width: 640px) {
   .stat-carousel .stat-box.is-empty { display: none; }
 }
-/* S42: overlay handles — absolute inside .stat-stage, vertically centered on the
-   strip. S105 (owner: "too visually noisy"): the blur+shadow chrome is gone — a
-   plain card-surface circle with a hairline (still 2.5rem / 40px for the tap law). */
+/* S42 heritage → S184: the handles left the stage overlay for the nav row; they
+   keep the S105 quiet recipe — a plain card-surface circle with a hairline
+   (still 2.5rem / 40px for the tap law). */
 .stat-arrow {
-  position: absolute;
-  inset-block-start: 50%;
-  transform: translateY(-50%);
-  z-index: 3;
+  /* S184: static now — the handle rides the nav row beside the dots (see
+     .stat-carousel-nav); no stage overlay, no row coverage. */
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -169,8 +205,6 @@
   cursor: pointer;
   transition: opacity 0.25s ease, background 0.15s ease, border-color 0.15s ease;
 }
-.stat-arrow[data-stat-prev] { inset-inline-start: -0.35rem; }
-.stat-arrow[data-stat-next] { inset-inline-end: -0.35rem; }
 /* Nothing left to page that way → the handle steps aside entirely (native touch/wheel
    scroll still reaches everything). :focus-visible overrides it so keyboard users
    tabbing onto the handle still SEE it appear. */
@@ -667,14 +701,25 @@
    id (id="main" … id="dash") and the parser drops the second attribute, so #dash never
    matched anything (user report: "sections cramped together with no distance"). The hook
    is now the .shell-dash class on that <main> (see dashboard.html). */
-main.shell-dash > section { margin-block-end: 2.9rem; }
+/* S184 (the layout audit, item 1 — ONE rhythm, the owner's option 1): the
+   dashboard main IS the parent container — a flex column with ONE 1.5rem (24px)
+   gap. Every direct child (the h1, the resume strip, the vault banner, each
+   section wrapper, the empty state) sits the same 24px from its neighbors, and
+   NO child carries its own block margin — the audit measured ~80/~80/~50/~17px
+   drift from exactly that mix (the retired 2.9rem section rhythm + the .card
+   clamp margins + the 1.1rem h1 gap). Cards that are equally related now sit
+   equally far apart; the h1-to-first-card beat is the SAME gap value. */
+main.shell-dash { display: flex; flex-direction: column; gap: 1.5rem; }
+main.shell-dash > section,
+main.shell-dash > h1 { margin-block: 0; }
 
 /* S181 (opening block 1 — the page opens with its name): the dashboard's h1 is
    VISIBLE (the same opening every page of the app speaks; it was sr-only since
    S51-A while Projects/Settings/… all opened with their name). The house h1
    tokens paint it; the dashboard only tunes the space under it so the first
    section's head (the resume strip) breathes like a section, not a caption. */
-main.shell-dash > h1 { margin-block-end: 1.1rem; }
+/* S184: the h1 carries no block margin — the parent flex gap owns the title-to-
+   first-card beat (24px, the same value as every card pair). */
 
 /* S181 (opening block 2 — the FIRST section speaks the one grammar): the resume
    strip's head row sits ABOVE its card now (.dash-sec-head from the S179 block 5
@@ -682,7 +727,7 @@ main.shell-dash > h1 { margin-block-end: 1.1rem; }
    the notebook-wrap's 0.55rem head→card gap, and the Clear button loses its old
    far-edge auto margin (the .dash-sec-actions group owns that shore now — hint +
    Clear ride together as one actions cluster). */
-.resume-dash-head { margin-block-end: 0.55rem; }
+.resume-dash-head { margin-block-end: 0; } /* S184: the head rides INSIDE the card — no extra gap under the hairline */
 .resume-dash-head .resume-clear { margin-inline-start: 0; }
 
 /* S181 (opening block 4 — the zero page joins the empty register): the cold
@@ -875,7 +920,9 @@ main.shell-dash > h1 { margin-block-end: 1.1rem; }
    SPACING (the section's grid gap), not by borders — the wrapper's divider and
    padding left with it. S129's note stands: the global capture FAB owns creation. */
 
-.dash-projects-section { display: grid; gap: 1rem; }
+/* S184: the two sibling panels (projects + overview) ride the SAME 1.5rem beat
+   as every other card pair on the page — one gap value everywhere. */
+.dash-projects-section { display: grid; gap: 1.5rem; }
 /* the S93 head-row margin (misc.css) retires — the section's grid gap is the beat now */
 .dash-projects-section .dash-projects-head { margin-block-end: 0; }
 /* the stage boxes' own card chrome — the S124 wrapper's exact recipe, one level down */
@@ -887,7 +934,7 @@ main.shell-dash > h1 { margin-block-end: 1.1rem; }
   box-shadow: 0 1px 2px rgb(0 0 0 / 0.04);
 }
 /* the carousel's own beat inside the (now chromeless) section */
-.dash-projects-section .stat-carousel { margin-block-end: 0.35rem; }
+.dash-projects-section .stat-carousel { margin-block-end: 0; } /* S184: the carousel's own padding-block (0.75rem 1rem) is the panel's foot */
 
 /* The overview row: a HORIZONTAL row of the four cards (Ideas · Problems ·
    Plans · In Progress — one fixed order). Overflow scrolls sideways (snap + thin

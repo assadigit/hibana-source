@@ -57,29 +57,35 @@ describe('dashboard stat boxes', () => {
       expect(res.status).toBe(200)
       const html = await res.text()
       // Scoped to the carousel shell — slice from the carousel wrapper to the notebook
-      // section below. S42 (owner: "make handles over them"): the strip spans the full
-      // section width inside .stat-stage (the position:relative anchor) and the chevron
-      // handles sit AFTER the track as absolute overlays — the old Session-19
-      // arrows-BEFORE-the-strip flank layout is gone.
+      // section below. S42 (owner: "make handles over them") → S184 (the layout audit,
+      // item 5): the handles LEFT the stage overlay for the NAV ROW (static siblings
+      // flanking the dots, below the strip) — an overlay handle sat ON the last visible
+      // column's rows + badges (the "arrow overlaps the red badge" / "Developing column
+      // cut off" reports). The snap rail (x mandatory + start) owns column-edge stops.
       const strip = html.slice(html.indexOf('stat-carousel'), html.indexOf('class="card notebook'))
 
-      // The carousel shell: stage anchor + track + overlay chevron handles + dots.
+      // The carousel shell: stage anchor + track + the nav row (dots flanked by the
+      // prev/next handles).
       expect(strip).toContain('stat-carousel')
       expect(strip).toContain('stat-stage')
       expect(strip).toContain('data-stat-track')
       expect(strip).toContain('data-stat-prev')
       expect(strip).toContain('data-stat-next')
       expect(strip).toContain('data-stat-dots')
-      // Overlay order pin: the stage wraps track + handles, and the handles FOLLOW the
-      // track in the DOM (absolute positioning inside .stat-stage, above the cards).
+      // Order pin: the stage wraps the track only now; the handles ride the NAV row
+      // (prev → dots → next), after the stage in the DOM.
       const stageAt = strip.indexOf('stat-stage')
       const trackAt = strip.indexOf('data-stat-track')
+      const navAt = strip.indexOf('stat-carousel-nav')
       const prevAt = strip.indexOf('data-stat-prev')
+      const dotsAt = strip.indexOf('data-stat-dots')
       const nextAt = strip.indexOf('data-stat-next')
       expect(stageAt).toBeGreaterThan(-1)
       expect(trackAt).toBeGreaterThan(stageAt)
-      expect(prevAt).toBeGreaterThan(trackAt)
-      expect(nextAt).toBeGreaterThan(prevAt)
+      expect(navAt).toBeGreaterThan(trackAt)
+      expect(prevAt).toBeGreaterThan(navAt)
+      expect(dotsAt).toBeGreaterThan(prevAt)
+      expect(nextAt).toBeGreaterThan(dotsAt)
 
       // One box per ACTIVE stage, in carousel order; the boxes carry no status badges
       // (icon-chip + stat-count + stat-label replaced them). Session 14: empty stages
@@ -133,7 +139,11 @@ describe('dashboard stat boxes', () => {
       expect((strip.match(/data-projectquickadd/g) ?? []).length).toBe(0)
       // S115: the demoted cards-view hop — muted text, the arrow icon is gone.
       expect((strip.match(/class="muted small stat-viewall"/g) ?? []).length).toBe(5)
-      expect(strip).not.toContain('icon arrow')
+      // S184: the no-arrow pin re-scopes to the STAGE (the boxes' region) — the slice
+      // beyond it now legitimately carries arrows: the overview head's new card-level
+      // "Go to tasks" link + this carousel's nav-row handles' chevrons.
+      const stage = strip.slice(strip.indexOf('stat-strip'), strip.indexOf('stat-carousel-nav'))
+      expect(stage).not.toContain('icon arrow')
       for (const s of CAROUSEL) expect(strip).toContain(`/projects.html?status=${s}&view=cards`)
 
       // Order: to-do → stat boxes → notebook → recent activity. The Ideas shelf is gone.
@@ -151,9 +161,11 @@ describe('dashboard stat boxes', () => {
 
       // The section heading carries the same go-to pattern as the to-do list (Phase 5).
       // S179 (advisor block 5): the heading joined the ONE section pattern — the
-      // title wears .dash-sec-title (18px/600) with the go-to link at the inline-end.
+      // title wears .dash-sec-title with the go-to link at the inline-end.
+      // S184 (the layout audit, item 4): every card-level head link wears the ONE
+      // .dash-sec-link grammar ("Go to [page]" + trailing arrow).
       expect(html).toContain('<h2 class="dash-sec-title">Projects</h2>')
-      expect(html).toContain('href="/projects.html"')
+      expect(html).toContain('<a class="dash-sec-link" href="/projects.html">')
       expect(html).toContain('Go to projects')
 
       // JSON branch: counts cover ALL 6 statuses (spark included), `recents` is the
@@ -311,8 +323,24 @@ describe('dashboard to-do preview', () => {
       expect(html).toContain('<div class="dash-projects-panel card">')
       expect(html).toContain('<div class="dash-ov-panel card">')
       expect(html).toContain('<div class="dash-activity-panel card">')
+      // S184 (the layout audit, item 4): the overview head gains its card-level link
+      // (/tasks.html — the S126 destination page built for exactly this surface), the
+      // activity head's "View all" retires into the "Go to [page]" grammar (its honest
+      // destination is the projects page — the feed IS the recently-updated projects
+      // list), and every head link wears .dash-sec-link.
+      expect(html).toContain('<a class="dash-sec-link" href="/tasks.html">')
+      expect(html).toContain('Go to tasks')
+      expect(html).toContain('<a class="dash-sec-link" href="/to-do-list">')
+      expect(html).toContain('Go to to-do list')
+      expect(html).not.toContain('<a class="small" href="/projects.html">')
       // The notebook's head joins the same grammar (quicknotes-helpers.ts).
       expect(html).toMatch(/<section class="card notebook notebook-dashboard">\s*<div class="dash-notebook-head dash-sec-head">/)
+      // S184: the notebook's card-level head link — "Go to notebook" onto its own full
+      // surface (/whiteboard.html, the page the app itself names "Notebook"); the
+      // archive "View all (N)" button rides the card's .dash-note-foot (column-level
+      // vocabulary) — pinned with its own counts in quicknotes.test.ts.
+      expect(html).toContain('<a class="dash-sec-link" href="/whiteboard.html">')
+      expect(html).toContain('Go to notebook')
       // S182 (owner: "same height… the rest gets scroll"): the S106 frost pill + the
       // hidden-row shipping RETIRE — no reveal button ships, and every rendered row
       // is visible in the DOM (the fixed 3-row window + the list's scroll own the

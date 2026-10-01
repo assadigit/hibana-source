@@ -819,9 +819,19 @@ describe('dashboard compact sticky (S180)', () => {
     expect(ids).toEqual(['n8', 'n7', 'n6', 'n5', 'n4'])
     // the count rides the link (the archive dialog owns the rest)
     expect(html).toContain('View all (8)')
-    // at/below the cap the count hides (the plain form stays)
+    // S184 (the layout audit, item 4): the head carries the card-level "Go to
+    // notebook" link; the archive "View all (N)" button rides the card's FOOT
+    // (.dash-note-foot — column-level vocabulary lives inside the card, at the
+    // end of the row it extends).
+    expect(html).toContain('<a class="dash-sec-link" href="/whiteboard.html">')
+    expect(html).toContain('Go to notebook')
+    expect(html).toMatch(/<div class="dash-note-foot">\s*<button type="button" class="note-view-all small" data-note-archive/)
+    // at/below the cap the count hides (the plain form stays) — and the foot row
+    // itself drops when there is nothing to page to (zero notes).
     const five = notebookHtml(notes.slice(0, 5), 'en', 'note', new Map(), true, 5)
     expect(five).toContain('>View all</button>')
     expect(five).not.toContain('View all (')
+    const zero = notebookHtml([], 'en', 'note', new Map(), true, 0)
+    expect(zero).not.toContain('dash-note-foot')
   })
 })

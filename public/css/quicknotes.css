@@ -1695,19 +1695,32 @@ body.pd-detail-lock { overflow: hidden; }
   background: var(--surface-card, var(--card, #fff));
   border: 1px solid var(--line);
   border-radius: var(--radius);
-  padding: 0 0 0.9rem;
+  padding: 0 0 1rem; /* S184: the foot rung = the 1rem side inset — one frame around the content */
+  margin-block-end: 0; /* S184: the main flex gap owns the card's outside beat */
   overflow: visible; /* the Move-to popover (z-30, absolute) must escape the card */
 }
-.card.notebook-dashboard > .dash-sec-head { padding-inline: 0.7rem; }
-.card.notebook-dashboard > *:not(.dash-sec-head) { padding-inline: 0.7rem; }
+.card.notebook-dashboard > .dash-sec-head { padding-inline: 1rem; }
+.card.notebook-dashboard > *:not(.dash-sec-head) { padding-inline: 1rem; }
 .notebook-dashboard .note-compose { margin-block-start: 0; } /* the card grid's 0.55rem gap owns the head→body spacing now */
-/* S183 (the depth audit — the composer well, audit item 3): the white-on-white
-   override RETIRES — the dashboard's note composer re-joins the app's ONE input
-   grammar (base.css: background var(--bg) — the recessed gray well). The primary
-   interactive element of the section is no longer the flattest object on screen. */
+/* S184 (the layout audit, item 6 — the affordance): the S183 gray-well return made
+   the field the SAME tone as the page canvas, so it read disabled (the owner:
+   "the quick-note input is the same grey as the page background. It looks
+   disabled."). The field now speaks the card's own surface + a VISIBLE 1px
+   --line-strong border (the Session-19 password-field register: a hairline on a
+   same-tone fill reads dead), and the app's input focus grammar is re-armed by a
+   scoped :focus-visible — the (0,2,0) resting rule would otherwise out-rank the
+   global (0,1,1) focus border. Placeholder: --muted on the white card measures
+   6.7:1 at full opacity, ~5:1 at the note placeholder's 0.75 opacity — above the
+   4.5:1 floor (and better than the old gray well's ~4.35). Dark keeps the
+   RECESSED well (the claude-dark twin below): on a dark canvas a LOWER well
+   reads as an input; only light's gray-on-gray read as disabled. */
 .notebook-dashboard .note-compose-text {
-  background: var(--bg);
-  border-color: var(--line);
+  background: var(--card);
+  border: 1px solid var(--line-strong);
+}
+.notebook-dashboard .note-compose-text:focus-visible {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 15%, transparent);
 }
 .dash-notebook-head { min-inline-size: 0; }
 .note-view-all {
@@ -1723,6 +1736,16 @@ body.pd-detail-lock { overflow: hidden; }
 }
 .note-view-all:hover { text-decoration: underline; text-underline-offset: 3px; color: var(--text); }
 .note-view-all:focus-visible { outline: 2px solid var(--focus-ring, var(--accent)); outline-offset: 1px; }
+
+/* S184: the archive "View all (N)" affordance moved from the head actions to the
+   card's FOOT — the head carries the CARD-level "Go to notebook" link (one
+   grammar with every section head); "View all" is column-level vocabulary and
+   lives inside the card, at the end of the row it extends. The card's own grid
+   gap (0.55rem) owns the row→foot separation. */
+.dash-note-foot {
+  display: flex;
+  justify-content: flex-end;
+}
 
 /* The wrapping row of stickies (S180 block 3): display:flex + flex-wrap + a
    moderate gap; every paper rides at the same ~180px inline size; the row starts

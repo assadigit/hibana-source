@@ -505,10 +505,10 @@ dialog.adm-modal::backdrop { background: rgb(0 0 0 / 0.55); }
 .pglance-grid .pglance-icon,
 .pglance-box.is-active .pglance-icon { color: rgb(var(--pg-c)); }
 
-/* --- items 1+2: the dashboard's projects heading row (پروژه‌ها + go-to link) -- */
-.dash-projects-head { margin-block-end: 0.6rem; }
-.dash-projects-head h2 { margin: 0; }
-.dash-projects-head a.small { display: inline-flex; align-items: center; gap: 0.25rem; }
+/* --- items 1+2: the dashboard's projects heading row (پروژه‌ها + go-to link) --
+   S184: the per-head margin + the a.small chrome RETIRE — on the dashboard the
+   head rides INSIDE its panel (dashboard.css's .card > .dash-sec-head owns the
+   geometry), and the link wears .dash-sec-link (one grammar). */
 
 /* --- item 12: the «نمایش:» view dropdown ------------------------------------ */
 .view-select { display: inline-flex; align-items: center; gap: 0.45rem; }
@@ -895,7 +895,7 @@ html[data-page-width="full"] main.shell.shell-flush { max-inline-size: none; }
    sweep animation (one direction, one clock) — a coordinated whole-page loading
    state, not independent spinners. prefers-reduced-motion: static placeholders.
    ══════════════════════════════════════════════════════════════════════════════ */
-.dash-skeleton { pointer-events: none; }
+.dash-skeleton { pointer-events: none; display: grid; gap: 1.5rem; } /* S184: the skeleton mirrors main.shell-dash's one-gap rhythm */
 .dash-skeleton .sk,
 .sk-topbar .sk {
   --sk-base: color-mix(in srgb, var(--muted) 16%, var(--card));
@@ -1034,7 +1034,7 @@ body:has(.dash-skeleton) .fab-stack .fab:hover { background: color-mix(in srgb, 
    hardcode its own shade of a status the badges and the kanban dots speak. */
 .ov-head {
   display: flex;
-  align-items: baseline;
+  align-items: center; /* S184: the one head grammar — center, not baseline */
   justify-content: space-between;
   gap: 0.75rem;
   margin-block-end: 0.55rem;

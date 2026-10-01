@@ -196,7 +196,7 @@ test('short pages fill the viewport — no dead gap below the layout column', as
 // wide with ellipsized titles. The pin: the strip spans the FULL section width, the
 // handles float OVER it (absolute, inside .stat-stage), and at the ends the useless
 // handle steps aside (at-start/at-end auto-hide from app.js's syncStatCarousel).
-test('dashboard @390: stage-carousel strip is full-width; handles overlay + auto-hide', async ({ page, browserName }) => {
+test('dashboard @390: stage-carousel strip is full-width; handles ride the nav row + auto-hide', async ({ page, browserName }) => {
   test.skip(browserName !== 'chromium', 'Desktop Chromium only')
   test.setTimeout(60_000) // login + seeding + paging settle
   await page.setViewportSize({ width: 390, height: 844 })
@@ -242,6 +242,11 @@ test('dashboard @390: stage-carousel strip is full-width; handles overlay + auto
     const next = document.querySelector('[data-stat-next]') as HTMLElement
     const r = (el: Element) => el.getBoundingClientRect()
     const cs = getComputedStyle(container)
+    const cards = [...document.querySelectorAll('.stat-carousel .stat-kanban-card')] as HTMLElement[]
+    const overlap = (a: HTMLElement) => cards.filter((c) => {
+      const cb = r(c); const ab = r(a)
+      return ab.left < cb.right - 1 && ab.right > cb.left + 1 && ab.top < cb.bottom - 1 && ab.bottom > cb.top + 1
+    }).length
     return {
       containerInner: r(container).width - parseFloat(cs.paddingInlineStart || '0') - parseFloat(cs.paddingInlineEnd || '0') - parseFloat(cs.borderInlineStartWidth || '0') - parseFloat(cs.borderInlineEndWidth || '0'),
       trackW: r(track).width,
@@ -251,6 +256,12 @@ test('dashboard @390: stage-carousel strip is full-width; handles overlay + auto
       next: { position: getComputedStyle(next).position, opacity: getComputedStyle(next).opacity, x: r(next).x, cy: r(next).y + r(next).height / 2 },
       trackCY: r(track).y + r(track).height / 2,
       handleSize: r(next).width,
+      // S184: the nav-row contract — a handle's box never covers a kanban card, and
+      // the nav row starts at/below the stage's bottom edge (never an overlay).
+      prevOverlaps: overlap(prev),
+      nextOverlaps: overlap(next),
+      navTop: r(document.querySelector('.stat-carousel-nav') as HTMLElement).top,
+      stageBottom: r(stage).bottom,
       // S179: the handles' viewport-edge constant anchors to the SECTION's edges
       // (the strip's visual boundary now that the card wrapper is gone).
       containerX: r(container).left,
@@ -267,20 +278,17 @@ test('dashboard @390: stage-carousel strip is full-width; handles overlay + auto
   // No sideways document scroll introduced by the overlay overhang.
   expect(geo.docScroll).toBeLessThanOrEqual(390)
 
-  // 2) The handles are OVER the strip: absolute, ≥40px (coarse-pointer tap law), and
-  //    vertically centered on the track (±8px tolerance).
-  expect(geo.prev.position).toBe('absolute')
-  expect(geo.next.position).toBe('absolute')
+  // 2) S184 (the layout audit, item 5): the handles ride the NAV ROW beside the
+  //    dots — STATIC (no stage overlay), ≥40px (coarse-pointer tap law), and they
+  //    NEVER intersect a kanban card's box (the S42 overlay covered the last visible
+  //    column's rows + badges — the "arrow overlaps the red badge" report); the nav
+  //    row starts at/below the stage's bottom edge.
+  expect(geo.prev.position).toBe('static')
+  expect(geo.next.position).toBe('static')
   expect(geo.handleSize).toBeGreaterThanOrEqual(40)
-  expect(Math.abs(geo.prev.cy - geo.trackCY)).toBeLessThanOrEqual(8)
-  expect(Math.abs(geo.next.cy - geo.trackCY)).toBeLessThanOrEqual(8)
-  // They sit at the outer edges flanking the strip (direction-agnostic: one handle's
-  // CENTER near the section's inline-start edge, the other's near its inline-end
-  // edge — over the strip's edge region. S179 moved the boundary from the retired
-  // card edge to the SECTION edge; the measure rides the section box).
-  const centers = [geo.prev.x + geo.handleSize / 2, geo.next.x + geo.handleSize / 2]
-  expect(Math.min(...centers)).toBeLessThanOrEqual(geo.containerX + 52)
-  expect(Math.max(...centers)).toBeGreaterThanOrEqual(geo.containerR - 52)
+  expect(geo.prevOverlaps).toBe(0)
+  expect(geo.nextOverlaps).toBe(0)
+  expect(geo.navTop).toBeGreaterThanOrEqual(geo.stageBottom - 1)
 
   // 3) At the start the useless prev handle steps aside; after one page it returns.
   //    (Tolerance-based: the 0.25s fade means "invisible" < 0.1, "visible" > 0.9.)

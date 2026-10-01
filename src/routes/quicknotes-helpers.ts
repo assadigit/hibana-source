@@ -395,7 +395,13 @@ export function notebookHtml(notes: QuickNote[], lang: Locale, composerMode: 'no
       <section class="card notebook notebook-dashboard">
       <div class="dash-notebook-head dash-sec-head">
         <h2 class="dash-sec-title" id="notebook-dash-h">${t('Quick Notebook', 'یادداشت سریع')}</h2>
-        <span class="dash-sec-actions">${viewAll}</span>
+        <!-- S184 (the layout audit, item 4): the head carries the CARD-level link in
+             the one "Go to [page]" grammar. The quick notebook's own full surface is
+             the Notebook page (/whiteboard.html — nav.whiteboard: "Notebook" /
+             «برگه یادداشت»); the vault's /notes.html is a different feature, so the
+             link names its ACTUAL destination. The archive count button (the
+             column-level "View all" + count vocabulary) moved to the card's foot. -->
+        <span class="dash-sec-actions"><a class="dash-sec-link" href="/whiteboard.html">${t('Go to notebook', 'رفتن به برگه یادداشت')} ${icon('arrow-right', 'icon arrow')}</a></span>
       </div>
         <form class="row note-compose" hx-post="/api/notes?dashboard=1" hx-target="#notebook" hx-swap="morph" data-note-compose>
           <label class="note-compose-label" for="note-compose-box">${t('Quick note', 'یادداشت جدید')}</label>
@@ -412,6 +418,7 @@ export function notebookHtml(notes: QuickNote[], lang: Locale, composerMode: 'no
         <div class="note-list dash-note-row">
           ${recent.map((n) => dashNoteCard(n, lang, titles)).join('')}
         </div>
+        ${viewAll ? `<div class="dash-note-foot">${viewAll}</div>` : ''}
       </section>
     </section>`
   }

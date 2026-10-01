@@ -501,7 +501,7 @@ export function dashboardRoutes(cfg: Config) {
           <h2 class="dash-sec-title">${t('To-Do List', 'لیست کارها')} <time class="dash-todo-date" datetime="${todayIso}">${dateLabel}</time></h2>
           ${chips.length ? html`<div class="dash-today-strip" role="status">${chips}</div>` : ''}
           <span class="dash-sec-actions">
-            <a class="small" href="/to-do-list">${t('Go to to-do list', 'رفتن به لیست کارها')} ${raw(icon('arrow-right', 'icon arrow'))}</a>
+            <a class="dash-sec-link" href="/to-do-list">${t('Go to to-do list', 'رفتن به لیست کارها')} ${raw(icon('arrow-right', 'icon arrow'))}</a>
             <button type="button" class="dash-collapse-btn" data-dash-collapse="dashboard-todo" aria-label="${t('Collapse section', 'جمع کردن بخش')}"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></button>
           </span>
         </header>
@@ -541,7 +541,7 @@ export function dashboardRoutes(cfg: Config) {
           <div class="dash-projects-panel card">
           <div class="row spread dash-projects-head dash-sec-head">
             <h2 class="dash-sec-title">${t('Projects', 'پروژه‌ها')}</h2>
-            <a class="small" href="/projects.html">${t('Go to projects', 'رفتن به بخش پروژه‌ها')} ${raw(icon('arrow-right', 'icon arrow'))}</a>
+            <a class="dash-sec-link" href="/projects.html">${t('Go to projects', 'رفتن به بخش پروژه‌ها')} ${raw(icon('arrow-right', 'icon arrow'))}</a>
           </div>
           <!-- S72: stale-projects nudge ("needs attention"). In-motion projects untouched
                for 14+ days, oldest first, max 3 — a quiet amber row, hidden when nothing
@@ -560,20 +560,24 @@ export function dashboardRoutes(cfg: Config) {
                  path to the rest. View all lands on the FULL stale view (S75). -->
             <a class="dash-stale-more small" href="/projects.html?stale=1">${t('View all', 'مشاهده همه')} ${raw(icon('arrow-right', 'icon arrow'))}</a>
           </div>` : html``}
-          <!-- S42: overlay handles — absolute inside .stat-stage, translucent; the
-               driver's .at-start/.at-end flags fade the handle with nothing left
-               to page. (S124's unified wrapper is gone; the carousel is the panel's
-               body — its boxes group themselves inside the section card.) -->
+          <!-- S184 (the layout audit, item 5): the handles ride the NAV ROW beside the
+               dots — static siblings BELOW the stage, never an overlay on the columns
+               (the S42 overlay covered the last visible column's rows + badges; the
+               "arrow overlaps the red badge" + "Developing column cut off" reports
+               were that handle). The snap rail (mandatory + start alignment,
+               dashboard.css) already stops every page on column edges; the driver
+               (app.js) + the at-start/at-end step-aside are untouched — it queries
+               the handle buttons wherever they sit inside the carousel root. -->
           <div class="stat-carousel" data-stat-carousel>
             <div class="stat-stage">
               <div class="stat-strip stat-boxes" data-stat-track role="group" aria-label="${t('Projects by stage', 'پروژه‌ها بر اساس مرحله')}">
               ${CAROUSEL.map(statBox)}
               </div>
-              <button type="button" class="stat-arrow" data-stat-prev aria-label="${t('Previous stages', 'مراحل قبلی')}">${raw(icon('chevron-left'))}</button>
-              <button type="button" class="stat-arrow" data-stat-next aria-label="${t('Next stages', 'مراحل بعدی')}">${raw(icon('chevron-right'))}</button>
             </div>
             <div class="stat-carousel-nav">
+              <button type="button" class="stat-arrow" data-stat-prev aria-label="${t('Previous stages', 'مراحل قبلی')}">${raw(icon('chevron-left'))}</button>
               <div class="stat-dots" data-stat-dots aria-hidden="true"></div>
+              <button type="button" class="stat-arrow" data-stat-next aria-label="${t('Next stages', 'مراحل بعدی')}">${raw(icon('chevron-right'))}</button>
             </div>
           </div>
           </div>
@@ -587,6 +591,12 @@ export function dashboardRoutes(cfg: Config) {
             <div class="ov-head dash-sec-head">
               <h2 id="ov-tasks-h" class="dash-sec-title">${t('Overall project tasks', 'کارهای همهٔ پروژه‌ها')} <span class="ov-open-total">${t('{n} open', '{n} باز', { n: num(ovData.counts.idea + ovData.counts.planned + ovData.counts.in_progress + ovData.counts.bug) })}</span></h2>
               <span class="dash-sec-actions">
+                <!-- S184 (the layout audit, item 4): the card-level link — /tasks.html is
+                     the overview's own destination page (S126 built it for exactly this
+                     surface), so the head carries the same "Go to [page]" grammar as
+                     every panel (the audit: "add one only if it has a destination
+                     page" — it has one). -->
+                <a class="dash-sec-link" href="/tasks.html">${t('Go to tasks', 'رفتن به کارها')} ${raw(icon('arrow-right', 'icon arrow'))}</a>
                 <button type="button" class="dash-collapse-btn" data-dash-collapse="ov-tasks" aria-label="${t('Collapse section', 'جمع کردن بخش')}"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></button>
               </span>
             </div>
@@ -603,7 +613,12 @@ export function dashboardRoutes(cfg: Config) {
           <div class="dash-activity-panel card">
           <div class="activity-head dash-sec-head">
             <h2 class="dash-sec-title">${t('Recent activity', 'فعالیت‌های اخیر')}</h2>
-            <a class="small" href="/projects.html">${t('View all', 'مشاهده همه')} ${raw(icon('arrow-right', 'icon arrow'))}</a>
+            <!-- S184 (the layout audit, item 4): the activity head's card-level link
+                 joins the one "Go to [page]" grammar — the feed is the recently-updated
+                 projects list, so its honest destination is the projects page (same
+                 wording as the Projects card because it IS the same page; "View all"
+                 retires to column-level vocabulary). -->
+            <a class="dash-sec-link" href="/projects.html">${t('Go to projects', 'رفتن به بخش پروژه‌ها')} ${raw(icon('arrow-right', 'icon arrow'))}</a>
           </div>
           <ul class="activity">${activity}</ul>
           </div>

@@ -129,24 +129,30 @@ test('S181-1: the dashboard opens with a VISIBLE h1 (the same opening every page
 
 /* ── 2. The first section speaks the one grammar ─────────────────────────────── */
 
-test('S181-2: the resume head sits ABOVE its card in the shared section pattern (the glowing dot retires)', async ({ page }) => {
+test('S181-2 → S183: the resume head rides INSIDE its card (header strip + hairline); the title speaks the S157 ladder', async ({ page }) => {
   await login(page)
   const strip = page.locator('#resume-strip')
   await expect(strip).toBeVisible({ timeout: 10_000 })
-  const head = strip.locator('.dash-sec-head.resume-dash-head')
   const card = strip.locator('.resume-strip.card')
-  await expect(head).toHaveCount(1)
+  const head = strip.locator('.dash-sec-head.resume-dash-head')
   await expect(card).toHaveCount(1)
-  // DOM order: the head BEFORE the card (the S179 block-5 contract, finally
-  // reached by the page's first section).
+  await expect(head).toHaveCount(1)
+  // S183 (the depth audit — L2 realized): the head is the CARD's first child —
+  // the header-strip grammar every dashboard section now speaks (the S181
+  // above-card placement retired with the S179 pattern it copied).
   const headIdx = await head.evaluate((el) => Array.from(el.parentElement!.children).indexOf(el))
-  const cardIdx = await card.evaluate((el) => Array.from(el.parentElement!.children).indexOf(el))
-  expect(headIdx).toBeLessThan(cardIdx)
-  // The title rides the shared register: 18px / 600.
+  expect(headIdx).toBe(0)
+  const headInCard = await head.evaluate((el) => el.parentElement!.classList.contains('resume-strip'))
+  expect(headInCard).toBe(true)
+  // …with the hairline divider under it.
+  const hairline = await head.evaluate((el) => getComputedStyle(el).borderBlockEndWidth)
+  expect(parseFloat(hairline)).toBeGreaterThan(0)
+  // The title rides the shared register: 18px / the S157 ladder's 500 (the S183
+  // re-alignment — "use lesser weight for headings").
   const title = strip.locator('#resume-title.dash-sec-title')
   await expect(title).toHaveText('Continue where you left off')
   await expect(title).toHaveCSS('font-size', '18px')
-  await expect(title).toHaveCSS('font-weight', '600')
+  await expect(title).toHaveCSS('font-weight', '500')
   // The old glowing dot is GONE (no ::before on the title).
   const pseudo = await title.evaluate((el) => getComputedStyle(el, '::before').content)
   expect(pseudo).toBe('none')
@@ -156,41 +162,30 @@ test('S181-2: the resume head sits ABOVE its card in the shared section pattern 
   await expect(actions.locator('[data-resume-clear]')).toContainText('Clear recents')
 })
 
-/* ── 3. The summary line + progress bar (the owner's promised additions) ─────── */
+/* ── 3. The progress bar is RETIRED (S183 — the owner: "remove this progress
+   bar") — the hero still renders, nothing measures it ──────────────────────── */
 
-test('S181-3: the hero project carries "{n} of {m} tasks done" + the progress meter (seed mode)', async ({ page }) => {
+test('S183-3: the hero project renders with NO progress line/meter (the bar retired, seed progress unconsumed)', async ({ page }) => {
   await login(page)
   const strip = page.locator('#resume-strip')
   await expect(strip).toBeVisible({ timeout: 10_000 })
-  // The seed's hero = the project (newest); 2 of 4 tasks done.
+  // The seed's hero = the project (newest) — still the hero, bar or no bar.
   await expect(strip.locator('.resume-hero-title')).toHaveText('S181 orchard app')
-  const line = strip.locator('.resume-progress-line')
-  await expect(line).toHaveText('2 of 4 tasks done')
-  const track = strip.locator('.resume-progress-track')
-  const bar = await track.evaluate((el) => {
-    const cs = getComputedStyle(el)
-    return { role: el.getAttribute('role'), max: el.getAttribute('aria-valuemax'), now: el.getAttribute('aria-valuenow'), h: cs.height, radius: cs.borderRadius }
-  })
-  expect(bar.role).toBe('progressbar')
-  expect(bar.max).toBe('4')
-  expect(bar.now).toBe('2')
-  expect(bar.h).toBe('6px') // the thin meter
-  expect(bar.radius).toBe('999px')
-  // The fill: 50% of the track, from the reading-start edge.
-  const ratio = await strip.locator('.resume-progress-fill').evaluate((fill) => {
-    const track = fill.parentElement!
-    return fill.getBoundingClientRect().width / track.getBoundingClientRect().width
-  })
-  expect(ratio).toBeGreaterThan(0.49)
-  expect(ratio).toBeLessThan(0.51)
+  // The S183 retirement: no line, no track, no fill — even though the seed's
+  // progress map (2 of 4) still ships from the API.
+  await expect(strip.locator('.resume-progress')).toHaveCount(0)
+  await expect(strip.locator('.resume-progress-line')).toHaveCount(0)
+  await expect(strip.locator('.resume-progress-track')).toHaveCount(0)
+  await expect(strip.locator('[data-resume-progress]')).toHaveCount(0)
+  await expect(strip.locator('[role="progressbar"]')).toHaveCount(0)
 })
 
-test('S181-3b: a NOTE hero renders NO bar (nothing to measure); the store wins over the seed', async ({ page }) => {
+test('S181-3b: a NOTE hero renders (no bar to retire); the store wins over the seed', async ({ page }) => {
   await login(page)
   // Seed mode rendered first (the project hero). Now a REAL store entry lands —
   // recorded the way a mutation records it — and the strip's idempotent re-render
   // (the same path a language settle rides) must let the store WIN: the note
-  // becomes the hero, and notes carry no progress bar.
+  // becomes the hero.
   await page.evaluate(() => {
     localStorage.setItem('hibana-resume', JSON.stringify([
       { k: 'note', id: 'vn-x', t: 'A store note hero', ts: Date.now() - 600_000 },
@@ -277,9 +272,9 @@ test('S181-6: every section hidden → the quiet empty strip + the settings text
   expect(probe.actionBg).toBe('rgba(0, 0, 0, 0)') // transparent — a text action
 })
 
-/* ── 7. FA/RTL: the page name, the Farsi progress line, the RTL meter ────────── */
+/* ── 7. FA/RTL: the page name + the FA hero (the progress line retired) ───────── */
 
-test('S181-7: FA — «پیشخوان» opens the page; the progress line speaks Farsi digits; the meter fills from the right', async ({ page }) => {
+test('S181-7: FA — «پیشخوان» opens the page; the FA hero renders; no progress artifacts', async ({ page }) => {
   await login(page, FA_EMAIL)
   const h1 = page.locator('main.shell-dash > h1')
   await expect(h1).toBeVisible({ timeout: 10_000 })
@@ -287,15 +282,8 @@ test('S181-7: FA — «پیشخوان» opens the page; the progress line speaks
   const strip = page.locator('#resume-strip')
   await expect(strip).toBeVisible()
   await expect(strip.locator('.resume-hero-title')).toHaveText('پروژهٔ باغ')
-  // «از ۲ کار، ۱ انجام‌شده» — the Farsi digits + the localized sentence.
-  await expect(strip.locator('.resume-progress-line')).toHaveText('از ۲ کار، ۱ انجام‌شده')
-  // RTL: the fill grows from the RIGHT edge of the track.
-  const edges = await strip.locator('.resume-progress-fill').evaluate((fill) => {
-    const track = fill.parentElement!
-    const f = fill.getBoundingClientRect()
-    const t = track.getBoundingClientRect()
-    return { gapRight: t.right - f.right, gapLeft: f.left - t.left }
-  })
-  expect(Math.abs(edges.gapRight)).toBeLessThan(1.5) // flush to the reading-start (right in RTL)
-  expect(edges.gapLeft).toBeGreaterThan(10) // and it does NOT hug the left edge
+  // S183: the retired bar leaves no artifacts in FA either (no line, no meter).
+  await expect(strip.locator('.resume-progress')).toHaveCount(0)
+  await expect(strip.locator('.resume-progress-line')).toHaveCount(0)
+  await expect(strip.locator('[role="progressbar"]')).toHaveCount(0)
 })

@@ -300,8 +300,19 @@ describe('dashboard to-do preview', () => {
       expect(dashboardQuadrants).toEqual([4, 2, 1, 3])
       // S182 (owner: "add a background for to-do list section, like the one quick note
       // has"): the section body rides inside ONE .card panel — the Quick Notebook's
-      // section-card grammar (the head stays above it, S179 block 5).
+      // section-card grammar. S183 (the depth audit — the owner's 4-layer model):
+      // the HEAD rides INSIDE the panel as its header strip (L2 realized as part of
+      // L3 — the S179 above-card placement retires), and every quadrant list rides in
+      // its own .dash-todo-listwrap (the fade-edge anchor). The projects + overview +
+      // activity bodies join the same panel grammar.
       expect(html).toContain('<div class="dash-todo-panel card">')
+      expect(html).toMatch(/<div class="dash-todo-panel card">\s*<header class="dash-todo-head dash-sec-head">/)
+      expect(html).toContain('<div class="dash-todo-listwrap">')
+      expect(html).toContain('<div class="dash-projects-panel card">')
+      expect(html).toContain('<div class="dash-ov-panel card">')
+      expect(html).toContain('<div class="dash-activity-panel card">')
+      // The notebook's head joins the same grammar (quicknotes-helpers.ts).
+      expect(html).toMatch(/<section class="card notebook notebook-dashboard">\s*<div class="dash-notebook-head dash-sec-head">/)
       // S182 (owner: "same height… the rest gets scroll"): the S106 frost pill + the
       // hidden-row shipping RETIRE — no reveal button ships, and every rendered row
       // is visible in the DOM (the fixed 3-row window + the list's scroll own the

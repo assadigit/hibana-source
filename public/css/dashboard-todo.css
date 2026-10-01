@@ -7,30 +7,44 @@
 /* S182 (owner: "add a background for to-do list section, like the one quick note
    has"): the section body joins the Quick Notebook's card grammar — ONE .card panel
    wrapping the quadrant board. The recipe mirrors .card.notebook-dashboard
-   (quicknotes.css) token-for-token: the surface bg, the neutral hairline, --radius;
-   the moderate padding (the notebook's post-S180 trim register). margin-block-end: 0 —
-   the 2.9rem section rhythm owns the spacing (the vault-banner doctrine; .card's own
-   clamp margin would double it). overflow: visible — the quadrant style popover + the
-   task ⋯ menu (fixed-positioned but anchored near the card's edges) must escape. */
-.dash-todo-panel {
+   (quicknotes.css) token-for-token: the surface bg, the neutral hairline, --radius.
+   S183 (the depth audit): the panel's padding retires to 0 — the section head
+   rides INSIDE as the header strip (dashboard.css's .card > .dash-sec-head —
+   full-bleed + hairline), and .dash-quad-wrap pads the body (0.7rem, the S182
+   register). margin-block-end: 0 — the 2.9rem section rhythm owns the spacing
+   (the vault-banner doctrine; .card's own clamp margin would double it).
+   overflow: visible — the quadrant style popover + the task ⋯ menu
+   (fixed-positioned but anchored near the card's edges) must escape. */
+.card.dash-todo-panel {
   background: var(--surface-card, var(--card, #fff));
   border: 1px solid var(--line);
   border-radius: var(--radius);
-  padding: 0.7rem;
+  padding: 0;
   margin-block-end: 0;
   overflow: visible;
 }
+/* S183: the head strip's inline padding aligns the title with the quadrant
+   board's body (0.7rem sides — the panel's own register). */
+.dash-todo-panel > .dash-sec-head { padding-inline: 0.7rem; }
+/* The body: the quadrant board + swipe hint pad themselves (the S182 panel
+   padding, moved onto the wrap). */
+.dash-todo-panel > .dash-quad-wrap { padding: 0.7rem; }
 
 /* Collapsible dashboard sections (Phase 3): a [data-dash-collapse] button on each
    section header toggles a .is-collapsed class on the section. The body (everything
    after the header) is hidden via CSS grid trick (display:none would break htmx
-   swaps). The collapse state persists in localStorage. */
+   swaps). The collapse state persists in localStorage.
+   S183 (head-inside-panel): the collapsed section keeps its panel card with the
+   head strip visible — the panel's BODY (.dash-quad-wrap) and the phone dots hide,
+   not the whole panel. */
 .dash-todo-section.is-collapsed,
 .dash-projects-section.is-collapsed,
 section[id^="dashboard-"].is-collapsed { gap: 0; }
-.dash-todo-section.is-collapsed > *:not(header),
-.dash-projects-section.is-collapsed > *:not(.dash-projects-head),
-section[id^="dashboard-"].is-collapsed > *:not(header) { display: none; }
+.dash-todo-section.is-collapsed > .dash-quad-dots,
+.dash-todo-section.is-collapsed .dash-quad-wrap { display: none; }
+.dash-projects-section.is-collapsed .dash-projects-panel > *:not(.dash-sec-head),
+.dash-projects-section.is-collapsed .dash-ov { display: none; }
+section[id^="dashboard-"].is-collapsed .dash-quad-wrap { display: none; }
 .dash-collapse-btn {
   background: none; border: none; padding: 0.2rem; cursor: pointer;
   color: var(--muted); display: inline-flex; align-items: center; transition: transform 0.15s ease, color 0.12s ease;
@@ -302,23 +316,77 @@ section[id^="dashboard-"].is-collapsed > *:not(header) { display: none; }
    FRACTIONS of the list height: 8 tasks in a ~168px window rendered 17px-tall rows
    with the 44px checkbox row clipped inside each (Ali: "tasks get compacted into each
    other and unable to read" — invisible at ≤4 tasks, extreme at 7–8). max-content pins
-   every row to its natural height so overflow:auto actually scrolls; padding-block-end
-   keeps the last row clear of the window's foot.
-   S182: the DEFINITE height comes from the quadrant card's fixed block-size above (the
+   every row to its natural height so overflow:auto actually scrolls.
+   S182: the DEFINITE height comes from the quadrant card's fixed block-size (the
    S106 "4 visible + reveal" era's variable card height retired) — flex: 1 fills exactly
    the 3-row window, min-block-size: 0 lets it shrink when the header grows or the
-   quick-add form reveals, and the scroll owns everything past the fold. */
-.dash-todo-list { list-style: none; margin: 0; padding: 0; padding-block-end: 0.25rem; min-block-size: 0; flex: 1; overflow-y: auto; overflow-x: hidden; display: grid; align-content: start; grid-auto-rows: max-content; gap: 0.24rem;
-  /* Custom thin scrollbar (user request 2026-09) — the default ugly gray scrollbar
-     was bleeding through the 4th quadrant card. Now it's thin + themed. */
-  scrollbar-width: thin;
-  scrollbar-color: var(--line-strong) transparent;
+   quick-add form reveals, and the scroll owns everything past the fold.
+   S183 (owner: "make each task item more compact so 3 items fit fully inside the
+   fixed card height without scrolling"): the listwrap anchors the FADE EDGES — the
+   wrapper takes the flex slot, the list fills it and keeps the scroll. The native
+   scrollbar HIDES (the fade edge + the scroll itself are the affordance now); wheel,
+   touch and keyboard scrolling all stay (hiding the scrollbar never disabled them).
+   app.js's syncDashTodoFades toggles .can-scroll/.fade-top/.fade-bottom from the
+   list's geometry — the fade is OFF when the list doesn't overflow. */
+.dash-todo-listwrap {
+  position: relative;   /* the fade mask + the progressive-blur strip anchor here */
+  flex: 1;
+  min-block-size: 0;
+  display: flex;
+  flex-direction: column;
+}
+.dash-todo-list { list-style: none; margin: 0; padding: 0; min-block-size: 0; flex: 1; overflow-y: auto; overflow-x: hidden; display: grid; align-content: start; grid-auto-rows: max-content; gap: 0.375rem;
+  /* S183 (owner: "hide the native scrollbar once the fade is in place") — the thin
+     custom scrollbar retires; the fade edge speaks instead. */
+  scrollbar-width: none;
+  -ms-overflow-style: none;
   -webkit-overflow-scrolling: touch;
 }
-.dash-todo-list::-webkit-scrollbar { inline-size: 5px; }
-.dash-todo-list::-webkit-scrollbar-track { background: transparent; }
-.dash-todo-list::-webkit-scrollbar-thumb { background: var(--line-strong); border-radius: 999px; }
-.dash-todo-list::-webkit-scrollbar-thumb:hover { background: var(--muted); }
+.dash-todo-list::-webkit-scrollbar { display: none; }
+/* S183 (owner: "a fade-out edge at the bottom of each task list…") — mask-image
+   gradients (~28px, inside the owner's 24–32px band), applied to the WRAPPER so
+   the scrolled content fades as it approaches the edge. Bottom fade only while
+   content waits below; the matching top fade appears once the list is scrolled
+   (JS toggles the classes; both may ride together mid-scroll). */
+.dash-todo-listwrap { --dash-fade: 1.5rem; } /* 24px — the owner's 24–32px band, sized to the compact rows */
+.dash-todo-listwrap.fade-bottom {
+  -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - var(--dash-fade)), transparent 100%);
+  mask-image: linear-gradient(to bottom, #000 calc(100% - var(--dash-fade)), transparent 100%);
+}
+.dash-todo-listwrap.fade-top {
+  -webkit-mask-image: linear-gradient(to top, #000 calc(100% - var(--dash-fade)), transparent 100%);
+  mask-image: linear-gradient(to top, #000 calc(100% - var(--dash-fade)), transparent 100%);
+}
+.dash-todo-listwrap.fade-top.fade-bottom {
+  -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 var(--dash-fade), #000 calc(100% - var(--dash-fade)), transparent 100%);
+  mask-image: linear-gradient(to bottom, transparent 0, #000 var(--dash-fade), #000 calc(100% - var(--dash-fade)), transparent 100%);
+}
+/* The optional progressive-blur edge (the owner's spec): a gradient-masked blur
+   strip pinned to the wrapper's foot — transparent at its top, strongest at the
+   very edge — visible ONLY while the list can scroll (opacity keyed to .can-scroll,
+   the same state as the bottom fade). pointer-events:none — the half-faded rows
+   stay clickable. @supports + prefers-reduced-transparency guard the effect. */
+.dash-todo-listwrap::after {
+  content: '';
+  position: absolute;
+  inset-block-end: 0;
+  inset-inline: 0;
+  block-size: var(--dash-fade);
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+  -webkit-backdrop-filter: blur(2.5px);
+  backdrop-filter: blur(2.5px);
+  -webkit-mask-image: linear-gradient(to bottom, transparent, #000 100%);
+  mask-image: linear-gradient(to bottom, transparent, #000 100%);
+}
+.dash-todo-listwrap.can-scroll::after { opacity: 1; }
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .dash-todo-listwrap::after { display: none; }
+}
+@media (prefers-reduced-transparency: reduce) {
+  .dash-todo-listwrap::after { display: none; }
+}
 /* (v) 2026-09-09: the to-do page's progress palette, ported verbatim from
    sadhana.html's .sadhana-wrap tokens so both surfaces share ONE visual system
    (grey = untouched, pastel orange = in progress, violet = on hold).
@@ -331,14 +399,21 @@ section[id^="dashboard-"].is-collapsed > *:not(header) { display: none; }
   --st-hold: #A78BFA; --st-hold-bg: rgba(167, 139, 250, .14); --st-hold-bd: rgba(167, 139, 250, .5);
 }
 .dash-todo-task {
-  display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: 0.25rem;
+  display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: 0.15rem;
   align-items: start; min-inline-size: 0; max-block-size: 100vh; overflow: hidden;
   /* S95 r2 (owner items 2+3): every task row sits on ONE neutral off-white
      (--statcard-bg) with the uniform neutral hairline — no shadow, no state wash
      (the row never "floats"; state speaks through the 3px lead crescent below). */
   background: var(--statcard-bg);
   border: 1px solid var(--line); border-radius: var(--radius-sm);
-  padding: 0.1rem 0.4rem 0.08rem;
+  /* S183 (owner: "reduce the vertical padding (~6–8px top/bottom), item gap
+     (~6px), checkbox (~16–18px), text size/line-height slightly if still
+     needed — 3 items must fit fully inside the fixed card height"): the row's
+     block padding trims to ~1.5px + the gap between the check lane and the
+     progress track to 0.15rem (the 6px item gap lives on the LIST). Text size
+     and contrast are UNTOUCHED (the owner's constraint) — the fit comes from
+     padding + the lane + the checkbox. */
+  padding: 0.05rem 0.4rem 0.04rem;
   position: relative; /* Phase 7 item 3: the ⋯ menu anchors to the row's top-end corner */
   transition: opacity 0.24s ease, max-block-size 0.3s ease, background-color 0.18s ease, border-color 0.18s ease, margin-block 0.3s ease;
 }
@@ -385,10 +460,10 @@ section[id^="dashboard-"].is-collapsed > *:not(header) { display: none; }
    pointers keep the 44px touch floor), and the checkbox itself ENLARGES to 1.25rem
    with a -0.6rem hit island (≥24×24 guaranteed at every pointer type, ~39px total
    — inside the row, never stealing the neighbor's clicks). */
-.dash-todo-check { grid-column: 1; display: flex; align-items: center; gap: var(--task-row-gap); min-inline-size: 0; min-block-size: 2.5rem; padding-block: 0.3rem; padding-inline-end: 2.5rem; cursor: default; }
+.dash-todo-check { grid-column: 1; display: flex; align-items: center; gap: var(--task-row-gap); min-inline-size: 0; min-block-size: 1.5rem; padding-block: 0.1rem; padding-inline-end: 2.5rem; cursor: default; } /* S183 (owner: 3 rows must fit): lane 2.5rem → 1.5rem — the tap guarantee lives on the ::before island, not the lane */
 .dash-todo-check input {
   flex: none;
-  inline-size: 1.25rem; block-size: 1.25rem;
+  inline-size: 1.05rem; block-size: 1.05rem; /* S183 (owner: "checkbox ~16–18px") — the -0.6rem island still wraps a ~36px tap zone */
   margin-block: 0; margin-inline: 0;
   accent-color: var(--accent);
   cursor: pointer;
@@ -397,11 +472,12 @@ section[id^="dashboard-"].is-collapsed > *:not(header) { display: none; }
 /* S179: 24×24-minimum hit island (WCAG 2.5.5 / 2.2 floor) — ±9.6px around the
    20px visual box, ~39px total: comfortably over the floor, still inside the row. */
 .dash-todo-check input::before { content: ''; position: absolute; inset: -0.6rem; }
-.dash-todo-check span { padding-block: 0.1rem; overflow-wrap: anywhere; line-height: 1.3; color: var(--text); font-size: var(--fs-sm); }
+.dash-todo-check span { padding-block: 0.05rem; overflow-wrap: anywhere; line-height: 1.25; color: var(--text); font-size: var(--fs-sm); } /* S183: line-height 1.3 → 1.25 ("slightly, if still needed") — size + contrast untouched */
 /* S179: the touch floor stays a FIRST-CLASS contract on coarse pointers — the
    rows and the checkbox hit island both step back up to the 44px register. */
 @media (pointer: coarse) {
   .dash-todo-check { min-block-size: 2.75rem; }
+  .dash-todo-check input { inline-size: 1.25rem; block-size: 1.25rem; } /* S183: the visual box too — the touch register */
   .dash-todo-check input::before { inset: -0.725rem; }
 }
 /* (v) 2026-09-09: the old .dash-todo-progress-dot hover control (the single status

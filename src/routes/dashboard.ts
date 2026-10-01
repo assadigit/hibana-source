@@ -451,9 +451,15 @@ export function dashboardRoutes(cfg: Config) {
                  quadrant ancestor). -->
             <span class="row dash-todo-qactions"><span class="dash-todo-counter board-count" data-dash-quadrant-count="${q.id}" title="${t('Active count', 'تعداد فعال')}">${todoNum(tasks.length)}</span><button type="button" class="dash-todo-fab" data-dash-quickadd-fab="${q.id}" aria-label="${t('Add task', 'افزودن کار')}" title="${t('Add task', 'افزودن کار')}">${raw(icon('plus'))}</button></span>
           </header>
+          <!-- S183 (depth audit — L2/L3): the list rides in its own .dash-todo-listwrap —
+               the fade-edge anchor (mask + progressive-blur overlay live on the wrapper,
+               the scroll stays on the list itself; app.js toggles .can-scroll/.fade-top/
+               .fade-bottom from the list's scroll geometry). -->
+          <div class="dash-todo-listwrap">
           <ul class="dash-todo-list">
             ${taskRows}
           </ul>
+          </div>
           <!-- 2026-09-06 (k) user request: the quick-add moved OUT of the customize
                popover into its own revealed row (S179: the trigger now lives in the
                card header — this form reveals under the header, Enter adds via the
@@ -483,14 +489,14 @@ export function dashboardRoutes(cfg: Config) {
         if (overdue > 0) chips.push(html`<span class="dash-today-chip dash-today-overdue" title="${t('Overdue', 'گذشته')}">${raw(icon('alert'))} ${num2(overdue)} ${t('overdue', 'گذشته')}</span>`)
         if (pinned > 0) chips.push(html`<span class="dash-today-chip dash-today-pinned" title="${t('Pinned', 'سنجاق‌شده')}">${raw(icon('pin'))} ${num2(pinned)}</span>`)
         if (solvedWeek > 0) chips.push(html`<span class="dash-today-chip dash-today-done" title="${t('Solved this week', 'حل‌شده این هفته')}">${raw(icon('check'))} ${num2(solvedWeek)} ${t('this week', 'این هفته')}</span>`)
-        return html`<section class="dash-todo-section" id="dashboard-todo">
-        <!-- S179 (advisor block 5 — ONE section pattern): every dashboard section head
-             is the SAME row — the title (~18px/600) on the reading-start edge, the
-             secondary actions ("View all"-style link + the collapse chevron) at the
-             INLINE-END. The collapse button moved out of the h2 (it was the first
-             glyph inside the title — a third placement pattern); app.js's
-             initCollapseButtons wiring keys off [data-dash-collapse] + the section id,
-             so the reposition rides the existing recipe untouched. -->
+      return html`<section class="dash-todo-section" id="dashboard-todo">
+        <!-- S183 (the depth audit — the owner's 4-layer model, L2 realized): the section
+             head moves INSIDE the panel card as a header strip + hairline divider — the
+             title lives on the same surface it names, not floating on the page canvas
+             (reverses the S179 block-5 above-card call; the audit measured the loudest
+             ink on the deepest layer and called it). app.js's initCollapseButtons wiring
+             keys off [data-dash-collapse] + the section id — untouched. -->
+        <div class="dash-todo-panel card">
         <header class="dash-todo-head dash-sec-head">
           <h2 class="dash-sec-title">${t('To-Do List', 'لیست کارها')} <time class="dash-todo-date" datetime="${todayIso}">${dateLabel}</time></h2>
           ${chips.length ? html`<div class="dash-today-strip" role="status">${chips}</div>` : ''}
@@ -504,13 +510,11 @@ export function dashboardRoutes(cfg: Config) {
              hint; the dot row below is built by app.js from the rendered quadrants
              (data-dash-name) and re-built after every htmx refresh of main.shell-dash.
              S182 (owner: "add a background for to-do list section, like the one quick
-             note has"): the section body joins the Quick Notebook's card grammar — the
-             head stays ABOVE (the one .dash-sec-head pattern, S179 block 5), the quadrant
-             board rides INSIDE one .card panel (.dash-todo-panel, the .card.notebook-
-             dashboard recipe: surface bg + hairline + --radius). The phone dots stay
-             BELOW the panel (they index the carousel, they are not part of its surface). -->
-        <div class="dash-todo-panel card">
-          <div class="dash-quad-wrap">
+             note has"): the section body joins the Quick Notebook's card grammar — ONE
+             .card panel wrapping the quadrant board. S183: the head strip rides INSIDE
+             the panel (its first child, above the hairline); the phone dots stay BELOW
+             the panel (they index the carousel, they are not part of its surface). -->
+        <div class="dash-quad-wrap">
             <div class="dash-todo-grid" data-dash-quadrants>
               ${orderedQuadrants(QUADRANTS, user.sadhana_quadrant_order).map(todoCard)}
             </div>
@@ -528,18 +532,22 @@ export function dashboardRoutes(cfg: Config) {
         todo: todoSection,
 
         projects: (): SafeHtml => html`<section class="dash-projects-section">
-          <!-- S179 (advisor block 5): the section head joins the ONE pattern (title +
-               go-to link at the inline-end); the OUTER unified container around the
-               Projects board RETIRES — the stage boxes and the overview cards sit
-               directly in the section, grouped by spacing, not by a border card
-               (each .stat-box paints its own card chrome now, dashboard.css). -->
+          <!-- S183 (depth audit — L2/L3): the section head moves INSIDE its panel card
+               (header strip + hairline — the owner's 4-layer model), and the stage-box
+               carousel + the stale nudge ride in the SAME panel as the section body —
+               the S179 "grouped by spacing, not by a border card" call reverses with it
+               (each .stat-box keeps its own box chrome inside the panel, the quadrant
+               grammar). The overview below becomes its own sibling panel. -->
+          <div class="dash-projects-panel card">
           <div class="row spread dash-projects-head dash-sec-head">
             <h2 class="dash-sec-title">${t('Projects', 'پروژه‌ها')}</h2>
             <a class="small" href="/projects.html">${t('Go to projects', 'رفتن به بخش پروژه‌ها')} ${raw(icon('arrow-right', 'icon arrow'))}</a>
           </div>
           <!-- S72: stale-projects nudge ("needs attention"). In-motion projects untouched
                for 14+ days, oldest first, max 3 — a quiet amber row, hidden when nothing
-               is stale (like the urgent strip). Serves job #2: what you left hanging. -->
+               is stale (like the urgent strip). Serves job #2: what you left hanging.
+               S183: rides INSIDE the panel, under the head strip (it belongs to the
+               Projects surface; the reading order is unchanged). -->
           ${staleProjects.length ? html`<div class="dash-stale-row" role="status">
             <span class="dash-stale-flag">${raw(icon('clock', 'icon'))} ${t('Untouched for 2+ weeks', 'دو هفته بدون تغییر')}</span>
             <span class="dash-stale-chips">
@@ -554,8 +562,8 @@ export function dashboardRoutes(cfg: Config) {
           </div>` : html``}
           <!-- S42: overlay handles — absolute inside .stat-stage, translucent; the
                driver's .at-start/.at-end flags fade the handle with nothing left
-               to page. (S124's unified wrapper is gone; the carousel is a direct
-               child of the section — its own cards group themselves.) -->
+               to page. (S124's unified wrapper is gone; the carousel is the panel's
+               body — its boxes group themselves inside the section card.) -->
           <div class="stat-carousel" data-stat-carousel>
             <div class="stat-stage">
               <div class="stat-strip stat-boxes" data-stat-track role="group" aria-label="${t('Projects by stage', 'پروژه‌ها بر اساس مرحله')}">
@@ -568,16 +576,14 @@ export function dashboardRoutes(cfg: Config) {
               <div class="stat-dots" data-stat-dots aria-hidden="true"></div>
             </div>
           </div>
-          <!-- S179 (advisor blocks 5+12 — the NESTED "Overall project tasks" container
-               retires): the overview is now a section-level block with the SAME head
-               pattern every section speaks — the title, the TOTAL ("{n} open" — the
-               donut's job, moved to text) beside it, the collapse chevron at the
-               inline-end — and its four cards (Ideas · Problems · Plans · In Progress,
-               ONE fixed order) directly below, separated by spacing (the
-               border-top divider is gone). The .dash-ov class + ov-tasks id STAY
-               (the shared collapse store + the Settings hide key off them); only the
-               nested card chrome left. -->
+          </div>
+          <!-- S179 (advisor blocks 5+12) → S183 (depth audit): the overview is its OWN
+               sibling panel card now (head strip + hairline inside it, the four fixed
+               cards as its body) — same section-card grammar as every other dashboard
+               section. The .dash-ov class + ov-tasks id STAY (the shared collapse store
+               + the Settings hide key off them). -->
           <section class="dash-ov ov" id="ov-tasks" aria-labelledby="ov-tasks-h">
+            <div class="dash-ov-panel card">
             <div class="ov-head dash-sec-head">
               <h2 id="ov-tasks-h" class="dash-sec-title">${t('Overall project tasks', 'کارهای همهٔ پروژه‌ها')} <span class="ov-open-total">${t('{n} open', '{n} باز', { n: num(ovData.counts.idea + ovData.counts.planned + ovData.counts.in_progress + ovData.counts.bug) })}</span></h2>
               <span class="dash-sec-actions">
@@ -587,19 +593,20 @@ export function dashboardRoutes(cfg: Config) {
             <div class="dash-proj-lower" role="group" aria-label="${t('Overall project tasks', 'کارهای همهٔ پروژه‌ها')}">
               ${raw(dashboardOverviewRowHtml(ovData.counts, ovData.recent, lang))}
             </div>
+            </div>
           </section>
         </section>`,
         notebook: (): SafeHtml => raw(notebookHtml(notes, lang, 'note', noteTitles, true, noteTotal[0]?.n)),
         activity: (): SafeHtml => html`<section class="activity-section">
-          <!-- S179 (advisor block 5): the last holdout joins the ONE head pattern —
-               the h3 (a second size register) becomes the shared section title, and
-               the "View all" link moves from BELOW the list up into the heading row's
-               inline-end where every other section keeps its secondary action. -->
+          <!-- S183 (depth audit — L2/L3): the activity head joins every other section —
+           inside its own panel card (header strip + hairline, the list as the body). -->
+          <div class="dash-activity-panel card">
           <div class="activity-head dash-sec-head">
             <h2 class="dash-sec-title">${t('Recent activity', 'فعالیت‌های اخیر')}</h2>
             <a class="small" href="/projects.html">${t('View all', 'مشاهده همه')} ${raw(icon('arrow-right', 'icon arrow'))}</a>
           </div>
           <ul class="activity">${activity}</ul>
+          </div>
         </section>`,
       }
       const ALL = ['todo', 'projects', 'notebook', 'activity']

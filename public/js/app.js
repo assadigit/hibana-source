@@ -2208,6 +2208,36 @@ window.hibana = (() => {
   window.addEventListener('resize', buildDashQuadDots)
   if (document.readyState !== 'loading') buildDashQuadDots()
 
+  // ---- S183 (owner: the faded scroll edges on the to-do quadrant lists) ------------
+  // The .dash-todo-listwrap carries the mask/blur states; the scroll itself stays on
+  // .dash-todo-list (native scrollbar hidden — wheel/touch/keyboard all still scroll).
+  // .can-scroll = the list overflows (the bottom fade + progressive blur turn OFF
+  // when everything fits — 3 compact rows sit clean in the fixed window);
+  // .fade-bottom = content waits below; .fade-top = the list is scrolled (the
+  // matching top edge). ONE capture-phase scroll listener covers every list across
+  // htmx re-renders (the buildDashQuadDots trick above); swaps, task mutations
+  // (updateDashTaskEmpty calls in) and resize re-measure the geometry.
+  const syncDashTodoFade = (list) => {
+    const wrap = list.closest('.dash-todo-listwrap')
+    if (!wrap) return
+    const overflows = list.scrollHeight > list.clientHeight + 1
+    wrap.classList.toggle('can-scroll', overflows)
+    wrap.classList.toggle('fade-bottom', overflows && list.scrollTop + list.clientHeight < list.scrollHeight - 2)
+    wrap.classList.toggle('fade-top', overflows && list.scrollTop > 2)
+  }
+  const syncDashTodoFades = () => {
+    document.querySelectorAll('.dash-todo-list').forEach(syncDashTodoFade)
+  }
+  document.addEventListener('scroll', (e) => {
+    const t = e.target
+    if (t && t.classList && t.classList.contains('dash-todo-list')) syncDashTodoFade(t)
+  }, { capture: true, passive: true })
+  for (const name of ['htmx:afterSwap', 'afterSwap', 'htmx:load', 'load']) {
+    document.addEventListener(name, syncDashTodoFades)
+  }
+  window.addEventListener('resize', syncDashTodoFades, { passive: true })
+  if (document.readyState !== 'loading') syncDashTodoFades()
+
   // ---- Dashboard To-Do preview: shared Sadhana data, local card UI state -------------
   // The preview never owns task data. It posts to the Sadhana endpoints and refreshes the
   // dashboard fragment, so completion, notes, progress, and renames stay in sync with the
@@ -3348,6 +3378,9 @@ window.hibana = (() => {
         '<button type="button" class="dash-todo-add-text" data-dash-quickadd-fab="' + qid + '">' + _t('dashboard.addTask', 'Add a task') + '</button>'
       list.append(li)
     }
+    // S183: the empty/add/remove flip changes the overflow geometry — re-measure
+    // the fade edges with the shared sync (the swap path re-runs it too).
+    syncDashTodoFade(list)
   }
   const persistDashOrder = async (card) => {
     const list = dashTaskList(card)
@@ -4166,6 +4199,6 @@ window.hibana = (() => {
   else announceShareCapture()
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', consumeShareTarget, { once: true })
   else consumeShareTarget()
-  Object.assign(window.__hib, { _t, esc, escHtml, toast, handle401, currentTheme, setTheme, paintThemeButton, toggleTheme, buildQuickAdd, openQuickAdd, buildProjectAdd, openProjectAdd, buildTaskAdd, openTaskAdd, buildQuickNoteAdd, openQuickNoteAdd, draftLines, DRAFT_X, renderDraft, syncStatCarousel, initStatCarousel, getCollapsed, setCollapsed, initCollapseButtons, dashQuadPhone, dashQuadGrid, dashQuadIndex, syncDashQuadDots, goToDashQuad, hideDashSwipeHint, wireDashSwipeHint, buildDashQuadDots, refreshDashboard, closeDashMenu, dashTaskRequest, refreshTaskSurface, setDashQuickaddReady, closeDashNoteBubble, closeDashNotePanel, openDashNoteBubble, dashNoteFmt, dashNoteEditStart, dashNoteEditRestore, dashNoteDelete, dashNoteRow, dashNoteAnchorRect, placeDashNotePanel, openDashNotePanel, closeOpenDashMenus, placeDashMenu, clearDashTaskDropTargets, dashTaskList, updateDashTaskEmpty, persistDashOrder, updateDashTaskCounter, showDashTaskMoveError, autosizeNote, buildNoteReader, enterNoteEdit, openNoteReader, injectNoteMenus, closeNoteMenus, buildNoteEditor, applyNoteView, applyNoteSize, applyNoteControlsOpen, markClampedNotes, fabEl, setFabOpen })
+  Object.assign(window.__hib, { _t, esc, escHtml, toast, handle401, currentTheme, setTheme, paintThemeButton, toggleTheme, buildQuickAdd, openQuickAdd, buildProjectAdd, openProjectAdd, buildTaskAdd, openTaskAdd, buildQuickNoteAdd, openQuickNoteAdd, draftLines, DRAFT_X, renderDraft, syncStatCarousel, initStatCarousel, getCollapsed, setCollapsed, initCollapseButtons, dashQuadPhone, dashQuadGrid, dashQuadIndex, syncDashQuadDots, goToDashQuad, hideDashSwipeHint, wireDashSwipeHint, buildDashQuadDots, refreshDashboard, syncDashTodoFades, closeDashMenu, dashTaskRequest, refreshTaskSurface, setDashQuickaddReady, closeDashNoteBubble, closeDashNotePanel, openDashNoteBubble, dashNoteFmt, dashNoteEditStart, dashNoteEditRestore, dashNoteDelete, dashNoteRow, dashNoteAnchorRect, placeDashNotePanel, openDashNotePanel, closeOpenDashMenus, placeDashMenu, clearDashTaskDropTargets, dashTaskList, updateDashTaskEmpty, persistDashOrder, updateDashTaskCounter, showDashTaskMoveError, autosizeNote, buildNoteReader, enterNoteEdit, openNoteReader, injectNoteMenus, closeNoteMenus, buildNoteEditor, applyNoteView, applyNoteSize, applyNoteControlsOpen, markClampedNotes, fabEl, setFabOpen })
   return { toast, handle401, openQuickAdd, openProjectAdd, openTaskAdd, setTheme, toggleTheme, paintThemeButton, currentTheme, esc }
 })()

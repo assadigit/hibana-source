@@ -10,21 +10,21 @@
   <link rel="stylesheet" href="/css/variables.css?v=23">
   <link rel="stylesheet" href="/css/base.css?v=12">
   <link rel="stylesheet" href="/css/layout.css?v=60">
-  <link rel="stylesheet" href="/css/dashboard.css?v=34">
-  <link rel="stylesheet" href="/css/dashboard-todo.css?v=20">
+  <link rel="stylesheet" href="/css/dashboard.css?v=37">
+  <link rel="stylesheet" href="/css/dashboard-todo.css?v=22">
   <link rel="stylesheet" href="/css/components.css?v=9">
   <link rel="stylesheet" href="/css/canvas.css?v=11">
-  <link rel="stylesheet" href="/css/quicknotes.css?v=42">
+  <link rel="stylesheet" href="/css/quicknotes.css?v=43">
   <link rel="stylesheet" href="/css/to-do-list.css?v=10">
-  <link rel="stylesheet" href="/css/polish-ui.css?v=35">
+  <link rel="stylesheet" href="/css/polish-ui.css?v=37">
   <link rel="stylesheet" href="/css/calendar.css?v=8">
   <link rel="stylesheet" href="/css/notifications.css?v=11">
   <link rel="stylesheet" href="/css/polish-batch.css?v=29">
   <link rel="stylesheet" href="/css/project-header.css?v=48">
   <link rel="stylesheet" href="/css/devboard.css?v=29">
-  <link rel="stylesheet" href="/css/misc.css?v=20">
+  <link rel="stylesheet" href="/css/misc.css?v=21">
   <link rel="stylesheet" href="/css/themes.css?v=8">
-  <link rel="stylesheet" href="/css/claude-dark-theme.css?v=24">
+  <link rel="stylesheet" href="/css/claude-dark-theme.css?v=25">
   <link rel="stylesheet" href="/css/rtl.css?v=5">
   <link rel="stylesheet" href="/css/task-controls.css?v=5">
   <link rel="stylesheet" href="/css/magic-wand.css?v=7">
@@ -37,12 +37,12 @@
   <!-- Phase 6 item 2: full emoji library + shared picker (quadrant symbol) -->
   <!-- M7: emoji-data.js lazy-loaded by emoji-picker.js on first open (saves 49KB on every page load) -->
   <script src="/js/emoji-picker.js?v=3" defer></script>
-  <script src="/js/app.js?v=215" defer></script>
+  <script src="/js/app.js?v=216" defer></script>
   <script src="/js/hib-init.js?v=11" defer></script>
   <script src="/js/touch-drag.js?v=1" defer></script>
-  <script src="/js/i18n-en.js?v=91" defer></script>
-  <script src="/js/i18n.js?v=145" defer></script>
-  <script src="/js/resume.js?v=14" defer></script>
+  <script src="/js/i18n-en.js?v=92" defer></script>
+  <script src="/js/i18n.js?v=146" defer></script>
+  <script src="/js/resume.js?v=15" defer></script>
   <script src="/js/magic-wand.js?v=17" defer></script>
   <script src="/js/ai-autopolish.js?v=1" defer></script>
   <script src="/js/nav.js?v=40" defer></script>
@@ -103,7 +103,10 @@
     <h1 data-i18n="nav.dashboard" hx-preserve="true">Dashboard</h1>
     <div id="dash-skeleton" class="dash-skeleton" role="status" aria-label="Loading dashboard">
       <section class="dash-todo-section">
-        <header class="dash-todo-head">
+        <!-- S183 (depth audit): the skeleton mirrors the head-INSIDE-panel grammar so
+             the pre-swap shape matches the SSR panel (zero jump on swap). -->
+        <div class="dash-todo-panel card">
+        <header class="dash-todo-head dash-sec-head">
           <h2><span class="sk sk-heading"></span></h2>
         </header>
         <!-- Session-12: .dash-quad-wrap mirrors the SSR structure so the skeleton swaps
@@ -111,7 +114,6 @@
              S182: the wrap rides inside the .dash-todo-panel card (the SSR panel twin —
              the Quick Notebook's section-card grammar) so the skeleton's surface + the
              swaped-in panel occupy the same box. -->
-        <div class="dash-todo-panel card">
         <div class="dash-quad-wrap">
         <div class="dash-todo-grid">
           <article class="dash-todo-quadrant sk-quad" aria-hidden="true">
@@ -122,11 +124,11 @@
               </div>
               <span class="row dash-todo-qactions"><span class="sk sk-quad-count"></span></span>
             </header>
-            <ul class="dash-todo-list">
+            <div class="dash-todo-listwrap"><ul class="dash-todo-list">
               <li class="dash-todo-task"><span class="sk sk-task"></span><span class="sk sk-prog"></span></li>
               <li class="dash-todo-task"><span class="sk sk-task"></span><span class="sk sk-prog"></span></li>
               <li class="dash-todo-task"><span class="sk sk-task"></span><span class="sk sk-prog"></span></li>
-            </ul>
+            </ul></div>
           </article>
           <article class="dash-todo-quadrant sk-quad" aria-hidden="true">
             <header class="dash-todo-qhead">
@@ -136,11 +138,11 @@
               </div>
               <span class="row dash-todo-qactions"><span class="sk sk-quad-count"></span></span>
             </header>
-            <ul class="dash-todo-list">
+            <div class="dash-todo-listwrap"><ul class="dash-todo-list">
               <li class="dash-todo-task"><span class="sk sk-task"></span><span class="sk sk-prog"></span></li>
               <li class="dash-todo-task"><span class="sk sk-task"></span><span class="sk sk-prog"></span></li>
               <li class="dash-todo-task"><span class="sk sk-task"></span><span class="sk sk-prog"></span></li>
-            </ul>
+            </ul></div>
           </article>
           <article class="dash-todo-quadrant sk-quad" aria-hidden="true">
             <header class="dash-todo-qhead">
@@ -150,11 +152,11 @@
               </div>
               <span class="row dash-todo-qactions"><span class="sk sk-quad-count"></span></span>
             </header>
-            <ul class="dash-todo-list">
+            <div class="dash-todo-listwrap"><ul class="dash-todo-list">
               <li class="dash-todo-task"><span class="sk sk-task"></span><span class="sk sk-prog"></span></li>
               <li class="dash-todo-task"><span class="sk sk-task"></span><span class="sk sk-prog"></span></li>
               <li class="dash-todo-task"><span class="sk sk-task"></span><span class="sk sk-prog"></span></li>
-            </ul>
+            </ul></div>
           </article>
           <article class="dash-todo-quadrant sk-quad" aria-hidden="true">
             <header class="dash-todo-qhead">
@@ -164,24 +166,23 @@
               </div>
               <span class="row dash-todo-qactions"><span class="sk sk-quad-count"></span></span>
             </header>
-            <ul class="dash-todo-list">
+            <div class="dash-todo-listwrap"><ul class="dash-todo-list">
               <li class="dash-todo-task"><span class="sk sk-task"></span><span class="sk sk-prog"></span></li>
               <li class="dash-todo-task"><span class="sk sk-task"></span><span class="sk sk-prog"></span></li>
               <li class="dash-todo-task"><span class="sk sk-task"></span><span class="sk sk-prog"></span></li>
-            </ul>
+            </ul></div>
           </article>
         </div>
         </div>
         </div>
       </section>
       <section class="dash-projects-section">
-        <div class="row spread dash-projects-head">
+        <!-- S183 (depth audit): the skeleton mirrors the head-inside-panel grammar for
+             the projects + overview panels (the pre-S179 unified container leaves). -->
+        <div class="dash-projects-panel card">
+        <div class="row spread dash-projects-head dash-sec-head">
           <span class="sk sk-heading"></span>
         </div>
-        <!-- S124: the skeleton mirrors the unified container's shape — the stage
-             carousel + the overview lower row inside ONE card (S129: no FAB —
-             the skeleton stays inert until the swap replaces the section). -->
-        <div class="dash-proj-unified ov">
           <div class="stat-carousel">
             <div class="stat-strip stat-boxes">
               <div class="stat stat-box sk-stat" aria-hidden="true">
@@ -213,13 +214,20 @@
               </div>
             </div>
           </div>
-          <div class="dash-proj-lower" aria-hidden="true">
-            <div class="card ov-pie-card sk-stat"><span class="sk sk-proj"></span></div>
-            <div class="card ov-box sk-stat"><span class="sk sk-proj"></span></div>
-            <div class="card ov-box sk-stat"><span class="sk sk-proj"></span></div>
-            <div class="card ov-box sk-stat"><span class="sk sk-proj"></span></div>
-          </div>
         </div>
+        <section class="dash-ov ov">
+          <div class="dash-ov-panel card">
+            <div class="ov-head dash-sec-head">
+              <span class="sk sk-heading"></span>
+            </div>
+            <div class="dash-proj-lower" aria-hidden="true">
+              <div class="card ov-pie-card sk-stat"><span class="sk sk-proj"></span></div>
+              <div class="card ov-box sk-stat"><span class="sk sk-proj"></span></div>
+              <div class="card ov-box sk-stat"><span class="sk sk-proj"></span></div>
+              <div class="card ov-box sk-stat"><span class="sk sk-proj"></span></div>
+            </div>
+          </div>
+        </section>
       </section>
     </div>
   </main>

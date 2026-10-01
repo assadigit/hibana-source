@@ -60,14 +60,15 @@ async function login(page: Page, opts?: { theme?: 'claude-dark' }) {
   await page.waitForURL('**/app')
 }
 
-test("S179: the dashboard 'To-Do List' h2 computes the advisor's SEMI-BOLD 600 (supersedes S157's 500) and its date stays 400", async ({ page }) => {
+test("S183: the dashboard 'To-Do List' h2 rides the S157 ladder's 500 again (the depth audit re-aligns the advisor's 600) and its date stays 400", async ({ page }) => {
   await login(page)
   await page.goto('/dashboard.html')
   const h2 = page.locator('#dashboard-todo h2').first()
   await expect(h2).toBeVisible()
   const weight = await h2.evaluate((el) => getComputedStyle(el).fontWeight)
-  // S179 (advisor block 5): ONE section-heading pattern — ~18px SEMI-BOLD (600)
-  expect(weight, 'the To-Do List h2 rides the 600 semi-bold rung (S179 supersedes S157)').toBe('600')
+  // S183 (the depth audit, item 4): the S179 advisor's hardcoded 600 retired — the
+  // owner's S157 ladder ("use lesser weight for headings") wins; size + ink lead.
+  expect(weight, 'the To-Do List h2 rides the 500 rung (S183 restores S157)').toBe('500')
 
   const date = page.locator('#dashboard-todo h2 .dash-todo-date').first()
   await expect(date).toBeVisible()

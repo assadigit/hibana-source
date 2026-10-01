@@ -34,7 +34,13 @@ html[data-theme='claude-dark'] {
   /* ---------- Surfaces (elevation: page < card < modal) ---------- */
   --bg: #141413;            /* page background — the warm near-black base */
   --bg-soft: #1f1e1c;       /* wells, sidebars, inset strips */
-  --statcard-bg: #1f1e1c;
+  /* S183 (the depth audit — the dark L4 split): --statcard-bg LEFT the card
+     color — the in-card row fill becomes its own recessed step (#191817, one
+     rung below #1f1e1c, mirroring light's #FFFFFF → #F5F6F7 relationship:
+     the row well sits BETWEEN the page and the card, never ON the card's own
+     tone). The audit measured dark's L4 collapsed INTO L3 — card, row fill and
+     hover wash were one color, hairlines alone separating them. */
+  --statcard-bg: #191817;
   --card: #1f1e1c;          /* cards, list rows */
   --card-hover: #2a2927;
   /* S155 INK RUNGS — dark per the owner's spec ("invert per the Scandinavian
@@ -325,6 +331,16 @@ html[data-theme='claude-dark'] .card.notebook-dashboard {
    light sheet's .dash-todo-panel is the plain surface twin of .card.notebook-
    dashboard, so the dark twin mirrors its notebook counterpart exactly). */
 html[data-theme='claude-dark'] .card.dash-todo-panel {
+  background: color-mix(in srgb, var(--quicknote-accent) 13%, var(--card));
+}
+/* S183 (the depth audit): the NEW section panels join the same dark section-card
+   language — Projects, the Overall-tasks overview, Recent activity, and the resume
+   strip all carry the 13% quicknote-accent tint (one section-card grammar, first
+   section to last; the light sheet's twins are the plain surface cards). */
+html[data-theme='claude-dark'] .card.dash-projects-panel,
+html[data-theme='claude-dark'] .card.dash-ov-panel,
+html[data-theme='claude-dark'] .card.dash-activity-panel,
+html[data-theme='claude-dark'] .card.resume-strip {
   background: color-mix(in srgb, var(--quicknote-accent) 13%, var(--card));
 }
 html[data-theme='claude-dark'] .dash-vault-banner.card {

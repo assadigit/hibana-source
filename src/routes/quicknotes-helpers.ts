@@ -392,11 +392,11 @@ export function notebookHtml(notes: QuickNote[], lang: Locale, composerMode: 'no
       ? `<button type="button" class="note-view-all small" data-note-archive title="${t('Show all notes', 'نمایش همهٔ یادداشت‌ها')}">${trL(lang, 'View all ({n})', 'مشاهده همه ({n})', { n: n5(total) })}</button>`
       : (total === undefined || total === 0 ? '' : `<button type="button" class="note-view-all small" data-note-archive title="${t('Show all notes', 'نمایش همهٔ یادداشت‌ها')}">${t('View all', 'مشاهده همه')}</button>`)
     return `<section class="notebook-dash-wrap" id="notebook" aria-labelledby="notebook-dash-h">
+      <section class="card notebook notebook-dashboard">
       <div class="dash-notebook-head dash-sec-head">
         <h2 class="dash-sec-title" id="notebook-dash-h">${t('Quick Notebook', 'یادداشت سریع')}</h2>
         <span class="dash-sec-actions">${viewAll}</span>
       </div>
-      <section class="card notebook notebook-dashboard">
         <form class="row note-compose" hx-post="/api/notes?dashboard=1" hx-target="#notebook" hx-swap="morph" data-note-compose>
           <label class="note-compose-label" for="note-compose-box">${t('Quick note', 'یادداشت جدید')}</label>
           <div class="seg" role="group" aria-label="${t('Note mode', 'حالت یادداشت')}">

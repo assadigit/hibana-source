@@ -1685,15 +1685,28 @@ body.pd-detail-lock { overflow: hidden; }
    one composer row + one wrap row — the panel shrinks to fit its content). */
 .notebook-dash-wrap { display: grid; gap: 0.55rem; }
 .notebook-dash-wrap .card.notebook-dashboard { display: grid; gap: 0.55rem; }
+/* S183 (the depth audit — L2 realized): the card's padding retires to 0 — the
+   section head (.dash-notebook-head.dash-sec-head) rides INSIDE as the header
+   strip (dashboard.css's .card > .dash-sec-head grammar: full-bleed + hairline);
+   the body blocks (composer + the sticky row) pad their own sides. The bottom
+   padding stays (the S180 paper-shadow doctrine — overflow:visible + room below
+   for the 4px 12px 20px sticky shadows). */
 .card.notebook-dashboard {
   background: var(--surface-card, var(--card, #fff));
   border: 1px solid var(--line);
   border-radius: var(--radius);
-  padding: 0.6rem 0.7rem 0.9rem; /* S180 block 3 — was clamp(0.75rem…1rem) / clamp(1rem…1.5rem); the smaller block padding still buys the paper shadows room below (overflow stays visible) */
+  padding: 0 0 0.9rem;
   overflow: visible; /* the Move-to popover (z-30, absolute) must escape the card */
 }
+.card.notebook-dashboard > .dash-sec-head { padding-inline: 0.7rem; }
+.card.notebook-dashboard > *:not(.dash-sec-head) { padding-inline: 0.7rem; }
+.notebook-dashboard .note-compose { margin-block-start: 0; } /* the card grid's 0.55rem gap owns the head→body spacing now */
+/* S183 (the depth audit — the composer well, audit item 3): the white-on-white
+   override RETIRES — the dashboard's note composer re-joins the app's ONE input
+   grammar (base.css: background var(--bg) — the recessed gray well). The primary
+   interactive element of the section is no longer the flattest object on screen. */
 .notebook-dashboard .note-compose-text {
-  background: var(--card, #fff);
+  background: var(--bg);
   border-color: var(--line);
 }
 .dash-notebook-head { min-inline-size: 0; }

@@ -602,8 +602,11 @@ dialog.adm-modal::backdrop { background: rgb(0 0 0 / 0.55); }
   align-items: center;
   gap: 0.22rem;
   justify-self: start;
-  margin-block: 0.02rem 0.06rem;
-  padding: 0.14rem 0.45rem;
+  /* S183 (owner: 3 rows must fit): the track's own chrome trims with the row —
+     margins + padding at the minimum that keeps the dots' 0.65rem dot + label
+     legible (the label keeps its 0.62rem size; contrast + size untouched). */
+  margin-block: 0 0.03rem;
+  padding: 0.05rem 0.45rem;
   border: 1px solid var(--line);
   border-radius: 999px;
   background: var(--card);
@@ -1059,7 +1062,7 @@ body:has(.dash-skeleton) .fab-stack .fab:hover { background: color-mix(in srgb, 
 .ov-tasks .dash-collapse-btn::after,
 .dash-ov .dash-collapse-btn::after { content: ""; position: absolute; inset: -0.65rem; }
 .ov-tasks.is-collapsed > *:not(.ov-head),
-.dash-ov.is-collapsed > *:not(.ov-head) { display: none; }
+.dash-ov.is-collapsed .dash-ov-panel > *:not(.ov-head) { display: none; } /* S183: the head rides inside the .dash-ov-panel card — the panel stays, its body hides */
 .ov-tasks.is-collapsed .dash-collapse-btn .icon,
 .dash-ov.is-collapsed .dash-collapse-btn .icon { transform: rotate(-90deg); }
 /* S140: the Settings → Views HIDE — boot.js paints html[data-ov-tasks-mode='hidden']

@@ -232,18 +232,17 @@ test('dashboard @390: stage-carousel strip is full-width; handles overlay + auto
 
   const geo = await page.evaluate(() => {
     const track = document.querySelector('[data-stat-track]') as HTMLElement
-    const section = document.querySelector('.dash-projects-section') as HTMLElement
-    // S179: the unified container RETIRED — the strip is a direct child of the
-    // chromeless section; the honest full-width measure is the SECTION box (each
-    // .stat-box paints its own card now, the section carries no padding of its own).
-    const container = section
+    // S183 (the depth audit): the strip rides INSIDE the projects panel card's padded
+    // body (.dash-projects-panel > .stat-carousel) — the honest full-width measure is
+    // the CAROUSEL's content box (the strip's immediate container; the panel's 0.85rem
+    // inline padding + hairline head strip sit between it and the section now).
+    const container = document.querySelector('.stat-carousel') as HTMLElement
     const stage = document.querySelector('.stat-stage') as HTMLElement
     const prev = document.querySelector('[data-stat-prev]') as HTMLElement
     const next = document.querySelector('[data-stat-next]') as HTMLElement
     const r = (el: Element) => el.getBoundingClientRect()
     const cs = getComputedStyle(container)
     return {
-      sectionW: r(section).width,
       containerInner: r(container).width - parseFloat(cs.paddingInlineStart || '0') - parseFloat(cs.paddingInlineEnd || '0') - parseFloat(cs.borderInlineStartWidth || '0') - parseFloat(cs.borderInlineEndWidth || '0'),
       trackW: r(track).width,
       stageW: r(stage).width,

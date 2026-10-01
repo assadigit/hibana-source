@@ -258,7 +258,9 @@ test('S126: cards cap at 3 (no scroller), full-width row, View all reaches the r
   expect(scrollHeights.sh).toBeLessThanOrEqual(scrollHeights.ch + 1)
 
   // 2) the ≥900px row distributes evenly and consumes the container's full width
-  //    (no dead gap after the last card)
+  //    (no dead gap after the last card). S183: the row rides inside the
+  //    .dash-ov-panel's padded body — the last card ends at the panel's inline
+  //    padding edge (0.85rem ≈ 13.6px), not the panel's border.
   const cards = lower.locator('> .card')
   const geo = await cards.evaluateAll((els) => {
     const rects = els.map((e) => e.getBoundingClientRect())
@@ -268,7 +270,8 @@ test('S126: cards cap at 3 (no scroller), full-width row, View all reaches the r
     return { rightGap: lower2.right - rects[rects.length - 1].right, spread }
   })
   expect(geo.spread).toBeLessThan(3) // four equal tracks
-  expect(geo.rightGap).toBeLessThan(4) // the row ends where the container ends
+  expect(geo.rightGap).toBeGreaterThan(10) // the panel body's inline padding (0.85rem)
+  expect(geo.rightGap).toBeLessThan(18) // …and ONLY that padding — no dead gap beyond it
 
   // 3) badge collision resolved: the row badge (bug chip) is a rounded-square with a
   //    glyph, the header count a bare circular pill

@@ -13,7 +13,11 @@ on:
 jobs:
   ci:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    # 20 since S181's release round: the full ladder (563 unit + 322 e2e + Lighthouse)
+    # measured 15.0–15.3 min — the old 15 cap cancelled TWO docs-only runs at the
+    # final Lighthouse step (all quality gates already green; the cap, not the code,
+    # was the failure). 20 keeps ~5 min of runner-jitter headroom.
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
 

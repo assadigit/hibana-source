@@ -2418,34 +2418,10 @@ window.hibana = (() => {
       return
     }
 
-    const seeMore = e.target.closest('[data-dash-see-more]')
-    if (seeMore) {
-      const card = seeMore.closest('.dash-todo-quadrant')
-      if (!card) return
-      const expanded = card.classList.toggle('is-expanded')
-      // S106: the 4-visible glance cap. EXPAND unhides every row; COLLAPSE re-hides
-      // every row from index 4 onward (the rows the server ships hidden — the DOM
-      // order IS the display order). The old handler queried '.dash-todo-task[hidden]'
-      // — at collapse time NOTHING has the attribute (all rows were unhidden), so the
-      // forEach was a silent NO-OP and the collapse never actually folded the list
-      // (a latent S69 bug, never pinned until the S106 spec exercised both clicks).
-      card.querySelectorAll('.dash-todo-task').forEach((task, index) => {
-        task.hidden = expanded ? false : index >= 4
-      })
-      if (expanded) {
-        seeMore.textContent = _t('dashboard.seeLess', 'Show less')
-      } else {
-        const hidden = card.querySelectorAll('.dash-todo-task[hidden]').length
-        // _t is a plain lookup (no params) — the {n} substitution happens here, the
-        // same template shape the server renders ('+{n} more' / '+{n} بیشتر').
-        // Farsi digits follow the UI script (the rail's railFaDig precedent).
-        const fa = (window.hibanaI18n?.lang?.() || 'en') === 'fa'
-        const n = fa ? String(hidden).replace(/\d/g, (x) => '۰۱۲۳۴۵۶۷۸۹'[+x]) : String(hidden)
-        seeMore.textContent = _t('dashboard.moreCount', '+{n} more').replace('{n}', n)
-      }
-      seeMore.setAttribute('aria-expanded', expanded ? 'true' : 'false')
-      return
-    }
+    // S106's [data-dash-see-more] frost-pill handler RETIRED (S182): the fixed
+    // 3-row window + the list's own scroll own the reveal — rows 5–8 ship visible
+    // and scrolling reaches them, so the toggle (and the rows' hidden attrs) left
+    // with the pill.
 
     const moveTask = e.target.closest('[data-dash-move-task]')
     if (moveTask) {
@@ -3358,23 +3334,20 @@ window.hibana = (() => {
     const empty = list.querySelector(':scope > .dash-todo-empty')
     if (tasks.length) empty?.remove()
     else if (!empty) {
-      // S179 (advisor blocks 7+8): the SAME short-strip markup the server ships —
-      // "No tasks yet." + the "Add a task" text button (the delegated
-      // [data-dash-quickadd-fab] handler serves it exactly like the header ＋).
-      // The quadrant card also carries .is-quadrant-empty so the collapsed-height
-      // rules follow the content, not the sweep.
-      const card = list.closest('.dash-todo-quadrant')
-      card?.classList.add('is-quadrant-empty')
+      // S179 (advisor blocks 7+8) → S182 (owner: "whether filled or empty"): the SAME
+      // short-strip markup the server ships — "No tasks yet." + the "Add a task"
+      // text button (the delegated [data-dash-quickadd-fab] handler serves it
+      // exactly like the header ＋). The card itself keeps its FIXED height either
+      // way (the .is-quadrant-empty marker + its collapse rules retired) — the strip
+      // is the empty window's content, not a shorter card shape.
       const li = document.createElement('li')
       li.className = 'dash-todo-empty'
+      const card = list.closest('.dash-todo-quadrant')
       const qid = card?.dataset.dashQuadrant || ''
       li.innerHTML = '<span class="dash-todo-empty-text">' + _t('dashboard.quadrantEmpty', 'No tasks yet.') + '</span>' +
         '<button type="button" class="dash-todo-add-text" data-dash-quickadd-fab="' + qid + '">' + _t('dashboard.addTask', 'Add a task') + '</button>'
       list.append(li)
     }
-    // The collapsed-card flag also LIFTS when tasks return (an un-collapsed card
-    // must grow back to the working height).
-    if (tasks.length) list.closest('.dash-todo-quadrant')?.classList.remove('is-quadrant-empty')
   }
   const persistDashOrder = async (card) => {
     const list = dashTaskList(card)

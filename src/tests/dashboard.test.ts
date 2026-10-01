@@ -298,24 +298,27 @@ describe('dashboard to-do preview', () => {
       expect(html).toMatch(/class="dash-todo-counter board-count"[^>]*title="Active count"[^>]*>7</)
       const dashboardQuadrants = [...html.matchAll(/data-dash-quadrant="(\d)"/g)].map((match) => Number(match[1]))
       expect(dashboardQuadrants).toEqual([4, 2, 1, 3])
-      expect(html).toContain('data-dash-see-more="1"')
-      // S106: the overflow affordance is the FROST PILL — 4 visible, the rest hidden
-      // behind "+3 more" (7 open − 4 visible), dashed pill + the data attr app.js
-      // toggles (aria-expanded ships false).
-      expect(html).toContain('class="dash-todo-more dash-todo-more-pill"')
-      expect(html).toMatch(/data-dash-see-more="1" aria-expanded="false">\+3 more<\/button>/)
+      // S182 (owner: "add a background for to-do list section, like the one quick note
+      // has"): the section body rides inside ONE .card panel — the Quick Notebook's
+      // section-card grammar (the head stays above it, S179 block 5).
+      expect(html).toContain('<div class="dash-todo-panel card">')
+      // S182 (owner: "same height… the rest gets scroll"): the S106 frost pill + the
+      // hidden-row shipping RETIRE — no reveal button ships, and every rendered row
+      // is visible in the DOM (the fixed 3-row window + the list's scroll own the
+      // reveal).
+      expect(html).not.toContain('data-dash-see-more')
+      expect(html).not.toContain('dash-todo-more-pill')
       // 2026-09-06 (k): the quick-add moved out of the customize popover into a circular
       // + FAB on the quadrant's corner + its hidden inline form.
       expect(html).toContain('data-dash-quickadd-fab="1"')
       expect(html).toContain('data-dash-quickadd-form="1"')
-      expect((html.match(/<li class="dash-todo-task[^>]*draggable="true"/g) ?? []).length).toBe(7)
-      // S106: 4 VISIBLE + 3 hidden (was 5 + 2 — the owner's 4-item glance cap).
-      expect((html.match(/<li class="dash-todo-task[^>]*hidden>/g) ?? []).length).toBe(3)
+      expect((html.match(/<li class="dash-todo-task[^"]*" data-dash-task-id/g) ?? []).length).toBe(7)
+      // S182: ZERO hidden rows — all 7 ship visible (was 4 + 3 hidden behind the pill).
+      expect(html).not.toMatch(/<li class="dash-todo-task[^"]*"[^>]*hidden/)
       expect(html).toContain('Fifth preview')
       expect(html).toContain('Sixth hidden')
       // The exact S106 display order (position-agnostic): titles in DOCUMENT order —
-      // the 4 visible first (pinned, then newest-updated via the shared created_at
-      // tiebreak), the hidden 3 after them.
+      // the pinned first, then newest-updated via the shared created_at tiebreak.
       const titleOrder = [...html.matchAll(/data-task-title="[^"]*">([^<]*)<\/span>/g)].map((m) => m[1])
       expect(titleOrder.slice(0, 4)).toEqual(['Pinned old', 'Newest open', 'Older open', 'Fourth open'])
       expect(titleOrder.slice(4)).toEqual(['Fifth preview', 'Sixth hidden', 'Task with note'])
@@ -378,6 +381,9 @@ describe('dashboard to-do preview', () => {
       expect(html).toContain('title="Open this box on the board"')
       expect(html).toContain('+2 more on the board')
       expect((html.match(/class="dash-todo-more dash-todo-more-link"/g) ?? []).length).toBe(1)
+      // S182: the link rides INSIDE the scrollable list as its LAST row (was: a sibling
+      // below the ul) — reached by the same scroll that walks rows 4–8.
+      expect(html).toMatch(/<li class="dash-todo-more-row"><a class="dash-todo-more dash-todo-more-link"/)
       expect(html).toContain('<path d="M7 7h10v10M7 17 17 7"/>')
     } finally {
       close()
@@ -397,17 +403,19 @@ describe('dashboard to-do preview', () => {
       const res = await app.fetch(new Request('http://local/api/dashboard', { headers: { ...auth, 'HX-Request': 'true' } }))
       const html = await res.text()
       // Quadrant 1 has its task; the other three quadrants carry the placeholder.
-      // S179 (advisor block 8): the placeholder is the SHORT STRIP — "No tasks yet."
-      // + the "Add a task" text button (same data-dash-quickadd-fab wiring as the
-      // header ＋), on the .dash-todo-empty row (no longer the muted centered li).
+      // S179 (advisor block 8) → S182: the placeholder is the SHORT STRIP — "No tasks
+      // yet." + the "Add a task" text button (same data-dash-quickadd-fab wiring as the
+      // header ＋), on the .dash-todo-empty row INSIDE the list window — and the card
+      // keeps the SAME fixed height as its siblings ("whether filled or empty", the
+      // owner's words; the .is-quadrant-empty marker + collapse rules retired).
       expect((html.match(/class="dash-todo-empty"/g) ?? []).length).toBe(3)
       expect(html).toContain('No tasks yet.')
       expect((html.match(/class="dash-todo-add-text"/g) ?? []).length).toBe(3)
       // The strip rides INSIDE the quadrant's list.
       expect(html).toMatch(/<ul class="dash-todo-list">\s*<li class="dash-todo-empty">/)
-      // The empty card also carries the collapse hook (.is-quadrant-empty — the
-      // short-strip height rules key off it).
-      expect((html.match(/dash-todo-quadrant is-quadrant-empty/g) ?? []).length).toBe(3)
+      // S182: the empty-quadrant collapse hook RETIRED — every card ships the plain
+      // .dash-todo-quadrant class (one fixed-height shape, filled or empty).
+      expect(html).not.toContain('is-quadrant-empty')
     } finally {
       close()
     }

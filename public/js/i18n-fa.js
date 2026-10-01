@@ -405,9 +405,8 @@ window.__hibanaDictFA = {
       'dashboard.nothing': 'هنوز چیزی نیست',
       'dashboard.quadrantEmpty': 'هنوز کاری نیست.', 'dashboard.addTask': 'افزودن کار',
       'dashboard.moveFailed': 'جابه‌جایی ممکن نشد — دوباره تلاش کن',
-      'dashboard.seeMore': 'مشاهده بیشتر', 'dashboard.seeLess': 'نمایش کمتر',
-      /* S106: the quadrant overflow pill (۴ مرئی، مازاد پشت دکمهٔ محو +N بیشتر). */
-      'dashboard.moreCount': '+{n} بیشتر',
+      /* S182: the S106 see-more keys (seeMore/seeLess/moreCount) RETIRED with the
+         frost pill — the fixed 3-row window + the list's own scroll own the reveal. */
       'dashboard.taskUpdateFailed': 'به‌روزرسانی کار ممکن نشد',
       'dashboard.renameFailed': 'تغییر نام بخش ممکن نشد',
       'dashboard.reorderFailed': 'مرتب‌سازی بخش‌ها ممکن نشد',

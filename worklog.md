@@ -1294,3 +1294,90 @@ The chain, as run:
   full chain record; §5 rewritten (0001–0064, both schema 63, the machine
   proof + recovery path); §9 bookmark lines from the ritual;
   qa/s181-live-verify.mjs + qa/s181-verify-0064.mjs tracked.
+
+---
+Task ID: S182
+Agent: main (Z.ai Code)
+Task: The owner's two-item To-Do List round (from the live screenshot report):
+(1) "add a background for to-do list section, like the one quick note has";
+(2) "the boxes need aligment and same size, make them same height (not variable
+height), the minimum height must be equivalent of 3 items, whether filled or
+empty, the rest gets scroll."
+
+Work Log:
+- Sandbox reset recovery: /home/z/hibana re-cloned from assadigit/hibana-source
+  @ a0bf38b (= remote main, v0.4.1.8 live state, tree clean); bun install
+  --frozen-lockfile. The reset again lost .secrets.env + credentials.md — the
+  push/deploy step of this round is OWNER-GATED on a fresh token hand-off.
+- (1) THE SECTION BACKGROUND: dashboard.ts todoSection wraps .dash-quad-wrap in
+  a new .dash-todo-panel.card — the .card.notebook-dashboard recipe
+  token-for-token (surface bg + hairline + --radius + 0.7rem padding;
+  margin-block-end 0 per the vault-banner doctrine; overflow visible for the
+  popovers); the head stays above, the phone dots below; claude-dark-theme.css
+  gains the panel's 13% --quicknote-accent twin (the notebook's dark twin
+  mirrored); the static skeleton mirrors the panel + a THIRD shimmer row per
+  quadrant.
+- (2) THE FIXED-HEIGHT BOXES: .dash-todo-quadrant gets block-size
+  calc(0.85rem*2 + 3.1rem + 0.65rem + 3*2.81rem + 2*0.24rem) = 14.36rem (the
+  3-item window; --dash-todo-row 2.81rem = the 2.5rem check lane + row
+  chrome); the grid stretches (align-items: start retired); the list keeps
+  flex:1 + overflow-y:auto so scroll owns the reveal; the phone (≤720px) keeps
+  its own min(26rem, 96vw) window inside the panel.
+- RETIREES: the S106 frost pill (markup + app.js's [data-dash-see-more]
+  handler + the pill CSS + 3 dead i18n keys — parity 1557→1554), the
+  hidden-row shipping (rows 5–8 ship visible; the S69 [hidden] guard leaves),
+  the S179 empty-quadrant collapse (.is-quadrant-empty marker + 2 CSS rules +
+  the app.js classList toggles — the empty card keeps the strip INSIDE the
+  same-height window).
+- THE MOVER: the over-cap "+N more on the board" link rides INSIDE the
+  scrollable list as its LAST row (.dash-todo-more-row) — reached by the same
+  scroll, at the render-cap spot; the 8-row cap itself stays (payload-flat).
+- Cache-bust: dashboard-todo.css v19→v20 ×23 pages, claude-dark-theme.css
+  v23→v24 ×26, app.js v214→v215 ×24, i18n-en.js v90→v91 + i18n.js v144→v145
+  ×26 (+ the i18n-fa v85 lazy literal inside i18n.js); sw.js v416→v417;
+  package.json 0.4.1.9; check-cache-bust PASS.
+- Tests: dashboard.test.ts pins rewritten (the panel wrapper, zero hidden
+  rows, no pill, no is-quadrant-empty, the in-list more-row); e2e
+  s106-backlog-slice S106-2/3 rewritten for the scroll contract (all rows
+  visible, list-window geometry, the in-list board link); the NEW
+  e2e/s182-todo-panel.spec.ts (4 tests: the panel grammar compared against
+  the LIVE notebook card + head-above/dots-below order; the equal-height
+  matrix full/fitting/empty ±1px + computed block-size 225–235px + Q1
+  scrolls/Q3 doesn't; the scroll-reveals-bottom + quickadd-height-invariance
+  + add-through-the-form round-trip; the 390px carousel window 374px + 4 dots
+  + zero h-overflow); the dashboard screenshot re-baselined.
+- LADDER (all green): typecheck 0 · vitest 563/563 · eslint 0 err
+  (162-warn, under the 163 baseline) · build 79 · wiring canonical ·
+  bundle-size PASS · i18n parity 1554/1554 · smoke ALL PASS (bun) · FULL e2e
+  326/326 in 6 file-batches (one s120 media-timing flake re-verified green
+  standalone).
+- AGENT-BROWSER QA (:3017, one-shot script — the sandbox reaps orphan
+  processes between tool calls, so server + browser + probes share one
+  lifetime): EN — the panel bg/border/radius IDENTICAL to the live notebook
+  card (rgb(255,255,255)/1px/20px), cardHeights [230,230,230,230] allEqual,
+  Q1 client 137 / scroll 425, the empty Q3 strip in its window, no pill, 0
+  hidden rows; FA/RTL — dir=rtl, «پیشخوان», the panel present, [230×4];
+  claude-dark — the panel's computed bg IDENTICAL to the notebook's dark
+  twin; 390px — slide 374px, 4 dots, zero h-overflow; 0 console/page errors
+  everywhere.
+- Docs: Changelogs §1 rotated (S182 current; S177 dropped) + §2 row 182
+  (STAGED form — release owner-gated); this worklog entry.
+
+Stage Summary:
+- STAGED LOCALLY: v0.4.1.9 "The To-Do Section Card + the Fixed-Height Boxes"
+  — both owner items implemented, pinned (4 new e2e tests + rewritten S106
+  pins + unit pins), verified through the full ladder + the live-localhost
+  agent-browser pass, docs written. Awaiting the owner's token hand-off
+  (fresh sandbox reset lost .secrets.env) for: push → CI/CD → live
+  byte-verify + owner-account functional pass → tag v0.4.1.9 → zip →
+  healthcheck → docs flip to RELEASED.
+- Ops lessons: (a) this sandbox KILLS orphan processes between Bash tool
+  calls (nohup/setsid both reaped) — long QA runs must be ONE-SHOT scripts
+  (server + browser + probes inside a single call), and the full e2e suite
+  runs in file-batches with output piped through rg/tail (a full-suite
+  reporter dump blew the 1 MiB MCP frame limit — the failure surfaces as a
+  hang, not an error); (b) the Unicode-laden CSS/TS comments (—, …, ─) break
+  exact-string Edit matching — use Python line/regex edits for those blocks;
+  (c) check-n.mjs is referenced by package.json but missing from scripts/
+  (stale reference, pre-existing); smoke must run under bun (plain node
+  cannot resolve the extensionless TS imports).

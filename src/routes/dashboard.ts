@@ -307,7 +307,7 @@ export function dashboardRoutes(cfg: Config) {
         in_progress: 'p-inprog',
         on_hold: 'p-hold',
       }
-      const todoTaskHtml = (task: SadhanaTask, index: number): SafeHtml => {
+      const todoTaskHtml = (task: SadhanaTask): SafeHtml => {
         // Task progress-state coloring (2026-09 user request — same palette as the board
         // page): untouched = muted grey · in progress = pastel orange · on hold = pastel
         // yellow. Quadrant boxes themselves stay neutral. The 3-dot prog-track (Phase 5)
@@ -321,7 +321,11 @@ export function dashboardRoutes(cfg: Config) {
         // only the checkbox (its ≥40px ::before hit area) completes the task. The
         // completion id rides on the input itself; app.js's delegated handler keys
         // off [data-task-complete] and only the input can be its own click target.
-        return html`<li class="dash-todo-task ${task.pinned === 1 ? 'is-pinned' : ''} ${stateClass}" data-dash-task-id="${task.id}" draggable="true" ${index >= 4 ? 'hidden' : ''}>
+        // S182 (owner: "same height… the rest gets scroll"): the S106 hidden-row
+        // shipping retires — every rendered row ships VISIBLE in the DOM; the
+        // quadrant card's fixed 3-row window + the list's overflow-y scroll own the
+        // reveal (scroll replaces the frost-pill toggle).
+        return html`<li class="dash-todo-task ${task.pinned === 1 ? 'is-pinned' : ''} ${stateClass}" data-dash-task-id="${task.id}" draggable="true">
         <div class="dash-todo-check" data-task-complete-row="${task.id}">
           <input type="checkbox" data-task-complete="${task.id}" ${task.done === 1 ? 'checked' : ''} aria-label="${t('Complete task', 'انجام کار')}">
           <span data-task-title="${task.id}">${task.title}</span>
@@ -360,30 +364,42 @@ export function dashboardRoutes(cfg: Config) {
         // beyond the cap becomes a link to the board page (the full surface, with its own
         // more-on-scroll) instead of shipped dead weight. Payload is flat no matter how
         // the board grows.
-        // S106 (owner: "Quadrants maximum items in dashboard, must be 4"): of those 8,
-        // the first 4 are VISIBLE and rows 5–8 stay in-DOM hidden behind the faded
-        // "+N more" FROST PILL (was: 5 visible + a plain See-More text button); the
-        // reveal toggle itself is app.js's data-dash-see-more handler, unchanged.
+        // S106 (owner: "Quadrants maximum items in dashboard, must be 4") → S182 (owner:
+        // "make them same height… the minimum height must be equivalent of 3 items,
+        // whether filled or empty, the rest gets scroll"): of those 8, the FIRST ~3 sit
+        // inside the quadrant card's FIXED 3-row window and the rest are reached by the
+        // list's own scroll (the frost-pill reveal + the hidden-row shipping retire);
+        // beyond the render cap the board link still rides — as the list's LAST row so
+        // it scrolls into view exactly where the overflow is met.
         const TODO_RENDER_CAP = 8
         const renderTasks = tasks.slice(0, TODO_RENDER_CAP)
         const overflow = tasks.length - renderTasks.length
         const taskRows = renderTasks.map(todoTaskHtml)
-        // S179 (advisor blocks 7+8 — the EMPTY QUADRANT collapses to a short strip):
-        // a card with zero tasks is no longer a full-height box with a centered
-        // placeholder — it renders ONE quiet row ("No tasks yet.") with the next
-        // action inline ("Add a task" opens the same quick-add the header ＋ carries;
-        // app.js's delegated [data-dash-quickadd-fab] handler serves both buttons).
-        // The strip markup is EXACTLY what app.js's updateDashTaskEmpty re-creates
-        // after htmx sweeps, so server and client can never drift apart.
+        // S179 (advisor blocks 7+8) → S182 (owner: "whether filled or empty"): the empty
+        // quadrant keeps its ONE quiet row ("No tasks yet." + the "Add a task" action
+        // inline — app.js's delegated [data-dash-quickadd-fab] handler serves both
+        // buttons), but the COLLAPSE retires: the card renders at the SAME fixed height
+        // as every sibling, empty window included. The strip markup is EXACTLY what
+        // app.js's updateDashTaskEmpty re-creates after htmx sweeps, so server and
+        // client can never drift apart.
         if (taskRows.length === 0) {
           taskRows.push(html`<li class="dash-todo-empty"><span class="dash-todo-empty-text">${t('No tasks yet.', 'هنوز کاری نیست.')}</span><button type="button" class="dash-todo-add-text" data-dash-quickadd-fab="${q.id}">${t('Add a task', 'افزودن کار')}</button></li>`)
+        }
+        // The over-cap board link rides INSIDE the scrollable list as its last row
+        // (S182) — reached by the same scroll that reveals rows 4–8, at the exact
+        // spot where the render cap is met.
+        if (overflow > 0) {
+          taskRows.push(html`<li class="dash-todo-more-row"><a class="dash-todo-more dash-todo-more-link" href="/to-do-list#Q${q.id}" title="${t('Open this box on the board', 'این جعبه را در برد باز کن')}">${t('+{n} more on the board', '+{n} مورد دیگر در برد', { n: todoNum(overflow) })} ${raw(icon('arrow-up-right', 'icon'))}</a></li>`)
         }
         // 2026-09 user request — quadrants are MINIMAL/neutral: no per-quadrant accent is
         // applied by default (the old q-success/q-info/q-error/q-warning accent vars are
         // gone). A user-PICKED accent (accent_color, still settable via the rename API)
         // renders so the saved personalization isn't lost.
         const accentAttr = style?.accent ? raw(` style="--dash-q-accent: var(--${style.accent})"`) : ''
-        return html`<article class="dash-todo-quadrant${tasks.length === 0 ? ' is-quadrant-empty' : ''}" data-dash-quadrant="${q.id}" data-dash-name="${name}" draggable="true"${accentAttr}>
+        // S182: the .is-quadrant-empty marker RETIRES with the S179 collapse rules —
+        // every quadrant card renders at one fixed height, empty or full (the strip
+        // above is the empty card's content, not a shorter card shape).
+        return html`<article class="dash-todo-quadrant" data-dash-quadrant="${q.id}" data-dash-name="${name}" draggable="true"${accentAttr}>
           <header class="dash-todo-qhead board-col-head">
             <div class="dash-todo-qtitle board-col-title">
               <button type="button" class="dash-todo-style" data-dash-style="${q.id}" aria-label="${t('Customize quadrant', 'شخصی‌سازی بخش')}" title="${t('Customize quadrant', 'شخصی‌سازی بخش')}">${raw(quadrantGlyph(style?.icon ?? null, q.icon))}</button>
@@ -438,8 +454,6 @@ export function dashboardRoutes(cfg: Config) {
           <ul class="dash-todo-list">
             ${taskRows}
           </ul>
-          ${tasks.length > 4 ? html`<button type="button" class="dash-todo-more dash-todo-more-pill" data-dash-see-more="${q.id}" aria-expanded="false">${t('+{n} more', '+{n} بیشتر', { n: todoNum(renderTasks.length - 4) })}</button>` : ''}
-          ${overflow > 0 ? html`<a class="dash-todo-more dash-todo-more-link" href="/to-do-list#Q${q.id}" title="${t('Open this box on the board', 'این جعبه را در برد باز کن')}">${t('+{n} more on the board', '+{n} مورد دیگر در برد', { n: todoNum(overflow) })} ${raw(icon('arrow-up-right', 'icon'))}</a>` : ''}
           <!-- 2026-09-06 (k) user request: the quick-add moved OUT of the customize
                popover into its own revealed row (S179: the trigger now lives in the
                card header — this form reveals under the header, Enter adds via the
@@ -488,12 +502,20 @@ export function dashboardRoutes(cfg: Config) {
         <!-- Session-12 (2026-09-15, user request): ≤720px the grid is a SWIPE CAROUSEL —
              one full-width quadrant per slide. .dash-quad-wrap anchors the one-time swipe
              hint; the dot row below is built by app.js from the rendered quadrants
-             (data-dash-name) and re-built after every htmx refresh of main.shell-dash. -->
-        <div class="dash-quad-wrap">
-          <div class="dash-todo-grid" data-dash-quadrants>
-            ${orderedQuadrants(QUADRANTS, user.sadhana_quadrant_order).map(todoCard)}
+             (data-dash-name) and re-built after every htmx refresh of main.shell-dash.
+             S182 (owner: "add a background for to-do list section, like the one quick
+             note has"): the section body joins the Quick Notebook's card grammar — the
+             head stays ABOVE (the one .dash-sec-head pattern, S179 block 5), the quadrant
+             board rides INSIDE one .card panel (.dash-todo-panel, the .card.notebook-
+             dashboard recipe: surface bg + hairline + --radius). The phone dots stay
+             BELOW the panel (they index the carousel, they are not part of its surface). -->
+        <div class="dash-todo-panel card">
+          <div class="dash-quad-wrap">
+            <div class="dash-todo-grid" data-dash-quadrants>
+              ${orderedQuadrants(QUADRANTS, user.sadhana_quadrant_order).map(todoCard)}
+            </div>
+            <div class="dash-swipe-hint" data-dash-swipe-hint aria-hidden="true"><span>${t('Swipe for more sections', 'برای بخش‌های دیگر بکشید')}</span><span aria-hidden="true">${lang === 'fa' ? '‹' : '›'}</span></div>
           </div>
-          <div class="dash-swipe-hint" data-dash-swipe-hint aria-hidden="true"><span>${t('Swipe for more sections', 'برای بخش‌های دیگر بکشید')}</span><span aria-hidden="true">${lang === 'fa' ? '‹' : '›'}</span></div>
         </div>
         <div class="dash-quad-dots" data-dash-quad-dots role="tablist" aria-label="${t('To-do sections', 'بخش‌های کارها')}"></div>
       </section>`

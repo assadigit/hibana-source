@@ -4,6 +4,23 @@
    phone, dragging the header/dots/wrap out of the viewport (measured). */
 .dash-todo-section { display: grid; gap: 0.75rem; grid-template-columns: minmax(0, 1fr); }
 
+/* S182 (owner: "add a background for to-do list section, like the one quick note
+   has"): the section body joins the Quick Notebook's card grammar — ONE .card panel
+   wrapping the quadrant board. The recipe mirrors .card.notebook-dashboard
+   (quicknotes.css) token-for-token: the surface bg, the neutral hairline, --radius;
+   the moderate padding (the notebook's post-S180 trim register). margin-block-end: 0 —
+   the 2.9rem section rhythm owns the spacing (the vault-banner doctrine; .card's own
+   clamp margin would double it). overflow: visible — the quadrant style popover + the
+   task ⋯ menu (fixed-positioned but anchored near the card's edges) must escape. */
+.dash-todo-panel {
+  background: var(--surface-card, var(--card, #fff));
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 0.7rem;
+  margin-block-end: 0;
+  overflow: visible;
+}
+
 /* Collapsible dashboard sections (Phase 3): a [data-dash-collapse] button on each
    section header toggles a .is-collapsed class on the section. The body (everything
    after the header) is hidden via CSS grid trick (display:none would break htmx
@@ -27,12 +44,11 @@ section[id^="dashboard-"].is-collapsed > *:not(header) { display: none; }
 .dash-collapse-btn .icon { inline-size: 1rem; block-size: 1rem; transition: transform 0.15s ease; }
 .is-collapsed .dash-collapse-btn .icon { transform: rotate(-90deg); }
 
-/* Smart empty states (Phase 3 → S94 owner item 10 → S179 advisor block 8): a
-   quadrant with 0 tasks is a SHORT STRIP now — "No tasks yet." + the "Add a task"
-   text button on one row (the copy names the next action). The card itself
-   collapses (.is-quadrant-empty kills the list's flex growth; the grid's
-   align-items:start lets the strip sit at its natural height instead of
-   stretching to its siblings). app.js's updateDashTaskEmpty re-creates THIS
+/* Smart empty states (Phase 3 → S94 owner item 10 → S179 advisor block 8 → S182
+   owner round): a quadrant with 0 tasks renders the quiet "No tasks yet. + Add a
+   task" row INSIDE the list window — the card keeps the SAME FIXED HEIGHT as its
+   siblings ("whether filled or empty", the owner's words); the S179 collapse rules
+   retired with the marker class. app.js's updateDashTaskEmpty re-creates THIS
    markup after htmx sweeps — server + client share one shape. */
 .dash-todo-list:has(> .dash-todo-empty) { align-content: start; }
 .dash-todo-empty {
@@ -71,13 +87,25 @@ section[id^="dashboard-"].is-collapsed > *:not(header) { display: none; }
    inline-end shore is where secondary actions live, visible like the chevron). */
 .dash-todo-head a { position: relative; padding-block: 4px; text-underline-offset: 3px; }
 .dash-todo-section:hover .dash-todo-head a { text-decoration: underline; }
-/* S179 (advisor block 8): an empty quadrant collapses — the grid lets short cards
-   sit at their natural height (align-items: start) instead of stretching every
-   card to the tallest sibling; the empty list stops growing (flex: none on the
-   strip) and the card's own min-height leaves with the old centered placeholder. */
-.dash-todo-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0.75rem; align-items: start; }
+/* S179 (advisor block 8) → S182 (owner: "the boxes need aligment and same size,
+   make them same height (not variable height)"): every quadrant card renders at
+   ONE fixed height — the grid stretches (align-items: start retired with the
+   variable-height era), the card's block-size is pinned to the 3-item window, and
+   the list inside owns the overflow (scroll, below). Empty cards sit at the same
+   height as full ones; a tall header (long custom name/subtitle) yields LIST
+   window, never card height — the four boxes stay row-aligned no matter what. */
+.dash-todo-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0.75rem; align-items: stretch; }
 .dash-todo-quadrant {
   inline-size: 100%; min-inline-size: 0; min-block-size: 0;
+  /* S182 (owner: "the minimum height must be equivalent of 3 items"): the FIXED
+     HEIGHT = paddings (0.85rem × 2) + the head's min (3.1rem — the two-line
+     title/subtitle stack) + the flex gap (0.65rem) + the 3-row list window
+     (3 × --dash-todo-row + the 2 inter-row gaps). --dash-todo-row is one task row
+     at rest: the 2.5rem check lane + the row's own chrome (0.18rem padding + 2px
+     borders). The phone carousel (≤720px below) keeps its own taller window —
+     this rule is the desktop/tablet contract. */
+  --dash-todo-row: 2.81rem;
+  block-size: calc(0.85rem * 2 + 3.1rem + 0.65rem + (3 * var(--dash-todo-row)) + (2 * 0.24rem));
   /* S95 r2 (owner items 2+5+8): plain WHITE surface + the one uniform neutral
      hairline + the big panel radius (--radius-lg 24px — the reference's radius
      signature). Color left the panel fill entirely; it lives on the count badge
@@ -101,11 +129,8 @@ section[id^="dashboard-"].is-collapsed > *:not(header) { display: none; }
 .dash-todo-task.move-error { border: 1px solid var(--err); border-radius: var(--radius-sm); padding-inline: 0.25rem; }
 .dash-todo-move-error { grid-column: 1 / -1; color: var(--err); font-size: var(--fs-xs); }
 .dash-todo-qhead { display: flex; align-items: flex-start; justify-content: space-between; gap: 0.6rem; min-block-size: 3.1rem; }
-/* S179 (advisor block 8): an empty quadrant COLLAPSES — the head's min height
-   (sized for the subtitle's two-line stack) eases to one line, the list's flex
-   growth is capped, and the whole card reads as the short strip it is. */
-.dash-todo-quadrant.is-quadrant-empty .dash-todo-qhead { min-block-size: 0; }
-.dash-todo-quadrant.is-quadrant-empty .dash-todo-list { flex: 0 0 auto; }
+/* S179's empty-collapse head easing retired with .is-quadrant-empty (S182): every
+   head keeps the two-line min — the empty card is a full-height box, not a strip. */
 .dash-todo-qtitle { display: flex; align-items: center; gap: 0.25rem; min-inline-size: 0; position: relative; }
 .dash-todo-qtitle strong { overflow-wrap: anywhere; line-height: 1.3; }
 /* Quadrant subheading (2026-09 user request — editable via the pen popover): stacks
@@ -273,12 +298,16 @@ section[id^="dashboard-"].is-collapsed > *:not(header) { display: none; }
 /* (k) 2026-09-06: the old hover-reveal header + button and its form CSS were removed
    with the popover add button — replaced by .dash-todo-fab + .dash-quickadd below. */
 /* (l) 2026-09-06: grid-auto-rows: max-content — the row-squash fix. With auto rows in
-   this definite-height (aspect-ratio square) scroll container, Chromium resolved the
-   implicit tracks to EQUAL FRACTIONS of the list height: 8 tasks in a ~168px window
-   rendered 17px-tall rows with the 44px checkbox row clipped inside each (Ali:
-   "tasks get compacted into each other and unable to read" — invisible at ≤4 tasks,
-   extreme at 7–8). max-content pins every row to its natural height so overflow:auto
-   actually scrolls; padding-block-end keeps the last row clear of the corner FAB. */
+   a definite-height scroll container, Chromium resolved the implicit tracks to EQUAL
+   FRACTIONS of the list height: 8 tasks in a ~168px window rendered 17px-tall rows
+   with the 44px checkbox row clipped inside each (Ali: "tasks get compacted into each
+   other and unable to read" — invisible at ≤4 tasks, extreme at 7–8). max-content pins
+   every row to its natural height so overflow:auto actually scrolls; padding-block-end
+   keeps the last row clear of the window's foot.
+   S182: the DEFINITE height comes from the quadrant card's fixed block-size above (the
+   S106 "4 visible + reveal" era's variable card height retired) — flex: 1 fills exactly
+   the 3-row window, min-block-size: 0 lets it shrink when the header grows or the
+   quick-add form reveals, and the scroll owns everything past the fold. */
 .dash-todo-list { list-style: none; margin: 0; padding: 0; padding-block-end: 0.25rem; min-block-size: 0; flex: 1; overflow-y: auto; overflow-x: hidden; display: grid; align-content: start; grid-auto-rows: max-content; gap: 0.24rem;
   /* Custom thin scrollbar (user request 2026-09) — the default ugly gray scrollbar
      was bleeding through the 4th quadrant card. Now it's thin + themed. */
@@ -313,12 +342,9 @@ section[id^="dashboard-"].is-collapsed > *:not(header) { display: none; }
   position: relative; /* Phase 7 item 3: the ⋯ menu anchors to the row's top-end corner */
   transition: opacity 0.24s ease, max-block-size 0.3s ease, background-color 0.18s ease, border-color 0.18s ease, margin-block 0.3s ease;
 }
-/* S69 (perf §10-F3 — BUG): rows 6+ ship with the `hidden` attribute for the See-More
-   reveal, but the display:grid rule above OVERRODE the UA's [hidden]{display:none} —
-   every quadrant rendered ALL its tasks visibly and the toggle flipped a dead
-   attribute (verified live: computed display of a hidden-attr row was grid). Specificity
-   (0,2,0) beats the plain class — the designed 5-row cap works again. */
-.dash-todo-task[hidden] { display: none; }
+/* S69's [hidden]-row guard RETIRED (S182): rows 5–8 no longer ship hidden — the
+   fixed 3-row window + the list's overflow scroll own the reveal, so nothing sets
+   the hidden attribute on a task row anymore (the UA sheet needs no help). */
 /* 2026-09-09 (v) user request — SUPERSEDES (m)'s "minimal, no borders" rows: Ali saw
    the to-do page's state boards (the «معلق» state container — violet since (x) —, the grey
    not-started container) and wants the SAME on the dashboard's four quadrant boxes:
@@ -437,27 +463,15 @@ details.dash-todo-menu:not([open]) .dash-todo-menu-pop { display: none; }
 .dash-todo-more { justify-self: start; color: var(--muted); font-size: var(--fs-sm); padding-inline: 0.35rem; background: transparent; }
 .dash-todo-more:hover { color: var(--text); background: transparent; }
 .dash-todo-more:active { background: transparent; }
-/* S106 (owner: "if there are more items, it must be hidden behind a faded (blur)
-   … button, so user can click and see the rest"): the in-quadrant overflow pill is
-   now a FROST affordance — a translucent wash + backdrop blur over the spot where
-   the hidden 5th row would sit, the visual language of "there is content behind
-   this" (a veil, not a label). Same dashed-pill border as the board more-link so
-   the two overflow affordances read as one family; base stays a quiet ghost (the
-   global button{} rule must not paint it solid --cta — hover/active re-assert). */
-.dash-todo-more-pill {
-  display: inline-flex; align-items: center; gap: 0.3rem;
-  font-weight: 600;
-  padding: 0.32rem 0.75rem;
-  border: 1px dashed var(--line);
-  border-radius: 999px;
-  color: var(--muted);
-  background: color-mix(in srgb, var(--card) 55%, transparent);
-  -webkit-backdrop-filter: blur(5px);
-  backdrop-filter: blur(5px);
-  transition: color 0.15s ease, border-color 0.15s ease, background 0.15s ease;
-}
-.dash-todo-more-pill:hover { color: var(--text); border-color: var(--brand); background: color-mix(in srgb, var(--card) 78%, transparent); }
-.dash-todo-more-pill:active { background: color-mix(in srgb, var(--card) 88%, transparent); }
+/* S106's FROST PILL (the "+N more" blurred reveal button) RETIRED (S182): the fixed
+   3-row window + the list's own scroll replaced the toggle — the rows it un-hid are
+   permanently in the DOM and reached by scrolling. The pill's CSS leaves with the
+   markup + the app.js handler (one affordance per job; scroll is the affordance).
+   S182: the over-cap board link rides INSIDE the scrollable list as its LAST row
+   (.dash-todo-more-row) — reached by the same scroll that walks rows 4–8, at the
+   exact spot where the render cap is met (it used to sit below the list, stealing
+   window height). */
+.dash-todo-more-row { display: flex; justify-content: flex-start; padding-block: 0.12rem; }
 /* S69: the over-cap affordance — a LINK to the board (rows beyond the widget's render
    cap live there). Same quiet language as the see-more button, plus the arrow cue +
    hover lift so it reads as navigation, not a toggle. */
@@ -469,11 +483,6 @@ details.dash-todo-menu:not([open]) .dash-todo-menu-pop { display: none; }
 .dash-todo-more-link .icon { inline-size: 0.85em; block-size: 0.85em; transition: translate 0.15s ease; }
 .dash-todo-more-link:hover { color: var(--brand); border-color: var(--brand); transform: translateY(-1px); }
 .dash-todo-more-link:hover .icon { translate: 1px -1px; }
-/* (k) 2026-09-06: the see-more LINK reserves the FAB corner (inline-end) so the two
-   never overlap when a quadrant shows 6+ tasks. (m) re-tuned for the smaller FAB.
-   S106: scoped to the LINK — the pill variant is a short rounded affordance pinned
-   to inline-start; a 2.9rem end-pad would leave it visibly lopsided. */
-.dash-todo-more-link { padding-inline-end: 0; }
 .dash-todo-edit[hidden], .dash-todo-rename-form[hidden] { display: none; }
 
 /* ── (k) Per-quadrant quick-add FAB ─ 2026-09-06 user request ─────────────────────
@@ -724,7 +733,7 @@ body.rail-panel-open .dash-todo-grid { grid-template-columns: repeat(2, minmax(0
     scroll-snap-align: start;
     scroll-snap-stop: always;
     aspect-ratio: auto;      /* a full-width slide is not a square — a comfortable, */
-    block-size: min(26rem, 96vw); /* list-scrolling window instead (list scrolls inside) */
+    block-size: min(26rem, 96vw); /* list-scrolling window instead (list scrolls inside) — taller than the S182 desktop 3-row window: a phone slide is the whole board, so it earns the deeper window (same fixed-height + scroll contract) */
   }
   /* Dot indicators: one tappable dot per quadrant, the active dot tracks the visible
      slide. The 26px button + -7px inset pseudo-element keeps the hit target ≥40px

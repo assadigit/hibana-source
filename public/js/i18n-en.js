@@ -406,9 +406,8 @@ window.__hibanaDictEN = {
       'dashboard.nothing': 'Nothing here yet',
       'dashboard.quadrantEmpty': 'No tasks yet.', 'dashboard.addTask': 'Add a task',
       'dashboard.moveFailed': "Couldn't move it — try again",
-      'dashboard.seeMore': 'See More', 'dashboard.seeLess': 'Show less',
-      /* S106: the quadrant overflow pill (4 visible, extras behind the faded +N more). */
-      'dashboard.moreCount': '+{n} more',
+      /* S182: the S106 see-more keys (seeMore/seeLess/moreCount) RETIRED with the
+         frost pill — the fixed 3-row window + the list's own scroll own the reveal. */
       'dashboard.taskUpdateFailed': "Couldn't update the task",
       'dashboard.renameFailed': "Couldn't rename the quadrant",
       'dashboard.reorderFailed': "Couldn't reorder the quadrants",

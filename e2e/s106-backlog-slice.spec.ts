@@ -24,6 +24,18 @@
 //      then NEWEST CREATED first (position stays the board's own order — the
 //      dashboard drag handlers still PATCH it, the dashboard just no longer
 //      DISPLAYS it); beyond the 8-row render cap the board link still rides.
+//      S182 SUPERSEDED THE PILL (owner: "same height... the minimum height must be
+//      equivalent of 3 items... the rest gets scroll"): the render cap + the sort stay
+//      pinned here, but the reveal is the quadrant card's FIXED 3-row window + the
+//      list's own scroll — all 8 rows ship VISIBLE in the DOM, no pill, no hidden
+//      rows, and the over-cap board link rides INSIDE the scrollable list. The
+//      fixed-height/scroll geometry itself is pinned in s182-todo-panel.spec.ts.
+//      S182 SUPERSEDED THE PILL (owner: "same height… the minimum height must be
+//      equivalent of 3 items… the rest gets scroll"): the render cap + the sort stay
+//      pinned here, but the reveal is the quadrant card's FIXED 3-row window + the
+//      list's own scroll — all 8 rows ship VISIBLE in the DOM, no pill, no hidden
+//      rows, and the over-cap board link rides INSIDE the scrollable list. The
+//      fixed-height/scroll geometry itself is pinned in s182-todo-panel.spec.ts.
 //
 // Run: npx playwright test e2e/s106-backlog-slice.spec.ts
 
@@ -274,71 +286,66 @@ test('S155-1: project names, folders and head groups compute the spec weight lad
 
 /* ── 2. THE QUADRANT GLANCE: 4 visible, frost pill, newest first ──────────────── */
 
-test('S106-2: a quadrant shows 4 rows + the "+N more" frost pill; pinned rides top, then newest', async ({ page }) => {
+test('S106-2: a quadrant ships all rows visible in the scroll window; pinned rides top, then newest', async ({ page }) => {
   await login(page)
   await page.waitForSelector('.dash-todo-quadrant[data-dash-quadrant="1"] .dash-todo-task', { timeout: 10_000 })
 
   const quad = page.locator('.dash-todo-quadrant[data-dash-quadrant="1"]')
 
-  // 4 visible, 3 hidden (6 unpinned + 1 pinned = 7 open; render cap 8 → no board link).
-  await expect(quad.locator('.dash-todo-task:not([hidden])')).toHaveCount(4)
-  await expect(quad.locator('.dash-todo-task[hidden]')).toHaveCount(3)
+  // S182: 7 open (6 unpinned + 1 pinned), render cap 8 -> ALL 7 ship as real rows,
+  // NONE hidden, NO frost pill, NO board link (the cap wasn't met).
+  await expect(quad.locator('.dash-todo-task')).toHaveCount(7)
+  await expect(quad.locator('.dash-todo-task[hidden]')).toHaveCount(0)
+  await expect(quad.locator('.dash-todo-more-pill')).toHaveCount(0)
   await expect(quad.locator('.dash-todo-more-link')).toHaveCount(0)
 
-  // The ORDER: pinned first (even though it is the oldest), then newest created.
-  const titles = await quad.locator('.dash-todo-task:not([hidden]) [data-task-title]').allTextContents()
-  expect(titles).toEqual(['S106 q1 PINNED oldest', 'S106 q1 task 5', 'S106 q1 task 4', 'S106 q1 task 3'])
+  // The ORDER (the whole list, DOM order = display order): pinned first (even
+  // though it is the oldest), then newest created.
+  const titles = await quad.locator('.dash-todo-task [data-task-title]').allTextContents()
+  expect(titles).toEqual([
+    'S106 q1 PINNED oldest',
+    'S106 q1 task 5',
+    'S106 q1 task 4',
+    'S106 q1 task 3',
+    'S106 q1 task 2',
+    'S106 q1 task 1',
+    'S106 q1 task 0',
+  ])
 
   // The counter still tells the whole truth (7 open) — the cap is display-only.
   await expect(quad.locator('.dash-todo-counter')).toHaveText('7')
 
-  // The frost pill: exact "+3 more" label + the blur wash actually computing.
-  const pill = quad.locator('.dash-todo-more-pill')
-  await expect(pill).toBeVisible()
-  await expect(pill).toHaveText('+3 more')
-  await expect(pill).toHaveAttribute('aria-expanded', 'false')
-  const pillCss = await pill.evaluate((el) => {
-    const cs = getComputedStyle(el)
-    return { blur: cs.backdropFilter, radius: cs.borderRadius, border: cs.borderStyle }
-  })
-  expect(pillCss.blur).toContain('blur')
-  expect(pillCss.radius).toBe('999px')
-  expect(pillCss.border).toBe('dashed')
-
-  // Click → all 7 visible, the label flips to Show less, aria-expanded true.
-  await pill.click()
-  await expect(quad.locator('.dash-todo-task:not([hidden])')).toHaveCount(7)
-  await expect(pill).toHaveText('Show less')
-  await expect(pill).toHaveAttribute('aria-expanded', 'true')
-
-  // Collapse → 4 visible again, the label RECOUNTED client-side (+3 more).
-  await pill.click()
-  await expect(quad.locator('.dash-todo-task:not([hidden])')).toHaveCount(4)
-  await expect(pill).toHaveText('+3 more')
-  await expect(pill).toHaveAttribute('aria-expanded', 'false')
+  // S182: the LIST scrolls — 7 rows in a ~3-row window means real overflow.
+  const list = quad.locator('.dash-todo-list')
+  const geom = await list.evaluate((el) => ({
+    client: el.clientHeight,
+    scroll: el.scrollHeight,
+    overflow: getComputedStyle(el).overflowY,
+  }))
+  expect(geom.overflow).toBe('auto')
+  expect(geom.scroll).toBeGreaterThan(geom.client)
+  // The window is ~3 rows tall (a row is ~45px; the 7-row content is ~315px).
+  expect(geom.client).toBeGreaterThan(2 * 45)
+  expect(geom.client).toBeLessThan(4 * 45)
 })
 
-test('S106-3: beyond the render cap the frost pill AND the board link both render', async ({ page }) => {
+test('S106-3: beyond the render cap the board link rides INSIDE the scrollable list', async ({ page }) => {
   await login(page)
   await page.waitForSelector('.dash-todo-quadrant[data-dash-quadrant="2"] .dash-todo-task', { timeout: 10_000 })
 
   const quad = page.locator('.dash-todo-quadrant[data-dash-quadrant="2"]')
-  // 9 open: 8 shipped (4 visible + 4 hidden behind the pill) + 1 beyond the cap (link).
-  await expect(quad.locator('.dash-todo-task:not([hidden])')).toHaveCount(4)
-  await expect(quad.locator('.dash-todo-task[hidden]')).toHaveCount(4)
+  // 9 open: 8 shipped (ALL visible in the DOM — no pill, no hidden rows) + 1 beyond
+  // the cap -> the board link as the list's LAST row.
+  await expect(quad.locator('.dash-todo-task')).toHaveCount(8)
+  await expect(quad.locator('.dash-todo-task[hidden]')).toHaveCount(0)
+  await expect(quad.locator('.dash-todo-more-pill')).toHaveCount(0)
   await expect(quad.locator('.dash-todo-counter')).toHaveText('9')
 
-  const pill = quad.locator('.dash-todo-more-pill')
-  await expect(pill).toBeVisible()
-  await expect(pill).toHaveText('+4 more')
-
-  const link = quad.locator('.dash-todo-more-link')
-  await expect(link).toBeVisible()
+  const row = quad.locator('.dash-todo-more-row')
+  await expect(row).toHaveCount(1)
+  // The link is the list's LAST child (reached by scrolling to the cap).
+  await expect(quad.locator('.dash-todo-list > .dash-todo-more-row')).toHaveCount(1)
+  const link = row.locator('.dash-todo-more-link')
   await expect(link).toContainText('+1 more on the board')
   await expect(link).toHaveAttribute('href', '/to-do-list#Q2')
-
-  // The pill reveals rows 5–8 (8 visible); the link still points the rest to the board.
-  await pill.click()
-  await expect(quad.locator('.dash-todo-task:not([hidden])')).toHaveCount(8)
-  await expect(pill).toHaveText('Show less')
 })

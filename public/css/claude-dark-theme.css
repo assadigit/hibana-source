@@ -320,6 +320,13 @@ html[data-theme='claude-dark'] .card {
 html[data-theme='claude-dark'] .card.notebook-dashboard {
   background: color-mix(in srgb, var(--quicknote-accent) 13%, var(--card));
 }
+/* S182: the To-Do section panel joins the notebook's dark card grammar — the same
+   13% quicknote-accent tint (one section-card language on the dark dashboard; the
+   light sheet's .dash-todo-panel is the plain surface twin of .card.notebook-
+   dashboard, so the dark twin mirrors its notebook counterpart exactly). */
+html[data-theme='claude-dark'] .card.dash-todo-panel {
+  background: color-mix(in srgb, var(--quicknote-accent) 13%, var(--card));
+}
 html[data-theme='claude-dark'] .dash-vault-banner.card {
   /* S181 (opening block 3 — the quieted nudge): the dark twin follows the light
      sheet's 7% accent tint one notch stronger (11%) so the accent read survives

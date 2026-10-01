@@ -1479,3 +1479,78 @@ Ops lessons (S182 release):
 3. **notifications.css's ≤560px `.card { padding: 1rem }` beats same-specificity panel rules** (later in the link order) — panel padding rules must be (0,2,0) (`.card.dash-…-panel`) to hold at phone widths.
 4. **Shell sourcing mangles `$`-containing secrets** (`. .secrets.env` expanded `$MqetDzb` inside OWNER_PASS → a 13-char wrong password → a misleading 401). Read credentials with Python/grep, never shell-source, when echoing into eval probes.
 5. **agent-browser theme toggles need the CURRENT language's aria-label** («تغییر پوسته» in FA) — find buttons by label substring, not the EN name.
+---
+Task ID: S184
+Agent: main (Z.ai Code)
+Task: The owner's layout/consistency audit of the live v0.4.1.10 dashboard — six numbered
+instructions ("Instructions for your coding agent") + two sidebar flags. Full delivery:
+implement → gates → commit/push → CI/CD → live byte-verify → owner-account functional
+pass → tag v0.4.1.11 → zip → healthcheck → docs.
+
+Work Log:
+- Sandbox had reset again — recovered per the S171/S183 recipe (public clone @ 8d8c587,
+  .secrets.env + credentials.md recreated from the hand-off, byte-verified live before
+  the pipeline: GitHub 200/push, CF account+token-verify+zone, Telegram bot, healthchecks
+  mgmt, Workers AI verify; values never printed).
+- (1) ONE RHYTHM: main.shell-dash = flex column, gap 1.5rem; every child's block margin
+  retired (the 2.9rem rhythm + .card clamps + the 1.1rem h1 gap were the ~80/~80/~50/
+  ~17px drift); projects+overview siblings at 1.5rem; skeleton mirrors (misc.css).
+- (2) Continue card: the .resume-row 0.15rem late-clobber (the true ~2px foot) retired —
+  hero → 0.75rem → chips → 1rem foot; no fixed heights (verified natural flow).
+- (3) ONE inset + head geometry: 1rem inline on all panels; .card > .dash-sec-head
+  0.75rem/3rem-centered; the legacy per-head overrides retired (.dash-todo-head
+  baseline+1rem+link chrome; misc.css .ov-head baseline + dead .dash-projects-head
+  block + the 0.55rem under-hairline margin inside the dashboard panel).
+- (4) ONE link grammar: .dash-sec-link (var(--link)/fs-sm/500/trailing arrow); ov gains
+  "Go to tasks" → /tasks.html; activity "View all" → "Go to projects"; notebook gains
+  "Go to notebook" → /whiteboard.html (the page the app names "Notebook"; the vault's
+  /notes.html is a different feature); the archive button → the new .dash-note-foot.
+- (5) Carousel handles → the nav row beside the dots (static, never over a column;
+  arrowOverlapKanban measured 0 at 1440+390); snap rail was already mandatory+start.
+- (6) Composer: light = card surface + 1px --line-strong + scoped :focus-visible (accent
+  + halo); dark keeps the recessed #141413 well (new claude-dark twin); placeholder ~5:1.
+- (7) Sidebar: the teal bar's measured 3px "Dashboard" collision → the rail's own start
+  edge (10.63px clear, RTL-true); "ends mid-page" = full-page-screenshot artifact (the
+  rail is fixed inset-block:0 — measured full-height; verified, no change).
+- Cache-bust: 7 CSS sheets (dashboard v38, dashboard-todo v23, quicknotes v44, polish-ui
+  v38, misc v22, claude-dark v26, layout v61 ×23–26 pages); sw v419; package 0.4.1.11;
+  parity 1553/1553 (no JS changed this round).
+- Tests: dashboard.test pins re-scoped (+ ov/tasks + notebook/foot links + nav-row order
+  + the no-arrow pin re-scoped to the stage); quicknotes foot pins; viewport@390 handle
+  test REWRITTEN for the nav-row contract (static + zero kanban intersections + nav below
+  stage); NEW e2e/s184-section-grammar.spec.ts (4 tests); dashboard screenshot re-baselined.
+- LADDER all green: typecheck 0 · vitest 563/563 · eslint 0 err (162-warn) · build 79 ·
+  wiring canonical · cache-bust PASS · parity PASS · FULL e2e 331/331 in 8 file-batches.
+- AGENT-BROWSER QA (:3017): EN [24×5 gaps, heads ≥48, links ×5, arrows 0 overlap] +
+  FA/RTL (rtl + «پیشخوان» + FA links + mirrored bar) + claude-dark (well #141413 on the
+  tint) + 390 light+dark ([342px panels], zero h-overflow) + VLM audits of all five
+  screenshots; the rail full-height measured at every pass; 0 console/page errors.
+- Released: push b997cd5 → CI #514 (36929942472) + CD #370 (36931582660) green → SEVEN
+  wired assets byte-IDENTICAL live (NEW qa/s184-live-verify.mjs; sw v419; schema 63) →
+  the owner-account functional pass on the REAL data (the custom-ordered dashboard:
+  gaps [24×4] + margins 0; the four visible links; composer white+#BFBFBF; bar 10.63px
+  clear; FA + dark + 390 clean; account restored en+light) → tag v0.4.1.11 → zip 575
+  files (secret-scan clean — all 8 real credentials absent; slug/account-ids/ping-key =
+  the pre-existing S93 surface) → --restore-html → healthcheck pinged (200, up) → docs
+  (Changelogs §1 rotated + row 184; this entry).
+
+Stage Summary:
+- LIVE: hibana.ir @ v0.4.1.11 (sw v419) — the owner's six instructions + both sidebar
+  flags shipped, byte-verified, owner-account-verified on real data, tagged, zipped,
+  healthcheck up. Remote main @ b997cd5 + the docs commit; tag v0.4.1.11 on remote.
+- Ops lessons: (a) comment text inside SSR templates is PIN-SENSITIVE — a new HTML
+  comment containing "View all (N)" broke a substring pin and "icon arrow" drifted a
+  scoped slice; reword comments to avoid pin vocabulary (or scope pins to markup zones);
+  (b) MultiEdit is SEQUENTIAL here, not atomic — a failing edit stops the batch but
+  earlier edits in the same call have already applied; verify state after any reported
+  failure; (c) probe scripts must read COMPUTED values, not restate design constants
+  (the sidebar-bar probe hardcoded 4.8px and lied after the fix); element-box measures
+  of padded wrappers ≠ content insets — add the element's own padding; (d) the stale-?v=
+  browser-cache trap re-armed at the QA layer (post-bump CSS edits need fetch(cache:
+  'reload') or a re-bump to re-test locally; release-wise one bump per file per round
+  still suffices vs HEAD); (e) fixed elements END at the viewport in full-page screenshots
+  — the "sidebar ends mid-page" class of reports is an artifact; measure in the live
+  browser before "fixing".
+- Standing backlog: the owner's deferred carousel-REMOVAL write-up (five static ~300px
+  columns instead of the 3-wide pager — "tell me if you want that version written up")
+  awaits their call; nothing else queued.

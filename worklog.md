@@ -1456,3 +1456,26 @@ Ops lessons (S182 release):
     Changelogs line 100's S93 record), not leaks; every real token was absent.
 (e) healthchecks.io egress flaked once (ETIMEDOUT/ENETUNREACH on all IPs) then
     recovered 10s later — retry once before diagnosing.
+
+---
+
+## S183 — the DEPTH-AUDIT round (v0.4.1.10, released 2026-10-01)
+
+**The owner's approved ladder (from the layering audit) + "remove this progress bar" + the standing to-do fade/compaction pair — all shipped, released, verified live.**
+
+### Work Log
+- Sandbox reset AGAIN before the round (/home/z/hibana gone; my-project survived) — the S171 recovery recipe: clone @ 507d0e1, restore .secrets.env/credentials.md (chmod 600, check-ignore verified), bun install --frozen-lockfile.
+- Implemented the audit's 5-item ladder: (1) heads-inside-panels ×6 (todo SSR+skeleton, notebook, projects, overview-as-sibling-panel, activity, resume.js); (2) --shadow-card on every panel; (3) the composer gray well; (4) title 500 (S157 restored); (5) dark --statcard-bg #191817 + the new panels' 13% dark tint.
+- Removed the resume progress bar end-to-end (resume.js + polish-ui.css + resume.progress key ×2; parity 1553).
+- Compacted the to-do rows (lane 1.5rem / checkbox 1.05rem / track trim / gap 0.375rem): 3 single-line rows fit EXACTLY (scroll == client 137/137); fade edges on the new .dash-todo-listwrap (24px masks + progressive blur + scrollbar-width:none) toggled by app.js syncDashTodoFades (capture-phase scroll + swap/resize/updateDashTaskEmpty).
+- **The QA-caught regression (the round's big lesson)**: at 390px the new block panels rendered 961px wide — grid items' automatic minimum (min-content) let .dash-proj-lower's fixed minmax(15.5rem) columns propagate their intrinsic width THROUGH the panel; the pre-S183 layout was immune because the scrollers were the section grids' DIRECT items (the scroll-container automatic-minimum-zero rule). Fixed: min-inline-size: 0 on every panel + .dash-ov + (0,2,0) padding rules vs notifications.css's ≤560px .card{padding:1rem}. Verified zero h-overflow (scrollW 390 == innerW). Bisected by running the PRE-change tree on :3018 via git stash.
+- Gates: typecheck 0 · vitest 563/563 · eslint 0/162-warn · build 79 · wiring canonical · cache-bust PASS · parity 1553/1553 · FULL e2e green in 6 file-batches (3 pins re-authored: S126 rightGap → panel padding edge; S157/S179 600→500; viewport@390 container → the stat-carousel body; + the NEW S183-5 fade spec + the 3-fit pin + re-baselined dashboard.png).
+- Agent-browser QA clean (EN/FA/dark/390px; probes: all 6 panels headFirst+hairline+shadow+500, [230×4], monotonic stack, fade gating, dark #191817 ≠ #1f1e1c; 0 console errors).
+- Released: push 95de566 → CI 36864505216 + CD 36866327126 green → 11/11 wired assets byte-IDENTICAL live (NEW qa/s183-live-verify.mjs) + owner-account functional pass on real data (account restored: en + light) → tag v0.4.1.10 → zip (574 files, secret-scan clean — the one ping-slug hit is the pre-existing S93 public surface) → healthcheck pinged via the live UUID URL (200).
+
+### Ops lessons (new this round)
+1. **Iterating CSS after a ?v= bump serves the STALE browser-cached sheet** — the fix landed in the file + the server, but the browser kept the 1h-cached ?v=35 copy; ANY post-bump edit needs another bump (v36→v37 here). Diagnose with CSSOM walks (`[...sheets].flatMap(cssRules)` + selector match), not file reads.
+2. **The grid-item automatic-minimum chain bites through BLOCK wrappers**: a scroll container zeroes its OWN automatic minimum as an item, but its intrinsic min-content still propagates through a block parent that is itself a grid item. Every new panel/block inserted between a section grid and a fixed-track scroller needs min-inline-size: 0 (the stat-stage/S93 lesson, now re-armed at the panel level).
+3. **notifications.css's ≤560px `.card { padding: 1rem }` beats same-specificity panel rules** (later in the link order) — panel padding rules must be (0,2,0) (`.card.dash-…-panel`) to hold at phone widths.
+4. **Shell sourcing mangles `$`-containing secrets** (`. .secrets.env` expanded `$MqetDzb` inside OWNER_PASS → a 13-char wrong password → a misleading 401). Read credentials with Python/grep, never shell-source, when echoing into eval probes.
+5. **agent-browser theme toggles need the CURRENT language's aria-label** («تغییر پوسته» in FA) — find buttons by label substring, not the EN name.

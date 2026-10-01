@@ -1381,3 +1381,78 @@ Stage Summary:
   (c) check-n.mjs is referenced by package.json but missing from scripts/
   (stale reference, pre-existing); smoke must run under bun (plain node
   cannot resolve the extensionless TS imports).
+
+## S182 RELEASE ADDENDUM — v0.4.1.9 LIVE (2026-10-01)
+
+Released on the owner's explicit go ("Push, commit, deploy." — the hand-off
+re-supplied every token; the fresh sandbox had LOST the gitignored .secrets.env +
+credentials.md again, so both files were recreated from the hand-off and
+byte-verified live before any pipeline step: GitHub repo API 200 + push=true,
+CF account verify success + zone hibana.ir active (its id resolved via API and
+recorded), Telegram bot ok (@Hibana_PM_bot), healthchecks mgmt + readonly keys
+200 (the "Hibana" check resolved at its live slug), the Workers AI token active
+— both files stay gitignored, values never printed).
+
+The chain, as run:
+- Precheck: local main ahead 1 (9d11cbb, tree clean) → pushed via a
+  prompt-aware GIT_ASKPASS helper that reads the token from .secrets.env at
+  call time (the token never rides in argv or the transcript) → remote main
+  @ 9d11cbb.
+- CI 36806047855 green (the full suite under the 20-min cap) → CD
+  36806977101 green (DEV probe → PROD deploy → zone purge).
+- Byte-verify (the NEW qa/s182-live-verify.mjs, tree in wired form): SIX wired
+  assets IDENTICAL on hibana.ir (dashboard-todo.0f0a191f.css 24848 B +
+  claude-dark-theme.a226d2c3.css 11395 B + app.b6c570df.js 103400 B +
+  i18n-en.1efa5b11.js 64632 B + i18n.a33afc22.js 3389 B + the lazy
+  i18n-fa.7a96f89a.js twin 189602 B discovered inside i18n.js's body); sw v417;
+  /api/health ok/prod/db up/schema 63 (no migration this round).
+- Live functional pass as the real account (agent-browser, /dashboard, REAL
+  data, 0 console/page errors): EN — the panel's computed
+  bg/border-width/border-color/radius IDENTICAL to the live Quick Notebook card
+  (rgb(255,255,255) / 1px rgb(212,212,212) / 20px — panelMatchesNote true),
+  the section children [dash-todo-head, dash-todo-panel, dash-quad-dots], the
+  quadrant heights [229.75 × 4] allEqual (the fixed 3-item window), the
+  account's 6 open tasks at 0/3/1/2 across the quadrants with the EMPTY
+  quadrant's strip rendered inside its same-height window, Q3 (3 rows) client
+  141 / scroll 190 → scrollTop 49 → the last row fully revealed, 0
+  hidden task rows (the e2e pin live), no frost pill, no more-row (the 8-row cap
+  unmet); FA/RTL — dir rtl, h1 «پیشخوان»,
+  the panel present, [230 × 4]; claude-dark — the panel's computed bg
+  IDENTICAL to the notebook's dark twin; 390px — the 374px carousel window +
+  4 dots + zero h-overflow; the account's language + theme preferences restored
+  after the probes (EN + light); screenshots download/s182-live-dashboard-
+  {en,fa,dark}.png.
+- Tag v0.4.1.9 (lightweight, on 9d11cbb) → pushed, ls-remote-verified.
+- Zip: hibana.0.4.1.9.zip (573 files = 479 tracked + 70 dist, integrity OK,
+  4.8MB) via the root make-zip.mjs from the WIRED tree → /home/z/upload +
+  the sandbox download folder → --restore-html (the tree back to the dev
+  ?v= form before this docs commit). Secret scan of the zip: every real
+  token/password/key ABSENT (GitHub, CF API, Telegram, owner password,
+  healthchecks keys, Workers AI); the CF account/zone ids + the healthcheck
+  ping slug appear only inside already-public tracked files (the S93
+  public-repo surface — ops scripts + Changelogs), matching every prior
+  release zip.
+- Healthcheck: management API resolved the "Hibana" check (slug
+  e24cc4eb80bf95c1ec36ae14) → pinged the live UUID URL → HTTP 200,
+  check up, last ping 02:57:05Z.
+- Docs (this commit): Changelogs §1 + §2 row 182 flipped to RELEASED
+  with the full chain record; qa/s182-live-verify.mjs tracked; this addendum.
+
+Ops lessons (S182 release):
+(a) agent-browser one-shot flakes are WAIT-ATTRIBUTION bugs, not site bugs:
+    swallowing a failed wait (>/dev/null 2>&1) lets the next eval run against
+    a half-loaded or redirected page — two "missing quadrant" probes were
+    pages that never rendered; the pass2 discipline (every wait checked + the
+    URL printed per stage + a settle sleep before eval) is the fix.
+(b) The live quadrant data-dash-quadrant values are the owner's REAL category
+    ids (4/3/2/1 in DOM order) — not the test build's 1..4; probes must
+    read the attribute, not assume it.
+(c) A mid-htmx-sweep probe can show a transient doubled DOM (12 "tasks",
+    3-per-quadrant, zero hidden) — the settled state (6 tasks, 0/3/1/2) is
+    the verification target; settle sleeps before eval.
+(d) The unzip -p | head -c 200MB secret-scan pattern works on the 4.8MB zip
+    (maxBuffer 200MB) — the three "hits" were pre-existing public
+    identifiers (account/zone ids in tracked ops scripts, the ping slug in
+    Changelogs line 100's S93 record), not leaks; every real token was absent.
+(e) healthchecks.io egress flaked once (ETIMEDOUT/ENETUNREACH on all IPs) then
+    recovered 10s later — retry once before diagnosing.

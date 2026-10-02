@@ -1858,3 +1858,42 @@ Work Log:
   CANONICAL tree (a lesson: the rotation ran uselessly against the still-WIRED
   pages first — restore-html BEFORE rotating), app.js v218→v219, i18n-en
   v93→v94, i18n.js v147→v148 + the i18n-fa v87→v88 literal, sw v422→v423.
+
+S187 RELEASE ADDENDUM (2026-10-02):
+- THE LADDER (final): typecheck 0 · vitest 566/566 · eslint 0 err (162-warn) ·
+  build 79 · wiring canonical · cache-bust PASS · parity 1555/1555 · smoke ALL
+  PASS · FULL e2e 345/345 in 6 file-batches + screenshots (zero flakes; the
+  s105-1 "failure" mid-run was the still-WIRED tree — the e2e must run against
+  the canonical form, restore-html before batching).
+- THE RELEASE: r1 push 5c2c274 → CI 37070532394 + CD 37071952306 GREEN →
+  wired + qa/s187-live-verify.mjs GREEN (13 assets, sw v422). THE OWNER-ACCOUNT
+  PASS then caught the line-map drift — /api/sadhana on the LIVE account
+  revealed the owner's quadrants are the EISENHOWER matrix (Q4 "Urgent &
+  Important/Do" · Q3 "Not Urgent & Important/Schedule" · Q2 "Urgent & Not
+  Important/Delegate" · Q1 "Not Urgent & Not Important"), so the r1 map would
+  have shown "Nothing personal right now." in their URGENT & IMPORTANT box.
+  r2 re-mapped the lines to their board (Q4 = the owner's pick "Nothing urgent
+  right now."), re-authored every pin (unit + s182 + s187 ×5), re-busted
+  (app v219 · i18n-en v94 · i18n v148 · fa v88 · sw v423), pushed f393d9a →
+  CI 37073519066 + CD 37074904049 GREEN → re-verified live (13 assets + the
+  i18n-fa lazy twin IDENTICAL, sw v423, health ok/prod/db up/schema 63).
+- THE OWNER-ACCOUNT PASS (live, real data, agent-browser): their Q4 "Urgent &
+  Important" shows EXACTLY "Nothing urgent right now." centered (vOff 4.01 /
+  hOff 0.01, muted #5C5C5C, fs-sm, both list paddings 0px — the .card ul fix
+  live); Q2 "Urgent" shows "Nothing pressing right now."; Q1/Q3 filled with
+  rows aligned flush; ZERO .dash-todo-add-text in the DOM; the ＋ buttons named
+  per quadrant (custom names) on BOTH surfaces; the board page's dashed bulb
+  block centered ±2.55px with the pinned ＋ footer + "Tap + to add one"; 0
+  console/page errors; VLM audits of the live screenshots confirm every point.
+- THE CHAIN: tag v0.4.1.14 on f393d9a (pushed) → zip hibana.0.4.1.14.zip (583
+  files = 489 tracked + 70 dist, integrity OK; secret-scan: all 8 real
+  credential values ABSENT, the account-id hits = the pre-existing S93 public
+  surface) → /home/z/upload + the sandbox download folder → --restore-html.
+- THE HELD S186 RELEASE COMPLETED FIRST (the fresh token): push fdaf275 →
+  CI+CD green → tag v0.4.1.13 on 6a0a208 — see the S186 addendum above.
+- THE BACKUP CRON: GITHUB_TOKEN re-armed on BOTH workers. NO healthcheck ping
+  this round — the "Hibana" check is the backup-cron watchdog, and a manual
+  ping would claim a backup tick that hasn't run with the new token yet (the
+  worklog lesson (d): a manual ping MASKS a failing cron). The honest proof
+  lands at the next ticks: dev 03:17 UTC / prod 03:23 UTC. A one-shot check is
+  scheduled for 03:26 UTC to read the ping log and confirm the chain.

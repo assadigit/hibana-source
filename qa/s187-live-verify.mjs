@@ -4,12 +4,13 @@
 //   dashboard-todo.css (the centered status line + the .card .dash-todo-list
 //   symmetric-padding override + the retired add-text rules), dashboard.css (the
 //   .dash-empty comment clarifying the retired register), app.js (the client
-//   DASH_TODO_EMPTY_LINE map + the stripped updateDashTaskEmpty twin), i18n-en.js
-//   + i18n.js + the lazily-injected i18n-fa.js twin (quadrantEmptyQ1..Q4; the
-//   quadrantEmpty + addTask pair retires — parity 1555), sadhana-page.js (the
-//   pointed hint + the quadrant-named footer ＋), sadhana-board.css (the empty
-//   block's margin-block:auto centering) — plus every shell page's ?v= busts and
-//   sw.js v422. No migration: schema stays 63.
+//   DASH_TODO_EMPTY_LINE map — r2: keyed against the owner's live Eisenhower board —
+//   + the stripped updateDashTaskEmpty twin), i18n-en.js + i18n.js + the
+//   lazily-injected i18n-fa.js twin (quadrantEmptyQ1..Q4; the quadrantEmpty +
+//   addTask pair retires — parity 1555), sadhana-page.js (the pointed hint + the
+//   quadrant-named footer ＋), sadhana-board.css (the empty block's
+//   margin-block:auto centering) — plus every shell page's ?v= busts and sw.js v423
+//   (r1 v422 → r2 v423 after the line re-map). No migration: schema stays 63.
 // sadhana.html alone wires ALL SEVEN assets; dashboard.html double-covers the
 // five app-wide ones. The i18n-fa twin rides INSIDE i18n.js's rewritten literal
 // (no page ref) — its hash is extracted from the LIVE i18n.js body.
@@ -19,7 +20,7 @@ import { join } from 'node:path'
 
 const BASE = 'https://hibana.ir'
 const DIST = join(process.cwd(), 'public', 'dist')
-const EXPECT_SW = 'hibana-v422'
+const EXPECT_SW = 'hibana-v423'
 const EXPECT_SCHEMA = '63'
 const PAGE_TARGETS = {
   'sadhana.html': ['dashboard-todo', 'dashboard', 'app', 'i18n-en', 'i18n', 'sadhana-page', 'sadhana-board'],
@@ -68,13 +69,12 @@ if (liveI18nBody) {
   results.push('✗ i18n-fa: live i18n.js body not captured'); fail = true
 }
 
-// the S187 markup pin — the wired sadhana page must speak the new grammar:
-// no .dash-todo-add-text anywhere in its app.js is already byte-proven; pin the
-// quadrant-empty keys present in the live i18n-en bundle instead.
+// the S187 markup pin — the quadrant-empty keys must ride the live i18n-en
+// bundle (quote-form agnostic: the minifier rewrites the literal's quotes).
 const enLocal = localFile('i18n-en')
 if (enLocal) {
   const enBody = readFileSync(join(DIST, enLocal), 'utf8')
-  const hasKeys = ["'dashboard.quadrantEmptyQ1'", "'dashboard.quadrantEmptyQ3'", "'dashboard.quadrantEmptyQ2'", "'dashboard.quadrantEmptyQ4'"].every((k) => enBody.includes(k))
+  const hasKeys = ['Q1', 'Q2', 'Q3', 'Q4'].every((q) => new RegExp(`dashboard\\.quadrantEmpty${q}\\b`).test(enBody))
   results.push(`${hasKeys ? '✓' : '✗'} i18n-en: quadrantEmptyQ1..Q4 keys present locally`)
   if (!hasKeys) fail = true
 }

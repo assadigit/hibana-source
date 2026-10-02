@@ -3359,15 +3359,19 @@ window.hibana = (() => {
   let dashTaskDrag = null
   let dashTaskFrom = null
   /* S187 (owner round — the to-do empty states): the per-quadrant STATUS LINE, keyed
-     exactly like the server's TODO_EMPTY_LINE (dashboard.ts). The empty quadrant is
-     information, not a second button — the "Add a task" text link is gone from the DOM,
-     the header ＋ (with its quadrant-named aria-label) is the one add path, and each
-     quadrant's line states its own fact. i18n twins: dashboard.quadrantEmptyQ1..Q4. */
+     exactly like the server's TODO_EMPTY_LINE (dashboard.ts) — r2 re-mapped against
+     the OWNER'S LIVE EISENHOWER BOARD (Q4 "Urgent & Important/Do" · Q3 "Not Urgent &
+     Important/Schedule" · Q2 "Urgent & Not Important/Delegate" · Q1 "Not Urgent & Not
+     Important"), so their pick "Nothing urgent right now." lands on THEIR Urgent &
+     Important box; the siblings still read honestly on default boards. The empty
+     quadrant is information, not a second button — the "Add a task" text link is gone
+     from the DOM, the header ＋ (with its quadrant-named aria-label) is the one add
+     path. i18n twins: dashboard.quadrantEmptyQ1..Q4. */
   const DASH_TODO_EMPTY_LINE = {
-    1: ['dashboard.quadrantEmptyQ1', 'Nothing due today.'],
-    3: ['dashboard.quadrantEmptyQ3', 'Nothing urgent right now.'],
-    2: ['dashboard.quadrantEmptyQ2', 'Nothing strategic right now.'],
-    4: ['dashboard.quadrantEmptyQ4', 'Nothing personal right now.'],
+    1: ['dashboard.quadrantEmptyQ1', 'Nothing waiting here.'],
+    3: ['dashboard.quadrantEmptyQ3', 'Nothing scheduled ahead.'],
+    2: ['dashboard.quadrantEmptyQ2', 'Nothing pressing right now.'],
+    4: ['dashboard.quadrantEmptyQ4', 'Nothing urgent right now.'],
   }
   const clearDashTaskDropTargets = () => document.querySelectorAll('.dash-todo-quadrant.task-drop-target').forEach((el) => el.classList.remove('task-drop-target'))
   const dashTaskList = (card) => card?.querySelector('.dash-todo-list')

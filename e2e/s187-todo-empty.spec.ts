@@ -2,11 +2,14 @@
 // the empty quadrant is INFORMATION, not a second button.
 //   Dashboard widget: the "Add a task" text link is GONE from the DOM (Hick's law —
 //   the header ＋ is the ONE add path), each quadrant renders its own centered
-//   muted STATUS LINE (Q1 Today "Nothing due today." / Q3 Urgent & High Value
-//   "Nothing urgent right now." / Q2 Strategic "Nothing strategic right now." /
-//   Q4 Personal & Sentimental "Nothing personal right now."), and the ＋ carries a
-//   quadrant-named accessible name + tooltip ("Add task to {name}" — custom names
-//   included). The add path still round-trips through the header ＋.
+//   muted STATUS LINE, and the ＋ carries a quadrant-named accessible name +
+//   tooltip ("Add task to {name}" — custom names included). The line map is r2 —
+//   keyed against the OWNER'S LIVE EISENHOWER BOARD (Q4 "Urgent & Important/Do" →
+//   "Nothing urgent right now." — the owner's pick · Q3 "Not Urgent & Important/
+//   Schedule" → "Nothing scheduled ahead." · Q2 "Urgent & Not Important/Delegate"
+//   → "Nothing pressing right now." · Q1 "Not Urgent & Not Important" → "Nothing
+//   waiting here."), still honest on default boards. The add path still
+//   round-trips through the header ＋.
 //   Board page (/to-do-list): the dashed bulb block CENTERS in the card body
 //   (between the header and the ＋ footer — margin-block:auto), keeps its size +
 //   dashed border, the hint points at the card's OWN button ("Tap + to add one"),
@@ -101,9 +104,9 @@ test('S187-1: dashboard — the empty quadrants speak their own centered lines; 
   const q2 = page.locator('.dash-todo-quadrant[data-dash-quadrant="2"]')
   const q4 = page.locator('.dash-todo-quadrant[data-dash-quadrant="4"]')
   await expect(q1.locator('.dash-todo-empty')).toHaveCount(0)
-  await expect(q3.locator('.dash-todo-empty-text')).toHaveText('Nothing urgent right now.')
-  await expect(q2.locator('.dash-todo-empty-text')).toHaveText('Nothing strategic right now.')
-  await expect(q4.locator('.dash-todo-empty-text')).toHaveText('Nothing personal right now.')
+  await expect(q3.locator('.dash-todo-empty-text')).toHaveText('Nothing scheduled ahead.')
+  await expect(q2.locator('.dash-todo-empty-text')).toHaveText('Nothing pressing right now.')
+  await expect(q4.locator('.dash-todo-empty-text')).toHaveText('Nothing urgent right now.')
 
   // The strip is pure information — centered in the empty card's free space, on
   // the muted ink + the app's small type (the strip's own computed grammar).
@@ -167,7 +170,7 @@ test('S187-2: dashboard — adding through the header ＋ replaces the status li
   await login(page)
 
   const q4 = page.locator('.dash-todo-quadrant[data-dash-quadrant="4"]')
-  await expect(q4.locator('.dash-todo-empty-text')).toHaveText('Nothing personal right now.')
+  await expect(q4.locator('.dash-todo-empty-text')).toHaveText('Nothing urgent right now.')
 
   // The ＋ reveals the quick-add form (the ONLY add affordance in the card).
   await q4.locator('.dash-todo-fab').click()
@@ -288,9 +291,9 @@ test('S187-5: dashboard FA — the quadrant lines + the ＋ names flip; rtl hold
   const q3 = page.locator('.dash-todo-quadrant[data-dash-quadrant="3"]')
   const q2 = page.locator('.dash-todo-quadrant[data-dash-quadrant="2"]')
   const q4 = page.locator('.dash-todo-quadrant[data-dash-quadrant="4"]')
-  await expect(q3.locator('.dash-todo-empty-text')).toHaveText('الان چیزی فوری نیست.')
-  await expect(q2.locator('.dash-todo-empty-text')).toHaveText('الان کاری استراتژیک نیست.')
-  await expect(q4.locator('.dash-todo-empty-text')).toHaveText('الان دغدغهٔ دل نیست.')
+  await expect(q3.locator('.dash-todo-empty-text')).toHaveText('چیزی برای برنامه‌ریزی نیست.')
+  await expect(q2.locator('.dash-todo-empty-text')).toHaveText('الان کار فوری‌ای نیست.')
+  await expect(q4.locator('.dash-todo-empty-text')).toHaveText('الان چیزی فوری نیست.')
   // Q3 keeps its (unilingual) custom name in the FA label; Q1 speaks the FA default.
   await expect(q3.locator('.dash-todo-fab')).toHaveAttribute('aria-label', 'افزودن کار به Urgent & Important')
   await expect(page.locator('.dash-todo-quadrant[data-dash-quadrant="1"] .dash-todo-fab')).toHaveAttribute('aria-label', 'افزودن کار به امروز')

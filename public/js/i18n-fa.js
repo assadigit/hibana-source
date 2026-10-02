@@ -405,9 +405,12 @@ window.__hibanaDictFA = {
       'dashboard.nothing': 'هنوز چیزی نیست',
       /* S187 (owner round — the to-do empty states): per-quadrant status lines; the
          quadrantEmpty + addTask pair RETIRED with the empty strip's "Add a task" text
-         link (the header ＋ is the one add path). Q1 Today / Q3 Urgent & High Value /
-         Q2 Strategic / Q4 Personal & Sentimental. */
-      'dashboard.quadrantEmptyQ1': 'چیزی برای امروز نیست.', 'dashboard.quadrantEmptyQ3': 'الان چیزی فوری نیست.', 'dashboard.quadrantEmptyQ2': 'الان کاری استراتژیک نیست.', 'dashboard.quadrantEmptyQ4': 'الان دغدغهٔ دل نیست.',
+         link (the header ＋ is the one add path). r2: keyed against the owner's live
+         EISENHOWER board — Q4 "Urgent & Important/Do" · Q3 "Not Urgent &
+         Important/Schedule" · Q2 "Urgent & Not Important/Delegate" · Q1 "Not Urgent
+         & Not Important" — so the owner's pick lands on their Urgent & Important box,
+         while still reading honestly on the default board. */
+      'dashboard.quadrantEmptyQ1': 'اینجا چیزی در انتظار نیست.', 'dashboard.quadrantEmptyQ3': 'چیزی برای برنامه‌ریزی نیست.', 'dashboard.quadrantEmptyQ2': 'الان کار فوری‌ای نیست.', 'dashboard.quadrantEmptyQ4': 'الان چیزی فوری نیست.',
       'dashboard.moveFailed': 'جابه‌جایی ممکن نشد — دوباره تلاش کن',
       /* S182: the S106 see-more keys (seeMore/seeLess/moreCount) RETIRED with the
          frost pill — the fixed 3-row window + the list's own scroll own the reveal. */

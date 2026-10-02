@@ -1801,11 +1801,16 @@ Work Log:
   REMOVED FROM THE DOM on all four quadrants (SSR row + app.js's
   updateDashTaskEmpty twin + the .dash-todo-add-text CSS rules + the two i18n
   keys — keyboard focus can never land on it). Each empty quadrant speaks its
-  OWN centered muted line: Q1 "Nothing due today." · Q3 "Nothing urgent right
-  now." (the owner's pick) · Q2 "Nothing strategic right now." · Q4 "Nothing
-  personal right now." — SSR TODO_EMPTY_LINE + the client DASH_TODO_EMPTY_LINE
-  map share the lines (i18n twins dashboard.quadrantEmptyQ1..Q4; parity
-  1553→1555). Centering: .dash-todo-list:has(> .dash-todo-empty)
+  OWN centered muted line — R2 RE-MAP (the owner-account pass AFTER the first
+  deploy caught the drift: the owner's LIVE board is the EISENHOWER matrix —
+  Q4 "Urgent & Important/Do" · Q3 "Not Urgent & Important/Schedule" · Q2
+  "Urgent & Not Important/Delegate" · Q1 "Not Urgent & Not Important" — so the
+  owner's pick "Nothing urgent right now." lands on THEIR Q4, not the default
+  semantic's Q3): Q4 "Nothing urgent right now." · Q3 "Nothing scheduled
+  ahead." · Q2 "Nothing pressing right now." · Q1 "Nothing waiting here.",
+  still honest on default boards. SSR TODO_EMPTY_LINE + the client
+  DASH_TODO_EMPTY_LINE map share the lines (i18n twins
+  dashboard.quadrantEmptyQ1..Q4; parity 1553→1555). Centering: .dash-todo-list:has(> .dash-todo-empty)
   align-content:start→center + the li's flex centering + text-align:center +
   logical padding-inline. The header ＋ — the quadrant's ONLY add path now —
   carries "Add task to {name}" as aria-label + title (custom names included,
@@ -1846,3 +1851,10 @@ Work Log:
   (ledger rebuilt cleanly after a mid-edit duplication — the git-HEAD
   reconstruction recipe); package 0.4.1.14; Changelogs §1 rotated + row 187
   STAGED (rotate-s187-changelogs.mjs).
+- R2 (after the first CI/CD green + live byte-verify + the owner-account pass
+  began): the /api/sadhana probe revealed the owner's custom quadrant labels —
+  the line map re-keyed to their Eisenhower board (above), all pins re-authored
+  (dashboard.test.ts + s182 + s187 ×5), the r2 re-busts applied on the
+  CANONICAL tree (a lesson: the rotation ran uselessly against the still-WIRED
+  pages first — restore-html BEFORE rotating), app.js v218→v219, i18n-en
+  v93→v94, i18n.js v147→v148 + the i18n-fa v87→v88 literal, sw v422→v423.

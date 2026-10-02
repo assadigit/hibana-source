@@ -406,9 +406,12 @@ window.__hibanaDictEN = {
       'dashboard.nothing': 'Nothing here yet',
       /* S187 (owner round — the to-do empty states): per-quadrant status lines; the
          quadrantEmpty + addTask pair RETIRED with the empty strip's "Add a task" text
-         link (the header ＋ is the one add path). Q1 Today / Q3 Urgent & High Value /
-         Q2 Strategic / Q4 Personal & Sentimental. */
-      'dashboard.quadrantEmptyQ1': 'Nothing due today.', 'dashboard.quadrantEmptyQ3': 'Nothing urgent right now.', 'dashboard.quadrantEmptyQ2': 'Nothing strategic right now.', 'dashboard.quadrantEmptyQ4': 'Nothing personal right now.',
+         link (the header ＋ is the one add path). r2: keyed against the owner's live
+         EISENHOWER board — Q4 "Urgent & Important/Do" · Q3 "Not Urgent &
+         Important/Schedule" · Q2 "Urgent & Not Important/Delegate" · Q1 "Not Urgent
+         & Not Important" — so the owner's pick lands on their Urgent & Important box,
+         while still reading honestly on the default board. */
+      'dashboard.quadrantEmptyQ1': 'Nothing waiting here.', 'dashboard.quadrantEmptyQ3': 'Nothing scheduled ahead.', 'dashboard.quadrantEmptyQ2': 'Nothing pressing right now.', 'dashboard.quadrantEmptyQ4': 'Nothing urgent right now.',
       'dashboard.moveFailed': "Couldn't move it — try again",
       /* S182: the S106 see-more keys (seeMore/seeLess/moreCount) RETIRED with the
          frost pill — the fixed 3-row window + the list's own scroll own the reveal. */

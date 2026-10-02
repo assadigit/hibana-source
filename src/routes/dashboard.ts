@@ -34,15 +34,23 @@ const CAROUSEL: ProjectStatus[] = ['planning', 'queued', 'developing', 'awaiting
 // second button. The "Add a task" text link retires from the empty strip (Hick's law —
 // the header ＋ is the ONE add path, and it gains a quadrant-named aria-label), and the
 // line each quadrant renders states the SITUATION per its own meaning — neutral, asks
-// nothing, never implies the user is behind. Keyed by quadrant id: 1 = Today (must-do
-// daily necessities), 3 = Urgent & High Value, 2 = Strategic (open horizon), 4 = Personal
-// & Sentimental. Server + app.js's updateDashTaskEmpty share these lines (the i18n twins
-// live under dashboard.quadrantEmptyQ1..Q4).
+// nothing, never implies the user is behind.
+// KEYED BY ID AGAINST THE OWNER'S LIVE BOARD (the owner-account pass caught the drift):
+// their quadrants are the EISENHOWER matrix — Q4 "Urgent & Important (Do)" · Q3 "Not
+// Urgent (& Important — Schedule)" · Q2 "Urgent (& Not Important — Delegate)" · Q1 "Not
+// Urgent (& Not Important)". The owner's pick "Nothing urgent right now." lands on THEIR
+// Urgent & Important box = Q4; the siblings avoid "urgent" in the not-urgent boxes
+// (the owner's rule) while still reading honestly on DEFAULT boards (Q1 Today · Q3
+// Urgent & High Value · Q2 Strategic · Q4 Personal & Sentimental): "waiting" fits a
+// Today box, "scheduled ahead" fits tight-deadline strategy, "pressing" is urgency
+// without the word (an open horizon has none), and the personal box saying "nothing
+// urgent" stays true. Server + app.js's updateDashTaskEmpty share these lines (the
+// i18n twins live under dashboard.quadrantEmptyQ1..Q4).
 const TODO_EMPTY_LINE: Record<number, { en: string; fa: string }> = {
-  1: { en: 'Nothing due today.', fa: 'چیزی برای امروز نیست.' },
-  3: { en: 'Nothing urgent right now.', fa: 'الان چیزی فوری نیست.' },
-  2: { en: 'Nothing strategic right now.', fa: 'الان کاری استراتژیک نیست.' },
-  4: { en: 'Nothing personal right now.', fa: 'الان دغدغهٔ دل نیست.' },
+  1: { en: 'Nothing waiting here.', fa: 'اینجا چیزی در انتظار نیست.' },
+  3: { en: 'Nothing scheduled ahead.', fa: 'چیزی برای برنامه‌ریزی نیست.' },
+  2: { en: 'Nothing pressing right now.', fa: 'الان کار فوری‌ای نیست.' },
+  4: { en: 'Nothing urgent right now.', fa: 'الان چیزی فوری نیست.' },
 }
 const todoEmptyLine = (q: { id: number }): { en: string; fa: string } => TODO_EMPTY_LINE[q.id] ?? { en: 'No tasks yet.', fa: 'هنوز کاری نیست.' }
 

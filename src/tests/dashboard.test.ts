@@ -449,10 +449,10 @@ describe('dashboard to-do preview', () => {
       // INSIDE the list window, and the card keeps the SAME fixed height as its
       // siblings ("whether filled or empty", the owner's words).
       expect((html.match(/class="dash-todo-empty"/g) ?? []).length).toBe(3)
+      expect(html).toContain('Nothing scheduled ahead.')
+      expect(html).toContain('Nothing pressing right now.')
       expect(html).toContain('Nothing urgent right now.')
-      expect(html).toContain('Nothing strategic right now.')
-      expect(html).toContain('Nothing personal right now.')
-      expect(html).not.toContain('Nothing due today.')
+      expect(html).not.toContain('Nothing waiting here.')
       expect(html).not.toContain('class="dash-todo-add-text"')
       // The S187 a11y pin: the header ＋ carries the quadrant's own name (Q1 is the
       // filled one here — its label names the DEFAULT title; the three empty ones

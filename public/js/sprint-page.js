@@ -225,7 +225,7 @@
                 const pr = c.split('/')
                 return '<label class="pd-swatch"><input type="radio" name="catcolor" value="' + c + '" ' + (i === 0 ? 'checked' : '') + '><span style="background:' + pr[0] + ';color:' + pr[1] + '"><b aria-hidden="true">Aa</b></span></label>'
               }).join('') + '</div>' +
-              '<div class="row"><button type="submit" class="btn small">' + B().esc(_t('common.add', 'Add')) + '</button><button type="button" class="ghost small" data-cat-cancel>' + B().esc(_t('common.cancel', 'Cancel')) + '</button></div>' +
+              '<div class="row"><button type="button" class="ghost small" data-cat-cancel>' + B().esc(_t('common.cancel', 'Cancel')) + '</button><button type="submit" class="small">' + B().esc(_t('common.add', 'Add')) + '</button></div>' +
             '</form></div>'
         }
 

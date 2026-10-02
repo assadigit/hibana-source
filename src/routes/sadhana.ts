@@ -244,7 +244,7 @@ export function sadhanaRoutes(cfg: Config) {
             </div>
             <div class="sadhana-style-pop" data-sadhana-style-pop="${q.id}" hidden>
               <form class="sadhana-rename-form" data-sadhana-rename="${q.id}">
-                <label>${t(lang, 'Name', 'نام')}<span class="row"><input name="name" value="${esc(name)}" maxlength="60" required aria-label="${t(lang, 'Quadrant name', 'نام بخش')}"><button type="submit" class="ghost" aria-label="${t(lang, 'Save name', 'ذخیره نام')}">${icon('check')}</button></span></label>
+                <label>${t(lang, 'Name', 'نام')}<span class="row"><input name="name" value="${esc(name)}" maxlength="60" required aria-label="${t(lang, 'Quadrant name', 'نام بخش')}"><button type="submit" aria-label="${t(lang, 'Save name', 'ذخیره نام')}">${icon('check')}</button></span></label>
               </form>
               <div class="dash-style-icons" role="grid" aria-label="${t(lang, 'Choose icon', 'انتخاب نماد')}">${iconButtons}</div>
               <div class="dash-style-swatches" role="group" aria-label="${t(lang, 'Pastel color', 'رنگ پاستلی')}">${swatchButtons}</div>
@@ -409,9 +409,9 @@ export function sadhanaRoutes(cfg: Config) {
         <input name="name" value="${esc(custom)}" maxlength="60" required placeholder="${esc(qName(q, new Map(), ctx.lang))}" aria-label="${t(ctx.lang, 'New name', 'نام جدید')}">
         <input name="subtitle" value="${esc(customSub)}" maxlength="120" placeholder="${t(ctx.lang, 'Subtitle (optional)', 'زیرعنوان (اختیاری)')}" aria-label="${t(ctx.lang, 'Subtitle (optional)', 'زیرعنوان (اختیاری)')}">
         <div class="row">
-          <button>${t(ctx.lang, 'Save', 'ذخیره')}</button>
           ${custom ? `<button type="button" class="ghost" hx-patch="/api/sadhana/quadrants/${q}" hx-vals='{"name":null,"subtitle":null}' hx-target="closest .sadhana-zone" hx-swap="outerHTML">${t(ctx.lang, 'Restore default', 'بازنشانی نام')}</button>` : ''}
           <button type="button" class="ghost" hx-get="/api/sadhana" hx-target="closest .sadhana-zone" hx-swap="outerHTML">${t(ctx.lang, 'Cancel', 'انصراف')}</button>
+          <button>${t(ctx.lang, 'Save', 'ذخیره')}</button>
         </div>
       </form>
     </section>`))
@@ -521,8 +521,8 @@ export function sadhanaRoutes(cfg: Config) {
           <input type="hidden" name="recur_config" data-recur-value value="${esc(task.recur_config ?? '')}">
         </fieldset>
         <div class="row">
-          <button type="submit">${t(lang, 'Save', 'ذخیره')}</button>
           <button type="button" class="ghost" hx-get="/api/sadhana" hx-target="closest .sadhana-zone" hx-swap="outerHTML">${t(lang, 'Cancel', 'انصراف')}</button>
+          <button type="submit">${t(lang, 'Save', 'ذخیره')}</button>
         </div>
       </form>
     </section>`

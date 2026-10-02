@@ -324,6 +324,9 @@ document.documentElement.setAttribute('data-hibana-booted', '1')
       }
       const onDocPointer = (e) => { if (pop && !pop.contains(e.target)) closeMenu() }
       document.addEventListener('pointerdown', onDocPointer)
+      // S186 (the owner's dropdown rule): scrolling closes the menu too — the anchor
+      // scrolls away and a fixed-position pop would detach from it.
+      window.addEventListener('scroll', () => closeMenu(), { passive: true, capture: true })
       const onDocKey = (e) => {
         if (e.key !== 'Escape') return
         closeMenu()

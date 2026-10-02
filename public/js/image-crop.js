@@ -33,8 +33,13 @@ window.hibanaImageCrop = (() => {
             '<div class="crop-stage" data-crop-stage><canvas data-crop-canvas></canvas></div>' +
             '<p class="muted small crop-hint">' + t('sparks.cropHint', 'Drag to reposition · scroll to zoom') + '</p>' +
             '<div class="row">' +
-              '<button type="button" class="ghost" data-crop-apply>' + t('sparks.cropApply', 'Apply') + '</button>' +
+              // S186 (the owner's CTA rule — the incident that started the round):
+              // Apply is the view's ONE primary (solid teal, the shared bare-button
+              // grammar = "Capture an idea"'s style) at the TRAILING end; Cancel is
+              // the neutral secondary beside it. Both were .ghost (teal-text outlined)
+              // — zero hierarchy, Apply read like Cancel.
               '<button type="button" class="ghost" data-crop-cancel>' + t('sparks.cropCancel', 'Cancel') + '</button>' +
+              '<button type="button" data-crop-apply>' + t('sparks.cropApply', 'Apply') + '</button>' +
             '</div>' +
           '</form>'
         document.body.appendChild(dlg)

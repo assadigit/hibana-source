@@ -134,7 +134,9 @@ test('a PROMOTED spark records as a project (stage badge, project-page link)', a
   const card = page.locator(`.spark-card[data-project-id="${PROMOTE_ID}"]`)
   await expect(card).toBeVisible({ timeout: 15_000 })
   await card.locator('[data-menu-open]').first().click()
-  await page.locator(`[data-project-id="${PROMOTE_ID}"] [data-spark-promote]`).click()
+  // S186: the ⋯ pop lifts to <body> while open (the shared hibanaMenu portal) —
+  // the item buttons are page-scoped now, not card-scoped.
+  await page.locator('body > .spark-menu-pop.is-floating [data-spark-promote]').click()
   const dlg = page.locator('#spark-promote-dialog')
   await expect(dlg).toBeVisible()
   await dlg.locator('#sp-status').selectOption('planning')

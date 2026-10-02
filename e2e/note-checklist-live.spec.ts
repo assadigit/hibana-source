@@ -198,10 +198,13 @@ test('live checklist on the phone path: 390px defaults to edit mode — the boxe
 
   await page.setViewportSize({ width: 390, height: 844 })
   await settleIn(page)
-  await page.goto('/notes.html')
+  // S186 (the notes CTA consolidation): the header "New note" button retires
+  // under 768px — a bare [data-vault-new] click now resolves to the retired
+  // header button first. Boot the creation flow directly instead (the
+  // shared-helper lesson: never depend on a transient button).
+  await page.goto('/notes.html?new=1')
   await expect(page.locator('.vault-tree')).toBeVisible()
 
-  await page.click('[data-vault-new]')
   // the mobile editor slide-over opens on the new note
   await expect(page.locator('[data-vault-editor][data-open="true"]')).toBeVisible()
   await page.fill('[data-vault-title]', 'E2E phone checklist')

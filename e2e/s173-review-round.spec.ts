@@ -272,16 +272,20 @@ test('the promote dialog drives purely by keyboard: arrows change the stage, Ent
   const card = page.locator(`#spark-shelf [data-project-id="${PROMOTE_ID}"]`)
   await card.waitFor({ state: 'visible', timeout: 15_000 })
   await card.locator('[data-menu-open]').click()
-  await card.locator('[data-spark-promote]').click()
+  // S186: the pop lifts to <body> while open — the promote item is page-scoped now
+  await page.locator('body > .spark-menu-pop.is-floating [data-spark-promote]').click()
   const dlg = page.locator('#spark-promote-dialog')
   await expect(dlg).toBeVisible()
 
   // KEYBOARD ONLY from here: the stage select walks down (planning → queued),
-  // then Tab reaches Save and Enter submits the form
+  // then Tab reaches Save and Enter submits the form. S186: the dialog footer is
+  // [Cancel(secondary), Save(primary)] — the trailing-end primary — so Save sits
+  // TWO tabs past the select now (the old single Tab landed on Cancel).
   await page.focus('#sp-status')
   await page.keyboard.press('ArrowDown')
   const stage = await page.$eval('#sp-status', (el) => (el as HTMLSelectElement).value)
   expect(stage).toBe('queued')
+  await page.keyboard.press('Tab')
   await page.keyboard.press('Tab')
   await page.keyboard.press('Enter')
   await expect(page.locator('#toast')).toContainText('Promoted')

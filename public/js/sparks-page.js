@@ -303,6 +303,9 @@
             const btn = pop.parentElement && pop.parentElement.querySelector('[data-menu-open]')
             if (btn) btn.removeAttribute('data-open')
           })
+          // S186: a LIFTED pop lives on <body> while open (outside #spark-shelf) — the
+          // shared closer docks every lifted menu app-wide.
+          if (window.hibanaMenu) window.hibanaMenu.closeAll()
         }
 
         // ---- S161 (spec #17): the PROMOTE dialog — pick the stage, the idea becomes
@@ -324,8 +327,8 @@
               '</select></label>' +
               '<p class="error" id="sp-error" role="alert"></p>' +
               '<div class="row">' +
-                '<button type="submit" id="sp-save">' + _t('common.save', 'Save') + '</button>' +
                 '<button type="button" class="ghost" id="sp-cancel">' + _t('common.cancel', 'Cancel') + '</button>' +
+                '<button type="submit" id="sp-save">' + _t('common.save', 'Save') + '</button>' +
               '</div>' +
             '</form>'
           document.body.appendChild(dlg)
@@ -443,8 +446,8 @@
               '<label>' + _t('sparks.folderName', 'Folder name') + ' <input id="sf-name" required maxlength="50" autocomplete="off"></label>' +
               '<p class="error" id="sf-error" role="alert"></p>' +
               '<div class="row">' +
-                '<button type="submit" id="sf-save">' + _t('common.save', 'Save') + '</button>' +
                 '<button type="button" class="ghost" id="sf-cancel">' + _t('common.cancel', 'Cancel') + '</button>' +
+                '<button type="submit" id="sf-save">' + _t('common.save', 'Save') + '</button>' +
               '</div>' +
             '</form>'
           document.body.appendChild(dlg)
@@ -647,8 +650,8 @@
                   '<div class="sf-move-list">' + rows.join('') + '</div>' +
                   '<p class="error" id="sf-move-error" role="alert"></p>' +
                   '<div class="row">' +
-                    '<button type="submit" id="sf-move-save"' + (folders.length === 0 ? ' disabled' : '') + '>' + _t('common.save', 'Save') + '</button>' +
                     '<button type="button" class="ghost" id="sf-move-cancel">' + _t('common.cancel', 'Cancel') + '</button>' +
+                    '<button type="submit" id="sf-move-save"' + (folders.length === 0 ? ' disabled' : '') + '>' + _t('common.save', 'Save') + '</button>' +
                   '</div>' +
                 '</form>'
               document.body.appendChild(dlg)
@@ -797,6 +800,11 @@
             if (pop && !isOpen) {
               pop.hidden = false
               openBtn.setAttribute('data-open', '')
+              // S186 (the owner's dropdown rule): the ⋯ pop LIFTS to <body> while open
+              // (window.hibanaMenu — the shared app.js component) so the card's
+              // overflow:hidden (rounded-corner media crop) can never clip it. Anchored
+              // to the button's trailing edge, flips/clamps near viewport edges, z-90.
+              if (window.hibanaMenu) window.hibanaMenu.floatPop(pop, openBtn, host)
             }
             return
           }

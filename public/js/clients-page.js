@@ -19,8 +19,8 @@
           <label>${_t('qa.oneLiner', 'One-liner')} <textarea id="c-desc" rows="2" maxlength="2000"></textarea></label>
           <p class="error" id="c-error"></p>
           <div class="row">
-            <button type="submit">${_t('common.save', 'Save')}</button>
             <button type="button" class="ghost" id="c-cancel">${_t('common.cancel', 'Cancel')}</button>
+            <button type="submit">${_t('common.save', 'Save')}</button>
           </div>
         </form>`
           document.body.appendChild(dlg)

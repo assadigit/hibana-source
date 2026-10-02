@@ -445,13 +445,27 @@ button:hover { background: var(--cta-hover, var(--accent-hover)); color: var(--b
 button:active { background: var(--cta-hover, var(--accent-hover)); color: var(--btn-text, #fff); }
 button:disabled { opacity: 0.5; cursor: not-allowed; }
 
+/* S186 — THE CTA RULE (the owner's development rule, applied app-wide):
+   ONE primary call-to-action per view (modal, page, form, empty state): a SOLID
+   teal fill (var(--cta)) with the on-teal label (var(--btn-text)) — the bare
+   <button> rules above ARE that shared primary (the "Capture an idea" style;
+   the same tokens drive hover/active/disabled). Every other button in the view
+   is a SECONDARY: outlined (.ghost) or the neutral white .btn — NEVER the teal
+   fill. Secondaries read NEUTRAL (dark ink, neutral hairline) so teal is
+   reserved for the one primary + text links. The primary sits at the TRAILING
+   end of its button row (DOM order [secondary…, primary] — flex row mirrors
+   under RTL, so trailing stays trailing). The global floating action button is
+   an app-shell element: exempt from the one-per-view count, but it keeps the
+   shared primary style (solid teal circle + white glyph — components.css .fab).
+   Regression guard: src/tests/cta-grammar.test.ts + e2e/s186-cta-grammar.spec.ts. */
 button.ghost,
 a.ghost {
   background: transparent;
-  /* F14 (session 9): text-link teal. --accent as TEXT was 2.94:1 on white (AA fail for
-     the 12–16px labels); --link is the text-safe shade of the same teal (5.45 on bg,
-     5.74 on card, 8.5 in dark). Fills/borders/icons keep --accent. */
-  color: var(--link);
+  /* S186: NEUTRAL secondary ink (was --link teal, F14) — a teal-texted secondary
+     read as a sibling of the solid primary ("looks the same as Cancel", the crop
+     modal incident). Teal text now belongs to real links only; secondaries carry
+     the app's text rung. */
+  color: var(--text);
   border: 1px solid var(--line);
 }
 button.ghost:hover,

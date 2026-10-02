@@ -158,7 +158,7 @@
   <link rel="preload" as="font" type="font/woff2" href="/vendor/general-sans/GeneralSans-500.woff2" crossorigin>
   <link rel="preload" as="font" type="font/woff2" href="/vendor/general-sans/GeneralSans-600.woff2" crossorigin>
   <link rel="stylesheet" href="/css/variables.css?v=24">
-  <link rel="stylesheet" href="/css/base.css?v=12">
+  <link rel="stylesheet" href="/css/base.css?v=13">
   <link rel="stylesheet" href="/css/layout.css?v=61">
   <link rel="stylesheet" href="/css/dashboard.css?v=38">
   <link rel="stylesheet" href="/css/dashboard-todo.css?v=23">
@@ -166,8 +166,8 @@
   <link rel="stylesheet" href="/css/canvas.css?v=11">
   <link rel="stylesheet" href="/css/quicknotes.css?v=44">
   <!-- S53: the Notes Vault — Obsidian-style 3-pane (tree | cards | editor) -->
-  <link rel="stylesheet" href="/css/notes.css?v=18">
-  <link rel="stylesheet" href="/css/to-do-list.css?v=10">
+  <link rel="stylesheet" href="/css/notes.css?v=19">
+  <link rel="stylesheet" href="/css/to-do-list.css?v=11">
   <link rel="stylesheet" href="/css/polish-ui.css?v=38">
   <link rel="stylesheet" href="/css/calendar.css?v=8">
   <link rel="stylesheet" href="/css/notifications.css?v=11">
@@ -185,7 +185,7 @@
   <script src="/js/boot.js?v=7"></script>
   <script src="/vendor/alpine.min.js" defer></script>
   <script src="/js/queue.js?v=3" defer></script>
-  <script src="/js/app.js?v=216" defer></script>
+  <script src="/js/app.js?v=217" defer></script>
   <script src="/js/magic-wand.js?v=17" defer></script>
   <script src="/js/hib-init.js?v=11" defer></script>
   <script src="/js/touch-drag.js?v=1" defer></script>
@@ -277,6 +277,41 @@
   <!-- S86: the shared full-library emoji picker (notes + folders icons). M7: its
        49KB emoji-data.js is lazy-loaded by the picker itself on first open. -->
   <script src="/js/emoji-picker.js?v=3" defer></script>
-  <script src="/js/notes-page.js?v=22" defer></script>
+  <script src="/js/notes-page.js?v=23" defer></script>
+  <!-- S186 (the owner's CTA round): the global floating "+" joins the notes
+       page — an app-shell element (exempt from the one-primary-per-view count,
+       always visible, carrying the shared primary style: the solid teal circle
+       + white glyph). Its quick-add set is the canonical capture trio — idea /
+       project / note — so creation never depends on the header/empty-state
+       page CTAs. -->
+<div class="fab-stack" data-fab>
+    <div class="fab-menu" data-fab-menu hidden role="menu">
+      <!-- S46.2 (owner: "3 options — new note, new idea, new project" on every page's +).
+           Was "New Task" (data-taskadd-open, a dashboard-specific quadrant composer);
+           the quadrant cards still carry their own ＋ add buttons, so the FAB is now
+           the canonical cross-surface capture set: idea / project / note. -->
+      <button type="button" class="fab-item" data-quickadd-open role="menuitem" aria-label="New idea" data-i18n-title="fab.idea" title="New idea">
+        <span class="fab-item-icon" aria-hidden="true"><svg class="icon" viewBox="0 0 24 24"><path d="M9 18h6M10 22h4"/><path d="M12 2a7 7 0 0 0-4.2 12.6c.9.7 1.2 1.6 1.2 2.4h6c0-.8.3-1.7 1.2-2.4A7 7 0 0 0 12 2Z"/></svg></span>
+        <span data-i18n="fab.idea">New idea</span>
+      </button>
+      <button type="button" class="fab-item" data-projectquickadd role="menuitem" aria-label="New project" data-i18n-title="fab.project" title="New project">
+        <span class="fab-item-icon" aria-hidden="true"><svg class="icon" viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7Z"/><path d="M12 11v4M10 13h4"/></svg></span>
+        <span data-i18n="fab.project">New project</span>
+      </button>
+      <!-- S54: the vault joins the canonical capture set — idea / project / long note /
+           quick note. Lands on /notes?new=1 (soft-nav), which boots a fresh note. -->
+      <a class="fab-item" href="/notes.html?new=1" role="menuitem" aria-label="New note" data-i18n-title="fab.vault" title="New note">
+        <span class="fab-item-icon" aria-hidden="true"><svg class="icon" viewBox="0 0 24 24"><path d="M5 5h9l5 5v9a1.5 1.5 0 0 1-1.5 1.5h-12A1.5 1.5 0 0 1 4 19V6.5A1.5 1.5 0 0 1 5.5 5Z"/><path d="M8 12h8M8 15.5h5"/></svg></span>
+        <span data-i18n="fab.vault">New note</span>
+      </a>
+      <button type="button" class="fab-item" data-notequickadd role="menuitem" aria-label="New quick note" data-i18n-title="fab.note" title="New quick note">
+        <span class="fab-item-icon" aria-hidden="true"><svg class="icon" viewBox="0 0 24 24"><path d="M5 5h9l5 5v9a1.5 1.5 0 0 1-1.5 1.5h-12A1.5 1.5 0 0 1 4 19V6.5A1.5 1.5 0 0 1 5.5 5Z"/><path d="M8 12h8M8 15.5h5"/></svg></span>
+        <span data-i18n="fab.note">Quick note</span>
+      </button>
+    </div>
+    <button class="fab" data-fab-toggle type="button" aria-expanded="false" aria-label="New" data-i18n-title="fab.new" title="New">
+      <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+    </button>
+  </div>
 </body>
 </html>

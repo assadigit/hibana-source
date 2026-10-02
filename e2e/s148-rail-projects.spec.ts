@@ -88,7 +88,10 @@ async function openCardMenu(page: Page, id: string) {
   // The ⋯ rides a hover-reveal — hover the card first, then click the toggle.
   await card.hover()
   await card.locator('[data-menu-open]').click()
-  return card.locator('.spark-menu-pop')
+  // S186: the pop LIFTS to <body> while open (window.hibanaMenu — the shared
+  // body-portal), so the card-scoped .spark-menu-pop selector comes back empty.
+  // The toggle button stays card-scoped; the pop itself is page-scoped now.
+  return page.locator('body > .spark-menu-pop.is-floating')
 }
 
 test('projects page ⋯ Delete → the rail projects section drops the row in the same beat; Undo restores it', async ({ page }) => {

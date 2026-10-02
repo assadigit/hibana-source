@@ -150,7 +150,7 @@ export function sadhanaTaskControls(
         <div class="sadhana-title">${emoji}<span data-task-title="${esc(task.id)}">${esc(task.title)}</span>${titleBadgesHtml}</div>
         <form class="task-inline-edit" id="task-edit-${esc(task.id)}" data-task-edit-form="${esc(task.id)}" hidden>
           <input type="text" name="title" value="${esc(task.title)}" maxlength="255" required aria-label="${label(lang, 'Task title', 'عنوان کار')}">
-          <button type="submit" class="ghost" aria-label="${label(lang, 'Save task', 'ذخیره کار')}" title="${label(lang, 'Save task', 'ذخیره کار')}">${icon('check')}</button>
+          <button type="submit" aria-label="${label(lang, 'Save task', 'ذخیره کار')}" title="${label(lang, 'Save task', 'ذخیره کار')}">${icon('check')}</button>
           <button type="button" class="ghost" data-task-edit-cancel="${esc(task.id)}" aria-label="${label(lang, 'Cancel editing', 'لغو ویرایش')}" title="${label(lang, 'Cancel editing', 'لغو ویرایش')}">${icon('x')}</button>
           <span class="task-edit-error" role="alert" hidden>${label(lang, 'Title cannot be empty', 'عنوان نمی‌تواند خالی باشد')}</span>
         </form>
@@ -180,7 +180,7 @@ export function sadhanaTaskControls(
       <ol class="task-notes-list">${noteItems}</ol>
       <form class="task-note-add-form" data-task-note-form="${esc(task.id)}">
         <textarea name="text" maxlength="500" rows="2" required placeholder="${label(lang, 'Add a note…', 'افزودن یادداشت…')}" aria-label="${label(lang, 'New note', 'یادداشت جدید')}"></textarea>
-        <button type="submit" class="ghost" aria-label="${label(lang, 'Add note', 'افزودن یادداشت')}" title="${label(lang, 'Add note', 'افزودن یادداشت')}">${icon('plus')}</button>
+        <button type="submit" aria-label="${label(lang, 'Add note', 'افزودن یادداشت')}" title="${label(lang, 'Add note', 'افزودن یادداشت')}">${icon('plus')}</button>
       </form>
     </section>
   </div>`

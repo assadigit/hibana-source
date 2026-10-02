@@ -351,6 +351,9 @@
             const btn = pop.parentElement && pop.parentElement.querySelector('[data-menu-open]')
             if (btn) btn.removeAttribute('data-open')
           })
+          // S186: a LIFTED pop lives on <body> while open (outside #project-list) — the
+          // shared closer docks every lifted menu app-wide.
+          if (window.hibanaMenu) window.hibanaMenu.closeAll()
         }
 
         // ---- Edit dialog (title + description) — mirror of the sparks-page dialog ----
@@ -374,8 +377,8 @@
               '</select></label>' +
               '<p class="error" id="ce-error" role="alert"></p>' +
               '<div class="row">' +
-                '<button type="submit" id="ce-save">' + _t('common.save', 'Save') + '</button>' +
                 '<button type="button" class="ghost" id="ce-cancel">' + _t('common.cancel', 'Cancel') + '</button>' +
+                '<button type="submit" id="ce-save">' + _t('common.save', 'Save') + '</button>' +
               '</div>' +
             '</form>'
           document.body.appendChild(dlg)
@@ -473,6 +476,11 @@
             if (pop && !isOpen) {
               pop.hidden = false
               openBtn.setAttribute('data-open', '')
+              // S186 (the owner's dropdown rule): the ⋯ pop LIFTS to <body> while open
+              // (window.hibanaMenu — the shared app.js component) so the card's bounds
+              // can never clip it. Anchored to the button's trailing edge, flips/clamps
+              // near viewport edges, z-90.
+              if (window.hibanaMenu) window.hibanaMenu.floatPop(pop, openBtn, host)
             }
             return
           }

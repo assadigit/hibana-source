@@ -42,9 +42,11 @@ async function login(page: import('@playwright/test').Page): Promise<void> {
 }
 
 async function createNoteWithOutline(page: import('@playwright/test').Page): Promise<void> {
-  await page.goto('/notes.html')
-  await expect(page.locator('[data-vault-new]').first()).toBeVisible({ timeout: 10_000 })
-  await page.click('[data-vault-new]')
+  // S186 (the notes CTA consolidation): boot the creation flow directly via
+  // /notes?new=1 — the shared-helper lesson. The old bare [data-vault-new]
+  // click resolved to the header button, which retires under 768px on phones.
+  await page.goto('/notes.html?new=1')
+  await expect(page.locator('[data-vault-title]')).toBeVisible({ timeout: 10_000 })
   await page.fill('[data-vault-title]', 'Outline pin note')
   // LONG note: the preview pane must actually scroll — otherwise the outline's
   // at-bottom rule (short note: last visible heading wins) makes the LAST heading

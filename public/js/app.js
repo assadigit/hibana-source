@@ -419,8 +419,10 @@ window.hibana = (() => {
         </label>
         <p class="error" id="qa-error" role="alert"></p>
         <div class="row">
-          <button type="submit" id="qa-save">${_t('common.save', 'Save')}</button>
+          <!-- S186: the primary rides the TRAILING end (DOM order [secondary, primary]
+          mirrors under RTL) -->
           <button type="button" class="ghost" id="qa-cancel">${_t('common.cancel', 'Cancel')}</button>
+          <button type="submit" id="qa-save">${_t('common.save', 'Save')}</button>
         </div>
       </form>`
     document.body.appendChild(dlg)
@@ -714,8 +716,8 @@ window.hibana = (() => {
         <label>${_t('qa.tags', 'Tags (comma-separated, optional)')} <input type="text" id="pa-tags" placeholder="${_t('qa.tagsPlaceholder', 'AI, WordPress, …')}" maxlength="200"></label>
         <p class="error" id="pa-error" role="alert"></p>
         <div class="row">
-          <button type="submit" id="pa-save">${_t('common.save', 'Save')}</button>
           <button type="button" class="ghost" id="pa-cancel">${_t('common.cancel', 'Cancel')}</button>
+          <button type="submit" id="pa-save">${_t('common.save', 'Save')}</button>
         </div>
       </form>`
     document.body.appendChild(dlg)
@@ -852,8 +854,8 @@ window.hibana = (() => {
         <label><span data-i18n="taskAdd.deadline">Deadline (optional)</span> <input type="date" id="taskadd-date"></label>
         <p class="error" id="taskadd-error" role="alert"></p>
         <div class="row">
-          <button type="submit" id="taskadd-save" data-i18n="taskAdd.add">Add task</button>
           <button type="button" class="ghost" id="taskadd-cancel" data-i18n="common.cancel">Cancel</button>
+          <button type="submit" id="taskadd-save" data-i18n="taskAdd.add">Add task</button>
         </div>
       </form>`
     document.body.appendChild(dlg)
@@ -1074,8 +1076,8 @@ window.hibana = (() => {
         <div class="qn-attach-options" id="quicknote-attach-options" hidden></div>
         <p class="error" id="quicknote-error" role="alert"></p>
         <div class="row">
-          <button type="submit" id="quicknote-save" data-i18n="qn.save">Save</button>
           <button type="button" class="ghost" id="quicknote-cancel" data-i18n="common.cancel">Cancel</button>
+          <button type="submit" id="quicknote-save" data-i18n="qn.save">Save</button>
         </div>
       </form>`
     document.body.appendChild(dlg)
@@ -3718,35 +3720,75 @@ window.hibana = (() => {
       card.setAttribute('data-menu-ok', '')
     }
   }
+  // S186 (the owner's dropdown rule): ONE shared menu lift — every ⋯ menu / dropdown
+  // in the app opens as a <body>-level portal (position:fixed via the body >
+  // .spark-menu-pop.is-floating rule) anchored to its button, so no card's
+  // overflow:hidden, scrollport, or stacking context can ever clip it. Anchoring is
+  // LOGICAL (the button's trailing edge — mirrors under RTL), collision handling
+  // clamps + shifts inside the viewport and flips above when the bottom is near.
+  // Exposed as window.hibanaMenu so sparks-page/projects-page (and any future
+  // surface) ride the same component; app.js's own #notebook handler below is now a
+  // thin wrapper over it. Escape / scroll / resize close every lifted menu.
+  const hibanaMenu = (() => {
+    const isLifted = (pop) => pop && pop.classList.contains('is-floating')
+    function floatPop(pop, btn, menuHost) {
+      if (!pop || !btn) return
+      pop.__menuHost = menuHost || pop.parentElement
+      pop.classList.add('is-floating')
+      document.body.appendChild(pop)
+      const r = btn.getBoundingClientRect()
+      const pw = pop.offsetWidth || 170
+      const ph = pop.offsetHeight || 96
+      const rtl = document.documentElement.dir === 'rtl'
+      // trailing edge: the menu's start edge meets the button's END edge (inline-end
+      // alignment), then clamped into the viewport with an 8px gutter (horizontal shift)
+      let x = rtl ? r.left : r.right - pw
+      x = Math.max(8, Math.min(x, window.innerWidth - pw - 8))
+      // below the button; FLIP above when there is no room (6px gap either way)
+      let y = r.bottom + 6
+      if (y + ph > window.innerHeight - 8) y = Math.max(8, r.top - ph - 6)
+      pop.style.left = Math.round(x) + 'px'
+      pop.style.top = Math.round(y) + 'px'
+    }
+    function dockPop(pop) {
+      if (!pop) return
+      pop.classList.remove('is-floating')
+      pop.style.left = ''
+      pop.style.top = ''
+      const host = pop.__menuHost
+      if (host && host.isConnected) host.appendChild(pop)
+      else if (pop.parentElement === document.body) pop.remove()
+      pop.__menuHost = null
+    }
+    // Close every lifted pop (dock back or drop if the host left the DOM).
+    function closeAll() {
+      document.querySelectorAll('body > .spark-menu-pop.is-floating').forEach((pop) => {
+        pop.hidden = true
+        dockPop(pop)
+        const btn = pop.__menuHost?.querySelector?.('[data-menu-open]') || (pop.parentElement && pop.parentElement.querySelector('[data-menu-open]'))
+        if (btn) btn.removeAttribute('data-open')
+      })
+    }
+    // Escape / scroll / resize — one global closer for every lifted menu.
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') closeAll()
+    })
+    window.addEventListener('scroll', () => closeAll(), { passive: true, capture: true })
+    window.addEventListener('resize', () => closeAll(), { passive: true })
+    return { floatPop, dockPop, closeAll, isLifted }
+  })()
+  window.hibanaMenu = hibanaMenu
+
   // Lift a note ⋯ pop out of the clipped paper: body + fixed, aligned under its button
   // (inline-end edges match), flipping above when the viewport bottom is near. Stamps
   // the host menu reference so the dock step can find it again.
   function floatNotePop(pop, btn, menu) {
-    pop.__menuHost = menu
-    pop.classList.add('is-floating')
-    document.body.appendChild(pop)
-    const r = btn.getBoundingClientRect()
-    const pw = pop.offsetWidth || 170
-    const ph = pop.offsetHeight || 96
-    const rtl = document.documentElement.dir === 'rtl'
-    let x = rtl ? r.left : r.right - pw
-    x = Math.max(8, Math.min(x, window.innerWidth - pw - 8))
-    let y = r.bottom + 6
-    if (y + ph > window.innerHeight - 8) y = Math.max(8, r.top - ph - 6)
-    pop.style.left = Math.round(x) + 'px'
-    pop.style.top = Math.round(y) + 'px'
+    hibanaMenu.floatPop(pop, btn, menu)
   }
   // Return a lifted pop to its .spark-menu (restore flow + drop inline coords). If the
   // host already left the DOM (htmx re-rendered the notes), the pop is dropped too.
   function dockNotePop(pop) {
-    if (!pop) return
-    pop.classList.remove('is-floating')
-    pop.style.left = ''
-    pop.style.top = ''
-    const host = pop.__menuHost
-    if (host && host.isConnected) host.appendChild(pop)
-    else if (pop.parentElement === document.body) pop.remove()
-    pop.__menuHost = null
+    hibanaMenu.dockPop(pop)
   }
   // Close note ⋯ popovers on outside click (the sparks/projects pages have their own
   // closeMenus; the dashboard notes need one too). Finds BOTH docked pops and the
@@ -3827,8 +3869,8 @@ window.hibana = (() => {
         '<label>' + _t('notes.noteContent', 'Content') + ' <textarea id="ne-content" rows="10" maxlength="20000" dir="auto" class="ne-content"></textarea></label>' +
         '<p class="error" id="ne-error" role="alert"></p>' +
         '<div class="row">' +
-          '<button type="submit" id="ne-save">' + _t('common.save', 'Save') + '</button>' +
           '<button type="button" class="ghost" id="ne-cancel">' + _t('common.cancel', 'Cancel') + '</button>' +
+          '<button type="submit" id="ne-save">' + _t('common.save', 'Save') + '</button>' +
         '</div>' +
       '</form>'
     document.body.appendChild(dlg)

@@ -603,6 +603,9 @@ main.shell-dash {
 }
 .task-note-add-form textarea:focus { border-color: var(--accent); outline: none; box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 15%, transparent); }
 .task-note-add-form button {
+  /* S186 (the CTA rule): the row-commit "+" rides the app's ONE composer-circle
+     grammar — .qa-btn's exact tokens (the solid --cta fill + --btn-text glyph,
+     2.25rem circle), not a locally invented grey. */
   all: unset;
   cursor: pointer;
   display: inline-grid;
@@ -610,9 +613,10 @@ main.shell-dash {
   inline-size: 2.25rem;
   block-size: 2.25rem;
   border-radius: 50%;
-  color: var(--muted);
+  background: var(--cta, var(--accent));
+  color: var(--btn-text);
 }
-.task-note-add-form button:hover { color: var(--text); background: var(--bg-soft); }
+.task-note-add-form button:hover { background: var(--cta-hover, var(--accent-hover)); }
 .task-note-add-form button .icon { inline-size: 1rem; block-size: 1rem; }
 
 /* --- Inline title editor (R10: triggered from the expanded panel "Edit") ---- */

@@ -521,8 +521,8 @@ export function detailHtml(p: ProjectRow, d: Awaited<ReturnType<typeof loadDetai
         <form class="pd-tag-pop" data-tag-pop hidden>
           <input name="name" maxlength="60" dir="auto" placeholder="${trL(lang, 'Tag name (UI/UX…)', 'نام برچسب (UI/UX…)')}" required>
           <div class="row">
-            <button type="submit" class="btn small">${trL(lang, 'Add', 'افزودن')}</button>
             <button type="button" class="ghost small" data-tag-cancel>${trL(lang, 'Cancel', 'لغو')}</button>
+            <button type="submit" class="small">${trL(lang, 'Add', 'افزودن')}</button>
           </div>
         </form>
       </div>
@@ -553,7 +553,7 @@ export function detailHtml(p: ProjectRow, d: Awaited<ReturnType<typeof loadDetai
          is; the composer starts immediately. The placeholder is the user's own wording. -->
     <form hx-post="/api/projects/${p.id}/note" hx-target="body" hx-swap="beforeend" id="pd-note-form">
       <textarea name="note" id="pd-note-textarea" rows="3" maxlength="5000" dir="${lang === 'fa' ? 'rtl' : 'auto'}" placeholder="${trL(lang, 'Write a quick note to follow up later.', 'یک یادداشت سریع بنویس تا بعدا پیگیری کنی.')}">${esc(p.latest_note)}</textarea>
-      <div class="row pd-note-actions"><button type="submit">${trL(lang, 'Save note', 'ذخیره یادداشت')}</button><button type="button" class="ghost small danger" data-note-clear title="${trL(lang, 'Clear the note', 'پاک کردن یادداشت')}">${icon('x')} ${trL(lang, 'Clear', 'پاک‌کردن')}</button><button type="button" class="ghost small" data-note-expand title="${trL(lang, 'Open a larger editor', 'باز کردن ویرایشگر بزرگ‌تر')}">${icon('expand')} ${trL(lang, 'Expand', 'بزرگ‌نمایی')}</button><span class="muted small" id="note-status" hidden></span></div>
+      <div class="row pd-note-actions"><button type="button" class="ghost small danger" data-note-clear title="${trL(lang, 'Clear the note', 'پاک کردن یادداشت')}">${icon('x')} ${trL(lang, 'Clear', 'پاک‌کردن')}</button><button type="button" class="ghost small" data-note-expand title="${trL(lang, 'Open a larger editor', 'باز کردن ویرایشگر بزرگ‌تر')}">${icon('expand')} ${trL(lang, 'Expand', 'بزرگ‌نمایی')}</button><button type="submit">${trL(lang, 'Save note', 'ذخیره یادداشت')}</button><span class="muted small" id="note-status" hidden></span></div>
     </form>
     <h3 style="margin-block-start:1.5rem">${trL(lang, 'Related notes ({n})', 'یادداشت‌های مرتبط ({n})', { n: dig(d.notes.length) })}</h3>
     <ul class="links related-notes">${relatedNotes}</ul>
@@ -574,7 +574,7 @@ export function detailHtml(p: ProjectRow, d: Awaited<ReturnType<typeof loadDetai
         <option class="prio-medium" value="medium" selected>${prioLabel('medium')}</option>
         <option class="prio-low" value="low">${prioLabel('low')}</option>
       </select>
-      <button type="submit" class="ghost" aria-label="${trL(lang, 'Add problem', 'افزودن مشکل')}">${icon('plus')}</button>
+      <button type="submit" aria-label="${trL(lang, 'Add problem', 'افزودن مشکل')}">${icon('plus')}</button>
     </form>
   </section>
 
@@ -584,7 +584,7 @@ export function detailHtml(p: ProjectRow, d: Awaited<ReturnType<typeof loadDetai
 
     <form class="pd-quick-add bl-item-form" data-bl-item>
       <input name="title" maxlength="300" dir="auto" autocomplete="off" placeholder="${trL(lang, '− Fix the dashboard CSS problems…', '− رفع مشکلات CSS داشبورد…')}" aria-label="${trL(lang, 'Plan item', 'قلم برنامه')}">
-      <button type="submit" class="ghost" aria-label="${trL(lang, 'Add item', 'افزودن قلم')}">${icon('plus')}</button>
+      <button type="submit" aria-label="${trL(lang, 'Add item', 'افزودن قلم')}">${icon('plus')}</button>
     </form>
     <p class="muted small bl-hint">${trL(lang, 'Every item lands in the Plans box above — ideas still need a review before they join the plan.', 'هر قلم بلافاصله در جعبهٔ «برنامه‌ها» بالا می‌نشیند — ایده‌ها پیش از ورود به برنامه بازبینی و انتخاب می‌شوند.')}</p>
 
@@ -603,9 +603,9 @@ export function detailHtml(p: ProjectRow, d: Awaited<ReturnType<typeof loadDetai
       <input name="title" maxlength="200" dir="auto" autocomplete="off" placeholder="${trL(lang, 'Document title — e.g. Backlog of V 12.1', 'عنوان سند — مثلاً برنامهٔ نسخهٔ ۱۲٫۱')}" required>
       <textarea name="content" rows="8" maxlength="50000" dir="${lang === 'fa' ? 'rtl' : 'auto'}" placeholder="${trL(lang, 'The full plan — everything that has to be done…', 'برنامهٔ کامل — همهٔ کارهایی که باید انجام شود…')}"></textarea>
       <div class="row">
-        <button type="submit" class="btn small">${trL(lang, 'Save document', 'ذخیرهٔ سند')}</button>
         <button type="button" class="ghost small" data-bl-fullscreen title="${trL(lang, 'Open in full-screen editor', 'باز کردن در ویرایشگر تمام‌صفحه')}">${icon('expand')} ${trL(lang, 'Full screen', 'تمام‌صفحه')}</button>
         <button type="button" class="ghost small" data-bl-cancel>${trL(lang, 'Cancel', 'لغو')}</button>
+        <button type="submit" class="small">${trL(lang, 'Save document', 'ذخیرهٔ سند')}</button>
       </div>
     </form>
 
@@ -655,8 +655,8 @@ export function detailHtml(p: ProjectRow, d: Awaited<ReturnType<typeof loadDetai
       <div class="row pd-editor-footer">
         <span class="muted small" id="pd-editor-hint"></span>
         <span class="grow"></span>
-        <button type="submit" id="pd-editor-save">${trL(lang, 'Save', 'ذخیره')}</button>
         <button type="button" class="ghost" id="pd-editor-cancel">${trL(lang, 'Cancel', 'لغو')}</button>
+        <button type="submit" id="pd-editor-save">${trL(lang, 'Save', 'ذخیره')}</button>
       </div>
     </form>
   </dialog>
@@ -794,8 +794,8 @@ export function detailHtml(p: ProjectRow, d: Awaited<ReturnType<typeof loadDetai
       <p class="error" id="pd-taskadd-error" role="alert" hidden></p>
       </div>
       <div class="row pd-taskadd-actions">
-        <button type="submit" id="pd-taskadd-save">${icon('plus')} ${trL(lang, 'Add', 'افزودن')}</button>
         <button type="button" class="ghost" id="pd-taskadd-cancel">${trL(lang, 'Cancel', 'لغو')}</button>
+        <button type="submit" id="pd-taskadd-save">${icon('plus')} ${trL(lang, 'Add', 'افزودن')}</button>
       </div>
     </form>
   </dialog>
@@ -830,8 +830,8 @@ export function detailHtml(p: ProjectRow, d: Awaited<ReturnType<typeof loadDetai
       </div>
       <p class="error" id="pd-sprintnew-error" role="alert" hidden></p>
       <div class="row pd-sprintnew-actions" id="pd-sprintnew-actions">
-        <button type="submit" id="pd-sprintnew-save">${icon('diamond')} <span id="pd-sprintnew-save-label">${trL(lang, 'Create sprint', 'ساخت اسپرینت')}</span></button>
         <button type="button" class="ghost" id="pd-sprintnew-cancel">${trL(lang, 'Cancel', 'لغو')}</button>
+        <button type="submit" id="pd-sprintnew-save">${icon('diamond')} <span id="pd-sprintnew-save-label">${trL(lang, 'Create sprint', 'ساخت اسپرینت')}</span></button>
       </div>
       <div id="pd-sprintnew-done" class="pd-sprintnew-done" hidden>
         <p class="pd-sprintnew-done-title"><span class="pd-sprintnew-check" aria-hidden="true">✓</span> ${trL(lang, 'Sprint created', 'اسپرینت ساخته شد')}</p>

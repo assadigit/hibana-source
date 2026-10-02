@@ -1647,3 +1647,87 @@ S185 RELEASE ADDENDUM (2026-10-02):
   (integrity OK; secret-scan clean — the hits triaged as the pre-existing S93
   public surface, git-grep-confirmed in v0.4.1.11) → /home/z/upload + download →
   --restore-html → healthcheck pinged (200, up, 00:41:02Z) → this docs commit.
+
+---
+Task ID: S186
+Agent: main (Z.ai Code)
+Task: The owner's CTA round ("Block 1: the development rule" + "Block 2: the audit
+task" + the dropdown-portal fix + "Block 1 (revised): CTA visibility on the Notes
+page" + "Push, update changelogs, commit, deploy"). Full delivery: implement →
+gates → push → CI/CD → live byte-verify → owner-account pass → tag v0.4.1.13 →
+zip + secret scan → healthcheck → docs flip.
+
+Work Log:
+- Sandbox reset AGAIN before the round — the S171/S183/S184/S185 recipe: public
+  clone @ 1451f81 (v0.4.1.12 live), .secrets.env + credentials.md + askpass
+  restored (token byte-verified 40), bun install.
+- THE INCIDENT (image-crop.js): both Apply + Cancel were class="ghost" (teal-text
+  outlined) with Apply FIRST — zero hierarchy. Fixed: Apply = the bare-button solid
+  teal primary at the trailing end; Cancel = the neutral secondary.
+- THE RULE (base.css): button.ghost/a.ghost color --link → --text (the ONE-rule
+  neutral-secondary fix app-wide — teal text now belongs to real links only; the
+  F14 teal-text ghost retires); the S186 rule block documents the grammar (primary
+  = bare button --cta/--btn-text; secondary = .ghost/.btn neutral; trailing-end
+  order; the FAB app-shell exemption line verbatim from the owner).
+- THE FOOTER SWEEP: 16 modal/footer rows reordered [secondary…, primary] — app.js
+  ×5 (qa/pa/taskadd/quicknote/ne), sparks-page ×3 (sp/sf/sf-move), projects-page
+  (ce), clients-page, sprint-page (cat), signup.html (verify), SSR: sadhana.ts ×2,
+  detail-helpers ×5 (tag-pop, bl-doc, taskadd, sprintnew, editor, note-actions).
+- THE CONVERGENCE (locally-written buttons → the shared grammar): sadhana edit
+  dialog's .btn.btn-primary + inline-styled trio → ghost small danger / ghost small
+  / bare small primary; pd tag-pop Add + bl-doc Save document + sprint cat Add
+  (.btn small neutrals) → class="small" primaries; sadhana-task-controls' inline
+  save ghost → bare; the problems/backlog composer + ghost submits → bare; the
+  task-note-add grey circle → the qa-btn tokens (--cta fill + --btn-text glyph);
+  notes.css .vault-new local hexes (#fff/600/10px) → --btn-text/--text-label-weight/
+  --radius-sm.
+- THE DROPDOWN: window.hibanaMenu (app.js) — the S82 floatNotePop generalized into
+  the shared component (body portal, trailing-edge logical anchor, clamp/shift/flip,
+  z-90, dock-on-close) + global Escape/scroll/resize closers; sparks-page +
+  projects-page open handlers lift (closeMenus docks via closeAll); the dashboard's
+  floatNotePop/dockNotePop become thin wrappers; the notes vault-pop gains
+  scroll-close. The RTL mirror verified live (pop.left == btn.left under dir=rtl).
+- THE NOTES PAGE: notes.css @768px hides .vault-list-tools .vault-new + the sort
+  owns the row; the empty-state twin (already empty-gated) stays the only mobile
+  primary while empty; the FAB block injected into notes.html (the canonical trio
+  + quick note); desktop keeps the header primary.
+- THE GUARD: src/tests/cta-grammar.test.ts (3 invariants: no ghost/.btn submits,
+  trailing-primary rows, neutral ghost ink in base.css) + e2e/s186-cta-grammar.spec.ts
+  ×5 (crop incident + contrast math, footer grammar, lift/Escape/scroll, notes
+  mobile+desktop, the FAB).
+- Cache-bust: base.css v13 + app.js v217 (×24-27 pages), to-do-list.css v11 +
+  sadhana-page.js v13 (sadhana), notes.css v19 + notes-page.js v23 + the FAB markup
+  (notes.html), sparks-page.js v13, projects-page.js v8, image-crop.js v3,
+  sprint-page.js v18, clients-page.js v4, signup.html's verify row; sw v421;
+  package 0.4.1.13; check-cache-bust PASS; parity 1553/1553 (no i18n changes).
+- LADDER: typecheck 0 · vitest 566/566 · eslint 0 err (162-warn) · build 79 ·
+  wiring canonical · FULL e2e 340/340 in 6 file-batches, ZERO flakes — six specs
+  re-authored for the new grammar (note-checklist phone path → /notes?new=1;
+  s105/s119/s148/s161/s173 → the lifted-menu selectors + the trailing-footer Tab
+  order; sparks.spec → the body-portal pins; vault-outline → the ?new=1 flow).
+- AGENT-BROWSER QA (:3017): sparks EN [capture teal+white; crop [Cancel neutral,
+  Apply teal] trailing; menu fixed z-90 in-viewport un-clipped THROUGH
+  cardOverflow:hidden; Escape closes; 0 console] · FA/RTL [crop «انصراف/اعمال»
+  mirrored; the pop's left edge anchors the button's left — the trailing edge
+  under rtl] · claude-dark [Apply clay #c2643f + white; Cancel neutral light ink] ·
+  notes @390 [header display:none; sort 100% of the row; FAB teal visible; 0
+  h-overflow] · notes @desktop [header flex ✓] · VLM audits clean.
+
+Stage Summary:
+- STAGED: v0.4.1.13 "The CTA Round" — the development rule applied app-wide with
+  the audit fixes, the shared hibanaMenu portal for every ⋯ menu, the Notes-page
+  mobile consolidation + the global FAB, and the regression guard. The release
+  chain (push → CI/CD → live byte-verify → owner-account pass → tag v0.4.1.13 →
+  zip → healthcheck → docs flip) runs next per the standing full-delivery protocol.
+- Ops lessons: (a) a leftover debug server on :3017 HIJACKS the e2e webServer
+  (reuseExistingServer) — its missing HIBANA_SHOTS_DIR env sent shot uploads to the
+  GitHub store with the dummy token → "shot never landed"; kill the debug server
+  before the suite; (b) a DOM-order flip changes the TAB order — keyboard-driven
+  specs need a Tab count update (s173's Save was first, now second); (c) lifting a
+  pop OUT of its card breaks every card-scoped selector for its buttons — the app's
+  delegated handlers were immune, the tests were not (s119/s148/s161/s173/sparks);
+  (d) the e2e desktop test POISONING the mobile test's premise (a created note
+  removes the empty state) surfaced only under the new CTA gating — shared helpers
+  should boot flows directly (/notes?new=1) instead of depending on transient
+  buttons; (e) the sparks shelf boots to the FOLDER GRID — a cards-view probe must
+  click «All ideas» first.

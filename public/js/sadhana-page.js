@@ -694,10 +694,14 @@ function startEdit(id, q) {
         '<div id="se-recur-ui"></div>' +
         '<p class="error" id="se-error" role="alert"></p>' +
         '<div class="edit-acts">' +
-          '<button type="button" class="btn" style="font-size:12px;padding:5px 12px;color:var(--err)" id="se-del" title="' + tr('delete') + '">🗑</button>' +
+          // S186 (the CTA rule): the sadhana edit dialog's locally-styled buttons
+          // converge on the shared grammar — delete = ghost.danger, cancel = ghost,
+          // Save = the bare-button SOLID PRIMARY at the trailing end (the local
+          // .btn.btn-primary + inline font-size/padding styles retire).
+          '<button type="button" class="ghost small danger" id="se-del" title="' + tr('delete') + '">🗑</button>' +
           '<span style="flex:1"></span>' +
-          '<button type="button" class="btn" style="font-size:12px;padding:5px 12px" id="se-cancel">' + tr('cancelEdit') + '</button>' +
-          '<button type="submit" class="btn btn-primary" style="font-size:12px;padding:5px 12px" id="se-save">' + tr('saveEdit') + '</button>' +
+          '<button type="button" class="ghost small" id="se-cancel">' + tr('cancelEdit') + '</button>' +
+          '<button type="submit" class="small" id="se-save">' + tr('saveEdit') + '</button>' +
         '</div>' +
       '</form>'
     document.body.appendChild(sadhanaEditDlg)

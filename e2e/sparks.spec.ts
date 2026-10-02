@@ -367,7 +367,9 @@ test('sparks: every view offers the ⋯ — list/kanban/sticky edit + delete + p
   const victim = rows[0]
   await page.click(`#spark-shelf .projects-table tr[data-project-id="${victim}"] .spark-menu [data-menu-open]`)
   page.once('dialog', (d) => d.accept())
-  await page.click(`#spark-shelf .projects-table tr[data-project-id="${victim}"] .spark-menu-pop [data-spark-delete]`)
+  // S186: the pop lifts to <body> while open (the shared hibanaMenu portal) —
+  // the row-scoped .spark-menu-pop selector comes back empty now.
+  await page.click('body > .spark-menu-pop.is-floating [data-spark-delete]')
   await page.waitForTimeout(900)
   const rowsAfter = await page.$$eval('#spark-shelf .projects-table tr[data-project-id]', (els) => els.map((el) => el.dataset.projectId))
   expect(rowsAfter).not.toContain(victim)
@@ -379,9 +381,11 @@ test('sparks: every view offers the ⋯ — list/kanban/sticky edit + delete + p
   const cards = await page.$$eval('#spark-shelf .kanban-card[data-project-id]', (els) => els.length)
   const cardMenus = await page.$$eval('#spark-shelf .kanban-card .spark-menu', (els) => els.length)
   expect(cardMenus).toBe(cards)
-  // ⋯ click: the menu opens IN PLACE (no navigation to project.html).
+  // ⋯ click: the menu opens (no navigation to project.html).
   await page.click('#spark-shelf .kanban-card .spark-menu [data-menu-open]')
-  const pop = page.locator('#spark-shelf .kanban-card .spark-menu-pop').first()
+  // S186: the pop LIFTS to <body> while open — the card-scoped selector is empty;
+  // the floating pop is the page-scoped one.
+  const pop = page.locator('body > .spark-menu-pop.is-floating')
   await expect(pop).not.toBeHidden()
   expect(page.url()).toContain('/sparks.html')
   // The menu offers the real actions (Move / Promote / Delete — S161 retired the
@@ -413,15 +417,16 @@ test('sparks: every view offers the ⋯ — list/kanban/sticky edit + delete + p
   const noteMenus = await page.$$eval('#spark-shelf .sticky-note .spark-menu', (els) => els.length)
   expect(noteMenus).toBeGreaterThanOrEqual(2)
   // Open the ⋯, then swap the shelf exactly like the 30s poll does — the menu must
-  // still be open afterwards (it used to be destroyed with the swapped DOM).
+  // still be open afterwards (S186 made this trivially true: the pop floats on
+  // <body>, so the swapped shelf DOM can never destroy it).
   await page.click('#spark-shelf .sticky-note .spark-menu [data-menu-open]')
-  await expect(page.locator('#spark-shelf .sticky-note .spark-menu-pop').first()).not.toBeHidden()
+  await expect(page.locator('body > .spark-menu-pop.is-floating')).not.toBeHidden()
   await page.evaluate(() => {
     const f = document.getElementById('spark-folder')?.value || ''
     const v = document.getElementById('spark-view')?.value || 'sticky'
     window.htmx.ajax('GET', '/api/projects?status=spark&view=' + encodeURIComponent(v) + (f ? '&folder=' + encodeURIComponent(f) : ''), { target: '#spark-shelf', swap: 'innerHTML' })
   })
   await page.waitForTimeout(900)
-  await expect(page.locator('#spark-shelf .sticky-note .spark-menu-pop').first()).not.toBeHidden()
+  await expect(page.locator('body > .spark-menu-pop.is-floating')).not.toBeHidden()
   expect(errors).toEqual([])
 })

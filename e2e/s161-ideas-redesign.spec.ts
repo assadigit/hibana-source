@@ -292,7 +292,8 @@ test('S161 promote: the ⋯ menu\u2019s Promote dialog moves an idea into the pi
 
   // open the ⋯ on the promote idea's card
   await page.locator(`[data-project-id="${SPARK_PROMOTE}"] [data-menu-open]`).click()
-  await page.locator(`[data-project-id="${SPARK_PROMOTE}"] [data-spark-promote]`).click()
+  // S186: the pop lifts to <body> while open — the promote item is page-scoped now
+  await page.locator('body > .spark-menu-pop.is-floating [data-spark-promote]').click()
   const dlg = page.locator('#spark-promote-dialog')
   await expect(dlg).toBeVisible()
   // pick a stage + save — the idea leaves the shelf

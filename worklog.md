@@ -1636,3 +1636,14 @@ Stage Summary:
   localStorage 'n' only boots pre-auth pages; flip the DB for the FA pass;
   (e) the prio dropdown literals were S145-engine-safety (non-theme-flipping) —
   tokenized WITHOUT dark twins to keep that property, comment updated to say so.
+
+S185 RELEASE ADDENDUM (2026-10-02):
+- Push 23cf57a → CI 36945377798 + CD 36946697214 green → wired build → THREE assets
+  byte-IDENTICAL live (qa/s185-live-verify.mjs: variables.b52b4ab1 +
+  claude-dark-theme.8978cb5e + project-header.94971fa9; sw v420; schema 63) → the
+  owner-account functional pass on the REAL data (GitCurator: warm canvas +
+  hairlines + the five-family columns + the Notes affordance; dark + 390 clean;
+  account restored en+light; 0 console errors) → tag v0.4.1.12 → zip 578 files
+  (integrity OK; secret-scan clean — the hits triaged as the pre-existing S93
+  public surface, git-grep-confirmed in v0.4.1.11) → /home/z/upload + download →
+  --restore-html → healthcheck pinged (200, up, 00:41:02Z) → this docs commit.

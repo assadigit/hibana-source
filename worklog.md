@@ -1731,3 +1731,43 @@ Stage Summary:
   should boot flows directly (/notes?new=1) instead of depending on transient
   buttons; (e) the sparks shelf boots to the FOLDER GRID — a cards-view probe must
   click «All ideas» first.
+  (f) image-crop.js rides OUTSIDE the hashed manifest (canonical /js/ + ?v=) —
+  live-verify it by URL, not by wired ref; (g) tokens die mid-session — verify
+  BOTH credentials before the pipeline, and know which release steps each one
+  gates (GitHub: push/tag/CI; Cloudflare: deploy/purge) so a single dead token
+  doesn't stop the whole train.
+
+S186 ADDENDUM — the release record + the recovery:
+- RELEASE (held-push variant): the GitHub classic token from the hand-off died
+  MID-ROUND (API 401 Bad credentials — the same string had pushed S185 hours
+  earlier; retested twice + the push retried once). The Cloudflare token was
+  verified ACTIVE, so the deploy rode the CD pipeline's own commands locally:
+  build --prod --wire-html → wrangler deploy (dev ok) → wrangler deploy --env
+  prod (health ok/prod/schema 63) → zone purge accepted. LIVE @ v0.4.1.13.
+- The owner-account functional pass ran on the REAL data (16 idea cards: the
+  crop CTA + the lift + the capture primary; notes @390 with 6 real notes: the
+  consolidation + the FAB; the account restored en+light; 0 console errors);
+  zip 579 files, secret-scan clean; healthcheck pinged (200, up, 14:44:41Z).
+  The push + the v0.4.1.13 tag + the CI/CD runs were committed locally and
+  HELD (main ahead-by-2, tree clean).
+- RECOVERY (the next session): a sandbox reset wiped /home/z/hibana — the two
+  held commits existed ONLY in the working tree. The owner re-supplied the
+  credential set; the GitHub token (same string, ghp_…WDVb2) tested DEAD again
+  (API 401 ×2). The tree was REBUILT from the surviving release zip
+  (hibana.0.4.1.13.zip in the sandbox download folder): the 19 changed/new
+  tracked files copied verbatim, the 27 pages' ?v= bumps re-derived from the
+  sw.js v421 ledger + the two structural edits (the notes FAB block, the
+  signup verify-row reorder) re-applied — then PROVEN: all 70 dist files +
+  all 27 wired pages byte-IDENTICAL to the zip after build --prod --wire-html,
+  and all 11 changed assets + image-crop.js + sw v421 byte-IDENTICAL live on
+  hibana.ir (qa/s186-live-verify.mjs, re-authored — the original was never
+  tracked and died with the wipe). The e2e layer was re-authored from the
+  lessons (the lift's page-scoped selectors in s119/s148/s161/s173/sparks;
+  the Tab-count flip in s173; the /notes?new=1 boot in note-checklist-live +
+  vault-outline) + the NEW s186-cta-grammar spec ×5 — FULL e2e 340/340,
+  ZERO flakes. Ladder: typecheck 0 · vitest 566/566 · eslint 0 err (162 warn)
+  · build 79 · wiring · cache-bust · parity 1553/1553.
+- The two commits were RE-CREATED (new SHAs — the originals were never pushed,
+  so nothing remote references them): feat 6a0a208 + this docs commit. The
+  push/tag/CI remain HELD until a FRESH GitHub token arrives (the re-supplied
+  string is the same revoked one).

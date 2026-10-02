@@ -77,6 +77,11 @@ const T={
       tags:'Tags',quadrant:'Quadrant',deadline:'Deadline',
       task:'Task',quickAdd:'Quick Add Task',
       noTasks:'No tasks yet',completed:'completed',
+      /* S187 (owner round — the to-do empty states): the empty board's hint points at
+         the IN-CARD ＋ ("Tap + to add one") — the old "Add one below each card" lied
+         about the button's place. addTaskTo gives the footer ＋ its quadrant-named
+         accessible name ("Add task to {name}") — it is the card's one add path. */
+      addTaskTo:'Add task to {name}',tapPlusToAdd:'Tap + to add one',
       tapEmoji:'Tap to pick emoji',clearDL:'Clear',done:'Done',
       saveEdit:'Save',cancelEdit:'Cancel',moreTasks:'↓ more',showLess:'less',
       undoMsg:'Task deleted',undo:'↩ Undo',
@@ -97,6 +102,8 @@ const T={
       tags:'برچسب‌ها',quadrant:'بخش',deadline:'مهلت',
       task:'وظیفه',quickAdd:'افزودن سریع وظیفه',
       noTasks:'وظیفه‌ای ندارید',completed:'انجام‌شده',
+      /* S187: ربط فارسی — اشاره به ＋ داخل کارت + نام بخش برای دکمهٔ افزودن */
+      addTaskTo:'افزودن وظیفه به {name}',tapPlusToAdd:'برای افزودن، + را بزن',
       tapEmoji:'برای انتخاب لمس کنید',clearDL:'پاک کردن',done:'تایید',
       saveEdit:'ذخیره',cancelEdit:'لغو',moreTasks:'↓ بیشتر',showLess:'کمتر',
       undoMsg:'وظیفه حذف شد',undo:'↩ بازگردانی',
@@ -163,7 +170,7 @@ function buildGrid(){
         </div>
       </div>
       <div class="q-foot" id="qf-${q.id}">
-        <button type="button" class="q-fab" onclick="showForm(${q.id})" id="ab-${q.id}" aria-label="${tr('addTaskBtn')}" title="${tr('addTaskBtn')}">＋</button>
+        <button type="button" class="q-fab" onclick="showForm(${q.id})" id="ab-${q.id}" aria-label="${tr('addTaskTo').replace('{name}', esc(q[lang].title))}" title="${tr('addTaskTo').replace('{name}', esc(q[lang].title))}">＋</button>
         <div class="add-form" id="af-${q.id}">
           <div class="emo-row">
             <span class="ch-emo" id="ce-${q.id}" onclick="openEP('form',${q.id})">📌</span>
@@ -542,7 +549,11 @@ function renderQ(q,targetBody){
     if(lang==='fa') cntEl.textContent=toFa(n)+' / '+toFa(total);
     else cntEl.textContent=n+' / '+total;
   }
-  if(!all.length){body.innerHTML=`<div class="empty"><div class="ei" aria-hidden="true"><svg class="icon" viewBox="0 0 24 24" style="width:22px;height:22px"><path d="M9 18h6M10 22h4"/><path d="M12 2a7 7 0 0 0-4.2 12.6c.9.7 1.2 1.6 1.2 2.4h6c0-.8.3-1.7 1.2-2.4A7 7 0 0 0 12 2Z"/></svg></div><div class="et">${tr('noTasks')}<br><span class="et-hint">${lang==='fa'?'یکی را در پایین هر کارت اضافه کن':'Add one below each card'}</span></div></div>`;return;}
+  /* S187 (owner round — the to-do empty states): the empty quadrant's block (dashed
+     box + bulb + line + hint) centers in the CARD BODY (sadhana-board.css's
+     margin-block:auto) and the hint points at the card's OWN ＋ button — "Add one
+     below each card" described a button that never was below the card. */
+  if(!all.length){body.innerHTML=`<div class="empty"><div class="ei" aria-hidden="true"><svg class="icon" viewBox="0 0 24 24" style="width:22px;height:22px"><path d="M9 18h6M10 22h4"/><path d="M12 2a7 7 0 0 0-4.2 12.6c.9.7 1.2 1.6 1.2 2.4h6c0-.8.3-1.7 1.2-2.4A7 7 0 0 0 12 2Z"/></svg></div><div class="et">${tr('noTasks')}<br><span class="et-hint">${tr('tapPlusToAdd')}</span></div></div>`;return;}
   let h=active.map(x=>`<div style="${!taskVisible(x)?'display:none':''}">${tcHTML(x,q)}</div>`).join('');
   if(done.length){
     const sfx=targetBody?'z':'';

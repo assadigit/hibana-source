@@ -30,6 +30,22 @@ import { attachedTitles, notebookHtml, type QuickNote } from './quicknotes'
 // projects-page concept only.
 const CAROUSEL: ProjectStatus[] = ['planning', 'queued', 'developing', 'awaiting_dev', 'operational']
 
+// S187 (owner round — the to-do empty states): an empty quadrant is INFORMATION, not a
+// second button. The "Add a task" text link retires from the empty strip (Hick's law —
+// the header ＋ is the ONE add path, and it gains a quadrant-named aria-label), and the
+// line each quadrant renders states the SITUATION per its own meaning — neutral, asks
+// nothing, never implies the user is behind. Keyed by quadrant id: 1 = Today (must-do
+// daily necessities), 3 = Urgent & High Value, 2 = Strategic (open horizon), 4 = Personal
+// & Sentimental. Server + app.js's updateDashTaskEmpty share these lines (the i18n twins
+// live under dashboard.quadrantEmptyQ1..Q4).
+const TODO_EMPTY_LINE: Record<number, { en: string; fa: string }> = {
+  1: { en: 'Nothing due today.', fa: 'چیزی برای امروز نیست.' },
+  3: { en: 'Nothing urgent right now.', fa: 'الان چیزی فوری نیست.' },
+  2: { en: 'Nothing strategic right now.', fa: 'الان کاری استراتژیک نیست.' },
+  4: { en: 'Nothing personal right now.', fa: 'الان دغدغهٔ دل نیست.' },
+}
+const todoEmptyLine = (q: { id: number }): { en: string; fa: string } => TODO_EMPTY_LINE[q.id] ?? { en: 'No tasks yet.', fa: 'هنوز کاری نیست.' }
+
 export function dashboardRoutes(cfg: Config) {
   const app = new Hono<{ Variables: { user: UserRow } }>()
   app.use('*', requireAuth(cfg))
@@ -375,15 +391,18 @@ export function dashboardRoutes(cfg: Config) {
         const renderTasks = tasks.slice(0, TODO_RENDER_CAP)
         const overflow = tasks.length - renderTasks.length
         const taskRows = renderTasks.map(todoTaskHtml)
-        // S179 (advisor blocks 7+8) → S182 (owner: "whether filled or empty"): the empty
-        // quadrant keeps its ONE quiet row ("No tasks yet." + the "Add a task" action
-        // inline — app.js's delegated [data-dash-quickadd-fab] handler serves both
-        // buttons), but the COLLAPSE retires: the card renders at the SAME fixed height
-        // as every sibling, empty window included. The strip markup is EXACTLY what
-        // app.js's updateDashTaskEmpty re-creates after htmx sweeps, so server and
-        // client can never drift apart.
+        // S179 (advisor blocks 7+8) → S182 (owner: "whether filled or empty") → S187
+        // (owner: the to-do empty-state round): the empty quadrant renders ONE quiet
+        // centered STATUS LINE — the "Add a task" text link is GONE from the DOM (a
+        // second add control in the same card was the Hick's-law duplicate; the header ＋
+        // is the only add path, now carrying the quadrant-named aria-label). The line is
+        // quadrant-specific (TODO_EMPTY_LINE — "Nothing urgent right now." for the urgent
+        // box, each sibling its own fact), and it is EXACTLY what app.js's
+        // updateDashTaskEmpty re-creates after htmx sweeps, so server and client can
+        // never drift apart. The card keeps the SAME fixed height as every sibling.
         if (taskRows.length === 0) {
-          taskRows.push(html`<li class="dash-todo-empty"><span class="dash-todo-empty-text">${t('No tasks yet.', 'هنوز کاری نیست.')}</span><button type="button" class="dash-todo-add-text" data-dash-quickadd-fab="${q.id}">${t('Add a task', 'افزودن کار')}</button></li>`)
+          const line = todoEmptyLine(q)
+          taskRows.push(html`<li class="dash-todo-empty"><span class="dash-todo-empty-text">${t(line.en, line.fa)}</span></li>`)
         }
         // The over-cap board link rides INSIDE the scrollable list as its last row
         // (S182) — reached by the same scroll that reveals rows 4–8, at the exact
@@ -448,8 +467,12 @@ export function dashboardRoutes(cfg: Config) {
                  inline-end, beside the count — the corner circle FAB retires (the add
                  control rides where the list's context already sits; same wiring:
                  app.js's delegated [data-dash-quickadd-fab] finds the form via the
-                 quadrant ancestor). -->
-            <span class="row dash-todo-qactions"><span class="dash-todo-counter board-count" data-dash-quadrant-count="${q.id}" title="${t('Active count', 'تعداد فعال')}">${todoNum(tasks.length)}</span><button type="button" class="dash-todo-fab" data-dash-quickadd-fab="${q.id}" aria-label="${t('Add task', 'افزودن کار')}" title="${t('Add task', 'افزودن کار')}">${raw(icon('plus'))}</button></span>
+                 quadrant ancestor).
+                 S187 (owner round — a11y): with the empty strip's text link retired,
+                 this ＋ is the quadrant's ONLY add path, so its accessible name carries
+                 the quadrant's own (custom) name — "Add task to {name}" — and the title
+                 doubles it as the mouse tooltip. -->
+            <span class="row dash-todo-qactions"><span class="dash-todo-counter board-count" data-dash-quadrant-count="${q.id}" title="${t('Active count', 'تعداد فعال')}">${todoNum(tasks.length)}</span><button type="button" class="dash-todo-fab" data-dash-quickadd-fab="${q.id}" aria-label="${t('Add task to {name}', 'افزودن کار به {name}', { name })}" title="${t('Add task to {name}', 'افزودن کار به {name}', { name })}">${raw(icon('plus'))}</button></span>
           </header>
           <!-- S183 (depth audit — L2/L3): the list rides in its own .dash-todo-listwrap —
                the fade-edge anchor (mask + progressive-blur overlay live on the wrapper,

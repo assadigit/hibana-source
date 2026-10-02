@@ -442,14 +442,22 @@ describe('dashboard to-do preview', () => {
       const res = await app.fetch(new Request('http://local/api/dashboard', { headers: { ...auth, 'HX-Request': 'true' } }))
       const html = await res.text()
       // Quadrant 1 has its task; the other three quadrants carry the placeholder.
-      // S179 (advisor block 8) → S182: the placeholder is the SHORT STRIP — "No tasks
-      // yet." + the "Add a task" text button (same data-dash-quickadd-fab wiring as the
-      // header ＋), on the .dash-todo-empty row INSIDE the list window — and the card
-      // keeps the SAME fixed height as its siblings ("whether filled or empty", the
-      // owner's words; the .is-quadrant-empty marker + collapse rules retired).
+      // S179 (advisor block 8) → S182 → S187 (owner: the to-do empty-state round):
+      // the placeholder is ONE quiet STATUS LINE — per-quadrant copy, NO action
+      // inside it (the "Add a task" text button is retired; the header ＋, now named
+      // "Add task to {quadrant}", is the one add path) — on the .dash-todo-empty row
+      // INSIDE the list window, and the card keeps the SAME fixed height as its
+      // siblings ("whether filled or empty", the owner's words).
       expect((html.match(/class="dash-todo-empty"/g) ?? []).length).toBe(3)
-      expect(html).toContain('No tasks yet.')
-      expect((html.match(/class="dash-todo-add-text"/g) ?? []).length).toBe(3)
+      expect(html).toContain('Nothing urgent right now.')
+      expect(html).toContain('Nothing strategic right now.')
+      expect(html).toContain('Nothing personal right now.')
+      expect(html).not.toContain('Nothing due today.')
+      expect(html).not.toContain('class="dash-todo-add-text"')
+      // The S187 a11y pin: the header ＋ carries the quadrant's own name (Q1 is the
+      // filled one here — its label names the DEFAULT title; the three empty ones
+      // name theirs).
+      expect(html).toContain('aria-label="Add task to Urgent &amp; High Value"')
       // The strip rides INSIDE the quadrant's list.
       expect(html).toMatch(/<ul class="dash-todo-list">\s*<li class="dash-todo-empty">/)
       // S182: the empty-quadrant collapse hook RETIRED — every card ships the plain

@@ -1771,3 +1771,78 @@ S186 ADDENDUM — the release record + the recovery:
   so nothing remote references them): feat 6a0a208 + this docs commit. The
   push/tag/CI remain HELD until a FRESH GitHub token arrives (the re-supplied
   string is the same revoked one).
+
+Task ID: S187
+Agent: main (Z.ai Code)
+Task: The owner's to-do empty-state round — two instruction blocks (the dashboard
+to-do widget: remove the redundant "Add a task" link, quadrant-specific centered
+copy, an accessible name on the ＋; the dedicated to-do-list page: center the
+dashed empty-state block in the card body, fix the hint line) + the fresh-token
+unblocking of the S186 held release steps. Full delivery: implement → gates →
+push → CI/CD → live byte-verify → owner-account pass → tag v0.4.1.14 → zip +
+secret scan → healthcheck → docs flip.
+
+Work Log:
+- THE HELD S186 RELEASE COMPLETED FIRST: the owner's fresh GitHub token
+  (ghp_…STEnt — a NEW string; the stored …0WDVb2 was the revoked one) verified
+  ALIVE (API 200, push perms on assadigit/hibana-source). Pushed the two held
+  commits (1451f81..fdaf275) → CI 37064191287 + CD 37065798694 BOTH GREEN →
+  tag v0.4.1.13 pushed on the feat commit 6a0a208. The S186 release is now
+  FULLY landed remotely (live had been verified during the held window).
+- THE PROD BACKUP CRON FIXED: the revoked token had been failing the
+  hibana-safe snapshot pushes since Oct 2 03:23 UTC (3 consecutive /fail pings,
+  the "Hibana" watchdog DOWN). wrangler secret put GITHUB_TOKEN re-run with the
+  fresh token on BOTH workers (hibana-prod — crons :23 — and hibana dev —
+  crons :17; both write to the same hibana-safe repo). A manual admin backup
+  attempt 403'd (the test account's prod role is 'member', not 'owner') — the
+  chain's proof waits for the next ticks (dev 03:17 / prod 03:23 UTC), which
+  also flip the watchdog up honestly (no manual masking ping).
+- THE DASHBOARD WIDGET (the owner's Direction 1): the "Add a task" text link
+  REMOVED FROM THE DOM on all four quadrants (SSR row + app.js's
+  updateDashTaskEmpty twin + the .dash-todo-add-text CSS rules + the two i18n
+  keys — keyboard focus can never land on it). Each empty quadrant speaks its
+  OWN centered muted line: Q1 "Nothing due today." · Q3 "Nothing urgent right
+  now." (the owner's pick) · Q2 "Nothing strategic right now." · Q4 "Nothing
+  personal right now." — SSR TODO_EMPTY_LINE + the client DASH_TODO_EMPTY_LINE
+  map share the lines (i18n twins dashboard.quadrantEmptyQ1..Q4; parity
+  1553→1555). Centering: .dash-todo-list:has(> .dash-todo-empty)
+  align-content:start→center + the li's flex centering + text-align:center +
+  logical padding-inline. The header ＋ — the quadrant's ONLY add path now —
+  carries "Add task to {name}" as aria-label + title (custom names included,
+  t() interpolation + htmlx escaping).
+- QA-FOUND + LIVE-CONFIRMED BONUS FIX: layout.css's generic .card ul
+  { padding-inline-start: 1.25rem } OUTRANKED .dash-todo-list's padding:0
+  ((0,1,1) > (0,1,0)) — since S182 (the board moved inside .dash-todo-panel.card)
+  every quadrant list sat 20px inset on its START edge only; the old
+  start-aligned strip masked it, the centered line exposed it (measured: the
+  text 10px off the window's optical center; VLM confirmed the asymmetry on the
+  live s184 screenshot). Fixed: .card .dash-todo-list { padding: 0 } — rows
+  align flush with the header + quick-add form, the line hits the true center.
+- THE BOARD PAGE: the empty quadrant's dashed bulb block centers in the CARD
+  BODY (margin-block:auto in .q-body's column flex — auto margins degrade to
+  start-alignment on overflow, safe in the scroll container; the block keeps
+  its stretch + dashed border; the ＋ footer stays pinned at the bottom). The
+  hint stops lying: "Add one below each card" → "Tap + to add one" (the ＋
+  lives INSIDE each card's footer; no second add link on this page). The
+  footer ＋ gains the same "Add task to {name}" accessible name (buildGrid +
+  the addTaskTo/tapPlusToAdd T entries, EN+FA).
+- TESTS: dashboard.test.ts pins re-authored (the 3 empty lines + the
+  quadrant-named aria-label incl. the escaped "Urgent &amp; High Value" + NO
+  add-text class + the filled Q1 keeps no strip) — 15/15. The NEW
+  e2e/s187-todo-empty.spec.ts ×5: (1) the dashboard lines + computed centering
+  grammar + the symmetric padding pin + the named ＋; (2) the add round-trip
+  through the header ＋ on an EMPTY quadrant (the one-path proof, cleaned up
+  after); (3) the board's centered dashed block (±6px body-center, dashed
+  border, full-width stretch, pinned footer, blockTop > 20) + the pointed hint
+  + the named footer ＋; (4) the board FA/RTL twin — LESSON: the board's boot
+  syncs lang from the ACCOUNT pref (sadhana-page.js: lang =
+  me.user.language_pref), NOT the s-lang localStorage — the FA test flips the
+  seed user server-side; (5) the dashboard FA/RTL twin (dir rtl + the FA lines
+  + the FA-named ＋). All 5 green, zero flakes.
+- Cache-bust: dashboard-todo.css v23→v24 ×23, dashboard.css v38→v39 ×23 (the
+  .card ul comment), app.js v217→v218 ×24, i18n-en.js v92→v93 ×26, i18n.js
+  v146→v147 ×26 + the i18n-fa v86→v87 lazy literal ×3, sadhana-page.js v13→v14
+  + sadhana-board.css v24→v25 on sadhana.html — rotate-s187.mjs; sw v422
+  (ledger rebuilt cleanly after a mid-edit duplication — the git-HEAD
+  reconstruction recipe); package 0.4.1.14; Changelogs §1 rotated + row 187
+  STAGED (rotate-s187-changelogs.mjs).

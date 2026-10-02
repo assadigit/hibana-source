@@ -607,7 +607,14 @@ body.rtl .fuz-opt{text-align:right}
 .sadhana-wrap .m-acts{display:flex;gap:7px;justify-content:flex-end;margin-top:5px}
 .sadhana-wrap .mep-btn{width:44px;height:44px;border-radius:var(--radius-sm);background:var(--surface2);border:1.5px solid var(--border2);display:flex;align-items:center;justify-content:center;font-size:22px;cursor:pointer;transition:all .2s;flex-shrink:0}.mep-btn:hover{border-color:var(--text-dim);transform:scale(1.05)}
 .sadhana-wrap .mrow{display:flex;gap:8px;align-items:flex-start}
-.sadhana-wrap .empty{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:18px;gap:8px;opacity:.78}
+/* S187 (owner round — the to-do empty states): the empty quadrant's dashed block
+   centers in the CARD BODY — margin-block:auto splits the free space of .q-body's
+   column flex (and .zen-body's), so the block sits mid-card instead of clinging to
+   the header; auto margins degrade to start-alignment if it ever outgrows the body
+   (safe centering — no unreachable top in the scroll container). The block keeps
+   its own size + dashed border (stretch width unchanged); the ＋ footer stays
+   pinned at the bottom — the empty state is information between them. */
+.sadhana-wrap .empty{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:18px;gap:8px;opacity:.78;margin-block:auto}
 .sadhana-wrap .ei{font-size:22px;color:var(--accent);opacity:.9}.et{font-size:12px;color:var(--muted);line-height:1.5;text-align:center}.et-hint{font-size:10.5px;color:var(--text-dim);opacity:.9}
 
 /* ─── Undo toast ───────────────────────────────── */

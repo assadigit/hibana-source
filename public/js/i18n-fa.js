@@ -403,7 +403,11 @@ window.__hibanaDictFA = {
       'card.loadFailed': 'دریافت پروژه ممکن نشد', 'card.saving': 'در حال ذخیره…', 'card.deleted': 'پروژه حذف شد',
       // dashboard stat boxes
       'dashboard.nothing': 'هنوز چیزی نیست',
-      'dashboard.quadrantEmpty': 'هنوز کاری نیست.', 'dashboard.addTask': 'افزودن کار',
+      /* S187 (owner round — the to-do empty states): per-quadrant status lines; the
+         quadrantEmpty + addTask pair RETIRED with the empty strip's "Add a task" text
+         link (the header ＋ is the one add path). Q1 Today / Q3 Urgent & High Value /
+         Q2 Strategic / Q4 Personal & Sentimental. */
+      'dashboard.quadrantEmptyQ1': 'چیزی برای امروز نیست.', 'dashboard.quadrantEmptyQ3': 'الان چیزی فوری نیست.', 'dashboard.quadrantEmptyQ2': 'الان کاری استراتژیک نیست.', 'dashboard.quadrantEmptyQ4': 'الان دغدغهٔ دل نیست.',
       'dashboard.moveFailed': 'جابه‌جایی ممکن نشد — دوباره تلاش کن',
       /* S182: the S106 see-more keys (seeMore/seeLess/moreCount) RETIRED with the
          frost pill — the fixed 3-row window + the list's own scroll own the reveal. */

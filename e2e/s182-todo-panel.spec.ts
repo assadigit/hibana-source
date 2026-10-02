@@ -189,11 +189,15 @@ test('S182-2: all four quadrant boxes are the same fixed height (full, fitting, 
   await expect(q2Wrap).not.toHaveClass(/can-scroll/)
   await expect(q2Wrap).not.toHaveClass(/fade-bottom/)
 
-  // The empty quadrant: the quiet strip rides INSIDE the same-height window, no
-  // scroll, and the card did NOT collapse (the S179 short-strip is gone).
+  // The empty quadrant: the quiet STATUS LINE rides INSIDE the same-height window,
+  // no scroll, and the card did NOT collapse (the S179 short-strip is gone). S187:
+  // the line is the quadrant's own copy (Q3 = the urgent box → "Nothing urgent
+  // now.") and it is the strip's ONLY content — the "Add a task" text link is gone
+  // from the DOM (the header ＋ is the one add path).
   const q3 = page.locator('.dash-todo-quadrant[data-dash-quadrant="3"]')
   await expect(q3.locator('.dash-todo-empty')).toHaveCount(1)
-  await expect(q3.locator('.dash-todo-empty-text')).toHaveText('No tasks yet.')
+  await expect(q3.locator('.dash-todo-empty-text')).toHaveText('Nothing urgent right now.')
+  await expect(q3.locator('.dash-todo-add-text')).toHaveCount(0)
   const q3Geom = await q3.locator('.dash-todo-list').evaluate((el) => ({ client: el.clientHeight, scroll: el.scrollHeight }))
   expect(q3Geom.scroll).toBeLessThanOrEqual(q3Geom.client + 1)
   const q3Height = await q3.evaluate((el) => el.getBoundingClientRect().height)

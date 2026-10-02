@@ -3358,6 +3358,17 @@ window.hibana = (() => {
 
   let dashTaskDrag = null
   let dashTaskFrom = null
+  /* S187 (owner round — the to-do empty states): the per-quadrant STATUS LINE, keyed
+     exactly like the server's TODO_EMPTY_LINE (dashboard.ts). The empty quadrant is
+     information, not a second button — the "Add a task" text link is gone from the DOM,
+     the header ＋ (with its quadrant-named aria-label) is the one add path, and each
+     quadrant's line states its own fact. i18n twins: dashboard.quadrantEmptyQ1..Q4. */
+  const DASH_TODO_EMPTY_LINE = {
+    1: ['dashboard.quadrantEmptyQ1', 'Nothing due today.'],
+    3: ['dashboard.quadrantEmptyQ3', 'Nothing urgent right now.'],
+    2: ['dashboard.quadrantEmptyQ2', 'Nothing strategic right now.'],
+    4: ['dashboard.quadrantEmptyQ4', 'Nothing personal right now.'],
+  }
   const clearDashTaskDropTargets = () => document.querySelectorAll('.dash-todo-quadrant.task-drop-target').forEach((el) => el.classList.remove('task-drop-target'))
   const dashTaskList = (card) => card?.querySelector('.dash-todo-list')
   const updateDashTaskEmpty = (list) => {
@@ -3366,18 +3377,18 @@ window.hibana = (() => {
     const empty = list.querySelector(':scope > .dash-todo-empty')
     if (tasks.length) empty?.remove()
     else if (!empty) {
-      // S179 (advisor blocks 7+8) → S182 (owner: "whether filled or empty"): the SAME
-      // short-strip markup the server ships — "No tasks yet." + the "Add a task"
-      // text button (the delegated [data-dash-quickadd-fab] handler serves it
-      // exactly like the header ＋). The card itself keeps its FIXED height either
-      // way (the .is-quadrant-empty marker + its collapse rules retired) — the strip
-      // is the empty window's content, not a shorter card shape.
+      // S179 (advisor blocks 7+8) → S182 (owner: "whether filled or empty") → S187
+      // (owner: the to-do empty-state round): the SAME quiet status line the server
+      // ships — ONE centered muted line per quadrant, no action inside it (the header
+      // ＋ is the only add path; the old "Add a task" text button is retired). The
+      // card itself keeps its FIXED height either way — the line is the empty
+      // window's content, not a shorter card shape.
       const li = document.createElement('li')
       li.className = 'dash-todo-empty'
       const card = list.closest('.dash-todo-quadrant')
       const qid = card?.dataset.dashQuadrant || ''
-      li.innerHTML = '<span class="dash-todo-empty-text">' + _t('dashboard.quadrantEmpty', 'No tasks yet.') + '</span>' +
-        '<button type="button" class="dash-todo-add-text" data-dash-quickadd-fab="' + qid + '">' + _t('dashboard.addTask', 'Add a task') + '</button>'
+      const line = DASH_TODO_EMPTY_LINE[qid] || ['dashboard.quadrantEmpty', 'No tasks yet.']
+      li.innerHTML = '<span class="dash-todo-empty-text">' + _t(line[0], line[1]) + '</span>'
       list.append(li)
     }
     // S183: the empty/add/remove flip changes the overflow geometry — re-measure

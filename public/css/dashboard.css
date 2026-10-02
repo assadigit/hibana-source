@@ -733,8 +733,10 @@ main.shell-dash > h1 { margin-block: 0; }
 /* S181 (opening block 4 — the zero page joins the empty register): the cold
    dashboard (every section hidden) speaks the SAME quiet strip the empty
    quadrants speak (S179 block 8) — a muted line + a text action on one row,
-   natural height, no card chrome. The action is the .dash-todo-add-text
-   register: transparent ground, brand ink, fs-sm/500. */
+   natural height, no card chrome. The action keeps the old text-button register
+   (the retired .dash-todo-add-text's look): transparent ground, brand ink,
+   fs-sm/500. S187 scoped the quiet-line retirement to the to-do QUADRANTS only —
+   this page-level zero state keeps its one action (it is the page's only CTA). */
 .dash-empty {
   display: flex;
   align-items: center;

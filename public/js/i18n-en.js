@@ -404,7 +404,11 @@ window.__hibanaDictEN = {
       'card.loadFailed': "Couldn't load the project", 'card.saving': 'Saving…', 'card.deleted': 'Project deleted',
       // dashboard stat boxes
       'dashboard.nothing': 'Nothing here yet',
-      'dashboard.quadrantEmpty': 'No tasks yet.', 'dashboard.addTask': 'Add a task',
+      /* S187 (owner round — the to-do empty states): per-quadrant status lines; the
+         quadrantEmpty + addTask pair RETIRED with the empty strip's "Add a task" text
+         link (the header ＋ is the one add path). Q1 Today / Q3 Urgent & High Value /
+         Q2 Strategic / Q4 Personal & Sentimental. */
+      'dashboard.quadrantEmptyQ1': 'Nothing due today.', 'dashboard.quadrantEmptyQ3': 'Nothing urgent right now.', 'dashboard.quadrantEmptyQ2': 'Nothing strategic right now.', 'dashboard.quadrantEmptyQ4': 'Nothing personal right now.',
       'dashboard.moveFailed': "Couldn't move it — try again",
       /* S182: the S106 see-more keys (seeMore/seeLess/moreCount) RETIRED with the
          frost pill — the fixed 3-row window + the list's own scroll own the reveal. */

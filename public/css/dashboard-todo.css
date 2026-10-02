@@ -59,41 +59,30 @@ section[id^="dashboard-"].is-collapsed .dash-quad-wrap { display: none; }
 .is-collapsed .dash-collapse-btn .icon { transform: rotate(-90deg); }
 
 /* Smart empty states (Phase 3 → S94 owner item 10 → S179 advisor block 8 → S182
-   owner round): a quadrant with 0 tasks renders the quiet "No tasks yet. + Add a
-   task" row INSIDE the list window — the card keeps the SAME FIXED HEIGHT as its
-   siblings ("whether filled or empty", the owner's words); the S179 collapse rules
-   retired with the marker class. app.js's updateDashTaskEmpty re-creates THIS
-   markup after htmx sweeps — server + client share one shape. */
-.dash-todo-list:has(> .dash-todo-empty) { align-content: start; }
+   owner round → S187 owner round — the to-do empty states): a quadrant with 0 tasks
+   renders ONE quiet centered STATUS LINE inside the list window — pure information,
+   no action (the "Add a task" text link is retired; the header ＋ is the ONE add
+   path). The card keeps the SAME FIXED HEIGHT as its siblings ("whether filled or
+   empty", the owner's words). The line is per-quadrant copy (TODO_EMPTY_LINE —
+   "Nothing urgent right now." and siblings), centered in the free space — a
+   centered muted line is the standard "intentionally empty" signal; align-content
+   flips start → center so the single grid row sits mid-window, and the li's flex
+   centering + text-align:center land the words on it. app.js's updateDashTaskEmpty
+   re-creates THIS markup after htmx sweeps — server + client share one shape. */
+.dash-todo-list:has(> .dash-todo-empty) { align-content: center; }
 .dash-todo-empty {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 0.5rem;
+  justify-content: center;
   min-block-size: 2.5rem;
   color: var(--muted);
   font-size: var(--fs-sm);
-  text-align: start;
-  padding: 0.3rem 0.4rem 0.3rem 0.5rem;
-  flex: none;
+  text-align: center;
+  /* logical properties only — the interface is RTL (owner note) */
+  padding-block: 0.3rem;
+  padding-inline: 0.5rem;
 }
 .dash-todo-empty-text { overflow-wrap: anywhere; }
-.dash-todo-add-text {
-  flex: none;
-  border: 0;
-  background: transparent;
-  padding: 0.35rem 0.6rem;
-  border-radius: var(--radius-sm);
-  color: var(--brand);
-  font: inherit;
-  font-size: var(--fs-sm);
-  font-weight: 500;
-  cursor: pointer;
-  transition: background-color 0.15s ease, color 0.15s ease;
-}
-.dash-todo-add-text:hover { background: var(--accent-soft); color: var(--text); }
-.dash-todo-add-text:focus-visible { outline: 2px solid var(--focus-ring, var(--accent)); outline-offset: 1px; }
-@media (pointer: coarse) { .dash-todo-add-text { min-block-size: 2.5rem; } }
 /* S184: the todo head joins the ONE head-strip geometry (align-items: center,
    the shared 0.75rem gap — the S179-era baseline + 1rem duplicate retires; the
    link's 4px block padding + section-hover underline rules below retire with
@@ -342,6 +331,16 @@ section[id^="dashboard-"].is-collapsed .dash-quad-wrap { display: none; }
   -webkit-overflow-scrolling: touch;
 }
 .dash-todo-list::-webkit-scrollbar { display: none; }
+/* S187 (QA-found, live-confirmed): the generic .card ul indent (layout.css —
+   padding-inline-start 1.25rem for CONTENT lists) OUTRANKS the base rule's
+   `padding: 0` ((0,1,1) beats (0,1,0)), so ever since S182 put the quadrant
+   board inside the .dash-todo-panel.card, every list — task rows AND the empty
+   strip — sat 20px inset on its START edge only (one-sided; the header and the
+   quick-add form align flush). The old start-aligned strip masked it; the S187
+   centered status line exposed it (10px off the visual card center). The todo
+   lists are LAYOUT lists, not content lists — zero padding, both edges
+   symmetric. */
+.card .dash-todo-list { padding: 0; }
 /* S183 (owner: "a fade-out edge at the bottom of each task list…") — mask-image
    gradients (~28px, inside the owner's 24–32px band), applied to the WRAPPER so
    the scrolled content fades as it approaches the edge. Bottom fade only while

@@ -383,30 +383,26 @@
    green). Only the border + inline-start edge + header carry the color — the box
    body stays transparent (light AND dark). --pd-ink hues mirror the status-badge
    palette so the coding stays on-system.
-   S88 (owner pastel round): each column header now wears a barely-there TINT
-   (--pd-h, the owner-supplied off-white-with-a-hint-of-hue values) with the status
-   dot deepened to match (--pd-dot) — the dot + label stay the primary identifiers,
-   the tint is the whisper. Card bodies stay white; claude-dark flips the tint to a
-   low-alpha wash of the stage triplet. */
-.pd-col[data-status='idea']        { --pd-c: 172 199 233; --pd-ink: #5c7796; --pd-h: #EAF2FF; --pd-dot: #5B9BFF; }
-.pd-col[data-status='planned']     { --pd-c: 209 212 216; --pd-ink: #6b727b; --pd-h: #FDF1E7; --pd-dot: #F7A85B; }
-.pd-col[data-status='in_progress'] { --pd-c: 240 197 155; --pd-ink: #7d5a34; --pd-h: #FDF9E3; --pd-dot: #F0C94A; } /* Session 20 (AA): ink was #9c7245 — 4.28:1 on white; darkened to 6.2:1 */
-.pd-col[data-status='done']        { --pd-c: 182 224 200; --pd-ink: #43704f; --pd-h: #EAF7EE; --pd-dot: #5CB176; } /* Session 20 (AA): ink was #5e8f70 — 3.72:1; darkened to 5.7:1 */
+   S88 (owner pastel round): each column header wears a barely-there TINT (--pd-h)
+   with the status dot deepened to match (--pd-dot) — the dot + label stay the
+   primary identifiers, the tint is the whisper. Card bodies stay white.
+   S185 (the owner's batch-1 color table): the five tints + dots are ONE family —
+   same lightness, same softness (the OKLCH set derived + AA-checked by
+   qa/s185-palette.mjs; idea/planned inks re-tuned to clear 4.5:1 ON their tints —
+   they were sub-AA on the S88 tints too) — and every per-status value resolves
+   through the --col-* role tokens in variables.css's S185 block. claude-dark
+   re-points those tokens at its own low-alpha washes (claude-dark-theme.css), so
+   this ONE rule set serves both themes — the old five dark overrides retired. */
+.pd-col[data-status='idea']        { --pd-c: var(--col-idea-edge);      --pd-ink: var(--col-idea-ink);      --pd-h: var(--col-idea-bg);      --pd-dot: var(--col-idea-dot); }
+.pd-col[data-status='planned']     { --pd-c: var(--col-planned-edge);  --pd-ink: var(--col-planned-ink);  --pd-h: var(--col-planned-bg);  --pd-dot: var(--col-planned-dot); }
+.pd-col[data-status='in_progress'] { --pd-c: var(--col-progress-edge); --pd-ink: var(--col-progress-ink); --pd-h: var(--col-progress-bg); --pd-dot: var(--col-progress-dot); }
+.pd-col[data-status='done']        { --pd-c: var(--col-done-edge);      --pd-ink: var(--col-done-ink);      --pd-h: var(--col-done-bg);      --pd-dot: var(--col-done-dot); }
 /* 0031 (user approval 2026-09-05): bugs read RED — same pastel treatment as the flow
    stages, so the defect column pops without shouting. */
-.pd-col[data-status='bug']         { --pd-c: 238 185 194; --pd-ink: #87555f; --pd-h: #FDEEF0; --pd-dot: #F26A6A; } /* Session 20 (AA): ink was #a96b78 — 4.15:1 on white; darkened to 6.0:1 */
+.pd-col[data-status='bug']         { --pd-c: var(--col-bug-edge);       --pd-ink: var(--col-bug-ink);       --pd-h: var(--col-bug-bg);       --pd-dot: var(--col-bug-dot); }
 .pd-col { border-color: rgb(var(--pd-c) / 0.28); border-inline-start: 3px solid rgb(var(--pd-c) / 0.55); }
 /* cross-box drop target: a faint stage tint + stronger edge, only while dragging */
 .pd-col.drag-over { border-color: rgb(var(--pd-c) / 0.7); background: rgb(var(--pd-c) / 0.08); }
-/* S87: the dark column inks — scoped to claude-dark (THE dark mode; the old `dark`
-   theme + the OS auto-dark fallback were retired). S88: the header tint flips to a
-   low-alpha wash of the stage triplet (the light-mode pastels would blind on #1f1e1c)
-   and the dot keeps the dark ink. */
-html[data-theme='claude-dark'] .pd-col[data-status='idea']        { --pd-c: 80 100 128; --pd-ink: #7B9AB8; --pd-h: rgb(80 100 128 / 0.14); --pd-dot: #7B9AB8; }
-html[data-theme='claude-dark'] .pd-col[data-status='planned']     { --pd-c: 110 115 122; --pd-ink: #A0A8B0; --pd-h: rgb(110 115 122 / 0.14); --pd-dot: #C49A6E; }
-html[data-theme='claude-dark'] .pd-col[data-status='in_progress'] { --pd-c: 150 120 85; --pd-ink: #C49A6E; --pd-h: rgb(150 120 85 / 0.16); --pd-dot: #C49A6E; }
-html[data-theme='claude-dark'] .pd-col[data-status='done']        { --pd-c: 100 145 115; --pd-ink: #7BAA8E; --pd-h: rgb(100 145 115 / 0.14); --pd-dot: #7BAA8E; }
-html[data-theme='claude-dark'] .pd-col[data-status='bug']         { --pd-c: 150 110 120; --pd-ink: #C098A0; --pd-h: rgb(150 110 120 / 0.16); --pd-dot: #C098A0; }
 /* S88: the tinted header STRIP — full-bleed to the column's edges (the bleed cancels
    the column's own 0.55rem padding), rounded to the column's top corners, and the
    body below stays neutral. The count + actions ride the strip. */
@@ -1190,10 +1186,10 @@ button.pd-task-add {
    S145 (owner: "use this colors"): the pastels + inks are self-contained pairs of
    the owner's banner palette (native dropdowns don't reliably inherit theme vars,
    so dark literals on light pastels are the SAFE pair on every engine). */
-.pd-prio-select option.prio-urgent { background: #f9dfe6; color: #a81f42; font-weight: 600; }
-.pd-prio-select option.prio-high { background: #fbe5da; color: #a34a26; }
-.pd-prio-select option.prio-medium { background: #faf0d3; color: #7a611c; }
-.pd-prio-select option.prio-low { background: #eaf1e4; color: #55703f; }
+.pd-prio-select option.prio-urgent { background: var(--prio-urgent-bg); color: var(--prio-urgent-text); font-weight: 600; } /* S185: the pairs ride the --prio-* role tokens (variables.css) — deliberately NOT theme-flipped, so both themes keep the S145 SAFE light-pastel + dark-ink pair in native popups */
+.pd-prio-select option.prio-high { background: var(--prio-high-bg); color: var(--prio-high-text); }
+.pd-prio-select option.prio-medium { background: var(--prio-medium-bg); color: var(--prio-medium-text); }
+.pd-prio-select option.prio-low { background: var(--prio-low-bg); color: var(--prio-low-text); }
 
 /* Live preview chip — dot + label, tinted per priority (its class is swapped by
    pdSyncPrioChip on every select change). */
@@ -1854,3 +1850,27 @@ dialog.pd-pin-modal {
 .pd-pin-cur { color: var(--brand); flex: none; }
 .pd-pin-unrow { border: 1px dashed var(--line); }
 .pd-tshots-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(10rem, 1fr)); gap: 0.75rem; overflow-y: auto; max-block-size: min(52vh, 30rem); }
+
+/* ==== S185 — the owner's batch-1 color round (scoped to the Project Detail page) ====
+   Blocks 2 + 5 of the color table: the warm canvas + the bordered cards + the
+   Notes tab's editable-field affordance. The tokens live in variables.css's S185
+   block (dark twins in claude-dark-theme.css); body.pd-page is project.html's own
+   body class — no other shell page carries it, so nothing else moves. */
+body.pd-page { background: var(--page-bg); }
+/* Block 2 — every card on the page wears the light warm gray hairline (the white
+   card vs the near-white page is 1.1:1 alone; the border carries the separation).
+   The kanban columns keep their stage-edge language (above); text fields are
+   Block 5's own treatment below. */
+body.pd-page .card,
+body.pd-page .pd-task { border-color: var(--border-soft); }
+/* Block 5 — the Notes tab's note area: the card's own surface + a visible hairline
+   (the old page-gray fill matched the canvas and read as disabled) + the teal
+   --primary border on focus, in the app's accent-border + halo focus grammar. */
+body.pd-page #pd-note-textarea {
+  background: var(--surface);
+  border: 1px solid var(--border-soft);
+}
+body.pd-page #pd-note-textarea:focus-visible {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 15%, transparent);
+}

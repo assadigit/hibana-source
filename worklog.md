@@ -1554,3 +1554,85 @@ Stage Summary:
 - Standing backlog: the owner's deferred carousel-REMOVAL write-up (five static ~300px
   columns instead of the 3-wide pager — "tell me if you want that version written up")
   awaits their call; nothing else queued.
+
+---
+Task ID: S185
+Agent: main (Z.ai Code)
+Task: The owner's batch-1 color round ("Part 3: Instructions for your coding agent
+(batch 1, colors)" — the Project Detail palette, Blocks 1/2/3/5 + "do these.").
+Full delivery: implement → gates → push → CI/CD → live byte-verify → owner-account
+functional pass → tag v0.4.1.12 → zip + secret scan → healthcheck → docs flip.
+
+Work Log:
+- Sandbox had reset AGAIN before the round (repo + secrets gone; the S184 recovery
+  recipe re-applied): public clone @ 8e17aba (v0.4.1.11 live), .secrets.env +
+  credentials.md recreated from the hand-off (chmod 600, gitignored, token
+  byte-verified 40), bun install --frozen-lockfile.
+- MISSING TABLE handled per the standing no-questions rule: the owner's color table
+  (Parts 1-2) never reached this session — only --page-bg #F5F4F1 and "teal
+  --primary" were concrete. Derived the rest from the existing palette (QA'd
+  derivation, not guesswork): qa/s185-palette.mjs converts current → OKLCH, builds
+  the five-column family at ONE lightness + ONE chroma, warm-casts the border at
+  --line's own OKLCH L, and AA-checks everything. The Direction A/B question
+  resolves the same way: the family sits at the soft end, and the token block makes
+  the strength a one-line edit.
+- Block 1 (tokens): the S185 :root block in variables.css (--page-bg/--surface/
+  --border-soft/--text-muted/--primary + --col-{idea,planned,progress,done,bug}-
+  {bg,dot,ink,edge} + --prio-{urgent,high,medium,low}-{bg,text}); project-header.css's
+  five column rules + the prio select options now resolve through it; the five dark
+  overrides RETIRED (claude-dark-theme.css re-points the tokens — one rule set, two
+  themes). --text/--muted deliberately NOT re-declared (the app's existing rungs —
+  re-declaring would fork the ladder).
+- Block 2: project.html body gains .pd-page → var(--page-bg) canvas (light only);
+  body.pd-page .card + .pd-task → var(--border-soft) hairline. Checked the rail
+  first: it is a SOLID --card surface floating on the canvas — no seam.
+- Block 3: tints oklch(0.962 0.018) + dots oklch(0.75 0.13) — the S88 set had dot L
+  spread 0.69-0.85 (the yellow dot nearly 15% lighter than the blue one — the real
+  "not one family" evidence). Idea/planned inks darkened for strip AA (#546F8E /
+  #676E77 — they were 4.11/4.38:1 on the OLD tints too, a pre-existing miss the
+  round fixes).
+- Block 5: #pd-note-textarea = var(--surface) + 1px var(--border-soft) + :focus-visible
+  var(--primary) + the 3px halo (the app's accent-border grammar; --primary IS the
+  light accent, clay in dark). The Problems-tab composer deliberately untouched
+  (Block 5 names the Notes tab only — follow-up candidate).
+- Cache-bust: variables.css v24 + claude-dark-theme.css v27 (×27 pages each),
+  project-header.css v49 (×23); sw v419 → v420; package 0.4.1.12; check-cache-bust
+  PASS; parity 1553/1553 (no JS/i18n changes).
+- Tests: NEW e2e/s185-project-palette.spec.ts (4 tests: light canvas/cards/field +
+  focus; the token block + the five-family tints/dots/inks + the prio options; the
+  dark twins incl. the PRESERVED stronger dark top border; the scoping pin — the
+  dashboard keeps #E7E7E7 + #D4D4D4). Two spec bugs fixed en route: the 0.12s
+  border-color transition caught mid-flight at 120ms (rgb(84,163,166) = the exact
+  92.8% interpolation — waits now 500ms), and the dark .card stronger-top-rung is a
+  DESIGNED claude-dark rule (border-block-start --line-strong), pinned not fought.
+- LADDER all green: typecheck 0 · vitest 563/563 · eslint 0 err (162-warn) ·
+  build 79 · wiring canonical · FULL e2e 335/335 in 6 file-batches + screenshots
+  first, ZERO flakes.
+- AGENT-BROWSER QA (:3017, one-shot, wait-checked): EN light [body #F5F4F1, board
+  + task borders #D5D2CA, field white + #D5D2CA + focus #4A9FA3 + halo, five
+  tints/dots/inks on-family, 0 h-overflow] · FA/RTL (language_pref via DB — the
+  localStorage 'n' key does not drive SSR; dir rtl, grammar intact, 0 overflow) ·
+  claude-dark [body #141413, line #34322f, field #1f1e1c, idea wash
+  rgba(80,100,128,.14)] · 390 light+dark [scrollW == 390 exactly, board 363, field
+  329, five columns] · 0 console/page errors everywhere · VLM audits of the
+  light/FA/dark screenshots clean (computed styles remain the arbiter).
+
+Stage Summary:
+- STAGED: v0.4.1.12 "The Color Batch-1 Round" — the Project Detail palette tokenized
+  (one swappable block), warm canvas + bordered cards, the five columns as one
+  family, the Notes field affordance — all scoped to the project page with the
+  dashboard pin proving zero drift elsewhere. The release chain (push → CI/CD →
+  live byte-verify → owner-account functional pass → tag v0.4.1.12 → zip →
+  healthcheck → docs flip) runs next in this session per the owner's standing
+  full-delivery protocol.
+- Ops lessons: (a) the oklch→srgb matrix CUBES the LMS' (cbrt belongs to the
+  inverse) — a swapped pair silently washes every color toward white while hexes
+  still "look plausible"; verify one known gray before trusting the generator;
+  (b) programmatic .focus() + a 0.12s border transition lies at 120ms waits —
+  read computed colors after 500ms or pin the settled value; (c) claude-dark's
+  .card stronger top border is a deliberate same-specificity later-load — scope
+  checks to border-BOTTOM (the un-contested edge) and pin the top rung as a
+  feature; (d) the app's language is SERVER-side (users.language_pref) —
+  localStorage 'n' only boots pre-auth pages; flip the DB for the FA pass;
+  (e) the prio dropdown literals were S145-engine-safety (non-theme-flipping) —
+  tokenized WITHOUT dark twins to keep that property, comment updated to say so.

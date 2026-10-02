@@ -7,7 +7,7 @@
   <link rel="preload" as="font" type="font/woff2" href="/vendor/general-sans/GeneralSans-400.woff2" crossorigin>
   <link rel="preload" as="font" type="font/woff2" href="/vendor/general-sans/GeneralSans-500.woff2" crossorigin>
   <link rel="preload" as="font" type="font/woff2" href="/vendor/general-sans/GeneralSans-600.woff2" crossorigin>
-  <link rel="stylesheet" href="/css/variables.css?v=23">
+  <link rel="stylesheet" href="/css/variables.css?v=24">
   <link rel="stylesheet" href="/css/base.css?v=12">
   <link rel="stylesheet" href="/css/layout.css?v=61">
   <link rel="stylesheet" href="/css/dashboard.css?v=38">
@@ -20,11 +20,11 @@
   <link rel="stylesheet" href="/css/calendar.css?v=8">
   <link rel="stylesheet" href="/css/notifications.css?v=11">
   <link rel="stylesheet" href="/css/polish-batch.css?v=29">
-  <link rel="stylesheet" href="/css/project-header.css?v=48">
+  <link rel="stylesheet" href="/css/project-header.css?v=49">
   <link rel="stylesheet" href="/css/devboard.css?v=29">
   <link rel="stylesheet" href="/css/misc.css?v=22">
   <link rel="stylesheet" href="/css/themes.css?v=8">
-  <link rel="stylesheet" href="/css/claude-dark-theme.css?v=26">
+  <link rel="stylesheet" href="/css/claude-dark-theme.css?v=27">
   <link rel="stylesheet" href="/css/rtl.css?v=5">
   <link rel="stylesheet" href="/css/magic-wand.css?v=7">
   <link rel="stylesheet" href="/vendor/manrope/font-face.css">
@@ -47,7 +47,10 @@
   <script src="/js/resume.js?v=15" defer></script>
   <script src="/js/magic-wand.js?v=17" defer></script>
 </head>
-<body>
+<body class="pd-page">
+  <!-- pd-page (S185): the Project Detail page's own body class — the warm canvas
+       + card/field affordances of the batch-1 color round are scoped to it (see
+       project-header.css's S185 section). No other shell page carries this class. -->
   <div id="hibana-page-loader" aria-hidden="true"><div class="hibana-page-loader-inner"><div class="hibana-loader-mark" aria-hidden="true"><span class="hibana-loader-glyph">H</span><span class="hibana-loader-orbit"><span class="hibana-loader-spark"></span></span></div><span class="hibana-page-loader-brand">Hibana</span><div class="hibana-loader-track" aria-hidden="true"><span class="hibana-loader-fill"></span></div></div></div>
   <div data-nav></div>
   <main class="shell" id="main" tabindex="-1">

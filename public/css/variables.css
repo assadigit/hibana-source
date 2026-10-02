@@ -466,6 +466,42 @@
   --select-chevron: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%235A5248' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
 }
 
+/* ==== S185 — the owner's batch-1 color table (the Project Detail palette) ======
+   Role-named values: ONE block to swap or revert the whole palette by editing
+   this block alone. --text/--muted stay the app's existing rungs (#141414 /
+   #5C5C5C) — re-declaring them under new names here would fork the ladder, so
+   the block names only what the table adds. This batch's consumers live on the
+   Project Detail page alone (body.pd-page + project-header.css) — no other
+   page's pixels move until later batches adopt the names. Dark twins live in
+   claude-dark-theme.css (the roles resolve onto the clay/near-black identity).
+   The column family is ONE OKLCH family — same lightness (0.962 tint / 0.75
+   dot) + same softness (0.018 tint / 0.13 dot chroma) across all five stages;
+   hues preserve the semantic assignments (idea azure · planned amber ·
+   progress gold · done green · bug red). Derived + AA-checked by
+   qa/s185-palette.mjs (every ink ≥4.5:1 on its own tint — idea/planned were
+   darkened; they were sub-AA on the S88 tints too). */
+:root {
+  /* surfaces & ink */
+  --page-bg: #F5F4F1;     /* the warm near-white canvas (the owner's value) */
+  --surface: #FFFFFF;     /* cards ride white on the warm canvas */
+  --border-soft: #D5D2CA; /* light warm gray — separates white cards from the near-white page (1.51:1 vs card, 1.37:1 vs page — the old --line's weight, warm cast) */
+  --text-muted: #5C5C5C;  /* the secondary rung, named for the table (reserved — consumed by later batches) */
+  --primary: #4A9FA3;     /* the teal interactive accent (light-mode identity) */
+
+  /* the five kanban columns — one family */
+  --col-idea-bg: #EBF3FF;      --col-idea-dot: #7BAFFF;     --col-idea-ink: #546F8E;     --col-idea-edge: 172 199 233;
+  --col-planned-bg: #FCF0E6;   --col-planned-dot: #E79A4E;  --col-planned-ink: #676E77;  --col-planned-edge: 209 212 216;
+  --col-progress-bg: #F7F2E5;  --col-progress-dot: #CCAB3E; --col-progress-ink: #7d5a34; --col-progress-edge: 240 197 155;
+  --col-done-bg: #EAF6ED;      --col-done-dot: #68C584;     --col-done-ink: #43704f;     --col-done-edge: 182 224 200;
+  --col-bug-bg: #FFEEED;       --col-bug-dot: #F58B88;      --col-bug-ink: #87555f;      --col-bug-edge: 238 185 194;
+
+  /* priorities — the select options' soft pairs (values unchanged; named) */
+  --prio-urgent-bg: #F9DFE6; --prio-urgent-text: #A81F42;
+  --prio-high-bg: #FBE5DA;   --prio-high-text: #A34A26;
+  --prio-medium-bg: #FAF0D3; --prio-medium-text: #7A611C;
+  --prio-low-bg: #EAF1E4;    --prio-low-text: #55703F;
+}
+
 /* S87 (owner request 2026-09-20): the prefers-color-scheme auto-dark block that lived
    here was RETIRED — the app ships exactly two looks now: light (the :root baseline
    above + themes.css's explicit light block) and claude-dark (claude-dark-theme.css).

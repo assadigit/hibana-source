@@ -65,6 +65,26 @@ html[data-theme='claude-dark'] {
   --line: #34322f;          /* hairline dividers, card edges */
   --line-strong: #45423d;   /* input outlines, focus dividers */
 
+  /* ---------- S185 — the Project Detail palette's dark twins ----------
+     The batch-1 role tokens (variables.css's S185 :root block) resolve onto the
+     app's dark identity here: warm near-black canvas, card surface, hairline,
+     muted ink, and the CLAY primary (teal is the light-mode identity; dark keeps
+     its own). The kanban column family flips to the S88 low-alpha washes of the
+     stage triplets (the light-mode pastels would blind on #1f1e1c) — same values,
+     now named, so project-header.css needs ONE rule set for both themes. The
+     --prio-* option pairs are NOT overridden: native dropdowns keep the light
+     pastel pairs in dark (same as pre-S185 behavior). */
+  --page-bg: #141413;
+  --surface: #1f1e1c;
+  --border-soft: #34322f;
+  --text-muted: #9C9C9B;
+  --primary: #d97757;
+  --col-idea-bg: rgb(80 100 128 / 0.14);      --col-idea-dot: #7B9AB8;  --col-idea-ink: #7B9AB8;  --col-idea-edge: 80 100 128;
+  --col-planned-bg: rgb(110 115 122 / 0.14);  --col-planned-dot: #C49A6E; --col-planned-ink: #A0A8B0; --col-planned-edge: 110 115 122;
+  --col-progress-bg: rgb(150 120 85 / 0.16);  --col-progress-dot: #C49A6E; --col-progress-ink: #C49A6E; --col-progress-edge: 150 120 85;
+  --col-done-bg: rgb(100 145 115 / 0.14);     --col-done-dot: #7BAA8E;  --col-done-ink: #7BAA8E;  --col-done-edge: 100 145 115;
+  --col-bug-bg: rgb(150 110 120 / 0.16);      --col-bug-dot: #C098A0;   --col-bug-ink: #C098A0;   --col-bug-edge: 150 110 120;
+
   /* ---------- Accent — Clay terracotta. PRIMARY actions only ---------- */
   --accent: #d97757;
   --accent-hover: #c2643f;

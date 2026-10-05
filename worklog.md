@@ -2104,3 +2104,89 @@ Stage Summary:
 - OPEN: nothing blocking. The next owner change (CHANGE 8+, or new rounds)
   continues from this state; the uptime prober's next ping is the only thing
   on a timer (read the ping log before worrying — the 6h+1h grace window).
+
+---
+Task ID: S190
+Agent: Z.ai Code (the 15-minute review round — fresh sandbox session)
+
+Task: Assess the post-S189 state (ladder + live + agent-browser QA), then the
+independently-chosen round: ONE ACTIVE GRAMMAR, MOBILE — the S189 rail shape
+reaches the last two navigation surfaces (the mobile bottom bar's tabs + the
+More sheet's current row), plus the tap-to-top re-orient and the bar tabs'
+keyboard focus rings.
+
+Work Log:
+- Assessment: ladder green on the canonical tree (typecheck 0 · vitest 571/571 ·
+  eslint 0 err/162-warn · build 79 · cache-bust PASS); live healthy (prod, schema
+  63, sw v425); agent-browser QA clean across all 8 rail pages; the S189 shape
+  verified exact in EN light/dark, FA/RTL (mirrored shoulders), icon-only, 390.
+  The CHOSEN GAP (VLM-confirmed on the mobile screenshot): the bottom bar's
+  active tab was teal TEXT ONLY and the More sheet's row spoke --accent-soft +
+  --link — three divergent active grammars app-wide.
+- polish-ui.css (the bar): the active tab paints the --nav-active-* family
+  (tint + icon ink + label ink weight 600) on its own 14px tile; the press
+  family joins the hue (--accent-soft retired; active press deepens); the
+  More-EXPANDED teal ink RETIRES (one active pattern — the open sheet is the
+  indicator); NEW :focus-visible rings on the bar tabs (the S61 gap); the bar's
+  block padding 0.3→0.375rem (the ~6px shoulder band) with the body's under-bar
+  reserve 3.75→3.9rem (the last row stays untrapped).
+- quicknotes.css (the sheet): the current-page row joins the family on its
+  solid --card surface (the S189 blend, floors already proven).
+- nav.js (the feature): activating the CURRENT destination — the mobile bar's
+  active tab, the rail's active icon, a palette command for the open page —
+  now smooth-scrolls to the head in go()'s byte-identical branch (was a silent
+  no-op; reduced-motion snaps; sameSkip:false re-mounts unaffected; /app→
+  /dashboard.html stays a real navigation — its URL differs).
+- The translucent bound (the one new math): the bar paints 92% card + blur, so
+  qa/s190-mobile-active.mjs + the identity-palette S190 block bound the ground
+  worst-case (8% toward black light / white dark): light icon 3.49:1 / label
+  5.55:1, dark 4.73:1 / 5.16:1 — ALL PASS (nominal 4.05/6.44, 5.98/6.53).
+- Guards: identity-palette S190 ×6 + the NEW e2e/s190-mobile-active-shape.spec.ts
+  ×7 (geometry+inks+one-unit; the More twin + the sheet row; the one-pattern
+  retirement; the keyboard ring; the tap-to-top no-remount proof; the dark twin;
+  the FA/RTL twin). Spec lessons: notes.html's shell is height-constrained (its
+  vault scrolls internally) — the window-scroll proof lives on projects.html;
+  Math.round(await evaluate) — rounding a Promise is NaN.
+- Cache-bust: polish-ui v38→39 ×23 · quicknotes v44→45 ×25 · nav v41→42 ×18;
+  sw v425→v426; package 0.4.1.17; parity 1561/1561.
+- Ladder: typecheck 0 · vitest 577/577 (+6) · eslint 0 err (162-warn) · build
+  79 · wiring canonical · cache-bust PASS · FULL e2e 368/368 (361+7, all 78
+  spec files, zero flakes) · smoke ALL PASS · bundle-size PASS (+13.3%) ·
+  agent-browser QA clean + VLM audits 3/3.
+- Release: c8bfd37 pushed → CI 37362926900 GREEN → CD runner-starved ×2
+  (GitHub Actions queue congestion today: the deploy job queued 15 min with
+  runner:none and auto-cancelled; the docs chain's guard queued 40+ min) →
+  deployed via npm run deploy:prod off the CI-verified 85dd65a (the same
+  build+wire+wiring-check+wrangler sequence the CD runs; hibana-prod
+  2daa6252) → live byte-verify ALL GREEN (3 assets IDENTICAL ×2 pages + sw
+  v426 + health ok/up/63) → the OWNER-ACCOUNT pass clean on the REAL data at
+  390px (the shape exact; route-following; the More twin + sheet row; 0
+  console/page errors; the VLM's 'gray Settings row' = the pointer's hover
+  tint, disproven by the computed-state probe) → tag v0.4.1.17 on 85dd65a →
+  zip hibana.0.4.1.17.zip (591 files, integrity OK, secret-scan clean — the 8
+  real values ABSENT; the 4 account-id hits = the pre-existing S93 public
+  surface, same 4 scripts as the public repo) → --restore-html.
+
+Stage Summary:
+- LIVE: hibana.ir @ v0.4.1.17 (S190 — ONE ACTIVE GRAMMAR, MOBILE), sw v426,
+  schema 63, health ok; remote main @ 85dd65a; tag v0.4.1.17 pushed; zip in
+  /home/z/upload + the sandbox download folder; Changelogs row 190 RELEASED;
+  FULL e2e 368/368.
+- The active grammar is now ONE family on every navigation surface: the
+  desktop rail (S189's shape), the mobile bar tabs, and the More sheet rows —
+  the soft filled teal tint + the teal icon + the one-rung-further label,
+  press/hover the same hue, focus always its own ring, both themes tokenized,
+  the translucent bar's contrast bounded worst-case.
+- Ops lessons banked: (a) GitHub runner queue starvation is a real CD failure
+  mode (15-min queued auto-cancel; runner:none in the jobs API is the
+  signature) — the repo's own deploy:prod runbook is the safe manual fallback
+  when CI is green on the exact sha; the still-queued CD deploys the same
+  bytes idempotently if a runner ever frees; (b) the ladder's bundle-size
+  gate needs the --prod build (the dev build trips +485%); (c) notes.html's
+  shell is height-constrained — window-scroll proofs need projects.html;
+  (d) VLM 'gray highlight' claims on sheets = the pointer's hover tint —
+  probe computed state at rest before believing them (the S189 hover lesson,
+  third sighting).
+- OPEN: nothing blocking. The 21:23Z backup tick is the watchdog's honest
+  proof (read it before closing the round); the uptime prober rides its ~6h
+  workflow cadence. Next rounds continue from this state.

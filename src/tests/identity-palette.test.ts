@@ -276,9 +276,11 @@ describe('S181 sidebar color block — the current-location bar clears 3:1 every
 
   it('the bars actually paint the rung: every current-location ::before rule rides var(--brand-hover)', () => {
     const layoutCss = readFileSync(join(process.cwd(), 'public', 'css', 'layout.css'), 'utf8')
+    // S188 (CHANGE 5): the .is-panel-open override is RETIRED with its whole rule —
+    // the base [aria-current='page']::before paints the rung alone now (the
+    // override painted the identical --brand-hover, so its removal changes nothing).
     for (const sel of [
       '.rail-btn[aria-current=\'page\']::before',
-      '.rail-btn.is-panel-open[aria-current=\'page\']::before',
       '.rail-project-group.is-here > .rail-group-headrow::before',
       '.rail-item.is-row-active::before',
     ]) {

@@ -147,13 +147,16 @@ test.describe('S177/S178 — the quiet sidebar (the design advisor\'s blocks)', 
     await expect(head.locator('.rail-panel-open-link')).toBeVisible()
   })
 
-  test('group headers (S178 block 2): text-only, muted ink ≥ AA, the count INLINE after the title, 16–20px group bands', async ({ page }) => {
+  test('group headers (S178 block 2, re-pinned by S188 CHANGE 4): text-only heads, muted ink ≥ AA, the count BADGE at the inline-end edge, 16–20px group bands', async ({ page }) => {
     await login(page)
     await openProjectsPanel(page)
 
     const head = page.locator('.rail-group:not(.rail-sub-group):not(.rail-project-group) > .rail-group-head').first()
-    // No background fill, no rounded corners — the typographic hierarchy owns the row.
-    expect(await head.evaluate((el) => getComputedStyle(el).backgroundColor)).toBe('rgba(0, 0, 0, 0)')
+    // S188 (CHANGE 2): the top-level heads are STICKY — they paint the panel's own
+    // surface (--card) so rows slide under them cleanly (the S177 transparent head
+    // is superseded by the sticky cover; the "text-only" register survives in the
+    // no-radius + muted-ink pins below).
+    expect(await head.evaluate((el) => getComputedStyle(el).backgroundColor)).toBe('rgb(255, 255, 255)') // var(--card) — the sticky cover
     expect(await head.evaluate((el) => getComputedStyle(el).borderRadius)).toBe('0px')
     // Small size, medium weight, muted ink (the eyebrow register).
     expect(await head.evaluate((el) => getComputedStyle(el).fontWeight)).toBe('500')
@@ -161,8 +164,10 @@ test.describe('S177/S178 — the quiet sidebar (the design advisor\'s blocks)', 
     // The muted header ink still clears WCAG AA (4.5:1) against the panel surface.
     expect(await page.evaluate(contrastProbe)).toBeGreaterThanOrEqual(4.5)
 
-    // The count rides the SAME row, DIRECTLY AFTER the title (a ~6px gap, a
-    // smaller muted rung — never pinned at the row's far edge).
+    // S188 (owner, CHANGE 4 — SUPERSEDES the S178 inline placement): the count is
+    // a BADGE pinned at the row's INLINE-END edge — ONE vertical column of numbers
+    // the eye compares across rows. Neutral tint (--bg-soft — never the accent),
+    // small font, fully rounded; a CIRCLE at one digit (inline-size == height).
     const label = head.locator('.rail-group-label')
     const count = head.locator('.rail-group-count')
     const headBox = await head.boundingBox()
@@ -170,11 +175,16 @@ test.describe('S177/S178 — the quiet sidebar (the design advisor\'s blocks)', 
     const countBox = await count.boundingBox()
     expect(countBox!.y).toBeGreaterThanOrEqual(headBox!.y)
     expect(countBox!.y + countBox!.height).toBeLessThanOrEqual(headBox!.y + headBox!.height + 1)
-    expect(countBox!.x).toBeGreaterThanOrEqual(labelBox!.x + labelBox!.width)      // after the title…
-    expect(countBox!.x - (labelBox!.x + labelBox!.width)).toBeLessThanOrEqual(10)  // …by a small gap (~6px)
-    expect(countBox!.x + countBox!.width).toBeLessThan(headBox!.x + headBox!.width - 40) // NOT at the far edge
-    expect(await count.evaluate((el) => getComputedStyle(el).fontSize)).toBe('11px') // slightly smaller than the title
+    expect(countBox!.x).toBeGreaterThan(labelBox!.x + labelBox!.width) // past the title…
+    // …pinned AT the far edge: the badge's end sits ~8px (the 0.5rem row padding) off the head's end
+    expect(Math.round(headBox!.x + headBox!.width - (countBox!.x + countBox!.width))).toBe(8)
+    expect(await count.evaluate((el) => getComputedStyle(el).fontSize)).toBe('10px') // small font
+    expect(await count.evaluate((el) => getComputedStyle(el).backgroundColor)).toBe('rgb(222, 222, 222)') // --bg-soft, the neutral tint
+    expect(await count.evaluate((el) => getComputedStyle(el).borderRadius)).toBe('999px') // fully rounded
+    expect(Math.round(countBox!.width)).toBe(Math.round(countBox!.height)) // a CIRCLE at one digit (seeded: 1 project)
     expect(await count.evaluate((el) => getComputedStyle(el).color)).toBe(await head.evaluate((el) => getComputedStyle(el).color)) // muted like its head
+    // The badge's accessible name speaks the noun ("1 projects").
+    await expect(count).toHaveAttribute('aria-label', '1 projects')
 
     // Groups separate by 16–20px of vertical space above each header (the
     // sibling margin), not boxes.
@@ -192,7 +202,7 @@ test.describe('S177/S178 — the quiet sidebar (the design advisor\'s blocks)', 
     expect(groupGap).toBeGreaterThan(rowGap * 4)
   })
 
-  test('blocks 3+4+9 (S178): the type hierarchy, row heights, chevron slot alignment — no connector lines, no dots', async ({ page }) => {
+  test('blocks 3+4+9 (S178, heights re-pinned by S188 CHANGE 1): the type hierarchy, ONE equal row height, chevron slot alignment — guide lines on the NESTED levels, no dots', async ({ page }) => {
     await login(page)
     await openProjectsPanel(page)
 
@@ -234,25 +244,27 @@ test.describe('S177/S178 — the quiet sidebar (the design advisor\'s blocks)', 
 
     // Block 3: expand the branch + its first sub-group, pin the CHILD register
     // (12px/400/muted — smaller than the project name, lighter than the head)
-    // and the indentation ladder + the GONE connectors.
+    // and the indentation ladder + the S188 guide lines (nested levels only).
     await head.click()
     const subHead = branch.locator('.rail-sub-group .rail-group-head').first()
     const subLabel = subHead.locator('.rail-group-label')
     expect(await subLabel.evaluate((el) => getComputedStyle(el).fontSize)).toBe('12px')
     expect(await subLabel.evaluate((el) => getComputedStyle(el).fontWeight)).toBe('400')
     expect(await subHead.evaluate((el) => getComputedStyle(el).color)).not.toBe(await head.evaluate((el) => getComputedStyle(el).color)) // secondary vs primary
-    // the child-row count rides inline on the sub-head too ("New ideas 10")
+    // S188 (CHANGE 4): the section's count badge rides at the sub-head's INLINE-END
+    // edge — the same badge column the stage heads speak.
     const subCount = subHead.locator('.rail-group-count')
     const subCountBox = await subCount.boundingBox()
     const subLabelBox = await subLabel.boundingBox()
-    expect(subCountBox!.x).toBeGreaterThanOrEqual(subLabelBox!.x + subLabelBox!.width)
-    expect(subCountBox!.x - (subLabelBox!.x + subLabelBox!.width)).toBeLessThanOrEqual(10)
-    expect(await subCount.evaluate((el) => getComputedStyle(el).fontSize)).toBe('11px')
-    // child rows are TIGHTER than project rows (~26–28px)
     const subHeadBox = await subHead.boundingBox()
-    expect(subHeadBox!.height).toBeLessThan(foldedBox!.height)
-    expect(subHeadBox!.height).toBeGreaterThanOrEqual(26)
-    expect(subHeadBox!.height).toBeLessThanOrEqual(28)
+    expect(subCountBox!.x).toBeGreaterThan(subLabelBox!.x + subLabelBox!.width) // past the label…
+    expect(Math.round(subHeadBox!.x + subHeadBox!.width - (subCountBox!.x + subCountBox!.width))).toBe(8) // …at the far edge
+    expect(await subCount.evaluate((el) => getComputedStyle(el).fontSize)).toBe('10px')
+    // S188 (CHANGE 1 — SUPERSEDES the S178 tighter-child register): the section
+    // head joins the tree's ONE equal row height (~30–34px — the project rows'
+    // own 32px rhythm; single-line, equal-height rows scan).
+    expect(subHeadBox!.height).toBeGreaterThanOrEqual(30)
+    expect(subHeadBox!.height).toBeLessThanOrEqual(34)
 
     await subHead.click()
     const leaf = branch.locator('.rail-sub-group .rail-item').first()
@@ -264,19 +276,41 @@ test.describe('S177/S178 — the quiet sidebar (the design advisor\'s blocks)', 
     const leafColor = await leaf.evaluate((el) => getComputedStyle(el).color)
     const projColor = await head.evaluate((el) => getComputedStyle(el).color)
     expect(leafColor).not.toBe(projColor)
-    // NO vertical guide under any group, NO elbow connector on the sub-groups
+    // S188 (CHANGE 1): the leaf speaks ONE line — title only, ellipsis on overflow
+    // (the old 2-line clamp is what made each idea read as a two-line text blob).
+    const leafLabel = leaf.locator('.rail-item-label')
+    expect(await leafLabel.evaluate((el) => getComputedStyle(el).whiteSpace)).toBe('nowrap')
+    expect(await leafLabel.evaluate((el) => getComputedStyle(el).overflow)).toBe('hidden')
+    expect(await leafLabel.evaluate((el) => getComputedStyle(el).textOverflow)).toBe('ellipsis')
+    // …and EVERY row in the tree stands at the SAME height (the leaf == the project row)
+    expect(Math.round(leafBox!.height)).toBe(Math.round(foldedBox!.height))
+    // S188 (CHANGE 3 — SUPERSEDES the S177 retirement, nested levels only): the
+    // guide lines return — 1px logical borders on the project + section bodies,
+    // rounded elbow spans on the children — while the TOP-LEVEL stage body stays
+    // bare (plain text + chevron, no line).
     const connectors = await page.evaluate(() => {
-      const body = document.querySelector('.rail-group-body') as HTMLElement | null
-      const sub = document.querySelector('.rail-sub-group') as HTMLElement | null
+      const stageBody = document.querySelector('.rail-panel-body > .rail-group > .rail-group-body') as HTMLElement | null
+      const projBody = document.querySelector('.rail-project-group > .rail-group-body') as HTMLElement | null
+      const subBody = document.querySelector('.rail-sub-group > .rail-group-body') as HTMLElement | null
+      const elbow = document.querySelector('.rail-sub-group .rail-elbow') as HTMLElement | null
+      const elbowStyle = elbow ? getComputedStyle(elbow) : null
       return {
-        guide: body ? getComputedStyle(body).borderInlineStartStyle : 'missing',
-        guideW: body ? getComputedStyle(body).borderInlineStartWidth : 'missing',
-        elbow: sub ? getComputedStyle(sub, '::before').content : 'missing',
+        stageGuide: stageBody ? getComputedStyle(stageBody).borderInlineStartWidth : 'missing',
+        projGuide: projBody ? getComputedStyle(projBody).borderInlineStartWidth : 'missing',
+        projGuideColor: projBody ? getComputedStyle(projBody).borderInlineStartColor : 'missing',
+        subGuide: subBody ? getComputedStyle(subBody).borderInlineStartWidth : 'missing',
+        elbowCount: document.querySelectorAll('.rail-sub-group .rail-elbow').length,
+        elbowHeight: elbowStyle ? elbowStyle.blockSize : 'missing',
+        elbowRadius: elbowStyle ? elbowStyle.borderRadius : 'missing',
       }
     })
-    expect(connectors.guide).toBe('none')
-    expect(connectors.guideW).toBe('0px')
-    expect(['none', 'normal']).toContain(connectors.elbow) // 'normal' is Chrome's no-rule string
+    expect(connectors.stageGuide).toBe('0px')    // top-level groups: NO line (plain text + chevron)
+    expect(connectors.projGuide).toBe('1px')     // the project's body carries the 1px guide
+    expect(connectors.subGuide).toBe('1px')      // each section's body carries the 1px guide
+    expect(connectors.projGuideColor).toBe('rgb(212, 212, 212)') // --line (the low-contrast token ink)
+    expect(connectors.elbowCount).toBeGreaterThan(0)
+    expect(connectors.elbowHeight).toBe('1px')
+    expect(connectors.elbowRadius).toBe('999px') // rounded ends
   })
 
   test('block 2+11 (S178): the selected row — the only fill, the INSET accent bar, aria-current="true"', async ({ page }) => {

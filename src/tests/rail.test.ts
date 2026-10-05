@@ -126,7 +126,13 @@ describe('GET /api/rail (the navigation rail panel payload)', () => {
   // boxes → items. S95 r2 (owner item 1): EVERY box the board renders rides —
   // idea/bug/planned/in_progress/done (a box with ≥1 item grows its branch);
   // only non-board statuses stay out so the payload stays a navigation summary.
-  it('returns projectTasks: every board box of live projects, scoped + bounded', async () => {
+  // S188 (owner, CHANGE 1 — "Show ALL items in every section. Do not cap the
+  // list."): the projectTasks LIMIT 200 is GONE — 205 seeded rows all ride (the
+  // old cap silently truncated any section past 200; the panel's internal
+  // scroll + sticky headers own long lists now). The projects window rides at
+  // 400 (the S131 sparks precedent): 45 seeded projects all ride past the old
+  // 40-row stage cap.
+  it('returns projectTasks: every board box of live projects, scoped and UNCAPPED (S188)', async () => {
     const { db, close } = makeTestDb()
     try {
       const me = await makeUser(db, { username: 'rail-tree' })
@@ -170,6 +176,42 @@ describe('GET /api/rail (the navigation rail panel payload)', () => {
       expect(body.projectTasks.find((t) => t.id === 'dt3')).toMatchObject({ status: 'planned', project_id: 'p1' })
       expect(body.projectTasks.find((t) => t.id === 'dt6')).toMatchObject({ status: 'in_progress', project_id: 'p1' })
       expect(body.projectTasks.find((t) => t.id === 'dt7')).toMatchObject({ status: 'done', project_id: 'p1' })
+    } finally { close() }
+  })
+
+  // S188 (owner, CHANGE 1): the caps are gone — a 205-row board lists every row
+  // (the old LIMIT 200 bit exactly at 200), and a 45-project stage list rides in
+  // full (the old LIMIT 40 truncated every stage past 40 projects).
+  it('returns projectTasks and projects UNCAPPED — 205 tasks + 45 projects all ride', async () => {
+    const { db, close } = makeTestDb()
+    try {
+      const me = await makeUser(db, { username: 'rail-uncapped' })
+      const now = new Date().toISOString()
+      await db.execute(
+        'INSERT INTO projects (id, user_id, title, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)',
+        ['big', me, 'The big board', 'developing', now, now],
+      )
+      for (let i = 0; i < 205; i++) {
+        await db.execute(
+          'INSERT INTO dev_tasks (id, project_id, title, status, priority, sort_order, created_at) VALUES (?, ?, ?, ?, ?, 0, ?)',
+          [`big-${i}`, 'big', `Idea ${i}`, 'idea', 'medium', now],
+        )
+      }
+      for (let i = 0; i < 45; i++) {
+        await db.execute(
+          'INSERT INTO projects (id, user_id, title, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)',
+          [`p${i}`, me, `Project ${i}`, 'planning', now, now],
+        )
+      }
+      const { app, auth } = await makeClient(db, me)
+      const res = await app.fetch(new Request('http://local/api/rail', { headers: auth }))
+      expect(res.status).toBe(200)
+      const body = (await res.json()) as {
+        projects: { id: string }[]
+        projectTasks: { id: string }[]
+      }
+      expect(body.projectTasks.length).toBe(205) // every idea — no cap, no "show more"
+      expect(body.projects.length).toBe(46) // the big board + 45 planning projects
     } finally { close() }
   })
 

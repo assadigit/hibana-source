@@ -36,8 +36,9 @@ import type { Config, UserRow } from '../types'
 //                 projects panel's deeper tree: stage → project → box → items.
 //                 S95 r2 (owner item 1): EVERY box the board renders rides now
 //                 (idea/bug/planned/in_progress/done — a box with ≥1 item shows),
-//                 not just the idea/bug pair. Bounded (≤200 rows) so the payload
-//                 stays a navigation summary, never a content dump.
+//                 not just the idea/bug pair. S188 (owner, CHANGE 1): UNCAPPED —
+//                 every section lists ALL of its items (no “show more” row; the
+//                 panel's internal scroll + sticky headers own the long lists).
 //
 // Grouping (status groups / quadrants / folders…) happens client-side in
 // nav.js — the same rows feed several sections' views. no-store: this is live
@@ -71,7 +72,7 @@ export function railRoutes(cfg: Config): Hono<{ Variables: { user: UserRow } }> 
         `SELECT id, title, status, due_date FROM projects
          WHERE user_id = ? AND deleted_at IS NULL AND status != 'spark'
            AND (archived_state IS NULL OR archived_state != 'offline')
-         ORDER BY updated_at DESC LIMIT 40`,
+         ORDER BY updated_at DESC LIMIT 400`,
         [user.id],
       ),
       // S131 (owner: "clicking the Ideas icon must show all ideas folders"): the
@@ -125,8 +126,14 @@ export function railRoutes(cfg: Config): Hono<{ Variables: { user: UserRow } }> 
       // S94 (owner item 6) + S95 r2 (owner item 1): the projects panel's deeper tree —
       // each live project's progress-BOX tasks, EVERY box the board renders (a box
       // with ≥1 item grows its branch). Scoped by the JOIN (Rule 1), soft-delete +
-      // offline-parked respected, priority-first like the board (urgent → low),
-      // capped at 200 so solo-user boards never truncate a project's boxes.
+      // offline-parked respected, priority-first like the board (urgent → low).
+      // S188 (owner, CHANGE 1 — "Show ALL items in every section. Do not cap the
+      // list."): the old LIMIT 200 is RETIRED — a section with 300 ideas lists all
+      // 300 (the panel scrolls internally with sticky headers now, so a long list
+      // stays readable; the rows are tiny id/title/status rows, and this is a
+      // solo-user app — the payload stays a navigation summary by its SHAPE, not
+      // by a row cap). The projects window above rides at 400 (the S131 sparks
+      // precedent — every stage's projects fit).
       cfg.db.query<RailProjectTask>(
         `SELECT t.id, t.title, t.status, t.project_id FROM dev_tasks t
          JOIN projects p ON p.id = t.project_id
@@ -134,7 +141,7 @@ export function railRoutes(cfg: Config): Hono<{ Variables: { user: UserRow } }> 
            AND p.status != 'spark' AND (p.archived_state IS NULL OR p.archived_state != 'offline')
            AND t.status IN ('idea','bug','planned','in_progress','done')
          ORDER BY CASE t.priority WHEN 'urgent' THEN 0 WHEN 'high' THEN 1 WHEN 'medium' THEN 2 ELSE 3 END,
-                  t.sort_order, t.created_at DESC LIMIT 200`,
+                  t.sort_order, t.created_at DESC`,
         [user.id],
       ),
     ])

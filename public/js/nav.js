@@ -490,6 +490,23 @@
   const railFaDig = (s) => ((window.hibanaI18n?.lang?.() || 'en') === 'fa'
     ? String(s).replace(/\d/g, (x) => '۰۱۲۳۴۵۶۷۸۹'[+x])
     : String(s))
+  // S188 (owner, CHANGE 4 — the count badges): the number circles at each row's
+  // inline-end edge carry an ACCESSIBLE NAME ("11 ideas"), built from the same
+  // i18n dictionaries every other panel string speaks (the {n} placeholder is
+  // the sadhana-page addTaskTo recipe). One noun per node kind: stages count
+  // projects, project rows count sections, sections count items, folders count
+  // ideas/notes, quadrants count tasks.
+  const RAIL_COUNT_KEYS = {
+    projects: 'rail.a11yCount.projects',
+    sections: 'rail.a11yCount.sections',
+    items: 'rail.a11yCount.items',
+    ideas: 'rail.a11yCount.ideas',
+    notes: 'rail.a11yCount.notes',
+    tasks: 'rail.a11yCount.tasks',
+  }
+  const railCountLabel = (kind, n) =>
+    railT(RAIL_COUNT_KEYS[kind] || RAIL_COUNT_KEYS.items, '{n} items')
+      .replace('{n}', railFaDig(n))
 
   const RAIL_SECTIONS = {
     todo: { href: '/to-do-list', i18n: 'nav.sadhana', label: 'To-do list' },
@@ -555,12 +572,11 @@
       railRefreshTimer = 0
       const box = railBox()
       if (!railSection || !box || box.hidden) return // closed — the next open re-fetches
-      const prevGroups = railHarvestGroups()
       try { await loadRailData() } catch { return } // offline — keep the stale panel quietly
       if (!railSection || railBox() !== box) return // superseded meanwhile
       const body = box.querySelector('.rail-panel-body')
       if (body) body.innerHTML = railBodyFor(railSection, railData)
-      railRestoreGroups(prevGroups)
+      railFoldsApply() // S188: the remembered tree re-applies after every re-render
       markRailRows() // S95: the re-render re-marks current-location rows
       syncRailTreeBtn() // S97: the fold button mirrors the fresh tree
     }, 250)
@@ -574,42 +590,46 @@
   window.hibana = window.hibana || {}
   window.hibana.rail = { refresh: refreshRailData }
 
-  // --- S116: the re-render keeps your place --------------------------------------
-  // Every panel RE-RENDER (a fresh /api/rail read, the Undo path, a quick-add
-  // landing, the calendar's month step) rebuilds the body — and used to fold every
-  // group back to its shipped default, so an expanded project branch collapsed
-  // under the owner's cursor. The collapse states are now HARVESTED before each
-  // body swap and RE-APPLIED after (keyed by the branch's project id for project
-  // groups, the head's label text for stages/aspects/folders). Groups that are NEW
-  // since the last render (a first In-Progress task grows its aspect group) render
-  // at their defaults; the S97 fold button re-syncs after each restore. The states
-  // live as long as the document does — reopening the panel keeps the tree the
-  // owner left (the box only hides), while a hard reload starts fresh (they are
-  // interaction state, not a preference — the S97 button stays the explicit boss).
-  const railGroupKey = (g) =>
-    g.getAttribute('data-project-branch') ||
-    g.querySelector('.rail-group-head span:not(.rail-group-count)')?.textContent?.trim() ||
-    ''
-  const railHarvestGroups = () => {
-    const box = railBox()
-    const m = new Map()
-    if (box) box.querySelectorAll('.rail-group').forEach((g) => {
-      const k = railGroupKey(g)
-      if (k) m.set(k, g.classList.contains('is-collapsed'))
-    })
-    return m
+  // --- S188 (owner, CHANGE 2 — the remembered tree) --------------------------------
+  // The collapse states used to live only for the document's lifetime (S116:
+  // interaction state, not a preference — a hard reload reset the tree). The
+  // owner now wants the open/closed state of every group, project and section
+  // SAVED in the browser and RESTORED on load. Every .rail-group renders a
+  // STABLE fold key (data-fold-key: stage status key / project id / project id +
+  // box key / folder id / quadrant — identity-based, so a language switch keeps
+  // the tree) and the states persist to localStorage after every toggle (single
+  // + bulk), merged over the stored map so other panels' nodes never wipe.
+  const RAIL_FOLD_KEY = 'hibana-rail-fold-v1'
+  const railFoldsRead = () => {
+    try {
+      const raw = localStorage.getItem(RAIL_FOLD_KEY)
+      const v = raw ? JSON.parse(raw) : null
+      return v && typeof v === 'object' ? v : null
+    } catch { return null } // storage unavailable or corrupt — fall back to defaults
   }
-  const railRestoreGroups = (prev) => {
+  const railFoldsApply = () => {
     const box = railBox()
-    if (!box || !prev || !prev.size) return
-    box.querySelectorAll('.rail-group').forEach((g) => {
-      const was = prev.get(railGroupKey(g))
-      if (was === undefined) return
-      g.classList.toggle('is-collapsed', was)
-      const head = g.querySelector('.rail-group-head')
-      if (head) head.setAttribute('aria-expanded', String(!was))
+    if (!box) return
+    const folds = railFoldsRead()
+    if (!folds) return
+    box.querySelectorAll('.rail-group[data-fold-key]').forEach((g) => {
+      const k = g.getAttribute('data-fold-key') || ''
+      if (!k || !(k in folds)) return // unseen nodes keep their shipped default
+      const collapsed = !!folds[k]
+      g.classList.toggle('is-collapsed', collapsed)
+      const h = g.querySelector('.rail-group-head')
+      if (h) h.setAttribute('aria-expanded', String(!collapsed))
     })
-    syncRailTreeBtn() // S97: the restored tree may complete/clear a full fold
+  }
+  const railFoldsPersist = () => {
+    const box = railBox()
+    if (!box) return
+    const folds = railFoldsRead() || {}
+    box.querySelectorAll('.rail-group[data-fold-key]').forEach((g) => {
+      const k = g.getAttribute('data-fold-key') || ''
+      if (k) folds[k] = g.classList.contains('is-collapsed')
+    })
+    try { localStorage.setItem(RAIL_FOLD_KEY, JSON.stringify(folds)) } catch { /* storage unavailable */ }
   }
 
   // one grouped list section: label + count + collapsible body of .rail-item rows.
@@ -629,12 +649,21 @@
     const open = opts.collapsed ? '' : ' open-group'
     const accentAttr = opts.accent ? ' style="--ga: var(--' + escHtml(opts.accent) + ')"' : ''
     const dot = opts.accent ? '<span class="rail-group-dot" style="--sw: var(--' + escHtml(opts.accent) + ')" aria-hidden="true"></span>' : ''
+    // S188 (CHANGE 4): the count rides as a BADGE at the row's inline-end edge —
+    // a neutral circle (pill at 2+ digits) with an accessible name; zero hides it
+    // (a 0 adds no information — the row already says "empty" by being bare).
+    const badge = count > 0
+      ? '<span class="rail-group-count" aria-label="' + escHtml(railCountLabel(opts.countKind, count)) + '">' + railFaDig(count) + '</span>'
+      : ''
+    // S188 (CHANGE 2): every group carries its STABLE fold key so the tree's
+    // open/closed state survives reloads (railFoldsApply/Persist below).
+    const foldAttr = opts.foldKey ? ' data-fold-key="' + escHtml(opts.foldKey) + '"' : ''
     const head =
       '<button type="button" class="rail-group-head" data-rail-group aria-expanded="' + (opts.collapsed ? 'false' : 'true') + '">' +
       '<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg>' +
       dot +
       '<span class="rail-group-label">' + escHtml(label) + '</span>' +
-      '<span class="rail-group-count">' + railFaDig(count) + '</span>' +
+      badge +
       '</button>'
     // S98 (the goto chips): a group carrying opts.href rides its head inside a
     // FLEX ROW — the toggle button (flex:1, its contract untouched) + the chip
@@ -650,7 +679,7 @@
         ' title="' + escHtml(railT('rail.openOnBoard', 'Open on the board')) + '">' +
         '<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 17 17 7M7 7h10v10"/></svg></a></div>'
       : head
-    return '<div class="rail-group' + (opts.collapsed ? ' is-collapsed' : '') + '"' + accentAttr + '>' +
+    return '<div class="rail-group' + (opts.collapsed ? ' is-collapsed' : '') + '"' + accentAttr + foldAttr + '>' +
       inner + '<div class="rail-group-body">' + (Array.isArray(items) ? items.join('') : items) + '</div></div>'
   }
   // S106 r2 (owner: "I still see regular font for project names in sidebar"): the
@@ -725,7 +754,8 @@
       // S98: every quadrant group head carries a goto chip → its own board
       // quadrant (/to-do-list#Q<id>), landing ON that exact box via the S97
       // arrival system (.q-arrived + scroll/carousel).
-      parts.push(railGroup(railTodoLabel(q), items, { accent: meta && meta.accent_color ? meta.accent_color : null, href: '/to-do-list#Q' + q }))
+      // S188: fold key + the tasks count badge noun.
+      parts.push(railGroup(railTodoLabel(q), items, { accent: meta && meta.accent_color ? meta.accent_color : null, href: '/to-do-list#Q' + q, foldKey: 'q:' + q, countKind: 'tasks' }))
     }
     const html = parts.join('')
     if (html) return html
@@ -751,6 +781,13 @@
     // sub-groups (each collapsed in turn; their leaves deep-link to the EXACT box —
     // #pd-col-<status> / #detail-problems). A project with no board tasks stays a
     // plain link row — nothing to expand, so the click opens the project itself.
+    // S188 (owner, CHANGE 1): every section lists ALL of its items — no cap, no
+    // "show more" row (the server's projectTasks window is gone with it); CHANGE 3:
+    // the nested levels carry GUIDE LINES + rounded elbows (one per child, rendered
+    // as a .rail-elbow span — never a pseudo-element, so it can never collide with
+    // the selected-row accent bar); CHANGE 4: the branch head counts its SECTIONS
+    // in a badge while collapsed (expanded → the sections are visible, the badge
+    // would only repeat them — layout.css hides it).
     const projects = d.projects || []
     const ptasks = d.projectTasks || []
     // The board's column order + vocabulary (detail-helpers COLS) — one source of
@@ -792,10 +829,19 @@
       // lists the work. S177 (owner, block 4): the status DOT left the row too —
       // the stage grouping already carries the status, so the dot was noise; the
       // name sits at the head's inline-start edge.
+      // S188 (CHANGE 4): the COLLAPSED branch counts its direct children — the
+      // rendered sections — in the same badge grammar every group head speaks
+      // (layout.css hides it while the branch is expanded: the children are
+      // already on screen, the number would only repeat them).
+      const sectionCount = SUB_GROUPS.filter((g) => mine.some((t) => t.status === g.key)).length
+      const branchBadge = sectionCount > 0
+        ? '<span class="rail-group-count" aria-label="' + escHtml(railCountLabel('sections', sectionCount)) + '">' + railFaDig(sectionCount) + '</span>'
+        : ''
       const head =
         '<button type="button" class="rail-group-head rail-project-head" data-rail-group aria-expanded="false">' +
         '<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg>' +
         '<span class="rail-project-row" dir="auto">' + escHtml(p.title) + '</span>' +
+        branchBadge +
         '</button>'
       const goto =
         '<a class="rail-group-goto" href="' + escHtml(href) + '"' +
@@ -805,23 +851,30 @@
       const subs = SUB_GROUPS.map((g) => {
         const items = mine.filter((t) => t.status === g.key)
         if (!items.length) return ''
-        return '<div class="rail-group rail-sub-group is-collapsed">' +
+        // S188 (CHANGE 3): the section head carries its rounded ELBOW — the short
+        // connector from the parent's guide line to this row (absolutely
+        // positioned by layout.css, so the label edge never moves); (CHANGE 4):
+        // the section's own badge counts its ITEMS.
+        const elbow = '<span class="rail-elbow" aria-hidden="true"></span>'
+        const subBadge = '<span class="rail-group-count" aria-label="' + escHtml(railCountLabel('items', items.length)) + '">' + railFaDig(items.length) + '</span>'
+        return '<div class="rail-group rail-sub-group is-collapsed" data-fold-key="pj:' + escHtml(p.id) + '/sg:' + escHtml(g.key) + '">' +
           '<button type="button" class="rail-group-head" data-rail-group aria-expanded="false">' +
+          elbow +
           '<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg>' +
           '<span class="rail-group-label">' + escHtml(railT(g.i18n, g.label)) + '</span>' +
-          '<span class="rail-group-count">' + railFaDig(items.length) + '</span>' +
+          subBadge +
           '</button><div class="rail-group-body">' +
-          items.map((t) => railItem(href + (SUB_TARGET[g.key] || ''), t.title, null)).join('') +
+          items.map((t) => railItem(href + (SUB_TARGET[g.key] || ''), t.title, null, elbow)).join('') +
           '</div></div>'
       }).join('')
-      return '<div class="rail-group rail-project-group is-collapsed" data-project-branch="' + escHtml(p.id) + '">' +
+      return '<div class="rail-group rail-project-group is-collapsed" data-project-branch="' + escHtml(p.id) + '" data-fold-key="pj:' + escHtml(p.id) + '">' +
         '<div class="rail-group-headrow">' + head + goto + '</div>' +
         '<div class="rail-group-body">' + subs + '</div>' +
         '</div>'
     }
     const rows = (s) => projects.filter((p) => p.status === s).map(projectBranch)
     return RAIL_STAGE_GROUPS.map((g) =>
-      railGroup(railT(g.i18n, g.label), rows(g.key), { collapsed: g.collapsed })).join('') ||
+      railGroup(railT(g.i18n, g.label), rows(g.key), { collapsed: g.collapsed, foldKey: 'st:' + g.key, countKind: 'projects' })).join('') ||
       '<div class="rail-panel-empty">' + escHtml(railT('rail.empty', 'Nothing here yet — open something and it will appear.')) + '</div>'
   }
 
@@ -855,9 +908,11 @@
     // zero-item groups silently (the Ideas PAGE lists every folder with its count;
     // the panel now matches, the count pill honest at 0). The /api/rail window
     // raise (60 → 400, same round) keeps the folders' CONTENTS honest too.
+    // S188: fold keys + the ideas count noun; a ZERO-count folder renders NO badge
+    // (CHANGE 4 — the row itself already reads "empty").
     return [
-      railGroup(railT('rail.g.unfiled', 'Unfiled'), unfiled),
-      folders.map((f) => railGroup(f.name, inFolder(f.id), { collapsed: true, hideWhenEmpty: false })).join(''),
+      railGroup(railT('rail.g.unfiled', 'Unfiled'), unfiled, { foldKey: 'sf:unfiled', countKind: 'ideas' }),
+      folders.map((f) => railGroup(f.name, inFolder(f.id), { collapsed: true, hideWhenEmpty: false, foldKey: 'sf:' + f.id, countKind: 'ideas' })).join(''),
     ].join('') || '<div class="rail-panel-empty">' + escHtml(railT('rail.sparksEmpty', 'No ideas captured yet — the Ideas shelf fills as you spark.')) + '</div>'
   }
 
@@ -868,12 +923,12 @@
       railItem('/notes.html#n=' + encodeURIComponent(n.id), n.title || 'Untitled', null,
         n.icon ? '<span class="rail-item-emoji" aria-hidden="true">' + escHtml(n.icon) + '</span>' : ''))
     const folderGroups = folders.map((f) =>
-      railGroup(f.name, inFolder(f.id), { collapsed: false })).join('')
+      railGroup(f.name, inFolder(f.id), { collapsed: false, foldKey: 'nf:' + f.id, countKind: 'notes' })).join('')
     const unfiled = notes.filter((n) => !n.folder_id).map((n) =>
       railItem('/notes.html#n=' + encodeURIComponent(n.id), n.title || 'Untitled', null,
         n.icon ? '<span class="rail-item-emoji" aria-hidden="true">' + escHtml(n.icon) + '</span>' : ''))
     return [
-      railGroup(railT('rail.g.unfiled', 'Unfiled'), unfiled),
+      railGroup(railT('rail.g.unfiled', 'Unfiled'), unfiled, { foldKey: 'nf:unfiled', countKind: 'notes' }),
       folderGroups,
     ].join('') || '<div class="rail-panel-empty">' + escHtml(railT('rail.notesEmpty', 'No notes yet — the vault fills as you write.')) + '</div>'
   }
@@ -1043,7 +1098,7 @@
     }
     const dueRows = dueItems.slice(0, 18).map((x) => railItem(x.href, x.label + ' · ' + dateLabel(x.date), x.dot))
     return '<div class="rail-cal">' + head + grid + '</div>' +
-      railGroup(railT('rail.g.upcoming', 'Coming up'), dueRows) +
+      railGroup(railT('rail.g.upcoming', 'Coming up'), dueRows, { foldKey: 'cal:upcoming', countKind: 'items' }) +
       '<div class="rail-panel-empty">' + escHtml(railT('rail.calendarHint', 'Deadlines from your projects, tasks and to-dos land here as they approach.')) + '</div>'
   }
 
@@ -1098,9 +1153,6 @@
       '</div>'
     // S93: every panel section reads /api/rail (the dashboard panel is retired —
     // its icon navigates; see RAIL_SECTIONS).
-    // S116: harvest BEFORE the loading swap — the fresh render re-applies the
-    // owner's expanded branches (the language switch / a data refresh keeps the tree).
-    const prevGroups = railHarvestGroups()
     box.innerHTML = head + '<div class="rail-panel-body"><div class="rail-panel-loading">' + escHtml(railT('rail.loading', 'Loading…')) + '</div></div>'
     let data
     try { data = await loadRailData() } catch {
@@ -1111,7 +1163,7 @@
     // a section switch (or close) superseded this render
     if (!railSection || railBox() !== box) return
     box.innerHTML = head + '<div class="rail-panel-body">' + railBodyFor(railSection, data) + '</div>'
-    railRestoreGroups(prevGroups) // S116: the owner's folded/expanded tree survives
+    railFoldsApply() // S188 (CHANGE 2): the remembered tree restores on EVERY render — reloads included
     markRailRows() // S95: freshly rendered rows get their current-location marks
     syncRailTreeBtn() // S97: the fold button mirrors the freshly rendered tree
   }
@@ -1232,7 +1284,12 @@
       if (group) {
         const left = body ? body.querySelectorAll('.rail-todo-item').length : 0
         const count = group.querySelector('.rail-group-count')
-        if (count) count.textContent = railFaDig(left)
+        if (count) {
+          count.textContent = railFaDig(left)
+          // S188: the badge's accessible name follows its digits (the stale
+          // "2 tasks" label on a 1-task group would lie to screen readers).
+          if (left > 0) count.setAttribute('aria-label', railCountLabel('tasks', left))
+        }
         if (!left) group.remove()
       }
       if (!panel.querySelector('.rail-group')) {
@@ -1286,10 +1343,9 @@
                     try { document.dispatchEvent(new CustomEvent('hibana:tasks-changed', { detail: { source: 'rail-panel', id, done: false } })) } catch { /* older engines */ }
                     const box = railBox()
                     if (box && railSection === 'todo') {
-                      const prevGroups = railHarvestGroups() // S116: keep the tree as the owner left it
                       const body = box.querySelector('.rail-panel-body')
                       if (body) body.innerHTML = railBodyFor('todo', railData)
-                      railRestoreGroups(prevGroups) // S116: re-apply
+                      railFoldsApply() // S188: the remembered tree re-applies
                       markRailRows() // S95: fresh rows re-mark their current location
                       syncRailTreeBtn() // S97: the re-render rebuilt the tree
                     }
@@ -1348,6 +1404,7 @@
           const h = g.querySelector('.rail-group-head')
           if (h) h.setAttribute('aria-expanded', String(expand))
         })
+        railFoldsPersist() // S188 (CHANGE 2): the bulk fold is a choice — it remembers
         syncRailTreeBtn()
       }
       return
@@ -1359,10 +1416,9 @@
         railCalMonth = next
         const box = railBox()
         if (box && railSection) {
-          const prevGroups = railHarvestGroups() // S116: keep the tree as the owner left it
           const body = box.querySelector('.rail-panel-body')
           if (body) body.innerHTML = railBodyFor(railSection, railData)
-          railRestoreGroups(prevGroups) // S116: re-apply
+          railFoldsApply() // S188: the remembered tree re-applies
         }
         syncRailTreeBtn() // S97: the month step re-rendered the tree (Coming up rides a group)
       }
@@ -1381,6 +1437,7 @@
       if (group) {
         const collapsed = group.classList.toggle('is-collapsed')
         groupHead.setAttribute('aria-expanded', String(!collapsed))
+        railFoldsPersist() // S188 (CHANGE 2): every open/closed choice survives the reload
         syncRailTreeBtn() // S97: a manual toggle can complete/clear a full fold — the button stays honest
       }
       return

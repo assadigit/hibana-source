@@ -119,7 +119,7 @@
    ≤1024px the rail is hidden: the slim brand-only .mobile-brandbar (partial) + the
    bottom-tab nav (mobile-nav.js) carry everything, exactly as before.
    =========================================================================== */
-:root { --rail-w: 5.5rem; --rail-panel-w: 17.5rem; }
+:root { --rail-w: 5.5rem; --rail-panel-w: 17.5rem; --rail-panel-gap: 0.625rem; }
 
 /* S89: the themed-logo pair — the new square brand marks ship ONE image per theme
    and CSS keeps exactly one visible. html[data-theme] is explicit by first paint
@@ -237,13 +237,14 @@ html:not([data-theme='claude-dark']) .themed-logo--dark { display: none; }
 /* The icon whose PANEL is open speaks QUIETLY — a panel can be open while you sit
    on ANY page, so it must never read as a second active state competing with the
    current-page bar. S179 (advisor block 10): the panel-open LABEL steps up to the
-   primary ink (the old brand-teal label rode ~3.2:1 — lighter than the inactive
-   labels' gray, an active state WEAKER than the resting state); the ICON keeps the
-   brand hue as its quiet indicator (a graphic, 3:1 — it passes as a non-text cue). */
-.rail-btn.is-panel-open { color: var(--brand); }
-.rail-btn.is-panel-open .rail-label { color: var(--text); font-weight: 500; }
-.rail-btn.is-panel-open[aria-current='page'] { color: var(--text); }
-.rail-btn.is-panel-open[aria-current='page']::before { background: var(--brand-hover); }
+   primary ink; the ICON keeps the brand hue as its quiet indicator.
+   S188 (owner, CHANGE 5 — SUPERSEDES, the whole visual accent RETIRES): the
+   owner's report — "Dashboard and Projects both look active" (the bar on one,
+   the brand icon on the other). ONE active-state pattern now: the aria-current
+   bar. The panel-open state keeps ONLY its semantics (aria-expanded on the
+   toggle — S179's announcement) with NO visual accent at all; the visible panel
+   itself is the indicator. markNav still keys aria-current="page" to the CURRENT
+   ROUTE on every navigation, so the bar can never go stale. */
 .rail-spacer { flex: 1; }
 .rail-divider { inline-size: 1.75rem; block-size: 1px; background: var(--line); flex: none; }
 .rail-secondary { margin-block-start: 0.125rem; }
@@ -272,17 +273,32 @@ html:not([data-theme='claude-dark']) .themed-logo--dark { display: none; }
    with zero [data-sync-badge] chrome). The old .rail-sync rules are retired. */
 
 /* ── the SECONDARY PANEL (VS Code side-bar): persistent — PUSHES the main content
-   via body padding (rail-panel-open), never an overlay. nav.js renders its lists. ── */
+   via body padding (rail-panel-open), never an overlay. nav.js renders its lists. ──
+   S188 (owner, CHANGE 6 — the floating surface): the flat full-height sidebar strip
+   becomes a ROUNDED SURFACE that sits INSIDE the tinted page canvas — a small gap
+   (~10px, --rail-panel-gap) on the block + outer edges, ~16px corners, a thin
+   --line border + the soft shadow (both, so the edge survives for users who cannot
+   see small color differences — the border never rides the tint alone), inner
+   padding, and overflow:hidden so the scrolling body clips to the rounded corners
+   (the body itself keeps the scroll). The icon rail stays EXACTLY as it was — the
+   rail is its own full-height surface; the panel floats beside it on the canvas
+   (the gap between them reads as two surfaces, the shared edge tidy). All logical
+   (inset-inline-start / margin-inline) so RTL mirrors true. Colors stay tokens
+   (--card on --bg — the tint decision belongs to the palette, not this change). */
 .rail-panel {
   position: fixed;
-  inset-block: 0;
-  inset-inline-start: var(--rail-w);
+  inset-block: var(--rail-panel-gap);
+  inset-inline-start: calc(var(--rail-w) + var(--rail-panel-gap));
   inline-size: var(--rail-panel-w);
   z-index: 35;
   display: flex;
   flex-direction: column;
+  padding: 0.5rem;
   background: var(--card);
-  border-inline-end: 1px solid var(--line);
+  border: 1px solid var(--line);
+  border-radius: 1rem;
+  box-shadow: var(--shadow-soft);
+  overflow: hidden;
   visibility: hidden;
   opacity: 0;
   transition: opacity 0.18s ease, visibility 0s linear 0.18s;
@@ -324,9 +340,14 @@ body.rail-panel-open .rail-panel { visibility: visible; opacity: 1; transition: 
 .rail-panel-tree:focus-visible { outline: 2px solid var(--brand); outline-offset: 1px; }
 /* S98 (styling): the panel body's thin quiet scrollbar — the projects TREE scrolls
    daily; the platform-default bar read heavy on the quiet white panel (the
-   project-header.css recipe: thin + muted-45% scrollbar-color). */
+   project-header.css recipe: thin + muted-45% scrollbar-color).
+   S188 (CHANGE 2): the body's BLOCK-START padding drops to 0 — the sticky group
+   heads pin flush against the scrollport's top edge (a non-zero top padding on
+   the SCROLLER insets the sticky rect in Chrome, leaving an 8px band where rows
+   peek above the stuck head). The panel head's own divider + the panel's 8px
+   padding already own the top spacing; the bottom keeps its 1rem breathing room. */
 .rail-panel-body {
-  flex: 1; min-block-size: 0; overflow-y: auto; overscroll-behavior: contain; padding: 0.5rem 0.5rem 1rem;
+  flex: 1; min-block-size: 0; overflow-y: auto; overscroll-behavior: contain; padding: 0 0.5rem 1rem;
   scrollbar-width: thin;
   scrollbar-color: color-mix(in srgb, var(--muted) 45%, transparent) transparent;
 }
@@ -383,21 +404,54 @@ body.rail-panel-open .rail-panel { visibility: visible; opacity: 1; transition: 
 /* S178 (owner, block 2 — the count rides INLINE): the label is a shrinkable
    single line (flex 0 1 auto — it never GROWS, so the count always hugs the
    title's end), and the count is a flex:none meta runt directly AFTER it — the
-   far-edge auto margin is retired. Same treatment on every group shape that
-   carries a count (stage heads, sub-group child rows, the other panels' heads). */
+   far-edge auto margin is retired.
+   S188 (owner, CHANGE 4 — SUPERSEDES the inline placement): the count is a BADGE
+   pinned to the row's INLINE-END edge (margin-inline-start:auto — one vertical
+   column of numbers the eye can compare across rows without reading labels). A
+   NEUTRAL tint (--bg-soft + --muted — never the accent, so it never competes with
+   the selected-row wash); a CIRCLE at one digit (min inline-size = the height),
+   growing into a pill at two-plus digits (same height, wider, fully rounded);
+   ZERO hides it entirely (nav.js renders no badge at 0); an EXPANDED project row
+   hides it too (the children are visible — the number would only repeat them).
+   The accessible name rides aria-label (nav.js, "11 ideas" — localized). */
 .rail-group-label {
   flex: 0 1 auto; min-inline-size: 0;
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 .rail-group-count {
   flex: none;
+  margin-inline-start: auto;
+  display: inline-grid;
+  place-items: center;
+  min-block-size: 1.25rem;
+  min-inline-size: 1.25rem;
+  padding-inline: 0.35rem;
+  border-radius: 999px;
+  background: var(--bg-soft);
+  color: var(--muted);
   font-variant-numeric: tabular-nums;
   font-weight: 500;
-  font-size: 0.6875rem; /* 11px — slightly smaller than the 12px title (S178 block 2) */
-  line-height: 1.3;
-  color: var(--muted);
+  font-size: 0.625rem;
+  line-height: 1;
 }
+/* S188 (CHANGE 4, rule 7): no badge on an EXPANDED project row — its sections are
+   on screen; the number would only repeat them. */
+.rail-project-group:not(.is-collapsed) .rail-project-head .rail-group-count { display: none; }
 .rail-group-head .icon { inline-size: 0.85rem; block-size: 0.85rem; transition: transform 0.14s ease; }
+/* S188 (owner, CHANGE 2 — the sticky group headers): the panel body scrolls inside
+   its own container (the S98 contract), so each TOP-LEVEL group head now STICKS to
+   the top of the scroll area while its group is in view — the user keeps the
+   section context ("which group am I inside?") through a long list. Solid --card
+   background + z-index so rows slide quietly under the stuck head; both head
+   shapes covered (the bare head, and the chip-carrying headrow the goto groups
+   ride). Nested headers do NOT stick — one pinned register at a time. */
+.rail-panel-body > .rail-group > .rail-group-head,
+.rail-panel-body > .rail-group > .rail-group-headrow {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  background: var(--card);
+}
 /* S177 (owner, block 5 — the platform chevron convention): the COLLAPSED chevron
    points toward the INLINE-END ("there's more here"), the EXPANDED one points
    DOWN ("the content lives below") — right = collapsed, down = expanded, Jakob's
@@ -429,17 +483,26 @@ body.rail-panel-open .rail-panel { visibility: visible; opacity: 1; transition: 
    ance lit). Coarse pointers have no hover — @media (hover: none) keeps every
    chip visible (the tap target stays discoverable). Opacity (never display:none)
    keeps the chip in the tab order and clickable for Playwright's real-pointer
-   taps. */
-.rail-group-headrow { display: flex; align-items: center; gap: 0.25rem; }
+   taps.
+   S188 (owner, CHANGE 4): the chip goes ABSOLUTE at the headrow's inline-end — it
+   leaves the flow so the head fills the row and its count badge lands in the SAME
+   inline-end column every other badge speaks (one column, per the badge contract).
+   The chip paints the panel's own surface (--card) so its reveal cleanly covers
+   the badge beneath instead of bleeding both glyphs together; hover keeps the
+   bg-soft recipe. */
+.rail-group-headrow { display: flex; align-items: center; gap: 0.25rem; position: relative; }
 .rail-group-headrow .rail-group-head { flex: 1; min-inline-size: 0; }
 .rail-group-goto {
+  position: absolute;
+  inset-inline-end: 0;
+  inset-block: 0;
   display: grid; place-items: center;
   inline-size: 2rem; block-size: 2rem;
   flex: none;
   border: 0; border-radius: 0.5rem;
-  background: transparent; color: var(--muted); cursor: pointer;
+  background: var(--card); color: var(--muted); cursor: pointer;
   opacity: 0; /* S177: hidden until the row is hovered / focused / selected */
-  transition: opacity 0.14s ease;
+  transition: opacity 0.14s ease, background 0.14s ease;
 }
 .rail-group-headrow:hover .rail-group-goto,
 .rail-group-headrow:focus-within .rail-group-goto,
@@ -456,7 +519,17 @@ body.rail-panel-open .rail-panel { visibility: visible; opacity: 1; transition: 
    lines only added clutter. Every level indents a moderate ~16px from its parent
    via LOGICAL padding-inline-start (mirrors in RTL); the child rows read lighter
    + smaller than their parents (the sub-group's fs-xs/muted register, the S106
-   ink ladder). */
+   ink ladder).
+   S188 (owner, CHANGE 3 — SUPERSEDES the S177 retirement, scoped to the NESTED
+   levels): the guide lines return for the projects tree's nested levels ONLY —
+   one thin 1px vertical guide from each expanded parent row down through its
+   children (the body's logical border), plus a short ROUNDED elbow from the guide
+   to each child row (.rail-elbow spans nav.js renders — real elements, never
+   pseudo-elements, so they can never collide with the selected-row accent bar).
+   The TOP-LEVEL groups (Planning / Queued / Developing / folders / quadrants)
+   stay plain text + chevron, NO lines — the noise the S177 round killed stays
+   dead there. The ink is the app's own --line hairline (low contrast by design —
+   the line color decision stays with the palette tokens, nothing new is set). */
 .rail-group-body {
   display: flex; flex-direction: column; gap: 0.125rem;
   /* ONE indent per nesting level — ~16px, logical, RTL-true */
@@ -465,6 +538,31 @@ body.rail-panel-open .rail-panel { visibility: visible; opacity: 1; transition: 
   padding-block: 0.25rem;
   padding-inline-start: 1rem;
 }
+/* S188 (CHANGE 3): the guide — 1px, logical, on the NESTED bodies only (the
+   project branch's body + each section's body; a collapsed group's body is
+   display:none, so a folded branch carries no line). */
+.rail-project-group > .rail-group-body,
+.rail-sub-group > .rail-group-body {
+  border-inline-start: 1px solid var(--line);
+}
+/* S188 (CHANGE 3): the elbow — the short rounded connector from the guide to
+   each child row. Absolutely positioned at the child's leading edge (the row is
+   its containing block — position:relative below), vertically centered at 50% so
+   every row height (desktop 32px, coarse 40px) centers itself. Logical inset —
+   the elbow mirrors to the inline-start guide under RTL. */
+.rail-elbow {
+  position: absolute;
+  inset-block-start: 50%;
+  translate: 0 -50%;
+  inset-inline-start: calc(-1rem - 1px);
+  inline-size: calc(1rem + 1px);
+  block-size: 1px;
+  border-radius: 999px;
+  background: var(--line);
+  pointer-events: none;
+}
+.rail-sub-group > .rail-group-head,
+.rail-sub-group .rail-item { position: relative; }
 /* S94 (owner item 6 — the deeper projects tree): a project's idea-groups nest ONE
    MORE .rail-group level inside the stage body (stage → project → idea-group → item);
    each level compounds the same 1rem indent (16px → 32px → 48px), so the branch
@@ -477,7 +575,12 @@ body.rail-panel-open .rail-panel { visibility: visible; opacity: 1; transition: 
    (the S178 top-level group gap never reaches here — these nest deeper). */
 .rail-sub-group { margin-block: 1px 0.2rem; }
 .rail-sub-group .rail-group-head {
-  padding: 0.375rem 0.4rem;
+  /* S188 (CHANGE 1 + CHANGE 4): the section rows join the tree's ONE row height
+     (min-block-size 2rem = 32px, the project rows' own rhythm — single-line,
+     equal-height rows scan; the S178 26–28px child register is superseded), and
+     the padding-inline normalizes to 0.5rem so every row's count badge ends in
+     the SAME inline-end column (one vertical line of numbers). */
+  padding: 0.375rem 0.5rem;
   background: transparent;
   border-radius: 0; /* S177: the global button radius stays dead here too */
   color: var(--muted);
@@ -485,13 +588,18 @@ body.rail-panel-open .rail-panel { visibility: visible; opacity: 1; transition: 
   font-weight: 400; /* S178 block 3: child rows weigh REGULAR — the hierarchy rides size + ink */
   letter-spacing: 0;
   text-transform: none;
+  min-block-size: 2rem;
 }
 .rail-sub-group .rail-group-head:hover { color: var(--text); background: transparent; } /* S177: ink-only — heads carry no fills (global teal killed) */
 /* S178 (block 3): the child-row leaves — one register with their sub-heads
-   (regular, secondary, ~27.6px) — tighter than the project rows above them. */
-.rail-sub-group .rail-item { font-size: var(--fs-xs); color: var(--muted); padding-block: 0.375rem; }
+   (regular, secondary, ~27.6px) — tighter than the project rows above them.
+   S188 (owner, CHANGE 1 — SUPERSEDES): the leaves sit at the SAME 32px row height
+   as every other row in the tree and speak ONE line — title only, ellipsis on
+   overflow (white-space nowrap + text-overflow — the old 2-line clamp is what
+   made each idea read as a two-line text blob). The base .rail-item-label
+   contract (nowrap + ellipsis) now reaches these rows un-overridden. */
+.rail-sub-group .rail-item { font-size: var(--fs-xs); color: var(--muted); padding-block: 0.375rem; padding-inline: 0.5rem; min-block-size: 2rem; }
 .rail-sub-group .rail-item:hover { color: var(--text); }
-.rail-sub-group .rail-item .rail-item-label { overflow-wrap: anywhere; white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
 .rail-item {
   display: flex; align-items: center; gap: 0.45rem;
   padding: 0.42rem 0.5rem;
@@ -775,7 +883,10 @@ body.rail-panel-open .rail-panel { visibility: visible; opacity: 1; transition: 
    when the partial lands). The PANEL widens it (persistent push, not overlay). */
 @media (min-width: 1025px) {
   body:has([data-nav]) { padding-inline-start: var(--rail-w); }
-  body.rail-panel-open { padding-inline-start: calc(var(--rail-w) + var(--rail-panel-w)); }
+  /* S188: the gutter widens by the panel's two gaps — the floating surface's
+     footprint (start gap + panel + a comfortable end gap) — so the content never
+     collides with the rounded edge. */
+  body.rail-panel-open { padding-inline-start: calc(var(--rail-w) + var(--rail-panel-gap) + var(--rail-panel-w) + var(--rail-panel-gap)); }
   body:has([data-nav]) { transition: padding-inline-start 0.22s ease; }
   .mobile-brandbar { display: none; }
   /* the topbar-shaped skeleton is desktop-dead: the rail pops in over the gutter */

@@ -39,6 +39,11 @@ window.__hibanaDictEN = {
       'rail.openOnBoard': 'Open on the board',
       // S115 r2: the projects tree's per-project goto chip — opens the project page
       'rail.openProject': 'Open project',
+      // S188 (CHANGE 4): the count badges' accessible names — one noun per node
+      // kind ({n} is the digit, swapped in nav.js; Farsi digits when the UI is fa)
+      'rail.a11yCount.projects': '{n} projects', 'rail.a11yCount.sections': '{n} sections',
+      'rail.a11yCount.items': '{n} items', 'rail.a11yCount.ideas': '{n} ideas',
+      'rail.a11yCount.notes': '{n} notes', 'rail.a11yCount.tasks': '{n} tasks',
       // S89: the LABELED rail — a small text label rides under every icon
       'rail.label.search': 'Search', 'rail.label.dashboard': 'Dashboard', 'rail.label.todo': 'To-do',
       'rail.label.projects': 'Projects', 'rail.label.ideas': 'Ideas', 'rail.label.notes': 'Notes',

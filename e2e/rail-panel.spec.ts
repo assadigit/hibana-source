@@ -282,9 +282,11 @@ test.describe('the secondary panel (VS Code Activity Bar + Side Bar pattern)', (
     await expect(panel).toBeVisible()
     await expect(page.locator('.rail-panel-title')).toHaveText('Projects')
 
-    // The panel sits directly beside the rail; the rail stays visible.
+    // The panel floats BESIDE the rail on the tinted canvas (S188 CHANGE 6): a
+    // 10px gap (--rail-panel-gap) sits between the rail's edge and the rounded
+    // surface — 88 + 10 = 98. The rail stays visible.
     const pBox = await panel.boundingBox()
-    expect(Math.round(pBox!.x)).toBe(88)
+    expect(Math.round(pBox!.x)).toBe(98)
     await expect(page.locator('nav.rail')).toBeVisible()
 
     // The main content is PUSHED (persistent body padding, not an overlay — the
@@ -811,13 +813,15 @@ test.describe('the secondary panel (VS Code Activity Bar + Side Bar pattern)', (
     await expect(filed).toHaveAttribute('href', /^\/spark\.html\?id=.+/)
 
     // S131 (owner: "clicking the Ideas icon must show all ideas folders"): the
-    // EMPTY folder rides the panel too — visible, collapsed, its count pill
-    // honestly 0 — and expanding it reveals nothing (no ideas yet). The old
-    // render dropped it silently for having zero ideas.
+    // EMPTY folder rides the panel too — visible, collapsed — and S188 (CHANGE 4,
+    // rule 6) renders NO badge at zero (the row itself already reads "empty";
+    // the old honest-0 pill is superseded by the hidden badge). Expanding it
+    // reveals nothing (no ideas yet). The old render dropped it silently for
+    // having zero ideas.
     const emptyFolder = page.locator('.rail-group', { hasText: 'Rail empty folder' })
     await expect(emptyFolder).toBeVisible()
     await expect(emptyFolder).toHaveClass(/is-collapsed/)
-    await expect(emptyFolder.locator('.rail-group-count')).toHaveText('0')
+    await expect(emptyFolder.locator('.rail-group-count')).toHaveCount(0) // zero hides the badge
     await emptyFolder.locator('.rail-group-head').click()
     await expect(emptyFolder).not.toHaveClass(/is-collapsed/)
     await expect(emptyFolder.locator('.rail-item')).toHaveCount(0)

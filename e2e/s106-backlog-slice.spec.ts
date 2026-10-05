@@ -207,13 +207,12 @@ test('S155-1: project names, folders and head groups compute the spec weight lad
   const leaf = page.locator('.rail-sub-group .rail-item', { hasText: 'S106 rail tree idea' })
   expect(await leaf.evaluate((el) => getComputedStyle(el).fontWeight)).toBe('400')
 
-  // (b3) S106 r3 → S177 (owner, block 3): the branch hangs measurably UNDER its
-  // project row through INDENTATION ALONE — the tree's connector lines (the stage
-  // bodies' vertical guides + the sub-group elbows) are GONE, so the hierarchy
-  // rides ~16px of logical indent per level + the ink ladder. Geometry pins, not
-  // just weights, so a later margin/positioning clobber can't silently re-flatten
-  // the tree — and connector pins so a stray ::before can't quietly re-add the
-  // lines. The branch ships collapsed (weights pin fine on display:none) but
+  // (b3) S106 r3 → S177 → S188 (owner, CHANGE 3): the branch hangs measurably
+  // UNDER its project row through ~16px of logical indent per level + the ink
+  // ladder + the NESTED-LEVEL guide lines (1px --line guides + rounded elbow
+  // spans; the top-level stage bodies stay bare). Geometry pins, not just
+  // weights, so a later margin/positioning clobber can't silently re-flatten the
+  // tree. The branch ships collapsed (weights pin fine on display:none) but
   // geometry needs a box — expand first, which also pins that the toggle still
   // works under the new CSS.
   await subHead.click()
@@ -222,20 +221,29 @@ test('S155-1: project names, folders and head groups compute the spec weight lad
   const leafBox = await leaf.boundingBox()
   expect(subHeadBox!.x).toBeGreaterThan(projBox!.x + 14) // ~16px (1rem) of hierarchy indent
   expect(leafBox!.x).toBeGreaterThan(subHeadBox!.x + 14) // the leaf nests under its head
+  // S188 (owner, CHANGE 3 — SUPERSEDES the S177/S106r3 connector retirement,
+  // scoped to the NESTED levels): the guide lines return — 1px logical borders on
+  // the project + section bodies + rounded elbow SPANS on the children — while the
+  // TOP-LEVEL stage body stays bare. The elbows are real elements (.rail-elbow),
+  // never pseudo-elements, so a stray ::before can never re-add a line.
   const connectors = await page.evaluate(() => {
-    const sub = document.querySelector('.rail-sub-group') as HTMLElement | null
-    const body = document.querySelector('.rail-group-body') as HTMLElement | null
+    const stageBody = document.querySelector('.rail-panel-body > .rail-group > .rail-group-body') as HTMLElement | null
+    const projBody = document.querySelector('.rail-project-group > .rail-group-body') as HTMLElement | null
+    const subBody = document.querySelector('.rail-sub-group > .rail-group-body') as HTMLElement | null
+    const elbow = document.querySelector('.rail-sub-group .rail-elbow') as HTMLElement | null
     return {
-      elbow: sub ? getComputedStyle(sub, '::before').content : 'missing',
-      guide: body ? getComputedStyle(body).borderInlineStartStyle : 'missing',
-      guideW: body ? getComputedStyle(body).borderInlineStartWidth : 'missing',
+      stageGuide: stageBody ? getComputedStyle(stageBody).borderInlineStartWidth : 'missing',
+      projGuide: projBody ? getComputedStyle(projBody).borderInlineStartWidth : 'missing',
+      subGuide: subBody ? getComputedStyle(subBody).borderInlineStartWidth : 'missing',
+      elbowCount: document.querySelectorAll('.rail-sub-group .rail-elbow').length,
+      elbowHeight: elbow ? getComputedStyle(elbow).blockSize : 'missing',
     }
   })
-  // 'none' per spec, 'normal' is Chrome's computed string when no content rule
-  // rides the pseudo — both mean "no connector box" (any REAL content fails).
-  expect(['none', 'normal']).toContain(connectors.elbow) // S177: no elbow connector on the sub-group
-  expect(connectors.guide).toBe('none') // S177: no vertical guide under any group
-  expect(connectors.guideW).toBe('0px')
+  expect(connectors.stageGuide).toBe('0px') // top-level groups stay BARE (plain text + chevron)
+  expect(connectors.projGuide).toBe('1px')  // the project's body carries the guide
+  expect(connectors.subGuide).toBe('1px')   // each section's body carries the guide
+  expect(connectors.elbowCount).toBeGreaterThan(0)
+  expect(connectors.elbowHeight).toBe('1px')
 
   // (c) The projects home — the overview box labels (the status NAMES the owner
   // reads: Problems / In Progress / Ideas / Plans; the S121 carousel card title this

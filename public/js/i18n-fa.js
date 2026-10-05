@@ -39,6 +39,11 @@ window.__hibanaDictFA = {
       'rail.openOnBoard': 'باز کردن در برد',
       // S115 r2: the projects tree's per-project goto chip — opens the project page
       'rail.openProject': 'باز کردن پروژه',
+      // S188 (CHANGE 4): the count badges' accessible names — one noun per node
+      // kind ({n} is the digit, swapped in nav.js; Farsi digits when the UI is fa)
+      'rail.a11yCount.projects': '{n} پروژه', 'rail.a11yCount.sections': '{n} بخش',
+      'rail.a11yCount.items': '{n} مورد', 'rail.a11yCount.ideas': '{n} ایده',
+      'rail.a11yCount.notes': '{n} یادداشت', 'rail.a11yCount.tasks': '{n} وظیفه',
       // S89: the LABELED rail — a small text label rides under every icon
       'rail.label.search': 'جست‌وجو', 'rail.label.dashboard': 'پیشخوان', 'rail.label.todo': 'کارها',
       'rail.label.projects': 'پروژه‌ها', 'rail.label.ideas': 'ایده‌ها', 'rail.label.notes': 'یادداشت‌ها',

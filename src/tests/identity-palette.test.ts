@@ -377,3 +377,86 @@ describe('S189 rail active shape — the teal tile contract, both themes', () =>
     expect(layoutCss).toMatch(/\.rail-btn:hover\s*\{[^}]*var\(--nav-hover-bg\)/s)
   })
 })
+
+// ---------- the mobile bar + sheet join the shape (S190) ----------
+// ONE active grammar app-wide: the S189 --nav-active-* family reaches the last two
+// navigation surfaces — the mobile bottom bar's tabs (the shape = the tab's own
+// rounded tile) and the More sheet's current-page row. The bar's surface is
+// TRANSLUCENT (92% card + backdrop blur), so the contrast proof bounds the ground:
+// the underlying content can shift it at most 8% toward black (light) / white
+// (dark) — the far ends. The floors must hold on the worst-case bound, both themes
+// (the nominal ground is strictly inside it). The press feedback joins the one hue
+// family (--accent-soft retires from the bar; the sheet's --accent-soft/--link
+// active pair retires too), the More-EXPANDED teal ink retires (one active pattern
+// — the open sheet is the indicator), and the bar tabs gain their own focus rings.
+describe('S190 mobile active shape — the bar + sheet join the S189 family', () => {
+  const polishCss = readFileSync(join(process.cwd(), 'public', 'css', 'polish-ui.css'), 'utf8')
+  const quicknotesCss = readFileSync(join(process.cwd(), 'public', 'css', 'quicknotes.css'), 'utf8')
+
+  it('the bar paints the family: shape tokens on the active tab, label ink one rung further', () => {
+    const block = polishCss.slice(polishCss.indexOf('.mobile-nav a[aria-current="page"],'))
+    const body = block.slice(0, block.indexOf('}') + 1)
+    expect(body).toMatch(/background:\s*var\(--nav-active-bg\)/) // the shape — alpha on the color only
+    expect(body).toMatch(/color:\s*var\(--nav-active-icon\)/) // the icon keeps the full teal
+    expect(body).not.toMatch(/opacity/)
+    const labelBlock = polishCss.slice(polishCss.indexOf('.mobile-nav a[aria-current="page"] .mobile-nav-label,'))
+    const labelBody = labelBlock.slice(0, labelBlock.indexOf('}') + 1)
+    expect(labelBody).toMatch(/color:\s*var\(--nav-active-label\)/)
+    expect(labelBody).toMatch(/font-weight:\s*600/)
+    // the More tab's current twin rides the SAME rule pair (secondary pages keep feedback)
+    expect(polishCss).toMatch(/\.mobile-nav \.mobile-nav-more\[aria-current="page"\][\s\S]{0,200}var\(--nav-active-bg\)/)
+  })
+
+  it('light worst case: the floors hold on the 92%-card-over-BLACK bound', () => {
+    // the bar = color-mix(card 92%, transparent) over any content; black is the far end
+    const worstGround = blendRgba('rgba(255, 255, 255, 0.92)', '#000000') // #EBEBEB
+    const tint = blendRgba(tokenOf(css, '--nav-active-bg')!, worstGround)
+    expect(contrast(tokenOf(css, '--nav-active-icon')!, tint), 'icon on the worst-case bar tint (3:1)').toBeGreaterThanOrEqual(3)
+    expect(contrast(tokenOf(css, '--nav-active-label')!, tint), 'label on the worst-case bar tint (4.5:1)').toBeGreaterThanOrEqual(4.5)
+  })
+
+  it('dark worst case: the floors hold on the 92%-card-over-WHITE bound', () => {
+    const worstGround = blendRgba('rgba(31, 30, 28, 0.92)', '#FFFFFF') // 92% #1f1e1c over white
+    const tint = blendRgba(tokenOf(darkCss, '--nav-active-bg')!, worstGround)
+    expect(contrast(tokenOf(darkCss, '--nav-active-icon')!, tint), 'icon on the worst-case dark bar tint (3:1)').toBeGreaterThanOrEqual(3)
+    expect(contrast(tokenOf(darkCss, '--nav-active-label')!, tint), 'label on the worst-case dark bar tint (4.5:1)').toBeGreaterThanOrEqual(4.5)
+  })
+
+  it('the press family + the retirements: one hue family, one active pattern', () => {
+    // inactive press: the quiet teal, not the old accent-soft
+    expect(polishCss).toMatch(/\.mobile-nav a:active\s*\{[^}]*var\(--nav-hover-bg\)/)
+    expect(polishCss).toMatch(/\.mobile-nav \.mobile-nav-more:active\s*\{[^}]*var\(--nav-hover-bg\)/)
+    // active press deepens one notch
+    expect(polishCss).toMatch(/aria-current="page"\]:active[\s\S]{0,120}var\(--nav-active-bg-hover\)/)
+    // --accent-soft is RETIRED from the bar entirely
+    expect(polishCss).not.toMatch(/\.mobile-nav[^{]*\{[^}]*--accent-soft/)
+    // the More-EXPANDED teal ink is RETIRED (the open sheet is the indicator)
+    expect(polishCss).not.toMatch(/\.mobile-nav \.mobile-nav-more\[aria-expanded="true"\]/)
+    // the bar tabs have their OWN focus rings now (the S61 gap — the sheet rows had them, the tabs didn't)
+    expect(polishCss).toMatch(/\.mobile-nav a:focus-visible,[\s\S]{0,200}outline:\s*2px solid var\(--focus-ring/)
+    expect(polishCss).toMatch(/\.mobile-nav a:focus-visible[\s\S]{0,300}outline-offset:\s*2px/)
+  })
+
+  it('the bar geometry: the 6px shoulder band + the under-cover body invariant', () => {
+    // the bar's block padding sits the shape ~6px off the outer edges (the S189 6–8px band)
+    expect(polishCss).toMatch(/padding:\s*0\.375rem 0\.5rem calc\(0\.375rem \+ env\(safe-area-inset-bottom/)
+    // the body's reserve covers the taller bar (61px bar vs 62.4px reserve)
+    expect(polishCss).toMatch(/body\.has-mobile-nav\s*\{\s*padding-block-end:\s*calc\(3\.9rem/)
+  })
+
+  it('the More sheet rows join: --accent-soft/--link retire for the S189 family', () => {
+    const rowBlock = quicknotesCss.slice(quicknotesCss.indexOf('.mobile-more-row[aria-current="page"] {'))
+    const rowBody = rowBlock.slice(0, rowBlock.indexOf('}') + 1)
+    expect(rowBody).toMatch(/background:\s*var\(--nav-active-bg\)/)
+    expect(rowBody).toMatch(/color:\s*var\(--nav-active-label\)/)
+    expect(rowBody).toMatch(/font-weight:\s*600/)
+    const iconBlock = quicknotesCss.slice(quicknotesCss.indexOf('.mobile-more-row[aria-current="page"] .icon'))
+    expect(iconBlock.slice(0, iconBlock.indexOf('}') + 1)).toMatch(/color:\s*var\(--nav-active-icon\)/)
+    // the retired pair: no --accent-soft or --link remains on the sheet's current-row rules
+    const activeRules = quicknotesCss.match(/\.mobile-more-row\[aria-current="page"\][^{}]*\{[^}]*\}/g) || []
+    for (const rule of activeRules) {
+      expect(rule).not.toMatch(/--accent-soft/)
+      expect(rule).not.toMatch(/var\(--link\)/)
+    }
+  })
+})

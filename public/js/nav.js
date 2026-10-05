@@ -83,7 +83,22 @@
     // vault's #n= deep link when the palette opened ON /notes.html, and canvas anchors
     // from the canvas page). A different hash now re-mounts the page, whose boot reads
     // the fresh hash — the universal fix, no per-page hashchange listeners needed.
-    if (opts.sameSkip !== false && url.pathname === location.pathname && url.search === location.search && url.hash === location.hash) return
+    if (opts.sameSkip !== false && url.pathname === location.pathname && url.search === location.search && url.hash === location.hash) {
+      // S190 (the tap-to-top re-orient): activating the CURRENT destination — the
+      // mobile bar's active tab, the rail's active icon, a palette command for the
+      // open page — used to be a silent no-op. It now answers with the standard
+      // tab-bar contract: if the page is scrolled, smooth-scroll back to the top
+      // (the fastest way back to the capture surfaces — the quick composer, the
+      // head search — from deep inside a long list); already at the head, it stays
+      // a quiet no-op. Reduced-motion users get the snap, not the glide. Code that
+      // wants a genuine re-mount passes sameSkip:false (the S44 contract), so only
+      // USER activations reach this branch.
+      if (window.scrollY > 0) {
+        const glide = !(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches)
+        window.scrollTo({ top: 0, behavior: glide ? 'smooth' : 'auto' })
+      }
+      return
+    }
     load(url, opts.push !== false)
   }
 

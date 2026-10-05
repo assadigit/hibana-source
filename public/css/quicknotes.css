@@ -1076,12 +1076,19 @@ body > .note-head-controls.is-floating {
 }
 .mobile-more-row:hover { background: var(--bg-soft); text-decoration: none; }
 .mobile-more-row .icon { width: 1.4em; height: 1.4em; color: var(--muted); flex-shrink: 0; }
-/* S59: the row for the page you're currently on — soft accent tint + teal ink (the
-   same recipe as the bottom-bar active tab), so opening the More sheet answers
-   "where am I?" for secondary pages instead of showing an undifferentiated list. */
-.mobile-more-row[aria-current="page"] { background: var(--accent-soft); color: var(--link); font-weight: 600; }
-.mobile-more-row[aria-current="page"] .icon { color: var(--link); }
-.mobile-more-row[aria-current="page"]:hover { background: var(--accent-soft); }
+/* S59: the row for the page you're currently on — soft tint + teal ink, so opening
+   the More sheet answers "where am I?" for secondary pages instead of showing an
+   undifferentiated list. S190: the pair joins the S189 SHAPE family app-wide —
+   the SAME soft teal tint (--nav-active-bg 14% light / 20% dark) with the icon at
+   --nav-active-icon and the text at --nav-active-label (the old --accent-soft +
+   --link pair retires — the bar tabs, the sheet rows, and the desktop rail all
+   speak ONE active grammar now; the sheet's solid --card surface is the exact
+   blend the S189 rail proofs already cover, so the same floors hold). Hover on
+   the current row deepens one notch (--nav-active-bg-hover), the active-press
+   recipe everywhere. */
+.mobile-more-row[aria-current="page"] { background: var(--nav-active-bg); color: var(--nav-active-label); font-weight: 600; }
+.mobile-more-row[aria-current="page"] .icon { color: var(--nav-active-icon); }
+.mobile-more-row[aria-current="page"]:hover { background: var(--nav-active-bg-hover); }
 .mobile-more-danger { color: var(--color-error); }
 .mobile-more-danger .icon { color: var(--color-error); }
 /* S61 a11y: keyboard focus rings for the sheet's rows — the sheet is a focus-trapped

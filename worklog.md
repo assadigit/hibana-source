@@ -2016,3 +2016,91 @@ Stage Summary:
   seedProjects(fa) call silently); (f) Playwright's beforeAll failing AFTER
   partial seeding leaves a half-seeded DB that later tests blame — assert the
   seed's own invariants when the data matters.
+
+---
+Task ID: S189
+Agent: main (Z.ai Code — fresh sandbox, credentials from the session prompt)
+Task: The owner's CHANGE 7 — the left icon rail's active item gets a soft
+FILLED background shape (replacing the S179/S184 accent-bar pattern), with
+design tokens, theme twins, contrast proofs, the full verification ladder,
+and the release chain (push → CI/CD → live verify → owner pass → tag → zip →
+docs).
+
+Work Log:
+- Fresh clone of assadigit/hibana-source at v0.4.1.15 (S188); read Agents.md
+  + Changelogs §1 + the worklog tail; created the gitignored credentials.md
+  from the session hand-off (never committed — verified before every commit).
+- THE SHAPE (layout.css): the active rail item paints the teal at LOW alpha
+  on the button itself — the shape covers the icon AND label as ONE unit,
+  12px radius, ~8px off each rail edge (the labeled hit column 68px→72px at
+  4.5rem; the icon-only squares 44px→48px at 3rem, both variants). The
+  S179/S184 ::before accent bar DELETED (the shape is the only active
+  indicator; still ONE pattern per S188's CHANGE 5 — the panel-open icon
+  stays plain). Inactive hover = the same teal at 7%/10% (--nav-hover-bg);
+  active:hover deepens to 18%/25% (--nav-active-bg-hover). The focus ring
+  stays its own separate 2px outline outside the shape.
+- TOKENS (variables.css + claude-dark-theme.css): --nav-active-bg rgba(47,
+  123,127,.14) light / rgba(143,204,207,.20) dark · --nav-active-icon #2F7B7F
+  / #8FCCCF · --nav-active-label #1F5A5D / #9AD4D7 · the two hover tokens.
+  The rail keeps its TEAL in dark (navigation, not primary action — the clay
+  stays the CTA accent).
+- CONTRAST PROOFS (qa/s189-rail-active.mjs + the identity-palette S189 unit
+  block ×4): light icon 4.12:1 (≥3) + label 6.56:1 (≥4.5) on the blended
+  #e2eded tint; dark icon 5.91:1 + label 6.45:1 on #354140; labels on the
+  bare cards 7.84:1 / 10.13:1. ALL PASS both themes.
+- CACHE-BUST: layout v62→v63 ×26 · variables v24→v25 ×27 · claude-dark v27→v28
+  ×26; sw v424→v425; package 0.4.1.16; parity 1561/1561 (no i18n change).
+- GUARDS: identity-palette +4 (token values, blended floors, the layout.css
+  shape/retirement pins — no opacity property, no ::before rule) + the S181
+  selector list drops the retired rail bar; the NEW e2e/s189-rail-active
+  .spec.ts ×8 (geometry/one-unit/centering; the color pair + hover deepen +
+  settle-back; the inactive teal hover; the keyboard ring separate from the
+  tint; the shape follows soft navigation; the dark twin; the FA/RTL twin
+  with the MIRRORED hairline split 8.5/7.5; the notes.html icon-only twin at
+  48px); rail-panel's active pins re-authored; s188 wording updated (its
+  ink-equality proofs ride unchanged).
+- LADDER: typecheck 0 · vitest 571/571 (+4) · eslint 0 err (162-warn
+  baseline) · build 79 · wiring canonical · cache-bust PASS · parity PASS ·
+  FULL e2e 361/361 (353 + 8) in 7 file-batches, zero flakes · smoke ALL PASS
+  · bundle-size PASS · agent-browser QA clean (EN light/dark + FA/RTL + the
+  panel-open one-pattern probe + 390; 0 console/page errors; VLM 2/2).
+- RELEASE: push a9e796c (feature) → CI; push 2cc4a1e (Changelogs rotation +
+  row 189 STAGED + rotate-s189.mjs) → CI; both GREEN (37352216916 /
+  37352372849) → CD GREEN ×2 (37354292109 / 37354357506, the stale-CI guard
+  serializing both chains onto the newest sha) → LIVE hibana.ir @ v0.4.1.16 —
+  qa/s189-live-verify.mjs ALL GREEN (the three wired assets byte-IDENTICAL
+  off projects.html AND sadhana.html, both in the WIRED form, sw v425,
+  health ok/up/63) → the OWNER-ACCOUNT pass on the REAL data clean (the
+  shape exact at /app; following the route at /projects.html with the panel
+  open — ONE aria-current; the dark twin exact; 0 console/page errors; VLM
+  live audit 4/4) → tag v0.4.1.16 on 2cc4a1e → zip hibana.0.4.1.16.zip (587
+  files, integrity OK, secret-scan clean — all 9 credential values ABSENT)
+  → /home/z/upload + the sandbox download folder → --restore-html → this
+  docs flip (row 189 + §1 → RELEASED).
+- HEALTHCHECK (honest form): "Hibana" (backup-cron watchdog) UP @ 15:23Z,
+  "Hibana uptime" UP @ 15:54Z — both inside their grace windows; NO manual
+  masking ping (the S186 lesson).
+
+Stage Summary:
+- LIVE: hibana.ir @ v0.4.1.16, sw v425, schema 63, health ok; remote main @
+  this docs commit; tag v0.4.1.16 pushed; zip in /home/z/upload + the sandbox
+  download folder; Changelogs row 189 RELEASED; both worklogs appended; FULL
+  e2e 361/361.
+- The rail's active grammar is now: the soft FILLED teal shape (one unit,
+  ~8px inset, 12px radius, alpha on the bg color only) — the bar is retired,
+  the S188 CHANGE 5 one-pattern contract preserved, hover a whisper of
+  active, focus its own ring, both themes tokenized and proven.
+- Ops lessons banked this round: (a) the rail's 1px inline-end hairline
+  splits the shape's outer shoulders 7.5/8.5px (the flex centers the button
+  in the 87px content box) — pin the SUB-PIXEL truth, Math.round(8.5)=9
+  broke the first e2e pass; under dir=rtl the split mirrors (8.5/7.5), which
+  is the RTL proof itself; (b) a Playwright click leaves the pointer
+  hovering the clicked button — move the mouse before asserting the RESTING
+  tint (the hover-deepen token reads .18 otherwise); (c) agent-browser's
+  guided-tour overlay intercepts chrome clicks — set hibana-tour-done=1 in
+  localStorage before driving the rail; (d) offsetParent is null for
+  position:fixed panels — probe visibility/opacity/hidden instead when
+  checking the live rail panel.
+- OPEN: nothing blocking. The next owner change (CHANGE 8+, or new rounds)
+  continues from this state; the uptime prober's next ping is the only thing
+  on a timer (read the ping log before worrying — the 6h+1h grace window).

@@ -10,9 +10,11 @@
   font-weight: 600;
   border: 1px solid transparent;
 }
-.notif-chip.notif-urgent { background: var(--danger-soft); color: var(--danger); border-color: color-mix(in srgb, var(--danger) 30%, transparent); }
-.notif-chip.notif-warning { background: var(--badge-pending-bg); color: var(--badge-pending-fg); border-color: color-mix(in srgb, var(--badge-pending-fg) 30%, transparent); }
-.notif-chip.notif-info { background: var(--badge-spark-bg); color: var(--badge-spark-fg); border-color: color-mix(in srgb, var(--badge-spark-fg) 30%, transparent); }
+/* S191: the old STATIC severity fills (.notif-chip.notif-urgent/-warning/-info)
+   RETIRE — the summary chips are FILTER BUTTONS now (.notif-chip-btn below):
+   unpressed = the quiet outline baseline, pressed = the severity family's soft
+   fill. The severity classes still ride the buttons; the S191 block owns both
+   states (the pressed rules there are (0,3,0) and win over everything here). */
 
 .notif-list { list-style: none; margin: 1rem 0; padding: 0; display: grid; gap: 0.5rem; max-inline-size: 42rem; }
 /* S43 (mobile audit): same ghost-track fix as the reports .feed — the li's nowrap
@@ -323,3 +325,86 @@ mark.search-hit {
   border: 1px solid color-mix(in srgb, var(--text) 15%, transparent);
 }
 
+
+/* --- S191: THE ATTENTION SURFACE — severity groups + filter chips -------------- */
+/* The page's own subtitle promises "overdue, upcoming, and stale" — the flat list
+   never delivered it. The fragment (src/routes/notifications.ts notifListHtml)
+   now wraps each severity's items in section.notif-group[data-sev] with a head;
+   these styles give the heads the S188 sticky treatment (solid --card cover,
+   rows slide quietly under) + a count pill; the summary chips at the top become
+   FILTER TOGGLES (real buttons, aria-pressed — notifications-page.js owns the
+   filtering; without JS every group renders in severity order, fully readable). */
+.notif-groups { display: grid; gap: 0.9rem; }
+.notif-group { display: grid; gap: 0.5rem; }
+.notif-group .notif-list { margin-block: 0; }
+
+.notif-group-head {
+  position: sticky;
+  inset-block-start: 0;
+  z-index: 3;                        /* above the sliding cards (1), below dialogs */
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  margin-block: 0;
+  padding: 0.45rem 0.15rem 0.4rem;
+  /* solid cover so the cards slide under the head cleanly (the S188 rail-head
+     lesson: transparent covers let rows bleed through) */
+  background: var(--bg);
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.notif-group-head::after {
+  /* the hairline divider the label sits on — stretches to fill the row's end */
+  content: '';
+  flex: 1;
+  block-size: 1px;
+  background: var(--line);
+}
+.notif-group-count {
+  min-inline-size: 1.3rem;
+  padding-inline: 0.32rem;
+  padding-block: 0.06rem;
+  border-radius: 999px;
+  text-align: center;
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  line-height: 1.45;
+  color: var(--muted);
+  background: var(--bg-soft);
+}
+/* the severity accent on the head itself — one hairline of the family hue under
+   the label, never a fill (the head stays a quiet structural cue; the CARDS
+   carry the severity weight) */
+.notif-group-head-urgent .notif-group-label { color: var(--danger); }
+.notif-group-head-warning .notif-group-label { color: var(--badge-pending-fg); }
+.notif-group-head-info .notif-group-label { color: var(--badge-spark-fg); }
+
+/* the summary chips, promoted from readout to controls */
+.notif-chip-btn {
+  cursor: pointer;
+  font: inherit;
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  line-height: 1.4;
+  /* the UNpressed baseline: quiet outline (one neutral family until chosen) */
+  background: transparent;
+  color: var(--muted);
+  border-color: var(--line-strong);
+  transition: background 0.12s ease, color 0.12s ease, border-color 0.12s ease;
+}
+.notif-chip-btn:hover { background: var(--bg-soft); color: var(--text); }
+.notif-chip-btn:focus-visible { outline: 2px solid var(--focus-ring, var(--accent)); outline-offset: 2px; }
+.notif-chip-btn[aria-pressed='true'] {
+  /* the PRESSED chip takes its severity family's soft fill (matches the group
+     head label + the cards below it) */
+  background: var(--bg-soft);
+  color: var(--text);
+  border-color: var(--line-strong);
+}
+.notif-chip-btn.notif-urgent[aria-pressed='true'] { background: var(--danger-soft); color: var(--danger); border-color: color-mix(in srgb, var(--danger) 30%, transparent); }
+.notif-chip-btn.notif-warning[aria-pressed='true'] { background: var(--badge-pending-bg); color: var(--badge-pending-fg); border-color: color-mix(in srgb, var(--badge-pending-fg) 30%, transparent); }
+.notif-chip-btn.notif-info[aria-pressed='true'] { background: var(--badge-spark-bg); color: var(--badge-spark-fg); border-color: color-mix(in srgb, var(--badge-spark-fg) 30%, transparent); }
+.notif-chip-count { font-variant-numeric: tabular-nums; opacity: 0.85; }

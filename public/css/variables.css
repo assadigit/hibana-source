@@ -305,6 +305,13 @@
   --badge-developing-bg: #FBE9DA;         --badge-developing-fg: #96511A;
   --badge-awaiting_dev-bg: #E9E5F2;        --badge-awaiting_dev-fg: #4C4370;  /* S141: violet family, AA 7.2 */
   --badge-operational-bg: #DFF2E4;  --badge-operational-fg: #277334; /* S141: AA 5.0 */
+  /* S191: the missing amber pair, defined at last — --badge-pending-bg/-fg was
+     REFERENCED (notifications.css R2.1 chips/icons/accents + --status-warning-soft
+     → task-controls status dots) but never defined, so every "Soon"/warning surface
+     silently rendered unstyled (transparent chips, inherited inks, NO accent bar).
+     Amber = "waiting/due soon" per the --warn/--color-warning family; fg #7A580C on
+     bg #FBF0D4 = 5.7:1 (AA), proven in qa/s191-attention-surface.mjs. */
+  --badge-pending-bg: #FBF0D4;  --badge-pending-fg: #7A580C;
   /* S138 supersedes the S137 retirement: the old per-status --kanban-*-bg/-line
      hex tokens stay deleted — the card tint now DERIVES from --st-* via color-mix
      (notifications.css), so a re-hardcoded shade is still impossible. */

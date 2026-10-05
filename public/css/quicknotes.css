@@ -1915,3 +1915,53 @@ body.pd-detail-lock { overflow: hidden; }
 /* the compact card's attach slot (the picker lands here; attached chips show) */
 .notebook-dashboard .note-card-dash .note-attach { grid-column: 1 / -1; }
 .notebook-dashboard .note-card-dash .note-attach:empty { display: none; }
+
+/* --- S191: THE ATTENTION SURFACE — the notifications count in the chrome -------- */
+/* Passive by design (§7 rejects nagging reminders/push/toasts): a quiet
+   severity-tinted pill, no animation, no pulsing, no sound. One visual grammar
+   with the notifications page's own chips — urgent = the danger family, "soon"
+   = the amber pending family (the token pair defined this round — it was
+   referenced since R2.1 but never defined, so every "Soon" chip/icon/accent
+   silently rendered unstyled), info = the spark family. All soft fills with
+   their AA inks; the same tokens theme both themes. */
+.rail-user-chip { position: relative; }
+
+.chip-notif-badge {
+  position: absolute;
+  inset-block-start: -0.2rem;
+  inset-inline-end: -0.3rem;
+  min-inline-size: 1.05rem;
+  block-size: 1.05rem;
+  padding-inline: 0.22rem;
+  display: inline-grid;
+  place-items: center;
+  border-radius: 999px;
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  line-height: 1;
+  pointer-events: none;               /* the pill decorates the chip; the chip is the hit target */
+  box-shadow: 0 0 0 2px var(--card);  /* optical separation off the avatar (the rail IS --card) */
+  border: 1px solid transparent;
+}
+.chip-notif-urgent { background: var(--danger-soft); color: var(--danger); border-color: color-mix(in srgb, var(--danger) 30%, transparent); }
+.chip-notif-warning { background: var(--badge-pending-bg); color: var(--badge-pending-fg); border-color: color-mix(in srgb, var(--badge-pending-fg) 30%, transparent); }
+.chip-notif-info { background: var(--badge-spark-bg); color: var(--badge-spark-fg); border-color: color-mix(in srgb, var(--badge-spark-fg) 30%, transparent); }
+
+/* The count pill on the account-menu / More-sheet rows — the S188 badge-column
+   pattern: numbers at the row's inline-end edge, one column the eye compares.
+   margin-inline-start:auto pushes it out of the flex row; same severity map. */
+.menu-count-pill {
+  margin-inline-start: auto;
+  min-inline-size: 1.25rem;
+  padding-inline: 0.35rem;
+  padding-block: 0.08rem;
+  border-radius: 999px;
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  line-height: 1.4;
+  text-align: center;
+  border: 1px solid transparent;
+}
+.menu-count-urgent { background: var(--danger-soft); color: var(--danger); border-color: color-mix(in srgb, var(--danger) 30%, transparent); }
+.menu-count-warning { background: var(--badge-pending-bg); color: var(--badge-pending-fg); border-color: color-mix(in srgb, var(--badge-pending-fg) 30%, transparent); }
+.menu-count-info { background: var(--badge-spark-bg); color: var(--badge-spark-fg); border-color: color-mix(in srgb, var(--badge-spark-fg) 30%, transparent); }

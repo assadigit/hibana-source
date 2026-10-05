@@ -460,3 +460,93 @@ describe('S190 mobile active shape — the bar + sheet join the S189 family', ()
     }
   })
 })
+
+describe('S191 the attention surface — the chrome pills + the pending pair', () => {
+  const quicknotesCss = readFileSync(join(process.cwd(), 'public', 'css', 'quicknotes.css'), 'utf8')
+  const notifCss = readFileSync(join(process.cwd(), 'public', 'css', 'notifications.css'), 'utf8')
+
+  it('the never-defined --badge-pending pair is DEFINED now, both themes, past AA', () => {
+    // The regression this round fixed: the pair was referenced (notifications.css
+    // chips/icons/accents + variables.css --status-warning-soft → task-controls
+    // status dots) since R2.1 but never defined — every "Soon" surface silently
+    // rendered unstyled. Both theme sheets must carry it, and the ink must clear
+    // 4.5:1 on its own fill (the numeric twin of qa/s191-attention-surface.mjs).
+    const light = tokenOf(css, '--badge-pending-bg')
+    const lightFg = tokenOf(css, '--badge-pending-fg')
+    const dark = tokenOf(darkCss, '--badge-pending-bg')
+    const darkFg = tokenOf(darkCss, '--badge-pending-fg')
+    expect(light).toMatch(/^#/)
+    expect(lightFg).toMatch(/^#/)
+    expect(dark).toMatch(/^#/)
+    expect(darkFg).toMatch(/^#/)
+    expect(contrast(lightFg!, light!)).toBeGreaterThanOrEqual(4.5)
+    expect(contrast(darkFg!, dark!)).toBeGreaterThanOrEqual(4.5)
+  })
+
+  it('the chip badge: a corner pill with a --card separation ring, severity-tinted soft fills', () => {
+    const badge = quicknotesCss.slice(quicknotesCss.indexOf('.chip-notif-badge {'))
+    const badgeBody = badge.slice(0, badge.indexOf('}') + 1)
+    expect(badgeBody).toMatch(/position:\s*absolute/)
+    expect(badgeBody).toMatch(/inset-block-start:\s*-0\.2rem/)
+    expect(badgeBody).toMatch(/border-radius:\s*999px/)
+    // optical separation off the avatar — the rail IS --card, the ring is --card
+    expect(badgeBody).toMatch(/box-shadow:\s*0 0 0 2px var\(--card\)/)
+    // the pill decorates the chip (the chip is the hit target)
+    expect(badgeBody).toMatch(/pointer-events:\s*none/)
+    // the severity map: soft fills + AA inks, never the raw saturated fills
+    expect(quicknotesCss).toMatch(/\.chip-notif-urgent \{ background: var\(--danger-soft\); color: var\(--danger\)/)
+    expect(quicknotesCss).toMatch(/\.chip-notif-warning \{ background: var\(--badge-pending-bg\); color: var\(--badge-pending-fg\)/)
+    expect(quicknotesCss).toMatch(/\.chip-notif-info \{ background: var\(--badge-spark-bg\); color: var\(--badge-spark-fg\)/)
+    // the chip hosts the badge
+    expect(quicknotesCss).toMatch(/\.rail-user-chip \{ position: relative; \}/)
+  })
+
+  it('the menu/sheet row pills: the S188 badge-column pattern, one severity family', () => {
+    const pill = quicknotesCss.slice(quicknotesCss.indexOf('.menu-count-pill {'))
+    const pillBody = pill.slice(0, pill.indexOf('}') + 1)
+    expect(pillBody).toMatch(/margin-inline-start:\s*auto/)
+    expect(pillBody).toMatch(/border-radius:\s*999px/)
+    expect(quicknotesCss).toMatch(/\.menu-count-urgent \{ background: var\(--danger-soft\); color: var\(--danger\)/)
+    expect(quicknotesCss).toMatch(/\.menu-count-warning \{ background: var\(--badge-pending-bg\); color: var\(--badge-pending-fg\)/)
+    expect(quicknotesCss).toMatch(/\.menu-count-info \{ background: var\(--badge-spark-bg\); color: var\(--badge-spark-fg\)/)
+  })
+
+  it('the page: sticky group heads with --bg covers + severity labels; chips are buttons', () => {
+    const head = notifCss.slice(notifCss.indexOf('.notif-group-head {'))
+    const headBody = head.slice(0, head.indexOf('}') + 1)
+    expect(headBody).toMatch(/position:\s*sticky/)
+    expect(headBody).toMatch(/background:\s*var\(--bg\)/) // solid cover (the S188 lesson)
+    expect(headBody).toMatch(/z-index:\s*3/)
+    // the severity labels ride the family hues on the canvas
+    expect(notifCss).toMatch(/\.notif-group-head-urgent \.notif-group-label \{ color: var\(--danger\); \}/)
+    expect(notifCss).toMatch(/\.notif-group-head-warning \.notif-group-label \{ color: var\(--badge-pending-fg\); \}/)
+    expect(notifCss).toMatch(/\.notif-group-head-info \.notif-group-label \{ color: var\(--badge-spark-fg\); \}/)
+    // the filter chips: real buttons — unpressed outline baseline, pressed family fill,
+    // their OWN focus ring (the S61 doctrine), no opacity anywhere
+    expect(notifCss).toMatch(/\.notif-chip-btn \{[^}]*cursor:\s*pointer/)
+    expect(notifCss).toMatch(/\.notif-chip-btn:focus-visible \{ outline: 2px solid var\(--focus-ring, var\(--accent\)\); outline-offset: 2px; \}/)
+    expect(notifCss).toMatch(/\.notif-chip-btn\.notif-urgent\[aria-pressed='true'\] \{ background: var\(--danger-soft\)/)
+    expect(notifCss).toMatch(/\.notif-chip-btn\.notif-warning\[aria-pressed='true'\] \{ background: var\(--badge-pending-bg\)/)
+    expect(notifCss).toMatch(/\.notif-chip-btn\.notif-info\[aria-pressed='true'\] \{ background: var\(--badge-spark-bg\)/)
+    // the old STATIC severity chip fills retired (the buttons own both states)
+    expect(notifCss).not.toMatch(/\.notif-chip\.notif-urgent \{/)
+    expect(notifCss).not.toMatch(/\.notif-chip\.notif-warning \{/)
+    expect(notifCss).not.toMatch(/\.notif-chip\.notif-info \{/)
+  })
+
+  it('the numeric floors on the real token values (the qa script’s math, in CI)', () => {
+    // pill inks on their soft fills, both themes
+    expect(contrast(tokenOf(css, '--danger')!, '#fdeaea')).toBeGreaterThanOrEqual(4.5)
+    expect(contrast(tokenOf(css, '--badge-pending-fg')!, tokenOf(css, '--badge-pending-bg')!)).toBeGreaterThanOrEqual(4.5)
+    expect(contrast(tokenOf(css, '--badge-spark-fg')!, tokenOf(css, '--badge-spark-bg')!)).toBeGreaterThanOrEqual(4.5)
+    expect(contrast(tokenOf(darkCss, '--badge-pending-fg')!, tokenOf(darkCss, '--badge-pending-bg')!)).toBeGreaterThanOrEqual(4.5)
+    expect(contrast(tokenOf(darkCss, '--badge-spark-fg')!, tokenOf(darkCss, '--badge-spark-bg')!)).toBeGreaterThanOrEqual(4.5)
+    // the group head severity labels on the page canvas
+    expect(contrast(tokenOf(css, '--danger')!, tokenOf(css, '--bg')!)).toBeGreaterThanOrEqual(4.5)
+    expect(contrast(tokenOf(darkCss, '--danger')!, tokenOf(darkCss, '--bg')!)).toBeGreaterThanOrEqual(4.5)
+    expect(contrast(tokenOf(css, '--badge-pending-fg')!, tokenOf(css, '--bg')!)).toBeGreaterThanOrEqual(4.5)
+    expect(contrast(tokenOf(darkCss, '--badge-pending-fg')!, tokenOf(darkCss, '--bg')!)).toBeGreaterThanOrEqual(4.5)
+    expect(contrast(tokenOf(css, '--badge-spark-fg')!, tokenOf(css, '--bg')!)).toBeGreaterThanOrEqual(4.5)
+    expect(contrast(tokenOf(darkCss, '--badge-spark-fg')!, tokenOf(darkCss, '--bg')!)).toBeGreaterThanOrEqual(4.5)
+  })
+})

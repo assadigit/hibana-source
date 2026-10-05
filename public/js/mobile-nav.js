@@ -231,6 +231,9 @@
     sheet.classList.add('open')
     backdrop.classList.add('open')
     moreBtn?.setAttribute('aria-expanded', 'true')
+    // S191: the moment of decision — refresh the notifications counts as the sheet
+    // opens (hib-init's throttled fetch; fail-silent, paints when it lands).
+    window.__hibNotifCountsRefresh?.()
     // Focus the first focusable row so keyboard/SR users land inside the dialog.
     const first = sheet.querySelector('a, button')
     first?.focus({ preventScroll: true })
@@ -272,4 +275,33 @@
   // Public handle for nav.js's markNav() — keeps the bottom bar's aria-current in sync
   // on every soft navigation (S59 fix; see mark() above for the why).
   window.hibanaMobileNav = { mark }
+
+  // S191: the attention count reaches the More sheet's Notifications row — a quiet
+  // severity-tinted pill at the row's inline-end (the S188 badge-column pattern).
+  // hib-init.js owns the fetch + dispatches 'hibana:notif-count'; this paints (and
+  // re-paints — the sheet is built lazily, and the boot data may already be there).
+  function paintNotifCount(d) {
+    if (!d || typeof d.count !== 'number') return
+    const row = sheet?.querySelector('a.mobile-more-row[href="/notifications.html"]')
+    if (!row) return
+    const isFA = window.hibanaI18n?.lang?.() === 'fa' || document.documentElement.lang === 'fa'
+    const faNum = (v) => String(v).replace(/[0-9]/g, (x) => '۰۱۲۳۴۵۶۷۸۹'[+x])
+    let pill = row.querySelector('.menu-count-pill')
+    if (d.count > 0) {
+      const sev = d.urgent > 0 ? 'urgent' : d.warning > 0 ? 'warning' : 'info'
+      const text = d.count > 99 ? '99+' : isFA ? faNum(d.count) : String(d.count)
+      if (!pill) {
+        pill = document.createElement('span')
+        pill.className = 'menu-count-pill'
+        pill.setAttribute('aria-hidden', 'true')
+        row.appendChild(pill)
+      }
+      pill.className = 'menu-count-pill menu-count-' + sev
+      pill.textContent = text
+    } else if (pill) pill.remove()
+  }
+  document.addEventListener('hibana:notif-count', (e) => paintNotifCount(e.detail))
+  if (window.__hibNotifCounts && !(window.__hibNotifCounts instanceof Promise)) {
+    paintNotifCount(window.__hibNotifCounts)
+  }
 })()

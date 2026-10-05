@@ -153,6 +153,10 @@ html[data-theme='claude-dark'] {
   --badge-developing-bg: #3A2718;         --badge-developing-fg: #E09A6A;      /* orange */
   --badge-awaiting_dev-bg: #2D2B3D;        --badge-awaiting_dev-fg: #ABA5CC;     /* S141: violet family, AA 5.9 */
   --badge-operational-bg: #1F3222;   --badge-operational-fg: #94C9A2; /* green     */
+  /* S191: the missing amber pair's DARK twin ("due soon"/pending) — mirrors the
+     planning yellow's dark relationship but a hair warmer; fg #DCC078 on bg #332C17
+     = 7.8:1, proven in qa/s191-attention-surface.mjs. */
+  --badge-pending-bg: #332C17;  --badge-pending-fg: #DCC078;
 
   /* ---------- Priority badges — the owner's S154 dark pairs ----------
      Light keeps the S150 fill+ink pairs untouched; in dark the full-opacity

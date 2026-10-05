@@ -3,6 +3,7 @@ import { requireAuth } from '../auth/middleware'
 import { icon, timeAgo } from '../lib/html'
 import { esc, etag } from '../lib/http'
 import { localeOf, trL, type Locale } from '../lib/i18n'
+import { faDigits } from '../lib/jalali'
 import type { Config, ProjectRow, UserRow } from '../types'
 import type { SadhanaTask } from '../services/sadhana'
 
@@ -131,6 +132,16 @@ export function notificationsRoutes(cfg: Config) {
     const sevOrder = { urgent: 0, warning: 1, info: 2 }
     notifs.sort((a, b) => sevOrder[a.severity] - sevOrder[b.severity] || String(a.date ?? '').localeCompare(String(b.date ?? '')))
 
+    // S191: the chrome badge's lightweight mode — ?counts=1 answers just the four
+    // numbers (the badge + menu pills + the mobile sheet all paint from one tiny
+    // payload; no HTML rendering, same indexed queries).
+    if (c.req.query('counts') === '1') {
+      const urgent = notifs.filter((n) => n.severity === 'urgent').length
+      const warning = notifs.filter((n) => n.severity === 'warning').length
+      const info = notifs.filter((n) => n.severity === 'info').length
+      return await etag(c, c.json({ count: notifs.length, urgent, warning, info }))
+    }
+
     if (c.req.header('HX-Request')) {
       return await etag(c, c.html(notifListHtml(notifs, lang)))
     }
@@ -152,19 +163,39 @@ function notifListHtml(notifs: Notification[], lang: Locale): string {
     'overdue-task': 'alert', 'overdue-sadhana': 'alert', 'overdue-project': 'alert',
     'unreviewed-spark': 'idea', 'upcoming-deadline': 'clock', 'stale-project': 'archive',
   }
-  const rows = notifs.map((n) => {
-    const ic = icon(SEV_ICON[n.kind] ?? 'bell')
-    const dateLabel = n.date ? ` · ${timeAgo(n.date + 'T00:00:00Z', lang)}` : ''
-    // SECURITY (2026-08-28): n.detail is user-stored content (project/task titles) — it MUST
-    // be escaped; a title like "<img src=x onerror=…>" used to execute on this page (XSS).
-    return `<li class="notif-item notif-${n.severity}">
-      <span class="notif-icon">${ic}</span>
-      <div class="notif-body">
-        <span class="notif-kind">${n.title}</span>
-        <a href="${esc(n.href)}" class="notif-detail">${esc(n.detail)}</a>
-        <span class="notif-date muted small">${dateLabel}</span>
-      </div>
-    </li>`
+  // S191: severity GROUPS replace the flat list — the page's own subtitle promises
+  // "overdue, upcoming, and stale", and 15+ undifferentiated rows (the owner's real
+  // data) were unscannable. One section per severity in the route's sort order
+  // (urgent → warning → info), each with a sticky head (the S188 sidebar pattern)
+  // carrying its count pill; empty groups render nothing. The head count pill is
+  // decorative (aria-hidden) — the h2 text reads "Urgent 3" to screen readers fine.
+  const GROUPS: Array<{ sev: 'urgent' | 'warning' | 'info'; label: string; fa: string }> = [
+    { sev: 'urgent', label: 'Urgent', fa: 'فوری' },
+    { sev: 'warning', label: 'Soon', fa: 'به‌زودی' },
+    { sev: 'info', label: 'Heads up', fa: 'توجه' },
+  ]
+  const sections = GROUPS.map(({ sev, label, fa }) => {
+    const items = notifs.filter((n) => n.severity === sev)
+    if (!items.length) return ''
+    const groupRows = items.map((n) => {
+      const ic = icon(SEV_ICON[n.kind] ?? 'bell')
+      const dateLabel = n.date ? ` · ${timeAgo(n.date + 'T00:00:00Z', lang)}` : ''
+      return `<li class="notif-item notif-${n.severity}">
+        <span class="notif-icon">${ic}</span>
+        <div class="notif-body">
+          <span class="notif-kind">${n.title}</span>
+          <a href="${esc(n.href)}" class="notif-detail">${esc(n.detail)}</a>
+          <span class="notif-date muted small">${dateLabel}</span>
+        </div>
+      </li>`
+    }).join('')
+    return `<section class="notif-group" data-sev="${sev}">
+      <h2 class="notif-group-head notif-group-head-${sev}">
+        <span class="notif-group-label">${trL(lang, label, fa)}</span>
+        <span class="notif-group-count" aria-hidden="true">${lang === 'fa' ? faDigits(String(items.length)) : String(items.length)}</span>
+      </h2>
+      <ul class="notif-list">${groupRows}</ul>
+    </section>`
   }).join('')
-  return `<ul class="notif-list">${rows}</ul>`
+  return `<div class="notif-groups">${sections}</div>`
 }

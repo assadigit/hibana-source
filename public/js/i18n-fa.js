@@ -590,6 +590,9 @@ window.__hibanaDictFA = {
       'nav.notifications': 'اعلان‌ها', 'notif.title': 'اعلان‌ها',
       'notif.subtitle': 'چیزهایی که نیاز به توجه دارند — گذشته، نزدیک، و رهاشده.',
       'notif.urgent': 'فوری', 'notif.warning': 'به‌زودی', 'notif.info': 'توجه',
+      // S191: the attention surface — filter chips + the chrome badge's aria labels
+      'notif.filterAll': 'همه', 'notif.filterHint': 'پالایش بر اساس فوریت',
+      'notif.needsAttention': '{n} مورد نیازمند توجه', 'nav.accountHint': 'منوی حساب',
       // saved filters (R2.3)
       'filters.saved': 'ذخیره‌شده:', 'filters.saveCurrent': 'ذخیرهٔ فیلتر فعلی',
       'filters.namePrompt': 'نام این فیلتر (مثلاً «کار مشتری این هفته»):',

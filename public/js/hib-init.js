@@ -207,6 +207,95 @@
     }, 150)
   }
 
+  // S191: THE ATTENTION SURFACE — the notifications count reaches the chrome, PASSIVE
+  // by design (§7 rejects nagging reminders/push/toasts; this is a quiet glanceable
+  // state, no animation, no interruption): a severity-tinted count pill on the rail's
+  // user chip + the same count on the account-menu Notifications row; the mobile More
+  // sheet's row gets its pill via the 'hibana:notif-count' event (mobile-nav.js owns
+  // those rows). One fetch per hard load (memoized like __hibanaMe), refreshed when
+  // the menu is about to open (pointerenter — the pop is hover-opened) at most once
+  // a minute. Fail-silent everywhere: no count, no badge — the page itself stays the
+  // source of truth.
+  function wireNotifBadge() {
+    const _t = (k, fb) => { const s = window.hibanaI18n?.t(k); return s && s !== k ? s : fb }
+    const isFA = () => window.hibanaI18n?.lang?.() === 'fa' || document.documentElement.lang === 'fa'
+    const faNum = (v) => String(v).replace(/[0-9]/g, (d) => '۰۱۲۳۴۵۶۷۸۹'[+d])
+    let lastData = null
+    let inflight = null
+    let lastFetch = 0
+    const fetchCounts = (force) => {
+      if (inflight && !force) return inflight
+      if (!force && lastData && Date.now() - lastFetch < 60000) return Promise.resolve(lastData)
+      lastFetch = Date.now()
+      inflight = fetch('/api/notifications?counts=1', { credentials: 'same-origin' })
+        .then((r) => (r.ok ? r.json() : null))
+        .then((d) => {
+          if (d && typeof d.count === 'number') { lastData = d; window.__hibNotifCounts = d }
+          return lastData
+        })
+        .catch(() => lastData)
+        .finally(() => { inflight = null })
+      return inflight
+    }
+    const pillText = (n) => (n > 99 ? '99+' : isFA() ? faNum(n) : String(n))
+    const paint = (d) => {
+      if (!d || typeof d.count !== 'number') return
+      const sev = d.urgent > 0 ? 'urgent' : d.warning > 0 ? 'warning' : 'info'
+      // (1) the chip badge — a corner pill on the rail's round avatar chip.
+      const chip = document.querySelector('.rail-user-chip')
+      if (chip) {
+        let badge = chip.querySelector('.chip-notif-badge')
+        if (d.count > 0) {
+          if (!badge) {
+            badge = document.createElement('span')
+            badge.className = 'chip-notif-badge'
+            badge.setAttribute('aria-hidden', 'true')
+            chip.appendChild(badge)
+          }
+          badge.className = 'chip-notif-badge chip-notif-' + sev
+          badge.textContent = pillText(d.count)
+        } else if (badge) badge.remove()
+        // The chip's own aria-label carries the state for screen readers (the pill
+        // itself is decorative).
+        const base = _t('nav.accountHint', 'Account menu')
+        chip.setAttribute('aria-label', d.count > 0
+          ? _t('notif.needsAttention', '{n} needing attention').split('{n}').join(pillText(d.count)) + ' — ' + base
+          : base)
+        chip.title = chip.getAttribute('aria-label') || ''
+      }
+      // (2) the account-menu row pill (the partial's server-rendered row).
+      const row = document.querySelector('.user-menu-item[data-notif-row], .user-menu-item[href="/notifications.html"]')
+      if (row) {
+        let pill = row.querySelector('.menu-count-pill')
+        if (d.count > 0) {
+          if (!pill) {
+            pill = document.createElement('span')
+            pill.className = 'menu-count-pill'
+            pill.setAttribute('aria-hidden', 'true')
+            row.appendChild(pill)
+          }
+          pill.className = 'menu-count-pill menu-count-' + sev
+          pill.textContent = pillText(d.count)
+        } else if (pill) pill.remove()
+      }
+      // (3) the mobile More sheet row — mobile-nav.js owns that DOM; the event lets
+      // it paint (and repaint) whenever it rebuilds the sheet.
+      document.dispatchEvent(new CustomEvent('hibana:notif-count', { detail: { ...d } }))
+    }
+    fetchCounts(false).then(paint)
+    document.addEventListener('hibana:i18n', () => { fetchCounts(false).then(paint) })
+    // Refresh at the moment of decision: the pop is hover-opened, so pointerenter on
+    // the account cluster is the "about to look" cue (throttled to one fetch/min —
+    // the same budget as the memo path above).
+    const menuCluster = document.querySelector('.user-menu')
+    if (menuCluster) {
+      menuCluster.addEventListener('pointerenter', () => { fetchCounts(true).then(paint) }, { passive: true })
+    }
+    // The mobile sheet opens on a click — mobile-nav.js can also call
+    // window.__hibNotifCountsRefresh() when it shows the sheet.
+    window.__hibNotifCountsRefresh = () => fetchCounts(true).then(paint)
+  }
+
   // F8 (session 9): GLOBAL htmx error surface. Only project.html registered an
   // htmx:responseError handler — every other page left failed swaps SILENT (audit
   // finding: offline/500 fragments leave the zone stale with no cue). Policy:
@@ -386,6 +475,9 @@
           label.textContent = name
           userEl.append(avatar, label)
         }
+        // S191: the attention badge paints once the chip exists (it decorates the
+        // chip; fail-silent — no counts, no badge).
+        wireNotifBadge()
         document.querySelector('[data-logout]')?.addEventListener('click', () => {
           fetch('/api/auth/logout', { method: 'POST' }).then(() => (window.location.href = '/login.html'))
         })

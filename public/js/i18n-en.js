@@ -591,6 +591,9 @@ window.__hibanaDictEN = {
       'nav.notifications': 'Notifications', 'notif.title': 'Notifications',
       'notif.subtitle': 'Things that need your attention — overdue, upcoming, and stale.',
       'notif.urgent': 'Urgent', 'notif.warning': 'Soon', 'notif.info': 'Heads up',
+      // S191: the attention surface — filter chips + the chrome badge's aria labels
+      'notif.filterAll': 'All', 'notif.filterHint': 'Filter by urgency',
+      'notif.needsAttention': '{n} needing attention', 'nav.accountHint': 'Account menu',
       // saved filters (R2.3)
       'filters.saved': 'Saved:', 'filters.saveCurrent': 'Save current filter',
       'filters.namePrompt': 'Name this filter (e.g. "Client work this week"):',

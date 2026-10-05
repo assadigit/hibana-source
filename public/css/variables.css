@@ -117,6 +117,23 @@
   --accent: #4A9FA3;           /* medium teal — the Sadhana interactive accent */
   --accent-hover: #3D8D91;
   --accent-soft: rgba(74, 159, 163, 0.13);
+  /* S189 (owner, CHANGE 7 — the rail's active SHAPE): the icon rail's own active
+     family, deliberately SEPARATE from --accent/--brand (the sidebar's rows) and
+     from --cta (the button fills): the active rail item paints a soft FILLED
+     rounded shape — the teal at LOW alpha (14% here; the saturated teal stays
+     reserved for call-to-action fills), the ICON at the full #2F7B7F teal, and
+     the LABEL one rung darker (#1F5A5D — 6.56:1 on its own tint, 4.5:1+ by
+     construction; the icon clears the 3:1 non-text floor at 4.12:1). The
+     inactive hover is the SAME teal at a quieter 7%. Alpha rides the background
+     COLOR ONLY (rgba) — never the opacity property, which would fade the icon
+     and label with it. claude-dark-theme.css overrides all five (higher alpha
+     + lighter teals — the dark-tint lesson); proofs: qa/s189-rail-active.mjs +
+     the identity-palette S189 block. */
+  --nav-active-bg: rgba(47, 123, 127, 0.14);
+  --nav-active-bg-hover: rgba(47, 123, 127, 0.18);
+  --nav-hover-bg: rgba(47, 123, 127, 0.07);
+  --nav-active-icon: #2F7B7F;
+  --nav-active-label: #1F5A5D;
   --cta: #2E7B7F;              /* F6 (session 9): one shade deeper — white-on-CTA
                                   3.9 → 4.93:1 (AA for 12–14px button labels).
                                   Teal stays teal; hover is one step darker again. */

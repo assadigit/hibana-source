@@ -89,6 +89,20 @@ html[data-theme='claude-dark'] {
   --accent: #d97757;
   --accent-hover: #c2643f;
   --accent-soft: rgba(217, 119, 87, 0.14);
+  /* S189 (owner, CHANGE 7 — the rail's active SHAPE, dark twins): the rail's
+     active family keeps its TEAL in the dark theme (the rail is navigation,
+     not a primary action — the clay stays the CTA accent), at the dark-tint
+     lesson's HIGHER alpha (20% vs light's 14% — low-alpha washes die on
+     #1f1e1c) and with LIGHTER teals so the ink clears the same floors:
+     icon #8FCCCF 5.91:1 and label #9AD4D7 6.45:1 on the 20% tint
+     (rgba blends to #354140); the label steps one rung LIGHTER the way the
+     light label steps darker — toward MORE contrast on its own tint.
+     Proofs: qa/s189-rail-active.mjs + the identity-palette S189 block. */
+  --nav-active-bg: rgba(143, 204, 207, 0.20);
+  --nav-active-bg-hover: rgba(143, 204, 207, 0.25);
+  --nav-hover-bg: rgba(143, 204, 207, 0.10);
+  --nav-active-icon: #8FCCCF;
+  --nav-active-label: #9AD4D7;
   --cta: #c2643f;           /* solid CTA keeps white ink legible (4.6:1) */
   --cta-hover: #b25a37;
   --btn-text: #ffffff;

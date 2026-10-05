@@ -204,18 +204,18 @@ test.describe('the navigation rail (Material navigation-rail pattern, S89 labele
     // button paints a background (the filled rounded square) + aria-current.
     const dash = page.locator('.rail .rail-primary a[href="/dashboard.html"]')
     await expect(dash).toHaveAttribute('aria-current', 'page')
-    // S179 (advisor block 11): the ONE active pattern is the INSET ROUNDED ACCENT
-    // BAR the selected sidebar row speaks — the solid teal tile is retired. The
-    // button stays TRANSPARENT on the rail surface with the PRIMARY ink (no more
-    // white-on-teal label), and ::before IS the bar (~3px wide, brand ink, rounded
-    // ends, set in from the inline-start edge). toHaveCSS / expect.poll RETRY (a
-    // plain read raced the cold server's sheet load once).
-    await expect(dash).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)')
-    await expect(dash).toHaveCSS('color', 'rgb(20, 20, 20)')
-    await expect.poll(async () => dash.evaluate((el) => getComputedStyle(el, '::before').content)).toBe('""')
-    await expect.poll(async () => dash.evaluate((el) => getComputedStyle(el, '::before').backgroundColor)).toBe('rgb(61, 141, 145)')
-    await expect.poll(async () => dash.evaluate((el) => getComputedStyle(el, '::before').width)).toBe('3px')
-    await expect.poll(async () => dash.evaluate((el) => getComputedStyle(el, '::before').borderRadius)).toBe('999px')
+    // S189 (owner, CHANGE 7 — SUPERSEDES the S179 bar): the ONE active pattern is
+    // the soft FILLED SHAPE — the button itself paints the teal at 14% (alpha on
+    // the background color only), the icon keeps the full #2F7B7F teal, the label
+    // steps one rung darker (#1F5A5D — 4.5:1+ on its own tint), and the old
+    // start-edge ::before accent bar is RETIRED from the DOM entirely.
+    // toHaveCSS / expect.poll RETRY (a plain read raced the cold server's sheet
+    // load once; the 0.14s color transition also needs the settle).
+    await expect(dash).toHaveCSS('background-color', 'rgba(47, 123, 127, 0.14)')
+    await expect(dash).toHaveCSS('color', 'rgb(47, 123, 127)')
+    await expect(dash.locator('.rail-label')).toHaveCSS('color', 'rgb(31, 90, 93)')
+    await expect(dash.locator('.rail-label')).toHaveCSS('font-weight', '600')
+    expect(await dash.evaluate((el) => getComputedStyle(el, '::before').content)).toBe('none')
     // Block 11's semantics: the PANEL toggles carry aria-expanded (a panel-open
     // state is announced, distinct from the page state's aria-current).
     const todoToggle = page.locator('.rail .rail-primary a[data-rail-panel="todo"]')

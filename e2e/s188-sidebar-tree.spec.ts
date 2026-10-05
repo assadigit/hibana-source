@@ -14,7 +14,7 @@
 //    pill at two+), neutral tint, hidden at zero, absent on EXPANDED project
 //    rows, aria-labeled ("N projects/sections/items" — FA digits under fa).
 // 5) CHANGE 5 — ONE active rail pattern: only the CURRENT ROUTE's icon carries
-//    aria-current="page" (the bar); the panel-open icon carries NO visual accent
+//    aria-current="page" (the S189 filled shape); the panel-open icon carries NO visual accent
 //    (aria-expanded keeps the semantics).
 // 6) CHANGE 6 — the ROUNDED FLOATING panel: ~10px gaps, 16px radius, thin border
 //    + soft shadow, inner padding, clipped scroll — beside the UNCHANGED rail;
@@ -341,7 +341,7 @@ test.describe('S188 — the Projects sidebar panel (the owner\'s six changes)', 
     await expect(plain.locator('.rail-group-count')).toHaveCount(0)
   })
 
-  test('CHANGE 5: ONE active rail pattern — the current route\'s bar alone; the panel-open icon carries NO accent', async ({ page }) => {
+  test('CHANGE 5: ONE active rail pattern — the current route\'s shape alone; the panel-open icon carries NO accent', async ({ page }) => {
     await login(page)
     await openProjectsPanel(page) // lands on /projects.html with the panel OPEN
 
@@ -365,8 +365,8 @@ test.describe('S188 — the Projects sidebar panel (the owner\'s six changes)', 
     await expect(projectsIcon).toHaveAttribute('aria-expanded', 'true')
     await expect(canvas).not.toHaveAttribute('aria-expanded')
 
-    // The bar FOLLOWS the route: soft-navigate to the dashboard → Dashboard wears
-    // it, Projects loses it (the bar can never go stale).
+    // The shape FOLLOWS the route: soft-navigate to the dashboard → Dashboard wears
+    // it, Projects loses it (the shape can never go stale).
     await dash.click()
     await page.waitForURL('**/dashboard.html', { timeout: 10_000 })
     await expect(dash).toHaveAttribute('aria-current', 'page')

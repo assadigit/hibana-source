@@ -279,8 +279,10 @@ describe('S181 sidebar color block — the current-location bar clears 3:1 every
     // S188 (CHANGE 5): the .is-panel-open override is RETIRED with its whole rule —
     // the base [aria-current='page']::before paints the rung alone now (the
     // override painted the identical --brand-hover, so its removal changes nothing).
+    // S189 (owner, CHANGE 7): the RAIL BUTTON's ::before retires too — the rail's
+    // active item paints the filled SHAPE now (see the S189 block below); only the
+    // two SIDEBAR ROW bars (the panel's group head + selected row) keep the rung.
     for (const sel of [
-      '.rail-btn[aria-current=\'page\']::before',
       '.rail-project-group.is-here > .rail-group-headrow::before',
       '.rail-item.is-row-active::before',
     ]) {
@@ -290,5 +292,88 @@ describe('S181 sidebar color block — the current-location bar clears 3:1 every
     }
     // and the WASH is untouched (the S178 quiet-pill recipe stands)
     expect(layoutCss).toMatch(/\.rail-item\.is-row-active\s*\{[^}]*--accent-soft/s)
+  })
+})
+
+// ---------- the rail's active SHAPE (S189 — the owner's CHANGE 7) ----------
+// The active rail item paints a soft FILLED rounded shape (the teal at low
+// alpha) with the icon at the full teal and the label one contrast-rung
+// further from the tint. The bar is gone; the shape is the only active
+// indicator. These pins hold the whole contract, numerically:
+//   1. the five --nav-* tokens exist in BOTH sheets (light + dark twins),
+//   2. the shape alpha rides the BACKGROUND COLOR (rgba) — never the opacity
+//      property, which would fade the icon and label with it,
+//   3. the icon clears 3:1 and the label 4.5:1 on the BLENDED shape, both
+//      themes (the tint is the teal at alpha over each theme's rail surface),
+//   4. layout.css paints var(--nav-active-bg) on the active button and the
+//      rail button's ::before bar is RETIRED (no rule exists at all).
+const blendRgba = (rgba: string, ground: string): string => {
+  const m = rgba.match(/rgba\((\d+),\s*(\d+),\s*(\d+),\s*([\d.]+)\)/)
+  if (!m) throw new Error(`not an rgba: ${rgba}`)
+  const [r, g, b, a] = [Number(m[1]), Number(m[2]), Number(m[3]), parseFloat(m[4])]
+  const gn = parseInt(ground.slice(1), 16)
+  const mix = (c: number, gc: number) => Math.round(a * c + (1 - a) * gc)
+  return (
+    '#' +
+    [mix(r, (gn >> 16) & 255), mix(g, (gn >> 8) & 255), mix(b, gn & 255)]
+      .map((v) => v.toString(16).padStart(2, '0'))
+      .join('')
+  )
+}
+
+describe('S189 rail active shape — the teal tile contract, both themes', () => {
+  const layoutCss = readFileSync(join(process.cwd(), 'public', 'css', 'layout.css'), 'utf8')
+
+  it('light: the shape is #2F7B7F at 14% and the icon/label clear their floors on the blended tint', () => {
+    const bg = tokenOf(css, '--nav-active-bg')
+    const icon = tokenOf(css, '--nav-active-icon')
+    const label = tokenOf(css, '--nav-active-label')
+    expect(bg).toBe('rgba(47, 123, 127, 0.14)') // the owner's CHANGE 7 value, alpha on the color only
+    expect(icon).toBe('#2F7B7F')
+    expect(label).toBe('#1F5A5D')
+    const tint = blendRgba(bg!, LIGHT_CARD)
+    expect(contrast(icon!, tint), 'the icon on its own tint (3:1 non-text floor)').toBeGreaterThanOrEqual(3)
+    expect(contrast(label!, tint), 'the label on its own tint (4.5:1 text floor)').toBeGreaterThanOrEqual(4.5)
+  })
+
+  it('dark: the lighter-teal twins at 20% clear the same floors on the dark rail surface', () => {
+    const bg = tokenOf(darkCss, '--nav-active-bg')
+    const icon = tokenOf(darkCss, '--nav-active-icon')
+    const label = tokenOf(darkCss, '--nav-active-label')
+    expect(bg).toBe('rgba(143, 204, 207, 0.20)') // the higher dark alpha (18–22% band)
+    expect(icon).toBe('#8FCCCF')
+    expect(label).toBe('#9AD4D7')
+    const tint = blendRgba(bg!, DARK_CARD)
+    expect(contrast(icon!, tint), 'the dark icon on its own tint').toBeGreaterThanOrEqual(3)
+    expect(contrast(label!, tint), 'the dark label on its own tint').toBeGreaterThanOrEqual(4.5)
+  })
+
+  it('the hover tints are the SAME teal families, quieter than their active shapes', () => {
+    const lightHover = tokenOf(css, '--nav-hover-bg')
+    const lightActiveHover = tokenOf(css, '--nav-active-bg-hover')
+    const darkHover = tokenOf(darkCss, '--nav-hover-bg')
+    const darkActiveHover = tokenOf(darkCss, '--nav-active-bg-hover')
+    expect(lightHover).toBe('rgba(47, 123, 127, 0.07)') // the 6–8% band
+    expect(lightActiveHover).toBe('rgba(47, 123, 127, 0.18)') // deeper than rest, still no full saturation
+    expect(darkHover).toBe('rgba(143, 204, 207, 0.10)')
+    expect(darkActiveHover).toBe('rgba(143, 204, 207, 0.25)')
+    // quieter than the active shape, by construction of the parsed alphas
+    const alpha = (s: string | undefined) => parseFloat(s!.match(/([\d.]+)\)$/)![1])
+    expect(alpha(lightHover)).toBeLessThan(alpha(tokenOf(css, '--nav-active-bg')))
+    expect(alpha(darkHover)).toBeLessThan(alpha(tokenOf(darkCss, '--nav-active-bg')))
+  })
+
+  it('layout.css: the active button paints the shape tokens and the ::before bar is RETIRED', () => {
+    const block = layoutCss.slice(layoutCss.indexOf(".rail-btn[aria-current='page'] {"))
+    const body = block.slice(0, block.indexOf('}') + 1)
+    expect(body).toMatch(/background:\s*var\(--nav-active-bg\)/)
+    expect(body).toMatch(/color:\s*var\(--nav-active-icon\)/)
+    expect(body).not.toMatch(/opacity/) // the alpha lives in the rgba, never the opacity property
+    const labelBlock = layoutCss.slice(layoutCss.indexOf(".rail-btn[aria-current='page'] .rail-label"))
+    expect(labelBlock.slice(0, labelBlock.indexOf('}') + 1)).toMatch(/color:\s*var\(--nav-active-label\)/)
+    // the retired bar: NO ::before rule for the rail button exists anywhere
+    expect(layoutCss).not.toMatch(/\.rail-btn\[aria-current='page'\]::before/)
+    // the inactive hover speaks the quiet teal, not the old text wash
+    expect(layoutCss).toMatch(/\.rail-btn:hover\s*\{[^}]*var\(--nav-hover-bg\)/s)
   })
 })

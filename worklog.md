@@ -2190,3 +2190,9 @@ Stage Summary:
 - OPEN: nothing blocking. The 21:23Z backup tick is the watchdog's honest
   proof (read it before closing the round); the uptime prober rides its ~6h
   workflow cadence. Next rounds continue from this state.
+
+- ADDENDUM: the runner queue freed ~90 min into the incident — the CD rerun on
+  cb1f643 (37373292688) went GREEN and re-deployed the release bytes through the
+  normal chain (dev → probe → prod); s190-live-verify re-run ALL GREEN after it
+  (idempotent, no drift — exactly as predicted). The record's final form: the
+  manual runbook deploy SHIPPED v0.4.1.17; the CD later confirmed it green.

@@ -55,12 +55,14 @@ for (const [page, targets] of Object.entries(PAGE_TARGETS)) {
 }
 
 // The lazily-injected i18n-fa twin: no page carries its URL — it lives inside the
-// LIVE i18n.js body as the rewritten literal /dist/i18n-fa.<hash>.js?v=89.
+// LIVE i18n.js body as the build-rewritten hashed literal /dist/i18n-fa.<hash>.js
+// (the canonical tree's ?v=89 rides the unwired /js/i18n.js literal; the wired
+// form swaps it for the content hash — so match the hashed path, not the query).
 if (liveI18nBody) {
-  const faRef = /\/dist\/(i18n-fa\.[a-f0-9]+\.js)\?v=89/.exec(liveI18nBody)?.[1] || null
+  const faRef = /\/dist\/(i18n-fa\.[a-f0-9]+\.js)/.exec(liveI18nBody)?.[1] || null
   const localFa = localFile('i18n-fa')
   if (faRef && localFa) await check('i18n-fa (lazy twin, out of the live i18n.js literal)', `${BASE}/dist/${faRef}`, join(DIST, localFa))
-  else { results.push('✗ i18n-fa: the v89 literal or local file MISSING'); fail = true }
+  else { results.push('✗ i18n-fa: the hashed literal or local file MISSING'); fail = true }
 } else { results.push('✗ i18n body never fetched'); fail = true }
 
 // The unhashed shell: sw.js carries the VERSION ledger (v424).
@@ -69,11 +71,12 @@ const swOk = sw.includes(`const VERSION = "${EXPECT_SW}"`)
 if (!swOk) fail = true
 results.push(`${swOk ? '✓' : '✗'} sw.js VERSION = ${EXPECT_SW}`)
 
-// Health + schema (no migration this round — 63 must hold).
+// Health + schema (no migration this round — 63 must hold). NOTE the live
+// /api/health shape: { ok, db: 'up'|'dn', schema_version } — flat, db a STRING.
 const health = await (await fetch(`${BASE}/api/health`, { cache: 'no-store' })).json()
-const hOk = health?.ok === true && String(health?.db?.up).toLowerCase() === 'true' && String(health?.schema) === EXPECT_SCHEMA
+const hOk = health?.ok === true && health?.db === 'up' && String(health?.schema_version) === EXPECT_SCHEMA
 if (!hOk) fail = true
-results.push(`${hOk ? '✓' : '✗'} health ok=${health?.ok} db.up=${health?.db?.up} schema=${health?.schema} (expect ok/true/${EXPECT_SCHEMA})`)
+results.push(`${hOk ? '✓' : '✗'} health ok=${health?.ok} db=${health?.db} schema_version=${health?.schema_version} (expect ok/up/${EXPECT_SCHEMA})`)
 
 console.log(results.join('\n'))
 if (fail) { console.log('\nS188 LIVE VERIFY: FAIL'); process.exit(1) }

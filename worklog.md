@@ -1897,3 +1897,122 @@ S187 RELEASE ADDENDUM (2026-10-02):
   worklog lesson (d): a manual ping MASKS a failing cron). The honest proof
   lands at the next ticks: dev 03:17 UTC / prod 03:23 UTC. A one-shot check is
   scheduled for 03:26 UTC to read the ping log and confirm the chain.
+
+---
+Task ID: S188
+Agent: main (Z.ai Code)
+Task: The owner's six-change Projects sidebar panel round — (1) single-line
+title-only ellipsis idea rows at one equal ~32px height with ALL items listed
+(no cap, no "show more"), (2) internal scrolling with sticky top-level group
+headers + localStorage-persisted open/closed state for every node, (3)
+nested-level guide lines + rounded elbows (top-level groups stay bare), (4)
+inline-end count badges (circle→pill, neutral tint, zero-hidden, none on
+expanded projects, aria-labeled), (5) ONE active rail pattern (the aria-current
+bar; the panel-open brand icon retires), (6) the panel as a rounded floating
+surface beside the unchanged rail — full delivery: implement → gates → push →
+CI/CD → live byte-verify → owner-account pass → tag → zip + secret scan →
+healthcheck → docs flip → worklog append.
+
+Work Log:
+- THE SERVER CAPS LIFTED (CHANGE 1, rule 6): /api/rail's projectTasks LIMIT 200
+  REMOVED (a 300-idea section lists all 300) + the projects window 40→400 (the
+  S131 sparks precedent for the stage lists); no schema change — schema 63, no
+  migration, no DB authorization needed.
+- THE RENDER (nav.js): every .rail-group ships a STABLE data-fold-key (stage
+  status / project id / project+box / folder / quadrant / cal:upcoming);
+  railFoldsApply() re-applies the localStorage map ('hibana-rail-fold-v1') after
+  EVERY body swap (render/refresh/undo/month-step — the S116 in-document
+  harvest/restore retired, its 4 call sites simplified); railFoldsPersist()
+  merges on every single toggle + the bulk tree-fold button. The badges render
+  only at count>0 with aria-labels from 6 new i18n keys ({n} + FA digits); the
+  collapsed project branch counts its SECTIONS; the leaves + section heads
+  carry .rail-elbow spans (real elements — never pseudo-elements, so the
+  selected-row accent bar can never collide).
+- THE SURFACE (layout.css): the panel floats (--rail-panel-gap 10px, 16px
+  radius, 1px --line border + soft shadow, 8px padding, overflow:hidden
+  clipping the internal scroll; the body gutter widens by the two gaps); the
+  top-level heads stick (both head shapes, --card cover, z-3) with the body's
+  block-start padding → 0 so they pin FLUSH (a padded scroller insets Chrome's
+  sticky rect — the 8px peek-band caught in e2e); the nested bodies carry the
+  1px --line guide + the elbows meet it ±0px (logical — RTL mirrors); the
+  badge grammar (circle/pill, --bg-soft neutral, margin-inline-start:auto);
+  the goto chips absolute + card-bg (the badge column stays one line); the
+  .is-panel-open accent RETIRES (all four rules — aria-expanded keeps the
+  semantics).
+- GUARDS: rail.test.ts +1 UNCAPPED pin (205 tasks + 45 projects); the NEW
+  e2e/s188-sidebar-tree.spec.ts ×8 (single-line/equal-height/no-cap +
+  truncated-long-title; sticky pinned + immovable panel head; reload-persisted
+  folds incl. the bulk button; the elbow-meets-guide geometry + no line on
+  collapsed branches or top-level bodies; the badge column/circle→pill/
+  zero-hidden/expanded-hidden/aria-labels; the one-pattern rail ink proof
+  (current+panel-open == current ink; not-current+panel-open == plain muted);
+  the floating geometry x98/y10/h700-20/r16/border1/overflow-hidden + the rail
+  88×720 untouched + gutter 388; the FA/RTL twin x902 + ۱/۳۰ digits + the
+  mirrored guide meet + fold persistence). Re-pinned: s177 (badge at the far
+  edge + the sticky --card cover + 32px children + connectors present on
+  nested levels), s106 (present/bare split), rail-panel (x 88→98 + the
+  zero-count badge hidden), identity-palette (the retired is-panel-open::before
+  selector drops from the rung list).
+- Cache-bust: nav.js v40→v41 ×18 · layout.css v61→v62 ×26 · i18n-en.js v94→v95
+  ×26 · i18n.js v148→v149 ×26 + the i18n-fa v88→v89 lazy literal ×3; sw v423→
+  v424; package 0.4.1.15; parity 1561/1561 (+6 keys).
+- LADDER: typecheck 0 · vitest 567/567 (+1) · eslint 0 err (162-warn baseline)
+  · build 79 · wiring canonical · cache-bust PASS · parity PASS · FULL e2e
+  353/353 in 6 file-batches, zero flakes (the first s188 run's 4 failures were
+  spec bugs found and fixed in place: the missing seedProjects(fa) call, the
+  sticky assertion order, the elbow-count scope, the mid-transition color
+  reads).
+- QA: agent-browser screenshots EN light/dark + collapsed-badges + FA/RTL; the
+  VLM EN/dark audits all-yes; the FA VLM badge/guide claim DISPROVEN by the
+  computed-geometry probes (it invented a "۱+" string that exists nowhere —
+  the documented hallucination class; probes stay the arbiter).
+- RELEASED: push ac98065 → CI 37316196342 + CD GREEN → live byte-verify ALL
+  GREEN (nav/layout/i18n-en/i18n IDENTICAL off projects.html AND sadhana.html
+  + the lazily-injected i18n-fa twin IDENTICAL out of the live i18n.js hashed
+  literal; sw v424; health ok/db up/schema 63) — NOTE two script-side fixes
+  en route: the wired build REWRITES the lazy fa literal to the hashed path
+  (no ?v= — match the hash, not the query) and the live /api/health shape is
+  FLAT ({ok, db:'up', schema_version} — not the nested {db:{up}} the older
+  scripts assumed).
+- THE OWNER-ACCOUNT PASS (live, real data): the panel floats x=98 beside the
+  untouched 88px rail (x=74 beside the 64px icon-rail on short viewports — the
+  token chain scales); the sticky stage head PINNED through a 200px live
+  scroll; the real tree carries 43 elbows + 17 nested guide bodies + 32
+  single-line nowrap/ellipsis leaves; real badges [1,1,1,1,3,2,1,1…] with the
+  expanded branch's badge display:none; exactly ONE aria-current icon; the
+  fold store persisted the owner's REAL project UUIDs and the reload restored
+  the panel + the expanded branch; 0 console messages + 0 page errors; the
+  VLM live audit 5/5; the account's fold/panel keys cleared after the pass.
+- THE CHAIN: tag v0.4.1.15 on ac98065 → zip hibana.0.4.1.15.zip (565 files =
+  495 tracked-minus-e2e/.github + 70 dist, integrity OK, secret-scan clean —
+  all 9 real credential values ABSENT) → /home/z/upload + the sandbox
+  download folder → --restore-html → this docs flip.
+- HEALTHCHECK (the honest form): the "Hibana" backup-cron watchdog read GREEN
+  with fresh :23 ticks (09:23:23Z — the S187 token re-arm PROVEN in
+  production); the "Hibana uptime" GitHub-Actions prober sat inside its
+  DOCUMENTED 6h+1h grace window (GitHub cron throttling, per the check's own
+  desc); NO manual masking ping sent (the S186 lesson).
+
+Stage Summary:
+- LIVE: hibana.ir @ v0.4.1.15, sw v424, schema 63, health ok; remote main @
+  the docs commit; tag v0.4.1.15 pushed; zip in /home/z/upload + the sandbox
+  download folder; Changelogs row 188 RELEASED; both worklogs appended; FULL
+  e2e 353/353.
+- OPEN: the uptime prober's next ping (it sat in grace at release time —
+  read the ping log before worrying; the 6h+1h window is sized for GitHub's
+  1-7h cron stretch).
+- Ops lessons banked: (a) a non-zero padding-block-start on a STICKY-parent
+  scroll container insets Chrome's sticky rect — the stuck head pins BELOW the
+  padding, leaving a peek-band; zero the scroller's top padding and let the
+  panel's own chrome own the spacing; (b) the wired build rewrites lazy JS
+  literals to their hashed dist paths (the ?v= lives only in the canonical
+  tree) — live-verify scripts must match the hash, not the query; (c) the
+  live /api/health is FLAT ({ok, db:'up', schema_version}) — the nested
+  {db:{up}} assumption cost a false FAIL; (d) e2e color pins on .rail-btn
+  must wait out the 0.14s color transition (instant reads catch oklab
+  mid-flight values); (e) seed-helper bugs surface as EMPTY user data, not as
+  errors — when a user's panel renders the generic empty state, check the seed
+  function actually ran for that user (my beforeAll dropped the
+  seedProjects(fa) call silently); (f) Playwright's beforeAll failing AFTER
+  partial seeding leaves a half-seeded DB that later tests blame — assert the
+  seed's own invariants when the data matters.

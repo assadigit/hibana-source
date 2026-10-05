@@ -70,7 +70,9 @@ for (const [page, targets] of Object.entries(PAGE_TARGETS)) {
   const i18nRef = /(?:src|href)="(\/dist\/i18n\.[a-f0-9]+\.js)"/.exec(html)?.[1]
   if (i18nRef) {
     const i18nLive = await (await fetch(BASE + i18nRef, { cache: 'no-store' })).text()
-    const faRef = /'(\/dist\/i18n-fa\.[a-f0-9]+\.js)'/.exec(i18nLive)?.[1]
+    // the literal rides the minifier's DOUBLE quotes (r.src="/dist/i18n-fa.<hash>.js") —
+    // accept either quote style.
+    const faRef = /[ "']?(\/dist\/i18n-fa\.[a-f0-9]+\.js)["']?/.exec(i18nLive)?.[1]
     const faLocal = localFile('i18n-fa')
     if (faRef && faLocal) await check(`i18n-fa (the lazy literal inside the live i18n.js)`, BASE + faRef, join(DIST, faLocal))
     else { results.push('✗ i18n-fa: lazy literal or local file MISSING'); fail = true }

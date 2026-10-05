@@ -2196,3 +2196,60 @@ Stage Summary:
   normal chain (dev → probe → prod); s190-live-verify re-run ALL GREEN after it
   (idempotent, no drift — exactly as predicted). The record's final form: the
   manual runbook deploy SHIPPED v0.4.1.17; the CD later confirmed it green.
+
+## S191 — THE ATTENTION SURFACE (v0.4.1.18, 2026-10-06)
+
+The 15-minute review round: the app STABLE at v0.4.1.17 (ladder 577/577, live
+healthy, QA clean) → the independently-chosen work was the S190-named candidate
+"a notifications-entry surface treatment" — the app's only major unguarded page
+(ZERO tests), its count reaching no chrome surface, its list flat despite the
+subtitle promising "overdue, upcoming, and stale". Serves both jobs (unreviewed
+ideas = never lose an idea; overdue/stale = never lose your place) and both
+mandatory round directives (styling detail + features); PASSIVE by design —
+nothing §7-rejected (no animation, no toasts, no interruption).
+
+- THE BUG FIXED FIRST (pre-existing, real, latent): --badge-pending-bg/-fg was
+  REFERENCED since R2.1 (the notifications "Soon" chips/icons/accents ×3 +
+  variables.css --status-warning-soft → the task-controls status dots) but NEVER
+  DEFINED in any sheet — every warning surface silently rendered unstyled (an
+  invalid var() makes the whole declaration IACV). Defined: light
+  #FBF0D4/#7A580C 5.73:1 + dark #332C17/#DCC078 7.83:1; qa/s191-attention-
+  surface.mjs 16/16 PASS.
+- THE CHROME: ?counts=1 (the lightweight mode) + hib-init.js wireNotifBadge —
+  the severity-tinted count pill on the rail's user chip (soft fills + AA inks,
+  the 2px --card ring, pointer-events:none, 99+ cap, FA digits) + the
+  account-menu row pill + the hibana:notif-count event → mobile-nav.js paints
+  the More sheet's row; refresh at the moment of decision (pointerenter / sheet
+  open), throttled 1/min, fail-silent; the chip's aria-label carries the state
+  (nav.accountHint localizes the base label at last).
+- THE PAGE: severity GROUPS (sticky --bg-cover heads + count pills + FA digits,
+  non-empty groups only) + the summary chips promoted to FILTER TOGGLES
+  (aria-pressed, pressed = the family fill, own focus rings, the old static
+  fills retire) + hash deep-links #urgent|#warning|#info; the XSS escaping
+  untouched (the security pin stays green).
+- GUARDS: notifications.test.ts ×7 + identity-palette S191 ×5 +
+  e2e/s191-notifications.spec.ts ×9. Ladder: typecheck 0 · vitest 589/589 ·
+  eslint 0 err · build 79 · cache-bust PASS (10 files) · parity 1565/1565 ·
+  FULL e2e 377/377 zero flakes (17.3m) · smoke ALL PASS · bundle +13.8% ·
+  agent-browser QA clean + VLM audits 4/4.
+- E2E debug lessons banked: (a) raw DatabaseSync runs WITHOUT PRAGMA
+  foreign_keys → explicit child-table deletes (the s173 pattern); (b) the seed
+  cleanup must run ONCE before the per-user loop — a per-call cleanup wipes the
+  earlier seeds (the last user ate the first two; symptom: only the no-data
+  user could log in); (c) :focus-visible needs keyboard modality in headless
+  (press Tab before el.focus()) + computed margins resolve 'auto' to used px
+  (probe the CSSOM rule + geometry instead); (d) per-user project ids (fixed
+  ids collide across seeded users).
+- LIVE-VERIFY lesson: the lazy i18n-fa literal inside the minified i18n.js
+  bundle rides DOUBLE quotes (r.src="/dist/i18n-fa.<hash>.js") — a single-quote
+  regex misses it (the S188 probe was written before the current minifier).
+- RELEASE: pushes 251bf2e + 7d535e0 → CI ×2 + CD ×2 GREEN (the normal chain,
+  no runner starvation) → live byte-verify ALL GREEN (9 assets + the lazy FA
+  twin + sw v427 + health 63) → the owner-account pass clean on the REAL data
+  (the badge '15'/info family + the aria, the ONE Heads up group with 15 items,
+  the chips + #info hash, the mobile sheet pill, the dark twin; 0 console/page
+  errors; VLM 2/2; the badge needed the SW's one-cycle update reload — the S69
+  settle behavior, honest, NOT a defect) → tag v0.4.1.18 on 7d535e0 → zip
+  hibana.0.4.1.18.zip (584 files, integrity OK, secret-scan clean — the 8
+  credential values ONLY in credentials.md; the 4 account-id hits = the
+  pre-existing S93 public surface) → --restore-html.

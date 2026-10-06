@@ -404,6 +404,13 @@ window.__hibanaDictEN = {
       'spark.uploadFailed': "Couldn't upload the image — try again",
       'spark.notFound': "This idea doesn't exist or was deleted.",
       'spark.loadingAria': 'Loading idea…',
+      // S193 — the review flow: the queue bar (place-keeping in the unreviewed set)
+      // + the promote action on the lean page
+      'spark.reviewQueue': 'Review queue',
+      'spark.queuePos': '{i} of {n}',
+      'spark.nextIdea': 'Next idea',
+      'spark.prevIdea': 'Previous idea',
+      'spark.queueUnsaved': 'You have unsaved changes — save them and continue?',
       // project-cards quick menu (projects page)
       'card.dialogTitle': 'Edit project', 'card.saveFailed': "Couldn't save the project",
       'card.loadFailed': "Couldn't load the project", 'card.saving': 'Saving…', 'card.deleted': 'Project deleted',

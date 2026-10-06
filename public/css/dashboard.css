@@ -1396,6 +1396,28 @@ main.shell-dash > h1 { margin-block: 0; }
 .spark-link-form input { flex: 1 1 8rem; min-inline-size: 0; }
 .spark-save-row { border-block-start: 1px solid var(--line); padding-block-start: 0.8rem; margin-block-start: 0.2rem; }
 #spark-status { font-variant-numeric: tabular-nums; }
+/* S193: the review queue bar — the place-keeper in the unreviewed set. The soft
+   teal tint family (the S189/S190 attention/navigation grammar — --nav-active-*
+   tokens, their contrast floors already proven on their own tint both themes),
+   a hairline of the deeper tint token, the position in tabular-nums. Contextual
+   by construction: spark-page.js mounts it only for an idea IN the unreviewed
+   set with siblings (§7: never a nag). The flex row mirrors under RTL (prev
+   rides the inline-start end) and the .icon.arrow chevrons flip with it. */
+.spark-queue {
+  display: flex; align-items: center; justify-content: space-between; gap: 0.5rem;
+  margin-block: 0 0.9rem; padding: 0.4rem 0.55rem;
+  background: var(--nav-active-bg);
+  border: 1px solid var(--nav-active-bg-hover);
+  border-radius: var(--radius-sm);
+}
+/* the position line rides the label ink proven on this exact tint (6.56:1 light /
+   6.45:1 dark, the S189 floors) — the .muted rung would sit under the 4.5:1 small-
+   text bar on the blended tint */
+.spark-queue-pos { color: var(--nav-active-label); font-variant-numeric: tabular-nums; }
+.spark-queue-btn { flex-shrink: 0; }
+/* S193: the promote action — a neutral ghost secondary (the ONE-primary rule: Save
+   stays the row's primary), the up-arrow glyph carrying the decision's weight. */
+.spark-promote { flex-shrink: 0; }
 /* the images side panel */
 .spark-side { padding: 1rem; display: flex; flex-direction: column; gap: 0.8rem; }
 .spark-images-h { margin: 0; font-size: var(--fs-sm); font-weight: 700; }

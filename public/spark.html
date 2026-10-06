@@ -10,7 +10,7 @@
   <link rel="stylesheet" href="/css/variables.css?v=26">
   <link rel="stylesheet" href="/css/base.css?v=13">
   <link rel="stylesheet" href="/css/layout.css?v=63">
-  <link rel="stylesheet" href="/css/dashboard.css?v=39">
+  <link rel="stylesheet" href="/css/dashboard.css?v=40">
   <link rel="stylesheet" href="/css/dashboard-todo.css?v=24">
   <link rel="stylesheet" href="/css/components.css?v=9">
   <link rel="stylesheet" href="/css/canvas.css?v=11">
@@ -43,8 +43,8 @@
   <script src="/js/micro-interactions.js?v=1" defer></script>
   <script src="/js/go-to.js?v=2" defer></script>
   <script src="/js/install-prompt.js?v=1" defer></script>
-  <script src="/js/i18n-en.js?v=96" defer></script>
-  <script src="/js/i18n.js?v=150" defer></script>
+  <script src="/js/i18n-en.js?v=97" defer></script>
+  <script src="/js/i18n.js?v=151" defer></script>
   <!-- S169 (owner report): the AI-assist wand rides the lean page's fields — the CSS
        was loaded but the JS never was, so no icon could ever appear. Same head slot
        as every other wand surface (sparks.html). -->
@@ -80,6 +80,11 @@
       <!-- S171: the WHEN line — Created · Updated, relative units, FA digits on the
            Persian locale. Hidden until the idea loads (renderMeta owns it). -->
       <p class="spark-meta-line muted small" id="spark-meta" hidden></p>
+      <!-- S193: the review queue bar — the place-keeper in the unreviewed set
+           ("Review queue · i of n" + Prev/Next). JS-rendered (renderQueue owns it):
+           it appears ONLY while the current idea is itself in the unreviewed set
+           and siblings exist — contextual, never a nag (§7). -->
+      <div id="spark-queue" class="spark-queue" hidden></div>
       <div class="spark-layout">
         <div class="spark-main card">
           <label class="spark-field">
@@ -112,6 +117,10 @@
               <button type="button" id="spark-save" data-i18n="spark.save">Save</button>
               <span id="spark-status" class="muted small" role="status" aria-live="polite"></span>
             </div>
+            <!-- S193: the deliberate review decision, where the idea is actually
+                 READ — the board's promote dialog grammar, on the lean page. Ghost
+                 secondary (the ONE-primary rule: Save stays the row's primary). -->
+            <button type="button" id="spark-promote" class="ghost small spark-promote" data-i18n-title="sparks.promoteHint" title="Choose the stage — the idea becomes a project and leaves the shelf."><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 19V5M5 12l7-7 7 7"/></svg> <span data-i18n="sparks.promote">Promote to project</span></button>
           </div>
         </div>
         <div class="spark-side card">
@@ -136,6 +145,6 @@
   <script src="/js/resume.js?v=15" defer></script>
   <script src="/js/image-resize.js?v=1" defer></script>
   <script src="/js/image-crop.js?v=3" defer></script>
-  <script src="/js/spark-page.js?v=5" defer></script>
+  <script src="/js/spark-page.js?v=6" defer></script>
 </body>
 </html>

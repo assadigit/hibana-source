@@ -403,6 +403,12 @@ window.__hibanaDictFA = {
       'spark.uploadFailed': 'بارگذاری تصویر ممکن نشد — دوباره تلاش کن',
       'spark.notFound': 'این ایده وجود ندارد یا حذف شده است.',
       'spark.loadingAria': 'بارگذاری ایده…',
+      // S193 — جریانِ بررسی: نوارِ صف (حفظِ جای شما در مجموعهٔ بررسی‌نشده) + کنشِ ارتقا در صفحهٔ ایده
+      'spark.reviewQueue': 'صفِ بررسی',
+      'spark.queuePos': '{i} از {n}',
+      'spark.nextIdea': 'ایدهٔ بعدی',
+      'spark.prevIdea': 'ایدهٔ قبلی',
+      'spark.queueUnsaved': 'تغییرات ذخیره‌نشده دارید — ذخیره و ادامه؟',
       // project-cards quick menu (projects page)
       'card.dialogTitle': 'ویرایش پروژه', 'card.saveFailed': 'ذخیره پروژه ممکن نشد',
       'card.loadFailed': 'دریافت پروژه ممکن نشد', 'card.saving': 'در حال ذخیره…', 'card.deleted': 'پروژه حذف شد',

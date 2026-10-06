@@ -90,6 +90,63 @@ window.__hibanaPage({
     }
     window.addEventListener('beforeunload', beforeUnload)
 
+    // ---- S193: the review queue — the place-keeper in the unreviewed set ----------
+    // The unreviewed sparks (created >7d ago, still sparks) ARE the attention
+    // surface's info group, oldest first. While the current idea is itself in
+    // that set and siblings exist, a slim bar carries your place — "Review
+    // queue · i of n" + Prev/Next — so reviewing N ideas is N deliberate reads,
+    // not N back-and-forth hops (never lose an idea; never lose your place).
+    // Contextual by construction: no timers, no toasts, no badge churn — the
+    // bar renders only on the lean page of an idea IN the set (§7: never a nag).
+    let queue = null // [{ id, title, date }] oldest-first; null = not applicable
+    const queueIdx = () => (queue ? queue.findIndex((q) => q.id === id) : -1)
+
+    function renderQueue() {
+      const host = $('spark-queue')
+      if (!host) return
+      const idx = queueIdx()
+      if (!queue || queue.length < 2 || idx < 0) { host.hidden = true; host.innerHTML = ''; return }
+      const pos = _t('spark.queuePos', '{i} of {n}').split('{i}').join(faDig(idx + 1)).split('{n}').join(faDig(queue.length))
+      const prevT = queue[idx - 1], nextT = queue[idx + 1]
+      host.innerHTML =
+        '<button type="button" class="ghost small spark-queue-btn" id="spark-queue-prev"' + (idx === 0 ? ' disabled' : '') +
+          ' aria-label="' + escS(_t('spark.prevIdea', 'Previous idea') + (prevT ? ': ' + prevT.title : '')) + '">' +
+          '<svg class="icon arrow" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 18l-6-6 6-6"/></svg><span>' + escS(_t('spark.prevIdea', 'Previous idea')) + '</span>' +
+        '</button>' +
+        '<span class="spark-queue-pos muted small">' + escS(_t('spark.reviewQueue', 'Review queue')) + ' · ' + escS(pos) + '</span>' +
+        '<button type="button" class="ghost small spark-queue-btn" id="spark-queue-next"' + (idx === queue.length - 1 ? ' disabled' : '') +
+          ' aria-label="' + escS(_t('spark.nextIdea', 'Next idea') + (nextT ? ': ' + nextT.title : '')) + '">' +
+          '<span>' + escS(_t('spark.nextIdea', 'Next idea')) + '</span><svg class="icon arrow" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>' +
+        '</button>'
+      host.hidden = false
+    }
+
+    // The deliberate queue hop. A dirty idea saves FIRST (the confirm says so —
+    // the words are the idea, never lost to a queue hop); a failed save keeps
+    // you on the page. The S120 draft store can't cover this one: it restores
+    // only the SAME idea's fields, and the queue opens the NEXT idea's page.
+    function queueGo(nextId) {
+      const url = '/spark.html?id=' + encodeURIComponent(nextId)
+      const leave = () => { if (window.hibanaNav) window.hibanaNav.go(url); else window.location.assign(url) }
+      if (dirty && !saving) {
+        if (!window.confirm(_t('spark.queueUnsaved', 'You have unsaved changes — save them and continue?'))) return
+        save().then((ok) => { if (ok) leave() })
+        return
+      }
+      leave()
+    }
+
+    // S193: the queue-aware landing shared by promote + delete — the next
+    // unreviewed idea keeps the session moving; the LAST one closes the loop on
+    // the caught-up notifications page; outside a queue, each action keeps its
+    // natural destination (the new project's page / the ideas shelf).
+    function queueLanding(fallback) {
+      const idx = queueIdx()
+      if (idx < 0) return fallback
+      const next = queue[idx + 1]
+      return next ? '/spark.html?id=' + encodeURIComponent(next.id) : '/notifications.html'
+    }
+
     function renderTags() {
       const host = $('spark-tags')
       const tags = (project.tags || []).slice().sort((a, b) => a.name.localeCompare(b.name))
@@ -180,7 +237,7 @@ window.__hibanaPage({
     }
 
     async function save() {
-      if (saving) return
+      if (saving) return false
       saving = true
       const btn = $('spark-save'), status = $('spark-status')
       btn.disabled = true
@@ -201,13 +258,91 @@ window.__hibanaPage({
         window.hibanaResume?.record?.('spark', id, project.title, 'spark')
         window.hibana?.rail?.refresh?.()
         setTimeout(() => { if (status.textContent === _t('spark.saved', '✓ Saved')) status.textContent = '' }, 2500)
+        return true // S193: queueGo's save-and-continue rides the result
       } catch {
         status.textContent = ''
         window.hibana?.toast(_t('spark.saveFailed', "Couldn't save — try again"), 'err')
+        return false
       } finally {
         saving = false
         btn.disabled = false
       }
+    }
+
+    // ---- S193: the PROMOTE action — the board's dialog grammar, on the lean page ----
+    // The deliberate review decision lands where the idea is actually READ (the
+    // board's ⋯ menu stays for shelf-side triage): stage select → ONE PATCH with
+    // the dirty title/description folded in (the words are never lost to the
+    // promotion) → toast + rail refresh + the resume record as a PROJECT (the
+    // S119 grammar) → the queue-aware landing (next unreviewed idea; the new
+    // project's page without a queue; the caught-up notifications page when the
+    // queue empties — the loop closes where it began).
+    let promoteDlg = null
+    const PROMOTE_STAGES = ['planning', 'queued', 'developing', 'awaiting_dev', 'operational']
+    function openPromote() {
+      if (promoteDlg) promoteDlg.remove()
+      const dlg = document.createElement('dialog')
+      dlg.id = 'spark-promote-dialog'
+      dlg.className = 'dialog'
+      dlg.innerHTML =
+        '<form class="modal" id="sp-form" novalidate>' +
+          '<h3>' + _t('sparks.promote', 'Promote to project') + '</h3>' +
+          '<p class="muted small">' + _t('sparks.promoteHint', 'Choose the stage — the idea becomes a project and leaves the shelf.') + '</p>' +
+          '<label>' + _t('calendar.stage', 'Stage') + ' <select id="sp-status">' +
+            PROMOTE_STAGES.map(function (s) { return '<option value="' + s + '">' + _t('status.' + s, s) + '</option>' }).join('') +
+          '</select></label>' +
+          '<p class="error" id="sp-error" role="alert"></p>' +
+          '<div class="row">' +
+            '<button type="button" class="ghost" id="sp-cancel">' + _t('common.cancel', 'Cancel') + '</button>' +
+            '<button type="submit" id="sp-save">' + _t('common.save', 'Save') + '</button>' +
+          '</div>' +
+        '</form>'
+      document.body.appendChild(dlg)
+      promoteDlg = dlg
+      const close = () => { dlg.close(); dlg.remove(); promoteDlg = null }
+      dlg.addEventListener('cancel', (e) => { e.preventDefault(); close() })
+      dlg.addEventListener('click', (e) => { if (e.target === dlg) close() })
+      dlg.querySelector('#sp-cancel').addEventListener('click', close)
+      dlg.querySelector('#sp-form').addEventListener('submit', async (e) => {
+        e.preventDefault()
+        const status = dlg.querySelector('#sp-status').value
+        const saveBtn = dlg.querySelector('#sp-save')
+        const err = dlg.querySelector('#sp-error')
+        err.textContent = ''
+        saveBtn.disabled = true
+        try {
+          // dirty fields fold into the SAME request — promotion never strands edits
+          const payload = { status }
+          if (dirty) {
+            payload.title = $('spark-title').value.trim() || project.title
+            payload.description = $('spark-desc').value
+          }
+          const res = await fetch('/api/projects/' + id, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload),
+          })
+          if (!res.ok) throw new Error('promote failed')
+          if (payload.title !== undefined) { project.title = payload.title; $('spark-title').value = payload.title }
+          if (payload.description !== undefined) { project.description = payload.description; $('spark-desc').value = payload.description }
+          project.status = status
+          draftClear()
+          markDirty(false)
+          window.hibana?.rail?.refresh?.() // the idea leaves the rail's sparks section
+          // S119: a PROMOTED spark records as a PROJECT with its new stage
+          window.hibanaResume?.record?.('project', id, (project.title || '').trim(), status)
+          close()
+          window.hibana?.toast(_t('sparks.promoted', 'Promoted — it now lives under Projects'), 'ok', 4000)
+          const url = queueLanding('/project.html?id=' + encodeURIComponent(id))
+          if (window.hibanaNav) window.hibanaNav.go(url)
+          else window.location.assign(url)
+        } catch {
+          err.textContent = _t('sparks.saveFailed', "Couldn't save — try again")
+        } finally {
+          saveBtn.disabled = false
+        }
+      })
+      dlg.showModal()
     }
 
     async function uploadFiles(files) {
@@ -248,6 +383,18 @@ window.__hibanaPage({
 
     // ---- delegated events (htmx swaps + dynamic renders never need re-binding) ----
     ctx.on('click', async (e) => {
+      // S193: the review queue's hops — prev/next carry the place through the
+      // unreviewed set (delegated: renderQueue re-creates the buttons per render)
+      const qPrev = e.target.closest('#spark-queue-prev')
+      if (qPrev) {
+        if (!qPrev.disabled) { const i = queueIdx(); if (i > 0) queueGo(queue[i - 1].id) }
+        return
+      }
+      const qNext = e.target.closest('#spark-queue-next')
+      if (qNext) {
+        if (!qNext.disabled) { const i = queueIdx(); if (i >= 0 && i < queue.length - 1) queueGo(queue[i + 1].id) }
+        return
+      }
       // S171: tag-click-to-search — the tag name jumps to the Ideas shelf with the
       // ?q= deep-link (soft-nav when the shell router is present, honest load otherwise).
       const tagSearch = e.target.closest('[data-tag-search]')
@@ -358,10 +505,15 @@ window.__hibanaPage({
         .then((r) => {
           if (!r.ok) throw new Error('delete failed')
           window.hibana?.rail?.refresh?.()
-          window.location.assign('/sparks.html')
+          // S193: queue-aware landing — the next unreviewed idea keeps the review
+          // moving; the LAST one closes the loop on the caught-up page
+          window.location.assign(queueLanding('/sparks.html'))
         })
         .catch(() => window.hibana?.toast(_t('sparks.deleteFailed', "Couldn't delete the idea"), 'err'))
     })
+
+    // S193: the promote action — where the idea is actually read
+    $('spark-promote').addEventListener('click', openPromote)
 
     // links (htmx, reused from the project template — same #links target contract)
     const linksUl = $('links')
@@ -393,6 +545,7 @@ window.__hibanaPage({
       // renderPin threw "Cannot read properties of null (reading 'pinned_at')" as a
       // LIVE console error. The repaint is only for a LOADED idea.
       if (project) { renderPin(); renderTags(); renderFolderSelect(); renderMeta() }
+      renderQueue() // S193: the queue bar repaints with FA digits + FA labels
       if (!dirty && !saving) $('spark-status').textContent = ''
       if (project) document.title = (project.title || 'Idea') + ' — Hibana'
     })
@@ -426,6 +579,24 @@ window.__hibanaPage({
         if (window.htmx) { window.htmx.process(linksUl); window.htmx.process(linkForm) }
         loading.hidden = true
         detail.hidden = false
+        // S193: the review queue — fetched only for an idea OLD enough to be in the
+        // unreviewed set (>7d, the notifications' exact boundary); the bar renders
+        // only when THIS idea is in the set AND siblings exist. Transient failures
+        // leave the page standing without the bar (the review still works — the
+        // notifications rows remain the map).
+        if (project.created_at && new Date(project.created_at).getTime() < Date.now() - 7 * 24 * 3600 * 1000) {
+          fetch('/api/notifications', { cache: 'no-store' })
+            .then((r) => (r.ok ? r.json() : Promise.reject(new Error('queue failed'))))
+            .then((body) => {
+              const set = (body.notifications || [])
+                .filter((n) => n.kind === 'unreviewed-spark')
+                .map((n) => ({ id: String(n.id).replace(/^spark-/, ''), title: String(n.detail || ''), date: String(n.date || '') }))
+                .sort((a, b) => a.date.localeCompare(b.date))
+              if (set.some((q) => q.id === id)) queue = set
+              renderQueue()
+            })
+            .catch(() => { /* transient — no bar, no error */ })
+        }
       } catch {
         showNotFound()
       }

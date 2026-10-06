@@ -2253,3 +2253,43 @@ nothing §7-rejected (no animation, no toasts, no interruption).
   hibana.0.4.1.18.zip (584 files, integrity OK, secret-scan clean — the 8
   credential values ONLY in credentials.md; the 4 account-id hits = the
   pre-existing S93 public surface) → --restore-html.
+
+## S192 — THE ATTENTION PATH, round 2 (v0.4.1.19, 2026-10-06)
+
+The 15-minute review round: the app STABLE at v0.4.1.18 → the follow-through on
+S191's own open item (c): "the owner's notifications count is all-info today" —
+the path from the badge to the ACTION got shorter on four legs.
+
+- (a) THE SPARK HOP RETIRES: the unreviewed-spark notifications link DIRECT to
+  /spark.html?id= (the lean page; the old /project.html hop made htmx redirect
+  AFTER the heavy shell flashed empty — the owner's real data is 15 of them).
+- (b) THE SMART DEEP-LINKS: the account-menu row + the mobile More sheet's row +
+  the palette destination link to the LEADING severity's filter (#urgent >
+  #warning > #info, reset to plain on 0). The sheet row's stable data-notif-row
+  hook survives the href rewrite; mobile-nav's normPath drops the hash so
+  mark()'s aria-current stays route-true (the regression caught + guarded).
+- (c) THE PALETTE CARRIES THE COUNT: 'N needing attention' (the Trash grammar,
+  the shared __hibNotifCounts memo — no second fetch, FA digits, 99+ cap).
+- (d) THE HALO FIX: the badge ring tracks the chip's hover/focus surface
+  (var(--bg-soft)) — the white-ring-on-gray-hover mismatch, probe-confirmed.
+- GUARDS: identity-palette S192 ×4 + the notifications.test.ts href pins + the
+  NEW e2e/s192-attention-path.spec.ts ×8 + the s191 mobile spec re-pinned to the
+  stable hook (its href-qualified selector was the ONE full-suite failure — the
+  drift this round's own change caused).
+- E2E lessons: CSS :hover needs a REAL pointer (locator.hover(), dispatched
+  pointerenter doesn't apply it); the hover-opened pop needs the pointer on the
+  cluster before its rows are clickable.
+- OPS LESSON (the round's own scar): a manual QA server sharing the Playwright
+  webServer's command line shares its pkill pattern — killing mine mid-run killed
+  BOTH (333 ERR_CONNECTION_REFUSED, all environmental; the clean re-run passed).
+  Scope the kill by PORT (fuser -k <port>/tcp) or never run them concurrently.
+- LIVE-VERIFY note: the one console 503 during the owner pass was a STALE
+  retained message (transient edge hiccup at an earlier page-load moment) — the
+  fresh console after --clear + reload is EMPTY; direct probe 200. agent-browser's
+  console log persists across navigations: --clear before judging.
+- RELEASE: pushes bdd1c2f + 32a5d94 → CI ×2 + CD ×2 GREEN → live byte-verify ALL
+  GREEN (4 assets ×2 pages + sw v428 + health 63) → the owner-account pass clean
+  on the REAL data (badge 15/info; the smart #info deep-link; the spark rows
+  direct; the palette '15 needing attention'; the ring fix; the mobile sheet;
+  VLM 2/2) → tag v0.4.1.19 on 32a5d94 → zip hibana.0.4.1.19.zip (675 files,
+  integrity OK, secret-scan clean) → --restore-html.

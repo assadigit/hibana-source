@@ -2293,3 +2293,39 @@ the path from the badge to the ACTION got shorter on four legs.
   direct; the palette '15 needing attention'; the ring fix; the mobile sheet;
   VLM 2/2) → tag v0.4.1.19 on 32a5d94 → zip hibana.0.4.1.19.zip (675 files,
   integrity OK, secret-scan clean) → --restore-html.
+
+---
+Task ID: S193 (FINAL — released)
+Agent: Z.ai Code
+
+Task: The 15-minute review round after S192: assess stability, then the
+independently-chosen work — THE REVIEW FLOW (the attention path, round 3).
+
+Work Log (condensed — the full ladder + lessons live in Changelogs row 193):
+- Assessment: local 3017 + LIVE both clean (S192 state confirmed; the prompt's
+  v0.4.1.16/S189 was stale — the worklog is the source of truth, S192 v0.4.1.19).
+- (a) #spark-promote on the lean page (the board's dialog grammar, the dirty
+  fields folded into the ONE PATCH, queue-aware landing); (b) the review queue
+  bar (oldest-first, the in-set + n≥2 render guards, the dirty save-and-
+  continue, FA digits, the .icon.arrow RTL flip); (c) delete joins the queue;
+  (d) the --nav-active-* tint family styling + the label-ink position line.
+- Guards: identity-palette S193 ×4 + e2e/s193-review-flow.spec.ts ×9 (per-test
+  DB re-arms; the CSRF-403 + inert-modal + state-chain + console-after-login
+  lessons banked).
+- Ladder: typecheck 0 · vitest 597/597 · eslint 0 err · build 79 · cache-bust
+  PASS · parity 1570/1570 · FULL e2e 394/394 (17.7m) · smoke PASS · bundle
+  +14.0% · agent-browser QA + VLM clean.
+- RELEASED: 67e7feb + 99b6466 → CI 37401814193 + 37401955313 GREEN → CD
+  37403267025 + 37403371841 GREEN → LIVE v0.4.1.20 byte-verified ALL GREEN +
+  the owner pass clean ('Review queue · 1 of 15', the dialog + cancel, console
+  0, VLM clean) → tag v0.4.1.20 → zip → --restore-html.
+
+Stage Summary:
+- The review flow is whole: badge → smart row → the lean page → the queue
+  bar keeps the place → promote/delete where you read → the caught-up close.
+- Known gaps for the next round: spark-page.js is the one unbundled page
+  controller (the S161 ENTRY_POINTS miss — verified raw, documented); the
+  release-record commit carried the identity-palette block (the feature
+  commit's git add missed src/tests/ — always re-check `git status` before
+  the push); candidates: the palette "Next unreviewed idea" command, the
+  queue's keyboard hops (n/p), the review-flow coverage on the sparks board.

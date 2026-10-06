@@ -1,8 +1,12 @@
 #!/usr/bin/env node
 // S193 live byte-verify — THE REVIEW FLOW must land byte-identical on hibana.ir.
-// The round changed FIVE hashed public assets:
+// The round changed FIVE public assets:
 //   spark-page.js (the queue fetch/render/hops + the promote dialog + the
-//                 queue-aware landings + the dirty save-and-continue),
+//                 queue-aware landings + the dirty save-and-continue) — NOTE:
+//                 spark-page.js is the ONE page controller NOT in the build's
+//                 ENTRY_POINTS (an S161 miss — every other *-page.js is bundled
+//                 + wired); it serves RAW at /js/spark-page.js?v=N, so it is
+//                 verified RAW: live bytes vs the canonical public/js file,
 //   dashboard.css (the .spark-queue bar on the --nav-active-* tint family +
 //                 the .spark-promote secondary),
 //   i18n-en.js / i18n.js (+ the i18n-fa lazy literal: the five S193 keys —
@@ -10,9 +14,11 @@
 //   — plus every shell page's ?v= busts (dashboard.css v40 ×23, i18n-en v97,
 //   i18n.js v151, spark-page.js v6 on spark.html) and sw.js v429.
 //   No migration: schema stays 63.
-// spark.html wires all five directly (the round's own page); projects.html
-// double-covers the shared chrome set. Run with the tree in WIRED form
-// (build --prod --wire-html).
+// spark.html wires the hashed chrome + carries the raw spark-page ref;
+// projects.html double-covers the shared chrome set.
+// RUN WITH THE TREE IN WIRED FORM (build --prod --wire-html) — the wired build's
+// fixpoint rewrites i18n.js's lazy FA literal to /dist/, so canonical-build dist
+// bytes differ from live by that literal (the S191 lesson, 6 bytes).
 import { readFileSync, readdirSync } from 'node:fs'
 import { join } from 'node:path'
 
@@ -21,7 +27,7 @@ const DIST = join(process.cwd(), 'public', 'dist')
 const EXPECT_SW = 'hibana-v429'
 const EXPECT_SCHEMA = '63'
 const PAGE_TARGETS = {
-  'spark.html': ['spark-page', 'dashboard', 'i18n-en', 'i18n'],
+  'spark.html': ['dashboard', 'i18n-en', 'i18n'],
   'projects.html': ['dashboard', 'i18n-en', 'i18n'],
 }
 const results = []
@@ -43,13 +49,11 @@ const check = async (label, liveUrl, localPath) => {
 for (const [page, targets] of Object.entries(PAGE_TARGETS)) {
   // NOTE (the S188..S192 lesson, re-applied): the LIVE pages serve the WIRED
   // form — the ?v= busts live only in the canonical tree; the wired HTML
-  // carries /dist/<hash> refs. The proof: every target extracts a HASHED ref
-  // and the bytes match the local dist build exactly — the ?v= ledger rides
-  // sw.js's VERSION.
+  // carries /dist/<hash> refs. spark-page.js is the exception (raw, below).
   const html = await (await fetch(`${BASE}/${page}`, { cache: 'no-store' })).text()
-  const wiredOk = !html.includes('/js/spark-page.js?v=') && !html.includes('/css/dashboard.css?v=') && !html.includes('/js/i18n-en.js?v=') && !html.includes('/js/i18n.js?v=')
+  const wiredOk = !html.includes('/css/dashboard.css?v=') && !html.includes('/js/i18n-en.js?v=') && !html.includes('/js/i18n.js?v=')
   if (!wiredOk) fail = true
-  results.push(`${wiredOk ? '✓' : '✗'} ${page} serves the WIRED form (no raw /css|js/ ?v= refs)`)
+  results.push(`${wiredOk ? '✓' : '✗'} ${page} serves the WIRED form (no raw /css|js/ ?v= refs, spark-page excepted)`)
   for (const t of targets) {
     const re = new RegExp(`(?:src|href)="(/dist/${t}\\.[a-f0-9]+\\.(?:js|css))"`)
     const ref = re.exec(html)?.[1] || null
@@ -57,6 +61,36 @@ for (const [page, targets] of Object.entries(PAGE_TARGETS)) {
     if (ref && local) await check(`${t} (wired, off ${page})`, BASE + ref, join(DIST, local))
     else { results.push(`✗ ${t}: live ref or local file MISSING (off ${page})`); fail = true }
   }
+}
+
+// spark-page.js — the RAW asset (not in ENTRY_POINTS since S161): the live page
+// carries /js/spark-page.js?v=6; byte-verify the live raw serve against the
+// canonical public/js file. The ?v= bust IS the cache key (this round: v6).
+{
+  const html = await (await fetch(`${BASE}/spark.html`, { cache: 'no-store' })).text()
+  const ref = /(?:src|href)="(\/js\/spark-page\.js\?v=\d+)"/.exec(html)?.[1] || null
+  if (ref && ref.endsWith('v=6')) {
+    await check('spark-page.js (raw, the S161 exception, v=6)', BASE + ref, join(process.cwd(), 'public', 'js', 'spark-page.js'))
+  } else {
+    results.push(`✗ spark-page.js: live raw ref MISSING or wrong version (got ${ref})`); fail = true
+  }
+}
+
+// The lazily-injected FA dictionary (the S188/S191 lesson): its hashed ref lives
+// as a literal inside the LIVE i18n.js bundle (the build's fixpoint rewrite).
+// Extract + byte-verify the twin — the five S193 FA keys ride it.
+{
+  const html = await (await fetch(`${BASE}/spark.html`, { cache: 'no-store' })).text()
+  const i18nRef = /(?:src|href)="(\/dist\/i18n\.[a-f0-9]+\.js)"/.exec(html)?.[1]
+  if (i18nRef) {
+    const i18nLive = await (await fetch(BASE + i18nRef, { cache: 'no-store' })).text()
+    // the literal rides the minifier's DOUBLE quotes (r.src="/dist/i18n-fa.<hash>.js") —
+    // accept either quote style.
+    const faRef = /[ "']?(\/dist\/i18n-fa\.[a-f0-9]+\.js)["']?/.exec(i18nLive)?.[1]
+    const faLocal = localFile('i18n-fa')
+    if (faRef && faLocal) await check(`i18n-fa (the lazy literal inside the live i18n.js)`, BASE + faRef, join(DIST, faLocal))
+    else { results.push('✗ i18n-fa: lazy literal or local file MISSING'); fail = true }
+  } else { results.push('✗ i18n.js wired ref MISSING (FA twin unprovable)'); fail = true }
 }
 
 // The unhashed shell: sw.js carries the VERSION ledger (v429).

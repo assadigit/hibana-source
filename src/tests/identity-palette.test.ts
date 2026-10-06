@@ -604,3 +604,66 @@ describe('S192 the attention path — the smart deep-links + the ring fix', () =
     expect(quicknotesCss).toMatch(/\.rail-user-chip:focus-visible \.chip-notif-badge/)
   })
 })
+
+// S193 — THE REVIEW FLOW: the queue bar's token family + the promote action's
+// grammar + the queue-aware landings. The bar rides the SAME --nav-active-* teal
+// tint family the rail (S189) and the mobile bar (S190) proved on their own
+// surfaces — the position line carries the label ink rung (the .muted rung would
+// sit under the 4.5:1 small-text bar on the blended tint).
+describe('S193 the review flow — the queue bar + the promote action on the lean page', () => {
+  const dashboardCss = readFileSync(join(process.cwd(), 'public', 'css', 'dashboard.css'), 'utf8')
+  const sparkJs = readFileSync(join(process.cwd(), 'public', 'js', 'spark-page.js'), 'utf8')
+  const sparkHtml = readFileSync(join(process.cwd(), 'public', 'spark.html'), 'utf8')
+
+  it('the queue bar paints the --nav-active-* family (the S189/S190 grammar)', () => {
+    const bar = dashboardCss.slice(dashboardCss.indexOf('.spark-queue {'))
+    const barBody = bar.slice(0, bar.indexOf('}') + 1)
+    expect(barBody).toMatch(/background:\s*var\(--nav-active-bg\)/)
+    expect(barBody).toMatch(/border:\s*1px solid var\(--nav-active-bg-hover\)/)
+    expect(barBody).toMatch(/border-radius:\s*var\(--radius-sm\)/)
+    // never the CSS opacity property (the S189 law: alpha rides the background COLOR)
+    expect(barBody).not.toMatch(/opacity/)
+    // the position line rides the label ink proven on this exact tint
+    const pos = dashboardCss.slice(dashboardCss.indexOf('.spark-queue-pos {'))
+    expect(pos.slice(0, pos.indexOf('}') + 1)).toMatch(/color:\s*var\(--nav-active-label\)/)
+    expect(pos).toMatch(/font-variant-numeric:\s*tabular-nums/)
+  })
+
+  it('the bar is CONTEXTUAL: fetched only for an old idea, rendered only IN the set with siblings', () => {
+    // the fetch gate: >7d (the notifications' exact unreviewed boundary)
+    expect(sparkJs).toMatch(/new Date\(project\.created_at\)\.getTime\(\) < Date\.now\(\) - 7 \* 24 \* 3600 \* 1000/)
+    // the set: the notifications JSON's unreviewed-spark rows, oldest first
+    expect(sparkJs).toMatch(/n\.kind === 'unreviewed-spark'/)
+    expect(sparkJs).toMatch(/\.sort\(\(a, b\) => a\.date\.localeCompare\(b\.date\)\)/)
+    // the render guard: in-set AND ≥2 (a lone unreviewed idea has no queue)
+    expect(sparkJs).toMatch(/queue\.length < 2 \|\| idx < 0/)
+    // the position: "i of n" with FA digits (the S171 faDigits helper)
+    expect(sparkJs).toMatch(/spark\.queuePos[\s\S]{0,120}faDig\(idx \+ 1\)/)
+  })
+
+  it('the promote action: the board dialog grammar + dirty fields folded into ONE PATCH', () => {
+    // the button rides the lean page (ghost secondary — the ONE-primary rule)
+    expect(sparkHtml).toMatch(/id="spark-promote" class="ghost small spark-promote"/)
+    expect(sparkHtml).toMatch(/data-i18n="sparks\.promote"/)
+    // the dialog: the board's stage set + the shared modal grammar
+    expect(sparkJs).toMatch(/const PROMOTE_STAGES = \['planning', 'queued', 'developing', 'awaiting_dev', 'operational'\]/)
+    expect(sparkJs).toMatch(/dlg\.id = 'spark-promote-dialog'/)
+    // dirty title/description join the status PATCH — the words are never lost
+    expect(sparkJs).toMatch(/const payload = \{ status \}[\s\S]{0,140}payload\.title = \$\('spark-title'\)\.value\.trim\(\) \|\| project\.title/)
+    // promoted = the resume record switches to the PROJECT kind (the S119 grammar)
+    expect(sparkJs).toMatch(/hibanaResume\?\.record\?\.\('project', id/)
+    // the toast reuses the board's promoted key — zero new copy for the action
+    expect(sparkJs).toMatch(/sparks\.promoted[\s\S]{0,60}Promoted — it now lives under Projects/)
+  })
+
+  it('the queue-aware landings: next idea, the caught-up close, the natural fallbacks', () => {
+    // promote: next unreviewed idea in-queue; the new project's page without one
+    expect(sparkJs).toMatch(/queueLanding\('\/project\.html\?id=' \+ encodeURIComponent\(id\)\)/)
+    // delete: next idea in-queue; the shelf without one
+    expect(sparkJs).toMatch(/queueLanding\('\/sparks\.html'\)/)
+    // the landing rule: next exists → the next idea; else the notifications close
+    expect(sparkJs).toMatch(/next \? '\/spark\.html\?id=' \+ encodeURIComponent\(next\.id\) : '\/notifications\.html'/)
+    // the deliberate queue hop saves FIRST when dirty (never lose the words)
+    expect(sparkJs).toMatch(/spark\.queueUnsaved[\s\S]{0,80}save\(\)\.then\(\(ok\) => \{ if \(ok\) leave\(\) \}\)/)
+  })
+})

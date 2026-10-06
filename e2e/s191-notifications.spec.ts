@@ -210,7 +210,10 @@ test('mobile 390: the More sheet row carries its pill; the sheet opens with a re
   await moreBtn.click()
   const sheet = page.locator('#mobile-more-sheet')
   await expect(sheet).toHaveClass(/open/)
-  const row = sheet.locator('a.mobile-more-row[href="/notifications.html"]')
+  // S192 re-pin: the row's href now carries the smart deep-link (#urgent etc. once
+  // the counts land), so the stable data-notif-row hook owns the lookup — never
+  // the rewritten href.
+  const row = sheet.locator('a.mobile-more-row[data-notif-row]')
   const pill = row.locator('.menu-count-pill')
   await expect(pill).toHaveText('4')
   // FA digits under fa — pinned in the FA twin below; here the EN digits

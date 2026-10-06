@@ -115,6 +115,12 @@ describe('GET /api/notifications (the attention surface)', () => {
       expect(html).toContain('The overdue client task')
       expect(html).toContain('The old unreviewed spark')
       expect(html).toContain('The stale project')
+      // S192: sparks link DIRECT to the LEAN page (no /project.html hop — every other
+      // spark surface links direct; the hop flashed the empty heavy shell + wasted a
+      // round trip). Projects keep /project.html.
+      expect(html).toMatch(/href="\/spark\.html\?id=p-spark"/)
+      expect(html).toMatch(/href="\/project\.html\?id=p-due"/)
+      expect(html).not.toMatch(/href="\/project\.html\?id=p-spark"/)
       // The flat-list legacy shape is gone: the fragment's root is the groups
       // wrapper, and every list rides inside a group section (3 sections = 3 lists).
       expect(html.startsWith('<div class="notif-groups">')).toBe(true)

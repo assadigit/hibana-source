@@ -24,7 +24,33 @@
     { id: 'qa-sadhana', label: () => _t('nav.sadhana', 'To-do list'), icon: 'target', go: '/to-do-list' },
     { id: 'qa-canvas', label: () => _t('nav.canvas', 'Canvas'), icon: 'pencil', go: '/canvas.html' },
     { id: 'qa-calendar', label: () => _t('nav.calendar', 'Calendar'), icon: 'calendar', go: '/calendar.html' },
-    { id: 'qa-notifications', label: () => _t('nav.notifications', 'Notifications'), icon: 'bell', go: '/notifications.html' },
+    // S192: the attention path — the Notifications row carries the LIVE count (the
+    // Trash sublabel pattern, sourced from hib-init's shared __hibNotifCounts memo —
+    // no second fetch) and its destination is the LEADING severity's filter
+    // (#urgent > #warning > #info): the palette lands where the attention is,
+    // not on the unfiltered page.
+    {
+      id: 'qa-notifications',
+      label: () => _t('nav.notifications', 'Notifications'),
+      icon: 'bell',
+      sub: () => {
+        const d = notifCounts
+        if (!d || typeof d.count !== 'number' || d.count <= 0) return ''
+        const fa = document.documentElement.lang === 'fa'
+        const n = d.count > 99 ? '99+' : String(d.count)
+        const shown = fa ? n.replace(/\d/g, (dg) => '۰۱۲۳۴۵۶۷۸۹'[+dg]) : n
+        return _t('notif.needsAttention', '{n} needing attention').split('{n}').join(shown)
+      },
+      run: () => {
+        const d = notifCounts
+        const hash = d && typeof d.count === 'number' && d.count > 0
+          ? (d.urgent > 0 ? '#urgent' : d.warning > 0 ? '#warning' : '#info')
+          : ''
+        const href = '/notifications.html' + hash
+        if (window.hibanaNav) window.hibanaNav.go(href)
+        else window.location.href = href
+      },
+    },
     { id: 'qa-whiteboard', label: () => _t('nav.whiteboard', 'Notebook'), icon: 'book', go: '/whiteboard.html' },
     { id: 'qa-reports', label: () => _t('nav.reports', 'Reports'), icon: 'clipboard', go: '/reports.html' },
     { id: 'qa-archive', label: () => _t('nav.archive', 'Archive'), icon: 'archive', go: '/archive.html' },
@@ -87,6 +113,18 @@
   // S52: Trash count for the palette sublabel — fetched once per session (the same
   // once-then-cache pattern as tags). -1 = not fetched yet; 0+ = live count.
   let trashCount = -1
+  // S192: the notifications counts — NOT a separate fetch: hib-init.js already
+  // pulls /api/notifications?counts=1 on every authed page load (the chrome badge)
+  // and keeps the latest answer on window.__hibNotifCounts; the palette reads the
+  // shared memo on every open + rides the 'hibana:notif-count' event for repaints
+  // while it's open. Fail-silent: no counts, no sublabel.
+  let notifCounts = null
+  function readNotifCounts() {
+    const d = window.__hibNotifCounts
+    if (d && typeof d.count === 'number') notifCounts = d
+    if (notifCounts && dlg && dlg.open) refresh(input ? input.value : '')
+  }
+  document.addEventListener('hibana:notif-count', readNotifCounts)
   async function ensureTrashCount() {
     if (trashCount >= 0) return
     try {
@@ -608,6 +646,7 @@
     ensureTags() // R4.2: fetch tags once, cache for subsequent opens
     ensureTrashCount() // S52: same once-per-session pattern for the Trash count sublabel
     ensureIdeaFolders() // S171: the Ideas shelf's folders, same once-per-session pattern
+    readNotifCounts() // S192: the shared chrome memo — no fetch of our own
     input.value = ''
     refresh('')
     dlg.showModal()

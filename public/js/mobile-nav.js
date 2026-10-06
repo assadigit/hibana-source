@@ -30,7 +30,9 @@
     // Phase 6 item 4: Notebook sits next to Canvas in the mobile sheet too.
     { href: '/whiteboard.html', i18n: 'nav.whiteboard', label: 'Notebook', icon: '<rect x="5" y="3" width="14" height="18" rx="2"/><path d="M9 8h6M9 12h6M9 16h4"/>' },
     { href: '/calendar.html', i18n: 'nav.calendar', label: 'Calendar', icon: '<rect x="3.5" y="5" width="17" height="16" rx="2"/><path d="M3.5 9.5h17M8 3v4M16 3v4"/>' },
-    { href: '/notifications.html', i18n: 'nav.notifications', label: 'Notifications', icon: '<path d="M18 8.5a6 6 0 0 0-12 0c0 6.5-2.5 7.8-2.5 9h17c0-1.2-2.5-2.5-2.5-9"/><path d="M10 21a2 2 0 0 0 4 0"/>' },
+    // S192: notif:true marks the row for paintNotifCount — a stable hook that
+    // survives the smart deep-link rewriting the href (#urgent etc.).
+    { href: '/notifications.html', i18n: 'nav.notifications', label: 'Notifications', notif: true, icon: '<path d="M18 8.5a6 6 0 0 0-12 0c0 6.5-2.5 7.8-2.5 9h17c0-1.2-2.5-2.5-2.5-9"/><path d="M10 21a2 2 0 0 0 4 0"/>' },
     { href: '/reports.html', i18n: 'nav.reports', label: 'Reports', icon: '<path d="M4 20V14M10 20V10M16 20V4"/>' },
     { href: '/archive.html', i18n: 'nav.archive', label: 'Archive', icon: '<rect x="2" y="4" width="20" height="4"/><path d="M4 8v10a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8"/><path d="M10 12h4"/>' },
     { href: '/gallery.html', i18n: 'nav.gallery', label: 'Gallery', icon: '<rect x="3.5" y="5" width="17" height="14" rx="2"/><circle cx="8" cy="10" r="1.5"/><path d="M21 16l-5-5L5 19"/>' },
@@ -49,7 +51,10 @@
   //      through window.hibanaMobileNav on every soft navigation.
   // Path normalization: prod serves pretty URLs (CF assets auto-trailing-slash: /projects
   // for /projects.html), /app is the dashboard shell, /timeline 301s to /reports.html.
-  const normPath = (p) => (p === '/app' ? '/dashboard' : p.replace(/\.html$/, ''))
+  // S192: normPath now also drops the hash — the smart deep-link rewrites the
+  // notifications row's href to /notifications.html#urgent etc., and mark()'s
+  // aria-current comparison must keep matching the ROUTE, hash or no hash.
+  const normPath = (p) => (p === '/app' ? '/dashboard' : String(p).split('#')[0].replace(/\.html$/, ''))
   const isSheetPath = (p) =>
     p === '/timeline' || SHEET_LINKS.some((row) => normPath(row.href) === p)
 
@@ -134,7 +139,7 @@
         <span data-i18n="nav.searchCmd">Search &amp; commands</span>
       </button>
       <div class="mobile-more-div" role="separator"></div>
-      ${SHEET_LINKS.map((row) => `<a class="mobile-more-row"${row.adminOnly ? ' data-admin-link hidden' : ''} href="${row.href}">
+      ${SHEET_LINKS.map((row) => `<a class="mobile-more-row"${row.adminOnly ? ' data-admin-link hidden' : ''}${row.notif ? ' data-notif-row' : ''} href="${row.href}">
         ${svg(row.icon)}
         <span data-i18n="${row.i18n}">${row.label}</span>
       </a>`).join('')}
@@ -280,9 +285,12 @@
   // severity-tinted pill at the row's inline-end (the S188 badge-column pattern).
   // hib-init.js owns the fetch + dispatches 'hibana:notif-count'; this paints (and
   // re-paints — the sheet is built lazily, and the boot data may already be there).
+  // S192: the row's href is the SMART deep-link too (the leading severity's filter
+  // — the same #urgent > #warning > #info order hib-init paints on the desktop menu
+  // row); the data-notif-row hook keeps the lookup stable across the rewrites.
   function paintNotifCount(d) {
     if (!d || typeof d.count !== 'number') return
-    const row = sheet?.querySelector('a.mobile-more-row[href="/notifications.html"]')
+    const row = sheet?.querySelector('a.mobile-more-row[data-notif-row]')
     if (!row) return
     const isFA = window.hibanaI18n?.lang?.() === 'fa' || document.documentElement.lang === 'fa'
     const faNum = (v) => String(v).replace(/[0-9]/g, (x) => '۰۱۲۳۴۵۶۷۸۹'[+x])
@@ -298,7 +306,11 @@
       }
       pill.className = 'menu-count-pill menu-count-' + sev
       pill.textContent = text
-    } else if (pill) pill.remove()
+      row.setAttribute('href', '/notifications.html#' + sev)
+    } else {
+      if (pill) pill.remove()
+      row.setAttribute('href', '/notifications.html')
+    }
   }
   document.addEventListener('hibana:notif-count', (e) => paintNotifCount(e.detail))
   if (window.__hibNotifCounts && !(window.__hibNotifCounts instanceof Promise)) {

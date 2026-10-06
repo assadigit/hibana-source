@@ -277,6 +277,11 @@
           pill.className = 'menu-count-pill menu-count-' + sev
           pill.textContent = pillText(d.count)
         } else if (pill) pill.remove()
+        // S192: the smart deep-link — the row lands on the LEADING severity's filter
+        // (#urgent > #warning > #info): two clicks from the badge to exactly the list
+        // that needs the attention, never the unfiltered page when a filter matters.
+        // count=0 resets to the plain page.
+        row.setAttribute('href', d.count > 0 ? '/notifications.html#' + sev : '/notifications.html')
       }
       // (3) the mobile More sheet row — mobile-nav.js owns that DOM; the event lets
       // it paint (and repaint) whenever it rebuilds the sheet.

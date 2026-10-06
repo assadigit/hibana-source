@@ -1965,3 +1965,14 @@ body.pd-detail-lock { overflow: hidden; }
 .menu-count-urgent { background: var(--danger-soft); color: var(--danger); border-color: color-mix(in srgb, var(--danger) 30%, transparent); }
 .menu-count-warning { background: var(--badge-pending-bg); color: var(--badge-pending-fg); border-color: color-mix(in srgb, var(--badge-pending-fg) 30%, transparent); }
 .menu-count-info { background: var(--badge-spark-bg); color: var(--badge-spark-fg); border-color: color-mix(in srgb, var(--badge-spark-fg) 30%, transparent); }
+
+/* S192: the badge ring tracks the chip's hover/focus state — the ring paints
+   var(--card) for optical separation off the avatar, but the chip's own hover
+   tint is var(--bg-soft): under the pointer the white ring read as a mismatched
+   halo square on the gray tint (probe: rgb(255,255,255) on rgb(222,222,222)).
+   The ring now swaps to the SAME surface the chip paints, hover AND the keyboard
+   focus ring state, so the pill always reads as cut from the surface beneath it. */
+.rail-user-chip:hover .chip-notif-badge,
+.rail-user-chip:focus-visible .chip-notif-badge {
+  box-shadow: 0 0 0 2px var(--bg-soft);
+}

@@ -109,8 +109,13 @@ export function notificationsRoutes(cfg: Config) {
     for (const p of unreviewedSparks) {
       notifs.push({
         id: `spark-${p.id}`, kind: 'unreviewed-spark', severity: 'info',
+        // S192: sparks link DIRECT to the LEAN idea page (S161) — every other spark
+        // surface does (nav.js sparkHref, resume.js urlFor, the sparks board); the old
+        // /project.html?id= hop made htmx answer with an HX-Redirect AFTER the heavy
+        // shell had flashed empty — one wasted round trip on the app's most-visited
+        // attention row.
         title: trL(lang, 'Unreviewed idea', 'ایدهٔ بررسی‌نشده'),
-        detail: p.title, href: `/project.html?id=${p.id}`, date: p.created_at.slice(0, 10),
+        detail: p.title, href: `/spark.html?id=${p.id}`, date: p.created_at.slice(0, 10),
       })
     }
     for (const p of upcomingDeadlines) {

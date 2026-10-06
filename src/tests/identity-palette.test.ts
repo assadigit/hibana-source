@@ -550,3 +550,57 @@ describe('S191 the attention surface — the chrome pills + the pending pair', (
     expect(contrast(tokenOf(darkCss, '--badge-spark-fg')!, tokenOf(darkCss, '--bg')!)).toBeGreaterThanOrEqual(4.5)
   })
 })
+
+describe('S192 the attention path — the smart deep-links + the ring fix', () => {
+  const quicknotesCss = readFileSync(join(process.cwd(), 'public', 'css', 'quicknotes.css'), 'utf8')
+  const paletteJs = readFileSync(join(process.cwd(), 'public', 'js', 'command-palette.js'), 'utf8')
+  const hibInitJs = readFileSync(join(process.cwd(), 'public', 'js', 'hib-init.js'), 'utf8')
+  const mobileNavJs = readFileSync(join(process.cwd(), 'public', 'js', 'mobile-nav.js'), 'utf8')
+  const notifRoute = readFileSync(join(process.cwd(), 'src', 'routes', 'notifications.ts'), 'utf8')
+
+  it('the spark notifications link DIRECT to the lean page (no /project.html hop)', () => {
+    // the S161 doctrine, finally consistent on the attention surface too
+    expect(notifRoute).toMatch(/unreviewedSparks\) \{[\s\S]{0,600}href: `\/spark\.html\?id=\$\{p\.id\}`/)
+    // the spark block must NOT link the heavy page anymore (the comment may mention
+    // the retired hop — only the href form is the contract)
+    const sparkBlock = notifRoute.slice(notifRoute.indexOf('unreviewedSparks) {'), notifRoute.indexOf('upcomingDeadlines) {'))
+    expect(sparkBlock).not.toContain('href: `/project.html?id=')
+    // the project kinds keep the heavy page
+    expect(notifRoute).toMatch(/overdueProjects\) \{[\s\S]{0,300}href: `\/project\.html\?id=/)
+  })
+
+  it('the chrome rows are SMART deep-links: the leading severity\'s filter', () => {
+    // hib-init paints the account-menu row's href with the severity hash + resets on 0
+    expect(hibInitJs).toMatch(/row\.setAttribute\('href', d\.count > 0 \? '\/notifications\.html#' \+ sev : '\/notifications\.html'\)/)
+    // mobile-nav paints the sheet row the same way
+    expect(mobileNavJs).toMatch(/row\.setAttribute\('href', '\/notifications\.html#' \+ sev\)/)
+    expect(mobileNavJs).toMatch(/row\.setAttribute\('href', '\/notifications\.html'\)/)
+    // the sheet row lookup rides the STABLE data-notif-row hook (survives the rewrite)
+    expect(mobileNavJs).toMatch(/a\.mobile-more-row\[data-notif-row\]/)
+    expect(mobileNavJs).toMatch(/notif: true/)
+    // normPath drops the hash — the aria-current comparison stays route-true
+    expect(mobileNavJs).toMatch(/String\(p\)\.split\('#'\)\[0\]/)
+  })
+
+  it('the palette\'s Notifications row: the live-count sublabel + the smart destination', () => {
+    // the count rides the row (the Trash pattern) via the SHARED memo — no second fetch
+    expect(paletteJs).toMatch(/window\.__hibNotifCounts/)
+    expect(paletteJs).toMatch(/'hibana:notif-count'/)
+    expect(paletteJs).toMatch(/readNotifCounts\(\)/)
+    // the sublabel reuses the S191 key with the FA digits + the 99+ cap
+    expect(paletteJs).toMatch(/notif\.needsAttention[\s\S]{0,200}needing attention/)
+    expect(paletteJs).toMatch(/d\.count > 99 \? '99\+'/)
+    // the destination is the leading severity's filter
+    expect(paletteJs).toMatch(/d\.urgent > 0 \? '#urgent' : d\.warning > 0 \? '#warning' : '#info'/)
+  })
+
+  it('the badge ring tracks the chip\'s hover/focus surface (the halo fix)', () => {
+    // the ring paints --card at rest (the S191 pin) and --bg-soft under hover/focus
+    const rest = quicknotesCss.slice(quicknotesCss.indexOf('.chip-notif-badge {'))
+    expect(rest.slice(0, rest.indexOf('}') + 1)).toMatch(/box-shadow:\s*0 0 0 2px var\(--card\)/)
+    const hover = quicknotesCss.slice(quicknotesCss.indexOf('.rail-user-chip:hover .chip-notif-badge'))
+    const hoverBody = hover.slice(0, hover.indexOf('}') + 1)
+    expect(hoverBody).toMatch(/box-shadow:\s*0 0 0 2px var\(--bg-soft\)/)
+    expect(quicknotesCss).toMatch(/\.rail-user-chip:focus-visible \.chip-notif-badge/)
+  })
+})

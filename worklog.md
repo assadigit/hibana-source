@@ -2391,3 +2391,59 @@ Stage Summary:
   palette "Next unreviewed idea" command, the queue's keyboard hops (n/p),
   spark-page.js into the build's ENTRY_POINTS, the mobile bar's long-press
   affordances, the owner's next CHANGE (8+) when one arrives.
+
+---
+Task ID: S195 (FINAL — released)
+Agent: Z.ai Code
+
+Task: The owner's report: "Fix this close button" (the rail panel head's
+.rail-panel-close) — fix, push, commit, deploy.
+
+Work Log (condensed — the full ladder + lessons live in Changelogs row 195):
+- Fresh sandbox (repo re-cloned at 8ebd569 = v0.4.1.20 state; bun install +
+  the S194 close-out intact). Local QA server on 3017 + a seeded user for the
+  probe work.
+- THE DIAGNOSIS (pixel-level, not vibes): the .icon stroke-width 1.8 lives in
+  the 24-unit viewBox but the icon rendered at 1.1em = 17.6px → an effective
+  1.32px stroke → 1px anti-aliased runs (pixel-scanned: the X's center row
+  carried 3 dark pixels, the arms 1px each). The crossing X has no vertex mass
+  (the chevron's point concentrates ink; the X reads lighter at equal stroke) —
+  three VLM audits concurred, both themes, worst in dark. And the 32px box sat
+  under the app's own 40px coarse-pointer floor (misc.css) and its 44px
+  .icon-btn recipe.
+- THE FIX (the shared S97 recipe, close + fold twin in lockstep): the box
+  2rem→2.25rem (36px; 40px at coarse pointers); the icon 1.1em→1.25rem (20px,
+  the .rail-btn .icon size); the X's path carries its own optical
+  stroke-width 2 (the ONE deliberate fork of the 1.8 system — an
+  own-declaration presentation attribute beats the inherited value;
+  live-probed 2px vs 1.8px). The head grows 55→59px, shoulders balanced 12/11.
+  The quiet grammar unchanged (transparent rest, --muted, bg-soft hover, the
+  separate 2px --brand ring). The S98 goto chip keeps its 2rem (the 32px rows).
+- GUARDS: identity-palette S195 ×3 + the NEW e2e/s195-panel-close.spec.ts ×7.
+  E2E lessons banked: wait for the panel's async DATA before hovering (the
+  re-render replaces the pre-data node); expect.poll for the hover read (the
+  recalc can trail the mouse a frame); the LIGHT --brand is #4A9FA3
+  rgb(74,159,163) — NOT the S189 teal #2F7B7F (a token mixup caught in pass 1).
+- Cache-bust: layout.css v63→v64 ×26 · nav.js v42→v43 ×18 · sw v429→v430 ·
+  package 0.4.1.20→0.4.1.21 · parity 1570/1570 unchanged.
+- LADDER: typecheck 0 · vitest 600/600 (+3) · eslint 0 err (162-warn baseline)
+  · build 79 · cache-bust PASS · FULL e2e 401/401 (394 + 7, 16.7m, zero
+  flakes) · smoke ALL PASS · bundle-size PASS (+14.0%) · agent-browser QA
+  clean (EN light + dark + FA/RTL; computed probes EXACT; VLM EXCELLENT both
+  themes).
+- RELEASED: push 94b91de → CI 545 GREEN → CD 398 GREEN → LIVE hibana.ir @
+  v0.4.1.21 — qa/s195-live-verify.mjs ALL GREEN (layout + nav IDENTICAL off
+  projects.html AND notes.html + the 3 CSS probes + the stroke probe + sw
+  v430 + health ok/up/63) + the owner-account pass clean on the REAL data
+  (geometry EXACT; tree + close driven; console 0; VLM PASS) → tag v0.4.1.21 →
+  zip hibana.0.4.1.21.zip (598 files, integrity OK, secret-scan clean) →
+  healthchecks both UP (natural ticks).
+
+Stage Summary:
+- LIVE: hibana.ir @ v0.4.1.21 (S195 — the panel close-button fix), sw v430,
+  schema 63; tag v0.4.1.21; the zip in /home/z/upload + the download folder.
+- The owner's button is fixed: a solid, matched, 36px-target close button in
+  both themes + RTL, guarded by 3 unit pins + 7 e2e tests.
+- The owner's NEXT request (recorded): a fresh session for TESTS + UI/UX
+  optimizations + engineering/codebase health — a prompt was delivered in
+  chat; next rounds should read it as the standing brief.

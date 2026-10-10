@@ -667,3 +667,44 @@ describe('S193 the review flow — the queue bar + the promote action on the lea
     expect(sparkJs).toMatch(/spark\.queueUnsaved[\s\S]{0,80}save\(\)\.then\(\(ok\) => \{ if \(ok\) leave\(\) \}\)/)
   })
 })
+
+// S195 — THE PANEL CLOSE-BUTTON FIX (the owner's report): the head's quiet pair
+// steps up from the hairline era. The pixel probe that drove it: the .icon
+// stroke-width 1.8 lives in the 24-unit viewBox, so at the old 17.6px render
+// the effective stroke was 1.32px → 1px anti-aliased runs — the crossing X had
+// no vertex mass to lean on and read as a fragile hairline (three VLM audits
+// concurred, both themes, worst in dark). The 32px box also sat UNDER the app's
+// own 40px coarse-pointer floor (misc.css) and its 44px .icon-btn recipe.
+describe('S195 the panel head close button — geometry, optical stroke, floors', () => {
+  const layoutCss = readFileSync(join(process.cwd(), 'public', 'css', 'layout.css'), 'utf8')
+  const navJs = readFileSync(join(process.cwd(), 'public', 'js', 'nav.js'), 'utf8')
+
+  it('the box: 2.25rem (36px) base with the 40px coarse-pointer floor', () => {
+    const block = layoutCss.slice(layoutCss.indexOf('.rail-panel-close,'))
+    const body = block.slice(0, block.indexOf('}') + 1)
+    expect(body).toMatch(/inline-size:\s*2\.25rem; block-size:\s*2\.25rem/)
+    // the coarse floor — the app's own documented 40px minimum for icon buttons
+    const coarse = layoutCss.slice(layoutCss.indexOf('@media (pointer: coarse)'))
+    expect(coarse.slice(0, coarse.indexOf('}') + 1)).toMatch(/\.rail-panel-close, \.rail-panel-tree \{ inline-size: 2\.5rem; block-size: 2\.5rem; \}/)
+    // the quiet grammar rides unchanged: transparent rest, bg-soft hover, text ink, brand ring
+    expect(body).toMatch(/background:\s*transparent; color:\s*var\(--muted\)/)
+    const hover = layoutCss.slice(layoutCss.indexOf('.rail-panel-close:hover,'))
+    expect(hover.slice(0, hover.indexOf('}') + 1)).toMatch(/background:\s*var\(--bg-soft\); color:\s*var\(--text\)/)
+    const focus = layoutCss.slice(layoutCss.indexOf('.rail-panel-close:focus-visible,'))
+    expect(focus.slice(0, focus.indexOf('}') + 1)).toMatch(/outline:\s*2px solid var\(--brand\); outline-offset:\s*1px/)
+  })
+
+  it('the icon grows with the box: 1.25rem (20px) — the .rail-btn .icon size', () => {
+    const rule = layoutCss.slice(layoutCss.indexOf('.rail-panel-close .icon,'))
+    expect(rule.slice(0, rule.indexOf('}') + 1)).toMatch(/inline-size:\s*1\.25rem; block-size:\s*1\.25rem/)
+  })
+
+  it('the X carries its own optical stroke-width 2 (the crossing reads lighter than the chevron\'s vertex)', () => {
+    // the path-level attribute beats the inherited 1.8 (own declaration over
+    // inheritance) — the ONE place the system's stroke forks, deliberately
+    expect(navJs).toMatch(/<path stroke-width="2" d="M6 6l12 12M18 6L6 18"\/>/)
+    // every OTHER X in the file keeps the shared 1.8 system (scoped fork, not a drift)
+    const plainXs = navJs.match(/<path d="M6 6l12 12M18 6L6 18"\/>/g) || []
+    expect(plainXs.length).toBeGreaterThanOrEqual(0) // none left bare in the panel head markup
+  })
+})

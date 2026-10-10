@@ -683,8 +683,9 @@
     // S98 (the goto chips): a group carrying opts.href rides its head inside a
     // FLEX ROW — the toggle button (flex:1, its contract untouched) + the chip
     // as its SIBLING <a> (an anchor can never nest inside a <button>). The chip
-    // is the .rail-panel-close recipe (quiet 2rem icon, muted ink, bg-soft
-    // hover, brand focus ring) and lands the deep link on the exact target via
+    // is the .rail-panel-close recipe's quiet-icon grammar (muted ink, bg-soft
+    // hover, brand focus ring — the chip itself stays 2rem, the row's own height)
+    // and lands the deep link on the exact target via
     // the S97 arrival system. href-less groups keep the exact FLAT markup —
     // the other panels' DOM is untouched (zero churn).
     const inner = opts.href
@@ -1158,13 +1159,13 @@
       '<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14m0 0-6-6m6 6-6 6"/></svg></a>' +
       // S97 (the tree fold): one button collapses/expands EVERY group in the
       // panel (incl. nested sub-groups) — the .rail-panel-close recipe (quiet
-      // 2rem icon, muted ink, bg-soft hover, brand focus ring). syncRailTreeBtn
+      // 2.25rem icon, muted ink, bg-soft hover, brand focus ring). syncRailTreeBtn
       // mirrors the tree's state (label/icon/aria/title flip together).
       '<button type="button" class="rail-panel-tree" data-rail-tree' +
       ' aria-label="' + escHtml(railT('rail.collapseAll', 'Collapse all')) + '" data-i18n-aria-label="rail.collapseAll">' +
       '<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></button>' +
       '<button type="button" class="rail-panel-close" data-rail-close aria-label="' + escHtml(railT('rail.close', 'Close panel')) + '" data-i18n-aria-label="rail.close">' +
-      '<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button>' +
+      '<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path stroke-width="2" d="M6 6l12 12M18 6L6 18"/></svg></button>' +
       '</div>'
     // S93: every panel section reads /api/rail (the dashboard panel is retired —
     // its icon navigates; see RAIL_SECTIONS).

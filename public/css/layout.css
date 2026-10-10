@@ -321,14 +321,27 @@ body.rail-panel-open .rail-panel { visibility: visible; opacity: 1; transition: 
 }
 .rail-panel-open-link:hover { background: var(--accent-soft); text-decoration: none; }
 /* S97 (the tree fold): the panel head's fold button rides the .rail-panel-close
-   recipe — a quiet 2rem icon button, muted ink, bg-soft hover, brand focus ring. */
+   recipe — a quiet icon button, muted ink, bg-soft hover, brand focus ring.
+   S195 (the owner's fix — the close button): the box steps 2rem→2.25rem (36px)
+   and the icon grows with it (1.25rem, the .rail-btn .icon size — the old
+   17.6px render turned the X's stroke into a hairline: the 1.8 stroke lives in
+   the 24-unit viewBox, so at 17.6px the math gives 1.32px, pixel-probed 1px
+   runs — and the 32px target sat under the app's own 40px coarse-pointer
+   floor). Coarse pointers get the full 40px box; the X's path carries its own
+   optical stroke-width 2 in nav.js (at equal stroke the crossing X reads
+   lighter than the chevron's vertex — the pair now reads matched at 20px). */
 .rail-panel-close,
 .rail-panel-tree {
   display: grid; place-items: center;
-  inline-size: 2rem; block-size: 2rem;
+  inline-size: 2.25rem; block-size: 2.25rem;
   border: 0; border-radius: 0.5rem;
   background: transparent; color: var(--muted); cursor: pointer;
   flex: none;
+}
+.rail-panel-close .icon,
+.rail-panel-tree .icon { inline-size: 1.25rem; block-size: 1.25rem; }
+@media (pointer: coarse) {
+  .rail-panel-close, .rail-panel-tree { inline-size: 2.5rem; block-size: 2.5rem; }
 }
 .rail-panel-close:hover,
 .rail-panel-tree:hover { background: var(--bg-soft); color: var(--text); }

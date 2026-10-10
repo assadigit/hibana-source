@@ -9,6 +9,14 @@
     // Back button + a standalone theme-floater fallback (login.html keeps no app.js
     // either — this page owns its own minimal runtime).
     ;(function () {
+      // S196: lift the page loader. 404.html carries the #hibana-page-loader veil but
+      // NOT app.js (the script that owns the lift on every full page) — before this,
+      // the branded 404 content sat under the opaque veil until base.css's 20s CSS
+      // escape: a dead-end page that took 20 seconds to even appear. This page has
+      // nothing to wait for — reveal immediately.
+      var pageLoader = document.getElementById('hibana-page-loader')
+      if (pageLoader && !pageLoader.classList.contains('is-hidden')) pageLoader.classList.add('is-hidden')
+
       var back = document.getElementById('nf-back')
       if (back) back.addEventListener('click', function () {
         if (history.length > 1) history.back()   // somewhere to go → back

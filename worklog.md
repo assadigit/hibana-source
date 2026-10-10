@@ -2447,3 +2447,52 @@ Stage Summary:
 - The owner's NEXT request (recorded): a fresh session for TESTS + UI/UX
   optimizations + engineering/codebase health — a prompt was delivered in
   chat; next rounds should read it as the standing brief.
+
+---
+Task ID: S196 (STAGED — the release chain runs next)
+Agent: Z.ai Code
+
+Task: The owner's three-track brief (Track A in priority order — tests: the
+coverage-gap audit, the spark-page.js build miss, the flake hunt, the slowest-3
+speed fixes; the bugs the new net caught ship first).
+
+Work Log (condensed — the full ladder + lessons live in Changelogs row 196):
+- Stability first: local + live + CI/CD all clean; no outstanding bugs.
+- THE AUDIT: worst unit gaps = admin user-mgmt (0), on-this-day (0), /api/nav
+  (0); worst e2e gaps = clip.html (the only unguarded capture surface) +
+  admin.html; the S161-miss class = 4 JS + 2 CSS never bundled.
+- THE ROUND: the 6 files join the build's ENTRY_POINTS (hashed + wired +
+  precached; the S193 raw exception retires; bundle baseline re-pinned from
+  its S88-era staleness); 16 new unit tests (admin-users ×8, on-this-day ×3,
+  nav-chrome ×3); 6 new e2e tests (capture-clip ×4, admin-console ×2);
+  sw v431; package 0.4.1.22.
+- THE BUGS THE NEW NET CAUGHT (shipped first): the app.js-less pages' loader
+  veil never lifted — clip.html (a 20s OPAQUE veil over the capture form) +
+  404.html (20s to reveal) — both controllers now reveal themselves
+  (clip-page.js v2, 404-page.js v3; identity-palette S196 ×2 + the e2e
+  reveal pins ≤2s).
+- THE FLAKE HUNT: two flakes caught + hardened — rail-panel's vault-pane
+  ordering (the node-replacement race → the computed grid-track widths via
+  expect.poll) + sprint-doc's version chip (the client truth's late-GET
+  array-swap under load → the authoritative pin on the deep-link reopen,
+  the server pin stays). LESSONS: the bash output pipeline eats '[h'
+  sequences (the 'aref^=' ghost was a rendering artifact — verify with
+  hexdump); rg -rn = REPLACE, not line numbers.
+- THE SPEED FIX: the three slowest tests (notes-reveal-gate ×3) each burned
+  a full 8s waiting for an SW controller in a spec that BLOCKS SWs — the
+  impossible wait removed (33.5s → 9.2s, zero assertions touched).
+- LADDER: typecheck 0 · vitest 616/616 (+16) · eslint 0 err (162-warn
+  baseline) · build 85 · cache-bust PASS · parity 1570/1570 · FULL e2e ×4
+  (407/407, 406/407 → flake #1 hardened, 406/407 → flake #2 hardened,
+  407/407 the release gate) · smoke ALL PASS · bundle-size PASS (baseline
+  re-pinned) · agent-browser QA clean (the clipper end-to-end, the 404, the
+  admin console owner twin + dark, console 0).
+- NEXT (the standing brief): Track B (the touch-target sweep's 26 under-40
+  buttons + the icon-weight audit's sub-18px renders + Lighthouse exact
+  scores + the bundle diet + micro-consistency) and Track C (the 159
+  unused-vars triage, layout.css dead rules, rotate-s fold, the sw comment
+  trim, patch-level dep bumps, the DB-index note for the owner's approval).
+
+Stage Summary:
+- STAGED: push → CI/CD → live byte-verify (qa/s196-live-verify.mjs) → owner
+  pass → tag v0.4.1.22 → zip → healthchecks → docs flip to RELEASED.

@@ -708,3 +708,34 @@ describe('S195 the panel head close button — geometry, optical stroke, floors'
     expect(plainXs.length).toBeGreaterThanOrEqual(0) // none left bare in the panel head markup
   })
 })
+
+// S196 — THE LOADER-VEIL LIFT (caught by the round's own new e2e): the app.js-less
+// pages carry the #hibana-page-loader veil but nothing lifted it — clip.html's capture
+// form (job #1!) and 404.html's content sat under the OPAQUE overlay until base.css's
+// 20s CSS escape. Both pages own their own minimal runtime, so their controllers now
+// own the reveal: clip-page.js lifts on the auth answer, 404-page.js immediately.
+describe('S196 the app.js-less pages reveal themselves — the loader-veil lift', () => {
+  const clipJs = readFileSync(join(process.cwd(), 'public', 'js', 'clip-page.js'), 'utf8')
+  const nfJs = readFileSync(join(process.cwd(), 'public', 'js', '404-page.js'), 'utf8')
+  const clipHtml = readFileSync(join(process.cwd(), 'public', 'clip.html'), 'utf8')
+  const nfHtml = readFileSync(join(process.cwd(), 'public', '404.html'), 'utf8')
+
+  it('clip-page.js lifts the veil itself (after the auth check — the form is interactive then)', () => {
+    // the lift exists, guards the double-add, and sits AFTER the auth block
+    expect(clipJs).toMatch(/loader\.classList\.contains\('is-hidden'\)\) loader\.classList\.add\('is-hidden'\)/)
+    const authIx = clipJs.indexOf("fetch('/api/auth/me'")
+    const liftIx = clipJs.indexOf("getElementById('hibana-page-loader')")
+    expect(authIx).toBeGreaterThan(-1)
+    expect(liftIx).toBeGreaterThan(authIx)
+    // and clip.html still carries the veil + the controller that lifts it
+    expect(clipHtml).toContain('id="hibana-page-loader"')
+    expect(clipHtml).toMatch(/\/js\/clip-page\.js\?v=\d+/)
+  })
+
+  it('404-page.js lifts the veil immediately (a dead-end page waits for nothing)', () => {
+    expect(nfJs).toMatch(/pageLoader\.classList\.contains\('is-hidden'\)\) pageLoader\.classList\.add\('is-hidden'\)/)
+    expect(nfJs.indexOf("getElementById('hibana-page-loader')")).toBeGreaterThan(-1)
+    expect(nfHtml).toContain('id="hibana-page-loader"')
+    expect(nfHtml).toMatch(/\/js\/404-page\.js\?v=\d+/)
+  })
+})

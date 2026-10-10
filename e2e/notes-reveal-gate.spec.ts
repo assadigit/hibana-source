@@ -51,7 +51,13 @@ test.beforeAll(async () => {
 
 const settleIn = async (page: import('@playwright/test').Page) => {
   await page.goto('/login.html')
-  await page.waitForFunction(() => navigator.serviceWorker.controller !== null, null, { timeout: 8_000 }).catch(() => {})
+  // NOTE (S196 e2e-speed round): this spec sets `serviceWorkers: 'block'` above, so
+  // `navigator.serviceWorker.controller` can NEVER become non-null — the old
+  // waitForFunction(controller, { timeout: 8_000 }).catch(() => {}) burned the full
+  // 8 SECONDS in every one of this file's three tests before the catch "tolerated"
+  // it (24s of dead time; these were the suite's three slowest tests). The wait is
+  // gone; the page-load settle below (unchanged) is all this spec ever needed —
+  // every assertion in the file rides the route interceptions, not the SW.
   await page.waitForLoadState('load')
   await page.fill('[name="login"]', TEST_EMAIL)
   await page.fill('input[name="password"]', TEST_PASS)

@@ -21,6 +21,15 @@
         return
       }
 
+      // 1b. Lift the page loader. clip.html carries the #hibana-page-loader veil but
+      // NOT app.js (the script that owns the lift on every full page) — this popup
+      // owns its own minimal runtime, so its controller must reveal itself. Before
+      // this, the opaque veil sat on the capture form until base.css's 20s CSS
+      // escape — a 20-second wait on an idea-capture surface (the S196 e2e round
+      // caught it: page.click stalled on the veil's hit-target).
+      const loader = document.getElementById('hibana-page-loader')
+      if (loader && !loader.classList.contains('is-hidden')) loader.classList.add('is-hidden')
+
       // 2. Show the source link.
       if (url) {
         source.hidden = false

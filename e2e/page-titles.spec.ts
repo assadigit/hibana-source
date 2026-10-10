@@ -62,6 +62,11 @@ test.describe('S64: localized tab titles', () => {
     await page.goto('/definitely-not-a-real-page')
     await page.waitForTimeout(600) // i18n apply() is async post-load
     await expect(page).toHaveTitle('Page not found — Hibana')
+    // S196 bug pin: 404.html loads no app.js, so its own controller must lift the
+    // loader veil — the dead-end page must not sit under the opaque #hibana-page-loader
+    // for the 20s CSS escape. The veil grammar: is-hidden = opacity 0 + inert.
+    await expect(page.locator('#hibana-page-loader')).toHaveClass(/is-hidden/, { timeout: 2_000 })
+    await expect.poll(async () => page.locator('#hibana-page-loader').evaluate((el) => getComputedStyle(el).opacity), { timeout: 2_000 }).toBe('0')
   })
 
   test('FA user: the 404 localizes to Persian', async ({ page }) => {

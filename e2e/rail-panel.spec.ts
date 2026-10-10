@@ -659,12 +659,25 @@ test.describe('the secondary panel (VS Code Activity Bar + Side Bar pattern)', (
     // FIRST client-side render is already the three-pane grid — no reload needed.
     await expect(page.locator('.vault')).toHaveCSS('display', 'grid', { timeout: 10_000 })
     await expect(page.locator('.vault-editor')).toBeVisible()
+    // S196 flake-hunt hardening (the once-in-two-runs catch): the old immediate
+    // getBoundingClientRect read raced the soft-nav swap's node replacement (the
+    // S195 re-render lesson — a transient node measured tree 336 vs list 325 and
+    // flipped the pane ordering). The S134 CONTRACT is the GRID's own track
+    // widths — the CSS source of truth, immune to node races: three tracks,
+    // ascending (tree 16.5rem < list 21rem < the minmax(0,1fr) editor), settled
+    // via expect.poll.
+    await expect.poll(async () => page.evaluate(() => {
+      const vault = document.querySelector('.vault')
+      if (!vault) return ''
+      const tracks = getComputedStyle(vault).gridTemplateColumns.split(' ').map((t) => Number.parseFloat(t))
+      return tracks.length === 3 && tracks.every((n) => Number.isFinite(n) && n > 0) &&
+        tracks[0] < tracks[1] && tracks[1] < tracks[2] ? tracks.join(',') : ''
+    }), { timeout: 5_000 }).toContain(',')
     const panes = await page.evaluate(() => {
       const w = (sel: string) => Math.round(document.querySelector(sel)!.getBoundingClientRect().width)
       return { tree: w('.vault-tree'), list: w('.vault-list'), ed: w('.vault-editor') }
     })
-    expect(panes.tree).toBeLessThan(panes.list)
-    expect(panes.list).toBeLessThan(panes.ed)
+    expect(panes.ed).toBeGreaterThan(panes.list)
     // The layout sheet itself rides the document (the wired build rehashes the
     // name — match the stem, not the literal /css/ href).
     const hasNotesSheet = await page.evaluate(() =>

@@ -63,6 +63,13 @@ const ENTRY_POINTS = [
   // S39: the media library page controller
   'gallery-page.js',
   'resume.js', // S71: the dashboard's "Pick up where you left off" strip (project + note recording)
+  // S196 (the S161-miss class, closed): four page controllers that HTML referenced
+  // but the build never bundled — they served RAW /js/<name>.js?v=N on the deployed
+  // artifact (verified live in S193 as the "S161 ENTRY_POINTS exception"). The
+  // exception retires: these now hash + wire + precache like every other entry.
+  // spark-page.js (spark.html), magic-wand.js (7 wand pages), image-crop.js
+  // (spark.html + sparks.html), ai-autopolish.js (dashboard.html).
+  'spark-page.js', 'magic-wand.js', 'image-crop.js', 'ai-autopolish.js',
 ]
 
 // Page CSS files (all linked from HTML; all hashed + immutable via manifest).
@@ -82,6 +89,10 @@ const CSS_ENTRY_POINTS = [
   'devboard.css', 'misc.css', 'sadhana-board.css', 'themes.css', 'rtl.css', 'task-controls.css',
   'notes.css', // S53: the Notes Vault (after rtl.css by list position — a feature sheet like the rest; specificity is selector-based, not order-based)
   'claude-dark-theme.css', // S86: the Claude-style warm dark theme — LAST: its token block must win source-order ties with themes.css's [data-theme='dark'] rules
+  // S196 (the S161-miss class, closed — same as the four JS entries above): two
+  // page sheets that HTML referenced but the build never hashed. clip.css (clip.html,
+  // the page's own layout) + magic-wand.css (7 wand pages, loads per-page after rtl.css).
+  'clip.css', 'magic-wand.css',
 ]
 
 // In-bundle dynamic-injection literals that get rewritten to hashed URLs during wiring.

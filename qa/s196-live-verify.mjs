@@ -42,8 +42,11 @@ const RAW_GONE = {
 const results = []
 let fail = false
 
-const localFile = (prefix) =>
-  readdirSync(DIST).find((f) => f.startsWith(prefix + '.') && (f.endsWith('.js') || f.endsWith('.css'))) || null
+// extension-aware: 'magic-wand' exists as BOTH .js and .css in dist — the caller
+// must name the kind (the first run's .find() picked the CSS for the JS ref and
+// false-failed the byte-compare — the S191-style verifier lesson again)
+const localFile = (prefix, ext) =>
+  readdirSync(DIST).find((f) => f.startsWith(prefix + '.') && f.endsWith(ext)) || null
 
 const check = async (label, liveUrl, localPath) => {
   const local = readFileSync(localPath)
@@ -64,10 +67,11 @@ for (const [page, targets] of Object.entries(PAGE_TARGETS)) {
     results.push(`${gone ? '✓' : '✗'} ${page}: raw ref ${raw} is GONE (wired)`)
   }
   for (const t of targets) {
-    const re = new RegExp(`(?:src|href)="(/dist/${t}\\.[a-f0-9]+\\.(?:js|css))"`)
+    const re = new RegExp(`(?:src|href)="(/dist/${t}\\.[a-f0-9]+\\.(js|css))"`)
     const ref = re.exec(html)?.[1] || null
-    const local = localFile(t)
-    if (ref && local) await check(`${t} (wired, off ${page})`, BASE + ref, join(DIST, local))
+    const ext = ref ? ref.endsWith('.css') ? '.css' : '.js' : null
+    const local = ext ? localFile(t, ext) : null
+    if (ref && local) await check(`${t} (${ext.slice(1)}, wired, off ${page})`, BASE + ref, join(DIST, local))
     else { results.push(`✗ ${t}: live ref or local file MISSING (off ${page})`); fail = true }
   }
 }
@@ -78,7 +82,8 @@ for (const [page, targets] of Object.entries(PAGE_TARGETS)) {
   const ref = /(?:src)="(\/dist\/clip-page\.[a-f0-9]+\.js)"/.exec(html)?.[1]
   if (ref) {
     const js = await (await fetch(BASE + ref, { cache: 'no-store' })).text()
-    const hasLift = js.includes("getElementById('hibana-page-loader')") && js.includes("classList.add('is-hidden')")
+    // esbuild minify normalizes quotes to double — probe both spellings
+    const hasLift = /getElementById\(['"]hibana-page-loader['"]\)/.test(js) && /classList\.add\(['"]is-hidden['"]\)/.test(js)
     results.push(`${hasLift ? '✓' : '✗'} live clip-page.js carries the loader-veil lift`)
     if (!hasLift) fail = true
   } else { results.push('✗ live clip-page.js ref not found for the lift probe'); fail = true }
@@ -89,7 +94,7 @@ for (const [page, targets] of Object.entries(PAGE_TARGETS)) {
   const ref = /(?:src)="(\/dist\/404-page\.[a-f0-9]+\.js)"/.exec(html)?.[1]
   if (ref) {
     const js = await (await fetch(BASE + ref, { cache: 'no-store' })).text()
-    const hasLift = js.includes("getElementById('hibana-page-loader')") && js.includes("classList.add('is-hidden')")
+    const hasLift = /getElementById\(['"]hibana-page-loader['"]\)/.test(js) && /classList\.add\(['"]is-hidden['"]\)/.test(js)
     results.push(`${hasLift ? '✓' : '✗'} live 404-page.js carries the loader-veil lift`)
     if (!hasLift) fail = true
   } else { results.push('✗ live 404-page.js ref not found for the lift probe'); fail = true }

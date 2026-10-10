@@ -2449,7 +2449,7 @@ Stage Summary:
   chat; next rounds should read it as the standing brief.
 
 ---
-Task ID: S196 (STAGED — the release chain runs next)
+Task ID: S196 (FINAL — released)
 Agent: Z.ai Code
 
 Task: The owner's three-track brief (Track A in priority order — tests: the
@@ -2494,5 +2494,14 @@ Work Log (condensed — the full ladder + lessons live in Changelogs row 196):
   trim, patch-level dep bumps, the DB-index note for the owner's approval).
 
 Stage Summary:
-- STAGED: push → CI/CD → live byte-verify (qa/s196-live-verify.mjs) → owner
-  pass → tag v0.4.1.22 → zip → healthchecks → docs flip to RELEASED.
+- RELEASED: push 64b4a40 → CI 38094405511 GREEN (the FULL e2e 407/407 on the
+  hardened tree) → CD 38095387730 GREEN → LIVE hibana.ir @ v0.4.1.22 —
+  qa/s196-live-verify.mjs ALL GREEN (the six newly-wired assets
+  byte-IDENTICAL + every raw ?v= ref GONE + the two veil-lift probes + sw
+  v431 + health ok/up/63; the verifier's own two lessons: extension-aware
+  localFile + quote-tolerant minified probes) + the OWNER-ACCOUNT pass clean
+  on the REAL data (the clipper's veil lifts ~1s + the prefill exact + cancel
+  driven; the 404's veil + title; the admin console's member-deny CORRECT BY
+  DESIGN — the owner's everyday account is a member, the super-admin is the
+  separate seeded admin-2v7hurof account, verified read-only against the prod
+  users table; console 0) → tag v0.4.1.22 + zip next → healthchecks.

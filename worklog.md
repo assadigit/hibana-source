@@ -2329,3 +2329,65 @@ Stage Summary:
   commit's git add missed src/tests/ — always re-check `git status` before
   the push); candidates: the palette "Next unreviewed idea" command, the
   queue's keyboard hops (n/p), the review-flow coverage on the sparks board.
+
+---
+Task ID: S194
+Agent: Z.ai Code (session close — fresh-sandbox wrap-up verification)
+
+Task: The user's closing instruction: wrap up the session, update the
+changelogs, push + commit, deploy the latest version. The previous session
+(S193) had completed its full release chain; this round VERIFIES the whole
+chain end-to-end on a fresh sandbox (the /home/z/hibana-source clone was
+gone — re-cloned), regenerates the release artifact the fresh sandbox lost,
+and records the close.
+
+Work Log:
+- Re-cloned the repo (the sandbox filesystem resets between sessions; the
+  worklog + git history are the continuity). State found: tree CLEAN at
+  13acac2 = origin/main; package 0.4.1.20; tag v0.4.1.20 ON 13acac2 and
+  PUSHED; Changelogs §1 at v0.4.1.20 with row 193 RELEASED — the S193 chain
+  had fully completed before the sandbox reset.
+- CI/CD state: CI GREEN (543 on 13acac2, 542 on 99b6466) + CD GREEN (396 on
+  13acac2, 395/394 on 99b6466); the recurring Uptime workflow GREEN on every
+  scheduled tick since (latest 2026-10-10T12:22Z).
+- Live verification: health ok / prod / db up / schema 63; sw hibana-v429 =
+  the repo's sw. FULL qa/s193-live-verify.mjs ALL GREEN after a fresh
+  --prod build + --wire-html pass (dashboard.css + i18n-en + i18n.js wired
+  byte-IDENTICAL off spark.html AND projects.html; the i18n-fa lazy literal
+  twin IDENTICAL; the raw spark-page.js v=6 IDENTICAL; sw v429; health
+  ok/up/63) — repo == live, then --restore-html.
+- Owner-account live pass (aliassadi@live.com, NON-DESTRUCTIVE): login →
+  dashboard renders, the badge "16 needing attention" (15→16: one more idea
+  crossed the 7-day boundary naturally); notifications → the direct spark
+  link → the lean page loads ("AI-powered resume builder website") with the
+  S193 queue bar "Review queue · 1 of 16" + Prev/Next; the promote dialog
+  opens (5 stages) and CANCELS cleanly; the queue-bar tokens EXACT
+  (bg rgba(47,123,127,.14), hairline .18, ink rgb(31,90,93) — the S189
+  family). Console on a FRESH reload: 0 errors (one earlier 404 was MY
+  artifact — a URL truncated at 60 chars by the probe; the full UUID loads
+  clean. Lesson: never slice hrefs in probes).
+- Artifact regeneration: the fresh sandbox had lost hibana.0.4.1.20.zip —
+  rebuilt via the canonical make-zip.mjs (tracked files + the fresh dist
+  tree, WIRED form, then --restore-html). 596 entries, integrity OK
+  (cleaner than the old sandbox's 683 — that dist carried 87 stale hashed
+  artifacts from accumulated builds; this one is the fresh build only).
+  Secret-scan CLEAN: all 8 session credential values ABSENT; the account id
+  appears only in the 4 pre-existing S93 public-surface scripts. Zip →
+  /home/z/upload + the sandbox download folder.
+- Healthchecks: both UP (watchdog last natural tick 09:23Z, next 15:23Z;
+  uptime 12:22Z) — no masking ping sent.
+- This docs commit: the S194 close record (CI/CD re-run on it — same
+  assets, the established docs-push pattern).
+
+Stage Summary:
+- CONFIRMED LIVE: hibana.ir @ v0.4.1.20 (S193 — THE REVIEW FLOW), sw v429,
+  schema 63, health ok; remote main carries the S193 release record + this
+  close record; tag v0.4.1.20 pushed; the zip regenerated + secret-scan
+  clean; both healthchecks UP.
+- The session is FULLY wrapped: nothing uncommitted, nothing undeployed,
+  no open work in the tree. The changelog is current (row 193 RELEASED —
+  a no-code-change verification round adds no row; §1 stays at v0.4.1.20).
+- Next rounds (the 15-minute webDevReview cron): the S193 candidates — the
+  palette "Next unreviewed idea" command, the queue's keyboard hops (n/p),
+  spark-page.js into the build's ENTRY_POINTS, the mobile bar's long-press
+  affordances, the owner's next CHANGE (8+) when one arrives.

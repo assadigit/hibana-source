@@ -680,7 +680,7 @@
 }
 .attach-option:hover { background: var(--accent-soft); border-color: var(--line); }
 .related-notes a { color: var(--text); overflow-wrap: anywhere; }
-.related-notes a:hover { color: var(--accent); text-decoration: underline; }
+.related-notes a:hover { color: var(--accent-ink); text-decoration: underline; } /* S204: accent-as-text → ink */
 .related-notes .icon { inline-size: 0.85rem; block-size: 0.85rem; margin-inline-end: 0.3rem; vertical-align: -0.12em; }
 
 /* --- sparks shelf: drag-reorder + 3-dot menu ------------------------------- */

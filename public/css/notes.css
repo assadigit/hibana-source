@@ -157,7 +157,7 @@ button.vault-sec-head:hover { color: var(--text); }
 .vault-note .icon { inline-size: 0.8125rem; block-size: 0.8125rem; flex: none; opacity: 0.75; }
 .vault-note-name { min-inline-size: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .vault-note:hover { background: var(--accent-soft); color: var(--text); }
-.vault-note[aria-current='true'] { background: var(--accent-soft); color: var(--accent); font-weight: 600; }
+.vault-note[aria-current='true'] { background: var(--accent-soft); color: var(--accent-ink); font-weight: 600; } /* S204: accent-as-text → ink */
 
 .vault-quick {
   display: flex;
@@ -203,7 +203,7 @@ button.vault-sec-head:hover { color: var(--text); }
   font-variant-numeric: tabular-nums;
 }
 .vault-quick[aria-current='true'] .vault-n,
-.vault-folder[aria-current='true'] .vault-n { background: var(--card); color: var(--accent); }
+.vault-folder[aria-current='true'] .vault-n { background: var(--card); color: var(--accent-ink); } /* S204: accent-as-text → ink */
 
 /* folder tree rows */
 .vault-folder {
@@ -323,8 +323,8 @@ button.vault-sec-head:hover { color: var(--text); }
   font-size: 0.75rem;
   cursor: pointer;
 }
-.vault-tag-chip:hover { border-color: var(--accent); color: var(--accent); }
-.vault-tag-chip[aria-pressed='true'] { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); font-weight: 600; }
+.vault-tag-chip:hover { border-color: var(--accent); color: var(--accent-ink); } /* S204: accent-as-text → ink */
+.vault-tag-chip[aria-pressed='true'] { background: var(--accent-soft); border-color: var(--accent); color: var(--accent-ink); font-weight: 600; } /* S204: accent-as-text → ink */
 .vault-tag-chip .vault-n { min-inline-size: auto; background: transparent; padding: 0; }
 
 /* new-folder inline form */
@@ -631,7 +631,7 @@ button.vault-sec-head:hover { color: var(--text); }
 }
 .vault-crumb .icon { inline-size: 0.75rem; flex: none; opacity: 0.7; }
 .vault-crumb span { overflow: hidden; text-overflow: ellipsis; unicode-bidi: plaintext; }
-.vault-crumb .vault-crumb-leaf { color: var(--accent); font-weight: 600; }
+.vault-crumb .vault-crumb-leaf { color: var(--accent-ink); font-weight: 600; } /* S204: accent-as-text → ink */
 .vault-crumb button {
   border: 0;
   background: transparent;
@@ -642,7 +642,7 @@ button.vault-sec-head:hover { color: var(--text); }
   border-radius: 6px;
   cursor: pointer;
 }
-.vault-crumb button:hover { color: var(--accent); background: var(--accent-soft); }
+.vault-crumb button:hover { color: var(--accent-ink); background: var(--accent-soft); } /* S204: accent-as-text → ink */
 
 .vault-ed-actions { display: flex; align-items: center; gap: 0.25rem; }
 .vault-iconbtn {
@@ -690,7 +690,7 @@ button.vault-sec-head:hover { color: var(--text); }
   padding: 0.125rem 0.5625rem;
   border-radius: 99px;
   background: var(--accent-soft);
-  color: var(--accent);
+  color: var(--accent-ink); /* S204: accent-as-text → ink */
   font-size: 0.75rem;
   font-weight: 600;
 }
@@ -860,7 +860,7 @@ button.vault-sec-head:hover { color: var(--text); }
 }
 .vault-status .icon { inline-size: 0.875rem; block-size: 0.875rem; }
 .vault-save { display: inline-flex; align-items: center; gap: 0.25rem; }
-.vault-save[data-state='saving'] { color: var(--accent); }
+.vault-save[data-state='saving'] { color: var(--accent-ink); } /* S204: accent-as-text → ink */
 .vault-save[data-state='saved'] { color: var(--ok); }
 .vault-save[data-state='error'] { color: var(--err); }
 .vault-status-words { margin-inline-start: auto; }
@@ -996,7 +996,7 @@ button.vault-sec-head:hover { color: var(--text); }
    accent weight). The .icon-sep chevrons shrink + dim between crumbs. */
 .vault-crumb .icon-sep { display: inline-flex; align-items: center; }
 .vault-crumb .icon-sep .icon { inline-size: 0.65rem; block-size: 0.65rem; opacity: 0.55; }
-.vault-crumb button.vault-crumb-leaf { color: var(--accent); font-weight: 600; }
+.vault-crumb button.vault-crumb-leaf { color: var(--accent-ink); font-weight: 600; } /* S204: accent-as-text → ink */
 .vault-crumb button.vault-crumb-leaf:hover { background: var(--accent-soft); }
 
 /* Preview typography — the reading pane earns its "Reading" name: styled quotes,
@@ -1055,11 +1055,11 @@ button.vault-sec-head:hover { color: var(--text); }
 .vault-preview .markdown-body .md-code pre { background: transparent; border: 0; border-radius: 0; padding: 0.55rem 0.75rem 0.65rem; margin: 0; }
 .vault-preview .markdown-body .md-code pre code { font-family: var(--font-mono); font-size: 0.85em; }
 .vault-preview .markdown-body .md-code { margin: 0.45em 0; }
-.vault-preview .markdown-body a { color: var(--link, var(--accent)); text-decoration-thickness: 1px; text-underline-offset: 3px; }
+.vault-preview .markdown-body a { color: var(--link, var(--accent-ink)); text-decoration-thickness: 1px; text-underline-offset: 3px; } /* S204: the fallback joins the ink register */
 .vault-preview .markdown-body a:hover { text-decoration-thickness: 2px; }
 .vault-preview .markdown-body hr { border: 0; border-block-start: 1px solid var(--line-strong); margin-block: 1.75em; }
 .vault-preview .markdown-body li { margin-block: 0.2em; }
-.vault-preview .markdown-body li::marker { color: var(--accent); }
+.vault-preview .markdown-body li::marker { color: var(--accent-ink); } /* S204: accent-as-text → ink */
 
 /* S83 (owner request — the Note Editor's Checklist): task-list rows drop the bullet,
  * the box is a real 18px control (AA focus ring, hover lift), and a done task's text
@@ -1173,7 +1173,7 @@ li.md-task.is-done .md-task-txt { color: var(--muted); text-decoration: line-thr
   font-style: normal;
   font-size: 0.75em;
   font-weight: 700;
-  color: var(--accent);
+  color: var(--accent-ink); /* S204: accent-as-text → ink (the # tag glyph is text) */
   opacity: 0.85;
   flex: none;
   line-height: 1;
@@ -1415,7 +1415,7 @@ li.md-task.is-done .md-task-txt { color: var(--muted); text-decoration: line-thr
 .vault-outline-item.is-l3 button { padding-inline-start: 2rem; font-size: 0.78125rem; }
 /* the section you're reading: accent text + a left rail tick */
 .vault-outline-item.is-active button {
-  color: var(--accent);
+  color: var(--accent-ink); /* S204: accent-as-text → ink */
   border-inline-start-color: var(--accent);
   background: color-mix(in srgb, var(--accent) 7%, transparent);
   font-weight: 600;

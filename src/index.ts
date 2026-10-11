@@ -16,7 +16,9 @@ function buildConfig(env: Env): Config {
     db: createD1Db(env.DB),
     // workers-types' Response type differs slightly from the DOM one — the cast keeps the
     // Config contract runtime-agnostic (Node's Response is the DOM-aligned global).
-    assets: (url) => env.ASSETS.fetch(url) as Promise<Response>,
+    // S204: double-cast via unknown — @types/node 24+'s HeadersIterator gained
+    // Symbol.dispose, so the single assertion no longer overlaps.
+    assets: (url) => env.ASSETS.fetch(url) as unknown as Promise<Response>,
     isProd: env.ENVIRONMENT === 'prod',
     // S49-b6: canonical origin for cron/email/ICS deep links ([env.prod.vars] APP_URL).
     // Unset (dev) = the prod-domain default — see lib/app-url.ts.

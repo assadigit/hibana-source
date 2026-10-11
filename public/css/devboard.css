@@ -874,7 +874,7 @@ main.shell.sp-shell .sp-wrap { min-block-size: min(64vh, 30rem); }
   font-weight: 500;
   white-space: nowrap;
 }
-.sp-list-badge.is-running { background: var(--accent-soft); color: var(--accent); }
+.sp-list-badge.is-running { background: var(--accent-soft); color: var(--accent-ink); } /* S204: accent-as-text → ink */
 .sp-list-badge.is-done { background: color-mix(in srgb, var(--success, #4a9fa3) 15%, transparent); color: var(--success, #4a9fa3); }
 .sp-list-badge.is-draft { background: color-mix(in srgb, var(--muted) 12%, transparent); color: var(--muted); }
 .sp-list-dates { white-space: nowrap; }

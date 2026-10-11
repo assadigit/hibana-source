@@ -300,7 +300,7 @@
   gap: 0.34rem;
 }
 .stat-recent a { color: var(--text); font-size: var(--fs-md); overflow-wrap: anywhere; }
-.stat-recent a:hover { color: var(--accent); text-decoration: underline; }
+.stat-recent a:hover { color: var(--accent-ink); text-decoration: underline; } /* S204: accent-as-text → ink */
 .stat-recent li .muted { display: block; font-size: var(--fs-xs); }
 /* ≥40px tap targets for the dashboard's compact link rows (roast P5) — same
    padded pseudo-element pattern as the small icon buttons: the visible layout

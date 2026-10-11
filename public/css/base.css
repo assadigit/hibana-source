@@ -560,7 +560,7 @@ button.active { background: var(--accent-soft); }
   padding: 0.55rem 1.1rem;
   border-radius: 999px;
   background: var(--card);
-  color: var(--accent);
+  color: var(--accent-ink); /* S204: accent-as-text → ink (the skip link is text) */
   border: 1px solid var(--accent);
   box-shadow: var(--shadow);
   font-weight: 600;

@@ -13,6 +13,10 @@
 # S200 (UX-9): docs-only pushes (`*.md`, `scripts/rotate/**`) skip CI entirely —
 # they change no shipped asset, and CD is workflow_run-gated so they simply don't
 # deploy (the next code push carries the docs live). PRs always run everything.
+# S204 (the dependabot round): actions/checkout v4→v7 + actions/upload-artifact
+# v4→v7 (dependabot PRs #1/#6 superseded by the in-session bump — the PRs also
+# carried retired package-lock.json patches, retired since S199's bun.lock-only
+# doctrine). Basic usage only (name/path/retention-days) — the stable API since v4.
 name: CI
 
 on:
@@ -32,7 +36,7 @@ jobs:
     # the two, not their sum. 20 keeps generous headroom.
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
@@ -121,8 +125,22 @@ jobs:
       # Lighthouse CI (SWOT #15): automated performance + a11y + best-practices tracking.
       # Runs Lighthouse against its own local Node server (login page — no auth needed).
       # S199: perf + best-practices are ERROR floors at 0.9 (a11y 0.9; seo warn 0.82).
-      - name: Lighthouse CI
+      - name: Lighthouse CI (desktop preset)
         run: npx @lhci/cli autorun
+        env:
+          LHCI_GITHUB_APP_TOKEN: ${{ secrets.LHCI_GITHUB_APP_TOKEN }}
+
+      # S204 (UX-17): the MOBILE lane — the app's real usage is heavily mobile, and the
+      # desktop-only preset was the S198 audit's gap. Same pages; formFactor=mobile
+      # (Moto G emulation + 4x CPU + slow-4G Lantern simulation), 3 runs for medians.
+      # HONEST FLOORS, measured 2026-10-11: cold login 89-90 perf; the dashboard URL
+      # redirects to login?next= WITH THE SERVICE WORKER ACTIVE (the real returning-
+      # user state) and Lantern simulates SW-served responses pessimistically → 46-49.
+      # The 0.45 perf floor binds on that SW-active variant — it exists to catch mobile
+      # COLLAPSE, not to claim returning users see 49 (they get instant cache hits).
+      # a11y 100 / bp 96 / seo 82 measured on both variants; floors 0.9/0.9/warn-0.8.
+      - name: Lighthouse CI (mobile preset, UX-17)
+        run: npx @lhci/cli autorun --config=lighthouserc.mobile.json
         env:
           LHCI_GITHUB_APP_TOKEN: ${{ secrets.LHCI_GITHUB_APP_TOKEN }}
 
@@ -141,7 +159,7 @@ jobs:
       matrix:
         shard: [1, 2]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
@@ -170,7 +188,7 @@ jobs:
           CI: true
 
       # On failure, upload screenshots + traces for debugging (per shard).
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: failure()
         with:
           name: playwright-results-shard-${{ matrix.shard }}

@@ -2555,3 +2555,23 @@ stick (qa/s197-touch-audit.mjs, kept in the repo):
   owner pass (non-destructive: the vault add + the swatches + the banner
   dismiss on the real data) → tag v0.4.1.23 → zip → healthchecks → docs
   flip to RELEASED.
+
+---
+
+Session close (S197 final): LIVE hibana.ir @ v0.4.1.23 (THE TOUCH + OPTICAL
+ROUND, Track B), sw v432, schema 63. LADDER: typecheck 0 · vitest 623/623
+(+7) · eslint 0 err (162 baseline) · build 85 · bundle +0.1% PASS ·
+cache-bust PASS (the 7 sheets ×25 pages) · parity 1570/1570 · FULL e2e
+414/414 (18.0m, zero flakes) · smoke ALL PASS · agent-browser QA clean (EN
+light + dark + FA/RTL, console 0) — RELEASED: push 463909a → CI 38101469168
+GREEN → CD 38102561292 GREEN → qa/s197-live-verify.mjs ALL GREEN (the seven
+wired sheets byte-IDENTICAL + every content probe + sw v432 + health
+ok/up/63) + the owner pass clean on the REAL data (the vault add 32×32/2.1,
+the fab 36 + the pen 22@2.4, the 16 swatches; console 0; non-destructive)
+→ tag v0.4.1.23 → zip → healthchecks. The dependabot PR failing CI
+(75f79fe) is dep-bump noise, not the release chain. The full three-section
+handover lives in the sandbox worklog /home/z/my-project/worklog.md (Track
+C next: the eslint 159 unused-vars triage, layout.css dead rules, the
+rotate-s fold, the sw.js VERSION-comment trim, patch-level dep bumps, the
+DB-index approval ask; Track B leftovers: Lighthouse exact scores + the
+bundle diet).

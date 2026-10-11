@@ -2505,3 +2505,14 @@ Stage Summary:
   DESIGN — the owner's everyday account is a member, the super-admin is the
   separate seeded admin-2v7hurof account, verified read-only against the prod
   users table; console 0) → tag v0.4.1.22 + zip next → healthchecks.
+
+---
+
+Session close (S196 final): LIVE hibana.ir @ v0.4.1.22, sw v431, schema 63;
+tag v0.4.1.22 on 24553f1 (both CI/CD chains GREEN); the zip in /home/z/upload
++ the download folder (609 files, integrity OK, secret-scan clean); the
+sandbox worklog /home/z/my-project/worklog.md carries the full three-section
+handover (status / completed + verification / open risks + next priorities —
+Track B's measured touch-target + icon-weight lists, Track C's eslint
+concentration map + the dep-bump ledger + the DB-index approval ask, the
+healthcheck watch note, and the session's four operational lessons).

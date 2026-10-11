@@ -2575,3 +2575,41 @@ C next: the eslint 159 unused-vars triage, layout.css dead rules, the
 rotate-s fold, the sw.js VERSION-comment trim, patch-level dep bumps, the
 DB-index approval ask; Track B leftovers: Lighthouse exact scores + the
 bundle diet).
+
+---
+
+## Session S198 — THE SWOT AUDIT (owner-commissioned; docs-only round)
+
+Commissioned by the owner: "a thorough SWOT AUDIT of the project — performance,
+optimization, codebase health, security, UI/UX and anything else — then upload
+the result to the repo." Executed as four parallel read-only audit passes
+(performance / security / codebase health / UI-UX-ops) on tree 123f902 (LIVE
+v0.4.1.23, sw v432, schema 63) + verifier spot-checks on every load-bearing
+number. NO code changed — this round ships two new root docs:
+
+- **SWOT-AUDIT-S198.md** — the full audit: ~98 findings with stable IDs
+  (PERF-*/SEC-*/HLTH-*/UX-*), evidence file:line + measured numbers, ranked
+  weaknesses/opportunities/threats, the needs-owner-approval list (rule 4),
+  and the verification record.
+- **SESSION-BRIEF-S199.md** — the execution plan the next session(s) run:
+  S199 "Debt Zero + Trust Gates" (kill the 162-warning baseline + ratchet,
+  sw.js VERSION trim 15,959→~200 chars, rotate-s* fold to one generic entry,
+  single lockfile, escape-lint gate for the 312 innerHTML sinks, a11y/Lighthouse/
+  workers-smoke gates made real, five small security fixes, Agents.md stale
+  lines) → S200 "Speed + Diet" (CI sharding, perf tooling repair, the real
+  bundle diet, N+1 fixes) → S201 "Majors + Approvals" (rule-4 asks, dep majors,
+  restore drill, error monitoring).
+
+Headline numbers (all measured this round): eslint 0 err / 162 warn (~92% dead
+code); sw.js line 16 = 15,959 chars = 55% of the file; dist total 1,747,617 B
+(+0.1% PASS); precache ≈ 2.13 MB raw; /js+css dist gz = 105.0 + 336.2 KB;
+CI 20-min cap vs 414 single-worker e2e (~minutes of headroom); npm audit prod
+0 vulns (dev 9, all devDeps); vitest 623/623 + parity 1570/1570 re-run GREEN;
+layout.css dead-rule hunt corrected to 8/243 (the 2.2k myth retired); the top-
+bundle list corrected (i18n-fa 186.6 KB / project-page 148.1 / app 102.6 —
+fabric is vendor, not dist); one agent claim corrected during verification
+(the npm-audit CI gate EXISTS — SEC-18 reframed).
+
+The S197 open-risk list stands (Track B leftovers: Lighthouse exact scores +
+bundle diet, now concretized as UX-1/UX-17 + PERF-7/UX-7; Track C, now
+HLTH-*). NEXT: hand SESSION-BRIEF-S199.md to the next agent.

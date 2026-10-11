@@ -183,6 +183,9 @@ delivery status · `always-https.mjs --on` zone toggle · `zone.mjs` / `custom-d
 ## Doc map (post-consolidation)
 - `Agents.md` (this file) — rules, how to work on Hibana.
 - `Changelogs.md` — history, current state, ops runbook, open items, rejected features.
+- `worklog.md` — the ACTIVE session-worklog tail (last ~4 sessions; older sessions live
+  in `worklog-archive.md` + git history — rotate with `scripts/rotate/rotate.mjs --worklog`,
+  HLTH-27).
 - `README.md` — minimal GitHub landing-page pointer.
 - `credentials.md` — live credentials (local-only, gitignored, never committed).
 - All other prior .md files are deleted; recover verbatim via `git show <sha>:<file>`.

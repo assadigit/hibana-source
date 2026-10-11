@@ -175,12 +175,14 @@ try {
   await odb.execute(
     `INSERT INTO projects (id, user_id, title, description, type, status, sort_order, latest_note, progress_percent, archived_state, client_name, due_date, created_at, updated_at)
      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    [P1, U, 'Drill personal project', 'proves restore works', 'personal', 'doing', 0, 'left off here', null, null, null, null, now, now],
+    // S201: post-0060 taxonomy (the pre-0060 'doing'/'awaiting' values fail the
+    // projects.status CHECK — the same 0060 blindness that had killed explain-hotpaths).
+    [P1, U, 'Drill personal project', 'proves restore works', 'personal', 'developing', 0, 'left off here', null, null, null, null, now, now],
   )
   await odb.execute(
     `INSERT INTO projects (id, user_id, title, description, type, status, sort_order, latest_note, progress_percent, archived_state, client_name, due_date, created_at, updated_at)
      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    [P2, U, 'Acme redesign', 'client delivery', 'client', 'awaiting', 0, '', null, null, 'Acme', '2026-09-01', now, now],
+    [P2, U, 'Acme redesign', 'client delivery', 'client', 'queued', 0, '', null, null, 'Acme', '2026-09-01', now, now],
   )
   await odb.execute('INSERT INTO hurdles (id, project_id, text, status, sort_order, created_at, solved_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
     [H1, P1, 'infra blockers', 'open', 0, now, null])

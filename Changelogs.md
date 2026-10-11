@@ -171,6 +171,19 @@
   pm-app-prod` (wipes, unverified). Restores never include `password_hash`/`sessions`; lost
   admin → `npm run seed:admin:prod`. Drills quarterly: `npm run drill`, `npm run drill:planb`;
   decrypt failure = P1.
+- **Drill log** (UX-12; newest last — the quarterly policy's recorded runs):
+  - 2026-10-11 (S201, FIRST EVER run — the scripts shipped 2026-09-11 and had zero runs):
+    `npm run drill` PASS in ~2s — Part A loud-skip (newest backup snapshot-2026-10-11T15-23-26
+    is AES-GCM; `BACKUP_ENCRYPTION_KEY` is owner-held, never in agent sandboxes) + Part B
+    synthetic round-trip 9/9 (export→restore→FTS rebuild, users untouched, rule-8 clean).
+    `npm run drill:planb` PARTIAL PASS in ~4s — steps 1–3 green on the 2026-09-08 document
+    (D1 log row → Telegram getFile → sha256 match → HIBENC1 magic); steps 4–5 (decrypt +
+    restore round-trip) loud-skip, same owner-key gate. The first run caught and fixed TWO
+    latent drill bugs: Part B's seed still used pre-0060 status vocabulary (dead since
+    0060, the same blindness that killed explain-hotpaths) and drill:planb's D1 parser read
+    `.results.results` (would have reported every non-empty planb_backups as EMPTY).
+    Owner-side residue: run both drills once on the owner machine (credentials.md has the
+    key) for the full Part A / steps 4–5 verification; key-custody drill still open.
 - **Pre-migration ritual (mandatory)**: `npm run bookmark:prod` (appends one row to §9
   below) → `npx wrangler d1 migrations apply pm-app-prod --remote`. Undo: `npx wrangler d1
   time-travel restore pm-app-prod --bookmark <id>` (in-place, destructive, 30-day window,
@@ -185,7 +198,13 @@
   `/fail`. Manual backups + dev worker never ping (anti-masking). Ticks classified by
   trigger (`src/lib/cron.ts`). The GitHub-side `Hibana uptime` prober follows the same
   random-slug rule (secret `HIBANA_UPTIME_PING_URL`; GitHub cron throttling stretches its
-  nominal 30-min schedule to ~1–7h gaps — the 6h+1h window is sized for that).
+  nominal 30-min schedule to ~1–7h gaps — the 6h+1h window is sized for that). The
+  GitHub-side `Hibana errors` monitor (S201, UX-11) completes the trio: a daily cron
+  (`.github/workflows/errors.yml`, 04:23 UTC + dispatch) counts prod `error_log` rows from
+  the last 24h via the D1 REST API — 5xx > 5 (real breakage) or total > 20 (incl. the 4xx
+  auth-invalid bursts errorlog.ts deliberately keeps) → `/fail` with the top paths;
+  otherwise a success tick. 24h period + 6h grace, same email channel, secret
+  `HIBANA_ERRORS_PING_URL` (random slug). Baseline at birth: error_log routinely EMPTY.
 - **Plan B**: on-demand only — bot Settings 🗄 (owner-only) or `POST /api/admin/backup/planb`;
   files `hibana-backup-<UTC>.bin`, caption = schema/time/rows/sha256; failure →
   `planb_failed` + Resend email (deliberately not Telegram).
@@ -277,6 +296,34 @@ INSERT INTO d1_migrations (name, applied_at) VALUES
 ```
 
 ## 6. Open items (S49 refresh — verified against the v0.3.13.2 tree)
+**⏳ PENDING OWNER APPROVAL — the S201 rule-4 asks (2026-10-11; SWOT §6 + brief S201).**
+Presented to Ali in chat; NOTHING ships until his explicit written YES per item:
+1. **PERF-16 — the 4 rule-9 index misses**: ONE migration `0065` with `CREATE INDEX` ×4
+   (`project_tags(project_id)`, `telegram_note_sessions(user_id)`,
+   `telegram_bot_sessions(user_id)`, `sadhana_quadrant_names(user_id)`). Impact honestly
+   LOW (tiny tables — D1 RTT dominates); doctrine-value MED (rule 9 says index them from
+   birth). Full §9 bookmark ritual + both DBs.
+2. **PERF-9 — delete ~1.75 MB of legacy font formats** (.eot/.woff/.ttf under
+   `public/vendor/vazir/`, 7 weights × 3 formats). S201 honest correction: the files ARE
+   listed in `font-face.css` as `@font-face` src fallbacks — modern browsers only ever
+   fetch the first supported format (.woff2), so they are download-unreachable but not
+   reference-unreferenced. The change = delete the 21 files AND trim each src list to
+   woff2-only. Zero effect on any current browser; slims every deploy + zip.
+3. **UX-13 — major-dependency migrations**: zod 3→4 and @hono/node-server 1→2. One
+   deliberate round EACH behind the full ladder (never both at once); owner picks the
+   scheduling (recommended: one per session, next two code sessions).
+4. **SEC-10 — `__Host-` cookie prefix** (`__Host-hibana_session`): requires Secure +
+   no-Domain + path=/ (all true already on prod). ONE-TIME logout of every user (the
+   cookie name changes); harmless but user-visible.
+Also owner-side (not rule-4, standing): run `npm run drill` + `drill:planb` once on the
+owner machine (credentials.md has `BACKUP_ENCRYPTION_KEY`) for the full-key drill paths —
+see the §4 drill log; key-custody drill still open.
+**S201 banked — HLTH-24 vs the S49 NO-GO, reconciled:** the S198 audit's "split
+project-page.js by concern" meets §6's standing NO-GO (closure-bound page-mount monolith;
+the S48 IIFE bug is the warning). Resolution: NO big-bang split ever; the SAFE path is
+the S49 incremental-extraction doctrine (pure function → IIFE global, HibanaChips-style)
+applied WHEN THE FILE IS NEXT TOUCHED for real work. The worklog rotation (HLTH-27) now
+keeps this doctrine visible in the active tail.
 **S49 audit verdict (the session's deliverable):** the tree is CLEAN at the file level —
 zero dead JS/CSS files (all 47 JS + 22 CSS referenced), zero debug console.logs, zero
 ?v= drift, SW SHELL covers every page. Fixed this session: CI red (ESLint S41 + stale

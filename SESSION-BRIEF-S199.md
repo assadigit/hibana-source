@@ -17,9 +17,20 @@
 > couldn't see JS-constructed class names); the banked UX batch (--accent-ink + the
 > contrast-fn false-positive fix → a11y baseline contrast 0/0, aria-labels, the
 > skip-link on 24 pages, the fine-world 24px rule + q-pen/cal-note-x rings,
-> Login.jpg → WebP). **S201 "Majors + Approvals" is next** — per the S201 section
-> below + the S200 record's banked list (the e2e DB-constant sweep across 86 specs,
-> the per-sheet --accent-ink conversion continues opportunistically).
+> Login.jpg → WebP). **S201 "Majors + Approvals" ALSO EXECUTED 2026-10-11 — as a
+> docs/ops round (no version bump; commit on main, CI green, CD redeployed the same
+> bits):** the four rule-4 asks PREPARED and presented to Ali (Changelogs §6's PENDING
+> OWNER APPROVAL block — the 4 rule-9 indexes, the 1.75 MB legacy-font deletion with the
+> font-face.css honest correction, zod-4/node-server-2 scheduling, the __Host- cookie
+> prefix; NOTHING ships without his written YES); the FIRST-EVER restore drills run +
+> recorded (§4's new Drill log — drill PASS, drill:planb PARTIAL PASS, two latent drill
+> bugs found dead: the pre-0060 seed vocabulary + the planb D1 `.results.results`
+> parser); UX-11 closed (healthchecks check "Hibana errors" + .github/workflows/errors.yml
+> daily monitor: 5xx>5 or total>20 in 24h → /fail); HLTH-27 shipped (rotate.mjs --worklog
+> + prose caps row 2k/body 8k — worklog 2,871→305 lines, archive born, zero loss);
+> HLTH-24 banked with the §6 NO-GO reconciled (incremental extraction only). The next
+> session: execute the approved asks on Ali's written YES, else the S200 banked list
+> (the 86-spec e2e DB-constant sweep, opportunistic --accent-ink, UX-17 mobile preset).**
 
 **You are the next agent.** Read, in order: `Agents.md` (canonical rules) → `SWOT-AUDIT-S198.md`
 (the audit — every finding has an ID; THIS brief references those IDs) → `Changelogs.md` §1 →

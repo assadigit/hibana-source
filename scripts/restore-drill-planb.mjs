@@ -74,7 +74,11 @@ async function d1Query(sql) {
   if (!res.ok || !body?.success) {
     throw new Error(`D1 REST query failed (${res.status}): ${JSON.stringify(body?.errors ?? body).slice(0, 300)}`)
   }
-  return body.result?.[0]?.results?.results ?? []
+  // S201: the rows live at result[0].results (an array) — the shipped `.results.results`
+  // shape read `undefined ?? []` and would have reported EVERY non-empty planb_backups
+  // as empty. Caught by the first-ever drill run (UX-12's zero-runs policy meant the
+  // bug sat latent since 2026-09-11).
+  return body.result?.[0]?.results ?? []
 }
 
 console.log('════════════════════════════════════════════════════════════════')

@@ -1,0 +1,113 @@
+# Hibana error monitor — daily error_log growth check (S201, UX-11).
+#
+# Why: error_log (migration 0045) records every ApiError + unhandled throw, but
+# nothing WATCHED it — check-prod-errors.mjs is a manual tool, and the S198 audit
+# found "the owner never reads code — 'feels broken' is the only signal" (UX-11).
+# This workflow runs ON GITHUB INFRA (independent failure domain, same recipe as
+# uptime.yml) once a day, counts prod error_log rows from the last 24h via the D1
+# REST API, and pings healthchecks.io: success while under threshold, /fail past
+# it. Silence (missed ticks) alerts via the check's own dead-man timer.
+#
+# Thresholds (tune via the env block; current baselines: error_log is routinely
+# EMPTY — 0 rows in the whole 7-day retention window at S201):
+#   - 5xx errors (real breakage): 5 in 24h  → /fail
+#   - total incl. 4xx (auth_invalid bursts = the credential-stuffing signal
+#     errorlog.ts deliberately keeps): 20 in 24h → /fail
+#
+# PREREQUISITES (repo secrets, both set):
+#   HIBANA_ERRORS_PING_URL — https://hc-ping.com/<ping-key>/<check-slug>
+#   (slug RANDOMIZED per the §4 doctrine — the account ping key is public git
+#   history, only the slug keeps URLs unguessable. NEVER re-point at a guessable
+#   slug.) The healthchecks.io check "Hibana errors" (24h period + 6h grace)
+#   shares the account's email alert channel with the other two checks.
+#   CLOUDFLARE_API_TOKEN + CLOUDFLARE_ACCOUNT_ID — same D1-read creds the
+#   workers-smoke gate already uses.
+#
+# Anti-masking: this monitor pings ONLY its own check — never the backup check
+# (whose ticks mean "the backup cron ran"), never the uptime check.
+name: Error monitor
+
+on:
+  schedule:
+    # daily at 04:23 UTC (offset from the top-of-hour cron stampede; the health
+    # check's 24h + 6h window absorbs GitHub cron throttling)
+    - cron: "23 4 * * *"
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Count prod error_log rows (last 24h) and ping healthchecks.io
+        env:
+          PING_URL: ${{ secrets.HIBANA_ERRORS_PING_URL }}
+          CF_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CF_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          DB_ID: d842fcb5-44f6-4bbd-a772-3699ccadb496 # pm-app-prod (public in check-prod-errors.mjs)
+          TOTAL_THRESHOLD: "20"
+          S5XX_THRESHOLD: "5"
+        run: |
+          set -u
+          fail() {
+            echo "::error::$1"
+            # explicit /fail → the check goes red immediately (no grace wait)
+            if [ -n "${PING_URL:-}" ]; then
+              curl -fsS --max-time 15 "${PING_URL}/fail" --data-raw "Hibana error monitor: $1" >/dev/null 2>&1 || true
+            fi
+            exit 1
+          }
+          [ -n "${CF_API_TOKEN:-}" ] || fail "CLOUDFLARE_API_TOKEN secret not set"
+          [ -n "${PING_URL:-}" ] || { echo "::warning::HIBANA_ERRORS_PING_URL secret not set — monitor ran but nobody is watching"; }
+
+          since=$(date -u -d '24 hours ago' +%Y-%m-%dT%H:%M:%SZ)
+          sql="SELECT count(*) AS total, coalesce(sum(CASE WHEN status >= 500 THEN 1 ELSE 0 END), 0) AS s5xx, max(created_at) AS latest FROM error_log WHERE created_at > '${since}'"
+
+          # 1. Query D1 with retries (one transient CF API blip must not page anyone).
+          body=""
+          for attempt in 1 2 3; do
+            if body=$(curl -fsS --max-time 20 -X POST \
+              -H "Authorization: Bearer ${CF_API_TOKEN}" \
+              -H "Content-Type: application/json" \
+              -d "{\"sql\": $(printf '%s' "$sql" | jq -Rs .)}" \
+              "https://api.cloudflare.com/client/v4/accounts/${CF_ACCOUNT_ID}/d1/database/${DB_ID}/query"); then
+              break
+            fi
+            echo "attempt $attempt failed; sleeping 20s"
+            sleep 20
+          done
+          [ -n "$body" ] || fail "D1 query unreachable after 3 attempts (CF API or token problem)"
+          if ! printf '%s' "$body" | jq -e '.success == true' >/dev/null; then
+            fail "D1 query failed: $(printf '%s' "$body" | jq -r '.errors // .error // .message' | head -c 300)"
+          fi
+
+          # 2. Parse (rows live at result[0].results — the S201 drill-lesson shape).
+          total=$(printf '%s' "$body" | jq -r '.result[0].results[0].total')
+          s5xx=$(printf '%s' "$body" | jq -r '.result[0].results[0].s5xx')
+          latest=$(printf '%s' "$body" | jq -r '.result[0].results[0].latest // "none"')
+          [ "$total" != "null" ] || fail "unexpected D1 response shape (total missing)"
+          echo "prod error_log since ${since}: total=${total} 5xx=${s5xx} latest=${latest}"
+
+          # 3. Threshold verdicts (5xx = real breakage; total = incl. 4xx auth bursts).
+          if [ "$s5xx" -gt "$S5XX_THRESHOLD" ]; then
+            # actionable detail: which paths errored (bounded)
+            paths=$(curl -fsS --max-time 20 -X POST \
+              -H "Authorization: Bearer ${CF_API_TOKEN}" \
+              -H "Content-Type: application/json" \
+              -d "{\"sql\": \"SELECT path, count(*) AS n FROM error_log WHERE created_at > '${since}' GROUP BY path ORDER BY n DESC LIMIT 5\"}" \
+              "https://api.cloudflare.com/client/v4/accounts/${CF_ACCOUNT_ID}/d1/database/${DB_ID}/query" \
+              | jq -r '.result[0].results[] | "\(.path) x\(.n)"' | paste -sd '; ' -) || paths="(path query failed)"
+            fail "${s5xx} 5xx errors in 24h (threshold ${S5XX_THRESHOLD}) — top paths: ${paths:-unknown}"
+          fi
+          if [ "$total" -gt "$TOTAL_THRESHOLD" ]; then
+            fail "${total} errors in 24h incl. 4xx (threshold ${TOTAL_THRESHOLD}) — possible auth_invalid burst / probe; check the admin Errors tab"
+          fi
+
+          # 4. Success ping (check green + timer resets).
+          if [ -n "${PING_URL:-}" ]; then
+            curl -fsS --max-time 15 "$PING_URL" >/dev/null || fail "healthchecks.io ping failed"
+          fi
+          echo "error monitor PASS (total ${total} <= ${TOTAL_THRESHOLD}, 5xx ${s5xx} <= ${S5XX_THRESHOLD})"

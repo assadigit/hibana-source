@@ -4,11 +4,11 @@
 // CI: wired into .github/workflows/ci.yml as a 2-shard matrix (S200/PERF-1).
 //
 // S200 (PERF-1): E2E_PORT / E2E_DB / E2E_SHOTS parametrize the WEB SERVER so
-// CI's matrix shards and local runs can diverge from the defaults. NOTE: the
-// specs' direct-DB seeds still hardcode /tmp/hibana-e2e.db (86 files — the
-// sweep to a shared constant is banked), so LOCAL PARALLEL shards on one
-// machine are not yet supported; CI's shards are separate runners and keep
-// the defaults.
+// CI's matrix shards and local runs can diverge from the defaults. S202's
+// 86-spec DB-constant sweep (e2e/fixtures/e2e-db.ts reads the same env) made
+// LOCAL PARALLEL shards real: two runners with distinct E2E_PORT/E2E_DB/
+// E2E_SHOTS each boot their own server + DB (S202's release run: 3017/3018,
+// FULL 417 as two parallel shards).
 
 import { defineConfig, devices } from '@playwright/test'
 

@@ -39,7 +39,7 @@ async function makeTask(db: Db, projectId: string, title: string, status: string
 }
 
 function jsonHeaders(token: string) {
-  return { Cookie: `hibana_session=${token}`, 'Content-Type': 'application/json', Origin: 'http://local' }
+  return { Cookie: `__Host-hibana_session=${token}`, 'Content-Type': 'application/json', Origin: 'http://local' }
 }
 
 const testApp = (db: Db, extra: Record<string, unknown> = {}) =>
@@ -80,7 +80,7 @@ describe('S39: sticking screenshots to progress-box items', () => {
 
       // the shared grid fragment says WHICH box + item (the categorization)
       const grid = await app.fetch(
-        new Request(`http://local/api/projects/${projectId}/screenshots`, { headers: { Cookie: `hibana_session=${token}`, 'HX-Request': '1' } }),
+        new Request(`http://local/api/projects/${projectId}/screenshots`, { headers: { Cookie: `__Host-hibana_session=${token}`, 'HX-Request': '1' } }),
       )
       const gridHtml = await grid.text()
       expect(gridHtml).toContain('shot-pin')
@@ -90,7 +90,7 @@ describe('S39: sticking screenshots to progress-box items', () => {
 
       // the project detail fragment carries the 📌 badge on the task card + Problems tab row
       const detail = await app.fetch(
-        new Request(`http://local/api/projects/${projectId}`, { headers: { Cookie: `hibana_session=${token}`, 'HX-Request': '1' } }),
+        new Request(`http://local/api/projects/${projectId}`, { headers: { Cookie: `__Host-hibana_session=${token}`, 'HX-Request': '1' } }),
       )
       const detailHtml = await detail.text()
       expect(detailHtml).toContain(`data-pd-shots="${taskId}"`)
@@ -104,7 +104,7 @@ describe('S39: sticking screenshots to progress-box items', () => {
       expect(rows[0].task_id).toBeNull()
 
       const grid2 = await app.fetch(
-        new Request(`http://local/api/projects/${projectId}/screenshots`, { headers: { Cookie: `hibana_session=${token}`, 'HX-Request': '1' } }),
+        new Request(`http://local/api/projects/${projectId}/screenshots`, { headers: { Cookie: `__Host-hibana_session=${token}`, 'HX-Request': '1' } }),
       )
       // NB: the pin BUTTON (data-shot-pin) always exists — the pin LINE (class="shot-pin")
       // is what disappears.
@@ -167,7 +167,7 @@ describe('S39: the media gallery (GET /api/media)', () => {
         new Request(`http://local/api/screenshots/${shotA}`, { method: 'PATCH', headers: jsonHeaders(ownerToken), body: JSON.stringify({ taskId: taskB }) }),
       )
 
-      const media = await app.fetch(new Request('http://local/api/media', { headers: { Cookie: `hibana_session=${ownerToken}` } }))
+      const media = await app.fetch(new Request('http://local/api/media', { headers: { Cookie: `__Host-hibana_session=${ownerToken}` } }))
       expect(media.status).toBe(200)
       const body = (await media.json()) as {
         screenshots: Array<{ id: string; project_title: string; task_title: string | null; task_status: string | null; bytes: number }>
@@ -217,12 +217,12 @@ describe('S39: the media gallery (GET /api/media)', () => {
         [shotId, projectId, `u/${shotId}.png`, new Date().toISOString()],
       )
 
-      const file = await app.fetch(new Request(`http://local/api/media/screenshots/${shotId}/file`, { headers: { Cookie: `hibana_session=${token}` } }))
+      const file = await app.fetch(new Request(`http://local/api/media/screenshots/${shotId}/file`, { headers: { Cookie: `__Host-hibana_session=${token}` } }))
       expect(file.status).toBe(200)
       const rows = await db.query<{ bytes: number }>('SELECT bytes FROM screenshots WHERE id = ?', [shotId])
       expect(rows[0].bytes).toBe(7) // self-healed — the gallery meter goes honest
 
-      const media = await app.fetch(new Request('http://local/api/media', { headers: { Cookie: `hibana_session=${token}` } }))
+      const media = await app.fetch(new Request('http://local/api/media', { headers: { Cookie: `__Host-hibana_session=${token}` } }))
       const body = (await media.json()) as { totalBytes: number }
       expect(body.totalBytes).toBe(7)
     } finally {
@@ -253,7 +253,7 @@ describe('S115: gallery DELETE-ALL', () => {
       const a2 = await uploadShot(app, ownerToken, projectB)
       const f1 = await uploadShot(app, otherToken, foreignProject)
 
-      const del = await app.fetch(new Request('http://local/api/media/screenshots', { method: 'DELETE', headers: { Cookie: `hibana_session=${ownerToken}`, Origin: 'http://local' } }))
+      const del = await app.fetch(new Request('http://local/api/media/screenshots', { method: 'DELETE', headers: { Cookie: `__Host-hibana_session=${ownerToken}`, Origin: 'http://local' } }))
       expect(del.status).toBe(200)
       const body = (await del.json()) as { ok: boolean; deleted: number }
       expect(body.ok).toBe(true)
@@ -265,13 +265,13 @@ describe('S115: gallery DELETE-ALL', () => {
       expect(survivor.length).toBe(1)
 
       // the caller's gallery is empty now; the other user's is untouched
-      const mine = await app.fetch(new Request('http://local/api/media', { headers: { Cookie: `hibana_session=${ownerToken}` } }))
+      const mine = await app.fetch(new Request('http://local/api/media', { headers: { Cookie: `__Host-hibana_session=${ownerToken}` } }))
       expect(((await mine.json()) as { count: number }).count).toBe(0)
-      const theirs = await app.fetch(new Request('http://local/api/media', { headers: { Cookie: `hibana_session=${otherToken}` } }))
+      const theirs = await app.fetch(new Request('http://local/api/media', { headers: { Cookie: `__Host-hibana_session=${otherToken}` } }))
       expect(((await theirs.json()) as { count: number }).count).toBe(1)
 
       // a second call on an empty gallery is a cheap ok (no rows, no work)
-      const again = await app.fetch(new Request('http://local/api/media/screenshots', { method: 'DELETE', headers: { Cookie: `hibana_session=${ownerToken}`, Origin: 'http://local' } }))
+      const again = await app.fetch(new Request('http://local/api/media/screenshots', { method: 'DELETE', headers: { Cookie: `__Host-hibana_session=${ownerToken}`, Origin: 'http://local' } }))
       expect(again.status).toBe(200)
       expect(((await again.json()) as { deleted: number }).deleted).toBe(0)
     } finally {
@@ -301,15 +301,15 @@ describe('S116: a missing stored object degrades to 404, never 500', () => {
       // …then the storage backend goes away (every read throws — the ENOENT class).
       vi.stubGlobal('fetch', async () => { throw new Error('ENOENT: no such file or directory') })
 
-      const orig = await app.fetch(new Request(`http://local/api/media/screenshots/${shotId}/file`, { headers: { Cookie: `hibana_session=${token}` } }))
+      const orig = await app.fetch(new Request(`http://local/api/media/screenshots/${shotId}/file`, { headers: { Cookie: `__Host-hibana_session=${token}` } }))
       expect(orig.status).toBe(404)
       expect(((await orig.json()) as { error: string }).error).toBe('not_found')
 
-      const thumb = await app.fetch(new Request(`http://local/api/media/screenshots/${shotId}/file?variant=thumb`, { headers: { Cookie: `hibana_session=${token}` } }))
+      const thumb = await app.fetch(new Request(`http://local/api/media/screenshots/${shotId}/file?variant=thumb`, { headers: { Cookie: `__Host-hibana_session=${token}` } }))
       expect(thumb.status).toBe(404)
 
       // the row SURVIVES (the gallery still lists it; cleanup is the owner's job)
-      const list = await app.fetch(new Request('http://local/api/media', { headers: { Cookie: `hibana_session=${token}` } }))
+      const list = await app.fetch(new Request('http://local/api/media', { headers: { Cookie: `__Host-hibana_session=${token}` } }))
       expect(((await list.json()) as { count: number }).count).toBe(1)
     } finally {
       close()

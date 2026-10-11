@@ -27,7 +27,7 @@ async function makeProject(db: Db, userId: string, status = 'spark'): Promise<st
 }
 
 function jsonHeaders(token: string) {
-  return { Cookie: `hibana_session=${token}`, 'Content-Type': 'application/json', Origin: 'http://local' }
+  return { Cookie: `__Host-hibana_session=${token}`, 'Content-Type': 'application/json', Origin: 'http://local' }
 }
 
 describe('screenshot problem reports (S35)', () => {
@@ -73,7 +73,7 @@ describe('screenshot problem reports (S35)', () => {
 
       // the shared grid fragment renders the fixed state + the note
       const grid = await app.fetch(
-        new Request(`http://local/api/projects/${projectId}/screenshots`, { headers: { Cookie: `hibana_session=${token}`, 'HX-Request': '1' } }),
+        new Request(`http://local/api/projects/${projectId}/screenshots`, { headers: { Cookie: `__Host-hibana_session=${token}`, 'HX-Request': '1' } }),
       )
       const html = await grid.text()
       expect(html).toContain('is-fixed')
@@ -159,7 +159,7 @@ describe('screenshot problem reports (S35)', () => {
       expect(seen.some((s) => s.url.includes('api.github.com'))).toBe(false)
 
       // the media route reads back through the SAME adapter
-      const media = await app.fetch(new Request(`http://local/api/media/screenshots/${id}/file`, { headers: { Cookie: `hibana_session=${token}` } }))
+      const media = await app.fetch(new Request(`http://local/api/media/screenshots/${id}/file`, { headers: { Cookie: `__Host-hibana_session=${token}` } }))
       expect(media.status).toBe(200)
       expect(await media.arrayBuffer()).toEqual(new Uint8Array([1, 2, 3]).buffer)
 

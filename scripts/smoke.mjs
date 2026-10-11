@@ -61,7 +61,7 @@ const login = await app.fetch(
 )
 const cookie = (login.headers.get('set-cookie') ?? '').split(';')[0]
 const auth = { Cookie: cookie, 'Content-Type': 'application/json', Origin: 'http://local' }
-check('login', login.status === 200 && cookie.startsWith('hibana_session='))
+check('login', login.status === 200 && cookie.startsWith('__Host-hibana_session='))
 
 // public health endpoint (no session, ROADMAP P2 monitoring)
 const health = await app.fetch(new Request('http://local/api/health'))
@@ -157,7 +157,7 @@ try {
       }),
     )
     // register no longer auto-logs-in: the account is locked until the email code lands
-    check('invite-code registration creates an unverified member', reg.status === 201 && !(reg.headers.get('set-cookie') ?? '').startsWith('hibana_session='))
+    check('invite-code registration creates an unverified member', reg.status === 201 && !(reg.headers.get('set-cookie') ?? '').startsWith('__Host-hibana_session='))
   } finally {
     globalThis.fetch = realFetch
   }

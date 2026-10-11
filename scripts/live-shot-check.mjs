@@ -123,7 +123,7 @@ async function api(path, init = {}) {
       'content-type': 'application/json',
       accept: 'application/json',
       origin: base, // CSRF: must equal the request origin
-      cookie: `hibana_session=${COOKIE}`,
+      cookie: `__Host-hibana_session=${COOKIE}`,
       ...(init.headers ?? {}),
     },
   })

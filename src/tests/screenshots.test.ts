@@ -67,7 +67,7 @@ describe('screenshot upload path shape (session-9 F1)', () => {
       const res = await app.fetch(
         new Request(`http://local/api/projects/${projectId}/screenshots`, {
           method: 'POST',
-          headers: { Cookie: `hibana_session=${token}`, 'Content-Type': 'application/json', Origin: 'http://local' },
+          headers: { Cookie: `__Host-hibana_session=${token}`, 'Content-Type': 'application/json', Origin: 'http://local' },
           body: JSON.stringify({ fileName: 'shot.png', mimeType: 'image/png', dataBase64: PNG_B64, caption: 'regression pin' }),
         }),
       )
@@ -130,7 +130,7 @@ describe('screenshot upload path shape (session-9 F1)', () => {
       const res = await app.fetch(
         new Request(`http://local/api/projects/${projectId}/screenshots`, {
           method: 'POST',
-          headers: { Cookie: `hibana_session=${token}`, 'Content-Type': 'application/json', Origin: 'http://local' },
+          headers: { Cookie: `__Host-hibana_session=${token}`, 'Content-Type': 'application/json', Origin: 'http://local' },
           body: JSON.stringify({ id: clientId, fileName: 're play.jpeg', mimeType: 'image/jpeg', dataBase64: PNG_B64 }),
         }),
       )
@@ -176,7 +176,7 @@ describe('file uploads S86 — docs in the shot bucket', () => {
       const res = await app.fetch(
         new Request(`http://local/api/projects/${projectId}/screenshots`, {
           method: 'POST',
-          headers: { Cookie: `hibana_session=${token}`, 'Content-Type': 'application/json', Origin: 'http://local' },
+          headers: { Cookie: `__Host-hibana_session=${token}`, 'Content-Type': 'application/json', Origin: 'http://local' },
           body: JSON.stringify({ fileName: 'wishlist-books.pdf', mimeType: 'application/pdf', dataBase64: PDF_B64, filename: 'wishlist-books.pdf' }),
         }),
       )
@@ -194,7 +194,7 @@ describe('file uploads S86 — docs in the shot bucket', () => {
       // Serving: right Content-Type + Content-Disposition: attachment (a doc
       // downloads; an image renders — that distinction is the whole tile UX).
       const served = await app.fetch(new Request(`http://local/api/media/screenshots/${created.id}/file`, {
-        headers: { Cookie: `hibana_session=${token}` },
+        headers: { Cookie: `__Host-hibana_session=${token}` },
       }))
       expect(served.status).toBe(200)
       expect(served.headers.get('Content-Type')).toBe('application/pdf')
@@ -229,14 +229,14 @@ describe('file uploads S86 — docs in the shot bucket', () => {
       const res = await app.fetch(
         new Request(`http://local/api/projects/${projectId}/screenshots`, {
           method: 'POST',
-          headers: { Cookie: `hibana_session=${token}`, 'Content-Type': 'application/json', Origin: 'http://local' },
+          headers: { Cookie: `__Host-hibana_session=${token}`, 'Content-Type': 'application/json', Origin: 'http://local' },
           body: JSON.stringify({ fileName: 'shot.png', mimeType: 'image/png', dataBase64: PNG_B64 }),
         }),
       )
       expect(res.status).toBe(201)
       const created = (await res.json()) as { id: string }
       const served = await app.fetch(new Request(`http://local/api/media/screenshots/${created.id}/file`, {
-        headers: { Cookie: `hibana_session=${token}` },
+        headers: { Cookie: `__Host-hibana_session=${token}` },
       }))
       expect(served.headers.get('Content-Type')).toBe('image/png')
       expect(served.headers.get('Content-Disposition')).toBeNull()
@@ -277,7 +277,7 @@ describe('file uploads S86 — docs in the shot bucket', () => {
         const res = await app.fetch(
           new Request(`http://local/api/projects/${projectId}/screenshots`, {
             method: 'POST',
-            headers: { Cookie: `hibana_session=${token}`, 'Content-Type': 'application/json', Origin: 'http://local' },
+            headers: { Cookie: `__Host-hibana_session=${token}`, 'Content-Type': 'application/json', Origin: 'http://local' },
             body: JSON.stringify({ fileName: 'f.bin', mimeType, dataBase64: PDF_B64 }),
           }),
         )
@@ -287,7 +287,7 @@ describe('file uploads S86 — docs in the shot bucket', () => {
       const bad = await app.fetch(
         new Request(`http://local/api/projects/${projectId}/screenshots`, {
           method: 'POST',
-          headers: { Cookie: `hibana_session=${token}`, 'Content-Type': 'application/json', Origin: 'http://local' },
+          headers: { Cookie: `__Host-hibana_session=${token}`, 'Content-Type': 'application/json', Origin: 'http://local' },
           body: JSON.stringify({ fileName: 'evil.zip', mimeType: 'application/zip', dataBase64: PDF_B64 }),
         }),
       )

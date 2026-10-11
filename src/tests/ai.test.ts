@@ -280,7 +280,7 @@ function makeConfig(db: Db, ai?: AiRunner): Config {
 async function makeClient(db: Db, userId: string, ai?: AiRunner) {
   const app = createApp(makeConfig(db, ai))
   const token = await createSession(db, userId)
-  return { app, auth: { Cookie: `hibana_session=${token}`, 'Content-Type': 'application/json', Origin: 'http://local' } }
+  return { app, auth: { Cookie: `__Host-hibana_session=${token}`, 'Content-Type': 'application/json', Origin: 'http://local' } }
 }
 
 function post(client: { app: ReturnType<typeof createApp>; auth: Record<string, string> }, body: unknown) {

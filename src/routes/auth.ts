@@ -2,7 +2,7 @@ import { Hono, type MiddlewareHandler } from 'hono'
 import { getCookie } from 'hono/cookie'
 import { z } from 'zod'
 import { hashPassword, verifyPassword, needsRehash } from '../auth/password'
-import { SESSION_COOKIE, sessionHash, createSession, destroySession } from '../auth/sessions'
+import { SESSION_COOKIE, sessionHash, createSession, destroySession, sessionCookieHeader, clearSessionCookieHeader } from '../auth/sessions'
 import { requireAuth } from '../auth/middleware'
 import { isBanned } from '../auth/ban'
 import { BANNED_FOREVER_DATE } from '../auth/ban'
@@ -133,11 +133,7 @@ export function authRoutes(cfg: Config) {
     }
 
     const token = await createSession(cfg.db, user.id)
-    const secure = cfg.isProd ? 'Secure; ' : ''
-    c.header(
-      'Set-Cookie',
-      `${SESSION_COOKIE}=${token}; HttpOnly; SameSite=Lax; Path=/; ${secure}Max-Age=${30 * 24 * 60 * 60}`,
-    )
+    c.header('Set-Cookie', sessionCookieHeader(token)) // SEC-10: __Host- attrs via the ONE helper
 
     // M2 fix (2026-09-10): lazy PBKDF2 rehash. If the stored hash was created at a lower
     // iteration count than the current target (600k), silently upgrade it now — the
@@ -168,7 +164,7 @@ export function authRoutes(cfg: Config) {
 
   app.post('/logout', async (c) => {
     await destroySession(cfg.db, getCookie(c, SESSION_COOKIE))
-    c.header('Set-Cookie', `${SESSION_COOKIE}=; HttpOnly; SameSite=Lax; Path=/; Max-Age=0`)
+    c.header('Set-Cookie', clearSessionCookieHeader())
     if (isHtmx(c)) return c.html('')
     return c.json({ ok: true })
   })

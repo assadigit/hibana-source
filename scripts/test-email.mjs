@@ -28,8 +28,8 @@ if (login.status !== 200) {
 }
 const setCookie = login.headers.get('set-cookie') ?? ''
 const cookie = setCookie.split(';')[0]
-if (!cookie.startsWith('hibana_session=')) {
-  console.error('login OK but no hibana_session cookie returned')
+if (!cookie.startsWith('__Host-hibana_session=')) {
+  console.error('login OK but no __Host-hibana_session cookie returned')
   process.exit(1)
 }
 console.log(`logged in to ${base} as ${user}`)

@@ -20,7 +20,7 @@ function makeConfig(db: Db): Config {
 async function makeClient(db: Db, userId: string) {
   const app = createApp(makeConfig(db))
   const token = await createSession(db, userId)
-  return { app, auth: { Cookie: `hibana_session=${token}`, Origin: 'http://local' } }
+  return { app, auth: { Cookie: `__Host-hibana_session=${token}`, Origin: 'http://local' } }
 }
 
 const DAY = 24 * 3600 * 1000

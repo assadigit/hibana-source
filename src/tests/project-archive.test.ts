@@ -25,7 +25,7 @@ async function makeProject(db: Db, userId: string, status: string, title = 'Idea
 }
 
 function h(token: string) {
-  return { Cookie: `hibana_session=${token}`, 'Content-Type': 'application/json', Origin: 'http://local' }
+  return { Cookie: `__Host-hibana_session=${token}`, 'Content-Type': 'application/json', Origin: 'http://local' }
 }
 
 describe('project/idea archive (S35)', () => {
@@ -47,21 +47,21 @@ describe('project/idea archive (S35)', () => {
       expect(again.status).toBe(409)
 
       // the JSON list EXCLUDES the archived row (the live one stays)
-      const list = await app.fetch(new Request('http://local/api/projects', { headers: { Cookie: `hibana_session=${token}` } }))
+      const list = await app.fetch(new Request('http://local/api/projects', { headers: { Cookie: `__Host-hibana_session=${token}` } }))
       const { projects } = (await list.json()) as { projects: { id: string }[] }
       expect(projects.some((p) => p.id === idea)).toBe(false)
       expect(projects.some((p) => p.id === live)).toBe(true)
 
       // the ideas shelf (status=spark) HX fragment drops it too
       const shelf = await app.fetch(
-        new Request('http://local/api/projects?status=spark&folder=all', { headers: { Cookie: `hibana_session=${token}`, 'HX-Request': '1' } }),
+        new Request('http://local/api/projects?status=spark&folder=all', { headers: { Cookie: `__Host-hibana_session=${token}`, 'HX-Request': '1' } }),
       )
       const shelfHtml = await shelf.text()
       expect(shelfHtml).not.toContain('Blockchain toaster')
 
       // the ARCHIVE shelf lists it, with the restore action
       const arc = await app.fetch(
-        new Request('http://local/api/projects?archived=1', { headers: { Cookie: `hibana_session=${token}`, 'HX-Request': '1' } }),
+        new Request('http://local/api/projects?archived=1', { headers: { Cookie: `__Host-hibana_session=${token}`, 'HX-Request': '1' } }),
       )
       const arcHtml = await arc.text()
       expect(arcHtml).toContain('Blockchain toaster')
@@ -85,7 +85,7 @@ describe('project/idea archive (S35)', () => {
 
       // back on the IDEAS shelf (sparks never appear in the main projects list)
       const shelf2 = await app.fetch(
-        new Request('http://local/api/projects?status=spark&folder=all', { headers: { Cookie: `hibana_session=${token}`, 'HX-Request': '1' } }),
+        new Request('http://local/api/projects?status=spark&folder=all', { headers: { Cookie: `__Host-hibana_session=${token}`, 'HX-Request': '1' } }),
       )
       const shelf2Html = await shelf2.text()
       expect(shelf2Html).toContain('Blockchain toaster')
@@ -105,7 +105,7 @@ describe('project/idea archive (S35)', () => {
 
       // grid fragment counts BEFORE: awaiting = 2
       const before = await app.fetch(
-        new Request('http://local/api/projects?view=grid', { headers: { Cookie: `hibana_session=${token}`, 'HX-Request': '1' } }),
+        new Request('http://local/api/projects?view=grid', { headers: { Cookie: `__Host-hibana_session=${token}`, 'HX-Request': '1' } }),
       )
       const beforeHtml = await before.text()
       expect(beforeHtml).toContain('pglance-box')
@@ -114,7 +114,7 @@ describe('project/idea archive (S35)', () => {
 
       // AFTER: the archived row does not count
       const afterHtml = await (await app.fetch(
-        new Request('http://local/api/projects?view=grid', { headers: { Cookie: `hibana_session=${token}`, 'HX-Request': '1' } }),
+        new Request('http://local/api/projects?view=grid', { headers: { Cookie: `__Host-hibana_session=${token}`, 'HX-Request': '1' } }),
       )).text()
       const m = /data-pglance="queued"[\s\S]*?pglance-count"[^>]*>(\d+)</.exec(afterHtml)
       expect(m?.[1]).toBe('1')
@@ -123,7 +123,7 @@ describe('project/idea archive (S35)', () => {
       // (attribute-exact: [data-pd-archive-done] — the board's archive-done button — must
       // still be there, so a substring match on 'data-pd-archive' would false-positive)
       const detailHtml = await (await app.fetch(
-        new Request(`http://local/api/projects/${a}`, { headers: { Cookie: `hibana_session=${token}`, 'HX-Request': '1' } }),
+        new Request(`http://local/api/projects/${a}`, { headers: { Cookie: `__Host-hibana_session=${token}`, 'HX-Request': '1' } }),
       )).text()
       expect(detailHtml).toContain('pd-archived-banner')
       expect(detailHtml).toContain('data-pd-unarchive')

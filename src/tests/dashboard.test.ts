@@ -20,7 +20,7 @@ const CAROUSEL = ['planning', 'queued', 'developing', 'awaiting_dev', 'operation
 async function makeClient(db: Db, userId: string) {
   const app = createApp({ db, isProd: false, github: { owner: 'x', repo: 'y', token: '' }, emailKey: undefined, assets: undefined })
   const token = await createSession(db, userId)
-  return { app, auth: { Cookie: `hibana_session=${token}`, 'Content-Type': 'application/json', Origin: 'http://local' } }
+  return { app, auth: { Cookie: `__Host-hibana_session=${token}`, 'Content-Type': 'application/json', Origin: 'http://local' } }
 }
 
 async function createProject(app: ReturnType<typeof createApp>, auth: Record<string, string>, title: string, status: string) {

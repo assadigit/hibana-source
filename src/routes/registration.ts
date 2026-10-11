@@ -2,7 +2,7 @@ import { Hono, type MiddlewareHandler } from 'hono'
 import { z } from 'zod'
 import { requireAuth } from '../auth/middleware'
 import { hashPassword } from '../auth/password'
-import { SESSION_COOKIE, createSession } from '../auth/sessions'
+import { createSession, sessionCookieHeader } from '../auth/sessions'
 import { isHtmx, jsonBody, requestOrigin } from '../lib/http'
 import { emailLinkOrigin } from '../lib/app-url'
 import { uuid } from '../lib/ids'
@@ -195,11 +195,7 @@ export function registrationRoutes(cfg: Config) {
     }
 
     const token = await createSession(cfg.db, user.id)
-    const secure = cfg.isProd ? 'Secure; ' : ''
-    c.header(
-      'Set-Cookie',
-      `${SESSION_COOKIE}=${token}; HttpOnly; SameSite=Lax; Path=/; ${secure}Max-Age=${30 * 24 * 60 * 60}`,
-    )
+    c.header('Set-Cookie', sessionCookieHeader(token)) // SEC-10: __Host- attrs via the ONE helper
     if (isHtmx(c)) {
       c.header('HX-Redirect', '/app')
       return c.html('')

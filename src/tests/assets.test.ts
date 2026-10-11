@@ -59,7 +59,7 @@ describe('static assets (portability path)', () => {
       // With a session, the same route works (assets middleware never short-circuits it).
       const token = await createSession(db, userId)
       const authed = await app.fetch(
-        new Request('http://local/api/projects', { headers: { Cookie: `hibana_session=${token}` } }),
+        new Request('http://local/api/projects', { headers: { Cookie: `__Host-hibana_session=${token}` } }),
       )
       expect(authed.status).toBe(200)
     } finally {

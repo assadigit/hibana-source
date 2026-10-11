@@ -22,7 +22,7 @@ async function makeClient(db: Db, userId: string, mirrorOrigins?: string[]) {
     assets: undefined,
   })
   const token = await createSession(db, userId)
-  return { app, auth: { Cookie: `hibana_session=${token}`, 'Content-Type': 'application/json' } }
+  return { app, auth: { Cookie: `__Host-hibana_session=${token}`, 'Content-Type': 'application/json' } }
 }
 
 describe('CSRF hardening — cross-site state-changing requests are rejected', () => {

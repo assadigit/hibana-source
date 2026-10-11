@@ -34,7 +34,7 @@ describe('registration (spec §4.14)', () => {
 
       // owner generates a code
       let res = await app.fetch(
-        post('/api/auth/invites', {}, { cookie: `hibana_session=${await createSession(db, owner)}` }),
+        post('/api/auth/invites', {}, { cookie: `__Host-hibana_session=${await createSession(db, owner)}` }),
       )
       expect(res.status).toBe(201)
       const { code } = (await res.json()) as { code: string }
@@ -64,7 +64,7 @@ describe('registration (spec §4.14)', () => {
       const verifyCode = lastVerificationCode(net)
       res = await app.fetch(post('/api/auth/verify', { email: 'new@test.dev', code: verifyCode }))
       expect(res.status).toBe(200)
-      expect((res.headers.get('set-cookie') ?? '').startsWith('hibana_session=')).toBe(true)
+      expect((res.headers.get('set-cookie') ?? '').startsWith('__Host-hibana_session=')).toBe(true)
 
       // now login works
       res = await app.fetch(post('/api/auth/login', { login: 'newbie', password: 'correcthorsebattery' }))
@@ -111,7 +111,7 @@ describe('registration (spec §4.14)', () => {
 
       // solve the issued question → the register human-check passes
       const invite = await app.fetch(
-        post('/api/auth/invites', {}, { cookie: `hibana_session=${await createSession(db, owner)}` }),
+        post('/api/auth/invites', {}, { cookie: `__Host-hibana_session=${await createSession(db, owner)}` }),
       )
       const { code } = (await invite.json()) as { code: string }
       const res = await app.fetch(
@@ -199,7 +199,7 @@ describe('registration (spec §4.14)', () => {
       expect(bad.status).toBe(400) // expired → rejected
 
       // old session still valid (password unchanged), so no breakage in the negative path
-      const me = await app.fetch(new Request('http://local/api/auth/me', { headers: { Cookie: `hibana_session=${oldToken}` } }))
+      const me = await app.fetch(new Request('http://local/api/auth/me', { headers: { Cookie: `__Host-hibana_session=${oldToken}` } }))
       expect(me.status).toBe(200)
     } finally {
       net.restore()
@@ -242,7 +242,7 @@ describe('registration (spec §4.14)', () => {
       expect(doneHtml).toContain('id="confirm-section"')
       expect(doneHtml).toContain('Password changed')
       const cookie = (done.headers.get('set-cookie') ?? '').split(';')[0]
-      expect(cookie.startsWith('hibana_session=')).toBe(true)
+      expect(cookie.startsWith('__Host-hibana_session=')).toBe(true)
 
       // 4. the issued cookie really is a session
       const me = await app.fetch(new Request('http://local/api/auth/me', { headers: { Cookie: cookie } }))

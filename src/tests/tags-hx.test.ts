@@ -14,7 +14,7 @@ import type { Db } from '../db/types'
 async function makeApp(db: Db, userId: string) {
   const app = createApp({ db, isProd: false, github: { owner: 'x', repo: 'y', token: '' }, emailKey: undefined, assets: undefined })
   const token = await createSession(db, userId)
-  return { app, headers: { 'Content-Type': 'application/json', Cookie: `hibana_session=${token}`, Origin: 'http://local' } }
+  return { app, headers: { 'Content-Type': 'application/json', Cookie: `__Host-hibana_session=${token}`, Origin: 'http://local' } }
 }
 
 async function createProject(app: ReturnType<typeof createApp>, headers: Record<string, string>, title: string) {

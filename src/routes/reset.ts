@@ -1,7 +1,7 @@
 import { Hono, type Context, type MiddlewareHandler } from 'hono'
 import { z } from 'zod'
 import { hashPassword } from '../auth/password'
-import { SESSION_COOKIE, createSession } from '../auth/sessions'
+import { createSession, sessionCookieHeader } from '../auth/sessions'
 import { esc, jsonBody, requestOrigin, isHtmx } from '../lib/http'
 import { resetRequestSchema, resetConfirmSchema } from '../validation/schemas'
 import { sendAndLog, resetEmailHtml } from '../services/email'
@@ -104,11 +104,7 @@ export function resetRoutes(cfg: Config) {
     })
     // Sign this browser straight in — the one-time link is the account's own proof.
     const token = await createSession(cfg.db, rows[0].user_id)
-    const secure = cfg.isProd ? 'Secure; ' : ''
-    c.header(
-      'Set-Cookie',
-      `${SESSION_COOKIE}=${token}; HttpOnly; SameSite=Lax; Path=/; ${secure}Max-Age=${30 * 24 * 60 * 60}`,
-    )
+    c.header('Set-Cookie', sessionCookieHeader(token)) // SEC-10: __Host- attrs via the ONE helper
     if (isHtmx(c)) {
       return c.html(`<section id="confirm-section" data-reset-done="1">
         <h3>All set ✓</h3>

@@ -17,7 +17,7 @@ async function makeClient(db: Db, userId: string) {
     emailKey: undefined,
     assets: undefined,
   })
-  return { app, auth: { Cookie: `hibana_session=${await createSession(db, userId)}`, 'Content-Type': 'application/json', Origin: 'http://local' } }
+  return { app, auth: { Cookie: `__Host-hibana_session=${await createSession(db, userId)}`, 'Content-Type': 'application/json', Origin: 'http://local' } }
 }
 
 const cookie = (auth: Record<string, string>) => ({ Cookie: auth.Cookie ?? '' })

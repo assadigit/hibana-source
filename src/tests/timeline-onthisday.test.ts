@@ -21,7 +21,7 @@ import type { Db } from '../db/types'
 async function makeClient(db: Db, userId: string) {
   const app = createApp({ db, isProd: false, github: { owner: 'x', repo: 'y', token: '' }, assets: undefined })
   const token = await createSession(db, userId)
-  return { app, auth: { Cookie: `hibana_session=${token}` } }
+  return { app, auth: { Cookie: `__Host-hibana_session=${token}` } }
 }
 
 type Window = { label: string; items: { id: string; kind: string; title: string; href: string }[] }

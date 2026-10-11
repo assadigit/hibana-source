@@ -40,7 +40,7 @@ const results = []
 const check = (name, ok, extra = '') => { results.push([name, ok]); console.log(`${ok ? 'PASS' : 'FAIL'} ${name}${extra ? ' — ' + extra : ''}`) }
 
 try {
-  const jar = { 'Content-Type': 'application/json', Cookie: `hibana_session=${token}`, Origin: BASE }
+  const jar = { 'Content-Type': 'application/json', Cookie: `__Host-hibana_session=${token}`, Origin: BASE }
   // Two projects in different stages so the carousel actually pages on the fragment.
   const projects = []
   for (const st of ['investigating', 'doing']) {

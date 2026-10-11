@@ -33,7 +33,7 @@ async function makeClient(db: Db, userId: string, opts: { shots?: boolean } = {}
     ...(opts.shots ? { objectStore: diskShotsFromEnv({ HIBANA_SHOTS_DIR: shotsRoot })! } : {}),
   })
   const token = await createSession(db, userId)
-  return { app, auth: { Cookie: `hibana_session=${token}`, 'Content-Type': 'application/json', Origin: 'http://local' } }
+  return { app, auth: { Cookie: `__Host-hibana_session=${token}`, 'Content-Type': 'application/json', Origin: 'http://local' } }
 }
 
 async function makeFolder(app: ReturnType<typeof createApp>, auth: Record<string, string>, name: string, extra: Record<string, unknown> = {}) {

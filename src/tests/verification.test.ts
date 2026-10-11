@@ -67,7 +67,7 @@ describe('email-code verification (open signup, temporarily)', () => {
 
       const res = await app.fetch(post('/api/auth/verify', { email: 'fresh@test.dev', code }))
       expect(res.status).toBe(200)
-      expect((res.headers.get('set-cookie') ?? '').startsWith('hibana_session=')).toBe(true)
+      expect((res.headers.get('set-cookie') ?? '').startsWith('__Host-hibana_session=')).toBe(true)
 
       const users = await db.query<{ email_verified_at: string | null }>('SELECT email_verified_at FROM users WHERE email = ?', ['fresh@test.dev'])
       expect(users[0].email_verified_at).not.toBeNull()

@@ -93,7 +93,7 @@ describe('GET /api/calendar (S199 coverage-gap close — the four-way user-scope
       const uid = await makeUser(db)
       const token = await createSession(db, uid)
       const app = makeApp(db)
-      const auth = { 'Content-Type': 'application/json', Cookie: `hibana_session=${token}` }
+      const auth = { 'Content-Type': 'application/json', Cookie: `__Host-hibana_session=${token}` }
       for (const qs of ['?start=Oct-1&end=2026-10-31', '?start=2026-10-31&end=2026-10-01', '?start=2025-01-01&end=2026-12-31', '']) {
         const res = await app.fetch(new Request(`http://local/api/calendar${qs}`, { headers: auth }))
         expect(res.status, qs).toBe(400)
@@ -111,7 +111,7 @@ describe('GET /api/calendar (S199 coverage-gap close — the four-way user-scope
       const app = makeApp(db)
       const res = await app.fetch(
         new Request('http://local/api/calendar?start=2026-10-01&end=2026-10-31', {
-          headers: { Cookie: `hibana_session=${token}` },
+          headers: { Cookie: `__Host-hibana_session=${token}` },
         }),
       )
       expect(res.status).toBe(200)
@@ -149,7 +149,7 @@ describe('GET /api/calendar (S199 coverage-gap close — the four-way user-scope
       const app = makeApp(db)
       const res = await app.fetch(
         new Request('http://local/api/calendar?start=2026-10-01&end=2026-10-31', {
-          headers: { Cookie: `hibana_session=${token}` },
+          headers: { Cookie: `__Host-hibana_session=${token}` },
         }),
       )
       const body = (await res.json()) as { byDay: Record<string, { kind: string; title: string }[]> }

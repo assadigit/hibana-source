@@ -18,7 +18,7 @@ async function makeApp(db: Db, userId?: string) {
     telegramSecret: 'wxyz-secret',
     assets: undefined,
   })
-  const cookie = userId ? `hibana_session=${await createSession(db, userId)}` : undefined
+  const cookie = userId ? `__Host-hibana_session=${await createSession(db, userId)}` : undefined
   return { app, auth: { Cookie: cookie ?? '', 'Content-Type': 'application/json', Origin: 'http://local' } }
 }
 
@@ -262,8 +262,8 @@ describe('Phase 5 — telegram + obsidian import', () => {
       const userA = await makeUser(db)
       const userB = await makeUser(db)
       const { app } = await makeApp(db)
-      const cookieA = `hibana_session=${await createSession(db, userA)}`
-      const cookieB = `hibana_session=${await createSession(db, userB)}`
+      const cookieA = `__Host-hibana_session=${await createSession(db, userA)}`
+      const cookieB = `__Host-hibana_session=${await createSession(db, userB)}`
 
       const send = async (cookie: string) => {
         const form = new FormData()
@@ -292,7 +292,7 @@ describe('Phase 5 — telegram + obsidian import', () => {
       expect(anonymousReq.status).toBe(401)
 
       const memberId = (await db.query<{ id: string }>('SELECT id FROM users WHERE role = ?', ['member']))[0].id
-      const asMember = await app.fetch(new Request('http://local/api/dev/telegram-status', { headers: { Cookie: `hibana_session=${await createSession(db, memberId)}` } }))
+      const asMember = await app.fetch(new Request('http://local/api/dev/telegram-status', { headers: { Cookie: `__Host-hibana_session=${await createSession(db, memberId)}` } }))
       expect(asMember.status).toBe(403)
 
       // Stub the outbound Telegram calls (getMe + getWebhookInfo) so the test needs no network.
@@ -306,7 +306,7 @@ describe('Phase 5 — telegram + obsidian import', () => {
         return originalFetch(input, init)
       }) as typeof fetch
       try {
-        const ownerCookie = `hibana_session=${await createSession(db, ownerId)}`
+        const ownerCookie = `__Host-hibana_session=${await createSession(db, ownerId)}`
         const res = await app.fetch(new Request('http://local/api/dev/telegram-status', { headers: { Cookie: ownerCookie } }))
         expect(res.status).toBe(200)
         const body = (await res.json()) as {
@@ -346,7 +346,7 @@ describe('Phase 5 — telegram + obsidian import', () => {
         assets: undefined,
       })
       const res = await app.fetch(
-        new Request('http://local/api/dev/telegram-status', { headers: { Cookie: `hibana_session=${await createSession(db, ownerId)}` } }),
+        new Request('http://local/api/dev/telegram-status', { headers: { Cookie: `__Host-hibana_session=${await createSession(db, ownerId)}` } }),
       )
       expect(res.status).toBe(503)
     } finally {

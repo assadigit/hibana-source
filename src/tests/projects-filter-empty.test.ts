@@ -17,7 +17,7 @@ function makeConfig(db: Db): Config {
 async function makeClient(db: Db, userId: string) {
   const app = createApp(makeConfig(db))
   const token = await createSession(db, userId)
-  return { app, auth: { Cookie: `hibana_session=${token}`, 'Content-Type': 'application/json', Origin: 'http://local' } }
+  return { app, auth: { Cookie: `__Host-hibana_session=${token}`, 'Content-Type': 'application/json', Origin: 'http://local' } }
 }
 
 async function seedProject(db: Db, userId: string, id: string, title: string) {

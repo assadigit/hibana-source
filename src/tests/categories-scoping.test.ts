@@ -19,7 +19,7 @@ async function makeAuthedApp(db: Db, userId: string) {
     assets: undefined,
   })
   const token = await createSession(db, userId)
-  return { app, cookie: `hibana_session=${token}` }
+  return { app, cookie: `__Host-hibana_session=${token}` }
 }
 
 const json = { 'Content-Type': 'application/json', Origin: 'http://local' }

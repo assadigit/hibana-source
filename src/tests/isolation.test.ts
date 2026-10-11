@@ -16,7 +16,7 @@ async function makeAuthedApp(db: Db, userId: string) {
     assets: undefined,
   })
   const token = await createSession(db, userId)
-  return { app, cookie: `hibana_session=${token}` }
+  return { app, cookie: `__Host-hibana_session=${token}` }
 }
 
 describe('user isolation (rule 1)', () => {
@@ -140,7 +140,7 @@ describe('user isolation (rule 1)', () => {
       const a = await makeUser(db)
       const { app } = await makeAuthedApp(db, a)
       // garbage cookie
-      const res = await app.fetch(new Request('http://local/api/projects', { headers: { Cookie: 'hibana_session=garbage' } }))
+      const res = await app.fetch(new Request('http://local/api/projects', { headers: { Cookie: '__Host-hibana_session=garbage' } }))
       expect(res.status).toBe(401)
     } finally {
       close()

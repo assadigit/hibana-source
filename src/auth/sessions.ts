@@ -4,9 +4,28 @@ import type { Db } from '../db/types'
 // Defense in depth: only the SHA-256 hash of the token is stored — a DB leak never
 // yields usable cookie values. 30-day rolling expiry; extended on activity.
 
-export const SESSION_COOKIE = 'hibana_session'
+// SEC-10 (S203, owner-approved 2026-10-11): __Host- prefix. Browsers enforce on this
+// name: Secure flag REQUIRED, Path=/ REQUIRED, Domain attribute FORBIDDEN — a violation
+// is rejected outright, so the attributes can never drift from the prefix contract.
+// The disclosed + approved cost: the rename invalidates every existing session cookie
+// (all users log in once more). Secure is now UNCONDITIONAL (no isProd branch): Workers
+// prod AND dev are always HTTPS, and localhost is a trustworthy origin in every current
+// browser (Chromium/Playwright accept Secure cookies from http://localhost — the e2e
+// suite's 417 browser-login proofs ride on exactly that).
+export const SESSION_COOKIE = '__Host-hibana_session'
 const LIFETIME_MS = 30 * 24 * 60 * 60 * 1000 // 30 days
 const EXTEND_BELOW_MS = 15 * 24 * 60 * 60 * 1000 // extend when less than 15 days remain
+const COOKIE_MAX_AGE_S = 30 * 24 * 60 * 60
+
+/** Set-Cookie value for a fresh session (SEC-10: the ONE place the attributes live). */
+export function sessionCookieHeader(token: string): string {
+  return `${SESSION_COOKIE}=${token}; Secure; HttpOnly; SameSite=Lax; Path=/; Max-Age=${COOKIE_MAX_AGE_S}`
+}
+
+/** Set-Cookie value that clears the session cookie (must carry the same prefix contract). */
+export function clearSessionCookieHeader(): string {
+  return `${SESSION_COOKIE}=; Secure; HttpOnly; SameSite=Lax; Path=/; Max-Age=0`
+}
 
 async function sha256Hex(input: string): Promise<string> {
   const bytes = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(input))

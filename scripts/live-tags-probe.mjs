@@ -57,7 +57,7 @@ const main = async () => {
     INSERT INTO sessions (id, user_id, created_at, expires_at) VALUES ('${await sha256(TOKEN)}', '${uid}', '${now}', '${new Date(Date.now() + 3600_000).toISOString()}');
   `)
 
-  const cookie = `hibana_session=${TOKEN}`
+  const cookie = `__Host-hibana_session=${TOKEN}`
   const results = []
   const check = (name, ok, detail = '') => { results.push({ name, ok, detail }); console.log(`  ${ok ? 'PASS' : 'FAIL'}  ${name}${detail ? ' — ' + detail : ''}`) }
 

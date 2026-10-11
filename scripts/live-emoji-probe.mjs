@@ -40,7 +40,7 @@ const results = []
 const check = (name, ok, extra = '') => { results.push([name, ok]); console.log(`${ok ? 'PASS' : 'FAIL'} ${name}${extra ? ' — ' + extra : ''}`) }
 
 try {
-  const jar = { 'Content-Type': 'application/json', Cookie: `hibana_session=${token}`, Origin: BASE }
+  const jar = { 'Content-Type': 'application/json', Cookie: `__Host-hibana_session=${token}`, Origin: BASE }
   // 1. Create a folder WITH an emoji through the live API.
   const create = await fetch(`${BASE}/api/projects/sparks/folders`, {
     method: 'POST', headers: jar, body: JSON.stringify({ name: 'probe emoji folder', icon: '🚀' }),

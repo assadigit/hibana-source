@@ -43,3 +43,4 @@ cookies.txt
 *.log
 dashboard-check.png
 audit-results/shots/
+.lighthouseci/

@@ -62,7 +62,7 @@ async function makeApp(db: Db, userId: string, over: Record<string, unknown> = {
     ...over,
   })
   const token = await createSession(db, userId)
-  return { app, cookie: `hibana_session=${token}` }
+  return { app, cookie: `__Host-hibana_session=${token}` }
 }
 
 const get = (cookie: string) =>

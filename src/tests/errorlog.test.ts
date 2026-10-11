@@ -34,7 +34,7 @@ describe('error_log (0045)', () => {
         throw new Error('kaboom')
       })
       const res = await app.fetch(new Request('http://local/boom', {
-        headers: { Cookie: `hibana_session=${token}` },
+        headers: { Cookie: `__Host-hibana_session=${token}` },
       }))
       expect(res.status).toBe(500)
       expect(await res.json()).toEqual({ error: 'internal_error' })
@@ -62,7 +62,7 @@ describe('error_log (0045)', () => {
         throw apiError(ErrorCode.not_found, 'no such thing')
       })
       const res = await app.fetch(new Request('http://local/api-test/oops', {
-        headers: { Cookie: `hibana_session=${token}` },
+        headers: { Cookie: `__Host-hibana_session=${token}` },
       }))
       expect(res.status).toBe(404)
       expect(await res.json()).toEqual({ error: 'not_found', message: 'no such thing' })
@@ -90,7 +90,7 @@ describe('error_log (0045)', () => {
       const memberToken = await createSession(db, memberId)
 
       const asOwner = await app.fetch(new Request('http://local/api/admin/errors?limit=10', {
-        headers: { Cookie: `hibana_session=${ownerToken}` },
+        headers: { Cookie: `__Host-hibana_session=${ownerToken}` },
       }))
       expect(asOwner.status).toBe(200)
       const body = (await asOwner.json()) as { rows: unknown[]; counts_7d: { status: number; n: number }[] }
@@ -98,13 +98,13 @@ describe('error_log (0045)', () => {
       expect(body.counts_7d[0]).toMatchObject({ status: 500, n: 1 })
 
       const asMember = await app.fetch(new Request('http://local/api/admin/errors', {
-        headers: { Cookie: `hibana_session=${memberToken}` },
+        headers: { Cookie: `__Host-hibana_session=${memberToken}` },
       }))
       expect(asMember.status).toBe(403)
 
       // rule 10: query params are input — garbage limit is rejected, not 500'd.
       const bad = await app.fetch(new Request('http://local/api/admin/errors?limit=99999', {
-        headers: { Cookie: `hibana_session=${ownerToken}` },
+        headers: { Cookie: `__Host-hibana_session=${ownerToken}` },
       }))
       expect(bad.status).toBe(400)
     } finally {
@@ -125,7 +125,7 @@ describe('error_log (0045)', () => {
         throw new Error('still answers')
       })
       const res = await app.fetch(new Request('http://local/boom', {
-        headers: { Cookie: `hibana_session=${token}` },
+        headers: { Cookie: `__Host-hibana_session=${token}` },
       }))
       expect(res.status).toBe(500)
       expect(await res.json()).toEqual({ error: 'internal_error' })

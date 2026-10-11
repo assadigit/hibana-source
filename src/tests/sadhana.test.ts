@@ -16,7 +16,7 @@ function makeConfig2(db: Db): Config {
 
 async function makeClient(db: Db, userId?: string) {
   const app = createApp(makeConfig2(db))
-  const cookie = userId ? `hibana_session=${await createSession(db, userId)}` : ''
+  const cookie = userId ? `__Host-hibana_session=${await createSession(db, userId)}` : ''
   return { app, auth: { Cookie: cookie, 'Content-Type': 'application/json', Origin: 'http://local' } }
 }
 

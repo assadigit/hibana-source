@@ -163,7 +163,7 @@ const ownerLogin = await fetchApi('/api/auth/login', {
   body: JSON.stringify({ login: 'workers-owner@hibana.local', password: 'workers-test-123' }),
 })
 const ownerCookie = String(ownerLogin.headers?.get?.('set-cookie') || '').split(';')[0]
-if (ownerLogin.status === 200 && ownerCookie.startsWith('hibana_session=')) {
+if (ownerLogin.status === 200 && ownerCookie.startsWith('__Host-hibana_session=')) {
   console.log('   ✓ POST /api/auth/login (owner) → 200 (session cookie captured)')
 } else {
   findings.push(`owner login failed: status=${ownerLogin.status}`)

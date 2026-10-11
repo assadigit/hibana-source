@@ -124,7 +124,7 @@ test.describe('auth pages (S199 coverage-gap close)', () => {
     await expect(page.locator('[data-reset-done="1"]')).toBeVisible({ timeout: 10_000 })
 
     // the OLD session is dead (the reset killed it — rule: reset revokes sessions)
-    const me = await request.get('/api/auth/me', { headers: { Cookie: `hibana_session=${oldToken}` } })
+    const me = await request.get('/api/auth/me', { headers: { Cookie: `__Host-hibana_session=${oldToken}` } })
     expect(me.status()).toBe(401)
 
     // the password actually changed: the old password no longer logs in via the API

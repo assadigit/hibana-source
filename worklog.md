@@ -13,42 +13,6 @@
 > `worklog-archive.md` (and verbatim in git history) — this file is the ACTIVE
 > tail only. Rotate with `node scripts/rotate/rotate.mjs --worklog`.
 
-## Session S198 — THE SWOT AUDIT (owner-commissioned; docs-only round)
-
-Commissioned by the owner: "a thorough SWOT AUDIT of the project — performance,
-optimization, codebase health, security, UI/UX and anything else — then upload
-the result to the repo." Executed as four parallel read-only audit passes
-(performance / security / codebase health / UI-UX-ops) on tree 123f902 (LIVE
-v0.4.1.23, sw v432, schema 63) + verifier spot-checks on every load-bearing
-number. NO code changed — this round ships two new root docs:
-
-- **SWOT-AUDIT-S198.md** — the full audit: ~98 findings with stable IDs
-  (PERF-*/SEC-*/HLTH-*/UX-*), evidence file:line + measured numbers, ranked
-  weaknesses/opportunities/threats, the needs-owner-approval list (rule 4),
-  and the verification record.
-- **SESSION-BRIEF-S199.md** — the execution plan the next session(s) run:
-  S199 "Debt Zero + Trust Gates" (kill the 162-warning baseline + ratchet,
-  sw.js VERSION trim 15,959→~200 chars, rotate-s* fold to one generic entry,
-  single lockfile, escape-lint gate for the 312 innerHTML sinks, a11y/Lighthouse/
-  workers-smoke gates made real, five small security fixes, Agents.md stale
-  lines) → S200 "Speed + Diet" (CI sharding, perf tooling repair, the real
-  bundle diet, N+1 fixes) → S201 "Majors + Approvals" (rule-4 asks, dep majors,
-  restore drill, error monitoring).
-
-Headline numbers (all measured this round): eslint 0 err / 162 warn (~92% dead
-code); sw.js line 16 = 15,959 chars = 55% of the file; dist total 1,747,617 B
-(+0.1% PASS); precache ≈ 2.13 MB raw; /js+css dist gz = 105.0 + 336.2 KB;
-CI 20-min cap vs 414 single-worker e2e (~minutes of headroom); npm audit prod
-0 vulns (dev 9, all devDeps); vitest 623/623 + parity 1570/1570 re-run GREEN;
-layout.css dead-rule hunt corrected to 8/243 (the 2.2k myth retired); the top-
-bundle list corrected (i18n-fa 186.6 KB / project-page 148.1 / app 102.6 —
-fabric is vendor, not dist); one agent claim corrected during verification
-(the npm-audit CI gate EXISTS — SEC-18 reframed).
-
-The S197 open-risk list stands (Track B leftovers: Lighthouse exact scores +
-bundle diet, now concretized as UX-1/UX-17 + PERF-7/UX-7; Track C, now
-HLTH-*). NEXT: hand SESSION-BRIEF-S199.md to the next agent.
-
 ## Session S199 — DEBT ZERO + TRUST GATES (the S198 audit's fix round)
 
 Executed per SESSION-BRIEF-S199.md Batches 1-5 (5 partial), on tree 195bd7e →
@@ -305,3 +269,90 @@ Stage Summary:
 - The DR drills are now PROVEN (and their two latent bugs dead — the zero-runs policy was hiding them); the error monitor closes UX-11 (three healthchecks now: backup cron, uptime, error growth); the worklog can never again grow monotonic.
 - Next session: on Ali's written YES per ask, execute the approved items (each behind the full ladder + release ritual; PERF-16 needs the §9 bookmark ritual on both DBs); otherwise the S200 banked list (the 86-spec e2e DB-constant sweep, opportunistic --accent-ink conversions, the mobile Lighthouse preset UX-17) + the owner-machine drill run reminder stand.
 - VERIFICATION (post-push): 0779b79 → CI #560 (38164530115) ALL JOBS GREEN — ci 3.8 min (audit + eslint 0/0 + escape-lint + build + bundle + precache + typecheck + cache-bust + parity + vitest 632 + smoke + dist-wiring + workers-smoke + Lighthouse) + e2e shards 6.7/6.3 min in parallel → CD #410 GREEN (same bits redeployed; no asset changes) → error monitor DISPATCH run #1 (38165291625) GREEN with the real D1 probe in its log ("prod error_log since 2026-10-10T18:47:36Z: total=0 5xx=0" + "error monitor PASS") → healthchecks "Hibana errors" flipped new→up (n_pings=1 @ 18:47:37, exactly the run's ping; the other two checks up on natural ticks) → hibana.ir health ok/up/63. The monitor's first scheduled cron run: tomorrow 04:23 UTC.
+
+## Session S202 — THE APPROVED ASKS (the S201 rule-4 round; the owner's written YES executed)
+
+Executed per the owner's chat reply to the S201 asks ("1. ok do it. yes / 2. do it. /
+3. do it. / 5. do it" — asks 1-3 approved + the banked work; item 4 SEC-10 was NOT in
+the reply and stays pending), on tree 92e727e → released as v0.4.1.26 (push 2821bef).
+
+**STATUS: RELEASED.** LIVE hibana.ir @ v0.4.1.26, sw v435, schema 63 (UNCHANGED — no
+migration this round). CI 38169968432 ALL JOBS GREEN (ci + e2e shards 1+2) → CD
+38170407608 GREEN → qa/s202-live-verify.mjs ALL GREEN (20 probes: the 6 kept woff2
+weights byte-IDENTICAL at font/woff2 · the 5 deleted legacy formats 404 · font-face.css
+byte-IDENTICAL with all 9 url() refs woff2-only · sw v435 + the SHELL's font CSS · the
+zod-4 functional pair on the live Worker — a type-invalid login → 400 invalid_input, a
+valid-shape unknown login → 401 invalid_credentials · health ok/up/63) → tag v0.4.1.26
+→ zip (599 files, integrity OK, secret-scan CLEAN) → healthchecks all 3 UP on natural
+ticks only.
+
+**Completed + verification (the ladder, all green):**
+- PERF-16 (ask 1) — RESOLVED HONESTLY, NO MIGRATION: the audit's "4 rule-9 index
+  misses" prescription was DOA — `telegram_note_sessions` was DROPPED by migration
+  0048 (the CREATE INDEX would have FAILED on apply against both live D1s), and the
+  other three access paths are ALREADY index-served by the PKs (EXPLAIN QUERY PLAN on
+  the app's real query shapes: SEARCH via sqlite_autoindex, mostly COVERING; adding
+  the proposed indexes changes nothing — the planner keeps the covering PK autoindex).
+  Rule 9 is now MACHINE-ENFORCED: src/tests/index-coverage.test.ts ×3 (the dropped
+  table stays dropped; the PK leftmost columns pinned; EQP SEARCH-never-SCAN). No
+  schema churn, no bookmark ritual; the owner's YES is banked (§6 documents the
+  evidence + the recommendation not to).
+- PERF-9 (ask 2) — SHIPPED: 21 legacy vazir format files + Vazir-Variable.woff2
+  (referenced NOWHERE — the honest 22nd file) deleted (~1.79MB off deploys + zips);
+  font-face.css trimmed to woff2-only; sw v434→v435; package 0.4.1.26. Follow-up ask
+  recorded in §6: bebas-note's 6 legacy .otf/.ttf files (same class, out of scope).
+- UX-13 part 1 (ask 3) — zod 3.24→4.6.6 SHIPPED in one deliberate round: ONE code fix
+  (jsonBody's ZodType<T, any, any> → ZodType<T, any> — v4's 3rd generic is Internals;
+  `any` there broke T's inference). v4's RFC-strict .uuid() caught the e2e specs'
+  randomBytes-hex UUID() helpers minting ids the app NEVER mints (the app is
+  crypto.randomUUID() everywhere — zero product impact); sparks/viewport specs now
+  generate real v4 UUIDs. node-server 1→2 SCHEDULED next code session.
+- Item 5 (the banked work) — the 86-spec e2e DB-constant sweep SHIPPED:
+  e2e/fixtures/e2e-db.ts (E2E_DB + E2E_SHOTS + E2E_PORT + E2E_ORIGIN) — LOCAL
+  PARALLEL SHARDS ARE NOW REAL (the FULL 417 ran as two parallel shards on
+  3017/3018). The sweep exposed + fixed the s199 reset spec's hardcoded
+  Origin:3017 (the T6 gate 403s cross-origin POSTs).
+- LADDER: typecheck 0 · vitest 635/635 (+3) · eslint 0/0 · escape-lint 207 sinks ·
+  build 85 · cache-bust PASS · parity 1572/1572 · bundle −0.1% · precache PASS ·
+  FULL e2e 417/417 in TWO LOCAL PARALLEL SHARDS (213 + 203 + 1 contention flake —
+  the s182 fade-edge late-hydration class, solo-proven PASS in 1.6s; CI retries
+  absorb) · smoke ALL PASS · workers-smoke PASS (local, real CF creds) · dist-wiring
+  PASS · Lighthouse floors PASS (100/95/100/96, seo 82 warn).
+
+**The round's own discoveries (banked for the next agent):**
+1. Zod 4's .uuid() enforces the RFC 9562 grammar (version nibble 1-8 + variant
+   nibble 8-b); zod 3 accepted any 8-4-4-4-12 hex. Any generator that formats random
+   hex into that shape WITHOUT setting those nibbles mints ids v4 rejects (~87.5%).
+   The app's crypto.randomUUID() is always safe — but test fixtures must generate
+   what the app generates, not a lookalike.
+2. A spec's hardcoded port inside an explicit Origin header dies the moment
+   non-default ports become runnable (the T6 origin gate 403s cross-origin POSTs
+   BEFORE any route runs). Derive it (E2E_ORIGIN), never pin it.
+3. The S201 "verified against the tree" check (indexes absent + only
+   idx_project_tags_tag exists) was necessary but NOT sufficient — it verified the
+   INDEXES' absence, not whether the access paths were already served (PK
+   leftmost-prefix) or whether the table even existed (dropped by 0048). Schema-level
+   verification beats grep-level. The EQP proof + the machine-checked pins deliver
+   what the audit's rule-9 intent actually wanted.
+4. The first local two-shard run failed 4 tests and BOTH failure classes were REAL
+   (not contention): the zod-4 uuid rejections + the hardcoded Origin. "It's just a
+   flake under contention" is a hypothesis, not a conclusion — the solo re-run
+   settled it (and caught 2 MORE deterministic failures the contention run had
+   masked by luck). The second run's 1 failure WAS contention-class (solo PASS in
+   1.6s) — classified, not assumed.
+5. The live-verifier's first pass tripped on its own probe design: the font-face.css
+   provenance COMMENT legitimately mentions ".eot/.woff/.ttf" as prose — parse the
+   actual url(...) set instead of substring-scanning the whole file. (Also: text
+   .length is UTF-16 code units, Buffer .length is bytes — "2473 vs 2481" was equal
+   content in different units.)
+
+**Open risks + next (S203):**
+- @hono/node-server 1→2 — the scheduled SECOND dep-major round (one round each, full
+  ladder between; the S202 recipe applies: expect a signature-level fix, run the
+  FULL e2e + workers-smoke — node-server is the Node path's server binding).
+- SEC-10 __Host- cookie prefix — STILL PENDING the owner's written YES (§6 item 4).
+- The bebas-note legacy-font follow-up ask (§6 item 2's follow-up — one word ships it).
+- Banked from S200, unchanged: the opportunistic --accent-ink conversions, the mobile
+  Lighthouse preset (UX-17), the owner-machine drill run (key-custody).
+- The dependabot PRs rebase on every main push and their failures are the documented
+  noise (no secrets on PRs → advisory workers-smoke); ignore them.

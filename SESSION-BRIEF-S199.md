@@ -38,6 +38,25 @@ repo `worklog.md` tail → this file. The repo is your working tree: clone
 `https://github.com/assadigit/hibana-source`, `bun install`, work, commit+push when done
 (CI runs the ladder, CD auto-deploys). Remote `main` is source of truth.
 
+> **S202 "The Approved Asks" EXECUTED 2026-10-11 — released as v0.4.1.26 (push 2821bef,
+> CI 38169968432 all-jobs-green, CD 38170407608 GREEN, qa/s202-live-verify.mjs ALL
+> GREEN).** The owner's written YES executed per item: PERF-16 resolved HONESTLY with
+> NO migration (the audit's 4th table was dropped by 0048 — the CREATE INDEX would
+> have failed on apply; the other 3 access paths are PK-covered, EQP-proven — rule 9
+> now machine-enforced by src/tests/index-coverage.test.ts ×3; schema stays 63);
+> PERF-9 shipped (21 legacy vazir files + the never-referenced Vazir-Variable.woff2
+> deleted, ~1.79MB off deploys; font-face.css woff2-only; sw v435); UX-13 part 1
+> shipped (zod 3.24→4.6.6, one signature fix — v4's RFC-strict .uuid() caught the e2e
+> specs' non-RFC UUID fixtures; the app itself is crypto.randomUUID() everywhere,
+> zero product impact); item 5 = the banked 86-spec e2e DB-constant sweep (LOCAL
+> PARALLEL SHARDS NOW REAL — the full 417 ran as two parallel shards; the sweep also
+> fixed the s199 reset spec's hardcoded Origin:3017). SEC-10 (__Host-) was NOT in the
+> owner's reply — still pending, nothing shipped. The full record: Changelogs §1 row
+> 202 + worklog.md's S202 section. NEXT: S203 = @hono/node-server 1→2 (the scheduled
+> second dep-major round), + on the owner's YES: SEC-10 and/or the bebas-note
+> legacy-font follow-up; else the S200 banked tail (opportunistic --accent-ink, UX-17
+> mobile preset).**
+
 **Doctrine reminders (violating any of these voids the session):** SAFE-for-ideas (no
 reminders/nags/gamification — REJECTED always wins); rule 4 (schema changes need Ali's WRITTEN
 approval — §6 of the audit lists the asks; do NOT ship them unprompted); PBKDF2 stays 100k;

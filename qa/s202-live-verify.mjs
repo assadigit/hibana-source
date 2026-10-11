@@ -50,10 +50,13 @@ for (const p of ['Vazir-Regular.eot', 'Vazir-Regular.woff', 'Vazir-Regular.ttf',
   const local = readFileSync(join(VENDOR, 'font-face.css'))
   const r = await fetch(`${BASE}/vendor/vazir/font-face.css`, { cache: 'no-store' })
   const text = await r.text()
-  note(text === local.toString('utf8'), `font-face.css byte-identical (${text.length} vs ${local.length})`)
+  note(text === local.toString('utf8'), `font-face.css byte-identical (${text.length} chars vs ${local.length} bytes — equal content)`)
   note(text.includes("url('Vazir-Regular.woff2')"), 'font-face.css carries the woff2 src')
-  note(!text.includes('.eot') && !text.includes('.ttf') && !text.includes('Variable'), 'font-face.css has no .eot/.ttf/Variable refs')
-  note(!/\.woff[')]/.test(text), 'font-face.css has no bare-.woff refs')
+  // Parse the ACTUAL url(...) references — the file's provenance COMMENT legitimately
+  // mentions ".eot/.woff/.ttf" and "Vazir-Variable" as prose; only the url() set matters.
+  const urls = [...text.matchAll(/url\('([^']+)'\)/g)].map((m) => m[1])
+  note(urls.length >= 9 && urls.every((u) => u.endsWith('.woff2')) && !urls.some((u) => u.includes('Variable')),
+    `every url() ref is woff2-only (${urls.length} refs: ${[...new Set(urls.map((u) => u.split('.').pop()))].join(',')})`)
 }
 
 // 4. sw.js VERSION + the SHELL's font CSS

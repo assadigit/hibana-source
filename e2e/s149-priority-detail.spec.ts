@@ -23,6 +23,7 @@
 
 import { test, expect, type Page } from '@playwright/test'
 import { randomBytes } from 'node:crypto'
+import { E2E_DB } from './fixtures/e2e-db'
 
 const TEST_EMAIL = 'e2e-s149@test.local'
 const TEST_PASS = 'e2e-password-123'
@@ -46,7 +47,7 @@ const DETAIL_TASK = {
 
 test.beforeAll(async () => {
   const { DatabaseSync } = await import('node:sqlite')
-  const db = new DatabaseSync('/tmp/hibana-e2e.db')
+  const db = new DatabaseSync(E2E_DB)
   const ITERATIONS = 100_000
   const salt = randomBytes(16)
   const key = await crypto.subtle.importKey('raw', new TextEncoder().encode(TEST_PASS), 'PBKDF2', false, ['deriveBits'])
@@ -208,7 +209,7 @@ test('S149 detail slide-over: card click opens it (full title + content), ⋯ Ed
 test('S149 RTL: the slide-over anchors the LEFT edge (inline-end mirror)', async ({ page }) => {
   // Flip the user's language pref to fa → the app boots dir=rtl.
   const { DatabaseSync } = await import('node:sqlite')
-  const db = new DatabaseSync('/tmp/hibana-e2e.db')
+  const db = new DatabaseSync(E2E_DB)
   db.exec(`UPDATE users SET language_pref = 'fa' WHERE email = '${TEST_EMAIL}'`)
   db.close()
   await login(page)
@@ -223,7 +224,7 @@ test('S149 RTL: the slide-over anchors the LEFT edge (inline-end mirror)', async
   expect(box).toBeTruthy()
   expect(Math.round(box!.x)).toBeLessThanOrEqual(2) // LEFT edge in RTL
   // cleanup: back to en
-  const db2 = new DatabaseSync('/tmp/hibana-e2e.db')
+  const db2 = new DatabaseSync(E2E_DB)
   db2.exec(`UPDATE users SET language_pref = 'en' WHERE email = '${TEST_EMAIL}'`)
   db2.close()
 })

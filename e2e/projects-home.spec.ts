@@ -17,6 +17,7 @@
 
 import { test, expect, type Page } from '@playwright/test'
 import { randomBytes } from 'node:crypto'
+import { E2E_DB } from './fixtures/e2e-db'
 
 const TEST_EMAIL = 'e2e-s45home@test.local'
 const EMPTY_EMAIL = 'e2e-s45empty@test.local'
@@ -32,7 +33,7 @@ async function hashPass(pass: string) {
 
 test.beforeAll(async () => {
   const { DatabaseSync } = await import('node:sqlite')
-  const db = new DatabaseSync('/tmp/hibana-e2e.db')
+  const db = new DatabaseSync(E2E_DB)
   const now = new Date().toISOString()
   for (const [email, username] of [[TEST_EMAIL, 'e2e-s45home'], [EMPTY_EMAIL, 'e2e-s45empty']] as const) {
     const id = randomBytes(16).toString('hex')

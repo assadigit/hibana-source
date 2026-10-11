@@ -23,16 +23,17 @@ import { test, expect } from '@playwright/test'
 import { randomBytes } from 'node:crypto'
 import { writeFileSync, mkdirSync } from 'node:fs'
 import { join } from 'node:path'
+import { E2E_DB, E2E_SHOTS } from './fixtures/e2e-db'
 
 const TEST_EMAIL = 'e2e-s120@test.local'
 const TEST_PASS = 'e2e-password-123'
-const DB = '/tmp/hibana-e2e.db'
+const DB = E2E_DB
 const USER_ID = randomBytes(16).toString('hex')
 const SPARK_ID = 'e2e-s120-spark'
 const OTHER_ID = 'e2e-s120-other'
 const PROJECT_ID = 'e2e-s120-media-project'
 const VIDEO_SHOT = 'e2e-s120-shot-video'
-const SHOTS_ROOT = '/tmp/hibana-e2e-shots'
+const SHOTS_ROOT = E2E_SHOTS
 
 // A 755-byte VP8/WebM (320x240, amber, 0.5s, ffmpeg libvpx) — REAL decodable bytes
 // so the tile's preload="metadata" fetch actually fires 'loadedmetadata' (a 404ing

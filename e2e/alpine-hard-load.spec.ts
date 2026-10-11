@@ -10,6 +10,7 @@
 import { test, expect, type Page } from '@playwright/test'
 import { randomBytes } from 'node:crypto'
 import { readFileSync } from 'node:fs'
+import { E2E_DB } from './fixtures/e2e-db'
 
 const TEST_EMAIL = 'e2e-alp@test.local'
 const TEST_PASS = 'e2e-password-123'
@@ -17,7 +18,7 @@ const TEST_PASS = 'e2e-password-123'
 // Same seeding pattern as notebook.spec.ts (PBKDF2 hash + direct row insert).
 test.beforeAll(async () => {
   const { DatabaseSync } = await import('node:sqlite')
-  const db = new DatabaseSync('/tmp/hibana-e2e.db')
+  const db = new DatabaseSync(E2E_DB)
   const ITERATIONS = 100_000
   const salt = randomBytes(16)
   const key = await crypto.subtle.importKey('raw', new TextEncoder().encode(TEST_PASS), 'PBKDF2', false, ['deriveBits'])

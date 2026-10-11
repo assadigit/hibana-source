@@ -12,6 +12,7 @@
 
 import { test, expect, type Page } from '@playwright/test'
 import { randomBytes } from 'node:crypto'
+import { E2E_DB } from './fixtures/e2e-db'
 
 const TEST_EMAIL = 'e2e-s191@test.local'
 const FA_EMAIL = 'e2e-s191-fa@test.local'
@@ -53,7 +54,7 @@ function seed(db: import('node:sqlite').DatabaseSync, uid: string, email: string
 
 test.beforeAll(async () => {
   const { DatabaseSync } = await import('node:sqlite')
-  const db = new DatabaseSync('/tmp/hibana-e2e.db')
+  const db = new DatabaseSync(E2E_DB)
   // ONCE, before the loop: explicit child-table deletes (the s173 lesson — raw
   // DatabaseSync connections run WITHOUT PRAGMA foreign_keys, so user-row deletes do
   // NOT cascade; the deterministic s191-* ids also catch orphans from any prior

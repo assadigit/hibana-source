@@ -13,13 +13,14 @@
 
 import { test, expect, type Page } from '@playwright/test'
 import { randomBytes } from 'node:crypto'
+import { E2E_DB } from './fixtures/e2e-db'
 
 const TEST_EMAIL = 'e2e-s39@test.local'
 const TEST_PASS = 'e2e-password-123'
 
 test.beforeAll(async () => {
   const { DatabaseSync } = await import('node:sqlite')
-  const db = new DatabaseSync('/tmp/hibana-e2e.db')
+  const db = new DatabaseSync(E2E_DB)
   const ITERATIONS = 100_000
   const salt = randomBytes(16)
   const key = await crypto.subtle.importKey('raw', new TextEncoder().encode(TEST_PASS), 'PBKDF2', false, ['deriveBits'])
@@ -92,7 +93,7 @@ test('note card + pin flow: click-to-edit, stick to the Problems box, badge, unp
   const tid = task.json.id
   // seed the shot row directly (no real storage in e2e)
   const { DatabaseSync } = await import('node:sqlite')
-  const db = new DatabaseSync('/tmp/hibana-e2e.db')
+  const db = new DatabaseSync(E2E_DB)
   const shotId = crypto.randomUUID()
   db.prepare('INSERT INTO screenshots (id, project_id, github_path, mime_type, caption, resolved, task_id, bytes, created_at) VALUES (?, ?, ?, ?, ?, 0, NULL, 70, ?)')
     .run(shotId, pid, `e2e/${shotId}.png`, 'image/png', '', new Date().toISOString())
@@ -169,7 +170,7 @@ test('S107: the media tab reads "Uploaded Files" + the per-card ⋯ settings men
 
   const pid = ((await api(page, '/api/projects', 'POST', { title: `e2e s107 kebab ${Date.now()}`, status: 'developing' })) as { json: { id: string } }).json.id
   const { DatabaseSync } = await import('node:sqlite')
-  const db = new DatabaseSync('/tmp/hibana-e2e.db')
+  const db = new DatabaseSync(E2E_DB)
   const imgId = crypto.randomUUID()
   const docId = crypto.randomUUID()
   const now = new Date().toISOString()
@@ -261,7 +262,7 @@ test('the gallery: every picture, project + pin chips, filters, space meter, del
   const pid2 = ((await api(page, '/api/projects', 'POST', { title: `e2e s39 second ${Date.now()}`, status: 'developing' })) as { json: { id: string } }).json.id
   const task = (await api(page, `/api/projects/${pid}/devtasks`, 'POST', { title: 'Checkout misaligned', status: 'bug' })) as { json: { id: string } }
   const { DatabaseSync } = await import('node:sqlite')
-  const db = new DatabaseSync('/tmp/hibana-e2e.db')
+  const db = new DatabaseSync(E2E_DB)
   // the e2e DB is shared and this user's earlier test (same spec) left its shot
   // behind — the gallery test asserts ABSOLUTE counts, so start from a clean slate.
   db.prepare("DELETE FROM screenshots WHERE project_id IN (SELECT id FROM projects WHERE user_id = (SELECT id FROM users WHERE email = ?))").run(TEST_EMAIL)
@@ -322,7 +323,7 @@ test('the gallery: URL params deep-link the filters (S59b — never lose your pl
   const pid2 = ((await api(page, '/api/projects', 'POST', { title: `e2e s59b gal2 ${Date.now()}`, status: 'developing' })) as { json: { id: string } }).json.id
   const task = (await api(page, `/api/projects/${pid}/devtasks`, 'POST', { title: 'URL-param pin target', status: 'bug' })) as { json: { id: string } }
   const { DatabaseSync } = await import('node:sqlite')
-  const db = new DatabaseSync('/tmp/hibana-e2e.db')
+  const db = new DatabaseSync(E2E_DB)
   db.prepare("DELETE FROM screenshots WHERE project_id IN (SELECT id FROM projects WHERE user_id = (SELECT id FROM users WHERE email = ?))").run(TEST_EMAIL)
   const s1 = crypto.randomUUID()
   const s2 = crypto.randomUUID()
@@ -380,7 +381,7 @@ test('the gallery lightbox: prev/next browse the filtered set, counter + caption
   // three shots in one project — the browse set
   const pid = ((await api(page, '/api/projects', 'POST', { title: `e2e s59b lb ${Date.now()}`, status: 'developing' })) as { json: { id: string } }).json.id
   const { DatabaseSync } = await import('node:sqlite')
-  const db = new DatabaseSync('/tmp/hibana-e2e.db')
+  const db = new DatabaseSync(E2E_DB)
   db.prepare("DELETE FROM screenshots WHERE project_id IN (SELECT id FROM projects WHERE user_id = (SELECT id FROM users WHERE email = ?))").run(TEST_EMAIL)
   const ids = [crypto.randomUUID(), crypto.randomUUID(), crypto.randomUUID()]
   const now = new Date().toISOString()
@@ -435,7 +436,7 @@ test('project shots lightbox: prev/next browse the grid siblings, counter + capt
   // three shots in one project — the browse set for the main grid
   const pid = ((await api(page, '/api/projects', 'POST', { title: `e2e s60 lb ${Date.now()}`, status: 'developing' })) as { json: { id: string } }).json.id
   const { DatabaseSync } = await import('node:sqlite')
-  const db = new DatabaseSync('/tmp/hibana-e2e.db')
+  const db = new DatabaseSync(E2E_DB)
   const ids = [crypto.randomUUID(), crypto.randomUUID(), crypto.randomUUID()]
   const now = new Date().toISOString()
   for (let i = 0; i < ids.length; i++) {
@@ -485,7 +486,7 @@ test('the gallery manager: click-to-edit note modal (wand rides it) + Select mod
   // four shots in one project: two carry notes to edit, the space story is real
   const pid = ((await api(page, '/api/projects', 'POST', { title: `e2e s79 manager ${Date.now()}`, status: 'developing' })) as { json: { id: string } }).json.id
   const { DatabaseSync } = await import('node:sqlite')
-  const db = new DatabaseSync('/tmp/hibana-e2e.db')
+  const db = new DatabaseSync(E2E_DB)
   db.prepare("DELETE FROM screenshots WHERE project_id IN (SELECT id FROM projects WHERE user_id = (SELECT id FROM users WHERE email = ?))").run(TEST_EMAIL)
   const ids = [crypto.randomUUID(), crypto.randomUUID(), crypto.randomUUID(), crypto.randomUUID()]
   const now = new Date().toISOString()
@@ -583,7 +584,7 @@ test('the gallery power tools: sort order + Select all + Shift-click ranges (S80
   // five shots with DISTINCT sizes + dates — the sort story needs real variance
   const pid = ((await api(page, '/api/projects', 'POST', { title: `e2e s80 tools ${Date.now()}`, status: 'developing' })) as { json: { id: string } }).json.id
   const { DatabaseSync } = await import('node:sqlite')
-  const db = new DatabaseSync('/tmp/hibana-e2e.db')
+  const db = new DatabaseSync(E2E_DB)
   db.prepare("DELETE FROM screenshots WHERE project_id IN (SELECT id FROM projects WHERE user_id = (SELECT id FROM users WHERE email = ?))").run(TEST_EMAIL)
   const ids = [crypto.randomUUID(), crypto.randomUUID(), crypto.randomUUID(), crypto.randomUUID(), crypto.randomUUID()]
   const bytes = [400_000, 50_000, 900_000, 150_000, 700_000] // alpha bravo charlie delta echo
@@ -686,7 +687,7 @@ test('the gallery touch ranges: long-press arms, tap completes, gestures cancel 
 
   const pid = ((await api(page, '/api/projects', 'POST', { title: `e2e s81 touch ${Date.now()}`, status: 'developing' })) as { json: { id: string } }).json.id
   const { DatabaseSync } = await import('node:sqlite')
-  const db = new DatabaseSync('/tmp/hibana-e2e.db')
+  const db = new DatabaseSync(E2E_DB)
   db.prepare("DELETE FROM screenshots WHERE project_id IN (SELECT id FROM projects WHERE user_id = (SELECT id FROM users WHERE email = ?))").run(TEST_EMAIL)
   const ids = [crypto.randomUUID(), crypto.randomUUID(), crypto.randomUUID(), crypto.randomUUID(), crypto.randomUUID()]
   for (let i = 0; i < ids.length; i++) {

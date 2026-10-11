@@ -64,11 +64,14 @@ export function mimeForPath(path: string): string {
 // Returns null on parse failure; routes reply 400 consistently.
 // The schema type is deliberately input-loose: schemas with .default()/coerce() have
 // different input/output types, and we always hand back the *output* (validated) type.
-// HLTH-4 (S198 audit): the two `any`s below are a documented boundary decision —
+// HLTH-4 (S198 audit): the `any` below is a documented boundary decision —
 // schemas with .default()/coerce() have different input/output types; this is
 // deliberately input-loose and always returns the validated *output* type.
+// S202 (UX-13, zod 3→4): v4's ZodType is <Output, Input, Internals> — the old
+// v3-style <T, any, any> (Internals = any) breaks T's inference (call sites saw {});
+// the 2-arg form infers T from the schema's Output and accepts any Input.
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-export async function jsonBody<T>(c: Context, schema: import('zod').ZodType<T, any, any>): Promise<T | null> {
+export async function jsonBody<T>(c: Context, schema: import('zod').ZodType<T, any>): Promise<T | null> {
   const contentType = c.req.header('Content-Type') ?? ''
   let parsed: unknown
   try {

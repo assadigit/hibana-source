@@ -14,13 +14,14 @@
 
 import { test, expect, type Page } from '@playwright/test'
 import { randomBytes } from 'node:crypto'
+import { E2E_DB } from './fixtures/e2e-db'
 
 const TEST_EMAIL = 'e2e-s35@test.local'
 const TEST_PASS = 'e2e-password-123'
 
 test.beforeAll(async () => {
   const { DatabaseSync } = await import('node:sqlite')
-  const db = new DatabaseSync('/tmp/hibana-e2e.db')
+  const db = new DatabaseSync(E2E_DB)
   const ITERATIONS = 100_000
   const salt = randomBytes(16)
   const key = await crypto.subtle.importKey('raw', new TextEncoder().encode(TEST_PASS), 'PBKDF2', false, ['deriveBits'])
@@ -178,7 +179,7 @@ test('screenshot problem cards: note edit, resolve toggle, delete', async ({ pag
 
   // seed a shot row directly (no real storage creds in e2e — the card is the story)
   const { DatabaseSync } = await import('node:sqlite')
-  const db = new DatabaseSync('/tmp/hibana-e2e.db')
+  const db = new DatabaseSync(E2E_DB)
   const shotId = crypto.randomUUID()
   db.prepare('INSERT INTO screenshots (id, project_id, github_path, mime_type, caption, resolved, created_at) VALUES (?, ?, ?, ?, ?, 0, ?)')
     .run(shotId, pid, `e2e/${shotId}.png`, 'image/png', 'Buttons overlap on the dashboard at 390px', new Date().toISOString())

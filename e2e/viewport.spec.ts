@@ -11,6 +11,7 @@
 
 import { test, expect, type Page } from '@playwright/test'
 import { randomBytes } from 'node:crypto'
+import { E2E_DB } from './fixtures/e2e-db'
 
 const TEST_EMAIL = 'e2e-viewport@test.local'
 const TEST_PASS = 'e2e-password-123'
@@ -19,7 +20,7 @@ const WIDTHS = [360, 768, 1024, 1440] as const
 // Seed the test user before tests run (migrations auto-run on server boot).
 test.beforeAll(async () => {
   const { DatabaseSync } = await import('node:sqlite')
-  const db = new DatabaseSync('/tmp/hibana-e2e.db')
+  const db = new DatabaseSync(E2E_DB)
   const ITERATIONS = 100_000
   const salt = randomBytes(16)
   const key = await crypto.subtle.importKey('raw', new TextEncoder().encode(TEST_PASS), 'PBKDF2', false, ['deriveBits'])
@@ -41,7 +42,12 @@ test.beforeAll(async () => {
   // shapes that broke: a LONG project title + history rows (the feed), tags (one used,
   // one loose — the settings #taglist), an overdue task (notifications), and a doing
   // project with dev tasks (project-detail board).
-  const UUID = () => randomBytes(16).toString('hex').replace(/(.{8})(.{4})(.{4})(.{4})(.{12})/, '$1-$2-$3-$4-$5')
+  // S202 (zod 3→4): v4's .uuid() enforces the RFC 9562 grammar (version 1-8 + variant
+// 8-b nibbles). randomBytes-hex formatted 8-4-4-4-12 is NOT always a valid UUID under
+// that contract (~12.5% pass) — and .uuid()-validated params (folder ids, project ids)
+// rejected them, failing the whole schema parse. The APP only ever mints
+// crypto.randomUUID() (always RFC v4) — the specs now generate what the app generates.
+const UUID = (): string => crypto.randomUUID()
   const days = (n: number) => new Date(Date.now() + n * 86400000).toISOString().slice(0, 10)
   const longTitle = 'A deliberately long project title that used to overflow the timeline feed sideways'
   const pid = UUID()

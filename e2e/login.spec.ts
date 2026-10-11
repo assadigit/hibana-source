@@ -4,6 +4,7 @@
 
 import { test, expect } from '@playwright/test'
 import { randomBytes } from 'node:crypto'
+import { E2E_DB } from './fixtures/e2e-db'
 
 const TEST_EMAIL = 'e2e@test.local'
 const TEST_PASS = 'e2e-password-123'
@@ -14,7 +15,7 @@ test.beforeAll(async () => {
   // register API (which also verifies the email-verification gate works end-to-end).
   // Or we can hash the password and INSERT directly — simpler for CI.
   const { DatabaseSync } = await import('node:sqlite')
-  const db = new DatabaseSync('/tmp/hibana-e2e.db')
+  const db = new DatabaseSync(E2E_DB)
 
   // Hash the password using the same PBKDF2 format as the app (100k iterations, Workers cap).
   const ITERATIONS = 100_000

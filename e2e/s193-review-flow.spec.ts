@@ -19,6 +19,7 @@
 
 import { test, expect, type Page } from '@playwright/test'
 import { randomBytes } from 'node:crypto'
+import { E2E_DB } from './fixtures/e2e-db'
 
 const TEST_EMAIL = 'e2e-s193@test.local'
 const FA_EMAIL = 'e2e-s193-fa@test.local'
@@ -33,7 +34,7 @@ const iso = (ms: number) => new Date(Date.now() + ms).toISOString()
 // first) + one FRESH spark (2d — never in the set). Both users mirror the data.
 test.beforeAll(async () => {
   const { DatabaseSync } = await import('node:sqlite')
-  const db = new DatabaseSync('/tmp/hibana-e2e.db')
+  const db = new DatabaseSync(E2E_DB)
   // ONCE, before the loop (the S191 lesson): explicit child-table deletes — raw
   // DatabaseSync runs WITHOUT PRAGMA foreign_keys.
   db.exec(`DELETE FROM projects WHERE id LIKE 's193%' OR user_id IN (SELECT id FROM users WHERE email LIKE 'e2e-s193%')`)
@@ -72,7 +73,7 @@ test.beforeAll(async () => {
 // status + age asked for ('spark' + days-old, or any project stage = out of the set).
 async function arm(rows: Array<{ id: string; status: string; days?: number }>) {
   const { DatabaseSync } = await import('node:sqlite')
-  const db = new DatabaseSync('/tmp/hibana-e2e.db')
+  const db = new DatabaseSync(E2E_DB)
   for (const r of rows) {
     const age = r.days === undefined ? '' : `, created_at = '${iso(-r.days * DAY).slice(0, 19)}'`
     db.exec(`UPDATE projects SET status = '${r.status}'${age} WHERE id = '${r.id}'`)

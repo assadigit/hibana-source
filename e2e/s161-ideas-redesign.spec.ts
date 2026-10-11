@@ -19,6 +19,7 @@
 import { test, expect, type Page } from '@playwright/test'
 import { randomBytes } from 'node:crypto'
 import { writeFileSync, mkdirSync } from 'node:fs'
+import { E2E_DB, E2E_SHOTS } from './fixtures/e2e-db'
 
 const TEST_EMAIL = 'e2e-s161@test.local'
 const TEST_PASS = 'e2e-password-123'
@@ -40,7 +41,7 @@ const PNG_B64 = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8B
 
 test.beforeAll(async () => {
   const { DatabaseSync } = await import('node:sqlite')
-  const db = new DatabaseSync('/tmp/hibana-e2e.db')
+  const db = new DatabaseSync(E2E_DB)
   const ITERATIONS = 100_000
   const salt = randomBytes(16)
   const key = await crypto.subtle.importKey('raw', new TextEncoder().encode(TEST_PASS), 'PBKDF2', false, ['deriveBits'])
@@ -85,8 +86,8 @@ test.beforeAll(async () => {
      VALUES ('${SHOT_ID}', '${SPARK_ICO}', '${shotPath}', 'image/png', '', 0, NULL, 95, 'seed.png', '${now}')`,
   )
   // the disk store serves the bytes (S61 parity; HIBANA_SHOTS_DIR=/tmp/hibana-e2e-shots)
-  mkdirSync(`/tmp/hibana-e2e-shots/${USER_ID}/${SPARK_ICO}/screenshots`, { recursive: true })
-  writeFileSync(`/tmp/hibana-e2e-shots/${shotPath}`, Buffer.from(PNG_B64, 'base64'))
+  mkdirSync(`${E2E_SHOTS}/${USER_ID}/${SPARK_ICO}/screenshots`, { recursive: true })
+  writeFileSync(`${E2E_SHOTS}/${shotPath}`, Buffer.from(PNG_B64, 'base64'))
   db.close()
 })
 

@@ -22,12 +22,13 @@
 import { test, expect } from '@playwright/test'
 import { randomBytes } from 'node:crypto'
 import { sha256Hex } from '../src/services/reset'
+import { E2E_DB, E2E_ORIGIN } from './fixtures/e2e-db'
 
 const TEST_PASS = 'e2e-password-123'
 
 async function seedUnverifiedUser(email: string): Promise<string> {
   const { DatabaseSync } = await import('node:sqlite')
-  const db = new DatabaseSync('/tmp/hibana-e2e.db')
+  const db = new DatabaseSync(E2E_DB)
   const salt = randomBytes(16)
   const key = await crypto.subtle.importKey('raw', new TextEncoder().encode(TEST_PASS), 'PBKDF2', false, ['deriveBits'])
   const bits = await crypto.subtle.deriveBits({ name: 'PBKDF2', salt, iterations: 100_000, hash: 'SHA-256' }, key, 256)
@@ -73,7 +74,7 @@ test.describe('auth pages (S199 coverage-gap close)', () => {
     const email = 'e2e-s199-confirm@test.local'
     const uid = await seedUnverifiedUser(email)
     const { DatabaseSync } = await import('node:sqlite')
-    const db = new DatabaseSync('/tmp/hibana-e2e.db')
+    const db = new DatabaseSync(E2E_DB)
     const now = new Date()
     const exp = new Date(now.getTime() + 60 * 60 * 1000).toISOString()
     db.prepare('INSERT INTO email_verifications (id, user_id, code_hash, attempts, created_at, expires_at) VALUES (?, ?, ?, 0, ?, ?)')
@@ -88,7 +89,7 @@ test.describe('auth pages (S199 coverage-gap close)', () => {
     await page.waitForURL('**/app', { timeout: 10_000 }) // HX-Redirect after the session mints
 
     // email_verified_at is stamped (the login gate opens)
-    const db2 = new DatabaseSync('/tmp/hibana-e2e.db')
+    const db2 = new DatabaseSync(E2E_DB)
     const row = db2.prepare('SELECT email_verified_at FROM users WHERE id = ?').get(uid) as { email_verified_at: string }
     db2.close()
     expect(row.email_verified_at).toBeTruthy()
@@ -100,7 +101,7 @@ test.describe('auth pages (S199 coverage-gap close)', () => {
 
     // the user has an EXISTING session (the one the reset must kill) …
     const { DatabaseSync } = await import('node:sqlite')
-    const db = new DatabaseSync('/tmp/hibana-e2e.db')
+    const db = new DatabaseSync(E2E_DB)
     const oldToken = randomUUIDHex() + randomUUIDHex()
     const oldHash = await sha256Hex(oldToken)
     db.prepare('INSERT INTO sessions (id, user_id, created_at, expires_at) VALUES (?, ?, ?, ?)')
@@ -128,7 +129,7 @@ test.describe('auth pages (S199 coverage-gap close)', () => {
 
     // the password actually changed: the old password no longer logs in via the API
     const login = await request.post('/api/auth/login', {
-      headers: { 'Content-Type': 'application/json', Origin: 'http://localhost:3017' },
+      headers: { 'Content-Type': 'application/json', Origin: E2E_ORIGIN },
       data: { login: email, password: 'e2e-password-123' },
     })
     expect(login.status()).toBe(401)
@@ -136,7 +137,7 @@ test.describe('auth pages (S199 coverage-gap close)', () => {
     // SINGLE-USE proof (the S199 SEC-5 atomic consumption): replaying the same token
     // gets the invalid/expired message — the second confirm can never mint a session.
     const replay = await request.post('/api/auth/reset/confirm', {
-      headers: { 'Content-Type': 'application/json', Origin: 'http://localhost:3017' },
+      headers: { 'Content-Type': 'application/json', Origin: E2E_ORIGIN },
       data: { token: resetToken, password: 'another-password-77' },
     })
     expect(replay.status()).toBe(400)

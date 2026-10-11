@@ -17,6 +17,7 @@
 
 import { test, expect, type Page } from '@playwright/test'
 import { randomBytes } from 'node:crypto'
+import { E2E_DB } from './fixtures/e2e-db'
 
 const TEST_EMAIL = 'e2e-s192@test.local'
 const FA_EMAIL = 'e2e-s192-fa@test.local'
@@ -57,7 +58,7 @@ function seed(db: import('node:sqlite').DatabaseSync, uid: string, email: string
 
 test.beforeAll(async () => {
   const { DatabaseSync } = await import('node:sqlite')
-  const db = new DatabaseSync('/tmp/hibana-e2e.db')
+  const db = new DatabaseSync(E2E_DB)
   // ONCE, before the loop (the S191 lesson): explicit child-table deletes — raw
   // DatabaseSync runs WITHOUT PRAGMA foreign_keys.
   db.exec(`DELETE FROM tasks WHERE id LIKE 's192%' OR project_id LIKE 's192%'`)

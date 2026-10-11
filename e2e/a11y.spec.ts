@@ -30,6 +30,7 @@ import { test, expect } from '@playwright/test'
 import { readFileSync } from 'node:fs'
 import { join, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { E2E_DB } from './fixtures/e2e-db'
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..')
 const auditFn = readFileSync(join(ROOT, 'e2e', 'fixtures', 'audit-fn.js'), 'utf8')
@@ -90,7 +91,7 @@ test('dashboard a11y audit (baseline-asserted)', async ({ page }) => {
   // Login first (the direct-DB seed — the established e2e pattern)
   const { randomBytes } = await import('node:crypto')
   const { DatabaseSync } = await import('node:sqlite')
-  const db = new DatabaseSync('/tmp/hibana-e2e.db')
+  const db = new DatabaseSync(E2E_DB)
   const salt = randomBytes(16)
   const key = await crypto.subtle.importKey('raw', new TextEncoder().encode('e2e-password-123'), 'PBKDF2', false, ['deriveBits'])
   const bits = await crypto.subtle.deriveBits({ name: 'PBKDF2', salt, iterations: 100_000, hash: 'SHA-256' }, key, 256)

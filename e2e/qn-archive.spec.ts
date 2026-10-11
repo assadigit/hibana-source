@@ -11,6 +11,7 @@
 
 import { test, expect, type Page } from '@playwright/test'
 import { randomBytes } from 'node:crypto'
+import { E2E_DB } from './fixtures/e2e-db'
 
 const TEST_EMAIL = 'e2e-qn-archive@test.local'
 const FA_EMAIL = 'e2e-qn-archive-fa@test.local'
@@ -19,7 +20,7 @@ const TEST_PASS = 'e2e-password-123'
 // One shared seeding routine: idempotent user upsert against the local e2e DB.
 async function seedUser(email: string, username: string, lang: 'en' | 'fa') {
   const { DatabaseSync } = await import('node:sqlite')
-  const db = new DatabaseSync('/tmp/hibana-e2e.db')
+  const db = new DatabaseSync(E2E_DB)
   const ITERATIONS = 100_000
   const salt = randomBytes(16)
   const key = await crypto.subtle.importKey('raw', new TextEncoder().encode(TEST_PASS), 'PBKDF2', false, ['deriveBits'])
@@ -42,7 +43,7 @@ async function seedUser(email: string, username: string, lang: 'en' | 'fa') {
 // date-group headers and the jump-to-date window key off this timestamp.
 async function backdateNote(id: string, iso: string) {
   const { DatabaseSync } = await import('node:sqlite')
-  const db = new DatabaseSync('/tmp/hibana-e2e.db')
+  const db = new DatabaseSync(E2E_DB)
   db.prepare('UPDATE quick_notes SET updated_at = ? WHERE id = ?').run(iso, id)
   db.close()
 }

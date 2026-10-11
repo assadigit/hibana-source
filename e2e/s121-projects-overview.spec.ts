@@ -25,8 +25,9 @@
 
 import { test, expect } from '@playwright/test'
 import { randomBytes } from 'node:crypto'
+import { E2E_DB } from './fixtures/e2e-db'
 
-const DB = '/tmp/hibana-e2e.db'
+const DB = E2E_DB
 const PASS = 'e2e-password-123'
 const MIN = 60_000
 

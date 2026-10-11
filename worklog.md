@@ -2613,3 +2613,85 @@ fabric is vendor, not dist); one agent claim corrected during verification
 The S197 open-risk list stands (Track B leftovers: Lighthouse exact scores +
 bundle diet, now concretized as UX-1/UX-17 + PERF-7/UX-7; Track C, now
 HLTH-*). NEXT: hand SESSION-BRIEF-S199.md to the next agent.
+
+## Session S199 — DEBT ZERO + TRUST GATES (the S198 audit's fix round)
+
+Executed per SESSION-BRIEF-S199.md Batches 1-5 (5 partial), on tree 195bd7e →
+released as v0.4.1.24 (push 1cc4779).
+
+**STATUS: RELEASED.** LIVE hibana.ir @ v0.4.1.24, sw v433, schema 63. CI
+38122442476 GREEN (all gates, incl. the four new ones) → CD 38123258804 GREEN →
+qa/s199-live-verify.mjs ALL GREEN (the 8 escape-hardened controllers
+byte-IDENTICAL off their pages + the esc-wrapped quadrant-<option> probes +
+sw v433 + the VERSION line 2,841 chars live + health ok/up/63) → tag
+v0.4.1.24 → zip via the new scripts/make-zip.mjs (integrity OK, secret-scan
+CLEAN) → healthchecks both UP (natural ticks).
+
+**Completed + verification (the ladder, all green):**
+- Batch 1: eslint 0 errors 0 WARNINGS (the 162 baseline dead — codemod removed
+  ~159 symbols; the 3 `any`s stay as documented inline disables); tsconfig
+  noUnusedLocals/noUnusedParameters; CI ratchet --max-warnings 0;
+  devboard-helpers dead block deleted; sw.js VERSION trimmed 15,959→2,841
+  chars (file −46%). vitest 627/627 (+4).
+- Batch 2: scripts/rotate/rotate.mjs (ONE generic entry, shape-verified,
+  dry-run — proven on its first real run this session) + scripts/make-zip.mjs
+  (de-sandboxed); ONE lockfile (bun@1.3.14 pinned; package-lock retired,
+  gitignored; CI audit generates its lock on the fly — 0 vulns verified);
+  hibana.db untracked; .gitignore regrouped.
+- Batch 3: the gates are real — a11y spec ASSERTS baselines (login 0/2/0/2,
+  dashboard 6/49/0/4, offenders collected; was a vacuous green); Lighthouse
+  perf+bp ERROR floors 0.9 (measured 0.96-1.0/0.96; seo stays warn at 0.82);
+  workers-smoke required on main; THE ESCAPE-LINT GATE (scripts/check-
+  escape-lint.mjs — 207 sinks, 51 files, nesting-aware, negative-tested).
+- Batch 4: atomic reset single-use (rowcount-checked conditional UPDATE;
+  e2e replay-proofed); per-account login counter; TRUST_PROXY clientIp;
+  emailLinkOrigin (canonical APP_URL for emailed links); magic-byte sniffing
+  on avatar/logo/banner; owner re-scopes on the links/dev-task PATCH writes;
+  Agents.md OPEN_REGISTRATION lie + stale numbers + tooling doctrine.
+- Batch 5 partial: /api/calendar unit spec ×4 (caught the never-implemented
+  400-day bound — now real); signup/confirm/reset pages' first e2e ×3
+  (playwright webServer env gains CAPTCHA_SECRET_KEY); favicon 1d+SWR rule.
+- FULL e2e 417/417 (414 + 3), zero flakes — run as THREE SEQUENTIAL SHARDS
+  because THIS SANDBOX KILLS ALL DESCENDANT PROCESSES between bash
+  invocations (nohup AND setsid both die; the QA-server pattern from the
+  brief only works within one invocation). Sharding is also the S200 CI plan.
+- escape-lint PASS (207 sinks). workers-smoke PASS locally with real CF
+  creds. Lighthouse error floors PASS locally. bundle +0.1%. parity
+  1570/1570. cache-bust PASS (8 controllers, 53 refs).
+
+**The round's own discoveries (banked for the next agent):**
+1. The escape-lint gate caught TWO REAL XSS-class misses the S198 audit's
+   sampling missed: the sadhana quadrant-name <option> sinks (app.js:929 +
+   calendar-page.js:702) interpolated USER-RENAMEABLE quadrant names
+   (sadhana_quadrant_names) — fixed with esc(). ~20 more sites hardened.
+2. The a11y spec was VACUOUS: the fixtures are IIFEs whose JSON the spec
+   discarded, then probed for functions that never existed ("0 findings"
+   always). Now wired + asserted. The REAL numbers: login touch 2 (the
+   ringed family — doctrine-exempt), dashboard overflow 6 / touch 49,
+   contrast 2+4 (the UX-3 accent-as-text class — visible in the wild).
+3. /api/calendar's documented 400-day range bound was never implemented
+   (comment/code lie) — implemented + pinned.
+4. The tool-output pipeline SWALLOWS literal `[m` sequences — ci.yml's
+   `branches: [main]` DISPLAYED as `branches: ain]` in every read (grep,
+   cat -A, GitHub API). The repo was NEVER corrupted — an assert prevented a
+   phantom "fix". Lesson: verify suspicious byte-level findings with od
+   -c / python counts before acting on them.
+5. The live-verify lesson re-learned on JS bundles: app.js embeds its
+   lazy-asset refs — verify byte-identity against the WIRED tree (the
+   S191/S193 lesson, now in the verifier's header).
+
+**Open risks + next (S200 per the brief):**
+- S200 "Speed + Diet": CI sharding (the 20-min cap cliff — this session
+  proved 3 sequential shards work; CI needs the matrix + browser cache +
+  paths-ignore for docs-only pushes), explain-hotpaths STAGES fix,
+  perf-baseline re-pin, the bundle-size per-file guard re-key, the dead-CSS
+  diet, the N+1 fixes (/api/clients, tag-merge FTS, timeline), the
+  waitForTimeout → expect.poll batch, PERF-8 Login.jpg WebP.
+- S201 "Majors + Approvals" unchanged (the rule-4 asks: the 4 rule-9
+  indexes, legacy font deletion, zod-4/node-server-2 scheduling, __Host-
+  cookie prefix; the restore drill; error monitoring).
+- Batch 5 banked UX items: UX-3 --accent-ink (the contrast offenders are now
+  COLLECTED + counted by the gate — the fix has a ratchet waiting), UX-4
+  aria-labels, UX-5 skip-link, UX-6 fine-world rings.
+- The dependabot PRs (4 dynamic runs observed during this release) are still
+  dep-bump noise; the advisory-on-PR workers-smoke keeps them non-blocking.

@@ -1,5 +1,10 @@
 # SESSION BRIEF — S199 (the fix-and-implement round for the S198 SWOT audit)
 
+> **STATUS: S199 EXECUTED 2026-10-11 — released as v0.4.1.24 (push 1cc4779, CI 38122442476
+> GREEN, CD 38123258804 GREEN, live-verify ALL GREEN).** Batches 1-4 complete + Batch 5
+> partial (calendar spec, auth-page e2e, favicon rule). Banked for S200: UX-3/4/5/6,
+> PERF-8. The full record: Changelogs §1 row 199 + worklog.md's S199 section. S200 is next.
+
 **You are the next agent.** Read, in order: `Agents.md` (canonical rules) → `SWOT-AUDIT-S198.md`
 (the audit — every finding has an ID; THIS brief references those IDs) → `Changelogs.md` §1 →
 repo `worklog.md` tail → this file. The repo is your working tree: clone

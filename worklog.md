@@ -340,6 +340,13 @@ ticks only.
    settled it (and caught 2 MORE deterministic failures the contention run had
    masked by luck). The second run's 1 failure WAS contention-class (solo PASS in
    1.6s) — classified, not assumed.
+6. The 5ba7156 docs-push CI run (the verifier .mjs rode it — not paths-ignored)
+   failed e2e shard 1 ONCE on the s120 video first-frame seek test (currentTime
+   stayed 0 through a 10s poll, initial + retry — a slow-runner video-decode stall;
+   the code between the green 2821bef run and this run was byte-identical for
+   everything e2e touches). The re-run-failed-jobs remedy: ALL GREEN on a fresh
+   runner — runner variance, not a regression. The s120 seek test joins the
+   watch-list of environment-sensitive timing tests (the s155 font race class).
 5. The live-verifier's first pass tripped on its own probe design: the font-face.css
    provenance COMMENT legitimately mentions ".eot/.woff/.ttf" as prose — parse the
    actual url(...) set instead of substring-scanning the whole file. (Also: text

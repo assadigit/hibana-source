@@ -36,7 +36,11 @@ const insProject = db.prepare(
   `INSERT INTO projects (id, user_id, title, description, type, status, sort_order, latest_note, created_at, updated_at, due_date)
    VALUES (?, ?, ?, 'd', 'personal', ?, ?, 'n', ?, ?, ?)`,
 )
-const STAGES = ['spark', 'unreviewed', 'investigating', 'awaiting', 'doing', 'halted', 'operational']
+// S200 (PERF-3): the post-0060 taxonomy — spark → planning → queued → developing →
+// awaiting_dev → operational. The pre-0060 list ('unreviewed'/'investigating'/…)
+// crashed the seed on the projects.status CHECK constraint, so `perf:explain` had
+// been broken since migration 0060 (2026-09-20).
+const STAGES = ['spark', 'planning', 'queued', 'developing', 'awaiting_dev', 'operational']
 const projectIds = []
 for (let i = 0; i < 500; i++) {
   const id = `a${String(i).padStart(7, '0')}-aaaa-4aaa-8aaa-aaaaaaaaaaaa`

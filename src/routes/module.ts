@@ -27,16 +27,36 @@ export function moduleRoutes(cfg: Config) {
       "SELECT * FROM projects WHERE user_id = ? AND deleted_at IS NULL AND type = 'client' ORDER BY due_date, updated_at DESC",
       [user.id],
     )
-    const rows = await Promise.all(
-      projects.map(async (p) => {
-        const [tasks, payments] = await Promise.all([
-          cfg.db.query<TaskRow>('SELECT * FROM tasks WHERE project_id = ? ORDER BY created_at', [p.id]),
-          cfg.db.query<PaymentRow>('SELECT * FROM payments WHERE project_id = ? ORDER BY created_at', [p.id]),
-        ])
-        const pct = p.progress_percent ?? clientProgress({ total: tasks.length, done: tasks.filter((t) => t.done === 1).length })
-        return { project: p, tasks, payments, progress: pct, elapsed: p.due_date ? elapsedFraction(p.due_date) : null }
-      }),
-    )
+    // S200 (PERF-11): grouped fetch — 3 queries total (was 1 + 2N: two per client
+    // project, each a D1 round trip). Same IN-list recipe as loadProjectSignals.
+    // ORDER BY project_id, created_at keeps each project's rows in the exact order
+    // the per-project queries produced.
+    const tasksByProject = new Map<string, TaskRow[]>()
+    const paymentsByProject = new Map<string, PaymentRow[]>()
+    if (projects.length > 0) {
+      const ids = projects.map((p) => p.id)
+      const placeholders = ids.map(() => '?').join(',')
+      const [tasks, payments] = await Promise.all([
+        cfg.db.query<TaskRow>(`SELECT * FROM tasks WHERE project_id IN (${placeholders}) ORDER BY project_id, created_at`, ids),
+        cfg.db.query<PaymentRow>(`SELECT * FROM payments WHERE project_id IN (${placeholders}) ORDER BY project_id, created_at`, ids),
+      ])
+      for (const t of tasks) {
+        const list = tasksByProject.get(t.project_id) ?? []
+        list.push(t)
+        tasksByProject.set(t.project_id, list)
+      }
+      for (const p of payments) {
+        const list = paymentsByProject.get(p.project_id) ?? []
+        list.push(p)
+        paymentsByProject.set(p.project_id, list)
+      }
+    }
+    const rows = projects.map((p) => {
+      const tasks = tasksByProject.get(p.id) ?? []
+      const payments = paymentsByProject.get(p.id) ?? []
+      const pct = p.progress_percent ?? clientProgress({ total: tasks.length, done: tasks.filter((t) => t.done === 1).length })
+      return { project: p, tasks, payments, progress: pct, elapsed: p.due_date ? elapsedFraction(p.due_date) : null }
+    })
     if (c.req.header('HX-Request')) {
       const html = rows.map((r) => {
         const tasks = r.tasks.map((t) => `<li class="hurdle ${t.done ? 'done' : ''}" id="task-${t.id}">

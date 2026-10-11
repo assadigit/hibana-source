@@ -223,7 +223,13 @@ body.rtl .mat-grid{direction:rtl}
 .sadhana-wrap .q-title{font-size:12.5px;font-weight:700;line-height:1.3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
 /* Rename pen (2026-09-02): hidden until the header is hovered, then a soft pencil
    appears next to the quadrant name — click to rename + change the symbol. */
-.sadhana-wrap .q-pen{display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:6px;border:1px solid transparent;background:transparent;cursor:pointer;color:var(--text-dim);opacity:0;transition:opacity .15s,background .15s,color .15s,border-color .15s;flex-shrink:0;padding:0}
+.sadhana-wrap .q-pen{display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:6px;border:1px solid transparent;background:transparent;cursor:pointer;color:var(--text-dim);opacity:0;transition:opacity .15s,background .15s,color .15s,border-color .15s;flex-shrink:0;padding:0;position:relative}
+/* S200 (UX-6): the fine-world hit ring — the 22px visual box sits under the 24px
+   WCAG 2.5.8 minimum; the transparent ::after lifts the EFFECTIVE hit area to
+   26px without growing the visual box in the 5px-gap title row (the ringed-family
+   idiom, fine-pointer edition — the S43 block already floors the box at 40 on
+   coarse pointers). */
+.sadhana-wrap .q-pen::after{content:"";position:absolute;inset:-2px;border-radius:8px}
 .sadhana-wrap .q-title-row:hover .q-pen,.sadhana-wrap .q-hero:focus-within .q-pen,.sadhana-wrap .q-pen:focus-visible{opacity:1}
 .sadhana-wrap .q-pen:hover{background:var(--surface);border-color:var(--border2);color:var(--text)}
 /* S197 (the touch+optical audit): the pen's 12px glyph at the 1.8 stroke rendered

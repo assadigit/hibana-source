@@ -51,7 +51,10 @@ async function login(page: Page) {
   await page.waitForURL('**/app', { timeout: 10_000 })
   await page.waitForFunction(() => navigator.serviceWorker.controller !== null, null, { timeout: 8_000 }).catch(() => {})
   await page.waitForLoadState('load').catch(() => {})
-  await page.waitForTimeout(400)
+  // S200 (HLTH-19): the old fixed 400ms settle → poll the app's OWN boot signal
+  // (the loader veil lifts via .is-hidden when the page is ready — zero dead time
+  // when boot is fast, tolerant when the suite's server is slow).
+  await expect(page.locator('#hibana-page-loader')).toHaveClass(/is-hidden/, { timeout: 5_000 })
 }
 
 /** A real (tiny) PNG — the API validates mimeType and the bytes land in KV. */
@@ -144,7 +147,10 @@ test('canceling an in-flight upload drops the row NEUTRALLY — no error toast, 
   await expect(page.locator('#toast .toast-msg').filter({ hasText: 'Upload failed' })).toHaveCount(0)
 
   // Release + settle: the aborted request never produces a visible shot card
-  // (the grid refresh only rides a landed upload).
+  // (the grid refresh only rides a landed upload). NOTE (S200, HLTH-19): this
+  // fixed 400ms is a DELIBERATE negative-proof grace window — proving something
+  // does NOT appear has no event to poll, so a short fixed window is the honest
+  // pattern (not retry-masked flakiness). Do not "convert" it blindly.
   release!()
   await page.waitForTimeout(400)
   await expect(page.locator('#shots .shot-card')).toHaveCount(0)

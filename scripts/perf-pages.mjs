@@ -108,7 +108,9 @@ async function run() {
   // discover a 'doing' project id for project-detail
   const probe = await browser.newContext()
   await probe.request.post(`${BASE}/api/auth/login`, { headers: { 'Content-Type': 'application/json', Origin: BASE }, data: { login: EMAIL, password: PASS } })
-  const me = await probe.request.get(`${BASE}/api/projects?status=doing`, { headers: { Origin: BASE } })
+  // S200 (PERF-3): current taxonomy ('doing' was pre-0060 vocab — LEGACY_STATUS
+  // would map it, but the harness should speak the current language).
+  const me = await probe.request.get(`${BASE}/api/projects?status=developing`, { headers: { Origin: BASE } })
   const projects = (await me.json()).projects ?? []
   const doing = projects[0]?.id
   await probe.close()

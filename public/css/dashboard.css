@@ -312,9 +312,10 @@
 }
 .stat-box a.small { position: relative; }
 /* Standalone small links need a ≥24px target (WCAG 2.5.8) — text links inside a sentence
-   keep the inline exception, these don't. */
-.stat-box a.small,
-.activity-more { padding-block: 4px; }
+   keep the inline exception, these don't. (S200/HLTH-6: .activity-more dropped from
+   this selector group — no renderer emits it; the projects home's recently-active
+   rows are .activity-section now.) */
+.stat-box a.small { padding-block: 4px; }
 /* Kanban column labels read as plain text — only the count is bold. */
 .stat-label { font-weight: 400; }
 
@@ -394,64 +395,10 @@
 @media (max-width: 980px) { .pglance-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
 @media (max-width: 560px) { .pglance-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.45rem; } }
 
-/* --- S45 — «Recently active» (فعالیت اخیر) ------------------------------------
-   The projects home's new second act: flat hairline rows (the app's flat language),
-   each [stage badge · title(ellipsis, bidi plaintext) · updated-ago]. One tap → the
-   project. Rows clear the 44px touch floor; the whole list lives in one bordered card
-   so it reads as a single quiet block under the rail. */
-.precent { margin-block: 0.1rem 1.25rem; }
-.precent-head {
-  display: flex;
-  align-items: baseline;
-  gap: 0.6rem;
-  margin-block-end: 0.45rem;
-}
-.precent-head h2 {
-  margin: 0;
-  font-size: var(--fs-md);
-  /* S157: was a hardcoded 700 — General Sans 700 isn't shipped (400/500/600 only,
-     S155), so it rendered SYNTHETIC bold; it now rides the heading token like
-     every other h2. */
-  font-weight: var(--text-h2-weight);
-}
-.precent-all { text-decoration: none; white-space: nowrap; }
-.precent-all:hover { color: var(--text); text-decoration: underline; }
-.precent-list {
-  display: grid;
-  /* minmax(0,1fr), NOT a bare implicit auto track — the S43 ghost-track law: an auto
-     track sizes to the row's max-content (the nowrap ellipsized title measured 476px
-     inside a 363px phone) and overflows the card. minmax(0,1fr) lets the row shrink. */
-  grid-template-columns: minmax(0, 1fr);
-  border: 1px solid var(--line);
-  border-radius: var(--radius-sm);
-  background: var(--card);
-  overflow: hidden;
-}
-.precent-row {
-  display: flex;
-  align-items: center;
-  gap: 0.6rem;
-  padding: 0.5rem 0.75rem;
-  min-block-size: 2.75rem; /* 44px touch floor */
-  border-block-start: 1px solid var(--line);
-  text-decoration: none;
-  color: var(--text);
-}
-.precent-row:first-child { border-block-start: none; }
-.precent-row:hover { background: var(--bg-soft); }
-.precent-row:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
-.precent-title {
-  flex: 1;
-  min-inline-size: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  /* S106 (owner: project names must read BOLD): 500 → 700 — the name is the anchor
-     of the recently-active row; the ago/meta text stays regular (the hierarchy). */
-  font-weight: 700;
-  unicode-bidi: plaintext; /* the bidi GENERAL LAW (S32) */
-}
-.precent-ago { flex: none; white-space: nowrap; }
+/* S200 (HLTH-6): the S45 «Recently active» .precent* family (the typo'd name)
+   deleted — the projects home's recently-active panel renders as .activity-section
+   (layout.css) since the S45+ redesign; zero references across HTML/JS/e2e, and the
+   one e2e probe on .precent-row was vacuously passing on an empty NodeList. */
 
 /* --- batch (s) 2026-09-08 — idea folders (پوشه‌ها) on the Ideas shelf -------------
    A pill row above the spark cards: All · every folder (with a live count + a ⋯ for
@@ -880,8 +827,10 @@ main.shell-dash > h1 { margin-block: 0; }
 .dash-vault-glyph .icon { width: 1.05rem; height: 1.05rem; }
 .dash-vault-body { display: flex; flex-direction: column; gap: 0.15rem; min-inline-size: 0; flex: 1; }
 /* the stale-flag register: fs-xs/700 in the SEMANTIC ink, no uppercase/letter
-   spacing (the "NEW" shout retires; the accent flag whispers like the warn one) */
-.dash-vault-label { font-size: var(--fs-xs); font-weight: 700; color: var(--accent); }
+   spacing (the "NEW" shout retires; the accent flag whispers like the warn one).
+   S200 (UX-3): --accent → --accent-ink — the label is TEXT at 12px, and the raw
+   accent is 2.5:1 on the card (AA needs 4.5:1; the ink is 5.74:1). */
+.dash-vault-label { font-size: var(--fs-xs); font-weight: 700; color: var(--accent-ink); }
 .dash-vault-title { font-size: var(--fs-md); font-weight: 600; color: var(--text); }
 .dash-vault-copy { font-size: var(--fs-sm); color: var(--muted); margin-block: 0.1rem 0.4rem; }
 /* the CTA speaks the section-actions link register (a.small + the arrow) — an

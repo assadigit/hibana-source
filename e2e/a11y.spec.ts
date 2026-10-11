@@ -8,16 +8,23 @@
 //
 // BASELINE DISCIPLINE: counts may only go DOWN. If a fix lowers a count, re-pin the
 // constant to the new floor in the same PR. If a count would go UP, the test fails —
-// that is the point. The baselines were measured on 2026-10-11 (S199, v0.4.1.24):
+// that is the point. The baselines were measured on 2026-10-11 (S199, v0.4.1.24),
+// then contrast re-pinned to 0/0 in S200 (see below):
 //   - login smallTouch 2: theme-floater 28×28 + pw-toggle 30×30 — VISUAL boxes of
 //     the RINGED controls (the S197 tap-law: their ::after hit rings make them
 //     42/44.4px EFFECTIVE; audit-fn measures visual boxes only).
-//   - login contrast 2: the brand wordmark ("H" + "Hibana") on the tinted hero —
-//     decorative brand mark, tracked as the UX-3 class.
 //   - dashboard overflow 6 / touch 49: the known compact-control + wide-row set
 //     (effective-hit rings cover the touch floor; see the S197 audit).
-//   - dashboard contrast 4: the wordmark pair + the "New" chip + breadcrumb label
-//     (accent-as-text, the UX-3 finding — fixed only by the --accent-ink round).
+//   - contrast 0/0 (S200, UX-3): the two REAL offenders are fixed — .dash-vault-label
+//     now speaks --accent-ink (5.74:1; was --accent at 2.5:1) — and the checker's two
+//     false-positive classes died: (a) bubbled textContent audited wrapper DIVs at
+//     irrelevant inherited colors (the loader's dark-tile mark measured its white
+//     glyph's "H" at --text — a 1.1:1 phantom), (b) effectively-invisible elements
+//     were measured (the opacity-0 loader veil's children; the display:none mobile
+//     bar's tab anchors whose OWN display:flex still computes). contrast-fn.js now
+//     walks ancestors for effective visibility + aria-hidden (decorative) and only
+//     audits elements with a DIRECT text node. The token: --accent-ink (#297073
+//     light / #d9997f dark) — accent-as-text uses it; icons/strokes keep --accent.
 
 import { test, expect } from '@playwright/test'
 import { readFileSync } from 'node:fs'
@@ -30,8 +37,8 @@ const contrastFn = readFileSync(join(ROOT, 'e2e', 'fixtures', 'contrast-fn.js'),
 
 // ---- pinned baselines (re-pin DOWN only) ------------------------------------------
 const BASELINE = {
-  login: { overflow: 0, touch: 2, clipped: 0, contrast: 2 },
-  dashboard: { overflow: 6, touch: 49, clipped: 0, contrast: 4 },
+  login: { overflow: 0, touch: 2, clipped: 0, contrast: 0 },
+  dashboard: { overflow: 6, touch: 49, clipped: 0, contrast: 0 },
 } as const
 
 type AuditOut = {

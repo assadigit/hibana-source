@@ -174,8 +174,10 @@ main.shell-dash {
 .sadhana-card.done .sadhana-emoji { opacity: 0.5; }
 
 /* Always-on pastel status tint (2026-08-26): desaturated high-lightness tones so the
-   three progress states read at a glance. NEVER the only cue — the progress-label
-   text and the dot fill carry the meaning (colorblind-safe pairing).
+   three progress states read at a glance. NEVER the only cue — the state option's
+   text + title/aria and the dot fill carry the meaning (colorblind-safe pairing;
+   S200: the .progress-label class the old wording cited was deleted — dead since
+   the task-controls redesign, zero references).
    (x) 2026-09-09: aligned with the board palette — on-hold red → the (x) violet, and
    the dark in-progress tint now decomposes the exact #F59A4E orange (was the older
    242 170 76 variant), so this surface mirrors sadhana.html/dashboard 1:1. */
@@ -755,7 +757,7 @@ main.shell-dash {
 .shell:has(.sadhana-zone) .recur-badge,
 .shell:has(.sadhana-zone) .pill { border-radius: var(--radius-sm); }
 .sadhana-more { display: block; text-align: center; font-size: var(--fs-xs); color: var(--muted); padding-block: 0.15rem; }
-.progress-label { font-size: var(--fs-xs); color: var(--muted); white-space: nowrap; }
+/* S200 (HLTH-6): .progress-label deleted — zero references (see the tint note above). */
 
 /* deadline picker (dialog + edit + focus add form) */
 .dp { position: relative; display: inline-flex; max-inline-size: 100%; }

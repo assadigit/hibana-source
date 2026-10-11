@@ -24,6 +24,7 @@ html[data-theme='light'] {
   --text: #141414; --muted: #5C5C5C;
   --statcard-bg: #F5F6F7;
   --line: #D4D4D4; --line-strong: #BFBFBF; --accent: #4A9FA3; --accent-hover: #3D8D91;
+  --accent-ink: #297073; /* S200 (UX-3): mirrors :root — accent-as-text ink (see variables.css) */
   --accent-soft: rgba(74,159,163,.13); --cta: #2E7B7F; --cta-hover: #276A6D; --link: #297073; --ok: #1f7a34; --err: #c02626; --btn-text: #ffffff;
   --pastel-tool: #fef3c7; --pastel-tool-strong: #fde68a;
   --danger: #b42318; --danger-soft: #fdeaea; --danger-soft-hover: #fbdddd;

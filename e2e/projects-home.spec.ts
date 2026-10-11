@@ -198,14 +198,11 @@ test('S45 @390: search keeps a full-width line, no h-scroll, FAB clearance under
     const search = document.querySelector('form.filters input[type="search"]') as HTMLInputElement | null
     const sr = search?.getBoundingClientRect()
     const shell = document.querySelector('main.shell') as HTMLElement | null
-    const rows = [...document.querySelectorAll('.precent-row')].map((e) => Math.round(e.getBoundingClientRect().width))
     return {
       docHScroll: document.documentElement.scrollWidth - document.documentElement.clientWidth,
       searchW: sr ? Math.round(sr.width) : 0,
       searchOwnRow: sr ? Math.round(sr.width) >= 300 : false,
       shellPadEnd: shell ? getComputedStyle(shell).paddingBlockEnd : '',
-      rowWs: rows.slice(0, 3),
-      rowContained: rows.every((w) => w <= 390),
     }
   })
   expect(probe.docHScroll).toBeLessThanOrEqual(1)
@@ -214,8 +211,9 @@ test('S45 @390: search keeps a full-width line, no h-scroll, FAB clearance under
   // bottom-tab lift; the raw padding is a calc() string — resolve to px via the rect).
   const padPx = parseFloat(probe.shellPadEnd)
   expect(padPx).toBeGreaterThanOrEqual(140)
-  // Recent rows never exceed the viewport (the ghost-track overflow is dead).
-  expect(probe.rowContained).toBe(true)
+  // (S200/HLTH-6: the .precent-row width probe removed with the dead class — it had
+  // been vacuously passing on an empty NodeList since the activity-section redesign;
+  // the ghost-track law it guarded lives on in the sheets that still render rows.)
 
   expect(errors).toEqual([])
 })

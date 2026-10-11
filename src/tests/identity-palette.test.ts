@@ -838,3 +838,31 @@ describe('S197 the touch floor + the crossing-glyph optical grammar', () => {
     expect(dtCss).toMatch(/\.qa-btn::after \{ content: ""; position: absolute; inset: -0\.4rem; \}/)
   })
 })
+
+// ---------- S200 (UX-3): the accent-as-text register — --accent-ink ----------
+describe('S200 accent-ink — accent-as-text uses the ink, icons keep the accent', () => {
+  it('light: --accent-ink is #297073 and clears AA (4.5:1) on the white card', () => {
+    expect(css).toMatch(/--accent-ink:\s*#297073;/)
+    expect(contrast('#297073', LIGHT_CARD)).toBeGreaterThanOrEqual(4.5)
+  })
+
+  it('light: the raw --accent does NOT clear AA on white (the reason the ink exists — pin the gap so nobody "simplifies" the token away)', () => {
+    expect(contrast('#4A9FA3', LIGHT_CARD)).toBeLessThan(4.5)
+  })
+
+  it('dark: --accent-ink is the ink-grade clay (#d9997f) and clears AA on the dark card', () => {
+    expect(darkCss).toMatch(/--accent-ink:\s*#d9997f;/)
+    expect(contrast('#d9997f', DARK_CARD)).toBeGreaterThanOrEqual(4.5)
+  })
+
+  it('themes.css light mirror carries the same ink (the no-OS-dark-bleed contract extends to the new token)', () => {
+    const themesCss = readFileSync(join(process.cwd(), 'public', 'css', 'themes.css'), 'utf8')
+    expect(themesCss).toMatch(/--accent-ink:\s*#297073;/)
+  })
+
+  it('the converted site: .dash-vault-label (the a11y gate\'s one REAL accent-as-text offender) speaks the ink, not the accent', () => {
+    const dashCss = readFileSync(join(process.cwd(), 'public', 'css', 'dashboard.css'), 'utf8')
+    expect(dashCss).toMatch(/\.dash-vault-label \{[^}]*color:\s*var\(--accent-ink\);[^}]*\}/)
+    expect(dashCss).not.toMatch(/\.dash-vault-label \{[^}]*color:\s*var\(--accent\);/)
+  })
+})

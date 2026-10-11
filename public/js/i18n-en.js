@@ -192,6 +192,7 @@ window.__hibanaDictEN = {
       'common.edit': 'Edit', 'common.add': 'Add', 'common.loading': 'Loading…',
       // sadhana page (quadrant task board, spec 2026-08-25)
       'sadhana.title': 'Title', 'sadhana.emoji': 'Emoji',
+      'sadhana.qeSymbol': 'Pick a symbol', 'sadhana.qeEmpty': 'No symbol — minimalist',
       'sadhana.note': 'Note', 'sadhana.tags': 'Tags',
       'sadhana.quickPick': 'Quick pick', 'sadhana.exactDate': 'Exact date',
       'sadhana.recurring': 'Recurring', 'sadhana.reopen': 'Reopen automatically',

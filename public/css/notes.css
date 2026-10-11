@@ -38,15 +38,15 @@
   overscroll-behavior: contain;
 }
 
-/* quiet per-pane scrollbars (Webkit) — thin, token-colored, hover-emphasis */
+/* quiet per-pane scrollbars (Webkit) — thin, token-colored, hover-emphasis
+   (S200/HLTH-6: .vault-tag-pop dropped from the selector groups — the vault's
+   tag UI renders as .vault-tag-chip rows now; the class had zero references) */
 .vault-tree::-webkit-scrollbar,
 .vault-list::-webkit-scrollbar,
-.vault-editor::-webkit-scrollbar,
-.vault-tag-pop::-webkit-scrollbar { width: 8px; }
+.vault-editor::-webkit-scrollbar { width: 8px; }
 .vault-tree::-webkit-scrollbar-thumb,
 .vault-list::-webkit-scrollbar-thumb,
-.vault-editor::-webkit-scrollbar-thumb,
-.vault-tag-pop::-webkit-scrollbar-thumb {
+.vault-editor::-webkit-scrollbar-thumb {
   background: var(--line-strong);
   border-radius: 99px;
   border: 2px solid transparent;
@@ -865,26 +865,9 @@ button.vault-sec-head:hover { color: var(--text); }
 .vault-save[data-state='error'] { color: var(--err); }
 .vault-status-words { margin-inline-start: auto; }
 
-/* move-to-folder dialog rows */
-.vault-move-list { display: flex; flex-direction: column; gap: 0.125rem; max-block-size: 16rem; overflow-y: auto; padding: 0.25rem; }
-.vault-move-row {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  inline-size: 100%;
-  padding: 0.4375rem 0.5rem;
-  border: 0;
-  border-radius: 8px;
-  background: transparent;
-  color: var(--text);
-  font: inherit;
-  font-size: 0.875rem;
-  cursor: pointer;
-  text-align: start;
-}
-.vault-move-row:hover { background: var(--bg-soft); }
-.vault-move-row[aria-current='true'] { background: var(--accent-soft); font-weight: 600; }
-.vault-move-row .icon { color: var(--muted); }
+/* S200 (HLTH-6): the "move-to-folder dialog rows" block (.vault-move-list /
+   .vault-move-row ×5) deleted — the move dialog renders folder rows with its
+   current classes; zero references across HTML/JS/e2e. */
 
 /* ── responsive ──────────────────────────────────────────────────────────────── */
 

@@ -92,31 +92,37 @@ export function timelineRoutes(cfg: Config) {
       { label: trL(localeOf(c), '3 months ago', 'سه ماه پیش'), days: 90 },
       { label: trL(localeOf(c), '1 year ago', 'یک سال پیش'), days: 365 },
     ]
+    // S200 (PERF-13): ALL 12 queries in ONE Promise.all — the old loop ran 4 windows
+    // sequentially (a Promise.all of 3 inside each), paying 4 D1 round-trip
+    // latencies end-to-end; flattened, the wall time is ~one round trip.
+    const targets = windows.map((w) => new Date(now.getTime() - w.days * 24 * 3600 * 1000).toISOString().slice(0, 10))
+    const queries = targets.flatMap((targetStr) => [
+      cfg.db.query<{ id: string; title: string; status: string; updated_at: string }>(
+        `SELECT id, title, status, updated_at FROM projects WHERE user_id = ? AND deleted_at IS NULL AND substr(updated_at,1,10) = ? LIMIT 5`,
+        [user.id, targetStr],
+      ),
+      cfg.db.query<{ id: string; title: string; done: number; updated_at: string }>(
+        `SELECT id, title, done, updated_at FROM sadhana_tasks WHERE user_id = ? AND deleted_at IS NULL AND substr(updated_at,1,10) = ? LIMIT 5`,
+        [user.id, targetStr],
+      ),
+      cfg.db.query<{ id: string; content: string; kind: string; updated_at: string }>(
+        `SELECT id, content, kind, updated_at FROM quick_notes WHERE user_id = ? AND deleted_at IS NULL AND substr(updated_at,1,10) = ? LIMIT 5`,
+        [user.id, targetStr],
+      ),
+    ])
+    const settled = await Promise.all(queries)
     const results: { label: string; items: FeedItem[] }[] = []
-    for (const w of windows) {
-      const target = new Date(now.getTime() - w.days * 24 * 3600 * 1000)
-      const targetStr = target.toISOString().slice(0, 10)
-      const [p, s, n] = await Promise.all([
-        cfg.db.query<{ id: string; title: string; status: string; updated_at: string }>(
-          `SELECT id, title, status, updated_at FROM projects WHERE user_id = ? AND deleted_at IS NULL AND substr(updated_at,1,10) = ? LIMIT 5`,
-          [user.id, targetStr],
-        ),
-        cfg.db.query<{ id: string; title: string; done: number; updated_at: string }>(
-          `SELECT id, title, done, updated_at FROM sadhana_tasks WHERE user_id = ? AND deleted_at IS NULL AND substr(updated_at,1,10) = ? LIMIT 5`,
-          [user.id, targetStr],
-        ),
-        cfg.db.query<{ id: string; content: string; kind: string; updated_at: string }>(
-          `SELECT id, content, kind, updated_at FROM quick_notes WHERE user_id = ? AND deleted_at IS NULL AND substr(updated_at,1,10) = ? LIMIT 5`,
-          [user.id, targetStr],
-        ),
-      ])
+    windows.forEach((w, i) => {
+      const p = settled[i * 3] as { id: string; title: string; status: string; updated_at: string }[]
+      const s = settled[i * 3 + 1] as { id: string; title: string; done: number; updated_at: string }[]
+      const n = settled[i * 3 + 2] as { id: string; content: string; kind: string; updated_at: string }[]
       const items: FeedItem[] = [
         ...p.map((x) => ({ ts: x.updated_at, kind: 'project' as const, id: x.id, title: x.title, status: x.status, href: `/project.html?id=${x.id}` })),
         ...s.map((x) => ({ ts: x.updated_at, kind: 'sadhana' as const, id: x.id, title: x.title, done: x.done === 1, href: '/to-do-list' })),
         ...n.map((x) => ({ ts: x.updated_at, kind: 'note' as const, id: x.id, title: (x.content || '').replace(/\s+/g, ' ').trim().slice(0, 80) || 'Note', href: '/dashboard.html' })),
       ]
       if (items.length) results.push({ label: w.label, items })
-    }
+    })
     return await etag(c, c.json({ windows: results }))
   })
 

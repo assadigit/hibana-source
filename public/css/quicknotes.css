@@ -905,10 +905,8 @@ body > .note-head-controls.is-floating {
    sign-out) — it was hover-tint only before. */
 .user-menu-item:focus-visible { outline: 2px solid var(--brand); outline-offset: -2px; }
 .user-menu-item .icon-chip { inline-size: 1.8rem; block-size: 1.8rem; }
-/* Active-language row: check mark + highlight (audit 13). */
-.lang-check { margin-inline-start: auto; inline-size: 1rem; block-size: 1rem; color: var(--brand); display: none; }
-.user-menu-item.active { background: var(--accent-soft); }
-.user-menu-item.active .lang-check { display: block; }
+/* S200 (HLTH-6): the .lang-check pair deleted — the user menu carries no language
+   rows anymore (language lives in Settings); nothing renders or toggles the check. */
 /* Sign-out demoted to a quiet, low-emphasis row (audit 1) — danger only on hover. */
 .user-menu-item.user-menu-signout {
   color: var(--muted);
@@ -936,7 +934,7 @@ body > .note-head-controls.is-floating {
   position: relative;
   display: block;
   overflow: hidden;
-  background: url('/Login.jpg') center / cover no-repeat;
+  background: url('/Login.webp') center / cover no-repeat; /* S200 (PERF-8): WebP re-encode, 110KB JPEG → 68KB WebP */
 }
 .auth-brand {
   display: inline-flex;

@@ -51,7 +51,9 @@ async function login(page: Page) {
   // subresource load (project-page.js never ran → the CTA handler was dead → the
   // modal never opened; flaked only in full-suite runs where the server is slower).
   await page.waitForFunction(() => navigator.serviceWorker.controller !== null, null, { timeout: 8_000 }).catch(() => {})
-  await page.waitForTimeout(300)
+  // S200 (HLTH-19): fixed 300ms settle → poll the loader veil's .is-hidden (the
+  // app's own boot-complete signal).
+  await expect(page.locator('#hibana-page-loader')).toHaveClass(/is-hidden/, { timeout: 5_000 })
 }
 
 const expectedErrorPatterns = [

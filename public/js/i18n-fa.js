@@ -192,6 +192,7 @@ window.__hibanaDictFA = {
       'common.edit': 'ویرایش', 'common.add': 'افزودن', 'common.loading': 'در حال بارگذاری…',
       // sadhana page (quadrant task board, spec 2026-08-25)
       'sadhana.title': 'عنوان', 'sadhana.emoji': 'ایموجی',
+      'sadhana.qeSymbol': 'انتخاب نماد', 'sadhana.qeEmpty': 'بدون نماد — مینیمال',
       'sadhana.note': 'یادداشت', 'sadhana.tags': 'برچسب‌ها',
       'sadhana.quickPick': 'انتخاب سریع', 'sadhana.exactDate': 'تاریخ دقیق',
       'sadhana.recurring': 'تکرارشونده', 'sadhana.reopen': 'خودکار باز شود',

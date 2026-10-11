@@ -57,7 +57,9 @@ const daysAgo = (n) => iso(now - n * DAY)
 }
 
 // ── spark folders + projects ─────────────────────────────────────────────────
-const STAGES = ['spark', 'unreviewed', 'investigating', 'awaiting', 'doing', 'halted', 'operational']
+// S200 (PERF-3): post-0060 taxonomy (the pre-0060 list crashed the seed on the
+// projects.status CHECK — the whole perf harness had been dead since 0060).
+const STAGES = ['planning', 'queued', 'developing', 'awaiting_dev', 'operational']
 const folders = []
 for (let i = 0; i < 4; i++) {
   const id = uuid('a', i)
@@ -78,7 +80,7 @@ for (let i = 0; i < 25; i++) { // sparks (10 filed)
   n++
 }
 for (let i = 0; i < 65; i++) { // staged work
-  const stage = STAGES[1 + (i % 6)]
+  const stage = STAGES[i % STAGES.length]
   const id = uuid('b', 100 + i)
   projectIds.push(id)
   const client = i % 8 === 0
@@ -108,13 +110,18 @@ console.log(`projects: ${n}`)
   for (let i = 0; i < 70; i++) insPT.run(projectIds[i % projectIds.length], tagIds[i % tagIds.length])
 }
 
-// ── dev boards (12 doing projects get categories, sprints, tasks) ────────────
+// ── dev boards (12 developing projects get categories, sprints, tasks) ────────
 const doingProjects = projectIds.filter((id) => {
   const row = db.prepare('SELECT status FROM projects WHERE id = ?').get(id)
-  return row && row.status === 'doing'
+  return row && row.status === 'developing'
 }).slice(0, 12)
 {
-  const insCat = db.prepare('INSERT INTO task_categories (id, project_id, name, color, sort_order, created_at) VALUES (?, ?, ?, ?, ?, ?)')
+  // S200 (PERF-3): 0062+ schema — global user-scoped `categories` (color_fill +
+  // color_text, NO per-project column) + `project_categories` link rows; the old
+  // per-project task_categories table is legacy (dev_tasks.category_id now
+  // REFERENCES categories(id), so seeding the old table FK-fails).
+  const insCat = db.prepare('INSERT INTO categories (id, user_id, name, color_fill, color_text, is_archived, created_at) VALUES (?, ?, ?, ?, ?, 0, ?)')
+  const insPC = db.prepare('INSERT OR IGNORE INTO project_categories (project_id, category_id) VALUES (?, ?)')
   const insSprint = db.prepare('INSERT INTO sprints (id, project_id, name, started_at, created_at) VALUES (?, ?, ?, ?, ?)')
   const insTask = db.prepare(
     `INSERT INTO dev_tasks (id, project_id, title, status, priority, category_id, sprint_id, sort_order, created_at, done_at)
@@ -123,14 +130,18 @@ const doingProjects = projectIds.filter((id) => {
   const STATUSES = ['idea', 'planned', 'in_progress', 'done']
   let t = 0
   const taskIds = []
+  // Two GLOBAL categories shared by every board (0062's whole point — and 0064's
+  // unique (user_id, name) index forbids per-project duplicates of the same name).
+  const catIds = []
+  for (let k = 0; k < 2; k++) {
+    const cid = uuid('g', k)
+    catIds.push(cid)
+    insCat.run(cid, U, k ? 'UI/UX' : 'Feature Development', k ? '#8AB8F0' : '#F6D365', k ? '#10131A' : '#1B1E24', daysAgo(60))
+  }
   for (let p = 0; p < doingProjects.length; p++) {
     const pid = doingProjects[p]
-    const catIds = []
-    for (let k = 0; k < 2; k++) {
-      const cid = uuid('g', p * 2 + k)
-      catIds.push(cid)
-      insCat.run(cid, pid, k ? 'UI/UX' : 'Feature Development', k ? '#8AB8F0' : '#f6d365', k, daysAgo(60 - p))
-    }
+    insPC.run(pid, catIds[0])
+    insPC.run(pid, catIds[1])
     const sid = uuid('h', p)
     insSprint.run(sid, pid, `Sprint ${p + 1}`, daysAgo(30 - p), daysAgo(30 - p))
     for (let k = 0; k < 20; k++) {

@@ -2,21 +2,34 @@
 # H4 fix (2026-09-10): all quality gates were manual; a regression could ship without
 # anyone running them. This workflow catches type errors, test failures, and broken
 # smoke scenarios before they reach a deploy.
+#
+# S200 (PERF-1/UX-8): the e2e suite moved to a PARALLEL 2-shard matrix job — the
+# single-job ladder rode the 20-min cap's throat (414 tests at ~15-19 min single-
+# worker, +7 tests/release at the Oct cadence; the S181 cap failure mode was
+# minutes away). Now: the `ci` job (lint → build → unit → smoke, ~6-8 min) and
+# the `e2e` shards (~5-7 min each) run CONCURRENTLY on separate runners; the
+# workflow only reports green when every job is green, and CD (workflow_run-gated
+# on THIS workflow's completion) still fires only on all-jobs-green.
+# S200 (UX-9): docs-only pushes (`*.md`, `scripts/rotate/**`) skip CI entirely —
+# they change no shipped asset, and CD is workflow_run-gated so they simply don't
+# deploy (the next code push carries the docs live). PRs always run everything.
 name: CI
 
 on:
   push:
     branches: [main]
+    paths-ignore:
+      - '**.md'
+      - 'scripts/rotate/**'
   pull_request:
     branches: [main]
 
 jobs:
   ci:
     runs-on: ubuntu-latest
-    # 20 since S181's release round: the full ladder (563 unit + 322 e2e + Lighthouse)
-    # measured 15.0–15.3 min — the old 15 cap cancelled TWO docs-only runs at the
-    # final Lighthouse step (all quality gates already green; the cap, not the code,
-    # was the failure). 20 keeps ~5 min of runner-jitter headroom.
+    # The fast lane (everything except e2e) measured ~6-8 min post-split; the
+    # e2e shards run in parallel, so the workflow's wall time is the slower of
+    # the two, not their sum. 20 keeps generous headroom.
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
@@ -56,8 +69,15 @@ jobs:
         run: bun run build
 
       # Bundle-size tracking: fails if /dist/ grows >15% total or >25% per file.
+      # S200 (PERF-4): per-file compare keyed on LOGICAL manifest names — hashed
+      # filenames used to make the guard structurally dead (a re-hash = "new file").
       - name: Bundle-size check
         run: node scripts/check-bundle-size.mjs
+
+      # S200 (PERF-5): SW precache budget — SHELL + manifest raw bytes vs a hard
+      # ceiling (ratchets DOWN on deliberate shrinks, like the eslint warning one).
+      - name: Precache-size check
+        run: node scripts/check-precache-size.mjs
 
       - name: Typecheck
         run: bun run typecheck
@@ -98,31 +118,63 @@ jobs:
         # secrets, so a hard requirement there would be noise, not signal).
         continue-on-error: ${{ github.event_name == 'pull_request' }}
 
-      # E2E + screenshot-diff + a11y (SWOT W5+W6+W7): Playwright against the local
-      # Node server. Starts the server on port 3017 with a fresh DB, runs browser
-      # tests. Catches "compiles but doesn't work" regressions that unit tests miss.
-      - name: Install Playwright browsers
-        run: npx playwright install --with-deps chromium
-
-      - name: E2E + visual regression + a11y tests
-        run: npx playwright test
-        env:
-          CI: true
-
-      # On failure, upload screenshots + traces for debugging.
-      - uses: actions/upload-artifact@v4
-        if: failure()
-        with:
-          name: playwright-results
-          path: |
-            e2e/**/*.png
-            test-results/
-          retention-days: 7
-
       # Lighthouse CI (SWOT #15): automated performance + a11y + best-practices tracking.
-      # Runs Lighthouse against the local Node server (login page — no auth needed).
-      # Asserts: a11y ≥ 0.9 (error), performance ≥ 0.8 (warn), best-practices ≥ 0.85 (warn).
+      # Runs Lighthouse against its own local Node server (login page — no auth needed).
+      # S199: perf + best-practices are ERROR floors at 0.9 (a11y 0.9; seo warn 0.82).
       - name: Lighthouse CI
         run: npx @lhci/cli autorun
         env:
           LHCI_GITHUB_APP_TOKEN: ${{ secrets.LHCI_GITHUB_APP_TOKEN }}
+
+  # S200 (PERF-1): the e2e lane — 2 shards on separate runners, in PARALLEL with
+  # the ci job above (no `needs:` — the whole point is wall time). Each shard
+  # boots its OWN webServer (playwright config) against its OWN runner's
+  # /tmp/hibana-e2e.db; --shard i/2 splits the suite by test file. The 417-test
+  # suite that rode ~15-19 min single-worker now aims ~5-7 min per shard.
+  e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false # let both shards finish — the other shard's failures are
+      # signal too, and a cap/infra flake in one shard shouldn't hide the other's
+      # results.
+      matrix:
+        shard: [1, 2]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      # S200 (PERF-1): cache the Playwright browser download (~115 MB) keyed on
+      # the lockfile (playwright's version lives there) — saves the download on
+      # every run; `install` becomes a fast no-op on cache hit (system deps via
+      # --with-deps still apt-install, ~30s, they can't be cached).
+      - name: Cache Playwright browsers
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: pw-chromium-${{ runner.os }}-${{ hashFiles('bun.lock') }}
+          restore-keys: |
+            pw-chromium-${{ runner.os }}-
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+
+      - name: E2E + visual regression + a11y tests (shard ${{ matrix.shard }}/2)
+        run: npx playwright test --shard=${{ matrix.shard }}/2
+        env:
+          CI: true
+
+      # On failure, upload screenshots + traces for debugging (per shard).
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-results-shard-${{ matrix.shard }}
+          path: |
+            e2e/**/*.png
+            test-results/
+          retention-days: 7

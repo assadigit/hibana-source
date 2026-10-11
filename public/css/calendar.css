@@ -136,7 +136,13 @@
   opacity: 0.55;
   font-size: var(--fs-xs);
   line-height: 1.4;
+  position: relative; /* S200 (UX-6): the fine-world ring anchor */
 }
+/* S200 (UX-6): the fine-world hit ring — the ~20px ✕ box sat under the 24px
+   WCAG 2.5.8 minimum; the transparent ::after lifts the EFFECTIVE hit area
+   ≥24px without growing the compact inline shape (the ringed-family idiom,
+   fine-pointer edition; coarse pointers already get the 40px grid box below). */
+.cal-note-x::after { content: ""; position: absolute; inset: -3px; }
 .cal-note-x:hover { opacity: 1; background: rgb(0 0 0 / 0.08); }
 /* S197 (the touch+optical audit): the day-note/sticky ✕ — a ~12px text glyph in
    a ~20px box, the smallest control on the calendar (half the 40px coarse

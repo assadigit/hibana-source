@@ -1,6 +1,6 @@
 {
   "name": "hibana",
-  "version": "0.4.1.24",
+  "version": "0.4.1.25",
   "private": true,
   "packageManager": "bun@1.3.14",
   "type": "module",
@@ -43,6 +43,7 @@
     "check:prod-errors": "node scripts/check-prod-errors.mjs",
     "test:workers": "node scripts/workers-smoke.mjs",
     "check:bundle-size": "node scripts/check-bundle-size.mjs",
+    "check:precache-size": "node scripts/check-precache-size.mjs",
     "audit:mobile": "node scripts/mobile-audit.mjs",
     "probe:tags": "node scripts/live-tags-probe.mjs dev",
     "probe:tags:prod": "node scripts/live-tags-probe.mjs prod",

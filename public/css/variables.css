@@ -115,6 +115,14 @@
   --line: #D4D4D4;
   --line-strong: #BFBFBF;
   --accent: #4A9FA3;           /* medium teal — the Sadhana interactive accent */
+  /* S200 (UX-3): the ACCENT-AS-TEXT ink. --accent (#4A9FA3) is 3.10:1 on white —
+     fine for icons/strokes (WCAG 1.4.11 non-text floor is 3:1) but NOT for text
+     (AA needs 4.5:1). Text that speaks in the accent's hue uses --accent-ink
+     (#297073 = 5.74:1 on white — the same ink as --link, one hue family with the
+     link register). Icons, borders, fills, tints KEEP --accent. Convert per-sheet
+     as touched; the a11y contrast gate (e2e/a11y.spec.ts) ratchets every page it
+     measures — new accent-as-text fails CI until it uses --accent-ink. */
+  --accent-ink: #297073;
   --accent-hover: #3D8D91;
   --accent-soft: rgba(74, 159, 163, 0.13);
   /* S189 (owner, CHANGE 7 — the rail's active SHAPE): the icon rail's own active

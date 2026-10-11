@@ -977,6 +977,17 @@ body:has(.dash-skeleton) .fab-stack .fab:hover { background: color-mix(in srgb, 
    problems, not rounding). Controls that already carry pseudo-element hit
    expanders (`.palette button::after`, `.pw-toggle::after`, `.ghost::after`)
    are deliberately left alone.
+
+   S200 (UX-6): the FINE-POINTER companion rule, documented once here so the two
+   floors live in one doctrine: on fine pointers every interactive control
+   clears 24px EFFECTIVE hit area (WCAG 2.5.8 target size minimum) — a compact
+   visual box below that carries a transparent ::after hit ring (the
+   ringed-family idiom: `position:relative` on the control, `::after {
+   content:""; position:absolute; inset:-Npx }` sized to clear 24). Coarse
+   pointers ignore the 24 rule — the 40px floor above is stricter. The S200
+   ring bearers: .q-pen (22→26 effective, sadhana-board.css) and .cal-note-x
+   (~20→~26, calendar.css). The ringed family (pw-toggle/theme-floater/qa-btn)
+   already clears it by construction (42–44.4 effective).
    =========================================================================== */
 @media (pointer: coarse) {
   /* board.html + project.html task cards — S144: the prio-dot-btn touch floor is
@@ -985,9 +996,8 @@ body:has(.dash-skeleton) .fab-stack .fab:hover { background: color-mix(in srgb, 
   /* S136: .db-mini-chip/.db-add retired — the board renders .pd-tag + .pd-task-add now */
   .pd-task-add { min-block-size: 40px; }
   .pd-tag-add { min-block-size: 40px; }
-  /* S45: the projects home's «All projects →» row link (flex-blockified inside the
-     precent-head — the audit's inline-link exemption does not apply to it). */
-  .precent-all { min-block-size: 40px; display: inline-flex; align-items: center; }
+  /* S200 (HLTH-6): the S45 .precent-all coarse rule deleted with its class
+     (the projects home's «All projects →» link renders as .activity-section now). */
   /* the S32 compact filter chips (26px) — visual compactness stays on desktop;
      on touch the tap law wins (S43: "button sizes" on mobile) */
   .db-filter .chip { min-block-size: 40px; }

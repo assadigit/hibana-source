@@ -5,7 +5,7 @@ import { esc, etag, jsonBody } from '../lib/http'
 import { icon } from '../lib/html'
 import { trFor } from '../lib/i18n'
 import { uuid } from '../lib/ids'
-import { refreshTagUsage, syncTaskSearchTags } from './devboard-helpers'
+import { refreshTagUsage, syncTaskSearchTagsBatch } from './devboard-helpers'
 import { createTagSchema } from '../validation/schemas'
 import type { Config, TagRow, UserRow } from '../types'
 
@@ -109,7 +109,8 @@ export function tagsRoutes(cfg: Config) {
         await cfg.db.execute('DELETE FROM dev_task_tags WHERE tag_id = ?', [tagRow.id])
         await cfg.db.execute('DELETE FROM project_tags WHERE tag_id = ?', [tagRow.id])
         await cfg.db.execute('DELETE FROM tags WHERE id = ?', [tagRow.id])
-        for (const row of affected) await syncTaskSearchTags(cfg, row.task_id)
+        // S200 (PERF-12): one batched UPDATE instead of N sequential round trips
+        await syncTaskSearchTagsBatch(cfg, affected.map((row) => row.task_id))
         await refreshTagUsage(cfg, [tagRow.id, target])
         return c.json({ ok: true, merged_into: target })
       }
@@ -121,7 +122,8 @@ export function tagsRoutes(cfg: Config) {
     // a plain rename/color change rewrites every affected task's FTS text
     if (body.name !== undefined) {
       const affected = await cfg.db.query<{ task_id: string }>('SELECT task_id FROM dev_task_tags WHERE tag_id = ?', [tagRow.id])
-      for (const row of affected) await syncTaskSearchTags(cfg, row.task_id)
+      // S200 (PERF-12): batched — see syncTaskSearchTagsBatch.
+      await syncTaskSearchTagsBatch(cfg, affected.map((row) => row.task_id))
     }
     return c.json({ ok: true })
   })
@@ -142,7 +144,8 @@ export function tagsRoutes(cfg: Config) {
     await cfg.db.execute('DELETE FROM dev_task_tags WHERE tag_id = ?', [srcId])
     await cfg.db.execute('DELETE FROM project_tags WHERE tag_id = ?', [srcId])
     await cfg.db.execute('DELETE FROM tags WHERE id = ?', [srcId])
-    for (const row of affected) await syncTaskSearchTags(cfg, row.task_id)
+    // S200 (PERF-12): batched — see syncTaskSearchTagsBatch.
+    await syncTaskSearchTagsBatch(cfg, affected.map((row) => row.task_id))
     await refreshTagUsage(cfg, [srcId, dstId])
     return c.json({ ok: true })
   })

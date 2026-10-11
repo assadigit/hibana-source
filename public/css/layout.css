@@ -44,50 +44,9 @@
 .topbar .muted { flex: 1; font-size: var(--fs-md); }
 /* header account cluster: avatar + theme + sign out, tight together */
 .nav-actions { gap: 0.5rem; }
-
-/* S61: the command palette's visible entry — a search-style pill in the topbar.
-   Was keyboard-only before (Ctrl+K / "/"): touch users had no way in, desktop users
-   had nothing to discover. Reads as a search field (magnifier + label + kbd chip);
-   44px touch floor; the label + kbd chip collapse to icon-only under 1280px so the
-   eight nav links keep their room. */
-.topbar-search {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.45rem;
-  min-height: 2.4rem; /* 38px visual + padding pairs with .ghost's floor: 44px hit area via padding-block */
-  padding: 0.35rem 0.75rem;
-  border: 1px solid var(--line);
-  border-radius: 999px;
-  background: var(--card);
-  color: var(--muted);
-  font-size: var(--fs-md);
-  cursor: pointer;
-  transition: color 0.14s ease, border-color 0.14s ease, box-shadow 0.14s ease;
-}
-.topbar-search:hover { color: var(--text); border-color: var(--brand); }
-.topbar-search .icon { width: 1rem; height: 1rem; flex: none; }
-.topbar-search-kbd {
-  font-family: inherit;
-  font-size: var(--fs-xs);
-  line-height: 1;
-  padding: 0.28rem 0.45rem;
-  border: 1px solid var(--line);
-  border-block-start-width: 2px;
-  border-radius: 0.4rem;
-  background: var(--bg);
-  color: var(--muted);
-  user-select: none;
-}
-.topbar-search:focus-visible {
-  outline: 2px solid var(--brand);
-  outline-offset: 2px;
-  color: var(--text);
-}
-/* Icon-only under 1280px — the nav links own the width there. */
-@media (max-width: 1279px) {
-  .topbar-search-label, .topbar-search-kbd { display: none; }
-  .topbar-search { padding: 0.55rem 0.7rem; }
-}
+/* S200 (HLTH-5): the S61 .topbar-search pill (command-palette entry in the topbar)
+   deleted — the entry lives in the rail as .rail-search [nk-open] since the rail
+   redesign; zero references across HTML/JS. */
 .user-chip { display: inline-flex; align-items: center; gap: 0.55rem; }
 .avatar {
   display: inline-grid;
@@ -844,7 +803,8 @@ body.rail-panel-open .rail-panel { visibility: visible; opacity: 1; transition: 
 }
 .rail-cal-day:hover { background: var(--bg-soft); }
 .rail-cal-day:focus-visible { outline: 2px solid var(--brand); outline-offset: -2px; }
-.rail-cal-day.is-other { color: color-mix(in srgb, var(--muted) 55%, transparent); }
+/* S200 (HLTH-5): .rail-cal-day.is-other deleted — the rail calendar never renders
+   other-month cells (nav.js only ever adds .is-today). */
 .rail-cal-day.is-today {
   background: var(--accent-soft);
   color: var(--brand);
@@ -870,20 +830,8 @@ body.rail-panel-open .rail-panel { visibility: visible; opacity: 1; transition: 
 }
 .rail-cal-dots i[data-kind='done'] { background: var(--badge-operational-fg, #277334); }
 .rail-cal-dots i[data-kind='doing'] { background: var(--badge-developing-fg, #96511A); }
-.rail-cal-legend {
-  display: flex;
-  align-items: center;
-  gap: 0.4rem;
-  margin-block-start: 0.5rem;
-  color: var(--muted);
-  font-size: 0.625rem;
-}
-.rail-cal-legend i {
-  inline-size: 0.3rem;
-  block-size: 0.3rem;
-  border-radius: 999px;
-  background: var(--warn, #b45309);
-}
+/* S200 (HLTH-5): .rail-cal-legend + .rail-cal-legend i deleted — the legend never
+   shipped in nav.js's rail-calendar markup. */
 /* the mobile brandbar's square mark (S89 pair) — sized to the slim bar */
 .brand-logo-sq { inline-size: 1.65rem; block-size: 1.65rem; display: block; border-radius: 0.35rem; }
 
@@ -1513,7 +1461,7 @@ input::placeholder, textarea::placeholder { font-size: 0.88em; opacity: 0.7; } /
 .activity-section .activity li:hover { background: transparent; }
 .activity-section .activity-main a { font-size: var(--fs-sm); color: var(--muted); }
 .activity-section .activity-main a:hover { color: var(--text); }
-.activity-section .activity-more { font-size: var(--fs-xs); padding-block: 2px; }
+/* S200 (HLTH-5): .activity-section .activity-more deleted — no renderer emits it. */
 
 /* --- media --------------------------------------------------------------- */
 .shot-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(9rem, 1fr)); gap: 0.75rem; margin-block-start: 1rem; }

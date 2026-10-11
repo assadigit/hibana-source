@@ -4,6 +4,13 @@
 // sizes of /dist/ against a baseline. Fails if any file grows >25% or if the
 // total /dist/ size grows >15% (catches accidental bloat regressions).
 //
+// S200 (PERF-4): per-file compare keys on the LOGICAL manifest name
+// (`app.js`), not the content-hashed filename (`app.fad349f1.js`). Hashed keys
+// made the guard structurally dead: any edit changes the hash → the "new" file
+// has no baseline entry → `continue` → per-file regressions NEVER fired. Only
+// the +15% total guard was real. Logical keys survive re-hashing, so a file
+// that doubles between releases now fails as it should.
+//
 // Run: node scripts/check-bundle-size.mjs
 // CI: wired into .github/workflows/ci.yml (after the build step).
 //
@@ -21,13 +28,22 @@ if (!existsSync(DIST)) {
   process.exit(1)
 }
 
-// Collect current sizes
-const files = readdirSync(DIST).filter(f => f.endsWith('.js') || f.endsWith('.css'))
+// `app.fad349f1.js` → `app.js` (build.mjs appends an 8-hex content hash before
+// the extension; vendor files carry no hash and pass through unchanged).
+const logicalName = (f) => f.replace(/\.[0-9a-f]{8}\.(js|css)$/, '.$1')
+
+// Collect current sizes (keyed by logical name)
+const files = readdirSync(DIST).filter((f) => f.endsWith('.js') || f.endsWith('.css'))
 const current = {}
 let totalSize = 0
 for (const f of files) {
   const size = statSync(join(DIST, f)).size
-  current[f] = size
+  const key = logicalName(f)
+  if (key in current) {
+    console.error(`FAIL: two dist files share the logical name "${key}" — the build should never emit that.`)
+    process.exit(1)
+  }
+  current[key] = size
   totalSize += size
 }
 
@@ -53,16 +69,21 @@ if (totalGrowth > 15) {
   findings.push(`Total /dist/ size grew ${totalGrowth.toFixed(1)}% (threshold: 15%) — ${totalSize} bytes (was ${baseline.totalSize})`)
 }
 
-// Check per-file growth (>25% = fail)
-for (const f of files) {
-  const cur = current[f]
-  const base = baseline.files[f]
-  if (!base) continue // new file — not a regression
+// Check per-file growth (>25% = fail), keyed on LOGICAL names (S200/PERF-4 —
+// a re-hashed file keeps its logical key, so growth is actually compared).
+const removed = []
+for (const [key, cur] of Object.entries(current)) {
+  const base = baseline.files[key]
+  if (base === undefined) continue // genuinely new file — not a regression
   const growth = ((cur - base) / base) * 100
   if (growth > 25) {
-    findings.push(`${f} grew ${growth.toFixed(1)}% (threshold: 25%) — ${cur} bytes (was ${base})`)
+    findings.push(`${key} grew ${growth.toFixed(1)}% (threshold: 25%) — ${cur} bytes (was ${base})`)
   }
 }
+for (const key of Object.keys(baseline.files)) {
+  if (!(key in current)) removed.push(key)
+}
+if (removed.length) console.log(`  (baseline-only entries, no current file: ${removed.join(', ')})`)
 
 // Report
 console.log(`Bundle size: ${totalSize} bytes total, ${files.length} files (baseline: ${baseline.totalSize} bytes)`)

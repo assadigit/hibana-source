@@ -54,7 +54,9 @@ async function login(page: Page, email: string) {
   await page.waitForURL('**/app', { timeout: 10_000 })
   await page.waitForLoadState('load').catch(() => {})
   await page.waitForFunction(() => navigator.serviceWorker.controller !== null, null, { timeout: 8_000 }).catch(() => {})
-  await page.waitForTimeout(300)
+  // S200 (HLTH-19): fixed 300ms settle → poll the loader veil's .is-hidden (the
+  // app's own boot-complete signal).
+  await expect(page.locator('#hibana-page-loader')).toHaveClass(/is-hidden/, { timeout: 5_000 })
 }
 
 async function api(page: Page, path: string, method: string, body?: object) {
@@ -90,7 +92,9 @@ test('S45 sprint FA: injected surfaces translate at render time (S1, the third-b
 
   await page.goto(`/sprint.html?project=${pid}`)
   await page.waitForSelector('.sp-sprint-chip', { timeout: 10_000 })
-  await page.waitForTimeout(500)
+  // S200 (HLTH-19): the 500ms settle is gone — expect() auto-retries, so the
+  // text assertion below polls until the SPA renders instead of betting on a
+  // fixed grace window (retry-eliminated, not retry-masked).
 
   // The categories side-head — the exact string the audit caught rendering
   // English on the FA page (data-i18n on injected DOM is inert).
@@ -123,13 +127,13 @@ test('S45 sprint: finish is a compact control + the strip is visible (S3 + S4)',
 
   await page.goto(`/sprint.html?project=${pid}`)
   await page.waitForSelector('.sp-sprint-chip', { timeout: 10_000 })
-  await page.waitForTimeout(500)
-
+  // S200 (HLTH-19): geometry via expect.poll — the old fixed 500ms raced the
+  // async board render (an immediate rect read can land mid-layout).
   // S4: the video-editing strip is tall enough to SEE (was a 9px sliver).
+  await expect.poll(async () => (await page.locator('.sp-clip').boundingBox())?.height ?? 0, { timeout: 5_000 }).toBeGreaterThanOrEqual(19)
+  await expect.poll(async () => (await page.locator('.sp-sprint-chip').boundingBox())?.height ?? 0, { timeout: 5_000 }).toBeGreaterThanOrEqual(27)
   const clipBox = await page.locator('.sp-clip').boundingBox()
   const chipBox = await page.locator('.sp-sprint-chip').boundingBox()
-  expect(clipBox!.height).toBeGreaterThanOrEqual(19)
-  expect(chipBox!.height).toBeGreaterThanOrEqual(27)
   // The strip sits BELOW the chip, never overlapping it.
   expect(clipBox!.y).toBeGreaterThanOrEqual(chipBox!.y + chipBox!.height - 1)
 
@@ -185,10 +189,16 @@ test('S45 sprint 390px: the timeline renders ABOVE the categories panel (S2)', a
   await page.setViewportSize({ width: 390, height: 844 })
   await page.goto(`/sprint.html?project=${pid}`)
   await page.waitForSelector('.sp-sprint-chip', { timeout: 10_000 })
-  await page.waitForTimeout(500)
-
+  // S200 (HLTH-19): expect.poll for the layout relationship — the async
+  // categories panel can still be stacking itself when the old fixed 500ms
+  // expired under load (retry-eliminated instead).
   // The page's PURPOSE leads: the timeline's y sits above the side panel's y
   // (the categories panel used to stack ~580px of chrome above the board).
+  await expect.poll(async () => {
+    const sb = await page.locator('#sp-scroll').boundingBox()
+    const pb = await page.locator('#sp-side').boundingBox()
+    return sb && pb ? sb.y - pb.y : Number.NaN
+  }, { timeout: 5_000 }).toBeLessThan(0)
   const scrollBox = await page.locator('#sp-scroll').boundingBox()
   const sideBox = await page.locator('#sp-side').boundingBox()
   expect(scrollBox!.y).toBeLessThan(sideBox!.y)

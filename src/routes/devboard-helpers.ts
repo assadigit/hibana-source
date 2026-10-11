@@ -131,6 +131,25 @@ export async function syncTaskSearchTags(cfg: Config, taskId: string): Promise<v
   )
 }
 
+/** S200 (PERF-12): the BATCHED syncTaskSearchTags — one UPDATE for N tasks instead
+ * of N round trips (a 500-task tag rename used to cost 500 sequential D1 queries;
+ * each ~10-40 ms RTT on Workers). Semantics identical to the per-task version:
+ * recompute every listed task's space-joined tag-name string from the CURRENT
+ * dev_task_tags rows; the FTS trigger re-indexes each updated row. Same IN-list
+ * recipe as refreshTagUsage / loadProjectSignals. */
+export async function syncTaskSearchTagsBatch(cfg: Config, taskIds: string[]): Promise<void> {
+  const ids = [...new Set(taskIds.filter(Boolean))]
+  if (!ids.length) return
+  const placeholders = ids.map(() => '?').join(',')
+  await cfg.db.execute(
+    `UPDATE dev_tasks SET search_tags = COALESCE(
+       (SELECT group_concat(tg.name, ' ') FROM dev_task_tags tt JOIN tags tg ON tg.id = tt.tag_id
+        WHERE tt.task_id = dev_tasks.id), '')
+     WHERE dev_tasks.id IN (${placeholders})`,
+    ids,
+  )
+}
+
 // One flat row shape for every task-tag join (detail page render + devboard GET).
 export interface TaskTagJoin {
   task_id: string

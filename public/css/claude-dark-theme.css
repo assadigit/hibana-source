@@ -87,6 +87,11 @@ html[data-theme='claude-dark'] {
 
   /* ---------- Accent — Clay terracotta. PRIMARY actions only ---------- */
   --accent: #d97757;
+  /* S200 (UX-3): accent-as-text ink, dark twin. --accent itself passes on the dark
+     base (5.34:1) but the ink-grade register mirrors what --link already does —
+     the lighter clay tint reads as TEXT, not as a fill that escaped its button.
+     7:1 on the dark base (same value family as --link below). */
+  --accent-ink: #d9997f;
   --accent-hover: #c2643f;
   --accent-soft: rgba(217, 119, 87, 0.14);
   /* S189 (owner, CHANGE 7 — the rail's active SHAPE, dark twins): the rail's

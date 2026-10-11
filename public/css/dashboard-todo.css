@@ -923,10 +923,10 @@ body.rail-panel-open .dash-todo-grid { grid-template-columns: repeat(2, minmax(0
 .stat-box[data-status='developing'] .icon-chip,
 .stat-box[data-status='awaiting_dev'] .icon-chip,
 .stat-box[data-status='operational'] .icon-chip { background: var(--bg-soft); color: var(--muted); }
-/* Brand-colored interactive link states (audit 20). */
+/* Brand-colored interactive link states (audit 20). (S200/HLTH-6: .activity-more
+   dropped from the group with its dead class.) */
 .stat-box a.small:hover,
-.activity-main a:hover,
-.activity-more:hover { color: var(--brand); }
+.activity-main a:hover { color: var(--brand); }
 
 
 /* S29 responsive audit (2026-09-12): hit zones for the two sub-44px dashboard controls —

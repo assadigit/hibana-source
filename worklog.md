@@ -2695,3 +2695,142 @@ CLEAN) → healthchecks both UP (natural ticks).
   aria-labels, UX-5 skip-link, UX-6 fine-world rings.
 - The dependabot PRs (4 dynamic runs observed during this release) are still
   dep-bump noise; the advisory-on-PR workers-smoke keeps them non-blocking.
+
+## Session S200 — SPEED + DIET (the S198 audit's perf round)
+
+Executed per SESSION-BRIEF-S199.md's S200 plan (all six batches) on tree c80c184 →
+released as v0.4.1.25 (push 9970919).
+
+**STATUS: RELEASED.** LIVE hibana.ir @ v0.4.1.25, sw v434, schema 63. CI
+38161304761 GREEN — the FIRST run of the sharded structure: the `ci` fast lane
+2.6 min + the two e2e shards 6.5/6.8 min in PARALLEL (~9.5 min wall vs the old
+15-19 single-job) — the 20-min-cap cliff (the audit's THREAT #1) is dead with
+~2× headroom. CD 38161773669 GREEN → qa/s200-live-verify.mjs ALL GREEN (15
+CSS/JS bundles byte-IDENTICAL off their pages + every content probe + sw v434
+with /Login.webp in the SHELL + the WebP itself byte-identical at image/webp +
+the skip-link/aria-label HTML probes + health ok/up/63) → tag v0.4.1.25 → zip
+(615 files, integrity OK, secret-scan CLEAN — all 8 credential values absent)
+→ healthchecks both UP (natural ticks).
+
+**Completed + verification (the ladder, all green):**
+- Batch A (PERF-1/UX-8/UX-9): e2e → a concurrent 2-shard matrix job (fail-fast
+  off, per-shard artifacts, actions/cache for the chromium download keyed on
+  bun.lock); docs-only pushes skip CI entirely (paths-ignore **.md +
+  scripts/rotate/** — CD is workflow_run-gated, so they deploy nothing by
+  design; the next code push carries them); playwright.config parametrized
+  (E2E_PORT/E2E_DB/E2E_SHOTS).
+- Batch B (PERF-3/19/4/5): the perf harness was DEAD since migration 0060 —
+  explain-hotpaths' STAGES list predated the status rename (CHECK-constraint
+  crash on seed) and perf-seed still seeded the per-project task_categories
+  table (FK-fail against 0062's global categories). Both rebuilt on current
+  schemas; perf-pages speaks current vocab; perf-baseline.json re-pinned
+  (2026-10-11, 96 rows, 0 console errors). check-bundle-size per-file guard
+  re-keyed on LOGICAL manifest names (hashed keys made it structurally dead —
+  any edit re-hashed the filename and the guard skipped it as "new";
+  negative-tested with a faked baseline). NEW check-precache-size gate:
+  SHELL + manifest raw bytes against the SW's EXACT install filter (vendor
+  + i18n-fa excluded), budget 2,300 KB, measured 2,138 KB post-WebP — wired
+  into CI + package.json, ratchets DOWN only. sw.js's stale "~1.87MB" comment
+  corrected with the measured number.
+- Batch C (PERF-11/12/13): /api/clients 1+2N → 3 grouped IN-list queries (the
+  loadProjectSignals recipe; ORDER BY project_id, created_at preserves the
+  per-project order); tag rename/merge/collision-merge FTS rewrites N round
+  trips → ONE syncTaskSearchTagsBatch UPDATE (the devboard-helpers export; a
+  500-task tag rename was 500 sequential D1 RTTs at 10-40ms each); timeline
+  on-this-day 4 sequential windows → one flattened Promise.all of all 12
+  queries. 13 related unit tests re-run green.
+- Batch D (HLTH-19): the brief's named short waits converted — sprint-ux ×3
+  500ms (geometry → expect.poll on the actual boxes; the text assertion needs
+  no wait at all — expect() auto-retries); the 3 login-settle 300-400ms waits
+  → the loader-veil .is-hidden poll (the app's own boot-complete signal); the
+  cancel-test's 400ms grace KEPT with a comment (negative-proof windows have
+  no event to poll — documented so nobody "converts" it into a flake).
+- Batch E (HLTH-5/6): the dead-CSS diet, honestly re-verified — 15 rule
+  families deleted across 7 sheets (layout: .topbar-search family + .is-other
+  + .rail-cal-legend + .activity-more; dashboard: the typo'd .precent* S45
+  family; misc: .precent-all; quicknotes: .lang-check; notes: .vault-move-* +
+  .vault-tag-pop; to-do-list: .progress-label; dashboard-todo: .activity-more
+  selector). The audit's ~35-43 estimate CORRECTED: its per-sheet token
+  analysis couldn't see JS-CONSTRUCTED class names — dot-* (NOTE_COLOR_HEX),
+  ftag-* (TAGS cls), status-* (tone), p-in_progress/on_hold (progress), is-l2/3
+  (outline level), pd-pin-box-* (t.status), feed-* (it.kind), hljs-* (runtime
+  highlight) are ALL alive; and its layout candidates .rail-sync/.pc-corner
+  were already comment tombstones. The vacuous .precent-row e2e probe removed
+  with its class (it had passed on an empty NodeList since the S45 redesign).
+- Batch F (UX-3/4/5/6 + PERF-8): --accent-ink lands (light #297073 = 5.74:1 —
+  the same ink as --link; dark #d9997f the ink-grade clay; icons/strokes KEEP
+  --accent) + the ONE real measured offender converted (.dash-vault-label,
+  was 2.5:1 on the card) + contrast-fn.js's TWO false-positive classes die:
+  (a) bubbled textContent audited wrapper DIVs at inherited colors (the
+  loader's dark-tile mark measured its white glyph's "H" at --text — a 1.1:1
+  phantom), (b) effectively-invisible elements were measured (the opacity-0
+  veil's children compute opacity:1; the display:none mobile bar's anchors
+  compute their own display:flex) — the fn now walks ancestors + skips
+  aria-hidden (WCAG 1.4.3 decorative exemption) + requires a DIRECT text
+  node. The a11y baseline re-pins contrast 2+4 → 0+0 (re-pin DOWN) + 5 new
+  identity-palette pins. UX-4: aria-labels on the REAL title-only set (canvas
+  pen widths ×4 reusing existing keys; sadhana qeEmo/qeEmpty with 2 new i18n
+  keys — parity 1572; the audit's reports copy/CSV buttons already carried
+  text spans, spark-pin was already JS-labeled). UX-5: the skip-link re-added
+  on all 24 shell pages (the a11y.skipToMain key existed in BOTH dictionaries
+  all along — only the markup was removed in Session 21); 4 main-less pages
+  gain id="main" (canvas/whiteboard/sadhana/sprint). UX-6: the fine-world
+  rule DOCUMENTED once (24px WCAG 2.5.8 EFFECTIVE via the ring idiom, in
+  misc.css beside the 40px coarse floor) + rings for the two sub-24 offenders
+  (q-pen 22→26 effective; cal-note-x ~20→~26). PERF-8: Login.jpg → Login.webp
+  (112,648 B → 69,992 B at q70; preloads + CSS + SW SHELL swapped; precache
+  2,180 → 2,138 KB).
+- LADDER: typecheck 0 · vitest 632/632 (+5) · eslint 0/0 · build 85 ·
+  cache-bust PASS (15 assets, ~370 refs) · parity 1572/1572 (+2) · bundle
+  −0.1% PASS (logical keys) · precache 2,138 KB PASS (new gate) · escape-lint
+  PASS (207 sinks) · FULL e2e 417/417 in TWO SHARDS (212+1flaky / 203+1flaky
+  — both known-class font/modal races, retry-passed, zero failures; total
+  matches the S199 count) · smoke ALL PASS · workers-smoke PASS (local, real
+  CF creds) · dist-wiring PASS · Lighthouse floors PASS locally (login perf
+  100 / a11y 100 / bp 96; next-redirect 94/100/96; seo 82 warn).
+
+**The round's own discoveries (banked for the next agent):**
+1. THE BUMP-SCRIPT BUG (nearly shipped): a cache-bust version-bump script's
+   replace pattern used an OPTIONAL leading slash — `(\/?notes\.css\?v=)\d+`
+   — which tail-matched inside `quicknotes.css?v=48`, silently DOWNGRADING
+   25 refs to a stale v21/22 URL (a URL old clients may still have cached
+   from an ancient release). Caught by diffing HEAD's authoritative versions
+   (`git show HEAD:file | rg`) after the numbers looked wrong vs the §1
+   record; fixed to v49. LESSON: after ANY scripted version bump, verify each
+   file's new version against `git show HEAD:` + max-scan, and never use an
+   optional-slash pattern when a longer filename can end with the shorter one.
+2. The audit's dead-CSS method (per-sheet token analysis) over-counts by
+   construction: any class emitted via template literals (`feed-${kind}`,
+   `dot-${c}`, `status-${tone}`) reads as dead. The construction-site grep
+   (`rg "ftag-\\$|dot-\\$" ...`) is the mandatory second pass. Real dead set:
+   15 families, not ~35-43.
+3. contrast-fn's visibility check read only the ELEMENT's own styles —
+   opacity/display on ANCESTORS doesn't propagate to computed styles, so the
+   opacity-0 loader veil and the display:none mobile bar were audited as
+   visible. Any DOM walker that checks visibility must walk ancestors.
+4. esbuild escapes non-ASCII as \uXXXX in the dist bundles (the i18n-fa
+   Persian probes must key on the KEY NAME, not the value) and the CSS
+   minifier KEEPS the space in custom-property values (`--accent-ink:
+   #297073`) — both learned by the live-verify's first pass.
+5. The `[m`-swallowing tool-output artifact (S199's discovery) is BROADER:
+   `[h` in selectors (`.user-menu-item[href=...]`) also vanishes from
+   displayed output — and it can bite in BOTH directions (a Python repr also
+   displayed mangled). od -c remains the byte truth. WORSE: copying text from
+   a mangled display into a Write pastes the CORRUPTION into the file (this
+   session corrupted ci.yml's `branches:` lines that way and fixed them via
+   chr()-built strings).
+
+**Open risks + next (S201 per the brief):**
+- S201 "Majors + Approvals" unchanged: ASK ALI (rule 4) the four asks (the 4
+  rule-9 indexes; legacy font-format deletion; zod-4 + node-server-2
+  scheduling; __Host- cookie prefix); run + RECORD the restore drill; the
+  error_log daily monitor → healthchecks /fail; project-page.js split
+  (ride-along); worklog rotation mode + Changelogs row-wrap.
+- Banked from S200: the e2e spec DB-constant sweep (86 files hardcode
+  /tmp/hibana-e2e.db — the blocker for LOCAL parallel shards; CI shards are
+  unaffected); the per-sheet --accent-ink conversion continues opportunistically
+  (the a11y gate ratchets every page it measures — new accent-as-text fails CI
+  until it uses the ink); the mobile Lighthouse preset (UX-17) still unmeasured.
+- The 2 e2e flake classes (the Vazir font race on s155, the sprint-doc modal
+  under load) are retry-absorbed (retries:1) — the waits-to-polls conversion
+  continues per HLTH-19 but these two predate it.

@@ -3,7 +3,23 @@
 > **STATUS: S199 EXECUTED 2026-10-11 — released as v0.4.1.24 (push 1cc4779, CI 38122442476
 > GREEN, CD 38123258804 GREEN, live-verify ALL GREEN).** Batches 1-4 complete + Batch 5
 > partial (calendar spec, auth-page e2e, favicon rule). Banked for S200: UX-3/4/5/6,
-> PERF-8. The full record: Changelogs §1 row 199 + worklog.md's S199 section. S200 is next.
+> PERF-8. The full record: Changelogs §1 row 199 + worklog.md's S199 section.
+>
+> **S200 "Speed + Diet" ALSO EXECUTED 2026-10-11 — released as v0.4.1.25 (push 9970919,
+> CI 38161304761 GREEN — the FIRST run of the sharded structure: fast lane 2.6 min +
+> e2e shards 6.5/6.8 min in PARALLEL, ~9.5 min wall vs the old 15-19 — CD 38161773669
+> GREEN, qa/s200-live-verify.mjs ALL GREEN).** All six S200 batches landed: the CI
+> sharding + browser cache + docs-only paths-ignore; the perf tooling repair (explain-
+> hotpaths/perf-seed revived on current schemas, perf-baseline re-pinned, bundle-size
+> per-file guard re-keyed on logical names, NEW precache-size gate 2,138KB/2,300KB);
+> the N+1s (clients grouped, tag-merge batched, timeline flattened); the flake batch;
+> the dead-CSS diet (honestly corrected to 15 rule families — the audit's ~35-43
+> couldn't see JS-constructed class names); the banked UX batch (--accent-ink + the
+> contrast-fn false-positive fix → a11y baseline contrast 0/0, aria-labels, the
+> skip-link on 24 pages, the fine-world 24px rule + q-pen/cal-note-x rings,
+> Login.jpg → WebP). **S201 "Majors + Approvals" is next** — per the S201 section
+> below + the S200 record's banked list (the e2e DB-constant sweep across 86 specs,
+> the per-sheet --accent-ink conversion continues opportunistically).
 
 **You are the next agent.** Read, in order: `Agents.md` (canonical rules) → `SWOT-AUDIT-S198.md`
 (the audit — every finding has an ID; THIS brief references those IDs) → `Changelogs.md` §1 →

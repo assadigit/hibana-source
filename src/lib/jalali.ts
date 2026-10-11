@@ -125,7 +125,7 @@ const WEEKDAYS_FA = ['یکشنبه', 'دوشنبه', 'سه‌شنبه', 'چها�
 
 /** Human long date: 'دوشنبه ۳ شهریور ۱۴۰۵' (fa/shamsi) or 'Monday, 25 August 2026' (en).
  *  Used for the board header — server-rendered so it never depends on a client pass. */
-export function formatDateLong(iso: string, cal: 'gregorian' | 'shamsi', lang: 'en' | 'fa'): string {
+export function formatDateLong(iso: string, cal: 'gregorian' | 'shamsi', _lang: 'en' | 'fa'): string {
   const gy = Number(iso.slice(0, 4))
   const gm = Number(iso.slice(5, 7))
   const gd = Number(iso.slice(8, 10))
@@ -145,7 +145,7 @@ const G_MONTHS_EN_AB = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 
 /** ISO timestamp → weekday + day + month (no year): 'یکشنبه ۲۱ شهریور' (fa/shamsi) or
  *  'Sunday 21 Sep' (en/gregorian). The caller appends the time — the pair reads as one
  *  meta chip: «یکشنبه ۲۱ شهریور ۰۱:۲۳». */
-export function formatNoteDay(iso: string, cal: 'gregorian' | 'shamsi', lang: 'en' | 'fa'): string {
+export function formatNoteDay(iso: string, cal: 'gregorian' | 'shamsi', _lang: 'en' | 'fa'): string {
   const gy = Number(iso.slice(0, 4))
   const gm = Number(iso.slice(5, 7))
   const gd = Number(iso.slice(8, 10))

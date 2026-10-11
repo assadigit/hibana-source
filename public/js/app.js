@@ -614,7 +614,7 @@ window.hibana = (() => {
           window.hibana?.toast(_t('qa.savedOffline', 'Saved offline — it will sync when you reconnect'), 'info', 5000)
         }
       } catch (e2) {
-        err.textContent = `${_t('qa.errorPrefix', "Couldn't create the idea —")} ${e2 instanceof Error ? e2.message : 'network error'}`
+        err.textContent = `${_t('qa.errorPrefix', "Couldn't create the idea —")} ${esc(e2 instanceof Error ? e2.message : 'network error')}`
         save.disabled = false
         save.textContent = _t('common.save', 'Save')
       }
@@ -794,7 +794,7 @@ window.hibana = (() => {
           window.hibana?.toast(_t('qa.savedOffline', 'Saved offline — it will sync when you reconnect'), 'info', 5000)
         }
       } catch (e2) {
-        err.textContent = `${_t('qa.errorPrefix', "Couldn't create the project —")} ${e2 instanceof Error ? e2.message : 'network error'}`
+        err.textContent = `${_t('qa.errorPrefix', "Couldn't create the project —")} ${esc(e2 instanceof Error ? e2.message : 'network error')}`
         save.disabled = false
         save.textContent = _t('common.save', 'Save')
       }
@@ -926,7 +926,7 @@ window.hibana = (() => {
     document.getElementById('taskadd-title')?.focus()
     const quads = await fillTaskQuads()
     const sel = document.getElementById('taskadd-quad')
-    if (sel) sel.innerHTML = quads.map((q) => `<option value="${q.id}">${q.icon} ${q.name}</option>`).join('')
+    if (sel) sel.innerHTML = quads.map((q) => `<option value="${q.id}">${esc(q.icon)} ${esc(q.name)}</option>`).join('')
   }
 
   // ---- Quick-add triggers — DELEGATED, so they survive every page swap --------
@@ -2505,7 +2505,7 @@ window.hibana = (() => {
         current: styleOpen.dataset.current || '📌',
         onPick: (emoji) => {
           const trigger = card.querySelector('[data-dash-style]')
-          if (trigger) trigger.innerHTML = `<span class="quadrant-emoji">${emoji}</span>`
+          if (trigger) trigger.innerHTML = `<span class="quadrant-emoji">${esc(emoji)}</span>`
           styleOpen.dataset.current = emoji
           styleOpen.textContent = emoji
           // S83: a real emoji pick un-arms the EMPTY option in the same popover

@@ -1,31 +1,26 @@
 // Projects routes — extracted from projects.ts Phase 4.
 // CRUD + detail render + dev tasks + tags + logo (17 routes total).
-import { Hono, type MiddlewareHandler } from 'hono'
+import { Hono } from 'hono'
 import { z } from 'zod'
 import { requireAuth } from '../../auth/middleware'
-import { esc, etag, jsonBody, extForMime, mimeForPath } from '../../lib/http'
-import { html } from '../../lib/htmlx'
-import { trFor, localeOf, trL, type Locale } from '../../lib/i18n'
-import { faDigits, toJalali } from '../../lib/jalali'
-import { personalProgress, clientProgress } from '../../services/progress'
+import { etag, jsonBody, extForMime, mimeForPath, sniffImageMime } from '../../lib/http'
+import { trFor, localeOf } from '../../lib/i18n'
 import { githubClient, type GitHubConfig } from '../../services/github'
 import { purgeShotBytes, shotStoreFor } from '../../services/shotstore'
 import { hitRateLimit, RATE_RULES, clientIp } from '../../services/ratelimit'
 import { uuid } from '../../lib/ids'
 import { isValidCatPair } from '../../lib/categories'
-import { PROJECT_STAGES, STATUS_ORDER } from '../../types'
 import type { Config, ProjectRow, UserRow } from '../../types'
-import { toastHtml, getOwnedProject, STATUS_LABEL, icon, STATUS_BADGE } from '../../lib/html'
+import { toastHtml, getOwnedProject, STATUS_LABEL } from '../../lib/html'
 import { noteSchema, reorderSchema, sparkFolderSchema, updateProjectSchema, createProjectSchema, listProjectsSchema } from '../../validation/schemas'
-import type { HurdleRow, TagRow, ProjectStatus, SparkFolderRow } from '../../types'
+import type { SparkFolderRow } from '../../types'
 import { loadProjectProgress } from './helpers'
-import type { ProjectSignals, SparkHit } from './helpers'
+import type { SparkHit } from './helpers'
 import {
-  loadTags, loadProjectSignals, projectProgress,
-  bugBubbleHtml, signalsHtml, backlogMetaHtml,
-  cardHtml, listFragment, glanceStrip,
+  loadTags, loadProjectSignals,
+  listFragment, glanceStrip,
   loadOverviewData, overallTasksHtml,
-  sparkEmptyHtml, sparkKanbanHtml, sparkFolderBar, sparkFolderGrid, sparkFolderEmptyHtml,
+  sparkKanbanHtml, sparkFolderBar, sparkFolderGrid, sparkFolderEmptyHtml,
   sparkFolderHeaderHtml, sparkSearchEmptyHtml, sparkListFragment,
   loadSparkThumbs, loadSparkLinkPresence,
   archiveShelfHtml, staleBannerHtml, staleEmptyHtml,
@@ -38,7 +33,6 @@ export function projectsRoutes(cfg: Config) {
   app.get('/', async (c) => {
     const query = listProjectsSchema.safeParse(c.req.query())
     const view = query.success ? query.data.view : 'cards'
-    const t = trFor(c)
     const lang = localeOf(c)
     const user = c.get('user')
     const conds = ['deleted_at IS NULL', 'user_id = ?']
@@ -580,6 +574,10 @@ export function projectsRoutes(cfg: Config) {
     )
     if (!folder.length) return c.json({ error: 'not_found' }, 404)
     const store = shotStoreFor(cfg)
+    // SEC-9: the same magic-byte sniff as avatar/logo — the banner is the third member
+    // of the client-mime upload class.
+    const sniffed = sniffImageMime(Uint8Array.from(atob(body.dataBase64.slice(0, 64)), (ch) => ch.charCodeAt(0)))
+    if (sniffed !== body.mimeType) return c.json({ error: 'invalid_image' }, 400)
     const path = `folder-banners/${folder[0].id}/banner-${Date.now()}-${uuid().slice(0, 8)}${extForMime(body.mimeType)}`
     if (folder[0].banner_path) {
       try { await store.deleteObject(folder[0].banner_path) } catch { /* the old banner may be gone */ }
@@ -633,7 +631,6 @@ export function projectsRoutes(cfg: Config) {
   })
 
   app.get('/:id', async (c) => {
-    const t = trFor(c)
     const lang = localeOf(c)
     const user = c.get('user')
     const p = await getOwnedProject(cfg, user.id, c.req.param('id'))
@@ -870,6 +867,10 @@ export function projectsRoutes(cfg: Config) {
     if (!p) return c.json({ error: 'not_found' }, 404)
     if (!cfg.github.token) return c.json({ error: 'github_not_configured' }, 503)
     const gh = githubClient(cfg.github as GitHubConfig)
+    // SEC-9 (S198/S199): sniff the leading bytes — the declared mimeType must match
+    // the actual container (a mislabeled or scripted payload dies here, before any push).
+    const sniffed = sniffImageMime(Uint8Array.from(atob(body.dataBase64.slice(0, 64)), (ch) => ch.charCodeAt(0)))
+    if (sniffed !== body.mimeType) return c.json({ error: 'invalid_image' }, 400)
     const path = `project-logos/${p.id}/logo-${Date.now()}-${uuid().slice(0, 8)}${extForMime(body.mimeType)}`
     // Remove the old logo if there was one
     if (p.logo_path) {

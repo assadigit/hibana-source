@@ -14,7 +14,6 @@ import { createApp } from '../app'
 import type { Config } from '../types'
 import type { Db } from '../db/types'
 import {
-  AI_MODEL,
   DEFAULT_AI_MODEL,
   FREE_TIER_MODELS,
   buildMessages,

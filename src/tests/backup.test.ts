@@ -141,7 +141,7 @@ describe('backup retention', () => {
     const { db, close } = makeTestDb()
     try {
       await makeUser(db)
-      const result = await withGithubStub((url, init) => {
+      const result = await withGithubStub((_url, init) => {
         if (init.method === 'GET') return new Response('boom', { status: 500 })
         return new Response(JSON.stringify({ content: { html_url: 'https://github.com/x' } }), { status: 201 })
       }, async () => backupToGitHub(db, { owner: 'o', repo: 'r', token: 't' }, undefined, 2))

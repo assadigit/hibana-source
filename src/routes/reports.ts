@@ -126,7 +126,6 @@ export function reportsRoutes(cfg: Config) {
     const gran = granularitySchema.safeParse(c.req.query('granularity') ?? 'day')
     if (!gran.success) return c.json({ error: 'invalid_input' }, 400)
     const user = c.get('user')
-    const now = new Date()
     const b = buckets(gran.data)
 
     const [hurdles, created] = await Promise.all([

@@ -40,19 +40,19 @@ function buildHeaderDate(){
   if(lang==='fa'){
     /* Shamsi date in Persian, format: پنجشنبه ، ۷ اسفند ، ۱۴۰۴ */
     const[jy,jm,jd]=g2j(now.getFullYear(),now.getMonth()+1,now.getDate());
-    const sep=`<span class="hdr-date-sep">،</span>`;
-    el.innerHTML=`${WEEKDAY_FA[dow]}${sep}${toFa(jd)} ${J_MONTHS[jm-1]}${sep}${toFa(jy)}`;
+    const sepHtml=`<span class="hdr-date-sep">،</span>`;
+    el.innerHTML=`${WEEKDAY_FA[dow]}${sepHtml}${toFa(jd)} ${J_MONTHS[jm-1]}${sepHtml}${toFa(jy)}`;
     el.setAttribute('dir','rtl');
   } else {
     /* Shamsi date in English when cal=j, Gregorian when cal=g */
     if(cal==='j'){
       const[jy,jm,jd]=g2j(now.getFullYear(),now.getMonth()+1,now.getDate());
-      const sep=`<span class="hdr-date-sep">·</span>`;
-      el.innerHTML=`${WEEKDAY_EN[dow]}${sep}${J_MONTHS_EN[jm-1]} ${jd}${sep}${jy}`;
+      const sepHtml=`<span class="hdr-date-sep">·</span>`;
+      el.innerHTML=`${WEEKDAY_EN[dow]}${sepHtml}${J_MONTHS_EN[jm-1]} ${jd}${sepHtml}${jy}`;
     } else {
-      const sep=`<span class="hdr-date-sep">·</span>`;
-      const months=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-      el.innerHTML=`${WEEKDAY_EN[dow]}${sep}${months[now.getMonth()]} ${now.getDate()}${sep}${now.getFullYear()}`;
+      const sepHtml=`<span class="hdr-date-sep">·</span>`;
+      const MONTHS_EN=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+      el.innerHTML=`${WEEKDAY_EN[dow]}${sepHtml}${MONTHS_EN[now.getMonth()]} ${now.getDate()}${sepHtml}${now.getFullYear()}`;
     }
     el.setAttribute('dir','ltr');
   }
@@ -146,7 +146,7 @@ function buildGrid(){
     <div class="quadrant q${q.id}" id="Q${q.id}"${q.accent?` style="--q-accent: var(--${q.accent})"`:''}
       ondragover="onDO(event,${q.id})" ondrop="onDrop(event,${q.id})" ondragleave="onDL()">
       <div class="q-hero">
-        <div class="q-big">${quadSym(q)}</div>
+        <div class="q-big">${quadSymHtml(q)}</div>
         <div class="q-hero-txt">
           <div class="q-title-row">
             <div class="q-title">${esc(q[lang].title)}</div>
@@ -262,7 +262,7 @@ function buildFuzGrid(){
   const cur=dlpSlot&&dlState[dlpSlot]?dlState[dlpSlot]:{};
   document.getElementById('dlpFuzGrid').innerHTML=FUZZY.map(f=>`
     <button class="fuz-opt${cur.type==='fuzzy'&&cur.val===f.k?' sel':''}" onclick="pickFuzzy('${f.k}')">
-      <span class="fuz-ico">${f.ico}</span>${lang==='fa'?f.fa:f.en}
+      <span class="fuz-ico">${esc(f.ico)}</span>${lang==='fa'?esc(f.fa):esc(f.en)}
     </button>`).join('');
 }
 function pickFuzzy(k){
@@ -432,7 +432,7 @@ function formatStoredDate(isoStr){
 function buildFilterBar(){
   const ct=document.getElementById('filterTags');
   ct.innerHTML=`<button class="ftag all${activeFilter==='all'?' active':''}" onclick="setFilter('all')">${tr('allTasks')}</button>`+
-    TAGS.map(tg=>`<button class="ftag ftag-${tg.cls}${activeFilter===tg.id?' active':''}" onclick="setFilter('${tg.id}')">${tg.ico} ${lang==='fa'?tg.fa:tg.en}</button>`).join('');
+    TAGS.map(tg=>`<button class="ftag ftag-${esc(tg.cls)}${activeFilter===tg.id?' active':''}" onclick="setFilter('${tg.id}')">${esc(tg.ico)} ${lang==='fa'?esc(tg.fa):esc(tg.en)}</button>`).join('');
   updateFilterCount();
 }
 function setFilter(tagId){activeFilter=tagId;buildFilterBar();renderAll();}
@@ -523,7 +523,7 @@ function updateFilterCount(){
 }
 function buildTagPicker(cid,slot){
   const el=document.getElementById(cid);if(!el)return;
-  el.innerHTML=TAGS.map(tg=>`<button class="tp-tag ${tg.cls}${formTags[slot].includes(tg.id)?' sel':''}" onclick="togFT('${slot}','${tg.id}',this)">${tg.ico} ${lang==='fa'?tg.fa:tg.en}</button>`).join('');
+  el.innerHTML=TAGS.map(tg=>`<button class="tp-tag ${esc(tg.cls)}${formTags[slot].includes(tg.id)?' sel':''}" onclick="togFT('${esc(slot)}','${tg.id}',this)">${esc(tg.ico)} ${lang==='fa'?esc(tg.fa):esc(tg.en)}</button>`).join('');
 }
 function togFT(slot,tagId,btn){const arr=formTags[slot];const i=arr.indexOf(tagId);if(i>-1){arr.splice(i,1);btn.classList.remove('sel');}else{arr.push(tagId);btn.classList.add('sel');}}
 
@@ -1103,7 +1103,7 @@ function openZen(q){
   zenQ=q;const qDef=QUADS.find(x=>x.id===q);
   document.getElementById('zenCard').style.borderTop=`3px solid ${qDef.col}`;
   document.getElementById('zenHeader').innerHTML=`
-    <div class="zen-big">${quadSym(qDef)}</div>
+    <div class="zen-big">${quadSymHtml(qDef)}</div>
     <div class="zen-title-block">
       <div class="zen-title">${esc(qDef[lang].title)}</div>
       <div class="zen-sub">${esc(qDef[lang].sub)}</div>
@@ -1513,7 +1513,7 @@ function setLang(l){
 /* ══ HIBANA: modal quadrant options (server names) ═══════════ */
 function buildModalQuads(){
   const sel=document.getElementById('mQ');if(!sel)return;
-  sel.innerHTML=QUADS.map(q=>{const e=quadEmoji(q);return `<option value="${q.id}">${e?e+' ':''}Q${q.id} — ${lang==='fa'?q.name.fa:q.name.en}</option>`}).join('');
+  sel.innerHTML=QUADS.map(q=>{const e=quadEmoji(q);return `<option value="${q.id}">${e?esc(e)+' ':''}Q${q.id} — ${lang==='fa'?esc(q.name.fa):esc(q.name.en)}</option>`}).join('');
 }
 
 /* ══ ARCHIVE OVERLAY (in-page view) ═══════════════════════════ */
@@ -1701,7 +1701,7 @@ const Q_GLYPHS={
   mountain:'<path d="M3.5 20h17L14 5.5l-3.5 6L8.2 8.3 3.5 20Z"/>',
   leaf:'<path d="M4.5 19.5C4.5 10 10 4.5 19.5 4.5c0 9.5-5.5 15-15 15Z"/><path d="M4.5 19.5c4.5-7.5 9-12 13.5-13.5"/>',
 };
-function quadSym(q){
+function quadSymHtml(q){
   const id=q.iconId;
   if(id==='none')return ''; // S83: EMPTY — the minimalist quadrant (owner request): no glyph, no emoji, no box
   if(id&&Q_GLYPHS[id])return `<svg class="q-big-svg" viewBox="0 0 24 24" aria-hidden="true">${Q_GLYPHS[id]}</svg>`;
@@ -1749,7 +1749,7 @@ const Q_ACCENTS=['accent-1','accent-2','accent-3','accent-4','accent-green','acc
 function buildQeSwatches(){
   const row=document.getElementById('qeSwatches');if(!row)return;
   row.innerHTML=Q_ACCENTS.map(tok=>
-    `<button type="button" class="qe-swatch${qeAccent===tok?' is-on':''}" style="--sw:var(--${tok})" onclick="pickQAccent('${tok}')" title="${tok}" aria-label="${tok}" aria-pressed="${qeAccent===tok}"></button>`).join('')+
+    `<button type="button" class="qe-swatch${qeAccent===tok?' is-on':''}" style="--sw:var(--${esc(tok)})" onclick="pickQAccent('${esc(tok)}')" title="${esc(tok)}" aria-label="${esc(tok)}" aria-pressed="${qeAccent===tok}"></button>`).join('')+
     `<button type="button" class="qe-swatch qe-swatch-none${!qeAccent?' is-on':''}" onclick="pickQAccent('none')" title="${lang==='fa'?'بدون رنگ — خنثی':'No color — neutral'}" aria-label="${lang==='fa'?'بدون رنگ — خنثی':'No color — neutral'}" aria-pressed="${!qeAccent}">∅</button>`;
   const lbl=document.getElementById('qeSwatchLbl');
   if(lbl)lbl.textContent=lang==='fa'?'رنگ پاستلی':'Pastel color';

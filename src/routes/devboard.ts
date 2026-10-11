@@ -24,7 +24,7 @@ import { jsonBody, etag } from '../lib/http'
 import { getOwnedProject, toastHtml } from '../lib/html'
 import { localeOf, trFor } from '../lib/i18n'
 import { uuid } from '../lib/ids'
-import type { Config, UserRow, DevTaskRow, DevTaskStatus, SprintRow, TagRow, BacklogDocRow } from '../types'
+import type { Config, UserRow, DevTaskRow, SprintRow, TagRow } from '../types'
 import { categoriesUserScoped, isValidCatPair, normCatName, type CategoryRow } from '../lib/categories'
 
 const taskStatusSchema = z.enum(['idea', 'planned', 'in_progress', 'done', 'bug'])
@@ -288,7 +288,10 @@ export function devboardRoutes(cfg: Config) {
       sets.push('updated_at = ?')
       params.push(now)
       params.push(task.id)
-      await cfg.db.execute(`UPDATE dev_tasks SET ${sets.join(', ')} WHERE id = ?`, params)
+      // SEC-11 (S198/S199): re-scope the write by owner (belt-and-suspenders with
+      // ownedTask — the UPDATE itself can never touch a foreign row).
+      params.push(user.id)
+      await cfg.db.execute(`UPDATE dev_tasks SET ${sets.join(', ')} WHERE id = ? AND project_id IN (SELECT id FROM projects WHERE user_id = ?)`, params)
     }
     // Labels ride the PATCH (replace-set): the response carries the task's FINAL tag
     // set (with server-assigned palette colors) so the client repaints chips truthfully.

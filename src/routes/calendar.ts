@@ -42,8 +42,13 @@ export function calendarRoutes(cfg: Config) {
     const user = c.get('user')
     const { start, end } = q.data
 
-    // Sanity: start must be <= end. Reject ranges over 400 days (a calendar month is ≤ 31).
+    // Sanity: start must be <= end, and the span must be ≤ 400 days (a calendar month
+    // is ≤ 31; the bound exists so a hostile range can't drag the whole table through
+    // the four queries — S199: the comment claimed this bound but the code never
+    // enforced it; now it does).
     if (start > end) return c.json({ error: 'invalid_input' }, 400)
+    const spanDays = (Date.parse(end) - Date.parse(start)) / 86_400_000
+    if (spanDays > 400) return c.json({ error: 'invalid_input' }, 400)
 
     const [projects, tasks, sadhana, notes] = await Promise.all([
       cfg.db.query<ProjectRow>(

@@ -4,13 +4,10 @@ import { z } from 'zod'
 import { requireAuth } from '../auth/middleware'
 import { esc, jsonBody, etag } from '../lib/http'
 import { icon } from '../lib/html'
-import { localeOf, trL, type Locale } from '../lib/i18n'
-import { renderMarkdown } from '../lib/markdown'
-import { calendarFor, formatDate } from '../lib/jalali'
+import { localeOf, trL } from '../lib/i18n'
 import { uuid } from '../lib/ids'
 import { todayIn } from '../services/sadhana'
 import type { Config, UserRow } from '../types'
-import type { Db } from '../db/types'
 
 // Dashboard quick-notebook (user request): a capture widget in two modes — free typing
 // ('note') or a task list ('list'). Everything routes through /api/notes; the same handlers
@@ -20,9 +17,6 @@ import type { Db } from '../db/types'
 
 import {
   type QuickNote,
-  NOTE_COLORS,
-  type NoteColor,
-  NOTE_COLOR_HEX,
   createNoteSchema,
   patchNoteSchema,
   addItemSchema,
@@ -30,14 +24,8 @@ import {
   reorderSchema,
   moveNoteSchema,
   archiveQuerySchema,
-  type TaskItem,
   parseItems,
-  itemsHtml,
-  colorPickerHtml,
-  dateChipHtml,
   decodeEntities,
-  latinRuns,
-  noteCard,
   attachWidget,
   attachedTitles,
   notebookHtml,

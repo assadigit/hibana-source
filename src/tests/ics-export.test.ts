@@ -26,7 +26,6 @@ async function makeAuthedApp(db: Db, userId: string) {
 const get = (cookie: string, path: string) =>
   new Request('http://local' + path, { headers: { Cookie: cookie } })
 
-const today = () => new Date().toISOString().slice(0, 10)
 const inDays = (n: number) => new Date(Date.now() + n * 86400000).toISOString().slice(0, 10)
 
 describe('buildIcs (pure RFC 5545 emitter)', () => {

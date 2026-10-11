@@ -3,7 +3,7 @@ import { z } from 'zod'
 import { requireAuth } from '../auth/middleware'
 import { esc, jsonBody, etag } from '../lib/http'
 import { icon, quadrantGlyph } from '../lib/html'
-import { legacyTaskNote, sadhanaTaskControls, taskStatusTrack, type SadhanaTaskNote } from '../lib/sadhana-task-controls'
+import { legacyTaskNote, sadhanaTaskControls, type SadhanaTaskNote } from '../lib/sadhana-task-controls'
 import { localeOf, trL, type Locale, type Vars } from '../lib/i18n'
 import { calendarFor, faDigits, formatDate, formatDateLong } from '../lib/jalali'
 import { uuid } from '../lib/ids'
@@ -170,24 +170,6 @@ export function sadhanaRoutes(cfg: Config) {
   const tagChips = (tags: TagId[] | undefined, lang: Locale): string =>
     (tags ?? []).map((tg) => `<span class="chip sadhana-tag" data-tag="${tg}">${TAGS[tg].icon} ${esc(t(lang, TAGS[tg].en, TAGS[tg].fa))}</span>`).join('')
 
-  const progressTrack = (task: SadhanaTask, lang: Locale): string => {
-    if (task.done === 1) return ''
-    const states: { id: SadhanaTask['progress']; en: string; fa: string }[] = [
-      { id: 'untouched', en: 'Not started', fa: 'شروع نشده' },
-      { id: 'in_progress', en: 'In progress', fa: 'در حال انجام' },
-      { id: 'on_hold', en: 'On hold', fa: 'متوقف' },
-    ]
-    const current = states.find((s) => s.id === task.progress) ?? states[0]
-    // Plain buttons — page JS posts the PATCH. Spec §5.8: clicking the already-active
-    // non-untouched dot resets the task to Not started (the JS computes the target).
-    return `<span class="progress-track" title="${t(lang, 'Progress', 'پیشرفت')}">${states
-      .map(
-        (s) =>
-          `<button type="button" class="progress-dot ${task.progress === s.id ? 'active' : ''}" data-progress="${s.id}" data-task-id="${task.id}" aria-label="${t(lang, s.en, s.fa)}" title="${t(lang, s.en, s.fa)}" aria-pressed="${task.progress === s.id}"></button>`,
-      )
-      .join('')}<span class="progress-label">${t(lang, current.en, current.fa)}</span></span>`
-  }
-
   const taskCardHtml = (task: SadhanaTask, tags: TagId[], notes: SadhanaTaskNote[], lang: Locale, tz: string, cal: 'gregorian' | 'shamsi', noteTotal?: number): string => {
     // R10 redesign — the whole card (collapsed row + expand section) is produced by
     // sadhanaTaskControls. We pass the server-rendered deadline + tag chips as a
@@ -204,7 +186,7 @@ export function sadhanaRoutes(cfg: Config) {
   }
 
   const quadrantsHtml = (data: Awaited<ReturnType<typeof loadAll>>, lang: Locale, tz: string, cal: 'gregorian' | 'shamsi', ctxOrder: string): string => {
-    const { tasks, tags, names, subtitles, styles, notes, noteTotals } = data
+    const { tasks, tags, names, styles, notes, noteTotals } = data
     const open = (q: number) => tasks.filter((x) => x.quadrant === q && x.done === 0).sort(taskOrder)
     const done = (q: number) => tasks.filter((x) => x.quadrant === q && x.done === 1).sort((a, b) => b.updated_at.localeCompare(a.updated_at))
     return orderedQuadrants(QUADRANTS, ctxOrder).map((q) => {

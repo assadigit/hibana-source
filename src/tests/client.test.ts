@@ -2,7 +2,6 @@ import { describe, it, expect } from 'vitest'
 import { makeTestDb, makeUser } from './helpers'
 import { createSession } from '../auth/sessions'
 import { createApp } from '../app'
-import { clientProgress, isBehindPace } from '../services/progress'
 import { findBehindProjects } from '../services/reminders'
 import type { Db } from '../db/types'
 
@@ -12,7 +11,7 @@ async function makeClient(db: Db, userId: string) {
   return { app, auth: { Cookie: `hibana_session=${token}`, 'Content-Type': 'application/json', Origin: 'http://local' } }
 }
 
-async function seedClientProject(db: Db, app: ReturnType<typeof createApp>, auth: Record<string, string>, over: Record<string, unknown> = {}) {
+async function seedClientProject(_db: Db, app: ReturnType<typeof createApp>, auth: Record<string, string>, over: Record<string, unknown> = {}) {
   const res = await app.fetch(new Request('http://local/api/projects', {
     method: 'POST',
     headers: auth,
@@ -56,7 +55,7 @@ describe('client module (spec §6)', () => {
 
       const d = await app.fetch(new Request(`http://local/api/projects/${id}/payments`, { method: 'POST', headers: auth, body: JSON.stringify({ label: 'Deposit', amount: 500, currency: 'USD' }) }))
       const { id: depId } = (await d.json()) as { id: string }
-      const f = await app.fetch(new Request(`http://local/api/projects/${id}/payments`, { method: 'POST', headers: auth, body: JSON.stringify({ label: 'Final payment', amount: 1500, currency: 'USD' }) }))
+      await app.fetch(new Request(`http://local/api/projects/${id}/payments`, { method: 'POST', headers: auth, body: JSON.stringify({ label: 'Final payment', amount: 1500, currency: 'USD' }) }))
 
       await app.fetch(new Request(`http://local/api/payments/${depId}`, { method: 'PATCH', headers: auth, body: JSON.stringify({ status: 'paid' }) }))
 

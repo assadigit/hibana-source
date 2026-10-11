@@ -1,7 +1,7 @@
 import { Hono } from 'hono'
 import { z } from 'zod'
 import { requireAuth } from '../auth/middleware'
-import { jsonBody, extForMime, mimeForPath } from '../lib/http'
+import { jsonBody, extForMime, mimeForPath, sniffImageMime } from '../lib/http'
 import { toastHtml } from '../lib/html'
 import { localeOf, trFor } from '../lib/i18n'
 import { calendarFor } from '../lib/jalali'
@@ -215,6 +215,10 @@ export function settingsRoutes(cfg: Config) {
     if (!body) return c.json({ error: 'invalid_input' }, 400)
     const user = c.get('user')
     if (!cfg.github.token) return c.json({ error: 'github_not_configured' }, 503)
+    // SEC-9 (S198/S199): sniff the leading bytes — the declared mimeType must match
+    // the actual container (a mislabeled or scripted payload dies here, before any push).
+    const sniffed = sniffImageMime(Uint8Array.from(atob(body.dataBase64.slice(0, 64)), (ch) => ch.charCodeAt(0)))
+    if (sniffed !== body.mimeType) return c.json({ error: 'invalid_image' }, 400)
     const path = `avatars/${user.id}/avatar-${Date.now()}-${uuid().slice(0, 8)}${extForMime(body.mimeType)}`
     await removeRemote(user.avatar_path)
     await gh().pushFile(path, body.dataBase64, 'Hibana profile picture')

@@ -59,8 +59,10 @@ a whiteboard note.
    server accepts as canonical; server-generated otherwise.
 3. All timestamps stored UTC. Calendar (Gregorian/Shamsi via jalaali-js) + TZ conversion only
    at render time — never in storage or query filters.
-4. Schema changes ONLY via numbered files in `migrations/` (0001–0060; `0007` gap is
-   original). Never ad-hoc `ALTER TABLE`. Never untested migrations against prod.
+4. Schema changes ONLY via numbered files in `migrations/` (0001–0064 at S199; the
+   `0007` gap is original). Never ad-hoc `ALTER TABLE`. Never untested migrations
+   against prod. The CURRENT migration count + live schema version live in Changelogs
+   §1 — check there, not here (stale-number doctrine).
    Pre-migration bookmark ritual (Changelogs §4 + §9). Schema changes need Ali's explicit
    written approval.
 5. Every credential is a secret (`wrangler secret put` / env vars). Never hardcoded, never
@@ -92,9 +94,11 @@ a whiteboard note.
   permanent.
 - **Zip after every phase/milestone**: bump `package.json`, zip the full project
   (per-version name `hibana.<version>.zip`) to the owner's upload/download folders. Include
-  `src/ migrations/ public/ scripts/ *.md package.json package-lock.json bun.lock
-  tsconfig.json wrangler.toml vitest.config.ts .gitignore .secrets.env.example
-  credentials.md` (owner's PC copy is the ONLY credentials-carrying artifact). Exclude
+  `src/ migrations/ public/ scripts/ *.md package.json bun.lock tsconfig.json
+  wrangler.toml vitest.config.ts .gitignore .secrets.env.example credentials.md`
+  (owner's PC copy is the ONLY credentials-carrying artifact; S199: package-lock.json
+  retired — bun.lock is the one lockfile, and make-zip now lives at scripts/make-zip.mjs).
+  Exclude
   `node_modules/ .wrangler/ .dev.vars .secrets.env .admin.secrets *.log coverage/ data/
   .git/ cookies.txt *.cookies *.sql.tmp dashboard-check.png`.
 - **⚠️ Never re-upload a credentials-carrying zip into chat.** Fresh-sandbox agents get
@@ -108,7 +112,8 @@ a whiteboard note.
   `/home/z/my-project/worklog.md`.
 
 ## Verification ladder (per batch — required before "done")
-`npm run typecheck` (authoritative tsc) → `npm test` (506) → `node --check` on touched JS →
+`npm run typecheck` (authoritative tsc) → `npm test` (623 at S199; the count lives in
+Changelogs §1) → `node --check` on touched JS →
 browser E2E on the local Node server (FA/RTL **and** EN/LTR, light **and** dark, desktop
 **and** 390 px; test user `e2e@test.local`) → deploy dev → live probe → deploy prod → live
 probe (console 0 / page errors 0) → **purge probe users** (DELETE cascade verified;
@@ -132,14 +137,16 @@ If you edit after a bump, re-bump (stale HTTP cache under the same URL). `check-
 is a CI gate. Current numbers: Changelogs §1.
 
 ## i18n
-EN + FA ship together, always. Programmatic key-parity check (1427/1427) via
+EN + FA ship together, always. Programmatic key-parity check (1570/1570 at S199 —
+the count lives in Changelogs §1) via
 `scripts/check-i18n-parity.mjs` (CI gate). Persian digit normalization; CSS logical
 properties for RTL/LTR.
 
 ## D1 discipline
 - Remote D1 writes only via real `.mjs` script files (`wrangler d1 execute --file`) — never
   inline `node -e` inside double-quoted bash (`${…}` mangles).
-- Live DBs at schema 59 (0060, S93) — never re-apply migrations blindly (Changelogs §6).
+- Live DBs at schema 63 (0064, S199) — never re-apply migrations blindly (Changelogs §6;
+the live schema version is in every release record's health probe: `schema_version`).
 - Diagnose against prod data before coding ("board broken" was a soft-deleted project).
 
 ## Secrets & credentials
@@ -164,11 +171,22 @@ delivery status · `always-https.mjs --on` zone toggle · `zone.mjs` / `custom-d
 `browser-check.mjs` (`HIBANA_PASS=…`) headless UI check · `bookmark:prod` pre-migration
 (writes Changelogs §9).
 
+## Tooling doctrine (S199, HLTH-12)
+- **bun is THE package manager** — `packageManager: "bun@1.3.14"` in package.json (setup-bun
+  honors the pin in CI). `bun install` for deps; `bun run <script>` to execute.
+- **bun.lock is the ONE lockfile** (package-lock.json retired). The CI npm-audit gate
+  generates its lock on the fly (`npm install --package-lock-only --ignore-scripts`) —
+  same package.json, no second lockfile to drift.
+- Node itself (v24+) still runs the app/tests directly (`npm run start:node`, vitest,
+  playwright) — bun is the INSTALLER, not the runtime.
+
 ## Doc map (post-consolidation)
 - `Agents.md` (this file) — rules, how to work on Hibana.
 - `Changelogs.md` — history, current state, ops runbook, open items, rejected features.
 - `README.md` — minimal GitHub landing-page pointer.
 - `credentials.md` — live credentials (local-only, gitignored, never committed).
 - All other prior .md files are deleted; recover verbatim via `git show <sha>:<file>`.
-- `OPEN_REGISTRATION="true"` in wrangler.toml both envs — closing = delete 2 lines +
-  redeploy.
+- Registration state is INVITE-ONLY today (OPEN_REGISTRATION is NOT set in wrangler.toml).
+  Closing/opening = add/remove the `OPEN_REGISTRATION` line in the `[env.prod.vars]`/
+  `[env.dev.vars]` block + redeploy. NEVER flip it from a stale doc line — check
+  wrangler.toml first (SEC-17 lesson: this line once claimed the opposite of reality).

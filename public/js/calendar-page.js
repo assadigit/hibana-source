@@ -660,8 +660,8 @@
           const wrap = document.getElementById('cal-sticky-colors')
           if (!wrap) return
           wrap.innerHTML = Object.entries(STICKY_COLORS).map(([name, hex]) => {
-            const label = _t(`calendar.color_${name}`, name)
-            return `<button type="button" class="cal-color-dot${stickyColor === name ? ' active' : ''}" data-color="${name}" style="background:${hex}" role="radio" aria-checked="${stickyColor === name}" aria-label="${label}" title="${label}"></button>`
+            const label = _t(`calendar.color_${escAttr(name)}`, escAttr(name))
+            return `<button type="button" class="cal-color-dot${stickyColor === name ? ' active' : ''}" data-color="${escAttr(name)}" style="background:${escAttr(hex)}" role="radio" aria-checked="${String(stickyColor === name)}" aria-label="${escAttr(label)}" title="${escAttr(label)}"></button>`
           }).join('')
         }
         document.getElementById('cal-sticky-colors')?.addEventListener('click', (e) => {
@@ -699,7 +699,7 @@
           // would reset the user's pick; loadQuads caches per language so this is cheap).
           const want = quads.map((q) => `${q.id}:${q.name}`).join('|')
           const have = [...sel.options].map((o) => `${o.value}:${o.textContent.replace(/^\S+\s/, '')}`).join('|')
-          if (want !== have) sel.innerHTML = quads.map((q) => `<option value="${q.id}">${q.icon} ${q.name}</option>`).join('')
+          if (want !== have) sel.innerHTML = quads.map((q) => `<option value="${q.id}">${esc(q.icon)} ${esc(q.name)}</option>`).join('')
         }
 
         // Project picker (Task 24 #5, client-task composer): the user's projects.
@@ -725,7 +725,7 @@
         function fillProjectStatusSelect() {
           const sel = document.getElementById('cal-project-status')
           if (!sel) return
-          sel.innerHTML = PROJECT_STATUSES.map((s) => `<option value="${s}">${_t('status.' + s, s)}</option>`).join('')
+          sel.innerHTML = PROJECT_STATUSES.map((s) => `<option value="${esc(s)}">${_t('status.' + s, s)}</option>`).join('')
         }
 
         document.getElementById('cal-add-sticky')?.addEventListener('click', () => {

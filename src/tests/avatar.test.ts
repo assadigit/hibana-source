@@ -61,10 +61,10 @@ describe('profile picture (settings.avatar)', () => {
       const userId = await makeUser(db)
       const { app, auth } = await makeClient(db, userId)
 
-      const noAuth = await app.fetch(PUT({ 'Content-Type': 'application/json', Origin: 'http://local' }, { mimeType: 'image/png', dataBase64: 'aGk=' }))
+      const noAuth = await app.fetch(PUT({ 'Content-Type': 'application/json', Origin: 'http://local' }, { mimeType: 'image/png', dataBase64: 'iVBORw0KGgo=' }))
       expect(noAuth.status).toBe(401)
 
-      expect((await app.fetch(PUT(auth, { mimeType: 'text/html', dataBase64: 'aGk=' }))).status).toBe(400)
+      expect((await app.fetch(PUT(auth, { mimeType: 'text/html', dataBase64: 'iVBORw0KGgo=' }))).status).toBe(400)
       expect((await app.fetch(PUT(auth, { mimeType: 'image/png', dataBase64: 'x'.repeat(3_500_001) }))).status).toBe(400)
       expect((await app.fetch(PUT(auth, { mimeType: 'image/png', dataBase64: '' }))).status).toBe(400)
     } finally {
@@ -83,13 +83,13 @@ describe('profile picture (settings.avatar)', () => {
       const PNG_BYTES = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x01, 0xfe, 0xff, 0x80, 0x7f])
       const restore = stubGithub(PNG_BYTES, pushed)
 
-      const up1 = await app.fetch(PUT(auth, { mimeType: 'image/png', dataBase64: 'aGk=' }))
+      const up1 = await app.fetch(PUT(auth, { mimeType: 'image/png', dataBase64: 'iVBORw0KGgo=' }))
       expect(up1.status).toBe(200)
       const path1 = (await db.query<{ avatar_path: string | null }>('SELECT avatar_path FROM users WHERE id = ?', [userId]))[0].avatar_path
       expect(path1).toMatch(/^avatars\/.+\/avatar-.*\.png$/)
 
       // replace: the second upload must drop the first remote file
-      const up2 = await app.fetch(PUT(auth, { mimeType: 'image/png', dataBase64: 'aGk=' }))
+      const up2 = await app.fetch(PUT(auth, { mimeType: 'image/png', dataBase64: 'iVBORw0KGgo=' }))
       expect(up2.status).toBe(200)
       const path2 = (await db.query<{ avatar_path: string | null }>('SELECT avatar_path FROM users WHERE id = ?', [userId]))[0].avatar_path
       expect(path2).not.toBe(path1)
@@ -126,7 +126,7 @@ describe('profile picture (settings.avatar)', () => {
       const { app, auth } = await makeClient(db, a)
       const pushed: string[] = []
       const restore = stubGithub('FAKEAVATAR', pushed)
-      await app.fetch(PUT(auth, { mimeType: 'image/png', dataBase64: 'aGk=' }))
+      await app.fetch(PUT(auth, { mimeType: 'image/png', dataBase64: 'iVBORw0KGgo=' }))
 
       const clientB = await makeClient(db, b)
       const other = await app.fetch(new Request('http://local/api/settings/avatar/file', { headers: cookie(clientB.auth) }))

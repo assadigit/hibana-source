@@ -17,76 +17,8 @@
 // Scoping: every route resolves through the owning project first (rule 1) — a foreign
 // project id (or task/category/sprint id from another user) is simply not found.
 
-import { Hono } from 'hono'
-import { z } from 'zod'
-import { requireAuth } from '../auth/middleware'
-import { jsonBody } from '../lib/http'
-import { getOwnedProject, toastHtml } from '../lib/html'
-import { localeOf, trFor } from '../lib/i18n'
 import { uuid } from '../lib/ids'
-import type { Config, UserRow, DevTaskRow, DevTaskStatus, SprintRow, TagRow, BacklogDocRow } from '../types'
-
-const taskStatusSchema = z.enum(['idea', 'planned', 'in_progress', 'done', 'bug'])
-const prioritySchema = z.enum(['low', 'medium', 'high', 'urgent'])
-const hexColor = z.string().regex(/^#[0-9a-fA-F]{6}$/)
-// 0030: any parseable date string — full ISO timestamps, matching every other *_at column
-// (the timeline drags edges by the day but stores instants).
-const isoDate = z.string().refine((v) => !Number.isNaN(Date.parse(v)), 'bad_date')
-
-// A manually trimmed clip needs end strictly AFTER start. Only checked when BOTH edges
-// are given in the same body (zod leaves absent keys absent, so a one-edge PATCH that
-// keeps the stored other edge never trips this — the server can't judge a half-trim).
-const clipRangeOk = (b: { start_at?: string | null; end_at?: string | null }) =>
-  !(typeof b.start_at === 'string' && typeof b.end_at === 'string') || Date.parse(b.end_at!) > Date.parse(b.start_at!)
-
-const createDevTaskSchema = z.object({
-  // Session 22 (user request: "the limitation of 300 characters must be halted. it
-  // must be unlimited"): was 2000 (Session 19's "effectively unlimited"). Now a pure
-  // sanity guard at 100k — beyond any conceivable task title (and far under the
-  // Workers body limit); the card display clamps at 150 chars + read-more, so long
-  // titles stay sane in the UI. Zod stays on every endpoint (rule 10).
-  title: z.string().trim().min(1).max(100_000),
-  status: taskStatusSchema.optional(),
-  priority: prioritySchema.optional(),
-  category_id: z.string().max(64).nullable().optional(),
-  sprint_id: z.string().max(64).nullable().optional(),
-  start_at: isoDate.nullable().optional(),
-  end_at: isoDate.nullable().optional(),
-}).refine(clipRangeOk, { message: 'bad_range' })
-const updateDevTaskSchema = z.object({
-  title: z.string().trim().min(1).max(100_000).optional(), // Session 22: lifted 2000 → 100k sanity guard (matches createDevTaskSchema).
-  status: taskStatusSchema.optional(),
-  priority: prioritySchema.optional(),
-  category_id: z.string().max(64).nullable().optional(),
-  sprint_id: z.string().max(64).nullable().optional(),
-  sort_order: z.number().int().min(0).optional(),
-  start_at: isoDate.nullable().optional(),
-  end_at: isoDate.nullable().optional(),
-}).refine(clipRangeOk, { message: 'bad_range' })
-const createSprintSchema = z.object({
-  name: z.string().trim().min(1).max(80).optional(),
-})
-const updateSprintSchema = z.object({
-  name: z.string().trim().min(1).max(80).optional(),
-  started_at: isoDate.optional(),
-  ended_at: isoDate.nullable().optional(), // explicit null = reopen this sprint's end
-})
-const reorderSchema = z.object({ ids: z.array(z.string().max(64)).min(1).max(500) })
-const tagBodySchema = z.object({ name: z.string().trim().min(1).max(60), color: hexColor.optional() })
-// 0033 — backlog «برنامه آتی» plan docs: long-form planning entries per project, each
-// save appending a revision row (backlog_doc_revisions) that feeds the history list.
-const createBacklogDocSchema = z.object({
-  title: z.string().trim().min(1).max(200),
-  content: z.string().max(50_000),
-})
-const updateBacklogDocSchema = z.object({
-  title: z.string().trim().min(1).max(200).optional(),
-  content: z.string().max(50_000).optional(),
-})
-
-// Whole-day index (UTC) — the timeline works in whole days and this is the same
-// Math.floor(ms/86400000) day math the client uses in sprint.html.
-const dayIdx = (x: string) => Math.floor(Date.parse(x) / 86400000)
+import type { Config, DevTaskRow, SprintRow, BacklogDocRow } from '../types'
 
 export async function logHistory(cfg: Config, projectId: string, note: string) {
   await cfg.db.execute('INSERT INTO project_history_log (id, project_id, note, created_at) VALUES (?, ?, ?, ?)', [

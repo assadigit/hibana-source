@@ -1,17 +1,20 @@
-// make-zip.mjs — the per-version release zip (S120/S156 recipe, sandbox-local helper).
+// scripts/make-zip.mjs — the per-version release zip (S120/S156 recipe; folded into
+// scripts/ + de-sandboxed in S199, HLTH-9/10: repo root from import.meta.url, output
+// dir from HIBANA_UPLOAD_DIR, default /home/z/upload).
 // git-tracked files MINUS e2e/ .github/ eslint.config.mjs hibana.db lighthouserc.json
 // playwright.config.ts  PLUS  public/dist/* (content-hashed, untracked)  PLUS the
 // directory entries zip -r emits naturally. The tree must be in WIRED-HTML form when
 // this runs (node scripts/build.mjs --prod --wire-html) — restore after with
-// --restore-html. Output: /home/z/upload/hibana.<version>.zip
+// --restore-html. Output: $HIBANA_UPLOAD_DIR/hibana.<version>.zip
 import { execSync } from 'node:child_process'
 import { mkdtempSync, cpSync, mkdirSync, rmSync, copyFileSync, readFileSync } from 'node:fs'
 import { join, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-const root = dirname(fileURLToPath(import.meta.url))
+const root = join(dirname(fileURLToPath(import.meta.url)), '..')
 const version = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8')).version
-const out = '/home/z/upload/' + `hibana.${version}.zip`
+const outDir = process.env.HIBANA_UPLOAD_DIR || '/home/z/upload'
+const out = join(outDir, `hibana.${version}.zip`)
 const stage = mkdtempSync('/tmp/hibana-zip-')
 const EXCLUDE = [/^e2e\//, /^\.github\//, /^eslint\.config\.mjs$/, /^hibana\.db$/, /^lighthouserc\.json$/, /^playwright\.config\.ts$/]
 

@@ -1,14 +1,9 @@
-import { Hono, type Context } from 'hono'
-import type { ContentfulStatusCode } from 'hono/utils/http-status'
 import { z } from 'zod'
-import { requireAuth } from '../auth/middleware'
-import { esc, jsonBody } from '../lib/http'
+import { esc } from '../lib/http'
 import { icon } from '../lib/html'
-import { localeOf, trL, type Locale } from '../lib/i18n'
+import { trL, type Locale } from '../lib/i18n'
 import { renderMarkdown } from '../lib/markdown'
 import { calendarFor, faDigits, formatDate, formatNoteDay } from '../lib/jalali'
-import { uuid } from '../lib/ids'
-import type { Config, UserRow } from '../types'
 import type { Db } from '../db/types'
 
 // Dashboard quick-notebook (user request): a capture widget in two modes — free typing

@@ -1,18 +1,14 @@
 import { Hono, type MiddlewareHandler } from 'hono'
-import { z } from 'zod'
 import { requireAuth } from '../../auth/middleware'
 import { uuid } from '../../lib/ids'
-import { markdownFromZip, parseMarkdownNote, ZipLimitError } from '../../lib/obsidian'
 import { esc, requestOrigin } from '../../lib/http'
 import { clientIp, hitRateLimit, RATE_RULES } from '../../services/ratelimit'
 import { createResetToken } from '../../services/reset'
-import { sendTelegramMessage, answerCallbackQuery, editMessageText, type ReplyMarkup } from '../../services/telegram'
+import { sendTelegramMessage, answerCallbackQuery } from '../../services/telegram'
 import { sendPlanBBackupToChat } from '../../services/backup-planb'
 import { timingSafeEqualStr } from '../../lib/crypto'
-import { trL } from '../../lib/i18n'
-import { QUADRANTS, orderedQuadrants, parseQuadrantOrder, todayIn } from '../../services/sadhana'
+import { QUADRANTS, todayIn } from '../../services/sadhana'
 import type { Config, ProjectRow, UserRow } from '../../types'
-import type { Db } from '../../db/types'
 
 import {
   UPDATE_SCHEMA,
@@ -31,7 +27,6 @@ import {
   createListNote,
   insertIdea,
   t,
-  tr,
   kb,
   homeKeyboard,
   homeText,

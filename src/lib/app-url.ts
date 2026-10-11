@@ -21,3 +21,15 @@ export function appUrlOf(cfg: { appUrl?: string }): string {
   const withScheme = /^https?:\/\//.test(raw) ? raw : `https://${raw}`
   return withScheme.replace(/\/+$/, '')
 }
+
+/**
+ * SEC-4 (S198/S199): the origin for EMAILED deep links. Links that leave the request
+ * context (reset tokens, invites, test emails) must NOT derive their origin from the
+ * request URL — on the Node self-host behind a proxy, a poisoned Host header would
+ * mint one-time reset links pointing at the attacker. Canonical APP_URL first; the
+ * request origin is only the fallback when APP_URL is unset (preserving the
+ * domain-agnostic dev behavior byte-for-byte).
+ */
+export function emailLinkOrigin(cfg: { appUrl?: string }, requestOrigin: string): string {
+  return cfg.appUrl?.trim() ? appUrlOf(cfg) : requestOrigin
+}

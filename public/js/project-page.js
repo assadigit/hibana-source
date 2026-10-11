@@ -982,6 +982,7 @@
         // the current value (idempotent — covers a failed change-save) and then navigates
         // back to the projects list, matching the user's mental model of "save".
         const patchStage = async (projectId, status) => {
+          const escB = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c])
           const res = await fetch(`/api/projects/${projectId}`, {
             method: 'PATCH',
             headers: { 'Content-Type': 'application/json' },
@@ -1015,7 +1016,7 @@
                   operational: '<path d="M12 2.5s4.5 3 4.5 8c0 2.6-1.6 4.6-1.6 6.5h-5.8c0-1.9-1.6-3.9-1.6-6.5 0-5 4.5-8 4.5-8Z"/><circle cx="12" cy="9.5" r="1.8"/><path d="M9.5 20.5h5"/>',
                 }
                 const label = sel.querySelector(`option[value="${p.status}"]`)?.textContent || p.status
-                badge.innerHTML = `<span class="badge badge-${p.status}"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true">${ICONS[p.status] || ''}</svg>${label}</span>`
+                badge.innerHTML = `<span class="badge badge-${p.status}"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true">${ICONS[p.status] || ''}</svg>${escB(label)}</span>`
               }
               window.hibana?.toast(_t('project.stageSaved', 'Stage saved'), 'info', 3000)
             })
@@ -2568,8 +2569,8 @@
         const PD_TITLE_CLAMP = window.HibanaChips.TITLE_CLAMP
         const pdRenderTitle = (raw) => window.HibanaChips.renderTitle(raw)
         const pdTitleHtml = (title) => window.HibanaChips.titleHtml(title)
-        const pdTitleAttrs = (title) => window.HibanaChips.titleAttrs(title)
-        const pdReadMoreBtn = (title) => window.HibanaChips.readMoreBtn(title)
+        const pdEscTitleAttrs = (title) => window.HibanaChips.titleAttrs(title)
+        const pdReadMoreBtnHtml = (title) => window.HibanaChips.readMoreBtn(title)
         const pdPreviewHtml = (title) => window.HibanaChips.previewHtml ? window.HibanaChips.previewHtml(title) : ''
         // Re-clamp an existing title element in place (after edits / wand writes) and
         // keep its read-more button in sync — the shared HibanaChips.applyTitle.
@@ -2634,7 +2635,7 @@
           // opens the inline editor everywhere; the old <a href="/board.html"> made
           // freshly-added tasks navigate instead. Title clamped at 150 chars with the
           // hidden rest + read-more button.
-          wrap.innerHTML = pdBannerHtml(prio) + `<div class="pd-task st-${status}" draggable="true" role="button" tabindex="0" aria-label="${pdEsc(task.title)}"><span class="pd-task-body">${pdCatChipHtml(task.category_id)}<span class="pd-task-title-row" dir="auto"><span class="pd-task-title"${pdTitleAttrs(task.title)}>${pdTitleHtml(task.title)}</span></span>${pdPreviewHtml(task.title)}${pdReadMoreBtn(task.title)}${pdTagChipsHtml(tags)}<span class="pd-task-meta">${pdMetaDateHtml(wrap.dataset.pdCreated, false)}</span></span></div>`
+          wrap.innerHTML = pdBannerHtml(prio) + `<div class="pd-task st-${status}" draggable="true" role="button" tabindex="0" aria-label="${pdEsc(task.title)}"><span class="pd-task-body">${pdCatChipHtml(task.category_id)}<span class="pd-task-title-row" dir="auto"><span class="pd-task-title"${pdEscTitleAttrs(task.title)}>${pdTitleHtml(task.title)}</span></span>${pdPreviewHtml(task.title)}${pdReadMoreBtnHtml(task.title)}${pdTagChipsHtml(tags)}<span class="pd-task-meta">${pdMetaDateHtml(wrap.dataset.pdCreated, false)}</span></span></div>`
 
           // AUTO-SORT (user request 2026-09-12): the card lands BEFORE the first card
           // whose priority ranks below it — urgent tasks jump to the top of their box.
@@ -3132,7 +3133,7 @@
           const tp = t.priority || 'medium'
           wrap.dataset.pdPriority = tp
           wrap.dataset.pdTags = JSON.stringify(tt || [])
-          wrap.innerHTML = pdBannerHtml(tp) + `<div class="pd-task st-${status}" draggable="true" role="button" tabindex="0" aria-label="${pdEsc(t.title)}"><span class="pd-task-body">${pdCatChipHtml(t.category_id)}<span class="pd-task-title-row" dir="auto"><span class="pd-task-title"${pdTitleAttrs(t.title)}>${pdTitleHtml(t.title)}</span></span>${pdPreviewHtml(t.title)}${pdReadMoreBtn(t.title)}${pdTagChipsHtml(tt)}<span class="pd-task-meta">${pdMetaDateHtml(t.created_at, status === 'done')}</span></span></div>`
+          wrap.innerHTML = pdBannerHtml(tp) + `<div class="pd-task st-${status}" draggable="true" role="button" tabindex="0" aria-label="${pdEsc(t.title)}"><span class="pd-task-body">${pdCatChipHtml(t.category_id)}<span class="pd-task-title-row" dir="auto"><span class="pd-task-title"${pdEscTitleAttrs(t.title)}>${pdTitleHtml(t.title)}</span></span>${pdPreviewHtml(t.title)}${pdReadMoreBtnHtml(t.title)}${pdTagChipsHtml(tt)}<span class="pd-task-meta">${pdMetaDateHtml(t.created_at, status === 'done')}</span></span></div>`
           return wrap
         }
         // S149 (owner: "I want the Kanban To work like ajax ... when a user drags a

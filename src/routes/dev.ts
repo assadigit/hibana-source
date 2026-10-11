@@ -3,6 +3,7 @@ import { githubClient } from '../services/github'
 import { requireAuth } from '../auth/middleware'
 import { isHtmx, esc } from '../lib/http'
 import { trFor } from '../lib/i18n'
+import { emailLinkOrigin } from '../lib/app-url'
 import type { Config, UserRow } from '../types'
 
 export function devRoutes(cfg: Config) {
@@ -137,7 +138,7 @@ export function devRoutes(cfg: Config) {
           subject: verify ? 'Hibana — confirm your email' : 'Hibana — email setup verified',
           title: verify ? 'Test: email verification' : 'Test: email setup verified',
           bodyHtml: verify ? verifyEmailHtml('1234') : '<p>Your Hibana email pipeline works. Password resets and client reminders will now reach you.</p>',
-          origin: new URL(c.req.url).origin,
+          origin: emailLinkOrigin(cfg, new URL(c.req.url).origin), // SEC-4: canonical APP_URL for emailed links
         },
       )
       return c.json({ ok: true, to, template: verify ? 'verify' : 'default' })

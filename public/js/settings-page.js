@@ -199,8 +199,9 @@
           let saved = null
           try { saved = localStorage.getItem(AI_MODEL_KEY) } catch { /* private mode */ }
           const current = (saved && registry.some((m) => m.model === saved)) ? saved : def
+          const escM = (v) => String(v ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c])
           sel.innerHTML = registry.map((m) =>
-            `<option value="${m.model}"${m.model === current ? ' selected' : ''}>${m.label}</option>`
+            `<option value="${escM(m.model)}"${m.model === current ? ' selected' : ''}>${escM(m.label)}</option>`
           ).join('')
           paintAiModelNote(registry.find((m) => m.model === current) || registry[0])
         }

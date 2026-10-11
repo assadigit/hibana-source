@@ -5,10 +5,9 @@ import { join } from 'node:path'
 import { execFile } from 'node:child_process'
 import { promisify } from 'node:util'
 import { DatabaseSync } from 'node:sqlite'
-import { buildSnapshot, buildUserSnapshot, encryptBackup, importAesKey, bytesToBase64, isEncryptedBlob } from '../services/backup'
+import { buildSnapshot, encryptBackup, importAesKey, bytesToBase64, isEncryptedBlob } from '../services/backup'
 import { createSqliteDb } from '../db/sqlite'
 import { applyMigrations } from '../db/migrate-node'
-import { makeUser } from './helpers'
 import type { Db } from '../db/types'
 
 // Restore-path E2E tests (Session 27, Focus 4): the backup EXPORT side had 38 tests; the

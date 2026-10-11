@@ -1,7 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { makeTestDb, makeUser } from './helpers'
 import { createApp } from '../app'
-import type { Db } from '../db/types'
 
 // Spec §15 — the app enforces the same limits the Cloudflare rules would apply at the
 // edge (login + password reset: 30 req/60s/IP; Telegram webhook: 300 req/60s/IP).
@@ -10,7 +9,7 @@ describe('rate limiting (spec §15)', () => {
   it('login blocks the 31st attempt in a 60s window (30 allowed)', async () => {
     const { db, close } = makeTestDb()
     try {
-      const userId = await makeUser(db)
+      await makeUser(db)
       const app = createApp({ db, isProd: false, github: { owner: 'x', repo: 'y', token: '' }, emailKey: undefined, assets: undefined })
       const seed = await app.fetch(new Request('http://local/api/auth/login', {
         method: 'POST',
@@ -125,7 +124,7 @@ describe('rate limiting (spec §15)', () => {
     }
   })
 
-  it('a different client IP has its own budget', async () => {
+  it('a different client IP has its own IP budget — the per-ACCOUNT counter spans IPs (SEC-2)', async () => {
     const { db, close } = makeTestDb()
     try {
       await makeUser(db)
@@ -138,13 +137,23 @@ describe('rate limiting (spec §15)', () => {
         }))
         expect(res.status).toBe(401) // never blocked: separate budget
       }
-      // the original 'local' budget is untouched
-      const fresh = await app.fetch(new Request('http://local/api/auth/login', {
+      // SEC-2 (S199): a fresh IP gets a fresh IP budget — but the SHARED per-account
+      // counter already holds this account's 30 attempts, so the same login from the
+      // new IP is throttled (this is the fix: distributed IP rotation no longer
+      // multiplies the tries against one account).
+      const sameAccountNewIp = await app.fetch(new Request('http://local/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Origin: 'http://local' },
         body: JSON.stringify({ login: 'a-user@test.dev', password: 'wrong-password' }),
       }))
-      expect(fresh.status).toBe(401)
+      expect(sameAccountNewIp.status).toBe(429)
+      // a DIFFERENT account from the new IP: both its IP and account budgets are fresh
+      const otherAccount = await app.fetch(new Request('http://local/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Origin: 'http://local' },
+        body: JSON.stringify({ login: 'someone-else@test.dev', password: 'wrong-password' }),
+      }))
+      expect(otherAccount.status).toBe(401)
     } finally {
       close()
     }

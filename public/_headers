@@ -132,6 +132,12 @@
 /*.svg
   Cache-Control: public, max-age=86400, stale-while-revalidate=604800
 
+# S199 (PERF-10): the favicon was the last revalidated-every-load asset — every page
+# carries it and no rule matched *.ico, so it rode the default max-age=0. 1d + SWR
+# matches the other static imagery (it only changes on deploy).
+/*.ico
+  Cache-Control: public, max-age=86400, stale-while-revalidate=604800
+
 /*.woff2
   Cache-Control: public, max-age=86400, stale-while-revalidate=604800
 

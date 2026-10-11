@@ -92,7 +92,7 @@ export interface ProjectSignals {
   hurdles: number
   backlogUpdated: string | null
 }
-export async function loadProjectSignals(cfg: Config, userId: string, projectIds: string[]): Promise<Map<string, ProjectSignals>> {
+export async function loadProjectSignals(cfg: Config, _userId: string, projectIds: string[]): Promise<Map<string, ProjectSignals>> {
   const map = new Map<string, ProjectSignals>()
   if (projectIds.length === 0) return map
   for (const id of projectIds) map.set(id, { bugs: 0, ideas: 0, backlog: 0, hurdles: 0, backlogUpdated: null })
@@ -172,7 +172,7 @@ export function projectProgress(p: ProjectRow, hurdles: HurdleRow[]): number {
   })
 }
 
-const tagsChips = (tags: TagRow[], lang: Locale): string =>
+const tagsChips = (tags: TagRow[], _lang: Locale): string =>
   // Phase 5 item 17 (2026-09-08): tag color CHOOSING is gone — every tag chip renders the
   // same neutral grey (stored colors stay in the DB untouched, they just don't drive the
   // UI anymore). One consistent system, like conventional label UIs.
@@ -185,7 +185,7 @@ const tagsChips = (tags: TagRow[], lang: Locale): string =>
 //   ▞ hatched neutral corner at the top inline-end corner (Phase 5: no more tag colors).
 // The old top accent border / tag chips / progress bar / hurdles line are gone —
 // progress still lives in list view, the dashboard kanban, and the project page.
-export function cardHtml(p: ProjectRow, tags: TagRow[], lang: Locale, signals?: ProjectSignals): string {
+export function cardHtml(p: ProjectRow, _tags: TagRow[], lang: Locale, signals?: ProjectSignals): string {
   const updated = trL(lang, 'Updated {t}', 'به‌روزرسانی {t}', { t: timeAgo(p.updated_at, lang) })
   const sigs = signalsHtml(signals, lang)
   const bugBubble = bugBubbleHtml(signals, lang)

@@ -86,6 +86,15 @@ export function authRoutes(cfg: Config) {
     // SQLite's = operator is case-sensitive by default; a user who types Email@Example.com
     // after registering as email@example.com would otherwise get "wrong credentials".
     const loginLower = login.toLowerCase()
+    // SEC-2 (S198/S199): a SECOND counter keyed by the ACCOUNT, not the IP — the per-IP
+    // rule alone lets distributed IP rotation take 30 tries/min/IP against ONE account.
+    // Same 30/60s window, keyed `auth:user:<login>` in the same rate_limits table (no
+    // schema change). The account key is the raw identifier the user typed — counting
+    // hits on non-existent logins too, so enumeration traffic shares the bucket.
+    if (await hitRateLimit(cfg.db, RATE_RULES.auth, `user:${loginLower}`)) {
+      if (isHtmx(c)) return c.html('<p class="error">Too many attempts — wait a minute and try again.</p>')
+      return c.json({ error: 'rate_limited' }, 429)
+    }
     const users = await cfg.db.query<UserRow>('SELECT * FROM users WHERE email = ? OR username = ?', [loginLower, login])
     if (users.length === 0) {
       if (isHtmx(c)) return c.html('<p class="error">Wrong email/username or password.</p>')

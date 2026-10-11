@@ -86,7 +86,6 @@ export function timelineRoutes(cfg: Config) {
   app.get('/on-this-day', async (c) => {
     const user = c.get('user')
     const now = new Date()
-    const today = now.toISOString().slice(5, 10) // 'MM-DD' — matches this date in any year
     const windows = [
       { label: trL(localeOf(c), '1 week ago', 'یک هفته پیش'), days: 7 },
       { label: trL(localeOf(c), '1 month ago', 'یک ماه پیش'), days: 30 },

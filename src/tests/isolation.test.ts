@@ -1,8 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { makeTestDb, makeUser } from './helpers'
-import { createSession, validateSession, destroySession } from '../auth/sessions'
+import { createSession } from '../auth/sessions'
 import { createApp } from '../app'
-import { createSqliteDb } from '../db/sqlite'
 import type { Db } from '../db/types'
 
 // Spec §11: "user A's queries can never return user B's rows." This is the most

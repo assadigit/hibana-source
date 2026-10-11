@@ -7,6 +7,7 @@ import { resetRequestSchema, resetConfirmSchema } from '../validation/schemas'
 import { sendAndLog, resetEmailHtml } from '../services/email'
 import { clientIp, hitRateLimit, RATE_RULES } from '../services/ratelimit'
 import { createResetToken, sha256Hex } from '../services/reset'
+import { emailLinkOrigin } from '../lib/app-url'
 import type { Config, UserRow } from '../types'
 
 // Password reset via Resend email (spec §8). Token is one-time, hashed in D1, 1-hour expiry.
@@ -51,10 +52,11 @@ export function resetRoutes(cfg: Config) {
 
     const token = await createResetToken(cfg.db, users[0].id)
 
-    const link = `${requestOrigin(c)}/reset.html?token=${token}`
+    const origin = emailLinkOrigin(cfg, requestOrigin(c))
+    const link = `${origin}/reset.html?token=${token}`
     try {
       await sendAndLog(cfg, {
-        origin: requestOrigin(c),
+        origin,
         to: users[0].email,
         subject: 'Password reset — بازنشانی گذرواژه',
         kind: 'reset',
@@ -72,19 +74,32 @@ export function resetRoutes(cfg: Config) {
     const body = await jsonBody<z.infer<typeof resetConfirmSchema>>(c, resetConfirmSchema)
     if (!body) return isHtmx(c) ? hxError(c, 'Enter a password of at least 8 characters.') : c.json({ error: 'invalid_input' }, 400)
     const hash = await sha256Hex(body.token)
-    const rows = await cfg.db.query<{ user_id: string; expires_at: string }>(
-      'SELECT user_id, expires_at FROM password_resets WHERE token_hash = ? AND used_at IS NULL',
+    // SEC-5 (S198/S199): single-use is now ATOMIC — one conditional UPDATE whose
+    // rowcount decides, instead of check-then-act (two concurrent requests could both
+    // pass the old SELECT and both mint sessions). One statement = one atomic D1 op
+    // (the Db.transaction doc's own prescription for read-modify-write races). The
+    // token burns FIRST; a later failure costs the user a fresh reset request (the
+    // safe direction), never a double-spend.
+    const burned = await cfg.db.execute(
+      'UPDATE password_resets SET used_at = ? WHERE token_hash = ? AND used_at IS NULL AND expires_at > ?',
+      [new Date().toISOString(), hash, new Date().toISOString()],
+    )
+    if (burned.changes !== 1) {
+      if (isHtmx(c)) return hxError(c, 'This link is invalid or expired — request a new password reset.')
+      return c.json({ error: 'invalid_or_expired_token' }, 400)
+    }
+    // We exclusively own the token now — its row is immutable from here on.
+    const rows = await cfg.db.query<{ user_id: string }>(
+      'SELECT user_id FROM password_resets WHERE token_hash = ?',
       [hash],
     )
-    const expired = rows.length === 0 || new Date(rows[0].expires_at).getTime() < Date.now()
-    if (expired) {
+    if (rows.length === 0) {
       if (isHtmx(c)) return hxError(c, 'This link is invalid or expired — request a new password reset.')
       return c.json({ error: 'invalid_or_expired_token' }, 400)
     }
     const passwordHash = await hashPassword(body.password)
     await cfg.db.transaction(async (tx) => {
       tx.sql('UPDATE users SET password_hash = ? WHERE id = ?', [passwordHash, rows[0].user_id])
-      tx.sql('UPDATE password_resets SET used_at = ? WHERE token_hash = ?', [new Date().toISOString(), hash])
       tx.sql('DELETE FROM sessions WHERE user_id = ?', [rows[0].user_id]) // reset kills old sessions
     })
     // Sign this browser straight in — the one-time link is the account's own proof.

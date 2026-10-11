@@ -536,7 +536,7 @@ describe('quick notes ↔ project attachment (user request)', () => {
 // affordance when the total exceeds the rendered list. Rule 1 (user isolation) and
 // rule 10 (Zod on the query) are pinned here.
 describe('quick-note archive (S65)', () => {
-  const insertProject = async (db: Db, userId: string, title: string, id = crypto.randomUUID(), status = 'spark') => {
+  const insertProject = async (db: Db, userId: string, title: string, id = crypto.randomUUID(), _status = 'spark') => {
     const now = new Date().toISOString()
     await db.execute(
       "INSERT INTO projects (id, user_id, title, description, type, status, sort_order, latest_note, reminders_enabled, created_at, updated_at) VALUES (?, ?, ?, '', 'personal', 'developing', 0, '', 0, ?, ?)",

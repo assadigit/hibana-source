@@ -178,7 +178,7 @@ describe('screenshot problem reports (S35)', () => {
     const { db, close } = makeTestDb()
     try {
       const userId = await makeUser(db)
-      const projectId = await makeProject(db, userId)
+      await makeProject(db, userId)
       const app = createApp({ db, isProd: false, github: { owner: 'o', repo: 'r', token: 't' } } as unknown as Config)
       const token = await createSession(db, userId)
       vi.stubGlobal('fetch', async () => new Response(JSON.stringify({ content: { html_url: 'u' } }), { status: 201, headers: { 'Content-Type': 'application/json' } }))

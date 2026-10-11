@@ -50,7 +50,6 @@ import {
   Control,
   Intersection,
   Observable,
-  Point as Pt,
 } from 'fabric'
 
 // Assign to window.fabric — the global namespace canvas.js/whiteboard.js expect.
@@ -93,6 +92,8 @@ const fabric = {
 // v5 backwards compat: fabric.Image.filters.* → fabric.filters.*
 // (whiteboard.js used `new fabric.Image.filters.HueRotation()` — moved in v6)
 // Cast to any because the v6 Image type doesn't have a `filters` static property.
+// HLTH-4: documented v5-compat cast — the v6 Image type has no `filters` static.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 ;(fabric.Image as any).filters = filters
 
 // v5 origin compat (Session 28 P0 — "notebook notes are cropped / everything renders

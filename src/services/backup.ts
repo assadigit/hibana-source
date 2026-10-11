@@ -315,7 +315,7 @@ export async function buildUserSnapshot(db: Db, userId: string): Promise<Snapsho
   }
 }
 
-export async function backupToGitHub(db: Db, gh: GitHubConfig, ownerUserId?: string, keepN = BACKUP_RETENTION_DEFAULT, encryptionKey?: string): Promise<{ path: string; url: string; retained: string[] }> {
+export async function backupToGitHub(db: Db, gh: GitHubConfig, _ownerUserId?: string, keepN = BACKUP_RETENTION_DEFAULT, encryptionKey?: string): Promise<{ path: string; url: string; retained: string[] }> {
   const snapshot = await buildSnapshot(db)
   const ts = new Date().toISOString().replace(/[:.]/g, '-')
   const path = `backups/snapshot-${ts}.json`

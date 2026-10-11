@@ -37,6 +37,9 @@ export default defineConfig({
     env: {
       // Fresh DB for each CI run — migrations auto-run on boot.
       DB_PATH: '/tmp/hibana-e2e.db',
+      // S199 (HLTH-18): the signup page's captcha round-trip needs the secret —
+      // without it /api/auth/captcha 503s and the signup form can never be pinned.
+      CAPTCHA_SECRET_KEY: 'test-secret',
       // S61: the disk shot store — the whole upload pipeline (put → serve → delete)
       // works locally now; the dummy GITHUB_TOKEN=x above used to 500 every upload.
       HIBANA_SHOTS_DIR: '/tmp/hibana-e2e-shots',

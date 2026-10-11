@@ -270,7 +270,8 @@ describe('S161 — the Ideas redesign contracts', () => {
       const u = await makeUser(db)
       const { app, auth } = await makeClient(db, u, { shots: true })
       const fid = await makeFolder(app, auth, 'Bannered folder')
-      const bytes = Buffer.from('fake-banner-png-bytes-0123456789')
+      // SEC-9: real PNG signature — the banner route now sniffs magic bytes
+      const bytes = Buffer.concat([Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]), Buffer.from('fake-banner-png-body')])
       const put = await app.fetch(new Request(`http://local/api/projects/sparks/folders/${fid}/banner`, {
         method: 'PUT', headers: auth,
         body: JSON.stringify({ dataBase64: bytes.toString('base64'), mimeType: 'image/png' }),

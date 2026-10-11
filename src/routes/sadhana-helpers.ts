@@ -1,14 +1,6 @@
-import { Hono, type Context } from 'hono'
 import { z } from 'zod'
-import { requireAuth } from '../auth/middleware'
-import { esc, jsonBody } from '../lib/http'
-import { icon, quadrantGlyph } from '../lib/html'
-import { legacyTaskNote, sadhanaTaskControls, taskStatusTrack, type SadhanaTaskNote } from '../lib/sadhana-task-controls'
-import { localeOf, trL, type Locale, type Vars } from '../lib/i18n'
-import { calendarFor, faDigits, formatDate, formatDateLong } from '../lib/jalali'
-import { uuid } from '../lib/ids'
-import { QUADRANTS, TAGS, orderedQuadrants, parseQuadrantOrder, resetDueRecurring, todayIn, type SadhanaTask, type TagId } from '../services/sadhana'
-import type { Config, UserRow } from '../types'
+import { type Locale } from '../lib/i18n'
+import type { UserRow } from '../types'
 
 // Sadhana — standalone quadrant task board (spec 2026-08-25). Board + archive + focus
 // render as htmx fragments swapping `closest .sadhana-zone` (the same zone serves the

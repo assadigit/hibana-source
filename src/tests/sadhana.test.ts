@@ -300,10 +300,10 @@ describe('sadhana — quadrant task board (spec 2026-08-25)', () => {
       const uid = await makeUser(db)
       await db.execute('UPDATE users SET telegram_chat_id = ? WHERE id = ?', ['111', uid])
       // Windows relative to run date 2026-08-18:
-      const t7 = await insert(db, uid, { title: 'in 7 days', due_date: '2026-08-25' })     // 7d
-      const t3 = await insert(db, uid, { title: 'in 3 days', due_date: '2026-08-21' })     // 3d
-      const t1 = await insert(db, uid, { title: 'tomorrow', due_date: '2026-08-19' })      // 1d
-      const t0 = await insert(db, uid, { title: 'today', due_date: '2026-08-18' })         // 0d
+      await insert(db, uid, { title: 'in 7 days', due_date: '2026-08-25' })     // 7d
+      await insert(db, uid, { title: 'in 3 days', due_date: '2026-08-21' })     // 3d
+      await insert(db, uid, { title: 'tomorrow', due_date: '2026-08-19' })      // 1d
+      await insert(db, uid, { title: 'today', due_date: '2026-08-18' })         // 0d
       const timed = await insert(db, uid, { title: 'timed', due_date: '2026-08-18' })      // 2h
       await db.execute('UPDATE sadhana_tasks SET due_time = ? WHERE id = ?', ['10:00', timed])
       const done = await insert(db, uid, { title: 'done task', done: 1, due_date: '2026-08-18' }) // skipped
@@ -391,7 +391,7 @@ describe('sadhana — quadrant task board (spec 2026-08-25)', () => {
       const uid = await makeUser(db)
       const { app, auth } = await makeClient(db, uid)
       const openId = await insert(db, uid, { title: 'open' })
-      const doneId = await insert(db, uid, { title: 'done but not swept', done: 1 })
+      await insert(db, uid, { title: 'done but not swept', done: 1 })
 
       let html = await (await app.fetch(new Request('http://local/api/sadhana/archive', { headers: { ...auth, 'HX-Request': 'true' } }))).text()
       expect(html).toContain('No completed tasks yet')

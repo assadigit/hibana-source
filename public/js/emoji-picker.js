@@ -11,6 +11,7 @@
 // Styling lives in app.css (.emoji-pop-*). ESC and the backdrop close it. On small
 // screens (< 640px) it docks as a bottom sheet via CSS, so anchoring is ignored there.
 
+const escE = (v) => String(v ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c])
 ;(() => {
   const RECENT_KEY = 'hibana-emoji-recent'
   const _t = (k, fa, en) => (window.hibanaI18n && window.hibanaI18n.t(k)) || (document.documentElement.dir === 'rtl' ? fa : en)
@@ -105,7 +106,7 @@
     const data = window.hibanaEmojiData
     if (!data || !tabsEl) return
     tabsEl.innerHTML = data.groups.map((g) =>
-      `<button type="button" class="emoji-pop-cat${state.activeGroup === g.id ? ' active' : ''}" role="tab" aria-selected="${state.activeGroup === g.id}" data-cat="${g.id}" title="${g.fa} · ${g.en}">${g.icon}</button>`,
+      `<button type="button" class="emoji-pop-cat${state.activeGroup === g.id ? ' active' : ''}" role="tab" aria-selected="${state.activeGroup === g.id}" data-cat="${g.id}" title="${escE(g.fa)} · ${escE(g.en)}">${g.icon}</button>`,
     ).join('')
     tabsEl.querySelectorAll('[data-cat]').forEach((btn) => {
       btn.addEventListener('click', () => {

@@ -118,7 +118,7 @@ describe('screenshot upload path shape (session-9 F1)', () => {
       const token = await createSession(db, userId)
       const clientId = crypto.randomUUID()
 
-      vi.stubGlobal('fetch', (async (input: RequestInfo | URL, init?: RequestInit) => {
+      vi.stubGlobal('fetch', (async (input: RequestInfo | URL, _init?: RequestInit) => {
         const url = String(input)
         if (url.includes('/contents/')) {
           expect(url).not.toContain('/contents//') // the pin again, on the replay path

@@ -156,7 +156,7 @@ document.documentElement.setAttribute('data-hibana-booted', '1')
       const csvTags = (tags) => String(tags || '').split(',').map((t) => t.trim()).filter(Boolean)
 
       /* ── icons ── */
-      const I = {
+      const ICONS = {
         chevron: '<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg>',
         folder: '<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7Z"/></svg>',
         star: '<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m12 3 2.7 5.6 6.1.8-4.5 4.3 1.1 6.1L12 16.9l-5.4 2.9 1.1-6.1L3.2 9.4l6.1-.8L12 3Z"/></svg>',
@@ -175,7 +175,7 @@ document.documentElement.setAttribute('data-hibana-booted', '1')
         arrowBack: '<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 12H4m0 0 6-6m-6 6 6 6"/></svg>',
         restore: '<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7M3 4v5h5"/></svg>',
         // S83: the load-failed panel — cloud-off for the icon, the circular arrow
-        // for the Retry button (same visual family as I.restore but distinct path:
+        // for the Retry button (same visual family as ICONS.restore but distinct path:
         // two arrows for a full round trip).
         cloudOff: '<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6.5A2.5 2.5 0 0 1 6.5 4H8"/><path d="M12 4h4.5a3.5 3.5 0 0 1 3.4 4.3A4.5 4.5 0 0 1 19.5 17H9"/><path d="M3 3l18 18"/></svg>',
         refresh: '<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M21 12a9 9 0 1 1-2.6-6.4M21 3v5h-5"/></svg>',
@@ -342,7 +342,7 @@ document.documentElement.setAttribute('data-hibana-booted', '1')
       /* ══════════════ RENDER: sidebar tree ══════════════ */
       const treeEl = () => $('[data-vault-tree-inner]')
 
-      const quickRow = (type, id, icon, labelKey, labelFallback, count, danger) => {
+      const quickRowHtml = (type, id, icon, labelKey, labelFallback, count, danger) => {
         const cur = state.view.type === type && (type !== 'folder' && type !== 'tag' ? true : state.view.id === id)
         return `<button type="button" class="vault-quick${danger ? ' is-danger' : ''}" data-vault-view="${type}" data-vault-id="${id || ''}" aria-current="${cur}">
           ${icon}<span class="vault-folder-name">${esc(_t(labelKey, labelFallback))}</span>
@@ -364,14 +364,14 @@ document.documentElement.setAttribute('data-hibana-booted', '1')
         // pick reads as intentional, not as stray text.
         const glyph = f.icon
           ? `<span class="vault-folder-emoji" role="img" aria-label="">${esc(f.icon)}</span>`
-          : I.folder
+          : ICONS.folder
         const hasKids = !!(kids.length || ownNotes.length)
         return `<div class="vault-folder-row" data-folder-row="${f.id}" style="padding-inline-start:${depth * 0.85}rem">
-          <button type="button" class="vault-tw${hasKids ? '' : ' spacer'}" data-vault-tw="${f.id}" aria-expanded="${hasKids ? isOpen : false}" aria-label="${esc(_t('notes.toggleFolder', 'Expand folder'))}" tabindex="${hasKids ? 0 : -1}">${I.chevron}</button>
+          <button type="button" class="vault-tw${hasKids ? '' : ' spacer'}" data-vault-tw="${f.id}" aria-expanded="${hasKids ? isOpen : false}" aria-label="${esc(_t('notes.toggleFolder', 'Expand folder'))}" tabindex="${hasKids ? 0 : -1}">${ICONS.chevron}</button>
           <button type="button" class="vault-folder" data-vault-view="folder" data-vault-id="${f.id}" aria-current="${cur}">
             ${glyph}<span class="vault-folder-name" dir="auto">${esc(f.name)}</span>
             ${cnt != null ? `<span class="vault-n">${cnt}</span>` : ''}
-            <span class="vault-kebab" data-vault-folder-kebab="${f.id}" role="button" tabindex="0" aria-label="${esc(_t('notes.folderMenu', 'Folder options'))}" aria-haspopup="menu">${I.kebab}</span>
+            <span class="vault-kebab" data-vault-folder-kebab="${f.id}" role="button" tabindex="0" aria-label="${esc(_t('notes.folderMenu', 'Folder options'))}" aria-haspopup="menu">${ICONS.kebab}</span>
           </button>
         </div>
           ${hasKids && isOpen ? kids.map((k) => folderRow(k, depth + 1)).join('') : ''}
@@ -388,7 +388,7 @@ document.documentElement.setAttribute('data-hibana-booted', '1')
         const title = (n.title || untitled).trim() || untitled
         return `<div class="vault-note-row" data-note-row="${n.id}" style="padding-inline-start:${(depth + 0.4) * 0.85}rem">
           <button type="button" class="vault-note" data-vault-note="${n.id}" aria-current="${cur}" title="${esc(title)}">
-            ${I.note}<span class="vault-note-name" dir="auto">${esc(title)}</span>
+            ${ICONS.note}<span class="vault-note-name" dir="auto">${esc(title)}</span>
           </button>
         </div>`
       }
@@ -410,10 +410,10 @@ document.documentElement.setAttribute('data-hibana-booted', '1')
 
       // S105: the collapsible section heading (Folders / Tags) — a button with a
       // chevron; collapsed hides the section body. Persisted in prefs.
-      const secHead = (key, labelKey, labelFallback, extra = '') => {
+      const secHeadHtml = (key, labelKey, labelFallback, extra = '') => {
         const open = key === 'folders' ? prefs.secFolders : prefs.secTags
         return `<button type="button" class="vault-sec-head" data-vault-sec="${key}" aria-expanded="${open}">
-          <span class="vault-sec-tw">${I.chevron}</span>
+          <span class="vault-sec-tw">${ICONS.chevron}</span>
           <span class="vault-sec-label">${esc(_t(labelKey, labelFallback))}</span>
           ${extra}
         </button>`
@@ -426,19 +426,19 @@ document.documentElement.setAttribute('data-hibana-booted', '1')
         // S83: bootstrap exhausted its retries — say so in the tree (a muted row
         // under the quick views), instead of showing counts that are all zero and
         // letting the sidebar lie about an empty vault.
-        const bootFailRow = state.bootFailed ? `<p class="vault-tree-offline" data-vault-retry role="button" tabindex="0">${I.cloudOff}<span>${esc(_t('notes.offlineTree', 'Folders offline — tap to retry'))}</span></p>` : ''
+        const bootFailHtml = state.bootFailed ? `<p class="vault-tree-offline" data-vault-retry role="button" tabindex="0">${ICONS.cloudOff}<span>${esc(_t('notes.offlineTree', 'Folders offline — tap to retry'))}</span></p>` : ''
         el.innerHTML = `
           <div class="vault-sec">
-            ${quickRow('all', '', I.note, 'notes.allNotes', 'All notes', state.counts.all)}
-            ${quickRow('starred', '', I.star, 'notes.starred', 'Starred', state.counts.starred)}
-            ${quickRow('unfiled', '', I.layers, 'notes.unfiled', 'Unfiled', state.counts.unfiled)}
-            ${quickRow('trash', '', I.trash, 'notes.trash', 'Trash', state.counts.trash, true)}
-            ${bootFailRow}
+            ${quickRowHtml('all', '', ICONS.note, 'notes.allNotes', 'All notes', state.counts.all)}
+            ${quickRowHtml('starred', '', ICONS.star, 'notes.starred', 'Starred', state.counts.starred)}
+            ${quickRowHtml('unfiled', '', ICONS.layers, 'notes.unfiled', 'Unfiled', state.counts.unfiled)}
+            ${quickRowHtml('trash', '', ICONS.trash, 'notes.trash', 'Trash', state.counts.trash, true)}
+            ${bootFailHtml}
           </div>
           <div class="vault-sec">
             <div class="row spread" style="align-items:center;min-inline-size:0">
-              ${secHead('folders', 'notes.folders', 'Folders')}
-              <button type="button" class="vault-sec-add" data-vault-newfolder-root aria-label="${esc(_t('notes.newFolder', 'New folder'))}" title="${esc(_t('notes.newFolder', 'New folder'))}">${I.plus}</button>
+              ${secHeadHtml('folders', 'notes.folders', 'Folders')}
+              <button type="button" class="vault-sec-add" data-vault-newfolder-root aria-label="${esc(_t('notes.newFolder', 'New folder'))}" title="${esc(_t('notes.newFolder', 'New folder'))}">${ICONS.plus}</button>
             </div>
             <div data-vault-folders ${prefs.secFolders ? '' : 'hidden'}>${state.folders.length
               ? childrenOf(null).map((f) => folderRow(f, 0)).join('')
@@ -446,11 +446,11 @@ document.documentElement.setAttribute('data-hibana-booted', '1')
             </div>
             <div class="vault-newfolder" data-vault-newfolder hidden>
               <input data-vault-newfolder-input maxlength="80" dir="auto" placeholder="${esc(_t('notes.folderName', 'Folder name…'))}" aria-label="${esc(_t('notes.folderName', 'Folder name…'))}">
-              <button type="button" class="vault-sec-add" data-vault-newfolder-ok aria-label="${esc(_t('common.save', 'Save'))}">${I.check}</button>
+              <button type="button" class="vault-sec-add" data-vault-newfolder-ok aria-label="${esc(_t('common.save', 'Save'))}">${ICONS.check}</button>
             </div>
           </div>
           ${state.tags.length ? `<div class="vault-sec">
-            ${secHead('tags', 'notes.tags', 'Tags', `<span class="vault-sec-count vault-n">${state.tags.length}</span>`)}
+            ${secHeadHtml('tags', 'notes.tags', 'Tags', `<span class="vault-sec-count vault-n">${state.tags.length}</span>`)}
             <div class="vault-tags" ${prefs.secTags ? '' : 'hidden'}>
               ${state.tags.slice(0, 18).map((t) => `<button type="button" class="vault-tag-chip" data-vault-tag="${esc(t.tag)}" aria-pressed="${tagActive && tagActive.toLowerCase() === t.tag.toLowerCase()}">#${esc(t.tag)} <span class="vault-n">${t.count}</span></button>`).join('')}
             </div>
@@ -485,12 +485,12 @@ document.documentElement.setAttribute('data-hibana-booted', '1')
         // Persian digits via dig(). Title tooltip carries the full phrase for clarity.
         const words = Number(n.word_count) || 0
         const readChip = words >= 200
-          ? `<span class="vault-card-read" title="${esc(_t('notes.readTime', '~{n} min read').split('{n}').join(dig(Math.max(1, Math.round(words / 200)))))}">${I.clock || ''}${esc(_t('notes.minRead', '~{n} min').split('{n}').join(dig(Math.max(1, Math.round(words / 200)))))}</span>`
+          ? `<span class="vault-card-read" title="${esc(_t('notes.readTime', '~{n} min read').split('{n}').join(dig(Math.max(1, Math.round(words / 200)))))}">${ICONS.clock || ''}${esc(_t('notes.minRead', '~{n} min').split('{n}').join(dig(Math.max(1, Math.round(words / 200)))))}</span>`
           : ''
         return `<article class="vault-card" data-vault-card="${n.id}" aria-current="${active}" tabindex="0"${draggable}>
           <div class="vault-card-date">
             <time datetime="${n.updated_at}">${fmtDay(n.updated_at)}</time>
-            ${n.starred ? `<span class="vault-card-star" aria-label="${esc(_t('notes.starred', 'Starred'))}">${I.star}</span>` : ''}
+            ${n.starred ? `<span class="vault-card-star" aria-label="${esc(_t('notes.starred', 'Starred'))}">${ICONS.star}</span>` : ''}
           </div>
           <h2 class="vault-card-title${n.title.trim() ? '' : ' is-untitled'}" dir="auto">${emoji}${esc(n.title.trim() || title)}</h2>
           ${n.excerpt ? `<p class="vault-card-excerpt" dir="auto">${esc(n.excerpt)}</p>` : ''}
@@ -498,8 +498,8 @@ document.documentElement.setAttribute('data-hibana-booted', '1')
             ${pills}
             ${state.view.type === 'trash'
               ? `<span class="vault-card-trash">
-                  <button type="button" data-vault-restore="${n.id}">${I.restore}<span>${esc(_t('notes.restore', 'Restore'))}</span></button>
-                  <button type="button" class="is-danger" data-vault-purge="${n.id}">${I.trash}<span>${esc(_t('notes.deleteForever', 'Delete forever'))}</span></button>
+                  <button type="button" data-vault-restore="${n.id}">${ICONS.restore}<span>${esc(_t('notes.restore', 'Restore'))}</span></button>
+                  <button type="button" class="is-danger" data-vault-purge="${n.id}">${ICONS.trash}<span>${esc(_t('notes.deleteForever', 'Delete forever'))}</span></button>
                 </span>`
               : `<span class="vault-card-words">${dig(n.word_count)} ${esc(_t('notes.words', 'words'))}</span>`}
             ${readChip}
@@ -527,25 +527,25 @@ document.documentElement.setAttribute('data-hibana-booted', '1')
         // so the tree's counts come back in the same click.
         if (state.loadFailed) {
           el.innerHTML = `<div class="vault-empty vault-load-failed">
-            <span class="empty-state-icon" aria-hidden="true">${I.cloudOff}</span>
+            <span class="empty-state-icon" aria-hidden="true">${ICONS.cloudOff}</span>
             <b>${esc(_t('notes.loadFailedTitle', 'Couldn\u2019t reach the vault'))}</b>
             <p>${esc(_t('notes.loadFailedHint', 'The connection dropped on the first try. Your notes are safe — one more round usually gets through.'))}</p>
-            <button type="button" class="vault-new" data-vault-retry style="margin-block-start:0.5rem">${I.refresh}<span>${esc(_t('common.retry', 'Retry'))}</span></button>
+            <button type="button" class="vault-new" data-vault-retry style="margin-block-start:0.5rem">${ICONS.refresh}<span>${esc(_t('common.retry', 'Retry'))}</span></button>
           </div>`
           return
         }
         if (!state.notes.length) {
           const inTrash = state.view.type === 'trash'
           el.innerHTML = `<div class="vault-empty">
-            <span class="empty-state-icon" aria-hidden="true">${inTrash ? I.trash : I.note}</span>
+            <span class="empty-state-icon" aria-hidden="true">${inTrash ? ICONS.trash : ICONS.note}</span>
             <b>${esc(inTrash ? _t('notes.trashEmpty', 'Trash is empty') : state.q ? _t('notes.noResults', 'No matches') : _t('notes.emptyList', 'No notes yet'))}</b>
             <p>${esc(inTrash ? _t('notes.trashEmptyHint', 'Deleted notes rest here before you remove them for good.')
               : state.q ? _t('notes.noResultsHint', 'Try a different search.')
               : state.view.type === 'folder' ? _t('notes.emptyFolderHint', 'This folder is empty — create the first note.')
               : _t('notes.emptyListHint', 'The long-form knowledge base: curated lists, reference notes, things worth keeping.'))}</p>
-            ${!inTrash && !state.q ? `<button type="button" class="vault-new" data-vault-new style="margin-block-start:0.5rem">${I.plus}<span>${esc(_t('notes.newNote', 'New note'))}</span></button>` : ''}
-            ${!inTrash && !state.q && state.view.type === 'all' && state.counts.all === 0 && state.counts.has_sparks ? `<button type="button" class="vault-meta-add" data-vault-import style="margin-block-start:0.375rem;align-self:center">${I.copy}<span>${esc(_t('notes.importIdeas', 'Import your ideas'))}</span></button>` : ''}
-            ${!inTrash && !state.q && state.view.type === 'all' && state.counts.all === 0 && state.counts.has_quicknotes ? `<button type="button" class="vault-meta-add" data-vault-import-qn style="margin-block-start:0.375rem;align-self:center">${I.copy}<span>${esc(_t('notes.importQuick', 'Import your quick notes'))}</span></button>` : ''}
+            ${!inTrash && !state.q ? `<button type="button" class="vault-new" data-vault-new style="margin-block-start:0.5rem">${ICONS.plus}<span>${esc(_t('notes.newNote', 'New note'))}</span></button>` : ''}
+            ${!inTrash && !state.q && state.view.type === 'all' && state.counts.all === 0 && state.counts.has_sparks ? `<button type="button" class="vault-meta-add" data-vault-import style="margin-block-start:0.375rem;align-self:center">${ICONS.copy}<span>${esc(_t('notes.importIdeas', 'Import your ideas'))}</span></button>` : ''}
+            ${!inTrash && !state.q && state.view.type === 'all' && state.counts.all === 0 && state.counts.has_quicknotes ? `<button type="button" class="vault-meta-add" data-vault-import-qn style="margin-block-start:0.375rem;align-self:center">${ICONS.copy}<span>${esc(_t('notes.importQuick', 'Import your quick notes'))}</span></button>` : ''}
           </div>`
           return
         }
@@ -570,7 +570,7 @@ document.documentElement.setAttribute('data-hibana-booted', '1')
         // leaf), and there is NO trailing "Unfiled" on a filed note (it used to read
         // "Movies › Sci-fi › Unfiled", implying the note was unfiled).
         return path.map((f, i) =>
-          (i ? '<span class="icon-sep">' + I.chevron + '</span>' : '') +
+          (i ? '<span class="icon-sep">' + ICONS.chevron + '</span>' : '') +
           `<button type="button" data-vault-crumb="${f.id}" dir="auto" class="${i === path.length - 1 ? 'vault-crumb-leaf' : ''}">${esc(f.name)}</button>`,
         ).join('')
       }
@@ -579,7 +579,7 @@ document.documentElement.setAttribute('data-hibana-booted', '1')
         const pills = csvTags(state.draft.tags)
         const trash = !!state.active?.deleted_at // frozen: the pills stay, the ×-buttons don't
         return pills.map((t) => `<span class="vault-meta-pill">#${esc(t)}${trash ? '' : `
-            <button type="button" data-vault-tagrm="${esc(t)}" aria-label="${esc(_t('notes.removeTag', 'Remove tag'))} ${esc(t)}">${I.x}</button>`}
+            <button type="button" data-vault-tagrm="${esc(t)}" aria-label="${esc(_t('notes.removeTag', 'Remove tag'))} ${esc(t)}">${ICONS.x}</button>`}
           </span>`).join('')
       }
 
@@ -588,7 +588,7 @@ document.documentElement.setAttribute('data-hibana-booted', '1')
         if (!el) return
         if (!state.active) {
           el.innerHTML = `<div class="vault-ed-empty">
-            <span class="empty-state-icon" aria-hidden="true">${I.note}</span>
+            <span class="empty-state-icon" aria-hidden="true">${ICONS.note}</span>
             <b>${esc(_t('notes.emptyEditorTitle', 'Nothing open'))}</b>
             <span>${esc(_t('notes.emptyEditorHint', 'Pick a note from the list, or create a new one.'))}</span>
           </div>`
@@ -598,15 +598,15 @@ document.documentElement.setAttribute('data-hibana-booted', '1')
         const trash = !!n.deleted_at
         el.innerHTML = `<div class="vault-ed">
           <div class="vault-ed-head">
-            <button type="button" class="vault-ed-back" data-vault-back aria-label="${esc(_t('common.back', 'Back'))}">${I.arrowBack}</button>
+            <button type="button" class="vault-ed-back" data-vault-back aria-label="${esc(_t('common.back', 'Back'))}">${ICONS.arrowBack}</button>
             <div class="vault-crumb" data-vault-crumb-bar>${crumbsHtml()}</div>
             <div class="vault-ed-actions">
-              <button type="button" class="vault-iconbtn" data-vault-star aria-pressed="${n.starred === 1}" aria-label="${esc(_t('notes.toggleStar', 'Star'))}" title="${esc(_t('notes.toggleStar', 'Star'))}" ${trash ? 'disabled' : ''}>${n.starred === 1 ? I.star : I.starOpen}</button>
-              <button type="button" class="vault-iconbtn" data-vault-kebab aria-label="${esc(_t('notes.noteMenu', 'Note options'))}" aria-haspopup="menu">${I.kebab}</button>
+              <button type="button" class="vault-iconbtn" data-vault-star aria-pressed="${n.starred === 1}" aria-label="${esc(_t('notes.toggleStar', 'Star'))}" title="${esc(_t('notes.toggleStar', 'Star'))}" ${trash ? 'disabled' : ''}>${n.starred === 1 ? ICONS.star : ICONS.starOpen}</button>
+              <button type="button" class="vault-iconbtn" data-vault-kebab aria-label="${esc(_t('notes.noteMenu', 'Note options'))}" aria-haspopup="menu">${ICONS.kebab}</button>
             </div>
           </div>
           <div class="vault-ed-titlewrap">
-            <button type="button" class="vault-ed-emoji${n.icon ? ' is-set' : ''}" data-vault-emoji ${trash ? 'disabled' : ''} title="${esc(_t('notes.setEmoji', 'Set emoji'))}" aria-label="${esc(_t('notes.setEmoji', 'Set emoji'))}">${n.icon ? esc(n.icon) : I.smile}</button>
+            <button type="button" class="vault-ed-emoji${n.icon ? ' is-set' : ''}" data-vault-emoji ${trash ? 'disabled' : ''} title="${esc(_t('notes.setEmoji', 'Set emoji'))}" aria-label="${esc(_t('notes.setEmoji', 'Set emoji'))}">${n.icon ? esc(n.icon) : ICONS.smile}</button>
             <input class="vault-ed-title" data-vault-title dir="auto" maxlength="300"
               placeholder="${esc(_t('notes.titlePlaceholder', 'Untitled'))}"
               value="${esc(state.draft.title)}"
@@ -614,8 +614,8 @@ document.documentElement.setAttribute('data-hibana-booted', '1')
           </div>
           <div class="vault-ed-meta">
             ${tagPillsHtml()}
-            ${!trash ? `<button type="button" class="vault-meta-add" data-vault-tagadd>${I.plus}<span>${esc(_t('notes.addTag', 'Add tag'))}</span></button>` : ''}
-            <span class="vault-ed-stamp">${esc(_t('notes.edited', 'Edited'))} ${fmtStamp(n.updated_at)}</span>
+            ${!trash ? `<button type="button" class="vault-meta-add" data-vault-tagadd>${ICONS.plus}<span>${esc(_t('notes.addTag', 'Add tag'))}</span></button>` : ''}
+            <span class="vault-ed-stamp">${esc(_t('notes.edited', 'Edited'))} ${esc(fmtStamp(n.updated_at))}</span>
           </div>
           <div class="vault-toolbar" role="toolbar" aria-label="${esc(_t('notes.toolbar', 'Formatting'))}">
             <button type="button" class="vault-tb" data-vault-tb="bold" title="**${esc(_t('notes.tb.bold', 'Bold'))}**" aria-label="${esc(_t('notes.tb.bold', 'Bold'))}"><b>B</b></button>
@@ -637,7 +637,7 @@ document.documentElement.setAttribute('data-hibana-booted', '1')
             </button>
             <button type="button" class="vault-tb" data-vault-tb="hr" title="---" aria-label="${esc(_t('notes.tb.hr', 'Divider'))}">—</button>
             <span class="vault-tb-sep"></span>
-            <button type="button" class="vault-tb vault-tb-ai" data-vault-ai ${trash ? 'disabled' : ''} title="${esc(_t('notes.askAi', 'Ask AI — polish, translate, or your own instruction'))}" aria-label="${esc(_t('notes.askAi', 'Ask AI — polish, translate, or your own instruction'))}">${I.sparkle}</button>
+            <button type="button" class="vault-tb vault-tb-ai" data-vault-ai ${trash ? 'disabled' : ''} title="${esc(_t('notes.askAi', 'Ask AI — polish, translate, or your own instruction'))}" aria-label="${esc(_t('notes.askAi', 'Ask AI — polish, translate, or your own instruction'))}">${ICONS.sparkle}</button>
             <div class="vault-modes" role="group" aria-label="${esc(_t('notes.editorMode', 'Editor mode'))}">
               <button type="button" class="vault-mode" data-vault-mode="edit" aria-pressed="${state.mode === 'edit'}">${esc(_t('notes.modeEdit', 'Edit'))}</button>
               <button type="button" class="vault-mode" data-vault-mode="split" aria-pressed="${state.mode === 'split'}">${esc(_t('notes.modeSplit', 'Split'))}</button>
@@ -655,7 +655,7 @@ document.documentElement.setAttribute('data-hibana-booted', '1')
             <div class="md-live" data-vault-md-live hidden><div class="md-live-in" data-vault-md-live-in></div></div>
           </div>
           <div class="vault-status">
-            <span class="vault-save" data-vault-save data-state="${state.saveState}">${esc(saveLabel())}</span>
+            <span class="vault-save" data-vault-save data-state="${esc(state.saveState)}">${esc(saveLabel())}</span>
             <span class="vault-status-words" data-vault-words></span>
           </div>
         </div>`
@@ -1595,10 +1595,10 @@ document.documentElement.setAttribute('data-hibana-booted', '1')
       const moveMenu = () => {
         if (!state.active) return
         const cur = state.active.folder_id
-        const items = [{ icon: I.layers, label: _t('notes.moveToUnfiled', 'Unfiled'), onClick: () => moveNote(null) }, '-']
+        const items = [{ icon: ICONS.layers, label: _t('notes.moveToUnfiled', 'Unfiled'), onClick: () => moveNote(null) }, '-']
         const walk = (depth) => (f) => {
           items.push({
-            icon: I.folder,
+            icon: ICONS.folder,
             label: ' '.repeat(depth * 2) + f.name,
             onClick: () => moveNote(f.id),
           })
@@ -1616,22 +1616,22 @@ document.documentElement.setAttribute('data-hibana-booted', '1')
         // 404) — its menu offers exactly the two things that work on it.
         if (n.deleted_at) {
           openMenu(anchor, [
-            { icon: I.restore, label: _t('notes.restore', 'Restore'), onClick: () => restoreNote(n.id) },
-            { icon: I.copy, label: _t('notes.copyMd', 'Copy as Markdown'), onClick: copyNoteMd },
-            { icon: I.download, label: _t('notes.exportMd', 'Export as .md'), onClick: () => { window.location.href = '/api/vault/notes/' + n.id + '/export.md' } },
+            { icon: ICONS.restore, label: _t('notes.restore', 'Restore'), onClick: () => restoreNote(n.id) },
+            { icon: ICONS.copy, label: _t('notes.copyMd', 'Copy as Markdown'), onClick: copyNoteMd },
+            { icon: ICONS.download, label: _t('notes.exportMd', 'Export as .md'), onClick: () => { window.location.href = '/api/vault/notes/' + n.id + '/export.md' } },
           ])
           return
         }
         const items = []
-        items.push({ icon: I.move, label: _t('notes.moveTo', 'Move to folder…'), onClick: moveMenu })
+        items.push({ icon: ICONS.move, label: _t('notes.moveTo', 'Move to folder…'), onClick: moveMenu })
         // S86: emoji set/clear rides the note menu (the editor chip is the quick path)
-        items.push({ icon: I.smile, label: _t('notes.setEmoji', 'Set emoji…'), onClick: (anchor) => pickNoteEmoji(anchor) })
-        if (n.icon) items.push({ icon: I.x, label: _t('notes.removeEmoji', 'Remove emoji'), onClick: clearNoteEmoji })
-        items.push({ icon: I.copy, label: _t('notes.duplicate', 'Duplicate'), onClick: duplicateNote })
-        items.push({ icon: I.copy, label: _t('notes.copyMd', 'Copy as Markdown'), onClick: copyNoteMd })
-        items.push({ icon: I.download, label: _t('notes.exportMd', 'Export as .md'), onClick: () => { window.location.href = '/api/vault/notes/' + n.id + '/export.md' } })
+        items.push({ icon: ICONS.smile, label: _t('notes.setEmoji', 'Set emoji…'), onClick: (anchor) => pickNoteEmoji(anchor) })
+        if (n.icon) items.push({ icon: ICONS.x, label: _t('notes.removeEmoji', 'Remove emoji'), onClick: clearNoteEmoji })
+        items.push({ icon: ICONS.copy, label: _t('notes.duplicate', 'Duplicate'), onClick: duplicateNote })
+        items.push({ icon: ICONS.copy, label: _t('notes.copyMd', 'Copy as Markdown'), onClick: copyNoteMd })
+        items.push({ icon: ICONS.download, label: _t('notes.exportMd', 'Export as .md'), onClick: () => { window.location.href = '/api/vault/notes/' + n.id + '/export.md' } })
         items.push('-')
-        items.push({ icon: I.trash, label: _t('notes.moveToTrash', 'Move to Trash'), danger: true, onClick: () => deleteNote(n.id) })
+        items.push({ icon: ICONS.trash, label: _t('notes.moveToTrash', 'Move to Trash'), danger: true, onClick: () => deleteNote(n.id) })
         openMenu(anchor, items)
       }
 
@@ -1695,12 +1695,12 @@ document.documentElement.setAttribute('data-hibana-booted', '1')
         const f = folderById(id)
         if (!f) return
         openMenu(anchor, [
-          { icon: I.smile, label: _t('notes.setEmoji', 'Set emoji…'), onClick: (a) => pickFolderEmoji(f, a) },
-          ...(f.icon ? [{ icon: I.x, label: _t('notes.removeEmoji', 'Remove emoji'), onClick: () => clearFolderEmoji(f) }] : []),
-          { icon: I.pencil, label: _t('notes.renameFolder', 'Rename…'), onClick: () => renameFolderDialog(f) },
-          { icon: I.folder, label: _t('notes.newSubfolder', 'New subfolder…'), onClick: () => { state.expanded.add(f.id); renderTree(); newFolderInline(f.id) } },
+          { icon: ICONS.smile, label: _t('notes.setEmoji', 'Set emoji…'), onClick: (a) => pickFolderEmoji(f, a) },
+          ...(f.icon ? [{ icon: ICONS.x, label: _t('notes.removeEmoji', 'Remove emoji'), onClick: () => clearFolderEmoji(f) }] : []),
+          { icon: ICONS.pencil, label: _t('notes.renameFolder', 'Rename…'), onClick: () => renameFolderDialog(f) },
+          { icon: ICONS.folder, label: _t('notes.newSubfolder', 'New subfolder…'), onClick: () => { state.expanded.add(f.id); renderTree(); newFolderInline(f.id) } },
           '-',
-          { icon: I.trash, label: _t('notes.deleteFolder', 'Delete folder'), danger: true, onClick: () => deleteFolderDialog(f) },
+          { icon: ICONS.trash, label: _t('notes.deleteFolder', 'Delete folder'), danger: true, onClick: () => deleteFolderDialog(f) },
         ])
       }
 

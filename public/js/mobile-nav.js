@@ -12,6 +12,7 @@
 // users (the "mixed language" bug). [data-i18n] nodes are translated by apply()
 // once the language resolves, and re-translated on every language toggle.
 
+const escN = (v) => String(v ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c])
 ;(() => {
   const TABS = [
     { href: '/dashboard.html', i18n: 'nav.dashboard', label: 'Dashboard', icon: '<path d="M4 20V14M10 20V10M16 20V4"/>' },
@@ -97,8 +98,8 @@
     nav.className = 'mobile-nav'
     nav.setAttribute('aria-label', 'Main menu')
     nav.setAttribute('data-i18n-aria-label', 'mobilenav.label')
-    const tabs = TABS.map(() => `<a aria-current="false"></a>`).join('')
-    nav.innerHTML = `${tabs}
+    const tabsHtml = TABS.map(() => `<a aria-current="false"></a>`).join('')
+    nav.innerHTML = `${tabsHtml}
       <button type="button" class="mobile-nav-more" aria-haspopup="dialog" aria-expanded="false" aria-controls="mobile-more-sheet">
         ${svg('<circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.6-6.5 8-6.5s8 2.5 8 6.5"/>')}
         <span class="mobile-nav-label" data-i18n="nav.more">More</span>
@@ -107,7 +108,7 @@
     nav.querySelectorAll('a').forEach((a, i) => {
       const tab = TABS[i]
       a.href = tab.href
-      a.innerHTML = `${svg(tab.icon)}\n        <span class="mobile-nav-label" data-i18n="${tab.i18n}">${tab.label}</span>`
+      a.innerHTML = `${svg(tab.icon)}\n        <span class="mobile-nav-label" data-i18n="${escN(tab.i18n)}">${escN(tab.label)}</span>`
     })
     document.body.appendChild(nav)
     document.body.classList.add('has-mobile-nav')
@@ -139,9 +140,9 @@
         <span data-i18n="nav.searchCmd">Search &amp; commands</span>
       </button>
       <div class="mobile-more-div" role="separator"></div>
-      ${SHEET_LINKS.map((row) => `<a class="mobile-more-row"${row.adminOnly ? ' data-admin-link hidden' : ''}${row.notif ? ' data-notif-row' : ''} href="${row.href}">
+      ${SHEET_LINKS.map((row) => `<a class="mobile-more-row"${row.adminOnly ? ' data-admin-link hidden' : ''}${row.notif ? ' data-notif-row' : ''} href="${escN(row.href)}">
         ${svg(row.icon)}
-        <span data-i18n="${row.i18n}">${row.label}</span>
+        <span data-i18n="${escN(row.i18n)}">${escN(row.label)}</span>
       </a>`).join('')}
       <div class="mobile-more-div" role="separator"></div>
       <button type="button" class="mobile-more-row" data-mobile-lang>

@@ -12,8 +12,8 @@ import type { Config } from './types'
 
 // Non-Cloudflare deployment path (portability requirement — "deployment must be easily
 // changeable"). Same Hono app, same SQL, same migrations; only wheels are swapped:
-// D1 → better-sqlite3, Worker assets → plain file serving.
-// Run: DB_PATH=... GITHUB_* env vars npm run start:node  (see DEPLOY.md)
+// D1 → node:sqlite (better-sqlite3 is REMOVED), Worker assets → plain file serving.
+// Run: DB_PATH=... GITHUB_* env vars npm run start:node  (ops notes: Agents.md + Changelogs §4)
 
 const workDir = process.cwd()
 const dbPath = process.env.DB_PATH ?? join(workDir, 'data', 'hibana.db')

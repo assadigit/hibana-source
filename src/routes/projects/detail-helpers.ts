@@ -21,7 +21,6 @@ import type {
   ScreenshotRow,
   HurdleRow,
   DevTaskRow,
-  TaskCategory,
   SprintRow,
 } from '../../types'
 import type { QuickNote } from '../quicknotes'

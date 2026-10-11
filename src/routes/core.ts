@@ -342,7 +342,10 @@ export function coreRoutes(cfg: Config) {
       params.push(v)
     }
     params.push(c.req.param('id'))
-    await cfg.db.execute(`UPDATE links SET ${sets.join(', ')} WHERE id = ?`, params)
+    // SEC-11 (S198/S199): the UPDATE re-scopes by owner at the write itself (the
+    // pre-check read is not a guarantee) — a foreign row is simply not updated.
+    params.push(user.id)
+    await cfg.db.execute(`UPDATE links SET ${sets.join(', ')} WHERE id = ? AND project_id IN (SELECT id FROM projects WHERE user_id = ?)`, params)
     if (c.req.header('HX-Request')) return c.html(toastHtml(t('Link updated', 'پیوند به‌روزرسانی شد'), localeOf(c), undefined, 'ok'))
     return c.json({ ok: true })
   })

@@ -17,6 +17,19 @@ export const esc = (s: string): string =>
 // every file as .png regardless of mime, and served with hardcoded Content-Type: image/png
 // — a JPEG or WebP upload got the wrong extension + wrong Content-Type. These helpers
 // derive the correct values from the actual mime type (upload) and stored path (serve).
+// SEC-9 (S198/S199): sniff the ACTUAL image type from the leading bytes — uploads
+// previously trusted the client-declared mimeType (a text/html or SVG-with-script
+// payload could ride a .png path; nosniff is set, but the wrong stored type is still
+// wrong). Declared type must MATCH the sniffed type or the upload is rejected.
+export type SniffedImageMime = 'image/png' | 'image/jpeg' | 'image/webp'
+export function sniffImageMime(bytes: Uint8Array): SniffedImageMime | null {
+  const is = (arr: number[], at = 0) => arr.every((b, i) => bytes[at + i] === b)
+  if (is([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])) return 'image/png'
+  if (is([0xff, 0xd8, 0xff])) return 'image/jpeg'
+  if (is([0x52, 0x49, 0x46, 0x46]) && is([0x57, 0x45, 0x42, 0x50], 8)) return 'image/webp' // RIFF….WEBP
+  return null
+}
+
 export function extForMime(mime: string): string {
   if (mime === 'image/jpeg') return '.jpg'
   if (mime === 'image/webp') return '.webp'
@@ -51,6 +64,10 @@ export function mimeForPath(path: string): string {
 // Returns null on parse failure; routes reply 400 consistently.
 // The schema type is deliberately input-loose: schemas with .default()/coerce() have
 // different input/output types, and we always hand back the *output* (validated) type.
+// HLTH-4 (S198 audit): the two `any`s below are a documented boundary decision —
+// schemas with .default()/coerce() have different input/output types; this is
+// deliberately input-loose and always returns the validated *output* type.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export async function jsonBody<T>(c: Context, schema: import('zod').ZodType<T, any, any>): Promise<T | null> {
   const contentType = c.req.header('Content-Type') ?? ''
   let parsed: unknown

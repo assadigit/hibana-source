@@ -90,7 +90,41 @@ export async function hitRateLimit(db: Db, rule: RateRule, ip: string): Promise<
   }
 }
 
-/** Client IP seen at the edge: Cloudflare's header on the Worker, x-forwarded-for elsewhere. */
-export function clientIp(c: { req: { header(name: string): string | undefined } }): string {
-  return c.req.header('CF-Connecting-IP') ?? c.req.header('x-forwarded-for')?.split(',')[0]?.trim() ?? 'local'
+/**
+ * Client IP as seen at the edge (SEC-3, S198/S199 — was: first XFF hop, spoofable).
+ *
+ * Priority:
+ *  1. CF-Connecting-IP — set by Cloudflare itself on the Worker path; always
+ *     authoritative there.
+ *  2. TRUST_PROXY=true → the LAST x-forwarded-for hop: the address YOUR one trusted
+ *     proxy layer observed (it appended that hop itself — client-supplied hops sit
+ *     before it). For multi-layer proxy chains, document one-hop semantics; the flag
+ *     means "exactly one trusted proxy in front of me".
+ *  3. No TRUST_PROXY → the raw TCP peer address via @hono/node-server's socket —
+ *     unspoofable. Direct connections AND untrusted proxies both land here (a
+ *     spoofable XFF is ignored rather than trusted).
+ *
+ * TRUST_PROXY is a Node-path env var only (the `typeof process` guard follows the
+ * S108 lesson — the constant is read once, never throws on the Workers runtime).
+ */
+const TRUST_PROXY = typeof process !== 'undefined' && /^(1|true|yes)$/i.test((process.env.TRUST_PROXY ?? '').trim())
+
+export function clientIp(
+  c: { req: { header(name: string): string | undefined } },
+): string {
+  const cf = c.req.header('CF-Connecting-IP')
+  if (cf) return cf
+  const xff = c.req.header('x-forwarded-for')
+  if (TRUST_PROXY && xff) {
+    const hops = xff.split(',').map((h) => h.trim()).filter(Boolean)
+    if (hops.length) return hops[hops.length - 1]
+  }
+  // @hono/node-server exposes the raw socket at env.incoming (typed `unknown` on the
+  // generic Context — hence the careful cast; the Workers runtime simply has none).
+  const env = (c as { env?: unknown }).env as { incoming?: { socket?: { remoteAddress?: string } } } | undefined
+  const peer = env?.incoming?.socket?.remoteAddress
+  if (peer) return peer
+  // Workers (no CF header yet) or a test context with no socket: degrade, never throw.
+  if (!TRUST_PROXY && xff) return xff.split(',')[0]?.trim() ?? 'local'
+  return 'local'
 }

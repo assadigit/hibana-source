@@ -4,6 +4,7 @@ import { requireAuth } from '../auth/middleware'
 import { hashPassword } from '../auth/password'
 import { SESSION_COOKIE, createSession } from '../auth/sessions'
 import { isHtmx, jsonBody, requestOrigin } from '../lib/http'
+import { emailLinkOrigin } from '../lib/app-url'
 import { uuid } from '../lib/ids'
 import { registerSchema, resendVerifySchema, verifyEmailSchema } from '../validation/schemas'
 import { clientIp, hitRateLimit, RATE_RULES } from '../services/ratelimit'
@@ -123,7 +124,7 @@ export function registrationRoutes(cfg: Config) {
     const code = await createEmailCode(cfg.db, id)
     const mail = () =>
       sendAndLog(cfg, {
-        origin: requestOrigin(c),
+        origin: emailLinkOrigin(cfg, requestOrigin(c)),
         to: body.email,
         subject: 'Confirm your email — تأیید ایمیل',
         kind: 'verify',
@@ -226,7 +227,7 @@ export function registrationRoutes(cfg: Config) {
     const code = await createEmailCode(cfg.db, user.id)
     try {
       await sendAndLog(cfg, {
-        origin: requestOrigin(c),
+        origin: emailLinkOrigin(cfg, requestOrigin(c)),
         to: user.email,
         subject: 'Confirm your email — تأیید ایمیل',
         kind: 'verify',
@@ -290,7 +291,7 @@ export function registrationRoutes(cfg: Config) {
     if (!cfg.emailKey || !cfg.assets) {
       return c.json({ error: 'email_not_configured', detail: 'Resend key or assets binding missing — set RESEND_KEY as a Worker secret' }, 503)
     }
-    const origin = requestOrigin(c)
+    const origin = emailLinkOrigin(cfg, requestOrigin(c))
     const inviterName = user.username || user.email
     try {
       await sendAndLog(

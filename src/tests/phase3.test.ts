@@ -3,7 +3,6 @@ import { makeTestDb, makeUser } from './helpers'
 import { createSession } from '../auth/sessions'
 import { createApp } from '../app'
 import { buildSnapshot } from '../services/backup'
-import { hashPassword } from '../auth/password'
 import type { Db } from '../db/types'
 
 async function makeClient(db: Db, userId: string) {

@@ -586,7 +586,15 @@ main.shell-dash {
   color: var(--muted);
 }
 .task-note-delete:hover { color: var(--err); background: var(--danger-soft); }
-.task-note-delete .icon { inline-size: 0.85rem; block-size: 0.85rem; }
+/* S197 (the touch+optical audit): the pill's X — a 0.85rem CROSSING glyph (no
+   vertex mass — the S195 hairline lesson) at 1.02px effective + a 24px box on
+   this sheet's pages, far under the 40px coarse floor. The icon grows to
+   0.95rem with the optical 2.1 fork (1.33px effective); coarse pointers get
+   the 40px box (the pill row grows with it — the tap law wins on touch). */
+.task-note-delete .icon { inline-size: 0.95rem; block-size: 0.95rem; stroke-width: 2.1; }
+@media (pointer: coarse) {
+  .task-note-delete { inline-size: 2.5rem; block-size: 2.5rem; }
+}
 .task-notes-empty { color: var(--muted); font-size: var(--fs-xs); padding: 0.2rem 0; list-style: none; }
 
 /* Add-note form (kept from the old design; lives at the bottom of the notes panel) */

@@ -106,8 +106,14 @@ button.vault-sec-head:hover { color: var(--text); }
 .vault-sec-head .vault-sec-count { margin-inline-start: auto; }
 .vault-sec-add {
   margin-inline-start: auto;
-  inline-size: 1.5rem;
-  block-size: 1.5rem;
+  /* S197 (the touch+optical audit): the old 1.5rem box (24px, + global button
+     padding inflating it to 32×24) sat far under the app's own 40px coarse floor
+     with NO hit ring — the worst offender on the vault tree. 2rem + padding:0
+     pins the exact 32px box (the S195 close-pair register); coarse pointers get
+     the full 40px. */
+  inline-size: 2rem;
+  block-size: 2rem;
+  padding: 0;
   display: grid;
   place-items: center;
   border: 0;
@@ -117,6 +123,17 @@ button.vault-sec-head:hover { color: var(--text); }
   cursor: pointer;
 }
 .vault-sec-add:hover { background: var(--accent-soft); color: var(--accent); }
+/* S197: the + is a CROSSING glyph (no vertex mass to lean on — the S195 lesson):
+   at the inherited 1.1em ≈ 17.6px the 1.8 stroke renders 1.32px effective. Pin
+   the icon size to the box (1.05rem) and fork the stroke to the crossing-glyph
+   optical 2.1 → 1.47px effective — solid and clickable, not a hairline. */
+.vault-sec-add .icon { inline-size: 1.05rem; block-size: 1.05rem; stroke-width: 2.1; }
+/* S197: the tap law wins on touch (the S43 doctrine) — the section head grows
+   to the app's documented 40px floor, icon to the S195 1.25rem register. */
+@media (pointer: coarse) {
+  .vault-sec-add { inline-size: 2.5rem; block-size: 2.5rem; }
+  .vault-sec-add .icon { inline-size: 1.25rem; block-size: 1.25rem; }
+}
 
 /* S105: a NOTE nested under its folder (Obsidian-style tree row). Muted note glyph,
    one-line ellipsized title, same hover/current language as the folder rows. */

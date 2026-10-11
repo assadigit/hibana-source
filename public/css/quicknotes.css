@@ -565,7 +565,11 @@
    button extended below the input's baseline (VLM-flagged). Size it to match the input
    height: same padding-block, a compact width, square corners. */
 .note-add .qa-btn { inline-size: auto; block-size: auto; padding: 0.35rem 0.6rem; border-radius: var(--radius-sm); }
-.note-add .qa-btn .icon { inline-size: 0.95rem; block-size: 0.95rem; }
+/* S197: the compact add-row's + is a CROSSING glyph at 0.95rem — the 1.8 system
+   stroke renders 1.14px effective (the S195 hairline class). The optical 2.1
+   fork → 1.33px effective; scoped to this instance (the composer FAB's 16.8px
+   + keeps the shared system — its 1.26px rides above the crossing floor). */
+.note-add .qa-btn .icon { inline-size: 0.95rem; block-size: 0.95rem; stroke-width: 2.1; }
 /* Draft preview (list mode): Enter drafts lines; only the + commits them. Dashed rows
    signal “not saved yet” against the solid saved note-items. */
 .note-draft { flex: 1 1 100%; list-style: none; padding: 0; margin: 0; display: grid; gap: 0.3rem; }
@@ -1605,6 +1609,14 @@ body.pd-detail-lock { overflow: hidden; }
   box-shadow: inset 0 0 0 1px rgb(0 0 0 / 0.08), 0 0 0 2px var(--card), 0 0 0 4px var(--text);
 }
 @media (max-width: 480px) { .pd-cat-swatch-tile { inline-size: 2.05rem; block-size: 2.05rem; } }
+/* S197 (the touch+optical audit): the comment above PROMISED "bumped on coarse
+   pointers" but the bump was width-keyed (≤480px) — a touch device ≥481px still
+   got the 30px tiles, under the app's own 40px floor. The bump finally keys to
+   the POINTER (the S43 doctrine: visual compactness stays on desktop, the tap
+   law wins on touch); the "Aa" ink preview grows one rung with the tile. */
+@media (pointer: coarse) {
+  .pd-cat-swatch-tile { inline-size: 2.5rem; block-size: 2.5rem; font-size: 0.65rem; }
+}
 
 /* (block 7) The zero-enabled setup prompt + the per-project toggle rows. */
 /* S172: the composer's block-7 setup prompt is RETIRED — its styles went with it.

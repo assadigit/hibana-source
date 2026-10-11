@@ -739,3 +739,102 @@ describe('S196 the app.js-less pages reveal themselves — the loader-veil lift'
     expect(nfHtml).toMatch(/\/js\/404-page\.js\?v=\d+/)
   })
 })
+
+// S197 — THE TOUCH + OPTICAL ROUND (Track B of the owner's three-track brief):
+// qa/s197-touch-audit.mjs measured the REAL tap law (visual box + the effective
+// HIT area via elementFromPoint compass probes — the ::after hit rings COUNT —
+// plus the S195 effective-stroke math) in BOTH pointer worlds. The honest
+// findings that drove this block:
+//   * The ringed family already PASSES (pw-toggle 44.4px, theme-floater 42px,
+//     qa-btn 48px effective) — the S196 banked audit counted visual boxes only
+//     and over-reported; and its pointer:coarse emulation NEVER ENGAGED
+//     (Chromium's CDP setEmulatedMedia ignores the 'pointer' feature — the
+//     audit now asserts matchMedia before believing its own numbers, and the
+//     q-pen/zen pair was already floored by the S43 block).
+//   * The GENUINE floor misses got fixed: vault-sec-add 24px→32/40, q-fab
+//     36→40 coarse, the swatch tiles' promised-but-width-keyed coarse bump,
+//     dash-vault-dismiss's width-keyed-only floor, task-note-delete 24/36→40,
+//     cal-note-x 20→40.
+//   * The optical ghosts got the S195 crossing-glyph treatment: q-pen-svg
+//     0.9px effective (!), the pill X's 1.02px, the note-add + 1.14px, the
+//     zen target 1.13px, the vault + 1.32px — all now ≥1.3px effective.
+describe('S197 the touch floor + the crossing-glyph optical grammar', () => {
+  const notesCss = readFileSync(join(process.cwd(), 'public', 'css', 'notes.css'), 'utf8')
+  const sadCss = readFileSync(join(process.cwd(), 'public', 'css', 'sadhana-board.css'), 'utf8')
+  const qnCss = readFileSync(join(process.cwd(), 'public', 'css', 'quicknotes.css'), 'utf8')
+  const dashCss = readFileSync(join(process.cwd(), 'public', 'css', 'dashboard.css'), 'utf8')
+  const todoCss = readFileSync(join(process.cwd(), 'public', 'css', 'to-do-list.css'), 'utf8')
+  const tcCss = readFileSync(join(process.cwd(), 'public', 'css', 'task-controls.css'), 'utf8')
+  const calCss = readFileSync(join(process.cwd(), 'public', 'css', 'calendar.css'), 'utf8')
+  const baseCss = readFileSync(join(process.cwd(), 'public', 'css', 'base.css'), 'utf8')
+  const rule = (css: string, at: string) => css.slice(css.indexOf(at), css.indexOf('}', css.indexOf(at)) + 1)
+
+  it('vault-sec-add: the 2rem box + the 1.05rem crossing-+ icon at the 2.1 optical fork + the 40px coarse floor', () => {
+    const box = rule(notesCss, '.vault-sec-add {')
+    expect(box).toMatch(/inline-size:\s*2rem;\s*block-size:\s*2rem;/)
+    expect(box).toMatch(/padding:\s*0;/)
+    const icon = rule(notesCss, '.vault-sec-add .icon {')
+    expect(icon).toMatch(/inline-size:\s*1\.05rem; block-size:\s*1\.05rem; stroke-width:\s*2\.1;/)
+    // the coarse floor — the app's own 40px law
+    const coarse = notesCss.slice(notesCss.indexOf('@media (pointer: coarse)'))
+    const cbox = coarse.slice(coarse.indexOf('.vault-sec-add {'), coarse.indexOf('}', coarse.indexOf('.vault-sec-add {')) + 1)
+    expect(cbox).toMatch(/inline-size:\s*2\.5rem; block-size:\s*2\.5rem;/)
+  })
+
+  it('the sadhana board: the q-fab coarse floor + the pen/zen optical forks (the S43 block already floors their boxes)', () => {
+    // q-fab 36px on desktop → the 40px tap law on touch (the S43 doctrine)
+    expect(sadCss).toMatch(/@media \(pointer:coarse\)\{\.sadhana-wrap \.q-fab\{width:40px;height:40px\}\}/)
+    // q-pen-svg: 12px@1.8 rendered 0.9px effective — the icon system's ghost
+    // (13 × 2.4 / 24 = 1.3px effective, the S195 hairline class fixed)
+    expect(sadCss).toMatch(/\.q-pen-svg\{width:13px;height:13px;[^}]*stroke-width:2\.4/)
+    // zen-ico: 15px@1.8 → 1.13px effective (all curve, no vertex mass) → 2.1
+    expect(sadCss).toMatch(/\.zen-ico\{width:15px;height:15px;[^}]*stroke-width:2\.1/)
+    // the S43 block still floors the quiet pair (the regression guard the
+    // mismeasured banked audit taught us to pin)
+    expect(sadCss).toMatch(/@media \(pointer: coarse\) \{\s*\.sadhana-wrap \.q-pen \{ min-inline-size: 40px; min-block-size: 40px; width: 40px; height: 40px; \}/)
+  })
+
+  it('the swatch tiles: the promised coarse bump finally keys to the POINTER (was width-keyed ≤480px)', () => {
+    const block = qnCss.slice(qnCss.indexOf('@media (pointer: coarse)'))
+    const tile = block.slice(block.indexOf('.pd-cat-swatch-tile {'), block.indexOf('}', block.indexOf('.pd-cat-swatch-tile {')) + 1)
+    expect(tile).toMatch(/inline-size:\s*2\.5rem; block-size:\s*2\.5rem;/)
+    // the note-add row's +: the crossing glyph rides the 2.1 optical fork
+    expect(qnCss).toMatch(/\.note-add \.qa-btn \.icon \{ inline-size:\s*0\.95rem; block-size:\s*0\.95rem; stroke-width:\s*2\.1; \}/)
+  })
+
+  it('dash-vault-dismiss: the coarse floor keys to the POINTER (was width-keyed ≤720px only) + the 1.25rem icon', () => {
+    // anchored to the block's own rules (dashboard.css carries an EARLIER coarse
+    // block at S179 — a first-indexOf slice would grab the base rule instead)
+    expect(dashCss).toMatch(/@media \(pointer: coarse\) \{\s*\.dash-vault-dismiss \{ width: 44px; height: 44px; \}\s*\.dash-vault-dismiss \.icon \{ width: 1\.25rem; height: 1\.25rem; \}\s*\}/)
+  })
+
+  it('task-note-delete: both homes coarse-floor at 40px + the crossing X rides the 2.1 optical fork', () => {
+    // to-do-list.css home (sadhana/project pages): the icon grows + the fork
+    expect(todoCss).toMatch(/\.task-note-delete \.icon \{ inline-size:\s*0\.95rem; block-size:\s*0\.95rem; stroke-width:\s*2\.1; \}/)
+    const tBlock = todoCss.slice(todoCss.indexOf('@media (pointer: coarse)'))
+    const tBox = tBlock.slice(tBlock.indexOf('.task-note-delete {'), tBlock.indexOf('}', tBlock.indexOf('.task-note-delete {')) + 1)
+    expect(tBox).toMatch(/inline-size:\s*2\.5rem; block-size:\s*2\.5rem;/)
+    // task-controls.css home (the dashboard quick-todo): same fork + floor
+    expect(tcCss).toMatch(/\.task-note-delete \.icon \{ inline-size:\s*0\.95rem; block-size:\s*0\.95rem; stroke-width:\s*2\.1; \}/)
+    const cBlock = tcCss.slice(tcCss.indexOf('@media (pointer: coarse)'))
+    const cBox = cBlock.slice(cBlock.indexOf('.task-note-delete {'), cBlock.indexOf('}', cBlock.indexOf('.task-note-delete {')) + 1)
+    expect(cBox).toMatch(/min-inline-size:\s*2\.5rem; min-block-size:\s*2\.5rem;/)
+  })
+
+  it('cal-note-x: the calendar day-note ✕ gets the 40px coarse floor (grid-centered box grammar)', () => {
+    const block = calCss.slice(calCss.indexOf('@media (pointer: coarse)'))
+    const box = block.slice(block.indexOf('.cal-note-x {'), block.indexOf('}', block.indexOf('.cal-note-x {')) + 1)
+    expect(box).toMatch(/display:\s*inline-grid;/)
+    expect(box).toMatch(/min-inline-size:\s*2\.5rem;\s*min-block-size:\s*2\.5rem;/)
+  })
+
+  it('the ringed family stays (the audit\'s PASS-by-recipe foundation — the compact-visual + hidden-hit-area idiom)', () => {
+    // the ring insets that make pw-toggle/theme-floater/qa-btn measure 44/42/48px
+    // effective — removing one silently drops that control under the floor
+    expect(baseCss).toMatch(/\.pw-toggle::after \{ content: ""; position: absolute; inset: -0\.45rem; \}/)
+    expect(baseCss).toMatch(/\.theme-floater::after,[\s\S]*?::after \{\s*content: "";\s*position: absolute;\s*inset: -0\.55rem;/)
+    // qa-btn's -0.4rem ring lives in dashboard-todo.css
+    const dtCss = readFileSync(join(process.cwd(), 'public', 'css', 'dashboard-todo.css'), 'utf8')
+    expect(dtCss).toMatch(/\.qa-btn::after \{ content: ""; position: absolute; inset: -0\.4rem; \}/)
+  })
+})

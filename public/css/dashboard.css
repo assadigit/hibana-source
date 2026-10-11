@@ -910,6 +910,14 @@ main.shell-dash > h1 { margin-block: 0; }
 @media (max-width: 720px) {
   .dash-vault-dismiss { width: 44px; height: 44px; } /* touch floor (WCAG 2.5.5) */
 }
+/* S197 (the touch+optical audit): the floor above was WIDTH-keyed only — a
+   coarse pointer on a wide viewport (tablet landscape, desktop-with-touch)
+   still got the 32px box. The floor now keys to the POINTER too; the icon
+   grows to the S195 1.25rem register with it. */
+@media (pointer: coarse) {
+  .dash-vault-dismiss { width: 44px; height: 44px; }
+  .dash-vault-dismiss .icon { width: 1.25rem; height: 1.25rem; }
+}
 
 /* ==========================================================================
    S179 (advisor block 5) — the UNIFIED projects container RETIRES

@@ -145,7 +145,15 @@
   padding: 0;
   color: var(--danger);
 }
-.task-note-delete .icon { inline-size: 0.95rem; block-size: 0.95rem; }
+/* S197 (the touch+optical audit): this sheet's home (the dashboard quick-todo)
+   renders the same pill X at 36px — under the app's 40px coarse floor; the
+   0.95rem crossing X rides the optical 2.1 fork (1.33px effective, the S195
+   hairline lesson). Belt-and-suspenders with to-do-list.css's coarse block —
+   whichever sheet the page loads, coarse pointers get 40px. */
+.task-note-delete .icon { inline-size: 0.95rem; block-size: 0.95rem; stroke-width: 2.1; }
+@media (pointer: coarse) {
+  .task-note-delete { min-inline-size: 2.5rem; min-block-size: 2.5rem; }
+}
 .task-note-add-form {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;

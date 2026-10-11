@@ -2516,3 +2516,42 @@ handover (status / completed + verification / open risks + next priorities —
 Track B's measured touch-target + icon-weight lists, Track C's eslint
 concentration map + the dep-bump ledger + the DB-index approval ask, the
 healthcheck watch note, and the session's four operational lessons).
+
+---
+
+## Session 197 (in flight) — THE TOUCH + OPTICAL ROUND (Track B)
+
+The S196 handover's next priority, executed with the round's own measuring
+stick (qa/s197-touch-audit.mjs, kept in the repo):
+
+- THE HONEST RE-MEASURE: the banked "26 under-floor" list measured visual
+  boxes only AND its pointer:coarse emulation never engaged (CDP ignores the
+  'pointer' feature — hasTouch contexts are the only reliable emulation; the
+  audit now asserts matchMedia). Rings COUNT: the ringed family (pw-toggle
+  44.4px, theme-floater 42, qa-btn 48, note-add + 46.4 effective) and the
+  S43-floored sadhana pair were never under the floor.
+- THE GENUINE SEVEN fixed (established recipes only): vault-sec-add 24→32px
+  (+padding:0, icon 1.05rem/2.1) + 40 coarse; q-fab 36→40 coarse; the
+  swatches' promised-but-width-keyed bump now pointer-keyed (2.5rem);
+  dash-vault-dismiss 44px floor now pointer-keyed (+1.25rem icon);
+  task-note-delete 24/38→40 coarse on BOTH homes (+0.95rem/2.1); cal-note-x
+  20→40 coarse; THE OPTICAL FORKS: q-pen-svg 0.9px-effective → 13px@2.4
+  (1.3px), the pill X, the note-add +, the zen target, the vault + — every
+  crossing glyph ≥1.3px effective.
+- GUARDS: identity-palette S197 ×7 (incl. the ringed-family regression pins)
+  + e2e/s197-touch-floor.spec.ts ×7 (hasTouch coarse contexts w/ the
+  matchMedia validity guard; EFFECTIVE_HIT ring probes; live geometry +
+  computed strokes; console 0).
+- Cache-bust: the 7 sheets ×25 pages (97 refs) + sw v432 + package 0.4.1.23;
+  parity 1570/1570 (pure-CSS round).
+- LADDER: typecheck 0 · vitest 623/623 (+7) · eslint 0 err (162 baseline) ·
+  build 85 · bundle +0.1% PASS · cache-bust PASS · FULL e2e 414/414 (18.0m,
+  zero flakes) · smoke ALL PASS · agent-browser QA clean (EN light + dark +
+  FA/RTL — the vault add 32×32/2.1 stroke, the fab 36/pen 22@2.4, the 16
+  swatches 30.4, the banner dismiss 32 + banner present, console 0
+  throughout, errors 0).
+- NEXT: push → CI/CD → qa/s197-live-verify.mjs (the seven sheets
+  byte-IDENTICAL + the minified content probes + sw v432 + health 63) →
+  owner pass (non-destructive: the vault add + the swatches + the banner
+  dismiss on the real data) → tag v0.4.1.23 → zip → healthchecks → docs
+  flip to RELEASED.

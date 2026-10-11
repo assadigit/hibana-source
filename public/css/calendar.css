@@ -138,6 +138,18 @@
   line-height: 1.4;
 }
 .cal-note-x:hover { opacity: 1; background: rgb(0 0 0 / 0.08); }
+/* S197 (the touch+optical audit): the day-note/sticky ✕ — a ~12px text glyph in
+   a ~20px box, the smallest control on the calendar (half the 40px coarse
+   floor). The compact inline shape stays on fine pointers; coarse pointers get
+   the 40px floor via the grid-centered box grammar. */
+@media (pointer: coarse) {
+  .cal-note-x {
+    display: inline-grid;
+    place-items: center;
+    min-inline-size: 2.5rem;
+    min-block-size: 2.5rem;
+  }
+}
 .cal-dot-note { background: var(--ok); }
 .cal-dot-sticky { /* background set inline from the note's own pastel */ }
 

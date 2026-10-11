@@ -13,147 +13,6 @@
 > `worklog-archive.md` (and verbatim in git history) — this file is the ACTIVE
 > tail only. Rotate with `node scripts/rotate/rotate.mjs --worklog`.
 
-## Session S200 — SPEED + DIET (the S198 audit's perf round)
-
-Executed per SESSION-BRIEF-S199.md's S200 plan (all six batches) on tree c80c184 →
-released as v0.4.1.25 (push 9970919).
-
-**STATUS: RELEASED.** LIVE hibana.ir @ v0.4.1.25, sw v434, schema 63. CI
-38161304761 GREEN — the FIRST run of the sharded structure: the `ci` fast lane
-2.6 min + the two e2e shards 6.5/6.8 min in PARALLEL (~9.5 min wall vs the old
-15-19 single-job) — the 20-min-cap cliff (the audit's THREAT #1) is dead with
-~2× headroom. CD 38161773669 GREEN → qa/s200-live-verify.mjs ALL GREEN (15
-CSS/JS bundles byte-IDENTICAL off their pages + every content probe + sw v434
-with /Login.webp in the SHELL + the WebP itself byte-identical at image/webp +
-the skip-link/aria-label HTML probes + health ok/up/63) → tag v0.4.1.25 → zip
-(615 files, integrity OK, secret-scan CLEAN — all 8 credential values absent)
-→ healthchecks both UP (natural ticks).
-
-**Completed + verification (the ladder, all green):**
-- Batch A (PERF-1/UX-8/UX-9): e2e → a concurrent 2-shard matrix job (fail-fast
-  off, per-shard artifacts, actions/cache for the chromium download keyed on
-  bun.lock); docs-only pushes skip CI entirely (paths-ignore **.md +
-  scripts/rotate/** — CD is workflow_run-gated, so they deploy nothing by
-  design; the next code push carries them); playwright.config parametrized
-  (E2E_PORT/E2E_DB/E2E_SHOTS).
-- Batch B (PERF-3/19/4/5): the perf harness was DEAD since migration 0060 —
-  explain-hotpaths' STAGES list predated the status rename (CHECK-constraint
-  crash on seed) and perf-seed still seeded the per-project task_categories
-  table (FK-fail against 0062's global categories). Both rebuilt on current
-  schemas; perf-pages speaks current vocab; perf-baseline.json re-pinned
-  (2026-10-11, 96 rows, 0 console errors). check-bundle-size per-file guard
-  re-keyed on LOGICAL manifest names (hashed keys made it structurally dead —
-  any edit re-hashed the filename and the guard skipped it as "new";
-  negative-tested with a faked baseline). NEW check-precache-size gate:
-  SHELL + manifest raw bytes against the SW's EXACT install filter (vendor
-  + i18n-fa excluded), budget 2,300 KB, measured 2,138 KB post-WebP — wired
-  into CI + package.json, ratchets DOWN only. sw.js's stale "~1.87MB" comment
-  corrected with the measured number.
-- Batch C (PERF-11/12/13): /api/clients 1+2N → 3 grouped IN-list queries (the
-  loadProjectSignals recipe; ORDER BY project_id, created_at preserves the
-  per-project order); tag rename/merge/collision-merge FTS rewrites N round
-  trips → ONE syncTaskSearchTagsBatch UPDATE (the devboard-helpers export; a
-  500-task tag rename was 500 sequential D1 RTTs at 10-40ms each); timeline
-  on-this-day 4 sequential windows → one flattened Promise.all of all 12
-  queries. 13 related unit tests re-run green.
-- Batch D (HLTH-19): the brief's named short waits converted — sprint-ux ×3
-  500ms (geometry → expect.poll on the actual boxes; the text assertion needs
-  no wait at all — expect() auto-retries); the 3 login-settle 300-400ms waits
-  → the loader-veil .is-hidden poll (the app's own boot-complete signal); the
-  cancel-test's 400ms grace KEPT with a comment (negative-proof windows have
-  no event to poll — documented so nobody "converts" it into a flake).
-- Batch E (HLTH-5/6): the dead-CSS diet, honestly re-verified — 15 rule
-  families deleted across 7 sheets (layout: .topbar-search family + .is-other
-  + .rail-cal-legend + .activity-more; dashboard: the typo'd .precent* S45
-  family; misc: .precent-all; quicknotes: .lang-check; notes: .vault-move-* +
-  .vault-tag-pop; to-do-list: .progress-label; dashboard-todo: .activity-more
-  selector). The audit's ~35-43 estimate CORRECTED: its per-sheet token
-  analysis couldn't see JS-CONSTRUCTED class names — dot-* (NOTE_COLOR_HEX),
-  ftag-* (TAGS cls), status-* (tone), p-in_progress/on_hold (progress), is-l2/3
-  (outline level), pd-pin-box-* (t.status), feed-* (it.kind), hljs-* (runtime
-  highlight) are ALL alive; and its layout candidates .rail-sync/.pc-corner
-  were already comment tombstones. The vacuous .precent-row e2e probe removed
-  with its class (it had passed on an empty NodeList since the S45 redesign).
-- Batch F (UX-3/4/5/6 + PERF-8): --accent-ink lands (light #297073 = 5.74:1 —
-  the same ink as --link; dark #d9997f the ink-grade clay; icons/strokes KEEP
-  --accent) + the ONE real measured offender converted (.dash-vault-label,
-  was 2.5:1 on the card) + contrast-fn.js's TWO false-positive classes die:
-  (a) bubbled textContent audited wrapper DIVs at inherited colors (the
-  loader's dark-tile mark measured its white glyph's "H" at --text — a 1.1:1
-  phantom), (b) effectively-invisible elements were measured (the opacity-0
-  veil's children compute opacity:1; the display:none mobile bar's anchors
-  compute their own display:flex) — the fn now walks ancestors + skips
-  aria-hidden (WCAG 1.4.3 decorative exemption) + requires a DIRECT text
-  node. The a11y baseline re-pins contrast 2+4 → 0+0 (re-pin DOWN) + 5 new
-  identity-palette pins. UX-4: aria-labels on the REAL title-only set (canvas
-  pen widths ×4 reusing existing keys; sadhana qeEmo/qeEmpty with 2 new i18n
-  keys — parity 1572; the audit's reports copy/CSV buttons already carried
-  text spans, spark-pin was already JS-labeled). UX-5: the skip-link re-added
-  on all 24 shell pages (the a11y.skipToMain key existed in BOTH dictionaries
-  all along — only the markup was removed in Session 21); 4 main-less pages
-  gain id="main" (canvas/whiteboard/sadhana/sprint). UX-6: the fine-world
-  rule DOCUMENTED once (24px WCAG 2.5.8 EFFECTIVE via the ring idiom, in
-  misc.css beside the 40px coarse floor) + rings for the two sub-24 offenders
-  (q-pen 22→26 effective; cal-note-x ~20→~26). PERF-8: Login.jpg → Login.webp
-  (112,648 B → 69,992 B at q70; preloads + CSS + SW SHELL swapped; precache
-  2,180 → 2,138 KB).
-- LADDER: typecheck 0 · vitest 632/632 (+5) · eslint 0/0 · build 85 ·
-  cache-bust PASS (15 assets, ~370 refs) · parity 1572/1572 (+2) · bundle
-  −0.1% PASS (logical keys) · precache 2,138 KB PASS (new gate) · escape-lint
-  PASS (207 sinks) · FULL e2e 417/417 in TWO SHARDS (212+1flaky / 203+1flaky
-  — both known-class font/modal races, retry-passed, zero failures; total
-  matches the S199 count) · smoke ALL PASS · workers-smoke PASS (local, real
-  CF creds) · dist-wiring PASS · Lighthouse floors PASS locally (login perf
-  100 / a11y 100 / bp 96; next-redirect 94/100/96; seo 82 warn).
-
-**The round's own discoveries (banked for the next agent):**
-1. THE BUMP-SCRIPT BUG (nearly shipped): a cache-bust version-bump script's
-   replace pattern used an OPTIONAL leading slash — `(\/?notes\.css\?v=)\d+`
-   — which tail-matched inside `quicknotes.css?v=48`, silently DOWNGRADING
-   25 refs to a stale v21/22 URL (a URL old clients may still have cached
-   from an ancient release). Caught by diffing HEAD's authoritative versions
-   (`git show HEAD:file | rg`) after the numbers looked wrong vs the §1
-   record; fixed to v49. LESSON: after ANY scripted version bump, verify each
-   file's new version against `git show HEAD:` + max-scan, and never use an
-   optional-slash pattern when a longer filename can end with the shorter one.
-2. The audit's dead-CSS method (per-sheet token analysis) over-counts by
-   construction: any class emitted via template literals (`feed-${kind}`,
-   `dot-${c}`, `status-${tone}`) reads as dead. The construction-site grep
-   (`rg "ftag-\\$|dot-\\$" ...`) is the mandatory second pass. Real dead set:
-   15 families, not ~35-43.
-3. contrast-fn's visibility check read only the ELEMENT's own styles —
-   opacity/display on ANCESTORS doesn't propagate to computed styles, so the
-   opacity-0 loader veil and the display:none mobile bar were audited as
-   visible. Any DOM walker that checks visibility must walk ancestors.
-4. esbuild escapes non-ASCII as \uXXXX in the dist bundles (the i18n-fa
-   Persian probes must key on the KEY NAME, not the value) and the CSS
-   minifier KEEPS the space in custom-property values (`--accent-ink:
-   #297073`) — both learned by the live-verify's first pass.
-5. The `[m`-swallowing tool-output artifact (S199's discovery) is BROADER:
-   `[h` in selectors (`.user-menu-item[href=...]`) also vanishes from
-   displayed output — and it can bite in BOTH directions (a Python repr also
-   displayed mangled). od -c remains the byte truth. WORSE: copying text from
-   a mangled display into a Write pastes the CORRUPTION into the file (this
-   session corrupted ci.yml's `branches:` lines that way and fixed them via
-   chr()-built strings).
-
-**Open risks + next (S201 per the brief):**
-- S201 "Majors + Approvals" unchanged: ASK ALI (rule 4) the four asks (the 4
-  rule-9 indexes; legacy font-format deletion; zod-4 + node-server-2
-  scheduling; __Host- cookie prefix); run + RECORD the restore drill; the
-  error_log daily monitor → healthchecks /fail; project-page.js split
-  (ride-along); worklog rotation mode + Changelogs row-wrap.
-- Banked from S200: the e2e spec DB-constant sweep (86 files hardcode
-  /tmp/hibana-e2e.db — the blocker for LOCAL parallel shards; CI shards are
-  unaffected); the per-sheet --accent-ink conversion continues opportunistically
-  (the a11y gate ratchets every page it measures — new accent-as-text fails CI
-  until it uses the ink); the mobile Lighthouse preset (UX-17) still unmeasured.
-- The 2 e2e flake classes (the Vazir font race on s155, the sprint-doc modal
-  under load) are retry-absorbed (retries:1) — the waits-to-polls conversion
-  continues per HLTH-19 but these two predate it.
-
----
-
 ## Session S201 — MAJORS + APPROVALS (the S198 brief's owner-decision round; docs/ops only — no version bump)
 
 Task ID: S201 (single-agent session)
@@ -356,3 +215,28 @@ mobile Lighthouse preset), the owner-machine drill run + key-custody drill (§4)
 dependabot minors (hono 4.13.12, the dev-deps group, actions/checkout+upload-artifact
 majors — CI plumbing, one deliberate round when taken), HLTH-24's incremental
 project-page.js extraction (only when next touched for real work).
+
+---
+## Session S204 — THE DEPENDABOT ROUND + THE ACCENT-INK SWEEP + THE MOBILE LANE (the banked-leftovers closer)
+
+**Dispatch:** "yes finish all the works and tasks. then wrap up this session. Push commit update changelogs and deploy."
+
+**Work Log:**
+- Reading ritual + state verified: main @ d852532 in sync, tree clean, LIVE v0.4.1.27 healthy, all 3 healthchecks up, 4 dependabot PRs open (#13 hono, #14 dev-group, #1 checkout v7, #6 upload-artifact v7 — the PRs also carried retired package-lock.json patches).
+- **Batch A (deps)**: minors first behind the gates (hono ^4.13.12→resolves 4.13.13, workers-types, playwright+@playwright/test synced 1.64.0, eslint, tsx, typescript-eslint, wrangler 4.148) — all green; then the majors ONE AT A TIME: @types/node 26 (ONE documented double-cast in src/index.ts: HeadersIterator gained Symbol.dispose) ✓, typescript 6.0.3 ✓ (TS 7.0.2 TRIED + WALLED: typescript-eslint hard-errors, issue #10940) ✓, vitest 5.0.3 (635/635) ✓. actions/checkout v7 ×5 + upload-artifact v7 ×2 applied.
+- **Batch B (accent-ink)**: 19 accent-as-TEXT sites → --accent-ink across notes.css ×14 / quicknotes / dashboard / devboard / base (the skip-link); every remaining color:var(--accent) classified icon/border/decorative/native-control and KEPT (the doctrine's other half — the folder-icon probe pins it live). Cache-bust base v14 · notes v22 · quicknotes v50 · dashboard v43 · devboard v30 (~116 refs/32 files) + sw v436→v437 (last-3 notes rotated).
+- **Batch C (UX-17)**: lighthouserc.mobile.json (formFactor=mobile — the CLI's "preset" has no mobile value, absence IS mobile; 3 runs for medians) + the CI step. HONEST measured floors: cold login 89-90; the SW-active returning-user variant (dashboard→login?next=) 46-49 CONSISTENTLY — Lantern's SW-response pessimism, not variance; floor 0.45 binds there to catch collapse.
+- **Ladder ALL GREEN**: typecheck 0 · 635/635 · eslint 0/0 · build 85 · cache-bust · parity 1572/1572 · bundle −0.1% · precache +163KB · escape-lint 207 · dist-wiring canonical · FULL e2e 417/417 two parallel local shards (213 + 204, ZERO flakes — shard 2's first parallel run exited 0 with an EMPTY log = not evidence; the solo re-run is) · smoke · workers-smoke (real CF creds) · Lighthouse desktop + mobile.
+- **Release**: secret-scan CLEAN → push 3891c25 → CI 38183808774 ALL JOBS GREEN (the v7 actions' + mobile lane's first run; ci 5m + e2e 7m parallel) → CD 38184241827 GREEN → qa/s204-live-verify.mjs ALL GREEN 27/27 (5 sheets byte-IDENTICAL; wired /dist/ hashes == local manifest — the verifier's first draft probed canonical ?v= refs and failed WRONG: live HTML is deploy-wired; 7 accent-ink probes + the icon-keeps-accent probe; the __Host- battery on hono 4.13.13) → tag v0.4.1.28 → zip 592 files integrity OK secret-scan CLEAN → healthchecks UP → PRs #1/#6/#13/#14 closed with reasons.
+- **Docs**: Changelogs §1 rotated to v0.4.1.28 + row 204 (rotate.mjs dry-run first); this handover; SESSION-BRIEF status.
+
+**Lessons (this session's own):**
+1. MultiEdit applies edits SEQUENTIALLY — a mid-batch failure leaves earlier edits LANDED. Audit file state after any failed batch; don't assume atomicity.
+2. The Bash tool kills backgrounded (&) subshells when the call returns — parallel e2e shards need ONE foreground `… & … & wait` command; an exit-0-with-empty-log is NOT evidence — the solo re-run is.
+3. Live HTML is deploy-WIRED (/dist/<name>.<hash>.css) — probe the content hash against the local build's manifest, never the canonical ?v= form.
+4. TS 7's wall was found in 30 seconds by trying it behind the gates — the wall IS the finding; TS 6 (the continuation line) shipped instead.
+
+**Stage Summary:**
+- LIVE hibana.ir @ v0.4.1.28, sw v437, schema 63 — the S203 handover's banked menu FULLY executed; the repo carries ZERO open dependabot PRs and the whole dependency surface is current except TS 7 (ecosystem-walled, documented).
+- Remaining (owner-side or doctrine-deferred): owner-machine drill runs + key-custody drill (§4 — owner-held keys); HLTH-24 project-page.js extraction (only when next touched); TS 7 (when typescript-eslint ships support); the SW-active mobile trace shape (measurement artifact, worth one look someday).
+- Artifacts: commits 3891c25 (feature) + this docs round; tag v0.4.1.28; zip hibana.0.4.1.28.zip (/home/z/upload + the sandbox download folder); new tools lighthouserc.mobile.json + qa/s204-live-verify.mjs.

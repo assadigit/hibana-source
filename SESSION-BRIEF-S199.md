@@ -45,6 +45,25 @@
 > §1 (opportunistic --accent-ink, UX-17 mobile preset, the owner-machine drills,
 > dependabot minors, HLTH-24's incremental extraction). The full records: Changelogs §1
 > rows 202+203 + worklog.md's S202/S203 sections.**
+>
+> **S204 "The Dependabot Round + The Accent-Ink Sweep + The Mobile Lane" ALSO EXECUTED
+> 2026-10-11 — released as v0.4.1.28 (push 3891c25, CI 38183808774 ALL JOBS GREEN —
+> the v7 actions' + the mobile Lighthouse lane's first run, CD 38184241827 GREEN,
+> qa/s204-live-verify.mjs ALL GREEN 27/27).** The banked leftovers menu is now FULLY
+> executed: the CI-plumbing dependency round (hono 4.13.13 · playwright+@playwright/test
+> 1.64.0 synced · workers-types 5.20261011.1 · @types/node 26.6.4 with one documented
+> double-cast · eslint 10.12 · tsx 4.23.15 · typescript 6.0.3 — TS 7.0.2 TRIED +
+> HONESTLY WALLED: typescript-eslint hard-errors on TS 7.0, issue #10940 ·
+> typescript-eslint 8.71.1 · vitest 5.0.3 · wrangler 4.148 · actions/checkout v7 ×5 +
+> upload-artifact v7 ×2; PRs #1/#6/#13/#14 closed as superseded) + the accent-ink sweep
+> (19 accent-as-text sites across 5 sheets, every remaining color:var(--accent) verified
+> icon/border/decorative and kept; sw v437) + UX-17 (the mobile Lighthouse lane with
+> HONEST floors: cold 89-90, the SW-active returning-user variant 46-49 — Lantern's SW
+> pessimism, floor 0.45 catches collapse). What remains is OWNER-SIDE or doctrine-
+> deferred ONLY: the owner-machine drill runs + key-custody drill (§4 — owner-held
+> keys, an agent CANNOT run them), HLTH-24's incremental project-page.js extraction
+> (only when next touched for real work), TS 7 (when typescript-eslint ships support).
+> The full record: Changelogs §1 row 204 + worklog.md's S204 section.**
 
 **You are the next agent.** Read, in order: `Agents.md` (canonical rules) → `SWOT-AUDIT-S198.md`
 (the audit — every finding has an ID; THIS brief references those IDs) → `Changelogs.md` §1 →

@@ -172,7 +172,7 @@ jobs:
       # every run; `install` becomes a fast no-op on cache hit (system deps via
       # --with-deps still apt-install, ~30s, they can't be cached).
       - name: Cache Playwright browsers
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: ~/.cache/ms-playwright
           key: pw-chromium-${{ runner.os }}-${{ hashFiles('bun.lock') }}

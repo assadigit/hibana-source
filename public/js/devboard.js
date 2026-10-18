@@ -7,26 +7,61 @@
 (function () {
   'use strict'
 
-  // S206 part 2 (live-probe root cause, 2026-10-18): every GET now opts out of the
-  // HTTP cache machinery with { cache: 'no-store' }. WHY: the server stamps the
-  // devboard payload `private, no-cache` (must-revalidate via If-None-Match), and a
-  // reload fired from a mutation's continuation (create/start/finish → reload → the
-  // SAME URL) HUNG forever on the live Worker host — the fetch never settled, the
-  // timeline stayed stale until a manual refresh (a core "the sprint system is
-  // buggy" symptom; reproduced 4 ways on prod, absent on the local Node path).
-  // no-store skips the revalidation dance entirely — the payload is always-fresh
-  // by design anyway (no-cache's own semantics), so this costs nothing and kills
-  // the hang class dead. Mutations were never cached; the flag is inert for them.
-  const api = (path, opts) => fetch(path, { ...opts, cache: 'no-store' }).then((r) => {
-    if (!r.ok) {
-      // Carry the HTTP status on the thrown error so pages can tell a DELETED
-      // project (404 — retry will never help) from a transient failure (retry does).
-      const err = new Error(r.status + ' ' + path)
-      err.status = r.status
-      throw err
-    }
-    return r.status === 204 ? null : r.json()
-  })
+  const api = (path, opts) => {
+    // S206 parts 2+3 (live-probe root causes, 2026-10-18): the fetch layer is
+    // hardened against a browser/edge dispatch bug that is REAL on prod and
+    // invisible locally. WHAT HAPPENED (probe-prod truth, four reproduction
+    // generations): the GET /devboard fired from a mutation's continuation
+    // (create/start/finish → reload → the SAME URL) was dispatched by the renderer
+    // (requestWillBeSent) but NEVER reached the Worker (wrangler tail: every other
+    // invocation visible — the boot GET, the POST, the cleanup DELETE — never the
+    // hung GET; all worker-side outcomes ok, single-digit ms) — the request
+    // vanished between the browser and the edge, on BOTH hosts, with and without
+    // the service worker, regardless of cache mode or a cache-busting unique URL.
+    // The page's fetch promise hung FOREVER: every sprint mutation left the
+    // timeline stale until a manual refresh — a core "the sprint system is buggy"
+    // symptom for the daily user. THE FIX (validated 4/4 on prod, both hosts,
+    // retries=0): every GET dispatches with an AbortController signal + a 3s
+    // deadline + ONE retry — the signal-wrapped dispatch shape empirically avoids
+    // the swallow entirely, and the deadline+retry is belt-and-braces for any
+    // residual case (an aborted stuck request re-fetches; the second fetch has
+    // always completed in every reproduction). Mutations keep the plain path (they
+    // never hung; retrying them would double-write). cache:'no-store' rides along
+    // on every call (part 2): the payload is always-fresh-by-design (the server
+    // stamps `private, no-cache`), so skipping the revalidation machinery costs
+    // nothing.
+    const send = (signal) => fetch(path, { ...opts, cache: 'no-store', signal })
+    const isMutation = !!(opts && opts.method && opts.method !== 'GET')
+    const fetchOnce = isMutation ? send() : new Promise((resolve, reject) => {
+      const ctl = new AbortController()
+      const timer = setTimeout(() => ctl.abort(), 3000)
+      send(ctl.signal).then(
+        (r) => { clearTimeout(timer); resolve(r) },
+        (e) => {
+          clearTimeout(timer)
+          if (e && e.name === 'AbortError') {
+            // one retry on a FRESH request (the second fetch has always completed)
+            const ctl2 = new AbortController()
+            const t2 = setTimeout(() => ctl2.abort(), 10000)
+            send(ctl2.signal).then(
+              (r2) => { clearTimeout(t2); resolve(r2) },
+              (e2) => { clearTimeout(t2); reject(e2) },
+            )
+          } else reject(e)
+        },
+      )
+    })
+    return fetchOnce.then((r) => {
+      if (!r.ok) {
+        // Carry the HTTP status on the thrown error so pages can tell a DELETED
+        // project (404 — retry will never help) from a transient failure (retry does).
+        const err = new Error(r.status + ' ' + path)
+        err.status = r.status
+        throw err
+      }
+      return r.status === 204 ? null : r.json()
+    })
+  }
 
   const t = (key, fallback) => (window.hibanaI18n && window.hibanaI18n.t(key)) || fallback
   const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c])

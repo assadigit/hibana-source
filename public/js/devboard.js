@@ -7,7 +7,17 @@
 (function () {
   'use strict'
 
-  const api = (path, opts) => fetch(path, opts).then((r) => {
+  // S206 part 2 (live-probe root cause, 2026-10-18): every GET now opts out of the
+  // HTTP cache machinery with { cache: 'no-store' }. WHY: the server stamps the
+  // devboard payload `private, no-cache` (must-revalidate via If-None-Match), and a
+  // reload fired from a mutation's continuation (create/start/finish → reload → the
+  // SAME URL) HUNG forever on the live Worker host — the fetch never settled, the
+  // timeline stayed stale until a manual refresh (a core "the sprint system is
+  // buggy" symptom; reproduced 4 ways on prod, absent on the local Node path).
+  // no-store skips the revalidation dance entirely — the payload is always-fresh
+  // by design anyway (no-cache's own semantics), so this costs nothing and kills
+  // the hang class dead. Mutations were never cached; the flag is inert for them.
+  const api = (path, opts) => fetch(path, { ...opts, cache: 'no-store' }).then((r) => {
     if (!r.ok) {
       // Carry the HTTP status on the thrown error so pages can tell a DELETED
       // project (404 — retry will never help) from a transient failure (retry does).
@@ -467,7 +477,9 @@
   let labelsOnChanged = null
 
   async function fetchTags() {
-    const res = await fetch('/api/tags')
+    // S206 part 2: same no-store rule (see the api() note) — this reloads the same
+    // URL after label edits; same class, same opt-out.
+    const res = await fetch('/api/tags', { cache: 'no-store' })
     if (!res.ok) throw new Error('tags failed')
     return (await res.json()).tags || []
   }

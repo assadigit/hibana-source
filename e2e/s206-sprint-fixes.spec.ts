@@ -244,6 +244,41 @@ test('DnD: a sidebar task dropped on the DRAFT card joins the draft (the adverti
   expect(errors).toEqual([])
 })
 
+test('the devboard client NEVER touches the HTTP cache (the live-hang fix — mutations must always re-render)', async ({ page, browserName }) => {
+  test.skip(browserName !== 'chromium', 'Desktop Chromium only')
+  const errors = trackErrors(page)
+  await login(page)
+  const { pid } = await seedSprint(page, 1)
+  await page.goto(`/sprint.html?project=${pid}`)
+  await page.waitForSelector('#sp-wrap:not([hidden])', { timeout: 10_000 })
+  // watch every fetch the HibanaBoard client makes — all of them must carry
+  // cache: 'no-store'. (Root cause of the LIVE hang: a post-mutation reload of the
+  // same URL hung forever in the SW+revalidation path on the Worker host — the
+  // timeline went stale until a manual refresh. Pinned here so the flag can't regress.)
+  await page.evaluate(() => {
+    window.__apiCalls = []
+    const orig = window.fetch
+    window.fetch = function (input, init) {
+      const url = typeof input === 'string' ? input : (input && input.url) || ''
+      if (/devboard|devtasks|\/sprints/.test(url)) window.__apiCalls.push({ url: url.slice(-30), cache: (init && init.cache) || null })
+      return orig.apply(this, arguments)
+    }
+  })
+  // quick-add a task (Enter in the sidebar row) — the create + reload round-trip
+  await page.click('[data-cat-toggle="none"]')
+  await page.waitForTimeout(300)
+  await page.fill('[data-quickadd="none"]', 'no-store witness')
+  await page.press('[data-quickadd="none"]', 'Enter')
+  await page.waitForTimeout(1500)
+  const calls = await page.evaluate(() => window.__apiCalls)
+  expect(calls.length).toBeGreaterThanOrEqual(2) // at least one GET devboard + one POST devtasks
+  for (const c of calls) expect(c.cache, JSON.stringify(c)).toBe('no-store')
+  // and the reload landed — the new task is IN the re-rendered sidebar (the list
+  // collapses again after a reload — presence, not visibility, is the contract)
+  await expect(page.locator('.sp-task', { hasText: 'no-store witness' })).toHaveCount(1)
+  expect(errors).toEqual([])
+})
+
 test('z-order: a task dot under a boundary rail is CLICKABLE (the editor opens — was rail-shadowed dead pixels)', async ({ page, browserName }) => {
   test.skip(browserName !== 'chromium', 'Desktop Chromium only')
   const errors = trackErrors(page)

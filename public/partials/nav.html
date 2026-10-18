@@ -61,6 +61,14 @@
       <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h7a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7Z"/><path d="M12 11v4M10 13h4"/></svg>
       <span class="rail-label" data-i18n="rail.label.projects">Projects</span>
     </a>
+    <!-- S205 (Kanban entry-point spec §3.1/§3.2): the dedicated project-Kanban entry is a
+         first-class rail destination — PURE NAVIGATION (the Canvas pattern: click shows
+         the page, no panel). The owner's daily work surface, one click from anywhere;
+         /kanban remembers the last board and carries the in-toolbar project switcher. -->
+    <a class="rail-btn" href="/kanban" aria-label="Kanban" data-i18n-aria-label="nav.kanban" data-i18n-title="nav.kanban" title="Kanban">
+      <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="4" width="4.5" height="16" rx="1.2"/><rect x="9.75" y="4" width="4.5" height="10" rx="1.2"/><rect x="16" y="4" width="4.5" height="13" rx="1.2"/></svg>
+      <span class="rail-label" data-i18n="rail.label.kanban">Kanban</span>
+    </a>
     <a class="rail-btn" href="/sparks.html" data-rail-panel="sparks" data-rail-nav aria-expanded="false" aria-label="Ideas" data-i18n-aria-label="nav.sparks" data-i18n-title="nav.sparks" title="Ideas">
       <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 18h6M10 22h4"/><path d="M12 2a7 7 0 0 0-4.2 12.6c.9.7 1.2 1.6 1.2 2.4h6c0-.8.3-1.7 1.2-2.4A7 7 0 0 0 12 2Z"/></svg>
       <span class="rail-label" data-i18n="rail.label.ideas">Ideas</span>

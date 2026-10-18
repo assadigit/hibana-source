@@ -260,6 +260,10 @@ export function createApp(cfg: Config) {
     '/to-do-list.html',
     '/timeline',
     '/timeline.html',
+    // S205 (Kanban entry-point spec §3.1): the dedicated project-Kanban entry — served by
+    // the /kanban route below (board.html through the assets binding, auth-gated).
+    '/kanban',
+    '/kanban.html',
   ])
 
   const assetsFirst = cfg.assets
@@ -346,6 +350,39 @@ export function createApp(cfg: Config) {
   // old links land on the Reports page, where the activity feed now lives.
   app.get('/timeline', (c) => c.redirect('/reports.html', 301))
   app.get('/timeline.html', (c) => c.redirect('/reports.html', 301))
+  // S205: the .html spelling of the Kanban entry point 301s to the canonical short form
+  // (the /to-do-list.html pattern — one canonical URL, old-style links keep working).
+  app.get('/kanban.html', (c) => c.redirect('/kanban', 301))
+  // S205 (Kanban entry-point spec §3.1): /kanban is the dedicated project-Kanban entry
+  // point — the SAME board.html the /board.html URL serves (one file, one cache-bust
+  // surface, zero duplication), auth-gated so no shell HTML reaches anonymous visitors.
+  // Registered BEFORE coreRoutes' global requireAuth wildcard (the /signup + /to-do-list
+  // pattern) so OUR gate owns the redirect — loginNext preserves the full entry URL
+  // through the login round-trip (hib-init.js safeNext honors ?next=/kanban?project=…
+  // after sign-in), so a bookmarked board survives an expired session. The response is
+  // stamped no-store (the S108 page-freshness contract — Worker-served page HTML must
+  // never sit in a cache referencing dist hashes a newer build already purged; the
+  // assets middleware only stamps responses it serves itself, and here the binding
+  // 404'd /kanban at the middleware level so the stamp is ours to make).
+  // The page JS (board-page.js) owns the rest of the spec's §3.2 contract: default-project
+  // resolution, the project switcher, and the empty state. Deep links
+  // (?project=&task=&add=) ride the query untouched.
+  app.get(
+    '/kanban',
+    requireAuth(cfg, { loginNext: true }),
+    async (c) => {
+      if (!cfg.assets) return c.redirect('/board.html', 302)
+      const res = await cfg.assets(new URL('/board.html', c.req.url), c.req.raw)
+      if (res.status === 404) return c.redirect('/board.html', 302)
+      const type = res.headers.get('content-type') ?? ''
+      if (res.ok && type.includes('text/html')) {
+        const headers = new Headers(res.headers)
+        headers.set('cache-control', 'no-store')
+        return new Response(res.body, { status: res.status, statusText: res.statusText, headers })
+      }
+      return res
+    },
+  )
 
   app.route('/', coreRoutes(cfg))
   app.route('/', moduleRoutes(cfg))

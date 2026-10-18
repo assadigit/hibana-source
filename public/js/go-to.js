@@ -2,7 +2,7 @@
 // Press `g`, then within 1s press a letter to jump to a page:
 //   g d → dashboard, g p → projects, g s → sparks (ideas), g o → notes (vault),
 //   g t → to-do list, g c → canvas, g n → notebook, g r → reports, g a → archive,
-//   g e → settings, g l → calendar, g f → notifications.
+//   g e → settings, g l → calendar, g f → notifications, g k → kanban (S205).
 // The `g` keypress shows a brief "g…" hint pill bottom-center; if no follow-up key arrives
 // within 1s, it cancels silently. Never triggers when typing in an input/textarea/select.
 // Zero deps, zero DB, progressive enhancement.
@@ -15,6 +15,7 @@
     o: '/notes.html', // S53: the Notes Vault (n was taken by the notebook)
     c: '/canvas.html', n: '/whiteboard.html', r: '/reports.html', a: '/archive.html',
     e: '/settings.html', l: '/calendar.html', f: '/notifications.html',
+    k: '/kanban', // S205: the dedicated project-Kanban entry point
   }
 
   let armed = false

@@ -380,7 +380,7 @@
   // in BOTH states — a manual toggle flips the class for the current page visit; the
   // next navigation re-syncs to the page default (auto-collapsed on the board, labels
   // restored everywhere else).
-  const RAIL_ICON_PAGES = new Set(['/notes.html', '/notes', '/board.html', '/board']) // S158: '/board' — live serves it extensionless (307), the icons-only rail never engaged there
+  const RAIL_ICON_PAGES = new Set(['/notes.html', '/notes', '/board.html', '/board', '/kanban', '/kanban.html']) // S158: '/board' — live serves it extensionless (307), the icons-only rail never engaged there. S205: '/kanban' (+ its .html spelling) — the fullscreen board's own entry point gets the same full-width treatment
   function syncRailIconMode(pathname) {
     const on = RAIL_ICON_PAGES.has(pathname)
     document.body.classList.toggle('rail-icons-only', on)

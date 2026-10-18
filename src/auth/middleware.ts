@@ -8,9 +8,36 @@ import { isBanned, banQueryParams } from './ban'
 // this often — the admin console's "online" dot reads the same column.
 const PRESENCE_STALE_MS = 5 * 60 * 1000
 
+// S205 (Kanban entry-point spec §3.1/§3.3): option for page-shell routes whose login
+// bounce should preserve the FULL entry URL (?next=/kanban[?project=…]) so a
+// bookmarked deep link survives an expired session — the same round-trip the
+// client-side guard (hib-init.js loginBounce + safeNext) gives static shell pages
+// like /board.html. Existing callers never pass it → their redirects are byte-identical
+// (plain /login.html, pinned by src/tests/auth.test.ts + csrf.test.ts).
+export interface RequireAuthOptions {
+  loginNext?: boolean
+}
+
+/** Does this request expect an HTML document (vs a JSON API client)? */
+function wantsDocument(c: Parameters<MiddlewareHandler>[0]): boolean {
+  return (
+    c.req.header('Sec-Fetch-Dest') === 'document' ||
+    c.req.header('HX-Request') !== undefined ||
+    // Session 20 (SW-navigation fix): a service worker's navigate-mode re-fetch
+    // (network-first shell strategy, public/sw.js) re-stamps the request as a
+    // worker-initiated fetch — Sec-Fetch-Dest: document is LOST on the way to the
+    // origin, so an expired-session reload of /app rendered the raw JSON 401 body
+    // instead of bouncing to login. Browsers always send Accept: text/html on real
+    // document navigations and the SW fetch preserves the original Accept header —
+    // this closes the gap for every HTML-expecting caller. JSON API clients (curl,
+    // the offline queue, XHR/fetch with */* or application/json) are unaffected.
+    (c.req.header('accept') ?? '').includes('text/html')
+  )
+}
+
 // Gate every user-owned route behind this. Rule 1 starts at the auth boundary:
 // the authenticated user id is the single filter for every subsequent query.
-export function requireAuth(cfg: Config): MiddlewareHandler {
+export function requireAuth(cfg: Config, opts: RequireAuthOptions = {}): MiddlewareHandler {
   return async (c, next) => {
     const token = getCookie(c, SESSION_COOKIE)
     // P3.3 (F-L1): one JOIN query validates the session AND fetches the user (was 2-3
@@ -18,19 +45,15 @@ export function requireAuth(cfg: Config): MiddlewareHandler {
     // The extend-on-activity + expired-session-cleanup are fire-and-forget via waitUntil.
     const result = await validateSessionWithUser<UserRow>(cfg.db, token)
     if (!result) {
-      const wantsDocument =
-        c.req.header('Sec-Fetch-Dest') === 'document' ||
-        c.req.header('HX-Request') !== undefined ||
-        // Session 20 (SW-navigation fix): a service worker's navigate-mode re-fetch
-        // (network-first shell strategy, public/sw.js) re-stamps the request as a
-        // worker-initiated fetch — Sec-Fetch-Dest: document is LOST on the way to the
-        // origin, so an expired-session reload of /app rendered the raw JSON 401 body
-        // instead of bouncing to login. Browsers always send Accept: text/html on real
-        // document navigations and the SW fetch preserves the original Accept header —
-        // this closes the gap for every HTML-expecting caller. JSON API clients (curl,
-        // the offline queue, XHR/fetch with */* or application/json) are unaffected.
-        (c.req.header('accept') ?? '').includes('text/html')
-      if (wantsDocument) return c.redirect('/login.html')
+      if (wantsDocument(c)) {
+        // loginNext: carry the entry path (+query) so login.html's safeNext honored
+        // redirect returns the user to the exact page they opened (S111 contract).
+        if (opts.loginNext) {
+          const url = new URL(c.req.url)
+          return c.redirect('/login.html?next=' + encodeURIComponent(url.pathname + url.search))
+        }
+        return c.redirect('/login.html')
+      }
       return c.json({ error: 'unauthorized' }, 401)
     }
     const { user, sessionId, expiresAt, needsExtend } = result
@@ -40,11 +63,13 @@ export function requireAuth(cfg: Config): MiddlewareHandler {
       fireAndForget(c, () => deleteSessionById(cfg.db, sessionId))
       // Session 20: same Accept:text/html document check as the no-session branch (SW
       // navigate re-fetches lose Sec-Fetch-Dest — see the comment above).
-      const wantsDocument =
-        c.req.header('Sec-Fetch-Dest') === 'document' ||
-        c.req.header('HX-Request') !== undefined ||
-        (c.req.header('accept') ?? '').includes('text/html')
-      if (wantsDocument) return c.redirect('/login.html')
+      if (wantsDocument(c)) {
+        if (opts.loginNext) {
+          const url = new URL(c.req.url)
+          return c.redirect('/login.html?next=' + encodeURIComponent(url.pathname + url.search))
+        }
+        return c.redirect('/login.html')
+      }
       return c.json({ error: 'unauthorized' }, 401)
     }
     // Suspended accounts are locked out here (batch e): htmx requests get an HX-Redirect

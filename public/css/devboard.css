@@ -879,3 +879,103 @@ main.shell.sp-shell .sp-wrap { min-block-size: min(64vh, 30rem); }
 .sp-list-badge.is-draft { background: color-mix(in srgb, var(--muted) 12%, transparent); color: var(--muted); }
 .sp-list-dates { white-space: nowrap; }
 .sp-list-items { white-space: nowrap; }
+
+/* --- S205: the project switcher (spec §3.2 — board-page.js + board.html) --------
+   The board title IS the switcher: the current project's name + a chevron open a
+   searchable popover listing every accessible project. Anchored under the button
+   (direction-aware inline positioning set by JS), max-height list with the app's
+   scrollable-list convention, logical properties throughout for RTL. Reuses the
+   .badge.badge-<status> chip system (variables.css) for stage badges. */
+.db-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font: inherit;               /* keeps the .db-title look (fs-xl + weight) */
+  font-size: var(--fs-xl);
+  color: var(--ink-primary, inherit);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm, 8px);
+  padding: 0.1rem 0.45rem;
+  margin-inline-start: -0.45rem; /* optically aligns the title text with the row above */
+  max-inline-size: 100%;
+  cursor: pointer;
+  min-height: 44px;            /* touch floor (the repo's a11y convention) */
+  overflow-wrap: anywhere;
+}
+.db-switch:hover { background: var(--bg-soft, rgb(0 0 0 / 4%)); border-color: var(--line); }
+.db-switch:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
+.db-switch-chev { flex: none; inline-size: 1rem; block-size: 1rem; color: var(--muted); transition: transform 0.15s ease; }
+.db-switch[aria-expanded="true"] .db-switch-chev { transform: rotate(180deg); }
+
+.db-switch-pop {
+  position: absolute;
+  z-index: 80; /* above the rail panel (z 60-70) and card menus */
+  inline-size: min(22rem, calc(100vw - 1.6rem));
+  background: var(--card);
+  color: var(--ink-primary, inherit);
+  border: 1px solid var(--line-strong, var(--line));
+  border-radius: var(--radius-md, 12px);
+  box-shadow: 0 8px 28px rgb(0 0 0 / 0.16), 0 2px 8px rgb(0 0 0 / 0.10);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden; /* the list scrolls, the pop clips */
+}
+.db-switch-head { padding: 0.5rem; border-block-end: 1px solid var(--line); }
+.db-switch-search {
+  inline-size: 100%;
+  padding: 0.45rem 0.65rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm, 8px);
+  background: var(--bg-soft, transparent);
+  color: inherit;
+  font: inherit;
+  font-size: var(--fs-md);
+  min-height: 40px;
+}
+.db-switch-search:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 1px; }
+.db-switch-list { max-height: 24rem; overflow-y: auto; padding: 0.3rem; display: grid; gap: 0.15rem; }
+.db-switch-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  inline-size: 100%;
+  padding: 0.5rem 0.6rem;
+  border: 0;
+  border-radius: var(--radius-sm, 8px);
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: var(--fs-md);
+  text-align: start;
+  cursor: pointer;
+  min-height: 44px;
+}
+.db-switch-row:hover { background: var(--bg-soft, rgb(0 0 0 / 5%)); }
+.db-switch-row:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: -2px; }
+.db-switch-row.current { background: var(--accent-soft); }
+.db-switch-name { flex: 1 1 auto; min-inline-size: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.db-switch-cur { flex: none; font-size: var(--fs-xs); }
+.db-switch-empty { margin: 0; padding: 0.75rem 0.6rem; }
+.db-switch-all {
+  display: block;
+  padding: 0.55rem 0.75rem;
+  border-block-start: 1px solid var(--line);
+  font-size: var(--fs-sm);
+  color: var(--accent-ink); /* S204 doctrine: accent-as-TEXT uses the 5.74:1 ink */
+  text-decoration: none;
+}
+.db-switch-all:hover { text-decoration: underline; }
+.db-switch-all:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: -2px; }
+/* the board rows' badges reuse .badge .badge-<status> (variables.css tokens) — sized
+   down for the popover rows: */
+.db-switch-row .badge { font-size: var(--fs-xs); padding: 0.12rem 0.45rem; flex: none; }
+
+/* S205: the no-projects empty state (rendered into #db-board) centers like every
+   Hibana empty state. */
+.db-noprojects { max-inline-size: 34rem; margin: 3rem auto 0; text-align: center; }
+
+@media (max-width: 640px) {
+  /* the toolbar wraps on phones already (flex-wrap); the popover stays viewport-fit */
+  .db-switch-pop { inline-size: min(20rem, calc(100vw - 1.2rem)); }
+}

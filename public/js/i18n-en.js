@@ -4,6 +4,7 @@
 window.__hibanaDictEN = {
       // nav
       'nav.dashboard': 'Dashboard', 'nav.projects': 'Projects', 'nav.sparks': 'Ideas',
+      'nav.kanban': 'Kanban', // S205: the dedicated project-Kanban entry point
       'nav.canvas': 'Canvas', 'nav.canvasHint': 'Boundless board — pen, notes, promote to Idea',
       'nav.whiteboard': 'Notebook', 'nav.sadhana': 'To-do list',
       'nav.clients': 'Clients', 'nav.archive': 'Archive', 'nav.gallery': 'Gallery',
@@ -676,6 +677,11 @@ window.__hibanaDictEN = {
       'db.backToProject': 'Back to project', 'db.sprints': 'Sprints', 'db.board': 'Board',
       'db.loading': 'Loading…', 'db.loadFailed': "Couldn't load — try again", 'db.retry': 'Try again',
       'db.projectGone': "This project doesn't exist or was deleted", 'db.backToProjects': 'Back to projects',
+      // S205 (spec §3.2): the Kanban entry point's project switcher + empty state
+      'db.switchProject': 'Switch project', 'db.switchSearch': 'Search projects…', 'db.switchLoading': 'Loading projects…',
+      'db.switchEmpty': 'No projects found', 'db.switchCurrent': 'Current', 'db.switchAll': 'All projects →',
+      'db.noProjects': 'No projects yet', 'db.noProjectsText': 'Create your first project to start working with its Kanban board.',
+      'db.noProjectsCta': 'Go to projects',
       'pd.tasksDone': '{n} of {m} tasks done', 'pd.more': 'more', 'pd.moveFailed': "Couldn't move the task",
       // S29 follow-up (user request 2026-09-12): priority dropdown wording + task labels
       'pd.pr.urgent': 'Urgent', 'pd.pr.high': 'High Priority', 'pd.pr.medium': 'Medium Priority', 'pd.pr.low': 'Low Priority',

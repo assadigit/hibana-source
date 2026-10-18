@@ -27,6 +27,10 @@ const escN = (v) => String(v ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', 
   // The Admin row (batch r) ships hidden and is unhidden by app.js's role check —
   // [data-admin-link] lives on the sheet row too.
   const SHEET_LINKS = [
+    // S205: the Kanban entry point rides the mobile More sheet (the bottom tab bar's 5
+    // slots are unchanged — Projects stays the mobile hub; /kanban + its in-toolbar
+    // switcher is the focused boards surface).
+    { href: '/kanban', i18n: 'nav.kanban', label: 'Kanban', icon: '<rect x="3.5" y="4" width="4.5" height="16" rx="1.2"/><rect x="9.75" y="4" width="4.5" height="10" rx="1.2"/><rect x="16" y="4" width="4.5" height="13" rx="1.2"/>' },
     { href: '/canvas.html', i18n: 'nav.canvas', label: 'Canvas', icon: '<path d="M4 20l4.5-1L19.5 8a2 2 0 0 0-2.8-2.8L6.5 15.5 4 20Z"/><path d="M13.5 6.5l3.5 3.5"/>' },
     // Phase 6 item 4: Notebook sits next to Canvas in the mobile sheet too.
     { href: '/whiteboard.html', i18n: 'nav.whiteboard', label: 'Notebook', icon: '<rect x="5" y="3" width="14" height="18" rx="2"/><path d="M9 8h6M9 12h6M9 16h4"/>' },

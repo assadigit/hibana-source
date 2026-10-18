@@ -203,6 +203,23 @@ html:not([data-theme='claude-dark']) .themed-logo--dark { display: none; }
 .rail-spacer { flex: 1; }
 .rail-divider { inline-size: 1.75rem; block-size: 1px; background: var(--line); flex: none; }
 .rail-secondary { margin-block-start: 0.125rem; }
+
+/* S205 (the 8th primary destination): the labeled rail now overflows short viewports —
+   brand + search + 8 primaries + divider + settings/help/theme + account at the 3.1rem
+   rhythm needs ~790px, so at ≤780px height the ACCOUNT chip was pushed below the fold of
+   the FIXED (unscrollable) rail (measured: chip y=736 at 720p — unreachable). The compact
+   rhythm keeps every destination reachable: 2.875rem tiles (46px — above the 44px touch
+   floor; the S189 ≥48px doctrine is pinned at the default rhythm, which taller viewports
+   keep untouched), 3px gaps, tighter brand + paddings — 8 primaries + all secondary +
+   account fit in 720px with ~50px headroom (zoom/rounding safe). */
+@media (max-height: 780px) {
+  .rail { gap: 3px; padding: 5px 0 7px; }
+  .rail-brand { block-size: 2.4rem; }
+  .rail-primary { gap: 3px; margin-block-start: 2px; }
+  .rail-btn { min-block-size: 2.875rem; }
+  .rail-secondary { margin-block-start: 3px; }
+}
+
 /* the avatar: name hidden — icon-only rail (hover/focus opens the menu pop) */
 .rail-user { display: flex; }
 .rail-user-chip { padding: 0.25rem; border-radius: 999px; }

@@ -4,6 +4,7 @@
 window.__hibanaDictFA = {
       // nav
       'nav.dashboard': 'پیشخوان', 'nav.projects': 'پروژه‌ها', 'nav.sparks': 'ایده‌ها',
+      'nav.kanban': 'کانبان', // S205: نقطه ورود اختصاصی برد کانبان پروژه‌ها
       'nav.canvas': 'بوم', 'nav.canvasHint': 'فضای بی‌حدومرز — قلم، یادداشت، تبدیل به ایده',
       'nav.whiteboard': 'برگه یادداشت', 'nav.sadhana': 'لیست کارها',
       'nav.clients': 'مشتری‌ها', 'nav.archive': 'بایگانی', 'nav.gallery': 'نگارخانه',
@@ -673,6 +674,11 @@ window.__hibanaDictFA = {
       'db.backToProject': 'بازگشت به پروژه', 'db.sprints': 'اسپرینت‌ها', 'db.board': 'برد',
       'db.loading': 'در حال بارگذاری…', 'db.loadFailed': 'بارگذاری ناموفق بود — دوباره تلاش کن', 'db.retry': 'تلاش دوباره',
       'db.projectGone': 'این پروژه وجود ندارد یا حذف شده است', 'db.backToProjects': 'بازگشت به پروژه‌ها',
+      // S205 (مشخصات §3.۲): تعویض‌گر پروژه + حالت خالی نقطه ورود کانبان
+      'db.switchProject': 'جابه‌جایی پروژه', 'db.switchSearch': 'جستجوی پروژه…', 'db.switchLoading': 'در حال بارگذاری پروژه‌ها…',
+      'db.switchEmpty': 'پروژه‌ای پیدا نشد', 'db.switchCurrent': 'فعلی', 'db.switchAll': 'همه پروژه‌ها ←',
+      'db.noProjects': 'هنوز پروژه‌ای ندارید', 'db.noProjectsText': 'اولین پروژه‌تان را بسازید تا برد کانبان آن را ببینید.',
+      'db.noProjectsCta': 'رفتن به پروژه‌ها',
       'pd.tasksDone': '{n} از {m} کار انجام شد', 'pd.more': 'بیشتر', 'pd.moveFailed': 'جابه‌جایی کار ممکن نشد',
       // S29 پیگیری (درخواست کاربر ۱۴۰۵/۰۳/۲۱): واژه‌های منوی اولویت + برچسب‌های کار
       'pd.pr.urgent': 'فوری', 'pd.pr.high': 'اولویت بالا', 'pd.pr.medium': 'اولویت متوسط', 'pd.pr.low': 'اولویت کم',

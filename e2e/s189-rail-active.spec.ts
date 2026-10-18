@@ -75,6 +75,11 @@ const LABEL_INK = 'rgb(31, 90, 93)'
 
 test.describe('S189 — the rail\'s active SHAPE (the owner\'s CHANGE 7)', () => {
   test('geometry: the filled shape — 12px corners, 8px off each rail edge, covering icon + label as ONE unit', async ({ page }) => {
+    // S205: the 8-button rail runs its COMPACT rhythm (46px tiles) at ≤780px height;
+    // the S189 doctrine (≥48px tiles, 3.1rem rhythm) is defined on the DEFAULT rail,
+    // so the geometry pins run tall — the default rhythm at 900px is identical to the
+    // pre-S205 720px one (min-block-size is the only compact delta).
+    await page.setViewportSize({ width: 1280, height: 900 })
     await login(page)
 
     const rail = page.locator('nav.rail')

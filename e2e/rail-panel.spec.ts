@@ -170,15 +170,25 @@ test.describe('the navigation rail (Material navigation-rail pattern, S89 labele
     const railBox = await rail.boundingBox()
     expect(Math.round(railBox!.width)).toBe(88)
     const primary = page.locator('.rail .rail-primary a')
-    // S132: Canvas returned to the rail — 7 destinations (dashboard, to-do,
-    // projects, ideas, notes, calendar, canvas — canvas directly BELOW calendar).
-    expect(await primary.count()).toBe(7)
-    for (let i = 0; i < 7; i++) {
+    // S132: Canvas returned to the rail; S205: Kanban joined below Projects — 8
+    // destinations (dashboard, to-do, projects, kanban, ideas, notes, calendar, canvas —
+    // canvas directly BELOW calendar, kanban directly BELOW projects).
+    expect(await primary.count()).toBe(8)
+    for (let i = 0; i < 8; i++) {
       const label = await primary.nth(i).getAttribute('aria-label')
       expect(label, `primary icon ${i} has an accessible name`).toBeTruthy()
       const text = (await primary.nth(i).innerText()).trim()
       expect(text.length, `primary icon ${i} shows its label`).toBeGreaterThan(0)
     }
+    // S205: the Kanban button sits directly BELOW Projects and is PURE NAVIGATION
+    // (the Canvas pattern — no data-rail-panel).
+    const projectsBtn = page.locator('.rail .rail-primary a[href="/projects.html"]')
+    const kanbanBtn = page.locator('.rail .rail-primary a[href="/kanban"]')
+    const pBox = await projectsBtn.boundingBox()
+    const kBox = await kanbanBtn.boundingBox()
+    expect(kBox!.y).toBeGreaterThan(pBox!.y)
+    expect(await kanbanBtn.getAttribute('data-rail-panel')).toBeNull()
+    await expect(kanbanBtn.locator('.rail-label')).toHaveText('Kanban')
     // S132 (owner placement): the Canvas button sits directly BELOW Calendar and is
     // PURE NAVIGATION — no data-rail-panel (the S89/S90 panel section stays retired).
     const calBtn = page.locator('.rail .rail-primary a[href="/calendar.html"]')
@@ -236,6 +246,16 @@ test.describe('the navigation rail (Material navigation-rail pattern, S89 labele
     const dBox = await divider.boundingBox()
     const sBox = await settings.boundingBox()
     expect(sBox!.y).toBeGreaterThan(dBox!.y)
+
+    // S205: at 720p (the compact rail rhythm — 8 destinations), every destination
+    // INCLUDING the account chip stays inside the viewport (the fixed rail cannot
+    // scroll; the pre-fix geometry pushed the chip 16px below the fold), and the
+    // compact tiles hold the 44px touch floor.
+    const chipBox = await page.locator('.rail-user-chip').boundingBox()
+    expect(chipBox, 'the account chip is on-screen at 720p').toBeTruthy()
+    expect(chipBox!.y + chipBox!.height).toBeLessThanOrEqual(720)
+    const anyBtn = await page.locator('.rail .rail-primary a').first().boundingBox()
+    expect(Math.round(anyBtn!.height)).toBeGreaterThanOrEqual(44)
   })
 
   test('Canvas is a rail destination again; only Notebook stays an ACCOUNT-menu item (S132)', async ({ page }) => {

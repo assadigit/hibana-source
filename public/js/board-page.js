@@ -4,9 +4,10 @@
       mount(ctx) {
         const B = () => window.HibanaBoard
         const qs = new URLSearchParams(location.search)
-        const projectId = qs.get('project')
+        // S205: `let` — the project switcher (below) swaps the loaded project in place.
         const openTask = qs.get('task')
         const addStatus = qs.get('add')
+        let projectId = qs.get('project')
         const root = document.getElementById('db-board')
         const loading = document.getElementById('db-loading')
         // Translate through hibanaI18n when it's up (FA users must see the FA strings even
@@ -15,8 +16,17 @@
           const s = window.hibanaI18n ? window.hibanaI18n.t(k) : null
           return s && s !== k ? s : (window.HibanaBoard ? B().t(k, f) : f)
         }
+        const escS = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c])
 
-        if (!projectId) { location.replace('/projects.html'); return }
+        // S205 (spec §3.1/§3.2): /kanban is the dedicated entry point and owns the
+        // no-project behavior — default-project resolution (last-used board → most-recent
+        // accessible project → the no-projects empty state) happens in boot() below. A
+        // bare /board.html now redirects THERE (was: /projects.html) — the entry point
+        // handles the no-project case far better; every ?project= deep link is untouched.
+        // Both spellings checked (live 307s /kanban.html → /kanban; Node serves both —
+        // the s158 page-identity lesson).
+        const isKanbanEntry = () => location.pathname === '/kanban' || location.pathname === '/kanban.html'
+        if (!projectId && !isKanbanEntry()) { location.replace('/kanban'); return }
 
         // S30 batch 2: the filter state (module-scope — render() reads it; the toggles
         // mutate + re-render). Names are stored LOWERCASE for case-insensitive matching.
@@ -32,6 +42,9 @@
         const render = () => {
           const S = B().state
           document.getElementById('db-title').textContent = S.project ? S.project.title : ''
+          // S64 convention (the project page): the tab title carries the project's OWN
+          // name (language-neutral user content), not a generic "Board".
+          if (S.project && S.project.title) document.title = S.project.title + ' — Hibana'
           document.getElementById('db-sprint-link').href = '/sprint.html?project=' + projectId
           const done = S.tasks.filter((x) => x.status === 'done').length
           document.getElementById('db-counts').textContent = _t('db.counts', '{n} of {m} done')
@@ -233,6 +246,203 @@
         }
 
         const reload = async () => { await B().load(projectId); render() }
+
+        // ---- S205 (spec §3.2): the PROJECT SWITCHER ----
+        // One click from the toolbar: a searchable list of every project the user can
+        // access (GET /api/projects?sort=recent — the same user-scoped list the projects
+        // page renders, non-spark + non-archived), rendered as the command palette's
+        // input+list popover anchored under the title. Switching is IN-PLACE (B().load +
+        // render — the same reload() primitive every board mutation already uses; no
+        // page reload), the URL's ?project= is pushState'd so refresh/back/forward keep
+        // the board, and hibana-kanban-last remembers it for the next bare /kanban visit.
+        // Keyboard: ↑/↓ move, Enter opens, Esc closes; the current row is marked
+        // aria-current. Placement is direction-aware (RTL anchors the start edge).
+        const SWITCH_CACHE_MS = 60000
+        let switchCache = { at: 0, list: null }
+        const fetchProjects = async (force) => {
+          if (!force && switchCache.list && Date.now() - switchCache.at < SWITCH_CACHE_MS) return switchCache.list
+          const r = await fetch('/api/projects?sort=recent')
+          if (r.status === 401) { if (window.hibana && window.hibana.handle401) window.hibana.handle401(r); throw new Error('unauthorized') }
+          if (!r.ok) throw new Error('projects list failed')
+          const body = await r.json()
+          switchCache = { at: Date.now(), list: (body && body.projects) || [] }
+          return switchCache.list
+        }
+        const recordLastBoard = (id, title, status) => {
+          try { localStorage.setItem('hibana-kanban-last', id) } catch {}
+          // the palette's Recent section (the same record project.html does on every visit)
+          if (window.hibanaCmdK && window.hibanaCmdK.recordRecent) window.hibanaCmdK.recordRecent(id, title, status || '')
+        }
+        const recordBoard = () => {
+          const S = B().state
+          if (S.project && S.project.title && projectId) recordLastBoard(projectId, S.project.title, S.project.status)
+        }
+
+        let switchPop = null
+        let switchSearch = null
+        let switchList = null
+        let switchBtn = null
+        let switchOpen = false
+        const SWITCH_STATUS = {
+          spark: ['cmdk.statusSpark', 'Idea'],
+          planning: ['cmdk.statusPlanning', 'Planning'],
+          queued: ['cmdk.statusQueued', 'Up Next'],
+          developing: ['cmdk.statusDeveloping', 'Developing'],
+          awaiting_dev: ['cmdk.statusAwaitingDev', 'Awaiting Development'],
+          operational: ['cmdk.statusOperational', 'Operational'],
+        }
+        const renderSwitchRows = (list, query) => {
+          const q = String(query || '').trim().toLowerCase()
+          const items = (list || []).filter((p) => !q || String(p.title || '').toLowerCase().includes(q))
+          if (!items.length) {
+            switchList.innerHTML = '<p class="db-switch-empty muted small">' + escS(_t('db.switchEmpty', 'No projects found')) + '</p>'
+            return
+          }
+          switchList.innerHTML = items.map((p) => {
+            const cur = p.id === projectId
+            const lbl = SWITCH_STATUS[p.status]
+            const badge = lbl ? '<span class="badge badge-' + p.status + '">' + escS(_t(lbl[0], lbl[1])) + '</span>' : ''
+            return '<button type="button" class="db-switch-row' + (cur ? ' current' : '') + '" data-switch-id="' + escS(p.id) + '"' + (cur ? ' aria-current="true"' : '') + ' dir="auto">' +
+              badge + '<span class="db-switch-name">' + escS(p.title) + '</span>' +
+              (cur ? '<span class="db-switch-cur muted small">' + escS(_t('db.switchCurrent', 'Current')) + '</span>' : '') +
+            '</button>'
+          }).join('')
+        }
+        const positionSwitch = () => {
+          if (!switchBtn || !switchPop) return
+          const r = switchBtn.getBoundingClientRect()
+          const rtl = (document.documentElement.dir || 'ltr') === 'rtl'
+          switchPop.style.top = (r.bottom + 6) + 'px'
+          if (rtl) switchPop.style.right = Math.max(8, window.innerWidth - r.right) + 'px'
+          else switchPop.style.left = Math.max(8, r.left) + 'px'
+          // clamp inside the viewport after measuring (long titles + narrow screens)
+          const pw = switchPop.offsetWidth
+          if (rtl) {
+            const right = parseInt(switchPop.style.right, 10) || 0
+            if (right + pw > window.innerWidth - 8) switchPop.style.right = Math.max(8, window.innerWidth - 8 - pw) + 'px'
+          } else {
+            const left = parseInt(switchPop.style.left, 10) || 0
+            if (left + pw > window.innerWidth - 8) switchPop.style.left = Math.max(8, window.innerWidth - 8 - pw) + 'px'
+          }
+        }
+        const closeSwitch = () => {
+          if (!switchPop) return
+          switchOpen = false
+          switchPop.hidden = true
+          if (switchBtn) switchBtn.setAttribute('aria-expanded', 'false')
+        }
+        const openSwitch = async () => {
+          if (!switchPop) {
+            switchBtn = document.getElementById('db-project-switch')
+            switchPop = document.createElement('div')
+            switchPop.id = 'db-switch-pop'
+            switchPop.className = 'db-switch-pop'
+            switchPop.setAttribute('role', 'dialog')
+            switchPop.setAttribute('aria-label', _t('db.switchProject', 'Switch project'))
+            switchPop.hidden = true
+            switchPop.innerHTML =
+              '<div class="db-switch-head">' +
+                '<input type="search" id="db-switch-q" class="db-switch-search" placeholder="' + escS(_t('db.switchSearch', 'Search projects…')) + '" aria-label="' + escS(_t('db.switchSearch', 'Search projects…')) + '" autocomplete="off" spellcheck="false" dir="auto">' +
+              '</div>' +
+              '<div class="db-switch-list" id="db-switch-list"></div>' +
+              '<a class="db-switch-all" href="/projects.html">' + escS(_t('db.switchAll', 'All projects →')) + '</a>'
+            document.body.appendChild(switchPop)
+            switchSearch = switchPop.querySelector('#db-switch-q')
+            switchList = switchPop.querySelector('#db-switch-list')
+            switchSearch.addEventListener('input', () => renderSwitchRows(switchCache.list, switchSearch.value))
+            switchSearch.addEventListener('keydown', (e) => {
+              if (e.key === 'ArrowDown') {
+                e.preventDefault()
+                const first = switchList.querySelector('.db-switch-row')
+                if (first) first.focus()
+              } else if (e.key === 'Escape') {
+                e.preventDefault()
+                closeSwitch()
+                if (switchBtn) switchBtn.focus()
+              }
+            })
+            switchList.addEventListener('keydown', (e) => {
+              if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp') return
+              e.preventDefault()
+              const rows = Array.from(switchList.querySelectorAll('.db-switch-row'))
+              const i = rows.indexOf(e.target)
+              const next = rows[i + (e.key === 'ArrowDown' ? 1 : -1)]
+              if (next) next.focus()
+            })
+          }
+          switchOpen = true
+          switchPop.hidden = false
+          if (switchBtn) switchBtn.setAttribute('aria-expanded', 'true')
+          positionSwitch()
+          switchList.innerHTML = '<p class="db-switch-empty muted small">' + escS(_t('db.switchLoading', 'Loading projects…')) + '</p>'
+          renderSwitchRows(switchCache.list, '')
+          if (switchSearch) { switchSearch.value = ''; switchSearch.focus() }
+          try {
+            const list = await fetchProjects()
+            if (switchOpen) renderSwitchRows(list, switchSearch ? switchSearch.value : '')
+          } catch {
+            if (switchOpen) switchList.innerHTML = '<p class="db-switch-empty muted small">' + escS(_t('sparks.saveFailed', "Couldn't load")) + '</p>'
+          }
+        }
+        const switchProject = async (id) => {
+          if (!id || id === projectId) { closeSwitch(); return }
+          closeSwitch()
+          closeAllDbMenus()
+          // per-board filter state resets with the board (predictable switching)
+          filterPrios.clear(); filterTags.clear(); filterQuery = ''
+          projectId = id
+          // URL: SAME pathname (works on /kanban and /board.html alike), the new project,
+          // the old board's deep-link params dropped; pushState so Back returns to the
+          // previous board (nav.js's popstate soft-reloads the page for back/forward).
+          const u = new URL(location.href)
+          u.searchParams.set('project', id)
+          u.searchParams.delete('task')
+          u.searchParams.delete('add')
+          history.pushState({ hibanaKanban: id }, '', u)
+          root.hidden = true
+          if (loading) {
+            loading.hidden = false
+            loading.innerHTML = '<span class="hibana-spinner" aria-hidden="true"></span><span>' + escS(_t('db.loading', 'Loading…')) + '</span>'
+          }
+          try {
+            await reload()
+            recordBoard()
+          } catch (err) {
+            if (err && err.status === 404) return gone()
+            return fail()
+          }
+        }
+        // the switcher toolbar button + row activation + outside-click close
+        ctx.on('click', (e) => {
+          if (e.target.closest('#db-project-switch')) {
+            e.preventDefault()
+            if (switchOpen) { closeSwitch(); if (switchBtn) switchBtn.focus() }
+            else openSwitch()
+            return
+          }
+          const row = e.target.closest('[data-switch-id]')
+          if (row) { e.preventDefault(); switchProject(row.dataset.switchId); return }
+          if (switchOpen && switchPop && !e.target.closest('#db-switch-pop')) closeSwitch()
+        })
+        ctx.on('keydown', (e) => {
+          if (e.key === 'Escape' && switchOpen) { closeSwitch(); if (switchBtn) switchBtn.focus() }
+        })
+
+        // S205: the no-projects empty state (spec §3.2: "If no accessible project exists,
+        // show a helpful empty state and the existing affordance for creating one") —
+        // the projects page owns creation (its FAB quick-add); this points there.
+        const renderNoProjects = () => {
+          root.hidden = false
+          if (loading) loading.hidden = true
+          document.getElementById('db-title').textContent = _t('db.board', 'Board')
+          document.getElementById('db-counts').textContent = ''
+          root.innerHTML = '<div class="empty-state empty db-noprojects">' +
+            '<span class="empty-state-icon" aria-hidden="true"><svg class="icon" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="4" rx="1"/><path d="M5 8v11a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V8"/><path d="M10 12h4"/></svg></span>' +
+            '<p class="empty-state-title">' + escS(_t('db.noProjects', 'No projects yet')) + '</p>' +
+            '<p class="empty-state-text">' + escS(_t('db.noProjectsText', 'Create your first project to start working with its Kanban board.')) + '</p>' +
+            '<a class="empty-state-cta btn" href="/projects.html">' + escS(_t('db.noProjectsCta', 'Go to projects')) + '</a>' +
+          '</div>'
+        }
 
         // S30 batch 4: the LABEL MANAGER — rename/merge/recolor/delete-unused, opened
         // from the toolbar. Every change reloads the board (labels ride the cards).
@@ -661,11 +871,41 @@
           loading.innerHTML = '<span>' + msg + '</span> <a class="btn small" href="/projects.html">' + back + '</a>'
         }
         const boot = async () => {
-          document.querySelector('[data-back-link]').href = '/project.html?id=' + projectId
           const ok = await ensureLib()
           if (!ok) return fail()
+          // S205 (spec §3.2): the entry point's default-project resolution — the
+          // last-used board first (its load doubles as validation: a 404/deleted project
+          // falls straight through), else the most-recent accessible project
+          // (sort=recent = updated_at DESC — the "never lose your place" convention),
+          // else the empty state. ?project= deep links skip all of this.
+          let preloaded = false
+          if (!projectId) {
+            try {
+              let last = null
+              try { last = localStorage.getItem('hibana-kanban-last') } catch {}
+              if (last) {
+                try { await B().load(last); projectId = last; preloaded = true }
+                catch (err) { if (!err || err.status !== 404) throw err }
+              }
+              if (!projectId) {
+                const list = await fetchProjects()
+                if (!list.length) return renderNoProjects()
+                projectId = list[0].id
+              }
+              // Canonicalize the bare entry URL (replaceState — no history entry): a
+              // shared/bookmarked /kanban picks up the resolved ?project=.
+              const u = new URL(location.href)
+              u.searchParams.set('project', projectId)
+              history.replaceState(null, '', u)
+            } catch {
+              return fail()
+            }
+          }
+          document.querySelector('[data-back-link]').href = '/project.html?id=' + projectId
           try {
-            await reload()
+            if (preloaded) render()
+            else await reload()
+            recordBoard()
           } catch (err) {
             if (err && err.status === 404) return gone()
             return fail()
@@ -679,5 +919,10 @@
         // lands (i18n.js's apply awaits ensureFaDict before resolving).
         if (window.hibanaI18n && window.hibanaI18n.ready) window.hibanaI18n.ready.then(boot).catch(boot)
         else document.addEventListener('hibana:i18n', boot, { once: true })
+
+        // S205: the switcher popover is appended to <body> (positioning + stacking);
+        // the page-lifecycle contract calls this on unmount so soft-navigations away
+        // never leave a detached popover behind (nav.js applyDef → customUnmount).
+        return () => { if (switchPop) switchPop.remove() }
       },
     })

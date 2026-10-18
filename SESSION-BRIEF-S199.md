@@ -1,6 +1,25 @@
 # SESSION BRIEF — S199 (the fix-and-implement round for the S198 SWOT audit)
 
-> **S207 "THE MOTHER-CONTAINER + TRUE-FULL-WIDTH + GHOST-SWEEP ROUND" EXECUTED 2026-10-19 —
+> **S208 "THE TASK-OPTION PARITY ROUND" EXECUTED 2026-10-20 —
+> released as v0.4.1.34 (push 6f8089e — CI 39161116606 GREEN after one e2e-shard
+> flake re-run, CD 39163566793 GREEN).** The owner's follow-up — "when creating a
+> new task it doesn't show the button to upload a picture; established tasks give
+> you the option; make sure ALL the kanban options of the original hibana live on
+> this one" — SHIPPED + verified live (qa/s208-live-verify.mjs ALL GREEN 25/25 on
+> projects.hibana.ir, the REAL upload pipeline end-to-end): the Upload File button
+> (full S86 bucket: images, video/webm, PDF/Excel/Word/MD/TXT) now shows in BOTH
+> the new-task AND edit modals; new tasks STAGE pictures (live progress rows with
+> cancel, the ≤1600px WebP prepare pass — image-resize.js lazy-loads on the board
+> pages) and pin them on save, while cancel/Esc deletes them (nothing orphans);
+> established tasks pin live with the inline pinned grid (zoom lightbox / edit-note
+> / delete); TAGS work on create now (staged chips ride the create body — plus a
+> latent mid-edit title-wipe fixed: a tag chip used to rebuild the card and drop
+> the typed title); the cards carry the PIN BADGE (shot_count joined the devboard
+> payload) opening the pinned-pictures dialog (zoom + unpin, reloads the board);
+> and Copy joined the card ⋯ menu. 6 new e2e (s208-kanban-shots) + 1 unit; ladder
+> all green (vitest 643/643, FULL e2e 449/449); sw v443. Full record: Changelogs
+> §1 row 208 + worklog.md's S208 section.
+
 > released as v0.4.1.33 (push fd42f56 — CI 39151681090 GREEN, CD 39152680541 GREEN).** The
 > owner's three-item follow-up on the kanban, ALL verified live on BOTH hosts: the board
 > now lives in a MOTHER CONTAINER (.db-frame — one var(--card) white surface wrapping

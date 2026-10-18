@@ -3052,3 +3052,32 @@ majors — CI plumbing, one deliberate round when taken), HLTH-24's incremental
 project-page.js extraction (only when next touched for real work).
 
 ---
+> **Rotation (HLTH-27):** sessions older than the newest 4 live in
+> `worklog-archive.md` (and verbatim in git history) — this file is the ACTIVE
+> tail only. Rotate with `node scripts/rotate/rotate.mjs --worklog`.
+
+## Session S204 — THE DEPENDABOT ROUND + THE ACCENT-INK SWEEP + THE MOBILE LANE (the banked-leftovers closer)
+
+**Dispatch:** "yes finish all the works and tasks. then wrap up this session. Push commit update changelogs and deploy."
+
+**Work Log:**
+- Reading ritual + state verified: main @ d852532 in sync, tree clean, LIVE v0.4.1.27 healthy, all 3 healthchecks up, 4 dependabot PRs open (#13 hono, #14 dev-group, #1 checkout v7, #6 upload-artifact v7 — the PRs also carried retired package-lock.json patches).
+- **Batch A (deps)**: minors first behind the gates (hono ^4.13.12→resolves 4.13.13, workers-types, playwright+@playwright/test synced 1.64.0, eslint, tsx, typescript-eslint, wrangler 4.148) — all green; then the majors ONE AT A TIME: @types/node 26 (ONE documented double-cast in src/index.ts: HeadersIterator gained Symbol.dispose) ✓, typescript 6.0.3 ✓ (TS 7.0.2 TRIED + WALLED: typescript-eslint hard-errors, issue #10940) ✓, vitest 5.0.3 (635/635) ✓. actions/checkout v7 ×5 + upload-artifact v7 ×2 applied.
+- **Batch B (accent-ink)**: 19 accent-as-TEXT sites → --accent-ink across notes.css ×14 / quicknotes / dashboard / devboard / base (the skip-link); every remaining color:var(--accent) classified icon/border/decorative/native-control and KEPT (the doctrine's other half — the folder-icon probe pins it live). Cache-bust base v14 · notes v22 · quicknotes v50 · dashboard v43 · devboard v30 (~116 refs/32 files) + sw v436→v437 (last-3 notes rotated).
+- **Batch C (UX-17)**: lighthouserc.mobile.json (formFactor=mobile — the CLI's "preset" has no mobile value, absence IS mobile; 3 runs for medians) + the CI step. HONEST measured floors: cold login 89-90; the SW-active returning-user variant (dashboard→login?next=) 46-49 CONSISTENTLY — Lantern's SW-response pessimism, not variance; floor 0.45 binds there to catch collapse.
+- **Ladder ALL GREEN**: typecheck 0 · 635/635 · eslint 0/0 · build 85 · cache-bust · parity 1572/1572 · bundle −0.1% · precache +163KB · escape-lint 207 · dist-wiring canonical · FULL e2e 417/417 two parallel local shards (213 + 204, ZERO flakes — shard 2's first parallel run exited 0 with an EMPTY log = not evidence; the solo re-run is) · smoke · workers-smoke (real CF creds) · Lighthouse desktop + mobile.
+- **Release**: secret-scan CLEAN → push 3891c25 → CI 38183808774 ALL JOBS GREEN (the v7 actions' + mobile lane's first run; ci 5m + e2e 7m parallel) → CD 38184241827 GREEN → qa/s204-live-verify.mjs ALL GREEN 27/27 (5 sheets byte-IDENTICAL; wired /dist/ hashes == local manifest — the verifier's first draft probed canonical ?v= refs and failed WRONG: live HTML is deploy-wired; 7 accent-ink probes + the icon-keeps-accent probe; the __Host- battery on hono 4.13.13) → tag v0.4.1.28 → zip 592 files integrity OK secret-scan CLEAN → healthchecks UP → PRs #1/#6/#13/#14 closed with reasons.
+- **Docs**: Changelogs §1 rotated to v0.4.1.28 + row 204 (rotate.mjs dry-run first); this handover; SESSION-BRIEF status.
+
+**Lessons (this session's own):**
+1. MultiEdit applies edits SEQUENTIALLY — a mid-batch failure leaves earlier edits LANDED. Audit file state after any failed batch; don't assume atomicity.
+2. The Bash tool kills backgrounded (&) subshells when the call returns — parallel e2e shards need ONE foreground `… & … & wait` command; an exit-0-with-empty-log is NOT evidence — the solo re-run is.
+3. Live HTML is deploy-WIRED (/dist/<name>.<hash>.css) — probe the content hash against the local build's manifest, never the canonical ?v= form.
+4. TS 7's wall was found in 30 seconds by trying it behind the gates — the wall IS the finding; TS 6 (the continuation line) shipped instead.
+
+**Stage Summary:**
+- LIVE hibana.ir @ v0.4.1.28, sw v437, schema 63 — the S203 handover's banked menu FULLY executed; the repo carries ZERO open dependabot PRs and the whole dependency surface is current except TS 7 (ecosystem-walled, documented).
+- Remaining (owner-side or doctrine-deferred): owner-machine drill runs + key-custody drill (§4 — owner-held keys); HLTH-24 project-page.js extraction (only when next touched); TS 7 (when typescript-eslint ships support); the SW-active mobile trace shape (measurement artifact, worth one look someday).
+- Artifacts: commits 3891c25 (feature) + this docs round; tag v0.4.1.28; zip hibana.0.4.1.28.zip (/home/z/upload + the sandbox download folder); new tools lighthouserc.mobile.json + qa/s204-live-verify.mjs.
+
+---

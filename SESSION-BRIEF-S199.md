@@ -1,5 +1,19 @@
 # SESSION BRIEF — S199 (the fix-and-implement round for the S198 SWOT audit)
 
+> **S206 "THE KANBAN FULL-BLEED + SPRINT-BUG ROUND" EXECUTED 2026-10-18 — released as
+> v0.4.1.32 (3 pushes: 6532764 / 4272321 / f9273de — CI + CD GREEN on every one).** The
+> owner's four-item follow-up on the S205 kanban, ALL verified live on BOTH hosts
+> (qa/s206-live-verify.mjs 20/20 + qa/s206-final-inpage.mjs on hibana.ir): /kanban is
+> TRULY full-width with the rail hidden off-canvas (revealed by start-edge hover or
+> keyboard focus — body.rail-edge + the #rail-edge-zone tripwire); the toolbar project
+> name speaks the control register (fs-md, ellipsis, flexes; the Back link retired on
+> the entry); and "the sprint system is buggy" resolved into SIX probe-confirmed bugs
+> (the 0-items phantom, the 409 save-kill, the Tehran off-by-one date parse, the
+> refused sidebar DnD, the rail-shadowed dots, and THE LIVE HANG — the post-mutation
+> reload GET that never reached the Worker, now dispatched with signal + 3s deadline +
+> retry). FULL e2e 437/437 (11 new S206 tests). Full record: Changelogs §1 row 206 +
+> worklog.md's S206 section.
+
 > **S205 "THE KANBAN ENTRY-POINT ROUND" EXECUTED 2026-10-18 — released as v0.4.1.29 (push
 > 45baa88, CI 39093783469 ALL GREEN, CD 39094519965 GREEN after the expired CLOUDFLARE_API_TOKEN
 > secret was replaced + the failed run re-run).** The Hibana-Kanban-Polish-and-Go-Desktop-Readiness

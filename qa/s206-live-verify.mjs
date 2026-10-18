@@ -27,7 +27,7 @@ const run = async () => {
   const health = await (await fetch(`${BASE}/api/health`)).json()
   check('health: ok / prod / db up', health.ok === true && health.environment === 'prod' && health.db === 'up', JSON.stringify(health))
   const swTxt = await (await fetch(`${BASE}/sw.js`)).text()
-  check('service worker: VERSION v439 live', /hibana-v439/.test(swTxt))
+  check("service worker: VERSION v441 live", /hibana-v441/.test(swTxt))
   const layoutCss = await (await fetch(`${BASE}/css/layout.css?v=67`)).text()
   check('layout.css v67 serves the edge-rail rules', /rail-edge-zone/.test(layoutCss) && /body\.rail-edge/.test(layoutCss))
 

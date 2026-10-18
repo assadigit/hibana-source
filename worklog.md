@@ -232,3 +232,29 @@ Stage Summary:
 - LIVE hibana.ir + projects.hibana.ir @ v0.4.1.29, sw v438, schema 63 — the spec's web-experience acceptance criteria verified live; the Go desktop port is planned (Wails leading, M0-M5) but not started; the docs live in docs/project-kanban/.
 - Remaining (owner-side or next-phase): the M0 API additions (updated_at on tag changes, dev-task tombstones, idempotent creates) before any desktop M1; the owner's five port-plan questions (§10 of GO-DESKTOP-PORT-PLAN.md); the mobile More-sheet Kanban row e2e; the CD secret should be rotated to a dedicated least-privilege token (the session's user token works but is broader than CD needs).
 - Artifacts: commit 45baa88 (feature+docs) + this docs round; tag v0.4.1.29; zip hibana.0.4.1.29.zip; new tools qa/s205-kanban-perf.mjs + qa/s205-live-verify.mjs + e2e/s205-kanban-entry.spec.ts + src/tests/kanban-route.test.ts.
+
+---
+
+## Session S206 — THE KANBAN FULL-BLEED + SPRINT-BUG ROUND (the owner's four-item follow-up)
+
+Task ID: S206 (single-agent session)
+Agent: Hibana S206 agent (Z.ai Code)
+Task: The owner's four-item follow-up on the S205 kanban: (1) full-width default, (2) hide the sidebar entirely + reveal on screen-edge hover, (3) more room + smaller register for the project name, (4) "the sprint system is buggy".
+
+Work Log:
+- Re-cloned the repo (the sandbox reset wiped /home/z/hibana-repo; main @ 984929f, v0.4.1.29, clean).
+- Asks 1+2: layout.css body.rail-edge (gutter 0 + the rail's own 4rem width + off-canvas transform, RTL mirrored, reduced-motion, the #rail-edge-zone tripwire with hover/touch/breakpoint gates); nav.js RAIL_EDGE_PAGES + syncEdgeZone (the zone's mouseenter/mouseleave + delegated rail hover/leave with relatedTarget guards + focusin/focusout; the panel/boot-restore/collapse-toggle suppressions); /board.html keeps the icons-only contract (pinned by test).
+- Ask 3: devboard.css — .db-title/.db-switch to the control register (fs-md + 600, nowrap + ellipsis + flex) + #db-title's clipping box; board-page.js — the Back link retires on /kanban, the full name rides the span's title.
+- Ask 4, the hunt: all 9 existing sprint e2e specs PASSED — the pain lived in untested flows. Drove the full sprint lifecycle in a real browser under the owner's timezone (qa/s206-sprint-probe.mjs 1-5): found the 0-items phantom (s.items never in the payload), the 409 save-kill, the Tehran off-by-one (local-midnight parse vs the UTC-day axis), the refused sidebar DnD (dragover never preventDefaulted outside the sidebar lists — the draft card's own hint advertised it), and the rail-shadowed dots (lane z-index scope-capping — elementFromPoint returned the rail at the dot's center).
+- Ask 4, the fixes: renderSprintsList counts the task pool + fmtDate UTC; devboard.js reuses the existing draft on __new; UTC-midnight parse in the define commit + presets; the dragover/drop pair accepts sprint/draft/lane targets for sidebar tasks with the assignment path; the lane z-indexes retired so dots (z-5) + chips (z-3→z-5) beat the rails (z-4) at crossings.
+- 11 new e2e (s206-kanban-edge + s206-sprint-fixes — the TZ test runs a real Asia/Tehran context; the DnD tests use synthetic DragEvents; the no-store/retry test wraps window.fetch as the contract guard).
+- Part 1 shipped: FULL e2e 437/437 (four quarter-shards 89+104+143+101), ladder green, push 6532764 → CI/CD GREEN.
+- THE LIVE HANG (found by qa/s206-live-verify.mjs: the create POST 201s, the render never updates; a hard reload shows the data): root-caused across 15 probe generations — CDP requestWillBeSent FIRED for the swallowed GET; wrangler tail (one foreground process — the sandbox kills detached tails, and backgrounded servers too: every probe spawns its own) showed the request NEVER reached the Worker (every other invocation visible, all ok, single-digit ms); both hosts; with AND without the SW (route-blocked sw.js); no-store and cache-busting unique URLs insufficient. The fix: every devboard client GET dispatches with an AbortController signal + a 3s deadline + one retry (validated 4/4 on prod, both hosts, retries=0 — the signal-wrapped dispatch avoids the swallow; the deadline+retry is the safety net; mutations keep the plain path) + cache:'no-store' on every call.
+- Parts 2 (4272321) + 3 (f9273de) shipped: CI + CD GREEN on both; the final live verify 20/20 on projects.hibana.ir + qa/s206-final-inpage.mjs GREEN on hibana.ir (the create→render round-trip with NO manual refresh).
+- Docs: Changelogs §1 rotated to v0.4.1.32 + row 206 (rotate.mjs, dry-run first); this handover; SESSION-BRIEF status line.
+- Zip ritual: hibana.0.4.1.32.zip at /home/z/upload.
+
+Stage Summary:
+- LIVE hibana.ir + projects.hibana.ir @ v0.4.1.32, sw v441, schema 63 — all four owner asks shipped + verified live on both hosts; the sprint system's six confirmed bugs fixed with e2e pins.
+- Remaining (owner-side or next-phase): the dated-create overlap validation (the INSERT path has no overlap check — documented); the request-swallow is worked around, not root-caused (if it appears on other same-URL GET paths — project-page.js's own fetch layer — apply the same signal+deadline+retry recipe); the mobile More-sheet Kanban row e2e + the M0 API additions + the owner's port-plan questions (all banked from S205).
+- Artifacts: commits 6532764 + 4272321 + f9273de; tag v0.4.1.32; zip hibana.0.4.1.32.zip; new tools qa/s206-sprint-probe{,2,3,4,5}.mjs + qa/s206-repro-{stale,live2..15}.mjs + qa/s206-live-verify.mjs + qa/s206-final-inpage.mjs + e2e/s206-kanban-edge.spec.ts + e2e/s206-sprint-fixes.spec.ts.

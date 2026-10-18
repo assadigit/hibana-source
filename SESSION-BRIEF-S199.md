@@ -1,5 +1,17 @@
 # SESSION BRIEF — S199 (the fix-and-implement round for the S198 SWOT audit)
 
+> **S205 "THE KANBAN ENTRY-POINT ROUND" EXECUTED 2026-10-18 — released as v0.4.1.29 (push
+> 45baa88, CI 39093783469 ALL GREEN, CD 39094519965 GREEN after the expired CLOUDFLARE_API_TOKEN
+> secret was replaced + the failed run re-run).** The Hibana-Kanban-Polish-and-Go-Desktop-Readiness
+> Spec executed: **https://projects.hibana.ir/kanban is LIVE** (the zone-level Workers route attach;
+> 14/14 live-verify probes GREEN incl. the owner-account browser round-trip) — the auth-gated
+> /kanban route with the login-preserving ?next= bounce, the searchable IN-PLACE project switcher
+> in the board title (last-used default resolution, empty state, keyboard + RTL), the rail/mobile/
+> go-to chrome with the compact-rail short-viewport fix (46px floor), measured perf (qa/s205-kanban-
+> perf.mjs: switch −23% vs hard-nav), and the six desktop-readiness docs in docs/project-kanban/
+> (the Go port PLANNED, not started — Wails leading, M0 API additions listed first). Full record:
+> Changelogs §1 row 205 + worklog.md's S205 section.
+
 > **STATUS: S199 EXECUTED 2026-10-11 — released as v0.4.1.24 (push 1cc4779, CI 38122442476
 > GREEN, CD 38123258804 GREEN, live-verify ALL GREEN).** Batches 1-4 complete + Batch 5
 > partial (calendar spec, auth-page e2e, favicon rule). Banked for S200: UX-3/4/5/6,

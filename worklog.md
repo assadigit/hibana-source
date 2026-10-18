@@ -13,40 +13,6 @@
 > `worklog-archive.md` (and verbatim in git history) — this file is the ACTIVE
 > tail only. Rotate with `node scripts/rotate/rotate.mjs --worklog`.
 
-## Session S201 — MAJORS + APPROVALS (the S198 brief's owner-decision round; docs/ops only — no version bump)
-
-Task ID: S201 (single-agent session)
-Agent: Hibana S201 agent (Z.ai Code)
-Task: Execute SESSION-BRIEF-S199.md's S201 plan — present the four rule-4 asks (prepare, never ship unprompted), run + record the restore drills (UX-12), the error_log daily monitor → healthchecks /fail (UX-11), the worklog rotation mode + row caps (HLTH-27), the project-page.js split ride-along (HLTH-24).
-
-Work Log:
-- Cloned @ 64864af (S200 release state); read Agents.md → SESSION-BRIEF → §4/§6 → worklog tail. Live-state audit first: hibana.ir health ok/up/63; CI #559 + CD #409 + Uptime #154 all green on 64864af; both healthchecks up; prod error_log EMPTY (7-day retention, 0 rows); planb_backups 27 rows (newest 2026-09-08).
-- UX-12 (the drills — FIRST EVER run; they shipped 2026-09-11 with zero recorded runs):
-  - `bun run drill` initially FAILED twice and both failures were REAL latent drill bugs, now fixed: (1) my own .secrets.env had GITHUB_REPO=hibana-source (the drill wants the ASSETS repo — the Worker's own value hibana-safe; env-var lesson, not a repo bug); (2) Part B's seed still used pre-0060 status vocabulary ('doing'/'awaiting' fail the projects.status CHECK — dead since 0060, the same blindness that had killed explain-hotpaths in S200).
-  - Post-fix: drill PASS in ~2s (Part A loud-skip — newest backup snapshot-2026-10-11T15-23-26 is AES-GCM and BACKUP_ENCRYPTION_KEY is owner-held by design; Part B synthetic round-trip 9/9: export→restore→FTS rebuild, users untouched, rule-8 clean).
-  - drill:planb initially had its OWN latent bug: the D1 parser read `result[0].results.results` (undefined → every non-empty planb_backups reads EMPTY — caught by the first-ever run). Post-fix: PARTIAL PASS in ~4s — steps 1–3 green on the 2026-09-08 document (D1 log row → Telegram getFile → sha256 match → HIBENC1 magic); steps 4–5 loud-skip (owner key).
-  - Recorded in Changelogs §4 as the new "Drill log" block (date + duration + result + the two fixed bugs + the owner-machine residue).
-- UX-11 (the error monitor — "the owner never reads code; 'feels broken' is the only signal"):
-  - Created healthchecks.io check "Hibana errors" — RANDOM slug (the §4 leaked-ping-key doctrine; NEVER the burned /hibana slug), 24h period + 6h grace, the account's email channel (same as the other two checks).
-  - Repo secret HIBANA_ERRORS_PING_URL set via the GitHub Actions API (libsodium sealed-box; the ping URL value never touches the tree).
-  - NEW .github/workflows/errors.yml — daily 04:23 UTC cron (+ dispatch), NO checkout (pure curl+jq): counts prod error_log rows <24h via the D1 REST API (5xx > 5 = real breakage, total > 20 = incl. the 4xx auth-invalid bursts errorlog.ts deliberately keeps) → /fail with top paths, else a success tick. Anti-masking: pings ONLY its own check. Dry-run of the exact bash logic against real D1: PASS (total 0, 5xx 0). Documented in §4 Monitoring.
-  - The /fail path was deliberately NOT live-tested (it would email the owner a false alarm); its fail() helper is verbatim the proven uptime.yml recipe, and everything up to the ping was verified.
-- HLTH-27 (the rotation + caps):
-  - rotate.mjs gains `--worklog [--keep N]` (default 4): anchors on the modern `## Session` markers, archives everything older to worklog-archive.md (append-only, chronological, born with its own header), leaves a rotation note in the worklog header; shape-verified + dry-run + aborts untouched on surprise.
-  - Prose caps: --row ≤ 2,000 chars, --body ≤ 8,000 chars (hard fail; negative-tested both). Existing rows are history.
-  - Applied for real: worklog.md 2,871 → 305 lines (S198/S199/S200/S201 kept; wrap-up…S197 archived — integrity proven: 305 + 2,575 archive − 9 header/note lines = the original 2,871, zero content loss).
-  - Agents.md doc map documents the archive + the rotation command.
-- The four rule-4 asks (ASK, never ship unprompted): written to Changelogs §6 as the PENDING OWNER APPROVAL block and presented to Ali in chat — PERF-16 (the 4 rule-9 indexes, one migration 0065, impact honestly LOW/doctrine MED), PERF-9 (1.75MB legacy fonts — HONESTLY CORRECTED: the files ARE referenced in font-face.css as src fallbacks, so the fix = delete 21 files AND trim the src lists to woff2-only), UX-13 (zod-4 + node-server-2, one round each), SEC-10 (__Host- prefix, one-time logout). Each verified against the tree before asking (the 4 indexes confirmed absent; only idx_project_tags_tag exists; the font refs confirmed; SESSION_COOKIE confirmed at src/auth/sessions.ts:7).
-- HLTH-24 (project-page.js split) — BANKED with the §6 NO-GO reconciled: the file is one 5,870-line mount closure (all state via closure, the S48 IIFE-bug warning); a big-bang split contradicts the standing S49 doctrine. The SAFE path stays: incremental pure-function extraction (HibanaChips-style) when the file is next touched for real work. Recorded in §6.
-- Ladder (fast lane — zero shipped assets touched, so no cache-bust/e2e-local needed; CI runs the FULL suite on the push since the workflow file isn't paths-ignored): node --check ×3 · typecheck 0 · vitest 632/632 · eslint 0/0 · build 85 · cache-bust PASS · parity PASS · bundle −0.1% · precache 2,138KB PASS · escape-lint 207 sinks PASS · smoke ALL PASS.
-- Secret-scan CLEAN before commit (9 credential values absent · owner email absent from every touched file — it remains pre-existing in the S193/S194 worklog history, public since S194 · account-id confined to the 5 pre-existing public-surface scripts).
-
-Stage Summary:
-- S201 shipped as a docs/ops round (S198 precedent): no version bump, no tag, no zip, no §1/§2 rotation — the durable records are §4's Drill log + Monitoring block, §6's PENDING OWNER APPROVAL block, and this section.
-- The DR drills are now PROVEN (and their two latent bugs dead — the zero-runs policy was hiding them); the error monitor closes UX-11 (three healthchecks now: backup cron, uptime, error growth); the worklog can never again grow monotonic.
-- Next session: on Ali's written YES per ask, execute the approved items (each behind the full ladder + release ritual; PERF-16 needs the §9 bookmark ritual on both DBs); otherwise the S200 banked list (the 86-spec e2e DB-constant sweep, opportunistic --accent-ink conversions, the mobile Lighthouse preset UX-17) + the owner-machine drill run reminder stand.
-- VERIFICATION (post-push): 0779b79 → CI #560 (38164530115) ALL JOBS GREEN — ci 3.8 min (audit + eslint 0/0 + escape-lint + build + bundle + precache + typecheck + cache-bust + parity + vitest 632 + smoke + dist-wiring + workers-smoke + Lighthouse) + e2e shards 6.7/6.3 min in parallel → CD #410 GREEN (same bits redeployed; no asset changes) → error monitor DISPATCH run #1 (38165291625) GREEN with the real D1 probe in its log ("prod error_log since 2026-10-10T18:47:36Z: total=0 5xx=0" + "error monitor PASS") → healthchecks "Hibana errors" flipped new→up (n_pings=1 @ 18:47:37, exactly the run's ping; the other two checks up on natural ticks) → hibana.ir health ok/up/63. The monitor's first scheduled cron run: tomorrow 04:23 UTC.
-
 ## Session S202 — THE APPROVED ASKS (the S201 rule-4 round; the owner's written YES executed)
 
 Executed per the owner's chat reply to the S201 asks ("1. ok do it. yes / 2. do it. /
@@ -240,3 +206,29 @@ project-page.js extraction (only when next touched for real work).
 - LIVE hibana.ir @ v0.4.1.28, sw v437, schema 63 — the S203 handover's banked menu FULLY executed; the repo carries ZERO open dependabot PRs and the whole dependency surface is current except TS 7 (ecosystem-walled, documented).
 - Remaining (owner-side or doctrine-deferred): owner-machine drill runs + key-custody drill (§4 — owner-held keys); HLTH-24 project-page.js extraction (only when next touched); TS 7 (when typescript-eslint ships support); the SW-active mobile trace shape (measurement artifact, worth one look someday).
 - Artifacts: commits 3891c25 (feature) + this docs round; tag v0.4.1.28; zip hibana.0.4.1.28.zip (/home/z/upload + the sandbox download folder); new tools lighthouserc.mobile.json + qa/s204-live-verify.mjs.
+
+---
+
+## Session S205 — THE KANBAN ENTRY-POINT ROUND (the dedicated /kanban experience + the project switcher + the Go-desktop-readiness docs)
+
+Task ID: S205 (single-agent session)
+Agent: Hibana S205 agent (Z.ai Code)
+Task: Execute Hibana-Kanban-Polish-and-Go-Desktop-Readiness-Spec.md (repo root) — the dedicated projects.hibana.ir/kanban entry point, the top-level project switcher, measured performance work, and the six desktop-readiness documents. The Go desktop app itself is NOT started (per spec §7).
+
+Work Log:
+- Read the full spec (359 lines) + recon: 3 parallel exploration agents (backend API/schema, frontend Kanban, deployment/CI conventions); mapped routing, the two board surfaces, the auth/CSRF/cookie contracts, the deploy pipeline.
+- Backend: requireAuth gained the optional {loginNext} (the login bounce preserves ?next=; existing callers byte-identical); /kanban route registered BEFORE coreRoutes' wildcard (the /signup pattern), serves the SAME board.html auth-gated + no-store; /kanban.html 301; both spellings in WORKER_PAGE_ROUTES; 7 unit tests (src/tests/kanban-route.test.ts).
+- Frontend: board-page.js — let projectId + switchProject (in-place B().load + render, pushState ?project=, filter reset, recordBoard); the searchable switcher popover (60s-cached /api/projects?sort=recent, keyboard nav, RTL-aware anchoring, unmount removal); default resolution (hibana-kanban-last → most-recent → the empty state); /board.html bare → /kanban; the title-button markup in board.html; devboard.css switcher styles.
+- Chrome: nav.html rail Kanban button; RAIL_ICON_PAGES + /kanban; mobile-nav More-sheet row; go-to g k; 10 i18n keys EN+FA; sw SHELL + /kanban, VERSION v438.
+- THE RAIL FIX: the 8th primary overflowed ≤780px viewports (measured: the account chip 16px below the 720p fold of the fixed rail) → the compact-rhythm media query (46px tiles, 3px gaps; S189 ≥48 doctrine pinned at the default rhythm — its geometry test at 900p); rail-panel.spec pins the compact contract.
+- Perf: qa/s205-kanban-perf.mjs (5-run medians): /kanban cold 142ms vs /board.html 164ms; in-place switch 123ms vs hard-nav 160ms (−23%); payload 8.6KB/15ms.
+- Docs: docs/project-kanban/ — FEATURE-INVENTORY.md, USER-FLOWS.md, DATA-MODEL.md, API-AND-SYNC-CONTRACT.md, GO-DESKTOP-PORT-PLAN.md, TEST-MATRIX.md.
+- Domain: the account-level workers/domains POST 10405s the session token → the ZONE-LEVEL route API instead: route projects.hibana.ir/* → hibana-prod + proxied AAAA (100::); cert issued ~60s; health ok/prod/up/63.
+- THE CD REPAIR: the repo's CLOUDFLARE_API_TOKEN secret was EXPIRED (CD failed auth-error-10000 at Deploy-to-DEV; CI was green) → verified the session token deployable (wrangler whoami + dry-run + a real DEV deploy), PUT the secret via the GitHub secrets API (nacl sealed-box), re-ran the failed CD → GREEN (dev + prod + probes + purge).
+- Live verification: qa/s205-live-verify.mjs ALL GREEN 14/14 on https://projects.hibana.ir — the 302+?next contract on both hosts, 401 JSON for non-doc callers, the browser round-trip with the owner's real account (login → back on /kanban → board renders → switcher 7 rows → in-place switch with the no-navigation marker → URL ?project= → refresh keeps it → 0 console errors).
+- Ladder: typecheck 0 · vitest 642/642 · eslint 0/0 · escape-lint 214 · cache-bust PASS · i18n parity 1582/1582 · build 85 · bundle + precache PASS · FULL e2e 426/426 (four quarter-shards 110+113+104+99 — the sandbox kills detached background processes) · smoke PASS · CI 39093783469 ALL GREEN → CD 39094519965 GREEN.
+
+Stage Summary:
+- LIVE hibana.ir + projects.hibana.ir @ v0.4.1.29, sw v438, schema 63 — the spec's web-experience acceptance criteria verified live; the Go desktop port is planned (Wails leading, M0-M5) but not started; the docs live in docs/project-kanban/.
+- Remaining (owner-side or next-phase): the M0 API additions (updated_at on tag changes, dev-task tombstones, idempotent creates) before any desktop M1; the owner's five port-plan questions (§10 of GO-DESKTOP-PORT-PLAN.md); the mobile More-sheet Kanban row e2e; the CD secret should be rotated to a dedicated least-privilege token (the session's user token works but is broader than CD needs).
+- Artifacts: commit 45baa88 (feature+docs) + this docs round; tag v0.4.1.29; zip hibana.0.4.1.29.zip; new tools qa/s205-kanban-perf.mjs + qa/s205-live-verify.mjs + e2e/s205-kanban-entry.spec.ts + src/tests/kanban-route.test.ts.

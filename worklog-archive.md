@@ -2841,3 +2841,40 @@ the skip-link/aria-label HTML probes + health ok/up/63) → tag v0.4.1.25 → zi
   continues per HLTH-19 but these two predate it.
 
 ---
+> **Rotation (HLTH-27):** sessions older than the newest 4 live in
+> `worklog-archive.md` (and verbatim in git history) — this file is the ACTIVE
+> tail only. Rotate with `node scripts/rotate/rotate.mjs --worklog`.
+
+## Session S201 — MAJORS + APPROVALS (the S198 brief's owner-decision round; docs/ops only — no version bump)
+
+Task ID: S201 (single-agent session)
+Agent: Hibana S201 agent (Z.ai Code)
+Task: Execute SESSION-BRIEF-S199.md's S201 plan — present the four rule-4 asks (prepare, never ship unprompted), run + record the restore drills (UX-12), the error_log daily monitor → healthchecks /fail (UX-11), the worklog rotation mode + row caps (HLTH-27), the project-page.js split ride-along (HLTH-24).
+
+Work Log:
+- Cloned @ 64864af (S200 release state); read Agents.md → SESSION-BRIEF → §4/§6 → worklog tail. Live-state audit first: hibana.ir health ok/up/63; CI #559 + CD #409 + Uptime #154 all green on 64864af; both healthchecks up; prod error_log EMPTY (7-day retention, 0 rows); planb_backups 27 rows (newest 2026-09-08).
+- UX-12 (the drills — FIRST EVER run; they shipped 2026-09-11 with zero recorded runs):
+  - `bun run drill` initially FAILED twice and both failures were REAL latent drill bugs, now fixed: (1) my own .secrets.env had GITHUB_REPO=hibana-source (the drill wants the ASSETS repo — the Worker's own value hibana-safe; env-var lesson, not a repo bug); (2) Part B's seed still used pre-0060 status vocabulary ('doing'/'awaiting' fail the projects.status CHECK — dead since 0060, the same blindness that had killed explain-hotpaths in S200).
+  - Post-fix: drill PASS in ~2s (Part A loud-skip — newest backup snapshot-2026-10-11T15-23-26 is AES-GCM and BACKUP_ENCRYPTION_KEY is owner-held by design; Part B synthetic round-trip 9/9: export→restore→FTS rebuild, users untouched, rule-8 clean).
+  - drill:planb initially had its OWN latent bug: the D1 parser read `result[0].results.results` (undefined → every non-empty planb_backups reads EMPTY — caught by the first-ever run). Post-fix: PARTIAL PASS in ~4s — steps 1–3 green on the 2026-09-08 document (D1 log row → Telegram getFile → sha256 match → HIBENC1 magic); steps 4–5 loud-skip (owner key).
+  - Recorded in Changelogs §4 as the new "Drill log" block (date + duration + result + the two fixed bugs + the owner-machine residue).
+- UX-11 (the error monitor — "the owner never reads code; 'feels broken' is the only signal"):
+  - Created healthchecks.io check "Hibana errors" — RANDOM slug (the §4 leaked-ping-key doctrine; NEVER the burned /hibana slug), 24h period + 6h grace, the account's email channel (same as the other two checks).
+  - Repo secret HIBANA_ERRORS_PING_URL set via the GitHub Actions API (libsodium sealed-box; the ping URL value never touches the tree).
+  - NEW .github/workflows/errors.yml — daily 04:23 UTC cron (+ dispatch), NO checkout (pure curl+jq): counts prod error_log rows <24h via the D1 REST API (5xx > 5 = real breakage, total > 20 = incl. the 4xx auth-invalid bursts errorlog.ts deliberately keeps) → /fail with top paths, else a success tick. Anti-masking: pings ONLY its own check. Dry-run of the exact bash logic against real D1: PASS (total 0, 5xx 0). Documented in §4 Monitoring.
+  - The /fail path was deliberately NOT live-tested (it would email the owner a false alarm); its fail() helper is verbatim the proven uptime.yml recipe, and everything up to the ping was verified.
+- HLTH-27 (the rotation + caps):
+  - rotate.mjs gains `--worklog [--keep N]` (default 4): anchors on the modern `## Session` markers, archives everything older to worklog-archive.md (append-only, chronological, born with its own header), leaves a rotation note in the worklog header; shape-verified + dry-run + aborts untouched on surprise.
+  - Prose caps: --row ≤ 2,000 chars, --body ≤ 8,000 chars (hard fail; negative-tested both). Existing rows are history.
+  - Applied for real: worklog.md 2,871 → 305 lines (S198/S199/S200/S201 kept; wrap-up…S197 archived — integrity proven: 305 + 2,575 archive − 9 header/note lines = the original 2,871, zero content loss).
+  - Agents.md doc map documents the archive + the rotation command.
+- The four rule-4 asks (ASK, never ship unprompted): written to Changelogs §6 as the PENDING OWNER APPROVAL block and presented to Ali in chat — PERF-16 (the 4 rule-9 indexes, one migration 0065, impact honestly LOW/doctrine MED), PERF-9 (1.75MB legacy fonts — HONESTLY CORRECTED: the files ARE referenced in font-face.css as src fallbacks, so the fix = delete 21 files AND trim the src lists to woff2-only), UX-13 (zod-4 + node-server-2, one round each), SEC-10 (__Host- prefix, one-time logout). Each verified against the tree before asking (the 4 indexes confirmed absent; only idx_project_tags_tag exists; the font refs confirmed; SESSION_COOKIE confirmed at src/auth/sessions.ts:7).
+- HLTH-24 (project-page.js split) — BANKED with the §6 NO-GO reconciled: the file is one 5,870-line mount closure (all state via closure, the S48 IIFE-bug warning); a big-bang split contradicts the standing S49 doctrine. The SAFE path stays: incremental pure-function extraction (HibanaChips-style) when the file is next touched for real work. Recorded in §6.
+- Ladder (fast lane — zero shipped assets touched, so no cache-bust/e2e-local needed; CI runs the FULL suite on the push since the workflow file isn't paths-ignored): node --check ×3 · typecheck 0 · vitest 632/632 · eslint 0/0 · build 85 · cache-bust PASS · parity PASS · bundle −0.1% · precache 2,138KB PASS · escape-lint 207 sinks PASS · smoke ALL PASS.
+- Secret-scan CLEAN before commit (9 credential values absent · owner email absent from every touched file — it remains pre-existing in the S193/S194 worklog history, public since S194 · account-id confined to the 5 pre-existing public-surface scripts).
+
+Stage Summary:
+- S201 shipped as a docs/ops round (S198 precedent): no version bump, no tag, no zip, no §1/§2 rotation — the durable records are §4's Drill log + Monitoring block, §6's PENDING OWNER APPROVAL block, and this section.
+- The DR drills are now PROVEN (and their two latent bugs dead — the zero-runs policy was hiding them); the error monitor closes UX-11 (three healthchecks now: backup cron, uptime, error growth); the worklog can never again grow monotonic.
+- Next session: on Ali's written YES per ask, execute the approved items (each behind the full ladder + release ritual; PERF-16 needs the §9 bookmark ritual on both DBs); otherwise the S200 banked list (the 86-spec e2e DB-constant sweep, opportunistic --accent-ink conversions, the mobile Lighthouse preset UX-17) + the owner-machine drill run reminder stand.
+- VERIFICATION (post-push): 0779b79 → CI #560 (38164530115) ALL JOBS GREEN — ci 3.8 min (audit + eslint 0/0 + escape-lint + build + bundle + precache + typecheck + cache-bust + parity + vitest 632 + smoke + dist-wiring + workers-smoke + Lighthouse) + e2e shards 6.7/6.3 min in parallel → CD #410 GREEN (same bits redeployed; no asset changes) → error monitor DISPATCH run #1 (38165291625) GREEN with the real D1 probe in its log ("prod error_log since 2026-10-10T18:47:36Z: total=0 5xx=0" + "error monitor PASS") → healthchecks "Hibana errors" flipped new→up (n_pings=1 @ 18:47:37, exactly the run's ping; the other two checks up on natural ticks) → hibana.ir health ok/up/63. The monitor's first scheduled cron run: tomorrow 04:23 UTC.

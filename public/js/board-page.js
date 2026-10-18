@@ -27,6 +27,15 @@
         // the s158 page-identity lesson).
         const isKanbanEntry = () => location.pathname === '/kanban' || location.pathname === '/kanban.html'
         if (!projectId && !isKanbanEntry()) { location.replace('/kanban'); return }
+        // S206 (owner ask 2026-10-18): the dedicated entry drops the "← Back to project"
+        // link — there is no "back" context on /kanban (you didn't arrive FROM a
+        // project), and the freed toolbar width goes to the project name (the switcher).
+        // /board.html?project= keeps the link — it's the project-page context. Navigation
+        // from the entry: the edge-hover rail, the switcher, g k / the go-to palette.
+        if (isKanbanEntry()) {
+          const backLink = document.querySelector('[data-back-link]')
+          if (backLink) backLink.hidden = true
+        }
 
         // S30 batch 2: the filter state (module-scope — render() reads it; the toggles
         // mutate + re-render). Names are stored LOWERCASE for case-insensitive matching.
@@ -41,7 +50,11 @@
 
         const render = () => {
           const S = B().state
-          document.getElementById('db-title').textContent = S.project ? S.project.title : ''
+          const titleEl = document.getElementById('db-title')
+          titleEl.textContent = S.project ? S.project.title : ''
+          // S206: the name ELLIPSIZES to one line now (devboard.css) — the full name
+          // rides the span's title so a hover always reveals it.
+          titleEl.setAttribute('title', S.project ? S.project.title : '')
           // S64 convention (the project page): the tab title carries the project's OWN
           // name (language-neutral user content), not a generic "Board".
           if (S.project && S.project.title) document.title = S.project.title + ' — Hibana'
@@ -844,7 +857,7 @@
             if (window.HibanaBoard) return resolve(true)
             if (!injected && waited >= 1200) {
               injected = true
-              inject('/js/devboard.js?v=23') // keep in sync with the <head> tag + sw SHELL
+              inject('/js/devboard.js?v=24') // keep in sync with the <head> tag + sw SHELL
               if (!window.HibanaChips) inject('/js/chip-render.js?v=11') // S36: was ?v=1 while the HTML tags say v=2 — two cache entries for one file (the cache-bust gate caught it under the sandbox's mode-bit noise). Aligned; local-dev + SW caches now share ONE url per version. S86: v8 — kept in sync with the <head> tag (previewHtml moved in). S176: v11.
               if (!window.jalaali) inject('/vendor/jalaali.min.js') // Jalali dates for FA
             }

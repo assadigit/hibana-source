@@ -1,6 +1,13 @@
 /* --- board page (board.html) ---------------------------------------------- */
+/* S206 (owner ask 2026-10-18): the toolbar title FLEXES and shrinks — fs-xl (18px,
+   multi-line overflow-wrap) starved the project name beside the Back link + counts
+   + the Sprints/Labels buttons; a long FA title wrapped the toolbar into a tall
+   squeeze. Now: fs-md + 600 weight (the toolbar's control register), single line,
+   ellipsized, flexing to claim the free space; the full name rides the span's title
+   attribute. The .db-title class is shared by sprint.html's #sp-title — the same
+   smaller register applies there (consistency, and it was equally cramped). */
 .db-toolbar { display: flex; align-items: center; gap: 0.7rem; padding: 0.7rem 0.9rem; margin-block-end: 1rem; flex-wrap: wrap; }
-.db-title { margin: 0; font-size: var(--fs-xl); overflow-wrap: anywhere; }
+.db-title { margin: 0; font-size: var(--fs-md); font-weight: 600; flex: 1 1 auto; min-inline-size: 0; line-height: 1.3; }
 .db-flex-gap { flex: 1; }
 .db-loading { color: var(--muted); padding: 2rem 0; text-align: center; }
 .db-board { padding-block-end: 2rem; }
@@ -356,13 +363,23 @@
    day that closed ≥1 task.
    S45/S4: the strip was 9px tall — the crown visualization was nearly invisible. The
    lane grew so the strip reads at 20px and the chip at ~28px. */
-.sp-sprint-lane { position: relative; min-block-size: 4.4rem; border-block-end: 1px solid var(--line); z-index: 1; }
+/* S206 (owner: "the sprint system is buggy" — probe-confirmed): the boundary rails
+   (z-4, children of .sp-bg) used to stack ABOVE everything inside the lanes, because
+   .sp-lane/.sp-sprint-lane carried z-index:1 — every positioned child (dots z-5,
+   chips z-3) was SCOPE-CAPPED under it. Result: a task dot sitting under a rail
+   (sprints start today, tasks are created today — the common case) could not be
+   clicked (the editor never opened — the click hit the rail) nor dragged, and the
+   sprint chip's leading edge was dead the same way. The lane z-indexes are RETIRED:
+   lane backgrounds/borders still paint under the rails (DOM order), but the dots
+   (z-5) and the chips (z-3 → z-5) now stack ABOVE the rails wherever they overlap —
+   interactive content beats the rails at the crossing points. */
+.sp-sprint-lane { position: relative; min-block-size: 4.4rem; border-block-end: 1px solid var(--line); }
 .sp-sprint { position: absolute; inset-block-start: 0.12rem; block-size: 60px; border-radius: 4px; cursor: grab; touch-action: none; }
 .sp-sprint:active { cursor: grabbing; }
 .sp-sprint.is-open { background: rgb(74 159 163 / 0.07); }
 .sp-sprint.is-target { outline: 2px solid var(--brand); outline-offset: 1px; background: rgb(74 159 163 / 0.14); }
 .sp-sprint-chip {
-  position: absolute; inset-block-start: 0; inset-inline-start: 0; z-index: 3;
+  position: absolute; inset-block-start: 0; inset-inline-start: 0; z-index: 5; /* S206: above the boundary rails (z-4) — the chip's leading edge was dead under the start rail */
   display: inline-flex; align-items: center; gap: 0.3rem;
   max-inline-size: 100%; overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
   border: 1px solid var(--line); border-radius: 4px; background: var(--card);
@@ -481,7 +498,7 @@
 }
 
 /* category lanes + task clips */
-.sp-lane { position: relative; border-block-end: 1px solid var(--line); min-block-size: 2rem; z-index: 1; }
+.sp-lane { position: relative; border-block-end: 1px solid var(--line); min-block-size: 2rem; }
 .sp-lane.is-target { background: rgb(74 159 163 / 0.06); }
 .sp-bar {
   position: absolute; block-size: 22px; border-radius: 4px;
@@ -890,8 +907,14 @@ main.shell.sp-shell .sp-wrap { min-block-size: min(64vh, 30rem); }
   display: inline-flex;
   align-items: center;
   gap: 0.35rem;
-  font: inherit;               /* keeps the .db-title look (fs-xl + weight) */
-  font-size: var(--fs-xl);
+  font: inherit;
+  /* S206: the switcher speaks the toolbar's CONTROL register now (fs-md + 600 — was
+     fs-xl, the card-title register): the project name reads as a control label, not
+     a page heading, and a long name ELLIPSIZES on one line instead of wrapping the
+     toolbar into a squeeze. The h2.db-title flexes, so the button claims the free
+     toolbar width. */
+  font-size: var(--fs-md);
+  font-weight: 600;
   color: var(--ink-primary, inherit);
   background: transparent;
   border: 1px solid transparent;
@@ -901,7 +924,14 @@ main.shell.sp-shell .sp-wrap { min-block-size: min(64vh, 30rem); }
   max-inline-size: 100%;
   cursor: pointer;
   min-height: 44px;            /* touch floor (the repo's a11y convention) */
-  overflow-wrap: anywhere;
+  overflow: hidden;            /* the ellipsis needs a clipping box */
+}
+#db-title {
+  min-inline-size: 0;
+  flex: 0 1 auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .db-switch:hover { background: var(--bg-soft, rgb(0 0 0 / 4%)); border-color: var(--line); }
 .db-switch:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }

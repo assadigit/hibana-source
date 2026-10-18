@@ -427,7 +427,13 @@
         }
         let sprintId = modalCtx.draft.sprint_id
         if (sprintId === '__new') {
-          const r = await createSprint()
+          // S206 (owner: "the sprint system is buggy" — probe-confirmed): creating
+          // while a DRAFT already exists 409s (draft_exists — one draft at a time),
+          // and the old path let that error fail the WHOLE task save ("Couldn't
+          // save"). The draft we'd collide with is in OUR OWN state (the same
+          // payload the options list rendered from) — reuse it instead of dying.
+          const existing = state.sprints.find((s) => s.is_draft)
+          const r = existing || await createSprint()
           sprintId = r.id
         }
         if (isNew) {

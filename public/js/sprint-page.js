@@ -640,10 +640,19 @@
           }
           const fmtDate = (d) => {
             if (!d) return '—'
-            try { return new Date(d).toLocaleDateString(document.documentElement.lang === 'fa' ? 'fa-IR' : 'en-US', { month: 'short', day: 'numeric' }) } catch { return String(d).slice(0, 10) }
+            // S206: UTC rendering — the timeline axis is UTC-day based, and the browser's
+            // local calendar (Tehran +03:30) read an 23:59:59Z end date as the NEXT day,
+            // so the list disagreed with the band by one day. timeZone: 'UTC' pins the
+            // list to the same days the axis draws (Jalali calendar still applies for fa).
+            try { return new Date(d).toLocaleDateString(document.documentElement.lang === 'fa' ? 'fa-IR' : 'en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' }) } catch { return String(d).slice(0, 10) }
           }
           list.innerHTML = all.map((s) => {
-            const itemCount = (s.items || []).length
+            // S206 (owner: "the sprint system is buggy" — probe-confirmed): the count
+            // used to read (s.items || []).length — the devboard payload NEVER carries
+            // an items field on sprint rows (SELECT * FROM sprints), so every row read
+            // "0 items" forever. The truth is the task pool: tasks whose sprint_id is
+            // this sprint (the same source sprintStats/chips use).
+            const itemCount = S.tasks.filter((t) => t.sprint_id === s.id).length
             const dateTxt = s.started_at
               ? (s.ended_at ? fmtDate(s.started_at) + ' → ' + fmtDate(s.ended_at) : fmtDate(s.started_at) + ' → ' + _t('sp.now', 'now'))
               : _t('sp.notStarted', 'not started')
@@ -1156,12 +1165,17 @@
           // Preset buttons: set start (defaults to today when empty) + end = start + duration.
           // S49: the preset ALSO writes the start input — a picked preset always means
           // "start a dated sprint now", so commit() must see a non-empty startVal.
+          // S206: start parses at UTC MIDNIGHT ('T00:00:00Z') — the timeline axis is
+          // UTC-day based (dayIdx = Math.floor(ms/86400000)), so a local-midnight parse
+          // (the old 'T00:00:00') landed a picked day one CELL EARLY for every non-UTC
+          // user (the owner is UTC+03:30: a "today → +3d" sprint rendered 5 days wide,
+          // starting yesterday). UTC parse = the picked date lands exactly on its cell.
           definePop.querySelectorAll('[data-sp-preset]').forEach((btn) => {
             btn.onclick = () => {
               const ms = parseInt(btn.dataset.spPreset, 10)
               const startVal = startIn.value || todayStr
               startIn.value = startVal
-              const startDate = new Date(startVal + 'T00:00:00')
+              const startDate = new Date(startVal + 'T00:00:00Z')
               const endDate = new Date(startDate.getTime() + ms)
               endIn.value = endDate.toISOString().slice(0, 10)
             }
@@ -1171,9 +1185,10 @@
             const startVal = startIn.value
             const endVal = endIn.value
             // If start date is provided, create as STARTED with dates
+            // S206: UTC-midnight parse (the presets' twin fix) — see the preset note above.
             if (startVal) {
-              const startedAt = new Date(startVal + 'T00:00:00').toISOString()
-              const endedAt = endVal ? new Date(endVal + 'T23:59:59').toISOString() : null
+              const startedAt = new Date(startVal + 'T00:00:00Z').toISOString()
+              const endedAt = endVal ? new Date(endVal + 'T23:59:59Z').toISOString() : null
               try {
                 await B().createSprint(name || undefined, startedAt, endedAt)
                 closeDefinePop()
@@ -1276,17 +1291,35 @@
             over.parentElement.insertBefore(dragEl, after ? over.nextSibling : over)
           } else if (dragKind === 'side-task') {
             const list = e.target.closest('.sp-cat-tasks')
-            if (!list || (dragEl && list === dragEl.parentElement && list.children.length <= 2)) { /* still allow */ }
-            if (!list) return
-            e.preventDefault()
-            const target = e.target.closest('[data-sptask]')
-            const addRow = list.querySelector('.sp-task-addrow')
-            if (target && target !== dragEl) {
-              const r = target.getBoundingClientRect()
-              const after = e.clientY > r.top + r.height / 2
-              list.insertBefore(dragEl, after ? target.nextSibling : target)
-            } else if (addRow) {
-              list.insertBefore(dragEl, addRow)
+            if (list) {
+              // the sidebar's own lists: the reorder/move-across-categories path
+              e.preventDefault()
+              const target = e.target.closest('[data-sptask]')
+              const addRow = list.querySelector('.sp-task-addrow')
+              if (target && target !== dragEl) {
+                const r = target.getBoundingClientRect()
+                const after = e.clientY > r.top + r.height / 2
+                list.insertBefore(dragEl, after ? target.nextSibling : target)
+              } else if (addRow) {
+                list.insertBefore(dragEl, addRow)
+              }
+              return
+            }
+            // S206 (owner: "the sprint system is buggy" — probe-confirmed): a sidebar
+            // task dragged over the TIMELINE (a sprint strip, the draft card, a category
+            // lane) used to die silently — dragover never called preventDefault outside
+            // the sidebar lists, so the browser REFUSED the drop (the draft card's
+            // "drag them here" hint advertised exactly this). Same targets the timeline
+            // bars accept, same is-target cues; the drop branch below assigns.
+            const sprintEl = e.target.closest('.sp-sprint')
+            const draftCard = e.target.closest('[data-sp-draft-card]')
+            const lane = e.target.closest('.sp-lane')
+            if (draftCard || sprintEl || lane) {
+              e.preventDefault()
+              clearDropUi()
+              if (draftCard) { draftCard.classList.add('is-target'); dropTarget = { kind: 'sprint', id: draftCard.dataset.spDraftCard } }
+              else if (sprintEl) { sprintEl.classList.add('is-target'); dropTarget = { kind: 'sprint', id: sprintEl.dataset.sprint } }
+              else if (lane) { lane.classList.add('is-target'); dropTarget = { kind: 'category', id: lane.dataset.lane } }
             }
           } else {
             const sprintEl = e.target.closest('.sp-sprint')
@@ -1315,6 +1348,27 @@
               // with the global category system.
               await reload()
             } else if (kind === 'side-task') {
+              // S206: dropped on a TIMELINE target (sprint strip / draft card /
+              // category lane) → the ASSIGNMENT path (the bar drag's contract,
+              // now shared by sidebar tasks). A sidebar drop (target null) keeps
+              // the reorder/move-category path below.
+              if (target && taskId) {
+                const task = B().findTask(taskId)
+                if (task) {
+                  try {
+                    if (target.kind === 'sprint') {
+                      if (task.sprint_id !== target.id) {
+                        await B().patchTask(task.id, { sprint_id: target.id })
+                        window.hibana && window.hibana.toast(_t('db.movedToSprint', 'Moved to sprint'))
+                      }
+                    } else if (target.kind === 'category') {
+                      const catId = target.id === 'none' ? null : target.id
+                      if (task.category_id !== catId) await B().patchTask(task.id, { category_id: catId })
+                    }
+                  } finally { await reload() }
+                  return
+                }
+              }
               const task = taskId ? B().findTask(taskId) : null
               if (task) {
                 const host = el.closest('.sp-cat')
@@ -1381,7 +1435,7 @@
             if (window.HibanaBoard) return resolve(true)
             if (!injected && waited >= 1200) {
               injected = true
-              inject('/js/devboard.js?v=23') // keep in sync with the <head> tag + sw SHELL
+              inject('/js/devboard.js?v=24') // keep in sync with the <head> tag + sw SHELL
               if (!window.jalaali) inject('/vendor/jalaali.min.js') // Jalali timeline for FA
             }
             if (waited >= 9000) return resolve(false)

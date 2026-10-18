@@ -380,12 +380,85 @@
   // in BOTH states — a manual toggle flips the class for the current page visit; the
   // next navigation re-syncs to the page default (auto-collapsed on the board, labels
   // restored everywhere else).
-  const RAIL_ICON_PAGES = new Set(['/notes.html', '/notes', '/board.html', '/board', '/kanban', '/kanban.html']) // S158: '/board' — live serves it extensionless (307), the icons-only rail never engaged there. S205: '/kanban' (+ its .html spelling) — the fullscreen board's own entry point gets the same full-width treatment
+  const RAIL_ICON_PAGES = new Set(['/notes.html', '/notes', '/board.html', '/board']) // S158: '/board' — live serves it extensionless (307), the icons-only rail never engaged there. S205: '/kanban' (+ its .html spelling) — the fullscreen board's own entry point gets the same full-width treatment. S206: the kanban paths MOVED to RAIL_EDGE_PAGES (the edge-auto rail supersedes icons-only there); /board keeps the icons contract (it's the project-page context with its Back link).
+  // S206 (owner ask 2026-10-18): EDGE-AUTO pages — the kanban entry hides the rail
+  // ENTIRELY (even the collapsed icon strip) and reveals it only when the pointer
+  // approaches the start edge (the #rail-edge-zone tripwire) or keyboard focus
+  // enters it. layout.css owns the geometry (body.rail-edge / rail-edge-open).
+  const RAIL_EDGE_PAGES = new Set(['/kanban', '/kanban.html'])
   function syncRailIconMode(pathname) {
-    const on = RAIL_ICON_PAGES.has(pathname)
+    const edge = RAIL_EDGE_PAGES.has(pathname)
+    const on = !edge && RAIL_ICON_PAGES.has(pathname)
     document.body.classList.toggle('rail-icons-only', on)
-    if (on && railSection) closeRailPanel()
+    document.body.classList.toggle('rail-edge', edge)
+    document.body.classList.remove('rail-edge-open') // a fresh page starts hidden
+    if ((on || edge) && railSection) closeRailPanel()
     syncRailCollapseToggles()
+    syncEdgeZone()
+  }
+
+  // --- the edge zone (S206) ------------------------------------------------------
+  // One element, mounted while (and only while) an edge page is open. CSS gates its
+  // visibility (desktop + hover-capable pointer); the listeners below are inert the
+  // rest of the time. The rail itself mounts async (the /api/nav partial), so every
+  // rail lookup happens at EVENT time, never at mount time.
+  let edgeZoneEl = null
+  let edgeHideTimer = null
+  const edgeMode = () => document.body.classList.contains('rail-edge')
+  const revealEdgeRail = () => {
+    if (!edgeMode()) return
+    clearTimeout(edgeHideTimer)
+    document.body.classList.add('rail-edge-open')
+  }
+  const scheduleEdgeHide = () => {
+    if (!edgeMode()) return
+    clearTimeout(edgeHideTimer)
+    edgeHideTimer = setTimeout(() => document.body.classList.remove('rail-edge-open'), 300)
+  }
+  const railOf = (e) => (e.target && e.target.closest ? e.target.closest('nav.rail') : null)
+  function syncEdgeZone() {
+    if (edgeMode() && !edgeZoneEl) {
+      edgeZoneEl = document.createElement('div')
+      edgeZoneEl.id = 'rail-edge-zone'
+      edgeZoneEl.setAttribute('aria-hidden', 'true')
+      document.body.appendChild(edgeZoneEl)
+      edgeZoneEl.addEventListener('mouseenter', revealEdgeRail)
+      edgeZoneEl.addEventListener('mouseleave', () => { // moved off the strip: hide UNLESS the pointer landed on the rail itself (the rail overlaps the zone's x-range when revealed)
+        if (document.querySelector('nav.rail:hover')) return
+        scheduleEdgeHide()
+      })
+      // the rail (async-mounted): delegate — enter clears the hide, leave schedules it
+      document.addEventListener('mouseover', edgeRailOver)
+      document.addEventListener('mouseout', edgeRailOut)
+      // keyboard: tabbing into the rail reveals it (focus never triggers mouse*); focus
+      // leaving the rail hides it again — same 300ms grace
+      document.addEventListener('focusin', edgeRailFocusIn)
+      document.addEventListener('focusout', edgeRailFocusOut)
+    } else if (!edgeMode() && edgeZoneEl) {
+      clearTimeout(edgeHideTimer)
+      document.body.classList.remove('rail-edge-open')
+      document.removeEventListener('mouseover', edgeRailOver)
+      document.removeEventListener('mouseout', edgeRailOut)
+      document.removeEventListener('focusin', edgeRailFocusIn)
+      document.removeEventListener('focusout', edgeRailFocusOut)
+      edgeZoneEl.remove()
+      edgeZoneEl = null
+    }
+  }
+  const edgeRailOver = (e) => { if (edgeMode() && railOf(e)) revealEdgeRail() }
+  const edgeRailOut = (e) => {
+    if (!edgeMode() || !railOf(e)) return
+    // a real leave: the new target is outside the rail AND outside the zone
+    const next = e.relatedTarget
+    if (next && next.closest && (next.closest('nav.rail') || next.closest('#rail-edge-zone'))) return
+    scheduleEdgeHide()
+  }
+  const edgeRailFocusIn = (e) => { if (edgeMode() && railOf(e)) revealEdgeRail() }
+  const edgeRailFocusOut = (e) => {
+    if (!edgeMode() || !railOf(e)) return
+    const next = e.relatedTarget
+    if (next && next.closest && next.closest('nav.rail')) return
+    scheduleEdgeHide()
   }
 
   // S136: keep every collapse toggle's aria-expanded honest with the body class
@@ -1223,7 +1296,9 @@
     if (!box || !RAIL_SECTIONS[section]) return
     // S95 r2 (owner item 9): the panel never mounts on a module-sidebar page —
     // the module's own sidebars own the real estate beside the icon rail.
+    // S206: likewise on the edge-auto pages (the hidden rail + full-bleed board).
     if (document.body.classList.contains('rail-icons-only')) return
+    if (document.body.classList.contains('rail-edge')) return
     railSection = section
     box.hidden = false
     document.body.classList.add('rail-panel-open')
@@ -1481,7 +1556,7 @@
   if (window.matchMedia('(min-width: 1025px)').matches) {
     let saved = null
     try { saved = localStorage.getItem(RAIL_PANEL_KEY) } catch { saved = null }
-    if (saved && RAIL_SECTIONS[saved] && !document.body.classList.contains('rail-icons-only')) {
+    if (saved && RAIL_SECTIONS[saved] && !document.body.classList.contains('rail-icons-only') && !document.body.classList.contains('rail-edge')) {
       // wait for the partial to mount the panel host (async /api/nav injection)
       const t0 = Date.now()
       const iv = setInterval(() => {

@@ -897,6 +897,54 @@ body.rail-panel-open .rail-panel { visibility: visible; opacity: 1; transition: 
   body.rail-icons-only .rail-btn { inline-size: 3rem; min-block-size: 3rem; gap: 0; } /* S189: 48px — the 8px shape shoulders, both rail forms */
   body.rail-icons-only .rail-brand { inline-size: 2.75rem; block-size: 2.75rem; border-radius: 0.75rem; }
 }
+/* S206 (owner ask, 2026-10-18): the EDGE-AUTO rail — the /kanban pages go TRULY
+   full-bleed. The rail (even its collapsed icon form — the S136 contract the board
+   used to carry) is HIDDEN off-canvas and the body gutter drops to 0, so the five
+   board columns own the whole viewport. The rail returns ONLY when the pointer
+   approaches the start edge: nav.js mounts an invisible #rail-edge-zone strip;
+   hovering it (or keyboard-focusing into the rail) slides the icon rail back in
+   as an OVERLAY (the board never reflows — no padding jump mid-hover). Leaving
+   the rail + zone hides it again (300ms grace). Touch devices never see the zone
+   (no hover) — their bottom mobile-nav owns navigation there, as always. The
+   revealed rail is the COMPACT icon form (the same geometry as rail-icons-only)
+   and the panel + collapse-toggle stay suppressed (the board owns the width). */
+@media (min-width: 1025px) {
+  body.rail-edge { --rail-w: 0rem; } /* the BODY GUTTER drops to 0 — the rail keeps its own width below */
+  body.rail-edge .rail { inline-size: 4rem; } /* the revealed compact rail's own geometry (the gutter var no longer sizes it) */
+  body.rail-edge .rail-label { display: none; }
+  body.rail-edge .rail-btn { inline-size: 3rem; min-block-size: 3rem; gap: 0; }
+  body.rail-edge .rail-brand { inline-size: 2.75rem; block-size: 2.75rem; border-radius: 0.75rem; }
+  body.rail-edge .rail-collapse { display: none !important; } /* auto-hides — no manual collapse contract here */
+  body.rail-edge .rail {
+    transform: translateX(-100%); /* off-canvas start edge; RTL mirrors below */
+    transition: transform 0.18s ease;
+    border-inline-end: 1px solid var(--line);
+    box-shadow: 0 0 18px rgb(0 0 0 / 0.06); /* a floating surface now — a whisper of lift so it reads above the board */
+  }
+  [dir='rtl'] body.rail-edge .rail { transform: translateX(100%); }
+  body.rail-edge.rail-edge-open .rail,
+  [dir='rtl'] body.rail-edge.rail-edge-open .rail { transform: translateX(0); }
+  /* the hover tripwire: a 16px full-height strip at the start edge. Invisible,
+     above the rail (z 39 > 38) so a revealed rail's first 16px stay inside the
+     keep-open region. */
+  #rail-edge-zone {
+    position: fixed;
+    inset-block: 0;
+    inset-inline-start: 0;
+    inline-size: 1rem;
+    z-index: 39;
+    background: transparent;
+  }
+}
+/* the zone only exists on rail-edge pages (nav.js mounts it there); below the
+   desktop breakpoint the rail is already display:none — no zone, no dead strip */
+@media not all and (min-width: 1025px) { #rail-edge-zone { display: none; } }
+/* touch pointer: no hover to reveal with — the zone would be a dead invisible
+   strip; the mobile bottom-nav owns navigation there */
+@media (hover: none) { #rail-edge-zone { display: none; } }
+@media (prefers-reduced-motion: reduce) {
+  body.rail-edge .rail { transition: none; }
+}
 /* S136: the rail's collapse toggle (partials/nav.html) — board.html auto-collapses
    the rail (nav.js RAIL_ICON_PAGES) and this button is the always-reachable control
    back. It shows ONLY while the rail is COLLAPSED: the page contract owns the

@@ -754,6 +754,9 @@ window.__hibanaDictEN = {
       // S44: the sprint timeline's today-flag chip (rides the today line)
       'db.today': 'Today',
       'db.tags': 'Tags', 'db.addTag': 'Add tag + Enter', 'db.taskAdded': 'Task added', 'db.taskDeleted': 'Task deleted',
+      // S208: the card's pin badge (kanban task-option parity)
+      'db.taskShotsHint': 'Pinned pictures — note + proof stuck to this item',
+      'db.taskShotsBadge': 'Pinned pictures ({n})',
       'db.zoom': 'Zoom', 'db.zoomDays': 'Days',
       'db.zoomMonths': 'Months', 'db.newSprintTitle': 'Sprint',
       'db.zoom1w': '1 week', 'db.zoom1m': '1 month', 'db.zoom3m': '3 months', 'db.zoom6m': '6 months', 'db.zoom12m': '12 months',

@@ -220,6 +220,525 @@
     method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ids }),
   })
 
+  // ---------------------------------------------------------------- shots (S208)
+  // S208 (owner: "when creating a new task it doesn't show the button to upload a
+  // picture — but already established tasks give you the option; make sure ALL the
+  // task options of the original hibana live on this board"): the screenshots /
+  // attachments pipeline comes to the board's task editor, ported from
+  // project-page.js's S35/S46/S61/S67/S69/S86 stack (the XHR uploader with real
+  // per-file progress + cancel, the ≤1600px WebP prepare pass, the staged-shots
+  // lifecycle, the inline pinned grid, the lightbox browser). Scoped to
+  // state.projectId so the SAME machinery serves board.html AND sprint.html —
+  // both surfaces render this modal:
+  //   - NEW tasks: the Upload File button stages pictures immediately (POST, no
+  //     task_id) — they PIN to the created task on save (PATCH {taskId}) and are
+  //     DELETED on cancel/Esc (the project composer's contract — nothing orphans
+  //     in the project's gallery).
+  //   - EXISTING tasks: the same button uploads + pins in one round-trip per
+  //     file, and the inline grid below shows the task's pinned shots with
+  //     zoom / edit-note / delete — the pde-shots-grid contract.
+  //   - Full S86 bucket: png/jpeg/webp/gif + video/webm + pdf/csv/xlsx/docx/
+  //     md/txt (doc tiles download — the serving route stamps
+  //     Content-Disposition: attachment for non-images).
+  const fmtBytes = (bytes) => {
+    // Compact KB/MB for the progress rows (language-neutral units + FA digits).
+    const n = Number(bytes) || 0
+    if (n >= 1024 * 1024) return faDig((n / (1024 * 1024)).toFixed(1)) + ' MB'
+    if (n >= 1024) return faDig(Math.round(n / 1024)) + ' KB'
+    return faDig(n) + ' B'
+  }
+  // S86: the bucket takes PDF, CSV, XLSX, DOCX, MD, TXT alongside the four image
+  // types (+ webm video). Browsers report doc mimes unreliably (octet-stream,
+  // vendor variants), so the EXTENSION maps to the canonical allowlist mime —
+  // the same allowlist the server validates against.
+  const MIME_BY_EXT = {
+    pdf: 'application/pdf',
+    csv: 'text/csv',
+    xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    md: 'text/markdown',
+    markdown: 'text/markdown',
+    txt: 'text/plain',
+    png: 'image/png',
+    jpg: 'image/jpeg',
+    jpeg: 'image/jpeg',
+    webp: 'image/webp',
+    gif: 'image/gif',
+    webm: 'video/webm',
+  }
+  const fileExt = (f) => String(f && f.name ? f.name.split('.').pop() : '').toLowerCase()
+  const canonicalMime = (f) => {
+    const byExt = MIME_BY_EXT[fileExt(f)]
+    if (f.type && f.type.startsWith('image/') && ['png', 'jpeg', 'webp', 'gif'].includes(f.type.slice(6))) return f.type
+    if (f.type === 'video/webm') return f.type
+    if (byExt && (!f.type || f.type === 'application/octet-stream' || f.type === 'text/plain' || f.type.startsWith('text/') || f.type === byExt)) return byExt
+    return f.type || byExt || ''
+  }
+  const isAcceptedFile = (f) => {
+    const mime = canonicalMime(f)
+    if (['image/png', 'image/jpeg', 'image/webp', 'image/gif'].includes(mime)) return true
+    return Object.values(MIME_BY_EXT).includes(mime)
+  }
+  const isImageMime = (m) => String(m || '').startsWith('image/')
+  const fileExtLabel = (name) => {
+    const ext = String(name || '').split('.').pop() || ''
+    return ext.toUpperCase().slice(0, 5) || 'FILE'
+  }
+  const shotName = (s) => {
+    const direct = String(s && (s.filename || s.fileName) ? (s.filename || s.fileName) : '').trim()
+    if (direct) return direct
+    return String(s && s.github_path ? s.github_path : '').split('/').pop().replace(/^[0-9a-f-]{36}-/i, '') || 'file'
+  }
+  // S86: the shared DOC tile — the same .shot-file shape the server's grid
+  // renders; an <a download> (the serving route adds the disposition header).
+  const fileTileHtml = (s) => {
+    const name = shotName(s)
+    const dl = t('project.downloadFile', 'Download {f}').replace('{f}', name)
+    return '<a class="shot-file" href="/api/media/screenshots/' + encodeURIComponent(s.id) + '/file" download title="' + esc(dl) + '" aria-label="' + esc(dl) + '">' +
+      '<span class="shot-file-ext" aria-hidden="true">' + esc(fileExtLabel(name)) + '</span>' +
+      '<span class="shot-file-name" dir="auto">' + esc(name) + '</span>' +
+      '<span class="shot-file-dl" aria-hidden="true"><svg class="icon" viewBox="0 0 24 24"><path d="M12 3v12m0 0l-4-4m4 4l4-4M5 21h14"/></svg></span>' +
+    '</a>'
+  }
+  // image-resize.js is NOT linked by board.html/sprint.html (only project/spark/
+  // settings pages carry it) — load it ON DEMAND the first time the editor opens
+  // (the app.js ensureImageResize recipe). A failed load keeps the raw
+  // FileReader path (uploadShotXHR degrades gracefully without the helper).
+  let imgResizeLoader = null
+  const ensureImageResize = () => {
+    if (window.hibanaImageResize) return Promise.resolve(window.hibanaImageResize)
+    if (imgResizeLoader) return imgResizeLoader
+    imgResizeLoader = new Promise((resolve) => {
+      const s = document.createElement('script')
+      s.src = '/js/image-resize.js?v=1'
+      s.onload = () => resolve(window.hibanaImageResize || null)
+      s.onerror = () => resolve(null)
+      document.head.appendChild(s)
+    })
+    return imgResizeLoader
+  }
+  // S69 prepare phase rides along: images bound to ≤1600px WebP (quality .85)
+  // when >1600px or >220KB, + a ≤320px tile as thumbBase64. GIF/SVG/docs take
+  // the raw path (a canvas pass would flatten the animation). registerAbort is
+  // called per phase (reader → xhr) so each progress row's ✕ aborts whichever
+  // is live; an aborted upload rejects with 'aborted' and drops the row
+  // NEUTRALLY (nothing failed — the user cancelled).
+  const uploadShotXHR = (file, onProgress, registerAbort) =>
+    new Promise((resolve, reject) => {
+      let prepareAborted = false
+      let pendingThumb = null
+      const uploadMime = canonicalMime(file)
+      if (registerAbort) registerAbort(() => { prepareAborted = true })
+      const reader = new FileReader()
+      if (registerAbort) registerAbort(() => { try { reader.abort() } catch { /* already done */ } })
+      reader.onabort = () => reject(new Error('aborted'))
+      reader.onload = () => {
+        const b64 = String(reader.result).split(',')[1]
+        const xhr = new XMLHttpRequest()
+        if (registerAbort) registerAbort(() => { try { xhr.abort() } catch { /* already done */ } })
+        xhr.open('POST', '/api/projects/' + state.projectId + '/screenshots')
+        xhr.setRequestHeader('Content-Type', 'application/json')
+        xhr.upload.onprogress = (ev) => { if (ev.lengthComputable && onProgress) onProgress(ev.loaded / ev.total) }
+        xhr.onload = () => {
+          if (xhr.status >= 200 && xhr.status < 300) { try { resolve(JSON.parse(xhr.responseText)) } catch { resolve({}) } }
+          else reject(new Error('status ' + xhr.status))
+        }
+        xhr.onerror = () => reject(new Error('network'))
+        xhr.onabort = () => reject(new Error('aborted'))
+        xhr.send(JSON.stringify({ fileName: file.name, mimeType: uploadMime, dataBase64: b64, caption: '', ...(pendingThumb ? { thumbBase64: pendingThumb } : {}) }))
+      }
+      reader.onerror = () => reject(new Error('read-failed'))
+      const R = window.hibanaImageResize
+      if (!R || !isImageMime(uploadMime) || file.type === 'image/gif' || file.type === 'image/svg+xml') { reader.readAsDataURL(file); return }
+      ;(async () => {
+        try {
+          const img = await R.decodeImage(file)
+          const maxSide = Math.max(img.width, img.height)
+          const tooBig = maxSide > 1600 || file.size > 220 * 1024
+          const main = tooBig ? await R.resizeAndEncode(file, { maxDim: 1600, quality: 0.85 }) : null
+          let thumb = null
+          try {
+            const th = await R.resizeAndEncode(file, { maxDim: 320, quality: 0.8 })
+            if (th.mimeType === 'image/webp' && th.dataBase64.length <= 120_000) thumb = th.dataBase64
+          } catch { /* tile is optional */ }
+          if (prepareAborted) return reject(new Error('aborted'))
+          if (!main) { pendingThumb = thumb; reader.readAsDataURL(file); return } // small file — raw bytes + tile
+          if (prepareAborted) return reject(new Error('aborted'))
+          const xhr = new XMLHttpRequest()
+          if (registerAbort) registerAbort(() => { try { xhr.abort() } catch { /* already done */ } })
+          xhr.open('POST', '/api/projects/' + state.projectId + '/screenshots')
+          xhr.setRequestHeader('Content-Type', 'application/json')
+          xhr.upload.onprogress = (ev) => { if (ev.lengthComputable && onProgress) onProgress(ev.loaded / ev.total) }
+          xhr.onload = () => {
+            if (xhr.status >= 200 && xhr.status < 300) { try { resolve(JSON.parse(xhr.responseText)) } catch { resolve({}) } }
+            else reject(new Error('status ' + xhr.status))
+          }
+          xhr.onerror = () => reject(new Error('network'))
+          xhr.onabort = () => reject(new Error('aborted'))
+          xhr.send(JSON.stringify({ fileName: file.name, mimeType: main.mimeType, dataBase64: main.dataBase64, caption: '', ...(thumb ? { thumbBase64: thumb } : {}) }))
+        } catch {
+          if (prepareAborted) return reject(new Error('aborted'))
+          reader.readAsDataURL(file) // canvas failed — the raw path still works
+        }
+      })()
+    })
+  // The strip: per-file rows (name + size + bar + % + ✕) mounted above the grid;
+  // rows go reading → active → done/error/canceled; done rows fade+remove, error
+  // rows linger 6s, canceled rows drop immediately (neutral). aria-live=polite so
+  // SR users hear completion without per-file toast spam.
+  const makeUploadStrip = (mount, insertBefore) => {
+    if (!mount) return { addRow: () => ({ setProgress() {}, done() {}, failed() {}, cancel() {} }) }
+    let strip = mount.querySelector(':scope > .shots-upload-strip')
+    const ensure = () => {
+      if (strip) return strip
+      strip = document.createElement('div')
+      strip.className = 'shots-upload-strip'
+      strip.setAttribute('role', 'status')
+      strip.setAttribute('aria-live', 'polite')
+      strip.setAttribute('aria-label', t('project.uploading', 'Uploading…'))
+      mount.insertBefore(strip, insertBefore || null)
+      return strip
+    }
+    return {
+      addRow(fileName, fileSize) {
+        ensure()
+        const row = document.createElement('div')
+        row.className = 'shots-upload-row'
+        row.dataset.state = 'reading'
+        row.innerHTML =
+          '<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="5" width="17" height="14" rx="2"/><circle cx="8" cy="10" r="1.5"/><path d="M21 16l-5-5L5 19"/></svg>' +
+          '<span class="shots-upload-name"></span>' +
+          (fileSize != null ? '<span class="shots-upload-size"></span>' : '') +
+          '<div class="shots-upload-bar" aria-hidden="true"><div class="shots-upload-fill"></div></div>' +
+          '<span class="shots-upload-pct"></span>' +
+          '<button type="button" class="ghost icon-btn shots-upload-cancel" aria-label="' + t('project.cancelUpload', 'Cancel upload') + '" title="' + t('project.cancelUpload', 'Cancel upload') + '"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button>'
+        row.querySelector('.shots-upload-name').textContent = fileName // textContent — never innerHTML for names
+        const sizeEl = row.querySelector('.shots-upload-size')
+        if (sizeEl && fileSize != null) sizeEl.textContent = fmtBytes(fileSize)
+        strip.appendChild(row)
+        const fill = row.querySelector('.shots-upload-fill')
+        const pctEl = row.querySelector('.shots-upload-pct')
+        const cancelBtn = row.querySelector('.shots-upload-cancel')
+        let abortFn = null
+        const drop = () => {
+          row.remove()
+          if (strip && !strip.querySelector('.shots-upload-row')) { strip.remove(); strip = null }
+        }
+        cancelBtn.addEventListener('click', () => {
+          if (row.dataset.state === 'done' || row.dataset.state === 'error' || row.dataset.state === 'canceled') return
+          if (abortFn) abortFn()
+          row.dataset.state = 'canceled'
+          setTimeout(drop, 260)
+        })
+        return {
+          onAbortable(fn) { abortFn = fn },
+          setProgress(frac) {
+            if (row.dataset.state === 'done' || row.dataset.state === 'error' || row.dataset.state === 'canceled') return
+            row.dataset.state = 'active'
+            const pct = Math.max(0, Math.min(100, Math.round((frac || 0) * 100)))
+            fill.style.inlineSize = pct + '%'
+            pctEl.textContent = pct > 0 ? faDig(pct + '%') : ''
+          },
+          done() {
+            if (row.dataset.state === 'canceled') return
+            row.dataset.state = 'done'
+            fill.style.inlineSize = '100%'
+            pctEl.textContent = '✓'
+            setTimeout(drop, 650)
+          },
+          failed() {
+            if (row.dataset.state === 'canceled') return
+            row.dataset.state = 'error'
+            pctEl.textContent = '✕'
+            setTimeout(drop, 6000)
+          },
+        }
+      },
+    }
+  }
+  // { ok: true, shot } landed · { ok: false, canceled: true } user-cancelled
+  // (neutral drop, no toast) · { ok: false } failed (red row) — callers aggregate.
+  const uploadOne = async (file, strip) => {
+    const row = strip.addRow(file.name, file.size)
+    try {
+      const shot = await uploadShotXHR(file, (f) => row.setProgress(f), (fn) => row.onAbortable(fn))
+      row.done()
+      return { ok: true, shot }
+    } catch (err) {
+      if (err && err.message === 'aborted') return { ok: false, canceled: true }
+      row.failed()
+      return { ok: false }
+    }
+  }
+  const patchShot = (id, body) => api('/api/screenshots/' + id, {
+    method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body),
+  })
+  const deleteShot = (id) => api('/api/screenshots/' + id, { method: 'DELETE' })
+  const listShots = async () => {
+    const r = await api('/api/projects/' + state.projectId + '/screenshots')
+    return (r && r.screenshots) || []
+  }
+  // S60/S118: the lightbox BROWSER — prev/next walk the sibling figures of the
+  // SAME grid (wrap-around, live counter + caption, reading-direction arrows,
+  // recordings join via their <video> src), Esc closes AND focus returns to the
+  // trigger. S83: a zoom from inside an OPEN native <dialog> (the note dialog,
+  // the pinned-pictures dialog) mounts the lightbox INTO that dialog's top
+  // layer; from the db-modal (a plain z-90 div) a body-append paints above it
+  // (.shot-lightbox is z-200). Esc precedence: this key handler is registered at
+  // module load — BEFORE buildModal()'s editor-close listener — and
+  // stopImmediatePropagation shields the modal from the same keystroke (the
+  // modal's own !shotLightbox guard is the belt).
+  let shotLightbox = null // { el, idx, items, lastTrigger, host, onCancel }
+  const closeShotLightbox = () => {
+    if (!shotLightbox) return
+    const tr = shotLightbox.lastTrigger
+    const vid = shotLightbox.el.querySelector('video.lb-video')
+    if (vid) { try { vid.pause() } catch {} }
+    if (shotLightbox.host && shotLightbox.onCancel) shotLightbox.host.removeEventListener('cancel', shotLightbox.onCancel)
+    shotLightbox.el.remove()
+    shotLightbox = null
+    document.body.style.overflow = ''
+    try { tr?.focus?.() } catch {} // keyboard users never land in the void
+  }
+  const lbShotStep = (delta) => {
+    if (!shotLightbox || !shotLightbox.items.length) return
+    const it = shotLightbox.items
+    shotLightbox.idx = (shotLightbox.idx + delta + it.length) % it.length
+    const r = it[shotLightbox.idx]
+    const img = shotLightbox.el.querySelector('img')
+    const vid = shotLightbox.el.querySelector('video.lb-video')
+    if (vid && !vid.hidden && !r.video) { try { vid.pause() } catch {} }
+    if (img) { img.hidden = !!r.video; if (!r.video) { img.src = r.src; img.alt = r.caption || t('project.shotZoom', 'Screenshot') } }
+    if (vid) {
+      vid.hidden = !r.video
+      if (r.video && vid.getAttribute('src') !== r.src) vid.setAttribute('src', r.src)
+    }
+    const count = shotLightbox.el.querySelector('.lb-count')
+    if (count) count.textContent = faDig(shotLightbox.idx + 1) + ' / ' + faDig(it.length)
+    const cap = shotLightbox.el.querySelector('.lb-cap')
+    if (cap) cap.textContent = r.caption || ''
+    const st = shotLightbox.el.querySelector('.lb-state')
+    if (st) {
+      st.textContent = r.resolved ? '✓ ' + t('project.shotFixedLabel', 'fixed') : t('project.shotOpenLabel', 'open problem')
+      st.classList.toggle('is-fixed', !!r.resolved)
+    }
+  }
+  const openShotLightbox = (src, trigger, scopeGrid, video) => {
+    closeShotLightbox()
+    const figs = scopeGrid ? [...scopeGrid.querySelectorAll(':scope > .shot-card')] : []
+    const items = figs.map((f) => {
+      const vid = f.querySelector('video.shot-video')
+      if (vid) return { src: vid.getAttribute('src') || '', caption: (f.querySelector('.shot-note')?.textContent || '').trim(), resolved: f.dataset.resolved === '1' || f.classList.contains('is-fixed'), video: true }
+      return { src: f.querySelector('.shot-img-btn img')?.getAttribute('src') || '', caption: (f.querySelector('.shot-note')?.textContent || '').trim(), resolved: f.dataset.resolved === '1' || f.classList.contains('is-fixed'), video: false }
+    }).filter((x) => x.src)
+    let idx = items.findIndex((x) => x.src === src)
+    if (idx < 0) { items.push({ src, caption: '', resolved: false, video: !!video }); idx = items.length - 1 }
+    const el = document.createElement('div')
+    el.className = 'shot-lightbox'
+    el.setAttribute('role', 'dialog')
+    el.setAttribute('aria-modal', 'true')
+    el.setAttribute('data-lb', '')
+    el.setAttribute('aria-label', t('project.shotZoom', 'Screenshot'))
+    el.innerHTML =
+      '<button type="button" class="lb-nav lb-prev" aria-label="' + t('gallery.lbPrev', 'Previous picture') + '"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg></button>' +
+      '<img src="' + esc(src) + '" alt="' + t('project.shotZoom', 'Screenshot') + '"' + (video ? ' hidden' : '') + '>' +
+      '<video class="shot-video lb-video" controls playsinline preload="metadata"' + (video ? ' src="' + esc(src) + '"' : ' hidden') + '></video>' +
+      '<button type="button" class="lb-nav lb-next" aria-label="' + t('gallery.lbNext', 'Next picture') + '"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5l7 7-7 7"/></svg></button>' +
+      '<button type="button" class="lb-close" aria-label="' + t('gallery.lbClose', 'Close') + '"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button>' +
+      '<div class="lb-meta"><span class="lb-count" aria-live="polite"></span><span class="lb-state" dir="auto"></span><span class="lb-cap" dir="auto"></span></div>'
+    el.addEventListener('click', (ev) => {
+      if (ev.target.closest('.lb-nav')) { lbShotStep(ev.target.closest('.lb-prev') ? -1 : 1); return }
+      if (ev.target.closest('.lb-close')) { closeShotLightbox(); return }
+      if (!ev.target.closest('img, video')) closeShotLightbox()
+    })
+    const host = trigger instanceof Element ? trigger.closest('dialog[open]') : null
+    ;(host || document.body).appendChild(el)
+    if (!host) document.body.style.overflow = 'hidden'
+    let onCancel = null
+    if (host) {
+      onCancel = (ev) => { if (shotLightbox) { ev.preventDefault(); closeShotLightbox() } }
+      host.addEventListener('cancel', onCancel)
+    }
+    shotLightbox = { el, idx, items, lastTrigger: trigger, host, onCancel }
+    lbShotStep(0)
+    el.querySelector('.lb-close')?.focus()
+  }
+  document.addEventListener('keydown', (e) => {
+    if (!shotLightbox) return
+    if (e.key === 'Escape') {
+      try { e.preventDefault() } catch {}
+      try { e.stopImmediatePropagation() } catch {} // the modal under it must NOT close on this keystroke
+      closeShotLightbox()
+      return
+    }
+    const rtl = document.documentElement.dir === 'rtl'
+    if (e.key === (rtl ? 'ArrowLeft' : 'ArrowRight')) lbShotStep(1)
+    else if (e.key === (rtl ? 'ArrowRight' : 'ArrowLeft')) lbShotStep(-1)
+  })
+  // S118/S119: a recording tile zooms on DOUBLE-click / Enter (single click and
+  // Space stay the video's native controls); the tile player pauses when the big
+  // one opens.
+  document.addEventListener('dblclick', (e) => {
+    const vid = e.target instanceof Element ? e.target.closest('video.shot-video') : null
+    if (!vid) return
+    const fig = vid.closest('.shot-card')
+    if (!fig) return
+    e.preventDefault()
+    try { vid.pause() } catch {}
+    openShotLightbox(vid.getAttribute('src') || '', vid, fig.parentElement, true)
+  })
+  document.addEventListener('keydown', (e) => {
+    if (e.key !== 'Enter') return
+    const vid = e.target instanceof Element && e.target.matches('video.shot-video') ? e.target : null
+    if (!vid) return
+    const fig = vid.closest('.shot-card')
+    if (!fig) return
+    e.preventDefault()
+    try { vid.pause() } catch {}
+    openShotLightbox(vid.getAttribute('src') || '', vid, fig.parentElement, true)
+  })
+  // The shared tile: image → zoom button, video → inline player, doc → download
+  // tile; caption note + Add/Edit-note + ✕ delete. mode 'staged' (new task) vs
+  // 'task' (pinned) only swaps the data-* hooks so one delegated handler serves
+  // both grids.
+  const SHOT_RETRY_ATTR = ' onerror="(function(i){var n=+(i.dataset.r||0)+1;if(n<4){i.dataset.r=n;var s=i.src;i.onerror=null;setTimeout(function(){i.src=s},800*n)}})(this)"'
+  const shotFigureHtml = (s, mode) => {
+    const mime = String(s.mime_type || s.mime || '')
+    const isVideo = mime.startsWith('video/')
+    const caption = String(s.caption || '')
+    const zoomAttr = mode === 'staged' ? 'data-db-staged-zoom' : 'data-db-shot-zoom'
+    const noteAttr = mode === 'staged' ? 'data-db-staged-note' : 'data-db-shot-note'
+    const delAttr = mode === 'staged' ? 'data-db-staged-del' : 'data-db-shot-del'
+    return '<figure class="shot-card' + (isVideo ? ' is-video' : !isImageMime(mime) ? ' is-file' : '') + '" data-shot-id="' + esc(s.id) + '">' +
+      (isImageMime(mime)
+        ? '<button type="button" class="shot-img-btn" ' + zoomAttr + '="' + esc(s.id) + '"><img src="/api/media/screenshots/' + esc(s.id) + '/file" alt="" loading="lazy"' + SHOT_RETRY_ATTR + '></button>'
+        : isVideo
+          ? '<video class="shot-video" src="/api/media/screenshots/' + esc(s.id) + '/file" controls preload="metadata" playsinline tabindex="0" aria-label="' + esc(t('project.videoTileAria', 'Recording — press Enter to view full screen')) + '"></video>'
+          : fileTileHtml(s)) +
+      '<figcaption class="shot-body">' +
+        (caption ? '<p class="shot-note muted small" dir="auto">' + esc(caption) + '</p>' : '') +
+        '<div class="row spread shot-actions">' +
+          '<button type="button" class="ghost small" ' + noteAttr + '="' + esc(s.id) + '" title="' + (caption ? t('notes.editNote', 'Edit note') : t('notes.addNote', 'Add note')) + '">' + (caption ? t('notes.editNote', 'Edit note') : t('notes.addNote', 'Add note')) + '</button>' +
+          '<button type="button" class="ghost small danger" ' + delAttr + '="' + esc(s.id) + '" title="' + t('common.delete', 'Delete') + '" aria-label="' + t('common.delete', 'Delete') + '">✕</button>' +
+        '</div>' +
+      '</figcaption>' +
+    '</figure>'
+  }
+  // The note editor — a small native <dialog> (the board's delete-confirm
+  // recipe): caption ≤1000 chars, PATCH {caption}, onSaved(text) refreshes the
+  // owning grid.
+  const shotNoteDialog = (shotId, current, onSaved) => {
+    const old = document.getElementById('db-shotnote')
+    if (old) old.remove()
+    const dlg = document.createElement('dialog')
+    dlg.id = 'db-shotnote'
+    dlg.className = 'dialog'
+    dlg.innerHTML =
+      '<form class="modal" method="dialog">' +
+        '<h3>' + esc(t('project.shotNoteTitle', 'Note — what & where to work')) + '</h3>' +
+        '<textarea class="pd-shot-note-ta" rows="6" maxlength="1000" dir="auto" placeholder="' + esc(t('project.shotNotePh', 'What is broken & where — the exact spot to work on…')) + '"></textarea>' +
+        '<div class="row" style="justify-content:flex-end;gap:.5rem;margin-top:1rem">' +
+          '<button type="button" class="ghost" data-note-cancel>' + esc(t('common.cancel', 'Cancel')) + '</button>' +
+          '<button type="button" data-note-save>' + esc(t('common.save', 'Save')) + '</button>' +
+        '</div>' +
+      '</form>'
+    document.body.appendChild(dlg)
+    const ta = dlg.querySelector('textarea')
+    ta.value = current || ''
+    dlg.querySelector('[data-note-cancel]').onclick = () => dlg.close()
+    dlg.querySelector('[data-note-save]').onclick = async () => {
+      try {
+        await patchShot(shotId, { caption: ta.value.trim() })
+        dlg.close()
+        if (onSaved) onSaved(ta.value.trim())
+      } catch { window.hibana && window.hibana.toast(t('sparks.saveFailed', "Couldn't save"), 'err') }
+    }
+    dlg.addEventListener('click', (e) => { if (e.target === dlg) dlg.close() })
+    dlg.showModal()
+    setTimeout(() => ta.focus(), 0)
+  }
+  // Staged shots for the NEW-task editor: uploaded immediately (POST, no
+  // task_id), pinned on save, deleted on cancel.
+  let modalStaged = []
+  // The CURRENT editor's pinned list (cache for the note/delete handlers).
+  let modalPinnedShots = []
+  function renderStagedGrid() {
+    if (!modalEl || !modalCtx || modalCtx.taskId) return
+    const grid = modalEl.querySelector('[data-db-shots-grid]')
+    if (!grid) return
+    grid.innerHTML = modalStaged.map((s) => shotFigureHtml(s, 'staged')).join('')
+    const cnt = modalEl.querySelector('[data-db-shots-count]')
+    if (cnt) cnt.textContent = modalStaged.length ? t('project.shotsAttached', '{n} attached').replace('{n}', String(modalStaged.length)) : ''
+  }
+  async function renderPinnedGrid() {
+    if (!modalEl || !modalCtx || !modalCtx.taskId) return
+    const grid = modalEl.querySelector('[data-db-shots-grid]')
+    if (!grid) return
+    try {
+      const all = await listShots()
+      if (!modalCtx) return // closed meanwhile
+      modalPinnedShots = all.filter((s) => s.task_id === modalCtx.taskId)
+    } catch { return }
+    if (!modalCtx || !modalEl || modalEl.hidden) return
+    const g2 = modalEl.querySelector('[data-db-shots-grid]')
+    if (g2) g2.innerHTML = modalPinnedShots.map((s) => shotFigureHtml(s, 'task')).join('')
+  }
+  // S46.4/S208: the PINNED-PICTURES dialog (the project page's taskShotsDialog)
+  // — a native <dialog> grid of the task's pinned shots with zoom (the lightbox
+  // mounts into this dialog's top layer) + unpin; onChanged lets the board
+  // reload so the card's badge count stays true.
+  async function openTaskShots(taskId, opts) {
+    let shots = []
+    try { shots = await listShots() } catch { /* offline — the empty dialog explains itself */ }
+    const pinned = shots.filter((s) => s.task_id === taskId)
+    const old = document.getElementById('db-taskshots')
+    if (old) old.remove()
+    const dlg = document.createElement('dialog')
+    dlg.id = 'db-taskshots'
+    dlg.className = 'dialog'
+    const emptyText = '<p class="muted">' + esc(t('project.shotsNone', 'No pictures pinned to this item yet.')) + '</p>'
+    const gridHtml = '<div class="pd-tshots-grid">' + pinned.map((s) => {
+      const mime = String(s.mime_type || '')
+      const isVideo = mime.startsWith('video/')
+      return '<figure class="shot shot-card' + (s.resolved ? ' is-fixed' : '') + (isVideo ? ' is-video' : !isImageMime(mime) ? ' is-file' : '') + '" data-shot="' + esc(s.id) + '">' +
+        (isImageMime(mime)
+          ? '<button type="button" class="shot-img-btn" data-tshots-zoom="' + esc(s.id) + '"><img src="/api/media/screenshots/' + esc(s.id) + '/file" alt="" loading="lazy"' + SHOT_RETRY_ATTR + '></button>'
+          : isVideo
+            ? '<video class="shot-video" src="/api/media/screenshots/' + esc(s.id) + '/file" controls preload="metadata" playsinline tabindex="0" aria-label="' + esc(t('project.videoTileAria', 'Recording — press Enter to view full screen')) + '"></video>'
+            : fileTileHtml(s)) +
+        '<figcaption class="shot-body"><p class="shot-note muted small" dir="auto">' + (s.caption ? esc(s.caption) : '') + '</p>' +
+        '<div class="row spread shot-actions"><span class="shot-state' + (s.resolved ? ' is-fixed' : '') + '">' + (s.resolved ? '✓ ' + t('project.shotFixedLabel', 'fixed') : t('project.shotOpenLabel', 'open problem')) + '</span>' +
+        '<button type="button" class="ghost small danger" data-tshots-unpin="' + esc(s.id) + '" title="' + t('project.shotUnpin', 'Unpin') + '">✕</button></div></figcaption></figure>'
+    }).join('') + '</div>'
+    dlg.innerHTML =
+      '<form class="modal" method="dialog">' +
+        '<div class="row spread"><h3>' + esc(t('project.taskShotsTitle', 'Pinned pictures')) + '</h3>' +
+        '<button type="button" class="ghost" data-tshots-close aria-label="' + esc(t('common.close', 'Close')) + '">✕</button></div>' +
+        '<div class="db-modal-body" style="max-block-size:60vh">' + (pinned.length ? gridHtml : emptyText) + '</div>' +
+      '</form>'
+    document.body.appendChild(dlg)
+    dlg.querySelector('[data-tshots-close]').onclick = () => dlg.close()
+    dlg.addEventListener('click', (e) => { if (e.target === dlg) dlg.close() })
+    dlg.addEventListener('click', async (ev) => {
+      const zoomBtn = ev.target.closest('[data-tshots-zoom]')
+      if (zoomBtn) {
+        ev.stopPropagation()
+        const img = zoomBtn.querySelector('img')
+        if (img) openShotLightbox(img.getAttribute('src'), zoomBtn, zoomBtn.closest('.shot-card')?.parentElement)
+        return
+      }
+      const un = ev.target.closest('[data-tshots-unpin]')
+      if (!un) return
+      try {
+        await patchShot(un.getAttribute('data-tshots-unpin'), { taskId: null })
+        window.hibana && window.hibana.toast(t('project.shotUnpinned', 'Unpinned'), 'ok')
+        dlg.close()
+        if (opts && opts.onChanged) opts.onChanged()
+      } catch { window.hibana && window.hibana.toast(t('sparks.saveFailed', "Couldn't save"), 'err') }
+    })
+    dlg.showModal()
+  }
+
   // ---------------------------------------------------------------- editor modal
   let modalEl = null
   let modalCtx = null // { taskId | null, draft, onSaved }
@@ -236,7 +755,10 @@
       if (e.target === modalEl) closeModal(false)
     })
     document.addEventListener('keydown', (e) => {
-      if (e.key === 'Escape' && !modalEl.hidden) closeModal(false)
+      // S208: an open lightbox eats Esc FIRST (its own document listener is older
+      // by registration order and stopImmediatePropagation-shields this one) — this
+      // guard is the belt: the lightbox must never close the editor under it.
+      if (e.key === 'Escape' && !modalEl.hidden && !shotLightbox) closeModal(false)
     })
     return modalEl
   }
@@ -251,17 +773,38 @@
     modalCtx.draft = task
       ? { title: task.title, status: task.status, priority: task.priority, category_id: task.category_id, sprint_id: task.sprint_id, tags: (task.tags || []).slice() }
       : { title: '', status: modalCtx.defaults.status || 'idea', priority: 'medium', category_id: null, sprint_id: null, tags: [] }
+    // S208: NEW tasks carry a STAGED tag list (the create body's tags[] — the
+    // server find-or-creates them; the project composer's contract) and a fresh
+    // staged-shots strip. Existing tasks keep their live tag add/remove.
+    if (!task) modalCtx.draft.newTags = []
+    modalStaged = []
+    modalPinnedShots = []
+    ensureImageResize() // warm the resize helper before a file gets picked
     renderModal()
     buildModal().hidden = false
+    if (modalCtx.taskId) renderPinnedGrid() // S208: the task's pinned shots load under the button
     const focus = modalEl.querySelector('[name=title]')
     if (focus) { focus.focus(); focus.select() }
   }
 
-  function closeModal(saved) {
+  async function closeModal(saved) {
     if (modalEl) modalEl.hidden = true
-    const cb = modalCtx && modalCtx.onSaved
+    const ctx = modalCtx
     modalCtx = null
+    const cb = ctx && ctx.onSaved
     if (saved && cb) cb()
+    // S208: a cancelled NEW-task editor deletes its STAGED shots (the composer's
+    // contract — nothing orphans in the project's gallery). Saved editors pinned
+    // theirs already (the save flow clears modalStaged after pinning); existing-
+    // task uploads pinned live, they stay. The list is grabbed + cleared
+    // synchronously so a fast re-open can't double-delete.
+    if (!saved && ctx && !ctx.taskId && modalStaged.length) {
+      const staged = [...modalStaged]
+      modalStaged = []
+      for (const s of staged) {
+        try { await api('/api/screenshots/' + s.id, { method: 'DELETE' }) } catch { /* leave it — the gallery can clean later */ }
+      }
+    }
   }
 
   function renderModal() {
@@ -323,12 +866,29 @@
           // tokens (no free-form color picker anywhere).
           '<div class="pd-tag-colors pd-cat-swatches" data-db-cat-swatches></div>' +
         '</div>' +
-        (isNew ? '' :
-        '<div class="db-field"><span>' + esc(t('db.tags', 'Tags')) + '</span>' +
+        (isNew
+          ? '<div class="db-field"><span>' + esc(t('db.tags', 'Tags')) + '</span>' +
+            '<div class="db-tags-row" data-db-newtags>' +
+              (d.newTags || []).map((name) => '<span dir="auto" class="chip db-tag" data-newtag="' + esc(name) + '">' + esc(name) + ' <button type="button" class="ghost danger" data-newtag-del="' + esc(name) + '" aria-label="✕">✕</button></span>').join('') +
+              '<input data-db-newtag-in maxlength="60" dir="auto" placeholder="' + esc(t('db.addTag', 'Add tag + Enter')) + '">' +
+            '</div></div>'
+          : '<div class="db-field"><span>' + esc(t('db.tags', 'Tags')) + '</span>' +
           '<div class="db-tags-row" data-db-tags>' +
             d.tags.map((id) => { const tg = tagById(id); return tg ? '<span dir="auto" class="chip db-tag" data-tag="' + esc(id) + '" style="background:' + esc(tg.color) + '33"><span style="color:' + esc(tg.color) + '">●</span> ' + esc(tg.name) + ' <button type="button" class="ghost danger" data-untag="' + esc(id) + '" aria-label="✕">✕</button></span>' : '' }).join('') +
             '<input data-db-tag-in maxlength="60" dir="auto" placeholder="' + esc(t('db.addTag', 'Add tag + Enter')) + '">' +
           '</div></div>') +
+        // S208: the Upload File button + the shots grid — for BOTH modes (the
+        // owner's ask: creating a task must offer the picture upload the same way
+        // established tasks do). New tasks stage; existing tasks pin immediately
+        // and the grid below shows the task's pinned shots (zoom / note / delete).
+        '<div class="pd-taskadd-shots" data-db-shots>' +
+          '<input type="file" data-db-shots-input accept=".pdf,.csv,.xlsx,.docx,.md,.txt,image/png,image/jpeg,image/webp,image/gif,video/webm" multiple hidden>' +
+          '<div class="row" style="gap:.5rem;align-items:center">' +
+            '<button type="button" class="ghost" data-db-shots-add title="' + esc(t('pde.shotsAttachTitle', 'Upload a file — images, video (webm), PDF, Excel, Word, Markdown, text — pinned to this item')) + '"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M21.2 11.2 12.6 19.8a5.4 5.4 0 0 1-7.6-7.6l8.5-8.5a3.6 3.6 0 0 1 5.1 5.1l-8.5 8.5a1.8 1.8 0 0 1-2.5-2.5l7.8-7.8"/></svg> ' + esc(t('pde.shotsAttach', 'Upload File')) + '</button>' +
+            (isNew ? '<span class="muted small" data-db-shots-count></span>' : '') +
+          '</div>' +
+          '<div class="pd-taskadd-shots-grid" data-db-shots-grid></div>' +
+        '</div>' +
         '</div>' +
         '<div class="row spread db-modal-foot">' +
           (isNew ? '' : '<button type="button" class="btn ghost danger" data-db-del>' + esc(t('common.delete', 'Delete')) + '</button>') +
@@ -418,6 +978,15 @@
     sprintSel.onchange = () => {
       modalCtx.draft.sprint_id = sprintSel.value === '__new' ? '__new' : (sprintSel.value || null)
     }
+    // S208: renderModal() rebuilds the whole card — the TITLE textarea is the
+    // one live-buffered field (status/priority/category/sprint sync their own
+    // draft keys on change). Sync it before any mid-edit re-render (a tag chip
+    // add/remove) so the typed title survives the repaint — a latent wipe the
+    // existing-task tag flow carried too.
+    const syncTitleToDraft = () => {
+      const titleEl = el.querySelector('[name=title]')
+      if (titleEl) modalCtx.draft.title = titleEl.value
+    }
     const tagIn = el.querySelector('[data-db-tag-in]')
     if (tagIn) tagIn.onkeydown = async (ev) => {
       if (ev.key !== 'Enter' || ev.isComposing) return
@@ -427,6 +996,7 @@
       try {
         const r = await addTaskTag(modalCtx.taskId, name)
         if (!modalCtx) return // closed meanwhile
+        syncTitleToDraft()
         if (!d.tags.includes(r.id)) d.tags.push(r.id)
         if (!tagById(r.id)) state.tags.push({ id: r.id, name, color: '#8AB8F0' })
         tagIn.value = ''
@@ -437,11 +1007,112 @@
       b.onclick = async () => {
         try {
           await removeTaskTag(modalCtx.taskId, b.dataset.untag)
+          syncTitleToDraft()
           modalCtx.draft.tags = modalCtx.draft.tags.filter((x) => x !== b.dataset.untag)
           renderModal()
         } catch { window.hibana && window.hibana.toast(t('sparks.saveFailed', "Couldn't save"), 'err') }
       }
     })
+    // S208: the NEW-task staged tags — Enter stages the name (chips with ✕),
+    // they ride the create body's tags[] (the server find-or-creates them).
+    const newTagIn = el.querySelector('[data-db-newtag-in]')
+    if (newTagIn) newTagIn.onkeydown = (ev) => {
+      if (ev.key !== 'Enter' || ev.isComposing) return
+      ev.preventDefault()
+      const name = newTagIn.value.trim()
+      if (!name) return
+      if (!modalCtx.draft.newTags.includes(name)) modalCtx.draft.newTags.push(name)
+      syncTitleToDraft()
+      renderModal()
+      const again = el.querySelector('[data-db-newtag-in]')
+      if (again) again.focus()
+    }
+    el.querySelectorAll('[data-newtag-del]').forEach((b) => {
+      b.onclick = () => {
+        modalCtx.draft.newTags = modalCtx.draft.newTags.filter((n) => n !== b.dataset.newtagDel)
+        syncTitleToDraft()
+        renderModal()
+        const again = el.querySelector('[data-db-newtag-in]')
+        if (again) again.focus()
+      }
+    })
+    // S208: the shots section — the Upload File button + staged/pinned grid.
+    const shotsAdd = el.querySelector('[data-db-shots-add]')
+    const shotsInput = el.querySelector('[data-db-shots-input]')
+    if (shotsAdd && shotsInput) {
+      shotsAdd.onclick = () => shotsInput.click()
+      shotsInput.onchange = async () => {
+        if (!modalCtx) return
+        const files = [...(shotsInput.files || [])].filter(isAcceptedFile)
+        shotsInput.value = ''
+        if (!files.length) return
+        await ensureImageResize()
+        const wrap = el.querySelector('[data-db-shots]')
+        const gridNow = el.querySelector('[data-db-shots-grid]')
+        const strip = makeUploadStrip(wrap, gridNow)
+        let ok = 0, fail = 0
+        for (const file of files) {
+          const r = await uploadOne(file, strip)
+          if (!modalCtx) return // closed meanwhile — the pin/cleanup is not ours
+          if (r.ok && r.shot && r.shot.id) {
+            if (isNew) {
+              modalStaged.push({ id: r.shot.id, mime: r.shot.mimeType, fileName: file.name, caption: '' })
+              ok++
+              renderStagedGrid()
+            } else {
+              try { await patchShot(r.shot.id, { taskId: modalCtx.taskId }); ok++ } catch { fail++ }
+              await renderPinnedGrid()
+            }
+          } else if (!r.ok && !r.canceled) fail++
+        }
+        if (ok && !fail) window.hibana && window.hibana.toast(t('project.shotUploaded', 'Screenshot uploaded'), 'ok')
+        else if (fail && !ok) window.hibana && window.hibana.toast(t('project.shotFailed', 'Upload failed'), 'err')
+        else if (fail) window.hibana && window.hibana.toast(t('project.shotsMixed', '{ok} uploaded, {fail} failed').split('{ok}').join(faDig(ok)).split('{fail}').join(faDig(fail)), 'err')
+      }
+    }
+    // S208: delegated grid handlers — zoom (the lightbox), edit-note (the PATCH
+    // dialog), delete (the DELETE + grid refresh). One handler serves the staged
+    // grid (new tasks) and the pinned grid (existing tasks).
+    const shotsGrid = el.querySelector('[data-db-shots-grid]')
+    if (shotsGrid) shotsGrid.onclick = async (ev) => {
+      if (!modalCtx) return
+      const zoom = ev.target.closest('[data-db-shot-zoom], [data-db-staged-zoom]')
+      if (zoom) {
+        const img = zoom.querySelector('img')
+        if (img) openShotLightbox(img.getAttribute('src'), zoom, shotsGrid)
+        return
+      }
+      const del = ev.target.closest('[data-db-shot-del], [data-db-staged-del]')
+      if (del) {
+        const sid = del.getAttribute('data-db-shot-del') || del.getAttribute('data-db-staged-del')
+        try {
+          await deleteShot(sid)
+          window.hibana && window.hibana.toast(t('project.shotDeleted', 'File deleted'), 'ok')
+        } catch { window.hibana && window.hibana.toast(t('sparks.saveFailed', "Couldn't delete"), 'err') }
+        if (isNew) {
+          modalStaged = modalStaged.filter((s) => s.id !== sid)
+          renderStagedGrid()
+        } else {
+          await renderPinnedGrid()
+        }
+        return
+      }
+      const note = ev.target.closest('[data-db-shot-note], [data-db-staged-note]')
+      if (note) {
+        const sid = note.getAttribute('data-db-shot-note') || note.getAttribute('data-db-staged-note')
+        const cur = isNew
+          ? String((modalStaged.find((s) => s.id === sid) || {}).caption || '')
+          : String((modalPinnedShots.find((s) => s.id === sid) || {}).caption || '')
+        shotNoteDialog(sid, cur, (text) => {
+          if (isNew) {
+            const s = modalStaged.find((x) => x.id === sid)
+            if (s) s.caption = text
+            renderStagedGrid()
+          } else renderPinnedGrid()
+        })
+      }
+    }
+    if (isNew) renderStagedGrid()
     const delBtn = el.querySelector('[data-db-del]')
     if (delBtn) {
       delBtn.onclick = async () => {
@@ -482,8 +1153,23 @@
           sprintId = r.id
         }
         if (isNew) {
-          await createTask({ title, status: modalCtx.draft.status, priority: modalCtx.draft.priority, category_id: categoryId || undefined, sprint_id: sprintId || undefined })
+          // S208: the staged tags ride the create body (the server find-or-creates
+          // them) and the staged shots PIN to the fresh task (the project
+          // composer's PATCH loop). A failed pin leaves the shot in the project's
+          // gallery unpinned (the same best-effort contract) — counted + toasted.
+          const created = await createTask({
+            title, status: modalCtx.draft.status, priority: modalCtx.draft.priority,
+            category_id: categoryId || undefined, sprint_id: sprintId || undefined,
+            ...(modalCtx.draft.newTags && modalCtx.draft.newTags.length ? { tags: modalCtx.draft.newTags } : {}),
+          })
+          const stagedCount = modalStaged.length
+          let pinFail = 0
+          for (const s of [...modalStaged]) {
+            try { await patchShot(s.id, { taskId: created.id }) } catch { pinFail++ }
+          }
+          modalStaged = []
           window.hibana && window.hibana.toast(t('db.taskAdded', 'Task added'), 'ok')
+          if (pinFail) window.hibana && window.hibana.toast(t('project.shotsMixed', '{ok} uploaded, {fail} failed').split('{ok}').join(faDig(stagedCount - pinFail)).split('{fail}').join(faDig(pinFail)), 'err')
         } else {
           const body = { title, status: modalCtx.draft.status, priority: modalCtx.draft.priority, category_id: categoryId || null, sprint_id: sprintId || null }
           await patchTask(modalCtx.taskId, body)
@@ -660,6 +1346,6 @@
     createTask, patchTask, deleteTask, reorderTasks, addTaskTag, removeTaskTag,
     createCategory, patchCategory, deleteCategory, reorderCategories,
     createSprint, startSprint, patchSprint, renameSprint, finishSprint, reopenSprint, deleteSprint,
-    openEditor,
+    openEditor, openTaskShots, // S208: the pinned-pictures dialog (the card badge)
   }
 })()

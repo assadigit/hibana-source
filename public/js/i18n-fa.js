@@ -751,6 +751,9 @@ window.__hibanaDictFA = {
       // S44: the sprint timeline's today-flag chip (rides the today line)
       'db.today': 'امروز',
       'db.tags': 'برچسب‌ها', 'db.addTag': 'افزودن برچسب + Enter', 'db.taskAdded': 'کار اضافه شد', 'db.taskDeleted': 'کار حذف شد',
+      // S208: نشان تصاویر سنجاق‌شدهٔ کارت (هم‌ترازی گزینه‌های کانبان)
+      'db.taskShotsHint': 'تصاویر سنجاق‌شده — یادداشت + مدرکِ سنجاق‌شده به این قلم',
+      'db.taskShotsBadge': 'تصاویر سنجاق‌شده ({n})',
       'db.zoom': 'بزرگ‌نمایی', 'db.zoomDays': 'روزانه',
       'db.zoomMonths': 'ماهانه', 'db.newSprintTitle': 'اسپرینت',
       'db.zoom1w': '۱ هفته', 'db.zoom1m': '۱ ماه', 'db.zoom3m': '۳ ماه', 'db.zoom6m': '۶ ماه', 'db.zoom12m': '۱۲ ماه',

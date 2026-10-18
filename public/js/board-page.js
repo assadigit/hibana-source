@@ -222,7 +222,17 @@
                   // box — S144: the priority LABEL moved to the banner, so the footer
                   // keeps the shared date + clock (metaDateHtml — both surfaces changed
                   // together, the s110 parity pin holds).
-                  const metaHtml = '<span class="pd-task-meta">' + (CH() ? CH().metaDateHtml(task.created_at, task.status === 'done', lang) : B().esc((task.status === 'done' && task.done_at ? '✓ ' : '') + B().fullLabel(B().dayIdx(task.created_at), lang))) + '</span>'
+                  // S208 (kanban task-option parity): the PIN BADGE joins the meta line —
+                  // the same .pd-task-shots button the project page's cards carry
+                  // (detail-helpers.ts), fed by the devboard payload's per-task
+                  // shot_count. Click opens the pinned-pictures dialog (zoom + unpin);
+                  // unpin reloads so the count stays true.
+                  const I_PIN = '<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 17v4M8.5 3.5h7l-.8 7.2 2.8 2.8v1.5H6.5v-1.5l2.8-2.8-.8-7.2Z"/></svg>'
+                  const shotsN = Number(task.shot_count || 0)
+                  const shotsBadgeHtml = shotsN
+                    ? '<button type="button" class="pd-task-shots" data-db-shots-dialog="' + task.id + '" title="' + B().esc(_t('db.taskShotsHint', 'Pinned pictures — note + proof stuck to this item')) + '" aria-label="' + B().esc(_t('db.taskShotsBadge', 'Pinned pictures ({n})').replace('{n}', String(shotsN))) + '">' + I_PIN + ' ' + B().faDig(shotsN) + '</button>'
+                    : ''
+                  const metaHtml = '<span class="pd-task-meta">' + (CH() ? CH().metaDateHtml(task.created_at, task.status === 'done', lang) : B().esc((task.status === 'done' && task.done_at ? '✓ ' : '') + B().fullLabel(B().dayIdx(task.created_at), lang))) + (shotsBadgeHtml ? ' · ' + shotsBadgeHtml : '') + '</span>'
                   return '<div class="pd-task-wrap" data-task-card="' + task.id + '" data-priority="' + (task.priority || 'medium') + '">' + prioBanner +
                     '<div class="pd-task st-' + task.status + '" draggable="true" role="button" tabindex="0" aria-label="' + B().esc(task.title) + '">' +
                       '<span class="pd-task-body">' +
@@ -472,6 +482,7 @@
         const I_MENU_DOTS = '<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="5" cy="12" r="1.7" fill="currentColor"/><circle cx="12" cy="12" r="1.7" fill="currentColor"/><circle cx="19" cy="12" r="1.7" fill="currentColor"/></svg>'
         const I_EDIT = '<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>'
         const I_TRASH = '<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>'
+        const I_COPY = '<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>'
         function injectDbCardMenus() {
           document.querySelectorAll('.db-card-menu:not([data-ok])').forEach((menu) => {
             const card = menu.closest('.pd-task-wrap')
@@ -481,6 +492,9 @@
             menu.innerHTML =
               '<button type="button" data-menu-open aria-haspopup="true" aria-label="' + B().esc(_t('sparks.more', 'More actions')) + '">' + I_MENU_DOTS + '</button>' +
               '<div class="spark-menu-pop" hidden>' +
+                // S208: Copy joins the card menu (the project page's ⋯ Edit/Copy/
+                // Delete contract — copies the RAW title, data-raw-title first).
+                '<button type="button" data-db-copy-card="' + tid + '">' + I_COPY + '<span>' + B().esc(_t('common.copy', 'Copy')) + '</span></button>' +
                 '<button type="button" data-db-edit-card="' + tid + '">' + I_EDIT + '<span>' + B().esc(_t('common.edit', 'Edit')) + '</span></button>' +
                 '<button type="button" class="danger" data-db-del-card="' + tid + '">' + I_TRASH + '<span>' + B().esc(_t('common.delete', 'Delete')) + '</span></button>' +
               '</div>'
@@ -498,6 +512,19 @@
               pop.hidden = !willOpen
               if (willOpen) openBtn.setAttribute('data-open', '')
               else openBtn.removeAttribute('data-open')
+            })
+            // S208 (S48p parity): Copy the RAW title (data-raw-title first — the
+            // full multi-line definition), textContent as the belt.
+            menu.querySelector('[data-db-copy-card]').addEventListener('click', async (ev) => {
+              ev.preventDefault(); ev.stopPropagation()
+              closeAllDbMenus()
+              const titleEl = card.querySelector('.pd-task-title')
+              const raw = titleEl ? titleEl.getAttribute('data-raw-title') : null
+              const text = raw || (titleEl ? titleEl.textContent : '')
+              try {
+                await navigator.clipboard.writeText(text)
+                window.hibana && window.hibana.toast(_t('common.copied', 'Copied to clipboard'), 'ok')
+              } catch { window.hibana && window.hibana.toast(_t('sparks.saveFailed', "Couldn't copy"), 'err') }
             })
             menu.querySelector('[data-db-edit-card]').addEventListener('click', (ev) => {
               ev.preventDefault(); ev.stopPropagation()
@@ -653,10 +680,19 @@
             }
             return
           }
+          // S208: the card's pin badge opens the pinned-pictures dialog (HibanaBoard
+          // owns it — zoom + unpin; unpin reloads the board so the count stays true).
+          const badge = e.target.closest('[data-db-shots-dialog]')
+          if (badge) {
+            e.preventDefault(); e.stopPropagation()
+            B().openTaskShots(badge.getAttribute('data-db-shots-dialog'), { onChanged: reload })
+            return
+          }
           const card = e.target.closest('[data-task-card]')
           // S30 batch 2: never open the editor from the prio dot / label chips / the ⋯
           // menu (they are actions of their own — cycling, filtering, edit/delete).
-          if (card && !e.target.closest('[data-task-read-more]') && !e.target.closest('[data-db-cycle-prio]') && !e.target.closest('.pd-tag') && !e.target.closest('.db-card-menu')) B().openEditor(card.dataset.taskCard, { onSaved: reload })
+          // S208: the pin badge joins the exclusion list (its own dialog, above).
+          if (card && !e.target.closest('[data-task-read-more]') && !e.target.closest('[data-db-cycle-prio]') && !e.target.closest('.pd-tag') && !e.target.closest('.db-card-menu') && !e.target.closest('[data-db-shots-dialog]')) B().openEditor(card.dataset.taskCard, { onSaved: reload })
 
           // Item 8 + S30 batch 2: per-column Quick Copy + Export Markdown — the bullets
           // now carry priority + labels ("- [URGENT] Fix auth leak #UI/UX #Security") and
@@ -857,7 +893,7 @@
             if (window.HibanaBoard) return resolve(true)
             if (!injected && waited >= 1200) {
               injected = true
-              inject('/js/devboard.js?v=26') // keep in sync with the <head> tag + sw SHELL
+              inject('/js/devboard.js?v=27') // keep in sync with the <head> tag + sw SHELL
               if (!window.HibanaChips) inject('/js/chip-render.js?v=11') // S36: was ?v=1 while the HTML tags say v=2 — two cache entries for one file (the cache-bust gate caught it under the sandbox's mode-bit noise). Aligned; local-dev + SW caches now share ONE url per version. S86: v8 — kept in sync with the <head> tag (previewHtml moved in). S176: v11.
               if (!window.jalaali) inject('/vendor/jalaali.min.js') // Jalali dates for FA
             }

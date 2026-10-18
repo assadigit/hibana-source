@@ -141,13 +141,27 @@ export function devboardRoutes(cfg: Config) {
     const p = await getOwnedProject(cfg, user.id, c.req.param('projectId'))
     if (!p) return c.json({ error: 'not_found' }, 404)
     const [tasks, sprints, tags, taskTags, categories] = await Promise.all([
-      cfg.db.query<DevTaskRow & { tags: string }>(
+      cfg.db.query<DevTaskRow & { tags: string; shot_count: number }>(
         // S29 follow-up: PRIORITY-FIRST ordering — tasks auto-sort urgent → high →
         // medium → low inside every column (sort_order = manual drag still orders
         // within the same priority tier).
-        `SELECT t.*, COALESCE((SELECT GROUP_CONCAT(tt.tag_id) FROM dev_task_tags tt WHERE tt.task_id = t.id), '') AS tags
+        // S208 (kanban task-option parity): every task row carries its PIN COUNT —
+        // the screenshots pinned via screenshots.task_id (0054). The board cards
+        // render the same .pd-task-shots badge the project page's cards do; a
+        // pre-0054 D1 (no task_id column) degrades to 0 via the COALESCE belt.
+        `SELECT t.*, COALESCE((SELECT GROUP_CONCAT(tt.tag_id) FROM dev_task_tags tt WHERE tt.task_id = t.id), '') AS tags,
+           COALESCE((SELECT COUNT(*) FROM screenshots sc WHERE sc.task_id = t.id), 0) AS shot_count
          FROM dev_tasks t WHERE t.project_id = ? ORDER BY ${PRIO_ORDER_SQL}, t.sort_order, t.created_at`,
         [p.id],
+      ).catch(async () =>
+        // 0054 belt: a D1 that pre-dates the screenshots.task_id column serves the
+        // payload WITHOUT the badge field rather than 500ing the whole board.
+        cfg.db.query<DevTaskRow & { tags: string; shot_count: number }>(
+          `SELECT t.*, COALESCE((SELECT GROUP_CONCAT(tt.tag_id) FROM dev_task_tags tt WHERE tt.task_id = t.id), '') AS tags,
+             0 AS shot_count
+           FROM dev_tasks t WHERE t.project_id = ? ORDER BY ${PRIO_ORDER_SQL}, t.sort_order, t.created_at`,
+          [p.id],
+        ),
       ),
       cfg.db.query<SprintRow>('SELECT * FROM sprints WHERE project_id = ? ORDER BY started_at', [p.id]),
       cfg.db.query<TagRow>('SELECT t.* FROM tags t WHERE t.user_id = ? ORDER BY t.name', [user.id]),

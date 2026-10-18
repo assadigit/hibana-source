@@ -1,5 +1,21 @@
 # SESSION BRIEF — S199 (the fix-and-implement round for the S198 SWOT audit)
 
+> **S208 SESSION CLOSED 2026-10-20 — repo sealed @ v0.4.1.34 (main 4f18fc8, tag
+> pushed, CI 39164030262 + CD 39164902210 GREEN, live re-verified end-of-session:
+> both hosts health ok/prod/up/63, the board renders, the Upload File button in
+> BOTH modals, the frame full-bleed white, 0 page errors).** NEXT SESSION S209,
+> the owner's two-item agenda: (1) PARITY — make the kanban inside hibana 1:1
+> with the kanban at projects.hibana.ir/kanban ("basically they're the same
+> thing; this domain is just a direct, less-distracting way to reach the
+> kanban") — audit every in-app board surface (board.html's classic-rail +
+> Back-link contracts, the project.html embedded board) against the /kanban
+> contract and close every deliberate S206/S207/S208 delta; (2) GO DESKTOP —
+> prepare the complete spec + document pack to replicate this kanban, its
+> features, and its SYNC ability in Go for a Windows app (both installable and
+> portable exe) — expand docs/project-kanban/'s six S205 documents (which stop
+> at port-PLAN level) into full replication specs. Starting points: worklog.md's
+> session-close section; Changelogs §1 rows 205-208.
+
 > **S208 "THE TASK-OPTION PARITY ROUND" EXECUTED 2026-10-20 —
 > released as v0.4.1.34 (push 6f8089e — CI 39161116606 GREEN after one e2e-shard
 > flake re-run, CD 39163566793 GREEN).** The owner's follow-up — "when creating a

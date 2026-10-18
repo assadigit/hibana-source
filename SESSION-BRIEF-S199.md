@@ -1,5 +1,19 @@
 # SESSION BRIEF — S199 (the fix-and-implement round for the S198 SWOT audit)
 
+> **S207 "THE MOTHER-CONTAINER + TRUE-FULL-WIDTH + GHOST-SWEEP ROUND" EXECUTED 2026-10-19 —
+> released as v0.4.1.33 (push fd42f56 — CI 39151681090 GREEN, CD 39152680541 GREEN).** The
+> owner's three-item follow-up on the kanban, ALL verified live on BOTH hosts: the board
+> now lives in a MOTHER CONTAINER (.db-frame — one var(--card) white surface wrapping
+> toolbar + filter + columns, full-bleed, height-floored); it is TRULY full width — the
+> root cause of "still not full width" was the misc.css item-12 page-width 'standard' cap
+> (1366px) silently re-caging the S206 full-bleed board; main.board-shell is exempt now
+> (frame edge-to-edge 0→viewport, e2e-pinned + pixel-verified; the Notes vault keeps the
+> cap); and the switcher's ghost rows ("S206 repro5/9 (self-cleaning)" — leaked by the
+> S206 hang-hunt probes' success-path-only cleanup) are GONE — qa/s207-ghost-sweep.mjs
+> ran live (2 deleted, 7 real projects remain) and is the standing remedy after any
+> live-probe round. 5 new e2e (s207-kanban-frame); ladder all green; sw v442. Full
+> record: Changelogs §1 row 207 + worklog.md's S207 section.
+
 > **S206 "THE KANBAN FULL-BLEED + SPRINT-BUG ROUND" EXECUTED 2026-10-18 — released as
 > v0.4.1.32 (3 pushes: 6532764 / 4272321 / f9273de — CI + CD GREEN on every one).** The
 > owner's four-item follow-up on the S205 kanban, ALL verified live on BOTH hosts

@@ -2878,3 +2878,177 @@ Stage Summary:
 - The DR drills are now PROVEN (and their two latent bugs dead — the zero-runs policy was hiding them); the error monitor closes UX-11 (three healthchecks now: backup cron, uptime, error growth); the worklog can never again grow monotonic.
 - Next session: on Ali's written YES per ask, execute the approved items (each behind the full ladder + release ritual; PERF-16 needs the §9 bookmark ritual on both DBs); otherwise the S200 banked list (the 86-spec e2e DB-constant sweep, opportunistic --accent-ink conversions, the mobile Lighthouse preset UX-17) + the owner-machine drill run reminder stand.
 - VERIFICATION (post-push): 0779b79 → CI #560 (38164530115) ALL JOBS GREEN — ci 3.8 min (audit + eslint 0/0 + escape-lint + build + bundle + precache + typecheck + cache-bust + parity + vitest 632 + smoke + dist-wiring + workers-smoke + Lighthouse) + e2e shards 6.7/6.3 min in parallel → CD #410 GREEN (same bits redeployed; no asset changes) → error monitor DISPATCH run #1 (38165291625) GREEN with the real D1 probe in its log ("prod error_log since 2026-10-10T18:47:36Z: total=0 5xx=0" + "error monitor PASS") → healthchecks "Hibana errors" flipped new→up (n_pings=1 @ 18:47:37, exactly the run's ping; the other two checks up on natural ticks) → hibana.ir health ok/up/63. The monitor's first scheduled cron run: tomorrow 04:23 UTC.
+> **Rotation (HLTH-27):** sessions older than the newest 4 live in
+> `worklog-archive.md` (and verbatim in git history) — this file is the ACTIVE
+> tail only. Rotate with `node scripts/rotate/rotate.mjs --worklog`.
+
+## Session S202 — THE APPROVED ASKS (the S201 rule-4 round; the owner's written YES executed)
+
+Executed per the owner's chat reply to the S201 asks ("1. ok do it. yes / 2. do it. /
+3. do it. / 5. do it" — asks 1-3 approved + the banked work; item 4 SEC-10 was NOT in
+the reply and stays pending), on tree 92e727e → released as v0.4.1.26 (push 2821bef).
+
+**STATUS: RELEASED.** LIVE hibana.ir @ v0.4.1.26, sw v435, schema 63 (UNCHANGED — no
+migration this round). CI 38169968432 ALL JOBS GREEN (ci + e2e shards 1+2) → CD
+38170407608 GREEN → qa/s202-live-verify.mjs ALL GREEN (20 probes: the 6 kept woff2
+weights byte-IDENTICAL at font/woff2 · the 5 deleted legacy formats 404 · font-face.css
+byte-IDENTICAL with all 9 url() refs woff2-only · sw v435 + the SHELL's font CSS · the
+zod-4 functional pair on the live Worker — a type-invalid login → 400 invalid_input, a
+valid-shape unknown login → 401 invalid_credentials · health ok/up/63) → tag v0.4.1.26
+→ zip (599 files, integrity OK, secret-scan CLEAN) → healthchecks all 3 UP on natural
+ticks only.
+
+**Completed + verification (the ladder, all green):**
+- PERF-16 (ask 1) — RESOLVED HONESTLY, NO MIGRATION: the audit's "4 rule-9 index
+  misses" prescription was DOA — `telegram_note_sessions` was DROPPED by migration
+  0048 (the CREATE INDEX would have FAILED on apply against both live D1s), and the
+  other three access paths are ALREADY index-served by the PKs (EXPLAIN QUERY PLAN on
+  the app's real query shapes: SEARCH via sqlite_autoindex, mostly COVERING; adding
+  the proposed indexes changes nothing — the planner keeps the covering PK autoindex).
+  Rule 9 is now MACHINE-ENFORCED: src/tests/index-coverage.test.ts ×3 (the dropped
+  table stays dropped; the PK leftmost columns pinned; EQP SEARCH-never-SCAN). No
+  schema churn, no bookmark ritual; the owner's YES is banked (§6 documents the
+  evidence + the recommendation not to).
+- PERF-9 (ask 2) — SHIPPED: 21 legacy vazir format files + Vazir-Variable.woff2
+  (referenced NOWHERE — the honest 22nd file) deleted (~1.79MB off deploys + zips);
+  font-face.css trimmed to woff2-only; sw v434→v435; package 0.4.1.26. Follow-up ask
+  recorded in §6: bebas-note's 6 legacy .otf/.ttf files (same class, out of scope).
+- UX-13 part 1 (ask 3) — zod 3.24→4.6.6 SHIPPED in one deliberate round: ONE code fix
+  (jsonBody's ZodType<T, any, any> → ZodType<T, any> — v4's 3rd generic is Internals;
+  `any` there broke T's inference). v4's RFC-strict .uuid() caught the e2e specs'
+  randomBytes-hex UUID() helpers minting ids the app NEVER mints (the app is
+  crypto.randomUUID() everywhere — zero product impact); sparks/viewport specs now
+  generate real v4 UUIDs. node-server 1→2 SCHEDULED next code session.
+- Item 5 (the banked work) — the 86-spec e2e DB-constant sweep SHIPPED:
+  e2e/fixtures/e2e-db.ts (E2E_DB + E2E_SHOTS + E2E_PORT + E2E_ORIGIN) — LOCAL
+  PARALLEL SHARDS ARE NOW REAL (the FULL 417 ran as two parallel shards on
+  3017/3018). The sweep exposed + fixed the s199 reset spec's hardcoded
+  Origin:3017 (the T6 gate 403s cross-origin POSTs).
+- LADDER: typecheck 0 · vitest 635/635 (+3) · eslint 0/0 · escape-lint 207 sinks ·
+  build 85 · cache-bust PASS · parity 1572/1572 · bundle −0.1% · precache PASS ·
+  FULL e2e 417/417 in TWO LOCAL PARALLEL SHARDS (213 + 203 + 1 contention flake —
+  the s182 fade-edge late-hydration class, solo-proven PASS in 1.6s; CI retries
+  absorb) · smoke ALL PASS · workers-smoke PASS (local, real CF creds) · dist-wiring
+  PASS · Lighthouse floors PASS (100/95/100/96, seo 82 warn).
+
+**The round's own discoveries (banked for the next agent):**
+1. Zod 4's .uuid() enforces the RFC 9562 grammar (version nibble 1-8 + variant
+   nibble 8-b); zod 3 accepted any 8-4-4-4-12 hex. Any generator that formats random
+   hex into that shape WITHOUT setting those nibbles mints ids v4 rejects (~87.5%).
+   The app's crypto.randomUUID() is always safe — but test fixtures must generate
+   what the app generates, not a lookalike.
+2. A spec's hardcoded port inside an explicit Origin header dies the moment
+   non-default ports become runnable (the T6 origin gate 403s cross-origin POSTs
+   BEFORE any route runs). Derive it (E2E_ORIGIN), never pin it.
+3. The S201 "verified against the tree" check (indexes absent + only
+   idx_project_tags_tag exists) was necessary but NOT sufficient — it verified the
+   INDEXES' absence, not whether the access paths were already served (PK
+   leftmost-prefix) or whether the table even existed (dropped by 0048). Schema-level
+   verification beats grep-level. The EQP proof + the machine-checked pins deliver
+   what the audit's rule-9 intent actually wanted.
+4. The first local two-shard run failed 4 tests and BOTH failure classes were REAL
+   (not contention): the zod-4 uuid rejections + the hardcoded Origin. "It's just a
+   flake under contention" is a hypothesis, not a conclusion — the solo re-run
+   settled it (and caught 2 MORE deterministic failures the contention run had
+   masked by luck). The second run's 1 failure WAS contention-class (solo PASS in
+   1.6s) — classified, not assumed.
+6. The 5ba7156 docs-push CI run (the verifier .mjs rode it — not paths-ignored)
+   failed e2e shard 1 ONCE on the s120 video first-frame seek test (currentTime
+   stayed 0 through a 10s poll, initial + retry — a slow-runner video-decode stall;
+   the code between the green 2821bef run and this run was byte-identical for
+   everything e2e touches). The re-run-failed-jobs remedy: ALL GREEN on a fresh
+   runner — runner variance, not a regression. The s120 seek test joins the
+   watch-list of environment-sensitive timing tests (the s155 font race class).
+5. The live-verifier's first pass tripped on its own probe design: the font-face.css
+   provenance COMMENT legitimately mentions ".eot/.woff/.ttf" as prose — parse the
+   actual url(...) set instead of substring-scanning the whole file. (Also: text
+   .length is UTF-16 code units, Buffer .length is bytes — "2473 vs 2481" was equal
+   content in different units.)
+
+**Open risks + next (S203):**
+- @hono/node-server 1→2 — the scheduled SECOND dep-major round (one round each, full
+  ladder between; the S202 recipe applies: expect a signature-level fix, run the
+  FULL e2e + workers-smoke — node-server is the Node path's server binding).
+- SEC-10 __Host- cookie prefix — STILL PENDING the owner's written YES (§6 item 4).
+- The bebas-note legacy-font follow-up ask (§6 item 2's follow-up — one word ships it).
+- Banked from S200, unchanged: the opportunistic --accent-ink conversions, the mobile
+  Lighthouse preset (UX-17), the owner-machine drill run (key-custody).
+- The dependabot PRs rebase on every main push and their failures are the documented
+  noise (no secrets on PRs → advisory workers-smoke); ignore them.
+
+## Session S203 — THE OWNER-ACCEPTED ROUND (SEC-10 ships + the scheduled node-server major + the bebas follow-up)
+
+**Owner acceptance:** his chat reply ("Push commit, deploy, Then go to next step I
+accept.") accepted the S202 handover's defined next step = node-server 1→2 + the two
+pending owner-YES items (SEC-10 __Host-, the bebas ask). Recorded in §6 with the quote.
+("Push commit, deploy" was already satisfied — S202 had closed clean: main @ b565e6b,
+CI/CD green, live healthy; verified before any work.)
+
+**Batch A — @hono/node-server 1.19.17→2.1.4 (UX-13 part 2, the one-round-each
+doctrine):** API verified BEFORE upgrading — `serve(options, listeningListener)`
+unchanged; the `env.incoming` raw-socket binding still injected on the generic Context
+(one-off probe: hasIncoming/hasOutgoing true, `socket.remoteAddress` readable, peer
+`::1` — so ratelimit.ts's unspoofable clientIp keeps working); engines node>=20 (repo
+is Node 24+); peer hono ^4 satisfied. The FULL 417 e2e ran through the v2 server as
+two parallel local shards — the strongest local runtime proof. dependabot's 2.1.3 PR
+(#12) closed as superseded with the reason; zod PR (#8) likewise (S202's 4.6.6).
+
+**Batch B — SEC-10 __Host- (the S201-presented ask):** SESSION_COOKIE →
+`__Host-hibana_session`; the attributes CENTRALIZED in sessions.ts's two helpers
+(`sessionCookieHeader` / `clearSessionCookieHeader` — the prefix contract in ONE
+place: Secure REQUIRED, Path=/ REQUIRED, Domain FORBIDDEN; browsers reject
+violations, so drift is impossible); Secure now UNCONDITIONAL (the isProd branch is
+dead — Workers prod AND dev are always HTTPS; localhost is a trustworthy origin, so
+local dev + e2e keep working); all four emission sites converted (auth login,
+registration verify, reset complete, logout clear); codemod 110 literals across 62
+files (53 unit-test + the s199 e2e spec + 8 ops scripts), zero bare literals remain.
+The accepted cost: every existing session cookie invalidated — all users log in once.
+
+**Batch C — the bebas diet (the §6 follow-up, same class as S202's vazir round):**
+the 6 legacy BebasNotes .otf/.ttf files deleted (~281KB); font-face.css woff2-only
+(README.txt kept — attribution); sw v435→v436 (SHELL re-caches the trimmed CSS; the
+SHELL only ever listed font-face.css + the 3 woff2s); package 0.4.1.27.
+
+**Ride-alongs:** playwright.config.ts's stale "local parallel shards unsupported"
+header corrected (S202's sweep made them real); `.lighthouseci/` (S202's 2821bef
+accidentally committed the local Lighthouse output) untracked + gitignored.
+
+**Ladder (all green):** typecheck 0 · vitest 635/635 · eslint 0/0 · build 85 ·
+cache-bust PASS · parity 1572/1572 · bundle −0.1% · precache PASS (+163KB) ·
+escape-lint 207 PASS · dist-wiring canonical · FULL e2e 417/417 as TWO PARALLEL
+LOCAL SHARDS on 3017/3018 (213 + 204, ZERO failures, ZERO flaky retries — cleaner
+than S202's run; every login went through real Chromium accepting the __Host- cookie
+from http://localhost) · smoke ALL PASS · workers-smoke ALL PASS (the prefixed
+session cookie captured on the Workers runtime) · Lighthouse floors PASS (login
+100/100/96; next-redirect 94/100/96; seo 82 warn).
+
+**Release:** push db0bae9 → CI 38176576229 ALL JOBS GREEN (ci 3.6m + e2e shards
+204/213 in 4.7/5.4m parallel) → CD 38176995829 GREEN → LIVE v0.4.1.27 →
+qa/s203-live-verify.mjs ALL GREEN (25 probes: the LIVE __Host- contract — name +
+Secure + Path=/ + NO Domain + HttpOnly + SameSite=Lax, the /me round-trip on the
+new-name cookie, the zero-residue logout with the same clear-contract, no
+old-name emission on the failed-login path; the 3 kept bebas woff2 byte-IDENTICAL;
+the 6 deleted formats 404; font-face.css byte-identical + 3 url() refs woff2-only;
+sw v436; health ok/up/63) → tag v0.4.1.27 → zip 588 files (integrity OK,
+secret-scan CLEAN — all credential values absent; the probe account's password
+rides env-only into the verifier, never the repo) → healthchecks all 3 UP (natural
+ticks only).
+
+**Lessons (this session's own):**
+- The tool-output display pipeline swallowed a literal `[h` AGAIN (ratelimit.ts's
+  `hops[hops` rendered as `hopsops` in bash output) — the repo was never corrupted;
+  the Read tool is the byte-truth; never "fix" what a bash echo shows without a
+  byte-level check (the S200 assert-first lesson, re-earned).
+- `__Host-` + Secure WORKS on http://localhost (Chromium's trustworthy-origin rule)
+  — but it was PROVEN by 417 browser-login tests + a live probe, never assumed. The
+  e2e suite is the right machine proof for cookie-contract changes.
+- A dep-major dependabot PR is superseded the moment the deliberate in-session round
+  lands — close it with the reason instead of leaving a permanently-red branch.
+
+**Next (S204):** the S200 leftovers (opportunistic per-sheet --accent-ink, UX-17
+mobile Lighthouse preset), the owner-machine drill run + key-custody drill (§4),
+dependabot minors (hono 4.13.12, the dev-deps group, actions/checkout+upload-artifact
+majors — CI plumbing, one deliberate round when taken), HLTH-24's incremental
+project-page.js extraction (only when next touched for real work).
+
+---

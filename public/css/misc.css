@@ -885,6 +885,17 @@ html[data-page-width="full"] main.shell.sp-shell,
 html[data-page-width="full"] main.shell.adm-shell,
 html[data-page-width="full"] main.shell.narrow,
 html[data-page-width="full"] main.shell.shell-flush { max-inline-size: none; }
+/* S207 (owner ask 2026-10-19 — the SECOND full-width ask): the BOARD pages are
+   EXEMPT from the shared cap. The board was born full-bleed (2026-09-06,
+   shell-flush) and S206's edge mode reaffirmed it, but this cap re-caged it at
+   1366px for every 'standard' user — the owner asked twice ("default size of
+   kanban should be full width" → "it's not still full width"). A board is a
+   surface, not a reading page: main.board-shell (board.html, served at /kanban +
+   /board.html) takes the whole viewport and the mother container (.db-frame,
+   devboard.css) owns the breathing room. The Notes vault — the other shell-flush
+   consumer — KEEPS the cap (it is a reading surface). Same specificity as the
+   standard rule above, later in the sheet: the board wins. */
+html[data-page-width="standard"] main.shell.board-shell { max-inline-size: none; }
 
 /* ══════════════════════════════════════════════════════════════════════════════
    Phase 7 (2026-09-09) — item 13: the dedicated dashboard skeleton state.

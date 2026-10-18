@@ -11,6 +11,50 @@
 .db-flex-gap { flex: 1; }
 .db-loading { color: var(--muted); padding: 2rem 0; text-align: center; }
 .db-board { padding-block-end: 2rem; }
+/* S207 (owner ask 2026-10-19, items 1+2): the MOTHER CONTAINER + TRUE full width.
+   The board used to float on the gray desk as loose pieces — a white toolbar card,
+   a dashed filter strip, five pastel columns — with nothing grouping them (the
+   owner: "put them into a mother container with relatively white color. the
+   kanban needs a container"). .db-frame (board.html, wrapping the toolbar +
+   #db-loading + #db-board) is that container: ONE var(--card) surface, full-bleed
+   edge-to-edge — the shell's own padding drops to 0 on board pages
+   (main.board-shell below), the frame's padding is the breathing room, and the
+   min-block-size floor makes the white read as THE board surface (a short board
+   still fills the first screen instead of leaving a gray void under a small card).
+   The page-width cap exemption (the misc.css item-12 'standard' 1366px cap that
+   re-caged the board after S206's full-bleed — the owner asked TWICE for full
+   width) lives in misc.css beside the cap it amends. Dark themes: --card IS the
+   dark surface, the container adapts with it. */
+main.shell.board-shell { padding: 0; max-inline-size: none; }
+.db-frame {
+  background: var(--card);
+  padding: 0.9rem 1rem 1rem;
+  min-block-size: calc(100dvh - 1.5rem);
+  display: flex;
+  flex-direction: column;
+}
+/* the toolbar becomes the frame's HEADER ROW — its .card chrome (a white box with
+   its own ring on the now-white surface) retires inside the frame; a hairline
+   separates it from the filter bar below. Specificity (0,2,0) beats both .db-toolbar
+   (0,1,0) and .card (0,1,0) from layout.css regardless of load order. */
+.db-frame .db-toolbar {
+  background: transparent;
+  border: 0;
+  border-block-end: 1px solid var(--line);
+  border-radius: 0;
+  padding: 0 0.2rem 0.7rem;
+  margin-block-end: 0.8rem;
+}
+/* the phone rhythm: a slimmer frame inset, and the height floor respects the bottom
+   mobile-nav's body reserve (polish-ui.css 3.9rem + safe-area) so a fresh board
+   never scrolls under the bar; ≥1025px there is no bottom-nav reserve at all. */
+@media (max-width: 1024px) {
+  .db-frame { min-block-size: calc(100dvh - 4.5rem - env(safe-area-inset-bottom, 0px)); }
+}
+@media (max-width: 640px) {
+  .db-frame { padding: 0.6rem 0.65rem 0.8rem; }
+  .db-frame .db-toolbar { padding-inline: 0; }
+}
 .db-cols {
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr)); /* 0031: red Problems column; batch (s) ⑩: second slot */

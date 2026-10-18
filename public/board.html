@@ -21,8 +21,8 @@
   <link rel="stylesheet" href="/css/notifications.css?v=12">
   <link rel="stylesheet" href="/css/polish-batch.css?v=29">
   <link rel="stylesheet" href="/css/project-header.css?v=49">
-  <link rel="stylesheet" href="/css/devboard.css?v=32">
-  <link rel="stylesheet" href="/css/misc.css?v=23">
+  <link rel="stylesheet" href="/css/devboard.css?v=33">
+  <link rel="stylesheet" href="/css/misc.css?v=24">
   <link rel="stylesheet" href="/css/themes.css?v=9">
   <link rel="stylesheet" href="/css/claude-dark-theme.css?v=30">
   <link rel="stylesheet" href="/css/rtl.css?v=5">
@@ -53,13 +53,20 @@
   <div data-nav></div>
   <!-- shell-flush (batch p): the board page goes FULL-WIDTH (user request 2026-09-06) —
        the five columns take the whole viewport instead of the 64rem reading measure. -->
-  <main class="shell shell-flush" id="main" tabindex="-1">
+  <!-- S206 (owner ask): shell-flush + board-shell — the board pages are TRULY
+       full-bleed (layout.css rail-edge drops the body gutter; misc.css exempts
+       board-shell from the shared page-width cap). S207 (owner ask 2026-10-19):
+       the MOTHER CONTAINER — .db-frame wraps toolbar + filter + columns in one
+       var(--card) surface (devboard.css) instead of loose cards floating on the
+       gray desk. -->
+  <main class="shell shell-flush board-shell" id="main" tabindex="-1">
     <!-- a11y (S51-A): sr-only h1 — the board page's visible title (#db-title) is an h2
          filled by JS; the static page needs a level-one heading (axe
          page-has-heading-one). Inside <main> so it sits in a landmark (axe region);
          devboard.js renders into #db-board, never main's children wholesale.
          Visually hidden; localized by i18n.js. -->
     <h1 class="sr-only" data-i18n="db.board">Board</h1>
+    <div class="db-frame">
     <div class="db-toolbar card" id="db-toolbar">
       <a class="btn ghost small" href="/" data-back-link>← <span data-i18n="db.backToProject">Back to project</span></a>
       <!-- S205 (spec §3.2): the title IS the project switcher — the current project's
@@ -79,6 +86,7 @@
     </div>
     <div class="db-loading" id="db-loading" role="status"><span class="hibana-spinner" aria-hidden="true"></span><span data-i18n="db.loading">Loading board…</span></div>
     <div class="db-board" id="db-board" hidden></div>
+    </div>
   </main>
   <script src="/js/board-page.js?v=19" defer></script>
 </body>

@@ -13,58 +13,6 @@
 > `worklog-archive.md` (and verbatim in git history) — this file is the ACTIVE
 > tail only. Rotate with `node scripts/rotate/rotate.mjs --worklog`.
 
-## Session S205 — THE KANBAN ENTRY-POINT ROUND (the dedicated /kanban experience + the project switcher + the Go-desktop-readiness docs)
-
-Task ID: S205 (single-agent session)
-Agent: Hibana S205 agent (Z.ai Code)
-Task: Execute Hibana-Kanban-Polish-and-Go-Desktop-Readiness-Spec.md (repo root) — the dedicated projects.hibana.ir/kanban entry point, the top-level project switcher, measured performance work, and the six desktop-readiness documents. The Go desktop app itself is NOT started (per spec §7).
-
-Work Log:
-- Read the full spec (359 lines) + recon: 3 parallel exploration agents (backend API/schema, frontend Kanban, deployment/CI conventions); mapped routing, the two board surfaces, the auth/CSRF/cookie contracts, the deploy pipeline.
-- Backend: requireAuth gained the optional {loginNext} (the login bounce preserves ?next=; existing callers byte-identical); /kanban route registered BEFORE coreRoutes' wildcard (the /signup pattern), serves the SAME board.html auth-gated + no-store; /kanban.html 301; both spellings in WORKER_PAGE_ROUTES; 7 unit tests (src/tests/kanban-route.test.ts).
-- Frontend: board-page.js — let projectId + switchProject (in-place B().load + render, pushState ?project=, filter reset, recordBoard); the searchable switcher popover (60s-cached /api/projects?sort=recent, keyboard nav, RTL-aware anchoring, unmount removal); default resolution (hibana-kanban-last → most-recent → the empty state); /board.html bare → /kanban; the title-button markup in board.html; devboard.css switcher styles.
-- Chrome: nav.html rail Kanban button; RAIL_ICON_PAGES + /kanban; mobile-nav More-sheet row; go-to g k; 10 i18n keys EN+FA; sw SHELL + /kanban, VERSION v438.
-- THE RAIL FIX: the 8th primary overflowed ≤780px viewports (measured: the account chip 16px below the 720p fold of the fixed rail) → the compact-rhythm media query (46px tiles, 3px gaps; S189 ≥48 doctrine pinned at the default rhythm — its geometry test at 900p); rail-panel.spec pins the compact contract.
-- Perf: qa/s205-kanban-perf.mjs (5-run medians): /kanban cold 142ms vs /board.html 164ms; in-place switch 123ms vs hard-nav 160ms (−23%); payload 8.6KB/15ms.
-- Docs: docs/project-kanban/ — FEATURE-INVENTORY.md, USER-FLOWS.md, DATA-MODEL.md, API-AND-SYNC-CONTRACT.md, GO-DESKTOP-PORT-PLAN.md, TEST-MATRIX.md.
-- Domain: the account-level workers/domains POST 10405s the session token → the ZONE-LEVEL route API instead: route projects.hibana.ir/* → hibana-prod + proxied AAAA (100::); cert issued ~60s; health ok/prod/up/63.
-- THE CD REPAIR: the repo's CLOUDFLARE_API_TOKEN secret was EXPIRED (CD failed auth-error-10000 at Deploy-to-DEV; CI was green) → verified the session token deployable (wrangler whoami + dry-run + a real DEV deploy), PUT the secret via the GitHub secrets API (nacl sealed-box), re-ran the failed CD → GREEN (dev + prod + probes + purge).
-- Live verification: qa/s205-live-verify.mjs ALL GREEN 14/14 on https://projects.hibana.ir — the 302+?next contract on both hosts, 401 JSON for non-doc callers, the browser round-trip with the owner's real account (login → back on /kanban → board renders → switcher 7 rows → in-place switch with the no-navigation marker → URL ?project= → refresh keeps it → 0 console errors).
-- Ladder: typecheck 0 · vitest 642/642 · eslint 0/0 · escape-lint 214 · cache-bust PASS · i18n parity 1582/1582 · build 85 · bundle + precache PASS · FULL e2e 426/426 (four quarter-shards 110+113+104+99 — the sandbox kills detached background processes) · smoke PASS · CI 39093783469 ALL GREEN → CD 39094519965 GREEN.
-
-Stage Summary:
-- LIVE hibana.ir + projects.hibana.ir @ v0.4.1.29, sw v438, schema 63 — the spec's web-experience acceptance criteria verified live; the Go desktop port is planned (Wails leading, M0-M5) but not started; the docs live in docs/project-kanban/.
-- Remaining (owner-side or next-phase): the M0 API additions (updated_at on tag changes, dev-task tombstones, idempotent creates) before any desktop M1; the owner's five port-plan questions (§10 of GO-DESKTOP-PORT-PLAN.md); the mobile More-sheet Kanban row e2e; the CD secret should be rotated to a dedicated least-privilege token (the session's user token works but is broader than CD needs).
-- Artifacts: commit 45baa88 (feature+docs) + this docs round; tag v0.4.1.29; zip hibana.0.4.1.29.zip; new tools qa/s205-kanban-perf.mjs + qa/s205-live-verify.mjs + e2e/s205-kanban-entry.spec.ts + src/tests/kanban-route.test.ts.
-
----
-
-## Session S206 — THE KANBAN FULL-BLEED + SPRINT-BUG ROUND (the owner's four-item follow-up)
-
-Task ID: S206 (single-agent session)
-Agent: Hibana S206 agent (Z.ai Code)
-Task: The owner's four-item follow-up on the S205 kanban: (1) full-width default, (2) hide the sidebar entirely + reveal on screen-edge hover, (3) more room + smaller register for the project name, (4) "the sprint system is buggy".
-
-Work Log:
-- Re-cloned the repo (the sandbox reset wiped /home/z/hibana-repo; main @ 984929f, v0.4.1.29, clean).
-- Asks 1+2: layout.css body.rail-edge (gutter 0 + the rail's own 4rem width + off-canvas transform, RTL mirrored, reduced-motion, the #rail-edge-zone tripwire with hover/touch/breakpoint gates); nav.js RAIL_EDGE_PAGES + syncEdgeZone (the zone's mouseenter/mouseleave + delegated rail hover/leave with relatedTarget guards + focusin/focusout; the panel/boot-restore/collapse-toggle suppressions); /board.html keeps the icons-only contract (pinned by test).
-- Ask 3: devboard.css — .db-title/.db-switch to the control register (fs-md + 600, nowrap + ellipsis + flex) + #db-title's clipping box; board-page.js — the Back link retires on /kanban, the full name rides the span's title.
-- Ask 4, the hunt: all 9 existing sprint e2e specs PASSED — the pain lived in untested flows. Drove the full sprint lifecycle in a real browser under the owner's timezone (qa/s206-sprint-probe.mjs 1-5): found the 0-items phantom (s.items never in the payload), the 409 save-kill, the Tehran off-by-one (local-midnight parse vs the UTC-day axis), the refused sidebar DnD (dragover never preventDefaulted outside the sidebar lists — the draft card's own hint advertised it), and the rail-shadowed dots (lane z-index scope-capping — elementFromPoint returned the rail at the dot's center).
-- Ask 4, the fixes: renderSprintsList counts the task pool + fmtDate UTC; devboard.js reuses the existing draft on __new; UTC-midnight parse in the define commit + presets; the dragover/drop pair accepts sprint/draft/lane targets for sidebar tasks with the assignment path; the lane z-indexes retired so dots (z-5) + chips (z-3→z-5) beat the rails (z-4) at crossings.
-- 11 new e2e (s206-kanban-edge + s206-sprint-fixes — the TZ test runs a real Asia/Tehran context; the DnD tests use synthetic DragEvents; the no-store/retry test wraps window.fetch as the contract guard).
-- Part 1 shipped: FULL e2e 437/437 (four quarter-shards 89+104+143+101), ladder green, push 6532764 → CI/CD GREEN.
-- THE LIVE HANG (found by qa/s206-live-verify.mjs: the create POST 201s, the render never updates; a hard reload shows the data): root-caused across 15 probe generations — CDP requestWillBeSent FIRED for the swallowed GET; wrangler tail (one foreground process — the sandbox kills detached tails, and backgrounded servers too: every probe spawns its own) showed the request NEVER reached the Worker (every other invocation visible, all ok, single-digit ms); both hosts; with AND without the SW (route-blocked sw.js); no-store and cache-busting unique URLs insufficient. The fix: every devboard client GET dispatches with an AbortController signal + a 3s deadline + one retry (validated 4/4 on prod, both hosts, retries=0 — the signal-wrapped dispatch avoids the swallow; the deadline+retry is the safety net; mutations keep the plain path) + cache:'no-store' on every call.
-- Parts 2 (4272321) + 3 (f9273de) shipped: CI + CD GREEN on both; the final live verify 20/20 on projects.hibana.ir + qa/s206-final-inpage.mjs GREEN on hibana.ir (the create→render round-trip with NO manual refresh).
-- Docs: Changelogs §1 rotated to v0.4.1.32 + row 206 (rotate.mjs, dry-run first); this handover; SESSION-BRIEF status line.
-- Zip ritual: hibana.0.4.1.32.zip at /home/z/upload.
-
-Stage Summary:
-- LIVE hibana.ir + projects.hibana.ir @ v0.4.1.32, sw v441, schema 63 — all four owner asks shipped + verified live on both hosts; the sprint system's six confirmed bugs fixed with e2e pins.
-- Remaining (owner-side or next-phase): the dated-create overlap validation (the INSERT path has no overlap check — documented); the request-swallow is worked around, not root-caused (if it appears on other same-URL GET paths — project-page.js's own fetch layer — apply the same signal+deadline+retry recipe); the mobile More-sheet Kanban row e2e + the M0 API additions + the owner's port-plan questions (all banked from S205).
-- Artifacts: commits 6532764 + 4272321 + f9273de; tag v0.4.1.32; zip hibana.0.4.1.32.zip; new tools qa/s206-sprint-probe{,2,3,4,5}.mjs + qa/s206-repro-{stale,live2..15}.mjs + qa/s206-live-verify.mjs + qa/s206-final-inpage.mjs + e2e/s206-kanban-edge.spec.ts + e2e/s206-sprint-fixes.spec.ts.
-
----
-
 ## Session S207 — THE MOTHER-CONTAINER + TRUE-FULL-WIDTH + GHOST-SWEEP ROUND (the owner's three-item follow-up)
 
 Task ID: S207 (single-agent session)
@@ -123,3 +71,24 @@ Stage Summary:
 - Everything for S205→S208 is committed, pushed, deployed, and live-verified. Nothing remained to push — this session's only new commit is the docs seal (this entry + the SESSION-BRIEF status line).
 - S209 HANDED OVER (the owner's next-session agenda, verbatim intent): (1) make the kanban INSIDE hibana (the in-app board surfaces) 1:1 identical to the kanban at projects.hibana.ir/kanban — they are the same thing; the domain is just the direct, less-distracting entry; (2) prepare the COMPLETE spec + document pack to replicate this kanban, its features, and its sync ability in GO for a Windows app (both an installable and a portable exe) — building on docs/project-kanban/'s six S205 documents (FEATURE-INVENTORY, USER-FLOWS, DATA-MODEL, API-AND-SYNC-CONTRACT, GO-DESKTOP-PORT-PLAN, TEST-MATRIX), which the next session must expand from port-PLAN to full replication specs.
 - Known starting points for S209's parity audit: the deliberate in-app/board deltas documented in S206/S207 — /board.html keeps the classic icons-rail + Back-link contracts vs /kanban's edge-hover rail + no-Back; the project.html embedded board surface; the title/content split + detail slide-over deltas documented in the S208 stage summary.
+
+## Session S209 — THE KANBAN 1:1 PARITY ROUND + THE GO WINDOWS DESKTOP REPLICATION SPEC PACK
+
+Task ID: S209 (single-agent session with doc sub-agents)
+Agent: Hibana S209 agent (Z.ai Code)
+Task: The owner's two-item agenda: (1) make the kanban inside hibana 1:1 identical to the kanban at projects.hibana.ir/kanban ("basically they're the same thing — this domain is just a direct, less-distracting way to reach the kanban"); (2) prepare the COMPLETE spec + document pack to replicate this kanban, its features, and its sync ability in GO for a Windows app (both an installable and a portable exe) — documents only, no Go code.
+
+Work Log:
+- Re-cloned main @ 8407d63 (v0.4.1.34, clean); read the mandatory set in full (worklog S208-close handover, SESSION-BRIEF, Changelogs rows 205-208, all six docs/project-kanban docs, Agents.md).
+- THE AUDIT: board-page.js read in full (both entries are ONE file — the only runtime forks are isKanbanEntry()'s Back-link hide + the RAIL_EDGE/RAIL_ICON page sets); three parallel Explore agents mapped project-page.js's board surface, detail-helpers.ts's fragments, and sprint-page.js (the shared-editor usage).
+- THE CLOSES (shared code): the embedded board's .db-frame + .db-toolbar (detail-helpers.ts + devboard.css with the floor scoped to main.board-shell + the S185 palette re-anchored at the same specificity); the label manager on project.html ([data-pd-labels] → B().openLabels; devboard.js v28 loads there, with a lazy-inject belt); the shared modal's FULL 10-op toolbar (raw-markdown ops: **bold**, __underline__, ~~strike~~, - / 1. prefixes, {:align} markers, ``` fences) + the FULLSCREEN writing toggle (exitFullscreenOrClose — Esc/✕/Cancel/backdrop exit focus FIRST); the ◆ sprint badge both surfaces (sprintBadgeHtml + pdTruthWrap + chip-render.tagChipsRow(list, extra)); the pin badge surviving embedded repaints (pdDetailMaps + pdTruthWrap — it used to vanish); archive-done in place (bodyRefresh); sprint.html's Board link → /kanban.
+- THE LIVE BUG the s118 spec caught immediately: devboard.js on project.html DOUBLE-OPENED the video lightbox beside project-page.js's own S118/S119 twins — its document-level dblclick/Enter handlers now scope to its own surfaces (.db-modal, #db-taskshots, #db-shotnote).
+- THE SPEC PACK (doc sub-agents, all line-refs verified in-tree): FEATURE-INVENTORY (270 lines, +§12 keyboard +§13 parity decisions), USER-FLOWS (369), DATA-MODEL (496, +§6 SQLite-mirror DDL +§7 idempotency), API-AND-SYNC-CONTRACT (430, §7a-7e M0 precision +§8 ETag/no-store +§9 offline +§10 sync strategy), UI-UX-REPLICATION-SPEC (NEW 515, the corrected seam count: api() one choke point + 21 call sites + 11 raw sites), WINDOWS-PACKAGING-PLAN (NEW 426, NSIS + portable dual-target, Wails + modernc-sqlite, GitHub-Releases auto-update, the health-version claim corrected — /api/health carries schema_version NOT an app version), GO-DESKTOP-PORT-PLAN (296 master), TEST-MATRIX (116), README (the index).
+- TESTS: +3 unit (src/tests/kanban-parity.test.ts) + 7 e2e (e2e/s209-kanban-parity.spec.ts — two authoring-probe fixes en route: a hidden subtree's child still computes display:flex → measure the field's offsetParent; default min-block-size computes 0px → assert the numeric floor) + qa/s209-live-verify.mjs (20 probes × both hosts, env-only creds; one probe fixed — a position:fixed element's offsetParent is always null → read .hidden).
+- LADDER (all green): typecheck 0 · vitest 646/646 · eslint 0 · escape-lint 220 · cache-bust (devboard v28, board-page v21, sprint-page v20, project-page v76, chip-render v12, devboard.css v34, project-header.css v50, claude-dark-theme.css v31) · i18n 1584/1584 · build 85 · bundle +2.5% · precache +120KB · smoke · FULL e2e 456/456 (four quarter-shards 115+117+111+113, ZERO flakes).
+- RELEASED: push df3a8ee → CI 39184567278 ALL GREEN → CD 39185572136 GREEN → qa/s209-live-verify.mjs ALL GREEN 20/20 on BOTH hosts (projects.hibana.ir + hibana.ir) → ghost sweep CLEAN (7 real, 0 artifacts) → tag v0.4.1.35 → zip hibana.0.4.1.35.zip (643 files, integrity OK).
+
+Stage Summary:
+- LIVE both hosts @ v0.4.1.35 (sw v444, schema 63): the kanban surfaces are 1:1 — same mother container, same editor capability vocabulary, same label manager, same badges — with the entry-contextual exceptions deliberately decided, tested (s209 e2e), and documented (FEATURE-INVENTORY §13). The Go Windows desktop replication spec pack is COMPLETE in docs/project-kanban/ (the port itself NOT started, per the brief).
+- Remaining (owner-side or next-phase): the owner's go/no-go on the M0 API additions (API-AND-SYNC-CONTRACT §7a-7e) + the ten port decisions (GO-DESKTOP-PORT-PLAN §10); the editor-stack extraction into the shared lib (the split-editor's long-term convergence — banked); the mobile More-sheet Kanban row e2e (banked since S205).
+- Artifacts: commit df3a8ee; tag v0.4.1.35; zip hibana.0.4.1.35.zip; new tools e2e/s209-kanban-parity.spec.ts + src/tests/kanban-parity.test.ts + qa/s209-live-verify.mjs; the nine-doc spec pack.

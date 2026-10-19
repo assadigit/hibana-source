@@ -127,7 +127,7 @@ const run = async () => {
     await page.waitForTimeout(300)
     const afterFirstEsc = await page.evaluate(() => ({
       cls: document.querySelector('.db-modal .db-modal-card').classList.contains('db-fullscreen'),
-      open: !!(document.querySelector('.db-modal')).offsetParent,
+      open: document.querySelector('.db-modal').hidden === false,
     }))
     check('/kanban editor: the FIRST Esc exits fullscreen ONLY (the modal survives)', !afterFirstEsc.cls && afterFirstEsc.open, JSON.stringify(afterFirstEsc))
     await page.keyboard.press('Escape')

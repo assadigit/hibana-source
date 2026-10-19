@@ -1,5 +1,17 @@
 # SESSION BRIEF — S199 (the fix-and-implement round for the S198 SWOT audit)
 
+> **S209 SESSION CLOSED 2026-10-20 — repo sealed @ v0.4.1.35 (main df3a8ee, tag
+> v0.4.1.35 pushed, CI 39184567278 + CD 39185572136 GREEN, live-verified 20/20
+> on BOTH hosts with the owner's real account: the parity round — the embedded
+> board's .db-frame mother container + label manager + ◆ sprint badge + the
+> pin badge surviving repaints, the shared editor's full 10-op toolbar +
+> fullscreen writing, the canonical Board link; the GO WINDOWS DESKTOP
+> REPLICATION SPEC PACK complete in docs/project-kanban/ — nine documents,
+> the port itself NOT started per the brief).** The full record: Changelogs
+> §1 row 209 + worklog.md's S209 section. NEXT: the owner's go/no-go on the
+> M0 API additions (API-AND-SYNC-CONTRACT §7a-7e) + the ten desktop-port
+> decisions (GO-DESKTOP-PORT-PLAN §10) — or the next owner round.
+
 > **S208 SESSION CLOSED 2026-10-20 — repo sealed @ v0.4.1.34 (main 4f18fc8, tag
 > pushed, CI 39164030262 + CD 39164902210 GREEN, live re-verified end-of-session:
 > both hosts health ok/prod/up/63, the board renders, the Upload File button in

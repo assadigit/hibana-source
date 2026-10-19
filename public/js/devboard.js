@@ -577,10 +577,17 @@
   })
   // S118/S119: a recording tile zooms on DOUBLE-click / Enter (single click and
   // Space stay the video's native controls); the tile player pauses when the big
-  // one opens.
+  // one opens. S209 (kanban 1:1 parity): devboard.js now ALSO loads on
+  // project.html (the label manager) — that page owns its OWN twin handlers for
+  // the same tiles (project-page.js's S118/S119 pair), so these document-level
+  // handlers must fire ONLY inside THIS module's own surfaces (the editor modal's
+  // grids + the pinned-pictures dialog). Otherwise one dblclick would open TWO
+  // stacked lightboxes — the module that owns the DOM owns its events.
+  const inBoardSurface = (el) => !!(el && el.closest && el.closest('.db-modal, #db-taskshots, #db-shotnote, #db-labels-root'))
   document.addEventListener('dblclick', (e) => {
     const vid = e.target instanceof Element ? e.target.closest('video.shot-video') : null
     if (!vid) return
+    if (!inBoardSurface(vid)) return
     const fig = vid.closest('.shot-card')
     if (!fig) return
     e.preventDefault()
@@ -591,6 +598,7 @@
     if (e.key !== 'Enter') return
     const vid = e.target instanceof Element && e.target.matches('video.shot-video') ? e.target : null
     if (!vid) return
+    if (!inBoardSurface(vid)) return
     const fig = vid.closest('.shot-card')
     if (!fig) return
     e.preventDefault()
@@ -752,13 +760,16 @@
     modalEl.hidden = true
     document.body.appendChild(modalEl)
     modalEl.addEventListener('click', (e) => {
-      if (e.target === modalEl) closeModal(false)
+      if (e.target === modalEl) exitFullscreenOrClose()
     })
     document.addEventListener('keydown', (e) => {
       // S208: an open lightbox eats Esc FIRST (its own document listener is older
       // by registration order and stopImmediatePropagation-shields this one) — this
       // guard is the belt: the lightbox must never close the editor under it.
-      if (e.key === 'Escape' && !modalEl.hidden && !shotLightbox) closeModal(false)
+      // S209 (kanban 1:1 parity): fullscreen writing exits FIRST (the project
+      // editor's exitOrClose contract — Esc never discards the writing focus mode
+      // AND the modal in one keypress).
+      if (e.key === 'Escape' && !modalEl.hidden && !shotLightbox) exitFullscreenOrClose()
     })
     return modalEl
   }
@@ -787,8 +798,25 @@
     if (focus) { focus.focus(); focus.select() }
   }
 
+  // S209 (kanban 1:1 parity — the owner: "the kanban in the hibana is 1:1 the same
+  // as the kanban at projects.hibana.ir/kanban"): the FULLSCREEN WRITING toggle
+  // joins the shared modal (the project editor's S46.7 contract — a focus mode that
+  // grows the writing area to the viewport and hides the metadata rows). Esc, ✕,
+  // Cancel and the backdrop EXIT FULLSCREEN FIRST, never the modal itself — the
+  // user never loses the task definition by pressing one key too many.
+  function modalCard() { return modalEl ? modalEl.querySelector('.db-modal-card') : null }
+  function exitFullscreenOrClose() {
+    const card = modalCard()
+    if (card && card.classList.contains('db-fullscreen')) { card.classList.remove('db-fullscreen'); return }
+    closeModal(false)
+  }
+
   async function closeModal(saved) {
-    if (modalEl) modalEl.hidden = true
+    if (modalEl) {
+      modalEl.hidden = true
+      const card = modalCard()
+      if (card) card.classList.remove('db-fullscreen') // a re-open never starts in focus mode
+    }
     const ctx = modalCtx
     modalCtx = null
     const cb = ctx && ctx.onSaved
@@ -816,28 +844,52 @@
     el.innerHTML =
       '<div class="db-modal-card" dir="' + (lang === 'fa' ? 'rtl' : 'auto') + '">' +
         '<div class="row spread db-modal-head"><h3>' + (isNew ? esc(t('db.newTask', 'New task')) : esc(t('db.editTask', 'Edit task'))) + '</h3>' +
-        '<button type="button" class="ghost" data-db-close aria-label="' + esc(t('common.close', 'Close')) + '">✕</button></div>' +
+        '<div class="row" style="gap:.25rem">' +
+          // S209 (kanban 1:1 parity): the fullscreen writing toggle — the SAME
+          // affordance the project page's task editor carries (S46.7, owner: "add a
+          // button for full screen writing to optimize focus"). Toggling grows the
+          // title textarea to the viewport and hides the metadata rows (CSS
+          // .db-fullscreen in devboard.css); Esc/✕/Cancel exit focus mode FIRST.
+          '<button type="button" class="ghost" data-db-fullscreen aria-label="' + esc(t('pde.fullscreen', 'Full-screen writing')) + '" title="' + esc(t('pde.fullscreen', 'Full-screen writing')) + '"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4h6M4 4v6M14 4h6M20 4v6M4 20v-6M4 20h6M20 20h-6M20 20v-6"/></svg></button>' +
+          '<button type="button" class="ghost" data-db-close aria-label="' + esc(t('common.close', 'Close')) + '">✕</button></div></div>' +
         // S89 (owner item: the task modal's scroll fix): ONE scroll region between
         // the sticky header and the sticky footer — fields live in .db-modal-body
         // (overflow-y auto); the header (title/✕) + footer (Delete/Cancel/Save)
         // never scroll away on long content. The card is an overflow:hidden flex
         // column capped at 90vh (was a whole-card overflow-y auto).
         '<div class="db-modal-body">' +
+        // S209 (kanban 1:1 parity): the formatting toolbar carries the ORIGINAL
+        // hibana task editor's FULL set (the project page's .pd-tb — bold /
+        // underline / strikethrough | bullet list / ordered list | align ×4 | code)
+        // so both editors produce the exact same markdown-lite vocabulary the
+        // renderer understands (**bold**, __underline__, ~~strike~~, - bullets,
+        // 1. ordered, {:left|center|right|justify}, ``` fences). Same buttons,
+        // same icons, same separators as project.html's composer — the ops below
+        // write the RAW markdown directly into the single title textarea (the
+        // board's Session-22/23 single-field contract; the renderer is shared).
+        '<div class="pd-tb" role="toolbar" aria-label="' + esc(t('pd.fmtToolbar', 'Formatting')) + '">' +
+          '<button type="button" class="pd-tb-btn" data-tb="bold" title="' + esc(t('pd.fmtBold', 'Bold')) + '"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 5h6a3.5 3.5 0 1 1 0 7H7zM7 12h7a3.5 3.5 0 1 1 0 7H7z"/></svg></button>' +
+          '<button type="button" class="pd-tb-btn" data-tb="underline" title="' + esc(t('pd.fmtUnderline', 'Underline')) + '"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4v5a5 5 0 0 0 10 0V4"/><path d="M5 19h14"/></svg></button>' +
+          '<button type="button" class="pd-tb-btn" data-tb="strikethrough" title="' + esc(t('pd.fmtStrike', 'Strikethrough')) + '"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14"/><path d="M16 8a4 4 0 0 0-4-2c-2 0-3.5 1-3.5 2.5M8 16a4 4 0 0 0 4 2c2 0 3.5-1 3.5-2.5"/></svg></button>' +
+          '<span class="pd-tb-sep" aria-hidden="true"></span>' +
+          '<button type="button" class="pd-tb-btn" data-tb="list" title="' + esc(t('pd.fmtList', 'Bullet list')) + '"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6h12M9 12h12M9 18h12"/><circle cx="4.5" cy="6" r="1.3" fill="currentColor"/><circle cx="4.5" cy="12" r="1.3" fill="currentColor"/><circle cx="4.5" cy="18" r="1.3" fill="currentColor"/></svg></button>' +
+          '<button type="button" class="pd-tb-btn" data-tb="ordered-list" title="' + esc(t('pd.fmtOrderedList', 'Numbered list')) + '"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6h12M9 12h12M9 18h12"/><path d="M3 5h.01M4 4.5v4M3.5 16h1a1 1 0 0 0 0-2h-.5a1 1 0 0 1 0-2H5" stroke-width="1.5" stroke-linecap="round"/></svg></button>' +
+          '<span class="pd-tb-sep" aria-hidden="true"></span>' +
+          '<button type="button" class="pd-tb-btn" data-tb="align-left" title="' + esc(t('pd.fmtAlignLeft', 'Align left')) + '"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 10h10M4 14h16M4 18h10"/></svg></button>' +
+          '<button type="button" class="pd-tb-btn" data-tb="align-center" title="' + esc(t('pd.fmtAlignCenter', 'Align center')) + '"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M6 10h12M6 14h12M4 18h16"/></svg></button>' +
+          '<button type="button" class="pd-tb-btn" data-tb="align-right" title="' + esc(t('pd.fmtAlignRight', 'Align right')) + '"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M10 10h10M4 14h16M10 18h10"/></svg></button>' +
+          '<button type="button" class="pd-tb-btn" data-tb="align-justify" title="' + esc(t('pd.fmtAlignJustify', 'Justify')) + '"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 10h16M4 14h16M4 18h16"/></svg></button>' +
+          '<span class="pd-tb-sep" aria-hidden="true"></span>' +
+          '<button type="button" class="pd-tb-btn" data-tb="code" title="' + esc(t('pd.fmtCode', 'Code block')) + '"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m8 6-6 6 6 6M16 6l6 6-6 6"/></svg></button>' +
+        '</div>' +
         '<label class="db-field"><span>' + esc(t('db.title', 'Title')) + '</span>' +
           // Session 22 (user request): TEXTAREA (was a single-line input with
           // maxlength=300) — unlimited, multi-line, 9rem min + resizable (app.css),
           // matching the project-page composer. Enter saves, Shift+Enter breaks the
           // line. Session 23 (user request): (a) dir follows the UI locale — fa → rtl
           // (dir="auto" let a Latin first char keep the editor LTR while writing
-          // Farsi; rendered code blocks stay LTR islands via .t-code), (b) a
-          // formatting toolbar (Code / Bold / Bullet) sits under the title field —
-          // same [data-tb] wiring as project.html's composers, and newlines are
+          // Farsi; rendered code blocks stay LTR islands via .t-code), (b) newlines are
           // PRESERVED on save (titles render multi-line with fenced code blocks).
-          '<div class="pd-tb" role="toolbar" aria-label="' + esc(t('pd.fmtCode', 'Code block')) + '">' +
-            '<button type="button" class="pd-tb-btn" data-tb="code" title="' + esc(t('pd.fmtCode', 'Code block')) + '"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m8 6-6 6 6 6M16 6l6 6-6 6"/></svg> ' + esc(t('pd.fmtCode', 'Code block')) + '</button>' +
-            '<button type="button" class="pd-tb-btn" data-tb="bold" title="' + esc(t('pd.fmtBold', 'Bold')) + '"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 5h6a3.5 3.5 0 1 1 0 7H7zM7 12h7a3.5 3.5 0 1 1 0 7H7z"/></svg> ' + esc(t('pd.fmtBold', 'Bold')) + '</button>' +
-            '<button type="button" class="pd-tb-btn" data-tb="list" title="' + esc(t('pd.fmtList', 'Bullet list')) + '"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6h12M9 12h12M9 18h12"/><circle cx="4.5" cy="6" r="1.3" fill="currentColor"/><circle cx="4.5" cy="12" r="1.3" fill="currentColor"/><circle cx="4.5" cy="18" r="1.3" fill="currentColor"/></svg> ' + esc(t('pd.fmtList', 'Bullet list')) + '</button>' +
-          '</div>' +
           '<textarea name="title" rows="6" dir="' + (lang === 'fa' ? 'rtl' : 'auto') + '" placeholder="' + esc(t('db.titlePh', 'What needs to be built?')) + '">' + esc(d.title) + '</textarea></label>' +
         '<div class="db-field"><span>' + esc(t('db.status', 'Status')) + '</span>' +
           '<div class="db-seg" data-seg="status">' + STATUSES.map((s) =>
@@ -899,10 +951,6 @@
         '</div>' +
       '</div>'
 
-    // Session 23 (user request): formatting toolbar wiring — Code wraps the selection
-    // in ``` fences (or drops an empty block at the caret), Bold wraps in **pairs**,
-    // Bullet prefixes the selected lines with "- ". Fences land on their OWN lines so
-    // the renderers (board.html / projects.ts / project.html) recognize them.
     // S152 (block 5): the inline quick-add's swatch grid — the 16 curated fill+ink
     // pairs read from the --cat-sw-* tokens; the first tile starts selected.
     const swWrap = el.querySelector('[data-db-cat-swatches]')
@@ -923,6 +971,15 @@
         tile.classList.add('is-sel')
       }
     }
+    // S209 (kanban 1:1 parity): the FULL toolbar wiring — every op writes RAW
+    // markdown into the single title textarea (the board's editing model) using
+    // the exact vocabulary chip-render.js + the server twin parse: inline wraps
+    // (**bold**, __underline__, ~~strike~~), line-prefix ops (- bullets, 1.
+    // ordered — numbered sequentially), paragraph alignment markers ({:left} /
+    // {:center} / {:right} / {:justify} at line start, replacing an existing
+    // marker so clicking another align SWITCHES it), and ``` fences on their own
+    // lines. The project editor applies the same vocabulary through its
+    // contenteditable + htmlToMd — both editors now produce the same language.
     el.querySelectorAll('.pd-tb [data-tb]').forEach((b) => {
       b.onclick = () => {
         const ta = el.querySelector('[name=title]')
@@ -932,11 +989,26 @@
         const v = ta.value
         const sel = v.slice(s, en)
         const kind = b.dataset.tb
-        if (kind === 'list') {
+        if (kind === 'list' || kind === 'ordered-list' || kind.indexOf('align-') === 0) {
+          // line-spanning ops — the full lines the selection touches (the bullet
+          // contract; alignment marks the paragraph, chip-render reads it at ^\s*{:\n          // and toggles at the next non-aligned line)
           const ls = v.lastIndexOf('\n', s - 1) + 1
           let le = v.length
           if (sel.includes('\n')) { const n = v.indexOf('\n', Math.max(en, s)); if (n !== -1) le = n }
-          const marked = v.slice(ls, le).split('\n').map((l) => (l === '' || l.startsWith('- ')) ? l : '- ' + l).join('\n')
+          const lines = v.slice(ls, le).split('\n')
+          let marked
+          if (kind === 'list') {
+            marked = lines.map((l) => (l === '' || /^[-*]\s/.test(l)) ? l : '- ' + l).join('\n')
+          } else if (kind === 'ordered-list') {
+            let i = 0
+            marked = lines.map((l) => (l === '' || /^\d+\.\s/.test(l)) ? l : (++i) + '. ' + l).join('\n')
+          } else {
+            const marker = '{:' + kind.slice(6) + '}' // align-left → {:left}
+            marked = lines.map((l) => {
+              if (!l.trim()) return l
+              return marker + l.replace(/^\s*\{:(left|center|right|justify)\}/, '')
+            }).join('\n')
+          }
           ta.setRangeText(marked, ls, le, 'end')
           ta.focus()
           return
@@ -946,6 +1018,10 @@
           const pre = s === 0 || v[s - 1] === '\n' ? '' : '\n'
           before = pre + '```\n'
           after = '\n```' + (en === v.length || v[en] === '\n' ? '' : '\n')
+        } else if (kind === 'underline') {
+          before = '__'; after = '__'
+        } else if (kind === 'strikethrough') {
+          before = '~~'; after = '~~'
         } else {
           before = '**'
           after = '**'
@@ -956,7 +1032,16 @@
         ta.focus()
       }
     })
-    el.querySelectorAll('[data-db-close]').forEach((b) => { b.onclick = () => closeModal(false) })
+    // S209: the fullscreen writing toggle + the close family (✕ / Cancel) exit
+    // fullscreen FIRST — the project editor's exitOrClose contract.
+    const fsBtn = el.querySelector('[data-db-fullscreen]')
+    if (fsBtn) {
+      fsBtn.onclick = () => {
+        const card = el.querySelector('.db-modal-card')
+        if (card) card.classList.toggle('db-fullscreen')
+      }
+    }
+    el.querySelectorAll('[data-db-close]').forEach((b) => { b.onclick = exitFullscreenOrClose })
     el.querySelectorAll('.db-seg button').forEach((b) => {
       b.onclick = () => {
         const seg = b.closest('[data-seg]').dataset.seg

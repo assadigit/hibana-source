@@ -349,8 +349,11 @@ html[data-theme='claude-dark'] .sadhana-card.p-in_progress { --sadhana-status-ti
 html[data-theme='claude-dark'] .sadhana-card.p-on_hold { --sadhana-status-tint: rgb(203 202 219 / 0.14); }
 
 /* Cards flatten to the solid surface (no light-mode gradient highlight) and carry
-   the stronger top border. */
-html[data-theme='claude-dark'] .card {
+   the stronger top border. S209: the embedded board's section.pd-board (the
+   .db-frame that replaced `section.card.pd-board`) joins at the same specificity
+   so the S185 warm-twin interplay is unchanged (top rung strong, warm elsewhere). */
+html[data-theme='claude-dark'] .card,
+html[data-theme='claude-dark'] section.pd-board {
   background: var(--card);
   border-block-start-color: var(--line-strong);
 }

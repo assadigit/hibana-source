@@ -1626,7 +1626,7 @@
         // Label chips on a card — list = [{name, color}] (mirror of the server's
         // taskTagChips; the chip color is the tag's palette color).
         // S30 batch 5: the chip markup is the shared HibanaChips.tagChipsRow.
-        const pdTagChipsHtml = (list) => window.HibanaChips.tagChipsRow(list)
+        const pdTagChipsHtml = (list, extra) => window.HibanaChips.tagChipsRow(list, extra)
         // Comma-separated labels input → names (Latin, Persian and Arabic separators).
         const pdParseTags = (raw) => (raw || '').split(/[,،؛]/).map((s) => s.trim()).filter(Boolean)
         // Live color preview chip next to a priority <select> (options styling varies
@@ -3117,24 +3117,75 @@
           pdOpenCatsDialog()
         })
 
+        // --- S209 (kanban 1:1 parity): the LABEL MANAGER on the embedded board --------
+        // The SAME shared devboard.js dialog the /kanban toolbar opens
+        // (rename/merge/recolor/delete-unused with live usage counts).
+        // window.HibanaBoard loads with the page now (project.html's script tag);
+        // the lazy inject below is the belt for a soft-navigation from a stale shell
+        // (the S205 self-heal doctrine — re-appending is idempotent). Every change
+        // refreshes the fragment (labels ride the cards) — the board's onChanged →
+        // reload() contract, via the page's own bodyRefresh().
+        const ensureBoardLib = (cb) => {
+          if (window.HibanaBoard) return cb()
+          const s = document.createElement('script')
+          s.src = '/js/devboard.js?v=28'
+          s.onload = () => cb()
+          s.onerror = () => window.hibana?.toast(_t('sparks.saveFailed', "Couldn't load"), 'err')
+          document.head.appendChild(s)
+        }
+        ctx.on('click', (e) => {
+          if (!e.target.closest('[data-pd-labels]')) return
+          e.preventDefault()
+          ensureBoardLib(() => {
+            if (window.HibanaBoard && window.HibanaBoard.openLabels) {
+              window.HibanaBoard.openLabels({ onChanged: bodyRefresh })
+            }
+          })
+        })
+
         // --- S149: the ONE truth-sourced wrap builder -------------------------------
         // The ⋯-more expand and the post-mutation column repaint both render cards
         // from /api/projects/:id payloads with the EXACT server card anatomy (banner +
         // clamped title + preview + chips + meta), so a repainted column is the same
         // render a reload produces.
-        const pdTruthWrap = (t, status, tt) => {
+        // S209 (kanban 1:1 parity): the builder renders the PIN BADGE (.pd-task-shots,
+        // fed by the payload's screenshots — pins counted per task_id, the server
+        // fragment's pinsByTask recipe) and the SPRINT BADGE (◆ name, resolved from
+        // the payload's sprints rows) — repainted/expanded cards read byte-identically
+        // to the server's render AND to the /kanban cards (the S208 badge used to
+        // silently VANISH on every AJAX repaint/expand — a real parity bug).
+        const pdPinIcon = '<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 17v4M8.5 3.5h7l-.8 7.2 2.8 2.8v1.5H6.5v-1.5l2.8-2.8-.8-7.2Z"/></svg>'
+        const pdTruthWrap = (t, status, tt, pins, sprintName) => {
           const wrap = document.createElement('div')
           wrap.className = 'pd-task-wrap'
           wrap.dataset.pdTask = String(t.id)
           wrap.dataset.pdStatus = status
           wrap.dataset.pdCreated = t.created_at || ''
           wrap.dataset.pdCat = t.category_id || ''
+          wrap.dataset.pdSprint = t.sprint_id || ''
           if (t.done_at) wrap.dataset.pdDone = t.done_at
           const tp = t.priority || 'medium'
           wrap.dataset.pdPriority = tp
           wrap.dataset.pdTags = JSON.stringify(tt || [])
-          wrap.innerHTML = pdBannerHtml(tp) + `<div class="pd-task st-${status}" draggable="true" role="button" tabindex="0" aria-label="${pdEsc(t.title)}"><span class="pd-task-body">${pdCatChipHtml(t.category_id)}<span class="pd-task-title-row" dir="auto"><span class="pd-task-title"${pdEscTitleAttrs(t.title)}>${pdTitleHtml(t.title)}</span></span>${pdPreviewHtml(t.title)}${pdReadMoreBtnHtml(t.title)}${pdTagChipsHtml(tt)}<span class="pd-task-meta">${pdMetaDateHtml(t.created_at, status === 'done')}</span></span></div>`
+          const pinsN = Number(pins || 0)
+          const shotsBadgeHtml = pinsN
+            ? ` · <button type="button" class="pd-task-shots" data-pd-shots="${t.id}" title="${pdEsc(_t('db.taskShotsHint', 'Pinned pictures — note + proof stuck to this item'))}" aria-label="${pdEsc(_t('db.taskShotsBadge', 'Pinned pictures ({n})').replace('{n}', String(pinsN)))}">${pdPinIcon} ${pdDig(pinsN)}</button>`
+            : ''
+          const sprintBadgeHtml = sprintName ? `<span class="db-sprint-badge">◆ ${pdEsc(sprintName)}</span>` : ''
+          wrap.innerHTML = pdBannerHtml(tp) + `<div class="pd-task st-${status}" draggable="true" role="button" tabindex="0" aria-label="${pdEsc(t.title)}"><span class="pd-task-body">${pdCatChipHtml(t.category_id)}<span class="pd-task-title-row" dir="auto"><span class="pd-task-title"${pdEscTitleAttrs(t.title)}>${pdTitleHtml(t.title)}</span></span>${pdPreviewHtml(t.title)}${pdReadMoreBtnHtml(t.title)}${pdTagChipsHtml(tt, sprintBadgeHtml)}<span class="pd-task-meta">${pdMetaDateHtml(t.created_at, status === 'done')}${shotsBadgeHtml}</span></span></div>`
           return wrap
+        }
+        // S209 (kanban 1:1 parity): the pins-per-task + sprint-name maps derived from
+        // ONE detail payload — the same fields the server fragment reads
+        // (screenshots.task_id counts + sprints rows).
+        const pdDetailMaps = (data) => {
+          const shots = (data.project ? data.project.screenshots : data.screenshots) || []
+          const pins = {}
+          for (const s of shots) if (s.task_id) pins[s.task_id] = (pins[s.task_id] || 0) + 1
+          const sprints = (data.project ? data.project.sprints : data.sprints) || []
+          const sprintName = {}
+          for (const sp of sprints) sprintName[sp.id] = sp.name
+          return { pins, sprintName }
         }
         // S149 (owner: "I want the Kanban To work like ajax ... when a user drags a
         // plan item from its box to done, the other one, which was hidden behind a
@@ -3164,6 +3215,8 @@
           if (catRows.length) pdCats = catRows
           const tagsBy = {}
           for (const r of tagRows) (tagsBy[r.task_id] = tagsBy[r.task_id] || []).push({ name: r.name, color: r.color })
+          // S209 (kanban 1:1 parity): pins + sprint names ride the same payload.
+          const { pins, sprintName } = pdDetailMaps(data)
           // The filter bar's tier counts ride pdTaskTruth — reconcile (track the
           // newcomers, forget the deletes).
           const seen = new Set()
@@ -3179,7 +3232,7 @@
             tasksEl.dataset.pdTotal = String(colTasks.length)
             tasksEl.textContent = ''
             const shown = expanded ? colTasks : colTasks.slice(0, 5) // MAX_VISIBLE — Session 19
-            for (const t of shown) tasksEl.appendChild(pdTruthWrap(t, status, tagsBy[t.id] || []))
+            for (const t of shown) tasksEl.appendChild(pdTruthWrap(t, status, tagsBy[t.id] || [], pins[t.id] || 0, sprintName[t.sprint_id] || null))
             const hidden = colTasks.length - shown.length
             if (hidden > 0 || (expanded && colTasks.length > 0)) {
               const btn = document.createElement('button')
@@ -3230,11 +3283,13 @@
               const tagRows = (data.project ? data.project.devTaskTags : data.devTaskTags) || []
               const tagsBy = {}
               for (const r of tagRows) (tagsBy[r.task_id] = tagsBy[r.task_id] || []).push({ name: r.name, color: r.color })
+              // S209 (kanban 1:1 parity): pins + sprint names ride the same payload.
+              const { pins, sprintName } = pdDetailMaps(data)
               const shownIds = new Set([...tasksEl.querySelectorAll('.pd-task-wrap')].map((w) => w.dataset.pdTask))
               const hiddenTasks = allTasks.filter((t) => !shownIds.has(t.id))
               // S149: the wraps come from the ONE truth builder (pdTruthWrap) — the
               // expand and the post-mutation repaint render byte-identical cards.
-              for (const t of hiddenTasks) tasksEl.insertBefore(pdTruthWrap(t, status, tagsBy[t.id] || []), moreBtn)
+              for (const t of hiddenTasks) tasksEl.insertBefore(pdTruthWrap(t, status, tagsBy[t.id] || [], pins[t.id] || 0, sprintName[t.sprint_id] || null), moreBtn)
               // Session 24 (root-cause fix): wire data-magic + ⋯ menu on the newly
               // inserted items (6+) so the magic wand + edit/delete actions work on
               // ALL items, not just the first 5 the server rendered. Idempotent —
@@ -5812,7 +5867,10 @@
               .then((body) => {
                 const n = body && typeof body.archived === 'number' ? body.archived : count
                 window.hibana?.toast(_t('pd.archivedDone', '{n} tasks archived').replace('{n}', pdDig(n)), 'info')
-                location.reload()
+                // S209 (kanban 1:1 parity): the in-place refresh — the /kanban board's
+                // contract (POST → toast → reload the board), not a location.reload()
+                // that throws away the page's scroll + tab context.
+                bodyRefresh()
               })
               .catch(() => window.hibana?.toast(_t('notes.deleteFailed', "Couldn't archive"), 'err'))
             return

@@ -161,9 +161,13 @@
     return '<span dir="auto" class="pd-tag" data-pd-tag-name="' + esc(n) + '"><i class="pd-tag-dot" style="background:' + esc(c) + '"></i>' + esc(n) + '</span>'
   }
   // The project page's chip ROW (list = [{name, color}]).
-  function tagChipsRow(list) {
-    if (!list || !list.length) return ''
-    return '<span class="pd-task-tags">' + list.map((tg) => tagChip(tg.name, tg.color, 'pd')).join('') + '</span>'
+  function tagChipsRow(list, extra) {
+    // S209 (kanban 1:1 parity): `extra` appends trailing markup INSIDE the
+    // .pd-task-tags row (the embedded board's ◆ sprint badge — the same chip
+    // the /kanban cards carry); empty lists + an extra still render the row.
+    const inner = (list && list.length ? list.map((tg) => tagChip(tg.name, tg.color, 'pd')).join('') : '') + (extra || '')
+    if (!inner) return ''
+    return '<span class="pd-task-tags">' + inner + '</span>'
   }
 
   // Re-clamp an existing title element in place (after edits / wand writes).

@@ -1435,7 +1435,7 @@
             if (window.HibanaBoard) return resolve(true)
             if (!injected && waited >= 1200) {
               injected = true
-              inject('/js/devboard.js?v=27') // keep in sync with the <head> tag + sw SHELL
+              inject('/js/devboard.js?v=28') // keep in sync with the <head> tag + sw SHELL
               if (!window.jalaali) inject('/vendor/jalaali.min.js') // Jalali timeline for FA
             }
             if (waited >= 9000) return resolve(false)
@@ -1462,7 +1462,9 @@
         })
         const boot = async () => {
           document.querySelector('[data-back-link]').href = '/project.html?id=' + projectId
-          document.getElementById('sp-board-link').href = '/board.html?project=' + projectId
+          // S209 (kanban 1:1 parity): Board → the CANONICAL /kanban entry (both hosts
+          // serve it — the same Worker route), not the legacy /board.html spelling.
+          document.getElementById('sp-board-link').href = '/kanban?project=' + projectId
           document.title = 'Sprints — Hibana'
           const ok = await ensureLib()
           if (!ok) return fail()

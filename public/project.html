@@ -20,11 +20,11 @@
   <link rel="stylesheet" href="/css/calendar.css?v=10">
   <link rel="stylesheet" href="/css/notifications.css?v=12">
   <link rel="stylesheet" href="/css/polish-batch.css?v=29">
-  <link rel="stylesheet" href="/css/project-header.css?v=49">
-  <link rel="stylesheet" href="/css/devboard.css?v=33">
+  <link rel="stylesheet" href="/css/project-header.css?v=50">
+  <link rel="stylesheet" href="/css/devboard.css?v=34">
   <link rel="stylesheet" href="/css/misc.css?v=24">
   <link rel="stylesheet" href="/css/themes.css?v=9">
-  <link rel="stylesheet" href="/css/claude-dark-theme.css?v=30">
+  <link rel="stylesheet" href="/css/claude-dark-theme.css?v=31">
   <link rel="stylesheet" href="/css/rtl.css?v=5">
   <link rel="stylesheet" href="/css/magic-wand.css?v=7">
   <link rel="stylesheet" href="/vendor/manrope/font-face.css">
@@ -72,7 +72,12 @@
     </div>
   </main>
   <script src="/js/image-resize.js?v=1" defer></script>
-    <script src="/js/chip-render.js?v=11" defer></script>
-<script src="/js/project-page.js?v=75" defer></script>
+    <script src="/js/chip-render.js?v=12" defer></script>
+<!-- S209 (kanban 1:1 parity): the shared board library loads with the page — the
+     embedded board's LABEL MANAGER ([data-pd-labels] → HibanaBoard.openLabels) is
+     the same dialog the /kanban toolbar opens. No other surface in this page calls
+     it; the module only defines window.HibanaBoard. -->
+<script src="/js/devboard.js?v=28" defer></script>
+<script src="/js/project-page.js?v=76" defer></script>
 </body>
 </html>

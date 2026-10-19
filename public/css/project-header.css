@@ -1860,8 +1860,13 @@ body.pd-page { background: var(--page-bg); }
 /* Block 2 — every card on the page wears the light warm gray hairline (the white
    card vs the near-white page is 1.1:1 alone; the border carries the separation).
    The kanban columns keep their stage-edge language (above); text fields are
-   Block 5's own treatment below. */
+   Block 5's own treatment below. S209: the embedded board's .db-frame (the old
+   `section.card.pd-board` lost the .card class when it gained the mother-container
+   recipe) joins the selector at the SAME specificity (0,2,1) so the dark theme's
+   top-rung interplay (claude-dark-theme.css .card border-block-start-color) keeps
+   working exactly as it did on the .card original. */
 body.pd-page .card,
+body.pd-page section.pd-board,
 body.pd-page .pd-task { border-color: var(--border-soft); }
 /* Block 5 — the Notes tab's note area: the card's own surface + a visible hairline
    (the old page-gray fill matched the canvas and read as disabled) + the teal

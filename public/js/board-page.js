@@ -893,8 +893,8 @@
             if (window.HibanaBoard) return resolve(true)
             if (!injected && waited >= 1200) {
               injected = true
-              inject('/js/devboard.js?v=27') // keep in sync with the <head> tag + sw SHELL
-              if (!window.HibanaChips) inject('/js/chip-render.js?v=11') // S36: was ?v=1 while the HTML tags say v=2 — two cache entries for one file (the cache-bust gate caught it under the sandbox's mode-bit noise). Aligned; local-dev + SW caches now share ONE url per version. S86: v8 — kept in sync with the <head> tag (previewHtml moved in). S176: v11.
+              inject('/js/devboard.js?v=28') // keep in sync with the <head> tag + sw SHELL
+              if (!window.HibanaChips) inject('/js/chip-render.js?v=12') // S36: was ?v=1 while the HTML tags say v=2 — two cache entries for one file (the cache-bust gate caught it under the sandbox's mode-bit noise). Aligned; local-dev + SW caches now share ONE url per version. S86: v8 — kept in sync with the <head> tag (previewHtml moved in). S176: v11.
               if (!window.jalaali) inject('/vendor/jalaali.min.js') // Jalali dates for FA
             }
             if (waited >= 9000) return resolve(false)

@@ -240,16 +240,28 @@ export function detailHtml(p: ProjectRow, d: Awaited<ReturnType<typeof loadDetai
     list.push(row)
     tagsByTask.set(row.task_id, list)
   }
-  const taskTagChips = (taskId: string): string => {
+  const taskTagChips = (taskId: string, sprintBadge = ''): string => {
     const list = tagsByTask.get(taskId) ?? []
-    if (!list.length) return ''
+    if (!list.length && !sprintBadge) return ''
     return `<span class="pd-task-tags">${list
       .map((tg) => `<span dir="auto" class="pd-tag" data-pd-tag-name="${esc(tg.name)}"><i class="pd-tag-dot" style="background:${esc(tg.color)}"></i>${esc(tg.name)}</span>`)
-      .join('')}</span>`
+      .join('')}${sprintBadge}</span>`
   }
   const taskTagsAttr = (taskId: string): string => {
     const list = tagsByTask.get(taskId) ?? []
     return esc(JSON.stringify(list.map((tg) => ({ name: tg.name, color: tg.color }))))
+  }
+  // S209 (kanban 1:1 parity): the card's SPRINT BADGE — the same ◆ name chip the
+  // /kanban cards carry (board-page.js .db-sprint-badge), so a sprinted task reads
+  // identically on both surfaces. Resolved from the same payload's sprints rows.
+  const sprintName = (sid: string | null): string | null => {
+    if (!sid) return null
+    const sp = d.sprints.find((s) => s.id === sid)
+    return sp ? sp.name : null
+  }
+  const sprintBadgeHtml = (sid: string | null): string => {
+    const nm = sprintName(sid)
+    return nm ? `<span class="db-sprint-badge">◆ ${esc(nm)}</span>` : ''
   }
   // S152 (block 6): the task's category as a small colored chip DIRECTLY ABOVE the
   // task title, wearing the category's own fill+ink pair. The map covers every row
@@ -398,8 +410,15 @@ export function detailHtml(p: ProjectRow, d: Awaited<ReturnType<typeof loadDetai
     .join('') || `<p class="muted small bl-plans-empty">${trL(lang, 'No plans yet — add one above; it lands in the Plans box of the progress board.', 'هنوز برنامه‌ای نیست — بالا یکی اضافه کن؛ در جعبهٔ «برنامه‌ها» تابلوی پیشرفت می‌نشیند.')}</p>`
 
   const boardPreview = `
-  <section class="card pd-board" id="pd-board" data-total="${d.devTasks.length}" data-done="${doneTasks}">
-    <div class="row spread pd-board-head">
+  <!-- S209 (kanban 1:1 parity — the owner: "the kanban in the hibana is 1:1 the same
+       as the kanban at projects.hibana.ir/kanban"): the embedded board wears the SAME
+       MOTHER-CONTAINER recipe as /kanban — .db-frame (one var(--card) surface wrapping
+       toolbar + filter + columns) with the toolbar as the frame's hairline header row
+       (devboard.css .pd-board.db-frame keeps the card outline + reading-measure margin:
+       the embedded context — only the page-owning board is full-bleed; the 100dvh floor
+       is scoped to main.board-shell). -->
+  <section class="pd-board db-frame" id="pd-board" data-total="${d.devTasks.length}" data-done="${doneTasks}">
+    <div class="row spread db-toolbar pd-board-head">
       <h3>${icon('kanban')} ${trL(lang, 'Project Progress', 'پیشرفت پروژه')}</h3>
       <div class="row">
         <!-- S33 (user request 2026-09-13): the «اسپرینت جدید» CTA — a PROMINENT (solid,
@@ -411,6 +430,11 @@ export function detailHtml(p: ProjectRow, d: Awaited<ReturnType<typeof loadDetai
              every live global category with an on/off switch for THIS project (+ a
              link to Settings for the library itself). project-page.js wires it. -->
         <button type="button" class="btn ghost small" data-pd-cats title="${trL(lang, 'Categories for this project', 'دسته‌های این پروژه')}">${icon('tag')} ${trL(lang, 'Categories', 'دسته‌ها')}</button>
+        <!-- S209 (kanban 1:1 parity): the LABEL MANAGER reaches the embedded board —
+             the SAME shared devboard.js dialog the /kanban toolbar opens
+             (rename/merge/recolor/delete-unused). project-page.js wires [data-pd-labels]
+             through window.HibanaBoard.openLabels. -->
+        <button type="button" class="btn ghost small" data-pd-labels title="${trL(lang, 'Rename, merge, recolor or delete unused labels', 'تغییر نام، ادغام، رنگ یا حذف برچسب بلااستفاده')}">${icon('tag')} ${trL(lang, 'Labels', 'برچسب‌ها')}</button>
         <a class="btn ghost small" href="/board.html?project=${p.id}">${icon('expand')} ${trL(lang, 'Full screen board', 'برد تمام‌صفحه')}</a>
         <a class="btn ghost small" href="/sprint.html?project=${p.id}">${icon('diamond')} ${trL(lang, 'Sprints', 'اسپرینت‌ها')}${d.sprints.length ? ` <span class="pd-sprint-count">${dig(d.sprints.length)}</span>` : ''}</a>
       </div>
@@ -450,7 +474,7 @@ export function detailHtml(p: ProjectRow, d: Awaited<ReturnType<typeof loadDetai
               </span>
             </div>
             <div class="pd-tasks" id="pd-tasks-${col.key}" data-pd-tasks="${col.key}" data-pd-total="${items.length}">
-              ${top.map((t) => `<div class="pd-task-wrap" data-pd-task="${t.id}" data-pd-status="${t.status}" data-pd-created="${t.created_at}" data-pd-priority="${t.priority}" data-pd-tags="${taskTagsAttr(t.id)}" data-pd-cat="${t.category_id ?? ''}"${t.done_at ? ` data-pd-done="${t.done_at}"` : ''}>
+              ${top.map((t) => `<div class="pd-task-wrap" data-pd-task="${t.id}" data-pd-status="${t.status}" data-pd-created="${t.created_at}" data-pd-priority="${t.priority}" data-pd-tags="${taskTagsAttr(t.id)}" data-pd-cat="${t.category_id ?? ''}" data-pd-sprint="${t.sprint_id ?? ''}"${t.done_at ? ` data-pd-done="${t.done_at}"` : ''}>
                 <button type="button" class="prio-banner prio-${t.priority || 'medium'}" data-pd-cycle-prio title="${esc(trL(lang, 'Priority: {p} — click to change', 'اولویت: {p} — برای تغییر کلیک کن', { p: prioLabel(t.priority || 'medium') }))}" aria-label="${esc(trL(lang, 'Priority: {p} — click to change', 'اولویت: {p} — برای تغییر کلیک کن', { p: prioLabel(t.priority || 'medium') }))}"><span class="prio-banner-label">${esc(prioLabel(t.priority || 'medium'))}</span></button>
                 <div class="pd-task st-${t.status}" draggable="true" role="button" tabindex="0" aria-label="${esc(t.title)}">
                   <span class="pd-task-body">
@@ -460,7 +484,7 @@ export function detailHtml(p: ProjectRow, d: Awaited<ReturnType<typeof loadDetai
                     </span>
                     ${previewHtml(t.title)}
                     ${readMoreBtn(t.title)}
-                    ${taskTagChips(t.id)}
+                    ${taskTagChips(t.id, sprintBadgeHtml(t.sprint_id))}
                     <span class="pd-task-meta">${esc(taskMetaLabel(t))}${pinsByTask.has(t.id) ? ` · <button type="button" class="pd-task-shots" data-pd-shots="${t.id}" title="${esc(trL(lang, 'Pinned pictures — note + proof stuck to this item', 'تصاویر سنجاق‌شده — یادداشت + مدرکِ سنجاق‌شده به این قلم'))}" aria-label="${esc(trL(lang, 'Pinned pictures ({n})', 'تصاویر سنجاق‌شده ({n})', { n: dig(pinsByTask.get(t.id)!) }))}">${icon('pin')} ${dig(pinsByTask.get(t.id)!)}</button>` : ''}</span>
                   </span>
                 </div>

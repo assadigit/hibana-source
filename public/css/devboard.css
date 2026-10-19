@@ -29,10 +29,16 @@ main.shell.board-shell { padding: 0; max-inline-size: none; }
 .db-frame {
   background: var(--card);
   padding: 0.9rem 1rem 1rem;
-  min-block-size: calc(100dvh - 1.5rem);
   display: flex;
   flex-direction: column;
 }
+/* S209 (kanban 1:1 parity): the 100dvh FLOOR is scoped to the page-owning board
+   (main.board-shell = /kanban + /board.html) — the EMBEDDED board (project.html's
+   #pd-board, which now wears .db-frame too) sits UNDER the project header inside
+   the reading measure, where a viewport-height floor would balloon a short board
+   into a huge empty card. The floor's whole point is "a short board still fills
+   the FIRST screen" — only true when the board IS the page. */
+main.board-shell .db-frame { min-block-size: calc(100dvh - 1.5rem); }
 /* the toolbar becomes the frame's HEADER ROW — its .card chrome (a white box with
    its own ring on the now-white surface) retires inside the frame; a hairline
    separates it from the filter bar below. Specificity (0,2,0) beats both .db-toolbar
@@ -49,11 +55,30 @@ main.shell.board-shell { padding: 0; max-inline-size: none; }
    mobile-nav's body reserve (polish-ui.css 3.9rem + safe-area) so a fresh board
    never scrolls under the bar; ≥1025px there is no bottom-nav reserve at all. */
 @media (max-width: 1024px) {
-  .db-frame { min-block-size: calc(100dvh - 4.5rem - env(safe-area-inset-bottom, 0px)); }
+  main.board-shell .db-frame { min-block-size: calc(100dvh - 4.5rem - env(safe-area-inset-bottom, 0px)); }
 }
 @media (max-width: 640px) {
   .db-frame { padding: 0.6rem 0.65rem 0.8rem; }
   .db-frame .db-toolbar { padding-inline: 0; }
+}
+/* S209 (kanban 1:1 parity — the owner: "the kanban in the hibana is 1:1 the same as
+   the kanban at projects.hibana.ir/kanban"): the EMBEDDED board (project.html's
+   #pd-board) wears the SAME mother-container recipe — .db-frame + the
+   toolbar-as-header-row above — scoped for its embedded context: it floats in the
+   project page's reading measure, so the CARD OUTLINE + page margin stay (only the
+   page-owning board is full-bleed edge-to-edge — that difference is the documented
+   entry-contextual exception), the internal rhythm is the frame's own
+   (0.9rem/1rem + the hairline header row), and the flex-column + the old .pd-board
+   gap (0.8rem) is restated here so the recipe is deterministic regardless of sheet
+   order (devboard.css loads after project-header.css on BOTH board pages and
+   project.html). */
+.pd-board.db-frame {
+  display: flex;
+  flex-direction: column;
+  gap: 0.8rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  margin-block-end: clamp(1.25rem, 2.5vw, 2rem);
 }
 .db-cols {
   display: grid;
@@ -157,6 +182,29 @@ main.shell.board-shell { padding: 0; max-inline-size: none; }
   scrollbar-gutter: stable;      /* no content shift when the bar appears */
 }
 .db-modal-foot { flex: none; margin-block-start: 0.2rem; padding-block-start: 0.7rem; border-block-start: 1px solid var(--line); }
+/* S209 (kanban 1:1 parity): the FULLSCREEN WRITING mode — the project editor's
+   S46.7 focus contract on the shared modal. The card grows to the viewport (78rem
+   measure, the project editor's width), the writing row claims the height, and
+   every metadata row (status / priority / category+sprint / tags / shots) hides
+   until the user exits focus mode (the button, Esc, ✕, Cancel or the backdrop —
+   all exit fullscreen FIRST, never closing the modal). */
+.db-modal-card.db-fullscreen {
+  inline-size: min(78rem, 100%);
+  max-block-size: none;
+  block-size: calc(100dvh - 1.5rem);
+}
+.db-modal-card.db-fullscreen .db-modal-body { overflow: hidden; display: flex; flex-direction: column; }
+.db-modal-card.db-fullscreen .db-modal-body > .db-field:has(textarea[name="title"]) {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-block-size: 0;
+}
+.db-modal-card.db-fullscreen textarea[name="title"] { min-block-size: 0; flex: 1 1 auto; resize: none; }
+.db-modal-card.db-fullscreen .db-modal-body > .db-field:not(:has(textarea[name="title"])),
+.db-modal-card.db-fullscreen .db-two,
+.db-modal-card.db-fullscreen .db-cat-new,
+.db-modal-card.db-fullscreen .pd-taskadd-shots { display: none; }
 .db-field { display: grid; gap: 0.3rem; }
 /* Session 22: the title field is a TEXTAREA (unlimited, multi-line) — give it a real
    writing area + vertical resize, mirroring #pd-taskadd-textarea's rhythm. */

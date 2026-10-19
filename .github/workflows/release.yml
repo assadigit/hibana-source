@@ -1,0 +1,81 @@
+# Hibana web releases — "after every update auto-release on github" (the
+# owner's standing ask, S218). The package.json version IS the release truth
+# (the web's own version ritual): every push to main that carries a NEW
+# version gets its tag + GitHub Release cut automatically. Docs-only pushes
+# (the session seals) keep skipping — a release per docs commit is noise;
+# the version-tag guard makes the whole thing idempotent anyway.
+#
+# The release notes are the project's OWN Changelogs row for the version
+# (docs/project-kanban/Changelogs.md — the row is the changelog), falling
+# back to the commit range since the previous tag. The web app itself is
+# deployed live to hibana.ir + projects.hibana.ir by the CD lane; this
+# GitHub Release is the provenance + download surface for the source tree.
+name: release
+
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - '**.md'
+      - 'scripts/rotate/**'
+  workflow_dispatch: {}
+
+permissions:
+  contents: write # the annotated tag push + the release
+
+concurrency:
+  group: web-release
+  cancel-in-progress: false
+
+jobs:
+  web-release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0 # the previous tag for the range + the Changelogs row
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Cut the version release (package.json is the source of truth)
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -eu
+          VERSION="$(jq -r .version package.json)"
+          TAG="v$VERSION"
+          if git rev-parse -q --verify "refs/tags/$TAG" >/dev/null; then
+            echo "tag $TAG exists — this update rides the already-released $TAG. Nothing to cut."
+            exit 0
+          fi
+          echo "cutting $TAG (package.json says $VERSION)"
+
+          # ---- the notes: the Changelogs row for THIS version (rows prepend
+          #      newest-first, so the first hit is the newest row for the
+          #      version), else the commit range since the previous tag. ----
+          NOTES="Hibana web v$VERSION — deployed live on hibana.ir + projects.hibana.ir by the CD lane."
+          ROW="$(grep -m1 "| v$VERSION " docs/project-kanban/Changelogs.md || true)"
+          if [ -n "$ROW" ]; then
+            BODY="$(printf '%s' "$ROW" | cut -d'|' -f4-)"
+            NOTES="Hibana web v$VERSION — deployed live on hibana.ir + projects.hibana.ir by the CD lane.
+
+          $BODY"
+          else
+            PREV="$(git tag -l 'v*' | sort -V | tail -1)"
+            RANGE=""
+            if [ -n "$PREV" ] && git rev-parse -q --verify "refs/tags/$PREV" >/dev/null; then
+              RANGE="$(git log --format='- %s' "$PREV..HEAD" | head -40 || true)"
+            fi
+            [ -n "$RANGE" ] && NOTES="$NOTES
+
+          Changes:
+          $RANGE"
+          fi
+
+          git config user.name "hibana-release-bot"
+          git config user.email "195278966+hibana-release-bot@users.noreply.github.com"
+          printf '%s\n' "$NOTES" > RELEASE-NOTES.md
+          git tag -a "$TAG" -m "Hibana web v$VERSION"
+          git push origin "$TAG"
+          gh release create "$TAG" --title "Hibana web v$VERSION" --notes-file RELEASE-NOTES.md
+          echo "RELEASE LIVE: $TAG"

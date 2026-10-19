@@ -1,5 +1,28 @@
 # SESSION BRIEF — S199 (the fix-and-implement round for the S198 SWOT audit)
 
+> **S218 SESSION CLOSED 2026-10-19 — hibana-source @ v0.4.1.36 (DOCS-ONLY:
+> the publish + the auto-release lanes; the web app untouched).** The
+> owner's ask, verbatim: "commit and push and release new version, after
+> every update auto-release on github please." The sandbox reset had LOST
+> the S216/S217 LOCAL commits; this session recovered BOTH rounds
+> byte-exact (the islands carved out of the surviving exes — go:embed
+> stores island files verbatim; the Go re-implemented from the session
+> records; 74 tests + -race ALL GREEN; island --check 54/54), pushed
+> desktop main + BOTH tags, and PUBLISHED the releases the direct way
+> (the Actions billing wall — "recent account payments have failed or
+> your spending limit needs to be increased" — so both artifact sets were
+> built HERE: the wails CLI on Linux + NSIS 3.12 from the Debian deb, the
+> installer included; published via the API; every asset re-downloaded +
+> sha256-verified). **RELEASES LIVE**: v0.1.5-desktop (dark mode) +
+> v0.1.6-desktop (the sync button) on assadigit/hibana-desktop. The
+> AUTO-RELEASE lanes are wired and ready: desktop `autorelease.yml` (every
+> push to main cuts the next patch — 3 loop guards, the version files
+> bumped in lockstep, the notes riding the annotated tag) + this repo's
+> `release.yml` (a NEW package.json version → tag + release whose notes
+> are the project's own Changelogs row). Both fire the moment runners
+> can start again. **Owner-side**: fix Billing & plans OR flip the repos
+> public (the standing Q7 — free standard runners + login-free downloads);
+> dogfood v0.1.6 on Windows; the M0 §7a-7e go; M3-M5.
 > **S217 SESSION CLOSED 2026-10-19 — hibana-source @ v0.4.1.36 (DOCS-ONLY:
 > the desktop sync-button round; the web app untouched — the web already
 > saves every edit live; this round is the desktop's ASSURANCE surface).**

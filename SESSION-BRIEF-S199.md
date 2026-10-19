@@ -1,8 +1,35 @@
 # SESSION BRIEF — S199 (the fix-and-implement round for the S198 SWOT audit)
 
-> **S212 SESSION CLOSED 2026-10-21 — hibana-source stays @ v0.4.1.35 (docs-only
-> commit; NO tag/zip — nothing user-facing changed; CI skipped BY DESIGN via the
-> '**.md' paths-ignore).** THE DESKTOP LOGIN-FIRST BOOT LANDED as v0.1.1 in
+> **S213 SESSION CLOSED 2026-10-19 — hibana-source @ v0.4.1.36 (ASSETS-ONLY:
+> the Hibana-logo favicon/icon set — favicon.ico is a REAL multi-frame ICO now,
+> was SVG bytes named .ico that browsers cannot decode; icon.svg is the h-spark
+> squircle, was the old H-tile; icon-192/512 match; the ladder green; CI runs on
+> the push — the changes are binaries, not paths-ignored).** hibana-desktop
+> **v0.1.2** closes the owner's v0.1.1 dogfood report (commit `cb329c7` + tag
+> `v0.1.2-desktop`, BOTH LOCAL — no GitHub token this session; the one-push
+> publish ritual is the owner's): (1) **"The desktop bridge is not wired —
+> restart the app."** — ONE root cause under BOTH desktop releases: Wails
+> injects its runtime scripts (ipc.js + runtime.js — the window.go bindings)
+> only into "/"-suffix documents (isRuntimeInjectionMatch), but the island's
+> guard bounces the WebView "/"→"/kanban" (board-page.js:29) — the page the
+> user actually boots on never carried them (the v0.1.0 white board AND the
+> v0.1.1 login failure). `ui.KanbanIndexMiddleware` now serves the aliased
+> lane with the runtime tags + the live auth state; desktop-login.js resolves
+> the bridge at SUBMIT time. (2) **the same login background as the web
+> login** — the gate is login.html's own SPLIT layout (the Login.webp photo
+> panel + the .auth-brand wordmark + the .auth-form panel; 48→51 island files,
+> all via the sync script). (3) **the Hibana logo as favicon + app icon** —
+> `scripts/make-icons.py` traces logo-square-light.png (coverage→miter, IoU
+> 0.9482) → the REAL favicon.ico + icon.svg + icon-192/512 + appicon.png +
+> build/windows/icon.ico (the Wails default "W" replaced; the exe's icon +
+> versioninfo 0.1.2.0 verified in its PE bytes). PROOF: 15/15 Chromium probe on
+> the real island bytes + 9 new Go tests + island --check 51/51 + `go test
+> -race` ALL GREEN; exe + screenshots in `download/hibana-desktop-0.1.2-windows/`.
+> Owner-side next: re-supply the token → push hibana-desktop (main + the tag —
+> CI builds + auto-publishes the release) and push hibana-source (CI/CD deploys
+> v0.4.1.36; browsers may hold the cached favicon up to its 24h max-age); then
+> dogfood v0.1.2 on Windows. Still open: the M0 §7a-7e go + the nine §10
+> questions (incl. the repo-visibility flip); M3-M5. THE DESKTOP LOGIN-FIRST BOOT LANDED as v0.1.1 in
 > `assadigit/hibana-desktop` (the owner dogfooded v0.1.0 and reported the white
 > board — "firstly a login modal opens, when user auths and connect to cloudflare
 > kanban loads"): guide §5.5's pick, the **island-rendered login card** — the

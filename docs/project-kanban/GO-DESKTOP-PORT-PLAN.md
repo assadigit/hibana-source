@@ -11,6 +11,14 @@
 > chip-render.js v12 / devboard.css v34). Everything about the desktop app is clearly
 > marked **[PLAN]**. Owner decisions are marked **[OWNER]**. Fresh here? Start at
 > `README.md` (the pack index).
+>
+> **S210 (2026-10-21): THE STACK IS DECIDED [OWNER]** — *"Okay go this way: Go + Wails v2
+> + WebView2 + modernc.org/sqlite."* The decision record (ADR-001), the rationale, and the
+> full build instructions live in the pack's newest member,
+> `GO-DESKTOP-IMPLEMENTATION-GUIDE.md` (the operator's manual: toolchain → scaffold →
+> island sync → transport seam → Go module skeletons → the M0–M5 walkthrough → build/CI
+> commands). The Fyne fallback condition is retired; the nine other §10 questions remain
+> open. No desktop code exists yet — the guide is documents, per the brief.
 
 ### The pack cross-reference (what each companion owns)
 
@@ -22,6 +30,7 @@
 | `API-AND-SYNC-CONTRACT.md` (430) | the verified runtime/auth/endpoint/cache facts (§1-§6, §8-§9) + the banked M0 additions at implementation precision (§7a-7e) + the full desktop sync strategy (§10) |
 | `UI-UX-REPLICATION-SPEC.md` (514) | the pixel & behavior replication contract: design tokens, board/card anatomy, the editor modal; §7 MUST-reproduce vs MAY-replace + the Wails embedding model; §8 the side-by-side acceptance criteria |
 | `WINDOWS-PACKAGING-PLAN.md` (426) | the expansion of this plan's §7: dual-target delivery (NSIS installer + portable zip), code signing, auto-update, CI/CD, data & security posture |
+| `GO-DESKTOP-IMPLEMENTATION-GUIDE.md` (NEW, S210) | the operator's manual — the HOW: ADR-001 the locked-stack decision record, toolchain setup, repo scaffold, the island sync ritual, the `hibanaFetch` transport seam (12 verified call sites), the Go module skeletons, the M0–M5 walkthrough, build + CI commands, the builder's hard rules |
 | `TEST-MATRIX.md` | the coverage map + honest gaps (at S209: 646 unit / 456 e2e, i18n 1584/1584, escape-lint 220) |
 
 ## 1. Strategic assessment — what the port reuses
@@ -37,12 +46,13 @@
 | `sw.js` v444 (offline shell) | **N/A-ish** — service-worker availability inside Wails' WebView2 asset server is **unverified** (§11; the board self-heals without it — `ensureLib`) | — |
 | Backend (Hono + D1 SQL, schema 63) | **REUSED AS-IS** — the desktop calls the same API over HTTPS | `API-AND-SYNC-CONTRACT.md` §1 |
 
-**Conclusion: Wails (Go + WebView2, web-frontend reuse) remains the leading candidate**
-(spec §6.2 E's directive, confirmed by the architecture): the /kanban experience is a
-client-rendered JSON island. A pure-Go GUI (Fyne/Gio) rebuild would discard a working,
-tested board renderer — only worth it if WebView2 is unacceptable to the owner
-(`WINDOWS-PACKAGING-PLAN.md` §2 keeps the alternatives table + the Fyne fallback
-condition).
+**Conclusion — DECIDED [OWNER, 2026-10-21]: Wails v2 + WebView2 + modernc.org/sqlite**
+(the owner's explicit go on the recommendation; the full decision record is
+`GO-DESKTOP-IMPLEMENTATION-GUIDE.md` §0/ADR-001): the /kanban experience is a
+client-rendered JSON island, so a pure-Go GUI (Fyne/Gio) rebuild would discard a working,
+tested board renderer for zero owner benefit — the fallback condition
+(`WINDOWS-PACKAGING-PLAN.md` §2's alternatives table) is retired; the table stays for the
+record.
 
 **The S209 parity round improved the port's economics.** The embedded surface and
 /kanban now share the same editor vocabulary — the shared modal's FULL 10-op formatting
@@ -261,26 +271,29 @@ reinventing auth.
 
 ## 10. Open questions for the owner **[OWNER]**
 
-1. Wails (web-UI reuse) vs. pure-Go GUI — recommendation: Wails; confirm.
-2. Multi-device conflict policy: silent LWW acceptable, or want change notifications?
-3. **Auto-update mechanism — corrected options** (`WINDOWS-PACKAGING-PLAN.md` §6): (b)
+0. ~~Wails (web-UI reuse) vs. pure-Go GUI~~ — **ANSWERED 2026-10-21 (S210): Wails v2 +
+   WebView2 + modernc.org/sqlite, per the owner's explicit go.** Decision record:
+   `GO-DESKTOP-IMPLEMENTATION-GUIDE.md` §0 (ADR-001). Build instructions: the same guide,
+   §1–§12.
+1. Multi-device conflict policy: silent LWW acceptable, or want change notifications?
+2. **Auto-update mechanism — corrected options** (`WINDOWS-PACKAGING-PLAN.md` §6): (b)
    GitHub Releases feed + check-on-launch + manual-confirm **[recommended]**, (a)
    health-endpoint check + manual download — which first needs the one-line Worker
    `version` field (see §7's correction; that Worker change is an M0 item only if you
    pick (a)), or none?
-4. Telemetry/crash reporting: default-off local logs confirmed?
-5. Should the desktop also cover the projects STAGE board and Ideas shelf (out of the
+3. Telemetry/crash reporting: default-off local logs confirmed?
+4. Should the desktop also cover the projects STAGE board and Ideas shelf (out of the
    Kanban scope) or stay Kanban-only (recommendation: Kanban-only first)?
-6. **Installer technology** (`WINDOWS-PACKAGING-PLAN.md` §10.1): NSIS per-user
+5. **Installer technology** (`WINDOWS-PACKAGING-PLAN.md` §10.1): NSIS per-user
    (recommended) vs WiX/MSI — confirm.
-7. **Signing budget** (§10.2): ship unsigned (recommended for the personal-use phase)
+6. **Signing budget** (§10.2): ship unsigned (recommended for the personal-use phase)
    vs fund an OV cert / Trusted Signing once the app leaves your own machines?
-8. **Repo split** (§10.4): a separate public `hibana-desktop` repo (recommended) vs a
+7. **Repo split** (§10.4): a separate public `hibana-desktop` repo (recommended) vs a
    `desktop.yml` lane inside hibana-source?
-9. **arm64** (§10.5): any Windows-on-ARM hardware (current or planned)? Build that lane
+8. **arm64** (§10.5): any Windows-on-ARM hardware (current or planned)? Build that lane
    only if yes.
-10. Packaging-adjacent carried items (§10.6): tray/hotkey priority in M5 + confirm the
-    local-only crash-reporter default.
+9. Packaging-adjacent carried items (§10.6): tray/hotkey priority in M5 + confirm the
+   local-only crash-reporter default.
 
 ## 11. Unresolved technical unknowns (honest list)
 

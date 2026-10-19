@@ -1,5 +1,24 @@
 # SESSION BRIEF — S199 (the fix-and-implement round for the S198 SWOT audit)
 
+> **S210 SESSION CLOSED 2026-10-21 — docs-only round; repo stays @ v0.4.1.35 (main's
+> docs commit, NO tag/zip — nothing user-facing changed; CI skipped BY DESIGN via the
+> repo's own '**.md' paths-ignore; both hosts verified LIVE post-push: health
+> ok/prod/up/63 + the login round-trip + /kanban serving sw v444 — the deployed app is
+> the sealed S209 build, unchanged).** The owner answered the S209 handover's go/no-go on
+> the desktop-port decisions, item #1 — *"Okay go this way: recommended: Go + Wails v2 +
+> WebView2 + modernc.org/sqlite. prepare specs and instructions based on this decision"* —
+> and it is DONE: the stack is LOCKED across the spec pack (ADR-001 with the pure-Go-vs-
+> Wails comparison, rationale, six accepted costs, Fyne fallback RETIRED) and the
+> build INSTRUCTIONS exist as the pack's TENTH document —
+> `docs/project-kanban/GO-DESKTOP-IMPLEMENTATION-GUIDE.md` (~560 lines: toolchain →
+> scaffold → island sync → the hibanaFetch transport seam [12 call sites re-verified] →
+> Go module skeletons → M0-M5 walkthrough → build/CI commands → acceptance → the ten hard
+> rules). The full record: Changelogs §1 row 210 + worklog.md's S210 section. NEXT: the
+> owner's go on M0 (API-AND-SYNC-CONTRACT §7a-7e — the FIRST build milestone,
+> Hibana-source side: the setTaskTags updated_at bump, dev_tasks tombstones, idempotent
+> creates) + the nine remaining §10 questions (GO-DESKTOP-PORT-PLAN §10 items 1-9) — or
+> the next owner round.
+
 > **S209 SESSION CLOSED 2026-10-20 — repo sealed @ v0.4.1.35 (main df3a8ee, tag
 > v0.4.1.35 pushed, CI 39184567278 + CD 39185572136 GREEN, live-verified 20/20
 > on BOTH hosts with the owner's real account: the parity round — the embedded

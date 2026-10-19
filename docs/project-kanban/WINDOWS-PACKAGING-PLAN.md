@@ -64,13 +64,20 @@ protected folder").
 only become real if the owner ever distributes inside a managed organization — at which
 point MSI is a bolt-on wrapper, not a rewrite (the Go binary is unchanged).
 
-## 2. The Go stack [PLAN with rationale]
+## 2. The Go stack [OWNER-CONFIRMED 2026-10-21 — S210; details still [PLAN]]
 
-**Wails v2** (Go + WebView2 on Windows) — matching `GO-DESKTOP-PORT-PLAN.md` §1's conclusion
-("Wails… remains the leading candidate", `GO-DESKTOP-PORT-PLAN.md:25-28`), which rests on its
-verified portability table (`GO-DESKTOP-PORT-PLAN.md:16-23`): `devboard.js`/`chip-render.js`
-HIGH (pure JSON+DOM), `board.html`+`board-page.js` MEDIUM-HIGH — the tested board renderer is
-reusable nearly verbatim, so a WebView-hosting shell discards nothing.
+**Wails v2** (Go + WebView2 on Windows) — **the owner locked this stack on 2026-10-21
+(S210): *"Okay go this way: Go + Wails v2 + WebView2 + modernc.org/sqlite"*; the decision
+record with the full rationale + accepted costs is `GO-DESKTOP-IMPLEMENTATION-GUIDE.md`
+§0 (ADR-001), and the step-by-step build instructions are the same guide §1–§12.** This
+section keeps its original evidence trail (it matched `GO-DESKTOP-PORT-PLAN.md` §1's
+conclusion, "Wails… remains the leading candidate", `GO-DESKTOP-PORT-PLAN.md:25-28`),
+which rested on its verified portability table (`GO-DESKTOP-PORT-PLAN.md:16-23`):
+`devboard.js`/`chip-render.js` HIGH (pure JSON+DOM), `board.html`+`board-page.js`
+MEDIUM-HIGH — the tested board renderer is reusable nearly verbatim, so a WebView-hosting
+shell discards nothing. **The Fyne fallback condition below is RETIRED** (it existed only
+for "if WebView2 is unacceptable to the owner" — the owner has accepted it); the table
+stays for the record.
 
 **WebView2 runtime reality [VERIFIED fact + fallback]:** WebView2 ships preinstalled on
 Windows 10/11 (with Edge, via Windows Update); the realistic gaps are LTSC/Server SKUs and
@@ -84,8 +91,8 @@ embed|download|browser|error`): re-verify against the pinned Wails v2 CLI [PLAN-
 
 | Stack | Dependency | UI reuse | Honest verdict |
 |---|---|---|---|
-| **Wails v2** | WebView2 (preinstalled Win10/11) | **the board island runs nearly as-is** (`GO-DESKTOP-PORT-PLAN.md:53-63`) | recommended — the whole point of the portability audit |
-| Fyne | none (pure-Go OpenGL UI) | **zero** — full UI rebuild in Fyne widgets | the fallback ONLY if WebView2 is unacceptable to the owner (`GO-DESKTOP-PORT-PLAN.md:27-28`); discards the tested board renderer, chip-renderer byte-parity, FA/RTL CSS, and every e2e-pinned behavior — months of re-parity work |
+| **Wails v2** | WebView2 (preinstalled Win10/11) | **the board island runs nearly as-is** (`GO-DESKTOP-PORT-PLAN.md:53-63`) | **DECIDED [OWNER, 2026-10-21]** — the whole point of the portability audit (ADR-001) |
+| Fyne | none (pure-Go OpenGL UI) | **zero** — full UI rebuild in Fyne widgets | REJECTED — the fallback condition is retired by the owner's S210 decision; discards the tested board renderer, chip-renderer byte-parity, FA/RTL CSS, and every e2e-pinned behavior — months of re-parity work |
 | Gio | none (pure-Go, immediate mode) | zero | same as Fyne, steeper learning curve, smaller widget ecosystem |
 | webview/webview_go | WebView2 via minimal bindings | partial (loads the island, but no asset-server/bindings/generation story, no tray, packaging immaturity) | too thin — you end up rebuilding Wails badly |
 | Lorca / CEF | full Chrome/CEF download (~100+ MB) | yes | dependency weight is absurd for one board window; rejected |

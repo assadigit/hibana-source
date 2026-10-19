@@ -3136,3 +3136,28 @@ Stage Summary:
 - Artifacts: commits 6532764 + 4272321 + f9273de; tag v0.4.1.32; zip hibana.0.4.1.32.zip; new tools qa/s206-sprint-probe{,2,3,4,5}.mjs + qa/s206-repro-{stale,live2..15}.mjs + qa/s206-live-verify.mjs + qa/s206-final-inpage.mjs + e2e/s206-kanban-edge.spec.ts + e2e/s206-sprint-fixes.spec.ts.
 
 ---
+> **Rotation (HLTH-27):** sessions older than the newest 4 live in
+> `worklog-archive.md` (and verbatim in git history) — this file is the ACTIVE
+> tail only. Rotate with `node scripts/rotate/rotate.mjs --worklog`.
+
+## Session S207 — THE MOTHER-CONTAINER + TRUE-FULL-WIDTH + GHOST-SWEEP ROUND (the owner's three-item follow-up)
+
+Task ID: S207 (single-agent session)
+Agent: Hibana S207 agent (Z.ai Code)
+Task: The owner's three-item follow-up on the S206 kanban (2026-10-19, with two screenshots): (1) "put them into a mother container with relatively white color — the kanban needs a container", (2) "it's not still full width", (3) junk rows in the project switcher ("s209 repro 9").
+
+Work Log:
+- Re-read the two owner screenshots (VLM): 11l.png — the board a centered ~1366px island on the gray desk with NO grouping container; fgfg.png — the switcher listing "S206 repro9 (self-cleaning)" + "S206 repro5 (self-cleaning)" beside the 7 real projects.
+- Live recon (agent-browser, owner account, projects.hibana.ir/kanban @1920): body.rail-edge active, but main.shell computed max-inline-size 1366px — ROOT CAUSE: misc.css's item-12 page-width preference (html[data-page-width="standard"] main.shell.shell-flush, specificity (0,3,2), the default for every fresh user) capped the S206 full-bleed board; the rail gutter fix never re-checked it. /api/projects listed exactly 2 ghost rows — both S206 hang-hunt probe artifacts (their cleanup DELETE only ran on success paths).
+- Item 1 (the container): board.html — .db-frame wraps #db-toolbar + #db-loading + #db-board; devboard.css — the frame is one var(--card) surface (token-driven: white in light, the dark surface in dark), padding 0.9rem/1rem (phone 0.65rem), min-block-size floor (100dvh − 1.5rem; below 1025px 100dvh − 4.5rem − safe-area, respecting the mobile-nav reserve); the toolbar's .card chrome retires into the frame's header row (transparent, ring gone, hairline below — (0,2,0) beats .db-toolbar/.card).
+- Item 2 (full width): misc.css — html[data-page-width="standard"] main.shell.board-shell { max-inline-size: none } appended AFTER the item-12 block (same specificity, later source wins); devboard.css — main.shell.board-shell { padding: 0 } so the frame is edge-to-edge; board.html's main gains board-shell; the Notes vault (the other shell-flush consumer) KEEPS the cap; cache-bust devboard.css v33 + misc.css v24 (refs bumped in all 23/24 HTML consumers); sw v441→v442; package 0.4.1.33.
+- Item 3 (the ghosts): qa/s207-ghost-sweep.mjs (env-only creds; narrow patterns ^S\d+ repro|live probe|final|sprint probe + '(self-cleaning)'; runbook + try/finally guidance for future probes) — RUN LIVE: 9 before, 2 ghosts DELETEd (200/200), 7 real remain, 0 after; the owner's hibana-kanban-last pointed at a deleted ghost → the S205 gone-state fallback resolved the board to SportSignal (as designed).
+- Tests: 5 new e2e (e2e/s207-kanban-frame.spec.ts — frame structure + white bg + retired card chrome; TRUE full width under the standard page-width choice: shell cap none + padding 0 + frame left 0/right=vw + cols ≥ 90% vw; the height floor; /board.html same frame + exemption while keeping the icons-rail 64px + Back-link contract; mobile 390px full-bleed + slim inset). One test-authoring fix along the way (border-width shorthand → longhands).
+- Ladder all green: typecheck 0 · vitest 642/642 · eslint 0 · escape-lint 214 · cache-bust PASS · build 85 (prod) · bundle +0.8% PASS · precache PASS (+148KB headroom) · dist-wiring canonical · board/sprint/label e2e 34/34 (s207×5 + s206-kanban-edge×5 + s205-kanban-entry×9 + board-filters + s206-sprint-fixes + label-manager + sprint-ux×4 — the dev/dev-build gate tripped once on a stale public/dist from the prior session + a dev-build run; cleaned + --prod, both gates PASS).
+- Released: push fd42f56 → CI 39151681090 GREEN → CD 39152680541 GREEN → LIVE VERIFY on both hosts: projects.hibana.ir + hibana.ir /kanban — frame 0→1920 @1920 (white at the pixel edges, VLM-verified after the first VLM pass hallucinated margins — DOM + pixel checks are the ground truth), shellMax none, shell padding 0, toolbar chrome retired, rail-edge intact (keyboard focus reveal open/close verified live; the hover tripwire is hidden in headless (hover: none) by design — CI's Playwright pins the hover path), the switcher lists exactly the 7 real projects, sw v442 serving, 0 page errors.
+- Docs: Changelogs §1 rotated to v0.4.1.33 + row 207 (rotate.mjs); this handover; SESSION-BRIEF status line.
+
+Stage Summary:
+- LIVE hibana.ir + projects.hibana.ir @ v0.4.1.33, sw v442, schema 63 — all three owner asks shipped + verified live on both hosts; the switcher is clean (7 real projects); the sweeper is the standing post-probe-round remedy.
+- Remaining (owner-side or next-phase, all banked from S205/S206): the M0 API additions for the Go desktop; the owner's five port-plan questions; the mobile More-sheet Kanban row e2e; the dated-create overlap validation (INSERT path); the request-swallow is worked around, not root-caused (apply the signal+deadline+retry recipe if it appears on other same-URL GET paths).
+- Artifacts: commit fd42f56; tag v0.4.1.33; zip hibana.0.4.1.33.zip; new tools qa/s207-ghost-sweep.mjs + e2e/s207-kanban-frame.spec.ts.

@@ -1,5 +1,31 @@
 # SESSION BRIEF — S199 (the fix-and-implement round for the S198 SWOT audit)
 
+> **S215 SESSION CLOSED 2026-10-19 — hibana-source @ v0.4.1.36 (DOCS-ONLY:
+> the desktop project-switcher 304 fix; the web app untouched).** The owner
+> dogfooded desktop v0.1.3: "Login works. app works. the first kanban
+> worked. but when i wanted to change project got this error: couldn't
+> load - try again - try again." ROOT CAUSE, proven live against
+> hibana.ir: the pull engine and the island share ONE api.Client — the
+> engine's §8 cheap-poll seeds an If-None-Match for every board path it
+> mirrors (the EXACT strings the island fetches), so the switcher's GET
+> arrived conditional and the server answered **304** to a renderer with
+> no cached copy: "Couldn't load the board — Try again", stuck on every
+> retry. The WEB island never sees this (cache:'no-store' never
+> conditional-polls); the first board won the race with the engine's
+> first pull round. Fixed in hibana-desktop **v0.1.4** (`c586dbd` + tag
+> `v0.1.4-desktop` → CI → **release live**): the bridge is the
+> INTERACTIVE transport — `RequestFresh` (GETs send no validator; a 200
+> still refreshes it so the engine's next poll stays cheap; writes
+> byte-identical; an unexpected 304 errors loudly), bridge StatusErrors
+> log to data/logs/hibana.log, the engine keeps the conditional contract
+> everywhere. +4 tests (incl. the end-to-end regression), 49 Go tests +
+> -race ALL GREEN, island 51/51 untouched, PE-verified 0.1.4.0. Live
+> proof: projects 200 W/"5muwzo" → conditional 304 → fresh 200 (4646B);
+> devboard 200 W/"vkzsh6" → conditional 304 → fresh 200 (full payload).
+> Owner-side next: dogfood v0.1.4 — switch projects freely, every board
+> must load; the M0 §7a-7e go + the nine §10 questions still open;
+> M3 → M4 → M5.
+
 > **S214 SESSION CLOSED 2026-10-19 — hibana-source @ v0.4.1.36 (DOCS-ONLY:
 > the S213 publish + the desktop minimize-to-tray round; the favicon/icon
 > deploy from S213 verified LIVE on both hosts — the served favicon.ico is

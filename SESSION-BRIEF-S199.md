@@ -1,5 +1,31 @@
 # SESSION BRIEF — S199 (the fix-and-implement round for the S198 SWOT audit)
 
+> **S211 SESSION CLOSED 2026-10-21 — hibana-source stays @ v0.4.1.35 (docs-only
+> commit; NO tag/zip — nothing user-facing changed; CI skipped BY DESIGN via the
+> repo's '**.md' paths-ignore; both hosts verified LIVE post-push: health
+> ok/prod/up/63 + the login round-trip + authed /kanban — the deployed app is the
+> sealed S209 build, unchanged).** The re-delivered S209 brief's Phase 2 UNLOCKED
+> (its own gates re-verified live, then "BEGIN implementation strictly per the
+> spec pack"): **THE DESKTOP BUILD EXISTS — the NEW REPO `assadigit/hibana-desktop`
+> (created private; public = one settings toggle, per owner question Q7)** with
+> **M1 LIVE-ACCEPTED** (the Go cloud client + auth: 15 acceptance checks against
+> prod — login, the idempotent create+replay, pull 2 boards, create/move/archive
+> verified via an independent raw verifier, the live 304 ETag proof, the mirror
+> disappearance path, the list-pull full-row ownership — env-only creds,
+> self-cleaning) **+ THE M2 GROUNDWORK** (the island sync ritual pinned at
+> e6661c8/v0.4.1.35 with sha256 gates + the 12 seam patches; the DATA-MODEL §6
+> mirror; the §10 outbox drain table; the ONE-Request bridge; main.go with the
+> /kanban alias + the 5-minute pull loop; 33 Go tests + race green; the cgo-free
+> GOOS=windows cross-build → hibana.exe dual-stamped). The desktop CI
+> (windows-latest, two island gates, the HIBANA_SOURCE_TOKEN sealed-box secret)
+> failed its first run on a .gitignore pattern that silently excluded the island
+> + the anonymous clone of the private hibana-source — both fixed @ f56d056. The
+> full record: Changelogs §1 row 211 + worklog.md's S211 section. NEXT: the
+> owner's go on **M0 (API-AND-SYNC-CONTRACT §7a-7e — the FIRST
+> hibana-source-side build milestone: the setTaskTags updated_at bump, dev_tasks
+> tombstones, idempotent creates)** + the nine §10 questions — the desktop CI's
+> first green run + the windowed M2 launch follow on a Windows host.
+
 > **S210 SESSION CLOSED 2026-10-21 — docs-only round; repo stays @ v0.4.1.35 (main's
 > docs commit, NO tag/zip — nothing user-facing changed; CI skipped BY DESIGN via the
 > repo's own '**.md' paths-ignore; both hosts verified LIVE post-push: health

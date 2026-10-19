@@ -1,5 +1,83 @@
 # SESSION BRIEF — S199 (the fix-and-implement round for the S198 SWOT audit)
 
+> **S217 SESSION CLOSED 2026-10-19 — hibana-source @ v0.4.1.36 (DOCS-ONLY:
+> the desktop sync-button round; the web app untouched — the web already
+> saves every edit live; this round is the desktop's ASSURANCE surface).**
+> The owner's ask, verbatim: "Add a physical and visible sync button.
+> everytime user clicks sync a modal pop's up, shows connecting to
+> cloudflare serever > upload > sync with success modal. so user is 100%
+> sure it's synced and will not vanish." DELIVERED as hibana-desktop
+> **v0.1.6** (`752ba76` + tag `v0.1.6-desktop`, BOTH LOCAL, stacked on
+> S216's local v0.1.5 — no token this session): `Engine.SyncRound` —
+> connect (client.Me: the Cloudflare round-trip AND the session probe; a
+> 401 is the honest session outcome, never a retry) → upload
+> (engine.Drain, the §10 rules — pre-M3 usually empty: "no pending
+> changes — everything is already saved live", never a fake count) → sync
+> (SyncOnce: the projects list + every board), each step emitted with
+> HONEST RoundOutcome codes ok/session/unreachable/pending/error (held ops
+> NAMED + the never-lost note); the `SyncNow` binding (no args, a
+> CompareAndSwap busy guard, a 10-min deadline = the relogin cap) emits
+> "hibana:sync-progress"; a session outcome reopens the login card ABOVE
+> the modal. Island 52→54 via the sync script (never hand-edited): the
+> toolbar **#db-sync-button** (refresh-cw glyph, EN/FA aria-label) + the
+> **#db-sync-dialog** modal on the WEB'S OWN native dialog system
+> (theme-aware + RTL-native for free) — the steps animate live (spinner →
+> check/cross + the server's fact lines), ok → "Everything synced — your
+> boards are saved on the Hibana cloud and will not vanish" + the counts +
+> the time (Close→Done); pending → warn + Try again; session → sign-in
+> copy; unreachable → Try again, RECOVERS IN PLACE; closing never cancels;
+> a mid-round reopen shows the live steps; EN/FA live; NO storage. Ladder:
+> gofmt · vet linux+windows · 86 Go tests + -race ALL GREEN (13 new: 8
+> round + 5 binding) · island 54/54 --check · wails build PE-verified
+> (ProductVersion 0.1.6 + every round needle + the prior rounds' needles).
+> Browser proof 47/47 on the real island bytes (the choreography order,
+> the fact lines KEPT, the modal in dark AND light, the Try-again
+> recovery) + VLM-checked shots; the probe caught one first-draft bug
+> (the success belt wiped the event-painted fact lines — fixed with the
+> undefined-vs-empty note contract). Owner-side next: re-supply the token
+> → push main + BOTH tags (each auto-publishes its release), then dogfood
+> v0.1.6: sync flow → offline honest-failure → mid-round close/reopen;
+> the M0 §7a-7e go + the nine §10 questions still open; M3 → M4 → M5.
+
+> **S216 SESSION CLOSED 2026-10-19 — hibana-source @ v0.4.1.36 (DOCS-ONLY:
+> the desktop dark-mode round; the web app untouched — the web ALREADY has
+> dark mode since S87; this round is the desktop catching up).** The
+> owner's ask, verbatim: "The app doesnt have darkmode, add dark mode and
+> it's toggle." ROOT CAUSE: the web's theme layer (boot.js/app.js set
+> html[data-theme]; S87 = light + claude-dark, a CSS token swap — themes.css
+> + claude-dark-theme.css ship in the island VERBATIM) is STRIPPED from the
+> island (guide §3.2) and the deferred "the desktop shell owns theme
+> natively" (UI-UX §7.2) never landed — the desktop rendered light forever,
+> no toggle anywhere. DELIVERED as hibana-desktop **v0.1.5** (`edf6bcf` +
+> tag `v0.1.5-desktop`, BOTH LOCAL — no token this session): ONE source of
+> truth — the mirror meta row **ui.theme** (light | claude-dark | system,
+> default system, the web's S87 default; legacy 'dark' migrates once);
+> InjectShellState serves data-desktop-theme + (explicit prefs) data-theme
+> on <html> per request — a ZERO-JS first paint; the island's
+> desktop-theme.js (sync-generated, the FIRST blocking head script, island
+> 51→52) resolves 'system' via the OS scheme pre-paint + follows live
+> flips; the TWO toggles — the login gate's .theme-floater (the WEB LOGIN
+> PAGE'S OWN affordance) + the toolbar's #db-theme-toggle (nav.themeHint,
+> FA-native) — flip through the Go SetTheme binding (click-time resolution,
+> optimistic apply); the tray's **Theme submenu** (Light / Dark / Follow
+> system, radio-checked) rides the SAME path — persist + hibana:theme
+> flip the live document; the boot window background matches the look
+> (#141413 / #E7E7E7, the CSS's own --bg tokens, AppsUseLightTheme via
+> pure syscall registry bindings); NO localStorage — a sync-gate enforces
+> it. Ladder: gofmt · vet linux+windows · 55 Go tests + -race ALL GREEN
+> (10 new) · island 52/52 --check · wails build PE-verified (0.1.5.0 +
+> every theme needle). Browser proof 31/31 on the real island bytes (the
+> dark serve paints #141413 with ZERO JS; both toggles flip AND call the
+> binding; the tray event flips live; system resolves pre-paint) +
+> VLM-checked dark gate + dark board screenshots; the probe caught TWO
+> first-draft bugs (the inverted icon convention — app.js:213 mirrors the
+> CURRENT look, sun in light / moon in dark; the stale #FAF9F6 boot
+> background — the real light --bg is #E7E7E7, themes.css:18). Owner-side
+> next: re-supply the token → push main + v0.1.5-desktop (CI
+> auto-publishes), then dogfood v0.1.5 on Windows — toggle at the login
+> corner → the toolbar → the tray menu → restart: the choice must persist;
+> the M0 §7a-7e go + the nine §10 questions still open; M3 → M4 → M5.
+
 > **S215 SESSION CLOSED 2026-10-19 — hibana-source @ v0.4.1.36 (DOCS-ONLY:
 > the desktop project-switcher 304 fix; the web app untouched).** The owner
 > dogfooded desktop v0.1.3: "Login works. app works. the first kanban

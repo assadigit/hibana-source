@@ -13,24 +13,6 @@
 > `worklog-archive.md` (and verbatim in git history) — this file is the ACTIVE
 > tail only. Rotate with `node scripts/rotate/rotate.mjs --worklog`.
 
-## Session close — S208 WRAPPED, S209 HANDED OVER (the owner's wrap-up request)
-
-Task ID: S208-close (single-agent session)
-Agent: Hibana S208 agent (Z.ai Code)
-Task: The owner's message: "Wrap up this session. Push, commit, deploy." — verify everything is committed/pushed/deployed, seal the session, and prepare the next session's agenda.
-
-Work Log:
-- Verified the repo state: main @ 4f18fc8 (docs commit), working tree CLEAN, in sync with origin/main; tag v0.4.1.34 on the remote (4f18fc8).
-- Verified the GitHub Actions chain: CI 39164030262 success + CD 39164902210 success on 4f18fc8; feature push 6f8089e CI 39161116606 + CD 39163566793 both success; latest Uptime run success. Nothing pending, nothing failed.
-- Verified LIVE on both hosts: /api/health ok/prod/up/63 on hibana.ir AND projects.hibana.ir; anonymous /kanban → 302 /login.html?next=%2Fkanban (the auth contract intact).
-- Final browser round (agent-browser, owner account, prod): login → /kanban → board renders (SportSignal, all columns + cards); the NEW-task modal carries the Upload File button + the tags field; the EDIT-task modal carries the Upload File button; the .db-frame mother container measures full-bleed 0→viewport with rgb(255,255,255); 0 page errors. Screenshot /home/z/s208-final-live.png (not committed — sandbox-local).
-- Artifacts re-checked: /home/z/upload/hibana.0.4.1.34.zip present (673 files, integrity OK, secret-scan clean per S208).
-
-Stage Summary:
-- Everything for S205→S208 is committed, pushed, deployed, and live-verified. Nothing remained to push — this session's only new commit is the docs seal (this entry + the SESSION-BRIEF status line).
-- S209 HANDED OVER (the owner's next-session agenda, verbatim intent): (1) make the kanban INSIDE hibana (the in-app board surfaces) 1:1 identical to the kanban at projects.hibana.ir/kanban — they are the same thing; the domain is just the direct, less-distracting entry; (2) prepare the COMPLETE spec + document pack to replicate this kanban, its features, and its sync ability in GO for a Windows app (both an installable and a portable exe) — building on docs/project-kanban/'s six S205 documents (FEATURE-INVENTORY, USER-FLOWS, DATA-MODEL, API-AND-SYNC-CONTRACT, GO-DESKTOP-PORT-PLAN, TEST-MATRIX), which the next session must expand from port-PLAN to full replication specs.
-- Known starting points for S209's parity audit: the deliberate in-app/board deltas documented in S206/S207 — /board.html keeps the classic icons-rail + Back-link contracts vs /kanban's edge-hover rail + no-Back; the project.html embedded board surface; the title/content split + detail slide-over deltas documented in the S208 stage summary.
-
 ## Session S209 — THE KANBAN 1:1 PARITY ROUND + THE GO WINDOWS DESKTOP REPLICATION SPEC PACK
 
 Task ID: S209 (single-agent session with doc sub-agents)
@@ -97,3 +79,28 @@ Stage Summary:
 - The web app: UNTOUCHED at v0.4.1.35 (docs-only commit; CI skips by design; both hosts re-verified live).
 - Remaining (owner-side or next-phase): M0 §7a-7e — the owner's go (the FIRST hibana-source-side build milestone; the desktop's offline creates depend on it being DEPLOYED); the nine §10 questions (incl. the repo public/private flip + the Q7 confirmation); the desktop CI's first green run (in flight at session close — windows-latest, wails install + dual build); the windowed launch on a real Windows host (M2's side-by-side acceptance); M3-M5.
 - Artifacts: assadigit/hibana-desktop (private) main @ f56d056; hibana-source docs commit (this entry + the SESSION-BRIEF status line + Changelogs row 211 + the rotate content files); the desktop zip in the sandbox upload folder.
+
+## Session S212 — THE DESKTOP LOGIN-FIRST BOOT (v0.1.1 released; the owner's dogfooding report)
+
+Task ID: S212 (single-agent session)
+Agent: Hibana S212 agent (Z.ai Code)
+Task: The owner dogfooded the live v0.1.0 desktop release and reported: "I opened portable version, it says, can't open (in the app) try again, it's a white kanban, we must add login to hibana page to the windows app. so first account connect and data load. so firstly a login modal opens, when user auths and connect to cloudflare kanban loads."
+
+Work Log:
+- ENVIRONMENT: the sandbox was RESET between sessions — /home/z/hibana-desktop + the Go toolchain were gone; re-cloned the desktop repo from origin (@ aa7ca13, the S211 release-2 state: v0.1.0-desktop released, both runs green), reinstalled Go 1.27.2 user-locally, re-cloned hibana-source. The chat worklog + the cached S211 doc reads survived; the remote state was the ground truth.
+- Root cause confirmed in the code (not guessed): main.go restored a stored session when present but NO login surface existed — the shim deliberately omits handle401 (guarded at board-page.js:288), engine.SetRelogin returned "no login window yet (M2)", and the bridge had no Login method — so a fresh install 401'd every island fetch into the board's "Try again" error card. The user's diagnosis was exact.
+- THE IMPLEMENTATION (desktop commit 8befefe, 18 files): guide §5.5's pick — the island-rendered login card.
+  - scripts/sync-island.mjs: two new generated files (js/desktop-login.js + css/desktop-login.css) + three recorded inserts (login.js after the shim; the gate sheet after manrope — rtl.css stays the last island sheet; the gate markup after <body>). The card reuses the WEB LOGIN PAGE'S OWN classes (.auth-page/.auth-card/.error) + the shared auth.* i18n keys (present in BOTH dictionaries) — theme-aware + FA/RTL-native. New verify gates: shim→login→devboard→board-page order, the gate markup + hook assertions, node --check on the controller. Island 46 → 48 files, checksums regenerated; idempotent re-sync byte-identical.
+  - internal/ui: Login (wrong password RESOLVES {ok:false, code:invalid_credentials} — the live probe confirmed the 401 shape — so the card branches without parsing Go error strings; transport rejects as can't-reach), AuthState (the boot snapshot), NotifyAuthLost (idempotent true→false) fired by the Request 401 watcher + the pull loop scan + the outbox drain, AwaitRelogin (the §10 relogin-then-retry-once rule, ctx/10-min capped), rolling-session persistence (the 30-day re-Set-Cookie survives restarts).
+  - internal/ui/authinject.go: IndexMiddleware — the served index.html carries data-desktop-authed on the <html> tag (first-paint card visibility, zero JS flash either way); conditional headers stripped + no-store so a WebView2 revalidate can never smuggle a stale gate state.
+  - internal/auth: Restore now returns the identity (email/language_pref) — the boot snapshot + the island's __hibanaMe language hook (i18n.js:69-77's preferred path: FA users get FA+RTL through the bridge, zero island network).
+  - main.go: the wiring — live session → straight to the board; sign-in → persisted + post-login sync kick + reload; any 401 emits hibana:auth-required → the card reopens → re-login wakes the outbox's retry-once.
+  - CI hard-9 structural: the build version now DERIVES from the tag (v0.1.1-desktop → 0.1.1 in -X stamps + zip name + notes); wails.json/versioninfo bumped to 0.1.1 in lockstep.
+- LADDER (desktop): gofmt clean · go vet ./... · go test -count=1 ./internal/... ALL GREEN (now 41 tests: +8 login-surface tests incl. the wrong-password resolution, the 401 card-reopen, the relogin wake, the injection middleware) · go test -race ALL GREEN · island --check 48/48 · CGO_ENABLED=0 GOOS=windows cross-build → hibana.exe (13MB PE32+, dual-stamped 0.1.1/e6661c8).
+- LIVE-PROVEN against prod (a throwaway probe, env-only creds, never committed): pre-login serve carries authed="false" + the gate markup + no-store; wrong password → invalid_credentials resolution; the real login → identity + a 43-char session persisted; the post-login serve carries authed="true"; the island's own /api/projects?sort=recent through the bridge → 200 with a real payload.
+- SHIPPED: main pushed (aa7ca13 → 8befefe) + annotated tag v0.1.1-desktop. BOTH CI runs GREEN (39286707591 main, 39286710159 tag — build + release). RELEASE LIVE: releases/tag/v0.1.1-desktop with hibana-amd64-installer.exe (8,978,808 B), hibana-portable-0.1.1.zip (7,368,044 B), checksums.txt — all three sha256-verified after downloading exactly as a user (including the zip's embedded hibana.exe). Artifacts ALSO delivered to the chat download folder (hibana-desktop-0.1.1-windows/: the 3 release files + the bare hibana.exe).
+
+Stage Summary:
+- The owner's ask is closed END-TO-END: first launch opens the sign-in card → the user auths against hibana.ir → the kanban loads; a live stored session boots straight to the board; a mid-session expiry reopens the card and a re-login recovers (outbox ops retry once). v0.1.1 is live on the Releases page, checksums verified.
+- This repo (hibana-source): DOCS-ONLY (this section + the rotation + the SESSION-BRIEF line; package stays 0.4.1.35; CI skips by design; the ladder run anyway).
+- Remaining (owner-side): the M0 §7a-7e go + the nine §10 questions; the desktop repo is still PRIVATE (the public flip = one settings toggle — needed for login-free download links); dogfood v0.1.1 on Windows (the M2 side-by-side); M3-M5.

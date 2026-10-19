@@ -1,5 +1,26 @@
 # SESSION BRIEF — S199 (the fix-and-implement round for the S198 SWOT audit)
 
+> **S212 SESSION CLOSED 2026-10-21 — hibana-source stays @ v0.4.1.35 (docs-only
+> commit; NO tag/zip — nothing user-facing changed; CI skipped BY DESIGN via the
+> '**.md' paths-ignore).** THE DESKTOP LOGIN-FIRST BOOT LANDED as v0.1.1 in
+> `assadigit/hibana-desktop` (the owner dogfooded v0.1.0 and reported the white
+> board — "firstly a login modal opens, when user auths and connect to cloudflare
+> kanban loads"): guide §5.5's pick, the **island-rendered login card** — the
+> generated js/desktop-login.js + css/desktop-login.css + the gate markup (the
+> card reuses the web login page's own .auth-card classes + the shared auth.*
+> i18n keys; the island's language hook __hibanaMe now resolves through the Go
+> bridge — FA users get FA+RTL, zero island network), the bridge's §5.5 surface
+> (Login resolves wrong-password as {ok:false, code:invalid_credentials};
+> AuthState; the 401 watcher; AwaitRelogin for the outbox's retry-once), and the
+> IndexMiddleware serving index.html with the live auth state on the <html> tag
+> (first-paint card visibility — a live session never flashes the card, a fresh
+> session never flashes the broken board). **LIVE-PROVEN vs prod + RELEASED**:
+> both desktop CI runs GREEN; **releases/tag/v0.1.1-desktop** live (installer +
+> portable zip + checksums, sha256-verified as a user); the artifacts also
+> delivered to the chat download folder. Owner-side next: the M0 §7a-7e go + the
+> nine §10 questions (the desktop repo is still PRIVATE — the public flip is one
+> settings toggle); dogfood v0.1.1 on Windows (the M2 side-by-side); M3-M5.
+
 > **S211 SESSION CLOSED 2026-10-21 — hibana-source stays @ v0.4.1.35 (docs-only
 > commit; NO tag/zip — nothing user-facing changed; CI skipped BY DESIGN via the
 > repo's '**.md' paths-ignore; both hosts verified LIVE post-push: health

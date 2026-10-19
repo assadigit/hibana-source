@@ -3183,3 +3183,24 @@ Work Log:
 
 Stage Summary:
 - LIVE hibana.ir + projects.hibana.ir @ v0.4.1.34 (sw v443): the kanban editor now carries the original hibana's full task option set — the upload button in BOTH new-task and edit modals (the owner's exact complaint), staged→pinned attachments with progress/cancel/notes/delete/zoom, tags on create, the card pin badge + pinned-pictures dialog, and Copy on the card menu. One data-loss bug fixed en route (the mid-edit title wipe). Left as documented (deliberate): the title/content SPLIT + contenteditable rich editor (the board's single textarea is its Session-22/23 contract; the port would change the editing model), the detail slide-over (the board opens the editor directly — faster), paste/drag-drop upload (the original's dialogs are picker-only too).
+> **Rotation (HLTH-27):** sessions older than the newest 4 live in
+> `worklog-archive.md` (and verbatim in git history) — this file is the ACTIVE
+> tail only. Rotate with `node scripts/rotate/rotate.mjs --worklog`.
+
+## Session close — S208 WRAPPED, S209 HANDED OVER (the owner's wrap-up request)
+
+Task ID: S208-close (single-agent session)
+Agent: Hibana S208 agent (Z.ai Code)
+Task: The owner's message: "Wrap up this session. Push, commit, deploy." — verify everything is committed/pushed/deployed, seal the session, and prepare the next session's agenda.
+
+Work Log:
+- Verified the repo state: main @ 4f18fc8 (docs commit), working tree CLEAN, in sync with origin/main; tag v0.4.1.34 on the remote (4f18fc8).
+- Verified the GitHub Actions chain: CI 39164030262 success + CD 39164902210 success on 4f18fc8; feature push 6f8089e CI 39161116606 + CD 39163566793 both success; latest Uptime run success. Nothing pending, nothing failed.
+- Verified LIVE on both hosts: /api/health ok/prod/up/63 on hibana.ir AND projects.hibana.ir; anonymous /kanban → 302 /login.html?next=%2Fkanban (the auth contract intact).
+- Final browser round (agent-browser, owner account, prod): login → /kanban → board renders (SportSignal, all columns + cards); the NEW-task modal carries the Upload File button + the tags field; the EDIT-task modal carries the Upload File button; the .db-frame mother container measures full-bleed 0→viewport with rgb(255,255,255); 0 page errors. Screenshot /home/z/s208-final-live.png (not committed — sandbox-local).
+- Artifacts re-checked: /home/z/upload/hibana.0.4.1.34.zip present (673 files, integrity OK, secret-scan clean per S208).
+
+Stage Summary:
+- Everything for S205→S208 is committed, pushed, deployed, and live-verified. Nothing remained to push — this session's only new commit is the docs seal (this entry + the SESSION-BRIEF status line).
+- S209 HANDED OVER (the owner's next-session agenda, verbatim intent): (1) make the kanban INSIDE hibana (the in-app board surfaces) 1:1 identical to the kanban at projects.hibana.ir/kanban — they are the same thing; the domain is just the direct, less-distracting entry; (2) prepare the COMPLETE spec + document pack to replicate this kanban, its features, and its sync ability in GO for a Windows app (both an installable and a portable exe) — building on docs/project-kanban/'s six S205 documents (FEATURE-INVENTORY, USER-FLOWS, DATA-MODEL, API-AND-SYNC-CONTRACT, GO-DESKTOP-PORT-PLAN, TEST-MATRIX), which the next session must expand from port-PLAN to full replication specs.
+- Known starting points for S209's parity audit: the deliberate in-app/board deltas documented in S206/S207 — /board.html keeps the classic icons-rail + Back-link contracts vs /kanban's edge-hover rail + no-Back; the project.html embedded board surface; the title/content split + detail slide-over deltas documented in the S208 stage summary.

@@ -1,5 +1,35 @@
 # SESSION BRIEF — S199 (the fix-and-implement round for the S198 SWOT audit)
 
+> **S214 SESSION CLOSED 2026-10-19 — hibana-source @ v0.4.1.36 (DOCS-ONLY:
+> the S213 publish + the desktop minimize-to-tray round; the favicon/icon
+> deploy from S213 verified LIVE on both hosts — the served favicon.ico is
+> byte-identical to the traced 7-frame ICO, icon.svg byte-identical to the
+> h-spark squircle).** The owner's ping — "It seems you didn't release it" —
+> was exactly right: S213 ended with BOTH commits local. Published both:
+> hibana-desktop `9f8e892` + tag `v0.1.2-desktop` → CI green ×2 → **the
+> v0.1.2 release LIVE** (installer + portable zip + checksums, downloaded +
+> sha256-verified); hibana-source `563236f` pushed → CI/CD green → v0.4.1.36
+> live on hibana.ir AND projects.hibana.ir. Then the new ask — **"also i
+> want the option of minimize to taskbar"** — delivered as hibana-desktop
+> **v0.1.3** (`2fda9b7` + tag `v0.1.3-desktop` → CI → **release LIVE**):
+> `internal/tray`, a ZERO-dependency win32 notification-area icon (pure
+> syscalls: Shell_NotifyIconW + a hidden window, CreateIconFromResourceEx
+> on the embedded icon.ico, TPM_RETURNCMD menu, TaskbarCreated re-add;
+> getlantern read as reference, not imported) — the Hibana mark sits by the
+> clock the whole session; left-click / double-click / a second exe launch
+> restores the window; right-click offers Open Hibana / the persisted
+> **Hide to tray on close** toggle / Quit Hibana; the X button hides to the
+> tray via Wails' OnBeforeClose when the preference is on (mirror meta
+> `ui.hide_on_close`, default ON; the tray's Quit sets quitRequested so the
+> real exit passes — runtime.Quit consults OnBeforeClose too, root-caused in
+> the wails v2.17 source); a failed tray start forces the preference off so
+> a hidden window is never stranded. Ladder: 46 Go tests (5 new) + -race +
+> vet linux+windows ALL GREEN · island 51/51 untouched · the exe PE-verified
+> (versioninfo 0.1.3.0, dual -X stamps, the 24,227B ICO embedded).
+> Owner-side next: dogfood v0.1.3 (X → tray → left-click restores; the
+> toggle persists across restarts); the M0 §7a-7e go + the nine §10
+> questions (incl. the repos' visibility flip) still open; M3 → M4 → M5.
+
 > **S213 SESSION CLOSED 2026-10-19 — hibana-source @ v0.4.1.36 (ASSETS-ONLY:
 > the Hibana-logo favicon/icon set — favicon.ico is a REAL multi-frame ICO now,
 > was SVG bytes named .ico that browsers cannot decode; icon.svg is the h-spark

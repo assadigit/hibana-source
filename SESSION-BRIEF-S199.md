@@ -1,5 +1,32 @@
 # SESSION BRIEF — S199 (the fix-and-implement round for the S198 SWOT audit)
 
+> **S221 SESSION CLOSED 2026-10-20 — hibana-source @ v0.4.1.36 (DOCS-ONLY:
+> the desktop sign-out round; the web app untouched).**
+> The owner's ask, verbatim: "It must also have option of logout and enter
+> with a new account." The app could sign IN but never OUT — a stored
+> session booted straight to the board forever. **v0.1.9: the toolbar row
+> now closes with a LABELED ghost Sign out button** (Sprints | Labels |
+> Sync | theme | Sign out — the pin's own nav.signout key, EN 'Sign out' /
+> FA 'خروج', twin-sized with its neighbors), a native confirm dialog guards
+> the click (the S186 bare-button CTA — the VLM pass caught the first cut's
+> neutral .btn BEFORE the release), and **ui.API.Logout** — the §5.5 login
+> surface's counterpart — kills the server session best-effort, then the
+> cookie + the ETag cache TOGETHER, the session file, and the mirror's
+> account rows + pull cursors (ONE transaction; the ui.theme +
+> ui.hide_on_close device prefs survive a sign-out); the reload opens the
+> login card at FIRST PAINT, where **signing in with a NEW account boots its
+> kanban**. Proven: +7 Go tests, vet/test/race green linux+windows, the
+> windows cross-build PE needles (db-logout-*, nav.signout);
+> scripts/probe-logout.mjs **28/28** on the real island bytes (the twins,
+> Cancel = no state change, the sign-out → gate-at-first-paint, the
+> new-account sign-in, the FA/RTL dark mirror), VLM clean, zero page
+> errors. **RELEASED BY THE LANE, ZERO HANDS: v0.1.9-desktop** — every
+> asset sha256-verified. Owner-side next: dogfood v0.1.9 (the Sign out at
+> the toolbar's end, the confirm modal, a second account, the FA mirror);
+> the M0 §7a-7e go; the e2e flake-hunt round; M3 offline mutations → M4
+> screenshot upload → M5 DPAPI + installer polish.
+
+
 > **S220 SESSION CLOSED 2026-10-20 — hibana-source @ v0.4.1.36 (DOCS-ONLY:
 > the desktop sync-button visibility round; the web app untouched).**
 > The owner's ask, verbatim: "There is still No Sync button, I want a sync

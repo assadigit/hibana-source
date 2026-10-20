@@ -1,6 +1,59 @@
 # SESSION BRIEF — S199 (the fix-and-implement round for the S198 SWOT audit)
 
 
+> **S224 SESSION CLOSED 2026-10-20 — hibana-source @ v0.4.1.36 (DOCS-ONLY:
+> the desktop refresh round; the web app untouched).**
+> The owner's ask, verbatim: "I tried something, deleted something from
+> hibana, clicked sync on the app, but it didn't got deleted. it seems we
+> need a refresh button." The honest diagnosis: the sync round DID pull
+> the boards (deletions included) into the Go mirror, but the island's own
+> DOM kept the boot-time render — board-page.js has NO poll — so the
+> visible kanban never re-fetched after a green sync; the mirror was
+> fresh, the SCREEN was not. **v0.1.12 closes it on BOTH surfaces:**
+> (1) **THE REFRESH BUTTON** — a LABELED ghost pill right after the Sync
+> CTA (the row: Sprints | Labels | Sync | Refresh | theme | Log out):
+> one click re-boots the island (location.reload; board-page.js
+> pushState'd ?project= so the same board re-enters; the boot fetches
+> ride the bridge's always-fresh RequestFresh transport) and the
+> cloud's truth — the deletion included — paints; twin 41.3px metrics,
+> the desktop-owned EN 'Refresh'/'Refresh board' + FA
+> 'به‌روزرسانی'/'به‌روزرسانی تخته' pair, a data-busy glyph spin, a
+> one-click guard. (2) **THE SYNC ROUND'S OWN REFLEX** — the exact gap the
+> owner hit: the outcome now carries `pulled` (the boards whose pull was
+> a live 200 — mirror rows that MOVED), the ok panel names it ("N
+> board(s) updated from the cloud — the board shows them when you close
+> this." + the FA twin) and the modal's close (Done AND Esc — the
+> native close event; the reload lands AFTER the user reads the success)
+> reloads the island so the pulled deletions reach the VISIBLE board;
+> pulled=0 (all 304s) claims NOTHING and reloads NOTHING. (3) **THE
+> MIRROR HONESTY** — a project deleted on hibana.ir answered 404-gone
+> but its mirror row stayed "live" forever (re-polling a dead board,
+> miscounting the success line); SyncOnce's gone branch now TOMBSTONES
+> it (store.MarkProjectGone, idempotent by the deleted_at IS NULL guard),
+> and the list pull owns resurrection (a fresh row clears it via the
+> upsert's excluded.deleted_at overwrite). **Proof:** probe-refresh.mjs
+> 32/32 on the real island bytes (the owner's exact scenario end-to-end:
+> the server-side deletion → the boot-rendered card still on screen →
+> ONE Refresh click → the card GONE; pulled=2 → the fact + the
+> close-reload; pulled=0 → no claim + no reload; the FA/RTL dark mirror;
+> ZERO page errors) + VLM clean ×4; Go gofmt/vet/test -race green (7
+> pkgs, +3 tests); the cross-build PE-verified (dual stamps + every
+> needle). **RELEASED BY THE LANE, ZERO HANDS:** the push (b0e8e4c)
+> fired the autorelease lane → v0.1.12-desktop cut (bump 9258522) →
+> the free Windows runner built + published; every asset re-downloaded
+> + sha256-verified (installer 9,202,745B 05723b7d… OK · zip
+> 7,553,103B 49d8bbad… OK · the zip's embedded exe 7b600a39… MATCHES
+> checksums.txt's own line); the release exe PE-verified
+> (main.Version=0.1.12 + WebRef=e6661c8; the FA UTF-8 needles verified
+> by direct byte grep — به‌روزرسانی ×14). Package stays 0.4.1.36
+> (docs-only; the full web ladder runs in this sandbox anyway).
+> **Owner-side next:** dogfood v0.1.12 on Windows (delete a task on
+> hibana.ir → the desktop still shows it → click Refresh → it is gone;
+> or click Sync — when the round says "N board(s) updated from the
+> cloud", closing the modal re-renders the board with the deletions
+> landed); the M0 §7a-7e go; the e2e flake-hunt round; M3 (offline
+> mutations) → M4 (screenshot upload) → M5 (DPAPI + installer polish).
+
 > **S223 SESSION CLOSED 2026-10-20 — hibana-source @ v0.4.1.36 (DOCS-ONLY:
 > the desktop new-project round; the web app untouched).**
 > The owner's ask, verbatim: "Add ability to define a new project, and

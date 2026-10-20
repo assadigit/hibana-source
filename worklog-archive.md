@@ -3468,3 +3468,22 @@ Stage Summary:
 **The one honest red — the CI e2e shard-2 flake (diagnosed, NOT a product regression):** the ci job (the full unit/type/lint/build ladder) GREEN; e2e shard 1 GREEN; e2e shard 2: the s207 kanban-frame WIDTH geometry test failed ALL THREE shard runs tonight with three DIFFERENT offsets (frame.left = 10px, 57px, 15px — each attempt a different value breaking the exact-zero edge-to-edge pins) + the sprint-doc test's FIRST attempt hit the "Payments flow12.1" name-concatenation race twice (GREEN on the in-job retry both times — the suite's documented S196 race class; the first title-path catches after "the title never flaked in 40+ runs"). The same tree was FULLY e2e-green at 19:17 (run 39309699841); the traces prove the client sent perfect payloads (POST name clean; the autosave PATCH description-only by design), every CSS 200, every API 200, the correct rail-edge boot class — the breaks are runner-side render nondeterminism, not app bits. Same runner version + ubuntu-24.04 label on both sides; the rolling-image/Chromium drift theory is unproven from the outside. NO blind test patch this session — the S196-style flake-hunt round owns the fix (pin the runner image off the rolling label / re-harden the exact-pixel pins / hunt the sprint-doc title race at its source).
 
 **Owner-side next:** dogfood v0.1.7 on Windows (login-free download now); the M0 §7a-7e go; the e2e flake-hunt round; M3 → M4 → M5.
+> **Rotation (HLTH-27):** sessions older than the newest 4 live in
+> `worklog-archive.md` (and verbatim in git history) — this file is the ACTIVE
+> tail only. Rotate with `node scripts/rotate/rotate.mjs --worklog`.
+
+## Session 220 — the desktop sync-button visibility round (2026-10-20)
+
+**The owner's ask, verbatim:** "There is still No Sync button, I want a sync button on the header of app, next to sprints and labels, but colored. (fill colored) also sprints and labels need to be same size."
+
+**The honest diagnosis:** v0.1.6 HAD shipped a sync button — but as a ghost ICON-ONLY control at the toolbar's far edge, after the theme icon. To the owner's eye that reads as NO sync button at all. The round's brief: make it unmissable, exactly where asked.
+
+**The fix (hibana-desktop v0.1.8):** the button is now a LABELED, FILL-COLORED CTA pill directly after Labels (Sprints | Labels | **Sync** | theme) — the app's own bare-button solid-primary grammar (--cta teal #2E7B7F light / terracotta #c2643f dark, white ink, the refresh glyph + the "Sync" label, EN/FA desktop-localized + live-repainted). The "same size" ask exposed a real bug: Sprints (an `<a>`, a.ghost's 0.75rem/400 box) had diverged from Labels (a `<button>`, the global 1rem/500) — ONE #id twin rule pins both identical; all three buttons measure exactly 41.3px.
+
+**The island layer:** regenerated through its ONLY mutator — the button op re-anchored to the pinned Labels line, DESKTOP_SYNC_CSS grew the twin rule + the CTA pill (the transparent 1px border keeps the filled box the ghost-hairline height), DESKTOP_SYNC_JS grew the btnLabel pair + the label repaint, and verifyDist grew the position/label/twin gates. --check green 54/54, idempotent.
+
+**The proof (browser, real island bytes, InjectShellState-parity mocks):** the trio measured 41.3px ×3 with the fill rgb(46,123,127)/rgb(194,100,63); the modal round end-to-end ("will not vanish" + counts + time, Done closes); the FULL FA/RTL boot mirrors the row + completes the FA modal; VLM light/dark/RTL screenshots clean; ZERO console errors. Tooling lesson recorded: a literal "[main]" renders as "ain]" through ANSI-escape stripping — the workflows were never corrupted (blob-hash-proven); read bytes, not rendered output.
+
+**The release, zero hands:** the push fired the lane → v0.1.8-desktop cut (bump 25ff370, loop guard closed) → the free windows runner built + published (tag-lane run 38 green). Every asset re-downloaded + sha256-verified (installer 9,180,216B 75f4319a… · zip 7,533,252B e7ecbfe2… · the embedded exe 876da16b… MATCH); PE needles main.Version=0.1.8 + db-sync-cta + db-sync-btn-label.
+
+**Owner-side next:** dogfood v0.1.8 (login-free download; the colored Sync between Labels and the theme icon, the twins, the dark terracotta, the FA mirror); the M0 §7a-7e go; the e2e flake-hunt round; M3 offline mutations → M4 screenshot upload → M5 DPAPI + installer polish.

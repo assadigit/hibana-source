@@ -1,5 +1,25 @@
 # SESSION BRIEF — S199 (the fix-and-implement round for the S198 SWOT audit)
 
+> **S219 SESSION CLOSED 2026-10-20 — hibana-source @ v0.4.1.36 (DOCS-ONLY:
+> the public flip + the lanes' first live firings; the web app untouched).**
+> The owner's ask, verbatim: "Make the repo's public and continue your job."
+> BOTH repos flipped PUBLIC via the API — standard runners FREE (the S218
+> billing wall was private-repo minutes) + login-free release downloads.
+> The wall-killed runs re-fired green. **THE LANES FIRED LIVE — v0.1.7-desktop
+> cut, built + published FULLY AUTOMATICALLY** (the fix push itself triggered
+> the lane; two landmines exposed + fixed on the way: the set -u backslash
+> collapse in the lockstep sed, and GITHUB_TOKEN's workflow-push refusal —
+> fixed with the RELEASE_PAT sealed secret; plus the idempotent release job +
+> the pinned-ref gate's anonymous public-clone fallback). Every v0.1.7 asset
+> re-downloaded + sha256-verified; the PE dual-stamps confirmed. The web lane
+> guard-exited green on the existing v0.4.1.36; the next package.json bump
+> cuts v0.4.1.37 hands-free. **THE ONE HONEST RED:** the CI e2e shard-2 flake
+> (the s207 width geometry test — three different offsets across three runs,
+> 10/57/15px; the sprint-doc "Payments flow12.1" race — green on retry both
+> times) — diagnosed from the traces as runner-side render nondeterminism,
+> NOT a product regression (same tree fully e2e-green at 19:17; clean client
+> payloads/CSS/APIs); the S196-style flake-hunt round owns the fix.
+
 > **S218 SESSION CLOSED 2026-10-19 — hibana-source @ v0.4.1.36 (DOCS-ONLY:
 > the publish + the auto-release lanes; the web app untouched).** The
 > owner's ask, verbatim: "commit and push and release new version, after

@@ -1,5 +1,23 @@
 # SESSION BRIEF — S199 (the fix-and-implement round for the S198 SWOT audit)
 
+> **S220 SESSION CLOSED 2026-10-20 — hibana-source @ v0.4.1.36 (DOCS-ONLY:
+> the desktop sync-button visibility round; the web app untouched).**
+> The owner's ask, verbatim: "There is still No Sync button, I want a sync
+> button on the header of app, next to sprints and labels, but colored.
+> (fill colored) also sprints and labels need to be same size."
+> The honest diagnosis: v0.1.6's ghost ICON at the toolbar's edge read as NO
+> sync button. **v0.1.8: the button is now a LABELED, FILL-COLORED CTA pill
+> right after Labels** (the app's own bare-button solid-primary grammar —
+> teal light / terracotta dark, white ink, the refresh glyph + EN 'Sync' /
+> FA 'همگام‌سازی' label), and **Sprints + Labels are twin-sized** (the
+> <a>-vs-<button> box divergence normalized; all three buttons 41.3px).
+> Proven on the real island bytes (browser: the measured trio, the modal
+> round, the full FA/RTL mirror; VLM light/dark/RTL clean; zero console
+> errors). **RELEASED BY THE LANE, ZERO HANDS: v0.1.8-desktop** — every
+> asset sha256-verified; PE needles main.Version=0.1.8 + db-sync-cta +
+> db-sync-btn-label. Owner-side next: dogfood v0.1.8; the M0 §7a-7e go;
+> the e2e flake-hunt round; M3 offline mutations.
+
 > **S219 SESSION CLOSED 2026-10-20 — hibana-source @ v0.4.1.36 (DOCS-ONLY:
 > the public flip + the lanes' first live firings; the web app untouched).**
 > The owner's ask, verbatim: "Make the repo's public and continue your job."

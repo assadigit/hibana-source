@@ -1,6 +1,44 @@
 # SESSION BRIEF — S199 (the fix-and-implement round for the S198 SWOT audit)
 
 
+> **S223 SESSION CLOSED 2026-10-20 — hibana-source @ v0.4.1.36 (DOCS-ONLY:
+> the desktop new-project round; the web app untouched).**
+> The owner's ask, verbatim: "Add ability to define a new project, and
+> get a kanban for it as well. this project then will be updated in
+> hibana's cloudflare as a new project." The desktop could OPEN boards
+> but never CREATE their projects. **v0.1.11 closes it with a LIVE cloud
+> create** — the web API's own idempotent POST /api/projects:
+> js/desktop-newproject.js mints a client UUID v4 + POSTs
+> {id, title, description?, status:'planning'} through window.hibanaFetch
+> (the bridge's ONE Request transport: Go stamps Origin + the session
+> cookie), and on 201 {ok,id}/200 {ok,duplicate} deep-links the island's
+> own /kanban?project=<id> boot — the fresh board renders its empty
+> columns ("get a kanban for it") and recordBoard runs island-side; the
+> round touches NO storage. **status:'planning' NOT 'spark'** — the
+> switcher's sort=recent list EXCLUDES sparks, so a spark would vanish
+> from the very switcher it was born in. **THREE entry points:** the
+> switcher popup's runtime-injected "New project" row (MutationObserver,
+> a popup SIBLING that survives list re-renders, the pin's cmdk.newProject
+> EN/FA), the css-hidden dead "All projects →" link, and the
+> /projects.html dead-link interception (the no-projects CTA + the fail
+> state). The dialog = the web's own dialog.dialog + .modal, every label
+> on the pin's own i18n keys; OFFLINE HONESTY: transport/401 lines, NO
+> fake queue (outbox project.create stays M3's scope); Esc guarded
+> in-flight. **Proof:** probe-newproject.mjs 39/39 on the real island
+> bytes (the wire payload field-by-field: v4 UUID + 'planning' + nothing
+> else; the fresh kanban '0 of 0 done'; the dead-CTA interception; the
+> 401/transport branches; the FA/RTL dark mirror; ZERO page errors) + VLM
+> clean; live wire probe vs hibana.ir: health ok/up/63 · POST exists +
+> session-gated · T6 403s headerless writes (the stored test-account
+> password 401s — stale; no authenticated round ran this session, honest).
+> Go untouched; --check green 58 files; the cross-build PE-verified.
+> **RELEASED BY THE LANE, ZERO HANDS: v0.1.11-desktop** — every asset
+> sha256-verified (installer 9,198,107B fe0c4d3c… · zip 7,546,446B
+> a8d6979d… · embedded exe 3e2ea32e… MATCH). Owner-side next: dogfood
+> v0.1.11 (the switcher's New project row → Create → the fresh kanban
+> boots → the SAME project visible on hibana.ir); the M0 §7a-7e go; the
+> e2e flake-hunt round; M3 → M4 → M5.
+
 > **S222 SESSION CLOSED 2026-10-20 — hibana-source @ v0.4.1.36 (DOCS-ONLY:
 > the rounded-modern window edge round; the web app untouched).**
 > The owner's ask, verbatim: "make the edge of app rounded and modern."

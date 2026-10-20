@@ -1,6 +1,92 @@
 # SESSION BRIEF — S199 (the fix-and-implement round for the S198 SWOT audit)
 
 
+> **S225 SESSION CLOSED 2026-10-21 — hibana-source @ v0.4.1.36 (DOCS-ONLY:
+> the desktop sound + sync-modal-animation round; the web app untouched).**
+> The owner's ask, verbatim: "I want some sound engineering , some modern ,
+> futurist and low-key sounds. for this: 1. when you login. 2. when you
+> delete a task 3. when you fulfill a tasks 4. when you move a task to
+> another state 5. when syncing complete. also in modal i want syncing
+> animation with icons and animation." **v0.1.13 ships BOTH halves.**
+> (1) **THE SOUND ENGINE** — `js/desktop-audio.js`, a NEW desktop-owned
+> generated file loading blocking right AFTER the shim (it wraps the seam
+> the shim just defined; the head chain is now theme → shim → AUDIO →
+> login → sync → logout → newproject → refresh → devboard → board-page):
+> a PROCEDURAL Web Audio synth — ZERO audio files, nothing binary ever
+> enters dist — in a deliberately FUTURIST + LOW-KEY grammar: pure
+> sine/triangle partials, PERFECT-FIFTH intervals, short exponential
+> pluck envelopes (8-16ms attacks, nothing clicks), per-voice lowpass
+> shaping, master gain 0.5 with per-voice peaks 0.02-0.1 (~-20dBFS —
+> every cue sits UNDER the work). THE FIVE CUES the owner named:
+> **login** = the welcome fifth (E5→B5 over an E4 bed + a faint E6
+> shimmer; desktop-login.js plays it on the ok resolve and DELAYS the
+> reload ~700ms so the chime LANDS — a reload kills the AudioContext);
+> **delete** = the dissolve thock (a 320→165Hz triangle glide + a 98Hz
+> sub + a band-passed noise puff — dissolution, never a trash-can
+> crash); **fulfill** = the completion ding (G5 + D6 plucks over a G3
+> bed + a high sparkle); **move** = the micro tick (a 540→660Hz sine
+> glide, 75ms — the quietest, a precision switch); **sync** = the
+> all-clear (the stacked-fifth arpeggio A4→E5→B5 + a glassy E6 tail —
+> the sonic twin of the green "Everything synced" panel). THE
+> TASK-ACTION OBSERVER on the ONE seam: the engine wraps
+> `window.hibanaFetch`, classifies BEFORE the call (the island state
+> still holds the PREVIOUS status while the request is in flight —
+> `window.HibanaBoard.findTask` reads it live) and plays ONLY on a 2xx
+> resolve (a failed mutation is silent — nothing happened): DELETE
+> `/api/devtasks/:id` (exactly one path segment — the tag/screenshot
+> deleters never match) → delete; a PATCH carrying a status the task did
+> NOT already have → done=fulfill, any other change=move; the
+> same-status PATCH (the editor resends status on EVERY save) is a
+> plain edit and STAYS SILENT; same-cue plays within 150ms coalesce so
+> bulk "Clear done" sounds ONCE. The gesture unlock: the first
+> pointerdown/keydown warms the context, every play() re-resumes it.
+> (2) **THE SYNC-MODAL HERO** — the modal's living emblem above the
+> factual step rows: the PULSE RING reaches out on connect, three
+> PACKETS rise through upload, the h-SPARK orbits while the round is in
+> flight (faster through sync), the central glyph MORPHS per stage
+> (cloud → upload arrow → orbit → check/cross, a 280ms cubic pop, never
+> a swap); ok settles the emblem green with the check POP beside the
+> all-clear chime; err tints it danger; the step rows pop their checks
+> in and the panel slides up; the hero re-boots on every fresh round +
+> Retry so no verdict ever leaks; prefers-reduced-motion respected with
+> exact-match selectors (the first probe run caught the specificity
+> bug). The 1 recorded op + the audio template + the login/sync/js/css
+> growth all ride sync-island.mjs (the ONLY mutator), --check green 61
+> files idempotent (60→61: +js/desktop-audio.js). **The proof:**
+> `scripts/probe-soundfx.mjs` 40/40 ALL GREEN on the real island bytes
+> (the mock bridge at the exact Wails boundary; SyncNow probe-DEFERRED
+> so the mid-round hero stages are drivable; an instrumented
+> AudioContext tallies every osc.start + captures f0 on
+> frequency.setValueAtTime): all five cues schedule their exact stacks
+> (login 330/659/988/1319 · delete 320/98 · fulfill 196/784/1175/2349 ·
+> move 540 · sync 220/440/659/988/1319); the LOGIN leg end to end (the
+> gate → submit → the chime schedules → the doc alive at ~T+600ms →
+> authed, 2 cards); the DELETE leg through the REAL UI path (⋯ menu →
+> Delete → #db-del-ok → the thock + the seam crossed + the card GONE on
+> the reload); the fulfill/move PATCHes with the SILENCE rules (the
+> same-status editor resend SILENT, the /tags/:tagId path SILENT); the
+> HERO leg (connect pulse + cloud glyph + the spark orbiting → upload
+> arrow + rising packets → sync orbit glyph → ok settle + pop + green
+> panel + the all-clear chime side by side → Done → NO reload (pulled=0
+> honesty) → the err round tints danger + the cross); the FA/RTL dark
+> mirror (the FA labels + the chimes identical — sounds are
+> language-free); reduced motion keeps the STATE, stills the loops;
+> ZERO page errors) + VLM clean on all screenshots. The prior probes
+> ALL PASS on the new dist — ZERO regressions (login/logout/newproject/
+> refresh, the pulled-fact + close-reload contracts intact). Go
+> UNTOUCHED: gofmt clean, vet linux+windows, test -race green (7
+> packages); the cgo-free windows cross-build at 0.1.13-probe
+> PE-verified. RELEASED BY THE LANE, ZERO HANDS: the push (4eff900)
+> fired autorelease → v0.1.13-desktop cut (lockstep bump 41e3b2b + the
+> annotated tag) → the free windows runner built + published; every
+> asset re-downloaded + sha256-verified (installer 9,208,627B 5bf5499b…
+> OK · zip 7,560,711B 2877b8e4… OK · the zip's embedded exe 8371f981…
+> MATCH checksums.txt's own line) and the RELEASE exe PE-verified
+> (main.Version=0.1.13 + WebRef=e6661c8 + every round needle:
+> db-sync-hero/db-sync-emblem/db-sync-packets/db-sync-glyph-connect/
+> desktop-audio/hibanaAudio + all prior-round needles intact).
+> (docs-only: package stays 0.4.1.36)
+
 > **S224 SESSION CLOSED 2026-10-20 — hibana-source @ v0.4.1.36 (DOCS-ONLY:
 > the desktop refresh round; the web app untouched).**
 > The owner's ask, verbatim: "I tried something, deleted something from

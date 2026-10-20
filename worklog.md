@@ -13,22 +13,6 @@
 > `worklog-archive.md` (and verbatim in git history) — this file is the ACTIVE
 > tail only. Rotate with `node scripts/rotate/rotate.mjs --worklog`.
 
-## Session 218 — the publish + the auto-release lanes (2026-10-19)
-
-**The owner's ask, verbatim:** "commit and push and release new version, after every update auto-release on github please."
-
-**Opening state:** the sandbox reset had LOST the S216/S217 LOCAL commits (desktop v0.1.5 dark mode + v0.1.6 sync button). hibana-desktop remote: c586dbd (v0.1.4). The built exes survived in the delivery folders.
-
-**The recovery (byte-exact, proven):** the islands were CARVED out of the surviving exes (go:embed stores island files verbatim; the v0.1.6 exe yielded index.html/theme.js/sync-js/sync-css, the v0.1.5 exe yielded its own index.html — proven byte-equal to v0.1.6's minus exactly the 4 S217 ops). sync-island.mjs re-extended round-by-round: the S216-only variant reproduces the 52-file v0.1.5 island byte-identical to the carve; the full script reproduces the 54-file v0.1.6 island byte-identical; `--check` green + idempotent + tamper-proven. The Go layers re-implemented from the session records (theme.go, InjectShellState, the tray Theme submenu, the registry boot background, round.go, ui/sync.go, the emit relay). The two-round history rebuilt faithfully: 372dc2e (v0.1.5, 61 tests + -race) → 6981fee (ci: the release notes ride the annotated tag) → a254d4d (v0.1.6, 74 tests + -race + the autorelease lane).
-
-**The push + the honest finding:** main + v0.1.5-desktop + v0.1.6-desktop pushed. Every Actions run refused to start — "recent account payments have failed or your spending limit needs to be increased" (the private-repo Windows minutes, 2× billed, consumed by the S211-S217 rounds). NOT a workflow bug — the runs were created, the runners refused. **The releases were published the direct way:** both artifact sets built HERE from the tagged trees (wails CLI v2.17.0 via go install on Linux; NSIS 3.12 extracted from the Debian deb with NSISDIR — the wails `-nsis` lane works on Linux, the installer is a real Nullsoft PE; portable zips + checksums per the make-portable contract) and published via the GitHub API with the tag-message notes. Every asset re-downloaded as a user + sha256-verified against its own checksums.txt (installer + zip + the zip's embedded exe).
-
-**RELEASES LIVE:** https://github.com/assadigit/hibana-desktop/releases/tag/v0.1.5-desktop + …/v0.1.6-desktop — each carrying hibana-amd64-installer.exe + hibana-portable-X.Y.Z.zip + checksums.txt. Delivered to download/hibana-desktop-0.1.5-windows/ + …-0.1.6-windows/.
-
-**The auto-release lanes (the standing ask, wired + ready):** (1) desktop `.github/workflows/autorelease.yml` — every push to main that is not a release-bump commit, not already hand-tagged, and is the branch tip gets the NEXT patch cut automatically: the version files bumped in lockstep on a `chore(release): bump to X.Y.Z (auto-release)` commit (wails.json + versioninfo.json via jq, the desktop.yml placeholder + make-portable default + main.go stamp via sed), the annotated tag carrying the commit-range notes, pushed → the EXISTING tag lane builds + publishes. Three loop guards close the cycle. (2) this repo's `.github/workflows/release.yml` — package.json's version is the release truth; a NEW version cuts tag vX.Y.Z.W + a release whose notes are the project's own Changelogs row (docs pushes skip by paths-ignore). (3) the desktop.yml release job rewritten: the notes ride the annotated tag (read back via the pure-API call) — ONE mechanism for hand-cut AND auto-cut releases.
-
-**Owner-side next:** fix the Actions billing (Billing & plans) OR flip both repos public (the standing Q7 — standard runners free + login-free downloads) — then the lanes prove themselves on the very next push; dogfood v0.1.6 on Windows (sync flow → offline → mid-round reopen → the v0.1.5 theme surfaces → the v0.1.4 switcher → the v0.1.3 tray); the M0 §7a-7e go; M3 → M4 → M5.
-
 ## Session 219 — the public flip + the lanes' first live firings (2026-10-20)
 
 **The owner's ask, verbatim:** "Make the repo's public and continue your job."
@@ -83,3 +67,22 @@
 **The release, zero hands:** the push (1b17171) fired the lane → v0.1.9-desktop cut (the lockstep bump c11578b) → the free windows runner built + published; every asset re-downloaded + sha256-verified against the release's own checksums.txt.
 
 **Owner-side next:** dogfood v0.1.9 on Windows (the Sign out at the toolbar's end, the confirm modal, the post-sign-out login card, a second account, the FA 'خروج' mirror, the dark look); the M0 §7a-7e go; the e2e flake-hunt round (the S219 shard-2 diagnosis); M3 offline mutations → M4 screenshot upload → M5 DPAPI + installer polish.
+
+## Session S222 — the rounded-modern window edge (2026-10-20)
+
+**The owner's ask, verbatim:** "make the edge of app rounded and modern."
+
+**The diagnosis (the screenshots, VLM-read):** the island's INNER components were already thoroughly rounded — the pill Sprints/Labels/Sync buttons, the 20px cards, the 16px modals — but the app's OUTER edge was never modernized: square window corners + a title bar following the OS scheme (an OS-white strip floating over the dark #141413 app on a light-mode Windows). The one surface the eye hits first read dated.
+
+**The deliverable (hibana-desktop v0.1.10), two native halves — zero interaction-model risk, NO frameless rewrite (drag/resize/snap/taskbar/the S214 close-to-tray contract all stay):**
+
+- **THE MERGED CHROME** — the title bar, its text, and the window border hairline now paint the ISLAND'S OWN tokens through wails v2.17's own theme path (SetTheme → UpdateTheme): `windows.Options.CustomTheme` COLORREFs (0x00BBGGRR) — dark `--bg #141413` bar + `#EDEDEC` ink + `#34322f` hairline, light `#E7E7E7`/`#141414`/`#D4D4D4`, INACTIVE variants included (`--bg-soft #1f1e1c`/`#DEDEDE` bars + the `--muted` ink) — immersive dark mode on Win10 1809+, exact `DWMWA_CAPTION_COLOR`/`_TEXT_COLOR`/`_BORDER_COLOR` on Win11 22000+. The wails window is BORN in the stored look (`windows.Options.Theme` seeded from bootTheme BEFORE `wails.Run` — frame one never flashes the OS bar); live flips ride the SetThemeChange hook (`applyWindowThemeChrome` — the island toggles + the tray submenu); pref='system' keeps wails' own `WM_SETTINGCHANGE` ImmersiveColorSet watcher, so OS flips re-resolve natively with zero extra code.
+- **THE ROUNDED CORNERS** — `edge_windows.go` (the theme_windows.go/internal-tray syscall discipline: lazy DLL procs, no new deps, every failure a log line) sets `DWMWA_WINDOW_CORNER_PREFERENCE` explicitly: the 22H2+ large `DWMWCP_ROUND2` first, the 21H2 `DWMWCP_ROUND` fallback, a pre-Win11 decline logged + survived (Win10 has no corner API — the themed title bar is that platform's half of the round). The HWND hunt: `FindWindowW` by winc's registered `winc_Form` class (verified in the wails v2.17 module source) + the exact `options.Title`, a PID check so another process's same-titled window can never be touched, a 50×100ms retry loop in its own OnStartup goroutine. `edge_other.go` is the vet/cross-build stub.
+
+**The island is UNTOUCHED:** `scripts/sync-island.mjs --check` green — 56 files byte-identical. The pin's owner-approved full-bleed surfaces (the S207 mother container + the web-parity login gate) keep their design; this round is pure window chrome.
+
+**The proof:** +2 pure-map tests (`TestChromeThemeFor`/`TestBootWindowTheme` — the normalized-input contract); gofmt clean; vet green linux AND windows; `go test -race` green (7 packages); the cgo-free windows cross-build at 0.1.10-probe PE-verified: needles `winc_Form`, `DWMWCP_ROUND2`, `FindWindowW`, `DwmSetWindowAttribute`, `DarkModeTitleBar`, the corner-rounding log lines + the dual `-X` stamps (main.Version + main.WebRef=e6661c8); the COLORREF math checked token-by-token against themes.css + claude-dark-theme.css. One honest limitation documented for the dogfood: corner ROUNDING exists only on Windows 11 (22000+/22621+); Win10 gets the themed title bar, corners stay OS-square — a true Win10 corner round needs the frameless rewrite, deliberately not shipped un-verifiable from this sandbox.
+
+**The release, zero hands:** the push (8f91992) fired the lane → v0.1.10-desktop cut (the lockstep bump + the annotated tag with the owner ask verbatim) → the free windows runner built + published; every asset re-downloaded + sha256-verified against the release's own checksums.txt.
+
+**Owner-side next:** dogfood v0.1.10 on Windows (the title bar MERGES with the app in both looks; the theme flip + the tray submenu move the bar live; Win11 corners rounded — larger on 22H2+; maximize keeps sane corners; the frame still drags/resizes/snaps; X still hides to the tray); the M0 §7a-7e go; the e2e flake-hunt round; M3 offline mutations → M4 screenshot upload → M5 DPAPI + installer polish.

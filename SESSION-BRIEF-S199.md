@@ -1,5 +1,34 @@
 # SESSION BRIEF — S199 (the fix-and-implement round for the S198 SWOT audit)
 
+
+> **S222 SESSION CLOSED 2026-10-20 — hibana-source @ v0.4.1.36 (DOCS-ONLY:
+> the rounded-modern window edge round; the web app untouched).**
+> The owner's ask, verbatim: "make the edge of app rounded and modern."
+> The screenshots' honest diagnosis: the island's buttons/cards/modals were
+> ALREADY rounded — the app's OUTER edge was never modernized (square
+> window corners + an OS-scheme title bar, an OS-white strip over the dark
+> app). **v0.1.10 closes it in two native halves, zero interaction-model
+> risk (no frameless rewrite — drag/resize/snap/the close-to-tray contract
+> stay): (1) THE MERGED CHROME** — the title bar/text/border hairline now
+> paint the ISLAND'S OWN tokens via wails' CustomTheme COLORREFs (dark
+> #141413 bar + #EDEDEC ink + #34322f hairline; light #E7E7E7/#141414/
+> #D4D4D4; inactive variants included), seeded at window CREATION (Theme
+> from bootTheme — frame one never flashes the OS bar), live via the
+> SetThemeChange hook, 'system' via wails' own ImmersiveColorSet watcher;
+> immersive dark mode Win10 1809+, exact DWMWA caption/text/border colors
+> Win11 22000+. **(2) THE ROUNDED CORNERS** — edge_windows.go sets
+> DWMWA_WINDOW_CORNER_PREFERENCE explicitly (DWMWCP_ROUND2 → ROUND →
+> pre-Win11 decline logged), HWND via FindWindowW("winc_Form", title) + a
+> PID check + a retry loop. **The island UNTOUCHED — --check green 56
+> files**; +2 pure-map tests; gofmt/vet(linux+windows)/test+race green;
+> the windows cross-build PE-verified (winc_Form, DWMWCP_ROUND2, FindWindowW
+> needles + dual stamps). **RELEASED BY THE LANE, ZERO HANDS:
+> v0.1.10-desktop** — every asset sha256-verified. Honest limit: corner
+> rounding is Win11-only; Win10 gets the themed title bar. Owner-side
+> next: dogfood v0.1.10 (the merged title bar in both looks, the live
+> flips, the Win11 rounded corners); the M0 §7a-7e go; the e2e flake-hunt
+> round; M3 → M4 → M5.
+
 > **S221 SESSION CLOSED 2026-10-20 — hibana-source @ v0.4.1.36 (DOCS-ONLY:
 > the desktop sign-out round; the web app untouched).**
 > The owner's ask, verbatim: "It must also have option of logout and enter

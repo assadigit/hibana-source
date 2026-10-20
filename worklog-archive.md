@@ -3425,3 +3425,22 @@ Stage Summary:
 
 
 ---
+> **Rotation (HLTH-27):** sessions older than the newest 4 live in
+> `worklog-archive.md` (and verbatim in git history) — this file is the ACTIVE
+> tail only. Rotate with `node scripts/rotate/rotate.mjs --worklog`.
+
+## Session 218 — the publish + the auto-release lanes (2026-10-19)
+
+**The owner's ask, verbatim:** "commit and push and release new version, after every update auto-release on github please."
+
+**Opening state:** the sandbox reset had LOST the S216/S217 LOCAL commits (desktop v0.1.5 dark mode + v0.1.6 sync button). hibana-desktop remote: c586dbd (v0.1.4). The built exes survived in the delivery folders.
+
+**The recovery (byte-exact, proven):** the islands were CARVED out of the surviving exes (go:embed stores island files verbatim; the v0.1.6 exe yielded index.html/theme.js/sync-js/sync-css, the v0.1.5 exe yielded its own index.html — proven byte-equal to v0.1.6's minus exactly the 4 S217 ops). sync-island.mjs re-extended round-by-round: the S216-only variant reproduces the 52-file v0.1.5 island byte-identical to the carve; the full script reproduces the 54-file v0.1.6 island byte-identical; `--check` green + idempotent + tamper-proven. The Go layers re-implemented from the session records (theme.go, InjectShellState, the tray Theme submenu, the registry boot background, round.go, ui/sync.go, the emit relay). The two-round history rebuilt faithfully: 372dc2e (v0.1.5, 61 tests + -race) → 6981fee (ci: the release notes ride the annotated tag) → a254d4d (v0.1.6, 74 tests + -race + the autorelease lane).
+
+**The push + the honest finding:** main + v0.1.5-desktop + v0.1.6-desktop pushed. Every Actions run refused to start — "recent account payments have failed or your spending limit needs to be increased" (the private-repo Windows minutes, 2× billed, consumed by the S211-S217 rounds). NOT a workflow bug — the runs were created, the runners refused. **The releases were published the direct way:** both artifact sets built HERE from the tagged trees (wails CLI v2.17.0 via go install on Linux; NSIS 3.12 extracted from the Debian deb with NSISDIR — the wails `-nsis` lane works on Linux, the installer is a real Nullsoft PE; portable zips + checksums per the make-portable contract) and published via the GitHub API with the tag-message notes. Every asset re-downloaded as a user + sha256-verified against its own checksums.txt (installer + zip + the zip's embedded exe).
+
+**RELEASES LIVE:** https://github.com/assadigit/hibana-desktop/releases/tag/v0.1.5-desktop + …/v0.1.6-desktop — each carrying hibana-amd64-installer.exe + hibana-portable-X.Y.Z.zip + checksums.txt. Delivered to download/hibana-desktop-0.1.5-windows/ + …-0.1.6-windows/.
+
+**The auto-release lanes (the standing ask, wired + ready):** (1) desktop `.github/workflows/autorelease.yml` — every push to main that is not a release-bump commit, not already hand-tagged, and is the branch tip gets the NEXT patch cut automatically: the version files bumped in lockstep on a `chore(release): bump to X.Y.Z (auto-release)` commit (wails.json + versioninfo.json via jq, the desktop.yml placeholder + make-portable default + main.go stamp via sed), the annotated tag carrying the commit-range notes, pushed → the EXISTING tag lane builds + publishes. Three loop guards close the cycle. (2) this repo's `.github/workflows/release.yml` — package.json's version is the release truth; a NEW version cuts tag vX.Y.Z.W + a release whose notes are the project's own Changelogs row (docs pushes skip by paths-ignore). (3) the desktop.yml release job rewritten: the notes ride the annotated tag (read back via the pure-API call) — ONE mechanism for hand-cut AND auto-cut releases.
+
+**Owner-side next:** fix the Actions billing (Billing & plans) OR flip both repos public (the standing Q7 — standard runners free + login-free downloads) — then the lanes prove themselves on the very next push; dogfood v0.1.6 on Windows (sync flow → offline → mid-round reopen → the v0.1.5 theme surfaces → the v0.1.4 switcher → the v0.1.3 tray); the M0 §7a-7e go; M3 → M4 → M5.

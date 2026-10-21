@@ -1,6 +1,54 @@
 # SESSION BRIEF — S199 (the fix-and-implement round for the S198 SWOT audit)
 
 
+> **S226 SESSION CLOSED 2026-10-21 — hibana-source @ v0.4.1.36 (DOCS-ONLY:
+> the desktop auto-update round; the web app untouched).**
+> The owner's ask, verbatim: "Add an auto update for the app. when the new
+> version releases in the github, app syncs with the internet and github,
+> and if new version, whether portable or installer released, show a button
+> for update. it must update from github and replace without losing data or
+> needing user to re login." **hibana-desktop v0.1.14** — both halves meet
+> at the bridge. **(1) THE GO HALF** — a NEW `internal/update` package:
+> the check reads `assadigit/hibana-desktop/releases/latest` ANONYMOUSLY
+> (no token in a public exe), normalizes v0.1.14-desktop, fails closed on
+> garbage/equal; the release's own `checksums.txt` pins BOTH the asset's
+> sha256 AND (zip flow) the embedded hibana.exe entry — a tampered release
+> never spawns; the asset pick honors "portable or installer" (zip
+> preferred: per-user self-replace; NSIS the visible-wizard fallback);
+> the REPLACE: a DETACHED PowerShell helper waits for the parent PID,
+> swaps the exe, relaunches the SAME path — session.bin + mirror.db live
+> in the DATA dir (never-mix WPP §1), so the next boot's auth.Restore goes
+> straight to the board: **no re-login, nothing lost.**
+> **(2) THE BRIDGE + ISLAND** — `ui.CheckForUpdates`/`ApplyUpdate` (zero
+> args, one shared busy guard, verdicts never rejections; events
+> `hibana:update-available` + `hibana:update-progress`) + main.go's
+> updateLoop (boot+10s then every 2h — "syncs with the internet and
+> github"; the restart lands 1.5s after ok, bypassing close-to-tray);
+> the island's HIDDEN-until-release green **Update** pill after Refresh
+> (Sprints | Labels | Sync | Refresh | **Update** | theme | Log out;
+> twin 41.3px; EN 'Update' / FA 'نسخهٔ جدید') + the update modal (version
+> line, kind + honest MB size, the data-stays note, the live progress
+> bar — the fill sizes via PHYSICAL width, the probe's lesson: a Chromium
+> logical inline-size fill never renders — the restarting panel on ok,
+> NO reload). Island --check green **63 files** idempotent (61→63).
+> **Proof:** `probe-update.mjs` 54/54 on the real island bytes (the held
+> ApplyUpdate mock makes the mid-download ticks drivable; the honest
+> default → the revealed pill → the live round → the failure verdicts
+> restored → the FA/RTL dark mirror → reduced motion) + VLM clean — the
+> first VLM pass caught the invisible bar, so the probe now reads the
+> RENDERED geometry after the tween settles; prior probes ALL PASS —
+> ZERO regressions. Go: +11 update tests + 7 bridge tests; gofmt/vet
+> linux+windows/`test -race` green (8 pkgs); cross-build PE-verified.
+> **RELEASED BY THE LANE, ZERO HANDS:** v0.1.14-desktop (push 9411510 →
+> bump 7c25fbc); installer 9,276,965B 877bad6b… · zip 7,630,598B
+> 31eba36d… · the embedded exe deb00965… ALL sha256-verified (the
+> updater's own chain proven against the real release) + the release exe
+> PE-verified (0.1.14 + e6661c8 + the LIVE bound-method bodies + the FA
+> byte-grep needles). **Owner-side next:** dogfood v0.1.14 on Windows —
+> install v0.1.13, run it, and within ~10s the green Update pill appears;
+> Update now → the live bar → "Update ready — restarting…" → the app
+> relaunches ITSELF on 0.1.14 with boards + sign-in intact.
+
 > **S225 SESSION CLOSED 2026-10-21 — hibana-source @ v0.4.1.36 (DOCS-ONLY:
 > the desktop sound + sync-modal-animation round; the web app untouched).**
 > The owner's ask, verbatim: "I want some sound engineering , some modern ,

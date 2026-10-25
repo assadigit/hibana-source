@@ -1,6 +1,47 @@
 # SESSION BRIEF — S199 (the fix-and-implement round for the S198 SWOT audit)
 
 
+> **S227 SESSION CLOSED 2026-10-26 — hibana-source @ v0.4.1.36 (DOCS-ONLY:
+> the S227 triple-fix round; the web app untouched).**
+> The owner's asks, verbatim: (1) "[MEDIUM] When you sync using Hibana
+> Desktop, the modal is not complete and needs fix." (2) "[MEDIUM] Hibana
+> desktop, even portable app, must have an automatic appareance in the
+> taskbar (quick access) so next time windows runs it's easily
+> accessible.." (3) "[MEDIUM] In hibana desktop, upload file button
+> exists and it shows a loading as well, but after the loading ends, it
+> doesnt show whether it was sucessful or not, because it doesnt show the
+> thumbnail of the uploaded picture." **hibana-desktop v0.1.15** closes
+> all three at the root. **(1)** the modal's step notes are the round's
+> LIVE PROOF and the old 60%-cap ellipsis cut every one mid-word — the
+> rows are now a mark + (label, note) GRID: the note owns its own
+> full-width line UNDER the label, wraps (overflow-wrap: anywhere), never
+> ellipsizes; new generator needles pin it (a hard FAIL if
+> text-overflow: ellipsis returns). **(2)** the taskbar quick access:
+> internal/quickaccess writes per-user shortcuts on boot, idempotent via
+> a data-dir marker — a Start Menu "Hibana Kanban" entry + a Startup
+> .lnk with --autostart, so the next time Windows runs Hibana boots
+> itself to the TRAY (StartHidden; one tray-icon click reopens the
+> board); the tray menu gains a checkable "Start with Windows" (default
+> ON, persisted in mirror meta). **(3)** the upload's BOTH missing
+> halves: the M4 Upload bridge (ui.Upload streams a known-Content-Length
+> body through client.WriteStream — REAL byte progress as the socket
+> accepts them, relayed as hibana:upload-progress routed by callID; the
+> row ends on ✓ + the green "Screenshot uploaded" toast) + the MEDIA
+> PROXY (bridge.MediaMiddleware proxies the island's /api/media/… tiles
+> through the Go cookie jar — the THUMBNAIL now loads like on the web).
+> **Proof:** the NEW probe-completefacts.mjs — 33/33 on the real island
+> bytes (the owner's exact screenshot facts render COMPLETE, on their
+> own line, 91% column width; the upload drives the real shim: the
+> climbing bar, ✓ + toast + the tile whose thumbnail LOADS
+> naturalWidth>0) + VLM clean; ALL SIX prior probes re-run green —
+> ZERO regressions. Go: tests for every new surface; gofmt/vet
+> linux+windows/`test -race` green (9 pkgs); island --check green
+> **63 files**. **RELEASED BY THE LANE, ZERO HANDS:** v0.1.15-desktop
+> (push 79ef5d4 → bump f5a8e17). **Owner-side next:** dogfood v0.1.15 on
+> Windows — sync modal reads IN FULL; an upload shows the bar + ✓ +
+> toast + the THUMBNAIL; after the next reboot Hibana is in the tray
+> and "Hibana Kanban" is in the Start Menu.
+
 > **S226 SESSION CLOSED 2026-10-21 — hibana-source @ v0.4.1.36 (DOCS-ONLY:
 > the desktop auto-update round; the web app untouched).**
 > The owner's ask, verbatim: "Add an auto update for the app. when the new

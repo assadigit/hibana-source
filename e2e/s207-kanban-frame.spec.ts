@@ -139,15 +139,27 @@ test('kanban frame: TRUE full width under the STANDARD page-width choice — the
   expect(shellMetrics.maxInline).toBe('none')
   expect(shellMetrics.padding).toBe('0px')
 
-  // the frame is EDGE-TO-EDGE: left 0, right = viewport width
-  const frameBox = await page.evaluate(() => {
-    const r = document.querySelector('.db-frame')!.getBoundingClientRect()
-    return { left: Math.round(r.left), right: Math.round(r.right), width: Math.round(r.width) }
-  })
+  // the frame is EDGE-TO-EDGE — AP-2 (Phase 2): the old single-sample assertion
+  // (left === 0 && right === innerWidth) was runner-side nondeterministic: CI hit
+  // offsets 31/3/57 across runs (transient layout states at sample time — htmx swap
+  // settling, late reflow), and `right === innerWidth` ALSO breaks whenever a vertical
+  // scrollbar legitimately exists (content taller than the viewport shrinks the layout
+  // viewport by the scrollbar width). The INTENT is unchanged — edge-to-edge against
+  // the CONTENT viewport — but now it is scrollbar-independent and polls until the
+  // geometry settles instead of sampling once.
+  await expect
+    .poll(
+      async () =>
+        page.evaluate(() => {
+          const r = document.querySelector('.db-frame')!.getBoundingClientRect()
+          const root = document.documentElement
+          const rootLeft = root.getBoundingClientRect().left
+          return Math.round(r.left - rootLeft) === 0 && Math.round(r.width) === root.clientWidth
+        }),
+      { timeout: 4000 },
+    )
+    .toBe(true)
   const vw = await page.evaluate(() => innerWidth)
-  expect(frameBox.left).toBe(0)
-  expect(frameBox.right).toBe(vw)
-  expect(frameBox.width).toBe(vw)
 
   // the columns span (viewport minus the frame's own padding) — NOT a centered
   // 1366px island: assert the board grid takes ≥ 90% of the viewport width and

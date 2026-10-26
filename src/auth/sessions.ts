@@ -1,4 +1,5 @@
 import type { Db } from '../db/types'
+import { sha256Hex } from '../lib/crypto'
 
 // Sessions (spec §4.13): Workers is stateless, so the session lives in D1.
 // Defense in depth: only the SHA-256 hash of the token is stored — a DB leak never
@@ -27,10 +28,7 @@ export function clearSessionCookieHeader(): string {
   return `${SESSION_COOKIE}=; Secure; HttpOnly; SameSite=Lax; Path=/; Max-Age=0`
 }
 
-async function sha256Hex(input: string): Promise<string> {
-  const bytes = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(input))
-  return [...new Uint8Array(bytes)].map((b) => b.toString(16).padStart(2, '0')).join('')
-}
+// sha256Hex: shared idiom in lib/crypto.ts (CQ-6)
 
 export async function createSession(db: Db, userId: string): Promise<string> {
   const token = crypto.getRandomValues(new Uint8Array(32)) // 256 bits of entropy

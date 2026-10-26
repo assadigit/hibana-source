@@ -28,10 +28,11 @@ import { executeIn } from '../lib/inchunk'
 import type { Config, UserRow, DevTaskRow, SprintRow, TagRow } from '../types'
 import { categoriesUserScoped, isValidCatPair, normCatName, type CategoryRow } from '../lib/categories'
 import { errJson, ErrorCode } from '../lib/errors'
+import { hexColorSchema } from '../validation/schemas'
 
 const taskStatusSchema = z.enum(['idea', 'planned', 'in_progress', 'done', 'bug'])
 const prioritySchema = z.enum(['low', 'medium', 'high', 'urgent'])
-const hexColor = z.string().regex(/^#[0-9a-fA-F]{6}$/)
+const hexColor = hexColorSchema
 // 0030: any parseable date string — full ISO timestamps, matching every other *_at column
 // (the timeline drags edges by the day but stores instants).
 const isoDate = z.string().refine((v) => !Number.isNaN(Date.parse(v)), 'bad_date')

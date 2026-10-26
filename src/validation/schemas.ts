@@ -28,25 +28,27 @@ const statusInput = z.preprocess(
 export const PROJECT_TYPE = ['personal', 'client'] as const
 
 export const uuidSchema = z.string().uuid()
+export const hexColorSchema = z.string().regex(/^#[0-9a-fA-F]{6}$/)
+export const isoDateSchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/)
 
 export const createProjectSchema = z.object({
-  id: z.string().uuid().optional(), // rule 2 — client-generated for offline-created records
+  id: uuidSchema.optional(), // rule 2 — client-generated for offline-created records
   title: z.string().min(1).max(200),
   description: z.string().max(2000).optional().default(''),
   type: z.enum(PROJECT_TYPE).optional().default('personal'),
   status: statusInput.optional().default('spark'),
   tags: z
-    .array(z.object({ name: z.string().min(1).max(50), color: z.string().regex(/^#[0-9a-fA-F]{6}$/).optional() }))
+    .array(z.object({ name: z.string().min(1).max(50), color: hexColorSchema.optional() }))
     .max(10)
     .optional(),
   client_name: z.string().max(200).nullable().optional(),
-  due_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().optional(),
+  due_date: isoDateSchema.nullable().optional(),
   reminders_enabled: z.union([z.literal(0), z.literal(1)]).optional().default(0),
   // Session 28 (user request: "go to a folder and create the idea there"): a spark may
   // be born INSIDE a folder — the Ideas-page quick-add passes the open folder so the
   // capture lands where the user stands. Only meaningful while status stays 'spark'
   // (the route drops it otherwise); ownership is re-validated in the route.
-  folder_id: z.string().uuid().nullable().optional(),
+  folder_id: uuidSchema.nullable().optional(),
 })
 
 export const updateProjectSchema = z
@@ -63,28 +65,28 @@ export const updateProjectSchema = z
     // keys), never a SQL error.
     archived_state: z.enum(['online', 'offline']).nullable().optional(),
     client_name: z.string().max(200).nullable().optional(),
-    due_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().optional(),
+    due_date: isoDateSchema.nullable().optional(),
     reminders_enabled: z.union([z.literal(0), z.literal(1)]).optional(),
     // batch (s) 2026-09-08 — idea folders: a spark may live in one named folder
     // (NULL = «All»). Ownership is re-validated in the route (FK alone can't scope users).
-    folder_id: z.string().uuid().nullable().optional(),
+    folder_id: uuidSchema.nullable().optional(),
     // 0063 (S161, spec #5): pin toggle — the SERVER stamps pinned_at (now on true,
     // NULL on false) so ordering stays deterministic; the raw column never rides a body.
     pinned: z.boolean().optional(),
     // 0063 (S161, spec #4): the manually-marked cover screenshot. Ownership-checked in
     // the route (404 shot_not_found) — it must be one of the idea's OWN images; NULL
     // returns the card thumb to the latest-upload default.
-    cover_shot_id: z.string().uuid().nullable().optional(),
+    cover_shot_id: uuidSchema.nullable().optional(),
   })
   .refine((o) => Object.keys(o).length > 0, { message: 'empty update' })
 
 export const reorderSchema = z.object({
   status: statusInput,
-  ids: z.array(z.string().uuid()).min(1),
+  ids: z.array(uuidSchema).min(1),
 })
 
 export const createHurdleSchema = z.object({
-  id: z.string().uuid().optional(),
+  id: uuidSchema.optional(),
   // Multiline batches are legal (the composer works like the Quick Notebook — each line
   // becomes its own hurdle, sliced to 500 chars in the route).
   text: z.string().min(1).max(5000),
@@ -97,16 +99,16 @@ export const updateHurdleSchema = z.object({
 })
 
 export const hurdleReorderSchema = z.object({
-  ids: z.array(z.string().uuid()).min(1),
+  ids: z.array(uuidSchema).min(1),
 })
 
 export const createTagSchema = z.object({
   name: z.string().min(1).max(50),
-  color: z.string().regex(/^#[0-9a-fA-F]{6}$/).optional(),
+  color: hexColorSchema.optional(),
 })
 
 export const createLinkSchema = z.object({
-  id: z.string().uuid().optional(),
+  id: uuidSchema.optional(),
   label: z.string().min(1).max(100).optional().default('Link'),
   // Phase 1 (P1-b IO-1): Zod's .url() accepts ANY scheme — a javascript:/data: URL
   // stored here renders as href="javascript:…" in the links fragment (escaping
@@ -139,7 +141,7 @@ export const UPLOAD_FILE_MIMES = [
   'text/plain',
 ] as const
 export const uploadScreenshotSchema = z.object({
-  id: z.string().uuid().optional(),
+  id: uuidSchema.optional(),
   fileName: z.string().min(1).max(200),
   mimeType: z.string().regex(
     new RegExp('^(?:' + UPLOAD_FILE_MIMES.map((m) => m.replace('/', '\\/')).join('|') + ')$'),
@@ -216,14 +218,14 @@ const emptyOrLegacyStatus = z.preprocess(
 
 export const listProjectsSchema = z.object({
   status: emptyOrLegacyStatus,
-  tag: z.preprocess(emptyToUndef, z.string().uuid().optional()),
+  tag: z.preprocess(emptyToUndef, uuidSchema.optional()),
   q: z.preprocess(emptyToUndef, z.string().max(200).optional()),
   // batch (s): 'grid' is the projects page's DEFAULT view (2×3 stage boxes, click a box
   // → that status's list) — but the SERVER default stays 'cards': the Ideas shelf and the
   // Archive page call this endpoint with no view param and expect the card fragment.
   // 'folder' narrows the Ideas shelf (uuid = a folder, 'none' = unfiled sparks).
   view: z.preprocess(emptyToUndef, z.enum(['grid', 'cards', 'list', 'sticky', 'kanban']).optional().default('cards')),
-  folder: z.preprocess(emptyToUndef, z.union([z.string().uuid(), z.literal('none'), z.literal('all')]).optional()),
+  folder: z.preprocess(emptyToUndef, z.union([uuidSchema, z.literal('none'), z.literal('all')]).optional()),
   // S35 (user request 2026-09): archived=1 lists ONLY archived_state='offline' rows —
   // the Archive shelf. Absent/0 excludes them everywhere else (they are not deleted,
   // just parked: ideas not being implemented in the foreseeable future, restorable).
@@ -260,8 +262,8 @@ export const sparkFolderSchema = z.object({
   // 0063 (S161, spec #3): the folder's pastel pair — one of the 16 curated CAT_PAIRS
   // tiles. The pair arrives WHOLE (both halves) or not at all; whole-tile validation
   // (isValidCatPair) happens in the route, which also owns the hash-of-id default.
-  color_fill: z.string().regex(/^#[0-9A-Fa-f]{6}$/).nullish(),
-  color_text: z.string().regex(/^#[0-9A-Fa-f]{6}$/).nullish(),
+  color_fill: hexColorSchema.nullish(),
+  color_text: hexColorSchema.nullish(),
 })
 
 // Admin console (batch e) — ban presets and the user-management payloads.
@@ -293,7 +295,7 @@ export const removeUserSchema = z.object({
 })
 
 export const customEmailSchema = z.object({
-  to: z.string().uuid(),
+  to: uuidSchema,
   // user id — resolves the address server-side, never client-supplied
   subject: z.string().min(1).max(200),
   body: z.string().min(1).max(20000),

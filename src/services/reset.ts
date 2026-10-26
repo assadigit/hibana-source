@@ -1,13 +1,12 @@
 import type { Db } from '../db/types'
+import { sha256Hex } from '../lib/crypto'
+export { sha256Hex }
 import { uuid } from '../lib/ids'
 
 // Password-reset tokens shared by the email channel (routes/reset.ts) and the Telegram
 // secondary channel (routes/integrations.ts webhook, spec §9). One-time, hashed in D1
 // (rule: token never stored raw), 1-hour expiry — same guarantees as email.
-export async function sha256Hex(input: string): Promise<string> {
-  const bytes = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(input))
-  return [...new Uint8Array(bytes)].map((b) => b.toString(16).padStart(2, '0')).join('')
-}
+// sha256Hex: shared idiom in lib/crypto.ts (CQ-6); re-exported for the existing importers (routes/reset, services/verify)
 
 export async function createResetToken(db: Db, userId: string): Promise<string> {
   const token = uuid().replace(/-/g, '') + uuid().replace(/-/g, '')

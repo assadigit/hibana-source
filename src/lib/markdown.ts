@@ -11,7 +11,7 @@
 // fences are pulled out of the RAW text (pre-escape) so the tokenizer sees real quotes
 // and backslashes; its output is escaped per-token, never interpolated raw.
 
-const escHtml = (s: string): string => s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c] ?? c))
+// escHtml: the canonical escaper from lib/http.ts (CQ-6 — was a local 5-char-table copy)
 
 // --- S88: the syntax tokenizer -----------------------------------------------------
 // A single-pass, regex-driven tokenizer — deliberately tiny (the whole highlighter is
@@ -21,6 +21,7 @@ const escHtml = (s: string): string => s.replace(/[&<>"']/g, (c) => ({ '&': '&am
 // grammars: comment style (// vs # vs --) is the only thing that changes per language.
 
 /** Languages whose line comments start with `#` (python/shell/yaml family). */
+import { esc as escHtml } from './http'
 const HASH_COMMENT_LANGS = new Set([
   'py', 'python', 'sh', 'bash', 'zsh', 'shell', 'console', 'yaml', 'yml', 'toml', 'ini',
   'conf', 'cfg', 'ruby', 'rb', 'r', 'perl', 'dockerfile', 'makefile', 'make', 'ps1',

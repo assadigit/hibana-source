@@ -6,6 +6,7 @@ import { renderMarkdown } from '../lib/markdown'
 import { queryIn } from '../lib/inchunk'
 import { calendarFor, faDigits, formatDate, formatNoteDay } from '../lib/jalali'
 import type { Db } from '../db/types'
+import { uuidSchema, isoDateSchema } from '../validation/schemas'
 
 // Dashboard quick-notebook (user request): a capture widget in two modes — free typing
 // ('note') or a task list ('list'). Everything routes through /api/notes; the same handlers
@@ -39,24 +40,24 @@ export const NOTE_COLOR_HEX: Record<NoteColor, string> = {
 }
 
 export const createNoteSchema = z.object({
-  id: z.string().uuid().optional(),
+  id: uuidSchema.optional(),
   kind: z.enum(['note', 'list']).default('note'),
   title: z.string().max(120).optional(),
   content: z.string().max(20_000).optional().default(''),
-  project_id: z.string().uuid().optional(), // attach the note to an Idea/project (user request)
+  project_id: uuidSchema.optional(), // attach the note to an Idea/project (user request)
   color: z.enum(NOTE_COLORS).optional(), // sticky-note palette (defaults to yellow)
   // Calendar day binding (0028): pin the note to a Gregorian display date. sticky=1 marks
   // a colored sticky note for that day (vs a plain day note).
-  note_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().optional(),
+  note_date: isoDateSchema.nullable().optional(),
   sticky: z.boolean().optional().default(false),
 })
 export const patchNoteSchema = z.object({
   title: z.string().max(120).optional(),
   content: z.string().max(20_000).optional(),
   // Attach/detach: omitted = untouched; null = detach; uuid = attach (ownership checked).
-  project_id: z.string().uuid().nullable().optional(),
+  project_id: uuidSchema.nullable().optional(),
   color: z.enum(NOTE_COLORS).optional(), // sticky-note palette (2026-08-25)
-  note_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().optional(), // day binding (0028)
+  note_date: isoDateSchema.nullable().optional(), // day binding (0028)
   sticky: z.boolean().optional(),
   done: z.boolean().optional()
   // 0038 — mark a project-linked note done/undone
@@ -66,7 +67,7 @@ export const addItemSchema = z.object({ text: z.string().min(1).max(20_000) })
 export const toggleItemSchema = z.object({
   done: z.preprocess((v) => (typeof v === 'string' ? Number(v) : v), z.union([z.literal(0), z.literal(1)])),
 })
-export const reorderSchema = z.object({ ids: z.array(z.string().uuid()).max(200) })
+export const reorderSchema = z.object({ ids: z.array(uuidSchema).max(200) })
 // S179 (advisor block 9): the dashboard sticky's move target — 'project' rides the
 // existing attach flow instead (hx-patch), so only the two creation targets validate here.
 export const moveNoteSchema = z.object({ target: z.enum(['idea', 'todo']) })
@@ -79,7 +80,7 @@ export const moveNoteSchema = z.object({ target: z.enum(['idea', 'todo']) })
 export const archiveQuerySchema = z.object({
   offset: z.coerce.number().int().min(0).max(100_000).default(0),
   limit: z.coerce.number().int().min(1).max(100).default(60),
-  anchor: z.string().uuid().optional(),
+  anchor: uuidSchema.optional(),
   before: z.string().datetime({ offset: true }).optional(),
 })
 

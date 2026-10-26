@@ -1,6 +1,7 @@
 import { z } from 'zod'
 import { type Locale } from '../lib/i18n'
 import type { UserRow } from '../types'
+import { uuidSchema, isoDateSchema } from '../validation/schemas'
 
 // Sadhana — standalone quadrant task board (spec 2026-08-25). Board + archive + focus
 // render as htmx fragments swapping `closest .sadhana-zone` (the same zone serves the
@@ -38,7 +39,7 @@ export const toEnDigits = (v: unknown): unknown =>
 
 export const deadlinishFields = {
   fuzzy: z.enum(['tom', '48h', 'week', 'mon', '3mo', '6mo', 'ny']).nullable().optional(),
-  due_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().optional(),
+  due_date: isoDateSchema.nullable().optional(),
   due_time: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/).nullable().optional(),
 } as const
 export const recurshFields = {
@@ -95,7 +96,7 @@ export const moveSchema = z.object({
 })
 export const reorderSchema = z.object({
   quadrant: z.union([z.number(), z.preprocess((v) => Number(v), z.number())]).pipe(z.literal(1).or(z.literal(2)).or(z.literal(3)).or(z.literal(4))),
-  ids: z.array(z.string().uuid()).max(200),
+  ids: z.array(uuidSchema).max(200),
 })
 export const quadrantOrderSchema = z.object({
   ids: z.array(z.union([z.number(), z.preprocess((v) => Number(v), z.number())])).length(4),

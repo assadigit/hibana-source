@@ -30,6 +30,8 @@
 //     keep it that way when building keys.
 //   - x-amz-content-sha256 must be the SAME hash used in the canonical request.
 
+import { sha256Hex, toHex } from '../lib/crypto'
+
 export interface R2Config {
   endpoint: string // e.g. https://<account>.r2.cloudflarestorage.com or https://s3.us-west-004.backblazeb2.com
   bucket: string
@@ -60,13 +62,7 @@ async function hmac(key: Uint8Array, data: string): Promise<ArrayBuffer> {
   return crypto.subtle.sign('HMAC', cryptoKey, src(enc.encode(data)))
 }
 
-async function sha256Hex(data: string | Uint8Array): Promise<string> {
-  const buf = data instanceof Uint8Array ? data : enc.encode(data)
-  const digest = await crypto.subtle.digest('SHA-256', src(buf))
-  return [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, '0')).join('')
-}
-
-const toHex = (buf: ArrayBuffer) => [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, '0')).join('')
+// sha256Hex + toHex: shared idiom in lib/crypto.ts (CQ-6; the SigV4 recipe is pinned by the AP-37 recomputation test)
 
 export function r2Storage(cfg: R2Config): ObjectStore {
   const url = new URL(cfg.endpoint)

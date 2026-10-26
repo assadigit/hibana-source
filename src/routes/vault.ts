@@ -6,6 +6,7 @@ import { uuid } from '../lib/ids'
 import { executeIn } from '../lib/inchunk'
 import type { Config, UserRow, NoteFolderRow, VaultNoteRow } from '../types'
 import { errJson, ErrorCode } from '../lib/errors'
+import { uuidSchema } from '../validation/schemas'
 
 // Notes Vault (0057, S53 — owner request): the standalone long-form knowledge base at
 // /notes with an Obsidian-inspired UX. Everything the vault page needs rides this
@@ -25,13 +26,13 @@ const TAG_LIMIT = 24
 const createNoteSchema = z.object({
   title: z.string().max(NOTE_TITLE_LIMIT).optional(),
   content: z.string().max(NOTE_BODY_LIMIT).optional(),
-  folderId: z.string().uuid().nullable().optional(),
+  folderId: uuidSchema.nullable().optional(),
   tags: z.string().max(500).optional(),
 })
 const patchNoteSchema = z.object({
   title: z.string().max(NOTE_TITLE_LIMIT).optional(),
   content: z.string().max(NOTE_BODY_LIMIT).optional(),
-  folderId: z.string().uuid().nullable().optional(), // omitted = untouched; null = unfile
+  folderId: uuidSchema.nullable().optional(), // omitted = untouched; null = unfile
   tags: z.string().max(500).optional(),
   starred: z.boolean().optional(),
   // S86 (0059): the note's emoji — null or '' clears it. Bounded to one grapheme-ish
@@ -40,11 +41,11 @@ const patchNoteSchema = z.object({
 })
 const createFolderSchema = z.object({
   name: z.string().min(1).max(FOLDER_NAME_LIMIT),
-  parentId: z.string().uuid().nullable().optional(),
+  parentId: uuidSchema.nullable().optional(),
 })
 const patchFolderSchema = z.object({
   name: z.string().min(1).max(FOLDER_NAME_LIMIT).optional(),
-  parentId: z.string().uuid().nullable().optional(), // null = move to root
+  parentId: uuidSchema.nullable().optional(), // null = move to root
   // S86 (0059): the folder's emoji — null or '' clears it (the sparks-shelf twin).
   icon: z.string().max(32).nullable().optional(),
 })
@@ -52,7 +53,7 @@ const patchFolderSchema = z.object({
 // S86 (0059): the drag-reorder payload — the ids of the CURRENT view in their new
 // visual order (top → bottom). Every id must be a live note owned by the caller.
 const reorderNotesSchema = z.object({
-  ids: z.array(z.string().uuid()).min(1).max(500),
+  ids: z.array(uuidSchema).min(1).max(500),
 })
 
 /** S86: normalize a user-picked emoji. One emoji (any codepoints), no control chars,

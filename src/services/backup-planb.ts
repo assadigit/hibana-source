@@ -1,4 +1,5 @@
 import { buildSnapshot, importAesKey, encryptBackup, bytesToBase64 } from './backup'
+import { sha256Hex } from '../lib/crypto'
 import { sendTelegramDocument, deleteTelegramMessage, pinTelegramMessage, unpinAllTelegramMessages } from './telegram'
 import { log } from '../lib/log'
 import { uuid } from '../lib/ids'
@@ -49,12 +50,7 @@ interface PlanBSendOutcome {
 
 /** hex sha256 of some bytes — goes into the caption AND the planb_backups row, so the
  * manual restore path can verify integrity with zero D1/Cloudflare access. */
-async function sha256Hex(bytes: Uint8Array): Promise<string> {
-  const digest = new Uint8Array(await crypto.subtle.digest('SHA-256', bytes as BufferSource))
-  let hex = ''
-  for (const b of digest) hex += b.toString(16).padStart(2, '0')
-  return hex
-}
+// sha256Hex: shared idiom in lib/crypto.ts (CQ-6)
 
 /**
  * Send ONE encrypted whole-DB snapshot as a Telegram document to ONE chat, on demand.

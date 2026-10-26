@@ -6,7 +6,7 @@ import { icon } from '../lib/html'
 import { trFor } from '../lib/i18n'
 import { uuid } from '../lib/ids'
 import { refreshTagUsage, syncTaskSearchTagsBatch } from './devboard-helpers'
-import { createTagSchema } from '../validation/schemas'
+import { createTagSchema, hexColorSchema } from '../validation/schemas'
 import type { Config, TagRow, UserRow } from '../types'
 import { errJson, ErrorCode } from '../lib/errors'
 
@@ -25,7 +25,7 @@ import { errJson, ErrorCode } from '../lib/errors'
 
 const tagUpdateSchema = z.object({
   name: z.string().trim().min(1).max(60).optional(),
-  color: z.string().regex(/^#[0-9a-fA-F]{6}$/).optional(),
+  color: hexColorSchema.optional(),
 })
 const tagMergeSchema = z.object({ into: z.string().max(64) })
 

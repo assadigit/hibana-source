@@ -13,6 +13,7 @@ import { purgeShotBytes } from '../services/shotstore'
 import { clientIp, hitRateLimit, RATE_RULES } from '../services/ratelimit'
 import type { Config, UserRow, InviteRow } from '../types'
 import { errJson, ErrorCode } from '../lib/errors'
+import { uuidSchema } from '../validation/schemas'
 
 // Settings (spec §5.8): language/calendar/timezone live on the user record (multi-device).
 // Theme is a per-device preference and stays in localStorage (§14) — no schema change needed.
@@ -267,7 +268,7 @@ export function settingsRoutes(cfg: Config) {
   // delete flow first), everything is user_id-scoped (rule 1), and the vault's OWN
   // notes keep their dedicated /api/vault/notes/:id/purge (they are not in this panel).
   const PURGE_TABLES = { project: 'projects', note: 'quick_notes', todo: 'sadhana_tasks' } as const
-  const purgeSchema = z.object({ kind: z.enum(['project', 'note', 'todo']), id: z.string().uuid() })
+  const purgeSchema = z.object({ kind: z.enum(['project', 'note', 'todo']), id: uuidSchema })
 
   app.post('/trash/purge', async (c) => {
     const user = c.get('user')

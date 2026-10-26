@@ -1,3 +1,4 @@
+import { esc } from './http'
 // src/lib/htmlx.ts — tiny typed HTML builder (Phase 0).
 //
 // Why this exists: ~3,000 lines of server HTML across the routes is built with raw
@@ -26,13 +27,7 @@ export function raw(s: string): SafeHtml {
   return { __safeHtml: true, s }
 }
 
-/** Escape a string for HTML text/attribute contexts. */
-function esc(s: unknown): string {
-  return String(s ?? '').replace(
-    /[&<>"']/g,
-    (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[ch]!,
-  )
-}
+// esc: the canonical escaper from lib/http.ts (CQ-6 — was a private copy with identical semantics)
 
 /** Build safe HTML. Plain string interpolations are escaped; `SafeHtml` passes through;
  *  null/undefined/false render empty (so `${cond && html\`...\`}` works); arrays render

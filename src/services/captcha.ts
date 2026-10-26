@@ -11,6 +11,7 @@
 // is the same work a human does to read it.
 
 import { timingSafeEqualStr } from '../lib/crypto'
+import { toHex } from '../lib/crypto'
 
 const CAPTCHA_TTL_MS = 10 * 60 * 1000
 
@@ -20,7 +21,7 @@ const enc = new TextEncoder()
 async function hmacHex(secret: string, payload: string): Promise<string> {
   const key = await crypto.subtle.importKey('raw', enc.encode(secret), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign'])
   const sig = await crypto.subtle.sign('HMAC', key, enc.encode(payload))
-  return [...new Uint8Array(sig)].map((x) => x.toString(16).padStart(2, '0')).join('')
+  return toHex(sig)
 }
 
 // timingSafeEqualStr moved to src/lib/crypto.ts (P2.2 / F-L28).

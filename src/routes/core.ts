@@ -9,14 +9,7 @@ import { uuid } from '../lib/ids'
 import { queryIn } from '../lib/inchunk'
 import { shotStoreFor } from '../services/shotstore'
 import { clientIp, hitRateLimit, RATE_RULES } from '../services/ratelimit'
-import {
-  createHurdleSchema,
-  hurdleReorderSchema,
-  updateHurdleSchema,
-  createLinkSchema,
-  updateLinkSchema,
-  uploadScreenshotSchema,
-} from '../validation/schemas'
+import { createHurdleSchema, hurdleReorderSchema, updateHurdleSchema, createLinkSchema, updateLinkSchema, uploadScreenshotSchema, uuidSchema } from '../validation/schemas'
 import type { Config, HurdleRow, LinkRow, ScreenshotRow, UserRow } from '../types'
 import { errJson, ErrorCode } from '../lib/errors'
 
@@ -570,7 +563,7 @@ export function coreRoutes(cfg: Config) {
   const patchScreenshotSchema = z.object({
     caption: z.string().max(1000).optional(),
     resolved: z.union([z.literal(0), z.literal(1)]).optional(),
-    taskId: z.union([z.string().uuid(), z.literal(''), z.null()]).optional(),
+    taskId: z.union([uuidSchema, z.literal(''), z.null()]).optional(),
     // S69 self-heal: the gallery generates the ≤320px WebP tile for legacy shots (the
     // ones whose ?variant=thumb fell back with X-Hibana-Thumb: miss) and PUTs it here
     // once — best-effort, capped, and NEVER over DB state (object-store only).
@@ -708,7 +701,7 @@ export function coreRoutes(cfg: Config) {
 
   // ---- canvas sync (spec §3.4 — idempotent LWW batch upsert, Q4-A) ----------
   const elementSchema = z.object({
-    id: z.string().uuid(),
+    id: uuidSchema,
     type: z.enum(['note', 'stroke', 'image', 'frame', 'shape', 'comment', 'block', 'sticky']),
     // frame: movable region that carries content (2026-08-26); shape/comment/block: 0032 squig batch (2026-08-31) — rect/oval/circle primitives, comment pins, lo-fi wireframe groups; sticky: notebook sticky notes (batch s)
     x: z.number(),
@@ -722,7 +715,7 @@ export function coreRoutes(cfg: Config) {
     // so legacy rows and old clients keep rendering exactly as before.
     text_align: z.enum(['left', 'center', 'right']).nullable().optional(),
     board: z.enum(['canvas', 'notebook']).optional().default('canvas'),
-    promoted_project_id: z.string().uuid().nullable().optional(),
+    promoted_project_id: uuidSchema.nullable().optional(),
     z_index: z.number().int().optional().default(0),
     deleted: z.union([z.literal(0), z.literal(1)]).optional().default(0),
     locked: z.union([z.literal(0), z.literal(1)]).optional().default(0), // 0024: per-element lock

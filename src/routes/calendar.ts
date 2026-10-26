@@ -6,6 +6,7 @@ import type { Config, ProjectRow, UserRow } from '../types'
 import type { SadhanaTask } from '../services/sadhana'
 import type { QuickNote } from './quicknotes'
 import { errJson, ErrorCode } from '../lib/errors'
+import { isoDateSchema } from '../validation/schemas'
 
 // Calendar view (Phase B4.1 + B4.5 locale-aware) — a month grid showing tasks + sadhana
 // tasks by their existing due_date. Zero DB changes: pure read aggregation.
@@ -17,8 +18,8 @@ import { errJson, ErrorCode } from '../lib/errors'
 // lookup is always correct even when a Jalali month spans two Gregorian months.
 
 const rangeSchema = z.object({
-  start: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-  end: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  start: isoDateSchema,
+  end: isoDateSchema,
 })
 
 export type CalendarItem = {

@@ -165,21 +165,37 @@ export async function sweepCompletedTasks(db: Db, onDate?: string): Promise<numb
 
 const REMINDER_KINDS = ['7d', '3d', '1d', '0d'] as const
 
+/** Minutes-of-day in an IANA timezone (fallback UTC). AP-25: due_time is the USER's
+ *  local wall clock, so the 2h reminder window must be evaluated in the SAME frame —
+ *  comparing it against UTC minutes fired the window 1.5–3.5h AFTER +03:30 deadlines. */
+export function minutesInTz(tz: string | null | undefined, at: Date = new Date()): number {
+  const tzName = tz && /^[A-Za-z_+-]+\/[A-Za-z_+-]+$/.test(tz) ? tz : 'UTC'
+  try {
+    const parts = new Intl.DateTimeFormat('en-GB', { timeZone: tzName, hour: 'numeric', minute: 'numeric', hour12: false }).formatToParts(at)
+    const h = Number(parts.find((p) => p.type === 'hour')?.value ?? '0')
+    const m = Number(parts.find((p) => p.type === 'minute')?.value ?? '0')
+    return (h % 24) * 60 + m
+  } catch {
+    return at.getUTCHours() * 60 + at.getUTCMinutes()
+  }
+}
+
 /** Daily reminder pass (spec §7.3, §6.18-19). Runs on the existing 03:17 UTC cron; a tighter
  *  cadence would need a second cron trigger — documented simplification. Each kind fires at
  *  most once per task ever (reminder_logs PK). Channel: the linked Telegram chat (§2.6 maps
  *  to users.telegram_chat_id in this build). */
-export async function runSadhanaReminders(cfg: Config, onDate?: string, nowUtcMin?: number): Promise<number> {
+export async function runSadhanaReminders(cfg: Config, onDate?: string, nowTzMin?: number): Promise<number> {
   if (!cfg.telegramToken) return 0
-  const now = new Date()
-  const today = onDate ?? todayIn('Asia/Tehran')
-  const nowMin = nowUtcMin ?? now.getUTCHours() * 60 + now.getUTCMinutes() // UTC minutes (2h window, best effort)
   // Cron context — no request origin; the deep link uses the configured app origin (S49-b6).
   const appUrl = appUrlOf(cfg)
   // JOIN users up front (Phase 2, 2026-08-28): the old shape ran one users lookup per task
   // (N+1) on every 30-min tick — this pass is the hottest cron. One query, same behavior.
-  const tasks = await cfg.db.query<SadhanaTask & { telegram_chat_id: string | null; telegram_paused: 0 | 1 }>(
-    `SELECT t.*, u.telegram_chat_id, u.telegram_paused FROM sadhana_tasks t
+  // AP-25: timezone rides along — "today" and the 2h window are per-OWNER, in the owner's
+  // own wall clock (was a hardcoded Asia/Tehran date + a UTC clock: two frames in one
+  // expression). `onDate`/`nowTzMin` stay as deterministic test overrides (nowTzMin is
+  // minutes in the TASK OWNER's timezone).
+  const tasks = await cfg.db.query<SadhanaTask & { telegram_chat_id: string | null; telegram_paused: 0 | 1; timezone: string }>(
+    `SELECT t.*, u.telegram_chat_id, u.telegram_paused, u.timezone FROM sadhana_tasks t
      JOIN users u ON u.id = t.user_id
      WHERE t.done = 0 AND t.deleted_at IS NULL AND t.cleared_at IS NULL AND t.due_date IS NOT NULL`,
   )
@@ -187,6 +203,8 @@ export async function runSadhanaReminders(cfg: Config, onDate?: string, nowUtcMi
   for (const t of tasks) {
     const chatId = t.telegram_chat_id
     if (!chatId || t.telegram_paused === 1) continue // spec §6.22: pause suspends the channel
+    const today = onDate ?? todayIn(t.timezone)
+    const nowMin = nowTzMin ?? minutesInTz(t.timezone)
     const kinds: string[] = []
     for (const kind of REMINDER_KINDS) {
       if (addDays(t.due_date!, -Number(kind[0])) === today) kinds.push(kind)

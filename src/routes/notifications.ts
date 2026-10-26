@@ -6,6 +6,14 @@ import { localeOf, trL, type Locale } from '../lib/i18n'
 import { faDigits } from '../lib/jalali'
 import type { Config, ProjectRow, UserRow } from '../types'
 import type { SadhanaTask } from '../services/sadhana'
+import { todayIn } from '../services/sadhana'
+
+// AP-26: 'YYYY-MM-DD' + N days in pure date space (no timezone drift — the input is
+// already a user-tz day key from todayIn()).
+const addIsoDays = (day: string, n: number): string => {
+  const [y, m, d] = day.split('-').map(Number)
+  return new Date(Date.UTC(y, m - 1, d + n)).toISOString().slice(0, 10)
+}
 
 // In-app Notification Center (Round 2) — a derived view of "things that need attention":
 // overdue tasks, unreviewed sparks, upcoming deadlines, stale projects. Zero DB changes:
@@ -29,8 +37,11 @@ export function notificationsRoutes(cfg: Config) {
 
   app.get('/', async (c) => {
     const user = c.get('user')
-    const today = new Date().toISOString().slice(0, 10)
-    const weekAhead = new Date(Date.now() + 7 * 24 * 3600 * 1000).toISOString().slice(0, 10)
+    // AP-26: day boundaries in the USER's timezone (the sibling surfaces — dashboard,
+    // quicknotes, sadhana — already use todayIn(user.timezone); between 00:00–03:30
+    // Tehran the UTC day lagged one day behind and an overdue item counted as upcoming).
+    const today = todayIn(user.timezone)
+    const weekAhead = addIsoDays(today, 7)
     const monthAgo = new Date(Date.now() - 30 * 24 * 3600 * 1000).toISOString()
 
     // Five parallel user-scoped queries — all indexed (rule 9). Each yields a notification kind.

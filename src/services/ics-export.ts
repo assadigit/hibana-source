@@ -115,7 +115,11 @@ export async function loadIcsEvents(
   const uidHost = new URL(appUrl).host
   const today = new Date()
   const start = today.toISOString().slice(0, 10)
-  const endD = new Date(today.getTime() + months * 30 * 24 * 3600 * 1000)
+  // Real calendar-month arithmetic (AP-24 family): months*30 days dropped events in
+  // the tail days of long months (a 6-month window from Oct 31 ended Apr 29). Month
+  // overflow rolls FORWARD (Jan 31 + 1mo = Mar 3) — over-covers a day or two, never
+  // silently drops an event.
+  const endD = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth() + months, today.getUTCDate()))
   const end = endD.toISOString().slice(0, 10)
 
   const [projects, tasks, sadhana, notes] = await Promise.all([

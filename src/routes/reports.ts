@@ -10,24 +10,32 @@ import type { Config, UserRow } from '../types'
 const granularitySchema = z.enum(['day', 'week', 'month', 'year'])
 
 function buckets(granularity: 'day' | 'week' | 'month' | 'year', now = new Date()): { key: string; label: string; start: Date; end: Date }[] {
+  // AP-24 (fixed, Phase 2): (a) bucket starts are computed from calendar PARTS
+  // (Date.UTC(y, m - i, 1)) — the old setUTCMonth on day 29-31 rolled into duplicate
+  // or skipped month keys; (b) each bucket covers the full RANGE [start, nextStart)
+  // — the old aggregation matched only the bucket's anniversary DAY, so a month row
+  // counted events on one day and the rest of the month landed in no bucket.
   const b: { key: string; label: string; start: Date; end: Date }[] = []
-  const startOf = (d: Date): Date => {
-    const r = new Date(d)
-    r.setUTCHours(0, 0, 0, 0)
-    return r
-  }
   const n = granularity === 'day' ? 30 : granularity === 'week' ? 12 : granularity === 'month' ? 12 : 6
+  const y = now.getUTCFullYear()
+  const m = now.getUTCMonth()
+  const d = now.getUTCDate()
+  const starts: Date[] = []
   for (let i = n - 1; i >= 0; i--) {
-    const end = new Date(now)
-    const start = new Date(end)
-    if (granularity === 'day') start.setUTCDate(end.getUTCDate() - i)
-    else if (granularity === 'week') start.setUTCDate(end.getUTCDate() - i * 7)
-    else if (granularity === 'month') start.setUTCMonth(end.getUTCMonth() - i)
-    else start.setUTCFullYear(end.getUTCFullYear() - i)
+    if (granularity === 'day') starts.push(new Date(Date.UTC(y, m, d - i)))
+    else if (granularity === 'week') starts.push(new Date(Date.UTC(y, m, d - i * 7)))
+    else if (granularity === 'month') starts.push(new Date(Date.UTC(y, m - i, 1)))
+    else starts.push(new Date(Date.UTC(y - i, 0, 1)))
+  }
+  for (let j = 0; j < starts.length; j++) {
+    const start = starts[j]
+    // exclusive end: the next bucket's start; the current bucket ends "now" (its
+    // day-key events — today's — must be included, so end is now + 1ms).
+    const end = j + 1 < starts.length ? starts[j + 1] : new Date(now.getTime() + 1)
     const key = start.toISOString().slice(0, 10)
     const label =
       granularity === 'day' ? key.slice(5) : granularity === 'week' ? `${key.slice(0, 7)} w${Math.ceil(start.getUTCDate() / 7)}` : granularity === 'month' ? key.slice(0, 7) : key.slice(0, 4)
-    b.push({ key, label, start: startOf(start), end: new Date(end.getTime()) })
+    b.push({ key, label, start, end })
   }
   return b
 }
@@ -143,11 +151,22 @@ export function reportsRoutes(cfg: Config) {
     ])
     const byHurdle = new Map(hurdles.map((r) => [r.bucket, r.n]))
     const byCreated = new Map(created.map((r) => [r.bucket, r.n]))
+    // AP-24: a bucket counts every event-day inside its [start, end) range — the old
+    // exact-key match saw only the bucket's anniversary day (day rows are unchanged:
+    // their range IS the single day). Day keys parse as UTC midnight.
+    const sumInRange = (m: Map<string, number>, start: Date, end: Date): number => {
+      let sum = 0
+      for (const [k, n] of m) {
+        const t = Date.parse(`${k}T00:00:00Z`)
+        if (Number.isFinite(t) && t >= start.getTime() && t < end.getTime()) sum += n
+      }
+      return sum
+    }
     const rows = b.map((bk) => ({
       key: bk.key,
       label: bk.label,
-      hurdlesCompleted: byHurdle.get(bk.key) ?? 0,
-      projectsCreated: byCreated.get(bk.key) ?? 0,
+      hurdlesCompleted: sumInRange(byHurdle, bk.start, bk.end),
+      projectsCreated: sumInRange(byCreated, bk.start, bk.end),
     }))
     return await etag(c, c.json({ granularity: gran.data, rows }))
   })

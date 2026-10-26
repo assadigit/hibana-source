@@ -1,7 +1,13 @@
 import { Hono } from 'hono'
 import { requireAuth } from '../auth/middleware'
-import { parseQuadrantOrder } from '../services/sadhana'
+import { parseQuadrantOrder, todayIn } from '../services/sadhana'
 import type { Config, UserRow } from '../types'
+
+// AP-26: 'YYYY-MM-DD' + N days in pure date space (user-tz day key arithmetic).
+const addIsoDays = (day: string, n: number): string => {
+  const [y, m, d] = day.split('-').map(Number)
+  return new Date(Date.UTC(y, m - 1, d + n)).toISOString().slice(0, 10)
+}
 
 // S88 — the navigation rail's SECONDARY PANEL (the VS Code Activity-Bar + Side-Bar
 // pattern the owner specced): selecting a rail icon opens a list panel beside it,
@@ -65,8 +71,9 @@ export function railRoutes(cfg: Config): Hono<{ Variables: { user: UserRow } }> 
 
   app.get('/', async (c) => {
     const user = c.get('user')
-    const in14 = new Date(Date.now() + 14 * 86400000).toISOString().slice(0, 10)
-    const today = new Date().toISOString().slice(0, 10)
+    // AP-26: due-soon windows in the USER's timezone (was the UTC day — see notifications).
+    const today = todayIn(user.timezone)
+    const in14 = addIsoDays(today, 14)
     const [projects, sparks, sparkFolders, folders, notes, todos, todoNames, tasks, projectTasks] = await Promise.all([
       cfg.db.query<RailProject>(
         `SELECT id, title, status, due_date FROM projects

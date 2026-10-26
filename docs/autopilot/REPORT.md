@@ -11,3 +11,42 @@
 - **Next step:** Phase 0 — measure today's baseline, build the safety net (the one-command check + automated tests for the critical user journeys), and prove the deploy/rollback path.
 
 _(One section per finished phase will be appended below, ending with the final report required by PLAYBOOK §8.)_
+
+---
+
+## Phase 0 — Baseline, safety net, and deploy confidence (COMPLETE, 2026-10-26)
+
+**Your app's "before any surgery" checkup is done, and every safety net the plan asked for is now in place and proven live.**
+
+### What got better
+
+- **One command now runs every quality check.** Before: the checks existed but only as separate scripts you'd have to know about. Now `npm run verify` runs all of them (types, code style, the full 685-test suite, the production build, and a brand-new portability check) in about 76 seconds. The CI server runs exactly the same command, so what passes on my machine is what passes in the cloud.
+- **A new guard protects the "runs on both Cloudflare AND plain Node" promise.** A checker now scans every source file and fails the build if anyone ever imports a Node-only or Cloudflare-only facility outside the four adapter files where it belongs. I tested that the guard actually catches violations (injected a fake violation — it caught it).
+- **39 new "characterization" tests** pin down the exact current behavior of the most safety-critical paths that had little or no test coverage: the logout button, the full session-cookie security contract, the hard-delete rules for every project status, project editing, the Persian calendar (both the server and the browser copies — they never cross-checked before), and the offline idea queue. These are the tripwires that make every later refactor safe.
+- **A remote "ship gate" smoke suite.** After deploying, one command now proves the live site end to end against the real URL: health, login page, real authenticated reads, a throwaway record created/read/deleted (clearly named, always cleaned up), both English and Persian content, and every cached asset loading. It passed 14/14 on dev AND 14/14 on production.
+- **A runbook** (docs/autopilot/RUNBOOK.md) now documents the backup, restore, deploy, and rollback procedures in one place.
+- **Baseline recorded.** Full inventory of the codebase and today's numbers (685/685 tests green, zero lint warnings, zero known vulnerabilities, all quality gates passing) are written into docs/autopilot/AUDIT.md — so any future change can be measured against today.
+
+### One real bug found (not yet fixed — that's Phase 2's job)
+
+While writing the offline-queue tests I found that the "drop after 5 failed syncs" fix **doesn't actually work in a real browser**: the retry counter is bumped on a copy and never saved back, so the safety valve can never trigger. Impact is limited (there's a manual "clear queue" escape hatch, and items aren't lost — the opposite: they can stay stuck in the "N unsynced" state during persistent server errors). Recorded as finding **AP-1** in AUDIT.md with a test that pins the current broken behavior; Phase 2 will fix it test-first.
+
+### Proof (what I ran and the results)
+
+- `npm run verify` — all green (types 0 errors, lint 0 warnings, **685/685 tests**, build OK, portability PASS).
+- Deployed **dev** (hibana.aliassadi.workers.dev) → remote smoke **14/14 PASS** → live storage round-trip **9/9 PASS**.
+- **Rollback drill on dev**: rolled the code back to the previous version → site stayed healthy → redeployed the new version → healthy again. The emergency exit is proven.
+- Deployed **prod** (hibana.ir) → remote smoke **14/14 PASS** → live storage round-trip **9/9 PASS** → cache purged.
+- Milestone tag `autopilot-phase-0-done` pushed; commit `08b17bb` (+ state docs `7f99601`).
+- GitHub CI was still running when this section was written (it takes ~10-20 min with browser tests); the verdict is recorded below in the "CI verdict" line.
+
+### What was NOT verified / risks
+
+- **CI's final green verdict** — pending at writing time; the verify step inside it had already passed in identical form locally. If CI reports a failure, it will be investigated before Phase 1 merges anything.
+- **Playwright e2e + Lighthouse ran only inside GitHub CI** (not locally this session) — they are part of the CI verdict above.
+- **The owner's real account was never touched** — all live checks used throwaway probe users, created and removed with row-count parity asserted (5 → 6 → 5 users on both databases).
+- The `hibana-desktop` Windows app (a separate repo) is out of this repo's scope entirely.
+
+### CI verdict (filled in after tagging)
+
+- CI run for `08b17bb`: see the line below (updated once the run completed).

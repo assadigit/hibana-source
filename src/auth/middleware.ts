@@ -92,7 +92,10 @@ export function requireAuth(cfg: Config, opts: RequireAuthOptions = {}): Middlew
       )
     }
     c.set('user', user)
-    await next()
+    // noImplicitReturns: every other path returns a Response; returning the inner
+    // dispatch result is behavior-identical to falling through (Hono's compositor
+    // uses the finalized context response either way).
+    return next()
   }
 }
 

@@ -47,6 +47,9 @@ While writing the offline-queue tests I found that the "drop after 5 failed sync
 - **The owner's real account was never touched** — all live checks used throwaway probe users, created and removed with row-count parity asserted (5 → 6 → 5 users on both databases).
 - The `hibana-desktop` Windows app (a separate repo) is out of this repo's scope entirely.
 
-### CI verdict (filled in after tagging)
+### CI verdict (final)
 
-- CI run for `08b17bb`: see the line below (updated once the run completed).
+- **The `ci` job — which contains the new `npm run verify` step (types, lint, 685 tests, build, portability) plus every repo quality gate and both Lighthouse lanes — PASSED.** Twice. That is the Phase 0 milestone requirement, met in CI.
+- **The e2e lane: 447 of 448 browser tests passed.** The ONE failure is a known flaky layout test (the s207 kanban-frame geometry check) that the repo's history already documents as runner-side nondeterminism: it measured the same edge at 4 different random offsets (31, 3, 57, 31 pixels) across two runs — a real layout bug would give one consistent number. Proof it is not this phase's code: **the same test file passes 5/5 on this exact code in a local browser**, and this phase changed zero product files (only tests, tooling, and docs were added).
+- Because of that single flake, GitHub marks the whole CI run red — which also means the auto-deploy pipeline (which requires an all-green run) did not fire for this push. **That changes nothing on the live sites**: I deployed dev and prod manually through the full Ship Gate during this phase and verified both with the complete live smoke suites. The flake is recorded as finding AP-2; the fix belongs to a planned "flake hunt" round, and I deliberately did not weaken or skip the flaky test to force a green mark.
+- Because the whole CI run is marked red by one flaky test, the auto-deploy lane (CD) correctly stayed silent for this push — the manual Ship Gate deploys above are the live truth for this commit.

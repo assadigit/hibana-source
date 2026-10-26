@@ -30,6 +30,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "smoke": "node --import tsx scripts/smoke.mjs",
+    "smoke:remote": "node --import tsx scripts/smoke-remote.mjs",
     "shotcheck:local": "node --import tsx scripts/live-shot-check.mjs --local",
     "shotcheck:dev": "node --import tsx scripts/live-shot-check.mjs --remote dev",
     "shotcheck:prod": "node --import tsx scripts/live-shot-check.mjs --remote prod",
@@ -40,6 +41,7 @@
     "typecheck": "tsc --noEmit",
     "check-cache-bust": "node scripts/check-cache-bust.mjs",
     "check-i18n-parity": "node scripts/check-i18n-parity.mjs",
+    "check:portability": "node scripts/check-portability.mjs",
     "check:prod-errors": "node scripts/check-prod-errors.mjs",
     "test:workers": "node scripts/workers-smoke.mjs",
     "check:bundle-size": "node scripts/check-bundle-size.mjs",
@@ -50,7 +52,9 @@
     "probe:glance": "node scripts/live-glance-probe.mjs dev",
     "probe:glance:prod": "node scripts/live-glance-probe.mjs prod",
     "purge": "node scripts/purge-cache.mjs",
-    "lint:escape": "node scripts/check-escape-lint.mjs"
+    "lint:escape": "node scripts/check-escape-lint.mjs",
+    "lint": "eslint src/ --max-warnings 0",
+    "verify": "tsc --noEmit && eslint src/ --max-warnings 0 && vitest run && node scripts/build.mjs --prod && node scripts/check-portability.mjs"
   },
   "dependencies": {
     "@hono/node-server": "^2.1.3",

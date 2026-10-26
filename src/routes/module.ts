@@ -14,7 +14,7 @@ import type { Config, PaymentRow, ProjectRow, TaskRow, UserRow } from '../types'
 
 const taskSchema = z.object({ id: z.string().uuid().optional(), title: z.string().min(1).max(300), due_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().optional() })
 const taskPatchSchema = z.object({ title: z.string().min(1).max(300).optional(), done: z.union([z.literal(0), z.literal(1)]).optional() })
-const paymentSchema = z.object({ id: z.string().uuid().optional(), label: z.string().min(1).max(100), amount: z.number().nonnegative(), currency: z.string().max(10).optional().default('USD'), status: z.enum(['pending', 'paid']).optional().default('pending') })
+const paymentSchema = z.object({ id: z.string().uuid().optional(), label: z.string().min(1).max(100), amount: z.coerce.number().nonnegative(), currency: z.string().max(10).optional().default('USD'), status: z.enum(['pending', 'paid']).optional().default('pending') })
 
 export function moduleRoutes(cfg: Config) {
   const app = new Hono<{ Variables: { user: UserRow } }>()

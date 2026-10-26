@@ -1426,13 +1426,19 @@ function togWeekday(slot, num){
 
 function setRecurDays(slot, val){
   if(!recurState[slot])return;
-  recurState[slot].days=String(parseInt(val)||1);
+  /* AP-23: FA keyboards emit Persian digits; parseInt('۳۰') is NaN → silently
+     rewrote "every ۳۰ days" to daily. Normalize first. */
+  const en=String(val).replace(/[۰-۹]/g,(d)=>String('۰۱۲۳۴۵۶۷۸۹'.indexOf(d)));
+  recurState[slot].days=String(parseInt(en,10)||1);
 }
 
 function getRecurData(slot){
   const s=recurState[slot];
   if(!s||!s.on)return{recurring:false,recur_type:null,recur_config:''};
   let days=s.days||'';
+  /* AP-23: normalize any Persian digits before validation (belt+suspenders with
+     the server-side boundary normalize — the server is authoritative). */
+  days=String(days).replace(/[۰-۹]/g,(d)=>String('۰۱۲۳۴۵۶۷۸۹'.indexOf(d)));
   /* validate ndays/monthly */
   if(s.type==='ndays'){const n=parseInt(days);days=isNaN(n)||n<1?'1':String(n);}
   if(s.type==='monthly'){const n=parseInt(days);days=isNaN(n)||n<1?'1':n>31?'31':String(n);}

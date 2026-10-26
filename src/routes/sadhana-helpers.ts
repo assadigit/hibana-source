@@ -30,6 +30,12 @@ export const quickAddSchema = z.object({
 // htmx posts checkboxes/hidden twins as 'true'/'false' strings; JSON sends booleans.
 export const toBool = (v: unknown): unknown => (v === 'true' || v === '1' ? true : v === 'false' || v === '0' ? false : v)
 
+// Persian-digit normalization (the repo's boundary law — schemas.ts verifyEmailSchema,
+// captcha.ts): FA keyboards emit ۰-۹; Number('۳۰') is NaN, so recur_config must be
+// normalized BEFORE it is stored, or "every ۳۰ days" never resets (AP-23).
+export const toEnDigits = (v: unknown): unknown =>
+  typeof v === 'string' ? v.replace(/[۰-۹]/g, (d) => String('۰۱۲۳۴۵۶۷۸۹'.indexOf(d))) : v
+
 export const deadlinishFields = {
   fuzzy: z.enum(['tom', '48h', 'week', 'mon', '3mo', '6mo', 'ny']).nullable().optional(),
   due_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().optional(),
@@ -38,7 +44,7 @@ export const deadlinishFields = {
 export const recurshFields = {
   recurring: z.union([z.boolean(), z.preprocess(toBool, z.boolean())]).optional().default(false),
   recur_type: z.enum(['daily', 'weekly', 'ndays', 'monthly']).nullable().optional(),
-  recur_config: z.string().max(64).optional().default(''),
+  recur_config: z.preprocess(toEnDigits, z.string().max(64)).optional().default(''),
 } as const
 
 export const createTaskSchema = z
@@ -75,7 +81,7 @@ export const patchTaskSchema = z
     // `{}` must stay rejectable (recurshFields' defaults would mask an empty update).
     recurring: z.union([z.boolean(), z.preprocess(toBool, z.boolean())]).optional(),
     recur_type: z.enum(['daily', 'weekly', 'ndays', 'monthly']).nullable().optional(),
-    recur_config: z.string().max(64).optional(),
+    recur_config: z.preprocess(toEnDigits, z.string().max(64)).optional(),
   })
   .superRefine((o, ctx) => {
     if (Object.keys(o).length === 0) ctx.addIssue({ code: 'custom', message: 'empty update' })
@@ -125,14 +131,17 @@ export const renameSchema = z.object({
 
 // Weekday button order per language (spec §5.12: the Persian week starts with Saturday).
 // Spec weekdays are Mon=0…Sun=6 — the same numbers the API/storage use.
+// AP-22 (fixed, Phase 2): every FA entry used to carry the PREVIOUS day's number
+// (شنبه→6), arming Sunday recurrence for a Saturday pick. The client modal's WD_FA
+// table (sadhana-page.js) was always correct — this server table now matches it.
 export const WEEKDAYS: Record<Locale, { n: number; label: string }[]> = {
   en: [
     { n: 0, label: 'Mon' }, { n: 1, label: 'Tue' }, { n: 2, label: 'Wed' }, { n: 3, label: 'Thu' },
     { n: 4, label: 'Fri' }, { n: 5, label: 'Sat' }, { n: 6, label: 'Sun' },
   ],
   fa: [
-    { n: 6, label: 'شنبه' }, { n: 0, label: 'یکشنبه' }, { n: 1, label: 'دوشنبه' }, { n: 2, label: 'سه‌شنبه' },
-    { n: 3, label: 'چهارشنبه' }, { n: 4, label: 'پنج‌شنبه' }, { n: 5, label: 'جمعه' },
+    { n: 5, label: 'شنبه' }, { n: 6, label: 'یکشنبه' }, { n: 0, label: 'دوشنبه' }, { n: 1, label: 'سه‌شنبه' },
+    { n: 2, label: 'چهارشنبه' }, { n: 3, label: 'پنج‌شنبه' }, { n: 4, label: 'جمعه' },
   ],
 }
 

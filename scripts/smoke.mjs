@@ -126,7 +126,7 @@ try {
   res = await app.fetch(new Request(`http://local/api/projects/${id}?force=1`, { method: 'DELETE', headers: auth }))
   check('hard delete allowed for spark status (spec §4.15)', res.status === 200)
   res = await app.fetch(new Request(`http://local/api/projects/${id}/restore`, { method: 'POST', headers: auth }))
-  check('hard-deleted project cannot be restored', res.status === 200) // restore is soft-delete-clearing; row is gone → no-op
+  check('hard-deleted project cannot be restored', res.status === 404) // AP-31 (Phase 2): a purged id is a 404, not a false-200 no-op
 
   // ===== invites =====
   // Stub the two external calls the auth flow makes (Turnstile siteverify + Resend) —

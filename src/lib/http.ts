@@ -126,3 +126,23 @@ export async function etag(c: Context, res: Response): Promise<Response> {
     return res // any failure → return the original response unchanged (safe fallback)
   }
 }
+/** Phase 1 (PLAYBOOK §5 uploads — content sniffing): the screenshot/doc upload set,
+ * sniffed from magic bytes. Binary formats have stable leading signatures; the three
+ * text formats (csv/md/txt) have none — any byte sequence is plausible text — and are
+ * represented by null. The upload route rejects a declared MIME that contradicts the
+ * sniffed container (defense in depth on top of the serve-side allowlist, attachment
+ * disposition and nosniff: mislabeled HTML/SVG can never ride an image path into the
+ * store, in any storage tier). Mirrors sniffImageMime's SEC-9 discipline, widened to
+ * the S86 doc set. */
+export type SniffedFileMime = 'image/png' | 'image/jpeg' | 'image/webp' | 'image/gif' | 'video/webm' | 'application/pdf' | 'zip'
+export function sniffFileMime(bytes: Uint8Array): SniffedFileMime | null {
+  const is = (arr: number[], at = 0) => arr.every((b, i) => bytes[at + i] === b)
+  if (is([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])) return 'image/png'
+  if (is([0xff, 0xd8, 0xff])) return 'image/jpeg'
+  if (is([0x52, 0x49, 0x46, 0x46]) && is([0x57, 0x45, 0x42, 0x50], 8)) return 'image/webp' // RIFF….WEBP
+  if (is([0x47, 0x49, 0x46, 0x38])) return 'image/gif' // GIF8
+  if (is([0x1a, 0x45, 0xdf, 0xa3])) return 'video/webm' // EBML container (webm/mkv — declared flavor rides the allowlist)
+  if (is([0x25, 0x50, 0x44, 0x46])) return 'application/pdf' // %PDF-
+  if (is([0x50, 0x4b, 0x03, 0x04])) return 'zip' // PK… — xlsx/docx are Office zips
+  return null
+}

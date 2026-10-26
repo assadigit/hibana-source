@@ -131,7 +131,7 @@ describe('screenshot upload path shape (session-9 F1)', () => {
         new Request(`http://local/api/projects/${projectId}/screenshots`, {
           method: 'POST',
           headers: { Cookie: `__Host-hibana_session=${token}`, 'Content-Type': 'application/json', Origin: 'http://local' },
-          body: JSON.stringify({ id: clientId, fileName: 're play.jpeg', mimeType: 'image/jpeg', dataBase64: PNG_B64 }),
+          body: JSON.stringify({ id: clientId, fileName: 're play.jpeg', mimeType: 'image/png', dataBase64: PNG_B64 }),
         }),
       )
       expect(res.status).toBe(201)
@@ -273,12 +273,29 @@ describe('file uploads S86 — docs in the shot bucket', () => {
         'image/png', 'image/jpeg', 'image/webp', 'image/gif',
         'video/webm', // S115: screen recordings ride the same bucket
       ]
+      // Phase 1: the allowlist gates the DECLARED mime; content sniffing (separately
+      // pinned in upload-sniff.test.ts) additionally requires the bytes to match — so
+      // each declared type now rides its true container's magic bytes.
+      const magic = (bytes: number[], tail = 'payload') => Buffer.concat([Buffer.from(bytes), Buffer.from(tail)]).toString('base64')
+      const bytesFor: Record<string, string> = {
+        'application/pdf': PDF_B64,
+        'text/csv': Buffer.from('a,b\n1,2\n').toString('base64'),
+        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': magic([0x50, 0x4b, 0x03, 0x04]),
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document': magic([0x50, 0x4b, 0x03, 0x04]),
+        'text/markdown': Buffer.from('# md\n').toString('base64'),
+        'text/plain': Buffer.from('plain text\n').toString('base64'),
+        'image/png': PNG_B64,
+        'image/jpeg': magic([0xff, 0xd8, 0xff, 0xe0]),
+        'image/webp': magic([0x52, 0x49, 0x46, 0x46, 0, 0, 0, 0, 0x57, 0x45, 0x42, 0x50]),
+        'image/gif': magic([0x47, 0x49, 0x46, 0x38, 0x39, 0x61]),
+        'video/webm': magic([0x1a, 0x45, 0xdf, 0xa3]),
+      }
       for (const mimeType of okMimes) {
         const res = await app.fetch(
           new Request(`http://local/api/projects/${projectId}/screenshots`, {
             method: 'POST',
             headers: { Cookie: `__Host-hibana_session=${token}`, 'Content-Type': 'application/json', Origin: 'http://local' },
-            body: JSON.stringify({ fileName: 'f.bin', mimeType, dataBase64: PDF_B64 }),
+            body: JSON.stringify({ fileName: 'f.bin', mimeType, dataBase64: bytesFor[mimeType] }),
           }),
         )
         expect(`${mimeType} → ${res.status}`).toBe(`${mimeType} → 201`)

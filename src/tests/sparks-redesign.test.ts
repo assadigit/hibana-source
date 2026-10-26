@@ -55,11 +55,17 @@ async function createSpark(app: ReturnType<typeof createApp>, auth: Record<strin
 }
 
 async function addImage(app: ReturnType<typeof createApp>, auth: Record<string, string>, projectId: string, name: string) {
+  // Phase 1: real PNG magic bytes — the upload route content-sniffs (a bare
+  // ascii payload no longer passes an image/png declaration).
+  const bytes = Buffer.concat([
+    Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
+    Buffer.from(`png-bytes-${name}`),
+  ])
   const res = await app.fetch(
     new Request(`http://local/api/projects/${projectId}/screenshots`, {
       method: 'POST',
       headers: auth,
-      body: JSON.stringify({ dataBase64: Buffer.from(`png-bytes-${name}`).toString('base64'), mimeType: 'image/png', fileName: `${name}.png`, caption: '' }),
+      body: JSON.stringify({ dataBase64: bytes.toString('base64'), mimeType: 'image/png', fileName: `${name}.png`, caption: '' }),
     }),
   )
   expect(res.status).toBe(201)

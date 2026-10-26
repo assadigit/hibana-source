@@ -1,7 +1,7 @@
 import { Hono } from 'hono'
 import { z } from 'zod'
 import { requireAuth } from '../auth/middleware'
-import { esc, jsonBody } from '../lib/http'
+import { esc, jsonBody, sniffFileMime, type SniffedFileMime } from '../lib/http'
 import { getOwnedProject, icon, toastHtml } from '../lib/html'
 import { localeOf, trFor, trL, type Locale } from '../lib/i18n'
 import { uuid } from '../lib/ids'
@@ -454,6 +454,28 @@ export function coreRoutes(cfg: Config) {
   })
 
   app.post('/api/projects/:projectId/screenshots', async (c) => {
+    // Phase 1 (PLAYBOOK §5 uploads — content sniffing): the declared mimeType must
+    // match the sniffed magic bytes of the actual payload. Expectations: binary
+    // formats must sniff as their exact container; the text formats (csv/md/txt)
+    // have no magic and expect null — but a binary signature inside a declared text
+    // file is still rejected. xlsx/docx are Office zips: the sniff proves "is a zip
+    // container" — the exact flavor is indistinguishable at this layer and both
+    // serve as attachments (S86) anyway. Only the leading ~48 bytes are decoded for
+    // the sniff (slice(0, 64) of the base64, 4-aligned so atob never sees a partial
+    // quantum) — the same trick the logo route uses.
+    const SNIFF_EXPECTED: Record<string, SniffedFileMime | null> = {
+      'image/png': 'image/png',
+      'image/jpeg': 'image/jpeg',
+      'image/webp': 'image/webp',
+      'image/gif': 'image/gif',
+      'video/webm': 'video/webm',
+      'application/pdf': 'application/pdf',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': 'zip',
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document': 'zip',
+      'text/csv': null,
+      'text/markdown': null,
+      'text/plain': null,
+    }
     // M8 fix (2026-09-10): wire the upload rate limiter — screenshots push bytes into the
     // storage backend (GitHub repo or R2 bucket), and under open registration (now
     // invite-only) an authed abuser could spam uploads unbounded. 30 req/60s per IP
@@ -472,6 +494,22 @@ export function coreRoutes(cfg: Config) {
     const t = trFor(c)
     const p = await getOwnedProject(cfg, user.id, c.req.param('projectId'))
     if (!p) return c.json({ error: 'not_found' }, 404)
+    // Phase 1 (uploads hardening): content-sniff BEFORE any storage write — a
+    // mislabeled payload (HTML bytes on an image/png path, a gif labeled png…) dies
+    // at the boundary in every tier (disk/KV/R2/GitHub). The Zod allowlist regex
+    // already guarantees body.mimeType is a key of SNIFF_EXPECTED (text types map
+    // to null — no magic to contradict). Undecodable base64 is invalid_input (it
+    // used to surface as a 500 from deep inside the storage tier).
+    let head: Uint8Array
+    try {
+      head = Uint8Array.from(atob(body.dataBase64.slice(0, 64)), (ch) => ch.charCodeAt(0))
+    } catch {
+      return c.json({ error: 'invalid_input', message: 'The file payload is not valid base64.' }, 400)
+    }
+    const sniffed = sniffFileMime(head)
+    if (sniffed !== SNIFF_EXPECTED[body.mimeType]) {
+      return c.json({ error: 'mime_mismatch', message: 'The file contents do not match its declared type.' }, 400)
+    }
     const id = body.id ?? uuid()
     const safeName = body.fileName.replace(/[^\w.\- ]/g, '_')
     const path = assetPath({ user_id: user.id, project_id: p.id }, 'screenshots', `${id}-${safeName}`)
@@ -481,7 +519,16 @@ export function coreRoutes(cfg: Config) {
     // fail the upload itself (the original is the source of truth; the gallery falls
     // back to full-size + client self-heal).
     if (body.thumbBase64) {
-      try { await shotStore.putObject(`${path}.thumb`, body.thumbBase64, 'image/webp') } catch { /* tile falls back to the original */ }
+      // Phase 1 (uploads hardening): the tile must really be a WebP container — a
+      // mismatched or undecodable thumb is DROPPED, not a 400 (the original is the
+      // source of truth; the grid falls back to full-size + client self-heal,
+      // exactly like a failed thumb write).
+      try {
+        const thumbSniff = sniffFileMime(Uint8Array.from(atob(body.thumbBase64.slice(0, 64)), (ch) => ch.charCodeAt(0)))
+        if (thumbSniff === 'image/webp') {
+          await shotStore.putObject(`${path}.thumb`, body.thumbBase64, 'image/webp')
+        }
+      } catch { /* tile falls back to the original */ }
     }
     // S39 (0054): exact decoded size — base64 without padding × 3/4. Never re-encoded,
     // never estimated: the gallery's space meter sums THIS column.

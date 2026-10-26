@@ -4,11 +4,12 @@
 > Resume protocol (PLAYBOOK §4): if this file exists, do NOT restart — resume from the recorded step.
 > Update this file after every commit.
 
-Last updated: 2026-10-26 — Phase 2 IN PROGRESS (branch `autopilot/phase-2-bug-hunt`)
+Last updated: 2026-10-26 — Phase 2 COMPLETE (milestone M2 met, tag `autopilot-phase-2-done` @ de85a4d)
 
 ## Current phase
 
-- Phase: **2 — Bug hunt and fixes (correctness) — IN PROGRESS**. Phase 0 COMPLETE (tag `autopilot-phase-0-done` @ 08b17bb); Phase 1 COMPLETE (tag `autopilot-phase-1-done` @ f097f87).
+- Phase: **2 — Bug hunt and fixes (correctness) — COMPLETE**. Phase 0 COMPLETE (tag `autopilot-phase-0-done` @ 08b17bb); Phase 1 COMPLETE (tag `autopilot-phase-1-done` @ f097f87).
+- Next action: Phase 3 (codebase review and refactor — behavior-preserving) per PLAYBOOK §5.
 - Phase 2 plan (steps, each verified by red-then-green tests per PLAYBOOK §5 Phase 2):
   1. **AP-1 fix** — offline-queue 5xx retry counter never persists (`public/js/queue.js` — getAll returns structured clones; retries bump is lost; MAX_RETRIES drop is dead code in real browsers). Flip the green characterization test to the fixed contract.
   2. **AP-15 fix** — node:sqlite adapter concurrent-transaction 500s (serialize transactions per connection with an async mutex; D1 unaffected).
@@ -16,9 +17,10 @@ Last updated: 2026-10-26 — Phase 2 IN PROGRESS (branch `autopilot/phase-2-bug-
   4. **AP-2 flake hunt** — s207 kanban-frame geometry nondeterminism (offsets 31/3/57/57 across CI runs; passes 5/5 locally); make the spec deterministic or find the runner-side root cause.
   5. Every confirmed bug → AUDIT.md entry + failing test BEFORE the fix → fix commit.
   6. Ship Gate (§3): verify → merge ff to main → push → deploy dev → smoke:remote dev → shotcheck dev → deploy prod → smoke:remote prod → shotcheck prod → purge → tag `autopilot-phase-2-done` → STATE/REPORT records.
-- Next action: step 3 continues (verify + fix the remaining confirmed hunt findings: payments form, WEEKDAYS.fa, archive-restore FK, sadhana reminder tz, queue batch poisoning, canvas pre-beacon, reports buckets, and the mediums).
 
 ## Session log
+
+- **2026-10-26 (Phase 2 COMPLETE — Ship Gate executed):** 10 commits (e58ba6e → de85a4d) on `autopilot/phase-2-bug-hunt`, each pushed at the step. Ship Gate: local gates green (typecheck 0, eslint 0, vitest **744/744** — was 706, +38 Phase 2 tests; build 85 entries; portability PASS; escape-lint PASS 213 sinks; Node smoke ALL PASS; workers-smoke ALL PASS incl. the new Test 6 120-element canvas-sync D1-param canary + Test 7 FK-CASCADE parity canary) → merged ff to main @ de85a4d + pushed → **no migrations (all fixes code-only)** → deploy dev → remote smoke dev **24/24 ALL PASS** → shotcheck dev 9/9 → deploy prod → remote smoke prod **24/24 ALL PASS** → shotcheck prod 9/9 → zone cache purged → tag `autopilot-phase-2-done` pushed. Local e2e: shard 1 231 passed + 1 s148 load-flake (passes 3/3 standalone), shard 2 224/224 on re-run — no product-code regressions. **Fixed this phase: AP-1 (offline-queue retry persistence), AP-2 (s207 flake — deterministic scrollbar-independent polling assertion, 5/5 locally), AP-15 (node:sqlite concurrent-txn 500s + phantom-rollback + dirty reads), and 19 NEW confirmed bugs found by 5 parallel read-only hunt subagents and verified red-then-green by the lead: AP-20 (D1 100-param cap — 16 unbounded IN() sites chunked via new src/lib/inchunk.ts), AP-21 (payments form dead — z.coerce), AP-22 (WEEKDAYS.fa all-seven off-by-one), AP-23 (Persian-digit recurrence dead), AP-24 (reports buckets counted only anniversary days + month-key rollover), AP-25 (2h reminder fired AFTER +03:30 deadlines), AP-26 (UTC day boundaries in notifications/rail; ICS 30-day months), AP-27 (archive-restore 500 forever), AP-28/29 (parked rows leaked into rail/search), AP-30 (reorder masqueraded as edit), AP-31 (restore false-200), AP-32 (quick_notes dangling attach), AP-33 (telegram LIKE wildcards), AP-34 (canvas sync batch poisoning + >500 mass-drop), AP-35 (canvas pre-beacon commit missing), AP-36 (redoCanvas inverted), AP-37 (r2 SigV4 region key), AP-38 (5 swallowed undo failures), AP-39 (emit unhandledrejection, wand timeout, 3 i18n keys, calendar chevrons, step-picker blanks). Auditor claims DISPROVEN during verification: "D1 runs FK-off" (workers-smoke Test 7 proves CASCADE parity), the dashboard-UTC-day claim (already used todayIn), the ICS-months claim (Phase 1). Deferred with reasons: telegram webhook retry duplication → DEBT (needs an additive migration through the D1 safety ladder).**
 
 - **2026-10-26 (Phase 2, step 3a — AP-20 FIXED, new finding):** D1 runtime parity — workerd D1 caps one prepared statement at 100 bound params; node:sqlite has no cap, so the entire vitest suite was blind to the class. Red proven LIVE on wrangler dev --local via a new workers-smoke Test 6: 120-element canvas offline sync → 500 (D1_ERROR). New src/lib/inchunk.ts (queryIn/executeIn — {{IN}}-token templates, chunked ≤100 params, rows merged / changes summed; 5 unit tests) applied to every user-reachable unbounded IN(): canvas sync pre-check, shotTaskMap, refreshTagUsage, syncTaskSearchTagsBatch (500-task renames), loadProjectSignals/Thumbs/LinkPresence/Progress + index.ts tag/link hits (spark shelf), module.ts client roster, reminders.ts batch, devboard archive-done DELETE, vault subtree delete, quicknotes attachedTitles, shotstore purgeShotBytes (which also now LOGS failures instead of swallowing — was silently orphaning bytes on D1). Workers-smoke Test 7 added: FK CASCADE parity (create → task → soft-delete → purge → child unreachable) — DISPROVED the auditor's "D1 runs FK-off" claim (in-repo note outdated; purge is clean on both runtimes); the check stays as a permanent canary. Post-fix: workers-smoke ALL PASS incl. 120-element 200 + CASCADE parity; vitest 719/719; tsc + eslint clean. Five read-only hunt subagents (P2-a..e) reported; their claims are being verified one-by-one with failing tests before fixes (one already disproven: the FK-off claim).
 
@@ -44,14 +46,15 @@ Last updated: 2026-10-26 — Phase 2 IN PROGRESS (branch `autopilot/phase-2-bug-
 
 ## Last green commit (code)
 
-- `main @ 08b17bb` — Phase 0 merged (6 commits: inventory+baseline docs, portability gate, verify+CI wiring, 39 characterization tests, smoke-remote, RUNBOOK). `npm run verify` green; remote smoke dev 14/14 + prod 14/14; shotcheck dev 9/9 + prod 9/9; rollback drill on dev passed.
+- `main @ de85a4d` — Phase 2 merged (10 commits: AP-1, AP-15, AP-20, AP-21/22/23, AP-24/25/26, AP-27..33, AP-34..39, AP-2 flake fix, smoke pin). `npm run verify` green (744/744); remote smoke dev+prod 24/24; shotcheck dev+prod 9/9.
+- (historical) `main @ 08b17bb` — Phase 0 merged (6 commits: inventory+baseline docs, portability gate, verify+CI wiring, 39 characterization tests, smoke-remote, RUNBOOK). `npm run verify` green; remote smoke dev 14/14 + prod 14/14; shotcheck dev 9/9 + prod 9/9; rollback drill on dev passed.
 - Repo package version: `0.4.1.36` (unchanged — Phase 0 added tooling/tests/docs, no product code).
 
 ## Deployed versions
 
-- dev (hibana.aliassadi.workers.dev + dev D1 `pm-app-dev`): running `f097f87` (Worker version 18ed103f; schema 63; storage kv).
-- prod (hibana.ir + prod D1 `pm-app-prod`): running `f097f87` (Worker version b5f3aa90; schema 63; storage kv; zone cache purged post-deploy).
-- Both verified live this session: remote smoke 24/24 each (incl. live security headers on both layers), shotcheck 9/9 each.
+- dev (hibana.aliassadi.workers.dev + dev D1 `pm-app-dev`): running `de85a4d` (Phase 2 merge commit; schema 63; storage kv).
+- prod (hibana.ir + prod D1 `pm-app-prod`): running `de85a4d` (Phase 2 merge commit; schema 63; storage kv; zone cache purged post-deploy).
+- Both verified live this session: remote smoke 24/24 each, shotcheck 9/9 each.
 
 ## Blockers
 

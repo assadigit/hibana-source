@@ -102,3 +102,19 @@ The `ci` job on main is **GREEN** — the one-command verify gate ran in CI with
 
 - The Content-Security-Policy still allows inline scripts (the no-build frontend requires it — documented tradeoff; the escaping discipline + automated escape gate is the real barrier, and it passes on all 213 sinks).
 - The pre-existing e2e flake (AP-2) and the two deliberately deferred items (timeout budgets for the storage chain, purging unlinked Telegram captures) carry to later phases, each with a written reason and removal path.
+
+## Phase 2 — Bug hunt and fixes (COMPLETE, 2026-10-26)
+
+**What got better (plain language):**
+
+- **Your ideas and canvas edits can no longer silently vanish.** Three separate data-loss bugs in the offline system are fixed: retry counters that never persisted (items stuck "unsynced" forever), a batching bug where ONE bad element or a too-big queue silently discarded EVERY queued edit and then showed "Saved", and the canvas page losing your last seconds of typing when you closed the tab mid-edit.
+- **The app was broken for anyone in Iran after midnight without you knowing.** Reminders for deadlines fired *after* the deadline (the "2 hours before" window was computed against the wrong clock), weekday recurrence armed the wrong day for Persian users, the payments form returned an error on EVERY submission, and "every ۳۰ days" repetition never repeated when typed with Persian digits. All fixed and pinned by tests.
+- **The Reports page told the wrong story.** Monthly/weekly activity bars counted only events on one exact day of each period — a busy month could show almost nothing. Numbers now cover the full weeks and months.
+- **Big accounts no longer crash on Cloudflare.** D1 (the Workers database) has a hidden limit of 100 values per query; long-offline canvas syncs, big tag renames, and large idea shelves silently crossed it. Every such query is now automatically split into safe chunks — proven live on the Workers runtime.
+- **Archived tasks became permanent bricks.** Deleting a sprint or category that an archived task referenced made that task unrestorable (a 500 error, forever). Fixed forward, and old stuck rows are rescued too.
+- **Honesty fixes:** restoring an already-purged project now says "not found" instead of pretending it worked; parked/archived items no longer leak into the search and the side panel; dragging projects to reorder no longer fakes "recently updated"; Telegram commands can't match the wrong project when a title contains % or _.
+- **The flaky test in CI is fixed** — the board-width check now waits for the layout to settle instead of sampling at a random moment.
+
+**How it was verified:** 5 read-only audit agents hunted across static analysis, runtime parity, dates/i18n, state rules, and the canvas/integrations. Every claimed bug was re-verified by the lead with a *failing test first* (two auditor claims were disproven in the process and dropped). Suite grew 706 → 744 tests; every fix has a regression test. Both runtimes green (Node + Workers smoke, including two new live Cloudflare canaries); deployed to dev and production with full remote smoke (24/24 each) and screenshot-pipeline checks (9/9 each).
+
+**What was NOT verified / carried forward:** the Telegram webhook can still record a duplicate capture if Telegram retries a timed-out message (needs a small database migration — deferred with a written removal path); the pre-existing CSP tradeoff stands by design.

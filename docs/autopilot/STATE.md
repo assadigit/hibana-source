@@ -4,7 +4,7 @@
 > Resume protocol (PLAYBOOK §4): if this file exists, do NOT restart — resume from the recorded step.
 > Update this file after every commit.
 
-Last updated: 2026-10-26 — Phase 1 IN PROGRESS (step 6 of ~6: dual-runtime isolation suite shipped — Ship Gate next)
+Last updated: 2026-10-26 — Phase 1 COMPLETE (milestone M1 met, tag `autopilot-phase-1-done` @ f097f87)
 
 ## Current phase
 
@@ -13,6 +13,7 @@ Last updated: 2026-10-26 — Phase 1 IN PROGRESS (step 6 of ~6: dual-runtime iso
 
 ## Session log
 
+- **2026-10-26 (Phase 1 COMPLETE — Ship Gate executed):** 6 commits (96a0d4b → f097f87), each pushed at the step per the owner's standing instruction. Ship Gate: local gates green (typecheck 0, eslint 0, vitest 706/706, build 85 entries, portability PASS, smoke ALL PASS, workers-smoke ALL PASS incl. the D1 isolation suite + AP-3 upsert canary) → merged ff to main @ f097f87 + pushed → **no migrations this phase (all fixes code-only — no DB step needed)** → deploy dev (Worker version 18ed103f) → remote smoke dev **24/24 ALL PASS** (incl. 10 live security-header checks on both response layers) → shotcheck dev 9/9 → deploy prod (Worker version b5f3aa90) → remote smoke prod **24/24 ALL PASS** → shotcheck prod 9/9 → zone cache purged (purge_everything accepted) → tag `autopilot-phase-1-done` pushed. CI on main: in_progress at tag time (the github_actions pin-validation workflow and release both green); final CI verdict recorded in REPORT.md.
 - **2026-10-26 (Phase 1, step 6 — the M1 dual-runtime isolation suite):** (a) scripts/workers-smoke.mjs Test 5 added — the D1/Workers-runtime cross-user suite (list/read/patch/delete by id, canvas incl. the AP-3 upsert conflict-arm canary executing on D1's SQLite, search, export, member-vs-admin 403s) — ALL PASS live via wrangler dev --local; (b) src/tests/isolation-suite.test.ts added — the Node-runtime suite (marker seeded into every surface via the real API, whole-body search scan across ALL groups incl. the 6 previously-untested, hurdle/link by-id + data-integrity assertions, screenshot file GET, trash purge, 9-route admin member-403 matrix, Telegram H5 same-chat relink + code single-use replay) — found + fixed a contract wart: hurdle/link DELETE returned a false {ok:true} 200 for foreign ids (SQL was already scoped; now 404 like PATCH); (c) scripts/smoke-remote.mjs +10 security-header checks (CSP/XCTO/Referrer-Policy/XFO/HSTS on BOTH the assets layer and the Worker layer) so the Ship Gate verifies headers LIVE on dev/prod per M1. Full suite: 706/706 (was 685; +21 Phase 1 tests). All local gates green.
 - **2026-10-26 (Phase 1, step 5 — supply chain + ledgers):** All 13 GitHub Actions `uses:` refs SHA-pinned (checkout@v7, setup-bun@v2, cache@v4, upload-artifact@v7 — resolved via git ls-remote; a first pinning attempt that stripped YAML indentation was caught by the validation step and redone); `engines.node >=24` added to package.json (closes pre-flight mismatch M6); project-page.js's two esc() helpers aligned to the canonical 5-char escaper (AP-14, hardening). AUDIT.md now carries the full Phase 1 findings ledger (AP-3…AP-19, statuses + fix commits, verified-clean inventory, disproven claims); DEBT.md carries the 4 accepted/deferred items (kv/r2/github timeouts, telegram capture purge, CSP nonce direction, AP-15 sqlite concurrency — Phase 2); REPORT.md carries the single permitted manual follow-up (healthchecks ping-key rotation, history-scan result: one secret ever, mitigated). Full history scan coverage: 672 commits / 11,054 blobs / 100%.
 - **2026-10-26 (Phase 1, step 4 — integrations/logging):** Resend fetch now carries AbortSignal.timeout(15s) (P1-c B5 — the one outbound integration call without a timeout; a stalled connection used to hang the register/reset flow or a cron step); magic-wand.js escapes the server-provided AI-error message before the innerHTML toast sink (P1-c B4 — latent XSS closed at the only call site feeding the sink a server-controlled string; local canonical esc() added); reminder failure logs now carry the project id, not the user-authored title (SC-9 PII). Regression tests: integration-logging-fixes.test.ts (4 tests, red-then-green proven — timeout wiring pinned by intercepting AbortSignal.timeout + signal identity + abort-fires behavior; wand fix pinned as a source contract + helper behavior). escape-lint PASS (213 sinks), tsc+eslint clean.
@@ -35,9 +36,9 @@ Last updated: 2026-10-26 — Phase 1 IN PROGRESS (step 6 of ~6: dual-runtime iso
 
 ## Deployed versions
 
-- dev (hibana.aliassadi.workers.dev + dev D1 `pm-app-dev`): running `08b17bb` (Worker version c3a4e0b8 after the rollback drill + redeploy; schema 63; storage kv).
-- prod (hibana.ir + prod D1 `pm-app-prod`): running `08b17bb` (Worker version 43b49d5a; schema 63; storage kv; zone cache purged post-deploy).
-- Both verified live this session: remote smoke 14/14 each, shotcheck 9/9 each.
+- dev (hibana.aliassadi.workers.dev + dev D1 `pm-app-dev`): running `f097f87` (Worker version 18ed103f; schema 63; storage kv).
+- prod (hibana.ir + prod D1 `pm-app-prod`): running `f097f87` (Worker version b5f3aa90; schema 63; storage kv; zone cache purged post-deploy).
+- Both verified live this session: remote smoke 24/24 each (incl. live security headers on both layers), shotcheck 9/9 each.
 
 ## Blockers
 

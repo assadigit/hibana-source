@@ -61,3 +61,40 @@ While writing the offline-queue tests I found that the "drop after 5 failed sync
 **The full git-history secret scan (672 commits, every blob) found exactly one real secret ever committed: the healthchecks.io PING KEY** (it appeared in a deleted worklog file and old Changelogs copies). It is NOT live at HEAD, and the repo already mitigated it in September (the check's URL slug was randomized, so the leaked key alone cannot construct a valid ping URL — the repo's own assessment is "false alarms only, now blocked"). You deliberately kept it at the September rotation round.
 
 **If you want it fully voided anyway:** regenerate the ping key in the healthchecks.io dashboard, then run `wrangler secret put HEALTHCHECK_PING_URL` (against the prod Worker) and update the `HIBANA_UPTIME_PING_URL` repo secret. Nothing else needs rotation — zero other secrets exist anywhere in the repo's history.
+
+---
+
+## Phase 1 — Security and data isolation (COMPLETE, 2026-10-26)
+
+**The full security audit is done, every real issue found is fixed with a test proving it, and both the live sites are verified.**
+
+### What this phase did
+
+Four parallel read-only security audits covered everything the plan asked for: who-can-whose-data (every route and every SQL statement), login/session/password-reset/invite mechanics, input validation and output escaping, file uploads, the Telegram/email/health-check/AI integrations, error messages and logs, plus a full scan of all 672 commits of history for leaked secrets. Every finding was then re-verified by hand before anything was changed — two auditor claims turned out to be wrong and were dropped (one "unclamped parameter" was already clamped; one "file corruption" was a display artifact).
+
+### What was actually wrong (and is now fixed)
+
+- **One real cross-user write hole** (the only one found across ~511 routes): the shared whiteboard's "sync" could overwrite or erase ANOTHER user's sticky note if the attacker knew its internal id. Fixed + proven on both runtimes (including a live test against the real Cloudflare database engine).
+- **A "javascript:" link trick**: saving a link whose address was a script could run that script when clicked. The form now only accepts real http(s) addresses.
+- **Two error leaks to strangers**: the password-reset and sign-up endpoints could return the email provider's internal error text to anyone. Now they return a plain generic message.
+- **A slow-drain timing tell**: guessing whether an account exists by measuring login response speed. Now both "no such account" and "wrong password" take the same time.
+- **A race on invite codes**: two simultaneous signups could squeeze through one single-use code. The burn is now atomic (first wins, second refused).
+- **Uploads now sniff file contents**: a file claiming to be a PNG must actually BE a PNG (by its bytes), in every storage tier. Fake/mislabeled uploads are refused.
+- **The email sender got a timeout** (a stuck connection could hang a signup), the AI-button's error toast now escapes its text (a latent hole, closed early), reminder logs no longer echo user-written titles, and the invite-by-email sender is rate-limited.
+- **Supply chain**: all 13 CI action references are now pinned to exact immutable versions, and package.json now demands Node 24+ explicitly.
+
+### The milestone proof (all live)
+
+- The cross-user isolation suite passes on **both** runtimes: 706/706 local tests (up from 685 — 21 new), plus a dedicated Workers-runtime suite that logs in as two users and attacks every surface.
+- Security headers (CSP, nosniff, referrer, frame protection, HSTS) are **verified live on both dev and production, on both serving layers** — this check is now a permanent part of the deploy gate (24 checks, all passing on both environments).
+- The screenshot storage round-trip passed 9/9 on both environments.
+- **Zero open critical or high security findings** — the audit ledger shows every critical/high item fixed; what remains open is deliberately deferred with reasons (see docs/autopilot/DEBT.md).
+
+### The one thing only you can do (optional)
+
+The full history scan found exactly one real secret ever committed (the healthchecks.io ping key, in files deleted long ago). It was already neutralized in September by randomizing the check's URL — the leaked key alone can't ping anything. If you want it fully voided anyway, the 3-step rotation is at the top of this file's Phase 1 section.
+
+### Not verified / accepted risks (honest list)
+
+- The Content-Security-Policy still allows inline scripts (the no-build frontend requires it — documented tradeoff; the escaping discipline + automated escape gate is the real barrier, and it passes on all 213 sinks).
+- The pre-existing e2e flake (AP-2) and the two deliberately deferred items (timeout budgets for the storage chain, purging unlinked Telegram captures) carry to later phases, each with a written reason and removal path.

@@ -636,8 +636,12 @@ export function coreRoutes(cfg: Config) {
     // S161 (spec #4): a deleted image can no longer be anybody's cover — the projects
     // whose cover_shot_id pointed here fall back to their latest upload (NULL clear).
     // And spec #3: the delete itself is a field edit — updated_at bumps.
+    // Phase 1 (SC-5, P1-a-3): belt-and-suspenders user scoping on the clear — only the
+    // caller's own projects lose their cover. A drift row (some other user's project
+    // pointing at this shot via legacy restore/DB tampering) keeps its value; the serve
+    // path already degrades a missing shot to the fallback thumb.
     const now = new Date().toISOString()
-    await cfg.db.execute('UPDATE projects SET cover_shot_id = NULL WHERE cover_shot_id = ?', [c.req.param('id')])
+    await cfg.db.execute('UPDATE projects SET cover_shot_id = NULL WHERE cover_shot_id = ? AND user_id = ?', [c.req.param('id'), user.id])
     await cfg.db.execute('UPDATE projects SET updated_at = ? WHERE id = ?', [now, projectId])
     if (c.req.header('HX-Request')) return c.html(toastHtml(t('Screenshot deleted', 'اسکرین‌شات حذف شد'), localeOf(c), undefined, 'ok'))
     return c.json({ ok: true })
@@ -736,9 +740,10 @@ export function coreRoutes(cfg: Config) {
              height = excluded.height, color = excluded.color, content = excluded.content, font_size = excluded.font_size,
              text_align = excluded.text_align,
              promoted_project_id = excluded.promoted_project_id, z_index = excluded.z_index,
-             deleted = excluded.deleted, locked = excluded.locked, angle = excluded.angle, updated_at = excluded.updated_at`,
+             deleted = excluded.deleted, locked = excluded.locked, angle = excluded.angle, updated_at = excluded.updated_at
+             WHERE canvas_elements.user_id = ?`,
           [el.id, user.id, el.board ?? 'canvas', el.type, el.x, el.y, el.width ?? null, el.height ?? null, el.color, el.content,
-           el.font_size ?? null, el.text_align ?? null, el.promoted_project_id ?? null, el.z_index, el.deleted, el.locked ?? 0, el.angle ?? 0, createdAt, el.updated_at],
+           el.font_size ?? null, el.text_align ?? null, el.promoted_project_id ?? null, el.z_index, el.deleted, el.locked ?? 0, el.angle ?? 0, createdAt, el.updated_at, user.id],
         )
         applied.push(el.id)
       }

@@ -4,15 +4,16 @@
 > Resume protocol (PLAYBOOK §4): if this file exists, do NOT restart — resume from the recorded step.
 > Update this file after every commit.
 
-Last updated: 2026-10-26 — Phase 0 COMPLETE (tag `autopilot-phase-0-done` @ 08b17bb)
+Last updated: 2026-10-26 — Phase 1 IN PROGRESS (security + data isolation)
 
 ## Current phase
 
-- Phase: **0 — COMPLETE (milestone M0 met, tagged `autopilot-phase-0-done`)**. Next: **Phase 1 — Security and data isolation — NOT STARTED** (per PLAYBOOK §5: isolation audit + cross-user test, auth/session hardening review, input/output security, uploads, webhooks, secret history scan).
-- Next action: execute PHASE 0 per PLAYBOOK.md §5 (read configs → inventory → baseline numbers → create `npm run verify` + CI → portability check + dual-runtime harness → characterization tests → smoke script → verify the deploy path end to end → milestone M0 → tag `autopilot-phase-0-done`).
+- Phase: **1 — Security and data isolation — IN PROGRESS** (step 1 of ~6: isolation fixes shipped). Phase 0 COMPLETE (tag `autopilot-phase-0-done` @ 08b17bb).
+- Next action: continue Phase 1 — input/auth fixes (link URL scheme, invite burn atomicity, login timing, invites/email limiter), upload content-sniffing, integration/logging fixes (Resend timeout, reset/register err.message leaks, magic-wand toast escape), supply-chain (engines, action SHA pinning), then the full cross-user isolation suite on both runtimes + live header verification, then the Ship Gate + tag `autopilot-phase-1-done`.
 
 ## Session log
 
+- **2026-10-26 (Phase 1, step 1 — isolation fixes):** Four read-only audit subagents (P1-a isolation, P1-b auth/IO, P1-c uploads/webhooks/logging, P1-d secrets-history/supply-chain) completed over main @ a7126fd; every claim independently re-verified against the code (playbook §2) before acting. Confirmed + fixed with red-then-green regression tests (src/tests/isolation-fixes.test.ts, 4 tests): canvas sync ON CONFLICT arm now scoped `WHERE canvas_elements.user_id = ?` (was the one SC-5 write-scoping hole — a foreign element id could overwrite/tombstone another user's element); screenshot-delete `cover_shot_id` clear now user-scoped (drift rows survive); project-logo byte route Cache-Control flipped public→private (authed per-user bytes). One auditor claim disproven during verification: ICS `months` was already clamped 1–24 inside loadIcsEvents (no fix needed). Adjacent suites (sync/board/screenshots/screenshot-problems/media-gallery, 29 tests) green.
 - **2026-10-26 (Phase 0 COMPLETE):** Ship Gate executed end to end: local verify green → merge ff to main (08b17bb) + push → deploy dev (5a10a90c) → remote smoke dev 14/14 + shotcheck dev 9/9 → rollback drill (rollback to a80798a3 → health OK → redeploy c3a4e0b8 → health OK) → deploy prod (43b49d5a) → remote smoke prod 14/14 + shotcheck prod 9/9 → zone cache purged → tag `autopilot-phase-0-done` pushed. CI on main was still in_progress at tag time (verify is its first quality step; release workflow already green) — final CI verdict recorded in REPORT.md.
 - **2026-10-26 (Phase 0, runbook):** docs/autopilot/RUNBOOK.md added — Ship Gate checklist, D1 backup commands (wrangler d1 export → gitignored backups/), the app's own backup/restore system, wrangler rollback procedure + redeploy-last-good-tag alternative, post-rollback smoke; .gitignore now covers backups/.
 - **2026-10-26 (Phase 0, remote smoke):** scripts/smoke-remote.mjs added (npm run smoke:remote -- --target dev|prod) — the Ship Gate remote suite: health, login page + i18n wiring, throwaway probe user seeded/purged via wrangler d1 execute (row-count parity asserted), real authenticated reads, write→read-back→hard-delete throwaway, EN/FA dictionaries, hashed /dist asset loads.

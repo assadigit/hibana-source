@@ -899,7 +899,10 @@ export function projectsRoutes(cfg: Config) {
       bytes = null
     }
     if (!bytes) return c.json({ error: 'not_found' }, 404)
-    return new Response(bytes, { headers: { 'Content-Type': mimeForPath(p.logo_path), 'Cache-Control': 'public, max-age=3600, stale-while-revalidate=604800' } })
+    // Phase 1 (P1-a-2): authed per-user bytes never declare public cacheability — the
+    // shared-cache tier does not key on cookies (the S69 lesson every other authed byte
+    // route already follows: media, avatar, banner). TTL unchanged; visibility flipped.
+    return new Response(bytes, { headers: { 'Content-Type': mimeForPath(p.logo_path), 'Cache-Control': 'private, max-age=3600' } })
   })
 
   // Remove the logo

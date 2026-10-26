@@ -8,11 +8,12 @@ Last updated: 2026-10-26 (bootstrap commit — find it via `git log --oneline --
 
 ## Current phase
 
-- Phase: **0 — Baseline, safety net, and deploy confidence — NOT STARTED**
+- Phase: **0 — Baseline, safety net, and deploy confidence — IN PROGRESS** (branch autopilot/phase-0-baseline-safety-net)
 - Next action: execute PHASE 0 per PLAYBOOK.md §5 (read configs → inventory → baseline numbers → create `npm run verify` + CI → portability check + dual-runtime harness → characterization tests → smoke script → verify the deploy path end to end → milestone M0 → tag `autopilot-phase-0-done`).
 
 ## Session log
 
+- **2026-10-26 (Phase 0 work):** baseline ladder recorded (typecheck 0 errors · eslint 0 warnings · build 85 entries · vitest 685/685 · smoke ALL PASS · workers-smoke ALL PASS · all repo gates PASS · npm audit 0). Full inventory + baseline numbers + finding AP-1 written to AUDIT.md.
 - **2026-10-26 (session start):** Autopilot prompt persisted byte-verbatim as `docs/autopilot/PLAYBOOK.md` (SHA-256 `9e87e415…692b67`). State files initialized. A read-only pre-flight verification of the repo against the prompt's project facts was performed and recorded in `AUDIT.md` ("Pre-flight verification"). **No code, config, or behavior was changed** — this bootstrap is docs-only.
 
 ## Last green commit (code)

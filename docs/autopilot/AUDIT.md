@@ -6,7 +6,73 @@
 
 | ID | Severity | Area | Evidence | Status | Fix commit |
 |----|----------|------|----------|--------|------------|
-| — | — | — | (no findings recorded yet) | — | — |
+| AP-1 | medium | offline queue retry persistence (client) | `src/tests/offline-queue.test.ts` "CHARACTERIZED BUG" test (green — pins the broken behavior): `public/js/queue.js:143-156` bumps `retries` on the object read via IndexedDB `getAll()` — but getAll returns structured clones, so the bump is never persisted (the re-`put` only happens inside the already-unreachable `drop.length > 0` branch). The MAX_RETRIES=5 drop shipped as the fix for the "1836 failed syncs / 45 stuck unsynced" incident is dead code in a real browser — items stay queued forever on persistent 5xx. Mitigations that keep this medium: the user-facing "clear queue" escape hatch (`clearAll`), the pagehide beacon, and re-auth retries. | OPEN — pinned by a green characterization test; test-first fix scheduled for Phase 2 (bug hunt) | — |
+
+## Phase 0 — Inventory (recorded 2026-10-26, `main @ 2be1c30` + phase branch)
+
+### Environment (this session's toolchain)
+
+- Node **v24.21.0** (meets the Node 24+ requirement), bun **1.3.14** (matches `packageManager` pin), wrangler **4.149.0** (local, from `^4.148.0`), TypeScript **6.0.3**, vitest **5.0.3**, esbuild **0.28.2**, Playwright **1.64.0**.
+- Cloudflare deploy credentials verified working: `wrangler whoami` OK (account `6ff25b58…976`).
+- Runtime dependencies (6): hono, @hono/node-server, fabric, fflate, playwright, zod. Dev dependencies (11): @cloudflare/workers-types, @eslint/js, @playwright/test, @types/node, esbuild, eslint, tsx, typescript, typescript-eslint, vitest, wrangler.
+- npm audit (CI's method — lock generated on the fly, `--omit=dev --audit-level=high`): **0 vulnerabilities**.
+
+### Directory map (src/ 2-level)
+
+- `src/app.ts` (Hono app factory), `src/index.ts` (**Workers entry** — fetch + scheduled), `src/server.ts` (**Node entry** — @hono/node-server + node:sqlite), `src/types.ts`, `src/vendor/fabric-shim.ts`.
+- `src/auth/` (middleware, password [PBKDF2 100k via Web Crypto], sessions [__Host- cookie, D1-backed], ban).
+- `src/db/` (types [the ONE `Db` interface], d1 [Workers adapter], sqlite [node:sqlite adapter], migrate-node [Node migration runner]).
+- `src/lib/` (16 files: app-url, categories, cron, crypto, errors, html, htmlx, http, i18n, ids, jalali, log, markdown, obsidian, sadhana-task-controls…).
+- `src/routes/` (30 files, incl. projects/, integrations/telegram+import, *-helpers).
+- `src/services/` (20 files: ai, backup, backup-planb, captcha, disk-shots, email, errorlog, github, healthcheck, ics-export, kv, progress, r2, ratelimit, reminders, reset, sadhana, shotstore, telegram, verify).
+- `src/tests/` (vitest — 86 files / 685 tests after Phase 0 additions; was 81/646).
+- `src/validation/schemas.ts` (Zod, route-level).
+- `public/`: ~30 HTML pages, `css/` (23 files), `js/` (50 files), `vendor/` (htmx, alpine, fabric, highlight, idiomorph, jalaali + fonts), `partials/nav.html`, `sw.js` + `manifest.webmanifest` (PWA), `_headers`, icons/logos.
+- `scripts/`: build.mjs (esbuild + --wire-html/--restore-html), smoke.mjs (in-process HTTP smoke), workers-smoke.mjs (Workers-runtime smoke via wrangler dev --local), live-shot-check.mjs (remote storage round-trip), migrate-node.ts, restore*.mjs, d1-*.mjs, check-*.mjs gates, seed-admin, set-secrets, make-zip, rotate/, perf JSON baselines.
+- `e2e/` (92 Playwright specs + fixtures), `qa/` (72 live-probe scripts, sessions s174–s209).
+
+### Routes, migrations, bindings
+
+- **~511 route registrations** across `src/routes/` + `src/app.ts`. Top-level mounts (`src/app.ts:243-417`): `/api/auth`, `/api/projects`, `/api/tags`, `/api/search`, `/api/dashboard`, `/api/notes`, `/api/vault`, `/api/sadhana`, `/api/admin`, `/api/dev`, `/api/reports`, `/api/settings`, `/api/export`, `/api/calendar`, `/api/timeline`, `/api/ov-tasks`, `/api/notifications`, `/api/ai`, `/api/rail`, `/api/health`, plus unprefixed HTML page routes.
+- **Migrations: 63 tracked files** numbered 0001–0064 (0007 gap is original). First: `0001_users_sessions_invites.sql`; last: `0064_user_categories.sql`. Live schema_version reported by /api/health: **63**.
+- **wrangler bindings**: `[assets] ASSETS ./public` (run_worker_first negation globs); `[vars]` ENVIRONMENT/GITHUB_OWNER/GITHUB_REPO; `[ai] AI`; `[[d1_databases]] DB = pm-app-dev` (id 80e02ce2…a984); `[[kv_namespaces]] HIBANA_SHOTS` (id 7c6eb81b…899); `[env.prod]`: D1 DB = pm-app-prod (d842fcb5…496), KV HIBANA_SHOTS (1a64052f…567), AI, vars +APP_URL=https://hibana.ir +MIRROR_ORIGIN. Crons: dev `17 3,9,15,21 * * *` + `*/30`; prod `23 …` + `*/30` (backup + reminders). No routes/custom_domains keys (hibana.ir attached via dashboard).
+- **Largest tracked files (KB)**: e2e/screenshots login-desktop 828; public/js/project-page.js 352; worklog-archive.md 336; vendor/fabric.min.js 288; public/js/app.js 216; scripts/perf-after.json 204; perf-baseline.json 184; Changelogs.md 168; public/js/canvas.js 156; e2e screenshot 136; public/js/notes-page.js 132; vendor/highlight.min.js 128.
+
+### CI/CD (6 workflows + dependabot)
+
+- `ci.yml` — push(main, !md)/PR: bun install → npm audit → eslint(0-warn ratchet) → escape-lint → build → bundle-size → precache-size → typecheck → cache-bust → i18n parity → vitest → smoke → dist-wiring → workers-smoke (CF-secrets, required on main) → Lighthouse desktop+mobile; `e2e` job = 2-shard Playwright matrix.
+- `cd.yml` — workflow_run-gated on CI success (main): build --wire-html → deploy DEV (hibana.aliassadi.workers.dev) → health probe → deploy PROD (hibana.ir) → health probe → zone-cache purge → --restore-html.
+- `d1-migrate-dev.yml` (manual dispatch), `errors.yml` (daily cron → healthchecks.io), `release.yml` (tag+release per package.json version bump), `uptime.yml` (cron probe → healthchecks.io).
+
+### SESSION TOOLING NOTE (for every future session in this sandbox)
+
+- This sandbox's file-reading display pipeline **strips `[m` sequences** from rendered output (e.g. `BASE_URL[mode]` displays as `BASE_URLode`; `out[m[1]]` as `out[1]]`). The repo's own worklog S220 documented the same class of artifact. NEVER trust a suspicious "corruption" seen through Read/Grep/awk output — verify with `node --check` or `od -c` before recording a finding. (Applied this session: two suspected script corruptions were byte-verified as FALSE POSITIVES.)
+- Background jobs started with `nohup … &` do NOT survive between sandbox tool invocations — run long commands in the foreground with explicit timeouts.
+
+## Phase 0 — Baseline numbers (all green at `main @ 2be1c30` + phase branch, 2026-10-26)
+
+| Gate | Result | Notes |
+|------|--------|-------|
+| `npm run typecheck` | **0 errors** (~7 s) | strict TS incl. noUnusedLocals/Parameters |
+| `npx eslint src/ --max-warnings 0` | **0 warnings** | the S199 warning ratchet holds |
+| `npm run build` | **85 manifest entries**, ~0.35 s | 75 dist files, content-hashed |
+| `npm test` (vitest) | **685/685 pass**, 86 files, ~65 s | 646/81 at baseline + 39 new Phase 0 characterization tests |
+| `npm run smoke` | **ALL PASS** (18 checks) | in-process, throwaway SQLite |
+| `npm run test:workers` | **ALL PASS** (5 checks) | wrangler dev --local (miniflare); PBKDF2 verify on the Workers runtime |
+| `npm run lint:escape` | **PASS** — 220 sinks / 51 files | XSS escape gate |
+| `npm run check:bundle-size` | **PASS** — 1,789,541 B / 75 files | vs baseline 1,746,531 B (+2.5%; CI gate 15%) |
+| `npm run check:precache-size` | **PASS** | +106 KB headroom |
+| `npm run check-cache-bust` | **PASS** | no JS/CSS modified |
+| `npm run check-i18n-parity` | **PASS — 1584/1584 keys** | EN+FA identical |
+| dist-wiring check | **PASS** — 27 wired pages / 812 refs | canonical HTML restored byte-identical after |
+| npm audit (CI method) | **0 vulnerabilities** | prod deps only, high+ |
+| local Node server timings | health ~1 ms · /login.html ~1.3 ms · / ~1.2 ms | warm, throwaway DB, port 3021 |
+
+### Characterization-test gap analysis (pre-existing coverage vs the PLAYBOOK §5 Phase 0 list)
+
+Already covered strongly (adding more would be redundant): invite registration, hurdles, Telegram webhook (mock), cross-user isolation, rate limits, password reset, export completeness (incl. the schema-drift guard), folders/categories, the server half of canvas sync, EN/FA parity (the 1584-key script), login (3 levels).
+
+Gaps closed this phase (39 new tests, 5 files): logout route + session-cookie attributes (`auth-logout-cookie.test.ts` — the logout route had ZERO tests); hard-delete status matrix ×6 statuses (`hard-delete-matrix.test.ts`); project edit round-trip + status history log (`project-edit-roundtrip.test.ts`); Jalali oracles/leap years/Nowruz boundaries/200-year sweep/client-server parity (`jalali-calendar.test.ts` — the two algorithm copies never cross-checked); offline queue client unit harness (`offline-queue.test.ts` — 255 lines of IndexedDB logic previously untested; discovered AP-1).
 
 ## Pre-flight verification (session start — 2026-10-26, read-only audit of `main @ 7b830d7`)
 

@@ -185,6 +185,9 @@ export function categoriesRoutes(cfg: Config) {
     if (!rows[0]) return c.json({ error: 'not_found' }, 404)
     await cfg.db.transaction(async (tx) => {
       tx.sql('UPDATE dev_tasks SET category_id = NULL WHERE category_id = ?', [rows[0].id])
+      // AP-27: archived snapshots carry category_id too — null it or every later
+      // restore of that archive hits the dev_tasks FK and 500s forever.
+      tx.sql('UPDATE project_archives SET category_id = NULL WHERE category_id = ?', [rows[0].id])
       tx.sql('DELETE FROM project_categories WHERE category_id = ?', [rows[0].id])
       tx.sql('DELETE FROM categories WHERE id = ?', [rows[0].id])
     })

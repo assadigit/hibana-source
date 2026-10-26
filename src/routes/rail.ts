@@ -91,6 +91,7 @@ export function railRoutes(cfg: Config): Hono<{ Variables: { user: UserRow } }> 
       cfg.db.query<RailSpark>(
         `SELECT id, title, folder_id FROM projects
          WHERE user_id = ? AND deleted_at IS NULL AND status = 'spark'
+           AND (archived_state IS NULL OR archived_state != 'offline')
          ORDER BY updated_at DESC LIMIT 400`,
         [user.id],
       ),

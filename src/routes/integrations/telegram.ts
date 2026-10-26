@@ -45,6 +45,10 @@ import {
   renderQuadrant,
 } from './telegram-helpers'
 
+/** AP-33: escape LIKE wildcards for a PREFIX match ('%'/'_' are literal in titles;
+ *  every other LIKE in the codebase escapes — search.ts, vault.ts). */
+const escapeLikePrefix = (s: string): string => s.replace(/[\\%_]/g, (m) => '\\' + m) + '%'
+
 export function registerTelegram(app: Hono<{ Variables: { user: UserRow } }>, cfg: Config) {
   // Spec §15: flood guard BEFORE the secret check (the limiter must count hostile traffic
   // too; 300 req/60s per IP — same value as the CF webhook rule).
@@ -342,9 +346,11 @@ export function registerTelegram(app: Hono<{ Variables: { user: UserRow } }>, cf
         project = rows[0] ?? null
       }
       if (!project) {
+        // AP-33: escape LIKE wildcards — '%'/'_' in the typed title acted as wildcards
+        // and the recency-ranked LIMIT 1 could resolve the WRONG project.
         const rows = await cfg.db.query<ProjectRow>(
-          'SELECT * FROM projects WHERE user_id = ? AND deleted_at IS NULL AND LOWER(title) LIKE ? ORDER BY updated_at DESC LIMIT 1',
-          [userId, projectArg.toLowerCase() + '%'],
+          "SELECT * FROM projects WHERE user_id = ? AND deleted_at IS NULL AND LOWER(title) LIKE ? ESCAPE '\\' ORDER BY updated_at DESC LIMIT 1",
+          [userId, escapeLikePrefix(projectArg.toLowerCase())],
         )
         project = rows[0] ?? null
       }
@@ -459,9 +465,11 @@ export function registerTelegram(app: Hono<{ Variables: { user: UserRow } }>, cf
         project = rows[0] ?? null
       }
       if (!project) {
+        // AP-33: escape LIKE wildcards — '%'/'_' in the typed title acted as wildcards
+        // and the recency-ranked LIMIT 1 could resolve the WRONG project.
         const rows = await cfg.db.query<ProjectRow>(
-          'SELECT * FROM projects WHERE user_id = ? AND deleted_at IS NULL AND LOWER(title) LIKE ? ORDER BY updated_at DESC LIMIT 1',
-          [userId, projectArg.toLowerCase() + '%'],
+          "SELECT * FROM projects WHERE user_id = ? AND deleted_at IS NULL AND LOWER(title) LIKE ? ESCAPE '\\' ORDER BY updated_at DESC LIMIT 1",
+          [userId, escapeLikePrefix(projectArg.toLowerCase())],
         )
         project = rows[0] ?? null
       }
@@ -568,8 +576,8 @@ export function registerTelegram(app: Hono<{ Variables: { user: UserRow } }>, cf
         if (intent === 'proj_search') {
           const noteId = session.noteId
           const rows = await cfg.db.query<{ id: string; title: string }>(
-            'SELECT id, title FROM projects WHERE user_id = ? AND deleted_at IS NULL AND LOWER(title) LIKE ? ORDER BY updated_at DESC LIMIT 10',
-            [userId, text.toLowerCase() + '%'],
+            "SELECT id, title FROM projects WHERE user_id = ? AND deleted_at IS NULL AND LOWER(title) LIKE ? ESCAPE '\\' ORDER BY updated_at DESC LIMIT 10",
+            [userId, escapeLikePrefix(text.toLowerCase())],
           )
           await setSession(cfg.db, userId, { kind: 'connect_list', noteId }) // restore connect_list so cp:<id> resolves
           if (rows.length === 0) {

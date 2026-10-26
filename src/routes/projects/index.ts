@@ -464,10 +464,13 @@ export function projectsRoutes(cfg: Config) {
     const user = c.get('user')
     // Reorder is always within a single status group (rule 1 + status coherence): an id of
     // another status (or another user's) is simply never updated.
+    // AP-30: reordering must NOT masquerade as an edit — the old UPDATE re-stamped
+    // updated_at for the whole group, flooding recency views and silently curing
+    // the 14-day stale nudge (the vault's reorder never does this; devtasks' neither).
     await cfg.db.transaction(async (tx) => {
       body.ids.forEach((id, i) => {
-        tx.sql('UPDATE projects SET sort_order = ?, updated_at = ? WHERE id = ? AND user_id = ? AND status = ?', [
-          i, new Date().toISOString(), id, user.id, body.status,
+        tx.sql('UPDATE projects SET sort_order = ? WHERE id = ? AND user_id = ? AND status = ?', [
+          i, id, user.id, body.status,
         ])
       })
     })
@@ -754,6 +757,12 @@ export function projectsRoutes(cfg: Config) {
     const t = trFor(c)
     const lang = localeOf(c)
     const user = c.get('user')
+    // AP-31: a purged (hard-deleted) id used to return a false 200 + "Restored" toast.
+    // Only a row actually IN trash is restorable — every sibling surface 404s.
+    const row = await cfg.db.query<{ deleted_at: string }>('SELECT deleted_at FROM projects WHERE id = ? AND user_id = ?', [
+      c.req.param('id'), user.id,
+    ])
+    if (row.length === 0 || row[0].deleted_at === null) return c.json({ error: 'not_found' }, 404)
     await cfg.db.execute('UPDATE projects SET deleted_at = NULL, updated_at = ? WHERE id = ? AND user_id = ?', [
       new Date().toISOString(), c.req.param('id'), user.id,
     ])

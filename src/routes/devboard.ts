@@ -417,6 +417,17 @@ export function devboardRoutes(cfg: Config) {
     const a = rows[0]
     const now = new Date().toISOString()
     // Re-insert into dev_tasks (status='done'). sort_order = max+1 to put it at the end.
+    // AP-27 belt-and-suspenders: LEGACY archive rows (written before the delete-flow
+    // fix) can still carry dangling category/sprint ids — re-inserting those would hit
+    // the dev_tasks FKs and 500 forever. Keep only ids that still exist.
+    if (a.category_id) {
+      const cat = await cfg.db.query('SELECT 1 AS ok FROM categories WHERE id = ?', [a.category_id])
+      if (cat.length === 0) a.category_id = null
+    }
+    if (a.sprint_id) {
+      const spr = await cfg.db.query('SELECT 1 AS ok FROM sprints WHERE id = ?', [a.sprint_id])
+      if (spr.length === 0) a.sprint_id = null
+    }
     const maxOrder = await cfg.db.query<{ m: number | null }>(`SELECT MAX(sort_order) AS m FROM dev_tasks WHERE project_id = ?`, [p.id])
     const nextOrder = (maxOrder[0]?.m ?? -1) + 1
     await cfg.db.execute(
@@ -739,6 +750,9 @@ export function devboardRoutes(cfg: Config) {
     if (!s) return c.json({ error: 'not_found' }, 404)
     await cfg.db.transaction(async (tx) => {
       tx.sql('UPDATE dev_tasks SET sprint_id = NULL WHERE sprint_id = ?', [s.id])
+      // AP-27: archived snapshots carry sprint_id too — a dangling id here made every
+      // later restore of that archive hit the dev_tasks FK and 500 forever.
+      tx.sql('UPDATE project_archives SET sprint_id = NULL WHERE sprint_id = ?', [s.id])
       tx.sql('DELETE FROM sprints WHERE id = ?', [s.id])
     })
     await logHistory(cfg, s.project_id, t('{name} deleted', '{name} حذف شد', { name: s.name }))

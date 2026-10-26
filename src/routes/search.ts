@@ -39,7 +39,9 @@ export function searchRoutes(cfg: Config) {
     const projects = await cfg.db.query<ProjectRow>(
       `SELECT p.* FROM projects_fts f
        JOIN projects p ON p.rowid = f.rowid
-       WHERE p.user_id = ? AND p.deleted_at IS NULL AND projects_fts MATCH ?
+       WHERE p.user_id = ? AND p.deleted_at IS NULL
+         AND (p.archived_state IS NULL OR p.archived_state != 'offline')
+         AND projects_fts MATCH ?
        ORDER BY p.updated_at DESC LIMIT 20`,
       [user.id, match],
     )

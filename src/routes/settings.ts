@@ -280,7 +280,13 @@ export function settingsRoutes(cfg: Config) {
     )
     if (!row.length) return c.json({ error: 'not_found' }, 404)
     if (kind === 'project') await purgeShotBytes(cfg, [id]) // best-effort, same order as the cron
-    await cfg.db.execute(`DELETE FROM ${table} WHERE id = ? AND user_id = ?`, [id, user.id])
+    await cfg.db.transaction(async (tx) => {
+      tx.sql(`DELETE FROM ${table} WHERE id = ? AND user_id = ?`, [id, user.id])
+      // AP-32: attached notes must not keep a dead project id (the attach chip and
+      // deep link degrade silently otherwise — spark-folder delete nulls folder_id,
+      // category delete nulls dev_tasks; this is the same discipline).
+      if (kind === 'project') tx.sql('UPDATE quick_notes SET project_id = NULL WHERE project_id = ?', [id])
+    })
     return c.json({ ok: true, kind, id })
   })
 
@@ -302,6 +308,9 @@ export function settingsRoutes(cfg: Config) {
     )
     await purgeShotBytes(cfg, goneProjects.map((g) => g.id)) // best-effort; delete proceeds
     await cfg.db.transaction(async (tx) => {
+      // AP-32: same null-out as the single purge — no dangling note attach ids. Runs
+      // BEFORE the projects DELETE (the subquery reads the rows being removed).
+      tx.sql('UPDATE quick_notes SET project_id = NULL WHERE user_id = ? AND project_id IN (SELECT id FROM projects WHERE user_id = ? AND deleted_at IS NOT NULL)', [user.id, user.id])
       tx.sql('DELETE FROM projects WHERE user_id = ? AND deleted_at IS NOT NULL', [user.id]) // children cascade
       tx.sql('DELETE FROM quick_notes WHERE user_id = ? AND deleted_at IS NOT NULL', [user.id])
       tx.sql('DELETE FROM sadhana_tasks WHERE user_id = ? AND deleted_at IS NOT NULL', [user.id]) // journal/tags/logs cascade

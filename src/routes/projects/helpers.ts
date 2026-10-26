@@ -1,3 +1,10 @@
+// S72/S75 (Phase 3, CQ-6): the stale-project definition — the three in-motion stages
+// plus the 14-day cutoff — was duplicated verbatim between dashboard.ts and the
+// projects index (?stale=1 view). One home, both importers.
+export const STALE_IN_MOTION_STATUSES = "('planning','queued','developing')"
+export const STALE_CUTOFF_DAYS = 14
+export const staleCutoffIso = (): string => new Date(Date.now() - STALE_CUTOFF_DAYS * 24 * 3600 * 1000).toISOString()
+
 import { esc } from '../../lib/http'
 import { queryIn } from '../../lib/inchunk'
 import {

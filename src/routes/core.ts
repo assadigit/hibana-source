@@ -1,7 +1,7 @@
 import { Hono } from 'hono'
 import { z } from 'zod'
 import { requireAuth } from '../auth/middleware'
-import { esc, jsonBody, sniffFileMime, type SniffedFileMime } from '../lib/http'
+import { esc, jsonBody, sniffFileMime, type SniffedFileMime, isHtmx } from '../lib/http'
 import { log } from '../lib/log'
 import { getOwnedProject, icon, toastHtml } from '../lib/html'
 import { localeOf, trFor, trL, type Locale } from '../lib/i18n'
@@ -187,7 +187,7 @@ export function coreRoutes(cfg: Config) {
     const p = await getOwnedProject(cfg, user.id, c.req.param('projectId'))
     if (!p) return errJson(c, ErrorCode.not_found)
     const hurdles = await cfg.db.query<HurdleRow>('SELECT * FROM hurdles WHERE project_id = ? ORDER BY sort_order, created_at', [p.id])
-    if (c.req.header('HX-Request')) return c.html(hurdlesHtml(hurdles, localeOf(c)))
+    if (isHtmx(c)) return c.html(hurdlesHtml(hurdles, localeOf(c)))
     return c.json({ hurdles })
   })
 
@@ -222,7 +222,7 @@ export function coreRoutes(cfg: Config) {
       }
       tx.sql('UPDATE projects SET updated_at = ? WHERE id = ?', [now, p.id])
     })
-    if (c.req.header('HX-Request')) {
+    if (isHtmx(c)) {
       // Re-render the list fragment so the htmx swap is deterministic (no HX-Retarget dance).
       const hurdles = await cfg.db.query<HurdleRow>('SELECT * FROM hurdles WHERE project_id = ? ORDER BY sort_order, created_at', [p.id])
       return c.html(hurdlesHtml(hurdles, localeOf(c)), 201)
@@ -262,7 +262,7 @@ export function coreRoutes(cfg: Config) {
       await cfg.db.execute('UPDATE projects SET updated_at = ? WHERE id = ?', [now, projectId])
     }
     if (body.text) await cfg.db.execute('UPDATE hurdles SET text = ? WHERE id = ?', [body.text, c.req.param('id')])
-    if (c.req.header('HX-Request')) {
+    if (isHtmx(c)) {
       const hurdles = await cfg.db.query<HurdleRow>('SELECT * FROM hurdles WHERE project_id = ? ORDER BY sort_order, created_at', [projectId])
       return c.html(hurdlesHtml(hurdles, localeOf(c)))
     }
@@ -281,7 +281,7 @@ export function coreRoutes(cfg: Config) {
     await cfg.db.execute('DELETE FROM hurdles WHERE id = ? AND project_id IN (SELECT id FROM projects WHERE user_id = ?)', [
       c.req.param('id'), user.id,
     ])
-    if (c.req.header('HX-Request')) {
+    if (isHtmx(c)) {
       const hurdles = owned.length
         ? await cfg.db.query<HurdleRow>('SELECT * FROM hurdles WHERE project_id = ? ORDER BY sort_order, created_at', [owned[0].project_id])
         : []
@@ -306,7 +306,7 @@ export function coreRoutes(cfg: Config) {
     const p = await getOwnedProject(cfg, user.id, c.req.param('projectId'))
     if (!p) return errJson(c, ErrorCode.not_found)
     const links = await cfg.db.query<LinkRow>('SELECT * FROM links WHERE project_id = ? ORDER BY created_at', [p.id])
-    if (c.req.header('HX-Request')) return c.html(linksHtml(links, localeOf(c)))
+    if (isHtmx(c)) return c.html(linksHtml(links, localeOf(c)))
     return c.json({ links })
   })
 
@@ -323,7 +323,7 @@ export function coreRoutes(cfg: Config) {
     // S161 (spec #3): every field edit bumps the idea's updated_at — a link add is a
     // field edit; the folder's "Updated" metric + the shelf's recency order ride it.
     await cfg.db.execute('UPDATE projects SET updated_at = ? WHERE id = ?', [new Date().toISOString(), p.id])
-    if (c.req.header('HX-Request')) {
+    if (isHtmx(c)) {
       const links = await cfg.db.query<LinkRow>('SELECT * FROM links WHERE project_id = ? ORDER BY created_at', [p.id])
       return c.html(linksHtml(links, localeOf(c)), 201)
     }
@@ -348,7 +348,7 @@ export function coreRoutes(cfg: Config) {
     // pre-check read is not a guarantee) — a foreign row is simply not updated.
     params.push(user.id)
     await cfg.db.execute(`UPDATE links SET ${sets.join(', ')} WHERE id = ? AND project_id IN (SELECT id FROM projects WHERE user_id = ?)`, params)
-    if (c.req.header('HX-Request')) return c.html(toastHtml(t('Link updated', 'پیوند به‌روزرسانی شد'), localeOf(c), undefined, 'ok'))
+    if (isHtmx(c)) return c.html(toastHtml(t('Link updated', 'پیوند به‌روزرسانی شد'), localeOf(c), undefined, 'ok'))
     return c.json({ ok: true })
   })
 
@@ -368,7 +368,7 @@ export function coreRoutes(cfg: Config) {
     if (owned.length) {
       await cfg.db.execute('UPDATE projects SET updated_at = ? WHERE id = ?', [new Date().toISOString(), owned[0].project_id])
     }
-    if (c.req.header('HX-Request')) {
+    if (isHtmx(c)) {
       const links = owned.length
         ? await cfg.db.query<LinkRow>('SELECT * FROM links WHERE project_id = ? ORDER BY created_at', [owned[0].project_id])
         : []
@@ -397,7 +397,7 @@ export function coreRoutes(cfg: Config) {
     const p = await getOwnedProject(cfg, user.id, c.req.param('projectId'))
     if (!p) return errJson(c, ErrorCode.not_found)
     const shots = await cfg.db.query<ScreenshotRow>('SELECT * FROM screenshots WHERE project_id = ? ORDER BY created_at DESC', [p.id])
-    if (c.req.header('HX-Request')) return c.html(shotsGridHtml(shots, localeOf(c), await shotTaskMap(cfg, shots)))
+    if (isHtmx(c)) return c.html(shotsGridHtml(shots, localeOf(c), await shotTaskMap(cfg, shots)))
     return c.json({ screenshots: shots })
   })
 
@@ -551,7 +551,7 @@ export function coreRoutes(cfg: Config) {
     // newest-upload-is-the-thumb default follows created_at, but the folder's Updated
     // metric + shelf recency ride updated_at).
     await cfg.db.execute('UPDATE projects SET updated_at = ? WHERE id = ?', [new Date().toISOString(), p.id])
-    if (c.req.header('HX-Request')) return c.html(toastHtml(body.mimeType.startsWith('image/') ? t('Screenshot uploaded', 'اسکرین‌شات آپلود شد') : t('File uploaded', 'فایل آپلود شد'), localeOf(c), undefined, 'ok'))
+    if (isHtmx(c)) return c.html(toastHtml(body.mimeType.startsWith('image/') ? t('Screenshot uploaded', 'اسکرین‌شات آپلود شد') : t('File uploaded', 'فایل آپلود شد'), localeOf(c), undefined, 'ok'))
     return c.json({ ok: true, id, mimeType: body.mimeType }, 201)
   })
 
@@ -603,7 +603,7 @@ export function coreRoutes(cfg: Config) {
       }
     }
     await cfg.db.execute('UPDATE projects SET updated_at = ? WHERE id = ?', [now, projectId])
-    if (c.req.header('HX-Request')) return c.html(toastHtml(t('Saved', 'ذخیره شد'), localeOf(c), undefined, 'ok'))
+    if (isHtmx(c)) return c.html(toastHtml(t('Saved', 'ذخیره شد'), localeOf(c), undefined, 'ok'))
     return c.json({ ok: true })
   })
 
@@ -695,7 +695,7 @@ export function coreRoutes(cfg: Config) {
     const now = new Date().toISOString()
     await cfg.db.execute('UPDATE projects SET cover_shot_id = NULL WHERE cover_shot_id = ? AND user_id = ?', [c.req.param('id'), user.id])
     await cfg.db.execute('UPDATE projects SET updated_at = ? WHERE id = ?', [now, projectId])
-    if (c.req.header('HX-Request')) return c.html(toastHtml(t('Screenshot deleted', 'اسکرین‌شات حذف شد'), localeOf(c), undefined, 'ok'))
+    if (isHtmx(c)) return c.html(toastHtml(t('Screenshot deleted', 'اسکرین‌شات حذف شد'), localeOf(c), undefined, 'ok'))
     return c.json({ ok: true })
   })
 
@@ -829,7 +829,7 @@ export function coreRoutes(cfg: Config) {
     await cfg.db.execute('DELETE FROM canvas_elements WHERE user_id = ? AND deleted = 1 AND updated_at < ?', [user.id, cutoff])
 
     const [maxRow] = await cfg.db.query<{ m: string | null }>('SELECT MAX(updated_at) AS m FROM canvas_elements WHERE user_id = ?', [user.id])
-    if (c.req.header('HX-Request')) return c.html(toastHtml(t('Synced {n} element(s)', '{n} مورد همگام شد', { n: applied.length }), localeOf(c), undefined, 'ok'))
+    if (isHtmx(c)) return c.html(toastHtml(t('Synced {n} element(s)', '{n} مورد همگام شد', { n: applied.length }), localeOf(c), undefined, 'ok'))
     return c.json({ ok: true, applied, skipped, serverUpdatedAt: maxRow?.m ?? null })
   })
 
@@ -858,7 +858,7 @@ export function coreRoutes(cfg: Config) {
         ])
       }
     })
-    if (c.req.header('HX-Request')) return c.html(toastHtml(t('Promoted to Idea — <a href="/project.html?id={id}">open it</a>', 'به ایده تبدیل شد — <a href="/project.html?id={id}">باز کردن آن</a>', { id: projectId }), localeOf(c), undefined, 'ok'))
+    if (isHtmx(c)) return c.html(toastHtml(t('Promoted to Idea — <a href="/project.html?id={id}">open it</a>', 'به ایده تبدیل شد — <a href="/project.html?id={id}">باز کردن آن</a>', { id: projectId }), localeOf(c), undefined, 'ok'))
     return c.json({ ok: true, projectId }, 201)
   })
 

@@ -118,7 +118,8 @@ export function formatDate(iso: string, cal: 'gregorian' | 'shamsi', lang: 'en' 
 }
 
 const G_MONTHS_EN = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
-const J_MONTHS_FA = ['فروردین', 'اردیبهشت', 'خرداد', 'تیر', 'مرداد', 'شهریور', 'مهر', 'آبان', 'آذر', 'دی', 'بهمن', 'اسفند']
+// Exported since Phase 3 (CQ-6): the month tables were re-declared in detail-helpers (PD_J_MONTHS/PD_G_MONTHS).
+export const J_MONTHS_FA = ['فروردین', 'اردیبهشت', 'خرداد', 'تیر', 'مرداد', 'شهریور', 'مهر', 'آبان', 'آذر', 'دی', 'بهمن', 'اسفند']
 // Indexed by Date#getUTCDay() (0=Sunday…6=Saturday); the fa week starts on شنبه.
 const WEEKDAYS_EN = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
 const WEEKDAYS_FA = ['یکشنبه', 'دوشنبه', 'سه‌شنبه', 'چهارشنبه', 'پنجشنبه', 'جمعه', 'شنبه']
@@ -140,7 +141,7 @@ export function formatDateLong(iso: string, cal: 'gregorian' | 'shamsi', _lang: 
 // Session 28 (user request): note-meta dates carry the weekday + day + month next to
 // the time — «یکشنبه ۲۱ شهریور ۰۱:۲۳» — so a glance at a note says WHICH day it was
 // touched, not just the clock. Gregorian keeps English months abbreviated.
-const G_MONTHS_EN_AB = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+export const G_MONTHS_EN_AB = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
 
 /** ISO timestamp → weekday + day + month (no year): 'یکشنبه ۲۱ شهریور' (fa/shamsi) or
  *  'Sunday 21 Sep' (en/gregorian). The caller appends the time — the pair reads as one

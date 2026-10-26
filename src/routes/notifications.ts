@@ -1,7 +1,7 @@
 import { Hono } from 'hono'
 import { requireAuth } from '../auth/middleware'
 import { icon, timeAgo } from '../lib/html'
-import { esc, etag } from '../lib/http'
+import { esc, etag, isHtmx } from '../lib/http'
 import { localeOf, trL, type Locale } from '../lib/i18n'
 import { faDigits } from '../lib/jalali'
 import type { Config, ProjectRow, UserRow } from '../types'
@@ -158,7 +158,7 @@ export function notificationsRoutes(cfg: Config) {
       return await etag(c, c.json({ count: notifs.length, urgent, warning, info }))
     }
 
-    if (c.req.header('HX-Request')) {
+    if (isHtmx(c)) {
       return await etag(c, c.html(notifListHtml(notifs, lang)))
     }
     return await etag(c, c.json({ count: notifs.length, notifications: notifs }))

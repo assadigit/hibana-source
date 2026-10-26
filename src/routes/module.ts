@@ -1,7 +1,7 @@
 import { Hono } from 'hono'
 import { z } from 'zod'
 import { requireAuth } from '../auth/middleware'
-import { esc, jsonBody } from '../lib/http'
+import { esc, jsonBody, isHtmx } from '../lib/http'
 import { getOwnedProject, icon, STATUS_LABEL_FA } from '../lib/html'
 import { localeOf, trL } from '../lib/i18n'
 import { uuid } from '../lib/ids'
@@ -60,7 +60,7 @@ export function moduleRoutes(cfg: Config) {
       const pct = p.progress_percent ?? clientProgress({ total: tasks.length, done: tasks.filter((t) => t.done === 1).length })
       return { project: p, tasks, payments, progress: pct, elapsed: p.due_date ? elapsedFraction(p.due_date) : null }
     })
-    if (c.req.header('HX-Request')) {
+    if (isHtmx(c)) {
       const html = rows.map((r) => {
         const tasks = r.tasks.map((t) => `<li class="hurdle ${t.done ? 'done' : ''}" id="task-${t.id}">
           <button class="ghost toggle" hx-patch="/api/tasks/${t.id}" hx-vals='{"done":${t.done === 1 ? 0 : 1}}' hx-target="#client-body" hx-trigger="click" hx-swap="innerHTML">${icon(t.done ? 'check' : 'unchecked')}</button>
@@ -116,7 +116,7 @@ export function moduleRoutes(cfg: Config) {
     await cfg.db.execute('INSERT INTO tasks (id, project_id, title, done, due_date, created_at) VALUES (?, ?, ?, 0, ?, ?)', [
       id, p.id, body.title, body.due_date ?? null, new Date().toISOString(),
     ])
-    if (c.req.header('HX-Request')) {
+    if (isHtmx(c)) {
       c.header('HX-Redirect', '/api/clients')
       return c.html('')
     }
@@ -140,7 +140,7 @@ export function moduleRoutes(cfg: Config) {
       await cfg.db.execute('UPDATE projects SET updated_at = ? WHERE id = ? AND user_id = ?', [now, rows[0].project_id, user.id])
     }
     if (body.title) await cfg.db.execute('UPDATE tasks SET title = ? WHERE id = ? AND project_id = ?', [body.title, c.req.param('id'), rows[0].project_id])
-    if (c.req.header('HX-Request')) {
+    if (isHtmx(c)) {
       c.header('HX-Redirect', '/api/clients')
       return c.html('')
     }
@@ -166,7 +166,7 @@ export function moduleRoutes(cfg: Config) {
     await cfg.db.execute('INSERT INTO payments (id, project_id, label, amount, currency, status) VALUES (?, ?, ?, ?, ?, ?)', [
       id, p.id, body.label, body.amount, body.currency, body.status,
     ])
-    if (c.req.header('HX-Request')) {
+    if (isHtmx(c)) {
       c.header('HX-Redirect', '/api/clients')
       return c.html('')
     }
@@ -188,7 +188,7 @@ export function moduleRoutes(cfg: Config) {
       await cfg.db.execute('UPDATE payments SET status = ?, paid_at = ? WHERE id = ? AND project_id = ?', [body.status, body.status === 'paid' ? now : null, c.req.param('id'), rows[0].project_id])
       await cfg.db.execute('UPDATE projects SET updated_at = ? WHERE id = ? AND user_id = ?', [now, rows[0].project_id, user.id])
     }
-    if (c.req.header('HX-Request')) {
+    if (isHtmx(c)) {
       c.header('HX-Redirect', '/api/clients')
       return c.html('')
     }
@@ -216,7 +216,7 @@ export function moduleRoutes(cfg: Config) {
     // L2 fix: add AND user_id = ? (was `WHERE id = ?` only — the pre-check validates
     // ownership, but rule #1 defense-in-depth wants the filter on every UPDATE).
     await cfg.db.execute('UPDATE projects SET reminders_enabled = ?, updated_at = ? WHERE id = ? AND user_id = ?', [body.enabled, new Date().toISOString(), rows[0].id, user.id])
-    if (c.req.header('HX-Request')) {
+    if (isHtmx(c)) {
       // Re-render the client body so the toggle reflects the new state (same pattern
       // as tasks/payments: the button lives inside #client-body).
       c.header('HX-Redirect', '/api/clients')

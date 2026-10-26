@@ -2,7 +2,10 @@ import type { Context } from 'hono'
 
 // Single-origin decision (Q1-A): routes serve JSON to fetch()/the offline queue and
 // HTML fragments to htmx. This header is the toggle, so one route covers both consumers.
-export const isHtmx = (c: Context): boolean => c.req.header('HX-Request') !== undefined
+// Truthiness (not presence): htmx always sends `HX-Request: true`; a hand-crafted
+// empty-valued header is not an htmx request. Aligned with the 44 route call sites
+// that used the header as a condition (CQ-6 — one spelling of one decision).
+export const isHtmx = (c: Context): boolean => !!c.req.header('HX-Request')
 
 // The app's own origin as the caller saw it — the canonical base for links we hand out
 // (email reset links, Telegram deep links). Derived from the request so it stays correct

@@ -126,7 +126,10 @@ export function icon(name: string, cls = 'icon'): string {
 /** The SVG glyph ids a quadrant icon can hold (QUADRANT_ICONS in routes/sadhana.ts).
     icon_id also accepts a plain emoji (sadhana.html picker) — anything outside this set
     renders as text, so the emoji path needs its own element (not an empty <svg>). */
-export const QUADRANT_GLYPHS = new Set(['gear', 'target', 'star', 'heart', 'flag', 'folder-plus', 'calendar', 'book', 'idea', 'bell', 'mountain', 'leaf'])
+// The 12 quadrant glyph ids — canonical since Phase 3 (CQ-6): sadhana-helpers'
+// QUADRANT_ICONS/GLYPH_IDS derived from the same array (they were identical literals).
+export const QUADRANT_GLYPH_IDS = ['gear', 'target', 'star', 'heart', 'flag', 'folder-plus', 'calendar', 'book', 'idea', 'bell', 'mountain', 'leaf'] as const
+export const QUADRANT_GLYPHS = new Set<string>(QUADRANT_GLYPH_IDS)
 
 /** Quadrant symbol: the SVG stroke glyph when the stored icon_id is a known glyph id,
     otherwise the value itself (an emoji chosen in the board's picker) as a text span.

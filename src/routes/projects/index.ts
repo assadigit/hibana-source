@@ -3,7 +3,7 @@
 import { Hono } from 'hono'
 import { z } from 'zod'
 import { requireAuth } from '../../auth/middleware'
-import { etag, jsonBody, extForMime, mimeForPath, sniffImageMime } from '../../lib/http'
+import { etag, jsonBody, extForMime, mimeForPath, sniffImageMime, isHtmx } from '../../lib/http'
 import { trFor, localeOf } from '../../lib/i18n'
 import { githubClient, type GitHubConfig } from '../../services/github'
 import { purgeShotBytes, shotStoreFor } from '../../services/shotstore'
@@ -15,7 +15,7 @@ import type { Config, ProjectRow, UserRow } from '../../types'
 import { toastHtml, getOwnedProject, STATUS_LABEL } from '../../lib/html'
 import { noteSchema, reorderSchema, sparkFolderSchema, updateProjectSchema, createProjectSchema, listProjectsSchema } from '../../validation/schemas'
 import type { SparkFolderRow } from '../../types'
-import { loadProjectProgress } from './helpers'
+import { loadProjectProgress, STALE_IN_MOTION_STATUSES, staleCutoffIso } from './helpers'
 import type { SparkHit } from './helpers'
 import {
   loadTags, loadProjectSignals,
@@ -55,8 +55,8 @@ export function projectsRoutes(cfg: Config) {
     // done, spark = raw capture — all excluded by design.
     const staleMode = query.success && query.data.stale === '1'
     if (staleMode) {
-      conds.push("status IN ('planning','queued','developing')", 'updated_at < ?')
-      params.push(new Date(Date.now() - 14 * 24 * 3600 * 1000).toISOString())
+      conds.push(`status IN ${STALE_IN_MOTION_STATUSES}`, 'updated_at < ?')
+      params.push(staleCutoffIso())
     }
     if (query.success && query.data.status) {
       conds.push('status = ?')
@@ -137,7 +137,7 @@ export function projectsRoutes(cfg: Config) {
       params,
     )
     const tagsMap = await loadTags(cfg, user.id)
-    if (c.req.header('HX-Request')) {
+    if (isHtmx(c)) {
       // S75: the stale view renders FIRST — it is a dedicated landing surface (banner +
       // the list), not a variation of the grid/glance flows below. The stage glance
       // rail is deliberately absent: the banner IS the context. view=grid degrades to
@@ -450,7 +450,7 @@ export function projectsRoutes(cfg: Config) {
         }
       })
     }
-    if (c.req.header('HX-Request')) {
+    if (isHtmx(c)) {
       // S161 (spec #6): a captured spark lands on the LEAN detail page — /spark.html —
       // not the heavy project template (the whole point of the redesign).
       c.header('HX-Redirect', body.status === 'spark' ? `/spark.html?id=${id}` : `/project.html?id=${id}`)
@@ -475,7 +475,7 @@ export function projectsRoutes(cfg: Config) {
         ])
       })
     })
-    if (c.req.header('HX-Request')) return c.html('')
+    if (isHtmx(c)) return c.html('')
     return c.json({ ok: true })
   })
 
@@ -650,7 +650,7 @@ export function projectsRoutes(cfg: Config) {
     // S161 (spec #6): a spark's HX detail request hands off to the LEAN page — the
     // heavy template renders projects only. The JSON path is unaffected (the rail
     // + quick-add still read sparks as rows).
-    if (c.req.header('HX-Request')) {
+    if (isHtmx(c)) {
       if (p.status === 'spark') {
         c.header('HX-Redirect', `/spark.html?id=${p.id}`)
         return c.html('')
@@ -720,7 +720,7 @@ export function projectsRoutes(cfg: Config) {
         [uuid(), p.id, body.latest_note, now],
       )
     }
-    if (c.req.header('HX-Request')) return c.html(toastHtml(t('Saved', 'ذخیره شد'), lang, undefined, 'ok'))
+    if (isHtmx(c)) return c.html(toastHtml(t('Saved', 'ذخیره شد'), lang, undefined, 'ok'))
     return c.json({ ok: true })
   })
 
@@ -748,7 +748,7 @@ export function projectsRoutes(cfg: Config) {
         new Date().toISOString(), new Date().toISOString(), p.id, user.id,
       ])
     }
-    if (c.req.header('HX-Request')) {
+    if (isHtmx(c)) {
       return c.html(toastHtml(t('Deleted "{title}".', '«{title}» حذف شد', { title: p.title }), lang, canHardDelete && force ? undefined : `/api/projects/${p.id}/restore`, 'ok'))
     }
     return c.json({ ok: true, soft: !(canHardDelete && force) })
@@ -767,7 +767,7 @@ export function projectsRoutes(cfg: Config) {
     await cfg.db.execute('UPDATE projects SET deleted_at = NULL, updated_at = ? WHERE id = ? AND user_id = ?', [
       new Date().toISOString(), c.req.param('id'), user.id,
     ])
-    if (c.req.header('HX-Request')) return c.html(toastHtml(t('Restored', 'بازگردانی شد'), lang, undefined, 'ok'))
+    if (isHtmx(c)) return c.html(toastHtml(t('Restored', 'بازگردانی شد'), lang, undefined, 'ok'))
     return c.json({ ok: true })
   })
 
@@ -785,7 +785,7 @@ export function projectsRoutes(cfg: Config) {
     await cfg.db.execute('INSERT INTO project_history_log (id, project_id, note, created_at) VALUES (?, ?, ?, ?)', [
       uuid(), p.id, `Revived → ${STATUS_LABEL[body.status]}`, now,
     ])
-    if (c.req.header('HX-Request')) {
+    if (isHtmx(c)) {
       c.header('HX-Redirect', `/project.html?id=${p.id}`)
       return c.html('')
     }
@@ -811,7 +811,7 @@ export function projectsRoutes(cfg: Config) {
     await cfg.db.execute('INSERT INTO project_history_log (id, project_id, note, created_at) VALUES (?, ?, ?, ?)', [
       uuid(), p.id, t('Archived — parked, not deleted', 'بایگانی شد — کنار گذاشته، نه حذف'), now,
     ])
-    if (c.req.header('HX-Request')) return c.html(toastHtml(t('Archived "{title}". Find it under Archive.', '«{title}» بایگانی شد. در «آرشیو» پیدایش می‌کنی.', { title: p.title }), lang, `/api/projects/${p.id}/unarchive`, 'ok'))
+    if (isHtmx(c)) return c.html(toastHtml(t('Archived "{title}". Find it under Archive.', '«{title}» بایگانی شد. در «آرشیو» پیدایش می‌کنی.', { title: p.title }), lang, `/api/projects/${p.id}/unarchive`, 'ok'))
     return c.json({ ok: true, archived: true })
   })
 
@@ -830,13 +830,13 @@ export function projectsRoutes(cfg: Config) {
     ])
     // The Archive shelf's restore button re-renders the SHELF fragment (shelf=1) so
     // the row disappears in place; other callers get the undo toast.
-    if (c.req.header('HX-Request') && c.req.query('shelf') === '1') {
+    if (isHtmx(c) && c.req.query('shelf') === '1') {
       const conds = ["archived_state = 'offline'", 'deleted_at IS NULL', 'user_id = ?']
       const rest = await cfg.db.query<ProjectRow>(`SELECT * FROM projects WHERE ${conds.join(' AND ')} ORDER BY updated_at DESC`, [user.id])
       const tagsMap = await loadTags(cfg, user.id)
       return c.html(archiveShelfHtml(rest, tagsMap, lang))
     }
-    if (c.req.header('HX-Request')) return c.html(toastHtml(t('Restored "{title}"', '«{title}» بازگردانی شد', { title: p.title }), lang, undefined, 'ok'))
+    if (isHtmx(c)) return c.html(toastHtml(t('Restored "{title}"', '«{title}» بازگردانی شد', { title: p.title }), lang, undefined, 'ok'))
     return c.json({ ok: true, archived: false })
   })
 
@@ -860,7 +860,7 @@ export function projectsRoutes(cfg: Config) {
         uuid(), p.id, body.note, now,
       ])
     }
-    if (c.req.header('HX-Request')) return c.html(toastHtml(t('Note saved', 'یادداشت ذخیره شد'), lang, undefined, 'ok'))
+    if (isHtmx(c)) return c.html(toastHtml(t('Note saved', 'یادداشت ذخیره شد'), lang, undefined, 'ok'))
     return c.json({ ok: true })
   })
 

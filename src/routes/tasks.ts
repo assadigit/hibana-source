@@ -15,7 +15,7 @@
 
 import { Hono } from 'hono'
 import { requireAuth } from '../auth/middleware'
-import { etag, esc } from '../lib/http'
+import { etag, esc, isHtmx } from '../lib/http'
 import { localeOf, trL, type Locale } from '../lib/i18n'
 import { faDigits } from '../lib/jalali'
 import { timeAgo } from '../lib/html'
@@ -119,7 +119,7 @@ export function ovTasksRoutes(cfg: Config) {
           [user.id, status],
         ),
       )
-    if (c.req.header('HX-Request')) return await etag(c, c.html(ovTasksHtml(rows, status, lang)))
+    if (isHtmx(c)) return await etag(c, c.html(ovTasksHtml(rows, status, lang)))
     return c.json({ status, tasks: rows })
   })
 

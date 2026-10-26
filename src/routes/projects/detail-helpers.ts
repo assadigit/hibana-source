@@ -8,7 +8,7 @@ import {
   timeAgo,
 } from '../../lib/html'
 import { trL, type Locale } from '../../lib/i18n'
-import { faDigits, toJalali } from '../../lib/jalali'
+import { faDigits, toJalali, J_MONTHS_FA, G_MONTHS_EN_AB } from '../../lib/jalali'
 import { loadBacklog, taskTagsForProject, PRIO_ORDER_SQL, type BacklogEvent, type TaskTagJoin } from '../devboard-helpers'
 import type { CategoryRow } from '../../lib/categories'
 import { shotsGridHtml } from '../core'
@@ -195,8 +195,9 @@ export function detailHtml(p: ProjectRow, d: Awaited<ReturnType<typeof loadDetai
   // Task meta line (user request 2026-09-03): date + CLOCK — Jalali + FA digits when fa,
   // Gregorian + 12h clock when en; UTC edge like the board page (rule 3). Done tasks
   // freeze on their done_at with a ✓, everything else shows created_at.
-  const PD_J_MONTHS = ['فروردین', 'اردیبهشت', 'خرداد', 'تیر', 'مرداد', 'شهریور', 'مهر', 'آبان', 'آذر', 'دی', 'بهمن', 'اسفند']
-  const PD_G_MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+  // Month tables: shared from lib/jalali (CQ-6 — were local copies of J_MONTHS_FA / G_MONTHS_EN_AB).
+  const PD_J_MONTHS = J_MONTHS_FA
+  const PD_G_MONTHS = G_MONTHS_EN_AB
   const taskMetaLabel = (t: DevTaskRow): string => {
     const done = t.status === 'done' && t.done_at
     const dt = new Date(done || t.created_at)

@@ -1,7 +1,7 @@
 import { Hono, type Context } from 'hono'
 import { z } from 'zod'
 import { requireAuth } from '../auth/middleware'
-import { esc, jsonBody, etag } from '../lib/http'
+import { esc, jsonBody, etag, isHtmx } from '../lib/http'
 import { icon, quadrantGlyph } from '../lib/html'
 import { legacyTaskNote, sadhanaTaskControls, type SadhanaTaskNote } from '../lib/sadhana-task-controls'
 import { localeOf, trL, type Locale, type Vars } from '../lib/i18n'
@@ -107,7 +107,7 @@ export function sadhanaRoutes(cfg: Config) {
     return { user, lang: localeOf(c), cal: calendarFor(localeOf(c)), tz: user.timezone, today: todayIn(user.timezone) }
   }
   const zone = (html: string, extraClass = '') => `<div class="sadhana-zone${extraClass ? ` ${extraClass}` : ''}" id="sadhana-zone">${html}</div>`
-  const isHx = (c: Context) => c.req.header('HX-Request') !== undefined
+  const isHx = (c: Context) => isHtmx(c)
 
   // ---- rendering helpers -----------------------------------------------------------
   const t = (lang: Locale, en: string, fa: string, vars?: Vars) => trL(lang, en, fa, vars)

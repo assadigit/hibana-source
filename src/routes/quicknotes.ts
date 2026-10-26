@@ -2,7 +2,7 @@ import { Hono, type Context } from 'hono'
 import type { ContentfulStatusCode } from 'hono/utils/http-status'
 import { z } from 'zod'
 import { requireAuth } from '../auth/middleware'
-import { esc, jsonBody, etag } from '../lib/http'
+import { esc, jsonBody, etag, isHtmx } from '../lib/http'
 import { icon } from '../lib/html'
 import { localeOf, trL } from '../lib/i18n'
 import { uuid } from '../lib/ids'
@@ -96,7 +96,7 @@ export function quickNotesRoutes(cfg: Config) {
     // list is capped (100 here, 20 on the dashboard render); without the count the link
     // can't say how much is hiding beyond the cap. One indexed COUNT, same filter.
     const total = await countNotes(user.id)
-    return await etag(c, c.req.header('HX-Request') ? await widget(c, notes, composerMode(c)) : json(c, { notes, total }))
+    return await etag(c, isHtmx(c) ? await widget(c, notes, composerMode(c)) : json(c, { notes, total }))
   })
 
   // S65: the ARCHIVE — every quick note ever captured, paginated, optionally anchored.
@@ -204,7 +204,7 @@ export function quickNotesRoutes(cfg: Config) {
     }
     const notes = await activeNotes(user.id)
     // Keep the composer in the mode that just created the note (list flow stays on List).
-    return c.req.header('HX-Request') ? await widget(c, notes, body.kind, 201) : json(c, { ok: true, id }, 201)
+    return isHtmx(c) ? await widget(c, notes, body.kind, 201) : json(c, { ok: true, id }, 201)
   })
 
   // Edit the title or the raw content of a note/list — or attach/detach it to a project.
@@ -240,7 +240,7 @@ export function quickNotesRoutes(cfg: Config) {
       await cfg.db.execute(`UPDATE quick_notes SET ${sets.join(', ')} WHERE id = ? AND user_id = ?`, [...params, n.id, user.id])
     }
     const notes = await activeNotes(user.id)
-    return c.req.header('HX-Request') ? await widget(c, notes, composerMode(c)) : json(c, { ok: true })
+    return isHtmx(c) ? await widget(c, notes, composerMode(c)) : json(c, { ok: true })
   })
 
   // Attach-picker fragment (htmx): the user's live projects as one-tap attach buttons.
@@ -297,7 +297,7 @@ export function quickNotesRoutes(cfg: Config) {
       JSON.stringify(items), now, n.id, user.id,
     ])
     const notes = await activeNotes(user.id)
-    return c.req.header('HX-Request') ? await widget(c, notes, composerMode(c)) : json(c, { ok: true })
+    return isHtmx(c) ? await widget(c, notes, composerMode(c)) : json(c, { ok: true })
   })
 
   // Toggle a task done/undone (item id lives in the note's content JSON).
@@ -317,7 +317,7 @@ export function quickNotesRoutes(cfg: Config) {
       JSON.stringify(items), now, note.id, user.id,
     ])
     const notes = await activeNotes(user.id)
-    return c.req.header('HX-Request') ? await widget(c, notes, composerMode(c)) : json(c, { ok: true })
+    return isHtmx(c) ? await widget(c, notes, composerMode(c)) : json(c, { ok: true })
   })
 
   // Remove a task from a list.
@@ -335,7 +335,7 @@ export function quickNotesRoutes(cfg: Config) {
       JSON.stringify(items), now, note.id, user.id,
     ])
     const notes = await activeNotes(user.id)
-    return c.req.header('HX-Request') ? await widget(c, notes) : json(c, { ok: true })
+    return isHtmx(c) ? await widget(c, notes) : json(c, { ok: true })
   })
 
   // Soft-delete the whole note — undo-toast stays honest for 7 days (Q2), then purged.
@@ -382,7 +382,7 @@ export function quickNotesRoutes(cfg: Config) {
     }
     await cfg.db.execute('UPDATE quick_notes SET deleted_at = ?, updated_at = ? WHERE id = ? AND user_id = ?', [now, now, n.id, user.id])
     const notes = await activeNotes(user.id)
-    return c.req.header('HX-Request') ? await widget(c, notes, composerMode(c)) : json(c, { ok: true, id: n.id, target: body.target })
+    return isHtmx(c) ? await widget(c, notes, composerMode(c)) : json(c, { ok: true, id: n.id, target: body.target })
   })
 
   // Undo delete (restores within the 7-day window).
@@ -398,7 +398,7 @@ export function quickNotesRoutes(cfg: Config) {
       now, rows[0].id, user.id,
     ])
     const notes = await activeNotes(user.id)
-    return c.req.header('HX-Request') ? await widget(c, notes, composerMode(c)) : json(c, { ok: true })
+    return isHtmx(c) ? await widget(c, notes, composerMode(c)) : json(c, { ok: true })
   })
 
   // Sticky-note view reorder (2026-08-25): the client ships the full order; stray ids are
@@ -424,7 +424,7 @@ export function quickNotesRoutes(cfg: Config) {
       ])
     }
     const notes = await activeNotes(user.id)
-    return c.req.header('HX-Request') ? await widget(c, notes, composerMode(c)) : json(c, { ok: true })
+    return isHtmx(c) ? await widget(c, notes, composerMode(c)) : json(c, { ok: true })
   })
 
   return app

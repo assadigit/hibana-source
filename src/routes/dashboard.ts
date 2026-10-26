@@ -1,7 +1,7 @@
 import { Hono } from 'hono'
 import { requireAuth } from '../auth/middleware'
 import { html, raw, toString, type SafeHtml } from '../lib/htmlx'
-import { etag } from '../lib/http'
+import { etag, isHtmx } from '../lib/http'
 import { localeOf, trFor } from '../lib/i18n'
 import { calendarFor, faDigits, formatDateLong } from '../lib/jalali'
 import { QUADRANT_GLYPHS, STATUS_BADGE, STATUS_ICON, icon, quadrantGlyph, statusLabel, timeAgo } from '../lib/html'
@@ -10,7 +10,7 @@ import { QUADRANTS, orderedQuadrants, todayIn, type SadhanaTask } from '../servi
 import { QUADRANT_ACCENTS } from './sadhana-helpers'
 import { PROJECT_STAGES } from '../types'
 import type { Config, ProjectRow, ProjectStatus, UserRow } from '../types'
-import { dashboardOverviewRowHtml, loadOverviewData } from './projects/helpers'
+import { dashboardOverviewRowHtml, loadOverviewData, STALE_IN_MOTION_STATUSES, staleCutoffIso } from './projects/helpers'
 import { attachedTitles, notebookHtml, type QuickNote } from './quicknotes'
 
 // Phase 0: this route is the proof-of-concept for the typed htmlx builder. Every user value
@@ -159,10 +159,10 @@ export function dashboardRoutes(cfg: Config) {
       cfg.db.query<ProjectRow>(
         `SELECT id, title, status, updated_at FROM projects
          WHERE user_id = ? AND deleted_at IS NULL AND (archived_state IS NULL OR archived_state != 'offline')
-           AND status IN ('planning','queued','developing')
+           AND status IN ${STALE_IN_MOTION_STATUSES}
            AND updated_at < ?
          ORDER BY updated_at ASC LIMIT 3`,
-        [user.id, new Date(Date.now() - 14 * 24 * 3600 * 1000).toISOString()],
+        [user.id, staleCutoffIso()],
       ),
       // S124 (owner wireframe): the dashboard's projects section gets the SAME overview
       // the projects home wears — the open-tasks donut + recent boxes ride the new
@@ -219,7 +219,7 @@ export function dashboardRoutes(cfg: Config) {
     // Keep the JSON field for API compatibility; the dashboard no longer renders the metric.
     const data = { counts, recent, recents: activeProjects, solvedThisWeek: solvedThisWeek[0]?.n ?? 0, notes, urgent: urgentTasks, urgentTotal }
 
-    if (c.req.header('HX-Request')) {
+    if (isHtmx(c)) {
       const t = trFor(c)
       const lang = localeOf(c)
       const num = (v: number | string): string => (lang === 'fa' ? faDigits(String(v)) : String(v))

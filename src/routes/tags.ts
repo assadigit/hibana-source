@@ -1,7 +1,7 @@
 import { Hono } from 'hono'
 import { z } from 'zod'
 import { requireAuth } from '../auth/middleware'
-import { esc, etag, jsonBody } from '../lib/http'
+import { esc, etag, jsonBody, isHtmx } from '../lib/http'
 import { icon } from '../lib/html'
 import { trFor } from '../lib/i18n'
 import { uuid } from '../lib/ids'
@@ -56,7 +56,7 @@ export function tagsRoutes(cfg: Config) {
       'SELECT t.* FROM tags t WHERE t.user_id = ? ORDER BY t.usage_count DESC, t.name',
       [user.id],
     )
-    if (c.req.header('HX-Request')) {
+    if (isHtmx(c)) {
       const res = c.html(chipsHtml(tags, t))
       // The SAME url serves JSON (fetch clients) and HTML (htmx) — the browser HTTP
       // cache must never cross-serve them (the S43 bug class this route closed).
@@ -160,7 +160,7 @@ export function tagsRoutes(cfg: Config) {
     if (!rows.length) return errJson(c, ErrorCode.not_found)
     if ((rows[0].usage_count ?? 0) > 0) return errJson(c, ErrorCode.tag_in_use)
     await cfg.db.execute('DELETE FROM tags WHERE id = ?', [c.req.param('id')])
-    if (c.req.header('HX-Request')) {
+    if (isHtmx(c)) {
       const t = trFor(c)
       const tags = await cfg.db.query<TagRow>(
         'SELECT t.* FROM tags t WHERE t.user_id = ? ORDER BY t.usage_count DESC, t.name',

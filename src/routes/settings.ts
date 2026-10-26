@@ -1,7 +1,7 @@
 import { Hono } from 'hono'
 import { z } from 'zod'
 import { requireAuth } from '../auth/middleware'
-import { jsonBody, extForMime, mimeForPath, sniffImageMime } from '../lib/http'
+import { jsonBody, extForMime, mimeForPath, sniffImageMime, isHtmx } from '../lib/http'
 import { toastHtml } from '../lib/html'
 import { localeOf, trFor } from '../lib/i18n'
 import { calendarFor } from '../lib/jalali'
@@ -202,7 +202,7 @@ export function settingsRoutes(cfg: Config) {
     params.push(calendarFor(body.language_pref ?? c.get('user').language_pref))
     params.push(user.id)
     await cfg.db.execute(`UPDATE users SET ${sets.join(', ')} WHERE id = ?`, params)
-    if (c.req.header('HX-Request')) return c.html(toastHtml(t('Preferences saved', 'ترجیحات ذخیره شد'), localeOf(c), undefined, 'ok'))
+    if (isHtmx(c)) return c.html(toastHtml(t('Preferences saved', 'ترجیحات ذخیره شد'), localeOf(c), undefined, 'ok'))
     return c.json({ ok: true })
   })
 

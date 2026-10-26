@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { QUADRANT_GLYPH_IDS, QUADRANT_GLYPHS } from '../lib/html'
 import { type Locale } from '../lib/i18n'
 import type { UserRow } from '../types'
 import { uuidSchema, isoDateSchema } from '../validation/schemas'
@@ -107,8 +108,8 @@ export const quadrantOrderSchema = z.object({
   }
 })
 export const updateSchema = z.object({ text: z.string().trim().min(1).max(500) })
-export const QUADRANT_ICONS = ['gear', 'target', 'star', 'heart', 'flag', 'folder-plus', 'calendar', 'book', 'idea', 'bell', 'mountain', 'leaf'] as const
-export const GLYPH_IDS = new Set<string>(QUADRANT_ICONS) // glyph ids vs plain-emoji icon values
+export const QUADRANT_ICONS = QUADRANT_GLYPH_IDS // canonical array lives in lib/html.ts (CQ-6 — was an identical literal)
+export const GLYPH_IDS = QUADRANT_GLYPHS // glyph ids vs plain-emoji icon values
 // S93 (owner round, item 6: "let user assign colors — offer 16 colors — for each
 // quadrant, pastel"): the swatch palette grows 8 → 16 tokens. Every token resolves to a
 // CSS --accent-* custom property (variables.css + themes.css + claude-dark-theme.css);

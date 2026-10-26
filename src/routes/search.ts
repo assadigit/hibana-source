@@ -1,6 +1,6 @@
 import { Hono } from 'hono'
 import { requireAuth } from '../auth/middleware'
-import { esc, etag } from '../lib/http'
+import { esc, etag, isHtmx } from '../lib/http'
 import { STATUS_BADGE, timeAgo } from '../lib/html'
 import { localeOf, trFor } from '../lib/i18n'
 import { searchSchema } from '../validation/schemas'
@@ -163,7 +163,7 @@ export function searchRoutes(cfg: Config) {
       snippet: snippetOf(r.content && r.content.toLowerCase().includes(lowerQ) ? r.content : r.title),
     }))
 
-    if (c.req.header('HX-Request')) {
+    if (isHtmx(c)) {
       const t = trFor(c)
       const lang = localeOf(c)
       const body = projects.map(

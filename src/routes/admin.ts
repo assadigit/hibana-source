@@ -5,7 +5,7 @@ import { requireAuth } from '../auth/middleware'
 import { isBanned } from '../auth/ban'
 import { toastHtml } from '../lib/html'
 import { localeOf, trFor } from '../lib/i18n'
-import { jsonBody, requestOrigin } from '../lib/http'
+import { jsonBody, requestOrigin, isHtmx } from '../lib/http'
 import { appUrlOf } from '../lib/app-url'
 import { log } from '../lib/log'
 import { banUserSchema, roleUserSchema, removeUserSchema, customEmailSchema, broadcastEmailSchema, BAN_PRESET_MS } from '../validation/schemas'
@@ -371,7 +371,7 @@ export function adminRoutes(cfg: Config) {
         repo: cfg.github.repo,
         token: cfg.github.token,
       }, undefined, BACKUP_RETENTION_DEFAULT, cfg.backupEncryptionKey)
-      if (c.req.header('HX-Request')) return c.html(toastHtml(t('Backup committed: {path}', 'پشتیبان ثبت شد: {path}', { path: result.path }), localeOf(c)))
+      if (isHtmx(c)) return c.html(toastHtml(t('Backup committed: {path}', 'پشتیبان ثبت شد: {path}', { path: result.path }), localeOf(c)))
       return c.json({ ok: true, ...result }, 201)
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err)
@@ -412,7 +412,7 @@ export function adminRoutes(cfg: Config) {
       if (sent.length === 0) {
         return c.json({ ok: false, skipped: 'every send failed — see error log' }, 502)
       }
-      if (c.req.header('HX-Request')) {
+      if (isHtmx(c)) {
         return c.html(toastHtml(t('Plan B backup sent to {n} chat(s)', 'پشتیبان Plan B به {n} چت ارسال شد', { n: sent.length }), localeOf(c)))
       }
       return c.json({ ok: true, sent, pruned }, 201)
@@ -598,7 +598,7 @@ export function adminRoutes(cfg: Config) {
       tx.sql('DELETE FROM sessions WHERE expires_at < ?', [cutoff])
       tx.sql('DELETE FROM rate_limits WHERE window_start < ?', [Math.floor(Date.now() / 1000) - 24 * 3600])
     })
-    if (c.req.header('HX-Request')) return c.html(toastHtml(t('Purged {n} deleted project(s), {m} note(s), {k} to-do(s), + expired sessions', '{n} پروژهٔ حذف‌شده، {m} یادداشت، {k} کار لیست، + نشست‌های منقضی پاک شد', { n: gone.length, m: goneNotes.length, k: goneSadhana.length }), localeOf(c)))
+    if (isHtmx(c)) return c.html(toastHtml(t('Purged {n} deleted project(s), {m} note(s), {k} to-do(s), + expired sessions', '{n} پروژهٔ حذف‌شده، {m} یادداشت، {k} کار لیست، + نشست‌های منقضی پاک شد', { n: gone.length, m: goneNotes.length, k: goneSadhana.length }), localeOf(c)))
     return c.json({ ok: true, purged: gone.length, purgedNotes: goneNotes.length, purgedTodos: goneSadhana.length })
   })
 

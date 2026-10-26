@@ -281,7 +281,7 @@ export function registrationRoutes(cfg: Config) {
     const rows = user.role === 'owner'
       ? await cfg.db.query<InviteRow>('SELECT * FROM invites ORDER BY created_at DESC')
       : await cfg.db.query<InviteRow>('SELECT * FROM invites WHERE created_by = ? ORDER BY created_at DESC', [user.id])
-    if (c.req.header('HX-Request')) {
+    if (isHtmx(c)) {
       return c.html(
         rows
           .map((inv) => `<li class="row spread"><code>${inv.code}</code><span class="muted small">${inv.used_at ? 'used' : 'available'} · ${inv.created_at}</span></li>`)
@@ -297,7 +297,7 @@ export function registrationRoutes(cfg: Config) {
     await cfg.db.execute('INSERT INTO invites (id, code, created_by, created_at) VALUES (?, ?, ?, ?)', [
       uuid(), code, user.id, new Date().toISOString(),
     ])
-    if (c.req.header('HX-Request')) {
+    if (isHtmx(c)) {
       return c.html(
         `<li class="row spread"><code>${code}</code><button class="ghost" onclick="navigator.clipboard.writeText('${code}')">copy</button></li>`,
       )

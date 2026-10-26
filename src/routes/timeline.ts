@@ -1,7 +1,7 @@
 import { Hono } from 'hono'
 import { z } from 'zod'
 import { requireAuth } from '../auth/middleware'
-import { etag } from '../lib/http'
+import { etag, isHtmx } from '../lib/http'
 import { STATUS_BADGE, timeAgo, icon } from '../lib/html'
 import { localeOf, trL, type Locale } from '../lib/i18n'
 import type { Config, UserRow } from '../types'
@@ -74,7 +74,7 @@ export function timelineRoutes(cfg: Config) {
     const page = items.slice(0, limit)
     const nextCursor = page.length === limit ? page[page.length - 1]?.ts : null
 
-    if (c.req.header('HX-Request')) {
+    if (isHtmx(c)) {
       const lang = localeOf(c)
       const html2 = page.map((it) => feedItemHtml(it, lang)).join('')
       return await etag(c, c.html(html2))

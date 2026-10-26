@@ -1,5 +1,6 @@
 import { githubClient, type GitHubClient, type GitHubConfig } from './github'
 import { categoriesUserScoped } from '../lib/categories'
+import { log } from '../lib/log'
 import type { Db } from '../db/types'
 
 // Database protection (user priority). Full snapshot of every user-owned table, committed
@@ -160,7 +161,7 @@ export async function buildSnapshot(db: Db): Promise<Snapshot> {
   if (missing.length) {
     // Loud, not silent: the errorlog row makes the gap visible to the admin panel,
     // and missing_tables rides in the snapshot itself.
-    console.warn(`[backup] missing tables skipped (migration not applied?): ${missing.join(', ')}`)
+    log.warn('backup_missing_tables', { tables: missing.join(','), hint: 'migration not applied?' })
   }
   return {
     schema_version: 20260926,

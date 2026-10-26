@@ -1,4 +1,5 @@
 import type { Db } from '../db/types'
+import { log } from '../lib/log'
 import type { ProjectRow, TagRow, HurdleRow, LinkRow, ScreenshotRow, PaymentRow, TaskRow, DevTaskRow, TaskCategory, SprintRow, BacklogDocRow, NoteFolderRow, VaultNoteRow } from '../types'
 
 // Obsidian vault EXPORT (session 15, user request): the mirror of the §9 Obsidian import.
@@ -194,7 +195,7 @@ export async function buildObsidianVault(
     const msg = err instanceof Error ? err.message : String(err)
     if (!/no such table/i.test(msg)) throw err
     missing.push('note_folders', 'vault_notes')
-    console.warn(`[obsidian-export] vault tables not migrated yet — exporting without the Notes section (${msg})`)
+    log.warn('obsidian_vault_tables_missing', { err: msg, note: 'exporting without the Notes section' })
   }
   const todoTasks = await db.query<SadhanaRow>(
     'SELECT id, quadrant, title, emoji, fuzzy, due_date, due_time, done, progress, note, recurring, recur_type, created_at, updated_at FROM sadhana_tasks WHERE user_id = ? AND deleted_at IS NULL ORDER BY quadrant, position',

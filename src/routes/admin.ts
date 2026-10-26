@@ -719,7 +719,7 @@ export async function scheduledPurge(cfg: Config): Promise<void> {
     // not in an unbounded table).
     tx.sql('DELETE FROM error_log WHERE created_at < ?', [cutoff])
   })
-  console.log(`purged ${gone.length} rows, ${goneNotes.length} notes, ${goneSadhana.length} todos`)
-  // P3.1 (F-M12): structured log alongside the legacy line (kept for grep continuity).
+  // P3.1 (F-M12): the structured line is the only emitter (the legacy console.log
+  // double-emit was removed in Phase 3 — one logging helper, one line).
   log.info('purge_complete', { projects: gone.length, notes: goneNotes.length, todos: goneSadhana.length })
 }

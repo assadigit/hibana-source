@@ -2,6 +2,7 @@ import { serve } from '@hono/node-server'
 import { existsSync, mkdirSync, readFileSync, statSync } from 'node:fs'
 import { extname, join, sep } from 'node:path'
 import { gzipSync } from 'node:zlib'
+import { log } from './lib/log'
 import { createApp } from './app'
 import { createSqliteDb } from './db/sqlite'
 import { applyMigrations } from './db/migrate-node'
@@ -148,12 +149,12 @@ const app = createApp(cfg)
 // (a detached local Node instance that vanished between requests was impossible to debug
 // without this). These never run on the Workers path (src/index.ts is the Worker entry).
 process.on('uncaughtException', (err) => {
-  console.error('[FATAL] uncaughtException:', err?.stack || err)
+  log.error('fatal_uncaught_exception', { err: err instanceof Error ? { message: err.message, stack: err.stack } : String(err) })
 })
 process.on('unhandledRejection', (reason) => {
-  console.error('[FATAL] unhandledRejection:', reason)
+  log.error('fatal_unhandled_rejection', { err: reason instanceof Error ? { message: reason.message, stack: reason.stack } : String(reason) })
 })
 
 serve({ fetch: app.fetch, port: Number(process.env.PORT ?? 3000) }, (info) => {
-  console.log(`Hibana (Node) listening on http://localhost:${info.port} — db: ${dbPath}`)
+  log.info('node_listening', { url: `http://localhost:${info.port}`, db: dbPath })
 })

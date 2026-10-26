@@ -1,6 +1,7 @@
 import { sendTelegramMessage } from './telegram'
 import { esc } from '../lib/http'
 import { appUrlOf } from '../lib/app-url'
+import { log } from '../lib/log'
 import type { Config } from '../types'
 import type { Db } from '../db/types'
 
@@ -238,7 +239,7 @@ export async function runSadhanaReminders(cfg: Config, onDate?: string, nowTzMin
       }
       sent++
     } catch (err) {
-      console.error(`sadhana reminder failed for ${t.id}:`, err)
+      log.error('sadhana_reminder_failed', { taskId: t.id, err: err instanceof Error ? err.message : String(err) })
     }
   }
   return sent

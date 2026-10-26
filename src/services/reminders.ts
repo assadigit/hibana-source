@@ -2,6 +2,7 @@ import { sendAndLog } from './email'
 import { sendTelegramMessage } from './telegram'
 import { clientProgress, isBehindPace, elapsedFraction } from './progress'
 import { esc } from '../lib/http'
+import { log } from '../lib/log'
 import { queryIn } from '../lib/inchunk'
 import { appUrlOf } from '../lib/app-url'
 import type { Config, ProjectRow, TaskRow, UserRow } from '../types'
@@ -90,7 +91,8 @@ export async function runReminders(cfg: Config, ownerEmail: string): Promise<num
         })
         sent++
       } catch (err) {
-        console.error(`reminder email failed for project ${id}:`, err) // Phase 1 (SC-9): id, not the user-authored title
+        // Phase 1 (SC-9): id, not the user-authored title
+        log.error('reminder_email_failed', { projectId: id, err: err instanceof Error ? err.message : String(err) })
       }
     }
 
@@ -106,7 +108,8 @@ export async function runReminders(cfg: Config, ownerEmail: string): Promise<num
         )
         sent++
       } catch (err) {
-        console.error(`reminder telegram failed for project ${id}:`, err) // Phase 1 (SC-9): id, not the user-authored title
+        // Phase 1 (SC-9): id, not the user-authored title
+        log.error('reminder_telegram_failed', { projectId: id, err: err instanceof Error ? err.message : String(err) })
       }
     }
   }

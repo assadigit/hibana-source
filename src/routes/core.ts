@@ -2,6 +2,7 @@ import { Hono } from 'hono'
 import { z } from 'zod'
 import { requireAuth } from '../auth/middleware'
 import { esc, jsonBody, sniffFileMime, type SniffedFileMime } from '../lib/http'
+import { log } from '../lib/log'
 import { getOwnedProject, icon, toastHtml } from '../lib/html'
 import { localeOf, trFor, trL, type Locale } from '../lib/i18n'
 import { uuid } from '../lib/ids'
@@ -163,7 +164,7 @@ async function ownedProjectId(cfg: Config, userId: string, table: string, record
 }
 
 export function coreRoutes(cfg: Config) {
-  const app = new Hono<{ Variables: { user: UserRow } }>()
+  const app = new Hono<{ Variables: { user: UserRow; reqId?: string } }>()
   app.use('*', requireAuth(cfg))
 
   // Session-9 F1 (2026-09-14): NO leading slash. The GitHub Contents API 422s on
@@ -783,7 +784,7 @@ export function coreRoutes(cfg: Config) {
     if (skipped > 0) {
       // Server-side signal for an edit the client could never land (over-cap content,
       // a shape a newer client sends that this server doesn't know, etc.).
-      console.warn('[canvas] sync skipped', skipped, 'invalid element(s) for user', user.id.slice(0, 8))
+      log.warn('canvas_sync_skipped', { skipped, user: user.id.slice(0, 8), reqId: c.get('reqId') })
     }
 
     // The offline queue can hold several writes for the same element in one batch (IndexedDB

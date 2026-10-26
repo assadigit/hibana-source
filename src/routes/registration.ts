@@ -2,6 +2,7 @@ import { Hono, type MiddlewareHandler } from 'hono'
 import { z } from 'zod'
 import { requireAuth } from '../auth/middleware'
 import { hashPassword } from '../auth/password'
+import { log } from '../lib/log'
 import { createSession, sessionCookieHeader } from '../auth/sessions'
 import { isHtmx, jsonBody, requestOrigin } from '../lib/http'
 import { emailLinkOrigin } from '../lib/app-url'
@@ -21,7 +22,7 @@ import type { Config, InviteRow, UserRow } from '../types'
 // off (it is temporarily open by decision — Ali can open/close it via wrangler.toml).
 
 export function registrationRoutes(cfg: Config) {
-  const app = new Hono<{ Variables: { user: UserRow } }>()
+  const app = new Hono<{ Variables: { user: UserRow; reqId?: string } }>()
 
   // Spec §15: same auth bucket as login/reset — public endpoints that would otherwise be
   // spammable (30 req/60s per IP). htmx gets a swappable fragment (2xx) — a 4xx JSON body
@@ -169,7 +170,7 @@ export function registrationRoutes(cfg: Config) {
         lastError = err
         // Phase 1 (SC-9): no provider internals on stdout — the failure reason lives in
         // email_log via sendAndLog's own catch; this marker is for correlating retries.
-        console.error('signup email send failed (attempt', attempt + 1, ') — reason in email_log')
+        log.error('signup_email_send_failed', { attempt: attempt + 1, reason: 'see email_log', reqId: c.get('reqId') })
       }
     }
     if (lastError) {

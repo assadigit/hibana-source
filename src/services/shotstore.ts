@@ -4,6 +4,7 @@
 // (kv → r2 → github), instead of orphaning objects in the bucket when a project dies.
 import type { Config } from '../types'
 import { queryIn } from '../lib/inchunk'
+import { log } from '../lib/log'
 import { githubClient, type GitHubConfig } from './github'
 import { r2Storage, type ObjectStore } from './r2'
 import { kvStorage } from './kv'
@@ -47,6 +48,6 @@ export async function purgeShotBytes(cfg: Config, projectIds: string[]): Promise
     // Never throw — orphaned bytes are a space leak, never a data-loss risk (the rows
     // are going away either way). But AP-20: log it — a silent failure here used to
     // leave orphans with zero signal.
-    console.warn('[shotstore] purgeShotBytes failed (bytes may orphan):', err instanceof Error ? err.message : err)
+    log.warn('shotstore_purge_failed', { err: err instanceof Error ? err.message : String(err), hint: 'bytes may orphan' })
   }
 }

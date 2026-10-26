@@ -4,19 +4,24 @@
 > Resume protocol (PLAYBOOK §4): if this file exists, do NOT restart — resume from the recorded step.
 > Update this file after every commit.
 
-Last updated: 2026-10-26 — Phase 2 COMPLETE (milestone M2 met, tag `autopilot-phase-2-done` @ de85a4d)
+Last updated: 2026-10-26 — Phase 3 STARTED (branch `autopilot/phase-3-refactor` from main @ 41d9676)
 
 ## Current phase
 
-- Phase: **2 — Bug hunt and fixes (correctness) — COMPLETE**. Phase 0 COMPLETE (tag `autopilot-phase-0-done` @ 08b17bb); Phase 1 COMPLETE (tag `autopilot-phase-1-done` @ f097f87).
-- Next action: Phase 3 (codebase review and refactor — behavior-preserving) per PLAYBOOK §5.
-- Phase 2 plan (steps, each verified by red-then-green tests per PLAYBOOK §5 Phase 2):
-  1. **AP-1 fix** — offline-queue 5xx retry counter never persists (`public/js/queue.js` — getAll returns structured clones; retries bump is lost; MAX_RETRIES drop is dead code in real browsers). Flip the green characterization test to the fixed contract.
-  2. **AP-15 fix** — node:sqlite adapter concurrent-transaction 500s (serialize transactions per connection with an async mutex; D1 unaffected).
-  3. **Parallel read-only hunt subagents** (reports untrusted — every claimed bug verified with a failing test before any fix): (a) static sweep — empty/log-only catches, floating promises, TODO/FIXME/HACK, `any`/non-null assertions, Date misuse; (b) runtime parity D1 vs node:sqlite — transactions, last_insert_rowid, boolean/null, ordering w/o ORDER BY, case sensitivity, JSON/date strings, error types, parameter binding; (c) dates/calendars/i18n/RTL — Jalali edges, "last updated"/"recent activity", week/month report boundaries, missing keys, logical CSS; (d) state rules + data integrity — status transitions, hard-delete restrictions, progress calc, reorder persistence, orphaned rows, migration idempotency, export completeness; (e) canvas offline queue + htmx/Alpine lifecycle + integrations failure/idempotency.
-  4. **AP-2 flake hunt** — s207 kanban-frame geometry nondeterminism (offsets 31/3/57/57 across CI runs; passes 5/5 locally); make the spec deterministic or find the runner-side root cause.
-  5. Every confirmed bug → AUDIT.md entry + failing test BEFORE the fix → fix commit.
-  6. Ship Gate (§3): verify → merge ff to main → push → deploy dev → smoke:remote dev → shotcheck dev → deploy prod → smoke:remote prod → shotcheck prod → purge → tag `autopilot-phase-2-done` → STATE/REPORT records.
+- Phase: **3 — Codebase review and refactor (behavior-preserving)**. Phase 0 COMPLETE (`autopilot-phase-0-done` @ 08b17bb); Phase 1 COMPLETE (`autopilot-phase-1-done` @ f097f87); Phase 2 COMPLETE (`autopilot-phase-2-done` @ de85a4d).
+- Resume context: sandbox reset again → fresh clone of main @ 41d9676 (matches the Phase 2 close-out record), `.secrets.env` recreated, `bun install`, `npm run verify` green (744/744) on the fresh clone, dev+prod health OK (schema 63), CF token verified live.
+- Phase 3 baseline metrics (measured this session, non-test src/): 3 `any` mentions (1 real: vendor fabric-shim; 2 comments); 5 non-null assertions (auth.ts:40, sadhana.ts:123, admin.ts:546-548); 0 @ts-ignore; 85 `as` casts; 336 ad-hoc `c.json({error:…})` sites vs 10 ApiError sites; 54 distinct error-code strings (top: not_found 117, invalid_input 110); 21 sites carry extra keys (17 message / 4 detail); 14 raw console.* sites outside log.ts; **50 leaf functions >60 lines** (worst: telegram.ts:65 560L, createApp 396L, projects/index.ts:34 361L, handleCallback 281L) + 24 route-factory containers >60L (Phase 4's file-splitting domain, recorded-reason class); **7 functions with nesting >4** (detail-helpers detailHtml 8d + renderTitle 8d, markdown highlightCode 6d, projects/index.ts 6d, admin scheduledBackup 5d, server serveFile 5d). tsconfig strictness flags measured: noImplicitOverride 0 errors, noFallthroughCasesInSwitch 0, noImplicitReturns 1 (Hono middleware tail), exactOptionalPropertyTypes 98, noPropertyAccessFromIndexSignature 150, noUncheckedIndexedAccess 642.
+- Phase 3 plan (PLAYBOOK §5 Phase 3; every step behavior-preserving, `npm run verify` green per commit):
+  1. **AP-40 strictness increments** — enable noImplicitOverride + noFallthroughCasesInSwitch + noImplicitReturns (fix the 1 middleware tail with `return next()`); DEBT-record exactOptionalPropertyTypes / noPropertyAccessFromIndexSignature / noUncheckedIndexedAccess with measured error counts + reasons.
+  2. **Parallel read-only hunts** (reports untrusted, verified before acting): (a) duplication of knowledge — shared query fragments / htmx response helpers / repeated row→DTO mappings on their 2nd/3rd real use; (b) dead code — exports/functions PROVEN unused incl. dynamic htmx/Alpine/HTML usage checks.
+  3. **AP-41 logging consolidation** — every raw console.* in non-test src/ routes through the leveled `log` helper (events named, no secrets); log.ts stays the single emitter.
+  4. **AP-42 error model consolidation** — extend the ErrorCode registry to all ~54 live codes (additive); typed return-style helper producing BYTE-IDENTICAL bodies (`{error: code}` + preserved extras/status); convert routes file-by-file; any code-at-wrong-status discovery is AUDIT-logged and fixed in a SEPARATE test-first commit (refactor commits must not change behavior).
+  5. **AP-43 assertion/any cleanup** — 5 non-null assertions replaced with real guards; http.ts:73 any typed.
+  6. **AP-44.. function extraction worst-first** (HTTP-level suite = the safety net): projects/detail-helpers.ts (renderTitle 8d + detailHtml 8d/855L), telegram.ts (560L webhook + handleCallback 281L), projects/index.ts (361L/6d), markdown.ts highlightCode (6d), admin.ts scheduledBackup (5d), server.ts serveFile (5d), then the 60-150L tier; target: leaf >60L count 50 → ≤10 (rest DEBT-recorded with reasons), nesting >4 → 0.
+  7. **Verified audit findings** applied (duplication extraction; PROVEN-unused deletions listed in REPORT).
+  8. **AP-50 docs refresh** — README quick-start, AGENTS.md, .env.example matched to the real stack/commands.
+  9. **AP-51 keep-the-gate** — `scripts/check-fn-lengths.mjs` (leaf >60L + nesting >4 check with a committed allowlist of recorded reasons) wired into `npm run verify`; formatter decision (prettier) — configure + one mechanical format commit late in the phase ONLY if the suite stays green and the build pipeline is unaffected, else DEBT with reason.
+  10. Ship Gate (§3): verify → merge ff to main → push → deploy dev → smoke:remote dev → shotcheck dev → deploy prod → smoke:remote prod → shotcheck prod → purge → tag `autopilot-phase-3-done` → STATE/REPORT records.
 
 ## Session log
 

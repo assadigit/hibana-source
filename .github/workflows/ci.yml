@@ -56,12 +56,15 @@ jobs:
           npm install --package-lock-only --ignore-scripts --no-audit
           npm audit --omit=dev --audit-level=high
 
-      # Code quality: eslint (catches unused vars, prefer-const, no-undef, etc.)
-      # S199 (HLTH-3): --max-warnings 0 — the 162-warning baseline died this round;
-      # warning drift is now structurally impossible (tsconfig noUnusedLocals/
-      # noUnusedParameters mirror the same discipline at type level).
-      - name: ESLint (0 warnings ratchet)
-        run: npx eslint src/ --max-warnings 0
+      # Autopilot Phase 0 (PLAYBOOK §5): ONE command — `npm run verify` — runs the full
+      # local gate ladder (typecheck + eslint 0-warning ratchet + vitest + build +
+      # portability check). The steps it replaced (eslint / build / typecheck / unit
+      # tests, run as four separate CI steps) are now exactly what verify runs, in the
+      # same order, so local and CI can never drift apart. The repo-specific gates that
+      # follow (escape-lint, bundle/precache budgets, cache-bust, i18n parity, smoke,
+      # dist-wiring, workers smoke, Lighthouse) stay as explicit CI steps.
+      - name: Verify (typecheck + lint + unit tests + build + portability)
+        run: bun run verify
 
       # Security: XSS escape-lint (S199, SEC-1) — every innerHTML/insertAdjacentHTML
       # template in public/js must interpolate only esc()-wrapped or structurally-safe
@@ -69,12 +72,10 @@ jobs:
       - name: Escape-lint (XSS gate)
         run: node scripts/check-escape-lint.mjs
 
-      - name: Build assets
-        run: bun run build
-
       # Bundle-size tracking: fails if /dist/ grows >15% total or >25% per file.
       # S200 (PERF-4): per-file compare keyed on LOGICAL manifest names — hashed
       # filenames used to make the guard structurally dead (a re-hash = "new file").
+      # (verify already built /dist — the sizes below read that output.)
       - name: Bundle-size check
         run: node scripts/check-bundle-size.mjs
 
@@ -83,17 +84,11 @@ jobs:
       - name: Precache-size check
         run: node scripts/check-precache-size.mjs
 
-      - name: Typecheck
-        run: bun run typecheck
-
       - name: Cache-bust check
         run: node scripts/check-cache-bust.mjs
 
       - name: i18n parity check
         run: node scripts/check-i18n-parity.mjs
-
-      - name: Unit tests
-        run: bun run test
 
       - name: Smoke test
         run: bun run smoke

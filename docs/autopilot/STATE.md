@@ -13,6 +13,7 @@ Last updated: 2026-10-26 (bootstrap commit — find it via `git log --oneline --
 
 ## Session log
 
+- **2026-10-26 (Phase 0, verify + CI):** `npm run verify` created (typecheck + eslint 0-warnings + vitest + build + portability, ~76 s green) and `npm run lint`; ci.yml now runs verify as its single quality entry point (the four replaced steps are exactly what verify runs, same order). M1/M2 from the pre-flight audit closed.
 - **2026-10-26 (Phase 0, portability gate):** scripts/check-portability.mjs added (npm run check:portability) — fails on Node-only/Workers-only imports outside the 4 adapter layers; negative-tested (injected violation caught, exit 1).
 - **2026-10-26 (Phase 0 work):** baseline ladder recorded (typecheck 0 errors · eslint 0 warnings · build 85 entries · vitest 685/685 · smoke ALL PASS · workers-smoke ALL PASS · all repo gates PASS · npm audit 0). Full inventory + baseline numbers + finding AP-1 written to AUDIT.md.
 - **2026-10-26 (session start):** Autopilot prompt persisted byte-verbatim as `docs/autopilot/PLAYBOOK.md` (SHA-256 `9e87e415…692b67`). State files initialized. A read-only pre-flight verification of the repo against the prompt's project facts was performed and recorded in `AUDIT.md` ("Pre-flight verification"). **No code, config, or behavior was changed** — this bootstrap is docs-only.

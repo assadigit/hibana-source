@@ -141,16 +141,22 @@ window.hibanaQueue = (() => {
         else if (authBlocked(res)) { state = 'auth'; emit(); return false }
         else if (invalidInput(res)) await remove(canvasBatch.map((i) => i.id)) // permanently invalid — stop retrying
         else if (res.status >= 500) {
-          // Server error — bump retry counts, drop items that exceeded MAX_RETRIES
+          // Server error — bump retry counts, drop items that exceeded MAX_RETRIES.
+          // PERSISTENCE (AUDIT AP-1, fixed): getAll() returns structured clones, so the
+          // bumped counter must be written back or it silently resets to 0 on every
+          // flush — which made the MAX_RETRIES drop unreachable and left items queued
+          // forever on persistent 5xx. Survivors are now re-put (and mirrored) on EVERY
+          // 5xx, not just inside the drop branch.
           const drop = canvasBatch.filter((i) => (i.retries = (i.retries || 0) + 1) >= MAX_RETRIES)
           if (drop.length > 0) {
             console.warn('[queue] dropping', drop.length, 'canvas items after', MAX_RETRIES, 'failed syncs (server error)')
             await remove(drop.map((i) => i.id))
-            // Re-queue the survivors with their updated retry count
-            const survivors = canvasBatch.filter((i) => !drop.includes(i))
-            for (const s of survivors) {
-              await withStore('readwrite', (store) => store.put(s))
-            }
+          }
+          // Re-queue the survivors with their updated retry count
+          const survivors = canvasBatch.filter((i) => !drop.includes(i))
+          for (const s of survivors) {
+            mirror.set(s.id, s)
+            await withStore('readwrite', (store) => store.put(s))
           }
           state = 'idle'; emit(); return false
         }
@@ -170,9 +176,16 @@ window.hibanaQueue = (() => {
         else if (authBlocked(res)) { state = 'auth'; emit(); return false } // keep the idea — re-auth and retry
         else if (invalidInput(res)) await remove([item.id]) // permanently invalid — stop retrying
         else if (res.status >= 500) {
-          if ((item.retries = (item.retries || 0) + 1) >= MAX_RETRIES) {
+          // AUDIT AP-1 (fixed): persist the bumped counter — same structured-clone
+          // rule as the canvas batch above; without the write-back this loop never
+          // reached MAX_RETRIES on the Node/self-host path either.
+          item.retries = (item.retries || 0) + 1
+          if (item.retries >= MAX_RETRIES) {
             console.warn('[queue] dropping project', item.id, 'after', MAX_RETRIES, 'failed syncs')
             await remove([item.id])
+          } else {
+            mirror.set(item.id, item)
+            await withStore('readwrite', (store) => store.put(item))
           }
           state = 'idle'; emit(); return false
         }

@@ -261,27 +261,73 @@ describe('offline queue — flush verdict matrix (characterization)', () => {
     expect(await h.queue.count()).toBe(0)
   })
 
-  it('CHARACTERIZED BUG (AUDIT AP-1): 5xx retries never persist — the item stays queued forever (the MAX_RETRIES=5 drop cannot trigger in a real browser)', async () => {
-    // queue.js bumps `retries` on the object it read via getAll() — but real IndexedDB
-    // returns STRUCTURED CLONES, so the bump is lost when the row is never re-put.
-    // The re-put only happens inside `if (drop.length > 0)`, which requires retries ≥ 5,
-    // which requires persistence → the drop branch is unreachable dead code. The
-    // shipped fix for the "1836 failed syncs / 45 stuck unsynced" incident does not
-    // actually work. Pinned here as CURRENT behavior; Phase 2 fixes it test-first
-    // (see docs/autopilot/AUDIT.md AP-1).
+  it('REGRESSION (AUDIT AP-1 fixed): 5xx retry counters PERSIST across flushes — the item drops after MAX_RETRIES=5', async () => {
+    // queue.js used to bump `retries` on the object it read via getAll() — but real
+    // IndexedDB returns STRUCTURED CLONES, so the bump was lost when the row was never
+    // re-put. The re-put only happened inside `if (drop.length > 0)`, which requires
+    // retries ≥ 5, which requires persistence → the drop branch was unreachable dead
+    // code: items stayed queued forever on persistent 5xx (the very incident the drop
+    // was shipped to fix). Phase 2 fix: survivors are re-put (and mirrored) on EVERY
+    // 5xx, so the counter accumulates across flushes and the drop triggers at 5.
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
     const h = loadQueue({ responses: Array.from({ length: 20 }, () => ({ status: 500 })) })
     await h.queue.enqueue(canvasItem('flaky'))
     try {
-      for (let i = 1; i <= 10; i += 1) {
+      for (let i = 1; i <= 4; i += 1) {
         const ok = await h.queue.flush()
         expect(ok).toBe(false)
-        expect(await h.queue.count()).toBe(1) // still queued after every 5xx — never drops
+        expect(await h.queue.count()).toBe(1) // still queued — within the retry budget
       }
-      expect(warn).not.toHaveBeenCalledWith('[queue] dropping', 1, 'canvas items after', 5, 'failed syncs (server error)')
+      // the counter PERSISTED: the stored row itself now carries retries=4
+      const pending = h.stores.get('pending') as Map<string, unknown>
+      const row = [...pending.values()][0] as { retries: number }
+      expect(row.retries).toBe(4)
+
+      // 5th consecutive 5xx → MAX_RETRIES reached → dropped with the warning
+      const ok = await h.queue.flush()
+      expect(ok).toBe(false)
+      expect(await h.queue.count()).toBe(0)
+      expect(warn).toHaveBeenCalledWith('[queue] dropping', 1, 'canvas items after', 5, 'failed syncs (server error)')
     } finally {
       warn.mockRestore()
     }
+  })
+
+  it('REGRESSION (AUDIT AP-1 fixed, project path): a project item\'s retry counter persists and it drops on the 5th 5xx', async () => {
+    // Same structured-clone bug on the /api/projects loop: the bump was never written
+    // back, so a persistently-failing server kept the item queued forever.
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    const h = loadQueue({ responses: Array.from({ length: 20 }, () => ({ status: 500 })) })
+    await h.queue.enqueue(projectItem('server on fire'))
+    try {
+      for (let i = 1; i <= 4; i += 1) {
+        const ok = await h.queue.flush()
+        expect(ok).toBe(false)
+        expect(await h.queue.count()).toBe(1)
+      }
+      const pending = h.stores.get('pending') as Map<string, unknown>
+      const row = [...pending.values()][0] as { retries: number }
+      expect(row.retries).toBe(4)
+
+      const ok = await h.queue.flush()
+      expect(ok).toBe(false)
+      expect(await h.queue.count()).toBe(0)
+      expect(warn).toHaveBeenCalledWith('[queue] dropping project', expect.any(String), 'after', 5, 'failed syncs')
+    } finally {
+      warn.mockRestore()
+    }
+  })
+
+  it('REGRESSION (AP-1): a 200 after partial 5xx failures resets nothing stale — the item syncs normally', async () => {
+    // A successful flush must clear the item regardless of its persisted retry count
+    // (the counter only ever gates the persistent-5xx drop; it must not block a 200).
+    const h = loadQueue({ responses: [{ status: 500 }, { status: 500 }, { status: 200 }] })
+    await h.queue.enqueue(canvasItem('recovers'))
+    await h.queue.flush()
+    await h.queue.flush()
+    const ok = await h.queue.flush()
+    expect(ok).toBe(true)
+    expect(await h.queue.count()).toBe(0)
   })
 
   it('project items POST one-by-one to /api/projects and refresh the rail on success', async () => {

@@ -121,7 +121,8 @@ export function sadhanaRoutes(cfg: Config) {
   // an empty line; only a quadrant the user has never renamed falls back to the built-in one.
   const qSubtitle = (q: number, subtitles: Map<number, string | null>, lang: Locale): string => {
     if (subtitles.has(q)) return subtitles.get(q) ?? ''
-    return t(lang, QUADRANTS.find((x) => x.id === q)!.subtitle.en, QUADRANTS.find((x) => x.id === q)!.subtitle.fa)
+    const builtin = QUADRANTS.find((x) => x.id === q)?.subtitle
+    return builtin ? t(lang, builtin.en, builtin.fa) : ''
   }
 
   const deadlineHtml = (task: SadhanaTask, lang: Locale, tz: string, cal: 'gregorian' | 'shamsi'): string => {

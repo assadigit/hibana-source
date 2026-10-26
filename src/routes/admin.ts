@@ -540,16 +540,12 @@ export function adminRoutes(cfg: Config) {
       }
     }
     const nameOf = new Map(users.map((u) => [u.id, u]))
-    const topUsers = [...byUser.entries()]
-      .filter(([id]) => nameOf.has(id)) // orphaned rows (hard-deleted user cascade gap) never rank
-      .map(([id, rec]) => ({
-        id,
-        username: nameOf.get(id)!.username,
-        email: nameOf.get(id)!.email,
-        last_seen_at: nameOf.get(id)!.last_seen_at,
-        score: rec.score,
-        parts: rec.parts,
-      }))
+    const topUsers = [...byUser.entries()].flatMap(([id, rec]) => {
+      // Orphaned rows (hard-deleted user cascade gap) never rank — one lookup, no assertion.
+      const u = nameOf.get(id)
+      if (!u) return []
+      return [{ id, username: u.username, email: u.email, last_seen_at: u.last_seen_at, score: rec.score, parts: rec.parts }]
+    })
       .sort((a, b) => b.score - a.score || a.email.localeCompare(b.email))
       .slice(0, 10)
     // Zero-fill the last 14 days (oldest → newest) so the chart never has gaps.

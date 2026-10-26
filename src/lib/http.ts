@@ -69,9 +69,9 @@ export function mimeForPath(path: string): string {
 // deliberately input-loose and always returns the validated *output* type.
 // S202 (UX-13, zod 3→4): v4's ZodType is <Output, Input, Internals> — the old
 // v3-style <T, any, any> (Internals = any) breaks T's inference (call sites saw {});
-// the 2-arg form infers T from the schema's Output and accepts any Input.
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export async function jsonBody<T>(c: Context, schema: import('zod').ZodType<T, any>): Promise<T | null> {
+// the 2-arg form infers T from the schema's Output. Input is unknown here — we feed
+// the schema whatever the request body parsed to, never a typed Input.
+export async function jsonBody<T>(c: Context, schema: import('zod').ZodType<T, unknown>): Promise<T | null> {
   const contentType = c.req.header('Content-Type') ?? ''
   let parsed: unknown
   try {

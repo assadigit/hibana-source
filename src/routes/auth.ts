@@ -37,8 +37,10 @@ const USER_FIELDS = ['id', 'username', 'email', 'role', 'avatar_path'] as const
 // reason rides on a new line. Both halves are escaped — they come from the DB, not us.
 function banNoticeHtml(u: Pick<UserRow, 'banned_until' | 'ban_reason'>) {
   // L8 fix: treat both the legacy 'forever' sentinel and the new BANNED_FOREVER_DATE as permanent
-  const isPermanent = !u.banned_until || u.banned_until === 'forever' || u.banned_until === BANNED_FOREVER_DATE
-  const until = isPermanent ? '' : ` — until ${esc(u.banned_until!.slice(0, 16).replace('T', ' '))} UTC`
+  const until =
+    u.banned_until && u.banned_until !== 'forever' && u.banned_until !== BANNED_FOREVER_DATE
+      ? ` — until ${esc(u.banned_until.slice(0, 16).replace('T', ' '))} UTC`
+      : ''
   const reason = u.ban_reason ? `<br>${esc(u.ban_reason)}` : ''
   return `This account is suspended${until}.${reason}`
 }

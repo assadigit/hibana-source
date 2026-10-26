@@ -13,6 +13,7 @@ Last updated: 2026-10-26 (bootstrap commit — find it via `git log --oneline --
 
 ## Session log
 
+- **2026-10-26 (Phase 0, characterization tests):** 39 new tests in 5 files — logout route + cookie attribute contract (had ZERO tests), hard-delete status matrix ×6, project edit round-trip + status history, Jalali oracles/leap/Nowruz/200-year sweep/client-server parity, offline-queue unit harness (evaluates the REAL public/js/queue.js against a faithful fake IndexedDB — discovered AP-1). Suite: 685/685.
 - **2026-10-26 (Phase 0, verify + CI):** `npm run verify` created (typecheck + eslint 0-warnings + vitest + build + portability, ~76 s green) and `npm run lint`; ci.yml now runs verify as its single quality entry point (the four replaced steps are exactly what verify runs, same order). M1/M2 from the pre-flight audit closed.
 - **2026-10-26 (Phase 0, portability gate):** scripts/check-portability.mjs added (npm run check:portability) — fails on Node-only/Workers-only imports outside the 4 adapter layers; negative-tested (injected violation caught, exit 1).
 - **2026-10-26 (Phase 0 work):** baseline ladder recorded (typecheck 0 errors · eslint 0 warnings · build 85 entries · vitest 685/685 · smoke ALL PASS · workers-smoke ALL PASS · all repo gates PASS · npm audit 0). Full inventory + baseline numbers + finding AP-1 written to AUDIT.md.

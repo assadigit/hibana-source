@@ -322,15 +322,6 @@ export interface ScreenshotRow {
   bytes?: number
 }
 
-export interface ChangelogRow {
-  id: string
-  project_id: string
-  github_path: string
-  filename: string
-  content_text: string
-  uploaded_at: string
-}
-
 export interface InviteRow {
   id: string
   code: string

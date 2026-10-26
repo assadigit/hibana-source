@@ -86,9 +86,6 @@ export function resolveModel(model: string | undefined | null): string {
   return DEFAULT_AI_MODEL
 }
 
-/** Back-compat: the original constant name (used by existing tests). Points at the default. */
-export const AI_MODEL = DEFAULT_AI_MODEL
-
 /** Hard cap on input length (idea §1 guard). >4000 chars → HTTP 400; never reaches the model. */
 export const MAX_INPUT_CHARS = 4000
 

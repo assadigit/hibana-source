@@ -2,7 +2,6 @@ import { z } from 'zod'
 import { uuid } from '../../lib/ids'
 import { esc } from '../../lib/http'
 import { sendTelegramMessage, editMessageText, type ReplyMarkup } from '../../services/telegram'
-import { trL } from '../../lib/i18n'
 import { QUADRANTS, orderedQuadrants } from '../../services/sadhana'
 import type { Db } from '../../db/types'
 
@@ -19,13 +18,6 @@ import type { Db } from '../../db/types'
 // '/' — this is deliberate: coreRoutes has a global requireAuth middleware that would
 // otherwise intercept the (public) Telegram webhook. Root-level routes are matched first
 // and are not subject to the mounted apps' wildcard middleware.
-
-export const tgApi = (token: string, method: string, body: Record<string, unknown>) =>
-  fetch(`https://api.telegram.org/bot${token}/${method}`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
-  })
 
 export const UPDATE_SCHEMA = z.object({
   message: z
@@ -140,7 +132,6 @@ export async function insertIdea(db: Db, userId: string, raw: string, telegramUs
 
 // ---- i18n + keyboard helpers (bilingual, emoji-anchored; FA keyboards render LTR) --
 export const t = (lang: Lang, en: string, fa: string): string => (lang === 'fa' ? fa : en)
-export const tr = (lang: Lang, en: string, fa: string, vars?: Record<string, string | number>): string => trL(lang, en, fa, vars)
 export const truncate = (s: string, n: number): string => (s.length > n ? s.slice(0, n - 1) + '…' : s)
 
 export function kb(rows: NonNullable<ReplyMarkup['inline_keyboard']>): ReplyMarkup {

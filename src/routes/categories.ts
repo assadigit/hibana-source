@@ -18,7 +18,7 @@ import { requireAuth } from '../auth/middleware'
 import { jsonBody } from '../lib/http'
 import { getOwnedProject } from '../lib/html'
 import { uuid } from '../lib/ids'
-import { CAT_PAIRS, categoriesUserScoped, isValidCatPair, normCatName, type CategoryRow } from '../lib/categories'
+import { categoriesUserScoped, isValidCatPair, normCatName, type CategoryRow } from '../lib/categories'
 import type { Config, UserRow } from '../types'
 import { errJson, ErrorCode } from '../lib/errors'
 
@@ -236,6 +236,3 @@ export function categoriesRoutes(cfg: Config) {
   return app
 }
 
-// The 16 tiles re-exported for the swatch-grid renderers (server-side HTML builders
-// read this — the client reads the --cat-sw-* tokens from variables.css).
-export { CAT_PAIRS }

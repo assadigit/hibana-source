@@ -105,13 +105,6 @@ export const createTagSchema = z.object({
   color: z.string().regex(/^#[0-9a-fA-F]{6}$/).optional(),
 })
 
-export const updateTagSchema = z.object({
-  name: z.string().min(1).max(50).optional(),
-  color: z.string().regex(/^#[0-9a-fA-F]{6}$/).optional(),
-})
-
-export const mergeTagsSchema = z.object({ fromId: z.string().uuid(), toId: z.string().uuid() })
-
 export const createLinkSchema = z.object({
   id: z.string().uuid().optional(),
   label: z.string().min(1).max(100).optional().default('Link'),

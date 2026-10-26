@@ -149,6 +149,3 @@ function escapeHtml(s: string): string {
   return String(s ?? '').replace(/[&<>"']/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[ch]!)
 }
 
-// Re-export for potential test use
-export { feedItemHtml }
-export type { FeedItem }

@@ -186,21 +186,6 @@ export function sadhanaTaskControls(
   </div>`
 }
 
-/**
- * Standalone status-track: three small dots (one per state, current filled, others
- * outlined) with the state label inline. Kept for the dashboard preview's compact
- * affordance — the dashboard does NOT use the new expand/collapse card (it has its
- * own simpler row). Returns '' for done tasks (no progress on a completed card).
- */
-export function taskStatusTrack(task: SadhanaTask, lang: Locale): string {
-  if (task.done === 1) return ''
-  const current = STATES.find((s) => s.id === task.progress) ?? STATES[0]
-  const statuses = STATES.map(
-    (state) => `<button type="button" class="task-status-dot status-${state.tone} ${current.id === state.id ? 'is-current' : ''}" data-task-progress="${state.id}" data-task-id="${esc(task.id)}" aria-pressed="${current.id === state.id}" aria-label="${label(lang, state.en, state.fa)}" title="${label(lang, state.en, state.fa)}"><span aria-hidden="true"></span></button>`,
-  ).join('')
-  return `<span class="task-status-track" role="group" data-task-id="${esc(task.id)}" aria-label="${label(lang, 'Progress status', 'وضعیت پیشرفت')}">${statuses}<span class="task-status-label">${label(lang, current.en, current.fa)}</span></span>`;
-}
-
 export function legacyTaskNote(task: SadhanaTask): SadhanaTaskNote | null {
   return task.note.trim()
     ? { id: `legacy:${task.id}`, task_id: task.id, text: task.note, created_at: task.updated_at, legacy: true }

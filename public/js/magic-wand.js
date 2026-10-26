@@ -38,6 +38,9 @@
   ].join(',')
 
   // --- i18n with EN fallbacks (so the wand is usable before hibanaI18n loads) ----
+  // Phase 1 (P1-c B4): the canonical 5-char escaper (same shape as app.js/sadhana-page/
+  // notes-page) for the toast path above — the toast sink is innerHTML by contract.
+  function esc(s) { return String(s ?? '').replace(/[&<>"']/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[ch]) }
   const FALLBACK = {
     'magic.tooltip': 'AI: polish or translate',
     'magic.title': 'Magic wand',
@@ -438,9 +441,14 @@
       // S77: the server's ApiError body carries a localized, specific `message`
       // (wrong-language, rate-limit, model-failure…). Prefer it over the old status-code
       // guesses — a 503 wrong_language used to show the misleading “Workers only” string.
+      // Phase 1 (P1-c B4, SC-12 hardening): the toast sink renders via innerHTML (app.js
+      // H2 contract: callers MUST escape) — the server-provided string is plain text, so
+      // it is esc()'d here. Today every /api/ai/text message is a developer-authored
+      // string, but this closes the latent sink the day any ApiError detail ever echoes
+      // user input.
       let msg = t('magic.failed')
       const body = res ? await res.json().catch(() => null) : null
-      if (body && typeof body.message === 'string' && body.message.trim()) msg = body.message
+      if (body && typeof body.message === 'string' && body.message.trim()) msg = esc(body.message)
       else if (res && res.status === 503) msg = t('magic.workersOnly')
       else if (res && res.status === 400) msg = t('magic.tooLong')
       toast(msg, 'err')

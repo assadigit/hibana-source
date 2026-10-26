@@ -87,7 +87,7 @@ export async function runReminders(cfg: Config, ownerEmail: string): Promise<num
         })
         sent++
       } catch (err) {
-        console.error(`reminder email failed for ${title}:`, err)
+        console.error(`reminder email failed for project ${id}:`, err) // Phase 1 (SC-9): id, not the user-authored title
       }
     }
 
@@ -103,7 +103,7 @@ export async function runReminders(cfg: Config, ownerEmail: string): Promise<num
         )
         sent++
       } catch (err) {
-        console.error(`reminder telegram failed for ${title}:`, err)
+        console.error(`reminder telegram failed for project ${id}:`, err) // Phase 1 (SC-9): id, not the user-authored title
       }
     }
   }

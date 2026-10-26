@@ -46,10 +46,15 @@ function resendEmail(apiKey: string | undefined, from = 'Hibana <noreply@hibana.
   return {
     async send(to, subject, html, attachments) {
       if (!apiKey) throw new Error('Resend API key not configured')
+      // Phase 1 (P1-c B5, PLAYBOOK §5): every outbound integration call carries a
+      // timeout — a stalled Resend connection otherwise hangs the auth flow riding it
+      // (register/reset) or a cron step. 15s is beyond any observed Resend latency;
+      // the only sibling without one before this. (telegram 25s/60s, healthchecks 10s.)
       const res = await fetch('https://api.resend.com/emails', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
         body: JSON.stringify({ from, to: [to], subject, html, ...(attachments?.length ? { attachments } : {}) }),
+        signal: AbortSignal.timeout(15_000),
       })
       if (!res.ok) throw new Error(`Resend send failed (${res.status}): ${await res.text()}`)
     },

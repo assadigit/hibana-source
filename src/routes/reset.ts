@@ -63,9 +63,12 @@ export function resetRoutes(cfg: Config) {
         title: 'بازنشانی گذرواژه — Password reset',
         bodyHtml: resetEmailHtml(link),
       })
-    } catch (err) {
+    } catch {
+      // Phase 1 (SC-9, P1-c C1): this route is PUBLIC and unauthenticated — the old
+      // body returned the raw provider error (Resend response internals) to anonymous
+      // callers. Generic code only; the failure reason is in email_log for ops.
       if (isHtmx(c)) return hxError(c, "We couldn't send the reset email — please try again in a minute.")
-      return c.json({ error: err instanceof Error ? err.message : 'email not configured' }, 503)
+      return c.json({ error: 'email_send_failed' }, 503)
     }
     return isHtmx(c) ? c.html(sent) : c.json({ ok: true })
   })

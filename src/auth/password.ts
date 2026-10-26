@@ -83,3 +83,15 @@ export function needsRehash(stored: PasswordHash): boolean {
 }
 
 // timingSafeEqual moved to src/lib/crypto.ts (P2.2 / F-L28).
+/**
+ * Phase 1 (P1-b IO-3): login-timing equalizer. For unknown accounts the login route
+ * burns one PBKDF2 verification against this throwaway hash so the latency of
+ * "no such user" matches "wrong password" — the account-existence timing oracle is
+ * closed. The dummy hash is derived from an unguessable random secret, computed once
+ * per isolate and cached; the verification result is discarded by design.
+ */
+let dummyHashPromise: Promise<PasswordHash> | undefined
+export async function burnDummyVerify(password: string): Promise<void> {
+  dummyHashPromise ??= hashPassword(`${crypto.randomUUID()}|no-such-account`)
+  await verifyPassword(password, await dummyHashPromise)
+}

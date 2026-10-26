@@ -32,6 +32,9 @@ export const RATE_RULES = {
   // use (the Magic Button is a per-task action, not a bulk operation) but stops a
   // runaway script from burning the free-tier neuron budget (10k/day).
   ai: { name: 'ai', limit: 20, windowSec: 60 },
+  // Phase 1 (P1-b A7): invite-by-email sender — each request is a Resend API call plus
+  // an invite row; 5/60s per IP is far beyond human need (share codes by chat instead).
+  inviteEmail: { name: 'inviteEmail', limit: 5, windowSec: 60 },
 } as const satisfies Record<string, RateRule>
 
 /**

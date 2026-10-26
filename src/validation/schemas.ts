@@ -115,12 +115,16 @@ export const mergeTagsSchema = z.object({ fromId: z.string().uuid(), toId: z.str
 export const createLinkSchema = z.object({
   id: z.string().uuid().optional(),
   label: z.string().min(1).max(100).optional().default('Link'),
-  url: z.string().url().max(2000),
+  // Phase 1 (P1-b IO-1): Zod's .url() accepts ANY scheme — a javascript:/data: URL
+  // stored here renders as href="javascript:…" in the links fragment (escaping
+  // neutralizes markup, not URI schemes). Same https?:-only rule the markdown renderer
+  // already enforces (lib/markdown.ts). http(s) only, case-insensitive.
+  url: z.string().url().max(2000).regex(/^https?:\/\//i, 'Links must use http(s)'),
 })
 
 export const updateLinkSchema = z.object({
   label: z.string().min(1).max(100).optional(),
-  url: z.string().url().max(2000).optional(),
+  url: z.string().url().max(2000).regex(/^https?:\/\//i, 'Links must use http(s)').optional(),
 })
 
 // Screenshot uploads arrive as base64 JSON (the client reads the File first).

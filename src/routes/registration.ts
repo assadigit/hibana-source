@@ -37,6 +37,14 @@ export function registrationRoutes(cfg: Config) {
   app.use('/register', authLimiter)
   app.use('/verify', authLimiter)
   app.use('/verify/resend', authLimiter)
+  // Phase 1 (P1-b A7): dedicated bucket for the authenticated invite-email sender —
+  // JSON-only 429 (the caller is fetch(), not an htmx form).
+  const inviteEmailLimiter: MiddlewareHandler = async (c, next) => {
+    if (await hitRateLimit(cfg.db, RATE_RULES.inviteEmail, clientIp(c))) {
+      return c.json({ error: 'rate_limited' }, 429)
+    }
+    return next()
+  }
 
   // Math human-check (2026-08-30 (e)): issue an HMAC-signed arithmetic question. Never
   // cached (no-store) — a stale question would fail its own expiry check on submit, but
@@ -109,13 +117,33 @@ export function registrationRoutes(cfg: Config) {
 
     const id = uuid()
     const now = new Date().toISOString()
+    // Phase 1 (P1-b IO-2, SEC-5 pattern): burn the invite ATOMICALLY, before the insert.
+    // The old check-then-act (SELECT … WHERE used_at IS NULL, then UPDATE inside the
+    // transaction) let two concurrent registrations with the same code both pass the
+    // SELECT and both create accounts — D1's serialized writes don't serialize a guard
+    // that is a READ. One conditional UPDATE whose rowcount decides (the same fix SEC-5
+    // applied to reset tokens). Burn-first costs a fresh invite on the rare post-burn
+    // failure — the safe direction, never a double-spend.
+    // used_by is NOT set here: it carries an FK to users(id), and the account it names
+    // does not exist yet — single-use rides on used_at alone; used_by lands after the
+    // insert (bookkeeping on an already-burned row, so the race is already decided).
+    if (invite) {
+      const burn = await cfg.db.execute(
+        'UPDATE invites SET used_at = ? WHERE id = ? AND used_at IS NULL',
+        [now, invite.id],
+      )
+      if (burn.changes !== 1) {
+        if (isHtmx(c)) return c.html('<p class="error">That invite code is invalid or already used.</p>')
+        return c.json({ error: 'invalid_invite' }, 403)
+      }
+    }
     await cfg.db.transaction(async (tx) => {
       // email_verified_at stays NULL — the account is locked until the code lands.
       tx.sql(
         'INSERT INTO users (id, username, email, password_hash, role, language_pref, calendar_pref, timezone, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
         [id, body.username, body.email.toLowerCase(), await hashPassword(body.password), 'member', 'en', 'gregorian', 'UTC', now],
       )
-      if (invite) tx.sql('UPDATE invites SET used_at = ?, used_by = ? WHERE id = ?', [now, id, invite.id])
+      if (invite) tx.sql('UPDATE invites SET used_by = ? WHERE id = ?', [id, invite.id])
     })
 
     // Mail the 6-digit code. If the send fails, roll the account back so a retry starts
@@ -139,13 +167,18 @@ export function registrationRoutes(cfg: Config) {
         break
       } catch (err) {
         lastError = err
-        console.error('signup email send failed (attempt', attempt + 1, '):', err instanceof Error ? err.message : err)
+        // Phase 1 (SC-9): no provider internals on stdout — the failure reason lives in
+        // email_log via sendAndLog's own catch; this marker is for correlating retries.
+        console.error('signup email send failed (attempt', attempt + 1, ') — reason in email_log')
       }
     }
     if (lastError) {
       await cfg.db.execute('DELETE FROM users WHERE id = ?', [id]) // cascades email_verifications
       if (isHtmx(c)) return c.html('<p class="error">We couldn&#39;t send the confirmation email — please try again in a minute.</p>')
-      return c.json({ error: 'email_send_failed', detail: lastError instanceof Error ? lastError.message.slice(0, 300) : String(lastError).slice(0, 300) }, 503)
+      // Phase 1 (SC-9, P1-c): this route is PUBLIC — the old `detail` field carried the
+      // raw provider error (Resend response internals) to anonymous callers. Generic
+      // code only; the reason is in email_log for ops.
+      return c.json({ error: 'email_send_failed' }, 503)
     }
 
     // No session yet — verification first (login refuses unverified accounts). The
@@ -275,6 +308,10 @@ export function registrationRoutes(cfg: Config) {
   // persists it, and emails it to that address via Resend. The recipient uses the code
   // at signup. The email send uses the existing sendAndLog pipeline (branded HTML +
   // delivery log + quota).
+  // Phase 1 (P1-b A7): this sender was the one unmetered Resend call — a logged-in
+  // member could flood it unbounded. 5 sends/60s per IP (each send also creates an
+  // invite row + email_log entry; the limiter counts before the handler runs).
+  app.use('/invites/email', inviteEmailLimiter)
   app.post('/invites/email', requireAuth(cfg), async (c) => {
     const user = c.get('user')
     const body = await jsonBody<{ email: string }>(c, z.object({ email: z.string().email() }).strict())

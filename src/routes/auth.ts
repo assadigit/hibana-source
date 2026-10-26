@@ -1,7 +1,7 @@
 import { Hono, type MiddlewareHandler } from 'hono'
 import { getCookie } from 'hono/cookie'
 import { z } from 'zod'
-import { hashPassword, verifyPassword, needsRehash } from '../auth/password'
+import { hashPassword, verifyPassword, needsRehash, burnDummyVerify } from '../auth/password'
 import { SESSION_COOKIE, sessionHash, createSession, destroySession, sessionCookieHeader, clearSessionCookieHeader } from '../auth/sessions'
 import { requireAuth } from '../auth/middleware'
 import { isBanned } from '../auth/ban'
@@ -97,6 +97,10 @@ export function authRoutes(cfg: Config) {
     }
     const users = await cfg.db.query<UserRow>('SELECT * FROM users WHERE email = ? OR username = ?', [loginLower, login])
     if (users.length === 0) {
+      // Phase 1 (P1-b IO-3): burn the same PBKDF2 work a real verify would so response
+      // timing cannot separate "no such account" from "wrong password" — the bodies
+      // were already identical; now the latency is too. Result discarded by design.
+      await burnDummyVerify(password)
       if (isHtmx(c)) return c.html('<p class="error">Wrong email/username or password.</p>')
       return c.json({ error: 'invalid_credentials' }, 401)
     }

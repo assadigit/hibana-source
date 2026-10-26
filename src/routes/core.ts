@@ -276,6 +276,9 @@ export function coreRoutes(cfg: Config) {
       'SELECT project_id FROM hurdles WHERE id = ? AND project_id IN (SELECT id FROM projects WHERE user_id = ?)',
       [c.req.param('id'), user.id],
     )
+    // Phase 1 (isolation suite): a foreign/missing id is a 404 like the PATCH above —
+    // the old rowcount-agnostic {ok:true} answered a no-op delete with a false 200.
+    if (owned.length === 0) return c.json({ error: 'not_found' }, 404)
     await cfg.db.execute('DELETE FROM hurdles WHERE id = ? AND project_id IN (SELECT id FROM projects WHERE user_id = ?)', [
       c.req.param('id'), user.id,
     ])
@@ -356,6 +359,9 @@ export function coreRoutes(cfg: Config) {
       'SELECT project_id FROM links WHERE id = ? AND project_id IN (SELECT id FROM projects WHERE user_id = ?)',
       [c.req.param('id'), user.id],
     )
+    // Phase 1 (isolation suite): a foreign/missing id is a 404 like the PATCH above —
+    // the old rowcount-agnostic {ok:true} answered a no-op delete with a false 200.
+    if (owned.length === 0) return c.json({ error: 'not_found' }, 404)
     await cfg.db.execute('DELETE FROM links WHERE id = ? AND project_id IN (SELECT id FROM projects WHERE user_id = ?)', [
       c.req.param('id'), user.id,
     ])

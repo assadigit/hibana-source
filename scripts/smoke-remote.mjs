@@ -132,6 +132,26 @@ try {
     login.status === 200 && /Sign in/i.test(loginHtml) && /data-i18n|hibanaI18n/i.test(loginHtml),
     `status=${login.status} bytes=${loginHtml.length}`)
 
+  // 2b. (Phase 1 milestone M1) security headers verified LIVE on the deployed target.
+  // PLAYBOOK §5 requires CSP + X-Content-Type-Options + Referrer-Policy + frame
+  // protection (and HSTS on the https targets) — checked on BOTH response layers:
+  // the static-assets layer (login.html, served pre-Worker via run_worker_first
+  // negation) and the Worker layer (/api/health, decorated by the app middleware).
+  const REQUIRED_HEADERS = [
+    ['content-security-policy', /default-src 'self'/],
+    ['x-content-type-options', /^nosniff$/i],
+    ['referrer-policy', /^strict-origin-when-cross-origin$/i],
+    ['x-frame-options', /^sameorigin$/i],
+    ['strict-transport-security', /max-age=\d+/],
+  ]
+  const apiProbe = await fetch(base + '/api/health')
+  for (const [name, re] of REQUIRED_HEADERS) {
+    const vAsset = login.headers.get(name) ?? ''
+    step(`security header ${name} on served HTML (assets layer)`, re.test(vAsset), vAsset.slice(0, 70))
+    const vApi = apiProbe.headers.get(name) ?? ''
+    step(`security header ${name} on API response (Worker layer)`, re.test(vApi), vApi.slice(0, 70))
+  }
+
   // 3. seed the throwaway probe user + session
   const before = sqlRemote('SELECT count(*) AS n FROM users')[0].n
   const hash = await hashPassword(pass)

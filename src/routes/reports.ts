@@ -3,6 +3,7 @@ import { z } from 'zod'
 import { requireAuth } from '../auth/middleware'
 import { etag } from '../lib/http'
 import type { Config, UserRow } from '../types'
+import { errJson, ErrorCode } from '../lib/errors'
 
 // Reports (spec §5.7): snapshot counts by status/type + activity over time in four
 // granularities (day/week/month/year — the user asked for all four, explicitly).
@@ -132,7 +133,7 @@ export function reportsRoutes(cfg: Config) {
 
   app.get('/activity', async (c) => {
     const gran = granularitySchema.safeParse(c.req.query('granularity') ?? 'day')
-    if (!gran.success) return c.json({ error: 'invalid_input' }, 400)
+    if (!gran.success) return errJson(c, ErrorCode.invalid_input)
     const user = c.get('user')
     const b = buckets(gran.data)
 

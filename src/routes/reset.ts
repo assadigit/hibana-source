@@ -9,6 +9,7 @@ import { clientIp, hitRateLimit, RATE_RULES } from '../services/ratelimit'
 import { createResetToken, sha256Hex } from '../services/reset'
 import { emailLinkOrigin } from '../lib/app-url'
 import type { Config, UserRow } from '../types'
+import { errJson, ErrorCode } from '../lib/errors'
 
 // Password reset via Resend email (spec §8). Token is one-time, hashed in D1, 1-hour expiry.
 // The Resend key is a Workers secret (rule 5) — without it the request responds 503 with a
@@ -31,7 +32,7 @@ export function resetRoutes(cfg: Config) {
   const resetLimiter: MiddlewareHandler = async (c, next) => {
     if (await hitRateLimit(cfg.db, RATE_RULES.auth, clientIp(c))) {
       if (isHtmx(c)) return hxError(c, 'Too many attempts — wait a minute and try again.')
-      return c.json({ error: 'rate_limited' }, 429)
+      return errJson(c, ErrorCode.rate_limited)
     }
     return next()
   }
@@ -39,7 +40,7 @@ export function resetRoutes(cfg: Config) {
 
   app.post('/reset/request', async (c) => {
     const body = await jsonBody<z.infer<typeof resetRequestSchema>>(c, resetRequestSchema)
-    if (!body) return isHtmx(c) ? hxError(c, 'Enter a valid email address.') : c.json({ error: 'invalid_input' }, 400)
+    if (!body) return isHtmx(c) ? hxError(c, 'Enter a valid email address.') : errJson(c, ErrorCode.invalid_input)
     const users = await cfg.db.query<UserRow>('SELECT * FROM users WHERE email = ?', [body.email.toLowerCase()])
     // Same response whether or not the email exists — never leak account existence. The
     // htmx panel only echoes the address the user typed themselves, never a stored one.
@@ -68,14 +69,14 @@ export function resetRoutes(cfg: Config) {
       // body returned the raw provider error (Resend response internals) to anonymous
       // callers. Generic code only; the failure reason is in email_log for ops.
       if (isHtmx(c)) return hxError(c, "We couldn't send the reset email — please try again in a minute.")
-      return c.json({ error: 'email_send_failed' }, 503)
+      return errJson(c, ErrorCode.email_send_failed)
     }
     return isHtmx(c) ? c.html(sent) : c.json({ ok: true })
   })
 
   app.post('/reset/confirm', async (c) => {
     const body = await jsonBody<z.infer<typeof resetConfirmSchema>>(c, resetConfirmSchema)
-    if (!body) return isHtmx(c) ? hxError(c, 'Enter a password of at least 8 characters.') : c.json({ error: 'invalid_input' }, 400)
+    if (!body) return isHtmx(c) ? hxError(c, 'Enter a password of at least 8 characters.') : errJson(c, ErrorCode.invalid_input)
     const hash = await sha256Hex(body.token)
     // SEC-5 (S198/S199): single-use is now ATOMIC — one conditional UPDATE whose
     // rowcount decides, instead of check-then-act (two concurrent requests could both
@@ -89,7 +90,7 @@ export function resetRoutes(cfg: Config) {
     )
     if (burned.changes !== 1) {
       if (isHtmx(c)) return hxError(c, 'This link is invalid or expired — request a new password reset.')
-      return c.json({ error: 'invalid_or_expired_token' }, 400)
+      return errJson(c, ErrorCode.invalid_or_expired_token)
     }
     // We exclusively own the token now — its row is immutable from here on.
     const rows = await cfg.db.query<{ user_id: string }>(
@@ -98,7 +99,7 @@ export function resetRoutes(cfg: Config) {
     )
     if (rows.length === 0) {
       if (isHtmx(c)) return hxError(c, 'This link is invalid or expired — request a new password reset.')
-      return c.json({ error: 'invalid_or_expired_token' }, 400)
+      return errJson(c, ErrorCode.invalid_or_expired_token)
     }
     const passwordHash = await hashPassword(body.password)
     await cfg.db.transaction(async (tx) => {

@@ -8,6 +8,7 @@ import { uuid } from '../lib/ids'
 import { refreshTagUsage, syncTaskSearchTagsBatch } from './devboard-helpers'
 import { createTagSchema } from '../validation/schemas'
 import type { Config, TagRow, UserRow } from '../types'
+import { errJson, ErrorCode } from '../lib/errors'
 
 // Tags — the ONE home for /api/tags (S43 consolidation).
 //
@@ -67,7 +68,7 @@ export function tagsRoutes(cfg: Config) {
 
   app.post('/', async (c) => {
     const body = await jsonBody<z.infer<typeof createTagSchema>>(c, createTagSchema)
-    if (!body) return c.json({ error: 'invalid_input' }, 400)
+    if (!body) return errJson(c, ErrorCode.invalid_input)
     const user = c.get('user')
     const id = uuid()
     try {
@@ -75,17 +76,17 @@ export function tagsRoutes(cfg: Config) {
         id, user.id, body.name.trim(), body.color ?? '#f6d365', new Date().toISOString(),
       ])
     } catch {
-      return c.json({ error: 'duplicate_tag' }, 409)
+      return errJson(c, ErrorCode.duplicate_tag)
     }
     return c.json({ ok: true, id }, 201)
   })
 
   app.patch('/:id', async (c) => {
     const body = await jsonBody<z.infer<typeof tagUpdateSchema>>(c, tagUpdateSchema)
-    if (!body) return c.json({ error: 'invalid_input' }, 400)
+    if (!body) return errJson(c, ErrorCode.invalid_input)
     const user = c.get('user')
     const tag = await cfg.db.query<{ id: string; name: string }>('SELECT id, name FROM tags WHERE id = ? AND user_id = ?', [c.req.param('id'), user.id])
-    if (!tag.length) return c.json({ error: 'not_found' }, 404)
+    if (!tag.length) return errJson(c, ErrorCode.not_found)
     const tagRow = tag[0]
 
     // RENAME with collision = MERGE (the manager's rename doubles as a merge when the
@@ -131,11 +132,11 @@ export function tagsRoutes(cfg: Config) {
   // Explicit merge: { into: targetTagId } — moves every link, deletes the source.
   app.post('/:id/merge', async (c) => {
     const body = await jsonBody<z.infer<typeof tagMergeSchema>>(c, tagMergeSchema)
-    if (!body) return c.json({ error: 'invalid_input' }, 400)
+    if (!body) return errJson(c, ErrorCode.invalid_input)
     const user = c.get('user')
     const src = await cfg.db.query<{ id: string }>('SELECT id FROM tags WHERE id = ? AND user_id = ?', [c.req.param('id'), user.id])
     const dst = await cfg.db.query<{ id: string }>('SELECT id FROM tags WHERE id = ? AND user_id = ?', [body.into, user.id])
-    if (!src.length || !dst.length || src[0].id === dst[0].id) return c.json({ error: 'not_found' }, 404)
+    if (!src.length || !dst.length || src[0].id === dst[0].id) return errJson(c, ErrorCode.not_found)
     const srcId = src[0].id
     const dstId = dst[0].id
     await cfg.db.execute('INSERT OR IGNORE INTO dev_task_tags (task_id, tag_id) SELECT task_id, ? FROM dev_task_tags WHERE tag_id = ?', [dstId, srcId])
@@ -156,8 +157,8 @@ export function tagsRoutes(cfg: Config) {
   app.delete('/:id', async (c) => {
     const user = c.get('user')
     const rows = await cfg.db.query<{ usage_count: number }>('SELECT usage_count FROM tags WHERE id = ? AND user_id = ?', [c.req.param('id'), user.id])
-    if (!rows.length) return c.json({ error: 'not_found' }, 404)
-    if ((rows[0].usage_count ?? 0) > 0) return c.json({ error: 'tag_in_use' }, 409)
+    if (!rows.length) return errJson(c, ErrorCode.not_found)
+    if ((rows[0].usage_count ?? 0) > 0) return errJson(c, ErrorCode.tag_in_use)
     await cfg.db.execute('DELETE FROM tags WHERE id = ?', [c.req.param('id')])
     if (c.req.header('HX-Request')) {
       const t = trFor(c)

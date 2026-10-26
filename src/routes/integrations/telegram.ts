@@ -44,6 +44,7 @@ import {
   render,
   renderQuadrant,
 } from './telegram-helpers'
+import { errJson, ErrorCode } from '../../lib/errors'
 
 /** AP-33: escape LIKE wildcards for a PREFIX match ('%'/'_' are literal in titles;
  *  every other LIKE in the codebase escapes — search.ts, vault.ts). */
@@ -54,7 +55,7 @@ export function registerTelegram(app: Hono<{ Variables: { user: UserRow } }>, cf
   // too; 300 req/60s per IP — same value as the CF webhook rule).
   const webhookLimiter: MiddlewareHandler = async (c, next) => {
     if (await hitRateLimit(cfg.db, RATE_RULES.webhook, clientIp(c))) {
-      return c.json({ error: 'rate_limited' }, 429)
+      return errJson(c, ErrorCode.rate_limited)
     }
     return next()
   }
@@ -64,9 +65,9 @@ export function registerTelegram(app: Hono<{ Variables: { user: UserRow } }>, cf
   // oracle on how many leading bytes match.
   app.post('/api/telegram/webhook', webhookLimiter, async (c) => {
     const secret = c.req.header('X-Telegram-Bot-Api-Secret-Token')
-    if (!secret || !cfg.telegramSecret || !timingSafeEqualStr(secret, cfg.telegramSecret)) return c.json({ error: 'forbidden' }, 403) // rule 11
+    if (!secret || !cfg.telegramSecret || !timingSafeEqualStr(secret, cfg.telegramSecret)) return errJson(c, ErrorCode.forbidden) // rule 11
     const token = cfg.telegramToken
-    if (!token) return c.json({ error: 'telegram_not_configured' }, 503)
+    if (!token) return errJson(c, ErrorCode.telegram_not_configured)
 
     const parsed = UPDATE_SCHEMA.safeParse(await c.req.json().catch(() => null))
     if (!parsed.success) return c.json({ ok: true }) // ignore non-message updates

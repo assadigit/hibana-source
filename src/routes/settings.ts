@@ -12,6 +12,7 @@ import { TELEGRAM_BOT } from './integrations/telegram-helpers'
 import { purgeShotBytes } from '../services/shotstore'
 import { clientIp, hitRateLimit, RATE_RULES } from '../services/ratelimit'
 import type { Config, UserRow, InviteRow } from '../types'
+import { errJson, ErrorCode } from '../lib/errors'
 
 // Settings (spec §5.8): language/calendar/timezone live on the user record (multi-device).
 // Theme is a per-device preference and stays in localStorage (§14) — no schema change needed.
@@ -184,7 +185,7 @@ export function settingsRoutes(cfg: Config) {
 
   app.patch('/', async (c) => {
     const body = await jsonBody<z.infer<typeof prefsSchema>>(c, prefsSchema)
-    if (!body) return c.json({ error: 'invalid_input' }, 400)
+    if (!body) return errJson(c, ErrorCode.invalid_input)
     const user = c.get('user')
     const t = trFor(c)
     const sets: string[] = []
@@ -209,16 +210,16 @@ export function settingsRoutes(cfg: Config) {
     // M8 fix (2026-09-10): wire the upload rate limiter — avatar uploads push bytes into
     // the GitHub assets repo. 30 req/60s per IP.
     if (await hitRateLimit(cfg.db, RATE_RULES.upload, clientIp(c))) {
-      return c.json({ error: 'rate_limited', message: 'Too many uploads — wait a minute and try again.' }, 429)
+      return c.json({ error: ErrorCode.rate_limited, message: 'Too many uploads — wait a minute and try again.' }, 429)
     }
     const body = await jsonBody<z.infer<typeof avatarUploadSchema>>(c, avatarUploadSchema)
-    if (!body) return c.json({ error: 'invalid_input' }, 400)
+    if (!body) return errJson(c, ErrorCode.invalid_input)
     const user = c.get('user')
-    if (!cfg.github.token) return c.json({ error: 'github_not_configured' }, 503)
+    if (!cfg.github.token) return errJson(c, ErrorCode.github_not_configured)
     // SEC-9 (S198/S199): sniff the leading bytes — the declared mimeType must match
     // the actual container (a mislabeled or scripted payload dies here, before any push).
     const sniffed = sniffImageMime(Uint8Array.from(atob(body.dataBase64.slice(0, 64)), (ch) => ch.charCodeAt(0)))
-    if (sniffed !== body.mimeType) return c.json({ error: 'invalid_image' }, 400)
+    if (sniffed !== body.mimeType) return errJson(c, ErrorCode.invalid_image)
     const path = `avatars/${user.id}/avatar-${Date.now()}-${uuid().slice(0, 8)}${extForMime(body.mimeType)}`
     await removeRemote(user.avatar_path)
     await gh().pushFile(path, body.dataBase64, 'Hibana profile picture')
@@ -229,7 +230,7 @@ export function settingsRoutes(cfg: Config) {
   // Serve the avatar bytes (rule 7: raw Accept header for files over 1MB — cheap here).
   app.get('/avatar/file', async (c) => {
     const user = c.get('user')
-    if (!user.avatar_path) return c.json({ error: 'not_found' }, 404)
+    if (!user.avatar_path) return errJson(c, ErrorCode.not_found)
     const bytes = await gh().readBinary(user.avatar_path)
     return new Response(bytes, {
       headers: { 'Content-Type': mimeForPath(user.avatar_path), 'Cache-Control': 'private, max-age=3600' },
@@ -271,14 +272,14 @@ export function settingsRoutes(cfg: Config) {
   app.post('/trash/purge', async (c) => {
     const user = c.get('user')
     const body = await jsonBody<z.infer<typeof purgeSchema>>(c, purgeSchema)
-    if (!body) return c.json({ error: 'invalid_input' }, 400)
+    if (!body) return errJson(c, ErrorCode.invalid_input)
     const { kind, id } = body
     const table = PURGE_TABLES[kind]
     const row = await cfg.db.query<{ id: string }>(
       `SELECT id FROM ${table} WHERE id = ? AND user_id = ? AND deleted_at IS NOT NULL`,
       [id, user.id],
     )
-    if (!row.length) return c.json({ error: 'not_found' }, 404)
+    if (!row.length) return errJson(c, ErrorCode.not_found)
     if (kind === 'project') await purgeShotBytes(cfg, [id]) // best-effort, same order as the cron
     await cfg.db.transaction(async (tx) => {
       tx.sql(`DELETE FROM ${table} WHERE id = ? AND user_id = ?`, [id, user.id])

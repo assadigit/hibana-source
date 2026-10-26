@@ -5,6 +5,7 @@ import { STATUS_BADGE, timeAgo } from '../lib/html'
 import { localeOf, trFor } from '../lib/i18n'
 import { searchSchema } from '../validation/schemas'
 import type { Config, ProjectRow, UserRow } from '../types'
+import { errJson, ErrorCode } from '../lib/errors'
 
 // FTS5-backed search (spec §5.3). Exact-match phrasing: the query is quoted, so a search
 // for "star map" finds the phrase, not fuzzy variants. FTS5 is SQLite-only and isolated
@@ -32,7 +33,7 @@ export function searchRoutes(cfg: Config) {
 
   app.get('/', async (c) => {
     const q = searchSchema.safeParse(c.req.query())
-    if (!q.success) return c.json({ error: 'invalid_input' }, 400)
+    if (!q.success) return errJson(c, ErrorCode.invalid_input)
     const user = c.get('user')
     const match = `"${q.data.q.replace(/"/g, '""')}"`
 

@@ -13,6 +13,7 @@ import { issueMathCaptcha, verifyMathCaptcha } from '../services/captcha'
 import { createEmailCode, verifyEmailCode, RESEND_COOLDOWN_MS } from '../services/verify'
 import { sendAndLog, verifyEmailHtml, inviteEmailHtml } from '../services/email'
 import type { Config, InviteRow, UserRow } from '../types'
+import { errJson, ErrorCode } from '../lib/errors'
 
 // Registration (spec §4.14) + email-code confirmation, added 2026-08-24.
 // Flow: register (CAPTCHA) → email 6-digit code → /verify (code) → session → /app.
@@ -31,7 +32,7 @@ export function registrationRoutes(cfg: Config) {
   const authLimiter: MiddlewareHandler = async (c, next) => {
     if (await hitRateLimit(cfg.db, RATE_RULES.auth, clientIp(c))) {
       if (isHtmx(c)) return c.html('<p class="error">Too many attempts — wait a minute and try again.</p>')
-      return c.json({ error: 'rate_limited' }, 429)
+      return errJson(c, ErrorCode.rate_limited)
     }
     return next()
   }
@@ -42,7 +43,7 @@ export function registrationRoutes(cfg: Config) {
   // JSON-only 429 (the caller is fetch(), not an htmx form).
   const inviteEmailLimiter: MiddlewareHandler = async (c, next) => {
     if (await hitRateLimit(cfg.db, RATE_RULES.inviteEmail, clientIp(c))) {
-      return c.json({ error: 'rate_limited' }, 429)
+      return errJson(c, ErrorCode.rate_limited)
     }
     return next()
   }
@@ -51,7 +52,7 @@ export function registrationRoutes(cfg: Config) {
   // cached (no-store) — a stale question would fail its own expiry check on submit, but
   // every layer should still hand out a fresh one.
   app.get('/captcha', async (c) => {
-    if (!cfg.captchaSecretKey) return c.json({ error: 'captcha_unconfigured' }, 503)
+    if (!cfg.captchaSecretKey) return errJson(c, ErrorCode.captcha_unconfigured)
     const { question, token } = await issueMathCaptcha(cfg.captchaSecretKey)
     return c.json({ q: question, token }, 200, { 'Cache-Control': 'no-store' })
   })
@@ -60,42 +61,42 @@ export function registrationRoutes(cfg: Config) {
     const body = await jsonBody<z.infer<typeof registerSchema>>(c, registerSchema)
     if (!body) {
       if (isHtmx(c)) return c.html('<p class="error">Please fill in every field (and complete the human check).</p>')
-      return c.json({ error: 'invalid_input' }, 400)
+      return errJson(c, ErrorCode.invalid_input)
     }
 
     // Human check FIRST, fail-closed (missing secret key = 503, never a silent bypass).
     const captchaResult = await verifyMathCaptcha(cfg.captchaSecretKey, body.captcha_token, body.captcha)
     if (captchaResult === 'missing_secret') {
       if (isHtmx(c)) return c.html('<p class="error">Sign-up is paused — the human check isn&#39;t configured yet.</p>')
-      return c.json({ error: 'captcha_unconfigured' }, 503)
+      return errJson(c, ErrorCode.captcha_unconfigured)
     }
     if (captchaResult === 'missing_token') {
       if (isHtmx(c)) return c.html('<p class="error">The human check is missing — reload the page and try again.</p>')
-      return c.json({ error: 'captcha_failed' }, 400)
+      return errJson(c, ErrorCode.captcha_failed)
     }
     if (captchaResult === 'expired') {
       if (isHtmx(c)) return c.html('<p class="error">The human check expired — a fresh question is shown, answer that one.</p>')
-      return c.json({ error: 'captcha_failed' }, 400)
+      return errJson(c, ErrorCode.captcha_failed)
     }
     if (captchaResult !== 'ok') {
       if (!body.captcha || !body.captcha.trim()) {
         if (isHtmx(c)) return c.html('<p class="error">Please answer the human check first.</p>')
-        return c.json({ error: 'captcha_failed' }, 400)
+        return errJson(c, ErrorCode.captcha_failed)
       }
       if (isHtmx(c)) return c.html('<p class="error">That answer isn&#39;t right — try the new question below the form.</p>')
-      return c.json({ error: 'captcha_failed' }, 400)
+      return errJson(c, ErrorCode.captcha_failed)
     }
 
     // Duplicate checks, separately so the error is precise (rule 1: users are global).
     const byEmail = await cfg.db.query<{ id: string }>('SELECT id FROM users WHERE email = ?', [body.email.toLowerCase()])
     if (byEmail.length > 0) {
       if (isHtmx(c)) return c.html('<p class="error">That email is already registered — sign in instead.</p>')
-      return c.json({ error: 'email_taken' }, 409)
+      return errJson(c, ErrorCode.email_taken)
     }
     const byName = await cfg.db.query<{ id: string }>('SELECT id FROM users WHERE username = ?', [body.username])
     if (byName.length > 0) {
       if (isHtmx(c)) return c.html('<p class="error">That username is taken.</p>')
-      return c.json({ error: 'username_taken' }, 409)
+      return errJson(c, ErrorCode.username_taken)
     }
 
     // Invite gate — only enforced while registration is CLOSED (temporarily open now).
@@ -103,7 +104,7 @@ export function registrationRoutes(cfg: Config) {
     if (!cfg.openRegistration) {
       if (!body.inviteCode) {
         if (isHtmx(c)) return c.html('<p class="error">An invite code is required.</p>')
-        return c.json({ error: 'invalid_invite' }, 403)
+        return errJson(c, ErrorCode.invalid_invite)
       }
       const invites = await cfg.db.query<InviteRow>(
         'SELECT * FROM invites WHERE code = ? AND used_at IS NULL',
@@ -111,7 +112,7 @@ export function registrationRoutes(cfg: Config) {
       )
       if (invites.length === 0) {
         if (isHtmx(c)) return c.html('<p class="error">That invite code is invalid or already used.</p>')
-        return c.json({ error: 'invalid_invite' }, 403)
+        return errJson(c, ErrorCode.invalid_invite)
       }
       invite = invites[0]
     }
@@ -135,7 +136,7 @@ export function registrationRoutes(cfg: Config) {
       )
       if (burn.changes !== 1) {
         if (isHtmx(c)) return c.html('<p class="error">That invite code is invalid or already used.</p>')
-        return c.json({ error: 'invalid_invite' }, 403)
+        return errJson(c, ErrorCode.invalid_invite)
       }
     }
     await cfg.db.transaction(async (tx) => {
@@ -179,7 +180,7 @@ export function registrationRoutes(cfg: Config) {
       // Phase 1 (SC-9, P1-c): this route is PUBLIC — the old `detail` field carried the
       // raw provider error (Resend response internals) to anonymous callers. Generic
       // code only; the reason is in email_log for ops.
-      return c.json({ error: 'email_send_failed' }, 503)
+      return errJson(c, ErrorCode.email_send_failed)
     }
 
     // No session yet — verification first (login refuses unverified accounts). The
@@ -195,14 +196,14 @@ export function registrationRoutes(cfg: Config) {
     const body = await jsonBody<z.infer<typeof verifyEmailSchema>>(c, verifyEmailSchema)
     if (!body) {
       if (isHtmx(c)) return c.html('<p class="error">Enter your email and the 6-digit code.</p>')
-      return c.json({ error: 'invalid_input' }, 400)
+      return errJson(c, ErrorCode.invalid_input)
     }
 
     const users = await cfg.db.query<UserRow>('SELECT * FROM users WHERE email = ?', [body.email.toLowerCase()])
     // No such account → the same response as a wrong code (no existence leak).
     if (users.length === 0) {
       if (isHtmx(c)) return c.html('<p class="error">That code doesn&#39;t match — check it and try again.</p>')
-      return c.json({ error: 'invalid_code' }, 400)
+      return errJson(c, ErrorCode.invalid_code)
     }
     const user = users[0]
 
@@ -211,7 +212,7 @@ export function registrationRoutes(cfg: Config) {
     // short-circuit would turn /verify into a passwordless login. Polite refusal instead.
     if (user.email_verified_at) {
       if (isHtmx(c)) return c.html('<p class="error">This account is already verified — sign in instead.</p>')
-      return c.json({ error: 'already_verified' }, 400)
+      return errJson(c, ErrorCode.already_verified)
     }
 
     const result = await verifyEmailCode(cfg.db, user.id, body.code)
@@ -239,7 +240,7 @@ export function registrationRoutes(cfg: Config) {
 
   app.post('/verify/resend', async (c) => {
     const body = await jsonBody<z.infer<typeof resendVerifySchema>>(c, resendVerifySchema)
-    if (!body) return c.json({ error: 'invalid_input' }, 400)
+    if (!body) return errJson(c, ErrorCode.invalid_input)
 
     const users = await cfg.db.query<UserRow>('SELECT * FROM users WHERE email = ?', [body.email.toLowerCase()])
     // Same policy as reset/request: never reveal whether an address exists.
@@ -251,7 +252,7 @@ export function registrationRoutes(cfg: Config) {
       [user.id],
     )
     if (last.length > 0 && Date.now() - new Date(last[0].created_at).getTime() < RESEND_COOLDOWN_MS) {
-      return c.json({ error: 'resend_cooldown' }, 429)
+      return errJson(c, ErrorCode.resend_cooldown)
     }
 
     const code = await createEmailCode(cfg.db, user.id)
@@ -265,7 +266,7 @@ export function registrationRoutes(cfg: Config) {
         bodyHtml: verifyEmailHtml(code),
       })
     } catch {
-      return c.json({ error: 'email_send_failed' }, 503)
+      return errJson(c, ErrorCode.email_send_failed)
     }
     return c.json({ ok: true })
   })
@@ -316,14 +317,14 @@ export function registrationRoutes(cfg: Config) {
   app.post('/invites/email', requireAuth(cfg), async (c) => {
     const user = c.get('user')
     const body = await jsonBody<{ email: string }>(c, z.object({ email: z.string().email() }).strict())
-    if (!body) return c.json({ error: 'invalid_input' }, 400)
+    if (!body) return errJson(c, ErrorCode.invalid_input)
     // Don't leak whether the address is already a user — just send the invite regardless.
     const code = uuid().replace(/-/g, '').slice(0, 12)
     await cfg.db.execute('INSERT INTO invites (id, code, created_by, created_at) VALUES (?, ?, ?, ?)', [
       uuid(), code, user.id, new Date().toISOString(),
     ])
     if (!cfg.emailKey || !cfg.assets) {
-      return c.json({ error: 'email_not_configured', detail: 'Resend key or assets binding missing — set RESEND_KEY as a Worker secret' }, 503)
+      return c.json({ error: ErrorCode.email_not_configured, detail: 'Resend key or assets binding missing — set RESEND_KEY as a Worker secret' }, 503)
     }
     const origin = emailLinkOrigin(cfg, requestOrigin(c))
     const inviterName = user.username || user.email
@@ -333,7 +334,7 @@ export function registrationRoutes(cfg: Config) {
         { to: body.email, kind: 'invite', subject: "You're invited to Hibana", title: 'You\'re invited to Hibana', bodyHtml: inviteEmailHtml(code, inviterName, origin), origin },
       )
     } catch (e) {
-      return c.json({ error: 'email_failed', detail: e instanceof Error ? e.message : String(e) }, 502)
+      return c.json({ error: ErrorCode.email_failed, detail: e instanceof Error ? e.message : String(e) }, 502)
     }
     return c.json({ ok: true, sent_to: body.email, code }, 201)
   })

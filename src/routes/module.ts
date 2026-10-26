@@ -8,6 +8,7 @@ import { uuid } from '../lib/ids'
 import { queryIn } from '../lib/inchunk'
 import { clientProgress, elapsedFraction } from '../services/progress'
 import type { Config, PaymentRow, ProjectRow, TaskRow, UserRow } from '../types'
+import { errJson, ErrorCode } from '../lib/errors'
 
 // Client-work module (spec §6): tasks, payments, and the separate client dashboard.
 // This is deliberately a separate world from the personal side (spec §1 + §5.9).
@@ -106,10 +107,10 @@ export function moduleRoutes(cfg: Config) {
   // ---- tasks ----------------------------------------------------------------
   app.post('/api/projects/:projectId/tasks', async (c) => {
     const body = await jsonBody<z.infer<typeof taskSchema>>(c, taskSchema)
-    if (!body) return c.json({ error: 'invalid_input' }, 400)
+    if (!body) return errJson(c, ErrorCode.invalid_input)
     const user = c.get('user')
     const p = await getOwnedProject(cfg, user.id, c.req.param('projectId'))
-    if (!p) return c.json({ error: 'not_found' }, 404)
+    if (!p) return errJson(c, ErrorCode.not_found)
     const id = body.id ?? uuid()
     await cfg.db.execute('INSERT INTO tasks (id, project_id, title, done, due_date, created_at) VALUES (?, ?, ?, 0, ?, ?)', [
       id, p.id, body.title, body.due_date ?? null, new Date().toISOString(),
@@ -123,13 +124,13 @@ export function moduleRoutes(cfg: Config) {
 
   app.patch('/api/tasks/:id', async (c) => {
     const body = await jsonBody<z.infer<typeof taskPatchSchema>>(c, taskPatchSchema)
-    if (!body) return c.json({ error: 'invalid_input' }, 400)
+    if (!body) return errJson(c, ErrorCode.invalid_input)
     const user = c.get('user')
     const rows = await cfg.db.query<{ project_id: string }>(
       'SELECT project_id FROM tasks WHERE id = ? AND project_id IN (SELECT id FROM projects WHERE user_id = ?)',
       [c.req.param('id'), user.id],
     )
-    if (rows.length === 0) return c.json({ error: 'not_found' }, 404)
+    if (rows.length === 0) return errJson(c, ErrorCode.not_found)
     const now = new Date().toISOString()
     // L2 fix: add AND project_id = ? (the row was pre-validated via the SELECT above, but
     // rule #1 defense-in-depth wants the filter on every UPDATE against user-owned tables).
@@ -156,10 +157,10 @@ export function moduleRoutes(cfg: Config) {
   // ---- payments --------------------------------------------------------------
   app.post('/api/projects/:projectId/payments', async (c) => {
     const body = await jsonBody<z.infer<typeof paymentSchema>>(c, paymentSchema)
-    if (!body) return c.json({ error: 'invalid_input' }, 400)
+    if (!body) return errJson(c, ErrorCode.invalid_input)
     const user = c.get('user')
     const p = await getOwnedProject(cfg, user.id, c.req.param('projectId'))
-    if (!p) return c.json({ error: 'not_found' }, 404)
+    if (!p) return errJson(c, ErrorCode.not_found)
     const id = body.id ?? uuid()
     await cfg.db.execute('INSERT INTO payments (id, project_id, label, amount, currency, status) VALUES (?, ?, ?, ?, ?, ?)', [
       id, p.id, body.label, body.amount, body.currency, body.status,
@@ -173,13 +174,13 @@ export function moduleRoutes(cfg: Config) {
 
   app.patch('/api/payments/:id', async (c) => {
     const body = await jsonBody<{ status?: 'pending' | 'paid' }>(c, z.object({ status: z.enum(['pending', 'paid']).optional() }))
-    if (!body) return c.json({ error: 'invalid_input' }, 400)
+    if (!body) return errJson(c, ErrorCode.invalid_input)
     const user = c.get('user')
     const rows = await cfg.db.query<{ project_id: string }>(
       'SELECT project_id FROM payments WHERE id = ? AND project_id IN (SELECT id FROM projects WHERE user_id = ?)',
       [c.req.param('id'), user.id],
     )
-    if (rows.length === 0) return c.json({ error: 'not_found' }, 404)
+    if (rows.length === 0) return errJson(c, ErrorCode.not_found)
     const now = new Date().toISOString()
     // L2 fix: add AND project_id = ? (defense-in-depth, rule #1).
     if (body.status) {
@@ -204,13 +205,13 @@ export function moduleRoutes(cfg: Config) {
   // ---- reminder control (opt-in per project, spec §6.3) ----------------------
   app.post('/api/projects/:projectId/reminders', async (c) => {
     const body = await jsonBody<{ enabled: 0 | 1 }>(c, z.object({ enabled: z.union([z.literal(0), z.literal(1)]) }))
-    if (!body) return c.json({ error: 'invalid_input' }, 400)
+    if (!body) return errJson(c, ErrorCode.invalid_input)
     const user = c.get('user')
     const rows = await cfg.db.query<{ id: string }>(
       'SELECT id FROM projects WHERE id = ? AND user_id = ?',
       [c.req.param('projectId'), user.id],
     )
-    if (rows.length === 0) return c.json({ error: 'not_found' }, 404)
+    if (rows.length === 0) return errJson(c, ErrorCode.not_found)
     // L2 fix: add AND user_id = ? (was `WHERE id = ?` only — the pre-check validates
     // ownership, but rule #1 defense-in-depth wants the filter on every UPDATE).
     await cfg.db.execute('UPDATE projects SET reminders_enabled = ?, updated_at = ? WHERE id = ? AND user_id = ?', [body.enabled, new Date().toISOString(), rows[0].id, user.id])

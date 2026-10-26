@@ -18,6 +18,7 @@ import {
   uploadScreenshotSchema,
 } from '../validation/schemas'
 import type { Config, HurdleRow, LinkRow, ScreenshotRow, UserRow } from '../types'
+import { errJson, ErrorCode } from '../lib/errors'
 
 // One app for every route that lives at the root ('/'). Hono does not chain multiple
 // sub-apps mounted at the same path (the first one returns its own 404), so everything
@@ -191,7 +192,7 @@ export function coreRoutes(cfg: Config) {
   app.get('/api/projects/:projectId/hurdles', async (c) => {
     const user = c.get('user')
     const p = await getOwnedProject(cfg, user.id, c.req.param('projectId'))
-    if (!p) return c.json({ error: 'not_found' }, 404)
+    if (!p) return errJson(c, ErrorCode.not_found)
     const hurdles = await cfg.db.query<HurdleRow>('SELECT * FROM hurdles WHERE project_id = ? ORDER BY sort_order, created_at', [p.id])
     if (c.req.header('HX-Request')) return c.html(hurdlesHtml(hurdles, localeOf(c)))
     return c.json({ hurdles })
@@ -199,10 +200,10 @@ export function coreRoutes(cfg: Config) {
 
   app.post('/api/projects/:projectId/hurdles', async (c) => {
     const body = await jsonBody<{ id?: string; text: string }>(c, createHurdleSchema)
-    if (!body) return c.json({ error: 'invalid_input' }, 400)
+    if (!body) return errJson(c, ErrorCode.invalid_input)
     const user = c.get('user')
     const p = await getOwnedProject(cfg, user.id, c.req.param('projectId'))
-    if (!p) return c.json({ error: 'not_found' }, 404)
+    if (!p) return errJson(c, ErrorCode.not_found)
     // The composer works like the Quick Notebook (user request): Enter (or a pasted block)
     // can carry several lines — each non-empty line becomes its own hurdle.
     const lines = body.text
@@ -210,7 +211,7 @@ export function coreRoutes(cfg: Config) {
       .map((l) => l.trim())
       .filter(Boolean)
       .slice(0, 50)
-    if (!lines.length) return c.json({ error: 'invalid_input' }, 400)
+    if (!lines.length) return errJson(c, ErrorCode.invalid_input)
     const sort = await cfg.db.query<{ n: number }>('SELECT COUNT(*) AS n FROM hurdles WHERE project_id = ?', [p.id])
     const now = new Date().toISOString()
     const ids: string[] = []
@@ -240,10 +241,10 @@ export function coreRoutes(cfg: Config) {
   // and every UPDATE is additionally bound to that project, so callers can only reorder their own.
   app.post('/api/projects/:projectId/hurdles/reorder', async (c) => {
     const body = await jsonBody<z.infer<typeof hurdleReorderSchema>>(c, hurdleReorderSchema)
-    if (!body) return c.json({ error: 'invalid_input' }, 400)
+    if (!body) return errJson(c, ErrorCode.invalid_input)
     const user = c.get('user')
     const p = await getOwnedProject(cfg, user.id, c.req.param('projectId'))
-    if (!p) return c.json({ error: 'not_found' }, 404)
+    if (!p) return errJson(c, ErrorCode.not_found)
     const now = new Date().toISOString()
     await cfg.db.transaction(async (tx) => {
       body.ids.forEach((id, i) => {
@@ -256,10 +257,10 @@ export function coreRoutes(cfg: Config) {
 
   app.patch('/api/hurdles/:id', async (c) => {
     const body = await jsonBody<{ status?: 'open' | 'solved'; text?: string }>(c, updateHurdleSchema)
-    if (!body) return c.json({ error: 'invalid_input' }, 400)
+    if (!body) return errJson(c, ErrorCode.invalid_input)
     const user = c.get('user')
     const projectId = await ownedProjectId(cfg, user.id, 'hurdles', c.req.param('id'))
-    if (!projectId) return c.json({ error: 'not_found' }, 404)
+    if (!projectId) return errJson(c, ErrorCode.not_found)
     const now = new Date().toISOString()
     if (body.status) {
       await cfg.db.execute('UPDATE hurdles SET status = ?, solved_at = ? WHERE id = ?', [
@@ -283,7 +284,7 @@ export function coreRoutes(cfg: Config) {
     )
     // Phase 1 (isolation suite): a foreign/missing id is a 404 like the PATCH above —
     // the old rowcount-agnostic {ok:true} answered a no-op delete with a false 200.
-    if (owned.length === 0) return c.json({ error: 'not_found' }, 404)
+    if (owned.length === 0) return errJson(c, ErrorCode.not_found)
     await cfg.db.execute('DELETE FROM hurdles WHERE id = ? AND project_id IN (SELECT id FROM projects WHERE user_id = ?)', [
       c.req.param('id'), user.id,
     ])
@@ -310,7 +311,7 @@ export function coreRoutes(cfg: Config) {
   app.get('/api/projects/:projectId/links', async (c) => {
     const user = c.get('user')
     const p = await getOwnedProject(cfg, user.id, c.req.param('projectId'))
-    if (!p) return c.json({ error: 'not_found' }, 404)
+    if (!p) return errJson(c, ErrorCode.not_found)
     const links = await cfg.db.query<LinkRow>('SELECT * FROM links WHERE project_id = ? ORDER BY created_at', [p.id])
     if (c.req.header('HX-Request')) return c.html(linksHtml(links, localeOf(c)))
     return c.json({ links })
@@ -318,10 +319,10 @@ export function coreRoutes(cfg: Config) {
 
   app.post('/api/projects/:projectId/links', async (c) => {
     const body = await jsonBody<z.infer<typeof createLinkSchema>>(c, createLinkSchema)
-    if (!body) return c.json({ error: 'invalid_input' }, 400)
+    if (!body) return errJson(c, ErrorCode.invalid_input)
     const user = c.get('user')
     const p = await getOwnedProject(cfg, user.id, c.req.param('projectId'))
-    if (!p) return c.json({ error: 'not_found' }, 404)
+    if (!p) return errJson(c, ErrorCode.not_found)
     const id = body.id ?? uuid()
     await cfg.db.execute('INSERT INTO links (id, project_id, label, url, created_at) VALUES (?, ?, ?, ?, ?)', [
       id, p.id, body.label, body.url, new Date().toISOString(),
@@ -338,11 +339,11 @@ export function coreRoutes(cfg: Config) {
 
   app.patch('/api/links/:id', async (c) => {
     const body = await jsonBody<z.infer<typeof updateLinkSchema>>(c, updateLinkSchema)
-    if (!body) return c.json({ error: 'invalid_input' }, 400)
+    if (!body) return errJson(c, ErrorCode.invalid_input)
     const user = c.get('user')
     const t = trFor(c)
     const projectId = await ownedProjectId(cfg, user.id, 'links', c.req.param('id'))
-    if (!projectId) return c.json({ error: 'not_found' }, 404)
+    if (!projectId) return errJson(c, ErrorCode.not_found)
     const sets: string[] = []
     const params: unknown[] = []
     for (const [k, v] of Object.entries(body)) {
@@ -366,7 +367,7 @@ export function coreRoutes(cfg: Config) {
     )
     // Phase 1 (isolation suite): a foreign/missing id is a 404 like the PATCH above —
     // the old rowcount-agnostic {ok:true} answered a no-op delete with a false 200.
-    if (owned.length === 0) return c.json({ error: 'not_found' }, 404)
+    if (owned.length === 0) return errJson(c, ErrorCode.not_found)
     await cfg.db.execute('DELETE FROM links WHERE id = ? AND project_id IN (SELECT id FROM projects WHERE user_id = ?)', [
       c.req.param('id'), user.id,
     ])
@@ -401,7 +402,7 @@ export function coreRoutes(cfg: Config) {
   app.get('/api/projects/:projectId/screenshots', async (c) => {
     const user = c.get('user')
     const p = await getOwnedProject(cfg, user.id, c.req.param('projectId'))
-    if (!p) return c.json({ error: 'not_found' }, 404)
+    if (!p) return errJson(c, ErrorCode.not_found)
     const shots = await cfg.db.query<ScreenshotRow>('SELECT * FROM screenshots WHERE project_id = ? ORDER BY created_at DESC', [p.id])
     if (c.req.header('HX-Request')) return c.html(shotsGridHtml(shots, localeOf(c), await shotTaskMap(cfg, shots)))
     return c.json({ screenshots: shots })
@@ -492,19 +493,19 @@ export function coreRoutes(cfg: Config) {
     // invite-only) an authed abuser could spam uploads unbounded. 30 req/60s per IP
     // matches the RATE_RULES.upload intent.
     if (await hitRateLimit(cfg.db, RATE_RULES.upload, clientIp(c))) {
-      return c.json({ error: 'rate_limited', message: 'Too many uploads — wait a minute and try again.' }, 429)
+      return c.json({ error: ErrorCode.rate_limited, message: 'Too many uploads — wait a minute and try again.' }, 429)
     }
     // P1.1 (F-H1): reject oversized uploads BEFORE jsonBody() buffers the whole body — a
     // 140 MB base64 payload would OOM the Worker. 7 MB Content-Length ceiling sits above
     // the 5 MB base64 Zod cap (which rejects the rest), so legit screenshots never trip it.
     const cl = Number(c.req.header('Content-Length') ?? 0)
-    if (cl > 7_000_000) return c.json({ error: 'file_too_large' }, 413)
+    if (cl > 7_000_000) return errJson(c, ErrorCode.file_too_large)
     const body = await jsonBody<z.infer<typeof uploadScreenshotSchema>>(c, uploadScreenshotSchema)
-    if (!body) return c.json({ error: 'invalid_input' }, 400)
+    if (!body) return errJson(c, ErrorCode.invalid_input)
     const user = c.get('user')
     const t = trFor(c)
     const p = await getOwnedProject(cfg, user.id, c.req.param('projectId'))
-    if (!p) return c.json({ error: 'not_found' }, 404)
+    if (!p) return errJson(c, ErrorCode.not_found)
     // Phase 1 (uploads hardening): content-sniff BEFORE any storage write — a
     // mislabeled payload (HTML bytes on an image/png path, a gif labeled png…) dies
     // at the boundary in every tier (disk/KV/R2/GitHub). The Zod allowlist regex
@@ -515,11 +516,11 @@ export function coreRoutes(cfg: Config) {
     try {
       head = Uint8Array.from(atob(body.dataBase64.slice(0, 64)), (ch) => ch.charCodeAt(0))
     } catch {
-      return c.json({ error: 'invalid_input', message: 'The file payload is not valid base64.' }, 400)
+      return c.json({ error: ErrorCode.invalid_input, message: 'The file payload is not valid base64.' }, 400)
     }
     const sniffed = sniffFileMime(head)
     if (sniffed !== SNIFF_EXPECTED[body.mimeType]) {
-      return c.json({ error: 'mime_mismatch', message: 'The file contents do not match its declared type.' }, 400)
+      return c.json({ error: ErrorCode.mime_mismatch, message: 'The file contents do not match its declared type.' }, 400)
     }
     const id = body.id ?? uuid()
     const safeName = body.fileName.replace(/[^\w.\- ]/g, '_')
@@ -577,17 +578,17 @@ export function coreRoutes(cfg: Config) {
   })
   app.patch('/api/screenshots/:id', async (c) => {
     const body = await jsonBody<z.infer<typeof patchScreenshotSchema>>(c, patchScreenshotSchema)
-    if (!body || (body.caption === undefined && body.resolved === undefined && body.taskId === undefined && body.thumbBase64 === undefined)) return c.json({ error: 'invalid_input' }, 400)
+    if (!body || (body.caption === undefined && body.resolved === undefined && body.taskId === undefined && body.thumbBase64 === undefined)) return errJson(c, ErrorCode.invalid_input)
     const user = c.get('user')
     const t = trFor(c)
     const projectId = await ownedRecord(user.id, c.req.param('id'), 'screenshots')
-    if (!projectId) return c.json({ error: 'not_found' }, 404)
+    if (!projectId) return errJson(c, ErrorCode.not_found)
     if (body.taskId !== undefined && body.taskId !== '' && body.taskId !== null) {
       const owned = await cfg.db.query<{ id: string }>(
         'SELECT dt.id FROM dev_tasks dt JOIN projects p ON p.id = dt.project_id WHERE dt.id = ? AND p.user_id = ? AND p.deleted_at IS NULL AND dt.project_id = ?',
         [body.taskId, user.id, projectId],
       )
-      if (!owned.length) return c.json({ error: 'task_not_found' }, 404)
+      if (!owned.length) return errJson(c, ErrorCode.task_not_found)
     }
     const now = new Date().toISOString()
     if (body.caption !== undefined) {
@@ -616,7 +617,7 @@ export function coreRoutes(cfg: Config) {
   app.get('/api/media/screenshots/:id/file', async (c) => {
     const user = c.get('user')
     const projectId = await ownedRecord(user.id, c.req.param('id'), 'screenshots')
-    if (!projectId) return c.json({ error: 'not_found' }, 404)
+    if (!projectId) return errJson(c, ErrorCode.not_found)
     const rec = await cfg.db.query<ScreenshotRow>('SELECT * FROM screenshots WHERE id = ? AND project_id = ?', [c.req.param('id'), projectId])
     // S116 (CI evidence): a row whose STORED OBJECT is gone (a purged KV entry, an
     // expired storage backend, a stale local-e2e DB) used to surface as an unhandled
@@ -646,14 +647,14 @@ export function coreRoutes(cfg: Config) {
         mime = 'image/webp'
       } else {
         bytes = await getObjectOrNull(rec[0].github_path)
-        if (!bytes) return c.json({ error: 'not_found' }, 404)
+        if (!bytes) return errJson(c, ErrorCode.not_found)
         thumbMiss = true
       }
     } else {
       bytes = await getObjectOrNull(rec[0].github_path) // raw bytes — never text-decoded
-      if (!bytes) return c.json({ error: 'not_found' }, 404)
+      if (!bytes) return errJson(c, ErrorCode.not_found)
     }
-    if (!bytes) return c.json({ error: 'not_found' }, 404) // unreachable — narrows the type
+    if (!bytes) return errJson(c, ErrorCode.not_found) // unreachable — narrows the type
     // S39 self-heal: legacy rows (pre-0054) have bytes=0; the object is ALREADY in
     // hand here, so record its true size once — the gallery's space meter goes honest
     // on the first view. Idempotent (guarded by bytes = 0) + best-effort (a failed
@@ -680,7 +681,7 @@ export function coreRoutes(cfg: Config) {
     const user = c.get('user')
     const t = trFor(c)
     const projectId = await ownedRecord(user.id, c.req.param('id'), 'screenshots')
-    if (!projectId) return c.json({ error: 'not_found' }, 404)
+    if (!projectId) return errJson(c, ErrorCode.not_found)
     // S35: clean the remote bytes too (best-effort — the row is the truth either way).
     // S69: the .thumb sibling object rides along — a deleted shot leaves no tile orphan.
     const rec = await cfg.db.query<ScreenshotRow>('SELECT github_path FROM screenshots WHERE id = ? AND project_id = ?', [c.req.param('id'), projectId])
@@ -768,7 +769,7 @@ export function coreRoutes(cfg: Config) {
 
   app.post('/api/canvas/sync', async (c) => {
     const body = await jsonBody<z.infer<typeof syncSchema>>(c, syncSchema)
-    if (!body) return c.json({ error: 'invalid_input' }, 400)
+    if (!body) return errJson(c, ErrorCode.invalid_input)
     const user = c.get('user')
     const t = trFor(c)
 
@@ -847,7 +848,7 @@ export function coreRoutes(cfg: Config) {
       'SELECT id, content, type FROM canvas_elements WHERE id = ? AND user_id = ? AND deleted = 0',
       [c.req.param('id'), user.id],
     )
-    if (rows.length === 0) return c.json({ error: 'not_found' }, 404)
+    if (rows.length === 0) return errJson(c, ErrorCode.not_found)
     const el = rows[0]
     const projectId = uuid()
     const now = new Date().toISOString()

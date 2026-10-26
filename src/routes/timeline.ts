@@ -5,6 +5,7 @@ import { etag } from '../lib/http'
 import { STATUS_BADGE, timeAgo, icon } from '../lib/html'
 import { localeOf, trL, type Locale } from '../lib/i18n'
 import type { Config, UserRow } from '../types'
+import { errJson, ErrorCode } from '../lib/errors'
 
 // Activity timeline (Phase B4.2) — a unified feed across projects + sadhana + quick notes,
 // sorted by timestamp. One new read-only aggregate endpoint; zero DB changes. Each item
@@ -32,7 +33,7 @@ export function timelineRoutes(cfg: Config) {
 
   app.get('/', async (c) => {
     const q = listSchema.safeParse(c.req.query())
-    if (!q.success) return c.json({ error: 'invalid_input' }, 400)
+    if (!q.success) return errJson(c, ErrorCode.invalid_input)
     const user = c.get('user')
     const limit = q.data.limit
     const cursor = q.data.cursor

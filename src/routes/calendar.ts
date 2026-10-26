@@ -5,6 +5,7 @@ import { etag } from '../lib/http'
 import type { Config, ProjectRow, UserRow } from '../types'
 import type { SadhanaTask } from '../services/sadhana'
 import type { QuickNote } from './quicknotes'
+import { errJson, ErrorCode } from '../lib/errors'
 
 // Calendar view (Phase B4.1 + B4.5 locale-aware) — a month grid showing tasks + sadhana
 // tasks by their existing due_date. Zero DB changes: pure read aggregation.
@@ -38,7 +39,7 @@ export function calendarRoutes(cfg: Config) {
 
   app.get('/', async (c) => {
     const q = rangeSchema.safeParse(c.req.query())
-    if (!q.success) return c.json({ error: 'invalid_input' }, 400)
+    if (!q.success) return errJson(c, ErrorCode.invalid_input)
     const user = c.get('user')
     const { start, end } = q.data
 
@@ -46,9 +47,9 @@ export function calendarRoutes(cfg: Config) {
     // is ≤ 31; the bound exists so a hostile range can't drag the whole table through
     // the four queries — S199: the comment claimed this bound but the code never
     // enforced it; now it does).
-    if (start > end) return c.json({ error: 'invalid_input' }, 400)
+    if (start > end) return errJson(c, ErrorCode.invalid_input)
     const spanDays = (Date.parse(end) - Date.parse(start)) / 86_400_000
-    if (spanDays > 400) return c.json({ error: 'invalid_input' }, 400)
+    if (spanDays > 400) return errJson(c, ErrorCode.invalid_input)
 
     const [projects, tasks, sadhana, notes] = await Promise.all([
       cfg.db.query<ProjectRow>(

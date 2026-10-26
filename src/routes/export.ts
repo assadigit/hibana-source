@@ -9,6 +9,7 @@ import { clientIp, hitRateLimit, RATE_RULES } from '../services/ratelimit'
 import { timeAgo, STATUS_LABEL } from '../lib/html'
 import type { Config, ProjectRow, TagRow, UserRow } from '../types'
 import type { TaskRow } from '../types'
+import { errJson, ErrorCode } from '../lib/errors'
 
 // Export-everything (spec §5.8): one-click JSON or Markdown download of all data.
 // SECURITY (2026-08-28): the JSON branch is USER-SCOPED — buildUserSnapshot() returns only
@@ -38,7 +39,7 @@ export function exportRoutes(cfg: Config) {
   app.get('/tasks.csv', async (c) => {
     const user = c.get('user')
     if (await hitRateLimit(cfg.db, RATE_RULES.export, clientIp(c))) {
-      return c.json({ error: 'rate_limited' }, 429)
+      return errJson(c, ErrorCode.rate_limited)
     }
     const tasks = await cfg.db.query<TaskRow & { project_title: string; project_status: string }>(
       `SELECT t.id, t.title, t.done, t.due_date, t.created_at, t.completed_at,
@@ -75,7 +76,7 @@ export function exportRoutes(cfg: Config) {
   app.get('/obsidian.zip', async (c) => {
     const user = c.get('user')
     if (await hitRateLimit(cfg.db, RATE_RULES.export, clientIp(c))) {
-      return c.json({ error: 'rate_limited' }, 429)
+      return errJson(c, ErrorCode.rate_limited)
     }
     const { files, stats, missing } = await buildObsidianVault(cfg.db, user.id)
     const zipped: Record<string, Uint8Array> = {}
@@ -100,7 +101,7 @@ export function exportRoutes(cfg: Config) {
     // Heavy-endpoint metering (hardening 2026-08-28): the snapshot runs ~20 queries and
     // serializes the whole account — 10/min per IP is far beyond any human need.
     if (await hitRateLimit(cfg.db, RATE_RULES.export, clientIp(c))) {
-      return c.json({ error: 'rate_limited' }, 429)
+      return errJson(c, ErrorCode.rate_limited)
     }
     const format = c.req.query('format') ?? 'json'
     const snapshot = await buildUserSnapshot(cfg.db, user.id)
@@ -147,7 +148,7 @@ export function exportRoutes(cfg: Config) {
   app.get('/calendar.ics', async (c) => {
     const user = c.get('user')
     if (await hitRateLimit(cfg.db, RATE_RULES.export, clientIp(c))) {
-      return c.json({ error: 'rate_limited' }, 429)
+      return errJson(c, ErrorCode.rate_limited)
     }
     const monthsQ = Number(c.req.query('months') ?? 6)
     const months = Number.isFinite(monthsQ) ? monthsQ : 6

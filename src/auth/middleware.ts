@@ -3,6 +3,7 @@ import type { Context, MiddlewareHandler } from 'hono'
 import type { Config, UserRow } from '../types'
 import { SESSION_COOKIE, validateSessionWithUser, extendSession, deleteSessionById } from './sessions'
 import { isBanned, banQueryParams } from './ban'
+import { errJson, ErrorCode } from '../lib/errors'
 
 // Presence freshness window (batch e): requireAuth re-stamps users.last_seen_at at most
 // this often — the admin console's "online" dot reads the same column.
@@ -54,7 +55,7 @@ export function requireAuth(cfg: Config, opts: RequireAuthOptions = {}): Middlew
         }
         return c.redirect('/login.html')
       }
-      return c.json({ error: 'unauthorized' }, 401)
+      return errJson(c, ErrorCode.unauthorized)
     }
     const { user, sessionId, expiresAt, needsExtend } = result
     const expiresMs = new Date(expiresAt).getTime()
@@ -70,7 +71,7 @@ export function requireAuth(cfg: Config, opts: RequireAuthOptions = {}): Middlew
         }
         return c.redirect('/login.html')
       }
-      return c.json({ error: 'unauthorized' }, 401)
+      return errJson(c, ErrorCode.unauthorized)
     }
     // Suspended accounts are locked out here (batch e): htmx requests get an HX-Redirect
     // to the login page with the ban notice in the query string; JSON clients get a 403.
@@ -79,7 +80,7 @@ export function requireAuth(cfg: Config, opts: RequireAuthOptions = {}): Middlew
         c.header('HX-Redirect', `/login.html?${banQueryParams(user)}`)
         return c.html('')
       }
-      return c.json({ error: 'banned', until: user.banned_until, reason: user.ban_reason }, 403)
+      return c.json({ error: ErrorCode.banned, until: user.banned_until, reason: user.ban_reason }, 403)
     }
     // Extend-on-activity (rolling 30-day) — fire-and-forget via waitUntil.
     if (needsExtend) fireAndForget(c, () => extendSession(cfg.db, sessionId))

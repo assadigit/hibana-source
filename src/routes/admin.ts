@@ -19,6 +19,7 @@ import { githubClient } from '../services/github'
 import { sendTelegramMessage } from '../services/telegram'
 import { clientIp, hitRateLimit, RATE_RULES } from '../services/ratelimit'
 import type { Config, UserRow } from '../types'
+import { errJson, ErrorCode } from '../lib/errors'
 
 // Owner-scoped admin console (batch e: users, bans, roles, the email console, backup
 // status/download) plus the original owner tools: /backup triggers the same code the
@@ -40,7 +41,7 @@ export function adminRoutes(cfg: Config) {
   // mounted right after requireAuth — no admin route added later can forget the check
   // (the 2026-08-28 incident: /purge shipped without the check its sibling /backup had).
   const requireOwner: MiddlewareHandler<{ Variables: { user: UserRow } }> = async (c, next) => {
-    if (c.get('user').role !== 'owner') return c.json({ error: 'forbidden' }, 403)
+    if (c.get('user').role !== 'owner') return errJson(c, ErrorCode.forbidden)
     return next()
   }
   app.use('*', requireOwner)
@@ -102,10 +103,10 @@ export function adminRoutes(cfg: Config) {
 
   app.patch('/users/:id/ban', async (c) => {
     const body = await jsonBody(c, banUserSchema)
-    if (!body) return c.json({ error: 'invalid_input' }, 400)
+    if (!body) return errJson(c, ErrorCode.invalid_input)
     const target = await loadUser(c.req.param('id'))
-    if (!target) return c.json({ error: 'not_found' }, 404)
-    if (target.role === 'owner') return c.json({ error: 'owner_protected' }, 403)
+    if (!target) return errJson(c, ErrorCode.not_found)
+    if (target.role === 'owner') return errJson(c, ErrorCode.owner_protected)
     let until: string
     if (body.preset) {
       const ms = BAN_PRESET_MS[body.preset]
@@ -117,7 +118,7 @@ export function adminRoutes(cfg: Config) {
       // already rejects past dates as invalid_input; this is the ceiling + NaN guard.)
       const t = new Date(body.until!).getTime()
       if (!Number.isFinite(t) || t <= Date.now() || t > Date.now() + 10 * 365 * 24 * 3600 * 1000) {
-        return c.json({ error: 'invalid_until' }, 400)
+        return errJson(c, ErrorCode.invalid_until)
       }
       until = new Date(t).toISOString()
     }
@@ -132,20 +133,20 @@ export function adminRoutes(cfg: Config) {
 
   app.post('/users/:id/unban', async (c) => {
     const target = await loadUser(c.req.param('id'))
-    if (!target) return c.json({ error: 'not_found' }, 404)
+    if (!target) return errJson(c, ErrorCode.not_found)
     await cfg.db.execute('UPDATE users SET banned_until = NULL, ban_reason = NULL WHERE id = ?', [target.id])
     return c.json({ ok: true })
   })
 
   app.post('/users/:id/role', async (c) => {
     const body = await jsonBody(c, roleUserSchema)
-    if (!body) return c.json({ error: 'invalid_input' }, 400)
+    if (!body) return errJson(c, ErrorCode.invalid_input)
     const target = await loadUser(c.req.param('id'))
-    if (!target) return c.json({ error: 'not_found' }, 404)
-    if (target.id === c.get('user').id) return c.json({ error: 'cannot_change_own_role' }, 403)
+    if (!target) return errJson(c, ErrorCode.not_found)
+    if (target.id === c.get('user').id) return errJson(c, ErrorCode.cannot_change_own_role)
     if (target.role === body.role) return c.json({ ok: true })
     if (target.role === 'owner' && body.role === 'member' && (await ownerCount()) <= 1) {
-      return c.json({ error: 'last_owner' }, 403)
+      return errJson(c, ErrorCode.last_owner)
     }
     await cfg.db.execute('UPDATE users SET role = ? WHERE id = ?', [body.role, target.id])
     return c.json({ ok: true, role: body.role })
@@ -153,13 +154,13 @@ export function adminRoutes(cfg: Config) {
 
   app.delete('/users/:id', async (c) => {
     const body = await jsonBody(c, removeUserSchema)
-    if (!body) return c.json({ error: 'invalid_input' }, 400)
+    if (!body) return errJson(c, ErrorCode.invalid_input)
     const target = await loadUser(c.req.param('id'))
-    if (!target) return c.json({ error: 'not_found' }, 404)
-    if (target.role === 'owner') return c.json({ error: 'owner_protected' }, 403)
+    if (!target) return errJson(c, ErrorCode.not_found)
+    if (target.role === 'owner') return errJson(c, ErrorCode.owner_protected)
     // Typing the username (or the email when there is no username) confirms intent.
     const confirmName = target.username ?? target.email
-    if (body.confirm !== confirmName) return c.json({ error: 'confirm_mismatch', expected: confirmName }, 400)
+    if (body.confirm !== confirmName) return c.json({ error: ErrorCode.confirm_mismatch, expected: confirmName }, 400)
     // Invites the user created go with them; invites they consumed survive but lose
     // the attribution (used_by is informational, not an FK to preserve).
     await cfg.db.transaction(async (tx) => {
@@ -172,7 +173,7 @@ export function adminRoutes(cfg: Config) {
 
   app.post('/users/:id/send-reset', async (c) => {
     const target = await loadUser(c.req.param('id'))
-    if (!target) return c.json({ error: 'not_found' }, 404)
+    if (!target) return errJson(c, ErrorCode.not_found)
     const origin = requestOrigin(c)
     const token = await createResetToken(cfg.db, target.id)
     const link = `${origin}/reset.html?token=${token}`
@@ -187,7 +188,7 @@ export function adminRoutes(cfg: Config) {
       })
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err)
-      return c.json({ error: 'email_failed', detail: msg }, 502)
+      return c.json({ error: ErrorCode.email_failed, detail: msg }, 502)
     }
     return c.json({ ok: true, sent_to: target.email })
   })
@@ -204,17 +205,17 @@ export function adminRoutes(cfg: Config) {
   // remaining count, or a 429 Response the route returns directly.
   const assertQuota = async (c: AuthedContext): Promise<number | Response> => {
     const remaining = RESEND_DAILY_LIMIT - (await emailsSentToday(cfg.db))
-    if (remaining <= 0) return c.json({ error: 'quota_exhausted', limit: RESEND_DAILY_LIMIT }, 429)
+    if (remaining <= 0) return c.json({ error: ErrorCode.quota_exhausted, limit: RESEND_DAILY_LIMIT }, 429)
     return remaining
   }
 
   app.post('/email', async (c) => {
     const body = await jsonBody(c, customEmailSchema)
-    if (!body) return c.json({ error: 'invalid_input' }, 400)
+    if (!body) return errJson(c, ErrorCode.invalid_input)
     const quota = await assertQuota(c)
     if (quota instanceof Response) return quota
     const target = await loadUser(body.to)
-    if (!target) return c.json({ error: 'not_found' }, 404)
+    if (!target) return errJson(c, ErrorCode.not_found)
     const origin = requestOrigin(c)
     try {
       await sendAndLog(cfg, {
@@ -227,7 +228,7 @@ export function adminRoutes(cfg: Config) {
       })
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err)
-      return c.json({ error: 'email_failed', detail: msg }, 502)
+      return c.json({ error: ErrorCode.email_failed, detail: msg }, 502)
     }
     return c.json({ ok: true, sent_to: target.email }, 201)
   })
@@ -237,13 +238,13 @@ export function adminRoutes(cfg: Config) {
     // Resend API calls, so a runaway script or compromised owner session could flood Resend.
     // 2 per 60s per IP is generous for real broadcast use (owner-only via requireOwner).
     if (await hitRateLimit(cfg.db, RATE_RULES.broadcast, clientIp(c))) {
-      return c.json({ error: 'rate_limited', message: 'Too many broadcasts — wait a minute and try again.' }, 429)
+      return c.json({ error: ErrorCode.rate_limited, message: 'Too many broadcasts — wait a minute and try again.' }, 429)
     }
     // The { offset } paging field lives here, not in the shared broadcastEmailSchema —
     // only this route pages.
     const raw = await c.req.json().catch(() => null)
     const parsed = broadcastEmailSchema.extend({ offset: z.number().int().min(0).default(0) }).safeParse(raw)
-    if (!parsed.success) return c.json({ error: 'invalid_input' }, 400)
+    if (!parsed.success) return errJson(c, ErrorCode.invalid_input)
     const body = parsed.data
     const quota = await assertQuota(c)
     if (quota instanceof Response) return quota
@@ -254,7 +255,7 @@ export function adminRoutes(cfg: Config) {
     // registration fixtures (@local.invalid).
     const recipients = all.filter((u) => !isBanned(u) && !u.email.endsWith('@local.invalid'))
     const offset = body.offset
-    if (offset > recipients.length) return c.json({ error: 'offset_out_of_range' }, 400)
+    if (offset > recipients.length) return errJson(c, ErrorCode.offset_out_of_range)
     const budget = Math.min(quota, BROADCAST_MAX_PER_REQUEST, recipients.length - offset)
     const origin = requestOrigin(c)
     const failed: { email: string; error: string }[] = []
@@ -358,11 +359,11 @@ export function adminRoutes(cfg: Config) {
 
   app.post('/backup', async (c) => {
     const t = trFor(c)
-    if (!cfg.github.token) return c.json({ error: 'github_not_configured' }, 503)
+    if (!cfg.github.token) return errJson(c, ErrorCode.github_not_configured)
     // T1 (SWOT Session 26): production refuses to write plaintext backups to GitHub —
     // matches backup-planb.ts:80-84's refuse-plaintext pattern. Dev/test may omit the key.
     if (cfg.isProd && !cfg.backupEncryptionKey) {
-      return c.json({ error: 'backup_encryption_key_not_set', message: 'Production requires BACKUP_ENCRYPTION_KEY — refusing to write plaintext backup.' }, 500)
+      return c.json({ error: ErrorCode.backup_encryption_key_not_set, message: 'Production requires BACKUP_ENCRYPTION_KEY — refusing to write plaintext backup.' }, 500)
     }
     try {
       const result = await backupToGitHub(cfg.db, {
@@ -389,7 +390,7 @@ export function adminRoutes(cfg: Config) {
     const t = trFor(c)
     const raw = await c.req.json().catch(() => ({}))
     const parsed = planBBackupSchema.safeParse(raw)
-    if (!parsed.success) return c.json({ error: 'invalid_input' }, 400)
+    if (!parsed.success) return errJson(c, ErrorCode.invalid_input)
     try {
       if (!cfg.telegramToken || !cfg.backupEncryptionKey) {
         return c.json({ ok: false, skipped: 'telegram bot or BACKUP_ENCRYPTION_KEY not configured' }, 503)
@@ -439,7 +440,7 @@ export function adminRoutes(cfg: Config) {
   })
   app.get('/errors', async (c) => {
     const parsed = errorsQuerySchema.safeParse(c.req.query())
-    if (!parsed.success) return c.json({ error: 'invalid_input' }, 400)
+    if (!parsed.success) return errJson(c, ErrorCode.invalid_input)
     const { limit, status } = parsed.data
     const rows = status
       ? await cfg.db.query('SELECT id, created_at, req_id, user_id, path, status, code, message, substr(stack, 1, 300) AS stack FROM error_log WHERE status = ? ORDER BY created_at DESC LIMIT ?', [String(status), String(limit)])

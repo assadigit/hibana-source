@@ -34,6 +34,7 @@ import {
   WEEKDAYS,
   type BoardCtx,
 } from './sadhana-helpers'
+import { errJson, ErrorCode } from '../lib/errors'
 
 export function sadhanaRoutes(cfg: Config) {
   const app = new Hono<{ Variables: { user: UserRow } }>()
@@ -380,7 +381,7 @@ export function sadhanaRoutes(cfg: Config) {
   app.get('/rename/:q', async (c) => {
     const ctx = ctxOf(c)
     const q = Number(c.req.param('q'))
-    if (![1, 2, 3, 4].includes(q)) return c.json({ error: 'invalid_input' }, 400)
+    if (![1, 2, 3, 4].includes(q)) return errJson(c, ErrorCode.invalid_input)
     const rows = await cfg.db.query<{ name: string; subtitle: string | null; icon_id: string | null; accent_color: string | null }>('SELECT name, subtitle, icon_id, accent_color FROM sadhana_quadrant_names WHERE user_id = ? AND quadrant = ?', [ctx.user.id, q])
     const custom = rows.length ? rows[0].name : ''
     const customSub = rows.length ? rows[0].subtitle ?? '' : ''
@@ -402,7 +403,7 @@ export function sadhanaRoutes(cfg: Config) {
   app.post('/quadrants/reorder', async (c) => {
     const ctx = ctxOf(c)
     const body = await jsonBody<z.infer<typeof quadrantOrderSchema>>(c, quadrantOrderSchema)
-    if (!body) return c.json({ error: 'invalid_input' }, 400)
+    if (!body) return errJson(c, ErrorCode.invalid_input)
     const order = body.ids.join(',')
     await cfg.db.execute('UPDATE users SET sadhana_quadrant_order = ? WHERE id = ?', [order, ctx.user.id])
     ctx.user.sadhana_quadrant_order = order
@@ -416,7 +417,7 @@ export function sadhanaRoutes(cfg: Config) {
     const ctx = ctxOf(c)
     const q = Number(c.req.param('q'))
     const body = await jsonBody<z.infer<typeof quickAddSchema>>(c, quickAddSchema)
-    if (!body || ![1, 2, 3, 4].includes(q)) return c.json({ error: 'invalid_input' }, 400)
+    if (!body || ![1, 2, 3, 4].includes(q)) return errJson(c, ErrorCode.invalid_input)
     const id = uuid()
     const now = new Date().toISOString()
     await cfg.db.execute(
@@ -430,7 +431,7 @@ export function sadhanaRoutes(cfg: Config) {
   app.post('/tasks', async (c) => {
     const ctx = ctxOf(c)
     const body = await jsonBody<z.infer<typeof createTaskSchema>>(c, createTaskSchema)
-    if (!body) return c.json({ error: 'invalid_input' }, 400)
+    if (!body) return errJson(c, ErrorCode.invalid_input)
     const id = uuid()
     const now = new Date().toISOString()
     const recurring = body.recurring === true
@@ -460,7 +461,7 @@ export function sadhanaRoutes(cfg: Config) {
   app.get('/tasks/:id/edit', async (c) => {
     const ctx = ctxOf(c)
     const task = await ownedTask(ctx.user.id, c.req.param('id'))
-    if (!task) return c.json({ error: 'not_found' }, 404)
+    if (!task) return errJson(c, ErrorCode.not_found)
     return c.html(zone(editFormHtml(task, ctx)))
   })
 
@@ -513,9 +514,9 @@ export function sadhanaRoutes(cfg: Config) {
   app.patch('/tasks/:id', async (c) => {
     const ctx = ctxOf(c)
     const task = await ownedTask(ctx.user.id, c.req.param('id'))
-    if (!task) return c.json({ error: 'not_found' }, 404)
+    if (!task) return errJson(c, ErrorCode.not_found)
     const body = await jsonBody<z.infer<typeof patchTaskSchema>>(c, patchTaskSchema)
-    if (!body) return c.json({ error: 'invalid_input' }, 400)
+    if (!body) return errJson(c, ErrorCode.invalid_input)
     const sets: string[] = []
     const params: unknown[] = []
     if (body.title !== undefined) { sets.push('title = ?'); params.push(body.title.trim()) }
@@ -554,7 +555,7 @@ export function sadhanaRoutes(cfg: Config) {
   const completeTask = async (c: Context<{ Variables: { user: UserRow } }>, id: string, done: number) => {
     const ctx = ctxOf(c)
     const task = await ownedTask(ctx.user.id, id)
-    if (!task) return c.json({ error: 'not_found' }, 404)
+    if (!task) return errJson(c, ErrorCode.not_found)
     const now = new Date().toISOString()
     if (done === 1) {
       // Immediate archive (user request 2026-08-29): completing a task moves it to the
@@ -584,9 +585,9 @@ export function sadhanaRoutes(cfg: Config) {
   app.post('/tasks/:id/move', async (c) => {
     const ctx = ctxOf(c)
     const task = await ownedTask(ctx.user.id, c.req.param('id'))
-    if (!task) return c.json({ error: 'not_found' }, 404)
+    if (!task) return errJson(c, ErrorCode.not_found)
     const body = await jsonBody<z.infer<typeof moveSchema>>(c, moveSchema)
-    if (!body) return c.json({ error: 'invalid_input' }, 400)
+    if (!body) return errJson(c, ErrorCode.invalid_input)
     await cfg.db.execute('UPDATE sadhana_tasks SET quadrant = ?, updated_at = ? WHERE id = ? AND user_id = ?', [
       body.quadrant, new Date().toISOString(), task.id, ctx.user.id,
     ])
@@ -597,7 +598,7 @@ export function sadhanaRoutes(cfg: Config) {
   app.post('/tasks/reorder', async (c) => {
     const ctx = ctxOf(c)
     const body = await jsonBody<z.infer<typeof reorderSchema>>(c, reorderSchema)
-    if (!body) return c.json({ error: 'invalid_input' }, 400)
+    if (!body) return errJson(c, ErrorCode.invalid_input)
     // Only the user's own OPEN, non-deleted cards in the stated quadrant get new positions;
     // stray ids are ignored (spec §6.16).
     const rows = await cfg.db.query<{ id: string }>(
@@ -620,7 +621,7 @@ export function sadhanaRoutes(cfg: Config) {
   app.delete('/tasks/:id', async (c) => {
     const ctx = ctxOf(c)
     const task = await ownedTask(ctx.user.id, c.req.param('id'))
-    if (!task) return c.json({ error: 'not_found' }, 404)
+    if (!task) return errJson(c, ErrorCode.not_found)
     const now = new Date().toISOString()
     await cfg.db.execute('UPDATE sadhana_tasks SET deleted_at = ?, updated_at = ? WHERE id = ? AND user_id = ?', [
       now, now, task.id, ctx.user.id,
@@ -634,7 +635,7 @@ export function sadhanaRoutes(cfg: Config) {
   app.delete('/tasks/:id/hard', async (c) => {
     const ctx = ctxOf(c)
     const task = await ownedTask(ctx.user.id, c.req.param('id'))
-    if (!task) return c.json({ error: 'not_found' }, 404)
+    if (!task) return errJson(c, ErrorCode.not_found)
     await cfg.db.transaction(async (tx) => {
       tx.sql('DELETE FROM sadhana_tags WHERE task_id = ?', [task.id])
       tx.sql('DELETE FROM sadhana_updates WHERE task_id = ?', [task.id])
@@ -650,7 +651,7 @@ export function sadhanaRoutes(cfg: Config) {
       'SELECT id FROM sadhana_tasks WHERE id = ? AND user_id = ? AND deleted_at IS NOT NULL',
       [c.req.param('id'), ctx.user.id],
     )
-    if (!rows.length) return c.json({ error: 'not_found' }, 404)
+    if (!rows.length) return errJson(c, ErrorCode.not_found)
     await cfg.db.execute('UPDATE sadhana_tasks SET deleted_at = NULL, updated_at = ? WHERE id = ? AND user_id = ?', [
       new Date().toISOString(), rows[0].id, ctx.user.id,
     ])
@@ -667,7 +668,7 @@ export function sadhanaRoutes(cfg: Config) {
       `SELECT st.id FROM sadhana_tasks st WHERE st.id = ? AND st.user_id = ?`,
       [c.req.param('taskId'), ctx.user.id],
     )
-    if (!rows.length) return c.json({ error: 'not_found' }, 404)
+    if (!rows.length) return errJson(c, ErrorCode.not_found)
     const out = await cfg.db.execute('DELETE FROM sadhana_recur_history WHERE task_id = ?', [rows[0].id])
     return c.json({ ok: true, id: rows[0].id, removed: Number(out.changes ?? 0) })
   })
@@ -678,7 +679,7 @@ export function sadhanaRoutes(cfg: Config) {
   app.get('/tasks/:id/notes', async (c) => {
     const ctx = ctxOf(c)
     const task = await ownedTask(ctx.user.id, c.req.param('id'))
-    if (!task) return c.json({ error: 'not_found' }, 404)
+    if (!task) return errJson(c, ErrorCode.not_found)
     const data = await loadAll(ctx.user.id)
     return c.json({ notes: data.notes.get(task.id) ?? [] })
   })
@@ -686,9 +687,9 @@ export function sadhanaRoutes(cfg: Config) {
   app.post('/tasks/:id/notes', async (c) => {
     const ctx = ctxOf(c)
     const task = await ownedTask(ctx.user.id, c.req.param('id'))
-    if (!task) return c.json({ error: 'not_found' }, 404)
+    if (!task) return errJson(c, ErrorCode.not_found)
     const body = await jsonBody<z.infer<typeof updateSchema>>(c, updateSchema)
-    if (!body) return c.json({ error: 'invalid_input' }, 400)
+    if (!body) return errJson(c, ErrorCode.invalid_input)
     const id = uuid()
     const text = body.text.trim()
     const ts = new Date().toISOString()
@@ -702,7 +703,7 @@ export function sadhanaRoutes(cfg: Config) {
   app.delete('/tasks/:id/notes/legacy', async (c) => {
     const ctx = ctxOf(c)
     const task = await ownedTask(ctx.user.id, c.req.param('id'))
-    if (!task) return c.json({ error: 'not_found' }, 404)
+    if (!task) return errJson(c, ErrorCode.not_found)
     await cfg.db.execute('UPDATE sadhana_tasks SET note = ?, updated_at = ? WHERE id = ? AND user_id = ?', ['', new Date().toISOString(), task.id, ctx.user.id])
     return c.json({ ok: true })
   })
@@ -714,7 +715,7 @@ export function sadhanaRoutes(cfg: Config) {
       'SELECT u.id FROM sadhana_updates u JOIN sadhana_tasks t ON t.id = u.task_id WHERE u.id = ? AND t.user_id = ?',
       [noteId, ctx.user.id],
     )
-    if (!rows.length) return c.json({ error: 'not_found' }, 404)
+    if (!rows.length) return errJson(c, ErrorCode.not_found)
     await cfg.db.execute(
       'DELETE FROM sadhana_updates WHERE id = ? AND task_id IN (SELECT id FROM sadhana_tasks WHERE user_id = ?)',
       [noteId, ctx.user.id],
@@ -726,7 +727,7 @@ export function sadhanaRoutes(cfg: Config) {
   app.get('/tasks/:id/updates', async (c) => {
     const ctx = ctxOf(c)
     const task = await ownedTask(ctx.user.id, c.req.param('id'))
-    if (!task) return c.json({ error: 'not_found' }, 404)
+    if (!task) return errJson(c, ErrorCode.not_found)
     const rows = await cfg.db.query<{ id: string; text: string; created_at: string }>(
       'SELECT id, text, created_at FROM sadhana_updates WHERE task_id = ? ORDER BY created_at',
       [task.id],
@@ -746,9 +747,9 @@ export function sadhanaRoutes(cfg: Config) {
   app.post('/tasks/:id/updates', async (c) => {
     const ctx = ctxOf(c)
     const task = await ownedTask(ctx.user.id, c.req.param('id'))
-    if (!task) return c.json({ error: 'not_found' }, 404)
+    if (!task) return errJson(c, ErrorCode.not_found)
     const body = await jsonBody<z.infer<typeof updateSchema>>(c, updateSchema)
-    if (!body) return c.json({ error: 'invalid_input' }, 400)
+    if (!body) return errJson(c, ErrorCode.invalid_input)
     await cfg.db.execute('INSERT INTO sadhana_updates (id, task_id, text, created_at) VALUES (?, ?, ?, ?)', [
       uuid(), task.id, body.text.trim(), new Date().toISOString(),
     ])
@@ -762,7 +763,7 @@ export function sadhanaRoutes(cfg: Config) {
       'SELECT u.id FROM sadhana_updates u JOIN sadhana_tasks t ON t.id = u.task_id WHERE u.id = ? AND t.user_id = ?',
       [c.req.param('id'), ctx.user.id],
     )
-    if (!rows.length) return c.json({ error: 'not_found' }, 404)
+    if (!rows.length) return errJson(c, ErrorCode.not_found)
     await cfg.db.execute('DELETE FROM sadhana_updates WHERE id = ?', [rows[0].id])
     const data = await loadAll(ctx.user.id)
     return isHx(c) ? c.html(boardZoneHtml(data, ctx)) : c.json({ ok: true })
@@ -778,9 +779,9 @@ export function sadhanaRoutes(cfg: Config) {
       'SELECT u.id FROM sadhana_updates u JOIN sadhana_tasks t ON t.id = u.task_id WHERE u.id = ? AND t.user_id = ?',
       [c.req.param('id'), ctx.user.id],
     )
-    if (!rows.length) return c.json({ error: 'not_found' }, 404)
+    if (!rows.length) return errJson(c, ErrorCode.not_found)
     const body = await jsonBody<z.infer<typeof updateSchema>>(c, updateSchema)
-    if (!body) return c.json({ error: 'invalid_input' }, 400)
+    if (!body) return errJson(c, ErrorCode.invalid_input)
     await cfg.db.execute('UPDATE sadhana_updates SET text = ? WHERE id = ?', [body.text, rows[0].id])
     const data = await loadAll(ctx.user.id)
     return isHx(c) ? c.html(boardZoneHtml(data, ctx)) : c.json({ ok: true })
@@ -790,16 +791,16 @@ export function sadhanaRoutes(cfg: Config) {
   app.patch('/quadrants/:q', async (c) => {
     const ctx = ctxOf(c)
     const q = Number(c.req.param('q'))
-    if (![1, 2, 3, 4].includes(q)) return c.json({ error: 'invalid_input' }, 400)
+    if (![1, 2, 3, 4].includes(q)) return errJson(c, ErrorCode.invalid_input)
     const body = await jsonBody<z.infer<typeof renameSchema>>(c, renameSchema)
-    if (!body) return c.json({ error: 'invalid_input' }, 400)
+    if (!body) return errJson(c, ErrorCode.invalid_input)
     if (body.name === null && (body.subtitle === null || body.subtitle === undefined) && body.icon_id === undefined && body.accent_color === undefined) {
       // explicit restore → delete the whole row (built-in heading + subtitle)
       await cfg.db.execute('DELETE FROM sadhana_quadrant_names WHERE user_id = ? AND quadrant = ?', [ctx.user.id, q])
     } else {
       // heading and/or subtitle changed → upsert; preserve whichever field wasn't sent
       const name = body.name !== null && body.name !== undefined ? body.name.trim() : null
-      if (name === '' || (name && name.length > 60)) return c.json({ error: 'invalid_name' }, 400) // empty heading rejected (§6.27)
+      if (name === '' || (name && name.length > 60)) return errJson(c, ErrorCode.invalid_name) // empty heading rejected (§6.27)
       const current = await cfg.db.query<{ name: string | null; subtitle: string | null; icon_id: string | null; accent_color: string | null }>(
         'SELECT name, subtitle, icon_id, accent_color FROM sadhana_quadrant_names WHERE user_id = ? AND quadrant = ?',
         [ctx.user.id, q],
@@ -825,7 +826,7 @@ export function sadhanaRoutes(cfg: Config) {
   app.get('/focus/:q', async (c) => {
     const ctx = ctxOf(c)
     const q = Number(c.req.param('q'))
-    if (![1, 2, 3, 4].includes(q)) return c.json({ error: 'invalid_input' }, 400)
+    if (![1, 2, 3, 4].includes(q)) return errJson(c, ErrorCode.invalid_input)
     const data = await loadAll(ctx.user.id)
     return c.html(focusZone(q, data, ctx))
   })

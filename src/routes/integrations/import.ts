@@ -6,6 +6,7 @@ import { uuid } from '../../lib/ids'
 import { markdownFromZip, parseMarkdownNote, ZipLimitError } from '../../lib/obsidian'
 import { clientIp, hitRateLimit, RATE_RULES } from '../../services/ratelimit'
 import type { Config, UserRow } from '../../types'
+import { errJson, ErrorCode } from '../../lib/errors'
 
 export function registerImport(app: Hono<{ Variables: { user: UserRow } }>, cfg: Config) {
   app.post('/api/import/obsidian', requireAuth(cfg), async (c) => {
@@ -13,27 +14,27 @@ export function registerImport(app: Hono<{ Variables: { user: UserRow } }>, cfg:
     // Heavy-endpoint metering (hardening 2026-08-28): import inflates archives and writes
     // unbounded rows — 5 per minute per IP is generous for a real vault import.
     if (await hitRateLimit(cfg.db, RATE_RULES.import, clientIp(c))) {
-      return c.json({ error: 'rate_limited', message: 'Too many imports — wait a minute and try again.' }, 429)
+      return c.json({ error: ErrorCode.rate_limited, message: 'Too many imports — wait a minute and try again.' }, 429)
     }
     const form = await c.req.formData().catch(() => null)
-    if (!form) return c.json({ error: 'invalid_input' }, 400)
+    if (!form) return errJson(c, ErrorCode.invalid_input)
 
     const allFiles = (form.getAll('files') as File[]).filter((f) => f && typeof f.arrayBuffer === 'function')
     const mdFiles = allFiles.filter((f) => /\.md$/i.test(f.name ?? ''))
     const zipFiles = allFiles.filter((f) => /\.zip$/i.test(f.name ?? ''))
     if (mdFiles.length === 0 && zipFiles.length === 0) {
-      return c.json({ error: 'no_markdown_files', message: 'Attach .md files or a .zip of your exported notes.' }, 400)
+      return c.json({ error: ErrorCode.no_markdown_files, message: 'Attach .md files or a .zip of your exported notes.' }, 400)
     }
     // Request-shape caps (hardening 2026-08-28): bounded file count + total upload bytes,
     // enforced before anything is read into memory. 100MB matches Cloudflare's body cap.
     const MAX_FILES = 200
     const MAX_UPLOAD_BYTES = 100 * 1024 * 1024
     if (allFiles.length > MAX_FILES) {
-      return c.json({ error: 'too_many', message: `Attach at most ${MAX_FILES} files per import.` }, 400)
+      return c.json({ error: ErrorCode.too_many, message: `Attach at most ${MAX_FILES} files per import.` }, 400)
     }
     const totalBytes = allFiles.reduce((n, f) => n + (f.size ?? 0), 0)
     if (totalBytes > MAX_UPLOAD_BYTES) {
-      return c.json({ error: 'too_many', message: 'Import is limited to 100MB of uploads per request.' }, 413)
+      return c.json({ error: ErrorCode.too_many, message: 'Import is limited to 100MB of uploads per request.' }, 413)
     }
 
     // rule 1: titles are scoped to this user; collect existing ones once for dedupe.
@@ -47,9 +48,9 @@ export function registerImport(app: Hono<{ Variables: { user: UserRow } }>, cfg:
         notes.push(...markdownFromZip(new Uint8Array(await file.arrayBuffer())))
       } catch (err) {
         if (err instanceof ZipLimitError) {
-          return c.json({ error: 'too_many', message: err.message }, 413)
+          return c.json({ error: ErrorCode.too_many, message: err.message }, 413)
         }
-        return c.json({ error: 'invalid_zip', message: 'Could not read that .zip file — is it a valid archive?' }, 400)
+        return c.json({ error: ErrorCode.invalid_zip, message: 'Could not read that .zip file — is it a valid archive?' }, 400)
       }
     }
 

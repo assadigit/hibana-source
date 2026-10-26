@@ -27,6 +27,7 @@ import { uuid } from '../lib/ids'
 import { executeIn } from '../lib/inchunk'
 import type { Config, UserRow, DevTaskRow, SprintRow, TagRow } from '../types'
 import { categoriesUserScoped, isValidCatPair, normCatName, type CategoryRow } from '../lib/categories'
+import { errJson, ErrorCode } from '../lib/errors'
 
 const taskStatusSchema = z.enum(['idea', 'planned', 'in_progress', 'done', 'bug'])
 const prioritySchema = z.enum(['low', 'medium', 'high', 'urgent'])
@@ -140,7 +141,7 @@ export function devboardRoutes(cfg: Config) {
   app.get('/api/projects/:projectId/devboard', async (c) => {
     const user = c.get('user')
     const p = await getOwnedProject(cfg, user.id, c.req.param('projectId'))
-    if (!p) return c.json({ error: 'not_found' }, 404)
+    if (!p) return errJson(c, ErrorCode.not_found)
     const [tasks, sprints, tags, taskTags, categories] = await Promise.all([
       cfg.db.query<DevTaskRow & { tags: string; shot_count: number }>(
         // S29 follow-up: PRIORITY-FIRST ordering — tasks auto-sort urgent → high →
@@ -199,17 +200,17 @@ export function devboardRoutes(cfg: Config) {
 
   app.post('/api/projects/:projectId/devtasks', async (c) => {
     const body = await jsonBody<z.infer<typeof createDevTaskSchema>>(c, createDevTaskSchema)
-    if (!body) return c.json({ error: 'invalid_input' }, 400)
+    if (!body) return errJson(c, ErrorCode.invalid_input)
     const user = c.get('user')
     const t = trFor(c)
     const p = await getOwnedProject(cfg, user.id, c.req.param('projectId'))
-    if (!p) return c.json({ error: 'not_found' }, 404)
+    if (!p) return errJson(c, ErrorCode.not_found)
     // category/sprint ids must be valid — a foreign id is a 400, not a 500. The
     // category (S152) must be a LIVE global category ENABLED on this project (the
     // single-select source is the project's picker set, block 3).
     const categoryOk = body.category_id ? await categoryEnabledOnProject(cfg, p.id, body.category_id) : true
     const sprintOk = body.sprint_id ? await ownedSprint(cfg, user.id, body.sprint_id) : true
-    if ((body.category_id && !categoryOk) || (body.sprint_id && !sprintOk)) return c.json({ error: 'invalid_input' }, 400)
+    if ((body.category_id && !categoryOk) || (body.sprint_id && !sprintOk)) return errJson(c, ErrorCode.invalid_input)
     // "Everything happens inside the active sprint": with no sprint_id in the body
     // (undefined — an explicit null still means "no sprint"), land the task in the
     // project's DRAFT sprint (0034 — the one being planned), else its open started
@@ -247,10 +248,10 @@ export function devboardRoutes(cfg: Config) {
 
   app.post('/api/projects/:projectId/devtasks/reorder', async (c) => {
     const body = await jsonBody<z.infer<typeof reorderSchema>>(c, reorderSchema)
-    if (!body) return c.json({ error: 'invalid_input' }, 400)
+    if (!body) return errJson(c, ErrorCode.invalid_input)
     const user = c.get('user')
     const p = await getOwnedProject(cfg, user.id, c.req.param('projectId'))
-    if (!p) return c.json({ error: 'not_found' }, 404)
+    if (!p) return errJson(c, ErrorCode.not_found)
     await cfg.db.transaction(async (tx) => {
       body.ids.forEach((id, i) => {
         tx.sql('UPDATE dev_tasks SET sort_order = ? WHERE id = ? AND project_id = ?', [i, id, p.id])
@@ -261,13 +262,13 @@ export function devboardRoutes(cfg: Config) {
 
   app.patch('/api/devtasks/:id', async (c) => {
     const body = await jsonBody<z.infer<typeof updateDevTaskSchema>>(c, updateDevTaskSchema)
-    if (!body) return c.json({ error: 'invalid_input' }, 400)
+    if (!body) return errJson(c, ErrorCode.invalid_input)
     const user = c.get('user')
     const t = trFor(c)
     const task = await ownedTask(cfg, user.id, c.req.param('id'))
-    if (!task) return c.json({ error: 'not_found' }, 404)
-    if (body.category_id && !(await categoryEnabledOnProject(cfg, task.project_id, body.category_id))) return c.json({ error: 'invalid_input' }, 400)
-    if (body.sprint_id && !(await ownedSprint(cfg, user.id, body.sprint_id))) return c.json({ error: 'invalid_input' }, 400)
+    if (!task) return errJson(c, ErrorCode.not_found)
+    if (body.category_id && !(await categoryEnabledOnProject(cfg, task.project_id, body.category_id))) return errJson(c, ErrorCode.invalid_input)
+    if (body.sprint_id && !(await ownedSprint(cfg, user.id, body.sprint_id))) return errJson(c, ErrorCode.invalid_input)
     const now = new Date().toISOString()
     // tags is NOT a dev_tasks column (replace-set semantics on dev_task_tags) — pull it
     // out BEFORE the generic SET builder, or the loop below would emit SET tags = ?
@@ -319,7 +320,7 @@ export function devboardRoutes(cfg: Config) {
     const user = c.get('user')
     const t = trFor(c)
     const task = await ownedTask(cfg, user.id, c.req.param('id'))
-    if (!task) return c.json({ error: 'not_found' }, 404)
+    if (!task) return errJson(c, ErrorCode.not_found)
     // S30 (B2): the dev_task_tags rows CASCADE away with the task — their tags' usage
     // counts must follow, or the label manager shows ghosts ("used 3×" for a dead link).
     const linked = await cfg.db.query<{ tag_id: string }>('SELECT tag_id FROM dev_task_tags WHERE task_id = ?', [task.id])
@@ -336,7 +337,7 @@ export function devboardRoutes(cfg: Config) {
     const user = c.get('user')
     const t = trFor(c)
     const p = await getOwnedProject(cfg, user.id, c.req.param('projectId'))
-    if (!p) return c.json({ error: 'not_found' }, 404)
+    if (!p) return errJson(c, ErrorCode.not_found)
     const tasks = await cfg.db.query<{
       id: string; title: string; priority: string; category_id: string | null
       sprint_id: string | null; done_at: string | null; created_at: string
@@ -382,7 +383,7 @@ export function devboardRoutes(cfg: Config) {
   app.get('/api/projects/:projectId/archives', async (c) => {
     const user = c.get('user')
     const p = await getOwnedProject(cfg, user.id, c.req.param('projectId'))
-    if (!p) return c.json({ error: 'not_found' }, 404)
+    if (!p) return errJson(c, ErrorCode.not_found)
     const rows = await cfg.db.query<{
       id: string; title: string; priority: string; done_at: string | null
       original_created_at: string; archived_at: string; tags: string
@@ -407,13 +408,13 @@ export function devboardRoutes(cfg: Config) {
   app.post('/api/projects/:projectId/archives/:aid/restore', async (c) => {
     const user = c.get('user')
     const p = await getOwnedProject(cfg, user.id, c.req.param('projectId'))
-    if (!p) return c.json({ error: 'not_found' }, 404)
+    if (!p) return errJson(c, ErrorCode.not_found)
     const aid = c.req.param('aid')
     const rows = await cfg.db.query<{
       id: string; title: string; priority: string; category_id: string | null
       sprint_id: string | null; done_at: string | null; original_created_at: string; tags: string
     }>(`SELECT id, title, priority, category_id, sprint_id, done_at, original_created_at, tags FROM project_archives WHERE id = ? AND project_id = ?`, [aid, p.id])
-    if (rows.length === 0) return c.json({ error: 'not_found' }, 404)
+    if (rows.length === 0) return errJson(c, ErrorCode.not_found)
     const a = rows[0]
     const now = new Date().toISOString()
     // Re-insert into dev_tasks (status='done'). sort_order = max+1 to put it at the end.
@@ -451,7 +452,7 @@ export function devboardRoutes(cfg: Config) {
   app.delete('/api/projects/:projectId/archives/:aid', async (c) => {
     const user = c.get('user')
     const p = await getOwnedProject(cfg, user.id, c.req.param('projectId'))
-    if (!p) return c.json({ error: 'not_found' }, 404)
+    if (!p) return errJson(c, ErrorCode.not_found)
     await cfg.db.execute('DELETE FROM project_archives WHERE id = ? AND project_id = ?', [c.req.param('aid'), p.id])
     return c.json({ ok: true })
   })
@@ -460,10 +461,10 @@ export function devboardRoutes(cfg: Config) {
 
   app.post('/api/devtasks/:id/tags', async (c) => {
     const body = await jsonBody<z.infer<typeof tagBodySchema>>(c, tagBodySchema)
-    if (!body) return c.json({ error: 'invalid_input' }, 400)
+    if (!body) return errJson(c, ErrorCode.invalid_input)
     const user = c.get('user')
     const task = await ownedTask(cfg, user.id, c.req.param('id'))
-    if (!task) return c.json({ error: 'not_found' }, 404)
+    if (!task) return errJson(c, ErrorCode.not_found)
     const now = new Date().toISOString()
     const found = await cfg.db.query<{ id: string }>('SELECT id FROM tags WHERE user_id = ? AND name = ?', [user.id, body.name])
     const tagId = found[0]?.id ?? uuid()
@@ -482,7 +483,7 @@ export function devboardRoutes(cfg: Config) {
   app.delete('/api/devtasks/:id/tags/:tagId', async (c) => {
     const user = c.get('user')
     const task = await ownedTask(cfg, user.id, c.req.param('id'))
-    if (!task) return c.json({ error: 'not_found' }, 404)
+    if (!task) return errJson(c, ErrorCode.not_found)
     await cfg.db.execute('DELETE FROM dev_task_tags WHERE task_id = ? AND tag_id = ?', [task.id, c.req.param('tagId')])
     // S30 (B2 + B3): the link went away — usage and the FTS text follow.
     await refreshTagUsage(cfg, [c.req.param('tagId')])
@@ -499,13 +500,13 @@ export function devboardRoutes(cfg: Config) {
   // REUSED (enabled on this project + returned) instead of forking a duplicate.
   app.post('/api/projects/:projectId/categories', async (c) => {
     const body = await jsonBody<z.infer<typeof createCategorySchema>>(c, createCategorySchema)
-    if (!body) return c.json({ error: 'invalid_input' }, 400)
-    if (!isValidCatPair(body.color_fill, body.color_text)) return c.json({ error: 'invalid_input' }, 400)
+    if (!body) return errJson(c, ErrorCode.invalid_input)
+    if (!isValidCatPair(body.color_fill, body.color_text)) return errJson(c, ErrorCode.invalid_input)
     const user = c.get('user')
     const p = await getOwnedProject(cfg, user.id, c.req.param('projectId'))
-    if (!p) return c.json({ error: 'not_found' }, 404)
+    if (!p) return errJson(c, ErrorCode.not_found)
     const name = body.name.trim()
-    if (!name) return c.json({ error: 'invalid_input' }, 400)
+    if (!name) return errJson(c, ErrorCode.invalid_input)
     const scoped = await categoriesUserScoped(cfg.db)
     const existing = scoped
       ? await cfg.db.query<{ id: string }>(
@@ -546,11 +547,11 @@ export function devboardRoutes(cfg: Config) {
 
   app.post('/api/projects/:projectId/sprints', async (c) => {
     const body = await jsonBody<z.infer<typeof createSprintSchema>>(c, createSprintSchema)
-    if (!body) return c.json({ error: 'invalid_input' }, 400)
+    if (!body) return errJson(c, ErrorCode.invalid_input)
     const user = c.get('user')
     const t = trFor(c)
     const p = await getOwnedProject(cfg, user.id, c.req.param('projectId'))
-    if (!p) return c.json({ error: 'not_found' }, 404)
+    if (!p) return errJson(c, ErrorCode.not_found)
     const id = uuid()
     const now = new Date().toISOString()
     const count = await cfg.db.query<{ n: number }>('SELECT COUNT(*) AS n FROM sprints WHERE project_id = ?', [p.id])
@@ -562,7 +563,7 @@ export function devboardRoutes(cfg: Config) {
       'SELECT id FROM sprints WHERE project_id = ? AND is_draft = 1',
       [p.id],
     )
-    if (draft.length) return c.json({ error: 'draft_exists', draft_id: draft[0].id }, 409)
+    if (draft.length) return c.json({ error: ErrorCode.draft_exists, draft_id: draft[0].id }, 409)
     // S48n: if started_at is provided, create the sprint as STARTED (is_draft=0) with
     // the chosen dates + close any currently open sprint first. Otherwise, create as
     // a DRAFT (is_draft=1, started_at=now, ended_at=NULL — the user starts it later).
@@ -600,8 +601,8 @@ export function devboardRoutes(cfg: Config) {
     const user = c.get('user')
     const t = trFor(c)
     const s = await ownedSprint(cfg, user.id, c.req.param('id'))
-    if (!s) return c.json({ error: 'not_found' }, 404)
-    if (!s.is_draft) return c.json({ error: 'already_started' }, 400)
+    if (!s) return errJson(c, ErrorCode.not_found)
+    if (!s.is_draft) return errJson(c, ErrorCode.already_started)
     const now = new Date().toISOString()
     // One open sprint at a time (user model): starting this one closes the current open
     // sprint the day BEFORE the new start (sprints never share a day). Edge: the open
@@ -627,15 +628,15 @@ export function devboardRoutes(cfg: Config) {
 
   app.patch('/api/sprints/:id', async (c) => {
     const body = await jsonBody<z.infer<typeof updateSprintSchema>>(c, updateSprintSchema)
-    if (!body) return c.json({ error: 'invalid_input' }, 400)
+    if (!body) return errJson(c, ErrorCode.invalid_input)
     const user = c.get('user')
     const s = await ownedSprint(cfg, user.id, c.req.param('id'))
-    if (!s) return c.json({ error: 'not_found' }, 404)
+    if (!s) return errJson(c, ErrorCode.not_found)
     // A draft carries name + version + its doc (0034 + 0052) — its dates are set by
     // /start, never by PATCH. description (the full-screen editor's subject) is ALWAYS
     // writable; an empty string is a legal empty doc (the modal seeds an empty one).
     if (s.is_draft) {
-      if (body.started_at !== undefined || body.ended_at !== undefined) return c.json({ error: 'invalid_input' }, 400)
+      if (body.started_at !== undefined || body.ended_at !== undefined) return errJson(c, ErrorCode.invalid_input)
       const sets: string[] = []
       const params: unknown[] = []
       if (body.name !== undefined) { sets.push('name = ?'); params.push(body.name) }
@@ -651,7 +652,7 @@ export function devboardRoutes(cfg: Config) {
     const newEnd = body.ended_at === undefined ? s.ended_at : body.ended_at
     // A set end must be strictly after the start — a zero/negative sprint is invalid.
     if (typeof newEnd === 'string' && Date.parse(newEnd) <= Date.parse(newStart)) {
-      return c.json({ error: 'invalid_input' }, 400)
+      return errJson(c, ErrorCode.invalid_input)
     }
     // Reopening (end = null): only the LATEST sprint by started_at may be open, and only
     // while no OTHER sprint is open — one open sprint at a time (user model).
@@ -659,7 +660,7 @@ export function devboardRoutes(cfg: Config) {
       const others = siblings.filter((x) => x.id !== s.id)
       const isLatest = others.every((x) => Date.parse(x.started_at) <= Date.parse(newStart))
       const anyOtherOpen = others.some((x) => x.ended_at === null)
-      if (!isLatest || anyOtherOpen) return c.json({ error: 'invalid_input' }, 400)
+      if (!isLatest || anyOtherOpen) return errJson(c, ErrorCode.invalid_input)
     }
     // Overlap check at DAY granularity (the timeline works in whole days; an open
     // sibling's end counts as +∞). The one allowed exception: a range spanning ZERO days
@@ -680,7 +681,7 @@ export function devboardRoutes(cfg: Config) {
       const aE = newEnd === null ? Infinity : dayIdx(newEnd)
       const bS = dayIdx(x.started_at)
       const bE = x.ended_at === null ? Infinity : dayIdx(x.ended_at)
-      if (aS <= bE && bS <= aE) return c.json({ error: 'invalid_input' }, 400)
+      if (aS <= bE && bS <= aE) return errJson(c, ErrorCode.invalid_input)
     }
     // One UPDATE touching only the fields the body provided (explicit null reopens).
     // version/description ride along on started sprints too (0052) — the doc stays
@@ -717,8 +718,8 @@ export function devboardRoutes(cfg: Config) {
     const user = c.get('user')
     const t = trFor(c)
     const s = await ownedSprint(cfg, user.id, c.req.param('id'))
-    if (!s) return c.json({ error: 'not_found' }, 404)
-    if (s.is_draft) return c.json({ error: 'invalid_input' }, 400)
+    if (!s) return errJson(c, ErrorCode.not_found)
+    if (s.is_draft) return errJson(c, ErrorCode.invalid_input)
     await cfg.db.execute('UPDATE sprints SET ended_at = ? WHERE id = ?', [new Date().toISOString(), s.id])
     await logHistory(cfg, s.project_id, t('{name} finished', '{name} تمام شد', { name: s.name }))
     return c.json({ ok: true })
@@ -727,8 +728,8 @@ export function devboardRoutes(cfg: Config) {
   app.post('/api/sprints/:id/reopen', async (c) => {
     const user = c.get('user')
     const s = await ownedSprint(cfg, user.id, c.req.param('id'))
-    if (!s) return c.json({ error: 'not_found' }, 404)
-    if (s.is_draft) return c.json({ error: 'invalid_input' }, 400)
+    if (!s) return errJson(c, ErrorCode.not_found)
+    if (s.is_draft) return errJson(c, ErrorCode.invalid_input)
     // Same guard as PATCH's null-end rule: only the LATEST sprint by started_at may
     // reopen, and only while no other sprint is open (one open sprint at a time).
     const others = await cfg.db.query<{ started_at: string; ended_at: string | null }>(
@@ -738,7 +739,7 @@ export function devboardRoutes(cfg: Config) {
     const startedAt = s.started_at
     const isLatest = others.every((x) => Date.parse(x.started_at) <= Date.parse(startedAt))
     const anyOtherOpen = others.some((x) => x.ended_at === null)
-    if (!isLatest || anyOtherOpen) return c.json({ error: 'invalid_input' }, 400)
+    if (!isLatest || anyOtherOpen) return errJson(c, ErrorCode.invalid_input)
     await cfg.db.execute('UPDATE sprints SET ended_at = NULL WHERE id = ?', [s.id])
     return c.json({ ok: true })
   })
@@ -747,7 +748,7 @@ export function devboardRoutes(cfg: Config) {
     const user = c.get('user')
     const t = trFor(c)
     const s = await ownedSprint(cfg, user.id, c.req.param('id'))
-    if (!s) return c.json({ error: 'not_found' }, 404)
+    if (!s) return errJson(c, ErrorCode.not_found)
     await cfg.db.transaction(async (tx) => {
       tx.sql('UPDATE dev_tasks SET sprint_id = NULL WHERE sprint_id = ?', [s.id])
       // AP-27: archived snapshots carry sprint_id too — a dangling id here made every
@@ -764,17 +765,17 @@ export function devboardRoutes(cfg: Config) {
   app.get('/api/projects/:projectId/backlog', async (c) => {
     const user = c.get('user')
     const p = await getOwnedProject(cfg, user.id, c.req.param('projectId'))
-    if (!p) return c.json({ error: 'not_found' }, 404)
+    if (!p) return errJson(c, ErrorCode.not_found)
     return c.json(await loadBacklog(cfg, p.id))
   })
 
   app.post('/api/projects/:projectId/backlog/docs', async (c) => {
     const body = await jsonBody<z.infer<typeof createBacklogDocSchema>>(c, createBacklogDocSchema)
-    if (!body) return c.json({ error: 'invalid_input' }, 400)
+    if (!body) return errJson(c, ErrorCode.invalid_input)
     const user = c.get('user')
     const t = trFor(c)
     const p = await getOwnedProject(cfg, user.id, c.req.param('projectId'))
-    if (!p) return c.json({ error: 'not_found' }, 404)
+    if (!p) return errJson(c, ErrorCode.not_found)
     const id = uuid()
     const now = new Date().toISOString()
     await cfg.db.transaction(async (tx) => {
@@ -792,11 +793,11 @@ export function devboardRoutes(cfg: Config) {
 
   app.patch('/api/backlog/docs/:id', async (c) => {
     const body = await jsonBody<z.infer<typeof updateBacklogDocSchema>>(c, updateBacklogDocSchema)
-    if (!body) return c.json({ error: 'invalid_input' }, 400)
+    if (!body) return errJson(c, ErrorCode.invalid_input)
     const user = c.get('user')
     const t = trFor(c)
     const doc = await ownedBacklogDoc(cfg, user.id, c.req.param('id'))
-    if (!doc) return c.json({ error: 'not_found' }, 404)
+    if (!doc) return errJson(c, ErrorCode.not_found)
     const now = new Date().toISOString()
     const title = body.title ?? doc.title
     const content = body.content ?? doc.content
@@ -815,7 +816,7 @@ export function devboardRoutes(cfg: Config) {
     const user = c.get('user')
     const t = trFor(c)
     const doc = await ownedBacklogDoc(cfg, user.id, c.req.param('id'))
-    if (!doc) return c.json({ error: 'not_found' }, 404)
+    if (!doc) return errJson(c, ErrorCode.not_found)
     await cfg.db.execute('DELETE FROM backlog_docs WHERE id = ?', [doc.id])
     await logHistory(cfg, doc.project_id, t('Plan doc deleted: {title}', 'سند برنامه «{title}» حذف شد', { title: doc.title }))
     return c.json({ ok: true })
@@ -825,10 +826,10 @@ export function devboardRoutes(cfg: Config) {
 
   app.post('/api/projects/:projectId/tags', async (c) => {
     const body = await jsonBody<z.infer<typeof tagBodySchema>>(c, tagBodySchema)
-    if (!body) return c.json({ error: 'invalid_input' }, 400)
+    if (!body) return errJson(c, ErrorCode.invalid_input)
     const user = c.get('user')
     const p = await getOwnedProject(cfg, user.id, c.req.param('projectId'))
-    if (!p) return c.json({ error: 'not_found' }, 404)
+    if (!p) return errJson(c, ErrorCode.not_found)
     const found = await cfg.db.query<{ id: string }>('SELECT id FROM tags WHERE user_id = ? AND name = ?', [user.id, body.name])
     const tagId = found[0]?.id ?? uuid()
     if (!found.length) {
@@ -847,7 +848,7 @@ export function devboardRoutes(cfg: Config) {
   app.delete('/api/projects/:projectId/tags/:tagId', async (c) => {
     const user = c.get('user')
     const p = await getOwnedProject(cfg, user.id, c.req.param('projectId'))
-    if (!p) return c.json({ error: 'not_found' }, 404)
+    if (!p) return errJson(c, ErrorCode.not_found)
     await cfg.db.execute('DELETE FROM project_tags WHERE project_id = ? AND tag_id = ?', [p.id, c.req.param('tagId')])
     await refreshTagUsage(cfg, [c.req.param('tagId')])
     // S161 (spec #3): a tag remove bumps the idea's updated_at too.

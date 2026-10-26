@@ -21,6 +21,7 @@ import { faDigits } from '../lib/jalali'
 import { timeAgo } from '../lib/html'
 import { OV_STATUSES, ovLabel, projectHueVar, type OvStatus } from './projects/helpers'
 import type { Config, UserRow } from '../types'
+import { errJson, ErrorCode } from '../lib/errors'
 
 interface OvTaskListRow {
   id: string
@@ -81,7 +82,7 @@ export function ovTasksRoutes(cfg: Config) {
     const q = c.req.query('status') ?? 'planned'
     const status = (OV_STATUSES as readonly string[]).includes(q) ? (q as OvStatus) : null
     // rule 10: the only input is the status filter — allowlist or 400.
-    if (!status) return c.json({ error: 'invalid_status' }, 400)
+    if (!status) return errJson(c, ErrorCode.invalid_status)
     const scope = "p.user_id = ? AND p.deleted_at IS NULL AND (p.archived_state IS NULL OR p.archived_state != 'offline')"
     // The same 0061/S57 belt the overview feeds wear: without the column (a D1 the
     // migration hasn't reached yet) degrade to born-order instead of erroring.

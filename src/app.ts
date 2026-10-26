@@ -1,5 +1,5 @@
 import { Hono } from 'hono'
-import { ApiError, errorBody, internalErrorResponse } from './lib/errors'
+import { ApiError, errorBody, internalErrorResponse, errJson, ErrorCode } from './lib/errors'
 import { log, withReqId } from './lib/log'
 import { recordError } from './services/errorlog'
 import { authRoutes } from './routes/auth'
@@ -179,16 +179,16 @@ export function createApp(cfg: Config) {
     const referer = c.req.header('Referer')
     // T6: require at least one header to be present AND trusted (was: allow if neither present)
     if (origin) {
-      if (!trusted(origin)) return c.json({ error: 'forbidden' }, 403)
+      if (!trusted(origin)) return errJson(c, ErrorCode.forbidden)
     } else if (referer) {
       try {
-        if (!trusted(new URL(referer, self).origin)) return c.json({ error: 'forbidden' }, 403)
+        if (!trusted(new URL(referer, self).origin)) return errJson(c, ErrorCode.forbidden)
       } catch {
-        return c.json({ error: 'forbidden' }, 403)
+        return errJson(c, ErrorCode.forbidden)
       }
     } else {
       // Neither Origin nor Referer present — reject (was: allowed pre-T6)
-      return c.json({ error: 'forbidden' }, 403)
+      return errJson(c, ErrorCode.forbidden)
     }
     return next()
   })

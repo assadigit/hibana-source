@@ -31,6 +31,7 @@ import {
   notebookHtml,
   archiveHtml,
 } from './quicknotes-helpers'
+import { errJson, ErrorCode } from '../lib/errors'
 // Re-export for backward compat (dashboard.ts, projects/helpers.ts, ics-export.ts import these)
 export { notebookHtml, archiveHtml, attachedTitles, type QuickNote, type NoteColor, type TaskItem } from './quicknotes-helpers'
 
@@ -105,7 +106,7 @@ export function quickNotesRoutes(cfg: Config) {
   // palette jump now lands HERE instead of a dead-end toast. Rule 10: Zod on the query.
   app.get('/archive', async (c) => {
     const q = archiveQuerySchema.safeParse(c.req.query())
-    if (!q.success) return c.json({ error: 'invalid_input' }, 400)
+    if (!q.success) return errJson(c, ErrorCode.invalid_input)
     const user = c.get('user')
     const { offset: limit_, limit } = q.data
     const userId = user.id
@@ -136,7 +137,7 @@ export function quickNotesRoutes(cfg: Config) {
     } else if (q.data.before) {
       const ts = new Date(q.data.before)
       if (Number.isNaN(ts.getTime()) || ts.getFullYear() < 2000 || ts.getFullYear() > 2100) {
-        return c.json({ error: 'invalid_input' }, 400)
+        return errJson(c, ErrorCode.invalid_input)
       }
       const at = ts.toISOString()
       let hit = await cfg.db.query<{ id: string }>(
@@ -172,12 +173,12 @@ export function quickNotesRoutes(cfg: Config) {
   // Create a note or a list (accepts an optional client id, like the quick-add flow).
   app.post('/', async (c) => {
     const body = await jsonBody<z.infer<typeof createNoteSchema>>(c, createNoteSchema)
-    if (!body) return c.json({ error: 'invalid_input' }, 400)
+    if (!body) return errJson(c, ErrorCode.invalid_input)
     // Rule 10 + user request: an empty note/list must never be created — the client shows
     // “Write a note first” and the API agrees (defense for any direct caller).
-    if (!body.content.trim()) return c.json({ error: 'invalid_input' }, 400)
+    if (!body.content.trim()) return errJson(c, ErrorCode.invalid_input)
     const user = c.get('user')
-    if (body.project_id && !(await ensureOwnProject(user.id, body.project_id))) return c.json({ error: 'project_not_found' }, 400)
+    if (body.project_id && !(await ensureOwnProject(user.id, body.project_id))) return errJson(c, ErrorCode.project_not_found)
     const now = new Date().toISOString()
     const id = body.id ?? uuid()
     // Append at the end of the user's order (sticky-view reorder can move it later).
@@ -209,13 +210,13 @@ export function quickNotesRoutes(cfg: Config) {
   // Edit the title or the raw content of a note/list — or attach/detach it to a project.
   app.patch('/:id', async (c) => {
     const body = await jsonBody<z.infer<typeof patchNoteSchema>>(c, patchNoteSchema)
-    if (!body) return c.json({ error: 'invalid_input' }, 400)
+    if (!body) return errJson(c, ErrorCode.invalid_input)
     const user = c.get('user')
     const n = await owned(user.id, c.req.param('id'))
-    if (!n) return c.json({ error: 'not_found' }, 404)
+    if (!n) return errJson(c, ErrorCode.not_found)
     // Attach/detach (user request): uuid = relate the note to a project of the same user.
     if (body.project_id !== undefined) {
-      if (!(await ensureOwnProject(user.id, body.project_id))) return c.json({ error: 'project_not_found' }, 400)
+      if (!(await ensureOwnProject(user.id, body.project_id))) return errJson(c, ErrorCode.project_not_found)
     }
     const sets: string[] = []
     const params: unknown[] = []
@@ -246,7 +247,7 @@ export function quickNotesRoutes(cfg: Config) {
   app.get('/attach-picker', async (c) => {
     const user = c.get('user')
     const n = await owned(user.id, c.req.query('note_id') ?? '')
-    if (!n) return c.json({ error: 'not_found' }, 404)
+    if (!n) return errJson(c, ErrorCode.not_found)
     const projects = await cfg.db.query<{ id: string; title: string }>(
       'SELECT id, title FROM projects WHERE user_id = ? AND deleted_at IS NULL ORDER BY updated_at DESC LIMIT 40',
       [user.id],
@@ -272,7 +273,7 @@ export function quickNotesRoutes(cfg: Config) {
   app.get('/attach', async (c) => {
     const user = c.get('user')
     const n = await owned(user.id, c.req.query('note_id') ?? '')
-    if (!n) return c.json({ error: 'not_found' }, 404)
+    if (!n) return errJson(c, ErrorCode.not_found)
     const titles = await attachedTitles(cfg.db, user.id, [n])
     return c.html(attachWidget(n, titles, localeOf(c)))
   })
@@ -280,10 +281,10 @@ export function quickNotesRoutes(cfg: Config) {
   // Add a task to a list (works on the owning note's content JSON).
   app.post('/list/:id', async (c) => {
     const body = await jsonBody<z.infer<typeof addItemSchema>>(c, addItemSchema)
-    if (!body) return c.json({ error: 'invalid_input' }, 400)
+    if (!body) return errJson(c, ErrorCode.invalid_input)
     const user = c.get('user')
     const n = await owned(user.id, c.req.param('id'))
-    if (!n || n.kind !== 'list') return c.json({ error: 'not_found' }, 404)
+    if (!n || n.kind !== 'list') return errJson(c, ErrorCode.not_found)
     const items = parseItems(n.content)
     // The client drafts several lines (Enter per line) and commits them at once — the append
     // splits newline-joined text just like the create path, one item per line.
@@ -302,14 +303,14 @@ export function quickNotesRoutes(cfg: Config) {
   // Toggle a task done/undone (item id lives in the note's content JSON).
   app.patch('/list/:itemId', async (c) => {
     const body = await jsonBody<z.infer<typeof toggleItemSchema>>(c, toggleItemSchema)
-    if (!body) return c.json({ error: 'invalid_input' }, 400)
+    if (!body) return errJson(c, ErrorCode.invalid_input)
     const user = c.get('user')
     const rows = await cfg.db.query<{ id: string; content: string }>(
       `SELECT id, content FROM quick_notes WHERE user_id = ? AND kind = 'list' AND deleted_at IS NULL`,
       [user.id],
     )
     const note = rows.find((r) => parseItems(r.content).some((it) => it.id === c.req.param('itemId')))
-    if (!note) return c.json({ error: 'not_found' }, 404)
+    if (!note) return errJson(c, ErrorCode.not_found)
     const items = parseItems(note.content).map((it) => (it.id === c.req.param('itemId') ? { ...it, d: body.done } : it))
     const now = new Date().toISOString()
     await cfg.db.execute('UPDATE quick_notes SET content = ?, updated_at = ? WHERE id = ? AND user_id = ?', [
@@ -327,7 +328,7 @@ export function quickNotesRoutes(cfg: Config) {
       [user.id],
     )
     const note = rows.find((r) => parseItems(r.content).some((it) => it.id === c.req.param('itemId')))
-    if (!note) return c.json({ error: 'not_found' }, 404)
+    if (!note) return errJson(c, ErrorCode.not_found)
     const items = parseItems(note.content).filter((it) => it.id !== c.req.param('itemId'))
     const now = new Date().toISOString()
     await cfg.db.execute('UPDATE quick_notes SET content = ?, updated_at = ? WHERE id = ? AND user_id = ?', [
@@ -342,7 +343,7 @@ export function quickNotesRoutes(cfg: Config) {
   app.delete('/:id', async (c) => {
     const user = c.get('user')
     const n = await owned(user.id, c.req.param('id'))
-    if (!n) return c.json({ error: 'not_found' }, 404)
+    if (!n) return errJson(c, ErrorCode.not_found)
     const now = new Date().toISOString()
     await cfg.db.execute('UPDATE quick_notes SET deleted_at = ?, updated_at = ? WHERE id = ? AND user_id = ?', [
       now, now, n.id, user.id,
@@ -358,10 +359,10 @@ export function quickNotesRoutes(cfg: Config) {
   // (the picker's hx-patch links the note to a project — the note STAYS, linked).
   app.post('/:id/move', async (c) => {
     const body = await jsonBody<z.infer<typeof moveNoteSchema>>(c, moveNoteSchema)
-    if (!body || (body.target !== 'idea' && body.target !== 'todo')) return c.json({ error: 'invalid_input' }, 400)
+    if (!body || (body.target !== 'idea' && body.target !== 'todo')) return errJson(c, ErrorCode.invalid_input)
     const user = c.get('user')
     const n = await owned(user.id, c.req.param('id'))
-    if (!n) return c.json({ error: 'not_found' }, 404)
+    if (!n) return errJson(c, ErrorCode.not_found)
     const now = new Date().toISOString()
     // The destination title: the note's TITLE if it has one, else the first line of
     // its content (lists: the stored title) — capped like the surfaces' own inputs.
@@ -391,7 +392,7 @@ export function quickNotesRoutes(cfg: Config) {
       'SELECT id FROM quick_notes WHERE id = ? AND user_id = ? AND deleted_at IS NOT NULL',
       [c.req.param('id'), user.id],
     )
-    if (!rows.length) return c.json({ error: 'not_found' }, 404)
+    if (!rows.length) return errJson(c, ErrorCode.not_found)
     const now = new Date().toISOString()
     await cfg.db.execute('UPDATE quick_notes SET deleted_at = NULL, updated_at = ? WHERE id = ? AND user_id = ?', [
       now, rows[0].id, user.id,
@@ -404,7 +405,7 @@ export function quickNotesRoutes(cfg: Config) {
   // ignored (rule 1 + ownership), each owned id gets its position as sort_order.
   app.post('/reorder', async (c) => {
     const body = await jsonBody<z.infer<typeof reorderSchema>>(c, reorderSchema)
-    if (!body) return c.json({ error: 'invalid_input' }, 400)
+    if (!body) return errJson(c, ErrorCode.invalid_input)
     const user = c.get('user')
     const rows = await cfg.db.query<{ id: string }>(
       'SELECT id FROM quick_notes WHERE user_id = ? AND deleted_at IS NULL',

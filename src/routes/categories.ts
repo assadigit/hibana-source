@@ -20,6 +20,7 @@ import { getOwnedProject } from '../lib/html'
 import { uuid } from '../lib/ids'
 import { CAT_PAIRS, categoriesUserScoped, isValidCatPair, normCatName, type CategoryRow } from '../lib/categories'
 import type { Config, UserRow } from '../types'
+import { errJson, ErrorCode } from '../lib/errors'
 
 const createSchema = z.object({
   name: z.string().min(1).max(80),
@@ -98,12 +99,12 @@ export function categoriesRoutes(cfg: Config) {
   // server-side too).
   app.post('/api/categories', async (c) => {
     const body = await jsonBody<z.infer<typeof createSchema>>(c, createSchema)
-    if (!body || !isValidCatPair(body.color_fill, body.color_text)) return c.json({ error: 'invalid_input' }, 400)
+    if (!body || !isValidCatPair(body.color_fill, body.color_text)) return errJson(c, ErrorCode.invalid_input)
     const user = c.get('user')
     const name = body.name.trim()
-    if (!name) return c.json({ error: 'invalid_input' }, 400)
+    if (!name) return errJson(c, ErrorCode.invalid_input)
     const owner = await liveNameOwner(cfg, user.id, name)
-    if (owner) return c.json({ error: 'duplicate', id: owner.id }, 409)
+    if (owner) return c.json({ error: ErrorCode.duplicate, id: owner.id }, 409)
     const id = uuid()
     const scoped = await categoriesUserScoped(cfg.db)
     if (scoped) {
@@ -124,28 +125,28 @@ export function categoriesRoutes(cfg: Config) {
   // the PATCH never flips is_archived (block 8's archive-don't-delete is explicit).
   app.patch('/api/categories/:id', async (c) => {
     const body = await jsonBody<z.infer<typeof renameSchema>>(c, renameSchema)
-    if (!body) return c.json({ error: 'invalid_input' }, 400)
+    if (!body) return errJson(c, ErrorCode.invalid_input)
     const user = c.get('user')
     const scoped = await categoriesUserScoped(cfg.db)
     const rows = scoped
       ? await cfg.db.query<CategoryRow>('SELECT * FROM categories WHERE id = ? AND user_id = ? AND is_archived = 0', [c.req.param('id'), user.id])
       : await cfg.db.query<CategoryRow>('SELECT * FROM categories WHERE id = ? AND is_archived = 0', [c.req.param('id')])
     const cat = rows[0]
-    if (!cat) return c.json({ error: 'not_found' }, 404)
+    if (!cat) return errJson(c, ErrorCode.not_found)
     const sets: string[] = []
     const params: unknown[] = []
     if (body.name !== undefined) {
       const name = body.name.trim()
-      if (!name) return c.json({ error: 'invalid_input' }, 400)
+      if (!name) return errJson(c, ErrorCode.invalid_input)
       const owner = await liveNameOwner(cfg, user.id, name, cat.id)
-      if (owner) return c.json({ error: 'duplicate' }, 409)
+      if (owner) return errJson(c, ErrorCode.duplicate)
       sets.push('name = ?')
       params.push(name)
     }
     if (body.color_fill !== undefined || body.color_text !== undefined) {
       const fill = body.color_fill ?? cat.color_fill
       const ink = body.color_text ?? cat.color_text
-      if (!isValidCatPair(fill, ink)) return c.json({ error: 'invalid_input' }, 400)
+      if (!isValidCatPair(fill, ink)) return errJson(c, ErrorCode.invalid_input)
       sets.push('color_fill = ?', 'color_text = ?')
       params.push(fill.toUpperCase(), ink.toUpperCase())
     }
@@ -163,7 +164,7 @@ export function categoriesRoutes(cfg: Config) {
     const rows = scoped
       ? await cfg.db.query<CategoryRow>('SELECT id FROM categories WHERE id = ? AND user_id = ? AND is_archived = 0', [c.req.param('id'), user.id])
       : await cfg.db.query<CategoryRow>('SELECT id FROM categories WHERE id = ? AND is_archived = 0', [c.req.param('id')])
-    if (!rows[0]) return c.json({ error: 'not_found' }, 404)
+    if (!rows[0]) return errJson(c, ErrorCode.not_found)
     await cfg.db.execute('UPDATE categories SET is_archived = 1 WHERE id = ?', [rows[0].id])
     return c.json({ ok: true })
   })
@@ -182,7 +183,7 @@ export function categoriesRoutes(cfg: Config) {
     const rows = scoped
       ? await cfg.db.query<CategoryRow>('SELECT id FROM categories WHERE id = ? AND user_id = ?', [c.req.param('id'), user.id])
       : await cfg.db.query<CategoryRow>('SELECT id FROM categories WHERE id = ?', [c.req.param('id')])
-    if (!rows[0]) return c.json({ error: 'not_found' }, 404)
+    if (!rows[0]) return errJson(c, ErrorCode.not_found)
     await cfg.db.transaction(async (tx) => {
       tx.sql('UPDATE dev_tasks SET category_id = NULL WHERE category_id = ?', [rows[0].id])
       // AP-27: archived snapshots carry category_id too — null it or every later
@@ -201,7 +202,7 @@ export function categoriesRoutes(cfg: Config) {
   app.get('/api/projects/:projectId/categories', async (c) => {
     const user = c.get('user')
     const p = await getOwnedProject(cfg, user.id, c.req.param('projectId'))
-    if (!p) return c.json({ error: 'not_found' }, 404)
+    if (!p) return errJson(c, ErrorCode.not_found)
     const enabled = await enabledCategoriesForProject(cfg, p.id)
     const scoped = await categoriesUserScoped(cfg.db)
     const all = scoped
@@ -213,17 +214,17 @@ export function categoriesRoutes(cfg: Config) {
 
   app.put('/api/projects/:projectId/categories', async (c) => {
     const body = await jsonBody<z.infer<typeof toggleSchema>>(c, toggleSchema)
-    if (!body) return c.json({ error: 'invalid_input' }, 400)
+    if (!body) return errJson(c, ErrorCode.invalid_input)
     const user = c.get('user')
     const p = await getOwnedProject(cfg, user.id, c.req.param('projectId'))
-    if (!p) return c.json({ error: 'not_found' }, 404)
+    if (!p) return errJson(c, ErrorCode.not_found)
     const uniq = [...new Set(body.ids)]
     const scoped = await categoriesUserScoped(cfg.db)
     for (const id of uniq) {
       const rows = scoped
         ? await cfg.db.query<{ id: string }>('SELECT id FROM categories WHERE id = ? AND user_id = ? AND is_archived = 0', [id, user.id])
         : await cfg.db.query<{ id: string }>('SELECT id FROM categories WHERE id = ? AND is_archived = 0', [id])
-      if (!rows[0]) return c.json({ error: 'invalid_input' }, 400)
+      if (!rows[0]) return errJson(c, ErrorCode.invalid_input)
     }
     await cfg.db.transaction(async (tx) => {
       tx.sql('DELETE FROM project_categories WHERE project_id = ?', [p.id])

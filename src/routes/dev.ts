@@ -5,6 +5,7 @@ import { isHtmx, esc } from '../lib/http'
 import { trFor } from '../lib/i18n'
 import { emailLinkOrigin } from '../lib/app-url'
 import type { Config, UserRow } from '../types'
+import { errJson, ErrorCode } from '../lib/errors'
 
 export function devRoutes(cfg: Config) {
   const app = new Hono<{ Variables: { user: UserRow } }>()
@@ -12,9 +13,9 @@ export function devRoutes(cfg: Config) {
   // L1 fix (2026-09-10): one owner-gate middleware mounted ONCE — no dev route added
   // later can forget the check (the pattern admin.ts adopted after the 2026-08-28
   // /purge incident). The four routes below all used to repeat `if (user.role !==
-  // 'owner') return c.json({ error: 'forbidden' }, 403)` inline.
+  // 'owner') return errJson(c, ErrorCode.forbidden)` inline.
   const requireOwner: MiddlewareHandler<{ Variables: { user: UserRow } }> = async (c, next) => {
-    if (c.get('user').role !== 'owner') return c.json({ error: 'forbidden' }, 403)
+    if (c.get('user').role !== 'owner') return errJson(c, ErrorCode.forbidden)
     return next()
   }
   app.use('*', requireAuth(cfg), requireOwner)
@@ -67,7 +68,7 @@ export function devRoutes(cfg: Config) {
     // (S49-b6: cfg.appUrl / APP_URL when set — NOT appUrlOf, whose non-prod default is
     // the prod domain; the dev fallback here must stay the workers.dev URL because
     // Telegram's webhook needs a publicly reachable origin).
-    if (!cfg.telegramToken || !cfg.telegramSecret) return c.json({ error: 'telegram_not_configured' }, 503)
+    if (!cfg.telegramToken || !cfg.telegramSecret) return errJson(c, ErrorCode.telegram_not_configured)
     const defaultBase = cfg.appUrl ?? (cfg.isProd ? 'https://hibana.ir' : 'https://hibana.aliassadi.workers.dev')
     const base = c.req.query('host') ?? defaultBase
     const res = await fetch(`https://api.telegram.org/bot${cfg.telegramToken}/setWebhook`, {
@@ -84,7 +85,7 @@ export function devRoutes(cfg: Config) {
     // Telegram itself (getMe + getWebhookInfo). The Worker can reach api.telegram.org
     // when a local sandbox cannot, so this is the one place the live registration is visible
     // (same pattern as the webhook setter above). Never returns the token or secret.
-    if (!cfg.telegramToken) return c.json({ error: 'telegram_not_configured' }, 503)
+    if (!cfg.telegramToken) return errJson(c, ErrorCode.telegram_not_configured)
     const tg = (method: string) =>
       fetch(`https://api.telegram.org/bot${cfg.telegramToken}/${method}`, {
         method: 'POST',
@@ -114,14 +115,14 @@ export function devRoutes(cfg: Config) {
 
   app.post('/test-email', async (c) => {
     // Sends a verification email via the worker (Resend). Confirms the SMTP-style API path works.
-    if (!cfg.emailKey || !cfg.ownerEmail) return c.json({ error: 'email_not_configured' }, 503)
+    if (!cfg.emailKey || !cfg.ownerEmail) return errJson(c, ErrorCode.email_not_configured)
     const { sendAndLog, emailsSentToday, RESEND_DAILY_LIMIT, verifyEmailHtml } = await import('../services/email')
     // L5 fix (2026-09-10): route through sendAndLog + quota check, matching /email and
     // /email/broadcast. Was calling resendEmail().send() directly — test sends were
     // invisible to the admin console's "sent_today" counter and could blow past the
     // daily Resend quota without the 429 guard.
     const remaining = RESEND_DAILY_LIMIT - (await emailsSentToday(cfg.db))
-    if (remaining <= 0) return c.json({ error: 'quota_exhausted', limit: RESEND_DAILY_LIMIT }, 429)
+    if (remaining <= 0) return c.json({ error: ErrorCode.quota_exhausted, limit: RESEND_DAILY_LIMIT }, 429)
     // ?template=verify reuses the signup confirmation template + subject — reproduces the
     // exact send the register flow makes (2026-08-24: signup emails failed while the simple
     // template succeeded, so the template path needs its own probe).

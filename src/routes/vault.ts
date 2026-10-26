@@ -5,6 +5,7 @@ import { jsonBody } from '../lib/http'
 import { uuid } from '../lib/ids'
 import { executeIn } from '../lib/inchunk'
 import type { Config, UserRow, NoteFolderRow, VaultNoteRow } from '../types'
+import { errJson, ErrorCode } from '../lib/errors'
 
 // Notes Vault (0057, S53 — owner request): the standalone long-form knowledge base at
 // /notes with an Obsidian-inspired UX. Everything the vault page needs rides this
@@ -258,9 +259,9 @@ export function vaultRoutes(cfg: Config) {
 
   app.post('/folders', async (c) => {
     const body = await jsonBody<z.infer<typeof createFolderSchema>>(c, createFolderSchema)
-    if (!body) return c.json({ error: 'invalid_input' }, 400)
+    if (!body) return errJson(c, ErrorCode.invalid_input)
     const user = c.get('user')
-    if (body.parentId && !(await ownedFolder(user.id, body.parentId))) return c.json({ error: 'parent_not_found' }, 400)
+    if (body.parentId && !(await ownedFolder(user.id, body.parentId))) return errJson(c, ErrorCode.parent_not_found)
     const id = uuid()
     const ts = now()
     await cfg.db.execute(
@@ -275,18 +276,18 @@ export function vaultRoutes(cfg: Config) {
   // (a folder cannot become its own descendant) — the tree must stay a tree.
   app.patch('/folders/:id', async (c) => {
     const body = await jsonBody<z.infer<typeof patchFolderSchema>>(c, patchFolderSchema)
-    if (!body) return c.json({ error: 'invalid_input' }, 400)
+    if (!body) return errJson(c, ErrorCode.invalid_input)
     const user = c.get('user')
     const folder = await ownedFolder(user.id, c.req.param('id'))
-    if (!folder) return c.json({ error: 'not_found' }, 404)
+    if (!folder) return errJson(c, ErrorCode.not_found)
     if (body.parentId !== undefined) {
       if (body.parentId === null) {
         // move to root — always fine
       } else {
-        if (body.parentId === folder.id) return c.json({ error: 'cycle' }, 400)
-        if (!(await ownedFolder(user.id, body.parentId))) return c.json({ error: 'parent_not_found' }, 400)
+        if (body.parentId === folder.id) return errJson(c, ErrorCode.cycle)
+        if (!(await ownedFolder(user.id, body.parentId))) return errJson(c, ErrorCode.parent_not_found)
         const subtree = new Set(await subtreeIds(user.id, folder.id))
-        if (subtree.has(body.parentId)) return c.json({ error: 'cycle' }, 400)
+        if (subtree.has(body.parentId)) return errJson(c, ErrorCode.cycle)
       }
     }
     const sets: string[] = []
@@ -308,7 +309,7 @@ export function vaultRoutes(cfg: Config) {
   app.delete('/folders/:id', async (c) => {
     const user = c.get('user')
     const folder = await ownedFolder(user.id, c.req.param('id'))
-    if (!folder) return c.json({ error: 'not_found' }, 404)
+    if (!folder) return errJson(c, ErrorCode.not_found)
     const ids = await subtreeIds(user.id, folder.id)
     // AP-20: chunked — a deep folder tree can exceed 99 subtree ids (D1 param cap).
     await executeIn(cfg.db, 'UPDATE vault_notes SET folder_id = NULL, updated_at = ? WHERE user_id = ? AND folder_id IN {{IN}}', [now(), user.id], ids)
@@ -383,15 +384,15 @@ export function vaultRoutes(cfg: Config) {
   app.get('/notes/:id', async (c) => {
     const user = c.get('user')
     const n = await ownedNote(user.id, c.req.param('id'))
-    if (!n) return c.json({ error: 'not_found' }, 404)
+    if (!n) return errJson(c, ErrorCode.not_found)
     return c.json({ note: n })
   })
 
   app.post('/notes', async (c) => {
     const body = await jsonBody<z.infer<typeof createNoteSchema>>(c, createNoteSchema)
-    if (!body) return c.json({ error: 'invalid_input' }, 400)
+    if (!body) return errJson(c, ErrorCode.invalid_input)
     const user = c.get('user')
-    if (body.folderId && !(await ownedFolder(user.id, body.folderId))) return c.json({ error: 'folder_not_found' }, 400)
+    if (body.folderId && !(await ownedFolder(user.id, body.folderId))) return errJson(c, ErrorCode.folder_not_found, 400)
     const id = uuid()
     const ts = now()
     await cfg.db.execute(
@@ -403,12 +404,12 @@ export function vaultRoutes(cfg: Config) {
 
   app.patch('/notes/:id', async (c) => {
     const body = await jsonBody<z.infer<typeof patchNoteSchema>>(c, patchNoteSchema)
-    if (!body) return c.json({ error: 'invalid_input' }, 400)
+    if (!body) return errJson(c, ErrorCode.invalid_input)
     const user = c.get('user')
     // Autosave target: live notes only (a trashed note is frozen until restored).
     const n = await ownedNote(user.id, c.req.param('id'), false)
-    if (!n) return c.json({ error: 'not_found' }, 404)
-    if (body.folderId && !(await ownedFolder(user.id, body.folderId))) return c.json({ error: 'folder_not_found' }, 400)
+    if (!n) return errJson(c, ErrorCode.not_found)
+    if (body.folderId && !(await ownedFolder(user.id, body.folderId))) return errJson(c, ErrorCode.folder_not_found, 400)
     const sets: string[] = []
     const params: unknown[] = []
     if (body.title !== undefined) { sets.push('title = ?'); params.push(body.title.trim()) }
@@ -430,7 +431,7 @@ export function vaultRoutes(cfg: Config) {
   app.post('/notes/:id/duplicate', async (c) => {
     const user = c.get('user')
     const n = await ownedNote(user.id, c.req.param('id'), false)
-    if (!n) return c.json({ error: 'not_found' }, 404)
+    if (!n) return errJson(c, ErrorCode.not_found)
     const id = uuid()
     const ts = now()
     await cfg.db.execute(
@@ -448,13 +449,13 @@ export function vaultRoutes(cfg: Config) {
   // masquerade as an edit (the card dates + 'Recently edited' sort stay honest).
   app.post('/notes/reorder', async (c) => {
     const body = await jsonBody<z.infer<typeof reorderNotesSchema>>(c, reorderNotesSchema)
-    if (!body) return c.json({ error: 'invalid_input' }, 400)
+    if (!body) return errJson(c, ErrorCode.invalid_input)
     const user = c.get('user')
     const live = await cfg.db.query<{ id: string; sort_order: number; updated_at: string }>(
       'SELECT id, sort_order, updated_at FROM vault_notes WHERE user_id = ? AND deleted_at IS NULL',
       [user.id],
     )
-    if (!live.length) return c.json({ error: 'not_found' }, 404)
+    if (!live.length) return errJson(c, ErrorCode.not_found)
     const byId = new Map(live.map((r) => [r.id, r]))
     // Unknown/foreign ids are dropped silently (a stale tab can't reorder what it
     // can't see); duplicates collapse to their first position.
@@ -462,7 +463,7 @@ export function vaultRoutes(cfg: Config) {
     for (const id of body.ids) {
       if (byId.has(id) && !ordered.includes(id)) ordered.push(id)
     }
-    if (!ordered.length) return c.json({ error: 'invalid_input' }, 400)
+    if (!ordered.length) return errJson(c, ErrorCode.invalid_input)
     // The rest keep their current relative order, after the renumbered block.
     const rest = live
       .filter((r) => !ordered.includes(r.id))
@@ -482,7 +483,7 @@ export function vaultRoutes(cfg: Config) {
   app.delete('/notes/:id', async (c) => {
     const user = c.get('user')
     const n = await ownedNote(user.id, c.req.param('id'), false)
-    if (!n) return c.json({ error: 'not_found' }, 404)
+    if (!n) return errJson(c, ErrorCode.not_found)
     const ts = now()
     await cfg.db.execute('UPDATE vault_notes SET deleted_at = ?, updated_at = ? WHERE id = ? AND user_id = ?', [ts, ts, n.id, user.id])
     return c.json({ ok: true, id: n.id, soft: true })
@@ -491,7 +492,7 @@ export function vaultRoutes(cfg: Config) {
   app.post('/notes/:id/restore', async (c) => {
     const user = c.get('user')
     const n = await ownedNote(user.id, c.req.param('id'))
-    if (!n || !n.deleted_at) return c.json({ error: 'not_found' }, 404)
+    if (!n || !n.deleted_at) return errJson(c, ErrorCode.not_found)
     await cfg.db.execute('UPDATE vault_notes SET deleted_at = NULL, updated_at = ? WHERE id = ? AND user_id = ?', [now(), n.id, user.id])
     return c.json({ ok: true, note: await ownedNote(user.id, n.id) })
   })
@@ -501,7 +502,7 @@ export function vaultRoutes(cfg: Config) {
   app.post('/notes/:id/purge', async (c) => {
     const user = c.get('user')
     const n = await ownedNote(user.id, c.req.param('id'))
-    if (!n || !n.deleted_at) return c.json({ error: 'not_found' }, 404)
+    if (!n || !n.deleted_at) return errJson(c, ErrorCode.not_found)
     await cfg.db.execute('DELETE FROM vault_notes WHERE id = ? AND user_id = ?', [n.id, user.id])
     return c.json({ ok: true })
   })
@@ -511,7 +512,7 @@ export function vaultRoutes(cfg: Config) {
   app.get('/notes/:id/export.md', async (c) => {
     const user = c.get('user')
     const n = await ownedNote(user.id, c.req.param('id'))
-    if (!n) return c.json({ error: 'not_found' }, 404)
+    if (!n) return errJson(c, ErrorCode.not_found)
     const slug =
       n.title.trim().replace(/[^\w\u0600-\u06FF-]+/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '').slice(0, 60) || 'note'
     const body = (n.title.trim() ? `# ${n.title.trim()}\n\n` : '') + n.content

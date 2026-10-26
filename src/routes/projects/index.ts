@@ -27,6 +27,7 @@ import {
   archiveShelfHtml, staleBannerHtml, staleEmptyHtml,
 } from './helpers'
 import { loadDetail, detailHtml } from './detail-helpers'
+import { errJson, ErrorCode } from '../../lib/errors'
 export function projectsRoutes(cfg: Config) {
   const app = new Hono<{ Variables: { user: UserRow } }>()
   app.use('*', requireAuth(cfg))
@@ -395,7 +396,7 @@ export function projectsRoutes(cfg: Config) {
 
   app.post('/', async (c) => {
     const body = await jsonBody<z.infer<typeof createProjectSchema>>(c, createProjectSchema)
-    if (!body) return c.json({ error: 'invalid_input' }, 400)
+    if (!body) return errJson(c, ErrorCode.invalid_input)
     const user = c.get('user')
     const now = new Date().toISOString()
     const id = body.id ?? uuid()
@@ -405,7 +406,7 @@ export function projectsRoutes(cfg: Config) {
     const existing = await cfg.db.query<{ id: string; user_id: string }>('SELECT id, user_id FROM projects WHERE id = ?', [id])
     if (existing.length > 0) {
       if (existing[0].user_id === user.id) return c.json({ ok: true, duplicate: true }, 200)
-      return c.json({ error: 'id_conflict' }, 409) // UUID collision across users — never 500
+      return errJson(c, ErrorCode.id_conflict) // UUID collision across users — never 500
     }
     // Session 28 (user request: capture INTO the open folder): a spark born on the Ideas
     // page while a folder is open files itself there. Mirrors the PATCH path's ownership
@@ -460,7 +461,7 @@ export function projectsRoutes(cfg: Config) {
 
   app.post('/reorder', async (c) => {
     const body = await jsonBody<z.infer<typeof reorderSchema>>(c, reorderSchema)
-    if (!body) return c.json({ error: 'invalid_input' }, 400)
+    if (!body) return errJson(c, ErrorCode.invalid_input)
     const user = c.get('user')
     // Reorder is always within a single status group (rule 1 + status coherence): an id of
     // another status (or another user's) is simply never updated.
@@ -491,16 +492,16 @@ export function projectsRoutes(cfg: Config) {
 
   app.post('/sparks/folders', async (c) => {
     const body = await jsonBody<z.infer<typeof sparkFolderSchema>>(c, sparkFolderSchema)
-    if (!body) return c.json({ error: 'invalid_input' }, 400)
+    if (!body) return errJson(c, ErrorCode.invalid_input)
     // S161 (spec #3): the pastel pair must arrive WHOLE — both halves of the SAME
     // curated tile — or not at all (absent = the hash-of-id default, an explicit
     // null pair = back to that default).
     const pairGiven = body.color_fill !== undefined || body.color_text !== undefined
     if (pairGiven && !(body.color_fill && body.color_text) && !(body.color_fill === null && body.color_text === null)) {
-      return c.json({ error: 'invalid_pair' }, 400)
+      return errJson(c, ErrorCode.invalid_pair)
     }
     if (body.color_fill && body.color_text && !isValidCatPair(body.color_fill, body.color_text)) {
-      return c.json({ error: 'invalid_pair' }, 400)
+      return errJson(c, ErrorCode.invalid_pair)
     }
     const user = c.get('user')
     const now = new Date().toISOString()
@@ -517,14 +518,14 @@ export function projectsRoutes(cfg: Config) {
 
   app.patch('/sparks/folders/:id', async (c) => {
     const body = await jsonBody<z.infer<typeof sparkFolderSchema>>(c, sparkFolderSchema)
-    if (!body) return c.json({ error: 'invalid_input' }, 400)
+    if (!body) return errJson(c, ErrorCode.invalid_input)
     // S161: same whole-tile pair contract as POST (null pair = back to the default).
     const pairGiven = body.color_fill !== undefined || body.color_text !== undefined
     if (pairGiven && !(body.color_fill && body.color_text) && !(body.color_fill === null && body.color_text === null)) {
-      return c.json({ error: 'invalid_pair' }, 400)
+      return errJson(c, ErrorCode.invalid_pair)
     }
     if (body.color_fill && body.color_text && !isValidCatPair(body.color_fill, body.color_text)) {
-      return c.json({ error: 'invalid_pair' }, 400)
+      return errJson(c, ErrorCode.invalid_pair)
     }
     const user = c.get('user')
     // S41 icon PATCH semantics: undefined = keep the current icon, null = clear it,
@@ -542,7 +543,7 @@ export function projectsRoutes(cfg: Config) {
       `UPDATE spark_folders SET ${sets.join(', ')} WHERE id = ? AND user_id = ?`,
       vals,
     )
-    if (!res.changes) return c.json({ error: 'not_found' }, 404)
+    if (!res.changes) return errJson(c, ErrorCode.not_found)
     return c.json({ ok: true })
   })
 
@@ -551,7 +552,7 @@ export function projectsRoutes(cfg: Config) {
     const folder = await cfg.db.query<{ id: string; name: string; banner_path: string | null }>('SELECT id, name, banner_path FROM spark_folders WHERE id = ? AND user_id = ?', [
       c.req.param('id'), user.id,
     ])
-    if (!folder.length) return c.json({ error: 'not_found' }, 404)
+    if (!folder.length) return errJson(c, ErrorCode.not_found)
     // S161 (0063's dangling-FK fix — 0060's table rebuild dropped the FK): the
     // folder's ideas sweep back to UNFILED instead of keeping a dead folder_id.
     await cfg.db.execute('UPDATE projects SET folder_id = NULL WHERE folder_id = ? AND user_id = ?', [folder[0].id, user.id])
@@ -573,21 +574,21 @@ export function projectsRoutes(cfg: Config) {
   })
   app.put('/sparks/folders/:id/banner', async (c) => {
     if (await hitRateLimit(cfg.db, RATE_RULES.upload, clientIp(c))) {
-      return c.json({ error: 'rate_limited', message: 'Too many uploads — wait a minute and try again.' }, 429)
+      return c.json({ error: ErrorCode.rate_limited, message: 'Too many uploads — wait a minute and try again.' }, 429)
     }
     const body = await jsonBody<z.infer<typeof bannerUploadSchema>>(c, bannerUploadSchema)
-    if (!body) return c.json({ error: 'invalid_input' }, 400)
+    if (!body) return errJson(c, ErrorCode.invalid_input)
     const user = c.get('user')
     const folder = await cfg.db.query<{ id: string; banner_path: string | null }>(
       'SELECT id, banner_path FROM spark_folders WHERE id = ? AND user_id = ?',
       [c.req.param('id'), user.id],
     )
-    if (!folder.length) return c.json({ error: 'not_found' }, 404)
+    if (!folder.length) return errJson(c, ErrorCode.not_found)
     const store = shotStoreFor(cfg)
     // SEC-9: the same magic-byte sniff as avatar/logo — the banner is the third member
     // of the client-mime upload class.
     const sniffed = sniffImageMime(Uint8Array.from(atob(body.dataBase64.slice(0, 64)), (ch) => ch.charCodeAt(0)))
-    if (sniffed !== body.mimeType) return c.json({ error: 'invalid_image' }, 400)
+    if (sniffed !== body.mimeType) return errJson(c, ErrorCode.invalid_image)
     const path = `folder-banners/${folder[0].id}/banner-${Date.now()}-${uuid().slice(0, 8)}${extForMime(body.mimeType)}`
     if (folder[0].banner_path) {
       try { await store.deleteObject(folder[0].banner_path) } catch { /* the old banner may be gone */ }
@@ -603,14 +604,14 @@ export function projectsRoutes(cfg: Config) {
       'SELECT banner_path FROM spark_folders WHERE id = ? AND user_id = ?',
       [c.req.param('id'), user.id],
     )
-    if (!folder.length || !folder[0].banner_path) return c.json({ error: 'not_found' }, 404)
+    if (!folder.length || !folder[0].banner_path) return errJson(c, ErrorCode.not_found)
     let bytes: ArrayBuffer | null = null
     try {
       bytes = await shotStoreFor(cfg).getObject(folder[0].banner_path)
     } catch {
       bytes = null
     }
-    if (!bytes) return c.json({ error: 'not_found' }, 404)
+    if (!bytes) return errJson(c, ErrorCode.not_found)
     return new Response(bytes, { headers: { 'Content-Type': mimeForPath(folder[0].banner_path), 'Cache-Control': 'private, max-age=3600' } })
   })
 
@@ -620,7 +621,7 @@ export function projectsRoutes(cfg: Config) {
       'SELECT id, banner_path FROM spark_folders WHERE id = ? AND user_id = ?',
       [c.req.param('id'), user.id],
     )
-    if (!folder.length) return c.json({ error: 'not_found' }, 404)
+    if (!folder.length) return errJson(c, ErrorCode.not_found)
     if (folder[0].banner_path) {
       try { await shotStoreFor(cfg).deleteObject(folder[0].banner_path) } catch { /* may be gone */ }
     }
@@ -632,7 +633,7 @@ export function projectsRoutes(cfg: Config) {
     // Soft warning (spec §5.3): near-duplicate titles are flagged, never blocked.
     const user = c.get('user')
     const title = z.string().min(1).max(200).safeParse(c.req.query('title'))
-    if (!title.success) return c.json({ error: 'invalid_input' }, 400)
+    if (!title.success) return errJson(c, ErrorCode.invalid_input)
     const rows = await cfg.db.query<{ id: string; title: string }>(
       'SELECT id, title FROM projects WHERE user_id = ? AND deleted_at IS NULL AND lower(title) = lower(?)',
       [user.id, title.data],
@@ -644,7 +645,7 @@ export function projectsRoutes(cfg: Config) {
     const lang = localeOf(c)
     const user = c.get('user')
     const p = await getOwnedProject(cfg, user.id, c.req.param('id'))
-    if (!p) return c.json({ error: 'not_found' }, 404)
+    if (!p) return errJson(c, ErrorCode.not_found)
     const d = await loadDetail(cfg, p)
     // S161 (spec #6): a spark's HX detail request hands off to the LEAN page — the
     // heavy template renders projects only. The JSON path is unaffected (the rail
@@ -663,10 +664,10 @@ export function projectsRoutes(cfg: Config) {
     const t = trFor(c)
     const lang = localeOf(c)
     const body = await jsonBody<z.infer<typeof updateProjectSchema>>(c, updateProjectSchema)
-    if (!body) return c.json({ error: 'invalid_input' }, 400)
+    if (!body) return errJson(c, ErrorCode.invalid_input)
     const user = c.get('user')
     const p = await getOwnedProject(cfg, user.id, c.req.param('id'))
-    if (!p) return c.json({ error: 'not_found' }, 404)
+    if (!p) return errJson(c, ErrorCode.not_found)
     // batch (s) — folder_id only rides along while the project stays a spark: a folder
     // reference on a non-spark project is meaningless, so it is dropped; a non-null move
     // must point at one of the user's own folders.
@@ -677,7 +678,7 @@ export function projectsRoutes(cfg: Config) {
         const own = await cfg.db.query<{ id: string }>('SELECT id FROM spark_folders WHERE id = ? AND user_id = ?', [
           body.folder_id, user.id,
         ])
-        if (!own.length) return c.json({ error: 'folder_not_found' }, 404)
+        if (!own.length) return errJson(c, ErrorCode.folder_not_found)
       }
     }
     // S161 (spec #4): a non-null cover must be one of the idea's OWN image shots —
@@ -687,7 +688,7 @@ export function projectsRoutes(cfg: Config) {
         "SELECT id FROM screenshots WHERE id = ? AND project_id = ? AND mime_type LIKE 'image/%'",
         [body.cover_shot_id, p.id],
       )
-      if (!shotRow.length) return c.json({ error: 'shot_not_found' }, 404)
+      if (!shotRow.length) return errJson(c, ErrorCode.shot_not_found)
     }
     const now = new Date().toISOString()
     // S161 (spec #5): pinned is a SERVER-stamped boolean — true stamps pinned_at now,
@@ -728,7 +729,7 @@ export function projectsRoutes(cfg: Config) {
     const lang = localeOf(c)
     const user = c.get('user')
     const p = await getOwnedProject(cfg, user.id, c.req.param('id'))
-    if (!p) return c.json({ error: 'not_found' }, 404)
+    if (!p) return errJson(c, ErrorCode.not_found)
     // 0060: hard delete stays spark-ONLY — 'unreviewed' (the old second hard-deletable
     // stage) folded into planning, which can carry real work; the safe direction is
     // soft-delete + purge for everything that left the Ideas shelf.
@@ -762,7 +763,7 @@ export function projectsRoutes(cfg: Config) {
     const row = await cfg.db.query<{ deleted_at: string }>('SELECT deleted_at FROM projects WHERE id = ? AND user_id = ?', [
       c.req.param('id'), user.id,
     ])
-    if (row.length === 0 || row[0].deleted_at === null) return c.json({ error: 'not_found' }, 404)
+    if (row.length === 0 || row[0].deleted_at === null) return errJson(c, ErrorCode.not_found)
     await cfg.db.execute('UPDATE projects SET deleted_at = NULL, updated_at = ? WHERE id = ? AND user_id = ?', [
       new Date().toISOString(), c.req.param('id'), user.id,
     ])
@@ -773,10 +774,10 @@ export function projectsRoutes(cfg: Config) {
   app.post('/:id/revive', async (c) => {
     // Halted revive (spec §5.6): asks every time which status fits — never assumes.
     const body = await jsonBody<{ status: 'planning' | 'queued' | 'developing' | 'operational' }>(c, z.object({ status: z.enum(['planning', 'queued', 'developing', 'operational']) }))
-    if (!body) return c.json({ error: 'invalid_input' }, 400)
+    if (!body) return errJson(c, ErrorCode.invalid_input)
     const user = c.get('user')
     const p = await getOwnedProject(cfg, user.id, c.req.param('id'))
-    if (!p || p.status !== 'awaiting_dev') return c.json({ error: 'not_found' }, 404)
+    if (!p || p.status !== 'awaiting_dev') return errJson(c, ErrorCode.not_found)
     const now = new Date().toISOString()
     await cfg.db.execute('UPDATE projects SET status = ?, archived_state = NULL, updated_at = ? WHERE id = ? AND user_id = ?', [
       body.status, now, p.id, user.id,
@@ -801,8 +802,8 @@ export function projectsRoutes(cfg: Config) {
     const lang = localeOf(c)
     const user = c.get('user')
     const p = await getOwnedProject(cfg, user.id, c.req.param('id'))
-    if (!p) return c.json({ error: 'not_found' }, 404)
-    if (p.archived_state === 'offline') return c.json({ error: 'already_archived' }, 409)
+    if (!p) return errJson(c, ErrorCode.not_found)
+    if (p.archived_state === 'offline') return errJson(c, ErrorCode.already_archived)
     const now = new Date().toISOString()
     await cfg.db.execute("UPDATE projects SET archived_state = 'offline', updated_at = ? WHERE id = ? AND user_id = ?", [
       now, p.id, user.id,
@@ -819,7 +820,7 @@ export function projectsRoutes(cfg: Config) {
     const lang = localeOf(c)
     const user = c.get('user')
     const p = await getOwnedProject(cfg, user.id, c.req.param('id'))
-    if (!p) return c.json({ error: 'not_found' }, 404)
+    if (!p) return errJson(c, ErrorCode.not_found)
     const now = new Date().toISOString()
     await cfg.db.execute("UPDATE projects SET archived_state = 'online', updated_at = ? WHERE id = ? AND user_id = ?", [
       now, p.id, user.id,
@@ -843,10 +844,10 @@ export function projectsRoutes(cfg: Config) {
     const t = trFor(c)
     const lang = localeOf(c)
     const body = await jsonBody<z.infer<typeof noteSchema>>(c, noteSchema)
-    if (!body) return c.json({ error: 'invalid_input' }, 400)
+    if (!body) return errJson(c, ErrorCode.invalid_input)
     const user = c.get('user')
     const p = await getOwnedProject(cfg, user.id, c.req.param('id'))
-    if (!p) return c.json({ error: 'not_found' }, 404)
+    if (!p) return errJson(c, ErrorCode.not_found)
     const now = new Date().toISOString()
     // L2 fix (2026-09-10): add AND user_id = ? as belt-and-suspenders defense-in-depth.
     // The project p was pre-validated via getOwnedProject, but rule #1 says every user-owned
@@ -874,19 +875,19 @@ export function projectsRoutes(cfg: Config) {
     // T2 (SWOT Session 26): wire the upload rate limiter — logo uploads push bytes
     // into the GitHub assets repo, same as avatar uploads. 30 req/60s per IP.
     if (await hitRateLimit(cfg.db, RATE_RULES.upload, clientIp(c))) {
-      return c.json({ error: 'rate_limited', message: 'Too many uploads — wait a minute and try again.' }, 429)
+      return c.json({ error: ErrorCode.rate_limited, message: 'Too many uploads — wait a minute and try again.' }, 429)
     }
     const body = await jsonBody<z.infer<typeof logoUploadSchema>>(c, logoUploadSchema)
-    if (!body) return c.json({ error: 'invalid_input' }, 400)
+    if (!body) return errJson(c, ErrorCode.invalid_input)
     const user = c.get('user')
     const p = await getOwnedProject(cfg, user.id, c.req.param('id'))
-    if (!p) return c.json({ error: 'not_found' }, 404)
-    if (!cfg.github.token) return c.json({ error: 'github_not_configured' }, 503)
+    if (!p) return errJson(c, ErrorCode.not_found)
+    if (!cfg.github.token) return errJson(c, ErrorCode.github_not_configured)
     const gh = githubClient(cfg.github as GitHubConfig)
     // SEC-9 (S198/S199): sniff the leading bytes — the declared mimeType must match
     // the actual container (a mislabeled or scripted payload dies here, before any push).
     const sniffed = sniffImageMime(Uint8Array.from(atob(body.dataBase64.slice(0, 64)), (ch) => ch.charCodeAt(0)))
-    if (sniffed !== body.mimeType) return c.json({ error: 'invalid_image' }, 400)
+    if (sniffed !== body.mimeType) return errJson(c, ErrorCode.invalid_image)
     const path = `project-logos/${p.id}/logo-${Date.now()}-${uuid().slice(0, 8)}${extForMime(body.mimeType)}`
     // Remove the old logo if there was one
     if (p.logo_path) {
@@ -902,8 +903,8 @@ export function projectsRoutes(cfg: Config) {
   app.get('/:id/logo/file', async (c) => {
     const user = c.get('user')
     const p = await getOwnedProject(cfg, user.id, c.req.param('id'))
-    if (!p?.logo_path) return c.json({ error: 'not_found' }, 404)
-    if (!cfg.github.token) return c.json({ error: 'github_not_configured' }, 503)
+    if (!p?.logo_path) return errJson(c, ErrorCode.not_found)
+    if (!cfg.github.token) return errJson(c, ErrorCode.github_not_configured)
     const gh = githubClient(cfg.github as GitHubConfig)
     // S116 (the media-route 404 contract): a logo row whose GitHub object is gone
     // (deleted upstream, a token hiccup) degrades to the same 404 the missing row
@@ -914,7 +915,7 @@ export function projectsRoutes(cfg: Config) {
     } catch {
       bytes = null
     }
-    if (!bytes) return c.json({ error: 'not_found' }, 404)
+    if (!bytes) return errJson(c, ErrorCode.not_found)
     // Phase 1 (P1-a-2): authed per-user bytes never declare public cacheability — the
     // shared-cache tier does not key on cookies (the S69 lesson every other authed byte
     // route already follows: media, avatar, banner). TTL unchanged; visibility flipped.
@@ -925,7 +926,7 @@ export function projectsRoutes(cfg: Config) {
   app.delete('/:id/logo', async (c) => {
     const user = c.get('user')
     const p = await getOwnedProject(cfg, user.id, c.req.param('id'))
-    if (!p) return c.json({ error: 'not_found' }, 404)
+    if (!p) return errJson(c, ErrorCode.not_found)
     if (p.logo_path && cfg.github.token) {
       const gh = githubClient(cfg.github as GitHubConfig)
       try { await gh.deleteFile(p.logo_path) } catch { /* may be gone */ }

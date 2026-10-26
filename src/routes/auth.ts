@@ -12,6 +12,7 @@ import { toastHtml } from '../lib/html'
 import { localeOf } from '../lib/i18n'
 import { clientIp, hitRateLimit, RATE_RULES } from '../services/ratelimit'
 import type { Config, UserRow } from '../types'
+import { errJson, ErrorCode } from '../lib/errors'
 
 // Rule 10: Zod at the route level, one schema per endpoint, consistently.
 const loginSchema = z.object({
@@ -54,7 +55,7 @@ export function authRoutes(cfg: Config) {
     if (await hitRateLimit(cfg.db, RATE_RULES.auth, clientIp(c))) {
       // htmx needs a swappable 2xx fragment — a 4xx JSON body is silently swallowed.
       if (isHtmx(c)) return c.html('<p class="error">Too many attempts — wait a minute and try again.</p>')
-      return c.json({ error: 'rate_limited' }, 429)
+      return errJson(c, ErrorCode.rate_limited)
     }
     return next()
   }
@@ -78,7 +79,7 @@ export function authRoutes(cfg: Config) {
     const body = loginSchema.safeParse(parsed)
     if (!body.success) {
       if (isHtmx(c)) return c.html('<p class="error">Enter both fields.</p>')
-      return c.json({ error: 'invalid_input' }, 400)
+      return errJson(c, ErrorCode.invalid_input)
     }
 
     const { login, password } = body.data
@@ -93,7 +94,7 @@ export function authRoutes(cfg: Config) {
     // hits on non-existent logins too, so enumeration traffic shares the bucket.
     if (await hitRateLimit(cfg.db, RATE_RULES.auth, `user:${loginLower}`)) {
       if (isHtmx(c)) return c.html('<p class="error">Too many attempts — wait a minute and try again.</p>')
-      return c.json({ error: 'rate_limited' }, 429)
+      return errJson(c, ErrorCode.rate_limited)
     }
     const users = await cfg.db.query<UserRow>('SELECT * FROM users WHERE email = ? OR username = ?', [loginLower, login])
     if (users.length === 0) {
@@ -102,14 +103,14 @@ export function authRoutes(cfg: Config) {
       // were already identical; now the latency is too. Result discarded by design.
       await burnDummyVerify(password)
       if (isHtmx(c)) return c.html('<p class="error">Wrong email/username or password.</p>')
-      return c.json({ error: 'invalid_credentials' }, 401)
+      return errJson(c, ErrorCode.invalid_credentials)
     }
 
     const user = users[0]
     const ok = await verifyPassword(password, user.password_hash)
     if (!ok) {
       if (isHtmx(c)) return c.html('<p class="error">Wrong email/username or password.</p>')
-      return c.json({ error: 'invalid_credentials' }, 401)
+      return errJson(c, ErrorCode.invalid_credentials)
     }
 
     // Ban gate: after the credential check (ban status must not leak which accounts
@@ -121,7 +122,7 @@ export function authRoutes(cfg: Config) {
       if (isHtmx(c)) return c.html(`<p class="error">${banNoticeHtml(user)}</p>`)
       // L8 fix: permanent bans (both legacy 'forever' and new BANNED_FOREVER_DATE) → null
       const isPermanent = until === 'forever' || until === BANNED_FOREVER_DATE
-      return c.json({ error: 'banned', until: isPermanent ? null : until, reason: reason ?? null }, 403)
+      return c.json({ error: ErrorCode.banned, until: isPermanent ? null : until, reason: reason ?? null }, 403)
     }
 
     // Email confirmation gate (spec §4.14, added 2026-08-24): accounts created by the
@@ -133,7 +134,7 @@ export function authRoutes(cfg: Config) {
         c.header('HX-Redirect', `/confirm.html?email=${encodeURIComponent(user.email)}`)
         return c.html('')
       }
-      return c.json({ error: 'email_unverified' }, 403)
+      return errJson(c, ErrorCode.email_unverified)
     }
 
     const token = await createSession(cfg.db, user.id)
@@ -188,13 +189,13 @@ export function authRoutes(cfg: Config) {
 
   app.patch('/password', requireAuth(cfg), async (c) => {
     const body = await jsonBody<z.infer<typeof changePasswordSchema>>(c, changePasswordSchema)
-    if (!body) return c.json({ error: 'invalid_input' }, 400)
+    if (!body) return errJson(c, ErrorCode.invalid_input)
     const user = c.get('user')
 
     const currentOk = await verifyPassword(body.current_password, user.password_hash)
     if (!currentOk) {
       if (isHtmx(c)) return c.html(`<p class="error">${esc('Current password is incorrect.')}</p>`)
-      return c.json({ error: 'invalid_current_password' }, 400)
+      return errJson(c, ErrorCode.invalid_current_password)
     }
 
     const passwordHash = await hashPassword(body.new_password)

@@ -94,6 +94,10 @@ Four parallel read-only security audits covered everything the plan asked for: w
 
 The full history scan found exactly one real secret ever committed (the healthchecks.io ping key, in files deleted long ago). It was already neutralized in September by randomizing the check's URL — the leaked key alone can't ping anything. If you want it fully voided anyway, the 3-step rotation is at the top of this file's Phase 1 section.
 
+### The CI verdict on the shipped commit
+
+The `ci` job on main is **GREEN** — the one-command verify gate ran in CI with the newly SHA-pinned actions and all 706 tests passed there too. The e2e suite came in 447/448: the single failure is the **same pre-existing flake documented in Phase 0** (the s207 kanban-frame geometry assertion, failing with the same random offset signature in the CI runner while passing 5/5 locally on this identical tree; no Phase 1 change touches that code). Per the no-looping rule it stays with the planned flake-hunt round. Because CI is red on that flake, the auto-CD chain stayed silent — the manual Ship Gate deploys above are the live truth (both environments deployed and verified this session).
+
 ### Not verified / accepted risks (honest list)
 
 - The Content-Security-Policy still allows inline scripts (the no-build frontend requires it — documented tradeoff; the escaping discipline + automated escape gate is the real barrier, and it passes on all 213 sinks).

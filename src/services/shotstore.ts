@@ -3,6 +3,7 @@
 // cron now clean remote bytes through the EXACT same precedence the routes use
 // (kv → r2 → github), instead of orphaning objects in the bucket when a project dies.
 import type { Config } from '../types'
+import { queryIn } from '../lib/inchunk'
 import { githubClient, type GitHubConfig } from './github'
 import { r2Storage, type ObjectStore } from './r2'
 import { kvStorage } from './kv'
@@ -29,8 +30,12 @@ export function shotStoreFor(cfg: Config): ObjectStore {
 export async function purgeShotBytes(cfg: Config, projectIds: string[]): Promise<void> {
   if (!projectIds.length) return
   try {
-    const rows = await cfg.db.query<{ github_path: string }>(
-      `SELECT github_path FROM screenshots WHERE project_id IN (${projectIds.map(() => '?').join(',')})`,
+    // AP-20: chunked — a full purge (account wipe / owner purge-all) can exceed 99
+    // projects (D1 param cap); the old single IN silently failed there and orphaned bytes.
+    const rows = await queryIn<{ github_path: string }>(
+      cfg.db,
+      'SELECT github_path FROM screenshots WHERE project_id IN {{IN}}',
+      [],
       projectIds,
     )
     if (!rows.length) return
@@ -38,5 +43,10 @@ export async function purgeShotBytes(cfg: Config, projectIds: string[]): Promise
     // S69: each shot's .thumb tile sibling rides along — a purged project must not
     // leave orphaned grid tiles in the bucket either.
     await Promise.allSettled(rows.flatMap((r) => [store.deleteObject(r.github_path), store.deleteObject(`${r.github_path}.thumb`)]))
-  } catch { /* the row delete must never fail because of byte cleanup */ }
+  } catch (err) {
+    // Never throw — orphaned bytes are a space leak, never a data-loss risk (the rows
+    // are going away either way). But AP-20: log it — a silent failure here used to
+    // leave orphans with zero signal.
+    console.warn('[shotstore] purgeShotBytes failed (bytes may orphan):', err instanceof Error ? err.message : err)
+  }
 }

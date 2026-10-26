@@ -5,6 +5,7 @@ import { esc, jsonBody, sniffFileMime, type SniffedFileMime } from '../lib/http'
 import { getOwnedProject, icon, toastHtml } from '../lib/html'
 import { localeOf, trFor, trL, type Locale } from '../lib/i18n'
 import { uuid } from '../lib/ids'
+import { queryIn } from '../lib/inchunk'
 import { shotStoreFor } from '../services/shotstore'
 import { clientIp, hitRateLimit, RATE_RULES } from '../services/ratelimit'
 import {
@@ -132,8 +133,11 @@ export async function shotTaskMap(
   const ids = [...new Set(shots.map((s) => s.task_id).filter((x): x is string => !!x))]
   const map = new Map<string, { title: string; status: string }>()
   if (!ids.length) return map
-  const rows = await cfg.db.query<{ id: string; title: string; status: string }>(
-    `SELECT id, title, status FROM dev_tasks WHERE id IN (${ids.map(() => '?').join(',')})`,
+  // AP-20: chunked — a project with 100+ pinned shots exceeds D1's param cap.
+  const rows = await queryIn<{ id: string; title: string; status: string }>(
+    cfg.db,
+    'SELECT id, title, status FROM dev_tasks WHERE id IN {{IN}}',
+    [],
     ids,
   )
   for (const r of rows) map.set(r.id, { title: r.title, status: r.status })
@@ -772,10 +776,14 @@ export function coreRoutes(cfg: Config) {
     }
     const elements = [...byIdNewest.values()]
 
-    const stored = await cfg.db.query<{ id: string; updated_at: string; created_at: string }>(
+    // AP-20 (Phase 2): D1 caps one statement at 100 bound params — the offline queue
+    // can legally sync up to 500 elements, so the pre-check SELECT runs in chunks.
+    const stored = await queryIn<{ id: string; updated_at: string; created_at: string }>(
+      cfg.db,
       `SELECT id, updated_at, created_at FROM canvas_elements
-       WHERE user_id = ? AND id IN (${elements.map(() => '?').join(',')})`,
-      [user.id, ...elements.map((e) => e.id)],
+       WHERE user_id = ? AND id IN {{IN}}`,
+      [user.id],
+      elements.map((e) => e.id),
     )
     const byId = new Map(stored.map((r) => [r.id, r]))
 

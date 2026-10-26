@@ -3,6 +3,7 @@ import { esc } from '../lib/http'
 import { icon } from '../lib/html'
 import { trL, type Locale } from '../lib/i18n'
 import { renderMarkdown } from '../lib/markdown'
+import { queryIn } from '../lib/inchunk'
 import { calendarFor, faDigits, formatDate, formatNoteDay } from '../lib/jalali'
 import type { Db } from '../db/types'
 
@@ -359,9 +360,12 @@ export function attachWidget(n: QuickNote, titles: Map<string, string>, lang: Lo
 export async function attachedTitles(db: Db, userId: string, notes: QuickNote[]): Promise<Map<string, string>> {
   const ids = [...new Set(notes.map((n) => n.project_id).filter((x): x is string => !!x))]
   if (!ids.length) return new Map()
-  const rows = await db.query<{ id: string; title: string }>(
-    `SELECT id, title FROM projects WHERE user_id = ? AND deleted_at IS NULL AND id IN (${ids.map(() => '?').join(',')})`,
-    [userId, ...ids],
+  // AP-20: chunked — a full notes view can reference more than 99 projects (D1 param cap).
+  const rows = await queryIn<{ id: string; title: string }>(
+    db,
+    'SELECT id, title FROM projects WHERE user_id = ? AND deleted_at IS NULL AND id IN {{IN}}',
+    [userId],
+    ids,
   )
   return new Map(rows.map((r) => [r.id, r.title]))
 }

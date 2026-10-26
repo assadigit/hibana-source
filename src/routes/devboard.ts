@@ -24,6 +24,7 @@ import { jsonBody, etag } from '../lib/http'
 import { getOwnedProject, toastHtml } from '../lib/html'
 import { localeOf, trFor } from '../lib/i18n'
 import { uuid } from '../lib/ids'
+import { executeIn } from '../lib/inchunk'
 import type { Config, UserRow, DevTaskRow, SprintRow, TagRow } from '../types'
 import { categoriesUserScoped, isValidCatPair, normCatName, type CategoryRow } from '../lib/categories'
 
@@ -366,8 +367,8 @@ export function devboardRoutes(cfg: Config) {
       )
     }
     const ids = tasks.map((t) => t.id)
-    const placeholders = ids.map(() => '?').join(',')
-    await cfg.db.execute(`DELETE FROM dev_tasks WHERE id IN (${placeholders})`, ids)
+    // AP-20: chunked — archiving a done-task backlog can exceed 99 rows (D1 param cap).
+    await executeIn(cfg.db, 'DELETE FROM dev_tasks WHERE id IN {{IN}}', [], ids)
     // S30 (B2): the cascade just removed the link rows — recompute those tags' usage.
     await refreshTagUsage(cfg, touchedTagIds)
     await cfg.db.execute('UPDATE projects SET updated_at = ? WHERE id = ?', [now, p.id])

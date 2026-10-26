@@ -295,6 +295,64 @@ if (cookieA && cookieB) {
   console.log(isoOk ? '   ✓ cross-user isolation suite PASSED on the Workers runtime (D1)' : '   ✗ cross-user isolation FAILED')
 }
 
+// Test 6 (Phase 2, AUDIT AP-20): D1 caps a single prepared statement at 100 bound
+// parameters (workerd D1_ERROR "too many SQL variables"; node:sqlite has no cap, so the
+// vitest suite can NEVER see this class). The canvas offline-sync schema allows 500
+// elements per POST, so a >99-element sync used to 500 on Workers — and the client's
+// 400-drop rule then silently discarded the whole offline batch. This is the
+// runtime-parity canary for every chunked IN() site fixed in Phase 2.
+if (ownerCookie) {
+  const stamp = new Date().toISOString()
+  const bigBatch = Array.from({ length: 120 }, (_, i) => ({
+    id: crypto.randomUUID(), type: 'note', x: i, y: i, content: `AP-20 element ${i}`,
+    z_index: 0, updated_at: stamp,
+  }))
+  r = await fetchApi('/api/canvas/sync', {
+    method: 'POST', headers: { Cookie: ownerCookie },
+    body: JSON.stringify({ elements: bigBatch }),
+  })
+  let bigOk = r.status === 200
+  if (bigOk) {
+    try { bigOk = Array.isArray(JSON.parse(r.body).applied) && JSON.parse(r.body).applied.length === 120 } catch { bigOk = false }
+  }
+  if (bigOk) {
+    console.log('   ✓ POST /api/canvas/sync with 120 elements → 200 (chunked IN() stays under D1\'s 100-param cap)')
+  } else {
+    findings.push(`120-element canvas sync failed on Workers runtime (D1 param cap): status=${r.status}, body=${r.body?.slice(0, 300)}`)
+    console.error(`   ✗ 120-element canvas sync → ${r.status}: ${r.body?.slice(0, 200)}`)
+  }
+  // Clean the probe elements out (tombstone + the 7-day sweep handles content; hard-clear here)
+  const wipe = bigBatch.map((e) => ({ ...e, deleted: 1, updated_at: new Date().toISOString() }))
+  await fetchApi('/api/canvas/sync', { method: 'POST', headers: { Cookie: ownerCookie }, body: JSON.stringify({ elements: wipe }) })
+}
+
+// Test 7 (Phase 2): D1 foreign-key enforcement parity — the trash purge relies on
+// ON DELETE CASCADE for project children. If workerd ran FK-off (as an old in-repo
+// note claimed), purged projects would orphan child rows on Workers only. Settled
+// empirically every run via the real API flow: create → child task → soft-delete →
+// purge → the child must be unreachable (search) and the purge must succeed.
+if (ownerCookie) {
+  let fkOk = false
+  const mk = await fetchApi('/api/projects', { method: 'POST', headers: { Cookie: ownerCookie }, body: JSON.stringify({ title: 'AP20-FK-PROBE' }) })
+  if (mk.status === 201) {
+    let pid = null
+    try { pid = JSON.parse(mk.body).id ?? null } catch { pid = null }
+    if (pid) {
+      const tk = await fetchApi(`/api/projects/${pid}/tasks`, { method: 'POST', headers: { Cookie: ownerCookie }, body: JSON.stringify({ title: 'AP20FKTASKSENTINEL' }) })
+      await fetchApi(`/api/projects/${pid}`, { method: 'DELETE', headers: { Cookie: ownerCookie } })
+      const purge = await fetchApi('/api/settings/trash/empty', { method: 'POST', headers: { Cookie: ownerCookie } })
+      const sr = await fetchApi('/api/search?q=AP20FKTASKSENTINEL', { headers: { Cookie: ownerCookie } })
+      fkOk = purge.status === 200 && tk.status === 201 && sr.status === 200 && !sr.body.includes('AP20FKTASKSENTINEL')
+    }
+  }
+  if (fkOk) {
+    console.log('   ✓ trash purge on Workers: purged project + child task unreachable (CASCADE parity)')
+  } else {
+    findings.push('trash purge / FK CASCADE parity check failed on the Workers runtime')
+    console.error('   ✗ trash purge / FK CASCADE parity check failed')
+  }
+}
+
 // Step 5: cleanup
 console.log('\n5. Stopping wrangler dev...')
 killWranglerTree()

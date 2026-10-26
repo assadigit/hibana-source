@@ -5,6 +5,7 @@ import { esc, jsonBody } from '../lib/http'
 import { getOwnedProject, icon, STATUS_LABEL_FA } from '../lib/html'
 import { localeOf, trL } from '../lib/i18n'
 import { uuid } from '../lib/ids'
+import { queryIn } from '../lib/inchunk'
 import { clientProgress, elapsedFraction } from '../services/progress'
 import type { Config, PaymentRow, ProjectRow, TaskRow, UserRow } from '../types'
 
@@ -35,10 +36,10 @@ export function moduleRoutes(cfg: Config) {
     const paymentsByProject = new Map<string, PaymentRow[]>()
     if (projects.length > 0) {
       const ids = projects.map((p) => p.id)
-      const placeholders = ids.map(() => '?').join(',')
+      // AP-20: chunked — a client roster can exceed 99 projects (D1 param cap).
       const [tasks, payments] = await Promise.all([
-        cfg.db.query<TaskRow>(`SELECT * FROM tasks WHERE project_id IN (${placeholders}) ORDER BY project_id, created_at`, ids),
-        cfg.db.query<PaymentRow>(`SELECT * FROM payments WHERE project_id IN (${placeholders}) ORDER BY project_id, created_at`, ids),
+        queryIn<TaskRow>(cfg.db, 'SELECT * FROM tasks WHERE project_id IN {{IN}} ORDER BY project_id, created_at', [], ids),
+        queryIn<PaymentRow>(cfg.db, 'SELECT * FROM payments WHERE project_id IN {{IN}} ORDER BY project_id, created_at', [], ids),
       ])
       for (const t of tasks) {
         const list = tasksByProject.get(t.project_id) ?? []

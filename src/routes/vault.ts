@@ -3,6 +3,7 @@ import { z } from 'zod'
 import { requireAuth } from '../auth/middleware'
 import { jsonBody } from '../lib/http'
 import { uuid } from '../lib/ids'
+import { executeIn } from '../lib/inchunk'
 import type { Config, UserRow, NoteFolderRow, VaultNoteRow } from '../types'
 
 // Notes Vault (0057, S53 — owner request): the standalone long-form knowledge base at
@@ -309,9 +310,9 @@ export function vaultRoutes(cfg: Config) {
     const folder = await ownedFolder(user.id, c.req.param('id'))
     if (!folder) return c.json({ error: 'not_found' }, 404)
     const ids = await subtreeIds(user.id, folder.id)
-    const ph = ids.map(() => '?').join(',')
-    await cfg.db.execute(`UPDATE vault_notes SET folder_id = NULL, updated_at = ? WHERE user_id = ? AND folder_id IN (${ph})`, [now(), user.id, ...ids])
-    await cfg.db.execute(`DELETE FROM note_folders WHERE user_id = ? AND id IN (${ph})`, [user.id, ...ids])
+    // AP-20: chunked — a deep folder tree can exceed 99 subtree ids (D1 param cap).
+    await executeIn(cfg.db, 'UPDATE vault_notes SET folder_id = NULL, updated_at = ? WHERE user_id = ? AND folder_id IN {{IN}}', [now(), user.id], ids)
+    await executeIn(cfg.db, 'DELETE FROM note_folders WHERE user_id = ? AND id IN {{IN}}', [user.id], ids)
     return c.json({ ok: true, unfiled: ids.length })
   })
 

@@ -2,6 +2,7 @@ import { sendAndLog } from './email'
 import { sendTelegramMessage } from './telegram'
 import { clientProgress, isBehindPace, elapsedFraction } from './progress'
 import { esc } from '../lib/http'
+import { queryIn } from '../lib/inchunk'
 import { appUrlOf } from '../lib/app-url'
 import type { Config, ProjectRow, TaskRow, UserRow } from '../types'
 
@@ -33,9 +34,11 @@ export async function findBehindProjects(cfg: Config): Promise<ReminderCandidate
   // P11 (Focus 2): batch-fetch all tasks for all projects in one query (was N+1 — one
   // SELECT per project). Daily cron, <50 projects typical, but D1 subrequest budgets matter.
   const ids = projects.map((p) => p.id)
-  const placeholders = ids.map(() => '?').join(',')
-  const allTasks = await cfg.db.query<TaskRow>(
-    `SELECT * FROM tasks WHERE project_id IN (${placeholders})`,
+  // AP-20: chunked — unbounded project count (D1 param cap).
+  const allTasks = await queryIn<TaskRow>(
+    cfg.db,
+    'SELECT * FROM tasks WHERE project_id IN {{IN}}',
+    [],
     ids,
   )
   const tasksByProject = new Map<string, TaskRow[]>()

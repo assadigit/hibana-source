@@ -18,6 +18,7 @@
 // project id (or task/category/sprint id from another user) is simply not found.
 
 import { uuid } from '../lib/ids'
+import { executeIn } from '../lib/inchunk'
 import type { Config, DevTaskRow, SprintRow, BacklogDocRow } from '../types'
 
 export async function logHistory(cfg: Config, projectId: string, note: string) {
@@ -108,12 +109,14 @@ export async function tagColorFor(cfg: Config, userId: string): Promise<string> 
 export async function refreshTagUsage(cfg: Config, tagIds: string[]): Promise<void> {
   const ids = [...new Set(tagIds.filter(Boolean))]
   if (!ids.length) return
-  const placeholders = ids.map(() => '?').join(',')
-  await cfg.db.execute(
+  // AP-20: chunked — a 500-task rename can touch more than 99 tags.
+  await executeIn(
+    cfg.db,
     `UPDATE tags SET usage_count =
        (SELECT COUNT(*) FROM dev_task_tags WHERE tag_id = tags.id) +
        (SELECT COUNT(*) FROM project_tags WHERE tag_id = tags.id)
-     WHERE tags.id IN (${placeholders})`,
+     WHERE tags.id IN {{IN}}`,
+    [],
     ids,
   )
 }
@@ -140,12 +143,15 @@ export async function syncTaskSearchTags(cfg: Config, taskId: string): Promise<v
 export async function syncTaskSearchTagsBatch(cfg: Config, taskIds: string[]): Promise<void> {
   const ids = [...new Set(taskIds.filter(Boolean))]
   if (!ids.length) return
-  const placeholders = ids.map(() => '?').join(',')
-  await cfg.db.execute(
+  // AP-20: chunked — this exact helper is sized for 500-task renames (S200 comment),
+  // which exceeds D1's 100-param cap in one statement.
+  await executeIn(
+    cfg.db,
     `UPDATE dev_tasks SET search_tags = COALESCE(
        (SELECT group_concat(tg.name, ' ') FROM dev_task_tags tt JOIN tags tg ON tg.id = tt.tag_id
         WHERE tt.task_id = dev_tasks.id), '')
-     WHERE dev_tasks.id IN (${placeholders})`,
+     WHERE dev_tasks.id IN {{IN}}`,
+    [],
     ids,
   )
 }

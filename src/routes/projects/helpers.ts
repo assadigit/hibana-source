@@ -1,4 +1,5 @@
 import { esc } from '../../lib/http'
+import { queryIn } from '../../lib/inchunk'
 import {
   icon,
   statusLabel,
@@ -96,12 +97,14 @@ export async function loadProjectSignals(cfg: Config, _userId: string, projectId
   const map = new Map<string, ProjectSignals>()
   if (projectIds.length === 0) return map
   for (const id of projectIds) map.set(id, { bugs: 0, ideas: 0, backlog: 0, hurdles: 0, backlogUpdated: null })
-  const placeholders = projectIds.map(() => '?').join(',')
+  // AP-20: chunked — the spark shelf can exceed 99 projects (D1 param cap).
   // dev_tasks: bugs + ideas in one query (group by status)
-  const devRows = await cfg.db.query<{ project_id: string; status: string; n: number }>(
+  const devRows = await queryIn<{ project_id: string; status: string; n: number }>(
+    cfg.db,
     `SELECT project_id, status, COUNT(*) AS n FROM dev_tasks
-     WHERE project_id IN (${placeholders}) AND status IN ('bug', 'idea')
+     WHERE project_id IN {{IN}} AND status IN ('bug', 'idea')
      GROUP BY project_id, status`,
+    [],
     projectIds,
   )
   for (const r of devRows) {
@@ -111,8 +114,10 @@ export async function loadProjectSignals(cfg: Config, _userId: string, projectId
     else if (r.status === 'idea') s.ideas = r.n
   }
   // backlog_docs: count + MAX(updated_at) per project (has upcoming plan + when last touched)
-  const blRows = await cfg.db.query<{ project_id: string; n: number; latest: string | null }>(
-    `SELECT project_id, COUNT(*) AS n, MAX(updated_at) AS latest FROM backlog_docs WHERE project_id IN (${placeholders}) GROUP BY project_id`,
+  const blRows = await queryIn<{ project_id: string; n: number; latest: string | null }>(
+    cfg.db,
+    'SELECT project_id, COUNT(*) AS n, MAX(updated_at) AS latest FROM backlog_docs WHERE project_id IN {{IN}} GROUP BY project_id',
+    [],
     projectIds,
   )
   for (const r of blRows) {
@@ -120,8 +125,10 @@ export async function loadProjectSignals(cfg: Config, _userId: string, projectId
     if (s) { s.backlog = r.n; s.backlogUpdated = r.latest }
   }
   // hurdles: open (unsolved) count per project
-  const hRows = await cfg.db.query<{ project_id: string; n: number }>(
-    `SELECT project_id, COUNT(*) AS n FROM hurdles WHERE project_id IN (${placeholders}) AND status = 'open' GROUP BY project_id`,
+  const hRows = await queryIn<{ project_id: string; n: number }>(
+    cfg.db,
+    "SELECT project_id, COUNT(*) AS n FROM hurdles WHERE project_id IN {{IN}} AND status = 'open' GROUP BY project_id",
+    [],
     projectIds,
   )
   for (const r of hRows) {
@@ -593,9 +600,11 @@ export async function loadSparkThumbs(cfg: Config, projects: ProjectRow[]): Prom
   const map = new Map<string, SparkThumbMeta>(projects.map((p) => [p.id, { shotId: null, isManual: false }]))
   const ids = projects.map((p) => p.id)
   if (!ids.length) return map
-  const ph = ids.map(() => '?').join(',')
-  const rows = await cfg.db.query<{ id: string; project_id: string }>(
-    `SELECT id, project_id FROM screenshots WHERE project_id IN (${ph}) AND mime_type LIKE 'image/%' ORDER BY created_at DESC, id DESC`,
+  // AP-20: chunked (spark shelf can exceed 99 ids).
+  const rows = await queryIn<{ id: string; project_id: string }>(
+    cfg.db,
+    `SELECT id, project_id FROM screenshots WHERE project_id IN {{IN}} AND mime_type LIKE 'image/%' ORDER BY created_at DESC, id DESC`,
+    [],
     ids,
   )
   const latest = new Map<string, string>()
@@ -603,7 +612,7 @@ export async function loadSparkThumbs(cfg: Config, projects: ProjectRow[]): Prom
   const coverIds = [...new Set(projects.filter((p) => p.cover_shot_id).map((p) => p.cover_shot_id!))]
   const liveCovers = new Set(
     coverIds.length
-      ? (await cfg.db.query<{ id: string }>(`SELECT id FROM screenshots WHERE id IN (${coverIds.map(() => '?').join(',')})`, coverIds)).map((r) => r.id)
+      ? (await queryIn<{ id: string }>(cfg.db, 'SELECT id FROM screenshots WHERE id IN {{IN}}', [], coverIds)).map((r) => r.id)
       : [],
   )
   for (const p of projects) {
@@ -666,13 +675,17 @@ const faDigitsIf = (lang: Locale, n: number): string => (lang === 'fa' ? faDigit
 export async function loadSparkLinkPresence(cfg: Config, projectIds: string[]): Promise<Map<string, SparkPresence>> {
   const map = new Map<string, SparkPresence>(projectIds.map((id) => [id, { links: 0, images: 0 }]))
   if (!projectIds.length) return map
-  const ph = projectIds.map(() => '?').join(',')
-  const linkRows = await cfg.db.query<{ project_id: string; n: number }>(
-    `SELECT project_id, COUNT(*) AS n FROM links WHERE project_id IN (${ph}) GROUP BY project_id`,
+  // AP-20: chunked (spark shelf can exceed 99 ids).
+  const linkRows = await queryIn<{ project_id: string; n: number }>(
+    cfg.db,
+    'SELECT project_id, COUNT(*) AS n FROM links WHERE project_id IN {{IN}} GROUP BY project_id',
+    [],
     projectIds,
   )
-  const imgRows = await cfg.db.query<{ project_id: string; n: number }>(
-    `SELECT project_id, COUNT(*) AS n FROM screenshots WHERE project_id IN (${ph}) AND mime_type LIKE 'image/%' GROUP BY project_id`,
+  const imgRows = await queryIn<{ project_id: string; n: number }>(
+    cfg.db,
+    'SELECT project_id, COUNT(*) AS n FROM screenshots WHERE project_id IN {{IN}} AND mime_type LIKE \'image/%\' GROUP BY project_id',
+    [],
     projectIds,
   )
   for (const r of linkRows) { const e = map.get(r.project_id); if (e) e.links = r.n }
@@ -949,14 +962,18 @@ export async function loadProjectProgress(
   const map = new Map<string, number>()
   const ids = projects.map((p) => p.id)
   if (ids.length === 0) return map
-  const placeholders = ids.map(() => '?').join(',')
-  const devRows = await cfg.db.query<{ project_id: string; total: number; done: number }>(
-    `SELECT project_id, COUNT(*) AS total, SUM(CASE WHEN status = 'done' THEN 1 ELSE 0 END) AS done FROM dev_tasks WHERE project_id IN (${placeholders}) GROUP BY project_id`,
+  // AP-20: chunked (project list can exceed 99 ids).
+  const devRows = await queryIn<{ project_id: string; total: number; done: number }>(
+    cfg.db,
+    'SELECT project_id, COUNT(*) AS total, SUM(CASE WHEN status = \'done\' THEN 1 ELSE 0 END) AS done FROM dev_tasks WHERE project_id IN {{IN}} GROUP BY project_id',
+    [],
     ids,
   )
   const devMap = new Map(devRows.map((r) => [r.project_id, r]))
-  const hRows = await cfg.db.query<{ project_id: string; total: number; done: number }>(
-    `SELECT project_id, COUNT(*) AS total, SUM(CASE WHEN status = 'solved' THEN 1 ELSE 0 END) AS done FROM hurdles WHERE project_id IN (${placeholders}) GROUP BY project_id`,
+  const hRows = await queryIn<{ project_id: string; total: number; done: number }>(
+    cfg.db,
+    'SELECT project_id, COUNT(*) AS total, SUM(CASE WHEN status = \'solved\' THEN 1 ELSE 0 END) AS done FROM hurdles WHERE project_id IN {{IN}} GROUP BY project_id',
+    [],
     ids,
   )
   const hMap = new Map(hRows.map((r) => [r.project_id, r]))

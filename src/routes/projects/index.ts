@@ -9,6 +9,7 @@ import { githubClient, type GitHubConfig } from '../../services/github'
 import { purgeShotBytes, shotStoreFor } from '../../services/shotstore'
 import { hitRateLimit, RATE_RULES, clientIp } from '../../services/ratelimit'
 import { uuid } from '../../lib/ids'
+import { queryIn } from '../../lib/inchunk'
 import { isValidCatPair } from '../../lib/categories'
 import type { Config, ProjectRow, UserRow } from '../../types'
 import { toastHtml, getOwnedProject, STATUS_LABEL } from '../../lib/html'
@@ -253,18 +254,24 @@ export function projectsRoutes(cfg: Config) {
           sparkHits.set(p.id, h)
         }
         const likeS = `%${sparkQ.replace(/[\%_\\]/g, (m) => '\\' + m)}%`
-        const idList = projects.map(() => '?').join(',')
-        const tagRows = await cfg.db.query<{ project_id: string; name: string }>(
-          `SELECT pt.project_id, t.name FROM project_tags pt JOIN tags t ON t.id = pt.tag_id WHERE pt.project_id IN (${idList}) AND t.user_id = ? AND t.name LIKE ? ESCAPE '\\' ORDER BY t.name COLLATE NOCASE LIMIT 48`,
-          [...projects.map((p) => p.id), user.id, likeS],
+        // AP-20: chunked — the spark shelf feeding tag search can exceed 99 ids (D1 param cap).
+        const tagRows = await queryIn<{ project_id: string; name: string }>(
+          cfg.db,
+          `SELECT pt.project_id, t.name FROM project_tags pt JOIN tags t ON t.id = pt.tag_id WHERE pt.project_id IN {{IN}} AND t.user_id = ? AND t.name LIKE ? ESCAPE '\\' ORDER BY t.name COLLATE NOCASE LIMIT 48`,
+          [],
+          projects.map((p) => p.id),
+          [user.id, likeS],
         ).catch(() => [] as { project_id: string; name: string }[])
         for (const r of tagRows) {
           const h = sparkHits.get(r.project_id)
           if (h) (h.tags ||= []).push(r.name)
         }
-        const linkRows = await cfg.db.query<{ project_id: string; label: string | null }>(
-          `SELECT project_id, label FROM links WHERE project_id IN (${idList}) AND (label LIKE ? ESCAPE '\\' OR url LIKE ? ESCAPE '\\') LIMIT 48`,
-          [...projects.map((p) => p.id), likeS, likeS],
+        const linkRows = await queryIn<{ project_id: string; label: string | null }>(
+          cfg.db,
+          `SELECT project_id, label FROM links WHERE project_id IN {{IN}} AND (label LIKE ? ESCAPE '\\' OR url LIKE ? ESCAPE '\\') LIMIT 48`,
+          [],
+          projects.map((p) => p.id),
+          [likeS, likeS],
         ).catch(() => [] as { project_id: string; label: string | null }[])
         for (const r of linkRows) {
           const h = sparkHits.get(r.project_id)

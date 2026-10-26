@@ -118,3 +118,7 @@ The `ci` job on main is **GREEN** — the one-command verify gate ran in CI with
 **How it was verified:** 5 read-only audit agents hunted across static analysis, runtime parity, dates/i18n, state rules, and the canvas/integrations. Every claimed bug was re-verified by the lead with a *failing test first* (two auditor claims were disproven in the process and dropped). Suite grew 706 → 744 tests; every fix has a regression test. Both runtimes green (Node + Workers smoke, including two new live Cloudflare canaries); deployed to dev and production with full remote smoke (24/24 each) and screenshot-pipeline checks (9/9 each).
 
 **What was NOT verified / carried forward:** the Telegram webhook can still record a duplicate capture if Telegram retries a timed-out message (needs a small database migration — deferred with a written removal path); the pre-existing CSP tradeoff stands by design.
+
+### Phase 2 — CI verdict (final)
+
+The CI ladder on the phase commit `de85a4d` is **fully green**: the `ci` job (verify: typecheck, eslint, the 744-test suite, build, portability gate) **success**, e2e shard 1 **success**, and e2e shard 2 **success** — the shard that carried the s207 flake through Phases 0 and 1. The first full-green CI run of the project's e2e suite; the AP-2 fix held in CI. (The first attempt of this run was auto-cancelled mid-flight by the docs-only follow-up commit — standard GitHub concurrency behavior; re-run to completion. The CD workflow additionally ran green on the docs commit.)

@@ -26,6 +26,10 @@ hibana.db-shm
 hibana.db-wal
 *.sql.tmp
 
+# pre-migration / pre-deploy D1 exports (Autopilot RUNBOOK Ship Gate step 4 —
+# local-only backup artifacts, never tracked)
+backups/
+
 # secrets — gitignored forever; the agent reads credentials.md but it never ships
 credentials.md
 Credentials.md

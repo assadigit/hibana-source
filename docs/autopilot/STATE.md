@@ -13,6 +13,7 @@ Last updated: 2026-10-26 (bootstrap commit — find it via `git log --oneline --
 
 ## Session log
 
+- **2026-10-26 (Phase 0, runbook):** docs/autopilot/RUNBOOK.md added — Ship Gate checklist, D1 backup commands (wrangler d1 export → gitignored backups/), the app's own backup/restore system, wrangler rollback procedure + redeploy-last-good-tag alternative, post-rollback smoke; .gitignore now covers backups/.
 - **2026-10-26 (Phase 0, remote smoke):** scripts/smoke-remote.mjs added (npm run smoke:remote -- --target dev|prod) — the Ship Gate remote suite: health, login page + i18n wiring, throwaway probe user seeded/purged via wrangler d1 execute (row-count parity asserted), real authenticated reads, write→read-back→hard-delete throwaway, EN/FA dictionaries, hashed /dist asset loads.
 - **2026-10-26 (Phase 0, characterization tests):** 39 new tests in 5 files — logout route + cookie attribute contract (had ZERO tests), hard-delete status matrix ×6, project edit round-trip + status history, Jalali oracles/leap/Nowruz/200-year sweep/client-server parity, offline-queue unit harness (evaluates the REAL public/js/queue.js against a faithful fake IndexedDB — discovered AP-1). Suite: 685/685.
 - **2026-10-26 (Phase 0, verify + CI):** `npm run verify` created (typecheck + eslint 0-warnings + vitest + build + portability, ~76 s green) and `npm run lint`; ci.yml now runs verify as its single quality entry point (the four replaced steps are exactly what verify runs, same order). M1/M2 from the pre-flight audit closed.

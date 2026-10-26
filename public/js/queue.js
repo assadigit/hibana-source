@@ -71,10 +71,14 @@ window.hibanaQueue = (() => {
   }
 
   function emit() {
-    count().then((n) => {
-      paintBadge(n)
-      for (const l of listeners) l(n)
-    })
+    // P2-a F4 (Phase 2): an IndexedDB failure (private mode, quota) used to surface as
+    // an unhandledrejection on every emit — the badge simply stays as-is instead.
+    count()
+      .then((n) => {
+        paintBadge(n)
+        for (const l of listeners) l(n)
+      })
+      .catch(() => { /* IndexedDB unavailable — badge stays as-is */ })
   }
 
   async function count() {
@@ -130,16 +134,22 @@ window.hibanaQueue = (() => {
       // so the badge clears + the user isn't stuck. The data stays in the user's
       // IndexedDB backup until then (sendBeacon still fires on pagehide).
       const MAX_RETRIES = 5
+      // AP-34 (Phase 2): the server caps one sync POST at 500 elements. A long-offline
+      // queue can exceed that (one row per edit — a layer renumber writes one row per
+      // element), and the single oversized POST used to 400 and mass-drop EVERY queued
+      // edit via the invalidInput rule. Chunk the flush instead.
+      const SYNC_CHUNK = 400
       const canvasBatch = items.filter((i) => i.kind === 'canvas')
-      if (canvasBatch.length > 0) {
+      for (let ci = 0; ci < canvasBatch.length; ci += SYNC_CHUNK) {
+        const chunk = canvasBatch.slice(ci, ci + SYNC_CHUNK)
         const res = await fetch('/api/canvas/sync', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ elements: canvasBatch.map((i) => i.data) }),
+          body: JSON.stringify({ elements: chunk.map((i) => i.data) }),
         })
-        if (res.ok) await remove(canvasBatch.map((i) => i.id))
+        if (res.ok) await remove(chunk.map((i) => i.id))
         else if (authBlocked(res)) { state = 'auth'; emit(); return false }
-        else if (invalidInput(res)) await remove(canvasBatch.map((i) => i.id)) // permanently invalid — stop retrying
+        else if (invalidInput(res)) await remove(chunk.map((i) => i.id)) // permanently invalid — stop retrying
         else if (res.status >= 500) {
           // Server error — bump retry counts, drop items that exceeded MAX_RETRIES.
           // PERSISTENCE (AUDIT AP-1, fixed): getAll() returns structured clones, so the
@@ -147,13 +157,13 @@ window.hibanaQueue = (() => {
           // flush — which made the MAX_RETRIES drop unreachable and left items queued
           // forever on persistent 5xx. Survivors are now re-put (and mirrored) on EVERY
           // 5xx, not just inside the drop branch.
-          const drop = canvasBatch.filter((i) => (i.retries = (i.retries || 0) + 1) >= MAX_RETRIES)
+          const drop = chunk.filter((i) => (i.retries = (i.retries || 0) + 1) >= MAX_RETRIES)
           if (drop.length > 0) {
             console.warn('[queue] dropping', drop.length, 'canvas items after', MAX_RETRIES, 'failed syncs (server error)')
             await remove(drop.map((i) => i.id))
           }
           // Re-queue the survivors with their updated retry count
-          const survivors = canvasBatch.filter((i) => !drop.includes(i))
+          const survivors = chunk.filter((i) => !drop.includes(i))
           for (const s of survivors) {
             mirror.set(s.id, s)
             await withStore('readwrite', (store) => store.put(s))
@@ -249,8 +259,14 @@ window.hibanaQueue = (() => {
         if (typeof navigator.sendBeacon !== 'function' || mirror.size === 0) return
         const canvasBatch = [...mirror.values()].filter((i) => i.kind === 'canvas')
         if (canvasBatch.length === 0) return
-        const blob = new Blob([JSON.stringify({ elements: canvasBatch.map((i) => i.data) })], { type: 'application/json' })
-        navigator.sendBeacon('/api/canvas/sync', blob)
+        // AP-34 (Phase 2): chunk the beacon like the flush — the server caps one sync at
+        // 500 elements and the browser's beacon size quota silently drops oversized
+        // payloads (sendBeacon returns false, which nothing checked either).
+        for (let bi = 0; bi < canvasBatch.length; bi += 400) {
+          const chunk = canvasBatch.slice(bi, bi + 400)
+          const blob = new Blob([JSON.stringify({ elements: chunk.map((ci) => ci.data) })], { type: 'application/json' })
+          navigator.sendBeacon('/api/canvas/sync', blob)
+        }
       } catch { /* best effort — the queue itself survives in IndexedDB */ }
     })
   }

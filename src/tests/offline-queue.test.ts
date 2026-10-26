@@ -330,6 +330,40 @@ describe('offline queue — flush verdict matrix (characterization)', () => {
     expect(await h.queue.count()).toBe(0)
   })
 
+  it('REGRESSION (AP-34): a 600-item offline queue flushes in CHUNKED sync POSTs (≤500/server cap), losing nothing', async () => {
+    // The old flush POSTed the WHOLE queue in one body; past the server's 500-element
+    // Zod cap that 400'd, and the invalidInput drop rule then silently discarded EVERY
+    // queued edit (badge → "Saved") — a mass data-loss on reconnect after long offline.
+    const h = loadQueue({ responses: [{ status: 200 }, { status: 200 }] })
+    for (let i = 0; i < 600; i += 1) await h.queue.enqueue(canvasItem(`big-${i}`))
+    await settle()
+    const ok = await h.queue.flush()
+    expect(ok).toBe(true)
+    expect(h.fetchMock).toHaveBeenCalledTimes(2) // 400 + 200 elements
+    const sizes = h.fetchMock.mock.calls.map((call) => JSON.parse(String((call[1] as RequestInit).body)).elements.length)
+    expect(sizes).toEqual([400, 200])
+    expect(await h.queue.count()).toBe(0)
+  })
+
+  it('REGRESSION (AP-34): the pagehide beacon is chunked the same way', async () => {
+    const h = loadQueue()
+    for (let i = 0; i < 600; i += 1) await h.queue.enqueue(canvasItem(`bc-${i}`))
+    await settle()
+    h.trigger('pagehide')
+    expect(h.sendBeacon).toHaveBeenCalledTimes(2)
+    const [first, second] = h.sendBeacon.mock.calls as Array<[string, Blob]>
+    expect(JSON.parse(await first[1].text()).elements.length).toBe(400)
+    expect(JSON.parse(await second[1].text()).elements.length).toBe(200)
+  })
+
+  it('REGRESSION (P2-a F4): emit()\'s count chain carries a .catch (no unhandledrejection on IDB failure)', () => {
+    // Source-contract pin: the real module's emit must terminate its promise chain.
+    const src = readFileSync(join(process.cwd(), 'public/js/queue.js'), 'utf8')
+    const m = src.match(/function emit\(\) \{[\s\S]*?\n {2}\}/)
+    expect(m).not.toBeNull()
+    expect(m![0]).toContain('.catch(')
+  })
+
   it('project items POST one-by-one to /api/projects and refresh the rail on success', async () => {
     const h = loadQueue()
     await h.queue.enqueue(projectItem('Idea A'))

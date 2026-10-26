@@ -429,6 +429,10 @@
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
+        // P2-e F8 (Phase 2): a hung Workers AI call left the popover stuck on
+        // "working…" forever and held the Worker invocation — same AbortSignal
+        // discipline the server-side integrations already follow.
+        signal: AbortSignal.timeout(30_000),
       })
     } catch {
       res = null

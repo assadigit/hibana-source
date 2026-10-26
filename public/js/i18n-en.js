@@ -48,7 +48,7 @@ window.__hibanaDictEN = {
       // S89: the LABELED rail — a small text label rides under every icon
       'rail.label.search': 'Search', 'rail.label.dashboard': 'Dashboard', 'rail.label.todo': 'To-do',
       'rail.label.projects': 'Projects', 'rail.label.ideas': 'Ideas', 'rail.label.notes': 'Notes',
-      'rail.label.calendar': 'Calendar', 'rail.label.canvas': 'Canvas', 'rail.label.settings': 'Settings',
+      'rail.label.calendar': 'Calendar', 'rail.label.canvas': 'Canvas', 'rail.label.settings': 'Settings', 'rail.label.kanban': 'Kanban',
       'rail.label.help': 'Help', 'rail.label.theme': 'Theme', 'rail.label.sidebar': 'Sidebar', 'rail.collapseHint': 'Collapse or expand the sidebar',
       // S89: the to-do panel groups tasks under their QUADRANT (box) name —
       // the same defaults the sadhana page carries, localized
@@ -1038,6 +1038,7 @@ window.__hibanaDictEN = {
       // The chrome strings are tagged in the 4 auth .html files with data-i18n* attributes;
       // i18n.js's apply() swaps them at runtime (navigator.language fallback when logged out).
       'auth.welcomeBack': 'Welcome back',
+      'auth.inviteCode': 'Invite code', 'auth.inviteCodePlaceholder': 'Ask an existing user for a code',
       'auth.signIn': 'Sign in',
       'auth.emailOrUsername': 'Email or username',
       'auth.password': 'Password',

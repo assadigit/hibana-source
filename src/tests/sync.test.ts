@@ -286,9 +286,15 @@ describe('canvas sync (rule 2 + Q4-A + Phase 2 gate)', () => {
       const bad = el({ type: 'note', color: 'text', content: 'impossible', text_align: 'justify', updated_at: ago(0) }) // off-enum — schema rejects
 
       const res = await app.fetch(new Request('http://local/api/canvas/sync', { method: 'POST', headers: auth, body: JSON.stringify({ elements: [centered, righty, legacy, bad] }) }))
-      expect(res.status).toBe(400) // the batch fails validation — nothing lands
+      // AP-34 (Phase 2): per-element tolerance — the off-enum element is SKIPPED (the
+      // old whole-batch 400 poisoned every other queued edit with it); the valid ones
+      // land, the bad one never does.
+      expect(res.status).toBe(200)
+      const resBody = (await res.json()) as { applied: string[]; skipped: number }
+      expect(resBody.skipped).toBe(1)
+      expect(resBody.applied).toHaveLength(3)
       const full0 = await app.fetch(new Request('http://local/api/canvas/full', { headers: auth }))
-      expect(((await full0.json()) as { elements: unknown[] }).elements).toHaveLength(0)
+      expect(((await full0.json()) as { elements: { content: string }[] }).elements.map((e) => e.content)).not.toContain('impossible')
 
       const ok = await app.fetch(new Request('http://local/api/canvas/sync', { method: 'POST', headers: auth, body: JSON.stringify({ elements: [centered, righty, legacy] }) }))
       expect(ok.status).toBe(200)
@@ -321,9 +327,14 @@ describe('canvas sync (rule 2 + Q4-A + Phase 2 gate)', () => {
       const bad = el({ type: 'note', content: 'impossible', angle: 7200, updated_at: ago(0) }) // > 3600 — schema rejects
 
       const res = await app.fetch(new Request('http://local/api/canvas/sync', { method: 'POST', headers: auth, body: JSON.stringify({ elements: [rotated, untouched, bad] }) }))
-      expect(res.status).toBe(400) // the batch fails validation — nothing lands
+      // AP-34 (Phase 2): per-element tolerance — the out-of-range angle is SKIPPED;
+      // the legal elements in the same batch still land (old: whole-batch 400).
+      expect(res.status).toBe(200)
+      const resBody = (await res.json()) as { applied: string[]; skipped: number }
+      expect(resBody.skipped).toBe(1)
+      expect(resBody.applied).toHaveLength(2)
       const full0 = await app.fetch(new Request('http://local/api/canvas/full', { headers: auth }))
-      expect(((await full0.json()) as { elements: unknown[] }).elements).toHaveLength(0)
+      expect(((await full0.json()) as { elements: { content: string }[] }).elements.map((e) => e.content)).not.toContain('impossible')
 
       // now the legal batch: rotated + untouched
       const ok = await app.fetch(new Request('http://local/api/canvas/sync', { method: 'POST', headers: auth, body: JSON.stringify({ elements: [rotated, untouched] }) }))

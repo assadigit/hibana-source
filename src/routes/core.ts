@@ -728,7 +728,12 @@ export function coreRoutes(cfg: Config) {
     created_at: z.string().optional(),
     updated_at: z.string().max(40),
   })
-  const syncSchema = z.object({ elements: z.array(elementSchema).max(500), upto: z.string().optional() })
+  // AP-34 (Phase 2): per-element tolerance — the array is validated element-BY-element.
+  // The old whole-array schema let ONE bad element (e.g. content over the 10k cap)
+  // 400 the ENTIRE body, and the client's 400-drop rule then silently discarded every
+  // OTHER queued edit with it (a mass-drop on top of an already-unsaveable element).
+  // Body-level problems (elements not an array / >500 entries) still 400.
+  const syncSchema = z.object({ elements: z.array(z.unknown()).max(500), upto: z.string().optional() })
   const promoteSchema = z.object({ title: z.string().min(1).max(200).optional() })
 
   app.get('/api/canvas', async (c) => {
@@ -766,11 +771,26 @@ export function coreRoutes(cfg: Config) {
     const user = c.get('user')
     const t = trFor(c)
 
+    // AP-34: validate each element against the strict schema; invalid entries are
+    // SKIPPED (reported in the response) instead of poisoning the whole batch.
+    const validated: z.infer<typeof elementSchema>[] = []
+    let skipped = 0
+    for (const raw of body.elements) {
+      const parsed = elementSchema.safeParse(raw)
+      if (parsed.success) validated.push(parsed.data)
+      else skipped += 1
+    }
+    if (skipped > 0) {
+      // Server-side signal for an edit the client could never land (over-cap content,
+      // a shape a newer client sends that this server doesn't know, etc.).
+      console.warn('[canvas] sync skipped', skipped, 'invalid element(s) for user', user.id.slice(0, 8))
+    }
+
     // The offline queue can hold several writes for the same element in one batch (IndexedDB
     // keys are random uuids, so array order is not time order). Keep only the newest per id:
     // without this, an older edit could apply after a newer one and win the conflict upsert.
-    const byIdNewest = new Map<string, (typeof body.elements)[number]>()
-    for (const el of body.elements) {
+    const byIdNewest = new Map<string, (typeof validated)[number]>()
+    for (const el of validated) {
       const cur = byIdNewest.get(el.id)
       if (!cur || el.updated_at > cur.updated_at) byIdNewest.set(el.id, el)
     }
@@ -815,7 +835,7 @@ export function coreRoutes(cfg: Config) {
 
     const [maxRow] = await cfg.db.query<{ m: string | null }>('SELECT MAX(updated_at) AS m FROM canvas_elements WHERE user_id = ?', [user.id])
     if (c.req.header('HX-Request')) return c.html(toastHtml(t('Synced {n} element(s)', '{n} مورد همگام شد', { n: applied.length }), localeOf(c), undefined, 'ok'))
-    return c.json({ ok: true, applied, serverUpdatedAt: maxRow?.m ?? null })
+    return c.json({ ok: true, applied, skipped, serverUpdatedAt: maxRow?.m ?? null })
   })
 
   app.post('/api/canvas/elements/:id/promote', async (c) => {

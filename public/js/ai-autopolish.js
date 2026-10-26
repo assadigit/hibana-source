@@ -31,6 +31,7 @@
   const FALLBACK = {
     'magic.autopolished': 'Auto-polished',
     'magic.autopolishUndo': 'Undo',
+    'notes.restoreFailed': 'Could not restore.',
   }
   const t = (k) => window.hibanaI18n?.t(k) ?? FALLBACK[k] ?? k
   const toast = (msg, kind, ms, actions) => window.hibana?.toast?.(msg, kind ?? 'info', ms, actions)
@@ -113,8 +114,9 @@
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ content: original }),
           }).then((r) => {
-            if (r.ok && window.htmx) window.htmx.ajax('GET', '/api/notes', { target: '#notebook', swap: 'outerHTML' })
-          }).catch(() => {})
+            if (!r.ok) { window.hibana?.handle401?.(r); throw new Error('undo failed') }
+            if (window.htmx) window.htmx.ajax('GET', '/api/notes', { target: '#notebook', swap: 'outerHTML' })
+          }).catch(() => toast(t('notes.restoreFailed'), 'err'))
         },
       }])
     } catch {

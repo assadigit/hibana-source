@@ -48,7 +48,7 @@ window.__hibanaDictFA = {
       // S89: the LABELED rail — a small text label rides under every icon
       'rail.label.search': 'جست‌وجو', 'rail.label.dashboard': 'پیشخوان', 'rail.label.todo': 'کارها',
       'rail.label.projects': 'پروژه‌ها', 'rail.label.ideas': 'ایده‌ها', 'rail.label.notes': 'یادداشت‌ها',
-      'rail.label.calendar': 'تقویم', 'rail.label.canvas': 'بوم', 'rail.label.settings': 'تنظیمات',
+      'rail.label.calendar': 'تقویم', 'rail.label.canvas': 'بوم', 'rail.label.settings': 'تنظیمات', 'rail.label.kanban': 'کانبان',
       'rail.label.help': 'راهنما', 'rail.label.theme': 'پوسته', 'rail.label.sidebar': 'نوار کناری', 'rail.collapseHint': 'جمع‌کردن یا بازکردن نوار کناری',
       // S89: the to-do panel groups tasks under their QUADRANT (box) name —
       // the same defaults the sadhana page carries, localized
@@ -1032,6 +1032,7 @@ window.__hibanaDictFA = {
       // P4.2 (F-H3): صفحات ورود/ثبت‌نام/تأیید/بازیابی — متن‌های ایستا.
       // بقیهٔ پیام‌ها (htmx fragments + رشته‌های پویا) انگلیسی می‌مانند.
       'auth.welcomeBack': 'خوش آمدید',
+      'auth.inviteCode': 'کد دعوت', 'auth.inviteCodePlaceholder': 'از یک کاربر موجود کد بگیرید',
       'auth.signIn': 'ورود',
       'auth.emailOrUsername': 'ایمیل یا نام کاربری',
       'auth.password': 'رمز عبور',

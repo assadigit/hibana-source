@@ -454,9 +454,13 @@
                 undo.className = 'ghost'
                 undo.textContent = _t('common.undo', 'Undo')
                 undo.addEventListener('click', () => {
+                  // P2-a F3 (Phase 2): surface restore failures (was a silent swallow).
                   fetch('/api/projects/' + id + '/restore', { method: 'POST' })
-                    .then((r2) => { if (r2.ok) { window.hibana?.rail?.refresh?.(); reloadList() } }) // S148: the rail restores the row too
-                    .catch(() => {})
+                    .then((r2) => {
+                      if (!r2.ok) { window.hibana?.handle401?.(r2); throw new Error('restore failed') }
+                      window.hibana?.rail?.refresh?.(); reloadList() // S148: the rail restores the row too
+                    })
+                    .catch(() => window.hibana?.toast?.(_t('pd.restoreFailed', "Couldn't restore"), 'err'))
                 })
                 toastEl.appendChild(undo)
               }

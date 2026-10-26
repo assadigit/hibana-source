@@ -1502,7 +1502,10 @@ document.documentElement.setAttribute('data-hibana-booted', '1')
           if (wasActive) { state.active = null; state.draft = { title: '', content: '', tags: '' }; renderEditor() }
           toast(_t('notes.deletedNote', 'Note moved to Trash'), 'info', 6000, [
             { label: _t('notes.undo', 'Undo'), kind: 'primary', onClick: async () => {
-              try { await api('/api/vault/notes/' + id + '/restore', { method: 'POST' }); loadBootstrap(); loadNotes() } catch {}
+              // P2-a F3 (Phase 2): a failed restore used to vanish silently — the note
+              // stayed deleted with zero feedback while the user believed it returned.
+              try { await api('/api/vault/notes/' + id + '/restore', { method: 'POST' }); loadBootstrap(); loadNotes() }
+              catch { toast(_t('notes.restoreFailed', 'Could not restore.'), 'err') }
             } },
           ])
           loadBootstrap()

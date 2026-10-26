@@ -342,9 +342,24 @@ function buildStepPicker(){
     }
     /* Day headers */
     const headers=isShamsi?J_DAYS_FA:['Su','Mo','Tu','We','Th','Fr','Sa'];
+    /* P2-c F5 (Phase 2): leading blanks — the 1st must align under its OWN weekday
+       (the old grid rendered day 1 under the first column whatever the month, so
+       grid position and weekday never corresponded). Same recipe as calendar-page.js:
+       Gregorian headers are Sun-first → leading = getDay(); the Persian week starts
+       شنبه → leading = (dow + 1) % 7. */
+    let lead=0;
+    if(spYear&&spMonth){
+      if(isShamsi){
+        const g1=j2g(spYear,spMonth,1);
+        lead=(new Date(Date.UTC(g1[0],g1[1]-1,g1[2])).getUTCDay()+1)%7;
+      }else{
+        lead=new Date(spYear,spMonth-1,1).getDay();
+      }
+    }
     contentHTML=`
       <div class="day-grid">${headers.map(h=>`<div class="day-header">${h}</div>`).join('')}</div>
       <div class="day-grid">
+        ${Array.from({length:lead},()=>`<div class="day-blank" aria-hidden="true"></div>`).join('')}
         ${Array.from({length:maxDay},(_,i)=>i+1).map(d=>{
           /* highlight today */
           let isToday=false;

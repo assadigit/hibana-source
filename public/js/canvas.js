@@ -2444,6 +2444,34 @@ window.hibanaCanvas = (() => {
       if (before && dataChanged(before, data)) pushHistory('modify', before)
       if (t.group) t.selectable = false // keep grouped-note text non-selectable after editing
     })
+    // AP-35 (Phase 2 — whiteboard.js already had this fix; canvas.js did not): the
+    // 2s debounced mid-edit save loses the typing tail when the tab closes or
+    // navigates mid-edit — the pagehide beacon then reads an empty mirror and the
+    // content vanishes despite the earlier "Saved" toast. Commit live text edits
+    // IMMEDIATELY on hide, and register as the queue's PRE-BEACON hook so the beacon
+    // carries the just-committed batch out during unload (queue.js runs its beacon
+    // listener AFTER this hook by load order — the ordering contract documented there).
+    const commitLiveEdits = () => {
+      try {
+        if (stickyEdit) {
+          const { group, editor } = stickyEdit
+          if (objects.has(group.id) && (editor.text || '').trim()) {
+            const data = objectToData(group)
+            group.content = data.content
+            save(data)
+          }
+        }
+        const active = canvas.getActiveObject?.()
+        if (active?.isEditing && active.id && elems.has(active.id)) {
+          const data = objectToData(active)
+          if (data.content.trim()) { active.content = data.content; save(data) }
+        }
+        window.hibanaQueue?.flush?.()
+      } catch { /* never block the navigation */ }
+    }
+    document.addEventListener('visibilitychange', () => { if (document.hidden) commitLiveEdits() })
+    window.addEventListener('pagehide', commitLiveEdits)
+    window.hibanaQueuePreBeacon = commitLiveEdits
     // sticky notes: single CLICK selects the note (Fabric-native target finding in
     // select mode — move/resize ready, never edit mode); DOUBLE-CLICK enters inline
     // editing through a temporary top-level twin (Fabric cannot edit text inside a
@@ -3118,13 +3146,18 @@ window.hibanaCanvas = (() => {
   }
   function redoCanvas() {
     history.redo((entry) => {
+      // AP-36 (Phase 2): the redo stack holds the INVERSE the undo applied, so
+      // kind labels what the UNDO did — 'add' means "undo restored it" (the original
+      // action ERASED it): redo re-erases via tombstone. The old code called restore()
+      // in BOTH branches — redoing an undone erase silently no-oped and mis-framed the
+      // next undo step (the returned inverse must describe what THIS redo did).
       if (entry.kind === 'add') {
         const inverse = { kind: 'erase', data: entry.data }
-        restore(entry.data)
+        tombstone(entry.data.id)
         return inverse
       }
       if (entry.kind === 'erase') {
-        const inverse = { kind: 'erase', data: entry.data }
+        const inverse = { kind: 'add', data: entry.data }
         restore(entry.data)
         return inverse
       }

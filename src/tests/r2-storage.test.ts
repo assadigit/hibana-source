@@ -131,4 +131,51 @@ describe('S36 region flows into the SigV4 credential scope', () => {
     await store.putObject('user1/proj1/screenshots/abc-shot.png', PNG_B64, 'image/png')
     expect(calls[0].headers['authorization']).toMatch(/^AWS4-HMAC-SHA256 Credential=testkey\/\d{8}\/us-west-004\/s3\/aws4_request/)
   })
+
+  // AP-37 (Phase 2): the SIGNING KEY must derive from the same region as the scope.
+  // The old code derived it from a hardcoded 'auto' — signatures looked well-formed
+  // but every non-R2 provider 403'd (scope said us-west-004, key said 'auto').
+  // Pin: an INDEPENDENT SigV4 recomputation from the captured request (RFC recipe,
+  // reimplemented here — not imported from r2.ts) must match the sent Authorization.
+  it('the signature matches an independent SigV4 recomputation (region flows into the signing key)', async () => {
+    const calls = stubStore()
+    const cfg = { endpoint: 'https://s3.us-west-004.backblazeb2.com', bucket: 'hibana-shots', accessKeyId: 'testkey', secretAccessKey: 'testsecret', region: 'us-west-004' }
+    const store = r2Storage(cfg)
+    await store.putObject('user1/proj1/screenshots/abc-shot.png', PNG_B64, 'image/png')
+    expect(calls).toHaveLength(1)
+    const c = calls[0]
+    const auth = String(c.headers['authorization'])
+    const m = auth.match(/^AWS4-HMAC-SHA256 Credential=testkey\/(\d{8})\/us-west-004\/s3\/aws4_request, SignedHeaders=([^,]+), Signature=([0-9a-f]{64})$/)
+    expect(m).not.toBeNull()
+    const [, , , claimedSig] = m!
+    // --- independent recomputation (the SigV4 spec recipe) ---
+    const enc = new TextEncoder()
+    const toHex = (b: ArrayBuffer) => [...new Uint8Array(b)].map((x) => x.toString(16).padStart(2, '0')).join('')
+    const sha256Hex = async (d: string | Uint8Array) => toHex(await crypto.subtle.digest('SHA-256', d instanceof Uint8Array ? (d as unknown as BufferSource) : enc.encode(d)))
+    const hmac = async (key: Uint8Array, msg: string) => {
+      const k = await crypto.subtle.importKey('raw', key as unknown as BufferSource, { name: 'HMAC', hash: 'SHA-256' }, false, ['sign'])
+      return crypto.subtle.sign('HMAC', k, enc.encode(msg))
+    }
+    const u = new URL(c.url)
+    const hdrs: Record<string, string> = {
+      host: u.host,
+      'content-type': String(c.headers['content-type']),
+      'x-amz-content-sha256': String(c.headers['x-amz-content-sha256']),
+      'x-amz-date': String(c.headers['x-amz-date']),
+    }
+    const names = Object.keys(hdrs).sort()
+    const canonicalHeaders = names.map((h) => `${h}:${hdrs[h].trim()}\n`).join('')
+    const payloadHash = await sha256Hex(c.body!)
+    const canonicalRequest = ['PUT', u.pathname, '', canonicalHeaders, names.join(';'), payloadHash].join('\n')
+    const amzDate = hdrs['x-amz-date']
+    const dateStamp = amzDate.slice(0, 8)
+    const scope = `${dateStamp}/${cfg.region}/s3/aws4_request`
+    const stringToSign = ['AWS4-HMAC-SHA256', amzDate, scope, await sha256Hex(canonicalRequest)].join('\n')
+    const kDate = await hmac(enc.encode('AWS4' + cfg.secretAccessKey), dateStamp)
+    const kRegion = await hmac(new Uint8Array(kDate), cfg.region) // us-west-004 — NOT 'auto'
+    const kService = await hmac(new Uint8Array(kRegion), 's3')
+    const kSigning = await hmac(new Uint8Array(kService), 'aws4_request')
+    const expected = toHex(await hmac(new Uint8Array(kSigning), stringToSign))
+    expect(claimedSig).toBe(expected) // old code: 'auto' key → a DIFFERENT (rejected) signature
+  })
 })

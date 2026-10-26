@@ -107,7 +107,11 @@ export function r2Storage(cfg: R2Config): ObjectStore {
       await sha256Hex(canonicalRequest),
     ].join('\n')
     const kDate = await hmac(enc.encode('AWS4' + cfg.secretAccessKey), dateStamp)
-    const kRegion = await hmac(new Uint8Array(kDate), 'auto')
+    // AP-37 (Phase 2): the signing key must derive from the SAME region as the scope
+    // above — the hardcoded 'auto' produced valid-looking but WRONG signatures for
+    // every non-R2 provider (B2/generic S3 → 403 on every request; the scope string
+    // said us-west-004 while the key said 'auto').
+    const kRegion = await hmac(new Uint8Array(kDate), cfg.region ?? 'auto')
     const kService = await hmac(new Uint8Array(kRegion), 's3')
     const kSigning = await hmac(new Uint8Array(kService), 'aws4_request')
     const signature = toHex(await hmac(new Uint8Array(kSigning), stringToSign))

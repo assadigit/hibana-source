@@ -1224,11 +1224,13 @@ window.hibana = (() => {
           toast(_t(target === 'idea' ? 'notes.movedIdea' : 'notes.movedTodo', target === 'idea' ? 'Moved to your ideas' : 'Moved to your to-do list'), 'info', 6000, [{
             label: _t('common.undo', 'Undo'),
             onClick: () => {
+              // P2-a F3 (Phase 2): surface restore failures (was a silent swallow).
               fetch(`/api/notes/${id}/restore`, { method: 'POST' })
                 .then((r2) => {
-                  if (r2.ok && window.htmx) window.htmx.ajax('GET', notesWidgetUrl(), { target: '#notebook', swap: 'outerHTML' })
+                  if (!r2.ok) { handle401(r2); throw new Error('restore failed') }
+                  if (window.htmx) window.htmx.ajax('GET', notesWidgetUrl(), { target: '#notebook', swap: 'outerHTML' })
                 })
-                .catch(() => {})
+                .catch(() => toast(_t('notes.restoreFailed', 'Could not restore.'), 'err'))
             },
           }])
         })
@@ -1299,13 +1301,15 @@ window.hibana = (() => {
           toast(_t('notes.deleted', 'Note deleted'), 'info', 6000, [{
             label: _t('common.undo', 'Undo'),
             onClick: () => {
+              // P2-a F3 (Phase 2): surface restore failures (was a silent swallow).
               fetch(`/api/notes/${id}/restore`, { method: 'POST' })
                 .then((r2) => {
-                  if (r2.ok && window.htmx) {
+                  if (!r2.ok) { handle401(r2); throw new Error('restore failed') }
+                  if (window.htmx) {
                     window.htmx.ajax('GET', notesWidgetUrl(), { target: '#notebook', swap: 'outerHTML' })
                   }
                 })
-                .catch(() => {})
+                .catch(() => toast(_t('notes.restoreFailed', 'Could not restore.'), 'err'))
             },
           }])
         })

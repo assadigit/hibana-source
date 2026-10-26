@@ -53,3 +53,11 @@ While writing the offline-queue tests I found that the "drop after 5 failed sync
 - **The e2e lane: 447 of 448 browser tests passed.** The ONE failure is a known flaky layout test (the s207 kanban-frame geometry check) that the repo's history already documents as runner-side nondeterminism: it measured the same edge at 4 different random offsets (31, 3, 57, 31 pixels) across two runs — a real layout bug would give one consistent number. Proof it is not this phase's code: **the same test file passes 5/5 on this exact code in a local browser**, and this phase changed zero product files (only tests, tooling, and docs were added).
 - Because of that single flake, GitHub marks the whole CI run red — which also means the auto-deploy pipeline (which requires an all-green run) did not fire for this push. **That changes nothing on the live sites**: I deployed dev and prod manually through the full Ship Gate during this phase and verified both with the complete live smoke suites. The flake is recorded as finding AP-2; the fix belongs to a planned "flake hunt" round, and I deliberately did not weaken or skip the flaky test to force a green mark.
 - Because the whole CI run is marked red by one flaky test, the auto-deploy lane (CD) correctly stayed silent for this push — the manual Ship Gate deploys above are the live truth for this commit.
+
+---
+
+## Phase 1 — manual follow-up for Ali (the single permitted one)
+
+**The full git-history secret scan (672 commits, every blob) found exactly one real secret ever committed: the healthchecks.io PING KEY** (it appeared in a deleted worklog file and old Changelogs copies). It is NOT live at HEAD, and the repo already mitigated it in September (the check's URL slug was randomized, so the leaked key alone cannot construct a valid ping URL — the repo's own assessment is "false alarms only, now blocked"). You deliberately kept it at the September rotation round.
+
+**If you want it fully voided anyway:** regenerate the ping key in the healthchecks.io dashboard, then run `wrangler secret put HEALTHCHECK_PING_URL` (against the prod Worker) and update the `HIBANA_UPTIME_PING_URL` repo secret. Nothing else needs rotation — zero other secrets exist anywhere in the repo's history.

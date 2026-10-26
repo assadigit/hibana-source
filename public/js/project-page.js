@@ -2726,7 +2726,7 @@
           if (cnt) cnt.textContent = stagedShots.length ? _t('project.shotsAttached', '{n} attached').replace('{n}', String(stagedShots.length)) : ''
           if (!grid) return
           if (!stagedShots.length) { grid.innerHTML = ''; return }
-          const esc = (s) => String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
+          const esc = (s) => String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;') // Phase 1 (AP-14): single-quote joins the set — the canonical 5-char escaper
           // S46.6: IMG onerror retries up to 4× (KV read-after-write propagation delay)
           const retryAttr = ' onerror="(function(i){var n=+(i.dataset.r||0)+1;if(n<4){i.dataset.r=n;var s=i.src;i.onerror=null;setTimeout(function(){i.src=s},800*n)}})(this)"'
           grid.innerHTML = stagedShots.map((s) => {
@@ -4822,7 +4822,7 @@
             if (!res.ok) return
             const shots = ((await res.json()).screenshots) || []
             const pinned = shots.filter((s) => s.task_id === tid)
-            const esc = (s) => String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
+            const esc = (s) => String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;') // Phase 1 (AP-14): single-quote joins the set — the canonical 5-char escaper
             // S46.6: the IMG onerror retries up to 4× with backoff (800ms, 1.6s, 2.4s, 3.2s)
             // — handles the KV read-after-write propagation delay (a freshly-uploaded
             // screenshot's file might 404/500 on a KV edge that hasn't seen the write yet;

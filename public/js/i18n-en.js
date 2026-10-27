@@ -868,6 +868,15 @@ window.__hibanaDictEN = {
       'resume.clear': 'Clear recents', 'resume.clearAria': 'Clear the recent-items list', 'resume.cleared': 'Recents cleared',
       // S181 (the owner's promised additions): the resume hero's summary line + progress-bar sentence
       'nav.syncPending': '{n} pending', 'nav.syncHint': 'Waiting to sync — click to try now', 'nav.syncSent': 'Synced your offline changes',
+      // hibana-sync-status-spec §4 + §11: the per-card sync badge labels (the FA
+      // strings are the spec's drafts — the owner may adjust; sentence case, no
+      // exclamation marks, errors say what happened then what to do).
+      'sync.pending': 'Saved on this device',
+      'sync.pendingOffline': 'Waiting for connection',
+      'sync.syncing': 'Syncing…',
+      'sync.synced': 'Synced',
+      'sync.failed': "Couldn't sync. Retry",
+      'sync.retry': 'Retry',
       // S52: Trash palette command + recoverable-count sublabel
       'cmdk.openTrash': 'Trash — recover deleted items',
       'cmdk.trashCount': '{n} recoverable',

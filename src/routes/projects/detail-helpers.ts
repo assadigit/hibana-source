@@ -397,6 +397,18 @@ export function detailHtml(p: ProjectRow, d: Awaited<ReturnType<typeof loadDetai
       ? `<button type="button" class="pd-read-more" data-task-read-more aria-expanded="false">${trL(lang, 'read more', 'بیشتر بخوان')}</button>`
       : ''
 
+  // hibana-sync-status-spec §4/§5: the per-card sync badge — the SERVER twin of
+  // chip-render.js's syncBadgeHtml (keep the markup byte-compatible). A
+  // server-rendered card is server-confirmed, so the embedded board always
+  // renders the SYNCED state here; the client tracker (public/js/sync-state.js)
+  // takes over the moment an edit starts and repaints only the changed card.
+  // Icon: the registry's cloud-check (html.ts) — the same glyph the client twin
+  // inlines. No tab stop (spec §12): the label is the accessible name.
+  const syncBadgeServer = (id: string): string => {
+    const label = trL(lang, 'Synced', 'همگام‌شده')
+    return `<span class="pd-sync s-synced" data-sync-badge="${esc(id)}" data-label="${esc(label)}" role="img" aria-label="${esc(label)}">${icon('cloud-check')}</span>`
+  }
+
   // S105 (owner: "the Plans tab — whose count badge shows 5 — doesn't show current
   //   plans" + the two-concepts ruling: a PLAN is ALWAYS a kanban item in the
   //   project-progress Plans box; a PLAN DOCUMENT is a consolidated roadmap that can
@@ -493,7 +505,7 @@ export function detailHtml(p: ProjectRow, d: Awaited<ReturnType<typeof loadDetai
                     ${previewHtml(t.title)}
                     ${readMoreBtn(t.title)}
                     ${taskTagChips(t.id, sprintBadgeHtml(t.sprint_id))}
-                    <span class="pd-task-meta">${esc(taskMetaLabel(t))}${pinsByTask.has(t.id) ? ` · <button type="button" class="pd-task-shots" data-pd-shots="${t.id}" title="${esc(trL(lang, 'Pinned pictures — note + proof stuck to this item', 'تصاویر سنجاق‌شده — یادداشت + مدرکِ سنجاق‌شده به این قلم'))}" aria-label="${esc(trL(lang, 'Pinned pictures ({n})', 'تصاویر سنجاق‌شده ({n})', { n: dig(pinsByTask.get(t.id)!) }))}">${icon('pin')} ${dig(pinsByTask.get(t.id)!)}</button>` : ''}</span>
+                    <span class="pd-task-meta">${esc(taskMetaLabel(t))}${pinsByTask.has(t.id) ? ` · <button type="button" class="pd-task-shots" data-pd-shots="${t.id}" title="${esc(trL(lang, 'Pinned pictures — note + proof stuck to this item', 'تصاویر سنجاق‌شده — یادداشت + مدرکِ سنجاق‌شده به این قلم'))}" aria-label="${esc(trL(lang, 'Pinned pictures ({n})', 'تصاویر سنجاق‌شده ({n})', { n: dig(pinsByTask.get(t.id)!) }))}">${icon('pin')} ${dig(pinsByTask.get(t.id)!)}</button>` : ''}${syncBadgeServer(t.id)}</span>
                   </span>
                 </div>
               </div>`).join('')}

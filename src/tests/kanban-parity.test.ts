@@ -134,4 +134,36 @@ describe('kanban 1:1 parity — the embedded board fragment (S209)', () => {
       close()
     }
   })
+
+  // hibana-sync-status-spec §16.1: EVERY kanban card type shows the badge in the
+  // meta row, at the inline-end side, without changing card height. The embedded
+  // board is server-rendered, so its cards are SYNCED by definition (spec §2 —
+  // the server confirmed the data it just rendered); the badge markup here is the
+  // server twin of chip-render.js's syncBadgeHtml (keep them byte-compatible).
+  it('every embedded card wears the synced badge as the LAST child of its meta row', async () => {
+    const { db, close } = makeTestDb()
+    try {
+      const userId = await makeUser(db)
+      const app = createApp({ db, isProd: false, emailKey: undefined } as unknown as Config)
+      const token = await createSession(db, userId)
+      const pid = await makeProject(db, userId)
+      await makeTask(db, pid, 'synced badge task')
+
+      const detail = await app.fetch(new Request(`http://local/api/projects/${pid}`, { headers: { ...h(token), 'HX-Request': '1' } }))
+      expect(detail.status).toBe(200)
+      const html = await detail.text()
+
+      // the badge exists, wears the synced state, and carries its accessible name
+      expect(html).toMatch(/<span class="pd-sync s-synced" data-sync-badge="[a-f0-9-]+" data-label="Synced" role="img" aria-label="Synced">/)
+      // the cloud-check glyph — the same path data chip-render's client twin inlines
+      expect(html).toContain('<path d="m9.5 12.5 2 2 3.5-3.5"/>')
+      // placement: the badge is the LAST child of .pd-task-meta (after the date,
+      // after any pin chip) — pinned by margin-inline-start:auto in CSS so RTL
+      // mirrors it. The meta row must close immediately after the badge.
+      expect(html).toMatch(/<span class="pd-task-meta">[^]*?<\/span><\/span>\s*<\/span>\s*<\/div>\s*<\/div>/)
+      expect(html).toMatch(new RegExp('data-sync-badge="[a-f0-9-]+"[^>]*>[^]*?</span></span>\\s*</span>\\s*</div>\\s*</div>', 's'))
+    } finally {
+      close()
+    }
+  })
 })

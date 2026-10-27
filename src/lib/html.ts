@@ -63,6 +63,18 @@ export function icon(name: string, cls = 'icon'): string {
       case 'sun': return '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>'
       case 'download': return '<path d="M12 3v12m0 0l-4-4m4 4l4-4M5 21h14"/>'
       case 'cloud': return '<path d="M17.5 18.5a4 4 0 0 0-.3-7.99A5.5 5.5 0 0 0 6.9 9.6 3.5 3.5 0 0 0 7 18.5Z"/>'
+      // hibana-sync-status-spec §6 (the per-card sync badge): the four state
+      // glyphs, drawn in the registry's one-stroke-weight grammar and matched by
+      // the client twin in public/js/chip-render.js (SYNC_ICONS) — keep the path
+      // data identical on both sides. 'sync-cw' is the page header's own Sync
+      // button arrows (the syncing state must read as "the Sync button's glyph,
+      // spinning"); the three cloud variants pair the registry's cloud with the
+      // state's mark (up arrow / check / exclamation — spec §4: colour never
+      // carries the meaning alone; the SHAPES differ).
+      case 'cloud-up': return '<path d="M17.5 13.5a4 4 0 0 0-.3-7.99A5.5 5.5 0 0 0 6.9 4.6 3.5 3.5 0 0 0 7 13.5Z"/><path d="M12 21v-5"/><path d="M9.5 18.5 12 16l2.5 2.5"/>'
+      case 'sync-cw': return '<path d="M23 4v6h-6"/><path d="M1 20v-6h6"/><path d="M3.5 9a9 9 0 0 1 14.9-3.4L23 10"/><path d="M1 14l4.6 4.4A9 9 0 0 0 20.5 15"/>'
+      case 'cloud-check': return '<path d="M17.5 18.5a4 4 0 0 0-.3-7.99A5.5 5.5 0 0 0 6.9 9.6 3.5 3.5 0 0 0 7 18.5Z"/><path d="m9.5 12.5 2 2 3.5-3.5"/>'
+      case 'cloud-alert': return '<path d="M17.5 18.5a4 4 0 0 0-.3-7.99A5.5 5.5 0 0 0 6.9 9.6 3.5 3.5 0 0 0 7 18.5Z"/><path d="M12 9.5v4.5"/><path d="M12 17.4v.3"/>'
       case 'link': return '<path d="M10 14a5 5 0 0 0 7 0l3-3a5 5 0 0 0-7-7l-1.2 1.2"/><path d="M14 10a5 5 0 0 0-7 0l-3 3a5 5 0 0 0 7 7l1.2-1.2"/>'
       case 'search': return '<circle cx="11" cy="11" r="6.5"/><path d="M16 16l4.5 4.5"/>'
       // 0060: Planning's glyph — a compass (course-setting) replaces the old

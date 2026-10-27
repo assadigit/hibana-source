@@ -865,6 +865,14 @@ window.__hibanaDictFA = {
       'resume.clear': 'پاک‌کردن اخیرها', 'resume.clearAria': 'پاک‌کردن فهرست موارد اخیر', 'resume.cleared': 'اخیرها پاک شد',
       // S181 (the owner's promised additions): the resume hero's summary line + progress-bar sentence
       'nav.syncPending': '{n} در انتظار', 'nav.syncHint': 'در انتظار همگام‌سازی — برای ارسال کلیک کن', 'nav.syncSent': 'تغییرات آفلاین ارسال شد',
+      // hibana-sync-status-spec §4 + §11: the per-card sync badge labels — the
+      // spec's FA drafts (متن پیشنهادی؛ مالک می‌تواند تنظیم کند).
+      'sync.pending': 'فقط روی این دستگاه ذخیره شده',
+      'sync.pendingOffline': 'منتظر اتصال',
+      'sync.syncing': 'در حال همگام‌سازی…',
+      'sync.synced': 'همگام‌شده',
+      'sync.failed': 'همگام‌سازی انجام نشد. تلاش دوباره',
+      'sync.retry': 'تلاش دوباره',
       // S52: Trash palette command + recoverable-count sublabel
       'cmdk.openTrash': 'سطل بازیافت — بازیابی موارد حذف‌شده',
       'cmdk.trashCount': '{n} مورد قابل بازیابی',

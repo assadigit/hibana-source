@@ -94,3 +94,15 @@
 **The release, zero hands:** the push (79ef5d4) fired the desktop autorelease lane → v0.1.15-desktop cut (lockstep bump f5a8e17 + the annotated tag) → the windows runner built + published (exe + NSIS installer + portable zip + checksums.txt).
 
 **Owner-side next:** dogfood v0.1.15 on Windows — (1) sync: the modal's three facts read IN FULL, long emails wrap; (2) upload: attach a picture to a task — the bar fills with real bytes, ✓ + the green toast + the THUMBNAIL in the grid; (3) after the next reboot Hibana is in the tray (Start with Windows on by default; the tray menu toggles it), and "Hibana Kanban" is in the Start Menu. Then M3 (offline mutations) → M5 (DPAPI + installer polish).
+
+## Session S229 — the per-card sync badge round (2026-10-27)
+
+**The owner's ask:** the design addendum (badge in the card's bottom meta row at the inline-end, four states, no taller cards, teal/muted/danger tokens, Retry pill, Sync button count) + "push commit merge deploy and release" on hibana-source AND hibana-desktop — "they share same kanban."
+
+**The discovery:** the referenced spec + mockup were never in this repo — they live at hibana-desktop's repo ROOT (`hibana-sync-status-spec.md` + `hibana-sync-status-mockup.html`). Read both completely; the spec is the rule set (its §4 label table, §8 timing rules, §9 count rule, §12 a11y and §14 one-source-of-truth are ALL stricter than the chat addendum — e.g. NO tab stop on icon-only badges, the 500ms syncing threshold, announce-only-user-caused-changes, prefer-no-schema-change). Followed the spec; the deltas are noted in the Changelogs S229 row.
+
+**The deliverable (v0.4.1.37):** see Changelogs §1 S229 — the badge on both kanban surfaces, sync-state.js (the one tracker), the byte-identical server twin, the editor-footer detail variant, the four registry icons, EN+FA labels, the full cache-bust sweep + SW v445, and 769/769 with the full ladder green. NO schema change (spec §14 honored — the state is client-derived from the mutation acks, nothing persisted).
+
+**Next (this session, hibana-desktop):** bump the island pin to this ref, add sync-state.js to the island manifest, re-run sync-island (the 12 seam strings are UNTOUCHED — verified: the api() choke point + the 11 fetch/XHR sites are byte-preserved), then the Sync button count badge (#db-sync-button subscribes to HibanaSyncState; count = pending+failed, hidden at zero; icon rotates while any sync runs; SyncNow start marks all pending+failed syncing per §9) + release.
+
+**Credentials note:** the owner pasted a GitHub PAT in chat (again — 5th time). Per the runbook policy ("any token pasted in chat → rotate"), it must be rotated after this round; this push used it only for github.com/assadigit (his own repos, his explicit instruction).

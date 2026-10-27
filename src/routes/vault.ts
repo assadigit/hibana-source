@@ -393,7 +393,7 @@ export function vaultRoutes(cfg: Config) {
     const body = await jsonBody<z.infer<typeof createNoteSchema>>(c, createNoteSchema)
     if (!body) return errJson(c, ErrorCode.invalid_input)
     const user = c.get('user')
-    if (body.folderId && !(await ownedFolder(user.id, body.folderId))) return errJson(c, ErrorCode.folder_not_found, 400)
+    if (body.folderId && !(await ownedFolder(user.id, body.folderId))) return errJson(c, ErrorCode.folder_not_found)
     const id = uuid()
     const ts = now()
     await cfg.db.execute(
@@ -410,7 +410,7 @@ export function vaultRoutes(cfg: Config) {
     // Autosave target: live notes only (a trashed note is frozen until restored).
     const n = await ownedNote(user.id, c.req.param('id'), false)
     if (!n) return errJson(c, ErrorCode.not_found)
-    if (body.folderId && !(await ownedFolder(user.id, body.folderId))) return errJson(c, ErrorCode.folder_not_found, 400)
+    if (body.folderId && !(await ownedFolder(user.id, body.folderId))) return errJson(c, ErrorCode.folder_not_found)
     const sets: string[] = []
     const params: unknown[] = []
     if (body.title !== undefined) { sets.push('title = ?'); params.push(body.title.trim()) }

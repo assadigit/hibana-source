@@ -191,8 +191,8 @@ describe('email-code verification (open signup, temporarily)', () => {
       // the human check SUCCEEDS first — the mail failure is what surfaces (captcha runs
       // before any user row is created)
       const res = await app.fetch(await REGISTER('fail@test.dev', 'failuser'))
-      expect(res.status).toBe(503)
-      expect(((await res.json()) as { error: string }).error).toBe('email_send_failed')
+      expect(res.status).toBe(502) // AP-54: ONE code at ONE status (was 503/email_send_failed)
+      expect(((await res.json()) as { error: string }).error).toBe('email_failed')
       const users = await db.query<{ id: string }>('SELECT id FROM users WHERE email = ?', ['fail@test.dev'])
       expect(users).toHaveLength(0) // rolled back — a retry starts clean
     } finally {

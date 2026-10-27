@@ -180,7 +180,7 @@ export function registrationRoutes(cfg: Config) {
       // Phase 1 (SC-9, P1-c): this route is PUBLIC — the old `detail` field carried the
       // raw provider error (Resend response internals) to anonymous callers. Generic
       // code only; the reason is in email_log for ops.
-      return errJson(c, ErrorCode.email_send_failed)
+      return errJson(c, ErrorCode.email_failed)
     }
 
     // No session yet — verification first (login refuses unverified accounts). The
@@ -266,7 +266,7 @@ export function registrationRoutes(cfg: Config) {
         bodyHtml: verifyEmailHtml(code),
       })
     } catch {
-      return errJson(c, ErrorCode.email_send_failed)
+      return errJson(c, ErrorCode.email_failed)
     }
     return c.json({ ok: true })
   })

@@ -212,12 +212,12 @@ describe('public auth routes keep provider internals out of responses (SC-9, Pha
       await makeUser(db, { email: 'victim@test.dev' })
       const app = createApp({ db, isProd: false, github: { owner: 'x', repo: 'y', token: '' }, emailKey: 'test-key', assets: undefined })
       const res = await post(app, '/api/auth/reset/request', { email: 'victim@test.dev' })
-      expect(res.status).toBe(503)
+      expect(res.status).toBe(502) // AP-54: ONE code at ONE status (was 503/email_send_failed)
       const json = (await res.json()) as { error?: string }
       const body = JSON.stringify(json)
       expect(body).not.toContain('SECRET_PROVIDER_DETAIL')
       expect(body).not.toContain('Resend')
-      expect(json.error).toBe('email_send_failed')
+      expect(json.error).toBe('email_failed')
     } finally {
       close()
     }
@@ -236,7 +236,7 @@ describe('public auth routes keep provider internals out of responses (SC-9, Pha
       const res = await post(app, '/api/auth/register', {
         email: 'new@test.dev', username: 'newbie', password: 'correcthorsebattery', ...(await solvedCaptcha()),
       })
-      expect(res.status).toBe(503)
+      expect(res.status).toBe(502) // AP-54: unified email failure status
       const body = JSON.stringify(await res.json())
       expect(body).not.toContain('SECRET_PROVIDER_DETAIL')
       expect(body).not.toContain('detail')

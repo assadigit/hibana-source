@@ -69,7 +69,7 @@ export function resetRoutes(cfg: Config) {
       // body returned the raw provider error (Resend response internals) to anonymous
       // callers. Generic code only; the failure reason is in email_log for ops.
       if (isHtmx(c)) return hxError(c, "We couldn't send the reset email — please try again in a minute.")
-      return errJson(c, ErrorCode.email_send_failed)
+      return errJson(c, ErrorCode.email_failed)
     }
     return isHtmx(c) ? c.html(sent) : c.json({ ok: true })
   })

@@ -282,9 +282,10 @@ describe('notes vault (0057)', () => {
       expect(res.status).toBe(404)
       res = await b.app.fetch(new Request(`http://local/api/vault/folders/${folder.id}`, { method: 'DELETE', headers: b.auth }))
       expect(res.status).toBe(404)
-      // B creating a note in A's folder = rejected
+      // B creating a note in A's folder = rejected (AP-52: folder_not_found is a 404 —
+      // the folder genuinely does not exist in B's scope)
       res = await b.app.fetch(new Request('http://local/api/vault/notes', { method: 'POST', headers: b.auth, body: JSON.stringify({ folderId: folder.id }) }))
-      expect(res.status).toBe(400)
+      expect(res.status).toBe(404)
     } finally {
       close()
     }

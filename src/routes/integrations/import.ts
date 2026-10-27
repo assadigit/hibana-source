@@ -34,7 +34,7 @@ export function registerImport(app: Hono<{ Variables: { user: UserRow } }>, cfg:
     }
     const totalBytes = allFiles.reduce((n, f) => n + (f.size ?? 0), 0)
     if (totalBytes > MAX_UPLOAD_BYTES) {
-      return c.json({ error: ErrorCode.too_many, message: 'Import is limited to 100MB of uploads per request.' }, 413)
+      return c.json({ error: ErrorCode.too_large, message: 'Import is limited to 100MB of uploads per request.' }, 413)
     }
 
     // rule 1: titles are scoped to this user; collect existing ones once for dedupe.
@@ -48,7 +48,7 @@ export function registerImport(app: Hono<{ Variables: { user: UserRow } }>, cfg:
         notes.push(...markdownFromZip(new Uint8Array(await file.arrayBuffer())))
       } catch (err) {
         if (err instanceof ZipLimitError) {
-          return c.json({ error: ErrorCode.too_many, message: err.message }, 413)
+          return c.json({ error: ErrorCode.too_large, message: err.message }, 413)
         }
         return c.json({ error: ErrorCode.invalid_zip, message: 'Could not read that .zip file — is it a valid archive?' }, 400)
       }

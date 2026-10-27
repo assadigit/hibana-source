@@ -73,6 +73,7 @@ export const ErrorCode = {
   archived: 'archived',
   // 413 — payload too large
   file_too_large: 'file_too_large',
+  too_large: 'too_large',
   // 429 — rate limited
   rate_limited: 'rate_limited',
   quota_exhausted: 'quota_exhausted',
@@ -83,7 +84,6 @@ export const ErrorCode = {
   // 502/503 — upstream not available
   email_failed: 'email_failed',
   email_not_configured: 'email_not_configured',
-  email_send_failed: 'email_send_failed',
   github_not_configured: 'github_not_configured',
   telegram_not_configured: 'telegram_not_configured',
   captcha_unconfigured: 'captcha_unconfigured',
@@ -139,6 +139,7 @@ const STATUS_BY_CODE: Record<ErrorCodeValue, ContentfulStatusCode> = {
   username_taken: 409,
   archived: 410,
   file_too_large: 413,
+  too_large: 413,
   rate_limited: 429,
   quota_exhausted: 429,
   resend_cooldown: 429,
@@ -146,7 +147,6 @@ const STATUS_BY_CODE: Record<ErrorCodeValue, ContentfulStatusCode> = {
   backup_encryption_key_not_set: 500,
   email_failed: 502,
   email_not_configured: 503,
-  email_send_failed: 503,
   github_not_configured: 503,
   telegram_not_configured: 503,
   captcha_unconfigured: 503,

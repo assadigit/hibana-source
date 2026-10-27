@@ -57,8 +57,9 @@
     "purge": "node scripts/purge-cache.mjs",
     "lint:escape": "node scripts/check-escape-lint.mjs",
     "lint": "eslint src/ --max-warnings 0",
-    "verify": "tsc --noEmit && eslint src/ --max-warnings 0 && vitest run && node scripts/build.mjs --prod && node scripts/check-portability.mjs && node scripts/check-fn-lengths.mjs",
-    "check:fn-shape": "node scripts/check-fn-lengths.mjs"
+    "verify": "tsc --noEmit && eslint src/ --max-warnings 0 && vitest run && node scripts/build.mjs --prod && node scripts/check-portability.mjs && node scripts/check-fn-lengths.mjs && node scripts/check-import-boundaries.mjs",
+    "check:fn-shape": "node scripts/check-fn-lengths.mjs",
+    "check:boundaries": "node scripts/check-import-boundaries.mjs"
   },
   "dependencies": {
     "@hono/node-server": "^2.1.3",

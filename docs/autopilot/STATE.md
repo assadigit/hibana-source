@@ -4,11 +4,11 @@
 > Resume protocol (PLAYBOOK §4): if this file exists, do NOT restart — resume from the recorded step.
 > Update this file after every commit.
 
-Last updated: 2026-10-27 — Phase 4 COMPLETE (milestone M4 met, Ship Gate executed, tag `autopilot-phase-4-done`)
+Last updated: 2026-10-27 — Phase 5 IN PROGRESS (branch `autopilot/phase-5-performance`, measurement-first per DP-3)
 
 ## Current phase
 
-- Phase: **4 — Modularization (behavior-preserving) — COMPLETE**. Phase 0 (`autopilot-phase-0-done` @ 08b17bb); Phase 1 (`autopilot-phase-1-done` @ f097f87); Phase 2 (`autopilot-phase-2-done` @ de85a4d); Phase 3 (`autopilot-phase-3-done` @ 0d139f8).
+- Phase: **5 — Performance (measure first, DP-3) — IN PROGRESS**. Phase 4 (`autopilot-phase-4-done` @ 130206d). Phase 0 (`autopilot-phase-0-done` @ 08b17bb); Phase 1 (`autopilot-phase-1-done` @ f097f87); Phase 2 (`autopilot-phase-2-done` @ de85a4d); Phase 3 (`autopilot-phase-3-done` @ 0d139f8).
 - Resume context: same clone continued from the Phase 3 session (main @ 6f263e8, tree clean, node_modules intact, `.secrets.env` present); baseline `npm run verify` re-confirmed green on the fresh branch before any change.
 - Measured baselines for Phase 4: backend non-test files >400L: sadhana.ts 983, devboard.ts 866, core.ts 866, dashboard.ts 794, admin.ts 710, vault.ts 664, quicknotes-helpers.ts 508, obsidian-export.ts 464, ai.ts 462, quicknotes.ts 430 (plus telegram.ts / app.ts / projects/index.ts recorded in FN-ALLOWLIST). Frontend: project-page.js 5928, app.js 4265, canvas.js 3213, notes-page.js 2353 (public/js 40.7k lines total, 45 files); public/css 21.3k lines across 21 files. Import graph (runtime edges, type-only exempt): ZERO violations today — routes→{services,db,auth,lib,validation}, services→{db,lib,auth,validation}, entry composes all; 81 type-only edges recorded.
 - Phase 4 plan (PLAYBOOK §5 Phase 4; every step behavior-preserving, `npm run verify` green per commit):

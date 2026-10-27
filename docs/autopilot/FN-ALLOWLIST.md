@@ -26,9 +26,9 @@
 | `src/routes/ai.ts:<anon>@L66` | 74 | [endpoint-flow] /api/ai/text: validate → rate-limit → model call → error envelope. |
 | `src/routes/auth.ts:<anon>@L67` | 104 | [endpoint-flow] POST /login: credential verify + dummy-work timing + ban notice + session create + cookie. Heavily test-pinned (auth suites); Phase 4 auth module. |
 | `src/routes/calendar.ts:<anon>@L41` | 72 | [endpoint-flow] month-range loader (projects + tasks + sadhana merged windows). |
-| `src/routes/core.ts:<anon>@L461` | 96 | [endpoint-flow] hurdle create (order + history + updated_at). |
-| `src/routes/core.ts:<anon>@L610` | 62 | [barely-over] link create/delete pair handler. |
-| `src/routes/core.ts:<anon>@L763` | 72 | [endpoint-flow] canvas sync (the AP-34 validation-tolerance batch path). |
+| `src/routes/core/media.ts:<anon>@L113` | 96 | [endpoint-flow] screenshot/doc upload — the sniff gate + rate limit + size pre-check + storage write + thumb best-effort + row + updated_at bump, one linear endpoint flow. Moved verbatim in the Phase 4 core split. |
+| `src/routes/core/media.ts:<anon>@L262` | 62 | [barely-over] shot byte serving — thumb-variant fallback + self-heal meter + per-mime disposition. Moved verbatim in the Phase 4 core split. |
+| `src/routes/core/canvas.ts:<anon>@L82` | 72 | [endpoint-flow] canvas sync (the AP-34 validation-tolerance batch path). Moved verbatim in the Phase 4 core split. |
 | `src/routes/dashboard.ts:todoCard` | 129 | [endpoint-flow] one template block (the sadhana board card) — Phase 4 frontend module. |
 | `src/routes/dashboard.ts:<anon>@L565` | 75 | [endpoint-flow] the overdue-chip aggregate query set. |
 | `src/routes/devboard.ts:<anon>@L630` | 87 | [endpoint-flow] sprint finish flow (status cascade + history + archives). |

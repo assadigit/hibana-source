@@ -159,6 +159,7 @@ The CI ladder on the phase commit `de85a4d` is **fully green**: the `ci` job (ve
 - The three heavier type-checker switches are deferred with measured error counts (see DEBT.md) — a mechanical pass for a future phase.
 - No database migrations this phase — all changes are code-level; schema stays at 63.
 
-### Next
+### Shipped
 
-- Next session: extract the Telegram webhook handler (560L) + callback (281L) and the remaining long endpoint flows, then run the Phase 3 Ship Gate (verify → merge → deploy dev → smoke → deploy prod → smoke → tag `autopilot-phase-3-done`).
+- **The phase is deployed and verified live.** After the 12 work commits: the full local ladder (types, lint, 755/755 tests, build, portability, the new function-shape gate) → merged to main → deployed to dev (smoke 24/24, storage round-trip 9/9) → deployed to production (smoke 24/24, storage round-trip 9/9) → cache purged → tagged `autopilot-phase-3-done`. Health checked on both environments after everything.
+- The big-file extractions (Telegram webhook 560 lines first) are framed as the NEXT phase's opening work — Phase 4 splits the giant route files by feature, which restructures exactly those functions; the committed allowlist + debt list carry the plan.

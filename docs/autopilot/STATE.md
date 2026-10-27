@@ -4,11 +4,12 @@
 > Resume protocol (PLAYBOOK §4): if this file exists, do NOT restart — resume from the recorded step.
 > Update this file after every commit.
 
-Last updated: 2026-10-27 — Phase 3 steps 1-9 DONE on `autopilot/phase-3-refactor` (see session log); Ship Gate next
+Last updated: 2026-10-27 — Phase 3 COMPLETE (milestone M3 met, tag `autopilot-phase-3-done` @ 0d139f8)
 
 ## Current phase
 
-- Phase: **3 — Codebase review and refactor (behavior-preserving)**. Phase 0 COMPLETE (`autopilot-phase-0-done` @ 08b17bb); Phase 1 COMPLETE (`autopilot-phase-1-done` @ f097f87); Phase 2 COMPLETE (`autopilot-phase-2-done` @ de85a4d).
+- Phase: **3 — Codebase review and refactor (behavior-preserving) — COMPLETE**. Phase 0 (`autopilot-phase-0-done` @ 08b17bb); Phase 1 (`autopilot-phase-1-done` @ f097f87); Phase 2 (`autopilot-phase-2-done` @ de85a4d).
+- Next action: Phase 4 (modularization — import boundaries + file splitting by feature; the FN-ALLOWLIST entries + telegram 560L extraction are its opening moves) per PLAYBOOK §5.
 - Resume context: sandbox reset again → fresh clone of main @ 41d9676 (matches the Phase 2 close-out record), `.secrets.env` recreated, `bun install`, `npm run verify` green (744/744) on the fresh clone, dev+prod health OK (schema 63), CF token verified live.
 - Phase 3 baseline metrics (measured this session, non-test src/): 3 `any` mentions (1 real: vendor fabric-shim; 2 comments); 5 non-null assertions (auth.ts:40, sadhana.ts:123, admin.ts:546-548); 0 @ts-ignore; 85 `as` casts; 336 ad-hoc `c.json({error:…})` sites vs 10 ApiError sites; 54 distinct error-code strings (top: not_found 117, invalid_input 110); 21 sites carry extra keys (17 message / 4 detail); 14 raw console.* sites outside log.ts; **50 leaf functions >60 lines** (worst: telegram.ts:65 560L, createApp 396L, projects/index.ts:34 361L, handleCallback 281L) + 24 route-factory containers >60L (Phase 4's file-splitting domain, recorded-reason class); **7 functions with nesting >4** (detail-helpers detailHtml 8d + renderTitle 8d, markdown highlightCode 6d, projects/index.ts 6d, admin scheduledBackup 5d, server serveFile 5d). tsconfig strictness flags measured: noImplicitOverride 0 errors, noFallthroughCasesInSwitch 0, noImplicitReturns 1 (Hono middleware tail), exactOptionalPropertyTypes 98, noPropertyAccessFromIndexSignature 150, noUncheckedIndexedAccess 642.
 - Phase 3 plan (PLAYBOOK §5 Phase 3; every step behavior-preserving, `npm run verify` green per commit):
@@ -25,6 +26,7 @@ Last updated: 2026-10-27 — Phase 3 steps 1-9 DONE on `autopilot/phase-3-refact
 
 ## Session log
 
+- **2026-10-27 (Phase 3 COMPLETE — Ship Gate executed):** 14 commits (9579302 → 0d139f8) on `autopilot/phase-3-refactor`, each pushed at the step. Ship Gate: local gates green (typecheck 0, eslint 0, vitest **755/755** — was 744, +11; build 85 entries; portability PASS; fn-shape PASS; Node smoke ALL PASS; workers-smoke ALL PASS) → merged ff to main @ 0d139f8 + pushed → **no migrations (code-only)** → deploy dev (version afebd597; first attempt failed on unexported CF token — HTML restored via --restore-html, credentials exported, clean retry) → remote smoke dev **24/24 ALL PASS** → shotcheck dev 9/9 → deploy prod (version 36a7462b) → remote smoke prod **24/24 ALL PASS** → shotcheck prod 9/9 → zone cache purged → tag `autopilot-phase-3-done` pushed → STATE/REPORT records. Live health verified on both envs post-deploy.
 - **2026-10-27 (Phase 3, steps 1-9 — refactor + bug fixes + gates):** 12 commits (9579302 → b4d9f59) on `autopilot/phase-3-refactor`, each pushed at the step, suite green per commit (744 → 755, +11 tests):
   - **AP-40 strictness**: noImplicitOverride + noFallthroughCasesInSwitch + noImplicitReturns ON (0/0/1 pre-existing errors; the 1 = requireAuth middleware tail `return next()` — behavior-identical in Hono's compositor). DEBT-recorded with measured counts: noUncheckedIndexedAccess (642), exactOptionalPropertyTypes (98), noPropertyAccessFromIndexSignature (150).
   - **AP-41 logging**: 12 raw console.* sites → the ONE leveled log helper (events named; route-context sites carry reqId; duplicate purge double-emit removed; migrate-node CLI line kept human-readable by design).
@@ -63,15 +65,16 @@ Last updated: 2026-10-27 — Phase 3 steps 1-9 DONE on `autopilot/phase-3-refact
 
 ## Last green commit (code)
 
-- `main @ de85a4d` — Phase 2 merged (10 commits: AP-1, AP-15, AP-20, AP-21/22/23, AP-24/25/26, AP-27..33, AP-34..39, AP-2 flake fix, smoke pin). `npm run verify` green (744/744); remote smoke dev+prod 24/24; shotcheck dev+prod 9/9.
+- `main @ 0d139f8` — Phase 3 merged (14 commits: AP-40..51 + 6 test-first bug fixes AP-52..57 + gates + records). `npm run verify` green (755/755); remote smoke dev+prod 24/24; shotcheck dev+prod 9/9.
+- (historical) `main @ de85a4d` — Phase 2 merged (10 commits: AP-1, AP-15, AP-20, AP-21/22/23, AP-24/25/26, AP-27..33, AP-34..39, AP-2 flake fix, smoke pin). `npm run verify` green (744/744); remote smoke dev+prod 24/24; shotcheck dev+prod 9/9.
 - (historical) `main @ 08b17bb` — Phase 0 merged (6 commits: inventory+baseline docs, portability gate, verify+CI wiring, 39 characterization tests, smoke-remote, RUNBOOK). `npm run verify` green; remote smoke dev 14/14 + prod 14/14; shotcheck dev 9/9 + prod 9/9; rollback drill on dev passed.
 - Repo package version: `0.4.1.36` (unchanged — Phase 0 added tooling/tests/docs, no product code).
 
 ## Deployed versions
 
-- dev (hibana.aliassadi.workers.dev + dev D1 `pm-app-dev`): running `de85a4d` (Phase 2 merge commit; schema 63; storage kv).
-- prod (hibana.ir + prod D1 `pm-app-prod`): running `de85a4d` (Phase 2 merge commit; schema 63; storage kv; zone cache purged post-deploy).
-- Both verified live this session: remote smoke 24/24 each, shotcheck 9/9 each.
+- dev (hibana.aliassadi.workers.dev + dev D1 `pm-app-dev`): running `0d139f8` (Phase 3 merge commit; Worker version afebd597; schema 63; storage kv).
+- prod (hibana.ir + prod D1 `pm-app-prod`): running `0d139f8` (Phase 3 merge commit; Worker version 36a7462b; schema 63; storage kv; zone cache purged post-deploy).
+- Both verified live this session: remote smoke 24/24 each, shotcheck 9/9 each, health OK.
 
 ## Blockers
 

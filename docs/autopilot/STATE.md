@@ -4,11 +4,11 @@
 > Resume protocol (PLAYBOOK §4): if this file exists, do NOT restart — resume from the recorded step.
 > Update this file after every commit.
 
-Last updated: 2026-10-27 — Phase 4 IN PROGRESS (branch `autopilot/phase-4-modularization`)
+Last updated: 2026-10-27 — Phase 4 COMPLETE (milestone M4 met, Ship Gate executed, tag `autopilot-phase-4-done`)
 
 ## Current phase
 
-- Phase: **4 — Modularization (behavior-preserving) — IN PROGRESS**. Phase 0 (`autopilot-phase-0-done` @ 08b17bb); Phase 1 (`autopilot-phase-1-done` @ f097f87); Phase 2 (`autopilot-phase-2-done` @ de85a4d); Phase 3 (`autopilot-phase-3-done` @ 0d139f8).
+- Phase: **4 — Modularization (behavior-preserving) — COMPLETE**. Phase 0 (`autopilot-phase-0-done` @ 08b17bb); Phase 1 (`autopilot-phase-1-done` @ f097f87); Phase 2 (`autopilot-phase-2-done` @ de85a4d); Phase 3 (`autopilot-phase-3-done` @ 0d139f8).
 - Resume context: same clone continued from the Phase 3 session (main @ 6f263e8, tree clean, node_modules intact, `.secrets.env` present); baseline `npm run verify` re-confirmed green on the fresh branch before any change.
 - Measured baselines for Phase 4: backend non-test files >400L: sadhana.ts 983, devboard.ts 866, core.ts 866, dashboard.ts 794, admin.ts 710, vault.ts 664, quicknotes-helpers.ts 508, obsidian-export.ts 464, ai.ts 462, quicknotes.ts 430 (plus telegram.ts / app.ts / projects/index.ts recorded in FN-ALLOWLIST). Frontend: project-page.js 5928, app.js 4265, canvas.js 3213, notes-page.js 2353 (public/js 40.7k lines total, 45 files); public/css 21.3k lines across 21 files. Import graph (runtime edges, type-only exempt): ZERO violations today — routes→{services,db,auth,lib,validation}, services→{db,lib,auth,validation}, entry composes all; 81 type-only edges recorded.
 - Phase 4 plan (PLAYBOOK §5 Phase 4; every step behavior-preserving, `npm run verify` green per commit):
@@ -32,6 +32,14 @@ Last updated: 2026-10-27 — Phase 4 IN PROGRESS (branch `autopilot/phase-4-modu
   10. Ship Gate (§3): verify → merge ff to main → push → deploy dev → smoke:remote dev → shotcheck dev → deploy prod → smoke:remote prod → shotcheck prod → purge → tag `autopilot-phase-3-done` → STATE/REPORT records.
 
 ## Session log
+
+- **2026-10-27 (Phase 4 COMPLETE — Ship Gate executed):** 7 commits (de22c1b → 9bd5008 + records) on `autopilot/phase-4-modularization`, each pushed at the step. Ship Gate: local gates green (typecheck 0, eslint 0, vitest **755/755**, build 85 entries, portability PASS, fn-shape PASS, **boundaries PASS — new gate**, Node smoke ALL PASS, workers-smoke ALL PASS, diff secret-scan 0 hits) → merged ff to main + pushed → **no migrations (code-only)** → deploy dev → remote smoke dev → shotcheck dev → deploy prod → remote smoke prod → shotcheck prod → zone cache purge → tag `autopilot-phase-4-done` → STATE/REPORT records.
+- **2026-10-27 (Phase 4, AP-60..63 — the modularization work):**
+  - **AP-60 import-boundary gate**: `scripts/check-import-boundaries.mjs` — layer table (entry > routes > services > {auth, db, validation} > lib > root; vendor outside the graph), `import type` exempt (81 erasable edges), `await import()` counts as runtime, mixed statements count as runtime; negative-tested (injected lib→services edge → exit 1, restored → PASS); wired into verify + CI. Measured baseline: 86 files, ZERO runtime violations — the codebase was already layer-clean; the gate now freezes it.
+  - **AP-61 splits (one commit each, suite 755/755 green per commit)**: telegram.ts 951L → 67L shell + webhook 446 + commands 217 (the two duplicated project resolvers unified into ONE resolveProject; STAGE_MAP/matchStageLabel extracted) + callback 323 + escapeLikePrefix promoted to helpers; vault.ts 664L → vault/ 6 modules ≤214L (index re-exports keep the test suite's direct imports resolving); sadhana.ts 983L → sadhana/ 8 modules ≤219L (BoardData type; reorder-before-:q registration order preserved inside one module); core.ts 866L → core/ 7 modules ≤353L (index re-exports the 4 shot-grid symbols detail-helpers.ts imports). FN-ALLOWLIST entries re-pointed at the new files with corrected descriptions (moved-verbatim line counts prove it). Route-order hazards audited per split (sadhana reorder/:q the only order-sensitive pair, kept in-module).
+  - **AP-62 frontend**: scoped via FILE-ALLOWLIST (the no-build IIFE page scripts + the CSS token-split deferral to Phase 6) — full IIFE→module conversion touches every HTML page's script wiring + the esbuild pipeline + the whole e2e surface; recorded as the removal path instead of rushing it at phase end.
+  - **AP-63 formatter (the DEBT-reserved closing move)**: executed then REVERTED per the pre-committed fallback — prettier@3 configured to match the hand style (3 micro-diffs in a spot-check), 180 files formatted, and 4 dashboard characterization pins (byte-verbatim HTML fragments) went red because prettier reindents multi-line template literals; config + format/format:check scripts stay, the mechanical format commit does not (DEBT.md carries the decision + the dprint/biome removal path).
+  - **M4 evidence**: boundary check green in verify+CI ✓; FILE-ALLOWLIST.md records every >400L file with reasons ✓; every split module covered by the existing HTTP-level suites (telegram 39, vault 23, sadhana 31, core 40+ adjacent tests — no module lost coverage) ✓; dual-runtime parity green (workers-smoke + Node smoke) ✓; bundle outputs/hashes correct (build 85 entries in verify) ✓; shipped via the Ship Gate ✓.
 
 - **2026-10-27 (Phase 4, AP-61 first split — telegram integrations):** 2 commits (de22c1b boundary gate, 5de136e telegram split) pushed. telegram.ts 951L → 67L shell + telegram-webhook.ts 446L + telegram-commands.ts 217L + telegram-callback.ts 323L (bodies moved verbatim; the two duplicated inline project resolvers unified into ONE resolveProject; STAGE_MAP + matchStageLabel extracted module-level; escapeLikePrefix promoted to telegram-helpers; AP-33 source-contract pin re-pointed at the new module boundaries with the same assertions). Suite 755/755 green per commit; boundaries + fn-shape PASS; verify exit 0.
 
@@ -75,7 +83,8 @@ Last updated: 2026-10-27 — Phase 4 IN PROGRESS (branch `autopilot/phase-4-modu
 
 ## Last green commit (code)
 
-- `main @ 0d139f8` — Phase 3 merged (14 commits: AP-40..51 + 6 test-first bug fixes AP-52..57 + gates + records). `npm run verify` green (755/755); remote smoke dev+prod 24/24; shotcheck dev+prod 9/9.
+- `main @ (phase-4 merge)` — Phase 4 merged (7 commits: boundary gate + telegram/vault/sadhana/core splits + FILE-ALLOWLIST + formatter outcome). `npm run verify` green (755/755, boundaries + fn-shape PASS); remote smoke dev+prod 24/24; shotcheck dev+prod 9/9.
+- (historical) `main @ 0d139f8` — Phase 3 merged (14 commits: AP-40..51 + 6 test-first bug fixes AP-52..57 + gates + records). `npm run verify` green (755/755); remote smoke dev+prod 24/24; shotcheck dev+prod 9/9.
 - (historical) `main @ de85a4d` — Phase 2 merged (10 commits: AP-1, AP-15, AP-20, AP-21/22/23, AP-24/25/26, AP-27..33, AP-34..39, AP-2 flake fix, smoke pin). `npm run verify` green (744/744); remote smoke dev+prod 24/24; shotcheck dev+prod 9/9.
 - (historical) `main @ 08b17bb` — Phase 0 merged (6 commits: inventory+baseline docs, portability gate, verify+CI wiring, 39 characterization tests, smoke-remote, RUNBOOK). `npm run verify` green; remote smoke dev 14/14 + prod 14/14; shotcheck dev 9/9 + prod 9/9; rollback drill on dev passed.
 - Repo package version: `0.4.1.36` (unchanged — Phase 0 added tooling/tests/docs, no product code).

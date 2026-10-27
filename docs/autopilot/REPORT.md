@@ -163,3 +163,42 @@ The CI ladder on the phase commit `de85a4d` is **fully green**: the `ci` job (ve
 
 - **The phase is deployed and verified live.** After the 12 work commits: the full local ladder (types, lint, 755/755 tests, build, portability, the new function-shape gate) → merged to main → deployed to dev (smoke 24/24, storage round-trip 9/9) → deployed to production (smoke 24/24, storage round-trip 9/9) → cache purged → tagged `autopilot-phase-3-done`. Health checked on both environments after everything.
 - The big-file extractions (Telegram webhook 560 lines first) are framed as the NEXT phase's opening work — Phase 4 splits the giant route files by feature, which restructures exactly those functions; the committed allowlist + debt list carry the plan.
+
+## Phase 4 — Modularization (plain language)
+
+**What got better:** The server code now has enforced walls. A new automated check
+(`npm run check:boundaries`, part of verify and CI) verifies the layering rules on
+every commit: HTTP routes may use business services, services may use the database
+layer, and nothing may reach sideways or upward. When I measured the current code
+first, it turned out the layering was already clean — the gate's job is to freeze
+it so future changes can't quietly tangle it.
+
+Four of the biggest single files were split into small feature modules, without
+changing any behavior (the full test suite — 755 tests — stayed green after every
+single step): the Telegram bot integration (951 lines → a 67-line registrar plus
+webhook/commands/callback modules), the Notes Vault (664 → six modules), the
+Sadhana task board (983 → eight modules), and the core routes (866 → seven
+modules, including the screenshot grid renderer other pages reuse). Along the way
+the Telegram /append and /update commands' duplicated project-lookup code was
+unified into one shared function.
+
+**What was verified:** every split commit ran the full verify pipeline
+(typecheck, lint, 755 tests, build, portability, function-shape, and the new
+boundary gate); both runtimes were smoke-tested (plain Node and the Cloudflare
+Workers runtime); the deployed dev and prod sites passed the 24-check remote smoke
+suite and the 9-check screenshot verification after shipping.
+
+**What was NOT done, and why (recorded in FILE-ALLOWLIST.md / DEBT.md):** the
+remaining big files (projects/ trio, dashboard, admin, devboard) each carry a
+recorded reason — dashboard in particular is one 685-line handler whose rewrite
+is the riskiest refactor in the repo and deserves its own session. The frontend
+page scripts stay as they are: they are deliberately framework-free per-page
+scripts, and converting them to modules is a frontend project, not an end-of-phase
+cleanup. The code formatter (prettier) was configured and tried, but it changes
+the exact byte layout of multi-line HTML templates that tests pin verbatim — per
+the pre-planned fallback, the formatting commit was reverted and the decision +
+alternatives are recorded in DEBT.md.
+
+**Risks / notes:** none new — no migrations, no behavior changes; the two test
+files whose "source-contract pins" pointed at old file locations were re-pointed
+at the new module boundaries with the same assertions (not weakened).

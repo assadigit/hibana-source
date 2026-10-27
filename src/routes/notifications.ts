@@ -62,9 +62,11 @@ export function notificationsRoutes(cfg: Config) {
         [user.id, today],
       ),
       // Client projects past their due_date, not paused (0060: awaiting_dev).
+      // AP-55 (Phase 3): + the S35 parked filter every list/rail/search surface carries.
       cfg.db.query<ProjectRow>(
         `SELECT * FROM projects
-         WHERE user_id = ? AND deleted_at IS NULL AND type = 'client' AND due_date IS NOT NULL
+         WHERE user_id = ? AND deleted_at IS NULL AND (archived_state IS NULL OR archived_state != 'offline')
+         AND type = 'client' AND due_date IS NOT NULL
          AND due_date < ? AND status != 'awaiting_dev'
          ORDER BY due_date ASC LIMIT 20`,
         [user.id, today],
@@ -72,14 +74,16 @@ export function notificationsRoutes(cfg: Config) {
       // Sparks that have been sitting unreviewed for >7 days (the "never lose an idea" check).
       cfg.db.query<ProjectRow>(
         `SELECT * FROM projects
-         WHERE user_id = ? AND deleted_at IS NULL AND status = 'spark' AND created_at < ?
+         WHERE user_id = ? AND deleted_at IS NULL AND (archived_state IS NULL OR archived_state != 'offline')
+         AND status = 'spark' AND created_at < ?
          ORDER BY created_at ASC LIMIT 20`,
         [user.id, new Date(Date.now() - 7 * 24 * 3600 * 1000).toISOString()],
       ),
       // Upcoming deadlines in the next 7 days (client projects + tasks + sadhana).
       cfg.db.query<ProjectRow>(
         `SELECT * FROM projects
-         WHERE user_id = ? AND deleted_at IS NULL AND type = 'client' AND due_date IS NOT NULL
+         WHERE user_id = ? AND deleted_at IS NULL AND (archived_state IS NULL OR archived_state != 'offline')
+         AND type = 'client' AND due_date IS NOT NULL
          AND due_date >= ? AND due_date <= ? AND status != 'awaiting_dev'
          ORDER BY due_date ASC LIMIT 20`,
         [user.id, today, weekAhead],
@@ -87,7 +91,8 @@ export function notificationsRoutes(cfg: Config) {
       // Developing/Operational projects not touched in 30 days (the "where did I leave off?" nudge).
       cfg.db.query<ProjectRow>(
         `SELECT * FROM projects
-         WHERE user_id = ? AND deleted_at IS NULL AND status IN ('developing','operational') AND updated_at < ?
+         WHERE user_id = ? AND deleted_at IS NULL AND (archived_state IS NULL OR archived_state != 'offline')
+         AND status IN ('developing','operational') AND updated_at < ?
          ORDER BY updated_at ASC LIMIT 10`,
         [user.id, monthAgo],
       ),

@@ -566,40 +566,12 @@ export function adminRoutes(cfg: Config) {
   // owner check its sibling /backup had — both per-route checks are now the middleware.)
   app.post('/purge', async (c) => {
     const t = trFor(c)
-    const cutoff = new Date(Date.now() - 7 * 24 * 3600 * 1000).toISOString()
-    const gone = await cfg.db.query<{ id: string }>(
-      'SELECT id FROM projects WHERE deleted_at IS NOT NULL AND deleted_at < ?',
-      [cutoff],
-    )
-    const goneNotes = await cfg.db.query<{ id: string }>(
-      'SELECT id FROM quick_notes WHERE deleted_at IS NOT NULL AND deleted_at < ?',
-      [cutoff],
-    )
-    const goneSadhana = await cfg.db.query<{ id: string }>(
-      'SELECT id FROM sadhana_tasks WHERE deleted_at IS NOT NULL AND deleted_at < ?',
-      [cutoff],
-    )
-    // Set-based deletes (2026-08-28): FK cascades fire identically, but this is 4 statements
-    // instead of one per row — a big purge week no longer builds thousands of batched stmts.
-    // Hygiene extension (2026-08-28, Phase 2): soft-deleted sadhana_tasks were never
-    // hard-deleted — their update journal, tags, reminder logs and recurrence history
-    // (all ON DELETE CASCADE, migration 0018) piled up forever. Also sweeps expired
-    // email-verification codes (rejected by /verify anyway, so deleting is invisible).
-    // S39: screenshot BYTES are cleaned BEFORE the rows cascade away — the KV objects
-    // were permanent orphans before (the gallery can only offer deletion for rows it
-    // can still see). Best-effort; the purge itself proceeds on failure.
-    await purgeShotBytes(cfg, gone.map((g) => g.id))
-    await cfg.db.transaction(async (tx) => {
-      tx.sql('DELETE FROM projects WHERE deleted_at IS NOT NULL AND deleted_at < ?', [cutoff]) // children cascade
-      tx.sql('DELETE FROM quick_notes WHERE deleted_at IS NOT NULL AND deleted_at < ?', [cutoff])
-      tx.sql('DELETE FROM sadhana_tasks WHERE deleted_at IS NOT NULL AND deleted_at < ?', [cutoff]) // journal/tags/logs cascade
-      tx.sql('DELETE FROM password_resets WHERE expires_at < ?', [new Date().toISOString()])
-      tx.sql('DELETE FROM email_verifications WHERE expires_at < ?', [new Date().toISOString()])
-      tx.sql('DELETE FROM sessions WHERE expires_at < ?', [cutoff])
-      tx.sql('DELETE FROM rate_limits WHERE window_start < ?', [Math.floor(Date.now() / 1000) - 24 * 3600])
-    })
-    if (isHtmx(c)) return c.html(toastHtml(t('Purged {n} deleted project(s), {m} note(s), {k} to-do(s), + expired sessions', '{n} پروژهٔ حذف‌شده، {m} یادداشت، {k} کار لیست، + نشست‌های منقضی پاک شد', { n: gone.length, m: goneNotes.length, k: goneSadhana.length }), localeOf(c)))
-    return c.json({ ok: true, purged: gone.length, purgedNotes: goneNotes.length, purgedTodos: goneSadhana.length })
+    // AP-57 + CQ-6 (Phase 3): the ONE purge implementation — this route and the cron
+    // previously ran near-verbatim copies that had already diverged (the cron swept
+    // error_log, the manual route did not).
+    const { projects, notes, todos } = await runPurge(cfg)
+    if (isHtmx(c)) return c.html(toastHtml(t('Purged {n} deleted project(s), {m} note(s), {k} to-do(s), + expired sessions', '{n} پروژهٔ حذف‌شده، {m} یادداشت، {k} کار لیست، + نشست‌های منقضی پاک شد', { n: projects, m: notes, k: todos }), localeOf(c)))
+    return c.json({ ok: true, purged: projects, purgedNotes: notes, purgedTodos: todos })
   })
 
   return app
@@ -685,8 +657,13 @@ export async function scheduledBackup(cfg: Config): Promise<BackupOutcome> {
   }
 }
 
-/** Same purge logic as the admin route, for the cron. */
-export async function scheduledPurge(cfg: Config): Promise<void> {
+/** The ONE purge implementation (AP-57 + CQ-6, Phase 3): the manual admin route and
+ *  the cron both call this. 7-day retention window for soft-deleted rows + expired
+ *  sessions/resets/verifications/rate windows + error_log (0045).
+ *  Set-based deletes (2026-08-28): FK cascades fire identically, but this is a handful
+ *  of statements instead of one per row. S39: screenshot BYTES are cleaned BEFORE the
+ *  rows cascade away (best-effort; the purge proceeds on failure). */
+async function runPurge(cfg: Config): Promise<{ projects: number; notes: number; todos: number }> {
   const cutoff = new Date(Date.now() - 7 * 24 * 3600 * 1000).toISOString()
   const gone = await cfg.db.query<{ id: string }>(
     'SELECT id FROM projects WHERE deleted_at IS NOT NULL AND deleted_at < ?',
@@ -700,13 +677,11 @@ export async function scheduledPurge(cfg: Config): Promise<void> {
     'SELECT id FROM sadhana_tasks WHERE deleted_at IS NOT NULL AND deleted_at < ?',
     [cutoff],
   )
-  // S39: same byte-cleanup as the admin route — BEFORE the cascade deletes the rows
-  // (afterwards the SELECT that finds the object keys would return nothing).
   await purgeShotBytes(cfg, gone.map((g) => g.id))
   await cfg.db.transaction(async (tx) => {
-    tx.sql('DELETE FROM projects WHERE deleted_at IS NOT NULL AND deleted_at < ?', [cutoff])
+    tx.sql('DELETE FROM projects WHERE deleted_at IS NOT NULL AND deleted_at < ?', [cutoff]) // children cascade
     tx.sql('DELETE FROM quick_notes WHERE deleted_at IS NOT NULL AND deleted_at < ?', [cutoff])
-    tx.sql('DELETE FROM sadhana_tasks WHERE deleted_at IS NOT NULL AND deleted_at < ?', [cutoff])
+    tx.sql('DELETE FROM sadhana_tasks WHERE deleted_at IS NOT NULL AND deleted_at < ?', [cutoff]) // journal/tags/logs cascade
     tx.sql('DELETE FROM password_resets WHERE expires_at < ?', [new Date().toISOString()])
     tx.sql('DELETE FROM email_verifications WHERE expires_at < ?', [new Date().toISOString()])
     tx.sql('DELETE FROM sessions WHERE expires_at < ?', [cutoff])
@@ -716,7 +691,13 @@ export async function scheduledPurge(cfg: Config): Promise<void> {
     // not in an unbounded table).
     tx.sql('DELETE FROM error_log WHERE created_at < ?', [cutoff])
   })
+  return { projects: gone.length, notes: goneNotes.length, todos: goneSadhana.length }
+}
+
+/** The cron's purge — the shared implementation, plus its structured log line. */
+export async function scheduledPurge(cfg: Config): Promise<void> {
+  const { projects, notes, todos } = await runPurge(cfg)
   // P3.1 (F-M12): the structured line is the only emitter (the legacy console.log
   // double-emit was removed in Phase 3 — one logging helper, one line).
-  log.info('purge_complete', { projects: gone.length, notes: goneNotes.length, todos: goneSadhana.length })
+  log.info('purge_complete', { projects, notes, todos })
 }

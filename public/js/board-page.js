@@ -311,7 +311,7 @@
           planning: ['cmdk.statusPlanning', 'Planning'],
           queued: ['cmdk.statusQueued', 'Up Next'],
           developing: ['cmdk.statusDeveloping', 'Developing'],
-          awaiting_dev: ['cmdk.statusAwaitingDev', 'Awaiting Development'],
+          awaiting_dev: ['cmdk.statusAwaitingDev', 'On Hold'],
           operational: ['cmdk.statusOperational', 'Operational'],
         }
         const renderSwitchRows = (list, query) => {

@@ -616,9 +616,9 @@
   // the end. Empty stages stay hidden (nothing to show, nothing to tap).
   const RAIL_STAGE_GROUPS = [
     { key: 'planning', i18n: 'status.planning', label: 'Planning', collapsed: false },
-    { key: 'queued', i18n: 'status.queued', label: 'Queued', collapsed: false },
+    { key: 'queued', i18n: 'status.queued', label: 'Up Next', collapsed: false },
     { key: 'developing', i18n: 'status.developing', label: 'Developing', collapsed: false },
-    { key: 'awaiting_dev', i18n: 'status.awaiting_dev', label: 'Awaiting Development', collapsed: false },
+    { key: 'awaiting_dev', i18n: 'status.awaiting_dev', label: 'On Hold', collapsed: false },
     { key: 'operational', i18n: 'status.operational', label: 'Operational', collapsed: true },
   ]
 

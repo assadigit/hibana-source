@@ -52,6 +52,41 @@ async function seedAllKinds(db: Db, me: string) {
 }
 
 describe('GET /api/notifications (the attention surface)', () => {
+  // AP-55 (Phase 3): parked (archived_state='offline') projects must NOT nag —
+  // every list/rail/search/dashboard surface excludes them (S35); the notifications
+  // aggregate was the last member of the family still including them.
+  it('parked projects never surface in any notification group', async () => {
+    const { db, close } = makeTestDb()
+    try {
+      const me = await makeUser(db, { email: 'parked@test.dev' })
+      const { app, auth } = await makeClient(db, me)
+      const now = iso(0)
+      // A parked client project that is BOTH overdue AND stale AND has an upcoming-ish due_date:
+      // if any of the four project queries lacks the parked filter, this row leaks into a group.
+      await db.execute(
+        "INSERT INTO projects (id, user_id, title, status, type, due_date, archived_state, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, 'offline', ?, ?)",
+        ['p-parked', me, 'The parked project', 'developing', 'client', day(-DAY), now, iso(-40 * DAY)],
+      )
+      // A parked spark sitting unreviewed for 10 days:
+      await db.execute(
+        "INSERT INTO projects (id, user_id, title, status, archived_state, created_at, updated_at) VALUES (?, ?, ?, ?, 'offline', ?, ?)",
+        ['p-parked-spark', me, 'The parked spark', 'spark', iso(-10 * DAY), iso(-10 * DAY)],
+      )
+      const res = await app.fetch(new Request('http://local/api/notifications', { headers: auth }))
+      expect(res.status).toBe(200)
+      const html = await res.text()
+      expect(html).not.toContain('The parked project')
+      expect(html).not.toContain('The parked spark')
+      // counts mode agrees
+      const counts = await app.fetch(new Request('http://local/api/notifications?counts=1', { headers: auth }))
+      const body = JSON.stringify(await counts.json())
+      expect(body).not.toContain('parked')
+    } finally {
+      close()
+    }
+  })
+
+
   it('401 without a session — the auth gate', async () => {
     const { db, close } = makeTestDb()
     try {

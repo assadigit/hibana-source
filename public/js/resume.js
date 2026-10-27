@@ -43,7 +43,9 @@
     queued: '<path d="M7 3.5h10M7 20.5h10M8 3.5v2.6c0 1.9 1.6 3.1 4 5.9 2.4-2.8 4-4 4-5.9V3.5M8 20.5v-2.6c0-1.9 1.6-3.1 4-5.9 2.4 2.8 4 4 4 5.9v2.6"/>',
     developing: '<circle cx="12" cy="12" r="9"/><path d="M10 8.5l5 3.5-5 3.5z" fill="currentColor" stroke="none"/>',
     awaiting_dev: '<path d="M9 5.5v13M15 5.5v13"/>',
-    operational: '<path d="M4.5 16.5c1.2 2.8 4 4.5 7.5 4.5 4.5 0 7.7-2.6 7.7-6.4 0-4.5-4-5.6-6.9-6.5C10.4 7.3 9 6.2 9 4.3c0-.5.1-1 .3-1.5-3 1.2-5 3.6-5 6.4 0 1.7.7 3.1 1.9 4.1"/>',
+    // AP-56 (Phase 3): was a stray swoosh glyph — now the canonical rocket path
+    // from src/lib/html.ts (same as every other operational surface).
+    operational: '<path d="M12 2.5s4.5 3 4.5 8c0 2.6-1.6 4.6-1.6 6.5h-5.8c0-1.9-1.6-3.9-1.6-6.5 0-5 4.5-8 4.5-8Z"/><circle cx="12" cy="9.5" r="1.8"/><path d="M9.5 20.5h5"/>',
   }
 
   const read = () => {

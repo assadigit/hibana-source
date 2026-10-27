@@ -33,7 +33,7 @@ Last updated: 2026-10-27 — Phase 4 COMPLETE (milestone M4 met, Ship Gate execu
 
 ## Session log
 
-- **2026-10-27 (Phase 4 COMPLETE — Ship Gate executed):** 7 commits (de22c1b → 9bd5008 + records) on `autopilot/phase-4-modularization`, each pushed at the step. Ship Gate: local gates green (typecheck 0, eslint 0, vitest **755/755**, build 85 entries, portability PASS, fn-shape PASS, **boundaries PASS — new gate**, Node smoke ALL PASS, workers-smoke ALL PASS, diff secret-scan 0 hits) → merged ff to main + pushed → **no migrations (code-only)** → deploy dev → remote smoke dev → shotcheck dev → deploy prod → remote smoke prod → shotcheck prod → zone cache purge → tag `autopilot-phase-4-done` → STATE/REPORT records.
+- **2026-10-27 (Phase 4 COMPLETE — Ship Gate executed):** 8 commits (de22c1b → 130206d) on `autopilot/phase-4-modularization`, each pushed at the step. Ship Gate: local gates green (typecheck 0, eslint 0, vitest **755/755**, build 85 entries, portability PASS, fn-shape PASS, **boundaries PASS — new gate**, Node smoke ALL PASS, workers-smoke ALL PASS, diff secret-scan 0 hits) → merged ff to main @ 130206d + pushed → **no migrations (code-only)** → deploy dev (Worker version 3be0a930) → remote smoke dev **24/24 ALL PASS** → shotcheck dev **9/9** → deploy prod (Worker version dd907b01) → remote smoke prod **24/24 ALL PASS** → shotcheck prod **9/9** → zone cache purged → tag `autopilot-phase-4-done` pushed @ 130206d → STATE/REPORT records. Live health verified on both envs post-deploy. Next: Phase 5 (performance — measure first, DP-3).
 - **2026-10-27 (Phase 4, AP-60..63 — the modularization work):**
   - **AP-60 import-boundary gate**: `scripts/check-import-boundaries.mjs` — layer table (entry > routes > services > {auth, db, validation} > lib > root; vendor outside the graph), `import type` exempt (81 erasable edges), `await import()` counts as runtime, mixed statements count as runtime; negative-tested (injected lib→services edge → exit 1, restored → PASS); wired into verify + CI. Measured baseline: 86 files, ZERO runtime violations — the codebase was already layer-clean; the gate now freezes it.
   - **AP-61 splits (one commit each, suite 755/755 green per commit)**: telegram.ts 951L → 67L shell + webhook 446 + commands 217 (the two duplicated project resolvers unified into ONE resolveProject; STAGE_MAP/matchStageLabel extracted) + callback 323 + escapeLikePrefix promoted to helpers; vault.ts 664L → vault/ 6 modules ≤214L (index re-exports keep the test suite's direct imports resolving); sadhana.ts 983L → sadhana/ 8 modules ≤219L (BoardData type; reorder-before-:q registration order preserved inside one module); core.ts 866L → core/ 7 modules ≤353L (index re-exports the 4 shot-grid symbols detail-helpers.ts imports). FN-ALLOWLIST entries re-pointed at the new files with corrected descriptions (moved-verbatim line counts prove it). Route-order hazards audited per split (sadhana reorder/:q the only order-sensitive pair, kept in-module).
@@ -83,7 +83,7 @@ Last updated: 2026-10-27 — Phase 4 COMPLETE (milestone M4 met, Ship Gate execu
 
 ## Last green commit (code)
 
-- `main @ (phase-4 merge)` — Phase 4 merged (7 commits: boundary gate + telegram/vault/sadhana/core splits + FILE-ALLOWLIST + formatter outcome). `npm run verify` green (755/755, boundaries + fn-shape PASS); remote smoke dev+prod 24/24; shotcheck dev+prod 9/9.
+- `main @ 130206d` — Phase 4 merged (8 commits: boundary gate + telegram/vault/sadhana/core splits + FILE-ALLOWLIST + formatter outcome). `npm run verify` green (755/755, boundaries + fn-shape PASS); remote smoke dev+prod 24/24; shotcheck dev+prod 9/9.
 - (historical) `main @ 0d139f8` — Phase 3 merged (14 commits: AP-40..51 + 6 test-first bug fixes AP-52..57 + gates + records). `npm run verify` green (755/755); remote smoke dev+prod 24/24; shotcheck dev+prod 9/9.
 - (historical) `main @ de85a4d` — Phase 2 merged (10 commits: AP-1, AP-15, AP-20, AP-21/22/23, AP-24/25/26, AP-27..33, AP-34..39, AP-2 flake fix, smoke pin). `npm run verify` green (744/744); remote smoke dev+prod 24/24; shotcheck dev+prod 9/9.
 - (historical) `main @ 08b17bb` — Phase 0 merged (6 commits: inventory+baseline docs, portability gate, verify+CI wiring, 39 characterization tests, smoke-remote, RUNBOOK). `npm run verify` green; remote smoke dev 14/14 + prod 14/14; shotcheck dev 9/9 + prod 9/9; rollback drill on dev passed.
@@ -91,9 +91,9 @@ Last updated: 2026-10-27 — Phase 4 COMPLETE (milestone M4 met, Ship Gate execu
 
 ## Deployed versions
 
-- dev (hibana.aliassadi.workers.dev + dev D1 `pm-app-dev`): running `0d139f8` (Phase 3 merge commit; Worker version afebd597; schema 63; storage kv).
-- prod (hibana.ir + prod D1 `pm-app-prod`): running `0d139f8` (Phase 3 merge commit; Worker version 36a7462b; schema 63; storage kv; zone cache purged post-deploy).
-- Both verified live this session: remote smoke 24/24 each, shotcheck 9/9 each, health OK.
+- dev (hibana.aliassadi.workers.dev + dev D1 `pm-app-dev`): running `130206d` (Phase 4 merge commit; Worker version 3be0a930; schema 63; storage kv).
+- prod (hibana.ir + prod D1 `pm-app-prod`): running `130206d` (Phase 4 merge commit; Worker version dd907b01; schema 63; storage kv; zone cache purged post-deploy).
+- Both verified live this session: remote smoke 24/24 each, shotcheck 9/9 each, health OK. Tag `autopilot-phase-4-done` pushed at `130206d`.
 
 ## Blockers
 

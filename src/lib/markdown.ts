@@ -74,6 +74,13 @@ export function highlightCode(code: string, lang: string): string {
   )
   let out = ''
   let last = 0
+  // Phase 3 (M3 nesting): the identifier branch's nested ternary chain became a
+  // flat early-return classifier (was 6-deep).
+  const identSpan = (full: string, ident: string): string => {
+    if (MD_KEYWORDS.has(ident.toLowerCase())) return `<span class="md-tok-kw">${escHtml(full)}</span>`
+    if (/^\s*[(]/.test(code.slice(last))) return `<span class="md-tok-fn">${escHtml(full)}</span>`
+    return escHtml(full)
+  }
   for (const m of code.matchAll(tokenRe)) {
     const idx = m.index ?? 0
     if (idx > last) out += escHtml(code.slice(last, idx))
@@ -82,15 +89,8 @@ export function highlightCode(code: string, lang: string): string {
     if (com !== undefined) out += `<span class="md-tok-com">${escHtml(full)}</span>`
     else if (str !== undefined) out += `<span class="md-tok-str">${escHtml(full)}</span>`
     else if (num !== undefined) out += `<span class="md-tok-num">${escHtml(full)}</span>`
-    else if (ident !== undefined) {
-      const isKw = MD_KEYWORDS.has(ident.toLowerCase())
-      const isFn = /^\s*[(]/.test(code.slice(last))
-      out += isKw
-        ? `<span class="md-tok-kw">${escHtml(full)}</span>`
-        : isFn
-          ? `<span class="md-tok-fn">${escHtml(full)}</span>`
-          : escHtml(full)
-    } else if (op !== undefined) out += `<span class="md-tok-op">${escHtml(op)}</span>`
+    else if (ident !== undefined) out += identSpan(full, ident)
+    else if (op !== undefined) out += `<span class="md-tok-op">${escHtml(op)}</span>`
     else out += escHtml(full)
   }
   if (last < code.length) out += escHtml(code.slice(last))

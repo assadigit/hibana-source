@@ -184,8 +184,11 @@ or create via API). On the Node path, Workers AI returns 503 (expected — Worke
 ## Verification ladder (run before calling anything "done")
 
 ```bash
-npm run typecheck              # tsc --noEmit — 0 errors
-npm test                       # 399 vitest cases — all green
+npm run verify                 # ONE command: typecheck + eslint + vitest + build +
+                                # portability + fn-shape gates (755 tests, all green)
+npm run typecheck              # tsc --noEmit — 0 errors (strict)
+npm run check:fn-shape         # nesting ≤ 4 everywhere; leaf fns ≤ 60 lines or
+                                # allowlisted in docs/autopilot/FN-ALLOWLIST.md
 node scripts/build.mjs --prod --wire-html   # Build + wire HTML
 node scripts/check-dist-wiring.mjs          # Verify wired HTML matches manifest
 npm run check-cache-bust       # Verify ?v= bump discipline

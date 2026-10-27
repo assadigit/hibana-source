@@ -301,6 +301,8 @@ export function detailHtml(p: ProjectRow, d: Awaited<ReturnType<typeof loadDetai
   // alignment"): added __underline__ → <u>, ~~strikethrough~~ → <s>, 1. ordered list
   // → <ol><li>, {:left}/{:center}/{:right}/{:justify} → <div style="text-align:…">.
   const TITLE_CLAMP = 150
+  // Phase 3 (M3 nesting): the line loop is flat early-continue dispatch — each line
+  // class has its own handler over a shared state object (was an 8-deep else chain).
   const renderTitle = (raw: string): string => {
     const escd = esc(raw)
     const hasFence = /(^|\n)\s*```/.test(escd)
@@ -316,51 +318,56 @@ export function detailHtml(p: ProjectRow, d: Awaited<ReturnType<typeof loadDetai
       .replace(/\*\*([^*\n]+)\*\*/g, '<strong>$1</strong>')
       .replace(/__([^_\n]+)__/g, '<u>$1</u>')
       .replace(/~~([^~\n]+)~~/g, '<s>$1</s>')
+    const st = { out: '', inCode: false, inUl: false, inOl: false }
+    const closeUl = (): void => { if (st.inUl) { st.out += '</ul>'; st.inUl = false } }
+    const closeOl = (): void => { if (st.inOl) { st.out += '</ol>'; st.inOl = false } }
+    const closeLists = (): void => { closeUl(); closeOl() }
+    const openFence = (line: string): void => {
+      closeLists()
+      st.inCode = true
+      const codeLang = line.trim().slice(3).trim()
+      st.out += `<code class="t-code"${codeLang ? ` data-lang="${codeLang}"` : ''} dir="ltr"><span hidden class="t-fence">${line}</span>`
+    }
+    const closeFence = (line: string): void => {
+      st.inCode = false
+      st.out += `<span hidden class="t-fence">${line}</span></code>`
+    }
+    const alignLine = (m: RegExpMatchArray): void => {
+      closeLists()
+      st.out += `<div style="text-align:${m[2]}">${inline(m[3] ?? '')}</div>`
+    }
+    const bulletLine = (m: RegExpMatchArray): void => {
+      closeOl()
+      if (!st.inUl) { st.out += '<ul>'; st.inUl = true }
+      st.out += `<li>${inline(m[2] ?? '')}</li>`
+    }
+    const orderedLine = (m: RegExpMatchArray): void => {
+      closeUl()
+      if (!st.inOl) { st.out += '<ol>'; st.inOl = true }
+      st.out += `<li>${inline(m[3] ?? '')}</li>`
+    }
+    const proseLine = (line: string, nl: string): void => {
+      closeLists()
+      st.out += inline(line) + nl
+    }
     const lines = escd.split('\n')
-    let out = ''
-    let inCode = false, inUl = false, inOl = false
-    const closeUl = () => { if (inUl) { out += '</ul>'; inUl = false } }
-    const closeOl = () => { if (inOl) { out += '</ol>'; inOl = false } }
-    const closeLists = () => { closeUl(); closeOl() }
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i]
       const nl = i < lines.length - 1 ? '\n' : ''
-      if (!inCode && /^\s*```/.test(line)) {
-        closeLists()
-        inCode = true
-        const codeLang = line.trim().slice(3).trim()
-        out += `<code class="t-code"${codeLang ? ` data-lang="${codeLang}"` : ''} dir="ltr"><span hidden class="t-fence">${line}</span>`
-      } else if (inCode && line.trim() === '```') {
-        inCode = false
-        out += `<span hidden class="t-fence">${line}</span></code>`
-      } else if (inCode) {
-        out += line // code content: verbatim (already escaped), no inline transforms
-      } else {
-        const am = line.match(/^(\s*)\{:(left|center|right|justify)\}(.*)$/)
-        if (am) {
-          closeLists()
-          out += `<div style="text-align:${am[2]}">${inline(am[3])}</div>`
-        } else {
-          const bm = line.match(/^(\s*)(?:[-*])\s+(.*)$/)
-          const om = line.match(/^(\s*)(\d+)\.\s+(.*)$/)
-          if (bm) {
-            closeOl()
-            if (!inUl) { out += '<ul>'; inUl = true }
-            out += `<li>${inline(bm[2])}</li>`
-          } else if (om) {
-            closeUl()
-            if (!inOl) { out += '<ol>'; inOl = true }
-            out += `<li>${inline(om[3])}</li>`
-          } else {
-            closeLists()
-            out += inline(line) + nl
-          }
-        }
-      }
+      if (!st.inCode && /^\s*```/.test(line)) { openFence(line); continue }
+      if (st.inCode && line.trim() === '```') { closeFence(line); continue }
+      if (st.inCode) { st.out += line; continue } // code content: verbatim (already escaped), no inline transforms
+      const am = line.match(/^(\s*)\{:(left|center|right|justify)\}(.*)$/)
+      if (am) { alignLine(am); continue }
+      const bm = line.match(/^(\s*)(?:[-*])\s+(.*)$/)
+      if (bm) { bulletLine(bm); continue }
+      const om = line.match(/^(\s*)(\d+)\.\s+(.*)$/)
+      if (om) { orderedLine(om); continue }
+      proseLine(line, nl)
     }
     closeLists()
-    if (inCode) out += '</code>'
-    return out
+    if (st.inCode) st.out += '</code>'
+    return st.out
   }
   // S48j: card shows ONLY the first line (the title). Full title+content is in
   //   data-raw-title (the editor reads it on open → splits on \n → title + content).

@@ -112,8 +112,12 @@ a whiteboard note.
   `/home/z/my-project/worklog.md`.
 
 ## Verification ladder (per batch — required before "done")
-`npm run typecheck` (authoritative tsc) → `npm test` (623 at S199; the count lives in
-Changelogs §1) → `node --check` on touched JS →
+ONE command owns the local ladder: `npm run verify` = tsc --noEmit (strict +
+noImplicitOverride/noFallthroughCasesInSwitch/noImplicitReturns) → eslint (0 warnings)
+→ vitest (755 at Phase 3; the count lives in Changelogs §1) → prod build →
+`check:portability` → `check:fn-shape` (nesting ≤ 4 everywhere; leaf functions ≤ 60
+lines or listed in docs/autopilot/FN-ALLOWLIST.md with a recorded reason) →
+`node --check` on touched JS →
 browser E2E on the local Node server (FA/RTL **and** EN/LTR, light **and** dark, desktop
 **and** 390 px; test user `e2e@test.local`) → deploy dev → live probe → deploy prod → live
 probe (console 0 / page errors 0) → **purge probe users** (DELETE cascade verified;

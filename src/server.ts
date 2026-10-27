@@ -57,34 +57,49 @@ function cacheControlFor(rel: string): string {
   return 'public, max-age=3600, stale-while-revalidate=86400' // app css/js
 }
 
+/** Resolve the static file for a pathname: exact hit, else the S70 `.html` fallback
+ *  (extensionless, non-API paths only). Returns null when neither exists. */
+function statOrHtmlFallback(pathname: string): { rel: string; file: string; st: import('node:fs').Stats } | null {
+  const decoded = decodeURIComponent(pathname)
+  const rel = decoded === '/' ? 'index.html' : decoded.slice(1)
+  const file = join(publicDir, rel)
+  if (file !== publicDir && !file.startsWith(publicDir + sep)) return null // path traversal guard (caller 403s)
+  const exact = statOrNull(file)
+  if (exact || rel.startsWith('api/') || extname(rel)) return exact ? { rel, file, st: exact } : null
+  // S70 fallback: retry once with `.html` (extensionless page URL → its page file).
+  const asHtml = statOrNull(join(publicDir, rel + '.html'))
+  return asHtml ? { rel: rel + '.html', file: join(publicDir, rel + '.html'), st: asHtml } : null
+}
+
+/** statSync that yields null instead of throwing (ENOENT and friends → 404 upstream). */
+function statOrNull(file: string): import('node:fs').Stats | null {
+  try {
+    return statSync(file)
+  } catch {
+    return null
+  }
+}
+
 function serveFile(url: URL, req?: Request): Promise<Response> {
   const pathname = decodeURIComponent(url.pathname)
-  let rel = pathname === '/' ? 'index.html' : pathname.slice(1)
-  let file = join(publicDir, rel)
-  if (file !== publicDir && !file.startsWith(publicDir + sep)) {
+  const rel0 = pathname === '/' ? 'index.html' : pathname.slice(1)
+  const file0 = join(publicDir, rel0)
+  if (file0 !== publicDir && !file0.startsWith(publicDir + sep)) {
     return Promise.resolve(new Response('Forbidden', { status: 403 })) // path traversal guard
   }
-  let st
-  try {
-    st = statSync(file)
-  } catch {
-    // S70 (dev/prod parity): Cloudflare's assets binding maps extensionless URLs to
-    // .html files — hibana.ir/gallery serves gallery.html (verified live: 200). The
-    // Node path only ever tried the exact path, so every extensionless page URL 404'd
-    // locally (verified: /login /gallery /notes … all 404 @3017 while 200 on prod).
-    // Mirror the edge: on a miss, when the path has no file extension and isn't an
-    // API call, retry once with `.html`. The retry path derives from the same
-    // already-guard-checked pathname (no separators introduced), and known
-    // WORKER_PAGE_ROUTES (/to-do-list etc.) have no matching file so they still
-    // fall through to their routes. rel/file MUST be reassigned — the cache key and
-    // readFileSync below still point at the served path.
-    if (!rel.startsWith('api/') && !extname(rel)) {
-      rel = rel + '.html'
-      file = join(publicDir, rel)
-      try { st = statSync(file) } catch { /* genuine 404 */ }
-    }
-    if (!st) return Promise.resolve(new Response('Not Found', { status: 404 }))
-  }
+  const resolved = statOrHtmlFallback(url.pathname)
+  if (!resolved) return Promise.resolve(new Response('Not Found', { status: 404 }))
+  const { rel, file, st } = resolved
+  // S70 (dev/prod parity): Cloudflare's assets binding maps extensionless URLs to
+  // .html files — hibana.ir/gallery serves gallery.html (verified live: 200). The
+  // Node path only ever tried the exact path, so every extensionless page URL 404'd
+  // locally (verified: /login /gallery /notes … all 404 @3017 while 200 on prod).
+  // Mirror the edge: on a miss, when the path has no file extension and isn't an
+  // API call, retry once with `.html` (Phase 3 M3: extracted — was 5-deep in the
+  // catch). The retry path derives from the same already-guard-checked pathname (no
+  // separators introduced), and known WORKER_PAGE_ROUTES (/to-do-list etc.) have no
+  // matching file so they still fall through to their routes. rel/file MUST be
+  // reassigned — the cache key and readFileSync below still point at the served path.
   if (st.isDirectory()) return Promise.resolve(new Response('Not Found', { status: 404 }))
   let entry = staticCache.get(file)
   if (!entry || entry.mtimeMs !== st.mtimeMs) {

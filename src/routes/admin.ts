@@ -610,50 +610,57 @@ export async function scheduledBackup(cfg: Config): Promise<BackupOutcome> {
     log.info('backup_committed', { path: result.path, encrypted: !!cfg.backupEncryptionKey })
     return { kind: 'pushed', path: result.path }
   } catch (err) {
-    // P3.1 (F-M12) + P3.5(c) (F-M4): structured error log + owner-email alert. A failed
+    // P3.1 (F-M12) + P3.5(c) (F-M4): structured error log + owner alerts. A failed
     // backup previously only logged (plain text); now it also emails the owner so a silent
-    // backup gap can't go unnoticed. The email send is best-effort (never rethrows).
+    // backup gap can't go unnoticed. Both alert channels are best-effort (never rethrow).
     log.error('backup_failed', { err: err instanceof Error ? { message: err.message, stack: err.stack } : String(err) })
-    if (cfg.emailKey && cfg.ownerEmail) {
-      try {
-        await sendAndLog(
-          { db: cfg.db, emailKey: cfg.emailKey, assets: cfg.assets },
-          {
-            to: cfg.ownerEmail,
-            kind: 'backup_failed',
-            subject: 'Hibana backup failed',
-            title: 'Backup failed',
-            bodyHtml: `<p>The scheduled Hibana backup failed at ${new Date().toISOString()}.</p><p>Error: ${err instanceof Error ? err.message : String(err)}</p><p>The next scheduled run will retry. Check <code>wrangler tail</code> for the structured error.</p>`,
-            origin: appUrlOf(cfg),
-          },
-        )
-      } catch (emailErr) {
-        log.error('backup_alert_email_failed', { err: emailErr instanceof Error ? { message: emailErr.message } : String(emailErr) })
-      }
-    }
-    // H6 fix (2026-09-10): Telegram-direct backup-failure alert — a SECONDARY channel that
-    // works even if Resend itself is down (the email alert above uses the same Resend key).
-    // Looks up the owner's linked Telegram chat and sends a direct bot message. Best-effort:
-    // if the owner isn't linked to Telegram, or the bot isn't configured, this is a no-op.
-    if (cfg.telegramToken) {
-      try {
-        const owners = await cfg.db.query<UserRow>(
-          "SELECT telegram_chat_id FROM users WHERE role = 'owner' AND telegram_chat_id IS NOT NULL AND telegram_paused = 0",
-        )
-        const errMsg = err instanceof Error ? err.message : String(err)
-        for (const o of owners) {
-          await sendTelegramMessage(
-            cfg.telegramToken,
-            o.telegram_chat_id!,
-            `🔴 <b>Hibana backup failed</b>\n\nTime: ${new Date().toISOString()}\nError: ${errMsg.slice(0, 500)}\n\nThe next scheduled run will retry automatically.`,
-            'HTML',
-          )
-        }
-      } catch (tgErr) {
-        log.error('backup_alert_telegram_failed', { err: tgErr instanceof Error ? { message: tgErr.message } : String(tgErr) })
-      }
-    }
+    await alertOwnerByEmail(cfg, err)
+    await alertOwnersByTelegram(cfg, err)
     return { kind: 'failed', error: err instanceof Error ? err.message : String(err) }
+  }
+}
+
+/** Best-effort owner email on backup failure (Phase 3 M3: extracted from the catch —
+ *  a failed send logs and never rethrows; the backup outcome is the caller's business). */
+async function alertOwnerByEmail(cfg: Config, err: unknown): Promise<void> {
+  if (!cfg.emailKey || !cfg.ownerEmail) return
+  try {
+    await sendAndLog(
+      { db: cfg.db, emailKey: cfg.emailKey, assets: cfg.assets },
+      {
+        to: cfg.ownerEmail,
+        kind: 'backup_failed',
+        subject: 'Hibana backup failed',
+        title: 'Backup failed',
+        bodyHtml: `<p>The scheduled Hibana backup failed at ${new Date().toISOString()}.</p><p>Error: ${err instanceof Error ? err.message : String(err)}</p><p>The next scheduled run will retry. Check <code>wrangler tail</code> for the structured error.</p>`,
+        origin: appUrlOf(cfg),
+      },
+    )
+  } catch (emailErr) {
+    log.error('backup_alert_email_failed', { err: emailErr instanceof Error ? { message: emailErr.message } : String(emailErr) })
+  }
+}
+
+/** Best-effort Telegram-direct backup-failure alert (H6, 2026-09-10) — a SECONDARY
+ *  channel that works even if Resend itself is down. Looks up the owner's linked chat
+ *  and sends a direct bot message; unlinked owners / unconfigured bot = no-op. */
+async function alertOwnersByTelegram(cfg: Config, err: unknown): Promise<void> {
+  if (!cfg.telegramToken) return
+  try {
+    const owners = await cfg.db.query<UserRow>(
+      "SELECT telegram_chat_id FROM users WHERE role = 'owner' AND telegram_chat_id IS NOT NULL AND telegram_paused = 0",
+    )
+    const errMsg = err instanceof Error ? err.message : String(err)
+    for (const o of owners) {
+      await sendTelegramMessage(
+        cfg.telegramToken,
+        o.telegram_chat_id!,
+        `🔴 <b>Hibana backup failed</b>\n\nTime: ${new Date().toISOString()}\nError: ${errMsg.slice(0, 500)}\n\nThe next scheduled run will retry automatically.`,
+        'HTML',
+      )
+    }
+  } catch (tgErr) {
+    log.error('backup_alert_telegram_failed', { err: tgErr instanceof Error ? { message: tgErr.message } : String(tgErr) })
   }
 }
 

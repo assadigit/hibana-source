@@ -4,7 +4,7 @@ import { Hono } from 'hono'
 import { z } from 'zod'
 import { requireAuth } from '../../auth/middleware'
 import { etag, jsonBody, extForMime, mimeForPath, sniffImageMime, isHtmx } from '../../lib/http'
-import { trFor, localeOf } from '../../lib/i18n'
+import { trFor, localeOf, type Locale } from '../../lib/i18n'
 import { githubClient, type GitHubConfig } from '../../services/github'
 import { purgeShotBytes, shotStoreFor } from '../../services/shotstore'
 import { hitRateLimit, RATE_RULES, clientIp } from '../../services/ratelimit'
@@ -28,6 +28,21 @@ import {
 } from './helpers'
 import { loadDetail, detailHtml } from './detail-helpers'
 import { errJson, ErrorCode } from '../../lib/errors'
+/** S161 folder header for a specific folder view (Phase 3 M3: extracted from the
+ *  GET / handler — was the 5-deep branch). spec #3: "last updated" = the newest
+ *  updated_at among the FOLDER's ideas (any field edit bumps it — links/tags/
+ *  screenshot adds ride the same column now), not just the visible window.
+ *  Unknown folder id → '' (no header row). */
+async function sparkFolderHead(cfg: Config, userId: string, folderParam: string, folderRows: Array<SparkFolderRow & { n: number }>, visibleCount: number, lang: Locale): Promise<string> {
+  const folder = folderRows.find((f) => f.id === folderParam)
+  if (!folder) return ''
+  const maxRow = await cfg.db.query<{ m: string | null }>(
+    "SELECT MAX(updated_at) AS m FROM projects WHERE user_id = ? AND folder_id = ? AND deleted_at IS NULL AND status = 'spark' AND (archived_state IS NULL OR archived_state != 'offline')",
+    [userId, folder.id],
+  )
+  return sparkFolderHeaderHtml(folder, visibleCount, maxRow[0]?.m ?? null, lang)
+}
+
 export function projectsRoutes(cfg: Config) {
   const app = new Hono<{ Variables: { user: UserRow } }>()
   app.use('*', requireAuth(cfg))
@@ -283,11 +298,13 @@ export function projectsRoutes(cfg: Config) {
           [user.id, likeS],
         ).catch(() => [] as { id: string; name: string }[])
         const folderNames = new Map(folderRows.map((f) => [f.id, f.name]))
+        // Phase 3 (M3 nesting): flat single-guard form (was a 5-deep chain with the
+        // spark-mode and query guards above). Map values are strings — get() ===
+        // undefined is exactly the old has() check.
         for (const p of projects) {
-          if (p.folder_id && folderNames.has(p.folder_id)) {
-            const h = sparkHits.get(p.id)
-            if (h) h.folder = folderNames.get(p.folder_id)!
-          }
+          const name = p.folder_id ? folderNames.get(p.folder_id) : undefined
+          const h = sparkHits.get(p.id)
+          if (name !== undefined && h) h.folder = name
         }
       }
       let fragment = sparkMode
@@ -363,20 +380,8 @@ export function projectsRoutes(cfg: Config) {
           fragment = sparkFolderGrid(folderRows, unfiled, lang)
         } else {
           const bar = sparkFolderBar(folderRows, unfiled, barFolder, lang)
-          let head = ''
-          if (!searching && folderParam && folderParam !== 'all' && folderParam !== 'none') {
-            const folder = folderRows.find((f) => f.id === folderParam)
-            if (folder) {
-              // spec #3: "last updated" = the newest updated_at among the FOLDER's ideas
-              // (any field edit bumps it — links/tags/screenshot adds ride the same
-              // column now), not just the visible window.
-              const maxRow = await cfg.db.query<{ m: string | null }>(
-                "SELECT MAX(updated_at) AS m FROM projects WHERE user_id = ? AND folder_id = ? AND deleted_at IS NULL AND status = 'spark' AND (archived_state IS NULL OR archived_state != 'offline')",
-                [user.id, folder.id],
-              )
-              head = sparkFolderHeaderHtml(folder, projects.length, maxRow[0]?.m ?? null, lang)
-            }
-          }
+          const wantsFolderHead = !searching && folderParam !== undefined && folderParam !== 'all' && folderParam !== 'none'
+          const head = wantsFolderHead ? await sparkFolderHead(cfg, user.id, folderParam, folderRows, projects.length, lang) : ''
           const body = projects.length === 0
             ? (searching
                 ? sparkSearchEmptyHtml(lang)

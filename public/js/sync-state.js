@@ -58,6 +58,15 @@
     return n
   }
 
+  // §9 companion: is ANY card mid-sync right now? (The header Sync button rotates
+  // its icon while a sync runs — hibana-desktop's desktop-sync.js consumes this
+  // alongside count(); the web board has no header Sync button to drive.)
+  function hasSyncing() {
+    let any = false
+    cards.forEach((c) => { if (c.state === 'syncing') any = true })
+    return any
+  }
+
   function notify(changedId) {
     for (const l of listeners) {
       try { l(count(), changedId) } catch { /* a consumer's bug must never break the board */ }
@@ -212,5 +221,5 @@
 
   wireDocument()
 
-  window.HibanaSyncState = { track, trackBulk, markAllSyncing, stateOf, syncedAt, count, subscribe }
+  window.HibanaSyncState = { track, trackBulk, markAllSyncing, stateOf, syncedAt, count, hasSyncing, subscribe }
 })()

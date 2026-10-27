@@ -106,3 +106,5 @@
 **Next (this session, hibana-desktop):** bump the island pin to this ref, add sync-state.js to the island manifest, re-run sync-island (the 12 seam strings are UNTOUCHED — verified: the api() choke point + the 11 fetch/XHR sites are byte-preserved), then the Sync button count badge (#db-sync-button subscribes to HibanaSyncState; count = pending+failed, hidden at zero; icon rotates while any sync runs; SyncNow start marks all pending+failed syncing per §9) + release.
 
 **Credentials note:** the owner pasted a GitHub PAT in chat (again — 5th time). Per the runbook policy ("any token pasted in chat → rotate"), it must be rotated after this round; this push used it only for github.com/assadigit (his own repos, his explicit instruction).
+**S229 addendum (the desktop-round support API):** sync-state.js gains hasSyncing() (is any card mid-sync — the desktop Sync button's icon-rotation cue) + its test; sync-state.js v1→v2. Rides v0.4.1.37 (the release workflow's own guard: no new version, no new tag).
+

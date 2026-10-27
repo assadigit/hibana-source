@@ -24,6 +24,7 @@ interface SyncHarness {
     stateOf: (id: string) => string
     syncedAt: (id: string) => number | null
     count: () => number
+    hasSyncing: () => boolean
     subscribe: (fn: (n: number, id: string | null) => void) => () => void
   }
   timers: TimerEntry[]
@@ -288,6 +289,20 @@ describe('sync-state (hibana-sync-status-spec §8 transitions + §9 count rule)'
     expect(h.sync.syncedAt('t1')).toBe(null) // never tracked → server-rendered, no client timestamp yet
     await h.sync.track('t1', () => Promise.resolve({}))
     expect(typeof h.sync.syncedAt('t1')).toBe('number')
+  })
+
+  it('hasSyncing: true only while a card is mid-sync (the desktop Sync button rotation cue)', async () => {
+    const h = loadSync()
+    expect(h.sync.hasSyncing()).toBe(false)
+    let resolveRun: (v: unknown) => void = () => {}
+    void h.sync.track('t1', () => new Promise((r) => { resolveRun = r }))
+    await settle() // let the tracked run() actually start
+    expect(h.sync.hasSyncing()).toBe(false) // pending — not yet syncing (the 500ms rule)
+    h.fireTimers()
+    expect(h.sync.hasSyncing()).toBe(true)
+    resolveRun({})
+    await settle()
+    expect(h.sync.hasSyncing()).toBe(false)
   })
 
   it('an untracked (server-rendered) card reads as synced — the implicit state (§2)', () => {

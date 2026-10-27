@@ -59,7 +59,9 @@
     "lint": "eslint src/ --max-warnings 0",
     "verify": "tsc --noEmit && eslint src/ --max-warnings 0 && vitest run && node scripts/build.mjs --prod && node scripts/check-portability.mjs && node scripts/check-fn-lengths.mjs && node scripts/check-import-boundaries.mjs",
     "check:fn-shape": "node scripts/check-fn-lengths.mjs",
-    "check:boundaries": "node scripts/check-import-boundaries.mjs"
+    "check:boundaries": "node scripts/check-import-boundaries.mjs",
+    "format": "prettier --write \"src/**/*.ts\"",
+    "format:check": "prettier --check \"src/**/*.ts\""
   },
   "dependencies": {
     "@hono/node-server": "^2.1.3",
@@ -76,6 +78,7 @@
     "@types/node": "^26.6.4",
     "esbuild": "^0.28.2",
     "eslint": "^10.12.0",
+    "prettier": "3",
     "tsx": "^4.23.15",
     "typescript": "^6",
     "typescript-eslint": "^8.71.1",

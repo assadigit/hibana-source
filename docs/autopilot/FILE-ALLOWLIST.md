@@ -1,0 +1,28 @@
+# Hibana — FILE-ALLOWLIST (M4: source files over ~400 lines with recorded reasons)
+
+> Companion to FN-ALLOWLIST.md (function-level). PLAYBOOK §5 Phase 4 / M4: "no source
+> file over ~400 lines without a recorded reason". This file is that record — every
+> non-test source file over 400 lines either (a) was split in the Phase 4 session
+> (telegram / vault / sadhana / core — see git log) or (b) carries a reason below.
+> Gate context: `scripts/check-import-boundaries.mjs` enforces the layer rules in CI;
+> file size remains a REVIEW concern (recorded here), not a hard gate — splitting is
+> behavior-preserving work that must ride the full suite each commit, so it is
+> time-boxed per phase (AG-12).
+
+| File | Lines | Reason (and removal path) |
+|------|-------|---------------------------|
+| `src/routes/projects/helpers.ts` | 1037 | [next-domain] The projects overview/shelf query layer — the single richest domain (list+filters+signals+progress). It IS the next natural split target (same register-by-feature pattern as the four splits shipped this phase); deferred because the Phase 4 session budget went to the four worst single-file offenders first. Removal: split into overview-data / shelf-render / signals modules, one commit per module, 755-test suite green each. |
+| `src/routes/projects/detail-helpers.ts` | 950 | [next-domain] The project detail page renderer (detailHtml + title/board/kanban fragments). Same next-domain status as helpers.ts; the FN-ALLOWLIST already flattens its worst functions (nesting ≤4 enforced). Removal: split by render fragment family. |
+| `src/routes/projects/index.ts` | 944 | [next-domain] The project detail route factory (GET/PATCH/edit/board/kanban). Same next-domain status; FN-ALLOWLIST records its long handlers. Removal: register-by-feature split (detail / board / kanban). |
+| `src/routes/devboard.ts` | 866 | [route-factory] Single-domain route factory (devboard sprints + shots), ≥5 registrations — the fn-shape gate's own Phase-4 exemption class. Full HTTP-level suite covers it. Removal: register-by-feature split in a later phase. |
+| `src/routes/dashboard.ts` | 794 | [risky-single-handler] One 685-line GET / handler whose ~10 render closures capture shared locals (user/lang/t/num/todoTasks/counts/urgentTasks…); S30 tests pin the JSON `data` payload contract. Re-threading an explicit context object through every closure is the highest-regression-risk refactor in the repo — NOT the thing to rush at the end of a phase. Removal: data.ts / todo.ts / sections.ts split with an explicit DashboardData context, behind the dashboard suite, as its own session. |
+| `src/routes/admin.ts` | 710 | [route-factory] Single-domain route factory (admin console: users/usage/errors/purge), ≥5 registrations — fn-shape exemption class; scheduledBackup already flattened (nesting ≤4). Removal: register-by-feature split in a later phase. |
+| `src/routes/quicknotes-helpers.ts` | 508 | [render-collection] The notebook/archive/attachedTitles render helpers — one cohesive render family consumed by quicknotes + dashboard + projects + ics-export. Removal: split notebook vs archive renderers when their consumers split further. |
+| `src/services/obsidian-export.ts` | 464 | [linear-adapter] One linear exporter (vault → Obsidian zip) — a single pass over the schema; splitting it scatters one algorithm. Removal: none planned (single-algorithm file). |
+| `src/services/ai.ts` | 462 | [edge-adapter] The Workers AI adapter (magic-button flows: summarize/polish/generate) — sits at the services edge by design (DA-6); flows are separate functions already. Removal: split prompt-flows if a fourth flow lands. |
+| `src/routes/integrations/telegram-webhook.ts` | 446 | [route-dispatcher] Phase 4 split product THIS session: the ~20-command flat dispatch chain (each arm 3–12 lines, self-contained). The FN-ALLOWLIST entry for its `<anon>` handler carries the full reasoning. Removal: table-driven command map if the command count grows. |
+| `src/app.ts` | 436 | [composition-root] The ONE composition root: ~30 route imports + mounts + middleware + env wiring. Its length IS the route count; splitting it would just move the imports. Removal: none (this is the intended shape). |
+| `src/routes/quicknotes.ts` | 430 | [route-factory] Single-domain route factory (quick notes CRUD), ≥5 registrations — fn-shape exemption class. Removal: register-by-feature split in a later phase. |
+| `public/js/project-page.js` | 5928 | [no-build-page] The project page's IIFE page-script under the repo's deliberate no-build frontend (PLAYBOOK Phase 4 keeps "no framework, no preprocessor"). Converting page scripts to ES modules means touching every HTML page's script wiring + the esbuild hash pipeline + the full e2e surface — a frontend-modularization project, not an end-of-phase code motion. Removal: Phase 6-adjacent frontend quality pass (nav.js first — every-page script, smallest blast radius). |
+| `public/js/app.js` (and the other page scripts >400L) | 4265… | [no-build-page] Same class as project-page.js: one IIFE per page, no-import graph by design. The esbuild content-hash pipeline (check-dist-wiring gate) already gives them build hygiene. Removal: same frontend pass. |
+| `public/css/*.css` (>400L files) | 2240… | [token-split-deferred] variables.css IS the single tokens layer (the Phase 4 structure contract — tokens already centralized); the remaining per-page CSS split into tokens/base/layout/components/pages is cosmetic file organization best done with the Phase 6 accessibility/responsive pass where RTL-logical property work touches the same lines. Removal: Phase 6. |

@@ -1,0 +1,13 @@
+# Third-party shim bundled verbatim by build.mjs — keep byte-stable
+src/vendor/
+
+# The no-build frontend: hand-formatted page scripts (IIFE per page) + vendor libs.
+# Rationale recorded in docs/autopilot/FILE-ALLOWLIST.md — formatting 40k lines of
+# page JS produces a giant diff with zero behavior gain; the e2e suite + the
+# esbuild content-hash pipeline own that tree's hygiene.
+public/
+
+dist/
+node_modules/
+bun.lock
+*.md

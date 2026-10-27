@@ -122,3 +122,43 @@ The `ci` job on main is **GREEN** — the one-command verify gate ran in CI with
 ### Phase 2 — CI verdict (final)
 
 The CI ladder on the phase commit `de85a4d` is **fully green**: the `ci` job (verify: typecheck, eslint, the 744-test suite, build, portability gate) **success**, e2e shard 1 **success**, and e2e shard 2 **success** — the shard that carried the s207 flake through Phases 0 and 1. The first full-green CI run of the project's e2e suite; the AP-2 fix held in CI. (The first attempt of this run was auto-cancelled mid-flight by the docs-only follow-up commit — standard GitHub concurrency behavior; re-run to completion. The CD workflow additionally ran green on the docs commit.)
+
+
+---
+
+## Phase 3 — Codebase review and refactor (2026-10-27)
+
+**The "make the code consistent, typed, and readable — without changing how anything works" pass. This session completed the refactor steps, the bug fixes the review surfaced, and the enforcement gates; the phase's remaining work (the biggest file extractions) is recorded for the next session.**
+
+### What got better
+
+- **The type-checker got stricter — for free.** Three extra safety switches were turned on (they catch code paths that forget to return, switch statements that fall through accidentally, and inheritance mistakes). All but one existing file already passed; the single fix was one line in the sign-in middleware. Three heavier switches would have required 890 hand-edits — each one a chance to silently change behavior — so they are written down as deliberate debt with measured counts instead.
+- **Every error message now speaks one language.** The app had 336 hand-written error replies; 54 different code words; the same code word sometimes answered at two different HTTP statuses, and one failure (email sending) was spelled two different ways at two different statuses. All 336 now go through one typed registry — a typo in an error code is now a compile error, not a silent string.
+- **That cleanup surfaced 6 real bugs, each fixed with a test that failed first:**
+  - Looking up a note in a missing folder answered "bad request" (400) on one page but "not found" (404) on another — now always 404.
+  - "Too many files" and "too large upload" shared one error code at two statuses — now split into two codes, each with one status.
+  - The email-failure spelling fork (above) — now one code, one status.
+  - **Parked projects nagged you.** Projects you deliberately set aside still appeared in the attention/notifications surface (overdue, stale, deadline groups) — every other page already excluded them. Now notifications do too.
+  - Five English fallback labels still said "Queued"/"Awaiting Development" behind the translated keys (leftovers from the stage rename), and the resume strip drew a different rocket icon than every other page — all aligned to the one canonical set, with a test keeping them in lockstep.
+  - The manual "purge" button and the automatic nightly purge had drifted apart (the automatic one also cleans an old error table; the manual one didn't). They now share ONE implementation and clean the same things.
+- **One logging helper, one log line per event.** 12 scattered console messages now go through the leveled, structured logger — each carries the request id, so a failure can be traced across the whole request.
+- **Dead weight removed:** 8 unused backend functions, 2 unused re-exports, and **85 unused translation keys** (of 1587) — every claim re-verified before deletion (one auditor claim was wrong: a key it called dead is actually used — kept).
+- **Copy-pasted knowledge consolidated:** the same 5-line escaper table lived in 5 files; the same bytes-to-hex trick in 6; the same "is this an htmx request" check in 54 places; 30 places re-typed the same UUID validation; the Persian month names were re-declared in two files. All now have one home each.
+- **Deep-nesting eliminated — and now enforced.** No function anywhere nests control flow deeper than 4 levels (was 7 functions, worst 8 levels). A new automatic gate runs on every build: nesting over 4 fails outright, and any function over ~60 lines must carry a written reason in a committed allowlist (37 do, each with its justification; the giant route files are explicitly marked as the next phase's splitting work).
+- **The gates run in CI**: `npm run verify` now ends with the function-shape check alongside types, lint, tests, build, and portability.
+
+### What was run (proof)
+
+- Full ladder green after every one of the 12 commits: typecheck 0 errors, lint 0 warnings, **vitest 755/755** (was 744; +11 regression tests for the 6 bug fixes), build 85 entries, portability PASS, fn-shape PASS.
+- The 6 bug fixes were each reproduced by a failing test BEFORE the fix (red-then-green), per the standing rule.
+- The i18n parity checker passes on both dictionaries (1502 = 1502 keys).
+
+### What was NOT verified / risks
+
+- The big-file extractions (the 560-line Telegram webhook handler is the known worst) are recorded with reasons in the allowlist + debt list — they are the next session's first job, before this phase's ship gate.
+- The three heavier type-checker switches are deferred with measured error counts (see DEBT.md) — a mechanical pass for a future phase.
+- No database migrations this phase — all changes are code-level; schema stays at 63.
+
+### Next
+
+- Next session: extract the Telegram webhook handler (560L) + callback (281L) and the remaining long endpoint flows, then run the Phase 3 Ship Gate (verify → merge → deploy dev → smoke → deploy prod → smoke → tag `autopilot-phase-3-done`).

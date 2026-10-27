@@ -4,7 +4,7 @@
 > Resume protocol (PLAYBOOK §4): if this file exists, do NOT restart — resume from the recorded step.
 > Update this file after every commit.
 
-Last updated: 2026-10-27 — Phase 4 COMPLETE (milestone M4 met, Ship Gate executed, tag `autopilot-phase-4-done`)
+Last updated: 2026-10-27 — S229 (kanban per-card sync badge, web v0.4.1.37) SHIPPED + live-verified; Phase 4 COMPLETE before that (milestone M4 met, Ship Gate executed, tag `autopilot-phase-4-done`)
 
 ## Current phase
 
@@ -32,6 +32,8 @@ Last updated: 2026-10-27 — Phase 4 COMPLETE (milestone M4 met, Ship Gate execu
   10. Ship Gate (§3): verify → merge ff to main → push → deploy dev → smoke:remote dev → shotcheck dev → deploy prod → smoke:remote prod → shotcheck prod → purge → tag `autopilot-phase-3-done` → STATE/REPORT records.
 
 ## Session log
+
+- **2026-10-27 (S229 close-out — live verification, docs-only):** the per-card sync badge round (web v0.4.1.37, commits 7af5808 + 7a3198b on main) shipped by the prior session was verified END TO END live by this session: CI on 7a3198b green → CD lane auto-deployed both envs at 03:53Z (dev Worker a2a2791f, prod Worker 88239c1f) → this session re-ran the full remote proof: health OK both envs (schema 63, storage kv), `smoke:remote dev` **24/24 ALL PASS**, `smoke:remote prod` **24/24 ALL PASS**, `shotcheck:dev` **9/9**, `shotcheck:prod` **9/9**. GitHub Release `v0.4.1.37` published (tag @ 7af5808; the release workflow's version guard skipped a second cut for docs-only/hasSyncing rides). The DESKTOP twin (hibana-desktop v0.1.21/0.1.22, commit 36ff4ff: island pin → 7a3198b, sync-state.js in the island manifest, toolbar Sync-button count badge, honest SyncNow deviation recorded per spec §2) auto-released as `v0.1.22-desktop` — all three release assets re-downloaded + sha256-verified against the release's own checksums.txt (installer 9,325,138B `6e7fa4e3…` OK · portable zip 7,684,463B `47ab18c2…` OK · the zip's EMBEDDED hibana.exe `7a6c1cd7…` MATCH) and the release exe PE-verified (dual -X stamps `main.Version=0.1.22` + `main.WebRef=7a3198b` present; web-ref.json `"ref": "7a3198b"` — the island pin IS the S229 web ref). **Owner-side action REQUIRED (runbook policy: any token pasted in chat → rotate): the GitHub PAT was pasted in chat a 6th time this session — rotate it on github.com/settings/tokens; same for the Cloudflare token.** Next: owner dogfoods v0.1.22 on Windows (badge states + Retry pill + toolbar count); Phase 5 (performance — measure first, DP-3) when the autopilot resumes.
 
 - **2026-10-27 (Phase 4 COMPLETE — Ship Gate executed):** 8 commits (de22c1b → 130206d) on `autopilot/phase-4-modularization`, each pushed at the step. Ship Gate: local gates green (typecheck 0, eslint 0, vitest **755/755**, build 85 entries, portability PASS, fn-shape PASS, **boundaries PASS — new gate**, Node smoke ALL PASS, workers-smoke ALL PASS, diff secret-scan 0 hits) → merged ff to main @ 130206d + pushed → **no migrations (code-only)** → deploy dev (Worker version 3be0a930) → remote smoke dev **24/24 ALL PASS** → shotcheck dev **9/9** → deploy prod (Worker version dd907b01) → remote smoke prod **24/24 ALL PASS** → shotcheck prod **9/9** → zone cache purged → tag `autopilot-phase-4-done` pushed @ 130206d → STATE/REPORT records. Live health verified on both envs post-deploy. Next: Phase 5 (performance — measure first, DP-3).
 - **2026-10-27 (Phase 4, AP-60..63 — the modularization work):**
@@ -83,21 +85,22 @@ Last updated: 2026-10-27 — Phase 4 COMPLETE (milestone M4 met, Ship Gate execu
 
 ## Last green commit (code)
 
+- `main @ 7a3198b` — S229 kanban per-card sync badge (7af5808 badge + tracker + editor variant + 13-test sync-state suite, 769/769; 7a3198b hasSyncing() v1→v2 +1 test). CI green; CD auto-deployed dev+prod; remote smoke dev+prod 24/24; shotcheck dev+prod 9/9 (re-verified live this session). Tag `v0.4.1.37` + GitHub Release published.
 - `main @ 130206d` — Phase 4 merged (8 commits: boundary gate + telegram/vault/sadhana/core splits + FILE-ALLOWLIST + formatter outcome). `npm run verify` green (755/755, boundaries + fn-shape PASS); remote smoke dev+prod 24/24; shotcheck dev+prod 9/9.
 - (historical) `main @ 0d139f8` — Phase 3 merged (14 commits: AP-40..51 + 6 test-first bug fixes AP-52..57 + gates + records). `npm run verify` green (755/755); remote smoke dev+prod 24/24; shotcheck dev+prod 9/9.
 - (historical) `main @ de85a4d` — Phase 2 merged (10 commits: AP-1, AP-15, AP-20, AP-21/22/23, AP-24/25/26, AP-27..33, AP-34..39, AP-2 flake fix, smoke pin). `npm run verify` green (744/744); remote smoke dev+prod 24/24; shotcheck dev+prod 9/9.
 - (historical) `main @ 08b17bb` — Phase 0 merged (6 commits: inventory+baseline docs, portability gate, verify+CI wiring, 39 characterization tests, smoke-remote, RUNBOOK). `npm run verify` green; remote smoke dev 14/14 + prod 14/14; shotcheck dev 9/9 + prod 9/9; rollback drill on dev passed.
-- Repo package version: `0.4.1.36` (unchanged — Phase 0 added tooling/tests/docs, no product code).
+- Repo package version: `0.4.1.37` (S229 — the kanban sync-badge round; NO schema change: the state is client-derived per spec §14).
 
 ## Deployed versions
 
-- dev (hibana.aliassadi.workers.dev + dev D1 `pm-app-dev`): running `130206d` (Phase 4 merge commit; Worker version 3be0a930; schema 63; storage kv).
-- prod (hibana.ir + prod D1 `pm-app-prod`): running `130206d` (Phase 4 merge commit; Worker version dd907b01; schema 63; storage kv; zone cache purged post-deploy).
-- Both verified live this session: remote smoke 24/24 each, shotcheck 9/9 each, health OK. Tag `autopilot-phase-4-done` pushed at `130206d`.
+- dev (hibana.aliassadi.workers.dev + dev D1 `pm-app-dev`): running `7a3198b` (S229; Worker version a2a2791f, CD auto-deploy 2026-10-27T03:53Z; schema 63; storage kv).
+- prod (hibana.ir + prod D1 `pm-app-prod`): running `7a3198b` (S229; Worker version 88239c1f, CD auto-deploy 2026-10-27T03:53Z; schema 63; storage kv).
+- Both verified live THIS session: remote smoke 24/24 each, shotcheck 9/9 each, health OK. Tag `v0.4.1.37` + GitHub Release published at `7af5808`; desktop twin `v0.1.22-desktop` assets sha256-verified.
 
 ## Blockers
 
-- None. GitHub credentials verified working this session (clone + push both OK).
+- None blocking code/deploys. OWNER-SIDE REQUIRED: the GitHub PAT (and the Cloudflare token) were pasted in chat again this session — per the runbook policy ("any token pasted in chat → rotate") rotate BOTH: GitHub → github.com/settings/tokens, Cloudflare → dash.cloudflare.com/profile/api-tokens.
 
 ## Resume commands (exact)
 

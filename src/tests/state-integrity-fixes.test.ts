@@ -169,13 +169,20 @@ describe('AP-33 — Telegram title matching escapes LIKE wildcards', () => {
       await makeProject(db, uid, { title: '100 Things', status: 'developing', updated_at: '2026-10-20T00:00:00.000Z' })
       await db.execute('UPDATE users SET telegram_chat_id = ? WHERE id = ?', ['42', uid])
       // source-contract pin (the live webhook needs a real bot token): every prefix
-      // LIKE must carry an ESCAPE clause and a bound, escaped prefix.
-      const src = (await import('node:fs')).readFileSync('src/routes/integrations/telegram.ts', 'utf8')
-      const likeSites = src.match(/LOWER\(title\) LIKE \? ESCAPE/g) ?? []
-      expect(likeSites.length).toBeGreaterThanOrEqual(3) // /append + /update + proj_search
-      expect(src).toContain('escapeLikePrefix(')
+      // LIKE must carry an ESCAPE clause and a bound, escaped prefix. Phase 4 module
+      // split: the shared resolver lives in telegram-commands.ts (resolveProject —
+      // /append + /update), proj_search in telegram-webhook.ts, the escape helper in
+      // telegram-helpers.ts.
+      const fs = await import('node:fs')
+      const commands = fs.readFileSync('src/routes/integrations/telegram-commands.ts', 'utf8')
+      const webhook = fs.readFileSync('src/routes/integrations/telegram-webhook.ts', 'utf8')
+      const helpers = fs.readFileSync('src/routes/integrations/telegram-helpers.ts', 'utf8')
+      const likeSites = (commands + webhook).match(/LOWER\(title\) LIKE \? ESCAPE/g) ?? []
+      expect(likeSites.length).toBeGreaterThanOrEqual(2) // resolveProject (+ /append, /update) + proj_search
+      expect(commands).toContain('resolveProject(')
+      expect(webhook).toContain('escapeLikePrefix(')
       // and the escape helper actually escapes % _ and backslash
-      const helper = src.match(/const escapeLikePrefix[^\n]+/)?.[0] ?? ''
+      const helper = helpers.match(/export const escapeLikePrefix[^\n]+/)?.[0] ?? ''
       expect(helper).toContain('%')
       expect(helper).toContain('_')
     } finally {

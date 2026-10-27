@@ -314,3 +314,8 @@ export async function renderQuadrant(token: string, chatId: number, db: Db, user
   else await sendTelegramMessage(token, chatId, text, 'HTML', keyboard)
 }
 
+
+/** AP-33: escape LIKE wildcards for a PREFIX match ('%'/'_' are literal in titles;
+ *  every other LIKE in the codebase escapes — search.ts, vault.ts). Shared by the
+ *  webhook's project-search intent and the /append + /update commands (Phase 4 split). */
+export const escapeLikePrefix = (s: string): string => s.replace(/[\\%_]/g, (m) => '\\' + m) + '%'

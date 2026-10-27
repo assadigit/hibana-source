@@ -47,8 +47,8 @@
 | `src/routes/reports.ts:<anon>@L48` | 85 | [endpoint-flow] activity report (AP-24 bucket ranges pinned here). |
 | `src/routes/reset.ts:resetRoutes` | 94 | [endpoint-flow] factory with only 4 registrations — below the script's factory bar but same Phase 4 domain. |
 | `src/routes/search.ts:<anon>@L34` | 146 | [endpoint-flow] the 7-group exact-match search (escape + FTS + parked rules pinned). |
-| `src/routes/vault.ts:<anon>@L182` | 78 | [endpoint-flow] vault note PATCH (autosave: field-diff UPDATE builder). |
-| `src/routes/vault.ts:<anon>@L600` | 62 | [barely-over] vault folder delete (unfile cascade + counts). |
+| `src/routes/vault/folders.ts:<anon>@L23` | 78 | [endpoint-flow] vault GET /bootstrap — the sidebar one-shot (folders+counts+note-index+tag-index incl. inline #tag extraction). Moved verbatim in the Phase 4 vault split. |
+| `src/routes/vault/imports.ts:<anon>@L88` | 62 | [barely-over] vault POST /import/quicknotes (kind-branching title/body derivation + dedupe + inserts). Moved verbatim in the Phase 4 vault split. |
 | `src/services/ai.ts:runAiTransform` | 63 | [barely-over] model call + usage accounting. |
 | `src/services/backup-planb.ts:sendPlanBBackupToChat` | 89 | [adapter/Phase-4] the Plan-B Telegram channel (chunked send + retention). |
 | `src/services/backup.ts:buildUserSnapshot` | 97 | [adapter/Phase-4] the 40-table snapshot builder — one section per table; the backup-audit drift guard pins its coverage. |

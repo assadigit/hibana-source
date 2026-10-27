@@ -33,8 +33,8 @@
 | `src/routes/dashboard.ts:<anon>@L565` | 75 | [endpoint-flow] the overdue-chip aggregate query set. |
 | `src/routes/devboard.ts:<anon>@L630` | 87 | [endpoint-flow] sprint finish flow (status cascade + history + archives). |
 | `src/routes/integrations/import.ts:<anon>@L12` | 87 | [endpoint-flow] Obsidian import: caps → dedupe → notes → projects (AP-53 taxonomy pinned here). |
-| `src/routes/integrations/telegram.ts:<anon>@L66` | 560 | [adapter/Phase-4] THE known worst offender: the Telegram webhook dispatch (register/link/capture/append/update). Next-session extraction target — DEBT.md carries the plan; HTTP-level telegram suite (39 tests) is the safety net. |
-| `src/routes/integrations/telegram.ts:handleCallback` | 281 | [adapter/Phase-4] Telegram OAuth callback + deep-link state machine; same module, same next-session plan. |
+| `src/routes/integrations/telegram.ts:<anon>@L66` | 560 | [adapter/Phase-4] THE known worst offender: the Telegram webhook dispatch (register/link/capture/append/update). Phase 4's integrations-module split owns it (DEBT.md carries the plan); HTTP-level telegram suite (39 tests) is the safety net. |
+| `src/routes/integrations/telegram.ts:handleCallback` | 281 | [adapter/Phase-4] Telegram OAuth callback + deep-link state machine; same Phase 4 integrations-module split. |
 | `src/routes/module.ts:<anon>@L26` | 81 | [endpoint-flow] client module page aggregate. |
 | `src/routes/notifications.ts:<anon>@L38` | 133 | [endpoint-flow] the attention aggregate — 7 parallel queries + group rendering (AP-55 filter pinned here). |
 | `src/routes/projects/detail-helpers.ts:renderTitle` | 66 | [barely-over] the flat-dispatch title mini-renderer (was 8-deep nesting before Phase 3 flattened it). |

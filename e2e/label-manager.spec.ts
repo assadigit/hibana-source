@@ -60,7 +60,9 @@ test('label manager: usage list, rename-merge, recolor, delete-unused', async ({
   await page.click('#db-labels-btn')
   const dlg = page.locator('.db-modal:not([hidden])')
   await expect(dlg).toBeVisible()
-  const rows = dlg.locator('.db-label-row')
+  // S211: the create row (.db-label-create) also carries .db-label-row, so scope to
+  // [data-tag-id] which only existing labels carry (the create row has no tag-id).
+  const rows = dlg.locator('.db-label-row[data-tag-id]')
   await expect(rows).toHaveCount(2)
   // usage is honest: Alpha used 2×, Beta 1× — and no delete buttons (both in use)
   await expect(rows.filter({ has: page.locator('input[value="Alpha"]') }).locator('.db-label-usage')).toContainText('2')
@@ -71,7 +73,7 @@ test('label manager: usage list, rename-merge, recolor, delete-unused', async ({
   const alphaRow = rows.filter({ has: page.locator('input[value="Alpha"]') })
   await alphaRow.locator('.db-label-name').fill('beta')
   await alphaRow.locator('.db-label-name').press('Enter')
-  await expect(dlg.locator('.db-label-row')).toHaveCount(1) // Alpha merged away
+  await expect(dlg.locator('.db-label-row[data-tag-id]')).toHaveCount(1) // Alpha merged away
   await expect(dlg.locator('.db-label-usage')).toContainText('3')
   await page.keyboard.press('Escape')
   // the board reloaded through onChanged: every card now shows the Beta chip
@@ -83,10 +85,10 @@ test('label manager: usage list, rename-merge, recolor, delete-unused', async ({
   const tagsLoaded = page.waitForResponse((r) => r.url().includes('/api/tags') && r.request().method() === 'GET')
   await page.click('#db-labels-btn')
   await tagsLoaded
-  await expect(dlg.locator('.db-label-row')).toHaveCount(1)
+  await expect(dlg.locator('.db-label-row[data-tag-id]')).toHaveCount(1)
   await page.waitForTimeout(150)
-  await dlg.locator('.db-label-row [data-lbl-color]').click()
-  await dlg.locator('.db-label-palette [data-color="#8FD3A9"]').click()
+  await dlg.locator('.db-label-row[data-tag-id] [data-lbl-color]').click()
+  await dlg.locator('.db-label-row[data-tag-id] .db-label-palette [data-color="#8FD3A9"]').click()
   await page.keyboard.press('Escape')
   // S136: the chip is the project page's .pd-tag span now — the color rides the
   // inner .pd-tag-dot (the old .db-mini-chip carried it on the chip itself).
@@ -103,7 +105,42 @@ test('label manager: usage list, rename-merge, recolor, delete-unused', async ({
   // S210: label-delete has NO confirm (the row button IS the confirm — the old
   // page.on('dialog') was a defensive no-op that never fired). Delete directly.
   await dlg.locator('[data-lbl-del]').click()
-  await expect(dlg.locator('.db-label-row')).toHaveCount(0)
+  await expect(dlg.locator('.db-label-row[data-tag-id]')).toHaveCount(0)
+})
+
+test('label manager: create a new label (S211) — name + color → POST /api/tags → row appears', async ({ page, browserName }) => {
+  test.skip(browserName !== 'chromium', 'Desktop Chromium only')
+  await login(page)
+  const pid = await page.evaluate(async () => {
+    const res = await fetch('/api/projects', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ title: `e2e create ${Date.now()}`, status: 'developing' }) })
+    return ((await res.json()) as { id: string }).id
+  })
+  await page.goto(`/board.html?project=${pid}`)
+
+  // open the manager — the create row is at the top
+  await page.click('#db-labels-btn')
+  const dlg = page.locator('.db-modal:not([hidden])')
+  await expect(dlg).toBeVisible()
+  // no existing labels yet
+  await expect(dlg.locator('.db-label-row[data-tag-id]')).toHaveCount(0)
+  // the create row IS present (carries .db-label-create + .db-label-row, no data-tag-id)
+  await expect(dlg.locator('.db-label-row.db-label-create')).toHaveCount(1)
+
+  // pick a color from the palette
+  await dlg.locator('#lbl-create-color').click()
+  await dlg.locator('#lbl-create-palette [data-lbl-create-pick][data-color="#E59AA5"]').click()
+
+  // type a name + Enter → creates (POST /api/tags)
+  const created = page.waitForResponse((r) => r.url().includes('/api/tags') && r.request().method() === 'POST')
+  await dlg.locator('#lbl-create-name').fill('New Feature')
+  await dlg.locator('#lbl-create-name').press('Enter')
+  const res = await created
+  expect(res.status()).toBe(201)
+  // the row appears in the list (refresh re-rendered)
+  await expect(dlg.locator('.db-label-row[data-tag-id] input[value="New Feature"]')).toHaveCount(1)
+  // usage 0× + a delete button (unused)
+  await expect(dlg.locator('.db-label-row[data-tag-id] .db-label-usage')).toContainText('0')
+  await expect(dlg.locator('[data-lbl-del]')).toHaveCount(1)
 })
 
 test('project page: drag into the urgent zone adopts urgent; the bar tooltip breaks down tiers', async ({ page, browserName }) => {

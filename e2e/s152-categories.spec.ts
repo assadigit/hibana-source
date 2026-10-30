@@ -171,8 +171,9 @@ test('blocks 2+8: Settings manages the library; archiving keeps the card chip bu
   await page.locator('[data-cat-save]').click()
   await expect(page.locator('#catlist .cat-chip', { hasText: 'Design' })).toBeVisible()
   // archive it → the row leaves the screen
-  page.on('dialog', (d) => d.accept())
+  // S210: the archive-category confirm is now a Hibana design-system modal.
   await page.locator('#catlist .pd-cat-row', { hasText: 'Design' }).locator('[data-cat-archive]').click()
+  await page.locator('.hib-confirm-overlay [data-hib-confirm="ok"]').click()
   await expect(page.locator('#catlist .pd-cat-row', { hasText: 'Design' })).toHaveCount(0)
   // block 8 on the board: the chip KEEPS rendering (history visible) under the new name
   await page.goto(`/project.html?id=${PROJ_ID}`)

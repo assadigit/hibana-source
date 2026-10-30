@@ -100,7 +100,8 @@ test('label manager: usage list, rename-merge, recolor, delete-unused', async ({
   }, { pid })
   await page.click('#db-labels-btn')
   await expect(dlg.locator('[data-lbl-del]')).toHaveCount(1) // unused now
-  page.on('dialog', (d) => d.accept()) // no confirm on delete — the row button is the confirm
+  // S210: label-delete has NO confirm (the row button IS the confirm — the old
+  // page.on('dialog') was a defensive no-op that never fired). Delete directly.
   await dlg.locator('[data-lbl-del]').click()
   await expect(dlg.locator('.db-label-row')).toHaveCount(0)
 })

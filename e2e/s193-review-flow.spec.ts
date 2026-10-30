@@ -209,8 +209,10 @@ test('delete from the queue lands on the NEXT idea', async ({ page }) => {
   // set: [fresh (20d), sp3 (8d)] — fresh rides position 1
   await page.goto(`/spark.html?id=${U1}-fresh`)
   await expect(page.locator('.spark-queue-pos')).toHaveText('Review queue · 1 of 2')
-  page.on('dialog', (d) => d.accept()) // the delete confirm
+  // S210: the delete confirm is now a Hibana design-system modal (was a native
+  // window.confirm()). Click the modal's OK after triggering the delete.
   await page.click('#spark-delete')
+  await page.locator('.hib-confirm-overlay [data-hib-confirm="ok"]').click()
   // lands on the next (sp3), not the shelf
   await page.waitForURL(new RegExp(`spark\\.html\\?id=${U1}-sp3`))
   await expect(page.locator('#spark-title')).toHaveValue('s193 old idea #3')
@@ -272,8 +274,9 @@ test('the dirty-confirm saves before the queue hop (never lose the words)', asyn
   await expect(page.locator('.spark-queue-pos')).toHaveText('Review queue · 1 of 2')
   // edit the title, then hop — the confirm saves first
   await page.fill('#spark-title', 's193 mid-review edit')
-  page.on('dialog', (d) => d.accept()) // the save-and-continue confirm
+  // S210: the save-and-continue confirm is now a Hibana design-system modal.
   await page.click('#spark-queue-next')
+  await page.locator('.hib-confirm-overlay [data-hib-confirm="ok"]').click()
   await page.waitForURL(new RegExp(`spark\\.html\\?id=${U1}-sp3`))
   // the edit SAVED (not lost): verify via the API
   const r = await page.request.get(`/api/projects/${U1}-sp1`)

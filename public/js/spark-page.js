@@ -129,7 +129,7 @@ window.__hibanaPage({
       const url = '/spark.html?id=' + encodeURIComponent(nextId)
       const leave = () => { if (window.hibanaNav) window.hibanaNav.go(url); else window.location.assign(url) }
       if (dirty && !saving) {
-        if (!await window.hibana.confirm(_t('spark.queueUnsaved', 'You have unsaved changes — save them and continue?'), { title: 'Unsaved changes', confirmLabel: 'Continue' })) return
+        if (!await window.hibana.confirm(_t('spark.queueUnsaved', 'You have unsaved changes — save them and continue?'))) return
         save().then((ok) => { if (ok) leave() })
         return
       }

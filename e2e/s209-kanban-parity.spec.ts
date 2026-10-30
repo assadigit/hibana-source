@@ -364,8 +364,10 @@ test('parity: ARCHIVE-DONE on the embedded board refreshes IN PLACE — no locat
   // a page-lifetime marker: a location.reload() destroys it; an in-place htmx
   // refresh (bodyRefresh) keeps it
   await page.evaluate(() => { (window as unknown as { __s209alive: boolean }).__s209alive = true })
-  page.on('dialog', (d) => d.accept()) // the archive confirm
+  // S210: the archive confirm is now a Hibana design-system modal (was a native
+  // window.confirm() — page.on('dialog') no longer fires). Click the modal's OK.
   await page.click('[data-pd-archive-done]')
+  await page.locator('.hib-confirm-overlay [data-hib-confirm="ok"]').click()
   await expect
     .poll(async () => await page.evaluate(() => document.querySelectorAll('.pd-col[data-status="done"] .pd-task-wrap').length), { timeout: 10_000 })
     .toBe(0)

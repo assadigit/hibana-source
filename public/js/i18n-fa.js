@@ -803,6 +803,7 @@ window.__hibanaDictFA = {
       'db.labelsName': 'نام برچسب', 'db.labelsColor': 'تغییر رنگ', 'db.labelsMerge': 'ادغام در…', 'db.labelsMergePh': 'ادغام در…',
       'db.labelsMergeConfirm': 'این برچسب در «{name}» ادغام شود؟ همهٔ پیوندها منتقل می‌شوند.', 'db.labelsMerged': 'در برچسب موجود ادغام شد',
       'db.labelsDel': 'حذف برچسب بلااستفاده', 'db.labelsDeleted': 'برچسب حذف شد', 'db.labelsEmpty': 'هنوز برچسبی نیست — از یک کار اضافه کن.',
+      'db.labelsCreate': 'ایجاد', 'db.labelsCreatePh': 'نام برچسب جدید…', 'db.labelsCreated': 'برچسب ایجاد شد', 'db.labelsExists': 'برچسبی با این نام از قبل وجود دارد',
       'db.usedTimes': '{n} بار استفاده',
       // S30 بستهٔ ۳: تحلیل کارهای گزارش + نوار فوریِ داشبورد
       'reports.tasksHeading': 'تحلیل کارها', 'reports.openTasks': 'باز', 'reports.openTasks2': 'باز',

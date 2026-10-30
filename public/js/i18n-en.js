@@ -806,6 +806,7 @@ window.__hibanaDictEN = {
       'db.labelsName': 'Label name', 'db.labelsColor': 'Recolor', 'db.labelsMerge': 'Merge into…', 'db.labelsMergePh': 'merge into…',
       'db.labelsMergeConfirm': 'Merge this label into {name}? Every link moves.', 'db.labelsMerged': 'Merged into the existing label',
       'db.labelsDel': 'Delete unused label', 'db.labelsDeleted': 'Label deleted', 'db.labelsEmpty': 'No labels yet — add one from a task.',
+      'db.labelsCreate': 'Create', 'db.labelsCreatePh': 'New label name…', 'db.labelsCreated': 'Label created', 'db.labelsExists': 'A label with that name already exists',
       'db.usedTimes': 'used {n}×',
       // S30 batch 3: reports task analytics + the dashboard urgent strip
       'reports.tasksHeading': 'Task analytics', 'reports.openTasks': 'open', 'reports.openTasks2': 'open',

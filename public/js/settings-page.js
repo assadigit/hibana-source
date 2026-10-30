@@ -951,7 +951,7 @@
             }
             const archiveBtn = ev.target.closest('[data-cat-archive]')
             if (archiveBtn) {
-              if (!window.confirm(tC('db.archiveCatConfirm', 'Archive this category? Its tasks keep it — it just leaves the pickers and toggles.'))) return
+              if (!await window.hibana.confirm(tC('db.archiveCatConfirm', 'Archive this category? Its tasks keep it — it just leaves the pickers and toggles.'), { title: 'Archive category', confirmLabel: 'Archive' })) return
               try {
                 const r = await fetch('/api/categories/' + archiveBtn.dataset.catArchive + '/archive', { method: 'POST' })
                 if (!r.ok) throw new Error('archive failed')
@@ -965,7 +965,7 @@
             // every task; delete takes the row away AND the chips with it.
             const deleteBtn = ev.target.closest('[data-cat-delete]')
             if (deleteBtn) {
-              if (!window.confirm(tC('cat.deleteConfirm', 'Delete this category for good? Its tasks stay but lose their category chip — archive instead to keep it.'))) return
+              if (!await window.hibana.confirm(tC('cat.deleteConfirm', 'Delete this category for good? Its tasks stay but lose their category chip — archive instead to keep it.'), { title: 'Delete category', danger: true, confirmLabel: 'Delete' })) return
               try {
                 const r = await fetch('/api/categories/' + deleteBtn.dataset.catDelete, { method: 'DELETE' })
                 if (!r.ok) throw new Error('delete failed')

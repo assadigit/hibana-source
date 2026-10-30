@@ -525,7 +525,7 @@
           if (!ids.length) return
           const n = ids.length
           const size = fmtSize(selBytes()) || '0 KB'
-          if (!window.confirm(_t('gallery.deleteSelectedConfirm', 'Delete {n} pictures for good? Frees ≈{size} of space.').split('{n}').join(dig(n)).split('{size}').join(dig(size)))) return
+          if (!await window.hibana.confirm(_t('gallery.deleteSelectedConfirm', 'Delete {n} pictures for good? Frees ≈{size} of space.').split('{n}').join(dig(n)).split('{size}').join(dig(size)), { title: 'Delete pictures', danger: true, confirmLabel: 'Delete' })) return
           // delete bar first (the count is stale the moment the first DELETE lands)
           removeSelBar()
           if (selectBtn) selectBtn.disabled = true
@@ -553,7 +553,7 @@
           if (!state.rows.length) return
           const n = state.rows.length
           const size = fmtSize(state.rows.reduce((a, r) => a + (r.bytes || 0), 0)) || '0 KB'
-          if (!window.confirm(_t('gallery.deleteAllConfirm', 'Delete ALL {n} pictures/files for good? This frees ≈{size} and cannot be undone.').split('{n}').join(dig(n)).split('{size}').join(dig(size)))) return
+          if (!await window.hibana.confirm(_t('gallery.deleteAllConfirm', 'Delete ALL {n} pictures/files for good? This frees ≈{size} and cannot be undone.').split('{n}').join(dig(n)).split('{size}').join(dig(size)), { title: 'Delete pictures', danger: true, confirmLabel: 'Delete' })) return
           if (deleteAllBtn) deleteAllBtn.disabled = true
           if (selectBtn) selectBtn.disabled = true
           try {
@@ -797,7 +797,7 @@
           if (zoom) { openLightbox(zoom.getAttribute('data-gal-zoom'), zoom); return }
           const del = e.target.closest('[data-gal-del]')
           if (del) {
-            if (!window.confirm(_t('gallery.deleteConfirm', 'Delete this picture for good? It also frees the space it uses.'))) return
+            if (!await window.hibana.confirm(_t('gallery.deleteConfirm', 'Delete this picture for good? It also frees the space it uses.'), { title: 'Delete', danger: true, confirmLabel: 'Delete' })) return
             try {
               const res = await fetch('/api/screenshots/' + del.getAttribute('data-gal-del'), { method: 'DELETE' })
               if (!res.ok) throw new Error('status ' + res.status)

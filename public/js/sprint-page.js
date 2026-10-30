@@ -553,7 +553,7 @@
             } catch { window.hibana && window.hibana.toast(_t('sparks.saveFailed', "Couldn't save"), 'err') }
           }
           el.querySelector('[data-sp-draft-del]').onclick = async () => {
-            if (!window.confirm(_t('db.delSprintConfirm', 'Delete this sprint? Its tasks stay, unassigned.'))) return
+            if (!await window.hibana.confirm(_t('db.delSprintConfirm', 'Delete this sprint? Its tasks stay, unassigned.'), { title: 'Delete sprint', danger: true, confirmLabel: 'Delete' })) return
             try { await B().deleteSprint(draft.id); await reload() }
             catch { window.hibana && window.hibana.toast(_t('sparks.saveFailed', "Couldn't save"), 'err') }
           }
@@ -965,7 +965,7 @@
               await B().patchSprint(id, { ended_at: newEnd.toISOString() })
             }
             if (spBtn.matches('[data-sp-del]')) {
-              if (!window.confirm(_t('db.delSprintConfirm', 'Delete this sprint? Its tasks stay, unassigned.'))) return
+              if (!await window.hibana.confirm(_t('db.delSprintConfirm', 'Delete this sprint? Its tasks stay, unassigned.'), { title: 'Delete sprint', danger: true, confirmLabel: 'Delete' })) return
               await B().deleteSprint(id)
             }
             closeSprintPop()
@@ -1026,7 +1026,7 @@
         }
 
         // ---- interactions ------------------------------------------------------
-        ctx.on('click', (e) => {
+        ctx.on('click', async (e) => {
           // S45/S7: the empty-state CTA opens the SAME define popover as the toolbar's
           // ◆ button — one code path (draft-exists 409 handling included).
           if (e.target.closest('[data-sp-empty-define]')) {
@@ -1045,7 +1045,7 @@
             const cat = B().findCategory(del.dataset.catDel)
             if (!cat) return
             // S152 (block 8): archive, not hard delete — rows stay, tasks keep the category.
-            if (!window.confirm(_t('db.archiveCatConfirm', 'Archive this category? Its tasks keep it — it just leaves the pickers and toggles.'))) return
+            if (!await window.hibana.confirm(_t('db.archiveCatConfirm', 'Archive this category? Its tasks keep it — it just leaves the pickers and toggles.'), { title: 'Archive category', confirmLabel: 'Archive' })) return
             B().deleteCategory(cat.id).then(reload).catch(() => window.hibana && window.hibana.toast(_t('sparks.saveFailed', "Couldn't save"), 'err'))
             return
           }

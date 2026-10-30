@@ -473,7 +473,7 @@
           e.preventDefault()
           const pid = btn.getAttribute('data-project-id') || id
           const archiving = !!btn.closest('[data-pd-archive]')
-          if (archiving && !window.confirm(_t('pd.archiveConfirm', 'Park this for later? It leaves your lists but stays safe under Archive — restorable any time.'))) return
+          if (archiving && !await window.hibana.confirm(_t('pd.archiveConfirm', 'Park this for later? It leaves your lists but stays safe under Archive — restorable any time.'), { title: 'Archive', confirmLabel: 'Archive' })) return
           btn.disabled = true
           try {
             const res = await fetch('/api/projects/' + pid + (archiving ? '/archive' : '/unarchive'), { method: 'POST' })
@@ -946,7 +946,7 @@
           }
           const del = e.target.closest('[data-shot-del]')
           if (del) {
-            if (!window.confirm(_t('project.shotDelConfirm', 'Delete this file?'))) return
+            if (!await window.hibana.confirm(_t('project.shotDelConfirm', 'Delete this file?'), { title: 'Delete file', danger: true, confirmLabel: 'Delete' })) return
             try {
               const res = await fetch('/api/screenshots/' + del.getAttribute('data-shot-del'), { method: 'DELETE' })
               if (!res.ok) throw new Error('status ' + res.status)
@@ -4911,7 +4911,7 @@
           const delBtn = e.target.closest('[data-archive-delete]')
           if (delBtn) {
             const aid = delBtn.getAttribute('data-archive-delete')
-            if (!confirm(_t('pd.deleteArchiveConfirm', 'Permanently delete this archived task?'))) return
+            if (!await window.hibana.confirm(_t('pd.deleteArchiveConfirm', 'Permanently delete this archived task?'), { title: 'Delete archived task', danger: true, confirmLabel: 'Delete' })) return
             try {
               const res = await fetch('/api/projects/' + id + '/archives/' + aid, { method: 'DELETE' })
               if (!res.ok) throw new Error('delete failed')
@@ -5294,7 +5294,7 @@
           const delDoc = e.target.closest('[data-bl-del]')
           if (delDoc) {
             const docId = delDoc.dataset.blDel
-            if (!window.confirm(_t('bl.delDocConfirm', 'Delete this plan document and its history?'))) return
+            if (!await window.hibana.confirm(_t('bl.delDocConfirm', 'Delete this plan document and its history?'), { title: 'Delete plan', danger: true, confirmLabel: 'Delete' })) return
             try {
               const res = await fetch('/api/backlog/docs/' + docId, { method: 'DELETE' })
               if (!res.ok) throw new Error('delete failed')
@@ -5861,7 +5861,7 @@
             const count = col ? col.querySelectorAll('.pd-task').length : 0
             if (count === 0) return
             const msg = _t('pd.archiveDoneConfirm', 'Archive all {n} done tasks? They move to the project archives (restorable).').replace('{n}', pdDig(count))
-            if (!confirm(msg)) return
+            if (!await window.hibana.confirm(msg, { title: 'Archive', confirmLabel: 'Archive' })) return
             fetch('/api/projects/' + id + '/devtasks/archive-done', { method: 'POST' })
               .then((r) => r.ok ? r.json() : null)
               .then((body) => {
@@ -5912,7 +5912,7 @@
           if (removeBtn) {
             const pid = removeBtn.dataset.pdLogoRemove
             if (!pid) return
-            if (!confirm(_t('pd.logoRemoveConfirm', 'Remove the logo?'))) return
+            if (!await window.hibana.confirm(_t('pd.logoRemoveConfirm', 'Remove the logo?'), { title: 'Remove logo', danger: true, confirmLabel: 'Remove' })) return
             try {
               const res = await fetch('/api/projects/' + pid + '/logo', { method: 'DELETE' })
               if (!res.ok) throw new Error('remove failed')

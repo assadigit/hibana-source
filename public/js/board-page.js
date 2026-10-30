@@ -603,7 +603,7 @@
         }
 
         // ---- interactions (delegated once — render() only rebuilds innerHTML) ----
-        ctx.on('click', (e) => {
+        ctx.on('click', async (e) => {
           if (e.target.closest('#db-retry')) {
             loading.innerHTML = '<span>' + String(_t('db.loading', 'Loading board…')).replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' })[c]) + '</span>'
             boot()
@@ -746,7 +746,7 @@
             const count = col ? col.querySelectorAll('.pd-task-wrap').length : 0
             if (count === 0) return
             const msg = _t('pd.archiveDoneConfirm', 'Archive all {n} done tasks? They move to the project archives (restorable).').replace('{n}', B().faDig(count))
-            if (!confirm(msg)) return
+            if (!await window.hibana.confirm(msg, { title: _t('pd.archiveDone', 'Archive done tasks'), confirmLabel: _t('pd.archiveDone', 'Archive') })) return
             fetch('/api/projects/' + projectId + '/devtasks/archive-done', { method: 'POST' })
               .then((r) => r.ok ? r.json() : null)
               .then((body) => {
@@ -764,7 +764,7 @@
             const count = col ? col.querySelectorAll('.pd-task-wrap').length : 0
             if (count === 0) return
             const msg = _t('pd.clearDoneConfirm', 'PERMANENTLY delete all {n} done tasks? This cannot be undone. Use "Archive" to keep them.').replace('{n}', B().faDig(count))
-            if (!confirm(msg)) return
+            if (!await window.hibana.confirm(msg, { title: _t('pd.clearDone', 'Clear done (delete)'), danger: true, confirmLabel: _t('pd.clearDone', 'Delete all') })) return
             // Delete each task individually (no bulk-delete endpoint — keeps it simple)
             const ids = Array.from(col.querySelectorAll('.pd-task-wrap')).map((c) => c.dataset.taskCard)
             Promise.all(ids.map((id) => fetch('/api/devtasks/' + id, { method: 'DELETE' })))

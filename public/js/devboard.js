@@ -1233,7 +1233,7 @@
     const delBtn = el.querySelector('[data-db-del]')
     if (delBtn) {
       delBtn.onclick = async () => {
-        if (!window.confirm(t('db.delConfirm', 'Delete this task?'))) return
+        if (!await window.hibana.confirm(t('db.delConfirm', 'Delete this task?'), { title: 'Delete task', danger: true, confirmLabel: 'Delete' })) return
         try {
           await deleteTask(modalCtx.taskId)
           window.hibana && window.hibana.toast(t('db.taskDeleted', 'Task deleted'), 'ok')
@@ -1407,7 +1407,7 @@
         if (!into) return
         const targetName = mergeSel.options[mergeSel.selectedIndex].textContent
         const msg = t('db.labelsMergeConfirm', 'Merge this label into {name}? Every link moves.').split('{name}').join(targetName)
-        if (!window.confirm(msg)) { mergeSel.value = ''; return }
+        if (!await window.hibana.confirm(msg, { title: 'Merge label', confirmLabel: 'Merge' })) { mergeSel.value = ''; return }
         try {
           const res = await fetch('/api/tags/' + id + '/merge', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ into: into }) })
           if (!res.ok) throw new Error('merge failed')

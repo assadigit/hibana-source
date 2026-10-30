@@ -535,11 +535,11 @@
             const isPermanent = r.banned_until === 'forever' || (r.banned_until && r.banned_until.startsWith('9999'))
             toast(`${t('admin.doneBan', 'Suspended')} — ${isPermanent ? t('admin.stForever', 'permanent') : esc(r.banned_until)}`)
           } else if (act === 'promote') {
-            if (!confirm(t('admin.confirmPromote', 'Promote this account to super-admin?'))) return
+            if (!await window.hibana.confirm(t('admin.confirmPromote', 'Promote this account to super-admin?'), { title: 'Promote' })) return
             await api('POST', `/api/admin/users/${u.id}/role`, { role: 'owner' })
             toast(t('admin.donePromote', 'Promoted to super-admin'))
           } else if (act === 'demote') {
-            if (!confirm(t('admin.confirmDemote', 'Demote this super-admin to member?'))) return
+            if (!await window.hibana.confirm(t('admin.confirmDemote', 'Demote this super-admin to member?'), { title: 'Demote' })) return
             await api('POST', `/api/admin/users/${u.id}/role`, { role: 'member' })
             toast(t('admin.doneDemote', 'Demoted to member'))
           } else if (act === 'send-reset') {

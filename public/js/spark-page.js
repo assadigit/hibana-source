@@ -125,11 +125,11 @@ window.__hibanaPage({
     // the words are the idea, never lost to a queue hop); a failed save keeps
     // you on the page. The S120 draft store can't cover this one: it restores
     // only the SAME idea's fields, and the queue opens the NEXT idea's page.
-    function queueGo(nextId) {
+    async function queueGo(nextId) {
       const url = '/spark.html?id=' + encodeURIComponent(nextId)
       const leave = () => { if (window.hibanaNav) window.hibanaNav.go(url); else window.location.assign(url) }
       if (dirty && !saving) {
-        if (!window.confirm(_t('spark.queueUnsaved', 'You have unsaved changes — save them and continue?'))) return
+        if (!await window.hibana.confirm(_t('spark.queueUnsaved', 'You have unsaved changes — save them and continue?'), { title: 'Unsaved changes', confirmLabel: 'Continue' })) return
         save().then((ok) => { if (ok) leave() })
         return
       }
@@ -497,8 +497,8 @@ window.__hibanaPage({
         await reload(['pin'])
       } catch { window.hibana?.toast(_t('sparks.saveFailed', "Couldn't save — try again"), 'err') }
     })
-    $('spark-delete').addEventListener('click', () => {
-      if (!window.confirm(_t('spark.deleteConfirm', 'Delete this idea?'))) return
+    $('spark-delete').addEventListener('click', async () => {
+      if (!await window.hibana.confirm(_t('spark.deleteConfirm', 'Delete this idea?'), { title: 'Delete idea', danger: true, confirmLabel: 'Delete' })) return
       dirty = false // S171: the guard must not fire on the deliberate, confirmed delete hop
       draftClear()
       fetch('/api/projects/' + id, { method: 'DELETE' })

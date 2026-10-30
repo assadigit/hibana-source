@@ -1622,7 +1622,7 @@ async function archRestore(id){
    on success the board + the whole archive view (stats + groups + total)
    refetch — same refresh pattern as archRestore. */
 async function archDelete(id){
-  if(!confirm(tr('delFromArchiveConfirm')))return;
+  if(!await window.hibana.confirm(tr('delFromArchiveConfirm'),{title:'Delete',danger:true,confirmLabel:'Delete'}))return;
   const btn=document.querySelector('.arch-delete[data-arch-del="'+id+'"]');
   if(btn)btn.disabled=true;
   try{
@@ -1643,7 +1643,7 @@ async function archDelete(id){
    recurring task itself stays on the board, only its archived history vanishes. */
 async function archRecurDelete(taskId){
   if(!taskId)return;
-  if(!confirm(lang==='fa'?'تاریخچهٔ انجام این کار تکرارشونده برای همیشه حذف شود؟ خود کار روی تابلو می‌ماند.':'Permanently delete this recurring task\'s completion history? The task itself stays on the board.'))return;
+  if(!await window.hibana.confirm(lang==='fa'?'تاریخچهٔ انجام این کار تکرارشونده برای همیشه حذف شود؟ خود کار روی تابلو می‌ماند.':'Permanently delete this recurring task\'s completion history? The task itself stays on the board.',{title:lang==='fa'?'حذف تاریخچه':'Delete history',danger:true,confirmLabel:lang==='fa'?'حذف':'Delete'}))return;
   const btn=document.querySelector('.arch-delete[data-arch-recur-del="'+taskId+'"]');
   if(btn)btn.disabled=true;
   try{
@@ -1664,9 +1664,9 @@ async function archRecurDelete(taskId){
    Same refresh pattern as archDelete: board repaint + archive refetch. */
 async function archPurgeAll(){
   if(!archTotal)return;
-  if(!confirm(lang==='fa'
+  if(!await window.hibana.confirm(lang==='fa'
     ?'همهٔ '+toFa(archTotal)+' کار بایگانی‌شده برای همیشه حذف شود؟ بازگشتی ندارد.'
-    :'Permanently delete ALL '+archTotal+' archived tasks? This cannot be undone.'))return;
+    :'Permanently delete ALL '+archTotal+' archived tasks? This cannot be undone.',{title:lang==='fa'?'حذف همه':'Delete all',danger:true,confirmLabel:lang==='fa'?'حذف':'Delete'}))return;
   const btn=document.getElementById('archPurgeAll');
   if(btn)btn.disabled=true;
   try{

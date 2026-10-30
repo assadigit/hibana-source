@@ -322,6 +322,83 @@ window.hibana = (() => {
     if (ms > 0) setTimeout(() => { if (el.parentNode) el.remove() }, ms)
   }
 
+  // S210: the Hibana confirm modal — a centered, design-system replacement for the
+  // native window.confirm() box (which broke the design language: square corners, no
+  // backdrop, top-anchored, OS-themed). Returns a Promise<boolean> so callers keep the
+  // exact `if (!await hibana.confirm(...)) return` shape the inline confirm() had —
+  // or `hibana.confirm(...).then(ok => ...)` for non-async call sites.
+  //
+  //   hibana.confirm('Delete this task?')                                   → Cancel/OK, neutral
+  //   hibana.confirm('Permanently delete?', { danger:true, confirmLabel:'Delete' })
+  //   hibana.confirm('Archive 7 done tasks?', { title:'Archive', confirmLabel:'Archive' })
+  //
+  // opts: { title?:string, danger?:boolean, confirmLabel?:string, cancelLabel?:string }
+  // One overlay at a time: a second call supersedes the first (resolves false — the
+  // caller's action is abandoned, matching how window.confirm behaves under stacking).
+  let _confirmOverlay = null
+  function confirm(message, opts = {}) {
+    const o = opts || {}
+    // escape the message + labels — they're inserted as text, never HTML
+    const title = o.title ? esc(o.title) : ''
+    const confirmLabel = o.confirmLabel ? esc(o.confirmLabel) : (o.danger ? _t('common.delete', 'Delete') : _t('common.ok', 'OK'))
+    const cancelLabel = o.cancelLabel ? esc(o.cancelLabel) : _t('common.cancel', 'Cancel')
+    // supersede any open confirm (a second confirm resolves the first as false)
+    if (_confirmOverlay) { _confirmOverlay._resolve(false); _confirmOverlay.remove(); _confirmOverlay = null }
+    return new Promise((resolve) => {
+      const overlay = document.createElement('div')
+      overlay.className = 'hib-confirm-overlay'
+      overlay.setAttribute('role', 'dialog')
+      overlay.setAttribute('aria-modal', 'true')
+      overlay.setAttribute('aria-labelledby', title ? 'hib-confirm-title' : 'hib-confirm-msg')
+      const card = document.createElement('div')
+      card.className = 'hib-confirm-card' + (o.danger ? ' is-danger' : '')
+      const iconSvg = o.danger
+        ? '<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 9v4M12 17h.01M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"/></svg>'
+        : '<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 9v4M12 17h.01"/><circle cx="12" cy="12" r="9"/></svg>'
+      card.innerHTML =
+        (title ? '<h2 class="hib-confirm-title" id="hib-confirm-title">' + iconSvg + title + '</h2>' : '') +
+        '<p class="hib-confirm-message" id="hib-confirm-msg">' + esc(String(message ?? '')) + '</p>' +
+        '<div class="hib-confirm-actions">' +
+          '<button type="button" class="ghost" data-hib-confirm="cancel">' + cancelLabel + '</button>' +
+          '<button type="button" data-hib-confirm="ok">' + confirmLabel + '</button>' +
+        '</div>'
+      // a destructive confirm renders the OK button as a danger ghost (red ink on the
+      // danger-soft fill) — S186 keeps ONE primary per view, and a destructive primary
+      // speaks the danger palette rather than the teal CTA.
+      if (o.danger) {
+        const okBtn = card.querySelector('[data-hib-confirm="ok"]')
+        if (okBtn) { okBtn.className = 'ghost danger'; okBtn.style.background = ''; okBtn.style.color = '' }
+      }
+      overlay.appendChild(card)
+      document.body.appendChild(overlay)
+      _confirmOverlay = overlay
+      overlay._resolve = (val) => { resolve(val); _confirmOverlay = null }
+      const close = (val) => {
+        if (!overlay.parentNode) return
+        overlay._resolve(val)
+        overlay.remove()
+        // restore focus to the element that opened the dialog (best-effort)
+        document.body.focus()
+      }
+      // wire the buttons
+      card.querySelector('[data-hib-confirm="cancel"]').addEventListener('click', () => close(false))
+      card.querySelector('[data-hib-confirm="ok"]').addEventListener('click', () => close(true))
+      // backdrop click (outside the card) cancels
+      overlay.addEventListener('click', (e) => { if (e.target === overlay) close(false) })
+      // Escape cancels; Enter confirms (parity with the native confirm's keyboard contract)
+      overlay.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); close(false) }
+        else if (e.key === 'Enter') { e.preventDefault(); e.stopPropagation(); close(true) }
+      })
+      // focus the confirm button (the trailing primary) so Enter fires confirm + the
+      // dialog is screen-reader-announced immediately
+      requestAnimationFrame(() => {
+        const focusTarget = card.querySelector('[data-hib-confirm="ok"]')
+        if (focusTarget) focusTarget.focus()
+      })
+    })
+  }
+
   // S158: page identity must match BOTH URL forms. Cloudflare's assets binding
   // (html_handling auto-trailing-slash) 307s every /page.html to /page on live, so a
   // hard load always runs extensionless (/sparks — verified: curl /sparks.html → 307
@@ -4260,6 +4337,6 @@ window.hibana = (() => {
   else announceShareCapture()
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', consumeShareTarget, { once: true })
   else consumeShareTarget()
-  Object.assign(window.__hib, { _t, esc, escHtml, toast, handle401, currentTheme, setTheme, paintThemeButton, toggleTheme, buildQuickAdd, openQuickAdd, buildProjectAdd, openProjectAdd, buildTaskAdd, openTaskAdd, buildQuickNoteAdd, openQuickNoteAdd, draftLines, DRAFT_X, renderDraft, syncStatCarousel, initStatCarousel, getCollapsed, setCollapsed, initCollapseButtons, dashQuadPhone, dashQuadGrid, dashQuadIndex, syncDashQuadDots, goToDashQuad, hideDashSwipeHint, wireDashSwipeHint, buildDashQuadDots, refreshDashboard, syncDashTodoFades, closeDashMenu, dashTaskRequest, refreshTaskSurface, setDashQuickaddReady, closeDashNoteBubble, closeDashNotePanel, openDashNoteBubble, dashNoteFmt, dashNoteEditStart, dashNoteEditRestore, dashNoteDelete, dashNoteRow, dashNoteAnchorRect, placeDashNotePanel, openDashNotePanel, closeOpenDashMenus, placeDashMenu, clearDashTaskDropTargets, dashTaskList, updateDashTaskEmpty, persistDashOrder, updateDashTaskCounter, showDashTaskMoveError, autosizeNote, buildNoteReader, enterNoteEdit, openNoteReader, injectNoteMenus, closeNoteMenus, buildNoteEditor, applyNoteView, applyNoteSize, applyNoteControlsOpen, markClampedNotes, fabEl, setFabOpen })
-  return { toast, handle401, openQuickAdd, openProjectAdd, openTaskAdd, setTheme, toggleTheme, paintThemeButton, currentTheme, esc }
+  Object.assign(window.__hib, { _t, esc, escHtml, toast, confirm, handle401, currentTheme, setTheme, paintThemeButton, toggleTheme, buildQuickAdd, openQuickAdd, buildProjectAdd, openProjectAdd, buildTaskAdd, openTaskAdd, buildQuickNoteAdd, openQuickNoteAdd, draftLines, DRAFT_X, renderDraft, syncStatCarousel, initStatCarousel, getCollapsed, setCollapsed, initCollapseButtons, dashQuadPhone, dashQuadGrid, dashQuadIndex, syncDashQuadDots, goToDashQuad, hideDashSwipeHint, wireDashSwipeHint, buildDashQuadDots, refreshDashboard, syncDashTodoFades, closeDashMenu, dashTaskRequest, refreshTaskSurface, setDashQuickaddReady, closeDashNoteBubble, closeDashNotePanel, openDashNoteBubble, dashNoteFmt, dashNoteEditStart, dashNoteEditRestore, dashNoteDelete, dashNoteRow, dashNoteAnchorRect, placeDashNotePanel, openDashNotePanel, closeOpenDashMenus, placeDashMenu, clearDashTaskDropTargets, dashTaskList, updateDashTaskEmpty, persistDashOrder, updateDashTaskCounter, showDashTaskMoveError, autosizeNote, buildNoteReader, enterNoteEdit, openNoteReader, injectNoteMenus, closeNoteMenus, buildNoteEditor, applyNoteView, applyNoteSize, applyNoteControlsOpen, markClampedNotes, fabEl, setFabOpen })
+  return { toast, confirm, handle401, openQuickAdd, openProjectAdd, openTaskAdd, setTheme, toggleTheme, paintThemeButton, currentTheme, esc }
 })()

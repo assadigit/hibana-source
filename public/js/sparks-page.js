@@ -572,10 +572,10 @@
           dlg.querySelector('#sf-name').focus()
         }
 
-        function deleteFolder(id, name) {
+        async function deleteFolder(id, name) {
           // Native confirm (same approved pattern as the archive's hard delete):
           // deleting returns the folder's sparks to «All» — the hint says so.
-          const ok = window.confirm(_t('sparks.deleteFolderConfirm', 'Delete "{name}"? ' + _t('sparks.deleteFolderHint', 'The ideas in it move back to All.')).split('{name}').join(name || ''))
+          const ok = await window.hibana.confirm(_t('sparks.deleteFolderConfirm', 'Delete "{name}"? ' + _t('sparks.deleteFolderHint', 'The ideas in it move back to All.')).split('{name}').join(name || ''), { title: 'Delete folder', danger: true, confirmLabel: 'Delete' })
           if (!ok) return
           fetch('/api/projects/sparks/folders/' + id, { method: 'DELETE' })
             .then((r) => {

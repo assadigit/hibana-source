@@ -84,8 +84,19 @@ main.board-shell .db-frame { min-block-size: calc(100dvh - 1.5rem); }
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr)); /* 0031: red Problems column; batch (s) ⑩: second slot */
   gap: 0.8rem;
-  align-items: start;
+  /* S210 (owner: "lower tasks can't be dragged to another section"): columns STRETCH
+     to the tallest sibling's height. With align-items:start a short column left dead
+     grid space below it that belonged to .db-cols (not .pd-col), so a drop in that
+     lower area never matched e.target.closest('.pd-col') → the status read fell back
+     to the dragged card's origin and silently no-oped. Stretch makes the whole column
+     body — top to bottom, including the empty area beneath the last card — one valid
+     .pd-col drop zone. (Standard kanban behavior: every column shares one height.) */
+  align-items: stretch;
 }
+/* S210: an empty / near-empty column still offers a real drop target. align-items:stretch
+   already grows the .pd-col box to full height; this floor keeps the .pd-tasks region
+   usable even on a single short row (the 1-col phone layout, or a board with one card). */
+.db-cols > .pd-col { min-block-size: 8rem; }
 @media (max-width: 1100px) { .db-cols { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (max-width: 640px) { .db-cols { grid-template-columns: 1fr; } }
 /* S136 (owner report: the fullscreen board drifted from the project page's .pd-board):

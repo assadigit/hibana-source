@@ -781,6 +781,47 @@
         let drag = null
         let over = null
         const clearOver = () => { if (over) { over.classList.remove('drag-over'); over = null } }
+        // S210 (owner: "lower tasks can't be dragged to another section — only the top
+        // ones move"): the old drop read the destination from the dragged card's CURRENT
+        // parent (after a fragile live-reorder). A pointer over a column's empty lower
+        // area — below the last card, on a short column, or on the Add-task strip — never
+        // matched a [data-task-card], so the live-reorder skipped it, the card stayed in
+        // its origin column, and the drop silently no-oped the status change. The column
+        // under the POINTER now names the destination (e.target first, then a real
+        // elementFromPoint hit-test for the live mouse drag).
+        const colAt = (e) => {
+          const t = e.target instanceof Element ? e.target : null
+          const direct = t && t.closest ? t.closest('.pd-col') : null
+          if (direct) return direct
+          // synthetic DnD (the e2e suite) dispatches directly on .pd-col → `direct` is
+          // set; the hit-test only runs for a real pointer that landed on empty column
+          // space (the column body, not a card).
+          if (!Number.isFinite(e.clientX) || !Number.isFinite(e.clientY)) return null
+          const hit = document.elementFromPoint(e.clientX, e.clientY)
+          return hit && hit.closest ? hit.closest('.pd-col') : null
+        }
+        // Live-place the dragged card inside a column's list (visual feedback + ensures
+        // the drop below reads the destination the pointer named, not the card's origin).
+        const placeInList = (col, x, y) => {
+          const list = col.querySelector('.pd-tasks')
+          if (!list || !drag) return
+          const hit = (Number.isFinite(x) && Number.isFinite(y)) ? document.elementFromPoint(x, y) : null
+          const target = hit && hit.closest ? hit.closest('[data-task-card]') : null
+          const addBtn = list.querySelector('.pd-task-add')
+          // guard list.contains(target): elementFromPoint can return a card that lives
+          // in a DIFFERENT column (a tall neighbor bleeding into the pointer) —
+          // insertBefore would throw NotFoundError. Only place relative to a target that
+          // is genuinely a child of THIS list.
+          if (target && target !== drag && list.contains(target)) {
+            const r = target.getBoundingClientRect()
+            const after = y > r.top + r.height / 2
+            list.insertBefore(drag, after ? target.nextSibling : target)
+          } else if (addBtn) {
+            list.insertBefore(drag, addBtn) // append to the end (just above Add task)
+          } else {
+            list.appendChild(drag)
+          }
+        }
         ctx.on('dragstart', (e) => {
           const card = e.target.closest('[data-task-card]')
           if (!card) return
@@ -791,35 +832,54 @@
         })
         ctx.on('dragover', (e) => {
           if (!drag) return
+          // allow the drop FIRST — the browser refuses drop where dragover didn't
+          // preventDefault, and a pointer over a column's empty lower area must still
+          // accept the card (the original returned before preventDefault when
+          // e.target wasn't inside a .pd-col, so the whole column body below the last
+          // card rejected drops).
           e.preventDefault()
           // S136: the drop CUE is the COLUMN (.pd-col.drag-over — the pd recipe,
           // project-header.css), not a dashed body outline; the live-reorder still
           // inserts inside the column's .pd-tasks list.
-          const col = e.target.closest('.pd-col')
+          const col = colAt(e)
           if (!col) return
           const list = col.querySelector('.pd-tasks')
           if (!list) return
           clearOver()
           over = col
           col.classList.add('drag-over')
-          // live-reorder inside the column for visual feedback
-          const target = e.target.closest('[data-task-card]')
-          const addBtn = list.querySelector('.pd-task-add')
-          if (target && target !== drag) {
-            const r = target.getBoundingClientRect()
-            const after = e.clientY > r.top + r.height / 2
-            list.insertBefore(drag, after ? target.nextSibling : target)
-          } else if (!target && addBtn) {
-            list.insertBefore(drag, addBtn)
-          }
+          placeInList(col, e.clientX, e.clientY)
         })
         ctx.on('drop', async (e) => {
           if (!drag) return
           e.preventDefault()
           const id = drag.dataset.taskCard
-          const list = drag.closest('[data-pd-tasks]')
+          // The destination is the column under the POINTER (not the dragged card's
+          // current parent — the live placement above usually relocates it, but a drop
+          // on an area the pointer crossed without a matching .pd-col still needs the
+          // right status read). Falls back to the card's own column only when no column
+          // can be resolved at all (a drop outside the board).
+          const col = colAt(e) || drag.closest('.pd-col')
+          const list = (col && col.querySelector('.pd-tasks')) || drag.closest('[data-pd-tasks]')
           const newStatus = list ? list.dataset.pdTasks : null
           const task = B().findTask(id)
+          // If the live placement didn't relocate the card into the destination list
+          // (a drop straight onto the column body, or an edge the pointer crossed
+          // without firing a matching dragover), do it now so the order array below
+          // reflects the intended drop position.
+          if (list && drag.closest('[data-pd-tasks]') !== list) {
+            const hit = (Number.isFinite(e.clientX) && Number.isFinite(e.clientY)) ? document.elementFromPoint(e.clientX, e.clientY) : null
+            const target = hit && hit.closest ? hit.closest('[data-task-card]') : null
+            if (target && target !== drag && list.contains(target)) {
+              const r = target.getBoundingClientRect()
+              const after = e.clientY > r.top + r.height / 2
+              list.insertBefore(drag, after ? target.nextSibling : target)
+            } else {
+              const addBtn = list.querySelector('.pd-task-add')
+              if (addBtn) list.insertBefore(drag, addBtn)
+              else list.appendChild(drag)
+            }
+          }
           // S30 batch 4 (user request: "drop into the urgent zone of the column"):
           // a SAME-COLUMN drop ADOPTS the priority of the card it landed next to —
           // the columns are priority-sorted, so the neighbor IS the tier zone. The

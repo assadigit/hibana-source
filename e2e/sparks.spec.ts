@@ -372,7 +372,8 @@ test('sparks: every view offers the ⋯ — list/kanban/sticky edit + delete + p
   // the click — one click, one confirm.)
   const victim = rows[0]
   await page.click(`#spark-shelf .projects-table tr[data-project-id="${victim}"] .spark-menu [data-menu-open]`)
-  page.once('dialog', (d) => d.accept())
+  // S210: spark delete is a soft-delete with an Undo toast — NO confirm dialog
+  // (the old page.once('dialog') was a defensive no-op that never fired).
   // S186: the pop lifts to <body> while open (the shared hibanaMenu portal) —
   // the row-scoped .spark-menu-pop selector comes back empty now.
   await page.click('body > .spark-menu-pop.is-floating [data-spark-delete]')

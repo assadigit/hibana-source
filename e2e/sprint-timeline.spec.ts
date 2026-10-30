@@ -212,9 +212,11 @@ test('screenshot problem cards: note edit, resolve toggle, delete', async ({ pag
   await expect(page.locator(`.shot-card[data-shot="${shotId}"] [data-shot-state]`)).toContainText('fixed')
 
   // delete it (confirm auto-accepted; the grid re-render closed the menu — reopen)
-  page.once('dialog', (d) => d.accept())
+  // S210: the delete confirm is now a Hibana design-system modal (was a native
+  // window.confirm()). Click the modal's OK after triggering the delete.
   await page.locator(`.shot-card[data-shot="${shotId}"] [data-shot-menu]`).click()
   await page.locator(`.shot-card[data-shot="${shotId}"] [data-shot-del]`).click()
+  await page.locator('.hib-confirm-overlay [data-hib-confirm="ok"]').click()
   await expect(page.locator(`.shot-card[data-shot="${shotId}"]`)).toHaveCount(0)
 
   expect(errors).toEqual([])

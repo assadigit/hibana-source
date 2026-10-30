@@ -303,8 +303,10 @@ test('the gallery: every picture, project + pin chips, filters, space meter, del
   await page.selectOption('#gallery-project', '')
 
   // DELETE: the pinned picture goes for good; the meter follows (2 → 1)
-  page.once('dialog', (d) => d.accept())
+  // S210: the delete confirm is now a Hibana design-system modal (was a native
+  // window.confirm()). Click the modal's OK after triggering the delete.
   await page.locator(`.gal-card[data-shot="${s1}"] [data-gal-del]`).click()
+  await page.locator('.hib-confirm-overlay [data-hib-confirm="ok"]').click()
   await page.waitForTimeout(500)
   await expect(page.locator(`.gal-card[data-shot="${s1}"]`)).toHaveCount(0)
   await expect(page.locator('.gal-card')).toHaveCount(1)
@@ -557,8 +559,10 @@ test('the gallery manager: click-to-edit note modal (wand rides it) + Select mod
   await page.locator(`.gal-card[data-shot="${ids[2]}"] .shot-img-btn`).click()
   await page.locator(`.gal-card[data-shot="${ids[3]}"] .gal-check`).click()
   await expect(page.locator('.gal-selbar-count')).toContainText('2 selected')
-  page.once('dialog', (d) => d.accept())
+  // S210: the bulk-delete confirm is now a Hibana design-system modal (ONE confirm
+  // for the whole batch — the S79 contract). Click the modal's OK after triggering.
   await page.locator('.gal-selbar-del').click()
+  await page.locator('.hib-confirm-overlay [data-hib-confirm="ok"]').click()
   // the bar is gone before the first DELETE lands (a stale count reads as a lie),
   // mode exits, the grid + space meter land on the post-cleanup truth
   await expect(page.locator('.gal-selbar')).toHaveCount(0)

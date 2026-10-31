@@ -115,12 +115,16 @@ test('board: filter bar (priority × label), dot cycles priority, exports carry 
   await expect(page.locator('.pd-task-title').first()).toHaveCSS('unicode-bidi', 'plaintext')
 
   // S32 (user request: "decrease the size of this chips — a little too big"): the
-  // filter toggles read compact — 26px min-block-size (was the 40px touch floor)
-  // at xs font; and the GENERAL bidi law covers the chips themselves (a Latin
-  // label like "Security" resolves LTR inside the FA page, a Farsi one stays RTL).
+  // filter toggles read compact at xs font; and the GENERAL bidi law covers the
+  // chips themselves (a Latin label like "Security" resolves LTR inside the FA
+  // page, a Farsi one stays RTL).
+  // S231 (the refinement pass): the BOARD's toolbar is now the clean 32px row —
+  // the chips match the 32px search field (requirement B: "priority filters
+  // compact and visually consistent"); the dashed container is retired. The
+  // project page's twin bar keeps the S32 26px floor (asserted below).
   expect(await urgentToggle.boundingBox()).not.toBeNull()
-  expect((await urgentToggle.boundingBox())!.height).toBeLessThanOrEqual(30)
-  await expect(urgentToggle).toHaveCSS('min-height', '26px')
+  expect((await urgentToggle.boundingBox())!.height).toBeLessThanOrEqual(36)
+  await expect(urgentToggle).toHaveCSS('min-height', '32px')
   await expect(labelToggles.first()).toHaveCSS('unicode-bidi', 'plaintext')
   // the card's label chips follow the law too (S32)
   await expect(page.locator('.pd-task .pd-tag').first()).toHaveCSS('unicode-bidi', 'plaintext')

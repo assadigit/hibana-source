@@ -108,3 +108,31 @@
 **Credentials note:** the owner pasted a GitHub PAT in chat (again — 5th time). Per the runbook policy ("any token pasted in chat → rotate"), it must be rotated after this round; this push used it only for github.com/assadigit (his own repos, his explicit instruction).
 **S229 addendum (the desktop-round support API):** sync-state.js gains hasSyncing() (is any card mid-sync — the desktop Sync button's icon-rotation cue) + its test; sync-state.js v1→v2. Rides v0.4.1.37 (the release workflow's own guard: no new version, no new tag).
 
+
+## Session S230 completion — the kanban UI redesign, base + completion (2026-11-01)
+
+**The situation:** the previous session's push (aee9acf — the redesign base: hidden #db-counts, the ⋯
+menus, the empty states at /icons/empty-state/, the sr-only embedded heading, EN+FA keys) was already
+on origin/main when this session started; this session had independently implemented the same handoff
+locally (83e80fd, backed up as the tag s230-mine-backup, dropped). Per the preserve-prior-work rule the
+base stayed; this round is the completion on top.
+
+**The completion (this commit):** the neutral canvas (var(--statcard-bg)) behind the white lanes,
+bleeding to the frame's edges; the scroll scope (only the lanes scroll — the base scrolled the whole
+frame, toolbar included); the full-height flex chain (the base's lanes hugged their content); the empty
+group's central placement (:has flex); the helper hint's legibility (var(--muted) @ .85 — the base's
+#7B8491 @ .66 landed under 2:1); the dark-theme art lift (0.72 — the base's .46 read too faint);
+inline EN fallbacks for every empty-state string; the solid ⋯ dots; the version ladder the base owed
+(package 0.4.1.38, sw v446 SHELL re-fetch, devboard.css v36 + board-page v24); the e2e the base owed
+(board-filters adapted to the ⋯ menu — its hidden data-db-copy broke the spec — + the NEW
+e2e/s230-kanban-redesign.spec.ts 10/10); Changelogs + worklog rows; QA shots ×10 VLM-verified
+(light/dark/FA-RTL/1100×720/800px/menu/add-flow).
+
+**The FA shots lesson:** the shots script first reused the EN user's boards for the FA session — the
+gone state ("این پروژه وجود ندارد") rendered instead of the board (ownership: a user cannot open
+another user's project). The FA shots now seed the FA user's own boards; the FA copy + first-lane-on-
+the-right verified char-by-char.
+
+**Desktop round (next):** bump the island pin to this ref, add public/icons/empty-state/*.png to the
+sync manifest, re-run sync-island (the 12 seam strings verified byte-intact in the base), drift check,
+probes, release.

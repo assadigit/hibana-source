@@ -173,11 +173,14 @@ test('board: filter bar (priority × label), dot cycles priority, exports carry 
   await expect(page.locator('[data-db-filter-empty]')).toBeHidden()
 
   // MD copy carries priority + labels — stub the clipboard, click Quick Copy on the
-  // in_progress column, read the written text
+  // in_progress column, read the written text. UI-redesign: the copy action moved
+  // INTO the lane header's ⋯ overflow menu — open the menu first (the same
+  // data-db-copy contract rides the menu item).
   await page.evaluate(() => {
     window.__mdCopied = null
     navigator.clipboard.writeText = (t) => { (window as unknown as { __mdCopied: string }).__mdCopied = t; return Promise.resolve() }
   })
+  await page.click('.pd-col[data-status="in_progress"] [data-db-col-menu]')
   await page.click('[data-db-copy="in_progress"]')
   const copied = await page.evaluate(() => (window as unknown as { __mdCopied: string | null }).__mdCopied)
   expect(copied).toContain('- [URGENT] urgent auth leak #Security')

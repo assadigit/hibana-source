@@ -672,6 +672,13 @@ window.__hibanaDictEN = {
       'db.newTask': 'New task', 'db.editTask': 'Edit task', 'db.title': 'Title',
       'db.titlePh': 'What needs to be built?', 'db.status': 'Status', 'db.priority': 'Priority',
       'db.st.idea': 'New Ideas', 'db.st.planned': 'Plans', 'db.st.inprog': 'In Progress', 'db.st.done': 'Implemented', 'db.st.bug': 'Problems',
+      // UI-redesign: per-lane empty-state copy + the column ellipsis menu + the bottom helper hint.
+      'db.empty.idea.title': 'No ideas yet', 'db.empty.idea.text': 'Capture new ideas and potential improvements.',
+      'db.empty.bug.title': 'No problems yet', 'db.empty.bug.text': 'Track issues and blockers here.',
+      'db.empty.planned.title': 'No plans yet', 'db.empty.planned.text': 'Plan upcoming work and define next steps.',
+      'db.empty.inprog.title': 'Nothing in progress', 'db.empty.inprog.text': 'Move tasks here when you start working.',
+      'db.empty.done.title': 'No completed tasks', 'db.empty.done.text': 'Completed tasks will appear here.',
+      'db.colMenu': 'Column actions', 'db.helperHint': 'Start by adding a task to move your work forward.',
       'db.pr.low': 'Low', 'db.pr.medium': 'Medium', 'db.pr.high': 'High', 'db.pr.urgent': 'Urgent',
       'db.category': 'Category', 'db.uncategorized': 'Uncategorized', 'db.newCategory': 'New category…',
       'db.categoryName': 'Category name (Feature Development…)', 'db.renameCategory': 'Rename category',

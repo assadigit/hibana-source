@@ -439,7 +439,11 @@ export function detailHtml(p: ProjectRow, d: Awaited<ReturnType<typeof loadDetai
        is scoped to main.board-shell). -->
   <section class="pd-board db-frame" id="pd-board" data-total="${d.devTasks.length}" data-done="${doneTasks}">
     <div class="row spread db-toolbar pd-board-head">
-      <h3>${icon('kanban')} ${trL(lang, 'Project Progress', 'پیشرفت پروژه')}</h3>
+      <!-- UI-redesign: the "Project Progress" h3 heading is removed per spec §3.2
+           (the /kanban surface it mirrors has no such heading — the project switcher
+           IS the title). The action group on the right stays; the sr-only h3 keeps the
+           board region accessible to assistive tech without a visible duplicate title. -->
+      <h3 class="sr-only">${trL(lang, 'Project Progress', 'پیشرفت پروژه')}</h3>
       <div class="row">
         <!-- S33 (user request 2026-09-13): the «اسپرینت جدید» CTA — a PROMINENT (solid,
              brand-colored) button, first in the head row. Opens the new-sprint dialog

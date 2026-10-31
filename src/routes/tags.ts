@@ -21,7 +21,8 @@ import { errJson, ErrorCode } from '../lib/errors'
 // "container out of box" on settings: doc h-scroll +107, the whole layout zoomed to
 // fit). The devboard duplicates are deleted; this file now carries the FULL
 // label-manager semantics (rename-collision-merge, search_tags FTS rewrite,
-// delete-unused-only) plus the HX branches the settings page needs.
+// delete with force-cascade for used tags) plus the HX branches the settings
+// page needs.
 
 const tagUpdateSchema = z.object({
   name: z.string().trim().min(1).max(60).optional(),
@@ -33,21 +34,29 @@ export function tagsRoutes(cfg: Config) {
   const app = new Hono<{ Variables: { user: UserRow } }>()
   app.use('*', requireAuth(cfg))
 
-  // The chip row the settings page swaps into #taglist (hx-swap="innerHTML").
-  // The delete affordance rides only UNUSED tags — the endpoint refuses to delete
-  // in-use ones (409), so a button on a used chip would be a dead control.
+  // The chip row the settings page swaps into #taglist (hx-swap="innerHTML"). Every
+  // chip carries the delete affordance — a USED one rides hx-confirm (the count is
+  // baked into the message server-side) and sends ?force=1 so the endpoint cascades
+  // the unlink; an unused one deletes outright, exactly as before.
   const chipsHtml = (tags: TagRow[], t: (en: string, fa: string) => string) =>
     tags
-      .map(
-        (tag) =>
-          `<span class="chip" style="background:${tag.color}33"><span style="color:${tag.color}">●</span> ${esc(tag.name)} · ${tag.usage_count}${
-            (tag.usage_count ?? 0) === 0
-              ? ` <button class="ghost danger" hx-delete="/api/tags/${tag.id}" hx-target="#taglist" hx-swap="innerHTML">${icon('x')}</button>`
-              : ''
-          }</span>`,
-      )
+      .map((tag) => {
+        const used = (tag.usage_count ?? 0) > 0
+        const deleteBtn = used
+          ? ` <button class="ghost danger" hx-confirm="${esc(
+              t(
+                `Delete "${tag.name}"? It is used by ${tag.usage_count} tasks — it will be removed from those tasks.`,
+                `«${tag.name}» حذف شود؟ در ${tag.usage_count} کار استفاده شده و از همان کارها هم حذف خواهد شد.`,
+              ),
+            )}" hx-delete="/api/tags/${tag.id}?force=1" hx-target="#taglist" hx-swap="innerHTML">${icon('x')}</button>`
+          : ` <button class="ghost danger" hx-delete="/api/tags/${tag.id}" hx-target="#taglist" hx-swap="innerHTML">${icon('x')}</button>`
+        return `<span class="chip" style="background:${tag.color}33"><span style="color:${tag.color}">●</span> ${esc(tag.name)} · ${tag.usage_count}${deleteBtn}</span>`
+      })
       .join('') +
-      `<div class="muted small">${t('Rename/merge for tags lives on the board (Labels). Used tags are merged, never deleted.', 'تغییر نام و ادغام برچسب‌ها در برد (برچسب‌ها) انجام می‌شود. برچسبِ در حال استفاده ادغام می‌شود، نه حذف.')}</div>`
+      `<div class="muted small">${t(
+        'Rename/merge for tags lives on the board (Labels). Deleting a used label also removes it from its tasks.',
+        'تغییر نام و ادغام برچسب‌ها در برد (برچسب‌ها) انجام می‌شود. حذف برچسبِ در حال استفاده، آن را از کارهایش هم حذف می‌کند.',
+      )}</div>`
 
   app.get('/', async (c) => {
     const user = c.get('user')
@@ -151,15 +160,24 @@ export function tagsRoutes(cfg: Config) {
     return c.json({ ok: true })
   })
 
-  // Delete a tag — UNUSED tags only (usage_count = 0). Used tags must be merged or
-  // unlinked first ("delete-unused tags", the owner's wording). HX requests get the
-  // refreshed chip row back (settings' hx-target="#taglist" hx-swap="innerHTML").
+  // Delete a tag (S232 — the owner's "two labels that can't be deleted"). UNUSED tags
+  // delete outright; a USED tag answers 409 tag_in_use UNLESS the client confirms
+  // with ?force=1 — then the delete cascades exactly like a merge with no target:
+  // every dev-task + project link drops, and every affected task's search_tags is
+  // rewritten so FTS forgets the name (the S200 PERF-12 batched tail). HX requests
+  // get the refreshed chip row back (settings' hx-target="#taglist" swap).
   app.delete('/:id', async (c) => {
     const user = c.get('user')
-    const rows = await cfg.db.query<{ usage_count: number }>('SELECT usage_count FROM tags WHERE id = ? AND user_id = ?', [c.req.param('id'), user.id])
+    const tagId = c.req.param('id')
+    const rows = await cfg.db.query<{ usage_count: number }>('SELECT usage_count FROM tags WHERE id = ? AND user_id = ?', [tagId, user.id])
     if (!rows.length) return errJson(c, ErrorCode.not_found)
-    if ((rows[0].usage_count ?? 0) > 0) return errJson(c, ErrorCode.tag_in_use)
-    await cfg.db.execute('DELETE FROM tags WHERE id = ?', [c.req.param('id')])
+    if ((rows[0].usage_count ?? 0) > 0 && c.req.query('force') !== '1') return errJson(c, ErrorCode.tag_in_use)
+    const affected = await cfg.db.query<{ task_id: string }>('SELECT task_id FROM dev_task_tags WHERE tag_id = ?', [tagId])
+    await cfg.db.execute('DELETE FROM dev_task_tags WHERE tag_id = ?', [tagId])
+    await cfg.db.execute('DELETE FROM project_tags WHERE tag_id = ?', [tagId])
+    await cfg.db.execute('DELETE FROM tags WHERE id = ?', [tagId])
+    // the FTS tail: every task that carried the tag forgets its name
+    await syncTaskSearchTagsBatch(cfg, affected.map((row) => row.task_id))
     if (isHtmx(c)) {
       const t = trFor(c)
       const tags = await cfg.db.query<TagRow>(
@@ -170,7 +188,7 @@ export function tagsRoutes(cfg: Config) {
       res.headers.set('Vary', 'HX-Request')
       return res
     }
-    return c.json({ ok: true })
+    return c.json({ ok: true, removed_from: affected.length })
   })
 
   return app

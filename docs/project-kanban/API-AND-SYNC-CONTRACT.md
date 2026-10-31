@@ -129,10 +129,11 @@ the gallery self-heals; non-image docs get `Content-Disposition: attachment`
 
 ### 3.4 Adjacent read/write paths the board UX uses
 
-- `GET /api/tags` (`src/routes/tags.ts:51-66`, mounted `app.ts:393`) — **the label
-  manager's list**: user-scoped tags ordered `usage_count DESC, name` (`:55`), ETag-wrapped
-  (`:63-65`). Its mutations: PATCH rename/recolor `:83`, POST merge `:132`, DELETE
-  unused-only `:156` (409 `tag_in_use` `:160`).
+- `GET /api/tags` (`src/routes/tags.ts:61-76`, mounted `app.ts:393`) — **the label
+  manager's list**: user-scoped tags ordered `usage_count DESC, name` (`:65`), ETag-wrapped
+  (`:73-75`). Its mutations: PATCH rename/recolor `:93`, POST merge `:142`, DELETE
+  `:169` — unused tags outright; a used tag needs `?force=1` (S232) and then cascades
+  (links drop + `search_tags` rewrite, 409 `tag_in_use` without it, `:173`).
 - `GET /api/rail` (`src/routes/rail.ts:66`, `app.ts:417`) — the nav rail's compact
   projects/sparks/folders trees; **no-store** (`:162`).
 - `GET /api/search?q=` (`src/routes/search.ts:33`, `app.ts:395`) — FTS groups (projects,

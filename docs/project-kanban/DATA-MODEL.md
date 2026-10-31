@@ -194,10 +194,12 @@ CREATE TABLE dev_task_tags  (task_id … REFERENCES dev_tasks(id) ON DELETE CASC
 
 `tags.usage_count` is recomputed after every link/unlink/merge/delete (`refreshTagUsage`,
 `devboard-helpers.ts:108-119` — dev-task links + project chips, `:113-116`). Renaming a tag to
-an existing name **merges** (`PATCH /api/tags/:id`, `src/routes/tags.ts:83`); delete is
-unused-tags-only (`409 tag_in_use`, `tags.ts:156-160`). `search_tags` is rewritten in batch after
-merges/deletes (`syncTaskSearchTagsBatch`, `devboard-helpers.ts:140-151`; `tags.ts:113, 126, 148`).
-The label manager lists via `GET /api/tags` usage-ordered (`tags.ts:51-66`); new tags take the
+an existing name **merges** (`PATCH /api/tags/:id`, `src/routes/tags.ts:93`); delete is
+outright for unused tags, and a used tag deletes with `?force=1` (S232) — the links
+cascade away + `search_tags` rewrites (`409 tag_in_use` without force,
+`tags.ts:169-190`). `search_tags` is rewritten in batch after
+merges/deletes (`syncTaskSearchTagsBatch`, `devboard-helpers.ts:140-151`; `tags.ts:113, 126, 148, 179`).
+The label manager lists via `GET /api/tags` usage-ordered (`tags.ts:61-76`); new tags take the
 least-used palette color (`tagColorFor`, `devboard-helpers.ts:81-102`).
 
 ### 2.6 `project_archives` (done-task archive)

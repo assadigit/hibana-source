@@ -136,3 +136,45 @@ the-right verified char-by-char.
 **Desktop round (next):** bump the island pin to this ref, add public/icons/empty-state/*.png to the
 sync manifest, re-run sync-island (the 12 seam strings verified byte-intact in the base), drift check,
 probes, release.
+
+## Session S232 — delete-any-label (2026-11-01)
+
+**The owner's ask, verbatim:** "There are two labels that can't be deleted. why? fix it." (with a
+screenshot of the Labels dialog: s208-live used 2×, s211-acceptance used 1×, no ✕ on either row).
+
+**The why (a designed limit, not a bug):** the S30 label manager made delete UNUSED-ONLY on purpose
+("delete-unused tags", the owner's own 2026-09-12 wording): devboard.js rendered the ✕ only on
+usage_count=0 rows, and the endpoint enforced it (409 tag_in_use). Any label attached to a task was
+un-deletable — the only path out was unlinking it from every task (or merging) first.
+
+**The fix, one seam, three surfaces (v0.4.1.40):**
+
+- **THE ENDPOINT** (`src/routes/tags.ts:169`): DELETE /api/tags/:id takes `?force=1` — a used tag
+  cascades exactly like a merge with no target: dev_task_tags + project_tags links drop,
+  `syncTaskSearchTagsBatch` rewrites every affected task's search_tags (FTS forgets the name), the
+  response carries `removed_from`. WITHOUT force the 409 guard stays (old clients + accidental
+  deletes keep their protection). The vitest suite proves the cascade end-to-end: links gone from
+  the board GET, search q=Beta → 0 hits, removed_from 2, unused-delete flow kept.
+- **THE LABELS DIALOG** (devboard.js, S232): the ✕ rides EVERY row. A used label confirms first
+  through the S210 design-system modal (danger grammar; the count baked into the message —
+  db.labelsDelConfirm EN+FA) then DELETEs with force; an unused one deletes at once as ever; a
+  race-lost delete (409 between load and click) surfaces the new db.labelsInUse toast. The hint
+  copy follows ("deleting a used label removes it from its tasks").
+- **THE SETTINGS CHIPS** (tags.ts chipsHtml): the hx-delete ✕ rides used chips too — count baked
+  into hx-confirm server-side, force=1 on the URL; the "Used tags are merged, never deleted"
+  footnote retired for the cascade truth.
+
+**The ladder:** typecheck 0 · vitest 770/770 · parity 1527/1527 (+3 keys ×2) · cache-bust PASS
+(devboard.js v30, i18n-en v103, i18n-fa v97 across every page + the three JS injectors; sw v448
+SHELL re-fetch) · e2e label-manager 3/3 (both used rows carry the ✕; cancel keeps the label;
+confirm → force=1 → 200, row gone, every card's chip gone, the 3 tasks stay) · the kanban suites
+36/36 (s206/s207/s209/s230/filters — devboard.js is shared). Docs: API-AND-SYNC-CONTRACT §3.4,
+DATA-MODEL §2.5, GO-DESKTOP-IMPLEMENTATION-GUIDE §4.1 table re-lined. Changelogs row 232 + the
+backfilled 231 row (the polish round shipped without one).
+
+**The desktop half (hibana-desktop, next commit):** the island rides this ref (pin bump +
+the DELETE seam patch re-record — the find-string grew the force expression), AND the round fixes
+a pre-existing island gap this feature exposed: the shim never provided `window.hibana.confirm`
+(the web gets it from app.js, which §3.2 strips) — so on desktop the task-editor delete, label
+merge, archive-done and clear-done confirms all threw silently. The shim now owns the S210 confirm
+modal (same markup, same classes — components.css ships the styles in the island already).

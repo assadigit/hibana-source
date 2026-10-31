@@ -213,7 +213,7 @@ contract. The renderers are touched **not at all**.
 | # | Site | Kind | What it calls |
 |---|---|---|---|
 | 1 | `devboard.js:33` — `const send = (signal) => fetch(path, {...})` inside `api()` | **the choke point** | 21 endpoint call sites funnel here (the board's whole CRUD surface) |
-| 2–6 | `devboard.js:1288, 1344, 1360, 1380, 1390` | raw `fetch` | label manager: `GET /api/tags`, `PATCH …/tags/:id` (name), `PATCH` (color), `POST …/merge`, `DELETE …/tags/:id` |
+| 2–6 | `devboard.js:1322, 1406, 1431, 1447, 1467, 1488` | raw `fetch` | label manager: `GET /api/tags`, `POST …/tags` (create), `PATCH …/tags/:id` (name), `PATCH` (color), `POST …/merge`, `DELETE …/tags/:id` (+`?force=1` for used labels, S232) |
 | 7–8 | `devboard.js:337, 367` — `new XMLHttpRequest()` | XHR | screenshot upload (progress events) + its cancel path |
 | 9–12 | `board-page.js:287, 579, 741, 761` | raw `fetch` | `GET /api/projects?sort=recent` (switcher), `DELETE /api/devtasks/:id`, `POST …/devtasks/archive-done`, clear-done's `DELETE` fan-out |
 

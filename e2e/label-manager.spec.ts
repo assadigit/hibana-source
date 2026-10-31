@@ -1,5 +1,6 @@
 // e2e/label-manager.spec.ts — S30 batch 4: the label manager (rename-merges/recolor/
-// delete-unused), the drag-into-zone priority adoption, and the bar's tier tooltip.
+// delete), the S232 delete-any-label round (used labels confirm + force-cascade), the
+// drag-into-zone priority adoption, and the bar's tier tooltip.
 // Run: npx playwright test e2e/label-manager.spec.ts
 
 import { test, expect, type Page } from '@playwright/test'
@@ -64,10 +65,11 @@ test('label manager: usage list, rename-merge, recolor, delete-unused', async ({
   // [data-tag-id] which only existing labels carry (the create row has no tag-id).
   const rows = dlg.locator('.db-label-row[data-tag-id]')
   await expect(rows).toHaveCount(2)
-  // usage is honest: Alpha used 2×, Beta 1× — and no delete buttons (both in use)
+  // usage is honest: Alpha used 2×, Beta 1× — and S232: BOTH rows carry the ✕
+  // (used labels delete through the confirm dialog now, not by being un-deletable)
   await expect(rows.filter({ has: page.locator('input[value="Alpha"]') }).locator('.db-label-usage')).toContainText('2')
   await expect(rows.filter({ has: page.locator('input[value="Beta"]') }).locator('.db-label-usage')).toContainText('1')
-  await expect(dlg.locator('[data-lbl-del]')).toHaveCount(0)
+  await expect(dlg.locator('[data-lbl-del]')).toHaveCount(2)
 
   // rename Alpha → beta (case-insensitive collision → MERGE onto Beta)
   const alphaRow = rows.filter({ has: page.locator('input[value="Alpha"]') })
@@ -94,18 +96,32 @@ test('label manager: usage list, rename-merge, recolor, delete-unused', async ({
   // inner .pd-tag-dot (the old .db-mini-chip carried it on the chip itself).
   await expect(page.locator('.pd-task .pd-tag').first().locator('.pd-tag-dot')).toHaveAttribute('style', /8FD3A9/i)
 
-  // delete-unused: unlink Beta from one task (PATCH tags []), then… the tag is still
-  // used → the manager hides the delete button; unlink everywhere then delete works.
-  await page.evaluate(async ({ pid: p }) => {
-    const b = await (await fetch(`/api/projects/${p}/devboard`)).json() as { tasks: { id: string }[] }
-    for (const t of b.tasks) await fetch(`/api/devtasks/${t.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ tags: [] }) })
-  }, { pid })
+  // S232: delete a USED label — the ✕ rides every row; the confirm names the count;
+  // OK sends DELETE ?force=1 and the server cascades the unlink from every task.
+  const tagsReloaded = page.waitForResponse((r) => r.url().includes('/api/tags') && r.request().method() === 'GET')
   await page.click('#db-labels-btn')
-  await expect(dlg.locator('[data-lbl-del]')).toHaveCount(1) // unused now
-  // S210: label-delete has NO confirm (the row button IS the confirm — the old
-  // page.on('dialog') was a defensive no-op that never fired). Delete directly.
+  await tagsReloaded
+  await expect(dlg.locator('.db-label-row[data-tag-id]')).toHaveCount(1) // Beta, usage 3
+  await expect(dlg.locator('.db-label-usage')).toContainText('3')
+  await expect(dlg.locator('[data-lbl-del]')).toHaveCount(1) // still there — used ≠ locked
+  // cancel first: the confirm overlay opens with the count in the message, then the label survives
   await dlg.locator('[data-lbl-del]').click()
+  const overlay = page.locator('.hib-confirm-overlay')
+  await expect(overlay).toBeVisible()
+  await expect(overlay.locator('.hib-confirm-message')).toContainText('3')
+  await overlay.locator('[data-hib-confirm="cancel"]').click()
+  await expect(overlay).toHaveCount(0)
+  await expect(dlg.locator('.db-label-row[data-tag-id]')).toHaveCount(1)
+  // now confirm: the DELETE carries ?force=1, the row goes, the board's chips follow
+  const forced = page.waitForResponse((r) => r.url().includes('/api/tags') && r.url().includes('force=1') && r.request().method() === 'DELETE')
+  await dlg.locator('[data-lbl-del]').click()
+  await overlay.locator('[data-hib-confirm="ok"]').click()
+  expect((await forced).status()).toBe(200)
   await expect(dlg.locator('.db-label-row[data-tag-id]')).toHaveCount(0)
+  await page.keyboard.press('Escape')
+  // the board reloaded through onChanged: every card's label chip is gone (the tasks stay)
+  await expect(page.locator('.pd-task')).toHaveCount(3)
+  await expect(page.locator('.pd-task .pd-tag')).toHaveCount(0)
 })
 
 test('label manager: create a new label (S211) — name + color → POST /api/tags → row appears', async ({ page, browserName }) => {

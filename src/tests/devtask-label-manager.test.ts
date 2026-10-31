@@ -97,7 +97,7 @@ describe('label manager (S30 batch 4)', () => {
     }
   })
 
-  it('explicit merge endpoint moves links; delete is unused-only (409 when used, 200 when not)', async () => {
+  it('explicit merge endpoint moves links; delete cascades with ?force=1 (409 without it)', async () => {
     const { db, close } = makeTestDb()
     try {
       const userId = await makeUser(db)
@@ -109,7 +109,7 @@ describe('label manager (S30 batch 4)', () => {
       const alpha = tags.find((t) => t.name === 'Alpha')!
       const beta = tags.find((t) => t.name === 'Beta')!
 
-      // delete while USED → 409 tag_in_use
+      // delete while USED without force → 409 tag_in_use (the guard the confirm dialog rides)
       const usedDel = await app.fetch(new Request(`http://local/api/tags/${alpha.id}`, { method: 'DELETE', headers }))
       expect(usedDel.status).toBe(409)
 
@@ -120,7 +120,19 @@ describe('label manager (S30 batch 4)', () => {
       expect(after.map((t) => t.name)).toEqual(['Beta'])
       expect(after[0].usage_count).toBe(2)
 
-      // now Alpha is gone; create a fresh unused tag and delete it
+      // S232: force-delete the USED Beta — links drop from every task, FTS forgets
+      const forced = await app.fetch(new Request(`http://local/api/tags/${beta.id}?force=1`, { method: 'DELETE', headers }))
+      expect(forced.status).toBe(200)
+      expect(((await forced.json()) as { removed_from: number }).removed_from).toBe(2)
+      expect(await tagsOf(app, headers)).toEqual([]) // the label is gone
+      const board1 = (await (await app.fetch(new Request(`http://local/api/projects/${pid}/devboard`, { headers }))).json()) as { tasks: { title: string; tags: string[] }[] }
+      expect(board1.tasks.every((t) => t.tags.length === 0)).toBe(true) // every link cascaded away
+      const ftsGone = await app.fetch(new Request('http://local/api/search?q=Beta', { headers }))
+      expect(((await ftsGone.json()) as { tasks: unknown[] }).tasks).toHaveLength(0) // search_tags rewritten
+      const ftsKept = await app.fetch(new Request('http://local/api/search?q=b', { headers }))
+      expect(((await ftsKept.json()) as { tasks: { title: string }[] }).tasks.map((t) => t.title)).toContain('b') // titles untouched
+
+      // an UNUSED tag still deletes outright (no force needed)
       await mkTask(app, headers, pid, { title: 'temp', tags: ['Gamma'] })
       const t2 = (await (await mkTask(app, headers, pid, { title: 'temp2', tags: ['Gamma'] })).json()) as { id: string }
       await app.fetch(new Request(`http://local/api/devtasks/${t2.id}`, { method: 'DELETE', headers }))
@@ -128,7 +140,7 @@ describe('label manager (S30 batch 4)', () => {
       expect(gamma.usage_count).toBe(1)
       const del = await app.fetch(new Request(`http://local/api/tags/${gamma.id}`, { method: 'DELETE', headers }))
       expect(del.status).toBe(409)
-      // delete the carrying task → Gamma unused → delete succeeds
+      // delete the carrying task → Gamma unused → delete succeeds (the S30 flow, kept)
       const board = (await (await app.fetch(new Request(`http://local/api/projects/${pid}/devboard`, { headers }))).json()) as { tasks: { title: string; id: string }[] }
       const tempTask = board.tasks.find((t) => t.title === 'temp')!
       await app.fetch(new Request(`http://local/api/devtasks/${tempTask.id}`, { method: 'DELETE', headers }))

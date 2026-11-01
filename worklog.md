@@ -178,3 +178,37 @@ a pre-existing island gap this feature exposed: the shim never provided `window.
 (the web gets it from app.js, which §3.2 strips) — so on desktop the task-editor delete, label
 merge, archive-done and clear-done confirms all threw silently. The shim now owns the S210 confirm
 modal (same markup, same classes — components.css ships the styles in the island already).
+
+## Session S233 — every modal carries a top-right close (2026-11-01)
+
+**The owner's ask, verbatim:** "Make sure all modals, like the screenshot , which is settings, have
+close button on top right." (the screenshot: the DESKTOP settings sheet — Sync / Update app /
+GitHub access / Account / Appearance — with NO corner close; only the bottom Done button.)
+
+**The scope, honestly:** the app's modal grammar unifies on ONE contract — a close affordance rides
+the header row's inline end (RTL mirrors to the trailing corner) of EVERY modal. The task editor,
+labels manager, pinned-pictures dialog and lightbox ALREADY spoke it (the row-spread ✕ grammar).
+This round brings the remaining surfaces of the shared seam; the desktop's five native dialogs
+(sync / logout / new-project / update / settings — the screenshot's own) + the shim's confirm port
+follow in the island round (pin bump below).
+
+- **THE S210 CONFIRM CARD** (app.js — the app-wide confirm): a head row — title (when present) on
+  the inline start + the corner ✕ (`data-hib-confirm="x"`, its OWN value so the e2e cancel
+  locators stay single-match) wired to `close(false)` — the cancel path's twin, never the confirm.
+  A title-less card keeps the corner (`margin-inline-start:auto`). CSS: `.hib-confirm-head` /
+  `.hib-confirm-x` in components.css (36px tap floor for the glyph-only control).
+- **THE SHOT-NOTE EDITOR** (`#db-shotnote`, devboard.js) + **THE DELETE-TASK CONFIRM**
+  (`#db-del-confirm`, board-page.js): the h3 rides a `row spread` with the ✕ on the inline end
+  (`aria-label` = the pin's own `common.close` — EN+FA already in parity), wired to the dialog's
+  close (the Cancel twin). Esc / backdrop / Cancel contracts untouched.
+
+**The ladder:** typecheck 0 · vitest 770/770 · parity 1527/1527 (no new keys) · cache-bust PASS
+(app.js v221, devboard.js v31, board-page.js v26, components.css v10 across every page + the three
+devboard injectors; sw v449 SHELL re-fetch) · NEW e2e/s233-modal-close 2/2 (the board's modal
+census — editor + labels ✕ close their modals; the delete-task confirm's title-row ✕ closes with
+the task surviving; the danger confirm's corner ✕ resolves cancel — overlay gone, the used label
+kept) + the kanban suites 27/27 (label-manager/s206/s209/s230/filters) + s193/s152 spot-checks.
+
+**The desktop half (hibana-desktop, next commit):** the island rides this ref (pin bump to this
+sha + the five native dialogs' own ✕ rows + the shim's confirm port kept 1:1 with app.js + the
+kept-markup pins extended + v0.1.30).

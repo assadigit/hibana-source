@@ -355,8 +355,16 @@ window.hibana = (() => {
       const iconSvg = o.danger
         ? '<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 9v4M12 17h.01M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"/></svg>'
         : '<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 9v4M12 17h.01"/><circle cx="12" cy="12" r="9"/></svg>'
+      // S233 (the owner ask: every modal carries a close on its top right): the
+      // head row — the title (when present) on the inline start, the ✕ on the
+      // inline end. The ✕ is the cancel path's corner twin (close(false) — the
+      // caller's action is abandoned, exactly like the Cancel button/backdrop/
+      // Esc); its OWN data value keeps the e2e cancel locators single-match.
       card.innerHTML =
-        (title ? '<h2 class="hib-confirm-title" id="hib-confirm-title">' + iconSvg + title + '</h2>' : '') +
+        '<div class="hib-confirm-head">' +
+          (title ? '<h2 class="hib-confirm-title" id="hib-confirm-title">' + iconSvg + title + '</h2>' : '') +
+          '<button type="button" class="ghost hib-confirm-x" data-hib-confirm="x" aria-label="' + esc(_t('common.close', 'Close')) + '">✕</button>' +
+        '</div>' +
         '<p class="hib-confirm-message" id="hib-confirm-msg">' + esc(String(message ?? '')) + '</p>' +
         '<div class="hib-confirm-actions">' +
           '<button type="button" class="ghost" data-hib-confirm="cancel">' + cancelLabel + '</button>' +
@@ -383,6 +391,8 @@ window.hibana = (() => {
       // wire the buttons
       card.querySelector('[data-hib-confirm="cancel"]').addEventListener('click', () => close(false))
       card.querySelector('[data-hib-confirm="ok"]').addEventListener('click', () => close(true))
+      // S233: the corner ✕ — the cancel path's top-right twin (never the confirm)
+      card.querySelector('[data-hib-confirm="x"]').addEventListener('click', () => close(false))
       // backdrop click (outside the card) cancels
       overlay.addEventListener('click', (e) => { if (e.target === overlay) close(false) })
       // Escape cancels; Enter confirms (parity with the native confirm's keyboard contract)

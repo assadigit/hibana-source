@@ -84,6 +84,13 @@ const createCategorySchema = z.object({
 // full-screen rich editor): a sprint carries a version label + a rich markdown doc.
 // The description IS the editor's subject — seeded by the modal box, edited in the
 // full-screen editor, autosaved via PATCH. 100k matches the task-title sanity guard.
+// S235 (the sprint audit): the sprint-range sanity guard — mirrors clipRangeOk
+// but for the sprint's started_at/ended_at fields. Without this, a POST create
+// with started_at > ended_at succeeds at INSERT (the timeline then renders a
+// negative-width strip). The PATCH branch already checks this inline (L655);
+// the POST branch did not — the audit's §4.3 gap.
+const sprintRangeOk = (b: { started_at?: string | null; ended_at?: string | null }) =>
+  !(typeof b.started_at === 'string' && typeof b.ended_at === 'string') || Date.parse(b.ended_at!) > Date.parse(b.started_at!)
 const createSprintSchema = z.object({
   name: z.string().trim().min(1).max(80).optional(),
   version: z.string().trim().min(1).max(40).optional(),
@@ -93,7 +100,7 @@ const createSprintSchema = z.object({
   // presets (24h/48h/72h/1w/2w/1m) compute end = start + duration.
   started_at: isoDate.optional(),
   ended_at: isoDate.nullable().optional(),
-})
+}).refine(sprintRangeOk, { message: 'bad_range' }) // S235: reject end <= start at create time
 const updateSprintSchema = z.object({
   name: z.string().trim().min(1).max(80).optional(),
   version: z.string().trim().min(1).max(40).nullable().optional(), // explicit null clears the label
@@ -114,9 +121,8 @@ const updateBacklogDocSchema = z.object({
   content: z.string().max(50_000).optional(),
 })
 
-// Whole-day index (UTC) — the timeline works in whole days and this is the same
-// Math.floor(ms/86400000) day math the client uses in sprint.html.
-const dayIdx = (x: string) => Math.floor(Date.parse(x) / 86400000)
+// S235: dayIdx moved to devboard-helpers.ts (assertSprintWindowOk uses it).
+// The inline overlap check that used it here was lifted into the shared helper.
 
 
 import {
@@ -132,6 +138,7 @@ import {
   refreshTagUsage,
   syncTaskSearchTags,
   PRIO_ORDER_SQL,
+  assertSprintWindowOk, // S235: the shared overlap check (audit §4.2)
 } from './devboard-helpers'
 
 export function devboardRoutes(cfg: Config) {
@@ -585,6 +592,12 @@ export function devboardRoutes(cfg: Config) {
       }
       const startedAt = body.started_at!
       const endedAt = body.ended_at ?? null
+      // S235 (audit §4.2): the overlap check — was MISSING on the POST-create-
+      // with-dates path (only PATCH had it). A user could create a sprint that
+      // overlaps an existing closed sprint's date range. Now the shared helper
+      // catches it (sprintId=null — new sprint, don't exclude self).
+      const windowOk = await assertSprintWindowOk(cfg, p.id, null, startedAt, endedAt)
+      if (!windowOk) return errJson(c, ErrorCode.invalid_input)
       await cfg.db.execute('INSERT INTO sprints (id, project_id, name, version, description, started_at, ended_at, is_draft, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, 0, ?)', [
         id, p.id, name, body.version ?? null, body.description ?? '', startedAt, endedAt, now,
       ])
@@ -622,6 +635,13 @@ export function devboardRoutes(cfg: Config) {
         new Date(closeMs).toISOString(), s.project_id,
       ])
     }
+    // S235 (audit §4.2): the overlap check — was MISSING on /start. Starting a
+    // sprint "now" with no end (open) could land "now" INSIDE an existing closed
+    // sprint's [started_at, ended_at] range. The shared helper catches this
+    // (newEnd=null → treated as +∞; the overlap fires if any closed sibling's
+    // range includes "now"). sprintId=s.id — exclude self from the sibling scan.
+    const startWindowOk = await assertSprintWindowOk(cfg, s.project_id, s.id, now, null)
+    if (!startWindowOk) return errJson(c, ErrorCode.invalid_input)
     await cfg.db.execute('UPDATE sprints SET started_at = ?, ended_at = NULL, is_draft = 0 WHERE id = ?', [now, s.id])
     await logHistory(cfg, s.project_id, t('{name} started', '{name} شروع شد', { name: s.name }))
     return c.json({ ok: true })
@@ -663,27 +683,12 @@ export function devboardRoutes(cfg: Config) {
       const anyOtherOpen = others.some((x) => x.ended_at === null)
       if (!isLatest || anyOtherOpen) return errJson(c, ErrorCode.invalid_input)
     }
-    // Overlap check at DAY granularity (the timeline works in whole days; an open
-    // sibling's end counts as +∞). The one allowed exception: a range spanning ZERO days
-    // (dayIdx(start) === dayIdx(end)) that TOUCHES this sprint at the exact same instant
-    // (parse-time equal boundary) — the same-day create edge above is exactly that shape
-    // (the closed sprint ends precisely where the new one starts). Not a real overlap.
-    const zeroDay = (start: string, end: string) => dayIdx(start) === dayIdx(end)
-    const sameMs = (a: string | null, b: string | null) => a !== null && b !== null && Date.parse(a) === Date.parse(b)
-    const aZero = newEnd !== null && zeroDay(newStart, newEnd)
-    for (const x of siblings) {
-      if (x.id === s.id) continue
-      const bZero = x.ended_at !== null && zeroDay(x.started_at, x.ended_at)
-      if (
-        (bZero || aZero) &&
-        (sameMs(newStart, x.started_at) || sameMs(newStart, x.ended_at) || sameMs(newEnd, x.started_at) || sameMs(newEnd, x.ended_at))
-      ) continue
-      const aS = dayIdx(newStart)
-      const aE = newEnd === null ? Infinity : dayIdx(newEnd)
-      const bS = dayIdx(x.started_at)
-      const bE = x.ended_at === null ? Infinity : dayIdx(x.ended_at)
-      if (aS <= bE && bS <= aE) return errJson(c, ErrorCode.invalid_input)
-    }
+    // S235: the overlap check — now calls the SHARED assertSprintWindowOk helper
+    // (lifted to devboard-helpers.ts so POST-create-with-dates + POST-start use
+    // the SAME validation). The zero-day touching exception + the open-end =
+    // +∞ semantics are preserved verbatim in the helper.
+    const windowOk = await assertSprintWindowOk(cfg, s.project_id, s.id, newStart, newEnd)
+    if (!windowOk) return errJson(c, ErrorCode.invalid_input)
     // One UPDATE touching only the fields the body provided (explicit null reopens).
     // version/description ride along on started sprints too (0052) — the doc stays
     // editable for the whole sprint lifetime, not just while drafting.

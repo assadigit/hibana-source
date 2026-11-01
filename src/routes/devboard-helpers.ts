@@ -54,6 +54,53 @@ export async function ownedSprint(cfg: Config, userId: string, id: string): Prom
   return rows[0] ?? null
 }
 
+// S235 (the sprint audit — §4.2 overlap gap): the shared sprint-window overlap
+// check, lifted out of the PATCH handler (devboard.ts:666-686) so POST-create-
+// with-dates + POST-start can call the SAME validation. Without this, a user
+// could create "Sprint 5 (Mar 1 → Mar 30)" while "Sprint 4 (Mar 15 → Mar 20)"
+// exists — they'd overlap on the timeline (the PATCH branch caught this, the
+// POST branches did not).
+//
+// Returns ErrorCode.invalid_input if the new [newStart, newEnd] window overlaps
+// any non-draft sibling (excluding `sprintId` itself — null for a new sprint),
+// or null if the window is clean. The zero-day touching exception (a range
+// spanning ZERO days that TOUCHES a sibling at the exact same instant) is
+// allowed — the "closed sprint ends precisely where the new one starts" case.
+//
+// `newEnd = null` means the new sprint is OPEN (ended_at IS NULL) — treated as
+// +∞ for the overlap comparison (an open sprint overlaps anything that starts
+// on or after its start day).
+export async function assertSprintWindowOk(
+  cfg: Config,
+  projectId: string,
+  sprintId: string | null,
+  newStart: string,
+  newEnd: string | null,
+): Promise<boolean> {
+  const siblings = await cfg.db.query<SprintRow>(
+    'SELECT * FROM sprints WHERE project_id = ? AND is_draft = 0 ORDER BY started_at',
+    [projectId],
+  )
+  const dayIdx = (x: string) => Math.floor(Date.parse(x) / 86400000)
+  const zeroDay = (start: string, end: string) => dayIdx(start) === dayIdx(end)
+  const sameMs = (a: string | null, b: string | null) => a !== null && b !== null && Date.parse(a) === Date.parse(b)
+  const aZero = newEnd !== null && zeroDay(newStart, newEnd)
+  for (const x of siblings) {
+    if (sprintId !== null && x.id === sprintId) continue
+    const bZero = x.ended_at !== null && zeroDay(x.started_at, x.ended_at)
+    if (
+      (bZero || aZero) &&
+      (sameMs(newStart, x.started_at) || sameMs(newStart, x.ended_at) || sameMs(newEnd, x.started_at) || sameMs(newEnd, x.ended_at))
+    ) continue
+    const aS = dayIdx(newStart)
+    const aE = newEnd === null ? Infinity : dayIdx(newEnd)
+    const bS = dayIdx(x.started_at)
+    const bE = x.ended_at === null ? Infinity : dayIdx(x.ended_at)
+    if (aS <= bE && bS <= aE) return false // overlap
+  }
+  return true // ok
+}
+
 export async function ownedBacklogDoc(cfg: Config, userId: string, id: string): Promise<BacklogDocRow | null> {
   const rows = await cfg.db.query<BacklogDocRow>(
     'SELECT d.* FROM backlog_docs d JOIN projects p ON p.id = d.project_id WHERE d.id = ? AND p.user_id = ? AND p.deleted_at IS NULL',

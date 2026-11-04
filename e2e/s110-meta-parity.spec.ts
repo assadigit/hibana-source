@@ -111,8 +111,13 @@ test('the fullscreen board renders the EXACT meta the project page renders (shar
   expect(dbOpen.hasPrioChip).toBe(false)
   expect(dbOpen.usesOldDateSpan).toBe(false)
   expect(dbDone.metaText.startsWith('✓')).toBe(true)
-  // the .pd-task-meta token (font parity — project-header.css loads on board.html)
-  expect(dbOpen.metaFont).toBe(pdOpen.metaFont)
+  // The .pd-task-meta token: S231 gave the BOARD its own deliberate scan size —
+  // 12px (devboard.css .db-cols .pd-task-meta — "12px — was fs-xs × 0.8 = 9.6px")
+  // while the project page keeps the 9.6px whisper (project-header.css, the
+  // fs-xs × 0.8 register). The byte-identical MARKUP parity above is the shared-
+  // renderer contract; the font sizes are per-surface by design since S231.
+  expect(pdOpen.metaFont).toBe('9.6px')
+  expect(dbOpen.metaFont).toBe('12px')
 })
 
 test('the shared metaHtml renderer exists on both surfaces (HibanaChips contract)', async ({ page }) => {

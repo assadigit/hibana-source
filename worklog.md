@@ -304,3 +304,35 @@ package 0.4.1.42 + Changelogs row.
 **The desktop half (hibana-desktop, next commit):** the island rides this ref (pin bump +
 focus-core.js joins JS_FILES + the panel's Focus-mode row writes the same key + probe-focus as
 the 11th probe + v0.1.34 — S236's 0.1.33 slot reserved-lost, same doctrine as the SW ladder).
+
+## Session S237 delivery — the red-CI unblock (2026-11-05)
+
+**The state found at delivery time:** dac869f was already on remote main, tag v0.4.1.42
+cut, the GitHub Release published — but CI had been RED for EIGHT consecutive main pushes
+(since S231's 6037d8f1, 2026-10-31), so CD's deploy lane was skipped every time
+(workflow_run conclusion ≠ success) and prod sat at v449 (S233-era, last deployed by
+hand). The whole red run was TWO stale e2e pins — assertions still encoding the
+pre-S231 typography that S231 deliberately replaced (its own CSS comments say so):
+
+- e2e/s105-owners-agenda.spec.ts S105-6 pinned the board title at 12px; S231's line reads
+  `.db-cols .pd-task-title { font-size: 0.875rem } /* 14px — the board's scan size */`.
+- e2e/s110-meta-parity.spec.ts pinned board metaFont === project metaFont; S231's line
+  reads `.db-cols .pd-task-meta { font-size: var(--fs-xs) } /* 12px — was fs-xs × 0.8 =
+  9.6px */` — the board's meta reads at the full token BY DESIGN now; the project page
+  keeps the 9.6px whisper. The byte-identical MARKUP parity pins (meta text, banner,
+  chip renderer) still hold — only the font sizes are per-surface by design.
+
+**The fix (this commit):** the two specs adopt the S231 values — the title pin moves to
+14px (weight 700 unchanged) and the meta font pin becomes the two per-surface values
+(project 9.6px / board 12px), each with a provenance comment citing S231's CSS. ZERO
+production-code changes. Both specs re-run locally 11/11, then the FULL suite re-run as
+CI's own two-shard split: 238/238 (shard 1) + 231/231 (shard 2) — the first full-suite
+green since 073bb953's round.
+
+**The chain this unblocks:** CI green on this commit → CD's guard passes → the deploy
+lane fires (dev worker → health probe → prod on hibana.ir) → the S237 carriers go live →
+scripts/live-focus-probe.mjs (follows as its own chore commit, the S232 precedent)
+verifies the deployed round end-to-end. The desktop half was already fully delivered:
+07835cf + tag v0.1.34-desktop pushed, the Windows release PUBLISHED with all three
+assets (installer.exe + portable.zip + checksums), island --check byte-identical at pin
+dac869f, probe-focus ALL GREEN (6 LEGs / 33 assertions).

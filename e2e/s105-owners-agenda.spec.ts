@@ -330,13 +330,17 @@ test('S105-6 [MED]: the fullscreen board renders bullets + a BOLD title (the sha
   // The preview flattens the remaining raw line (marker included — the exact
   // projects-page preview behavior).
   await expect(card.locator('.pd-task-preview')).toHaveText('- bullet two')
-  // The title carries the projects-page register: 0.75rem / weight 700.
+  // The title renders BOLD; the SIZE is the board's own scan register since S231
+  // (devboard.css .db-cols .pd-task-title — 0.875rem, "14px — the board's scan
+  // size"; pre-S231 it inherited the projects page's 12px register). The shared-
+  // renderer contract lives in the MARKUP pins above (the real <li> bullet + the
+  // flattened preview) — weight 700 unchanged on both surfaces.
   const typography = await card.locator('.pd-task-title').evaluate((el) => {
     const cs = getComputedStyle(el)
     return { weight: cs.fontWeight, size: cs.fontSize }
   })
   expect(typography.weight).toBe('700')
-  expect(typography.size).toBe('12px')
+  expect(typography.size).toBe('14px')
 })
 
 /* ── 7. The Plans tab renders the planned items its badge counts ─────────────── */

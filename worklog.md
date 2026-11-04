@@ -212,3 +212,95 @@ kept) + the kanban suites 27/27 (label-manager/s206/s209/s230/filters) + s193/s1
 **The desktop half (hibana-desktop, next commit):** the island rides this ref (pin bump to this
 sha + the five native dialogs' own ✕ rows + the shim's confirm port kept 1:1 with app.js + the
 kept-markup pins extended + v0.1.30).
+
+## Session S237 — Focus Mode (2026-11-04)
+
+**The spec'd round (self-contained S237 brief):** a per-lane visual isolation for the board —
+"when the user writes/adds tasks in one column, the other four columns' text, color and movement
+are distracting." One settings toggle (default OFF) gates two per-lane head controls: a blur
+focus (the other four lanes dim + go inert) and an enlarge sheet (the lane as a centered modal
+with a quick-add). F / [ / ] / Esc keyboard layer. Persisted + auto-restored.
+
+**THE S236 FINDING (read this first — it shapes the whole round):** the session brief's stated
+baseline (hibana-source @ d0245ba, hibana-desktop @ c5106eb + tag v0.1.33-desktop, "local, not
+yet pushed") does NOT exist anywhere reachable: remote main is 097f91e (S235), the live worker is
+v449-era, the dev worker v446-era, no branch/PR/tag carries S236 — the commit lived only in the
+previous session's sandbox and is gone with it. S237 therefore builds on the REAL remote base
+(097f91e). The version ladder RESERVES S236's slots rather than reusing them — SW jumps
+v449 → v451 and the desktop will jump 0.1.32 → 0.1.34, so the documented ladder (v450 / 0.1.33
+= S236) stays truthful and a future S236 re-run takes fresh numbers above v451. Disclosed here
+and in the final report; the owner should re-run S236 (sprint-page optimistic local mutations)
+as its own session if that work is still wanted.
+
+**The scope, honestly — pure client, zero server/API/DB surface:**
+
+- **THE PURE CORE (public/js/focus-core.js, NEW):** every decision extracted from the DOM half —
+  parseToggle ('on' is the only ON spelling; default OFF), cycleLane (the [ / ] wrap over the
+  five lanes, DOM order), escLayer (EXACTLY one layer per press, sheet → focus, else null — not
+  our Esc), autoRestore (toggle-on × valid-lane), resolveFKey (hover → last → null, never a
+  guess). Zero DOM/fetch/i18n; evaluated byte-for-byte by the new suite (the sync-state harness
+  doctrine). Loaded by board.html only (defer, before devboard.js); board-page.js's self-healing
+  ensureLib re-injects it at the same ?v=.
+- **THE BOARD HALF (board-page.js + devboard.css):** module focus state {enabled,
+  focusedStatus, sheetStatus} + the two head buttons INSIDE the ⋯ wrap (before the ellipsis —
+  the wrap owns the inline-end grouping, ghost .db-col-menu-btn metrics, aria-pressed + is-active
+  on the focus button). OFF = byte-identical markup to today. The dim recipe is ONE class per
+  lane container (.db-dim: blur(3px) saturate(.5) opacity .4 + pointer/select inert — DOM order
+  untouched, Tab users pass through), re-applied by applyFocus() at every render's tail so the
+  focus SURVIVES re-renders (task creates/edits/moves all funnel through render()). The
+  ~150ms transition lives on the lane unconditionally (inert while OFF — filter/opacity never
+  change elsewhere) so enter/move/exit all play; prefers-reduced-motion kills it in CSS.
+- **THE ENLARGE SHEET:** a centered dialog (role=dialog, aria-modal, S233 corner-✕ grammar,
+  focus-return to its opener) over a z-80 dimmed-board overlay (below the editor's z-90 so an
+  editor opened from a sheet card stacks on top; below confirm 800 / toasts 600). Sticky
+  auto-focused quick-add — Enter creates through devboard's OWN createTask (the same POST the
+  editor path uses; zero duplicated logic; the desktop's S234 classifier still sees the create
+  cue), clears + STAYS OPEN for rapid entry. The cards are CLONED from the board lane's
+  .pd-tasks innerHTML (the sheet mirrors the lane — same markup, same filter view, count mirrors
+  the board badge) into a .db-focus-cards.db-cols container that re-scopes every `.db-cols …`
+  card rule verbatim with only the lane GRID geometry neutralized (vertical flex) — the two
+  surfaces can never drift. Drag disabled in-sheet (v1): post-render draggable=false + the
+  dragstart guard. One sheet at a time; backdrop click + ✕ + Esc close; sheets are ALWAYS
+  transient (never restored).
+- **THE KEYBOARD LAYER:** capture-phase document listener + stopImmediatePropagation on a
+  consumed Esc — one press peels exactly one layer and never double-fires zen-mode's own
+  (web-only) Esc listener in the same press; when no focus layer is ours the press is left alone
+  (menus/dialogs/zen keep their contracts). F toggles the hovered lane (mouseover tracking) or
+  the last lane — the button's twin, never a guess. [ / ] cycle with wrap, only while focus is
+  active. Input/textarea/contenteditable guard + modifier guard (Ctrl+F stays the browser's).
+  <800px: the buttons hide via CSS + the lane shortcuts no-op (Esc-sheet-close stays armed —
+  modal hygiene at any width; a documented default).
+- **THE SETTINGS SURFACE + I18N:** settings.html gains the toggle row (the autopolish pattern);
+  settings-page.js persists hibana-focus-mode = 'on'|'off' and dispatches hibana:focus-mode —
+  the SAME key + event the desktop panel writes (two codebases, one switch; the board listens
+  and re-renders LIVE, no reload). hibana-focus-last persists the focused lane, auto-restored at
+  boot (fresh DOM, no animation). db.focus.* — 9 keys EN+FA (mode, hint, toggle, exit, enlarge,
+  sheetAdd, sheetTitle, on, off), inline EN fallbacks at every _t() call site; parity 1536/1536.
+- **THE PROBE SURFACE:** window.HibanaBoard.focusState() → { enabled, focusedStatus,
+  sheetStatus } (attached at boot, removed at unmount — desktop probe-focus reads it).
+
+**RTL decisions (recorded per the spec's ask):** the sheet + head buttons are all logical
+properties (mirrors for free). [ / ] operate on READING order (= DOM order): [ is
+"reading-order previous" in BOTH languages — physically left in EN, physically right in FA,
+matching the OS-level RTL arrow-mirroring convention. This was REASONED, not user-tested —
+flagged for the owner's FA check; flipping later is a two-line change in focus-core.js
+(cycleLane's step sign under document.dir === 'rtl').
+
+**The ladder:** typecheck 0 · eslint 0 · vitest 796/796 (778 existing + 18 NEW:
+src/tests/focus-mode-s237.test.ts — the real focus-core.js evaluated against a fake window
+[parseToggle's truth table, the [/] wrap both directions + stale-value fallback + the
+devboard.js STATUSES parity tripwire, escLayer's inside-out ordering, autoRestore's rule + all
+five lanes, resolveFKey's hover/last/nothing ladder] + the wiring pins [board.html's tag order,
+board-page.js's capture/stopImmediatePropagation/dialog roles/createTask reuse/the exactly-4
+fetch sites, devboard.css's recipe markers, the settings surfaces, both dictionaries, sw v451])
+· parity 1536/1536 · cache-bust PASS (focus-core.js v1 NEW, board-page.js v27, devboard.css v38
+across 23 pages, i18n-en.js v104 + i18n.js v157 across 26 pages — v157 carries the lazy
+i18n-fa.js?v=98 injector literal — settings-page.js v18; sw v451 SHELL re-fetch) · escape-lint
+PASS (215 sinks) · fn-shape PASS — one PRE-EXISTING row allowlisted (devboard.ts PATCH
+/api/sprints/:id @L650, 72 lines, grown by the S235 audit round before this session; recorded in
+FN-ALLOWLIST.md with the provenance note) · bundle-size PASS (+4.5%) · precache PASS ·
+package 0.4.1.42 + Changelogs row.
+
+**The desktop half (hibana-desktop, next commit):** the island rides this ref (pin bump +
+focus-core.js joins JS_FILES + the panel's Focus-mode row writes the same key + probe-focus as
+the 11th probe + v0.1.34 — S236's 0.1.33 slot reserved-lost, same doctrine as the SW ladder).

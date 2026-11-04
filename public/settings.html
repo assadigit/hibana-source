@@ -21,7 +21,7 @@
   <link rel="stylesheet" href="/css/notifications.css?v=12">
   <link rel="stylesheet" href="/css/polish-batch.css?v=29">
   <link rel="stylesheet" href="/css/project-header.css?v=51">
-  <link rel="stylesheet" href="/css/devboard.css?v=37">
+  <link rel="stylesheet" href="/css/devboard.css?v=38">
   <link rel="stylesheet" href="/css/misc.css?v=24">
   <link rel="stylesheet" href="/css/themes.css?v=9">
   <link rel="stylesheet" href="/css/claude-dark-theme.css?v=31">
@@ -41,7 +41,7 @@
        with "prefs is not defined" etc. (~80 expression errors) and ALL settings interactivity
        was dead on a hard load (silent since the inline-script extraction, 317724e). The
        alpine:init backup inside the file only worked in the old pre-extraction timing too. -->
-  <script src="/js/settings-page.js?v=17" defer></script>
+  <script src="/js/settings-page.js?v=18" defer></script>
   <script src="/vendor/alpine.min.js" defer></script>
   <script src="/vendor/jalaali.min.js" defer></script>
   <script src="/js/app.js?v=221" defer></script>
@@ -54,8 +54,8 @@
   <script src="/js/micro-interactions.js?v=1" defer></script>
   <script src="/js/go-to.js?v=3" defer></script>
   <script src="/js/install-prompt.js?v=1" defer></script>
-  <script src="/js/i18n-en.js?v=103" defer></script>
-  <script src="/js/i18n.js?v=156" defer></script>
+  <script src="/js/i18n-en.js?v=104" defer></script>
+  <script src="/js/i18n.js?v=157" defer></script>
 </head>
 <body>
   <div data-nav></div>
@@ -115,6 +115,19 @@
           <option value="hidden" data-i18n="settings.ovTasksHidden">Hidden</option>
         </select>
         <span class="muted small" data-i18n="settings.ovTasksHint">Hides the donut + status-boxes summary on the dashboard and the projects page.</span>
+      </label>
+      <!-- S237 (Focus Mode): the board's focus toggle — a pure client pref
+           (localStorage 'hibana-focus-mode' = 'on'|'off', default off — the SAME
+           key the desktop settings panel writes, so both platforms agree on one
+           switch). On: each board lane header grows a focus button (blur the
+           other four lanes) + an enlarge button (the lane as a centered sheet
+           with a quick-add). The board listens for the hibana:focus-mode event,
+           so a live board reacts instantly; a cold board reads the key at boot.
+           Off by default — off is byte-identical to today's board. -->
+      <label class="focus-mode-toggle">
+        <span data-i18n="db.focus.mode">Focus mode</span>
+        <input type="checkbox" id="db-focus-mode-toggle">
+        <span class="muted small" data-i18n="db.focus.hint">Adds focus and enlarge controls to each board column. Off by default.</span>
       </label>
       <!-- S89 (owner request): the offline-sync status + retry moved HERE from the
            navbar — the pending chip left the rail and the mobile brand bar entirely;

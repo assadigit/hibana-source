@@ -234,6 +234,27 @@
         initAutopolishToggle()
         setTimeout(initAutopolishToggle, 800)
 
+        // S237 (Focus Mode) — the board's focus toggle. localStorage
+        // 'hibana-focus-mode' = 'on'|'off', default off — the SAME key the
+        // desktop settings panel writes (two codebases, one switch). The board
+        // reads the key at boot and listens for the hibana:focus-mode event, so
+        // a live board (soft-nav or the desktop island, where the settings sheet
+        // rides the SAME document as the board) reacts instantly; this page's
+        // own toggle just persists + dispatches.
+        const FOCUS_MODE_KEY = 'hibana-focus-mode'
+        function initFocusModeToggle() {
+          const cb = document.getElementById('db-focus-mode-toggle')
+          if (!cb) return
+          try { cb.checked = localStorage.getItem(FOCUS_MODE_KEY) === 'on' } catch { cb.checked = false }
+          cb.addEventListener('change', () => {
+            try { localStorage.setItem(FOCUS_MODE_KEY, cb.checked ? 'on' : 'off') } catch { /* private mode */ }
+            document.dispatchEvent(new CustomEvent('hibana:focus-mode', { detail: { on: cb.checked } }))
+            window.hibana?.toast(window.hibanaI18n?.t('db.focus.' + (cb.checked ? 'on' : 'off')) || ('Focus mode ' + (cb.checked ? 'on' : 'off')))
+          })
+        }
+        initFocusModeToggle()
+        setTimeout(initFocusModeToggle, 800)
+
         // Custom AI system prompt — localStorage 'hibana-ai-custom-prompt'. Empty → defaults.
         // Debounced save on input (no save button needed — same UX as the page-width select).
         const PROMPT_KEY = 'hibana-ai-custom-prompt'

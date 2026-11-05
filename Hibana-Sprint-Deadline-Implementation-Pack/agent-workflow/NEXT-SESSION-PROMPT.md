@@ -4,12 +4,18 @@ Continue Hibana Sprint, Deadline & Dependency implementation.
 
 **This session is S244** in the repo's commit-numbering sequence (Phase 0 = S239, Phase 1 =
 S240 @ `81f2c05`, Phase 2 = S241 @ `da652d2`, Phase 3 = S242 @ `a1e7d2d`, Phase 4 =
-S243 @ **`b770258` on `feat/sprint-deadline-deps`** — all final deliveries verified, all
-gates green; the Phase 4 round delivered the sprint lifecycle round: the pause/resume
-wrappers + the H1/H2/H3/I confirmation dialogs, the Sprints-page lifecycle-grouped
-extension with the Settings/Tasks detail panel (D5 closed), the compact Kanban overview
-on BOTH board surfaces, the distinct paused render, and the archives list's additive
-sprint identity).
+S243 @ **`b770258`** + the S243b reconciliation round @ **`3ae6ae9` on
+`feat/sprint-deadline-deps`** — all final deliveries verified, all gates green; the
+Phase 4 round delivered the sprint lifecycle round: the pause/resume wrappers + the
+H1/H2/H3/I confirmation dialogs, the Sprints-page lifecycle-grouped extension with the
+Settings/Tasks detail panel (D5 closed), the compact Kanban overview on BOTH board
+surfaces (the embedded fold reads the FETCHED truth via pdOvRows — the S243b accuracy
+fix, assumption 11), the distinct paused render, and the archives list's additive
+sprint identity). Session 7 (S243b) note: a CONCURRENT session delivered Phase 4
+mid-flight — the reconciliation adopted the pushed `b770258`, re-verified it fresh,
+reviewed it, and fixed the one genuine defect (the embedded fold's 5-cap) as `3ae6ae9`.
+If ANOTHER session appears mid-work again: reconcile per the never-overwrite rule —
+adopt the verified push, never force-push, never stack a conflicting twin.
 
 ## Kickoff credentials (pasted by the user — never persist, never commit, never log)
 
@@ -39,10 +45,11 @@ If the user re-pastes the pack, prefer the repo copy.
 
 1. Clone the repo (public — no token for clone). `cd <repo> && git status && git log --oneline -5
    && git branch --show-current`. Confirm no other agent is mid-work; preserve unrelated/uncommitted
-   changes. `origin/main` HEAD must be the docs-only commit on top of `153ed3f`; if it moved,
-   reconcile — never overwrite concurrent work.
+   changes. `origin/main` HEAD must be the latest docs-only commit (the S243/S243b
+   close-out on top of `0171029`); if it moved, reconcile — never overwrite concurrent
+   work (the session-7 precedent: adopt the verified push, review it, fix forward).
 2. Checkout the feature branch: `git checkout feat/sprint-deadline-deps && git pull` — HEAD must be
-   **`b770258`** (or its descendant), clean tree. **NEVER commit non-docs code to `main`** — pushes
+   **`3ae6ae9`** (or its descendant), clean tree. **NEVER commit non-docs code to `main`** — pushes
    to main auto-deploy to production hibana.ir via the CI→CD chain. Branch pushes run CI only and
    can NEVER deploy.
 3. Desktop repo (`assadigit/hibana-desktop`, `main` @ `9d53e64`, island pin `04218ca`) stays

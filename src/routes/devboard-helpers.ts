@@ -151,6 +151,91 @@ export async function assertSprintWindowOk(
   return true // ok
 }
 
+// ---- S241 (0065 read surface — the Sprint/Deadline/Dependency pack, Phase 2) ----------
+// Spec pack references: §10/§10.3/§12.2 effective deadlines, §15 dependency read model,
+// §18 cross-platform consistency (one resolution, computed server-side, so web and
+// desktop never fork deadline logic).
+
+/** S241 (spec §15 — the dependency read surface): the flat per-project edge join —
+ * one row per blocker→blocked pair, shaped like taskTagsForProject's flat join so the
+ * client groups by task: Blocked-by = edges where blocked_task_id = X; the reverse
+ * "Blocks N" counts are the same fold's other half (derived, never stored — spec §14).
+ * Same-project is a write-time invariant (the deps POST rejects cross-project edges),
+ * so scoping through the BLOCKED task's project is exact; ON DELETE CASCADE keeps the
+ * join dangling-free. Belt: a lagging pre-0065 D1 (no dev_task_deps table yet) serves
+ * [] rather than 500ing the whole board — the categories/tagColorFor precedent. */
+export interface TaskDepEdge {
+  blocker_task_id: string
+  blocked_task_id: string
+}
+export async function taskDepsForProject(cfg: Config, projectId: string): Promise<TaskDepEdge[]> {
+  try {
+    return await cfg.db.query<TaskDepEdge>(
+      `SELECT d.blocker_task_id, d.blocked_task_id FROM dev_task_deps d
+       JOIN dev_tasks t ON t.id = d.blocked_task_id
+       WHERE t.project_id = ? ORDER BY d.created_at, d.blocker_task_id, d.blocked_task_id`,
+      [projectId],
+    )
+  } catch {
+    return [] // lagging-D1 belt (the deploy-ahead-of-migration race — S57 doctrine)
+  }
+}
+
+/** S241 (spec §10 — the effective-deadline resolution): personal > sprint-inherited-
+ * while-not-completed > none. Computed ONCE, server-side, as additive fields on the
+ * board payload's task rows — the recommended Phase 2 default (spec §18: do not fork
+ * deadline logic between platforms; the desktop then needs zero deadline logic).
+ *
+ * §10.3 completed-sprint neutrality: a completed sprint's due date stays in the
+ * sprints section for history, but never serves as an ACTIVE deadline for tasks
+ * relying only on it. Paused sprints keep theirs (§5.5 — pausing preserves deadlines).
+ *
+ * §12.2 progress origin: the personal deadline's start = the task's due_origin_at;
+ * an inherited deadline's start = the SPRINT's due_origin_at (the shared start point
+ * for every task inheriting it). Origins coalesce to the due_at itself when a legacy
+ * row carries a deadline without a stamp (NULL ⇔ due_at NULL per types.ts; readers
+ * may coalesce). A lagging pre-0065 row (no due columns at all → undefined keys)
+ * falls through every `!= null` arm to the null triple. */
+export interface EffectiveDeadline {
+  effective_due_at: string | null
+  effective_due_source: 'task' | 'sprint' | null
+  effective_due_origin_at: string | null
+}
+export function effectiveDeadlineOf(
+  task: Pick<DevTaskRow, 'due_at' | 'due_origin_at'>,
+  sprint: Pick<SprintRow, 'due_at' | 'due_origin_at' | 'status' | 'is_draft' | 'ended_at'> | null | undefined,
+): EffectiveDeadline {
+  // §10 precedence 1 — the personal deadline always wins while set (the override).
+  if (task.due_at != null) {
+    return { effective_due_at: task.due_at, effective_due_source: 'task', effective_due_origin_at: task.due_origin_at ?? task.due_at }
+  }
+  // §10 precedence 2 — inherit the sprint's deadline while the sprint is NOT
+  // completed. sprintStatusOf coalesces a lagging pre-0065 row (whose due_at is
+  // absent anyway, so the arm is unreachable there — defense in depth).
+  if (sprint && sprint.due_at != null && sprintStatusOf(sprint) !== 'completed') {
+    return { effective_due_at: sprint.due_at, effective_due_source: 'sprint', effective_due_origin_at: sprint.due_origin_at ?? sprint.due_at }
+  }
+  // §10 precedence 3 — no active deadline (completed-sprint neutrality included).
+  return { effective_due_at: null, effective_due_source: null, effective_due_origin_at: null }
+}
+
+/** S241: the board payload's task rows — the legacy tags split (pre-S241 behavior,
+ * byte-identical) plus the additive server-computed effective-deadline fields. One
+ * seam so every payload consumer (board page, sprint page, desktop mirror) sees
+ * identical rows; the sprint lookup is scoped to THIS project's sprints, so a
+ * stray cross-project sprint_id (a pre-existing API-only edge) inherits nothing. */
+export function boardTaskRows(
+  tasks: (DevTaskRow & { tags: string; shot_count: number })[],
+  sprints: SprintRow[],
+): (DevTaskRow & { tags: string[]; shot_count: number } & EffectiveDeadline)[] {
+  const sprintById = new Map(sprints.map((s) => [s.id, s] as const))
+  return tasks.map((t) => ({
+    ...t,
+    tags: t.tags ? t.tags.split(',') : [],
+    ...effectiveDeadlineOf(t, t.sprint_id != null ? sprintById.get(t.sprint_id) : null),
+  }))
+}
+
 export async function ownedBacklogDoc(cfg: Config, userId: string, id: string): Promise<BacklogDocRow | null> {
   const rows = await cfg.db.query<BacklogDocRow>(
     'SELECT d.* FROM backlog_docs d JOIN projects p ON p.id = d.project_id WHERE d.id = ? AND p.user_id = ? AND p.deleted_at IS NULL',

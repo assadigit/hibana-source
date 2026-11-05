@@ -165,6 +165,8 @@ import {
   sprintStatusOf, // S240 (0065): lifecycle coalescing (lagging-D1 belt included)
   findActiveSprint, // S240 (0065): the one-active lookup (spec §5.1)
   sprintNameTaken, // S240 (0065): case-insensitive project-scoped name uniqueness (§4.3)
+  taskDepsForProject, // S241 (0065 read surface): the flat per-project dep edge join (§15)
+  boardTaskRows, // S241: task rows + the server-computed effective deadline (§10/§18)
 } from './devboard-helpers'
 
 export function devboardRoutes(cfg: Config) {
@@ -176,7 +178,7 @@ export function devboardRoutes(cfg: Config) {
     const user = c.get('user')
     const p = await getOwnedProject(cfg, user.id, c.req.param('projectId'))
     if (!p) return errJson(c, ErrorCode.not_found)
-    const [tasks, sprints, tags, taskTags, categories] = await Promise.all([
+    const [tasks, sprints, tags, taskTags, categories, taskDeps] = await Promise.all([
       cfg.db.query<DevTaskRow & { tags: string; shot_count: number }>(
         // S29 follow-up: PRIORITY-FIRST ordering — tasks auto-sort urgent → high →
         // medium → low inside every column (sort_order = manual drag still orders
@@ -217,16 +219,25 @@ export function devboardRoutes(cfg: Config) {
          ORDER BY c.name COLLATE NOCASE, c.created_at`,
         [p.id, p.id, p.id],
       ).catch(() => []), // 0062 belt: a D1 pre-migration has no categories table — chip-less, not broken
+      // S241 (spec §15 — D8): the 7th additive payload key — the flat per-project
+      // blocker→blocked edge join (own lagging-D1 [] belt inside the helper).
+      taskDepsForProject(cfg, p.id),
     ])
     return await etag(c, c.json({
       project: { id: p.id, title: p.title, status: p.status, type: p.type },
-      tasks: tasks.map((t) => ({ ...t, tags: t.tags ? t.tags.split(',') : [] })),
+      // S241 (spec §10/§18): task rows carry the server-computed effective deadline
+      // (personal > sprint-inherited-while-not-completed > none) — additive fields,
+      // every legacy key intact (pinned by the S241 island-shape test).
+      tasks: boardTaskRows(tasks, sprints),
       categories,
       sprints,
       tags,
       // Flat per-task label join ({task_id, id, name, color}) — one query, joined
       // client-side by whoever renders cards.
       task_tags: taskTags,
+      // S241: flat dep edges ({blocker_task_id, blocked_task_id}) — the client folds
+      // Blocked-by and the reverse Blocks-N counts by task (spec §15).
+      task_deps: taskDeps,
     }))
   })
 

@@ -2,6 +2,8 @@
 
 Continue Hibana Sprint, Deadline & Dependency implementation.
 
+**This session is S240** in the repo's commit-numbering sequence (Phase 0 landed as S239 @ `d9aa2b8`).
+
 First read (in this order):
 - `Hibana-Sprint-Deadline-Implementation-Pack/README.md`
 - `Hibana-Sprint-Deadline-Implementation-Pack/specs/Hibana-Sprint-and-Deadline-System-Spec.md` (the contract — esp. §4-8 sprints, §9-13 deadlines, §14-16 dependencies, §19-20 data integrity, Part VI assumptions)
@@ -48,7 +50,7 @@ Then: `cd /home/z/hibana-source && git status && git log --oneline -3 && git bra
 
 **Required tests/builds:** see task 5 (the CI `verify` ladder). Exact commands listed there. Do not run `bun run deploy*` or the D1 migration workflow — deployment is Phase 9.
 
-**Commit boundary:** one coherent commit (or two: migration+types, then invariants+tests) on `feature/sprint-deadline-system` only, message style `feat(domain): S239 sprint/deadline/dependency data model + invariants (0065) — spec pack phases 1` with a body citing the discrepancy register items resolved (D1, D3, D4, D7, D8-partial). Push the branch (no PR yet — PR opens when Phase 3 UI lands, or earlier if the owner's flow prefers; the repo's convention is direct-to-main, but this feature is too large for that — keep the branch). No changes to `public/` (no cache-bust concerns), no desktop changes, no unrelated refactors.
+**Commit boundary:** one coherent commit (or two: migration+types, then invariants+tests) on `feature/sprint-deadline-system` only, message style `feat(domain): S240 sprint/deadline/dependency data model + invariants (0065) — spec pack phase 1` with a body citing the discrepancy register items resolved (D1, D3, D4, D7, D8-partial). Session numbering: Phase 0 = S239 (`d9aa2b8`); this session = **S240**; subsequent sessions continue S241, S242, … Push the branch (no PR yet — PR opens when Phase 3 UI lands, or earlier if the owner's flow prefers; the repo's convention is direct-to-main, but this feature is too large for that — keep the branch). No changes to `public/` (no cache-bust concerns), no desktop changes, no unrelated refactors.
 
 **Push/merge/deploy requirements:** push branch only; no merge to main; no deploy. Follow `PHASED-MULTI-SESSION-IMPLEMENTATION.md` §4 safeguards. Never include tokens/.env in commits.
 

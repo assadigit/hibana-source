@@ -296,7 +296,7 @@ describe('S243 — the compact Kanban overview (Screen G) on BOTH board surfaces
     expect(ovBlock).not.toMatch(/percent|burndown|workload/)
   })
 
-  it('project-page.js: the embedded board ships the SAME overview (the parity decision) — the DOM fold', () => {
+  it('project-page.js: the embedded board ships the SAME overview (the parity decision) — the ACCURATE fold (S243b: the fetched truth, never the 5-capped DOM)', () => {
     const js = readPublic('js/project-page.js')
     for (const marker of [
       'function pdRenderSprintOv()',
@@ -306,15 +306,24 @@ describe('S243 — the compact Kanban overview (Screen G) on BOTH board surfaces
       'data-pd-ov-pause',
       'data-pd-ov-finish',
       'data-pd-ov-settings',
-      // the fold rides the DOM wraps' data-pd-sprint + data-pd-status (the embedded truth)
-      "sprint_id: w.dataset.pdSprint || null, status: w.dataset.pdStatus || 'idea'",
+      // S243b: the fold's rows come from pdOvRows() — the FETCHED truth (accurate
+      // past the MAX_VISIBLE=5-per-column render cap) with the DOM wraps' live
+      // statuses overriding (a drag patches data-pd-status in place, no refresh)
+      'const pdOvRows = () => {',
+      "return pdTaskTruth.map((t) => ({ sprint_id: t.sprint_id ?? null, status: domStatus.get(t.id) || t.status || 'idea' }))",
+      // the fetched truth carries sprint_id + status (the fold's source)
+      "sprint_id: t.sprint_id ?? null, status: t.status || 'idea'",
       // the shared stack carries the sprints pool + rows + projectId (state is NOT loaded here)
-      'const opts = { sprints: pdSprintTruth, taskRows: domRows, projectId: id, onDone: bodyRefresh }',
+      'const opts = { sprints: pdSprintTruth, taskRows: pdOvRows(), projectId: id, onDone: bodyRefresh }',
       // the panel refreshes with the filter state on every apply
       'pdRenderSprintOv()',
     ]) {
       expect(js.includes(marker), `project-page.js must carry ${JSON.stringify(marker)}`).toBe(true)
     }
+    // the DOM-only fold is GONE (it undercounted lanes past the 5-per-column cap)
+    expect(js).not.toContain('taskRows: domRows')
+    // the repaint reconciles status + sprint assignment onto the truth rows
+    expect(js).toMatch(/truth\.status = t\.status \|\| 'idea'; truth\.sprint_id = t\.sprint_id \?\? null/)
   })
 
   it('the shared overview CSS exists (one sheet, both surfaces)', () => {
@@ -393,10 +402,10 @@ describe('S243 — the desktop seam tripwires (the Phase 9 re-pin inventory)', (
     expect((readPublic('js/board-page.js').match(/\bfetch\(/g) || []).length).toBe(4)
   })
 
-  it('sw.js is at hibana-v454 with the S243 carrier note', () => {
+  it('sw.js is at hibana-v455 with the S243b carrier note', () => {
     const sw = readPublic('sw.js')
-    expect(sw.includes('const VERSION = "hibana-v454"')).toBe(true)
-    expect(sw.includes('// v454 (S243)')).toBe(true)
+    expect(sw.includes('const VERSION = "hibana-v455"')).toBe(true)
+    expect(sw.includes('// v455 (S243b)')).toBe(true)
     // the carrier bumps the note records
     expect(sw).toMatch(/devboard\.js v33/)
     expect(sw).toMatch(/i18n-fa\.js\?v=101/)

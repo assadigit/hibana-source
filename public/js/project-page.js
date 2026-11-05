@@ -1768,11 +1768,11 @@
         // S243 (spec §7.4 + Screen G — the embedded board's compact overview twin):
         // selecting a NAMED sprint in the filter mounts the panel under the bar —
         // identity + lifecycle state, the five lane counts + total (the §12.5 client
-        // fold — here over the DOM wraps, the embedded board's truth: every
-        // .pd-task-wrap carries data-pd-sprint + data-pd-status), and the lifecycle
+        // fold — S243b: over the FETCHED truth with the DOM wraps' live statuses
+        // overriding, via pdOvRows(); NEVER the capped DOM alone), and the lifecycle
         // actions the state permits through the SHARED devboard.js stack (spec §18:
-        // one implementation, no forking) — the sprints pool + the DOM-fold rows +
-        // the project id ride opts, since HibanaBoard.state is NOT loaded here.
+        // one implementation, no forking) — the sprints pool + the fold rows + the
+        // project id ride opts, since HibanaBoard.state is NOT loaded here.
         function pdRenderSprintOv() {
           const bar = document.querySelector('[data-pd-filter]')
           if (!bar) return
@@ -1788,8 +1788,11 @@
             bar.insertAdjacentElement('afterend', ov)
           }
           const ovSt = window.HibanaBoard ? window.HibanaBoard.sprintStatusOf(s) : (s.status || (s.ended_at ? 'completed' : s.is_draft ? 'planned' : 'active'))
-          const domRows = [...document.querySelectorAll('.pd-task-wrap')].map((w) => ({ sprint_id: w.dataset.pdSprint || null, status: w.dataset.pdStatus || 'idea' }))
-          const fold = window.HibanaBoard ? window.HibanaBoard.sprintLaneCounts(s.id, domRows) : { counts: {}, total: 0 }
+          // S243b: the fold's rows — the FETCHED truth (accurate: the DOM caps at
+          // 5 wraps per column), with the DOM wraps' LIVE statuses overriding (a
+          // cross-column drag patches the wrap in place without a refresh; the
+          // fetched status lags until the next bodyRefresh/pdRepaintColumns).
+          const fold = window.HibanaBoard ? window.HibanaBoard.sprintLaneCounts(s.id, pdOvRows()) : { counts: {}, total: 0 }
           const badgeMap = {
             active: ['sp-st-active', _t('db.sprintSt.active', 'Active')],
             planned: ['sp-st-planned', _t('db.sprintSt.planned', 'Planned')],
@@ -1829,9 +1832,25 @@
               '<span class="db-sprint-ov-count db-sprint-ov-total" role="row"><span class="db-sprint-ov-lane" role="cell">' + pdEsc(_t('db.ov.total', 'Total')) + '</span><b role="cell">' + pdDig(String(fold.total)) + '</b></span>' +
             '</div>'
         }
+        // S243b (the overview-accuracy fix): ONE rows-builder for the embedded
+        // board's sprint folds — the fetched pdTaskTruth (accurate: the server
+        // renders at most MAX_VISIBLE=5 wraps per column, so a DOM-only fold
+        // undercounts lanes with 6+ tasks and can even OMIT a sprint's tasks when
+        // other cards fill the column's 5 slots first) with the DOM wraps' live
+        // statuses overriding (a cross-column drag patches data-pd-status in place;
+        // the fetched status lags until the next refresh). Both the compact
+        // overview and the shared H1/H2 dialogs consume THIS — the /kanban twin
+        // folds state.tasks (the full payload) directly.
+        const pdOvRows = () => {
+          const domStatus = new Map()
+          document.querySelectorAll('.pd-task-wrap').forEach((w) => {
+            if (w.dataset.pdTask) domStatus.set(w.dataset.pdTask, w.dataset.pdStatus || 'idea')
+          })
+          return pdTaskTruth.map((t) => ({ sprint_id: t.sprint_id ?? null, status: domStatus.get(t.id) || t.status || 'idea' }))
+        }
         // S243 (Screen G): the overview's lifecycle actions — delegated like the bar
         // (the panel is rebuilt inside the swap); the shared stack carries the
-        // sprints pool + the DOM-fold rows, and onDone = the IN-PLACE bodyRefresh
+        // sprints pool + the accurate fold rows, and onDone = the IN-PLACE bodyRefresh
         // (the archive-done contract, never location.reload).
         ctx.on('click', (e) => {
           const ovBtn = e.target.closest('[data-pd-ov-start],[data-pd-ov-resume],[data-pd-ov-pause],[data-pd-ov-finish]')
@@ -1839,8 +1858,7 @@
           const ov = ovBtn.closest('[data-pd-sprint-ov]')
           const s = ov && ov.dataset.sprintId ? pdSprintTruth.find((x) => x && x.id === ov.dataset.sprintId) : null
           if (!s || !window.HibanaBoard) return
-          const domRows = [...document.querySelectorAll('.pd-task-wrap')].map((w) => ({ sprint_id: w.dataset.pdSprint || null, status: w.dataset.pdStatus || 'idea' }))
-          const opts = { sprints: pdSprintTruth, taskRows: domRows, projectId: id, onDone: bodyRefresh }
+          const opts = { sprints: pdSprintTruth, taskRows: pdOvRows(), projectId: id, onDone: bodyRefresh }
           if (ovBtn.matches('[data-pd-ov-start],[data-pd-ov-resume]')) window.HibanaBoard.startSprintWithConflict(s.id, opts)
           else if (ovBtn.matches('[data-pd-ov-pause]')) window.HibanaBoard.confirmSprintPause(s, opts)
           else if (ovBtn.matches('[data-pd-ov-finish]')) window.HibanaBoard.openSprintFinish(s, opts)
@@ -1863,7 +1881,13 @@
             if (res.ok) {
               const data = await res.json()
               // S30 batch 4: the tier-tooltip truth (every task's priority).
-              pdTaskTruth = ((data.project ? data.project.devTasks : data.devTasks) || []).map((t) => ({ id: t.id, priority: t.priority || 'medium' }))
+              // S243b (the overview-accuracy fix): the rows also carry sprint_id +
+              // status — the §12.5 fold for the embedded compact overview + the
+              // shared H1/H2 dialogs reads THIS fetched truth, never the capped DOM
+              // (the server renders at most 5 wraps per column; a lane with 6+ of a
+              // sprint's tasks — or a column whose 5 slots other cards fill first —
+              // would undercount or omit them entirely).
+              pdTaskTruth = ((data.project ? data.project.devTasks : data.devTasks) || []).map((t) => ({ id: t.id, priority: t.priority || 'medium', sprint_id: t.sprint_id ?? null, status: t.status || 'idea' }))
               // S33: the sprint truth (draft detection + deep-link targets).
               pdSprintTruth = (data.project ? data.project.sprints : data.sprints) || []
               if (!pdSdDeepLinked) {
@@ -3339,9 +3363,15 @@
           // S209 (kanban 1:1 parity): pins + sprint names ride the same payload.
           const { pins, sprintName } = pdDetailMaps(data)
           // The filter bar's tier counts ride pdTaskTruth — reconcile (track the
-          // newcomers, forget the deletes).
+          // newcomers, forget the deletes). S243b: the repaint's fresh payload also
+          // re-syncs each row's status + sprint assignment — the overview folds read
+          // them (a drag's optimistic DOM state graduates to fetched truth here).
           const seen = new Set()
-          for (const t of all) { pdTierTrack(String(t.id), t.priority || 'medium'); seen.add(String(t.id)) }
+          for (const t of all) {
+            pdTierTrack(String(t.id), t.priority || 'medium'); seen.add(String(t.id))
+            const truth = pdTaskTruth.find((r) => r.id === String(t.id))
+            if (truth) { truth.status = t.status || 'idea'; truth.sprint_id = t.sprint_id ?? null }
+          }
           for (const row of [...pdTaskTruth]) if (!seen.has(row.id)) pdTierForget(row.id)
           for (const status of statuses) {
             const tasksEl = document.querySelector(`[data-pd-tasks="${status}"]`)

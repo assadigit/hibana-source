@@ -446,14 +446,28 @@ test('Screen G: the compact overview folds the five lanes + total on BOTH board 
   await expect(page.locator('.db-sprintdetail-card .sp-list-badge')).toHaveText('Active')
   await expect(page.locator('.db-sprintdetail-card [data-sd-tab-tasks]')).toBeVisible()
 
-  // the EMBEDDED board ships the same overview (the SHIPPED parity decision)
+  // the EMBEDDED board ships the same overview (the SHIPPED parity decision).
+  // S243b (the accuracy pin): a lane with MORE than the server-rendered
+  // MAX_VISIBLE=5-per-column window — the DOM alone would cap the fold (and a
+  // column whose 5 slots other cards fill first can omit this sprint's tasks
+  // entirely); the fold reads the FETCHED truth with the DOM's live statuses
+  // overriding. 6 more idea tasks → the lane holds 8, the total 13.
+  await page.evaluate(async ({ pid, sid }) => {
+    for (let i = 0; i < 6; i++) {
+      await fetch(`/api/projects/${pid}/devtasks`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ title: 's243 idea overflow ' + i, status: 'idea', sprint_id: sid }) })
+    }
+  }, ids)
   await page.goto(`/project.html?id=${ids.pid}`)
   await expect(page.locator('#pd-board')).toBeVisible({ timeout: 10_000 })
   await page.selectOption('[data-pd-filter-sprint]', ids.sid)
   const pdOv = page.locator('[data-pd-sprint-ov]')
   await expect(pdOv).toBeVisible({ timeout: 5_000 })
   await expect(pdOv).toContainText('Security')
-  await expect(pdOv.locator('.db-sprint-ov-total')).toContainText('7')
+  // the DOM renders only 5 idea wraps — the fold still counts ALL 8 (the fetched truth)
+  const domIdeaWraps = await page.locator('.pd-col[data-status="idea"] .pd-task-wrap').count()
+  expect(domIdeaWraps).toBeLessThanOrEqual(5)
+  await expect(pdOv.locator('.db-sprint-ov-count').filter({ hasText: 'New Ideas' })).toContainText('8')
+  await expect(pdOv.locator('.db-sprint-ov-total')).toContainText('13')
   await expect(pdOv.locator('[data-pd-ov-pause]')).toBeVisible()
   await expect(pdOv.locator('[data-pd-ov-finish]')).toBeVisible()
   expect(errors).toEqual([])

@@ -1,7 +1,7 @@
 # Hibana Feature Implementation Status
 
-**Status:** Phase 0 COMPLETE — repository audit, architecture map, baselines, and phased technical plan delivered. No feature code yet.
-**Last updated:** Session 1 (Phase 0), 5 November 2026.
+**Status:** Phase 1 COMPLETE (session S240) — domain model, migration 0065, service-layer invariants, and the domain test suite landed on `feature/sprint-deadline-system`. No UI yet (Phase 3+).
+**Last updated:** Session 2 (Phase 1), 5 November 2026.
 
 ## Repositories
 
@@ -41,8 +41,8 @@ Desktop unit tests are cgo/Wails-free by design and run on Linux. Island probes 
 
 ## Phase tracker
 
-- [x] Phase 0 — Repository audit and implementation map (this session)
-- [ ] Phase 1 — Domain model, persistence, migrations, invariants
+- [x] Phase 0 — Repository audit and implementation map (session 1 / S239)
+- [x] Phase 1 — Domain model, persistence, migrations, invariants (session 2 / S240 @ `0d50b7a`)
 - [ ] Phase 2 — Backend/API, synchronization, cross-platform contract
 - [ ] Phase 3 — Core Kanban and task-form UI (sprint integration)
 - [ ] Phase 4 — Sprint management, overview, and lifecycle
@@ -155,6 +155,18 @@ Desktop unit tests are cgo/Wails-free by design and run on Linux. Island probes 
 4. **New assignment to Completed sprints disallowed**; existing associations kept (historical).
 5. **Active sprint deletion disallowed** (must Pause or Finish first).
 6. **Session-added engineering defaults** (record for owner review): (a) `status` column is authoritative but `ended_at` continues to be stamped on finish so the existing timeline page keeps rendering history; (b) explicit-`null` `sprint_id` = No sprint forever, `undefined` keeps legacy auto-assign for old clients; (c) deadline storage = ISO-8601 UTC instant, date-only resolved client-side to local 23:59; (d) `dev_task_deps` chosen as table name (matches `dev_tasks` family); (e) sprint name uniqueness enforced for ALL lifecycle states (spec: "unique within the same Kanban project", no state carve-out).
+7. **S240 (Phase 1) session-added engineering defaults** (all documented in code comments too):
+   - **Only the explicit `POST /finish` archives.** The legacy auto-close on create-with-dates and the PATCH window drags (set/clear `ended_at`) DO move `status` to completed in lock-step with `ended_at` — but never archive. Rationale: those are timeline-window mechanics the old clients depend on; the spec's archive rule is scoped to the explicit finish action.
+   - **Finish on an already-completed sprint stays legal** (the old re-finish re-stamp): idempotent for archived tasks (they left `dev_tasks`), and any done tasks that appeared since the first finish ride along into the archive.
+   - **Paused sprints keep an OPEN window and don't block anything**: excluded from `assertSprintWindowOk`'s sibling scan (a paused band may visually overlap the next sprint's band — Phase 4 renders paused bands distinctly), don't count for one-active, don't block reopen-via-PATCH.
+   - **`/start` no longer auto-closes the open sibling** — it 409s `sprint_active_exists` (spec §5.2; the Phase 4 conflict modal resolves it). The create-with-dates auto-close is kept byte-compatible for old timeline clients (closes only the ACTIVE sibling, stamps it completed, archives nothing).
+   - **Reopen keeps the S235 isLatest guard**; under the timeline invariants an open band always carries the latest `started_at`, so reopen's one-active 409 arm is unreachable in practice (defense-in-depth; the 409 shape itself is pinned by the start/resume tests).
+   - **Auto-generated sprint names bump past collisions** (`Sprint N`, `Sprint N+1`…) up to 50 tries instead of 409ing a nameless create — old timeline clients keep getting 201s.
+   - **deps endpoints**: `POST /api/devtasks/:id/deps` → 201 new / 200 `{existing:true}` idempotent; cycle → **409 `cycle`** (registry default 400 — a recorded divergence, vault folders keep 400); self + cross-project/cross-user blocker → 400 `invalid_input`. `DELETE /api/devtasks/:id/deps/:blockerId` → 200 always (tag-link shape).
+   - **`dev_task_deps` rides the backup system** (SNAPSHOT_TABLES after dev_tasks + personal export scoped by either endpoint; `schema_version` 20261105) — forced by the backup-audit drift guard ("never lose an idea").
+   - **`SprintRow.status` is typed `SprintStatus | null`** (nullable-by-construction column; `sprintStatusOf` coalesces — the lagging-D1 belt re-derives from `is_draft`/`ended_at`).
+   - **Two legacy test setups adapted (intent preserved, changes cited in-file)**: s235 test #4's sprint is now created OPEN (a closed-with-dates sprint is completed post-0065 and no longer assignable — the test's finish-keeps-sprint_id assertion is unchanged and now runs the modern flow); AP-27's raw sprint insert carries `is_draft=1` (the deletable planned state; an active sprint's delete is a 409 now).
+   - **FN-ALLOWLIST re-pinned** for the three grown devboard handlers (task PATCH 81, sprint create 79, sprint PATCH 94 — endpoint-flow class, with recorded reasons).
 
 ## Session log
 
@@ -167,3 +179,17 @@ Desktop unit tests are cgo/Wails-free by design and run on Linux. Island probes 
 - Recorded 9 spec⇄repo discrepancies (D1-D9) with resolutions.
 - Created feature branch `feature/sprint-deadline-system`; committed this pack extraction + status docs; pushed.
 - **Blockers:** none for Phase 1. Environment notes: (a) Go was absent from sandbox — installed locally, desktop CI remains the authoritative gate for Windows builds; (b) full e2e suite not run locally (CI 2-shard is the gate); (c) D1 prod-migration process to confirm in Phase 9.
+
+### Session 2 — Phase 1 / S240 (2026-11-05) — COMPLETE
+- Repo state at start verified: `feature/sprint-deadline-system` @ `1b059d8`, clean tree, in sync with origin. Fresh sandbox re-cloned (token auth; remote cleaned again — no token persisted anywhere).
+- Re-ran full baselines BEFORE any edit: `bun install` ✓ (243 packages), `typecheck` ✓, `lint` ✓ 0 warnings, `vitest` **104 files / 806 tests** ✓, `build` ✓ 86 entries.
+- **Migration `0065_sprint_deadline_deps.sql`** (additive only): `sprints` += `status` (D1 CASE backfill: ended→completed / draft→planned / open→active) + `emoji` + `due_at` + `due_origin_at` + `updated_at`; defensive one-active normalization (legacy two-open data → latest stays active, older parked paused) BEFORE `CREATE UNIQUE INDEX idx_sprints_one_active ON sprints(project_id) WHERE status = 'active'`; `dev_tasks` += `due_at` + `due_origin_at`; new `dev_task_deps` (blocker/blocked TEXT NOT NULL → dev_tasks ON DELETE CASCADE, `created_at` NOT NULL, PK pair, `CHECK (blocker_task_id <> blocked_task_id)`, indexes on both FK columns); `project_archives` += `sprint_name_snapshot`.
+- **`src/types.ts`**: `SprintStatus`; SprintRow += status/emoji/due_at/due_origin_at/updated_at; DevTaskRow += due_at/due_origin_at; `TaskDepRow`; `ProjectArchiveRow` (with sprint_name_snapshot).
+- **Service-layer invariants** (`src/routes/devboard.ts` + `devboard-helpers.ts`): `sprintStatusOf` (lagging-D1 coalescing), `findActiveSprint` (legacy-compatible one-active lookup), `sprintNameTaken` (lower(trim()) fold — the 0064 categories precedent); case-insensitive name uniqueness on create + PATCH rename across ALL states + auto-name collision bump; `/start` = planned/paused→active with 409 `sprint_active_exists` + `active_id` (auto-close REMOVED per spec §5.2); NEW `POST /api/sprints/:id/pause` + `POST /api/sprints/:id/resume`; `/finish` archives ONLY the sprint's done tasks (archive-done INSERT pattern + sprint_name_snapshot; transaction-wrapped; additive `archived` count in response); `/reopen` = completed→active (isLatest kept, one-active guard); `/delete` planned/paused only (409 `sprint_active` / `sprint_completed`; tasks detach, archived rows get `"<name> (deleted)"` snapshot, AP-27 FK hygiene kept); task create/PATCH completed-sprint assignment guard (400 `sprint_completed`, same-sprint re-assert legal); deadline origin rules on task + sprint PATCH/create; `assertSprintWindowOk` skips paused siblings; NEW `POST /api/devtasks/:id/deps` + `DELETE /api/devtasks/:id/deps/:blockerId` (self/cross-project 400s, recursive-CTE cycle 409, idempotent re-add); `ErrorCode` += `sprint_active_exists`/`sprint_active`/`sprint_completed` (409 family; the assignment guard passes an explicit 400 — recorded divergence); `EMOJI_TOKEN_RE` exported from validation/schemas (shared picker-glyph contract).
+- **Backup coverage**: `dev_task_deps` in `SNAPSHOT_TABLES` (FK-safe position) + personal export (either-endpoint scope) + `schema_version` 20261105 — the backup-audit drift guard forced the classification; S57 lagging-DB test re-pinned (dev_task_deps reports loud-gap, by design).
+- **Domain tests** — new `src/tests/sprint-deadline-deps-domain.test.ts` (22 tests): name uniqueness (create case/whitespace/cross-project + PATCH rename + own-name re-assert + auto-name bump + across-states); one-active state machine (start/pause/resume/finish/reopen + 409 payloads + partial-index direct-INSERT rejection); pause/resume guards; finish archives ONLY that sprint's done tasks (snapshot/sprint_id/tags preserved; other sprints + other projects + planned-sprint tasks untouched); delete semantics (refusals + detach + snapshot + paused deletable); completed-assignment guards (create/PATCH/move/re-assert/null + planned/active/paused legal); deadline origin stamping (task + sprint: set/edit-preserve/same/clear/reset + updated_at on every PATCH + emoji set/clear); deps (self/cross-project/cross-user/cycle direct + transitive/multi-blocker/idempotent/delete/cascade/field-neutrality); board payload additive fields (legacy keys intact); migration backfill via the REAL pre-0065→0065 upgrade path (CASE mapping, NULL columns, one-active index enforcement + project scoping, two-open normalization → active/paused).
+- **Legacy test adaptations** (intent preserved, cited in-file): `sprint-validation-s235` #4 setup (open sprint instead of closed — see assumption 7, bullet 10); `state-integrity-fixes` AP-27 insert `is_draft=1`; `backup-audit` S57 missing-list += `dev_task_deps`; `FN-ALLOWLIST` 3 devboard handlers re-pinned.
+- **Full gate ladder green**: `typecheck` ✓ · `lint` 0 warnings ✓ · `vitest` **105 files / 828 tests** ✓ · `build` 86 entries ✓ · `check:portability` ✓ · `check:fn-shape` ✓ · `check:boundaries` ✓ · e2e `sprint-timeline.spec.ts` + `s206-sprint-fixes.spec.ts` **11/11** ✓ (fresh sandbox needed `bunx playwright install chromium` — chromium_headless_shell-1248; the finish-with-archive timeline flow renders, backfilled statuses render).
+- **Commit/push:** `0d50b7a` on `feature/sprint-deadline-system`, pushed (token auth one-off, remote clean). No merge, no PR, no deploy, no D1 workflow runs — per the phase plan.
+- **Blockers:** none. Desktop repo untouched (READ-ONLY this phase ✓). No `public/` changes ✓ (no cache-bust concerns).
+- **New assumptions recorded:** see item 7 above (finish-archive scoping, paused open windows, /start de-auto-close, reopen isLatest reality, auto-name bump, deps response shapes, deps backup coverage, status nullability, the two legacy test setup adaptations, FN-ALLOWLIST re-pin).

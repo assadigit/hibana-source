@@ -336,3 +336,52 @@ verifies the deployed round end-to-end. The desktop half was already fully deliv
 07835cf + tag v0.1.34-desktop pushed, the Windows release PUBLISHED with all three
 assets (installer.exe + portable.zip + checksums), island --check byte-identical at pin
 dac869f, probe-focus ALL GREEN (6 LEGs / 33 assertions).
+
+## Session S237 delivery — the chain lands (2026-11-05, continued)
+
+**The full chain, verified end-to-end:**
+
+- **CI green on f237599** (run 41936300947 — the first green main CI since 073bb953's
+  round, 2026-10-31): the ci job (typecheck/lint/vitest 796/verify/smoke/dist-wiring/
+  workers-smoke/Lighthouse) + e2e shard 1 **238/238** + e2e shard 2 **231/231**.
+- **CD fired and deployed** (run 41937958746): the first attempt died at "Deploy to
+  DEV" — the CLOUDFLARE_API_TOKEN repo secret was another credential-rotation casualty
+  (auth codes 10000/9109, the same story as the desktop's RELEASE_PAT). The secret was
+  resealed via the API; the rerun (attempt 2) built the wired assets → deployed DEV →
+  live-probed → deployed PROD → live-probed → restored the canonical HTML. Both workers
+  now serve sw v451 (dev + prod verified).
+- **The live focus probe** (scripts/live-focus-probe.mjs, this commit — the S232
+  live-probe doctrine adapted to a PURE-CLIENT round): **21/21 PASS on prod** — the
+  eleven carrier checks (sw v451 + the precache entry, focus-core.js?v=1 verbatim AND
+  the wired /dist/ board-page + devboard.css hashed carriers, the .db-dim recipe, the
+  settings toggle row, db.focus.* ×9 EN+FA) AND the ten browser checks against the real
+  deployed worker with a D1-seeded probe user (five lanes render, the OFF default, the
+  live hibana:focus-mode event growing 5+5 head buttons, planned's blur focus dimming
+  the other four lanes, the ] wrap-cycle, the one-layer Esc peel, the reload
+  auto-restore of hibana-focus-last, zero page errors, the probe user purged — the
+  purge now rides a try/finally so a failing leg can never strand it).
+- **The scheduled Error monitor** (errors.yml, failing 401 since 11-02) rides the SAME
+  CLOUDFLARE_API_TOKEN secret — the reseal heals it; its next scheduled run verifies.
+
+**The delivery checklist (S237 traceability):**
+
+- Web implementation (board-page focus block + enlarge sheet + F/[/]/Esc layer,
+  focus-core.js pure core, devboard.css recipe, settings toggle, i18n EN+FA ×9,
+  sw v451, the ?v= carrier bumps across every page) — **VERIFIED** (vitest 796/796,
+  the desktop island probe, the live probe 21/21).
+- Web commit dac869f + fix commit f237599 on remote main — **VERIFIED** (SHAs match).
+- Web tag v0.4.1.42 + GitHub Release (release.yml, idempotent no-recut on f237599) —
+  **VERIFIED** (published 2026-11-04T22:33:38Z).
+- Web CI green + CD deploy + prod on sw v451 — **VERIFIED** (runs 41936300947 +
+  41937958746; hibana.ir + the dev worker both answer v451, /api/health ok).
+- Desktop commit 07835cf + tag v0.1.34-desktop on remote main — **VERIFIED**.
+- Desktop island byte-identical at pin dac869f (74 files, --check) — **VERIFIED**.
+- Desktop version ladder 0.1.32 → 0.1.34 (wails.json, main.go, versioninfo.json ×4,
+  make-portable.ps1, desktop.yml) — **VERIFIED**.
+- Desktop probe-focus (the 11th probe): 6 LEGs / 33 assertions ALL GREEN — **VERIFIED**.
+- Desktop GitHub Release v0.1.34-desktop (exe + portable.zip + checksums.txt assets) —
+  **VERIFIED** (published 2026-11-04T22:36:26Z, assets HEAD 200).
+- Infra repairs (both rotation casualties resealed): RELEASE_PAT (desktop — autorelease
+  rerun now succeeds/skips cleanly) + CLOUDFLARE_API_TOKEN (web — CD deploy lane +
+  Error monitor). The owner should review both when convenient; dedicated
+  least-privilege tokens would be tighter than the broad PAT now sealed in each.

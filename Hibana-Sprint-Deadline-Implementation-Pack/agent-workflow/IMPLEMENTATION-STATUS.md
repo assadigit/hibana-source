@@ -1,16 +1,18 @@
 # Hibana Feature Implementation Status
 
-**Status:** Phase 1 COMPLETE (sessions S239–S240) — domain model, migration 0065, service-layer
-invariants, and the domain test suite delivered on **`feat/sprint-deadline-deps` @ `81f2c05`**
-(the branch the kickoff mandates), fresh-verified end to end. No UI yet (Phase 3+).
-**Last updated:** Session 3 (Phase 1 reconciliation + re-delivery + verification), 5 November 2026.
+**Status:** Phase 2 COMPLETE (sessions S239–S241) — Phase 1's domain model (migration 0065,
+invariants, domain suite) @ `81f2c05` plus Phase 2's API read surface (the seven-key board
+payload with `task_deps` + server-computed effective deadlines, the island-shape pin, the
+contract-doc §12 rewrite) delivered on **`feat/sprint-deadline-deps` @ `da652d2`**, all gates
+green. No UI yet (Phase 3+).
+**Last updated:** Session 4 (Phase 2 / S241), 6 November 2026.
 
 ## Repositories
 
 | Target | Verified identity | Remote | Branch @ audit | Baseline |
 |---|---|---|---|---|
-| Web/source | `assadigit/hibana-source` (PUBLIC, "Mirror of the deployed hibana.ir app") | `https://github.com/assadigit/hibana-source.git` | `main` @ `dad52f5` (v0.4.1.43, after S238) — re-verified session 3 | ALL GREEN (re-run session 3) |
-| Windows Desktop | `assadigit/hibana-desktop` ("The Hibana Kanban Windows desktop port — Go + Wails v2 + WebView2 + modernc.org/sqlite") | `https://github.com/assadigit/hibana-desktop.git` | `main` @ `9d53e64` (v0.1.35, island pin `04218ca` = web v0.4.1.43) — discovered session 1; NOT re-hunted session 3 (the kickoff scopes desktop out of this phase) | ALL GREEN (session 1's run) |
+| Web/source | `assadigit/hibana-source` (PUBLIC, "Mirror of the deployed hibana.ir app") | `https://github.com/assadigit/hibana-source.git` | `main` @ `9dde797` (docs-only, on `dad52f5` = v0.4.1.43) — re-verified session 4 | ALL GREEN (re-run sessions 3+4) |
+| Windows Desktop | `assadigit/hibana-desktop` ("The Hibana Kanban Windows desktop port — Go + Wails v2 + WebView2 + modernc.org/sqlite") | `https://github.com/assadigit/hibana-desktop.git` | `main` @ `9d53e64` (v0.1.35, island pin `04218ca` = web v0.4.1.43) — re-verified cheaply via `git ls-remote` session 4 (unchanged); desktop stays READ-ONLY until Phase 9 | ALL GREEN (session 1's run) |
 
 **Feature branch (Web) — CANONICAL:** `feat/sprint-deadline-deps` (cut from `main` @ `dad52f5`
 in session 3, per the Phase 1 kickoff's branch mandate). All feature work lands there; PR → merge
@@ -49,6 +51,16 @@ hibana-source `main`.
 | `bun run test` | ✓ **105 files / 830 tests passed** (806 baseline + 24 domain tests) |
 | `bunx playwright test e2e/sprint-timeline.spec.ts e2e/s206-sprint-fixes.spec.ts` | ✓ **11/11 passed** (after `bunx playwright install chromium-headless-shell` — chromium_headless_shell-1248; the sandbox cache ships 1200) |
 
+### Web — `feat/sprint-deadline-deps` @ `da652d2` (session 4 / S241, after Phase 2)
+
+| Command | Result |
+|---|---|
+| `bun install` (bun 1.3.14, Node v24.22.2) | ✓ 243 packages |
+| `bun run verify` (baseline re-run BEFORE any edit, on `81f2c05`) | ✓ all gates green; vitest **105 files / 830 tests** — the expected S240 baseline |
+| `bun run verify` (after Phase 2) | ✓ all gates green (tsc, eslint 0 warnings, vitest, prod build, portability, fn-shape, boundaries) |
+| `bun run test` | ✓ **106 files / 837 tests passed** (830 + 7 `api-surface-s241.test.ts`) |
+| `bunx playwright test e2e/sprint-timeline.spec.ts e2e/s206-sprint-fixes.spec.ts` | ✓ **11/11 passed** (chromium-headless-shell 1248 installed fresh) |
+
 Full e2e suite (~90 specs, 2-shard in CI) not run locally — CI is the gate on the branch push;
 local full run is optional per phase (no UI changes this phase).
 
@@ -64,8 +76,8 @@ local full run is optional per phase (no UI changes this phase).
 
 - [x] Phase 0 — Repository audit and implementation map (session 1 / S239)
 - [x] Phase 1 — Domain model, persistence, migrations, invariants (session 2 / S240 @ `0d50b7a`; re-delivered + extended session 3 @ `81f2c05` on `feat/sprint-deadline-deps`)
-- [ ] Phase 2 — Backend/API, synchronization, cross-platform contract (prompt ready: `agent-workflow/NEXT-SESSION-PROMPT.md`)
-- [ ] Phase 3 — Core Kanban and task-form UI (sprint integration)
+- [x] Phase 2 — Backend/API, synchronization, cross-platform contract (session 4 / S241 @ `da652d2`: `task_deps` payload key, server-computed effective deadlines, island-shape pin, contract-doc §12, overview-counts decision)
+- [ ] Phase 3 — Core Kanban and task-form UI (sprint integration) (prompt ready: `agent-workflow/NEXT-SESSION-PROMPT.md`)
 - [ ] Phase 4 — Sprint management, overview, and lifecycle
 - [ ] Phase 5 — Deadline engine and UI
 - [ ] Phase 6 — Deadline extension flows
@@ -119,7 +131,7 @@ local full run is optional per phase (no UI changes this phase).
 
 - Authoritative doc: `docs/project-kanban/API-AND-SYNC-CONTRACT.md` (v0.4.1.35/S209). Today: plain REST + cookie session; desktop pulls `GET /api/projects/:id/devboard` (six-key payload: tasks+tags+shot_count, categories, sprints, tags, task_tags) with ETag, full-board replace; writes are live through the Wails bridge; outbox engine exists but nothing enqueues from UI yet (M3).
 - Conflict policy: LWW per field (PATCH SET-builder). No `?since=` deltas yet. **S240 note:** new sprint columns ride the full-board payload pull (no delta needed — desktop does full replace); `sprints.updated_at` (D8) exists for future deltas.
-- Phase 2 must extend the payload with `task_deps` (the 7th additive key) + document the whole new surface in the contract doc — see NEXT-SESSION-PROMPT.md.
+- Phase 2 LANDED (S241): the payload carries `task_deps` (7th additive key) + the effective-deadline triple on task rows; the whole new surface is documented in the contract doc **§12** (see `docs/project-kanban/API-AND-SYNC-CONTRACT.md` on the feature branch) — the desktop round consumes that section.
 
 ### CI/CD (web)
 
@@ -142,18 +154,18 @@ local full run is optional per phase (no UI changes this phase).
 | # | Discrepancy | Existing behavior (pre-S240) | Spec requires | Resolution | Status |
 |---|---|---|---|---|---|
 | D1 | **Sprint lifecycle is implicit** (is_draft + ended_at) and timeline-window based | draft/running/finished implied; `started_at/ended_at` = Gantt band edges | explicit Planned/Active/Paused/Completed + optional per-sprint due date + emoji | `sprints.status` (0065 backfill: ended→completed / draft→planned / open→active; two-open legacy data normalizes latest-active, older-paused), `emoji`, `due_at`, `due_origin_at`, `updated_at`; partial unique index one-active + service 409 `sprint_active_exists` (+`active_id`); pause/resume endpoints; `assertSprintWindowOk` skips paused bands; every writer keeps the pair in lock-step; `sprintStatusOf` lagging-D1 belt | ✅ Phase 1 |
-| D2 | **Task create auto-assigns sprint** when `sprint_id` undefined | no-sprint body → draft sprint → open sprint | `No sprint` normal valid; dropdown default | Client change: modal always sends explicit `sprint_id` (`null` = No sprint — server honors it); server keeps legacy auto-assign for undefined bodies (old clients/desktop island until re-pinned) | ⬜ Phase 3 (server side stable since Phase 1) |
+| D2 | **Task create auto-assigns sprint** when `sprint_id` undefined | no-sprint body → draft sprint → open sprint | `No sprint` normal valid; dropdown default | Client change: modal always sends explicit `sprint_id` (`null` = No sprint — server honors it); server keeps legacy auto-assign for undefined bodies (old clients/desktop island until re-pinned). **S241: the server side is verified + pinned (explicit-null legal, undefined auto-assign, completed-guard) — only the client edit remains** (`devboard.js:1284` create body sends `sprintId || undefined` — the exact line Phase 3 fixes) | 🔶 server side ✅ Phase 1+2; client fix ⬜ Phase 3 |
 | D3 | **Sprint DELETE nulls archives' `sprint_id` silently** (AP-27) | archived tasks lose sprint identity | archived tasks retain `Sprint: [name] (deleted)` label | `project_archives.sprint_name_snapshot` (0065); DELETE stamps `"<name> (deleted)"` + nulls the FK (AP-27 hygiene kept); finish stamps the sprint's own name; impact-counts preview is Phase 4 UI | ✅ Phase 1 (UI preview Phase 4) |
 | D4 | **Finish sprint archives nothing** (only stamps ended_at) | archiving was a separate manual bulk action | Finish archives only tasks in Implemented; others keep status + sprint link | `POST /finish` transaction: status=completed + ended_at=now + archive-done INSERT pattern scoped to the sprint's done tasks (sprint_id kept, tags JSON, snapshot name); unfinished untouched; additive `archived` count in response. Only the explicit finish archives (create-with-dates auto-close + PATCH drags complete without archiving — legacy timeline mechanics kept byte-compatible) | ✅ Phase 1 |
 | D5 | **Sprints page is a timeline**, not a status list | draggable bands, define popover | lifecycle-grouped list/overview + settings/tasks per sprint | Extend `sprint.html`/`sprint-page.js` (keep the timeline); lifecycle list + detail views + counts | ⬜ Phase 4 |
 | D6 | **No date-picker component exists** | only `<input type="date">` in sprint popover | Gregorian/Jalali segmented selector, presets, optional time | Build one shared compact deadline control reusing `window.jalaali` + the S206 UTC-parse precedent; storage = ISO instant (UTC); date-only resolves client-side to local 23:59 | ⬜ Phase 5 |
 | D7 | **No task deadline / dependency fields anywhere** | none (checked all migrations) | personal deadline + inheritance + deps | `dev_tasks.due_at`/`due_origin_at` + `dev_task_deps` table (0065) + deps endpoints (self/cross-project 400, CTE cycle 409, cascade delete, soft constraints) + origin rules on both task and sprint PATCH/create | ✅ Phase 1 |
-| D8 | **Sync gaps**: sprints lack `updated_at`; no `?since=` deltas | documented in contract §5/§7 | feature data must sync consistently web⇄desktop | `sprints.updated_at` (0065, stamped on every write) — enough for future deltas; new columns ride the full-board payload pull (no delta needed; desktop full-replaces). Payload `task_deps` key + contract-doc rewrite = Phase 2 | 🔶 Phase 1 (partial); Phase 2 completes the contract side |
-| D9 | **Desktop island = pinned copy**; new fetch call-sites trip CI gates | 7+2 / 4 counts, SEAM_PATCHES | new endpoints must be reachable from the island | Web-first; desktop re-pin round at Phase 9 (mirror schema v3, seam gates, probe #14, version ladder, desktop.yml WEB_REF bump) | ⬜ Phase 9 |
+| D8 | **Sync gaps**: sprints lack `updated_at`; no `?since=` deltas | documented in contract §5/§7 | feature data must sync consistently web⇄desktop | `sprints.updated_at` (0065, stamped on every write) — enough for future deltas; new columns ride the full-board payload pull (no delta needed; desktop full-replaces). **S241: payload `task_deps` key + effective-deadline fields landed + the contract-doc §12 rewrite (complete Phase 1+2 surface, sync implications, island-pin guarantee) — D8 CLOSED** | ✅ Phase 1+2 |
+| D9 | **Desktop island = pinned copy**; new fetch call-sites trip CI gates | 7+2 / 4 counts, SEAM_PATCHES | new endpoints must be reachable from the island | Web-first; desktop re-pin round at Phase 9 (mirror schema v3, seam gates, probe #14, version ladder, desktop.yml WEB_REF bump). **S241 pre-work: the island's legacy payload shape is now PINNED web-side** (`api-surface-s241.test.ts` — additive keys ride, removals/rename fail CI), so the island cannot be silently broken by a web change before the re-pin | ⬜ Phase 9 (pin test ✅ S241) |
 
 ## Phased technical plan (concrete; Phases 2-9 carry forward from Phase 0/1 planning)
 
-- **Phase 2 (web repo)**: board payload `task_deps` additive key; legacy-shape pin test; effective-deadline resolution (server-side computed additive fields — recommended default, decide + record); sprint overview counts (endpoint vs client-derived — decide + record); API-AND-SYNC-CONTRACT.md rewrite; vitest additions. Full detail in `NEXT-SESSION-PROMPT.md`.
+- **Phase 2 ✅ (S241 @ `da652d2`)**: board payload `task_deps` additive key; server-computed effective-deadline fields (the documented decision); legacy-shape pin test; overview counts = client-derived (recorded); API-AND-SYNC-CONTRACT.md §12 (the complete Phase 1+2 surface).
 - **Phase 3 (web)**: Kanban + modal UI — sprint filter, sprint dropdown (emoji + hide-completed + quick-create with OFF-by-default toggles), card sprint identity, explicit `sprint_id` on create (D2), i18n EN+FA, `?v=` bumps.
 - **Phase 4 (web)**: lifecycle UI — Sprints page extension (D5), conflict/finish/delete modals with exact counts, Kanban compact overview, completed history (non-deletable).
 - **Phase 5 (web)**: deadline engine + UI — OFF-by-default toggle, shared date control (D6), inheritance + read-only line, card deadline row + progress bar + thresholds, completed-neutrality, origin preservation.
@@ -186,6 +198,12 @@ local full run is optional per phase (no UI changes this phase).
    - **Branch reconciliation**: Phase 1 content first landed on `feature/sprint-deadline-system` (`0d50b7a`, session 2); the kickoff's mandated branch is `feat/sprint-deadline-deps`, so session 3 re-delivered the identical validated content there (`81f2c05`) + 2 additional tests + re-ran every gate + e2e fresh. The old branch is superseded but preserved (no deletes/force-push). All future work continues on `feat/sprint-deadline-deps`.
    - **Two tests added over session 2's 22** (both pin the kickoff's letter): legacy pre-0065 name case-twins stay readable (write-time-only enforcement) + the CSRF gate fronts the new endpoints (headerless write → 403 `forbidden`).
    - **Desktop identity carried from session 1's discovery** (`assadigit/hibana-desktop`); session 3 did not re-verify per the kickoff's "desktop is not this phase — do not hunt for it" scope rule. Re-verify cheaply at Phase 9 kickoff.
+9. **S241 (Phase 2) session-added engineering defaults** (all documented in code comments + contract doc §12 too):
+   - **Effective-deadline resolution is SERVER-computed** — additive fields on the board payload's task rows (`effective_due_at`, `effective_due_source: 'task'|'sprint'|null`, `effective_due_origin_at`), via ONE shared helper (`effectiveDeadlineOf` + `boardTaskRows`, `src/routes/devboard-helpers.ts`). Rationale: spec §18 forbids forking deadline logic between platforms; the desktop consumes the computed triple and ships zero deadline logic. Origins coalesce to the winning level's `due_at` when a legacy row lacks its stamp; a lagging pre-0065 D1 serializes the null triple (never 500s).
+   - **Sprint overview counts are CLIENT-DERIVED** (spec §7.4: five lanes + total, no percentages) — folded from the payload's tasks (`sprint_id` + `status` are already there); NO `/sprints/:sid/overview` endpoint. Recorded in contract doc §12.5; revisit before ever adding one.
+   - **`task_deps` payload shape**: flat edge rows `{blocker_task_id, blocked_task_id}` ONLY (no `created_at` — the render needs just the pair), ordered by `created_at, blocker, blocked` for deterministic ETags; scoped through the BLOCKED task's project (rule 1); own lagging-D1 `[]` belt inside `taskDepsForProject` (board never 500s on a not-yet-migrated D1). Reverse Blocks-N counts stay a client-side fold — no endpoint, ever (spec §15).
+   - **The board GET handler is allowlisted** (66 lines, [endpoint-flow] — `docs/autopilot/FN-ALLOWLIST.md`): the six-query parallel load + seven-key render grew past the 60-line bar; the three S240 pins moved (L305→L316, L616→L627, L766→L777).
+   - **`GET /api/projects/:id` (detail pool) does NOT carry the effective triple** — its `devTasks` rows are raw `SELECT *` (due_at/due_origin_at included, computed fields not). The board payload is the authoritative surface for the computed fields; Phase 5 decides whether the embedded project-page board reuses `effectiveDeadlineOf` server-side (the helper is exported for exactly that).
 
 ## Session log
 
@@ -211,3 +229,17 @@ local full run is optional per phase (no UI changes this phase).
 - Committed **`81f2c05`** on `feat/sprint-deadline-deps` (12 files, +1394/−90), pushed (token auth one-off, never persisted).
 - **Docs close-out on main** (the only thing allowed there): this file + `NEXT-SESSION-PROMPT.md` (docs-only commit; `**.md` pushes are CI-skipped, cannot deploy).
 - Blockers: none. Desktop untouched ✓. No `public/` changes ✓. No deploy, no D1 runs, no PR/merge ✓.
+
+### Session 4 — Phase 2 / S241 (2026-11-06) — COMPLETE
+- Fresh sandbox; cloned; verified `origin/main` = `9dde797` (docs-only on `dad52f5`) + `feat/sprint-deadline-deps` = `81f2c05` (both exactly as the kickoff expected — no reconciliation needed); desktop remote cheap-checked via `git ls-remote` (`main` @ `9d53e64`, unchanged; READ-ONLY respected).
+- **Baseline re-run BEFORE any edit** on `81f2c05`: `bun install` ✓ 243 packages; `bun run verify` ✓ all gates; `bun run test` ✓ **105 files / 830 tests** — the expected S240 baseline.
+- **Phase 2 delivered** (commit **`da652d2`**, 5 files, +539/−7):
+  - `task_deps` — the board payload's 7th additive key (`taskDepsForProject`, task_tags-shaped flat edge join, rule-1 scoped, lagging-D1 `[]` belt); reverse Blocks-N stays a client-side fold.
+  - Server-computed effective deadlines on task rows (`effectiveDeadlineOf` + `boardTaskRows`): `effective_due_at`/`effective_due_source`/`effective_due_origin_at`; §10 precedence, §10.3 completed-neutrality, §5.5 paused inheritance, §12.2 sprint-origin sharing — assumption 9 records the decision.
+  - The legacy six-key shape pinned against the island @ `04218ca` (`src/tests/api-surface-s241.test.ts`, 7 tests: deps payload + scoping + cascade, island pin, the four §10 scenarios + neutrality + paused, helper unit incl. lagging-D1 rows).
+  - `docs/project-kanban/API-AND-SYNC-CONTRACT.md` **§12** — the complete Phase 1+2 surface (endpoints, bodies, responses, the error family, one-active 409 flow, effective-deadline contract, overview decision, sync implications) + §3.2/§11 refresh.
+  - FN-ALLOWLIST: board GET pinned (66 lines, endpoint-flow); three S240 pins moved.
+- **Gates, fresh run**: `bun run verify` ✓ ALL GREEN (tsc, eslint 0, vitest **106 files / 837 tests**, prod build, portability, fn-shape, boundaries); e2e sprint-timeline + s206-sprint-fixes **11/11** ✓.
+- Pushed `feat/sprint-deadline-deps` `81f2c05..da652d2` (one-shot token URL; verified no token in .git/config / commit bodies). Branch push = CI only, cannot deploy.
+- **Docs close-out on main** (docs-only): this file + the Phase 3 prompt in `NEXT-SESSION-PROMPT.md`.
+- Blockers: none. No `public/` changes ✓, no desktop changes ✓, no new runtime deps ✓, no deploy/D1/PR ✓.

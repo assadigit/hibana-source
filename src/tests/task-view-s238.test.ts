@@ -55,16 +55,16 @@ describe('S238 focus-core — the FULL Esc peel (view → sheet → focus)', () 
 })
 
 describe('S238 wiring — the DOM half (the island-style tripwires)', () => {
-  it('board.html carries the bumped carriers: board-page v29, focus-core v2 (BEFORE devboard), devboard.css v40, polish-batch v30, quicknotes v51, i18n-en v106, i18n.js v159 (S242 moved the ladder)', () => {
+  it('board.html carries the bumped carriers: board-page v30, focus-core v2 (BEFORE devboard), devboard.css v41, polish-batch v30, quicknotes v51, i18n-en v107, i18n.js v160 (S243 moved the ladder)', () => {
     const html = readPublic('board.html')
-    expect(html.includes('/js/board-page.js?v=29')).toBe(true)
+    expect(html.includes('/js/board-page.js?v=30')).toBe(true)
     expect(html.includes('/js/focus-core.js?v=2"')).toBe(true)
     expect(html.indexOf('/js/focus-core.js?v=')).toBeLessThan(html.indexOf('/js/devboard.js?v='))
-    expect(html.includes('/css/devboard.css?v=40')).toBe(true)
+    expect(html.includes('/css/devboard.css?v=41')).toBe(true)
     expect(html.includes('/css/polish-batch.css?v=30')).toBe(true)
     expect(html.includes('/css/quicknotes.css?v=51')).toBe(true)
-    expect(html.includes('/js/i18n-en.js?v=106')).toBe(true)
-    expect(html.includes('/js/i18n.js?v=159')).toBe(true)
+    expect(html.includes('/js/i18n-en.js?v=107')).toBe(true)
+    expect(html.includes('/js/i18n.js?v=160')).toBe(true)
   })
 
   it('board-page.js: the view modal exists, the card click / Enter / deep link open the VIEW, and the ⋯ Edit still opens the editor', () => {
@@ -164,14 +164,14 @@ describe('S238 wiring — the DOM half (the island-style tripwires)', () => {
     ]) {
       expect(bp.includes(pair[0]), 'board-page.js _t call missing fallback ' + pair[0]).toBe(true)
     }
-    // the lazy FA injector literal moved to v100 (S242)
-    expect(readPublic('js/i18n.js').includes('/js/i18n-fa.js?v=100')).toBe(true)
+    // the lazy FA injector literal moved to v101 (S243)
+    expect(readPublic('js/i18n.js').includes('/js/i18n-fa.js?v=101')).toBe(true)
   })
 
-  it('sw.js is at hibana-v453 and the round notes the carrier bumps (S242 moved the ladder)', () => {
+  it('sw.js is at hibana-v454 and the round notes the carrier bumps (S243 moved the ladder)', () => {
     const sw = readPublic('sw.js')
-    expect(sw.includes('const VERSION = "hibana-v453"')).toBe(true)
-    expect(sw.includes('// v453 (S242)')).toBe(true)
+    expect(sw.includes('const VERSION = "hibana-v454"')).toBe(true)
+    expect(sw.includes('// v454 (S243)')).toBe(true)
     // the S238 note stays in the history block (the discipline: every prior entry
     // is recoverable; the history block carries the last rounds)
     expect(sw.includes('// v452 (S238)')).toBe(true)

@@ -60,7 +60,14 @@
         // S242 (spec pack §7.1): best-effort parse of the uniform {error:'<code>'}
         // body — the sprint quick-create dialog needs the 409 code (duplicate /
         // draft_exists) to render its inline errors instead of a generic toast.
-        try { const b = await r.json(); if (b && b.error) err.code = b.error } catch { /* non-JSON body — status alone */ }
+        // S243 (spec pack §5.2): the parse now carries the WHOLE body (err.body) —
+        // the one-active conflict modal reads active_id from the 409
+        // sprint_active_exists payload instead of trusting a stale client state.
+        try {
+          const b = await r.json()
+          if (b && b.error) err.code = b.error
+          if (b && typeof b === 'object') err.body = b
+        } catch { /* non-JSON body — status alone */ }
         throw err
       }
       return r.status === 204 ? null : r.json()
@@ -183,6 +190,37 @@
   // authoritative post-0065; ended_at is the lock-step belt (the invariant keeps
   // ended_at NOT NULL ⇔ completed, so a lagging null-status row still reads right).
   const sprintCompleted = (s) => !!(s && (s.status === 'completed' || s.ended_at))
+  // S243 (spec pack §5 — the lifecycle UI): the client twin of the server's
+  // sprintStatusOf (src/routes/devboard-helpers.ts): status is authoritative
+  // post-0065; a lagging pre-0065 null-status row re-derives from the legacy
+  // is_draft/ended_at pair (planned / completed / active — the D1 belt).
+  const sprintStatusOf = (s) => {
+    if (!s) return 'planned'
+    if (s.status) return s.status
+    if (s.ended_at) return 'completed'
+    return s.is_draft ? 'planned' : 'active'
+  }
+  // S243 (spec pack §7.4 + contract §12.5 — the CLIENT-DERIVED overview counts):
+  // fold the loaded board payload's tasks by sprint + status — five lanes + a
+  // total, NOTHING else (no percentages, no analytics; the S241 recorded decision
+  // — no /sprints/:sid/overview endpoint exists and none may be added). Every
+  // overview surface (the Sprints page detail, the Kanban compact panel, the
+  // embedded board's twin) reads THIS one fold; the embedded project page passes
+  // its own DOM-derived rows (its truth is server-rendered wraps, not this state).
+  const sprintLaneCounts = (sprintId, taskRows) => {
+    const rows = taskRows || state.tasks
+    const counts = {}
+    let total = 0
+    for (const st of STATUSES) counts[st] = 0
+    for (const task of rows) {
+      if (task.sprint_id !== sprintId) continue
+      const st = task.status || 'idea'
+      if (counts[st] === undefined) counts[st] = 0
+      counts[st]++
+      total++
+    }
+    return { counts, total }
+  }
 
   // hibana-sync-status-spec §8/§14: every TASK mutation reports to the per-card
   // sync tracker (public/js/sync-state.js — the ONE state store; the card badges,
@@ -247,6 +285,12 @@
   const finishSprint = (id) => api('/api/sprints/' + id + '/finish', { method: 'POST' })
   const reopenSprint = (id) => api('/api/sprints/' + id + '/reopen', { method: 'POST' })
   const deleteSprint = (id) => api('/api/sprints/' + id, { method: 'DELETE' })
+  // S243 (spec pack §5.5 — the S240 endpoints get their client wrappers): pause an
+  // ACTIVE sprint (window + task associations untouched) and resume a PAUSED one
+  // (subject to the one-active 409 — the conflict modal resolves it). Ridden
+  // through the shared api() wrapper, so the fetch-site seam counts never move.
+  const pauseSprint = (id) => api('/api/sprints/' + id + '/pause', { method: 'POST' })
+  const resumeSprint = (id) => api('/api/sprints/' + id + '/resume', { method: 'POST' })
   const reorderCategories = (ids) => api('/api/projects/' + state.projectId + '/categories/reorder', {
     method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ids }),
   })
@@ -1487,6 +1531,342 @@
     nameIn.focus()
   }
 
+  // ------------------------------------------------- sprint lifecycle UI (S243)
+  // Spec pack Phase 4 (§5/§6 + Screens H1/H2/H3/I): the lifecycle confirmation
+  // dialogs + the shared start/resume conflict flow. Richer than the S210
+  // hibana.confirm card (counts, sprint identity, multiple actions) — built the
+  // S242 quick-create way: a .db-modal overlay + .db-modal-card, dir follows the
+  // locale, a capture-phase Esc shield (Escape closes THIS dialog, never
+  // whatever lives underneath), z-96 above the sprint popovers and the sprint
+  // detail panel. Shared by every surface: sprint.html (the Sprints page rows,
+  // draft card + toolbar), board-page.js (the compact Kanban overview) and
+  // project-page.js (the embedded board's twin — the S242 parity decision,
+  // SHIPPED). The H3 pause keeps the lightweight hibana.confirm card (Screen H3:
+  // "a lightweight confirmation is appropriate") — pause is reversible.
+  let sprintModEl = null
+  let sprintModCtx = null
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && sprintModEl && !sprintModEl.hidden) {
+      e.preventDefault()
+      e.stopPropagation()
+      closeSprintModal()
+    }
+  }, true)
+  function closeSprintModal() {
+    if (!sprintModEl) return null
+    const ctx = sprintModCtx
+    sprintModCtx = null
+    sprintModEl.hidden = true
+    return ctx
+  }
+  function sprintModal(html, opts) {
+    const lang = window.hibanaI18n && window.hibanaI18n.lang ? window.hibanaI18n.lang() : 'en'
+    if (!sprintModEl) {
+      sprintModEl = document.createElement('div')
+      sprintModEl.className = 'db-modal db-sprintmod'
+      sprintModEl.setAttribute('role', 'dialog')
+      sprintModEl.setAttribute('aria-modal', 'true')
+      sprintModEl.hidden = true
+      document.body.appendChild(sprintModEl)
+      sprintModEl.addEventListener('click', (e) => { if (e.target === sprintModEl) closeSprintModal() })
+    }
+    sprintModCtx = { onDone: (opts && opts.onDone) || null }
+    sprintModEl.innerHTML =
+      '<div class="db-modal-card db-sprintmod-card" dir="' + (lang === 'fa' ? 'rtl' : 'auto') + '">' + html + '</div>'
+    sprintModEl.hidden = false
+    return sprintModEl
+  }
+  const smHead = (title) =>
+    '<div class="row spread db-modal-head"><h3>' + esc(title) + '</h3>' +
+    '<button type="button" class="ghost" data-sm-close aria-label="' + esc(t('common.close', 'Close')) + '">✕</button></div>'
+  const smIdentity = (s, label) =>
+    '<p class="db-sm-identity"><span class="db-sm-glyph" aria-hidden="true">' + esc(sprintGlyph(s)) + '</span>' +
+    '<b dir="auto">' + esc(s.name || '') + '</b>' +
+    (label ? '<span class="db-sm-role muted small">' + esc(label) + '</span>' : '') + '</p>'
+  const smFoot = (cancelLabel, confirmAttrs, confirmLabel, danger) =>
+    '<div class="row spread db-modal-foot"><span class="muted small"></span>' +
+    '<div class="row" style="gap:.5rem">' +
+    '<button type="button" class="ghost" data-sm-cancel>' + esc(cancelLabel) + '</button>' +
+    '<button type="button" ' + confirmAttrs + (danger ? ' class="ghost danger"' : '') + '>' + esc(confirmLabel) + '</button>' +
+    '</div></div>'
+  const smWireCancel = (el) => {
+    el.querySelector('[data-sm-close]').onclick = () => closeSprintModal()
+    el.querySelector('[data-sm-cancel]').onclick = () => closeSprintModal()
+  }
+
+  // H2 (spec §5.3 + Screen H2): "Finish sprint?" — the sprint's identity, the
+  // count of tasks in Implemented THAT WILL BE ARCHIVED (client fold of the loaded
+  // payload), the count of unfinished tasks that stay put, the explicit
+  // "No tasks will be deleted." Confirm → POST /finish → the toast quotes the
+  // SERVER's additive archived count (the exact number, never the preview).
+  function openSprintFinish(s, opts) {
+    if (!s) return
+    const o = opts || {}
+    const done = o.onDone || null // captured up front: an Esc mid-flight must not swallow the reload (the mutation lands either way)
+    const fold = sprintLaneCounts(s.id, o.taskRows)
+    const doneN = fold.counts.done || 0
+    const unfinished = fold.total - doneN
+    const el = sprintModal(
+      smHead(t('db.h2.title', 'Finish sprint?')) +
+      '<div class="db-sprintmod-body">' +
+        smIdentity(s) +
+        '<p class="db-sm-line">' + esc(t('db.h2.willArchive', '{n} tasks in Implemented will be archived.').replace('{n}', faDig(doneN))) + '</p>' +
+        '<p class="db-sm-line">' + esc(t('db.h2.unfinished', '{n} unfinished tasks stay in their columns and keep this sprint.').replace('{n}', faDig(unfinished))) + '</p>' +
+        '<p class="db-sm-line db-sm-safe">' + esc(t('db.h2.noDelete', 'No tasks will be deleted.')) + '</p>' +
+      '</div>' +
+      smFoot(t('common.cancel', 'Cancel'), 'data-sm-finish', t('db.h2.confirm', 'Finish Sprint'), false),
+    o)
+    smWireCancel(el)
+    const btn = el.querySelector('[data-sm-finish]')
+    btn.onclick = async () => {
+      btn.disabled = true
+      try {
+        const r = await finishSprint(s.id) // 200 {ok, archived:n} — the server's exact count
+        window.hibana && window.hibana.toast(t('db.h2.done', 'Sprint finished — {n} tasks archived').replace('{n}', faDig(r && r.archived != null ? r.archived : doneN)), 'ok')
+        closeSprintModal()
+        if (done) done()
+      } catch {
+        btn.disabled = false
+        window.hibana && window.hibana.toast(t('sparks.saveFailed', "Couldn't save"), 'err')
+      }
+    }
+    btn.focus()
+  }
+
+  // Screen I (spec §6): the delete confirmation with EXACT impact counts. Active
+  // sprints answer the "pause or finish first" guard inline (the 409's twin);
+  // completed sprints are history and answer inline too (spec §5.4). Planned +
+  // Paused delete through the modal: total associated tasks, non-archived that
+  // become "No sprint", archived that keep the "Sprint: <name> (deleted)"
+  // snapshot label (counted from the lazy archives list — the row's sprint_id,
+  // added S243), and the explicit "No tasks will be deleted."
+  async function openSprintDelete(s, opts) {
+    if (!s) return
+    const o = opts || {}
+    const delDone = o.onDone || null // captured up front: an Esc mid-flight must not swallow the reload
+    const status = sprintStatusOf(s)
+    if (status === 'completed') {
+      window.hibana && window.hibana.toast(t('db.del.completed', "Completed sprints are part of your history — they can't be deleted."), 'err')
+      return
+    }
+    if (status === 'active') {
+      window.hibana && window.hibana.toast(t('db.del.active', 'Pause or finish this sprint before deleting it.'), 'err')
+      return
+    }
+    const fold = sprintLaneCounts(s.id, o.taskRows)
+    // the archived count comes from the archives list (lazy, existing) — the
+    // modal opens only when the fetch landed so every count it shows is EXACT;
+    // a failed fetch refuses the modal (a miscounted destructive confirm is
+    // worse than a retry). Ridden through the shared api() wrapper (no new
+    // fetch site; the embedded board passes its own projectId via opts).
+    let archivedN = 0
+    try {
+      const pid = (o.projectId != null ? o.projectId : state.projectId) || ''
+      const r = await api('/api/projects/' + pid + '/archives')
+      archivedN = ((r && r.archives) || []).filter((a) => a && a.sprint_id === s.id).length
+    } catch {
+      window.hibana && window.hibana.toast(t('sparks.saveFailed', "Couldn't load"), 'err')
+      return
+    }
+    const total = fold.total + archivedN
+    const el = sprintModal(
+      smHead(t('db.del.title', 'Delete sprint?')) +
+      '<div class="db-sprintmod-body">' +
+        smIdentity(s) +
+        '<p class="db-sm-line">' + esc(t('db.del.total', '{n} tasks are associated with this sprint.').replace('{n}', faDig(total))) + '</p>' +
+        '<p class="db-sm-line">' + esc(t('db.del.unassign', '{n} non-archived tasks will become unassigned (No sprint).').replace('{n}', faDig(fold.total))) + '</p>' +
+        '<p class="db-sm-line">' + esc(t('db.del.archived', '{n} archived tasks stay archived, labeled "Sprint: {name} (deleted)".').replace('{n}', faDig(archivedN)).replace('{name}', s.name || '')) + '</p>' +
+        '<p class="db-sm-line db-sm-safe">' + esc(t('db.del.noDelete', 'No tasks will be deleted.')) + '</p>' +
+      '</div>' +
+      smFoot(t('common.cancel', 'Cancel'), 'data-sm-del', t('db.del.confirm', 'Delete Sprint'), true),
+    o)
+    smWireCancel(el)
+    const btn = el.querySelector('[data-sm-del]')
+    btn.onclick = async () => {
+      btn.disabled = true
+      try {
+        await deleteSprint(s.id)
+        window.hibana && window.hibana.toast(t('db.del.done', 'Sprint deleted'), 'ok')
+        closeSprintModal()
+        if (delDone) delDone()
+      } catch (err) {
+        btn.disabled = false
+        // the server's twin guards answer inline (a race lost between load + click)
+        if (err && err.code === 'sprint_active') window.hibana && window.hibana.toast(t('db.del.active', 'Pause or finish this sprint before deleting it.'), 'err')
+        else if (err && err.code === 'sprint_completed') window.hibana && window.hibana.toast(t('db.del.completed', "Completed sprints are part of your history — they can't be deleted."), 'err')
+        else window.hibana && window.hibana.toast(t('sparks.saveFailed', "Couldn't save"), 'err')
+      }
+    }
+    btn.focus()
+  }
+
+  // H1 (spec §5.2 + Screen H1): start/resume hitting the one-active rule — show
+  // BOTH identities and offer three EXPLICIT actions: pause current & start
+  // selected, finish current & start selected (the archive count rides the button
+  // so the user sees it BEFORE confirming), or cancel. The transition runs as
+  // sequential calls (pause → start / finish → start) — atomic from the user's
+  // perspective; a lost race re-answers the 409, which is SURFACED (never a
+  // silent retry), and the board reloads so the landed partial state shows.
+  function openSprintConflict(active, selected, opts) {
+    if (!active || !selected || active.id === selected.id) return
+    const o = opts || {}
+    const armDone = o.onDone || null // captured up front: an Esc mid-flight must not swallow the reload
+    const doneN = (sprintLaneCounts(active.id, o.taskRows).counts.done) || 0
+    const el = sprintModal(
+      smHead(t('db.h1.title', 'Another sprint is active')) +
+      '<div class="db-sprintmod-body">' +
+        '<p class="db-sm-line">' + esc(t('db.h1.explain', 'Only one sprint can be active in this project at a time.')) + '</p>' +
+        '<p class="db-sm-role-lab muted small">' + esc(t('db.h1.current', 'Currently active')) + '</p>' +
+        smIdentity(active) +
+        '<p class="db-sm-role-lab muted small">' + esc(t('db.h1.starting', 'You are starting')) + '</p>' +
+        smIdentity(selected) +
+        '<button type="button" class="db-sm-action" data-sm-pause-start>' +
+          '<span aria-hidden="true">⏸</span> ' +
+          esc(t('db.h1.pauseStart', 'Pause {a} & Start {b}').replace('{a}', active.name || '').replace('{b}', selected.name || '')) +
+        '</button>' +
+        '<button type="button" class="db-sm-action" data-sm-finish-start>' +
+          '<span aria-hidden="true">⏹</span> ' +
+          esc(t('db.h1.finishStart', 'Finish {a} & Start {b}').replace('{a}', active.name || '').replace('{b}', selected.name || '')) +
+        '</button>' +
+        '<p class="db-sm-line muted small">' + esc(t('db.h1.finishNote', 'Finishing archives only tasks in Implemented — {n} will be archived.').replace('{n}', faDig(doneN))) + '</p>' +
+      '</div>' +
+      '<div class="row spread db-modal-foot"><span class="muted small"></span>' +
+        '<div class="row" style="gap:.5rem"><button type="button" class="ghost" data-sm-cancel>' + esc(t('common.cancel', 'Cancel')) + '</button></div>' +
+      '</div>',
+    o)
+    smWireCancel(el)
+    const runArm = async (arm) => {
+      try {
+        if (arm === 'pause') {
+          await pauseSprint(active.id)
+        } else {
+          const r = await finishSprint(active.id)
+          if (r && r.archived != null && r.archived > 0) {
+            window.hibana && window.hibana.toast(t('db.h2.done', 'Sprint finished — {n} tasks archived').replace('{n}', faDig(r.archived)), 'ok')
+          }
+          // S243 (the S235 day-window seam): /finish stamps ended_at = NOW (today)
+          // and /start stamps started_at = NOW (the same day) — assertSprintWindowOk
+          // keeps ONE sprint per day on the timeline, so the start would 400
+          // invalid_input EVERY time without the trim. The system's own recorded
+          // convention for exactly this case is the create-with-dates auto-close
+          // (devboard.ts: closeMs = max(newStart - 1day, sibling.started_at)) — the
+          // finish arm applies the SAME trim to the just-finished sprint's band
+          // edge before promoting the selected one, so both arms resolve the way
+          // the modal promises. The finished sprint's archive stamps stay honest
+          // (archived_at keeps the real finish instant; only the BAND edge moves).
+          const nowMs = Date.now()
+          const startedMs = Date.parse(active.started_at || '') || nowMs
+          const trimMs = Math.max(nowMs - 86400000, startedMs + 1) // strictly after its own start (the PATCH guard)
+          if (trimMs < nowMs) {
+            try { await patchSprint(active.id, { ended_at: new Date(trimMs).toISOString() }) } catch { /* the band keeps the finish stamp — the start below answers honestly */ }
+          }
+        }
+        await startSprint(selected.id) // planned + paused both promote through /start
+        window.hibana && window.hibana.toast(t('db.sprintStarted', 'Sprint started'), 'ok')
+        closeSprintModal()
+        if (armDone) armDone()
+      } catch (err) {
+        // never a silent retry: surface what the server said, close, and let the
+        // caller's onDone reload so any PARTIAL landing (paused but not started)
+        // renders honestly.
+        if (err && err.code === 'sprint_active_exists') {
+          window.hibana && window.hibana.toast(t('db.h1.stale', 'Another sprint became active just now — the board reloaded to show it.'), 'err')
+        } else if (err && err.code === 'invalid_input') {
+          // the S235 day-window rule (a same-day-started sprint still owns today —
+          // the trim above cannot move its edge before its own start). Honest and
+          // specific: the current sprint landed; the selected one needs a free day.
+          window.hibana && window.hibana.toast(t('db.h1.dayBlocked', '{b} could not start — the timeline keeps one sprint per day and a sprint that started today still covers it. Start it on the next free day.').replace('{b}', selected.name || ''), 'err')
+        } else {
+          window.hibana && window.hibana.toast(t('sparks.saveFailed', "Couldn't save"), 'err')
+        }
+        closeSprintModal()
+        if (armDone) armDone()
+      }
+    }
+    el.querySelector('[data-sm-pause-start]').onclick = () => runArm('pause')
+    el.querySelector('[data-sm-finish-start]').onclick = () => runArm('finish')
+    el.querySelector('[data-sm-pause-start]').focus()
+  }
+
+  // The shared start/resume flow (spec §5.2): with no active sibling it is one
+  // call; with one, the H1 conflict modal resolves it. The 409 belt reads the
+  // server's active_id (err.body — S243) so a sprint started in ANOTHER client
+  // still resolves by id, never by a stale local guess.
+  async function startSprintWithConflict(id, opts) {
+    if (!id) return
+    const o = opts || {}
+    const pool = o.sprints || state.sprints
+    const selected = pool.find((x) => x && x.id === id) || null
+    if (!selected) return
+    const active = pool.find((x) => x && sprintStatusOf(x) === 'active') || null
+    if (active && active.id !== id) { openSprintConflict(active, selected, o); return }
+    try {
+      const status = sprintStatusOf(selected)
+      if (status === 'paused') await resumeSprint(id)
+      else await startSprint(id)
+      window.hibana && window.hibana.toast(t('db.sprintStarted', 'Sprint started'), 'ok')
+      if (o.onDone) o.onDone()
+    } catch (err) {
+      if (err && err.code === 'sprint_active_exists') {
+        const activeId = err.body && err.body.active_id
+        const real = pool.find((x) => x && x.id === activeId) || pool.find((x) => x && sprintStatusOf(x) === 'active') || null
+        if (real && real.id !== id) openSprintConflict(real, selected, o)
+        else {
+          // the active sprint is unknown to this payload (created after our load)
+          // surface it + reload — never guess, never retry silently
+          window.hibana && window.hibana.toast(t('db.h1.stale', 'Another sprint became active just now — the board reloaded to show it.'), 'err')
+          if (o.onDone) o.onDone()
+        }
+      } else {
+        window.hibana && window.hibana.toast(t('sparks.saveFailed', "Couldn't save"), 'err')
+      }
+    }
+  }
+
+  // H3 (spec §5.5 + Screen H3): pause stays a LIGHTWEIGHT confirm (hibana.confirm,
+  // the app's action convention — reversible, no counts to preview): "tasks stay
+  // where they are and keep this sprint."
+  async function confirmSprintPause(s, opts) {
+    if (!s) return
+    const o = opts || {}
+    const msg = t('db.pauseConfirm', 'Pause {name}? Tasks stay where they are and keep this sprint.').split('{name}').join(s.name || '')
+    const label = t('db.pauseSprint', 'Pause sprint')
+    if (!await window.hibana.confirm(msg, { title: label, confirmLabel: label })) return
+    try {
+      await pauseSprint(s.id)
+      window.hibana && window.hibana.toast(t('db.sprintPaused', 'Sprint paused'), 'ok')
+      if (o.onDone) o.onDone()
+    } catch {
+      window.hibana && window.hibana.toast(t('sparks.saveFailed', "Couldn't save"), 'err')
+    }
+  }
+
+  // Reopen (spec §5.4): completed → active; the one-active 409 resolves through
+  // the same H1 modal (the reopen's "Start" arm reads correctly — activation).
+  async function reopenSprintFlow(id, opts) {
+    if (!id) return
+    const o = opts || {}
+    const pool = o.sprints || state.sprints
+    const selected = pool.find((x) => x && x.id === id) || null
+    try {
+      await reopenSprint(id)
+      window.hibana && window.hibana.toast(t('db.sprintReopened', 'Sprint reopened'), 'ok')
+      if (o.onDone) o.onDone()
+    } catch (err) {
+      if (err && err.code === 'sprint_active_exists') {
+        const activeId = err.body && err.body.active_id
+        const real = pool.find((x) => x && x.id === activeId) || pool.find((x) => x && sprintStatusOf(x) === 'active') || null
+        if (selected && real && real.id !== id) openSprintConflict(real, selected, o)
+        else {
+          window.hibana && window.hibana.toast(t('db.h1.stale', 'Another sprint became active just now — the board reloaded to show it.'), 'err')
+          if (o.onDone) o.onDone()
+        }
+      } else {
+        window.hibana && window.hibana.toast(t('sparks.saveFailed', "Couldn't save"), 'err')
+      }
+    }
+  }
+
   // ---------------------------------------------------------------- label manager
   // S30 batch 4 (user request — "rename/merge/recolor/delete-unused tags, powered by
   // fixing B2"): a dialog listing every user tag with its LIVE usage_count. Row actions:
@@ -1716,6 +2096,15 @@
     createTask, patchTask, deleteTask, reorderTasks, addTaskTag, removeTaskTag,
     createCategory, patchCategory, deleteCategory, reorderCategories,
     createSprint, startSprint, patchSprint, renameSprint, finishSprint, reopenSprint, deleteSprint,
+    // S243 (spec pack Phase 4): pause/resume wrappers + the lifecycle UI stack —
+    // statusOf/laneCounts helpers, the H2 finish + Screen-I delete confirmations,
+    // the H1 one-active conflict modal + the shared start/resume/reopen flows,
+    // and the H3 lightweight pause confirm. Exported so sprint.html, board.html
+    // and project.html share ONE implementation (spec §18 — no forking).
+    pauseSprint, resumeSprint,
+    sprintGlyph, sprintCompleted, sprintStatusOf, sprintLaneCounts,
+    openSprintFinish, openSprintDelete, openSprintConflict,
+    startSprintWithConflict, confirmSprintPause, reopenSprintFlow,
     openEditor, openTaskShots, // S208: the pinned-pictures dialog (the card badge)
   }
 })()

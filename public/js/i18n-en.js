@@ -726,11 +726,49 @@ window.__hibanaDictEN = {
       'db.sq.nameRequired': 'Enter a name for the sprint.',
       'db.sq.dupErr': 'A sprint with this name already exists in this project — names are case-insensitive.',
       'db.sq.failed': "Couldn't create the sprint — try again.",
+      // S243 (spec pack Phase 4 — the sprint lifecycle UI): pause/resume + the
+      // lifecycle labels, the H1 one-active conflict + H2 finish + Screen-I delete
+      // dialogs, the compact overview (Screen G), and the Sprints page's
+      // Settings/Tasks detail panel (Screens E/F).
+      'db.pauseSprint': 'Pause sprint', 'db.resumeSprint': 'Resume',
+      'db.sprintPaused': 'Sprint paused', 'db.sprintReopened': 'Sprint reopened',
+      'db.sprintSt.active': 'Active', 'db.sprintSt.planned': 'Planned', 'db.sprintSt.paused': 'Paused', 'db.sprintSt.completed': 'Completed',
+      'db.pauseConfirm': 'Pause {name}? Tasks stay where they are and keep this sprint.',
+      'db.h1.title': 'Another sprint is active',
+      'db.h1.explain': 'Only one sprint can be active in this project at a time.',
+      'db.h1.current': 'Currently active', 'db.h1.starting': 'You are starting',
+      'db.h1.pauseStart': 'Pause {a} & Start {b}', 'db.h1.finishStart': 'Finish {a} & Start {b}',
+      'db.h1.finishNote': 'Finishing archives only tasks in Implemented — {n} will be archived.',
+      'db.h1.stale': 'Another sprint became active just now — the board reloaded to show it.',
+      'db.h1.dayBlocked': '{b} could not start — the timeline keeps one sprint per day and a sprint that started today still covers it. Start it on the next free day.',
+      'db.h2.title': 'Finish sprint?',
+      'db.h2.willArchive': '{n} tasks in Implemented will be archived.',
+      'db.h2.unfinished': '{n} unfinished tasks stay in their columns and keep this sprint.',
+      'db.h2.noDelete': 'No tasks will be deleted.',
+      'db.h2.confirm': 'Finish Sprint', 'db.h2.done': 'Sprint finished — {n} tasks archived',
+      'db.del.title': 'Delete sprint?',
+      'db.del.total': '{n} tasks are associated with this sprint.',
+      'db.del.unassign': '{n} non-archived tasks will become unassigned (No sprint).',
+      'db.del.archived': '{n} archived tasks stay archived, labeled "Sprint: {name} (deleted)".',
+      'db.del.noDelete': 'No tasks will be deleted.',
+      'db.del.confirm': 'Delete Sprint', 'db.del.done': 'Sprint deleted',
+      'db.del.active': 'Pause or finish this sprint before deleting it.',
+      'db.del.completed': "Completed sprints are part of your history — they can't be deleted.",
+      'db.ov.total': 'Total', 'db.ov.settings': 'Settings', 'db.ov.due': 'Due {d}',
+      'db.ov.counts': 'Task counts by Kanban column',
+      'db.dueDate': 'Due date',
       // Phase 5 — sprint time paging
       'sp.older': 'Older', 'sp.newer': 'Newer', 'sp.now': 'Now',
       // S46.10: sprints list (below the timeline)
       'sp.allSprints': 'All sprints', 'sp.notStarted': 'not started', 'sp.untitled': 'Untitled', 'sp.items': 'items',
       'sp.noActiveSprint': 'No active sprint to finish',
+      // S243 (spec pack Phase 4 — Screens E/F): the grouped list + the detail panel
+      'sp.sectionActive': 'Active', 'sp.sectionPlanned': 'Planned', 'sp.sectionPaused': 'Paused', 'sp.sectionCompleted': 'Completed history',
+      'sp.settingsTab': 'Settings', 'sp.tasksTab': 'Tasks', 'sp.version': 'Version',
+      'sp.openSettings': "Open this sprint's settings and tasks", 'sp.quickActions': 'Quick actions',
+      'sp.noDue': 'No due date yet.', 'sp.archivedWhenFinished': 'Archived when finished',
+      'sp.settingsSaved': 'Sprint settings saved', 'sp.openPlanEditor': 'the full-screen plan editor',
+      'sp.planNote': 'The rich description lives in the plan editor.',
       // S45: the sprint lane's rich empty state (one-line hint under the title)
       'sp.emptyHint': 'Define it, add items, start it — it runs here as a strip.',
       // S44: the sprint timeline's today-flag chip (rides the today line)

@@ -64,7 +64,11 @@ describe('S242 — the sprint dropdown (Add/Edit Task)', () => {
 
   it('api() surfaces the {error} code — the quick-create needs the 409 family to answer inline', () => {
     const js = readPublic('js/devboard.js')
-    expect(js).toMatch(/try \{ const b = await r\.json\(\); if \(b && b\.error\) err\.code = b\.error \}/)
+    // S243: the parse now carries the WHOLE body (err.body — the H1 conflict modal
+    // reads active_id from the 409 sprint_active_exists payload). Pin extended from
+    // the S242 one-line shape; the err.code contract itself is unchanged.
+    expect(js).toMatch(/if \(b && b\.error\) err\.code = b\.error/)
+    expect(js).toMatch(/if \(b && typeof b === 'object'\) err\.body = b/)
   })
 })
 
@@ -243,7 +247,8 @@ describe('S242 — the desktop seam tripwires (the Phase 9 re-pin inventory)', (
     for (const page of ['board.html', 'sprint.html']) {
       const html = readPublic(page)
       expect(html).toMatch(/\/js\/emoji-picker\.js\?v=\d+/)
-      expect(html).toMatch(/\/js\/devboard\.js\?v=32/)
+      // S243 moved devboard.js to v33 (the lifecycle UI round) — the pin moves with it
+      expect(html).toMatch(/\/js\/devboard\.js\?v=33/)
     }
   })
 })

@@ -515,6 +515,53 @@
             '<p class="empty-state-text">' + B().esc(_t('db.filterEmptyText', 'Try another word, or clear the filters to see every task.')) + '</p>' +
             '<button type="button" class="empty-state-cta btn ghost" data-db-filter-empty-clear>' + B().esc(_t('db.filterClear', 'Clear filter')) + '</button>' +
           '</div>' : ''
+          // S243 (spec §7.4 + Screen G — the compact sprint overview): selecting a
+          // NAMED sprint in the view filter mounts its overview panel under the bar —
+          // identity + lifecycle state, the five lane counts + total (the §12.5
+          // CLIENT fold over the loaded payload — ZERO new fetches), and the
+          // lifecycle actions the state permits (Start/Resume, Pause, Finish) +
+          // Settings (deep-links the Sprints page's detail panel). No percentages,
+          // no analytics — the restrained distribution the spec pins.
+          let sprintOvHtml = ''
+          const ovSprint = filterSprint && filterSprint !== '__none' ? B().findSprint(filterSprint) : null
+          if (ovSprint) {
+            const ovSt = B().sprintStatusOf(ovSprint)
+            const fold = B().sprintLaneCounts(ovSprint.id)
+            const badgeMap = {
+              active: ['sp-st-active', _t('db.sprintSt.active', 'Active')],
+              planned: ['sp-st-planned', _t('db.sprintSt.planned', 'Planned')],
+              paused: ['sp-st-paused', _t('db.sprintSt.paused', 'Paused')],
+              completed: ['sp-st-completed', _t('db.sprintSt.completed', 'Completed')],
+            }
+            const bm = badgeMap[ovSt] || badgeMap.planned
+            const dueTxt = ovSprint.due_at
+              ? '<span class="db-sprint-ov-due muted small">' + B().esc(_t('db.ov.due', 'Due {d}').replace('{d}', new Date(ovSprint.due_at).toLocaleDateString(document.documentElement.lang === 'fa' ? 'fa-IR' : 'en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' }))) + '</span>'
+              : ''
+            const acts = []
+            if (ovSt === 'planned') acts.push('<button type="button" class="btn small" data-db-ov-start>▸ ' + B().esc(_t('db.startSprint', 'Start sprint')) + '</button>')
+            if (ovSt === 'paused') acts.push('<button type="button" class="btn small" data-db-ov-resume>▸ ' + B().esc(_t('db.resumeSprint', 'Resume')) + '</button>')
+            if (ovSt === 'active') {
+              acts.push('<button type="button" class="btn ghost small" data-db-ov-pause>⏸ ' + B().esc(_t('db.pauseSprint', 'Pause sprint')) + '</button>')
+              acts.push('<button type="button" class="btn ghost small" data-db-ov-finish>⏹ ' + B().esc(_t('db.finishSprint', 'Finish sprint')) + '</button>')
+            }
+            acts.push('<a class="btn ghost small" data-db-ov-settings href="/sprint.html?project=' + encodeURIComponent(projectId) + '&sprint=' + encodeURIComponent(ovSprint.id) + '">⚙ ' + B().esc(_t('db.ov.settings', 'Settings')) + '</a>')
+            sprintOvHtml =
+              '<div class="db-sprint-ov" data-db-sprint-ov data-sprint-id="' + B().esc(ovSprint.id) + '">' +
+                '<div class="row db-sprint-ov-head">' +
+                  '<span class="db-sprint-ov-glyph" aria-hidden="true">' + B().esc(B().sprintGlyph(ovSprint)) + '</span>' +
+                  '<span class="db-sprint-ov-name" dir="auto">' + B().esc(ovSprint.name || '') + '</span>' +
+                  '<span class="sp-list-badge ' + bm[0] + '">' + B().esc(bm[1]) + '</span>' +
+                  dueTxt +
+                  '<span class="db-flex-gap"></span>' +
+                  '<div class="row db-sprint-ov-actions">' + acts.join('') + '</div>' +
+                '</div>' +
+                '<div class="db-sprint-ov-counts" role="table" aria-label="' + B().esc(_t('db.ov.counts', 'Task counts by Kanban column')) + '">' +
+                  B().STATUSES.map((st) =>
+                    '<span class="db-sprint-ov-count" role="row"><span class="db-sprint-ov-lane" role="cell">' + B().esc(B().statusLabel(st)) + '</span><b role="cell">' + B().faDig(fold.counts[st] || 0) + '</b></span>').join('') +
+                  '<span class="db-sprint-ov-count db-sprint-ov-total" role="row"><span class="db-sprint-ov-lane" role="cell">' + B().esc(_t('db.ov.total', 'Total')) + '</span><b role="cell">' + B().faDig(fold.total) + '</b></span>' +
+                '</div>' +
+              '</div>'
+          }
           // Session 22 (user request): unlimited task titles clamp at 150 CHARS — same
           // recipe as the project page's progress boxes: first 150 chars visible, the
           // rest in a hidden .pd-title-rest span INSIDE the title element (so
@@ -590,7 +637,7 @@
           // data-task-card (drag/drop + editor), the ⋯ menu (anchored to the wrap,
           // the quicknotes.css project recipe), Archive/Clear/Copy/Export in
           // .pd-col-actions, and .db-cat-chip / .db-sprint-badge (no pd counterpart).
-          root.innerHTML = filterBarHtml + filterEmptyHtml + '<div class="db-cols">' + B().STATUSES.map((st) => {
+          root.innerHTML = filterBarHtml + filterEmptyHtml + sprintOvHtml + '<div class="db-cols">' + B().STATUSES.map((st) => {
             const items = S.tasks.filter((x) => x.status === st && taskMatches(x))
             const isDone = st === 'done'
             // UI-redesign (spec §4): ONE ellipsis menu per lane replaces the always-
@@ -1511,6 +1558,23 @@
           render()
         })
 
+        // S243 (Screen G): the compact overview's lifecycle actions — the shared
+        // devboard.js stack (the H2 finish confirmation, the H3 pause confirm, the
+        // H1-aware start/resume). onDone = the page's own reload() — the board
+        // re-pulls + re-renders (the panel + the counts follow the fresh state).
+        ctx.on('click', (e) => {
+          const ov = e.target.closest('[data-db-sprint-ov]')
+          if (!ov) return
+          const id = ov.dataset.sprintId
+          const s = id ? B().findSprint(id) : null
+          if (!s) return
+          if (e.target.closest('[data-db-ov-start]')) { B().startSprintWithConflict(s.id, { onDone: reload }); return }
+          if (e.target.closest('[data-db-ov-resume]')) { B().startSprintWithConflict(s.id, { onDone: reload }); return }
+          if (e.target.closest('[data-db-ov-pause]')) { B().confirmSprintPause(s, { onDone: reload }); return }
+          if (e.target.closest('[data-db-ov-finish]')) { B().openSprintFinish(s, { onDone: reload }); return }
+          // data-db-ov-settings is an <a href> — the browser navigates; no handler.
+        })
+
         // S136: keyboard parity with the project page — the card is role="button" +
         // tabindex=0 now, so Enter/Space open the task's VIEW (S238 — the click's
         // twin; the editor stays behind the ⋯ menu's Edit / the view's Edit).
@@ -1544,7 +1608,7 @@
             if (window.HibanaBoard) return resolve(true)
             if (!injected && waited >= 1200) {
               injected = true
-              inject('/js/devboard.js?v=32') // keep in sync with the <head> tag + sw SHELL
+              inject('/js/devboard.js?v=33') // keep in sync with the <head> tag + sw SHELL
               if (!window.HibanaFocusCore) inject('/js/focus-core.js?v=2') // S237/S238: the focus + view decision core — keep in sync with the <head> tag
               if (!window.HibanaChips) inject('/js/chip-render.js?v=13') // S36: was ?v=1 while the HTML tags say v=2 — two cache entries for one file (the cache-bust gate caught it under the sandbox's mode-bit noise). Aligned; local-dev + SW caches now share ONE url per version. S86: v8 — kept in sync with the <head> tag (previewHtml moved in). S176: v11.
               if (!window.jalaali) inject('/vendor/jalaali.min.js') // Jalali dates for FA

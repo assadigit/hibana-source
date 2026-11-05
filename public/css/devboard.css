@@ -1857,3 +1857,161 @@ main.board-shell .db-frame .db-toolbar { padding: 0.25rem 0.2rem 0.85rem; }
 @media (prefers-reduced-motion: reduce) {
   .db-sheet-copy { transition: none; }
 }
+
+/* ===========================================================================
+   S243 (spec pack Phase 4 — Screens E/F/G/H/I): the sprint lifecycle UI. Shared
+   grammar across every surface (/kanban, the Sprints page, the embedded board):
+   the compact overview panel, the lifecycle-grouped list, the Settings/Tasks
+   detail panel, the H1 conflict + H2 finish + Screen-I delete confirmations,
+   and the distinct PAUSED timeline render (spec §5.5). Logical properties
+   throughout — RTL mirrors with dir, never a mirrored rule (spec §17).
+   ========================================================================= */
+
+/* --- Screen G: the compact sprint overview (both board surfaces) --------------
+   A restrained panel under the filter bar: identity + lifecycle badge + due date,
+   then the five lane counts + total (§12.5's client fold — counts only, never
+   percentages). Its counts row reads as one quiet table strip. */
+.db-sprint-ov {
+  margin-block-start: 0.5rem;
+  padding: 0.6rem 0.8rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--statcard-bg, var(--card));
+  display: grid;
+  gap: 0.5rem;
+}
+.db-sprint-ov-head { align-items: center; gap: 0.5rem; flex-wrap: wrap; }
+.db-sprint-ov-glyph { font-size: 1.05rem; line-height: 1; }
+.db-sprint-ov-name { font-weight: 600; min-inline-size: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-inline-size: 22rem; }
+.db-sprint-ov-actions { gap: 0.4rem; flex-wrap: wrap; }
+.db-sprint-ov-counts {
+  display: flex; flex-wrap: wrap; gap: 0.35rem 0.9rem;
+  padding-block-start: 0.45rem;
+  border-block-start: 1px dashed var(--line);
+}
+.db-sprint-ov-count { display: inline-flex; align-items: baseline; gap: 0.35rem; font-size: var(--fs-xs); }
+.db-sprint-ov-lane { color: var(--muted); }
+.db-sprint-ov-count b { font-weight: 600; }
+.db-sprint-ov-total { margin-inline-start: auto; }
+.db-sprint-ov-total .db-sprint-ov-lane { color: var(--text); font-weight: 600; }
+
+/* --- the lifecycle badges (the list rows, the detail panel, the overview) ----- */
+.sp-list-badge.sp-st-active { background: var(--accent-soft); color: var(--accent-ink); }
+.sp-list-badge.sp-st-planned { background: color-mix(in srgb, var(--muted) 12%, transparent); color: var(--muted); }
+.sp-list-badge.sp-st-paused { background: color-mix(in srgb, #b98a2e 16%, transparent); color: #8a6a26; }
+.sp-list-badge.sp-st-completed { background: color-mix(in srgb, var(--success, #4a9fa3) 15%, transparent); color: var(--success, #4a9fa3); }
+
+/* --- Screen E: the lifecycle-grouped list on the Sprints page ---------------- */
+.sp-list-group { display: grid; gap: 0.3rem; margin-block-start: 0.6rem; }
+.sp-list-group-title {
+  display: flex; align-items: center; gap: 0.45rem;
+  margin: 0; font-size: var(--fs-xs); font-weight: 600;
+  text-transform: uppercase; letter-spacing: 0.04em;
+  padding-inline: 0.15rem;
+}
+.sp-list-group-title .detail-tab-count { font-size: 0.7rem; }
+.sp-list-ident { font-size: 0.95rem; line-height: 1; flex: none; }
+.sp-list-more { flex: none; opacity: 0.55; }
+.sp-list-row:hover .sp-list-more { opacity: 1; }
+.sp-list-due { white-space: nowrap; }
+
+/* --- spec §5.5: the DISTINCT paused timeline render ---------------------------
+   A paused sprint keeps its open window (assumption 7) but reads differently:
+   a muted + hatched band + dashed boundary rails + the ⏸ chip mark. */
+.sp-band.is-paused-band {
+  background-image: repeating-linear-gradient(-45deg, transparent 0 6px, color-mix(in srgb, var(--muted) 14%, transparent) 6px 12px);
+  opacity: 0.75;
+}
+.sp-sprint.is-paused .sp-sprint-chip { border-style: dashed; opacity: 0.85; }
+.sp-bound.is-paused-bound { border-style: dashed; opacity: 0.75; }
+
+/* --- Screens H1/H2/I: the lifecycle confirmation dialogs ----------------------
+   The .db-modal grammar (the S242 quick-create precedent), z-96 — above the
+   sprint popovers AND the z-95 detail panel (dialog-on-dialog). */
+.db-sprintmod { z-index: 96; }
+.db-sprintmod-card { inline-size: min(28rem, 100%); }
+.db-sprintmod-body { display: grid; gap: 0.55rem; }
+.db-sm-identity {
+  display: flex; align-items: center; gap: 0.5rem;
+  margin: 0; font-size: var(--fs-sm);
+  padding: 0.45rem 0.6rem;
+  background: var(--bg-soft, color-mix(in srgb, var(--muted) 8%, transparent));
+  border-radius: var(--radius-sm);
+}
+.db-sm-identity b { min-inline-size: 0; overflow-wrap: anywhere; }
+.db-sm-glyph { font-size: 1.05rem; line-height: 1; flex: none; }
+.db-sm-role { margin-inline-start: auto; flex: none; }
+.db-sm-role-lab { margin: 0.15rem 0 0; text-transform: uppercase; letter-spacing: 0.04em; font-size: 0.68rem; }
+.db-sm-line { margin: 0; font-size: var(--fs-sm); color: var(--text); }
+.db-sm-safe { color: var(--muted); }
+/* the H1 conflict's two explicit arms — full-width quiet action rows */
+.db-sm-action {
+  display: flex; align-items: center; gap: 0.55rem;
+  inline-size: 100%;
+  padding: 0.55rem 0.7rem;
+  font: inherit; font-size: var(--fs-sm);
+  color: var(--text);
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  text-align: start;
+  transition: border-color 0.14s ease, background-color 0.14s ease;
+}
+.db-sm-action:hover { border-color: var(--line-strong); background: var(--bg-soft, color-mix(in srgb, var(--muted) 6%, transparent)); }
+.db-sm-action:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 1px; }
+.db-sm-action[disabled] { opacity: 0.6; cursor: default; }
+
+/* --- Screen F: the sprint DETAIL panel (Settings + Tasks) ---------------------
+   The z-95 layer (under the confirmations, over the page chrome). */
+.db-sprintdetail { z-index: 95; }
+.db-sprintdetail-card { inline-size: min(34rem, 100%); }
+.sp-detail-title { display: flex; align-items: center; gap: 0.45rem; margin: 0; min-inline-size: 0; }
+.sp-detail-title > span { min-inline-size: 0; overflow-wrap: anywhere; }
+.sp-detail-glyph { font-size: 1.1rem; line-height: 1; flex: none; }
+.sp-detail-tabs { gap: 0.35rem; }
+.sp-detail-tab {
+  padding: 0.35rem 0.8rem;
+  font: inherit; font-size: var(--fs-sm);
+  color: var(--muted);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+.sp-detail-tab:hover { color: var(--text); }
+.sp-detail-tab.is-on { color: var(--text); border-color: var(--line); background: var(--statcard-bg, var(--card)); font-weight: 600; }
+.sp-detail-tab:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 1px; }
+.sp-detail-err { margin: 0; font-size: var(--fs-sm); color: var(--err, #b42318); }
+.sp-detail-due { margin: 0.1rem 0 0; }
+.sp-detail-plan-note { margin: 0.15rem 0 0; }
+/* the Tasks tab: the five-lane fold + total, then each lane's rows */
+.sp-detail-lanes { display: grid; gap: 0.55rem; }
+.sp-detail-total {
+  display: flex; align-items: center; gap: 0.5rem;
+  font-size: var(--fs-sm); font-weight: 600;
+  padding: 0.35rem 0.55rem;
+  border-radius: var(--radius-sm);
+  background: var(--statcard-bg, var(--card));
+}
+.sp-detail-total .detail-tab-count { margin-inline-start: auto; }
+.sp-detail-lane { display: grid; gap: 0.25rem; }
+.sp-detail-lane-head { display: flex; align-items: center; gap: 0.5rem; font-size: var(--fs-xs); color: var(--muted); }
+.sp-detail-lane-head .detail-tab-count { margin-inline-start: auto; }
+.sp-detail-tasks { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.2rem; }
+.sp-detail-task {
+  display: flex; align-items: center; gap: 0.5rem;
+  padding: 0.3rem 0.5rem;
+  font-size: var(--fs-sm);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+.sp-detail-task[role='button']:hover { background: var(--bg-soft, color-mix(in srgb, var(--muted) 8%, transparent)); }
+.sp-detail-task-title { min-inline-size: 0; overflow-wrap: anywhere; }
+.sp-detail-archived { display: grid; gap: 0.3rem; margin-block-start: 0.7rem; padding-block-start: 0.6rem; border-block-start: 1px dashed var(--line); }
+.sp-detail-archived-title { display: flex; align-items: center; gap: 0.5rem; margin: 0; font-size: var(--fs-xs); }
+.sp-detail-archived-title .detail-tab-count { margin-inline-start: auto; }
+
+@media (prefers-reduced-motion: reduce) {
+  .db-sm-action { transition: none; }
+}

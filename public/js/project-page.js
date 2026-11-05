@@ -1760,7 +1760,91 @@
               if (btn) btn.textContent = _t('db.filterClear', 'Clear filter')
             }
           }
+          // S243 (Screen G — the embedded-board parity decision, SHIPPED): the
+          // compact overview refreshes with the filter state on EVERY apply (the
+          // toggles, the search, the swap rebuilds all funnel here).
+          pdRenderSprintOv()
         }
+        // S243 (spec §7.4 + Screen G — the embedded board's compact overview twin):
+        // selecting a NAMED sprint in the filter mounts the panel under the bar —
+        // identity + lifecycle state, the five lane counts + total (the §12.5 client
+        // fold — here over the DOM wraps, the embedded board's truth: every
+        // .pd-task-wrap carries data-pd-sprint + data-pd-status), and the lifecycle
+        // actions the state permits through the SHARED devboard.js stack (spec §18:
+        // one implementation, no forking) — the sprints pool + the DOM-fold rows +
+        // the project id ride opts, since HibanaBoard.state is NOT loaded here.
+        function pdRenderSprintOv() {
+          const bar = document.querySelector('[data-pd-filter]')
+          if (!bar) return
+          let ov = document.querySelector('[data-pd-sprint-ov]')
+          const s = pdFilterSprint && pdFilterSprint !== '__none'
+            ? pdSprintTruth.find((x) => x && x.id === pdFilterSprint) || null
+            : null
+          if (!s) { if (ov) ov.hidden = true; return }
+          if (!ov) {
+            ov = document.createElement('div')
+            ov.className = 'db-sprint-ov'
+            ov.dataset.pdSprintOv = ''
+            bar.insertAdjacentElement('afterend', ov)
+          }
+          const ovSt = window.HibanaBoard ? window.HibanaBoard.sprintStatusOf(s) : (s.status || (s.ended_at ? 'completed' : s.is_draft ? 'planned' : 'active'))
+          const domRows = [...document.querySelectorAll('.pd-task-wrap')].map((w) => ({ sprint_id: w.dataset.pdSprint || null, status: w.dataset.pdStatus || 'idea' }))
+          const fold = window.HibanaBoard ? window.HibanaBoard.sprintLaneCounts(s.id, domRows) : { counts: {}, total: 0 }
+          const badgeMap = {
+            active: ['sp-st-active', _t('db.sprintSt.active', 'Active')],
+            planned: ['sp-st-planned', _t('db.sprintSt.planned', 'Planned')],
+            paused: ['sp-st-paused', _t('db.sprintSt.paused', 'Paused')],
+            completed: ['sp-st-completed', _t('db.sprintSt.completed', 'Completed')],
+          }
+          const bm = badgeMap[ovSt] || badgeMap.planned
+          const dueTxt = s.due_at
+            ? '<span class="db-sprint-ov-due muted small">' + pdEsc(_t('db.ov.due', 'Due {d}').replace('{d}', new Date(s.due_at).toLocaleDateString(document.documentElement.lang === 'fa' ? 'fa-IR' : 'en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' }))) + '</span>'
+            : ''
+          const acts = []
+          if (ovSt === 'planned') acts.push('<button type="button" class="btn small" data-pd-ov-start>▸ ' + pdEsc(_t('db.startSprint', 'Start sprint')) + '</button>')
+          if (ovSt === 'paused') acts.push('<button type="button" class="btn small" data-pd-ov-resume>▸ ' + pdEsc(_t('db.resumeSprint', 'Resume')) + '</button>')
+          if (ovSt === 'active') {
+            acts.push('<button type="button" class="btn ghost small" data-pd-ov-pause>⏸ ' + pdEsc(_t('db.pauseSprint', 'Pause sprint')) + '</button>')
+            acts.push('<button type="button" class="btn ghost small" data-pd-ov-finish>⏹ ' + pdEsc(_t('db.finishSprint', 'Finish sprint')) + '</button>')
+          }
+          acts.push('<a class="btn ghost small" data-pd-ov-settings href="/sprint.html?project=' + encodeURIComponent(id) + '&sprint=' + encodeURIComponent(s.id) + '">⚙ ' + pdEsc(_t('db.ov.settings', 'Settings')) + '</a>')
+          const ST_LABELS = {
+            idea: _t('db.st.idea', 'New Ideas'), bug: _t('db.st.bug', 'Problems'), planned: _t('db.st.planned', 'Plans'),
+            in_progress: _t('db.st.inprog', 'In Progress'), done: _t('db.st.done', 'Implemented'),
+          }
+          ov.hidden = false
+          ov.dataset.sprintId = s.id
+          ov.innerHTML =
+            '<div class="row db-sprint-ov-head">' +
+              '<span class="db-sprint-ov-glyph" aria-hidden="true">' + pdEsc(s.emoji ? String(s.emoji) : '◆') + '</span>' +
+              '<span class="db-sprint-ov-name" dir="auto">' + pdEsc(s.name || '') + '</span>' +
+              '<span class="sp-list-badge ' + bm[0] + '">' + pdEsc(bm[1]) + '</span>' +
+              dueTxt +
+              '<span class="db-flex-gap"></span>' +
+              '<div class="row db-sprint-ov-actions">' + acts.join('') + '</div>' +
+            '</div>' +
+            '<div class="db-sprint-ov-counts" role="table" aria-label="' + pdEsc(_t('db.ov.counts', 'Task counts by Kanban column')) + '">' +
+              ['idea', 'bug', 'planned', 'in_progress', 'done'].map((st) =>
+                '<span class="db-sprint-ov-count" role="row"><span class="db-sprint-ov-lane" role="cell">' + pdEsc(ST_LABELS[st]) + '</span><b role="cell">' + pdDig(String(fold.counts[st] || 0)) + '</b></span>').join('') +
+              '<span class="db-sprint-ov-count db-sprint-ov-total" role="row"><span class="db-sprint-ov-lane" role="cell">' + pdEsc(_t('db.ov.total', 'Total')) + '</span><b role="cell">' + pdDig(String(fold.total)) + '</b></span>' +
+            '</div>'
+        }
+        // S243 (Screen G): the overview's lifecycle actions — delegated like the bar
+        // (the panel is rebuilt inside the swap); the shared stack carries the
+        // sprints pool + the DOM-fold rows, and onDone = the IN-PLACE bodyRefresh
+        // (the archive-done contract, never location.reload).
+        ctx.on('click', (e) => {
+          const ovBtn = e.target.closest('[data-pd-ov-start],[data-pd-ov-resume],[data-pd-ov-pause],[data-pd-ov-finish]')
+          if (!ovBtn) return
+          const ov = ovBtn.closest('[data-pd-sprint-ov]')
+          const s = ov && ov.dataset.sprintId ? pdSprintTruth.find((x) => x && x.id === ov.dataset.sprintId) : null
+          if (!s || !window.HibanaBoard) return
+          const domRows = [...document.querySelectorAll('.pd-task-wrap')].map((w) => ({ sprint_id: w.dataset.pdSprint || null, status: w.dataset.pdStatus || 'idea' }))
+          const opts = { sprints: pdSprintTruth, taskRows: domRows, projectId: id, onDone: bodyRefresh }
+          if (ovBtn.matches('[data-pd-ov-start],[data-pd-ov-resume]')) window.HibanaBoard.startSprintWithConflict(s.id, opts)
+          else if (ovBtn.matches('[data-pd-ov-pause]')) window.HibanaBoard.confirmSprintPause(s, opts)
+          else if (ovBtn.matches('[data-pd-ov-finish]')) window.HibanaBoard.openSprintFinish(s, opts)
+        })
         const pdFilterBuild = async () => {
           // S32 flake fix (caught by the FA-locale guard under full-suite load): the bar
           // builds on the FIRST htmx afterSwap, which can beat ensureFaDict — the prio
@@ -3165,7 +3249,7 @@
         const ensureBoardLib = (cb) => {
           if (window.HibanaBoard) return cb()
           const s = document.createElement('script')
-          s.src = '/js/devboard.js?v=32'
+          s.src = '/js/devboard.js?v=33'
           s.onload = () => cb()
           s.onerror = () => window.hibana?.toast(_t('sparks.saveFailed', "Couldn't load"), 'err')
           document.head.appendChild(s)

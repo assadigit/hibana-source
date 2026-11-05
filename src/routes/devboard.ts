@@ -459,14 +459,35 @@ export function devboardRoutes(cfg: Config) {
   // GET the archives for a project — the permanent record of archived done tasks.
   // S30 (B1): the rows carry their label snapshots (names + colors) so the archive UI
   // can render the chips exactly as they were the day the task was archived.
+  // S243 (spec pack §6 + Screen I): the rows additionally carry their sprint identity —
+  // sprint_id + sprint_name_snapshot — so the delete-confirmation modal can count the
+  // archived tasks that will keep the "Sprint: <name> (deleted)" snapshot label, and
+  // the Sprints page's completed-history Tasks tab can list the tasks archived at
+  // finish. Additive fields: old clients (the island included) ignore them.
   app.get('/api/projects/:projectId/archives', async (c) => {
     const user = c.get('user')
     const p = await getOwnedProject(cfg, user.id, c.req.param('projectId'))
     if (!p) return errJson(c, ErrorCode.not_found)
-    const rows = await cfg.db.query<{
+    type ArchRow = {
       id: string; title: string; priority: string; done_at: string | null
       original_created_at: string; archived_at: string; tags: string
-    }>(`SELECT id, title, priority, done_at, original_created_at, archived_at, tags FROM project_archives WHERE project_id = ? ORDER BY archived_at DESC`, [p.id])
+      sprint_id: string | null; sprint_name_snapshot: string | null
+    }
+    // Lagging-D1 belt (the taskDepsForProject precedent): a pre-0065 database has
+    // project_archives without sprint_name_snapshot — the read degrades to the
+    // legacy shape (both sprint fields null) instead of 500ing the archive shelf.
+    let rows: ArchRow[]
+    try {
+      rows = await cfg.db.query<ArchRow>(
+        `SELECT id, title, priority, done_at, original_created_at, archived_at, tags, sprint_id, sprint_name_snapshot FROM project_archives WHERE project_id = ? ORDER BY archived_at DESC`,
+        [p.id],
+      )
+    } catch {
+      rows = (await cfg.db.query<Omit<ArchRow, 'sprint_name_snapshot'>>(
+        `SELECT id, title, priority, done_at, original_created_at, archived_at, tags, sprint_id FROM project_archives WHERE project_id = ? ORDER BY archived_at DESC`,
+        [p.id],
+      )).map((r) => ({ ...r, sprint_name_snapshot: null }))
+    }
     let parsed: { name: string; color: string }[][] = rows.map(() => [])
     try {
       parsed = rows.map((r) => {
@@ -476,7 +497,7 @@ export function devboardRoutes(cfg: Config) {
     } catch {
       // pre-0051 rows carry '[]' or garbage — parse failures degrade to no labels
     }
-    return c.json({ archives: rows.map((r, i) => ({ id: r.id, title: r.title, priority: r.priority, done_at: r.done_at, original_created_at: r.original_created_at, archived_at: r.archived_at, tags: parsed[i] })) })
+    return c.json({ archives: rows.map((r, i) => ({ id: r.id, title: r.title, priority: r.priority, done_at: r.done_at, original_created_at: r.original_created_at, archived_at: r.archived_at, tags: parsed[i], sprint_id: r.sprint_id, sprint_name_snapshot: r.sprint_name_snapshot })) })
   })
 
   // Restore an archived task back to the dev_tasks table (as 'done' status). The task

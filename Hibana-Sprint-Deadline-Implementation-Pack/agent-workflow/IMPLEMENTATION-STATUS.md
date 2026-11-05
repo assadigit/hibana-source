@@ -1,11 +1,13 @@
 # Hibana Feature Implementation Status
 
-**Status:** Phase 2 COMPLETE (sessions S239–S241) — Phase 1's domain model (migration 0065,
-invariants, domain suite) @ `81f2c05` plus Phase 2's API read surface (the seven-key board
-payload with `task_deps` + server-computed effective deadlines, the island-shape pin, the
-contract-doc §12 rewrite) delivered on **`feat/sprint-deadline-deps` @ `da652d2`**, all gates
-green. No UI yet (Phase 3+).
-**Last updated:** Session 4 (Phase 2 / S241), 6 November 2026.
+**Status:** Phase 3 COMPLETE (sessions S239–S242) — Phases 1+2 (domain model + API read
+surface) @ `81f2c05`/`da652d2` plus Phase 3's Kanban/task-form sprint UI (the toolbar
+sprint view filter on BOTH board surfaces, the dropdown's emoji identity +
+completed-hidden-from-new-assignment, the ＋ New sprint quick-create dialog, the card
+sprint identity row in both renderers, the D2 explicit-`sprint_id` client fix) delivered
+on **`feat/sprint-deadline-deps` @ `a1e7d2d`**, all gates green. No lifecycle/deadline/
+dependency UI yet (Phases 4–7).
+**Last updated:** Session 5 (Phase 3 / S242), 6 November 2026.
 
 ## Repositories
 
@@ -77,8 +79,8 @@ local full run is optional per phase (no UI changes this phase).
 - [x] Phase 0 — Repository audit and implementation map (session 1 / S239)
 - [x] Phase 1 — Domain model, persistence, migrations, invariants (session 2 / S240 @ `0d50b7a`; re-delivered + extended session 3 @ `81f2c05` on `feat/sprint-deadline-deps`)
 - [x] Phase 2 — Backend/API, synchronization, cross-platform contract (session 4 / S241 @ `da652d2`: `task_deps` payload key, server-computed effective deadlines, island-shape pin, contract-doc §12, overview-counts decision)
-- [ ] Phase 3 — Core Kanban and task-form UI (sprint integration) (prompt ready: `agent-workflow/NEXT-SESSION-PROMPT.md`)
-- [ ] Phase 4 — Sprint management, overview, and lifecycle
+- [x] Phase 3 — Core Kanban and task-form UI, sprint integration (session 5 / S242 @ `a1e7d2d`: sprint view filter both surfaces, dropdown identity + completed rules, quick-create dialog, card sprint identity both renderers, D2 closed)
+- [ ] Phase 4 — Sprint management, overview, and lifecycle (prompt ready: `agent-workflow/NEXT-SESSION-PROMPT.md`)
 - [ ] Phase 5 — Deadline engine and UI
 - [ ] Phase 6 — Deadline extension flows
 - [ ] Phase 7 — Task dependencies
@@ -154,7 +156,7 @@ local full run is optional per phase (no UI changes this phase).
 | # | Discrepancy | Existing behavior (pre-S240) | Spec requires | Resolution | Status |
 |---|---|---|---|---|---|
 | D1 | **Sprint lifecycle is implicit** (is_draft + ended_at) and timeline-window based | draft/running/finished implied; `started_at/ended_at` = Gantt band edges | explicit Planned/Active/Paused/Completed + optional per-sprint due date + emoji | `sprints.status` (0065 backfill: ended→completed / draft→planned / open→active; two-open legacy data normalizes latest-active, older-paused), `emoji`, `due_at`, `due_origin_at`, `updated_at`; partial unique index one-active + service 409 `sprint_active_exists` (+`active_id`); pause/resume endpoints; `assertSprintWindowOk` skips paused bands; every writer keeps the pair in lock-step; `sprintStatusOf` lagging-D1 belt | ✅ Phase 1 |
-| D2 | **Task create auto-assigns sprint** when `sprint_id` undefined | no-sprint body → draft sprint → open sprint | `No sprint` normal valid; dropdown default | Client change: modal always sends explicit `sprint_id` (`null` = No sprint — server honors it); server keeps legacy auto-assign for undefined bodies (old clients/desktop island until re-pinned). **S241: the server side is verified + pinned (explicit-null legal, undefined auto-assign, completed-guard) — only the client edit remains** (`devboard.js:1284` create body sends `sprintId || undefined` — the exact line Phase 3 fixes) | 🔶 server side ✅ Phase 1+2; client fix ⬜ Phase 3 |
+| D2 | **Task create auto-assigns sprint** when `sprint_id` undefined | no-sprint body → draft sprint → open sprint | `No sprint` normal valid; dropdown default | Client change: modal always sends explicit `sprint_id` (`null` = No sprint — server honors it); server keeps legacy auto-assign for undefined bodies (old clients/desktop island until re-pinned). **S242: the client fix LANDED — the modal's create body sends `sprintId ?? null` (devboard.js), pinned by the s242 e2e (a No-sprint create lands unassigned with a draft present) + the sprint-ui-s242 vitest source pins — D2 CLOSED** | ✅ Phase 1+2 server, Phase 3 client |
 | D3 | **Sprint DELETE nulls archives' `sprint_id` silently** (AP-27) | archived tasks lose sprint identity | archived tasks retain `Sprint: [name] (deleted)` label | `project_archives.sprint_name_snapshot` (0065); DELETE stamps `"<name> (deleted)"` + nulls the FK (AP-27 hygiene kept); finish stamps the sprint's own name; impact-counts preview is Phase 4 UI | ✅ Phase 1 (UI preview Phase 4) |
 | D4 | **Finish sprint archives nothing** (only stamps ended_at) | archiving was a separate manual bulk action | Finish archives only tasks in Implemented; others keep status + sprint link | `POST /finish` transaction: status=completed + ended_at=now + archive-done INSERT pattern scoped to the sprint's done tasks (sprint_id kept, tags JSON, snapshot name); unfinished untouched; additive `archived` count in response. Only the explicit finish archives (create-with-dates auto-close + PATCH drags complete without archiving — legacy timeline mechanics kept byte-compatible) | ✅ Phase 1 |
 | D5 | **Sprints page is a timeline**, not a status list | draggable bands, define popover | lifecycle-grouped list/overview + settings/tasks per sprint | Extend `sprint.html`/`sprint-page.js` (keep the timeline); lifecycle list + detail views + counts | ⬜ Phase 4 |
@@ -166,7 +168,7 @@ local full run is optional per phase (no UI changes this phase).
 ## Phased technical plan (concrete; Phases 2-9 carry forward from Phase 0/1 planning)
 
 - **Phase 2 ✅ (S241 @ `da652d2`)**: board payload `task_deps` additive key; server-computed effective-deadline fields (the documented decision); legacy-shape pin test; overview counts = client-derived (recorded); API-AND-SYNC-CONTRACT.md §12 (the complete Phase 1+2 surface).
-- **Phase 3 (web)**: Kanban + modal UI — sprint filter, sprint dropdown (emoji + hide-completed + quick-create with OFF-by-default toggles), card sprint identity, explicit `sprint_id` on create (D2), i18n EN+FA, `?v=` bumps.
+- **Phase 3 ✅ (S242 @ `a1e7d2d`)**: Kanban + modal UI — sprint view filter (BOTH board surfaces), sprint dropdown (emoji glyph + hide-completed-from-new-assignment + quick-create with OFF-by-default toggles + inline 409s), card sprint identity (both renderers, its own row), explicit `sprint_id` on create (D2 closed), i18n EN+FA, `?v=` bumps + sw.js v453.
 - **Phase 4 (web)**: lifecycle UI — Sprints page extension (D5), conflict/finish/delete modals with exact counts, Kanban compact overview, completed history (non-deletable).
 - **Phase 5 (web)**: deadline engine + UI — OFF-by-default toggle, shared date control (D6), inheritance + read-only line, card deadline row + progress bar + thresholds, completed-neutrality, origin preservation.
 - **Phase 6 (web)**: Extend flows (+24/48/72/Custom, sprint-wide vs task-only, impact previews).
@@ -243,3 +245,29 @@ local full run is optional per phase (no UI changes this phase).
 - Pushed `feat/sprint-deadline-deps` `81f2c05..da652d2` (one-shot token URL; verified no token in .git/config / commit bodies). Branch push = CI only, cannot deploy.
 - **Docs close-out on main** (docs-only): this file + the Phase 3 prompt in `NEXT-SESSION-PROMPT.md`.
 - Blockers: none. No `public/` changes ✓, no desktop changes ✓, no new runtime deps ✓, no deploy/D1/PR ✓.
+
+10. **S242 (Phase 3) session-added engineering defaults** (all documented in code comments + the commit body too):
+   - **The embedded-board filter parity decision: SHIPPED THE FILTER.** The project page's board carries the SAME toolbar dimensions as /kanban (search → priority → labels, hide-in-place via `pdFilterApply`), its wraps already carry `data-pd-sprint` and `pdSprintTruth` rides the same `/api/projects/:id` fetch — so the sprint select ships there too (`data-pd-filter-sprint`, cleared with the rest, re-synced by `pdFilterApply`). The S209 1:1 spirit; zero new fetch sites.
+   - **The quick-create due control = the sprint define-popover precedent for THIS phase**: a minimal `<input type="date">` parsed as UTC end-of-day (`new Date(val + 'T23:59:59Z')`, the popover's end-date twin — S206's UTC-day lesson). Phase 5 swaps in the shared Gregorian/Jalali control (D6) which resolves date-only to LOCAL 23:59 per spec §11.2; the ~3.5h Tehran delta is accepted for the interim and recorded here.
+   - **The default sprint glyph = the ◆ text character** (U+25C6) — the exact glyph the card badge has always worn; `src/lib/html.ts`'s SVG `diamond` stays the nav/button icon twin. Chosen so `<option>` elements (text-only, no SVG) and the card badge read the SAME identity, in both renderers, with zero new icon plumbing. Emoji set → emoji replaces ◆ everywhere (dropdown, filter, card row, task view chip).
+   - **`api()` now carries the `{error:'<code>'}` body on thrown errors** (`err.code`) — best-effort parse, non-JSON bodies keep the status-only shape. Needed for the quick-create's inline 409 family (`duplicate` / `draft_exists`); no new fetch site (the shared wrapper).
+   - **The S206 nameless-create reuse is RETIRED** by the quick-create flow (spec §7.1 supersedes it): `__new` opens the dialog at SELECTION time (draft.sprint_id never becomes `__new`; cancel reverts the select; a stale `__new` at save is an unreachable belt → null). The s206 e2e was ADAPTED (intent preserved: no 409 save-kill; the draft stays pickable; the task lands in it) — the adaptation is cited in the spec's header comment.
+   - **The quick-create's synthetic sprint row** (`state.sprints.push` on success: id/name/version/is_draft/status/emoji/due_at from the 201 body + what we sent) serves the dropdown until the task save's `onSaved` full re-pull; a quick-create never sends `started_at` → the sprint is born a draft (planned).
+   - **Card identity placement**: the badge is a DIRECT child of `.pd-task-body` (a grid → its own row), `justify-self: start` so RTL mirrors; tags row is tags-only now; the Phase 5 deadline row slots between the sprint row and the tags/meta area. The read-only task view's inert sprint chip wears the glyph too.
+   - **Esc layering**: the quick-create registers a capture-phase Esc shield (the emoji picker's S41 pattern) so Escape closes IT, not the task modal underneath; the dialog is z-95 over the editor's z-90.
+   - **The SW ladder moved to v453** (SHELL re-fetch — the precached HTML's ?v= refs moved: devboard v32, board-page v29, project-page v79, sprint-page v23 injector, devboard.css v40, i18n-en v106, i18n.js v159 with the i18n-fa v100 injector literal); the S237/S238 tripwire tests re-pinned. emoji-picker.js?v=4 newly tagged on board.html + sprint.html (runtime-cached class, not SHELL — the other picker pages' precedent).
+
+### Session 5 — Phase 3 / S242 (2026-11-06) — COMPLETE
+- Fresh sandbox; cloned; verified `origin/main` = `3bbf3c3` (docs-only on `9dde797`) + `feat/sprint-deadline-deps` = `da652d2` (both exactly as the kickoff expected — no reconciliation needed).
+- **Baseline re-run BEFORE any edit** on `da652d2`: `bun install` ✓ 226 packages (bun 1.3.14, Node v24.22.2); `bun run verify` ✓ ALL GREEN; vitest **106 files / 837 tests** — the expected S241 baseline.
+- **Phase 3 delivered** (commit **`a1e7d2d`** on `feat/sprint-deadline-deps`, 42 files, +1257/−144):
+  - **D2 closed** — the modal's create body sends `sprint_id: sprintId ?? null` (never `undefined`).
+  - **Sprint dropdown**: identity glyph (emoji else ◆) per option; completed hidden from NEW assignment while the task's current completed sprint stays selected; `＋ New sprint` kept.
+  - **Quick-create dialog** (spec §7.1/Screen D): required name, the shared full-library emoji picker (newly tagged on board+sprint), Add description + Set due date toggles OFF by default, inline 409 `duplicate` (case-insensitive) + `draft_exists` errors, success → close + dropdown refresh + auto-select for the current task.
+  - **Sprint view filter** on the /kanban toolbar AND the embedded project-page board (the parity decision above): All tasks (default) / No sprint / every sprint (any lifecycle state), composing with search + priority + labels, never mutating.
+  - **Card sprint identity** as its own row (emoji/◆ + name) in BOTH renderers (board-page.js `sprintRowHtml` + detail-helpers.ts twin — byte-identical; kanban-parity extended with the emoji + placement pins).
+  - **i18n EN+FA** (15 new keys, written Persian; parity 1557=1557), **RTL** verified end-to-end (the FA e2e: dir=rtl, FA labels, reading-start badge, FA inline errors), **cache-bust** bumps + sw.js v453.
+- **Gates, fresh run**: `bun run verify` ✓ ALL GREEN (tsc, eslint 0, vitest **107 files / 855 tests** = 837 + 17 `sprint-ui-s242.test.ts` + 1 kanban-parity extension); `check-i18n-parity` ✓ PASS; `check-cache-bust` ✓ PASS (8 files consistent); e2e **32/32** (sprint-timeline, s206-sprint-fixes [adapted], sprint-ux, sprint-doc, s209-kanban-parity, board-filters, fa-locale-guard + the NEW s242-sprint-ui.spec.ts ×6) after `bunx playwright install chromium-headless-shell` (1248).
+- Pushed `feat/sprint-deadline-deps` `da652d2..a1e7d2d` (one-shot token URL; verified no token in .git/config / commit bodies / diff). Branch push = CI only, cannot deploy.
+- **Docs close-out on main** (docs-only): this file + the Phase 4 prompt in `NEXT-SESSION-PROMPT.md`.
+- Blockers: none. Desktop untouched ✓, no new runtime deps ✓ (emoji-picker.js is pre-existing shared code, newly tagged), no deploy/D1/PR ✓. **Zero new `hibanaFetch` call sites** (the quick-create POSTs through the shared `api()` wrapper; board-page keeps exactly 4 bare `fetch(`, devboard its 7 — pinned in `sprint-ui-s242.test.ts` for the Phase 9 re-pin inventory).

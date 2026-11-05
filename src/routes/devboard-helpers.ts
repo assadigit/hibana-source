@@ -19,7 +19,7 @@
 
 import { uuid } from '../lib/ids'
 import { executeIn } from '../lib/inchunk'
-import type { Config, DevTaskRow, SprintRow, BacklogDocRow } from '../types'
+import type { Config, DevTaskRow, SprintRow, SprintStatus, BacklogDocRow } from '../types'
 
 export async function logHistory(cfg: Config, projectId: string, note: string) {
   await cfg.db.execute('INSERT INTO project_history_log (id, project_id, note, created_at) VALUES (?, ?, ?, ?)', [
@@ -54,6 +54,47 @@ export async function ownedSprint(cfg: Config, userId: string, id: string): Prom
   return rows[0] ?? null
 }
 
+// ---- S240 (0065 — the Sprint/Deadline/Dependency feature pack, Phase 1) ---------------
+// Spec pack references: §4-8 sprints, §5 lifecycle, §19 data integrity.
+
+/** S240: the sprint's lifecycle status, coalesced. Post-0065 the status column is the
+ * truth (every service-layer write stamps it; the migration backfilled every legacy
+ * row). On a LAGGING pre-0065 D1 (the deploy-ahead-of-migration race — the S57
+ * doctrine) the row arrives without the key, and the legacy is_draft/ended_at pair
+ * re-derives the identical value (exactly the backfill's CASE — no paused row can
+ * pre-exist the pause endpoint), so lifecycle guards keep working through the race. */
+export function sprintStatusOf(s: Pick<SprintRow, 'status' | 'is_draft' | 'ended_at'>): SprintStatus {
+  return s.status ?? (s.ended_at != null ? 'completed' : s.is_draft ? 'planned' : 'active')
+}
+
+/** S240 (spec §5.1 — one active sprint per project): scans the project's small
+ * open-window set (is_draft=0 AND ended_at IS NULL — active + paused post-0065) and
+ * keeps only the ACTIVE one. The legacy-compatible query runs unchanged on a
+ * pre-0065 D1 (there, open ≡ active — the derivation is exact); the partial unique
+ * index idx_sprints_one_active (0065) is the belt if two writes race the check. */
+export async function findActiveSprint(cfg: Config, projectId: string): Promise<SprintRow | null> {
+  const open = await cfg.db.query<SprintRow>(
+    'SELECT * FROM sprints WHERE project_id = ? AND is_draft = 0 AND ended_at IS NULL',
+    [projectId],
+  )
+  return open.find((s) => sprintStatusOf(s) === 'active') ?? null
+}
+
+/** S240 (spec §4.3 — duplicate names): case-insensitive name uniqueness within ONE
+ * project across ALL lifecycle states (a completed sprint still holds its name —
+ * history). The lower(trim()) fold matches the categories precedent
+ * (idx_categories_user_name_live, 0064). `excludeId` lets PATCH rename-in-place scan
+ * everyone EXCEPT the sprint being renamed (re-asserting one's own name stays legal —
+ * the old Edit modal resends fields verbatim). Pre-existing legacy case-twins are NOT
+ * reconciled by the migration; this write-time gate is the rule. */
+export async function sprintNameTaken(cfg: Config, projectId: string, name: string, excludeId?: string): Promise<boolean> {
+  const rows = await cfg.db.query<{ id: string }>(
+    'SELECT id FROM sprints WHERE project_id = ? AND lower(trim(name)) = lower(trim(?))',
+    [projectId, name],
+  )
+  return rows.some((r) => r.id !== excludeId)
+}
+
 // S235 (the sprint audit — §4.2 overlap gap): the shared sprint-window overlap
 // check, lifted out of the PATCH handler (devboard.ts:666-686) so POST-create-
 // with-dates + POST-start can call the SAME validation. Without this, a user
@@ -70,6 +111,14 @@ export async function ownedSprint(cfg: Config, userId: string, id: string): Prom
 // `newEnd = null` means the new sprint is OPEN (ended_at IS NULL) — treated as
 // +∞ for the overlap comparison (an open sprint overlaps anything that starts
 // on or after its start day).
+//
+// S240 (0065, the pack's D1 resolution): a PAUSED sprint keeps its open window
+// (ended_at stays NULL — the timeline's band survives) but is NOT active, so it
+// no longer blocks sibling windows — it is filtered out of this scan and a
+// later sprint may legally open alongside it. The Phase 4 timeline round
+// renders paused bands distinctly. The scan query itself stays legacy-compatible
+// (no status column reference — a pre-0065 D1 runs it unchanged; the JS filter
+// is a no-op there because paused rows cannot pre-exist the pause endpoint).
 export async function assertSprintWindowOk(
   cfg: Config,
   projectId: string,
@@ -87,6 +136,7 @@ export async function assertSprintWindowOk(
   const aZero = newEnd !== null && zeroDay(newStart, newEnd)
   for (const x of siblings) {
     if (sprintId !== null && x.id === sprintId) continue
+    if (sprintStatusOf(x) === 'paused') continue // S240: paused keeps its window, blocks nobody
     const bZero = x.ended_at !== null && zeroDay(x.started_at, x.ended_at)
     if (
       (bZero || aZero) &&

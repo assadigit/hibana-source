@@ -190,11 +190,14 @@ describe('personal export isolation (buildUserSnapshot)', () => {
       const export_ = await buildUserSnapshot(db, alice)
       // S152 re-pin: the categories slice (guardedQuery on 'categories') + the
       // project_categories join join the missing list in the pre-0062 window.
-      expect(export_.missing_tables).toEqual(['note_folders', 'vault_notes', 'project_categories', 'categories'])
+      // S240 (0065) re-pin: dev_task_deps joins it in the pre-0065 window — the deps
+      // guardedQuery reports the gap loudly instead of 500ing the export.
+      expect(export_.missing_tables).toEqual(['note_folders', 'vault_notes', 'project_categories', 'dev_task_deps', 'categories'])
       expect(export_.data.projects).toHaveLength(1) // everything else still exports
       expect(export_.data.note_folders).toBeUndefined()
       expect(export_.data.vault_notes).toBeUndefined()
       expect(export_.data.categories).toBeUndefined()
+      expect(export_.data.dev_task_deps).toBeUndefined()
     } finally {
       close()
     }

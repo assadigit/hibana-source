@@ -69,6 +69,18 @@ export const ErrorCode = {
   id_conflict: 'id_conflict',
   tag_in_use: 'tag_in_use',
   username_taken: 'username_taken',
+  // S240 (spec pack §5.1/§5.2 — one-active): starting/resuming/reopening while
+  // ANOTHER sprint is active is a conflict the UI must resolve (finish-or-pause
+  // modal, Phase 4) — the body carries the active sprint's id.
+  sprint_active_exists: 'sprint_active_exists',
+  // S240 (spec pack §6/assumption 5): deleting an ACTIVE sprint is refused (pause
+  // or finish it first).
+  sprint_active: 'sprint_active',
+  // S240 (spec pack §5.4/§6): completed sprints are history — deleting one is a
+  // conflict (409 at the delete site); the task-assignment guard reuses the code
+  // as a 400 ("no NEW assignment to a completed sprint", spec §8) with an explicit
+  // status — a recorded divergence, like every deliberate one below.
+  sprint_completed: 'sprint_completed',
   // 410 — gone
   archived: 'archived',
   // 413 — payload too large
@@ -137,6 +149,9 @@ const STATUS_BY_CODE: Record<ErrorCodeValue, ContentfulStatusCode> = {
   id_conflict: 409,
   tag_in_use: 409,
   username_taken: 409,
+  sprint_active_exists: 409,
+  sprint_active: 409,
+  sprint_completed: 409,
   archived: 410,
   file_too_large: 413,
   too_large: 413,

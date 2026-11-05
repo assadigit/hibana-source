@@ -51,12 +51,16 @@
         },
       )
     })
-    return fetchOnce.then((r) => {
+    return fetchOnce.then(async (r) => {
       if (!r.ok) {
         // Carry the HTTP status on the thrown error so pages can tell a DELETED
         // project (404 — retry will never help) from a transient failure (retry does).
         const err = new Error(r.status + ' ' + path)
         err.status = r.status
+        // S242 (spec pack §7.1): best-effort parse of the uniform {error:'<code>'}
+        // body — the sprint quick-create dialog needs the 409 code (duplicate /
+        // draft_exists) to render its inline errors instead of a generic toast.
+        try { const b = await r.json(); if (b && b.error) err.code = b.error } catch { /* non-JSON body — status alone */ }
         throw err
       }
       return r.status === 204 ? null : r.json()
@@ -169,6 +173,16 @@
   const findCategory = (id) => state.categories.find((x) => x.id === id) || null
   const findSprint = (id) => state.sprints.find((x) => x.id === id) || null
   const tagById = (id) => state.tags.find((x) => x.id === id) || null
+  // S242 (spec pack §4.2 — emoji identity): the sprint's identity glyph — the
+  // user-picked emoji token, else the default sprint glyph ◆ (the diamond the
+  // card badge has always worn; the SVG table's 'diamond' is the nav/icon twin).
+  // Shared by the modal dropdown, the toolbar filter and the card sprint row —
+  // one helper so every surface reads the same identity.
+  const sprintGlyph = (s) => (s && s.emoji ? String(s.emoji) : '◆')
+  // S242 (spec §8/§5.4): completed check for the assignment rules — status is
+  // authoritative post-0065; ended_at is the lock-step belt (the invariant keeps
+  // ended_at NOT NULL ⇔ completed, so a lagging null-status row still reads right).
+  const sprintCompleted = (s) => !!(s && (s.status === 'completed' || s.ended_at))
 
   // hibana-sync-status-spec §8/§14: every TASK mutation reports to the per-card
   // sync tracker (public/js/sync-state.js — the ONE state store; the card badges,
@@ -941,7 +955,15 @@
             '</select></label>' +
           '<label class="db-field"><span>' + esc(t('db.sprint', 'Sprint')) + '</span>' +
             '<select data-db-sprint><option value="">' + esc(t('db.noSprint', 'No sprint')) + '</option>' +
-              state.sprints.map((s) => '<option value="' + esc(s.id) + '" ' + (d.sprint_id === s.id ? 'selected' : '') + '>' + esc(s.name) + (s.is_draft ? ' — ' + esc(t('db.draftTag', 'draft')) : '') + '</option>').join('') +
+              // S242 (spec §8 + Screen D): every sprint wears its identity glyph
+              // (emoji or the default ◆) beside the name; COMPLETED sprints are not
+              // new-assignment options — but the task's CURRENT completed sprint
+              // stays as the selected value (historical association; the PATCH
+              // re-assert the old edit-modal echo does is legal server-side).
+              state.sprints.map((s) => {
+                if (sprintCompleted(s) && d.sprint_id !== s.id) return ''
+                return '<option value="' + esc(s.id) + '" ' + (d.sprint_id === s.id ? 'selected' : '') + '>' + esc(sprintGlyph(s) + ' ' + s.name) + (s.is_draft ? ' — ' + esc(t('db.draftTag', 'draft')) : '') + '</option>'
+              }).join('') +
               '<option value="__new">' + '＋ ' + esc(t('db.newSprint', 'New sprint')) + '</option>' +
             '</select></label>' +
         '</div>' +
@@ -1097,8 +1119,28 @@
       }
     }
     const sprintSel = el.querySelector('[data-db-sprint]')
+    // The quick-create callbacks re-render the card — the typed title must survive
+    // the repaint (the tag flows' syncTitleToDraft contract, same scope below).
+    const sprintQRender = () => { syncTitleToDraft(); if (modalCtx) renderModal() }
     sprintSel.onchange = () => {
-      modalCtx.draft.sprint_id = sprintSel.value === '__new' ? '__new' : (sprintSel.value || null)
+      if (sprintSel.value === '__new') {
+        // S242 (spec §7.1/Screen D): ＋ New sprint opens the QUICK-CREATE dialog
+        // (the S206 nameless createSprint() reuse is retired). The draft keeps the
+        // PREVIOUS value while the dialog runs — cancel snaps the select back,
+        // success pushes the new sprint + re-renders with it selected for this
+        // task (the recommended default). draft.sprint_id never becomes '__new'.
+        openSprintQuickCreate({
+          onCreated: (sp) => {
+            if (!modalCtx) return // the task modal closed meanwhile
+            if (!state.sprints.some((x) => x.id === sp.id)) state.sprints.push(sp)
+            modalCtx.draft.sprint_id = sp.id
+            sprintQRender()
+          },
+          onCanceled: sprintQRender,
+        })
+        return
+      }
+      modalCtx.draft.sprint_id = sprintSel.value || null
     }
     // S208: renderModal() rebuilds the whole card — the TITLE textarea is the
     // one live-buffered field (status/priority/category/sprint sync their own
@@ -1263,17 +1305,12 @@
           const r = await createCategory(cname, tile.dataset.dbCatFill, tile.dataset.dbCatInk)
           categoryId = r.id
         }
+        // S242 (spec pack D2 — contract §12.4): ＋ New sprint resolves through the
+        // quick-create dialog at SELECTION time (the onchange above) — by save time
+        // the draft carries a real id or null. The belt covers the impossible
+        // leftover. The S206 draft-reuse block is retired with the nameless create.
         let sprintId = modalCtx.draft.sprint_id
-        if (sprintId === '__new') {
-          // S206 (owner: "the sprint system is buggy" — probe-confirmed): creating
-          // while a DRAFT already exists 409s (draft_exists — one draft at a time),
-          // and the old path let that error fail the WHOLE task save ("Couldn't
-          // save"). The draft we'd collide with is in OUR OWN state (the same
-          // payload the options list rendered from) — reuse it instead of dying.
-          const existing = state.sprints.find((s) => s.is_draft)
-          const r = existing || await createSprint()
-          sprintId = r.id
-        }
+        if (sprintId === '__new') sprintId = null
         if (isNew) {
           // S208: the staged tags ride the create body (the server find-or-creates
           // them) and the staged shots PIN to the fresh task (the project
@@ -1281,7 +1318,12 @@
           // gallery unpinned (the same best-effort contract) — counted + toasted.
           const created = await createTask({
             title, status: modalCtx.draft.status, priority: modalCtx.draft.priority,
-            category_id: categoryId || undefined, sprint_id: sprintId || undefined,
+            category_id: categoryId || undefined,
+            // S242 (D2): the create body always carries an EXPLICIT sprint_id —
+            // null = No sprint (the old `|| undefined` tripped the server's legacy
+            // draft/open auto-assign, so "No sprint" never really meant No sprint
+            // from this modal; undefined stays reserved for old clients).
+            sprint_id: sprintId ?? null,
             ...(modalCtx.draft.newTags && modalCtx.draft.newTags.length ? { tags: modalCtx.draft.newTags } : {}),
           })
           const stagedCount = modalStaged.length
@@ -1304,6 +1346,145 @@
     el.querySelector('[name=title]').onkeydown = (ev) => {
       if (ev.key === 'Enter' && !ev.shiftKey) { ev.preventDefault(); el.querySelector('[data-db-save]').click() }
     }
+  }
+
+  // ------------------------------------------------- sprint quick-create (S242)
+  // Spec pack §7.1 + Screen D: the Add/Edit modal's ＋ New sprint opens this SMALL
+  // dialog (replacing the S206 nameless createSprint() reuse). Required name;
+  // optional emoji (the shared full-library picker — window.hibanaEmojiPicker, the
+  // sparks-folder precedent); Add description + Set due date toggles OFF by default
+  // (spec §4.2 — the form stays compact until asked). 409 duplicate → INLINE
+  // case-insensitive error (never a silent rename); 409 draft_exists → inline error
+  // (the draft is already in the dropdown); success → close + refresh the dropdown +
+  // select the new sprint for the current task (the recommended default). The due
+  // date uses the sprint define-popover's minimal <input type="date"> precedent
+  // (UTC end-of-day parse, sprint-page.js's S206 twin) — Phase 5 swaps in the shared
+  // Gregorian/Jalali deadline control.
+  let sprintQEl = null
+  // Capture-phase Esc shield: while the quick-create is open, Escape must close IT —
+  // not the task modal underneath (the emoji picker's own S41 shield pattern).
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && sprintQEl && !sprintQEl.hidden) {
+      e.preventDefault()
+      e.stopPropagation()
+      closeSprintQuickCreate(false)
+    }
+  }, true)
+  function closeSprintQuickCreate(created) {
+    if (!sprintQEl) return
+    const ctx = sprintQEl._ctx
+    sprintQEl._ctx = null
+    sprintQEl.hidden = true
+    if (ctx) {
+      if (created && ctx.onCreated) ctx.onCreated(ctx._created)
+      else if (!created && ctx.onCanceled) ctx.onCanceled()
+    }
+  }
+  function openSprintQuickCreate(opts) {
+    const lang = window.hibanaI18n && window.hibanaI18n.lang ? window.hibanaI18n.lang() : 'en'
+    if (!sprintQEl) {
+      sprintQEl = document.createElement('div')
+      sprintQEl.className = 'db-modal db-sprintq'
+      sprintQEl.setAttribute('role', 'dialog')
+      sprintQEl.setAttribute('aria-modal', 'true')
+      sprintQEl.hidden = true
+      document.body.appendChild(sprintQEl)
+      sprintQEl.addEventListener('click', (e) => { if (e.target === sprintQEl) closeSprintQuickCreate(false) })
+    }
+    sprintQEl._ctx = { onCreated: (opts && opts.onCreated) || null, onCanceled: (opts && opts.onCanceled) || null }
+    let emoji = ''
+    sprintQEl.innerHTML =
+      '<div class="db-modal-card db-sprintq-card" dir="' + (lang === 'fa' ? 'rtl' : 'auto') + '">' +
+        '<div class="row spread db-modal-head"><h3>' + esc(t('db.newSprint', 'New sprint')) + '</h3>' +
+          '<button type="button" class="ghost" data-sq-close aria-label="' + esc(t('common.close', 'Close')) + '">✕</button></div>' +
+        '<form class="db-sprintq-body">' +
+          '<label class="db-field"><span>' + esc(t('db.sprintName', 'Sprint name')) + '</span>' +
+            '<input name="sq-name" data-sq-name maxlength="80" dir="auto" required placeholder="' + esc(t('db.sq.namePh', 'Security…')) + '" aria-required="true"></label>' +
+          '<div class="db-field"><span>' + esc(t('db.sq.emoji', 'Emoji (optional)')) + '</span>' +
+            '<div class="row db-sq-emoji-row">' +
+              '<button type="button" class="ghost db-sq-emoji-btn" data-sq-emoji-btn><span class="db-sq-emoji-cur" data-sq-emoji-cur aria-hidden="true">◆</span> <span data-sq-emoji-label>' + esc(t('db.sq.chooseEmoji', 'Choose emoji')) + '</span></button>' +
+              '<button type="button" class="ghost danger db-sq-emoji-clear" data-sq-emoji-clear hidden aria-label="' + esc(t('db.sq.clearEmoji', 'Back to the default icon')) + '" title="' + esc(t('db.sq.clearEmoji', 'Back to the default icon')) + '">✕</button>' +
+            '</div></div>' +
+          // Spec §4.2: description input hides behind an OFF-by-default toggle.
+          '<label class="db-sq-toggle"><input type="checkbox" data-sq-desc-toggle><span>' + esc(t('db.sq.addDesc', 'Add description')) + '</span></label>' +
+          '<textarea class="db-sq-desc" data-sq-desc maxlength="2000" dir="auto" hidden placeholder="' + esc(t('db.sq.descPh', 'What is this sprint about?')) + '"></textarea>' +
+          // Spec §4.2: due-date controls hide behind an OFF-by-default toggle.
+          '<label class="db-sq-toggle"><input type="checkbox" data-sq-due-toggle><span>' + esc(t('db.sq.setDue', 'Set due date')) + '</span></label>' +
+          '<input type="date" class="db-sq-due" data-sq-due hidden>' +
+          '<p class="db-sq-error" data-sq-error role="alert" hidden></p>' +
+        '</form>' +
+        '<div class="row spread db-modal-foot">' +
+          '<span class="muted small"></span>' +
+          '<div class="row" style="gap:.5rem">' +
+            '<button type="button" class="ghost" data-sq-cancel>' + esc(t('common.cancel', 'Cancel')) + '</button>' +
+            '<button type="button" data-sq-create>' + esc(t('db.sq.create', 'Create sprint')) + '</button>' +
+          '</div></div>' +
+      '</div>'
+    const nameIn = sprintQEl.querySelector('[data-sq-name]')
+    const emojiBtn = sprintQEl.querySelector('[data-sq-emoji-btn]')
+    const emojiCur = sprintQEl.querySelector('[data-sq-emoji-cur]')
+    const emojiLabel = sprintQEl.querySelector('[data-sq-emoji-label]')
+    const emojiClear = sprintQEl.querySelector('[data-sq-emoji-clear]')
+    const descToggle = sprintQEl.querySelector('[data-sq-desc-toggle]')
+    const descTa = sprintQEl.querySelector('[data-sq-desc]')
+    const dueToggle = sprintQEl.querySelector('[data-sq-due-toggle]')
+    const dueIn = sprintQEl.querySelector('[data-sq-due]')
+    const errEl = sprintQEl.querySelector('[data-sq-error]')
+    const createBtn = sprintQEl.querySelector('[data-sq-create]')
+    const showErr = (msg) => { errEl.textContent = msg; errEl.hidden = false }
+    const hideErr = () => { errEl.hidden = true; errEl.textContent = '' }
+    const paintEmoji = () => {
+      emojiCur.textContent = emoji || '◆'
+      emojiLabel.textContent = emoji ? t('db.sq.changeEmoji', 'Change') : t('db.sq.chooseEmoji', 'Choose emoji')
+      emojiClear.hidden = !emoji
+    }
+    sprintQEl.querySelector('[data-sq-close]').onclick = () => closeSprintQuickCreate(false)
+    sprintQEl.querySelector('[data-sq-cancel]').onclick = () => closeSprintQuickCreate(false)
+    emojiBtn.onclick = () => {
+      const picker = window.hibanaEmojiPicker
+      if (!picker) { showErr(t('sparks.saveFailed', "Couldn't save")); return }
+      picker.open({ anchor: emojiBtn, current: emoji, onPick: (e2) => { emoji = String(e2 || ''); paintEmoji(); hideErr() } })
+    }
+    emojiClear.onclick = () => { emoji = ''; paintEmoji() }
+    descToggle.onchange = () => { descTa.hidden = !descToggle.checked }
+    dueToggle.onchange = () => { dueIn.hidden = !dueToggle.checked }
+    const doCreate = async () => {
+      const name = nameIn.value.trim()
+      if (!name) { showErr(t('db.sq.nameRequired', 'Enter a name for the sprint.')); nameIn.focus(); return }
+      hideErr()
+      createBtn.disabled = true
+      createBtn.textContent = t('db.sq.creating', 'Creating…')
+      try {
+        const body = { name }
+        if (emoji) body.emoji = emoji
+        if (descToggle.checked) { const dv = descTa.value.trim(); if (dv) body.description = dv }
+        if (dueToggle.checked && dueIn.value) body.due_at = new Date(dueIn.value + 'T23:59:59Z').toISOString()
+        const r = await api('/api/projects/' + state.projectId + '/sprints', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body),
+        })
+        // The synthetic row for the dropdown until the next full reload (the task
+        // save's onSaved re-pulls everything authoritative). A quick-create never
+        // sends started_at → the sprint is born a DRAFT (planned, is_draft=1).
+        sprintQEl._ctx._created = {
+          id: r.id, project_id: state.projectId, name: r.name, version: r.version,
+          is_draft: r.draft ? 1 : 0, status: r.draft ? 'planned' : 'active',
+          emoji: emoji || null, due_at: body.due_at || null, due_origin_at: body.due_at || null,
+          started_at: null, ended_at: null, updated_at: new Date().toISOString(),
+        }
+        closeSprintQuickCreate(true)
+      } catch (err) {
+        createBtn.disabled = false
+        createBtn.textContent = t('db.sq.create', 'Create sprint')
+        if (err && err.code === 'duplicate') showErr(t('db.sq.dupErr', 'A sprint with this name already exists in this project — names are case-insensitive.'))
+        else if (err && err.code === 'draft_exists') showErr(t('db.draftExists', 'A sprint is already being defined — start it or delete it first'))
+        else showErr(t('db.sq.failed', "Couldn't create the sprint — try again."))
+      }
+    }
+    createBtn.onclick = doCreate
+    sprintQEl.querySelector('form').onsubmit = (ev) => { ev.preventDefault(); doCreate() }
+    sprintQEl.hidden = false
+    paintEmoji()
+    nameIn.focus()
   }
 
   // ---------------------------------------------------------------- label manager

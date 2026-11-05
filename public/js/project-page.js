@@ -1690,6 +1690,13 @@
         // markdown (title + content, case-insensitive). Composes AND with priority ×
         // label (a search inside an active label filter narrows within it).
         let pdFilterQuery = ''
+        // S242 (spec pack §7.5 — embedded-board parity decision): the embedded
+        // progress board carries the SAME toolbar dimensions as /kanban (search →
+        // sprint → priority → labels), so the SPRINT view filter ships here too —
+        // the wraps already carry data-pd-sprint and the sprint truth rides the
+        // same /api/projects/:id fetch. '' = All tasks; '__none' = No sprint; any
+        // other value = a sprint id (any lifecycle state — a VIEW filter).
+        let pdFilterSprint = ''
         const pdFilterSearchTimer = { t: null }
         const pdTaskTagNames = (wrap) => {
           try {
@@ -1707,6 +1714,11 @@
             const hay = String((title && (title.getAttribute('data-raw-title') || title.textContent)) || wrap.textContent || '').toLowerCase()
             if (!hay.includes(pdFilterQuery)) return false
           }
+          // S242: the sprint view filter — data-pd-sprint ('' = unassigned).
+          if (pdFilterSprint) {
+            const sid = String(wrap.dataset.pdSprint || '')
+            if (pdFilterSprint === '__none' ? sid !== '' : sid !== pdFilterSprint) return false
+          }
           return true
         }
         const pdFilterApply = () => {
@@ -1721,7 +1733,14 @@
             b.setAttribute('aria-pressed', pdFilterTags.has(b.dataset.ft) ? 'true' : 'false')
             b.classList.toggle('is-on', pdFilterTags.has(b.dataset.ft))
           })
-          const any = pdFilterPrios.size > 0 || pdFilterTags.size > 0 || pdFilterQuery !== ''
+          // S242: the sprint select re-syncs its value + is-on tint (a rebuild or a
+          // clear can leave the DOM behind the state).
+          const sprintSel = document.querySelector('[data-pd-filter-sprint]')
+          if (sprintSel) {
+            sprintSel.value = pdFilterSprint
+            sprintSel.classList.toggle('is-on', !!pdFilterSprint)
+          }
+          const any = pdFilterPrios.size > 0 || pdFilterTags.size > 0 || pdFilterQuery !== '' || pdFilterSprint !== ''
           const clearBtn = document.querySelector('[data-pd-filter-clear]')
           if (clearBtn) clearBtn.hidden = !any
           const hint = document.querySelector('[data-pd-filter-shown]')
@@ -1779,8 +1798,17 @@
             }
           } catch { /* offline — the bar still renders with the priority toggles */ }
           const prioBtn = (p) => '<button type="button" class="chip db-filter-prio prio-' + p + '" data-fp="' + p + '" aria-pressed="false" title="' + pdEsc(_t('db.filterPrioHint', 'Show only {p} tasks').replace('{p}', pdPrioLabel(p))) + '"><span class="prio-dot prio-' + p + '"></span>' + pdEsc(pdPrioLabel(p)) + '</button>'
+          // S242 (spec §7.5 — embedded parity): the compact SPRINT filter, the
+          // /kanban bar's twin — All tasks (default) + No sprint + every project
+          // sprint (any lifecycle state) with its emoji-or-default glyph + name.
+          const sprintSel = '<select class="db-filter-sprint' + (pdFilterSprint ? ' is-on' : '') + '" data-pd-filter-sprint aria-label="' + pdEsc(_t('db.filterSprint', 'Sprint filter')) + '" title="' + pdEsc(_t('db.filterSprint', 'Sprint filter')) + '">' +
+            '<option value="">' + pdEsc(_t('db.filterSprintAll', 'All tasks')) + '</option>' +
+            '<option value="__none"' + (pdFilterSprint === '__none' ? ' selected' : '') + '>' + pdEsc(_t('db.noSprint', 'No sprint')) + '</option>' +
+            pdSprintTruth.map((s) => '<option value="' + pdEsc(s.id) + '"' + (pdFilterSprint === s.id ? ' selected' : '') + '>' + pdEsc((s.emoji ? s.emoji + ' ' : '◆ ') + s.name) + '</option>').join('') +
+          '</select>'
           bar.innerHTML =
             '<input type="search" class="db-filter-search" data-pd-filter-q placeholder="' + pdEsc(_t('db.filterSearchPh', 'Search tasks…')) + '" aria-label="' + pdEsc(_t('db.filterSearchPh', 'Search tasks…')) + '" autocomplete="off" spellcheck="false" dir="auto" value="' + pdEsc(pdFilterQuery) + '">' +
+            sprintSel +
             '<span class="db-filter-label muted small">' + pdEsc(_t('db.filterPrio', 'Priority')) + '</span>' +
             ['urgent', 'high', 'medium', 'low'].map(prioBtn).join('') +
             (pdFilterKnown.length
@@ -1830,6 +1858,7 @@
             e.preventDefault()
             pdFilterPrios.clear(); pdFilterTags.clear()
             pdFilterQuery = ''
+            pdFilterSprint = '' // S242: the sprint dimension clears with the rest
             const q = document.querySelector('[data-pd-filter-q]')
             if (q) q.value = ''
             pdFilterApply()
@@ -1841,6 +1870,7 @@
             e.preventDefault()
             pdFilterPrios.clear(); pdFilterTags.clear()
             pdFilterQuery = ''
+            pdFilterSprint = '' // S242: the sprint dimension clears with the rest
             const q = document.querySelector('[data-pd-filter-q]')
             if (q) { q.value = ''; q.focus() }
             pdFilterApply()
@@ -1900,6 +1930,13 @@
             pdFilterQuery = String(e.target.value || '').trim().toLowerCase()
             pdFilterApply()
           }, 120)
+        })
+        // S242 (spec §7.5): the sprint filter select — delegated change, hide-in-place
+        // (the same pdFilterApply the other dimensions ride).
+        ctx.on('change', (e) => {
+          if (!e.target.closest || !e.target.closest('[data-pd-filter-sprint]')) return
+          pdFilterSprint = String(e.target.value || '')
+          pdFilterApply()
         })
         ctx.on('keydown', (e) => {
           if (e.key !== 'Escape') return
@@ -3128,7 +3165,7 @@
         const ensureBoardLib = (cb) => {
           if (window.HibanaBoard) return cb()
           const s = document.createElement('script')
-          s.src = '/js/devboard.js?v=31'
+          s.src = '/js/devboard.js?v=32'
           s.onload = () => cb()
           s.onerror = () => window.hibana?.toast(_t('sparks.saveFailed', "Couldn't load"), 'err')
           document.head.appendChild(s)

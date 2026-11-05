@@ -716,6 +716,16 @@ window.__hibanaDictEN = {
       'db.sprintDoneTasks': '{n} done', 'db.sprintDoneDays': '{n} active days',
       'db.sprintDocChecked': '{n} checked in plan',
       'db.draftTag': 'draft', 'db.sprintName': 'Sprint name',
+      // S242 (spec pack §7.1/Screen D): the sprint quick-create dialog (＋ New sprint)
+      'db.sq.namePh': 'Security…',
+      'db.sq.emoji': 'Emoji (optional)', 'db.sq.chooseEmoji': 'Choose emoji', 'db.sq.changeEmoji': 'Change',
+      'db.sq.clearEmoji': 'Back to the default icon',
+      'db.sq.addDesc': 'Add description', 'db.sq.descPh': 'What is this sprint about?',
+      'db.sq.setDue': 'Set due date',
+      'db.sq.create': 'Create sprint', 'db.sq.creating': 'Creating…',
+      'db.sq.nameRequired': 'Enter a name for the sprint.',
+      'db.sq.dupErr': 'A sprint with this name already exists in this project — names are case-insensitive.',
+      'db.sq.failed': "Couldn't create the sprint — try again.",
       // Phase 5 — sprint time paging
       'sp.older': 'Older', 'sp.newer': 'Newer', 'sp.now': 'Now',
       // S46.10: sprints list (below the timeline)
@@ -839,6 +849,8 @@ window.__hibanaDictEN = {
       // S78: the board task search + its miss state
       'db.filterSearchPh': 'Search tasks…', 'db.filterEmpty': 'No tasks match your filters',
       'db.filterEmptyText': 'Try another word, or clear the filters to see every task.',
+      // S242 (spec pack §7.5): the toolbar sprint view filter — All tasks / No sprint / each sprint
+      'db.filterSprint': 'Sprint filter', 'db.filterSprintAll': 'All tasks',
       'db.cyclePrio': 'Priority: {p} — click to change',
       'cmdk.tasks': 'Tasks',
       'cmdk.backlog': 'Plans',

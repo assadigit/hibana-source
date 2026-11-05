@@ -3,7 +3,11 @@
 //   (1) the all-sprints list read "0 items" FOREVER (s.items never existed in
 //       the payload — the count now derives from the task pool)
 //   (2) the task editor's "＋ New sprint" with an existing DRAFT 409'd and
-//       killed the whole save ("Couldn't save") — it now reuses the draft
+//       killed the whole save ("Couldn't save") — S242 replaced the silent
+//       nameless create with the quick-create dialog: the one-draft 409 now
+//       answers INLINE in the dialog, and the draft stays pickable from the
+//       dropdown (the adapted test below pins the new flow; the save-kill
+//       regression it guarded against stays covered end-to-end)
 //   (3) date-picked sprints landed one day early for non-UTC users (the define
 //       dialog parsed local midnight; the axis is UTC-day based) — pinned in
 //       Tehran time, the owner's timezone
@@ -12,7 +16,7 @@
 //   (5) boundary rails stacked above task dots (lane z-index scope-capping) —
 //       a dot under a rail could not be CLICKED (editor never opened)
 // Contract owners: sprint-page.js (define commit + DnD + renderSprintsList),
-// devboard.js (__new save path), devboard.css (the lane z-order fix).
+// devboard.js (the __new quick-create path — S242), devboard.css (the lane z-order fix).
 
 import { test, expect, type Page } from '@playwright/test'
 import { randomBytes } from 'node:crypto'
@@ -67,7 +71,7 @@ async function seedSprint(page: Page, nTasks: number): Promise<{ pid: string; si
   }, nTasks)
 }
 
-const expectedErrorPatterns = [/Failed to load resource.*401/, /Failed to load resource.*404/]
+const expectedErrorPatterns = [/Failed to load resource.*401/, /Failed to load resource.*404/, /Failed to load resource.*409/] // S242: the quick-create's inline 409s (duplicate / draft_exists) log as console noise
 const trackErrors = (page: Page) => {
   const errors: string[] = []
   page.on('console', (msg) => {
@@ -120,7 +124,7 @@ test('all-sprints list: the item count is REAL (was an eternal "0 items" — s.i
   expect(errors).toEqual([])
 })
 
-test('task editor "＋ New sprint": an existing draft is REUSED — the save succeeds (was a 409 save-kill)', async ({ page, browserName }) => {
+test('task editor "＋ New sprint" (S242): the quick-create dialog answers the one-draft 409 INLINE — then the draft stays pickable and the save succeeds (was a 409 save-kill)', async ({ page, browserName }) => {
   test.skip(browserName !== 'chromium', 'Desktop Chromium only')
   const errors = trackErrors(page)
   await login(page)
@@ -137,12 +141,26 @@ test('task editor "＋ New sprint": an existing draft is REUSED — the save suc
   await page.waitForSelector('.db-view-card')
   await page.click('[data-db-view-edit]')
   await page.waitForSelector('.db-modal-card')
+  // S242 (spec §7.1/Screen D): ＋ New sprint opens the QUICK-CREATE dialog — the
+  // S206 nameless create/reuse is retired. The dialog must answer the draft 409
+  // with an INLINE error (never a silent rename, never a save-kill).
   await page.selectOption('select[data-db-sprint]', '__new')
+  await expect(page.locator('.db-sprintq-card')).toBeVisible({ timeout: 5_000 })
+  await page.fill('[data-sq-name]', 'Another sprint')
+  await page.click('[data-sq-create]')
+  // the one-draft rule answers inline (409 draft_exists → the dialog stays open)
+  await expect(page.locator('[data-sq-error]')).toContainText('already', { timeout: 5_000 })
+  await expect(page.locator('.db-sprintq-card')).toBeVisible()
+  // cancel → the dialog closes, the select reverts (the task modal stays open)
+  await page.click('[data-sq-cancel]')
+  await expect(page.locator('.db-sprintq-card')).toBeHidden({ timeout: 5_000 })
+  await expect(page.locator('.db-modal-card:not(.db-sprintq-card)')).toBeVisible()
+  // the pre-existing draft is IN the dropdown — pick it and save (the S206
+  // intent: the save succeeds and the task lands in the draft, not lost)
+  await page.selectOption('select[data-db-sprint]', { label: '◆ Pre-existing draft — draft' })
   await page.click('[data-db-save]')
-  // THE bug: this toast was "Couldn't save the idea" + the modal stuck open
   await expect(page.locator('#toast', { hasText: 'Saved' })).toBeVisible({ timeout: 5_000 })
   await page.waitForTimeout(800)
-  // the task is saved INTO the pre-existing draft (not lost, not failed)
   const board = await page.evaluate(async (pid) => await (await fetch(`/api/projects/${pid}/devboard`)).json(), pid)
   const draft = (board.sprints as { id: string; is_draft: number; name: string }[]).find((s) => s.is_draft)
   expect(draft?.name).toBe('Pre-existing draft')

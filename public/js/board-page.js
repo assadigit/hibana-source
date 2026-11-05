@@ -46,6 +46,12 @@
         const filterPrios = new Set()
         const filterTags = new Set()
         let filterQuery = ''
+        // S242 (spec pack §7.5/Screen A): the fourth filter dimension — the SPRINT
+        // view filter. '' = All tasks (the default — today's board behavior);
+        // '__none' = No sprint; any other value = a sprint id (ANY lifecycle state
+        // — a VIEW filter: a completed sprint's unfinished tasks stay findable).
+        // Composes AND with priority × label × search; never mutates assignments.
+        let filterSprint = ''
         const filterSearchTimer = { t: null }
 
         // ---- S237 (Focus Mode) ----------------------------------------------------
@@ -276,10 +282,12 @@
           const nl = s.indexOf('\n')
           const titlePart = nl >= 0 ? s.slice(0, nl) : s
           const contentPart = nl >= 0 ? s.slice(nl + 1) : ''
-          // inert tag chips — no data-pd-tag-name: the view never toggles filters
+          // inert tag chips — no data-pd-tag-name: the view never toggles filters.
+          // S242: the sprint chip wears the sprint's emoji (else the default ◆) —
+          // every sprint-identity surface reads the same glyph (spec §4.2).
           const chipsHtml = (tags.length || sprint)
             ? '<span class="pd-task-tags">' + tags.map((tg) => '<span dir="auto" class="pd-tag"><i class="pd-tag-dot" style="background:' + B().esc(tg.color) + '"></i>' + B().esc(tg.name) + '</span>').join('') +
-                (sprint ? '<span class="db-sprint-badge">◆ ' + B().esc(sprint.name) + '</span>' : '') + '</span>'
+                (sprint ? '<span class="db-sprint-badge">' + B().esc((sprint.emoji ? sprint.emoji + ' ' : '◆ ') + sprint.name) + '</span>' : '') + '</span>'
             : ''
           const shotsN = Number(task.shot_count || 0)
           const shotsHtml = shotsN
@@ -466,15 +474,28 @@
             if (filterQuery) {
               if (!String(task.title || '').toLowerCase().includes(filterQuery)) return false
             }
+            // S242: the sprint view filter — '__none' shows unassigned tasks only.
+            if (filterSprint) {
+              if (filterSprint === '__none' ? !!task.sprint_id : task.sprint_id !== filterSprint) return false
+            }
             return true
           }
           const shownCount = S.tasks.filter(taskMatches).length
-          const anyFilter = filterPrios.size > 0 || filterTags.size > 0 || filterQuery !== ''
+          const anyFilter = filterPrios.size > 0 || filterTags.size > 0 || filterQuery !== '' || filterSprint !== ''
           const filterBarHtml = S.tasks.length ? '<div class="db-filter" data-db-filter role="toolbar" aria-label="' + B().esc(_t('db.filterAria', 'Filter tasks')) + '">' +
             // S136: the search input FIRST — the exact structure + classes of the
             // project page's bar (project-page.js pdFilterBuild; .db-filter-search
             // styles ship in devboard.css and were already shared).
             '<input type="search" class="db-filter-search" data-db-filter-q placeholder="' + B().esc(_t('db.filterSearchPh', 'Search tasks…')) + '" aria-label="' + B().esc(_t('db.filterSearchPh', 'Search tasks…')) + '" autocomplete="off" spellcheck="false" dir="auto" value="' + B().esc(filterQuery) + '">' +
+            // S242 (spec §7.5/Screen A): the compact SPRINT filter — default
+            // "All tasks"; every project sprint (any lifecycle state) with its
+            // emoji-or-default glyph + name, plus "No sprint". The is-on tint
+            // marks an active (non-All) filter (devboard.css).
+            '<select class="db-filter-sprint' + (filterSprint ? ' is-on' : '') + '" data-db-filter-sprint aria-label="' + B().esc(_t('db.filterSprint', 'Sprint filter')) + '" title="' + B().esc(_t('db.filterSprint', 'Sprint filter')) + '">' +
+              '<option value="">' + B().esc(_t('db.filterSprintAll', 'All tasks')) + '</option>' +
+              '<option value="__none"' + (filterSprint === '__none' ? ' selected' : '') + '>' + B().esc(_t('db.noSprint', 'No sprint')) + '</option>' +
+              S.sprints.map((s) => '<option value="' + B().esc(s.id) + '"' + (filterSprint === s.id ? ' selected' : '') + '>' + B().esc((s.emoji ? s.emoji + ' ' : '◆ ') + s.name) + '</option>').join('') +
+            '</select>' +
             '<span class="db-filter-label muted small">' + B().esc(_t('db.filterPrio', 'Priority')) + '</span>' +
             B().PRIORITIES.slice().reverse().map((p) =>
               '<button type="button" class="chip db-filter-prio prio-' + p + '" data-fp="' + p + '" aria-pressed="' + (filterPrios.has(p) ? 'true' : 'false') + '" title="' + B().esc(_t('db.filterPrioHint', 'Show only {p} tasks').replace('{p}', B().prioLabel(p))) + '"><span class="prio-dot prio-' + p + '"></span>' + B().esc(B().prioLabel(p)) + '</button>'
@@ -639,13 +660,22 @@
                   // S152 (block 6): the category chip moved ABOVE the title row (the
                   // owner's placement spec) and wears the curated fill+ink pair.
                   const catChipHtml = cat ? '<span class="cat-chip" style="background:' + B().esc(cat.color_fill) + ';color:' + B().esc(cat.color_text) + '">' + B().esc(cat.name) + '</span>' : ''
-                  const chipsHtml = (tags.length || sprint
+                  // S242 (spec pack §3.2/Screen A — card sprint identity): the
+                  // sprint's OWN compact row — its emoji (or the default ◆ glyph)
+                  // + name — directly under the description/preview, BEFORE the
+                  // label chips and the timestamp area (the Phase 5 deadline row
+                  // slots in right after this seam). Identical markup renders on
+                  // the embedded board (detail-helpers.ts sprintBadgeHtml) — the
+                  // S209 1:1 parity contract.
+                  const sprintRowHtml = sprint
+                    ? '<span class="db-sprint-badge">' + B().esc((sprint.emoji ? sprint.emoji + ' ' : '◆ ') + sprint.name) + '</span>'
+                    : ''
+                  const chipsHtml = (tags.length
                     ? '<span class="pd-task-tags">' +
                       // S30 batch 2: label chips are FILTER toggles (GitHub behavior) —
                       // S136: rendered as the project page's .pd-tag spans (data-pd-tag-name
                       // carries the match key; the colored .pd-tag-dot replaces the ● text).
                       tags.map((tg) => '<span dir="auto" class="pd-tag" data-pd-tag-name="' + B().esc(tg.name.toLowerCase()) + '" title="' + B().esc(_t('db.filterTagHint', 'Click to filter by this label')) + '"><i class="pd-tag-dot" style="background:' + B().esc(tg.color) + '"></i>' + B().esc(tg.name) + '</span>').join('') +
-                      (sprint ? '<span class="db-sprint-badge">◆ ' + B().esc(sprint.name) + '</span>' : '') +
                     '</span>'
                     : '')
                   // S110 (v0.3.43.0): the meta line mirrors the project page's progress
@@ -681,6 +711,7 @@
                         '</span>' +
                         previewHtml(task.title) +
                         readMoreBtn(task.title) +
+                        sprintRowHtml +
                         chipsHtml +
                         metaHtml +
                       '</span>' +
@@ -861,7 +892,7 @@
           closeSwitch()
           closeAllDbMenus()
           // per-board filter state resets with the board (predictable switching)
-          filterPrios.clear(); filterTags.clear(); filterQuery = ''
+          filterPrios.clear(); filterTags.clear(); filterQuery = ''; filterSprint = ''
           projectId = id
           // URL: SAME pathname (works on /kanban and /board.html alike), the new project,
           // the old board's deep-link params dropped; pushState so Back returns to the
@@ -1108,7 +1139,7 @@
             return
           }
           if (e.target.closest('[data-db-filter-clear]') || e.target.closest('[data-db-filter-empty-clear]')) {
-            filterPrios.clear(); filterTags.clear(); filterQuery = ''
+            filterPrios.clear(); filterTags.clear(); filterQuery = ''; filterSprint = ''
             render()
             return
           }
@@ -1470,6 +1501,16 @@
           }, 150)
         })
 
+        // S242 (spec §7.5): the SPRINT FILTER select — one change re-renders with
+        // the new view filter (the render carries the selected option + the is-on
+        // tint across the rebuild). A select needs no focus/caret restore.
+        ctx.on('change', (e) => {
+          const sel = e.target.closest ? e.target.closest('[data-db-filter-sprint]') : null
+          if (!sel) return
+          filterSprint = sel.value
+          render()
+        })
+
         // S136: keyboard parity with the project page — the card is role="button" +
         // tabindex=0 now, so Enter/Space open the task's VIEW (S238 — the click's
         // twin; the editor stays behind the ⋯ menu's Edit / the view's Edit).
@@ -1503,7 +1544,7 @@
             if (window.HibanaBoard) return resolve(true)
             if (!injected && waited >= 1200) {
               injected = true
-              inject('/js/devboard.js?v=31') // keep in sync with the <head> tag + sw SHELL
+              inject('/js/devboard.js?v=32') // keep in sync with the <head> tag + sw SHELL
               if (!window.HibanaFocusCore) inject('/js/focus-core.js?v=2') // S237/S238: the focus + view decision core — keep in sync with the <head> tag
               if (!window.HibanaChips) inject('/js/chip-render.js?v=13') // S36: was ?v=1 while the HTML tags say v=2 — two cache entries for one file (the cache-bust gate caught it under the sandbox's mode-bit noise). Aligned; local-dev + SW caches now share ONE url per version. S86: v8 — kept in sync with the <head> tag (previewHtml moved in). S176: v11.
               if (!window.jalaali) inject('/vendor/jalaali.min.js') // Jalali dates for FA

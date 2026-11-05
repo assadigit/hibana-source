@@ -112,6 +112,53 @@ describe('kanban 1:1 parity — the embedded board fragment (S209)', () => {
     }
   })
 
+  // S242 (spec pack §3.2/§4.2 + Screen A — card sprint identity): the badge is its
+  // OWN compact row directly under the description/preview (a direct child of
+  // .pd-task-body, BEFORE the label chips + the meta row — the Phase 5 deadline
+  // seam follows it) and carries the sprint's EMOJI when one is set, else the
+  // default ◆ glyph — byte-identical markup to board-page.js's sprintRowHtml.
+  it('S242: the sprint identity renders as its own row under the description, with the emoji (else ◆) — the /kanban twin shape', async () => {
+    const { db, close } = makeTestDb()
+    try {
+      const userId = await makeUser(db)
+      const app = createApp({ db, isProd: false, emailKey: undefined } as unknown as Config)
+      const token = await createSession(db, userId)
+      const pid = await makeProject(db, userId)
+      const plainId = await makeSprint(db, pid, 'Plain Sprint')
+      const emojiId = crypto.randomUUID()
+      await db.execute(
+        'INSERT INTO sprints (id, project_id, name, started_at, created_at, is_draft, emoji) VALUES (?, ?, ?, ?, ?, 0, ?)',
+        [emojiId, pid, 'Emoji Sprint', new Date().toISOString(), new Date().toISOString(), '🚀'],
+      )
+      await makeTask(db, pid, 'plain sprint task', plainId)
+      const emojiTaskId = await makeTask(db, pid, 'emoji sprint task', emojiId)
+
+      const detail = await app.fetch(new Request(`http://local/api/projects/${pid}`, { headers: { ...h(token), 'HX-Request': '1' } }))
+      const html = await detail.text()
+
+      // the default glyph keeps the exact legacy shape (◆ name)
+      expect(html).toContain('<span class="db-sprint-badge">◆ Plain Sprint</span>')
+      // the emoji replaces the glyph when one is set (spec §4.2)
+      expect(html).toContain('<span class="db-sprint-badge">🚀 Emoji Sprint</span>')
+      // OWN ROW (Screen A order): inside this card's .pd-task-body, the badge
+      // sits after the title row and before the meta row, NOT inside a
+      // .pd-task-tags chips row (the tags row is tags-only now).
+      const wrap = html.match(new RegExp(`data-pd-task="${emojiTaskId}"[\\s\\S]*?<span class="pd-task-body">([\\s\\S]*?)</span>\\s*</div>\\s*</div>`))
+      expect(wrap).toBeTruthy()
+      const body = wrap![1]
+      expect(body).toContain('db-sprint-badge')
+      expect(body).not.toMatch(/pd-task-tags[\s\S]*?db-sprint-badge/) // not inside the chips row
+      const titleAt = body.indexOf('pd-task-title-row')
+      const badgeAt = body.indexOf('db-sprint-badge')
+      const metaAt = body.indexOf('pd-task-meta')
+      expect(titleAt).toBeGreaterThan(-1)
+      expect(badgeAt).toBeGreaterThan(titleAt) // under the description area…
+      expect(metaAt).toBeGreaterThan(badgeAt) // …above the timestamp area (Phase 5 seam)
+    } finally {
+      close()
+    }
+  })
+
   it('the pin badge keeps rendering on the embedded cards (the server path — pinsByTask)', async () => {
     const { db, close } = makeTestDb()
     try {

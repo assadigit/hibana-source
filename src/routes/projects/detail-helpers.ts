@@ -241,28 +241,32 @@ export function detailHtml(p: ProjectRow, d: Awaited<ReturnType<typeof loadDetai
     list.push(row)
     tagsByTask.set(row.task_id, list)
   }
-  const taskTagChips = (taskId: string, sprintBadge = ''): string => {
+  const taskTagChips = (taskId: string): string => {
     const list = tagsByTask.get(taskId) ?? []
-    if (!list.length && !sprintBadge) return ''
+    if (!list.length) return ''
     return `<span class="pd-task-tags">${list
       .map((tg) => `<span dir="auto" class="pd-tag" data-pd-tag-name="${esc(tg.name)}"><i class="pd-tag-dot" style="background:${esc(tg.color)}"></i>${esc(tg.name)}</span>`)
-      .join('')}${sprintBadge}</span>`
+      .join('')}</span>`
   }
   const taskTagsAttr = (taskId: string): string => {
     const list = tagsByTask.get(taskId) ?? []
     return esc(JSON.stringify(list.map((tg) => ({ name: tg.name, color: tg.color }))))
   }
-  // S209 (kanban 1:1 parity): the card's SPRINT BADGE — the same ◆ name chip the
+  // S209 (kanban 1:1 parity): the card's SPRINT BADGE — the same chip the
   // /kanban cards carry (board-page.js .db-sprint-badge), so a sprinted task reads
   // identically on both surfaces. Resolved from the same payload's sprints rows.
-  const sprintName = (sid: string | null): string | null => {
-    if (!sid) return null
-    const sp = d.sprints.find((s) => s.id === sid)
-    return sp ? sp.name : null
-  }
+  // S242 (spec pack §3.2/Screen A — card sprint identity): the badge is now its
+  // OWN compact row directly under the description/preview (BEFORE the label
+  // chips + the timestamp area — the Phase 5 deadline row slots in after it) and
+  // carries the sprint's EMOJI when one is set (spec §4.2), else the default ◆
+  // glyph — byte-identical markup to board-page.js's sprintRowHtml.
+  const sprintById = new Map<string, SprintRow>()
+  for (const s of d.sprints) sprintById.set(s.id, s)
   const sprintBadgeHtml = (sid: string | null): string => {
-    const nm = sprintName(sid)
-    return nm ? `<span class="db-sprint-badge">◆ ${esc(nm)}</span>` : ''
+    if (!sid) return ''
+    const sp = sprintById.get(sid)
+    if (!sp) return ''
+    return `<span class="db-sprint-badge">${esc((sp.emoji ? sp.emoji + ' ' : '◆ ') + sp.name)}</span>`
   }
   // S152 (block 6): the task's category as a small colored chip DIRECTLY ABOVE the
   // task title, wearing the category's own fill+ink pair. The map covers every row
@@ -508,7 +512,8 @@ export function detailHtml(p: ProjectRow, d: Awaited<ReturnType<typeof loadDetai
                     </span>
                     ${previewHtml(t.title)}
                     ${readMoreBtn(t.title)}
-                    ${taskTagChips(t.id, sprintBadgeHtml(t.sprint_id))}
+                    ${sprintBadgeHtml(t.sprint_id)}
+                    ${taskTagChips(t.id)}
                     <span class="pd-task-meta">${esc(taskMetaLabel(t))}${pinsByTask.has(t.id) ? ` · <button type="button" class="pd-task-shots" data-pd-shots="${t.id}" title="${esc(trL(lang, 'Pinned pictures — note + proof stuck to this item', 'تصاویر سنجاق‌شده — یادداشت + مدرکِ سنجاق‌شده به این قلم'))}" aria-label="${esc(trL(lang, 'Pinned pictures ({n})', 'تصاویر سنجاق‌شده ({n})', { n: dig(pinsByTask.get(t.id)!) }))}">${icon('pin')} ${dig(pinsByTask.get(t.id)!)}</button>` : ''}${syncBadgeServer(t.id)}</span>
                   </span>
                 </div>

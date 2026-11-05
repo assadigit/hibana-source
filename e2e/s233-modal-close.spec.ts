@@ -57,10 +57,24 @@ test('board modals: every modal carries a top-right close — editor, labels, de
   await page.goto(`/board.html?project=${pid}`)
   await expect(page.locator('.pd-task-wrap')).toHaveCount(1)
 
-  // 1. the task editor — the established grammar (the census): the ✕ rides the
-  //    header row's inline end, and it closes the editor. (Scope to .db-modal-head —
-  //    the footer's Cancel button carries data-db-close too.)
+  // 1. the task VIEW (S238 — the census's new member): a card click opens the
+  //    read-only view — its head row carries the same ✕ grammar, and it closes.
   await page.locator('.pd-task').first().click()
+  const view = page.locator('.db-view-overlay:not([hidden])')
+  await expect(view).toBeVisible()
+  const viewX = view.locator('[data-db-view-x]')
+  await expect(viewX).toBeVisible()
+  await expect(viewX).toHaveAttribute('aria-label', 'Close')
+  await viewX.click()
+  await expect(view).toBeHidden()
+
+  // 1b. the task editor — S238: the ⋯ menu's Edit opens it (the card click no
+  //     longer does). The established grammar (the census): the ✕ rides the
+  //     header row's inline end, and it closes the editor. (Scope to
+  //     .db-modal-head — the footer's Cancel button carries data-db-close too.)
+  await page.locator('.pd-task').first().hover()
+  await page.locator('.db-card-menu [data-menu-open]').first().click()
+  await page.locator('[data-db-edit-card]').first().click()
   const editor = page.locator('.db-modal:not([hidden])')
   await expect(editor).toBeVisible()
   const editorX = editor.locator('.db-modal-head [data-db-close]')

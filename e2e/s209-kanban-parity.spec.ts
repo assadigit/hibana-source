@@ -175,8 +175,12 @@ test('parity: the shared task editor carries the FULL formatting toolbar (the or
   await page.goto(`/kanban?project=${pid}`)
   await expect(page.locator('.db-cols')).toBeVisible({ timeout: 10_000 })
 
-  // open the edit modal — the card click path
+  // open the edit modal — S238: the card click opens the READ-ONLY view first;
+  // the editor opens from the view's Edit button (the ⋯ menu's Edit is the other path)
   await page.click('.pd-task')
+  const view = page.locator('.db-view-overlay:not([hidden])')
+  await expect(view).toBeVisible()
+  await view.locator('[data-db-view-edit]').click()
   const modal = page.locator('.db-modal')
   await expect(modal).toBeVisible()
   // the FULL toolbar — the exact button set + order of the project page's editor
@@ -217,7 +221,11 @@ test('parity: the FULLSCREEN WRITING mode — Esc exits focus mode FIRST, never 
   await seedTask(page, pid, 'fullscreen host task')
   await page.goto(`/kanban?project=${pid}`)
   await expect(page.locator('.db-cols')).toBeVisible({ timeout: 10_000 })
+  // S238: the card click opens the VIEW; the view's Edit opens the editor
   await page.click('.pd-task')
+  const view = page.locator('.db-view-overlay:not([hidden])')
+  await expect(view).toBeVisible()
+  await view.locator('[data-db-view-edit]').click()
   const modal = page.locator('.db-modal')
   await expect(modal).toBeVisible()
 

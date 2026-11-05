@@ -132,7 +132,10 @@ test('task editor "＋ New sprint": an existing draft is REUSED — the save suc
   // open a task in the board editor and pick "＋ New sprint"
   await page.goto(`/kanban?project=${pid}`)
   await expect(page.locator('.pd-task-wrap')).toHaveCount(1, { timeout: 10_000 })
+  // S238: the card click opens the READ-ONLY view; the view's Edit opens the editor
   await page.click('.pd-task-wrap >> nth=0')
+  await page.waitForSelector('.db-view-card')
+  await page.click('[data-db-view-edit]')
   await page.waitForSelector('.db-modal-card')
   await page.selectOption('select[data-db-sprint]', '__new')
   await page.click('[data-db-save]')

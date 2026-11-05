@@ -385,3 +385,88 @@ dac869f, probe-focus ALL GREEN (6 LEGs / 33 assertions).
   rerun now succeeds/skips cleanly) + CLOUDFLARE_API_TOKEN (web — CD deploy lane +
   Error monitor). The owner should review both when convenient; dedicated
   least-privilege tokens would be tighter than the broad PAT now sealed in each.
+
+## Session S238 — the task view modal + the sheet polish (2026-11-05)
+
+**The brief (the owner's five asks, on the deployed S237 board):** (1) "Make the
+background in this form, blurred and black and white, so the focus remains on
+modal." (2) "make the modal rectangle add more width to it, like 800x600
+dimension." (3) "add a copy button for each item of the task, just in case user
+want to copy only one." (4) "the Medium, high priority etc text must be regular
+not bold." (5) "currently when you click on a task, the editor opens, but
+instead a modal must pop up that show that task, editor only opens when user
+clicks (...) > EDIT."
+
+**The shape of the round:** every ask is PURE CLIENT — zero server/API/DB
+surface, zero new fetch (the seam count stays exactly four). The decisions live
+in focus-core.js (the sync-state doctrine): the NEW `escPeel` extends the S237
+inside-out law with the task VIEW as the innermost layer (view → sheet →
+focus, focus mode on OR off — a card click opens the view with the toggle off
+too); `escLayer` keeps its S237 shape untouched so its suite still pins it
+byte-for-byte.
+
+- **The backdrop (ask 1):** `backdrop-filter: blur(4px) grayscale(1)` (+ the
+  -webkit- twin) on BOTH overlays — `.db-focus-overlay` AND the new
+  `.db-view-overlay` — over the unchanged 0.45 tint. The board behind any of
+  the board's own modals blurs and drains to grey; a stale engine falls back
+  to the tint alone.
+- **The sheet (ask 2):** `inline-size: min(50rem, 100%)` (800px) × the FIXED
+  `block-size: min(37.5rem, 100%)` (600px) — the owner's rectangle, exactly;
+  the card list scrolls inside it (the probe measured 800×600 computed).
+- **The copy (ask 3):** a per-row one-tap copy button in the sheet
+  (`.db-sheet-copy`, riding the ⋯ cluster's inline start, ALWAYS visible — the
+  ⋯ itself reveals on hover) + THE FIX the ask exposed: the sheet's cloned ⋯
+  menus were DEAD (the clones carried the armed board menus' data-ok marker,
+  so injectDbCardMenus skipped them — Copy/Edit/Delete silently did nothing
+  inside the sheet since S237). refreshSheet strips the marker from the clones
+  before the injector runs, so the sheet's rows work exactly like the lane's
+  own. The copy contract is the ⋯ menu's own: the RAW full definition
+  (data-raw-title first), `navigator.clipboard.writeText`, the
+  common.copied/sparks.saveFailed toasts.
+- **The weight (ask 4):** `.prio-banner` (polish-batch.css) and
+  `.pd-detail-prio` (quicknotes.css) read font-weight: 400 — the banner +
+  the project detail pill, both surfaces, both themes.
+- **The view (ask 5):** `openTaskView()` — a centered READ-ONLY dialog
+  (z 85: above the sheet, below the editor) built from the LOADED state
+  (B().findTask): the lane name + corner ✕ (S233 grammar), the inert
+  prio-banner twin, the category chip, the FULL definition (first line =
+  heading, the rest = body — the editor's own split, both through the same
+  markdown-lite renderer; NO clamping, NO read-more), inert tag chips + the
+  sprint badge, Created/Updated/Done meta rows + the pin badge (its own
+  dialog), and a Copy/Edit foot. The card click, the Enter/Space twin, and
+  the ?task= deep link all re-route to the view; the editor opens ONLY from
+  the ⋯ menu's Edit and the view's Edit (the project page's S149 contract,
+  brought to the board — the two boards finally speak the same grammar).
+  Esc peels view → sheet → focus; when a native <dialog> (delete confirm /
+  shots / shot-note) or the task editor sits above the view, the Esc is
+  theirs. focusState() reports viewTaskId (the probes' contract).
+
+**The i18n:** db.view.* ×6 (title / gone / copyTask / created / updated /
+doneAt) — EN + FA + inline fallbacks at every call site (parity 1542/1542).
+
+**The ladder:** typecheck 0 · eslint 0 · vitest 806/806 (796 existing + 10 NEW
+in src/tests/task-view-s238.test.ts: escPeel's orderings evaluated
+byte-for-byte against the real focus-core.js + the wiring pins — board.html's
+carriers, the re-routed open paths with the old editor-open strings asserted
+GONE, the ⋯ Edit contract kept, the exactly-4 fetch sites, the CSS recipe
+markers incl. the fixed 800×600 box, the 400 weights on both rules, both
+dictionaries + the call-site fallbacks, sw v452, and a uniform-bump sweep over
+every public/*.html) · parity 1542/1542 · cache-bust PASS (board-page.js v28,
+focus-core.js v2 + its ensureLib literal, devboard.css v39 across 23 pages,
+polish-batch.css v30 across 23 pages, quicknotes.css v51 across 25 pages,
+i18n-en.js v105 + i18n.js v158 across 26 pages — v158 carries the lazy
+i18n-fa.js?v=99 injector literal; sw v452 SHELL re-fetch) · escape-lint PASS
+(217 sinks) · fn-shape / import-boundaries / portability / bundle-size
+(+5.0%) / precache PASS · e2e: the three specs that pinned card-click → editor
+re-pinned to the view-first contract (s209 toolbar + fullscreen via the view's
+Edit; s233's modal census grows the view's own ✕ leg + the ⋯ Edit path; s206's
+sprint-draft flow rides the view) — 16/16 locally; the FULL suite re-run
+clean · a local 16-leg browser probe against the real Node server verified the
+five asks END-TO-END: the computed backdrop-filter on both overlays, the exact
+800×600 sheet box, both copy paths writing the full raw title, the 400
+computed weight, view-not-editor on click, ⋯ > Edit opening the real editor,
+the view-over-sheet stacking (z 85 > 80) + the two-step Esc peel, zero page
+errors.
+
+**The desktop half (hibana-desktop, next commit):** the island rides this ref
+(pin bump to this SHA + probe-view as the 12th probe + v0.1.35).

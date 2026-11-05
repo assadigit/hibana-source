@@ -126,11 +126,11 @@ describe('S237 focus-core — the F-target resolution (hover → last → nothin
 })
 
 describe('S237 wiring — the DOM half is pinned to the core (the island-style tripwires)', () => {
-  it('board.html loads focus-core.js (defer, BEFORE devboard.js) at v1', () => {
+  it('board.html loads focus-core.js (defer, BEFORE devboard.js) at v2', () => {
     const html = readPublic('board.html')
     const coreTag = html.match(/<script src="\/js\/focus-core\.js\?v=(\d+)" defer><\/script>/)
     expect(coreTag, 'board.html must carry the focus-core.js tag').toBeTruthy()
-    expect(Number(coreTag![1])).toBe(1)
+    expect(Number(coreTag![1])).toBe(2) // S238: the escPeel round bumped the core v1 → v2
     expect(html.indexOf('/js/focus-core.js?v=')).toBeLessThan(html.indexOf('/js/devboard.js?v='))
   })
 
@@ -208,9 +208,12 @@ describe('S237 wiring — the DOM half is pinned to the core (the island-style t
     }
   })
 
-  it('sw.js is at hibana-v451 and the round notes the carrier bumps', () => {
+  it('sw.js is at hibana-v452 and the round notes the carrier bumps (S238 moved the ladder)', () => {
     const sw = readPublic('sw.js')
-    expect(sw.includes('const VERSION = "hibana-v451"')).toBe(true)
+    expect(sw.includes('const VERSION = "hibana-v452"')).toBe(true)
+    expect(sw.includes('// v452 (S238)')).toBe(true)
+    // the S237 note stays in the history block (the discipline: every prior entry
+    // is recoverable; the history block carries the last rounds)
     expect(sw.includes('// v451 (S237): FOCUS MODE')).toBe(true)
   })
 })

@@ -229,8 +229,11 @@ test('the EDIT modal: the same Upload File button + the inline PINNED grid; zoom
   // the established task's badge is live before we even open the editor
   const badge = page.locator('.pd-task-wrap[data-task-card] .pd-task-shots')
   await expect(badge).toBeVisible({ timeout: 10_000 })
-  // open the editor (the card click — the established flow)
-  await page.locator('.pd-task-wrap[data-task-card] .pd-task').first().click()
+  // open the editor — S238 re-pin: the card click opens the READ-ONLY view now;
+  // the editor opens from the ⋯ menu's Edit (the established flow's new door)
+  await page.locator('.pd-task-wrap[data-task-card] .pd-task').first().hover()
+  await page.locator('.pd-task-wrap[data-task-card] .db-card-menu [data-menu-open]').first().click()
+  await page.locator('[data-db-edit-card]').first().click()
   const modal = page.locator('.db-modal-card')
   await expect(modal).toBeVisible()
   // the SAME button in edit mode + the pinned grid under it (the task's shot)

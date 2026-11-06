@@ -28,7 +28,7 @@ import { executeIn } from '../lib/inchunk'
 import type { Config, UserRow, DevTaskRow, SprintRow, TagRow } from '../types'
 import { categoriesUserScoped, isValidCatPair, normCatName, type CategoryRow } from '../lib/categories'
 import { errJson, ErrorCode } from '../lib/errors'
-import { hexColorSchema } from '../validation/schemas'
+import { hexColorSchema, EMOJI_TOKEN_RE } from '../validation/schemas'
 
 const taskStatusSchema = z.enum(['idea', 'planned', 'in_progress', 'done', 'bug'])
 const prioritySchema = z.enum(['low', 'medium', 'high', 'urgent'])
@@ -56,6 +56,10 @@ const createDevTaskSchema = z.object({
   sprint_id: z.string().max(64).nullable().optional(),
   start_at: isoDate.nullable().optional(),
   end_at: isoDate.nullable().optional(),
+  // S240 (0065 — spec pack §9): the optional personal deadline (ISO-8601 instant;
+  // date-only resolves to local 23:59 client-side). due_origin_at is SERVER-derived
+  // (first assignment stamps it) and never accepted from a body.
+  due_at: isoDate.nullable().optional(),
   // S29 follow-up (user request 2026-09-12): labels like "UI/UX", "Security" on the
   // task itself — find-or-create per user (0029's dev_task_tags), palette-colored.
   tags: z.array(z.string().trim().min(1).max(48)).max(12).optional(),
@@ -69,6 +73,23 @@ const updateDevTaskSchema = z.object({
   sort_order: z.number().int().min(0).optional(),
   start_at: isoDate.nullable().optional(),
   end_at: isoDate.nullable().optional(),
+  // S240 (0065 — spec pack §12.2/§13): PATCH semantics for the personal deadline:
+  // null→value stamps due_origin_at (first assignment), value→different value keeps
+  // the origin (an extension is NOT a re-assignment), value→null clears both (a later
+  // re-add starts a fresh timeline). The rules run in the handler (they need the
+  // stored row), not in zod.
+  due_at: isoDate.nullable().optional(),
+  // S245 (spec pack Phase 6 — §13.4, the inherited-extension ORIGIN RIDE-ALONG):
+  // the task-only extension of an INHERITED deadline creates a personal override
+  // (null→value), which by the rule above would stamp due_origin_at = now and make
+  // the bar look newly assigned — §13.4 instead demands the SPRINT's original
+  // progress origin ride along ("preserve the inherited deadline's original
+  // progress origin"). This ADDITIVE optional field is honored ONLY when it
+  // accompanies a null→value transition; every other case (value→value, value→null,
+  // or sent alone) ignores it — the origin rules above stay the single truth.
+  // Island-transparent (the desktop Go decode ignores unknown keys); the kickoff's
+  // recorded decision over a server special-case (contract §12.2/§12.4 document it).
+  due_origin_at: isoDate.optional(),
   // Replace-set semantics: an array makes the link set EXACTLY these names ([] clears);
   // omitted leaves tags untouched. Never a dev_tasks column — special-cased below.
   tags: z.array(z.string().trim().min(1).max(48)).max(12).optional(),
@@ -91,10 +112,17 @@ const createCategorySchema = z.object({
 // the POST branch did not — the audit's §4.3 gap.
 const sprintRangeOk = (b: { started_at?: string | null; ended_at?: string | null }) =>
   !(typeof b.started_at === 'string' && typeof b.ended_at === 'string') || Date.parse(b.ended_at!) > Date.parse(b.started_at!)
+// S240 (0065 — spec pack §4.2): the sprint's optional emoji identity — one picker
+// glyph (the SAME token contract as spark folders/vault icons), never markup.
+const sprintEmoji = z.string().trim().max(16).regex(EMOJI_TOKEN_RE).nullish()
 const createSprintSchema = z.object({
   name: z.string().trim().min(1).max(80).optional(),
   version: z.string().trim().min(1).max(40).optional(),
   description: z.string().max(100_000).optional(),
+  emoji: sprintEmoji,
+  // S240 (0065 — spec pack §9): the optional sprint-level deadline. due_origin_at
+  // is SERVER-derived (stamped on first assignment) and never accepted from a body.
+  due_at: isoDate.nullable().optional(),
   // S48n: optional start/end dates. If both provided, the sprint is created
   // as STARTED (is_draft=0) with these dates — skips the draft step. The
   // presets (24h/48h/72h/1w/2w/1m) compute end = start + duration.
@@ -105,11 +133,17 @@ const updateSprintSchema = z.object({
   name: z.string().trim().min(1).max(80).optional(),
   version: z.string().trim().min(1).max(40).nullable().optional(), // explicit null clears the label
   description: z.string().max(100_000).optional(),
+  emoji: sprintEmoji, // S240: explicit null clears the emoji back to the default glyph
+  due_at: isoDate.nullable().optional(), // S240: null→value stamps the origin; value→value keeps it; null clears both
   started_at: isoDate.optional(),
   ended_at: isoDate.nullable().optional(), // explicit null = reopen this sprint's end
 })
 const reorderSchema = z.object({ ids: z.array(z.string().max(64)).min(1).max(500) })
 const tagBodySchema = z.object({ name: z.string().trim().min(1).max(60), color: hexColor.optional() })
+// S240 (0065 — spec pack §14): one Blocked-by edge. The blocker is a task id in the
+// SAME project (cross-project is rejected in the handler via ownedTask on both ends —
+// a foreign id is a 400, never a 500). Self-edges and cycles are handler-guarded too.
+const createTaskDepSchema = z.object({ blocker_id: z.string().max(64) })
 // 0033 — backlog «برنامه آتی» plan docs: long-form planning entries per project, each
 // save appending a revision row (backlog_doc_revisions) that feeds the history list.
 const createBacklogDocSchema = z.object({
@@ -139,6 +173,11 @@ import {
   syncTaskSearchTags,
   PRIO_ORDER_SQL,
   assertSprintWindowOk, // S235: the shared overlap check (audit §4.2)
+  sprintStatusOf, // S240 (0065): lifecycle coalescing (lagging-D1 belt included)
+  findActiveSprint, // S240 (0065): the one-active lookup (spec §5.1)
+  sprintNameTaken, // S240 (0065): case-insensitive project-scoped name uniqueness (§4.3)
+  taskDepsForProject, // S241 (0065 read surface): the flat per-project dep edge join (§15)
+  boardTaskRows, // S241: task rows + the server-computed effective deadline (§10/§18)
 } from './devboard-helpers'
 
 export function devboardRoutes(cfg: Config) {
@@ -150,7 +189,7 @@ export function devboardRoutes(cfg: Config) {
     const user = c.get('user')
     const p = await getOwnedProject(cfg, user.id, c.req.param('projectId'))
     if (!p) return errJson(c, ErrorCode.not_found)
-    const [tasks, sprints, tags, taskTags, categories] = await Promise.all([
+    const [tasks, sprints, tags, taskTags, categories, taskDeps] = await Promise.all([
       cfg.db.query<DevTaskRow & { tags: string; shot_count: number }>(
         // S29 follow-up: PRIORITY-FIRST ordering — tasks auto-sort urgent → high →
         // medium → low inside every column (sort_order = manual drag still orders
@@ -191,16 +230,25 @@ export function devboardRoutes(cfg: Config) {
          ORDER BY c.name COLLATE NOCASE, c.created_at`,
         [p.id, p.id, p.id],
       ).catch(() => []), // 0062 belt: a D1 pre-migration has no categories table — chip-less, not broken
+      // S241 (spec §15 — D8): the 7th additive payload key — the flat per-project
+      // blocker→blocked edge join (own lagging-D1 [] belt inside the helper).
+      taskDepsForProject(cfg, p.id),
     ])
     return await etag(c, c.json({
       project: { id: p.id, title: p.title, status: p.status, type: p.type },
-      tasks: tasks.map((t) => ({ ...t, tags: t.tags ? t.tags.split(',') : [] })),
+      // S241 (spec §10/§18): task rows carry the server-computed effective deadline
+      // (personal > sprint-inherited-while-not-completed > none) — additive fields,
+      // every legacy key intact (pinned by the S241 island-shape test).
+      tasks: boardTaskRows(tasks, sprints),
       categories,
       sprints,
       tags,
       // Flat per-task label join ({task_id, id, name, color}) — one query, joined
       // client-side by whoever renders cards.
       task_tags: taskTags,
+      // S241: flat dep edges ({blocker_task_id, blocked_task_id}) — the client folds
+      // Blocked-by and the reverse Blocks-N counts by task (spec §15).
+      task_deps: taskDeps,
     }))
   })
 
@@ -217,8 +265,16 @@ export function devboardRoutes(cfg: Config) {
     // category (S152) must be a LIVE global category ENABLED on this project (the
     // single-select source is the project's picker set, block 3).
     const categoryOk = body.category_id ? await categoryEnabledOnProject(cfg, p.id, body.category_id) : true
-    const sprintOk = body.sprint_id ? await ownedSprint(cfg, user.id, body.sprint_id) : true
-    if ((body.category_id && !categoryOk) || (body.sprint_id && !sprintOk)) return errJson(c, ErrorCode.invalid_input)
+    // S240 (0065 — spec §8/assumption 4): sprint validity + the completed-sprint
+    // guard — a NEW task may not be assigned to a COMPLETED sprint (history is not
+    // assignable). planned/active/paused stay assignable (assumption 3: paused is
+    // allowed — the timeline model already lets tasks sit in any open-window sprint).
+    if (body.sprint_id) {
+      const target = await ownedSprint(cfg, user.id, body.sprint_id)
+      if (!target) return errJson(c, ErrorCode.invalid_input)
+      if (sprintStatusOf(target) === 'completed') return errJson(c, ErrorCode.sprint_completed, 400)
+    }
+    if (body.category_id && !categoryOk) return errJson(c, ErrorCode.invalid_input)
     // "Everything happens inside the active sprint": with no sprint_id in the body
     // (undefined — an explicit null still means "no sprint"), land the task in the
     // project's DRAFT sprint (0034 — the one being planned), else its open started
@@ -242,9 +298,9 @@ export function devboardRoutes(cfg: Config) {
     const now = new Date().toISOString()
     const status = body.status ?? 'idea'
     await cfg.db.execute(
-      `INSERT INTO dev_tasks (id, project_id, title, status, priority, category_id, sprint_id, sort_order, created_at, done_at, start_at, end_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?, ?, ?)`,
-      [id, p.id, body.title, status, body.priority ?? 'medium', body.category_id ?? null, sprintId, now, status === 'done' ? now : null, body.start_at ?? null, body.end_at ?? null, now],
+      `INSERT INTO dev_tasks (id, project_id, title, status, priority, category_id, sprint_id, sort_order, created_at, done_at, start_at, end_at, updated_at, due_at, due_origin_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?, ?, ?, ?, ?)`,
+      [id, p.id, body.title, status, body.priority ?? 'medium', body.category_id ?? null, sprintId, now, status === 'done' ? now : null, body.start_at ?? null, body.end_at ?? null, now, body.due_at ?? null, body.due_at != null ? now : null],
     )
     // Labels ride the create (user request 2026-09-12): find-or-create + link, so a
     // fresh "UI/UX, Security" task is fully labeled in ONE round-trip.
@@ -276,12 +332,24 @@ export function devboardRoutes(cfg: Config) {
     const task = await ownedTask(cfg, user.id, c.req.param('id'))
     if (!task) return errJson(c, ErrorCode.not_found)
     if (body.category_id && !(await categoryEnabledOnProject(cfg, task.project_id, body.category_id))) return errJson(c, ErrorCode.invalid_input)
-    if (body.sprint_id && !(await ownedSprint(cfg, user.id, body.sprint_id))) return errJson(c, ErrorCode.invalid_input)
+    // S240 (0065 — spec §8/assumption 4): the completed-sprint guard on RE-ASSIGNMENT.
+    // A PATCH that MOVES the task to a completed sprint is rejected; re-asserting the
+    // task's CURRENT sprint (the old Edit modal resends every field verbatim — a task
+    // sitting in a finished sprint must stay editable) stays legal, as does an
+    // explicit null (No sprint) and any planned/active/paused target.
+    if (body.sprint_id) {
+      const target = await ownedSprint(cfg, user.id, body.sprint_id)
+      if (!target) return errJson(c, ErrorCode.invalid_input)
+      if (target.id !== task.sprint_id && sprintStatusOf(target) === 'completed') return errJson(c, ErrorCode.sprint_completed, 400)
+    }
     const now = new Date().toISOString()
     // tags is NOT a dev_tasks column (replace-set semantics on dev_task_tags) — pull it
     // out BEFORE the generic SET builder, or the loop below would emit SET tags = ?
-    // and 500 with "no such column".
-    const { tags: tagNames, ...columns } = body
+    // and 500 with "no such column". due_at rides the same special-case road (its
+    // origin column is server-derived, never body-driven) and due_origin_at rides
+    // WITH it (the S245 §13.4 ride-along — server-derived except the one sanctioned
+    // null→value transition, below).
+    const { tags: tagNames, due_at: dueAt, due_origin_at: dueOriginAt, ...columns } = body
     const sets: string[] = []
     const params: unknown[] = []
     // start_at/end_at (0030 clip trims) ride this same generic path as category_id/
@@ -302,6 +370,25 @@ export function devboardRoutes(cfg: Config) {
       } else if (body.status !== 'done' && task.done_at) {
         sets.push('done_at = ?')
         params.push(null)
+      }
+    }
+    // S240 (0065 — spec §12.2/§13, the deadline-origin rules): null→value stamps
+    // due_origin_at = now (FIRST assignment — the progress bar's start point);
+    // value→different value PRESERVES the origin (an extension is not a re-assignment);
+    // value→null CLEARS both (a later re-add starts a fresh timeline). value→same value
+    // falls through the same branch as an edit — origin untouched.
+    // S245 (§13.4): the null→value arm honors the client's due_origin_at ride-along
+    // when one is sent (the J3 task-only-from-inherited flow preserving the SPRINT's
+    // origin); without one it stamps now, exactly as before.
+    if (dueAt !== undefined) {
+      sets.push('due_at = ?')
+      params.push(dueAt)
+      if (dueAt === null) {
+        sets.push('due_origin_at = ?')
+        params.push(null)
+      } else if (task.due_at == null) {
+        sets.push('due_origin_at = ?')
+        params.push(dueOriginAt ?? now)
       }
     }
     if (!sets.length && tagNames === undefined) return c.json({ ok: true })
@@ -388,14 +475,35 @@ export function devboardRoutes(cfg: Config) {
   // GET the archives for a project — the permanent record of archived done tasks.
   // S30 (B1): the rows carry their label snapshots (names + colors) so the archive UI
   // can render the chips exactly as they were the day the task was archived.
+  // S243 (spec pack §6 + Screen I): the rows additionally carry their sprint identity —
+  // sprint_id + sprint_name_snapshot — so the delete-confirmation modal can count the
+  // archived tasks that will keep the "Sprint: <name> (deleted)" snapshot label, and
+  // the Sprints page's completed-history Tasks tab can list the tasks archived at
+  // finish. Additive fields: old clients (the island included) ignore them.
   app.get('/api/projects/:projectId/archives', async (c) => {
     const user = c.get('user')
     const p = await getOwnedProject(cfg, user.id, c.req.param('projectId'))
     if (!p) return errJson(c, ErrorCode.not_found)
-    const rows = await cfg.db.query<{
+    type ArchRow = {
       id: string; title: string; priority: string; done_at: string | null
       original_created_at: string; archived_at: string; tags: string
-    }>(`SELECT id, title, priority, done_at, original_created_at, archived_at, tags FROM project_archives WHERE project_id = ? ORDER BY archived_at DESC`, [p.id])
+      sprint_id: string | null; sprint_name_snapshot: string | null
+    }
+    // Lagging-D1 belt (the taskDepsForProject precedent): a pre-0065 database has
+    // project_archives without sprint_name_snapshot — the read degrades to the
+    // legacy shape (both sprint fields null) instead of 500ing the archive shelf.
+    let rows: ArchRow[]
+    try {
+      rows = await cfg.db.query<ArchRow>(
+        `SELECT id, title, priority, done_at, original_created_at, archived_at, tags, sprint_id, sprint_name_snapshot FROM project_archives WHERE project_id = ? ORDER BY archived_at DESC`,
+        [p.id],
+      )
+    } catch {
+      rows = (await cfg.db.query<Omit<ArchRow, 'sprint_name_snapshot'>>(
+        `SELECT id, title, priority, done_at, original_created_at, archived_at, tags, sprint_id FROM project_archives WHERE project_id = ? ORDER BY archived_at DESC`,
+        [p.id],
+      )).map((r) => ({ ...r, sprint_name_snapshot: null }))
+    }
     let parsed: { name: string; color: string }[][] = rows.map(() => [])
     try {
       parsed = rows.map((r) => {
@@ -405,7 +513,7 @@ export function devboardRoutes(cfg: Config) {
     } catch {
       // pre-0051 rows carry '[]' or garbage — parse failures degrade to no labels
     }
-    return c.json({ archives: rows.map((r, i) => ({ id: r.id, title: r.title, priority: r.priority, done_at: r.done_at, original_created_at: r.original_created_at, archived_at: r.archived_at, tags: parsed[i] })) })
+    return c.json({ archives: rows.map((r, i) => ({ id: r.id, title: r.title, priority: r.priority, done_at: r.done_at, original_created_at: r.original_created_at, archived_at: r.archived_at, tags: parsed[i], sprint_id: r.sprint_id, sprint_name_snapshot: r.sprint_name_snapshot })) })
   })
 
   // Restore an archived task back to the dev_tasks table (as 'done' status). The task
@@ -563,7 +671,16 @@ export function devboardRoutes(cfg: Config) {
     const id = uuid()
     const now = new Date().toISOString()
     const count = await cfg.db.query<{ n: number }>('SELECT COUNT(*) AS n FROM sprints WHERE project_id = ?', [p.id])
-    const name = body.name ?? `Sprint ${(count[0]?.n ?? 0) + 1}`
+    let name = body.name ?? `Sprint ${(count[0]?.n ?? 0) + 1}`
+    // S240 (0065 — spec §4.3): the auto-generated name must ALSO clear the NEW
+    // case-insensitive uniqueness rule — bump past any collision instead of 409ing a
+    // nameless create (the legacy timeline creates drafts with no name; old clients
+    // must keep getting 201s). Bounded: 50 tries, then the duplicate answer wins.
+    if (body.name === undefined) {
+      for (let bump = 1; bump <= 50 && (await sprintNameTaken(cfg, p.id, name)); bump++) {
+        name = `Sprint ${(count[0]?.n ?? 0) + 1 + bump}`
+      }
+    }
     // 0034: sprints are created as DRAFTS (is_draft=1) — the timeline plans on the draft
     // and /start promotes it. One draft at a time per project; starting it is a separate,
     // explicit step (no more auto-starting on create).
@@ -572,22 +689,29 @@ export function devboardRoutes(cfg: Config) {
       [p.id],
     )
     if (draft.length) return c.json({ error: ErrorCode.draft_exists, draft_id: draft[0].id }, 409)
+    // S240 (0065 — spec §4.3): case-insensitive name uniqueness within the project
+    // across ALL lifecycle states (a finished sprint still holds its name — history).
+    // Legacy case-twins are never reconciled by the migration; this write-time gate
+    // is the rule (pack D1/IMPLEMENTATION-STATUS assumption 6e).
+    if (await sprintNameTaken(cfg, p.id, name)) return errJson(c, ErrorCode.duplicate)
     // S48n: if started_at is provided, create the sprint as STARTED (is_draft=0) with
     // the chosen dates + close any currently open sprint first. Otherwise, create as
     // a DRAFT (is_draft=1, started_at=now, ended_at=NULL — the user starts it later).
     const hasDates = body.started_at != null
     if (hasDates) {
-      // Close any open sprint first (same logic as /start)
-      const openSprint = await cfg.db.query<{ started_at: string }>(
-        'SELECT started_at FROM sprints WHERE project_id = ? AND ended_at IS NULL AND is_draft = 0 ORDER BY started_at DESC LIMIT 1',
-        [p.id],
-      )
-      if (openSprint[0]) {
+      // Close any open sprint first (same logic as /start). S240 (0065): only the
+      // ACTIVE open sprint is auto-closed (stamped ended_at + status='completed' —
+      // the legacy timeline mechanic, kept byte-compatible for old clients; the
+      // explicit POST /finish is the archiving path, this auto-close archives
+      // NOTHING). A PAUSED sibling keeps its open window and does NOT block the
+      // new sprint (the D1 resolution — assertSprintWindowOk skips paused bands).
+      const activeSprint = await findActiveSprint(cfg, p.id)
+      if (activeSprint) {
         const startMs = Date.parse(body.started_at!)
         const dayBefore = startMs - 86400000
-        const closeMs = Math.max(dayBefore, Date.parse(openSprint[0].started_at))
-        await cfg.db.execute('UPDATE sprints SET ended_at = ? WHERE project_id = ? AND ended_at IS NULL AND is_draft = 0', [
-          new Date(closeMs).toISOString(), p.id,
+        const closeMs = Math.max(dayBefore, Date.parse(activeSprint.started_at))
+        await cfg.db.execute("UPDATE sprints SET ended_at = ?, status = 'completed', updated_at = ? WHERE id = ?", [
+          new Date(closeMs).toISOString(), now, activeSprint.id,
         ])
       }
       const startedAt = body.started_at!
@@ -598,15 +722,21 @@ export function devboardRoutes(cfg: Config) {
       // catches it (sprintId=null — new sprint, don't exclude self).
       const windowOk = await assertSprintWindowOk(cfg, p.id, null, startedAt, endedAt)
       if (!windowOk) return errJson(c, ErrorCode.invalid_input)
-      await cfg.db.execute('INSERT INTO sprints (id, project_id, name, version, description, started_at, ended_at, is_draft, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, 0, ?)', [
-        id, p.id, name, body.version ?? null, body.description ?? '', startedAt, endedAt, now,
-      ])
+      // S240: a created-with-both-dates sprint is a CLOSED window = completed (the
+      // backfill's mapping, kept true by every writer); started-only = active.
+      await cfg.db.execute(
+        `INSERT INTO sprints (id, project_id, name, version, description, started_at, ended_at, is_draft, created_at, status, emoji, due_at, due_origin_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?, ?, ?, ?)`,
+        [id, p.id, name, body.version ?? null, body.description ?? '', startedAt, endedAt, now, endedAt != null ? 'completed' : 'active', body.emoji ?? null, body.due_at ?? null, body.due_at != null ? now : null, now],
+      )
       await logHistory(cfg, p.id, t('{name} started', '{name} شروع شد', { name }))
       return c.json({ ok: true, id, name, version: body.version ?? null, draft: false }, 201)
     }
-    await cfg.db.execute('INSERT INTO sprints (id, project_id, name, version, description, started_at, ended_at, is_draft, created_at) VALUES (?, ?, ?, ?, ?, ?, NULL, 1, ?)', [
-      id, p.id, name, body.version ?? null, body.description ?? '', now, now,
-    ])
+    await cfg.db.execute(
+      `INSERT INTO sprints (id, project_id, name, version, description, started_at, ended_at, is_draft, created_at, status, emoji, due_at, due_origin_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, NULL, 1, ?, 'planned', ?, ?, ?, ?)`,
+      [id, p.id, name, body.version ?? null, body.description ?? '', now, now, body.emoji ?? null, body.due_at ?? null, body.due_at != null ? now : null, now],
+    )
     await logHistory(cfg, p.id, t('{name} defined', '{name} تعریف شد', { name }))
     return c.json({ ok: true, id, name, version: body.version ?? null, draft: true }, 201)
   })
@@ -616,24 +746,27 @@ export function devboardRoutes(cfg: Config) {
     const t = trFor(c)
     const s = await ownedSprint(cfg, user.id, c.req.param('id'))
     if (!s) return errJson(c, ErrorCode.not_found)
-    if (!s.is_draft) return errJson(c, ErrorCode.already_started)
+    const status = sprintStatusOf(s)
+    // S240 (0065 — spec §5.2): start promotes planned → active, and accepts a PAUSED
+    // sprint as a resume (the window survives — only the lifecycle flips). The legacy
+    // 0034 guard stays: an already-started sprint (active OR completed — old clients
+    // byte-identically got already_started for both) can't start again.
+    if (status !== 'planned' && status !== 'paused') return errJson(c, ErrorCode.already_started)
     const now = new Date().toISOString()
-    // One open sprint at a time (user model): starting this one closes the current open
-    // sprint the day BEFORE the new start (sprints never share a day). Edge: the open
-    // sprint started today (start−1d would predate its own start) → close it AT its OWN
-    // start instead (zero-length, never inverted — closing at the NEW start produced an
-    // inverted range when the open sprint had been dragged to start in the FUTURE).
-    const openSprint = await cfg.db.query<{ started_at: string }>(
-      'SELECT started_at FROM sprints WHERE project_id = ? AND ended_at IS NULL AND is_draft = 0 ORDER BY started_at DESC LIMIT 1',
-      [s.project_id],
-    )
-    if (openSprint[0]) {
-      const startMs = Date.parse(now)
-      const dayBefore = startMs - 86400000
-      const closeMs = Math.max(dayBefore, Date.parse(openSprint[0].started_at))
-      await cfg.db.execute('UPDATE sprints SET ended_at = ? WHERE project_id = ? AND ended_at IS NULL AND is_draft = 0', [
-        new Date(closeMs).toISOString(), s.project_id,
-      ])
+    // S240 (0065 — spec §5.1/§5.2 — one-active, the pack's D1): starting while ANOTHER
+    // sprint is active is a 409 carrying the active sprint's id, NEVER a silent
+    // auto-close (the old /start closed the open sibling; the Phase 4 UI resolves the
+    // conflict with the finish-or-pause modal). The partial unique index
+    // idx_sprints_one_active is the belt if two writes race this check on D1.
+    const active = await findActiveSprint(cfg, s.project_id)
+    if (active && active.id !== s.id) return c.json({ error: ErrorCode.sprint_active_exists, active_id: active.id }, 409)
+    if (status === 'paused') {
+      // Resume semantics (POST /api/sprints/:id/resume performs the same move): the
+      // started_at/ended_at window is history and stays put — spec §5.5 (pausing never
+      // touches the window; resuming doesn't re-stamp the start).
+      await cfg.db.execute("UPDATE sprints SET status = 'active', updated_at = ? WHERE id = ?", [now, s.id])
+      await logHistory(cfg, s.project_id, t('{name} resumed', '{name} از سر گرفته شد', { name: s.name }))
+      return c.json({ ok: true })
     }
     // S235 (audit §4.2): the overlap check — was MISSING on /start. Starting a
     // sprint "now" with no end (open) could land "now" INSIDE an existing closed
@@ -642,8 +775,39 @@ export function devboardRoutes(cfg: Config) {
     // range includes "now"). sprintId=s.id — exclude self from the sibling scan.
     const startWindowOk = await assertSprintWindowOk(cfg, s.project_id, s.id, now, null)
     if (!startWindowOk) return errJson(c, ErrorCode.invalid_input)
-    await cfg.db.execute('UPDATE sprints SET started_at = ?, ended_at = NULL, is_draft = 0 WHERE id = ?', [now, s.id])
+    await cfg.db.execute("UPDATE sprints SET started_at = ?, ended_at = NULL, is_draft = 0, status = 'active', updated_at = ? WHERE id = ?", [now, now, s.id])
     await logHistory(cfg, s.project_id, t('{name} started', '{name} شروع شد', { name: s.name }))
+    return c.json({ ok: true })
+  })
+
+  // S240 (0065 — spec §5.5): pause an ACTIVE sprint. The window (ended_at stays
+  // NULL — the timeline band survives), the task associations and every task's Kanban
+  // status are untouched; the due date + origin stay defined while paused.
+  app.post('/api/sprints/:id/pause', async (c) => {
+    const user = c.get('user')
+    const t = trFor(c)
+    const s = await ownedSprint(cfg, user.id, c.req.param('id'))
+    if (!s) return errJson(c, ErrorCode.not_found)
+    if (sprintStatusOf(s) !== 'active') return errJson(c, ErrorCode.invalid_input)
+    const now = new Date().toISOString()
+    await cfg.db.execute("UPDATE sprints SET status = 'paused', updated_at = ? WHERE id = ?", [now, s.id])
+    await logHistory(cfg, s.project_id, t('{name} paused', '{name} متوقف شد', { name: s.name }))
+    return c.json({ ok: true })
+  })
+
+  // S240 (0065 — spec §5.2/§5.5): resume a PAUSED sprint, subject to the one-active
+  // rule (a 409 with the active sprint's id — never a silent replacement).
+  app.post('/api/sprints/:id/resume', async (c) => {
+    const user = c.get('user')
+    const t = trFor(c)
+    const s = await ownedSprint(cfg, user.id, c.req.param('id'))
+    if (!s) return errJson(c, ErrorCode.not_found)
+    if (sprintStatusOf(s) !== 'paused') return errJson(c, ErrorCode.invalid_input)
+    const now = new Date().toISOString()
+    const active = await findActiveSprint(cfg, s.project_id)
+    if (active && active.id !== s.id) return c.json({ error: ErrorCode.sprint_active_exists, active_id: active.id }, 409)
+    await cfg.db.execute("UPDATE sprints SET status = 'active', updated_at = ? WHERE id = ?", [now, s.id])
+    await logHistory(cfg, s.project_id, t('{name} resumed', '{name} از سر گرفته شد', { name: s.name }))
     return c.json({ ok: true })
   })
 
@@ -653,6 +817,20 @@ export function devboardRoutes(cfg: Config) {
     const user = c.get('user')
     const s = await ownedSprint(cfg, user.id, c.req.param('id'))
     if (!s) return errJson(c, ErrorCode.not_found)
+    const now = new Date().toISOString()
+    // S240 (0065 — spec §4.3): the case-insensitive name gate on RENAME. A sprint
+    // may re-assert its OWN name (the old flows resend fields verbatim); every other
+    // project sibling — in ANY lifecycle state — holds it.
+    if (body.name !== undefined && (await sprintNameTaken(cfg, s.project_id, body.name, s.id))) return errJson(c, ErrorCode.duplicate)
+    // The deadline-origin rules (§12.2/§13 — same shape the task PATCH carries):
+    // null→value stamps due_origin_at; value→value PRESERVES it (an extension is not
+    // a re-assignment); null CLEARS both (a re-add starts a fresh timeline).
+    const dueOriginSet = (push: (col: string, val: unknown) => void) => {
+      if (body.due_at === undefined) return
+      push('due_at', body.due_at)
+      if (body.due_at === null) push('due_origin_at', null)
+      else if (s.due_at == null) push('due_origin_at', now)
+    }
     // A draft carries name + version + its doc (0034 + 0052) — its dates are set by
     // /start, never by PATCH. description (the full-screen editor's subject) is ALWAYS
     // writable; an empty string is a legal empty doc (the modal seeds an empty one).
@@ -660,10 +838,14 @@ export function devboardRoutes(cfg: Config) {
       if (body.started_at !== undefined || body.ended_at !== undefined) return errJson(c, ErrorCode.invalid_input)
       const sets: string[] = []
       const params: unknown[] = []
-      if (body.name !== undefined) { sets.push('name = ?'); params.push(body.name) }
-      if (body.version !== undefined) { sets.push('version = ?'); params.push(body.version) }
-      if (body.description !== undefined) { sets.push('description = ?'); params.push(body.description) }
+      const push = (col: string, val: unknown) => { sets.push(`${col} = ?`); params.push(val) }
+      if (body.name !== undefined) push('name', body.name)
+      if (body.version !== undefined) push('version', body.version)
+      if (body.description !== undefined) push('description', body.description)
+      if (body.emoji !== undefined) push('emoji', body.emoji)
+      dueOriginSet(push)
       if (!sets.length) return c.json({ ok: true })
+      push('updated_at', now) // S240 (D8): every sprint PATCH stamps updated_at
       params.push(s.id)
       await cfg.db.execute(`UPDATE sprints SET ${sets.join(', ')} WHERE id = ?`, params)
       return c.json({ ok: true })
@@ -675,13 +857,17 @@ export function devboardRoutes(cfg: Config) {
     if (typeof newEnd === 'string' && Date.parse(newEnd) <= Date.parse(newStart)) {
       return errJson(c, ErrorCode.invalid_input)
     }
-    // Reopening (end = null): only the LATEST sprint by started_at may be open, and only
-    // while no OTHER sprint is open — one open sprint at a time (user model).
-    if (newEnd === null) {
+    // Reopening (a SET end → null — re-asserting an already-open end no longer runs
+    // the guards, and never flips a paused sprint active): only the LATEST sprint by
+    // started_at may be open, and only while no OTHER sprint is ACTIVE — S240 (0065)
+    // turned the one-open-window rule into the one-ACTIVE rule (a paused sibling's
+    // open window no longer blocks a reopen; the D1 resolution).
+    if (newEnd === null && s.ended_at !== null) {
       const others = siblings.filter((x) => x.id !== s.id)
       const isLatest = others.every((x) => Date.parse(x.started_at) <= Date.parse(newStart))
-      const anyOtherOpen = others.some((x) => x.ended_at === null)
-      if (!isLatest || anyOtherOpen) return errJson(c, ErrorCode.invalid_input)
+      if (!isLatest) return errJson(c, ErrorCode.invalid_input)
+      const active = await findActiveSprint(cfg, s.project_id)
+      if (active && active.id !== s.id) return c.json({ error: ErrorCode.sprint_active_exists, active_id: active.id }, 409)
     }
     // S235: the overlap check — now calls the SHARED assertSprintWindowOk helper
     // (lifted to devboard-helpers.ts so POST-create-with-dates + POST-start use
@@ -694,27 +880,27 @@ export function devboardRoutes(cfg: Config) {
     // editable for the whole sprint lifetime, not just while drafting.
     const sets: string[] = []
     const params: unknown[] = []
-    if (body.name !== undefined) {
-      sets.push('name = ?')
-      params.push(body.name)
-    }
-    if (body.version !== undefined) {
-      sets.push('version = ?')
-      params.push(body.version)
-    }
-    if (body.description !== undefined) {
-      sets.push('description = ?')
-      params.push(body.description)
-    }
-    if (body.started_at !== undefined) {
-      sets.push('started_at = ?')
-      params.push(body.started_at)
-    }
+    const push = (col: string, val: unknown) => { sets.push(`${col} = ?`); params.push(val) }
+    if (body.name !== undefined) push('name', body.name)
+    if (body.version !== undefined) push('version', body.version)
+    if (body.description !== undefined) push('description', body.description)
+    if (body.emoji !== undefined) push('emoji', body.emoji)
+    dueOriginSet(push)
+    if (body.started_at !== undefined) push('started_at', body.started_at)
     if (body.ended_at !== undefined) {
-      sets.push('ended_at = ?')
-      params.push(body.ended_at)
+      push('ended_at', body.ended_at)
+      // S240 (0065): an ended_at transition IS a lifecycle transition — every writer
+      // keeps the representations in lock-step (a set end = a completed window; a
+      // cleared end = an active sprint, guarded above). A no-op re-assert on an
+      // already-open end leaves the status (active OR paused) exactly where it was.
+      // The timeline drag path NEVER archives — the explicit POST /finish is the
+      // archiving path (the pack's D4 scoping).
+      if (body.ended_at !== null || s.ended_at !== null) {
+        push('status', body.ended_at === null ? 'active' : 'completed')
+      }
     }
     if (!sets.length) return c.json({ ok: true })
+    push('updated_at', now) // S240 (D8): every sprint PATCH stamps updated_at
     params.push(s.id)
     await cfg.db.execute(`UPDATE sprints SET ${sets.join(', ')} WHERE id = ?`, params)
     return c.json({ ok: true })
@@ -725,10 +911,51 @@ export function devboardRoutes(cfg: Config) {
     const t = trFor(c)
     const s = await ownedSprint(cfg, user.id, c.req.param('id'))
     if (!s) return errJson(c, ErrorCode.not_found)
-    if (s.is_draft) return errJson(c, ErrorCode.invalid_input)
-    await cfg.db.execute('UPDATE sprints SET ended_at = ? WHERE id = ?', [new Date().toISOString(), s.id])
+    // A draft was never started — the old is_draft 400 answer, kept byte-identical.
+    // Finishing an already-COMPLETED sprint stays legal like today's re-finish (the
+    // ended_at re-stamp): any done tasks that appeared since the first finish ride
+    // along into the archive (idempotent for the ones already there — archived rows
+    // left dev_tasks and cannot double-insert).
+    if (sprintStatusOf(s) === 'planned') return errJson(c, ErrorCode.invalid_input)
+    const now = new Date().toISOString()
+    // D4 (spec §5.3 — the pack's resolution): finishing archives ONLY this sprint's
+    // Implemented ('done') tasks — the SAME snapshot INSERT the archive-done bulk
+    // action uses (0046/0051: sprint_id kept, tags JSON snapshotted BEFORE the
+    // cascade, priority carried), plus the S240 sprint_name_snapshot = sprint.name.
+    // Unfinished tasks keep their Kanban status AND their sprint association
+    // (history); nothing is deleted; nothing moves columns.
+    const tasks = await cfg.db.query<{ id: string; title: string; priority: string; category_id: string | null; done_at: string | null; created_at: string }>(
+      "SELECT id, title, priority, category_id, done_at, created_at FROM dev_tasks WHERE project_id = ? AND sprint_id = ? AND status = 'done'",
+      [s.project_id, s.id],
+    )
+    const links = await taskTagsForProject(cfg, s.project_id)
+    const taskIds = new Set(tasks.map((tk) => tk.id))
+    const tagsByTask = new Map<string, { name: string; color: string }[]>()
+    for (const row of links) {
+      if (!taskIds.has(row.task_id)) continue // only the tasks being archived carry links
+      const list = tagsByTask.get(row.task_id) ?? []
+      list.push({ name: row.name, color: row.color })
+      tagsByTask.set(row.task_id, list)
+    }
+    const touchedTagIds = links.filter((l) => taskIds.has(l.task_id)).map((l) => l.id)
+    await cfg.db.transaction(async (tx) => {
+      tx.sql("UPDATE sprints SET ended_at = ?, status = 'completed', updated_at = ? WHERE id = ?", [now, now, s.id])
+      for (const task of tasks) {
+        const snapshot = tagsByTask.get(task.id) ?? []
+        tx.sql(
+          `INSERT INTO project_archives (id, project_id, title, status, priority, category_id, sprint_id, done_at, original_created_at, archived_at, tags, sprint_name_snapshot) VALUES (?, ?, ?, 'done', ?, ?, ?, ?, ?, ?, ?, ?)`,
+          [task.id, s.project_id, task.title, task.priority, task.category_id, s.id, task.done_at, task.created_at, now, JSON.stringify(snapshot), s.name],
+        )
+      }
+      // No IN-list chunking needed: a single sprint-scoped predicate takes no parameter cap.
+      tx.sql("DELETE FROM dev_tasks WHERE sprint_id = ? AND status = 'done'", [s.id])
+    })
+    // S30 (B2): the cascaded dev_task_tags rows dropped with the tasks — usage follows.
+    await refreshTagUsage(cfg, touchedTagIds)
+    await cfg.db.execute('UPDATE projects SET updated_at = ? WHERE id = ?', [now, s.project_id])
     await logHistory(cfg, s.project_id, t('{name} finished', '{name} تمام شد', { name: s.name }))
-    return c.json({ ok: true })
+    // `archived` rides additively for the Phase 4 finish-confirmation counts.
+    return c.json({ ok: true, archived: tasks.length })
   })
 
   app.post('/api/sprints/:id/reopen', async (c) => {
@@ -736,17 +963,27 @@ export function devboardRoutes(cfg: Config) {
     const s = await ownedSprint(cfg, user.id, c.req.param('id'))
     if (!s) return errJson(c, ErrorCode.not_found)
     if (s.is_draft) return errJson(c, ErrorCode.invalid_input)
+    const now = new Date().toISOString()
+    const status = sprintStatusOf(s)
+    // Already open: the legacy no-op reopen answer (a 200 with nothing to do).
+    if (status === 'active') return c.json({ ok: true })
+    // S240 (0065): reopen = completed → ACTIVE (spec §5.4 + the pack's prompt); a
+    // paused sprint resumes via /resume (or /start), never by reopen.
+    if (status !== 'completed') return errJson(c, ErrorCode.invalid_input)
     // Same guard as PATCH's null-end rule: only the LATEST sprint by started_at may
-    // reopen, and only while no other sprint is open (one open sprint at a time).
-    const others = await cfg.db.query<{ started_at: string; ended_at: string | null }>(
-      'SELECT started_at, ended_at FROM sprints WHERE project_id = ? AND id != ? AND is_draft = 0',
+    // reopen — the timeline's trailing-open-band ordering (S235's contract).
+    const others = await cfg.db.query<{ started_at: string }>(
+      'SELECT started_at FROM sprints WHERE project_id = ? AND id != ? AND is_draft = 0',
       [s.project_id, s.id],
     )
     const startedAt = s.started_at
     const isLatest = others.every((x) => Date.parse(x.started_at) <= Date.parse(startedAt))
-    const anyOtherOpen = others.some((x) => x.ended_at === null)
-    if (!isLatest || anyOtherOpen) return errJson(c, ErrorCode.invalid_input)
-    await cfg.db.execute('UPDATE sprints SET ended_at = NULL WHERE id = ?', [s.id])
+    if (!isLatest) return errJson(c, ErrorCode.invalid_input)
+    // S240 (0065): the one-ACTIVE rule replaces the one-open-window rule (a paused
+    // sibling's open window no longer blocks) — subject to one-active like start/resume.
+    const active = await findActiveSprint(cfg, s.project_id)
+    if (active && active.id !== s.id) return c.json({ error: ErrorCode.sprint_active_exists, active_id: active.id }, 409)
+    await cfg.db.execute("UPDATE sprints SET ended_at = NULL, status = 'active', updated_at = ? WHERE id = ?", [now, s.id])
     return c.json({ ok: true })
   })
 
@@ -755,14 +992,81 @@ export function devboardRoutes(cfg: Config) {
     const t = trFor(c)
     const s = await ownedSprint(cfg, user.id, c.req.param('id'))
     if (!s) return errJson(c, ErrorCode.not_found)
+    const status = sprintStatusOf(s)
+    // S240 (0065 — spec §6 + Part VI assumptions 4/5): ACTIVE sprints must be Paused
+    // or Finished first; COMPLETED sprints are history and can never be deleted.
+    // Planned + Paused delete (with confirmation) — the deletable set.
+    if (status === 'active') return errJson(c, ErrorCode.sprint_active)
+    if (status === 'completed') return errJson(c, ErrorCode.sprint_completed)
     await cfg.db.transaction(async (tx) => {
+      // Non-archived tasks stay on the board, UNASSIGNED (No sprint) — priority,
+      // Kanban status, deadlines and dependencies all untouched (spec §6: a sprint
+      // deletion never cascades to task deletion).
       tx.sql('UPDATE dev_tasks SET sprint_id = NULL WHERE sprint_id = ?', [s.id])
-      // AP-27: archived snapshots carry sprint_id too — a dangling id here made every
-      // later restore of that archive hit the dev_tasks FK and 500 forever.
-      tx.sql('UPDATE project_archives SET sprint_id = NULL WHERE sprint_id = ?', [s.id])
+      // D3 (spec §6 — the pack's resolution): archived snapshots keep the sprint's
+      // IDENTITY as the historical label ("<name> (deleted)") instead of silently
+      // losing it; AP-27's dangling-FK hygiene is preserved (sprint_id still NULLed,
+      // restore can never hit a dead FK).
+      tx.sql('UPDATE project_archives SET sprint_name_snapshot = ?, sprint_id = NULL WHERE sprint_id = ?', [`${s.name} (deleted)`, s.id])
       tx.sql('DELETE FROM sprints WHERE id = ?', [s.id])
     })
     await logHistory(cfg, s.project_id, t('{name} deleted', '{name} حذف شد', { name: s.name }))
+    return c.json({ ok: true })
+  })
+
+  // ---- task dependencies (S240/0065 — spec pack §14-16) --------------------------
+  // The user enters Blocked-by; the reverse "Blocks N" view is derived. Dependencies
+  // are project-wide (cross-sprint links legal, cross-project NEVER — spec §14.1),
+  // soft/informational constraints (assumption 2): they never block Kanban movement
+  // and never mutate priority/status/sprint/deadline. The board payload carries the
+  // links for rendering (Phase 2); these two endpoints are the write surface.
+
+  app.post('/api/devtasks/:id/deps', async (c) => {
+    const body = await jsonBody<z.infer<typeof createTaskDepSchema>>(c, createTaskDepSchema)
+    if (!body) return errJson(c, ErrorCode.invalid_input)
+    const user = c.get('user')
+    const task = await ownedTask(cfg, user.id, c.req.param('id'))
+    if (!task) return errJson(c, ErrorCode.not_found)
+    // Spec §14.2: a task may not depend on itself.
+    if (body.blocker_id === task.id) return errJson(c, ErrorCode.invalid_input)
+    // Spec §14.1: both ends must be the caller's tasks in the SAME project (a foreign
+    // or cross-project id is a 400, not a 500 — the task-create sprint guard's shape).
+    const blocker = await ownedTask(cfg, user.id, body.blocker_id)
+    if (!blocker || blocker.project_id !== task.project_id) return errJson(c, ErrorCode.invalid_input)
+    // Spec §14.2 — no cycles: adding X→Y closes a loop iff Y already (transitively)
+    // BLOCKS X. The recursive CTE walks blocker→blocked edges from the blocked task;
+    // hitting the would-be blocker means the reverse path already exists. UNION
+    // dedupes the working set (the graph is acyclic, but the guard must not loop on
+    // working-set repetition either).
+    const cyc = await cfg.db.query<{ n: number }>(
+      `WITH RECURSIVE reach(blocked) AS (
+         SELECT blocked_task_id FROM dev_task_deps WHERE blocker_task_id = ?
+         UNION
+         SELECT d.blocked_task_id FROM dev_task_deps d JOIN reach r ON d.blocker_task_id = r.blocked
+       ) SELECT COUNT(*) AS n FROM reach WHERE blocked = ?`,
+      [task.id, body.blocker_id],
+    )
+    if ((cyc[0]?.n ?? 0) > 0) return errJson(c, ErrorCode.cycle, 409) // deliberate 409 (registry default 400 — vault folders' shape)
+    // Idempotent re-add: the edge either exists (200, nothing written) or appears (201).
+    const existing = await cfg.db.query<{ blocker_task_id: string }>(
+      'SELECT blocker_task_id FROM dev_task_deps WHERE blocker_task_id = ? AND blocked_task_id = ?',
+      [body.blocker_id, task.id],
+    )
+    if (existing.length) return c.json({ ok: true, existing: true })
+    await cfg.db.execute('INSERT INTO dev_task_deps (blocker_task_id, blocked_task_id, created_at) VALUES (?, ?, ?)', [
+      body.blocker_id, task.id, new Date().toISOString(),
+    ])
+    return c.json({ ok: true }, 201)
+  })
+
+  app.delete('/api/devtasks/:id/deps/:blockerId', async (c) => {
+    const user = c.get('user')
+    const task = await ownedTask(cfg, user.id, c.req.param('id'))
+    if (!task) return errJson(c, ErrorCode.not_found)
+    // Same shape as the tag-link DELETE: removing an absent edge is still a 200.
+    await cfg.db.execute('DELETE FROM dev_task_deps WHERE blocker_task_id = ? AND blocked_task_id = ?', [
+      c.req.param('blockerId'), task.id,
+    ])
     return c.json({ ok: true })
   })
 

@@ -1,176 +1,217 @@
-# Next Session Prompt — Phase 8: Cross-Platform QA, Regression, Localization + Accessibility (the Full-Spec Sweep — Every Acceptance Row in §21/§22/§23/§24 Turned Into a Test or a Verified Pin)
+# Next Session Prompt — Phase 9: Integration, Merge, Deployment + Handoff (the Desktop Round, the Web PR→Merge→Auto-Deploy, the D1 Migration, and the Final Report Against Every Acceptance Checklist)
 
-Continue Hibana Sprint, Deadline & Dependency implementation.
+Continue Hibana Sprint, Deadline & Dependency implementation — **the FINAL phase**.
 
-**This session is S247** in the repo's commit-numbering sequence (Phase 0 = S239, Phase 1 =
+**This session is S248** in the repo's commit-numbering sequence (Phase 0 = S239, Phase 1 =
 S240 @ `81f2c05`, Phase 2 = S241 @ `da652d2`, Phase 3 = S242 @ `a1e7d2d`, Phase 4 =
 S243 @ `b770258` + the S243b reconciliation @ `3ae6ae9`, Phase 5 = S244 @ `7a6bd4a`,
-Phase 6 = S245 @ `f1ca773`, Phase 7 = **S246 @ `a820253`** — all final deliveries
-verified, all gates green; the Phase 7 round delivered the task DEPENDENCIES UI: Screen K
-the collapsed Dependencies section in the task modal (the searchable same-project
-Blocked-by multi-select with title + sprint glyph + status per option; LIVE POST/DELETE in
-edit mode through the `addTaskDep`/`removeTaskDep` api()-riders — ZERO new fetch sites —
-with the inline 400 self / 409 cycle surfaces naming the offending pick; STAGED links in
-add mode POSTed right after the create ack), Screen L the compact Blocked / Blocked · N /
-Blocks N / Ready card badges in ALL THREE renderers (board-page.js + the detail-helpers.ts
-server twin + project-page.js's pdTruthWrap repaint twin, byte-identical — their own row
-after the deadline row, independent of the priority ribbon AND the deadline), §16.1's
-completion resolution (Blocked while ANY blocker is incomplete; Ready when ALL complete;
-the relationship RETAINED — a persistent derived state, never a transition event; status
-doc assumption 14), the S238 task view's names row, the soft constraints pinned
-end-to-end (a blocked task still moves — nothing gates Kanban movement), the embedded
-board's dep fold fed by the DETAIL POOL (loadDetail's additive `taskDeps` key — never a
-second board pull; contract doc §12.3), and the embedded done-transition FULL-lane
-repaint). If ANOTHER session appears mid-work: reconcile per the never-overwrite rule —
-adopt the verified push, never force-push, never stack a conflicting twin.
+Phase 6 = S245 @ `f1ca773`, Phase 7 = S246 @ `a820253`, Phase 8 = **S247 @
+`e49f2e5`** — all final deliveries verified, all gates green; the Phase 8 round was the
+FULL-SPEC ACCEPTANCE SWEEP: the traceable release matrix
+`src/tests/acceptance-s247.test.ts` (every spec §21 (19 rows) / §22 (20) / §23 (11) /
+§24 (10) row + the visual guide's §6 checklist mapped to an existing green test or a
+pin added that round — machine-verified in lock-step, row-counts pinned), the e2e arms
+(`s247-acceptance.spec.ts`: the bare pre-feature card on BOTH board surfaces, the
+embedded-board threshold boundary sides, the EN/FA same-instant dueDayLabel agreement,
+the one-pass FA localization sweep; `s247-a11y.spec.ts`: keyboard reachability + aria
+labeling + AA contrast + color independence on every Phases 3-7 dialog), the ONE real
+defect the sweep surfaced — the deadline/dep state text under WCAG AA — FIXED in
+devboard.css (the amber/green pair darkened to 5.34/5.96:1; the ladder moved to
+sw.js v459, devboard.css v45), and the FULL e2e suite **509/509 across 101 spec
+files**). If ANOTHER session appears mid-work: reconcile per the never-overwrite
+rule — adopt the verified push, never force-push, never stack a conflicting twin.
 
 ## Kickoff credentials (pasted by the user — never persist, never commit, never log)
 
-GitHub classic token (push-only): pasted in the kickoff message. Use it ONLY in the one-shot
-push URL `git push https://<TOKEN>@github.com/assadigit/hibana-source.git <branch>`. All
-other credentials (Cloudflare, Telegram bot, healthcheck.io, Workers AI, the test account)
-are OUT OF SCOPE this phase: no deploy, no wrangler, no D1 workflow runs, no live probes, no
-notifications. Do not use them; do not write them anywhere.
+GitHub classic token (push-only): pasted in the kickoff message. Use it ONLY in one-shot
+push URLs (`git push https://<TOKEN>@github.com/assadigit/<repo>.git <branch>` — once for
+hibana-source, once for hibana-desktop). The Cloudflare token, the Telegram bot token,
+the healthcheck.io keys, the Workers AI keys and the test account become IN SCOPE **only
+for the explicitly listed deploy/verification steps below** (the web auto-deploy is
+workflow-driven — you should NOT need wrangler or the CF token unless the CD workflow
+fails and an owner-approved manual fallback is required; NEVER improvise a manual prod
+deploy or a manual D1 migration). Never write any credential to disk, .git/config,
+files, commit bodies, or logs.
 
 ## Read first (in this order)
 
-1. `Hibana-Sprint-Deadline-Implementation-Pack/README.md`
-2. `Hibana-Sprint-Deadline-Implementation-Pack/specs/Hibana-Sprint-and-Deadline-System-Spec.md` (the contract — **THIS phase is the RELEASE GATE over the WHOLE spec**: re-read ALL of §21 (the sprint acceptance checklist — 18 rows), §22 (the deadline acceptance checklist — 20 rows), §23 (the dependency acceptance checklist — 11 rows), §24 (the regression + quality checks — 10 rows), plus §17 RTL/multilingual, §11.3's exact preset semantics, §12.3's threshold boundaries, §13's extension rules, §14–§16's dependency model, and Part VI's five explicit assumptions)
-3. `Hibana-Sprint-Deadline-Implementation-Pack/VISUAL-REFERENCE-GUIDE.md` (§6's visual implementation review checklist — every row; Screens A–N are ALL landed now, Phases 3–7)
-4. `Hibana-Sprint-Deadline-Implementation-Pack/agent-workflow/PHASED-MULTI-SESSION-IMPLEMENTATION.md` (§5 Phase 8 scope — the P0 release gate)
-5. `Hibana-Sprint-Deadline-Implementation-Pack/agent-workflow/IMPLEMENTATION-STATUS.md` (architecture map, D1–D9 register, assumptions 1-14 — **assumption 2 (dependencies are SOFT), assumption 13 (S245's ride-along), and assumption 14 (S246's live-vs-staged mutation, the detail-pool fold, the Ready semantics) are BINDING**; assumption 11's H1 day-window seam stays queued — do not touch /start's semantics without an owner ruling)
-6. `docs/project-kanban/API-AND-SYNC-CONTRACT.md` §12 (the complete Phase 1-7 surface — endpoints, bodies, the error family, the effective-deadline contract, §12.3's dep write/read + the S246 detail-pool addition, §12.5's client-fold doctrine) on the feature branch
+1. `Hibana-Sprint-Deadline-Implementation-Pack/README.md` (off `origin/main` of
+   hibana-source, or the re-pasted pack — prefer the repo copy)
+2. `Hibana-Sprint-Deadline-Implementation-Pack/specs/Hibana-Sprint-and-Deadline-System-Spec.md`
+   (§21/§22/§23/§24 are the acceptance checklists the FINAL REPORT is written against;
+   §18 web/desktop consistency; §19 data integrity; §20 repository-first rules)
+3. `Hibana-Sprint-Deadline-Implementation-Pack/agent-workflow/PHASED-MULTI-SESSION-IMPLEMENTATION.md`
+   (§5 Phase 9 scope + §6 cross-platform sequencing + §7 definition of done)
+4. `Hibana-Sprint-Deadline-Implementation-Pack/agent-workflow/IMPLEMENTATION-STATUS.md`
+   (the architecture map incl. the DESKTOP section, the D1–D9 register — **D9 is THIS
+   round's core**, assumptions 1–15 — assumption 2 (deps are SOFT), 13 (the ride-along),
+   14 (S246's decisions), 15 (S247's matrix doctrine + the contrast fix + the dark-theme
+   limitation) are BINDING; assumption 11's H1 day-window seam stays QUEUED — if the
+   owner has not ruled, ship as-is and restate it in the final report)
+5. `docs/project-kanban/API-AND-SYNC-CONTRACT.md` §12 on the feature branch — the
+   COMPLETE contract the desktop round consumes (S247 pinned it mirrors the code:
+   `src/tests/acceptance-s247.test.ts` — the contract-doc-mirrors-code pin)
+6. `src/tests/acceptance-s247.test.ts` (the release matrix — the final report cites it)
 7. this file
 
-Where these docs live: the pack's `agent-workflow/*.md` docs are committed on **`origin/main`**
-(docs-only commits, `**.md` pushes are CI-skipped so they cannot deploy). The feature branch
-`feat/sprint-deadline-deps` does NOT carry the pack — read it off main, e.g.
-`git show origin/main:Hibana-Sprint-Deadline-Implementation-Pack/agent-workflow/IMPLEMENTATION-STATUS.md`.
-If the user re-pastes the pack, prefer the repo copy.
+Where these docs live: the pack's `agent-workflow/*.md` docs are committed on
+**`origin/main`** of hibana-source (docs-only commits, `**.md` pushes are CI-skipped so
+they cannot deploy). The feature branch `feat/sprint-deadline-deps` does NOT carry the
+pack — read it off main. If the user re-pastes the pack, prefer the repo copy.
 
 ## Setup & re-verification (in order)
 
-1. Clone the repo (public — no token for clone). `cd <repo> && git status && git log --oneline -5
-   && git branch --show-current`. Confirm no other agent is mid-work; preserve unrelated/uncommitted
-   changes. `origin/main` HEAD must be the latest docs-only commit (the S246 close-out on top of
-   `a063405`); if it moved, reconcile — never overwrite concurrent work.
-2. Checkout the feature branch: `git checkout feat/sprint-deadline-deps && git pull` — HEAD must be
-   **`a820253`** (or its descendant), clean tree. **NEVER commit non-docs code to `main`** — pushes
-   to main auto-deploy to production hibana.ir via the CI→CD chain. Branch pushes run CI only and
-   can NEVER deploy.
-3. Desktop repo (`assadigit/hibana-desktop`, `main` @ `9d53e64`, island pin `04218ca`) stays
-   READ-ONLY until the Phase 9 round. This phase touches the WEB repo only.
-4. Baseline BEFORE any edit (record exact commands + results): `bun install` (bun 1.3.14, node ≥ 24),
-   then `bun run verify` (tsc → eslint-0 → vitest → prod build → portability → fn-shape →
-   boundaries). Expected: **111 files / 960 tests green** (935 + 25 `sprint-ui-s246.test.ts`).
-   Fresh sandbox e2e note: `bunx playwright install chromium-headless-shell` (the pinned playwright
-   build wants chromium_headless_shell-1248; the sandbox cache ships 1200).
-5. Phase 8 needs ONLY the GitHub token, and ONLY for the one-shot authenticated push — never write
-   it to disk, `.git/config`, files, commit bodies, or logs.
+1. Clone BOTH repos (public — no token for clone). Web: `assadigit/hibana-source`;
+   Desktop: `assadigit/hibana-desktop` (**`main` @ `9d53e64`, v0.1.35, island pin
+   `04218ca` = web v0.4.1.43 — comes OUT of READ-ONLY this round**). `git status &&
+   git log --oneline -5 && git branch --show-current` in each; confirm no other agent
+   is mid-work in EITHER repo; preserve unrelated/uncommitted changes; reconcile —
+   never overwrite concurrent work.
+2. Web feature branch: `git checkout feat/sprint-deadline-deps && git pull` — HEAD must
+   be **`e49f2e5`** (or its descendant), clean tree. **NEVER commit non-docs code to
+   `main`** — pushes to main auto-deploy to production hibana.ir via the CI→CD chain
+   (`ci.yml` → `cd.yml` workflow_run-gated: CI green on main → build `--wire-html` →
+   deploy dev → live probe → deploy prod). Branch pushes run CI only and can NEVER
+   deploy.
+3. Baseline the WEB branch BEFORE any edit (record exact commands + results):
+   `bun install` (bun 1.3.14, node ≥ 24), then `bun run verify` (tsc → eslint-0 →
+   vitest → prod build → portability → fn-shape → boundaries). Expected: **112 files /
+   969 tests green** + `bun run check-i18n-parity` (1678=1678) + `bun run
+   check-cache-bust` (devboard.css v45 consistent). Fresh sandbox e2e note:
+   `bunx playwright install chromium-headless-shell` (the pinned build wants
+   chromium_headless_shell-1248).
+4. Baseline the DESKTOP repo: read its README + `desktop.yml` CI + the island layout
+   FIRST (the architecture map's desktop section: Go + Wails v2 + WebView2 +
+   modernc.org/sqlite; the island = machine-generated checksum-pinned snapshot via
+   `scripts/sync-island.mjs`; `frontend/dist/web-ref.json` pins the web ref; NEVER
+   hand-edit the island). If the sandbox has Go, run its gates (`go vet` + `go test
+   ./internal/...`); if not, record that and rely on the desktop CI run after push.
 
-## Current phase: Phase 8 — Cross-platform QA, regression, localization, accessibility
+## Current phase: Phase 9 — Integration, merge, deployment, handoff (BOTH repos)
 
-Web repo, tests + docs in scope (code fixes ONLY where a sweep row FAILS — this is a QA gate
-round, not a feature round). The deliverable is a **traceable release matrix**: every acceptance
-checklist row in spec §21/§22/§23/§24 + the visual guide's §6 checklist mapped to a test that
-EXISTS (name it — file + case) or a pin you ADD this round. Build the matrix as
-`src/tests/acceptance-s247.test.ts` (the vitest side) + extend the e2e family — every row either
-cites an existing green test or gains one:
+**Order of operations (the two tracks are coupled through the island re-pin — do the
+desktop code BEFORE the web merge so the island regenerates from the FINAL web ref):**
 
-- **§21 sprints (18 rows)**: the per-project scoping, the case-insensitive uniqueness, the
-  emoji-or-default identity everywhere, the OFF-by-default description/due toggles, the four
-  lifecycle states, the one-active invariant (incl. the conflict modal), the finish-archives-
-  only-Implemented flow, the completed history + non-deletability, the deletion preview counts +
-  never-deletes-tasks, the `Sprint: [name] (deleted)` snapshot, the dropdown (No sprint +
-  sprints + quick-create), the filter composing with search/priority, the overview's five-lane
-  counts, the Sprints page extension.
-- **§22 deadlines (20 rows)**: the OFF-by-default toggle, the hidden-while-off controls, the
-  saved personal deadline in Edit, the read-only inherited line, the ON=override / OFF=inherit
-  toggle contract, the personal-over-sprint precedence, the no-deadline-no-row rule, the exact
-  preset semantics, the 23:59 date-only default, the calendar selector reuse, the row/bar
-  placement, the four threshold WORDS, the done-neutrality, the completed-sprint historical
-  treatment, the extension scope rules (sprint vs task-only vs inherited choice), the presets
-  ADD to the existing deadline, the origin preservation.
-- **§23 dependencies (11 rows)**: the collapsed-by-default controls, the cross-sprint links,
-  the no-cross-project rule, the multi-blocker + multi-blocked relationships, the user-entered
-  Blocked-by + DERIVED reverse, the self/cycle prevention, the compact badges only when
-  relevant, the completion resolution, the all-blockers-complete rule, the never-alter-
-  priority/sprint/deadline/status rule, the unchanged priority ribbon.
-- **§24 regression (10 rows)**: the no-sprint/no-deadline/no-deps tasks behave exactly as
-  before, the search + priority filters, the editing/labels/upload/sync/archive behavior, the
-  web/desktop data agreement (verify the CONTRACT DOC mirrors the code — the desktop side is
-  Phase 9), the RTL + LTR layouts, the Gregorian/Jalali same-instant checks, the threshold
-  boundaries at EXACTLY 7d and EXACTLY 48h (the s244 VM pins exist — extend to every display
-  surface), the lifecycle flow tests, the cycle/multi-blocker resolution tests, the
-  migration-preserved-pre-existing-tasks guarantee.
-- **The a11y pass** (new — `e2e/a11y.spec.ts` exists; extend it or add `e2e/s247-a11y.spec.ts`):
-  every NEW dialog/badge from Phases 3-7 — the quick-create, the lifecycle dialogs (H1/H2/H3/I),
-  the due control, the extend dialogs (J1/J2/J3), the dep section + badges — gets keyboard
-  reachability (focus-visible), aria labeling (the roles/labels/expanded states), contrast on
-  the state colors, and color-independent communication (the WORD always carries the meaning).
-- **The full e2e suite run**: the WHOLE `e2e/` directory (~90 specs — 2.2m+ under one worker;
-  fresh sandbox: install the headless shell first). Record the exact count. Any failure: fix the
-  ROOT CAUSE (a real regression) or, if it is a pre-existing flake under load, re-run isolated +
-  document it in the session log (the S246 sprint-doc load-flake precedent).
-- **The localization sweep**: `bun run check-i18n-parity` + spot-check the FA rendering of every
-  Phases 3-7 surface in one FA e2e pass (the sprint dropdown + quick-create, the lifecycle
-  dialogs, the due control + presets, the extend dialogs, the dep section + badges); the
-  Gregorian/Jalali consistency (the SAME instant displays both ways — the dueDayLabel seam).
-- **public/ hygiene**: if ANY public/ file changes, the `?v=` bumps + the sw.js ladder + the
-  parity tests move with it (the s237/s238/s242/s243/s244/s245/s246 tripwire pins — move them
-  with citations).
+### Track A — the desktop round (hibana-desktop, `main`)
 
-## Tasks in required order (Phase 8)
+1. **Mirror schema v3** (the Go/SQLite mirror of migration 0065): add `dev_task_deps`
+   (blocker/blocked FKs + the `CHECK blocker<>blocked` + both indexes), the sprints
+   columns (`status`, `emoji`, `due_at`, `due_origin_at`, `updated_at`), the tasks
+   columns (`due_at`, `due_origin_at`), and the archives snapshot column
+   (`sprint_name_snapshot`) — semantics IDENTICAL to migration `0065_sprint_deadline_deps.sql`
+   (read it first; the backfill rules matter: ended→completed / draft→planned / open→
+   active, the one-active partial unique index, the two-open normalization). The mirror
+   is offline-local; the sync loop full-replaces from the payload (D8: no deltas
+   needed).
+2. **Consume the contract, do NOT fork it** (spec §18): the mirror stores the payload's
+   additive fields verbatim — `task_deps`, the per-task `effective_due_at` /
+   `effective_due_source` / `effective_due_origin_at` triple (server-computed — the
+   desktop ships ZERO deadline-resolution logic), the sprints' new columns. The origin
+   rules, thresholds, and precedence live server-side only.
+3. **The island re-pin** from the post-Phase-8 web ref: run `scripts/sync-island.mjs`
+   against hibana-source `feat/sprint-deadline-deps` @ `e49f2e5` (or its final
+   descendant after Track B's PR merge — re-pin AFTER the merge if the web ref moves
+   again). This pulls devboard.js v36, board-page.js v33, project-page.js v84,
+   sprint-page.js v27, devboard.css v45, due-control.js v1 + the i18n carriers into
+   `frontend/dist` and repoints `web-ref.json`.
+4. **The seam gates** (D9): after the re-pin, the island's `devboard.js` still carries
+   EXACTLY 7 `hibanaFetch(` + 2 `hibanaXHR(` and `board-page.js` exactly 4
+   `hibanaFetch(` with 0 bare `fetch(` — the S242-S246 web discipline kept ZERO new
+   fetch sites (pinned in `sprint-ui-s242/243/244/245/246.test.ts` and re-verified
+   inside S247's 969), so the counts should HOLD; if the regenerated island needs a
+   method/path allow-list update for the NEW endpoints (POST `/api/devtasks/:id/deps`,
+   DELETE `/api/devtasks/:id/deps/:blockerId`, POST `/api/sprints/:id/pause|resume`,
+   PATCH `/api/sprints/:id`, POST `/api/projects/:id/sprints`), extend the SEAM_PATCHES
+   through the recorded process — never hand-patch.
+5. **The version ladder lockstep**: bump the desktop version (v0.1.35 → v0.1.36 or the
+   repo's ladder convention — read desktop.yml + main.go first) + the `WEB_REF` in
+   desktop.yml; the web package stays 0.4.1.43 unless the merge round bumps it (if the
+   repo convention bumps the web patch on feature merges, do it in the PR — never
+   directly on main).
+6. **Desktop CI probe #14**: the desktop CI (`desktop.yml`) runs island checksum →
+   pinned-ref gate → go vet + go test → wails build (exe + NSIS installer) → portable
+   zip + SHA256 → autorelease `vX.Y.Z-desktop`. Verify the FULL pipeline green on the
+   pushed commit; the probe #14 live check (the post-build smoke) must pass against
+   the dev deployment.
+7. Commit + push `main` on hibana-desktop (one-shot token URL). Desktop pushes to main
+   build + autorelease per its own policy — that IS its deployment path (no CD chain to
+   prod web).
 
-1. **Build the acceptance matrix**: read §21/§22/§23/§24 row by row; for each row record
-   EXISTS (file + test name) or MISSING. Land the matrix as the header table of the new
-   `acceptance-s247.test.ts` (a source-pin table the suite asserts stays in lock-step).
-2. **Close the MISSING rows**: vitest source/domain pins first (cheap, deterministic); e2e
-   for behavioral rows. Threshold boundary rows extend the s244 VM pins (exactly-48h /
-   exactly-7d edges — every renderer). The a11y rows extend the a11y spec.
-3. **The full e2e suite run** + the flake triage.
-4. **The localization + RTL sweep** (the FA pass + the calendar consistency).
-5. **Fix everything the sweep surfaces** — minimal, cited, intent-preserving; re-run the gates.
+### Track B — the web PR → merge → auto-deploy (hibana-source)
+
+1. Open the PR `feat/sprint-deadline-deps` → `main` (the branch @ `e49f2e5` or its
+   desktop-round descendant if Track A required web-side tweaks — keep them minimal and
+   cited). PR body: the acceptance-matrix summary (every §21/§22/§23/§24 row + visual
+   §6 → test citations, the S247-ADD pins), the gate results (verify 112f/969t, i18n
+   1678=1678, cache-bust, the FULL e2e 509/509), the D1–D9 register state, and the
+   assumptions register (1–15).
+2. Wait for the branch CI to be green (the PR's checks), then merge using the repo's
+   policy (squash/merge per the repo's history convention — read the recent main
+   history first; do NOT rebase-rewrite the verified branch).
+3. **The merge to main AUTO-DEPLOYS to production hibana.ir** via CI→CD (workflow_run
+   gated): dev deploy → live probe → prod deploy. VERIFY (never assume): the CD run's
+   SHA matches the merge SHA; the deployed revision (the live site's version endpoint /
+   footer) matches; the health probe green (the repo's own probe + healthcheck.io's
+   `https://hc-ping.com/fzlazarfuosqezmicvcgha/hibana` if the owner wired it); a smoke
+   pass over the live site (login, a board load, a sprint create/finish round on the
+   DEV environment FIRST if reachable — never run destructive smoke on prod data).
+4. **The D1 migration**: the prod D1 database must run migration 0065 (+ any pending
+   earlier migrations). Run the DEV database first via the repo's
+   `.github/workflows/d1-migrate-dev.yml` workflow_dispatch (that is its purpose) and
+   verify the dev site still serves boards. **For PROD: confirm the existing process
+   FIRST (the repo's docs/README/owner's instruction — there may be a prod-migrate
+   workflow or an owner-run manual step). NEVER improvise a manual prod D1 migration;
+   if no prod process exists, STOP and report — the migration is additive-and-
+   nullable so the deploy is safe either way until the owner runs it.**
+5. The final report (the definition of done, §7): every §21/§22/§23/§24 row + visual
+   §6 row marked Done / Not Done / Blocked with its citation (the S247 matrix is the
+   source), the D1–D9 register's final state, the assumptions register (1–15 + the
+   queued owner decisions: assumption 11's H1 day-window seam, the dark-theme contrast
+   family from assumption 15), the desktop verification evidence, the deploy evidence
+   (SHAs, health, smoke), and the Phase 9 re-pin inventory: **ZERO new fetch sites
+   across Phases 3-8** (the s242-s246 pins + the island's held 7+2/4 counts), the
+   FN-ALLOWLIST deltas across the feature (the S240 re-pins, the S241 board GET, the
+   S246 loadDetail row), the sw.js ladder end-state (v459; devboard.js v36, board-page
+   v33, project-page v84, sprint-page v27, devboard.css v45, due-control v1, i18n-en
+   v110 + i18n.js v163 with the i18n-fa v104 injector).
 
 ## Gate ladder (fix everything until green)
 
-`bun run verify` (tsc → eslint-0 → vitest → prod build → portability → fn-shape → boundaries)
-+ `bun run check-i18n-parity` + `bun run check-cache-bust` (both MATTER if public/ moved).
-e2e: the FULL suite (fresh sandbox: `bunx playwright install chromium-headless-shell` first)
-including the sprint/board family (`sprint-timeline`, `s206-sprint-fixes`, `sprint-ux`,
-`sprint-doc`, `s209-kanban-parity`, `s242-sprint-ui`, `s243-sprint-lifecycle`,
-`s244-deadline-ui`, `s245-extend-flows`, `s246-deps-ui`, `board-filters`) + the new s247
-specs. Update `docs/autopilot/FN-ALLOWLIST.md` pins if handlers move (the tripwires pin the
-sw.js ladder — move them with you).
+WEB: `bun run verify` (tsc → eslint-0 → vitest **112 files / 969 tests** → prod build →
+portability → fn-shape → boundaries) + `check-i18n-parity` (1678=1678) +
+`check-cache-bust`. e2e: the FULL suite (509 across 101 spec files — fresh sandbox:
+`bunx playwright install chromium-headless-shell` first; ~25 min, chunk if the command
+timeout bites) at minimum the sprint/board family + the s247 specs before the merge.
+DESKTOP: its own CI (island checksum + pinned-ref + go vet + go test + wails build +
+probe #14) green on the pushed main.
 
 ## Commit, push, deploy rules
 
-One or two coherent commits on **`feat/sprint-deadline-deps` ONLY**, message style
-`test(qa): S247 <lowercase one-liner> — spec pack phase 8` (or `fix(ui):` if a real defect
-was fixed — cite it) with a body carrying the acceptance-matrix summary (rows covered /
-added / pre-existing-failing) + the full e2e count + any fixes. Review the final diff for
-unrelated changes and secrets. Push: feature branch only, one-shot token URL, never persist
-the token. A branch push runs CI only — it can NEVER deploy. No merge to main, no PR yet, no
-`bun run deploy*`, no D1 workflow runs — deployment + D1 = Phase 9. No desktop changes, no
-unrelated refactors, no new runtime deps, ZERO new fetch sites.
+Desktop: one or two coherent commits on `main` (its ladder policy), message style
+`feat(sync): S248 <lowercase one-liner> — mirror schema v3 + island re-pin` — push via
+one-shot token URL. Web: the PR + merge ONLY (never a direct non-md push to main —
+that is the deploy). Docs: the pack close-out commit (agent-workflow/*.md ONLY) rides
+main AFTER the merge, CI-skipped as always. If the CD chain fails on the merge: do NOT
+force anything — diagnose from the run log, fix on the branch if it is a code defect,
+or report if it is an environment/credential blocker. No unrelated refactors, no new
+runtime deps, ZERO new fetch sites.
 
 ## End of session (mandatory)
 
 1. Update the pack docs (read them off `origin/main` first): `IMPLEMENTATION-STATUS.md`
-   (Phase 8 checklist + session log with commit SHA + the acceptance-matrix results + the
-   full e2e count + any new assumptions/decisions) and REPLACE this file's content with the
-   fully populated **Phase 9 prompt** (Integration, merge, deployment, and handoff: the
-   desktop round — `assadigit/hibana-desktop` @ `9d53e64` comes out of READ-ONLY; the mirror
-   schema v3 (`dev_task_deps` + the new columns), the island re-pin from the post-Phase-8
-   web ref (the seam gates: devboard's 7+2 / board-page's 4 counts + the SEAM_PATCHES), the
-   version ladder lockstep, the desktop CI probe #14; the web PR → merge → CI→CD auto-deploy
-   with SHA + health + smoke verification; the D1 dev migration via `d1-migrate-dev.yml`
-   (confirm the PROD D1 process first — never improvise); the final report against every
-   acceptance checklist; the Phase 9 re-pin inventory: ZERO new fetch sites across
-   Phases 3-8, the FN-ALLOWLIST deltas, the sw.js ladder end-state).
-2. Push the feature branch (code) — token one-shot.
-3. Push the docs-only commit to main (agent-workflow/*.md ONLY — `**.md` pushes are CI-skipped
-   and cannot deploy; NEVER push non-md files to main).
-4. Factual report: files changed, the acceptance matrix (rows covered/added), exact
-   test/gate results (incl. the full e2e count), commit SHAs, push state (only what commands
-   confirmed), blockers, defaults/assumptions taken, Phase 9 handoff location.
+   (Phase 9 checklist + the final session log with both repos' commit SHAs + the PR/merge
+   SHA + the CD run's SHA + health/smoke evidence + the desktop pipeline run + the D1
+   migration state + the final-report summary) and REPLACE this file's content with the
+   CLOSE-OUT note: the definition-of-done state (§7) — every acceptance row marked,
+   both repos verified, migrations safe, the queued owner decisions restated (assumption
+   11 + the dark-theme contrast family), and the explicit statement that no further
+   implementation session is required (or exactly what remains, if anything is blocked).
+2. Push the web feature branch if it moved (one-shot token), the desktop main push
+   (one-shot token), and the docs-only commit to hibana-source main (agent-workflow/*.md
+   ONLY).
+3. Factual report: files changed in BOTH repos, the PR/merge/deploy SHAs + verification
+   evidence (health + smoke + the CD run), the desktop pipeline + probe results, the D1
+   migration state (dev run + the prod process confirmed or the owner-step flagged),
+   exact test/gate results, the final acceptance-report state (Done/Not Done/Blocked per
+   checklist), the Phase 9 re-pin inventory, blockers, defaults/assumptions taken, and
+   the handoff location of every artifact.

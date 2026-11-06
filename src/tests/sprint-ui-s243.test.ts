@@ -405,13 +405,13 @@ describe('S243 — the desktop seam tripwires (the Phase 9 re-pin inventory)', (
     expect((readPublic('js/board-page.js').match(/\bfetch\(/g) || []).length).toBe(4)
   })
 
-  it('sw.js is at hibana-v457 with the S245 carrier note (the extension round moved the ladder; the pin intent is preserved, the carriers moved with it)', () => {
+  it('sw.js is at hibana-v458 with the S246 carrier note (the dependencies round moved the ladder; the pin intent is preserved, the carriers moved with it)', () => {
     const sw = readPublic('sw.js')
-    expect(sw.includes('const VERSION = "hibana-v457"')).toBe(true)
-    expect(sw.includes('// v457 (S245)')).toBe(true)
-    // the carrier bumps the note records (S245's round: devboard v35, board-page v32,
-    // project-page v83, sprint-page v26, the i18n-fa v103 injector literal)
-    expect(sw).toMatch(/devboard\.js v35/)
-    expect(sw).toMatch(/i18n-fa\.js\?v=103/)
+    expect(sw.includes('const VERSION = "hibana-v458"')).toBe(true)
+    expect(sw.includes('// v458 (S246)')).toBe(true)
+    // the carrier bumps the note records (S246's round: devboard v36, board-page v33,
+    // project-page v84, sprint-page v27, the i18n-fa v104 injector literal)
+    expect(sw).toMatch(/devboard\.js v36/)
+    expect(sw).toMatch(/i18n-fa\.js\?v=104/)
   })
 })

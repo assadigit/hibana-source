@@ -41,6 +41,7 @@
 | `src/routes/module.ts:<anon>@L26` | 81 | [endpoint-flow] client module page aggregate. |
 | `src/routes/notifications.ts:<anon>@L38` | 133 | [endpoint-flow] the attention aggregate — 7 parallel queries + group rendering (AP-55 filter pinned here). |
 | `src/routes/projects/detail-helpers.ts:renderTitle` | 66 | [barely-over] the flat-dispatch title mini-renderer (was 8-deep nesting before Phase 3 flattened it). |
+| `src/routes/projects/detail-helpers.ts:loadDetail` | 62 | [barely-over] the detail pool's parallel loader — ONE Promise.all screen (hurdles→backlog + the S244 effective-deadline seam `devTasksWithDue` + the S246 `taskDepsForProject` edge pool); the additive pool keys grew the destructuring past the bar at S246 (was 60 at S244). Pin added by the S246 dependencies round. |
 | `src/routes/projects/index.ts:<anon>@L402` | 64 | [barely-over] PATCH project (history + progress freeze rules). |
 | `src/routes/projects/index.ts:<anon>@L668` | 63 | [barely-over] archive/unarchive state machine (409 guards + history). |
 | `src/routes/quicknotes-helpers.ts:notebookHtml` | 125 | [endpoint-flow] one template block (the notebook page); Phase 4 frontend module. |

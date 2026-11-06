@@ -163,7 +163,7 @@
     return lang === 'fa' ? (wd + 1) % 7 : wd
   }
 
-  const state = { projectId: null, project: null, tasks: [], categories: [], sprints: [], tags: [] }
+  const state = { projectId: null, project: null, tasks: [], categories: [], sprints: [], tags: [], task_deps: [] }
 
   async function load(projectId) {
     state.projectId = projectId
@@ -173,6 +173,12 @@
     state.categories = data.categories
     state.sprints = data.sprints
     state.tags = data.tags
+    // S246 (spec pack Phase 7 — contract §12.3): the payload's 7th key, the flat
+    // per-project dep edges {blocker_task_id, blocked_task_id}. EVERYTHING the UI
+    // folds (Blocked-by lists, the derived reverse Blocks counts, the
+    // blocked/ready classification) reads THIS pool — never a second endpoint,
+    // never a stored reverse column (spec §15's derived rule + the S241 decision).
+    state.task_deps = data.task_deps || []
     return data
   }
 
@@ -349,6 +355,129 @@
       (task && task.id ? '<button type="button" class="db-due-ext" data-db-extend="' + esc(task.id) + '" title="' + esc(extHint) + '" aria-label="' + esc(extHint) + '">' + EXT_ICON + '</button>' : '') + '</span>'
   }
 
+  // ------------------------------------------------------------- dependency render
+  // S246 (spec pack Phase 7 — §14-§16 + Screens K/L): the shared CLIENT dep-fold
+  // stack. The MECHANICS all exist server-side since S240/S241 (the dev_task_deps
+  // table + the POST/DELETE endpoints + the payload's task_deps edge pool); what
+  // this stack owns is the FOLD + the RENDER: *Blocked-by* = the edges where
+  // blocked_task_id = X joined against the task rows for completion; the reverse
+  // *Blocks N* counts = the SAME fold's other half — derived, NEVER a second
+  // endpoint or a stored column (spec §15 + the S241 recorded decision). The
+  // classification is §16.1's rule: a task with multiple blockers stays BLOCKED
+  // until ALL of them are complete; every blocker complete → 'ready' (the
+  // resolution SURFACING — the relationship itself is retained, never erased).
+  // Dependencies are SOFT (assumption 2 / §16.1): these helpers are pure folds —
+  // they never gate Kanban movement, never mutate priority/status/sprint/deadline,
+  // and the renderers keep the badges fully independent of the priority ribbon
+  // and the deadline row (spec §16 + §23). One implementation exported on
+  // window.HibanaBoard so board-page.js (the /kanban cards + the S238 task view)
+  // and project-page.js (the embedded board's repaint twin) render identically
+  // — never forked (the S209 parity doctrine).
+  /** The Blocked-by rows: the blocker task ids for X (edges where
+   * blocked_task_id = X — the §12.3 read contract). */
+  const depsOf = (taskId, edges) =>
+    (edges || state.task_deps || []).filter((e) => e && e.blocked_task_id === taskId).map((e) => e.blocker_task_id)
+  /** The DERIVED reverse count: how many tasks X blocks (the same edges' other
+   * half — spec §15: never asked of the user, never stored, never a second
+   * endpoint; N counts the blocked tasks regardless of their state — the
+   * relationship exists and the badge says so). */
+  const blocksCount = (taskId, edges) => {
+    let n = 0
+    for (const e of edges || state.task_deps || []) if (e && e.blocker_task_id === taskId) n++
+    return n
+  }
+  /** §16.1: 'blocked' while ANY blocker is incomplete; 'ready' when blockers
+   * existed and ALL are complete (a persistent derived state — the fold answers
+   * it on every render, not a one-time transition event; the edge rows stay in
+   * the pool either way — spec §16's "retain the relationship as historical
+   * information"); null when the task has no blockers at all. */
+  const blockedStateOf = (taskId, edges, taskRows) => {
+    const ids = depsOf(taskId, edges)
+    if (!ids.length) return null
+    const rows = taskRows || state.tasks
+    const by = new Map()
+    for (const r of rows) if (r && r.id) by.set(r.id, r)
+    let open = 0
+    for (const id of ids) {
+      const r = by.get(id)
+      if (!r || r.status !== 'done') open++ // a missing row counts open — never a false Ready
+    }
+    return open > 0 ? 'blocked' : 'ready'
+  }
+  // Screen L's compact glyphs — the same restrained stroke grammar as DUE_ICON
+  // (a held circle for Blocked, the check for Ready, the outbound arrow for the
+  // derived Blocks count). Icons follow logical direction with the layout.
+  const DEP_BLOCKED_ICON = '<svg class="icon db-dep-ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="M8.4 12h7.2"/></svg>'
+  const DEP_READY_ICON = '<svg class="icon db-dep-ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>'
+  const DEP_BLOCKS_ICON = '<svg class="icon db-dep-ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h13"/><path d="M13 6.5l5.5 5.5-5.5 5.5"/></svg>'
+  /** Screen L — the compact card badges, their own row in the Phase 3 seam
+   * family (after the sprint row + the deadline row, before the tags — Screen M
+   * variants 6/7). `Blocked` (optionally `Blocked · N` with multiple blockers,
+   * the guide's compact count form) and/or `Blocks N` render ONLY when relevant
+   * (§23: no deps → no row at all). Fully independent of the priority ribbon
+   * AND the deadline display; the WORD carries the meaning (never color alone). */
+  const depBadgeHtml = (task, edges, taskRows, lang) => {
+    const id = task && task.id
+    if (!id) return ''
+    const e = edges || state.task_deps || []
+    const blockedN = depsOf(id, e).length
+    const blocksN = blocksCount(id, e)
+    if (!blockedN && !blocksN) return ''
+    const l = lang || (window.hibanaI18n && window.hibanaI18n.lang ? window.hibanaI18n.lang() : 'en')
+    let html = '<span class="db-dep-row">'
+    if (blockedN) {
+      const st = blockedStateOf(id, e, taskRows)
+      const label = st === 'ready'
+        ? t('db.dep.ready', 'Ready')
+        : (blockedN > 1 ? t('db.dep.blockedN', 'Blocked · {n}').replace('{n}', faDig(blockedN)) : t('db.dep.blocked', 'Blocked'))
+      const hint = st === 'ready'
+        ? t('db.dep.readyHint', 'All blockers are complete — this task is ready.')
+        : t('db.dep.blockedHint', 'Blocked by {n} task(s) — open the task to see them.').replace('{n}', faDig(blockedN))
+      html += '<span class="db-dep-badge st-' + st + '" title="' + esc(hint) + '">' + (st === 'ready' ? DEP_READY_ICON : DEP_BLOCKED_ICON) + '<span class="db-dep-badge-txt" dir="auto">' + esc(label) + '</span></span>'
+    }
+    if (blocksN) {
+      const label = t('db.dep.blocksN', 'Blocks {n}').replace('{n}', faDig(blocksN))
+      const hint = t('db.dep.blocksHint', 'This task blocks {n} task(s).').replace('{n}', faDig(blocksN))
+      html += '<span class="db-dep-badge st-blocks" title="' + esc(hint) + '">' + DEP_BLOCKS_ICON + '<span class="db-dep-badge-txt" dir="auto">' + esc(label) + '</span></span>'
+    }
+    html += '</span>'
+    return html
+  }
+  /** The S238 read-only task view's row-only twin — the DETAILS surface, so the
+   * blocker NAMES join here (spec §16: "detailed blocker names belong in task
+   * details or the Edit Task modal, not in long card text"). Same row grammar,
+   * compact for the meta stack; '' when the task has no deps in either
+   * direction. */
+  const depViewHtml = (task, edges, taskRows, lang) => {
+    const id = task && task.id
+    if (!id) return ''
+    const e = edges || state.task_deps || []
+    const blockerIds = depsOf(id, e)
+    const blocksIds = (e || []).filter((x) => x && x.blocker_task_id === id).map((x) => x.blocked_task_id)
+    if (!blockerIds.length && !blocksIds.length) return ''
+    const l = lang || (window.hibanaI18n && window.hibanaI18n.lang ? window.hibanaI18n.lang() : 'en')
+    const rows = taskRows || state.tasks
+    const by = new Map()
+    for (const r of rows) if (r && r.id) by.set(r.id, r)
+    const nameOf = (tid) => {
+      const r = by.get(tid)
+      const title = r && r.title ? String(r.title).split('\n')[0] : ''
+      return title || '—'
+    }
+    let html = '<span class="db-dep-row db-dep-view">'
+    if (blockerIds.length) {
+      const st = blockedStateOf(id, e, rows)
+      const label = t('db.dep.viewBlocked', 'Blocked by: {names}').replace('{names}', blockerIds.map(nameOf).join(' · '))
+      html += '<span class="db-dep-badge st-' + st + '">' + (st === 'ready' ? DEP_READY_ICON : DEP_BLOCKED_ICON) + '<span class="db-dep-badge-txt" dir="auto">' + esc(label) + '</span></span>'
+    }
+    if (blocksIds.length) {
+      const label = t('db.dep.viewBlocks', 'Blocks: {names}').replace('{names}', blocksIds.map(nameOf).join(' · '))
+      html += '<span class="db-dep-badge st-blocks">' + DEP_BLOCKS_ICON + '<span class="db-dep-badge-txt" dir="auto">' + esc(label) + '</span></span>'
+    }
+    html += '</span>'
+    return html
+  }
+
   // hibana-sync-status-spec §8/§14: every TASK mutation reports to the per-card
   // sync tracker (public/js/sync-state.js — the ONE state store; the card badges,
   // the header Sync button count and the aria-live region all derive from it).
@@ -366,6 +495,18 @@
     method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body),
   }))
   const deleteTask = (id) => tracked(id, () => api('/api/devtasks/' + id, { method: 'DELETE' }))
+  // S246 (spec pack Phase 7 — contract §12.3's WRITE surface): the dep edge
+  // wrappers, the patchTask shape. They ride the SHARED api() wrapper (ZERO new
+  // fetch sites — the Phase 9 re-pin inventory stays untouched) and report to
+  // the per-card sync tracker like every task mutation. The POST answers 201
+  // new / 200 {existing:true} idempotent; self + cross-project → 400
+  // invalid_input; a cycle-closing pick → 409 cycle (the caller surfaces the
+  // code INLINE — never a generic toast). The DELETE is the tag-link shape:
+  // 200 always.
+  const addTaskDep = (id, blockerId) => tracked(id, () => api('/api/devtasks/' + id + '/deps', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ blocker_id: blockerId }),
+  }))
+  const removeTaskDep = (id, blockerId) => tracked(id, () => api('/api/devtasks/' + id + '/deps/' + blockerId, { method: 'DELETE' }))
   // A reorder is ONE request for many cards: trackBulk puts every id Pending
   // together and settles them on the single verdict (the retry re-issues the bulk
   // — the server contract is idempotent).
@@ -1010,6 +1151,12 @@
     // and renders the read-only line below it (§10.1).
     modalCtx.draft.dueOn = !!(task && task.due_at)
     modalCtx.draft.dueAt = task && task.due_at ? task.due_at : null
+    // S246 (spec pack Phase 7 — Screen K): the Dependencies section's state —
+    // COLLAPSED on every open (spec §15's collapsed-by-default; the open state
+    // never persists across opens). Edit mode's current blockers read the edge
+    // pool live at render (depsOf); Add mode stages its picks here.
+    modalCtx.draft.depsOpen = false
+    if (!task) modalCtx.draft.depStaged = []
     // S208: NEW tasks carry a STAGED tag list (the create body's tags[] — the
     // server find-or-creates them; the project composer's contract) and a fresh
     // staged-shots strip. Existing tasks keep their live tag add/remove.
@@ -1219,6 +1366,43 @@
             '<p class="db-due-err" data-db-due-modal-err role="alert" hidden></p>' +
           '</div>'
         })() +
+        // S246 (spec pack Phase 7 — §15 + Screen K): the Dependencies section —
+        // COLLAPSED BY DEFAULT (spec §15: "optional and collapsed by default so
+        // ordinary task creation remains uncluttered"; the S244 due-toggle's
+        // grammar: a compact section header, hidden controls while collapsed).
+        // The header carries a small count of the current blockers so an edited
+        // task's links stay discoverable without expanding. Expanded reveals the
+        // SEARCHABLE Blocked-by multi-select of SAME-PROJECT tasks (the loaded
+        // payload's state.tasks — each option: title + sprint identity + status);
+        // the current blockers pre-selected. EDIT mode mutates LIVE through the
+        // existing endpoints (POST on select / DELETE on deselect — the recorded
+        // decision: the 400/409 answers surface INLINE at the moment of the bad
+        // pick, and the modal never carries a dep-diff to reconcile at Save);
+        // ADD mode STAGES the picks and POSTs them right after the create ack
+        // (a task that does not exist yet cannot be linked — self/cycle are
+        // impossible pre-create, same-project is by construction). No second
+        // editable Blocks field EVER (spec §15 — the reverse view is derived).
+        (function () {
+          const curIds = isNew ? (modalCtx.draft.depStaged || []) : depsOf(modalCtx.taskId, state.task_deps)
+          const blocksN = isNew ? 0 : blocksCount(modalCtx.taskId, state.task_deps)
+          const open = !!modalCtx.draft.depsOpen
+          return '<div class="db-field db-deps-field" data-db-deps-field>' +
+            '<button type="button" class="db-deps-toggle" data-db-deps-toggle aria-expanded="' + open + '" aria-controls="db-deps-mount">' +
+              '<svg class="icon db-deps-chev" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>' +
+              '<span>' + esc(t('db.deps.section', 'Dependencies (optional)')) + '</span>' +
+              (curIds.length ? '<span class="db-deps-count" aria-label="' + esc(t('db.dep.blockedHint', 'Blocked by {n} task(s) — open the task to see them.').replace('{n}', faDig(curIds.length))) + '">' + esc(faDig(curIds.length)) + '</span>' : '') +
+            '</button>' +
+            '<div class="db-deps-mount" data-db-deps-mount id="db-deps-mount"' + (open ? '' : ' hidden') + '>' +
+              '<span class="db-deps-label">' + esc(t('db.deps.blockedBy', 'Blocked by')) + '</span>' +
+              '<input type="search" class="db-deps-q" data-db-deps-q dir="auto" autocomplete="off" spellcheck="false" placeholder="' + esc(t('db.deps.searchPh', 'Search tasks…')) + '" aria-label="' + esc(t('db.deps.searchPh', 'Search tasks…')) + '">' +
+              '<div class="db-deps-list" data-db-deps-list role="listbox" aria-multiselectable="true" aria-label="' + esc(t('db.deps.blockedBy', 'Blocked by')) + '"></div>' +
+              '<p class="muted small db-deps-note">' + esc(t('db.deps.autoNote', 'The reverse Blocks view is derived automatically — you only enter Blocked by.')) + '</p>' +
+              (isNew ? '<p class="muted small db-deps-note">' + esc(t('db.deps.addNote', 'Links are created when the task is saved.')) + '</p>' : '') +
+              (!isNew && blocksN ? '<p class="db-deps-blocksline muted small" data-db-deps-blocksline>' + esc(t('db.deps.blocksLine', 'This task blocks {n} task(s).').replace('{n}', faDig(blocksN))) + '</p>' : '') +
+              '<p class="db-deps-err" data-db-deps-err role="alert" hidden></p>' +
+            '</div>' +
+          '</div>'
+        })() +
         // S208: the Upload File button + the shots grid — for BOTH modes (the
         // owner's ask: creating a task must offer the picture upload the same way
         // established tasks do). New tasks stage; existing tasks pin immediately
@@ -1418,6 +1602,106 @@
         const after = modalCtx ? modalCtx.onSaved : null
         closeModal(false)
         if (savedTask) openTaskDeadlineExtend(savedTask, { onDone: after })
+      }
+    }
+    // S246 (spec pack Phase 7 — Screen K): the Dependencies section's wiring.
+    // The toggle flips the mount's hidden + aria-expanded IN PLACE (no re-render
+    // — the search text + the scroll position survive); the list paints from the
+    // truth pools (edit: state.task_deps; add: the staged picks) filtered by the
+    // search box. Clicking an option: edit mode mutates LIVE (the recorded
+    // decision — POST on select / DELETE on deselect through the existing
+    // endpoints, so the 400 self / 409 cycle answers surface INLINE at the
+    // moment of the bad pick and the modal never carries a dep-diff); add mode
+    // toggles the staged pick (the links POST right after the create ack).
+    const depsToggleBtn = el.querySelector('[data-db-deps-toggle]')
+    const depsMountEl = el.querySelector('[data-db-deps-mount]')
+    const depsListEl = el.querySelector('[data-db-deps-list]')
+    const depsQEl = el.querySelector('[data-db-deps-q]')
+    const depsErrEl = el.querySelector('[data-db-deps-err]')
+    if (depsToggleBtn && depsMountEl && depsListEl) {
+      const depSelected = () => (isNew ? (modalCtx.draft.depStaged || []) : depsOf(modalCtx.taskId, state.task_deps))
+      // A live dep mutation changes OTHER cards' badges too (the blocker's
+      // Blocks N, the lane-mates of any dependent) — coalesce ONE board refresh
+      // behind the open editor (the caller's onSaved, debounced: rapid picks
+      // collapse into a single re-pull). The modal itself is a body child and
+      // survives the board's re-render untouched.
+      let depRefreshTimer = null
+      const depBoardRefresh = () => {
+        if (!modalCtx || !modalCtx.onSaved) return
+        clearTimeout(depRefreshTimer)
+        depRefreshTimer = setTimeout(() => { if (modalCtx && modalCtx.onSaved) modalCtx.onSaved() }, 300)
+      }
+      const depPaintList = () => {
+        const q = depsQEl && depsQEl.value ? String(depsQEl.value).trim().toLowerCase() : ''
+        const cur = depSelected()
+        const rows = state.tasks.filter((row) => !q || String(row.title || '').toLowerCase().includes(q))
+        depsListEl.innerHTML = rows.length
+          ? rows.map((row) => {
+              const sel = cur.includes(row.id)
+              const sp = row.sprint_id ? findSprint(row.sprint_id) : null
+              // each option: TITLE + sprint identity (the glyph grammar) + status
+              // (Screen K — "identify each task clearly by title and, where
+              // useful, its sprint"); the CURRENT task stays listed (marked) so
+              // the self-400 surface is reachable + honest, but it can never
+              // stick (§14.2's no-self rule answers inline).
+              const meta = (sp ? sprintGlyph(sp) + ' ' + sp.name : t('db.noSprint', 'No sprint')) + ' · ' + statusLabel(row.status || 'idea')
+              const self = !isNew && row.id === modalCtx.taskId
+              return '<button type="button" class="db-deps-opt' + (sel ? ' is-on' : '') + '" role="option" aria-selected="' + sel + '" data-dep="' + esc(row.id) + '" dir="auto">' +
+                '<span class="db-deps-check" aria-hidden="true">' + (sel ? '✓' : '') + '</span>' +
+                '<span class="db-deps-opt-body"><span class="db-deps-opt-title">' + esc(String(row.title || '').split('\n')[0]) + (self ? ' <span class="muted">(' + esc(t('db.deps.thisTask', 'this task')) + ')</span>' : '') + '</span>' +
+                '<span class="db-deps-opt-meta muted">' + esc(meta) + '</span></span>' +
+              '</button>'
+            }).join('')
+          : '<p class="db-deps-empty muted small">' + esc(t('db.deps.noneFound', 'No tasks match.')) + '</p>'
+      }
+      depsToggleBtn.onclick = () => {
+        modalCtx.draft.depsOpen = !modalCtx.draft.depsOpen
+        depsToggleBtn.setAttribute('aria-expanded', String(modalCtx.draft.depsOpen))
+        depsMountEl.hidden = !modalCtx.draft.depsOpen
+        if (modalCtx.draft.depsOpen) depPaintList()
+      }
+      if (!depsMountEl.hidden) depPaintList() // a mid-edit re-render with the section already open
+      if (depsQEl) depsQEl.oninput = depPaintList
+      depsListEl.onclick = async (ev) => {
+        const btn = ev.target.closest('[data-dep]')
+        if (!btn || !modalCtx) return
+        const depId = btn.getAttribute('data-dep')
+        const row = findTask(depId)
+        const name = row ? String(row.title || '').split('\n')[0] : ''
+        const isOn = depSelected().includes(depId)
+        if (depsErrEl) { depsErrEl.hidden = true; depsErrEl.textContent = '' }
+        if (isNew) {
+          // Add mode: STAGE the pick. Self/cycle cannot exist pre-create (nothing
+          // references an id that does not exist yet) and same-project is by
+          // construction — the list IS this project's payload tasks.
+          modalCtx.draft.depStaged = isOn ? depSelected().filter((x) => x !== depId) : [...depSelected(), depId]
+          depPaintList()
+          return
+        }
+        // Edit mode: the LIVE mutation (the recorded decision).
+        try {
+          if (isOn) await removeTaskDep(modalCtx.taskId, depId)
+          else await addTaskDep(modalCtx.taskId, depId)
+          // keep the local edge pool in lock-step with the ack (the modal's own
+          // fold + the board's next render read it; cards refresh at the next
+          // reload — the live-tag-chips precedent)
+          if (isOn) state.task_deps = state.task_deps.filter((x) => !(x.blocker_task_id === depId && x.blocked_task_id === modalCtx.taskId))
+          else if (!state.task_deps.some((x) => x.blocker_task_id === depId && x.blocked_task_id === modalCtx.taskId)) state.task_deps.push({ blocker_task_id: depId, blocked_task_id: modalCtx.taskId })
+          depBoardRefresh()
+          depPaintList()
+        } catch (e2) {
+          // the INLINE 400/409 surfaces (Screen K: "show a clear inline
+          // explanation" — never a generic toast). A failed pick never sticks:
+          // the repaint below re-reads the unchanged truth pools.
+          const code = e2 && e2.code ? String(e2.code) : ''
+          if (depsErrEl) {
+            if (code === 'cycle') depsErrEl.textContent = t('db.deps.cycleErr', 'Circular dependency: {name} is already blocked by this task, directly or through a chain.').replace('{name}', name)
+            else if (code === 'invalid_input') depsErrEl.textContent = t('db.deps.selfErr', 'A task cannot block itself.')
+            else depsErrEl.textContent = t('db.deps.saveErr', "Couldn't update the dependency.")
+            depsErrEl.hidden = false
+          }
+          depPaintList()
+        }
       }
     }
     // S208: renderModal() rebuilds the whole card — the TITLE textarea is the
@@ -1646,8 +1930,19 @@
             try { await patchShot(s.id, { taskId: created.id }) } catch { pinFail++ }
           }
           modalStaged = []
+          // S246 (Screen K, add mode): the STAGED dep links POST right after the
+          // create ack — the create-then-link chain (the staged-shots pin loop's
+          // shape). A failed link is counted + toasted, never a silent miss
+          // (self/cycle are impossible pre-create; same-project is by
+          // construction — the belt only answers a network-level failure).
+          let depFail = 0
+          const stagedDeps = [...(modalCtx.draft.depStaged || [])]
+          for (const bid of stagedDeps) {
+            try { await addTaskDep(created.id, bid) } catch { depFail++ }
+          }
           window.hibana && window.hibana.toast(t('db.taskAdded', 'Task added'), 'ok')
           if (pinFail) window.hibana && window.hibana.toast(t('project.shotsMixed', '{ok} uploaded, {fail} failed').split('{ok}').join(faDig(stagedCount - pinFail)).split('{fail}').join(faDig(pinFail)), 'err')
+          if (depFail) window.hibana && window.hibana.toast(t('db.deps.saveErr', "Couldn't update the dependency.").split('{n}').join(faDig(depFail)), 'err')
         } else {
           const body = { title, status: modalCtx.draft.status, priority: modalCtx.draft.priority, category_id: categoryId || null, sprint_id: sprintId || null }
           // S244 (§10.2): ON → the override rides; OFF on a task that HAD a personal
@@ -2686,6 +2981,16 @@
     // effective_due_origin_at — never re-derived), and the card row + bar grammar.
     // Exported so board-page.js AND project-page.js render identically (§18).
     deadlineStateOf, deadlineElapsedPct, deadlineRowHtml, deadlineViewHtml,
+    // S246 (spec pack Phase 7 — §14-§16 + Screens K/L): the shared dependency
+    // stack — the folds (Blocked-by rows, the DERIVED reverse Blocks count,
+    // §16.1's blocked/ready classification: blocked until ALL blockers are
+    // complete) + the compact card badges (Screen L — their own row, fully
+    // independent of the priority ribbon AND the deadline display) + the task
+    // view's row-only twin (the details surface — blocker NAMES live here per
+    // §16) + the dep-edge write wrappers (the patchTask shape, riding the
+    // shared api() — ZERO new fetch sites). Exported so board-page.js AND
+    // project-page.js render identically (§18 — never forked).
+    depsOf, blocksCount, blockedStateOf, depBadgeHtml, depViewHtml, addTaskDep, removeTaskDep,
     // S245 (spec pack Phase 6 — §13 + Screens J1/J2/J3): the deadline EXTENSION
     // stack — the preset math (§13.1: add to the EXISTING deadline, never now),
     // the §13.2 impact fold (inheritors follow / overrides protected — the

@@ -301,6 +301,11 @@
               // deadline display — the same row grammar (icon + the threshold
               // word; a done task reads neutral with the Done indication).
               (B().deadlineViewHtml ? B().deadlineViewHtml(task, lang) : '') +
+              // S246 (spec §16): the view is the DETAILS surface — the dep rows
+              // join the meta stack through the row-only twin, which carries the
+              // blocker NAMES ("detailed blocker names belong in task details or
+              // the Edit Task modal, not in long card text").
+              (B().depViewHtml ? B().depViewHtml(task, null, null, lang) : '') +
               (shotsHtml || '') +
             '</div>'
           const head = taskViewEl.querySelector('.db-view-head h3')
@@ -739,6 +744,16 @@
                   // never completion, never a client re-derivation. Renders '' when
                   // the triple is null (no row, no bar).
                   const deadlineHtml = B().deadlineRowHtml ? B().deadlineRowHtml(task, lang) : ''
+                  // S246 (spec pack §16 + Screen L/M-6/7 — the compact dep
+                  // badges): their OWN row in the Phase 3 seam family — right
+                  // after the deadline row (+bar), before the tags — rendered by
+                  // the SHARED devboard.js fold (B().depBadgeHtml) over the
+                  // payload's task_deps edges. Blocked (optionally · N) /
+                  // Blocks N / Ready render ONLY when the relationships exist;
+                  // fully independent of the priority ribbon AND the deadline
+                  // display (§16: "keep dependency status separate"; §23: the
+                  // ribbon stays unchanged). SOFT indicators — never a gate.
+                  const depHtml = B().depBadgeHtml ? B().depBadgeHtml(task, null, null, lang) : ''
                   const chipsHtml = (tags.length
                     ? '<span class="pd-task-tags">' +
                       // S30 batch 2: label chips are FILTER toggles (GitHub behavior) —
@@ -782,6 +797,7 @@
                         readMoreBtn(task.title) +
                         sprintRowHtml +
                         deadlineHtml +
+                        depHtml +
                         chipsHtml +
                         metaHtml +
                       '</span>' +
@@ -1650,7 +1666,7 @@
             if (window.HibanaBoard) return resolve(true)
             if (!injected && waited >= 1200) {
               injected = true
-              inject('/js/devboard.js?v=35') // keep in sync with the <head> tag + sw SHELL
+              inject('/js/devboard.js?v=36') // keep in sync with the <head> tag + sw SHELL
               if (!window.HibanaFocusCore) inject('/js/focus-core.js?v=2') // S237/S238: the focus + view decision core — keep in sync with the <head> tag
               if (!window.HibanaChips) inject('/js/chip-render.js?v=13') // S36: was ?v=1 while the HTML tags say v=2 — two cache entries for one file (the cache-bust gate caught it under the sandbox's mode-bit noise). Aligned; local-dev + SW caches now share ONE url per version. S86: v8 — kept in sync with the <head> tag (previewHtml moved in). S176: v11.
               if (!window.jalaali) inject('/vendor/jalaali.min.js') // Jalali dates for FA

@@ -548,6 +548,21 @@ stored column — spec §15). Same-project is a write-time invariant, so the joi
 through the blocked task's project (rule 1 — a stranger's edges never leak); CASCADE keeps
 it dangling-free; a lagging pre-0065 D1 serves `[]` (the categories belt precedent).
 
+**S246 (Phase 7 — the dependencies UI) addition — the DETAIL POOL carries the same edges:**
+`GET /api/projects/:id`'s pool (both the JSON path and the server-rendered HTML fragment)
+now includes `taskDeps` — the SAME `taskDepsForProject` flat join, as an additive
+camelCase key in the pool's own style (the `devTasks`/`devTaskTags` family). This is the
+recorded embedded-fold decision: the embedded project-page board's dep badges fold from
+the detail pool it already fetches (NEVER a second board pull), the server render folds
+server-side at render time, and the client repaint twin (`pdTruthWrap`) reads the edges
+off the same payload. The `/kanban` surface keeps folding the board payload's `task_deps`
+key — one edge pool per surface, both from the one shared helper. Additive +
+island-transparent (the desktop island is the /kanban surface; a Go struct decode ignores
+the key). The UI's write path rides the two endpoints above through the shared `api()`
+wrapper (`addTaskDep`/`removeTaskDep`) — zero new fetch sites; edit-mode picks mutate
+LIVE (the 400 self / 409 cycle answers surface inline at the bad pick), add-mode picks
+stage and POST right after the task-create ack.
+
 ### 12.4 Task endpoints' sprint/deadline guards (S240)
 
 - **POST `/api/projects/:projectId/devtasks`** additionally accepts `due_at` (origin

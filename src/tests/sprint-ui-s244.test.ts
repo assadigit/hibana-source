@@ -198,7 +198,10 @@ describe('S244 — the card deadline row + bar: the triple-consumption (NO re-de
   it('board-page.js: the row + bar slot between the sprint row and the tags/meta area (Screen A order)', () => {
     const js = readPublic('js/board-page.js')
     expect(js).toContain('const deadlineHtml = B().deadlineRowHtml ? B().deadlineRowHtml(task, lang) : \'\'')
-    expect(js).toContain('sprintRowHtml +\n                        deadlineHtml +\n                        chipsHtml +')
+    // S246 (Phase 7): the dep badge row joined after the deadline row — the pin
+    // moves with it (intent preserved: the deadline row stays between the
+    // sprint row and the tags/meta area).
+    expect(js).toContain('sprintRowHtml +\n                        deadlineHtml +\n                        depHtml +\n                        chipsHtml +')
     // the read-only task view joins the deadline display (the row-only variant)
     expect(js).toContain('B().deadlineViewHtml ? B().deadlineViewHtml(task, lang) : \'\'')
   })
@@ -217,7 +220,9 @@ describe('S244 — the card deadline row + bar: the triple-consumption (NO re-de
   it('project-page.js: the repaint twin reads the SAME triple from the detail payload (the third renderer)', () => {
     const js = readPublic('js/project-page.js')
     expect(js).toContain('window.HibanaBoard.deadlineRowHtml ? window.HibanaBoard.deadlineRowHtml(t, pdLang) : \'\'')
-    expect(js).toContain('${pdReadMoreBtnHtml(t.title)}${deadlineHtml}${pdTagChipsHtml(tt, sprintBadgeHtml)}')
+    // S246 (Phase 7): the dep badge row joined after the deadline row — the pin
+    // moves with it (intent preserved: the deadline row's slot is unchanged).
+    expect(js).toContain('${pdReadMoreBtnHtml(t.title)}${deadlineHtml}${depHtml}${pdTagChipsHtml(tt, sprintBadgeHtml)}')
   })
 })
 
@@ -406,12 +411,12 @@ describe('S244 — the desktop seam tripwires (the Phase 9 re-pin inventory)', (
     expect((readPublic('js/due-control.js').match(/\bhibanaFetch\(/g) || []).length).toBe(0)
   })
 
-  it('sw.js is at hibana-v457 with the S245 carrier note (the extension round moved the ladder; the S244 pin intent is preserved, the carriers moved with it)', () => {
+  it('sw.js is at hibana-v458 with the S246 carrier note (the dependencies round moved the ladder; the S244 pin intent is preserved, the carriers moved with it)', () => {
     const sw = readPublic('sw.js')
-    expect(sw.includes('const VERSION = "hibana-v457"')).toBe(true)
-    expect(sw.includes('// v457 (S245)')).toBe(true)
+    expect(sw.includes('const VERSION = "hibana-v458"')).toBe(true)
+    expect(sw.includes('// v458 (S246)')).toBe(true)
     expect(sw).toMatch(/due-control\.js v1 \(NEW tag on board\+sprint\)/)
-    expect(sw).toMatch(/devboard\.js v35/)
-    expect(sw).toMatch(/i18n-fa\.js\?v=103/)
+    expect(sw).toMatch(/devboard\.js v36/)
+    expect(sw).toMatch(/i18n-fa\.js\?v=104/)
   })
 })

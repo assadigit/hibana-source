@@ -9,7 +9,7 @@ import {
 } from '../../lib/html'
 import { trL, type Locale } from '../../lib/i18n'
 import { faDigits, toJalali, J_MONTHS_FA, G_MONTHS_EN_AB } from '../../lib/jalali'
-import { loadBacklog, taskTagsForProject, PRIO_ORDER_SQL, type BacklogEvent, type TaskTagJoin, effectiveDeadlineOf } from '../devboard-helpers'
+import { loadBacklog, taskTagsForProject, taskDepsForProject, PRIO_ORDER_SQL, type BacklogEvent, type TaskTagJoin, type TaskDepEdge, effectiveDeadlineOf } from '../devboard-helpers'
 import type { CategoryRow } from '../../lib/categories'
 import { shotsGridHtml } from '../core'
 import { STATUS_ORDER } from '../../types'
@@ -47,7 +47,7 @@ function devTasksWithDue(devTasks: DevTaskRow[], sprints: SprintRow[]): (DevTask
 }
 
 export async function loadDetail(cfg: Config, p: ProjectRow) {
-  const [hurdles, links, screenshots, history, tags, notes, canvasPromos, devTasks, devTaskTags, categories, sprints, backlog] = await Promise.all([
+  const [hurdles, links, screenshots, history, tags, notes, canvasPromos, devTasks, devTaskTags, categories, sprints, backlog, taskDeps] = await Promise.all([
     cfg.db.query<HurdleRow>('SELECT * FROM hurdles WHERE project_id = ? ORDER BY sort_order, created_at', [p.id]),
     cfg.db.query<LinkRow>('SELECT * FROM links WHERE project_id = ? ORDER BY created_at', [p.id]),
     cfg.db.query<ScreenshotRow>('SELECT * FROM screenshots WHERE project_id = ? ORDER BY created_at DESC', [p.id]),
@@ -97,8 +97,16 @@ export async function loadDetail(cfg: Config, p: ProjectRow) {
     cfg.db.query<SprintRow>('SELECT * FROM sprints WHERE project_id = ? ORDER BY started_at', [p.id]),
     // برنامه آتی tab payload (0033): documents + merged history feed.
     loadBacklog(cfg, p.id),
+    // S246 (spec pack Phase 7 — contract §12.3): the project's dep edges, the
+    // SAME flat join the board payload carries as its 7th key. The recorded
+    // embedded-fold decision: the detail pool (not a second board pull) feeds
+    // the embedded board's dep badges — the server render folds server-side
+    // (below) and the client repaint twin reads `taskDeps` off the SAME
+    // /api/projects/:id fetch it already makes. Additive + island-transparent
+    // (the island is the /kanban surface; a Go struct decode ignores the key).
+    taskDepsForProject(cfg, p.id),
   ])
-  return { hurdles, links, screenshots, history, tags, notes, canvasPromos, devTasks: devTasksWithDue(devTasks, sprints), devTaskTags, categories, sprints, backlog }
+  return { hurdles, links, screenshots, history, tags, notes, canvasPromos, devTasks: devTasksWithDue(devTasks, sprints), devTaskTags, categories, sprints, backlog, taskDeps }
 }
 
 
@@ -370,6 +378,57 @@ export function detailHtml(p: ProjectRow, d: Awaited<ReturnType<typeof loadDetai
     return `<span class="db-due-row st-${state}">${DUE_ICON}<span class="db-due-txt" dir="auto">${esc(label)}</span>${extBtn}</span>` +
       `<span class="db-due-bar" aria-hidden="true"><span class="db-due-fill st-${state}" style="width:${pct}%"></span></span>`
   }
+
+  // S246 (spec pack Phase 7 — §16 + Screens L/M-6/7): the embedded board's dep
+  // badges — the SERVER twin of devboard.js's shared depBadgeHtml (byte-identical
+  // card grammar; the S209 parity contract's next seam). The fold is the §12.3
+  // client-fold doctrine run at render time over the detail pool's own edge join
+  // (taskDeps, above): Blocked-by = edges where blocked_task_id = X joined
+  // against the task rows for completion; the reverse Blocks N = the same fold's
+  // other half (derived, never a stored column — spec §15). §16.1: blocked while
+  // ANY blocker is incomplete; 'ready' when blockers existed and ALL are done.
+  // SOFT indicators only — never a gate, never a priority/status mutation.
+  const DEP_BLOCKED_ICON = '<svg class="icon db-dep-ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="M8.4 12h7.2"/></svg>'
+  const DEP_READY_ICON = '<svg class="icon db-dep-ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>'
+  const DEP_BLOCKS_ICON = '<svg class="icon db-dep-ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h13"/><path d="M13 6.5l5.5 5.5-5.5 5.5"/></svg>'
+  const depBlockedBy = new Map<string, string[]>()
+  const depBlocksIds = new Map<string, string[]>()
+  for (const e of d.taskDeps as TaskDepEdge[]) {
+    if (!e) continue
+    if (!depBlockedBy.has(e.blocked_task_id)) depBlockedBy.set(e.blocked_task_id, [])
+    depBlockedBy.get(e.blocked_task_id)!.push(e.blocker_task_id)
+    if (!depBlocksIds.has(e.blocker_task_id)) depBlocksIds.set(e.blocker_task_id, [])
+    depBlocksIds.get(e.blocker_task_id)!.push(e.blocked_task_id)
+  }
+  const depStatusBy = new Map<string, string>()
+  for (const t of d.devTasks) depStatusBy.set(t.id, t.status)
+  const depBadgeHtml = (t: DevTaskRow): string => {
+    const blockerIds = depBlockedBy.get(t.id) ?? []
+    const blocksIds = depBlocksIds.get(t.id) ?? []
+    if (!blockerIds.length && !blocksIds.length) return ''
+    let open = 0
+    for (const bid of blockerIds) if (depStatusBy.get(bid) !== 'done') open++
+    const st = blockerIds.length ? (open > 0 ? 'blocked' : 'ready') : null
+    let html = '<span class="db-dep-row">'
+    if (blockerIds.length) {
+      const label = st === 'ready'
+        ? trL(lang, 'Ready', 'آماده')
+        : blockerIds.length > 1
+          ? trL(lang, 'Blocked · {n}', 'مسدود · {n}', { n: dig(blockerIds.length) })
+          : trL(lang, 'Blocked', 'مسدود')
+      const hint = st === 'ready'
+        ? trL(lang, 'All blockers are complete — this task is ready.', 'همهٔ مسدودکننده‌ها کامل شده‌اند — این وظیفه آماده است.')
+        : trL(lang, 'Blocked by {n} task(s) — open the task to see them.', 'مسدود توسط {n} وظیفه — برای دیدن آن‌ها وظیفه را باز کن.', { n: dig(blockerIds.length) })
+      html += `<span class="db-dep-badge st-${st}" title="${esc(hint)}">${st === 'ready' ? DEP_READY_ICON : DEP_BLOCKED_ICON}<span class="db-dep-badge-txt" dir="auto">${esc(label)}</span></span>`
+    }
+    if (blocksIds.length) {
+      const label = trL(lang, 'Blocks {n}', 'مسدودکنندهٔ {n}', { n: dig(blocksIds.length) })
+      const hint = trL(lang, 'This task blocks {n} task(s).', 'این وظیفه {n} وظیفه را مسدود می‌کند.', { n: dig(blocksIds.length) })
+      html += `<span class="db-dep-badge st-blocks" title="${esc(hint)}">${DEP_BLOCKS_ICON}<span class="db-dep-badge-txt" dir="auto">${esc(label)}</span></span>`
+    }
+    html += '</span>'
+    return html
+  }
   // S152 (block 6): the task's category as a small colored chip DIRECTLY ABOVE the
   // task title, wearing the category's own fill+ink pair. The map covers every row
   // the payload carries (enabled ∪ referenced — a category disabled later keeps its
@@ -616,6 +675,7 @@ export function detailHtml(p: ProjectRow, d: Awaited<ReturnType<typeof loadDetai
                     ${readMoreBtn(t.title)}
                     ${sprintBadgeHtml(t.sprint_id)}
                     ${deadlineRowHtml(t)}
+                    ${depBadgeHtml(t)}
                     ${taskTagChips(t.id)}
                     <span class="pd-task-meta">${esc(taskMetaLabel(t))}${pinsByTask.has(t.id) ? ` · <button type="button" class="pd-task-shots" data-pd-shots="${t.id}" title="${esc(trL(lang, 'Pinned pictures — note + proof stuck to this item', 'تصاویر سنجاق‌شده — یادداشت + مدرکِ سنجاق‌شده به این قلم'))}" aria-label="${esc(trL(lang, 'Pinned pictures ({n})', 'تصاویر سنجاق‌شده ({n})', { n: dig(pinsByTask.get(t.id)!) }))}">${icon('pin')} ${dig(pinsByTask.get(t.id)!)}</button>` : ''}${syncBadgeServer(t.id)}</span>
                   </span>

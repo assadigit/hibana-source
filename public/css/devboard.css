@@ -269,6 +269,116 @@ main.board-shell .db-frame { min-block-size: calc(100dvh - 1.5rem); }
 .db-sm-action-sub { display: block; flex: 1 1 100%; text-align: start; font-size: var(--fs-xs); }
 .db-sm-action { flex-wrap: wrap; }
 
+/* --- S246 (spec pack Phase 7 — §16 + Screens K/L): the dependency badges + the
+   Dependencies section -------------------------------------------------------
+   Screen L: the compact card badges — their OWN row in the Phase 3 seam family
+   (after the sprint + deadline rows, before the tags). The WORD carries the
+   meaning (never color alone): a warm held amber for Blocked, the muted green
+   check for Ready (§16.1's resolution), the neutral gray arrow for the derived
+   Blocks N. Fully independent of the priority ribbon AND the deadline colors.
+   Soft indicators only — decorative weight, no alerts. */
+.db-dep-row {
+  justify-self: start;
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  margin-block: 0.1rem 0;
+  max-inline-size: 100%;
+}
+.db-dep-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-size: var(--fs-xs);
+  line-height: 1.25;
+  padding: 0.05rem 0.45rem;
+  border-radius: 999px;
+  max-inline-size: 100%;
+  overflow: hidden;
+  white-space: nowrap;
+}
+.db-dep-badge .db-dep-ic { inline-size: 0.85rem; block-size: 0.85rem; flex: none; }
+.db-dep-badge-txt { overflow: hidden; text-overflow: ellipsis; }
+.db-dep-badge.st-blocked { color: #9a6f2f; background: color-mix(in srgb, #d9a45b 16%, transparent); }
+.db-dep-badge.st-ready { color: #5a7d5a; background: color-mix(in srgb, #8fb58f 18%, transparent); }
+.db-dep-badge.st-blocks { color: var(--muted, #8a8f98); background: color-mix(in srgb, var(--line, #e4e2dd) 55%, transparent); }
+/* the read-only task view's meta rows carry the row-only variant inline (the
+   details surface — blocker names ride here per §16) */
+.db-view-meta .db-dep-view { font-size: var(--fs-xs); }
+.db-view-meta .db-dep-badge { white-space: normal; }
+
+/* Screen K: the Dependencies section in Add/Edit Task — COLLAPSED by default
+   (the S244 due-toggle's grammar: a compact section header, hidden controls
+   while collapsed, no large empty area when collapsed — the visual guide's
+   checklist). The header is a disclosure button: chevron + label + the current
+   blocker count; expanded reveals the Blocked-by label, the search input, the
+   capped scrollable option list (the long-list rule), the derived-reverse note
+   and the inline 400/409 error surface. */
+.db-deps-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font: inherit; font-size: var(--fs-sm);
+  color: var(--text); background: none;
+  border: 0; padding: 0.15rem 0;
+  cursor: pointer;
+}
+.db-deps-toggle:hover { color: var(--brand); }
+.db-deps-toggle .db-deps-chev {
+  inline-size: 0.95rem; block-size: 0.95rem; flex: none;
+  transition: transform 0.12s ease;
+}
+.db-deps-toggle[aria-expanded="true"] .db-deps-chev { transform: rotate(180deg); }
+.db-deps-count {
+  font-size: var(--fs-xs);
+  color: #9a6f2f;
+  background: color-mix(in srgb, #d9a45b 16%, transparent);
+  border-radius: 999px;
+  padding: 0 0.4rem;
+}
+.db-deps-mount { display: grid; gap: 0.35rem; margin-block: 0.35rem 0.1rem; }
+.db-deps-label { font-size: var(--fs-sm); }
+.db-deps-q {
+  font: inherit; font-size: var(--fs-sm);
+  color: var(--text); background: var(--card);
+  border: 1px solid var(--line); border-radius: var(--radius-sm);
+  padding: 0.4em 0.6em; min-block-size: 26px;
+}
+.db-deps-list {
+  display: grid; gap: 0.2rem;
+  max-block-size: 15rem;
+  overflow-y: auto;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  padding: 0.25rem;
+  scrollbar-width: thin; /* the long-list rule: capped + scrollable, slim bar */
+}
+.db-deps-opt {
+  display: flex; align-items: flex-start; gap: 0.4rem;
+  font: inherit; font-size: var(--fs-sm);
+  color: var(--text); background: var(--card);
+  border: 1px solid transparent; border-radius: var(--radius-sm);
+  padding: 0.3rem 0.4rem;
+  cursor: pointer; text-align: start;
+}
+.db-deps-opt:hover { border-color: var(--line); background: color-mix(in srgb, var(--line, #e4e2dd) 30%, var(--card)); }
+.db-deps-opt:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 1px; }
+.db-deps-opt .db-deps-check {
+  inline-size: 1rem; flex: none;
+  color: var(--brand); font-weight: 600;
+  text-align: center;
+}
+.db-deps-opt-body { display: grid; gap: 0.05rem; min-inline-size: 0; }
+.db-deps-opt-title { overflow-wrap: anywhere; }
+.db-deps-opt-meta { font-size: var(--fs-xs); }
+.db-deps-opt.is-on { border-color: var(--brand); background: color-mix(in srgb, var(--brand) 7%, var(--card)); }
+.db-deps-empty { margin: 0.3rem 0.4rem; }
+.db-deps-note { margin: 0; }
+.db-deps-blocksline { margin: 0; }
+.db-deps-err { margin: 0; font-size: var(--fs-sm); color: var(--err, #c94f4f); }
+@media (prefers-reduced-motion: reduce) { .db-deps-toggle .db-deps-chev { transition: none; } }
+
 /* --- task editor modal ----------------------------------------------------- */
 .db-modal {
   position: fixed;

@@ -185,7 +185,9 @@ describe('S242 — the card sprint identity row (client twin)', () => {
     // S244 (Phase 5): the DEADLINE ROW + bar joined the seam between the sprint
     // row and the tags — the pin moves with it (intent preserved: the badge
     // stays its own row above the tags/meta area).
-    expect(js).toContain('previewHtml(task.title) +\n                        readMoreBtn(task.title) +\n                        sprintRowHtml +\n                        deadlineHtml +\n                        chipsHtml +\n                        metaHtml +')
+    // S246 (Phase 7): the dep badge row joined after the deadline row — the pin
+    // moves with it again (same intent).
+    expect(js).toContain('previewHtml(task.title) +\n                        readMoreBtn(task.title) +\n                        sprintRowHtml +\n                        deadlineHtml +\n                        depHtml +\n                        chipsHtml +\n                        metaHtml +')
     // the glyph-blind badge shape is gone EVERYWHERE in the file (the card AND
     // the read-only task view both render the emoji-aware glyph)
     expect(js).not.toContain("'<span class=\"db-sprint-badge\">◆ ' + B().esc(sprint.name)")
@@ -198,8 +200,9 @@ describe('S242 — the card sprint identity row (client twin)', () => {
     const ts = readPublic('../src/routes/projects/detail-helpers.ts')
     expect(ts).toContain("return `<span class=\"db-sprint-badge\">${esc((sp.emoji ? sp.emoji + ' ' : '◆ ') + sp.name)}</span>`")
     // placed as its own row between readMore and the tags (S244: the deadline
-    // row joined the seam after the badge — the pin moves with it)
-    expect(ts).toContain('${readMoreBtn(t.title)}\n                    ${sprintBadgeHtml(t.sprint_id)}\n                    ${deadlineRowHtml(t)}\n                    ${taskTagChips(t.id)}')
+    // row joined the seam after the badge — the pin moves with it; S246: the
+    // dep badge row joined after the deadline row — it moves again, same intent)
+    expect(ts).toContain('${readMoreBtn(t.title)}\n                    ${sprintBadgeHtml(t.sprint_id)}\n                    ${deadlineRowHtml(t)}\n                    ${depBadgeHtml(t)}\n                    ${taskTagChips(t.id)}')
   })
 })
 
@@ -263,9 +266,9 @@ describe('S242 — the desktop seam tripwires (the Phase 9 re-pin inventory)', (
     for (const page of ['board.html', 'sprint.html']) {
       const html = readPublic(page)
       expect(html).toMatch(/\/js\/emoji-picker\.js\?v=\d+/)
-      // S245 moved devboard.js to v35 (the extension round) — the pin moves with it
-      // (was v34, moved by S244's deadline round)
-      expect(html).toMatch(/\/js\/devboard\.js\?v=35/)
+      // S246 moved devboard.js to v36 (the dependencies round) — the pin moves with it
+      // (was v35, moved by S245's extension round)
+      expect(html).toMatch(/\/js\/devboard\.js\?v=36/)
       // S244: the shared date control rides both modal-serving pages (D6)
       expect(html).toMatch(/\/js\/due-control\.js\?v=1/)
     }

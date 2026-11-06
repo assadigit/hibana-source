@@ -55,16 +55,16 @@ describe('S238 focus-core — the FULL Esc peel (view → sheet → focus)', () 
 })
 
 describe('S238 wiring — the DOM half (the island-style tripwires)', () => {
-  it('board.html carries the bumped carriers: board-page v32, focus-core v2 (BEFORE devboard), devboard.css v43, polish-batch v30, quicknotes v51, i18n-en v109, i18n.js v162 (S245 moved the ladder — the extension round; the pin intent is preserved, the versions moved with the carriers)', () => {
+  it('board.html carries the bumped carriers: board-page v33, focus-core v2 (BEFORE devboard), devboard.css v44, polish-batch v30, quicknotes v51, i18n-en v110, i18n.js v163 (S246 moved the ladder — the dependencies round; the pin intent is preserved, the versions moved with the carriers)', () => {
     const html = readPublic('board.html')
-    expect(html.includes('/js/board-page.js?v=32')).toBe(true)
+    expect(html.includes('/js/board-page.js?v=33')).toBe(true)
     expect(html.includes('/js/focus-core.js?v=2"')).toBe(true)
     expect(html.indexOf('/js/focus-core.js?v=')).toBeLessThan(html.indexOf('/js/devboard.js?v='))
-    expect(html.includes('/css/devboard.css?v=43')).toBe(true)
+    expect(html.includes('/css/devboard.css?v=44')).toBe(true)
     expect(html.includes('/css/polish-batch.css?v=30')).toBe(true)
     expect(html.includes('/css/quicknotes.css?v=51')).toBe(true)
-    expect(html.includes('/js/i18n-en.js?v=109')).toBe(true)
-    expect(html.includes('/js/i18n.js?v=162')).toBe(true)
+    expect(html.includes('/js/i18n-en.js?v=110')).toBe(true)
+    expect(html.includes('/js/i18n.js?v=163')).toBe(true)
     // S244: the shared date control joins (after the jalaali vendor, before devboard.js)
     expect(html.indexOf('/vendor/jalaali.min.js')).toBeGreaterThan(-1)
     expect(html.indexOf('/vendor/jalaali.min.js')).toBeLessThan(html.indexOf('/js/due-control.js?v=1'))
@@ -168,14 +168,14 @@ describe('S238 wiring — the DOM half (the island-style tripwires)', () => {
     ]) {
       expect(bp.includes(pair[0]), 'board-page.js _t call missing fallback ' + pair[0]).toBe(true)
     }
-    // the lazy FA injector literal moved to v103 (S245 — the extension round)
-    expect(readPublic('js/i18n.js').includes('/js/i18n-fa.js?v=103')).toBe(true)
+    // the lazy FA injector literal moved to v104 (S246 — the dependencies round)
+    expect(readPublic('js/i18n.js').includes('/js/i18n-fa.js?v=104')).toBe(true)
   })
 
-  it('sw.js is at hibana-v457 and the round notes the carrier bumps (S245 moved the ladder — the extension round; the pin intent is preserved)', () => {
+  it('sw.js is at hibana-v458 and the round notes the carrier bumps (S246 moved the ladder — the dependencies round; the pin intent is preserved)', () => {
     const sw = readPublic('sw.js')
-    expect(sw.includes('const VERSION = "hibana-v457"')).toBe(true)
-    expect(sw.includes('// v457 (S245)')).toBe(true)
+    expect(sw.includes('const VERSION = "hibana-v458"')).toBe(true)
+    expect(sw.includes('// v458 (S246)')).toBe(true)
     // the S238 note stays in the history block (the discipline: every prior entry
     // is recoverable; the history block carries the last rounds)
     expect(sw.includes('// v452 (S238)')).toBe(true)

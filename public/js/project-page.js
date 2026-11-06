@@ -1658,6 +1658,14 @@
         let pdSprintTruth = [] // [{id, name, version, description, is_draft, ended_at}]
         let pdSdDeepLinked = false
         let pdTaskTruth = [] // [{id, priority}]
+        // S246 (spec pack Phase 7 — contract §12.3): the project's dep edges for
+        // the embedded board's badge fold — the SAME flat {blocker_task_id,
+        // blocked_task_id} join the board payload carries, read off the
+        // /api/projects/:id detail pool (loadDetail's additive taskDeps key — the
+        // recorded embedded-fold decision: the detail fetch it already makes
+        // feeds the fold, ZERO new fetch sites). pdTruthWrap folds the badges
+        // through the SHARED devboard.js stack with THIS pool + pdTaskTruth.
+        let pdDepTruth = [] // [{blocker_task_id, blocked_task_id}]
         const pdTierLabel = (p) => {
           const map = { urgent: ['urgent', 'فوری'], high: ['high', 'اولویت بالا'], medium: ['medium', 'اولویت متوسط'], low: ['low', 'اولویت کم'] }
           const e = map[p] || map.medium
@@ -1910,6 +1918,9 @@
               }))
               // S33: the sprint truth (draft detection + deep-link targets).
               pdSprintTruth = (data.project ? data.project.sprints : data.sprints) || []
+              // S246: the dep edges ride the same detail fetch (the embedded-fold
+              // decision — the badges' pool, never a second request).
+              pdDepTruth = (data.project ? data.project.taskDeps : data.taskDeps) || []
               if (!pdSdDeepLinked) {
                 const sp = new URLSearchParams(location.search).get('sprint')
                 if (sp) { pdSdDeepLinked = true; pdSprintOpenDoc(sp) }
@@ -3311,7 +3322,7 @@
         const ensureBoardLib = (cb) => {
           if (window.HibanaBoard) return cb()
           const s = document.createElement('script')
-          s.src = '/js/devboard.js?v=35'
+          s.src = '/js/devboard.js?v=36'
           s.onload = () => cb()
           s.onerror = () => window.hibana?.toast(_t('sparks.saveFailed', "Couldn't load"), 'err')
           document.head.appendChild(s)
@@ -3362,7 +3373,14 @@
           // (Screen A); '' on the null triple.
           const pdLang = window.hibanaI18n && window.hibanaI18n.lang ? window.hibanaI18n.lang() : 'en'
           const deadlineHtml = window.HibanaBoard && window.HibanaBoard.deadlineRowHtml ? window.HibanaBoard.deadlineRowHtml(t, pdLang) : ''
-          wrap.innerHTML = pdBannerHtml(tp) + `<div class="pd-task st-${status}" draggable="true" role="button" tabindex="0" aria-label="${pdEsc(t.title)}"><span class="pd-task-body">${pdCatChipHtml(t.category_id)}<span class="pd-task-title-row" dir="auto"><span class="pd-task-title"${pdEscTitleAttrs(t.title)}>${pdTitleHtml(t.title)}</span></span>${pdPreviewHtml(t.title)}${pdReadMoreBtnHtml(t.title)}${deadlineHtml}${pdTagChipsHtml(tt, sprintBadgeHtml)}<span class="pd-task-meta">${pdMetaDateHtml(t.created_at, status === 'done')}${shotsBadgeHtml}</span></span></div>`
+          // S246 (spec pack Phase 7 — Screen L): the repaint twin of the server's
+          // dep badge row — the SHARED devboard.js fold (depBadgeHtml) over the
+          // detail pool's taskDeps edges + pdTaskTruth's statuses (the S243b
+          // doctrine: the fetched truth, re-synced by this same repaint pass
+          // BEFORE the render loop). Slot: right after the deadline row, before
+          // the tags — byte-identical to the server fragment + the /kanban twin.
+          const depHtml = window.HibanaBoard && window.HibanaBoard.depBadgeHtml ? window.HibanaBoard.depBadgeHtml(t, pdDepTruth, pdTaskTruth, pdLang) : ''
+          wrap.innerHTML = pdBannerHtml(tp) + `<div class="pd-task st-${status}" draggable="true" role="button" tabindex="0" aria-label="${pdEsc(t.title)}"><span class="pd-task-body">${pdCatChipHtml(t.category_id)}<span class="pd-task-title-row" dir="auto"><span class="pd-task-title"${pdEscTitleAttrs(t.title)}>${pdTitleHtml(t.title)}</span></span>${pdPreviewHtml(t.title)}${pdReadMoreBtnHtml(t.title)}${deadlineHtml}${depHtml}${pdTagChipsHtml(tt, sprintBadgeHtml)}<span class="pd-task-meta">${pdMetaDateHtml(t.created_at, status === 'done')}${shotsBadgeHtml}</span></span></div>`
           return wrap
         }
         // S209 (kanban 1:1 parity): the pins-per-task + sprint-name maps derived from
@@ -3407,6 +3425,11 @@
           for (const r of tagRows) (tagsBy[r.task_id] = tagsBy[r.task_id] || []).push({ name: r.name, color: r.color })
           // S209 (kanban 1:1 parity): pins + sprint names ride the same payload.
           const { pins, sprintName } = pdDetailMaps(data)
+          // S246: the repaint's fresh payload re-folds the dep badges — the edge
+          // pool graduates to fetched truth here (a raced dep change elsewhere
+          // lands with the same repaint), exactly like the status/sprint sync
+          // below.
+          pdDepTruth = (data.project ? data.project.taskDeps : data.taskDeps) || []
           // The filter bar's tier counts ride pdTaskTruth — reconcile (track the
           // newcomers, forget the deletes). S243b: the repaint's fresh payload also
           // re-syncs each row's status + sprint assignment — the overview folds read
@@ -3491,6 +3514,9 @@
               for (const r of tagRows) (tagsBy[r.task_id] = tagsBy[r.task_id] || []).push({ name: r.name, color: r.color })
               // S209 (kanban 1:1 parity): pins + sprint names ride the same payload.
               const { pins, sprintName } = pdDetailMaps(data)
+              // S246: the dep edges ride the same fetch — the expanded wraps' badges
+              // fold from the fresh pool.
+              pdDepTruth = (data.project ? data.project.taskDeps : data.taskDeps) || []
               const shownIds = new Set([...tasksEl.querySelectorAll('.pd-task-wrap')].map((w) => w.dataset.pdTask))
               const hiddenTasks = allTasks.filter((t) => !shownIds.has(t.id))
               // S149: the wraps come from the ONE truth builder (pdTruthWrap) — the
@@ -5736,7 +5762,16 @@
             // hidden item surfaces behind the moved card, the destination's overflow
             // re-windows, all without a refresh (the optimistic block above gave the
             // instant feedback; this reconciles it with the server's render).
-            pdRepaintColumns([from, to])
+            // S246 (spec pack §16.1): a DONE transition (either direction) repaints
+            // ALL five lanes — completing the moved task RESOLVES its blocking
+            // effect on every task it blocks (Blocked → Ready) and un-completing
+            // re-opens them, and those dependents can live in any lane; the dep
+            // badges fold at wrap-render time, so their columns must re-render.
+            // Non-done moves keep the S149 two-column repaint (badges only read
+            // completion).
+            const laneEls = [...document.querySelectorAll('[data-pd-tasks]')]
+            const repaintAll = from === 'done' || to === 'done'
+            pdRepaintColumns(repaintAll ? laneEls.map((x) => x.dataset.pdTasks) : [from, to])
           } catch {
             window.hibana?.toast(_t('pd.moveFailed', "Couldn't move the task"), 'err')
             refreshBody() // restore server truth

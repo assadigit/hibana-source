@@ -1,29 +1,32 @@
-# HIBANA — Phase 9 Final Report (S248, closed 2026-11-06; independently re-verified by the S249 round the same day)
+# HIBANA — Phase 9 Final Report (S248, closed 2026-11-06; re-verified + RE-LANDED LIVE by the S249 rounds the same day)
 
 > The definition of done (the phased plan's §7), written against every acceptance checklist
 > in the spec pack: §21 (sprints, 19 rows) · §22 (deadlines, 20) · §23 (dependencies, 11) ·
 > §24 (regression + quality, 10) · the visual guide's §6 (18). Source of truth for every
 > row: `src/tests/acceptance-s247.test.ts` — the lock-step acceptance matrix (header
 > comment + machine-checked `CITATIONS` array; 9/9 green inside the 969-test suite).
-> **S249 note:** the original S248 report was written to that session's ephemeral sandbox
-> `download/` folder; this regenerated copy is verified against the durable in-repo records
-> (`IMPLEMENTATION-STATUS.md` Session 12 + the close-out note) and re-verified live — every
-> gate, count, and endpoint below was independently re-run green by S249 before this copy
-> was issued.
+> **S249 note:** round 1 re-verified every gate/count/endpoint live and regenerated this
+> report durably in-pack; round 2 (the owner-authorized re-land) migrated the D1s and
+> deployed the feature to production — the final state below includes both rounds' evidence.
 
 ---
 
 ## 0. The one-paragraph state of the world
 
-The feature is **COMPLETE and VERIFIED on both platforms**. The web feature branch
-`feat/sprint-deadline-deps` (@ `1a223c3` = `7f314e9` + two cited S248 CI fixups) was merged
-via **PR #17** (squash → `d883081`) and **auto-deployed to production hibana.ir through the
-full CI→CD chain** — then **rolled back** (`8ae04ce`, the documented revert procedure,
-redeployed green) after post-deploy verification proved the live D1 databases (both at
-schema 63) break the new code's core WRITE paths. Nothing is lost: the branch, the PR, the
-acceptance matrix, and the desktop release **v0.1.36-desktop** (shipped, live) all stand.
-The feature is **one owner-side command sequence away from production**: migrate the two D1s
-(runbook in §6), then `git revert 8ae04ce` on main — CI/CD does the rest.
+**THE FEATURE IS LIVE ON PRODUCTION hibana.ir.** The full arc: the branch `feat/sprint-deadline-deps`
+(@ `1a223c3`) merged via PR #17 (squash `d883081`) → auto-deployed → **rolled back** (`8ae04ce`)
+when post-deploy verification proved the un-migrated D1s (schema 63) break the new INSERTs'
+core write paths → **the S249 owner-authorized round closed the gap exactly per the recorded
+runbook, in the safe order**: Time Travel bookmarks on both D1s → migration 0065 applied to
+dev + prod (schema 63→**64**; zero rows lost: 56 prod tasks / 147 archives preserved; both
+sites healthy throughout) → the re-land `dc5d0d6` (the revert-of-revert, byte-identical to
+the verified branch) → **CI green first try → CD green per-step** (build → dev deploy →
+probe → prod deploy → probe → purge → restore) → **live smoke green**: prod reads carry
+the 7-key payload (task_deps + the effective triple), and the exact writes that 500'd at
+schema 63 now answer **201 live on dev** (task create, sprint create, dep-edge create) —
+verified end-to-end and then fully cleaned up. The desktop **v0.1.36-desktop** (island @
+`7f314e9`) needs no re-pin (`public/` verified byte-identical between the pin and the live
+main). The only remainder is assumption 11's queued owner ruling.
 
 ---
 
@@ -238,32 +241,55 @@ carries the meaning) — pinned by `e2e/s247-a11y.spec.ts` on every Phases 3-7 d
 - Nothing is lost: PR #17 (merged — the durable acceptance record), the branch @ `1a223c3`
   (preserved), the whole acceptance matrix, and the desktop release all stand.
 
-## 6. The D1 migration — BLOCKED on tooling + the owner ritual (no improvisation)
+## 6. The D1 migration — EXECUTED AND LIVE-VERIFIED (the S249 owner-authorized round)
 
 - **What was tried (S248)**: the mandated `d1-migrate-dev.yml` workflow_dispatch (migration
-  `0065_sprint_deadline_deps`, allow-list `dev_task_deps`) — **REFUSED before writing a
-  byte** (run 42254263013): its additive-contract sanity guard rejects the backfill
-  `UPDATE sprints SET status = …` (it was built for table-creating migrations; **0065 is
-  the repo's first column-adding + backfilling migration**), and its byte-level R2 verifier
-  (identical sha256 on every pre-existing table) cannot express column additions either.
-  No manual fallback was improvised — per the mandate.
-- **The healthcheck.io ping URL from the kickoff** (hc-ping.com/fzlazarfu…/hibana) 404s —
-  the slug was randomized per the account's security note (Changelogs: any new check MUST
-  use a random slug); the real check is owner-held.
-- **THE OWNER'S RE-LAND RUNBOOK (three steps, ~30 min)**:
-  1. **Migrate the D1s.** DEV: `npx wrangler d1 time-travel info pm-app-dev` (bookmark) →
-     `node scripts/d1-migrate.mjs --db pm-app-dev --name 0064_user_categories` → `--name
-     0065_sprint_deadline_deps` — OR extend `d1-migrate-dev.yml` for column-adding
-     migrations first (allow `UPDATE <t> SET <c>` only when the same file `ALTER TABLE <t>
-     ADD COLUMN <c>`; teach the digest/verifier to compare pre-existing columns only),
-     then run both through the workflow. PROD (owner-only, the Changelogs §9 ritual):
-     `npm run bookmark:prod` → `npx wrangler d1 migrations apply pm-app-prod --remote`.
-  2. **Re-land**: `git revert 8ae04ce` on main → push → CI → CD auto-deploys the feature.
-  3. **Verify**: `/api/health` reads `schema_version: 65`; a task + sprint create round on
-     DEV first; then the read-only prod smoke.
-- Why safe to wait: the live prod/dev code is the pre-feature revert — nothing about the
-  current deployment depends on the migration. The migration is purely enabling for the
-  re-land.
+  `0065_sprint_deadline_deps`, allow-list `dev_task_deps`) — REFUSED before writing a byte
+  (run 42254263013): its additive-contract sanity guard rejects the backfill UPDATE
+  statements (it was built for table-creating migrations; 0065 is the repo's first
+  column-adding + backfilling migration), and its byte-level R2 verifier cannot express
+  column additions either. No manual fallback was improvised — per the mandate.
+- **What happened next (S249, the owner's explicit authorization)**: the runbook's local
+  path was executed exactly, in the safe order — migrate FIRST, then land the code.
+  **A decisive pre-flight correction**: direct read-only queries of both remote
+  `d1_migrations` tables showed **0064 was ALREADY APPLIED** (dev 2026-09-30T23:19:59Z,
+  prod 2026-09-30T23:25:41Z) — only **0065** was pending, and the end state is schema
+  **64** (not the runbook's assumed 65; the S248 "behind 0064" diagnosis was an
+  under-count — changing nothing about the write-breakage root cause).
+- **The executed ritual** (the repo's own documented process): pre-flight counts (dev: 0
+  sprints / 1 task / 0 archives; prod: 0 sprints / 56 tasks / 147 archives; no two-open
+  projects — the backfill UPDATEs were no-ops by construction) → **Time Travel bookmarks**
+  (dev `0000114b-00000000-0000511b-43dbf93c124dc6e9b238c3a903e54fbd`, prod
+  `00001f01-00000000-0000511b-f43182fdf44351e9204f942f5d15b47b`, both recorded in
+  Changelogs.md §9) → `node scripts/d1-migrate.mjs --db pm-app-dev --name
+  0065_sprint_deadline_deps` then `--db pm-app-prod` (the repo's idempotent script; creds
+  staged as a transient gitignored `.secrets.env` exactly as the d1-migrate-dev.yml
+  workflow does — umask 077, deleted immediately after, never committed or logged).
+- **Post-migration verification (both DBs)**: `d1_migrations` count 63→**64**; all 5 sprint
+  columns + both dev_tasks columns + `dev_task_deps` + `idx_sprints_one_active` + both dep
+  indexes + `project_archives.sprint_name_snapshot` present; **data preserved exactly —
+  prod 56 tasks / 147 archives / 0 sprints / 0 deps, zero rows lost**; both live sites
+  healthy throughout the old-code-new-schema window.
+- **The re-land**: `git revert 8ae04ce` → **`dc5d0d6`** (byte-identical to the verified
+  branch for src/public/migrations — empty diff; fresh gates: verify EXIT 0, 112f/969t,
+  i18n 1678=1678, cache-bust PASS) → pushed → **CI green first try** (run 42278077835) →
+  **CD green per-step** (run 42279600608: guard → build --wire-html → Deploy to DEV →
+  Live-probe DEV → Deploy to PROD → Live-probe PROD → Purge zone cache → Restore canonical
+  HTML → Verify git tree clean).
+- **Live smoke**: prod health schema 64 ✓ (dev too) · prod read smoke — login ✓ → 7
+  projects ✓ → board GET carrying all 7 payload keys (task_deps + the effective triple) ✓
+  · the live /kanban HTML references `due-control.js?v=1` (the feature's own asset —
+  deploy-freshness proof) ✓ · **dev write smoke — the exact paths that 500'd at schema 63
+  now 201 LIVE**: task CREATE 201 · sprint CREATE 201 (planned + emoji persisted) ·
+  dep-edge CREATE 201 → board GET shows the edge + the sprint's new columns → **full
+  cleanup** (all DELETEs 200, the dev DB back to its pre-smoke state). Zero prod writes;
+  zero prod errors from this round.
+- **The healthcheck.io checks** (discovered via the management API — the kickoff's slug was
+  indeed wrong, confirming S248's finding): "Hibana uptime" (the independent GitHub-side
+  prober of /api/health) **UP throughout** ✓; "Hibana errors" red ~1 more day — its 24h
+  window still holds the S248 broken-window's 25 error rows (16:30–18:00 UTC, predating
+  the re-land; zero since) — it **self-heals** as they age out; "Hibana" (the backup cron's
+  dead-man's switch) up — deliberately untouched (a manual ping would falsify its meaning).
 
 ## 7. The Phase 9 re-pin inventory (the D9 evidence)
 
@@ -284,9 +310,9 @@ carries the meaning) — pinned by `e2e/s247-a11y.spec.ts` on every Phases 3-7 d
   with the i18n-fa v104 injector, claude-dark-theme.css v32 (the S247b block rides the same
   v459 SHELL step). (S249 re-measured the ?v= tags on the branch HTML today.)
 
-## 8. The S249 independent re-verification (this round, 2026-11-06)
+## 8. The S249 verification + re-land rounds (2026-11-06)
 
-Fresh sandbox; both repos cloned (public, no token); the never-overwrite reconciliation
+**Round 1 (verification):** fresh sandbox; both repos cloned (public, no token); the never-overwrite reconciliation
 performed first — **S248's verified push ADOPTED** (main `50dda55`, branch `1a223c3`,
 desktop `9303664`; no force, no twins). Then everything re-verified independently:
 
@@ -309,7 +335,26 @@ desktop `9303664`; no force, no twins). Then everything re-verified independentl
 | Desktop release | ✓ `v0.1.36-desktop` LIVE (installer 9.2 MB + portable 7.63 MB + checksums; notes carry both versions + the island pin) |
 | Concurrent-work scan | ✓ none (all remote refs match the documented state) |
 
-Zero code changes, zero pushes of code, zero migrations — this round verified and adopted.
+Zero code changes, zero pushes of code, zero migrations — that round verified and adopted. **Round 2 (the re-land, owner-authorized, same day ~1h later): executed the entire §6 remainder — see above; its own additions to the verification table:**
+
+| Check (round 2) | Result |
+|---|---|
+| Pre-flight: remote `d1_migrations` newest rows | ✓ 0064 already applied on both (2026-09-30) — only 0065 pending |
+| Time Travel bookmarks (dev + prod) | ✓ `0000114b…` / `00001f01…` recorded in Changelogs.md §9 |
+| 0065 → pm-app-dev + pm-app-prod (d1-migrate.mjs) | ✓ DONE + registered; schema 64 both |
+| Post-migration column/object checks (both DBs) | ✓ all columns + dev_task_deps + indexes + snapshot present |
+| Data preservation (prod) | ✓ 56 tasks / 147 archives / 0 sprints — zero rows lost |
+| Old-code-live-on-new-schema window | ✓ both sites `ok:true, db:up` throughout |
+| Re-land `dc5d0d6` tree vs verified branch | ✓ byte-identical (src/public/migrations empty diff) |
+| Gates on the re-landed tree | ✓ verify EXIT 0 (112f/969t) · i18n 1678=1678 · cache-bust PASS |
+| CI on `dc5d0d6` (run 42278077835) | ✓ success, first try |
+| CD on `dc5d0d6` (run 42279600608) | ✓ success — every step green (dev deploy → probe → prod deploy → probe → purge → restore) |
+| LIVE health (both envs) | ✓ schema_version 64 |
+| Prod read smoke | ✓ login → 7 projects → board GET with all 7 payload keys; /kanban HTML references due-control.js?v=1 |
+| Dev write smoke (the former 500s) | ✓ task 201 · sprint 201 · dep-edge 201 → full cleanup, dev DB restored |
+| Desktop island pin | ✓ `git diff 7f314e9 dc5d0d6 -- public/` EMPTY — no re-pin needed |
+| healthchecks.io | ✓ "Hibana uptime" UP throughout; "Hibana errors" = the S248 residue, self-heals (§6) |
+| Credential hygiene | ✓ transient `.secrets.env` (gitignored, 0600) deleted after use; one-shot token URLs; nothing committed or logged |
 
 ## 9. Where everything lives (the handoff)
 
@@ -317,15 +362,17 @@ Zero code changes, zero pushes of code, zero migrations — this round verified 
 |---|---|
 | The web feature | branch `feat/sprint-deadline-deps` @ `1a223c3` (preserved, never force-pushed) |
 | The PR (the durable acceptance-matrix record) | hibana-source PR #17 (merged) |
-| The merge + the revert (current live code) | main: `d883081` (squash) → `8ae04ce` (the revert, LIVE) → `50dda55` (docs close) |
+| The merge → rollback → RE-LAND (current live code) | main: `d883081` (squash) → `8ae04ce` (the rollback) → `50dda55`/`522e479` (docs) → **`dc5d0d6` (the re-land, LIVE on hibana.ir)** → the docs close-out |
 | The acceptance matrix | `src/tests/acceptance-s247.test.ts` (on the branch + inside the merge) |
 | The full session record | `Hibana-Sprint-Deadline-Implementation-Pack/agent-workflow/IMPLEMENTATION-STATUS.md` (Sessions 1–12 + the S249 verification round) |
 | The close-out note | `Hibana-Sprint-Deadline-Implementation-Pack/agent-workflow/NEXT-SESSION-PROMPT.md` (replaced by the close-out) |
 | The desktop round | hibana-desktop main: `ffbd191` + `9303664`; release `v0.1.36-desktop` |
 | This report | this file (regenerated durably by S249; the original was written to S248's ephemeral sandbox `download/`) |
-| The migration + re-land runbook | §6 above + the close-out note + the Session 12 log |
+| The migration + re-land evidence | §6 above (EXECUTED) + the Session 14 log + the Changelogs.md §9 bookmark lines |
 
-**Final state: the implementation is COMPLETE per the phased plan's §7 definition of done.
-No further implementation session is required.** The only remaining actions are owner-side:
-the D1 migrations + the re-land (§6's three steps), and the queued ruling on assumption 11's
-H1 day-window seam (§3).
+**Final state: the implementation is COMPLETE per the phased plan's §7 definition of done —
+and LIVE ON PRODUCTION (hibana.ir @ `dc5d0d6`, schema 64, both D1s migrated, every write
+path verified 201 live). No further implementation session is required.** The only
+remaining item is the queued owner ruling on assumption 11's H1 day-window seam (§3), plus
+the optional hygiene noted in §6 (the healthchecks.io "Hibana errors" self-heal + the
+workflow extension before the next column-adding migration).

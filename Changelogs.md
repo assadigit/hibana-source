@@ -661,3 +661,5 @@ must stay last). Restore is in-place and destructive: `npx wrangler d1 time-trav
 | 2026-09-28T13:53:52.600Z | pm-app-prod | 61 | 00000f26-00000000-000050f4-ea96e59d2e19b59fb760f6a6d85b7df1 | pre-migration bookmark (prod) |
 | 2026-09-30T23:15:16.508Z | pm-app-dev | 62 | 00000979-00000000-000050f6-e6002da0ee031b2f2b8f4c7acb70572e | S181: pre-0064 user-scoped categories (dev) |
 | 2026-09-30T23:22:33.536Z | pm-app-prod | 62 | 00001001-00000000-000050f6-1b8e06d1e8196b47e7176464a10727ff | S181: pre-0064 user-scoped categories (prod) |
+| 2026-11-06T19:12:36.156Z | pm-app-dev | 63 | 0000114b-00000000-0000511b-43dbf93c124dc6e9b238c3a903e54fbd | S249: pre-0065 sprint/deadline/deps (dev) — the owner-approved re-land round |
+| 2026-11-06T19:12:42.026Z | pm-app-prod | 63 | 00001f01-00000000-0000511b-f43182fdf44351e9204f942f5d15b47b | S249: pre-0065 sprint/deadline/deps (prod) — the owner-approved re-land round |

@@ -5,8 +5,8 @@ Continue Hibana Sprint, Deadline & Dependency implementation — **the FINAL pha
 **This session is S248** in the repo's commit-numbering sequence (Phase 0 = S239, Phase 1 =
 S240 @ `81f2c05`, Phase 2 = S241 @ `da652d2`, Phase 3 = S242 @ `a1e7d2d`, Phase 4 =
 S243 @ `b770258` + the S243b reconciliation @ `3ae6ae9`, Phase 5 = S244 @ `7a6bd4a`,
-Phase 6 = S245 @ `f1ca773`, Phase 7 = S246 @ `a820253`, Phase 8 = **S247 @
-`e49f2e5`** — all final deliveries verified, all gates green; the Phase 8 round was the
+Phase 6 = S245 @ `f1ca773`, Phase 7 = S246 @ `a820253`, Phase 8 = **S247 @ `e49f2e5` + the S247b
+reconciliation @ `7f314e9`** — all final deliveries verified, all gates green; the Phase 8 round was the
 FULL-SPEC ACCEPTANCE SWEEP: the traceable release matrix
 `src/tests/acceptance-s247.test.ts` (every spec §21 (19 rows) / §22 (20) / §23 (11) /
 §24 (10) row + the visual guide's §6 checklist mapped to an existing green test or a
@@ -16,7 +16,7 @@ embedded-board threshold boundary sides, the EN/FA same-instant dueDayLabel agre
 the one-pass FA localization sweep; `s247-a11y.spec.ts`: keyboard reachability + aria
 labeling + AA contrast + color independence on every Phases 3-7 dialog), the ONE real
 defect the sweep surfaced — the deadline/dep state text under WCAG AA — FIXED in
-devboard.css (the amber/green pair darkened to 5.34/5.96:1; the ladder moved to
+devboard.css (the amber/green pair darkened to 5.34/5.96:1) + the S247b reconciliation @ `7f314e9` (the dark-theme state family lifted in claude-dark-theme.css — assumption 15's limitation closed; claude v32 rides the same v459 SHELL step); the ladder sits at
 sw.js v459, devboard.css v45), and the FULL e2e suite **509/509 across 101 spec
 files**). If ANOTHER session appears mid-work: reconcile per the never-overwrite
 rule — adopt the verified push, never force-push, never stack a conflicting twin.
@@ -45,8 +45,8 @@ files, commit bodies, or logs.
 4. `Hibana-Sprint-Deadline-Implementation-Pack/agent-workflow/IMPLEMENTATION-STATUS.md`
    (the architecture map incl. the DESKTOP section, the D1–D9 register — **D9 is THIS
    round's core**, assumptions 1–15 — assumption 2 (deps are SOFT), 13 (the ride-along),
-   14 (S246's decisions), 15 (S247's matrix doctrine + the contrast fix + the dark-theme
-   limitation) are BINDING; assumption 11's H1 day-window seam stays QUEUED — if the
+   14 (S246's decisions), 15 (S247's matrix doctrine + the contrast fix; its dark-theme
+   limitation was CLOSED same-session by the S247b reconciliation @ `7f314e9`) are BINDING; assumption 11's H1 day-window seam stays QUEUED — if the
    owner has not ruled, ship as-is and restate it in the final report)
 5. `docs/project-kanban/API-AND-SYNC-CONTRACT.md` §12 on the feature branch — the
    COMPLETE contract the desktop round consumes (S247 pinned it mirrors the code:
@@ -68,7 +68,7 @@ pack — read it off main. If the user re-pastes the pack, prefer the repo copy.
    is mid-work in EITHER repo; preserve unrelated/uncommitted changes; reconcile —
    never overwrite concurrent work.
 2. Web feature branch: `git checkout feat/sprint-deadline-deps && git pull` — HEAD must
-   be **`e49f2e5`** (or its descendant), clean tree. **NEVER commit non-docs code to
+   be **`7f314e9`** (or its descendant — the S247b reconciliation on top of e49f2e5), clean tree. **NEVER commit non-docs code to
    `main`** — pushes to main auto-deploy to production hibana.ir via the CI→CD chain
    (`ci.yml` → `cd.yml` workflow_run-gated: CI green on main → build `--wire-html` →
    deploy dev → live probe → deploy prod). Branch pushes run CI only and can NEVER
@@ -109,7 +109,7 @@ desktop code BEFORE the web merge so the island regenerates from the FINAL web r
    desktop ships ZERO deadline-resolution logic), the sprints' new columns. The origin
    rules, thresholds, and precedence live server-side only.
 3. **The island re-pin** from the post-Phase-8 web ref: run `scripts/sync-island.mjs`
-   against hibana-source `feat/sprint-deadline-deps` @ `e49f2e5` (or its final
+   against hibana-source `feat/sprint-deadline-deps` @ `7f314e9` (or its final
    descendant after Track B's PR merge — re-pin AFTER the merge if the web ref moves
    again). This pulls devboard.js v36, board-page.js v33, project-page.js v84,
    sprint-page.js v27, devboard.css v45, due-control.js v1 + the i18n carriers into
@@ -139,7 +139,7 @@ desktop code BEFORE the web merge so the island regenerates from the FINAL web r
 
 ### Track B — the web PR → merge → auto-deploy (hibana-source)
 
-1. Open the PR `feat/sprint-deadline-deps` → `main` (the branch @ `e49f2e5` or its
+1. Open the PR `feat/sprint-deadline-deps` → `main` (the branch @ `7f314e9` (e49f2e5 + the S247b dark-theme reconciliation) or its
    desktop-round descendant if Track A required web-side tweaks — keep them minimal and
    cited). PR body: the acceptance-matrix summary (every §21/§22/§23/§24 row + visual
    §6 → test citations, the S247-ADD pins), the gate results (verify 112f/969t, i18n
@@ -166,8 +166,8 @@ desktop code BEFORE the web merge so the island regenerates from the FINAL web r
 5. The final report (the definition of done, §7): every §21/§22/§23/§24 row + visual
    §6 row marked Done / Not Done / Blocked with its citation (the S247 matrix is the
    source), the D1–D9 register's final state, the assumptions register (1–15 + the
-   queued owner decisions: assumption 11's H1 day-window seam, the dark-theme contrast
-   family from assumption 15), the desktop verification evidence, the deploy evidence
+   queued owner decisions: assumption 11's H1 day-window seam — the dark-theme contrast
+   family from assumption 15 was CLOSED by S247b), the desktop verification evidence, the deploy evidence
    (SHAs, health, smoke), and the Phase 9 re-pin inventory: **ZERO new fetch sites
    across Phases 3-8** (the s242-s246 pins + the island's held 7+2/4 counts), the
    FN-ALLOWLIST deltas across the feature (the S240 re-pins, the S241 board GET, the
@@ -204,7 +204,7 @@ runtime deps, ZERO new fetch sites.
    migration state + the final-report summary) and REPLACE this file's content with the
    CLOSE-OUT note: the definition-of-done state (§7) — every acceptance row marked,
    both repos verified, migrations safe, the queued owner decisions restated (assumption
-   11 + the dark-theme contrast family), and the explicit statement that no further
+   11; the dark-theme contrast family was closed by S247b), and the explicit statement that no further
    implementation session is required (or exactly what remains, if anything is blocked).
 2. Push the web feature branch if it moved (one-shot token), the desktop main push
    (one-shot token), and the docs-only commit to hibana-source main (agent-workflow/*.md

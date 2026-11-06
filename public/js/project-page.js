@@ -3273,7 +3273,7 @@
         const ensureBoardLib = (cb) => {
           if (window.HibanaBoard) return cb()
           const s = document.createElement('script')
-          s.src = '/js/devboard.js?v=33'
+          s.src = '/js/devboard.js?v=34'
           s.onload = () => cb()
           s.onerror = () => window.hibana?.toast(_t('sparks.saveFailed', "Couldn't load"), 'err')
           document.head.appendChild(s)
@@ -3317,7 +3317,14 @@
             ? ` · <button type="button" class="pd-task-shots" data-pd-shots="${t.id}" title="${pdEsc(_t('db.taskShotsHint', 'Pinned pictures — note + proof stuck to this item'))}" aria-label="${pdEsc(_t('db.taskShotsBadge', 'Pinned pictures ({n})').replace('{n}', String(pinsN)))}">${pdPinIcon} ${pdDig(pinsN)}</button>`
             : ''
           const sprintBadgeHtml = sprintName ? `<span class="db-sprint-badge">◆ ${pdEsc(sprintName)}</span>` : ''
-          wrap.innerHTML = pdBannerHtml(tp) + `<div class="pd-task st-${status}" draggable="true" role="button" tabindex="0" aria-label="${pdEsc(t.title)}"><span class="pd-task-body">${pdCatChipHtml(t.category_id)}<span class="pd-task-title-row" dir="auto"><span class="pd-task-title"${pdEscTitleAttrs(t.title)}>${pdTitleHtml(t.title)}</span></span>${pdPreviewHtml(t.title)}${pdReadMoreBtnHtml(t.title)}${pdTagChipsHtml(tt, sprintBadgeHtml)}<span class="pd-task-meta">${pdMetaDateHtml(t.created_at, status === 'done')}${shotsBadgeHtml}</span></span></div>`
+          // S244 (spec pack Phase 5 — §12): the repaint twin of the server's card
+          // deadline row — the SHARED devboard.js render stack over the payload's
+          // additive effective_* triple (/api/projects/:id now carries it — the
+          // loadDetail seam). Slot: below the description area, above the tags/meta
+          // (Screen A); '' on the null triple.
+          const pdLang = window.hibanaI18n && window.hibanaI18n.lang ? window.hibanaI18n.lang() : 'en'
+          const deadlineHtml = window.HibanaBoard && window.HibanaBoard.deadlineRowHtml ? window.HibanaBoard.deadlineRowHtml(t, pdLang) : ''
+          wrap.innerHTML = pdBannerHtml(tp) + `<div class="pd-task st-${status}" draggable="true" role="button" tabindex="0" aria-label="${pdEsc(t.title)}"><span class="pd-task-body">${pdCatChipHtml(t.category_id)}<span class="pd-task-title-row" dir="auto"><span class="pd-task-title"${pdEscTitleAttrs(t.title)}>${pdTitleHtml(t.title)}</span></span>${pdPreviewHtml(t.title)}${pdReadMoreBtnHtml(t.title)}${deadlineHtml}${pdTagChipsHtml(tt, sprintBadgeHtml)}<span class="pd-task-meta">${pdMetaDateHtml(t.created_at, status === 'done')}${shotsBadgeHtml}</span></span></div>`
           return wrap
         }
         // S209 (kanban 1:1 parity): the pins-per-task + sprint-name maps derived from

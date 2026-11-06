@@ -757,6 +757,27 @@ window.__hibanaDictEN = {
       'db.ov.total': 'Total', 'db.ov.settings': 'Settings', 'db.ov.due': 'Due {d}',
       'db.ov.counts': 'Task counts by Kanban column',
       'db.dueDate': 'Due date',
+      // S244 (spec pack Phase 5 — the deadline round): the Due date (optional)
+      // toggle (§9.1), the shared Gregorian/Jalali control's strings (§11 — D6),
+      // the card row's threshold wordings (§12.3 — the word carries the meaning),
+      // the inherited read-only line (§10.1), and the completed-task Done
+      // indication (§12.4).
+      'db.due.toggleOpt': 'Due date (optional)',
+      'db.due.calLabel': 'Calendar', 'db.due.calG': 'Gregorian', 'db.due.calJ': 'Jalali',
+      'db.due.p24': '24 hours', 'db.due.p48': '48 hours', 'db.due.p72': '72 hours',
+      'db.due.pWeek': 'This week', 'db.due.pMonth': 'This month',
+      'db.due.addTime': 'Add time (optional)', 'db.due.timeLabel': 'Time',
+      'db.due.timeHint': 'Without a specified time, the deadline is 23:59 on the selected day.',
+      'db.due.jalaliPh': '1405/08/12',
+      'db.due.invalid': 'Enter the date as year/month/day, e.g. 1405/08/12.',
+      'db.due.required': 'Pick a date for the deadline, or turn it off.',
+      'db.due.inherited': 'Using {sprint} sprint deadline · {date}',
+      'db.due.sprintDue': 'Sprint deadline',
+      'db.due.dueToday': 'Due today', 'db.due.dueTomorrow': 'Due tomorrow',
+      'db.due.leftDays': '{n} days left',
+      'db.due.overdueDay': 'Overdue by {n} day', 'db.due.overdueDays': 'Overdue by {n} days',
+      'db.due.overdueHours': 'Overdue by {n}h',
+      'db.due.doneLabel': 'Done',
       // Phase 5 — sprint time paging
       'sp.older': 'Older', 'sp.newer': 'Newer', 'sp.now': 'Now',
       // S46.10: sprints list (below the timeline)

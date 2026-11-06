@@ -424,8 +424,15 @@ test('FA/RTL: the sprint filter, the dropdown and the quick-create dialog locali
   await expect(page.locator('.db-sprintq-card')).toHaveAttribute('dir', 'rtl')
   await expect(page.locator('.db-sprintq-card .db-field span').first()).toHaveText('نام اسپرینت')
   await expect(page.locator('[data-sq-emoji-label]')).toHaveText('انتخاب ایموجی')
-  await expect(page.locator('.db-sq-toggle').first()).toContainText('افزودن توضیح')
-  await expect(page.locator('.db-sq-toggle').nth(1)).toContainText('تعیین مهلت')
+  // S244 (Phase 5): the TASK MODAL's own Due date (optional) toggle wears the
+  // shared .db-sq-toggle grammar too — the quick-create's toggles are scoped to
+  // its card now (the intent — FA labels on both OFF-by-default toggles — is
+  // unchanged; the modal's due toggle localizes through the same grammar).
+  await expect(page.locator('.db-sprintq-card .db-sq-toggle').first()).toContainText('افزودن توضیح')
+  await expect(page.locator('.db-sprintq-card .db-sq-toggle').nth(1)).toContainText('تعیین مهلت')
+  // the task modal's due toggle localizes too (the S244 round's own grammar —
+  // scoped through its field wrapper, unambiguous against the quick-create's)
+  await expect(page.locator('[data-db-due-field] > .db-sq-toggle')).toContainText('تاریخ مهلت')
   // required-name inline error reads FA too
   await page.click('[data-sq-create]')
   await expect(page.locator('[data-sq-error]')).toContainText('نام', { timeout: 5_000 })

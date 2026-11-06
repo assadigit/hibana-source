@@ -502,6 +502,15 @@ the single resolution (spec §18: web and desktop must not fork deadline logic; 
 consumes the computed fields and needs zero deadline logic of its own). On a lagging
 pre-0065 D1 the fields serialize as the null triple.
 
+**S244 (Phase 5) addition — the project detail pool carries the same triple:** the
+`devTasks` rows of `GET /api/projects/:id` (both the JSON pool and the server-rendered
+HTML fragment it feeds) now carry the additive `effective_due_at` / `effective_due_source`
+/ `effective_due_origin_at` fields, computed through the SAME `effectiveDeadlineOf` seam
+(`detail-helpers.ts` `devTasksWithDue`). The embedded project-page board's server render
+and its client repaint twin (`project-page.js` `pdTruthWrap`) read the triple from there —
+the web client still ships zero deadline resolution logic. Additive + island-transparent:
+a Go struct decode ignores the keys, and no existing consumer reads them.
+
 ### 12.3 Task dependencies (S240 write / S241 read)
 
 `dev_task_deps` (0065): `(blocker_task_id, blocked_task_id)` both `→dev_tasks ON DELETE

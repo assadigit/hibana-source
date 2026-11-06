@@ -791,10 +791,16 @@
                   '<button type="button" class="ghost db-sq-emoji-btn" data-sd-emoji-btn><span class="db-sq-emoji-cur" data-sd-emoji-cur aria-hidden="true">' + B().esc(B().sprintGlyph(s)) + '</span> <span data-sd-emoji-label>' + B().esc(s.emoji ? _t('db.sq.changeEmoji', 'Change') : _t('db.sq.chooseEmoji', 'Choose emoji')) + '</span></button>' +
                   (s.emoji ? '<button type="button" class="ghost danger db-sq-emoji-clear" data-sd-emoji-clear aria-label="' + B().esc(_t('db.sq.clearEmoji', 'Back to the default icon')) + '" title="' + B().esc(_t('db.sq.clearEmoji', 'Back to the default icon')) + '">✕</button>' : '') +
                 '</div></div>' +
-              // S243: read-only this phase — Phase 5's shared Gregorian/Jalali control
-              // takes the seat (spec §9.2; the kickoff's Phase-4 boundary).
+              // S244 (spec §9.2 + Phase 5's D6 round): the read-only due-date line
+              // becomes the SHARED control behind a Set due date toggle (the
+              // kickoff's Phase-4 boundary resolved) — ON carries the sprint's
+              // saved value; PATCH due_at rides the Save (explicit: value→value
+              // preserves due_origin_at server-side — an edit is not a re-assignment,
+              // contract §12.1; OFF sends null which clears both).
               '<div class="db-field"><span>' + B().esc(_t('db.dueDate', 'Due date')) + '</span>' +
-                '<p class="sp-detail-due muted small">' + (s.due_at
+                '<label class="db-sq-toggle"><input type="checkbox" data-sd-due-toggle' + (s.due_at ? ' checked' : '') + '><span>' + B().esc(_t('db.sq.setDue', 'Set due date')) + '</span></label>' +
+                '<div class="db-sd-due-mount" data-sd-due-mount' + (s.due_at ? '' : ' hidden') + '></div>' +
+                '<p class="sp-detail-due muted small" data-sd-due-ro>' + (s.due_at
                   ? B().esc(_t('db.ov.due', 'Due {d}').replace('{d}', new Date(s.due_at).toLocaleDateString(document.documentElement.lang === 'fa' ? 'fa-IR' : 'en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' })))
                   : B().esc(_t('sp.noDue', 'No due date yet.'))) + '</p></div>' +
               '<a class="btn ghost small sp-detail-plan" href="/project.html?id=' + encodeURIComponent(projectId) + '&sprint=' + encodeURIComponent(s.id) + '">' + B().esc(_t('sprint.plan', 'Plan')) + ' — ' + B().esc(_t('sp.openPlanEditor', 'the full-screen plan editor')) + '</a>' +
@@ -815,13 +821,49 @@
             }
             const clearBtn = body.querySelector('[data-sd-emoji-clear]')
             if (clearBtn) clearBtn.onclick = () => { emoji = ''; paintEmoji() }
+            // S244 (D6): the shared control behind the sprint's Set due date toggle
+            // — mounted when the sprint carries a due date (or on first reveal),
+            // the saved value loads into it. The read-only line hides while the
+            // control is up (the control carries the value); it shows the SAVED
+            // state whenever the toggle is OFF.
+            const dueToggle = body.querySelector('[data-sd-due-toggle]')
+            const dueMount = body.querySelector('[data-sd-due-mount]')
+            const dueRo = body.querySelector('[data-sd-due-ro]')
+            let sdDueCtl = null
+            if (dueToggle && dueMount && s.due_at && window.HibanaDueControl && window.HibanaDueControl.create) {
+              sdDueCtl = window.HibanaDueControl.create({ value: s.due_at })
+              dueMount.textContent = ''
+              dueMount.appendChild(sdDueCtl.el)
+            }
+            if (dueToggle && dueMount) {
+              if (dueRo) dueRo.hidden = dueToggle.checked && !!sdDueCtl
+              dueToggle.onchange = () => {
+                if (dueToggle.checked && !sdDueCtl && window.HibanaDueControl && window.HibanaDueControl.create) {
+                  sdDueCtl = window.HibanaDueControl.create({ value: null })
+                  dueMount.textContent = ''
+                  dueMount.appendChild(sdDueCtl.el)
+                }
+                dueMount.hidden = !dueToggle.checked
+                if (dueRo) dueRo.hidden = dueToggle.checked && !!sdDueCtl
+              }
+            }
             const errEl = body.querySelector('[data-sd-error]')
             const saveBtn = body.querySelector('[data-sd-save]')
             saveBtn.onclick = async () => {
               const nameVal = (body.querySelector('[data-sd-name]').value || '').trim()
               if (!nameVal) { errEl.textContent = _t('db.sq.nameRequired', 'Enter a name for the sprint.'); errEl.hidden = false; return }
+              const dueVal = sdDueCtl ? sdDueCtl.value() : null
+              if (dueToggle && dueToggle.checked && !dueVal) {
+                errEl.textContent = _t('db.due.required', 'Pick a date for the deadline, or turn it off.')
+                errEl.hidden = false
+                return
+              }
               const verVal = (body.querySelector('[data-sd-version]').value || '').trim()
+              // S244 (contract §12.1 origin rules): due_at rides EXPLICITLY —
+              // value→value PRESERVES due_origin_at server-side (an edit is not a
+              // re-assignment — §13's extension semantics), null clears both.
               const patchBody = { name: nameVal, version: verVal ? verVal : null, emoji: emoji ? emoji : null }
+              if (dueToggle) patchBody.due_at = dueToggle.checked ? dueVal : null
               saveBtn.disabled = true
               try {
                 await B().patchSprint(s.id, patchBody)
@@ -1743,7 +1785,7 @@
             if (window.HibanaBoard) return resolve(true)
             if (!injected && waited >= 1200) {
               injected = true
-              inject('/js/devboard.js?v=33') // keep in sync with the <head> tag + sw SHELL
+              inject('/js/devboard.js?v=34') // keep in sync with the <head> tag + sw SHELL
               if (!window.jalaali) inject('/vendor/jalaali.min.js') // Jalali timeline for FA
             }
             if (waited >= 9000) return resolve(false)

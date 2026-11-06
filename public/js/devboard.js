@@ -222,6 +222,120 @@
     return { counts, total }
   }
 
+  // ---------------------------------------------------------------- deadline render
+  // S244 (spec pack Phase 5 — §12 the deadline progress indicator): the shared
+  // CLIENT render stack. The RESOLUTION is server-owned (S241's computed triple on
+  // every payload task row — spec §18: the client ships ZERO deadline-logic and
+  // never re-derives); the only client-side work is RENDERING: classifying
+  // now-vs-effective_due_at per §12.3 for the threshold wording/color, and the
+  // elapsed-time ratio from effective_due_origin_at per §12.2. One implementation
+  // exported on window.HibanaBoard so board-page.js (the /kanban cards + the task
+  // view) and project-page.js (the embedded board's repaint twin) render
+  // identically — never forked (the S209 parity doctrine).
+  const DUE_ICON = '<svg class="icon db-due-ic" viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="5" width="17" height="15" rx="2"/><path d="M8 3v4M16 3v4M3.5 10h17"/><circle cx="12" cy="15.2" r="3.1"/><path d="M12 13.9v1.5l1 .7"/></svg>'
+  const H48 = 48 * 3600000
+  const D7 = 7 * 86400000
+  /** §12.3 thresholds + §12.4 completed-neutrality: classify now vs the payload's
+   * effective_due_at. null = no active deadline (no row, no bar — §10.3's
+   * completed-sprint neutrality already nulled the triple server-side, so the
+   * client just renders null). The exact boundaries: remaining > 7d →
+   * comfortable; > 48h and ≤ 7d → approaching; ≤ 48h and not overdue → urgent;
+   * passed → overdue (§24 tests the exactly-7d and exactly-48h edges). */
+  const deadlineStateOf = (task, nowMs) => {
+    const due = task && task.effective_due_at
+    if (!due) return null
+    if (task.status === 'done') return 'done' // §12.4: no live countdown on a completed task
+    const now = nowMs == null ? Date.now() : nowMs
+    const rem = Date.parse(due) - now
+    if (rem <= 0) return 'overdue'
+    if (rem <= H48) return 'urgent'
+    if (rem <= D7) return 'approaching'
+    return 'comfortable'
+  }
+  /** §12.2: the ELAPSED-TIME fill — the ratio of time elapsed between the
+   * effective_due_origin_at (the payload's server-computed progress START — the
+   * winning level's origin stamp, coalesced server-side; NEVER re-derived here)
+   * and effective_due_at, clamped 0-100. Elapsed time toward the deadline, NOT
+   * task completion. */
+  const deadlineElapsedPct = (task, nowMs) => {
+    const due = task && task.effective_due_at
+    if (!due) return 0
+    const now = nowMs == null ? Date.now() : nowMs
+    const dueMs = Date.parse(due)
+    const originMs = task.effective_due_origin_at ? Date.parse(task.effective_due_origin_at) : dueMs
+    if (now >= dueMs) return 100
+    if (dueMs <= originMs) return 0 // degenerate coalesced origin — no span to fill
+    if (now <= originMs) return 0
+    return Math.min(100, Math.max(0, Math.round(((now - originMs) / (dueMs - originMs)) * 100)))
+  }
+  /** The due day's compact label in the user's LOCAL calendar (§11.4 — local
+   * timezone; Jalali month names when fa). 'Nov 21' / '۲۱ آبان'. */
+  const dueDayLabel = (ms, lang) => {
+    const d = new Date(ms)
+    if (lang === 'fa' && window.jalaali) {
+      const j = window.jalaali.toJalaali(d.getFullYear(), d.getMonth() + 1, d.getDate())
+      return faDig(j.jd) + ' ' + J_MONTHS[j.jm - 1]
+    }
+    return G_MONTHS[d.getMonth()] + ' ' + d.getDate()
+  }
+  const localDayIdx = (ms) => { const d = new Date(ms); return Math.floor(new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime() / DAY) }
+  /** The §12.3 wording — the WORD carries the meaning, never color alone. The
+   * spec's own example vocabulary: 'Due Nov 21 · 16 days left', 'Due tomorrow',
+   * 'Due today', 'Overdue by 1 day', 'Sprint deadline · 7 days left' — the
+   * today/tomorrow/overdue forms read STANDALONE (no date prefix), the dated
+   * forms carry the day label, and the inherited row identifies the source. */
+  const deadlineLabel = (task, state, nowMs, lang) => {
+    const dueMs = Date.parse(task.effective_due_at)
+    const now = nowMs == null ? Date.now() : nowMs
+    const sprintSrc = task.effective_due_source === 'sprint'
+    if (state === 'done') {
+      // §12.4: neutral, a clear Done indication, the date retained — no countdown.
+      return sprintSrc
+        ? '✓ ' + t('db.due.doneLabel', 'Done') + ' · ' + t('db.due.sprintDue', 'Sprint deadline') + ' · ' + dueDayLabel(dueMs, lang)
+        : '✓ ' + t('db.due.doneLabel', 'Done') + ' · ' + t('db.ov.due', 'Due {d}').replace('{d}', dueDayLabel(dueMs, lang))
+    }
+    let left
+    let standalone = false
+    if (now >= dueMs) {
+      const days = localDayIdx(now) - localDayIdx(dueMs)
+      if (days >= 2) left = t('db.due.overdueDays', 'Overdue by {n} days').replace('{n}', faDig(days))
+      else if (days === 1) left = t('db.due.overdueDay', 'Overdue by {n} day').replace('{n}', faDig(1))
+      else left = t('db.due.overdueHours', 'Overdue by {n}h').replace('{n}', faDig(Math.max(1, Math.round((now - dueMs) / 3600000))))
+      standalone = true // the spec's example: 'Overdue by 1 day' reads standalone
+    } else {
+      const days = localDayIdx(dueMs) - localDayIdx(now)
+      if (days === 0) { left = t('db.due.dueToday', 'Due today'); standalone = true }
+      else if (days === 1) { left = t('db.due.dueTomorrow', 'Due tomorrow'); standalone = true }
+      else left = t('db.due.leftDays', '{n} days left').replace('{n}', faDig(days))
+    }
+    // §10.1: the inherited row explicitly identifies the source on the card
+    // ('Sprint deadline · 7 days left'); a personal deadline reads 'Due <date> · …'
+    // (the standalone today/tomorrow/overdue forms skip the redundant date prefix).
+    if (sprintSrc) return t('db.due.sprintDue', 'Sprint deadline') + ' · ' + left
+    if (standalone) return left
+    return t('db.ov.due', 'Due {d}').replace('{d}', dueDayLabel(dueMs, lang)) + ' · ' + left
+  }
+  /** Screen A's card grammar — the row + the thin bar. Renders '' when the triple
+   * is null (no deadline row, no bar — spec §10's no-deadline scenario). The row
+   * carries the calendar-clock icon + the threshold WORD; the bar is decorative
+   * (aria-hidden) and direction-locked LTR (§17: time progression stays
+   * left-to-right even in RTL — the CSS owns the exception). */
+  const deadlineRowHtml = (task, lang, nowMs) => {
+    const state = deadlineStateOf(task, nowMs)
+    if (!state) return ''
+    const pct = deadlineElapsedPct(task, nowMs)
+    const label = deadlineLabel(task, state, nowMs, lang)
+    return '<span class="db-due-row st-' + state + '">' + DUE_ICON + '<span class="db-due-txt" dir="auto">' + esc(label) + '</span></span>' +
+      '<span class="db-due-bar" aria-hidden="true"><span class="db-due-fill st-' + state + '" style="width:' + pct + '%"></span></span>'
+  }
+  /** The row-ONLY variant (no bar) — the S238 read-only task view's meta rows join
+   * the deadline display with the same row grammar, compact for the meta stack. */
+  const deadlineViewHtml = (task, lang, nowMs) => {
+    const state = deadlineStateOf(task, nowMs)
+    if (!state) return ''
+    return '<span class="db-due-row st-' + state + ' db-due-view">' + DUE_ICON + '<span class="db-due-txt" dir="auto">' + esc(deadlineLabel(task, state, nowMs, lang)) + '</span></span>'
+  }
+
   // hibana-sync-status-spec §8/§14: every TASK mutation reports to the per-card
   // sync tracker (public/js/sync-state.js — the ONE state store; the card badges,
   // the header Sync button count and the aria-live region all derive from it).
@@ -830,6 +944,7 @@
   // ---------------------------------------------------------------- editor modal
   let modalEl = null
   let modalCtx = null // { taskId | null, draft, onSaved }
+  let modalDueCtl = null // S244: the mounted shared date control (a fresh instance per renderModal)
 
   function buildModal() {
     if (modalEl) return modalEl
@@ -875,6 +990,13 @@
     modalCtx.draft = task
       ? { title: task.title, status: task.status, priority: task.priority, category_id: task.category_id, sprint_id: task.sprint_id, tags: (task.tags || []).slice() }
       : { title: '', status: modalCtx.defaults.status || 'idea', priority: 'medium', category_id: null, sprint_id: null, tags: [] }
+    // S244 (spec §9.1 — the task deadline toggle): OFF by default in Add; in Edit
+    // the toggle reflects the task's PERSONAL deadline only (due_at is the raw
+    // personal field on the payload row — the computed effective_* triple is
+    // never a toggle source). The inherited sprint deadline keeps the toggle OFF
+    // and renders the read-only line below it (§10.1).
+    modalCtx.draft.dueOn = !!(task && task.due_at)
+    modalCtx.draft.dueAt = task && task.due_at ? task.due_at : null
     // S208: NEW tasks carry a STAGED tag list (the create body's tags[] — the
     // server find-or-creates them; the project composer's contract) and a fresh
     // staged-shots strip. Existing tasks keep their live tag add/remove.
@@ -1028,6 +1150,53 @@
             d.tags.map((id) => { const tg = tagById(id); return tg ? '<span dir="auto" class="chip db-tag" data-tag="' + esc(id) + '" style="background:' + esc(tg.color) + '33"><span style="color:' + esc(tg.color) + '">●</span> ' + esc(tg.name) + ' <button type="button" class="ghost danger" data-untag="' + esc(id) + '" aria-label="✕">✕</button></span>' : '' }).join('') +
             '<input data-db-tag-in maxlength="60" dir="auto" placeholder="' + esc(t('db.addTag', 'Add tag + Enter')) + '">' +
           '</div></div>') +
+        // S244 (spec §9.1 + §3.3 + Screen C): the task-level deadline section —
+        // a compact Due date (optional) toggle, OFF BY DEFAULT (hidden controls
+        // while OFF; the form stays compact — spec §9.1), mounted between Tags
+        // and Upload File. ON reveals the SHARED Gregorian/Jalali control (D6 —
+        // the due-control.js module); OFF on an inherited task renders the
+        // read-only line (§10.1: 'Using <sprint> sprint deadline · <date>' — the
+        // server-computed triple's effective_due_source, never a client
+        // re-derivation). The Add mode reads the drafted sprint's own due_at
+        // (raw row data — no resolution involved; the toggle is OFF).
+        (function () {
+          const ctlOk = !!(window.HibanaDueControl && window.HibanaDueControl.create)
+          if (!ctlOk) return '' // belt: a page without the module keeps the pre-S244 shape
+          const task = modalCtx.taskId ? findTask(modalCtx.taskId) : null
+          let inhName = ''
+          let inhDate = null
+          if (!modalCtx.draft.dueOn) {
+            if (task && task.effective_due_source === 'sprint' && task.effective_due_at) {
+              // §10.1's primary read: the payload row's server-computed inheritance
+              const sp = findSprint(task.sprint_id)
+              inhName = sp ? sp.name : ''
+              inhDate = task.effective_due_at
+            } else if (task && task.sprint_id) {
+              // §10.2's removal preview: the toggle came OFF on an edited task — the
+              // post-save state returns to the sprint's own deadline (a raw display
+              // read; the completed-sprint neutrality applies, no re-derivation)
+              const sp = findSprint(task.sprint_id)
+              if (sp && sp.due_at && sprintStatusOf(sp) !== 'completed') { inhName = sp.name || ''; inhDate = sp.due_at }
+            } else if (!task && modalCtx.draft.sprint_id) {
+              // add mode: the drafted sprint's own due (raw row data — the toggle
+              // is OFF, so whatever the sprint carries is what the task will inherit)
+              const sp = findSprint(modalCtx.draft.sprint_id)
+              if (sp && sp.due_at && sprintStatusOf(sp) !== 'completed') { inhName = sp.name || ''; inhDate = sp.due_at }
+            }
+          }
+          const lang2 = window.hibanaI18n && window.hibanaI18n.lang ? window.hibanaI18n.lang() : 'en'
+          const inhTxt = inhDate
+            ? t('db.due.inherited', 'Using {sprint} sprint deadline · {date}')
+                .replace('{sprint}', inhName)
+                .replace('{date}', dueDayLabel(Date.parse(inhDate), lang2))
+            : ''
+          return '<div class="db-field db-due-field" data-db-due-field>' +
+            '<label class="db-sq-toggle"><input type="checkbox" data-db-due-toggle' + (modalCtx.draft.dueOn ? ' checked' : '') + '><span>' + esc(t('db.due.toggleOpt', 'Due date (optional)')) + '</span></label>' +
+            '<div class="db-due-mount" data-db-due-mount' + (modalCtx.draft.dueOn ? '' : ' hidden') + '></div>' +
+            (inhTxt ? '<p class="db-due-inherited muted small" data-db-due-inherited>' + esc(inhTxt) + '</p>' : '') +
+            '<p class="db-due-err" data-db-due-modal-err role="alert" hidden></p>' +
+          '</div>'
+        })() +
         // S208: the Upload File button + the shots grid — for BOTH modes (the
         // owner's ask: creating a task must offer the picture upload the same way
         // established tasks do). New tasks stage; existing tasks pin immediately
@@ -1165,7 +1334,7 @@
     const sprintSel = el.querySelector('[data-db-sprint]')
     // The quick-create callbacks re-render the card — the typed title must survive
     // the repaint (the tag flows' syncTitleToDraft contract, same scope below).
-    const sprintQRender = () => { syncTitleToDraft(); if (modalCtx) renderModal() }
+    const sprintQRender = () => { syncTitleToDraft(); syncDueToDraft(); if (modalCtx) renderModal() }
     sprintSel.onchange = () => {
       if (sprintSel.value === '__new') {
         // S242 (spec §7.1/Screen D): ＋ New sprint opens the QUICK-CREATE dialog
@@ -1185,6 +1354,34 @@
         return
       }
       modalCtx.draft.sprint_id = sprintSel.value || null
+      // S244 (§10.1): the inherited read-only line follows the drafted sprint —
+      // the sprint select's normal change re-renders through the same survival
+      // contract the quick-create callbacks use (title + due synced first), so
+      // picking a sprint with a deadline shows its line while the toggle is OFF.
+      sprintQRender()
+    }
+    // S244 (spec §9.1): the Due date (optional) toggle — ON reveals the shared
+    // control (a fresh mount per render; the picked value survives repaints
+    // through syncDueToDraft, the title's own survival contract). OFF keeps the
+    // draft's saved value in place — the REMOVAL happens at Save time (the
+    // PATCH's explicit due_at:null), so an accidental toggle never destroys a
+    // picked date (§10.2's semantics live server-side).
+    const dueToggle = el.querySelector('[data-db-due-toggle]')
+    const dueMount = el.querySelector('[data-db-due-mount]')
+    const dueModalErr = el.querySelector('[data-db-due-modal-err]')
+    if (dueToggle && dueMount) {
+      if (!dueMount.hidden && window.HibanaDueControl && window.HibanaDueControl.create) {
+        modalDueCtl = window.HibanaDueControl.create({ value: modalCtx.draft.dueAt })
+        dueMount.textContent = ''
+        dueMount.appendChild(modalDueCtl.el)
+      }
+      dueToggle.onchange = () => {
+        syncTitleToDraft()
+        syncDueToDraft()
+        modalCtx.draft.dueOn = dueToggle.checked
+        if (dueModalErr) { dueModalErr.hidden = true }
+        renderModal()
+      }
     }
     // S208: renderModal() rebuilds the whole card — the TITLE textarea is the
     // one live-buffered field (status/priority/category/sprint sync their own
@@ -1194,6 +1391,13 @@
     const syncTitleToDraft = () => {
       const titleEl = el.querySelector('[name=title]')
       if (titleEl) modalCtx.draft.title = titleEl.value
+    }
+    // S244: the due control's live value joins the title's survival contract —
+    // every mid-edit re-render (a tag chip, the quick-create callbacks) reads the
+    // mounted control into the draft first, so a picked deadline survives the
+    // repaint exactly like the typed title.
+    const syncDueToDraft = () => {
+      if (modalDueCtl && modalCtx && modalCtx.draft && modalCtx.draft.dueOn) modalCtx.draft.dueAt = modalDueCtl.value()
     }
     const tagIn = el.querySelector('[data-db-tag-in]')
     if (tagIn) tagIn.onkeydown = async (ev) => {
@@ -1205,6 +1409,7 @@
         const r = await addTaskTag(modalCtx.taskId, name)
         if (!modalCtx) return // closed meanwhile
         syncTitleToDraft()
+        syncDueToDraft()
         if (!d.tags.includes(r.id)) d.tags.push(r.id)
         if (!tagById(r.id)) state.tags.push({ id: r.id, name, color: '#8AB8F0' })
         tagIn.value = ''
@@ -1216,6 +1421,7 @@
         try {
           await removeTaskTag(modalCtx.taskId, b.dataset.untag)
           syncTitleToDraft()
+          syncDueToDraft()
           modalCtx.draft.tags = modalCtx.draft.tags.filter((x) => x !== b.dataset.untag)
           renderModal()
         } catch { window.hibana && window.hibana.toast(t('sparks.saveFailed', "Couldn't save"), 'err') }
@@ -1231,6 +1437,7 @@
       if (!name) return
       if (!modalCtx.draft.newTags.includes(name)) modalCtx.draft.newTags.push(name)
       syncTitleToDraft()
+      syncDueToDraft()
       renderModal()
       const again = el.querySelector('[data-db-newtag-in]')
       if (again) again.focus()
@@ -1239,6 +1446,7 @@
       b.onclick = () => {
         modalCtx.draft.newTags = modalCtx.draft.newTags.filter((n) => n !== b.dataset.newtagDel)
         syncTitleToDraft()
+        syncDueToDraft()
         renderModal()
         const again = el.querySelector('[data-db-newtag-in]')
         if (again) again.focus()
@@ -1355,6 +1563,28 @@
         // leftover. The S206 draft-reuse block is retired with the nameless create.
         let sprintId = modalCtx.draft.sprint_id
         if (sprintId === '__new') sprintId = null
+        // S244 (spec §9.1/§10.2 — the deadline save contract): the toggle ON sends
+        // the control's ISO instant; a toggle ON with NO picked date blocks the save
+        // inline (never a silent no-deadline). The create body always carries an
+        // EXPLICIT due_at (null = none — the S242 explicit-key pattern); the edit
+        // PATCH sends the key when the toggle is ON (set/keep the personal
+        // override) or when a personal deadline is being REMOVED (§10.2: explicit
+        // null — the server's origin rules clear due_at + due_origin_at and
+        // inheritance resumes); otherwise the key stays ABSENT (contract §12.4:
+        // undefined = untouched).
+        syncDueToDraft()
+        const savedTask = modalCtx.taskId ? findTask(modalCtx.taskId) : null
+        const hadPersonal = !!(savedTask && savedTask.due_at)
+        if (modalCtx.draft.dueOn && !modalCtx.draft.dueAt) {
+          const errEl2 = el.querySelector('[data-db-due-modal-err]')
+          if (errEl2) {
+            errEl2.textContent = t('db.due.required', 'Pick a date for the deadline, or turn it off.')
+            errEl2.hidden = false
+          }
+          const dateIn = el.querySelector('[data-db-due-mount] input')
+          if (dateIn) dateIn.focus()
+          return
+        }
         if (isNew) {
           // S208: the staged tags ride the create body (the server find-or-creates
           // them) and the staged shots PIN to the fresh task (the project
@@ -1368,6 +1598,9 @@
             // draft/open auto-assign, so "No sprint" never really meant No sprint
             // from this modal; undefined stays reserved for old clients).
             sprint_id: sprintId ?? null,
+            // S244 (§9.1): the explicit due_at — the control's ISO instant, or null
+            // when the toggle is OFF (no deadline is ever assigned implicitly).
+            due_at: modalCtx.draft.dueOn ? modalCtx.draft.dueAt : null,
             ...(modalCtx.draft.newTags && modalCtx.draft.newTags.length ? { tags: modalCtx.draft.newTags } : {}),
           })
           const stagedCount = modalStaged.length
@@ -1380,6 +1613,11 @@
           if (pinFail) window.hibana && window.hibana.toast(t('project.shotsMixed', '{ok} uploaded, {fail} failed').split('{ok}').join(faDig(stagedCount - pinFail)).split('{fail}').join(faDig(pinFail)), 'err')
         } else {
           const body = { title, status: modalCtx.draft.status, priority: modalCtx.draft.priority, category_id: categoryId || null, sprint_id: sprintId || null }
+          // S244 (§10.2): ON → the override rides; OFF on a task that HAD a personal
+          // deadline → the explicit null removal; OFF + no prior personal deadline →
+          // the key is absent (undefined = untouched, contract §12.4).
+          if (modalCtx.draft.dueOn) body.due_at = modalCtx.draft.dueAt
+          else if (hadPersonal) body.due_at = null
           await patchTask(modalCtx.taskId, body)
           window.hibana && window.hibana.toast(t('sparks.saved', 'Saved'), 'ok')
         }
@@ -1453,8 +1691,13 @@
           '<label class="db-sq-toggle"><input type="checkbox" data-sq-desc-toggle><span>' + esc(t('db.sq.addDesc', 'Add description')) + '</span></label>' +
           '<textarea class="db-sq-desc" data-sq-desc maxlength="2000" dir="auto" hidden placeholder="' + esc(t('db.sq.descPh', 'What is this sprint about?')) + '"></textarea>' +
           // Spec §4.2: due-date controls hide behind an OFF-by-default toggle.
+          // S244 (D6 — Phase 5): the interim <input type="date"> (S242's
+          // UTC-end-of-day parse, assumption 10's recorded interim) is SUPERSEDED
+          // by the shared Gregorian/Jalali control (due-control.js): date-only now
+          // resolves to LOCAL 23:59 (spec §11.2) and the calendar selector +
+          // presets + optional time ship with it.
           '<label class="db-sq-toggle"><input type="checkbox" data-sq-due-toggle><span>' + esc(t('db.sq.setDue', 'Set due date')) + '</span></label>' +
-          '<input type="date" class="db-sq-due" data-sq-due hidden>' +
+          '<div class="db-sq-due-mount" data-sq-due-mount hidden></div>' +
           '<p class="db-sq-error" data-sq-error role="alert" hidden></p>' +
         '</form>' +
         '<div class="row spread db-modal-foot">' +
@@ -1472,7 +1715,11 @@
     const descToggle = sprintQEl.querySelector('[data-sq-desc-toggle]')
     const descTa = sprintQEl.querySelector('[data-sq-desc]')
     const dueToggle = sprintQEl.querySelector('[data-sq-due-toggle]')
-    const dueIn = sprintQEl.querySelector('[data-sq-due]')
+    const dueMount = sprintQEl.querySelector('[data-sq-due-mount]')
+    // S244 (D6): the shared control instance for this dialog — created ON demand
+    // at first reveal (the dialog's innerHTML is rebuilt per open, so a fresh
+    // instance per open keeps the state clean).
+    let dueCtl = null
     const errEl = sprintQEl.querySelector('[data-sq-error]')
     const createBtn = sprintQEl.querySelector('[data-sq-create]')
     const showErr = (msg) => { errEl.textContent = msg; errEl.hidden = false }
@@ -1491,10 +1738,23 @@
     }
     emojiClear.onclick = () => { emoji = ''; paintEmoji() }
     descToggle.onchange = () => { descTa.hidden = !descToggle.checked }
-    dueToggle.onchange = () => { dueIn.hidden = !dueToggle.checked }
+    // S244: revealing mounts the shared control (a toggle ON with no picked date
+    // blocks Create inline — the modal's own contract).
+    dueToggle.onchange = () => {
+      if (dueToggle.checked && !dueCtl && window.HibanaDueControl && window.HibanaDueControl.create) {
+        dueCtl = window.HibanaDueControl.create({ value: null })
+        dueMount.textContent = ''
+        dueMount.appendChild(dueCtl.el)
+      }
+      dueMount.hidden = !dueToggle.checked
+    }
     const doCreate = async () => {
       const name = nameIn.value.trim()
       if (!name) { showErr(t('db.sq.nameRequired', 'Enter a name for the sprint.')); nameIn.focus(); return }
+      // S244: the due toggle ON needs a picked date — inline error, never a silent
+      // dateless create (the modal's own contract).
+      const dueVal = dueCtl ? dueCtl.value() : null
+      if (dueToggle.checked && !dueVal) { showErr(t('db.due.required', 'Pick a date for the deadline, or turn it off.')); return }
       hideErr()
       createBtn.disabled = true
       createBtn.textContent = t('db.sq.creating', 'Creating…')
@@ -1502,7 +1762,10 @@
         const body = { name }
         if (emoji) body.emoji = emoji
         if (descToggle.checked) { const dv = descTa.value.trim(); if (dv) body.description = dv }
-        if (dueToggle.checked && dueIn.value) body.due_at = new Date(dueIn.value + 'T23:59:59Z').toISOString()
+        // S244 (§11.2 — superseding assumption 10's interim): the control resolves
+        // date-only to LOCAL 23:59 (was the S242 'T23:59:59Z' UTC parse with its
+        // ~3.5h Tehran delta); the value is the ISO-8601 UTC instant.
+        if (dueToggle.checked) body.due_at = dueVal
         const r = await api('/api/projects/' + state.projectId + '/sprints', {
           method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body),
         })
@@ -2103,6 +2366,12 @@
     // and project.html share ONE implementation (spec §18 — no forking).
     pauseSprint, resumeSprint,
     sprintGlyph, sprintCompleted, sprintStatusOf, sprintLaneCounts,
+    // S244 (spec pack Phase 5 — §12): the shared deadline RENDER stack — the
+    // classification (§12.3 thresholds, client-side rendering of the
+    // server-resolved triple), the elapsed-time ratio (§12.2, from the payload's
+    // effective_due_origin_at — never re-derived), and the card row + bar grammar.
+    // Exported so board-page.js AND project-page.js render identically (§18).
+    deadlineStateOf, deadlineElapsedPct, deadlineRowHtml, deadlineViewHtml,
     openSprintFinish, openSprintDelete, openSprintConflict,
     startSprintWithConflict, confirmSprintPause, reopenSprintFlow,
     openEditor, openTaskShots, // S208: the pinned-pictures dialog (the card badge)

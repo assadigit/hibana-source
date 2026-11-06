@@ -84,25 +84,37 @@ describe('S242 — the sprint quick-create dialog (spec §7.1 / Screen D)', () =
       'picker.open({ anchor: emojiBtn, current: emoji, onPick:',
       'data-sq-desc-toggle',
       'data-sq-due-toggle',
-      // the OFF-by-default contract: the revealed inputs ship hidden
+      // the OFF-by-default contract: the revealed inputs ship hidden. S244
+      // (Phase 5 — D6): the interim bare <input type="date"> became the shared
+      // control's MOUNT (data-sq-due-mount) — the due controls still ship hidden
+      // behind the OFF-by-default toggle; the intent (compact form until asked)
+      // is unchanged.
       '<textarea class="db-sq-desc" data-sq-desc maxlength="2000" dir="auto" hidden',
-      '<input type="date" class="db-sq-due" data-sq-due hidden>',
+      '<div class="db-sq-due-mount" data-sq-due-mount hidden></div>',
       'data-sq-cancel',
       'data-sq-create',
     ]) {
       expect(js.includes(marker), `devboard.js must carry ${JSON.stringify(marker)}`).toBe(true)
     }
-    // the toggles reveal their inputs on change (spec §4.2)
+    // the toggles reveal their inputs on change (spec §4.2) — S244: the due
+    // toggle now reveals the mounted shared control (due-control.js) instead of
+    // a bare input; the reveal-on-change contract itself is unchanged.
     expect(js).toMatch(/descToggle\.onchange = \(\) => \{ descTa\.hidden = !descToggle\.checked \}/)
-    expect(js).toMatch(/dueToggle\.onchange = \(\) => \{ dueIn\.hidden = !dueToggle\.checked \}/)
+    expect(js).toMatch(/dueToggle\.onchange = \(\) => \{[\s\S]{0,400}dueMount\.hidden = !dueToggle\.checked/)
   })
 
-  it('the create POST: name + optional emoji/description/due_at; the due date uses the sprint define-popover UTC end-of-day parse', () => {
+  it('the create POST: name + optional emoji/description/due_at; the due date resolves through the SHARED control (S244 superseded the UTC end-of-day parse — LOCAL 23:59 per §11.2)', () => {
     const js = readPublic('js/devboard.js')
     expect(js).toMatch(/const body = \{ name \}/)
     expect(js).toMatch(/if \(emoji\) body\.emoji = emoji/)
     expect(js).toMatch(/if \(descToggle\.checked\) \{ const dv = descTa\.value\.trim\(\); if \(dv\) body\.description = dv \}/)
-    expect(js).toMatch(/new Date\(dueIn\.value \+ 'T23:59:59Z'\)\.toISOString\(\)/)
+    // S244 (D6 — the kickoff's sanctioned supersession): the S242 interim
+    // new Date(val + 'T23:59:59Z') UTC parse is GONE — the shared control's
+    // value() (the ISO instant, date-only resolved to LOCAL 23:59) rides the
+    // create body instead. The intent (a date-only pick = end of day) is
+    // preserved; the timezone became the user's own (spec §11.2).
+    expect(js).not.toContain("new Date(dueIn.value + 'T23:59:59Z')")
+    expect(js).toMatch(/if \(dueToggle\.checked\) body\.due_at = dueVal/)
     expect(js).toMatch(/api\('\/api\/projects\/' \+ state\.projectId \+ '\/sprints',/)
   })
 
@@ -169,8 +181,11 @@ describe('S242 — the card sprint identity row (client twin)', () => {
   it('board-page.js: the badge renders as its own row (emoji else ◆ + name), after the preview, before tags/meta', () => {
     const js = readPublic('js/board-page.js')
     expect(js).toMatch(/const sprintRowHtml = sprint\n[\s\S]{0,200}'<span class="db-sprint-badge">' \+ B\(\)\.esc\(\(sprint\.emoji \? sprint\.emoji \+ ' ' : '◆ '\) \+ sprint\.name\)/)
-    // the card order: preview → readMore → SPRINT ROW → tags → meta (Screen A)
-    expect(js).toContain('previewHtml(task.title) +\n                        readMoreBtn(task.title) +\n                        sprintRowHtml +\n                        chipsHtml +\n                        metaHtml +')
+    // the card order: preview → readMore → SPRINT ROW → tags → meta (Screen A).
+    // S244 (Phase 5): the DEADLINE ROW + bar joined the seam between the sprint
+    // row and the tags — the pin moves with it (intent preserved: the badge
+    // stays its own row above the tags/meta area).
+    expect(js).toContain('previewHtml(task.title) +\n                        readMoreBtn(task.title) +\n                        sprintRowHtml +\n                        deadlineHtml +\n                        chipsHtml +\n                        metaHtml +')
     // the glyph-blind badge shape is gone EVERYWHERE in the file (the card AND
     // the read-only task view both render the emoji-aware glyph)
     expect(js).not.toContain("'<span class=\"db-sprint-badge\">◆ ' + B().esc(sprint.name)")
@@ -182,8 +197,9 @@ describe('S242 — the card sprint identity row (client twin)', () => {
   it('detail-helpers.ts: the server twin renders the byte-identical badge shape', () => {
     const ts = readPublic('../src/routes/projects/detail-helpers.ts')
     expect(ts).toContain("return `<span class=\"db-sprint-badge\">${esc((sp.emoji ? sp.emoji + ' ' : '◆ ') + sp.name)}</span>`")
-    // placed as its own row between readMore and the tags
-    expect(ts).toContain('${readMoreBtn(t.title)}\n                    ${sprintBadgeHtml(t.sprint_id)}\n                    ${taskTagChips(t.id)}')
+    // placed as its own row between readMore and the tags (S244: the deadline
+    // row joined the seam after the badge — the pin moves with it)
+    expect(ts).toContain('${readMoreBtn(t.title)}\n                    ${sprintBadgeHtml(t.sprint_id)}\n                    ${deadlineRowHtml(t)}\n                    ${taskTagChips(t.id)}')
   })
 })
 
@@ -247,8 +263,11 @@ describe('S242 — the desktop seam tripwires (the Phase 9 re-pin inventory)', (
     for (const page of ['board.html', 'sprint.html']) {
       const html = readPublic(page)
       expect(html).toMatch(/\/js\/emoji-picker\.js\?v=\d+/)
-      // S243 moved devboard.js to v33 (the lifecycle UI round) — the pin moves with it
-      expect(html).toMatch(/\/js\/devboard\.js\?v=33/)
+      // S244 moved devboard.js to v34 (the deadline round) — the pin moves with it
+      // (was v33, moved by S243's lifecycle round)
+      expect(html).toMatch(/\/js\/devboard\.js\?v=34/)
+      // S244: the shared date control rides both modal-serving pages (D6)
+      expect(html).toMatch(/\/js\/due-control\.js\?v=1/)
     }
   })
 })

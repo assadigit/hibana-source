@@ -55,16 +55,20 @@ describe('S238 focus-core — the FULL Esc peel (view → sheet → focus)', () 
 })
 
 describe('S238 wiring — the DOM half (the island-style tripwires)', () => {
-  it('board.html carries the bumped carriers: board-page v30, focus-core v2 (BEFORE devboard), devboard.css v41, polish-batch v30, quicknotes v51, i18n-en v107, i18n.js v160 (S243 moved the ladder)', () => {
+  it('board.html carries the bumped carriers: board-page v31, focus-core v2 (BEFORE devboard), devboard.css v42, polish-batch v30, quicknotes v51, i18n-en v108, i18n.js v161 (S244 moved the ladder — the deadline round)', () => {
     const html = readPublic('board.html')
-    expect(html.includes('/js/board-page.js?v=30')).toBe(true)
+    expect(html.includes('/js/board-page.js?v=31')).toBe(true)
     expect(html.includes('/js/focus-core.js?v=2"')).toBe(true)
     expect(html.indexOf('/js/focus-core.js?v=')).toBeLessThan(html.indexOf('/js/devboard.js?v='))
-    expect(html.includes('/css/devboard.css?v=41')).toBe(true)
+    expect(html.includes('/css/devboard.css?v=42')).toBe(true)
     expect(html.includes('/css/polish-batch.css?v=30')).toBe(true)
     expect(html.includes('/css/quicknotes.css?v=51')).toBe(true)
-    expect(html.includes('/js/i18n-en.js?v=107')).toBe(true)
-    expect(html.includes('/js/i18n.js?v=160')).toBe(true)
+    expect(html.includes('/js/i18n-en.js?v=108')).toBe(true)
+    expect(html.includes('/js/i18n.js?v=161')).toBe(true)
+    // S244: the shared date control joins (after the jalaali vendor, before devboard.js)
+    expect(html.indexOf('/vendor/jalaali.min.js')).toBeGreaterThan(-1)
+    expect(html.indexOf('/vendor/jalaali.min.js')).toBeLessThan(html.indexOf('/js/due-control.js?v=1'))
+    expect(html.indexOf('/js/due-control.js?v=1')).toBeLessThan(html.indexOf('/js/devboard.js?v='))
   })
 
   it('board-page.js: the view modal exists, the card click / Enter / deep link open the VIEW, and the ⋯ Edit still opens the editor', () => {
@@ -164,14 +168,14 @@ describe('S238 wiring — the DOM half (the island-style tripwires)', () => {
     ]) {
       expect(bp.includes(pair[0]), 'board-page.js _t call missing fallback ' + pair[0]).toBe(true)
     }
-    // the lazy FA injector literal moved to v101 (S243)
-    expect(readPublic('js/i18n.js').includes('/js/i18n-fa.js?v=101')).toBe(true)
+    // the lazy FA injector literal moved to v102 (S244 — the deadline round)
+    expect(readPublic('js/i18n.js').includes('/js/i18n-fa.js?v=102')).toBe(true)
   })
 
-  it('sw.js is at hibana-v455 and the round notes the carrier bumps (S243b moved the ladder)', () => {
+  it('sw.js is at hibana-v456 and the round notes the carrier bumps (S244 moved the ladder — the deadline round)', () => {
     const sw = readPublic('sw.js')
-    expect(sw.includes('const VERSION = "hibana-v455"')).toBe(true)
-    expect(sw.includes('// v455 (S243b)')).toBe(true)
+    expect(sw.includes('const VERSION = "hibana-v456"')).toBe(true)
+    expect(sw.includes('// v456 (S244)')).toBe(true)
     // the S238 note stays in the history block (the discipline: every prior entry
     // is recoverable; the history block carries the last rounds)
     expect(sw.includes('// v452 (S238)')).toBe(true)

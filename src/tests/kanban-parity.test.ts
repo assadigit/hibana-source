@@ -52,6 +52,23 @@ async function makeSprint(db: Db, pid: string, name: string): Promise<string> {
   return id
 }
 
+// S244 (spec pack Phase 5): a task with a deadline — the raw due_at + origin stamp
+// (the S240 write surface). due_origin_at rides along so the bar's elapsed ratio
+// has a real span (the server coalesces a missing stamp to due_at).
+async function makeDueTask(db: Db, pid: string, title: string, opts: {
+  sprintId?: string | null
+  dueAt?: string
+  dueOriginAt?: string
+  status?: string
+} = {}): Promise<string> {
+  const id = crypto.randomUUID()
+  await db.execute(
+    'INSERT INTO dev_tasks (id, project_id, title, status, priority, sort_order, created_at, sprint_id, due_at, due_origin_at) VALUES (?, ?, ?, ?, ?, 0, ?, ?, ?, ?)',
+    [id, pid, title, opts.status ?? 'in_progress', 'medium', new Date().toISOString(), opts.sprintId ?? null, opts.dueAt ?? null, opts.dueOriginAt ?? null],
+  )
+  return id
+}
+
 describe('kanban 1:1 parity — the embedded board fragment (S209)', () => {
   it('the #pd-board section wears the mother container (.pd-board.db-frame + the .db-toolbar header row) + the Labels button', async () => {
     const { db, close } = makeTestDb()
@@ -209,6 +226,144 @@ describe('kanban 1:1 parity — the embedded board fragment (S209)', () => {
       // mirrors it. The meta row must close immediately after the badge.
       expect(html).toMatch(/<span class="pd-task-meta">[^]*?<\/span><\/span>\s*<\/span>\s*<\/div>\s*<\/div>/)
       expect(html).toMatch(new RegExp('data-sync-badge="[a-f0-9-]+"[^>]*>[^]*?</span></span>\\s*</span>\\s*</div>\\s*</div>', 's'))
+    } finally {
+      close()
+    }
+  })
+
+  // S244 (spec pack Phase 5 — §12 + Screen A): the DEADLINE ROW + the thin bar on
+  // the embedded board — the server twin of board-page.js's deadlineHtml, placed
+  // in the Phase 3 seam (after the sprint badge, before the tags/meta area). The
+  // detail pool computes the effective triple through the SAME effectiveDeadlineOf
+  // helper the board payload rides (assumption 9's exported-for-exactly-this seam).
+  it('S244: a personal deadline renders the row + the thin bar in the seam; a sprint deadline inherits; a no-deadline task renders neither', async () => {
+    const { db, close } = makeTestDb()
+    try {
+      const userId = await makeUser(db)
+      const app = createApp({ db, isProd: false, emailKey: undefined } as unknown as Config)
+      const token = await createSession(db, userId)
+      const pid = await makeProject(db, userId)
+      const now = Date.now()
+      const dueSoon = new Date(now + 36 * 3600000).toISOString() // ~36h out → urgent
+      const dueFar = new Date(now + 20 * 86400000).toISOString() // 20d out → comfortable
+      const personalId = await makeDueTask(db, pid, 'personal deadline task', { dueAt: dueSoon, dueOriginAt: new Date(now - 86400000).toISOString() })
+      const plainId = await makeDueTask(db, pid, 'no deadline task', {})
+      const sprintId = await makeSprint(db, pid, 'Due Sprint')
+      await db.execute('UPDATE sprints SET due_at = ?, due_origin_at = ?, is_draft = 0 WHERE id = ?', [dueFar, new Date(now - 4 * 86400000).toISOString(), sprintId])
+      const inheritedId = await makeDueTask(db, pid, 'inherited deadline task', { sprintId })
+
+      const detail = await app.fetch(new Request(`http://local/api/projects/${pid}`, { headers: { ...h(token), 'HX-Request': '1' } }))
+      expect(detail.status).toBe(200)
+      const html = await detail.text()
+
+      // the personal row + bar: the grammar byte-identical to devboard.js's
+      // deadlineRowHtml (the icon + the threshold word + the LTR-locked bar)
+      const personalWrap = html.match(new RegExp(`data-pd-task="${personalId}"[\\s\\S]*?<span class="pd-task-body">([\\s\\S]*?)</span>\\s*</div>\\s*</div>`))
+      expect(personalWrap).toBeTruthy()
+      const pBody = personalWrap![1]
+      expect(pBody).toMatch(/<span class="db-due-row st-urgent"><svg class="icon db-due-ic"/)
+      expect(pBody).toMatch(/<span class="db-due-bar" aria-hidden="true"><span class="db-due-fill st-urgent" style="width:\d+%"><\/span><\/span>/)
+
+      // the inherited row identifies the SOURCE (§10.1: 'Sprint deadline · …')
+      const inheritedWrap = html.match(new RegExp(`data-pd-task="${inheritedId}"[\\s\\S]*?<span class="pd-task-body">([\\s\\S]*?)</span>\\s*</div>\\s*</div>`))
+      expect(inheritedWrap).toBeTruthy()
+      const iBody = inheritedWrap![1]
+      expect(iBody).toContain('<span class="db-due-row st-comfortable">')
+      expect(iBody).toContain('Sprint deadline · ')
+      expect(iBody).toMatch(/<span class="db-due-bar"/)
+
+      // the seam order (Screen A): sprint badge → DEADLINE ROW → BAR → tags → meta
+      const badgeAt = iBody.indexOf('db-sprint-badge')
+      const rowAt = iBody.indexOf('db-due-row')
+      const barAt = iBody.indexOf('db-due-bar')
+      const metaAt = iBody.indexOf('pd-task-meta')
+      expect(badgeAt).toBeGreaterThan(-1)
+      expect(rowAt).toBeGreaterThan(badgeAt)
+      expect(barAt).toBeGreaterThan(rowAt)
+      expect(metaAt).toBeGreaterThan(barAt)
+
+      // a task without a deadline renders NEITHER the row nor the bar (§10)
+      const plainWrap = html.match(new RegExp(`data-pd-task="${plainId}"[\\s\\S]*?<span class="pd-task-body">([\\s\\S]*?)</span>\\s*</div>\\s*</div>`))
+      expect(plainWrap).toBeTruthy()
+      expect(plainWrap![1]).not.toContain('db-due-row')
+      expect(plainWrap![1]).not.toContain('db-due-bar')
+    } finally {
+      close()
+    }
+  })
+
+  // S244 (§12.4 + §10.3): a DONE task renders the neutral Done indication (no live
+  // countdown, no urgency wording); a task relying only on a COMPLETED sprint's
+  // deadline renders NO row at all (the server's §10.3 neutrality nulled the
+  // triple — the client just renders null).
+  it('S244: a done task reads st-done + the Done word; a completed sprint\'s task renders no countdown', async () => {
+    const { db, close } = makeTestDb()
+    try {
+      const userId = await makeUser(db)
+      const app = createApp({ db, isProd: false, emailKey: undefined } as unknown as Config)
+      const token = await createSession(db, userId)
+      const pid = await makeProject(db, userId)
+      const now = Date.now()
+      const doneId = await makeDueTask(db, pid, 'done deadline task', { dueAt: new Date(now + 3600000).toISOString(), dueOriginAt: new Date(now - 86400000).toISOString(), status: 'done' })
+      const finishedSprintId = await makeSprint(db, pid, 'Finished Sprint')
+      await db.execute("UPDATE sprints SET due_at = ?, due_origin_at = ?, is_draft = 0, ended_at = ?, status = 'completed' WHERE id = ?", [new Date(now + 5 * 86400000).toISOString(), new Date(now - 86400000).toISOString(), new Date(now - 86400000).toISOString(), finishedSprintId])
+      const heirId = await makeDueTask(db, pid, 'heir of finished sprint', { sprintId: finishedSprintId })
+
+      const detail = await app.fetch(new Request(`http://local/api/projects/${pid}`, { headers: { ...h(token), 'HX-Request': '1' } }))
+      expect(detail.status).toBe(200)
+      const html = await detail.text()
+
+      // the done task: neutral gray + the Done indication, the bar still rides
+      // (the elapsed timeline) in the neutral fill — but NO urgency wording
+      const doneWrap = html.match(new RegExp(`data-pd-task="${doneId}"[\\s\\S]*?<span class="pd-task-body">([\\s\\S]*?)</span>\\s*</div>\\s*</div>`))
+      expect(doneWrap).toBeTruthy()
+      expect(doneWrap![1]).toContain('<span class="db-due-row st-done">')
+      expect(doneWrap![1]).toContain('✓ Done · Due')
+      expect(doneWrap![1]).not.toContain('st-urgent')
+      expect(doneWrap![1]).not.toContain('Due today')
+
+      // the completed sprint's task: NO deadline row, NO bar (the triple is null)
+      const heirWrap = html.match(new RegExp(`data-pd-task="${heirId}"[\\s\\S]*?<span class="pd-task-body">([\\s\\S]*?)</span>\\s*</div>\\s*</div>`))
+      expect(heirWrap).toBeTruthy()
+      expect(heirWrap![1]).not.toContain('db-due-row')
+      expect(heirWrap![1]).not.toContain('db-due-bar')
+    } finally {
+      close()
+    }
+  })
+
+  // S244 (§10.2): the personal-over-sprint precedence — both set, the task's own
+  // wins (effective_due_source 'task'); the JSON pool carries the additive triple
+  // for the embedded board's client repaint twin (project-page.js pdTruthWrap).
+  it('S244: personal > sprint precedence in the server-computed triple + the JSON pool carries the triple for the repaint twin', async () => {
+    const { db, close } = makeTestDb()
+    try {
+      const userId = await makeUser(db)
+      const app = createApp({ db, isProd: false, emailKey: undefined } as unknown as Config)
+      const token = await createSession(db, userId)
+      const pid = await makeProject(db, userId)
+      const now = Date.now()
+      const sprintId = await makeSprint(db, pid, 'Overridden Sprint')
+      await db.execute('UPDATE sprints SET due_at = ?, due_origin_at = ?, is_draft = 0 WHERE id = ?', [new Date(now + 20 * 86400000).toISOString(), new Date(now - 86400000).toISOString(), sprintId])
+      const bothId = await makeDueTask(db, pid, 'both set task', { sprintId, dueAt: new Date(now + 36 * 3600000).toISOString(), dueOriginAt: new Date(now - 3600000).toISOString() })
+
+      // the HTML render: the task's OWN deadline wins (the urgent row, not the
+      // sprint's comfortable one)
+      const detail = await app.fetch(new Request(`http://local/api/projects/${pid}`, { headers: { ...h(token), 'HX-Request': '1' } }))
+      const html = await detail.text()
+      const bothWrap = html.match(new RegExp(`data-pd-task="${bothId}"[\\s\\S]*?<span class="pd-task-body">([\\s\\S]*?)</span>\\s*</div>\\s*</div>`))
+      expect(bothWrap).toBeTruthy()
+      expect(bothWrap![1]).toContain('<span class="db-due-row st-urgent">')
+
+      // the JSON pool (the repaint twin's source): the additive triple rides the
+      // devTasks rows — same helper, same precedence, never forked
+      const pool = await app.fetch(new Request(`http://local/api/projects/${pid}`, { headers: h(token) }))
+      const body = (await pool.json()) as { project: { devTasks: { id: string; effective_due_at: string | null; effective_due_source: string | null; effective_due_origin_at: string | null }[] } }
+      const row = body.project.devTasks.find((t) => t.id === bothId)
+      expect(row).toBeTruthy()
+      expect(row!.effective_due_source).toBe('task')
+      expect(row!.effective_due_at).toBeTruthy()
+      expect(row!.effective_due_origin_at).toBeTruthy()
     } finally {
       close()
     }

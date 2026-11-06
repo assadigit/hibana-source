@@ -9,7 +9,7 @@ import {
 } from '../../lib/html'
 import { trL, type Locale } from '../../lib/i18n'
 import { faDigits, toJalali, J_MONTHS_FA, G_MONTHS_EN_AB } from '../../lib/jalali'
-import { loadBacklog, taskTagsForProject, PRIO_ORDER_SQL, type BacklogEvent, type TaskTagJoin } from '../devboard-helpers'
+import { loadBacklog, taskTagsForProject, PRIO_ORDER_SQL, type BacklogEvent, type TaskTagJoin, effectiveDeadlineOf } from '../devboard-helpers'
 import type { CategoryRow } from '../../lib/categories'
 import { shotsGridHtml } from '../core'
 import { STATUS_ORDER } from '../../types'
@@ -26,6 +26,25 @@ import type {
 import type { QuickNote } from '../quicknotes'
 import { projectProgress } from './helpers'
 
+
+// S244 (spec pack Phase 5 — the embedded board's deadline rows): the detail
+// pool's devTasks rows carry the SERVER-computed effective-deadline triple (the
+// same effectiveDeadlineOf helper the board payload rides — S241's decision
+// recorded in assumption 9: the helper is exported for exactly this). Additive
+// fields: the HTML render (the server twin of board-page.js's card row) AND the
+// JSON pool (project-page.js's repaint twin reads them from /api/projects/:id)
+// consume the triple; the client ships zero deadline-logic (spec §18) — same
+// resolution, one seam, never forked. The sprint lookup is scoped to THIS
+// project's sprints, so a stray cross-project sprint_id inherits nothing (the
+// boardTaskRows rule).
+function devTasksWithDue(devTasks: DevTaskRow[], sprints: SprintRow[]): (DevTaskRow & { effective_due_at: string | null; effective_due_source: 'task' | 'sprint' | null; effective_due_origin_at: string | null })[] {
+  const sprintBy = new Map<string, SprintRow>()
+  for (const s of sprints) sprintBy.set(s.id, s)
+  return devTasks.map((t) => ({
+    ...t,
+    ...effectiveDeadlineOf(t, t.sprint_id != null ? sprintBy.get(t.sprint_id) : null),
+  }))
+}
 
 export async function loadDetail(cfg: Config, p: ProjectRow) {
   const [hurdles, links, screenshots, history, tags, notes, canvasPromos, devTasks, devTaskTags, categories, sprints, backlog] = await Promise.all([
@@ -79,7 +98,7 @@ export async function loadDetail(cfg: Config, p: ProjectRow) {
     // برنامه آتی tab payload (0033): documents + merged history feed.
     loadBacklog(cfg, p.id),
   ])
-  return { hurdles, links, screenshots, history, tags, notes, canvasPromos, devTasks, devTaskTags, categories, sprints, backlog }
+  return { hurdles, links, screenshots, history, tags, notes, canvasPromos, devTasks: devTasksWithDue(devTasks, sprints), devTaskTags, categories, sprints, backlog }
 }
 
 
@@ -267,6 +286,81 @@ export function detailHtml(p: ProjectRow, d: Awaited<ReturnType<typeof loadDetai
     const sp = sprintById.get(sid)
     if (!sp) return ''
     return `<span class="db-sprint-badge">${esc((sp.emoji ? sp.emoji + ' ' : '◆ ') + sp.name)}</span>`
+  }
+
+  // S244 (spec pack Phase 5 — §12, Screen A): the embedded board's DEADLINE ROW +
+  // THIN PROGRESS BAR — the server twin of devboard.js's shared deadlineRowHtml
+  // (byte-identical card grammar; the S209 parity contract's next seam). The
+  // classification (§12.3 thresholds at the exact 48h/7d boundaries) and the
+  // elapsed-time ratio (§12.2 — effective_due_origin_at → effective_due_at,
+  // clamped 0-100) are RENDER-time computations over the server-resolved triple
+  // (loadDetail's additive fields); the resolution itself stays one helper
+  // (effectiveDeadlineOf — spec §18, never forked). Renders '' on the null triple.
+  const DUE_ICON = '<svg class="icon db-due-ic" viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="5" width="17" height="15" rx="2"/><path d="M8 3v4M16 3v4M3.5 10h17"/><circle cx="12" cy="15.2" r="3.1"/><path d="M12 13.9v1.5l1 .7"/></svg>'
+  const H48 = 48 * 3600000
+  const D7 = 7 * 86400000
+  const dueStateOf = (t: { status: string; effective_due_at: string | null }): string | null => {
+    if (!t.effective_due_at) return null
+    if (t.status === 'done') return 'done' // §12.4: no live countdown on a completed task
+    const rem = Date.parse(t.effective_due_at) - Date.now()
+    if (rem <= 0) return 'overdue'
+    if (rem <= H48) return 'urgent'
+    if (rem <= D7) return 'approaching'
+    return 'comfortable'
+  }
+  const dueElapsedPct = (t: { effective_due_at: string | null; effective_due_origin_at: string | null }): number => {
+    if (!t.effective_due_at) return 0
+    const now = Date.now()
+    const dueMs = Date.parse(t.effective_due_at)
+    const originMs = t.effective_due_origin_at ? Date.parse(t.effective_due_origin_at) : dueMs
+    if (now >= dueMs) return 100
+    if (dueMs <= originMs || now <= originMs) return 0
+    return Math.min(100, Math.max(0, Math.round(((now - originMs) / (dueMs - originMs)) * 100)))
+  }
+  const dueDayLabel = (ms: number, locale: Locale): string => {
+    const dt = new Date(ms)
+    if (locale === 'fa') {
+      const j = toJalali(dt.getUTCFullYear(), dt.getUTCMonth() + 1, dt.getUTCDate())
+      return `${faDigits(String(j.jd))} ${J_MONTHS_FA[j.jm - 1]}`
+    }
+    return `${G_MONTHS_EN_AB[dt.getUTCMonth()]} ${dt.getUTCDate()}`
+  }
+  const utcDayIdx = (ms: number): number => Math.floor(ms / 86400000)
+  const dueLeftLabel = (dueMs: number, locale: Locale): { left: string; standalone: boolean } => {
+    const now = Date.now()
+    if (now >= dueMs) {
+      const days = utcDayIdx(now) - utcDayIdx(dueMs)
+      if (days >= 2) return { left: trL(locale, 'Overdue by {n} days', '{n} روز گذشته', { n: dig(days) }), standalone: true }
+      if (days === 1) return { left: trL(locale, 'Overdue by {n} day', '{n} روز گذشته', { n: dig(1) }), standalone: true }
+      return { left: trL(locale, 'Overdue by {n}h', '{n} ساعت گذشته', { n: dig(Math.max(1, Math.round((now - dueMs) / 3600000))) }), standalone: true }
+    }
+    const days = utcDayIdx(dueMs) - utcDayIdx(now)
+    if (days === 0) return { left: trL(locale, 'Due today', 'مهلت امروز'), standalone: true }
+    if (days === 1) return { left: trL(locale, 'Due tomorrow', 'مهلت فردا'), standalone: true }
+    return { left: trL(locale, '{n} days left', '{n} روز مانده', { n: dig(days) }), standalone: false }
+  }
+  const deadlineRowHtml = (t: DevTaskRow & { effective_due_at: string | null; effective_due_source: 'task' | 'sprint' | null; effective_due_origin_at: string | null }): string => {
+    const state = dueStateOf(t)
+    if (!state || t.effective_due_at == null) return ''
+    const pct = dueElapsedPct(t)
+    const dueMs = Date.parse(t.effective_due_at)
+    const sprintSrc = t.effective_due_source === 'sprint'
+    let label: string
+    if (state === 'done') {
+      label = sprintSrc
+        ? `✓ ${trL(lang, 'Done', 'انجام شد')} · ${trL(lang, 'Sprint deadline', 'مهلت اسپرینت')} · ${dueDayLabel(dueMs, lang)}`
+        : `✓ ${trL(lang, 'Done', 'انجام شد')} · ${trL(lang, 'Due {d}', 'مهلت {d}', { d: dueDayLabel(dueMs, lang) })}`
+    } else {
+      // §12.3's example vocabulary: the today/tomorrow/overdue forms read
+      // STANDALONE (no date prefix); the dated forms carry the day label; the
+      // inherited row identifies the source ('Sprint deadline · …', §10.1).
+      const { left, standalone } = dueLeftLabel(dueMs, lang)
+      if (sprintSrc) label = `${trL(lang, 'Sprint deadline', 'مهلت اسپرینت')} · ${left}`
+      else if (standalone) label = left
+      else label = `${trL(lang, 'Due {d}', 'مهلت {d}', { d: dueDayLabel(dueMs, lang) })} · ${left}`
+    }
+    return `<span class="db-due-row st-${state}">${DUE_ICON}<span class="db-due-txt" dir="auto">${esc(label)}</span></span>` +
+      `<span class="db-due-bar" aria-hidden="true"><span class="db-due-fill st-${state}" style="width:${pct}%"></span></span>`
   }
   // S152 (block 6): the task's category as a small colored chip DIRECTLY ABOVE the
   // task title, wearing the category's own fill+ink pair. The map covers every row
@@ -513,6 +607,7 @@ export function detailHtml(p: ProjectRow, d: Awaited<ReturnType<typeof loadDetai
                     ${previewHtml(t.title)}
                     ${readMoreBtn(t.title)}
                     ${sprintBadgeHtml(t.sprint_id)}
+                    ${deadlineRowHtml(t)}
                     ${taskTagChips(t.id)}
                     <span class="pd-task-meta">${esc(taskMetaLabel(t))}${pinsByTask.has(t.id) ? ` · <button type="button" class="pd-task-shots" data-pd-shots="${t.id}" title="${esc(trL(lang, 'Pinned pictures — note + proof stuck to this item', 'تصاویر سنجاق‌شده — یادداشت + مدرکِ سنجاق‌شده به این قلم'))}" aria-label="${esc(trL(lang, 'Pinned pictures ({n})', 'تصاویر سنجاق‌شده ({n})', { n: dig(pinsByTask.get(t.id)!) }))}">${icon('pin')} ${dig(pinsByTask.get(t.id)!)}</button>` : ''}${syncBadgeServer(t.id)}</span>
                   </span>

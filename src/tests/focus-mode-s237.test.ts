@@ -208,10 +208,10 @@ describe('S237 wiring — the DOM half is pinned to the core (the island-style t
     }
   })
 
-  it('sw.js is at hibana-v455 and the round notes the carrier bumps (S243b moved the ladder)', () => {
+  it('sw.js is at hibana-v456 and the round notes the carrier bumps (S244 moved the ladder — the deadline round)', () => {
     const sw = readPublic('sw.js')
-    expect(sw.includes('const VERSION = "hibana-v455"')).toBe(true)
-    expect(sw.includes('// v455 (S243b)')).toBe(true)
+    expect(sw.includes('const VERSION = "hibana-v456"')).toBe(true)
+    expect(sw.includes('// v456 (S244)')).toBe(true)
     // the S237 note stays in the history block (the discipline: every prior entry
     // is recoverable; the history block carries the last rounds)
     expect(sw.includes('// v451 (S237): FOCUS MODE')).toBe(true)

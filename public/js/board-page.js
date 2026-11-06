@@ -297,6 +297,10 @@
               '<span>' + B().esc(_t('db.view.created', 'Created')) + ' ' + metaDate(task.created_at, task.status === 'done') + '</span>' +
               (task.updated_at && task.updated_at !== task.created_at ? '<span>' + B().esc(_t('db.view.updated', 'Updated')) + ' ' + metaDate(task.updated_at, false) + '</span>' : '') +
               (task.status === 'done' && task.done_at ? '<span>✓ ' + B().esc(_t('db.view.doneAt', 'Done')) + ' ' + metaDate(task.done_at, false) + '</span>' : '') +
+              // S244 (spec §12.3/§12.4): the read-only view's meta rows join the
+              // deadline display — the same row grammar (icon + the threshold
+              // word; a done task reads neutral with the Done indication).
+              (B().deadlineViewHtml ? B().deadlineViewHtml(task, lang) : '') +
               (shotsHtml || '') +
             '</div>'
           const head = taskViewEl.querySelector('.db-view-head h3')
@@ -717,6 +721,16 @@
                   const sprintRowHtml = sprint
                     ? '<span class="db-sprint-badge">' + B().esc((sprint.emoji ? sprint.emoji + ' ' : '◆ ') + sprint.name) + '</span>'
                     : ''
+                  // S244 (spec pack §12 + Screen A — the deadline row + the thin
+                  // progress bar): the Phase 3 seam — directly under the sprint
+                  // row, above the tags/meta area. The shared devboard.js render
+                  // stack (B().deadlineRowHtml) consumes the payload's
+                  // server-computed effective_* triple (S241): the §12.3 threshold
+                  // WORD carries the meaning (never color alone) and the bar's fill
+                  // is the §12.2 ELAPSED-time ratio from effective_due_origin_at —
+                  // never completion, never a client re-derivation. Renders '' when
+                  // the triple is null (no row, no bar).
+                  const deadlineHtml = B().deadlineRowHtml ? B().deadlineRowHtml(task, lang) : ''
                   const chipsHtml = (tags.length
                     ? '<span class="pd-task-tags">' +
                       // S30 batch 2: label chips are FILTER toggles (GitHub behavior) —
@@ -759,6 +773,7 @@
                         previewHtml(task.title) +
                         readMoreBtn(task.title) +
                         sprintRowHtml +
+                        deadlineHtml +
                         chipsHtml +
                         metaHtml +
                       '</span>' +
@@ -1608,7 +1623,7 @@
             if (window.HibanaBoard) return resolve(true)
             if (!injected && waited >= 1200) {
               injected = true
-              inject('/js/devboard.js?v=33') // keep in sync with the <head> tag + sw SHELL
+              inject('/js/devboard.js?v=34') // keep in sync with the <head> tag + sw SHELL
               if (!window.HibanaFocusCore) inject('/js/focus-core.js?v=2') // S237/S238: the focus + view decision core — keep in sync with the <head> tag
               if (!window.HibanaChips) inject('/js/chip-render.js?v=13') // S36: was ?v=1 while the HTML tags say v=2 — two cache entries for one file (the cache-bust gate caught it under the sandbox's mode-bit noise). Aligned; local-dev + SW caches now share ONE url per version. S86: v8 — kept in sync with the <head> tag (previewHtml moved in). S176: v11.
               if (!window.jalaali) inject('/vendor/jalaali.min.js') // Jalali dates for FA

@@ -402,12 +402,14 @@ describe('S243 — the desktop seam tripwires (the Phase 9 re-pin inventory)', (
     expect((readPublic('js/board-page.js').match(/\bfetch\(/g) || []).length).toBe(4)
   })
 
-  it('sw.js is at hibana-v455 with the S243b carrier note', () => {
+  it('sw.js is at hibana-v456 with the S244 carrier note (the deadline round moved the ladder)', () => {
     const sw = readPublic('sw.js')
-    expect(sw.includes('const VERSION = "hibana-v455"')).toBe(true)
-    expect(sw.includes('// v455 (S243b)')).toBe(true)
-    // the carrier bumps the note records
-    expect(sw).toMatch(/devboard\.js v33/)
-    expect(sw).toMatch(/i18n-fa\.js\?v=101/)
+    expect(sw.includes('const VERSION = "hibana-v456"')).toBe(true)
+    expect(sw.includes('// v456 (S244)')).toBe(true)
+    // the carrier bumps the note records (S244's round: due-control.js v1 NEW,
+    // devboard v34, the i18n-fa v102 injector literal)
+    expect(sw).toMatch(/devboard\.js v34/)
+    expect(sw).toMatch(/i18n-fa\.js\?v=102/)
+    expect(sw).toMatch(/due-control\.js v1/)
   })
 })

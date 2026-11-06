@@ -150,6 +150,84 @@ main.board-shell .db-frame { min-block-size: calc(100dvh - 1.5rem); }
    justify-self keeps it at the reading edge in BOTH directions (RTL mirrors). */
 .pd-task-body > .db-sprint-badge { justify-self: start; margin-block: 0.1rem 0; }
 
+/* --- S244 (spec pack §12 — the card deadline row + the thin progress bar) -----
+   Screen A's order: description → sprint row → DEADLINE ROW → BAR → tags → meta.
+   The row: the calendar-clock icon + the §12.3 threshold WORD (the word carries
+   the meaning — never color alone) in the four restrained state colors +
+   neutral gray for the §12.4 done state. The bar: 4-6px thin, rounded ends,
+   subtle neutral track, no border/shadow, the ELAPSED-time fill (§12.2 — never
+   completion), no percentage. §17 EXCEPTION: the bar is direction-locked LTR —
+   time progression stays left-to-right even inside an RTL card. */
+.db-due-row {
+  justify-self: start;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: var(--fs-xs);
+  line-height: 1.25;
+  max-inline-size: 100%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.db-due-row .db-due-ic { inline-size: 0.85rem; block-size: 0.85rem; flex: none; }
+.db-due-txt { overflow: hidden; text-overflow: ellipsis; }
+.db-due-row.st-comfortable { color: #5a7d5a; }
+.db-due-row.st-approaching { color: #9a6f2f; }
+.db-due-row.st-urgent { color: #b03f3f; }
+.db-due-row.st-overdue { color: #a02c2c; font-weight: 600; }
+.db-due-row.st-done { color: var(--muted, #8a8f98); }
+.db-due-bar {
+  justify-self: stretch;
+  display: block;
+  block-size: 5px; /* the 4-6px thin spec band */
+  margin-block: 0.1rem 0.05rem;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--line, #e4e2dd) 65%, transparent);
+  overflow: hidden;
+  direction: ltr; /* §17: the elapsed-time fill always progresses left-to-right */
+}
+.db-due-fill { display: block; block-size: 100%; border-radius: inherit; }
+.db-due-fill.st-comfortable { background: #8fb58f; }
+.db-due-fill.st-approaching { background: #d9a45b; }
+.db-due-fill.st-urgent { background: #d37070; }
+.db-due-fill.st-overdue { background: #c94f4f; }
+.db-due-fill.st-done { background: var(--muted, #b6babf); }
+/* the read-only task view's meta row carries the row-only variant inline */
+.db-view-meta .db-due-view { font-size: var(--fs-xs); }
+
+/* --- S244 (D6 — the shared Gregorian/Jalali date control) ---------------------
+   The Screen C grammar: the segmented calendar selector (the .db-seg recipe),
+   ONE editable date field (native <input type="date"> for Gregorian; the
+   numeric Jalali text input stays dir=ltr so 1405/08/12 reads as numbers in
+   both directions), the six preset chips, the Add time toggle + HH:MM input,
+   and the §11.2 helper text. RTL-safe via logical properties. */
+.db-due-ctl { display: grid; gap: 0.5rem; }
+.db-due-ctl .db-due-cal { max-inline-size: max-content; }
+.db-due-date-row { display: grid; gap: 0.25rem; }
+.db-due-date, .db-due-time {
+  font: inherit; font-size: var(--fs-sm);
+  color: var(--text); background: var(--card);
+  border: 1px solid var(--line); border-radius: var(--radius-sm);
+  padding: 0.4em 0.6em; min-block-size: 26px;
+}
+.db-due-j.is-invalid { border-color: var(--err, #c94f4f); }
+.db-due-err { margin: 0; font-size: var(--fs-sm); color: var(--err, #c94f4f); }
+.db-due-presets { display: flex; flex-wrap: wrap; gap: 0.3rem; }
+.db-due-presets button {
+  font: inherit; font-size: var(--fs-xs);
+  color: var(--text); background: var(--card);
+  border: 1px solid var(--line); border-radius: 999px;
+  padding: 0.15rem 0.55rem; cursor: pointer;
+}
+.db-due-presets button:hover { border-color: var(--brand); color: var(--brand); }
+.db-due-hint { margin: 0; }
+/* the task modal's inherited read-only line (§10.1) */
+.db-due-inherited { margin: 0.15rem 0 0; }
+.db-due-field .db-due-mount { margin-block: 0.35rem 0.1rem; }
+/* the sprint settings panel's control mount */
+.db-sd-due-mount { margin-block: 0.35rem 0.1rem; }
+
 /* --- task editor modal ----------------------------------------------------- */
 .db-modal {
   position: fixed;

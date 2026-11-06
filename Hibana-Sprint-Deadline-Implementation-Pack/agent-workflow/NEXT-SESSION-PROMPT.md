@@ -1,20 +1,20 @@
-# Next Session Prompt — Phase 6: Deadline Extension Flows (J1 Sprint-Wide + J2 Personal + J3 The Inherited Choice + Impact Previews + Origin Preservation)
+# Next Session Prompt — Phase 7: Task Dependencies UI (Screens K + L — the Collapsed Section, the Searchable Blocked-by Multi-Select, the Derived Blocks Badges, the Soft Constraints)
 
 Continue Hibana Sprint, Deadline & Dependency implementation.
 
-**This session is S245** in the repo's commit-numbering sequence (Phase 0 = S239, Phase 1 =
+**This session is S246** in the repo's commit-numbering sequence (Phase 0 = S239, Phase 1 =
 S240 @ `81f2c05`, Phase 2 = S241 @ `da652d2`, Phase 3 = S242 @ `a1e7d2d`, Phase 4 =
-S243 @ `b770258` + the S243b reconciliation @ `3ae6ae9`, Phase 5 = **S244 @
-`7a6bd4a`** — all final deliveries verified, all gates green; the Phase 5 round
-delivered the deadline engine + UI: the shared Gregorian/Jalali date control
-(`public/js/due-control.js` — D6 CLOSED), the task-modal Due date (optional)
-toggle with the inherited read-only line + the explicit-null removal, the card
-deadline row + the thin LTR elapsed-time bar in three renderers (board-page.js +
-the detail-helpers.ts server twin + the project-page.js repaint twin), and the
-quick-create/sprint-settings control swap — assumption 10's UTC interim parse
-SUPERSEDED by LOCAL 23:59, recorded in the status doc's assumption 12). If
-ANOTHER session appears mid-work: reconcile per the never-overwrite rule — adopt
-the verified push, never force-push, never stack a conflicting twin.
+S243 @ `b770258` + the S243b reconciliation @ `3ae6ae9`, Phase 5 = S244 @ `7a6bd4a`,
+Phase 6 = **S245 @ `f1ca773`** — all final deliveries verified, all gates green; the
+Phase 6 round delivered the deadline EXTENSION flows: J1 the sprint-wide dialog (the
++24/+48/+72 presets ADD TO THE EXISTING deadline, the before-confirmation impact
+counts, the origin preserved), J2 the personal picker, J3 the inherited CHOICE modal
+with the §13.4 origin preservation through the ADDITIVE `due_origin_at` ride-along on
+the task PATCH (honored server-side ONLY on a null→value transition — status doc
+assumption 13), the card-row/popover/overview/settings/modal anchors on every
+surface, and the S48p window.prompt extend RETIRED). If ANOTHER session appears
+mid-work: reconcile per the never-overwrite rule — adopt the verified push, never
+force-push, never stack a conflicting twin.
 
 ## Kickoff credentials (pasted by the user — never persist, never commit, never log)
 
@@ -27,11 +27,11 @@ notifications. Do not use them; do not write them anywhere.
 ## Read first (in this order)
 
 1. `Hibana-Sprint-Deadline-Implementation-Pack/README.md`
-2. `Hibana-Sprint-Deadline-Implementation-Pack/specs/Hibana-Sprint-and-Deadline-System-Spec.md` (the contract — **§13 extensions is THIS phase's core**: §13.1 the extension choices (+24h/+48h/+72h/Custom date — presets add to the EXISTING deadline, never to the current moment), §13.2 the sprint-deadline extension (sprint-wide: every inheriting task follows; personal overrides untouched; the affected/protected counts BEFORE confirmation; the origin NOT reset), §13.3 the personal task-deadline extension (task-only: other tasks unaffected; origin preserved), §13.4 the inherited-deadline extension choice (the modal that asks: Extend sprint deadline — sprint-wide — vs Extend this task only — a personal override based on the current inherited deadline + the extension, origin preserved); also re-read §12.2 (the origin semantics — "Extending or editing the deadline must not reset the original progress start point"; "Removing a deadline and later assigning a completely new deadline starts a new progress timeline"), §10 (the precedence the flows must respect), §17 RTL/i18n, §18 no forking, §22's extension acceptance rows)
-3. `Hibana-Sprint-Deadline-Implementation-Pack/VISUAL-REFERENCE-GUIDE.md` (**Screen J is THIS phase's primary brief** — J1 the sprint deadline extension (sprint name/emoji, current deadline + remaining-time label, the four choices, the inheriting/protected counts BEFORE applying, origin not reset), J2 the personal task deadline extension (task title, current personal deadline, the same four options, "only this task changes"), J3 the inherited-task extension (the TWO clearly distinct paths with visible scope before confirmation — never a silent sprint change when the user intends task-only); Screens A/B/C/D/E/F/G/H/I are landed (Phases 3-5), K/L are Phase 7, M is Phases 6-7 — M's variants 3/4/8/9 show how the extended cards read)
-4. `Hibana-Sprint-Deadline-Implementation-Pack/agent-workflow/PHASED-MULTI-SESSION-IMPLEMENTATION.md` (§5 Phase 6 scope)
-5. `Hibana-Sprint-Deadline-Implementation-Pack/agent-workflow/IMPLEMENTATION-STATUS.md` (architecture map, D1–D9 register, assumptions 1-12 — **assumption 1 (the inherited progress origin + task-only extension preserving it) and assumption 12 (S244's control architecture, the threshold rendering decision, the LTR bar, the modal's inherited-line reads, the detail-pool triple) are BINDING**; assumption 11's H1 day-window seam stays queued — do not touch /start's semantics without an owner ruling)
-6. `docs/project-kanban/API-AND-SYNC-CONTRACT.md` §12.1 + §12.2 + §12.4 on the feature branch — the write surface this phase rides: PATCH `/api/sprints/:id` + PATCH `/api/devtasks/:id` both accept `due_at` with the SAME origin rules (null→value stamps `due_origin_at`, **value→value PRESERVES it — an extension is not a re-assignment**, value→null clears both) — the extension flows are pure PATCH orchestration over the existing surface; §12.2's S244 addition (the detail pool's additive triple)
+2. `Hibana-Sprint-Deadline-Implementation-Pack/specs/Hibana-Sprint-and-Deadline-System-Spec.md` (the contract — **§14–§16 dependencies is THIS phase's core**: §14 the relationship model (14.1 same-project only; 14.2 many-to-many — a task can have multiple blockers AND block multiple tasks), §15 the dependency controls (the `Blocked by` input the USER enters; the reverse `Blocks` information DERIVED automatically — never a second input; self-links and cycles prevented), §16 the dependency indicators (compact Blocked / Blocks N card badges ONLY when relevant; 16.1 workflow enforcement — completing a blocker resolves its blocking effect; a task with multiple blockers stays blocked until ALL are complete; dependencies NEVER alter priority, sprint membership, deadline, or Kanban status — assumption 2's soft constraints); also re-read §22's dependency acceptance rows + §23's full checklist, §17 RTL/i18n, §18 no forking, §24's regression rows)
+3. `Hibana-Sprint-Deadline-Implementation-Pack/VISUAL-REFERENCE-GUIDE.md` (**Screens K + L are THIS phase's brief** — K the collapsed Dependencies section in Add/Edit Task (collapsed by default; expanded = the searchable multi-select listing same-project tasks with title + sprint + status; self/cycle prevention surfacing the 400/409 codes inline), L the task dependency card states (the compact Blocked / Blocks N badges — independent of priority ribbon AND deadline); Screens A–J are landed (Phases 3–6), M's variants 6/7 show how the badges read beside the deadline row, N is RTL)
+4. `Hibana-Sprint-Deadline-Implementation-Pack/agent-workflow/PHASED-MULTI-SESSION-IMPLEMENTATION.md` (§5 Phase 7 scope)
+5. `Hibana-Sprint-Deadline-Implementation-Pack/agent-workflow/IMPLEMENTATION-STATUS.md` (architecture map, D1–D9 register, assumptions 1-13 — **assumption 2 (dependencies are SOFT — indicators only, never block Kanban movement or mutate priority/status) and assumption 13 (S245's ride-along + the extension stack's exports) are BINDING**; assumption 11's H1 day-window seam stays queued — do not touch /start's semantics without an owner ruling)
+6. `docs/project-kanban/API-AND-SYNC-CONTRACT.md` §12.3 (the deps WRITE surface — POST `/api/devtasks/:id/deps` `{blocker_id}` → 201/200-idempotent, self/cross-project → 400 `invalid_input`, cycle → 409 `cycle`; DELETE `/api/devtasks/:id/deps/:blockerId` → 200 always) + §12.3's READ surface (the payload's 7th key `task_deps` — the flat edge join `{blocker_task_id, blocked_task_id}`; *Blocked-by* = edges where `blocked_task_id = X`; the reverse *Blocks N* counts = the same fold's other half — **derived, NEVER a separate endpoint or stored column — spec §15**) + §12.5 (the client-fold doctrine) on the feature branch
 7. this file
 
 Where these docs live: the pack's `agent-workflow/*.md` docs are committed on **`origin/main`**
@@ -44,103 +44,95 @@ If the user re-pastes the pack, prefer the repo copy.
 
 1. Clone the repo (public — no token for clone). `cd <repo> && git status && git log --oneline -5
    && git branch --show-current`. Confirm no other agent is mid-work; preserve unrelated/uncommitted
-   changes. `origin/main` HEAD must be the latest docs-only commit (the S244 close-out on top of
-   `599a70a`); if it moved, reconcile — never overwrite concurrent work.
+   changes. `origin/main` HEAD must be the latest docs-only commit (the S245 close-out on top of
+   `505c1e3`); if it moved, reconcile — never overwrite concurrent work.
 2. Checkout the feature branch: `git checkout feat/sprint-deadline-deps && git pull` — HEAD must be
-   **`7a6bd4a`** (or its descendant), clean tree. **NEVER commit non-docs code to `main`** — pushes
+   **`f1ca773`** (or its descendant), clean tree. **NEVER commit non-docs code to `main`** — pushes
    to main auto-deploy to production hibana.ir via the CI→CD chain. Branch pushes run CI only and
    can NEVER deploy.
 3. Desktop repo (`assadigit/hibana-desktop`, `main` @ `9d53e64`, island pin `04218ca`) stays
    READ-ONLY until the Phase 9 round. This phase touches the WEB repo only.
 4. Baseline BEFORE any edit (record exact commands + results): `bun install` (bun 1.3.14, node ≥ 24),
    then `bun run verify` (tsc → eslint-0 → vitest → prod build → portability → fn-shape →
-   boundaries). Expected: **109 files / 909 tests green** (878 + 28 `sprint-ui-s244.test.ts` + 3
-   kanban-parity extensions). Fresh sandbox e2e note: `bunx playwright install
-   chromium-headless-shell` (the pinned playwright build wants chromium_headless_shell-1248; the
-   sandbox cache ships 1200).
-5. Phase 6 needs ONLY the GitHub token, and ONLY for the one-shot authenticated push — never write
+   boundaries). Expected: **110 files / 935 tests green** (909 + 26 `sprint-ui-s245.test.ts`).
+   Fresh sandbox e2e note: `bunx playwright install chromium-headless-shell` (the pinned playwright
+   build wants chromium_headless_shell-1248; the sandbox cache ships 1200).
+5. Phase 7 needs ONLY the GitHub token, and ONLY for the one-shot authenticated push — never write
    it to disk, `.git/config`, files, commit bodies, or logs.
 
-## Current phase: Phase 6 — Deadline extension flows
+## Current phase: Phase 7 — Task dependencies UI
 
 Web repo, `public/` + `src/` in scope. **This phase adds NO new endpoints, NO migrations, NO new
-write surface — the whole extension mechanics already exist as PATCH orchestration** (contract
-§12.1/§12.4: PATCH `/api/sprints/:id` `{due_at: <new>}` = the sprint-wide extension — every
-inheriting task follows automatically because the S241 server-computed triple re-resolves on the
-next payload pull; PATCH `/api/devtasks/:id` `{due_at: <new>}` = the task-only extension/override;
-both PRESERVE `due_origin_at` on value→value — the §13.4/assumption-1 invariant is already
-server-enforced). What Phase 6 BUILDS is the FLOWS + the UI anchors:
+write surface — the whole dependency mechanics already exist** (contract §12.3: the S240
+`dev_task_deps` table + the deps endpoints with self/cross-project 400s + the recursive-CTE
+cycle 409 + CASCADE deletes; the S241 payload's `task_deps` 7th key rides every board pull).
+What Phase 7 BUILDS is the UI + the folds:
 
-- **J1 — the sprint-deadline extension**: opened from the sprint settings panel (sprint.html's
-  detail Settings tab — the S244 control's seat) and/or the compact Kanban overview's Extend
-  affordance (S243's popover already carries an `Extend` label hook — check
-  `sprint-page.js`'s `data-sprint-menu` popover actions: active → Pause + Finish + **Extend**).
-  The dialog: sprint identity (glyph + name), the current deadline + its remaining-time label
-  (the S244 render stack's wording), the four choices (+24h / +48h / +72h / Custom date), the
-  impact preview BEFORE applying (how many tasks INHERIT the deadline and follow — the §12.5-style
-  client fold over tasks with `sprint_id === s.id && due_at == null`; how many are PROTECTED by
-  personal overrides — `sprint_id === s.id && due_at != null`), then PATCH
-  `/api/sprints/:id` `{due_at: now-existing-due + N}` (the presets ADD TO THE EXISTING DEADLINE,
-  never to the current moment — spec §13.1) or the custom date through the SHARED control (D6 —
-  `HibanaDueControl.create({value: <current due>})`, the user edits from the current value).
-  Confirm → PATCH → reload (the origin PRESERVES — pin it: `due_origin_at` survives; only a
-  null→re-add starts a fresh timeline).
-- **J2 — the personal task-deadline extension**: opened from the task card row's affordance
-  (S244's `.db-due-row` — an Extend affordance INSIDE the row or its hover menu; keep it compact —
-  the row stays one line; a small ⋯/arrow button or the row's hover affordance) and the task view
-  (S238's row-only variant) + the Edit modal's due field (an "Extend…" link beside the control —
-  optional if the control already edits; J2's value is the PRESET shortcuts). The dialog: task
-  title, current personal deadline + remaining label, the same four choices, "only this task
-  changes" wording, PATCH `/api/devtasks/:id` `{due_at: existing + N}` (origin preserved).
-- **J3 — the inherited-deadline extension choice**: when the task's row is SPRINT-sourced
-  (`effective_due_source === 'sprint'`), the Extend affordance opens the CHOICE modal: two
-  clearly distinct paths — "Extend sprint deadline" (sprint-wide — show the inheriting/protected
-  counts, the J1 preview) vs "Extend this task only" (creates/updates a personal override based on
-  the CURRENT INHERITED deadline + the selected extension; other sprint tasks unchanged; the
-  origin stays the SPRINT's origin — §13.4's "preserve the inherited deadline's original progress
-  origin rather than making the bar look newly assigned"; NOTE: the task PATCH's null→value rule
-  would STAMP a new origin — the task's first personal assignment — so the task-only-from-inherited
-  flow must send the value in a way that preserves the sprint's origin... CHECK THE SERVER: the
-  PATCH stamps `due_origin_at = now` on `task.due_at == null` → value. The §13.4 invariant needs
-  EITHER a client-sent `due_origin_at` ride-along (new body field — additive, zod-optional) OR a
-  server special-case. Decide + record it in the status doc's assumption block; the kickoff
-  suggests the additive optional body field `due_origin_at` on the task PATCH (validated ISO,
-  only honored when it accompanies a null→value transition) — additive + island-transparent, and
-  the desktop mirror consumes §12 as its contract so document it there).
-- **The impact previews fold from the payload** (the S243 `pdOvRows` doctrine: the /kanban twin
-  folds `state.tasks`, the embedded twin folds the fetched truth — never the 5-capped DOM).
-- Every new UI string ships EN + FA (`bun run check-i18n-parity`); every touched `public/` file
-  gets its `?v=` cache-bust bump (`bun run check-cache-bust`) + the sw.js SHELL ladder bump with
-  the carrier note (move the s237/s238/s242/s243/s244 tripwire pins with you).
+- **K — the Dependencies section in Add/Edit Task** (devboard.js's `renderModal`): a COLLAPSED
+  section (Screen K — spec §15: "optional and collapsed by default" — the S244 due-toggle's
+  grammar: a compact toggle/section header, hidden controls while collapsed). Expanded reveals
+  the SEARCHABLE `Blocked by` multi-select of SAME-PROJECT tasks (the loaded payload's
+  `state.tasks` — title + sprint identity + status per option; search filters by title; the
+  current blockers pre-selected). Selecting/deselecting rides the EXISTING endpoints at Save
+  (or immediately — decide + record: the modal's other fields batch at Save; the tag chips
+  mutate live. RECOMMENDED: mutate LIVE through `api()` — POST on select, DELETE on deselect —
+  so the 400/409 errors surface INLINE at the moment of the bad pick, and the modal never
+  carries a dep-diff to reconcile; record the decision either way).
+- **The inline error surface**: self-link → the 400 `invalid_input` answer inline ("a task
+  cannot block itself"); cross-project is impossible by construction (the list is same-project);
+  cycle → the 409 `cycle` answer inline with the offending pick named — never a generic toast.
+- **L — the compact card badges**: `Blocked` (this task has ≥1 incomplete blocker), `Blocks N`
+  (this task blocks N other tasks — the derived reverse fold), and `Ready` (had blockers, all
+  now complete — 16.1's resolution surfacing; decide + record whether Ready shows while any
+  blocker list exists vs only on the transition). Placement: the Phase 3 seam family — the
+  sprint row + the deadline row already stack; the dep badges join as their own compact row
+  (Screen M variants 6/7) in ALL THREE renderers (board-page.js + detail-helpers.ts server
+  twin + project-page.js repaint twin — byte-identical, kanban-parity-pinned). Independent of
+  the priority ribbon AND the deadline display (spec §23: "the priority ribbon remains
+  unchanged"; dependencies never alter priority/status).
+- **The completing-a-blocker resolution** (§16.1): when a blocker task moves to
+  done/Implemented, every task it blocks re-renders its badge (Blocked → Ready/Blocks-count
+  adjust). The folds are CLIENT-side over the payload (the §12.5 doctrine): *Blocked-by* =
+  the `task_deps` edges where `blocked_task_id = X` joined against the task rows for their
+  completion status; *Blocks N* = the other half of the same fold. NEVER a new endpoint
+  (spec §15's derived-reverse rule + the S241 recorded decision).
+- **The soft constraints** (assumption 2, spec §16.1): the badges are INDICATORS ONLY —
+  they never block Kanban movement (a Blocked task can still drag to done), never mutate
+  priority/status/sprint/deadline, never gate the editor.
+- **The embedded board's twin** (project.html): `pdTaskTruth` gains the dep fold inputs it
+  needs (the task_deps edges are in the `/api/projects/:id` detail pool? CHECK: §12.3 says
+  the BOARD payload carries task_deps; the detail pool's shape is pinned by the S241 island
+  test — if the detail pool lacks task_deps, the embedded badges fold from the board payload
+  pull OR the server render folds server-side through the same helper — decide + record,
+  additive-only, island-transparent).
 
-## Tasks in required order (Phase 6)
+## Tasks in required order (Phase 7)
 
-1. **The J1 sprint-deadline extension dialog** (devboard.js shared stack — exported like the H1/H2
-   modals so sprint.html + board.html + project.html share ONE implementation): identity + current
-   deadline + remaining label + the four choices + the inheriting/protected counts BEFORE
-   confirmation → PATCH → reload. The presets add to the EXISTING deadline. Custom date = the
-   shared control pre-loaded with the current value.
-2. **The J2 personal extension flow**: the card row's Extend affordance (personal-source rows) +
-   the task view + (optionally) the modal's due field link → the dialog → PATCH (origin
-   preserved — pin with a test).
-3. **The J3 inherited choice modal**: the two paths with visible scope, the J1 preview reused for
-   the sprint-wide arm, the task-only arm's ORIGIN PRESERVATION (the §13.4/assumption-1 invariant —
-   the additive `due_origin_at` ride-along decision, see above; document + test it).
-4. **The anchors**: the S243 sprint popover's Extend label wires to J1; the compact overview's
-   Extend affordance (both board surfaces); the card row's affordance routes by
-   `effective_due_source` (personal → J2, sprint → J3, null → nothing — no deadline, no extend).
-5. **i18n + RTL + cache-bust**: every new string in BOTH dictionaries (written Persian); the FA
-   e2e pattern extends (the dialogs localize + mirror); `?v=` bumps + the sw.js ladder.
-6. **Tests**: vitest (the sprint-ui-s245 style — the preset math adds to the EXISTING deadline
-   not now; the origin-preservation pins on all three flows incl. the J3 task-only-from-inherited
-   ride-along; the impact-preview fold reads the payload; the routing by effective_due_source; the
-   parity extension if the row's affordance touches both renderers) and e2e: J1 (a sprint with
-   inheritors + overrides → extend → the counts were shown, the inheritors moved, the overrides
-   did NOT, the origin survived), J2 (personal extend → only that task changed, origin survived),
-   J3 (both arms: sprint-wide = the J1 effects; task-only = the override landed with the SPRINT's
-   origin preserved — the bar does not reset), the custom-date arm (the shared control), FA/RTL.
-   ALL existing tests stay green (baseline 109 files / 909; the s242/s244 specs must not regress —
-   adapt with in-file citations if a pin moves, intent preserved).
+1. **The shared dep-fold stack** (devboard.js — exported like the S244/S245 stacks):
+   `depsOf(taskId, edges)` → the Blocked-by rows; `blocksCount(taskId, edges)` → the reverse
+   count; `blockedStateOf(taskId, edges, taskRows)` → 'blocked' | 'ready' | null (ready =
+   blockers existed and ALL are complete); `depBadgeHtml(task, edges, taskRows, lang)` → the
+   compact badge row ('' when no deps). Both surfaces + the server twin consume THESE.
+2. **K — the collapsed Dependencies section in the modal** (Screen K): collapsed by default,
+   the searchable same-project multi-select (title + sprint + status per option), the live
+   POST/DELETE through the existing endpoints (or the Save-batched diff — the recorded
+   decision), the inline 400/409 surfaces.
+3. **L — the card badges in all three renderers** + the task view's row-only twin.
+4. **The resolution flow**: completing a blocker re-renders the badges (the reload/repaint
+   paths already re-fold; verify + pin the done-transition case e2e).
+5. **i18n + RTL + cache-bust**: every new string in BOTH dictionaries (written Persian);
+   the FA e2e pattern extends (the badges + the modal section localize + mirror); `?v=`
+   bumps + the sw.js ladder (move the s237/s238/s242/s243/s244/s245 tripwire pins with you).
+6. **Tests**: vitest (the sprint-ui-s246 style — the fold correctness incl. the derived
+   reverse; the cycle/self inline surfaces; the soft-constraint pin: a blocked task still
+   moves; the parity extension for the badge row's three renderers; i18n parity; the seam
+   tripwires — ZERO new fetch sites expected, the deps ride the existing endpoints through
+   the shared `api()` wrapper) and e2e: the cross-sprint link case (two tasks in DIFFERENT
+   sprints, same project — linkable), the multi-blocker case (A blocked by B+C; B done →
+   still Blocked; C done → Ready), the resolution case, the cycle rejection inline (A→B→A),
+   the self rejection inline, the FA/RTL round. ALL existing tests stay green (baseline
+   110 files / 935; the s242/s243/s244/s245 specs must not regress — adapt with in-file
+   citations if a pin moves, intent preserved).
 
 ## Gate ladder (fix everything until green)
 
@@ -148,43 +140,40 @@ server-enforced). What Phase 6 BUILDS is the FLOWS + the UI anchors:
 + `bun run check-i18n-parity` + `bun run check-cache-bust` (both MATTER — public/ changes).
 e2e: the sprint specs (`sprint-timeline`, `s206-sprint-fixes`, `sprint-ux`, `sprint-doc`,
 `s209-kanban-parity`, `s242-sprint-ui`, `s243-sprint-lifecycle`, `s244-deadline-ui`,
-`board-filters`) + your new specs (fresh sandbox: `bunx playwright install
+`s245-extend-flows`, `board-filters`) + your new specs (fresh sandbox: `bunx playwright install
 chromium-headless-shell` first). Update `docs/autopilot/FN-ALLOWLIST.md` pins if handlers move
-(the s237/s238/s243/s244 tripwires pin the sw.js ladder — move them with you).
+(the s237/s238/s242/s243/s244/s245 tripwires pin the sw.js ladder — move them with you).
 
 ## Commit, push, deploy rules
 
 One or two coherent commits on **`feat/sprint-deadline-deps` ONLY**, message style
-`feat(ui): S245 <lowercase one-liner> — spec pack phase 6` with a body citing the discrepancy
-items advanced (**the J3 origin-preservation mechanism decision — the additive
-`due_origin_at` ride-along or the server special-case, whichever you landed; assumption 11's H1
-day-window seam UNTOUCHED — the queued owner decision stays open**) + test counts. Review the
-final diff for unrelated changes and secrets. Push: feature branch only, one-shot token URL,
-never persist the token. A branch push runs CI only — it can NEVER deploy. No merge to main, no
-PR yet, no `bun run deploy*`, no D1 workflow runs — deployment + D1 = Phase 9. No desktop changes,
-no unrelated refactors, no new runtime deps. Keep new `hibanaFetch` call sites minimal (prefer
-the shared `api()` wrapper — Phases 3+4+5 added ZERO; the extension flows ride PATCH through
-`patchSprint`/`patchTask` so they should add ZERO too) and list any you add in the commit body
-for the Phase 9 re-pin inventory.
+`feat(ui): S246 <lowercase one-liner> — spec pack phase 7` with a body citing the discrepancy
+items advanced (**the K-section's live-vs-batched mutation decision + the embedded-board's
+dep-fold source decision, whichever you landed; assumption 11's H1 day-window seam UNTOUCHED —
+the queued owner decision stays open**) + test counts. Review the final diff for unrelated
+changes and secrets. Push: feature branch only, one-shot token URL, never persist the token.
+A branch push runs CI only — it can NEVER deploy. No merge to main, no PR yet, no
+`bun run deploy*`, no D1 workflow runs — deployment + D1 = Phase 9. No desktop changes, no
+unrelated refactors, no new runtime deps. Keep new `hibanaFetch` call sites minimal (prefer
+the shared `api()` wrapper — Phases 3+4+5+6 added ZERO; the deps POST/DELETE should add ZERO
+too — they ride `api()` directly or a `addTaskDep`/`removeTaskDep` wrapper pair like
+`patchTask`) and list any you add in the commit body for the Phase 9 re-pin inventory.
 
 ## End of session (mandatory)
 
 1. Update the pack docs (read them off `origin/main` first): `IMPLEMENTATION-STATUS.md`
-   (Phase 6 checklist + session log with commit SHA + test results + new assumptions/decisions —
-   esp. the J3 origin-preservation mechanism, the preset math's add-to-existing-deadline
-   implementation, the impact-preview fold source, the affordance routing) and REPLACE this
-   file's content with the fully populated **Phase 7 prompt** (Task dependencies UI: spec §14-§16
-   + Screens K/L — the collapsed Dependencies section in Add/Edit Task, the searchable
-   `Blocked by` multi-select of same-project tasks (title + sprint + status), the derived reverse
-   `Blocks N` counts (the client fold over the payload's `task_deps` — NEVER a new endpoint),
-   self/cycle prevention surfacing the 400/409 codes inline, the compact card badges (Blocked /
-   Blocks N / Ready when all blockers complete), the completing-a-blocker resolution, the soft
-   constraints (never block Kanban movement — assumption 2), the e2e incl. the cross-sprint +
-   multi-blocker + resolution cases; remember public/ changes need i18n EN+FA parity + `?v=`
-   cache-bust bumps + the sw.js ladder + the parity test).
+   (Phase 7 checklist + session log with commit SHA + test results + new assumptions/decisions —
+   esp. the K-section mutation decision, the embedded fold source, the Ready-badge semantics)
+   and REPLACE this file's content with the fully populated **Phase 8 prompt** (Cross-platform
+   QA + regression + localization + accessibility: the full-spec sweep — every acceptance
+   checklist row in §21/§22/§23/§24 turned into a test or a verified pin; threshold boundary
+   tests at exactly 7d/48h; the RTL + Gregorian/Jalali consistency checks; the
+   existing-tasks-with-no-sprint/deadline/deps regression; the a11y pass over every new
+   dialog/badge; the full e2e suite run — remember public/ changes need i18n EN+FA parity +
+   `?v=` cache-bust bumps + the sw.js ladder + the parity tests).
 2. Push the feature branch (code) — token one-shot.
 3. Push the docs-only commit to main (agent-workflow/*.md ONLY — `**.md` pushes are CI-skipped
    and cannot deploy; NEVER push non-md files to main).
 4. Factual report: files changed, UI delivered per task 1-6, exact test/gate results, commit SHAs,
-   push state (only what commands confirmed), blockers, defaults/assumptions taken, Phase 7
+   push state (only what commands confirmed), blockers, defaults/assumptions taken, Phase 8
    handoff location.

@@ -1,16 +1,15 @@
 # Hibana Feature Implementation Status
 
-**Status:** Phase 5 COMPLETE (sessions S239–S243 + S243b + **S244**) — Phases 1+2
+**Status:** Phase 6 COMPLETE (sessions S239–S243 + S243b + S244 + **S245**) — Phases 1+2
 (domain model + API read surface) @ `81f2c05`/`da652d2`, Phase 3's Kanban/task-form
 sprint UI @ `a1e7d2d`, Phase 4's sprint management/overview/lifecycle round @
-`b770258` + the S243b reconciliation @ `3ae6ae9`, and **Phase 5's deadline
-engine + UI @ `7a6bd4a`** (the shared Gregorian/Jalali date control — D6 CLOSED;
-the task-modal Due date (optional) toggle with the inherited read-only line +
-the explicit-null removal; the card deadline row + the thin LTR elapsed-time bar
-in THREE renderers; the quick-create + sprint-settings control swap — assumption
-10's UTC interim parse SUPERSEDED by LOCAL 23:59), all gates green. No dependency
-UI yet (Phase 7), no extension flows yet (Phase 6).
-**Last updated:** Session 8 (Phase 5 / S244), 6 November 2026.
+`b770258` + the S243b reconciliation @ `3ae6ae9`, Phase 5's deadline
+engine + UI @ `7a6bd4a`, and **Phase 6's deadline EXTENSION flows @ `f1ca773`**
+(J1 the sprint-wide dialog with the before-confirmation impact counts, J2 the
+personal picker, J3 the inherited CHOICE modal with the §13.4 origin
+ride-along — the additive due_origin_at body field on the task PATCH), all
+gates green. No dependency UI yet (Phase 7).
+**Last updated:** Session 9 (Phase 6 / S245), 6 November 2026.
 
 ## Repositories
 
@@ -85,7 +84,7 @@ local full run is optional per phase (no UI changes this phase).
 - [x] Phase 3 — Core Kanban and task-form UI, sprint integration (session 5 / S242 @ `a1e7d2d`: sprint view filter both surfaces, dropdown identity + completed rules, quick-create dialog, card sprint identity both renderers, D2 closed)
 - [x] Phase 4 — Sprint management, overview, and lifecycle (session 6 / S243 @ `b770258` + session 7 / S243b @ `3ae6ae9`: pause/resume wrappers + the H1/H2/H3/I lifecycle dialogs, the Sprints page extension D5, the compact overview on both board surfaces, the distinct paused render; D5 + D3's UI preview closed)
 - [x] Phase 5 — Deadline engine and UI (session 8 / S244 @ `7a6bd4a`: the shared Gregorian/Jalali date control D6 CLOSED, the task-modal Due date toggle + the inherited line + the explicit-null removal, the card deadline row + the thin elapsed-time bar in both renderers + the repaint twin, the quick-create/settings control swap — assumption 10's interim parse superseded)
-- [ ] Phase 6 — Deadline extension flows
+- [x] Phase 6 — Deadline extension flows (session 9 / S245 @ `f1ca773`: J1 the sprint-wide extension dialog with the before-confirmation impact counts + J2 the personal picker + J3 the inherited CHOICE modal; the +24/+48/+72 presets ADD TO THE EXISTING deadline; the §13.4 origin preservation via the additive due_origin_at ride-along on the task PATCH; the card-row/popover/overview/settings/modal anchors on every surface)
 - [ ] Phase 7 — Task dependencies
 - [ ] Phase 8 — Cross-platform QA, regression, localization, accessibility
 - [ ] Phase 9 — Integration, merge, deployment, and handoff
@@ -329,6 +328,7 @@ local full run is optional per phase (no UI changes this phase).
    - **Two legacy specs adapted with in-file citations (intent preserved)**: sprint-ui-s242's quick-create due-input pins (the interim parse + the bare `<input type="date">` + the reveal-on-change — the control swap's sanctioned supersession) + the s242 FA e2e's `.db-sq-toggle` selectors (scoped to the quick-create card — the task modal's own due toggle now wears the same grammar); task-view-s238's board.html carrier pins (the version bumps moved with the round).
 
 ### Session 8 — Phase 5 / S244 (2026-11-06) — COMPLETE
+
 - Fresh sandbox; cloned; verified `origin/main` = `599a70a` (the S243b close-out docs on `0171029` — exactly as the kickoff expected) + `feat/sprint-deadline-deps` = `3ae6ae9` (both exactly as the kickoff expected — no reconciliation needed); desktop untouched (READ-ONLY respected).
 - **Baseline re-run BEFORE any edit** on `3ae6ae9`: `bun install` ✓ 243 packages (bun 1.3.14, Node v24.22.2); `bun run verify` ✓ ALL GREEN; vitest **108 files / 878 tests** — the expected S243b baseline.
 - **Phase 5 delivered** (commit **`7a6bd4a`** on `feat/sprint-deadline-deps`, 46 files, +2067/−132):
@@ -341,3 +341,31 @@ local full run is optional per phase (no UI changes this phase).
 - Pushed `feat/sprint-deadline-deps` `3ae6ae9..7a6bd4a` (one-shot token URL; verified no token in .git/config / commit bodies / diff). Branch push = CI only, cannot deploy.
 - **Docs close-out on main** (docs-only): this file (Phase 5 checklist + assumption 12 + this session log) + the Phase 6 prompt in `NEXT-SESSION-PROMPT.md`.
 - Blockers: none. The assumption-11 owner decision (the H1 day-window seam) stays queued — UNTOUCHED this round per the kickoff's mandate (no /start semantics changed). Desktop untouched ✓, no new runtime deps ✓, no deploy/D1/PR ✓, **ZERO new fetch sites** ✓ (due-control.js ships zero network calls; devboard keeps exactly 7 `fetch(`, board-page 4 — pinned in `sprint-ui-s244.test.ts` for the Phase 9 re-pin inventory).
+
+13. **S245 (Phase 6) session-added engineering defaults** (all documented in code comments + the commit body + contract doc §12.2/§12.4 too):
+   - **THE J3 ORIGIN-PRESERVATION MECHANISM — the ADDITIVE `due_origin_at` RIDE-ALONG (the kickoff's recorded decision, LANDED)**: `PATCH /api/devtasks/:id` accepts an optional `due_origin_at` body field (validated ISO), honored ONLY when it accompanies a `due_at` null→value transition — the J3 task-only arm sends the sprint's `effective_due_origin_at` with the computed override so the bar keeps the SPRINT's start point (§13.4's "preserve the inherited deadline's original progress origin rather than making the bar look newly assigned"). Every other case IGNORES the field (value→value preserves the task's own stored origin; value→null clears both; sent alone = a no-op for it). The alternative — a server special-case sniffing sprint inheritance inside the PATCH — was REJECTED (it would fork the origin rules away from the body-driven write surface). Additive + island-transparent (a Go struct decode ignores the key); the desktop round consumes §12.2/§12.4 as its contract.
+   - **The preset math = `extendPresetDue(baseIso, hours)`** — hour-exact arithmetic ADDING TO THE EXISTING deadline (§13.1 — never to the current moment; VM-pinned behaviorally with a frozen `now` at two different instants). Custom date mounts the SHARED D6 control pre-loaded with the current value (`HibanaDueControl.create({ value: cfg.baseIso })`) — the user edits from the existing deadline.
+   - **The impact-preview fold = `sprintDeadlineImpact(sprintId, taskRows)`** — the §12.5-style client fold: `sprint_id === S && due_at == null` → INHERITORS (follow, any lane/status — the association is the count); `due_at != null` → PROTECTED. The /kanban twin folds `state.tasks`; the embedded twin folds `pdOvRows()` — which GREW `due_at` (and `pdTaskTruth` grew `title` + the effective triple) so the J1 fold + the J2/J3 routing + the §13.4 ride-along read the FETCHED truth on project.html (the S243b doctrine, never the 5-capped DOM); the repaint sync extends the same fields.
+   - **The affordance routing**: ONE router `openTaskDeadlineExtend(task, opts)` — `due_at != null` → J2's picker; `effective_due_source === 'sprint'` → J3's CHOICE modal; no effective deadline → NOTHING (no deadline, no extend). The card row's affordance (`.db-due-ext`, hover-revealed, `data-db-extend`) rides `deadlineRowHtml` + `deadlineViewHtml` + the detail-helpers server twin (byte-identical, kanban-parity-pinned); the delegated handlers on both board surfaces call the router with their own truth pools + onDone.
+   - **The popover's Extend label REWIRED to J1** — the S48p `window.prompt` ended_at extension is RETIRED (the same supersession treatment the S244 round gave the interim UTC parse; `db.extendPrompt` removed from BOTH dictionaries). The button renders for active|paused sprints carrying a due date; a sprint without a deadline has nothing to extend (the settings panel owns setting one — the `db.ext.noDue` belt answers an impossible open).
+   - **The Edit modal's due-field Extend… link closes the editor first** (no save): an extension is its own dedicated flow and the editor's draft would go stale against the extended truth; the editor's own `onSaved` (the caller's board reload) rides along as the dialog's `onDone`.
+   - **The J1/J2/J3 dialogs are `.db-sprintmod` dialogs** (the S243 grammar: overlay + card, dir follows the locale, capture-phase Esc shield, z-96) with a shared builder `openExtendDialog(cfg)` — the four-choice chips, a live new-deadline preview, a Confirm disabled until a choice, the origin note on every variant. The J3 CHOICE modal's two arms are `.db-sm-action` buttons with scope sub-lines (the sprint arm quotes the fold's counts).
+   - **The e2e seed lessons (recorded for Phase 7's seeding)**: a create-with-BOTH-dates sprint is born COMPLETED (the legacy timeline rule — the seeded ACTIVE sprint must be started-only); a create-with-dates auto-closes any ACTIVE sibling (seed the sibling FIRST and PAUSE it — assignment to paused is legal per assumption 3, completed refuses assignments); a non-day-end seeded due_at loads the control with the time toggle ON (seed at LOCAL day-end for date-only flows).
+   - **The sw.js ladder moved to v457** (SHELL re-fetch — devboard v35, board-page v32, project-page v83, sprint-page v26, devboard.css v43, i18n-en v109 + i18n v162 with the i18n-fa v103 injector literal) — the s237/s238/s242/s243/s244 tripwire pins re-pinned with citations; the FN-ALLOWLIST pins moved (L177→L188, L316→L327, L648→L664, L798→L814 — the ride-along schema round grew the file above them).
+   - **Two legacy pins adapted with in-file citations (intent preserved)**: sprint-ui-s243's pdOvRows row-shape pin (due_at joined the fold rows) + sprint-ui-s244's server-twin row-closing pin (`${extBtn}` joined the txt span inside the row).
+
+### Session 9 — Phase 6 / S245 (2026-11-06) — COMPLETE
+
+- Fresh sandbox; cloned; verified `origin/main` = `505c1e3` (the S244 close-out docs — exactly as the kickoff expected) + `feat/sprint-deadline-deps` = `7a6bd4a` (both exactly as the kickoff expected — no reconciliation needed); desktop untouched (READ-ONLY respected).
+- **Baseline re-run BEFORE any edit** on `7a6bd4a`: `bun install` ✓ 243 packages (bun 1.3.14, Node v24.22.2); `bun run verify` ✓ ALL GREEN (exit 0); vitest **109 files / 909 tests** — the expected S244 baseline; `check-i18n-parity` ✓ (1633=1633); `check-cache-bust` ✓.
+- **Phase 6 delivered** (commit **`f1ca773`** on `feat/sprint-deadline-deps`, 47 files, +1581/−158):
+  - **J1 the sprint-deadline extension** (devboard.js shared stack, exported): sprint identity + the current deadline (the S244 label wording via `deadlineSummary`) + the four §13.1 choices + the BEFORE-confirmation impact counts → PATCH `/api/sprints/:id` `{due_at}` (value→value — the origin preserved server-side, §13.2).
+  - **J2 the personal extension**: the card row's hover-revealed Extend affordance (THREE renderers, byte-identical) + the S238 task view's row + the Edit modal's due-field Extend… link → the picker → PATCH `/api/devtasks/:id` `{due_at}` (only-this-task, §13.3, origin preserved by the value→value rule).
+  - **J3 the inherited CHOICE modal**: two clearly distinct arms with visible scope (the sprint arm reuses J1 with its full preview; the task-only arm creates the override based on the CURRENT INHERITED deadline + the extension, riding the sprint's origin through the additive ride-along — assumption 13's recorded decision) — never a silent sprint change (§13.4).
+  - **The anchors**: the sprint popover's Extend → J1 (the prompt flow retired); the compact overview's Extend on BOTH board surfaces (non-completed + due_at); the settings panel's Extend… link; the row affordance routes by `effective_due_source`.
+  - **i18n EN+FA** (26 new keys, written Persian; parity 1658=1658; `db.extendPrompt` retired from both), **RTL** (the FA e2e: dir=rtl dialogs, Persian arms + toast), **cache-bust** bumps + the sw.js v457 SHELL ladder + the tripwires re-pinned (s237/s238/s242/s243/s244) + the FN-ALLOWLIST moves.
+- **Gates, fresh run**: `bun run verify` ✓ ALL GREEN (tsc, eslint 0, vitest **110 files / 935 tests** = 909 + 26 `sprint-ui-s245.test.ts`, prod build, portability, fn-shape, boundaries); `check-i18n-parity` ✓ PASS (1658=1658); `check-cache-bust` ✓ PASS (8 files consistent); e2e after `bunx playwright install chromium-headless-shell`: the NEW **s245-extend-flows.spec.ts 6/6** (J1 counts+48h-exact+origin+inheritors/overrides/elsewhere; J2 only-this-task; J3 task-only with the SPRINT's origin; J3 sprint-wide; Custom via the shared control → LOCAL 23:59; FA/RTL) + the sprint/board regression family **43/43** (sprint-timeline, s206-sprint-fixes, sprint-ux, sprint-doc, s209-kanban-parity, s242-sprint-ui, s243-sprint-lifecycle, s244-deadline-ui, board-filters) + the broader spot-run **27/27** (fa-locale-guard, s233-modal-close, s230-kanban-redesign, s205-kanban-entry, s206-kanban-edge).
+- **One mid-round defect caught by the e2e and fixed before the commit**: the choices container initially shipped class-only (no `data-ext-choices` attribute) — the delegated onclick bound to null and the whole dialog wiring crashed (the confirm stayed dead). Fixed + pinned (the attribute is now a source pin in `sprint-ui-s245.test.ts`).
+- Pushed `feat/sprint-deadline-deps` `7a6bd4a..f1ca773` (one-shot token URL; verified no token in .git/config / commit bodies / diff). Branch push = CI only, cannot deploy.
+- **Docs close-out on main** (docs-only): this file (Phase 6 checklist + assumption 13 + this session log) + the Phase 7 prompt in `NEXT-SESSION-PROMPT.md`.
+- Blockers: none. The assumption-11 owner decision (the H1 day-window seam) stays queued — UNTOUCHED this round per the kickoff's mandate (no /start semantics changed). Desktop untouched ✓, no new runtime deps ✓, no deploy/D1/PR ✓, **ZERO new fetch sites** ✓ (the flows ride patchSprint/patchTask; devboard keeps exactly 7 `fetch(`, board-page 4 — pinned in `sprint-ui-s245.test.ts` for the Phase 9 re-pin inventory).

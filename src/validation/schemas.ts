@@ -254,10 +254,8 @@ export const listProjectsSchema = z.object({
 // code points (skin tones, ZWJ, variation selectors) must match as INDIVIDUAL atoms here
 // so 1-8 of them combine freely into any sequence the user's picker can emit; forming
 // them into joined sequences would wrongly reject valid composites (flags + tones + ZWJ).
-// S240 (spec pack §4.2): exported — the sprint emoji identity uses the SAME single
-// emoji-token contract as spark folders/vault icons (one picker glyph, never markup).
 // eslint-disable-next-line no-misleading-character-class
-export const EMOJI_TOKEN_RE = /^[\p{Extended_Pictographic}\u{1F1E6}-\u{1F1FF}\u{1F3FB}-\u{1F3FF}\u{E0020}-\u{E007F}\u200D\uFE0F]{1,8}$/u
+const EMOJI_TOKEN_RE = /^[\p{Extended_Pictographic}\u{1F1E6}-\u{1F1FF}\u{1F3FB}-\u{1F3FF}\u{E0020}-\u{E007F}\u200D\uFE0F]{1,8}$/u
 export const sparkFolderSchema = z.object({
   name: z.string().trim().min(1).max(50),
   icon: z.string().trim().max(16).regex(EMOJI_TOKEN_RE).nullish(),

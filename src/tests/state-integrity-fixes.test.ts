@@ -53,12 +53,7 @@ describe('AP-27 — archive restore survives sprint/category hard-delete', () =>
       const pid = await makeProject(db, uid, { status: 'developing' })
       const sid = crypto.randomUUID()
       const cid = crypto.randomUUID()
-      // S240 (0065) setup adaptation: the sprint is inserted as a DRAFT (is_draft=1 →
-      // status='planned') — the deletable lifecycle set. Raw inserts default to
-      // is_draft=0/ended_at=NULL, which the 0065 backfill now maps to ACTIVE, and an
-      // active sprint's DELETE is refused (409 sprint_active, spec §6/assumption 5).
-      // The test's subject — restore survives the sprint/category hard-delete — is unchanged.
-      await db.execute("INSERT INTO sprints (id, project_id, name, started_at, created_at, is_draft) VALUES (?, ?, 'S1', ?, ?, 1)", [sid, pid, nowIso(), nowIso()])
+      await db.execute("INSERT INTO sprints (id, project_id, name, started_at, created_at) VALUES (?, ?, 'S1', ?, ?)", [sid, pid, nowIso(), nowIso()])
       await db.execute("INSERT INTO categories (id, user_id, name, color_fill, color_text, created_at) VALUES (?, ?, 'Cat', '#111111', '#ffffff', ?)", [cid, uid, nowIso()])
       // the archived snapshot carries BOTH ids (as the real archive flow writes them)
       const aid = crypto.randomUUID()

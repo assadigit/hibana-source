@@ -27,19 +27,10 @@ const SW_PATH = join(ROOT, 'public', 'sw.js')
 const MANIFEST_PATH = join(ROOT, 'public', 'dist', 'manifest.json')
 const PUBLIC = join(ROOT, 'public')
 
-// Budget: 2,340 KB raw. History: 2,300 KB was pinned at S200 (measured 2,179 KB
-// at S198 + ~5% headroom; the post-WebP diet measured 2,138 KB). Five weeks of
-// releases — S201-S238 plus the whole Sprint/Deadline/Dependency feature stack
-// (S240-S247b: due-control.js v1 + emoji-picker.js v4 join the SHELL precache,
-// the renderers' and dictionaries' growth, the src bundle growth) — measured
-// 2,319 KB on the FIRST CI run that ever exercised the branch (branch pushes
-// never ran CI; pull requests do), breaching the budget by 19 KB. Raised to
-// 2,340 KB (+21 KB headroom, ~0.9%) in the S248 Phase 9 merge round: the growth
-// is the intentional feature surface, every entry was reviewed, and the tight
-// margin keeps accidental >21 KB additions red. Ratchet DOWN on deliberate
-// shrinks (e.g. PERF-8's Login.jpg → WebP); never raise it without a written
-// reason in the commit message.
-const BUDGET_BYTES = 2_340 * 1024
+// Budget: 2,300 KB raw (measured 2,179 KB at S198 + ~5% headroom). Ratchet DOWN
+// on deliberate shrinks (e.g. PERF-8's Login.jpg → WebP); never raise it without
+// a written reason in the commit message.
+const BUDGET_BYTES = 2_300 * 1024
 
 if (!existsSync(SW_PATH)) {
   console.error('FAIL: public/sw.js not found.')

@@ -5,9 +5,6 @@
 > plus the *clearly separated* compatibility contract a future **Go Windows desktop client**
 > would need. §1–§6 and the web halves of §8–§9 describe EXISTING behavior with source
 > references; §7, §10 and every "desktop" subsection are recommendations, marked as such.
-> **§12 (S240/S241)** documents the Sprint, Deadline & Dependency feature surface
-> (migration 0065, `feat/sprint-deadline-deps`) — the Phase 1+2 contract the desktop
-> round consumes.
 > Companion: `DATA-MODEL.md`, `GO-DESKTOP-PORT-PLAN.md`.
 
 ## 1. Runtime topology (verified)
@@ -95,7 +92,7 @@ table is §8. Writes need `Origin` (§2).
 
 | Method & path | Line | Body (zod) | Returns |
 |---|---|---|---|
-| **GET `/api/projects/:projectId/devboard`** | :139 | — | **the one board payload** — **now SEVEN keys** (S241): `{project:{id,title,status,type}, tasks:[task+{tags:[tagId], shot_count}], categories(+enabled), sprints, tags, task_tags, task_deps}`; task rows additionally carry the raw `due_at`/`due_origin_at` (S240) and the server-computed `effective_due_at`/`effective_due_source`/`effective_due_origin_at` triple (S241 — §12.2); sprint rows carry `status/emoji/due_at/due_origin_at/updated_at` (S240 — §12.1); tasks ordered `PRIO_ORDER_SQL, sort_order, created_at`; **S208: every task carries `shot_count`** with a pre-0054 fallback belt; `task_deps` = the flat per-project edge join with its own lagging-D1 `[]` belt (§12.3); ETag-wrapped. The pre-S241 six-key shape is PINNED by `src/tests/api-surface-s241.test.ts` (the island @ 04218ca contract — additive keys only, never removals/renames) |
+| **GET `/api/projects/:projectId/devboard`** | :139 | — | **the one board payload**: `{project:{id,title,status,type}, tasks:[task+{tags:[tagId], shot_count}], categories(+enabled), sprints, tags, task_tags}`; tasks ordered `PRIO_ORDER_SQL, sort_order, created_at` (`devboard-helpers.ts:231-232`); **S208: every task carries `shot_count`** — `COALESCE((SELECT COUNT(*) FROM screenshots sc WHERE sc.task_id = t.id),0)` (`:152-153`) with a pre-0054 fallback belt that serves `0 AS shot_count` rather than 500ing (`:156-164`); ETag-wrapped (`:185`) |
 | POST `/api/projects/:projectId/devtasks` | :199 | `createDevTaskSchema` (`:43-59`): title ≤100k, status?, priority?, category_id?, sprint_id?, start_at/end_at?, **`tags[]` names (≤12 × ≤48 chars, `:58`)** | 201 `{ok,id,tags}` — **server-minted id** (`:231`); **tags ride the create** via `setTaskTags` (`:241`, find-or-create); no `sprint_id` → the project's draft, else open sprint (`:216-230`) |
 | POST `…/devtasks/reorder` | :247 | `{ids[] ≤500}` (`:101`) | `{ok}` — rewrites `sort_order` 0..n project-scoped (`:253-257`) |
 | PATCH `/api/devtasks/:id` | :261 | `updateDevTaskSchema` (`:60-72`): title, status, priority, category_id, sprint_id, sort_order, start_at/end_at, tags replace-set | `{ok,tags}` — `done_at` stamped/cleared by status transition (`:287-296`); **`updated_at` stamped on every column edit** (`:299-303`); owner-rescoped (SEC-11, `:305-308`); tags are NOT a column — replace-set via `setTaskTags` (`:310-312`) |
@@ -106,7 +103,7 @@ table is §8. Writes need `Origin` (§2).
 | DELETE `…/archives/:aid` | :439 | — | `{ok}` — permanent |
 | POST/DELETE `/api/devtasks/:id/tags[/:tagId]` | :449/:470 | `{name ≤60, color?}` | find-or-create (`:456-463`) / unlink + usage recount + FTS sync (`:474-477`) |
 | POST `…/categories` (find-or-create + enable) | :488 | `{name ≤80, color_fill, color_text}` | 201/200 existing (user-scoped reuse, `:497-509`) |
-| sprints CRUD: POST `…/sprints` :535, PATCH `/api/sprints/:id` :616, `/start` :587, `/finish` :704, `/reopen` :715, DELETE :734 | | `{name?, version?, description?, started_at?, ended_at?}` | server-enforced sprint invariants — one draft (`:553`), one open sprint, day-granularity non-overlap (see DATA-MODEL §2.3); **the S240/S241 round added `/pause` + `/resume`, `emoji`/`due_at` bodies, the explicit lifecycle, deps endpoints and the error family — the COMPLETE surface is §12** |
+| sprints CRUD: POST `…/sprints` :535, PATCH `/api/sprints/:id` :616, `/start` :587, `/finish` :704, `/reopen` :715, DELETE :734 | | `{name?, version?, description?, started_at?, ended_at?}` | server-enforced sprint invariants — one draft (`:553`), one open sprint, day-granularity non-overlap (see DATA-MODEL §2.3) |
 | backlog docs CRUD | :749-:807 | `{title ≤200, content ≤50k}` | revisions cascade |
 | project tag chips: POST `…/tags` :811 / DELETE `…/tags/:tagId` :832 | | `{name, color?}` | find-or-create + usage; bumps `projects.updated_at` (`:828/:839`) |
 
@@ -432,175 +429,3 @@ makes it moot.
   (`index.ts:128`).
 - Legacy status normalization map (`LEGACY_STATUS`, `src/validation/schemas.ts:12-26`) — a
   desktop client should send only canonical values and can ignore the legacy map.
-- **S241 island pin**: the pre-S241 payload shape above (six keys; every task/sprint/
-  category/tag/task_tag/project key) is pinned by `src/tests/api-surface-s241.test.ts` —
-  additive keys ride along, any removal/rename fails CI before it can reach a desktop
-  build. The pinned island (`04218ca` web-ref) decodes with Go structs whose
-  `json.Unmarshal` ignores unknown keys, so the S240/S241 additions are invisible to it
-  until the Phase 9 re-pin.
-
-## 12. The Sprint, Deadline & Dependency surface — S240/S241 (Phase 1+2, migration 0065)
-
-Landed on `feat/sprint-deadline-deps` (S240 @ `81f2c05`, S241 on top): project-scoped
-sprints with an explicit lifecycle + emoji + due dates, personal task deadlines with a
-server-resolved effective deadline, and same-project task dependencies. **Everything in
-this section is additive and backward-compatible** — old clients (including the desktop
-island @ `04218ca`) keep working unchanged; the six-key payload became seven keys, task
-rows gained six additive fields, sprint rows five. Implementation: `src/routes/devboard.ts`
-(+ helpers in `src/routes/devboard-helpers.ts`), migration `0065_sprint_deadline_deps.sql`,
-domain suite `src/tests/sprint-deadline-deps-domain.test.ts` (24 tests), API-surface suite
-`src/tests/api-surface-s241.test.ts` (7 tests).
-
-### 12.1 Sprint model + endpoints (S240)
-
-`sprints` columns added by 0065: `status` (`planned|active|paused|completed`, backfilled;
-`NULL` on a lagging D1 → derive from the legacy pair: `ended_at NOT NULL ⇒ completed`,
-`is_draft=1 ⇒ planned`, else `active` — `sprintStatusOf`, `devboard-helpers.ts`), `emoji`
-(one picker token, `EMOJI_TOKEN_RE`, ≤16 chars, NULL = default glyph), `due_at` +
-`due_origin_at` (same origin rules as tasks, below), `updated_at` (stamped on every write —
-the D8 sync field; NULL on legacy rows). The legacy `is_draft`/`ended_at` pair stays as the
-timeline's band-edge representation and every writer keeps them in lock-step
-(`ended_at NOT NULL ⇔ completed`, `is_draft=1 ⇔ planned`).
-
-| Method & path | Body (zod) | Success | Errors / notes |
-|---|---|---|---|
-| POST `/api/projects/:projectId/sprints` | `{name?, version?, description?, emoji?, due_at?, started_at?, ended_at?}` | 201 `{ok,id,name,version,draft}` | nameless create auto-names `Sprint N` (bumps past collisions, ≤50 tries); duplicate name (case/trim-folded, project-scoped, ALL lifecycle states) → **409 `duplicate`** (write-time-only rule — legacy case-twins stay readable); one draft per project → **409 `draft_exists`**; create-with-dates auto-closes only the ACTIVE sibling (stamps `ended_at` + `status='completed'`, archives NOTHING — legacy timeline mechanics); new sprint `status = ended_at ? 'completed' : 'active'`; draft create → `status='planned'`; first `due_at` assignment stamps `due_origin_at` |
-| POST `/api/sprints/:id/start` | — | 200 `{ok}` | `planned|paused → active`; another sprint active → **409 `{error:'sprint_active_exists', active_id}`** (NO auto-close — the Phase 4 conflict modal resolves: finish current / pause current / cancel); paused source = pure resume (window untouched); `active|completed → 400 already_started` (legacy shape) |
-| POST `/api/sprints/:id/pause` (NEW) | — | 200 `{ok}` | `active → paused` only (else 400 `invalid_input`); keeps window + deadlines (§5.5) |
-| POST `/api/sprints/:id/resume` (NEW) | — | 200 `{ok}` | `paused → active`, subject to one-active (same 409 shape as start) |
-| POST `/api/sprints/:id/finish` | — | 200 `{ok, archived:n}` | → `completed` + `ended_at=now` + archives ONLY this sprint's `status='done'` tasks into `project_archives` (snapshot: `sprint_id` KEPT, tags JSON, `sprint_name_snapshot = sprint.name`); unfinished tasks untouched; re-finish legal (idempotent + archives newly-done); `planned/draft → 400` |
-| POST `/api/sprints/:id/reopen` | — | 200 `{ok}` | `completed → active` (isLatest guard → 400; one-active → 409 `sprint_active_exists`); `active → 200` no-op; `paused → 400` |
-| PATCH `/api/sprints/:id` | `{name?, version?, description?, emoji?, due_at?, started_at?, ended_at?}` | 200 `{ok}` | rename uniqueness-checked (409 `duplicate`; self re-assert legal); `due_at` origin rules: null→value stamps `due_origin_at`, value→value preserves it (extension ≠ re-assignment), null clears both; `ended_at` transitions move `status` in lock-step and NEVER archive; every PATCH stamps `updated_at` |
-| DELETE `/api/sprints/:id` | — | 200 `{ok}` | `planned/paused` only; active → **409 `sprint_active`** (pause/finish first); completed → **409 `sprint_completed`** (history is not deletable); tasks DETACH (`sprint_id=NULL`, never deleted); archived rows get `sprint_name_snapshot = "<name> (deleted)"` + `sprint_id=NULL` (AP-27 hygiene) |
-
-### 12.2 Task deadlines — raw fields + the effective resolution (S240/S241)
-
-`dev_tasks` gained `due_at` (optional personal deadline, ISO-8601 instant — date-only
-resolves client-side to local 23:59) and `due_origin_at` (progress START stamp: set on
-first assignment, preserved on edits/extensions, cleared with `due_at`; re-adding starts a
-fresh timeline). Origin rules run on create + PATCH (task) and create + PATCH (sprint):
-null→value stamps, value→value preserves, value→null clears both.
-
-**S245 (Phase 6 — §13.4) addition — the `due_origin_at` ride-along on the task PATCH:**
-`PATCH /api/devtasks/:id` additionally accepts an optional `due_origin_at` body field
-(validated ISO), honored ONLY when it accompanies a `due_at` null→value transition: the
-client-sent instant is stamped instead of `now`. This is the mechanism behind the
-inherited-deadline extension's task-only arm (spec §13.4): the override the arm creates
-must "preserve the inherited deadline's original progress origin rather than making the
-bar look newly assigned", so the J3 flow sends the sprint's `effective_due_origin_at`
-along with the computed override value. Every other case IGNORES the field — value→value
-still preserves the task's own stored origin (an extension is not a re-assignment),
-value→null still clears both, and a body sending it without `due_at` is a no-op for it.
-Additive + island-transparent (a Go struct decode ignores the key); the alternative — a
-server special-case sniffing sprint inheritance inside the PATCH — was rejected because
-it would fork the origin rules away from the body-driven write surface. Extension flows
-are otherwise pure PATCH orchestration: the presets ADD TO THE EXISTING `due_at` (never
-to the current moment — §13.1), and `PATCH /api/sprints/:id {due_at}` is the sprint-wide
-arm (every inheriting task follows on the next payload pull; value→value preserves the
-sprint's own origin).
-
-**Effective deadline (S241 — the documented Phase 2 decision: computed SERVER-side, as
-additive fields on the board payload's task rows):**
-
-```
-effective_due_at        — the resolved deadline instant (ISO-8601 or null)
-effective_due_source    — 'task' | 'sprint' | null (which level won)
-effective_due_origin_at — the progress start point for the WINNING level (spec pack §12.2):
-                          task source → the task's due_origin_at;
-                          sprint source → the SPRINT's due_origin_at (the shared start
-                          point for every task inheriting it); coalesced to the due_at
-                          itself when a legacy row lacks the stamp
-```
-
-Precedence (spec §10): **personal > sprint-inherited-while-not-completed > none**. A
-completed sprint's due date is historically neutral — it stays visible in the `sprints`
-section but never serves as an active deadline (§10.3); a paused sprint's deadline keeps
-inheriting (§5.5). One shared helper — `effectiveDeadlineOf` (`devboard-helpers.ts`) — is
-the single resolution (spec §18: web and desktop must not fork deadline logic; the desktop
-consumes the computed fields and needs zero deadline logic of its own). On a lagging
-pre-0065 D1 the fields serialize as the null triple.
-
-**S244 (Phase 5) addition — the project detail pool carries the same triple:** the
-`devTasks` rows of `GET /api/projects/:id` (both the JSON pool and the server-rendered
-HTML fragment it feeds) now carry the additive `effective_due_at` / `effective_due_source`
-/ `effective_due_origin_at` fields, computed through the SAME `effectiveDeadlineOf` seam
-(`detail-helpers.ts` `devTasksWithDue`). The embedded project-page board's server render
-and its client repaint twin (`project-page.js` `pdTruthWrap`) read the triple from there —
-the web client still ships zero deadline resolution logic. Additive + island-transparent:
-a Go struct decode ignores the keys, and no existing consumer reads them.
-
-### 12.3 Task dependencies (S240 write / S241 read)
-
-`dev_task_deps` (0065): `(blocker_task_id, blocked_task_id)` both `→dev_tasks ON DELETE
-CASCADE`, `CHECK blocker<>blocked`, both-FK indexes. Soft/informational only (spec
-assumption 2) — never blocks Kanban movement, never mutates priority/status/sprint/deadline.
-
-| Method & path | Body | Success | Errors |
-|---|---|---|---|
-| POST `/api/devtasks/:id/deps` (NEW) | `{blocker_id}` | 201 `{ok:true}` new / 200 `{ok:true, existing:true}` idempotent | self / cross-project / foreign-user blocker → 400 `invalid_input`; closes a cycle (recursive CTE over `dev_task_deps`) → **409 `cycle`** (recorded divergence: registry default 400) |
-| DELETE `/api/devtasks/:id/deps/:blockerId` (NEW) | — | 200 `{ok:true}` always (tag-link shape) | — |
-
-**Read surface (S241): the payload's 7th key `task_deps`** — the flat per-project edge join
-`{blocker_task_id, blocked_task_id}` (ordered by `created_at`), shaped like `task_tags` so
-the client folds by task: *Blocked-by* = edges where `blocked_task_id = X`; the reverse
-*Blocks N* counts = the same fold's other half (derived, NEVER a separate endpoint or
-stored column — spec §15). Same-project is a write-time invariant, so the join is scoped
-through the blocked task's project (rule 1 — a stranger's edges never leak); CASCADE keeps
-it dangling-free; a lagging pre-0065 D1 serves `[]` (the categories belt precedent).
-
-**S246 (Phase 7 — the dependencies UI) addition — the DETAIL POOL carries the same edges:**
-`GET /api/projects/:id`'s pool (both the JSON path and the server-rendered HTML fragment)
-now includes `taskDeps` — the SAME `taskDepsForProject` flat join, as an additive
-camelCase key in the pool's own style (the `devTasks`/`devTaskTags` family). This is the
-recorded embedded-fold decision: the embedded project-page board's dep badges fold from
-the detail pool it already fetches (NEVER a second board pull), the server render folds
-server-side at render time, and the client repaint twin (`pdTruthWrap`) reads the edges
-off the same payload. The `/kanban` surface keeps folding the board payload's `task_deps`
-key — one edge pool per surface, both from the one shared helper. Additive +
-island-transparent (the desktop island is the /kanban surface; a Go struct decode ignores
-the key). The UI's write path rides the two endpoints above through the shared `api()`
-wrapper (`addTaskDep`/`removeTaskDep`) — zero new fetch sites; edit-mode picks mutate
-LIVE (the 400 self / 409 cycle answers surface inline at the bad pick), add-mode picks
-stage and POST right after the task-create ack.
-
-### 12.4 Task endpoints' sprint/deadline guards (S240)
-
-- **POST `/api/projects/:projectId/devtasks`** additionally accepts `due_at` (origin
-  stamped on create). `sprint_id: null` = No sprint (always legal); **`sprint_id` undefined
-  = the legacy draft/open auto-assign** (kept for old clients until the Phase 3 client fix
-  — D2); NEW assignment to a completed sprint → **400 `sprint_completed`**.
-- **PATCH `/api/devtasks/:id`** additionally accepts `due_at` (same origin rules,
-  special-cased like `tags`) and, since S245, the optional `due_origin_at` ride-along
-  (§12.2 above — honored only on a `due_at` null→value transition, ignored otherwise);
-  MOVING a task to a completed sprint → 400 `sprint_completed`;
-  re-asserting the task's CURRENT sprint stays legal (the old Edit modal resends fields
-  verbatim). planned/active/paused targets all assignable (assumption 3: paused allowed).
-
-### 12.5 Sprint overview counts — DECISION: client-derived (no endpoint)
-
-Spec §7.4 (counts across the five Kanban statuses + total only, no percentages/analytics)
-is **folded client-side from the board payload** — every task already carries `sprint_id` +
-`status`, so `count(tasks where sprint_id = S, group by status)` is a trivial fold for both
-the web UI (Phase 4) and the desktop mirror (offline, identical logic). No
-`/sprints/:sid/overview` endpoint exists; do not add one without revisiting this decision
-record (S241). Raw status → label mapping is the client's five-lane set
-(`idea/bug/planned/in_progress/done`).
-
-### 12.6 Sync implications (web ⇄ desktop)
-
-- **Full-board replace still suffices — NO `?since=` deltas are needed for this feature.**
-  The desktop's `GET /api/projects/:id/devboard` pull now carries sprints (with
-  `status/emoji/due_at/due_origin_at/updated_at`), tasks (raw `due_at`/`due_origin_at` +
-  the computed `effective_*` triple) and `task_deps`; every mutation still ends in the
-  client's full re-pull (web) or mirror replace (desktop).
-- `sprints.updated_at` (D8) exists for FUTURE delta work; do not build on it yet.
-- The island @ `04218ca` ignores every additive key (Go struct decode) — verified by the
-  S241 legacy-shape pin. The Phase 9 desktop round adds mirror schema v3 (`dev_task_deps`
-  + the new columns), re-pins the island (new fetch call-sites trip the seam gates — D9),
-  and consumes THIS section as its contract.
-- One-active is enforced atomically server-side (partial unique index
-  `idx_sprints_one_active` + the service-layer 409s) — sync/LWW can never produce two
-  active sprints; a desktop "start" that loses the race gets `sprint_active_exists` +
-  `active_id` and must surface the conflict, not retry.
-- Conflict policy for the new fields is the existing LWW per field (§10) — no version
-  columns were added.

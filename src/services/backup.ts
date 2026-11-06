@@ -115,10 +115,6 @@ export const SNAPSHOT_TABLES = [
   // S152 (0062): the GLOBAL category library + the per-project join are FK parents of
   // dev_tasks.category_id too — categories BEFORE project_categories BEFORE dev_tasks.
   'categories', 'project_categories', 'task_categories', 'sprints', 'dev_tasks', 'dev_task_tags',
-  // S240 (0065 — spec pack §14): the task-dependency edges — BOTH columns FK dev_tasks,
-  // so they sit after it (FK-safe restore order). Caught by the backup-audit drift
-  // guard the moment the table materialized — a dependency edge is user content.
-  'dev_task_deps',
   'project_archives',
   'backlog_docs', 'backlog_doc_revisions',
   // S30 (2026-09-12): project_progress_log REMOVED — 0051 dropped the table with the
@@ -215,10 +211,6 @@ const PROJECT_SCOPED_EXPORT_TABLES = [
 ] as const
 /** Tables that scope through dev_tasks.task_id (no project_id column of their own). */
 const DEV_TASK_CHILD_EXPORT_TABLES = ['dev_task_tags'] as const
-/** S240 (0065): task-dependency edges in the personal export — scoped by EITHER
- * endpoint (blocker_task_id/blocked_task_id; the service layer enforces same-project
- * so one endpoint suffices in practice — the OR is the belt). */
-const DEV_DEP_EXPORT_TABLES = ['dev_task_deps'] as const
 /** Tables that scope through backlog_docs.doc_id (no project_id column of their own). */
 const BACKLOG_CHILD_EXPORT_TABLES = ['backlog_doc_revisions'] as const
 /** Tables that scope through sadhana_tasks.task_id. */
@@ -285,17 +277,6 @@ export async function buildUserSnapshot(db: Db, userId: string): Promise<Snapsho
     )
     if (rows) data[table] = rows
   }
-  // S240 (0065): deps ride the personal export — both endpoints scoped to the user's
-  // own dev_tasks (guardedQuery keeps the S57 lagging-D1 partial-export shape).
-  for (const table of DEV_DEP_EXPORT_TABLES) {
-    const rows = await guardedQuery(
-      table,
-      `SELECT * FROM ${table} WHERE blocker_task_id IN (SELECT id FROM dev_tasks WHERE project_id IN (SELECT id FROM projects WHERE user_id = ?))
-         OR blocked_task_id IN (SELECT id FROM dev_tasks WHERE project_id IN (SELECT id FROM projects WHERE user_id = ?))`,
-      [userId, userId],
-    )
-    if (rows) data[table] = rows
-  }
   for (const table of BACKLOG_CHILD_EXPORT_TABLES) {
     const rows = await guardedQuery(
       table,
@@ -328,8 +309,7 @@ export async function buildUserSnapshot(db: Db, userId: string): Promise<Snapsho
     // personal export; soft-deleted notes included). Restore scripts key on table
     // names present in `data`, so older readers simply don't see the new keys.
     // S152: +categories (the used slice) +project_categories → 20260926.
-    // S240 (0065): +dev_task_deps (the dependency edges) → 20261105.
-    schema_version: 20261105,
+    schema_version: 20260926,
     exported_at: new Date().toISOString(),
     missing_tables: missing,
     data,

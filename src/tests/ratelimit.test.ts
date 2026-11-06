@@ -5,8 +5,23 @@ import { createApp } from '../app'
 // Spec §15 — the app enforces the same limits the Cloudflare rules would apply at the
 // edge (login + password reset: 30 req/60s/IP; Telegram webhook: 300 req/60s/IP).
 
+// S248 (Phase 9 merge round — the flake the first PR CI run surfaced): the limiter's
+// window is WALL-CLOCK-ALIGNED (bucket = floor(now/60s)*60s, ratelimit.ts:74-75), so a
+// test that starts late in a minute can straddle the boundary mid-loop — every counter
+// lands in a fresh window and the "31st request is blocked" assertions read 401. The
+// runner-observed firing: started ~15:51:5x, the boundary rolled at 15:52:00 mid-test.
+// The guard sleeps past the boundary ONLY when the test would otherwise start inside
+// the window's last 3s (the tests run in ~1-2s, so a fresh window's first 57s is always
+// enough); worst case it adds one <3s sleep, and the limiter's semantics are untouched.
+async function freshRateWindow(): Promise<void> {
+  const msIntoWindow = Date.now() % 60_000
+  const msLeft = 60_000 - msIntoWindow
+  if (msLeft < 3_000) await new Promise((r) => setTimeout(r, msLeft + 100))
+}
+
 describe('rate limiting (spec §15)', () => {
   it('login blocks the 31st attempt in a 60s window (30 allowed)', async () => {
+    await freshRateWindow()
     const { db, close } = makeTestDb()
     try {
       await makeUser(db)
@@ -101,6 +116,7 @@ describe('rate limiting (spec §15)', () => {
   })
 
   it('password reset shares the auth limit (request + confirm)', async () => {
+    await freshRateWindow()
     const { db, close } = makeTestDb()
     try {
       await makeUser(db)
@@ -125,6 +141,7 @@ describe('rate limiting (spec §15)', () => {
   })
 
   it('a different client IP has its own IP budget — the per-ACCOUNT counter spans IPs (SEC-2)', async () => {
+    await freshRateWindow()
     const { db, close } = makeTestDb()
     try {
       await makeUser(db)

@@ -55,16 +55,20 @@ describe('S238 focus-core — the FULL Esc peel (view → sheet → focus)', () 
 })
 
 describe('S238 wiring — the DOM half (the island-style tripwires)', () => {
-  it('board.html carries the bumped carriers: board-page v28, focus-core v2 (BEFORE devboard), devboard.css v39, polish-batch v30, quicknotes v51, i18n-en v105, i18n.js v158', () => {
+  it('board.html carries the bumped carriers: board-page v33, focus-core v2 (BEFORE devboard), devboard.css v45, polish-batch v30, quicknotes v51, i18n-en v110, i18n.js v163 (S247 moved the ladder — the Phase-8 a11y/contrast round moved devboard.css to v45; the rest are the S246 carriers; the pin intent is preserved, the versions moved with the carriers)', () => {
     const html = readPublic('board.html')
-    expect(html.includes('/js/board-page.js?v=28')).toBe(true)
+    expect(html.includes('/js/board-page.js?v=33')).toBe(true)
     expect(html.includes('/js/focus-core.js?v=2"')).toBe(true)
     expect(html.indexOf('/js/focus-core.js?v=')).toBeLessThan(html.indexOf('/js/devboard.js?v='))
-    expect(html.includes('/css/devboard.css?v=39')).toBe(true)
+    expect(html.includes('/css/devboard.css?v=45')).toBe(true)
     expect(html.includes('/css/polish-batch.css?v=30')).toBe(true)
     expect(html.includes('/css/quicknotes.css?v=51')).toBe(true)
-    expect(html.includes('/js/i18n-en.js?v=105')).toBe(true)
-    expect(html.includes('/js/i18n.js?v=158')).toBe(true)
+    expect(html.includes('/js/i18n-en.js?v=110')).toBe(true)
+    expect(html.includes('/js/i18n.js?v=163')).toBe(true)
+    // S244: the shared date control joins (after the jalaali vendor, before devboard.js)
+    expect(html.indexOf('/vendor/jalaali.min.js')).toBeGreaterThan(-1)
+    expect(html.indexOf('/vendor/jalaali.min.js')).toBeLessThan(html.indexOf('/js/due-control.js?v=1'))
+    expect(html.indexOf('/js/due-control.js?v=1')).toBeLessThan(html.indexOf('/js/devboard.js?v='))
   })
 
   it('board-page.js: the view modal exists, the card click / Enter / deep link open the VIEW, and the ⋯ Edit still opens the editor', () => {
@@ -164,13 +168,16 @@ describe('S238 wiring — the DOM half (the island-style tripwires)', () => {
     ]) {
       expect(bp.includes(pair[0]), 'board-page.js _t call missing fallback ' + pair[0]).toBe(true)
     }
-    // the lazy FA injector literal moved to v99
-    expect(readPublic('js/i18n.js').includes('/js/i18n-fa.js?v=99')).toBe(true)
+    // the lazy FA injector literal moved to v104 (S246 — the dependencies round)
+    expect(readPublic('js/i18n.js').includes('/js/i18n-fa.js?v=104')).toBe(true)
   })
 
-  it('sw.js is at hibana-v452 and the round notes the carrier bumps', () => {
+  it('sw.js is at hibana-v459 and the round notes the carrier bumps (S247 moved the ladder — the Phase-8 a11y/contrast round; the pin intent is preserved)', () => {
     const sw = readPublic('sw.js')
-    expect(sw.includes('const VERSION = "hibana-v452"')).toBe(true)
+    expect(sw.includes('const VERSION = "hibana-v459"')).toBe(true)
+    expect(sw.includes('// v459 (S247)')).toBe(true)
+    // the S238 note stays in the history block (the discipline: every prior entry
+    // is recoverable; the history block carries the last rounds)
     expect(sw.includes('// v452 (S238)')).toBe(true)
   })
 
@@ -181,12 +188,12 @@ describe('S238 wiring — the DOM half (the island-style tripwires)', () => {
     const stale: string[] = []
     for (const page of pages) {
       const html = readFileSync(join(dir, page), 'utf8')
-      if (html.includes('devboard.css?v=38')) stale.push(page + ': devboard.css v38')
+      if (html.includes('devboard.css?v=39')) stale.push(page + ': devboard.css v39')
       if (html.includes('polish-batch.css?v=29')) stale.push(page + ': polish-batch.css v29')
       if (html.includes('quicknotes.css?v=50')) stale.push(page + ': quicknotes.css v50')
-      if (html.includes('i18n-en.js?v=104')) stale.push(page + ': i18n-en.js v104')
-      if (html.includes('i18n.js?v=157')) stale.push(page + ': i18n.js v157')
-      if (html.includes('board-page.js?v=27')) stale.push(page + ': board-page.js v27')
+      if (html.includes('i18n-en.js?v=105')) stale.push(page + ': i18n-en.js v105')
+      if (html.includes('i18n.js?v=158')) stale.push(page + ': i18n.js v158')
+      if (html.includes('board-page.js?v=28')) stale.push(page + ': board-page.js v28')
       if (html.includes('focus-core.js?v=1"')) stale.push(page + ': focus-core.js v1')
     }
     expect(stale, 'stale carrier pins: ' + stale.join('; ')).toEqual([])

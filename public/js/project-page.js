@@ -1658,6 +1658,14 @@
         let pdSprintTruth = [] // [{id, name, version, description, is_draft, ended_at}]
         let pdSdDeepLinked = false
         let pdTaskTruth = [] // [{id, priority}]
+        // S246 (spec pack Phase 7 — contract §12.3): the project's dep edges for
+        // the embedded board's badge fold — the SAME flat {blocker_task_id,
+        // blocked_task_id} join the board payload carries, read off the
+        // /api/projects/:id detail pool (loadDetail's additive taskDeps key — the
+        // recorded embedded-fold decision: the detail fetch it already makes
+        // feeds the fold, ZERO new fetch sites). pdTruthWrap folds the badges
+        // through the SHARED devboard.js stack with THIS pool + pdTaskTruth.
+        let pdDepTruth = [] // [{blocker_task_id, blocked_task_id}]
         const pdTierLabel = (p) => {
           const map = { urgent: ['urgent', 'فوری'], high: ['high', 'اولویت بالا'], medium: ['medium', 'اولویت متوسط'], low: ['low', 'اولویت کم'] }
           const e = map[p] || map.medium
@@ -1690,6 +1698,13 @@
         // markdown (title + content, case-insensitive). Composes AND with priority ×
         // label (a search inside an active label filter narrows within it).
         let pdFilterQuery = ''
+        // S242 (spec pack §7.5 — embedded-board parity decision): the embedded
+        // progress board carries the SAME toolbar dimensions as /kanban (search →
+        // sprint → priority → labels), so the SPRINT view filter ships here too —
+        // the wraps already carry data-pd-sprint and the sprint truth rides the
+        // same /api/projects/:id fetch. '' = All tasks; '__none' = No sprint; any
+        // other value = a sprint id (any lifecycle state — a VIEW filter).
+        let pdFilterSprint = ''
         const pdFilterSearchTimer = { t: null }
         const pdTaskTagNames = (wrap) => {
           try {
@@ -1707,6 +1722,11 @@
             const hay = String((title && (title.getAttribute('data-raw-title') || title.textContent)) || wrap.textContent || '').toLowerCase()
             if (!hay.includes(pdFilterQuery)) return false
           }
+          // S242: the sprint view filter — data-pd-sprint ('' = unassigned).
+          if (pdFilterSprint) {
+            const sid = String(wrap.dataset.pdSprint || '')
+            if (pdFilterSprint === '__none' ? sid !== '' : sid !== pdFilterSprint) return false
+          }
           return true
         }
         const pdFilterApply = () => {
@@ -1721,7 +1741,14 @@
             b.setAttribute('aria-pressed', pdFilterTags.has(b.dataset.ft) ? 'true' : 'false')
             b.classList.toggle('is-on', pdFilterTags.has(b.dataset.ft))
           })
-          const any = pdFilterPrios.size > 0 || pdFilterTags.size > 0 || pdFilterQuery !== ''
+          // S242: the sprint select re-syncs its value + is-on tint (a rebuild or a
+          // clear can leave the DOM behind the state).
+          const sprintSel = document.querySelector('[data-pd-filter-sprint]')
+          if (sprintSel) {
+            sprintSel.value = pdFilterSprint
+            sprintSel.classList.toggle('is-on', !!pdFilterSprint)
+          }
+          const any = pdFilterPrios.size > 0 || pdFilterTags.size > 0 || pdFilterQuery !== '' || pdFilterSprint !== ''
           const clearBtn = document.querySelector('[data-pd-filter-clear]')
           if (clearBtn) clearBtn.hidden = !any
           const hint = document.querySelector('[data-pd-filter-shown]')
@@ -1741,7 +1768,118 @@
               if (btn) btn.textContent = _t('db.filterClear', 'Clear filter')
             }
           }
+          // S243 (Screen G — the embedded-board parity decision, SHIPPED): the
+          // compact overview refreshes with the filter state on EVERY apply (the
+          // toggles, the search, the swap rebuilds all funnel here).
+          pdRenderSprintOv()
         }
+        // S243 (spec §7.4 + Screen G — the embedded board's compact overview twin):
+        // selecting a NAMED sprint in the filter mounts the panel under the bar —
+        // identity + lifecycle state, the five lane counts + total (the §12.5 client
+        // fold — S243b: over the FETCHED truth with the DOM wraps' live statuses
+        // overriding, via pdOvRows(); NEVER the capped DOM alone), and the lifecycle
+        // actions the state permits through the SHARED devboard.js stack (spec §18:
+        // one implementation, no forking) — the sprints pool + the fold rows + the
+        // project id ride opts, since HibanaBoard.state is NOT loaded here.
+        function pdRenderSprintOv() {
+          const bar = document.querySelector('[data-pd-filter]')
+          if (!bar) return
+          let ov = document.querySelector('[data-pd-sprint-ov]')
+          const s = pdFilterSprint && pdFilterSprint !== '__none'
+            ? pdSprintTruth.find((x) => x && x.id === pdFilterSprint) || null
+            : null
+          if (!s) { if (ov) ov.hidden = true; return }
+          if (!ov) {
+            ov = document.createElement('div')
+            ov.className = 'db-sprint-ov'
+            ov.dataset.pdSprintOv = ''
+            bar.insertAdjacentElement('afterend', ov)
+          }
+          const ovSt = window.HibanaBoard ? window.HibanaBoard.sprintStatusOf(s) : (s.status || (s.ended_at ? 'completed' : s.is_draft ? 'planned' : 'active'))
+          // S243b: the fold's rows — the FETCHED truth (accurate: the DOM caps at
+          // 5 wraps per column), with the DOM wraps' LIVE statuses overriding (a
+          // cross-column drag patches the wrap in place without a refresh; the
+          // fetched status lags until the next bodyRefresh/pdRepaintColumns).
+          const fold = window.HibanaBoard ? window.HibanaBoard.sprintLaneCounts(s.id, pdOvRows()) : { counts: {}, total: 0 }
+          const badgeMap = {
+            active: ['sp-st-active', _t('db.sprintSt.active', 'Active')],
+            planned: ['sp-st-planned', _t('db.sprintSt.planned', 'Planned')],
+            paused: ['sp-st-paused', _t('db.sprintSt.paused', 'Paused')],
+            completed: ['sp-st-completed', _t('db.sprintSt.completed', 'Completed')],
+          }
+          const bm = badgeMap[ovSt] || badgeMap.planned
+          const dueTxt = s.due_at
+            ? '<span class="db-sprint-ov-due muted small">' + pdEsc(_t('db.ov.due', 'Due {d}').replace('{d}', new Date(s.due_at).toLocaleDateString(document.documentElement.lang === 'fa' ? 'fa-IR' : 'en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' }))) + '</span>'
+            : ''
+          const acts = []
+          if (ovSt === 'planned') acts.push('<button type="button" class="btn small" data-pd-ov-start>▸ ' + pdEsc(_t('db.startSprint', 'Start sprint')) + '</button>')
+          if (ovSt === 'paused') acts.push('<button type="button" class="btn small" data-pd-ov-resume>▸ ' + pdEsc(_t('db.resumeSprint', 'Resume')) + '</button>')
+          if (ovSt === 'active') {
+            acts.push('<button type="button" class="btn ghost small" data-pd-ov-pause>⏸ ' + pdEsc(_t('db.pauseSprint', 'Pause sprint')) + '</button>')
+            acts.push('<button type="button" class="btn ghost small" data-pd-ov-finish>⏹ ' + pdEsc(_t('db.finishSprint', 'Finish sprint')) + '</button>')
+          }
+          // S245 (Screen J1 — the embedded twin): any NON-COMPLETED sprint with a
+          // deadline gets the Extend action → the shared J1 dialog (the impact
+          // fold rides pdOvRows — the fetched truth, never the capped DOM).
+          if (ovSt !== 'completed' && s.due_at) {
+            acts.push('<button type="button" class="btn ghost small" data-pd-ov-extend>⏱ ' + pdEsc(_t('db.extendSprint', 'Extend')) + '</button>')
+          }
+          acts.push('<a class="btn ghost small" data-pd-ov-settings href="/sprint.html?project=' + encodeURIComponent(id) + '&sprint=' + encodeURIComponent(s.id) + '">⚙ ' + pdEsc(_t('db.ov.settings', 'Settings')) + '</a>')
+          const ST_LABELS = {
+            idea: _t('db.st.idea', 'New Ideas'), bug: _t('db.st.bug', 'Problems'), planned: _t('db.st.planned', 'Plans'),
+            in_progress: _t('db.st.inprog', 'In Progress'), done: _t('db.st.done', 'Implemented'),
+          }
+          ov.hidden = false
+          ov.dataset.sprintId = s.id
+          ov.innerHTML =
+            '<div class="row db-sprint-ov-head">' +
+              '<span class="db-sprint-ov-glyph" aria-hidden="true">' + pdEsc(s.emoji ? String(s.emoji) : '◆') + '</span>' +
+              '<span class="db-sprint-ov-name" dir="auto">' + pdEsc(s.name || '') + '</span>' +
+              '<span class="sp-list-badge ' + bm[0] + '">' + pdEsc(bm[1]) + '</span>' +
+              dueTxt +
+              '<span class="db-flex-gap"></span>' +
+              '<div class="row db-sprint-ov-actions">' + acts.join('') + '</div>' +
+            '</div>' +
+            '<div class="db-sprint-ov-counts" role="table" aria-label="' + pdEsc(_t('db.ov.counts', 'Task counts by Kanban column')) + '">' +
+              ['idea', 'bug', 'planned', 'in_progress', 'done'].map((st) =>
+                '<span class="db-sprint-ov-count" role="row"><span class="db-sprint-ov-lane" role="cell">' + pdEsc(ST_LABELS[st]) + '</span><b role="cell">' + pdDig(String(fold.counts[st] || 0)) + '</b></span>').join('') +
+              '<span class="db-sprint-ov-count db-sprint-ov-total" role="row"><span class="db-sprint-ov-lane" role="cell">' + pdEsc(_t('db.ov.total', 'Total')) + '</span><b role="cell">' + pdDig(String(fold.total)) + '</b></span>' +
+            '</div>'
+        }
+        // S243b (the overview-accuracy fix): ONE rows-builder for the embedded
+        // board's sprint folds — the fetched pdTaskTruth (accurate: the server
+        // renders at most MAX_VISIBLE=5 wraps per column, so a DOM-only fold
+        // undercounts lanes with 6+ tasks and can even OMIT a sprint's tasks when
+        // other cards fill the column's 5 slots first) with the DOM wraps' live
+        // statuses overriding (a cross-column drag patches data-pd-status in place;
+        // the fetched status lags until the next refresh). Both the compact
+        // overview and the shared H1/H2 dialogs consume THIS — the /kanban twin
+        // folds state.tasks (the full payload) directly.
+        const pdOvRows = () => {
+          const domStatus = new Map()
+          document.querySelectorAll('.pd-task-wrap').forEach((w) => {
+            if (w.dataset.pdTask) domStatus.set(w.dataset.pdTask, w.dataset.pdStatus || 'idea')
+          })
+          // S245: due_at rides the fold rows too — the J1 impact preview (the
+          // inheritors-vs-overrides counts) reads it on this surface.
+          return pdTaskTruth.map((t) => ({ sprint_id: t.sprint_id ?? null, status: domStatus.get(t.id) || t.status || 'idea', due_at: t.due_at ?? null }))
+        }
+        // S243 (Screen G): the overview's lifecycle actions — delegated like the bar
+        // (the panel is rebuilt inside the swap); the shared stack carries the
+        // sprints pool + the accurate fold rows, and onDone = the IN-PLACE bodyRefresh
+        // (the archive-done contract, never location.reload).
+        ctx.on('click', (e) => {
+          const ovBtn = e.target.closest('[data-pd-ov-start],[data-pd-ov-resume],[data-pd-ov-pause],[data-pd-ov-finish],[data-pd-ov-extend]')
+          if (!ovBtn) return
+          const ov = ovBtn.closest('[data-pd-sprint-ov]')
+          const s = ov && ov.dataset.sprintId ? pdSprintTruth.find((x) => x && x.id === ov.dataset.sprintId) : null
+          if (!s || !window.HibanaBoard) return
+          const opts = { sprints: pdSprintTruth, taskRows: pdOvRows(), projectId: id, onDone: bodyRefresh }
+          if (ovBtn.matches('[data-pd-ov-start],[data-pd-ov-resume]')) window.HibanaBoard.startSprintWithConflict(s.id, opts)
+          else if (ovBtn.matches('[data-pd-ov-pause]')) window.HibanaBoard.confirmSprintPause(s, opts)
+          else if (ovBtn.matches('[data-pd-ov-finish]')) window.HibanaBoard.openSprintFinish(s, opts)
+          else if (ovBtn.matches('[data-pd-ov-extend]') && window.HibanaBoard.openSprintDeadlineExtend) window.HibanaBoard.openSprintDeadlineExtend(s, opts)
+        })
         const pdFilterBuild = async () => {
           // S32 flake fix (caught by the FA-locale guard under full-suite load): the bar
           // builds on the FIRST htmx afterSwap, which can beat ensureFaDict — the prio
@@ -1760,9 +1898,29 @@
             if (res.ok) {
               const data = await res.json()
               // S30 batch 4: the tier-tooltip truth (every task's priority).
-              pdTaskTruth = ((data.project ? data.project.devTasks : data.devTasks) || []).map((t) => ({ id: t.id, priority: t.priority || 'medium' }))
+              // S243b (the overview-accuracy fix): the rows also carry sprint_id +
+              // status — the §12.5 fold for the embedded compact overview + the
+              // shared H1/H2 dialogs reads THIS fetched truth, never the capped DOM
+              // (the server renders at most 5 wraps per column; a lane with 6+ of a
+              // sprint's tasks — or a column whose 5 slots other cards fill first —
+              // would undercount or omit them entirely).
+              // S245 (spec pack Phase 6): the rows also carry title + due_at + the
+              // additive effective_* triple (the detail pool's devTasks carry them
+              // since S244) — the J1 impact fold (due_at) + the J2/J3 routing
+              // (effective_due_source) + the §13.4 origin ride-along
+              // (effective_due_origin_at) read the fetched truth on THIS surface.
+              pdTaskTruth = ((data.project ? data.project.devTasks : data.devTasks) || []).map((t) => ({
+                id: t.id, priority: t.priority || 'medium', sprint_id: t.sprint_id ?? null, status: t.status || 'idea',
+                title: t.title || '', due_at: t.due_at ?? null,
+                effective_due_at: t.effective_due_at ?? null,
+                effective_due_source: t.effective_due_source ?? null,
+                effective_due_origin_at: t.effective_due_origin_at ?? null,
+              }))
               // S33: the sprint truth (draft detection + deep-link targets).
               pdSprintTruth = (data.project ? data.project.sprints : data.sprints) || []
+              // S246: the dep edges ride the same detail fetch (the embedded-fold
+              // decision — the badges' pool, never a second request).
+              pdDepTruth = (data.project ? data.project.taskDeps : data.taskDeps) || []
               if (!pdSdDeepLinked) {
                 const sp = new URLSearchParams(location.search).get('sprint')
                 if (sp) { pdSdDeepLinked = true; pdSprintOpenDoc(sp) }
@@ -1779,8 +1937,17 @@
             }
           } catch { /* offline — the bar still renders with the priority toggles */ }
           const prioBtn = (p) => '<button type="button" class="chip db-filter-prio prio-' + p + '" data-fp="' + p + '" aria-pressed="false" title="' + pdEsc(_t('db.filterPrioHint', 'Show only {p} tasks').replace('{p}', pdPrioLabel(p))) + '"><span class="prio-dot prio-' + p + '"></span>' + pdEsc(pdPrioLabel(p)) + '</button>'
+          // S242 (spec §7.5 — embedded parity): the compact SPRINT filter, the
+          // /kanban bar's twin — All tasks (default) + No sprint + every project
+          // sprint (any lifecycle state) with its emoji-or-default glyph + name.
+          const sprintSel = '<select class="db-filter-sprint' + (pdFilterSprint ? ' is-on' : '') + '" data-pd-filter-sprint aria-label="' + pdEsc(_t('db.filterSprint', 'Sprint filter')) + '" title="' + pdEsc(_t('db.filterSprint', 'Sprint filter')) + '">' +
+            '<option value="">' + pdEsc(_t('db.filterSprintAll', 'All tasks')) + '</option>' +
+            '<option value="__none"' + (pdFilterSprint === '__none' ? ' selected' : '') + '>' + pdEsc(_t('db.noSprint', 'No sprint')) + '</option>' +
+            pdSprintTruth.map((s) => '<option value="' + pdEsc(s.id) + '"' + (pdFilterSprint === s.id ? ' selected' : '') + '>' + pdEsc((s.emoji ? s.emoji + ' ' : '◆ ') + s.name) + '</option>').join('') +
+          '</select>'
           bar.innerHTML =
             '<input type="search" class="db-filter-search" data-pd-filter-q placeholder="' + pdEsc(_t('db.filterSearchPh', 'Search tasks…')) + '" aria-label="' + pdEsc(_t('db.filterSearchPh', 'Search tasks…')) + '" autocomplete="off" spellcheck="false" dir="auto" value="' + pdEsc(pdFilterQuery) + '">' +
+            sprintSel +
             '<span class="db-filter-label muted small">' + pdEsc(_t('db.filterPrio', 'Priority')) + '</span>' +
             ['urgent', 'high', 'medium', 'low'].map(prioBtn).join('') +
             (pdFilterKnown.length
@@ -1830,6 +1997,7 @@
             e.preventDefault()
             pdFilterPrios.clear(); pdFilterTags.clear()
             pdFilterQuery = ''
+            pdFilterSprint = '' // S242: the sprint dimension clears with the rest
             const q = document.querySelector('[data-pd-filter-q]')
             if (q) q.value = ''
             pdFilterApply()
@@ -1841,6 +2009,7 @@
             e.preventDefault()
             pdFilterPrios.clear(); pdFilterTags.clear()
             pdFilterQuery = ''
+            pdFilterSprint = '' // S242: the sprint dimension clears with the rest
             const q = document.querySelector('[data-pd-filter-q]')
             if (q) { q.value = ''; q.focus() }
             pdFilterApply()
@@ -1900,6 +2069,13 @@
             pdFilterQuery = String(e.target.value || '').trim().toLowerCase()
             pdFilterApply()
           }, 120)
+        })
+        // S242 (spec §7.5): the sprint filter select — delegated change, hide-in-place
+        // (the same pdFilterApply the other dimensions ride).
+        ctx.on('change', (e) => {
+          if (!e.target.closest || !e.target.closest('[data-pd-filter-sprint]')) return
+          pdFilterSprint = String(e.target.value || '')
+          pdFilterApply()
         })
         ctx.on('keydown', (e) => {
           if (e.key !== 'Escape') return
@@ -2844,6 +3020,22 @@
         // S151: set by the touch-drag release — the synthetic click that follows an
         // active drag must not ALSO open the detail slide-over.
         let pdSuppressClickUntil = 0
+        // S245 (spec pack Phase 6 — §13 + Screens J2/J3): the deadline row's Extend
+        // affordance on the embedded board — the shared stack's ROUTER owns the
+        // scope decision (personal → J2; sprint-sourced → J3's CHOICE modal —
+        // never a silent sprint change). The task row comes from pdTaskTruth
+        // (the fetched truth carrying due_at + the effective triple), and the
+        // shared dialogs ride the sprints pool + the accurate fold rows, with
+        // the IN-PLACE bodyRefresh as onDone (the archive-done contract).
+        ctx.on('click', (e) => {
+          const extBtn = e.target.closest('[data-db-extend]')
+          if (!extBtn) return
+          e.preventDefault(); e.stopPropagation()
+          if (!window.HibanaBoard || !window.HibanaBoard.openTaskDeadlineExtend) return
+          const task = pdTaskTruth.find((t) => t.id === extBtn.getAttribute('data-db-extend'))
+          if (!task) return
+          window.HibanaBoard.openTaskDeadlineExtend(task, { sprints: pdSprintTruth, taskRows: pdOvRows(), projectId: id, onDone: bodyRefresh })
+        })
         ctx.on('click', (e) => {
           const task = e.target.closest('.pd-task[role="button"]')
           if (!task) return
@@ -2857,6 +3049,8 @@
           if (e.target.closest('[data-pd-cycle-prio], .pd-tag')) return
           // The pinned-shots button opens its own dialog (S46) — not the panel.
           if (e.target.closest('[data-pd-shots]')) return
+          // S245: the deadline row's Extend affordance routes its own flow above.
+          if (e.target.closest('[data-db-extend]')) return
           const wrap = task.closest('.pd-task-wrap')
           if (!wrap) return
           const tid = wrap.dataset.pdTask
@@ -3128,7 +3322,7 @@
         const ensureBoardLib = (cb) => {
           if (window.HibanaBoard) return cb()
           const s = document.createElement('script')
-          s.src = '/js/devboard.js?v=31'
+          s.src = '/js/devboard.js?v=36'
           s.onload = () => cb()
           s.onerror = () => window.hibana?.toast(_t('sparks.saveFailed', "Couldn't load"), 'err')
           document.head.appendChild(s)
@@ -3172,7 +3366,21 @@
             ? ` · <button type="button" class="pd-task-shots" data-pd-shots="${t.id}" title="${pdEsc(_t('db.taskShotsHint', 'Pinned pictures — note + proof stuck to this item'))}" aria-label="${pdEsc(_t('db.taskShotsBadge', 'Pinned pictures ({n})').replace('{n}', String(pinsN)))}">${pdPinIcon} ${pdDig(pinsN)}</button>`
             : ''
           const sprintBadgeHtml = sprintName ? `<span class="db-sprint-badge">◆ ${pdEsc(sprintName)}</span>` : ''
-          wrap.innerHTML = pdBannerHtml(tp) + `<div class="pd-task st-${status}" draggable="true" role="button" tabindex="0" aria-label="${pdEsc(t.title)}"><span class="pd-task-body">${pdCatChipHtml(t.category_id)}<span class="pd-task-title-row" dir="auto"><span class="pd-task-title"${pdEscTitleAttrs(t.title)}>${pdTitleHtml(t.title)}</span></span>${pdPreviewHtml(t.title)}${pdReadMoreBtnHtml(t.title)}${pdTagChipsHtml(tt, sprintBadgeHtml)}<span class="pd-task-meta">${pdMetaDateHtml(t.created_at, status === 'done')}${shotsBadgeHtml}</span></span></div>`
+          // S244 (spec pack Phase 5 — §12): the repaint twin of the server's card
+          // deadline row — the SHARED devboard.js render stack over the payload's
+          // additive effective_* triple (/api/projects/:id now carries it — the
+          // loadDetail seam). Slot: below the description area, above the tags/meta
+          // (Screen A); '' on the null triple.
+          const pdLang = window.hibanaI18n && window.hibanaI18n.lang ? window.hibanaI18n.lang() : 'en'
+          const deadlineHtml = window.HibanaBoard && window.HibanaBoard.deadlineRowHtml ? window.HibanaBoard.deadlineRowHtml(t, pdLang) : ''
+          // S246 (spec pack Phase 7 — Screen L): the repaint twin of the server's
+          // dep badge row — the SHARED devboard.js fold (depBadgeHtml) over the
+          // detail pool's taskDeps edges + pdTaskTruth's statuses (the S243b
+          // doctrine: the fetched truth, re-synced by this same repaint pass
+          // BEFORE the render loop). Slot: right after the deadline row, before
+          // the tags — byte-identical to the server fragment + the /kanban twin.
+          const depHtml = window.HibanaBoard && window.HibanaBoard.depBadgeHtml ? window.HibanaBoard.depBadgeHtml(t, pdDepTruth, pdTaskTruth, pdLang) : ''
+          wrap.innerHTML = pdBannerHtml(tp) + `<div class="pd-task st-${status}" draggable="true" role="button" tabindex="0" aria-label="${pdEsc(t.title)}"><span class="pd-task-body">${pdCatChipHtml(t.category_id)}<span class="pd-task-title-row" dir="auto"><span class="pd-task-title"${pdEscTitleAttrs(t.title)}>${pdTitleHtml(t.title)}</span></span>${pdPreviewHtml(t.title)}${pdReadMoreBtnHtml(t.title)}${deadlineHtml}${depHtml}${pdTagChipsHtml(tt, sprintBadgeHtml)}<span class="pd-task-meta">${pdMetaDateHtml(t.created_at, status === 'done')}${shotsBadgeHtml}</span></span></div>`
           return wrap
         }
         // S209 (kanban 1:1 parity): the pins-per-task + sprint-name maps derived from
@@ -3217,10 +3425,31 @@
           for (const r of tagRows) (tagsBy[r.task_id] = tagsBy[r.task_id] || []).push({ name: r.name, color: r.color })
           // S209 (kanban 1:1 parity): pins + sprint names ride the same payload.
           const { pins, sprintName } = pdDetailMaps(data)
+          // S246: the repaint's fresh payload re-folds the dep badges — the edge
+          // pool graduates to fetched truth here (a raced dep change elsewhere
+          // lands with the same repaint), exactly like the status/sprint sync
+          // below.
+          pdDepTruth = (data.project ? data.project.taskDeps : data.taskDeps) || []
           // The filter bar's tier counts ride pdTaskTruth — reconcile (track the
-          // newcomers, forget the deletes).
+          // newcomers, forget the deletes). S243b: the repaint's fresh payload also
+          // re-syncs each row's status + sprint assignment — the overview folds read
+          // them (a drag's optimistic DOM state graduates to fetched truth here).
           const seen = new Set()
-          for (const t of all) { pdTierTrack(String(t.id), t.priority || 'medium'); seen.add(String(t.id)) }
+          for (const t of all) {
+            pdTierTrack(String(t.id), t.priority || 'medium'); seen.add(String(t.id))
+            const truth = pdTaskTruth.find((r) => r.id === String(t.id))
+            // S245: the fresh payload also re-syncs the due fields (the J1 fold +
+            // the J2/J3 routing read them; a raced extension graduates to truth
+            // here, exactly like the status + sprint assignment do).
+            if (truth) {
+              truth.status = t.status || 'idea'; truth.sprint_id = t.sprint_id ?? null
+              truth.title = t.title || ''
+              truth.due_at = t.due_at ?? null
+              truth.effective_due_at = t.effective_due_at ?? null
+              truth.effective_due_source = t.effective_due_source ?? null
+              truth.effective_due_origin_at = t.effective_due_origin_at ?? null
+            }
+          }
           for (const row of [...pdTaskTruth]) if (!seen.has(row.id)) pdTierForget(row.id)
           for (const status of statuses) {
             const tasksEl = document.querySelector(`[data-pd-tasks="${status}"]`)
@@ -3285,6 +3514,9 @@
               for (const r of tagRows) (tagsBy[r.task_id] = tagsBy[r.task_id] || []).push({ name: r.name, color: r.color })
               // S209 (kanban 1:1 parity): pins + sprint names ride the same payload.
               const { pins, sprintName } = pdDetailMaps(data)
+              // S246: the dep edges ride the same fetch — the expanded wraps' badges
+              // fold from the fresh pool.
+              pdDepTruth = (data.project ? data.project.taskDeps : data.taskDeps) || []
               const shownIds = new Set([...tasksEl.querySelectorAll('.pd-task-wrap')].map((w) => w.dataset.pdTask))
               const hiddenTasks = allTasks.filter((t) => !shownIds.has(t.id))
               // S149: the wraps come from the ONE truth builder (pdTruthWrap) — the
@@ -5530,7 +5762,16 @@
             // hidden item surfaces behind the moved card, the destination's overflow
             // re-windows, all without a refresh (the optimistic block above gave the
             // instant feedback; this reconciles it with the server's render).
-            pdRepaintColumns([from, to])
+            // S246 (spec pack §16.1): a DONE transition (either direction) repaints
+            // ALL five lanes — completing the moved task RESOLVES its blocking
+            // effect on every task it blocks (Blocked → Ready) and un-completing
+            // re-opens them, and those dependents can live in any lane; the dep
+            // badges fold at wrap-render time, so their columns must re-render.
+            // Non-done moves keep the S149 two-column repaint (badges only read
+            // completion).
+            const laneEls = [...document.querySelectorAll('[data-pd-tasks]')]
+            const repaintAll = from === 'done' || to === 'done'
+            pdRepaintColumns(repaintAll ? laneEls.map((x) => x.dataset.pdTasks) : [from, to])
           } catch {
             window.hibana?.toast(_t('pd.moveFailed', "Couldn't move the task"), 'err')
             refreshBody() // restore server truth

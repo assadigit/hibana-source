@@ -139,8 +139,12 @@ describe('S235 sprint validation gaps (the audit — §4.2 + §4.3)', () => {
       const userId = await makeUser(db)
       const { app, headers } = await makeApp(db, userId)
       const pid = await createProject(app, headers, 'finish-keeps-fk probe')
-      // Create a started sprint (with dates so it's not a draft)
-      const sprintRes = await mkSprint(app, headers, pid, { name: 'Sprint to finish', started_at: '2026-01-01T00:00:00.000Z', ended_at: '2026-01-15T00:00:00.000Z' })
+      // S240 (0065) setup adaptation: the sprint is created OPEN (started_at only →
+      // status='active') instead of the old closed-with-both-dates window (which the
+      // migration now maps to COMPLETED — and a task can no longer be NEWLY assigned
+      // to a completed sprint, spec §8). The test's subject is unchanged: finish
+      // keeps the task's sprint association.
+      const sprintRes = await mkSprint(app, headers, pid, { name: 'Sprint to finish', started_at: '2026-01-01T00:00:00.000Z' })
       const sprint = (await sprintRes.json()) as { id: string }
       // Create a task assigned to this sprint
       const taskId = await createTask(app, headers, pid, sprint.id)
@@ -150,6 +154,10 @@ describe('S235 sprint validation gaps (the audit — §4.2 + §4.3)', () => {
       expect(finRes.status).toBe(200)
       // The task's sprint_id is STILL the finished sprint's id (NOT nulled)
       expect(await taskSprintId(app, headers, pid, taskId)).toBe(sprint.id)
+      // S240 extension: finish completes the sprint (ended_at stamped for the timeline)
+      const sprints = await devboardSprints(app, headers, pid)
+      const finished = sprints.find((s) => s.id === sprint.id)
+      expect(finished?.ended_at).not.toBeNull()
     } finally { close() }
   })
 

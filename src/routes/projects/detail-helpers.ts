@@ -9,7 +9,7 @@ import {
 } from '../../lib/html'
 import { trL, type Locale } from '../../lib/i18n'
 import { faDigits, toJalali, J_MONTHS_FA, G_MONTHS_EN_AB } from '../../lib/jalali'
-import { loadBacklog, taskTagsForProject, PRIO_ORDER_SQL, type BacklogEvent, type TaskTagJoin } from '../devboard-helpers'
+import { loadBacklog, taskTagsForProject, taskDepsForProject, PRIO_ORDER_SQL, type BacklogEvent, type TaskTagJoin, type TaskDepEdge, effectiveDeadlineOf } from '../devboard-helpers'
 import type { CategoryRow } from '../../lib/categories'
 import { shotsGridHtml } from '../core'
 import { STATUS_ORDER } from '../../types'
@@ -27,8 +27,27 @@ import type { QuickNote } from '../quicknotes'
 import { projectProgress } from './helpers'
 
 
+// S244 (spec pack Phase 5 — the embedded board's deadline rows): the detail
+// pool's devTasks rows carry the SERVER-computed effective-deadline triple (the
+// same effectiveDeadlineOf helper the board payload rides — S241's decision
+// recorded in assumption 9: the helper is exported for exactly this). Additive
+// fields: the HTML render (the server twin of board-page.js's card row) AND the
+// JSON pool (project-page.js's repaint twin reads them from /api/projects/:id)
+// consume the triple; the client ships zero deadline-logic (spec §18) — same
+// resolution, one seam, never forked. The sprint lookup is scoped to THIS
+// project's sprints, so a stray cross-project sprint_id inherits nothing (the
+// boardTaskRows rule).
+function devTasksWithDue(devTasks: DevTaskRow[], sprints: SprintRow[]): (DevTaskRow & { effective_due_at: string | null; effective_due_source: 'task' | 'sprint' | null; effective_due_origin_at: string | null })[] {
+  const sprintBy = new Map<string, SprintRow>()
+  for (const s of sprints) sprintBy.set(s.id, s)
+  return devTasks.map((t) => ({
+    ...t,
+    ...effectiveDeadlineOf(t, t.sprint_id != null ? sprintBy.get(t.sprint_id) : null),
+  }))
+}
+
 export async function loadDetail(cfg: Config, p: ProjectRow) {
-  const [hurdles, links, screenshots, history, tags, notes, canvasPromos, devTasks, devTaskTags, categories, sprints, backlog] = await Promise.all([
+  const [hurdles, links, screenshots, history, tags, notes, canvasPromos, devTasks, devTaskTags, categories, sprints, backlog, taskDeps] = await Promise.all([
     cfg.db.query<HurdleRow>('SELECT * FROM hurdles WHERE project_id = ? ORDER BY sort_order, created_at', [p.id]),
     cfg.db.query<LinkRow>('SELECT * FROM links WHERE project_id = ? ORDER BY created_at', [p.id]),
     cfg.db.query<ScreenshotRow>('SELECT * FROM screenshots WHERE project_id = ? ORDER BY created_at DESC', [p.id]),
@@ -78,8 +97,16 @@ export async function loadDetail(cfg: Config, p: ProjectRow) {
     cfg.db.query<SprintRow>('SELECT * FROM sprints WHERE project_id = ? ORDER BY started_at', [p.id]),
     // برنامه آتی tab payload (0033): documents + merged history feed.
     loadBacklog(cfg, p.id),
+    // S246 (spec pack Phase 7 — contract §12.3): the project's dep edges, the
+    // SAME flat join the board payload carries as its 7th key. The recorded
+    // embedded-fold decision: the detail pool (not a second board pull) feeds
+    // the embedded board's dep badges — the server render folds server-side
+    // (below) and the client repaint twin reads `taskDeps` off the SAME
+    // /api/projects/:id fetch it already makes. Additive + island-transparent
+    // (the island is the /kanban surface; a Go struct decode ignores the key).
+    taskDepsForProject(cfg, p.id),
   ])
-  return { hurdles, links, screenshots, history, tags, notes, canvasPromos, devTasks, devTaskTags, categories, sprints, backlog }
+  return { hurdles, links, screenshots, history, tags, notes, canvasPromos, devTasks: devTasksWithDue(devTasks, sprints), devTaskTags, categories, sprints, backlog, taskDeps }
 }
 
 
@@ -241,28 +268,166 @@ export function detailHtml(p: ProjectRow, d: Awaited<ReturnType<typeof loadDetai
     list.push(row)
     tagsByTask.set(row.task_id, list)
   }
-  const taskTagChips = (taskId: string, sprintBadge = ''): string => {
+  const taskTagChips = (taskId: string): string => {
     const list = tagsByTask.get(taskId) ?? []
-    if (!list.length && !sprintBadge) return ''
+    if (!list.length) return ''
     return `<span class="pd-task-tags">${list
       .map((tg) => `<span dir="auto" class="pd-tag" data-pd-tag-name="${esc(tg.name)}"><i class="pd-tag-dot" style="background:${esc(tg.color)}"></i>${esc(tg.name)}</span>`)
-      .join('')}${sprintBadge}</span>`
+      .join('')}</span>`
   }
   const taskTagsAttr = (taskId: string): string => {
     const list = tagsByTask.get(taskId) ?? []
     return esc(JSON.stringify(list.map((tg) => ({ name: tg.name, color: tg.color }))))
   }
-  // S209 (kanban 1:1 parity): the card's SPRINT BADGE — the same ◆ name chip the
+  // S209 (kanban 1:1 parity): the card's SPRINT BADGE — the same chip the
   // /kanban cards carry (board-page.js .db-sprint-badge), so a sprinted task reads
   // identically on both surfaces. Resolved from the same payload's sprints rows.
-  const sprintName = (sid: string | null): string | null => {
-    if (!sid) return null
-    const sp = d.sprints.find((s) => s.id === sid)
-    return sp ? sp.name : null
-  }
+  // S242 (spec pack §3.2/Screen A — card sprint identity): the badge is now its
+  // OWN compact row directly under the description/preview (BEFORE the label
+  // chips + the timestamp area — the Phase 5 deadline row slots in after it) and
+  // carries the sprint's EMOJI when one is set (spec §4.2), else the default ◆
+  // glyph — byte-identical markup to board-page.js's sprintRowHtml.
+  const sprintById = new Map<string, SprintRow>()
+  for (const s of d.sprints) sprintById.set(s.id, s)
   const sprintBadgeHtml = (sid: string | null): string => {
-    const nm = sprintName(sid)
-    return nm ? `<span class="db-sprint-badge">◆ ${esc(nm)}</span>` : ''
+    if (!sid) return ''
+    const sp = sprintById.get(sid)
+    if (!sp) return ''
+    return `<span class="db-sprint-badge">${esc((sp.emoji ? sp.emoji + ' ' : '◆ ') + sp.name)}</span>`
+  }
+
+  // S244 (spec pack Phase 5 — §12, Screen A): the embedded board's DEADLINE ROW +
+  // THIN PROGRESS BAR — the server twin of devboard.js's shared deadlineRowHtml
+  // (byte-identical card grammar; the S209 parity contract's next seam). The
+  // classification (§12.3 thresholds at the exact 48h/7d boundaries) and the
+  // elapsed-time ratio (§12.2 — effective_due_origin_at → effective_due_at,
+  // clamped 0-100) are RENDER-time computations over the server-resolved triple
+  // (loadDetail's additive fields); the resolution itself stays one helper
+  // (effectiveDeadlineOf — spec §18, never forked). Renders '' on the null triple.
+  const DUE_ICON = '<svg class="icon db-due-ic" viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="5" width="17" height="15" rx="2"/><path d="M8 3v4M16 3v4M3.5 10h17"/><circle cx="12" cy="15.2" r="3.1"/><path d="M12 13.9v1.5l1 .7"/></svg>'
+  const H48 = 48 * 3600000
+  const D7 = 7 * 86400000
+  const dueStateOf = (t: { status: string; effective_due_at: string | null }): string | null => {
+    if (!t.effective_due_at) return null
+    if (t.status === 'done') return 'done' // §12.4: no live countdown on a completed task
+    const rem = Date.parse(t.effective_due_at) - Date.now()
+    if (rem <= 0) return 'overdue'
+    if (rem <= H48) return 'urgent'
+    if (rem <= D7) return 'approaching'
+    return 'comfortable'
+  }
+  const dueElapsedPct = (t: { effective_due_at: string | null; effective_due_origin_at: string | null }): number => {
+    if (!t.effective_due_at) return 0
+    const now = Date.now()
+    const dueMs = Date.parse(t.effective_due_at)
+    const originMs = t.effective_due_origin_at ? Date.parse(t.effective_due_origin_at) : dueMs
+    if (now >= dueMs) return 100
+    if (dueMs <= originMs || now <= originMs) return 0
+    return Math.min(100, Math.max(0, Math.round(((now - originMs) / (dueMs - originMs)) * 100)))
+  }
+  const dueDayLabel = (ms: number, locale: Locale): string => {
+    const dt = new Date(ms)
+    if (locale === 'fa') {
+      const j = toJalali(dt.getUTCFullYear(), dt.getUTCMonth() + 1, dt.getUTCDate())
+      return `${faDigits(String(j.jd))} ${J_MONTHS_FA[j.jm - 1]}`
+    }
+    return `${G_MONTHS_EN_AB[dt.getUTCMonth()]} ${dt.getUTCDate()}`
+  }
+  const utcDayIdx = (ms: number): number => Math.floor(ms / 86400000)
+  const dueLeftLabel = (dueMs: number, locale: Locale): { left: string; standalone: boolean } => {
+    const now = Date.now()
+    if (now >= dueMs) {
+      const days = utcDayIdx(now) - utcDayIdx(dueMs)
+      if (days >= 2) return { left: trL(locale, 'Overdue by {n} days', '{n} روز گذشته', { n: dig(days) }), standalone: true }
+      if (days === 1) return { left: trL(locale, 'Overdue by {n} day', '{n} روز گذشته', { n: dig(1) }), standalone: true }
+      return { left: trL(locale, 'Overdue by {n}h', '{n} ساعت گذشته', { n: dig(Math.max(1, Math.round((now - dueMs) / 3600000))) }), standalone: true }
+    }
+    const days = utcDayIdx(dueMs) - utcDayIdx(now)
+    if (days === 0) return { left: trL(locale, 'Due today', 'مهلت امروز'), standalone: true }
+    if (days === 1) return { left: trL(locale, 'Due tomorrow', 'مهلت فردا'), standalone: true }
+    return { left: trL(locale, '{n} days left', '{n} روز مانده', { n: dig(days) }), standalone: false }
+  }
+  const deadlineRowHtml = (t: DevTaskRow & { effective_due_at: string | null; effective_due_source: 'task' | 'sprint' | null; effective_due_origin_at: string | null }): string => {
+    const state = dueStateOf(t)
+    if (!state || t.effective_due_at == null) return ''
+    const pct = dueElapsedPct(t)
+    const dueMs = Date.parse(t.effective_due_at)
+    const sprintSrc = t.effective_due_source === 'sprint'
+    let label: string
+    if (state === 'done') {
+      label = sprintSrc
+        ? `✓ ${trL(lang, 'Done', 'انجام شد')} · ${trL(lang, 'Sprint deadline', 'مهلت اسپرینت')} · ${dueDayLabel(dueMs, lang)}`
+        : `✓ ${trL(lang, 'Done', 'انجام شد')} · ${trL(lang, 'Due {d}', 'مهلت {d}', { d: dueDayLabel(dueMs, lang) })}`
+    } else {
+      // §12.3's example vocabulary: the today/tomorrow/overdue forms read
+      // STANDALONE (no date prefix); the dated forms carry the day label; the
+      // inherited row identifies the source ('Sprint deadline · …', §10.1).
+      const { left, standalone } = dueLeftLabel(dueMs, lang)
+      if (sprintSrc) label = `${trL(lang, 'Sprint deadline', 'مهلت اسپرینت')} · ${left}`
+      else if (standalone) label = left
+      else label = `${trL(lang, 'Due {d}', 'مهلت {d}', { d: dueDayLabel(dueMs, lang) })} · ${left}`
+    }
+    // S245 (spec pack Phase 6 — §13): the row's inline end carries the compact
+    // Extend affordance, byte-identical to devboard.js's client twin (the S209
+    // parity contract) — data-db-extend routes personal → J2, sprint-sourced →
+    // J3 through project-page.js's delegated handler.
+    const extHint = trL(lang, 'Extend deadline', 'تمدید مهلت')
+    const extBtn = t.id
+      ? `<button type="button" class="db-due-ext" data-db-extend="${esc(t.id)}" title="${esc(extHint)}" aria-label="${esc(extHint)}"><svg class="icon db-due-ext-ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M14 4h6v6"/><path d="M20 4l-9 9"/><path d="M9 4H6a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3"/></svg></button>`
+      : ''
+    return `<span class="db-due-row st-${state}">${DUE_ICON}<span class="db-due-txt" dir="auto">${esc(label)}</span>${extBtn}</span>` +
+      `<span class="db-due-bar" aria-hidden="true"><span class="db-due-fill st-${state}" style="width:${pct}%"></span></span>`
+  }
+
+  // S246 (spec pack Phase 7 — §16 + Screens L/M-6/7): the embedded board's dep
+  // badges — the SERVER twin of devboard.js's shared depBadgeHtml (byte-identical
+  // card grammar; the S209 parity contract's next seam). The fold is the §12.3
+  // client-fold doctrine run at render time over the detail pool's own edge join
+  // (taskDeps, above): Blocked-by = edges where blocked_task_id = X joined
+  // against the task rows for completion; the reverse Blocks N = the same fold's
+  // other half (derived, never a stored column — spec §15). §16.1: blocked while
+  // ANY blocker is incomplete; 'ready' when blockers existed and ALL are done.
+  // SOFT indicators only — never a gate, never a priority/status mutation.
+  const DEP_BLOCKED_ICON = '<svg class="icon db-dep-ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="M8.4 12h7.2"/></svg>'
+  const DEP_READY_ICON = '<svg class="icon db-dep-ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>'
+  const DEP_BLOCKS_ICON = '<svg class="icon db-dep-ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h13"/><path d="M13 6.5l5.5 5.5-5.5 5.5"/></svg>'
+  const depBlockedBy = new Map<string, string[]>()
+  const depBlocksIds = new Map<string, string[]>()
+  for (const e of d.taskDeps as TaskDepEdge[]) {
+    if (!e) continue
+    if (!depBlockedBy.has(e.blocked_task_id)) depBlockedBy.set(e.blocked_task_id, [])
+    depBlockedBy.get(e.blocked_task_id)!.push(e.blocker_task_id)
+    if (!depBlocksIds.has(e.blocker_task_id)) depBlocksIds.set(e.blocker_task_id, [])
+    depBlocksIds.get(e.blocker_task_id)!.push(e.blocked_task_id)
+  }
+  const depStatusBy = new Map<string, string>()
+  for (const t of d.devTasks) depStatusBy.set(t.id, t.status)
+  const depBadgeHtml = (t: DevTaskRow): string => {
+    const blockerIds = depBlockedBy.get(t.id) ?? []
+    const blocksIds = depBlocksIds.get(t.id) ?? []
+    if (!blockerIds.length && !blocksIds.length) return ''
+    let open = 0
+    for (const bid of blockerIds) if (depStatusBy.get(bid) !== 'done') open++
+    const st = blockerIds.length ? (open > 0 ? 'blocked' : 'ready') : null
+    let html = '<span class="db-dep-row">'
+    if (blockerIds.length) {
+      const label = st === 'ready'
+        ? trL(lang, 'Ready', 'آماده')
+        : blockerIds.length > 1
+          ? trL(lang, 'Blocked · {n}', 'مسدود · {n}', { n: dig(blockerIds.length) })
+          : trL(lang, 'Blocked', 'مسدود')
+      const hint = st === 'ready'
+        ? trL(lang, 'All blockers are complete — this task is ready.', 'همهٔ مسدودکننده‌ها کامل شده‌اند — این وظیفه آماده است.')
+        : trL(lang, 'Blocked by {n} task(s) — open the task to see them.', 'مسدود توسط {n} وظیفه — برای دیدن آن‌ها وظیفه را باز کن.', { n: dig(blockerIds.length) })
+      html += `<span class="db-dep-badge st-${st}" title="${esc(hint)}">${st === 'ready' ? DEP_READY_ICON : DEP_BLOCKED_ICON}<span class="db-dep-badge-txt" dir="auto">${esc(label)}</span></span>`
+    }
+    if (blocksIds.length) {
+      const label = trL(lang, 'Blocks {n}', 'مسدودکنندهٔ {n}', { n: dig(blocksIds.length) })
+      const hint = trL(lang, 'This task blocks {n} task(s).', 'این وظیفه {n} وظیفه را مسدود می‌کند.', { n: dig(blocksIds.length) })
+      html += `<span class="db-dep-badge st-blocks" title="${esc(hint)}">${DEP_BLOCKS_ICON}<span class="db-dep-badge-txt" dir="auto">${esc(label)}</span></span>`
+    }
+    html += '</span>'
+    return html
   }
   // S152 (block 6): the task's category as a small colored chip DIRECTLY ABOVE the
   // task title, wearing the category's own fill+ink pair. The map covers every row
@@ -508,7 +673,10 @@ export function detailHtml(p: ProjectRow, d: Awaited<ReturnType<typeof loadDetai
                     </span>
                     ${previewHtml(t.title)}
                     ${readMoreBtn(t.title)}
-                    ${taskTagChips(t.id, sprintBadgeHtml(t.sprint_id))}
+                    ${sprintBadgeHtml(t.sprint_id)}
+                    ${deadlineRowHtml(t)}
+                    ${depBadgeHtml(t)}
+                    ${taskTagChips(t.id)}
                     <span class="pd-task-meta">${esc(taskMetaLabel(t))}${pinsByTask.has(t.id) ? ` · <button type="button" class="pd-task-shots" data-pd-shots="${t.id}" title="${esc(trL(lang, 'Pinned pictures — note + proof stuck to this item', 'تصاویر سنجاق‌شده — یادداشت + مدرکِ سنجاق‌شده به این قلم'))}" aria-label="${esc(trL(lang, 'Pinned pictures ({n})', 'تصاویر سنجاق‌شده ({n})', { n: dig(pinsByTask.get(t.id)!) }))}">${icon('pin')} ${dig(pinsByTask.get(t.id)!)}</button>` : ''}${syncBadgeServer(t.id)}</span>
                   </span>
                 </div>

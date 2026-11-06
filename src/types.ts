@@ -236,7 +236,24 @@ export interface DevTaskRow {
   // contract for the overview cards. NULL on rows a pre-0061 writer touched (the
   // migration backfills COALESCE(done_at, created_at); the readers COALESCE again).
   updated_at: string | null
+  // 0065 (S240 — spec pack §9/§12.2): the OPTIONAL personal deadline (ISO-8601
+  // instant; date-only resolves to local 23:59 client-side). Effective deadline
+  // precedence (personal > sprint-inherited > none) is resolved at read time.
+  due_at: string | null
+  // The deadline's progress START stamp: set when due_at first appears, preserved on
+  // edits (extension ≠ re-assignment — §13.2/§12.2), cleared with due_at; re-adding
+  // starts a fresh timeline. NULL ⇔ due_at NULL (readers may coalesce to due_at).
+  due_origin_at: string | null
 }
+
+// 0065 (S240 — spec pack §5): the sprint's explicit lifecycle. status is the
+// authoritative truth; the legacy is_draft/ended_at pair stays as the timeline's
+// band-edge representation and every writer keeps them in lock-step
+// (ended_at NOT NULL ⇔ completed; is_draft=1 ⇔ planned). Nullable-by-construction —
+// the 0065 backfill fills every pre-existing row and the service layer stamps every
+// write, but a lagging pre-0065 D1 serves rows without the key (readers coalesce
+// via devboard-helpers.sprintStatusOf, which re-derives from the legacy pair).
+export type SprintStatus = 'planned' | 'active' | 'paused' | 'completed'
 
 export interface SprintRow {
   id: string
@@ -248,6 +265,38 @@ export interface SprintRow {
   is_draft: 0 | 1 // draft sprint (never started) — the create flow parks it here until /start
   version: string | null // 0052: the sprint's version-number label ("12.1") — free text
   description: string | null // 0052: the sprint's rich doc (markdown + fenced code) — the full-screen editor's subject
+  status: SprintStatus | null // 0065 (S240): explicit lifecycle — see SprintStatus above
+  emoji: string | null // 0065 (S240 — §4.2): optional identity; NULL = the default sprint glyph
+  due_at: string | null // 0065 (S240 — §9): optional sprint-level deadline (ISO-8601 instant)
+  due_origin_at: string | null // 0065 (S240 — §12.2): the sprint deadline's progress-start stamp (set/edit-preserve/clear-reset)
+  updated_at: string | null // 0065 (S240 — D8): stamped on every sprint write (sync gap); NULL on legacy rows
+}
+
+// 0065 (S240 — §14): one blocker→blocked edge. The user-facing "Blocks N" view is
+// derived; same-project + acyclicity live in the service layer (devboard.ts).
+export interface TaskDepRow {
+  blocker_task_id: string
+  blocked_task_id: string
+  created_at: string
+}
+
+// 0065 (S240 — D3): the archived task's permanent shape. sprint_name_snapshot is the
+// historical sprint label: the sprint's name at archive time on finish, "<name>
+// (deleted)" once that sprint is deleted — the archive keeps its history when the
+// live FK (sprint_id) is detached.
+export interface ProjectArchiveRow {
+  id: string
+  project_id: string
+  title: string
+  status: string
+  priority: string
+  category_id: string | null
+  sprint_id: string | null
+  done_at: string | null
+  original_created_at: string
+  archived_at: string
+  tags: string // JSON snapshot [{name,color}] (0051/S30 B1)
+  sprint_name_snapshot: string | null
 }
 
 // --- Notes Vault (0057 — S53: standalone long-form knowledge base, /notes) --------

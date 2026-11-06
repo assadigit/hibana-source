@@ -339,3 +339,83 @@ test('a11y — color independence: the WORD always carries the meaning (threshol
   expect(txtBefore && txtBefore.trim().length).toBeGreaterThan(0)
   expect(errors).toEqual([])
 })
+
+// S247b (the Phase 8 reconciliation on top of e49f2e5): the adopted round
+// recorded the DARK-theme state family under 4.5:1 as a known limitation
+// (assumption 15); the claude-dark-theme.css S247b block closes it and THIS
+// test pins the rendered ratios in the dark theme — the same measurement
+// grammar as the light-theme test above, with one addition: a READY badge
+// (the light seed never reaches the Ready state — the readyBlocker there only
+// keeps the blocked task BLOCKED; here a second done-blocker pair flips one).
+test('a11y — AA contrast in the DARK theme (claude-dark): the state family + the dep badges clear 4.5:1 on the dark card — the S247b reconciliation closes the adopted round\'s recorded limitation', async ({ page, browserName }) => {
+  test.skip(browserName !== 'chromium', 'Desktop Chromium only')
+  const errors = trackErrors(page)
+  await login(page)
+  const seed = await seedAllStates(page)
+  // one more pair so the READY badge renders: a task blocked by an all-done set
+  const ready = await page.evaluate(async (pid: string) => {
+    const mk = async (title: string, body: Record<string, unknown> = {}) => {
+      const r = (await (await fetch(`/api/projects/${pid}/devtasks`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ title, sprint_id: null, ...body }) })).json()) as { id: string }
+      return r.id
+    }
+    const doneBlk = await mk('a11y dark done blocker', { status: 'done' })
+    const readyTask = await mk('a11y dark ready')
+    await fetch(`/api/devtasks/${readyTask}/deps`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ blocker_id: doneBlk }) })
+    return readyTask
+  }, seed.pid)
+  await page.goto(`/kanban?project=${seed.pid}`)
+  await boardReady(page)
+
+  // switch to the app's only dark mode (S87) — the sheet is linked on board.html,
+  // so the attr flip re-skins live; persist the choice like the Settings picker does
+  await page.evaluate(() => {
+    localStorage.setItem('hibana-theme', 'claude-dark')
+    document.documentElement.setAttribute('data-theme', 'claude-dark')
+  })
+  await page.waitForTimeout(200)
+
+  const ratios = await page.evaluate(async (ids: Record<string, string>) => {
+    const lum = (r: number, g: number, b: number) => {
+      const f = (c: number) => { c /= 255; return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4) }
+      return 0.2126 * f(r) + 0.7152 * f(g) + 0.0722 * f(b)
+    }
+    const parse = (c: string) => { const m = c.match(/rgba?\((\d+), (\d+), (\d+)(?:, ([\d.]+))?\)/); return m ? { r: +m[1], g: +m[2], b: +m[3], a: m[4] === undefined ? 1 : +m[4] } : null }
+    const effBg = (el: Element) => {
+      let n: Element | null = el
+      while (n && n !== document.documentElement) {
+        const bg = parse(getComputedStyle(n).backgroundColor)
+        if (bg && bg.a > 0.85) return bg
+        n = n.parentElement
+      }
+      return { r: 255, g: 255, b: 255, a: 1 }
+    }
+    const ratioOf = (el: Element) => {
+      const fg = parse(getComputedStyle(el).color)!
+      const bg = effBg(el)
+      const la = lum(fg.r, fg.g, fg.b), lb = lum(bg.r, bg.g, bg.b)
+      return (Math.max(la, lb) + 0.05) / (Math.min(la, lb) + 0.05)
+    }
+    const out: Record<string, number> = {}
+    const row = (id: string, sel: string) => {
+      const el = document.querySelector(`.pd-task-wrap[data-task-card="${id}"] ${sel}`)
+      if (el) out[id + '|' + sel] = Math.round(ratioOf(el) * 100) / 100
+    }
+    for (const id of [ids.comfortable, ids.approaching, ids.urgent, ids.overdue, ids.doneTask]) row(id, '.db-due-row')
+    row(ids.blocked, '.db-dep-badge.st-blocked')
+    row(ids.blocker, '.db-dep-badge.st-blocks')
+    row(ids.ready, '.db-dep-badge.st-ready')
+    return out
+  }, { ...seed, ready })
+
+  // the four threshold words + done on the dark card: ≥ 4.5:1 (the S247b lift)
+  expect(ratios[`${seed.comfortable}|.db-due-row`], 'dark: comfortable word contrast').toBeGreaterThanOrEqual(4.5)
+  expect(ratios[`${seed.approaching}|.db-due-row`], 'dark: approaching word contrast (the S247b amber lift)').toBeGreaterThanOrEqual(4.5)
+  expect(ratios[`${seed.urgent}|.db-due-row`], 'dark: urgent word contrast').toBeGreaterThanOrEqual(4.5)
+  expect(ratios[`${seed.overdue}|.db-due-row`], 'dark: overdue word contrast').toBeGreaterThanOrEqual(4.5)
+  expect(ratios[`${seed.doneTask}|.db-due-row`], 'dark: the Done row rides the theme --muted (6.06:1 documented in the sheet)').toBeGreaterThanOrEqual(4.5)
+  // the three badge variants on their dark tinted wells: ≥ 4.5:1
+  expect(ratios[`${seed.blocked}|.db-dep-badge.st-blocked`], 'dark: the Blocked badge text').toBeGreaterThanOrEqual(4.5)
+  expect(ratios[`${seed.blocker}|.db-dep-badge.st-blocks`], 'dark: the Blocks badge text (the theme --muted)').toBeGreaterThanOrEqual(4.5)
+  expect(ratios[`${ready}|.db-dep-badge.st-ready`], 'dark: the Ready badge text (the S247b sage lift)').toBeGreaterThanOrEqual(4.5)
+  expect(errors).toEqual([])
+})

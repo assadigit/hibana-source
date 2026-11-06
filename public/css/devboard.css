@@ -172,8 +172,13 @@ main.board-shell .db-frame { min-block-size: calc(100dvh - 1.5rem); }
 }
 .db-due-row .db-due-ic { inline-size: 0.85rem; block-size: 0.85rem; flex: none; }
 .db-due-txt { overflow: hidden; text-overflow: ellipsis; }
-.db-due-row.st-comfortable { color: #5a7d5a; }
-.db-due-row.st-approaching { color: #9a6f2f; }
+/* S247 (Phase 8 a11y): the text pair darkened to clear WCAG AA 4.5:1 on the
+   white card — comfortable #5a7d5a→#4d6b4d (5.96:1), approaching
+   #9a6f2f→#8a6428 (5.34:1); still the §12.3 "restrained sage/green" and
+   "restrained amber" character. The FILLS below stay decorative (the bar is
+   aria-hidden — the WORD always carries the meaning, never color alone). */
+.db-due-row.st-comfortable { color: #4d6b4d; }
+.db-due-row.st-approaching { color: #8a6428; }
 .db-due-row.st-urgent { color: #b03f3f; }
 .db-due-row.st-overdue { color: #a02c2c; font-weight: 600; }
 .db-due-row.st-done { color: var(--muted, #8a8f98); }
@@ -300,8 +305,8 @@ main.board-shell .db-frame { min-block-size: calc(100dvh - 1.5rem); }
 }
 .db-dep-badge .db-dep-ic { inline-size: 0.85rem; block-size: 0.85rem; flex: none; }
 .db-dep-badge-txt { overflow: hidden; text-overflow: ellipsis; }
-.db-dep-badge.st-blocked { color: #9a6f2f; background: color-mix(in srgb, #d9a45b 16%, transparent); }
-.db-dep-badge.st-ready { color: #5a7d5a; background: color-mix(in srgb, #8fb58f 18%, transparent); }
+.db-dep-badge.st-blocked { color: #8a6428; background: color-mix(in srgb, #d9a45b 16%, transparent); } /* S247 a11y: 4.73:1 on the tint */
+.db-dep-badge.st-ready { color: #4d6b4d; background: color-mix(in srgb, #8fb58f 18%, transparent); } /* S247 a11y: 5.23:1 on the tint */
 .db-dep-badge.st-blocks { color: var(--muted, #8a8f98); background: color-mix(in srgb, var(--line, #e4e2dd) 55%, transparent); }
 /* the read-only task view's meta rows carry the row-only variant inline (the
    details surface — blocker names ride here per §16) */

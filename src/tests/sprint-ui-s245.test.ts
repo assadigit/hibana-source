@@ -390,10 +390,10 @@ describe('S245 — the desktop seam tripwires + the ladder (the Phase 9 re-pin i
     expect((readPublic('js/board-page.js').match(/\bfetch\(/g) || []).length).toBe(4)
   })
 
-  it('sw.js is at hibana-v458 with the S246 carrier note (the dependencies round moved the ladder; the S245 pin intent is preserved, the carriers moved with it)', () => {
+  it('sw.js is at hibana-v459 with the S247 carrier note (the Phase-8 a11y/contrast round moved the ladder; the S245 pin intent is preserved, the carriers moved with it)', () => {
     const sw = readPublic('sw.js')
-    expect(sw.includes('const VERSION = "hibana-v458"')).toBe(true)
-    expect(sw.includes('// v458 (S246)')).toBe(true)
+    expect(sw.includes('const VERSION = "hibana-v459"')).toBe(true)
+    expect(sw.includes('// v459 (S247)')).toBe(true)
     expect(sw).toMatch(/devboard\.js v36/)
     expect(sw).toMatch(/board-page\.js v33/)
     expect(sw).toMatch(/project-page\.js v84/)
